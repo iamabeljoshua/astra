@@ -1,5 +1,5 @@
 {
-  // The Swagger plugin needs a full program, and ts-jest only keeps one with these settings.
+  // Under the inherited isolatedModules and nodenext settings, ts-jest breaks the Swagger plugin's type lookups.
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "isolatedModules": false,
