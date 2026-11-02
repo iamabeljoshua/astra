@@ -12,8 +12,8 @@ export class ProbeController {
 
   /** Lists probes. */
   @Get()
-  listProbes(@Query() query: ListProbesQueryDto): ListProbesQueryDto {
-    return query;
+  listProbes(@Query() query: ListProbesQueryDto): { limit: number; isDtoInstance: boolean } {
+    return { limit: query.limit, isDtoInstance: query instanceof ListProbesQueryDto };
   }
 
   /** Reads one probe. */
