@@ -1,0 +1,102 @@
+@import './fonts.css';
+
+@theme static {
+  --color-*: initial;
+  --color-paper: #F6F1E6;
+  --color-panel: #EFE8DA;
+  --color-ink: #1B1815;
+  --color-ink-2: #5F574C;
+  --color-line: #CFC6B5;
+  --color-accent: #1B1815;
+
+  --font-*: initial;
+  --font-ui: 'Barlow', 'DIN Alternate', 'Helvetica Neue', Arial, sans-serif;
+  --font-voice: 'Newsreader', Georgia, 'Times New Roman', serif;
+  --default-font-family: var(--font-ui);
+
+  --text-*: initial;
+  --text-label: 11px;
+  --text-fine: 13px;
+  --text-mark: 14px;
+  --text-body: 15px;
+  --text-title: 28px;
+  --text-title--line-height: 1.2;
+  --text-greeting: clamp(30px, 2.8vw, 38px);
+  --text-greeting--line-height: 1.1;
+
+  --breakpoint-*: initial;
+  --breakpoint-md: 761px;
+
+  --spacing-sidebar: 216px;
+  --spacing-page-side: clamp(16px, 3vw, 40px);
+  --spacing-page-top: clamp(20px, 4.5vh, 44px);
+  --container-column: 1020px;
+
+  --animate-arrive: arrive 0.5s linear;
+
+  @keyframes arrive {
+    from {
+      opacity: 0;
+    }
+  }
+}
+
+@layer theme {
+  :root {
+    color-scheme: light;
+  }
+
+  :root[data-theme='dark'] {
+    color-scheme: dark;
+    --color-paper: #000000;
+    --color-panel: #0E0D0B;
+    --color-ink: #FFFBF5;
+    --color-ink-2: #A79F92;
+    --color-line: #2B2823;
+    --color-accent: #FFCC94;
+  }
+}
+
+@layer base {
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-size: var(--text-body);
+    transition:
+      background-color 0.24s linear,
+      color 0.24s linear;
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
+
+@utility label {
+  font-size: var(--text-label);
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+@utility product-mark {
+  font-size: var(--text-mark);
+  font-weight: 600;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

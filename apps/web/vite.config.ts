@@ -1,3 +1,4 @@
+import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
@@ -8,7 +9,7 @@ const webPort = Number(process.env.WEB_PORT ?? DEFAULT_WEB_PORT);
 const apiPort = process.env.API_PORT ?? DEFAULT_API_PORT;
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   server: {
     port: webPort,
     strictPort: true,
