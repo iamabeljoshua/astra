@@ -68,8 +68,10 @@ describe('request validation', () => {
     expectBadRequestNaming(response, 'undeclaredField');
   });
 
-  it('turns a valid query string into the types that the DTO declares', async () => {
-    await request(app.getHttpServer()).get('/probes?limit=5').expect(200, { limit: 5 });
+  it('gives the route an instance of the DTO, with the types that the DTO declares', async () => {
+    await request(app.getHttpServer())
+      .get('/probes?limit=5')
+      .expect(200, { limit: 5, isDtoInstance: true });
   });
 
   it('rejects a bad route parameter and names the field', async () => {
