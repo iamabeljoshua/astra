@@ -1,6 +1,6 @@
 # PRD v1: a personal AI tutor that teaches out loud on a living board
 
-Status: approved by Abel on 2 November 2026, including the recommendations in section 15. Sections 6.1 and 6.2, the onboarding and home requirements, and P4 record what he added with that approval. B11 records the look he approved afterward, and he then removed the particle swarm from the product.
+Status: approved by Abel on 2 November 2026, including the recommendations in section 15. Sections 6.1 and 6.2, the onboarding and home requirements, and P4 record what he added with that approval. B11 records the look he approved afterward, and he then took the particle swarm out of the v1 plan.
 Date: 2 November 2026.
 Codename: Astra. The public name is still open (Q1).
 
@@ -164,7 +164,7 @@ All requirements are needed for the beta unless marked otherwise. The numeric ta
 - **B6.** The player can stop, rewind one beat, and resume, and the board stays consistent.
 - **B7.** Any session replays exactly from its stored event log, with no stored video.
 - **B8.** The student can draw and write on the board and upload photos and PDFs. The tutor can read them and respond.
-- **B9.** The dot pulses with speech, moves to the element under discussion, draws strokes, and rests while listening. The board stays still while the student reads. v1 has no particle swarm or decorative morphing, and a visual appears only because the tutor is teaching something. An equation rearranging term by term is teaching, so it stays.
+- **B9.** The dot pulses with speech, moves to the element under discussion, draws strokes, and rests while listening. The board stays still while the student reads. The v1 plan does not include a particle swarm. Morphing and other effects are fine where they help the lesson or the experience, as with an equation rearranging term by term.
 - **B10.** The board honors the reduced-motion setting and never flashes more than three times a second.
 - **B11.** The product follows `docs/DESIGN.md`. A warm light theme is the default, and a toggle switches to dark. Both themes exist from the first UI PR.
 
@@ -226,7 +226,7 @@ The stored event log also provides replay (B7) and the static-board comparison i
 
 ### The layers
 
-1. **The dot.** A small element for the tutor's presence. It needs no particle engine, so it adds almost nothing to the board's frame budget. The swarm in `content-videos/made-of-dots` stays in films and marketing.
+1. **The dot.** A small element for the tutor's presence. It needs no particle engine, so it adds almost nothing to the board's frame budget. The swarm in `content-videos/made-of-dots` is not in the v1 plan.
 2. **Explanations.** Math, plots, vectors, and computed motion, with equations that morph term by term. [Manim-Web](https://hn.svelte.dev/item/47155375) and [ecmanim](https://github.com/johnhenry/ecmanim) show that browser rendering is possible. Manim-Web's author says parity is still in progress, and commenters report flicker and fuzzy text. Treat them as references, and let test 1 decide whether any of their code is worth adopting.
 3. **Ink.** Student and tutor strokes, with a natural freehand look.
 
@@ -375,7 +375,7 @@ The recommended mix is 40 students aged 13 to 17 where counsel has cleared invit
 ## 16. What we reuse and where we diverge
 
 - `agentic-tutor/docs/NORTH_STAR_PLAN.md` already chose a cascaded voice pipeline on LiveKit, session records, and the sync insight. This PRD keeps those. It replaces tldraw and live Manim as the renderer, because living explanations are now the visual we must win on.
-- `content-videos/made-of-dots` and the Portal ending provide the dot, the visual language, and the opening moment. The film's swarm is not part of the product.
+- `content-videos/made-of-dots` and the Portal ending provide the dot, the visual language, and the opening moment. The film's swarm is not in the v1 plan.
 - The [look prototype](https://claude.ai/artifact/3Kw7Ggukb39GerA4E5pK7u) sets the type, the palette, and the ink and light dot rendering.
 - The `agentic-tutor` user study had 8 participants and one topic. Your earlier plan says not to cite it externally, and that still stands.
 

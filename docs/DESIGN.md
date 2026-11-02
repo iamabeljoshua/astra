@@ -39,8 +39,8 @@ Other color comes only from the content, such as a painting or a plotted series.
 - The page is still at rest, and stays still while the student reads.
 - Motion needs a cause: the tutor's word or the student's action.
 - The main motion is the board drawing itself in time with speech.
-- Changing a view is a quiet fade of about half a second.
-- No decorative morphing, flying particles, or ambient animation. An equation rearranging term by term is teaching, so it stays.
+- By default, changing a view is a quiet fade of about half a second.
+- Morphing and particle effects are a judgment call. Use them where they help the lesson or the experience, and avoid them as decoration.
 - Honor the reduced-motion setting, and follow PRD B10 on flashing.
 
 ## The dot
@@ -49,7 +49,7 @@ The dot is the tutor's presence. It is a small solid circle in `ink` that rests 
 
 ## Pictures made of dots
 
-Dots are a print style for pictures. They are not a transition.
+Dots are mainly a print style for pictures.
 
 - **Light:** dots behave as ink on paper. Light areas lose their dots and dark areas print heavier, with no glow.
 - **Dark:** dots behave as light on black, as in the Made of Dots film.
