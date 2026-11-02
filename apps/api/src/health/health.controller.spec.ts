@@ -1,8 +1,8 @@
-import type { HealthResponse } from '@astra/contracts';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../app.module';
+import type { HealthResponseDto } from './health-response.dto';
 
 describe('GET /health', () => {
   let app: INestApplication;
@@ -20,7 +20,7 @@ describe('GET /health', () => {
   });
 
   it('reports that the API is healthy', async () => {
-    const expectedResponse: HealthResponse = { status: 'ok' };
+    const expectedResponse: HealthResponseDto = { status: 'ok' };
 
     await request(app.getHttpServer())
       .get('/health')
