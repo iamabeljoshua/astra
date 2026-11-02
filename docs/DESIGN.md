@@ -1,6 +1,6 @@
 # Astra design
 
-Status: look approved by Abel on 2 November 2026 from the [prototype](https://claude.ai/artifact/3Kw7Ggukb39GerA4E5pK7u). Its source is in `docs/design/look-prototype/`. Follow this file for all product UI.
+Status: look approved by Abel on 2 November 2026 from the [look prototype](https://claude.ai/artifact/3Kw7Ggukb39GerA4E5pK7u), whose source is in `docs/design/look-prototype/`. The [app prototype](https://claude.ai/artifact/YJRK2QzMdDdm4c4DQhwWZq) applies it to onboarding and the home screen. Follow this file for all product UI.
 
 ## The idea
 
@@ -23,8 +23,9 @@ Other color comes only from the content, such as a painting or a plotted series.
 
 ## Type
 
-- **Barlow** for the interface. Headlines are weight 600 and uppercase. Labels are 12px, weight 500, uppercase, with 0.14em letter spacing.
-- **Newsreader** for the tutor's spoken words, so its voice reads warmer than the interface around it.
+- **Barlow** for the interface. App screens use sentence case at normal reading sizes, with weight 600 for headings. Labels are 11 to 12px, weight 500, uppercase, with 0.14em letter spacing.
+- Large uppercase display type is for the welcome tagline only. A large headline on an everyday screen reads as a poster.
+- **Newsreader** for the tutor's spoken words and the home greeting, so its voice reads warmer than the interface around it.
 - Never set text in all caps when someone has to read more than a short line of it.
 
 ## Surfaces
@@ -32,7 +33,15 @@ Other color comes only from the content, such as a painting or a plotted series.
 - No gradients and no shadows. Depth comes from `panel` against `paper` and from 1px rules.
 - Square corners. Controls are outlined with a 1px border, and only the selected state is filled.
 - Text on one side and one object on the other, stacked on a phone.
-- Use a bordered panel for the board, and rules rather than cards for lists.
+- Use a bordered panel for the board, and rules rather than cards for lists. The compact picks on the home screen are the exception.
+
+## Home screen
+
+Aristotle's logged-in home sets the proportions, in our type and palette. A sidebar holds the menu, recent sessions, and the account. A centered column of about 1,020px holds a modest greeting, one continue card, and compact picks, with a ChatGPT-style chat box pinned to the bottom of the screen. Abel chose the bottom position on 2 November 2026. Nothing is oversized, and the main content fits on a laptop screen without scrolling.
+
+## Onboarding
+
+The question gets the room. Each screen asks one thing. A small sheet headed "Made for you" sits beside it and records each answer, and it shows the student's name as they type it, so the tagline "A learning app, made for you" comes true on screen. No picture panel and no captions.
 
 ## Motion
 
@@ -47,13 +56,12 @@ Other color comes only from the content, such as a painting or a plotted series.
 
 The dot is the tutor's presence. It is a small solid circle in `ink` that rests while listening and pulses while speaking (PRD B9).
 
-## Pictures made of dots
+## Pictures
 
-Dots are mainly a print style for pictures.
+Pictures are normal images. Abel ruled out rendering them as dots on 2 November 2026.
 
-- **Light:** dots behave as ink on paper. Light areas lose their dots and dark areas print heavier, with no glow.
-- **Dark:** dots behave as light on black, as in the Made of Dots film.
-- Use public-domain art and our own drawings.
+- Use public-domain art, licensed images, and our own vector drawings.
+- Draw our own diagrams in `ink` strokes on `panel`, so the board can reveal them stroke by stroke in time with speech.
 
 ## Marketing demos
 

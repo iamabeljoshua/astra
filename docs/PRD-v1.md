@@ -1,6 +1,6 @@
 # PRD v1: a personal AI tutor that teaches out loud on a living board
 
-Status: approved by Abel on 2 November 2026, including the recommendations in section 15. Sections 6.1 and 6.2, the onboarding and home requirements, and P4 record what he added with that approval. B11 records the look he approved afterward, and he then took the particle swarm out of the v1 plan.
+Status: approved by Abel on 2 November 2026, including the recommendations in section 15. Sections 6.1 and 6.2, the onboarding and home requirements, and P4 record what he added with that approval. B11 records the look he approved afterward, and he then took the particle swarm out of the v1 plan. He later set the tagline, the home screen proportions, and normal images in place of dot pictures.
 Date: 2 November 2026.
 Codename: Astra. The public name is still open (Q1).
 
@@ -22,7 +22,8 @@ Section 15 lists 21 questions and the recommendation accepted for each. Only Q1 
 | Shape of v1 | Free closed beta | About 100 invited students, no billing, and a budget of about $2,000 a month. |
 | Tutor on screen | The living dot | No face and no character. The human feel comes from voice and behavior. |
 | Visual that must be world class | Living explanations | Animated math and diagrams, rendered live and timed to speech. Simulations and hand drawing exist in simpler form. |
-| Look | Light and warm by default with a dark toggle, a lighter take on SpaceX in the Made of Dots language, with no gradients | Dots print as ink on paper in light mode and glow on black in dark mode. `docs/DESIGN.md` records the rules once the look is approved. |
+| Stack | React with Vite for the web app, and NestJS with Postgres for the API | `docs/plans/mvp.md` builds on this. |
+| Look | Light and warm by default with a dark toggle, a lighter take on SpaceX, with no gradients | Pictures are normal images, and the only dot is the tutor's presence. `docs/DESIGN.md` records the rules. |
 
 ## 3. Evidence shapes four product rules
 
@@ -79,7 +80,7 @@ The onboarding answers change the tutor's vocabulary, pace, and examples. They d
 
 ### 6.1 Onboarding takes under two minutes
 
-Onboarding is the first time a student meets the tutor, so it gets the same craft as the session. Each screen asks one thing, and the last screen is a real exchange with the tutor.
+Onboarding is the first time a student meets the tutor, so it gets the same craft as the session. The welcome screen carries the tagline "A learning app, made for you". Each screen asks one thing, and a small sheet headed "Made for you" records each answer and shows the student's name as they type it. The last screen is a real exchange with the tutor.
 
 1. The student signs in (Q6) and enters a date of birth. A student under 13 stops here and cannot retry.
 2. A student under 18 gives a parent's email address for consent (Q4).
@@ -90,10 +91,10 @@ Onboarding is the first time a student meets the tutor, so it gets the same craf
 
 ### 6.2 The home screen offers cards, a prompt, and every past session
 
-A student lands here after onboarding and on every return. The screen has three parts.
+A student lands here after onboarding and on every return. A modest greeting opens the screen, at the proportions of Aristotle's logged-in home, with these parts around it.
 
-- **Cards.** Four to six cards sit above the prompt, and selecting one starts a session on that topic at once. At launch they are pre-made cards chosen by level and interests. As evidence builds, they are recommended from the student's performance and weaknesses. Each card states its reason, such as "You got stuck on free-body diagrams on Tuesday" or "How a curveball bends, because you follow baseball". A "continue" card comes first when a session is unfinished.
-- **The prompt.** A chat-style field sits below the cards and asks "What do you want to learn next?". The student can type or speak a topic, a question, or a problem, and can attach a photo or PDF. Submitting starts a new session based on what they wrote.
+- **Cards.** Four to six compact cards offer topics, and selecting one starts a session on that topic at once. At launch they are pre-made cards chosen by level and interests. As evidence builds, they are recommended from the student's performance and weaknesses. Each card states its reason, such as "You got stuck on free-body diagrams on Tuesday" or "How a curveball bends, because you follow baseball". A larger "continue" card comes first when a session is unfinished, and it shows a drawing from that session's board.
+- **The chat box.** A ChatGPT-style chat box is pinned to the bottom of the screen, below the cards, and the greeting above asks "What do you want to learn next?". The student can type or speak a topic, a question, or a problem, and can attach a photo or PDF. Submitting starts a new session based on what they wrote.
 - **The menu.** The menu holds Home and Sessions at launch, with the student's account at the bottom. Sessions lists every session with its title, date, length, and status, so the student can continue or replay any of them. Later items, such as Progress or Library, add a row without changing the layout. The menu shows no placeholder items.
 
 ### 6.3 The session opens on the dot
@@ -375,8 +376,8 @@ The recommended mix is 40 students aged 13 to 17 where counsel has cleared invit
 ## 16. What we reuse and where we diverge
 
 - `agentic-tutor/docs/NORTH_STAR_PLAN.md` already chose a cascaded voice pipeline on LiveKit, session records, and the sync insight. This PRD keeps those. It replaces tldraw and live Manim as the renderer, because living explanations are now the visual we must win on.
-- `content-videos/made-of-dots` and the Portal ending provide the dot, the visual language, and the opening moment. The film's swarm is not in the v1 plan.
-- The [look prototype](https://claude.ai/artifact/3Kw7Ggukb39GerA4E5pK7u) sets the type, the palette, and the ink and light dot rendering.
+- The Portal trailer's ending provides the dot and the opening moment. The swarm and dot pictures in `content-videos/made-of-dots` are not in the v1 plan.
+- The [look prototype](https://claude.ai/artifact/3Kw7Ggukb39GerA4E5pK7u) sets the type and the palette. The [app prototype](https://claude.ai/artifact/YJRK2QzMdDdm4c4DQhwWZq) applies them to onboarding and the home screen.
 - The `agentic-tutor` user study had 8 participants and one topic. Your earlier plan says not to cite it externally, and that still stands.
 
 ## Sources

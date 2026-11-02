@@ -1,0 +1,968 @@
+<title>Astra App Prototype</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400&display=swap">
+<style>
+/* Layout: a calm sidebar and one centered column at normal reading sizes, thin rules, flat panels. */
+:root {
+  --paper: #F6F1E6; --panel: #EFE8DA; --ink: #1B1815; --ink-2: #5F574C; --line: #CFC6B5; --accent: #1B1815;
+  --ui: "Barlow", "DIN Alternate", "Helvetica Neue", Arial, sans-serif;
+  --voice: "Newsreader", Georgia, "Times New Roman", serif;
+  --strip: 32px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --paper: #000000; --panel: #0E0D0B; --ink: #FFFBF5; --ink-2: #A79F92; --line: #2B2823; --accent: #FFCC94; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --paper: #000000; --panel: #0E0D0B; --ink: #FFFBF5; --ink-2: #A79F92; --line: #2B2823; --accent: #FFCC94; color-scheme: dark; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 400 15px/1.5 var(--ui); overflow-x: hidden; transition: background-color .24s linear, color .24s linear; }
+* { box-sizing: border-box; }
+button, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; background: none; border: 0; padding: 0; text-align: left; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+#root { min-height: 100%; display: flex; flex-direction: column; }
+#view { flex: 1; display: flex; flex-direction: column; min-height: 0; animation: arrive .3s linear; }
+#view.fading { opacity: 0; transition: opacity .3s linear; }
+@keyframes arrive { from { opacity: 0; } }
+
+.label { font-size: 11px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; }
+.quiet { color: var(--ink-2); }
+.mark { font-size: 14px; font-weight: 600; letter-spacing: .34em; text-transform: uppercase; }
+.fine { font-size: 13px; color: var(--ink-2); margin: 0; }
+
+.strip { height: var(--strip); flex: none; display: flex; align-items: center; gap: 16px; border-bottom: 1px solid var(--line); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); font-size: 11px; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); white-space: nowrap; overflow-x: auto; scrollbar-width: none; }
+.strip button { padding: 2px 6px; color: var(--ink-2); }
+.strip button:hover { color: var(--ink); }
+.strip button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.strip .group { display: flex; align-items: center; gap: 3px; }
+.strip .group > span { margin-right: 5px; }
+.strip .grow { flex: 1; }
+
+.toggle { display: inline-flex; border: 1px solid var(--line); }
+.toggle button { padding: 4px 9px; color: var(--ink-2); }
+.toggle button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid var(--ink); padding: 10px 16px; font-weight: 500; font-size: 14px; white-space: nowrap; }
+.btn:hover { background: var(--ink); color: var(--paper); }
+.btn.solid { background: var(--ink); color: var(--paper); }
+.btn.solid:hover { background: transparent; color: var(--ink); }
+.btn[disabled] { opacity: .35; pointer-events: none; }
+
+.tutor-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--ink); flex: none; display: block; }
+.speaking .tutor-dot { animation: pulse .46s ease-in-out infinite alternate; }
+@keyframes pulse { to { transform: scale(1.6); } }
+.who { display: flex; align-items: center; gap: 10px; }
+.voice { margin: 0; font-family: var(--voice); font-size: clamp(22px, 2.1vw, 30px); line-height: 1.26; }
+.voice span { transition: color .12s linear; }
+.voice span.ahead { color: var(--line); }
+.stop-dot { position: fixed; width: 8px; height: 8px; border-radius: 50%; background: var(--ink); transform: translate(-50%, -50%); z-index: 3; animation: stop-in .14s ease-out; }
+@keyframes stop-in { from { transform: translate(-50%, -50%) scale(0); } }
+
+/* Chat */
+.composer { border: 1px solid var(--ink); background: var(--paper); transition: background-color .24s linear; }
+.composer:focus-within { outline: 1px solid var(--accent); outline-offset: 0; }
+.composer textarea { display: block; width: 100%; border: 0; background: transparent; resize: none; outline: none; padding: 14px 16px 4px; font-size: 17px; line-height: 1.4; max-height: 140px; }
+.composer textarea::placeholder { color: var(--ink-2); opacity: 1; }
+.composer-tools { display: flex; align-items: center; gap: 6px; padding: 6px 8px 8px 10px; }
+.composer-tools .grow { flex: 1; min-width: 0; }
+.icon-btn { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 8px; color: var(--ink-2); font-size: 13px; }
+.icon-btn:hover { color: var(--ink); }
+.icon-btn svg { width: 18px; height: 18px; flex: none; }
+.icon-btn.on { color: var(--ink); font-weight: 500; }
+.send { width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; background: var(--ink); color: var(--paper); flex: none; }
+.send[disabled] { opacity: .3; cursor: default; }
+.send svg { width: 16px; height: 16px; }
+.attached { display: inline-flex; align-items: center; gap: 8px; margin: 8px 16px 0; padding: 3px 8px; border: 1px solid var(--line); font-size: 13px; color: var(--ink-2); max-width: calc(100% - 32px); }
+.attached span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* App shell */
+.app { flex: 1; display: grid; grid-template-columns: 216px minmax(0, 1fr); min-height: 0; }
+.rail { display: flex; flex-direction: column; gap: 20px; border-right: 1px solid var(--line); padding-block: 18px 14px; padding-left: max(14px, env(safe-area-inset-left, 0px)); padding-right: 14px; height: calc(100dvh - var(--strip)); position: sticky; top: 0; overflow-y: auto; }
+.rail .mark { padding-left: 8px; }
+.rail nav { display: flex; flex-direction: column; gap: 2px; }
+.rail nav button { display: flex; justify-content: space-between; align-items: center; padding: 7px 8px; width: 100%; color: var(--ink-2); font-weight: 500; }
+.rail nav button:hover { color: var(--ink); }
+.rail nav button[aria-current="page"] { background: var(--panel); color: var(--ink); }
+.recent { display: flex; flex-direction: column; gap: 4px; flex: 1; min-height: 0; padding-inline: 8px; }
+.recent ul { list-style: none; margin: 0; padding: 0; }
+.recent li button { display: block; width: 100%; padding: 4px 0; font-size: 13.5px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.recent li button:hover { color: var(--ink); }
+.account { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 8px 0; border-top: 1px solid var(--line); }
+.account b { font-weight: 500; display: block; line-height: 1.25; }
+.topbar { display: none; align-items: center; justify-content: space-between; padding-block: 12px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); border-bottom: 1px solid var(--line); }
+
+.main { min-width: 0; padding-block: clamp(20px, 4.5vh, 44px) 28px; padding-left: clamp(16px, 3vw, 40px); padding-right: max(clamp(16px, 3vw, 40px), env(safe-area-inset-right, 0px)); }
+.column { max-width: 1020px; margin-inline: auto; display: flex; flex-direction: column; gap: 22px; }
+.hello { margin: 0; font-family: var(--voice); font-weight: 400; font-size: clamp(30px, 2.8vw, 38px); line-height: 1.1; }
+.sub { margin: 4px 0 0; font-size: 17px; color: var(--ink-2); }
+
+.next { display: grid; grid-template-columns: minmax(0, 1fr) 244px; align-items: stretch; background: var(--panel); border: 1px solid var(--line); transition: background-color .24s linear; }
+.next-text { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 18px 20px; min-width: 0; }
+.next-text h2 { margin: 2px 0 0; font-size: 22px; font-weight: 600; line-height: 1.2; overflow-wrap: anywhere; }
+.next-text p { margin: 0 0 12px; color: var(--ink-2); }
+.next-art { padding: 10px 16px 10px 0; display: flex; align-items: center; min-width: 0; }
+.next-art svg { display: block; width: 100%; height: auto; max-height: 140px; color: var(--ink); }
+
+.section-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 10px; }
+.picks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.pick { display: grid; grid-template-columns: 68px minmax(0, 1fr); gap: 12px; align-items: start; border: 1px solid var(--line); padding: 10px; width: 100%; }
+.pick:hover { border-color: var(--ink); }
+.thumb { display: block; width: 68px; height: 68px; background: var(--panel); overflow: hidden; }
+.thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.thumb svg { display: block; width: 100%; height: 100%; padding: 6px; color: var(--ink); }
+.thumb svg [data-draw] { vector-effect: non-scaling-stroke; stroke-width: 1.3; }
+.pick b { display: block; font-weight: 500; font-size: 15px; line-height: 1.25; margin-top: 1px; }
+.pick .why { display: block; font-size: 13px; line-height: 1.3; color: var(--ink-2); margin-top: 2px; }
+.pick .label { font-size: 10px; letter-spacing: .12em; }
+
+.column[data-chat="bottom"] { min-height: calc(100dvh - var(--strip) - clamp(20px, 4.5vh, 44px) - 28px); }
+.column[data-chat="bottom"] .dock { position: sticky; bottom: 0; background: var(--paper); padding-block: 10px 14px; margin-block: auto -28px; z-index: 2; transition: background-color .24s linear; }
+
+/* Sessions */
+.page-title { margin: 0; font-size: 28px; font-weight: 600; line-height: 1.2; }
+.list-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 14px; flex-wrap: wrap; }
+.list-tools { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.search { border: 0; border-bottom: 1px solid var(--ink); background: transparent; padding: 7px 0; width: 230px; max-width: 100%; outline: none; border-radius: 0; }
+.search::placeholder { color: var(--ink-2); opacity: 1; }
+.sessions { width: 100%; border-collapse: collapse; }
+.sessions th { text-align: left; padding: 8px 12px 8px 0; border-bottom: 1px solid var(--ink); color: var(--ink-2); font-weight: 500; }
+.sessions td { padding: 11px 12px 11px 0; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; vertical-align: baseline; }
+.sessions .t { font-weight: 500; }
+.sessions tbody tr { cursor: pointer; }
+.sessions tbody tr:hover .t { text-decoration: underline; text-underline-offset: 3px; }
+.sessions .act { text-align: right; padding-right: 0; white-space: nowrap; font-weight: 500; }
+.empty { border-block: 1px solid var(--line); padding: 24px 0; color: var(--ink-2); }
+
+/* Session */
+.session { flex: 1; display: flex; flex-direction: column; min-height: 0; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.session-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; padding-block: 10px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.session-bar .grow { flex: 1; }
+.session-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: clamp(18px, 3vw, 44px); padding-block: 16px; }
+.board { background: var(--panel); border: 1px solid var(--line); display: flex; flex-direction: column; min-height: 300px; min-width: 0; transition: background-color .24s linear; }
+.board-art { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.board-art svg { display: block; width: 100%; height: 100%; max-height: 66vh; color: var(--ink); }
+.board-art img { display: block; max-width: 100%; max-height: 66vh; object-fit: contain; opacity: 0; transition: opacity .5s linear; }
+.board-art img.shown { opacity: 1; }
+.board-foot { border-top: 1px solid var(--line); padding: 7px 12px; color: var(--ink-2); }
+.talk { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.talk .grow { flex: 1; }
+.reply { margin: 0; font-size: 16px; padding-top: 12px; border-top: 1px solid var(--line); }
+
+/* Onboarding: the question gets the room, and one small sheet records what the tutor has learned. */
+.onb { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) clamp(360px, 31vw, 460px); min-height: 0; }
+.onb-left { display: flex; flex-direction: column; padding-block: 20px 22px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: clamp(16px, 4vw, 56px); min-width: 0; }
+.onb-inner { width: 100%; max-width: 580px; margin-inline: auto; display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.onb-body { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 18px; padding-block: 24px; animation: arrive .3s linear; }
+.tagline { margin: 0; font-size: clamp(38px, 4.3vw, 62px); line-height: .98; font-weight: 600; letter-spacing: -.005em; text-transform: uppercase; text-wrap: balance; }
+.question { margin: 0; font-size: clamp(27px, 2.5vw, 36px); line-height: 1.12; font-weight: 600; text-wrap: balance; }
+.onb-sub { margin: 0; max-width: 46ch; font-size: 16px; color: var(--ink-2); }
+.onb-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 42px; }
+.back { color: var(--ink-2); font-weight: 500; }
+.back:hover { color: var(--ink); }
+.onb-right { display: flex; align-items: center; justify-content: center; background: var(--panel); border-left: 1px solid var(--line); padding: 24px; padding-right: max(24px, env(safe-area-inset-right, 0px)); min-width: 0; transition: background-color .24s linear; }
+.sheet { width: 100%; max-width: 348px; background: var(--paper); border: 1px solid var(--line); padding: 18px 20px 16px; transition: background-color .24s linear; }
+.made { margin: 10px 0 12px; font-family: var(--voice); font-weight: 400; font-size: 30px; line-height: 1.1; overflow-wrap: anywhere; }
+.sheet dl { margin: 0; }
+.sheet-row { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 10px; border-top: 1px solid var(--line); padding: 9px 0; min-height: 40px; align-items: baseline; }
+.sheet-row dt { color: var(--ink-2); }
+.sheet-row dd { margin: 0; font-weight: 500; animation: arrive .4s linear; overflow-wrap: anywhere; }
+.sheet .fine { border-top: 1px solid var(--line); padding-top: 10px; }
+.stack { display: flex; flex-direction: column; gap: 8px; max-width: 360px; }
+.stack .btn { width: 100%; padding-block: 12px; }
+.line-input { width: 100%; max-width: 440px; background: transparent; border: 0; border-bottom: 1px solid var(--ink); padding: 8px 0; font-size: 22px; outline: none; border-radius: 0; }
+.line-input::placeholder { color: var(--line); opacity: 1; }
+.line-input:focus { border-bottom-width: 2px; padding-bottom: 7px; }
+.dob { display: flex; gap: 14px; flex-wrap: wrap; }
+.dob label { display: flex; flex-direction: column; gap: 3px; }
+.dob input { width: 72px; }
+.dob .year input { width: 104px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { border: 1px solid var(--line); padding: 6px 12px; font-weight: 500; }
+.chip:hover { border-color: var(--ink); }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.stop { border-left: 2px solid var(--ink); padding-left: 12px; max-width: 44ch; margin: 0; }
+.rows { display: flex; flex-direction: column; max-width: 460px; }
+.row { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; column-gap: 8px; width: 100%; align-items: start; border-top: 1px solid var(--line); padding: 11px 0; }
+.row:last-child { border-bottom: 1px solid var(--line); }
+.mark-dot { width: 7px; height: 7px; border-radius: 50%; border: 1px solid var(--ink); margin-top: 7px; display: block; }
+.row[aria-pressed="true"] .mark-dot { background: var(--ink); }
+.row b { font-weight: 500; font-size: 16px; display: block; }
+.row .why { font-size: 13.5px; color: var(--ink-2); display: block; }
+.bars { display: inline-flex; gap: 2px; align-items: center; height: 20px; color: var(--ink-2); }
+.bars i { width: 2px; height: 6px; background: currentColor; display: block; }
+.row.playing .bars { color: var(--ink); }
+.row.playing .bars i { animation: bar .42s ease-in-out infinite alternate; }
+.row.playing .bars i:nth-child(2n) { animation-delay: .1s; }
+.row.playing .bars i:nth-child(3n) { animation-delay: .2s; }
+@keyframes bar { to { height: 16px; } }
+
+@media (max-width: 1020px) {
+  .picks { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+  .app { grid-template-columns: minmax(0, 1fr); }
+  .rail { display: none; }
+  .app.menu-open .rail { display: flex; position: fixed; inset: var(--strip) 0 0 0; height: auto; z-index: 5; background: var(--paper); border-right: 0; }
+  .topbar { display: flex; }
+  .next { grid-template-columns: minmax(0, 1fr); }
+  .next-art { display: none; }
+  .picks { grid-template-columns: minmax(0, 1fr); }
+  .column[data-chat="bottom"] .dock { position: fixed; left: 0; right: 0; bottom: 0; margin: 0; padding: 8px max(16px, env(safe-area-inset-right, 0px)) calc(8px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); border-top: 1px solid var(--line); }
+  .column[data-chat="bottom"] { padding-bottom: 110px; }
+  .sessions .hide-narrow { display: none; }
+  .session-grid { grid-template-columns: minmax(0, 1fr); }
+  .board { min-height: 0; }
+  .board-art { min-height: 200px; }
+  .board-art svg { height: auto; }
+  .onb { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  .onb-right { order: -1; border-left: 0; border-bottom: 1px solid var(--line); padding: 8px 16px; justify-content: flex-start; }
+  .sheet { background: transparent; border: 0; padding: 0; max-width: none; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .sheet .who, .sheet .fine, .sheet dt { display: none; }
+  .made { margin: 0; font-size: 18px; }
+  .sheet dl { display: contents; }
+  .sheet-row { display: block; border: 0; padding: 0; min-height: 0; font-size: 13px; color: var(--ink-2); }
+  .sheet-row dd { font-weight: 400; }
+  .sheet-row:has(dd:empty) { display: none; }
+  .onb-left { padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .onb-body { justify-content: flex-start; padding-block: 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body, .composer, .next, .board, .sheet, .onb-right { transition: none; }
+  #view, .onb-body, .sheet-row dd { animation: none; }
+  .speaking .tutor-dot, .row.playing .bars i { animation: none; }
+  .board-art img { transition: none; }
+}
+</style>
+
+<div id="root">
+  <div class="strip" id="strip"></div>
+  <div id="view"></div>
+</div>
+
+<script>
+(function () {
+  const STRINGS = {
+    product: "Astra",
+    tagline: "A learning app, made for you",
+    welcomeSub: "Your tutor talks with you and draws as it explains. It's an AI, and setup takes under two minutes.",
+    google: "Continue with Google",
+    email: "Continue with email",
+    terms: "By continuing you agree to the Terms and the Privacy Policy.",
+    nameQuestion: "What should your tutor call you?",
+    namePlaceholder: "Your first name",
+    dobQuestion: "When were you born?",
+    dobSub: "We use this to keep the product safe for your age.",
+    dobHint: "Prototype: a birth year after 2008 shows the parent step. A birth year after 2013 shows the age stop.",
+    tooYoung: (product) => `${product} is for students 13 and up. We hope to see you when you turn 13.`,
+    parentQuestion: "A parent or guardian approves your account.",
+    parentSub: "We send them one email. You can start as soon as they say yes.",
+    parentPlaceholder: "Their email address",
+    intoQuestion: "What are you into?",
+    intoSub: "Your tutor uses this to pick examples you care about.",
+    intoPlaceholder: "Be specific. Arsenal beats football.",
+    intoOptions: ["Basketball", "Football", "Movies", "Gaming", "Music", "Art", "Space", "Cars", "Cooking", "Fashion", "Coding", "History"],
+    levelQuestion: "Where are you in your learning?",
+    levelOptions: ["Middle school", "High school", "University", "Out of school"],
+    goalQuestion: "What brings you here?",
+    goalOptions: ["A class I am taking", "An exam coming up", "Pure curiosity"],
+    voiceQuestion: "Pick your tutor's voice.",
+    voiceSub: "Tap one to hear it. You can change it any time.",
+    voices: [
+      { name: "Ada", about: "Warm and unhurried", pitch: 1.05, rate: 0.95 },
+      { name: "Kofi", about: "Clear and steady", pitch: 0.8, rate: 0.95 },
+      { name: "Noor", about: "Bright and quick", pitch: 1.25, rate: 1.1 },
+    ],
+    voiceSample: (name) => `Hi ${name}. I will be your tutor.`,
+    voiceNote: "Prototype: these are your browser's voices, standing in for the real ones.",
+    hello: (name, interest) => `Hi ${name}. I'm your tutor, and I'm an AI. You said you're into ${interest}. What's one thing about it you've always wondered how it works?`,
+    helloPlaceholder: "Say it out loud, or type it",
+    sheetLabel: "Your tutor's notes",
+    madeFor: "Made for",
+    you: "you",
+    sheetRows: { into: "Into", level: "Level", goal: "Here for", voice: "Voice" },
+    sheetFoot: "You can change any of this later.",
+    continueStep: "Continue",
+    back: "Back",
+    step: (at, of) => `${at} of ${of}`,
+    speaking: "Speaking",
+    listening: "Listening",
+    menuHome: "Home",
+    menuSessions: "Sessions",
+    menu: "Menu",
+    recent: "Recent",
+    noSessions: "Your sessions will appear here.",
+    light: "Light",
+    dark: "Dark",
+    welcomeBack: (name) => `Welcome back, ${name}.`,
+    welcomeNew: (name) => `Welcome, ${name}.`,
+    homeQuestion: "What do you want to learn next?",
+    composerPlaceholder: "Ask anything. A topic, a question, a problem.",
+    composerListening: "Listening. Start talking.",
+    composerLabel: "What do you want to learn next",
+    attach: "Photo or PDF",
+    talk: "Talk",
+    send: "Start session",
+    remove: "Remove",
+    continueLabel: "Continue",
+    continueButton: "Continue session",
+    startHere: "Start here",
+    startHereSub: "Your tutor is ready when you are.",
+    startButton: "Start session",
+    picked: "Picked for you",
+    sessionsTitle: "Sessions",
+    sessionsSearch: "Search your sessions",
+    sessionsColumns: ["Session", "Subject", "Date", "Length", "Status"],
+    inProgress: "In progress",
+    finished: "Finished",
+    today: "Today",
+    resume: "Continue",
+    replay: "Replay",
+    noMatch: "No sessions match that search.",
+    newSession: "New session",
+    endSession: "End session",
+    replyPlaceholder: "Talk, or type a reply",
+    youLabel: "You",
+    tutorAck: "Good. Let's start from there.",
+    typedOpener: "Good one. Before I draw anything, tell me what you already know about this.",
+    standIn: "Stand-in. In the product, the tutor draws here as it speaks.",
+    yourQuestion: "Your question",
+    prototype: "Prototype",
+    exampleData: "Example data",
+    chat: "Chat",
+    chatTop: "Top",
+    chatBottom: "Bottom",
+  };
+
+  const IMAGES = __IMAGES__;
+
+  const PICKS = [
+    { art: "arc", title: "How a jump shot flies", why: "Because you play basketball", subject: "Physics", minutes: "12 min", opener: "You said you play point guard, so let's use your jump shot. Once the ball leaves your hand, what's still pushing it toward the hoop?" },
+    { image: "wave", title: "Why a breaking wave curls", why: "Because you follow surfing", subject: "Physics", minutes: "12 min", opener: "Surfers read this curl every day. As the water gets shallow, which part of the wave do you think slows down first?" },
+    { art: "growth", title: "Why savings grow slowly, then fast", why: "You got stuck on exponents on Tuesday", subject: "Math", minutes: "15 min", opener: "Let's watch one dollar grow. After a year at ten percent you have a dollar ten. What do you think the next year's ten percent is taken from?" },
+    { image: "saturn", title: "Why Saturn has rings", why: "Because you like space", subject: "Astronomy", minutes: "10 min", opener: "Those rings look solid, but they're not. If you could fly through one, what do you think you'd actually hit?" },
+    { art: "helix", title: "How DNA copies itself", why: "Next in your biology class", subject: "Biology", minutes: "15 min", opener: "DNA has to copy itself every time a cell divides. Before I draw anything, what do you think has to happen to the two strands first?" },
+    { image: "athens", title: "What Plato and Aristotle disagreed about", why: "Because you asked about ethics", subject: "Philosophy", minutes: "20 min", opener: "Plato points up and Aristotle points out. Before I explain why, what do you think each of them is saying?" },
+  ];
+  const EXAMPLE_SESSIONS = [
+    { title: "Free-body diagrams", subject: "Physics", date: "Sat 31 Oct", length: "04:12", status: "progress", detail: "Next up: friction on a slope. Concept 2 of 5.", art: "forces" },
+    { title: "Why the sky is dark at night", subject: "Astronomy", date: "Thu 29 Oct", length: "18:40", status: "done", image: "saturn" },
+    { title: "Solving quadratic equations", subject: "Math", date: "Wed 28 Oct", length: "26:05", status: "done", art: "growth" },
+    { title: "Balancing chemical equations", subject: "Chemistry", date: "Mon 26 Oct", length: "21:17", status: "done", art: "helix" },
+    { title: "How compound interest grows", subject: "Math", date: "Sat 24 Oct", length: "12:33", status: "done", art: "growth" },
+    { title: "The causes of the French Revolution", subject: "History", date: "Thu 22 Oct", length: "31:02", status: "done", image: "athens" },
+  ];
+  const MENU = [
+    { id: "home", label: STRINGS.menuHome },
+    { id: "sessions", label: STRINGS.menuSessions },
+  ];
+  const ICONS = {
+    attach: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M20 11.5 12.2 19.3a4.6 4.6 0 0 1-6.5-6.5l8-8a3 3 0 0 1 4.3 4.3l-8 8a1.5 1.5 0 0 1-2.1-2.1l7.3-7.3"/></svg>',
+    mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',
+    up: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20V5M5.5 11.5 12 5l6.5 6.5"/></svg>',
+  };
+
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const hashTokens = location.hash.slice(1).split("-");
+  const still = reduce || hashTokens.includes("still");
+  const FADE_MS = still ? 1 : 300, DOT_HOLD_MS = still ? 0 : 320, WORD_MS = 235;
+  const root = document.documentElement;
+  const view = document.getElementById("view");
+  const strip = document.getElementById("strip");
+  const escapeHtml = (text) => String(text).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const wait = (ms, action) => setTimeout(action, ms);
+
+  const emptyStudent = () => ({ name: "", birthYear: "", age: null, parent: "", interests: [], interestText: "", level: "", goal: "", voice: "", firstQuestion: "" });
+  const state = {
+    screen: "onboarding",
+    chat: "bottom",
+    stepIndex: 0,
+    returning: true,
+    student: emptyStudent(),
+    sessions: EXAMPLE_SESSIONS.map((session) => ({ ...session })),
+    active: null,
+    busy: false,
+    query: "",
+  };
+
+  let themeMode = "light";
+  const readSavedTheme = () => { try { return localStorage.getItem("astra-theme"); } catch (error) { return null; } };
+  const setTheme = (next) => {
+    themeMode = next;
+    root.setAttribute("data-theme", next);
+    try { localStorage.setItem("astra-theme", next); } catch (error) { /* a blocked store only loses the preference */ }
+    document.querySelectorAll("[data-theme-set]").forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.themeSet === next)));
+  };
+  themeMode = hashTokens.includes("dark") ? "dark" : hashTokens.includes("light") ? "light" : readSavedTheme() === "dark" ? "dark" : "light";
+  root.setAttribute("data-theme", themeMode);
+  const themeToggle = () => `<div class="toggle label" role="group" aria-label="Appearance"><button type="button" data-theme-set="light" aria-pressed="${themeMode === "light"}">${STRINGS.light}</button><button type="button" data-theme-set="dark" aria-pressed="${themeMode === "dark"}">${STRINGS.dark}</button></div>`;
+
+  /* Our own drawings. Marked parts are revealed in order, so the board can draw in time with speech. */
+  const stroke = 'fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"';
+  const part = (shape, weight = 1) => shape.replace("/>", ` pathLength="1" data-draw data-weight="${weight}"/>`);
+  const arrowParts = (x1, y1, x2, y2, width = 2) => {
+    const angle = Math.atan2(y2 - y1, x2 - x1);
+    const head = (offset) => `${(x2 - 10 * Math.cos(angle + offset)).toFixed(1)} ${(y2 - 10 * Math.sin(angle + offset)).toFixed(1)}`;
+    return part(`<path d="M${x1} ${y1} L${x2} ${y2} M${head(0.5)} L${x2} ${y2} L${head(-0.5)}" stroke-width="${width}" ${stroke}/>`, 1.5);
+  };
+  const textPart = (x, y, words, size = 12) => `<text x="${x}" y="${y}" data-pop fill="currentColor" font-family="Barlow, sans-serif" font-weight="500" font-size="${size}" letter-spacing="1.4">${escapeHtml(words)}</text>`;
+  const DRAWINGS = {
+    arc: (labels) => `<svg viewBox="0 0 640 380" role="img" aria-label="A ball leaving a hand and travelling in an arc to a hoop">
+      ${part(`<path d="M24 344 L616 344" stroke-width="1.5" ${stroke}/>`)}
+      ${part(`<path d="M566 344 L566 62" stroke-width="2" ${stroke}/>`)}
+      ${part(`<ellipse cx="516" cy="128" rx="36" ry="7" stroke-width="2" ${stroke}/>`)}
+      <circle cx="112" cy="262" r="15" fill="currentColor" data-pop></circle>
+      ${labels ? textPart(70, 304, "RELEASE") : ""}
+      ${part(`<path d="M112 262 Q314 76 516 128" stroke-width="3" ${stroke}/>`, 6)}
+      ${labels ? textPart(220, 86, "WHAT PUSHES IT NOW?") : ""}
+    </svg>`,
+    forces: () => `<svg viewBox="0 0 300 180" role="img" aria-label="A block on a slope with arrows showing the normal force, friction and weight">
+      ${part(`<path d="M18 164 L288 164 L288 72 Z" stroke-width="1.5" ${stroke}/>`, 2)}
+      <g transform="translate(150 118) rotate(-18.8)">${part(`<rect x="-30" y="-38" width="60" height="38" stroke-width="2" ${stroke}/>`)}</g>
+      ${arrowParts(144, 99, 144, 166)}
+      ${arrowParts(144, 99, 121, 34)}
+      ${arrowParts(144, 99, 212, 76)}
+      ${textPart(150, 174, "W", 12)}${textPart(106, 34, "N", 12)}${textPart(216, 70, "F", 12)}
+    </svg>`,
+    growth: () => {
+      const points = [];
+      for (let year = 0; year <= 30; year++) points.push(`${(16 + year * 5.6).toFixed(1)} ${(104 - 90 * (Math.pow(1.1, year) - 1) / (Math.pow(1.1, 30) - 1)).toFixed(1)}`);
+      return `<svg viewBox="0 0 200 120" role="img" aria-label="A curve that rises slowly and then steeply">
+        ${part(`<path d="M16 8 L16 104 L192 104" stroke-width="1.5" ${stroke}/>`)}
+        ${part(`<path d="M${points.join(" L")}" stroke-width="2.5" ${stroke}/>`, 4)}
+      </svg>`;
+    },
+    helix: () => {
+      const strand = (phase) => {
+        const points = [];
+        for (let x = 8; x <= 192; x += 4) points.push(`${x} ${(60 + 34 * Math.sin((x - 8) / 184 * Math.PI * 3 + phase)).toFixed(1)}`);
+        return `M${points.join(" L")}`;
+      };
+      let rungs = "";
+      for (let x = 16; x <= 186; x += 12) {
+        const top = 60 + 34 * Math.sin((x - 8) / 184 * Math.PI * 3);
+        rungs += `M${x} ${top.toFixed(1)} L${x} ${(120 - top).toFixed(1)} `;
+      }
+      return `<svg viewBox="0 0 200 120" role="img" aria-label="Two strands of DNA twisted around each other">
+        ${part(`<path d="${rungs}" stroke-width="1" ${stroke}/>`, 2)}
+        ${part(`<path d="${strand(0)}" stroke-width="2.5" ${stroke}/>`, 2)}
+        ${part(`<path d="${strand(Math.PI)}" stroke-width="2.5" ${stroke}/>`, 2)}
+      </svg>`;
+    },
+  };
+
+  /* Reveals a drawing up to a fraction of its total weight. */
+  function revealDrawing(container, fraction) {
+    const parts = [...container.querySelectorAll("[data-draw], [data-pop]")];
+    const total = parts.reduce((sum, el) => sum + Number(el.dataset.weight || 1), 0);
+    let used = 0;
+    parts.forEach((el) => {
+      const weight = Number(el.dataset.weight || 1);
+      const progress = Math.max(0, Math.min(1, (fraction * total - used) / weight));
+      used += weight;
+      if ("draw" in el.dataset) {
+        el.style.strokeDasharray = "1";
+        el.style.strokeDashoffset = String(1 - progress);
+      } else {
+        el.style.opacity = progress > 0 ? 1 : 0;
+      }
+    });
+  }
+
+  const thumbHtml = (item) => item.image
+    ? `<img src="${IMAGES[item.image].thumb}" alt="">`
+    : DRAWINGS[item.art]();
+
+  /* Finds where the full stop of the typed line would sit, so the sentence itself ends in the tutor's dot. */
+  function fullStopPoint(input) {
+    const measure = document.createElement("canvas").getContext("2d");
+    const styles = getComputedStyle(input);
+    measure.font = `${styles.fontWeight} ${styles.fontSize} ${styles.fontFamily}`;
+    const box = input.getBoundingClientRect();
+    const width = measure.measureText(input.value.trim()).width;
+    const inner = box.width - parseFloat(styles.paddingLeft) - parseFloat(styles.paddingRight);
+    const lines = Math.floor(width / inner);
+    const lineHeight = parseFloat(styles.lineHeight);
+    return [box.left + parseFloat(styles.paddingLeft) + (width % inner) + 5, box.top + parseFloat(styles.paddingTop) + lineHeight * (lines + 0.72)];
+  }
+  function showFullStop(point) {
+    const dot = document.createElement("i");
+    dot.className = "stop-dot";
+    dot.style.left = `${point[0]}px`;
+    dot.style.top = `${point[1]}px`;
+    document.body.appendChild(dot);
+  }
+  function leaveView(done) {
+    state.busy = true;
+    wait(DOT_HOLD_MS, () => {
+      view.classList.add("fading");
+      wait(FADE_MS, () => {
+        document.querySelectorAll(".stop-dot").forEach((dot) => dot.remove());
+        view.classList.remove("fading");
+        state.busy = false;
+        done();
+        window.scrollTo(0, 0);
+      });
+    });
+  }
+
+  let sayTimer = 0;
+  function sayLine(line, voiceEl, talkEl, stateEl, onWord) {
+    clearInterval(sayTimer);
+    voiceEl.innerHTML = "";
+    const words = line.split(" ").map((word, index, all) => {
+      const span = document.createElement("span");
+      span.textContent = word;
+      span.className = "ahead";
+      voiceEl.appendChild(span);
+      if (index < all.length - 1) voiceEl.appendChild(document.createTextNode(" "));
+      return span;
+    });
+    if (still) {
+      words.forEach((span) => span.classList.remove("ahead"));
+      stateEl.textContent = STRINGS.listening;
+      if (onWord) onWord(1);
+      return;
+    }
+    talkEl.classList.add("speaking");
+    stateEl.textContent = STRINGS.speaking;
+    let at = 0;
+    sayTimer = setInterval(() => {
+      if (at >= words.length) {
+        clearInterval(sayTimer);
+        talkEl.classList.remove("speaking");
+        stateEl.textContent = STRINGS.listening;
+        return;
+      }
+      words[at].classList.remove("ahead");
+      at++;
+      if (onWord) onWord(at / words.length);
+    }, WORD_MS);
+  }
+
+  function renderStrip() {
+    const screens = [["onboarding", "Onboarding"], ["home", "Home"], ["sessions", "Sessions"]];
+    strip.innerHTML = `<span>${STRINGS.prototype}</span>
+      <span class="group">${screens.map(([id, label]) => `<button type="button" data-strip-screen="${id}" aria-pressed="${state.screen === id}">${label}</button>`).join("")}</span>
+      <span class="group"><span>${STRINGS.chat}</span><button type="button" data-strip-chat="top" aria-pressed="${state.chat === "top"}">${STRINGS.chatTop}</button><button type="button" data-strip-chat="bottom" aria-pressed="${state.chat === "bottom"}">${STRINGS.chatBottom}</button></span>
+      <span class="grow"></span><span>${STRINGS.exampleData}</span>`;
+  }
+
+  /* Onboarding */
+  const allSteps = ["welcome", "name", "dob", "parent", "into", "level", "goal", "voice", "hello"];
+  const activeSteps = () => allSteps.filter((step) => step !== "parent" || (state.student.age !== null && state.student.age < 18));
+  const displayName = () => state.student.name.trim() || "Maya";
+  const interestList = () => [...state.student.interests, ...(state.student.interestText.trim() ? [state.student.interestText.trim()] : [])];
+  const interestWord = () => state.student.interestText.trim() || (state.student.interests[0] || "learning new things").toLowerCase();
+
+  function sheetHtml() {
+    const s = state.student;
+    const rows = [["into", interestList().join(", ")], ["level", s.level], ["goal", s.goal], ["voice", s.voice]];
+    return `<div class="sheet" id="sheet">
+      <div class="who label quiet"><i class="tutor-dot"></i><span>${STRINGS.sheetLabel}</span></div>
+      <h2 class="made">${STRINGS.madeFor} <span id="sheet-name">${escapeHtml(s.name.trim() || STRINGS.you)}</span></h2>
+      <dl>${rows.map(([key, value]) => `<div class="sheet-row"><dt class="label">${STRINGS.sheetRows[key]}</dt><dd id="sheet-${key}">${escapeHtml(value)}</dd></div>`).join("")}</dl>
+      <p class="fine">${STRINGS.sheetFoot}</p>
+    </div>`;
+  }
+  const setSheet = (key, value) => { const el = document.getElementById(`sheet-${key}`); if (el) el.textContent = value; };
+
+  function stepBody(step) {
+    const s = state.student;
+    switch (step) {
+      case "welcome":
+        return `<h1 class="tagline">${STRINGS.tagline}</h1><p class="onb-sub">${STRINGS.welcomeSub}</p><div class="stack"><button class="btn solid" type="button" data-next>${STRINGS.google}</button><button class="btn" type="button" data-next>${STRINGS.email}</button></div><p class="fine">${STRINGS.terms}</p>`;
+      case "name":
+        return `<h1 class="question">${STRINGS.nameQuestion}</h1><input class="line-input" id="onb-name" autocomplete="given-name" placeholder="${STRINGS.namePlaceholder}" value="${escapeHtml(s.name)}">`;
+      case "dob":
+        return `<h1 class="question">${STRINGS.dobQuestion}</h1><p class="onb-sub">${STRINGS.dobSub}</p><div class="dob"><label class="label quiet">Day<input class="line-input" id="dob-d" inputmode="numeric" maxlength="2" placeholder="14"></label><label class="label quiet">Month<input class="line-input" id="dob-m" inputmode="numeric" maxlength="2" placeholder="03"></label><label class="label quiet year">Year<input class="line-input" id="dob-y" inputmode="numeric" maxlength="4" placeholder="2004" value="${escapeHtml(s.birthYear)}"></label></div><p class="stop" id="dob-stop" hidden>${STRINGS.tooYoung(STRINGS.product)}</p><p class="fine">${STRINGS.dobHint}</p>`;
+      case "parent":
+        return `<h1 class="question">${STRINGS.parentQuestion}</h1><p class="onb-sub">${STRINGS.parentSub}</p><input class="line-input" id="onb-parent" type="email" autocomplete="off" placeholder="${STRINGS.parentPlaceholder}" value="${escapeHtml(s.parent)}">`;
+      case "into":
+        return `<h1 class="question">${STRINGS.intoQuestion}</h1><p class="onb-sub">${STRINGS.intoSub}</p><div class="chips">${STRINGS.intoOptions.map((option) => `<button class="chip" type="button" data-chip="${option}" aria-pressed="${s.interests.includes(option)}">${option}</button>`).join("")}</div><input class="line-input" id="onb-into" style="font-size:16px" placeholder="${STRINGS.intoPlaceholder}" value="${escapeHtml(s.interestText)}">`;
+      case "level":
+        return `<h1 class="question">${STRINGS.levelQuestion}</h1><div class="rows">${STRINGS.levelOptions.map((option) => `<button class="row" type="button" data-pick="level" data-value="${option}" aria-pressed="${s.level === option}"><i class="mark-dot"></i><b>${option}</b></button>`).join("")}</div>`;
+      case "goal":
+        return `<h1 class="question">${STRINGS.goalQuestion}</h1><div class="rows">${STRINGS.goalOptions.map((option) => `<button class="row" type="button" data-pick="goal" data-value="${option}" aria-pressed="${s.goal === option}"><i class="mark-dot"></i><b>${option}</b></button>`).join("")}</div>`;
+      case "voice":
+        return `<h1 class="question">${STRINGS.voiceQuestion}</h1><p class="onb-sub">${STRINGS.voiceSub}</p><div class="rows">${STRINGS.voices.map((voice, index) => `<button class="row" type="button" data-voice="${index}" aria-pressed="${s.voice === voice.name}"><i class="mark-dot"></i><div><b>${voice.name}</b><span class="why">${voice.about}</span></div><span class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span></button>`).join("")}</div><p class="fine">${STRINGS.voiceNote}</p>`;
+      default:
+        return `<div class="who label" id="talk"><i class="tutor-dot"></i><span id="talk-state">${STRINGS.speaking}</span></div><p class="voice" id="voice"></p>${composerHtml("hello-form", "hello-input", STRINGS.helloPlaceholder, false)}`;
+    }
+  }
+
+  function renderOnboarding() {
+    const steps = activeSteps();
+    const step = steps[Math.min(state.stepIndex, steps.length - 1)];
+    const at = steps.indexOf(step);
+    const showNext = !["welcome", "level", "goal", "hello"].includes(step);
+    view.innerHTML = `<div class="onb">
+      <div class="onb-left"><div class="onb-inner">
+        <div class="who" style="justify-content:space-between"><div class="mark">${STRINGS.product}</div>${themeToggle()}</div>
+        <div class="onb-body">${stepBody(step)}</div>
+        <div class="onb-foot">
+          ${at > 0 ? `<button class="back" type="button" data-back>&larr; ${STRINGS.back}</button>` : "<span></span>"}
+          ${at > 0 ? `<span class="label quiet">${STRINGS.step(at, steps.length - 1)}</span>` : ""}
+          ${showNext ? `<button class="btn solid" type="button" data-next id="onb-next">${STRINGS.continueStep} &rarr;</button>` : "<span></span>"}
+        </div>
+      </div></div>
+      <div class="onb-right">${sheetHtml()}</div>
+    </div>`;
+    wireOnboarding(step);
+  }
+
+  function speakSample(voice) {
+    try {
+      speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(STRINGS.voiceSample(displayName()));
+      utterance.pitch = voice.pitch;
+      utterance.rate = voice.rate;
+      speechSynthesis.speak(utterance);
+    } catch (error) { /* the prototype still works silently where speech is blocked */ }
+  }
+  function goToStep(next) {
+    state.stepIndex = Math.max(0, Math.min(next, activeSteps().length - 1));
+    renderOnboarding();
+  }
+  function wireOnboarding(step) {
+    const s = state.student;
+    view.querySelectorAll("[data-back]").forEach((button) => button.addEventListener("click", () => goToStep(state.stepIndex - 1)));
+    view.querySelectorAll("[data-next]").forEach((button) => button.addEventListener("click", () => goToStep(state.stepIndex + 1)));
+    const name = document.getElementById("onb-name");
+    if (name) name.addEventListener("input", () => {
+      s.name = name.value;
+      document.getElementById("sheet-name").textContent = s.name.trim() || STRINGS.you;
+    });
+    const parent = document.getElementById("onb-parent");
+    if (parent) parent.addEventListener("input", () => { s.parent = parent.value; });
+    const into = document.getElementById("onb-into");
+    if (into) into.addEventListener("input", () => { s.interestText = into.value; setSheet("into", interestList().join(", ")); });
+    view.querySelectorAll("[data-chip]").forEach((chip) => chip.addEventListener("click", () => {
+      const value = chip.dataset.chip;
+      s.interests = s.interests.includes(value) ? s.interests.filter((item) => item !== value) : [...s.interests, value];
+      chip.setAttribute("aria-pressed", String(s.interests.includes(value)));
+      setSheet("into", interestList().join(", "));
+    }));
+    view.querySelectorAll("[data-pick]").forEach((row) => row.addEventListener("click", () => {
+      s[row.dataset.pick] = row.dataset.value;
+      row.setAttribute("aria-pressed", "true");
+      setSheet(row.dataset.pick, row.dataset.value);
+      wait(still ? 0 : 240, () => goToStep(state.stepIndex + 1));
+    }));
+    view.querySelectorAll("[data-voice]").forEach((row) => row.addEventListener("click", () => {
+      const voice = STRINGS.voices[Number(row.dataset.voice)];
+      s.voice = voice.name;
+      setSheet("voice", voice.name);
+      view.querySelectorAll("[data-voice]").forEach((other) => {
+        other.setAttribute("aria-pressed", String(other === row));
+        other.classList.toggle("playing", other === row);
+      });
+      speakSample(voice);
+      wait(1600, () => row.classList.remove("playing"));
+    }));
+    view.querySelectorAll(".line-input").forEach((input) => input.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      const next = document.getElementById("onb-next");
+      if (next && !next.disabled) next.click();
+    }));
+    const firstInput = view.querySelector(".line-input, textarea");
+    if (firstInput && !matchMedia("(max-width: 760px)").matches) firstInput.focus({ preventScroll: true });
+    if (step === "dob") wireBirthDate();
+    if (step === "hello") {
+      sayLine(STRINGS.hello(displayName(), interestWord()), document.getElementById("voice"), document.getElementById("talk"), document.getElementById("talk-state"));
+      wireComposer("hello-form", "hello-input", (text, input) => finishOnboarding(text, input));
+    }
+  }
+  function wireBirthDate() {
+    const year = document.getElementById("dob-y");
+    const check = () => {
+      const entered = parseInt(year.value, 10);
+      const complete = year.value.length === 4 && entered > 1900;
+      state.student.birthYear = year.value;
+      state.student.age = complete ? new Date().getFullYear() - entered : null;
+      const tooYoung = complete && state.student.age < 13;
+      document.getElementById("dob-stop").hidden = !tooYoung;
+      document.getElementById("onb-next").disabled = tooYoung;
+    };
+    year.addEventListener("input", check);
+    check();
+  }
+  function finishOnboarding(text, input) {
+    if (state.busy) return;
+    clearInterval(sayTimer);
+    state.student.firstQuestion = text;
+    state.returning = false;
+    state.sessions = [];
+    showFullStop(fullStopPoint(input));
+    leaveView(() => {
+      state.screen = "home";
+      render();
+    });
+  }
+
+  /* The chat box, shared by Home and the first hello. */
+  function composerHtml(formId, inputId, placeholder, withAttach) {
+    return `<form class="composer" id="${formId}">
+      <label for="${inputId}" class="label" hidden>${STRINGS.composerLabel}</label>
+      <div id="${formId}-attached"></div>
+      <textarea id="${inputId}" rows="1" autocomplete="off" placeholder="${escapeHtml(placeholder)}"></textarea>
+      <div class="composer-tools">
+        ${withAttach ? `<button class="icon-btn" type="button" data-attach title="${STRINGS.attach}">${ICONS.attach}<span>${STRINGS.attach}</span></button><input type="file" accept="image/*,.pdf" hidden data-attach-input>` : ""}
+        <button class="icon-btn" type="button" data-talk>${ICONS.mic}<span>${STRINGS.talk}</span></button>
+        <span class="grow"></span>
+        <button class="send" type="submit" aria-label="${STRINGS.send}" title="${STRINGS.send}" disabled>${ICONS.up}</button>
+      </div>
+    </form>`;
+  }
+  function wireComposer(formId, inputId, onSubmit) {
+    const form = document.getElementById(formId);
+    const input = document.getElementById(inputId);
+    const send = form.querySelector(".send");
+    const basePlaceholder = input.placeholder;
+    const refresh = () => {
+      send.disabled = !input.value.trim();
+      input.style.height = "auto";
+      input.style.height = `${Math.min(140, input.scrollHeight)}px`;
+    };
+    input.addEventListener("input", refresh);
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); form.requestSubmit(); }
+    });
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const text = input.value.trim();
+      if (text) onSubmit(text, input);
+    });
+    const talk = form.querySelector("[data-talk]");
+    talk.addEventListener("click", () => {
+      const on = talk.classList.toggle("on");
+      input.placeholder = on ? STRINGS.composerListening : basePlaceholder;
+    });
+    const attach = form.querySelector("[data-attach]");
+    if (attach) {
+      const fileInput = form.querySelector("[data-attach-input]");
+      const holder = document.getElementById(`${formId}-attached`);
+      attach.addEventListener("click", () => fileInput.click());
+      fileInput.addEventListener("change", () => {
+        const file = fileInput.files[0];
+        holder.innerHTML = file ? `<div class="attached"><span>${escapeHtml(file.name)}</span><button type="button" aria-label="${STRINGS.remove}">&times;</button></div>` : "";
+        if (file) holder.querySelector("button").addEventListener("click", () => { holder.innerHTML = ""; fileInput.value = ""; });
+      });
+    }
+    refresh();
+  }
+
+  /* App shell */
+  const sessionStatus = (session) => session.status === "progress" ? STRINGS.inProgress : STRINGS.finished;
+  const railHtml = () => `<aside class="rail">
+      <div class="mark">${STRINGS.product}</div>
+      <nav aria-label="Menu">${MENU.map((item) => `<button type="button" data-menu="${item.id}" ${state.screen === item.id ? 'aria-current="page"' : ""}><span>${item.label}</span>${item.id === "sessions" && state.sessions.length ? `<span class="quiet" style="font-weight:400;font-variant-numeric:tabular-nums">${state.sessions.length}</span>` : ""}</button>`).join("")}</nav>
+      <div class="recent"><div class="label quiet">${STRINGS.recent}</div>${state.sessions.length ? `<ul>${state.sessions.slice(0, 6).map((session, index) => `<li><button type="button" data-open-session="${index}" title="${escapeHtml(session.title)}">${escapeHtml(session.title)}</button></li>`).join("")}</ul>` : `<p class="fine">${STRINGS.noSessions}</p>`}</div>
+      <div class="account"><div><b>${escapeHtml(displayName())}</b><span class="fine">${escapeHtml(state.student.level || "High school")}</span></div>${themeToggle()}</div>
+    </aside>`;
+
+  function nextCardHtml() {
+    const first = state.student.firstQuestion;
+    if (!state.returning && first) {
+      return `<section class="next" style="grid-template-columns:minmax(0,1fr)"><div class="next-text"><span class="label quiet">${STRINGS.startHere}</span><h2>${escapeHtml(first)}</h2><p>${STRINGS.startHereSub}</p><button class="btn solid" type="button" data-start-text="${escapeHtml(first)}">${STRINGS.startButton} &rarr;</button></div></section>`;
+    }
+    const session = state.sessions.find((item) => item.status === "progress");
+    if (!session) return "";
+    const index = state.sessions.indexOf(session);
+    const art = session.art ? `<div class="next-art">${DRAWINGS[session.art]()}</div>` : "";
+    return `<section class="next"${art ? "" : ' style="grid-template-columns:minmax(0,1fr)"'}><div class="next-text"><span class="label quiet">${STRINGS.continueLabel}</span><h2>${escapeHtml(session.title)}</h2><p>${escapeHtml(session.detail || session.subject)}</p><button class="btn solid" type="button" data-open-session="${index}">${STRINGS.continueButton} &rarr;</button></div>${art}</section>`;
+  }
+  const pickHtml = (pick, index) => `<button class="pick" type="button" data-card="${index}">
+      <span class="thumb">${thumbHtml(pick)}</span>
+      <span><span class="label quiet">${pick.subject}, ${pick.minutes}</span><b>${escapeHtml(pick.title)}</b><span class="why">${escapeHtml(pick.why)}</span></span>
+    </button>`;
+
+  function homeBody() {
+    const greeting = state.returning ? STRINGS.welcomeBack(displayName()) : STRINGS.welcomeNew(displayName());
+    const chat = `<div class="dock">${composerHtml("composer", "topic", STRINGS.composerPlaceholder, true)}</div>`;
+    const picks = `<section><div class="section-head"><span class="label quiet">${STRINGS.picked}</span></div><div class="picks">${PICKS.map(pickHtml).join("")}</div></section>`;
+    const header = `<header><h1 class="hello">${escapeHtml(greeting)}</h1><p class="sub">${STRINGS.homeQuestion}</p></header>`;
+    return `<div class="column" data-chat="${state.chat}">${state.chat === "top" ? `${header}${chat}${nextCardHtml()}${picks}` : `${header}${nextCardHtml()}${picks}${chat}`}</div>`;
+  }
+  function sessionsBody() {
+    const rows = state.sessions.map((session, index) => ({ session, index })).filter(({ session }) => session.title.toLowerCase().includes(state.query.toLowerCase()));
+    const table = rows.length ? `<table class="sessions"><thead><tr class="label"><th>${STRINGS.sessionsColumns[0]}</th><th class="hide-narrow">${STRINGS.sessionsColumns[1]}</th><th class="hide-narrow">${STRINGS.sessionsColumns[2]}</th><th class="hide-narrow">${STRINGS.sessionsColumns[3]}</th><th>${STRINGS.sessionsColumns[4]}</th><th></th></tr></thead><tbody>${rows.map(({ session, index }) => `<tr data-open="${index}"><td class="t">${escapeHtml(session.title)}</td><td class="hide-narrow quiet">${escapeHtml(session.subject)}</td><td class="hide-narrow quiet">${escapeHtml(session.date)}</td><td class="hide-narrow quiet">${escapeHtml(session.length)}</td><td class="quiet">${sessionStatus(session)}</td><td class="act"><button type="button" data-open-session="${index}">${session.status === "progress" ? STRINGS.resume : STRINGS.replay} &rarr;</button></td></tr>`).join("")}</tbody></table>` : `<div class="empty">${state.sessions.length ? STRINGS.noMatch : STRINGS.noSessions}</div>`;
+    return `<div class="column"><div class="list-head"><h1 class="page-title">${STRINGS.sessionsTitle}</h1><div class="list-tools"><label for="session-search" class="label" hidden>${STRINGS.sessionsSearch}</label><input class="search" id="session-search" placeholder="${STRINGS.sessionsSearch}" value="${escapeHtml(state.query)}"><button class="btn solid" type="button" data-menu="home">${STRINGS.newSession} &rarr;</button></div></div>${table}</div>`;
+  }
+  function renderApp() {
+    const body = state.screen === "sessions" ? sessionsBody() : homeBody();
+    view.innerHTML = `<header class="topbar"><div class="mark">${STRINGS.product}</div><button class="label" type="button" data-menu-toggle>${STRINGS.menu}</button></header><div class="app" id="app">${railHtml()}<main class="main">${body}</main></div>`;
+    wireApp();
+    view.querySelectorAll("[data-draw], [data-pop]").forEach((el) => { if ("draw" in el.dataset) { el.style.strokeDasharray = "none"; } });
+  }
+  function wireApp() {
+    const appEl = document.getElementById("app");
+    view.querySelectorAll("[data-menu]").forEach((button) => button.addEventListener("click", () => { state.screen = button.dataset.menu; render(); }));
+    view.querySelectorAll("[data-menu-toggle]").forEach((button) => button.addEventListener("click", () => appEl.classList.toggle("menu-open")));
+    view.querySelectorAll("[data-open-session]").forEach((button) => button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      openExisting(Number(button.dataset.openSession));
+    }));
+    view.querySelectorAll("tr[data-open]").forEach((row) => row.addEventListener("click", () => openExisting(Number(row.dataset.open))));
+    view.querySelectorAll("[data-card]").forEach((button) => button.addEventListener("click", () => startFromPick(Number(button.dataset.card))));
+    view.querySelectorAll("[data-start-text]").forEach((button) => button.addEventListener("click", () => startFromText(button.dataset.startText)));
+    if (document.getElementById("composer")) wireComposer("composer", "topic", (text, input) => {
+      showFullStop(fullStopPoint(input));
+      startFromText(text);
+    });
+    const search = document.getElementById("session-search");
+    if (search) search.addEventListener("input", () => {
+      state.query = search.value;
+      const position = search.selectionStart;
+      render();
+      const again = document.getElementById("session-search");
+      again.focus();
+      again.setSelectionRange(position, position);
+    });
+  }
+
+  /* Starting a session */
+  const openSession = (session) => leaveView(() => {
+    state.active = session;
+    state.screen = "session";
+    render();
+  });
+  function startFromPick(index) {
+    if (state.busy) return;
+    const pick = PICKS[index];
+    const session = { title: pick.title, subject: pick.subject, date: STRINGS.today, length: "00:00", status: "progress", image: pick.image, art: pick.art, opener: pick.opener };
+    state.sessions.unshift(session);
+    openSession(session);
+  }
+  function startFromText(text) {
+    if (state.busy) return;
+    const session = { title: text, subject: STRINGS.yourQuestion, date: STRINGS.today, length: "00:00", status: "progress", art: "arc", opener: STRINGS.typedOpener };
+    state.sessions.unshift(session);
+    state.student.firstQuestion = "";
+    openSession(session);
+  }
+  function openExisting(index) {
+    if (state.busy) return;
+    const session = state.sessions[index];
+    session.opener = session.opener || `Welcome back. Last time we were on ${session.title.toLowerCase()}. Tell me what you remember, and I'll pick up from there.`;
+    openSession(session);
+  }
+
+  /* Session: the board draws in time with the tutor's words. */
+  function renderSession() {
+    const session = state.active;
+    const art = session.image
+      ? `<img id="board-image" src="${IMAGES[session.image].board}" alt="">`
+      : DRAWINGS[session.art || "arc"](true);
+    view.innerHTML = `<div class="session">
+      <div class="session-bar">
+        <span class="mark">${STRINGS.product}</span>
+        <span class="label quiet">${escapeHtml(session.subject)}</span><span class="label quiet" id="clock">00:00</span>
+        <span class="grow"></span>${themeToggle()}
+        <button class="btn" type="button" id="end" style="padding:5px 12px">${STRINGS.endSession}</button>
+      </div>
+      <div class="session-grid">
+        <div class="board"><div class="board-art" id="board-art">${art}</div><div class="board-foot label">${STRINGS.standIn}</div></div>
+        <div class="talk" id="talk">
+          <div class="who label"><i class="tutor-dot"></i><span id="talk-state">${STRINGS.speaking}</span></div>
+          <div class="label quiet">${escapeHtml(session.title)}</div>
+          <p class="voice" id="voice"></p>
+          <div class="grow"></div>
+          <p class="reply" id="reply" hidden></p>
+          ${composerHtml("reply-form", "reply-input", STRINGS.replyPlaceholder, false)}
+        </div>
+      </div>
+    </div>`;
+    const boardArt = document.getElementById("board-art");
+    const image = document.getElementById("board-image");
+    const drawTo = (fraction) => {
+      if (image) { if (fraction > 0.1) image.classList.add("shown"); }
+      else revealDrawing(boardArt, fraction);
+    };
+    drawTo(0);
+    const talk = document.getElementById("talk");
+    const voice = document.getElementById("voice");
+    const stateEl = document.getElementById("talk-state");
+    sayLine(session.opener, voice, talk, stateEl, drawTo);
+    const started = Date.now();
+    const clock = setInterval(() => {
+      const el = document.getElementById("clock");
+      if (!el) { clearInterval(clock); return; }
+      const seconds = Math.floor((Date.now() - started) / 1000);
+      el.textContent = `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
+    }, 500);
+    wireComposer("reply-form", "reply-input", (text, input) => {
+      input.value = "";
+      input.dispatchEvent(new Event("input"));
+      const reply = document.getElementById("reply");
+      reply.hidden = false;
+      reply.innerHTML = `<span class="label quiet">${STRINGS.youLabel}</span><br>${escapeHtml(text)}`;
+      sayLine(STRINGS.tutorAck, voice, talk, stateEl);
+    });
+    document.getElementById("end").addEventListener("click", () => {
+      if (state.busy) return;
+      clearInterval(sayTimer);
+      clearInterval(clock);
+      session.status = "done";
+      session.length = document.getElementById("clock").textContent;
+      leaveView(() => {
+        state.active = null;
+        state.screen = "home";
+        render();
+      });
+    });
+  }
+
+  function render() {
+    clearInterval(sayTimer);
+    renderStrip();
+    if (state.screen === "onboarding") renderOnboarding();
+    else if (state.screen === "session") renderSession();
+    else renderApp();
+    try { history.replaceState(null, "", `#${state.screen}-${state.chat}`); } catch (error) { /* the hash is a convenience only */ }
+  }
+
+  strip.addEventListener("click", (event) => {
+    if (state.busy) return;
+    const screen = event.target.closest("[data-strip-screen]");
+    const chat = event.target.closest("[data-strip-chat]");
+    if (screen) {
+      state.screen = screen.dataset.stripScreen;
+      if (state.screen === "onboarding") {
+        state.stepIndex = 0;
+        state.student = emptyStudent();
+      } else {
+        state.returning = true;
+        state.student.firstQuestion = "";
+        if (!state.sessions.length) state.sessions = EXAMPLE_SESSIONS.map((session) => ({ ...session }));
+      }
+      render();
+    }
+    if (chat) {
+      state.chat = chat.dataset.stripChat;
+      if (state.screen === "onboarding" || state.screen === "session") state.screen = "home";
+      render();
+    }
+  });
+  document.addEventListener("click", (event) => {
+    const themeButton = event.target.closest("[data-theme-set]");
+    if (themeButton) setTheme(themeButton.dataset.themeSet);
+  });
+
+  const startScreen = ["onboarding", "home", "sessions"].find((token) => hashTokens.includes(token));
+  if (startScreen) state.screen = startScreen;
+  if (hashTokens.includes("top")) state.chat = "top";
+  const stepToken = allSteps.find((step) => hashTokens.includes(step));
+  if (stepToken) {
+    Object.assign(state.student, { name: "Maya", interests: ["Basketball", "Space"], level: "University", goal: "An exam coming up", voice: "Ada" });
+    state.stepIndex = allSteps.filter((step) => step !== "parent").indexOf(stepToken);
+  }
+  if (hashTokens.includes("session")) {
+    const pick = PICKS[hashTokens.includes("image") ? 1 : 0];
+    state.active = { title: pick.title, subject: pick.subject, date: STRINGS.today, length: "00:00", status: "progress", image: pick.image, art: pick.art, opener: pick.opener };
+    state.screen = "session";
+  }
+  render();
+})();
+</script>
