@@ -1,5 +1,14 @@
 import { Type } from 'class-transformer';
-import { IsInt, IsString, IsUUID, Min, MinLength, ValidateNested } from 'class-validator';
+import {
+  IsArray,
+  IsInt,
+  IsObject,
+  IsString,
+  IsUUID,
+  Min,
+  MinLength,
+  ValidateNested,
+} from 'class-validator';
 
 export class ProbeOwnerDto {
   /** The name of the person who owns the probe. */
@@ -20,11 +29,13 @@ export class CreateProbeBodyDto {
   name!: string;
 
   /** The person who owns the probe. */
+  @IsObject()
   @ValidateNested()
   @Type(() => ProbeOwnerDto)
   owner!: ProbeOwnerDto;
 
   /** The sensors on the probe. */
+  @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ProbeSensorDto)
   sensors!: ProbeSensorDto[];

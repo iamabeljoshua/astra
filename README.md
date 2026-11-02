@@ -48,7 +48,7 @@ Every request body, query string, route parameter, and response in the API is a 
 2. Add a class with one field for each input. Put a `/** comment */` on each field. The comment becomes the field description in the docs.
 3. Add `class-validator` rules to each field. The API rejects a request field that has no rule, as if the DTO did not declare it. The plugin documents a single literal type such as `'ok'` as a plain string, so add `@IsIn(['ok'])` to keep the literal.
 4. If a query string or a route parameter holds a number, add `@Type(() => Number)` from `class-transformer`, because the value arrives as a string.
-5. If a field holds another DTO, add `@ValidateNested()` and `@Type(() => OtherDto)`. Without them, the API does not check the inner fields.
+5. If a field holds another DTO, add `@IsObject()`, `@ValidateNested()`, and `@Type(() => OtherDto)`. If a field holds a list of DTOs, add `@IsArray()`, `@ValidateNested({ each: true })`, and `@Type(() => OtherDto)`. `@ValidateNested()` alone accepts a missing field or an array. Without `@ValidateNested()`, the API does not check the inner fields. `@ValidateNested()` without `@Type` rejects every inner field, valid ones included.
 6. Use the class in the route, as `@Body() body: CreateThingBodyDto`, `@Query() query: ListThingsQueryDto`, or `@Param() routeParams: ThingRouteParamsDto`. Do not use `@Query('name')` or `@Param('id')`, because `ValidationPipe` does not check them.
 7. Put a `/** comment */` on the route. The comment becomes the route summary. Give the route a return type, so that the docs show the response.
 8. Run `pnpm api:types` and commit the changed `packages/contracts/src/api.generated.ts`.
