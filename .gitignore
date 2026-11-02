@@ -5,3 +5,7 @@
 docs/design/look-prototype/astra-look.html
 docs/design/app-prototype/astra-app.html
 docs/design/app-prototype/preview.html
+
+node_modules/
+dist/
+.env
