@@ -35,6 +35,7 @@ WEB_PORT=5401 API_PORT=3401 pnpm verify start
 - The command returns when both ports belong to this run, the web app answers, the API answers `GET /health`, and `GET /api/health` answers through the dev proxy.
 - Running it again replaces the earlier run from this checkout.
 - Read `.verify/dev.log` for the web and API logs.
+- CI runs `pnpm verify start && pnpm verify stop` with no browser, so a broken dev proxy fails the PR.
 
 ## Doctor
 
@@ -113,7 +114,7 @@ Run this after every `start`, including after a failure. It is safe to run twice
 pnpm verify:self
 ```
 
-Run this after you change anything in this skill. It takes about 30 seconds, uses free ports, and shares nothing with a run you already have. It drives the real app and asserts failing exit codes on a page that throws, a console error, a page that is not Astra, a taken port, and a dead API.
+Run this after you change anything in this skill. It takes about 40 seconds, uses free ports, and shares nothing with a run you already have. It drives the real app and asserts failing exit codes on a page that throws, a console error, a page that is not Astra, a taken port, and a dead API.
 
 ## Feature map
 

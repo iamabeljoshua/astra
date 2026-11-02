@@ -18,12 +18,14 @@ const DEV_COMMAND = { command: 'pnpm', args: ['dev'] };
 const DEV_LOG_ENV = { NO_COLOR: '1', npm_config_reporter: 'append-only' };
 const LOG_TAIL_LINES = 30;
 const HIGHEST_PORT = 65_535;
+const APP_ROOT_MARKUP = 'id="root"';
+const BODY_EXCERPT_LENGTH = 60;
 
 export function getWebUrl(run) {
   return `http://localhost:${run.webPort}`;
 }
 
-function getApiUrl(run) {
+export function getApiUrl(run) {
   return `http://localhost:${run.apiPort}`;
 }
 
@@ -73,18 +75,7 @@ function getPortOwnerCheck({ name, port, processGroupId }) {
   return { name, passed: isOurs, detail };
 }
 
-async function getHealthCheck({ name, url }) {
-  try {
-    const response = await fetch(url, { signal: AbortSignal.timeout(TIMEOUTS_MS.httpProbe) });
-    const body = await response.text();
-    const passed = response.ok && isHealthyBody(body);
-    return { name, passed, detail: `${url} answered ${response.status} ${body.slice(0, 60)}` };
-  } catch (error) {
-    return { name, passed: false, detail: `${url} did not answer: ${error.message}` };
-  }
-}
-
-function isHealthyBody(body) {
+function isHealthBody(body) {
   try {
     return JSON.parse(body).status === 'ok';
   } catch {
@@ -92,13 +83,19 @@ function isHealthyBody(body) {
   }
 }
 
-async function getWebPageCheck(run) {
-  const url = getWebUrl(run);
+function isAppPage(body) {
+  return body.includes(APP_ROOT_MARKUP);
+}
+
+async function getAnswerCheck({ name, url, isExpectedBody }) {
   try {
     const response = await fetch(url, { signal: AbortSignal.timeout(TIMEOUTS_MS.httpProbe) });
-    return { name: 'web answers', passed: response.ok, detail: `${url} answered ${response.status}` };
+    const body = await response.text();
+    const excerpt = JSON.stringify(body.slice(0, BODY_EXCERPT_LENGTH));
+    const passed = response.ok && isExpectedBody(body);
+    return { name, passed, detail: `${url} answered ${response.status} ${excerpt}` };
   } catch (error) {
-    return { name: 'web answers', passed: false, detail: `${url} did not answer: ${error.message}` };
+    return { name, passed: false, detail: `${url} did not answer: ${error.message}` };
   }
 }
 
@@ -107,9 +104,17 @@ export async function getAppChecks(run) {
   return [
     getPortOwnerCheck({ name: 'web port owner', port: webPort, processGroupId }),
     getPortOwnerCheck({ name: 'api port owner', port: apiPort, processGroupId }),
-    await getWebPageCheck(run),
-    await getHealthCheck({ name: 'api answers', url: `${getApiUrl(run)}/health` }),
-    await getHealthCheck({ name: 'dev proxy reaches api', url: `${getWebUrl(run)}/api/health` }),
+    await getAnswerCheck({ name: 'web answers', url: getWebUrl(run), isExpectedBody: isAppPage }),
+    await getAnswerCheck({
+      name: 'api answers',
+      url: `${getApiUrl(run)}/health`,
+      isExpectedBody: isHealthBody,
+    }),
+    await getAnswerCheck({
+      name: 'dev proxy reaches api',
+      url: `${getWebUrl(run)}/api/health`,
+      isExpectedBody: isHealthBody,
+    }),
   ];
 }
 
@@ -152,14 +157,19 @@ export async function startApp() {
   return run;
 }
 
-export function readRun() {
+function readRun() {
   if (!existsSync(RUN_STATE_PATH)) return undefined;
   return JSON.parse(readFileSync(RUN_STATE_PATH, 'utf8'));
 }
 
-export async function getRunningApp() {
+export function requireRun() {
   const run = readRun();
   if (!run) throw new Error('Astra is not running. Run "pnpm verify start" first.');
+  return run;
+}
+
+export async function getHealthyRun() {
+  const run = requireRun();
   const failures = describeFailedChecks(await getAppChecks(run));
   if (failures) throw new Error(`This run is not healthy. Run "pnpm verify doctor".\n${failures}`);
   return run;

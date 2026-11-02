@@ -62,7 +62,7 @@ async function probeAudio(timeoutMs) {
   return { outputPeak, microphonePeak, microphoneLabel };
 }
 
-export async function getBrowserChecks(page) {
+async function getBrowserChecks(page) {
   const webgl = await page.evaluate(probeWebgl, WEBGL_CLEAR_COLOR);
   const audio = await page.evaluate(probeAudio, TIMEOUTS_MS.audioSignal);
   return [
@@ -100,4 +100,17 @@ export function watchPageFailures(page) {
     }
   });
   return failures;
+}
+
+export async function getPageChecks({ baseURL, productName }) {
+  const browser = await launchBrowser();
+  try {
+    const page = await browser.newPage({ baseURL });
+    const pageFailures = watchPageFailures(page);
+    await page.goto('/');
+    const identityCheck = await getIdentityCheck(page, productName);
+    return [identityCheck, ...(await getBrowserChecks(page)), ...pageFailures];
+  } finally {
+    await browser.close();
+  }
 }

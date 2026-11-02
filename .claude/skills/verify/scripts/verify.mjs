@@ -1,11 +1,19 @@
 #!/usr/bin/env node
 import { parseArgs, stripVTControlCharacters } from 'node:util';
-import { getAppChecks, getRunningApp, getWebUrl, readRun, startApp, stopApp } from './lib/app.mjs';
-import { getBrowserChecks, getIdentityCheck, launchBrowser, watchPageFailures } from './lib/browser.mjs';
+import {
+  getApiUrl,
+  getAppChecks,
+  getHealthyRun,
+  getWebUrl,
+  requireRun,
+  startApp,
+  stopApp,
+} from './lib/app.mjs';
+import { getPageChecks } from './lib/browser.mjs';
 import { driveJourney, parseViewportNames } from './lib/journey.mjs';
 import { DEFAULT_EVIDENCE_DIR, getProductName, VIEWPORTS } from './lib/settings.mjs';
 
-const USAGE = `Usage: pnpm verify <command>
+const USAGE = `Usage: [WEB_PORT=<port>] [API_PORT=<port>] pnpm verify <command>
   start    Start Astra and wait until the web app and the API both answer.
   doctor   Check the running instance, its ports, the page identity, WebGL, and audio.
   drive    Drive a journey and save screenshots. Needs a running instance.
@@ -32,33 +40,20 @@ function reportChecks(checks) {
 
 async function start() {
   const run = await startApp();
-  console.log(`Astra is running.\nweb ${getWebUrl(run)}\napi port ${run.apiPort}\nlog ${run.logPath}`);
+  console.log(`Astra is running.\nweb ${getWebUrl(run)}\napi ${getApiUrl(run)}\nlog ${run.logPath}`);
   return true;
 }
 
-async function getPageChecks(run) {
-  const browser = await launchBrowser();
-  try {
-    const page = await browser.newPage({ baseURL: getWebUrl(run) });
-    const pageFailures = watchPageFailures(page);
-    await page.goto('/');
-    const identityCheck = await getIdentityCheck(page, getProductName());
-    return [identityCheck, ...(await getBrowserChecks(page)), ...pageFailures];
-  } finally {
-    await browser.close();
-  }
-}
-
 async function doctor() {
-  const run = readRun();
-  if (!run) throw new Error('Astra is not running. Run "pnpm verify start" first.');
+  const run = requireRun();
   const appChecks = await getAppChecks(run);
-  const appIsHealthy = appChecks.every((check) => check.passed);
-  return reportChecks(appIsHealthy ? [...appChecks, ...(await getPageChecks(run))] : appChecks);
+  if (!appChecks.every((check) => check.passed)) return reportChecks(appChecks);
+  const pageChecks = await getPageChecks({ baseURL: getWebUrl(run), productName: getProductName() });
+  return reportChecks([...appChecks, ...pageChecks]);
 }
 
 async function drive({ journey, viewports, out }) {
-  const run = await getRunningApp();
+  const run = await getHealthyRun();
   const viewportNames = parseViewportNames(viewports);
   return reportChecks(
     await driveJourney({ run, journeyName: journey, viewportNames, evidenceDir: out }),

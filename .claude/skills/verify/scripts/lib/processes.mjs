@@ -2,13 +2,13 @@ import { execFileSync, spawn } from 'node:child_process';
 import { closeSync, openSync } from 'node:fs';
 import { createServer } from 'node:net';
 
-const LSOF_NO_MATCH_EXIT_CODE = 1;
+const NO_MATCH_EXIT_CODE = 1;
 
 function readCommandOutput(command, args) {
   try {
     return execFileSync(command, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
   } catch (error) {
-    if (error.status === LSOF_NO_MATCH_EXIT_CODE) return '';
+    if (error.status === NO_MATCH_EXIT_CODE) return '';
     throw error;
   }
 }

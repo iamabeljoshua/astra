@@ -18,6 +18,8 @@ const FIXTURES_DIR = join(SKILL_ROOT, 'scripts/fixtures');
 const APP_PROCESS_MARKER = join(REPO_ROOT, 'apps');
 const PNG_WIDTH_OFFSET = 16;
 const LOOPBACK_ADDRESSES = ['127.0.0.1', '::1'];
+const UNUSED_PORT = 1;
+const PROCESS_LIST_MAX_BYTES = 64 * 1024 * 1024;
 
 const scratchDir = mkdtempSync(join(tmpdir(), 'astra-verify-self-'));
 const evidenceDir = join(scratchDir, 'evidence');
@@ -43,7 +45,7 @@ function assertPassed({ exitCode, output }) {
 }
 
 function getAppProcesses() {
-  return execFileSync('ps', ['-A', '-o', 'command='], { encoding: 'utf8', maxBuffer: 2 ** 26 })
+  return execFileSync('ps', ['-A', '-o', 'command='], { encoding: 'utf8', maxBuffer: PROCESS_LIST_MAX_BYTES })
     .split('\n')
     .filter((command) => command.includes(APP_PROCESS_MARKER));
 }
@@ -56,7 +58,7 @@ function assertScreenshotWidth(viewportName, fileName) {
 
 async function listenOnFreeLoopback(port) {
   for (const address of LOOPBACK_ADDRESSES) {
-    const server = createServer();
+    const server = createServer((socket) => socket.destroy());
     const listening = await new Promise((resolve) => {
       server.once('error', () => resolve(false));
       server.listen(port, address, () => resolve(true));
@@ -73,6 +75,14 @@ async function withForeignListener(port, action) {
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }
+}
+
+function recordProcessGroupAsRun({ cwd, script }) {
+  const child = spawn('sh', ['-c', script], { cwd, detached: true, stdio: 'ignore' });
+  child.unref();
+  const run = { processGroupId: child.pid, webPort: UNUSED_PORT, apiPort: UNUSED_PORT, logPath: '' };
+  writeFileSync(join(runDir, 'run.json'), JSON.stringify(run));
+  return child.pid;
 }
 
 const appProcessesBefore = getAppProcesses();
@@ -183,13 +193,18 @@ const SELF_CHECKS = [
   [
     'stop ignores a recorded group that is not from this checkout',
     async () => {
-      const bystander = spawn('sleep', ['60'], { cwd: scratchDir, detached: true, stdio: 'ignore' });
-      bystander.unref();
-      const run = { processGroupId: bystander.pid, webPort: 1, apiPort: 1, logPath: '' };
-      writeFileSync(join(runDir, 'run.json'), JSON.stringify(run));
+      const bystander = recordProcessGroupAsRun({ cwd: scratchDir, script: 'sleep 60' });
       assertPassed(await runCli(['stop']));
-      assert.equal(isProcessGroupAlive(bystander.pid), true, 'the bystander survives');
-      process.kill(-bystander.pid, 'SIGKILL');
+      assert.equal(isProcessGroupAlive(bystander), true, 'the bystander survives');
+      process.kill(-bystander, 'SIGKILL');
+    },
+  ],
+  [
+    'stop force-kills a group that ignores SIGTERM',
+    async () => {
+      const stubborn = recordProcessGroupAsRun({ cwd: REPO_ROOT, script: 'trap "" TERM; sleep 60' });
+      assertPassed(await runCli(['stop']));
+      assert.equal(isProcessGroupAlive(stubborn), false, 'the group is gone');
     },
   ],
 ];
