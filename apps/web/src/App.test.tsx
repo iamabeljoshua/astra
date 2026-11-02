@@ -1,10 +1,10 @@
-import type { HealthResponse } from '@astra/contracts';
+import type { components } from '@astra/contracts';
 import { act, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App';
 import { API_CONNECTION_LABELS, PRODUCT_NAME } from './strings';
 
-const healthyResponse: HealthResponse = { status: 'ok' };
+const healthyResponse: components['schemas']['HealthResponseDto'] = { status: 'ok' };
 const TIME_FOR_SEVERAL_CHECKS_MS = 30_000;
 
 function stubFetchWithHealthyApi() {

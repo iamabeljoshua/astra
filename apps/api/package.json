@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "dev": "nest start --watch --preserveWatchOutput",
+    "api:types": "nest build && node scripts/generate-api-types.mjs",
     "typecheck": "tsc",
     "test": "jest"
   },
@@ -17,7 +18,6 @@
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
-    "@astra/contracts": "workspace:*",
     "@nestjs/cli": "^11.0.24",
     "@nestjs/testing": "^11.1.0",
     "@types/jest": "^30.0.0",
