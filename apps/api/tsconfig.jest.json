@@ -1,0 +1,9 @@
+{
+  // The Swagger plugin needs a full program, and ts-jest only keeps one with these settings.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "isolatedModules": false,
+    "module": "commonjs",
+    "moduleResolution": "node10"
+  }
+}
