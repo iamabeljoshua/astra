@@ -83,6 +83,7 @@ A page crash stops the run with exit code 1 and `Target crashed`.
 
 - It is the full Chromium build in headless mode. On a Mac it draws with the real GPU. On Linux, which includes CI, it draws in software.
 - Audio autoplay rules are the ones a student gets. An `AudioContext` stays suspended until a real click, so click in the journey. `page.evaluate` counts as a user gesture, so it hides an autoplay bug.
+- Playwright mutes the headless browser, so prove sound with an `AnalyserNode`. `doctor` does this.
 - The microphone is a fake device that plays beeps, and it needs no permission click.
 - Light and dark are not viewports. Switch the theme in the journey, then call `capture` again.
 

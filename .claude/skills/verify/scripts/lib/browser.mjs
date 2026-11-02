@@ -5,6 +5,7 @@ const INSTALL_COMMAND = 'pnpm exec playwright install chromium --no-shell';
 const GPU_CAPABLE_CHANNEL = 'chromium';
 const FAKE_MICROPHONE_ARGS = ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'];
 const WEBGL_CLEAR_COLOR = [255, 128, 0, 255];
+const AUDIBLE_PEAK = 0.01;
 const MISSING_FAVICON_PATH = '/favicon.ico';
 
 export async function launchBrowser() {
@@ -29,7 +30,7 @@ function probeWebgl(expectedPixel) {
   return { passed, detail: `${renderer} drew ${pixel.join(',')}` };
 }
 
-async function probeAudio(timeoutMs) {
+async function probeAudio({ timeoutMs, audiblePeak }) {
   const audioContext = new AudioContext();
   await audioContext.resume();
 
@@ -39,7 +40,7 @@ async function probeAudio(timeoutMs) {
     const samples = new Float32Array(analyser.fftSize);
     const deadline = performance.now() + timeoutMs;
     let peak = 0;
-    while (peak === 0 && performance.now() < deadline) {
+    while (peak < audiblePeak && performance.now() < deadline) {
       await new Promise((resolve) => setTimeout(resolve, 50));
       analyser.getFloatTimeDomainData(samples);
       peak = Math.max(...samples.map(Math.abs));
@@ -63,13 +64,16 @@ async function probeAudio(timeoutMs) {
 
 async function getBrowserChecks(page) {
   const webgl = await page.evaluate(probeWebgl, WEBGL_CLEAR_COLOR);
-  const audio = await page.evaluate(probeAudio, TIMEOUTS_MS.audioSignal);
+  const audio = await page.evaluate(probeAudio, {
+    timeoutMs: TIMEOUTS_MS.audioSignal,
+    audiblePeak: AUDIBLE_PEAK,
+  });
   return [
     { name: 'webgl', ...webgl },
-    { name: 'audio output', passed: audio.outputPeak > 0, detail: `peak ${audio.outputPeak}` },
+    { name: 'audio output', passed: audio.outputPeak >= AUDIBLE_PEAK, detail: `peak ${audio.outputPeak}` },
     {
       name: 'microphone',
-      passed: audio.microphonePeak > 0,
+      passed: audio.microphonePeak >= AUDIBLE_PEAK,
       detail: `${audio.microphoneLabel}, peak ${audio.microphonePeak}`,
     },
   ];
