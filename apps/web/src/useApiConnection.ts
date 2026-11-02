@@ -1,7 +1,9 @@
-import type { HealthResponse } from '@astra/contracts';
+import type { components } from '@astra/contracts';
 import { useEffect, useState } from 'react';
 
 export type ApiConnection = 'checking' | 'connected' | 'notConnected';
+
+type HealthResponse = components['schemas']['HealthResponseDto'];
 
 const HEALTH_CHECK_TIMEOUT_MS = 3000;
 const HEALTH_CHECK_RETRY_DELAY_MS = 2000;
