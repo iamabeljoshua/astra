@@ -27,4 +27,8 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
+      - run: pnpm exec playwright install --with-deps chromium --no-shell
+      - run: pnpm verify start && pnpm verify doctor; pnpm verify stop
+      - run: pnpm verify start && pnpm verify stop
+      - run: sed -i '/rewrite:\ (path)/d' apps/web/vite.config.ts && git diff --stat
       - run: pnpm verify start && pnpm verify stop
