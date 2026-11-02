@@ -5,7 +5,7 @@ A student signs in, is onboarded, and picks a card or asks a question on Home.
 They then have a real spoken lesson, with the tutor drawing in time with its words, working from a lesson plan and calling tools only when it needs them.
 Afterwards the tutor remembers them, recommends what comes next, and lets them replay the session.
 The rule the program enforces is the PRD's rule for the board and the tutor, proved on the real app at every PR.
-The PR ids in order are M1.1, M1.2, M1.3, M1.5, M1.4, M2.1, M2.2, M2.3, M2.4, M2.5, M3.1, M3.2, M3.3, M3.4, M3.5, M3.6, M3.7, M3.8, M3.9, M3.10, M3.11, M4.1, M4.2, M4.3, M4.4, M4.5.
+The PR ids in order are M1.1, M1.2, M1.3, M1.5, M1.4, M1.6, M2.1, M2.2, M2.3, M2.4, M2.5, M3.1, M3.2, M3.3, M3.4, M3.5, M3.6, M3.7, M3.8, M3.9, M3.10, M3.11, M4.1, M4.2, M4.3, M4.4, M4.5.
 
 ## How to read this
 
@@ -15,11 +15,11 @@ The program runs `skills/poteto-mode/playbooks/autopilot-full.md` from the insta
 
 Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-Each PR has one GitHub issue with the same acceptance criteria, and this plan holds the detail. The stack is React with Vite for the web app and NestJS with Postgres for the API, as Abel chose on 2 November 2026. From M1.5 on, HTTP shapes are `class-validator` DTOs in `apps/api`, Swagger docs come from their comments, and the web app uses types generated from the OpenAPI document. `packages/contracts` keeps those generated types and hand-written shapes that are not HTTP, such as the scene language.
+Each PR has one GitHub issue with the same acceptance criteria, and this plan holds the detail. The stack is React with Vite for the web app and NestJS with Postgres for the API, as Abel chose on 2 November 2026. From M1.5 on, HTTP shapes are `class-validator` DTOs in `apps/api`, Swagger docs come from their comments, and the web app uses types generated from the OpenAPI document. `packages/contracts` keeps those generated types and hand-written shapes that are not HTTP, such as the scene language. From M1.6 on, the web app calls the API only through its typed client and React Query.
 
 | Milestone | What it delivers | PRs |
 | --- | --- | --- |
-| M1 Foundation | One running app, automatic checks, the approved look, and a database. | M1.1, M1.2, M1.3, M1.5, M1.4 |
+| M1 Foundation | One running app, automatic checks, the approved look, and a database. | M1.1, M1.2, M1.3, M1.5, M1.4, M1.6 |
 | M2 Student app | Sign-in, onboarding, the home screen, picks, and the session list. | M2.1, M2.2, M2.3, M2.4, M2.5 |
 | M3 Live tutor | A real session end to end, with voice, the board, the tutor agent, and lesson plans. | M3.1, M3.2, M3.3, M3.4, M3.5, M3.6, M3.7, M3.8, M3.9, M3.10, M3.11 |
 | M4 Learning loop | Memory, personal teaching, recommended picks, recap and replay, and safety. | M4.1, M4.2, M4.3, M4.4, M4.5 |
@@ -30,7 +30,7 @@ Each PR has one GitHub issue with the same acceptance criteria, and this plan ho
 
 - [ ] State the protocol and this plan to the operator, then stop. Start execution only on the operator's explicit go.
 - [ ] Propose the commands to allow in `.claude/settings.json` for the operator's approval, because an unapproved command pauses the run.
-- [ ] On the operator's go, write this exact text into the standing orders and restate it in your todolist. "Plan `docs/plans/mvp.md`. PRs in order M1.1, M1.2, M1.3, M1.5, M1.4, M2.1, M2.2, M2.3, M2.4, M2.5, M3.1, M3.2, M3.3, M3.4, M3.5, M3.6, M3.7, M3.8, M3.9, M3.10, M3.11, M4.1, M4.2, M4.3, M4.4, M4.5. Tests alone are not sufficient verification, and a PR is verified only when its unit, live, and perf boxes are all checked. The root merges after a clean verdict, as `CLAUDE.md` allows. At most 3 PRs at a time. Done when every box is checked with evidence and M3.10's recording is posted."
+- [ ] On the operator's go, write this exact text into the standing orders and restate it in your todolist. "Plan `docs/plans/mvp.md`. PRs in order M1.1, M1.2, M1.3, M1.5, M1.4, M1.6, M2.1, M2.2, M2.3, M2.4, M2.5, M3.1, M3.2, M3.3, M3.4, M3.5, M3.6, M3.7, M3.8, M3.9, M3.10, M3.11, M4.1, M4.2, M4.3, M4.4, M4.5. Tests alone are not sufficient verification, and a PR is verified only when its unit, live, and perf boxes are all checked. The root merges after a clean verdict, as `CLAUDE.md` allows. At most 3 PRs at a time. Done when every box is checked with evidence and M3.10's recording is posted."
 - [ ] Read these from the installed plugin at program start. Re-read them at every tick.
   - [ ] `skills/poteto-mode/playbooks/autopilot-full.md`
   - [ ] `skills/swarm/SKILL.md`
@@ -51,9 +51,10 @@ Each PR has one GitHub issue with the same acceptance criteria, and this plan ho
   - [ ] M1.3 after M1.1.
   - [ ] M1.5 after M1.1.
   - [ ] M1.4 after M1.1 and M1.5.
-  - [ ] M2.1 after M1.3 and M1.4.
+  - [ ] M1.6 after M1.3 and M1.5.
+  - [ ] M2.1 after M1.3 and M1.4 and M1.6.
   - [ ] M2.2 after M1.4.
-  - [ ] M2.3 after M1.3 and M1.4.
+  - [ ] M2.3 after M1.3 and M1.4 and M1.6.
   - [ ] M2.4 after M2.1 and M2.3.
   - [ ] M2.5 after M2.1 and M2.3.
   - [ ] M3.1 after M1.4.
@@ -369,9 +370,67 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 - [ ] Every box in **You see.** is checked with evidence on the issue, and no stop-list decision is open on it.
 - [ ] The root merges with `gh pr merge <pr> --repo iamabeljoshua/astra --squash --match-head-commit <verified-head>`, then reads the PR back to confirm the merge.
 
+## Add React Query and a typed API client (M1.6)
+
+**Depends on.** M1.3, M1.5.
+
+**Files.**
+
+- [ ] Create `apps/web/src/api/`, with the client, the query client defaults, and the error shape.
+- [ ] Create the test helper under `apps/web/src/test/`.
+- [ ] Edit `apps/web/src/useApiConnection.ts`, the app root, `packages/contracts/src/index.ts`, the ESLint config, and `README.md`.
+
+**Build.**
+
+- [ ] Add `@tanstack/react-query` and `openapi-fetch`, and create one client typed from the `paths` that `packages/contracts` exports.
+- [ ] Create one `QueryClient` with shared defaults, and mount its provider at the app root.
+- [ ] Map every failed response to one `ApiError` shape, including the field messages from a validation 400.
+- [ ] Move `useApiConnection` onto `useQuery`, keeping its retry, stop, and timeout behavior.
+- [ ] Leave one place in the client where M2.3 can attach sign-in, without building sign-in here.
+- [ ] Add a lint rule that rejects `fetch` outside `apps/web/src/api/`.
+
+**You see.**
+
+- [ ] The web app has one API client, typed from the generated OpenAPI types, so calling a route that does not exist or sending a wrong body fails typecheck.
+- [ ] React Query is set up once at the app root, with shared defaults for retries, caching, and errors.
+- [ ] The API connection line on Home now uses this setup and behaves as before. It keeps checking until connected, stops once connected, and gives up on a check that never answers.
+- [ ] A failed request gives screens one clear error shape, including which field a 400 rejected.
+- [ ] A direct `fetch` call outside the API client fails lint.
+- [ ] The README explains how to add a query and a mutation, and tests have one helper for rendering a component that uses a query.
+- [ ] React Query devtools appear only in development and are not in the production build.
+- [ ] No paid service is added.
+
+**Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
+
+- [ ] The tests for `useApiConnection` keep passing, covering retry, stop once connected, and timeout.
+- [ ] `client.test.ts` asserts the `ApiError` shape for a 400, a 500, and a network failure, and uses `@ts-expect-error` to prove that a wrong route and a wrong body fail typecheck.
+- [ ] A lint fixture asserts that `fetch` outside the client is rejected. Run `pnpm test`.
+
+**Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Two lanes on the configured `swarm workers` model at the PR head, per the boot recipe and the 5-agent rule in `CLAUDE.md`.
+
+- [ ] Lane 1. Regression lane against trunk. Run the same restart of `pnpm dev` with a tab open at trunk and head. Save `m1-6-home.png`. Pass when the page ends on the connected message with no reload at both, and head stops checking once connected.
+- [ ] Lane 2. Follow the README to add a query and a mutation against a temporary DTO route, then send bad input and call a wrong route. Save `m1-6-guide.png`. Pass when the steps work as written, the screen receives the field error, and typecheck rejects the wrong route.
+
+**Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
+
+- [ ] Metric. Not applicable. `CLAUDE.md` adds a perf check only when a PR changes performance, and this PR does not.
+- [ ] Probe. None.
+- [ ] Baseline. None.
+- [ ] Rule. None.
+
+**Review gate.** None. M1.6 is not review-gated, because `CLAUDE.md` lets the program merge without Abel's review.
+
+**Merge.**
+
+- [ ] Root's clean verdict at the exact head SHA.
+- [ ] Bugbot triage done.
+- [ ] Base and verdict are current under the execution playbook and the patch-id rule in `playbooks/shipping.md`.
+- [ ] Every box in **You see.** is checked with evidence on the issue, and no stop-list decision is open on it.
+- [ ] The root merges with `gh pr merge <pr> --repo iamabeljoshua/astra --squash --match-head-commit <verified-head>`, then reads the PR back to confirm the merge.
+
 ## Build the home screen (M2.1)
 
-**Depends on.** M1.3, M1.4.
+**Depends on.** M1.3, M1.4, M1.6.
 
 **Files.**
 
@@ -473,7 +532,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 ## Add sign-in and the age gate (M2.3)
 
-**Depends on.** M1.3, M1.4.
+**Depends on.** M1.3, M1.4, M1.6.
 
 **Files.**
 
