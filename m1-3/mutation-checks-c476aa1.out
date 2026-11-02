@@ -1,0 +1,54 @@
+CAUGHT  pre-paint script reads another key
+        × applies a saved dark choice 3ms
+CAUGHT  pre-paint script moved below the stylesheet
+        × sits in the head ahead of the stylesheet 6ms
+CAUGHT  toggle stops saving
+        × switches the page and keeps the choice for the next load 12ms
+CAUGHT  toggle stops applying
+        × switches the page and keeps the choice for the next load 11ms
+CAUGHT  blocked storage breaks the toggle
+        The last test to run before this error was "still switches the page when storage is blocked". This means either:
+CAUGHT  sidebar ignores new MENU entries
+        × renders a row and a page from one new MENU entry 85ms
+CAUGHT  routes ignore new MENU entries
+        × renders a row and a page from one new MENU entry 1100ms
+CAUGHT  unknown address shows nothing
+        × opens Home for an address that has no page 1007ms
+CAUGHT  choosing a row leaves the menu open
+        × closes and returns focus to the Menu button when a row is chosen 17ms
+CAUGHT  Escape does nothing
+        × closes and returns focus to the Menu button on Escape 13ms
+CAUGHT  closing moves focus even with the menu closed
+        × leaves focus alone when a row is chosen with the menu closed 10ms
+CAUGHT  recent section missing
+        × shows the product name, an empty Recent section, the account, and the theme toggle 8ms
+CAUGHT  literal text in the sidebar
+        × supplies all the text on the «Home» page 106ms
+CAUGHT  literal aria-label in the sidebar
+        × supplies all the text on the «Home» page 101ms
+CAUGHT  literal browser tab title
+        × changes the product name in the page and the browser tab 6ms
+CAUGHT  product name written into the page source
+        × is the only place in the page source that holds the product name 5ms
+CAUGHT  API line dropped from Home
+        × says the API is connected when the health check passes 11ms
+CAUGHT  light token drifts from the design doc
+        × matches the design doc in light 4ms
+CAUGHT  dark token drifts from the design doc
+        × matches the design doc in dark 4ms
+CAUGHT  favicon stops matching ink
+        × draws the favicon dot in the ink color of each theme 3ms
+CAUGHT  lint rule switched off for components
+        × rejects a hex class in a component 651ms
+CAUGHT  hex color in a component fails pnpm lint
+        25:23  error  Use a color token from packages/theme, not a literal color  theme/no-literal-colors
+CAUGHT  named color in a component fails pnpm lint
+        6:27  error  Use a color token from packages/theme, not a literal color  theme/no-literal-colors
+CAUGHT  hex color in app CSS fails pnpm lint
+        2:12  error  Use a color token from packages/theme, not a literal color  theme/no-literal-colors
+CAUGHT  literal text in a component fails pnpm lint
+        40:41  error  Put app text in apps/web/src/strings.ts  no-restricted-syntax
+CAUGHT  literal aria-label fails pnpm lint
+        19:23  error  Put app text in apps/web/src/strings.ts  no-restricted-syntax
+
+ALL 26 CAUGHT
