@@ -21,6 +21,7 @@ Every PR says `Closes #<issue>`. Comment on the issue when its PR opens, when ve
 ## Running the work
 
 - Execution starts only on my go. My go approves the whole plan, including its size.
+- Before execution starts, propose the commands to allow in `.claude/settings.json` for my approval, because an unapproved command pauses the run.
 - Run plans with the `autopilot-full` playbook, changed by the rules in this file.
 - Run at most 3 PRs or workstreams at a time, and only when they are independent. Dependent work waits for its parent PR to merge.
 
@@ -56,7 +57,7 @@ For architectural decisions, run `/pstack:architect` with a checkpoint, so that 
 
 ## Verification
 
-Each PR gets 4 independent agents by default, none of which wrote the code: one runs the gates (lint, typecheck, tests), two run live scenarios, and one audits the diff. Add a perf check only when the PR changes performance. A PR that touches anything on the stop list gets the full verification set from the playbook.
+Each PR gets 5 independent agents by default, none of which wrote the code: one runs the gates (lint, typecheck, tests), two run live scenarios, and two audit the diff. All run on Opus 5.5 except one audit agent, which runs on Sonnet so that a different model reviews the code. Add a perf check only when the PR changes performance. A PR that touches anything on the stop list gets the full verification set from the playbook.
 
 This overrides the ten live lanes in the plan template. `check-plan.mjs` has no setting for this, so ignore only its two lane-count failures: `Verify, live lacks "Ten lanes...` and `lanes are [...], expected 1 to 10`. Fix every other failure.
 
