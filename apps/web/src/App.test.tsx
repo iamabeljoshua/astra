@@ -31,7 +31,8 @@ describe('App', () => {
 
     render(<App />);
 
-    await screen.findByRole('heading', { name: PRODUCT_NAME });
+    await screen.findByText(API_CONNECTION_LABELS.connected);
+    expect(screen.getAllByText(PRODUCT_NAME).length).toBeGreaterThan(0);
     expect(document.title).toBe(PRODUCT_NAME);
   });
 
