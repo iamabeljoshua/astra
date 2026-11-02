@@ -74,8 +74,9 @@ A viewport fails when any of these happens:
 | `journey` | The journey throws, or an action times out. |
 | `identity` | The final page title does not contain `PRODUCT_NAME` from `apps/web/src/strings.ts`. |
 | `page error` | An uncaught exception in the page. |
-| `page crash` | The page process crashes. |
 | `console error` | Any `console.error`, including a failed request. A missing favicon is the one exception, until M1.3 adds one. |
+
+A page crash stops the run with exit code 1 and `Target crashed`.
 
 ### The browser
 

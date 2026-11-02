@@ -96,9 +96,10 @@ const SELF_CHECKS = [
   [
     'start waits until the web app and the API both answer',
     async () => {
-      assertPassed(await runCli(['start']));
+      assertPassed(await runCli(['start'], { npm_config_reporter: 'silent' }));
       const response = await fetch(`http://localhost:${ports.WEB_PORT}/api/health`);
       assert.deepEqual(await response.json(), { status: 'ok' });
+      assert.match(readFileSync(join(runDir, 'dev.log'), 'utf8'), /apps\/web dev/, 'the dev log has output');
     },
   ],
   [
@@ -140,6 +141,10 @@ const SELF_CHECKS = [
     'a journey that throws fails the run',
     async () =>
       assertFailed(await runCli(driveFixture('journey-gives-up')), /FAIL laptop journey: deliberate/),
+  ],
+  [
+    'a page crash fails the run',
+    async () => assertFailed(await runCli(driveFixture('page-crashes')), /Target crashed/),
   ],
   [
     'a page that is not Astra fails the run',

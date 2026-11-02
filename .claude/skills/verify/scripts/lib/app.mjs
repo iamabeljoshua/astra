@@ -14,8 +14,8 @@ import {
 import { DEV_LOG_PATH, POLL_INTERVAL_MS, REPO_ROOT, RUN_STATE_PATH, TIMEOUTS_MS } from './settings.mjs';
 
 const DEV_COMMAND = { command: 'pnpm', args: ['dev'] };
-// "pnpm --silent verify" passes its log level down, which would empty the dev log.
-const DEV_LOG_ENV = { NO_COLOR: '1', npm_config_loglevel: 'info' };
+// "pnpm --silent verify" passes a silent reporter down, which would empty the dev log.
+const DEV_LOG_ENV = { NO_COLOR: '1', npm_config_reporter: 'append-only' };
 const LOG_TAIL_LINES = 30;
 const HIGHEST_PORT = 65_535;
 

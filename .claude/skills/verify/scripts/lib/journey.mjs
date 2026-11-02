@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { stripVTControlCharacters } from 'node:util';
 import { getWebUrl } from './app.mjs';
 import { getIdentityCheck, launchBrowser, watchPageFailures } from './browser.mjs';
 import { getProductName, JOURNEYS_DIR, TIMEOUTS_MS, VIEWPORTS } from './settings.mjs';
@@ -28,12 +29,16 @@ async function saveScreenshot({ page, evidenceDir, fileStem }) {
   console.log(`saved ${path}`);
 }
 
+function getSingleLine(playwrightMessage) {
+  return stripVTControlCharacters(playwrightMessage).replace(/\s*\n\s*/g, ' ').trim();
+}
+
 async function getJourneyCheck(run) {
   try {
     await run();
     return { name: 'journey', passed: true, detail: 'finished' };
   } catch (error) {
-    return { name: 'journey', passed: false, detail: error.message };
+    return { name: 'journey', passed: false, detail: getSingleLine(error.message) };
   }
 }
 

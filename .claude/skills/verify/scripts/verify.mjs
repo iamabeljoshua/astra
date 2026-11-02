@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { parseArgs } from 'node:util';
+import { parseArgs, stripVTControlCharacters } from 'node:util';
 import { getAppChecks, getRunningApp, getWebUrl, readRun, startApp, stopApp } from './lib/app.mjs';
 import { getBrowserChecks, getIdentityCheck, launchBrowser, watchPageFailures } from './lib/browser.mjs';
 import { driveJourney, parseViewportNames } from './lib/journey.mjs';
@@ -90,6 +90,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error(error.message);
+  console.error(stripVTControlCharacters(error.message));
   process.exitCode = 1;
 });

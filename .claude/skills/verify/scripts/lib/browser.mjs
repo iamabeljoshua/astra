@@ -93,7 +93,6 @@ export function watchPageFailures(page) {
   const failures = [];
   const addFailure = (name, detail) => failures.push({ name, passed: false, detail });
   page.on('pageerror', (error) => addFailure('page error', error.message));
-  page.on('crash', () => addFailure('page crash', page.url()));
   page.on('console', (message) => {
     const { url } = message.location();
     if (message.type() === 'error' && !url.endsWith(MISSING_FAVICON_PATH)) {
