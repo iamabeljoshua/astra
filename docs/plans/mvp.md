@@ -5,7 +5,7 @@ A student signs in, is onboarded, and picks a card or asks a question on Home.
 They then have a real spoken lesson, with the tutor drawing in time with its words, working from a lesson plan and calling tools only when it needs them.
 Afterwards the tutor remembers them, recommends what comes next, and lets them replay the session.
 The rule the program enforces is the PRD's rule for the board and the tutor, proved on the real app at every PR.
-The PR ids in order are M1.1, M1.2, M1.3, M1.4, M2.1, M2.2, M2.3, M2.4, M2.5, M3.1, M3.2, M3.3, M3.4, M3.5, M3.6, M3.7, M3.8, M3.9, M3.10, M3.11, M4.1, M4.2, M4.3, M4.4, M4.5.
+The PR ids in order are M1.1, M1.2, M1.3, M1.5, M1.4, M2.1, M2.2, M2.3, M2.4, M2.5, M3.1, M3.2, M3.3, M3.4, M3.5, M3.6, M3.7, M3.8, M3.9, M3.10, M3.11, M4.1, M4.2, M4.3, M4.4, M4.5.
 
 ## How to read this
 
@@ -15,11 +15,11 @@ The program runs `skills/poteto-mode/playbooks/autopilot-full.md` from the insta
 
 Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-Each PR has one GitHub issue with the same acceptance criteria, and this plan holds the detail. The stack is React with Vite for the web app and NestJS with Postgres for the API, as Abel chose on 2 November 2026.
+Each PR has one GitHub issue with the same acceptance criteria, and this plan holds the detail. The stack is React with Vite for the web app and NestJS with Postgres for the API, as Abel chose on 2 November 2026. From M1.5 on, HTTP shapes are `class-validator` DTOs in `apps/api`, Swagger docs come from their comments, and the web app uses types generated from the OpenAPI document. `packages/contracts` keeps those generated types and hand-written shapes that are not HTTP, such as the scene language.
 
 | Milestone | What it delivers | PRs |
 | --- | --- | --- |
-| M1 Foundation | One running app, automatic checks, the approved look, and a database. | M1.1, M1.2, M1.3, M1.4 |
+| M1 Foundation | One running app, automatic checks, the approved look, and a database. | M1.1, M1.2, M1.3, M1.5, M1.4 |
 | M2 Student app | Sign-in, onboarding, the home screen, picks, and the session list. | M2.1, M2.2, M2.3, M2.4, M2.5 |
 | M3 Live tutor | A real session end to end, with voice, the board, the tutor agent, and lesson plans. | M3.1, M3.2, M3.3, M3.4, M3.5, M3.6, M3.7, M3.8, M3.9, M3.10, M3.11 |
 | M4 Learning loop | Memory, personal teaching, recommended picks, recap and replay, and safety. | M4.1, M4.2, M4.3, M4.4, M4.5 |
@@ -30,7 +30,7 @@ Each PR has one GitHub issue with the same acceptance criteria, and this plan ho
 
 - [ ] State the protocol and this plan to the operator, then stop. Start execution only on the operator's explicit go.
 - [ ] Propose the commands to allow in `.claude/settings.json` for the operator's approval, because an unapproved command pauses the run.
-- [ ] On the operator's go, write this exact text into the standing orders and restate it in your todolist. "Plan `docs/plans/mvp.md`. PRs in order M1.1, M1.2, M1.3, M1.4, M2.1, M2.2, M2.3, M2.4, M2.5, M3.1, M3.2, M3.3, M3.4, M3.5, M3.6, M3.7, M3.8, M3.9, M3.10, M3.11, M4.1, M4.2, M4.3, M4.4, M4.5. Tests alone are not sufficient verification, and a PR is verified only when its unit, live, and perf boxes are all checked. The root merges after a clean verdict, as `CLAUDE.md` allows. At most 3 PRs at a time. Done when every box is checked with evidence and M3.10's recording is posted."
+- [ ] On the operator's go, write this exact text into the standing orders and restate it in your todolist. "Plan `docs/plans/mvp.md`. PRs in order M1.1, M1.2, M1.3, M1.5, M1.4, M2.1, M2.2, M2.3, M2.4, M2.5, M3.1, M3.2, M3.3, M3.4, M3.5, M3.6, M3.7, M3.8, M3.9, M3.10, M3.11, M4.1, M4.2, M4.3, M4.4, M4.5. Tests alone are not sufficient verification, and a PR is verified only when its unit, live, and perf boxes are all checked. The root merges after a clean verdict, as `CLAUDE.md` allows. At most 3 PRs at a time. Done when every box is checked with evidence and M3.10's recording is posted."
 - [ ] Read these from the installed plugin at program start. Re-read them at every tick.
   - [ ] `skills/poteto-mode/playbooks/autopilot-full.md`
   - [ ] `skills/swarm/SKILL.md`
@@ -49,7 +49,8 @@ Each PR has one GitHub issue with the same acceptance criteria, and this plan ho
   - [ ] M1.1 is first and branches from `main`.
   - [ ] M1.2 after M1.1.
   - [ ] M1.3 after M1.1.
-  - [ ] M1.4 after M1.1.
+  - [ ] M1.5 after M1.1.
+  - [ ] M1.4 after M1.1 and M1.5.
   - [ ] M2.1 after M1.3 and M1.4.
   - [ ] M2.2 after M1.4.
   - [ ] M2.3 after M1.3 and M1.4.
@@ -258,21 +259,78 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 - [ ] Every box in **You see.** is checked with evidence on the issue, and no stop-list decision is open on it.
 - [ ] The root merges with `gh pr merge <pr> --repo iamabeljoshua/astra --squash --match-head-commit <verified-head>`, then reads the PR back to confirm the merge.
 
-## Add the database for students and sessions (M1.4)
+## Add validated request shapes and Swagger docs from code comments (M1.5)
 
 **Depends on.** M1.1.
 
 **Files.**
 
+- [ ] Create `apps/api/nest-cli.json` settings and `apps/api/test/swagger-transformer.ts`.
+- [ ] Edit `apps/api/src/main.ts`, `apps/api/src/health/`, and the Jest config in `apps/api/package.json`.
+- [ ] Create `packages/contracts/src/api.generated.ts`.
+- [ ] Edit `apps/web/src/useApiConnection.ts`, `.github/workflows/ci.yml`, and `README.md`.
+
+**Build.**
+
+- [ ] Add `@nestjs/swagger`, `class-validator`, and `class-transformer`, and enable the plugin in `apps/api/nest-cli.json` with `introspectComments` and `classValidatorShim`.
+- [ ] Add a global `ValidationPipe` with `whitelist`, `forbidNonWhitelisted`, and `transform`.
+- [ ] Use DTO classes for query strings and route parameters as well as bodies, so their comments reach Swagger without relying on `@param` tags.
+- [ ] Register the plugin's AST transformer with `ts-jest`, because Jest compiles in memory and skips the Nest CLI plugin.
+- [ ] Serve Swagger UI at `/docs` outside production.
+- [ ] Add `pnpm api:types`, which generates `packages/contracts/src/api.generated.ts` from the OpenAPI document with `openapi-typescript`, and add a CI check for drift.
+- [ ] Keep hand-written shapes that are not HTTP, such as the scene language, in `packages/contracts`.
+
+**You see.**
+
+- [ ] Every request body, query string, and route parameter is a DTO class with `class-validator` rules.
+- [ ] The API rejects bad input with a clear 400 error that names the field, and it rejects fields a DTO does not declare.
+- [ ] A comment on a DTO field appears in Swagger as that field's description, and a comment on a controller route appears as its summary, with no Swagger decorators written by hand.
+- [ ] Swagger UI opens at `/docs` in development, and `/docs-json` serves the OpenAPI document. Both are off in production unless Abel decides otherwise.
+- [ ] The web app's API types are generated from that OpenAPI document, so the DTOs are the one source of truth, and CI fails if the generated types are out of date.
+- [ ] The health route is the worked example, and the README explains how to add a new DTO.
+- [ ] No paid service is added.
+
+**Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
+
+- [ ] `validation.spec.ts` asserts that a bad body returns 400 naming the field, and that an undeclared field is rejected.
+- [ ] `openapi.spec.ts` asserts that a comment on a DTO field becomes its description and that a route comment becomes its summary. Run `pnpm test`.
+
+**Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Two lanes on the configured `swarm workers` model at the PR head, per the boot recipe and the 5-agent rule in `CLAUDE.md`.
+
+- [ ] Lane 1. Regression lane against trunk. Trunk has no Swagger, so record that and gate the end state. Start the API and open `/docs`. Save `m1-5-docs.png`. Pass when the health route and its DTO show descriptions taken from code comments.
+- [ ] Lane 2. Send bad input to a test-only validated route, then change a DTO without regenerating types on a temporary PR. Save `m1-5-drift.png`. Pass when the API returns a 400 naming the field and CI fails on the stale generated types.
+
+**Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
+
+- [ ] Metric. Not applicable. `CLAUDE.md` adds a perf check only when a PR changes performance, and this PR does not.
+- [ ] Probe. None.
+- [ ] Baseline. None.
+- [ ] Rule. None.
+
+**Review gate.** None. M1.5 is not review-gated, because `CLAUDE.md` lets the program merge without Abel's review.
+
+**Merge.**
+
+- [ ] Root's clean verdict at the exact head SHA.
+- [ ] Bugbot triage done.
+- [ ] Base and verdict are current under the execution playbook and the patch-id rule in `playbooks/shipping.md`.
+- [ ] Every box in **You see.** is checked with evidence on the issue, and no stop-list decision is open on it.
+- [ ] The root merges with `gh pr merge <pr> --repo iamabeljoshua/astra --squash --match-head-commit <verified-head>`, then reads the PR back to confirm the merge.
+
+## Add the database for students and sessions (M1.4)
+
+**Depends on.** M1.1, M1.5.
+
+**Files.**
+
 - [ ] Create `docker-compose.yml`.
-- [ ] Create `apps/api/src/database/`, `apps/api/src/students/`, and `apps/api/src/sessions/`.
-- [ ] Add `Student`, `StudentProfile`, and `Session` to `packages/contracts/`.
+- [ ] Create `apps/api/src/database/`, `apps/api/src/students/`, and `apps/api/src/sessions/`, with DTOs for `Student`, `StudentProfile`, and `Session`.
 
 **Build.**
 
 - [ ] Add Postgres and TypeORM with migrations, matching `agentic-tutor`.
-- [ ] Name the data shapes first in `packages/contracts`, with `language` stored on each session so languages can be added later (PRD Q12).
-- [ ] Validate every request at the API boundary with schemas from `packages/contracts`.
+- [ ] Name the data shapes first as entities and DTOs in `apps/api`, with `language` stored on each session so languages can be added later (PRD Q12).
+- [ ] Validate every request at the API boundary with the DTOs and global validation from M1.5.
 - [ ] Add `pnpm db:up`, `pnpm db:migrate`, and `pnpm db:seed`.
 
 **You see.**
@@ -287,7 +345,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
 - [ ] `students.service.spec.ts` and `sessions.service.spec.ts` assert save and read back against a test database.
-- [ ] A schema test asserts that bad input is rejected. Run `pnpm test`.
+- [ ] A validation test asserts that bad input is rejected. Run `pnpm test`.
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Two lanes on the configured `swarm workers` model at the PR head, per the boot recipe and the 5-agent rule in `CLAUDE.md`.
 
@@ -319,7 +377,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 - [ ] Create `apps/web/src/home/`.
 - [ ] Add `GET /home` in `apps/api/src/home/`.
-- [ ] Add `HomeScreen` types to `packages/contracts/`.
+- [ ] Add `HomeScreen` DTOs in `apps/api/src/home/`.
 
 **Build.**
 
@@ -420,7 +478,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 **Files.**
 
 - [ ] Create `apps/api/src/auth/` and `apps/web/src/auth/`.
-- [ ] Add consent and age fields to `packages/contracts/` and a migration.
+- [ ] Add consent and age fields to the student DTOs and a migration.
 
 **Build.**
 
@@ -987,7 +1045,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 **Files.**
 
 - [ ] Create `apps/agent/src/lesson-plan/` and `apps/api/src/lesson-plans/`.
-- [ ] Add `LessonPlan` to `packages/contracts/` and a migration.
+- [ ] Add `LessonPlan` DTOs in `apps/api/src/lesson-plans/` and a migration.
 
 **Build.**
 
@@ -1143,7 +1201,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 - [ ] Create `apps/api/src/learner-record/`.
 - [ ] Create `apps/agent/src/learner-record/`.
-- [ ] Add `LearnerRecord` to `packages/contracts/` and a migration.
+- [ ] Add `LearnerRecord` DTOs in `apps/api/src/learner-record/` and a migration.
 - [ ] Create `apps/web/src/record/`.
 
 **Build.**
