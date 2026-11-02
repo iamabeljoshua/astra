@@ -28,6 +28,8 @@ export interface components {
              * @enum {string}
              */
             status: "ok";
+            /** @description Temporary field that proves the CI drift check fails on stale types. */
+            driftCheck?: string;
         };
     };
     responses: never;
