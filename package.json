@@ -6,12 +6,15 @@
     "dev": "pnpm -r --parallel dev",
     "lint": "eslint apps packages --max-warnings 0",
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm -r test"
+    "test": "pnpm -r test",
+    "verify": "node .claude/skills/verify/scripts/verify.mjs",
+    "verify:self": "node .claude/skills/verify/scripts/self-check.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "eslint": "^10.14.0",
     "eslint-plugin-react-hooks": "^7.1.1",
+    "playwright": "^1.64.1",
     "typescript": "catalog:",
     "typescript-eslint": "^8.72.1"
   }
