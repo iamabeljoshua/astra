@@ -1,11 +1,13 @@
-# estein-ai
+# astra
 
-Private repo: `iamabeljoshua/estein-ai`. The trunk is `main`. No deploys are set up yet.
+Private repo: `iamabeljoshua/astra`. The trunk is `main`. No deploys are set up yet.
 
 ## Product and plans
 
 - PRDs live in `docs/PRD-<name>.md`. Turn my raw notes into a PRD, with a recommendation on each open question. I approve it before planning starts.
 - Plans live in `docs/plans/<name>.md` and follow the pstack multi-phase plan playbook. Each plan starts from an approved PRD.
+- The look is in `docs/DESIGN.md`. Follow it for all product UI.
+- Use the `stageshow` skill for marketing and demo illustrations only, never for real product screens. Keep the third-party logos and app icons it bundles out of anything we publish.
 
 ## Tasks
 
@@ -36,7 +38,7 @@ Merge a PR when all of these are true at its current head:
 - Every acceptance criterion is checked, with evidence.
 - No decision from the stop list below is open on it.
 
-Merge with `gh pr merge <pr> --repo iamabeljoshua/estein-ai --squash --match-head-commit <verified-head>`, then read the PR back to confirm that it merged.
+Merge with `gh pr merge <pr> --repo iamabeljoshua/astra --squash --match-head-commit <verified-head>`, then read the PR back to confirm that it merged.
 
 This repo has no branch protection, so GitHub does not enforce these conditions. You must.
 

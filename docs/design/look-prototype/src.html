@@ -1,0 +1,495 @@
+<title>Astra Look Prototype</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400&display=swap">
+<style>
+/* Layout: one still object on the right, plain type on the left, thin rules between things. */
+:root {
+  --paper: #F6F1E6; --panel: #EFE8DA; --ink: #1B1815; --ink-2: #5F574C; --line: #CFC6B5; --accent: #1B1815;
+  --ui: "Barlow", "DIN Alternate", "Helvetica Neue", Arial, sans-serif;
+  --voice: "Newsreader", Georgia, "Times New Roman", serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --paper: #000000; --panel: #0E0D0B; --ink: #FFFBF5; --ink-2: #A79F92; --line: #2B2823; --accent: #FFCC94; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --paper: #000000; --panel: #0E0D0B; --ink: #FFFBF5; --ink-2: #A79F92; --line: #2B2823; --accent: #FFCC94; color-scheme: dark; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 400 16px/1.5 var(--ui); transition: background-color .24s linear, color .24s linear; }
+* { box-sizing: border-box; }
+.wrap { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); position: relative; z-index: 1; }
+.inner { max-width: 1360px; margin-inline: auto; padding-inline: clamp(0px, 3vw, 40px); }
+a { color: inherit; }
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.label { font-size: 12px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; }
+.quiet { color: var(--ink-2); }
+
+.bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding-block: 22px; }
+.mark { font-size: 15px; font-weight: 600; letter-spacing: .34em; text-transform: uppercase; }
+.links { display: flex; gap: 28px; align-items: center; }
+.links a { text-decoration: none; }
+.links a:hover { color: var(--accent); }
+.toggle { display: inline-flex; border: 1px solid var(--line); }
+.toggle button { background: none; border: 0; padding: 8px 14px; cursor: pointer; color: var(--ink-2); }
+.toggle button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+
+.hero { position: relative; overflow: hidden; }
+#stage { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; display: block; }
+.hero-grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: clamp(24px, 4vw, 64px); padding-block: 28px 56px; align-items: stretch; }
+.ask { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+h1 { margin: 0; font-size: clamp(42px, 5.4vw, 82px); line-height: .98; font-weight: 600; letter-spacing: -.005em; text-transform: uppercase; text-wrap: balance; }
+.sub { margin: 0; max-width: 42ch; font-size: 18px; color: var(--ink-2); }
+.field { display: flex; border: 1px solid var(--ink); }
+.field input { flex: 1; min-width: 0; background: transparent; border: 0; padding: 14px 16px; font-size: 18px; outline: none; }
+.field input::placeholder { color: var(--ink-2); opacity: 1; }
+.field:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.field button { background: none; border: 0; border-left: 1px solid var(--ink); padding: 0 18px; cursor: pointer; }
+.field button:hover { background: var(--ink); color: var(--paper); }
+.rows { display: flex; flex-direction: column; }
+.row { display: grid; grid-template-columns: 18px minmax(0, 1fr); column-gap: 10px; text-align: left; background: none; border: 0; border-top: 1px solid var(--line); padding: 12px 0; cursor: pointer; }
+.row:last-child { border-bottom: 1px solid var(--line); }
+.dotmark { width: 7px; height: 7px; border-radius: 50%; border: 1px solid var(--ink); margin-top: 8px; transition: transform .2s ease, background-color .2s linear; }
+.row:hover .dotmark { transform: scale(1.5); }
+.row[aria-pressed="true"] .dotmark { background: var(--ink); }
+.row b { font-weight: 500; font-size: 17px; display: block; }
+.row span.why { font-size: 14px; color: var(--ink-2); }
+.slot { position: relative; min-height: 560px; display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; min-width: 0; }
+
+.session { border-top: 1px solid var(--line); }
+.session-grid { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: clamp(24px, 4vw, 64px); padding-block: 40px 56px; }
+.tele { display: flex; flex-wrap: wrap; gap: 8px 28px; padding-block: 28px 0; font-variant-numeric: tabular-nums; }
+.board { background: var(--panel); border: 1px solid var(--line); transition: background-color .24s linear; }
+.board svg { display: block; width: 100%; height: auto; color: var(--ink); }
+.board text { fill: var(--ink-2); font: 500 11px var(--ui); letter-spacing: .14em; }
+.talk { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.who { display: flex; align-items: center; gap: 12px; }
+.tutor-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--ink); }
+.speaking .tutor-dot { animation: pulse .46s ease-in-out infinite alternate; }
+@keyframes pulse { to { transform: scale(1.7); } }
+.voice { margin: 0; font-family: var(--voice); font-size: clamp(24px, 2.4vw, 34px); line-height: 1.24; }
+.voice span { transition: color .12s linear; }
+.voice span.ahead { color: var(--line); }
+.reply { margin: 0; font-size: 18px; padding-top: 16px; border-top: 1px solid var(--line); transition: opacity .3s linear; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px; }
+.btn { background: none; border: 1px solid var(--ink); padding: 11px 18px; cursor: pointer; }
+.btn:hover { background: var(--ink); color: var(--paper); }
+
+.foot { border-top: 1px solid var(--line); padding-block: 24px 40px; color: var(--ink-2); font-size: 13px; }
+.foot p { margin: 0; max-width: 90ch; }
+.nogl { position: absolute; left: 0; bottom: 48px; max-width: 34ch; color: var(--ink-2); }
+
+@media (max-width: 860px) {
+  .hero-grid, .session-grid { grid-template-columns: minmax(0, 1fr); }
+  .slot { order: -1; min-height: min(78vw, 400px); }
+  .links a { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body, .board { transition: none; }
+  .speaking .tutor-dot { animation: none; }
+}
+</style>
+
+<div class="wrap">
+  <div class="inner">
+    <header class="bar">
+      <div class="mark">Astra</div>
+      <nav class="links label" aria-label="Sections">
+        <a href="#ask">Ask</a>
+        <a href="#session">Session</a>
+        <div class="toggle" role="group" aria-label="Appearance">
+          <button id="to-light" class="label" type="button" aria-pressed="true">Light</button>
+          <button id="to-dark" class="label" type="button" aria-pressed="false">Dark</button>
+        </div>
+      </nav>
+    </header>
+  </div>
+</div>
+
+<section class="hero" id="ask">
+  <canvas id="stage" aria-hidden="true"></canvas>
+  <div class="wrap">
+    <div class="inner hero-grid">
+      <div class="ask">
+        <h1>What do you want to learn next?</h1>
+        <p class="sub">Ask for anything. A tutor talks it through with you and draws as it speaks.</p>
+        <form class="field" id="form">
+          <label for="topic" class="label" hidden>Topic</label>
+          <input id="topic" autocomplete="off" placeholder="Why do curveballs bend">
+          <button class="label" type="submit" aria-label="Start">Start &rarr;</button>
+        </form>
+        <div class="rows" id="rows"></div>
+      </div>
+      <div class="slot" id="slot">
+        <div class="label quiet" id="caption" aria-live="polite"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="session" id="session">
+  <div class="wrap">
+    <div class="inner">
+      <div class="tele label quiet">
+        <span>Example session</span><span>Free-body diagrams</span><span>Concept 2 of 5</span><span>04:12</span>
+      </div>
+      <div class="session-grid">
+        <div class="board"><svg id="board" viewBox="0 0 640 380" role="img" aria-label="A side view of a ball leaving a hand and travelling in an arc to a hoop, drawn in dots"></svg></div>
+        <div class="talk" id="talk">
+          <div class="who label"><span class="tutor-dot"></span><span id="state">Listening</span></div>
+          <p class="voice" id="voice"></p>
+          <p class="reply" id="reply"><span class="label quiet">You</span><br>Uh, my hand?</p>
+          <div class="controls">
+            <button class="btn label" id="play" type="button">Play the tutor</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="wrap">
+  <div class="inner">
+    <div class="foot">
+      <p>Prototype for the look. The topics, reasons and session are examples, and the pictures stand in for the real board. Pictures: Raphael, Leonardo da Vinci and Hokusai, all public domain, rebuilt from the dot data in the Made of Dots film. Astra is a codename.</p>
+    </div>
+  </div>
+</footer>
+
+<script id="dots" type="text/plain">__DOTS__</script>
+<script id="dots-meta" type="application/json">__META__</script>
+<script>
+(function () {
+  const root = document.documentElement;
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const meta = JSON.parse(document.getElementById("dots-meta").textContent);
+  const N = meta.n;
+  const LAYERS = [
+    { id: "athens", topic: "What Plato and Aristotle disagreed about", why: "Because you asked about ethics on Tuesday", caption: "The School of Athens, Raphael, 1511" },
+    { id: "vitruvian", topic: "The proportions in the Vitruvian Man", why: "Because you draw figures", caption: "Vitruvian Man, Leonardo da Vinci, about 1490" },
+    { id: "wave", topic: "Why a breaking wave curls", why: "Because you follow surfing", caption: "The Great Wave, Hokusai, about 1831" },
+    { id: "helix", topic: "How DNA copies itself", why: "You got stuck on base pairing last week", caption: "Double helix, drawn by the tutor" },
+  ].map((layer) => Object.assign(layer, meta.layers[layer.id]));
+
+  const rowsEl = document.getElementById("rows");
+  const rowEls = LAYERS.map((layer, index) => {
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "row";
+    row.setAttribute("aria-pressed", "false");
+    row.innerHTML = '<i class="dotmark"></i><div><b></b><span class="why"></span></div>';
+    row.querySelector("b").textContent = layer.topic;
+    row.querySelector(".why").textContent = layer.why;
+    row.addEventListener("click", () => flyTo(index));
+    rowsEl.appendChild(row);
+    return row;
+  });
+
+  const captionEl = document.getElementById("caption");
+  function showLayer(index) {
+    captionEl.textContent = LAYERS[index].caption;
+    rowEls.forEach((row, rowIndex) => row.setAttribute("aria-pressed", String(rowIndex === index)));
+  }
+
+  function readTheme() {
+    try { return localStorage.getItem("astra-theme"); } catch (error) { return null; }
+  }
+  function saveTheme(mode) {
+    try { localStorage.setItem("astra-theme", mode); } catch (error) { /* a blocked store only loses the preference */ }
+  }
+  const hash = location.hash.slice(1).split("-");
+  let mode = hash.includes("dark") ? "dark" : hash.includes("light") ? "light" : readTheme() === "dark" ? "dark" : "light";
+  function applyTheme(next) {
+    mode = next;
+    root.setAttribute("data-theme", next);
+    document.getElementById("to-light").setAttribute("aria-pressed", String(next === "light"));
+    document.getElementById("to-dark").setAttribute("aria-pressed", String(next === "dark"));
+  }
+  applyTheme(mode);
+
+  function token(name) {
+    const hex = getComputedStyle(root).getPropertyValue(name).trim().replace("#", "");
+    return [0, 2, 4].map((at) => parseInt(hex.slice(at, at + 2), 16) / 255);
+  }
+
+  const hero = document.querySelector(".hero");
+  const slot = document.getElementById("slot");
+  const canvas = document.getElementById("stage");
+  const gl = canvas.getContext("webgl2", { alpha: false, antialias: false, powerPreference: "high-performance" });
+
+  let draw = () => {};
+  let flyTo = () => {};
+  let setTheme = (next) => { applyTheme(next); saveTheme(next); };
+  if (!gl) {
+    canvas.hidden = true;
+    const note = document.createElement("p");
+    note.className = "nogl";
+    note.textContent = "This browser has no WebGL, so the dots cannot draw. The lowest quality tier would show one still dot here.";
+    slot.appendChild(note);
+  } else {
+    const VS = `#version 300 es
+    precision highp float;
+    layout(location=0) in vec3 aPos;
+    layout(location=1) in vec2 aRad;
+    layout(location=2) in vec4 aCol;
+    uniform vec2 uRes, uCenter;
+    uniform float uScale, uTilt, uInk, uReveal;
+    out vec3 vCol; out float vA; out float vR;
+    void main() {
+      vec3 p = aPos * 2.0;
+      float ct = cos(uTilt), st = sin(uTilt);
+      p.xy = vec2(ct * p.x - st * p.y, st * p.x + ct * p.y);
+      float depth = 1.0 / (1.0 + p.z * 0.35);
+      vec2 at = uCenter + p.xy * vec2(1.0, -1.0) * uScale * depth;
+      float r = mix(aRad.x * 0.85, aRad.y, uInk) * 0.008 * uScale * depth * uReveal;
+      vCol = uInk > 0.5 ? aCol.rgb * aCol.a : aCol.rgb;
+      vA = clamp(2.0 * r, 0.0, 1.0);
+      vR = r;
+      gl_PointSize = max(2.0 * r + 1.0, 1.0);
+      gl_Position = r < 0.02 ? vec4(2.0, 2.0, 2.0, 1.0) : vec4(at.x / uRes.x * 2.0 - 1.0, 1.0 - at.y / uRes.y * 2.0, 0.0, 1.0);
+    }`;
+    const FS = `#version 300 es
+    precision highp float;
+    in vec3 vCol; in float vA; in float vR;
+    uniform float uInk;
+    out vec4 color;
+    void main() {
+      float d = length(gl_PointCoord - 0.5) * 2.0;
+      if (uInk > 0.5) {
+        float aa = clamp(1.0 / max(vR, 0.5), 0.0, 1.0);
+        float cover = (1.0 - smoothstep(1.0 - aa, 1.0, d)) * vA;
+        color = vec4(mix(vec3(1.0), vCol, cover), 1.0);
+      } else {
+        float soft = 1.0 - smoothstep(0.25, 1.0, d);
+        color = vec4(vCol * soft * vA * 0.85, 1.0);
+      }
+    }`;
+    const compile = (type, source) => {
+      const shader = gl.createShader(type);
+      gl.shaderSource(shader, source);
+      gl.compileShader(shader);
+      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(shader));
+      return shader;
+    };
+    const program = gl.createProgram();
+    gl.attachShader(program, compile(gl.VERTEX_SHADER, VS));
+    gl.attachShader(program, compile(gl.FRAGMENT_SHADER, FS));
+    gl.linkProgram(program);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) console.error(gl.getProgramInfoLog(program));
+    gl.useProgram(program);
+    const uniform = {};
+    ["uRes", "uCenter", "uScale", "uTilt", "uInk", "uReveal"].forEach((name) => { uniform[name] = gl.getUniformLocation(program, name); });
+
+    const binary = atob(document.getElementById("dots").textContent.trim());
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    document.getElementById("dots").textContent = "";
+    gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+    gl.bufferData(gl.ARRAY_BUFFER, bytes, gl.STATIC_DRAW);
+    [0, 1, 2].forEach((location) => gl.enableVertexAttribArray(location));
+    const bindLayer = (index) => {
+      const offset = index * N * 12;
+      gl.vertexAttribPointer(0, 3, gl.SHORT, true, 12, offset);
+      gl.vertexAttribPointer(1, 2, gl.UNSIGNED_BYTE, true, 12, offset + 6);
+      gl.vertexAttribPointer(2, 4, gl.UNSIGNED_BYTE, true, 12, offset + 8);
+    };
+    gl.enable(gl.BLEND);
+
+    const start = LAYERS.findIndex((layer) => hash.includes(layer.id));
+    let layer = start >= 0 ? start : 0;
+    let dpr = 1, reveal = 1, center = [0, 0], scale = 100;
+    let clear = token("--paper");
+    let change = null, pending = null, raf = 0;
+    bindLayer(layer);
+
+    const fit = () => {
+      const heroBox = hero.getBoundingClientRect();
+      const slotBox = slot.getBoundingClientRect();
+      const width = slotBox.width, height = Math.max(120, slotBox.height - 44);
+      const current = LAYERS[layer];
+      center = [(slotBox.left + width / 2 - heroBox.left) * dpr, (slotBox.top + height / 2 - heroBox.top) * dpr];
+      scale = Math.min(width / (2 * current.hw), height / (2 * current.hh)) * dpr * 0.98;
+    };
+    const resize = () => {
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const box = hero.getBoundingClientRect();
+      canvas.width = Math.max(1, Math.round(box.width * dpr));
+      canvas.height = Math.max(1, Math.round(box.height * dpr));
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      fit();
+      schedule();
+    };
+
+    draw = () => {
+      gl.clearColor(clear[0], clear[1], clear[2], 1);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      const ink = mode === "light";
+      if (ink) gl.blendFunc(gl.DST_COLOR, gl.ZERO); else gl.blendFunc(gl.ONE, gl.ONE);
+      gl.uniform2f(uniform.uRes, canvas.width, canvas.height);
+      gl.uniform2f(uniform.uCenter, center[0], center[1]);
+      gl.uniform1f(uniform.uScale, scale);
+      gl.uniform1f(uniform.uTilt, LAYERS[layer].tilt || 0);
+      gl.uniform1f(uniform.uInk, ink ? 1 : 0);
+      gl.uniform1f(uniform.uReveal, reveal);
+      gl.drawArrays(gl.POINTS, 0, N);
+    };
+
+    // The picture fades out, the page or picture changes while nothing is visible, then it fades back in.
+    const applyChange = (next) => {
+      if (next.layer !== undefined) {
+        layer = next.layer;
+        bindLayer(layer);
+        showLayer(layer);
+        fit();
+      }
+      if (next.theme) {
+        const from = clear.slice();
+        applyTheme(next.theme);
+        next.from = from;
+        next.target = token("--paper");
+      }
+    };
+    const tick = (now) => {
+      raf = 0;
+      if (change) {
+        const progress = Math.min(1, (now - change.t0) / change.dur);
+        reveal = Math.abs(1 - 2 * progress);
+        if (progress >= 0.5 && !change.done) {
+          change.done = true;
+          applyChange(change);
+        }
+        if (change.done && change.target) {
+          const blend = Math.min(1, (progress - 0.5) * 2);
+          clear = change.from.map((value, index) => value + (change.target[index] - value) * blend);
+        }
+        if (progress >= 1) {
+          change = null;
+          reveal = 1;
+          if (pending) { begin(pending); pending = null; }
+        }
+      }
+      draw();
+      if (change) schedule();
+    };
+    function schedule() {
+      if (!raf) raf = requestAnimationFrame(tick);
+    }
+    function begin(next) {
+      if (reduce) {
+        applyChange(next);
+        if (next.target) clear = next.target;
+        reveal = 1;
+        schedule();
+        return;
+      }
+      if (change) { pending = Object.assign(pending || {}, next); return; }
+      change = Object.assign({ t0: performance.now(), dur: 480, done: false }, next);
+      schedule();
+    }
+
+    flyTo = (index) => {
+      if (index !== layer) begin({ layer: index });
+    };
+    setTheme = (next) => {
+      saveTheme(next);
+      if (next !== mode) begin({ theme: next });
+    };
+
+    addEventListener("resize", resize);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(resize);
+    resize();
+    showLayer(layer);
+
+    const form = document.getElementById("form");
+    const input = document.getElementById("topic");
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      flyTo((layer + 1) % LAYERS.length);
+      input.value = "";
+    });
+  }
+  if (!gl) showLayer(0);
+
+  document.getElementById("to-light").addEventListener("click", () => setTheme("light"));
+  document.getElementById("to-dark").addEventListener("click", () => setTheme("dark"));
+
+  const board = document.getElementById("board");
+  const dots = [];
+  const addDot = (x, y, r, kind) => {
+    const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    dot.setAttribute("cx", x.toFixed(1));
+    dot.setAttribute("cy", y.toFixed(1));
+    dot.setAttribute("r", r);
+    dot.setAttribute("fill", "currentColor");
+    board.appendChild(dot);
+    if (kind) dots.push(dot);
+  };
+  for (let x = 24; x <= 616; x += 8) addDot(x, 344, 1.1);
+  for (let y = 150; y <= 340; y += 8) addDot(566, y, 1.5);
+  for (let y = 62; y <= 150; y += 7) addDot(566, y, 1.5);
+  for (let a = 0; a < 40; a++) addDot(516 + 34 * Math.cos(a / 40 * 6.2832), 128 + 6 * Math.sin(a / 40 * 6.2832), 1.5);
+  for (let i = 1; i < 110; i++) {
+    const r = 1.75 * Math.sqrt(i);
+    const a = i * 2.39996;
+    addDot(112 + r * Math.cos(a), 262 + r * Math.sin(a), 1.25);
+  }
+  const ARC = 54;
+  for (let i = 1; i <= ARC; i++) {
+    const t = i / ARC;
+    addDot(112 + t * (516 - 112), 262 + t * (128 - 262) - 190 * t * (1 - t) * 1.25, 2.1, true);
+  }
+  [["RELEASE", 84, 306], ["WHAT PUSHES IT NOW?", 240, 56]].forEach(([words, x, y]) => {
+    const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    label.setAttribute("x", x);
+    label.setAttribute("y", y);
+    label.textContent = words;
+    board.appendChild(label);
+  });
+
+  const LINE = "You said you play point guard, so let's use your jump shot. Once the ball leaves your hand, what's still pushing it toward the hoop?";
+  const voice = document.getElementById("voice");
+  const words = LINE.split(" ").map((word, index, all) => {
+    const span = document.createElement("span");
+    span.textContent = word;
+    voice.appendChild(span);
+    if (index < all.length - 1) voice.appendChild(document.createTextNode(" "));
+    return span;
+  });
+  const talk = document.getElementById("talk");
+  const stateEl = document.getElementById("state");
+  const reply = document.getElementById("reply");
+  const playButton = document.getElementById("play");
+  let timer = 0;
+  const WORD = 235;
+  const arcFrom = LINE.split(" ").indexOf("leaves");
+  function finishTalk() {
+    clearInterval(timer);
+    timer = 0;
+    words.forEach((span) => span.classList.remove("ahead"));
+    dots.forEach((dot) => { dot.style.opacity = 1; });
+    reply.style.opacity = 1;
+    talk.classList.remove("speaking");
+    stateEl.textContent = "Listening";
+    playButton.textContent = "Play the tutor";
+  }
+  playButton.addEventListener("click", () => {
+    if (timer) { finishTalk(); return; }
+    if (reduce) { finishTalk(); return; }
+    words.forEach((span) => span.classList.add("ahead"));
+    dots.forEach((dot) => { dot.style.opacity = 0; });
+    reply.style.opacity = 0;
+    talk.classList.add("speaking");
+    stateEl.textContent = "Speaking";
+    playButton.textContent = "Stop";
+    let at = 0;
+    timer = setInterval(() => {
+      if (at >= words.length) { finishTalk(); return; }
+      words[at].classList.remove("ahead");
+      if (at >= arcFrom) {
+        const shown = Math.ceil(((at - arcFrom + 1) / (words.length - arcFrom)) * dots.length);
+        dots.forEach((dot, index) => { if (index < shown) dot.style.opacity = 1; });
+      }
+      at++;
+    }, WORD);
+  });
+})();
+</script>
