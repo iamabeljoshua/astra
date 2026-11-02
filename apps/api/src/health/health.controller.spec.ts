@@ -27,4 +27,11 @@ describe('GET /health', () => {
       .expect(200)
       .expect(expectedResponse);
   });
+
+  it('fails on purpose to prove CI turns red', async () => {
+    await request(app.getHttpServer())
+      .get('/health')
+      .expect(200)
+      .expect({ status: 'deliberately-wrong' });
+  });
 });
