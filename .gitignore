@@ -2,6 +2,7 @@
 !.claude/
 .claude/settings.local.json
 .claude/worktrees/
+.verify/
 docs/design/look-prototype/astra-look.html
 docs/design/app-prototype/astra-app.html
 docs/design/app-prototype/preview.html
