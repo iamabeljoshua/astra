@@ -78,6 +78,7 @@ The goal: reading the code tells the full story with no cognitive overload.
 - Use descriptive full names, including loop variables. Use a `get` prefix for computed getters and action verbs for actions. Group named constants by concern.
 - No cleverness: no magic-number heuristics, no out-param mutation, no implicit side channels. Prefer explicit flags over inferred state.
 - Straightforward code gets no comment. A function or class that is not straightforward gets one short plain-English line, written as a principal engineer would. Rationale goes in `docs/`.
+- API docs are the exception. DTO fields and controller routes carry a short comment, because the Swagger plugin turns those comments into the API docs. Do not remove them in a comment cleanup.
 - Keep one source of truth for types. Do not copy a type across packages. Delete tests that do not check behavior.
 
 ## Writing
