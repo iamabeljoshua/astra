@@ -51,7 +51,7 @@ Stop for my decision before you do any of these:
 - Make a high-level architectural decision.
 - Change anything from an approved plan.
 
-Give me the options and your recommendation. Add the `needs-abel` label to the issue, tell me in chat, and send a push notification. Keep working on anything the decision does not affect.
+Give me the options and your recommendation. Add the `needs-human-review` label to the issue, tell me in chat, and send a push notification. Keep working on anything the decision does not affect.
 
 For architectural decisions, run `/pstack:architect` with a checkpoint, so that I see the design before implementation.
 
