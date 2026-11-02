@@ -1,1 +1,5 @@
 .DS_Store
+!.claude/
+.claude/settings.local.json
+.claude/worktrees/
+docs/design/look-prototype/astra-look.html
