@@ -1,0 +1,25 @@
+PASS control, with no trigger a planted password signs in {"status":200}
+PASS control, with no trigger a planted password signs in {"status":200}
+PASS the file runs twice as the postgres role, and one trigger exists
+PASS Auth connects with no right to the app schema
+PASS a password stored before the trigger is blank now
+PASS a password stored before the trigger no longer signs in
+sign-up with a password answers {"status":200,"gaveToken":true}
+PASS sign-up keeps no password
+PASS sign-up password does not sign in
+PASS the address owner still signs in by the link after a plant
+PASS a planted password does not sign in before or after the owner opens the link {"early":"invalid_credentials","late":"invalid_credentials"}
+PASS setting a password with a session keeps none {"status":200}
+PASS that password does not sign in
+PASS the session survives, so a link user is not broken
+PASS an admin-made user keeps no password {"status":200}
+PASS that password does not sign in
+PASS an admin password update keeps none {"status":200}
+PASS that password does not sign in
+PASS a password set through recovery does not sign in
+PASS a direct write to the column is blanked
+PASS no user holds a password {"users":"6"}
+PASS in the real client, a new address signs in by link {"who":"m29-confirm-off-brand-new-1793738197391@astra.test","amr":["magiclink"]}
+PASS in the real client, a known address signs in by link {"who":"m29-confirm-off-brand-new-1793738197391@astra.test","amr":["magiclink"]}
+PASS in the real client, a user who planted first signs in by link
+TRIGGER confirm-off {"pass":22,"fail":0}

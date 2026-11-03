@@ -1,0 +1,6 @@
+{"run":0,"restored":true,"preFrames":1,"framesAfterBack":2,"inkFrames":["1@36ms ink=0.431"],"blankAtMs":56,"shownMsByCompositorClock":46,"firstFrames":["36ms:0.431:ts43568","56ms:0:ts43614"]}
+{"run":1,"restored":true,"preFrames":1,"framesAfterBack":2,"inkFrames":["1@61ms ink=0.431"],"blankAtMs":66,"shownMsByCompositorClock":44,"firstFrames":["61ms:0.431:ts47941","66ms:0:ts47985"]}
+{"run":2,"restored":true,"preFrames":1,"framesAfterBack":2,"inkFrames":["1@27ms ink=0.431"],"blankAtMs":56,"shownMsByCompositorClock":52,"firstFrames":["27ms:0.431:ts52257","56ms:0:ts52309"]}
+{"run":0,"restored":true,"pageshow":["pageshow persisted=false vis= text=","pageshow persisted=true vis=hidden text="],"studentFrames":["1@41ms same=1"],"mostAlike":1,"frames":2}
+{"run":1,"restored":true,"pageshow":["pageshow persisted=false vis= text=","pageshow persisted=true vis=hidden text="],"studentFrames":["1@39ms same=1"],"mostAlike":1,"frames":2}
+TOTAL headless x6 home nopost {"runs":2,"kept":2,"freshShow":2,"studentFrames":2}
