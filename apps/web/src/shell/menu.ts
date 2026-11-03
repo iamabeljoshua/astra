@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react';
+import { HomeScreen } from '../home/HomeScreen';
 import { MENU_LABELS } from '../strings';
-import { EmptyHomePage } from './EmptyHomePage';
 import { EmptySessionsPage } from './EmptySessionsPage';
 
 interface MenuItem {
@@ -10,6 +10,6 @@ interface MenuItem {
 }
 
 export const MENU: MenuItem[] = [
-  { path: '/', label: MENU_LABELS.home, Page: EmptyHomePage },
+  { path: '/', label: MENU_LABELS.home, Page: HomeScreen },
   { path: '/sessions', label: MENU_LABELS.sessions, Page: EmptySessionsPage },
 ];

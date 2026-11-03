@@ -1,4 +1,6 @@
 import { IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { ARTWORK_NAMES } from '../artwork';
+import type { ArtworkName } from '../artwork';
 import { IsStorableText } from '../is-storable-text';
 import { ToStrictInteger } from '../to-strict-integer';
 import { SESSION_LANGUAGES, SESSION_STATUSES } from './session-options';
@@ -64,5 +66,6 @@ export class SessionResponseDto {
   detail!: string | null;
 
   /** The name of the picture that the web app shows for this session, or null if there is none. */
-  artwork!: string | null;
+  @IsIn(ARTWORK_NAMES)
+  artwork!: ArtworkName | null;
 }

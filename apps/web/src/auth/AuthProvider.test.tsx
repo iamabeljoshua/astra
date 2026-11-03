@@ -29,7 +29,7 @@ function ShowAuth() {
 
 function renderProvider() {
   const queryClient = new QueryClient();
-  queryClient.setQueryData(['private'], 'the first student data');
+  queryClient.setQueryData(['home'], 'the first student data');
   render(
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
@@ -80,7 +80,7 @@ describe('AuthProvider', () => {
     await screen.findByText('loading false');
     send(USER_A);
     vi.mocked(restartAppAtHome).mockImplementation(() => {
-      expect(queryClient.getQueryData(['private'])).toBeUndefined();
+      expect(queryClient.getQueryData(['home'])).toBeUndefined();
     });
 
     send(null);
@@ -95,7 +95,7 @@ describe('AuthProvider', () => {
 
     send(USER_B);
 
-    expect(queryClient.getQueryData(['private'])).toBeUndefined();
+    expect(queryClient.getQueryData(['home'])).toBeUndefined();
     expect(restartAppAtHome).toHaveBeenCalledTimes(1);
   });
 
@@ -106,7 +106,7 @@ describe('AuthProvider', () => {
 
     send(USER_A);
 
-    expect(queryClient.getQueryData(['private'])).toBe('the first student data');
+    expect(queryClient.getQueryData(['home'])).toBe('the first student data');
     expect(restartAppAtHome).not.toHaveBeenCalled();
   });
 

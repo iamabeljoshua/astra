@@ -5,7 +5,7 @@ A student signs in, is onboarded, and picks a card or asks a question on Home.
 They then have a real spoken lesson, with the tutor drawing in time with its words, working from a lesson plan and calling tools only when it needs them.
 Afterwards the tutor remembers them, recommends what comes next, and lets them replay the session.
 The rule the program enforces is the PRD's rule for the board and the tutor, proved on the real app at every PR.
-The PR ids in order are M1.1, M1.2, M1.3, M1.5, M1.4, M1.6, M2.1, M2.2, M2.3, M2.4, M2.5, M3.1, M3.2, M3.3, M3.4, M3.5, M3.6, M3.7, M3.8, M3.9, M3.10, M3.11, M4.1, M4.2, M4.3, M4.4, M4.5.
+The PR ids in order are M1.1, M1.2, M1.3, M1.5, M1.4, M1.6, M2.1, M2.3, M2.6, M2.7, M2.8, M2.2, M2.4, M2.5, M3.1, M3.2, M3.3, M3.4, M3.5, M3.6, M3.7, M3.8, M3.9, M3.10, M3.11, M4.1, M4.2, M4.3, M4.4, M4.5.
 
 ## How to read this
 
@@ -20,7 +20,7 @@ Each PR has one GitHub issue with the same acceptance criteria, and this plan ho
 | Milestone | What it delivers | PRs |
 | --- | --- | --- |
 | M1 Foundation | One running app, automatic checks, the approved look, and a database. | M1.1, M1.2, M1.3, M1.5, M1.4, M1.6 |
-| M2 Student app | Sign-in, onboarding, the home screen, picks, and the session list. | M2.1, M2.2, M2.3, M2.4, M2.5 |
+| M2 Student app | Sign-in, onboarding, the home screen, picks, and the session list. | M2.1, M2.3, M2.6, M2.7, M2.8, M2.2, M2.4, M2.5 |
 | M3 Live tutor | A real session end to end, with voice, the board, the tutor agent, and lesson plans. | M3.1, M3.2, M3.3, M3.4, M3.5, M3.6, M3.7, M3.8, M3.9, M3.10, M3.11 |
 | M4 Learning loop | Memory, personal teaching, recommended picks, recap and replay, and safety. | M4.1, M4.2, M4.3, M4.4, M4.5 |
 
@@ -30,7 +30,7 @@ Each PR has one GitHub issue with the same acceptance criteria, and this plan ho
 
 - [ ] State the protocol and this plan to the operator, then stop. Start execution only on the operator's explicit go.
 - [ ] Propose the commands to allow in `.claude/settings.json` for the operator's approval, because an unapproved command pauses the run.
-- [ ] On the operator's go, write this exact text into the standing orders and restate it in your todolist. "Plan `docs/plans/mvp.md`. PRs in order M1.1, M1.2, M1.3, M1.5, M1.4, M1.6, M2.1, M2.2, M2.3, M2.4, M2.5, M3.1, M3.2, M3.3, M3.4, M3.5, M3.6, M3.7, M3.8, M3.9, M3.10, M3.11, M4.1, M4.2, M4.3, M4.4, M4.5. Tests alone are not sufficient verification, and a PR is verified only when its unit, live, and perf boxes are all checked. The root merges after a clean verdict, as `CLAUDE.md` allows. At most 3 PRs at a time. Done when every box is checked with evidence and M3.10's recording is posted."
+- [ ] On the operator's go, write this exact text into the standing orders and restate it in your todolist. "Plan `docs/plans/mvp.md`. PRs in order M1.1, M1.2, M1.3, M1.5, M1.4, M1.6, M2.1, M2.3, M2.6, M2.7, M2.8, M2.2, M2.4, M2.5, M3.1, M3.2, M3.3, M3.4, M3.5, M3.6, M3.7, M3.8, M3.9, M3.10, M3.11, M4.1, M4.2, M4.3, M4.4, M4.5. Tests alone are not sufficient verification, and a PR is verified only when its unit, live, and perf boxes are all checked. The root merges after a clean verdict, as `CLAUDE.md` allows. At most 3 PRs at a time. Done when every box is checked with evidence and M3.10's recording is posted."
 - [ ] Read these from the installed plugin at program start. Re-read them at every tick.
   - [ ] `skills/poteto-mode/playbooks/autopilot-full.md`
   - [ ] `skills/swarm/SKILL.md`
@@ -53,10 +53,13 @@ Each PR has one GitHub issue with the same acceptance criteria, and this plan ho
   - [ ] M1.4 after M1.1 and M1.5.
   - [ ] M1.6 after M1.3 and M1.5.
   - [ ] M2.1 after M1.3 and M1.4 and M1.6.
-  - [ ] M2.2 after M1.4 and M2.1.
   - [ ] M2.3 after M1.3 and M1.4 and M1.6.
-  - [ ] M2.4 after M2.1 and M2.3.
-  - [ ] M2.5 after M2.1 and M2.3.
+  - [ ] M2.6 after M2.1 and M2.3.
+  - [ ] M2.7 after M2.1.
+  - [ ] M2.8 after M2.3.
+  - [ ] M2.2 after M1.4 and M2.1 and M2.6.
+  - [ ] M2.4 after M2.1 and M2.3 and M2.6.
+  - [ ] M2.5 after M2.1 and M2.3 and M2.6.
   - [ ] M3.1 after M1.4.
   - [ ] M3.2 after M3.1 and M1.3.
   - [ ] M3.3 after M3.2.
@@ -340,7 +343,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 - [ ] The database stores students, their profiles and interests, and their sessions, including each session's language.
 - [ ] A seed command creates an example student with six example sessions, matching the prototype.
 - [ ] The API rejects bad input with a clear error, and valid input saves and reads back the same.
-- [ ] CI runs the migrations against a fresh database on the same Postgres image as the local stack, and a CI run stays under 3 minutes.
+- [ ] CI runs the migrations against a fresh database on the same Postgres image as the local stack, and a CI run stays under 4 minutes.
 - [ ] No paid service is added.
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
@@ -479,57 +482,6 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 - [ ] Every box in **You see.** is checked with evidence on the issue, and no stop-list decision is open on it.
 - [ ] The root merges with `gh pr merge <pr> --repo iamabeljoshua/astra --squash --match-head-commit <verified-head>`, then reads the PR back to confirm the merge.
 
-## Add the library of pre-made picks (M2.2)
-
-**Depends on.** M1.4, M2.1.
-
-**Files.**
-
-- [ ] Create `apps/api/src/picks/` with `library.json`.
-- [ ] Add images under `apps/web/public/picks/`.
-- [ ] Create `docs/credits.md`.
-
-**Build.**
-
-- [ ] Write the library as data, not code.
-- [ ] Add a pure function `getPicksForStudent` that filters by level and scores by interests.
-- [ ] Record every image's source in `docs/credits.md`.
-
-**You see.**
-
-- [ ] The library holds at least 30 topics across math, physics, chemistry, computer science, and a few curiosity subjects.
-- [ ] Every card has a title, a subject, a length, an opening line, and a normal image or one of our own drawings.
-- [ ] Home shows six cards that fit the student's level and interests, and each states its reason.
-- [ ] Two different students see visibly different cards.
-- [ ] Every image is public domain or our own, with its source recorded, and no game, film, or team images appear (PRD Q16).
-
-**Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
-
-- [ ] `getPicksForStudent.spec.ts` asserts level filtering, interest scoring, and a stated reason on every card.
-- [ ] A data test asserts every library entry is complete and every image file and credit exists. Run `pnpm test`.
-
-**Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Two lanes on the configured `swarm workers` model at the PR head, per the boot recipe and the 5-agent rule in `CLAUDE.md`.
-
-- [ ] Lane 1. Regression lane against trunk. Trunk shows seeded cards only, so record that and gate the end state. Load Home as a seeded basketball student. Save `m2-2-basketball.png`. Pass when six cards appear, each with a picture and a reason.
-- [ ] Lane 2. Load Home as a seeded student with different interests and level. Save `m2-2-other.png`. Pass when the cards differ from lane 1 and their reasons match this student.
-
-**Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
-
-- [ ] Metric. Not applicable. `CLAUDE.md` adds a perf check only when a PR changes performance, and this PR does not.
-- [ ] Probe. None.
-- [ ] Baseline. None.
-- [ ] Rule. None.
-
-**Review gate.** None. M2.2 is not review-gated, because `CLAUDE.md` lets the program merge without Abel's review.
-
-**Merge.**
-
-- [ ] Root's clean verdict at the exact head SHA.
-- [ ] Bugbot triage done.
-- [ ] Base and verdict are current under the execution playbook and the patch-id rule in `playbooks/shipping.md`.
-- [ ] Every box in **You see.** is checked with evidence on the issue, and no stop-list decision is open on it.
-- [ ] The root merges with `gh pr merge <pr> --repo iamabeljoshua/astra --squash --match-head-commit <verified-head>`, then reads the PR back to confirm the merge.
-
 ## Add sign-in and the age gate (M2.3)
 
 **Depends on.** M1.3, M1.4, M1.6.
@@ -580,9 +532,208 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 - [ ] Every box in **You see.** is checked with evidence on the issue, and no stop-list decision is open on it.
 - [ ] The root merges with `gh pr merge <pr> --repo iamabeljoshua/astra --squash --match-head-commit <verified-head>`, then reads the PR back to confirm the merge.
 
-## Build onboarding (M2.4)
+## Move the data layer to entities and repositories (M2.6)
 
 **Depends on.** M2.1, M2.3.
+
+**Files.**
+
+- [ ] Move `apps/api/src/database/` and each feature's entities to `apps/api/src/infrastructure/orm/`.
+- [ ] Create `apps/api/src/infrastructure/orm/repositories/` with one repository per aggregate and a `repository.module.ts`.
+- [ ] Edit each feature's service and module, the ESLint config or a spec for the check, and `README.md`.
+
+**Build.**
+
+- [ ] Read `clique-cloud`'s `apps/backend/src/infrastructure/orm/` and copy its layout, naming, and how services use repositories. It uses Sequelize, so keep only the structure.
+- [ ] Move data access from services into named repository methods, and keep mapping to response DTOs in services, so no entity reaches a response.
+- [ ] Have `pnpm db:migration <name>` bring the database up to date and generate into the migrations folder, and discover entities and migrations by path in place of the hand-kept lists.
+- [ ] Add the check that keeps TypeORM's repository API inside `infrastructure/orm`.
+- [ ] Read `servease`'s `apps/backend/src/infrastructure/orm/policy-helper.ts`, whose helper each migration calls by hand. Have the generator add it, so nobody has to remember.
+
+**You see.**
+
+- [ ] Entities live in `apps/api/src/infrastructure/orm/entities/`, repositories in `apps/api/src/infrastructure/orm/repositories/`, and migrations in `apps/api/src/infrastructure/orm/migrations/`, following `clique-cloud`'s layout. The API stays on TypeORM.
+- [ ] Services call named repository methods, and only repositories use TypeORM. A check fails if TypeORM's repository API is used anywhere else.
+- [ ] `pnpm db:migration <name>` generates a migration from entity changes, with no SQL written by hand, and a new entity or migration is found with no list to edit.
+- [ ] A test or CI step fails when an entity changes with no migration.
+- [ ] Every table, present and future, has row security on with no policies, as Abel ruled on 3 November 2026. `pnpm db:migration` adds it to each new table, and a test fails on any table without it.
+- [ ] Tables move from the private `app` schema to `public`, and the API still reads and writes them. Supabase's anon key reads and changes no row, and the PR records what that key can still see, such as table names.
+- [ ] Every API route answers exactly as before, and students see no change.
+- [ ] The README explains how to add an entity, a repository, and a migration.
+- [ ] No paid service is added.
+
+**Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
+
+- [ ] The existing service, route, drift, and schema specs keep passing with their behavior unchanged.
+- [ ] A new spec asserts that a planted use of TypeORM's repository outside `infrastructure/orm` fails the check. Run `pnpm test`.
+
+**Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Two lanes on the configured `swarm workers` model at the PR head, per the boot recipe and the 5-agent rule in `CLAUDE.md`.
+
+- [ ] Lane 1. Regression lane against trunk. Send the same requests to every API route at trunk and head, signed in as the same student. Save `m2-6-api.png`. Save `m2-6-api.png`. Pass when status and body match on every route, and Home and sign-in look the same.
+- [ ] Lane 2. Follow the README to add a real temporary entity, a repository, and a column, and generate the migrations. Save `m2-6-migration.png`. Save `m2-6-migration.png`. Pass when the steps work as written, nothing is edited by hand, the migrations apply on a fresh database, and the new table stays closed to Supabase's anon key.
+
+**Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
+
+- [ ] Metric. Not applicable. `CLAUDE.md` adds a perf check only when a PR changes performance, and this PR does not.
+- [ ] Probe. None.
+- [ ] Baseline. None.
+- [ ] Rule. None.
+
+**Review gate.** None. M2.6 is not review-gated, because `CLAUDE.md` lets the program merge without Abel's review.
+
+**Merge.**
+
+- [ ] Root's clean verdict at the exact head SHA.
+- [ ] Bugbot triage done.
+- [ ] Base and verdict are current under the execution playbook and the patch-id rule in `playbooks/shipping.md`.
+- [ ] Every box in **You see.** is checked with evidence on the issue, and no stop-list decision is open on it.
+- [ ] The root merges with `gh pr merge <pr> --repo iamabeljoshua/astra --squash --match-head-commit <verified-head>`, then reads the PR back to confirm the merge.
+
+## Give API calls 30 seconds (M2.7)
+
+**Depends on.** M2.1.
+
+**Files.**
+
+- [ ] Edit `apps/web/src/api/requestTimeout.ts`, `apps/web/src/api/queryClient.ts`, `apps/web/src/home/useHomeScreen.ts`, and their tests.
+
+**Build.**
+
+- [ ] Raise the default limit, remove Home's own, and stop retrying a request that timed out, while a caller's own abort and a quick failure keep their behavior.
+
+**You see.**
+
+- [ ] Every API call waits up to 30 seconds, with one limit in one place, and Home no longer sets its own.
+- [ ] A call that reaches the limit does not retry by itself, so a student sees the failure line about 30 seconds after a hung request starts, and Try again works.
+- [ ] A server or network failure that comes back quickly still retries as it does today.
+- [ ] An API that takes 5 seconds to answer loads Home's cards on the first try.
+- [ ] No paid service is added.
+
+**Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
+
+- [ ] Specs cover the limit, no retry after a timeout, and a retry after a quick failure. Run `pnpm test`.
+
+**Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Two lanes on the configured `swarm workers` model at the PR head, per the boot recipe and the 5-agent rule in `CLAUDE.md`.
+
+- [ ] Lane 1. Run the web app against a proxy that hangs, then one that answers after 5 seconds. Save `m2-7-timeouts.png`. Save `m2-7-timeouts.png`. Pass when the hung API shows the failure line at about 30 seconds and Try again works, and the slow API loads the cards with no failure line.
+
+**Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
+
+- [ ] Metric. Not applicable. `CLAUDE.md` adds a perf check only when a PR changes performance, and this PR does not.
+- [ ] Probe. None.
+- [ ] Baseline. None.
+- [ ] Rule. None.
+
+**Review gate.** None. M2.7 is not review-gated, because `CLAUDE.md` lets the program merge without Abel's review.
+
+**Merge.**
+
+- [ ] Root's clean verdict at the exact head SHA.
+- [ ] Bugbot triage done.
+- [ ] Base and verdict are current under the execution playbook and the patch-id rule in `playbooks/shipping.md`.
+- [ ] Every box in **You see.** is checked with evidence on the issue, and no stop-list decision is open on it.
+- [ ] The root merges with `gh pr merge <pr> --repo iamabeljoshua/astra --squash --match-head-commit <verified-head>`, then reads the PR back to confirm the merge.
+
+## Add sample Terms and Privacy pages (M2.8)
+
+**Depends on.** M2.3.
+
+**Files.**
+
+- [ ] Create the two pages under `apps/web/src/`, and edit the router, the sign-in page, and their tests.
+
+**Build.**
+
+- [ ] Check each statement against the code and `docs/architecture/live-session.md`, and list in the PR each statement with where it is true.
+
+**You see.**
+
+- [ ] `/terms` and `/privacy` open without signing in, at laptop and phone width, in both themes, following `docs/DESIGN.md`.
+- [ ] The words on the sign-in page link to them, by keyboard and screen reader too, and opening one does not lose what the student typed.
+- [ ] Each page says at the top that it is a draft a lawyer has not yet reviewed.
+- [ ] Every statement about the app is true of what it does today, including what is stored, what happens to an under-13 account, and which outside services receive data. Anything planned is labeled as planned.
+- [ ] The text sits in one place, so a lawyer's edits change one file.
+- [ ] No paid service is added.
+
+**Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
+
+- [ ] A spec covers the links, the routes signed out, and the draft line on each page. Run `pnpm test`.
+
+**Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Two lanes on the configured `swarm workers` model at the PR head, per the boot recipe and the 5-agent rule in `CLAUDE.md`.
+
+- [ ] Lane 1. Open both pages signed out from the sign-in page, at both widths and in both themes, using only the keyboard. Save `m2-8-legal.png`. Save `m2-8-legal.png`. Pass when both pages read well, say they are drafts, and what the student typed is still there on return.
+
+**Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
+
+- [ ] Metric. Not applicable. `CLAUDE.md` adds a perf check only when a PR changes performance, and this PR does not.
+- [ ] Probe. None.
+- [ ] Baseline. None.
+- [ ] Rule. None.
+
+**Review gate.** None. M2.8 is not review-gated, because `CLAUDE.md` lets the program merge without Abel's review.
+
+**Merge.**
+
+- [ ] Root's clean verdict at the exact head SHA.
+- [ ] Bugbot triage done.
+- [ ] Base and verdict are current under the execution playbook and the patch-id rule in `playbooks/shipping.md`.
+- [ ] Every box in **You see.** is checked with evidence on the issue, and no stop-list decision is open on it.
+- [ ] The root merges with `gh pr merge <pr> --repo iamabeljoshua/astra --squash --match-head-commit <verified-head>`, then reads the PR back to confirm the merge.
+
+## Add the library of pre-made picks (M2.2)
+
+**Depends on.** M1.4, M2.1, M2.6.
+
+**Files.**
+
+- [ ] Create `apps/api/src/picks/` with `library.json`.
+- [ ] Add images under `apps/web/public/picks/`.
+- [ ] Create `docs/credits.md`.
+
+**Build.**
+
+- [ ] Write the library as data, not code.
+- [ ] Add a pure function `getPicksForStudent` that filters by level and scores by interests.
+- [ ] Record every image's source in `docs/credits.md`.
+
+**You see.**
+
+- [ ] The library holds at least 30 topics across math, physics, chemistry, computer science, and a few curiosity subjects.
+- [ ] Every card has a title, a subject, a length, an opening line, and a normal image or one of our own drawings.
+- [ ] Home shows six cards that fit the student's level and interests, and each states its reason.
+- [ ] Two different students see visibly different cards.
+- [ ] Every image is public domain or our own, with its source recorded, and no game, film, or team images appear (PRD Q16).
+
+**Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
+
+- [ ] `getPicksForStudent.spec.ts` asserts level filtering, interest scoring, and a stated reason on every card.
+- [ ] A data test asserts every library entry is complete and every image file and credit exists. Run `pnpm test`.
+
+**Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Two lanes on the configured `swarm workers` model at the PR head, per the boot recipe and the 5-agent rule in `CLAUDE.md`.
+
+- [ ] Lane 1. Regression lane against trunk. Trunk shows seeded cards only, so record that and gate the end state. Load Home as a seeded basketball student. Save `m2-2-basketball.png`. Pass when six cards appear, each with a picture and a reason.
+- [ ] Lane 2. Load Home as a seeded student with different interests and level. Save `m2-2-other.png`. Pass when the cards differ from lane 1 and their reasons match this student.
+
+**Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
+
+- [ ] Metric. Not applicable. `CLAUDE.md` adds a perf check only when a PR changes performance, and this PR does not.
+- [ ] Probe. None.
+- [ ] Baseline. None.
+- [ ] Rule. None.
+
+**Review gate.** None. M2.2 is not review-gated, because `CLAUDE.md` lets the program merge without Abel's review.
+
+**Merge.**
+
+- [ ] Root's clean verdict at the exact head SHA.
+- [ ] Bugbot triage done.
+- [ ] Base and verdict are current under the execution playbook and the patch-id rule in `playbooks/shipping.md`.
+- [ ] Every box in **You see.** is checked with evidence on the issue, and no stop-list decision is open on it.
+- [ ] The root merges with `gh pr merge <pr> --repo iamabeljoshua/astra --squash --match-head-commit <verified-head>`, then reads the PR back to confirm the merge.
+
+## Build onboarding (M2.4)
+
+**Depends on.** M2.1, M2.3, M2.6.
 
 **Files.**
 
@@ -635,7 +786,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 ## Start sessions and list them (M2.5)
 
-**Depends on.** M2.1, M2.3.
+**Depends on.** M2.1, M2.3, M2.6.
 
 **Files.**
 
@@ -1480,6 +1631,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 - [ ] A student or parent can delete a student's data, and raw audio is confirmed never stored.
 - [ ] Parents of minors get a short summary after each session, with no transcript.
 - [ ] Student data is excluded from model training, and the product has no camera, no voiceprints, and no emotion inference.
+- [ ] Before any real student, an under-13 account is fully closed. The Supabase user is deleted, along with the address in Auth's identities, audit rows, and logs, a keyed hash of the address refuses it from then on, even after an email change, and a lawyer's view is recorded (PRD S1). A test proves each of these.
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 

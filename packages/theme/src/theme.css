@@ -18,12 +18,15 @@
   --text-label: 11px;
   --text-fine: 13px;
   --text-mark: 14px;
+  --text-control: 14px;
   --text-body: 15px;
+  --text-lead: 17px;
+  --text-heading: 22px;
+  --text-heading--line-height: 1.2;
   --text-title: 28px;
   --text-title--line-height: 1.2;
   --text-greeting: clamp(30px, 2.8vw, 38px);
   --text-greeting--line-height: 1.1;
-  --text-control: 14px;
   --text-sub: 16px;
   --text-entry: 22px;
   --text-question: clamp(27px, 2.5vw, 36px);
@@ -34,8 +37,12 @@
   --text-sheet-name--line-height: 1.1;
   --text-sheet-name-phone: 18px;
 
+  --leading-fine: 1.3;
+  --leading-chat: 1.4;
+
   --breakpoint-*: initial;
   --breakpoint-md: 761px;
+  --breakpoint-lg: 1021px;
 
   --shadow-*: initial;
   --drop-shadow-*: initial;
@@ -45,11 +52,20 @@
   --spacing-page-side: clamp(16px, 3vw, 40px);
   --spacing-page-top: clamp(20px, 4.5vh, 44px);
   --spacing-onboarding-side: clamp(16px, 4vw, 56px);
+  --spacing-page-bottom: 28px;
+  --spacing-thumb: 68px;
+  --spacing-continue-art-height: 140px;
+  --spacing-continue-placeholder: 170px;
+  --spacing-pick-placeholder: 90px;
+  --spacing-chat-input-max: 140px;
   --container-column: 1020px;
   --container-onboarding: 580px;
   --container-sheet: 348px;
   --grid-template-columns-onboarding: minmax(0, 1fr) clamp(360px, 31vw, 460px);
   --grid-template-columns-sheet-row: 74px minmax(0, 1fr);
+
+  --grid-template-columns-continue: minmax(0, 1fr) 244px;
+  --grid-template-columns-pick: var(--spacing-thumb) minmax(0, 1fr);
 
   --animate-arrive: arrive 0.5s linear;
 
@@ -95,6 +111,13 @@
     z-index: 1;
     outline: 2px solid var(--color-accent);
     outline-offset: 2px;
+  }
+
+  /* Keeps focus on page content clear of a sticky dock. Focus in the dock is left out, because the padding would scroll the page on every key. */
+  :root:has(main :focus:not([data-dock] :focus)) {
+    --focus-ring-room: 5px;
+    scroll-padding-top: var(--focus-ring-room);
+    scroll-padding-bottom: calc(var(--dock-height, 0px) + var(--focus-ring-room));
   }
 }
 
@@ -175,6 +198,31 @@
   max-width: 44ch;
   border-left: 2px solid var(--color-ink);
   padding-left: 12px;
+}
+
+@utility minimum-target {
+  position: relative;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 24px;
+    height: 24px;
+    transform: translate(-50%, -50%);
+  }
+}
+
+@utility fades-with-theme {
+  transition: background-color 0.24s linear;
+}
+
+@utility thumb-strokes {
+  & :is(path, ellipse, rect) {
+    vector-effect: non-scaling-stroke;
+    stroke-width: 1.3;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

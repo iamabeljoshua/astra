@@ -69,6 +69,11 @@ export class StudentsService {
     return student?.id ?? null;
   }
 
+  async getStudentName(studentId: string): Promise<string | null> {
+    const student = await this.students.findOne({ where: { id: studentId }, select: { name: true } });
+    return student?.name ?? null;
+  }
+
   async saveProfile(
     studentId: string,
     body: SaveStudentProfileBodyDto,

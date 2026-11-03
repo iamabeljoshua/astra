@@ -1,5 +1,9 @@
 import { cleanup } from '@testing-library/react';
 import { afterEach } from 'vitest';
+import { FakeResizeObserver, fakeFonts } from './test/fakeLayout';
+
+globalThis.ResizeObserver = FakeResizeObserver;
+Object.defineProperty(document, 'fonts', { value: fakeFonts });
 
 afterEach(() => {
   cleanup();

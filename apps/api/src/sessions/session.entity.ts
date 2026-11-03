@@ -8,6 +8,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import type { ArtworkName } from '../artwork';
 import { StudentEntity } from '../students/student.entity';
 import { SESSION_STATUSES } from './session-options';
 import type { SessionLanguage, SessionStatus } from './session-options';
@@ -52,7 +53,7 @@ export class SessionEntity {
   detail!: string | null;
 
   @Column('text', { nullable: true })
-  artwork!: string | null;
+  artwork!: ArtworkName | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;

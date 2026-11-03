@@ -1,15 +1,15 @@
-import type { components } from '@astra/contracts';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../App';
 import {
-  API_CONNECTION_LABELS,
   ACCOUNT_LABELS,
+  HOME_LABELS,
   MENU_LABELS,
   PRODUCT_NAME,
   SIDEBAR_LABELS,
   THEME_LABELS,
 } from '../strings';
+import { EXAMPLE_STUDENT_NAME, stubFetchWithHomeScreen } from '../test/homeScreenApi';
 
 vi.mock('../auth/session', () => import('../test/signedInSession'));
 vi.mock('../auth/useAccount', () => import('../test/activeAccount'));
@@ -18,7 +18,7 @@ const { NEW_ROW_LABEL, NEW_PAGE_TEXT } = vi.hoisted(() => ({
   NEW_ROW_LABEL: 'New row',
   NEW_PAGE_TEXT: 'New page',
 }));
-const healthyResponse: components['schemas']['HealthResponseDto'] = { status: 'ok' };
+const HOME_GREETING = HOME_LABELS.greeting(EXAMPLE_STUDENT_NAME);
 
 vi.mock('./menu', async (importOriginal) => {
   const { MENU } = await importOriginal<typeof import('./menu')>();
@@ -28,7 +28,7 @@ vi.mock('./menu', async (importOriginal) => {
 });
 
 beforeEach(() => {
-  vi.stubGlobal('fetch', async () => new Response(JSON.stringify(healthyResponse)));
+  stubFetchWithHomeScreen();
 });
 
 const getNavigation = () => screen.getByRole('navigation', { name: SIDEBAR_LABELS.menu });
@@ -75,7 +75,7 @@ describe('Sidebar', () => {
 
     render(<App />);
 
-    await screen.findByText(API_CONNECTION_LABELS.connected);
+    await screen.findByRole('heading', { name: HOME_GREETING });
     expect(getMenuRow(MENU_LABELS.home).getAttribute('aria-current')).toBe('page');
   });
 });
@@ -144,7 +144,7 @@ describe('the phone menu', () => {
 
     window.history.back();
 
-    await screen.findByText(API_CONNECTION_LABELS.connected);
+    await screen.findByRole('heading', { name: HOME_GREETING });
     expect(isOpen()).toBe(false);
     expect(document.activeElement).toBe(getMenuButton());
   });

@@ -30,8 +30,8 @@ Other color comes only from the content, such as a painting or a plotted series.
 
 ## Surfaces
 
-- No gradients and no shadows. Depth comes from `panel` against `paper` and from 1px rules.
-- Square corners. Controls are outlined with a 1px border, and only the selected state is filled.
+- No gradients and no shadows. Depth comes from `panel` against `paper` and from 1px rules. The one exception is a 1px `paper` shadow under the phone chat dock, which hides a strip of card at fractional display scales and cannot be seen.
+- Square corners. Controls are outlined with a 1px border, and only the selected state is filled. A screen's one main action, such as Send, is the exception and is filled at rest.
 - Text on one side and one object on the other, stacked on a phone.
 - Use a bordered panel for the board, and rules rather than cards for lists. The compact picks on the home screen are the exception.
 
