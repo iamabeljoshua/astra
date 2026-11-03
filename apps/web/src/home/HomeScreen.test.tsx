@@ -1,5 +1,6 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createQueryClient } from '../api/queryClient';
 import { ARTWORK_LABELS, CHAT_BOX_LABELS, HOME_LABELS } from '../strings';
@@ -15,6 +16,11 @@ const FAILURE_LINE_AT_MS = 30_000;
 const SLOW_API_MS = 5_000;
 const SMALL_MARGIN_MS = 100;
 const UNKNOWN_ARTWORK = 'a-name-from-a-newer-api' as 'wave';
+const HOME_SCREEN = (
+  <MemoryRouter>
+    <HomeScreen />
+  </MemoryRouter>
+);
 
 const getTextBox = () => screen.getByRole<HTMLTextAreaElement>('textbox', { name: CHAT_BOX_LABELS.label });
 
@@ -24,7 +30,7 @@ function typeQuestion() {
 
 async function renderLoadedHome(homeScreen = EXAMPLE_HOME_SCREEN) {
   stubFetchWithHomeScreen(homeScreen);
-  const rendered = renderWithQueryClient(<HomeScreen />);
+  const rendered = renderWithQueryClient(HOME_SCREEN);
   await screen.findByRole('heading', { level: 1, name: HOME_LABELS.greeting(EXAMPLE_STUDENT_NAME) });
   return rendered;
 }
@@ -39,7 +45,7 @@ function getTryAgainButton() {
 
 async function renderFailedHome() {
   stubFetchWithStatus500();
-  renderWithQueryClient(<HomeScreen />);
+  renderWithQueryClient(HOME_SCREEN);
   await screen.findByRole('alert');
 }
 
@@ -47,9 +53,7 @@ function renderHomeWithAppRetries(fetchStub: () => Promise<Response>) {
   vi.useFakeTimers();
   vi.stubGlobal('fetch', fetchStub);
   render(
-    <QueryClientProvider client={createQueryClient()}>
-      <HomeScreen />
-    </QueryClientProvider>,
+    <QueryClientProvider client={createQueryClient()}>{HOME_SCREEN}</QueryClientProvider>,
   );
 }
 
@@ -77,7 +81,7 @@ describe('HomeScreen', () => {
 
     it('greets a new student who has no name yet without showing any name', async () => {
       stubFetchWithHomeScreen({ ...EXAMPLE_HOME_SCREEN, studentName: null, continueSession: null });
-      renderWithQueryClient(<HomeScreen />);
+      renderWithQueryClient(HOME_SCREEN);
 
       await screen.findByText(PICKS[0]!.title);
       screen.getByRole('heading', { level: 1, name: HOME_LABELS.greetingWithoutName });
@@ -166,7 +170,7 @@ describe('HomeScreen', () => {
     it('says so, and the chat box already works', () => {
       vi.stubGlobal('fetch', () => new Promise<Response>(() => undefined));
 
-      renderWithQueryClient(<HomeScreen />);
+      renderWithQueryClient(HOME_SCREEN);
 
       screen.getByRole('heading', { level: 1, name: HOME_LABELS.greetingWithoutName });
       screen.getByText(HOME_LABELS.loading);
@@ -270,7 +274,7 @@ describe('HomeScreen', () => {
     async function renderHomeThatCrashesOnRefetch() {
       vi.spyOn(console, 'error').mockImplementation(() => undefined);
       stubFetchWithHomeScreen();
-      const { queryClient } = renderWithQueryClient(<HomeScreen />);
+      const { queryClient } = renderWithQueryClient(HOME_SCREEN);
       await screen.findByText(PICKS[0]!.title);
       typeQuestion();
 
@@ -312,45 +316,6 @@ describe('HomeScreen', () => {
 
       unmount();
       expect(getDockHeight()).toBe('');
-    });
-  });
-
-  describe('until sessions exist', () => {
-    it('says that sessions open soon when the student sends, and keeps the question', async () => {
-      await renderLoadedHome();
-      expect(screen.getByRole('status').textContent).toBe('');
-      typeQuestion();
-
-      fireEvent.click(screen.getByRole('button', { name: CHAT_BOX_LABELS.send }));
-
-      expect(screen.getByRole('status').textContent).toBe(HOME_LABELS.sessionsOpenSoonQuestionKept);
-      expect(getTextBox().value).toBe(QUESTION);
-    });
-
-    it('drops the notice once the student edits the question', async () => {
-      await renderLoadedHome();
-      typeQuestion();
-      fireEvent.click(screen.getByRole('button', { name: CHAT_BOX_LABELS.send }));
-
-      fireEvent.change(getTextBox(), { target: { value: '' } });
-
-      expect(screen.getByRole('status').textContent).toBe('');
-    });
-
-    it('says that sessions open soon when the student chooses Continue', async () => {
-      await renderLoadedHome();
-
-      fireEvent.click(screen.getByRole('button', { name: HOME_LABELS.continueButton }));
-
-      expect(screen.getByRole('status').textContent).toBe(HOME_LABELS.sessionsOpenSoon);
-    });
-
-    it('says that sessions open soon when the student chooses a card', async () => {
-      await renderLoadedHome();
-
-      fireEvent.click(screen.getByText(PICKS[0]!.title));
-
-      expect(screen.getByRole('status').textContent).toBe(HOME_LABELS.sessionsOpenSoon);
     });
   });
 });

@@ -1,5 +1,6 @@
 import type { paths } from '@astra/contracts';
 import createClient, { type FetchOptions, type FetchResponse, type Middleware } from 'openapi-fetch';
+import { readWithRenewal } from '../auth/readWithRenewal';
 import { getAccessToken } from '../auth/session';
 import { ApiError, getApiErrorFromResponse } from './apiError';
 import { DEFAULT_REQUEST_TIMEOUT_MS, sendWithTimeout } from './requestTimeout';
@@ -59,7 +60,7 @@ export function createApiClient<Paths extends object>(baseUrl: string) {
   // TypeScript cannot follow openapi-fetch's per-route generics through a wrapper, so ApiClient carries them.
   const sendRequest = client.request as unknown as SendRequest;
 
-  const createCall = (method: ApiMethod) => async (route: string, options: CallOptions = {}) => {
+  const sendOnce = async (method: ApiMethod, route: string, options: CallOptions) => {
     const { timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS, signal: callerSignal, ...requestOptions } = options;
     const { data, error, response } = await sendWithTimeout(
       (signal) => sendRequest(method, route, { ...requestOptions, signal }),
@@ -70,6 +71,10 @@ export function createApiClient<Paths extends object>(baseUrl: string) {
     if (method === 'get' && data === undefined) throw new ApiError({ kind: 'network' });
     return data;
   };
+
+  // The guard refuses before a route runs, so sending a refused call again never repeats its work.
+  const createCall = (method: ApiMethod) => (route: string, options: CallOptions = {}) =>
+    readWithRenewal(() => sendOnce(method, route, options));
 
   return {
     get: createCall('get'),

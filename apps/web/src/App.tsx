@@ -9,6 +9,8 @@ import { useSignInDraft } from './auth/useSignInDraft';
 import { LegalPage } from './legal/LegalPage';
 import { LEGAL_PATHS } from './legal/legalPaths';
 import { RootErrorBoundary } from './RootErrorBoundary';
+import { SESSION_ROUTE } from './session/sessionPath';
+import { SessionScreen } from './session/SessionScreen';
 import { AppShell } from './shell/AppShell';
 import { LEGAL_PAGES } from './strings';
 
@@ -23,10 +25,20 @@ function AppRoutes() {
         path="*"
         element={
           <AccountGate signInDraft={signInDraft}>
-            <AppShell />
+            <SignedInRoutes />
           </AccountGate>
         }
       />
+    </Routes>
+  );
+}
+
+// The session screen sits outside the shell, so a live session never remounts with a change to the shell's page.
+function SignedInRoutes() {
+  return (
+    <Routes>
+      <Route path={SESSION_ROUTE} element={<SessionScreen />} />
+      <Route path="*" element={<AppShell />} />
     </Routes>
   );
 }

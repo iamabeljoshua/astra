@@ -39,9 +39,9 @@ export const EXAMPLE_HOME_SCREEN: HomeScreenResponse = {
 };
 
 export function stubFetchWithHomeScreen(homeScreen: HomeScreenResponse = EXAMPLE_HOME_SCREEN) {
-  vi.stubGlobal('fetch', async (request: Request) =>
-    new URL(request.url).pathname === '/api/home'
-      ? new Response(JSON.stringify(homeScreen))
-      : new Response(null, { status: 404 }),
-  );
+  const answersByPath: Record<string, unknown> = { '/api/home': homeScreen, '/api/sessions': [] };
+  vi.stubGlobal('fetch', async (request: Request) => {
+    const answer = answersByPath[new URL(request.url).pathname];
+    return answer ? new Response(JSON.stringify(answer)) : new Response(null, { status: 404 });
+  });
 }

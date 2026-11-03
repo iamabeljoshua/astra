@@ -26,6 +26,7 @@ export const SIDEBAR_LABELS = {
   menu: 'Menu',
   recent: 'Recent',
   noSessions: 'Your sessions will appear here.',
+  recentFailure: 'Your recent sessions did not load.',
 };
 
 export const THEME_LABELS = {
@@ -119,8 +120,7 @@ export const HOME_LABELS = {
   cardsCrashHeading: 'Your cards could not be shown.',
   cardsCrashMessage: 'The fault is on our side. Anything you typed is still in the box below.',
   tryAgain: 'Try again',
-  sessionsOpenSoon: 'Sessions open soon.',
-  sessionsOpenSoonQuestionKept: 'Sessions open soon. Your question is still here.',
+  stillStarting: 'Still starting your session. This can take a moment.',
 };
 
 export const CHAT_BOX_LABELS = {
@@ -132,6 +132,53 @@ export const CHAT_BOX_LABELS = {
   send: 'Start session',
   removeAttachment: (fileName: string) => `Remove ${fileName}`,
   removeAttachmentMark: '\u00D7',
+};
+
+export const REPLY_BOX_LABELS = {
+  label: 'Your reply',
+  placeholder: 'Talk, or type a reply',
+  placeholderWhileTalkIsOn: CHAT_BOX_LABELS.placeholderWhileTalkIsOn,
+  send: 'Send reply',
+};
+
+export const SESSIONS_LABELS = {
+  search: 'Search your sessions',
+  newSession: 'New session \u2192',
+  columns: {
+    session: 'Session',
+    subject: 'Subject',
+    date: 'Date',
+    length: 'Length',
+    status: 'Status',
+    open: 'Open',
+  },
+  statuses: {
+    in_progress: 'In progress',
+    finished: 'Finished',
+  },
+  resume: 'Continue \u2192',
+  open: 'Open \u2192',
+  today: 'Today',
+  rowDetails: (subject: string, date: string, length: string) => `${subject}, ${date}, ${length}`,
+  noMatch: 'No sessions match that search.',
+  showMore: 'Show more',
+  loading: 'Loading your sessions.',
+  tryAgain: 'Try again',
+};
+
+export const SESSION_LABELS = {
+  questionSubject: 'Your question',
+  endSession: 'End session',
+  close: 'Close',
+  yourTutor: 'Your tutor',
+  standInWords: 'Live lessons open soon. Your session is saved, so you can come back to it here.',
+  standInAnswer: "I can't answer yet. Live lessons open soon.",
+  finishedWords: 'This session has finished.',
+  boardStandIn: 'Your tutor will draw here as it speaks.',
+  you: 'You',
+  loading: 'Opening your session.',
+  notFound: 'This session could not be found.',
+  tryAgain: 'Try again',
 };
 
 export const ARTWORK_LABELS = {
@@ -174,7 +221,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
       {
         heading: `What ${PRODUCT_NAME} is`,
         today: [
-          `${PRODUCT_NAME} is a learning app being built around an AI tutor. Today you can sign in, confirm your date of birth, and open a home screen with example lessons. Lessons do not open yet.`,
+          `${PRODUCT_NAME} is a learning app being built around an AI tutor. Today you can sign in, confirm your date of birth, open a home screen with example lessons, and start sessions that are saved to your account. Live lessons do not open yet.`,
         ],
         planned: [
           'Spoken lessons, where the tutor talks with you and draws on a board as it explains. The tutor is an AI and it can be wrong, so check anything that matters.',
@@ -222,11 +269,12 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
         today: [
           "Your email address, the times you sign in, and a record of each sign-in. Supabase Auth, our sign-in service, keeps these. Its records include your IP address and your browser's description of itself.",
           'Your date of birth, if you are old enough to continue. We keep it in our database with an account ID and the time the record was made.',
-          "The words you type into the home screen's question box and any file you attach stay in your browser. They are not sent or stored. The app does not use your microphone.",
+          "Each session's title, subject, language, picture, length, status, and start time. A question you send from the home screen becomes its session's title, cut to 200 characters, so we store those words.",
+          "Any file you attach, and anything you type into a session's reply box, stay in your browser. They are not sent or stored. The app does not use your microphone.",
         ],
         planned: [
           'Your name, interests, level, goal, and choice of tutor voice, which setup will ask for.',
-          "Each lesson's title, subject, language, length, transcript, and board drawings, kept while the account is active.",
+          "Each lesson's transcript and board drawings, kept while the account is active.",
         ],
       },
       {

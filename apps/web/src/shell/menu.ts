@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react';
 import { HomeScreen } from '../home/HomeScreen';
+import { SessionsPage } from '../sessions/SessionsPage';
 import { MENU_LABELS } from '../strings';
-import { EmptySessionsPage } from './EmptySessionsPage';
 
 interface MenuItem {
   path: string;
@@ -11,5 +11,5 @@ interface MenuItem {
 
 export const MENU: MenuItem[] = [
   { path: '/', label: MENU_LABELS.home, Page: HomeScreen },
-  { path: '/sessions', label: MENU_LABELS.sessions, Page: EmptySessionsPage },
+  { path: '/sessions', label: MENU_LABELS.sessions, Page: SessionsPage },
 ];

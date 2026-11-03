@@ -9,7 +9,7 @@ Home is the page a student opens first. It greets the student by name and asks w
 - `home-continue` shows the newest unfinished session, `Free-body diagrams`, with a `Continue session` button. At laptop width it also shows a drawing from its board.
 - `home-picks` lists the picks under `Picked for you`. They stack in one column on a phone.
 - `home-chat` keeps the chat box at the bottom. `Start session` works only with text in the box, and `Photo or PDF` and `Talk` show their state.
-- `home-notice` says `Sessions open soon.` after a student chooses a card or sends a question, because sessions arrive in later PRs.
+- `home-start` starts a session from a card or a sent question, and `Continue session` opens the unfinished one. See [Sessions](./sessions.md).
 
 ## How to get to it (user POV)
 

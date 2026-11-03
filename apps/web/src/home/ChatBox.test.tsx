@@ -22,6 +22,7 @@ function renderChatBox() {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe('ChatBox', () => {
@@ -54,7 +55,7 @@ describe('ChatBox', () => {
 
       const wasNotPrevented = fireEvent.keyDown(getTextBox(), { key: 'Enter' });
 
-      expect(onSend).toHaveBeenCalledExactlyOnceWith(QUESTION);
+      expect(onSend).toHaveBeenCalledExactlyOnceWith(QUESTION, getTextBox());
       expect(wasNotPrevented).toBe(false);
     });
 
@@ -66,6 +67,19 @@ describe('ChatBox', () => {
 
       expect(onSend).not.toHaveBeenCalled();
       expect(wasNotPrevented).toBe(true);
+    });
+
+    it('leaves Return to the browser on a touch screen, which has no Shift, so a line can be added', () => {
+      vi.stubGlobal('matchMedia', (query: string) => ({ matches: query === '(pointer: coarse)' }));
+      const { onSend } = renderChatBox();
+      type(QUESTION);
+
+      const wasNotPrevented = fireEvent.keyDown(getTextBox(), { key: 'Enter' });
+
+      expect(onSend).not.toHaveBeenCalled();
+      expect(wasNotPrevented).toBe(true);
+      fireEvent.click(getSendButton());
+      expect(onSend).toHaveBeenCalledExactlyOnceWith(QUESTION, getTextBox());
     });
 
     it('does not send on any other key', () => {
@@ -105,7 +119,7 @@ describe('ChatBox', () => {
 
       fireEvent.click(getSendButton());
 
-      expect(onSend).toHaveBeenCalledExactlyOnceWith(QUESTION);
+      expect(onSend).toHaveBeenCalledExactlyOnceWith(QUESTION, getTextBox());
     });
   });
 

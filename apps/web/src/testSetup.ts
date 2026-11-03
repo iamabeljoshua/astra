@@ -5,10 +5,12 @@ import { FakeResizeObserver, fakeFonts } from './test/fakeLayout';
 globalThis.ResizeObserver = FakeResizeObserver;
 Object.defineProperty(document, 'fonts', { value: fakeFonts });
 window.scrollTo = () => undefined;
+window.matchMedia = (() => ({ matches: false })) as unknown as typeof window.matchMedia;
 
 afterEach(() => {
   cleanup();
   window.history.replaceState(null, '', '/');
   localStorage.clear();
   delete document.documentElement.dataset.theme;
+  document.documentElement.style.visibility = '';
 });
