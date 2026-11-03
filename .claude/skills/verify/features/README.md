@@ -34,6 +34,7 @@ A PR that adds or changes a screen updates its feature file and its journey in t
 ## Features
 
 - [Sign-in](./sign-in.md) covers the email link, the date of birth question, the closed page, and sign-out.
+- [Terms and Privacy Policy](./legal.md) covers the two public draft pages, and keeping the typed address when a student opens one.
 - [Home](./home.md) covers the page a student opens first, with its greeting, cards, and chat box.
 - [Menu](./menu.md) covers moving between Home and Sessions, at laptop and phone widths.
 - [Appearance](./appearance.md) covers the light and dark themes, and that the choice survives a reload.

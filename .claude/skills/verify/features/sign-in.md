@@ -1,6 +1,6 @@
 # Sign-in
 
-A student signs in with an email link and answers one question, their date of birth, before any other page opens. A student under 13 in every time zone stops at a closed page for good. Everything else in the app needs a signed-in student. After a sign-out, Back in another tab can show the student's page for a moment, as `sign-in-out` says.
+A student signs in with an email link and answers one question, their date of birth, before any other page opens. A student under 13 in every time zone stops at a closed page for good. Everything else in the app needs a signed-in student, except the [Terms and Privacy Policy](./legal.md). After a sign-out, Back in another tab can show the student's page for a moment, as `sign-in-out` says.
 
 ## Sub-features
 
