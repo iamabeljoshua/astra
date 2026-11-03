@@ -1,5 +1,11 @@
 import { DataSource } from 'typeorm';
-import { getDatabaseName, withDatabaseName } from './database-url';
+import {
+  describeDatabaseWithoutPassword,
+  getDatabaseName,
+  isSystemDatabase,
+  requireLocalStack,
+  withDatabaseName,
+} from './database-url';
 import { openDataSource } from './open-data-source';
 
 const MAINTENANCE_DATABASE = 'postgres';
@@ -33,6 +39,10 @@ export async function createDatabaseIfMissing(databaseUrl: string): Promise<void
 }
 
 export async function dropDatabase(databaseUrl: string): Promise<void> {
+  requireLocalStack(databaseUrl, 'drop');
+  if (isSystemDatabase(databaseUrl)) {
+    throw new Error(`Refusing to drop ${describeDatabaseWithoutPassword(databaseUrl)}. It is a system database.`);
+  }
   const databaseName = getDatabaseName(databaseUrl);
   await withMaintenanceConnection(databaseUrl, async (maintenance) => {
     await maintenance.query(`DROP DATABASE IF EXISTS ${quoteIdentifier(databaseName)} WITH (FORCE)`);

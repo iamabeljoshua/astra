@@ -1,9 +1,12 @@
 import type { DataSource, DeepPartial } from 'typeorm';
+import type { SessionLanguage } from '../sessions/session-options';
 import { SessionEntity } from '../sessions/session.entity';
 import { StudentProfileEntity } from '../students/student-profile.entity';
 import { StudentEntity } from '../students/student.entity';
 
 export const EXAMPLE_STUDENT_ID = '00000000-0000-4000-8000-000000000001';
+
+const EXAMPLE_SESSION_LANGUAGE: SessionLanguage = 'en';
 
 const EXAMPLE_STUDENT = { id: EXAMPLE_STUDENT_ID, name: 'Maya' };
 
@@ -81,7 +84,7 @@ export async function replaceExampleData(dataSource: DataSource): Promise<void> 
       EXAMPLE_SESSIONS.map((session) => ({
         ...session,
         studentId: EXAMPLE_STUDENT_ID,
-        language: 'en' as const,
+        language: EXAMPLE_SESSION_LANGUAGE,
       })),
     );
   });

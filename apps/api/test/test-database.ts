@@ -2,9 +2,9 @@ import { randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { AppModule } from '../src/app.module';
-import { getDatabaseUrl, isLocalDatabase, withDatabaseName } from '../src/database/database-url';
+import { getDatabaseUrl, requireLocalStack, withDatabaseName } from '../src/database/database-url';
 import { createDatabaseIfMissing, dropDatabase } from '../src/database/manage-databases';
-import { openDataSource } from '../src/database/open-data-source';
+import { openDataSourceWithAppSchema } from '../src/database/open-data-source';
 
 export interface TestDatabase {
   databaseUrl: string;
@@ -13,15 +13,28 @@ export interface TestDatabase {
 
 export async function createTestDatabase(): Promise<TestDatabase> {
   const serverUrl = getDatabaseUrl(process.env);
-  if (!isLocalDatabase(serverUrl)) {
-    throw new Error('Tests create databases, so DATABASE_URL must be local.');
-  }
+  requireLocalStack(serverUrl, 'create test databases on');
   const databaseUrl = withDatabaseName(serverUrl, `astra_test_${randomUUID().replaceAll('-', '')}`);
   await createDatabaseIfMissing(databaseUrl);
-  const dataSource = await openDataSource(databaseUrl);
+  const dataSource = await openDataSourceWithAppSchema(databaseUrl);
   await dataSource.runMigrations();
   await dataSource.destroy();
   return { databaseUrl, drop: () => dropDatabase(databaseUrl) };
+}
+
+// A module reads DATABASE_URL while it compiles, so the value can go back as soon as that ends.
+export async function withDatabaseUrl<Result>(
+  databaseUrl: string,
+  action: () => Promise<Result>,
+): Promise<Result> {
+  const previousUrl = process.env.DATABASE_URL;
+  process.env.DATABASE_URL = databaseUrl;
+  try {
+    return await action();
+  } finally {
+    if (previousUrl === undefined) delete process.env.DATABASE_URL;
+    else process.env.DATABASE_URL = previousUrl;
+  }
 }
 
 export interface TestApp {
@@ -31,8 +44,9 @@ export interface TestApp {
 
 export async function createTestApp(): Promise<TestApp> {
   const { databaseUrl, drop } = await createTestDatabase();
-  process.env.DATABASE_URL = databaseUrl;
-  const testingModule = await Test.createTestingModule({ imports: [AppModule] }).compile();
+  const testingModule = await withDatabaseUrl(databaseUrl, () =>
+    Test.createTestingModule({ imports: [AppModule] }).compile(),
+  );
   const app = testingModule.createNestApplication();
   await app.init();
   const close = async () => {

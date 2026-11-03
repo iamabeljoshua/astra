@@ -40,15 +40,17 @@ WEB_PORT=5200 API_PORT=3100 pnpm dev
 
 ## Use the database
 
-The API stores its data in Postgres and connects through `DATABASE_URL`. If you do not set it, the API uses the `astra` database on the local stack, `postgresql://postgres:postgres@127.0.0.1:54422/astra`. A hosted Supabase project changes only this value.
+The API stores its data in Postgres and connects through `DATABASE_URL`. If you do not set it, the API uses the `astra` database on the local stack, `postgresql://postgres:postgres@127.0.0.1:54422/astra`. Every table is in the private `app` schema, so Supabase's Data API cannot reach it. To use a hosted project, see [Connect a hosted project](#connect-a-hosted-project).
 
 | Command | What it does |
 | --- | --- |
 | `pnpm db:up` | Starts the local Supabase stack in Docker. It needs no account. It does nothing if the stack is running. |
-| `pnpm db:migrate` | Creates the database in `DATABASE_URL` if it is missing, then runs the migrations. |
-| `pnpm db:seed` | Replaces the example student and their six sessions. It works only on a local database. |
-| `pnpm db:reset` | Drops the database in `DATABASE_URL` and builds it again from the migrations. It works only on a local app database. |
+| `pnpm db:migrate` | Creates the database in `DATABASE_URL` and its `app` schema if they are missing, then runs the migrations. |
+| `pnpm db:seed` | Replaces the example student and their six sessions. It works only on the local stack, on port 54422. |
+| `pnpm db:reset` | Drops the database in `DATABASE_URL` and builds it again from the migrations. It works only on an app database on the local stack, on port 54422. |
 | `pnpm exec supabase stop` | Stops the local stack for every worktree. The data stays in a Docker volume. Run it, then `pnpm db:up`, if an interrupted start leaves Postgres running without the other services. |
+
+These commands and the API refuse a `DATABASE_URL` that sets `host` or `port` in its query string, because the driver would connect there and ignore the address before the database name.
 
 The seed prints the ID of the example student, `00000000-0000-4000-8000-000000000001`. To read the student and their sessions:
 
@@ -70,12 +72,38 @@ The Supabase CLI publishes these ports on all network interfaces, so another mac
 
 To change the tables:
 
-1. Change the entity. Entities are in files that end in `.entity.ts`. TypeORM owns the migrations, `synchronize` stays off, and nothing writes to the `auth` schema.
-2. Run `pnpm db:migrate` on a database that has every earlier migration.
-3. Run `pnpm db:migration src/database/migrations/<name>`. The path is relative to `apps/api`.
-4. Add the new class to `migrations` in `apps/api/src/database/data-source-options.ts`.
+1. Change the entity. Entities are in files that end in `.entity.ts`. Their tables go in the `app` schema, so do not set a schema on an entity. TypeORM owns the migrations, `synchronize` stays off, and nothing writes to the `auth` schema.
+2. If the entity is new, add it to `entities` in `apps/api/src/database/data-source-options.ts` and to `TypeOrmModule.forFeature` in its module. The next steps and `pnpm test` do not see an entity that is missing from `entities`.
+3. Run `pnpm db:migrate` on a database that has every earlier migration.
+4. Run `pnpm db:migration src/database/migrations/<name>`. The path is relative to `apps/api`.
+5. Add the new class to `migrations` in `apps/api/src/database/data-source-options.ts`.
 
-`pnpm test` fails if the entities and the migrations differ.
+`pnpm test` fails if the entities in that list and the migrations differ, if a table is outside `app`, or if `anon` or `authenticated` gets `USAGE` on `app`.
+
+`pnpm test` drops each database that it creates, but a crash or a timeout can leave a database named `astra_test_<id>`. To delete the leftovers, first stop the test runs in every worktree, because this command also drops their databases:
+
+```sh
+docker exec supabase_db_astra psql -U postgres -Atc "SELECT format('DROP DATABASE %I WITH (FORCE);', datname) FROM pg_database WHERE datname LIKE 'astra\_test\_%'" | docker exec -i supabase_db_astra psql -U postgres
+```
+
+## Connect a hosted project
+
+No Supabase project exists yet, so nothing here has run against a real one. Measured means that the result comes from the local stack or from a local stand-in server with a private certificate. Docs means that the result comes from Supabase's documentation and is untested.
+
+1. Keep the tables out of the Data API. Every table, including TypeORM's `migrations` table, is in the private `app` schema, and `anon` and `authenticated` have no `USAGE` on it. With the anon key, REST, GraphQL, and the OpenAPI listing show none of these tables. Measured.
+2. In the dashboard, turn off **Enable Data API**. If a later feature needs the Data API, turn off **Automatically expose new tables**, and do not add `app` to the exposed schemas. Docs.
+3. Choose a connection. A direct connection to `db.<project-ref>.supabase.co:5432` uses IPv6 on the Free plan. The shared pooler uses IPv4, port 5432 for session mode, and the user `postgres.<project-ref>`, and the Connect dialog shows its host. A host without IPv6 needs the pooler or the paid IPv4 add-on, and the add-on is Abel's decision. Docs.
+4. Download the CA certificate from **Database settings > SSL Configuration**, then add `sslmode=verify-full&sslrootcert=<path to the file>` to `DATABASE_URL`. The dashboard path and the certificate of the real servers are docs. The driver's behavior is measured in the table below.
+5. Run `pnpm db:migrate` with that `DATABASE_URL`, then start the API. Measured on the stand-in server. `pnpm db:reset`, `pnpm db:seed`, and `pnpm test` refuse a hosted URL.
+
+The driver reads `sslmode` differently from the Supabase docs, which say that `require` does not check the server. All of these results are measured with a private CA.
+
+| `DATABASE_URL` query | Result on a host that is not local |
+| --- | --- |
+| No `sslmode`, an empty `sslmode`, or `sslmode=disable` | The API and the database commands stop with an error. Without that check, the driver connects in plaintext and reports nothing. |
+| `sslmode=require` | Fails with `self-signed certificate in certificate chain`. The driver treats `require`, `prefer`, and `verify-ca` as `verify-full`. |
+| `sslmode=verify-full&sslrootcert=<file>` | Connects with TLS and checks the server. Use this one. |
+| `sslmode=no-verify` | Connects with TLS and does not check the server, so it does not stop a man-in-the-middle attack. Use it only to find out why `verify-full` fails. |
 
 ## Read the API docs
 
@@ -89,8 +117,8 @@ Every request body, query string, route parameter, and response in the API is a 
 
 1. Create a file with a name that ends in `.dto.ts`. The Swagger plugin ignores DTOs in other files, and it ignores routes outside files that end in `.controller.ts`.
 2. Add a class with one field for each input. Put a `/** comment */` on each field. The comment becomes the field description in the docs.
-3. Add `class-validator` rules to each field. The API rejects a request field that has no rule, as if the DTO did not declare it. Give each number a real limit with `@Max`, and each text field a limit with `@MaxLength`. Add `@IsStorableText()` to text that the API saves, because a null character makes Postgres fail with a server error. The plugin documents a single literal type such as `'ok'` as a plain string, so add `@IsIn(['ok'])` to keep the literal. `@IsOptional()` also accepts `null`, so a handler must handle both a missing value and `null`.
-4. If a query string or a route parameter holds a number, add `@Type(() => Number)` from `class-transformer`, because the value arrives as a string. Do not add it to a number in a body, because it turns `true` into 1. Do not use `@Type(() => Boolean)`, because it turns the string `false` into `true`.
+3. Add `class-validator` rules to each field. The API rejects a request field that has no rule, as if the DTO did not declare it. Give each number a real limit with `@Max`, and each text field a limit with `@MaxLength`. Add `@IsStorableText()` to text that the API saves, because a null character makes Postgres fail with a server error and a lone surrogate reads back changed. It also rejects text with nothing visible, such as only zero-width characters. The plugin documents a single literal type such as `'ok'` as a plain string, so add `@IsIn(['ok'])` to keep the literal. `@IsOptional()` also accepts `null`, so a handler must handle both a missing value and `null`.
+4. If a query string or a route parameter holds a whole number, add `@ToStrictInteger()` from `apps/api/src/to-strict-integer.ts`, because the value arrives as a string. It converts only plain digits, so `@IsInt()` rejects `0x10`, `1e1`, and ` 5`. Do not use `@Type(() => Number)` here, because it accepts all three. Do not add either one to a number in a body, because a JSON number needs no conversion, and `@Type(() => Number)` turns `true` into 1. Do not use `@Type(() => Boolean)`, because it turns the string `false` into `true`. To make a query field optional with a default, write `limit?: number` with `@IsOptional()`, say the default in the field comment, and set it where the route reads the value, as in `query.limit ?? DEFAULT_SESSIONS_PER_LIST`. Do not write `limit: number = 50`, because the docs and the generated type then say that the field is required.
 5. If a field holds another DTO, add `@IsObject()`, `@ValidateNested()`, and `@Type(() => OtherDto)`. If a field holds a list of DTOs, add `@IsArray()`, `@IsObject({ each: true })`, `@ValidateNested({ each: true })`, and `@Type(() => OtherDto)`. Without `@IsObject({ each: true })`, the API accepts a list inside a list. Add `@ArrayNotEmpty()` if an empty list is wrong. `@ValidateNested()` and `@Type` alone accept a missing field or an array. Without `@ValidateNested()`, the API does not check the inner fields. `@ValidateNested()` without `@Type` rejects every inner field, valid ones included.
 6. Use the class in the route, as `@Body() body: CreateThingBodyDto`, `@Query() query: ListThingsQueryDto`, or `@Param() routeParams: ThingRouteParamsDto`. Do not use `@Query('name')` or `@Param('id')`, because `ValidationPipe` does not check them. Do not use `@Body('name')`, an interface, `Partial<Dto>`, `Pick<>`, `Record<>`, `unknown`, `@Req()`, or a bare array as a body, because the API then accepts any body. To accept a list, wrap it in a DTO with a list field. Do not import a DTO with `import type`, because the API then rejects every valid body with a 400 and accepts an empty body with a 201.
 7. Put a `/** comment */` on the route. The comment becomes the route summary. Give the route a return type, so that the docs show the response.
@@ -108,6 +136,6 @@ pnpm typecheck
 pnpm test
 ```
 
-`pnpm test` needs Postgres, so run `pnpm db:up` first. Each spec file that uses the database creates its own database and drops it at the end, so test runs in several worktrees can share the stack. If Postgres is not reachable, those specs fail and say how to start it, and the other tests still run.
+`pnpm test` needs Postgres, so run `pnpm db:up` first. Each spec file that uses the database creates its own database and drops it at the end, so test runs in several worktrees can share the stack. If Postgres is not reachable, those specs fail and say how to start it, and the other tests still run. Those specs refuse a `DATABASE_URL` that is not on the local stack, on port 54422.
 
-CI runs the same three commands on every PR and on every push to `main`. CI also runs `pnpm api:types` and fails if that changes `packages/contracts/src/api.generated.ts`. It starts Postgres with `pnpm exec supabase db start`, so the pinned CLI picks the same image as the local stack, and it builds a fresh database from the migrations and seeds it.
+CI runs the same three commands on every PR and on every push to `main`. CI also runs `pnpm api:types` and fails if that changes `packages/contracts/src/api.generated.ts`. It starts Postgres with `pnpm exec supabase db start`, so the pinned CLI picks the same image as the local stack, and it builds a fresh database from the migrations and seeds it. CI starts to pull that image early, and it fails if `POSTGRES_TAG` in `ci.yml` differs from the CLI's choice. After a CLI upgrade, set `POSTGRES_TAG` to the tag that the error names.

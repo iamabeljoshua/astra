@@ -1,37 +1,23 @@
-import {
-  describeDatabaseWithoutPassword,
-  getDatabaseUrl,
-  isLocalDatabase,
-  isSystemDatabase,
-} from './database-url';
+import { describeDatabaseWithoutPassword, getDatabaseUrl, requireLocalStack } from './database-url';
 import { EXAMPLE_STUDENT_ID, replaceExampleData } from './example-data';
 import { createDatabaseIfMissing, dropDatabase } from './manage-databases';
-import { openDataSource, openMigratedDataSource } from './open-data-source';
+import { openDataSourceWithAppSchema, openMigratedDataSource } from './open-data-source';
 
 async function migrate(databaseUrl: string): Promise<void> {
   await createDatabaseIfMissing(databaseUrl);
-  const dataSource = await openDataSource(databaseUrl);
+  const dataSource = await openDataSourceWithAppSchema(databaseUrl);
   const appliedMigrations = await dataSource.runMigrations();
   await dataSource.destroy();
   console.log(`Applied ${appliedMigrations.length} migrations to ${describeDatabaseWithoutPassword(databaseUrl)}.`);
 }
 
 async function reset(databaseUrl: string): Promise<void> {
-  if (!isLocalDatabase(databaseUrl) || isSystemDatabase(databaseUrl)) {
-    throw new Error(
-      `Refusing to reset ${describeDatabaseWithoutPassword(databaseUrl)}. Reset works only on a local app database.`,
-    );
-  }
   await dropDatabase(databaseUrl);
   await migrate(databaseUrl);
 }
 
 async function seed(databaseUrl: string): Promise<void> {
-  if (!isLocalDatabase(databaseUrl)) {
-    throw new Error(
-      `Refusing to seed ${describeDatabaseWithoutPassword(databaseUrl)}. Seed works only on a local database.`,
-    );
-  }
+  requireLocalStack(databaseUrl, 'seed');
   const dataSource = await openMigratedDataSource(databaseUrl);
   await replaceExampleData(dataSource);
   await dataSource.destroy();
