@@ -5,15 +5,33 @@ import { createElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App';
 import { MENU_LABELS, PRODUCT_NAME, SIDEBAR_LABELS } from './strings';
+import { EXAMPLE_HOME_SCREEN, stubFetchWithHomeScreen } from './test/homeScreenApi';
 
 const MARKED_STRING = /^«.*»$/s;
 const TEXT_ATTRIBUTES = ['aria-label', 'title', 'alt', 'placeholder'];
+const MARKED_SESSION_TITLE = '«Free-body diagrams»';
+const MARKED_HOME_SCREEN = {
+  ...EXAMPLE_HOME_SCREEN,
+  studentName: '«Maya»',
+  continueSession: {
+    ...EXAMPLE_HOME_SCREEN.continueSession!,
+    title: MARKED_SESSION_TITLE,
+    detail: '«Next up»',
+  },
+  picks: EXAMPLE_HOME_SCREEN.picks.map((pick) => ({
+    ...pick,
+    title: `«${pick.title}»`,
+    subject: `«${pick.subject}»`,
+    reason: `«${pick.reason}»`,
+  })),
+};
 
 vi.mock('./strings', async (importOriginal) => {
-  const markStrings = (value: unknown): unknown =>
-    typeof value === 'string'
-      ? `«${value}»`
-      : Object.fromEntries(Object.entries(value as object).map(([key, inner]) => [key, markStrings(inner)]));
+  const markStrings = (value: unknown): unknown => {
+    if (typeof value === 'string') return `«${value}»`;
+    if (typeof value === 'function') return (...text: unknown[]) => `«${value(...text)}»`;
+    return Object.fromEntries(Object.entries(value as object).map(([key, inner]) => [key, markStrings(inner)]));
+  };
   return markStrings(await importOriginal());
 });
 
@@ -26,28 +44,28 @@ function getTextsOnPage() {
   }
   for (const attribute of TEXT_ATTRIBUTES) {
     for (const element of document.querySelectorAll(`[${attribute}]`)) {
-      texts.push(element.getAttribute(attribute) ?? '');
+      const text = element.getAttribute(attribute);
+      if (text) texts.push(text);
     }
   }
   return texts;
 }
 
-async function openPage(menuLabel: string) {
-  fireEvent.click(screen.getByRole('link', { name: menuLabel }));
-  await screen.findByRole('heading', { level: 1 });
-  await act(() => Promise.resolve());
-}
-
 beforeEach(() => {
-  vi.stubGlobal('fetch', async () => new Response(JSON.stringify({ status: 'ok' })));
+  stubFetchWithHomeScreen(MARKED_HOME_SCREEN);
 });
 
 describe('strings.ts', () => {
-  it.each([MENU_LABELS.home, MENU_LABELS.sessions])('supplies all the text on the %s page', async (menuLabel) => {
+  it.each([
+    [MENU_LABELS.home, MARKED_SESSION_TITLE],
+    [MENU_LABELS.sessions, MENU_LABELS.sessions],
+  ])('supplies all the text on the %s page', async (menuLabel, textOnceLoaded) => {
     render(createElement(App));
     fireEvent.click(screen.getByRole('button', { name: SIDEBAR_LABELS.menu }));
 
-    await openPage(menuLabel);
+    fireEvent.click(screen.getByRole('link', { name: menuLabel }));
+    await screen.findByRole('heading', { level: 1 });
+    await screen.findAllByText(textOnceLoaded);
 
     const texts = getTextsOnPage();
     expect(texts.length).toBeGreaterThan(0);
