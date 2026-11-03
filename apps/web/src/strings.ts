@@ -45,6 +45,7 @@ export const SIGN_IN_LABELS = {
   email: 'Continue with email',
   terms: 'By continuing you agree to the Terms and the Privacy Policy.',
   linkFailed: 'That link did not work. It may have expired, or it was opened in another browser. Ask for a new one here.',
+  cancelled: 'Sign-in did not finish. You can start again here.',
   emailQuestion: 'What is your email address?',
   emailPlaceholder: 'Your email address',
   sendLink: 'Send link',
@@ -52,7 +53,8 @@ export const SIGN_IN_LABELS = {
   sentAbout: 'We sent a link to this address. Open it in this browser to sign in.',
   useAnotherEmail: 'Use a different email',
   invalidEmail: 'Enter a valid email address.',
-  tooManyRequests: 'Too many links sent. Wait a minute and try again.',
+  tooManyRequests: "We can't send another link right now. If you asked for one already, check your email. Otherwise, try again in a few minutes.",
+  authFailed: 'Could not send the link. The fault is on our side, so try again soon.',
   failed: 'Could not send the link. Check your connection and try again.',
 };
 

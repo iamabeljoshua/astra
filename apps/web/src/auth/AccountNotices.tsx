@@ -1,7 +1,8 @@
 import { ACCOUNT_LABELS, API_ERROR_LABELS, PRODUCT_NAME } from '../strings';
-import type { ApiError } from '../api/apiError';
+import type { ApiErrorKind } from '../api/apiError';
 import { OnboardingFrame } from './OnboardingFrame';
 import { SignOutButton } from './SignOutButton';
+import { StepHeading } from './StepHeading';
 
 export function LoadingPage() {
   return (
@@ -15,7 +16,7 @@ export function LoadingPage() {
 export function AccountClosedPage() {
   return (
     <OnboardingFrame>
-      <h1 className="text-question font-semibold text-balance">{ACCOUNT_LABELS.closed}</h1>
+      <StepHeading>{ACCOUNT_LABELS.closed}</StepHeading>
       <div>
         <SignOutButton className="button button-outline" />
       </div>
@@ -24,14 +25,14 @@ export function AccountClosedPage() {
 }
 
 interface AccountErrorPageProps {
-  error: ApiError;
+  errorKind: ApiErrorKind;
   onTryAgain: () => void;
 }
 
-export function AccountErrorPage({ error, onTryAgain }: AccountErrorPageProps) {
+export function AccountErrorPage({ errorKind, onTryAgain }: AccountErrorPageProps) {
   return (
     <OnboardingFrame footer={<SignOutButton className="font-medium text-ink-2 hover:text-ink" />}>
-      <h1 role="alert" className="text-question font-semibold text-balance">{API_ERROR_LABELS[error.kind]}</h1>
+      <StepHeading>{API_ERROR_LABELS[errorKind]}</StepHeading>
       <div>
         <button type="button" className="button button-solid" onClick={onTryAgain}>
           {ACCOUNT_LABELS.tryAgain}

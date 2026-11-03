@@ -1,13 +1,21 @@
 /// <reference types="vite/client" />
-import { createClient } from '@supabase/supabase-js';
+import { type AuthError, createClient, isAuthRetryableFetchError } from '@supabase/supabase-js';
 import { fetchWithTimeLimit } from './fetchWithTimeLimit';
 
-export type EmailLinkResult = 'sent' | 'invalidEmail' | 'tooManyRequests' | 'failed';
+export type EmailLinkResult = 'sent' | 'invalidEmail' | 'tooManyRequests' | 'authFailed' | 'failed';
+export type SignInReturnProblem = 'linkFailed' | 'cancelled';
+export type SessionRenewal = 'renewed' | 'refused' | 'unreachable';
 
 const SESSION_STORAGE_KEY = 'astra-session';
+const CODE_VERIFIER_STORAGE_KEY = `${SESSION_STORAGE_KEY}-code-verifier`;
 const LINK_CODE_PARAM = 'code';
+const RETURN_ERROR_PARAM = 'error';
+const RETURN_ERROR_CODE_PARAM = 'error_code';
+const REFUSED_AT_PROVIDER = 'access_denied';
 const TOO_MANY_REQUESTS_STATUS = 429;
+const NO_ANSWER_STATUS = 0;
 const INVALID_EMAIL_CODES: ReadonlySet<string | undefined> = new Set(['validation_failed', 'email_address_invalid']);
+const USABLE_EMAIL_ADDRESS = /^(?!.*\.\.)[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function createSupabaseClient() {
   const url = import.meta.env.VITE_SUPABASE_URL;
@@ -39,25 +47,37 @@ export function watchSignedInUser(onChange: (userId: string | null) => void): ()
 }
 
 // Without this browser's proof the client ignores a link's code and reports no error, so a code still here means it failed.
-async function readEmailLinkFailure(): Promise<boolean> {
+// Auth gives a failed link an error code, and a student who cancels at the provider comes back with none.
+async function readSignInReturnProblem(): Promise<SignInReturnProblem | null> {
+  const returnParams = new URLSearchParams(window.location.search);
   const { error } = await supabase.auth.initialize();
   const hasUnusedCode = new URLSearchParams(window.location.search).has(LINK_CODE_PARAM);
-  if (!error && !hasUnusedCode) return false;
+  if (!error && !hasUnusedCode) return null;
   window.history.replaceState(null, '', getReturnAddress());
-  return true;
+  const wasCancelled = returnParams.get(RETURN_ERROR_PARAM) === REFUSED_AT_PROVIDER && !returnParams.has(RETURN_ERROR_CODE_PARAM);
+  return wasCancelled ? 'cancelled' : 'linkFailed';
 }
 
-const emailLinkFailure = readEmailLinkFailure();
+const signInReturnProblem = readSignInReturnProblem();
 
-export function didEmailLinkFail(): Promise<boolean> {
-  return emailLinkFailure;
+export function getSignInReturnProblem(): Promise<SignInReturnProblem | null> {
+  return signInReturnProblem;
+}
+
+function toSendFailure(error: AuthError): Exclude<EmailLinkResult, 'sent'> {
+  if (error.status === TOO_MANY_REQUESTS_STATUS) return 'tooManyRequests';
+  if (INVALID_EMAIL_CODES.has(error.code)) return 'invalidEmail';
+  return error.status === NO_ANSWER_STATUS ? 'failed' : 'authFailed';
 }
 
 export async function sendEmailLink(email: string): Promise<EmailLinkResult> {
+  if (!USABLE_EMAIL_ADDRESS.test(email)) return 'invalidEmail';
+  const earlierLinkProof = window.localStorage.getItem(CODE_VERIFIER_STORAGE_KEY);
   const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: getReturnAddress() } });
   if (!error) return 'sent';
-  if (error.status === TOO_MANY_REQUESTS_STATUS) return 'tooManyRequests';
-  return INVALID_EMAIL_CODES.has(error.code) ? 'invalidEmail' : 'failed';
+  // The client deletes this browser's proof when a send fails, which would kill a good link already in the inbox.
+  if (earlierLinkProof) window.localStorage.setItem(CODE_VERIFIER_STORAGE_KEY, earlierLinkProof);
+  return toSendFailure(error);
 }
 
 export async function signInWithGoogle(): Promise<void> {
@@ -69,23 +89,29 @@ export async function signInWithPassword(email: string, password: string): Promi
   return !error;
 }
 
+// Replaces this history entry, so Back cannot restore the last student's page from memory.
 export function restartAppAtHome(): void {
-  window.location.assign('/');
+  window.location.replace('/');
 }
 
-export async function renewSession(): Promise<boolean> {
+export async function renewSession(): Promise<SessionRenewal> {
   const { error } = await supabase.auth.refreshSession();
-  return !error;
+  if (!error) return 'renewed';
+  return isAuthRetryableFetchError(error) ? 'unreachable' : 'refused';
 }
 
-export async function forgetSession(): Promise<void> {
-  await supabase.auth.signOut({ scope: 'local' });
-}
-
-export async function signOut(): Promise<void> {
-  const { error } = await supabase.auth.signOut();
+// With Auth out of reach the client may keep its session, and the student must still leave, so forget it here.
+async function endSession(scope: 'global' | 'local'): Promise<void> {
+  const { error } = await supabase.auth.signOut({ scope });
   if (!error) return;
-  // With Auth out of reach the client may keep its session, and the student asked to leave, so forget it here.
   window.localStorage.removeItem(SESSION_STORAGE_KEY);
   restartAppAtHome();
+}
+
+export function forgetSession(): Promise<void> {
+  return endSession('local');
+}
+
+export function signOut(): Promise<void> {
+  return endSession('global');
 }

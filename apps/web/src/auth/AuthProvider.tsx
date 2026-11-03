@@ -1,15 +1,15 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { createContext, type PropsWithChildren, useContext, useEffect, useState } from 'react';
-import { didEmailLinkFail, restartAppAtHome, watchSignedInUser } from './session';
+import { getSignInReturnProblem, restartAppAtHome, type SignInReturnProblem, watchSignedInUser } from './session';
 
 type SignIn = { status: 'loading' } | { status: 'signedOut' } | { status: 'signedIn' };
 
 interface AuthState {
   signIn: SignIn;
-  didLinkFail: boolean;
+  returnProblem: SignInReturnProblem | null;
 }
 
-const AuthContext = createContext<AuthState>({ signIn: { status: 'loading' }, didLinkFail: false });
+const AuthContext = createContext<AuthState>({ signIn: { status: 'loading' }, returnProblem: null });
 
 export function useAuth() {
   return useContext(AuthContext);
@@ -18,7 +18,7 @@ export function useAuth() {
 export function AuthProvider({ children }: PropsWithChildren) {
   const queryClient = useQueryClient();
   const [signIn, setSignIn] = useState<SignIn>({ status: 'loading' });
-  const [didLinkFail, setDidLinkFail] = useState(false);
+  const [returnProblem, setReturnProblem] = useState<SignInReturnProblem | null>(null);
 
   useEffect(() => {
     let signedInUserId: string | null = null;
@@ -34,12 +34,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, [queryClient]);
 
   useEffect(() => {
-    void didEmailLinkFail().then(setDidLinkFail);
+    void getSignInReturnProblem().then(setReturnProblem);
   }, []);
 
   useEffect(reloadWhenRestoredFromHistory, []);
 
-  return <AuthContext.Provider value={{ signIn, didLinkFail }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ signIn, returnProblem }}>{children}</AuthContext.Provider>;
 }
 
 // A browser can restore a page from memory on Back, with the last student's data still on it.

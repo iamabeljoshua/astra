@@ -2,13 +2,14 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createQueryClient } from '../api/queryClient';
-import { ACCOUNT_LABELS, API_ERROR_LABELS, BIRTH_DATE_LABELS, PRODUCT_NAME, SIGN_IN_LABELS } from '../strings';
+import { ACCOUNT_LABELS, API_ERROR_LABELS, BIRTH_DATE_LABELS, PRODUCT_NAME, SIGN_IN_LABELS, TUTOR_NOTES_LABELS } from '../strings';
 import { renderWithQueryClient } from '../test/renderWithQueryClient';
 import { AccountGate } from './AccountGate';
 import { useAuth } from './AuthProvider';
 import { forgetSession, renewSession } from './session';
 
 const APP_TEXT = 'The app';
+const APP_HEADING = 'The first page';
 const ACTIVE_ACCOUNT = {
   status: 'active',
   student: { id: '00000000-0000-4000-8000-000000000001', name: 'Maya', profile: null, parentConsentAt: null },
@@ -25,7 +26,7 @@ vi.mock('./session', () => ({
 }));
 
 function setSignIn(status: 'loading' | 'signedOut' | 'signedIn') {
-  vi.mocked(useAuth).mockReturnValue({ signIn: { status }, didLinkFail: false });
+  vi.mocked(useAuth).mockReturnValue({ signIn: { status }, returnProblem: null });
 }
 
 function stubApi(answers: Record<string, () => Response>) {
@@ -44,9 +45,25 @@ function json(body: object, status = 200) {
 function renderGate() {
   return renderWithQueryClient(
     <AccountGate>
-      <p>{APP_TEXT}</p>
+      <main>
+        <h1 tabIndex={-1}>{APP_HEADING}</h1>
+        <p>{APP_TEXT}</p>
+      </main>
     </AccountGate>,
   );
+}
+
+function renderGateWithRealRetries() {
+  const queryClient = createQueryClient();
+  queryClient.setDefaultOptions({ queries: { retry: false, networkMode: 'always' } });
+  render(
+    <QueryClientProvider client={queryClient}>
+      <AccountGate>
+        <p>{APP_TEXT}</p>
+      </AccountGate>
+    </QueryClientProvider>,
+  );
+  return queryClient;
 }
 
 function enterBirthDate(day: string, month: string, year: string) {
@@ -194,7 +211,7 @@ describe('AccountGate', () => {
     stubApi(answers);
     vi.mocked(renewSession).mockImplementation(async () => {
       answers['GET /api/me'] = json(ACTIVE_ACCOUNT);
-      return true;
+      return 'renewed';
     });
 
     renderGate();
@@ -207,7 +224,7 @@ describe('AccountGate', () => {
   it('forgets the session when the API refuses the renewed token too, and shows no app', async () => {
     setSignIn('signedIn');
     stubApi({ 'GET /api/me': json({ statusCode: 401 }, 401) });
-    vi.mocked(renewSession).mockResolvedValue(true);
+    vi.mocked(renewSession).mockResolvedValue('renewed');
 
     renderGate();
 
@@ -219,7 +236,7 @@ describe('AccountGate', () => {
   it('forgets the session when it cannot be renewed, and shows no app', async () => {
     setSignIn('signedIn');
     stubApi({ 'GET /api/me': json({ statusCode: 401 }, 401) });
-    vi.mocked(renewSession).mockResolvedValue(false);
+    vi.mocked(renewSession).mockResolvedValue('refused');
 
     renderGate();
 
@@ -231,15 +248,7 @@ describe('AccountGate', () => {
     setSignIn('signedIn');
     const answers: Record<string, () => Response> = { 'GET /api/me': json(ACTIVE_ACCOUNT) };
     stubApi(answers);
-    const queryClient = createQueryClient();
-    queryClient.setDefaultOptions({ queries: { retry: false, networkMode: 'always' } });
-    render(
-      <QueryClientProvider client={queryClient}>
-        <AccountGate>
-          <p>{APP_TEXT}</p>
-        </AccountGate>
-      </QueryClientProvider>,
-    );
+    const queryClient = renderGateWithRealRetries();
     await screen.findByText(APP_TEXT);
 
     answers['GET /api/me'] = json({}, 503);
@@ -250,12 +259,169 @@ describe('AccountGate', () => {
 
     screen.getByText(APP_TEXT);
 
-    vi.mocked(renewSession).mockResolvedValue(false);
+    vi.mocked(renewSession).mockResolvedValue('refused');
     answers['GET /api/me'] = json({ statusCode: 401 }, 401);
     await act(() => queryClient.refetchQueries());
 
     await waitFor(() => expect(forgetSession).toHaveBeenCalledTimes(1));
+  });
+
+  it('keeps the app on screen while a refused token renews, so a lesson does not vanish', async () => {
+    setSignIn('signedIn');
+    const answers: Record<string, () => Response> = { 'GET /api/me': json(ACTIVE_ACCOUNT) };
+    stubApi(answers);
+    let finishRenewal: (renewal: 'renewed') => void = () => undefined;
+    vi.mocked(renewSession).mockImplementation(() => new Promise((resolve) => (finishRenewal = resolve)));
+    const queryClient = renderGateWithRealRetries();
+    await screen.findByText(APP_TEXT);
+    const lesson = screen.getByText(APP_TEXT);
+
+    answers['GET /api/me'] = json({ statusCode: 401 }, 401);
+    await act(() => queryClient.refetchQueries());
+    await waitFor(() => expect(renewSession).toHaveBeenCalledTimes(1));
+
+    expect(screen.getByText(APP_TEXT)).toBe(lesson);
+
+    answers['GET /api/me'] = json(ACTIVE_ACCOUNT);
+    await act(async () => finishRenewal('renewed'));
+    await waitFor(() => expect(queryClient.getQueryState(['account'])?.error).toBeNull());
+
+    expect(screen.getByText(APP_TEXT)).toBe(lesson);
+    expect(forgetSession).not.toHaveBeenCalled();
+  });
+
+  it('renews again for a later refused token, rather than signing the student out', async () => {
+    setSignIn('signedIn');
+    const answers: Record<string, () => Response> = { 'GET /api/me': json({ statusCode: 401 }, 401) };
+    stubApi(answers);
+    vi.mocked(renewSession).mockImplementation(async () => {
+      answers['GET /api/me'] = json(ACTIVE_ACCOUNT);
+      return 'renewed';
+    });
+    const queryClient = renderGateWithRealRetries();
+    await screen.findByText(APP_TEXT);
+
+    answers['GET /api/me'] = json({ statusCode: 401 }, 401);
+    await act(() => queryClient.refetchQueries());
+
+    await waitFor(() => expect(renewSession).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(queryClient.getQueryState(['account'])?.error).toBeNull());
+    expect(forgetSession).not.toHaveBeenCalled();
+    screen.getByText(APP_TEXT);
+  });
+
+  it('keeps the session and the app when Auth cannot be reached to renew a refused token', async () => {
+    setSignIn('signedIn');
+    const answers: Record<string, () => Response> = { 'GET /api/me': json(ACTIVE_ACCOUNT) };
+    stubApi(answers);
+    vi.mocked(renewSession).mockResolvedValue('unreachable');
+    const queryClient = renderGateWithRealRetries();
+    await screen.findByText(APP_TEXT);
+
+    answers['GET /api/me'] = json({ statusCode: 401 }, 401);
+    await act(() => queryClient.refetchQueries());
+    await waitFor(() => expect(renewSession).toHaveBeenCalledTimes(1));
+    await act(() => Promise.resolve());
+
+    screen.getByText(APP_TEXT);
+    expect(forgetSession).not.toHaveBeenCalled();
+  });
+
+  it('offers another try with no app when Auth cannot be reached and no account has loaded', async () => {
+    setSignIn('signedIn');
+    const answers: Record<string, () => Response> = { 'GET /api/me': json({ statusCode: 401 }, 401) };
+    stubApi(answers);
+    vi.mocked(renewSession).mockResolvedValue('unreachable');
+    renderGate();
+
+    await screen.findByRole('heading', { name: API_ERROR_LABELS.network });
+    expect(forgetSession).not.toHaveBeenCalled();
     expect(screen.queryByText(APP_TEXT)).toBeNull();
+
+    vi.mocked(renewSession).mockImplementation(async () => {
+      answers['GET /api/me'] = json(ACTIVE_ACCOUNT);
+      return 'renewed';
+    });
+    fireEvent.click(screen.getByRole('button', { name: ACCOUNT_LABELS.tryAgain }));
+
+    await screen.findByText(APP_TEXT);
+  });
+
+  describe('for a screen reader', () => {
+    it('takes focus to the closed page heading when the answer closes the account', async () => {
+      setSignIn('signedIn');
+      stubApi({ 'GET /api/me': json(NEEDS_BIRTH_DATE), 'POST /api/me/birth-date': json(CLOSED_ACCOUNT) });
+      renderGate();
+      await screen.findByRole('heading', { name: BIRTH_DATE_LABELS.question });
+
+      enterBirthDate('1', '1', '2020');
+
+      const heading = await screen.findByRole('heading', { name: ACCOUNT_LABELS.closed });
+      expect(document.activeElement).toBe(heading);
+    });
+
+    it('takes focus to the first page heading when the answer opens the app', async () => {
+      setSignIn('signedIn');
+      stubApi({ 'GET /api/me': json(NEEDS_BIRTH_DATE), 'POST /api/me/birth-date': json(ACTIVE_ACCOUNT) });
+      renderGate();
+      await screen.findByRole('heading', { name: BIRTH_DATE_LABELS.question });
+
+      enterBirthDate('14', '3', '2004');
+
+      const heading = await screen.findByRole('heading', { name: APP_HEADING });
+      expect(document.activeElement).toBe(heading);
+    });
+
+    it('leaves focus alone on a plain load of the app', async () => {
+      setSignIn('signedIn');
+      stubApi({ 'GET /api/me': json(ACTIVE_ACCOUNT) });
+      renderGate();
+
+      await screen.findByRole('heading', { name: APP_HEADING });
+
+      expect(document.activeElement).toBe(document.body);
+    });
+
+    it('keeps the heading a heading on the error page, and focuses it after Try again fails', async () => {
+      setSignIn('signedIn');
+      stubApi({ 'GET /api/me': json({}, 503) });
+      renderGate();
+
+      const heading = await screen.findByRole('heading', { level: 1, name: API_ERROR_LABELS.server });
+      expect(document.activeElement).toBe(heading);
+
+      fireEvent.click(screen.getByRole('button', { name: ACCOUNT_LABELS.tryAgain }));
+
+      const nextHeading = await screen.findByRole('heading', { level: 1, name: API_ERROR_LABELS.server });
+      expect(document.activeElement).toBe(nextHeading);
+    });
+
+    it('takes focus to the page heading when Try again opens the app', async () => {
+      setSignIn('signedIn');
+      const answers: Record<string, () => Response> = { 'GET /api/me': json({}, 503) };
+      stubApi(answers);
+      renderGate();
+      await screen.findByRole('heading', { level: 1, name: API_ERROR_LABELS.server });
+
+      answers['GET /api/me'] = json(ACTIVE_ACCOUNT);
+      fireEvent.click(screen.getByRole('button', { name: ACCOUNT_LABELS.tryAgain }));
+
+      const heading = await screen.findByRole('heading', { name: APP_HEADING });
+      expect(document.activeElement).toBe(heading);
+    });
+  });
+
+  it.each([
+    ['the date of birth question', NEEDS_BIRTH_DATE],
+    ['the closed page', CLOSED_ACCOUNT],
+  ])('promises nothing about changing it later beside %s', async (_caseName, account) => {
+    setSignIn('signedIn');
+    stubApi({ 'GET /api/me': json(account) });
+    renderGate();
+
+    await screen.findByRole('heading', { level: 1 });
+
+    expect(screen.queryByText(TUTOR_NOTES_LABELS.footer)).toBeNull();
   });
 
   it('offers another try and shows no app when the API fails, and does not sign out', async () => {

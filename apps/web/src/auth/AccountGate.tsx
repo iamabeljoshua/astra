@@ -1,12 +1,10 @@
-import { type PropsWithChildren, useEffect, useRef } from 'react';
+import { type PropsWithChildren, useEffect, useState } from 'react';
 import { AccountClosedPage, AccountErrorPage, LoadingPage } from './AccountNotices';
 import { useAuth } from './AuthProvider';
 import { BirthDatePage } from './BirthDatePage';
-import { forgetSession, renewSession } from './session';
 import { SignInPage } from './SignInPage';
 import { useAccount } from './useAccount';
-
-const UNAUTHORIZED_STATUS = 401;
+import { useRenewalAfterRefusal } from './useRenewalAfterRefusal';
 
 export function AccountGate({ children }: PropsWithChildren) {
   const { signIn } = useAuth();
@@ -18,28 +16,17 @@ export function AccountGate({ children }: PropsWithChildren) {
 
 function SignedInGate({ children }: PropsWithChildren) {
   const account = useAccount();
-  const isTokenRefused = account.error?.status === UNAUTHORIZED_STATUS;
-  const hasRenewed = useRef(false);
-  const { errorUpdatedAt, refetch } = account;
+  const { isTokenRefused, isRenewing } = useRenewalAfterRefusal(account);
+  const [cameThroughStep, setCameThroughStep] = useState(false);
+  const isLoading = account.isPending || (isRenewing && !account.data);
+  if (!isLoading && account.data?.status !== 'active' && !cameThroughStep) setCameThroughStep(true);
 
-  // A device clock running behind keeps a dead token in use, so one renewal comes before giving up on the session.
-  useEffect(() => {
-    if (!isTokenRefused) return;
-    if (hasRenewed.current) {
-      void forgetSession();
-      return;
-    }
-    hasRenewed.current = true;
-    const renewOrForget = async () => {
-      if (await renewSession()) await refetch();
-      else await forgetSession();
-    };
-    void renewOrForget();
-  }, [isTokenRefused, errorUpdatedAt, refetch]);
-
-  if (account.isPending || isTokenRefused) return <LoadingPage />;
-  // A failed refresh keeps the last answer, so a network blip never takes the app away during a lesson.
-  if (!account.data) return <AccountErrorPage error={account.error} onTryAgain={() => void account.refetch()} />;
+  if (isLoading) return <LoadingPage />;
+  // A failed refresh keeps the last answer, so a refused token or a network blip never takes the app away during a lesson.
+  if (!account.data) {
+    const errorKind = isTokenRefused || !account.error ? 'network' : account.error.kind;
+    return <AccountErrorPage errorKind={errorKind} onTryAgain={() => void account.refetch()} />;
+  }
 
   switch (account.data.status) {
     case 'needs_birth_date':
@@ -47,6 +34,15 @@ function SignedInGate({ children }: PropsWithChildren) {
     case 'closed':
       return <AccountClosedPage />;
     case 'active':
-      return children;
+      return cameThroughStep ? <PageAfterStep>{children}</PageAfterStep> : children;
   }
+}
+
+// The page that replaces a step takes focus on its heading, so a screen reader announces it.
+function PageAfterStep({ children }: PropsWithChildren) {
+  useEffect(() => {
+    document.querySelector<HTMLElement>('main h1')?.focus({ preventScroll: true });
+  }, []);
+
+  return children;
 }

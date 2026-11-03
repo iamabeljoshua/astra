@@ -3,12 +3,13 @@ import { SIGN_IN_LABELS } from '../strings';
 import { useAuth } from './AuthProvider';
 import { OnboardingFrame } from './OnboardingFrame';
 import { sendEmailLink, signInWithGoogle, type EmailLinkResult } from './session';
-import { useFocusOnWideScreen } from './useFocusOnWideScreen';
+import { StepHeading } from './StepHeading';
 
 type SignInStep = 'welcome' | 'email' | 'sent';
 type SendFailure = Exclude<EmailLinkResult, 'sent'>;
 
 const GOOGLE_SIGN_IN_FLAG = 'on';
+const SEND_PROBLEM_ID = 'send-problem';
 
 declare const __DEV_SIGN_IN__: boolean;
 
@@ -20,7 +21,7 @@ export function SignInPage() {
   const [email, setEmail] = useState('');
 
   return (
-    <OnboardingFrame>
+    <OnboardingFrame showsChangeLaterNote>
       {step === 'welcome' && <WelcomeStep onChooseEmail={() => setStep('email')} />}
       {step === 'email' && (
         <EmailStep
@@ -40,14 +41,14 @@ export function SignInPage() {
 }
 
 function WelcomeStep({ onChooseEmail }: { onChooseEmail: () => void }) {
-  const { didLinkFail } = useAuth();
+  const { returnProblem } = useAuth();
   const canUseGoogle = import.meta.env.VITE_GOOGLE_SIGN_IN === GOOGLE_SIGN_IN_FLAG;
 
   return (
     <>
       <h1 className="text-tagline font-semibold tracking-[-0.005em] text-balance uppercase">{SIGN_IN_LABELS.tagline}</h1>
       <p className="max-w-[46ch] text-sub text-ink-2">{SIGN_IN_LABELS.about}</p>
-      {didLinkFail && <p role="alert" className="stop-note">{SIGN_IN_LABELS.linkFailed}</p>}
+      {returnProblem && <p role="alert" className="stop-note">{SIGN_IN_LABELS[returnProblem]}</p>}
       <div className="flex max-w-90 flex-col gap-2">
         {canUseGoogle && (
           <button type="button" className="button button-solid w-full py-3" onClick={() => void signInWithGoogle()}>
@@ -73,11 +74,12 @@ function EmailStep({ email, onChangeEmail, onSent }: EmailStepProps) {
   const input = useRef<HTMLInputElement>(null);
   const [isSending, setIsSending] = useState(false);
   const [failure, setFailure] = useState<SendFailure | null>(null);
-  useFocusOnWideScreen(input);
 
   async function send(event: FormEvent) {
     event.preventDefault();
+    if (isSending) return;
     setIsSending(true);
+    setFailure(null);
     const result = await sendEmailLink(email.trim());
     setIsSending(false);
     if (result === 'sent') onSent();
@@ -86,7 +88,7 @@ function EmailStep({ email, onChangeEmail, onSent }: EmailStepProps) {
 
   return (
     <form onSubmit={(event) => void send(event)} className="flex flex-col gap-4.5">
-      <h1 className="text-question font-semibold text-balance">{SIGN_IN_LABELS.emailQuestion}</h1>
+      <StepHeading fieldToFocus={input}>{SIGN_IN_LABELS.emailQuestion}</StepHeading>
       <input
         ref={input}
         className="line-input"
@@ -95,12 +97,14 @@ function EmailStep({ email, onChangeEmail, onSent }: EmailStepProps) {
         autoComplete="email"
         aria-label={SIGN_IN_LABELS.emailPlaceholder}
         placeholder={SIGN_IN_LABELS.emailPlaceholder}
+        aria-invalid={failure === 'invalidEmail'}
+        aria-describedby={failure ? SEND_PROBLEM_ID : undefined}
         value={email}
         onChange={(event) => onChangeEmail(event.target.value)}
       />
-      {failure && <p role="alert" className="stop-note">{SIGN_IN_LABELS[failure]}</p>}
+      {failure && <p id={SEND_PROBLEM_ID} role="alert" className="stop-note">{SIGN_IN_LABELS[failure]}</p>}
       <div>
-        <button type="submit" disabled={isSending} className="button button-solid">
+        <button type="submit" aria-disabled={isSending} className="button button-solid">
           {SIGN_IN_LABELS.sendLink}
         </button>
       </div>
@@ -111,7 +115,7 @@ function EmailStep({ email, onChangeEmail, onSent }: EmailStepProps) {
 function SentStep({ email, onUseAnotherEmail }: { email: string; onUseAnotherEmail: () => void }) {
   return (
     <>
-      <h1 className="text-question font-semibold text-balance">{SIGN_IN_LABELS.sentQuestion}</h1>
+      <StepHeading>{SIGN_IN_LABELS.sentQuestion}</StepHeading>
       <p className="max-w-[46ch] text-sub text-ink-2">{SIGN_IN_LABELS.sentAbout}</p>
       <p className="font-medium wrap-anywhere">{email}</p>
       <div>

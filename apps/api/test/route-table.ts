@@ -95,20 +95,20 @@ function watchIdentityReads(signedInRequest: SignedInRequest, onRead: () => void
 // A handler that never reads who is asking cannot be limiting its answer to that person.
 export async function findRoutesIgnoringIdentity({ app, routes, token }: RouteWalk): Promise<string[]> {
   const checkToken = AuthGuard.prototype.canActivate;
-  let wasIdentityRead = false;
+  const routesThatRead = new Set<string>();
+  let currentRoute = '';
   const guard = jest.spyOn(AuthGuard.prototype, 'canActivate').mockImplementation(async function checkThenWatch(this: AuthGuard, context) {
     const isAllowed = await checkToken.call(this, context);
-    watchIdentityReads(context.switchToHttp().getRequest<SignedInRequest>(), () => {
-      wasIdentityRead = true;
-    });
+    const routeBeingCalled = currentRoute;
+    watchIdentityReads(context.switchToHttp().getRequest<SignedInRequest>(), () => routesThatRead.add(routeBeingCalled));
     return isAllowed;
   });
   const ignoring: string[] = [];
   try {
     for (const route of routes) {
-      wasIdentityRead = false;
+      currentRoute = route.name;
       const status = await callRoute(app, route, token);
-      if (!REFUSED_STATUSES.includes(status) && !wasIdentityRead) ignoring.push(route.name);
+      if (!REFUSED_STATUSES.includes(status) && !routesThatRead.has(route.name)) ignoring.push(route.name);
     }
     return ignoring;
   } finally {

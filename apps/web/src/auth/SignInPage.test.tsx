@@ -1,6 +1,6 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DEV_SIGN_IN_LABELS, SIGN_IN_LABELS } from '../strings';
+import { DEV_SIGN_IN_LABELS, SIGN_IN_LABELS, TUTOR_NOTES_LABELS } from '../strings';
 import { useAuth } from './AuthProvider';
 import { sendEmailLink, signInWithGoogle } from './session';
 import { SignInPage } from './SignInPage';
@@ -22,7 +22,7 @@ async function submitEmail(email: string) {
 }
 
 beforeEach(() => {
-  vi.mocked(useAuth).mockReturnValue({ signIn: { status: 'signedOut' }, didLinkFail: false });
+  vi.mocked(useAuth).mockReturnValue({ signIn: { status: 'signedOut' }, returnProblem: null });
   vi.mocked(sendEmailLink).mockReset();
   vi.stubGlobal('matchMedia', () => ({ matches: false }));
 });
@@ -73,7 +73,7 @@ describe('SignInPage', () => {
     expect(screen.getByPlaceholderText<HTMLInputElement>(SIGN_IN_LABELS.emailPlaceholder).value).toBe('maya@astra.test');
   });
 
-  it.each(['invalidEmail', 'tooManyRequests', 'failed'] as const)('says what went wrong for %s', async (result) => {
+  it.each(['invalidEmail', 'tooManyRequests', 'authFailed', 'failed'] as const)('says what went wrong for %s', async (result) => {
     vi.mocked(sendEmailLink).mockResolvedValue(result);
     render(<SignInPage />);
     chooseEmail();
@@ -84,12 +84,77 @@ describe('SignInPage', () => {
     screen.getByRole('button', { name: SIGN_IN_LABELS.sendLink });
   });
 
-  it('says when an email link failed', () => {
-    vi.mocked(useAuth).mockReturnValue({ signIn: { status: 'signedOut' }, didLinkFail: true });
+  it.each(['linkFailed', 'cancelled'] as const)('says what happened on a return with %s', (returnProblem) => {
+    vi.mocked(useAuth).mockReturnValue({ signIn: { status: 'signedOut' }, returnProblem });
 
     render(<SignInPage />);
 
-    screen.getByText(SIGN_IN_LABELS.linkFailed);
+    expect(screen.getByRole('alert').textContent).toBe(SIGN_IN_LABELS[returnProblem]);
+  });
+
+  it('takes focus to the result when the link is sent, on a wide screen and a phone', async () => {
+    vi.mocked(sendEmailLink).mockResolvedValue('sent');
+    render(<SignInPage />);
+    chooseEmail();
+
+    await submitEmail('maya@astra.test');
+
+    const heading = await screen.findByRole('heading', { name: SIGN_IN_LABELS.sentQuestion });
+    expect(document.activeElement).toBe(heading);
+  });
+
+  it.each([
+    ['a wide screen, on the field', true, () => screen.getByPlaceholderText(SIGN_IN_LABELS.emailPlaceholder)],
+    ['a phone, on the heading', false, () => screen.getByRole('heading', { name: SIGN_IN_LABELS.emailQuestion })],
+  ])('takes focus into the email step on %s', (_caseName, isWide, getExpected) => {
+    vi.stubGlobal('matchMedia', () => ({ matches: isWide }));
+    render(<SignInPage />);
+
+    chooseEmail();
+
+    expect(document.activeElement).toBe(getExpected());
+  });
+
+  it('keeps focus on the button and sends once, and leaves it there when sending fails', async () => {
+    let answerSend: (result: 'failed') => void = () => undefined;
+    vi.mocked(sendEmailLink).mockImplementation(() => new Promise((resolve) => (answerSend = resolve)));
+    render(<SignInPage />);
+    chooseEmail();
+    fireEvent.change(screen.getByPlaceholderText(SIGN_IN_LABELS.emailPlaceholder), { target: { value: 'maya@astra.test' } });
+    const button = screen.getByRole<HTMLButtonElement>('button', { name: SIGN_IN_LABELS.sendLink });
+    button.focus();
+
+    fireEvent.click(button);
+    fireEvent.click(button);
+
+    expect(button.getAttribute('aria-disabled')).toBe('true');
+    expect(button.disabled).toBe(false);
+    expect(sendEmailLink).toHaveBeenCalledTimes(1);
+
+    await act(async () => answerSend('failed'));
+
+    await screen.findByText(SIGN_IN_LABELS.failed);
+    expect(document.activeElement).toBe(button);
+    expect(button.getAttribute('aria-disabled')).toBe('false');
+  });
+
+  it('ties a refused address to its message', async () => {
+    vi.mocked(sendEmailLink).mockResolvedValue('invalidEmail');
+    render(<SignInPage />);
+    chooseEmail();
+
+    await submitEmail('maya@astra');
+
+    const message = await screen.findByRole('alert');
+    const field = screen.getByPlaceholderText(SIGN_IN_LABELS.emailPlaceholder);
+    expect(field.getAttribute('aria-invalid')).toBe('true');
+    expect(field.getAttribute('aria-describedby')).toBe(message.id);
+  });
+
+  it('shows the change-later note on the sign-in page', () => {
+    render(<SignInPage />);
+
+    screen.getByText(TUTOR_NOTES_LABELS.footer);
   });
 
   it('offers the development sign-in in a development build', async () => {

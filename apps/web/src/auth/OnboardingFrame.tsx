@@ -6,9 +6,10 @@ const NOTE_ROWS = [TUTOR_NOTES_LABELS.into, TUTOR_NOTES_LABELS.level, TUTOR_NOTE
 
 interface OnboardingFrameProps extends PropsWithChildren {
   footer?: ReactNode;
+  showsChangeLaterNote?: boolean;
 }
 
-export function OnboardingFrame({ children, footer }: OnboardingFrameProps) {
+export function OnboardingFrame({ children, footer, showsChangeLaterNote = false }: OnboardingFrameProps) {
   return (
     <div className="grid min-h-dvh grid-cols-onboarding max-md:grid-cols-1 max-md:grid-rows-[auto_minmax(0,1fr)]">
       <title>{PRODUCT_NAME}</title>
@@ -24,12 +25,12 @@ export function OnboardingFrame({ children, footer }: OnboardingFrameProps) {
           <div className="flex min-h-10.5 items-center justify-between gap-3">{footer}</div>
         </div>
       </div>
-      <TutorNotes />
+      <TutorNotes showsChangeLaterNote={showsChangeLaterNote} />
     </div>
   );
 }
 
-function TutorNotes() {
+function TutorNotes({ showsChangeLaterNote }: { showsChangeLaterNote: boolean }) {
   return (
     <div className="flex min-w-0 items-center justify-center border-l border-line bg-panel p-6 max-md:order-first max-md:justify-start max-md:border-b max-md:border-l-0 max-md:px-4 max-md:py-2">
       <div className="w-full max-w-sheet border border-line bg-paper px-5 pt-4.5 pb-4 max-md:max-w-none max-md:border-0 max-md:bg-transparent max-md:p-0">
@@ -48,7 +49,7 @@ function TutorNotes() {
             </div>
           ))}
         </dl>
-        <p className="border-t border-line pt-2.5 text-fine text-ink-2 max-md:hidden">{TUTOR_NOTES_LABELS.footer}</p>
+        {showsChangeLaterNote && <p className="border-t border-line pt-2.5 text-fine text-ink-2 max-md:hidden">{TUTOR_NOTES_LABELS.footer}</p>}
       </div>
     </div>
   );

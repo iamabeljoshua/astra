@@ -146,7 +146,8 @@
   font-weight: 500;
   white-space: nowrap;
 
-  &:disabled {
+  &:disabled,
+  &[aria-disabled='true'] {
     opacity: 0.35;
     pointer-events: none;
   }
