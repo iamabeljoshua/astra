@@ -11,7 +11,7 @@ This folder is the maintained source for verifying what a student can do in Astr
 ## Driving conventions
 
 - A journey in `../journeys/` is the rerunnable recipe for a feature. Run it with `pnpm verify drive --journey <name>`.
-- Prefer ARIA roles and accessible names over CSS selectors or position.
+- Prefer ARIA roles and accessible names over CSS selectors or position. Use exact text only when the element has no role.
 - Check every path a student has to a feature, at laptop and phone widths.
 
 ## Proof and skip reporting
@@ -34,3 +34,5 @@ A PR that adds or changes a screen updates its feature file and its journey in t
 ## Features
 
 - [Home](./home.md) covers the page a student opens first, and its connection to the API.
+- [Menu](./menu.md) covers moving between Home and Sessions, at laptop and phone widths.
+- [Appearance](./appearance.md) covers the light and dark themes, and that the choice survives a reload.
