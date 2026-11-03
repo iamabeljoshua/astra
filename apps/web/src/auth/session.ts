@@ -136,14 +136,14 @@ export async function signInWithPassword(email: string, password: string): Promi
   return !error;
 }
 
-// Chromium drops a kept page when a message reaches a channel it holds open. The client hands every message to its subscribers, so live tabs get this too and ignore it by name.
+// Chromium drops a kept page when a message reaches a channel it holds open, and the client holds this one.
 function dropKeptPages() {
   try {
     const channel = new BroadcastChannel(SESSION_STORAGE_KEY);
     channel.postMessage({ event: KEPT_PAGE_DROP_EVENT });
     channel.close();
   } catch {
-    // A browser without the channel keeps only the hide before a page is kept.
+    // Leaving must still happen in a browser that has no channel or refuses one.
   }
 }
 

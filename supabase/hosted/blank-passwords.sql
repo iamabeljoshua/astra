@@ -1,4 +1,3 @@
--- Students have no passwords, so Auth keeps none. Run this in the hosted project's SQL editor. It is safe to run again.
 -- The function lives in the private app schema, because the postgres role cannot create objects in auth.
 create schema if not exists app;
 
