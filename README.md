@@ -272,7 +272,7 @@ A custom `message` on a DTO rule keeps its field. A rule on each value of a list
 
 `createQueryClient` in `apps/web/src/api/queryClient.ts` holds the shared defaults. A query tries a `server`, `network`, or `aborted` failure up to 3 times and a `validation`, `rejected`, or `timeout` failure once. A mutation does not retry. Data stays fresh for 30 seconds. A query with stale data or a failure runs again when the browser comes back online. Set an option on a hook only if that hook needs something else. An `ApiError` stays on the screen. Any other error from a query or a mutation is a bug, so it goes to `RootErrorBoundary` in `apps/web/src/RootErrorBoundary.tsx`, which replaces the page with a heading, a calm line, and a reload control. A screen can keep a crash in one part by wrapping that part in `ErrorBoundary`, as Home does with its cards, so the chat box keeps its text.
 
-Each call stops after `DEFAULT_REQUEST_TIMEOUT_MS`, 30 seconds, with a `timeout` error. A query does not retry a `timeout`, because three tries would keep a student waiting about 93 seconds, so a read that never answers reaches the screen at about 30 seconds. For a call that is slow on purpose, pass your own limit, as in `api.post('/things', { body, timeoutMs: 120_000 })`.
+Each call stops after `DEFAULT_REQUEST_TIMEOUT_MS`, 30 seconds, with a `timeout` error. A query does not retry a `timeout`, because three tries would keep a student waiting about 93 seconds. A read that never answers reaches the screen at about 30 seconds. For a call that is slow on purpose, pass your own limit, as in `api.post('/things', { body, timeoutMs: 120_000 })`.
 
 `pnpm dev` shows the React Query devtools button at the top left of the page. The devtools are not in the production build.
 
