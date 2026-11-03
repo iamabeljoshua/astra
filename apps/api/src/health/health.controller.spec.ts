@@ -1,15 +1,15 @@
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import { AppModule } from '../app.module';
 import type { HealthResponseDto } from './health-response.dto';
+import { HealthController } from './health.controller';
 
 describe('GET /health', () => {
   let app: INestApplication;
 
   beforeAll(async () => {
     const testingModule = await Test.createTestingModule({
-      imports: [AppModule],
+      controllers: [HealthController],
     }).compile();
     app = testingModule.createNestApplication();
     await app.init();

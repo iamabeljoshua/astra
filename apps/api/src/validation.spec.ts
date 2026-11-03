@@ -2,7 +2,7 @@ import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { ProbeController } from '../test/probe.controller';
-import { AppModule } from './app.module';
+import { RequestValidationModule } from './request-validation.module';
 
 const VALID_PROBE_ID = '0b0e9c52-6d0c-4f3b-9a53-3f5f0d3f7c11';
 const VALID_PROBE_BODY = {
@@ -16,7 +16,7 @@ describe('request validation', () => {
 
   beforeAll(async () => {
     const testingModule = await Test.createTestingModule({
-      imports: [AppModule],
+      imports: [RequestValidationModule],
       controllers: [ProbeController],
     }).compile();
     app = testingModule.createNestApplication();
@@ -65,6 +65,8 @@ describe('request validation', () => {
     ['a missing list field', { sensors: undefined }, 'sensors'],
     ['an object where a list belongs', { sensors: { sensorName: 'depth' } }, 'sensors'],
     ['a bad field inside a list item', { sensors: [{ sensorName: 42 }] }, 'sensors.0.sensorName'],
+    ['a list inside a list', { sensors: [[{ sensorName: 'depth' }]] }, 'sensors'],
+    ['an empty list', { sensors: [] }, 'sensors'],
   ])('rejects %s and names the field', async (_caseName, bodyChange, fieldName) => {
     const response = await request(app.getHttpServer())
       .post('/probes')

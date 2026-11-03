@@ -5,15 +5,21 @@
   "scripts": {
     "dev": "pnpm -r --parallel dev",
     "api:types": "pnpm --filter @astra/api api:types",
+    "db:up": "node supabase/start-stack.mjs",
+    "db:migrate": "pnpm --filter @astra/api db migrate",
+    "db:reset": "pnpm --filter @astra/api db reset",
+    "db:seed": "pnpm --filter @astra/api db seed",
+    "db:migration": "pnpm --filter @astra/api db:migration",
     "lint": "eslint apps packages --max-warnings 0",
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm -r test"
+    "test": "pnpm -r --no-bail test"
   },
   "devDependencies": {
     "@eslint/css": "^2.0.1",
     "@eslint/js": "^10.0.1",
     "eslint": "^10.14.0",
     "eslint-plugin-react-hooks": "^7.1.1",
+    "supabase": "2.75.0",
     "typescript": "catalog:",
     "typescript-eslint": "^8.72.1"
   }

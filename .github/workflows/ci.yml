@@ -18,6 +18,17 @@ jobs:
     timeout-minutes: 3
     steps:
       - uses: actions/checkout@v7
+      # Unpacking this image takes half the time in memory, and starting now overlaps it with the steps below.
+      # ghcr.io serves the same digest as the CLI's default registry, which has rate limited runners.
+      # A stale tag only loses this head start, because the CLI picks the image in its own step.
+      - name: Start pulling the Postgres image
+        run: |
+          sudo systemctl stop docker docker.socket
+          sudo mkdir -p /etc/docker /dockerdata
+          sudo mount -t tmpfs -o size=6g tmpfs /dockerdata
+          echo '{"data-root":"/dockerdata"}' | sudo tee /etc/docker/daemon.json > /dev/null
+          sudo systemctl start docker
+          nohup docker pull -q ghcr.io/supabase/postgres:17.6.1.075 > /dev/null 2>&1 &
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
@@ -33,4 +44,10 @@ jobs:
           }
       - run: pnpm lint
       - run: pnpm typecheck
+      - name: Start Postgres on the image that the pinned Supabase CLI uses locally
+        env:
+          SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
+        run: pnpm exec supabase db start
+      - name: Build a fresh database from the migrations and seed it
+        run: pnpm db:migrate && pnpm db:seed
       - run: pnpm test

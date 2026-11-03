@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import {
+  ArrayNotEmpty,
   IsArray,
   IsInt,
   IsObject,
@@ -36,6 +37,8 @@ export class CreateProbeBodyDto {
 
   /** The sensors on the probe. */
   @IsArray()
+  @ArrayNotEmpty()
+  @IsObject({ each: true })
   @ValidateNested({ each: true })
   @Type(() => ProbeSensorDto)
   sensors!: ProbeSensorDto[];

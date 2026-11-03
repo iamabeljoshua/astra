@@ -1,16 +1,26 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Patch, Post, Put, Req } from '@nestjs/common';
 import type { INestApplication, Type } from '@nestjs/common';
+import { NestFactory } from '@nestjs/core';
 import type { OpenAPIObject } from '@nestjs/swagger';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
+import { LeakingEntityController } from '../test/leaking-entity.controller';
 import { ProbeController } from '../test/probe.controller';
 import type { CreateProbeBodyDto } from '../test/probe.dto';
 import { createApiDocument, serveApiDocs } from './api-docs';
 import { AppModule } from './app.module';
+import { HealthController } from './health/health.controller';
+import { RequestValidationModule } from './request-validation.module';
 
 const HTTP_METHODS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'] as const;
+const WRITE_METHODS: readonly string[] = ['post', 'put', 'patch'];
+const WRITE_ROUTES_WITHOUT_BODY: readonly string[] = [];
 // A DTO imported with `import type` reaches the document as this schema.
 const ERASED_DTO_SCHEMA = '#/components/schemas/Function';
+
+interface ProbeBodyInterface {
+  name: string;
+}
 
 @Controller('unchecked-bodies')
 class UncheckedBodiesController {
@@ -23,14 +33,64 @@ class UncheckedBodiesController {
   acceptTypeOnlyImport(@Body() body: CreateProbeBodyDto) {
     return body;
   }
+
+  @Post('interface')
+  acceptInterface(@Body() body: ProbeBodyInterface) {
+    return body;
+  }
+
+  @Post('partial')
+  acceptPartial(@Body() body: Partial<ProbeBodyInterface>) {
+    return body;
+  }
+
+  @Post('pick')
+  acceptPick(@Body() body: Pick<ProbeBodyInterface, 'name'>) {
+    return body;
+  }
+
+  @Post('record')
+  acceptRecord(@Body() body: Record<string, string>) {
+    return body;
+  }
+
+  @Post('named-field')
+  acceptNamedField(@Body('name') name: string) {
+    return name;
+  }
+
+  @Post('unknown')
+  acceptUnknown(@Body() body: unknown) {
+    return body;
+  }
+
+  @Post('raw-request')
+  acceptRawRequest(@Req() rawRequest: { body: unknown }) {
+    return rawRequest.body;
+  }
+
+  @Put('put-interface')
+  replaceWithInterface(@Body() body: ProbeBodyInterface) {
+    return body;
+  }
+
+  @Patch('patch-partial')
+  changeWithPartial(@Body() body: Partial<ProbeBodyInterface>) {
+    return body;
+  }
 }
 
 async function createApp(extraControllers: Type<unknown>[] = []) {
   const testingModule = await Test.createTestingModule({
-    imports: [AppModule],
+    imports: [RequestValidationModule],
     controllers: extraControllers,
   }).compile();
   return testingModule.createNestApplication();
+}
+
+// Preview mode builds routes without running providers, so this needs no database, as `pnpm api:types` does.
+function createRealApiPreview() {
+  return NestFactory.create(AppModule, { preview: true, logger: false });
 }
 
 function findUndocumentedRoutes(document: OpenAPIObject): string[] {
@@ -55,16 +115,24 @@ function findUndocumentedFields(document: OpenAPIObject): string[] {
   );
 }
 
-function findBodiesWithoutDto(document: OpenAPIObject): string[] {
+function findRoutesWithUncheckedBodies(document: OpenAPIObject): string[] {
   return Object.entries(document.paths).flatMap(([path, pathItem]) =>
     HTTP_METHODS.flatMap((method) => {
+      const routeName = `${method} ${path}`;
       const requestBody = pathItem[method]?.requestBody;
-      if (!requestBody) return [];
+      if (!requestBody) {
+        const isMissing = pathItem[method] && WRITE_METHODS.includes(method);
+        return isMissing && !WRITE_ROUTES_WITHOUT_BODY.includes(routeName) ? [routeName] : [];
+      }
       const schema = 'content' in requestBody && requestBody.content['application/json']?.schema;
       const hasDto = schema && '$ref' in schema && schema.$ref !== ERASED_DTO_SCHEMA;
-      return hasDto ? [] : [`${method} ${path}`];
+      return hasDto ? [] : [routeName];
     }),
   );
+}
+
+function findEntitySchemas(document: OpenAPIObject): string[] {
+  return Object.keys(document.components?.schemas ?? {}).filter((name) => name.endsWith('Entity'));
 }
 
 describe('the OpenAPI document', () => {
@@ -123,7 +191,7 @@ describe('the OpenAPI document', () => {
     let document: OpenAPIObject;
 
     beforeAll(async () => {
-      app = await createApp();
+      app = await createRealApiPreview();
       document = createApiDocument(app);
     });
 
@@ -153,18 +221,39 @@ describe('the OpenAPI document', () => {
       expect(findUndocumentedFields(document)).toEqual([]);
     });
 
-    it('has a single DTO as every route body', () => {
-      expect(findBodiesWithoutDto(document)).toEqual([]);
+    it('has a DTO class in the document for every write route and every body', () => {
+      expect(findRoutesWithUncheckedBodies(document)).toEqual([]);
+    });
+
+    it('sends no entity from any route', () => {
+      expect(findEntitySchemas(document)).toEqual([]);
     });
   });
 
-  it('flags a list body and a DTO imported with import type, and not a DTO body', async () => {
+  it('flags every body shape that validation cannot check, and not a DTO body', async () => {
     const app = await createApp([ProbeController, UncheckedBodiesController]);
 
-    expect(findBodiesWithoutDto(createApiDocument(app))).toEqual([
+    expect(findRoutesWithUncheckedBodies(createApiDocument(app))).toEqual([
       'post /unchecked-bodies/list',
       'post /unchecked-bodies/type-only-import',
+      'post /unchecked-bodies/interface',
+      'post /unchecked-bodies/partial',
+      'post /unchecked-bodies/pick',
+      'post /unchecked-bodies/record',
+      'post /unchecked-bodies/named-field',
+      'post /unchecked-bodies/unknown',
+      'post /unchecked-bodies/raw-request',
+      'put /unchecked-bodies/put-interface',
+      'patch /unchecked-bodies/patch-partial',
     ]);
+
+    await app.close();
+  });
+
+  it('flags a route that sends an entity', async () => {
+    const app = await createApp([LeakingEntityController]);
+
+    expect(findEntitySchemas(createApiDocument(app))).toEqual(['StudentEntity']);
 
     await app.close();
   });
@@ -172,7 +261,7 @@ describe('the OpenAPI document', () => {
 
 describe('the API docs routes', () => {
   async function getDocsStatuses(nodeEnv: string | undefined) {
-    const app = await createApp();
+    const app = await createApp([HealthController]);
     serveApiDocs(app, nodeEnv);
     await app.init();
     const docsPage = await request(app.getHttpServer()).get('/docs');

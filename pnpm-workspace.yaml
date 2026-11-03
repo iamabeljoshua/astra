@@ -5,6 +5,13 @@ packages:
 catalog:
   typescript: ~5.9.3
 
+# The CLI's download script pins a tar version with known advisories.
+overrides:
+  supabase>tar: ^7.5.22
+
+onlyBuiltDependencies:
+  - supabase
+
 ignoredBuiltDependencies:
   - '@parcel/watcher'
   - '@scarf/scarf'
