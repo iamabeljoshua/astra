@@ -1,0 +1,293 @@
+{
+ "pricesReadOn": "2026-11-03",
+ "soldPerHourInPrdQ21": 9.8,
+ "otherServicesPerMinute": {
+  "cartesiaScale": 0.0249,
+  "deepgramNova3WithKeyterms": 0.009,
+  "liveKitShip": 0.01
+ },
+ "otherPerMinute": 0.0439,
+ "flatPrefixAsInThePrd": {
+  "opus": {
+   "modelPerMinute": 0.06,
+   "allServicesPerMinute": 0.1039,
+   "perHour": 6.23,
+   "perHourWithBackgroundAndBuffer": 9.04,
+   "betaMonth": 1247
+  },
+  "sonnet": {
+   "modelPerMinute": 0.024,
+   "allServicesPerMinute": 0.0679,
+   "perHour": 4.08,
+   "perHourWithBackgroundAndBuffer": 6.23,
+   "betaMonth": 815
+  },
+  "haiku": {
+   "modelPerMinute": 0.0014,
+   "allServicesPerMinute": 0.0453,
+   "perHour": 2.72,
+   "perHourWithBackgroundAndBuffer": 4.47,
+   "betaMonth": 544
+  }
+ },
+ "withHistoryGrowth": {
+  "opus18": {
+   "model": "opus",
+   "minutes": 18,
+   "modelDollars": 1.7,
+   "modelPerMinute": 0.0944,
+   "allServicesPerMinute": 0.1384,
+   "prdBasisPerMinute": 0.1955,
+   "overThePrdLimit": true,
+   "perHour": 8.3,
+   "perHourWithBackgroundAndBuffer": 11.73,
+   "lastPrefixTokens": 101400
+  },
+  "opus30": {
+   "model": "opus",
+   "minutes": 30,
+   "modelDollars": 3.35,
+   "modelPerMinute": 0.1117,
+   "allServicesPerMinute": 0.1556,
+   "prdBasisPerMinute": 0.2179,
+   "overThePrdLimit": true,
+   "perHour": 9.34,
+   "perHourWithBackgroundAndBuffer": 13.08,
+   "lastPrefixTokens": 159000
+  },
+  "opus60": {
+   "model": "opus",
+   "minutes": 60,
+   "modelDollars": 9.3,
+   "modelPerMinute": 0.1549,
+   "allServicesPerMinute": 0.1988,
+   "prdBasisPerMinute": 0.2741,
+   "overThePrdLimit": true,
+   "perHour": 11.93,
+   "perHourWithBackgroundAndBuffer": 16.45,
+   "lastPrefixTokens": 303000
+  },
+  "sonnet60": {
+   "model": "sonnet",
+   "minutes": 60,
+   "modelDollars": 3.88,
+   "modelPerMinute": 0.0646,
+   "allServicesPerMinute": 0.1085,
+   "prdBasisPerMinute": 0.1567,
+   "overThePrdLimit": true,
+   "perHour": 6.51,
+   "perHourWithBackgroundAndBuffer": 9.4,
+   "lastPrefixTokens": 267000
+  },
+  "haiku60": {
+   "model": "haiku",
+   "minutes": 60,
+   "modelDollars": 1.37,
+   "modelPerMinute": 0.0228,
+   "allServicesPerMinute": 0.0667,
+   "prdBasisPerMinute": 0.1024,
+   "overThePrdLimit": false,
+   "perHour": 4,
+   "perHourWithBackgroundAndBuffer": 6.14,
+   "lastPrefixTokens": 267000
+  }
+ },
+ "withCompactionAt60kTokens": {
+  "opus30": {
+   "model": "opus",
+   "minutes": 30,
+   "compact": true,
+   "modelDollars": 2.8,
+   "modelPerMinute": 0.0935,
+   "allServicesPerMinute": 0.1374,
+   "prdBasisPerMinute": 0.1942,
+   "overThePrdLimit": true,
+   "perHour": 8.24,
+   "perHourWithBackgroundAndBuffer": 11.65,
+   "lastPrefixTokens": 33400
+  },
+  "opus60": {
+   "model": "opus",
+   "minutes": 60,
+   "compact": true,
+   "modelDollars": 5.65,
+   "modelPerMinute": 0.0942,
+   "allServicesPerMinute": 0.1381,
+   "prdBasisPerMinute": 0.1951,
+   "overThePrdLimit": true,
+   "perHour": 8.29,
+   "perHourWithBackgroundAndBuffer": 11.71,
+   "lastPrefixTokens": 52600
+  },
+  "sonnet60": {
+   "model": "sonnet",
+   "minutes": 60,
+   "compact": true,
+   "modelDollars": 2.33,
+   "modelPerMinute": 0.0388,
+   "allServicesPerMinute": 0.0827,
+   "prdBasisPerMinute": 0.1231,
+   "overThePrdLimit": false,
+   "perHour": 4.96,
+   "perHourWithBackgroundAndBuffer": 7.39,
+   "lastPrefixTokens": 56800
+  },
+  "haiku60": {
+   "model": "haiku",
+   "minutes": 60,
+   "compact": true,
+   "modelDollars": 0.15,
+   "modelPerMinute": 0.0025,
+   "allServicesPerMinute": 0.0465,
+   "prdBasisPerMinute": 0.076,
+   "overThePrdLimit": false,
+   "perHour": 2.79,
+   "perHourWithBackgroundAndBuffer": 4.56,
+   "lastPrefixTokens": 56800
+  }
+ },
+ "betaMonth400Sessions30Minutes": {
+  "opusGrowing": {
+   "modelAlone": 1341,
+   "allFourServices": 1868,
+   "withBackgroundAndBuffer": 2615
+  },
+  "opusCompacting": {
+   "modelAlone": 1122,
+   "allFourServices": 1649,
+   "withBackgroundAndBuffer": 2331
+  },
+  "sonnetGrowing": {
+   "modelAlone": 548,
+   "allFourServices": 1075,
+   "withBackgroundAndBuffer": 1585
+  },
+  "sonnetCompacting": {
+   "modelAlone": 452,
+   "allFourServices": 979,
+   "withBackgroundAndBuffer": 1459
+  },
+  "haikuGrowing": {
+   "modelAlone": 114,
+   "allFourServices": 641,
+   "withBackgroundAndBuffer": 1021
+  },
+  "haikuCompacting": {
+   "modelAlone": 30,
+   "allFourServices": 557,
+   "withBackgroundAndBuffer": 911
+  },
+  "opusNoThinkingGrowing": {
+   "modelAlone": 1097,
+   "allFourServices": 1624,
+   "withBackgroundAndBuffer": 2298
+  },
+  "opusNoThinkingCompacting": {
+   "modelAlone": 903,
+   "allFourServices": 1430,
+   "withBackgroundAndBuffer": 2046
+  }
+ },
+ "compactionSavesPerMonth": {
+  "opus": 219,
+  "sonnet": 96
+ },
+ "thirtyTurnTestDollars": {
+  "opus": 0.9,
+  "sonnet": 0.37,
+  "haiku": 0.02,
+  "allThree": 1.3
+ },
+ "picks": {
+  "note": "Sonnet with compaction, Cartesia Scale, Deepgram Nova-3, LiveKit Ship, the top of the open route range. API hosting, about $200 a month by the PRD, is on top.",
+  "modelAlone": 452,
+  "allFourServices": 979,
+  "withBackgroundAndBuffer": 1459,
+  "hostingOnTop": 200
+ },
+ "thinking": {
+  "opusWithoutThinkingPerMinute": 0.048,
+  "opusWith200ThinkingTokensPerMinute": 0.06,
+  "millisecondsFor200TokensAt79PerSecond": 2532,
+  "millisecondsFor200TokensAt100PerSecond": 2000
+ },
+ "liveKitInferencePrices": {
+  "charactersPerMonth": 6000000,
+  "ttsCartesiaSonicPerMillionCharactersOnShip": 50,
+  "ttsCheapestVoicePerMillionCharactersOnShip": 15,
+  "sttNova3PerMinute": 0.0048,
+  "sttFluxPerMinute": 0.0065
+ },
+ "monthlyParts": {
+  "liveKitShip": 120,
+  "deepgramWithKeyterms": 108,
+  "cartesiaScale": 299,
+  "cartesiaStartup": 262.75,
+  "inferenceCartesiaVoice": 300,
+  "inferenceCheapestVoice": 90,
+  "guessedServersLow": 60,
+  "guessedServersHigh": 120
+ },
+ "routesForVoiceSpeechAndHosting": {
+  "ownAccountsOnly": {
+   "low": {
+    "route": 371,
+    "allFourWithSonnetCompaction": 822,
+    "withBackgroundAndBuffer": 1256
+   },
+   "high": {
+    "route": 407,
+    "allFourWithSonnetCompaction": 859,
+    "withBackgroundAndBuffer": 1303
+   }
+  },
+  "cloudWithInference": {
+   "low": {
+    "route": 478,
+    "allFourWithSonnetCompaction": 929,
+    "withBackgroundAndBuffer": 1395
+   },
+   "high": {
+    "route": 498,
+    "allFourWithSonnetCompaction": 950,
+    "withBackgroundAndBuffer": 1422
+   }
+  },
+  "cloudWithOwnAccounts": {
+   "low": {
+    "route": 491,
+    "allFourWithSonnetCompaction": 942,
+    "withBackgroundAndBuffer": 1412
+   },
+   "high": {
+    "route": 527,
+    "allFourWithSonnetCompaction": 979,
+    "withBackgroundAndBuffer": 1459
+   }
+  },
+  "allOursWithOwnAccounts": {
+   "low": {
+    "route": 431,
+    "allFourWithSonnetCompaction": 882,
+    "withBackgroundAndBuffer": 1334
+   },
+   "high": {
+    "route": 527,
+    "allFourWithSonnetCompaction": 979,
+    "withBackgroundAndBuffer": 1459
+   }
+  },
+  "cloudWithCheapestInferenceVoice": {
+   "low": {
+    "route": 268,
+    "allFourWithSonnetCompaction": 719,
+    "withBackgroundAndBuffer": 1122
+   },
+   "high": {
+    "route": 288,
+    "allFourWithSonnetCompaction": 740,
+    "withBackgroundAndBuffer": 1149
+   }
+  }
+ }
+}

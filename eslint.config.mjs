@@ -4,8 +4,9 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import { defineConfig, globalIgnores } from 'eslint/config';
 import tseslint from 'typescript-eslint';
 import { noLiteralColors } from './packages/theme/eslint/no-literal-colors.mjs';
+import { noVendorImports } from './packages/theme/eslint/no-vendor-imports.mjs';
 
-const themePlugin = { rules: { 'no-literal-colors': noLiteralColors } };
+const themePlugin = { rules: { 'no-literal-colors': noLiteralColors, 'no-vendor-imports': noVendorImports } };
 const APP_TEXT_MESSAGE = 'Put app text in apps/web/src/strings.ts.';
 const HAS_A_LETTER = '/\\p{L}/u';
 const API_CLIENT_MESSAGE = 'Call the API through apps/web/src/api/client.ts.';
@@ -47,6 +48,12 @@ export default defineConfig([
     ignores: ['apps/web/src/strings.ts', '**/*.test.{ts,tsx}'],
     plugins: { theme: themePlugin },
     rules: { 'theme/no-literal-colors': 'error' },
+  },
+  {
+    files: ['apps/**/*.{ts,tsx,js,jsx,mjs,cjs}', 'packages/**/*.{ts,tsx,js,jsx,mjs,cjs}'],
+    ignores: ['packages/theme/eslint/no-vendor-imports.test.ts'],
+    plugins: { theme: themePlugin },
+    rules: { 'theme/no-vendor-imports': 'error' },
   },
   {
     files: ['apps/web/src/**/*.css'],
