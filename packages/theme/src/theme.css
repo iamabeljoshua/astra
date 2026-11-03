@@ -27,6 +27,10 @@
   --breakpoint-*: initial;
   --breakpoint-md: 761px;
 
+  --shadow-*: initial;
+  --drop-shadow-*: initial;
+  --radius-*: initial;
+
   --spacing-sidebar: 216px;
   --spacing-page-side: clamp(16px, 3vw, 40px);
   --spacing-page-top: clamp(20px, 4.5vh, 44px);
