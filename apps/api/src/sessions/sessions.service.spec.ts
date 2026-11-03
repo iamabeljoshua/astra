@@ -4,7 +4,7 @@ import { createTestApp, OLD_ENOUGH_BIRTH_DATE } from '../../test/test-database';
 import type { TestApp } from '../../test/test-database';
 import { StudentsService } from '../students/students.service';
 import type { CreateSessionBodyDto } from './session.dto';
-import { SessionEntity } from './session.entity';
+import { SessionEntity } from '../infrastructure/orm/entities/session.entity';
 import { SessionsService } from './sessions.service';
 
 const SESSION: CreateSessionBodyDto = { title: 'Free-body diagrams', subject: 'Physics', language: 'en' };

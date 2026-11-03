@@ -12,7 +12,7 @@
     "db:migrate": "pnpm --filter @astra/api db migrate",
     "db:reset": "pnpm --filter @astra/api db reset",
     "db:seed": "pnpm --filter @astra/api db seed",
-    "db:migration": "pnpm --filter @astra/api db:migration",
+    "db:migration": "pnpm --filter @astra/api db migration",
     "lint": "eslint apps packages --max-warnings 0",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r --no-bail test",

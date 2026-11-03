@@ -4,8 +4,7 @@
   "scripts": {
     "dev": "NODE_ENV=${NODE_ENV:-development} nest start --watch --preserveWatchOutput",
     "api:types": "nest build && node scripts/generate-api-types.mjs",
-    "db": "nest build && node dist/database/cli.js",
-    "db:migration": "nest build && typeorm migration:generate -d dist/database/typeorm-cli-data-source.js",
+    "db": "nest build && node dist/infrastructure/orm/cli.js",
     "typecheck": "tsc",
     "test": "jest"
   },

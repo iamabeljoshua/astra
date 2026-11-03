@@ -3,8 +3,8 @@ import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { createTestApp, createTestStudent } from '../../test/test-database';
 import type { TestApp } from '../../test/test-database';
-import { EXAMPLE_AUTH_USER_ID, EXAMPLE_STUDENT_ID, replaceExampleData } from '../database/example-data';
-import { SessionEntity } from '../sessions/session.entity';
+import { EXAMPLE_AUTH_USER_ID, EXAMPLE_STUDENT_ID, replaceExampleData } from '../infrastructure/orm/example-data';
+import { SessionEntity } from '../infrastructure/orm/entities/session.entity';
 
 const SEEDED_UNFINISHED_TITLE = 'Free-body diagrams';
 
