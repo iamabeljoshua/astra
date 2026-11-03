@@ -24,7 +24,6 @@ function findStepIndex(stepId: StepId) {
   return ONBOARDING_STEPS.findIndex((step) => step.id === stepId);
 }
 
-// A step that cannot change later closes once answered, so a confirmed date of birth never reopens.
 function isOpen(step: OnboardingStep, student: Student | null) {
   return step.canChangeLater || !step.isAnswered(student);
 }
