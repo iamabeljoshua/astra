@@ -28,6 +28,7 @@ async function waitForStartLock() {
 }
 
 const lock = await waitForStartLock();
-const { status } = spawnSync('supabase', ['start'], { stdio: 'inherit' });
+const { status, error } = spawnSync('supabase', ['start'], { stdio: 'inherit' });
 lock.close();
+if (error) console.error(`Cannot run the Supabase CLI: ${error.message}. Run pnpm install, then use pnpm db:up.`);
 process.exitCode = status ?? 1;

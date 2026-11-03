@@ -16,11 +16,13 @@ jobs:
   checks:
     runs-on: ubuntu-latest
     timeout-minutes: 3
+    env:
+      POSTGRES_TAG: 17.6.1.075
     steps:
       - uses: actions/checkout@v7
       # Unpacking this image takes half the time in memory, and starting now overlaps it with the steps below.
       # ghcr.io serves the same digest as the CLI's default registry, which has rate limited runners.
-      # A stale tag only loses this head start, because the CLI picks the image in its own step.
+      # The CLI still picks the image that runs. A different tag means a second image, and one takes about 3.8 GB of this 6 GB disk, so a later step fails on a mismatch.
       - name: Start pulling the Postgres image
         run: |
           sudo systemctl stop docker docker.socket
@@ -28,13 +30,20 @@ jobs:
           sudo mount -t tmpfs -o size=6g tmpfs /dockerdata
           echo '{"data-root":"/dockerdata"}' | sudo tee /etc/docker/daemon.json > /dev/null
           sudo systemctl start docker
-          nohup docker pull -q ghcr.io/supabase/postgres:17.6.1.075 > /dev/null 2>&1 &
+          nohup docker pull -q "ghcr.io/supabase/postgres:$POSTGRES_TAG" > /dev/null 2>&1 &
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Fail if the early pull is not the image that the Supabase CLI uses
+        run: |
+          cli_tag=$(pnpm exec supabase services | awk '$1 == "supabase/postgres" { print $3 }')
+          if [ "$cli_tag" != "$POSTGRES_TAG" ]; then
+            echo "::error file=.github/workflows/ci.yml::ci.yml pulls Postgres $POSTGRES_TAG, but the pinned Supabase CLI uses ${cli_tag:-an unknown tag}. Set POSTGRES_TAG to the tag that the CLI uses."
+            exit 1
+          fi
       - run: pnpm api:types
       - name: Fail if the generated API types are out of date
         run: |
