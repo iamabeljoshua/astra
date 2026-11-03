@@ -5,8 +5,7 @@ import type { TestDatabase } from '../../../test/test-database';
 import { replaceExampleData } from './example-data';
 import { openMigratedDataSource } from './open-data-source';
 
-// Supabase gives these roles every right on new tables in public, and a test database has no such default.
-const GRANT_WHAT_SUPABASE_GRANTS = `
+const GRANT_EVERY_RIGHT = `
   GRANT USAGE ON SCHEMA public TO anon, authenticated;
   GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated;
   GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated`;
@@ -36,7 +35,7 @@ describe.each(['anon', 'authenticated'])('the %s role on tables it has every rig
     dataSource = await openMigratedDataSource(testDatabase.databaseUrl);
     await replaceExampleData(dataSource);
     await dataSource.query('INSERT INTO "closed_accounts" ("auth_user_id") VALUES ($1)', [randomUUID()]);
-    await dataSource.query(GRANT_WHAT_SUPABASE_GRANTS);
+    await dataSource.query(GRANT_EVERY_RIGHT);
     tables = await dataSource.query(TABLES_WITH_FIRST_COLUMN_QUERY);
   });
 

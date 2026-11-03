@@ -1,16 +1,21 @@
+import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { DataSource } from 'typeorm';
+import { DataSource } from 'typeorm';
+import type { DataSourceOptions } from 'typeorm';
 import { createTestDatabase } from '../../../test/test-database';
 import type { TestDatabase } from '../../../test/test-database';
 import { SessionEntity } from './entities/session.entity';
 import { ClosedAccountEntity } from './entities/closed-account.entity';
 import { StudentProfileEntity } from './entities/student-profile.entity';
 import { StudentEntity } from './entities/student.entity';
+import { createDataSourceOptions } from './data-source-options';
 import { getDatabaseName, withDatabaseName } from './database-url';
 import { EXAMPLE_AUTH_USER_ID, EXAMPLE_STUDENT_ID, NEW_STUDENT_AUTH_USER_ID, replaceExampleData } from './example-data';
 import { createDatabaseIfMissing, dropDatabase } from './manage-databases';
-import { openMigratedDataSource } from './open-data-source';
+import { CreateStudentsAndSessions1793666578779 } from './migrations/1793666578779-create-students-and-sessions';
+import { AddSignInAndAgeGate1793686438335 } from './migrations/1793686438335-add-sign-in-and-age-gate';
+import { openDataSourceWithMigrationLog, openMigratedDataSource } from './open-data-source';
 
 // Views and foreign tables count too, because the Data API serves those as well and row security cannot close them.
 const USER_RELATIONS_QUERY = `
@@ -19,6 +24,8 @@ const USER_RELATIONS_QUERY = `
   JOIN pg_namespace AS namespace ON namespace.oid = relation.relnamespace
   WHERE relation.relkind IN ('r', 'p', 'v', 'm', 'f')
     AND namespace.nspname NOT IN ('pg_catalog', 'information_schema')`;
+
+const MIGRATIONS_BEFORE_THE_MOVE = [CreateStudentsAndSessions1793666578779, AddSignInAndAgeGate1793686438335];
 
 describe('a database built from migrations', () => {
   let testDatabase: TestDatabase;
@@ -72,6 +79,33 @@ describe('a database built from migrations', () => {
       await expect(openMigratedDataSource(unmigratedUrl)).rejects.toThrow(/pnpm db:migrate/);
     } finally {
       await dropDatabase(unmigratedUrl);
+    }
+  });
+
+  it('moves a database from before the move to public, and keeps its rows and its log', async () => {
+    const oldUrl = withDatabaseName(testDatabase.databaseUrl, `${getDatabaseName(testDatabase.databaseUrl)}_old`);
+    const authUserId = randomUUID();
+    await createDatabaseIfMissing(oldUrl);
+
+    try {
+      const oldDataSource = await new DataSource({
+        ...createDataSourceOptions(oldUrl),
+        migrations: MIGRATIONS_BEFORE_THE_MOVE,
+      } as DataSourceOptions).initialize();
+      await oldDataSource.runMigrations();
+      await oldDataSource.query('INSERT INTO "app"."closed_accounts" ("auth_user_id") VALUES ($1)', [authUserId]);
+      await oldDataSource.query('ALTER TABLE "public"."migrations" SET SCHEMA "app"');
+      await oldDataSource.destroy();
+
+      const movedDataSource = await openDataSourceWithMigrationLog(oldUrl);
+      await movedDataSource.runMigrations();
+
+      expect(await movedDataSource.query('SELECT "auth_user_id" AS id FROM "public"."closed_accounts"')).toEqual([{ id: authUserId }]);
+      const relations: { schema: string; has_row_security: boolean }[] = await movedDataSource.query(USER_RELATIONS_QUERY);
+      expect(relations.filter((relation) => relation.schema !== 'public' || !relation.has_row_security)).toEqual([]);
+      await movedDataSource.destroy();
+    } finally {
+      await dropDatabase(oldUrl);
     }
   });
 

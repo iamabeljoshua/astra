@@ -5,8 +5,8 @@ import { isMigrationName, planMigration, writeMigration } from './generate-migra
 import { createDatabaseIfMissing, dropDatabase } from './manage-databases';
 import { openDataSourceWithMigrationLog, openMigratedDataSource } from './open-data-source';
 
-// This file runs from dist, and a new migration belongs with the sources.
-const MIGRATIONS_SOURCE_FOLDER = join(__dirname, '../../../src/infrastructure/orm/migrations');
+const API_PACKAGE_ROOT = join(__dirname, '../../..');
+const MIGRATIONS_SOURCE_FOLDER = join(API_PACKAGE_ROOT, 'src/infrastructure/orm/migrations');
 
 async function migrate(databaseUrl: string): Promise<void> {
   await createDatabaseIfMissing(databaseUrl);
