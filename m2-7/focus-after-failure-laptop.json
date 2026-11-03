@@ -1,0 +1,9 @@
+{
+  "viewportName": "laptop",
+  "documentVisibility": "visible",
+  "callsBeforeFocus": 1,
+  "callsAfterFocus": 2,
+  "failureLineStillShownAfterFocus": 0,
+  "loadingShownAfterFocus": 1,
+  "secondsFromFocusToFailureLineAgain": 30.019
+}
