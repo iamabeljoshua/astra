@@ -53,7 +53,7 @@ jobs:
           }
       - run: pnpm lint
       - run: pnpm typecheck
-      # Only the API's tests need Postgres, so the others overlap its startup. The root's test script would rerun every package.
+      # A pnpm filter brings the root back in, and its test script would rerun every package.
       - name: Run the tests that need no database
         background: true
         run: pnpm -r --no-bail --filter '!astra' --filter '!@astra/api' test
