@@ -7,7 +7,8 @@ export function renderWithQueryClient(component: ReactElement) {
   const queryClient = createQueryClient();
   const defaultOptions = queryClient.getDefaultOptions();
   queryClient.setDefaultOptions({ ...defaultOptions, queries: { ...defaultOptions.queries, retry: false } });
-  return render(component, {
+  const rendered = render(component, {
     wrapper: ({ children }: PropsWithChildren) => <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>,
   });
+  return { ...rendered, queryClient };
 }

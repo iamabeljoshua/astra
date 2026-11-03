@@ -16,7 +16,7 @@ export function AppShell() {
       <PhoneHeader isMenuOpen={isMenuOpen} menuButton={menuButton} onToggleMenu={toggleMenu} />
       <div className="flex flex-1">
         <Sidebar id={SIDEBAR_ID} isOpenOnPhone={isMenuOpen} onChoosePage={closeMenu} />
-        <main className={`${isMenuOpen ? 'max-md:hidden' : ''} min-w-0 flex-1 px-page-side pt-page-top pb-7`}>
+        <main className={`${isMenuOpen ? 'max-md:hidden' : ''} flex min-w-0 flex-1 flex-col px-page-side pt-page-top pb-page-bottom`}>
           <CurrentPage />
         </main>
       </div>
@@ -52,7 +52,7 @@ function CurrentPage() {
   const { pathname } = useLocation();
 
   return (
-    <div key={pathname} className="mx-auto flex max-w-column animate-arrive flex-col gap-5.5">
+    <div key={pathname} className="mx-auto flex w-full max-w-column flex-1 animate-arrive flex-col gap-5.5">
       <Routes>
         {MENU.map(({ path, Page }) => (
           <Route key={path} path={path} element={<Page />} />
