@@ -5,16 +5,14 @@ import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { SignJWT } from 'jose';
 import request from 'supertest';
+import { PlantedRoutesModule } from '../../test/planted-routes';
+import { findLayersAddedToEmptyApp, findRoutesIgnoringIdentity, getRouteAnswers, listRoutes } from '../../test/route-table';
 import { createSigningKey, signWithKey } from '../../test/test-auth';
 import type { TestSupabaseAuth } from '../../test/test-auth';
 import { createTestApp, createTestStudent, OLD_ENOUGH_BIRTH_DATE } from '../../test/test-database';
 import type { TestApp, TestStudent } from '../../test/test-database';
-import { createApiDocument } from '../api-docs';
 import { getAcceptedSignInMethods, isRefusedToken, TokenVerifier } from './token-verifier';
 
-type HttpMethod = 'get' | 'put' | 'post' | 'delete' | 'patch';
-
-const HTTP_METHODS: readonly HttpMethod[] = ['get', 'put', 'post', 'delete', 'patch'];
 const PUBLIC_ROUTES: readonly string[] = ['get /health'];
 const SIGNED_IN_ROUTES: readonly string[] = ['get /me', 'post /me/birth-date'];
 const CLOSED_PORT_URL = 'http://127.0.0.1:1';
@@ -31,17 +29,6 @@ function verifierFor(supabaseUrl: string) {
 
 function encodeSegment(value: object) {
   return Buffer.from(JSON.stringify(value)).toString('base64url');
-}
-
-function listRoutes(testApp: TestApp) {
-  const { paths } = createApiDocument(testApp.app);
-  return Object.entries(paths).flatMap(([path, pathItem]) =>
-    HTTP_METHODS.filter((method) => pathItem[method]).map((method) => ({
-      name: `${method} ${path}`,
-      method,
-      url: path.replace(/\{[^}]+\}/g, randomUUID()),
-    })),
-  );
 }
 
 type TokenFactory = (auth: TestSupabaseAuth, authUserId: string) => Promise<string>;
@@ -120,15 +107,19 @@ describe('the API guard', () => {
   afterAll(() => testApp?.close());
 
   describe('with no valid token', () => {
-    it('refuses every route but the public ones, including routes added later', async () => {
-      const routes = listRoutes(testApp).filter((route) => !PUBLIC_ROUTES.includes(route.name));
-      expect(routes.map((route) => route.name)).toEqual(expect.arrayContaining(['get /sessions', 'put /me/profile']));
-
-      const answers = await Promise.all(
-        routes.map(async (route) => [route.name, (await api()[route.method](route.url)).status]),
+    it('refuses every route in the Express route table but the public ones, including routes added later', async () => {
+      const routes = listRoutes(testApp.app).filter((route) => !PUBLIC_ROUTES.includes(route.name));
+      expect(routes.map((route) => route.name)).toEqual(
+        expect.arrayContaining(['get /sessions', 'put /me/profile', 'get /home']),
       );
 
-      expect(answers.filter(([, status]) => status !== 401)).toEqual([]);
+      const answers = await getRouteAnswers({ app: testApp.app, routes });
+
+      expect(answers.filter((answer) => !answer.endsWith('401'))).toEqual([]);
+    });
+
+    it('adds no middleware that the route walk cannot call', async () => {
+      expect(await findLayersAddedToEmptyApp(testApp.app)).toEqual([]);
     });
 
     it('answers the health check', async () => {
@@ -239,15 +230,13 @@ describe('the API guard', () => {
   describe('with a token for a user with no student', () => {
     it('refuses every route that holds student data', async () => {
       const token = await testApp.supabaseAuth.signToken(randomUUID());
-      const routes = listRoutes(testApp).filter(
+      const routes = listRoutes(testApp.app).filter(
         (route) => !PUBLIC_ROUTES.includes(route.name) && !SIGNED_IN_ROUTES.includes(route.name),
       );
 
-      const answers = await Promise.all(
-        routes.map(async (route) => [route.name, (await api()[route.method](route.url).set('Authorization', `Bearer ${token}`)).status]),
-      );
+      const answers = await getRouteAnswers({ app: testApp.app, routes, token });
 
-      expect(answers.filter(([, status]) => status !== 403)).toEqual([]);
+      expect(answers.filter((answer) => !answer.endsWith('403'))).toEqual([]);
     });
 
     it('asks for the date of birth and has no student to show', async () => {
@@ -265,6 +254,12 @@ describe('the API guard', () => {
         put: (url: string) => api().put(url).set('Authorization', `Bearer ${owner.token}`),
       };
     }
+
+    it('reads the identity from the token on every route but the public ones', async () => {
+      const routes = listRoutes(testApp.app).filter((route) => !PUBLIC_ROUTES.includes(route.name));
+
+      expect(await findRoutesIgnoringIdentity({ app: testApp.app, routes, token: student.token })).toEqual([]);
+    });
 
     it('gives each student only their own account', async () => {
       const first = await withToken(student).get('/me').expect(200);
@@ -318,6 +313,50 @@ describe('the API guard', () => {
     it('refuses a student ID sent in a body', async () => {
       await withToken(student).post('/sessions').send({ ...VALID_SESSION, studentId: otherStudent.studentId }).expect(400);
       await withToken(student).put('/me/profile').send({ ...VALID_PROFILE, studentId: otherStudent.studentId }).expect(400);
+    });
+  });
+
+  describe('checking its own route checks against planted routes', () => {
+    let plantedApp: TestApp;
+    let plantedStudent: TestStudent;
+
+    beforeAll(async () => {
+      plantedApp = await createTestApp({ extraModules: [PlantedRoutesModule] });
+      plantedStudent = await createTestStudent(plantedApp);
+    });
+
+    afterAll(() => plantedApp?.close());
+
+    it('finds each route that answers with no token, however it hides from the Swagger document', async () => {
+      const routes = listRoutes(plantedApp.app).filter((route) => !PUBLIC_ROUTES.includes(route.name));
+
+      const answers = await getRouteAnswers({ app: plantedApp.app, routes });
+
+      expect(answers.filter((answer) => !answer.endsWith('401'))).toEqual(
+        expect.arrayContaining([
+          'get /planted-excluded-controller -> 200',
+          'get /planted/excluded-endpoint -> 200',
+          'options /planted/options -> 200',
+          'head /planted/head -> 200',
+          'search /planted/search -> 200',
+          'get /planted/all -> 200',
+          'get /planted-adapter -> 200',
+          'get /planted-middleware -> 200',
+          'propfind /planted-middleware -> 200',
+        ]),
+      );
+    });
+
+    it('finds middleware on a path, which has no route to call', async () => {
+      expect(await findLayersAddedToEmptyApp(plantedApp.app)).toHaveLength(1);
+    });
+
+    it('finds a route that ignores the token, so a later route that forgets the student fails', async () => {
+      const routes = listRoutes(plantedApp.app).filter((route) => route.name === 'get /planted-students/:id/sessions');
+
+      const ignoring = await findRoutesIgnoringIdentity({ app: plantedApp.app, routes, token: plantedStudent.token });
+
+      expect(ignoring).toEqual(['get /planted-students/:id/sessions']);
     });
   });
 

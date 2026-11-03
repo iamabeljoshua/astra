@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { INestApplication } from '@nestjs/common';
+import type { INestApplication, Type } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
@@ -50,14 +50,15 @@ export interface TestApp {
 interface TestAppOptions {
   supabaseUrl?: string;
   nodeEnv?: string;
+  extraModules?: Type[];
 }
 
-export async function createTestApp({ supabaseUrl, nodeEnv = 'test' }: TestAppOptions = {}): Promise<TestApp> {
+export async function createTestApp({ supabaseUrl, nodeEnv = 'test', extraModules = [] }: TestAppOptions = {}): Promise<TestApp> {
   const { databaseUrl, drop } = await createTestDatabase();
   const supabaseAuth = await startTestSupabaseAuth();
   const testingModule = await withEnvironment(
     { DATABASE_URL: databaseUrl, SUPABASE_URL: supabaseUrl ?? supabaseAuth.url, NODE_ENV: nodeEnv },
-    () => Test.createTestingModule({ imports: [AppModule] }).compile(),
+    () => Test.createTestingModule({ imports: [AppModule, ...extraModules] }).compile(),
   );
   const app = testingModule.createNestApplication();
   await app.listen(0, '127.0.0.1');

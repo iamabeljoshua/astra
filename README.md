@@ -113,7 +113,16 @@ A global guard, `apps/api/src/auth/auth.guard.ts`, checks every route, so a new 
 | `@SignedInRoute()` | Any signed-in user, with or without a student, such as `GET /me`. |
 | `@PublicRoute()` | Anyone, such as `GET /health`. |
 
-The student's identity comes only from the token. Read it with `@CurrentStudentId()` and never take a student ID from a path, a query, or a body. `pnpm test` fails if a route takes a field with such a name, or if a new route is reachable without a token unless it is on the short public list in `apps/api/src/auth/auth.guard.spec.ts`. A route that reads or changes one row by its own ID must filter on both that ID and the student ID.
+The student's identity comes only from the token. Read it with `@CurrentStudentId()` and never take a student ID from a path, a query, or a body.
+
+`pnpm test` walks the Express route table of `AppModule` and calls each route it finds, with any verb, whether or not the Swagger document lists it. These checks are in `apps/api/src/auth/auth.guard.spec.ts` and `apps/api/src/openapi.spec.ts`. A test fails in each of these cases:
+
+- A route answers anything but 401 with no token, unless it is on the short public list.
+- A route never reads the identity that the guard took from the token.
+- A module adds middleware on a path, which has no route to call.
+- A path, a query, or a body has a field named like a student ID, at any depth of a DTO.
+
+These checks cannot see a route or middleware added in `main.ts`, because the tests do not run that file. They also cannot tell whether a route uses the identity correctly. A route that reads or changes one row by its own ID must filter on both that ID and the student ID, and its test must ask for another student's row.
 
 The guard checks the token signature against the keys that Auth publishes at `/auth/v1/.well-known/jwks.json`, and it checks the issuer, the audience, the role, and the expiry. It accepts ES256 and RS256 only. It also reads how the student signed in from the token's `amr` claim, and every entry must be `otp`, `magiclink`, `email/signup`, or `oauth`. A missing or empty `amr` is refused, and so is `anonymous`. Only when `NODE_ENV` is exactly `development` does it also accept `password`, for the **Development sign-in** box and the curl recipe above. The values stay the same after a refresh. Measured on the local stack, and on a private Auth service with **Confirm email** on, except `oauth`, which needs Google credentials. It answers 503, not 401, if it cannot read the keys. It logs the reason for each refusal, as a fixed code and a claim name, such as `ERR_JWT_CLAIM_VALIDATION_FAILED iss`, which is what a wrong `SUPABASE_URL` looks like. It never logs a token.
 
