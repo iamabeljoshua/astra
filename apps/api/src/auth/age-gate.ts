@@ -3,12 +3,11 @@ const OLDEST_BIRTH_DATE = '1900-01-01';
 const BIRTH_DATE_FORMAT = /^\d{4}-\d{2}-\d{2}$/;
 const MILLISECONDS_PER_HOUR = 3_600_000;
 
-// The date in UTC-12 is the last to change on Earth, and in UTC+14 it is the first.
-const LAST_DATE_OFFSET_HOURS = -12;
+// The date changes first in UTC+14, so nobody on Earth has a later calendar date than this one.
 const FIRST_DATE_OFFSET_HOURS = 14;
 
-function getDateAtOffset(now: Date, offsetHours: number): string {
-  return new Date(now.getTime() + offsetHours * MILLISECONDS_PER_HOUR).toISOString().slice(0, 10);
+function getLatestDateOnEarth(now: Date): string {
+  return new Date(now.getTime() + FIRST_DATE_OFFSET_HOURS * MILLISECONDS_PER_HOUR).toISOString().slice(0, 10);
 }
 
 function isRealCalendarDate(text: string): boolean {
@@ -22,13 +21,14 @@ export function isValidBirthDate(text: unknown, now: Date): boolean {
     BIRTH_DATE_FORMAT.test(text) &&
     isRealCalendarDate(text) &&
     text >= OLDEST_BIRTH_DATE &&
-    text <= getDateAtOffset(now, FIRST_DATE_OFFSET_HOURS)
+    text <= getLatestDateOnEarth(now)
   );
 }
 
+// Too young only when the student is under the age in every time zone, so a real 13-year-old is never closed out.
 // Compares as text, so a 29 February birthday falls on 1 March in other years.
 export function isOldEnough(validBirthDate: string, now: Date): boolean {
   const birthYear = Number(validBirthDate.slice(0, 4));
   const birthdayAtMinimumAge = `${birthYear + MINIMUM_AGE_YEARS}${validBirthDate.slice(4)}`;
-  return birthdayAtMinimumAge <= getDateAtOffset(now, LAST_DATE_OFFSET_HOURS);
+  return birthdayAtMinimumAge <= getLatestDateOnEarth(now);
 }
