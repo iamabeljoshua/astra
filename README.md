@@ -56,7 +56,7 @@ The example student signs in as `maya@astra.test`. To read the student and their
 
 ```sh
 KEY=$(pnpm --silent exec supabase status -o env | sed -n 's/^PUBLISHABLE_KEY="\(.*\)"/\1/p')
-TOKEN=$(curl -s 'http://127.0.0.1:54421/auth/v1/token?grant_type=password' -H "apikey: $KEY" -d '{"email":"maya@astra.test","password":"local-development-only"}' | node -pe 'JSON.parse(require("fs").readFileSync(0)).access_token')
+TOKEN=$(curl -s 'http://127.0.0.1:54421/auth/v1/token?grant_type=password' -H "apikey: $KEY" -H 'content-type: application/json' -d '{"email":"maya@astra.test","password":"local-development-only"}' | node -pe 'JSON.parse(require("fs").readFileSync(0)).access_token')
 curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:3000/me
 curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:3000/sessions
 ```
