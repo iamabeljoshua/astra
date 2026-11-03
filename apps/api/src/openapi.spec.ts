@@ -1,14 +1,31 @@
-import type { INestApplication } from '@nestjs/common';
+import { Body, Controller, Post } from '@nestjs/common';
+import type { INestApplication, Type } from '@nestjs/common';
 import type { OpenAPIObject } from '@nestjs/swagger';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { ProbeController } from '../test/probe.controller';
+import type { CreateProbeBodyDto } from '../test/probe.dto';
 import { createApiDocument, serveApiDocs } from './api-docs';
 import { AppModule } from './app.module';
 
 const HTTP_METHODS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'] as const;
+// A DTO imported with `import type` reaches the document as this schema.
+const ERASED_DTO_SCHEMA = '#/components/schemas/Function';
 
-async function createApp(extraControllers: (typeof ProbeController)[] = []) {
+@Controller('unchecked-bodies')
+class UncheckedBodiesController {
+  @Post('list')
+  acceptList(@Body() body: CreateProbeBodyDto[]) {
+    return body;
+  }
+
+  @Post('type-only-import')
+  acceptTypeOnlyImport(@Body() body: CreateProbeBodyDto) {
+    return body;
+  }
+}
+
+async function createApp(extraControllers: Type<unknown>[] = []) {
   const testingModule = await Test.createTestingModule({
     imports: [AppModule],
     controllers: extraControllers,
@@ -35,6 +52,18 @@ function findUndocumentedFields(document: OpenAPIObject): string[] {
     Object.entries('properties' in schema ? (schema.properties ?? {}) : {})
       .filter(([, field]) => !('description' in field && field.description))
       .map(([fieldName]) => `${schemaName}.${fieldName}`),
+  );
+}
+
+function findBodiesWithoutDto(document: OpenAPIObject): string[] {
+  return Object.entries(document.paths).flatMap(([path, pathItem]) =>
+    HTTP_METHODS.flatMap((method) => {
+      const requestBody = pathItem[method]?.requestBody;
+      if (!requestBody) return [];
+      const schema = 'content' in requestBody && requestBody.content['application/json']?.schema;
+      const hasDto = schema && '$ref' in schema && schema.$ref !== ERASED_DTO_SCHEMA;
+      return hasDto ? [] : [`${method} ${path}`];
+    }),
   );
 }
 
@@ -123,6 +152,21 @@ describe('the OpenAPI document', () => {
     it('has a comment on every DTO field', () => {
       expect(findUndocumentedFields(document)).toEqual([]);
     });
+
+    it('has a single DTO as every route body', () => {
+      expect(findBodiesWithoutDto(document)).toEqual([]);
+    });
+  });
+
+  it('flags a list body and a DTO imported with import type, and not a DTO body', async () => {
+    const app = await createApp([ProbeController, UncheckedBodiesController]);
+
+    expect(findBodiesWithoutDto(createApiDocument(app))).toEqual([
+      'post /unchecked-bodies/list',
+      'post /unchecked-bodies/type-only-import',
+    ]);
+
+    await app.close();
   });
 });
 
