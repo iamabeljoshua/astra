@@ -307,9 +307,11 @@ describe('every other failure has the same shape', () => {
 });
 
 describe('the request timeout', () => {
+  const EVERY_CALL_LIMIT_MS = 30_000;
   const LONGER_TIMEOUT_MS = 120_000;
   const fetchThatIgnoresItsSignal = () => new Promise<Response>(() => undefined);
   const ABORTED_FAILURE = { kind: 'aborted', status: null, fieldMessages: {} };
+  const TIMEOUT_FAILURE = { kind: 'timeout', status: null, fieldMessages: {} };
 
   const waitMs = (durationMs: number) => vi.advanceTimersByTimeAsync(durationMs);
 
@@ -326,15 +328,29 @@ describe('the request timeout', () => {
     vi.useRealTimers();
   });
 
-  it('stops a read at the default timeout, even if the request ignores its signal', async () => {
+  it('stops a read at 30 seconds, even if the request ignores its signal', async () => {
     stubFetch(fetchThatIgnoresItsSignal);
 
     const failure = getFailure(api.get('/health'));
 
-    await waitMs(DEFAULT_REQUEST_TIMEOUT_MS - SMALL_MARGIN_MS);
+    await waitMs(EVERY_CALL_LIMIT_MS - SMALL_MARGIN_MS);
     expect(await isPending(failure)).toBe(true);
     await waitMs(2 * SMALL_MARGIN_MS);
-    expect(await failure).toEqual(ABORTED_FAILURE);
+    expect(await failure).toEqual(TIMEOUT_FAILURE);
+  });
+
+  it('gives the caller an answer that arrives just inside the limit', async () => {
+    stubFetch(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => resolve(new Response(JSON.stringify({ status: 'ok' }))), EVERY_CALL_LIMIT_MS - SMALL_MARGIN_MS);
+        }),
+    );
+
+    const answer = api.get('/health');
+    await waitMs(EVERY_CALL_LIMIT_MS);
+
+    expect((await answer).status).toBe('ok');
   });
 
   it('stops a call that changes data at the default timeout', async () => {
@@ -343,7 +359,7 @@ describe('the request timeout', () => {
     const failure = getFailure(things.post('/things', { body: VALID_THING }));
 
     await waitMs(DEFAULT_REQUEST_TIMEOUT_MS + SMALL_MARGIN_MS);
-    expect(await failure).toEqual(ABORTED_FAILURE);
+    expect(await failure).toEqual(TIMEOUT_FAILURE);
   });
 
   it('aborts the request, so that the browser closes it', async () => {
@@ -362,7 +378,7 @@ describe('the request timeout', () => {
     const failure = getFailure(api.get('/health'));
 
     await waitMs(DEFAULT_REQUEST_TIMEOUT_MS + SMALL_MARGIN_MS);
-    expect(await failure).toEqual(ABORTED_FAILURE);
+    expect(await failure).toEqual(TIMEOUT_FAILURE);
   });
 
   it('lets a caller set a longer timeout', async () => {
@@ -373,7 +389,7 @@ describe('the request timeout', () => {
     await waitMs(LONGER_TIMEOUT_MS - SMALL_MARGIN_MS);
     expect(await isPending(failure)).toBe(true);
     await waitMs(2 * SMALL_MARGIN_MS);
-    expect(await failure).toEqual(ABORTED_FAILURE);
+    expect(await failure).toEqual(TIMEOUT_FAILURE);
   });
 
   it('lets a caller wait without a limit by passing Infinity', async () => {
@@ -394,6 +410,16 @@ describe('the request timeout', () => {
 
     const failure = getFailure(api.get('/health', { signal: controller.signal }));
     controller.abort();
+
+    expect(await failure).toEqual(ABORTED_FAILURE);
+  });
+
+  it('keeps an abort from the caller an abort, even when its reason is a TimeoutError', async () => {
+    stubFetch(fetchThatIgnoresItsSignal);
+    const controller = new AbortController();
+
+    const failure = getFailure(api.get('/health', { signal: controller.signal }));
+    controller.abort(new DOMException('The caller gave up.', 'TimeoutError'));
 
     expect(await failure).toEqual(ABORTED_FAILURE);
   });

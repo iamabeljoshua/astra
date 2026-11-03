@@ -11,7 +11,9 @@ import { HomeScreen } from './HomeScreen';
 const { continueSession: UNFINISHED_SESSION, picks: PICKS } = EXAMPLE_HOME_SCREEN;
 const SESSION_TITLE = UNFINISHED_SESSION!.title;
 const QUESTION = 'Why is the sky dark at night?';
-const FAILURE_LINE_LIMIT_MS = 16_000;
+const FAILURE_LINE_AT_MS = 30_000;
+const SLOW_API_MS = 5_000;
+const SMALL_MARGIN_MS = 100;
 const UNKNOWN_ARTWORK = 'a-name-from-a-newer-api' as 'wave';
 
 const getTextBox = () => screen.getByRole<HTMLTextAreaElement>('textbox', { name: CHAT_BOX_LABELS.label });
@@ -40,6 +42,24 @@ async function renderFailedHome() {
   renderWithQueryClient(<HomeScreen />);
   await screen.findByRole('alert');
 }
+
+function renderHomeWithAppRetries(fetchStub: () => Promise<Response>) {
+  vi.useFakeTimers();
+  vi.stubGlobal('fetch', fetchStub);
+  render(
+    <QueryClientProvider client={createQueryClient()}>
+      <HomeScreen />
+    </QueryClientProvider>,
+  );
+}
+
+function renderHomeOnHungApi() {
+  const fetchThatNeverAnswers = vi.fn(() => new Promise<Response>(() => undefined));
+  renderHomeWithAppRetries(fetchThatNeverAnswers);
+  return fetchThatNeverAnswers;
+}
+
+const waitMs = (durationMs: number) => act(() => vi.advanceTimersByTimeAsync(durationMs));
 
 afterEach(() => {
   vi.useRealTimers();
@@ -202,18 +222,45 @@ describe('HomeScreen', () => {
       expect(document.activeElement).toBe(screen.getByRole('heading', { level: 1 }));
     });
 
-    it('shows the failure line in about 15 seconds when the API never answers', async () => {
-      vi.useFakeTimers();
-      vi.stubGlobal('fetch', () => new Promise<Response>(() => undefined));
-      render(
-        <QueryClientProvider client={createQueryClient()}>
-          <HomeScreen />
-        </QueryClientProvider>,
+    it('shows the failure line at 30 seconds when the API never answers, after one try', async () => {
+      const fetchThatNeverAnswers = renderHomeOnHungApi();
+
+      await waitMs(FAILURE_LINE_AT_MS - SMALL_MARGIN_MS);
+      expect(screen.queryByRole('alert')).toBeNull();
+
+      await waitMs(2 * SMALL_MARGIN_MS);
+      expect(screen.getByRole('alert').textContent).toBe(HOME_LABELS.loadFailure.timeout);
+      expect(fetchThatNeverAnswers).toHaveBeenCalledTimes(1);
+    });
+
+    it('recovers from Try again after the API never answered', async () => {
+      renderHomeOnHungApi();
+      await waitMs(FAILURE_LINE_AT_MS + SMALL_MARGIN_MS);
+
+      stubFetchWithHomeScreen();
+      fireEvent.click(getTryAgainButton());
+      await waitMs(0);
+
+      screen.getByText(PICKS[0]!.title);
+      expect(screen.queryByRole('alert')).toBeNull();
+    });
+  });
+
+  describe('when the API is slow', () => {
+    it('loads the cards on the first try from an API that takes 5 seconds', async () => {
+      const fetchThatTakesFiveSeconds = vi.fn(
+        () =>
+          new Promise<Response>((resolve) => {
+            setTimeout(() => resolve(new Response(JSON.stringify(EXAMPLE_HOME_SCREEN))), SLOW_API_MS);
+          }),
       );
+      renderHomeWithAppRetries(fetchThatTakesFiveSeconds);
 
-      await act(() => vi.advanceTimersByTimeAsync(FAILURE_LINE_LIMIT_MS));
+      await waitMs(SLOW_API_MS + SMALL_MARGIN_MS);
 
-      expect(screen.getByRole('alert').textContent).toBe(HOME_LABELS.loadFailure.aborted);
+      screen.getByText(PICKS[0]!.title);
+      expect(screen.queryByRole('alert')).toBeNull();
+      expect(fetchThatTakesFiveSeconds).toHaveBeenCalledTimes(1);
     });
   });
 

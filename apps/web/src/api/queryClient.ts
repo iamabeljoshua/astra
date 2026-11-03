@@ -9,10 +9,17 @@ declare module '@tanstack/react-query' {
 
 const MAX_RETRIES = 2;
 const STALE_TIME_MS = 30_000;
-const RETRYABLE_KINDS: ReadonlySet<ApiErrorKind> = new Set(['server', 'network', 'aborted']);
+const IS_RETRYABLE: Readonly<Record<ApiErrorKind, boolean>> = {
+  validation: false,
+  rejected: false,
+  server: true,
+  network: true,
+  aborted: true,
+  timeout: false,
+};
 
 function shouldRetry(failureCount: number, error: ApiError) {
-  return failureCount < MAX_RETRIES && RETRYABLE_KINDS.has(error.kind);
+  return failureCount < MAX_RETRIES && IS_RETRYABLE[error.kind];
 }
 
 function belongsInErrorBoundary(error: Error) {

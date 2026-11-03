@@ -12,6 +12,7 @@ export const API_ERROR_LABELS = {
   server: 'Something went wrong on our side. Try again.',
   network: 'Could not connect. Try again in a moment.',
   aborted: 'That took too long. Try again.',
+  timeout: 'That took too long. Try again.',
 };
 
 export const MENU_LABELS = {
@@ -107,6 +108,7 @@ export const HOME_LABELS = {
     server: 'Your home screen did not load. The fault is on our side.',
     network: 'Your home screen did not load. Try again in a moment.',
     aborted: 'Your home screen is taking too long to load.',
+    timeout: 'Your home screen is taking too long to load.',
   },
   cardsCrashHeading: 'Your cards could not be shown.',
   cardsCrashMessage: 'The fault is on our side. Anything you typed is still in the box below.',
