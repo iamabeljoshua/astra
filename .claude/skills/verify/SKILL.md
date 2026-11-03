@@ -9,7 +9,7 @@ Students use the web app, so drive the web app. Run every command from the repo 
 
 ## Set up each copy
 
-Use Node 22 (`.nvmrc`) and pnpm 10.32.1 (`packageManager` in `package.json`).
+Use Node 22.22 or newer (`.nvmrc` holds `22`, and `pnpm install` refuses anything older) and pnpm 10.32.1 (`packageManager` in `package.json`).
 
 ```sh
 pnpm install --frozen-lockfile

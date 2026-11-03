@@ -43,3 +43,7 @@ content_path = "./supabase/templates/magic-link.html"
 [auth.email.template.confirmation]
 subject = "Finish signing in to Astra"
 content_path = "./supabase/templates/confirmation.html"
+
+[auth.email.template.email_change]
+subject = "Someone asked to move your Astra account"
+content_path = "./supabase/templates/email-change.html"

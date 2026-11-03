@@ -8,7 +8,7 @@ A student signs in with an email link and answers one question, their date of bi
 - `sign-in-link` signs in from that link, in the browser that asked for it.
 - `sign-in-birth-date` asks `When were you born?`, then shows the typed date with `Is this right?`. Nothing reaches the API before `Yes, continue`, and the first confirmed answer stands.
 - `sign-in-closed` shows `We can't set up this account.` with `Sign out`, on every later sign-in.
-- `sign-in-out` signs out from the sidebar. Other tabs follow, and Back shows no student page.
+- `sign-in-out` signs out from the sidebar. Other tabs follow, and Back shows no student page, in this tab or in another that was already on a different site.
 - `sign-in-development` shows the `Development sign-in` box on the dev server only.
 
 ## How to get to it (user POV)
@@ -33,7 +33,7 @@ Preconditions:
 
 - Each run makes one new user per viewport in the shared Auth, with an address like `verify-laptop-<time>@astra.test`.
 - The page sends one link per address per minute in each tab, so use a new address or a new tab to retry.
-- `Development sign-in` uses a password. The API accepts a password only when `NODE_ENV` is exactly `development`, so under `NODE_ENV=production pnpm verify start` that box ends on the error page with `Try again`.
+- `Development sign-in` uses a password. The API accepts a password only when `NODE_ENV` is exactly `development`, so under `NODE_ENV=production SUPABASE_URL=http://127.0.0.1:54421 pnpm verify start` that box ends on the error page with `Try again`. The API does not start under `NODE_ENV=production` without `SUPABASE_URL`.
 - The stack sends a link back only to `127.0.0.1`, which is why `pnpm verify` prints `127.0.0.1` URLs.
 - An email link works only in the browser that asked for it, so a journey must open it in the same context.
 - The driver's browser has the back-forward cache off, because Playwright turns it off by default. So the `after-back` image proves the history entry, not a restored page. To test a restored page, launch with `ignoreDefaultArgs: ['--disable-back-forward-cache']` and press Back with `history.back()` from the page.
