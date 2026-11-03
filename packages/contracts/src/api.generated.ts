@@ -246,7 +246,7 @@ export interface components {
             artwork: "alchemist" | "arc" | "athens" | "balance" | "bars" | "bastille" | "binary" | "blackhole" | "braking" | "branches" | "cake" | "circuit" | "clock" | "curve" | "draughtsman" | "earth" | "earthrise" | "forces" | "frames" | "grid" | "growth" | "ham" | "helix" | "indigo" | "launch" | "lock" | "loom" | "lute" | "melencolia" | "nebula" | "parabola" | "piston" | "pitch" | "prism" | "pyramid" | "route" | "saturn" | "socrates" | "string" | "sunflowers" | "table" | "tangent" | "terrain" | "triangle" | "wave" | "waveform" | "wheat" | null;
         };
         UpdateSessionBodyDto: {
-            /** @description How long the session has run in total, in seconds. */
+            /** @description How long the session has run in total, in seconds. A longer length is saved as 24 hours, so ending a session always works. */
             durationSeconds: number;
             /**
              * @description Send `finished` to end the session. A finished session does not change again.

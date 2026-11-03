@@ -271,10 +271,34 @@ describe('the sessions routes', () => {
     });
 
     it.each([
+      ['just over a day', 86_401],
+      ['the largest the database holds', 2_147_483_647],
+      ['too large for the database', 2_147_483_648],
+    ])('saves a length of %s as a day, so the session can still end', async (_caseName, durationSeconds) => {
+      const created = await startSession(student);
+
+      const { body: saved } = await api().patch(`${SESSIONS_PATH}/${created.id}`).send({ durationSeconds }).expect(200);
+      const { body: ended } = await api()
+        .patch(`${SESSIONS_PATH}/${created.id}`)
+        .send({ durationSeconds: durationSeconds + 1, status: 'finished' })
+        .expect(200);
+
+      expect(saved).toMatchObject({ status: 'in_progress', durationSeconds: 86_400 });
+      expect(ended).toMatchObject({ status: 'finished', durationSeconds: 86_400 });
+    });
+
+    it('keeps a length of exactly a day as it is', async () => {
+      const created = await startSession(student);
+
+      const { body } = await api().patch(`${SESSIONS_PATH}/${created.id}`).send({ durationSeconds: 86_400 }).expect(200);
+
+      expect(body).toMatchObject({ durationSeconds: 86_400 });
+    });
+
+    it.each([
       ['a missing length', {}, 'durationSeconds'],
       ['a negative length', { durationSeconds: -1 }, 'durationSeconds'],
       ['a length that is not whole', { durationSeconds: 1.5 }, 'durationSeconds'],
-      ['a length too large to store', { durationSeconds: 2_147_483_648 }, 'durationSeconds'],
       ['a length sent as text', { durationSeconds: '5' }, 'durationSeconds'],
       ['a move back to in progress', { durationSeconds: 1, status: 'in_progress' }, 'status'],
       ['a new title', { durationSeconds: 1, title: 'Renamed' }, 'title'],

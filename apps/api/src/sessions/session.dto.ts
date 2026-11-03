@@ -1,3 +1,4 @@
+import { Transform } from 'class-transformer';
 import { IsIn, IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
 import { ARTWORK_NAMES } from '../artwork';
 import type { ArtworkName } from '../artwork';
@@ -11,6 +12,7 @@ const MAX_SESSION_SUBJECT_LENGTH = 60;
 const MAX_SESSIONS_PER_LIST = 100;
 const MAX_SEARCH_LENGTH = 200;
 const LARGEST_DATABASE_INTEGER = 2_147_483_647;
+const MAX_SESSION_SECONDS = 24 * 60 * 60;
 
 export class CreateSessionBodyDto {
   /** What the session is about. */
@@ -67,10 +69,11 @@ export class SessionParamsDto {
 }
 
 export class UpdateSessionBodyDto {
-  /** How long the session has run in total, in seconds. */
+  /** How long the session has run in total, in seconds. A longer length is saved as 24 hours, so ending a session always works. */
+  @Transform(({ value }: { value: unknown }) => (typeof value === 'number' ? Math.min(value, MAX_SESSION_SECONDS) : value))
   @IsInt()
   @Min(0)
-  @Max(LARGEST_DATABASE_INTEGER)
+  @Max(MAX_SESSION_SECONDS)
   durationSeconds!: number;
 
   /** Send `finished` to end the session. A finished session does not change again. */
