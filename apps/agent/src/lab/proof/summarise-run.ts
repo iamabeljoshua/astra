@@ -111,6 +111,15 @@ function getVendorMessagesAfterStop(agent: { turns: AgentTurn[]; tap: VendorTap 
   });
 }
 
+function getFirstDrawingDelays(turns: readonly AgentTurn[], records: PageRecords): { turnId: string; ms: number }[] {
+  return turns.flatMap((turn, index) => {
+    const started = records.agentMessages.filter((message) => message.type === 'turnStarted')[index];
+    const onset = started && records.probe.find((event) => event.where === 'arriving' && event.kind === 'onset' && event.atMs >= started.atMs - 300);
+    const firstCue = records.fired.find((cue) => cue.turnId === turn.turnId);
+    return onset && firstCue ? [{ turnId: turn.turnId, ms: Math.round(firstCue.firedAtMs - onset.atMs) }] : [];
+  });
+}
+
 function compareReplay(samples: ReplaySample[]) {
   const differingSamples = samples.filter(({ live, replay }) => JSON.stringify(live) !== JSON.stringify(replay)).map((sample) => sample.liveMs);
   const differentTwice = samples.filter(({ replay, replayAgain }) => JSON.stringify(replay) !== JSON.stringify(replayAgain)).length;
@@ -223,6 +232,7 @@ export function summariseRun(folder: string, settings: { name: string; network: 
     replay,
     frameMs: getPercentiles(frameGaps),
     firstSoundFromTextMs: getPercentiles(firstSoundFromStart),
+    firstDrawingAfterFirstSoundMs: getFirstDrawingDelays(agent.turns, records),
     firstFrameFromTextMs: getPercentiles(agent.turns.flatMap((turn) => (turn.firstFrameAtMs ? [turn.firstFrameAtMs - turn.startedAtMs] : []))),
     gapsClosed: gaps.length,
     wordMismatches: agent.turns.flatMap((turn) => turn.mismatches),

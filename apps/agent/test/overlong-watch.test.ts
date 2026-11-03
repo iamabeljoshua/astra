@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createOverlongWatch } from '../src/live/overlong-watch.ts';
+import { createOverlongWatch } from '../src/lab/proof/overlong-watch.ts';
 
 const watch = createOverlongWatch({ typicalMsPerCharacter: 50 });
 

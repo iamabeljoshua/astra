@@ -1,7 +1,6 @@
 import { readdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { getPercentiles, type Percentiles } from './analyse-run.ts';
-import { summariseRun } from './summarise-run.ts';
 
 interface RunSummary {
   settings: { name: string; network: object | null; throttle: number; phone: boolean };
@@ -32,22 +31,13 @@ interface RunSummary {
 const [runsFolder, outputPath] = process.argv.slice(2);
 if (!runsFolder) throw new Error('Name the folder of runs');
 
-for (const name of readdirSync(runsFolder)) {
-  const path = join(runsFolder, name, 'summary.json');
-  if (!existsSync(path)) continue;
-  const { settings } = JSON.parse(readFileSync(path, 'utf8')) as RunSummary;
-  writeFileSync(path, `${JSON.stringify(summariseRun(join(runsFolder, name), settings), null, 1)}\n`);
-}
-
-const runs = readdirSync(runsFolder)
-  .map((name) => join(runsFolder, name, 'summary.json'))
-  .filter((path) => existsSync(path))
-  .map((path) => ({ path, summary: JSON.parse(readFileSync(path, 'utf8')) as RunSummary }))
-  .filter(({ path }) => !path.includes('-fake-'));
 
 const groups = new Map<string, RunSummary[]>();
-for (const { summary } of runs) {
-  const key = `${summary.settings.name}|${summary.brief.voice}`;
+for (const folder of readdirSync(runsFolder)) {
+  const path = join(runsFolder, folder, 'summary.json');
+  if (!existsSync(path)) continue;
+  const summary = JSON.parse(readFileSync(path, 'utf8')) as RunSummary;
+  const key = `${folder.replace(/-\d+$/, '')}|${summary.brief.voice}`;
   groups.set(key, [...(groups.get(key) ?? []), summary]);
 }
 

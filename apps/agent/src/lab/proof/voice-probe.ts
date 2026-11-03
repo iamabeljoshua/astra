@@ -2,12 +2,12 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { initializeLogger, tts } from '@livekit/agents';
-import { createOverlongWatch } from '../../live/overlong-watch.ts';
 import { makeElevenLabsVoice } from '../../providers/elevenlabs.ts';
 import { makeTutorVoice, TUTOR_VOICE_ID } from '../../providers/choose.ts';
 import { readKey } from '../keys.ts';
 import { OVERLONG_LINE, STOCK_PHRASE } from '../lesson.ts';
 import { getPercentiles } from './analyse-run.ts';
+import { createOverlongWatch } from './overlong-watch.ts';
 import { tapVendorSocket } from './vendor-tap.ts';
 
 const CREDITS_PER_CHARACTER = 0.22;

@@ -286,7 +286,7 @@ The agent is the only writer, and the browser reports what played. There are fiv
 
 A beat is written once, when it ends. Silence has no event. Rows are unique on session and sequence number, so a repeated write changes nothing. If the browser never reports, the agent writes its own estimate and marks it `agent-estimate`. The browser's words played count only while there is sound, so a stop during a stall reports the words heard, 4 of 4 here, with 0 cues fired after it. The count comes from word times and the clock, so it can be off by a word when word times are noisy. The SDK's own report is not used, because it said 5 to 7 words when a listener heard 12 or 13, though that was with our fake voice.
 
-Replay, seeking, rewinding, and a page reload all call one function, `rebuildBoard(log, atMs)`, which M3.2 writes. It flattens events by time and not by sequence number, because a beat is written when it ends. A cue replays when it really fired, so a late `play` lands right. Browser messages carry `startedMsAgo`, so a drag logged late keeps its order. `frozen` holds a simulation's frame, a reveal's position, or how far a drawing had drawn. So a live board and a replayed board should agree whenever the browser reported, and `replay-check.ts` shows that for 21 cases on a modeled board, with 2 traps that must disagree. It is a model and not M3.2's player, so M3.2 must not copy it, and the real test is M3.2's. An `agent-estimate` row can disagree, and it says so on its face.
+Replay, seeking, rewinding, and a page reload all call one function, `rebuildBoard(log, atMs)`, which M3.2 writes. It flattens events by time and not by sequence number, because a beat is written when it ends. A cue replays when it really fired, so a late `play` lands right. Browser messages carry `startedMsAgo`, so a drag logged late keeps its order, and `browserMs`, which M3.2 added, so the agent keeps one offset between the two clocks and a slow message cannot move a beat against the ones around it. `frozen` holds a simulation's frame, a reveal's position, or how far a drawing had drawn. So a live board and a replayed board should agree whenever the browser reported, and `replay-check.ts` shows that for 21 cases on a modeled board, with 2 traps that must disagree. It is a model and not M3.2's player, so M3.2 must not copy it, and the real test is M3.2's. An `agent-estimate` row can disagree, and it says so on its face.
 
 ## The scene language
 
@@ -389,7 +389,7 @@ The PRD's `say` plus `cues` lost because every author must count words. A browse
 
 ## What M3.2 and M3.6 must measure again
 
-No proof here has run ElevenLabs or Muse. The plugin facts below come from the 1.9.5 npm packages, read and not run. Figures from the speed test came from Abel's Mac on a West African network, on synthetic speech, on the vendors' own sockets and not through these plugins, so these PRs measure again from the agent's region.
+M3.2 has run its list on real ElevenLabs, with Abel's voice Casey, and `docs/tests/scene-player.md` holds what it measured. That record replaces the first-look figures in this document where they differ, and it names what stays open. No proof here has run Muse. The plugin facts below come from the 1.9.5 npm packages, read and not run. Figures from the speed test came from Abel's Mac on a West African network, on synthetic speech, on the vendors' own sockets and not through these plugins, so these PRs measure again from the agent's region.
 
 **M3.2, ElevenLabs.**
 
@@ -400,7 +400,7 @@ No proof here has run ElevenLabs or Muse. The plugin facts below come from the 1
 - The flush figures of 98 and 801 ms came from a fake of Cartesia's wire. The plugin sends `flush: true` only in auto mode, which `chunkLengthSchedule` turns off. In the speed test, `auto_mode=true` started unflushed text as fast as flushed text. The flush rule waits on `voice-choice`.
 - The 1 s context close and the new-context fallback are Cartesia facts.
 - `preferredAlignment` defaults to `normalized`, so "2.5" may become several words and shift every later `atWord`.
-- The plugin subtracts leading silence from word times, and the tracker counts it.
+- The plugin subtracts leading silence from word times, and the tracker counts it. M3.2 found the plugin subtracts the second character's start, which moved every word early, so it patches that line and zeroes both at the first audible sample.
 - Also word time noise, stall reads on real chunk sizes, the F step from the agent's region, stock phrases' stored word times, and new fakes.
 
 **M3.6, Muse.**
@@ -429,7 +429,7 @@ No proof here has run ElevenLabs or Muse. The plugin facts below come from the 1
 
 Every result below rests on fakes unless it names a vendor. The fake voice sends word times before audio, the fake transcriber returns exact words, and neither has a connection cost.
 
-**M3.2, with real ElevenLabs.** Whether its words match ours for numbers and symbols. Whether a mid-sentence flush sounds natural and speaks at once, and whether contexts close. The clock with word times that arrive with their audio. How noisy they are, since the first look's method is not validated. The clock on real speech over real WebRTC. Whether `audioGap` reads true on a real voice, and whether a real voice ever runs slower than real time. The mute on Safari, iOS, and Android. Whether the worklet works on Safari, Firefox, and Android.
+**M3.2, with real ElevenLabs.** `docs/tests/scene-player.md` answers most of this list. The rest of this paragraph is the list as first written. Whether its words match ours for numbers and symbols. Whether a mid-sentence flush sounds natural and speaks at once, and whether contexts close. The clock with word times that arrive with their audio. How noisy they are, since the first look's method is not validated. The clock on real speech over real WebRTC. Whether `audioGap` reads true on a real voice, and whether a real voice ever runs slower than real time. The mute on Safari, iOS, and Android. Whether the worklet works on Safari, Firefox, and Android.
 
 **M3.6, with real Muse, LiveKit Cloud, a real network, and real devices.** When transcripts really arrive from the agent's region, which sets the stop time, the grace, and S. Starting the model early helped with fakes, 508 against 820 ms, but the fake's final fired about 1250 ms before the student finished, so that is not evidence. Whether real transcripts catch "uh-huh" and "hmm". Whether `audioGap` holds through the real `ttsNode` with a real voice. Echo through a laptop speaker with the wait off. Bluetooth delay. A real dropped network. The detector's cap on real speech. LiveKit Cloud's adaptive interruption and full detector, which every run here left off with `mode: 'vad'` and `v1-mini`, so M3.6 chooses whether to test them. Capacity, because the worker refuses sessions above 70% CPU. A resume when the model is still writing. A lost first sound, which moves a whole turn's cues late.
 

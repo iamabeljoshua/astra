@@ -79,7 +79,7 @@ export function BoardView({ board, atMs, onElementDrawn }: BoardViewProps) {
   const lines = [...board.elements.values()].filter((element) => LINE_KINDS.has(element.content.kind));
   return (
     <div data-testid="board" className="relative h-full min-h-[320px] overflow-hidden rounded border border-line bg-panel">
-      <div className="absolute top-4 left-4 flex flex-col gap-1 text-lead text-ink">
+      <div className="absolute top-4 right-4 flex flex-col items-end gap-1 text-lead text-ink">
         {lines.map((element) => (
           <p key={element.id} data-element={element.id} style={{ opacity: getMotionValue(element.entrance, atMs) }} className={element.content.kind === 'writeMath' ? 'font-voice' : undefined}>
             {getLineText(element)}

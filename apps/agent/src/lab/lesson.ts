@@ -41,6 +41,7 @@ export const LESSON: readonly (readonly Beat[])[] = [
   ],
   [
     makeBeat('sideways', [
+      { kind: 'text', id: 'answer', text: 'Nothing pushes it' },
       'Nothing does. ',
       { kind: 'writeMath', id: 'sideways-speed', tex: 'v_x = 4.2' },
       'Its sideways speed stays at 4.2 metres per second, ',
