@@ -11,7 +11,7 @@ Abel made these decisions after approving this PRD, and the latest is dated 4 No
 | What it overrides | What holds now | Decided |
 | --- | --- | --- |
 | Q4, Q5, S3, S5, sections 4, 5, and 6.1, on parents | No parent consent, parent alerts, or parent summaries. S1's under-13 rule stays. Section 11's table still describes the law, and a lawyer reviews this before real students. | 4 November 2026 |
-| H1, section 6.1 | Onboarding is name, date of birth, class level, interests as a multi-select, goals, then Home. It has no voice choice and no first exchange with the tutor. | 4 November 2026 |
+| H1, section 6.1 | Onboarding is name, date of birth, class level, interests as a multi-select, a goal, then Home. It has no voice choice and no first exchange with the tutor. | 4 November 2026 |
 | Q6 | Sign-in uses a 6-digit email code, not a link. Google stays wired and hidden until credentials exist. | 4 November 2026 |
 | Section 2's look row, B11 | Sign-in and onboarding use the made-of-dots look on a still dot background, so the tutor's dot is no longer the only dot. Pictures stay normal images. | 4 November 2026 |
 | P4, Q19 | Home's cards use session history before the learner record exists, in M2.12. Card pictures do not change. | 4 November 2026 |

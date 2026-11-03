@@ -38,7 +38,7 @@ As of 4 November 2026, 15 of 38 PRs have merged. This section is the whole road,
 - **The shared board.** Student and tutor both work on the board, in M3.12, with ink and uploads narrowed to M3.11.
 - **Lessons and 3D.** A student follows a plan of concepts with a queue preparing the next scenes, in M3.13. 3D comes from a checked library first, with live generation as the fallback, in M3.14. "Videos" means our generated scenes, with no real footage and no AI-generated video.
 - **Parents.** No parent consent, alerts, or summaries. The under-13 rule stays, and a lawyer reviews this before real students.
-- **Onboarding.** Name, date of birth, class level, interests, goals, then Home, in M2.4.
+- **Onboarding.** Name, date of birth, class level, interests, a goal, then Home, in M2.4.
 - **Sign-in and the look.** An email code in the made-of-dots look, in M2.10, and onboarding in that look, in M2.11. Pictures stay normal images.
 - **Recommendations.** Session history in M2.12, with the card pictures unchanged, and the learner record in M4.3.
 
@@ -999,14 +999,14 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 ## Build onboarding (M2.4)
 
-**Status.** Open in PR 62. Abel simplified it on 4 November 2026, and this section matches the PR's head. The PR's title and body still describe the older flow, so fix them at merge.
+**Status.** Open in PR 62. Abel simplified it on 4 November 2026, and this section matches the PR's head. Issue #8's body still lists the older flow, because an issue with an open PR stays as it is.
 
 **Depends on.** M2.1, M2.3, M2.6.
 
 **Files.**
 
 - [ ] Create `apps/web/src/onboarding/`.
-- [ ] Edit `apps/web/src/auth/`, `apps/web/src/shell/`, `apps/web/src/strings.ts`, and `apps/api/src/students/`, with a generated migration that removes consent and voice.
+- [ ] Edit `apps/web/src/auth/`, `apps/web/src/shell/`, `apps/web/src/strings.ts`, `apps/api/src/picks/`, and `apps/api/src/students/`, with a generated migration that removes consent and voice.
 - [ ] Create `.claude/skills/verify/features/onboarding.md` and the `onboarding` journeys.
 
 **Build.**
@@ -1019,7 +1019,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 **You see.**
 
 - [ ] The sign-in page says "A learning app, made for you" and states that the tutor is an AI.
-- [ ] Each screen asks one thing, in this order. Name, date of birth, class level, interests as a multi-select, goals, then Home.
+- [ ] Each screen asks one thing, in this order. Name, date of birth, class level, interests as a multi-select, a goal picked with one tap, then Home.
 - [ ] The sheet shows the student's name as they type and fills in with each answer.
 - [ ] A student under 13 in every time zone stops at the closed page and cannot retry.
 - [ ] A student under 18 takes the same path as anyone else, and nothing asks for a parent, a voice, or a first question.
@@ -1191,7 +1191,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 - [ ] The student's name forms in dots as they type, and the next line says "Welcome, <name>."
 - [ ] The dot shape changes when the student picks an interest.
 - [ ] Interests are chips from `apps/web/src/ui/`, each with a small SVG picture matched to the look of Home's card drawings, in both themes. This adds no new ink style.
-- [ ] The steps stay name, date of birth, class level, interests, and goals, then a Start button opens Home. A student under 13 still stops at the closed page.
+- [ ] The steps stay name, date of birth, class level, interests, and a goal, then a Start button opens Home. A student under 13 still stops at the closed page.
 - [ ] Reduced motion shows everything at once, a browser with no canvas still gets a working page, and the page is still when nothing has a cause to move.
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.

@@ -19,7 +19,7 @@ Status: approved by Abel on 3 November 2026, who asked for a modular design so p
 - The shared board is M3.12, between M3.7 and M3.10, and M3.11 narrows to ink and uploads.
 - 3D comes from a checked library first, with live generation as the fallback. A queue prepares the current and next concept's scenes. These are M3.13 and M3.14, and the scene test is still running, so their details may change.
 - LiveKit runs on a free Cloud project until real students.
-- Outside this design, and listed so nobody reads them as open. No parent consent, parent alerts, or parent summaries, with the under-13 rule kept and a lawyer's review before real students. Onboarding is name, date of birth, class level, interests, goals, then Home, so it has no voice choice and no first exchange. Sign-in uses an email code. Sign-in and onboarding use the made-of-dots look.
+- Outside this design, and listed so nobody reads them as open. No parent consent, parent alerts, or parent summaries, with the under-13 rule kept and a lawyer's review before real students. Onboarding is name, date of birth, class level, interests, a goal, then Home, so it has no voice choice and no first exchange. Sign-in uses an email code. Sign-in and onboarding use the made-of-dots look.
 
 **The reference to beat.** You tried a real Aristotle session: "it felt human in the conversation, like i could interrupt and talk to it, ask for clarification and it just knows what to say next like a human tutor would, and it takes it at my pace". That is one person's impression of one session, and no machine test of Aristotle exists. It says nothing on reply speed or the board, so this document claims nothing about those from it.
 
