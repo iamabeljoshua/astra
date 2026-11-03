@@ -10,8 +10,6 @@ import { createQueryClient } from './queryClient';
 import { DEFAULT_REQUEST_TIMEOUT_MS } from './requestTimeout';
 
 const TIME_FOR_EVERY_RETRY_MS = 30_000;
-const WAITS_BETWEEN_THREE_TRIES_MS = 3000;
-const SMALL_MARGIN_MS = 100;
 const TITLE_REJECTED_LABEL = 'title rejected';
 const TITLE_REJECTED_BODY = {
   message: ['title must be a string'],
@@ -135,15 +133,28 @@ describe('the shared defaults', () => {
     expect(fetchStub).toHaveBeenCalledTimes(3);
   });
 
-  it('gives a read that never answers an error after three timeouts', async () => {
+  it('tries a read that never answers once, and gives it a timeout error', async () => {
     const fetchStub = vi.fn(() => new Promise<Response>(() => undefined));
     vi.stubGlobal('fetch', fetchStub);
 
     const query = fetchHealth().catch((thrown: ApiError) => thrown.kind);
-    await act(() => vi.advanceTimersByTimeAsync(3 * DEFAULT_REQUEST_TIMEOUT_MS + WAITS_BETWEEN_THREE_TRIES_MS + SMALL_MARGIN_MS));
+    await act(() => vi.advanceTimersByTimeAsync(DEFAULT_REQUEST_TIMEOUT_MS + TIME_FOR_EVERY_RETRY_MS));
+
+    expect(fetchStub).toHaveBeenCalledTimes(1);
+    expect(await query).toBe('timeout');
+  });
+
+  it('tries a read that its own signal aborted three times in all', async () => {
+    stubFetchAnswer(200, { status: 'ok' });
+    const readWithAbortedSignal = vi.fn(() => api.get('/health', { signal: AbortSignal.abort() }));
+
+    const query = createQueryClient()
+      .fetchQuery({ queryKey: ['health'], queryFn: readWithAbortedSignal })
+      .catch((thrown: ApiError) => thrown.kind);
+    await act(() => vi.advanceTimersByTimeAsync(TIME_FOR_EVERY_RETRY_MS));
 
     expect(await query).toBe('aborted');
-    expect(fetchStub).toHaveBeenCalledTimes(3);
+    expect(readWithAbortedSignal).toHaveBeenCalledTimes(3);
   });
 
   it.each([

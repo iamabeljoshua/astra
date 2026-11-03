@@ -1,4 +1,4 @@
-export type ApiErrorKind = 'validation' | 'rejected' | 'server' | 'network' | 'aborted';
+export type ApiErrorKind = 'validation' | 'rejected' | 'server' | 'network' | 'aborted' | 'timeout';
 
 type FieldMessages = Readonly<Record<string, readonly string[]>>;
 
@@ -11,6 +11,8 @@ interface ApiErrorDetails {
 
 const VALIDATION_STATUS = 400;
 const FIRST_SERVER_STATUS = 500;
+
+export const REQUEST_TIME_LIMIT_REACHED = new DOMException('The request reached its time limit.', 'TimeoutError');
 
 export class ApiError extends Error {
   readonly kind: ApiErrorKind;
@@ -38,6 +40,11 @@ export function getApiErrorFromResponse(status: number, responseBody: unknown) {
   return new ApiError({ kind: status >= FIRST_SERVER_STATUS ? 'server' : 'rejected', status });
 }
 
+function getThrownKind(signal: AbortSignal): ApiErrorKind {
+  if (!signal.aborted) return 'network';
+  return signal.reason === REQUEST_TIME_LIMIT_REACHED ? 'timeout' : 'aborted';
+}
+
 export function getApiErrorFromThrown(thrown: unknown, signal: AbortSignal) {
-  return new ApiError({ kind: signal.aborted ? 'aborted' : 'network', cause: thrown });
+  return new ApiError({ kind: getThrownKind(signal), cause: thrown });
 }
