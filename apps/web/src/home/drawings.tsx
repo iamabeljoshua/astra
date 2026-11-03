@@ -9,7 +9,7 @@ interface Point {
   y: number;
 }
 
-const STROKE = {
+export const STROKE = {
   fill: 'none',
   stroke: 'currentColor',
   strokeLinecap: 'round',

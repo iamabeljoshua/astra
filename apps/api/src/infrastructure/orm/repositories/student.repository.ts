@@ -82,9 +82,8 @@ export class StudentRepository {
     return student?.name ?? null;
   }
 
-  async findFirstQuestion(studentId: string): Promise<string | null> {
-    const profile = await this.profiles.findOne({ where: { studentId }, select: { firstQuestion: true } });
-    return profile?.firstQuestion ?? null;
+  findProfile(studentId: string): Promise<StudentProfileEntity | null> {
+    return this.profiles.findOneBy({ studentId });
   }
 
   saveProfile(studentId: string, { name, ...profileFields }: ProfileFields): Promise<StudentAccount> {

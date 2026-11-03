@@ -11,6 +11,7 @@ import { HomeScreen } from './HomeScreen';
 const { continueSession: UNFINISHED_SESSION, picks: PICKS } = EXAMPLE_HOME_SCREEN;
 const SESSION_TITLE = UNFINISHED_SESSION!.title;
 const QUESTION = 'Why is the sky dark at night?';
+const STILL_LOADING_LINE_AT_MS = 4_000;
 const FAILURE_LINE_AT_MS = 30_000;
 const SLOW_API_MS = 5_000;
 const SMALL_MARGIN_MS = 100;
@@ -117,7 +118,7 @@ describe('HomeScreen', () => {
       renderWithQueryClient(<HomeScreen />);
 
       await screen.findByText(PICKS[0]!.title);
-      screen.getByRole('heading', { level: 1, name: HOME_LABELS.greetingWithoutName });
+      screen.getByRole('heading', { level: 1, name: 'Welcome.' });
     });
 
     it('offers the unfinished session with a drawing from its board', async () => {
@@ -268,6 +269,26 @@ describe('HomeScreen', () => {
       await waitMs(2 * SMALL_MARGIN_MS);
       expect(screen.getByRole('alert').textContent).toBe(HOME_LABELS.loadFailure.timeout);
       expect(fetchThatNeverAnswers).toHaveBeenCalledTimes(1);
+    });
+
+    it('adds one calm line after a few seconds, and still stops at 30 seconds', async () => {
+      renderHomeOnHungApi();
+
+      await waitMs(STILL_LOADING_LINE_AT_MS - SMALL_MARGIN_MS);
+      screen.getByText(HOME_LABELS.loading);
+      expect(screen.queryByText(HOME_LABELS.stillLoading)).toBeNull();
+
+      await waitMs(2 * SMALL_MARGIN_MS);
+      expect(screen.getByText(HOME_LABELS.stillLoading).getAttribute('role')).toBe('status');
+      expect(screen.queryByText(HOME_LABELS.loading)).toBeNull();
+
+      await waitMs(FAILURE_LINE_AT_MS - STILL_LOADING_LINE_AT_MS - 2 * SMALL_MARGIN_MS);
+      screen.getByText(HOME_LABELS.stillLoading);
+      expect(screen.queryByRole('alert')).toBeNull();
+
+      await waitMs(2 * SMALL_MARGIN_MS);
+      expect(screen.getByRole('alert').textContent).toBe(HOME_LABELS.loadFailure.timeout);
+      expect(screen.queryByText(HOME_LABELS.stillLoading)).toBeNull();
     });
 
     it('recovers from Try again after the API never answered', async () => {

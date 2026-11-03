@@ -7,7 +7,8 @@ Home is the page a student opens first. It greets the student by name and asks w
 - `home-identity` shows the product name in the page title.
 - `home-greeting` shows `Welcome back, Maya.` for the seeded student, then `What do you want to learn next?`.
 - `home-continue` shows the newest unfinished session, `Free-body diagrams`, with a `Continue session` button. At laptop width it also shows a drawing from its board.
-- `home-picks` lists the picks under `Picked for you`. They stack in one column on a phone.
+- `home-picks` lists six cards under `Picked for you`, chosen from the student's level, interests, and goal, each with a picture and a reason. `maya@astra.test` and `tola@astra.test` see different cards. They stack in one column on a phone.
+- `home-wait` adds `Still loading your home screen.` to the placeholder after 4 seconds. The failure line still comes at 30 seconds.
 - `home-chat` keeps the chat box at the bottom. `Start session` works only with text in the box, and `Photo or PDF` and `Talk` show their state.
 - `home-notice` says `Sessions open soon.` after a student chooses a card or sends a question, because sessions arrive in later PRs.
 

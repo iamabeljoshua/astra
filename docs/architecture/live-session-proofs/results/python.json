@@ -1,0 +1,887 @@
+{
+ "backchannel_min_words": {
+  "attempts": 5,
+  "stopped": 0,
+  "outcomes": [
+   {
+    "agentStopped": false,
+    "stoppedAfterMs": null,
+    "stillAudible": true
+   },
+   {
+    "agentStopped": false,
+    "stoppedAfterMs": null,
+    "stillAudible": true
+   },
+   {
+    "agentStopped": false,
+    "stoppedAfterMs": null,
+    "stillAudible": true
+   },
+   {
+    "agentStopped": false,
+    "stoppedAfterMs": null,
+    "stillAudible": true
+   },
+   {
+    "agentStopped": false,
+    "stoppedAfterMs": null,
+    "stillAudible": true
+   }
+  ],
+  "agentMemoryMb": 201
+ },
+ "backchannel_no_rule": {
+  "attempts": 5,
+  "stopped": 5,
+  "outcomes": [
+   {
+    "agentStopped": true,
+    "stoppedAfterMs": 423,
+    "stillAudible": true
+   },
+   {
+    "agentStopped": true,
+    "stoppedAfterMs": 293,
+    "stillAudible": true
+   },
+   {
+    "agentStopped": true,
+    "stoppedAfterMs": 301,
+    "stillAudible": true
+   },
+   {
+    "agentStopped": true,
+    "stoppedAfterMs": 255,
+    "stillAudible": true
+   },
+   {
+    "agentStopped": true,
+    "stoppedAfterMs": 272,
+    "stillAudible": true
+   }
+  ],
+  "agentMemoryMb": 216
+ },
+ "false_interruption": {
+  "attempts": 5,
+  "outcomes": [
+   {
+    "reportedFalse": true,
+    "resumed": true,
+    "falseAfterMs": 1993,
+    "audioStopped": true,
+    "audioRestarted": true
+   },
+   {
+    "reportedFalse": true,
+    "resumed": true,
+    "falseAfterMs": 2012,
+    "audioStopped": true,
+    "audioRestarted": true
+   },
+   {
+    "reportedFalse": true,
+    "resumed": true,
+    "falseAfterMs": 2011,
+    "audioStopped": true,
+    "audioRestarted": true
+   },
+   {
+    "reportedFalse": true,
+    "resumed": true,
+    "falseAfterMs": 2011,
+    "audioStopped": true,
+    "audioRestarted": true
+   },
+   {
+    "reportedFalse": true,
+    "resumed": true,
+    "falseAfterMs": 2001,
+    "audioStopped": true,
+    "audioRestarted": true
+   }
+  ],
+  "agentMemoryMb": 201
+ },
+ "floor_detector_min0": {
+  "speechEndToThinkingMs": {
+   "count": 10,
+   "p50": 469,
+   "p95": 3182,
+   "min": 436,
+   "max": 3182
+  },
+  "speechEndToFirstAudioMs": {
+   "count": 10,
+   "p50": 614,
+   "p95": 3335,
+   "min": 573,
+   "max": 3335
+  },
+  "builtInTranscriptLagMs": {
+   "count": 170,
+   "p50": 88,
+   "p95": 215,
+   "min": -115,
+   "max": 233
+  },
+  "agentMemoryMb": 280
+ },
+ "floor_detector_min100": {
+  "speechEndToThinkingMs": {
+   "count": 10,
+   "p50": 471,
+   "p95": 507,
+   "min": 438,
+   "max": 507
+  },
+  "speechEndToFirstAudioMs": {
+   "count": 10,
+   "p50": 633,
+   "p95": 663,
+   "min": 603,
+   "max": 663
+  },
+  "builtInTranscriptLagMs": {
+   "count": 170,
+   "p50": 80,
+   "p95": 213,
+   "min": -111,
+   "max": 357
+  },
+  "agentMemoryMb": 248
+ },
+ "interrupt_default": {
+  "speechStartToAgentStopMs": {
+   "count": 10,
+   "p50": 639,
+   "p95": 662,
+   "min": 599,
+   "max": 662
+  },
+  "speechStartToLastAudioMs": {
+   "count": 10,
+   "p50": 721,
+   "p95": 741,
+   "min": 691,
+   "max": 741
+  },
+  "words": [
+   {
+    "burstsHeardInTurn": 11,
+    "reportedText": "So its sideways speed never changes.Watch this arrow",
+    "reportedWordCount": 8,
+    "reportedInterrupted": true,
+    "burstsBefore": 8,
+    "heardBursts": 11
+   },
+   {
+    "burstsHeardInTurn": 13,
+    "reportedText": "So its sideways speed never changes.Watch",
+    "reportedWordCount": 6,
+    "reportedInterrupted": true,
+    "burstsBefore": 26,
+    "heardBursts": 29
+   },
+   {
+    "burstsHeardInTurn": 13,
+    "reportedText": "So its sideways speed never changes.Watch",
+    "reportedWordCount": 6,
+    "reportedInterrupted": true,
+    "burstsBefore": 44,
+    "heardBursts": 47
+   },
+   {
+    "burstsHeardInTurn": 13,
+    "reportedText": "So its sideways speed never changes.Watch",
+    "reportedWordCount": 6,
+    "reportedInterrupted": true,
+    "burstsBefore": 62,
+    "heardBursts": 65
+   },
+   {
+    "burstsHeardInTurn": 13,
+    "reportedText": "So its sideways speed never changes.Watch",
+    "reportedWordCount": 6,
+    "reportedInterrupted": true,
+    "burstsBefore": 80,
+    "heardBursts": 83
+   },
+   {
+    "burstsHeardInTurn": 13,
+    "reportedText": "So its sideways speed never changes.Watch",
+    "reportedWordCount": 6,
+    "reportedInterrupted": true,
+    "burstsBefore": 98,
+    "heardBursts": 101
+   },
+   {
+    "burstsHeardInTurn": 13,
+    "reportedText": "So its sideways speed never changes.Watch",
+    "reportedWordCount": 6,
+    "reportedInterrupted": true,
+    "burstsBefore": 116,
+    "heardBursts": 119
+   },
+   {
+    "burstsHeardInTurn": 13,
+    "reportedText": "So its sideways speed never changes.Watch",
+    "reportedWordCount": 6,
+    "reportedInterrupted": true,
+    "burstsBefore": 134,
+    "heardBursts": 137
+   },
+   {
+    "burstsHeardInTurn": 13,
+    "reportedText": "So its sideways speed never changes.Watch",
+    "reportedWordCount": 6,
+    "reportedInterrupted": true,
+    "burstsBefore": 152,
+    "heardBursts": 155
+   },
+   {
+    "burstsHeardInTurn": 13,
+    "reportedText": "So its sideways speed never changes.Watch",
+    "reportedWordCount": 6,
+    "reportedInterrupted": true,
+    "burstsBefore": 170,
+    "heardBursts": 173
+   }
+  ],
+  "agentMemoryMb": 215
+ },
+ "interrupt_fast": {
+  "speechStartToAgentStopMs": {
+   "count": 10,
+   "p50": 287,
+   "p95": 457,
+   "min": 255,
+   "max": 457
+  },
+  "speechStartToLastAudioMs": {
+   "count": 10,
+   "p50": 386,
+   "p95": 536,
+   "min": 344,
+   "max": 536
+  },
+  "words": [
+   {
+    "burstsHeardInTurn": 10,
+    "reportedText": "So its sideways speed never changes.Watch this arrow",
+    "reportedWordCount": 8,
+    "reportedInterrupted": true,
+    "burstsBefore": 8,
+    "heardBursts": 10
+   },
+   {
+    "burstsHeardInTurn": 10,
+    "reportedText": "So its sideways speed never",
+    "reportedWordCount": 5,
+    "reportedInterrupted": true,
+    "burstsBefore": 24,
+    "heardBursts": 25
+   },
+   {
+    "burstsHeardInTurn": 10,
+    "reportedText": "So its sideways speed never",
+    "reportedWordCount": 5,
+    "reportedInterrupted": true,
+    "burstsBefore": 39,
+    "heardBursts": 40
+   },
+   {
+    "burstsHeardInTurn": 10,
+    "reportedText": "So its sideways speed never",
+    "reportedWordCount": 5,
+    "reportedInterrupted": true,
+    "burstsBefore": 54,
+    "heardBursts": 55
+   },
+   {
+    "burstsHeardInTurn": 10,
+    "reportedText": "So its sideways speed never",
+    "reportedWordCount": 5,
+    "reportedInterrupted": true,
+    "burstsBefore": 69,
+    "heardBursts": 70
+   },
+   {
+    "burstsHeardInTurn": 10,
+    "reportedText": "So its sideways speed never",
+    "reportedWordCount": 5,
+    "reportedInterrupted": true,
+    "burstsBefore": 84,
+    "heardBursts": 85
+   },
+   {
+    "burstsHeardInTurn": 10,
+    "reportedText": "So its sideways speed never",
+    "reportedWordCount": 5,
+    "reportedInterrupted": true,
+    "burstsBefore": 99,
+    "heardBursts": 100
+   },
+   {
+    "burstsHeardInTurn": 10,
+    "reportedText": "So its sideways speed never",
+    "reportedWordCount": 5,
+    "reportedInterrupted": true,
+    "burstsBefore": 114,
+    "heardBursts": 115
+   },
+   {
+    "burstsHeardInTurn": 10,
+    "reportedText": "So its sideways speed never",
+    "reportedWordCount": 5,
+    "reportedInterrupted": true,
+    "burstsBefore": 129,
+    "heardBursts": 130
+   },
+   {
+    "burstsHeardInTurn": 10,
+    "reportedText": "So its sideways speed never",
+    "reportedWordCount": 5,
+    "reportedInterrupted": true,
+    "burstsBefore": 144,
+    "heardBursts": 145
+   }
+  ],
+  "agentMemoryMb": 184
+ },
+ "pause_detector": {
+  "attempts": 5,
+  "jumpedIn": 0,
+  "outcomes": [
+   {
+    "agentJumpedInDuringPause": false,
+    "thinkingAfterFirstPartMs": 3079
+   },
+   {
+    "agentJumpedInDuringPause": false,
+    "thinkingAfterFirstPartMs": 3063
+   },
+   {
+    "agentJumpedInDuringPause": false,
+    "thinkingAfterFirstPartMs": 3027
+   },
+   {
+    "agentJumpedInDuringPause": false,
+    "thinkingAfterFirstPartMs": 3022
+   },
+   {
+    "agentJumpedInDuringPause": false,
+    "thinkingAfterFirstPartMs": 3057
+   }
+  ],
+  "agentMemoryMb": 230
+ },
+ "pause_vad": {
+  "attempts": 5,
+  "jumpedIn": 5,
+  "outcomes": [
+   {
+    "agentJumpedInDuringPause": true,
+    "thinkingAfterFirstPartMs": 486
+   },
+   {
+    "agentJumpedInDuringPause": true,
+    "thinkingAfterFirstPartMs": 462
+   },
+   {
+    "agentJumpedInDuringPause": true,
+    "thinkingAfterFirstPartMs": 486
+   },
+   {
+    "agentJumpedInDuringPause": true,
+    "thinkingAfterFirstPartMs": 439
+   },
+   {
+    "agentJumpedInDuringPause": true,
+    "thinkingAfterFirstPartMs": 458
+   }
+  ],
+  "agentMemoryMb": 218
+ },
+ "policy_backchannel": {
+  "attempts": 5,
+  "stopped": 0,
+  "outcomes": [
+   {
+    "agentStopped": false,
+    "stoppedAfterMs": null,
+    "stillAudible": true
+   },
+   {
+    "agentStopped": false,
+    "stoppedAfterMs": null,
+    "stillAudible": true
+   },
+   {
+    "agentStopped": false,
+    "stoppedAfterMs": null,
+    "stillAudible": true
+   },
+   {
+    "agentStopped": false,
+    "stoppedAfterMs": null,
+    "stillAudible": true
+   },
+   {
+    "agentStopped": false,
+    "stoppedAfterMs": null,
+    "stillAudible": true
+   }
+  ],
+  "agentMemoryMb": 234
+ },
+ "policy_interrupt": {
+  "speechStartToAgentStopMs": {
+   "count": 10,
+   "p50": 665,
+   "p95": 1167,
+   "min": 468,
+   "max": 1167
+  },
+  "speechStartToLastAudioMs": {
+   "count": 10,
+   "p50": 729,
+   "p95": 1198,
+   "min": 507,
+   "max": 1198
+  },
+  "words": [
+   {
+    "burstsHeardInTurn": 13,
+    "reportedText": "So its sideways speed never changes.Watch this arrow as the ball",
+    "reportedWordCount": 11,
+    "reportedInterrupted": true,
+    "burstsBefore": 8,
+    "heardBursts": 13
+   },
+   {
+    "burstsHeardInTurn": 12,
+    "reportedText": "So its sideways speed never",
+    "reportedWordCount": 5,
+    "reportedInterrupted": true,
+    "burstsBefore": 27,
+    "heardBursts": 30
+   },
+   {
+    "burstsHeardInTurn": 11,
+    "reportedText": "So its sideways speed never changes.",
+    "reportedWordCount": 6,
+    "reportedInterrupted": true,
+    "burstsBefore": 44,
+    "heardBursts": 46
+   },
+   {
+    "burstsHeardInTurn": 11,
+    "reportedText": "So its sideways speed",
+    "reportedWordCount": 4,
+    "reportedInterrupted": true,
+    "burstsBefore": 60,
+    "heardBursts": 62
+   },
+   {
+    "burstsHeardInTurn": 12,
+    "reportedText": "So its sideways speed",
+    "reportedWordCount": 4,
+    "reportedInterrupted": true,
+    "burstsBefore": 76,
+    "heardBursts": 79
+   },
+   {
+    "burstsHeardInTurn": 12,
+    "reportedText": "So its sideways speed",
+    "reportedWordCount": 4,
+    "reportedInterrupted": true,
+    "burstsBefore": 93,
+    "heardBursts": 96
+   },
+   {
+    "burstsHeardInTurn": 12,
+    "reportedText": "So its sideways speed",
+    "reportedWordCount": 4,
+    "reportedInterrupted": true,
+    "burstsBefore": 110,
+    "heardBursts": 113
+   },
+   {
+    "burstsHeardInTurn": 11,
+    "reportedText": "So its sideways speed never changes.",
+    "reportedWordCount": 6,
+    "reportedInterrupted": true,
+    "burstsBefore": 127,
+    "heardBursts": 129
+   },
+   {
+    "burstsHeardInTurn": 12,
+    "reportedText": "So its sideways speed",
+    "reportedWordCount": 4,
+    "reportedInterrupted": true,
+    "burstsBefore": 143,
+    "heardBursts": 146
+   },
+   {
+    "burstsHeardInTurn": 11,
+    "reportedText": "So its sideways speed",
+    "reportedWordCount": 4,
+    "reportedInterrupted": true,
+    "burstsBefore": 160,
+    "heardBursts": 162
+   }
+  ],
+  "agentMemoryMb": 378
+ },
+ "preempt_off": {
+  "speechEndToThinkingMs": {
+   "count": 10,
+   "p50": 494,
+   "p95": 1166,
+   "min": 443,
+   "max": 1166
+  },
+  "speechEndToFirstAudioMs": {
+   "count": 10,
+   "p50": 958,
+   "p95": 1621,
+   "min": 908,
+   "max": 1621
+  },
+  "builtInTranscriptLagMs": {
+   "count": 170,
+   "p50": 78,
+   "p95": 207,
+   "min": -125,
+   "max": 239
+  },
+  "agentMemoryMb": 405,
+  "machineLoadAtEnd": 4
+ },
+ "preempt_on": {
+  "speechEndToThinkingMs": {
+   "count": 10,
+   "p50": 456,
+   "p95": 1169,
+   "min": 444,
+   "max": 1169
+  },
+  "speechEndToFirstAudioMs": {
+   "count": 10,
+   "p50": 552,
+   "p95": 1233,
+   "min": 505,
+   "max": 1233
+  },
+  "builtInTranscriptLagMs": {
+   "count": 170,
+   "p50": 80,
+   "p95": 210,
+   "min": -115,
+   "max": 234
+  },
+  "agentMemoryMb": 420,
+  "machineLoadAtEnd": 14
+ },
+ "reconnect": {
+  "attempts": 3,
+  "outcomes": [
+   {
+    "sessionClosedWhileAway": false,
+    "agentHeardStudentAfterRejoin": true,
+    "agentSpokeAfterRejoin": true
+   },
+   {
+    "sessionClosedWhileAway": false,
+    "agentHeardStudentAfterRejoin": true,
+    "agentSpokeAfterRejoin": true
+   },
+   {
+    "sessionClosedWhileAway": false,
+    "agentHeardStudentAfterRejoin": true,
+    "agentSpokeAfterRejoin": true
+   }
+  ],
+  "agentMemoryMb": 154,
+  "machineLoadAtEnd": 29
+ },
+ "tiered_backchannel": {
+  "attempts": 10,
+  "stopped": 0,
+  "audioWentSilent": 0,
+  "outcomes": [
+   {
+    "agentStopped": false,
+    "audioWentSilent": false,
+    "yieldAfterMs": 169,
+    "yieldHeldMs": 848
+   },
+   {
+    "agentStopped": false,
+    "audioWentSilent": false,
+    "yieldAfterMs": 186,
+    "yieldHeldMs": 801
+   },
+   {
+    "agentStopped": false,
+    "audioWentSilent": false,
+    "yieldAfterMs": 156,
+    "yieldHeldMs": 851
+   },
+   {
+    "agentStopped": false,
+    "audioWentSilent": false,
+    "yieldAfterMs": 179,
+    "yieldHeldMs": 848
+   },
+   {
+    "agentStopped": false,
+    "audioWentSilent": false,
+    "yieldAfterMs": 199,
+    "yieldHeldMs": 800
+   },
+   {
+    "agentStopped": false,
+    "audioWentSilent": false,
+    "yieldAfterMs": 187,
+    "yieldHeldMs": 847
+   },
+   {
+    "agentStopped": false,
+    "audioWentSilent": false,
+    "yieldAfterMs": 156,
+    "yieldHeldMs": 851
+   },
+   {
+    "agentStopped": false,
+    "audioWentSilent": false,
+    "yieldAfterMs": 171,
+    "yieldHeldMs": 853
+   },
+   {
+    "agentStopped": false,
+    "audioWentSilent": false,
+    "yieldAfterMs": 181,
+    "yieldHeldMs": 795
+   },
+   {
+    "agentStopped": false,
+    "audioWentSilent": false,
+    "yieldAfterMs": 209,
+    "yieldHeldMs": 798
+   }
+  ],
+  "agentMemoryMb": 152,
+  "machineLoadAtEnd": 13
+ },
+ "tiered_interrupt": {
+  "speechStartToYieldMessageMs": {
+   "count": 10,
+   "p50": 200,
+   "p95": 209,
+   "min": 139,
+   "max": 209
+  },
+  "speechStartToStopMessageMs": {
+   "count": 10,
+   "p50": 672,
+   "p95": 1131,
+   "min": 488,
+   "max": 1131
+  },
+  "speechStartToLastAudioMs": {
+   "count": 10,
+   "p50": 723,
+   "p95": 1182,
+   "min": 540,
+   "max": 1182
+  },
+  "stopMessageToLastAudioMs": {
+   "count": 10,
+   "p50": 51,
+   "p95": 60,
+   "min": 43,
+   "max": 60
+  },
+  "reasons": [
+   "real word",
+   "real word",
+   "real word",
+   "real word",
+   "real word",
+   "real word",
+   "real word",
+   "real word",
+   "real word",
+   "real word"
+  ],
+  "agentMemoryMb": 301,
+  "machineLoadAtEnd": 8
+ },
+ "turn_detector": {
+  "speechEndToThinkingMs": {
+   "count": 10,
+   "p50": 464,
+   "p95": 499,
+   "min": 443,
+   "max": 499
+  },
+  "speechEndToFirstAudioMs": {
+   "count": 10,
+   "p50": 621,
+   "p95": 667,
+   "min": 600,
+   "max": 667
+  },
+  "builtInTranscriptLagMs": {
+   "count": 170,
+   "p50": 82,
+   "p95": 210,
+   "min": -113,
+   "max": 236
+  },
+  "agentMemoryMb": 333
+ },
+ "turn_phrases": {
+  "perPhrase": {
+   "question": {
+    "speechEndToFirstAudioMs": {
+     "count": 10,
+     "p50": 537,
+     "p95": 588,
+     "min": 518,
+     "max": 588
+    },
+    "probabilities": []
+   },
+   "gravity": {
+    "speechEndToFirstAudioMs": {
+     "count": 10,
+     "p50": 548,
+     "p95": 579,
+     "min": 509,
+     "max": 579
+    },
+    "probabilities": []
+   },
+   "twice": {
+    "speechEndToFirstAudioMs": {
+     "count": 10,
+     "p50": 558,
+     "p95": 639,
+     "min": 507,
+     "max": 639
+    },
+    "probabilities": []
+   },
+   "interrupt": {
+    "speechEndToFirstAudioMs": {
+     "count": 10,
+     "p50": 537,
+     "p95": 567,
+     "min": 516,
+     "max": 567
+    },
+    "probabilities": []
+   }
+  },
+  "agentMemoryMb": 233,
+  "machineLoadAtEnd": 12
+ },
+ "turn_vad": {
+  "speechEndToThinkingMs": {
+   "count": 10,
+   "p50": 454,
+   "p95": 473,
+   "min": 443,
+   "max": 473
+  },
+  "speechEndToFirstAudioMs": {
+   "count": 10,
+   "p50": 619,
+   "p95": 629,
+   "min": 600,
+   "max": 629
+  },
+  "builtInTranscriptLagMs": {
+   "count": 170,
+   "p50": 77,
+   "p95": 213,
+   "min": -124,
+   "max": 255
+  },
+  "agentMemoryMb": 221
+ },
+ "typed": {
+  "attempts": 5,
+  "replyStarted": 5,
+  "tutorStopped": 5,
+  "secondMessageAnswered": 5,
+  "typedToFirstAudioMs": {
+   "count": 5,
+   "p50": 92,
+   "p95": 121,
+   "min": 87,
+   "max": 121
+  },
+  "typedInterruptToStopMs": {
+   "count": 5,
+   "p50": 6,
+   "p95": 15,
+   "min": 3,
+   "max": 15
+  },
+  "outcomes": [
+   {
+    "typedToFirstAudioMs": 102,
+    "typedInterruptToStopMs": 3,
+    "secondMessageStartedReply": true,
+    "userItems": [
+     "Why does it come down?",
+     "Wait, what about gravity?"
+    ]
+   },
+   {
+    "typedToFirstAudioMs": 87,
+    "typedInterruptToStopMs": 9,
+    "secondMessageStartedReply": true,
+    "userItems": [
+     "Why does it come down?",
+     "Wait, what about gravity?"
+    ]
+   },
+   {
+    "typedToFirstAudioMs": 90,
+    "typedInterruptToStopMs": 6,
+    "secondMessageStartedReply": true,
+    "userItems": [
+     "Why does it come down?",
+     "Wait, what about gravity?"
+    ]
+   },
+   {
+    "typedToFirstAudioMs": 121,
+    "typedInterruptToStopMs": 4,
+    "secondMessageStartedReply": true,
+    "userItems": [
+     "Why does it come down?",
+     "Wait, what about gravity?"
+    ]
+   },
+   {
+    "typedToFirstAudioMs": 92,
+    "typedInterruptToStopMs": 15,
+    "secondMessageStartedReply": true,
+    "userItems": [
+     "Why does it come down?",
+     "Wait, what about gravity?"
+    ]
+   }
+  ],
+  "joinToSessionStartedMs": 543,
+  "agentMemoryMb": 238,
+  "machineLoadAtEnd": 32
+ }
+}

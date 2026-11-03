@@ -70,8 +70,9 @@ export class StudentsService {
     return this.students.findStudentName(studentId);
   }
 
-  getFirstQuestion(studentId: string): Promise<string | null> {
-    return this.students.findFirstQuestion(studentId);
+  async getProfile(studentId: string): Promise<StudentProfileResponseDto | null> {
+    const profile = await this.students.findProfile(studentId);
+    return profile && toProfileResponse(profile);
   }
 
   async saveProfile(studentId: string, body: SaveStudentProfileBodyDto): Promise<AccountResponseDto> {

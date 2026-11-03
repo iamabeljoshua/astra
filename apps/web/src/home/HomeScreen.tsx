@@ -7,9 +7,11 @@ import { ContinueCard } from './ContinueCard';
 import { PickCard } from './PickCard';
 import { StartHereCard } from './StartHereCard';
 import { useHomeScreen } from './useHomeScreen';
+import { useHasWaited } from './useHasWaited';
 import { usePublishDockHeight } from './usePublishDockHeight';
 
 const PICK_PLACEHOLDER_COUNT = 6;
+const STILL_LOADING_AFTER_MS = 4_000;
 const PICK_GRID = 'grid grid-cols-3 gap-2.5 max-lg:grid-cols-2 max-md:grid-cols-1';
 
 type HomeScreenQuery = ReturnType<typeof useHomeScreen>;
@@ -151,12 +153,15 @@ function CardsCrash({ onRetry }: { onRetry: () => void }) {
 }
 
 function HomeCardsPlaceholder() {
+  const isTakingLong = useHasWaited(STILL_LOADING_AFTER_MS);
+
   return (
     <>
-      <p role="status" className="sr-only">
-        {HOME_LABELS.loading}
-      </p>
-      <div className="fades-with-theme h-continue-placeholder border border-line bg-panel" />
+      <div className="fades-with-theme flex h-continue-placeholder items-center border border-line bg-panel px-5">
+        <p role="status" className={isTakingLong ? 'text-ink-2' : 'sr-only'}>
+          {isTakingLong ? HOME_LABELS.stillLoading : HOME_LABELS.loading}
+        </p>
+      </div>
       <PicksSection>
         <div className={PICK_GRID}>
           {Array.from({ length: PICK_PLACEHOLDER_COUNT }, (_unused, index) => (

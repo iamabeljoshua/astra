@@ -1,0 +1,75 @@
+{
+ "speech": {
+  "naturalPauses": {
+   "words": 29,
+   "of": 29,
+   "absP50": 7,
+   "absP95": 16,
+   "absMax": 16
+  },
+  "stallAtAWordStart": {
+   "words": 29,
+   "of": 29,
+   "absP50": 7,
+   "absP95": 16,
+   "absMax": 17
+  },
+  "stallAtAWordStartWithNoGapReport": {
+   "words": 29,
+   "of": 29,
+   "absP50": 493,
+   "absP95": 495,
+   "absMax": 495
+  },
+  "randomPausesAndAStall": {
+   "runs": 20,
+   "worstAbsP95": 16,
+   "worstAbsMax": 18,
+   "medianAbsP95": 16,
+   "allWordsFired": true
+  },
+  "stallInsideAWord": {
+   "runs": 20,
+   "worstAbsP95": 16,
+   "worstAbsMax": 18,
+   "medianAbsP95": 15,
+   "allWordsFired": true
+  },
+  "lostAudio": [
+   {
+    "lostFromMs": 1500,
+    "lostForMs": 800,
+    "words": 29,
+    "of": 29,
+    "absP50": 7,
+    "absP95": 15,
+    "absMax": 16
+   },
+   {
+    "lostFromMs": 3000,
+    "lostForMs": 1500,
+    "words": 29,
+    "of": 29,
+    "absP50": 7,
+    "absP95": 16,
+    "absMax": 16
+   },
+   {
+    "lostFromMs": 1500,
+    "lostForMs": 3000,
+    "words": 29,
+    "of": 29,
+    "absP50": 7,
+    "absP95": 15,
+    "absMax": 16
+   }
+  ],
+  "wordTimesWith30MsNoise": {
+   "runs": 20,
+   "worstAbsP95": 78,
+   "worstAbsMax": 96,
+   "medianAbsP95": 62,
+   "allWordsFired": true
+  }
+ }
+}

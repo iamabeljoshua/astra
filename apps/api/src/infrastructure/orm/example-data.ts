@@ -10,7 +10,8 @@ export const EXAMPLE_STUDENT_ID = '00000000-0000-4000-8000-000000000001';
 
 export const EXAMPLE_AUTH_USER_ID = '00000000-0000-4000-8000-0000000000a1';
 export const NEW_STUDENT_AUTH_USER_ID = '00000000-0000-4000-8000-0000000000a2';
-const LOCAL_AUTH_USER_IDS = [EXAMPLE_AUTH_USER_ID, NEW_STUDENT_AUTH_USER_ID];
+export const SECOND_STUDENT_AUTH_USER_ID = '00000000-0000-4000-8000-0000000000a3';
+const LOCAL_AUTH_USER_IDS = [EXAMPLE_AUTH_USER_ID, NEW_STUDENT_AUTH_USER_ID, SECOND_STUDENT_AUTH_USER_ID];
 
 const EXAMPLE_SESSION_LANGUAGE: SessionLanguage = 'en';
 
@@ -28,6 +29,24 @@ const EXAMPLE_PROFILE: Partial<StudentProfileEntity> = {
   goal: 'exam',
   voice: 'ada',
   firstQuestion: 'How does a curveball bend?',
+};
+
+const SECOND_STUDENT_ID = '00000000-0000-4000-8000-000000000002';
+
+const SECOND_STUDENT: Partial<StudentEntity> = {
+  id: SECOND_STUDENT_ID,
+  authUserId: SECOND_STUDENT_AUTH_USER_ID,
+  name: 'Tola',
+  birthDate: '2008-05-20',
+};
+
+const SECOND_PROFILE: Partial<StudentProfileEntity> = {
+  studentId: SECOND_STUDENT_ID,
+  interests: ['Cooking', 'Music'],
+  level: 'high_school',
+  goal: 'class',
+  voice: 'noor',
+  firstQuestion: 'Why does bread rise?',
 };
 
 function atNoon(date: string): Date {
@@ -90,8 +109,8 @@ export async function replaceExampleData(dataSource: DataSource): Promise<void> 
   await dataSource.transaction(async (manager) => {
     await manager.delete(StudentEntity, { authUserId: In(LOCAL_AUTH_USER_IDS) });
     await manager.delete(ClosedAccountEntity, { authUserId: In(LOCAL_AUTH_USER_IDS) });
-    await manager.save(StudentEntity, EXAMPLE_STUDENT);
-    await manager.save(StudentProfileEntity, EXAMPLE_PROFILE);
+    await manager.save(StudentEntity, [EXAMPLE_STUDENT, SECOND_STUDENT]);
+    await manager.save(StudentProfileEntity, [EXAMPLE_PROFILE, SECOND_PROFILE]);
     await manager.save(
       SessionEntity,
       EXAMPLE_SESSIONS.map((session) => ({

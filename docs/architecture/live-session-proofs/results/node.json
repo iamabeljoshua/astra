@@ -1,0 +1,980 @@
+{
+ "backchannel_min_words": {
+  "attempts": 5,
+  "stopped": 0,
+  "outcomes": [
+   {
+    "agentStopped": false,
+    "stoppedAfterMs": null,
+    "stillAudible": true
+   },
+   {
+    "agentStopped": false,
+    "stoppedAfterMs": null,
+    "stillAudible": true
+   },
+   {
+    "agentStopped": false,
+    "stoppedAfterMs": null,
+    "stillAudible": true
+   },
+   {
+    "agentStopped": false,
+    "stoppedAfterMs": null,
+    "stillAudible": true
+   },
+   {
+    "agentStopped": false,
+    "stoppedAfterMs": null,
+    "stillAudible": true
+   }
+  ]
+ },
+ "backchannel_no_rule": {
+  "attempts": 5,
+  "stopped": 5,
+  "outcomes": [
+   {
+    "agentStopped": true,
+    "stoppedAfterMs": 451,
+    "stillAudible": true
+   },
+   {
+    "agentStopped": true,
+    "stoppedAfterMs": 240,
+    "stillAudible": true
+   },
+   {
+    "agentStopped": true,
+    "stoppedAfterMs": 238,
+    "stillAudible": true
+   },
+   {
+    "agentStopped": true,
+    "stoppedAfterMs": 252,
+    "stillAudible": true
+   },
+   {
+    "agentStopped": true,
+    "stoppedAfterMs": 247,
+    "stillAudible": true
+   }
+  ]
+ },
+ "false_interruption": {
+  "attempts": 5,
+  "outcomes": [
+   {
+    "reportedFalse": true,
+    "resumed": true,
+    "falseAfterMs": 1970,
+    "audioStopped": true,
+    "audioRestarted": true
+   },
+   {
+    "reportedFalse": true,
+    "resumed": true,
+    "falseAfterMs": 1990,
+    "audioStopped": true,
+    "audioRestarted": true
+   },
+   {
+    "reportedFalse": true,
+    "resumed": true,
+    "falseAfterMs": 1986,
+    "audioStopped": true,
+    "audioRestarted": true
+   },
+   {
+    "reportedFalse": true,
+    "resumed": true,
+    "falseAfterMs": 1971,
+    "audioStopped": true,
+    "audioRestarted": true
+   },
+   {
+    "reportedFalse": true,
+    "resumed": true,
+    "falseAfterMs": 1989,
+    "audioStopped": true,
+    "audioRestarted": true
+   }
+  ]
+ },
+ "floor_detector_min0": {
+  "speechEndToThinkingMs": {
+   "count": 10,
+   "p50": 496,
+   "p95": 574,
+   "min": 452,
+   "max": 574
+  },
+  "speechEndToFirstAudioMs": {
+   "count": 10,
+   "p50": 569,
+   "p95": 641,
+   "min": 508,
+   "max": 641
+  },
+  "builtInTranscriptLagMs": {
+   "count": 170,
+   "p50": 101,
+   "p95": 269,
+   "min": -16,
+   "max": 296
+  }
+ },
+ "floor_detector_min100": {
+  "speechEndToThinkingMs": {
+   "count": 10,
+   "p50": 3107,
+   "p95": 3168,
+   "min": 426,
+   "max": 3168
+  },
+  "speechEndToFirstAudioMs": {
+   "count": 10,
+   "p50": 3167,
+   "p95": 3226,
+   "min": 477,
+   "max": 3226
+  },
+  "builtInTranscriptLagMs": {
+   "count": 170,
+   "p50": 101,
+   "p95": 275,
+   "min": -1,
+   "max": 287
+  }
+ },
+ "interrupt_default": {
+  "speechStartToAgentStopMs": {
+   "count": 10,
+   "p50": 607,
+   "p95": 667,
+   "min": 587,
+   "max": 667
+  },
+  "speechStartToLastAudioMs": {
+   "count": 10,
+   "p50": 692,
+   "p95": 809,
+   "min": 679,
+   "max": 809
+  },
+  "words": [
+   {
+    "burstsHeardInTurn": 11,
+    "reportedText": null,
+    "reportedWordCount": null,
+    "reportedInterrupted": null,
+    "burstsBefore": 8,
+    "heardBursts": 11
+   },
+   {
+    "burstsHeardInTurn": 13,
+    "reportedText": "So its sideways speed never changes. Watch",
+    "reportedWordCount": 7,
+    "reportedInterrupted": true,
+    "burstsBefore": 25,
+    "heardBursts": 28
+   },
+   {
+    "burstsHeardInTurn": 13,
+    "reportedText": "So its sideways speed never changes.",
+    "reportedWordCount": 6,
+    "reportedInterrupted": true,
+    "burstsBefore": 42,
+    "heardBursts": 45
+   },
+   {
+    "burstsHeardInTurn": 13,
+    "reportedText": "So its sideways speed never",
+    "reportedWordCount": 5,
+    "reportedInterrupted": true,
+    "burstsBefore": 60,
+    "heardBursts": 63
+   },
+   {
+    "burstsHeardInTurn": 13,
+    "reportedText": "So its sideways speed never changes. Watch",
+    "reportedWordCount": 7,
+    "reportedInterrupted": true,
+    "burstsBefore": 78,
+    "heardBursts": 81
+   },
+   {
+    "burstsHeardInTurn": 12,
+    "reportedText": "So its sideways speed never changes. Watch",
+    "reportedWordCount": 7,
+    "reportedInterrupted": true,
+    "burstsBefore": 95,
+    "heardBursts": 98
+   },
+   {
+    "burstsHeardInTurn": 13,
+    "reportedText": "So its sideways speed never changes. Watch",
+    "reportedWordCount": 7,
+    "reportedInterrupted": true,
+    "burstsBefore": 113,
+    "heardBursts": 116
+   },
+   {
+    "burstsHeardInTurn": 13,
+    "reportedText": "So its sideways speed never changes. Watch",
+    "reportedWordCount": 7,
+    "reportedInterrupted": true,
+    "burstsBefore": 131,
+    "heardBursts": 134
+   },
+   {
+    "burstsHeardInTurn": 13,
+    "reportedText": "So its sideways speed never changes. Watch",
+    "reportedWordCount": 7,
+    "reportedInterrupted": true,
+    "burstsBefore": 149,
+    "heardBursts": 152
+   },
+   {
+    "burstsHeardInTurn": 13,
+    "reportedText": "So its sideways speed never changes. Watch",
+    "reportedWordCount": 7,
+    "reportedInterrupted": true,
+    "burstsBefore": 167,
+    "heardBursts": 170
+   }
+  ],
+  "agentMemoryMb": 478,
+  "machineLoadAtEnd": 6
+ },
+ "interrupt_fast": {
+  "speechStartToAgentStopMs": {
+   "count": 10,
+   "p50": 265,
+   "p95": 476,
+   "min": 245,
+   "max": 476
+  },
+  "speechStartToLastAudioMs": {
+   "count": 10,
+   "p50": 388,
+   "p95": 597,
+   "min": 386,
+   "max": 597
+  },
+  "words": [
+   {
+    "burstsHeardInTurn": 10,
+    "reportedText": null,
+    "reportedWordCount": null,
+    "reportedInterrupted": null,
+    "burstsBefore": 8,
+    "heardBursts": 10
+   },
+   {
+    "burstsHeardInTurn": 10,
+    "reportedText": "So its sideways speed never",
+    "reportedWordCount": 5,
+    "reportedInterrupted": true,
+    "burstsBefore": 24,
+    "heardBursts": 25
+   },
+   {
+    "burstsHeardInTurn": 10,
+    "reportedText": "So its sideways speed never",
+    "reportedWordCount": 5,
+    "reportedInterrupted": true,
+    "burstsBefore": 39,
+    "heardBursts": 40
+   },
+   {
+    "burstsHeardInTurn": 10,
+    "reportedText": "So its sideways speed never",
+    "reportedWordCount": 5,
+    "reportedInterrupted": true,
+    "burstsBefore": 53,
+    "heardBursts": 54
+   },
+   {
+    "burstsHeardInTurn": 10,
+    "reportedText": "So its sideways speed never",
+    "reportedWordCount": 5,
+    "reportedInterrupted": true,
+    "burstsBefore": 68,
+    "heardBursts": 69
+   },
+   {
+    "burstsHeardInTurn": 10,
+    "reportedText": "So its sideways speed never",
+    "reportedWordCount": 5,
+    "reportedInterrupted": true,
+    "burstsBefore": 83,
+    "heardBursts": 84
+   },
+   {
+    "burstsHeardInTurn": 10,
+    "reportedText": "So its sideways speed never",
+    "reportedWordCount": 5,
+    "reportedInterrupted": true,
+    "burstsBefore": 98,
+    "heardBursts": 99
+   },
+   {
+    "burstsHeardInTurn": 10,
+    "reportedText": "So its sideways speed never",
+    "reportedWordCount": 5,
+    "reportedInterrupted": true,
+    "burstsBefore": 113,
+    "heardBursts": 114
+   },
+   {
+    "burstsHeardInTurn": 10,
+    "reportedText": "So its sideways speed never",
+    "reportedWordCount": 5,
+    "reportedInterrupted": true,
+    "burstsBefore": 128,
+    "heardBursts": 129
+   },
+   {
+    "burstsHeardInTurn": 10,
+    "reportedText": "So its sideways speed never",
+    "reportedWordCount": 5,
+    "reportedInterrupted": true,
+    "burstsBefore": 143,
+    "heardBursts": 144
+   }
+  ],
+  "agentMemoryMb": 460,
+  "machineLoadAtEnd": 6
+ },
+ "pause_detector": {
+  "attempts": 5,
+  "jumpedIn": 0,
+  "outcomes": [
+   {
+    "agentJumpedInDuringPause": false,
+    "thinkingAfterFirstPartMs": 3043
+   },
+   {
+    "agentJumpedInDuringPause": false,
+    "thinkingAfterFirstPartMs": 3017
+   },
+   {
+    "agentJumpedInDuringPause": false,
+    "thinkingAfterFirstPartMs": 3076
+   },
+   {
+    "agentJumpedInDuringPause": false,
+    "thinkingAfterFirstPartMs": 3067
+   },
+   {
+    "agentJumpedInDuringPause": false,
+    "thinkingAfterFirstPartMs": 3009
+   }
+  ]
+ },
+ "pause_detector_cap_1s": {
+  "attempts": 5,
+  "jumpedIn": 5,
+  "outcomes": [
+   {
+    "agentJumpedInDuringPause": true,
+    "thinkingAfterFirstPartMs": 1172
+   },
+   {
+    "agentJumpedInDuringPause": true,
+    "thinkingAfterFirstPartMs": 1157
+   },
+   {
+    "agentJumpedInDuringPause": true,
+    "thinkingAfterFirstPartMs": 1149
+   },
+   {
+    "agentJumpedInDuringPause": true,
+    "thinkingAfterFirstPartMs": 1140
+   },
+   {
+    "agentJumpedInDuringPause": true,
+    "thinkingAfterFirstPartMs": 1154
+   }
+  ],
+  "joinToSessionStartedMs": 1221,
+  "agentMemoryMb": 641,
+  "machineLoadAtEnd": 12
+ },
+ "pause_filler_rule": {
+  "attempts": 5,
+  "jumpedIn": 0,
+  "outcomes": [
+   {
+    "agentJumpedInDuringPause": false,
+    "thinkingAfterFirstPartMs": 3043
+   },
+   {
+    "agentJumpedInDuringPause": false,
+    "thinkingAfterFirstPartMs": 3014
+   },
+   {
+    "agentJumpedInDuringPause": false,
+    "thinkingAfterFirstPartMs": 3060
+   },
+   {
+    "agentJumpedInDuringPause": false,
+    "thinkingAfterFirstPartMs": 3072
+   },
+   {
+    "agentJumpedInDuringPause": false,
+    "thinkingAfterFirstPartMs": 3048
+   }
+  ],
+  "joinToSessionStartedMs": 416,
+  "agentMemoryMb": 653,
+  "machineLoadAtEnd": 10
+ },
+ "pause_vad": {
+  "attempts": 5,
+  "jumpedIn": 5,
+  "outcomes": [
+   {
+    "agentJumpedInDuringPause": true,
+    "thinkingAfterFirstPartMs": 450
+   },
+   {
+    "agentJumpedInDuringPause": true,
+    "thinkingAfterFirstPartMs": 467
+   },
+   {
+    "agentJumpedInDuringPause": true,
+    "thinkingAfterFirstPartMs": 429
+   },
+   {
+    "agentJumpedInDuringPause": true,
+    "thinkingAfterFirstPartMs": 450
+   },
+   {
+    "agentJumpedInDuringPause": true,
+    "thinkingAfterFirstPartMs": 420
+   }
+  ]
+ },
+ "policy_backchannel": {
+  "attempts": 5,
+  "stopped": 0,
+  "outcomes": [
+   {
+    "agentStopped": false,
+    "stoppedAfterMs": null,
+    "stillAudible": true
+   },
+   {
+    "agentStopped": false,
+    "stoppedAfterMs": null,
+    "stillAudible": true
+   },
+   {
+    "agentStopped": false,
+    "stoppedAfterMs": null,
+    "stillAudible": true
+   },
+   {
+    "agentStopped": false,
+    "stoppedAfterMs": null,
+    "stillAudible": true
+   },
+   {
+    "agentStopped": false,
+    "stoppedAfterMs": null,
+    "stillAudible": true
+   }
+  ]
+ },
+ "policy_interrupt": {
+  "speechStartToAgentStopMs": {
+   "count": 10,
+   "p50": 739,
+   "p95": 1139,
+   "min": 538,
+   "max": 1139
+  },
+  "speechStartToLastAudioMs": {
+   "count": 10,
+   "p50": 791,
+   "p95": 1188,
+   "min": 590,
+   "max": 1188
+  },
+  "words": [
+   {
+    "burstsHeardInTurn": 13,
+    "reportedText": "So its sideways speed never changes. Watch this arrow as the ball",
+    "reportedWordCount": 12,
+    "reportedInterrupted": true,
+    "burstsBefore": 8,
+    "heardBursts": 13
+   },
+   {
+    "burstsHeardInTurn": 12,
+    "reportedText": "So its sideways speed never changes.",
+    "reportedWordCount": 6,
+    "reportedInterrupted": true,
+    "burstsBefore": 27,
+    "heardBursts": 30
+   },
+   {
+    "burstsHeardInTurn": 12,
+    "reportedText": "So its sideways speed never changes.",
+    "reportedWordCount": 6,
+    "reportedInterrupted": true,
+    "burstsBefore": 45,
+    "heardBursts": 47
+   },
+   {
+    "burstsHeardInTurn": 12,
+    "reportedText": "So its sideways speed never changes.",
+    "reportedWordCount": 6,
+    "reportedInterrupted": true,
+    "burstsBefore": 62,
+    "heardBursts": 64
+   },
+   {
+    "burstsHeardInTurn": 13,
+    "reportedText": "So its sideways speed never changes.",
+    "reportedWordCount": 6,
+    "reportedInterrupted": true,
+    "burstsBefore": 79,
+    "heardBursts": 82
+   },
+   {
+    "burstsHeardInTurn": 14,
+    "reportedText": "So its sideways speed never changes.",
+    "reportedWordCount": 6,
+    "reportedInterrupted": true,
+    "burstsBefore": 97,
+    "heardBursts": 101
+   },
+   {
+    "burstsHeardInTurn": 13,
+    "reportedText": "So its sideways speed never changes.",
+    "reportedWordCount": 6,
+    "reportedInterrupted": true,
+    "burstsBefore": 116,
+    "heardBursts": 119
+   },
+   {
+    "burstsHeardInTurn": 13,
+    "reportedText": "So its sideways speed never changes.",
+    "reportedWordCount": 6,
+    "reportedInterrupted": true,
+    "burstsBefore": 134,
+    "heardBursts": 137
+   },
+   {
+    "burstsHeardInTurn": 13,
+    "reportedText": "So its sideways speed never changes.",
+    "reportedWordCount": 6,
+    "reportedInterrupted": true,
+    "burstsBefore": 152,
+    "heardBursts": 155
+   },
+   {
+    "burstsHeardInTurn": 13,
+    "reportedText": "So its sideways speed never changes.",
+    "reportedWordCount": 6,
+    "reportedInterrupted": true,
+    "burstsBefore": 170,
+    "heardBursts": 173
+   }
+  ]
+ },
+ "preempt_off": {
+  "speechEndToThinkingMs": {
+   "count": 10,
+   "p50": 440,
+   "p95": 1127,
+   "min": 433,
+   "max": 1127
+  },
+  "speechEndToFirstAudioMs": {
+   "count": 10,
+   "p50": 787,
+   "p95": 1501,
+   "min": 778,
+   "max": 1501
+  },
+  "builtInTranscriptLagMs": {
+   "count": 170,
+   "p50": 114,
+   "p95": 277,
+   "min": -3,
+   "max": 295
+  },
+  "agentMemoryMb": 574,
+  "machineLoadAtEnd": 5
+ },
+ "preempt_on": {
+  "speechEndToThinkingMs": {
+   "count": 10,
+   "p50": 449,
+   "p95": 1123,
+   "min": 411,
+   "max": 1123
+  },
+  "speechEndToFirstAudioMs": {
+   "count": 10,
+   "p50": 758,
+   "p95": 1183,
+   "min": 482,
+   "max": 1183
+  },
+  "builtInTranscriptLagMs": {
+   "count": 170,
+   "p50": 110,
+   "p95": 276,
+   "min": -2,
+   "max": 293
+  },
+  "agentMemoryMb": 627,
+  "machineLoadAtEnd": 5
+ },
+ "reconnect": {
+  "attempts": 3,
+  "outcomes": [
+   {
+    "sessionClosedWhileAway": false,
+    "agentHeardStudentAfterRejoin": true,
+    "agentSpokeAfterRejoin": true
+   },
+   {
+    "sessionClosedWhileAway": false,
+    "agentHeardStudentAfterRejoin": true,
+    "agentSpokeAfterRejoin": true
+   },
+   {
+    "sessionClosedWhileAway": false,
+    "agentHeardStudentAfterRejoin": true,
+    "agentSpokeAfterRejoin": true
+   }
+  ],
+  "agentMemoryMb": 347
+ },
+ "tiered_backchannel": {
+  "attempts": 10,
+  "stopped": 0,
+  "audioWentSilent": 0,
+  "outcomes": [
+   {
+    "agentStopped": false,
+    "audioWentSilent": false,
+    "yieldAfterMs": 172,
+    "yieldHeldMs": 800
+   },
+   {
+    "agentStopped": false,
+    "audioWentSilent": false,
+    "yieldAfterMs": 174,
+    "yieldHeldMs": 798
+   },
+   {
+    "agentStopped": false,
+    "audioWentSilent": false,
+    "yieldAfterMs": 185,
+    "yieldHeldMs": 800
+   },
+   {
+    "agentStopped": false,
+    "audioWentSilent": false,
+    "yieldAfterMs": 176,
+    "yieldHeldMs": 798
+   },
+   {
+    "agentStopped": false,
+    "audioWentSilent": false,
+    "yieldAfterMs": 173,
+    "yieldHeldMs": 832
+   },
+   {
+    "agentStopped": false,
+    "audioWentSilent": false,
+    "yieldAfterMs": 162,
+    "yieldHeldMs": 830
+   },
+   {
+    "agentStopped": false,
+    "audioWentSilent": false,
+    "yieldAfterMs": 174,
+    "yieldHeldMs": 832
+   },
+   {
+    "agentStopped": false,
+    "audioWentSilent": false,
+    "yieldAfterMs": 164,
+    "yieldHeldMs": 830
+   },
+   {
+    "agentStopped": false,
+    "audioWentSilent": false,
+    "yieldAfterMs": 165,
+    "yieldHeldMs": 828
+   },
+   {
+    "agentStopped": false,
+    "audioWentSilent": false,
+    "yieldAfterMs": 144,
+    "yieldHeldMs": 829
+   }
+  ],
+  "agentMemoryMb": 650,
+  "machineLoadAtEnd": 5
+ },
+ "tiered_interrupt": {
+  "speechStartToYieldMessageMs": {
+   "count": 10,
+   "p50": 155,
+   "p95": 171,
+   "min": 134,
+   "max": 171
+  },
+  "speechStartToStopMessageMs": {
+   "count": 10,
+   "p50": 643,
+   "p95": 1140,
+   "min": 433,
+   "max": 1140
+  },
+  "speechStartToLastAudioMs": {
+   "count": 10,
+   "p50": 779,
+   "p95": 1286,
+   "min": 492,
+   "max": 1286
+  },
+  "stopMessageToLastAudioMs": {
+   "count": 10,
+   "p50": 108,
+   "p95": 146,
+   "min": 57,
+   "max": 146
+  },
+  "reasons": [
+   "overlap too long",
+   "real word",
+   "real word",
+   "real word",
+   "real word",
+   "real word",
+   "real word",
+   "real word",
+   "real word",
+   "real word"
+  ],
+  "agentMemoryMb": 631,
+  "machineLoadAtEnd": 16
+ },
+ "turn_detector": {
+  "speechEndToThinkingMs": {
+   "count": 10,
+   "p50": 499,
+   "p95": 3119,
+   "min": 436,
+   "max": 3119
+  },
+  "speechEndToFirstAudioMs": {
+   "count": 10,
+   "p50": 560,
+   "p95": 3180,
+   "min": 489,
+   "max": 3180
+  },
+  "builtInTranscriptLagMs": {
+   "count": 170,
+   "p50": 105,
+   "p95": 271,
+   "min": -7,
+   "max": 282
+  },
+  "agentMemoryMb": 613
+ },
+ "turn_phrases": {
+  "perPhrase": {
+   "question": {
+    "speechEndToFirstAudioMs": {
+     "count": 10,
+     "p50": 528,
+     "p95": 1177,
+     "min": 475,
+     "max": 1177
+    },
+    "probabilities": [
+     0.5,
+     0.32,
+     0.53,
+     0.4,
+     0.35,
+     0.43,
+     0.47,
+     0.4,
+     0.36,
+     0.34
+    ]
+   },
+   "gravity": {
+    "speechEndToFirstAudioMs": {
+     "count": 10,
+     "p50": 507,
+     "p95": 594,
+     "min": 486,
+     "max": 594
+    },
+    "probabilities": [
+     0.39,
+     0.4,
+     0.47,
+     0.46,
+     0.43,
+     0.46,
+     0.43,
+     0.42,
+     0.4,
+     0.44
+    ]
+   },
+   "twice": {
+    "speechEndToFirstAudioMs": {
+     "count": 10,
+     "p50": 517,
+     "p95": 585,
+     "min": 495,
+     "max": 585
+    },
+    "probabilities": [
+     0.5,
+     0.61,
+     0.62,
+     0.53,
+     0.5,
+     0.64,
+     0.66,
+     0.62,
+     0.53,
+     0.51
+    ]
+   },
+   "interrupt": {
+    "speechEndToFirstAudioMs": {
+     "count": 10,
+     "p50": 504,
+     "p95": 525,
+     "min": 486,
+     "max": 525
+    },
+    "probabilities": [
+     0.51,
+     0.46,
+     0.44,
+     0.45,
+     0.41,
+     0.44,
+     0.48,
+     0.49,
+     0.51,
+     0.48
+    ]
+   }
+  },
+  "agentMemoryMb": 619
+ },
+ "turn_vad": {
+  "speechEndToThinkingMs": {
+   "count": 10,
+   "p50": 438,
+   "p95": 470,
+   "min": 418,
+   "max": 470
+  },
+  "speechEndToFirstAudioMs": {
+   "count": 10,
+   "p50": 513,
+   "p95": 525,
+   "min": 473,
+   "max": 525
+  },
+  "builtInTranscriptLagMs": {
+   "count": 170,
+   "p50": 106,
+   "p95": 278,
+   "min": -3,
+   "max": 283
+  },
+  "agentMemoryMb": 425
+ },
+ "typed": {
+  "attempts": 5,
+  "replyStarted": 5,
+  "tutorStopped": 5,
+  "secondMessageAnswered": 5,
+  "typedToFirstAudioMs": {
+   "count": 5,
+   "p50": 85,
+   "p95": 97,
+   "min": 77,
+   "max": 97
+  },
+  "typedInterruptToStopMs": {
+   "count": 5,
+   "p50": 48,
+   "p95": 59,
+   "min": 41,
+   "max": 59
+  },
+  "outcomes": [
+   {
+    "typedToFirstAudioMs": 77,
+    "typedInterruptToStopMs": 59,
+    "secondMessageStartedReply": true,
+    "userItems": [
+     "Why does it come down?",
+     "Wait, what about gravity?"
+    ]
+   },
+   {
+    "typedToFirstAudioMs": 93,
+    "typedInterruptToStopMs": 47,
+    "secondMessageStartedReply": true,
+    "userItems": [
+     "Why does it come down?",
+     "Wait, what about gravity?"
+    ]
+   },
+   {
+    "typedToFirstAudioMs": 79,
+    "typedInterruptToStopMs": 48,
+    "secondMessageStartedReply": true,
+    "userItems": [
+     "Why does it come down?",
+     "Wait, what about gravity?"
+    ]
+   },
+   {
+    "typedToFirstAudioMs": 85,
+    "typedInterruptToStopMs": 55,
+    "secondMessageStartedReply": true,
+    "userItems": [
+     "Why does it come down?",
+     "Wait, what about gravity?"
+    ]
+   },
+   {
+    "typedToFirstAudioMs": 97,
+    "typedInterruptToStopMs": 41,
+    "secondMessageStartedReply": true,
+    "userItems": [
+     "Why does it come down?",
+     "Wait, what about gravity?"
+    ]
+   }
+  ],
+  "joinToSessionStartedMs": 564,
+  "agentMemoryMb": 407,
+  "machineLoadAtEnd": 24
+ }
+}

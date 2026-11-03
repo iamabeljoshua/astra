@@ -1,0 +1,40 @@
+{
+ "ranAt": "2026-11-03T09:43:22.608Z",
+ "rows": [
+  {
+   "bytes": 1024,
+   "arrived": true,
+   "sendError": null
+  },
+  {
+   "bytes": 14336,
+   "arrived": true,
+   "sendError": null
+  },
+  {
+   "bytes": 15360,
+   "arrived": true,
+   "sendError": null
+  },
+  {
+   "bytes": 15361,
+   "arrived": true,
+   "sendError": null
+  },
+  {
+   "bytes": 16384,
+   "arrived": true,
+   "sendError": null
+  },
+  {
+   "bytes": 20480,
+   "arrived": true,
+   "sendError": null
+  },
+  {
+   "bytes": 71680,
+   "arrived": false,
+   "sendError": "engine: internal error: data packet size (71726 bytes) exceeds the negotiated maximum message size (64000 bytes)"
+  }
+ ]
+}
