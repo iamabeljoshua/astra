@@ -8,7 +8,7 @@ The repo is a pnpm workspace with four packages:
 
 - `apps/web` is the web app, on React and Vite.
 - `apps/api` is the API, on NestJS.
-- `packages/contracts` holds shared types. `pnpm api:types` generates its `api.generated.ts` from the API.
+- `packages/contracts` holds shared types and the scene language's parsers, which load in plain Node 22.18 or newer. `pnpm api:types` generates its `api.generated.ts` from the API.
 - `packages/theme` holds the colors, fonts, and sizes from `docs/DESIGN.md`.
 
 ## Install
