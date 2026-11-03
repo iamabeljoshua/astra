@@ -21,6 +21,13 @@ describe('the date of birth question', () => {
     expect(`${container.textContent} ${placeholders}`).not.toMatch(AGE_LIMIT_WORDS);
   });
 
+  it('shows no example date that a student could copy', () => {
+    const { container } = renderWithQueryClient(<BirthDatePage />);
+
+    const placeholders = [...container.querySelectorAll('input')].map((input) => input.placeholder);
+    expect(placeholders.join('')).not.toMatch(/\d/);
+  });
+
   it('sets no limit on the dates a student can type', () => {
     renderWithQueryClient(<BirthDatePage />);
 

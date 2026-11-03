@@ -73,6 +73,15 @@ export function restartAppAtHome(): void {
   window.location.assign('/');
 }
 
+export async function renewSession(): Promise<boolean> {
+  const { error } = await supabase.auth.refreshSession();
+  return !error;
+}
+
+export async function forgetSession(): Promise<void> {
+  await supabase.auth.signOut({ scope: 'local' });
+}
+
 export async function signOut(): Promise<void> {
   const { error } = await supabase.auth.signOut();
   if (!error) return;

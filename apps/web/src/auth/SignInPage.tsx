@@ -10,8 +10,10 @@ type SendFailure = Exclude<EmailLinkResult, 'sent'>;
 
 const GOOGLE_SIGN_IN_FLAG = 'on';
 
-// The build drops this branch and its file when DEV is false, so production holds no trace of it.
-const DevSignIn = import.meta.env.DEV ? lazy(() => import('./DevSignIn')) : null;
+declare const __DEV_SIGN_IN__: boolean;
+
+// vite.config.ts sets this to true only for the dev server, so a build drops this branch and its file whatever its settings.
+const DevSignIn = __DEV_SIGN_IN__ ? lazy(() => import('./DevSignIn')) : null;
 
 export function SignInPage() {
   const [step, setStep] = useState<SignInStep>('welcome');

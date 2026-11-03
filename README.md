@@ -94,7 +94,7 @@ Students sign in with an email link or Google, through Supabase Auth. They have 
 
 To sign in on the local stack, use one of these:
 
-- The **Development sign-in** box on the sign-in page. `maya@astra.test` is the seeded student, and `new-student@astra.test` has no student yet. The box is only in a development build, and these accounts exist only on the local stack.
+- The **Development sign-in** box on the sign-in page. `maya@astra.test` is the seeded student, and `new-student@astra.test` has no student yet. Only the Vite dev server shows the box, because `vite.config.ts` turns it off for every build. These accounts exist only on the local stack.
 - An email link. Enter any address that ends in `@astra.test`, open the local inbox at http://127.0.0.1:54424, and follow the link in the same browser. No real email leaves your computer.
 
 Open the app on `127.0.0.1`. The running stack sends a link back only to the host of its site URL, on any port, and it sends any other address to the site URL instead. `supabase/config.toml` also allows `localhost` on any port, once a stack starts with that file. A stack that started before that change keeps its old settings until `pnpm exec supabase stop` and `pnpm db:up`, and the stop affects every worktree.
@@ -115,7 +115,9 @@ A global guard, `apps/api/src/auth/auth.guard.ts`, checks every route, so a new 
 
 The student's identity comes only from the token. Read it with `@CurrentStudentId()` and never take a student ID from a path, a query, or a body. `pnpm test` fails if a route takes a field with such a name, or if a new route is reachable without a token unless it is on the short public list in `apps/api/src/auth/auth.guard.spec.ts`. A route that reads or changes one row by its own ID must filter on both that ID and the student ID.
 
-The guard checks the token signature against the keys that Auth publishes at `/auth/v1/.well-known/jwks.json`, and it checks the issuer, the audience, the role, and the expiry. It accepts ES256 and RS256 only. It answers 503, not 401, if it cannot read the keys.
+The guard checks the token signature against the keys that Auth publishes at `/auth/v1/.well-known/jwks.json`, and it checks the issuer, the audience, the role, and the expiry. It accepts ES256 and RS256 only. It answers 503, not 401, if it cannot read the keys. It logs the reason for each refusal, as a fixed code and a claim name, such as `ERR_JWT_CLAIM_VALIDATION_FAILED iss`, which is what a wrong `SUPABASE_URL` looks like. It never logs a token.
+
+If the API refuses a token that the browser still trusts, as when the device clock runs behind, the web app renews the session once and tries again. If the API refuses that token too, the web app forgets the session and shows the sign-in page.
 
 After sign-out, the browser has no token and Auth refuses the refresh token. An access token copied before the sign-out still works at the API until it expires, which is 1 hour by default.
 
@@ -137,7 +139,7 @@ No Supabase project exists yet, so nothing here has run against a real one. Meas
 4. Download the CA certificate from **Database settings > SSL Configuration**, then add `sslmode=verify-full&sslrootcert=<path to the file>` to `DATABASE_URL`. The dashboard path and the certificate of the real servers are docs. The driver's behavior is measured in the table below.
 5. Run `pnpm db:migrate` with that `DATABASE_URL`, then start the API. Measured on the stand-in server. `pnpm db:reset`, `pnpm db:seed`, and `pnpm test` refuse a hosted URL.
 6. Set `SUPABASE_URL` on the API to `https://<project-ref>.supabase.co`. The API does not start without it unless `NODE_ENV` is `development`, and it refuses `http` on a host that is not local. Measured on the local stack and a second local Auth service.
-7. Build the web app with `VITE_SUPABASE_URL` set to the same address and `VITE_SUPABASE_PUBLISHABLE_KEY` set to the publishable key, or the anon key on an older project. Never put the secret key or the service role key in a `VITE_` value, because the browser receives every one of those. Measured on the local stack.
+7. Build the web app with `VITE_SUPABASE_URL` set to the same address and `VITE_SUPABASE_PUBLISHABLE_KEY` set to the publishable key, or the anon key on an older project. The build fails if either value is missing. Never put the secret key or the service role key in a `VITE_` value, because the browser receives every one of those. Measured on the local stack.
 8. In **Authentication > Sign In / Providers**, keep the email provider on. Turn on **Google** when credentials exist, then set `VITE_GOOGLE_SIGN_IN=on`. Docs.
 9. Set the **Site URL** in **Authentication > URL Configuration** to the address of the web app. A link can return only to that host or to an address on the redirect list. Measured on the local stack, where hostile addresses fell back to the site URL. Docs for the dashboard.
 10. Check that **JWT Keys** shows an asymmetric signing key, ES256 or RS256. New projects have used asymmetric keys by default since 1 October 2025. The API refuses tokens signed with a shared secret. Docs for the dashboard and the date. Measured for the refusal.

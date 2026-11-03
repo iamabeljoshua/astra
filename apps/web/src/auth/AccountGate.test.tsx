@@ -2,11 +2,11 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createQueryClient } from '../api/queryClient';
-import { ACCOUNT_LABELS, API_ERROR_LABELS, BIRTH_DATE_LABELS, SIGN_IN_LABELS } from '../strings';
+import { ACCOUNT_LABELS, API_ERROR_LABELS, BIRTH_DATE_LABELS, PRODUCT_NAME, SIGN_IN_LABELS } from '../strings';
 import { renderWithQueryClient } from '../test/renderWithQueryClient';
 import { AccountGate } from './AccountGate';
 import { useAuth } from './AuthProvider';
-import { signOut } from './session';
+import { forgetSession, renewSession } from './session';
 
 const APP_TEXT = 'The app';
 const ACTIVE_ACCOUNT = {
@@ -17,7 +17,12 @@ const NEEDS_BIRTH_DATE = { status: 'needs_birth_date', student: null };
 const CLOSED_ACCOUNT = { status: 'closed', student: null };
 
 vi.mock('./AuthProvider', () => ({ useAuth: vi.fn() }));
-vi.mock('./session', () => ({ signOut: vi.fn(), getAccessToken: async () => 'test-token' }));
+vi.mock('./session', () => ({
+  forgetSession: vi.fn(),
+  getAccessToken: async () => 'test-token',
+  renewSession: vi.fn(),
+  signOut: vi.fn(),
+}));
 
 function setSignIn(status: 'loading' | 'signedOut' | 'signedIn') {
   vi.mocked(useAuth).mockReturnValue({ signIn: { status }, didLinkFail: false });
@@ -52,7 +57,8 @@ function enterBirthDate(day: string, month: string, year: string) {
 }
 
 beforeEach(() => {
-  vi.mocked(signOut).mockClear();
+  vi.mocked(forgetSession).mockClear();
+  vi.mocked(renewSession).mockReset();
   vi.stubGlobal('matchMedia', () => ({ matches: false }));
 });
 
@@ -61,13 +67,13 @@ afterEach(() => {
 });
 
 describe('AccountGate', () => {
-  it('shows nothing while the sign-in state loads', () => {
+  it('shows only the product name while the sign-in state loads', () => {
     setSignIn('loading');
     const fetchStub = stubApi({});
 
     const { container } = renderGate();
 
-    expect(container.textContent).toBe('');
+    expect(container.textContent).toBe(PRODUCT_NAME);
     expect(fetchStub).not.toHaveBeenCalled();
   });
 
@@ -88,7 +94,7 @@ describe('AccountGate', () => {
 
     const { container } = renderGate();
 
-    expect(container.textContent).toBe('');
+    expect(container.textContent).toBe(PRODUCT_NAME);
     await screen.findByText(APP_TEXT);
   });
 
@@ -182,13 +188,42 @@ describe('AccountGate', () => {
     await screen.findByText(API_ERROR_LABELS.server);
   });
 
-  it('signs out when the API refuses the token, and shows no app', async () => {
+  it('renews the session once and opens the app when the API refused a token that was out of date', async () => {
     setSignIn('signedIn');
-    stubApi({ 'GET /api/me': json({ statusCode: 401 }, 401) });
+    const answers: Record<string, () => Response> = { 'GET /api/me': json({ statusCode: 401 }, 401) };
+    stubApi(answers);
+    vi.mocked(renewSession).mockImplementation(async () => {
+      answers['GET /api/me'] = json(ACTIVE_ACCOUNT);
+      return true;
+    });
 
     renderGate();
 
-    await waitFor(() => expect(signOut).toHaveBeenCalledTimes(1));
+    await screen.findByText(APP_TEXT);
+    expect(renewSession).toHaveBeenCalledTimes(1);
+    expect(forgetSession).not.toHaveBeenCalled();
+  });
+
+  it('forgets the session when the API refuses the renewed token too, and shows no app', async () => {
+    setSignIn('signedIn');
+    stubApi({ 'GET /api/me': json({ statusCode: 401 }, 401) });
+    vi.mocked(renewSession).mockResolvedValue(true);
+
+    renderGate();
+
+    await waitFor(() => expect(forgetSession).toHaveBeenCalledTimes(1));
+    expect(renewSession).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(APP_TEXT)).toBeNull();
+  });
+
+  it('forgets the session when it cannot be renewed, and shows no app', async () => {
+    setSignIn('signedIn');
+    stubApi({ 'GET /api/me': json({ statusCode: 401 }, 401) });
+    vi.mocked(renewSession).mockResolvedValue(false);
+
+    renderGate();
+
+    await waitFor(() => expect(forgetSession).toHaveBeenCalledTimes(1));
     expect(screen.queryByText(APP_TEXT)).toBeNull();
   });
 
@@ -215,10 +250,11 @@ describe('AccountGate', () => {
 
     screen.getByText(APP_TEXT);
 
+    vi.mocked(renewSession).mockResolvedValue(false);
     answers['GET /api/me'] = json({ statusCode: 401 }, 401);
     await act(() => queryClient.refetchQueries());
 
-    await waitFor(() => expect(signOut).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(forgetSession).toHaveBeenCalledTimes(1));
     expect(screen.queryByText(APP_TEXT)).toBeNull();
   });
 
@@ -229,7 +265,7 @@ describe('AccountGate', () => {
     renderGate();
     await screen.findByText(API_ERROR_LABELS.server);
     expect(screen.queryByText(APP_TEXT)).toBeNull();
-    expect(signOut).not.toHaveBeenCalled();
+    expect(forgetSession).not.toHaveBeenCalled();
 
     answers['GET /api/me'] = json(ACTIVE_ACCOUNT);
     fireEvent.click(screen.getByRole('button', { name: ACCOUNT_LABELS.tryAgain }));

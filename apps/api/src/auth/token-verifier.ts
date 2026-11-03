@@ -23,8 +23,13 @@ const TOKEN_ERRORS = [
   errors.JWKSNoMatchingKey,
 ];
 
-export function isRefusedToken(thrown: unknown): boolean {
+export function isRefusedToken(thrown: unknown): thrown is errors.JOSEError {
   return TOKEN_ERRORS.some((TokenError) => thrown instanceof TokenError);
+}
+
+// Holds only fixed codes and claim names, because a message can repeat text from the token.
+export function describeRefusal(refusal: errors.JOSEError): string {
+  return refusal instanceof errors.JWTClaimValidationFailed ? `${refusal.code} ${refusal.claim}` : refusal.code;
 }
 
 export class TokenVerifier {

@@ -132,6 +132,24 @@ describe('a database built from migrations', () => {
       expect(await dataSource.getRepository(StudentEntity).countBy({ authUserId: NEW_STUDENT_AUTH_USER_ID })).toBe(0);
     });
 
+    it('replaces the example account after it answered the question by hand', async () => {
+      await dataSource.getRepository(StudentEntity).delete({ authUserId: EXAMPLE_AUTH_USER_ID });
+      await dataSource.getRepository(StudentEntity).insert({ authUserId: EXAMPLE_AUTH_USER_ID, birthDate: '2004-03-14' });
+
+      await replaceExampleData(dataSource);
+
+      const student = await dataSource.getRepository(StudentEntity).findOneByOrFail({ authUserId: EXAMPLE_AUTH_USER_ID });
+      expect(student.id).toBe(EXAMPLE_STUDENT_ID);
+    });
+
+    it('opens the example account after it was closed', async () => {
+      await dataSource.getRepository(ClosedAccountEntity).insert({ authUserId: EXAMPLE_AUTH_USER_ID });
+
+      await replaceExampleData(dataSource);
+
+      expect(await dataSource.getRepository(ClosedAccountEntity).countBy({ authUserId: EXAMPLE_AUTH_USER_ID })).toBe(0);
+    });
+
     it('holds the six sessions from the prototype, one of them unfinished', async () => {
       const sessions = await readExampleSessions();
 

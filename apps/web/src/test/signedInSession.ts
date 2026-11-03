@@ -4,6 +4,8 @@ export const getAccessToken = async () => 'test-access-token';
 export const didEmailLinkFail = async () => false;
 export const restartAppAtHome = () => undefined;
 export const signOut = async () => undefined;
+export const forgetSession = async () => undefined;
+export const renewSession = async () => true;
 
 export function watchSignedInUser(onChange: (userId: string | null) => void) {
   onChange(SIGNED_IN_USER_ID);

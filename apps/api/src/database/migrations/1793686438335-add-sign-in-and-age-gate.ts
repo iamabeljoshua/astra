@@ -15,6 +15,7 @@ export class AddSignInAndAgeGate1793686438335 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`UPDATE "app"."students" SET "name" = '' WHERE "name" IS NULL`);
     await queryRunner.query(`ALTER TABLE "app"."students" ALTER COLUMN "name" SET NOT NULL`);
     await queryRunner.query(`ALTER TABLE "app"."students" DROP COLUMN "parent_consent_at"`);
     await queryRunner.query(`ALTER TABLE "app"."students" DROP COLUMN "birth_date"`);

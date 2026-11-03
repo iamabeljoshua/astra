@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
 import type { Server } from 'node:http';
@@ -141,6 +142,22 @@ describe('the API guard', () => {
       expect(read.body).toEqual({ message: 'Unauthorized', statusCode: 401 });
     });
 
+    it('logs why it refused a token, and nothing from the token', async () => {
+      const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+      const token = await testApp.supabaseAuth.signToken(student.authUserId, {
+        claims: { iss: 'https://other.supabase.co/auth/v1' },
+      });
+
+      await api().get('/me').set('Authorization', `Bearer ${token}`).expect(401);
+
+      const logged = warn.mock.calls.flat().join(' ');
+      warn.mockRestore();
+      expect(logged).toContain('ERR_JWT_CLAIM_VALIDATION_FAILED iss');
+      expect(logged).not.toContain(token);
+      expect(logged).not.toContain(student.authUserId);
+      expect(logged).not.toContain('other.supabase.co');
+    });
+
     it('accepts a token signed with RS256, which a hosted project may use', async () => {
       const rsaKey = await createSigningKey('RS256');
       testApp.supabaseAuth.keys.push(rsaKey);
@@ -269,13 +286,17 @@ describe('the API guard', () => {
     it('answers 503 and sends no data when the key server is down', async () => {
       const appWithoutKeys = await createTestApp({ supabaseUrl: CLOSED_PORT_URL });
       const token = await appWithoutKeys.supabaseAuth.signToken(randomUUID());
+      const logError = jest.spyOn(Logger.prototype, 'error').mockImplementation();
 
       try {
         await request(appWithoutKeys.app.getHttpServer())
           .get('/sessions')
           .set('Authorization', `Bearer ${token}`)
           .expect(503, { message: 'Service Unavailable', statusCode: 503 });
+        expect(logError.mock.calls.flat().join(' ')).toContain('Could not read the signing keys');
+        expect(logError.mock.calls.flat().join(' ')).not.toContain(token);
       } finally {
+        logError.mockRestore();
         await appWithoutKeys.close();
       }
     });

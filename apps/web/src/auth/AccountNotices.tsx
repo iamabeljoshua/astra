@@ -1,7 +1,16 @@
-import { ACCOUNT_LABELS, API_ERROR_LABELS } from '../strings';
+import { ACCOUNT_LABELS, API_ERROR_LABELS, PRODUCT_NAME } from '../strings';
 import type { ApiError } from '../api/apiError';
 import { OnboardingFrame } from './OnboardingFrame';
 import { SignOutButton } from './SignOutButton';
+
+export function LoadingPage() {
+  return (
+    <div aria-busy="true" className="flex min-h-dvh animate-arrive items-center justify-center">
+      <title>{PRODUCT_NAME}</title>
+      <div className="product-mark">{PRODUCT_NAME}</div>
+    </div>
+  );
+}
 
 export function AccountClosedPage() {
   return (
