@@ -247,9 +247,8 @@ function runInterruptedLesson(audio: FakeAudio) {
 // The agent's half of the wire, kept here only to prove a report round-trips into a log the parser accepts.
 function writeLog(audio: FakeAudio, getBeat: (beat: string) => unknown): SessionEvent[] {
   return played(audio).map((report, seq) => {
-    const { type: _type, beatId: reportedBeat, startedMsAgo: _ago, ...playReport } = report;
-    const beatAtMs = audio.player.getOperations().filter((operation) => operation.kind === 'beatStarted')[seq]?.atMs ?? 0;
-    const parsed = parseSessionEvent({ seq, atMs: beatAtMs, kind: 'beatPlayed', reportedBy: 'browser', beat: getBeat(reportedBeat), ...playReport });
+    const { turnId: reportedTurn, beatId: reportedBeat, browserMs, startedMsAgo, wordStartsMs, durationMs, playedWords, firedCueMs, ending, frozen } = report;
+    const parsed = parseSessionEvent({ seq, atMs: browserMs - startedMsAgo, kind: 'beatPlayed', reportedBy: 'browser', turnId: reportedTurn, beat: getBeat(reportedBeat), wordStartsMs, durationMs, playedWords, firedCueMs, ending, frozen });
     if (!parsed.ok) throw new Error(parsed.problem);
     return parsed.value;
   });

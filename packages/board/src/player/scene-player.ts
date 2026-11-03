@@ -1,4 +1,4 @@
-import type { AgentMessage, BeatEnding, BeatId, BrowserMessage, Cue, FrozenFrame, TurnId } from '@astra/contracts';
+import type { AgentMessage, BeatEnding, BeatId, BrowserMessage, Cue, FrozenFrame, TimedWord, TurnId } from '@astra/contracts';
 import type { AudioClock, ClockReading, TurnClock } from './audio-clock.ts';
 import { type BoardOperation, getBeatOperations, type PlayedBeatView } from './board-operations.ts';
 import { type BoardState, getBoardAt, getFrozenFrames } from './board-state.ts';
@@ -30,14 +30,16 @@ export interface ScenePlayer {
   getBoard(atMs: number): BoardState;
   getNowMs(): number;
   getOperations(): BoardOperation[];
+  /** The words heard so far this turn, on the same clock as the board. */
+  getCaption(): string;
 }
 
 interface PlayingBeat {
   id: BeatId;
   cues: Cue[];
   firedCueMs: number[];
-  /** On the turn's timeline. Holes wait for a late message. */
-  wordStartsMs: number[];
+  /** Word starts are on the turn's timeline. Holes wait for a late message. */
+  words: TimedWord[];
   wordCount: number | null;
   expectsReply: boolean;
   playedWords: number;
@@ -67,7 +69,7 @@ const isStarted = (beat: PlayingBeat): beat is StartedBeat => beat.startedAtMs !
 const sortByTime = (operations: BoardOperation[]) => operations.sort((first, second) => first.atMs - second.atMs);
 
 function createBeat(id: BeatId): PlayingBeat {
-  return { id, cues: [], firedCueMs: [], wordStartsMs: [], wordCount: null, expectsReply: false, playedWords: 0, startedAtMs: null, isQuestionHeard: false, ending: null, durationMs: 0, frozen: [] };
+  return { id, cues: [], firedCueMs: [], words: [], wordCount: null, expectsReply: false, playedWords: 0, startedAtMs: null, isQuestionHeard: false, ending: null, durationMs: 0, frozen: [] };
 }
 
 // Plays what the agent sends against the audio the student hears, and reports what really happened, which becomes the log.
@@ -76,8 +78,8 @@ export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueF
   const operationsOfOldTurns: BoardOperation[] = [];
 
   const getBeatRelativeWordStarts = (beat: PlayingBeat): number[] => {
-    const firstWordMs = beat.wordStartsMs[0] ?? 0;
-    return beat.wordStartsMs.map((startMs) => Math.max(0, Math.round(startMs - firstWordMs)));
+    const firstWordMs = beat.words[0]?.startMs ?? 0;
+    return beat.words.map(({ startMs }) => Math.max(0, Math.round(startMs - firstWordMs)));
   };
 
   const getBeatView = (beat: StartedBeat): PlayedBeatView => ({
@@ -95,7 +97,7 @@ export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueF
   const getOperations = () => sortByTime([...operationsOfOldTurns, ...(turn ? getTurnOperations(turn) : [])]);
 
   const reportBeat = (playing: PlayingTurn, beat: PlayingBeat, ending: BeatEnding, durationMs: number) => {
-    const nowMs = clock.getNowMs();
+    const browserMs = Math.round(clock.getNowMs());
     const wordStartsMs = getBeatRelativeWordStarts(beat);
     beat.ending = ending;
     beat.durationMs = Math.max(0, Math.round(durationMs), wordStartsMs[beat.playedWords - 1] ?? 0);
@@ -103,7 +105,8 @@ export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueF
       type: 'played',
       turnId: playing.id,
       beatId: beat.id,
-      startedMsAgo: Math.max(0, Math.round(nowMs - (beat.startedAtMs ?? nowMs))),
+      browserMs,
+      startedMsAgo: Math.max(0, browserMs - (beat.startedAtMs ?? browserMs)),
       wordStartsMs,
       durationMs: beat.durationMs,
       playedWords: beat.playedWords,
@@ -116,21 +119,21 @@ export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueF
   const hearWords = (playing: PlayingTurn, beat: PlayingBeat, reading: ClockReading) => {
     const nowMs = clock.getNowMs();
     const isWordDue = (startMs: number) => reading.positionMs >= startMs && (reading.isGateOpen || reading.positionMs - startMs > SILENT_WORD_LIMIT_MS);
-    for (let startMs = beat.wordStartsMs[beat.playedWords]; startMs !== undefined && isWordDue(startMs); startMs = beat.wordStartsMs[beat.playedWords]) {
-      beat.startedAtMs ??= Math.round(nowMs - (reading.positionMs - startMs));
+    for (let word = beat.words[beat.playedWords]; word !== undefined && isWordDue(word.startMs); word = beat.words[beat.playedWords]) {
+      beat.startedAtMs ??= Math.round(nowMs - (reading.positionMs - word.startMs));
       beat.playedWords += 1;
     }
     const isLastWordHeard = beat.wordCount !== null && beat.playedWords === beat.wordCount;
     if (beat.expectsReply && isLastWordHeard && !beat.isQuestionHeard) {
       beat.isQuestionHeard = true;
-      send({ type: 'questionHeard', turnId: playing.id, beatId: beat.id, startedMsAgo: Math.max(0, Math.round(reading.positionMs - (beat.wordStartsMs.at(-1) ?? reading.positionMs))) });
+      send({ type: 'questionHeard', turnId: playing.id, beatId: beat.id, browserMs: Math.round(nowMs), startedMsAgo: Math.max(0, Math.round(reading.positionMs - (beat.words.at(-1)?.startMs ?? reading.positionMs))) });
     }
   };
 
   const fireCues = (playing: PlayingTurn, beat: PlayingBeat, reading: ClockReading) => {
     const nowMs = clock.getNowMs();
     for (let cue = beat.cues[beat.firedCueMs.length]; cue !== undefined; cue = beat.cues[beat.firedCueMs.length]) {
-      const wordStartMs = beat.wordStartsMs[cue.atWord];
+      const wordStartMs = beat.words[cue.atWord]?.startMs;
       if (wordStartMs === undefined || cue.atWord >= beat.playedWords || beat.startedAtMs === null) return;
       beat.firedCueMs.push(Math.max(0, Math.round(nowMs - beat.startedAtMs)));
       onCueFired?.({ turnId: playing.id, beatId: beat.id, atWord: cue.atWord, firedAtMs: nowMs, positionMs: reading.positionMs, wordStartMs });
@@ -165,7 +168,7 @@ export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueF
     setOutputLevel('silent');
     tick();
     playing.phase = 'frozen';
-    const nowMs = clock.getNowMs();
+    const nowMs = Math.round(clock.getNowMs());
     const frames = getFrozenFrames(getBoardAt(getOperations(), nowMs, catalog), nowMs);
     const openBeats = playing.beats.filter((beat) => beat.ending === null);
     const cutBeat = openBeats.filter(isStarted).at(-1);
@@ -175,7 +178,7 @@ export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueF
     }
     if (!cutBeat && frames.length > 0) {
       operationsOfOldTurns.push({ kind: 'freeze', atMs: nowMs, frames });
-      send({ type: 'boardFrozen', turnId: playing.id, startedMsAgo: 0, frozen: frames });
+      send({ type: 'boardFrozen', turnId: playing.id, browserMs: nowMs, startedMsAgo: 0, frozen: frames });
     }
     clock.markTurnAudioOver();
   };
@@ -202,9 +205,9 @@ export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueF
       case 'words': {
         const beat = getBeat(playing, message.beatId);
         message.words.forEach((word, index) => {
-          beat.wordStartsMs[message.firstWord + index] = word.startMs;
+          beat.words[message.firstWord + index] = word;
         });
-        playing.clock.noteWordTimes(playing.beats[0]?.wordStartsMs[0] ?? 0, beat.wordStartsMs.at(-1) ?? 0);
+        playing.clock.noteWordTimes(playing.beats[0]?.words[0]?.startMs ?? 0, beat.words.at(-1)?.startMs ?? 0);
         return;
       }
       case 'beatClosed': {
@@ -228,6 +231,7 @@ export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueF
     tick,
     getNowMs: () => clock.getNowMs(),
     getOperations,
+    getCaption: () => (turn ? turn.beats.flatMap((beat) => beat.words.slice(0, beat.playedWords).map((word) => word.text)).join(' ') : ''),
     getBoard: (atMs) => getBoardAt(getOperations(), atMs, catalog),
     receive(message) {
       if (message.type === 'turnStarted') return startTurn(message.turnId);

@@ -188,6 +188,21 @@ export const ARTWORK_LABELS = {
   wheat: 'Vincent van Gogh\'s painting of a wheat field and cypress trees under a swirling sky',
 };
 
+export const LAB_LABELS = {
+  title: 'Scene player lab',
+  intro: 'A development bench for the board clock. It plays test text only.',
+  noRoom: 'Start the lab with pnpm lab, then open the address it prints.',
+  board: 'Board',
+  controls: 'Controls',
+  connect: 'Connect',
+  play: 'Play the lesson',
+  interrupt: 'Interrupt',
+  resume: 'Resume',
+  replay: 'Replay from the log',
+  backToLive: 'Back to live',
+  logEvents: 'Events in the log:',
+};
+
 export const LEGAL_LABELS = {
   draftNotice: 'Draft of 3 November 2026. A lawyer has not yet reviewed this page.',
   planned: 'Planned',

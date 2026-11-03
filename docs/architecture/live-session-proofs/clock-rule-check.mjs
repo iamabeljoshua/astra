@@ -41,6 +41,9 @@ const slowVoiceMs = getReportedMs((frame) => frame * 22);
 const tinyStallsMs = getReportedMs((frame) => frame * FRAME_MS + Math.floor(frame / 10) * 15);
 const onTimeMs = getReportedMs((frame) => frame * FRAME_MS);
 const jitteryMs = getReportedMs((frame) => frame * FRAME_MS + [3, -3, 2, -2][frame % 4]);
+const BURST_FRAMES = 50;
+const AFTER_BURST_STALL_MS = 60;
+const burstThenStallMs = getReportedMs((frame) => (frame < BURST_FRAMES ? 0 : BURST_FRAMES * FRAME_MS + AFTER_BURST_STALL_MS + (frame - BURST_FRAMES) * FRAME_MS));
 const dryTick = await getFrameInTheDryTimersTick();
 const heldAt = 2000;
 const afterBound = heldAt + LONGEST_HOLD_MS + 1000;
@@ -53,6 +56,7 @@ const CHECKS = [
   ['a 15 ms stall every 10 frames reports all of them', Math.abs(tinyStallsMs - 49 * 15) <= TOLERANCE_MS, { tinyStallsMs }],
   ['a voice on time reports nothing', onTimeMs === 0, { onTimeMs }],
   ['frames that jitter around their time report nothing', jitteryMs === 0, { jitteryMs }],
+  ['a burst banks no credit, so a stall after it is still reported in full', burstThenStallMs === AFTER_BURST_STALL_MS, { burstThenStallMs }],
   ['a frame in the same tick as the dry timer, 19 ms late, closes the gap it opened', dryTick.closing?.atMs === dryTick.openedAtMs && dryTick.closing?.ms === 19, dryTick],
   ['an open gap holds the count just short of it', held === heldAt - 1 && heldLast === heldAt - 1, { held, heldLast }],
   ['a closing report that never comes stops holding at the bound', released === heldAt + LONGEST_HOLD_MS && later === afterBound, { released, later }],

@@ -8,11 +8,7 @@
       "types": "./src/index.ts",
       "default": "./src/index.ts"
     },
-    "./audio-probe-worklet.js?url": "./src/player/audio-probe-worklet.js",
-    "./playout-tracker": {
-      "types": "./src/player/playout-tracker.ts",
-      "default": "./src/player/playout-tracker.ts"
-    }
+    "./audio-probe-worklet.js": "./src/player/audio-probe-worklet.js"
   },
   "scripts": {
     "typecheck": "tsc",

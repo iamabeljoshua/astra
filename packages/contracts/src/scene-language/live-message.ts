@@ -30,11 +30,21 @@ export type AgentMessage =
   /** The voice ran dry here. atMs is on the same timeline as TimedWord.startMs. It is sent with no `ms` when the audio stops, and again with `ms` when it returns. */
   | { type: 'audioGap'; turnId: TurnId; atMs: number; ms?: number };
 
-/** `startedMsAgo` says how long before sending this really happened, so the agent can stamp the true time. */
-export type BrowserMessage =
-  | ({ type: 'played'; turnId: TurnId; beatId: BeatId; startedMsAgo: number } & PlayReport)
-  | { type: 'acted'; startedMsAgo: number; action: StudentAction }
-  /** A stop landed after the beat's last word, with something still moving. */
-  | { type: 'boardFrozen'; turnId: TurnId; startedMsAgo: number; frozen: FrozenFrame[] }
-  /** The last word of an `expectsReply` beat started playing, so "yes" now counts as an answer and the 8 second timer starts. */
-  | { type: 'questionHeard'; turnId: TurnId; beatId: BeatId; startedMsAgo: number };
+/**
+ * `browserMs` says when this was sent, on the browser's audio clock, and `startedMsAgo` how long before that it really happened.
+ * The agent keeps one offset between the two clocks, so the gaps in the log are the gaps the student saw and a slow message moves nothing.
+ */
+export interface BrowserStamp {
+  browserMs: number;
+  startedMsAgo: number;
+}
+
+export type BrowserMessage = BrowserStamp &
+  (
+    | ({ type: 'played'; turnId: TurnId; beatId: BeatId } & PlayReport)
+    | { type: 'acted'; action: StudentAction }
+    /** A stop landed after the beat's last word, with something still moving. */
+    | { type: 'boardFrozen'; turnId: TurnId; frozen: FrozenFrame[] }
+    /** The last word of an `expectsReply` beat started playing, so "yes" now counts as an answer and the 8 second timer starts. */
+    | { type: 'questionHeard'; turnId: TurnId; beatId: BeatId }
+  );
