@@ -484,7 +484,7 @@ async function driveAnswerOverLastWord({ agent, student }) {
   return { attempts: outcomes.length, answerReachedModel: outcomes.filter((outcome) => outcome.answerReachedModel).length, voiceEndToReplyMs: describeSeries(outcomes.flatMap((outcome) => outcome.voiceEndToReplyMs ?? [])), outcomes };
 }
 
-async function driveTalkIntoTheGap({ agent, student }) {
+const driveTalkIntoTheGap = (speech, script, mark) => async ({ agent, student }) => {
   const outcomes = [];
   const offsets = [100, 400, 600];
   for (let attempt = 0; attempt < Math.min(REPEAT, 6); attempt++) {
@@ -495,20 +495,47 @@ async function driveTalkIntoTheGap({ agent, student }) {
     await student.say('gravity');
     await waitForAgentState(agent, 'thinking', 6000, agentMark);
     await delay(offsets[attempt % offsets.length]);
-    await setScript('It lands twice as far.');
-    await student.say('twice');
+    await setScript(script);
+    await student.say(speech);
     await waitForAgentQuiet(agent, 3000);
     const events = agent.events.slice(agentMark);
     outcomes.push({
       offsetAfterThinkingMs: offsets[attempt % offsets.length],
       stops: readLiveMessages(student.log, studentMark).filter((message) => message.type === 'stop').length,
-      secondSentenceReachedModel: events.some((event) => event.event === 'conversation_item_added' && event.role === 'user' && event.text?.includes('twice')),
+      secondSentenceReachedModel: events.some((event) => event.event === 'conversation_item_added' && event.role === 'user' && event.text?.includes(mark)),
       repliesStarted: events.filter((event) => event.event === 'llm_node_started').length,
       turnsDroppedBySdk: agent.raw.slice(rawMark).filter((line) => line.includes('skipping user input')).length,
     });
     await clearScript();
   }
   return { attempts: outcomes.length, answered: outcomes.filter((outcome) => outcome.secondSentenceReachedModel).length, dropped: outcomes.filter((outcome) => outcome.turnsDroppedBySdk > 0).length, outcomes };
+};
+
+function driveWordsOverReply(speech, script) {
+  return async ({ agent, student }) => {
+    const outcomes = [];
+    for (let attempt = 0; attempt < Math.min(REPEAT, 5); attempt++) {
+      const rawMark = agent.raw.length;
+      await startLongReply({ agent, student });
+      await setScript(script);
+      const speechMark = student.log.length;
+      const eventMark = agent.events.length;
+      await student.say(speech);
+      await delay(3500);
+      const events = agent.events.slice(eventMark);
+      outcomes.push({
+        stopped: readLiveMessages(student.log, speechMark).some((message) => message.type === 'stop'),
+        reachedModel: events.some((event) => event.event === 'conversation_item_added' && event.role === 'user' && event.text?.includes(script.replace(/[.]$/, ''))),
+        transcribed: events.filter((event) => event.event === 'user_input_transcribed').map((event) => `${event.transcript}${event.isFinal ? ' (final)' : ''}`),
+        repliesStarted: events.filter((event) => event.event === 'llm_node_started').length,
+        turnsDroppedBySdk: agent.raw.slice(rawMark).filter((line) => line.includes('skipping user input')).length,
+      });
+      await waitForAgentState(agent, 'listening', 60000, agent.events.length);
+      await delay(1000);
+      await clearScript();
+    }
+    return { attempts: outcomes.length, stopped: outcomes.filter((outcome) => outcome.stopped).length, reachedModel: outcomes.filter((outcome) => outcome.reachedModel).length, dropped: outcomes.filter((outcome) => outcome.turnsDroppedBySdk > 0).length, outcomes };
+  };
 }
 
 async function driveWordsNeverFinal({ agent, student }) {
@@ -623,13 +650,22 @@ const SCENARIOS = {
     return withSession('question_answer_over_last_word', { TURN_MODE: 'detector', POLICY: 'tiered', AGENT_REPLY: QUESTION_REPLY }, driveAnswerOverLastWord);
   },
   async gap_talkover() {
-    return withSession('gap_talkover', { TURN_MODE: 'detector', POLICY: 'tiered', FAKE_LLM_TTFT_MS: '800', AGENT_REPLY: SHORT_REPLY }, driveTalkIntoTheGap);
+    return withSession('gap_talkover', { TURN_MODE: 'detector', POLICY: 'tiered', FAKE_LLM_TTFT_MS: '800', AGENT_REPLY: SHORT_REPLY }, driveTalkIntoTheGap('twice', 'It lands twice as far.', 'twice'));
   },
   async gap_talkover_late_final() {
     await setFakeSettings({ transcriptDelayMs: 200 });
-    const summary = await withSession('gap_talkover_late_final', { TURN_MODE: 'detector', POLICY: 'tiered', FAKE_LLM_TTFT_MS: '800', AGENT_REPLY: SHORT_REPLY }, driveTalkIntoTheGap);
+    const summary = await withSession('gap_talkover_late_final', { TURN_MODE: 'detector', POLICY: 'tiered', FAKE_LLM_TTFT_MS: '800', AGENT_REPLY: SHORT_REPLY }, driveTalkIntoTheGap('twice', 'It lands twice as far.', 'twice'));
     await setFakeSettings({ transcriptDelayMs: 0 });
     return summary;
+  },
+  async number_over_reply() {
+    return withSession('number_over_reply', { TURN_MODE: 'detector', POLICY: 'tiered' }, driveWordsOverReply('fortytwo', '42.'));
+  },
+  async number_words_over_reply() {
+    return withSession('number_words_over_reply', { TURN_MODE: 'detector', POLICY: 'tiered' }, driveWordsOverReply('fortytwo', 'Forty-two.'));
+  },
+  async number_while_thinking() {
+    return withSession('number_while_thinking', { TURN_MODE: 'detector', POLICY: 'tiered', FAKE_LLM_TTFT_MS: '800', AGENT_REPLY: SHORT_REPLY }, driveTalkIntoTheGap('fortytwo', '42.', '42'));
   },
   async words_never_final() {
     return withSession('words_never_final', { TURN_MODE: 'detector', POLICY: 'tiered' }, driveWordsNeverFinal);
@@ -1008,7 +1044,7 @@ async function driveFalseInterruption({ agent, student }) {
 const fakes = spawn('node', [join(HERE, 'fake-providers.mjs')], { stdio: 'ignore' });
 await delay(500);
 const isBeatsAgent = args.sdk === 'beats';
-const NODE_ONLY = ['question_uhhuh', 'question_hmm', 'question_answer_over_last_word', 'gap_talkover', 'gap_talkover_late_final', 'words_never_final', 'pause_detector_cap_1s', 'pause_filler_rule', 'one_word_transcript_0', 'one_word_transcript_300', 'one_word_transcript_600', 'one_word_transcript_900', 'noise_resume', 'patience_filler_8s', 'patience_filler_then_answer', 'patience_filler_3s', 'patience_words_silence_1s', 'patience_words_silence_2s', 'patience_words_pause_1s', 'patience_words_pause_2s', 'patience_phrases_2s', 'held_reaction_uncleared', 'held_reaction_cleared', 'warmup_first_speech_sdk_default', 'warmup_first_speech_off', 'warmup_rejoin_sdk_default', 'warmup_rejoin_off', 'budget_voice_0', 'budget_voice_200', 'budget_voice_200_preemptive_tts', 'vendor_settings'];
+const NODE_ONLY = ['number_over_reply', 'number_words_over_reply', 'number_while_thinking', 'question_uhhuh', 'question_hmm', 'question_answer_over_last_word', 'gap_talkover', 'gap_talkover_late_final', 'words_never_final', 'pause_detector_cap_1s', 'pause_filler_rule', 'one_word_transcript_0', 'one_word_transcript_300', 'one_word_transcript_600', 'one_word_transcript_900', 'noise_resume', 'patience_filler_8s', 'patience_filler_then_answer', 'patience_filler_3s', 'patience_words_silence_1s', 'patience_words_silence_2s', 'patience_words_pause_1s', 'patience_words_pause_2s', 'patience_phrases_2s', 'held_reaction_uncleared', 'held_reaction_cleared', 'warmup_first_speech_sdk_default', 'warmup_first_speech_off', 'warmup_rejoin_sdk_default', 'warmup_rejoin_off', 'budget_voice_0', 'budget_voice_200', 'budget_voice_200_preemptive_tts', 'vendor_settings'];
 const names = args.only ? args.only.split(',') : Object.keys(SCENARIOS).filter((name) => name.startsWith('beats_') === isBeatsAgent && !(args.sdk === 'python' && NODE_ONLY.includes(name)));
 const summaries = {};
 try {

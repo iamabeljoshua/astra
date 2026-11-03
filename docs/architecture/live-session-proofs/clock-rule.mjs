@@ -1,5 +1,6 @@
 const SMALLEST_GAP_MS = 20;
 const HELD_SHORT_MS = 1;
+export const LONGEST_HOLD_MS = 1000;
 
 // Counts from the first sound and skips the gaps the agent reports, so a silence needs no guess.
 export function createWordClock() {

@@ -38,6 +38,8 @@ const STORIES = [
   ['"Wait." with the final after the grace still stops', [SPEAKING, ON, OFF, timer('transcriptGrace'), words('Wait.')], ['yield', WORDLESS, GRACE, 'unyield', 'stop'], 'stopped'],
   ['a real word with no voice event stops the tutor, however late', [SPEAKING, words('Gravity.')], ['stop'], 'stopped'],
   ['a real word while the reply is still thinking stops it, so the SDK does not drop the turn', [THINKING, words('It lands twice as far.')], ['stop'], 'stopped'],
+  ['a number alone is a real word, so it stops the tutor', [SPEAKING, ON, words('42.', false)], ['yield', WORDLESS, 'stop'], 'stopped'],
+  ['a number alone stops a reply that is still thinking', [THINKING, words('42.')], ['stop'], 'stopped'],
   ['a voice already on when the tutor starts yields at once', [THINKING, ON, SPEAKING], ['yield', WORDLESS], 'yielding'],
   ['and its real words then stop the tutor', [THINKING, ON, SPEAKING, OFF, words('It lands twice as far.')], ['yield', WORDLESS, GRACE, 'stop'], 'stopped'],
   ['"uh-huh" releases the yield and clears what the SDK held', [SPEAKING, ON, OFF, words('Uh-huh.')], ['yield', WORDLESS, GRACE, 'unyield', 'clearHeldWords'], 'clear'],
