@@ -25,7 +25,6 @@ export function HomeScreen() {
   const greeting = useRef<HTMLHeadingElement>(null);
   const arrival = useLocation().state as typeof ARRIVING_FROM_ENDED_SESSION | null;
 
-  // Focus was on End session, and that has gone, so it moves to the heading, as opening a session does.
   useEffect(() => {
     if (arrival?.focusHeading) greeting.current?.focus({ preventScroll: true });
   }, [arrival]);

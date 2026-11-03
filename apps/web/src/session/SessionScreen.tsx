@@ -12,13 +12,16 @@ const NOT_FOUND_STATUS = 404;
 const BAD_ID_STATUS = 400;
 const BAR_ACTION = 'button button-outline px-3 py-1.25';
 
+function isWrongAddress(status?: number | null) {
+  return status === NOT_FOUND_STATUS || status === BAD_ID_STATUS;
+}
+
 export function SessionScreen() {
   const { sessionId } = useParams<'sessionId'>();
   const session = useSession(sessionId!);
 
   if (session.data) return <OpenSession key={session.data.id} session={session.data} />;
-  // The ID is all this read sends, so a 400 means the address is wrong, and Try again would not help.
-  if (session.error?.status === NOT_FOUND_STATUS || session.error?.status === BAD_ID_STATUS) return <SessionProblem message={SESSION_LABELS.notFound} />;
+  if (isWrongAddress(session.error?.status)) return <SessionProblem message={SESSION_LABELS.notFound} />;
   if (session.error) {
     return (
       <SessionProblem message={API_ERROR_LABELS[session.error.kind]}>

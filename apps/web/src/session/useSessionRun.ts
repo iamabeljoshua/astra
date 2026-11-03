@@ -24,7 +24,6 @@ export function useSessionRun(session: Session) {
   const finish = useUpdateSession(session.id);
   const [readSeconds] = useState(() => createClock(session.durationSeconds));
   const [seconds, setSeconds] = useState(session.durationSeconds);
-  // The mutation's pending flag ends before the views refresh and the page fades, so this covers the whole ending.
   const [isEnding, setIsEnding] = useState(false);
 
   useEffect(() => {
