@@ -4,11 +4,12 @@ const WIDE_SCREEN_QUERY = '(min-width: 761px)';
 
 interface StepHeadingProps extends PropsWithChildren {
   id?: string;
+  describedBy?: string;
   fieldToFocus?: RefObject<HTMLInputElement | null>;
 }
 
 // A new step takes focus so a screen reader announces it. A phone focuses the heading, because a field would open the keyboard over the question.
-export function StepHeading({ id, fieldToFocus, children }: StepHeadingProps) {
+export function StepHeading({ id, describedBy, fieldToFocus, children }: StepHeadingProps) {
   const heading = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
@@ -18,7 +19,7 @@ export function StepHeading({ id, fieldToFocus, children }: StepHeadingProps) {
   }, [fieldToFocus]);
 
   return (
-    <h1 ref={heading} id={id} tabIndex={-1} className="text-question font-semibold text-balance outline-none">
+    <h1 ref={heading} id={id} aria-describedby={describedBy} tabIndex={-1} className="text-question font-semibold text-balance outline-none">
       {children}
     </h1>
   );

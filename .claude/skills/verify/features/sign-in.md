@@ -6,7 +6,7 @@ A student signs in with an email link and answers one question, their date of bi
 
 - `sign-in-email` sends a link from the `Continue with email` step, and says `Check your email.`.
 - `sign-in-link` signs in from that link, in the browser that asked for it.
-- `sign-in-birth-date` asks `When were you born?`, and the first answer stands.
+- `sign-in-birth-date` asks `When were you born?`, then shows the typed date with `Is this right?`. Nothing reaches the API before `Yes, continue`, and the first confirmed answer stands.
 - `sign-in-closed` shows `We can't set up this account.` with `Sign out`, on every later sign-in.
 - `sign-in-out` signs out from the sidebar. Other tabs follow, and Back shows no student page.
 - `sign-in-development` shows the `Development sign-in` box on the dev server only.
@@ -26,7 +26,7 @@ Preconditions:
 - `pnpm verify doctor` passes.
 
 - **Sign in by email link and sign out.** Run `pnpm verify drive --journey sign-in`. The `journey`, `identity`, `screenshot`, and `main region` checks print `PASS` for `laptop` and `phone`, and the command exits 0.
-- **Proof.** After a run that printed `PASSED`, open the `sign-in-laptop-*` and `sign-in-phone-*` images in `.verify/evidence/`. They show `sent`, `birth-date`, `home`, and `after-back`.
+- **Proof.** After a run that printed `PASSED`, open the `sign-in-laptop-*` and `sign-in-phone-*` images in `.verify/evidence/`. They show `sent`, `birth-date`, `confirm`, `home`, and `after-back`.
 - **Sign in as another account in a journey.** Call `await signIn('new-student@astra.test')`. It lands on the date of birth question.
 
 ## Gotchas

@@ -24,6 +24,10 @@ function submitDate() {
   fireEvent.click(screen.getByRole('button', { name: strings.BIRTH_DATE_LABELS.next }));
 }
 
+function confirmDate() {
+  fireEvent.click(screen.getByRole('button', { name: strings.BIRTH_DATE_LABELS.confirm }));
+}
+
 function stubApiAnswer(status: number, body: object) {
   const sentBodies: unknown[] = [];
   vi.stubGlobal('fetch', async (request: Request) => {
@@ -77,6 +81,7 @@ describe('the date of birth question', () => {
 
     enterDate('14', '3', year);
     submitDate();
+    confirmDate();
 
     await vi.waitFor(() => expect(sentBodies).toEqual([{ birthDate: `${year}-03-14` }]));
   });
@@ -92,6 +97,7 @@ describe('the date of birth question', () => {
 
     enterDate(day, month, year);
     submitDate();
+    confirmDate();
 
     await vi.waitFor(() => expect(sentBodies).toEqual([{ birthDate: expected }]));
   });
@@ -108,16 +114,87 @@ describe('the date of birth question', () => {
     expect(screen.queryByText(strings.BIRTH_DATE_LABELS.rejected)).toBeNull();
   });
 
-  it('clears a message from the server when the student changes the date', async () => {
+  it('goes back to the date with a message when the server rejects it, and clears the message on a change', async () => {
     stubApiAnswer(400, { message: ['birthDate is wrong'], fieldMessages: { birthDate: ['birthDate is wrong'] } });
     renderWithQueryClient(<BirthDatePage />);
-    enterDate('31', '2', '2004');
+    enterDate('1', '1', '2999');
     submitDate();
-    await screen.findByText(strings.BIRTH_DATE_LABELS.rejected);
+    confirmDate();
 
-    fireEvent.change(screen.getByLabelText(strings.BIRTH_DATE_LABELS.day), { target: { value: '1' } });
+    await screen.findByText(strings.BIRTH_DATE_LABELS.rejected);
+    expect(screen.getByLabelText<HTMLInputElement>(strings.BIRTH_DATE_LABELS.year).value).toBe('2999');
+
+    fireEvent.change(screen.getByLabelText(strings.BIRTH_DATE_LABELS.year), { target: { value: '2004' } });
 
     await vi.waitFor(() => expect(screen.queryByText(strings.BIRTH_DATE_LABELS.rejected)).toBeNull());
+  });
+
+  describe('the confirm step', () => {
+    it.each([
+      ['a date that closes an account', '1', '1', '2020'],
+      ['a date that opens one', '14', '3', '2004'],
+      ['a date around the age limit', '3', '11', '2013'],
+    ])('asks about %s in the same words, and sends nothing until the student confirms', (_caseName, day, month, year) => {
+      const sentBodies = stubApiAnswer(200, { status: 'active', student: null });
+      const { container } = renderWithQueryClient(<BirthDatePage />);
+      enterDate(day, month, year);
+
+      submitDate();
+
+      const expectedDate = new Intl.DateTimeFormat(undefined, { dateStyle: 'long', timeZone: 'UTC' }).format(new Date(Date.UTC(Number(year), Number(month) - 1, Number(day))));
+      screen.getByRole('heading', { name: strings.BIRTH_DATE_LABELS.confirmQuestion });
+      screen.getByText(expectedDate);
+      expect(container.textContent?.replace(expectedDate, '')).not.toMatch(AGE_LIMIT_WORDS);
+      expect(sentBodies).toEqual([]);
+    });
+
+    it('goes back with the typed date kept when the student changes it, having sent nothing', () => {
+      const sentBodies = stubApiAnswer(200, { status: 'active', student: null });
+      renderWithQueryClient(<BirthDatePage />);
+      enterDate('14', '3', '2004');
+      submitDate();
+
+      fireEvent.click(screen.getByRole('button', { name: strings.BIRTH_DATE_LABELS.change }));
+
+      expect(screen.getByLabelText<HTMLInputElement>(strings.BIRTH_DATE_LABELS.day).value).toBe('14');
+      expect(screen.getByLabelText<HTMLInputElement>(strings.BIRTH_DATE_LABELS.year).value).toBe('2004');
+      expect(sentBodies).toEqual([]);
+    });
+
+    it('refuses a date that does not exist before the student has to confirm it', () => {
+      renderWithQueryClient(<BirthDatePage />);
+      enterDate('31', '2', '2004');
+
+      submitDate();
+
+      screen.getByText(strings.BIRTH_DATE_LABELS.rejected);
+      expect(screen.queryByRole('heading', { name: strings.BIRTH_DATE_LABELS.confirmQuestion })).toBeNull();
+    });
+
+    it('moves focus to the question, and ties the date to the question and the button', () => {
+      renderWithQueryClient(<BirthDatePage />);
+      enterDate('14', '3', '2004');
+
+      submitDate();
+
+      const heading = screen.getByRole('heading', { name: strings.BIRTH_DATE_LABELS.confirmQuestion });
+      const button = screen.getByRole('button', { name: strings.BIRTH_DATE_LABELS.confirm });
+      expect(document.activeElement).toBe(heading);
+      expect(heading.getAttribute('aria-describedby')).toBe(button.getAttribute('aria-describedby'));
+      expect(document.getElementById(heading.getAttribute('aria-describedby') ?? '')?.textContent).toContain('2004');
+    });
+
+    it('stays here and says what went wrong when saving fails, so the student can confirm again', async () => {
+      stubApiAnswer(500, {});
+      renderWithQueryClient(<BirthDatePage />);
+      enterDate('14', '3', '2004');
+      submitDate();
+
+      confirmDate();
+
+      await screen.findByText(strings.API_ERROR_LABELS.server);
+      screen.getByRole('button', { name: strings.BIRTH_DATE_LABELS.confirm });
+    });
   });
 
   it('names the date fields as a group, and ties a rejected date to its message', () => {
@@ -139,15 +216,16 @@ describe('the date of birth question', () => {
     vi.stubGlobal('fetch', fetchStub);
     renderWithQueryClient(<BirthDatePage />);
     enterDate('14', '3', '2004');
-    const button = screen.getByRole<HTMLButtonElement>('button', { name: strings.BIRTH_DATE_LABELS.next });
+    submitDate();
+    const button = screen.getByRole<HTMLButtonElement>('button', { name: strings.BIRTH_DATE_LABELS.confirm });
     button.focus();
 
-    submitDate();
-    submitDate();
+    confirmDate();
+    await vi.waitFor(() => expect(button.getAttribute('aria-disabled')).toBe('true'));
+    confirmDate();
 
     expect(document.activeElement).toBe(button);
     expect(button.disabled).toBe(false);
-    expect(button.getAttribute('aria-disabled')).toBe('true');
     await vi.waitFor(() => expect(fetchStub).toHaveBeenCalledTimes(1));
   });
 

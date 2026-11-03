@@ -71,6 +71,9 @@ export const BIRTH_DATE_LABELS = {
   yearPlaceholder: 'YYYY',
   next: 'Continue →',
   rejected: 'Check the date and try again.',
+  confirmQuestion: 'Is this right?',
+  confirm: 'Yes, continue',
+  change: 'Change it',
 };
 
 export const TUTOR_NOTES_LABELS = {

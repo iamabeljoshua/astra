@@ -74,6 +74,11 @@ function enterBirthDate(day: string, month: string, year: string) {
   fireEvent.click(screen.getByRole('button', { name: BIRTH_DATE_LABELS.next }));
 }
 
+function enterAndConfirmBirthDate(day: string, month: string, year: string) {
+  enterBirthDate(day, month, year);
+  fireEvent.click(screen.getByRole('button', { name: BIRTH_DATE_LABELS.confirm }));
+}
+
 beforeEach(() => {
   vi.mocked(forgetSession).mockClear();
   vi.mocked(renewSession).mockReset();
@@ -139,7 +144,7 @@ describe('AccountGate', () => {
     renderGate();
     await screen.findByRole('heading', { name: BIRTH_DATE_LABELS.question });
 
-    enterBirthDate('4', '3', '2004');
+    enterAndConfirmBirthDate('4', '3', '2004');
 
     await screen.findByText(APP_TEXT);
     expect(sentBodies).toEqual([{ birthDate: '2004-03-04' }]);
@@ -151,7 +156,7 @@ describe('AccountGate', () => {
     renderGate();
     await screen.findByRole('heading', { name: BIRTH_DATE_LABELS.question });
 
-    enterBirthDate('1', '1', '2020');
+    enterAndConfirmBirthDate('1', '1', '2020');
 
     await screen.findByRole('heading', { name: ACCOUNT_LABELS.closed });
     expect(screen.queryByLabelText(BIRTH_DATE_LABELS.year)).toBeNull();
@@ -190,7 +195,7 @@ describe('AccountGate', () => {
     renderGate();
     await screen.findByRole('heading', { name: BIRTH_DATE_LABELS.question });
 
-    enterBirthDate('31', '2', '2004');
+    enterAndConfirmBirthDate('1', '1', '2999');
 
     await screen.findByText(BIRTH_DATE_LABELS.rejected);
   });
@@ -201,7 +206,7 @@ describe('AccountGate', () => {
     renderGate();
     await screen.findByRole('heading', { name: BIRTH_DATE_LABELS.question });
 
-    enterBirthDate('14', '3', '2004');
+    enterAndConfirmBirthDate('14', '3', '2004');
 
     await screen.findByText(API_ERROR_LABELS.server);
   });
@@ -379,7 +384,7 @@ describe('AccountGate', () => {
       renderGate();
       await screen.findByRole('heading', { name: BIRTH_DATE_LABELS.question });
 
-      enterBirthDate('1', '1', '2020');
+      enterAndConfirmBirthDate('1', '1', '2020');
 
       const heading = await screen.findByRole('heading', { name: ACCOUNT_LABELS.closed });
       expect(document.activeElement).toBe(heading);
@@ -391,7 +396,7 @@ describe('AccountGate', () => {
       renderGate();
       await screen.findByRole('heading', { name: BIRTH_DATE_LABELS.question });
 
-      enterBirthDate('14', '3', '2004');
+      enterAndConfirmBirthDate('14', '3', '2004');
 
       const heading = await screen.findByRole('heading', { name: APP_HEADING });
       expect(document.activeElement).toBe(heading);

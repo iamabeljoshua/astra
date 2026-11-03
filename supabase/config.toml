@@ -35,3 +35,11 @@ enabled = false
 [auth]
 site_url = "http://127.0.0.1:5173"
 additional_redirect_urls = ["http://localhost:[0-9][0-9][0-9][0-9]/**"]
+
+[auth.email.template.magic_link]
+subject = "Your Astra sign-in link"
+content_path = "./supabase/templates/magic-link.html"
+
+[auth.email.template.confirmation]
+subject = "Finish signing in to Astra"
+content_path = "./supabase/templates/confirmation.html"

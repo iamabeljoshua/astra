@@ -37,6 +37,9 @@ export default async function signIn({ page, capture, viewportName }) {
   await page.getByRole('textbox', { name: 'Month' }).fill('3');
   await page.getByRole('textbox', { name: 'Year' }).fill('2004');
   await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('heading', { name: 'Is this right?' }).waitFor();
+  await capture('confirm');
+  await page.getByRole('button', { name: 'Yes, continue' }).click();
   await page.getByRole('heading', { name: 'Welcome back.' }).waitFor();
   await capture('home');
 
