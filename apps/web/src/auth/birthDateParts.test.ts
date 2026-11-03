@@ -6,11 +6,15 @@ afterEach(() => {
 });
 
 describe('formatBirthDate', () => {
-  it.each(['America/Los_Angeles', 'UTC', 'Pacific/Kiritimati'])('shows the day the student typed on a device in %s', (timeZone) => {
+  it.each([
+    ['America/Los_Angeles', 480],
+    ['UTC', 0],
+    ['Pacific/Kiritimati', -840],
+  ])('shows the day the student typed on a device in %s', (timeZone, minutesBehindUtc) => {
     vi.stubEnv('TZ', timeZone);
 
+    expect(new Date('2004-03-14T00:00:00Z').getTimezoneOffset()).toBe(minutesBehindUtc);
     expect(formatBirthDate('2004-03-14')).toContain('14');
-    expect(new Date('2004-03-14T00:00:00Z').getTimezoneOffset()).toBe(timeZone === 'America/Los_Angeles' ? 480 : timeZone === 'UTC' ? 0 : -840);
   });
 });
 

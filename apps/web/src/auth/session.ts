@@ -33,7 +33,7 @@ function createSupabaseClient() {
 
 const supabase = createSupabaseClient();
 
-// A browser can block storage, and then reading it throws. The client keeps its session in memory there, so treat storage as empty.
+// A browser can block storage, and then reading it throws. The client then keeps its session in memory, so storage counts as empty.
 function withStorage<Result>(action: (local: Storage, tab: Storage) => Result, whenBlocked: Result): Result {
   try {
     return action(window.localStorage, window.sessionStorage);
@@ -127,7 +127,7 @@ export async function signInWithPassword(email: string, password: string): Promi
   return !error;
 }
 
-// Hides the page first, because the next document can take seconds to arrive, and the next person must not see this one.
+// Hides the page first, because the next document can take seconds to arrive.
 export function restartAppAtHome(): void {
   document.documentElement.style.visibility = 'hidden';
   withStorage((_local, tab) => tab.removeItem(LAST_LINK_STORAGE_KEY), undefined);

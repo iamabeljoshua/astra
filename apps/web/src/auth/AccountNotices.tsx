@@ -53,7 +53,6 @@ export function AccountErrorPage({ errorKind, onTryAgain }: AccountErrorPageProp
   const [failedTries, setFailedTries] = useState(0);
 
   async function tryAgain() {
-    if (isTrying) return;
     setIsTrying(true);
     await onTryAgain();
     setIsTrying(false);

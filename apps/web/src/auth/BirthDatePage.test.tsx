@@ -242,6 +242,23 @@ describe('the date of birth question', () => {
     expect(fetchStub).toHaveBeenCalledTimes(1);
   });
 
+  it('can send a corrected date after the student changes it while the first is on its way', async () => {
+    const fetchStub = vi.fn(NOT_ANSWERED_YET);
+    vi.stubGlobal('fetch', fetchStub);
+    renderWithQueryClient(<BirthDatePage />);
+    enterDate('14', '3', '2004');
+    submitDate();
+    confirmDate();
+    await vi.waitFor(() => expect(fetchStub).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByRole('button', { name: strings.BIRTH_DATE_LABELS.change }));
+    enterDate('14', '3', '2005');
+    submitDate();
+    confirmDate();
+
+    await vi.waitFor(() => expect(fetchStub).toHaveBeenCalledTimes(2));
+  });
+
   it('can send again after a failed send', async () => {
     const sentBodies = stubApiAnswer(500, {});
     renderWithQueryClient(<BirthDatePage />);

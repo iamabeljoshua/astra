@@ -67,7 +67,7 @@ function renderGateWithClient(queryOptions: DefaultOptions['queries']) {
   return queryClient;
 }
 
-function renderGateWithRealRetries() {
+function renderGateWithNoRetries() {
   return renderGateWithClient({ retry: false, staleTime: 0 });
 }
 
@@ -296,7 +296,7 @@ describe('AccountGate', () => {
     setSignIn('signedIn');
     const answers: Record<string, () => Response> = { 'GET /api/me': json(ACTIVE_ACCOUNT) };
     stubApi(answers);
-    const queryClient = renderGateWithRealRetries();
+    const queryClient = renderGateWithNoRetries();
     await screen.findByText(APP_TEXT);
 
     answers['GET /api/me'] = json({}, 503);
@@ -320,7 +320,7 @@ describe('AccountGate', () => {
     stubApi(answers);
     let finishRenewal: (renewal: 'renewed') => void = () => undefined;
     vi.mocked(renewSession).mockImplementation(() => new Promise((resolve) => (finishRenewal = resolve)));
-    const queryClient = renderGateWithRealRetries();
+    const queryClient = renderGateWithNoRetries();
     await screen.findByText(APP_TEXT);
     const lesson = screen.getByText(APP_TEXT);
 
@@ -346,7 +346,7 @@ describe('AccountGate', () => {
       answers['GET /api/me'] = json(ACTIVE_ACCOUNT);
       return 'renewed';
     });
-    const queryClient = renderGateWithRealRetries();
+    const queryClient = renderGateWithNoRetries();
     await screen.findByText(APP_TEXT);
 
     answers['GET /api/me'] = json({ statusCode: 401 }, 401);
@@ -363,7 +363,7 @@ describe('AccountGate', () => {
     const answers: Record<string, () => Response> = { 'GET /api/me': json(ACTIVE_ACCOUNT) };
     stubApi(answers);
     vi.mocked(renewSession).mockResolvedValue('unreachable');
-    const queryClient = renderGateWithRealRetries();
+    const queryClient = renderGateWithNoRetries();
     await screen.findByText(APP_TEXT);
 
     answers['GET /api/me'] = json({ statusCode: 401 }, 401);
@@ -496,7 +496,7 @@ describe('AccountGate', () => {
       const answers: Record<string, () => Response> = { 'GET /api/me': ACCEPTED };
       stubApi(answers);
       vi.mocked(renewSession).mockResolvedValue('unreachable');
-      renderGateWithRealRetries();
+      renderGateWithNoRetries();
       const lesson = await screen.findByText(APP_TEXT);
 
       answers['GET /api/me'] = REFUSED;

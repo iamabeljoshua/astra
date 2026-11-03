@@ -13,6 +13,11 @@ export function useBirthDateSteps() {
   // The mutation reports pending only after a tick, so a double click would otherwise send twice.
   const isAnswerOnItsWay = useRef(false);
 
+  function forgetAnswer() {
+    isAnswerOnItsWay.current = false;
+    answerBirthDate.reset();
+  }
+
   function reviewDate() {
     const birthDate = toBirthDate(dateParts);
     setIsDateRejected(!birthDate);
@@ -21,7 +26,7 @@ export function useBirthDateSteps() {
 
   function changeDate() {
     setDateToConfirm(null);
-    answerBirthDate.reset();
+    forgetAnswer();
   }
 
   function confirmDate() {
@@ -42,7 +47,7 @@ export function useBirthDateSteps() {
   function changePart(part: keyof DateParts, value: string) {
     setDateParts({ ...dateParts, [part]: value });
     setIsDateRejected(false);
-    answerBirthDate.reset();
+    forgetAnswer();
   }
 
   return {

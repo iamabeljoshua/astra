@@ -3,7 +3,7 @@ const LOGOUT_PATH = '/auth/v1/logout';
 const REFRESH_GRANT = 'grant_type=refresh_token';
 const TOO_MANY_REQUESTS_STATUS = 429;
 const RETRYABLE_STATUS = 503;
-// The client keeps retrying a retryable answer for 30 seconds, and then waits 60 before it tries again.
+// How long the client keeps retrying a retryable answer.
 const REFRESH_PAUSE_AFTER_LIMIT_MS = 30_000;
 
 let refreshPausedUntil = 0;
@@ -13,8 +13,7 @@ function getRequestSignal(callerSignal: AbortSignal | null | undefined) {
   return callerSignal ? AbortSignal.any([callerSignal, timeLimit]) : timeLimit;
 }
 
-// The client deletes the session on a refresh failure it cannot retry, and a rate limit says nothing about the session.
-// So a limit becomes a retryable answer, and the retries it causes stop here instead of adding to the load on Auth.
+// The client deletes the session on a refresh failure it cannot retry. A limit says nothing about the session, so it becomes retryable, and the retries stop here.
 export async function fetchForAuth(input: RequestInfo | URL, init?: RequestInit) {
   const url = String(input);
   const isRefresh = url.includes(REFRESH_GRANT);
