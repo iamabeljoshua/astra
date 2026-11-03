@@ -341,7 +341,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 - [ ] The database stores students, their profiles and interests, and their sessions, including each session's language.
 - [ ] A seed command creates an example student with six example sessions, matching the prototype.
 - [ ] The API rejects bad input with a clear error, and valid input saves and reads back the same.
-- [ ] CI runs the migrations against a fresh database on the same Postgres image as the local stack, and a CI run stays under 3 minutes.
+- [ ] CI runs the migrations against a fresh database on the same Postgres image as the local stack, and a CI run stays under 4 minutes.
 - [ ] No paid service is added.
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
@@ -1535,6 +1535,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 - [ ] A student or parent can delete a student's data, and raw audio is confirmed never stored.
 - [ ] Parents of minors get a short summary after each session, with no transcript.
 - [ ] Student data is excluded from model training, and the product has no camera, no voiceprints, and no emotion inference.
+- [ ] An under-13 account is fully closed. The Supabase user is deleted, a keyed hash of the address refuses it from then on, even after an email change, and a lawyer's view is recorded (PRD S1).
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
