@@ -129,15 +129,15 @@ const MONTHLY = {
   cartesiaStartup: 49 + 4.75 * 45,
   inferenceCartesiaVoice: liveKitInference.ttsCartesiaSonicPerMillionCharactersOnShip * CHARACTERS_IN_MILLIONS,
   inferenceCheapestVoice: liveKitInference.ttsCheapestVoicePerMillionCharactersOnShip * CHARACTERS_IN_MILLIONS,
-  ourServersLow: 60,
-  ourServersHigh: 120,
+  guessedServersLow: 60,
+  guessedServersHigh: 120,
 };
 const ownAccounts = { startup: MONTHLY.cartesiaStartup + MONTHLY.deepgramWithKeyterms, scale: MONTHLY.cartesiaScale + MONTHLY.deepgramWithKeyterms };
 const ROUTES = {
   ownAccountsOnly: { low: ownAccounts.startup, high: ownAccounts.scale },
   cloudWithInference: { low: MONTHLY.liveKitShip + MONTHLY.inferenceCartesiaVoice + inferenceSpeech.nova3, high: MONTHLY.liveKitShip + MONTHLY.inferenceCartesiaVoice + inferenceSpeech.flux },
   cloudWithOwnAccounts: { low: MONTHLY.liveKitShip + ownAccounts.startup, high: MONTHLY.liveKitShip + ownAccounts.scale },
-  allOursWithOwnAccounts: { low: MONTHLY.ourServersLow + ownAccounts.startup, high: MONTHLY.ourServersHigh + ownAccounts.scale },
+  allOursWithOwnAccounts: { low: MONTHLY.guessedServersLow + ownAccounts.startup, high: MONTHLY.guessedServersHigh + ownAccounts.scale },
   cloudWithCheapestInferenceVoice: { low: MONTHLY.liveKitShip + MONTHLY.inferenceCheapestVoice + inferenceSpeech.nova3, high: MONTHLY.liveKitShip + MONTHLY.inferenceCheapestVoice + inferenceSpeech.flux },
 };
 

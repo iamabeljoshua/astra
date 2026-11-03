@@ -128,6 +128,7 @@ function applyFrozenFrames(board: Board, frames: FrozenFrame[], atMs: number): v
   }
 }
 
+// Flattens events by time, because a beat is written when it ends, so a cue inside a beat sorts against a drag inside it.
 export function rebuildBoard(log: SessionEvent[], atMs: number): Board {
   const operations: { at: number; order: number; run: (board: Board) => void }[] = [];
   let snapshotSourceOrder = 0;

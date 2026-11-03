@@ -1,6 +1,7 @@
 const SMALLEST_GAP_MS = 20;
 const HELD_SHORT_MS = 1;
 
+// Counts from the first sound and skips the gaps the agent reports, so a silence needs no guess.
 export function createWordClock() {
   let firstSoundAtMs = null;
   const gaps = [];
@@ -27,6 +28,7 @@ export function createWordClock() {
   };
 }
 
+// Runs in the agent. A report sent when the queue empties reaches the browser before the silence does.
 export function createPlayoutTracker({ onRanDry }) {
   let queuedUntilMs = null;
   let audioMs = 0;

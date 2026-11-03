@@ -29,6 +29,7 @@ export type TutorEvent =
   | { kind: 'refused'; reason: string }
   | { kind: 'usage'; inputTokens: number; cachedTokens: number; outputTokens: number };
 
+/** Ours, not LiveKit's model class, because that class gives compaction and refusals no place, and M3.7 must control the exact history sent. */
 export interface TutorModelAdapter {
   name: string;
   stream(request: TutorRequest, signal: AbortSignal): AsyncIterable<TutorEvent>;

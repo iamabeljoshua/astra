@@ -225,8 +225,8 @@
   "cartesiaStartup": 262.75,
   "inferenceCartesiaVoice": 300,
   "inferenceCheapestVoice": 90,
-  "ourServersLow": 60,
-  "ourServersHigh": 120
+  "guessedServersLow": 60,
+  "guessedServersHigh": 120
  },
  "routesForVoiceSpeechAndHosting": {
   "ownAccountsOnly": {

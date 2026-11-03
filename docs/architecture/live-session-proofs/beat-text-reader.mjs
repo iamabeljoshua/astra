@@ -170,6 +170,7 @@ export class BeatTextReader {
     return isWordDone && (character === '"' || JSON_SYMBOL.test(character));
   }
 
+  // A newline or new brace makes the tail speech. So does a closing brace, unless the tail is one word or still looks like JSON.
   stepInBrokenTail(character) {
     if (character === '}') {
       const tail = this.brokenTail;

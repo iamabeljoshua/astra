@@ -21,6 +21,7 @@ function startTurn(turnId, reply) {
   turn = { turnId, reply, wordStartsMs: [], clock: createWordClock(), cues: [], fired: [], frozen: false, playedWords: 0, hasFirstSound: false, beats: [], questionWords: [] };
   records.turns.push(turn);
   note('turnStarted', { reply });
+  // On a poor link the audio can arrive first, so an onset already sounding belongs to this turn.
   if (isSounding && lastOnsetMs !== null) startClock(lastOnsetMs);
 }
 
@@ -49,7 +50,7 @@ function tick() {
     if (word.isSent || turn.wordStartsMs[word.at] === undefined || position < turn.wordStartsMs[word.at]) continue;
     word.isSent = true;
     note('questionHeard', { atWord: word.at });
-    send({ type: 'questionHeard', turnId: turn.turnId, startedMsAgo: 0 });
+    send({ type: 'questionHeard', turnId: turn.turnId, beatId: word.beatId, startedMsAgo: 0 });
   }
   for (const cue of turn.cues) {
     if (cue.firedAtMs !== undefined) continue;
@@ -112,7 +113,7 @@ function onMessage(message) {
       note('audioGap', { gapAtMs: message.atMs, ms: message.ms });
     }
   }
-  if (message.type === 'beatClosed' && message.expectsReply) target.questionWords.push({ at: message.firstWord + message.wordCount - 1, isSent: false });
+  if (message.type === 'beatClosed' && message.expectsReply) target.questionWords.push({ at: message.firstWord + message.wordCount - 1, beatId: message.beatId, isSent: false });
 }
 
 function onProbe(kind, atMs) {
