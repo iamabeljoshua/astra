@@ -1,0 +1,75 @@
+{
+ "checks": 9,
+ "passed": 9,
+ "rows": [
+  {
+   "check": "a voice at 91% speed reports all its lateness, though no frame is 20 ms late",
+   "passed": true,
+   "seen": {
+    "slowVoiceMs": 980
+   }
+  },
+  {
+   "check": "a 15 ms stall every 10 frames reports all of them",
+   "passed": true,
+   "seen": {
+    "tinyStallsMs": 720
+   }
+  },
+  {
+   "check": "a voice on time reports nothing",
+   "passed": true,
+   "seen": {
+    "onTimeMs": 0
+   }
+  },
+  {
+   "check": "frames that jitter around their time report nothing",
+   "passed": true,
+   "seen": {
+    "jitteryMs": 0
+   }
+  },
+  {
+   "check": "a frame in the same tick as the dry timer, 19 ms late, closes the gap it opened",
+   "passed": true,
+   "seen": {
+    "openedAtMs": 20,
+    "closing": {
+     "atMs": 20,
+     "ms": 19
+    }
+   }
+  },
+  {
+   "check": "an open gap holds the count just short of it",
+   "passed": true,
+   "seen": {
+    "held": 1999,
+    "heldLast": 1999
+   }
+  },
+  {
+   "check": "a closing report that never comes stops holding at the bound",
+   "passed": true,
+   "seen": {
+    "released": 5000,
+    "later": 6000
+   }
+  },
+  {
+   "check": "a closing report that lands after the bound still corrects the count",
+   "passed": true,
+   "seen": {
+    "lateClose": 5700
+   }
+  },
+  {
+   "check": "a closed gap longer than the bound skips all of its length",
+   "passed": true,
+   "seen": {
+    "longStall": 3000
+   }
+  }
+ ]
+}

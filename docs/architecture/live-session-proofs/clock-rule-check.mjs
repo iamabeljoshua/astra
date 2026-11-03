@@ -43,9 +43,10 @@ const onTimeMs = getReportedMs((frame) => frame * FRAME_MS);
 const jitteryMs = getReportedMs((frame) => frame * FRAME_MS + [3, -3, 2, -2][frame % 4]);
 const dryTick = await getFrameInTheDryTimersTick();
 const heldAt = 2000;
-const [held, heldLast, released, later] = getPositions([{ atMs: heldAt }], [heldAt + 100, heldAt + LONGEST_HOLD_MS - 1, heldAt + LONGEST_HOLD_MS, 5000]);
-const [lateClose] = getPositions([{ atMs: heldAt }, { atMs: heldAt, ms: 300 }], [5000]);
-const [longStall] = getPositions([{ atMs: heldAt, ms: LONGEST_HOLD_MS + 500 }], [5000]);
+const afterBound = heldAt + LONGEST_HOLD_MS + 1000;
+const [held, heldLast, released, later] = getPositions([{ atMs: heldAt }], [heldAt + 100, heldAt + LONGEST_HOLD_MS - 1, heldAt + LONGEST_HOLD_MS, afterBound]);
+const [lateClose] = getPositions([{ atMs: heldAt }, { atMs: heldAt, ms: 300 }], [afterBound]);
+const [longStall] = getPositions([{ atMs: heldAt, ms: LONGEST_HOLD_MS + 500 }], [afterBound + 500]);
 
 const CHECKS = [
   ['a voice at 91% speed reports all its lateness, though no frame is 20 ms late', Math.abs(slowVoiceMs - (FRAMES - 1) * 2) <= TOLERANCE_MS, { slowVoiceMs }],
@@ -54,9 +55,9 @@ const CHECKS = [
   ['frames that jitter around their time report nothing', jitteryMs === 0, { jitteryMs }],
   ['a frame in the same tick as the dry timer, 19 ms late, closes the gap it opened', dryTick.closing?.atMs === dryTick.openedAtMs && dryTick.closing?.ms === 19, dryTick],
   ['an open gap holds the count just short of it', held === heldAt - 1 && heldLast === heldAt - 1, { held, heldLast }],
-  ['a closing report that never comes stops holding at the bound', released === heldAt + LONGEST_HOLD_MS && later === 5000, { released, later }],
-  ['a closing report that lands after the bound still corrects the count', lateClose === 4700, { lateClose }],
-  ['a closed gap longer than the bound skips all of its length', longStall === 5000 - LONGEST_HOLD_MS - 500, { longStall }],
+  ['a closing report that never comes stops holding at the bound', released === heldAt + LONGEST_HOLD_MS && later === afterBound, { released, later }],
+  ['a closing report that lands after the bound still corrects the count', lateClose === afterBound - 300, { lateClose }],
+  ['a closed gap longer than the bound skips all of its length', longStall === afterBound - LONGEST_HOLD_MS, { longStall }],
 ];
 
 const rows = CHECKS.map(([check, passed, seen]) => ({ check, passed, seen }));
@@ -67,4 +68,3 @@ if (failed.length > 0) {
   console.log(JSON.stringify(failed, null, 1));
   process.exit(1);
 }
-process.exit(0);

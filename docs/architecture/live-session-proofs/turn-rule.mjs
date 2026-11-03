@@ -8,7 +8,7 @@ function getWords(text) {
   return text
     .toLowerCase()
     .split(/\s+/)
-    .map((word) => word.replace(/[^a-z-]/g, ''))
+    .map((word) => word.replace(/[^a-z0-9-]/g, ''))
     .filter(Boolean);
 }
 
