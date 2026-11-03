@@ -11,7 +11,6 @@ export class StudentEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  // Supabase's user ID. A plain uuid, because the local app databases have no auth schema to point a foreign key at.
   @Column('uuid', { name: 'auth_user_id', unique: true })
   authUserId!: string;
 

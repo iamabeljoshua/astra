@@ -4,10 +4,8 @@ const REFRESH_GRANT = 'grant_type=refresh_token';
 const TOO_MANY_REQUESTS_STATUS = 429;
 const RETRYABLE_STATUS = 503;
 
-// The Supabase client has no time limit of its own, so a server that never answers would leave a screen waiting forever.
-// A logout must land even though the page restarts straight after asking.
 // The client deletes the session on a refresh failure it cannot retry, and a rate limit says nothing about the session.
-export async function fetchWithTimeLimit(input: RequestInfo | URL, init?: RequestInit) {
+export async function fetchForAuth(input: RequestInfo | URL, init?: RequestInit) {
   const url = String(input);
   const response = await globalThis.fetch(input, {
     ...init,

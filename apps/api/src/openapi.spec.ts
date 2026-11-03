@@ -149,7 +149,6 @@ function getSchemaByRef(document: OpenAPIObject, ref: string): WalkedSchema | un
   return document.components?.schemas?.[ref.replace(SCHEMA_REF_PREFIX, '')] as WalkedSchema | undefined;
 }
 
-// Follows every reference, so a student ID nested in another DTO, or in a DTO with any name, still counts.
 function findStudentIdFields(document: OpenAPIObject, schema: WalkedSchema, seenRefs: Set<string>): string[] {
   if (schema.$ref) {
     if (seenRefs.has(schema.$ref)) return [];

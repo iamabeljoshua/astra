@@ -13,7 +13,6 @@ const SEND_PROBLEM_ID = 'send-problem';
 
 declare const __DEV_SIGN_IN__: boolean;
 
-// vite.config.ts sets this to true only for the dev server, so a build drops this branch and its file whatever its settings.
 const DevSignIn = __DEV_SIGN_IN__ ? lazy(() => import('./DevSignIn')) : null;
 
 export function SignInPage() {

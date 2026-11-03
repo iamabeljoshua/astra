@@ -5,7 +5,6 @@ const LOCAL_HOSTS = ['127.0.0.1', 'localhost', '[::1]'];
 const SECRET_KEY_PREFIX = 'sb_secret_';
 const DEVELOPMENT_ACCOUNT_TEXT = [devAccounts.password, ...devAccounts.accounts.map((account) => account.email)];
 
-// Without these the page throws on load, so a build that lacks them would ship a blank page. The browser receives both.
 export function requireSupabaseValues(env: Record<string, string | undefined>) {
   const url = env.VITE_SUPABASE_URL?.trim();
   const publishableKey = env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim();
@@ -26,7 +25,6 @@ export function findDevelopmentAccountText(text: string) {
   return DEVELOPMENT_ACCOUNT_TEXT.find((accountText) => text.includes(accountText));
 }
 
-// Every build runs this, so a change that lets the development box into a build fails it.
 export function refuseDevelopmentAccounts(): Plugin {
   return {
     name: 'refuse-development-accounts',

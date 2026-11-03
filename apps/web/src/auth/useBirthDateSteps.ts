@@ -5,7 +5,6 @@ import { useAnswerBirthDate } from './useAccount';
 
 const EMPTY_DATE: DateParts = { day: '', month: '', year: '' };
 
-// Nothing reaches the API until the student confirms the date they typed, because the first answer stands.
 export function useBirthDateSteps() {
   const answerBirthDate = useAnswerBirthDate();
   const [dateParts, setDateParts] = useState(EMPTY_DATE);

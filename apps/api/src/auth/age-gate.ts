@@ -3,7 +3,6 @@ const OLDEST_BIRTH_DATE = '1900-01-01';
 const BIRTH_DATE_FORMAT = /^\d{4}-\d{2}-\d{2}$/;
 const MILLISECONDS_PER_HOUR = 3_600_000;
 
-// The date changes first in UTC+14, so nobody on Earth has a later calendar date than this one.
 const FIRST_DATE_OFFSET_HOURS = 14;
 
 function getLatestDateOnEarth(now: Date): string {
@@ -26,7 +25,6 @@ export function isValidBirthDate(text: unknown, now: Date): boolean {
 }
 
 // Too young only when the student is under the age in every time zone, so a real 13-year-old is never closed out.
-// Compares as text, so a 29 February birthday falls on 1 March in other years.
 export function isOldEnough(validBirthDate: string, now: Date): boolean {
   const birthYear = Number(validBirthDate.slice(0, 4));
   const birthdayAtMinimumAge = `${birthYear + MINIMUM_AGE_YEARS}${validBirthDate.slice(4)}`;

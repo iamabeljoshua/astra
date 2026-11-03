@@ -57,7 +57,6 @@ class PlantedStudentIgnoringController {
   }
 }
 
-// Each route here hides from the Swagger document, or ignores the token, in a way an earlier route check missed.
 @Module({ controllers: [PlantedExcludedController, PlantedOpenRoutesController, PlantedStudentIgnoringController] })
 export class PlantedRoutesModule implements NestModule, OnModuleInit {
   constructor(private readonly httpAdapterHost: HttpAdapterHost) {}

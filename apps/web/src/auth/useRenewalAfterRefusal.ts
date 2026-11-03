@@ -22,7 +22,6 @@ export function useRenewalAfterRefusal({ error, errorUpdatedAt, isFetching, refe
   const isTokenRefused = error?.status === UNAUTHORIZED_STATUS;
   const isRunning = useRef(false);
   const [lastRenewal, setLastRenewal] = useState<LastRenewal | null>(null);
-  // A refetch clears the error before it answers, so only a finished answer can say the token was accepted.
   if (lastRenewal && !isFetching && !isTokenRefused) setLastRenewal(null);
 
   useEffect(() => {

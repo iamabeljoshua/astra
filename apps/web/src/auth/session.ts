@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { type AuthError, createClient, isAuthRetryableFetchError } from '@supabase/supabase-js';
-import { fetchWithTimeLimit } from './fetchWithTimeLimit';
+import { fetchForAuth } from './fetchForAuth';
 
 export type EmailLinkResult = 'sent' | 'invalidEmail' | 'tooManyRequests' | 'authFailed' | 'failed';
 export type SignInReturnProblem = 'linkFailed' | 'cancelled' | 'authUnreachable';
@@ -27,7 +27,7 @@ function createSupabaseClient() {
   }
   return createClient(url, publishableKey, {
     auth: { flowType: 'pkce', storageKey: SESSION_STORAGE_KEY },
-    global: { fetch: fetchWithTimeLimit },
+    global: { fetch: fetchForAuth },
   });
 }
 
@@ -49,7 +49,6 @@ export function hasStoredSession(): boolean {
 
 export function watchSignedInUser(onChange: (userId: string | null) => void): () => void {
   const { data } = supabase.auth.onAuthStateChange((_event, session) => onChange(session?.user.id ?? null));
-  // A sign-out in another tab removes the session without telling this tab's client.
   const followOtherTabs = (event: StorageEvent) => {
     if ((event.key === SESSION_STORAGE_KEY || event.key === null) && !hasStoredSession()) onChange(null);
   };
@@ -61,7 +60,6 @@ export function watchSignedInUser(onChange: (userId: string | null) => void): ()
 }
 
 // Without this browser's proof the client ignores a link's code and reports no error, so a code still here means it failed.
-// Auth gives a failed link an error code, and a student who cancels at the provider comes back with none.
 async function readSignInReturnProblem(): Promise<SignInReturnProblem | null> {
   const returnParams = new URLSearchParams(window.location.search);
   const { error } = await supabase.auth.initialize();
@@ -85,6 +83,7 @@ function toSendFailure(error: AuthError): Exclude<EmailLinkResult, 'sent'> {
   return error.status === NO_ANSWER_STATUS ? 'failed' : 'authFailed';
 }
 
+// Auth ties a known address's newest link to the newest request, even a refused one, so asking too soon must not reach it.
 function wasLinkJustSent(email: string): boolean {
   const lastLink = JSON.parse(window.sessionStorage.getItem(LAST_LINK_STORAGE_KEY) ?? 'null') as { email: string; sentAt: number } | null;
   return lastLink?.email === email.toLowerCase() && Date.now() - lastLink.sentAt < LINK_COOLDOWN_MS;
@@ -94,7 +93,6 @@ function rememberLinkSent(email: string) {
   window.sessionStorage.setItem(LAST_LINK_STORAGE_KEY, JSON.stringify({ email: email.toLowerCase(), sentAt: Date.now() }));
 }
 
-// Auth ties a known address's newest link to the newest request, even a refused one, so asking too soon must not reach it.
 export async function sendEmailLink(email: string): Promise<EmailLinkResult> {
   if (!USABLE_EMAIL_ADDRESS.test(email)) return 'invalidEmail';
   if (wasLinkJustSent(email)) return 'tooManyRequests';
@@ -118,7 +116,6 @@ export async function signInWithPassword(email: string, password: string): Promi
   return !error;
 }
 
-// Replaces this history entry, so Back cannot restore the last student's page from memory.
 export function restartAppAtHome(): void {
   window.location.replace('/');
 }
@@ -129,14 +126,12 @@ export async function renewSession(): Promise<SessionRenewal> {
   return isAuthRetryableFetchError(error) ? 'unreachable' : 'refused';
 }
 
-// Auth has already rejected this session, or is told about it afterward, so nothing here waits on Auth.
 export function forgetSession(): void {
   window.localStorage.removeItem(SESSION_STORAGE_KEY);
   restartAppAtHome();
 }
 
 // Clears the browser first, so a hung Auth or a closed tab cannot leave the next person signed in.
-// Reads what the client stored, because asking the client would wait on its lock while Auth hangs.
 export function signOut(): void {
   const storedSession = window.localStorage.getItem(SESSION_STORAGE_KEY);
   forgetSession();

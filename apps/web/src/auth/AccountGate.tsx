@@ -11,7 +11,6 @@ export function AccountGate({ children }: PropsWithChildren) {
 
   if (signIn.status === 'loading') return <LoadingPage />;
   if (signIn.status === 'signedOut') return <SignInPage />;
-  // A stored session that Auth could not renew is a returning student, not a new one.
   if (signIn.status === 'authUnreachable') return <AccountErrorPage errorKind="network" onTryAgain={reloadPage} />;
   return <SignedInGate>{children}</SignedInGate>;
 }
@@ -28,7 +27,6 @@ function SignedInGate({ children }: PropsWithChildren) {
   if (!isLoading && account.data?.status !== 'active' && !cameThroughStep) setCameThroughStep(true);
 
   if (isLoading) return <LoadingPage />;
-  // A failed refresh keeps the last answer, so a refused token or a network blip never takes the app away during a lesson.
   if (!account.data) return <AccountErrorPage errorKind={settledKind ?? account.error?.kind ?? 'network'} onTryAgain={tryAgain} />;
 
   switch (account.data.status) {
@@ -37,12 +35,11 @@ function SignedInGate({ children }: PropsWithChildren) {
     case 'closed':
       return <AccountClosedPage />;
     case 'active':
-      return cameThroughStep ? <PageAfterStep>{children}</PageAfterStep> : children;
+      return cameThroughStep ? <FocusPageHeadingOnArrival>{children}</FocusPageHeadingOnArrival> : children;
   }
 }
 
-// The page that replaces a step takes focus on its heading, so a screen reader announces it.
-function PageAfterStep({ children }: PropsWithChildren) {
+function FocusPageHeadingOnArrival({ children }: PropsWithChildren) {
   useEffect(() => {
     document.querySelector<HTMLElement>('main h1')?.focus({ preventScroll: true });
   }, []);

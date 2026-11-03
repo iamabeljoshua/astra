@@ -46,7 +46,6 @@ export async function findLayersAddedToEmptyApp(app: INestApplication): Promise<
   return added;
 }
 
-// Reads Express itself, because the Swagger document leaves out excluded routes, some verbs, and middleware.
 export function listRoutes(app: INestApplication): TableRoute[] {
   return getExpressLayers(app).flatMap(({ route }) =>
     Object.keys(route?.methods ?? {})

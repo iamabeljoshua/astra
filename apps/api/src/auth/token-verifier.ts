@@ -42,7 +42,6 @@ export function getAcceptedSignInMethods(nodeEnv: string | undefined): ReadonlyS
   return nodeEnv === DEVELOPMENT ? DEVELOPMENT_SIGN_IN_METHODS : STUDENT_SIGN_IN_METHODS;
 }
 
-// Fails closed, because the claim is optional and a list could mix a password with a link.
 function usedOnlyAcceptedMethods(amr: unknown, acceptedMethods: ReadonlySet<string>): boolean {
   return (
     Array.isArray(amr) &&
@@ -59,7 +58,6 @@ export class TokenVerifier {
     supabaseUrl: string,
     private readonly acceptedSignInMethods: ReadonlySet<string>,
   ) {
-    // Matches a token's life, so a short key server outage refuses nobody. An unknown key ID still refetches.
     this.keys = createRemoteJWKSet(new URL(KEYS_PATH, supabaseUrl), { cacheMaxAge: SIGNING_KEYS_MAX_AGE_MS });
     this.issuer = `${supabaseUrl}${ISSUER_PATH}`;
   }

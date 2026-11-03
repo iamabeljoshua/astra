@@ -7,7 +7,6 @@ import type { RouteAccess, SignedInRequest } from './route-access';
 import { describeRefusal, isRefusedToken, TokenVerifier } from './token-verifier';
 
 const BEARER_TOKEN = /^Bearer (\S+)$/i;
-// A student's answers must not stay in the disk cache of a shared browser after sign-out.
 const NO_STORE = 'no-store';
 
 interface StudentResponse {

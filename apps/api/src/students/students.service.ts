@@ -62,7 +62,6 @@ export class StudentsService {
     });
   }
 
-  // A closed account has no student today, and the join keeps it shut if someone closes one that does.
   async findStudentId(authUserId: string): Promise<string | null> {
     const student = await this.students
       .createQueryBuilder('student')

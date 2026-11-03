@@ -21,7 +21,6 @@ export function toBirthDate(dateParts: DateParts): string | null {
   return isRealCalendarDate(birthDate) ? birthDate : null;
 }
 
-// Names the month, so a student who typed the day and month the wrong way round can see it.
 export function formatBirthDate(birthDate: string): string {
   return new Intl.DateTimeFormat(undefined, { dateStyle: 'long', timeZone: 'UTC' }).format(new Date(`${birthDate}T00:00:00Z`));
 }

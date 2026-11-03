@@ -7,7 +7,6 @@ import { StepHeading } from './StepHeading';
 
 const SLOW_LOAD_NOTICE_DELAY_MS = 3_000;
 
-// Words appear only on a slow load, because a bare product name reads as frozen and most loads finish before this.
 export function LoadingPage() {
   const [isSlow, setIsSlow] = useState(false);
 

@@ -8,7 +8,7 @@ interface StepHeadingProps extends PropsWithChildren {
   fieldToFocus?: RefObject<HTMLInputElement | null>;
 }
 
-// A new step takes focus so a screen reader announces it. A phone focuses the heading, because a field would open the keyboard over the question.
+// A phone focuses the heading, because a field would open the keyboard over the question.
 export function StepHeading({ id, describedBy, fieldToFocus, children }: StepHeadingProps) {
   const heading = useRef<HTMLHeadingElement>(null);
 
