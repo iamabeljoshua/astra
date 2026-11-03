@@ -9,7 +9,6 @@ export interface SignInDraft {
   setEmail: (email: string) => void;
 }
 
-// Held above the routes, so reading the Terms or the Privacy Policy and coming back keeps what the student typed.
 export function useSignInDraft(): SignInDraft {
   const [step, setStep] = useState<SignInStep>('welcome');
   const [email, setEmail] = useState('');

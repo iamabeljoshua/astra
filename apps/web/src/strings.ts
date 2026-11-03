@@ -166,7 +166,6 @@ export interface LegalDocument {
   sections: LegalSection[];
 }
 
-// Every line under today must stay true of the running app, so a PR that changes what the app does moves its line here.
 export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
   terms: {
     title: 'Terms',
