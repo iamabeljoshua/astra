@@ -71,6 +71,10 @@ export class StudentRepository {
     return student?.name ?? null;
   }
 
+  findProfile(studentId: string): Promise<StudentProfileEntity | null> {
+    return this.profiles.findOneBy({ studentId });
+  }
+
   async saveProfile(studentId: string, fields: ProfileFields): Promise<StudentProfileEntity> {
     await this.profiles.upsert({ ...fields, studentId }, ['studentId']);
     return this.profiles.findOneByOrFail({ studentId });

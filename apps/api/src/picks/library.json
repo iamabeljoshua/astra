@@ -1,0 +1,590 @@
+{
+  "interests": [
+    {
+      "name": "basketball",
+      "words": ["basketball", "NBA", "WNBA", "LeBron", "Lakers"]
+    },
+    {
+      "name": "football",
+      "words": ["football", "soccer", "Arsenal", "Chelsea", "Liverpool", "Barcelona", "Real Madrid", "Manchester United", "Messi", "Ronaldo"]
+    },
+    {
+      "name": "movies",
+      "words": ["movies", "films", "film", "cinema", "animation", "Marvel"]
+    },
+    {
+      "name": "gaming",
+      "words": ["gaming", "video games", "games", "Minecraft", "Fortnite", "Roblox", "FIFA", "Pokemon"]
+    },
+    {
+      "name": "music",
+      "words": ["music", "guitar", "piano", "singing", "drums", "violin", "hip hop", "rap", "Afrobeats", "jazz"]
+    },
+    {
+      "name": "art",
+      "words": ["art", "painting", "drawing", "sketching", "museums"]
+    },
+    {
+      "name": "space",
+      "words": ["space", "astronomy", "NASA", "planets", "stars", "rockets", "astronauts", "black holes"]
+    },
+    {
+      "name": "cars",
+      "words": ["cars", "Formula 1", "F1", "racing", "motorsport", "Tesla"]
+    },
+    {
+      "name": "cooking",
+      "words": ["cooking", "baking", "food", "recipes"]
+    },
+    {
+      "name": "fashion",
+      "words": ["fashion", "clothes", "sneakers", "streetwear"]
+    },
+    {
+      "name": "coding",
+      "words": ["coding", "programming", "software", "computers", "Python", "JavaScript", "robotics"]
+    },
+    {
+      "name": "history",
+      "words": ["history", "ancient Rome", "ancient Egypt", "ancient Greece", "World War II", "Vikings"]
+    },
+    {
+      "name": "sea",
+      "words": ["surfing", "sailing", "swimming"]
+    },
+    {
+      "name": "money",
+      "words": ["money", "investing", "stocks", "business", "finance"]
+    }
+  ],
+  "topics": [
+    {
+      "id": "jump-shot",
+      "title": "How a jump shot flies",
+      "subject": "Physics",
+      "lengthMinutes": 12,
+      "openingLine": "Once the ball leaves your hand, what's still pushing it toward the hoop?",
+      "artwork": "arc",
+      "levels": ["middle_school", "high_school", "university", "out_of_school"],
+      "goals": ["class", "curiosity"],
+      "interests": ["basketball"]
+    },
+    {
+      "id": "free-kick",
+      "title": "Why a free kick curves",
+      "subject": "Physics",
+      "lengthMinutes": 12,
+      "openingLine": "A free kick can bend around a wall of players. What do you think the spin is doing to the air around the ball?",
+      "artwork": "curve",
+      "levels": ["middle_school", "high_school", "university", "out_of_school"],
+      "goals": ["curiosity"],
+      "interests": ["football"]
+    },
+    {
+      "id": "breaking-wave",
+      "title": "Why a breaking wave curls",
+      "subject": "Physics",
+      "lengthMinutes": 12,
+      "openingLine": "Surfers read this curl every day. As the water gets shallow, which part of the wave do you think slows down first?",
+      "artwork": "wave",
+      "levels": ["middle_school", "high_school", "out_of_school"],
+      "goals": ["curiosity"],
+      "interests": ["sea"]
+    },
+    {
+      "id": "braking-distance",
+      "title": "Why braking distance grows so fast",
+      "subject": "Physics",
+      "lengthMinutes": 10,
+      "openingLine": "Double your speed and you need four times the road to stop. Why do you think it isn't just twice?",
+      "artwork": "braking",
+      "levels": ["middle_school", "high_school", "out_of_school"],
+      "goals": ["class", "exam"],
+      "interests": ["cars"]
+    },
+    {
+      "id": "string-pitch",
+      "title": "Why short strings play high notes",
+      "subject": "Physics",
+      "lengthMinutes": 10,
+      "openingLine": "Press a guitar string against a fret and the note jumps up. What has changed about the way the string can move?",
+      "artwork": "string",
+      "levels": ["middle_school", "high_school", "out_of_school"],
+      "goals": ["class", "curiosity"],
+      "interests": ["music"]
+    },
+    {
+      "id": "rainbow",
+      "title": "Why a rainbow is always round",
+      "subject": "Physics",
+      "lengthMinutes": 10,
+      "openingLine": "You have never seen a square rainbow. What do you think the raindrops are doing to sunlight to make that shape?",
+      "artwork": "prism",
+      "levels": ["middle_school", "high_school", "out_of_school"],
+      "goals": ["class", "curiosity"],
+      "interests": ["art"]
+    },
+    {
+      "id": "slope-friction",
+      "title": "What holds a block on a slope",
+      "subject": "Physics",
+      "lengthMinutes": 15,
+      "openingLine": "A block sits on a ramp and doesn't slide. Which forces do you think are keeping it there?",
+      "artwork": "forces",
+      "levels": ["high_school", "university"],
+      "goals": ["class", "exam"],
+      "interests": []
+    },
+    {
+      "id": "rocket-escape",
+      "title": "How a rocket escapes Earth",
+      "subject": "Physics",
+      "lengthMinutes": 15,
+      "openingLine": "Most of a rocket's fuel is gone within minutes of launch. Why do you think it spends so much so early?",
+      "artwork": "launch",
+      "levels": ["high_school", "university", "out_of_school"],
+      "goals": ["class", "curiosity"],
+      "interests": ["space"]
+    },
+    {
+      "id": "moving-clocks",
+      "title": "Why moving clocks run slow",
+      "subject": "Physics",
+      "lengthMinutes": 15,
+      "openingLine": "Picture a clock that ticks by bouncing light between two mirrors. What happens to the light's path if the clock is moving?",
+      "artwork": "clock",
+      "levels": ["high_school", "university", "out_of_school"],
+      "goals": ["class", "exam", "curiosity"],
+      "interests": ["space"]
+    },
+    {
+      "id": "circuit-current",
+      "title": "How a circuit shares its current",
+      "subject": "Physics",
+      "lengthMinutes": 12,
+      "openingLine": "Two bulbs share one battery. Before I draw anything, do you think the second bulb gets less current than the first?",
+      "artwork": "circuit",
+      "levels": ["middle_school", "high_school"],
+      "goals": ["class", "exam"],
+      "interests": []
+    },
+    {
+      "id": "savings-growth",
+      "title": "Why savings grow slowly, then fast",
+      "subject": "Math",
+      "lengthMinutes": 15,
+      "openingLine": "Let's watch one dollar grow. After a year at ten percent you have a dollar ten. What do you think next year's ten percent is taken from?",
+      "artwork": "growth",
+      "levels": ["high_school", "university", "out_of_school"],
+      "goals": ["class", "curiosity"],
+      "interests": ["money"]
+    },
+    {
+      "id": "free-throw-odds",
+      "title": "What free throw odds really mean",
+      "subject": "Math",
+      "lengthMinutes": 10,
+      "openingLine": "A player shoots 80 percent from the line. What are the chances they make both of their next two shots?",
+      "artwork": "branches",
+      "levels": ["high_school", "university", "out_of_school"],
+      "goals": ["class", "exam"],
+      "interests": ["basketball"]
+    },
+    {
+      "id": "expected-goals",
+      "title": "What expected goals measures",
+      "subject": "Math",
+      "lengthMinutes": 10,
+      "openingLine": "A team can lose a match and still win on expected goals. What do you think that number is counting?",
+      "artwork": "pitch",
+      "levels": ["high_school", "university", "out_of_school"],
+      "goals": ["curiosity"],
+      "interests": ["football"]
+    },
+    {
+      "id": "pythagoras",
+      "title": "Why Pythagoras was right",
+      "subject": "Math",
+      "lengthMinutes": 10,
+      "openingLine": "Draw a square on each side of a right triangle. What do you think the two smaller squares add up to?",
+      "artwork": "triangle",
+      "levels": ["middle_school", "high_school"],
+      "goals": ["class", "exam"],
+      "interests": []
+    },
+    {
+      "id": "quadratics",
+      "title": "What a quadratic is really asking",
+      "subject": "Math",
+      "lengthMinutes": 15,
+      "openingLine": "A ball goes up and comes back down. If I ask when it is at a certain height, why could there be two answers?",
+      "artwork": "parabola",
+      "levels": ["high_school", "out_of_school"],
+      "goals": ["class", "exam"],
+      "interests": []
+    },
+    {
+      "id": "derivative",
+      "title": "What a derivative really measures",
+      "subject": "Math",
+      "lengthMinutes": 15,
+      "openingLine": "Your speedometer says 60 at this exact instant. Speed is distance over time, and an instant has no time in it. So what is it measuring?",
+      "artwork": "tangent",
+      "levels": ["high_school", "university"],
+      "goals": ["class", "exam"],
+      "interests": ["cars"]
+    },
+    {
+      "id": "magic-square",
+      "title": "What Dürer hid in a magic square",
+      "subject": "Math",
+      "lengthMinutes": 10,
+      "openingLine": "In this engraving from 1514 there is a small grid of numbers on the wall. Every row adds up to 34. What else do you think adds up to 34?",
+      "artwork": "melencolia",
+      "levels": ["middle_school", "high_school", "out_of_school"],
+      "goals": ["curiosity"],
+      "interests": ["art", "history"]
+    },
+    {
+      "id": "perspective",
+      "title": "How painters fake depth with math",
+      "subject": "Math",
+      "lengthMinutes": 12,
+      "openingLine": "Look at this man tracing a lute through a frame. What do you think the string pinned to the wall is doing?",
+      "artwork": "draughtsman",
+      "levels": ["middle_school", "high_school", "out_of_school"],
+      "goals": ["class", "curiosity"],
+      "interests": ["art"]
+    },
+    {
+      "id": "sunflower-spirals",
+      "title": "Why sunflower seeds form spirals",
+      "subject": "Math",
+      "lengthMinutes": 10,
+      "openingLine": "Count the spirals in a sunflower head and you almost always land on a number like 34 or 55. What do you think the plant is doing with its seeds?",
+      "artwork": "sunflowers",
+      "levels": ["middle_school", "high_school", "university", "out_of_school"],
+      "goals": ["curiosity"],
+      "interests": []
+    },
+    {
+      "id": "positive-test",
+      "title": "Why a positive test can be wrong",
+      "subject": "Math",
+      "lengthMinutes": 15,
+      "openingLine": "A test is 99 percent accurate and yours comes back positive. What else would you want to know before you worry?",
+      "artwork": "grid",
+      "levels": ["high_school", "university", "out_of_school"],
+      "goals": ["class", "exam", "curiosity"],
+      "interests": []
+    },
+    {
+      "id": "balancing-equations",
+      "title": "Why chemical equations balance",
+      "subject": "Chemistry",
+      "lengthMinutes": 12,
+      "openingLine": "Burn a log and most of it seems to disappear. Where do you think the atoms went?",
+      "artwork": "balance",
+      "levels": ["middle_school", "high_school"],
+      "goals": ["class", "exam"],
+      "interests": []
+    },
+    {
+      "id": "periodic-table",
+      "title": "The shape of the periodic table",
+      "subject": "Chemistry",
+      "lengthMinutes": 15,
+      "openingLine": "Mendeleev left gaps in his table for elements nobody had found. What made him so sure they existed?",
+      "artwork": "table",
+      "levels": ["high_school", "university"],
+      "goals": ["class", "exam"],
+      "interests": []
+    },
+    {
+      "id": "browned-food",
+      "title": "Why browned food tastes so good",
+      "subject": "Chemistry",
+      "lengthMinutes": 10,
+      "openingLine": "Toast, roast meat, coffee, and fried onions all brown as they cook. What do you think is changing in them?",
+      "artwork": "ham",
+      "levels": ["middle_school", "high_school", "out_of_school"],
+      "goals": ["curiosity"],
+      "interests": ["cooking"]
+    },
+    {
+      "id": "cake-rise",
+      "title": "What makes a cake rise",
+      "subject": "Chemistry",
+      "lengthMinutes": 10,
+      "openingLine": "A batter goes in flat and comes out tall. Where do you think all that extra air came from?",
+      "artwork": "cake",
+      "levels": ["middle_school", "high_school", "out_of_school"],
+      "goals": ["class", "curiosity"],
+      "interests": ["cooking"]
+    },
+    {
+      "id": "indigo-dye",
+      "title": "How indigo turned jeans blue",
+      "subject": "Chemistry",
+      "lengthMinutes": 10,
+      "openingLine": "Indigo won't dissolve in water, yet it dyes cotton deep blue. What do you think a dyer has to do to it first?",
+      "artwork": "indigo",
+      "levels": ["high_school", "university", "out_of_school"],
+      "goals": ["curiosity"],
+      "interests": ["fashion"]
+    },
+    {
+      "id": "engine-burn",
+      "title": "What burns inside a car engine",
+      "subject": "Chemistry",
+      "lengthMinutes": 12,
+      "openingLine": "Petrol doesn't burn as a liquid. What do you think has to happen to it before the spark?",
+      "artwork": "piston",
+      "levels": ["high_school", "out_of_school"],
+      "goals": ["class", "exam"],
+      "interests": ["cars"]
+    },
+    {
+      "id": "alchemists",
+      "title": "Why alchemists never made gold",
+      "subject": "Chemistry",
+      "lengthMinutes": 12,
+      "openingLine": "For centuries, clever people tried to turn lead into gold. What do you think they didn't know about atoms?",
+      "artwork": "alchemist",
+      "levels": ["middle_school", "high_school", "out_of_school"],
+      "goals": ["curiosity"],
+      "interests": ["history"]
+    },
+    {
+      "id": "game-worlds",
+      "title": "How one number builds a world",
+      "subject": "Computer science",
+      "lengthMinutes": 12,
+      "openingLine": "Some games hold worlds far too large to store. How do you think one short number can stand for all that land?",
+      "artwork": "terrain",
+      "levels": ["middle_school", "high_school", "university", "out_of_school"],
+      "goals": ["curiosity"],
+      "interests": ["gaming", "coding"]
+    },
+    {
+      "id": "fastest-route",
+      "title": "How a map finds the fastest route",
+      "subject": "Computer science",
+      "lengthMinutes": 15,
+      "openingLine": "There are more possible routes across a city than anyone could check. So how do you think your phone answers in a second?",
+      "artwork": "route",
+      "levels": ["high_school", "university", "out_of_school"],
+      "goals": ["class", "exam", "curiosity"],
+      "interests": ["cars", "coding"]
+    },
+    {
+      "id": "binary-counting",
+      "title": "How computers count in two digits",
+      "subject": "Computer science",
+      "lengthMinutes": 10,
+      "openingLine": "You count with ten digits, probably because you have ten fingers. How would you write the number five with only 0 and 1?",
+      "artwork": "binary",
+      "levels": ["middle_school", "high_school", "out_of_school"],
+      "goals": ["class", "exam"],
+      "interests": ["coding", "gaming"]
+    },
+    {
+      "id": "recursion",
+      "title": "What recursion actually does",
+      "subject": "Computer science",
+      "lengthMinutes": 15,
+      "openingLine": "A function that calls itself sounds like it should run forever. What do you think stops it?",
+      "artwork": "branches",
+      "levels": ["high_school", "university"],
+      "goals": ["class", "exam"],
+      "interests": ["coding"]
+    },
+    {
+      "id": "sorting-speed",
+      "title": "Why some sorts are much faster",
+      "subject": "Computer science",
+      "lengthMinutes": 12,
+      "openingLine": "Sorting a shuffled deck one card at a time works, but it gets slow fast. What would you try instead?",
+      "artwork": "bars",
+      "levels": ["high_school", "university"],
+      "goals": ["class", "exam"],
+      "interests": ["coding"]
+    },
+    {
+      "id": "music-file",
+      "title": "How a music file drops sound",
+      "subject": "Computer science",
+      "lengthMinutes": 12,
+      "openingLine": "A song can shrink to a tenth of its size and still sound the same to you. What do you think gets thrown out?",
+      "artwork": "waveform",
+      "levels": ["high_school", "university", "out_of_school"],
+      "goals": ["curiosity"],
+      "interests": ["music", "coding"]
+    },
+    {
+      "id": "two-strangers",
+      "title": "How two strangers share a secret",
+      "subject": "Computer science",
+      "lengthMinutes": 15,
+      "openingLine": "You and a stranger have to agree on a secret while everyone listens. How could that possibly work?",
+      "artwork": "lock",
+      "levels": ["high_school", "university", "out_of_school"],
+      "goals": ["class", "curiosity"],
+      "interests": ["coding"]
+    },
+    {
+      "id": "programmable-loom",
+      "title": "How a loom ran the first programs",
+      "subject": "Computer science",
+      "lengthMinutes": 12,
+      "openingLine": "This portrait is not an engraving. It was woven in silk from about 24,000 punched cards. What do you think each hole told the loom?",
+      "artwork": "loom",
+      "levels": ["middle_school", "high_school", "university", "out_of_school"],
+      "goals": ["curiosity"],
+      "interests": ["fashion", "coding", "history"]
+    },
+    {
+      "id": "saturn-rings",
+      "title": "Why Saturn has rings",
+      "subject": "Astronomy",
+      "lengthMinutes": 10,
+      "openingLine": "Those rings look solid, but they're not. If you could fly through one, what do you think you'd actually hit?",
+      "artwork": "saturn",
+      "levels": ["middle_school", "high_school", "university", "out_of_school"],
+      "goals": ["curiosity"],
+      "interests": ["space"]
+    },
+    {
+      "id": "moon-face",
+      "title": "Why the Moon shows us one face",
+      "subject": "Astronomy",
+      "lengthMinutes": 10,
+      "openingLine": "No one on Earth saw the far side of the Moon until 1959. If the Moon is spinning, why do you think we only see one side?",
+      "artwork": "earthrise",
+      "levels": ["middle_school", "high_school", "out_of_school"],
+      "goals": ["class", "curiosity"],
+      "interests": ["space"]
+    },
+    {
+      "id": "seasons",
+      "title": "What really causes the seasons",
+      "subject": "Astronomy",
+      "lengthMinutes": 10,
+      "openingLine": "Many people think summer comes when Earth is closer to the Sun. Why can't that be right?",
+      "artwork": "earth",
+      "levels": ["middle_school", "high_school"],
+      "goals": ["class", "exam"],
+      "interests": ["space"]
+    },
+    {
+      "id": "black-hole-edge",
+      "title": "What happens near a black hole",
+      "subject": "Astronomy",
+      "lengthMinutes": 15,
+      "openingLine": "Imagine watching a friend fall toward a black hole. What do you think you'd see?",
+      "artwork": "blackhole",
+      "levels": ["high_school", "university", "out_of_school"],
+      "goals": ["curiosity"],
+      "interests": ["space", "movies"]
+    },
+    {
+      "id": "star-atoms",
+      "title": "How stars made the atoms in you",
+      "subject": "Astronomy",
+      "lengthMinutes": 15,
+      "openingLine": "The iron in your blood is older than Earth. Where do you think it was made?",
+      "artwork": "nebula",
+      "levels": ["high_school", "university", "out_of_school"],
+      "goals": ["class", "curiosity"],
+      "interests": ["space"]
+    },
+    {
+      "id": "dna-copying",
+      "title": "How DNA copies itself",
+      "subject": "Biology",
+      "lengthMinutes": 15,
+      "openingLine": "DNA has to copy itself every time a cell divides. Before I draw anything, what do you think has to happen to the two strands first?",
+      "artwork": "helix",
+      "levels": ["high_school", "university"],
+      "goals": ["class", "exam"],
+      "interests": []
+    },
+    {
+      "id": "still-frames",
+      "title": "Why still frames look like motion",
+      "subject": "Biology",
+      "lengthMinutes": 10,
+      "openingLine": "A film is only 24 still pictures every second. Why do you think you never see them as separate pictures?",
+      "artwork": "frames",
+      "levels": ["middle_school", "high_school", "out_of_school"],
+      "goals": ["curiosity"],
+      "interests": ["movies"]
+    },
+    {
+      "id": "plato-aristotle",
+      "title": "Why Plato and Aristotle disagreed",
+      "subject": "Philosophy",
+      "lengthMinutes": 20,
+      "openingLine": "Plato points up and Aristotle points out. Before I explain why, what do you think each of them is saying?",
+      "artwork": "athens",
+      "levels": ["high_school", "university", "out_of_school"],
+      "goals": ["class", "curiosity"],
+      "interests": ["history"]
+    },
+    {
+      "id": "socrates-trial",
+      "title": "Why Athens put Socrates on trial",
+      "subject": "Philosophy",
+      "lengthMinutes": 15,
+      "openingLine": "Socrates could have escaped, and his friends begged him to. Why do you think he stayed?",
+      "artwork": "socrates",
+      "levels": ["high_school", "university", "out_of_school"],
+      "goals": ["curiosity"],
+      "interests": ["history"]
+    },
+    {
+      "id": "bread-revolution",
+      "title": "How bread prices fed a revolution",
+      "subject": "History",
+      "lengthMinutes": 15,
+      "openingLine": "In 1789 a Paris family could spend most of its wage on bread. What do you think happens when the price jumps?",
+      "artwork": "bastille",
+      "levels": ["middle_school", "high_school", "university", "out_of_school"],
+      "goals": ["class", "exam"],
+      "interests": ["history", "cooking"]
+    },
+    {
+      "id": "great-pyramid",
+      "title": "How the pyramids were squared",
+      "subject": "History",
+      "lengthMinutes": 12,
+      "openingLine": "The Great Pyramid's base is square to within a few centimeters, with no modern tools. How would you do it with rope and the stars?",
+      "artwork": "pyramid",
+      "levels": ["middle_school", "high_school", "out_of_school"],
+      "goals": ["curiosity"],
+      "interests": ["history"]
+    },
+    {
+      "id": "minor-chord",
+      "title": "Why a minor chord sounds sad",
+      "subject": "Music",
+      "lengthMinutes": 10,
+      "openingLine": "Move one note of a chord down by the smallest step and its whole mood changes. What do you think your ear is picking up on?",
+      "artwork": "lute",
+      "levels": ["middle_school", "high_school", "out_of_school"],
+      "goals": ["curiosity"],
+      "interests": ["music"]
+    },
+    {
+      "id": "van-gogh-motion",
+      "title": "How Van Gogh made paint move",
+      "subject": "Art",
+      "lengthMinutes": 10,
+      "openingLine": "Nothing in this painting is moving, but the sky seems to churn. What do you think his brush is doing to give you that feeling?",
+      "artwork": "wheat",
+      "levels": ["middle_school", "high_school", "university", "out_of_school"],
+      "goals": ["curiosity"],
+      "interests": ["art"]
+    }
+  ]
+}

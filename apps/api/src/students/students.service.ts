@@ -50,6 +50,11 @@ export class StudentsService {
     return this.students.findStudentName(studentId);
   }
 
+  async getProfile(studentId: string): Promise<StudentProfileResponseDto | null> {
+    const profile = await this.students.findProfile(studentId);
+    return profile && toProfileResponse(profile);
+  }
+
   async saveProfile(
     studentId: string,
     body: SaveStudentProfileBodyDto,

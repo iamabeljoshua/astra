@@ -16,6 +16,9 @@ export class PickCardResponseDto {
   /** How long a session on this topic takes, in minutes. */
   lengthMinutes!: number;
 
+  /** The first thing the tutor says when a session on this topic starts. */
+  openingLine!: string;
+
   /** Why the card suits this student. */
   reason!: string;
 
