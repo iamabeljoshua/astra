@@ -18,8 +18,8 @@ function shouldRetry(failureCount: number, error: ApiError) {
 export function createQueryClient() {
   return new QueryClient({
     defaultOptions: {
-      // networkMode always lets a request fail while offline, so screens get an ApiError instead of waiting.
-      queries: { retry: shouldRetry, staleTime: STALE_TIME_MS, networkMode: 'always' },
+      // networkMode always gives a screen an ApiError while offline, and it turns refetchOnReconnect off unless set.
+      queries: { retry: shouldRetry, staleTime: STALE_TIME_MS, networkMode: 'always', refetchOnReconnect: true },
       mutations: { networkMode: 'always' },
     },
   });

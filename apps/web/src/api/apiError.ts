@@ -12,14 +12,6 @@ interface ApiErrorDetails {
 const VALIDATION_STATUS = 400;
 const FIRST_SERVER_STATUS = 500;
 
-// The forms in which a default class-validator sentence names its field. Any other sentence names no field.
-const FIELD_SENTENCES = [
-  /^(?<parent>\S+\.)?property (?<field>\S+) should not exist$/,
-  /^(?<parent>\S+\.)?(?:each value in )?nested property (?<field>\S+) must /,
-  /^(?<parent>\S+\.)?each value in (?<field>\S+) /,
-  /^(?<field>\S+) (?:must|should|is) /,
-];
-
 export class ApiError extends Error {
   readonly kind: ApiErrorKind;
   readonly status: number | null;
@@ -34,35 +26,18 @@ export class ApiError extends Error {
   }
 }
 
-function getFieldPath(sentence: string) {
-  for (const pattern of FIELD_SENTENCES) {
-    const groups = pattern.exec(sentence)?.groups;
-    if (groups) return `${groups.parent ?? ''}${groups.field}`;
-  }
-  return null;
-}
-
-function getFieldMessages(sentences: string[]) {
-  const fieldMessages: Record<string, string[]> = {};
-  for (const sentence of sentences) {
-    const fieldPath = getFieldPath(sentence);
-    if (fieldPath) (fieldMessages[fieldPath] ??= []).push(sentence);
-  }
-  return fieldMessages;
-}
-
-function getValidationSentences(responseBody: unknown) {
-  const message = (responseBody as { message?: unknown } | null)?.message;
-  const isSentenceList = Array.isArray(message) && message.every((item) => typeof item === 'string');
-  return isSentenceList ? (message as string[]) : null;
+function getFieldMessages(responseBody: unknown) {
+  const fieldMessages = (responseBody as { fieldMessages?: unknown } | null)?.fieldMessages;
+  const isFieldMap = typeof fieldMessages === 'object' && fieldMessages !== null && !Array.isArray(fieldMessages);
+  return isFieldMap ? (fieldMessages as FieldMessages) : null;
 }
 
 export function getApiErrorFromResponse(status: number, responseBody: unknown) {
-  const sentences = status === VALIDATION_STATUS ? getValidationSentences(responseBody) : null;
-  if (sentences) return new ApiError({ kind: 'validation', status, fieldMessages: getFieldMessages(sentences) });
+  const fieldMessages = status === VALIDATION_STATUS ? getFieldMessages(responseBody) : null;
+  if (fieldMessages) return new ApiError({ kind: 'validation', status, fieldMessages });
   return new ApiError({ kind: status >= FIRST_SERVER_STATUS ? 'server' : 'rejected', status });
 }
 
-export function getApiErrorFromThrown(thrown: unknown, signal?: AbortSignal | null) {
-  return new ApiError({ kind: signal?.aborted ? 'aborted' : 'network', cause: thrown });
+export function getApiErrorFromThrown(thrown: unknown, signal: AbortSignal) {
+  return new ApiError({ kind: signal.aborted ? 'aborted' : 'network', cause: thrown });
 }

@@ -4,11 +4,10 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App';
 import { API_CONNECTION_LABELS, MENU_LABELS, PRODUCT_NAME } from './strings';
+import { HEALTH_CHECK_RETRY_DELAY_MS, HEALTH_CHECK_TIMEOUT_MS } from './useApiConnection';
 
 const healthyResponse: components['schemas']['HealthResponseDto'] = { status: 'ok' };
 const TIME_FOR_SEVERAL_CHECKS_MS = 30_000;
-const HEALTH_CHECK_TIMEOUT_MS = 3000;
-const HEALTH_CHECK_RETRY_DELAY_MS = 2000;
 const SMALL_MARGIN_MS = 100;
 
 function stubFetchWithHealthyApi() {

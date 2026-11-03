@@ -3,24 +3,22 @@ import { act, fireEvent, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
 import { API_ERROR_LABELS } from '../strings';
 import { renderWithQueryClient } from '../test/renderWithQueryClient';
+import { things } from '../test/thingsApi';
 import type { ApiError } from './apiError';
-import { api, createApiClient } from './client';
+import { api } from './client';
 import { createQueryClient } from './queryClient';
+import { DEFAULT_REQUEST_TIMEOUT_MS } from './requestTimeout';
 
-type JsonContent<Body> = { content: { 'application/json': Body } };
-
-interface ThingPaths {
-  '/things': {
-    post: {
-      requestBody: JsonContent<{ title: string }>;
-      responses: { 201: JsonContent<{ id: string }> };
-    };
-  };
-}
-
-const things = createApiClient<ThingPaths>('http://localhost/api');
 const TIME_FOR_EVERY_RETRY_MS = 30_000;
+const WAITS_BETWEEN_THREE_TRIES_MS = 3000;
+const SMALL_MARGIN_MS = 100;
 const TITLE_REJECTED_LABEL = 'title rejected';
+const TITLE_REJECTED_BODY = {
+  message: ['title must be a string'],
+  error: 'Bad Request',
+  statusCode: 400,
+  fieldMessages: { title: ['title must be a string'] },
+};
 
 function stubFetchAnswer(status: number, body: unknown) {
   const fetchStub = vi.fn(async () => new Response(JSON.stringify(body), { status }));
@@ -78,7 +76,7 @@ describe('a screen that uses a query', () => {
 
 describe('a screen that uses a mutation', () => {
   it('receives the field that a validation 400 rejected', async () => {
-    stubFetchAnswer(400, { message: ['title must be a string'], error: 'Bad Request', statusCode: 400 });
+    stubFetchAnswer(400, TITLE_REJECTED_BODY);
 
     renderWithQueryClient(<CreateThing />);
     fireEvent.click(screen.getByRole('button'));
@@ -106,7 +104,7 @@ describe('the shared defaults', () => {
     });
 
   async function getCallsAfterEveryRetry(status: number) {
-    const fetchStub = stubFetchAnswer(status, { message: ['title must be a string'] });
+    const fetchStub = stubFetchAnswer(status, TITLE_REJECTED_BODY);
     const query = fetchHealth().catch(() => undefined);
     await act(() => vi.advanceTimersByTimeAsync(TIME_FOR_EVERY_RETRY_MS));
     await query;
@@ -137,16 +135,14 @@ describe('the shared defaults', () => {
     expect(fetchStub).toHaveBeenCalledTimes(3);
   });
 
-  it('tries a request that its own timeout stopped three times in all', async () => {
-    const fetchStub = vi.fn(() => Promise.reject(new DOMException('Timed out', 'TimeoutError')));
+  it('gives a read that never answers an error after three timeouts', async () => {
+    const fetchStub = vi.fn(() => new Promise<Response>(() => undefined));
     vi.stubGlobal('fetch', fetchStub);
 
-    const query = createQueryClient()
-      .fetchQuery({ queryKey: ['health'], queryFn: () => api.get('/health', { signal: AbortSignal.abort() }) })
-      .catch(() => undefined);
-    await act(() => vi.advanceTimersByTimeAsync(TIME_FOR_EVERY_RETRY_MS));
-    await query;
+    const query = fetchHealth().catch((thrown: ApiError) => thrown.kind);
+    await act(() => vi.advanceTimersByTimeAsync(3 * DEFAULT_REQUEST_TIMEOUT_MS + WAITS_BETWEEN_THREE_TRIES_MS + SMALL_MARGIN_MS));
 
+    expect(await query).toBe('aborted');
     expect(fetchStub).toHaveBeenCalledTimes(3);
   });
 
@@ -179,6 +175,21 @@ describe('the shared defaults', () => {
     screen.getByText(API_ERROR_LABELS.network);
   });
 
+  it('tries a read that failed offline again when the browser comes back online', async () => {
+    onlineManager.setOnline(false);
+    vi.stubGlobal('fetch', () => Promise.reject(new TypeError('offline')));
+
+    renderWithQueryClient(<HealthStatus />);
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    screen.getByText(API_ERROR_LABELS.network);
+
+    stubFetchAnswer(200, { status: 'ok' });
+    act(() => onlineManager.setOnline(true));
+    await act(() => vi.advanceTimersByTimeAsync(0));
+
+    screen.getByText('ok');
+  });
+
   it('reuses fresh data when a screen opens again', async () => {
     const fetchStub = stubFetchAnswer(200, { status: 'ok' });
     const queryClient = createQueryClient();
@@ -191,5 +202,18 @@ describe('the shared defaults', () => {
     await act(() => vi.advanceTimersByTimeAsync(TIME_FOR_EVERY_RETRY_MS + 1));
     await queryClient.fetchQuery(options);
     expect(fetchStub).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('renderWithQueryClient', () => {
+  it('keeps the query client when a test rerenders', async () => {
+    const fetchStub = stubFetchAnswer(200, { status: 'ok' });
+
+    const { rerender } = renderWithQueryClient(<HealthStatus />);
+    await screen.findByText('ok');
+    rerender(<HealthStatus />);
+
+    screen.getByText('ok');
+    expect(fetchStub).toHaveBeenCalledTimes(1);
   });
 });
