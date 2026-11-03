@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
+import { useState } from 'react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ACCOUNT_LABELS, DEV_SIGN_IN_LABELS, LEGAL_PAGES, SIGN_IN_LABELS, TUTOR_NOTES_LABELS } from '../strings';
@@ -6,6 +7,8 @@ import { useAuth } from './AuthProvider';
 import { sendEmailLink, signInWithGoogle } from './session';
 import { SignInPage } from './SignInPage';
 import { useSignInDraft } from './useSignInDraft';
+
+const LEAVE_OR_RETURN = 'Leave or return';
 
 vi.mock('./AuthProvider', () => ({ useAuth: vi.fn() }));
 vi.mock('./session', () => ({
@@ -23,6 +26,18 @@ function renderSignInPage() {
     <MemoryRouter>
       <SignInPageWithDraft />
     </MemoryRouter>,
+  );
+}
+
+function SignInPageThatCanBeLeft() {
+  const draft = useSignInDraft();
+  const [isAway, setIsAway] = useState(false);
+
+  return (
+    <MemoryRouter>
+      <button type="button" onClick={() => setIsAway(!isAway)}>{LEAVE_OR_RETURN}</button>
+      {!isAway && <SignInPage draft={draft} />}
+    </MemoryRouter>
   );
 }
 
@@ -172,6 +187,25 @@ describe('SignInPage', () => {
     await screen.findByText(SIGN_IN_LABELS.failed);
     expect(document.activeElement).toBe(button);
     expect(button.getAttribute('aria-disabled')).toBe('false');
+  });
+
+  it('sends once when the student opens another page during a send and comes back, because a second send kills the first link', async () => {
+    let answerSend: (result: 'sent') => void = () => undefined;
+    vi.mocked(sendEmailLink).mockImplementation(() => new Promise((resolve) => (answerSend = resolve)));
+    render(<SignInPageThatCanBeLeft />);
+    chooseEmail();
+    fireEvent.change(screen.getByPlaceholderText(SIGN_IN_LABELS.emailPlaceholder), { target: { value: 'maya@astra.test' } });
+    fireEvent.click(screen.getByRole('button', { name: SIGN_IN_LABELS.sendLink }));
+
+    fireEvent.click(screen.getByRole('button', { name: LEAVE_OR_RETURN }));
+    fireEvent.click(screen.getByRole('button', { name: LEAVE_OR_RETURN }));
+    const button = screen.getByRole('button', { name: SIGN_IN_LABELS.sendLink });
+    expect(button.getAttribute('aria-disabled')).toBe('true');
+    fireEvent.click(button);
+
+    expect(sendEmailLink).toHaveBeenCalledTimes(1);
+    await act(async () => answerSend('sent'));
+    await screen.findByRole('heading', { name: SIGN_IN_LABELS.sentQuestion });
   });
 
   it('ties a refused address to its message', async () => {

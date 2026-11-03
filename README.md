@@ -168,7 +168,7 @@ The server's clock and UTC+14 decide the student's age. UTC+14 is the first plac
 
 `/terms` and `/privacy` are public pages outside the account gate. They are drafts, each page says so at the top, and a lawyer reviews them before real students use the app.
 
-- All of their text is in `LEGAL_PAGES` in `apps/web/src/strings.ts`, so a lawyer's edits change one file.
+- All of their text is in `LEGAL_PAGES` and `LEGAL_LABELS` in `apps/web/src/strings.ts`, so a lawyer's edits change one file.
 - Each section has `today` lines and `planned` lines, and the page labels every `planned` line. A `today` line must be true of the running app. When a PR changes what the app stores, who receives data, or what happens to an under-13 account, it moves or edits the line in the same PR.
 - The sign-in step and typed address are held above the routes in `useSignInDraft`, so opening a page and coming back keeps them. They live in memory only, so a reload on the page clears them.
 
