@@ -3,7 +3,7 @@ import { ParentConsentRepository } from '../infrastructure/orm/repositories/pare
 import type { ConsentLinkRecord } from '../infrastructure/orm/repositories/parent-consent.repository';
 import type { AccountResponseDto } from '../students/student.dto';
 import { StudentsService } from '../students/students.service';
-import { createLinkToken, getConsentLink, hashLinkToken } from './consent-link';
+import { createLinkToken, getLocalConsentLink, hashLinkToken } from './consent-link';
 import { ConsentLinkDelivery } from './consent-link-delivery';
 import type { ConsentLinkResponseDto } from './consent.dto';
 
@@ -28,8 +28,8 @@ export class ConsentService {
     const address = parentEmail.toLowerCase();
     const token = createLinkToken();
     const fields = { studentId: account.student.id, parentEmail: address, linkTokenHash: hashLinkToken(token) };
-    const isNewLink = await this.consent.saveRequest(fields);
-    if (isNewLink) this.delivery.send(address, getConsentLink(token, process.env));
+    const { isNewLink } = await this.consent.saveRequest(fields);
+    if (isNewLink) this.delivery.logInPlaceOfEmail(address, getLocalConsentLink(token, process.env));
     return this.students.getAccount(authUserId);
   }
 

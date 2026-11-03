@@ -184,7 +184,7 @@ The steps and their order are one table in `apps/web/src/onboarding/steps.ts`. T
 
 `apps/api/src/auth/age-gate.ts` treats a student as under 18 until they are 18 in every time zone, the reverse of the under-13 rule, so no minor skips the parent. While a student under 18 has no consent, the API refuses every student route, including any added later, except `PUT /me/parent-consent`. So before a parent accepts we hold only the name, the date of birth, the account ID, and the parent's address.
 
-The consent link is `/parent-consent/<token>`. No email goes out yet. **The API writes the link to its log**, and in a lane that is `.verify/dev.log`. Real email must ship before any real student under 18 signs up. The PR that adds it replaces `ConsentLinkDelivery` and the local address in `getConsentLink`.
+The consent link is `/parent-consent/<token>`. It is a path and not `?code=`, because `readSignInReturnProblem` reads that query as a failed email link. No email goes out yet. **The API writes the link to its log**, and in a lane that is `.verify/dev.log`. Real email must ship before any real student under 18 signs up. The PR that adds it replaces `ConsentLinkDelivery` and the local address in `getLocalConsentLink`.
 
 - The database holds a hash of the token, never the link. No API answer to a student contains it.
 - Opening the link accepts nothing, because a mail scanner may follow it. A parent accepts with the button on the page, which calls only public routes, so it works in a signed-out browser.

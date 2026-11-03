@@ -47,6 +47,7 @@ async function acceptAsParent(page, { folder, viewportName }, link) {
   const parentContext = await page.context().browser().newContext({ viewport: page.viewportSize() });
   const parentPage = await parentContext.newPage();
   await parentPage.goto(link);
+  if (process.env.ONBOARDING_THEME === 'dark') await parentPage.getByRole('button', { name: 'Dark' }).click();
   await parentPage.getByRole('heading', { name: `${ANSWERS.name} would like to use Astra.` }).waitFor();
   await sleep(FADE_MS);
   await parentPage.screenshot({ path: `${folder}/onboarding-minor-${viewportName}-parent-page.png`, fullPage: true });

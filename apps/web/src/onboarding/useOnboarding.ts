@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router';
 import { API_ERROR_LABELS, ONBOARDING_LABELS } from '../strings';
 import { useSaveProfile } from '../auth/useAccount';
 import { type Answers, getInitialAnswers, getSheet, toProfileBody } from './answers';
-import { getCurrentStep, getNextStep, getPreviousStep, getResumeStep, getStepsFor, showsChangeLaterNote, type Student } from './steps';
+import { getFirstOpenStepFrom, getNextStep, getPreviousStep, getResumeStep, getStepsFor, showsChangeLaterNote, type Student } from './steps';
 
 export function useOnboarding(student: Student | null) {
   const navigate = useNavigate();
@@ -11,7 +11,7 @@ export function useOnboarding(student: Student | null) {
   const [answers, setAnswers] = useState(() => getInitialAnswers(student));
   const [chosenStep, setChosenStep] = useState(() => getResumeStep(student));
 
-  const currentStep = getCurrentStep(chosenStep, student);
+  const currentStep = getFirstOpenStepFrom(chosenStep, student);
   const steps = getStepsFor(student);
   const previousStep = getPreviousStep(currentStep, student);
 
@@ -39,7 +39,6 @@ export function useOnboarding(student: Student | null) {
     saveProblem: saveProfile.error && API_ERROR_LABELS[saveProfile.error.kind],
     isSaving: saveProfile.isPending,
     saveAndGoNext: () => saveAnswers(null, goNext),
-    // Home is where the answer shows, whichever page the student opened first.
     finish: (firstQuestion: string) => {
       void navigate('/', { replace: true });
       saveAnswers(firstQuestion, () => undefined);

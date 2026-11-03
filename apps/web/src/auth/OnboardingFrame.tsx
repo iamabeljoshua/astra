@@ -18,7 +18,6 @@ interface OnboardingLayoutProps extends PropsWithChildren {
   showsChangeLaterNote?: boolean;
 }
 
-// The sheet stays mounted while the column changes, so moving between questions leaves it still.
 export function OnboardingLayout({ sheet = EMPTY_SHEET, showsChangeLaterNote = false, children }: OnboardingLayoutProps) {
   return (
     <div className="grid min-h-dvh grid-cols-onboarding max-md:grid-cols-1 max-md:grid-rows-[auto_minmax(0,1fr)]">
@@ -118,8 +117,7 @@ function TutorNotes({ sheet, showsChangeLaterNote }: TutorNotesProps) {
               className={`${value ? '' : 'max-md:hidden'} grid min-h-10 grid-cols-sheet-row items-baseline gap-2.5 border-t border-line py-2.25 max-md:block max-md:min-h-0 max-md:border-0 max-md:p-0 max-md:text-fine max-md:text-ink-2`}
             >
               <dt className="label text-ink-2 max-md:hidden">{label}</dt>
-              {/* The key changes only on the first answer, so the answer fades in once and not on every key. */}
-              <dd key={value ? 'answered' : 'empty'} className="animate-arrive font-medium wrap-anywhere max-md:font-normal">{value}</dd>
+              <dd key={value ? 'restart-fade-when-filled' : 'empty'} className="animate-arrive font-medium wrap-anywhere max-md:font-normal">{value}</dd>
             </div>
           ))}
         </dl>

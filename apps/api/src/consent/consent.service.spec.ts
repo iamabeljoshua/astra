@@ -56,7 +56,7 @@ describe('parent consent', () => {
 
   beforeAll(async () => {
     testApp = await createTestApp();
-    sendLink = jest.spyOn(testApp.app.get(ConsentLinkDelivery), 'send').mockImplementation(() => undefined);
+    sendLink = jest.spyOn(testApp.app.get(ConsentLinkDelivery), 'logInPlaceOfEmail').mockImplementation(() => undefined);
   });
 
   beforeEach(() => sendLink.mockClear());

@@ -5,7 +5,6 @@ const SIGN_IN_LINK = /https?:\/\/\S+\/verify\?\S+/;
 const INBOX_POLL_MS = 200;
 const INBOX_TRIES = 50;
 
-// Set ONBOARDING_PACE_MS to stand in for a student reading each screen, for a timed run.
 const PACE_MS = Number(process.env.ONBOARDING_PACE_MS ?? 0);
 const TYPING_DELAY_MS = PACE_MS ? 90 : 0;
 

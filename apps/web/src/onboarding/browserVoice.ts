@@ -10,7 +10,7 @@ function getSpeechEngine() {
   return 'speechSynthesis' in window ? window.speechSynthesis : null;
 }
 
-// Stand-in until M3.6. A cloud voice would send the student's name to a voice service, so only on-device voices may speak.
+// A cloud voice would send the student's name to a voice service, so only on-device voices may speak.
 function findDeviceVoice(engine: SpeechSynthesis) {
   const deviceVoices = engine.getVoices().filter((voice) => voice.localService);
   return deviceVoices.find((voice) => voice.default && voice.lang.startsWith('en')) ?? deviceVoices.find((voice) => voice.lang.startsWith('en'));

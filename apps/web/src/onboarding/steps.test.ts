@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getCurrentStep, getNextStep, getPreviousStep, getResumeStep, getStepsFor, hasFinishedOnboarding, type Student } from './steps';
+import { getFirstOpenStepFrom, getNextStep, getPreviousStep, getResumeStep, getStepsFor, hasFinishedOnboarding, type Student } from './steps';
 
 const PROFILE: NonNullable<Student['profile']> = { interests: ['Space'], level: 'high_school', goal: 'exam', voice: 'ada', firstQuestion: null };
 const ADULT: Student = { id: 'student', name: 'Maya', profile: null, parentConsent: null };
@@ -27,21 +27,21 @@ describe('the onboarding steps', () => {
   });
 
   it('moves from the date of birth to the parent for a minor, and past it for an adult', () => {
-    expect(getCurrentStep('birthDate', MINOR)).toBe('parent');
-    expect(getCurrentStep('birthDate', ADULT)).toBe('into');
+    expect(getFirstOpenStepFrom('birthDate', MINOR)).toBe('parent');
+    expect(getFirstOpenStepFrom('birthDate', ADULT)).toBe('into');
   });
 
   it('holds a waiting minor on the parent step', () => {
-    expect(getCurrentStep('parent', WAITING_MINOR)).toBe('parent');
+    expect(getFirstOpenStepFrom('parent', WAITING_MINOR)).toBe('parent');
     expect(getNextStep('name', WAITING_MINOR)).toBe('parent');
   });
 
   it('moves on from the parent step once the parent accepts', () => {
-    expect(getCurrentStep('parent', APPROVED_MINOR)).toBe('into');
+    expect(getFirstOpenStepFrom('parent', APPROVED_MINOR)).toBe('into');
   });
 
   it('moves on from the parent step if the student turns 18 while waiting', () => {
-    expect(getCurrentStep('parent', ADULT)).toBe('into');
+    expect(getFirstOpenStepFrom('parent', ADULT)).toBe('into');
   });
 
   it('never goes back to a date of birth that has been confirmed', () => {

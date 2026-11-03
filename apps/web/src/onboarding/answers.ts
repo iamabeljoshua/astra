@@ -52,7 +52,6 @@ export function getSheet(answers: Answers): TutorNotesSheet {
   };
 }
 
-// What a student typed says more than a chip, so the tutor mentions it first.
 export function getHelloLine(answers: Answers): string {
   const typed = answers.typedInterest.trim();
   const interest = typed || answers.pickedInterests[0]?.toLowerCase();

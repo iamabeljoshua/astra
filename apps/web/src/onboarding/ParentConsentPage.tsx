@@ -21,7 +21,6 @@ function useConsentLink(token: string) {
   return { link, accept };
 }
 
-// A parent opens this signed out, so it calls only public routes and never the renewal that resets a session.
 export function ParentConsentPage() {
   const { token = '' } = useParams();
   const { link, accept } = useConsentLink(token);

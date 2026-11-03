@@ -9,7 +9,6 @@ import type { StepProps } from './useOnboarding';
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 const SHOW_PICK_BEFORE_MOVING_ON_MS = 240;
 
-// The picked row shows as filled for a moment, so the student sees their answer land before the question changes.
 function useMoveOnAfterPick(goNext: () => void) {
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 

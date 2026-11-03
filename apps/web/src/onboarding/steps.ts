@@ -7,8 +7,7 @@ interface OnboardingStep {
   id: StepId;
   appliesTo: (student: Student | null) => boolean;
   isAnswered: (student: Student | null) => boolean;
-  // A settled step can never be changed from here, so the flow steps over it in both directions.
-  isSettled: (student: Student | null) => boolean;
+  isSkipped: (student: Student | null) => boolean;
   canGoBack: boolean;
   showsChangeLaterNote: boolean;
 }
@@ -19,17 +18,17 @@ const hasConsent = (student: Student | null) => student?.parentConsent?.status =
 const ALWAYS = () => true;
 const NEVER = () => false;
 
-const QUESTION_STEP = { appliesTo: ALWAYS, isAnswered: hasProfile, isSettled: NEVER, canGoBack: true, showsChangeLaterNote: true };
+const QUESTION_STEP = { appliesTo: ALWAYS, isAnswered: hasProfile, isSkipped: NEVER, canGoBack: true, showsChangeLaterNote: true };
 
 const ONBOARDING_STEPS: readonly OnboardingStep[] = [
   { ...QUESTION_STEP, id: 'name', isAnswered: (student) => Boolean(student?.name) },
-  { ...QUESTION_STEP, id: 'birthDate', isAnswered: hasStudent, isSettled: hasStudent, showsChangeLaterNote: false },
+  { ...QUESTION_STEP, id: 'birthDate', isAnswered: hasStudent, isSkipped: hasStudent, showsChangeLaterNote: false },
   {
     ...QUESTION_STEP,
     id: 'parent',
     appliesTo: (student) => Boolean(student?.parentConsent),
     isAnswered: hasConsent,
-    isSettled: hasConsent,
+    isSkipped: hasConsent,
     canGoBack: false,
     showsChangeLaterNote: false,
   },
@@ -45,7 +44,7 @@ function findStepIndex(stepId: StepId) {
 }
 
 function isOpen(step: OnboardingStep, student: Student | null) {
-  return step.appliesTo(student) && !step.isSettled(student);
+  return step.appliesTo(student) && !step.isSkipped(student);
 }
 
 export function getStepsFor(student: Student | null): StepId[] {
@@ -68,8 +67,7 @@ export function getPreviousStep(stepId: StepId, student: Student | null): StepId
   return ONBOARDING_STEPS.slice(0, index).reverse().find((step) => isOpen(step, student))?.id ?? null;
 }
 
-// An answer from the server can settle the step on screen, and the student then moves on with no click.
-export function getCurrentStep(chosenStep: StepId, student: Student | null): StepId {
+export function getFirstOpenStepFrom(chosenStep: StepId, student: Student | null): StepId {
   const chosen = ONBOARDING_STEPS[findStepIndex(chosenStep)];
   if (chosen && isOpen(chosen, student)) return chosenStep;
   return getNextStep(chosenStep, student) ?? chosenStep;

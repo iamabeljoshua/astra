@@ -9,14 +9,14 @@ import { useSpokenLine } from './useSpokenLine';
 
 export function HelloStep({ flow }: StepProps) {
   const line = getHelloLine(flow.answers);
-  const { words, wordsShown, isSpeaking } = useSpokenLine(line, flow.answers.voice);
+  const { words, wordsShown, isRevealingWords } = useSpokenLine(line, flow.answers.voice);
   const answerBox = useRef<HTMLTextAreaElement>(null);
 
   return (
     <StepScreen flow={flow}>
-      <div className="label flex items-center gap-2.5" data-speaking={isSpeaking}>
+      <div className="label flex items-center gap-2.5" data-speaking={isRevealingWords}>
         <i className="tutor-dot" />
-        <span>{isSpeaking ? ONBOARDING_LABELS.speaking : ONBOARDING_LABELS.listening}</span>
+        <span>{isRevealingWords ? ONBOARDING_LABELS.speaking : ONBOARDING_LABELS.listening}</span>
       </div>
       <StepHeading fieldToFocus={answerBox} className="font-voice text-tutor-line font-normal">
         <span className="sr-only">{line}</span>

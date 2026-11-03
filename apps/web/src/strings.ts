@@ -331,7 +331,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
       {
         heading: 'If you are under 13',
         today: [
-          'If the date you confirm shows you are under 13 in every time zone, the account closes and we do not store that date.',
+          'If the date you confirm shows you are under 13 in every time zone, the account closes and we do not store that date or the name you gave.',
           'We keep a record holding only the account ID and the time, so the account stays closed on every later sign-in.',
           'Your email address is not deleted. It stays in Supabase Auth, in its user and identity records and in its logs, and nothing in the app removes it. We keep it for now because deleting it would let the same address sign up and answer again.',
         ],
@@ -354,7 +354,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
       {
         heading: 'Who receives your data',
         today: [
-          'Supabase runs our sign-in service and our database, so it holds everything listed under What we store, and it sends the sign-in email.',
+          'Supabase runs our sign-in service and our database, so it holds everything listed under What we store and any parent address, and it sends the sign-in email.',
           'No other outside service receives student data today. The app serves its own fonts and pictures.',
         ],
         planned: [
