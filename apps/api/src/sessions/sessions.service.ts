@@ -1,8 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import type { SessionEntity } from '../infrastructure/orm/entities/session.entity';
+import { SessionRepository } from '../infrastructure/orm/repositories/session.repository';
 import type { CreateSessionBodyDto, SessionResponseDto } from './session.dto';
-import { SessionEntity } from './session.entity';
 
 function toSessionResponse(session: SessionEntity): SessionResponseDto {
   return {
@@ -20,29 +19,19 @@ function toSessionResponse(session: SessionEntity): SessionResponseDto {
 
 @Injectable()
 export class SessionsService {
-  constructor(
-    @InjectRepository(SessionEntity) private readonly sessions: Repository<SessionEntity>,
-  ) {}
+  constructor(private readonly sessions: SessionRepository) {}
 
   async createSession(studentId: string, body: CreateSessionBodyDto): Promise<SessionResponseDto> {
-    const { id } = await this.sessions.save(this.sessions.create({ ...body, studentId }));
-    return toSessionResponse(await this.sessions.findOneByOrFail({ id }));
+    return toSessionResponse(await this.sessions.createForStudent(studentId, body));
   }
 
   async listSessions(studentId: string, limit: number): Promise<SessionResponseDto[]> {
-    const sessions = await this.sessions.find({
-      where: { studentId },
-      order: { startedAt: 'DESC', id: 'DESC' },
-      take: limit,
-    });
+    const sessions = await this.sessions.listNewestForStudent(studentId, limit);
     return sessions.map(toSessionResponse);
   }
 
   async getNewestUnfinishedSession(studentId: string): Promise<SessionResponseDto | null> {
-    const session = await this.sessions.findOne({
-      where: { studentId, status: 'in_progress' },
-      order: { startedAt: 'DESC', id: 'DESC' },
-    });
+    const session = await this.sessions.findNewestUnfinishedForStudent(studentId);
     return session && toSessionResponse(session);
   }
 }

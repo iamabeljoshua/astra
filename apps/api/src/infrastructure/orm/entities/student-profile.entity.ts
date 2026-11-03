@@ -7,7 +7,7 @@ import {
   PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import type { StudentGoal, StudentLevel, TutorVoice } from './student-profile-options';
+import type { StudentGoal, StudentLevel, TutorVoice } from '../../../students/student-profile-options';
 import { StudentEntity } from './student.entity';
 
 @Entity('student_profiles')

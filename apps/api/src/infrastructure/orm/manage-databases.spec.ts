@@ -1,4 +1,4 @@
-import { createTestDatabase, withEnvironment } from '../../test/test-database';
+import { createTestDatabase, withEnvironment } from '../../../test/test-database';
 import { dropDatabase } from './manage-databases';
 
 const CLOSED_PORT_URL = 'postgresql://postgres:postgres@127.0.0.1:1/astra';

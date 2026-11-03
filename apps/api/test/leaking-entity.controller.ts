@@ -1,5 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
-import { StudentEntity } from '../src/students/student.entity';
+import { StudentEntity } from '../src/infrastructure/orm/entities/student.entity';
 
 @Controller('leaking-entity')
 export class LeakingEntityController {
