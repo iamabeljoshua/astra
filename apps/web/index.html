@@ -11,17 +11,6 @@
         // Blocked storage only loses the saved choice.
       }
     </script>
-    <script>
-      if (location.pathname === '/') {
-        const greetingFontPreload = document.createElement('link');
-        greetingFontPreload.rel = 'preload';
-        greetingFontPreload.as = 'font';
-        greetingFontPreload.type = 'font/woff2';
-        greetingFontPreload.crossOrigin = '';
-        greetingFontPreload.href = '/fonts/newsreader-latin-opsz-normal.woff2';
-        document.head.append(greetingFontPreload);
-      }
-    </script>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="preload" href="/fonts/barlow-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/barlow-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin />
