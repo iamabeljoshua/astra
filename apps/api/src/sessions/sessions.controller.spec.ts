@@ -70,12 +70,26 @@ describe('the sessions routes', () => {
     expectBadRequestNaming(response, fieldName);
   });
 
-  it.each(['0', '101', '1e21', '-1', 'many', '1.5'])(
-    'rejects a list limit of %s',
+  it.each(['0', '101', '1e21', '-1', 'many', '1.5', '0x10', '0b11', '0o7', '1e1', ' 5', ''])(
+    'rejects a list limit of "%s"',
     async (limit) => {
-      expectBadRequestNaming(await api().get(`${sessionsPath}?limit=${limit}`), 'limit');
+      const response = await api().get(`${sessionsPath}?limit=${encodeURIComponent(limit)}`);
+
+      expectBadRequestNaming(response, 'limit');
     },
   );
+
+  it('returns at most 50 sessions when the limit is left out', async () => {
+    const student = await api().post('/students').send({ name: 'Ada' }).expect(201);
+    const manySessionsPath = `/students/${student.body.id}/sessions`;
+    for (let count = 0; count < 51; count += 1) {
+      await api().post(manySessionsPath).send(VALID_SESSION).expect(201);
+    }
+
+    const { body: sessions } = await api().get(manySessionsPath).expect(200);
+
+    expect(sessions).toHaveLength(50);
+  });
 
   it('accepts the largest list limit', async () => {
     await api().get(`${sessionsPath}?limit=100`).expect(200);

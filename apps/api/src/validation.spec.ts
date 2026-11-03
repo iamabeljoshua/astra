@@ -11,6 +11,14 @@ const VALID_PROBE_BODY = {
   sensors: [{ sensorName: 'depth' }],
 };
 
+function nestedList(depth: number): string {
+  return '['.repeat(depth) + ']'.repeat(depth);
+}
+
+function nestedObject(depth: number): string {
+  return '{"a":'.repeat(depth) + '1' + '}'.repeat(depth);
+}
+
 describe('request validation', () => {
   let app: INestApplication;
 
@@ -88,6 +96,17 @@ describe('request validation', () => {
     expectBadRequestNaming(response, 'limit');
   });
 
+  it.each(['0x10', '0b11', '0o7', '1e1', ' 5', '5 ', '+5', '5.0', '', 'Infinity'])(
+    'rejects a query number written as "%s" and names the field',
+    async (limit) => {
+      const response = await request(app.getHttpServer()).get(
+        `/probes?limit=${encodeURIComponent(limit)}`,
+      );
+
+      expectBadRequestNaming(response, 'limit');
+    },
+  );
+
   it('rejects a query field that the DTO does not declare and names the field', async () => {
     const response = await request(app.getHttpServer()).get('/probes?limit=1&undeclaredField=1');
 
@@ -98,6 +117,23 @@ describe('request validation', () => {
     await request(app.getHttpServer())
       .get('/probes?limit=5')
       .expect(200, { limit: 5, isDtoInstance: true });
+  });
+
+  it.each([
+    ['a list in a field', (depth: number) => `{"name":${nestedList(depth)}}`],
+    ['an object in a field', (depth: number) => `{"name":${nestedObject(depth)}}`],
+    ['an undeclared field', (depth: number) => `{"undeclaredField":${nestedList(depth)}}`],
+    ['a list of nested DTOs', (depth: number) => `{"sensors":${nestedList(depth)}}`],
+    ['a nested DTO', (depth: number) => `{"owner":${nestedObject(depth)}}`],
+    ['the body itself', (depth: number) => nestedList(depth)],
+  ])('answers a 400, not a server error, for %s nested very deep', async (_caseName, createBody) => {
+    for (const depth of [5_000, 15_000]) {
+      await request(app.getHttpServer())
+        .post('/probes')
+        .set('content-type', 'application/json')
+        .send(createBody(depth))
+        .expect(400);
+    }
   });
 
   it('rejects a bad route parameter and names the field', async () => {

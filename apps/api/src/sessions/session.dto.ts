@@ -1,12 +1,11 @@
-import { Type } from 'class-transformer';
 import { IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import { IsStorableText } from '../is-storable-text';
+import { ToStrictInteger } from '../to-strict-integer';
 import { SESSION_LANGUAGES, SESSION_STATUSES } from './session-options';
 import type { SessionLanguage, SessionStatus } from './session-options';
 
 const MAX_SESSION_TITLE_LENGTH = 200;
 const MAX_SESSION_SUBJECT_LENGTH = 60;
-const DEFAULT_SESSIONS_PER_LIST = 50;
 const MAX_SESSIONS_PER_LIST = 100;
 
 export class CreateSessionBodyDto {
@@ -28,13 +27,13 @@ export class CreateSessionBodyDto {
 }
 
 export class ListSessionsQueryDto {
-  /** The largest number of sessions to return. */
+  /** The largest number of sessions to return. The API returns up to 50 if this is left out. */
   @IsOptional()
-  @Type(() => Number)
+  @ToStrictInteger()
   @IsInt()
   @Min(1)
   @Max(MAX_SESSIONS_PER_LIST)
-  limit: number = DEFAULT_SESSIONS_PER_LIST;
+  limit?: number;
 }
 
 export class SessionResponseDto {

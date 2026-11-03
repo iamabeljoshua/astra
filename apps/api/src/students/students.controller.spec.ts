@@ -40,6 +40,17 @@ describe('the students routes', () => {
       .expect(200, { id: created.body.id, name: 'Adaeze Ọkàfọ́r', profile: null });
   });
 
+  it.each([
+    ['an emoji', '\u{1F3C0}'],
+    ['an emoji joined with zero-width characters', '\u{1F469}\u200D\u{1F680}'],
+    ['a name with a zero-width joiner', 'Niv\u200Da'],
+    ['a name with combining tone marks', 'Ade\u0300\u0323'],
+  ])('saves %s and reads the same text back', async (_caseName, name) => {
+    const created = await api().post('/students').send({ name }).expect(201);
+
+    await api().get(`/students/${created.body.id}`).expect(200, { id: created.body.id, name, profile: null });
+  });
+
   it('saves a valid profile and reads the same profile back', async () => {
     await api().put(`/students/${studentId}/profile`).send(VALID_PROFILE).expect(200, VALID_PROFILE);
 
@@ -63,6 +74,11 @@ describe('the students routes', () => {
     ['an empty name', { name: '' }, 'name'],
     ['a blank name', { name: '   ' }, 'name'],
     ['a name with a null character', { name: 'Ma\u0000ya' }, 'name'],
+    ['a name of only zero-width characters', { name: '\u200B\u200C\u200D\u2060\uFEFF' }, 'name'],
+    ['a name of only variation selectors', { name: '\uFE0F\uFE0F' }, 'name'],
+    ['a name of only combining marks', { name: '\u0301\u0323' }, 'name'],
+    ['a name with a lone high surrogate', { name: 'Ma\uD83Dya' }, 'name'],
+    ['a name with a lone low surrogate', { name: 'Ma\uDE00ya' }, 'name'],
     ['a name that is too long', { name: 'M'.repeat(81) }, 'name'],
     ['a field the DTO does not declare', { name: 'Maya', isAdmin: true }, 'isAdmin'],
   ])('rejects %s when creating a student', async (_caseName, body, fieldName) => {

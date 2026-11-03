@@ -10,6 +10,7 @@ import {
   MinLength,
   ValidateNested,
 } from 'class-validator';
+import { ToStrictInteger } from '../src/to-strict-integer';
 
 export class ProbeOwnerDto {
   /** The name of the person who owns the probe. */
@@ -46,7 +47,7 @@ export class CreateProbeBodyDto {
 
 export class ListProbesQueryDto {
   /** The largest number of probes to return. */
-  @Type(() => Number)
+  @ToStrictInteger()
   @IsInt()
   @Min(1)
   limit!: number;

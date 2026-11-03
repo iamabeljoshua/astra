@@ -289,9 +289,9 @@ export interface operations {
     };
     SessionsController_listSessions: {
         parameters: {
-            query: {
-                /** @description The largest number of sessions to return. */
-                limit: number;
+            query?: {
+                /** @description The largest number of sessions to return. The API returns up to 50 if this is left out. */
+                limit?: number;
             };
             header?: never;
             path: {

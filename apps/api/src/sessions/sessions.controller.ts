@@ -3,6 +3,8 @@ import { StudentRouteParamsDto } from '../students/student.dto';
 import { CreateSessionBodyDto, ListSessionsQueryDto, SessionResponseDto } from './session.dto';
 import { SessionsService } from './sessions.service';
 
+const DEFAULT_SESSIONS_PER_LIST = 50;
+
 @Controller('students/:studentId/sessions')
 export class SessionsController {
   constructor(private readonly sessionsService: SessionsService) {}
@@ -22,6 +24,9 @@ export class SessionsController {
     @Param() routeParams: StudentRouteParamsDto,
     @Query() query: ListSessionsQueryDto,
   ): Promise<SessionResponseDto[]> {
-    return this.sessionsService.listSessions(routeParams.studentId, query.limit);
+    return this.sessionsService.listSessions(
+      routeParams.studentId,
+      query.limit ?? DEFAULT_SESSIONS_PER_LIST,
+    );
   }
 }
