@@ -71,15 +71,6 @@ describe.each(LEGAL_PAGE_CASES)('$path', ({ path, legalDocument }) => {
     await screen.findByRole('heading', { level: 1, name: legalDocument.title });
   });
 
-  it('tells a student under 18 what is held before a parent accepts and after', () => {
-    const underEighteen = LEGAL_PAGES.privacy.sections.find(({ heading }) => heading === 'If you are under 18');
-    const statements = underEighteen?.today.join(' ');
-
-    for (const fact of ['date of birth', 'email address', 'IP address', 'browser', 'tutor voice', 'first answer']) {
-      expect(statements).toContain(fact);
-    }
-  });
-
   it('labels every planned statement', async () => {
     openAt(path);
 
@@ -120,5 +111,16 @@ describe('returning to the welcome step', () => {
     clickBackLink();
 
     expect(document.activeElement).toBe(await screen.findByRole('heading', { level: 1, name: SIGN_IN_LABELS.tagline }));
+  });
+});
+
+describe('the Privacy Policy', () => {
+  it('tells a student under 18 what is held before a parent accepts and after', () => {
+    const underEighteen = LEGAL_PAGES.privacy.sections.find(({ heading }) => heading === 'If you are under 18');
+    const statements = underEighteen?.today.join(' ');
+
+    for (const fact of ['date of birth', 'email address', 'IP address', 'browser', 'tutor voice', 'first answer']) {
+      expect(statements).toContain(fact);
+    }
   });
 });
