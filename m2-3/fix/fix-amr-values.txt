@@ -1,0 +1,36 @@
+private Auth, Confirm email on | new address, email link, mail subject | "Confirm Your Email"
+private Auth, Confirm email on | new address, email link, PKCE | {"amr":["email/signup"],"is_anonymous":false,"shape":"method,timestamp"}
+private Auth, Confirm email on | after a refresh | {"amr":["email/signup"],"is_anonymous":false,"shape":"method,timestamp"}
+private Auth, Confirm email on | known address, email link, mail subject | "Your Magic Link"
+private Auth, Confirm email on | known address, email link, PKCE | {"amr":["magiclink"],"is_anonymous":false,"shape":"method,timestamp"}
+private Auth, Confirm email on | after a refresh | {"amr":["magiclink"],"is_anonymous":false,"shape":"method,timestamp"}
+private Auth, Confirm email on | after a second refresh | {"amr":["magiclink"],"is_anonymous":false,"shape":"method,timestamp"}
+private Auth, Confirm email on | six digit code | {"sent":200,"verify":200,"amr":["otp"],"is_anonymous":false,"shape":"method,timestamp"}
+private Auth, Confirm email on | after a refresh | {"amr":["otp"],"is_anonymous":false,"shape":"method,timestamp"}
+private Auth, Confirm email on | email link, no PKCE | {"amr":["otp"],"is_anonymous":false,"shape":"method,timestamp"}
+private Auth, Confirm email on | password sign-up | {"status":200,"hasSession":false}
+private Auth, Confirm email on | password grant before the owner confirms | {"status":400,"code":"email_not_confirmed"}
+private Auth, Confirm email on | mail to the owner of that address | "Confirm Your Email"
+private Auth, Confirm email on | owner opens that mail | {"amr":["otp"],"is_anonymous":false,"shape":"method,timestamp"}
+private Auth, Confirm email on | password grant after the owner confirms | {"status":200,"amr":["password"],"is_anonymous":false,"shape":"method,timestamp"}
+private Auth, Confirm email on | after a refresh | {"amr":["password"],"is_anonymous":false,"shape":"method,timestamp"}
+private Auth, Confirm email on | anonymous sign-in | {"status":200,"amr":["anonymous"],"is_anonymous":true,"shape":"method,timestamp"}
+private Auth, Confirm email on | after a refresh | {"amr":["anonymous"],"is_anonymous":true,"shape":"method,timestamp"}
+private Auth, Confirm email on | password recovery link | {"amr":["otp"],"is_anonymous":false,"shape":"method,timestamp"}
+private Auth, Confirm email on | a signed-in student sets a password | {"status":200}
+private Auth, Confirm email on | that session, refreshed | {"amr":["email/signup"],"is_anonymous":false,"shape":"method,timestamp"}
+private Auth, Confirm email on | password grant on that account | {"status":200,"amr":["password"],"is_anonymous":false,"shape":"method,timestamp"}
+private Auth, Confirm email on | claim names on a token | ["aal","amr","app_metadata","aud","email","exp","iat","is_anonymous","iss","phone","role","session_id","sub","user_metadata"]
+private Auth, Confirm email on | one amr entry | [{"method":"email/signup","timestamp":1793702422}]
+---
+shared stack, autoconfirm on | new address, email link, mail subject | "Your Magic Link"
+shared stack, autoconfirm on | new address, email link, PKCE | {"amr":["magiclink"],"is_anonymous":false,"shape":"method,timestamp"}
+shared stack, autoconfirm on | after a refresh | {"amr":["magiclink"],"is_anonymous":false,"shape":"method,timestamp"}
+shared stack, autoconfirm on | six digit code | {"sent":200,"verify":200,"amr":["otp"],"is_anonymous":false,"shape":"method,timestamp"}
+shared stack, autoconfirm on | after a refresh | {"amr":["otp"],"is_anonymous":false,"shape":"method,timestamp"}
+shared stack, autoconfirm on | email link, no PKCE | {"amr":["otp"],"is_anonymous":false,"shape":"method,timestamp"}
+shared stack, autoconfirm on | password sign-up | {"status":200,"hasSession":true,"amr":["password"],"is_anonymous":false,"shape":"method,timestamp"}
+shared stack, autoconfirm on | password grant before the owner confirms | {"status":200,"amr":["password"],"is_anonymous":false,"shape":"method,timestamp"}
+shared stack, autoconfirm on | password grant after the owner confirms | {"status":200,"amr":["password"],"is_anonymous":false,"shape":"method,timestamp"}
+shared stack, autoconfirm on | after a refresh | {"amr":["password"],"is_anonymous":false,"shape":"method,timestamp"}
+shared stack, autoconfirm on | anonymous sign-in | {"status":422,"code":422}

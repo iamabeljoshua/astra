@@ -1,0 +1,19 @@
+production API, private Auth, Confirm email on | planted signup 200 session in reply false
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+locator.waitFor: Timeout 30000ms exceeded.
+Call log:
+[2m  - waiting for getByRole('heading', { name: 'Check your email.' }) to be visible[22m
+
+    at askForLink (/private/tmp/claude-501/-Users-abel-startup-einstain-ai/043bc9b9-6c62-4e41-9461-4fb93f368259/scratchpad/m2-3-fix-round/browser.mjs:11:66)
+    at async signInByLink (/private/tmp/claude-501/-Users-abel-startup-einstain-ai/043bc9b9-6c62-4e41-9461-4fb93f368259/scratchpad/m2-3-fix-round/browser.mjs:14:3)
+    at async file:///private/tmp/claude-501/-Users-abel-startup-einstain-ai/043bc9b9-6c62-4e41-9461-4fb93f368259/scratchpad/m2-3-fix-round/proof-planting.mjs:15:1 {
+  log: [
+    "  - waiting for getByRole('heading', { name: 'Check your email.' }) to be visible"
+  ],
+  name: 'TimeoutError'
+}
+
+Node.js v22.22.1

@@ -1,0 +1,5 @@
+now 2026-11-03T11:38:44.399Z | date in UTC+14 2026-11-04
+13th birthday is today in UTC+14         2013-11-04 -> 200 active | a second, different answer -> active
+13th birthday was yesterday in UTC+14    2013-11-03 -> 200 active | a second, different answer -> active
+13th birthday is tomorrow in UTC+14      2013-11-05 -> 200 closed | a second, different answer -> closed
+adult                                    2004-03-14 -> 200 active | a second, different answer -> active

@@ -1,0 +1,23 @@
+shared stack, production build | asking again says We can't send another link right now. If you asked for one already, check your email. Otherwise, try again in a few minutes.
+shared stack, production build | proof still stored true
+shared stack, production build | the first link ends on A LEARNING APP, MADE FOR YOU | signed in false
+production API, private Auth, Confirm email on | planted signup 200 session in reply false
+production API, private Auth, Confirm email on | student signed in by link ["email/signup"] GET /me 200
+production API, private Auth, Confirm email on | other party password grant 200 ["password"]
+production API, private Auth, Confirm email on | other party GET /me 401 {"message":"Unauthorized","statusCode":401}
+production API, private Auth, Confirm email on | other party after a refresh GET /me 401
+production API, private Auth, Confirm email on | other party in a browser DID NOT end on the sign-in page http://127.0.0.1:5503/
+production API, shared stack, autoconfirm on | planted signup 200 session in reply true
+production API, shared stack, autoconfirm on | planted token at the API 401
+production API, shared stack, autoconfirm on | student signed in by link ["magiclink"] GET /me 200
+production API, shared stack, autoconfirm on | other party password grant 200 ["password"]
+production API, shared stack, autoconfirm on | other party GET /me 401 {"message":"Unauthorized","statusCode":401}
+production API, shared stack, autoconfirm on | other party after a refresh GET /me 401
+production API, shared stack, autoconfirm on | other party in a browser ends on "Something went wrong on our side. Try again." | student page shown: false
+A creates a session 201
+A sees it on Home: yes
+B on the same browser sees A's session: false
+GET /home as B 200 continueSession null cache no-store
+GET /sessions as B 200 [] cache no-store
+GET /home as A, token copied before sign-out 200 Only for student A
+POST /sessions as B naming A in the body 400

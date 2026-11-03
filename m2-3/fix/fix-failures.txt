@@ -1,0 +1,31 @@
+7.1 two refusals               round 1 ["token 200, repeated because the token lives 30 s","GET /api/me 401","token 200, repeated because the token lives 30 s","GET /api/me 200"] {"h1":"Welcome back.","shell":true,"stored":true,"words":"","welcome":false}
+7.1 two refusals               round 2 ["token 200, repeated because the token lives 30 s","GET /api/me 401","token 200, repeated because the token lives 30 s","GET /api/me 200"] {"h1":"Welcome back.","shell":true,"stored":true,"words":"","welcome":false}
+7.2 API refuses after renew    seconds 0.895 ["token 200, repeated because the token lives 30 s","GET /api/me 401","token 200, repeated because the token lives 30 s","GET /api/me 401"] {"h1":"Something went wrong on our side. Try again.","shell":false,"stored":true,"words":"","welcome":false}
+7.2 API refuses after renew    after the API is fixed, Try again ["token 200, repeated because the token lives 30 s","GET /api/me 200","token 200, repeated because the token lives 30 s",] {"h1":"Welcome back.","shell":true,"stored":true,"words":"","welcome":false}
+7.2 429 on refresh, expired    seconds 25.58 token calls 8 logout calls 0 {"h1":"Could not connect. Try again in a moment.","shell":false,"stored":true,"words":"","welcome":false}
+7.2 429 on refresh, expired    after Auth recovers {"h1":"Welcome back.","shell":true,"stored":true,"words":"Loading your home screen.","welcome":false}
+7.5 expired, Auth hang         at 4 s {"h1":null,"shell":false,"stored":true,"words":"Still opening your account. This can take a moment.","welcome":false}
+7.5 expired, Auth hang         seconds to the error page 31.143 {"h1":"Could not connect. Try again in a moment.","shell":false,"stored":true,"words":"","welcome":false}
+7.5 expired, Auth hang         Auth back, no action, seconds 90.873 {"h1":"Welcome back.","shell":true,"stored":true,"words":"","welcome":false}
+7.5 expired, Auth refuse       at 4 s {"h1":null,"shell":false,"stored":true,"words":"Still opening your account. This can take a moment.","welcome":false}
+7.5 expired, Auth refuse       seconds to the error page 25.636 {"h1":"Could not connect. Try again in a moment.","shell":false,"stored":true,"words":"","welcome":false}
+7.5 expired, Auth refuse       Auth back, no action, seconds 86.024 {"h1":"Welcome back.","shell":true,"stored":true,"words":"","welcome":false}
+7.2 Auth down during renew     during {"h1":"Welcome back.","shell":true,"stored":true,"words":"","welcome":false}
+7.2 Auth down during renew     after the retries logout calls 0 {"h1":"Welcome back.","shell":true,"stored":true,"words":"","welcome":false}
+7.3 sign-out, Auth normal      seconds to the sign-in page 0.103 other tab followed in 0.117 {"h1":"A learning app, made for you","shell":false,"stored":false,"words":"","welcome":true}
+7.3 sign-out, Auth normal      refresh token at Auth afterward 400
+7.3 sign-out, Auth hang        seconds to the sign-in page 0.077 other tab followed in 0.089 {"h1":"A learning app, made for you","shell":false,"stored":false,"words":"","welcome":true}
+
+
+
+7.3 sign-out, Auth normal      seconds to the sign-in page 0.074 other tab followed in 0.086 {"h1":"A learning app, made for you","shell":false,"stored":false,"words":"","welcome":true}
+7.3 sign-out, Auth normal      tab closed, next person sees {"h1":"A learning app, made for you","shell":false,"stored":false,"words":"","welcome":true}
+7.3 sign-out, Auth normal      refresh token at Auth afterward 400
+7.3 sign-out, Auth hang        seconds to the sign-in page 0.069 other tab followed in 0.08 {"h1":"A learning app, made for you","shell":false,"stored":false,"words":"","welcome":true}
+7.3 sign-out, Auth hang        tab closed, next person sees {"h1":"A learning app, made for you","shell":false,"stored":false,"words":"","welcome":true}
+7.3 sign-out, Auth hang        refresh token at Auth afterward 200
+7.3 sign-out, Auth refuse      seconds to the sign-in page 0.072 other tab followed in 0.085 {"h1":"A learning app, made for you","shell":false,"stored":false,"words":"","welcome":true}
+7.3 sign-out, Auth refuse      tab closed, next person sees {"h1":"A learning app, made for you","shell":false,"stored":false,"words":"","welcome":true}
+7.3 sign-out, Auth refuse      refresh token at Auth afterward 200
+7.3 close tab at once, hang    next person sees {"h1":"A learning app, made for you","shell":false,"stored":false,"words":"","welcome":true}
+link returns, token hangs      seconds 10.394 We could not connect to finish signing you in. Ask for a new link here in a moment.

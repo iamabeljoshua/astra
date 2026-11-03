@@ -1,0 +1,17 @@
+address confirmed by a first sign-in 200
+known address | first send 200 | asked again at once 429 over_email_send_rate_limit
+known address | first link with the proof of the send that worked 400 bad_code_verifier
+known address | first link with the proof of the refused send 200 
+shared stack, autoconfirm on | gap 0 | first 200 | second 429 {"code":429,"error_code":"over_email_send_rate_limit","msg":"For security purposes, you can only request this 
+shared stack, autoconfirm on | first link with the first proof 400 bad_code_verifier
+shared stack, autoconfirm on | first link with the second proof 200 
+private Auth, Confirm email on | gap 0 | first 200 | second 429 {"code":429,"error_code":"over_email_send_rate_limit","msg":"For security purposes, you can only request this 
+private Auth, Confirm email on | first link with the first proof 200 
+shared stack, new address (autoconfirm makes it known) | asking again says We can't send another link right now. If you asked for one already, check your email. Otherwise, try again in a few minutes.
+shared stack, new address (autoconfirm makes it known) | requests that reached Auth 1
+shared stack, new address (autoconfirm makes it known) | proof still stored true
+shared stack, new address (autoconfirm makes it known) | the first link ends on When were you born? | signed in true
+shared stack, address that signed in before | asking again says We can't send another link right now. If you asked for one already, check your email. Otherwise, try again in a few minutes.
+shared stack, address that signed in before | requests that reached Auth 1
+shared stack, address that signed in before | proof still stored true
+shared stack, address that signed in before | the first link ends on When were you born? | signed in true

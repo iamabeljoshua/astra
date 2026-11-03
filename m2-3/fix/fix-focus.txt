@@ -1,0 +1,38 @@
+note-1280-alert-after-change 0
+note-1280-confirm-date "14 March 2004"
+note-1280-kept-year "2004"
+adult-1280           email step                           input/textbox: Your email address                          []
+adult-1280           sent: Check your email               h1/heading: Check your email.                              []
+adult-1280           birth date question                  input/textbox: DAY                                         []
+adult-1280           incomplete date rejected             input/textbox: YEAR                                        ["alert: Check the date and try again."]
+adult-1280           confirm step                         h1/heading: Is this right?                                 []
+adult-1280           back to the date                     input/textbox: DAY                                         []
+adult-1280           home after confirming                h1/heading: Welcome back.                                  []
+young-1280           email step                           input/textbox: Your email address                          []
+young-1280           sent: Check your email               h1/heading: Check your email.                              []
+young-1280           birth date question                  input/textbox: DAY                                         []
+young-1280           stop screen                          h1/heading: We can't set up this account.                  []
+send-refused-1280    send refused, pressed on the button  button/button: Send link                                   ["alert: We can't send another link right now. If you asked for one already, check your email. Otherwise, try again in a few minutes."]
+note-1280-h1-role null
+api-down-1280        error page                           h1/heading: Something went wrong on our side. Try again.   ["status: Still opening your account. This can take a moment."]
+api-down-1280        error page again after Try again     h1/heading: Something went wrong on our side. Try again.   ["status: Still opening your account. This can take a moment."]
+api-down-1280        question after Try again             input/textbox: DAY                                         []
+note-390-alert-after-change 0
+note-390-confirm-date "14 March 2004"
+note-390-kept-year "2004"
+adult-390            email step                           h1/heading: What is your email address?                    []
+adult-390            sent: Check your email               h1/heading: Check your email.                              []
+adult-390            birth date question                  h1/heading: When were you born?                            []
+adult-390            incomplete date rejected             input/textbox: YEAR                                        ["alert: Check the date and try again."]
+adult-390            confirm step                         h1/heading: Is this right?                                 []
+adult-390            back to the date                     h1/heading: When were you born?                            []
+adult-390            home after confirming                h1/heading: Welcome back.                                  []
+young-390            email step                           h1/heading: What is your email address?                    []
+young-390            sent: Check your email               h1/heading: Check your email.                              []
+young-390            birth date question                  h1/heading: When were you born?                            []
+young-390            stop screen                          h1/heading: We can't set up this account.                  []
+send-refused-390     send refused, pressed on the button  button/button: Send link                                   ["alert: We can't send another link right now. If you asked for one already, check your email. Otherwise, try again in a few minutes."]
+note-390-h1-role null
+api-down-390         error page                           h1/heading: Something went wrong on our side. Try again.   ["status: Still opening your account. This can take a moment."]
+api-down-390         error page again after Try again     h1/heading: Something went wrong on our side. Try again.   ["status: Still opening your account. This can take a moment."]
+api-down-390         question after Try again             h1/heading: When were you born?                            []

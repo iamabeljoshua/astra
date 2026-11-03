@@ -1,0 +1,3 @@
+waiting 330000 ms
+first mail to a new address, opened after 5.5 minutes: subject Confirm Your Email | exchange 422 flow_state_expired 
+link to a known address, opened after 5.5 minutes: subject Your Magic Link | exchange 200  ["magiclink"]

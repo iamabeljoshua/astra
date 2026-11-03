@@ -1,0 +1,16 @@
+CONTROL assign, no-store stripped | Back press 1 | url http://127.0.0.1:5503/sessions | student page restored from memory: 1 | shows ["pageshow / persisted=false shell=false","pagehide /sessions persisted=true shell=true","pageshow /sessions persisted=true shell=true","pageshow /sessions persisted=f
+CONTROL assign, no-store stripped | Back press 2 | url http://127.0.0.1:5503/ | student page restored from memory: 0 | shows [] | final ASTRA Light Dark A LEARNING APP, MADE FOR YO
+CONTROL assign, no-store stripped | Back press 3 | url http://127.0.0.1:5503/ | student page restored from memory: 0 | shows ["pageshow / persisted=false shell=false"] | final ASTRA Light Dark A LEARNING APP, MADE FOR YO
+CONTROL assign, with no-store | Back press 1 | url http://127.0.0.1:5503/sessions | student page restored from memory: 1 | shows ["pageshow / persisted=false shell=false","pagehide /sessions persisted=true shell=true","pageshow /sessions persisted=true shell=true","pageshow /sessions persisted=false
+CONTROL assign, with no-store | Back press 2 | url http://127.0.0.1:5503/ | student page restored from memory: 0 | shows [] | final ASTRA Light Dark A LEARNING APP, MADE FOR YO
+CONTROL assign, with no-store | Back press 3 | url http://127.0.0.1:5503/ | student page restored from memory: 0 | shows ["pageshow / persisted=false shell=false"] | final ASTRA Light Dark A LEARNING APP, MADE FOR YO
+replace, no-store stripped | Back press 1 | url http://127.0.0.1:5503/ | student page restored from memory: 0 | shows ["pageshow / persisted=false shell=false"] | final ASTRA Light Dark A LEARNING APP, MADE FOR YO
+replace, no-store stripped | Back press 2 | url http://127.0.0.1:5503/ | student page restored from memory: 0 | shows ["pageshow / persisted=false shell=false"] | final ASTRA Light Dark A LEARNING APP, MADE FOR YO
+replace, no-store stripped | Back press 3 | url about:blank | student page restored from memory: 0 | shows ["pageshow blank persisted=false shell=false"] | final 
+replace with no-store, the shipped build | Back press 1 | url http://127.0.0.1:5503/ | student page restored from memory: 0 | shows ["pageshow / persisted=false shell=false"] | final ASTRA Light Dark A LEARNING APP, MADE FOR YO
+replace with no-store, the shipped build | Back press 2 | url http://127.0.0.1:5503/ | student page restored from memory: 0 | shows ["pageshow / persisted=false shell=false"] | final ASTRA Light Dark A LEARNING APP, MADE FOR YO
+replace with no-store, the shipped build | Back press 3 | url about:blank | student page restored from memory: 0 | shows ["pageshow blank persisted=false shell=false"] | final 
+no-store from the API | /api/me from the disk cache after sign-out: {"error":"TypeError: Failed to fetch"}
+no-store from the API | /api/home from the disk cache after sign-out: {"error":"TypeError: Failed to fetch"}
+CONTROL header stripped | /api/me from the disk cache after sign-out: {"status":200,"body":"{\"status\":\"needs_birth_date\",\"student\":null}"}
+CONTROL header stripped | /api/home from the disk cache after sign-out: {"status":200,"body":"{\"studentName\":null,\"continueSession\":null,\"picks\":[{\"id\":\"jump-shot\",\"title\":\"How a jump "}
