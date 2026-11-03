@@ -1,4 +1,4 @@
-import { IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
 import { ARTWORK_NAMES } from '../artwork';
 import type { ArtworkName } from '../artwork';
 import { IsStorableText } from '../is-storable-text';
@@ -58,6 +58,12 @@ export class ListSessionsQueryDto {
   @MaxLength(MAX_SEARCH_LENGTH)
   @IsStorableText()
   search?: string;
+}
+
+export class SessionParamsDto {
+  /** The ID of the session. */
+  @IsUUID()
+  id!: string;
 }
 
 export class UpdateSessionBodyDto {

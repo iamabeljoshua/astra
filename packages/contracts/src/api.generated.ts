@@ -426,6 +426,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description The ID of the session. */
                 id: string;
             };
             cookie?: never;
@@ -447,6 +448,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description The ID of the session. */
                 id: string;
             };
             cookie?: never;

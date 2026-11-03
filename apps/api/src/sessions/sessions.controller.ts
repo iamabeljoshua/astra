@@ -1,6 +1,12 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { CurrentStudentId } from '../auth/route-access';
-import { CreateSessionBodyDto, ListSessionsQueryDto, SessionResponseDto, UpdateSessionBodyDto } from './session.dto';
+import {
+  CreateSessionBodyDto,
+  ListSessionsQueryDto,
+  SessionParamsDto,
+  SessionResponseDto,
+  UpdateSessionBodyDto,
+} from './session.dto';
 import { SessionsService } from './sessions.service';
 
 const DEFAULT_SESSIONS_PER_LIST = 50;
@@ -31,18 +37,18 @@ export class SessionsController {
   @Get(':id')
   getSession(
     @CurrentStudentId() studentId: string,
-    @Param('id', ParseUUIDPipe) sessionId: string,
+    @Param() { id }: SessionParamsDto,
   ): Promise<SessionResponseDto> {
-    return this.sessionsService.getSession(studentId, sessionId);
+    return this.sessionsService.getSession(studentId, id);
   }
 
   /** Saves a session's length and can end it. Another student's session answers 404. */
   @Patch(':id')
   updateSession(
     @CurrentStudentId() studentId: string,
-    @Param('id', ParseUUIDPipe) sessionId: string,
+    @Param() { id }: SessionParamsDto,
     @Body() body: UpdateSessionBodyDto,
   ): Promise<SessionResponseDto> {
-    return this.sessionsService.updateSession(studentId, sessionId, body);
+    return this.sessionsService.updateSession(studentId, id, body);
   }
 }
