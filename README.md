@@ -38,7 +38,7 @@ WEB_PORT=5200 API_PORT=3100 pnpm dev
 
 Swagger UI is at http://localhost:3000/docs, and the OpenAPI document is at http://localhost:3000/docs-json. The Swagger plugin builds both from the DTO classes and code comments in `apps/api`.
 
-`serveApiDocs` in `apps/api/src/api-docs.ts` decides whether the API serves these routes. It turns them off when `NODE_ENV` is `production`, and it leaves them on for any other value or when `NODE_ENV` is not set. A deploy must set `NODE_ENV=production`.
+`serveApiDocs` in `apps/api/src/api-docs.ts` decides whether the API serves these routes. It serves them only when `NODE_ENV` is exactly `development`. `pnpm dev` sets that value if `NODE_ENV` is not already set, so `NODE_ENV=production pnpm dev` keeps the docs off.
 
 ## Add a DTO
 

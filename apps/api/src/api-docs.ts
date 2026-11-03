@@ -9,6 +9,6 @@ export function createApiDocument(app: INestApplication) {
 }
 
 export function serveApiDocs(app: INestApplication, nodeEnv: string | undefined) {
-  if (nodeEnv === 'production') return;
+  if (nodeEnv !== 'development') return;
   SwaggerModule.setup(API_DOCS_PATH, app, createApiDocument(app));
 }
