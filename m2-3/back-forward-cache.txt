@@ -1,0 +1,3 @@
+restored from memory on Back: yes
+PASS Back after sign out ends on no app shell
+PASS Back after sign out ends on the sign-in page

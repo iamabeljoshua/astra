@@ -1,0 +1,22 @@
+KILLED    guard not installed: FAIL src/auth/auth.guard.spec.ts   ● the API guard › with no valid token › refuses every route but the public ones, including routes added late 
+KILLED    new routes default to signed-in only: FAIL src/auth/auth.guard.spec.ts   ● the API guard › with a token for a user with no student › refuses every route that holds student data 
+KILLED    new routes default to public: FAIL src/auth/auth.guard.spec.ts   ● the API guard › with no valid token › refuses every route but the public ones, including routes added late 
+KILLED    issuer not checked: FAIL src/auth/auth.guard.spec.ts   ● the API guard › with no valid token › refuses a token from another project, naming its issuer and sends no 
+KILLED    audience not checked: FAIL src/auth/auth.guard.spec.ts   ● the API guard › with no valid token › refuses a token with no audience and sends no data 
+KILLED    expiry not required: FAIL src/auth/auth.guard.spec.ts   ● the API guard › with no valid token › refuses a token with no expiry and sends no data 
+KILLED    role not checked: FAIL src/auth/auth.guard.spec.ts   ● the API guard › with no valid token › refuses a token with the anon role and sends no data 
+KILLED    key server failure read as bad token: FAIL src/auth/auth.guard.spec.ts   ● the API guard › when the signing keys cannot be read › does not blame the token when the key server answer 
+KILLED    age decided in UTC: FAIL src/auth/age-gate.spec.ts   ● isOldEnough › decides the last moment before it has begun everywhere 
+KILLED    cutoff of 12: FAIL src/auth/age-gate.spec.ts   ● isOldEnough › decides the last moment before it has begun everywhere 
+KILLED    closed account not read: FAIL src/students/students.controller.spec.ts   ● the account routes › the date of birth question › closes the account when the answer is too young 
+KILLED    no lock on the first answer: FAIL src/students/students.controller.spec.ts   ● the account routes › the date of birth question › creates one student when the same answer arrives many ti 
+KILLED    later answers can change the outcome: FAIL src/students/students.controller.spec.ts   ● the account routes › the date of birth question › keeps the first answer of an active student 
+KILLED    failed query logs its parameters: FAIL src/database/query-error.filter.spec.ts   ● a failed database query › answers 500 and logs no value from the request 
+KILLED    no token on API calls:  FAIL  src/api/client.signIn.test.ts > the sign-in token on API calls > sends the token of the signed-in stude  FAIL  src/api/client.signIn.test.ts > the sign-in token on API calls > asks for the token on each call, so a  
+KILLED    cache kept on sign-out:  FAIL  src/auth/AuthProvider.test.tsx > AuthProvider > empties the cache and then restarts the app on sign-out  FAIL  src/auth/AuthProvider.test.tsx > AuthProvider > empties the cache and restarts when another tab signs i 
+KILLED    no restart on sign-out:  FAIL  src/auth/AuthProvider.test.tsx > AuthProvider > empties the cache and then restarts the app on sign-out  FAIL  src/auth/AuthProvider.test.tsx > AuthProvider > empties the cache and restarts when another tab signs i 
+KILLED    no reload on restore from memory:  FAIL  src/auth/AuthProvider.test.tsx > AuthProvider > reloads when the browser restores this page from memory 
+KILLED    gate shows the app to everyone:  FAIL  src/auth/AccountGate.test.tsx > AccountGate > stops at the closed page when the API closes the account,  FAIL  src/auth/AccountGate.test.tsx > AccountGate > shows the closed page straight away when the API says the 
+KILLED    Google button always shown:  FAIL  src/auth/SignInPage.test.tsx > SignInPage > hides the Google button until the Google flag is set 
+KILLED    implicit flow instead of PKCE:  FAIL  src/auth/session.test.ts > sendEmailLink > asks Auth for a link that returns to this app, with a proof  
+KILLED    cutoff named in the app text:  FAIL  src/auth/BirthDatePage.test.tsx > the date of birth question > has no age limit anywhere in the text th 

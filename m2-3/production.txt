@@ -1,0 +1,21 @@
+PASS production build: no development sign-in on the page
+PASS production build: no development accounts on the page
+PASS production build: Google button hidden with no flag
+PASS production build: no query devtools
+PASS production build: a real email link signs in
+PASS production build: the question page markup has no hint of the cutoff
+Back after sign out: pageshow persisted=false, url=/sessions
+PASS production build: Back after sign out shows no account
+PASS production build: no console errors 
+PASS production API: /docs answers 404 and 404
+PASS production API: /docs-json answers 404 and 404
+PASS production API: /dev answers 404 and 404
+PASS production API: /dev/sign-in answers 404 and 404
+PASS production API: /auth/dev answers 404 and 404
+PASS production API: /dev-sign-in answers 404 and 404
+PASS with the Google flag on, the button shows
+authorize /auth/v1/authorize provider,redirect_to,code_challenge,code_challenge_method provider= google redirect_to= http://127.0.0.1:5523/
+PASS Google button goes to Auth with a code challenge and this app as the return address
+local Auth answer: {"code":400,"error_code":"validation_failed","msg":"Unsupported provider: provider is not enabled"}
+prod exit 0
+secrets or emails in API log: 0

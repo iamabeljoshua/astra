@@ -1,0 +1,32 @@
+PASS signed out: no app shell, sign-in page shows
+PASS development sign-in: Maya is in the account row
+PASS every /api/me call carries a token
+PASS stays signed in across a reload
+PASS a new tab is signed in too
+PASS sign out: sign-in page, no Maya
+PASS sign out: session removed from the browser
+PASS after sign out the browser's API call is refused (401)
+PASS Back after sign out shows no student data (real back-forward cache on)
+PASS student B never sees student A on the same browser
+PASS the question page text has no hint of the cutoff
+FAIL the question page markup has no hint of the cutoff
+PASS the inputs set no min or max
+PASS an impossible date asks again and closes nothing
+PASS under 13: stopped, with no inputs
+PASS the stop page names no cutoff
+PASS still stopped after a reload
+PASS still stopped in a new tab
+PASS a direct API retry with an adult date stays closed ({"status":"closed","student":null})
+PASS a closed account cannot read sessions (403)
+PASS a closed account cannot write sessions (403)
+PASS still stopped after signing out and signing in again
+PASS still stopped in another browser
+PASS the page says where the link went
+PASS the link arrived in the local inbox and returns to this app
+PASS following it signs in, and the address holds no code (http://127.0.0.1:5521/)
+PASS a new student with no name yet shows the placeholder
+PASS email-link student stays signed in across a reload
+PASS a used link says it failed, offers a new one, and cleans the address
+PASS signing out in one tab ends the other tab with no click
+PASS a tab holding Maya drops her when another tab signs in as someone else
+PASS sign out with Auth out of reach still ends the session in this browser

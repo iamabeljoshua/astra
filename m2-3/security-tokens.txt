@@ -1,0 +1,44 @@
+token header {"alg":"ES256","kid":"b81269f1-21d8-4f2e-b719-c2240a840d90","typ":"JWT"}
+PASS anonymous can read /health
+PASS anonymous GET /me refused 401
+PASS anonymous POST /me/birth-date refused 401
+PASS anonymous PUT /me/profile refused 401
+PASS anonymous GET /sessions refused 401
+PASS anonymous POST /sessions refused 401
+PASS a tampered user ID refused on read and write (401, 401, 401)
+PASS a tampered expiry refused on read and write (401, 401, 401)
+PASS a truncated signature refused on read and write (401, 401, 401)
+PASS a wrong signature with the real key ID refused on read and write (401, 401, 401)
+PASS alg none refused on read and write (401, 401, 401)
+PASS alg None refused on read and write (401, 401, 401)
+PASS HS256 signed with the stack secret refused on read and write (401, 401, 401)
+PASS an expired token signed with the stack secret refused on read and write (401, 401, 401)
+PASS the anon key as a token refused on read and write (401, 401, 401)
+PASS the service role key as a token refused on read and write (401, 401, 401)
+PASS the publishable key as a token refused on read and write (401, 401, 401)
+PASS the secret key as a token refused on read and write (401, 401, 401)
+PASS a second real Auth service issued a token
+PASS it is ES256 with another issuer and key
+PASS a real token from a different project refused 401
+PASS a fresh real token is accepted by an API set to that project (200)
+PASS a token from the shared stack refused by the API of another project
+signed out at Auth (204); same access token at the API right after: 200
+PASS refresh token dead after sign-out (400)
+PASS the same token refused once it really expired (401)
+PASS a user with no student row is asked for the date of birth
+PASS a user with no student row refused GET /sessions 403
+PASS a user with no student row refused POST /sessions 403
+PASS a user with no student row refused PUT /me/profile 403
+PASS a second student passes the question
+PASS Maya's token on GET /students/<other> refused 404
+PASS Maya's token on PUT /students/<other>/profile refused 404
+PASS Maya's token on GET /students/<other>/sessions refused 404
+PASS Maya's token on POST /students/<other>/sessions refused 404
+PASS Maya's token on GET /sessions/<other> refused 404
+PASS Maya's token on GET /me/<other> refused 404
+PASS Maya sees only her six sessions (6)
+PASS the second student sees only their own
+PASS a student ID in the query is rejected 400
+PASS a student ID in a body is rejected 400
+PASS Maya reads her seeded student
+sample refused body {"message":"Unauthorized","statusCode":401}
