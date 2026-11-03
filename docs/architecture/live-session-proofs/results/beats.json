@@ -1,0 +1,252 @@
+{
+ "beats_flush_at_beat_end": {
+  "attempts": 10,
+  "speechEndToFirstAudioMs": {
+   "count": 10,
+   "p50": 1241,
+   "p95": 1282,
+   "min": 1199,
+   "max": 1282
+  },
+  "firstFragmentToFirstAudioMs": {
+   "count": 10,
+   "p50": 771,
+   "p95": 792,
+   "min": 752,
+   "max": 792
+  },
+  "lowestCueLeadMs": 1480,
+  "wordsHeard": 250,
+  "wordsTimed": 250,
+  "sdkTranscriptShowedCommands": 0,
+  "agentStatesSeenByStudent": [
+   "thinking",
+   "speaking",
+   "listening"
+  ],
+  "sample": {
+   "sdkTranscriptShowsCommands": false,
+   "speechEndToFirstAudioMs": 1269,
+   "firstFragmentToFirstAudioMs": 771,
+   "firstFragmentToFirstTtsFrameMs": 712,
+   "wordsHeard": 25,
+   "wordsTimed": 25,
+   "wordTimesLeadOverAudioMs": 58,
+   "cueLeadOverWordMs": [
+    1508,
+    2685,
+    3574
+   ],
+   "cueKinds": [
+    "drawing",
+    "simulate",
+    "focus"
+   ],
+   "cueWords": [
+    4,
+    10,
+    14
+   ]
+  },
+  "joinToSessionStartedMs": 415,
+  "agentMemoryMb": 429,
+  "machineLoadAtEnd": 6
+ },
+ "beats_flush_chosen": {
+  "attempts": 10,
+  "speechEndToFirstAudioMs": {
+   "count": 10,
+   "p50": 574,
+   "p95": 736,
+   "min": 565,
+   "max": 736
+  },
+  "firstFragmentToFirstAudioMs": {
+   "count": 10,
+   "p50": 115,
+   "p95": 123,
+   "min": 102,
+   "max": 123
+  },
+  "lowestCueLeadMs": 831,
+  "wordsHeard": 250,
+  "wordsTimed": 250,
+  "sdkTranscriptShowedCommands": 0,
+  "agentStatesSeenByStudent": [
+   "thinking",
+   "speaking",
+   "listening"
+  ],
+  "sample": {
+   "sdkTranscriptShowsCommands": false,
+   "speechEndToFirstAudioMs": 736,
+   "firstFragmentToFirstAudioMs": 121,
+   "firstFragmentToFirstTtsFrameMs": 64,
+   "wordsHeard": 25,
+   "wordsTimed": 25,
+   "wordTimesLeadOverAudioMs": 53,
+   "cueLeadOverWordMs": [
+    845,
+    2019,
+    2881
+   ],
+   "cueKinds": [
+    "drawing",
+    "simulate",
+    "focus"
+   ],
+   "cueWords": [
+    4,
+    10,
+    14
+   ]
+  },
+  "joinToSessionStartedMs": 552,
+  "agentMemoryMb": 606,
+  "machineLoadAtEnd": 13
+ },
+ "beats_no_flush": {
+  "attempts": 10,
+  "speechEndToFirstAudioMs": {
+   "count": 10,
+   "p50": 1276,
+   "p95": 1974,
+   "min": 1234,
+   "max": 1974
+  },
+  "firstFragmentToFirstAudioMs": {
+   "count": 10,
+   "p50": 801,
+   "p95": 818,
+   "min": 788,
+   "max": 818
+  },
+  "lowestCueLeadMs": 1519,
+  "wordsHeard": 250,
+  "wordsTimed": 250,
+  "sdkTranscriptShowedCommands": 0,
+  "agentStatesSeenByStudent": [
+   "thinking",
+   "speaking",
+   "listening"
+  ],
+  "sample": {
+   "sdkTranscriptShowsCommands": false,
+   "speechEndToFirstAudioMs": 1235,
+   "firstFragmentToFirstAudioMs": 788,
+   "firstFragmentToFirstTtsFrameMs": 742,
+   "wordsHeard": 25,
+   "wordsTimed": 25,
+   "wordTimesLeadOverAudioMs": 43,
+   "cueLeadOverWordMs": [
+    1523,
+    2703,
+    3589
+   ],
+   "cueKinds": [
+    "drawing",
+    "simulate",
+    "focus"
+   ],
+   "cueWords": [
+    4,
+    10,
+    14
+   ]
+  },
+  "joinToSessionStartedMs": 583,
+  "agentMemoryMb": 692,
+  "machineLoadAtEnd": 4
+ },
+ "beats_sdk_transcript_on": {
+  "attempts": 10,
+  "speechEndToFirstAudioMs": {
+   "count": 10,
+   "p50": 614,
+   "p95": 664,
+   "min": 552,
+   "max": 664
+  },
+  "firstFragmentToFirstAudioMs": {
+   "count": 10,
+   "p50": 135,
+   "p95": 141,
+   "min": 109,
+   "max": 141
+  },
+  "lowestCueLeadMs": 844,
+  "wordsHeard": 250,
+  "wordsTimed": 250,
+  "sdkTranscriptShowedCommands": 0,
+  "agentStatesSeenByStudent": [
+   "thinking",
+   "speaking",
+   "listening"
+  ],
+  "sample": {
+   "sdkTranscriptShowsCommands": false,
+   "speechEndToFirstAudioMs": 552,
+   "firstFragmentToFirstAudioMs": 112,
+   "firstFragmentToFirstTtsFrameMs": 63,
+   "wordsHeard": 25,
+   "wordsTimed": 25,
+   "wordTimesLeadOverAudioMs": 47,
+   "cueLeadOverWordMs": [
+    844,
+    2027,
+    2917
+   ],
+   "cueKinds": [
+    "drawing",
+    "simulate",
+    "focus"
+   ],
+   "cueWords": [
+    4,
+    10,
+    14
+   ]
+  },
+  "joinToSessionStartedMs": 452,
+  "agentMemoryMb": 630,
+  "machineLoadAtEnd": 9
+ },
+ "beats_speculative": {
+  "attempts": 5,
+  "outcomes": [
+   {
+    "startedDuringPause": 1,
+    "cuesDuringPause": 0,
+    "modelStarts": 2,
+    "cuesInTurn": 3
+   },
+   {
+    "startedDuringPause": 1,
+    "cuesDuringPause": 0,
+    "modelStarts": 2,
+    "cuesInTurn": 3
+   },
+   {
+    "startedDuringPause": 1,
+    "cuesDuringPause": 0,
+    "modelStarts": 2,
+    "cuesInTurn": 3
+   },
+   {
+    "startedDuringPause": 1,
+    "cuesDuringPause": 0,
+    "modelStarts": 2,
+    "cuesInTurn": 3
+   },
+   {
+    "startedDuringPause": 1,
+    "cuesDuringPause": 0,
+    "modelStarts": 2,
+    "cuesInTurn": 3
+   }
+  ],
+  "joinToSessionStartedMs": 621,
+  "agentMemoryMb": 361,
+  "machineLoadAtEnd": 16
+ }
+}

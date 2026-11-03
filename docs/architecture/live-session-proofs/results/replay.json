@@ -1,0 +1,120 @@
+{
+ "unexpected": 0,
+ "rows": [
+  {
+   "name": "1. cut mid-word while a drawing and an equation are mid-reveal",
+   "agrees": true,
+   "expected": "match"
+  },
+  {
+   "name": "2. ball frozen by a cut on the last word (the PRD row 4 timing)",
+   "agrees": true,
+   "expected": "match"
+  },
+  {
+   "name": "3. frozen frame belongs to a simulation started a beat earlier",
+   "agrees": true,
+   "expected": "match"
+  },
+  {
+   "name": "4. \"uh-huh\" mid-beat, drawings still land",
+   "agrees": true,
+   "expected": "match"
+  },
+  {
+   "name": "5a. drag mid-beat, flattened by time",
+   "agrees": true,
+   "expected": "match"
+  },
+  {
+   "name": "5b. same log, whole events applied in seq order (trap, expected to differ)",
+   "agrees": false,
+   "expected": "known-gap"
+  },
+  {
+   "name": "6. disconnect mid-word, resume with the rest of the beat",
+   "agrees": true,
+   "expected": "match"
+  },
+  {
+   "name": "getScriptFromWord over every cut point: no cue twice, none lost, no word lost",
+   "agrees": true,
+   "expected": "match"
+  },
+  {
+   "name": "7. rewound, with the rule \"drop the toBeat play and everything after it\"",
+   "agrees": true,
+   "expected": "match"
+  },
+  {
+   "name": "8. stop 200 ms after the last word, ball still flying, freeze in the log",
+   "agrees": true,
+   "expected": "match"
+  },
+  {
+   "name": "9. cue message late, student stops first: the log says it never fired",
+   "agrees": true,
+   "expected": "match"
+  },
+  {
+   "name": "10. stopped before word 0: no cue fires",
+   "agrees": true,
+   "expected": "match"
+  },
+  {
+   "name": "11. hide cue never played: arrow stays on the board in both",
+   "agrees": true,
+   "expected": "match"
+  },
+  {
+   "name": "12. a play that fired 630 ms after its word replays when it really fired",
+   "agrees": true,
+   "expected": "match"
+  },
+  {
+   "name": "13. a late setParameter after a drag ends on the same value and frame",
+   "agrees": true,
+   "expected": "match"
+  },
+  {
+   "name": "14a. a drag stamped with startedMsAgo keeps its order against a cue",
+   "agrees": true,
+   "expected": "match"
+  },
+  {
+   "name": "14b. the same drag stamped when it arrived, 918 ms late (trap, expected to differ)",
+   "agrees": false,
+   "expected": "known-gap"
+  },
+  {
+   "name": "15. a cut during a reveal over words rebuilds from its frame",
+   "agrees": true,
+   "expected": "match"
+  },
+  {
+   "name": "16. a stop 100 ms after the last word, with a drawing still appearing",
+   "agrees": true,
+   "expected": "match"
+  },
+  {
+   "name": "17. a resume sets a frozen ball moving again, and it lands on the same word",
+   "agrees": true,
+   "expected": "match"
+  },
+  {
+   "name": "17b. the resumed ball is not still frozen",
+   "agrees": true,
+   "expected": "match"
+  },
+  {
+   "name": "18. seek and play until a moment",
+   "agrees": true,
+   "expected": "match"
+  },
+  {
+   "name": "19. ink drawn and erased",
+   "agrees": true,
+   "expected": "match"
+  }
+ ]
+}

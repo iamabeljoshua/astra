@@ -1,0 +1,361 @@
+{
+ "stories": 33,
+ "passed": 33,
+ "search": {
+  "statesReached": 104,
+  "transitions": 964,
+  "violationCounts": {
+   "realWordsNotStopped": 0,
+   "reactionStopped": 0,
+   "resumeWhileVoiceOn": 0,
+   "resumeAfterFinalWords": 0,
+   "stopWhileSilent": 0,
+   "doubleYield": 0,
+   "stuckYielded": 0,
+   "silentForever": 0
+  },
+  "shortestViolations": {}
+ },
+ "rows": [
+  {
+   "story": "the timings are the ones the design names",
+   "passed": true,
+   "actions": [],
+   "phase": "clear"
+  },
+  {
+   "story": "a real sentence stops the tutor on its first word",
+   "passed": true,
+   "actions": [
+    "yield",
+    "start wordlessStop 1000",
+    "stop"
+   ],
+   "phase": "stopped"
+  },
+  {
+   "story": "\"Wait.\" with the final after the voice ended still stops",
+   "passed": true,
+   "actions": [
+    "yield",
+    "start wordlessStop 1000",
+    "start transcriptGrace 700",
+    "stop"
+   ],
+   "phase": "stopped"
+  },
+  {
+   "story": "\"Wait.\" with the final after the grace still stops",
+   "passed": true,
+   "actions": [
+    "yield",
+    "start wordlessStop 1000",
+    "start transcriptGrace 700",
+    "unyield",
+    "stop"
+   ],
+   "phase": "stopped"
+  },
+  {
+   "story": "a real word with no voice event stops the tutor, however late",
+   "passed": true,
+   "actions": [
+    "stop"
+   ],
+   "phase": "stopped"
+  },
+  {
+   "story": "a real word while the reply is still thinking stops it, so the SDK does not drop the turn",
+   "passed": true,
+   "actions": [
+    "stop"
+   ],
+   "phase": "stopped"
+  },
+  {
+   "story": "a number alone is a real word, so it stops the tutor",
+   "passed": true,
+   "actions": [
+    "yield",
+    "start wordlessStop 1000",
+    "stop"
+   ],
+   "phase": "stopped"
+  },
+  {
+   "story": "a number alone stops a reply that is still thinking",
+   "passed": true,
+   "actions": [
+    "stop"
+   ],
+   "phase": "stopped"
+  },
+  {
+   "story": "a voice already on when the tutor starts yields at once",
+   "passed": true,
+   "actions": [
+    "yield",
+    "start wordlessStop 1000"
+   ],
+   "phase": "yielding"
+  },
+  {
+   "story": "and its real words then stop the tutor",
+   "passed": true,
+   "actions": [
+    "yield",
+    "start wordlessStop 1000",
+    "start transcriptGrace 700",
+    "stop"
+   ],
+   "phase": "stopped"
+  },
+  {
+   "story": "\"uh-huh\" releases the yield and clears what the SDK held",
+   "passed": true,
+   "actions": [
+    "yield",
+    "start wordlessStop 1000",
+    "start transcriptGrace 700",
+    "unyield",
+    "clearHeldWords"
+   ],
+   "phase": "clear"
+  },
+  {
+   "story": "a final \"uh-huh\" before the voice ends releases at the voice end",
+   "passed": true,
+   "actions": [
+    "yield",
+    "start wordlessStop 1000",
+    "unyield",
+    "clearHeldWords"
+   ],
+   "phase": "clear"
+  },
+  {
+   "story": "an interim \"uh-huh\" with no final clears at the grace",
+   "passed": true,
+   "actions": [
+    "yield",
+    "start wordlessStop 1000",
+    "start transcriptGrace 700",
+    "unyield",
+    "clearHeldWords"
+   ],
+   "phase": "clear"
+  },
+  {
+   "story": "a late \"uh-huh\" still clears what the SDK held",
+   "passed": true,
+   "actions": [
+    "yield",
+    "start wordlessStop 1000",
+    "start transcriptGrace 700",
+    "unyield",
+    "clearHeldWords"
+   ],
+   "phase": "clear"
+  },
+  {
+   "story": "with the tutor silent, the rule leaves words alone",
+   "passed": true,
+   "actions": [],
+   "phase": "clear"
+  },
+  {
+   "story": "punctuation is not a word",
+   "passed": true,
+   "actions": [
+    "yield",
+    "start wordlessStop 1000"
+   ],
+   "phase": "yielding"
+  },
+  {
+   "story": "the tutor finishing releases the yield",
+   "passed": true,
+   "actions": [
+    "yield",
+    "start wordlessStop 1000",
+    "unyield"
+   ],
+   "phase": "clear"
+  },
+  {
+   "story": "reactions clear the 1 s rule while the voice goes on",
+   "passed": true,
+   "actions": [
+    "yield",
+    "start wordlessStop 1000"
+   ],
+   "phase": "yielding"
+  },
+  {
+   "story": "\"uh-huh\" over a question beat does not stop the tutor",
+   "passed": true,
+   "actions": [
+    "yield",
+    "start wordlessStop 1000",
+    "start transcriptGrace 700",
+    "unyield",
+    "clearHeldWords"
+   ],
+   "phase": "clear"
+  },
+  {
+   "story": "\"yes\" before the question has been heard is a reaction",
+   "passed": true,
+   "actions": [
+    "yield",
+    "start wordlessStop 1000",
+    "unyield",
+    "clearHeldWords"
+   ],
+   "phase": "clear"
+  },
+  {
+   "story": "\"yes\" once its last word has been heard is an answer",
+   "passed": true,
+   "actions": [
+    "yield",
+    "start wordlessStop 1000",
+    "stop"
+   ],
+   "phase": "stopped"
+  },
+  {
+   "story": "a new reply forgets that the last question was heard",
+   "passed": true,
+   "actions": [
+    "yield",
+    "start wordlessStop 1000",
+    "unyield",
+    "clearHeldWords"
+   ],
+   "phase": "clear"
+  },
+  {
+   "story": "a cough with no words releases the yield",
+   "passed": true,
+   "actions": [
+    "yield",
+    "start wordlessStop 1000",
+    "start transcriptGrace 700",
+    "unyield"
+   ],
+   "phase": "clear"
+  },
+  {
+   "story": "1 s of sound with no words cuts the tutor, then resumes",
+   "passed": true,
+   "actions": [
+    "yield",
+    "start wordlessStop 1000",
+    "stop",
+    "start transcriptGrace 700",
+    "resume"
+   ],
+   "phase": "clear"
+  },
+  {
+   "story": "words after the cut cancel the resume",
+   "passed": true,
+   "actions": [
+    "yield",
+    "start wordlessStop 1000",
+    "stop"
+   ],
+   "phase": "stopped"
+  },
+  {
+   "story": "a reaction after the cut resumes at once",
+   "passed": true,
+   "actions": [
+    "yield",
+    "start wordlessStop 1000",
+    "stop",
+    "start transcriptGrace 700",
+    "clearHeldWords",
+    "resume"
+   ],
+   "phase": "clear"
+  },
+  {
+   "story": "a reaction during the cut is cleared before the resume",
+   "passed": true,
+   "actions": [
+    "yield",
+    "start wordlessStop 1000",
+    "stop",
+    "start transcriptGrace 700",
+    "clearHeldWords",
+    "resume"
+   ],
+   "phase": "clear"
+  },
+  {
+   "story": "more sound during the grace keeps the tutor held",
+   "passed": true,
+   "actions": [
+    "yield",
+    "start wordlessStop 1000",
+    "stop",
+    "start transcriptGrace 700",
+    "start transcriptGrace 700",
+    "resume"
+   ],
+   "phase": "clear"
+  },
+  {
+   "story": "interim words that never became final resume, so the session does not go silent",
+   "passed": true,
+   "actions": [
+    "yield",
+    "start wordlessStop 1000",
+    "stop",
+    "start transcriptGrace 700",
+    "resume"
+   ],
+   "phase": "clear"
+  },
+  {
+   "story": "a final after an interim cancels that resume",
+   "passed": true,
+   "actions": [
+    "yield",
+    "start wordlessStop 1000",
+    "stop",
+    "start transcriptGrace 700"
+   ],
+   "phase": "stopped"
+  },
+  {
+   "story": "no yield while the tutor is silent",
+   "passed": true,
+   "actions": [],
+   "phase": "clear"
+  },
+  {
+   "story": "a dropped link forgets the voice and every timer",
+   "passed": true,
+   "actions": [
+    "yield",
+    "start wordlessStop 1000"
+   ],
+   "phase": "clear"
+  },
+  {
+   "story": "after a rejoin, real words still stop a tutor who kept speaking",
+   "passed": true,
+   "actions": [
+    "yield",
+    "start wordlessStop 1000",
+    "yield",
+    "start wordlessStop 1000",
+    "stop"
+   ],
+   "phase": "stopped"
+  }
+ ]
+}

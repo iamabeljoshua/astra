@@ -1,0 +1,1867 @@
+{
+ "clean": {
+  "scenario": "clean",
+  "machineLoadAtEnd": 8,
+  "impair": null,
+  "options": {
+   "stopsEarly": true
+  },
+  "audioInfo": {
+   "sampleRate": 48000,
+   "baseLatency": 0.005333333333333333,
+   "outputLatency": 0.032
+  },
+  "ranAt": "2026-11-03T20:15:48.304Z",
+  "wordsSent": 203,
+  "wordsHeard": 157,
+  "liveFiredErrorMs": {
+   "dataMessage": {
+    "count": 156,
+    "p50": -63,
+    "p95": -58,
+    "absP50": 63,
+    "absP95": 72,
+    "absMax": 73,
+    "earlyOver40": 155,
+    "lateOver100": 0
+   },
+   "chosen": {
+    "count": 157,
+    "p50": 2,
+    "p95": 5,
+    "absP50": 2,
+    "absP95": 5,
+    "absMax": 15,
+    "earlyOver40": 0,
+    "lateOver100": 0
+   },
+   "guessBySequence": {
+    "count": 157,
+    "p50": 2,
+    "p95": 5,
+    "absP50": 2,
+    "absP95": 5,
+    "absMax": 15,
+    "earlyOver40": 0,
+    "lateOver100": 0
+   },
+   "guessByRtp": {
+    "count": 157,
+    "p50": 2,
+    "p95": 5,
+    "absP50": 2,
+    "absP95": 5,
+    "absMax": 15,
+    "earlyOver40": 0,
+    "lateOver100": 0
+   },
+   "guessByRtpOldGate": {
+    "count": 157,
+    "p50": 2,
+    "p95": 5,
+    "absP50": 2,
+    "absP95": 5,
+    "absMax": 10,
+    "earlyOver40": 0,
+    "lateOver100": 0
+   },
+   "countOnly": {
+    "count": 157,
+    "p50": 2,
+    "p95": 5,
+    "absP50": 2,
+    "absP95": 5,
+    "absMax": 15,
+    "earlyOver40": 0,
+    "lateOver100": 0
+   },
+   "rtpOnly": {
+    "count": 157,
+    "p50": 6,
+    "p95": 21,
+    "absP50": 7,
+    "absP95": 21,
+    "absMax": 28,
+    "earlyOver40": 0,
+    "lateOver100": 0
+   }
+  },
+  "reanalysedRejectedRuleMs": {
+   "count": 157,
+   "p50": 0,
+   "p95": 1,
+   "absP50": 0,
+   "absP95": 1,
+   "absMax": 1,
+   "earlyOver40": 0,
+   "lateOver100": 0
+  },
+  "wordTimesLeadAudioMs": {
+   "count": 12,
+   "p50": 63,
+   "p95": 70,
+   "absP50": 63,
+   "absP95": 70,
+   "absMax": 70,
+   "earlyOver40": 0,
+   "lateOver100": 0
+  },
+  "wordTimesLateCount": 0,
+  "audioKeepsPlayingAfterStopMessageMs": {
+   "count": 6,
+   "p50": 69,
+   "p95": 72,
+   "absP50": 69,
+   "absP95": 72,
+   "absMax": 72,
+   "earlyOver40": 0,
+   "lateOver100": 0
+  },
+  "messageDeliveryMs": {
+   "reliable": {
+    "count": 735,
+    "p50": 3,
+    "p95": 4,
+    "absP50": 3,
+    "absP95": 4,
+    "absMax": 19,
+    "earlyOver40": 0,
+    "lateOver100": 0
+   },
+   "firstOfBoth": {
+    "count": 735,
+    "p50": 3,
+    "p95": 4,
+    "absP50": 3,
+    "absP95": 4,
+    "absMax": 19,
+    "earlyOver40": 0,
+    "lateOver100": 0
+   },
+   "lossyNeverArrived": 0
+  },
+  "gapsReported": {
+   "count": 0,
+   "ms": {
+    "count": 0
+   }
+  },
+  "silences": {
+   "count": 0,
+   "calledLostByRtp": 0,
+   "calledLostBySequence": 0,
+   "sample": []
+  },
+  "network": {
+   "packetsReceived": 3010,
+   "packetsLost": 0,
+   "concealedSamples": 0,
+   "meanJitterBufferMs": 30
+  }
+ },
+ "pauses-lost-run1": {
+  "scenario": "pauses-lost",
+  "machineLoadAtEnd": 7,
+  "impair": {
+   "delayMs": 20,
+   "jitterMs": 5,
+   "lossPercent": 0,
+   "blackoutEveryMs": 8000,
+   "blackoutMs": 1000
+  },
+  "options": {
+   "segmentMs": 30000,
+   "segments": 3,
+   "pause": {
+    "everyWords": 4,
+    "ms": 250
+   }
+  },
+  "relayed": {
+   "forwarded": 7818,
+   "dropped": 930
+  },
+  "audioInfo": {
+   "sampleRate": 48000,
+   "baseLatency": 0.005333333333333333,
+   "outputLatency": 0.024
+  },
+  "ranAt": "2026-11-03T20:20:57.527Z",
+  "wordsSent": 216,
+  "wordsHeard": 167,
+  "liveFiredErrorMs": {
+   "dataMessage": {
+    "count": 167,
+    "p50": -79,
+    "p95": 1332,
+    "absP50": 85,
+    "absP95": 1332,
+    "absMax": 1996,
+    "earlyOver40": 135,
+    "lateOver100": 27
+   },
+   "chosen": {
+    "count": 167,
+    "p50": 9,
+    "p95": 109,
+    "absP50": 10,
+    "absP95": 125,
+    "absMax": 145,
+    "earlyOver40": 12,
+    "lateOver100": 11
+   },
+   "guessBySequence": {
+    "count": 139,
+    "p50": 2195,
+    "p95": 4671,
+    "absP50": 2195,
+    "absP95": 4671,
+    "absMax": 5095,
+    "earlyOver40": 2,
+    "lateOver100": 133
+   },
+   "guessByRtp": {
+    "count": 151,
+    "p50": 1199,
+    "p95": 2775,
+    "absP50": 1199,
+    "absP95": 2775,
+    "absMax": 3311,
+    "earlyOver40": 2,
+    "lateOver100": 113
+   },
+   "guessByRtpOldGate": {
+    "count": 152,
+    "p50": 1201,
+    "p95": 2830,
+    "absP50": 1201,
+    "absP95": 2830,
+    "absMax": 3312,
+    "earlyOver40": 2,
+    "lateOver100": 114
+   },
+   "countOnly": {
+    "count": 167,
+    "p50": 9,
+    "p95": 109,
+    "absP50": 10,
+    "absP95": 125,
+    "absMax": 145,
+    "earlyOver40": 12,
+    "lateOver100": 11
+   },
+   "rtpOnly": {
+    "count": 167,
+    "p50": 10,
+    "p95": 126,
+    "absP50": 11,
+    "absP95": 128,
+    "absMax": 1002,
+    "earlyOver40": 10,
+    "lateOver100": 12
+   }
+  },
+  "reanalysedRejectedRuleMs": {
+   "count": 167,
+   "p50": -1197,
+   "p95": -7,
+   "absP50": 1197,
+   "absP95": 2770,
+   "absMax": 3307,
+   "earlyOver40": 129,
+   "lateOver100": 1
+  },
+  "wordTimesLeadAudioMs": {
+   "count": 3,
+   "p50": 75,
+   "p95": 87,
+   "absP50": 75,
+   "absP95": 87,
+   "absMax": 87,
+   "earlyOver40": 0,
+   "lateOver100": 0
+  },
+  "wordTimesLateCount": 1,
+  "audioKeepsPlayingAfterStopMessageMs": {
+   "count": 0
+  },
+  "messageDeliveryMs": {
+   "reliable": {
+    "count": 939,
+    "p50": 23,
+    "p95": 2011,
+    "absP50": 23,
+    "absP95": 2011,
+    "absMax": 2949,
+    "earlyOver40": 0,
+    "lateOver100": 241
+   },
+   "firstOfBoth": {
+    "count": 939,
+    "p50": 20,
+    "p95": 1976,
+    "absP50": 20,
+    "absP95": 1976,
+    "absMax": 2949,
+    "earlyOver40": 0,
+    "lateOver100": 239
+   },
+   "lossyNeverArrived": 102
+  },
+  "gapsReported": {
+   "count": 0,
+   "ms": {
+    "count": 0
+   }
+  },
+  "silences": {
+   "count": 54,
+   "calledLostByRtp": 8,
+   "calledLostBySequence": 2,
+   "sample": [
+    {
+     "silenceMs": 245,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 248,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 247,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 249,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 863,
+     "isLostByRtp": true,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 249,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 247,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 247,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 248,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 874,
+     "isLostByRtp": true,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 245,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 250,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 248,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 245,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 873,
+     "isLostByRtp": true,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 248,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 244,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 246,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 875,
+     "isLostByRtp": true,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 244,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 248,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 245,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 246,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 1084,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 245,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 248,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 247,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 248,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 1086,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 245,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 247,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 247,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 246,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 906,
+     "isLostByRtp": true,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 245,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 247,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 735,
+     "isLostByRtp": true,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 248,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 247,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 245,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    }
+   ]
+  },
+  "network": {
+   "packetsReceived": 3979,
+   "packetsLost": 133,
+   "concealedSamples": 519330,
+   "meanJitterBufferMs": 45
+  }
+ },
+ "pauses-lost-run2": {
+  "scenario": "pauses-lost",
+  "machineLoadAtEnd": 6,
+  "impair": {
+   "delayMs": 20,
+   "jitterMs": 5,
+   "lossPercent": 0,
+   "blackoutEveryMs": 8000,
+   "blackoutMs": 1000
+  },
+  "options": {
+   "segmentMs": 30000,
+   "segments": 3,
+   "pause": {
+    "everyWords": 4,
+    "ms": 250
+   }
+  },
+  "relayed": {
+   "forwarded": 7626,
+   "dropped": 935
+  },
+  "audioInfo": {
+   "sampleRate": 48000,
+   "baseLatency": 0.005333333333333333,
+   "outputLatency": 0.032
+  },
+  "ranAt": "2026-11-03T20:22:39.937Z",
+  "wordsSent": 223,
+  "wordsHeard": 195,
+  "liveFiredErrorMs": {
+   "dataMessage": {
+    "count": 193,
+    "p50": -81,
+    "p95": 1072,
+    "absP50": 83,
+    "absP95": 1072,
+    "absMax": 1849,
+    "earlyOver40": 163,
+    "lateOver100": 23
+   },
+   "chosen": {
+    "count": 195,
+    "p50": 3,
+    "p95": 12,
+    "absP50": 7,
+    "absP95": 26,
+    "absMax": 28,
+    "earlyOver40": 0,
+    "lateOver100": 0
+   },
+   "guessBySequence": {
+    "count": 172,
+    "p50": 988,
+    "p95": 4629,
+    "absP50": 988,
+    "absP95": 4629,
+    "absMax": 5334,
+    "earlyOver40": 0,
+    "lateOver100": 102
+   },
+   "guessByRtp": {
+    "count": 181,
+    "p50": 6,
+    "p95": 2686,
+    "absP50": 12,
+    "absP95": 2686,
+    "absMax": 3375,
+    "earlyOver40": 0,
+    "lateOver100": 60
+   },
+   "guessByRtpOldGate": {
+    "count": 183,
+    "p50": 6,
+    "p95": 2686,
+    "absP50": 13,
+    "absP95": 2686,
+    "absMax": 3375,
+    "earlyOver40": 0,
+    "lateOver100": 62
+   },
+   "countOnly": {
+    "count": 195,
+    "p50": 3,
+    "p95": 12,
+    "absP50": 7,
+    "absP95": 26,
+    "absMax": 28,
+    "earlyOver40": 0,
+    "lateOver100": 0
+   },
+   "rtpOnly": {
+    "count": 195,
+    "p50": 11,
+    "p95": 24,
+    "absP50": 11,
+    "absP95": 24,
+    "absMax": 1005,
+    "earlyOver40": 0,
+    "lateOver100": 1
+   }
+  },
+  "reanalysedRejectedRuleMs": {
+   "count": 195,
+   "p50": -4,
+   "p95": 28,
+   "absP50": 24,
+   "absP95": 2683,
+   "absMax": 2843,
+   "earlyOver40": 74,
+   "lateOver100": 0
+  },
+  "wordTimesLeadAudioMs": {
+   "count": 3,
+   "p50": 79,
+   "p95": 81,
+   "absP50": 79,
+   "absP95": 81,
+   "absMax": 81,
+   "earlyOver40": 0,
+   "lateOver100": 0
+  },
+  "wordTimesLateCount": 0,
+  "audioKeepsPlayingAfterStopMessageMs": {
+   "count": 0
+  },
+  "messageDeliveryMs": {
+   "reliable": {
+    "count": 938,
+    "p50": 24,
+    "p95": 1974,
+    "absP50": 24,
+    "absP95": 1974,
+    "absMax": 2927,
+    "earlyOver40": 0,
+    "lateOver100": 222
+   },
+   "firstOfBoth": {
+    "count": 938,
+    "p50": 21,
+    "p95": 1955,
+    "absP50": 21,
+    "absP95": 1955,
+    "absMax": 2927,
+    "earlyOver40": 0,
+    "lateOver100": 216
+   },
+   "lossyNeverArrived": 102
+  },
+  "gapsReported": {
+   "count": 0,
+   "ms": {
+    "count": 0
+   }
+  },
+  "silences": {
+   "count": 55,
+   "calledLostByRtp": 8,
+   "calledLostBySequence": 3,
+   "sample": [
+    {
+     "silenceMs": 884,
+     "isLostByRtp": true,
+     "isLostBySequence": true,
+     "packetsLostDuringSilence": 49
+    },
+    {
+     "silenceMs": 248,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 245,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 247,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 244,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 751,
+     "isLostByRtp": true,
+     "isLostBySequence": true,
+     "packetsLostDuringSilence": 49
+    },
+    {
+     "silenceMs": 243,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 247,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 246,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 250,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 1202,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 249,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 244,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 246,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 249,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 854,
+     "isLostByRtp": true,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 246,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 247,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 247,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 864,
+     "isLostByRtp": true,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 249,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 245,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 249,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 250,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 1142,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 246,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 245,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 247,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 248,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 1257,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 247,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 247,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 247,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 246,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 859,
+     "isLostByRtp": true,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 249,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 247,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 247,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 826,
+     "isLostByRtp": true,
+     "isLostBySequence": true,
+     "packetsLostDuringSilence": 49
+    },
+    {
+     "silenceMs": 248,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    }
+   ]
+  },
+  "network": {
+   "packetsReceived": 3974,
+   "packetsLost": 147,
+   "concealedSamples": 561522,
+   "meanJitterBufferMs": 47
+  }
+ },
+ "pauses-lost-run3": {
+  "scenario": "pauses-lost",
+  "machineLoadAtEnd": 5,
+  "impair": {
+   "delayMs": 20,
+   "jitterMs": 5,
+   "lossPercent": 0,
+   "blackoutEveryMs": 8000,
+   "blackoutMs": 1000
+  },
+  "options": {
+   "segmentMs": 30000,
+   "segments": 3,
+   "pause": {
+    "everyWords": 4,
+    "ms": 250
+   }
+  },
+  "relayed": {
+   "forwarded": 7779,
+   "dropped": 951
+  },
+  "audioInfo": {
+   "sampleRate": 48000,
+   "baseLatency": 0.005333333333333333,
+   "outputLatency": 0.032
+  },
+  "ranAt": "2026-11-03T20:24:22.948Z",
+  "wordsSent": 220,
+  "wordsHeard": 192,
+  "liveFiredErrorMs": {
+   "dataMessage": {
+    "count": 192,
+    "p50": -66,
+    "p95": 1307,
+    "absP50": 77,
+    "absP95": 1307,
+    "absMax": 2051,
+    "earlyOver40": 148,
+    "lateOver100": 38
+   },
+   "chosen": {
+    "count": 192,
+    "p50": 6,
+    "p95": 18,
+    "absP50": 9,
+    "absP95": 27,
+    "absMax": 104,
+    "earlyOver40": 7,
+    "lateOver100": 0
+   },
+   "guessBySequence": {
+    "count": 178,
+    "p50": 1086,
+    "p95": 3095,
+    "absP50": 1086,
+    "absP95": 3095,
+    "absMax": 3821,
+    "earlyOver40": 0,
+    "lateOver100": 122
+   },
+   "guessByRtp": {
+    "count": 191,
+    "p50": 10,
+    "p95": 93,
+    "absP50": 10,
+    "absP95": 93,
+    "absMax": 1088,
+    "earlyOver40": 0,
+    "lateOver100": 5
+   },
+   "guessByRtpOldGate": {
+    "count": 191,
+    "p50": 10,
+    "p95": 93,
+    "absP50": 10,
+    "absP95": 93,
+    "absMax": 1088,
+    "earlyOver40": 0,
+    "lateOver100": 5
+   },
+   "countOnly": {
+    "count": 192,
+    "p50": 6,
+    "p95": 18,
+    "absP50": 9,
+    "absP95": 27,
+    "absMax": 104,
+    "earlyOver40": 7,
+    "lateOver100": 0
+   },
+   "rtpOnly": {
+    "count": 192,
+    "p50": -1,
+    "p95": 11,
+    "absP50": 4,
+    "absP95": 14,
+    "absMax": 18,
+    "earlyOver40": 0,
+    "lateOver100": 0
+   }
+  },
+  "reanalysedRejectedRuleMs": {
+   "count": 192,
+   "p50": -7,
+   "p95": 8,
+   "absP50": 8,
+   "absP95": 90,
+   "absMax": 1084,
+   "earlyOver40": 30,
+   "lateOver100": 0
+  },
+  "wordTimesLeadAudioMs": {
+   "count": 3,
+   "p50": 69,
+   "p95": 81,
+   "absP50": 69,
+   "absP95": 81,
+   "absMax": 81,
+   "earlyOver40": 0,
+   "lateOver100": 0
+  },
+  "wordTimesLateCount": 0,
+  "audioKeepsPlayingAfterStopMessageMs": {
+   "count": 0
+  },
+  "messageDeliveryMs": {
+   "reliable": {
+    "count": 937,
+    "p50": 26,
+    "p95": 2241,
+    "absP50": 26,
+    "absP95": 2241,
+    "absMax": 2929,
+    "earlyOver40": 0,
+    "lateOver100": 275
+   },
+   "firstOfBoth": {
+    "count": 937,
+    "p50": 23,
+    "p95": 2233,
+    "absP50": 23,
+    "absP95": 2233,
+    "absMax": 2929,
+    "earlyOver40": 0,
+    "lateOver100": 269
+   },
+   "lossyNeverArrived": 108
+  },
+  "gapsReported": {
+   "count": 0,
+   "ms": {
+    "count": 0
+   }
+  },
+  "silences": {
+   "count": 58,
+   "calledLostByRtp": 11,
+   "calledLostBySequence": 5,
+   "sample": [
+    {
+     "silenceMs": 247,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 868,
+     "isLostByRtp": true,
+     "isLostBySequence": true,
+     "packetsLostDuringSilence": 49
+    },
+    {
+     "silenceMs": 247,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 248,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 243,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 245,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 927,
+     "isLostByRtp": true,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 249,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 247,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 248,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 247,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 247,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 956,
+     "isLostByRtp": true,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 247,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 244,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 248,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 246,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 1127,
+     "isLostByRtp": false,
+     "isLostBySequence": true,
+     "packetsLostDuringSilence": 49
+    },
+    {
+     "silenceMs": 249,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 248,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 249,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 824,
+     "isLostByRtp": true,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 246,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 247,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 245,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 248,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 870,
+     "isLostByRtp": true,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 256,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 248,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 248,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 245,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 245,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 869,
+     "isLostByRtp": true,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 247,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 246,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 246,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 248,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 887,
+     "isLostByRtp": true,
+     "isLostBySequence": true,
+     "packetsLostDuringSilence": 49
+    },
+    {
+     "silenceMs": 246,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 247,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    }
+   ]
+  },
+  "network": {
+   "packetsReceived": 3975,
+   "packetsLost": 294,
+   "concealedSamples": 568962,
+   "meanJitterBufferMs": 43
+  }
+ },
+ "stall-200": {
+  "scenario": "stall-200",
+  "machineLoadAtEnd": 5,
+  "impair": null,
+  "options": {
+   "stalls": [
+    {
+     "wordFraction": 0.5,
+     "ms": 200,
+     "intoWordMs": 0
+    }
+   ]
+  },
+  "audioInfo": {
+   "sampleRate": 48000,
+   "baseLatency": 0.005333333333333333,
+   "outputLatency": 0.032
+  },
+  "ranAt": "2026-11-03T20:17:28.766Z",
+  "wordsSent": 206,
+  "wordsHeard": 206,
+  "liveFiredErrorMs": {
+   "dataMessage": {
+    "count": 206,
+    "p50": -256,
+    "p95": -60,
+    "absP50": 257,
+    "absP95": 269,
+    "absMax": 272,
+    "earlyOver40": 206,
+    "lateOver100": 0
+   },
+   "chosen": {
+    "count": 206,
+    "p50": 1,
+    "p95": 6,
+    "absP50": 3,
+    "absP95": 7,
+    "absMax": 10,
+    "earlyOver40": 0,
+    "lateOver100": 0
+   },
+   "guessBySequence": {
+    "count": 206,
+    "p50": 0,
+    "p95": 4,
+    "absP50": 4,
+    "absP95": 16,
+    "absMax": 18,
+    "earlyOver40": 0,
+    "lateOver100": 0
+   },
+   "guessByRtp": {
+    "count": 206,
+    "p50": 0,
+    "p95": 4,
+    "absP50": 4,
+    "absP95": 16,
+    "absMax": 18,
+    "earlyOver40": 0,
+    "lateOver100": 0
+   },
+   "guessByRtpOldGate": {
+    "count": 206,
+    "p50": 0,
+    "p95": 4,
+    "absP50": 4,
+    "absP95": 195,
+    "absMax": 200,
+    "earlyOver40": 12,
+    "lateOver100": 0
+   },
+   "countOnly": {
+    "count": 206,
+    "p50": -4,
+    "p95": 4,
+    "absP50": 6,
+    "absP95": 200,
+    "absMax": 200,
+    "earlyOver40": 95,
+    "lateOver100": 0
+   },
+   "rtpOnly": {
+    "count": 206,
+    "p50": -10,
+    "p95": 13,
+    "absP50": 17,
+    "absP95": 206,
+    "absMax": 212,
+    "earlyOver40": 95,
+    "lateOver100": 0
+   }
+  },
+  "reanalysedRejectedRuleMs": {
+   "count": 206,
+   "p50": 3,
+   "p95": 18,
+   "absP50": 3,
+   "absP95": 18,
+   "absMax": 18,
+   "earlyOver40": 0,
+   "lateOver100": 0
+  },
+  "wordTimesLeadAudioMs": {
+   "count": 12,
+   "p50": 68,
+   "p95": 71,
+   "absP50": 68,
+   "absP95": 71,
+   "absMax": 71,
+   "earlyOver40": 0,
+   "lateOver100": 0
+  },
+  "wordTimesLateCount": 0,
+  "audioKeepsPlayingAfterStopMessageMs": {
+   "count": 0
+  },
+  "messageDeliveryMs": {
+   "reliable": {
+    "count": 916,
+    "p50": 3,
+    "p95": 4,
+    "absP50": 3,
+    "absP95": 4,
+    "absMax": 36,
+    "earlyOver40": 0,
+    "lateOver100": 0
+   },
+   "firstOfBoth": {
+    "count": 916,
+    "p50": 3,
+    "p95": 4,
+    "absP50": 3,
+    "absP95": 4,
+    "absMax": 35,
+    "earlyOver40": 0,
+    "lateOver100": 0
+   },
+   "lossyNeverArrived": 0
+  },
+  "gapsReported": {
+   "count": 12,
+   "ms": {
+    "count": 12,
+    "p50": 197,
+    "p95": 202,
+    "absP50": 197,
+    "absP95": 202,
+    "absMax": 202,
+    "earlyOver40": 0,
+    "lateOver100": 12
+   }
+  },
+  "silences": {
+   "count": 12,
+   "calledLostByRtp": 0,
+   "calledLostBySequence": 0,
+   "sample": [
+    {
+     "silenceMs": 199,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 198,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 200,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 199,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 198,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 196,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 196,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 188,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 198,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 198,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 196,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 198,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    }
+   ]
+  },
+  "network": {
+   "packetsReceived": 3980,
+   "packetsLost": 0,
+   "concealedSamples": 0,
+   "meanJitterBufferMs": 31
+  }
+ },
+ "stall-500": {
+  "scenario": "stall-500",
+  "machineLoadAtEnd": 6,
+  "impair": null,
+  "options": {
+   "stalls": [
+    {
+     "wordFraction": 0.5,
+     "ms": 500,
+     "intoWordMs": 0
+    }
+   ]
+  },
+  "audioInfo": {
+   "sampleRate": 48000,
+   "baseLatency": 0.005333333333333333,
+   "outputLatency": 0.032
+  },
+  "ranAt": "2026-11-03T20:19:13.086Z",
+  "wordsSent": 206,
+  "wordsHeard": 206,
+  "liveFiredErrorMs": {
+   "dataMessage": {
+    "count": 206,
+    "p50": -554,
+    "p95": -58,
+    "absP50": 555,
+    "absP95": 568,
+    "absMax": 582,
+    "earlyOver40": 206,
+    "lateOver100": 0
+   },
+   "chosen": {
+    "count": 206,
+    "p50": 1,
+    "p95": 5,
+    "absP50": 2,
+    "absP95": 8,
+    "absMax": 18,
+    "earlyOver40": 0,
+    "lateOver100": 0
+   },
+   "guessBySequence": {
+    "count": 206,
+    "p50": 1,
+    "p95": 4,
+    "absP50": 2,
+    "absP95": 17,
+    "absMax": 500,
+    "earlyOver40": 2,
+    "lateOver100": 0
+   },
+   "guessByRtp": {
+    "count": 206,
+    "p50": 1,
+    "p95": 4,
+    "absP50": 2,
+    "absP95": 17,
+    "absMax": 500,
+    "earlyOver40": 2,
+    "lateOver100": 0
+   },
+   "guessByRtpOldGate": {
+    "count": 206,
+    "p50": 1,
+    "p95": 4,
+    "absP50": 2,
+    "absP95": 496,
+    "absMax": 500,
+    "earlyOver40": 12,
+    "lateOver100": 0
+   },
+   "countOnly": {
+    "count": 206,
+    "p50": 0,
+    "p95": 4,
+    "absP50": 5,
+    "absP95": 500,
+    "absMax": 516,
+    "earlyOver40": 95,
+    "lateOver100": 0
+   },
+   "rtpOnly": {
+    "count": 206,
+    "p50": -9,
+    "p95": 12,
+    "absP50": 14,
+    "absP95": 509,
+    "absMax": 514,
+    "earlyOver40": 93,
+    "lateOver100": 0
+   }
+  },
+  "reanalysedRejectedRuleMs": {
+   "count": 206,
+   "p50": 1,
+   "p95": 19,
+   "absP50": 1,
+   "absP95": 19,
+   "absMax": 30,
+   "earlyOver40": 0,
+   "lateOver100": 0
+  },
+  "wordTimesLeadAudioMs": {
+   "count": 12,
+   "p50": 67,
+   "p95": 71,
+   "absP50": 67,
+   "absP95": 71,
+   "absMax": 71,
+   "earlyOver40": 0,
+   "lateOver100": 0
+  },
+  "wordTimesLateCount": 0,
+  "audioKeepsPlayingAfterStopMessageMs": {
+   "count": 0
+  },
+  "messageDeliveryMs": {
+   "reliable": {
+    "count": 952,
+    "p50": 2,
+    "p95": 4,
+    "absP50": 2,
+    "absP95": 4,
+    "absMax": 85,
+    "earlyOver40": 0,
+    "lateOver100": 0
+   },
+   "firstOfBoth": {
+    "count": 952,
+    "p50": 2,
+    "p95": 4,
+    "absP50": 2,
+    "absP95": 4,
+    "absMax": 85,
+    "earlyOver40": 0,
+    "lateOver100": 0
+   },
+   "lossyNeverArrived": 0
+  },
+  "gapsReported": {
+   "count": 12,
+   "ms": {
+    "count": 12,
+    "p50": 496,
+    "p95": 501,
+    "absP50": 496,
+    "absP95": 501,
+    "absMax": 501,
+    "earlyOver40": 0,
+    "lateOver100": 12
+   }
+  },
+  "silences": {
+   "count": 12,
+   "calledLostByRtp": 0,
+   "calledLostBySequence": 0,
+   "sample": [
+    {
+     "silenceMs": 498,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 498,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 498,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 500,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 500,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 498,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 499,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 498,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 497,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 498,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 498,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    },
+    {
+     "silenceMs": 497,
+     "isLostByRtp": false,
+     "isLostBySequence": false,
+     "packetsLostDuringSilence": 0
+    }
+   ]
+  },
+  "network": {
+   "packetsReceived": 4004,
+   "packetsLost": 0,
+   "concealedSamples": 0,
+   "meanJitterBufferMs": 30
+  }
+ }
+}

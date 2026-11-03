@@ -1,0 +1,103 @@
+[
+ {
+  "test": "first speech, 500 ms in",
+  "heardSpeakingAfterMs": 0,
+  "tutorStopped": false,
+  "stoppedAfterMs": null,
+  "agentSawVoice": true,
+  "anyWordsHeard": false,
+  "finalWords": null
+ },
+ {
+  "test": "first speech, 500 ms in",
+  "heardSpeakingAfterMs": 0,
+  "tutorStopped": false,
+  "stoppedAfterMs": null,
+  "agentSawVoice": true,
+  "anyWordsHeard": false,
+  "finalWords": null
+ },
+ {
+  "test": "rejoin in mid-reply, 2 s later",
+  "attempt": 0,
+  "stillSpeakingAtTest": true,
+  "tutorStopped": false,
+  "stoppedAfterMs": null,
+  "agentSawVoice": true,
+  "anyWordsHeard": false,
+  "finalWords": null
+ },
+ {
+  "test": "rejoin in mid-reply, 2 s later",
+  "attempt": 1,
+  "stillSpeakingAtTest": true,
+  "tutorStopped": false,
+  "stoppedAfterMs": null,
+  "agentSawVoice": true,
+  "anyWordsHeard": false,
+  "finalWords": null
+ },
+ {
+  "test": "rejoin in mid-reply, 2 s later",
+  "attempt": 2,
+  "stillSpeakingAtTest": true,
+  "tutorStopped": false,
+  "stoppedAfterMs": null,
+  "agentSawVoice": true,
+  "anyWordsHeard": false,
+  "finalWords": null
+ },
+ {
+  "test": "first speech, 500 ms in",
+  "AEC_OFF": "1",
+  "heardSpeakingAfterMs": 0,
+  "tutorStopped": true,
+  "stoppedAfterMs": 255,
+  "agentSawVoice": true,
+  "anyWordsHeard": true,
+  "finalWords": "Wait, then why does it come down?"
+ },
+ {
+  "test": "first speech, 500 ms in",
+  "AEC_OFF": "1",
+  "heardSpeakingAfterMs": 0,
+  "tutorStopped": true,
+  "stoppedAfterMs": 254,
+  "agentSawVoice": true,
+  "anyWordsHeard": true,
+  "finalWords": "Wait, then why does it come down?"
+ },
+ {
+  "test": "rejoin in mid-reply, 2 s later",
+  "AEC_OFF": "1",
+  "attempt": 0,
+  "stillSpeakingAtTest": true,
+  "tutorStopped": true,
+  "stoppedAfterMs": 243,
+  "agentSawVoice": true,
+  "anyWordsHeard": true,
+  "finalWords": "Wait, then why does it come down?"
+ },
+ {
+  "test": "rejoin in mid-reply, 2 s later",
+  "AEC_OFF": "1",
+  "attempt": 1,
+  "stillSpeakingAtTest": true,
+  "tutorStopped": true,
+  "stoppedAfterMs": 260,
+  "agentSawVoice": true,
+  "anyWordsHeard": true,
+  "finalWords": null
+ },
+ {
+  "test": "rejoin in mid-reply, 2 s later",
+  "AEC_OFF": "1",
+  "attempt": 2,
+  "stillSpeakingAtTest": true,
+  "tutorStopped": true,
+  "stoppedAfterMs": 273,
+  "agentSawVoice": true,
+  "anyWordsHeard": true,
+  "finalWords": "Wait, then why does it come down?"
+ }
+]

@@ -7,7 +7,8 @@ Home is the page a student opens first. It greets the student by name and asks w
 - `home-identity` shows the product name in the page title.
 - `home-greeting` shows `Welcome back, Maya.` for the seeded student, then `What do you want to learn next?`.
 - `home-continue` shows the newest unfinished session, `Free-body diagrams`, with a `Continue session` button. At laptop width it also shows a drawing from its board.
-- `home-picks` lists the picks under `Picked for you`. They stack in one column on a phone.
+- `home-picks` lists six cards under `Picked for you`, chosen from the student's level, interests, and goal, each with a picture and a reason. `maya@astra.test` and `tola@astra.test` see different cards. They stack in one column on a phone.
+- `home-wait` adds `Still loading your home screen.` to the placeholder after 4 seconds. The failure line still comes at 30 seconds.
 - `home-chat` keeps the chat box at the bottom. `Start session` works only with text in the box, and `Photo or PDF` and `Talk` show their state.
 - `home-start` starts a session from a card or a sent question, and `Continue session` opens the unfinished one. See [Sessions](./sessions.md).
 
@@ -28,9 +29,9 @@ Preconditions:
 
 ## Gotchas
 
-- The heading says `Welcome back.` with no name until `GET /home` answers. `Picked for you` also shows in the loading placeholder. So wait for the name and the `Continue session` button, as the journey does.
+- The heading says `Welcome.` with no name until `GET /home` answers. `Picked for you` also shows in the loading placeholder. So wait for the name and the `Continue session` button, as the journey does.
 - With no seed, `maya@astra.test` has no student, so sign-in lands on `When were you born?` and the journey times out on the greeting. Run `pnpm db:seed`.
-- `home-greeting` shows `Welcome back.` with no name for a new student, until M2.4 asks for the name.
+- `home-greeting` shows `Welcome.` with no name for a new student, until M2.4 asks for the name.
 - With the API already stopped, `drive` refuses before it opens a page.
 - In a phone image the chat box sits part way down, across the cards. The image is the full page and the chat box sticks to the bottom of the window, so this is not a layout bug.
 - In dev, the query dev tools button floats at the top left and covers the product mark. Students do not get it, because a production build drops it. The `main region` check ignores it.

@@ -1,0 +1,28 @@
+{
+ "turn_detector": {
+  "speechEndToThinkingMs": {
+   "count": 10,
+   "p50": 450,
+   "p95": 511,
+   "min": 409,
+   "max": 511
+  },
+  "speechEndToFirstAudioMs": {
+   "count": 10,
+   "p50": 507,
+   "p95": 559,
+   "min": 458,
+   "max": 559
+  },
+  "builtInTranscriptLagMs": {
+   "count": 170,
+   "p50": 105,
+   "p95": 272,
+   "min": -2,
+   "max": 286
+  },
+  "joinToSessionStartedMs": 592,
+  "agentMemoryMb": 631,
+  "machineLoadAtEnd": 16
+ }
+}

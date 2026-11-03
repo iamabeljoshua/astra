@@ -1,16 +1,20 @@
 {
   "name": "@astra/contracts",
   "private": true,
+  "type": "module",
   "types": "./src/index.ts",
   "exports": {
     ".": {
-      "types": "./src/index.ts"
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
     }
   },
   "scripts": {
-    "typecheck": "tsc"
+    "typecheck": "tsc",
+    "test": "vitest run"
   },
   "devDependencies": {
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "^5.1.0"
   }
 }

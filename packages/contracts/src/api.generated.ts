@@ -211,7 +211,7 @@ export interface components {
              * @description The name of the picture that the web app shows for this session. Leave it out if there is none.
              * @enum {string}
              */
-            artwork?: "arc" | "athens" | "forces" | "growth" | "helix" | "saturn" | "wave";
+            artwork?: "alchemist" | "arc" | "athens" | "balance" | "bars" | "bastille" | "binary" | "blackhole" | "braking" | "branches" | "cake" | "circuit" | "clock" | "curve" | "draughtsman" | "earth" | "earthrise" | "forces" | "frames" | "grid" | "growth" | "ham" | "helix" | "indigo" | "launch" | "lock" | "loom" | "lute" | "melencolia" | "nebula" | "parabola" | "piston" | "pitch" | "prism" | "pyramid" | "route" | "saturn" | "socrates" | "string" | "sunflowers" | "table" | "tangent" | "terrain" | "triangle" | "wave" | "waveform" | "wheat";
         };
         SessionResponseDto: {
             /** @description The ID of the session. */
@@ -243,7 +243,7 @@ export interface components {
              * @description The name of the picture that the web app shows for this session, or null if there is none.
              * @enum {string|null}
              */
-            artwork: "arc" | "athens" | "forces" | "growth" | "helix" | "saturn" | "wave" | null;
+            artwork: "alchemist" | "arc" | "athens" | "balance" | "bars" | "bastille" | "binary" | "blackhole" | "braking" | "branches" | "cake" | "circuit" | "clock" | "curve" | "draughtsman" | "earth" | "earthrise" | "forces" | "frames" | "grid" | "growth" | "ham" | "helix" | "indigo" | "launch" | "lock" | "loom" | "lute" | "melencolia" | "nebula" | "parabola" | "piston" | "pitch" | "prism" | "pyramid" | "route" | "saturn" | "socrates" | "string" | "sunflowers" | "table" | "tangent" | "terrain" | "triangle" | "wave" | "waveform" | "wheat" | null;
         };
         UpdateSessionBodyDto: {
             /** @description How long the session has run in total, in seconds. */
@@ -263,13 +263,15 @@ export interface components {
             subject: string;
             /** @description How long a session on this topic takes, in minutes. */
             lengthMinutes: number;
+            /** @description The first thing the tutor says when a session on this topic starts. */
+            openingLine: string;
             /** @description Why the card suits this student. */
             reason: string;
             /**
              * @description The name of the picture that the web app shows on this card.
              * @enum {string}
              */
-            artwork: "arc" | "athens" | "forces" | "growth" | "helix" | "saturn" | "wave";
+            artwork: "alchemist" | "arc" | "athens" | "balance" | "bars" | "bastille" | "binary" | "blackhole" | "braking" | "branches" | "cake" | "circuit" | "clock" | "curve" | "draughtsman" | "earth" | "earthrise" | "forces" | "frames" | "grid" | "growth" | "ham" | "helix" | "indigo" | "launch" | "lock" | "loom" | "lute" | "melencolia" | "nebula" | "parabola" | "piston" | "pitch" | "prism" | "pyramid" | "route" | "saturn" | "socrates" | "string" | "sunflowers" | "table" | "tangent" | "terrain" | "triangle" | "wave" | "waveform" | "wheat";
         };
         HomeScreenResponseDto: {
             /** @description The name the tutor calls the student, or null until onboarding saves one. */
