@@ -34,7 +34,7 @@ export default defineConfig([
       'no-restricted-imports': ['error', { patterns: [{ group: ORM_PACKAGES, message: ORM_BOUNDARY_MESSAGE }] }],
       'no-restricted-syntax': [
         'error',
-        { selector: 'ImportExpression[source.value=/^(@nestjs\\u002F)?typeorm/]', message: ORM_BOUNDARY_MESSAGE },
+        { selector: 'ImportExpression[source.value=/^(@nestjs.)?typeorm/]', message: ORM_BOUNDARY_MESSAGE },
       ],
     },
   },

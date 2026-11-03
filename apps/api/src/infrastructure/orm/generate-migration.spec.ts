@@ -1,7 +1,6 @@
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { Entity, PrimaryColumn } from 'typeorm';
-import { DataSource } from 'typeorm';
+import { DataSource, Entity, PrimaryColumn } from 'typeorm';
 import type { DataSourceOptions } from 'typeorm';
 import { createTestDatabase } from '../../../test/test-database';
 import type { TestDatabase } from '../../../test/test-database';

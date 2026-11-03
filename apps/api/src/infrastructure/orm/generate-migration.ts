@@ -11,7 +11,7 @@ interface MigrationQuery {
   parameters?: unknown[];
 }
 
-export interface MigrationPlan {
+interface MigrationPlan {
   up: MigrationQuery[];
   down: MigrationQuery[];
 }

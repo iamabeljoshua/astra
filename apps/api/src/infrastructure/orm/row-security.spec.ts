@@ -19,6 +19,7 @@ const TABLES_WITH_FIRST_COLUMN_QUERY = `
   WHERE relation.relkind IN ('r', 'p') AND namespace.nspname = 'public'`;
 
 const ROW_SECURITY_REFUSAL = 'new row violates row-level security policy';
+const TABLES_WITH_EXAMPLE_ROWS = ['migrations', 'students', 'student_profiles', 'sessions', 'closed_accounts'];
 
 interface PublicTable {
   name: string;
@@ -51,23 +52,24 @@ describe.each(['anon', 'authenticated'])('the %s role on tables it has every rig
     });
   }
 
-  async function countRows(table: PublicTable, count: (sql: string) => Promise<{ total: number }[]>) {
-    const [{ total }] = (await count(`SELECT count(*)::int AS total FROM "${table.name}"`)) as [{ total: number }];
-    return total;
+  async function countRows(tableName: string, runQuery: (sql: string) => Promise<{ total: number }[]>) {
+    const [row] = await runQuery(`SELECT count(*)::int AS total FROM "${tableName}"`);
+    return row?.total;
   }
 
-  it('checks the tables that hold rows', async () => {
-    expect(tables.map((table) => table.name)).toEqual(
-      expect.arrayContaining(['migrations', 'students', 'student_profiles', 'sessions', 'closed_accounts']),
-    );
-    for (const table of tables) {
-      expect(await countRows(table, (sql) => dataSource.query(sql))).toBeGreaterThan(0);
+  function countRowsAsOwner(tableName: string) {
+    return countRows(tableName, (sql) => dataSource.query(sql));
+  }
+
+  it('has real rows to protect, so an empty table cannot pass by accident', async () => {
+    for (const tableName of TABLES_WITH_EXAMPLE_ROWS) {
+      expect(await countRowsAsOwner(tableName)).toBeGreaterThan(0);
     }
   });
 
   it('reads no row', async () => {
     for (const table of tables) {
-      expect(await countRows(table, runAsRole)).toBe(0);
+      expect(await countRows(table.name, runAsRole)).toBe(0);
     }
   });
 
@@ -79,11 +81,13 @@ describe.each(['anon', 'authenticated'])('the %s role on tables it has every rig
 
   it('changes and deletes no row', async () => {
     for (const table of tables) {
+      const rowsBefore = await countRowsAsOwner(table.name);
+
       const [, updatedRows] = await runAsRole(`UPDATE "${table.name}" SET "${table.first_column}" = "${table.first_column}"`);
       const [, deletedRows] = await runAsRole(`DELETE FROM "${table.name}"`);
 
       expect([updatedRows, deletedRows]).toEqual([0, 0]);
-      expect(await countRows(table, (sql) => dataSource.query(sql))).toBeGreaterThan(0);
+      expect(await countRowsAsOwner(table.name)).toBe(rowsBefore);
     }
   });
 });

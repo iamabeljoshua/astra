@@ -4,7 +4,7 @@ import { DataSource } from 'typeorm';
 import type { Repository } from 'typeorm';
 import { SessionEntity } from '../entities/session.entity';
 
-export type NewSession = Pick<SessionEntity, 'title' | 'subject' | 'language'>;
+type NewSession = Pick<SessionEntity, 'title' | 'subject' | 'language'>;
 
 @Injectable()
 export class SessionRepository {

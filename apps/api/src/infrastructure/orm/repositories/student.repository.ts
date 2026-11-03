@@ -13,12 +13,12 @@ export type StudentAccount =
   | { status: 'needs_birth_date' }
   | { status: 'active'; student: StudentEntity; profile: StudentProfileEntity | null };
 
-export interface BirthDateAnswer {
+interface BirthDateAnswer {
   birthDate: string;
   isOldEnough: boolean;
 }
 
-export type ProfileFields = Pick<StudentProfileEntity, 'interests' | 'level' | 'goal' | 'voice'>;
+type ProfileFields = Pick<StudentProfileEntity, 'interests' | 'level' | 'goal' | 'voice'>;
 
 async function readAccount(manager: EntityManager, authUserId: string): Promise<StudentAccount> {
   if (await manager.existsBy(ClosedAccountEntity, { authUserId })) return { status: 'closed' };

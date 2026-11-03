@@ -40,12 +40,13 @@ WEB_PORT=5200 API_PORT=3100 pnpm dev
 
 ## Use the database
 
-The API stores its data in Postgres and connects through `DATABASE_URL`. If you do not set it, the API uses the `astra` database on the local stack, `postgresql://postgres:postgres@127.0.0.1:54422/astra`. Every table is in the private `app` schema, so Supabase's Data API cannot reach it. To use a hosted project, see [Connect a hosted project](#connect-a-hosted-project).
+The API stores its data in Postgres and connects through `DATABASE_URL`. If you do not set it, the API uses the `astra` database on the local stack, `postgresql://postgres:postgres@127.0.0.1:54422/astra`. Every table is in `public`, with row security on and no policies, so Supabase's anon key reads and changes no row. The API connects as the role that owns the tables, and row security does not limit an owner. To use a hosted project, see [Connect a hosted project](#connect-a-hosted-project).
 
 | Command | What it does |
 | --- | --- |
 | `pnpm db:up` | Starts the local Supabase stack in Docker if it is not running. It needs no account. It then creates the local sign-in accounts and writes `apps/web/.env.development.local`, so run it once in each worktree. |
-| `pnpm db:migrate` | Creates the database in `DATABASE_URL` and its `app` schema if they are missing, then runs the migrations. |
+| `pnpm db:migrate` | Creates the database in `DATABASE_URL` if it is missing, then runs the migrations. A database from before the move to `public` keeps its rows. |
+| `pnpm db:migration <name>` | Runs the migrations that the database in `DATABASE_URL` is missing, then writes a new migration from the entity changes. It works only on the local stack, on port 54422. |
 | `pnpm db:seed` | Replaces the example student and their six sessions, and makes the `new-student@astra.test` account new again. It works only on the local stack, on port 54422. |
 | `pnpm db:reset` | Drops the database in `DATABASE_URL` and builds it again from the migrations. It works only on an app database on the local stack, on port 54422. |
 | `pnpm exec supabase stop` | Stops the local stack for every worktree and every agent that shares it. The data stays in a Docker volume. Run it, then `pnpm db:up`, only if an interrupted start leaves Postgres running without the other services and nothing else is using the stack. |
@@ -72,15 +73,24 @@ API_PORT=3100 WEB_PORT=5200 pnpm dev
 
 The Supabase CLI publishes these ports on all network interfaces, so another machine on your network can reach them. Keep only example data in the local stack.
 
+### Change the data layer
+
+The data layer is in `apps/api/src/infrastructure/orm/`. Only this folder uses TypeORM. A service calls named methods on a repository, then maps the entities it gets to response DTOs. `pnpm lint` fails if any other file in `apps/api/src` imports TypeORM, except a spec, which can set up its rows directly.
+
 To change the tables:
 
-1. Change the entity. Entities are in files that end in `.entity.ts`. Their tables go in the `app` schema, so do not set a schema on an entity. TypeORM owns the migrations, `synchronize` stays off, and nothing writes to the `auth` schema.
-2. If the entity is new, add it to `entities` in `apps/api/src/database/data-source-options.ts` and to `TypeOrmModule.forFeature` in its module. The next steps and `pnpm test` do not see an entity that is missing from `entities`.
-3. Run `pnpm db:migrate` on a database that has every earlier migration.
-4. Run `pnpm db:migration src/database/migrations/<name>`. The path is relative to `apps/api`.
-5. Add the new class to `migrations` in `apps/api/src/database/data-source-options.ts`.
+1. Change or add an entity in `entities/`, in a file that ends in `.entity.ts`. TypeORM finds the file by its path, so there is no list to edit. Do not set a schema on an entity, because every table goes in `public`. `synchronize` stays off, and nothing writes to the `auth` schema.
+2. Run `pnpm db:migration <name>`, with a lowercase name such as `add-student-goal`. It writes the file to `migrations/`, and it turns on row security for each new table. Do not write SQL by hand.
+3. Read the new file. TypeORM treats a renamed column as a dropped column and a new column, which loses the column's data.
+4. Run `pnpm db:migrate` to apply the file. TypeORM finds it by its path.
 
-`pnpm test` fails if the entities in that list and the migrations differ, if a table is outside `app`, or if `anon` or `authenticated` gets `USAGE` on `app`.
+To read or write a table from a service:
+
+1. Add `repositories/<name>.repository.ts`, as in `repositories/session.repository.ts`. Give it a named method for each read or write, and return entities.
+2. Add the class to `REPOSITORIES` in `repositories/repository.module.ts`.
+3. Add `RepositoryModule` to `imports` in the feature's module, then inject the repository in the service. Map each entity to a response DTO in the service.
+
+`pnpm test` fails if the entities and the migrations differ, if a table is outside `public`, if a table or a view has no row security, or if a table has a policy. It also fails if `anon` or `authenticated` can read or change a row in any table.
 
 `pnpm test` drops each database that it creates, but a crash or a timeout can leave a database named `astra_test_<id>`. To delete the leftovers, first stop the test runs in every worktree, because this command also drops their databases:
 
@@ -168,8 +178,8 @@ The server's clock and UTC+14 decide the student's age. UTC+14 is the first plac
 
 No Supabase project exists yet, so nothing here has run against a real one. Measured means that the result comes from the local stack or from a local stand-in server with a private certificate. Docs means that the result comes from Supabase's documentation and is untested.
 
-1. Keep the tables out of the Data API. Every table, including TypeORM's `migrations` table, is in the private `app` schema, and `anon` and `authenticated` have no `USAGE` on it. With the anon key, REST, GraphQL, and the OpenAPI listing show none of these tables. Measured.
-2. In the dashboard, turn off **Enable Data API**. If a later feature needs the Data API, turn off **Automatically expose new tables**, and do not add `app` to the exposed schemas. Docs.
+1. Know what the anon key can reach. Every table, including TypeORM's `migrations` table, is in `public`, with row security on and no policies, so the key reads no row and changes no row. A table that a migration creates in `public` also gets Supabase's default grants. For such a table, a read answers an empty list, a write adds or changes nothing, and the OpenAPI listing shows the table's name and column names. The four tables moved from the old `app` schema have no such grants, so the key gets `permission denied`, which still tells the caller that the table exists, and the listing leaves them out. Measured over REST, with the stack's anon key and the stack's PostgREST image, on a private database with Supabase's default grants. GraphQL is not measured. It runs as the same role, so row security should apply. The secret key bypasses row security, so keep it off the browser.
+2. In the dashboard, turn off **Enable Data API**, because the app does not use it, and this also hides those names. If a later feature needs the Data API, turn off **Automatically expose new tables**, and write a policy for each table that the feature reads. Docs.
 3. Choose a connection. A direct connection to `db.<project-ref>.supabase.co:5432` uses IPv6 on the Free plan. The shared pooler uses IPv4, port 5432 for session mode, and the user `postgres.<project-ref>`, and the Connect dialog shows its host. A host without IPv6 needs the pooler or the paid IPv4 add-on, and the add-on is Abel's decision. Docs.
 4. Download the CA certificate from **Database settings > SSL Configuration**, then add `sslmode=verify-full&sslrootcert=<path to the file>` to `DATABASE_URL`. The dashboard path and the certificate of the real servers are docs. The driver's behavior is measured in the table below.
 5. Run `pnpm db:migrate` with that `DATABASE_URL`, then start the API. Measured on the stand-in server. `pnpm db:reset`, `pnpm db:seed`, and `pnpm test` refuse a hosted URL.
