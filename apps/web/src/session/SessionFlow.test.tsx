@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../App';
-import { API_ERROR_LABELS, CHAT_BOX_LABELS, HOME_LABELS, REPLY_BOX_LABELS, SESSION_LABELS, SIDEBAR_LABELS } from '../strings';
+import { API_ERROR_LABELS, CHAT_BOX_LABELS, HOME_LABELS, MENU_LABELS, REPLY_BOX_LABELS, SESSION_LABELS, SESSIONS_LABELS, SIDEBAR_LABELS } from '../strings';
 import { EXAMPLE_HOME_SCREEN, EXAMPLE_STUDENT_NAME } from '../test/homeScreenApi';
 import { makeSession, stubSessionsApi } from '../test/sessionsApi';
 
@@ -16,7 +16,7 @@ const HOME_GREETING = HOME_LABELS.greeting(EXAMPLE_STUDENT_NAME);
 
 const getTextBox = () => screen.getByRole<HTMLTextAreaElement>('textbox', { name: CHAT_BOX_LABELS.label });
 const getSessionHeading = (title: string) => screen.findByRole('heading', { level: 1, name: title }, { timeout: 2_000 });
-const getEndButton = () => screen.findByRole('button', { name: SESSION_LABELS.endSession });
+const getEndButton = () => screen.findByRole('button', { name: SESSION_LABELS.endSession }, { timeout: 2_000 });
 
 async function renderHome(api = {}) {
   const fakeApi = stubSessionsApi(api);
@@ -31,6 +31,45 @@ function renderSessionAddress(api: Parameters<typeof stubSessionsApi>[0], sessio
   const fakeApi = stubSessionsApi(api);
   render(<App />);
   return fakeApi;
+}
+
+type FetchStub = ReturnType<typeof stubSessionsApi>['fetchStub'];
+
+// The fake API acts on a held call at once, as a server would, and its answer waits until the test lets it through.
+function holdAnswers(fetchStub: FetchStub, shouldHold: (request: Request, heldSoFar: number) => boolean) {
+  const answerNormally = fetchStub.getMockImplementation()!;
+  const held: (() => void)[] = [];
+  let heldSoFar = 0;
+  fetchStub.mockImplementation((request) => {
+    const answer = answerNormally(request);
+    if (!shouldHold(request, heldSoFar)) return answer;
+    heldSoFar += 1;
+    return new Promise((resolve) => held.push(() => resolve(answer)));
+  });
+  return {
+    getHeldCount: () => heldSoFar,
+    release: () =>
+      act(async () => {
+        held.splice(0).forEach((answerCall) => answerCall());
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }),
+  };
+}
+
+const isCallTo = (pathname: string) => (request: Request) => new URL(request.url).pathname === pathname;
+
+const getPageOpacity = () => document.querySelector<HTMLElement>('[data-page]')?.style.opacity;
+
+async function chooseSessionsInMenu() {
+  const menu = screen.getByRole('navigation', { name: SIDEBAR_LABELS.menu });
+  fireEvent.click(within(menu).getByRole('link', { name: MENU_LABELS.sessions }));
+  await screen.findByRole('heading', { level: 1, name: MENU_LABELS.sessions });
+}
+
+async function openUnfinishedSession() {
+  const fakeApi = await renderHome({ sessions: [UNFINISHED_SESSION!] });
+  fireEvent.click(await screen.findByRole('button', { name: HOME_LABELS.continueButton }));
+  return { ...fakeApi, endButton: await getEndButton() };
 }
 
 function sendQuestion(question = QUESTION) {
@@ -237,10 +276,23 @@ describe('the session screen', () => {
     expect(screen.queryByRole('button', { name: SESSION_LABELS.tryAgain })).toBeNull();
   });
 
+  it('shows the same message for a malformed address, with no try again', async () => {
+    const { fetchStub } = renderSessionAddress({ sessions: [] }, 'not-a-session-id');
+    const answerNormally = fetchStub.getMockImplementation()!;
+    fetchStub.mockImplementation((request) =>
+      isCallTo('/api/sessions/not-a-session-id')(request)
+        ? Promise.resolve(new Response(JSON.stringify({ statusCode: 400, fieldMessages: { id: ['id must be a UUID'] } }), { status: 400 }))
+        : answerNormally(request),
+    );
+
+    await screen.findByRole('heading', { level: 1, name: SESSION_LABELS.notFound });
+    expect(screen.queryByRole('button', { name: SESSION_LABELS.tryAgain })).toBeNull();
+  });
+
   it('offers another try when the session does not load, and opens it then', async () => {
     const { fetchStub } = renderSessionAddress({ sessions: [makeSession()] }, 'a-session');
     const answerNormally = fetchStub.getMockImplementation()!;
-    fetchStub.mockImplementationOnce(async () => new Response('{}', { status: 400 }));
+    fetchStub.mockImplementationOnce(async () => new Response('{}', { status: 403 }));
 
     await screen.findByRole('heading', { level: 1, name: API_ERROR_LABELS.rejected });
     fetchStub.mockImplementation(answerNormally);
@@ -260,6 +312,16 @@ describe('the session screen', () => {
     expect(screen.queryByRole('button', { name: SESSION_LABELS.endSession })).toBeNull();
     expect(screen.queryByRole('textbox')).toBeNull();
     expect(getRequests('PATCH', '/api/sessions/a-session')).toEqual([]);
+  });
+});
+
+describe('the finished session', () => {
+  it('does not promise a drawing on its board', async () => {
+    renderSessionAddress({ sessions: [makeSession({ status: 'finished' })] }, 'a-session');
+
+    await screen.findByText(SESSION_LABELS.finishedWords);
+
+    expect(screen.queryByText(SESSION_LABELS.boardStandIn)).toBeNull();
   });
 });
 
@@ -288,6 +350,62 @@ describe('ending a session', () => {
     expect(screen.queryByRole('button', { name: HOME_LABELS.continueButton })).toBeNull();
   });
 
+  it('shows the end as pending until Home is ready, long after the API has answered', async () => {
+    const { fetchStub, getRequests, endButton } = await openUnfinishedSession();
+    const home = holdAnswers(fetchStub, isCallTo('/api/home'));
+
+    fireEvent.click(endButton);
+    await waitFor(() => expect(home.getHeldCount()).toBe(1));
+    expect(getRequests('PATCH', `/api/sessions/${UNFINISHED_SESSION!.id}`)).toHaveLength(1);
+
+    const pendingButton = screen.getByRole('button', { name: SESSION_LABELS.ending });
+    expect(pendingButton.getAttribute('aria-disabled')).toBe('true');
+    expect(within(screen.getByRole('banner')).getByRole('status').textContent).toBe(SESSION_LABELS.ending);
+
+    await home.release();
+    await screen.findByRole('heading', { name: HOME_GREETING }, { timeout: 2_000 });
+  });
+
+  it('moves focus to the heading on Home, because what the student pressed has gone', async () => {
+    const { endButton } = await openUnfinishedSession();
+
+    fireEvent.click(endButton);
+
+    const heading = await screen.findByRole('heading', { name: HOME_GREETING }, { timeout: 2_000 });
+    await waitFor(() => expect(document.activeElement).toBe(heading));
+  });
+
+  it('sends a length the API takes when the device clock is set back', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { getRequests } = renderSessionAddress({ sessions: [makeSession({ durationSeconds: 40 })] }, 'a-session');
+    const endButton = await getEndButton();
+
+    vi.setSystemTime(Date.now() - 3_600_000);
+    fireEvent.click(endButton);
+
+    await screen.findByRole('heading', { name: HOME_GREETING }, { timeout: 2_000 });
+    const [end] = getRequests('PATCH', '/api/sessions/a-session');
+    expect(await end!.json()).toEqual({ durationSeconds: 40, status: 'finished' });
+  });
+
+  it('keeps the session finished when an earlier save answers after the end', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const session = makeSession();
+    const { fetchStub } = renderSessionAddress({ sessions: [session] }, session.id);
+    const endButton = await getEndButton();
+    const save = holdAnswers(fetchStub, (request, heldSoFar) => request.method === 'PATCH' && heldSoFar === 0);
+    await act(() => vi.advanceTimersByTimeAsync(15_000));
+    expect(save.getHeldCount()).toBe(1);
+
+    fireEvent.click(endButton);
+    await screen.findByRole('heading', { name: HOME_GREETING }, { timeout: 2_000 });
+    await save.release();
+
+    fireEvent.click(await within(screen.getByRole('complementary')).findByRole('link', { name: session.title }));
+    await screen.findByText(SESSION_LABELS.finishedWords);
+    expect(screen.queryByRole('button', { name: SESSION_LABELS.endSession })).toBeNull();
+  });
+
   it('stays on the session and says so when the end does not reach the API', async () => {
     const { fetchStub } = renderSessionAddress({ sessions: [makeSession()] }, 'a-session');
     const endButton = await getEndButton();
@@ -298,6 +416,81 @@ describe('ending a session', () => {
     await screen.findByText(API_ERROR_LABELS.server);
     expect(window.location.pathname).toBe('/sessions/a-session');
     await getEndButton();
+  });
+});
+
+describe('leaving while a start or an end is pending', () => {
+  it.each([
+    ['the API has not answered the end', (request: Request) => request.method === 'PATCH'],
+    ['Home has not come back after the end', isCallTo('/api/home')],
+  ])('leaves Home on screen when the student goes back and %s', async (_caseName, shouldHold) => {
+    const { fetchStub, storedSessions, endButton } = await openUnfinishedSession();
+    const pending = holdAnswers(fetchStub, shouldHold);
+
+    fireEvent.click(endButton);
+    await waitFor(() => expect(pending.getHeldCount()).toBeGreaterThan(0));
+    act(() => window.history.back());
+    await screen.findByRole('heading', { name: HOME_GREETING });
+    await pending.release();
+    await waitFor(() => expect(screen.queryByRole('button', { name: HOME_LABELS.continueButton })).toBeNull());
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+
+    expect(getPageOpacity()).toBe('');
+    expect(window.location.pathname).toBe('/');
+    expect(storedSessions[0]?.status).toBe('finished');
+  });
+
+  it.each([
+    ['question', () => sendQuestion()],
+    ['card', () => fireEvent.click(screen.getByRole('button', { name: new RegExp(PICKS[0]!.title) }))],
+  ])('stays where the student went when they leave Home during a pending %s, and the session is still saved', async (kind, start) => {
+    const { fetchStub } = await renderHome();
+    const save = holdAnswers(fetchStub, (request) => request.method === 'POST');
+
+    start();
+    await waitFor(() => expect(save.getHeldCount()).toBe(1));
+    await chooseSessionsInMenu();
+    expect(document.querySelector('.stop-dot')).toBeNull();
+
+    await save.release();
+
+    await within(screen.getByRole('main')).findByRole('link', { name: kind === 'question' ? QUESTION : PICKS[0]!.title });
+    expect(window.location.pathname).toBe('/sessions');
+    expect(getPageOpacity()).toBe('');
+  });
+
+  it('shows the session as finished when the student goes back to the list while the end is pending', async () => {
+    const session = makeSession();
+    const { fetchStub } = stubSessionsApi({ sessions: [session] });
+    window.history.replaceState(null, '', '/sessions');
+    render(<App />);
+    fireEvent.click(await within(await screen.findByRole('table')).findByRole('link', { name: session.title }));
+    const endButton = await getEndButton();
+    const end = holdAnswers(fetchStub, (request) => request.method === 'PATCH');
+
+    fireEvent.click(endButton);
+    await waitFor(() => expect(end.getHeldCount()).toBe(1));
+    act(() => window.history.back());
+    const row = (await within(await screen.findByRole('table')).findByRole('link', { name: session.title })).closest('tr') as HTMLElement;
+    within(row).getByText(SESSIONS_LABELS.statuses.in_progress);
+    await end.release();
+
+    await within(row).findByText(SESSIONS_LABELS.statuses.finished);
+    expect(window.location.pathname).toBe('/sessions');
+    expect(getPageOpacity()).toBe('');
+  });
+
+  it('takes the fade off the page when the student leaves Home during it', async () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false }));
+    await renderHome();
+
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(PICKS[0]!.title) }));
+    await waitFor(() => expect(getPageOpacity()).toBe('0'));
+    await chooseSessionsInMenu();
+
+    expect(getPageOpacity()).toBe('');
+    await act(() => new Promise((resolve) => setTimeout(resolve, 350)));
+    expect(window.location.pathname).toBe('/sessions');
   });
 });
 

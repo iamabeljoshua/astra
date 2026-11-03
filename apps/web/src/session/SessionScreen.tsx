@@ -9,6 +9,7 @@ import { type Session, useSession } from './sessionQueries';
 import { useSessionRun } from './useSessionRun';
 
 const NOT_FOUND_STATUS = 404;
+const BAD_ID_STATUS = 400;
 const BAR_ACTION = 'button button-outline px-3 py-1.25';
 
 export function SessionScreen() {
@@ -16,7 +17,8 @@ export function SessionScreen() {
   const session = useSession(sessionId!);
 
   if (session.data) return <OpenSession key={session.data.id} session={session.data} />;
-  if (session.error?.status === NOT_FOUND_STATUS) return <SessionProblem message={SESSION_LABELS.notFound} />;
+  // The ID is all this read sends, so a 400 means the address is wrong, and Try again would not help.
+  if (session.error?.status === NOT_FOUND_STATUS || session.error?.status === BAD_ID_STATUS) return <SessionProblem message={SESSION_LABELS.notFound} />;
   if (session.error) {
     return (
       <SessionProblem message={API_ERROR_LABELS[session.error.kind]}>
@@ -45,17 +47,26 @@ function RunningSession({ session }: { session: Session }) {
   return (
     <SessionFrame
       facts={<SessionFacts subject={session.subject} seconds={seconds} />}
-      action={
-        <button type="button" aria-disabled={isEnding} onClick={() => void endSession()} className={BAR_ACTION}>
-          {SESSION_LABELS.endSession}
-        </button>
-      }
+      action={<EndButton isEnding={isEnding} onEnd={() => void endSession()} />}
       problem={endProblem}
     >
-      <SessionPanels session={session} tutorWords={SESSION_LABELS.standInWords}>
+      <SessionPanels session={session} tutorWords={SESSION_LABELS.standInWords} boardNote={SESSION_LABELS.boardStandIn}>
         <ReplyBox />
       </SessionPanels>
     </SessionFrame>
+  );
+}
+
+// The hidden label holds the button's width, so the bar stays still when the label changes.
+function EndButton({ isEnding, onEnd }: { isEnding: boolean; onEnd: () => void }) {
+  return (
+    <>
+      <p role="status" className="sr-only">{isEnding && SESSION_LABELS.ending}</p>
+      <button type="button" aria-disabled={isEnding} onClick={onEnd} className={`${BAR_ACTION} inline-grid justify-items-center`}>
+        <span aria-hidden className="invisible col-start-1 row-start-1">{SESSION_LABELS.endSession}</span>
+        <span className="col-start-1 row-start-1">{isEnding ? SESSION_LABELS.ending : SESSION_LABELS.endSession}</span>
+      </button>
+    </>
   );
 }
 
@@ -111,12 +122,13 @@ function SessionFrame({ facts, action, problem, children }: SessionFrameProps) {
 interface SessionPanelsProps extends PropsWithChildren {
   session: Session;
   tutorWords: string;
+  boardNote?: string;
 }
 
-function SessionPanels({ session, tutorWords, children }: SessionPanelsProps) {
+function SessionPanels({ session, tutorWords, boardNote, children }: SessionPanelsProps) {
   return (
     <div className="grid flex-1 grid-cols-session gap-session py-4 max-md:grid-cols-1">
-      <Board artwork={findArtwork(session.artwork)} />
+      <Board artwork={findArtwork(session.artwork)} note={boardNote} />
       <div className="flex min-w-0 flex-col gap-3.5">
         <div className="label flex items-center gap-2.5">
           <i aria-hidden className="tutor-dot" />
@@ -143,11 +155,11 @@ function SessionTitle({ title }: { title: string }) {
   );
 }
 
-function Board({ artwork }: { artwork: Artwork | null }) {
+function Board({ artwork, note }: { artwork: Artwork | null; note?: string }) {
   return (
     <section className="fades-with-theme flex min-w-0 flex-col border border-line bg-panel md:min-h-75">
       <div className="flex min-h-50 flex-1 items-center justify-center p-4">{artwork && <BoardPicture artwork={artwork} />}</div>
-      <p className="label border-t border-line px-3 py-1.75 text-ink-2">{SESSION_LABELS.boardStandIn}</p>
+      {note && <p className="label border-t border-line px-3 py-1.75 text-ink-2">{note}</p>}
     </section>
   );
 }

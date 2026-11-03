@@ -1,6 +1,8 @@
-import { useRef, type ComponentProps, type PropsWithChildren, type RefObject } from 'react';
+import { useEffect, useRef, type ComponentProps, type PropsWithChildren, type RefObject } from 'react';
+import { useLocation } from 'react-router';
 import type { ApiErrorKind } from '../api/apiError';
 import { ErrorBoundary } from '../ErrorBoundary';
+import type { ARRIVING_FROM_ENDED_SESSION } from '../session/sessionPath';
 import { useStartSession } from '../session/useStartSession';
 import { HOME_LABELS } from '../strings';
 import { ChatBox } from './ChatBox';
@@ -21,6 +23,12 @@ export function HomeScreen() {
   const homeScreen = useHomeScreen();
   const { startFromQuestion, startFromPick, continueSession, isStarting, problem, clearProblem } = useStartSession();
   const greeting = useRef<HTMLHeadingElement>(null);
+  const arrival = useLocation().state as typeof ARRIVING_FROM_ENDED_SESSION | null;
+
+  // Focus was on End session, and that has gone, so it moves to the heading, as opening a session does.
+  useEffect(() => {
+    if (arrival?.focusHeading) greeting.current?.focus({ preventScroll: true });
+  }, [arrival]);
 
   function retryLoading() {
     // Try again unmounts once the query restarts, so focus moves to the heading, which stays in every state.

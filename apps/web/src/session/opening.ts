@@ -56,13 +56,15 @@ export function getFullStopPoint(textBox: HTMLTextAreaElement): Point {
   };
 }
 
-export function landDot({ x, y }: Point): () => void {
+export function landDot({ x, y }: Point, pageGone: AbortSignal): () => void {
   const dot = document.createElement('i');
   dot.className = 'stop-dot';
   dot.style.left = `${x}px`;
   dot.style.top = `${y}px`;
   document.body.append(dot);
-  return () => dot.remove();
+  const removeDot = () => dot.remove();
+  pageGone.addEventListener('abort', removeDot, { once: true });
+  return removeDot;
 }
 
 function wait(durationMs: number) {
@@ -74,11 +76,20 @@ export function holdDot(): Promise<void> {
   return wait(DOT_HOLD_MS);
 }
 
-export function fadeOutLeavingPage(): Promise<void> {
+// The app shell can outlive the page inside it, so the fade comes off the moment that page goes.
+export function fadeOutPage(pageGone: AbortSignal): Promise<void> {
   const page = document.querySelector<HTMLElement>('[data-page]');
   if (page) {
     page.style.transition = `opacity ${FADE_MS}ms linear`;
     page.style.opacity = '0';
+    pageGone.addEventListener(
+      'abort',
+      () => {
+        page.style.removeProperty('transition');
+        page.style.removeProperty('opacity');
+      },
+      { once: true },
+    );
   }
   return wait(FADE_MS);
 }

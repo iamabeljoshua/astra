@@ -9,6 +9,7 @@ import { useDebouncedValue } from './useDebouncedValue';
 import { useSessionsList } from './useSessionsList';
 
 const SEARCH_WAIT_MS = 250;
+const API_MAX_SEARCH_CHARACTERS = 200;
 const COLUMN_HEADING = 'py-2 pr-3 text-left font-medium';
 const WIDE_COLUMN = 'py-2.75 pr-3 align-baseline text-ink-2 max-md:hidden';
 
@@ -24,6 +25,7 @@ export function SessionsPage() {
           <input
             type="search"
             value={search}
+            maxLength={API_MAX_SEARCH_CHARACTERS}
             aria-label={SESSIONS_LABELS.search}
             placeholder={SESSIONS_LABELS.search}
             onChange={(event) => setSearch(event.target.value)}

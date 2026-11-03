@@ -39,7 +39,7 @@ interface FakeApi {
 }
 
 export function stubSessionsApi({ homeScreen = EXAMPLE_HOME_SCREEN, sessions = [] }: FakeApi = {}) {
-  const storedSessions = [...sessions];
+  const storedSessions = sessions.map((session) => ({ ...session }));
   let nextId = 1;
 
   const answerOneSession = async (request: Request, sessionId: string) => {

@@ -21,7 +21,7 @@ function renderSessionsPage(sessions = SAMPLE_SESSIONS) {
   return fakeApi;
 }
 
-const getSearchBox = () => screen.getByRole('searchbox', { name: SESSIONS_LABELS.search });
+const getSearchBox = () => screen.getByRole<HTMLInputElement>('searchbox', { name: SESSIONS_LABELS.search });
 const getRowTitles = () => within(screen.getByRole('table')).getAllByRole('link').map((link) => link.textContent);
 
 afterEach(() => {
@@ -54,6 +54,14 @@ describe('the Sessions page', () => {
     await waitFor(() => expect(getRowTitles()).toEqual(['Why Saturn has rings']));
     const searches = fetchStub.mock.calls.map(([request]) => new URL(request.url).searchParams.get('search'));
     expect(searches).toContain('SATURN');
+  });
+
+  it('stops the search box at the length the API takes', async () => {
+    renderSessionsPage();
+
+    await screen.findByRole('table');
+
+    expect(getSearchBox().maxLength).toBe(200);
   });
 
   it('says so when a search finds nothing, and shows the list again when the search is cleared', async () => {

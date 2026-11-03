@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { getFullStopPoint, holdDot, landDot } from './opening';
+import { fadeOutPage, getFullStopPoint, holdDot, landDot } from './opening';
 
 const BOX = { left: 100, top: 500, width: 320, height: 200 };
 const PADDING = { left: 16, right: 16, top: 14 };
@@ -117,7 +117,7 @@ describe('getFullStopPoint', () => {
 
 describe('landDot', () => {
   it('puts the dot at the point, and takes it away again', () => {
-    const removeDot = landDot({ x: 12, y: 34 });
+    const removeDot = landDot({ x: 12, y: 34 }, new AbortController().signal);
 
     const dot = document.querySelector<HTMLElement>('.stop-dot');
     expect(dot?.style.left).toBe('12px');
@@ -125,6 +125,32 @@ describe('landDot', () => {
 
     removeDot();
     expect(document.querySelector('.stop-dot')).toBeNull();
+  });
+
+  it('takes the dot away the moment the page goes', () => {
+    const pageLife = new AbortController();
+    landDot({ x: 12, y: 34 }, pageLife.signal);
+
+    pageLife.abort();
+
+    expect(document.querySelector('.stop-dot')).toBeNull();
+  });
+});
+
+describe('fading out a page', () => {
+  it('fades the page on screen, and takes the fade off the moment that page goes', () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: true }));
+    const shell = document.createElement('div');
+    shell.dataset.page = '';
+    document.body.append(shell);
+    const pageLife = new AbortController();
+
+    void fadeOutPage(pageLife.signal);
+    expect(shell.style.opacity).toBe('0');
+
+    pageLife.abort();
+    expect(shell.style.opacity).toBe('');
+    expect(shell.style.transition).toBe('');
   });
 });
 

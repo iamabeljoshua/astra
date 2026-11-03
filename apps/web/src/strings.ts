@@ -170,6 +170,7 @@ export const SESSIONS_LABELS = {
 export const SESSION_LABELS = {
   questionSubject: 'Your question',
   endSession: 'End session',
+  ending: 'Ending\u2026',
   close: 'Close',
   yourTutor: 'Your tutor',
   standInWords: 'Live lessons open soon. Your session is saved, so you can come back to it here.',
@@ -312,6 +313,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
           'Your date of birth, if you are old enough to continue. We keep it in our database with an account ID and the time the record was made.',
           "Each session's title, subject, language, picture, length, status, and start time. A question you send from the home screen becomes its session's title, cut to 200 characters, so we store those words.",
           "Any file you attach, and anything you type into a session's reply box, stay in your browser. They are not sent or stored. The app does not use your microphone.",
+          'Words you type into the search box on the Sessions page go to our server, which uses them to find your sessions. We do not store them.',
         ],
         planned: [
           'Your name, interests, level, goal, and choice of tutor voice, which setup will ask for. We will use your interests, level, and goal to choose the lessons suggested on your home screen.',

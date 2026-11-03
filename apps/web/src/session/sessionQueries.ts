@@ -14,10 +14,11 @@ function getSessionKey(sessionId: string) {
   return ['sessions', 'one', sessionId];
 }
 
-// Each search keeps its own cached list, so the lists are dropped rather than all fetched again.
+// Each search keeps its own cached list, so only the list on screen is fetched again, and the rest are dropped.
 export function refreshSessionViews(queryClient: QueryClient) {
-  queryClient.removeQueries({ queryKey: SESSION_LIST_KEY });
+  queryClient.removeQueries({ queryKey: SESSION_LIST_KEY, type: 'inactive' });
   return Promise.all([
+    queryClient.invalidateQueries({ queryKey: SESSION_LIST_KEY }),
     queryClient.invalidateQueries({ queryKey: HOME_SCREEN_KEY, refetchType: 'all' }),
     queryClient.invalidateQueries({ queryKey: RECENT_SESSIONS_KEY, refetchType: 'all' }),
   ]);
@@ -45,6 +46,8 @@ export function useUpdateSession(sessionId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (update: SessionUpdate) => api.patch('/sessions/{id}', { params: { path: { id: sessionId } }, body: update }),
-    onSuccess: (session) => queryClient.setQueryData(getSessionKey(sessionId), session),
+    // A finished session does not change again, so a save answered after the end cannot bring it back.
+    onSuccess: (session) =>
+      queryClient.setQueryData<Session>(getSessionKey(sessionId), (cached) => (cached?.status === 'finished' ? cached : session)),
   });
 }
