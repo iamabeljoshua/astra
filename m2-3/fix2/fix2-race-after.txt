@@ -1,0 +1,7 @@
+  reached birth date page; waiting out the 30s staleTime so a focus refetches
+  captured racing GET /me #2: {"status":"needs_birth_date","student":null}
+  racing GET captured? true
+  after confirm (POST landed): {"h1":"Welcome back.","wordmark":false,"status":"Loading your home screen.","focus":"H1 \"Welcome back.\"","hasSession":true,"hiddenPage":false}
+  delivering the held GET /me now
+  after the stale GET /me is delivered: {"h1":"Welcome back.","wordmark":false,"status":null,"focus":"H1 \"Welcome back.\"","hasSession":true,"hiddenPage":false}
+  pages seen ["42ms [wordmark]","104ms When were you born?","31328ms Is this right?","31389ms Welcome back."]

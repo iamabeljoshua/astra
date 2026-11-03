@@ -1,0 +1,11 @@
+--- Back in a tab kept in memory, after sign-out in another tab, with a 3 s document
+  -144ms {"event":"pageshow","persisted":false,"studentShell":false,"visibility":""}
+  -87ms {"event":"pagehide","persisted":true,"studentShell":true,"visibility":""}
+  8ms {"event":"pageshow","persisted":true,"studentShell":true,"visibility":"hidden"}
+  3036ms {"event":"pageshow","persisted":false,"studentShell":false,"visibility":""}
+  frames (ms after the action : JPEG bytes) 31:6285 32:8167 3035:6285 3057:15371 3067:16706 3082:18222 3099:19746 3116:20735 3132:21603 3149:22370 3166:23143 3182:23751 3200:24365 3216:24941 3233:25490 3249:26025 3266:26469 3283:26938 3301:27385 3316:27824 3332:28208 3349:28634 3366:29038 3383:29439 3399:29787 3417:30192 3432:30539 3449:30870 3466:31208 3483:31571 3499:31895 3516:32228 3534:32512 3550:32677
+  final {"h1":"A learning app, made for you","session":false}
+--- Sign out in this tab with a 3 s document
+  3066ms {"event":"pageshow","persisted":false,"studentShell":false,"visibility":""}
+  frames (ms after the action : JPEG bytes) 14:11232 28:13707 42:16805 60:6285 3076:6285 3090:15371 3108:16706 3124:18222 3141:19746 3157:20735 3175:21603 3191:22370 3207:23143 3224:23751 3241:24365 3259:24941 3274:25490 3291:26025 3308:26469 3326:26938 3342:27385 3357:27824 3374:28208 3390:28634 3407:29038 3424:29439 3440:29787 3457:30192 3474:30539 3490:30870 3507:31208 3524:31571 3540:31895 3557:32228 3573:32512 3591:32677
+  stored after sign-out {"local":[],"tab":[]}

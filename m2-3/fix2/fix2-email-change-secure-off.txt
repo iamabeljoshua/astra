@@ -1,0 +1,10 @@
+plant a password on the student address: 200
+the student opens their first mail: Finish signing in to Astra {"status":303,"message":null,"signedIn":true,"error":null}
+token from the planted password: true
+that token asks Auth to move the account: 200
+mail to the new address, subject: Someone asked to move your Astra account
+mail to the new address, body: <h2>Someone asked to move your Astra account to another email</h2> <p>This request would move the account for lanefix2-<id>@astra.test to lanefix2-<id>@astra.test.</p> <p><strong>If you did not ask for this, do not open the link.</strong> Opening it hands your account, and everything in it, to whoever holds lanefix2-<id>@astra.test. Delete this email and nothing changes.</p> <p>Astra has no setting that changes your email, so you are unlikely to have asked for this.</p> <p><a href="http://127.0.0.1:5509/auth/v1/verify?token=T&amp;type=email_change&amp;redirect_to=http://127.0.0.1:5503">Yes, move my Astra account</a></p> 
+the attacker opens it: {"status":303,"message":null,"signedIn":true,"error":null}
+mails the student has: ["Finish signing in to Astra"]
+before any click from the student, the account still answers at the old address: false
+with no click from the student, the account answers at the attacker address: true

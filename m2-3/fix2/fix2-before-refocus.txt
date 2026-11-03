@@ -1,0 +1,19 @@
+--- refocus-after-unreachable
+  on the error page {"h1":"Could not connect. Try again in a moment.","wordmark":false,"status":null,"focus":"H1 \"Could not connect. Try again i\"","hasSession":true,"hiddenPage":false}
+  4 s after a refocus {"h1":null,"wordmark":true,"status":"Still opening your account. This can take a moment.","focus":"BODY \"\n    AstraStill opening your a\"","hasSession":true,"hiddenPage":false}
+  after the wait and a refocus {"h1":null,"wordmark":true,"status":"Still opening your account. This can take a moment.","focus":"BODY \"\n    AstraStill opening your a\"","hasSession":true,"hiddenPage":false}
+  pages seen ["30ms [wordmark]","25588ms Could not connect. Try again in a moment.","26048ms [wordmark]"]
+  0.1s /api/me 401
+  0.1s refresh down
+  0.3s refresh down
+  0.7s refresh down
+  1.5s refresh down
+  3.1s refresh down
+  6.3s refresh down
+  12.7s refresh down
+  25.6s refresh down
+  26.0s error page
+  26.0s --- Auth is back, the student returns to the tab inside the client's 60 s wait
+  26.0s /api/me 401
+  30.0s --- waiting out the client's 60 s wait, then the student returns again
+  92.1s /api/me 401

@@ -1,0 +1,42 @@
+CAUGHT    R1 a new read shows the wordmark again | src/auth/AccountGate.test.tsx > AccountGate > renewal, one read of the account at a time > Auth out of reach, the studen
+CAUGHT    R2 a refusal of the new token renews again, a loop | the run hung > loops forever
+CAUGHT    R3 a refusal never renews | src/auth/AccountGate.test.tsx > AccountGate > renews the session once and opens the app when the API refused a token tha
+CAUGHT    R4 Auth out of reach ends the session | src/auth/AccountGate.test.tsx > AccountGate > keeps the session and the app when Auth cannot be reached to renew a refus
+CAUGHT    R5 Auth rejecting keeps the session | src/auth/AccountGate.test.tsx > AccountGate > forgets the session only when Auth itself rejects the refresh token, and s
+CAUGHT    R6 the client retries Auth out of reach | src/auth/AccountGate.test.tsx > AccountGate > renewal, one read of the account at a time > Auth out of reach: the client
+CAUGHT    R7 the client retries a refused new token | src/auth/AccountGate.test.tsx > AccountGate > renewal, one read of the account at a time > the API refusing a new token:
+CAUGHT    R8 a discarded refresh counts as refused | src/auth/session.test.ts > renewSession > says renewed when another tab renews first, and uses the token that tab stored
+CAUGHT    R9 a discard after a sign-out counts as renewed | src/auth/session.test.ts > renewSession > says refused when a sign-out clears the session during the refresh, so the app
+CAUGHT    G1 focus stays put when the app opens after a step | src/auth/AccountGate.test.tsx > AccountGate > renewal, one read of the account at a time > takes focus to the page headi
+CAUGHT    G2 Try again gives no focus back | src/auth/AccountGate.test.tsx > AccountGate > renewal, one read of the account at a time > Try again that fails looks bu
+CAUGHT    G3 Try again shows no busy state | src/auth/AccountGate.test.tsx > AccountGate > renewal, one read of the account at a time > Try again that fails looks bu
+CAUGHT    G5 Try again cancels the read it joins | src/auth/AccountGate.test.tsx > AccountGate > renewal, one read of the account at a time > Try again that fails looks bu
+CAUGHT    B1 a kept page does not hide | src/auth/AuthProvider.test.tsx > AuthProvider > hides a page the browser may keep in memory, so Back cannot show it, and
+CAUGHT    B2 every page hides on leaving | src/auth/AuthProvider.test.tsx > AuthProvider > hides a page the browser may keep in memory, so Back cannot show it, and
+CAUGHT    B3 a restart does not hide the page | src/auth/session.test.ts > signOut > hides the page at once, so a slow next document cannot show the student to the next
+CAUGHT    S1 sign-out leaves the proofs | src/auth/session.test.ts > signOut > leaves nothing of the student in this browser, and keeps what belongs to the browse
+CAUGHT    S2 sign-out leaves the last address | src/auth/session.test.ts > signOut > leaves nothing of the student in this browser, and keeps what belongs to the browse
+CAUGHT    S3 the stored session is read from the wrong key | src/auth/session.test.ts > hasStoredSession > finds the session under the key the client writes, and nothing else
+CAUGHT    S4 blocked storage throws | src/auth/session.test.ts > sendEmailLink with a damaged record > still sends when the record of the last link is not rea
+CAUGHT    F1 Auth calls have no time limit | src/auth/fetchForAuth.test.ts > fetchForAuth > gives up on a call that hangs when its time limit ends, because a hung Au
+CAUGHT    F2 the time limit drops the caller signal | src/auth/fetchForAuth.test.ts > fetchForAuth > still stops when the caller cancels
+CAUGHT    F3 a limited refresh reaches the client as a 429 | src/auth/fetchForAuth.test.ts > fetchForAuth > answers a limited refresh as retryable, and holds its retries back from A
+CAUGHT    F4 the retries reach Auth | src/auth/fetchForAuth.test.ts > fetchForAuth > answers a limited refresh as retryable, and holds its retries back from A
+CAUGHT    F5 every call outlives the page | src/auth/fetchForAuth.test.ts > fetchForAuth > lets only the logout call outlive the page
+CAUGHT    D1 the date reaches the API before the student confirms | src/auth/BirthDatePage.test.tsx > the date of birth question > sends a date in 2026 to the server without judging the ag
+NOT APPLIED  D2 Change it sends the date
+CAUGHT    D3 the double click guard removed | src/auth/BirthDatePage.test.tsx > the date of birth question > keeps focus on the button and sends once while the answer
+CAUGHT    D4 the guard never resets | src/auth/BirthDatePage.test.tsx > the date of birth question > can send again after a failed send
+CAUGHT    D6 changing the date leaves the guard set | src/auth/BirthDatePage.test.tsx > the date of birth question > can send a corrected date after the student changes it wh
+CAUGHT    D7 a read sent before the answer can undo it | src/auth/AccountGate.test.tsx > AccountGate > keeps the answer when a read sent before it lands after it
+CAUGHT    D5 the date is formatted in the device zone | src/auth/birthDateParts.test.ts > formatBirthDate > shows the day the student typed on a device in America/Los_Angeles
+CAUGHT    L1 the address is not tied to the heading | src/auth/SignInPage.test.tsx > SignInPage > ties the address to the heading, so a screen reader says where the link went
+CAUGHT    V1 vite.config stops checking the Supabase values | src/buildGuards.test.ts > requireSupabaseValues > runs on a real build
+CAUGHT    V2 the build reads nothing it wrote | src/buildGuards.test.ts > the development accounts > fail a build that lets the development box in
+CAUGHT    V3 a legacy service role key passes | src/buildGuards.test.ts > requireSupabaseValues > refuses a legacy service role key
+CAUGHT    T1 the email change mail loses its warning | src/emailTemplates.test.ts > the email change email > names both addresses, and warns before the link, because one click
+CAUGHT    T2 the email change template is not wired | src/emailTemplates.test.ts > the email change email > names the product and holds its link
+CAUGHT    W1 the route walk lets a 403 pass | the API guard › checking its own route checks against planted routes › finds a route that ignores the token, so a later 
+38 caught of 39
+CAUGHT    D2 Change it sends the date | src/auth/BirthDatePage.test.tsx > the date of birth question > the confirm step > goes back with the typed date kept whe
+1 caught of 1

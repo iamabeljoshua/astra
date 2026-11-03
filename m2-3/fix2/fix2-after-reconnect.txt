@@ -1,0 +1,16 @@
+--- reconnect-after-unreachable
+  after a reconnect {"h1":"Welcome back.","wordmark":false,"status":null,"focus":"H1 \"Welcome back.\"","hasSession":true,"hiddenPage":false}
+  0.0s /api/me 401
+  0.0s refresh down
+  0.3s refresh down
+  0.7s refresh down
+  1.5s refresh down
+  3.1s refresh down
+  6.3s refresh down
+  12.7s refresh down
+  25.5s refresh down
+  88.0s --- the connection drops and comes back
+  88.3s /api/me 401
+  88.3s refresh pass
+  88.4s /api/me pass
+  88.5s /api/home pass

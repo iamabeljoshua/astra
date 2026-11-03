@@ -1,0 +1,21 @@
+--- app-on-screen
+  with Auth down {"h1":"Welcome back.","wordmark":false,"status":null,"focus":"H1 \"Welcome back.\"","hasSession":true,"hiddenPage":false}
+  after Auth returns and a refocus {"h1":"Welcome back.","wordmark":false,"status":null,"focus":"H1 \"Welcome back.\"","hasSession":true,"hiddenPage":false}
+  token renewed: true
+  pages seen ["58ms ","72ms [wordmark]","155ms When were you born?","218ms Is this right?","258ms Welcome back."]
+  31.0s --- the student returns, Auth is down
+  31.0s /api/me 401
+  31.0s /api/home 401
+  31.0s refresh down
+  31.2s refresh down
+  31.6s refresh down
+  32.4s refresh down
+  34.1s refresh down
+  37.3s refresh down
+  43.7s refresh down
+  56.5s refresh down
+  61.0s --- Auth is back, waiting out the client's 60 s wait
+  123.0s /api/me 401
+  123.0s /api/home 401
+  123.1s refresh pass
+  123.2s /api/me pass

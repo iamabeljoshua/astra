@@ -1,0 +1,11 @@
+Done in 1.4s using pnpm v10.32.1
+
+types current
+
+apps/web typecheck: Done
+packages/theme test:  Test Files  3 passed (3)
+packages/theme test:       Tests  78 passed (78)
+apps/api test: Tests:       371 passed, 371 total
+apps/web test:  Test Files  22 passed (22)
+apps/web test:       Tests  332 passed (332)
+✓ built in 153ms

@@ -1,0 +1,16 @@
+--- Node 22.21.1
+v22.21.1
+Expected version: >=22.22
+Got: v22.21.1
+
+This is happening because the package's manifest has an engines.node field specified.
+To fix this issue, install the required Node version.
+exit 1
+--- Node 22.22.0
+v22.22.0
++ supabase 2.75.0
++ typescript 5.9.3
++ typescript-eslint 8.72.1
+
+Done in 3.4s using pnpm v10.32.1
+exit 0

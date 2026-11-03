@@ -1,0 +1,20 @@
+--- a double click on Yes, continue
+  POST /me/birth-date calls: 1
+--- nothing reaches the API before confirming
+  calls while the question waits: 0
+  calls after confirming: 1
+--- a limited refresh
+  refresh requests that reached Auth for one renewal: 1
+  page {"h1":"Could not connect. Try again in a moment.","wordmark":false,"status":null,"focus":"H1 \"Could not connect. Try again i\"","hasSession":true,"hiddenPage":false}
+--- Try again
+  while it runs {"busy":"true","h1":"Something went wrong on our side. Try again.","wordmark":false,"status":null,"focus":"BUTTON \"Try again\"","hasSession":true,"hiddenPage":false}
+  after 3.5 s {"busy":"true","status":"Still opening your account. This can take a moment."}
+  after it fails {"busy":"false","h1":"Something went wrong on our side. Try again.","wordmark":false,"status":null,"focus":"H1 \"Something went wrong on our si\"","hasSession":true,"hiddenPage":false}
+  after it works {"h1":"Welcome back.","wordmark":false,"status":"Loading your home screen.","focus":"H1 \"Welcome back.\"","hasSession":true,"hiddenPage":false}
+--- blocked storage
+  h1: A learning app, made for you
+  sent, heading description: [
+  'We sent a link to this address. Open it ',
+  'lanefix2-<id>@astra.test'
+]
+  page errors: 0

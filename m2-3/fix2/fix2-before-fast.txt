@@ -1,0 +1,27 @@
+--- two-tabs
+  first tab {"h1":"A learning app, made for you","wordmark":false,"status":null,"focus":"BODY \"\n    AstraLightDarkA learning \"","hasSession":false,"hiddenPage":false}
+  second tab {"h1":"A learning app, made for you","wordmark":false,"status":null,"focus":"BODY \"\n    AstraLightDarkA learning \"","hasSession":false,"hiddenPage":false}
+  0.1s /api/me 401
+  0.1s refresh pass
+  0.1s /api/me 401
+  0.1s refresh pass
+  0.2s /api/me pass
+  0.2s /api/home pass
+--- api-refuses-new-token
+  error page {"h1":"Something went wrong on our side. Try again.","wordmark":false,"status":null,"focus":"H1 \"Something went wrong on our si\"","hasSession":true,"hiddenPage":false}
+  after a refocus {"h1":"Something went wrong on our side. Try again.","wordmark":false,"status":null,"focus":"H1 \"Something went wrong on our si\"","hasSession":true,"hiddenPage":false}
+  pages seen ["27ms [wordmark]","88ms Something went wrong on our side. Try again."]
+  0.0s /api/me 401
+  0.0s refresh pass
+  0.1s /api/me 401
+  0.1s /api/me 401
+--- auth-rejects-refresh-token
+  welcome page {"h1":"A learning app, made for you","wordmark":false,"status":null,"focus":"BODY \"\n    AstraLightDarkA learning \"","hasSession":false,"hiddenPage":false}
+  0.1s /api/me 401
+  0.1s refresh refuses
+--- slow-answer
+  after 8 more seconds {"h1":"Something went wrong on our side. Try again.","wordmark":false,"status":null,"focus":"H1 \"Something went wrong on our si\"","hasSession":true,"hiddenPage":false}
+  /me calls 2 refreshes 1
+  0.0s /api/me 401
+  2.0s refresh pass
+  2.1s /api/me 401
