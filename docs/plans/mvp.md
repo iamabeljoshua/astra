@@ -15,7 +15,7 @@ The program runs `skills/poteto-mode/playbooks/autopilot-full.md` from the insta
 
 Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-Each PR has one GitHub issue with the same acceptance criteria, and this plan holds the detail. The stack is React with Vite for the web app and NestJS with Postgres for the API, as Abel chose on 2 November 2026. From M1.5 on, HTTP shapes are `class-validator` DTOs in `apps/api`, Swagger docs come from their comments, and the web app uses types generated from the OpenAPI document. `packages/contracts` keeps those generated types and hand-written shapes that are not HTTP, such as the scene language. From M1.6 on, the web app calls the API only through its typed client and React Query.
+Each PR has one GitHub issue with the same acceptance criteria, and this plan holds the detail. The stack is React with Vite for the web app and NestJS with Postgres for the API, as Abel chose on 2 November 2026. From M1.5 on, HTTP shapes are `class-validator` DTOs in `apps/api`, Swagger docs come from their comments, and the web app uses types generated from the OpenAPI document. `packages/contracts` keeps those generated types and hand-written shapes that are not HTTP, such as the scene language. From M1.6 on, the web app calls the API only through its typed client and React Query. Postgres and sign-in run on Supabase, locally through the Supabase CLI, with TypeORM connected directly.
 
 | Milestone | What it delivers | PRs |
 | --- | --- | --- |
@@ -266,7 +266,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 **Files.**
 
-- [ ] Create `apps/api/nest-cli.json` settings and `apps/api/test/swagger-transformer.ts`.
+- [ ] Create `apps/api/nest-cli.json` settings and `apps/api/test/swagger-transformer.cjs`.
 - [ ] Edit `apps/api/src/main.ts`, `apps/api/src/health/`, and the Jest config in `apps/api/package.json`.
 - [ ] Create `packages/contracts/src/api.generated.ts`.
 - [ ] Edit `apps/web/src/useApiConnection.ts`, `.github/workflows/ci.yml`, and `README.md`.
@@ -324,23 +324,23 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 **Files.**
 
-- [ ] Create `docker-compose.yml`.
+- [ ] Create `supabase/config.toml`, pin the Supabase CLI as a root dev dependency, and add the `pnpm db:*` scripts to the root `package.json`.
 - [ ] Create `apps/api/src/database/`, `apps/api/src/students/`, and `apps/api/src/sessions/`, with DTOs for `Student`, `StudentProfile`, and `Session`.
 
 **Build.**
 
-- [ ] Add Postgres and TypeORM with migrations, matching `agentic-tutor`.
+- [ ] Run Postgres through the local Supabase stack, and connect TypeORM to it directly with `DATABASE_URL`, so a hosted Supabase project later changes only environment values. TypeORM owns the migrations, `synchronize` stays off, and nothing writes to the `auth` schema.
 - [ ] Name the data shapes first as entities and DTOs in `apps/api`, with `language` stored on each session so languages can be added later (PRD Q12).
 - [ ] Validate every request at the API boundary with the DTOs and global validation from M1.5.
 - [ ] Add `pnpm db:up`, `pnpm db:migrate`, and `pnpm db:seed`.
 
 **You see.**
 
-- [ ] One command starts Postgres locally, and one command builds a fresh database from migrations.
+- [ ] One command starts the local Supabase stack with Postgres, with no Supabase account, and one command builds a fresh database from migrations.
 - [ ] The database stores students, their profiles and interests, and their sessions, including each session's language.
 - [ ] A seed command creates an example student with six example sessions, matching the prototype.
 - [ ] The API rejects bad input with a clear error, and valid input saves and reads back the same.
-- [ ] CI runs the migrations against a fresh database.
+- [ ] CI runs the migrations against a fresh database on the same Postgres image as the local stack, and a CI run stays under 3 minutes.
 - [ ] No paid service is added.
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
@@ -541,13 +541,13 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 **Build.**
 
-- [ ] Stop for Abel's decision on the auth provider and give him the options with a recommendation, because auth is on the stop list in `CLAUDE.md`.
-- [ ] Add the sign-in flow with the chosen provider and a development-only sign-in.
-- [ ] Add an API guard and an ownership check at the data boundary.
+- [ ] Use Supabase Auth, Abel's decision on 3 November 2026, and link each student to their Supabase user ID.
+- [ ] Add the sign-in flow with Supabase Auth, and a development-only sign-in against the local stack, where sign-in emails land in its local inbox.
+- [ ] Add an API guard that verifies the Supabase token, and an ownership check at the data boundary.
 
 **You see.**
 
-- [ ] Abel has chosen the sign-in provider before any code in this PR is written.
+- [ ] Sign-in runs on Supabase Auth, and the API accepts only a valid Supabase token.
 - [ ] A student can sign in with an email link or with Google, stay signed in across a reload, and sign out.
 - [ ] The date-of-birth question asks neutrally, and a student under 13 is stopped and cannot retry.
 - [ ] Every API route that holds student data requires a signed-in student, and one student cannot read another's data.
