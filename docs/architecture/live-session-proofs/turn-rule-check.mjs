@@ -10,6 +10,7 @@ const THINKING = { type: 'tutorThinking' };
 const SPEAKING = { type: 'tutorStarted' };
 const FINISHED = { type: 'tutorFinished' };
 const QUESTION_HEARD = { type: 'questionHeard' };
+const LINK_LOST = { type: 'linkLost' };
 const words = (text, isFinal = true) => ({ type: 'words', text, isFinal });
 const timer = (name) => ({ type: 'timer', name });
 const WORDLESS = `start wordlessStop ${TURN_TIMINGS.wordlessStopMs}`;
@@ -60,7 +61,8 @@ const STORIES = [
   ['interim words that never became final resume, so the session does not go silent', [SPEAKING, ON, words('Wait then', false), OFF, timer('transcriptGrace')], ['yield', WORDLESS, 'stop', GRACE, 'resume'], 'clear'],
   ['a final after an interim cancels that resume', [SPEAKING, ON, words('Wait then', false), OFF, words('Wait then why'), timer('transcriptGrace')], ['yield', WORDLESS, 'stop', GRACE], 'stopped'],
   ['no yield while the tutor is silent', [ON, OFF], [], 'clear'],
-  ['a dropped link forgets the voice and every timer', [SPEAKING, ON, { type: 'linkLost' }], ['yield', WORDLESS], 'clear'],
+  ['a dropped link forgets the voice and every timer', [SPEAKING, ON, LINK_LOST], ['yield', WORDLESS], 'clear'],
+  ['after a rejoin, real words still stop a tutor who kept speaking', [SPEAKING, ON, LINK_LOST, ON, words('Wait, then', false)], ['yield', WORDLESS, 'yield', WORDLESS, 'stop'], 'stopped'],
 ];
 
 const REAL_WORDS = 'Wait why';
@@ -79,6 +81,7 @@ function searchEveryOrder() {
     words(REACTION, false),
     words(REACTION),
     QUESTION_HEARD,
+    LINK_LOST,
     ...Object.keys(stepTutor).filter((type) => stepTutor[type] !== state.tutor).map((type) => ({ type })),
     ...armed.map(timer),
   ];
@@ -93,7 +96,8 @@ function searchEveryOrder() {
       const armed = new Set(node.armed);
       if (move.type === 'timer') armed.delete(move.name);
       let { isYielded, isCut, hasFinalWords } = node;
-      if (move.type === 'tutorThinking' || move.type === 'tutorStarted') {
+      // A dropped link hands the cut turn to the reconnect path, so this rule starts clean.
+      if (move.type === 'tutorThinking' || move.type === 'tutorStarted' || move.type === 'linkLost') {
         isCut = false;
         isYielded = false;
         hasFinalWords = false;

@@ -108,7 +108,8 @@ const HANDLERS = {
   tutorStarted: onTutorStarted,
   tutorFinished: onTutorFinished,
   questionHeard: (state) => ({ state: { ...state, isQuestionHeard: true }, actions: [] }),
-  linkLost: () => ({ state: INITIAL_TURN_STATE, actions: CANCEL_ALL }),
+  // The reply goes on in the room, so the tutor's state stays.
+  linkLost: (state) => ({ state: { ...INITIAL_TURN_STATE, tutor: state.tutor }, actions: CANCEL_ALL }),
 };
 
 export function getNextTurnState(state, event) {

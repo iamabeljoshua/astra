@@ -1,9 +1,9 @@
 {
- "stories": 30,
- "passed": 30,
+ "stories": 31,
+ "passed": 31,
  "search": {
   "statesReached": 104,
-  "transitions": 860,
+  "transitions": 964,
   "violationCounts": {
    "realWordsNotStopped": 0,
    "reactionStopped": 0,
@@ -326,6 +326,18 @@
     "start wordlessStop 1000"
    ],
    "phase": "clear"
+  },
+  {
+   "story": "after a rejoin, real words still stop a tutor who kept speaking",
+   "passed": true,
+   "actions": [
+    "yield",
+    "start wordlessStop 1000",
+    "yield",
+    "start wordlessStop 1000",
+    "stop"
+   ],
+   "phase": "stopped"
   }
  ]
 }
