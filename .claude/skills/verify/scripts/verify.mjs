@@ -10,7 +10,13 @@ import {
   stopApp,
 } from './lib/app.mjs';
 import { getPageChecks } from './lib/browser.mjs';
-import { driveJourney, parseViewportNames } from './lib/journey.mjs';
+import {
+  clearImagesAndPlanDrive,
+  driveJourney,
+  getSingleLine,
+  saveFinalScreenshots,
+  waitForStrayRejections,
+} from './lib/journey.mjs';
 import { DEFAULT_EVIDENCE_DIR, getProductName, VIEWPORTS } from './lib/settings.mjs';
 
 const USAGE = `Usage: [WEB_PORT=<port>] [API_PORT=<port>] pnpm verify <command>
@@ -23,18 +29,33 @@ const USAGE = `Usage: [WEB_PORT=<port>] [API_PORT=<port>] pnpm verify <command>
   run      start, then drive, then stop. Takes the drive options.
   stop     Stop what start started. Safe to run twice.`;
 
+const INTERRUPT_SIGNALS = ['SIGINT', 'SIGTERM', 'SIGHUP'];
+
 const CLI_OPTIONS = {
   journey: { type: 'string', default: 'home' },
   viewports: { type: 'string', default: Object.keys(VIEWPORTS).join(',') },
   out: { type: 'string', default: DEFAULT_EVIDENCE_DIR },
 };
 
+const failuresOutsideChecks = [];
+
+function addFailureOutsideChecks(detail) {
+  failuresOutsideChecks.push(detail);
+  console.log(`FAIL ${detail}`);
+}
+
+function addStrayError(reason) {
+  const message = getSingleLine(reason?.message ?? String(reason));
+  addFailureOutsideChecks(`stray error, usually a missing await in the journey: ${message}`);
+}
+
 function reportChecks(checks) {
   for (const { name, passed, detail } of checks) {
     console.log(`${passed ? 'PASS' : 'FAIL'} ${name}: ${detail}`);
   }
-  const failedCount = checks.filter((check) => !check.passed).length;
-  console.log(failedCount === 0 ? 'PASSED' : `FAILED ${failedCount} of ${checks.length} checks`);
+  const failedCount = checks.filter((check) => !check.passed).length + failuresOutsideChecks.length;
+  const totalCount = checks.length + failuresOutsideChecks.length;
+  console.log(failedCount === 0 ? 'PASSED' : `FAILED ${failedCount} of ${totalCount} checks`);
   return failedCount === 0;
 }
 
@@ -52,18 +73,24 @@ async function doctor() {
   return reportChecks([...appChecks, ...pageChecks]);
 }
 
-async function drive({ journey, viewports, out }) {
+async function drivePlan(plan) {
   const run = await getHealthyRun();
-  const viewportNames = parseViewportNames(viewports);
-  return reportChecks(
-    await driveJourney({ run, journeyName: journey, viewportNames, evidenceDir: out }),
-  );
+  const results = await driveJourney({ ...plan, run });
+  await waitForStrayRejections();
+  const { evidenceDir } = plan;
+  saveFinalScreenshots({ results, evidenceDir, hasFailureOutsideChecks: failuresOutsideChecks.length > 0 });
+  return reportChecks(results.flatMap((result) => result.checks));
+}
+
+async function drive(options) {
+  return drivePlan(clearImagesAndPlanDrive(options));
 }
 
 async function runOnce(options) {
+  const plan = clearImagesAndPlanDrive(options);
   await start();
   try {
-    return await drive(options);
+    return await drivePlan(plan);
   } finally {
     await stop();
   }
@@ -77,14 +104,32 @@ async function stop() {
 
 const COMMANDS = { start, doctor, drive, run: runOnce, stop };
 
+function watchFailuresOutsideChecks(command) {
+  // Node raises an unhandled rejection as an uncaught exception, so this one listener sees both.
+  process.on('uncaughtException', addStrayError);
+  const cleanUp = command === runOnce ? stopApp : async () => {};
+  for (const signal of INTERRUPT_SIGNALS) {
+    process.once(signal, () => {
+      addFailureOutsideChecks(`interrupted by ${signal}`);
+      cleanUp()
+        .catch((error) => console.error(stripVTControlCharacters(error.message)))
+        .finally(() => process.exit(1));
+    });
+  }
+}
+
 async function main() {
   const { positionals, values } = parseArgs({ options: CLI_OPTIONS, allowPositionals: true });
   const command = COMMANDS[positionals[0]];
   if (!command) throw new Error(USAGE);
-  process.exitCode = (await command(values)) ? 0 : 1;
+  watchFailuresOutsideChecks(command);
+  return command(values);
 }
 
-main().catch((error) => {
-  console.error(stripVTControlCharacters(error.message));
-  process.exitCode = 1;
-});
+// An explicit exit, because a journey's leftover timer must not hold the process open.
+main()
+  .catch((error) => {
+    console.error(stripVTControlCharacters(error.message));
+    return false;
+  })
+  .then((passed) => process.exit(passed && failuresOutsideChecks.length === 0 ? 0 : 1));

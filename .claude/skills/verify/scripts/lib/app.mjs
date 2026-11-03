@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -6,7 +7,9 @@ import {
   getListenerProcessIds,
   getProcessCommand,
   getProcessGroupId,
+  getProcessStartTime,
   isProcessGroupAlive,
+  isProcessGroupCarrying,
   isProcessGroupInDirectory,
   signalProcessGroup,
   spawnProcessGroup,
@@ -16,6 +19,8 @@ import { DEV_LOG_PATH, POLL_INTERVAL_MS, REPO_ROOT, RUN_STATE_PATH, TIMEOUTS_MS 
 const DEV_COMMAND = { command: 'pnpm', args: ['dev'] };
 // "pnpm --silent verify" passes a silent reporter down, which would empty the dev log.
 const DEV_LOG_ENV = { NO_COLOR: '1', npm_config_reporter: 'append-only' };
+const RUN_ID_VARIABLE = 'VERIFY_RUN_ID';
+const COMPILE_RESULT_PATTERN = /^apps\/api dev: .*(Found (\d+) errors?)\b/gm;
 const LOG_TAIL_LINES = 30;
 const HIGHEST_PORT = 65_535;
 const APP_ROOT_MARKUP = 'id="root"';
@@ -54,13 +59,21 @@ function assertPortIsFree({ name, port }) {
 
 function launchDevServers({ webPort, apiPort }) {
   mkdirSync(dirname(RUN_STATE_PATH), { recursive: true });
+  const runId = randomUUID();
   const processGroupId = spawnProcessGroup({
     ...DEV_COMMAND,
     cwd: REPO_ROOT,
-    env: { ...process.env, ...DEV_LOG_ENV, WEB_PORT: String(webPort), API_PORT: String(apiPort) },
+    env: {
+      ...process.env,
+      ...DEV_LOG_ENV,
+      WEB_PORT: String(webPort),
+      API_PORT: String(apiPort),
+      [RUN_ID_VARIABLE]: runId,
+    },
     logPath: DEV_LOG_PATH,
   });
-  const run = { processGroupId, webPort, apiPort, logPath: DEV_LOG_PATH };
+  const leaderStartTime = getProcessStartTime(processGroupId);
+  const run = { processGroupId, leaderStartTime, runId, webPort, apiPort, logPath: DEV_LOG_PATH };
   writeFileSync(RUN_STATE_PATH, JSON.stringify(run, null, 2));
   return run;
 }
@@ -87,6 +100,16 @@ function isAppPage(body) {
   return body.includes(APP_ROOT_MARKUP);
 }
 
+function getCompileCheck() {
+  const results = [...readFileSync(DEV_LOG_PATH, 'utf8').matchAll(COMPILE_RESULT_PATTERN)];
+  const latestResult = results.at(-1);
+  if (!latestResult) return { name: 'api compile', passed: false, detail: `no compile result in ${DEV_LOG_PATH}` };
+  const [, resultText, errorCount] = latestResult;
+  const passed = Number(errorCount) === 0;
+  const consequence = passed ? '' : `, so the API is an old build or none. Read ${DEV_LOG_PATH}`;
+  return { name: 'api compile', passed, detail: `the latest compile says "${resultText}"${consequence}` };
+}
+
 async function getAnswerCheck({ name, url, isExpectedBody }) {
   try {
     const response = await fetch(url, { signal: AbortSignal.timeout(TIMEOUTS_MS.httpProbe) });
@@ -99,22 +122,27 @@ async function getAnswerCheck({ name, url, isExpectedBody }) {
   }
 }
 
+// Probes the proxy only once the API answers, because each failed probe writes a proxy error to the dev log.
+async function getProxyCheck({ run, apiCheck }) {
+  const name = 'dev proxy reaches api';
+  if (!apiCheck.passed) return { name, passed: false, detail: 'not probed, because the API does not answer' };
+  return getAnswerCheck({ name, url: `${getWebUrl(run)}/api/health`, isExpectedBody: isHealthBody });
+}
+
 export async function getAppChecks(run) {
   const { processGroupId, webPort, apiPort } = run;
+  const apiCheck = await getAnswerCheck({
+    name: 'api answers',
+    url: `${getApiUrl(run)}/health`,
+    isExpectedBody: isHealthBody,
+  });
   return [
     getPortOwnerCheck({ name: 'web port owner', port: webPort, processGroupId }),
     getPortOwnerCheck({ name: 'api port owner', port: apiPort, processGroupId }),
+    getCompileCheck(),
     await getAnswerCheck({ name: 'web answers', url: getWebUrl(run), isExpectedBody: isAppPage }),
-    await getAnswerCheck({
-      name: 'api answers',
-      url: `${getApiUrl(run)}/health`,
-      isExpectedBody: isHealthBody,
-    }),
-    await getAnswerCheck({
-      name: 'dev proxy reaches api',
-      url: `${getWebUrl(run)}/api/health`,
-      isExpectedBody: isHealthBody,
-    }),
+    apiCheck,
+    await getProxyCheck({ run, apiCheck }),
   ];
 }
 
@@ -150,8 +178,11 @@ export async function startApp() {
     await waitUntilReady(run);
   } catch (error) {
     const logTail = getLogTail();
-    await stopApp();
-    throw new Error(`${error.message}\n--- last lines of ${DEV_LOG_PATH} ---\n${logTail}`);
+    const stopFailure = await stopApp().then(
+      () => '',
+      (stopError) => `\n${stopError.message}`,
+    );
+    throw new Error(`${error.message}${stopFailure}\n--- last lines of ${DEV_LOG_PATH} ---\n${logTail}`);
   }
   return run;
 }
@@ -192,16 +223,31 @@ async function terminateProcessGroup(processGroupId) {
 }
 
 function assertPortsReleased({ webPort, apiPort }) {
-  const leftovers = [webPort, apiPort].filter((port) => getListenerProcessIds(port).length > 0);
-  if (leftovers.length > 0) throw new Error(`Still listening after stop: ${leftovers.join(', ')}.`);
+  const holders = [webPort, apiPort].flatMap((port) =>
+    getListenerProcessIds(port).map((processId) => `port ${port}: ${processId} (${getProcessCommand(processId)})`),
+  );
+  if (holders.length === 0) return;
+  throw new Error(
+    `Still listening after stop.\n${holders.join('\n')}\n${RUN_STATE_PATH} stays until these ports are free.`,
+  );
+}
+
+// A group id can be reused, so compare the leader's start time. A group whose leader died still carries the run id.
+function isThisRunsProcessGroup({ processGroupId, leaderStartTime, runId }) {
+  if (!isProcessGroupAlive(processGroupId)) return false;
+  const currentLeaderStartTime = getProcessStartTime(processGroupId);
+  const isSameRun = currentLeaderStartTime
+    ? currentLeaderStartTime === leaderStartTime
+    : isProcessGroupCarrying({ processGroupId, environmentEntry: `${RUN_ID_VARIABLE}=${runId}` });
+  return isSameRun && isProcessGroupInDirectory(processGroupId, REPO_ROOT);
 }
 
 export async function stopApp() {
   const run = readRun();
   if (!run) return false;
-  const isOurs = isProcessGroupInDirectory(run.processGroupId, REPO_ROOT);
+  const isOurs = isThisRunsProcessGroup(run);
   if (isOurs) await terminateProcessGroup(run.processGroupId);
-  rmSync(RUN_STATE_PATH);
-  if (isOurs) assertPortsReleased(run);
+  assertPortsReleased(run);
+  rmSync(RUN_STATE_PATH, { force: true });
   return isOurs;
 }

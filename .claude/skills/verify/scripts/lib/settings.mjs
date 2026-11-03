@@ -21,6 +21,9 @@ export const TIMEOUTS_MS = {
   pageAction: 10_000,
   pageIdentity: 5_000,
   audioSignal: 3_000,
+  journey: 60_000,
+  settle: 1_500,
+  finalPage: 20_000,
 };
 
 export const POLL_INTERVAL_MS = 150;

@@ -3,13 +3,22 @@ import { closeSync, openSync } from 'node:fs';
 import { createServer } from 'node:net';
 
 const NO_MATCH_EXIT_CODE = 1;
+export const PROCESS_LIST_MAX_BYTES = 64 * 1024 * 1024;
+// ps prints a start time in local time and the current locale, so pin both to compare it across shells.
+const COMMAND_ENV = { ...process.env, LC_ALL: 'C', TZ: 'UTC' };
 
+// lsof and ps exit 1 with an empty stderr when nothing matches. Anything else is not an answer.
 function readCommandOutput(command, args) {
   try {
-    return execFileSync(command, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    return execFileSync(command, args, {
+      encoding: 'utf8',
+      env: COMMAND_ENV,
+      maxBuffer: PROCESS_LIST_MAX_BYTES,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
   } catch (error) {
-    if (error.status === NO_MATCH_EXIT_CODE) return '';
-    throw error;
+    if (error.status === NO_MATCH_EXIT_CODE && !error.stderr) return '';
+    throw new Error(`${command} ${args.join(' ')} failed: ${error.stderr || error.message}`);
   }
 }
 
@@ -20,7 +29,6 @@ function getOutputLines(output) {
     .filter(Boolean);
 }
 
-// The child leads a new process group, so one signal reaches pnpm, Vite, Nest, and the API.
 export function spawnProcessGroup({ command, args, cwd, env, logPath }) {
   const logFile = openSync(logPath, 'w');
   const child = spawn(command, args, { cwd, env, detached: true, stdio: ['ignore', logFile, logFile] });
@@ -42,17 +50,25 @@ export function signalProcessGroup(processGroupId, signal) {
   process.kill(-processGroupId, signal);
 }
 
-// A saved group id can be reused after a reboot, so only signal a group working in this checkout.
 export function isProcessGroupInDirectory(processGroupId, directory) {
   const lines = getOutputLines(
-    readCommandOutput('lsof', ['-a', '-d', 'cwd', '-g', String(processGroupId), '-Fn']),
+    readCommandOutput('lsof', ['-w', '-a', '-d', 'cwd', '-g', String(processGroupId), '-Fn']),
   );
   return lines.some((line) => line === `n${directory}` || line.startsWith(`n${directory}/`));
 }
 
+export function isProcessGroupCarrying({ processGroupId, environmentEntry }) {
+  const lines = getOutputLines(readCommandOutput('ps', ['eww', '-A', '-o', 'pgid=,command=']));
+  return lines.some((line) => line.startsWith(`${processGroupId} `) && line.includes(environmentEntry));
+}
+
 export function getListenerProcessIds(port) {
-  const output = readCommandOutput('lsof', ['-nP', `-iTCP:${port}`, '-sTCP:LISTEN', '-t']);
+  const output = readCommandOutput('lsof', ['-w', '-nP', `-iTCP:${port}`, '-sTCP:LISTEN', '-t']);
   return getOutputLines(output).map(Number);
+}
+
+export function getProcessStartTime(processId) {
+  return readCommandOutput('ps', ['-o', 'lstart=', '-p', String(processId)]).trim();
 }
 
 export function getProcessGroupId(processId) {

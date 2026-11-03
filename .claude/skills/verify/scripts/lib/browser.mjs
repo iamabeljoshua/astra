@@ -6,11 +6,18 @@ const GPU_CAPABLE_CHANNEL = 'chromium';
 const FAKE_MICROPHONE_ARGS = ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'];
 const WEBGL_CLEAR_COLOR = [255, 128, 0, 255];
 const AUDIBLE_PEAK = 0.01;
-const MISSING_FAVICON_PATH = '/favicon.ico';
+// verify.mjs owns signals, because Playwright's handlers can exit the process before the app stops.
+const LAUNCH_OPTIONS = {
+  channel: GPU_CAPABLE_CHANNEL,
+  args: FAKE_MICROPHONE_ARGS,
+  handleSIGINT: false,
+  handleSIGTERM: false,
+  handleSIGHUP: false,
+};
 
 export async function launchBrowser() {
   try {
-    return await chromium.launch({ channel: GPU_CAPABLE_CHANNEL, args: FAKE_MICROPHONE_ARGS });
+    return await chromium.launch(LAUNCH_OPTIONS);
   } catch (error) {
     throw new Error(`Chromium did not start. Run "${INSTALL_COMMAND}".\n${error.message}`);
   }
@@ -92,27 +99,50 @@ export async function getIdentityCheck(page, productName) {
   }
 }
 
-export function watchPageFailures(page) {
+// Decodes the PNG in a spare page, because Node has no image decoder and a canvas needs no dependency.
+async function readUniformColor(pngBase64) {
+  const response = await fetch(`data:image/png;base64,${pngBase64}`);
+  const bitmap = await createImageBitmap(await response.blob());
+  const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  context.drawImage(bitmap, 0, 0);
+  const { data } = context.getImageData(0, 0, bitmap.width, bitmap.height);
+  const pixels = new Uint32Array(data.buffer);
+  const isUniform = pixels.every((pixel) => pixel === pixels[0]);
+  return isUniform ? `rgba(${data.slice(0, 4).join(', ')})` : null;
+}
+
+export async function getScreenshotCheck({ browser, screenshot }) {
+  const inspector = await browser.newPage();
+  try {
+    const uniformColor = await inspector.evaluate(readUniformColor, screenshot.toString('base64'));
+    const detail = uniformColor ? `every pixel is ${uniformColor}, so the page looks blank` : 'has more than one color';
+    return { name: 'screenshot', passed: !uniformColor, detail };
+  } finally {
+    await inspector.close();
+  }
+}
+
+export function watchContextFailures(context) {
   const failures = [];
   const addFailure = (name, detail) => failures.push({ name, passed: false, detail });
-  page.on('pageerror', (error) => addFailure('page error', error.message));
-  page.on('console', (message) => {
-    const { url } = message.location();
-    if (message.type() === 'error' && !url.endsWith(MISSING_FAVICON_PATH)) {
-      addFailure('console error', `${message.text()} (${url})`);
-    }
+  context.on('weberror', (webError) => addFailure('page error', webError.error().message));
+  context.on('console', (message) => {
+    if (message.type() === 'error') addFailure('console error', `${message.text()} (${message.location().url})`);
   });
+  context.on('page', (page) => page.on('crash', () => addFailure('page crash', page.url())));
   return failures;
 }
 
 export async function getPageChecks({ baseURL, productName }) {
   const browser = await launchBrowser();
   try {
-    const page = await browser.newPage({ baseURL });
-    const pageFailures = watchPageFailures(page);
+    const context = await browser.newContext({ baseURL });
+    const contextFailures = watchContextFailures(context);
+    const page = await context.newPage();
     await page.goto('/');
     const identityCheck = await getIdentityCheck(page, productName);
-    return [identityCheck, ...(await getBrowserChecks(page)), ...pageFailures];
+    return [identityCheck, ...(await getBrowserChecks(page)), ...contextFailures];
   } finally {
     await browser.close();
   }
