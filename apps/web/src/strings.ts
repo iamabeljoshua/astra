@@ -59,6 +59,7 @@ export const SIGN_IN_LABELS = {
   sentQuestion: 'Check your email.',
   sentAbout: 'We sent a link to this address. Open it in this browser to sign in.',
   useAnotherEmail: 'Use a different email',
+  signUpStopped: ACCOUNT_LABELS.closed,
   invalidEmail: 'Enter a valid email address.',
   tooManyRequests: "We can't send another link right now. If you asked for one already, check your email. Otherwise, try again in a few minutes.",
   authFailed: 'Could not send the link. The fault is on our side, so try again soon.',

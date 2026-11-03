@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DEV_SIGN_IN_LABELS, LEGAL_PAGES, SIGN_IN_LABELS, TUTOR_NOTES_LABELS } from '../strings';
+import { ACCOUNT_LABELS, DEV_SIGN_IN_LABELS, LEGAL_PAGES, SIGN_IN_LABELS, TUTOR_NOTES_LABELS } from '../strings';
 import { useAuth } from './AuthProvider';
 import { sendEmailLink, signInWithGoogle } from './session';
 import { SignInPage } from './SignInPage';
@@ -71,7 +71,7 @@ describe('SignInPage', () => {
     await submitEmail('  maya@astra.test ');
 
     await screen.findByRole('heading', { name: SIGN_IN_LABELS.sentQuestion });
-    screen.getByText('maya@astra.test');
+    screen.getByText('maya@astra.test', { selector: 'p' });
     expect(sendEmailLink).toHaveBeenCalledWith('maya@astra.test');
   });
 
@@ -85,6 +85,16 @@ describe('SignInPage', () => {
     fireEvent.click(screen.getByRole('button', { name: SIGN_IN_LABELS.useAnotherEmail }));
 
     expect(screen.getByPlaceholderText<HTMLInputElement>(SIGN_IN_LABELS.emailPlaceholder).value).toBe('maya@astra.test');
+  });
+
+  it('gives a stopped sign-up the same words as a closed account', async () => {
+    vi.mocked(sendEmailLink).mockResolvedValue('signUpStopped');
+    renderSignInPage();
+    chooseEmail();
+
+    await submitEmail('second-address@astra.test');
+
+    expect((await screen.findByRole('alert')).textContent).toBe(ACCOUNT_LABELS.closed);
   });
 
   it.each(['invalidEmail', 'tooManyRequests', 'authFailed', 'failed'] as const)('says what went wrong for %s', async (result) => {
