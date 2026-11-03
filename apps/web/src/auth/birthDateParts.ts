@@ -1,10 +1,5 @@
-import { toLatinDigits } from './toLatinDigits';
-
-export interface DateParts {
-  day: string;
-  month: string;
-  year: string;
-}
+import type { DateParts } from '../ui/BirthDateField';
+import { toLatinDigits } from '../ui/toLatinDigits';
 
 const DAY_OR_MONTH = /^\d{1,2}$/;
 const YEAR = /^\d{4}$/;

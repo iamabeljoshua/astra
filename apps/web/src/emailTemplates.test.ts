@@ -10,28 +10,44 @@ function readTemplate(fileName: string) {
   return readFileSync(join(SUPABASE_FOLDER, 'templates', fileName), 'utf8');
 }
 
+function readConfigSection(templateKey: string) {
+  return CONFIG.split(`[auth.email.template.${templateKey}]`)[1]?.split('[')[0] ?? '';
+}
+
 describe.each([
   ['magic link', 'magic_link', 'magic-link.html'],
   ['confirm signup', 'confirmation', 'confirmation.html'],
-  ['email change', 'email_change', 'email-change.html'],
 ])('the %s email', (_name, templateKey, fileName) => {
   const template = readTemplate(fileName);
-  const configSection = CONFIG.split(`[auth.email.template.${templateKey}]`)[1]?.split('[')[0] ?? '';
+  const configSection = readConfigSection(templateKey);
 
-  it('names the product and holds its link', () => {
+  it('names the product and shows the code', () => {
     expect(template).toContain(PRODUCT_NAME);
-    expect(template).toContain('href="{{ .ConfirmationURL }}"');
+    expect(template).toContain('{{ .Token }}');
     expect(configSection).toMatch(new RegExp(`subject = ".*${PRODUCT_NAME}.*"`));
     expect(configSection).toContain(`./supabase/templates/${fileName}`);
   });
 
-  it('offers no code, because the app has nowhere to enter one', () => {
-    expect(template).not.toMatch(/\{\{ *\.Token|code/i);
+  it('holds no link, because no link opens the session', () => {
+    expect(template).not.toMatch(/ConfirmationURL|TokenHash|href=/);
+  });
+
+  it('states the same lifetime as the settings', () => {
+    const lifetimeSeconds = Number(/otp_expiry = (\d+)/.exec(CONFIG)?.[1]);
+    expect(template).toContain(`It works for ${lifetimeSeconds / 60} minutes.`);
   });
 });
 
 describe('the email change email', () => {
   const template = readTemplate('email-change.html');
+  const configSection = readConfigSection('email_change');
+
+  it('names the product and keeps its own link', () => {
+    expect(template).toContain(PRODUCT_NAME);
+    expect(template).toContain('href="{{ .ConfirmationURL }}"');
+    expect(configSection).toMatch(new RegExp(`subject = ".*${PRODUCT_NAME}.*"`));
+    expect(configSection).toContain('./supabase/templates/email-change.html');
+  });
 
   it('names both addresses, and warns before the link, because one click hands over the account', () => {
     expect(template).toContain('{{ .Email }}');

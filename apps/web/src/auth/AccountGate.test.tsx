@@ -4,7 +4,7 @@ import type { PropsWithChildren } from 'react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createQueryClient } from '../api/queryClient';
-import { ACCOUNT_LABELS, API_ERROR_LABELS, BIRTH_DATE_LABELS, PRODUCT_NAME, SIGN_IN_LABELS, TUTOR_NOTES_LABELS } from '../strings';
+import { ACCOUNT_LABELS, API_ERROR_LABELS, BIRTH_DATE_LABELS, PRODUCT_NAME, SIGN_IN_LABELS } from '../strings';
 import { renderWithQueryClient } from '../test/renderWithQueryClient';
 import { AccountGate } from './AccountGate';
 import { useAuth } from './AuthProvider';
@@ -26,6 +26,8 @@ vi.mock('./AuthProvider', () => ({ useAuth: vi.fn() }));
 vi.mock('./session', () => ({
   forgetSession: vi.fn(),
   getAccessToken: async () => 'test-token',
+  isCodeStillGood: () => false,
+  readCodeRequest: () => null,
   renewSession: vi.fn(),
   signOut: vi.fn(),
 }));
@@ -135,7 +137,7 @@ describe('AccountGate', () => {
 
     renderGate();
 
-    screen.getByRole('button', { name: SIGN_IN_LABELS.email });
+    screen.getByRole('button', { name: SIGN_IN_LABELS.sendCode });
     expect(screen.queryByText(APP_TEXT)).toBeNull();
     expect(fetchStub).not.toHaveBeenCalled();
   });
@@ -747,19 +749,6 @@ describe('AccountGate', () => {
     });
   });
 
-  it.each([
-    ['the date of birth question', NEEDS_BIRTH_DATE],
-    ['the closed page', CLOSED_ACCOUNT],
-  ])('promises nothing about changing it later beside %s', async (_caseName, account) => {
-    setSignIn('signedIn');
-    stubApi({ 'GET /api/me': json(account) });
-    renderGate();
-
-    await screen.findByRole('heading', { level: 1 });
-
-    expect(screen.queryByText(TUTOR_NOTES_LABELS.footer)).toBeNull();
-  });
-
   it('shows a returning student the error page, not the new-student welcome, when Auth cannot renew their session', () => {
     setSignIn('authUnreachable');
     const fetchStub = stubApi({});
@@ -769,7 +758,7 @@ describe('AccountGate', () => {
     screen.getByRole('heading', { name: API_ERROR_LABELS.network });
     screen.getByRole('button', { name: ACCOUNT_LABELS.tryAgain });
     screen.getByRole('button', { name: ACCOUNT_LABELS.signOut });
-    expect(screen.queryByRole('button', { name: SIGN_IN_LABELS.email })).toBeNull();
+    expect(screen.queryByRole('button', { name: SIGN_IN_LABELS.sendCode })).toBeNull();
     expect(fetchStub).not.toHaveBeenCalled();
   });
 

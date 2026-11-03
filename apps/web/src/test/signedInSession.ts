@@ -7,6 +7,9 @@ export const signOut = () => undefined;
 export const forgetSession = () => undefined;
 export const hasStoredSession = () => true;
 export const renewSession = async () => 'renewed' as const;
+export const readCodeRequest = () => null;
+export const isCodeStillGood = () => false;
+export const CODE_LENGTH = 6;
 
 export function watchSignedInUser(onChange: (userId: string | null) => void) {
   onChange(SIGNED_IN_USER_ID);

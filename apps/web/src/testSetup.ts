@@ -5,6 +5,8 @@ import { FakeResizeObserver, fakeFonts } from './test/fakeLayout';
 globalThis.ResizeObserver = FakeResizeObserver;
 Object.defineProperty(document, 'fonts', { value: fakeFonts });
 window.scrollTo = () => undefined;
+window.matchMedia = (query) => ({ matches: false, media: query }) as MediaQueryList;
+HTMLCanvasElement.prototype.getContext = () => null;
 
 const { asyncWrapper } = getConfig();
 const nextTask = setImmediate;
