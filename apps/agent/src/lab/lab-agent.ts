@@ -99,8 +99,9 @@ export async function runLabAgent({ url, token, voice, sampleRate, recorder }: L
     });
   };
 
-  const getResumeBeats = (turn: ActiveTurn): Beat[] => {
-    const cut = turn.beats.flatMap((beat) => {
+  // The rest of a cut turn, starting with the word it was cut on.
+  const getResumeBeats = (turn: ActiveTurn): Beat[] =>
+    turn.beats.flatMap((beat) => {
       const report = turn.reports.get(beat.id);
       if (!report) return [beat];
       if (report.ending === 'finished') return [];
@@ -108,8 +109,6 @@ export async function runLabAgent({ url, token, voice, sampleRate, recorder }: L
       const parsed = parseBeat({ id: `${beat.id}-r${turnCount}`, script: getResumeScript(beat, { fromWord, firedCues: report.firedCueMs.length, frozen: report.frozen }), expectsReply: beat.expectsReply });
       return parsed.ok ? [parsed.value] : [];
     });
-    return cut;
-  };
 
   const runCommand = (command: LabCommand) => {
     if (command.type === 'play') {

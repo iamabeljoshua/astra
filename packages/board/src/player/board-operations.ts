@@ -72,7 +72,8 @@ function getActionOperations(log: readonly SessionEvent[], event: SessionEvent &
 function getEventOperations(log: readonly SessionEvent[], event: SessionEvent): BoardOperation[] {
   switch (event.kind) {
     case 'beatPlayed':
-      return getBeatOperations({ ...event, cues: getCues(event.beat) });
+      // A beat nobody heard changed nothing, and the live board never saw it start.
+      return event.playedWords === 0 && event.firedCueMs.length === 0 ? [] : getBeatOperations({ ...event, cues: getCues(event.beat) });
     case 'boardFrozen':
       return [{ kind: 'freeze', atMs: event.atMs, frames: event.frozen }];
     case 'studentActed':

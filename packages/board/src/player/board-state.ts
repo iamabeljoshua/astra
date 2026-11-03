@@ -1,4 +1,4 @@
-import type { BoardElementKind, ElementId, ElementRef, FrozenFrame, InkPoint, SceneCommand, SimulationPoint } from '@astra/contracts';
+import type { ElementId, ElementRef, FrozenFrame, InkPoint, SceneCommand, SimulationPoint } from '@astra/contracts';
 import type { BoardOperation } from './board-operations.ts';
 import { getMotionValue, holdMotion, isMoving, type Motion, moveOver } from './motion.ts';
 import { PLANNED_SCENES } from './projectile-scene.ts';
@@ -219,10 +219,6 @@ export function getBoardAt(operations: readonly BoardOperation[], atMs: number, 
 
 export function getSceneFrame(element: BoardElement, atMs: number): unknown {
   return element.placedScene && element.placedScene.scene.getFrame(getMotionValue(element.placedScene.playhead, atMs));
-}
-
-export function getBoardKinds(board: BoardState): ReadonlyMap<string, BoardElementKind> {
-  return new Map([...board.elements].map(([id, element]) => [id, element.content.kind]));
 }
 
 /** Where everything still moving has reached, as the report a cut sends. */

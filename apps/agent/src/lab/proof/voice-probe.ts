@@ -8,6 +8,7 @@ import { makeTutorVoice, TUTOR_VOICE_ID } from '../../providers/choose.ts';
 import { readKey } from '../keys.ts';
 import { OVERLONG_LINE, STOCK_PHRASE } from '../lesson.ts';
 import { getPercentiles } from './analyse-run.ts';
+import { tapVendorSocket } from './vendor-tap.ts';
 
 const CREDITS_PER_CHARACTER = 0.22;
 const SAMPLE_RATE = 22050;
@@ -213,7 +214,41 @@ async function storeStockPhrase(): Promise<void> {
   saveResult(`stock-phrase-times-${model}`, { model, credits: Math.round(5 * STOCK_PHRASE.length * CREDITS_PER_CHARACTER), audioMs: takes.map((take) => Math.round(take.audioMs)), wordStartsMs: takes.map((take) => take.words.map((word) => word.startMs)) });
 }
 
-const JOBS: Record<string, () => Promise<void>> = { overlong: checkOverlong, 'first-audio': measureFirstAudio, alignment: compareAlignments, clips: makeClips, 'stock-phrase': storeStockPhrase };
+const LONG_TEXT = 'Gravity pulls the ball down the whole way, even at the very top of the climb, and sideways nothing pushes it at all. '.repeat(2);
+
+// `close_context` does not cancel, so a stop must drop what the vendor keeps sending. This stops a long line just after its first audio, and counts both sides.
+async function stopEarly(): Promise<void> {
+  const tap = tapVendorSocket();
+  const voice = makeVoice();
+  voice.prewarm();
+  const rows = [];
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const stream = voice.stream();
+    stream.pushText(LONG_TEXT);
+    stream.flush();
+    stream.endInput();
+    let framesAfterStop = 0;
+    let stoppedAtMs: number | null = null;
+    for await (const chunk of stream) {
+      if (chunk === tts.SynthesizeStream.END_OF_STREAM) break;
+      if (stoppedAtMs !== null) framesAfterStop += 1;
+      else {
+        stoppedAtMs = Date.now();
+        stream.close();
+      }
+    }
+    await new Promise((done) => setTimeout(done, 3000));
+    const after = tap.messages.filter((message) => stoppedAtMs !== null && message.atMs > stoppedAtMs && message.audioBytes > 0);
+    rows.push({ framesAfterStop, vendorMessagesAfterStop: after.length, vendorAudioAfterStopMs: Math.round(after.reduce((sum, message) => sum + message.audioBytes / 2 / SAMPLE_RATE, 0) * MS_PER_SECOND) });
+    tap.messages.length = 0;
+    const next = await speakLine(voice, 'Still here.');
+    rows.push({ firstFrameAfterStopMs: Math.round(next.firstFrameMs) });
+  }
+  await voice.close();
+  saveResult(`stop-early-${model}`, { model, credits: Math.round(2 * (LONG_TEXT.length + 11) * CREDITS_PER_CHARACTER), rows });
+}
+
+const JOBS: Record<string, () => Promise<void>> = { 'stop-early': stopEarly, overlong: checkOverlong, 'first-audio': measureFirstAudio, alignment: compareAlignments, clips: makeClips, 'stock-phrase': storeStockPhrase };
 const job = JOBS[args.job ?? ''];
 if (!job) throw new Error(`Choose a job from ${Object.keys(JOBS).join(', ')}`);
 await job();

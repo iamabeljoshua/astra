@@ -1,5 +1,4 @@
-import { type BoardElement, type BoardState, getSceneFrame, type ProjectileFrame } from '@astra/board';
-import { getMotionValue } from '@astra/board';
+import { type BoardElement, type BoardState, getMotionValue, getSceneFrame, type ProjectileFrame } from '@astra/board';
 import { useLayoutEffect, useRef } from 'react';
 
 const WORLD = { left: -1, right: 9, top: 6, bottom: -0.5 };

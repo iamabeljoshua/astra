@@ -40,7 +40,7 @@ describe('parseSessionEvent', () => {
     ['more words played than it has word times', { ...INTERRUPTED, playedWords: 4 }, /playedWords: expected no more words/],
     ['more word times than the beat has words', { ...INTERRUPTED, wordStartsMs: [0, 100, 200, 300] }, /wordStartsMs: expected no more than the beat's 3 words/],
     ['word times out of order', { ...INTERRUPTED, wordStartsMs: [0, 560, 320] }, /wordStartsMs: expected times in order/],
-    ['audio that stops before the last word', { ...INTERRUPTED, durationMs: 100 }, /durationMs: expected the audio to reach/],
+    ['audio that stops before the last word played', { ...INTERRUPTED, durationMs: 100 }, /durationMs: expected the audio to reach/],
     ['a finished beat that did not play every word', { ...INTERRUPTED, ending: 'finished', wordStartsMs: [0, 320], playedWords: 2 }, /playedWords: expected all 3 words/],
     ['a sequence number too big to be exact', { seq: 1e308, atMs: 0, kind: 'connectionGap', durationMs: 900 }, /seq: expected a whole number/],
     ['a NUL in what the student said', { seq: 1, atMs: 0, kind: 'studentSpoke', text: 'a\u0000', source: 'voice', isReaction: false, durationMs: 1 }, /text: expected text with no NUL/],
@@ -49,6 +49,10 @@ describe('parseSessionEvent', () => {
   ])('rejects %s', (_name, input, reason) => {
     expectRefused(parseSessionEvent(input), reason);
   });
+});
+
+it('accepts word times past a cut, so a replay runs motion at the speed the student saw', () => {
+  expect(parseSessionEvent({ ...INTERRUPTED, playedWords: 1, durationMs: 100 }).ok).toBe(true);
 });
 
 describe('firedCueMs', () => {
@@ -171,6 +175,10 @@ describe('when the browser says a thing really happened', () => {
       ['a time in the future', { ...message, startedMsAgo: -1 }],
     ])('refuses %s', (_name, input) => {
       expectRefused(parseBrowserMessage(input), /startedMsAgo: expected a whole number/);
+    });
+
+    it('refuses a message with no browser clock, because the log keeps its gaps from it', () => {
+      expectRefused(parseBrowserMessage(withoutField(message, 'browserMs')), /browserMs: expected a whole number/);
     });
   });
 });

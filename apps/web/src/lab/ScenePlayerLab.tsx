@@ -1,6 +1,6 @@
 import { type BoardState } from '@astra/board';
 import { type SessionEvent } from '@astra/contracts';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { LAB_LABELS } from '../strings';
 import { BoardView } from './BoardView';
@@ -12,6 +12,8 @@ interface BoardFrame {
   board: BoardState;
   atMs: number;
 }
+
+const LESSON_TURNS = 2;
 
 const BUTTON = 'rounded border border-line px-3 py-1.5 text-control text-ink disabled:opacity-40';
 
@@ -33,6 +35,8 @@ export default function ScenePlayerLab() {
   const [phase, setPhase] = useState<LabPhase>('waiting');
   const [frame, setFrame] = useState<BoardFrame | null>(null);
   const [log, setLog] = useState<readonly SessionEvent[]>([]);
+  const [caption, setCaption] = useState('');
+  const [nextLessonTurn, setNextLessonTurn] = useState(0);
   const sessionRef = useRef<LabSession | null>(null);
   const replayRef = useRef<{ startedAtMs: number; fromMs: number; endMs: number } | null>(null);
 
@@ -47,13 +51,15 @@ export default function ScenePlayerLab() {
         setFrame({ board: session.getReplayBoard(atMs), atMs });
         return;
       }
-      session.records.frames.push({ atMs: session.getBoardNow().atMs, ms: performance.now() });
-      setFrame(session.getBoardNow());
+      const live = session.getBoardNow();
+      session.records.frames.push({ atMs: live.atMs, ms: performance.now() });
+      setFrame(live);
+      setCaption(session.player.getCaption());
     });
     return () => cancelAnimationFrame(animationFrame);
   }, []);
 
-  const connect = async () => {
+  const connect = useCallback(async () => {
     if (!url || !token) return;
     setPhase('connecting');
     const session = await startLabSession({
@@ -65,7 +71,12 @@ export default function ScenePlayerLab() {
     });
     sessionRef.current = session;
     window.sceneLab = session;
-  };
+  }, [params, token, url]);
+
+  // Only a proof of the blocked-audio fallback connects with no click, because that is what leaves the audio suspended.
+  useEffect(() => {
+    if (params.get('autoconnect') === '1') void connect();
+  }, [connect, params]);
 
   const replay = () => {
     const session = sessionRef.current;
@@ -100,7 +111,15 @@ export default function ScenePlayerLab() {
           <button type="button" className={BUTTON} disabled={!url || !token || phase !== 'waiting'} onClick={() => void connect()}>
             {LAB_LABELS.connect}
           </button>
-          <button type="button" className={BUTTON} disabled={!isReady} onClick={() => send({ type: 'play', lessonTurn: 0 })}>
+          <button
+            type="button"
+            className={BUTTON}
+            disabled={!isReady}
+            onClick={() => {
+              send({ type: 'play', lessonTurn: nextLessonTurn });
+              setNextLessonTurn((turn) => (turn + 1) % LESSON_TURNS);
+            }}
+          >
             {LAB_LABELS.play}
           </button>
           <button type="button" className={BUTTON} disabled={!isReady} onClick={() => send({ type: 'interrupt' })}>
@@ -113,6 +132,9 @@ export default function ScenePlayerLab() {
             {phase === 'replaying' ? LAB_LABELS.backToLive : LAB_LABELS.replay}
           </button>
         </div>
+        <p data-testid="caption" className="font-voice text-lead text-ink">
+          {caption}
+        </p>
         <p className="text-fine text-ink-2">
           {LAB_LABELS.logEvents} {log.length}
         </p>

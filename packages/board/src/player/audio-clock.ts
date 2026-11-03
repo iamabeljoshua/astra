@@ -44,7 +44,6 @@ export function createSampleClock({ getGraphTimeMs, getOutputLatencyMs }: Sample
   let isBlockAudible = false;
   let isAudioSounding = false;
   let soundEndedAtMs: number | null = null;
-  let audioOverAtMs = Number.NEGATIVE_INFINITY;
   let onsets: number[] = [];
   let onOnset: ((atMs: number) => void) | null = null;
 
@@ -54,7 +53,6 @@ export function createSampleClock({ getGraphTimeMs, getOutputLatencyMs }: Sample
   return {
     getNowMs: getGraphTimeMs,
     markTurnAudioOver() {
-      audioOverAtMs = getGraphTimeMs();
       onsets = [];
     },
     onProbeEvent({ kind, atMs }) {
@@ -74,7 +72,7 @@ export function createSampleClock({ getGraphTimeMs, getOutputLatencyMs }: Sample
       const wordClock = createWordClock();
       let firstWordStartMs = 0;
       // On a poor link the audio can arrive first, so the turn starts at the earliest sound since the last turn ended, not the latest.
-      const heardAlready = isSoundRecent() ? onsets.find((atMs) => atMs > audioOverAtMs) : undefined;
+      const heardAlready = isSoundRecent() ? onsets[0] : undefined;
       if (heardAlready !== undefined) wordClock.onFirstSound(heardAlready);
       onOnset = (atMs) => wordClock.onFirstSound(atMs);
       return {

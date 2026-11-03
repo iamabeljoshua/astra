@@ -3,16 +3,17 @@ import { type ChildProcess, spawn } from 'node:child_process';
 import { mkdirSync, openSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
-import { chromium, type Browser, type Page } from 'playwright';
+import { chromium, firefox, webkit, type Browser, type CDPSession, type Page } from 'playwright';
 import { type Beat, getBeatText } from '@astra/contracts';
 import { LESSON } from '../lesson.ts';
+import { getPercentiles } from './analyse-run.ts';
 import { AGENT_ROOT, delay, LIVEKIT_UDP_PORT, LIVEKIT_URL, NETWORKS, type NetworkProfile, RELAY_PORT, routeThroughRelay, startLabStack, startRelay, WEB_URL } from './lab-stack.ts';
 import { type BoardDescription, type PageRecords, summariseRun } from './summarise-run.ts';
 
 declare global {
   interface Window {
     sceneLab?: {
-      records: PageRecords;
+      records: PageRecords & { clockKind: string };
       pcm: { take(point: 'arriving' | 'output'): { firstFrame: number; base64: string } } | null;
       player: { getCaption(): string; getNowMs(): number; getOperations(): { kind: string; atMs: number }[] };
       command(command: object): void;
@@ -34,6 +35,7 @@ const { values: args } = parseArgs({
     fake: { type: 'boolean', default: false },
     model: { type: 'string', default: 'eleven_flash_v2_5' },
     screencast: { type: 'boolean', default: false },
+    browser: { type: 'string', default: 'chromium' },
   },
 });
 
@@ -49,6 +51,7 @@ interface Scenario {
 
 interface RunContext {
   page: Page;
+  folder: string;
   command(command: object): Promise<void>;
   waitForPlayedBeats(count: number, limitMs?: number): Promise<void>;
   scenario: Scenario;
@@ -81,13 +84,14 @@ async function playWithWordsLate({ command, waitForPlayedBeats }: RunContext): P
 
 const INTERRUPT_AFTER_MS = [900, 1700, 2600, 3400, 4300];
 
-async function interruptFiveTimes({ page, command }: RunContext): Promise<void> {
+async function interruptFiveTimes({ page, command, folder }: RunContext): Promise<void> {
   await command({ type: 'play', lessonTurn: 0 });
-  for (const afterMs of INTERRUPT_AFTER_MS) {
+  for (const [index, afterMs] of INTERRUPT_AFTER_MS.entries()) {
     await waitForFirstSoundOfNewTurn(page);
     await delay(afterMs);
     await command({ type: 'interrupt' });
     await delay(1400);
+    await page.screenshot({ path: join(folder, `interrupted-${index + 1}.png`) });
     await command({ type: 'resume' });
   }
   await waitForAudioSent(page, INTERRUPT_AFTER_MS.length + 1);
@@ -138,12 +142,12 @@ function noteCredits(characters: number): void {
   if (credits > CREDIT_LIMIT) throw new Error(`Credit limit passed at about ${Math.round(credits)}`);
 }
 
-function getVoiceFlags(scenario: Scenario): string[] {
+function getVoiceFlags(scenario: Pick<Scenario, 'usesStoredPhrase'>): string[] {
   if (scenario.usesStoredPhrase) return ['--stored', join(args.out as string, 'stock-phrase.json')];
   return args.fake ? ['--fake'] : ['--model', args.model as string, '--tap'];
 }
 
-function startAgent(room: string, folder: string, scenario: Scenario): Promise<{ child: ChildProcess; openUrl: string }> {
+function startAgent(room: string, folder: string, scenario: Pick<Scenario, 'usesStoredPhrase'>): Promise<{ child: ChildProcess; openUrl: string }> {
   const flags = ['src/lab/start-lab.ts', '--room', room, '--url', LIVEKIT_URL, '--webUrl', WEB_URL, '--out', folder, ...getVoiceFlags(scenario)];
   const child = spawn(process.execPath, flags, { cwd: AGENT_ROOT, stdio: ['ignore', 'pipe', openSync(join(folder, 'agent.log'), 'a')] });
   process.once('exit', () => child.kill());
@@ -182,21 +186,22 @@ async function runScenario(name: string, scenario: Scenario, browser: Browser, r
   const page = await context.newPage();
   page.on('pageerror', (error) => console.error('page error', error.message));
   if (scenario.network) await page.addInitScript(routeThroughRelay, { serverPort: LIVEKIT_UDP_PORT, relayPort: RELAY_PORT });
-  const cdp = await context.newCDPSession(page);
+  const cdp: CDPSession | null = args.browser === 'chromium' ? await context.newCDPSession(page) : null;
   const screencastFrames: { epochMs: number; data: string }[] = [];
   if (args.screencast) {
-    cdp.on('Page.screencastFrame', (frame) => {
+    cdp?.on('Page.screencastFrame', (frame) => {
       screencastFrames.push({ epochMs: (frame.metadata.timestamp ?? 0) * 1000, data: frame.data });
       void cdp.send('Page.screencastFrameAck', { sessionId: frame.sessionId });
     });
   }
-  if (scenario.throttle) await cdp.send('Emulation.setCPUThrottlingRate', { rate: scenario.throttle });
+  if (scenario.throttle) await cdp?.send('Emulation.setCPUThrottlingRate', { rate: scenario.throttle });
   await page.goto(`${openUrl}&record=1`);
   await page.getByRole('button', { name: 'Connect' }).click();
   await page.getByRole('button', { name: 'Play the lesson' }).and(page.locator(':enabled')).waitFor({ timeout: 30_000 });
-  if (args.screencast) await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 70, everyNthFrame: 1 });
+  if (args.screencast) await cdp?.send('Page.startScreencast', { format: 'jpeg', quality: 70, everyNthFrame: 1 });
   const run: RunContext = {
     page,
+    folder,
     scenario,
     command: (command) => page.evaluate((labCommand) => window.sceneLab?.command(labCommand), command),
     waitForPlayedBeats: async (count, limitMs = 60_000) => {
@@ -209,7 +214,7 @@ async function runScenario(name: string, scenario: Scenario, browser: Browser, r
     const records = window.sceneLab?.records;
     return records !== undefined && records.log.length >= records.browserMessages.filter((message) => message.type === 'played' || message.type === 'boardFrozen').length;
   }, undefined, { timeout: 15_000 });
-  if (args.screencast) await cdp.send('Page.stopScreencast');
+  if (args.screencast) await cdp?.send('Page.stopScreencast');
   await page.screenshot({ path: join(folder, 'final.png') });
   const records = await page.evaluate(() => {
     const lab = window.sceneLab;
@@ -246,15 +251,48 @@ async function runScenario(name: string, scenario: Scenario, browser: Browser, r
   return summary;
 }
 
+// Proves the one exception to "never from timers": with no user gesture the audio stays suspended, so a timer started by the word times drives the board.
+async function runBlockedAudioProof(): Promise<void> {
+  const folder = join(args.out as string, `blocked-audio-${Date.now()}`);
+  mkdirSync(folder, { recursive: true });
+  const { child, openUrl } = await startAgent(`proof-blocked-${Date.now()}`, folder, {});
+  const browser = await chromium.launch({ channel: 'chromium', args: ['--use-mock-keychain', '--mute-audio'] });
+  const page = await browser.newPage();
+  // Chromium under Playwright never blocks audio, even with its autoplay flag, so this reads as a browser that did.
+  await page.addInitScript(() => Object.defineProperty(BaseAudioContext.prototype, 'state', { get: () => 'suspended' }));
+  await page.goto(`${openUrl}&autoconnect=1`);
+  await page.getByRole('button', { name: 'Play the lesson' }).and(page.locator(':enabled')).waitFor({ timeout: 30_000 });
+  await page.evaluate(() => window.sceneLab?.command({ type: 'play', lessonTurn: 0 }));
+  await page.waitForFunction((count) => (window.sceneLab?.records.browserMessages.filter((message) => message.type === 'played').length ?? 0) >= count, beatsOf(0), { timeout: 60_000 });
+  const records = await page.evaluate(() => window.sceneLab?.records);
+  await page.evaluate(() => window.sceneLab?.command({ type: 'finish' }));
+  await new Promise((done) => child.once('exit', done));
+  await browser.close();
+  const firstWordsAtMs = records?.agentMessages.find((message) => message.type === 'words')?.atMs ?? 0;
+  const lateness = (records?.fired ?? []).map((cue) => cue.firedAtMs - firstWordsAtMs - cue.wordStartMs);
+  const result = { clockKind: records?.clockKind, cuesFired: records?.fired.length, playedReports: records?.browserMessages.filter((message) => message.type === 'played').length, firedAfterItsWordTimeMs: getPercentiles(lateness) };
+  writeFileSync(join(folder, 'summary.json.blocked'), `${JSON.stringify(result, null, 1)}\n`);
+  console.log(JSON.stringify(result));
+}
+
 mkdirSync(args.out as string, { recursive: true });
 const stack = await startLabStack();
-const browser = await chromium.launch({ channel: 'chromium', args: ['--autoplay-policy=no-user-gesture-required', '--use-mock-keychain', '--mute-audio'] });
+const launchers = {
+  chromium: () => chromium.launch({ channel: 'chromium', args: ['--autoplay-policy=no-user-gesture-required', '--use-mock-keychain', '--mute-audio'] }),
+  firefox: () => firefox.launch({ firefoxUserPrefs: { 'media.autoplay.default': 0, 'media.autoplay.blocking_policy': 0, 'media.navigator.permission.disabled': true } }),
+  webkit: () => webkit.launch(),
+};
+const browser = await launchers[args.browser as keyof typeof launchers]();
 try {
   const names = (args.only ?? Object.keys(SCENARIOS).join(',')).split(',');
   for (const name of names) {
+    if (name === 'blocked-audio') {
+      await runBlockedAudioProof();
+      continue;
+    }
     const scenario = SCENARIOS[name];
     if (!scenario) throw new Error(`No scenario named ${name}`);
-    for (let index = 0; index < Number(args.repeat); index++) await runScenario(name, scenario, browser, `${name}-${args.fake ? 'fake' : (args.model as string).replace('eleven_', '').replace('_v2_5', '')}-${Date.now()}`);
+    for (let index = 0; index < Number(args.repeat); index++) await runScenario(name, scenario, browser, `${name}-${args.browser === 'chromium' ? '' : `${args.browser}-`}${args.fake ? 'fake' : (args.model as string).replace('eleven_', '').replace('_v2_5', '')}-${Date.now()}`);
   }
 } finally {
   await browser.close();

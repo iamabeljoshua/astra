@@ -1,7 +1,7 @@
-import { createSampleClock, createScenePlayer, createTimerClock, describeBoard, type FiredCue, getBoardAt, getLogOperations, type BoardState, type OutputLevel, rebuildBoard, type ScenePlayer } from '@astra/board';
+import { type BoardState, createSampleClock, createScenePlayer, createTimerClock, describeBoard, type FiredCue, type OutputLevel, rebuildBoard, type SampleClock, type ScenePlayer } from '@astra/board';
 import probeWorkletUrl from '@astra/board/audio-probe-worklet.js?url';
 import { type AgentMessage, type BrowserMessage, parseAgentMessage, parseSessionEvent, type SessionEvent } from '@astra/contracts';
-import { Room, RoomEvent, Track, type RemoteTrack } from 'livekit-client';
+import { type RemoteTrack, Room, RoomEvent, Track } from 'livekit-client';
 import { createPcmRecorder, type PcmRecorder } from './pcmRecorder';
 import pcmTapWorkletUrl from './pcm-tap-worklet.js?url';
 
@@ -63,12 +63,50 @@ function noteAgentMessage(records: LabRecords, message: AgentMessage, atMs: numb
   else records.agentMessages.push({ type: message.type, atMs, epochMs });
 }
 
-// Connects a real room to the real player: the tutor's audio goes through a probe that counts samples and a gain that a stop closes at once.
-export async function startLabSession({ url, token, shouldRecordPcm, onAgentReady, onLogChange }: LabSessionOptions): Promise<LabSession> {
+interface TutorAudio {
+  audioContext: AudioContext;
+  gain: GainNode;
+  sampleClock: SampleClock;
+  records: LabRecords;
+  pcm: PcmRecorder | null;
+}
+
+function listenToTutor(track: RemoteTrack, { audioContext, gain, sampleClock, records, pcm }: TutorAudio): void {
+  const source = audioContext.createMediaStreamSource(new MediaStream([track.mediaStreamTrack]));
+  const arriving = new AudioWorkletNode(audioContext, 'audio-probe');
+  const output = new AudioWorkletNode(audioContext, 'audio-probe');
+  const toMs = (frame: number) => (frame / audioContext.sampleRate) * 1000;
+  arriving.port.onmessage = ({ data }) => {
+    const event = { kind: data.kind, atMs: toMs(data.frame) };
+    sampleClock.onProbeEvent(event);
+    if (data.kind === 'onset' || data.kind === 'end') records.probe.push({ ...event, where: 'arriving' });
+  };
+  output.port.onmessage = ({ data }) => {
+    if (data.kind === 'onset' || data.kind === 'end') records.probe.push({ kind: data.kind, atMs: toMs(data.frame), where: 'output' });
+  };
+  source.connect(arriving);
+  source.connect(gain);
+  gain.connect(output);
+  gain.connect(audioContext.destination);
+  pcm?.tap('arriving', source);
+  pcm?.tap('output', gain);
+  // Chromium pulls remote audio only while the stream is attached to an element, and muting it leaves the gain as the one route out.
+  const element = track.attach();
+  element.muted = true;
+  document.body.append(element);
+}
+
+async function createTutorAudioContext(shouldRecordPcm: boolean): Promise<AudioContext> {
   const audioContext = new AudioContext({ latencyHint: 'interactive', sampleRate: SAMPLE_RATE });
   await audioContext.audioWorklet.addModule(probeWorkletUrl);
   if (shouldRecordPcm) await audioContext.audioWorklet.addModule(pcmTapWorkletUrl);
   await Promise.race([audioContext.resume(), new Promise((resolve) => setTimeout(resolve, RESUME_LIMIT_MS))]);
+  return audioContext;
+}
+
+// Connects a real room to the real player: the tutor's audio goes through a probe that counts samples and a gain that a stop closes at once.
+export async function startLabSession({ url, token, shouldRecordPcm, onAgentReady, onLogChange }: LabSessionOptions): Promise<LabSession> {
+  const audioContext = await createTutorAudioContext(shouldRecordPcm);
   const canCount = audioContext.state === 'running';
   const getGraphTimeMs = () => audioContext.currentTime * 1000;
   const getOutputLatencyMs = () => (audioContext.outputLatency || 0) * 1000;
@@ -97,57 +135,21 @@ export async function startLabSession({ url, token, shouldRecordPcm, onAgentRead
     onCueFired: (cue) => records.fired.push({ ...cue, firedEpochMs: performance.timeOrigin + performance.now() }),
   });
 
-  const listenToTutor = (track: RemoteTrack) => {
-    const source = audioContext.createMediaStreamSource(new MediaStream([track.mediaStreamTrack]));
-    const arriving = new AudioWorkletNode(audioContext, 'audio-probe');
-    const output = new AudioWorkletNode(audioContext, 'audio-probe');
-    const toMs = (frame: number) => (frame / audioContext.sampleRate) * 1000;
-    arriving.port.onmessage = ({ data }) => {
-      const event = { kind: data.kind, atMs: toMs(data.frame) };
-      sampleClock.onProbeEvent(event);
-      if (data.kind === 'onset' || data.kind === 'end') records.probe.push({ ...event, where: 'arriving' });
-    };
-    output.port.onmessage = ({ data }) => {
-      if (data.kind === 'onset' || data.kind === 'end') records.probe.push({ kind: data.kind, atMs: toMs(data.frame), where: 'output' });
-    };
-    source.connect(arriving);
-    source.connect(gain);
-    gain.connect(output);
-    gain.connect(audioContext.destination);
-    if (pcm) {
-      pcm.tap('arriving', source);
-      pcm.tap('output', gain);
+  const onLabMessage = (labMessage: { type: string; event?: unknown; turnId?: string }) => {
+    if (labMessage.type === 'turnAudioSent') records.turnsSent.push(labMessage.turnId ?? '');
+    if (labMessage.type === 'agentReady') {
+      clearInterval(helloTimer);
+      onAgentReady();
     }
-    // Chromium pulls remote audio only while the stream is attached to an element, and muting it leaves the gain as the one route out.
-    const element = track.attach();
-    element.muted = true;
-    document.body.append(element);
+    if (labMessage.type === 'logEvent') {
+      const parsed = parseSessionEvent(labMessage.event);
+      if (parsed.ok) records.log.push(parsed.value);
+      else records.refused.push(parsed.problem);
+      onLogChange(records.log);
+    }
   };
 
-  room.on(RoomEvent.TrackSubscribed, (track) => {
-    if (track.kind !== Track.Kind.Audio) return;
-    listenToTutor(track);
-    helloTimer = setInterval(() => void publish(LAB_TOPIC, { type: 'hello' }), HELLO_EVERY_MS);
-    void publish(LAB_TOPIC, { type: 'hello' });
-  });
-  room.on(RoomEvent.DataReceived, (payload, _participant, _kind, topic) => {
-    const value: unknown = JSON.parse(decoder.decode(payload));
-    if (topic === LAB_TOPIC) {
-      const labMessage = value as { type: string; event?: unknown; turnId?: string };
-      if (labMessage.type === 'turnAudioSent') records.turnsSent.push(labMessage.turnId ?? '');
-      if (labMessage.type === 'agentReady') {
-        clearInterval(helloTimer);
-        onAgentReady();
-      }
-      if (labMessage.type === 'logEvent') {
-        const parsed = parseSessionEvent(labMessage.event);
-        if (parsed.ok) records.log.push(parsed.value);
-        else records.refused.push(parsed.problem);
-        onLogChange(records.log);
-      }
-      return;
-    }
-    if (topic !== LIVE_TOPIC) return;
+  const onLiveMessage = (value: unknown) => {
     const parsed = parseAgentMessage(value);
     if (!parsed.ok) {
       records.refused.push(parsed.problem);
@@ -158,6 +160,18 @@ export async function startLabSession({ url, token, shouldRecordPcm, onAgentRead
     const isFirstStop = parsed.value.type === 'stop' && !records.stops.some((stop) => stop.turnId === parsed.value.turnId);
     player.receive(parsed.value);
     if (isFirstStop) records.stops.push({ turnId: parsed.value.turnId, receivedAtMs: nowMs, receivedEpochMs: performance.timeOrigin + performance.now(), audioFrameAtStop: frameAtStop });
+  };
+
+  room.on(RoomEvent.TrackSubscribed, (track) => {
+    if (track.kind !== Track.Kind.Audio) return;
+    listenToTutor(track, { audioContext, gain, sampleClock, records, pcm });
+    helloTimer = setInterval(() => void publish(LAB_TOPIC, { type: 'hello' }), HELLO_EVERY_MS);
+    void publish(LAB_TOPIC, { type: 'hello' });
+  });
+  room.on(RoomEvent.DataReceived, (payload, _participant, _kind, topic) => {
+    const value: unknown = JSON.parse(decoder.decode(payload));
+    if (topic === LAB_TOPIC) onLabMessage(value as { type: string; event?: unknown; turnId?: string });
+    if (topic === LIVE_TOPIC) onLiveMessage(value);
   });
 
   await room.connect(url, token);
@@ -175,7 +189,7 @@ export async function startLabSession({ url, token, shouldRecordPcm, onAgentRead
     },
     getReplayBoard: (atMs) => rebuildBoard(records.log, atMs),
     describeLive: (atMs) => describeBoard(player.getBoard(atMs), atMs),
-    describeReplay: (atMs) => describeBoard(getBoardAt(getLogOperations(records.log), atMs), atMs),
+    describeReplay: (atMs) => describeBoard(rebuildBoard(records.log, atMs), atMs),
     noteDrawn(id) {
       const drawnAtMs = clock.getNowMs();
       const entry: LabRecords['drawn'][number] = { id, drawnAtMs, drawnEpochMs: performance.timeOrigin + performance.now(), paintedAtMs: null };
