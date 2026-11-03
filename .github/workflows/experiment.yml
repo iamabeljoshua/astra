@@ -2,72 +2,77 @@ name: Experiment
 on: pull_request
 permissions:
   contents: read
+env:
+  ECR_IMAGE: public.ecr.aws/supabase/postgres:17.6.1.075
+  GHCR_IMAGE: ghcr.io/supabase/postgres:17.6.1.075
+  CACHE_KEY: experiment-postgres-image-2
 jobs:
-  measure:
+  cache-then-load:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    env:
-      ECR_IMAGE: public.ecr.aws/supabase/postgres:17.6.1.075
-      GHCR_IMAGE: ghcr.io/supabase/postgres:17.6.1.075
-      CACHE_KEY: experiment-postgres-image-2
+    timeout-minutes: 8
+    strategy:
+      matrix:
+        sample: [1, 2]
     steps:
-      - name: Write the pull helper
-        run: |
-          cat > /tmp/pull.sh <<'SCRIPT'
-          for attempt in 1 2 3 4 5 6; do
-            docker pull -q "$1" && { echo "pulled on attempt $attempt"; exit 0; }
-            sleep 10
-          done
-          exit 1
-          SCRIPT
-      - name: A1 cold pull from ECR
-        run: bash /tmp/pull.sh "$ECR_IMAGE"
-      - name: Save the image as a tar
-        run: docker save -o /tmp/image.tar "$ECR_IMAGE" && ls -la /tmp/image.tar
-      - name: Write to the Actions cache
-        uses: actions/cache/save@v4
-        with:
-          path: /tmp/image.tar
-          key: ${{ env.CACHE_KEY }}
-      - name: Remove the image and the tar
-        run: rm /tmp/image.tar && docker rmi -f "$ECR_IMAGE" && docker system df
-      - name: B1 restore from the Actions cache
+      - name: Confirm the store has no such image
+        run: docker system df && docker images
+      - name: Restore from the Actions cache
         uses: actions/cache/restore@v4
         with:
           path: /tmp/image.tar
           key: ${{ env.CACHE_KEY }}
-      - name: B2 docker load
-        run: ls -la /tmp/image.tar && docker load -q -i /tmp/image.tar
-      - name: Confirm the loaded image runs
-        run: docker run --rm "$ECR_IMAGE" postgres --version
-      - name: Remove the image
-        run: docker rmi -f "$ECR_IMAGE"
-      - name: B3 docker load again
+          fail-on-cache-miss: true
+      - name: docker load
         run: docker load -q -i /tmp/image.tar
-      - name: Remove the image again
-        run: rm /tmp/image.tar && docker rmi -f "$ECR_IMAGE"
-      - name: G1 cold pull from GHCR
-        run: bash /tmp/pull.sh "$GHCR_IMAGE"
-      - name: Remove the GHCR image
-        run: docker rmi -f "$GHCR_IMAGE"
-      - name: Move Docker to tmpfs
-        continue-on-error: true
+      - name: Confirm the image runs
+        run: docker run --rm "$ECR_IMAGE" postgres --version && docker system df
+  cold-pull-ghcr:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    strategy:
+      matrix:
+        sample: [1, 2]
+    steps:
+      - name: Cold pull from GHCR
+        run: docker pull -q "$GHCR_IMAGE"
+      - name: Confirm the image runs
+        run: docker run --rm "$GHCR_IMAGE" postgres --version && docker system df
+  cold-pull-ecr:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Cold pull from ECR
         run: |
-          sudo systemctl stop docker docker.socket
-          sudo mkdir -p /dockertmp /etc/docker
-          sudo mount -t tmpfs -o size=6g tmpfs /dockertmp
-          echo '{"data-root":"/dockertmp"}' | sudo tee /etc/docker/daemon.json
-          sudo systemctl start docker
-      - name: E cold pull on tmpfs
-        continue-on-error: true
-        run: bash /tmp/pull.sh "$GHCR_IMAGE" && free -h
-      - name: Move Docker back to the root disk
-        continue-on-error: true
-        run: |
-          sudo systemctl stop docker docker.socket
-          sudo umount /dockertmp
-          sudo rm /etc/docker/daemon.json
-          sudo systemctl start docker
-          docker images
-      - name: A2 cold pull from ECR again
-        run: bash /tmp/pull.sh "$ECR_IMAGE"
+          for attempt in 1 2 3 4 5 6; do
+            docker pull -q "$ECR_IMAGE" && { echo "pulled on attempt $attempt"; exit 0; }
+            sleep 10
+          done
+          exit 1
+      - name: Confirm the image runs
+        run: docker run --rm "$ECR_IMAGE" postgres --version
+  fewer-disk-flushes-pull:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Remount the root disk with fewer flushes
+        run: sudo mount -o remount,noatime,nobarrier,commit=300 / && mount | grep ' / '
+      - name: Cold pull from GHCR
+        run: docker pull -q "$GHCR_IMAGE"
+      - name: Confirm the image runs
+        run: docker run --rm "$GHCR_IMAGE" postgres --version
+  fewer-disk-flushes-load:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Remount the root disk with fewer flushes
+        run: sudo mount -o remount,noatime,nobarrier,commit=300 / && mount | grep ' / '
+      - name: Restore from the Actions cache
+        uses: actions/cache/restore@v4
+        with:
+          path: /tmp/image.tar
+          key: ${{ env.CACHE_KEY }}
+          fail-on-cache-miss: true
+      - name: docker load
+        run: docker load -q -i /tmp/image.tar
+      - name: Confirm the image runs
+        run: docker run --rm "$ECR_IMAGE" postgres --version
