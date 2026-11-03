@@ -168,6 +168,17 @@ describe('the shared defaults', () => {
     screen.getByText(API_ERROR_LABELS.network);
   });
 
+  it('gives a screen an error for a mutation while the browser reports it is offline', async () => {
+    onlineManager.setOnline(false);
+    vi.stubGlobal('fetch', () => Promise.reject(new TypeError('offline')));
+
+    renderWithQueryClient(<CreateThing />);
+    fireEvent.click(screen.getByRole('button'));
+
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    screen.getByText(API_ERROR_LABELS.network);
+  });
+
   it('reuses fresh data when a screen opens again', async () => {
     const fetchStub = stubFetchAnswer(200, { status: 'ok' });
     const queryClient = createQueryClient();
