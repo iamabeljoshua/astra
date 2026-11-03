@@ -364,11 +364,11 @@ describe('the API guard', () => {
     });
 
     it('finds a route that ignores the token, so a later route that forgets the student fails', async () => {
-      const routes = listRoutes(plantedApp.app).filter((route) => route.name === 'get /planted-students/:id/sessions');
+      const routes = listRoutes(plantedApp.app).filter((route) => route.name.startsWith('get /planted-students/'));
 
       const ignoring = await findRoutesIgnoringIdentity({ app: plantedApp.app, routes, token: plantedStudent.token });
 
-      expect(ignoring).toEqual(['get /planted-students/:id/sessions']);
+      expect(ignoring).toEqual(['get /planted-students/:id/sessions', 'get /planted-students/:id/refused']);
     });
   });
 
@@ -404,7 +404,7 @@ describe('the API guard', () => {
       expect(isRefusedToken(rejection)).toBe(false);
     });
 
-    it('trusts known keys through an outage of under an hour, and still fetches an unknown key ID', async () => {
+    it('trusts known keys until an hour after the last fetch, outage or not, and still fetches an unknown key ID', async () => {
       const firstKey = await createSigningKey();
       const newKey = await createSigningKey();
       const servedKeys = [firstKey];

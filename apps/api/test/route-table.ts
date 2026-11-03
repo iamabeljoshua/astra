@@ -22,7 +22,6 @@ const ALL_VERBS_KEY = '_all';
 // Node sends CONNECT to a separate server event, so no route handler ever answers it.
 const VERB_NO_ROUTE_ANSWERS = 'connect';
 const ROUTE_PARAMETER = /:[A-Za-z_]+/g;
-const REFUSED_STATUSES = [401, 403];
 
 function getExpressLayers(app: INestApplication): ExpressLayer[] {
   return (app.getHttpAdapter().getInstance() as { router: { stack: ExpressLayer[] } }).router.stack;
@@ -42,7 +41,10 @@ export async function findLayersAddedToEmptyApp(app: INestApplication): Promise<
   const emptyAppLayers = listLayersWithoutRoutes(emptyApp);
   await emptyApp.close();
   const added = listLayersWithoutRoutes(app);
-  for (const layer of emptyAppLayers) added.splice(added.indexOf(layer), 1);
+  for (const layer of emptyAppLayers) {
+    const position = added.indexOf(layer);
+    if (position !== -1) added.splice(position, 1);
+  }
   return added;
 }
 
@@ -112,8 +114,8 @@ export async function findRoutesIgnoringIdentity({ app, routes, token }: RouteWa
   try {
     for (const route of routes) {
       currentRoute = route.name;
-      const { statusCode } = await callRoute(app, route, token);
-      if (!REFUSED_STATUSES.includes(statusCode ?? 0) && !routesThatRead.has(route.name)) ignoring.push(route.name);
+      await callRoute(app, route, token);
+      if (!routesThatRead.has(route.name)) ignoring.push(route.name);
     }
     return ignoring;
   } finally {

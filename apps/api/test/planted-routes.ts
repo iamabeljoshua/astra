@@ -1,4 +1,4 @@
-import { All, Controller, Get, Head, Module, Options, Param, RequestMethod, Search } from '@nestjs/common';
+import { All, Controller, ForbiddenException, Get, Head, Module, Options, Param, RequestMethod, Search } from '@nestjs/common';
 import type { MiddlewareConsumer, NestModule, OnModuleInit } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
 import { ApiExcludeController, ApiExcludeEndpoint } from '@nestjs/swagger';
@@ -54,6 +54,11 @@ class PlantedStudentIgnoringController {
   @Get(':id/sessions')
   readAnyStudent(@Param('id') id: string) {
     return { id, ...LEAK };
+  }
+
+  @Get(':id/refused')
+  refuseWithoutAskingWho() {
+    throw new ForbiddenException();
   }
 }
 
