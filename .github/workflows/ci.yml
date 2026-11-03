@@ -24,6 +24,13 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm api:types
+      - name: Fail if the generated API types are out of date
+        run: |
+          git diff --exit-code packages/contracts/src/api.generated.ts || {
+            echo "::error file=packages/contracts/src/api.generated.ts::The generated API types are out of date. Run pnpm api:types and commit the result."
+            exit 1
+          }
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test

@@ -1,0 +1,9 @@
+{
+  // Under the inherited isolatedModules and nodenext settings, ts-jest breaks the Swagger plugin's type lookups.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "isolatedModules": false,
+    "module": "commonjs",
+    "moduleResolution": "node10"
+  }
+}

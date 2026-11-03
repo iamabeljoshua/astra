@@ -2,7 +2,8 @@
   "name": "@astra/api",
   "private": true,
   "scripts": {
-    "dev": "nest start --watch --preserveWatchOutput",
+    "dev": "NODE_ENV=${NODE_ENV:-development} nest start --watch --preserveWatchOutput",
+    "api:types": "nest build && node scripts/generate-api-types.mjs",
     "typecheck": "tsc",
     "test": "jest"
   },
@@ -10,17 +11,20 @@
     "@nestjs/common": "^11.1.0",
     "@nestjs/core": "^11.1.0",
     "@nestjs/platform-express": "^11.1.0",
+    "@nestjs/swagger": "^11.4.7",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
-    "@astra/contracts": "workspace:*",
     "@nestjs/cli": "^11.0.24",
     "@nestjs/testing": "^11.1.0",
     "@types/jest": "^30.0.0",
     "@types/node": "^22.0.0",
     "@types/supertest": "^6.0.2",
     "jest": "^30.5.2",
+    "openapi-typescript": "^7.13.0",
     "supertest": "^7.3.1",
     "ts-jest": "^29.4.15",
     "typescript": "catalog:"
@@ -29,7 +33,17 @@
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
-      "^.+\\.ts$": "ts-jest"
+      "^.+\\.ts$": [
+        "ts-jest",
+        {
+          "tsconfig": "<rootDir>/../tsconfig.jest.json",
+          "astTransformers": {
+            "before": [
+              "<rootDir>/../test/swagger-transformer.cjs"
+            ]
+          }
+        }
+      ]
     },
     "testEnvironment": "node"
   }

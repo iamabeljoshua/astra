@@ -1,1 +1,1 @@
-export type { HealthResponse } from './health';
+export type { components } from './api.generated';
