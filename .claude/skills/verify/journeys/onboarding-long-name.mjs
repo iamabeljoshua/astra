@@ -3,6 +3,7 @@ import { answerBirthDate, answerName, answerQuestionsToHome, recordSpeech, signI
 
 export const deadlineMs = 240_000;
 
+const EVIDENCE_FOLDER = process.env.ONBOARDING_EVIDENCE ?? '.verify/evidence';
 const FIRST_ANSWER_LIMIT = 500;
 const LONG_NAME = 'Oluwaseyifunmilayo'.repeat(3) + 'Ade'.repeat(2);
 const ANSWERS = {
@@ -27,12 +28,13 @@ async function assertNoSidewaysScroll(page, screenName) {
   assert.ok(widths.heading <= widths.headingBox, `${screenName} heading overflows: ${JSON.stringify(widths)}`);
 }
 
-async function acceptAsParent(page, link) {
+async function acceptAsParent(page, viewportName, link) {
   const parentContext = await page.context().browser().newContext({ viewport: page.viewportSize() });
   const parentPage = await parentContext.newPage();
   await parentPage.goto(link);
   await parentPage.getByRole('heading', { name: `${LONG_NAME} would like to use Astra.` }).waitFor();
   await assertNoSidewaysScroll(parentPage, 'the parent page');
+  await parentPage.screenshot({ path: `${EVIDENCE_FOLDER}/onboarding-long-name-${viewportName}-parent-page.png`, fullPage: true });
   await parentPage.getByRole('button', { name: 'I accept' }).click();
   await parentPage.getByRole('heading', { name: 'Thank you.' }).waitFor();
   await parentPage.getByText(`${LONG_NAME} can start now.`).waitFor();
@@ -63,7 +65,7 @@ export default async function onboardingLongName({ page, capture, viewportName }
   await page.getByRole('heading', { name: 'Waiting for your parent or guardian.' }).waitFor();
   const [link] = await waitForConsentLink(parentEmail);
 
-  await acceptAsParent(page, link);
+  await acceptAsParent(page, viewportName, link);
 
   await answerQuestionsToHome(page, capture, {
     answers: ANSWERS,
