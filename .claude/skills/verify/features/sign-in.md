@@ -1,6 +1,6 @@
 # Sign-in
 
-A student signs in with an email link and answers one question, their date of birth, before any other page opens. A student under 13 in every time zone stops at a closed page for good. Everything else in the app needs a signed-in student, except the [Terms and Privacy Policy](./legal.md). After a sign-out, Back in another tab can show the student's page for a moment, as `sign-in-out` says.
+A student signs in with an email link, then goes through [onboarding](./onboarding.md), which asks their date of birth, before any other page opens. A student under 13 in every time zone stops at a closed page for good. Everything else in the app needs a signed-in student, except the [Terms and Privacy Policy](./legal.md). After a sign-out, Back in another tab can show the student's page for a moment, as `sign-in-out` says.
 
 ## Sub-features
 
@@ -26,8 +26,8 @@ Preconditions:
 - `pnpm verify doctor` passes.
 
 - **Sign in by email link and sign out.** Run `pnpm verify drive --journey sign-in`. The `journey`, `identity`, `screenshot`, and `main region` checks print `PASS` for `laptop` and `phone`, and the command exits 0.
-- **Proof.** After a run that printed `PASSED`, open the `sign-in-laptop-*` and `sign-in-phone-*` images in `.verify/evidence/`. They show `sent`, `birth-date`, `confirm`, `home`, and `after-back`.
-- **Sign in as another account in a journey.** Call `await signIn('new-student@astra.test')`. It lands on the date of birth question.
+- **Proof.** After a run that printed `PASSED`, open the `sign-in-laptop-*` and `sign-in-phone-*` images in `.verify/evidence/`. They show `sent`, `birth-date`, `confirm`, `onboarding`, and `after-back`.
+- **Sign in as another account in a journey.** Call `await signIn('new-student@astra.test')`. It lands on `What should your tutor call you?`.
 
 ## Gotchas
 

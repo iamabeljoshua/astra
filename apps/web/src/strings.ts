@@ -36,6 +36,7 @@ export const THEME_LABELS = {
 
 export const ACCOUNT_LABELS = {
   unnamedStudent: 'Student',
+  profile: 'Your notes',
   signOut: 'Sign out',
   closed: "We can't set up this account.",
   tryAgain: 'Try again',
@@ -92,6 +93,91 @@ export const TUTOR_NOTES_LABELS = {
   footer: 'You can change any of this later.',
 };
 
+export const ONBOARDING_LABELS = {
+  back: '\u2190 Back',
+  next: 'Continue \u2192',
+  progress: (stepNumber: number, stepCount: number) => `${stepNumber} of ${stepCount}`,
+  nameQuestion: 'What should your tutor call you?',
+  namePlaceholder: 'Your first name',
+  nameMissing: 'Tell your tutor what to call you.',
+  parentQuestion: 'A parent or guardian approves your account.',
+  parentAbout: 'We send them one email. You can start as soon as they say yes.',
+  parentPlaceholder: 'Their email address',
+  parentInvalid: 'Enter a valid email address.',
+  waitingQuestion: 'Waiting for your parent or guardian.',
+  waitingAbout: 'We asked them to approve your account. This page moves on as soon as they say yes, and you can close it and come back.',
+  useAnotherAddress: 'Use a different address',
+  intoQuestion: 'What are you into?',
+  intoAbout: 'Your tutor uses this to pick examples you care about.',
+  intoPlaceholder: 'Be specific. Arsenal beats football.',
+  intoOptions: ['Basketball', 'Football', 'Movies', 'Gaming', 'Music', 'Art', 'Space', 'Cars', 'Cooking', 'Fashion', 'Coding', 'History'],
+  levelQuestion: 'Where are you in your learning?',
+  goalQuestion: 'What brings you here?',
+  voiceQuestion: "Pick your tutor's voice.",
+  voiceAbout: 'Tap one to hear it. You can change it any time.',
+  voiceNote: "For now these play through your device's own voices.",
+  voiceMissing: 'Pick a voice to continue.',
+  voiceSilent: 'This browser has no voice to play it with. You can still pick one.',
+  voiceSample: (studentName: string) => `Hi ${studentName}. I will be your tutor.`,
+  hello: (studentName: string, interest: string) =>
+    `Hi ${studentName}. I'm your tutor, and I'm an AI. You said you're into ${interest}. What's one thing about it you've always wondered how it works?`,
+  helloWithoutInterest: (studentName: string) =>
+    `Hi ${studentName}. I'm your tutor, and I'm an AI. What's one thing you've always wondered how it works?`,
+  speaking: 'Speaking',
+  listening: 'Listening',
+};
+
+export const FIRST_ANSWER_BOX_LABELS = {
+  label: 'Your answer',
+  placeholder: 'Type your answer',
+  placeholderWhileTalkIsOn: 'Talking opens soon. Type for now.',
+  send: 'Send your answer',
+};
+
+export const STUDENT_LEVEL_LABELS = {
+  middle_school: 'Middle school',
+  high_school: 'High school',
+  university: 'University',
+  out_of_school: 'Out of school',
+};
+
+export const STUDENT_GOAL_LABELS = {
+  class: 'A class I am taking',
+  exam: 'An exam coming up',
+  curiosity: 'Pure curiosity',
+};
+
+export const TUTOR_VOICE_LABELS = {
+  ada: { name: 'Ada', about: 'Warm and unhurried' },
+  kofi: { name: 'Kofi', about: 'Clear and steady' },
+  noor: { name: 'Noor', about: 'Bright and quick' },
+};
+
+export const PROFILE_LABELS = {
+  title: "Your tutor's notes",
+  about: 'Your tutor teaches from these. Change anything here.',
+  name: 'Name',
+  firstQuestion: 'First question',
+  save: 'Save changes',
+  saved: 'Saved.',
+  missing: 'Your name and first question cannot be blank.',
+};
+
+export const PARENT_CONSENT_LABELS = {
+  question: (studentName: string | null) => `${studentName ?? 'Your child'} would like to use ${PRODUCT_NAME}.`,
+  about: `${PRODUCT_NAME} is a learning app. An AI tutor talks with your child and draws as it explains. The tutor is an AI, and it can be wrong.`,
+  stored: 'So far we hold their name, their date of birth, and your email address. If you accept, we also keep what they tell the tutor about their interests, their level, and their goals.',
+  agreementStart: 'By accepting you confirm that you are their parent or guardian, and you agree to the ',
+  agreementJoin: ' and the ',
+  agreementEnd: '.',
+  accept: 'I accept',
+  acceptedQuestion: 'Thank you.',
+  acceptedAbout: (studentName: string | null) => `${studentName ?? 'Your child'} can start now. You can close this page.`,
+  loading: 'Opening this page.',
+  deadLink: 'This link no longer works. The student may have asked a different address. Ask them to send a new one.',
+  tryAgain: 'Try again',
+};
+
 export const DEV_SIGN_IN_LABELS = {
   title: 'Development sign-in',
   failed: 'Sign-in failed. Run pnpm db:up to create these accounts.',
@@ -99,10 +185,14 @@ export const DEV_SIGN_IN_LABELS = {
 
 export const HOME_LABELS = {
   greeting: (studentName: string) => `Welcome back, ${studentName}.`,
-  greetingWithoutName: 'Welcome back.',
+  newStudentGreeting: (studentName: string) => `Welcome, ${studentName}.`,
+  greetingWithoutName: 'Welcome.',
   question: 'What do you want to learn next?',
   continueLabel: 'Continue',
   continueButton: 'Continue session \u2192',
+  startHereLabel: 'Start here',
+  startHereAbout: 'Your tutor is ready when you are.',
+  startHereButton: 'Start session \u2192',
   picksLabel: 'Picked for you',
   pickDetails: (subject: string, lengthMinutes: number) => `${subject}, ${lengthMinutes} min`,
   loading: 'Loading your home screen.',
@@ -174,7 +264,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
       {
         heading: `What ${PRODUCT_NAME} is`,
         today: [
-          `${PRODUCT_NAME} is a learning app being built around an AI tutor. Today you can sign in, confirm your date of birth, and open a home screen with example lessons. Lessons do not open yet.`,
+          `${PRODUCT_NAME} is a learning app being built around an AI tutor. Today you can sign in, answer a few questions about yourself, and open a home screen with example lessons. The tutor's first hello is a fixed script, and lessons do not open yet.`,
         ],
         planned: [
           'Spoken lessons, where the tutor talks with you and draws on a board as it explains. The tutor is an AI and it can be wrong, so check anything that matters.',
@@ -185,8 +275,9 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
         today: [
           `${PRODUCT_NAME} is for students aged 13 and up. After you first sign in, we ask for your date of birth. Give your real date. The first date you confirm stands, and the app has no way to change it.`,
           'If that date shows you are under 13 in every time zone, the account closes and stays closed on every later sign-in. The Privacy Policy says what we keep.',
+          'If you are under 18, you give the email address of a parent or guardian, and the account waits until they accept through a link meant for them. An adult who accepts confirms that they are your parent or guardian and agrees to these terms.',
         ],
-        planned: ["A parent's consent by email for every student under 18. The app does not ask for it yet."],
+        planned: ["Sending the parent's consent link by email. Today the link is written to our server's log and no email goes out, so a parent cannot yet receive it."],
       },
       {
         heading: 'Your account',
@@ -222,10 +313,10 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
         today: [
           "Your email address, the times you sign in, and a record of each sign-in. Supabase Auth, our sign-in service, keeps these. Its records include your IP address and your browser's description of itself.",
           'Your date of birth, if you are old enough to continue. We keep it in our database with an account ID and the time the record was made.',
+          "The name you give your tutor, what you are into, your level, your goal, your choice of tutor voice, and your answer to the tutor's first question. We keep these in our database, and you can change them under Your notes.",
           "The words you type into the home screen's question box and any file you attach stay in your browser. They are not sent or stored. The app does not use your microphone.",
         ],
         planned: [
-          'Your name, interests, level, goal, and choice of tutor voice, which setup will ask for.',
           "Each lesson's title, subject, language, length, transcript, and board drawings, kept while the account is active.",
         ],
       },
@@ -233,6 +324,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
         heading: 'In your browser',
         today: [
           'Your browser keeps your sign-in and your light or dark choice in local storage, and the address of the last sign-in link you asked for in session storage. The app sets no cookies and runs no analytics or advertising code.',
+          "Voice samples and the tutor's first hello, which include your name and an interest, play only through voices built into your device, so those words are not sent to a voice service.",
         ],
         planned: [],
       },
@@ -249,9 +341,13 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
       },
       {
         heading: 'If you are under 18',
-        today: ['The app does not ask a parent for consent yet, so a student aged 13 to 17 can sign in without it.'],
+        today: [
+          "We ask for the email address of a parent or guardian. We store that address, a fingerprint of their consent link rather than the link, and the time they accept.",
+          'Until they accept, we hold only your name, your date of birth, your account ID, and their address, and the app asks you nothing more.',
+          "No email goes out yet. The consent link is written to our server's log, and anyone who can read that log could use it, so no real student under 18 can join until the email is built.",
+        ],
         planned: [
-          "Consent from a parent by email, for every student under 18, which means storing that parent's address.",
+          'Sending that link to the parent or guardian by email.',
           'A short summary for parents after each session, with no transcript.',
         ],
       },

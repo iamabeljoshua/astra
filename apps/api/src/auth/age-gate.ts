@@ -1,12 +1,23 @@
 const MINIMUM_AGE_YEARS = 13;
+const ADULT_AGE_YEARS = 18;
 const OLDEST_BIRTH_DATE = '1900-01-01';
 const BIRTH_DATE_FORMAT = /^\d{4}-\d{2}-\d{2}$/;
 const MILLISECONDS_PER_HOUR = 3_600_000;
 
 const FIRST_DATE_OFFSET_HOURS = 14;
+const LAST_DATE_OFFSET_HOURS = 12;
 
 function getLatestDateOnEarth(now: Date): string {
   return new Date(now.getTime() + FIRST_DATE_OFFSET_HOURS * MILLISECONDS_PER_HOUR).toISOString().slice(0, 10);
+}
+
+function getEarliestDateOnEarth(now: Date): string {
+  return new Date(now.getTime() - LAST_DATE_OFFSET_HOURS * MILLISECONDS_PER_HOUR).toISOString().slice(0, 10);
+}
+
+function getBirthdayAtAge(validBirthDate: string, ageInYears: number): string {
+  const birthYear = Number(validBirthDate.slice(0, 4));
+  return `${birthYear + ageInYears}${validBirthDate.slice(4)}`;
 }
 
 function isRealCalendarDate(text: string): boolean {
@@ -26,7 +37,10 @@ export function isValidBirthDate(text: unknown, now: Date): boolean {
 
 // Too young only when the student is under the age in every time zone, so a real 13-year-old is never closed out.
 export function isOldEnough(validBirthDate: string, now: Date): boolean {
-  const birthYear = Number(validBirthDate.slice(0, 4));
-  const birthdayAtMinimumAge = `${birthYear + MINIMUM_AGE_YEARS}${validBirthDate.slice(4)}`;
-  return birthdayAtMinimumAge <= getLatestDateOnEarth(now);
+  return getBirthdayAtAge(validBirthDate, MINIMUM_AGE_YEARS) <= getLatestDateOnEarth(now);
+}
+
+// Under 18 until the student is 18 in every time zone, so no minor skips the parent.
+export function isUnderEighteen(validBirthDate: string, now: Date): boolean {
+  return getBirthdayAtAge(validBirthDate, ADULT_AGE_YEARS) > getEarliestDateOnEarth(now);
 }

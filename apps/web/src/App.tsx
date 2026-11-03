@@ -8,6 +8,8 @@ import { AuthProvider } from './auth/AuthProvider';
 import { useSignInDraft } from './auth/useSignInDraft';
 import { LegalPage } from './legal/LegalPage';
 import { LEGAL_PATHS } from './legal/legalPaths';
+import { ParentConsentPage } from './onboarding/ParentConsentPage';
+import { PARENT_CONSENT_PATH } from './onboarding/parentConsentPath';
 import { RootErrorBoundary } from './RootErrorBoundary';
 import { AppShell } from './shell/AppShell';
 import { LEGAL_PAGES } from './strings';
@@ -19,6 +21,7 @@ function AppRoutes() {
     <Routes>
       <Route path={LEGAL_PATHS.terms} element={<LegalPage legalDocument={LEGAL_PAGES.terms} />} />
       <Route path={LEGAL_PATHS.privacy} element={<LegalPage legalDocument={LEGAL_PAGES.privacy} />} />
+      <Route path={PARENT_CONSENT_PATH} element={<ParentConsentPage />} />
       <Route
         path="*"
         element={

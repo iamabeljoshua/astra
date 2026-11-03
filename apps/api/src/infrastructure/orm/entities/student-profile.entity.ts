@@ -31,6 +31,9 @@ export class StudentProfileEntity {
   @Column('text')
   voice!: TutorVoice;
 
+  @Column('text', { name: 'first_question', nullable: true })
+  firstQuestion!: string | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 

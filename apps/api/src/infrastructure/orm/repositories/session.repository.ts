@@ -27,6 +27,10 @@ export class SessionRepository {
     });
   }
 
+  existsForStudent(studentId: string): Promise<boolean> {
+    return this.sessions.existsBy({ studentId });
+  }
+
   findNewestUnfinishedForStudent(studentId: string): Promise<SessionEntity | null> {
     return this.sessions.findOne({
       where: { studentId, status: 'in_progress' },

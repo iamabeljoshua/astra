@@ -5,6 +5,7 @@ import { HOME_LABELS } from '../strings';
 import { ChatBox } from './ChatBox';
 import { ContinueCard } from './ContinueCard';
 import { PickCard } from './PickCard';
+import { StartHereCard } from './StartHereCard';
 import { useHomeScreen } from './useHomeScreen';
 import { usePublishDockHeight } from './usePublishDockHeight';
 
@@ -26,7 +27,7 @@ export function HomeScreen() {
 
   return (
     <>
-      <Greeting heading={greeting} studentName={homeScreen.data?.studentName} />
+      <Greeting heading={greeting} homeScreenData={homeScreen.data} />
       <ErrorBoundary retryKey={homeScreen.dataUpdatedAt} fallback={<CardsCrash onRetry={retryLoading} />}>
         <HomeCards
           homeScreen={homeScreen}
@@ -43,11 +44,17 @@ export function HomeScreen() {
   );
 }
 
-function Greeting({ heading, studentName }: { heading: RefObject<HTMLHeadingElement | null>; studentName?: string | null }) {
+function getGreeting(homeScreenData: HomeScreenQuery['data']) {
+  if (!homeScreenData?.studentName) return HOME_LABELS.greetingWithoutName;
+  const greet = homeScreenData.isNewStudent ? HOME_LABELS.newStudentGreeting : HOME_LABELS.greeting;
+  return greet(homeScreenData.studentName);
+}
+
+function Greeting({ heading, homeScreenData }: { heading: RefObject<HTMLHeadingElement | null>; homeScreenData: HomeScreenQuery['data'] }) {
   return (
     <header>
       <h1 ref={heading} tabIndex={-1} className="font-voice text-greeting font-normal wrap-anywhere outline-none">
-        {studentName ? HOME_LABELS.greeting(studentName) : HOME_LABELS.greetingWithoutName}
+        {getGreeting(homeScreenData)}
       </h1>
       <p className="mt-1 text-lead text-ink-2">{HOME_LABELS.question}</p>
     </header>
@@ -97,9 +104,10 @@ interface LoadedCardsProps {
   onChooseCard: () => void;
 }
 
-function LoadedCards({ homeScreenData: { continueSession, picks }, onChooseCard }: LoadedCardsProps) {
+function LoadedCards({ homeScreenData: { startHereQuestion, continueSession, picks }, onChooseCard }: LoadedCardsProps) {
   return (
     <>
+      {startHereQuestion && <StartHereCard question={startHereQuestion} onStart={onChooseCard} />}
       {continueSession && <ContinueCard session={continueSession} onContinue={onChooseCard} />}
       <PicksSection>
         <ul className={PICK_GRID}>

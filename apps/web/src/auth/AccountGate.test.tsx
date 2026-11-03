@@ -4,7 +4,7 @@ import type { PropsWithChildren } from 'react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createQueryClient } from '../api/queryClient';
-import { ACCOUNT_LABELS, API_ERROR_LABELS, BIRTH_DATE_LABELS, PRODUCT_NAME, SIGN_IN_LABELS, TUTOR_NOTES_LABELS } from '../strings';
+import { ACCOUNT_LABELS, API_ERROR_LABELS, BIRTH_DATE_LABELS, ONBOARDING_LABELS, PRODUCT_NAME, SIGN_IN_LABELS, TUTOR_NOTES_LABELS } from '../strings';
 import { renderWithQueryClient } from '../test/renderWithQueryClient';
 import { AccountGate } from './AccountGate';
 import { useAuth } from './AuthProvider';
@@ -16,7 +16,12 @@ const APP_HEADING = 'The first page';
 const SLOW_ANSWER_MS = 30;
 const ACTIVE_ACCOUNT = {
   status: 'active',
-  student: { id: '00000000-0000-4000-8000-000000000001', name: 'Maya', profile: null, parentConsentAt: null },
+  student: {
+    id: '00000000-0000-4000-8000-000000000001',
+    name: 'Maya',
+    profile: { interests: [], level: 'university', goal: 'exam', voice: 'ada', firstQuestion: 'How does a curveball bend?' },
+    parentConsent: null,
+  },
 };
 const NEEDS_BIRTH_DATE = { status: 'needs_birth_date', student: null };
 const CLOSED_ACCOUNT = { status: 'closed', student: null };
@@ -28,6 +33,12 @@ vi.mock('./session', () => ({
   renewSession: vi.fn(),
   signOut: vi.fn(),
 }));
+
+async function reachBirthDateQuestion() {
+  fireEvent.change(await screen.findByLabelText(ONBOARDING_LABELS.namePlaceholder), { target: { value: 'Maya' } });
+  fireEvent.click(screen.getByRole('button', { name: ONBOARDING_LABELS.next }));
+  await screen.findByRole('heading', { name: BIRTH_DATE_LABELS.question });
+}
 
 function setSignIn(status: 'loading' | 'signedOut' | 'signedIn' | 'authUnreachable') {
   vi.mocked(useAuth).mockReturnValue({ signIn: { status }, returnProblem: null });
@@ -156,7 +167,7 @@ describe('AccountGate', () => {
 
     renderGate();
 
-    await screen.findByRole('heading', { name: BIRTH_DATE_LABELS.question });
+    await reachBirthDateQuestion();
     expect(screen.queryByText(APP_TEXT)).toBeNull();
   });
 
@@ -171,12 +182,12 @@ describe('AccountGate', () => {
       return json(NEEDS_BIRTH_DATE)();
     });
     renderGate();
-    await screen.findByRole('heading', { name: BIRTH_DATE_LABELS.question });
+    await reachBirthDateQuestion();
 
     enterAndConfirmBirthDate('4', '3', '2004');
 
     await screen.findByText(APP_TEXT);
-    expect(sentBodies).toEqual([{ birthDate: '2004-03-04' }]);
+    expect(sentBodies).toEqual([{ birthDate: '2004-03-04', name: 'Maya' }]);
   });
 
   it('keeps the answer when a read sent before it lands after it', async () => {
@@ -189,7 +200,7 @@ describe('AccountGate', () => {
       return reads === 1 ? json(NEEDS_BIRTH_DATE)() : new Promise<Response>((resolve) => (deliverOldRead = resolve));
     });
     renderGateWithNoRetries();
-    await screen.findByRole('heading', { name: BIRTH_DATE_LABELS.question });
+    await reachBirthDateQuestion();
     comeBackToTheTab();
     await waitFor(() => expect(reads).toBe(2));
 
@@ -205,7 +216,7 @@ describe('AccountGate', () => {
     setSignIn('signedIn');
     stubApi({ 'GET /api/me': json(NEEDS_BIRTH_DATE), 'POST /api/me/birth-date': json(CLOSED_ACCOUNT) });
     renderGate();
-    await screen.findByRole('heading', { name: BIRTH_DATE_LABELS.question });
+    await reachBirthDateQuestion();
 
     enterAndConfirmBirthDate('1', '1', '2020');
 
@@ -229,7 +240,7 @@ describe('AccountGate', () => {
     setSignIn('signedIn');
     const fetchStub = stubApi({ 'GET /api/me': json(NEEDS_BIRTH_DATE) });
     renderGate();
-    await screen.findByRole('heading', { name: BIRTH_DATE_LABELS.question });
+    await reachBirthDateQuestion();
 
     enterBirthDate('', '3', '2004');
 
@@ -244,7 +255,7 @@ describe('AccountGate', () => {
       'POST /api/me/birth-date': json({ message: ['birthDate is wrong'], fieldMessages: { birthDate: ['birthDate is wrong'] } }, 400),
     });
     renderGate();
-    await screen.findByRole('heading', { name: BIRTH_DATE_LABELS.question });
+    await reachBirthDateQuestion();
 
     enterAndConfirmBirthDate('1', '1', '2999');
 
@@ -255,7 +266,7 @@ describe('AccountGate', () => {
     setSignIn('signedIn');
     stubApi({ 'GET /api/me': json(NEEDS_BIRTH_DATE), 'POST /api/me/birth-date': json({}, 500) });
     renderGate();
-    await screen.findByRole('heading', { name: BIRTH_DATE_LABELS.question });
+    await reachBirthDateQuestion();
 
     enterAndConfirmBirthDate('14', '3', '2004');
 
@@ -640,7 +651,7 @@ describe('AccountGate', () => {
       setSignIn('signedIn');
       stubApi({ 'GET /api/me': json(NEEDS_BIRTH_DATE), 'POST /api/me/birth-date': json(CLOSED_ACCOUNT) });
       renderGate();
-      await screen.findByRole('heading', { name: BIRTH_DATE_LABELS.question });
+      await reachBirthDateQuestion();
 
       enterAndConfirmBirthDate('1', '1', '2020');
 
@@ -652,7 +663,7 @@ describe('AccountGate', () => {
       setSignIn('signedIn');
       stubApi({ 'GET /api/me': json(NEEDS_BIRTH_DATE), 'POST /api/me/birth-date': json(ACTIVE_ACCOUNT) });
       renderGate();
-      await screen.findByRole('heading', { name: BIRTH_DATE_LABELS.question });
+      await reachBirthDateQuestion();
 
       enterAndConfirmBirthDate('14', '3', '2004');
 
@@ -701,12 +712,19 @@ describe('AccountGate', () => {
     });
   });
 
-  it.each([
-    ['the date of birth question', NEEDS_BIRTH_DATE],
-    ['the closed page', CLOSED_ACCOUNT],
-  ])('promises nothing about changing it later beside %s', async (_caseName, account) => {
+  it('promises nothing about changing it later beside the date of birth question', async () => {
     setSignIn('signedIn');
-    stubApi({ 'GET /api/me': json(account) });
+    stubApi({ 'GET /api/me': json(NEEDS_BIRTH_DATE) });
+    renderGate();
+
+    await reachBirthDateQuestion();
+
+    expect(screen.queryByText(TUTOR_NOTES_LABELS.footer)).toBeNull();
+  });
+
+  it('promises nothing about changing it later beside the closed page', async () => {
+    setSignIn('signedIn');
+    stubApi({ 'GET /api/me': json(CLOSED_ACCOUNT) });
     renderGate();
 
     await screen.findByRole('heading', { level: 1 });

@@ -27,6 +27,7 @@ const EXAMPLE_PROFILE: Partial<StudentProfileEntity> = {
   level: 'university',
   goal: 'exam',
   voice: 'ada',
+  firstQuestion: 'How does a curveball bend?',
 };
 
 function atNoon(date: string): Date {

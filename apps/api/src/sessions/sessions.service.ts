@@ -30,6 +30,10 @@ export class SessionsService {
     return sessions.map(toSessionResponse);
   }
 
+  hasStartedASession(studentId: string): Promise<boolean> {
+    return this.sessions.existsForStudent(studentId);
+  }
+
   async getNewestUnfinishedSession(studentId: string): Promise<SessionResponseDto | null> {
     const session = await this.sessions.findNewestUnfinishedForStudent(studentId);
     return session && toSessionResponse(session);

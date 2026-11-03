@@ -1,4 +1,4 @@
-import { isOldEnough, isValidBirthDate } from './age-gate';
+import { isOldEnough, isUnderEighteen, isValidBirthDate } from './age-gate';
 
 const NOON_UTC = new Date('2026-11-03T12:00:00Z');
 
@@ -10,6 +10,19 @@ const BIRTHDAY_BEGINS_AT_UTC = Date.UTC(2026, 10, 3);
 function birthdayBeginsIn(offsetHours: number) {
   return BIRTHDAY_BEGINS_AT_UTC - offsetHours * MILLISECONDS_PER_HOUR;
 }
+
+describe('isUnderEighteen', () => {
+  it.each([
+    ['a 15-year-old', '2011-06-01', '2026-11-03T12:00:00Z', true],
+    ['an adult', '2004-03-14', '2026-11-03T12:00:00Z', false],
+    ['a birthday that has begun in only some time zones', '2008-11-03', '2026-11-03T11:59:59Z', true],
+    ['a birthday that has begun in every time zone', '2008-11-03', '2026-11-03T12:00:00Z', false],
+    ['a leap day birthday on the last day of February', '2008-02-29', '2026-02-28T23:00:00Z', true],
+    ['a leap day birthday once March has begun everywhere', '2008-02-29', '2026-03-01T12:00:00Z', false],
+  ])('decides %s', (_caseName, birthDate, now, expected) => {
+    expect(isUnderEighteen(birthDate, new Date(now))).toBe(expected);
+  });
+});
 
 describe('isOldEnough', () => {
   it.each([

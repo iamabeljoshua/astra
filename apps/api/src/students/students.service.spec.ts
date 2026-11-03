@@ -10,12 +10,14 @@ import { StudentsService } from './students.service';
 const ROUNDS_TO_CATCH_A_LOST_RACE = 5;
 const SAVES_AT_ONCE = 20;
 const YOUNG_BIRTH_DATE = new Date().toISOString().slice(0, 10);
-const PROFILE: SaveStudentProfileBodyDto = {
+const SAVED_PROFILE = {
   interests: ['Basketball', 'Space'],
-  level: 'university',
-  goal: 'exam',
-  voice: 'ada',
+  level: 'university' as const,
+  goal: 'exam' as const,
+  voice: 'ada' as const,
+  firstQuestion: null,
 };
+const PROFILE: SaveStudentProfileBodyDto = { ...SAVED_PROFILE, name: 'Maya' };
 
 describe('StudentsService', () => {
   let testApp: TestApp;
@@ -30,7 +32,7 @@ describe('StudentsService', () => {
 
   async function createStudent() {
     const authUserId = randomUUID();
-    const { student } = await studentsService.answerBirthDate(authUserId, OLD_ENOUGH_BIRTH_DATE);
+    const { student } = await studentsService.answerBirthDate(authUserId, { birthDate: OLD_ENOUGH_BIRTH_DATE });
     return { authUserId, id: student?.id as string };
   }
 
@@ -43,7 +45,7 @@ describe('StudentsService', () => {
 
     await studentsService.saveProfile(id, PROFILE);
 
-    expect(await readProfile(authUserId)).toEqual(PROFILE);
+    expect(await readProfile(authUserId)).toEqual(SAVED_PROFILE);
   });
 
   it('keeps an empty interest list, because onboarding lets a student skip it', async () => {
@@ -58,12 +60,8 @@ describe('StudentsService', () => {
     const { authUserId, id } = await createStudent();
     await studentsService.saveProfile(id, PROFILE);
 
-    const changedProfile: SaveStudentProfileBodyDto = {
-      ...PROFILE,
-      interests: ['Music'],
-      voice: 'noor',
-    };
-    await studentsService.saveProfile(id, changedProfile);
+    const changedProfile = { ...SAVED_PROFILE, interests: ['Music'], voice: 'noor' as const };
+    await studentsService.saveProfile(id, { ...changedProfile, name: 'Maya' });
 
     expect(await readProfile(authUserId)).toEqual(changedProfile);
   });
@@ -77,7 +75,7 @@ describe('StudentsService', () => {
         Array.from({ length: SAVES_AT_ONCE }, () => studentsService.saveProfile(id, PROFILE)),
       );
 
-      expect(await readProfile(authUserId)).toEqual(PROFILE);
+      expect(await readProfile(authUserId)).toEqual(SAVED_PROFILE);
     },
   );
 
@@ -92,7 +90,7 @@ describe('StudentsService', () => {
   it('stores only the user ID and the time for a closed account, and no student', async () => {
     const authUserId = randomUUID();
 
-    await studentsService.answerBirthDate(authUserId, YOUNG_BIRTH_DATE);
+    await studentsService.answerBirthDate(authUserId, { birthDate: YOUNG_BIRTH_DATE });
 
     const dataSource = testApp.app.get(DataSource);
     const [storedRow] = await dataSource.query('SELECT * FROM "closed_accounts" WHERE "auth_user_id" = $1', [authUserId]);
@@ -106,7 +104,7 @@ describe('StudentsService', () => {
 
     await studentsService.saveProfile(id, { ...PROFILE, studentId: other.id } as SaveStudentProfileBodyDto);
 
-    expect(await readProfile(authUserId)).toEqual(PROFILE);
+    expect(await readProfile(authUserId)).toEqual(SAVED_PROFILE);
     expect(await readProfile(other.authUserId)).toBeNull();
   });
 
@@ -114,7 +112,7 @@ describe('StudentsService', () => {
     const { authUserId } = await createStudent();
     const logQuery = jest.spyOn(testApp.app.get(DataSource).logger, 'logQuery');
 
-    await studentsService.findStudentId(authUserId);
+    await studentsService.findStudentAccess(authUserId);
 
     expect(logQuery).toHaveBeenCalledTimes(1);
     logQuery.mockRestore();
@@ -122,18 +120,18 @@ describe('StudentsService', () => {
 
   it('finds no student once the account of an active student is closed', async () => {
     const { authUserId, id } = await createStudent();
-    expect(await studentsService.findStudentId(authUserId)).toBe(id);
+    expect((await studentsService.findStudentAccess(authUserId))?.studentId).toBe(id);
 
     await testApp.app.get(DataSource).getRepository(ClosedAccountEntity).insert({ authUserId });
 
-    expect(await studentsService.findStudentId(authUserId)).toBeNull();
+    expect(await studentsService.findStudentAccess(authUserId)).toBeNull();
     expect(await studentsService.getAccount(authUserId)).toEqual({ status: 'closed', student: null });
   });
 
   it('finds no student for an unknown user, and the student for a known one', async () => {
     const { authUserId, id } = await createStudent();
 
-    expect(await studentsService.findStudentId(randomUUID())).toBeNull();
-    expect(await studentsService.findStudentId(authUserId)).toBe(id);
+    expect(await studentsService.findStudentAccess(randomUUID())).toBeNull();
+    expect((await studentsService.findStudentAccess(authUserId))?.studentId).toBe(id);
   });
 });

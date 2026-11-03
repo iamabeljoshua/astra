@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent, type KeyboardEvent, type RefObject } from 'react';
+import { useImperativeHandle, useRef, useState, type FormEvent, type KeyboardEvent, type Ref, type RefObject } from 'react';
 import { CHAT_BOX_LABELS } from '../strings';
 import { useHeightThatFitsText } from './useHeightThatFitsText';
 
@@ -8,12 +8,22 @@ const COMPOSING_KEY_CODE = 229;
 const TOOL_BUTTON =
   'inline-flex h-8 items-center gap-1.5 px-2 text-fine text-ink-2 hover:text-ink aria-pressed:font-medium aria-pressed:text-ink';
 
+interface ChatBoxLabels {
+  label: string;
+  placeholder: string;
+  placeholderWhileTalkIsOn: string;
+  send: string;
+}
+
 interface ChatBoxProps {
   onSend: (question: string) => void;
   onEdit: () => void;
+  labels?: ChatBoxLabels;
+  canAttach?: boolean;
+  textBoxHandle?: Ref<HTMLTextAreaElement | null>;
 }
 
-export function ChatBox({ onSend, onEdit }: ChatBoxProps) {
+export function ChatBox({ onSend, onEdit, labels = CHAT_BOX_LABELS, canAttach = true, textBoxHandle }: ChatBoxProps) {
   const [question, setQuestion] = useState('');
   const [isTalkOn, setIsTalkOn] = useState(false);
   const [attachment, setAttachment] = useState<File | null>(null);
@@ -44,14 +54,16 @@ export function ChatBox({ onSend, onEdit }: ChatBoxProps) {
       {attachment && <AttachmentChip fileName={attachment.name} onRemove={removeAttachment} />}
       <QuestionBox
         question={question}
-        placeholder={isTalkOn ? CHAT_BOX_LABELS.placeholderWhileTalkIsOn : CHAT_BOX_LABELS.placeholder}
+        label={labels.label}
+        handle={textBoxHandle}
+        placeholder={isTalkOn ? labels.placeholderWhileTalkIsOn : labels.placeholder}
         onChange={editQuestion}
         onEnter={send}
       />
       <div className="flex items-center gap-1.5 pt-1.5 pr-2 pb-2 pl-2.5">
-        <AttachButton button={attachButton} onChoose={setAttachment} />
+        {canAttach && <AttachButton button={attachButton} onChoose={setAttachment} />}
         <TalkButton isOn={isTalkOn} onToggle={() => setIsTalkOn(!isTalkOn)} />
-        <SendButton isEnabled={hasQuestion} />
+        <SendButton isEnabled={hasQuestion} label={labels.send} />
       </div>
     </form>
   );
@@ -64,20 +76,23 @@ function isSendKey(event: KeyboardEvent) {
 
 interface QuestionBoxProps {
   question: string;
+  label: string;
+  handle?: Ref<HTMLTextAreaElement | null>;
   placeholder: string;
   onChange: (question: string) => void;
   onEnter: () => void;
 }
 
-function QuestionBox({ question, placeholder, onChange, onEnter }: QuestionBoxProps) {
+function QuestionBox({ question, label, handle, placeholder, onChange, onEnter }: QuestionBoxProps) {
   const textBox = useHeightThatFitsText(question, placeholder);
+  useImperativeHandle<HTMLTextAreaElement | null, HTMLTextAreaElement | null>(handle, () => textBox.current, [textBox]);
 
   return (
     <textarea
       ref={textBox}
       rows={1}
       value={question}
-      aria-label={CHAT_BOX_LABELS.label}
+      aria-label={label}
       placeholder={placeholder}
       autoComplete="off"
       onChange={(event) => onChange(event.target.value)}
@@ -150,13 +165,13 @@ function TalkButton({ isOn, onToggle }: { isOn: boolean; onToggle: () => void })
   );
 }
 
-function SendButton({ isEnabled }: { isEnabled: boolean }) {
+function SendButton({ isEnabled, label }: { isEnabled: boolean; label: string }) {
   return (
     <button
       type="submit"
       disabled={!isEnabled}
-      aria-label={CHAT_BOX_LABELS.send}
-      title={CHAT_BOX_LABELS.send}
+      aria-label={label}
+      title={label}
       className="ml-auto inline-flex size-8 flex-none items-center justify-center bg-ink text-paper disabled:cursor-default disabled:opacity-30"
     >
       <SendIcon />

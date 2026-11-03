@@ -19,11 +19,11 @@ import { createTestApp, createTestStudent, OLD_ENOUGH_BIRTH_DATE } from '../../t
 import type { TestApp, TestStudent } from '../../test/test-database';
 import { getAcceptedSignInMethods, isRefusedToken, TokenVerifier } from './token-verifier';
 
-const PUBLIC_ROUTES: readonly string[] = ['get /health'];
+const PUBLIC_ROUTES: readonly string[] = ['get /health', 'get /parent-consent/:token', 'post /parent-consent/accept'];
 const SIGNED_IN_ROUTES: readonly string[] = ['get /me', 'post /me/birth-date'];
 const CLOSED_PORT_URL = 'http://127.0.0.1:1';
 const VALID_SESSION = { title: 'Free-body diagrams', subject: 'Physics', language: 'en' };
-const VALID_PROFILE = { interests: ['Space'], level: 'university', goal: 'exam', voice: 'ada' };
+const VALID_PROFILE = { name: 'Maya', interests: ['Space'], level: 'university', goal: 'exam', voice: 'ada', firstQuestion: null };
 const PAST_SECONDS = Math.floor(Date.now() / 1000) - 60;
 const FUTURE_SECONDS = Math.floor(Date.now() / 1000) + 3600;
 const ONE_MINUTE_MS = 60_000;

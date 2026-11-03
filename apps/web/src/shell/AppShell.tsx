@@ -1,7 +1,9 @@
 import type { RefObject } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router';
+import { ProfilePage } from '../onboarding/ProfilePage';
 import { PRODUCT_NAME, SIDEBAR_LABELS } from '../strings';
 import { MENU } from './menu';
+import { PROFILE_PATH } from './profilePath';
 import { Sidebar } from './Sidebar';
 import { usePhoneMenu } from './usePhoneMenu';
 
@@ -57,6 +59,7 @@ function CurrentPage() {
         {MENU.map(({ path, Page }) => (
           <Route key={path} path={path} element={<Page />} />
         ))}
+        <Route path={PROFILE_PATH} element={<ProfilePage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>
