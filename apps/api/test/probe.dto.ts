@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import {
+  ArrayNotEmpty,
   IsArray,
   IsInt,
   IsObject,
@@ -9,6 +10,7 @@ import {
   MinLength,
   ValidateNested,
 } from 'class-validator';
+import { ToStrictInteger } from '../src/to-strict-integer';
 
 export class ProbeOwnerDto {
   /** The name of the person who owns the probe. */
@@ -36,6 +38,8 @@ export class CreateProbeBodyDto {
 
   /** The sensors on the probe. */
   @IsArray()
+  @ArrayNotEmpty()
+  @IsObject({ each: true })
   @ValidateNested({ each: true })
   @Type(() => ProbeSensorDto)
   sensors!: ProbeSensorDto[];
@@ -43,7 +47,7 @@ export class CreateProbeBodyDto {
 
 export class ListProbesQueryDto {
   /** The largest number of probes to return. */
-  @Type(() => Number)
+  @ToStrictInteger()
   @IsInt()
   @Min(1)
   limit!: number;

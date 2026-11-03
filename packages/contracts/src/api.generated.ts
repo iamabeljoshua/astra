@@ -18,6 +18,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/students": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Creates a student with no profile. */
+        post: operations["StudentsController_createStudent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/students/{studentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reads one student and their profile. */
+        get: operations["StudentsController_getStudent"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/students/{studentId}/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Saves a student's profile, replacing any earlier one. */
+        put: operations["StudentsController_saveProfile"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/students/{studentId}/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lists a student's sessions, newest first. */
+        get: operations["SessionsController_listSessions"];
+        put?: never;
+        /** Starts a session for a student. */
+        post: operations["SessionsController_createSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -28,6 +97,96 @@ export interface components {
              * @enum {string}
              */
             status: "ok";
+        };
+        CreateStudentBodyDto: {
+            /** @description The name the tutor calls the student. */
+            name: string;
+        };
+        StudentProfileResponseDto: {
+            /** @description What the student is into. */
+            interests: string[];
+            /**
+             * @description The stage of schooling the student is at.
+             * @enum {string}
+             */
+            level: "middle_school" | "high_school" | "university" | "out_of_school";
+            /**
+             * @description Why the student is here.
+             * @enum {string}
+             */
+            goal: "class" | "exam" | "curiosity";
+            /**
+             * @description The tutor voice the student picked.
+             * @enum {string}
+             */
+            voice: "ada" | "kofi" | "noor";
+        };
+        StudentResponseDto: {
+            /** @description The ID of the student. */
+            id: string;
+            /** @description The name the tutor calls the student. */
+            name: string;
+            /** @description The student's profile, or null until onboarding saves one. */
+            profile: components["schemas"]["StudentProfileResponseDto"] | null;
+        };
+        SaveStudentProfileBodyDto: {
+            /** @description What the student is into. Onboarding lets a student skip this, so the list can be empty. */
+            interests: string[];
+            /**
+             * @description The stage of schooling the student is at.
+             * @enum {string}
+             */
+            level: "middle_school" | "high_school" | "university" | "out_of_school";
+            /**
+             * @description Why the student is here.
+             * @enum {string}
+             */
+            goal: "class" | "exam" | "curiosity";
+            /**
+             * @description The tutor voice the student picked.
+             * @enum {string}
+             */
+            voice: "ada" | "kofi" | "noor";
+        };
+        CreateSessionBodyDto: {
+            /** @description What the session is about. */
+            title: string;
+            /** @description The subject the session belongs to. */
+            subject: string;
+            /**
+             * @description The language the tutor speaks in this session.
+             * @enum {string}
+             */
+            language: "en";
+        };
+        SessionResponseDto: {
+            /** @description The ID of the session. */
+            id: string;
+            /** @description What the session is about. */
+            title: string;
+            /** @description The subject the session belongs to. */
+            subject: string;
+            /**
+             * @description The language the tutor speaks in this session.
+             * @enum {string}
+             */
+            language: "en";
+            /**
+             * @description Whether the session is still going or has finished.
+             * @enum {string}
+             */
+            status: "in_progress" | "finished";
+            /**
+             * Format: date-time
+             * @description When the session started.
+             */
+            startedAt: string;
+            /** @description How long the session has run, in seconds. */
+            durationSeconds: number;
+            /** @description A line on where the session left off, or null if there is none. */
+            detail: string | null;
+            /** @description The name of the picture that the web app shows for this session, or null if there is none. */
+            artwork: string | null;
         };
     };
     responses: never;
@@ -53,6 +212,128 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthResponseDto"];
+                };
+            };
+        };
+    };
+    StudentsController_createStudent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateStudentBodyDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentResponseDto"];
+                };
+            };
+        };
+    };
+    StudentsController_getStudent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The ID of the student. */
+                studentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentResponseDto"];
+                };
+            };
+        };
+    };
+    StudentsController_saveProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The ID of the student. */
+                studentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveStudentProfileBodyDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentProfileResponseDto"];
+                };
+            };
+        };
+    };
+    SessionsController_listSessions: {
+        parameters: {
+            query?: {
+                /** @description The largest number of sessions to return. The API returns up to 50 if this is left out. */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                /** @description The ID of the student. */
+                studentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionResponseDto"][];
+                };
+            };
+        };
+    };
+    SessionsController_createSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The ID of the student. */
+                studentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSessionBodyDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionResponseDto"];
                 };
             };
         };

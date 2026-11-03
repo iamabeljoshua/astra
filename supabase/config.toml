@@ -1,0 +1,33 @@
+project_id = "astra"
+
+[api]
+port = 54421
+
+[db]
+port = 54422
+shadow_port = 54420
+major_version = 17
+
+[db.pooler]
+enabled = false
+port = 54429
+
+[studio]
+enabled = false
+port = 54423
+
+[inbucket]
+port = 54424
+
+[analytics]
+enabled = false
+port = 54427
+
+[realtime]
+enabled = false
+
+[storage]
+enabled = false
+
+[edge_runtime]
+enabled = false

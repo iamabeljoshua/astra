@@ -15,7 +15,7 @@ export default defineConfig({
     strictPort: true,
     proxy: {
       '/api': {
-        target: `http://localhost:${apiPort}`,
+        target: `http://127.0.0.1:${apiPort}`,
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
     },
