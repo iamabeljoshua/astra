@@ -18,10 +18,11 @@ The menu moves a student between Home and Sessions. On a laptop it is always in 
 
 Preconditions:
 
+- `pnpm db:seed` ran on this lane's database before the journey, because the journey starts on Home.
 - `pnpm verify doctor` passes.
 
 - **Open Sessions from the menu.** Run `pnpm verify drive --journey menu`. The `journey`, `identity`, `screenshot`, and `main region` checks print `PASS` for `laptop` and `phone`, and the command exits 0.
-- **Proof.** Open `.verify/evidence/menu-laptop-sessions.png` and `.verify/evidence/menu-phone-sessions.png`. Each shows the `Sessions` heading.
+- **Proof.** After a run that printed `PASSED`, open `.verify/evidence/menu-laptop-sessions.png` and `.verify/evidence/menu-phone-sessions.png`. Each shows the `Sessions` heading. A labeled image keeps its name in a failed run.
 
 ## Gotchas
 

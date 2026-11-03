@@ -57,10 +57,18 @@ function getAddStyleScript(css) {
 const BLANK_HOME_SCRIPTS = {
   'opacity 0 on its content': getAddStyleScript('main > * { opacity: 0 }'),
   'its content off screen': getAddStyleScript('main > * { position: absolute; left: -9999px }'),
-  'nothing rendered 100 ms after the connected line': `setTimeout(() => document.querySelector('main').replaceChildren(), 100)`,
-  'transparent text everywhere': getAddStyleScript('* { color: transparent !important }'),
+  'nothing rendered 100 ms after Home loads': `setTimeout(() => document.querySelector('main').replaceChildren(), 100)`,
   'a hidden main element': getAddStyleScript('main { display: none }'),
 };
+const OFF_SCREEN_MAIN_SCRIPTS = {
+  'to the left with an absolute position': getAddStyleScript('main { position: absolute; left: -9999px }'),
+  'to the left with a transform': getAddStyleScript('main { transform: translateX(-200vw) }'),
+  'to the right': getAddStyleScript('main { transform: translateX(200vw) }'),
+  above: getAddStyleScript('main { transform: translateY(-200vh) }'),
+  below: getAddStyleScript('main { transform: translateY(200vh) }'),
+};
+const FLOATING_OVERLAY_SCRIPT = `document.body.insertAdjacentHTML('beforeend', '<div style="position: fixed; right: 0; bottom: 0; width: 40px; height: 40px; background: tomato"></div>')`;
+const PHONE_ONLY_BLANK_HOME_SCRIPT = `${getAddStyleScript('@media (max-width: 767px) { main > * { opacity: 0 } }')}; ${FLOATING_OVERLAY_SCRIPT}`;
 const PLAIN_HOME_SCRIPT = `document.querySelector('main').replaceChildren('Word')`;
 const CLOSED_DATABASE_URL = 'postgresql://postgres:postgres@127.0.0.1:1/astra_closed_port';
 const SIGNAL_ROUTES = {
@@ -331,6 +339,26 @@ const SELF_CHECKS = [
       });
     },
   ]),
+  ...Object.entries(OFF_SCREEN_MAIN_SCRIPTS).map(([kind, script]) => [
+    `main off screen fails at both widths: ${kind}`,
+    async () => {
+      const result = await runCli(driveFixture('changed-home', BOTH_VIEWPORTS), { HOME_CHANGE_SCRIPT: script });
+      assertFailed(result, /FAIL laptop main region: the main element is off screen/);
+      assert.match(result.output, /FAIL phone main region: the main element is off screen/);
+    },
+  ]),
+  [
+    'a Home blank only at phone width fails under a floating overlay that touches main',
+    async () => {
+      const result = await runCli(driveFixture('changed-home', BOTH_VIEWPORTS), { HOME_CHANGE_SCRIPT: PHONE_ONLY_BLANK_HOME_SCRIPT });
+      assertFailed(result, /FAIL phone main region: every pixel is/);
+      assert.match(result.output, /PASS laptop main region: has more than one color/);
+      assertImages({
+        present: ['changed-home-laptop.png', 'changed-home-phone-failed.png'],
+        absent: ['changed-home-laptop-failed.png', 'changed-home-phone.png'],
+      });
+    },
+  ],
   [
     'a plain Home inside the shell passes at both widths',
     async () => {
@@ -399,7 +427,7 @@ const SELF_CHECKS = [
     },
   ],
   [
-    'doctor fails when the API dies',
+    'doctor and drive fail when the API dies',
     async () => {
       const [apiProcessId] = getListenerProcessIds(ports.API_PORT);
       assert.equal(getProcessGroupId(apiProcessId), getRecordedRun().processGroupId, 'the API port is this run\'s');
@@ -407,6 +435,7 @@ const SELF_CHECKS = [
       const result = await runCli(['doctor']);
       assertFailed(result, /FAIL api answers/);
       assert.match(result.output, /FAIL dev proxy reaches api/);
+      assertFailed(await runCli(['drive']), /This run is not healthy[\s\S]*api answers/);
     },
   ],
   [

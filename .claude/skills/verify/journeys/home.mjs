@@ -1,4 +1,5 @@
 export default async function home({ page }) {
   await page.goto('/');
-  await page.getByText('The API is connected.').waitFor();
+  await page.getByRole('heading', { name: 'Welcome back, Maya.' }).waitFor();
+  await page.getByRole('button', { name: 'Continue session' }).waitFor();
 }

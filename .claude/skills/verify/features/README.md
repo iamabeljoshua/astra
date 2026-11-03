@@ -4,7 +4,7 @@ This folder is the maintained source for verifying what a student can do in Astr
 
 ## Baseline preconditions
 
-- Your own checkout, with the setup commands in `../SKILL.md` done.
+- Your own checkout, with the setup commands in `../SKILL.md` done, including the seed.
 - `pnpm verify start` succeeded in this checkout, or use `pnpm verify run`.
 - Never drive an instance that this run did not start.
 
@@ -33,6 +33,6 @@ A PR that adds or changes a screen updates its feature file and its journey in t
 
 ## Features
 
-- [Home](./home.md) covers the page a student opens first, and its connection to the API.
+- [Home](./home.md) covers the page a student opens first, with its greeting, cards, and chat box.
 - [Menu](./menu.md) covers moving between Home and Sessions, at laptop and phone widths.
 - [Appearance](./appearance.md) covers the light and dark themes, and that the choice survives a reload.

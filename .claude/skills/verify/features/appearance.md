@@ -16,10 +16,11 @@ A student chooses a light or dark theme with the `Light` and `Dark` buttons in t
 
 Preconditions:
 
+- `pnpm db:seed` ran on this lane's database before the journey, because the journey starts on Home.
 - `pnpm verify doctor` passes.
 
 - **Choose dark and reload.** Run `pnpm verify drive --journey appearance`. The `journey`, `identity`, `screenshot`, and `main region` checks print `PASS` for `laptop` and `phone`, and the command exits 0.
-- **Proof.** Open `.verify/evidence/appearance-laptop-dark.png` and `.verify/evidence/appearance-laptop-dark-after-reload.png`, and the two `phone` images. Each shows the dark theme.
+- **Proof.** After a run that printed `PASSED`, open `.verify/evidence/appearance-laptop-dark.png` and `.verify/evidence/appearance-laptop-dark-after-reload.png`, and the two `phone` images. Each shows the dark theme. A labeled image keeps its name in a failed run.
 
 ## Gotchas
 

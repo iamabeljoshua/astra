@@ -16,6 +16,7 @@ pnpm install --frozen-lockfile
 pnpm exec playwright install chromium --no-shell
 pnpm db:up
 export DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54422/astra_<your-lane>
+pnpm db:migrate && pnpm db:seed
 ```
 
 The second command downloads Chromium once per machine, and worktrees share it. On a Linux machine with no browser libraries, add `--with-deps`.
@@ -30,7 +31,7 @@ A project that lost its build fails with `Executable doesn't exist at <path>` an
 
 - Set `DATABASE_URL` as above for every command in this skill. If your shell does not keep an `export` between commands, put it in front of each command. With no `DATABASE_URL`, every lane uses the same `astra` database.
 - `pnpm verify start` runs `pnpm db:migrate` with your `DATABASE_URL`. This creates the database if it is missing, and changes nothing if it is current. It runs before the dev servers, because its `nest build` empties `apps/api/dist`, which the watcher builds into. `start` does not start the stack, and `stop` does not stop it.
-- Nothing in `pnpm verify` seeds. You run `pnpm db:seed` when a journey needs the example student, either after `pnpm verify start`, or before `pnpm verify run` as `pnpm db:migrate && pnpm db:seed`. It replaces the example student and their sessions each time. Home, Menu, and Appearance do not need it.
+- Nothing in `pnpm verify` seeds, and the seed must run before the journey. Home reads `GET /home` for the example student, and `doctor`, Home, Menu, and Appearance all open Home. On a database with no seed, `GET /home` answers 404, so `doctor` fails with `FAIL console error`, and a journey fails with that and a timeout on the greeting. `pnpm db:seed` replaces the example student and their sessions each time, so you can run it again, before `pnpm verify start` or after it.
 - Never run `supabase stop`, with or without flags, because it stops the stack for every other lane. To test a missing database, point `DATABASE_URL` at a closed port.
 
 ## Prove a change in one command
@@ -39,7 +40,7 @@ A project that lost its build fails with `Executable doesn't exist at <path>` an
 pnpm verify run --journey <name or path> --viewports laptop,phone --out /tmp/swarm-<pr-id>/worker-<n>
 ```
 
-`run` starts the app, drives one journey at each viewport, saves screenshots, and stops the app.
+`run` starts the app, drives one journey at each viewport, saves screenshots, and stops the app. It does not seed, so run the setup above first.
 
 - `--journey` defaults to `home`. A PR on another screen must pass its own journey, or the run passes without its change being driven.
 - `--viewports` takes `laptop`, `phone`, or both with a comma. It defaults to both.
@@ -86,7 +87,7 @@ All three options are optional, and these are the defaults for the first two. `d
 ```js
 export default async function menu({ page, capture, viewportName }) {
   await page.goto('/');
-  await page.getByText('The API is connected.').waitFor();
+  await page.getByRole('heading', { name: 'Welcome back, Maya.' }).waitFor();
   if (viewportName === 'phone') await page.getByRole('button', { name: 'Menu' }).click();
   await page.getByRole('navigation', { name: 'Menu' }).getByRole('link', { name: 'Sessions' }).click();
   await page.getByRole('heading', { name: 'Sessions' }).waitFor();
@@ -97,7 +98,7 @@ export default async function menu({ page, capture, viewportName }) {
 - `page` is a Playwright `Page` with the base URL set. `page.goto('/')` opens Home.
 - `capture(label)` saves a screenshot now.
 - `viewportName` is `laptop` or `phone`. Use it to branch when the path differs by width. The phone layout hides the sidebar behind the `Menu` button, as above.
-- Use roles and accessible names. Use exact text from `apps/web/src/strings.ts` when the element has no role. Home's connection line is a plain `<p>`, so `getByText` is right for it.
+- Use roles and accessible names. Use exact text from `apps/web/src/strings.ts` when the element has no role. Home's question under the greeting is a plain `<p>`, so `getByText` is right for it.
 - Use `waitFor()` to wait for an element, because a Playwright action fails after 10 seconds. Use `node:assert/strict` for values.
 - `waitFor()` passes on content a student cannot see. Playwright calls an element visible when it has a size and is not `visibility: hidden`, so `opacity: 0`, transparent text, and content off screen all pass. The `main region` check below catches a fully blank `main`, not one missing element, so open the saved image to prove what a student sees.
 - Await every Playwright call. A call you forget to await fails the run with `FAIL stray error` only if the call fails. If it succeeds, the run passes and the journey did not wait for it.
@@ -111,16 +112,17 @@ A viewport fails when any of these happens:
 | `journey` | The journey throws, an action times out, or the journey passes its deadline. |
 | `identity` | The final page title does not contain `PRODUCT_NAME` from `apps/web/src/strings.ts`. |
 | `screenshot` | Every pixel of the whole final screenshot is one color, as with an empty body or `opacity: 0` on the whole app. The shell always draws its sidebar or header, so this fires only when the shell is gone too. |
-| `main region` | The final page has a `main` element that is hidden, has no size, or has every pixel one color. This catches a blank page inside the shell, as with `opacity: 0` on its content, content off screen, transparent text, or nothing rendered. |
+| `main region` | The final page has a `main` element that is hidden, has no size, sits wholly outside the viewport, or has every pixel one color once everything outside `main` is hidden. This catches a blank page inside the shell, as with `opacity: 0` on its content, its content off screen, `main` itself off screen, or nothing rendered. It catches transparent text only when nothing else in `main` draws. |
 | `final page` | The final page cannot be read within 20 seconds, because it crashed, closed, or hung. No final screenshot is saved. |
 | `page error` | An uncaught exception on any page in the journey's context, or in a dedicated worker. |
 | `console error` | Any `console.error`, including a failed request, on any page in the journey's context, or in a dedicated or service worker. |
 | `page crash` | Any page in the journey's context crashes. |
 
 - After the journey, the driver waits 1.5 seconds, reads the title, takes the final screenshots, closes the page, and only then reads the failures.
-- The `screenshot` and `main region` checks look for exactly one color. A `main` with one word passes, and so does faint text, or a `main` that lost only part of its content. A page meant to be one color fails, so end the journey on a state with something drawn.
+- The `screenshot` and `main region` checks look for exactly one color. So `main region` proves more than one color in `main`, not that the page is readable. A `main` with one word passes, and so does faint text, or a `main` that lost only part of its content. A page meant to be one color fails, so end the journey on a state with something drawn.
 - The phone Menu hides `main` while it is open, so a journey that ends with the Menu open fails `main region`. Close it first, and call `capture` if you need the open state.
 - A page with no `main` element gets only the `screenshot` check, so a shell that loses its `main` passes unless the journey notices.
+- A `main` that holds only an iframe fails `main region`, because the hiding also reaches inside frames.
 
 These pass, as measured on the real app, so do not read a pass as covering them:
 
@@ -128,6 +130,9 @@ These pass, as measured on the real app, so do not read a pass as covering them:
 - A page that swallows its error with `event.preventDefault()` in a `window` `error` listener.
 - A type error in the web app, because Vite does not type-check. `pnpm typecheck` catches it.
 - Content pushed down inside `main`, as with a large top margin, because the screenshot covers all of `main`.
+- Text a student cannot read, when anything else in `main` draws. `* { color: transparent !important }` passes on Sessions, because its borders draw. It passes on Home too, where only the chat box placeholder stays readable, because its cards, pictures, and buttons draw.
+- A `main` partly off screen, as with `transform: translateX(50%)`, because part of its box touches the viewport.
+- A cover outside `main` that is drawn over it, even a blank one in the page's color, because the check hides everything outside `main`.
 - A journey that calls `process.exit(0)`. The command exits 0 with no `PASSED` line and no images, and under `run` the app stays running. So trust a run only when it prints `PASSED`.
 
 The driver also does not see errors in a shared worker, an uncaught exception in a service worker, or any page in a context the journey opens for itself.
@@ -160,11 +165,15 @@ The default folder is `.verify/evidence`. For a live lane, use `/tmp/swarm-<pr-i
 | --- | --- |
 | `<journey>-<viewport>.png` | The viewport passed. |
 | `<journey>-<viewport>-failed.png` | The viewport failed. |
-| `<journey>-<viewport>-<label>.png` | The journey called `capture('<label>')`. |
+| `<journey>-<viewport>-<label>.png` | The journey called `capture('<label>')`, whatever the run's result. |
 
 `<journey>` is the journey's file name without `.mjs`. If a plan names an image such as `m1-2-laptop.png`, copy the saved file to that name, or run a copy of the journey that has the plan's name, as in `--journey /tmp/m1-2.mjs`.
 
-A run first deletes the earlier images of that journey and viewport in the output folder, including labeled ones. So a pass image never sits beside a failed run, and a `-failed` image never sits beside a pass, even when the run is refused or the app does not start. The one exception is a mistyped flag such as `--viewport`. The command exits 1 before it reads any option, including `--out`, so earlier images stay. Images of other journeys and viewports stay. A journey name such as `home-laptop-menu` would lose its images to a run of `home`, so keep viewport names out of journey names.
+A labeled image is saved when the journey calls `capture`, before the result is known, and it keeps its name in a failed run. So a labeled image proves something only when the run printed `PASSED`.
+
+Each viewport gets its own result, so a run that fails only at phone width leaves `home-laptop.png` beside `home-phone-failed.png`.
+
+A run first deletes the earlier images of that journey and viewport in the output folder, including labeled ones. So a viewport's pass image never sits beside its failed run, and its `-failed` image never sits beside its pass, even when the run is refused or the app does not start. The one exception is a mistyped flag such as `--viewport`. The command exits 1 before it reads any option, including `--out`, so earlier images stay. Images of other journeys and viewports stay. A journey name such as `home-laptop-menu` would lose its images to a run of `home`, so keep viewport names out of journey names.
 
 The widths are in `VIEWPORTS` in `scripts/lib/settings.mjs`. Laptop is 1440 by 900 and phone is 390 by 844.
 
@@ -189,9 +198,9 @@ Only `run` stops the app when it gets a signal. After a SIGKILL to the `verify` 
 pnpm verify:self
 ```
 
-Run this after you change anything in this skill. It takes about 3 minutes. It uses free ports and its own run folder, so it leaves the record and ports of a run you already have alone. It shares the Supabase stack and `apps/api/dist` with that run, and it uses your `DATABASE_URL`, so run `pnpm db:up` first. It drives the real app and asserts these:
+Run this after you change anything in this skill. It takes about 4 minutes. It uses free ports and its own run folder, so it leaves the record and ports of a run you already have alone. It shares the Supabase stack and `apps/api/dist` with that run, and it uses your `DATABASE_URL`, so run the setup above first, including the seed. It drives the real app and asserts these:
 
-- The run fails on a page that throws, a console error, a journey that throws, a page crash, a page that is not Astra, a throw or crash just after the journey, four kinds of blank page, five kinds of blank Home that keep the shell at both widths, a journey that closes its page, an error on a second page, a journey that never settles, and a journey with no default export.
+- The run fails on a page that throws, a console error, a journey that throws, a page crash, a page that is not Astra, a throw or crash just after the journey, four kinds of blank page, four kinds of blank Home that keep the shell at both widths, `main` off screen on each side at both widths, a Home blank only at phone width under a floating overlay that touches `main`, a journey that closes its page, an error on a second page, a journey that never settles, and a journey with no default export.
 - Two plain pages pass, a plain Home inside the shell passes at both widths, and a rerun replaces the images of that journey and viewport, even when the run is refused.
 - `start` and `drive` refuse a taken port, `doctor` and `drive` fail on an API compile error and a dead API, `doctor` fails when the ports answer with something else, `start` shows the API's own error, and `start` shows a migrate failure and starts nothing.
 - `stop` ends this run even after its group leader dies, force-kills a group that ignores SIGTERM, and leaves alone a sibling checkout's group, a reused group ID, and a group from another run with no leader.

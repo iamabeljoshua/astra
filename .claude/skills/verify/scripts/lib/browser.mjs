@@ -7,6 +7,8 @@ const FAKE_MICROPHONE_ARGS = ['--use-fake-device-for-media-stream', '--use-fake-
 const WEBGL_CLEAR_COLOR = [255, 128, 0, 255];
 const AUDIBLE_PEAK = 0.01;
 const MAIN_REGION_SELECTOR = 'main';
+// A floating overlay that touches main, such as the dev tools button, would make a blank main look drawn.
+const HIDE_ALL_BUT_MAIN = 'body *:not(main, main *, :has(main)) { visibility: hidden !important; }';
 // verify.mjs owns signals, because Playwright's handlers can exit the process before the app stops.
 const LAUNCH_OPTIONS = {
   channel: GPU_CAPABLE_CHANNEL,
@@ -124,12 +126,20 @@ export async function getScreenshotCheck({ browser, name, screenshot }) {
   }
 }
 
+function isOutsideViewport(box, viewport) {
+  return box.x + box.width <= 0 || box.x >= viewport.width || box.y + box.height <= 0 || box.y >= viewport.height;
+}
+
 export async function getMainRegionCheck({ browser, page }) {
   const name = 'main region';
   const mainRegion = page.locator(MAIN_REGION_SELECTOR);
   if ((await mainRegion.count()) === 0) return { name, passed: true, detail: 'this page has no main element' };
   if (!(await mainRegion.isVisible())) return { name, passed: false, detail: 'the main element is hidden or has no size' };
-  const screenshot = await mainRegion.screenshot({ animations: 'disabled' });
+  const mainBox = await mainRegion.boundingBox();
+  if (isOutsideViewport(mainBox, page.viewportSize())) {
+    return { name, passed: false, detail: `the main element is off screen, at x ${mainBox.x}, y ${mainBox.y}` };
+  }
+  const screenshot = await mainRegion.screenshot({ animations: 'disabled', style: HIDE_ALL_BUT_MAIN });
   return getScreenshotCheck({ browser, name, screenshot });
 }
 
