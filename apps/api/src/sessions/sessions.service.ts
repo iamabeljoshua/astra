@@ -41,4 +41,12 @@ export class SessionsService {
     });
     return sessions.map(toSessionResponse);
   }
+
+  async getNewestUnfinishedSession(studentId: string): Promise<SessionResponseDto | null> {
+    const session = await this.sessions.findOne({
+      where: { studentId, status: 'in_progress' },
+      order: { startedAt: 'DESC', id: 'DESC' },
+    });
+    return session && toSessionResponse(session);
+  }
 }
