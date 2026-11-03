@@ -6,6 +6,9 @@ import { App } from './App';
 import { API_CONNECTION_LABELS, MENU_LABELS, PRODUCT_NAME } from './strings';
 import { HEALTH_CHECK_RETRY_DELAY_MS, HEALTH_CHECK_TIMEOUT_MS } from './useApiConnection';
 
+vi.mock('./auth/session', () => import('./test/signedInSession'));
+vi.mock('./auth/useAccount', () => import('./test/activeAccount'));
+
 const healthyResponse: components['schemas']['HealthResponseDto'] = { status: 'ok' };
 const TIME_FOR_SEVERAL_CHECKS_MS = 30_000;
 const SMALL_MARGIN_MS = 100;

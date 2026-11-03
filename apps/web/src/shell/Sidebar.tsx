@@ -1,5 +1,7 @@
 import { NavLink } from 'react-router';
-import { PLACEHOLDER_ACCOUNT, PRODUCT_NAME, SIDEBAR_LABELS } from '../strings';
+import { SignOutButton } from '../auth/SignOutButton';
+import { useAccount } from '../auth/useAccount';
+import { ACCOUNT_LABELS, PRODUCT_NAME, SIDEBAR_LABELS } from '../strings';
 import { ThemeToggle } from '../theme/ThemeToggle';
 import { MENU } from './menu';
 
@@ -44,11 +46,13 @@ function RecentSessions() {
 }
 
 function AccountRow() {
+  const { data: account } = useAccount();
+
   return (
     <div className="flex items-center justify-between gap-2 border-t border-line px-2 pt-2.5">
       <div className="min-w-0">
-        <div className="leading-tight font-medium">{PLACEHOLDER_ACCOUNT.name}</div>
-        <span className="text-fine text-ink-2">{PLACEHOLDER_ACCOUNT.status}</span>
+        <div className="leading-tight font-medium">{account?.student?.name ?? ACCOUNT_LABELS.unnamedStudent}</div>
+        <SignOutButton className="text-fine text-ink-2 hover:text-ink" />
       </div>
       <ThemeToggle />
     </div>

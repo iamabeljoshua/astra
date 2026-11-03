@@ -4,12 +4,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../App';
 import {
   API_CONNECTION_LABELS,
+  ACCOUNT_LABELS,
   MENU_LABELS,
-  PLACEHOLDER_ACCOUNT,
   PRODUCT_NAME,
   SIDEBAR_LABELS,
   THEME_LABELS,
 } from '../strings';
+
+vi.mock('../auth/session', () => import('../test/signedInSession'));
+vi.mock('../auth/useAccount', () => import('../test/activeAccount'));
 
 const { NEW_ROW_LABEL, NEW_PAGE_TEXT } = vi.hoisted(() => ({
   NEW_ROW_LABEL: 'New row',
@@ -61,7 +64,8 @@ describe('Sidebar', () => {
     within(sidebar).getByText(PRODUCT_NAME);
     within(sidebar).getByText(SIDEBAR_LABELS.recent);
     within(sidebar).getByText(SIDEBAR_LABELS.noSessions);
-    within(sidebar).getByText(PLACEHOLDER_ACCOUNT.name);
+    within(sidebar).getByText('Maya');
+    within(sidebar).getByRole('button', { name: ACCOUNT_LABELS.signOut });
     within(sidebar).getByRole('button', { name: THEME_LABELS.dark });
     await screen.findByRole('heading', { level: 1 });
   });

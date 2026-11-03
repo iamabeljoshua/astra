@@ -23,6 +23,16 @@
   --text-title--line-height: 1.2;
   --text-greeting: clamp(30px, 2.8vw, 38px);
   --text-greeting--line-height: 1.1;
+  --text-control: 14px;
+  --text-sub: 16px;
+  --text-entry: 22px;
+  --text-question: clamp(27px, 2.5vw, 36px);
+  --text-question--line-height: 1.12;
+  --text-tagline: clamp(38px, 4.3vw, 62px);
+  --text-tagline--line-height: 0.98;
+  --text-sheet-name: 30px;
+  --text-sheet-name--line-height: 1.1;
+  --text-sheet-name-phone: 18px;
 
   --breakpoint-*: initial;
   --breakpoint-md: 761px;
@@ -34,7 +44,12 @@
   --spacing-sidebar: 216px;
   --spacing-page-side: clamp(16px, 3vw, 40px);
   --spacing-page-top: clamp(20px, 4.5vh, 44px);
+  --spacing-onboarding-side: clamp(16px, 4vw, 56px);
   --container-column: 1020px;
+  --container-onboarding: 580px;
+  --container-sheet: 348px;
+  --grid-template-columns-onboarding: minmax(0, 1fr) clamp(360px, 31vw, 460px);
+  --grid-template-columns-sheet-row: 74px minmax(0, 1fr);
 
   --animate-arrive: arrive 0.5s linear;
 
@@ -95,6 +110,71 @@
   font-weight: 600;
   letter-spacing: 0.34em;
   text-transform: uppercase;
+}
+
+@utility button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--color-ink);
+  padding: 10px 16px;
+  font-size: var(--text-control);
+  font-weight: 500;
+  white-space: nowrap;
+
+  &:disabled {
+    opacity: 0.35;
+    pointer-events: none;
+  }
+}
+
+@utility button-outline {
+  @media (hover: hover) {
+    &:hover {
+      background-color: var(--color-ink);
+      color: var(--color-paper);
+    }
+  }
+}
+
+@utility button-solid {
+  background-color: var(--color-ink);
+  color: var(--color-paper);
+
+  @media (hover: hover) {
+    &:hover {
+      background-color: transparent;
+      color: var(--color-ink);
+    }
+  }
+}
+
+@utility line-input {
+  width: 100%;
+  max-width: 440px;
+  border-bottom: 1px solid var(--color-ink);
+  padding: 8px 0;
+  font-size: var(--text-entry);
+  letter-spacing: normal;
+  text-transform: none;
+  outline: none;
+
+  &::placeholder {
+    color: var(--color-line);
+    opacity: 1;
+  }
+
+  &:focus {
+    border-bottom-width: 2px;
+    padding-bottom: 7px;
+  }
+}
+
+@utility stop-note {
+  max-width: 44ch;
+  border-left: 2px solid var(--color-ink);
+  padding-left: 12px;
 }
 
 @media (prefers-reduced-motion: reduce) {
