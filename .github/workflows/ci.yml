@@ -60,3 +60,4 @@ jobs:
       - name: Build a fresh database from the migrations and seed it
         run: pnpm db:migrate && pnpm db:seed
       - run: pnpm test
+      - run: pnpm verify start && pnpm verify stop
