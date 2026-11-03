@@ -548,7 +548,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 **You see.**
 
 - [ ] Sign-in runs on Supabase Auth, and the API accepts only a valid Supabase token.
-- [ ] A student can sign in with an email link or with Google, stay signed in across a reload, and sign out.
+- [ ] A student can sign in with an email link, stay signed in across a reload, and sign out. Google sign-in is wired, and its button stays hidden until Google credentials exist.
 - [ ] The date-of-birth question asks neutrally, and a student under 13 is stopped and cannot retry.
 - [ ] Every API route that holds student data requires a signed-in student, and one student cannot read another's data.
 - [ ] Local development works without real email or a Google account.
@@ -592,7 +592,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 **Build.**
 
 - [ ] Build the steps as one table in `apps/web/src/onboarding/steps.ts`, so the order and the parent step come from data.
-- [ ] Stop for Abel's decision on an email service, because it may be a paid service. Until then, development logs the consent link.
+- [ ] Log the consent link locally for now. Abel chooses the email service later, and this PR can merge without it. Real email must ship before any real student under 18 signs up.
 - [ ] Use browser voices as stand-ins until M3.6 provides real samples, and swap them in that PR.
 - [ ] Script the first exchange until M3.10 connects the real tutor.
 
@@ -600,7 +600,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 - [ ] The welcome screen says "A learning app, made for you" and states that the tutor is an AI.
 - [ ] Each screen asks one thing, in the prototype's order, and the sheet fills in with each answer and shows the student's name as they type.
-- [ ] A student under 18 gives a parent's email address, the parent gets one email with a consent link, and the account waits until they accept.
+- [ ] A student under 18 gives a parent's email address, one consent link is logged locally in place of the email, and the account waits until they accept.
 - [ ] The student picks from three voices and hears each one.
 - [ ] The last screen is a first exchange with the tutor, and the student's answer appears on Home as a card to start from.
 - [ ] All answers are saved to the student's profile and can be changed later.

@@ -51,7 +51,7 @@ Stop for my decision before you do any of these:
 - Touch auth or payments.
 - Add or depend on a paid service.
 - Make a high-level architectural decision.
-- Change anything from an approved plan.
+- Change anything from an approved plan. File-level differences, such as a file name or a small helper file, do not count, so list those in the PR. Anything that changes what gets built, adds a dependency, costs money, or changes what a student sees still counts.
 
 Give me the options and your recommendation. Add the `needs-human-review` label to the issue, tell me in chat, and send a push notification. Keep working on anything the decision does not affect.
 
