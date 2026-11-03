@@ -31,7 +31,6 @@ export function splitIntoPhrases(studentInterest: string): string[] {
   return studentInterest.split(PHRASE_SEPARATOR);
 }
 
-// A student types freely, and a pick's reason repeats the claim, so only a short phrase with no refusal counts as liking the word.
 export function readsAsLiking(phrase: string, interestWord: string): boolean {
   const statement = phrase.trim().replace(LIKING_LEAD_IN, '');
   const hasRefusal = toWordSearchText(statement).trim().split(' ').some((word) => REFUSING_WORDS.has(word));

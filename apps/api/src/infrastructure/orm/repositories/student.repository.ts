@@ -86,17 +86,13 @@ export class StudentRepository {
     return this.profiles.findOneBy({ studentId });
   }
 
-  // A second tab can save with no first answer after the first tab gave one, and that must not wipe it.
   saveProfile(studentId: string, { name, firstQuestion, ...profileFields }: ProfileFields): Promise<StudentAccount> {
     return this.dataSource.transaction(async (manager) => {
       await manager.query(HOLD_ACCOUNT_UNTIL_COMMIT, [studentId]);
       const saved = await manager.findOneBy(StudentProfileEntity, { studentId });
+      const firstQuestionOrSavedOne = firstQuestion ?? saved?.firstQuestion ?? null;
       await manager.update(StudentEntity, { id: studentId }, { name });
-      await manager.upsert(
-        StudentProfileEntity,
-        { ...profileFields, firstQuestion: firstQuestion ?? saved?.firstQuestion ?? null, studentId },
-        ['studentId'],
-      );
+      await manager.upsert(StudentProfileEntity, { ...profileFields, firstQuestion: firstQuestionOrSavedOne, studentId }, ['studentId']);
       const { authUserId } = await manager.findOneByOrFail(StudentEntity, { id: studentId });
       return readAccount(manager, authUserId);
     });
