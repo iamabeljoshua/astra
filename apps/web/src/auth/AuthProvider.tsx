@@ -1,8 +1,8 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { createContext, type PropsWithChildren, useContext, useEffect, useState } from 'react';
-import { getSignInReturnProblem, restartAppAtHome, type SignInReturnProblem, watchSignedInUser } from './session';
+import { getSignInReturnProblem, hasStoredSession, restartAppAtHome, type SignInReturnProblem, watchSignedInUser } from './session';
 
-type SignIn = { status: 'loading' } | { status: 'signedOut' } | { status: 'signedIn' };
+type SignIn = { status: 'loading' } | { status: 'signedOut' } | { status: 'signedIn' } | { status: 'authUnreachable' };
 
 interface AuthState {
   signIn: SignIn;
@@ -29,7 +29,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         return;
       }
       signedInUserId = userId;
-      setSignIn({ status: userId ? 'signedIn' : 'signedOut' });
+      setSignIn({ status: getSignInStatus(userId) });
     });
   }, [queryClient]);
 
@@ -40,6 +40,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
   useEffect(reloadWhenRestoredFromHistory, []);
 
   return <AuthContext.Provider value={{ signIn, returnProblem }}>{children}</AuthContext.Provider>;
+}
+
+// The client reports no user when it cannot renew an expired token, and it keeps the session only while Auth might still take it.
+function getSignInStatus(userId: string | null) {
+  if (userId) return 'signedIn';
+  return hasStoredSession() ? 'authUnreachable' : 'signedOut';
 }
 
 // A browser can restore a page from memory on Back, with the last student's data still on it.

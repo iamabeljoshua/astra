@@ -84,7 +84,7 @@ describe('SignInPage', () => {
     screen.getByRole('button', { name: SIGN_IN_LABELS.sendLink });
   });
 
-  it.each(['linkFailed', 'cancelled'] as const)('says what happened on a return with %s', (returnProblem) => {
+  it.each(['linkFailed', 'cancelled', 'authUnreachable'] as const)('says what happened on a return with %s', (returnProblem) => {
     vi.mocked(useAuth).mockReturnValue({ signIn: { status: 'signedOut' }, returnProblem });
 
     render(<SignInPage />);

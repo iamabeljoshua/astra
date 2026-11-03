@@ -33,6 +33,7 @@ Preconditions:
 
 - Each run makes one new user per viewport in the shared Auth, with an address like `verify-laptop-<time>@astra.test`.
 - The shared Auth lets one address ask for a link only once every 60 seconds, so reuse a new address to retry.
-- `Development sign-in` uses a password. The API accepts a password only when `NODE_ENV` is exactly `development`, so `NODE_ENV=production pnpm verify start` refuses that box with a 401.
+- `Development sign-in` uses a password. The API accepts a password only when `NODE_ENV` is exactly `development`, so under `NODE_ENV=production pnpm verify start` that box ends on the error page with `Try again`.
 - The stack sends a link back only to `127.0.0.1`, which is why `pnpm verify` prints `127.0.0.1` URLs.
 - An email link works only in the browser that asked for it, so a journey must open it in the same context.
+- The driver's browser has the back-forward cache off, because Playwright turns it off by default. So the `after-back` image proves the history entry, not a restored page. To test a restored page, launch with `ignoreDefaultArgs: ['--disable-back-forward-cache']` and press Back with `history.back()` from the page.

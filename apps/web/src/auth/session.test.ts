@@ -170,28 +170,62 @@ describe('an expired session', () => {
 });
 
 describe('signOut', () => {
-  it('ends the session on the server and forgets it', async () => {
+  it('forgets the session at once, then ends it on the server with the token it held', async () => {
     localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(STORED_SESSION));
     const fetchStub = stubAuthAnswer(204, {});
-    const { getAccessToken, signOut } = await loadSession();
-
-    await signOut();
-
-    expect(fetchStub.mock.calls.some(([url]) => String(url).includes('/auth/v1/logout'))).toBe(true);
-    expect(localStorage.getItem(SESSION_STORAGE_KEY)).toBeNull();
-    await expect(getAccessToken()).resolves.toBeNull();
-  });
-
-  it('forgets the session and restarts the app when Auth cannot be reached', async () => {
-    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(STORED_SESSION));
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('network down')));
     const replace = stubLocation();
     const { signOut } = await loadSession();
+    fetchStub.mockClear();
 
-    await signOut();
+    signOut();
 
     expect(localStorage.getItem(SESSION_STORAGE_KEY)).toBeNull();
     expect(replace).toHaveBeenCalledWith('/');
+    await vi.waitFor(() => expect(fetchStub).toHaveBeenCalled());
+    const [url, init] = fetchStub.mock.calls[0] ?? [];
+    expect(String(url)).toContain('/auth/v1/logout?scope=global');
+    expect(new Headers(init?.headers).get('authorization')).toBe('Bearer stored-access-token');
+    expect(init?.keepalive).toBe(true);
+  });
+
+  it('is signed out on this browser while Auth never answers', async () => {
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(STORED_SESSION));
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => undefined)));
+    const replace = stubLocation();
+    const { signOut } = await loadSession();
+
+    signOut();
+
+    expect(localStorage.getItem(SESSION_STORAGE_KEY)).toBeNull();
+    expect(replace).toHaveBeenCalledWith('/');
+  });
+
+  it('calls Auth for nothing when no session is stored', async () => {
+    const fetchStub = stubAuthAnswer(204, {});
+    stubLocation();
+    const { signOut } = await loadSession();
+    fetchStub.mockClear();
+
+    signOut();
+
+    expect(fetchStub).not.toHaveBeenCalled();
+  });
+});
+
+describe('watchSignedInUser', () => {
+  it('reports no user when another tab removes the session', async () => {
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(STORED_SESSION));
+    const { watchSignedInUser } = await loadSession();
+    const onChange = vi.fn();
+    const stop = watchSignedInUser(onChange);
+    await vi.waitFor(() => expect(onChange).toHaveBeenCalledWith(USER.id));
+    onChange.mockClear();
+
+    localStorage.removeItem(SESSION_STORAGE_KEY);
+    window.dispatchEvent(new StorageEvent('storage', { key: SESSION_STORAGE_KEY }));
+
+    expect(onChange).toHaveBeenCalledWith(null);
+    stop();
   });
 });
 
@@ -205,6 +239,19 @@ describe('renewSession', () => {
     const { renewSession } = await loadSession();
 
     await expect(renewSession()).resolves.toBe(expected);
+  });
+
+  it('says unreachable and keeps the session when Auth limits an expired session, because a limit says nothing about it', async () => {
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({ ...STORED_SESSION, expires_at: Math.floor(Date.now() / 1000) - 60 }));
+    stubAuthAnswer(429, { error_code: 'over_request_rate_limit' });
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { renewSession } = await loadSession();
+
+    const renewal = renewSession();
+    await vi.advanceTimersByTimeAsync(TIME_FOR_ALL_REFRESH_RETRIES_MS);
+
+    await expect(renewal).resolves.toBe('unreachable');
+    expect(localStorage.getItem(SESSION_STORAGE_KEY)).not.toBeNull();
   });
 
   it('says unreachable and keeps the session when Auth cannot be reached', async () => {
@@ -222,16 +269,18 @@ describe('renewSession', () => {
 });
 
 describe('forgetSession', () => {
-  it('forgets the session and restarts the app when Auth cannot be reached', async () => {
+  it('forgets the session and restarts the app, with no call to Auth', async () => {
     localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(STORED_SESSION));
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('network down')));
+    const fetchStub = stubAuthAnswer(204, {});
     const replace = stubLocation();
     const { forgetSession } = await loadSession();
+    fetchStub.mockClear();
 
-    await forgetSession();
+    forgetSession();
 
     expect(localStorage.getItem(SESSION_STORAGE_KEY)).toBeNull();
     expect(replace).toHaveBeenCalledWith('/');
+    expect(fetchStub).not.toHaveBeenCalled();
   });
 });
 
@@ -256,6 +305,16 @@ describe('getSignInReturnProblem', () => {
     const { getSignInReturnProblem } = await loadSession();
 
     await expect(getSignInReturnProblem()).resolves.toBe('linkFailed');
+    expect(window.location.search).toBe('');
+  });
+
+  it('blames the connection, not the link, when Auth cannot be reached to finish a link', async () => {
+    window.history.replaceState(null, '', '/?code=a-good-code');
+    localStorage.setItem('astra-session-code-verifier', JSON.stringify('a-proof'));
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('network down')));
+    const { getSignInReturnProblem } = await loadSession();
+
+    await expect(getSignInReturnProblem()).resolves.toBe('authUnreachable');
     expect(window.location.search).toBe('');
   });
 

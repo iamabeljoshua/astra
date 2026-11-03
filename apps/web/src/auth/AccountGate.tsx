@@ -11,22 +11,25 @@ export function AccountGate({ children }: PropsWithChildren) {
 
   if (signIn.status === 'loading') return <LoadingPage />;
   if (signIn.status === 'signedOut') return <SignInPage />;
+  // A stored session that Auth could not renew is a returning student, not a new one.
+  if (signIn.status === 'authUnreachable') return <AccountErrorPage errorKind="network" onTryAgain={reloadPage} />;
   return <SignedInGate>{children}</SignedInGate>;
+}
+
+function reloadPage() {
+  window.location.reload();
 }
 
 function SignedInGate({ children }: PropsWithChildren) {
   const account = useAccount();
-  const { isTokenRefused, isRenewing } = useRenewalAfterRefusal(account);
+  const { settledKind, isRenewing, tryAgain } = useRenewalAfterRefusal(account);
   const [cameThroughStep, setCameThroughStep] = useState(false);
   const isLoading = account.isPending || (isRenewing && !account.data);
   if (!isLoading && account.data?.status !== 'active' && !cameThroughStep) setCameThroughStep(true);
 
   if (isLoading) return <LoadingPage />;
   // A failed refresh keeps the last answer, so a refused token or a network blip never takes the app away during a lesson.
-  if (!account.data) {
-    const errorKind = isTokenRefused || !account.error ? 'network' : account.error.kind;
-    return <AccountErrorPage errorKind={errorKind} onTryAgain={() => void account.refetch()} />;
-  }
+  if (!account.data) return <AccountErrorPage errorKind={settledKind ?? account.error?.kind ?? 'network'} onTryAgain={tryAgain} />;
 
   switch (account.data.status) {
     case 'needs_birth_date':

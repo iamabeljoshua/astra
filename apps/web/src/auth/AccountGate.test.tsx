@@ -10,6 +10,7 @@ import { forgetSession, renewSession } from './session';
 
 const APP_TEXT = 'The app';
 const APP_HEADING = 'The first page';
+const SLOW_ANSWER_MS = 30;
 const ACTIVE_ACCOUNT = {
   status: 'active',
   student: { id: '00000000-0000-4000-8000-000000000001', name: 'Maya', profile: null, parentConsentAt: null },
@@ -25,7 +26,7 @@ vi.mock('./session', () => ({
   signOut: vi.fn(),
 }));
 
-function setSignIn(status: 'loading' | 'signedOut' | 'signedIn') {
+function setSignIn(status: 'loading' | 'signedOut' | 'signedIn' | 'authUnreachable') {
   vi.mocked(useAuth).mockReturnValue({ signIn: { status }, returnProblem: null });
 }
 
@@ -221,19 +222,43 @@ describe('AccountGate', () => {
     expect(forgetSession).not.toHaveBeenCalled();
   });
 
-  it('forgets the session when the API refuses the renewed token too, and shows no app', async () => {
+  it('keeps the session and offers another try when the API refuses a token that Auth just renewed', async () => {
     setSignIn('signedIn');
-    stubApi({ 'GET /api/me': json({ statusCode: 401 }, 401) });
+    const answers: Record<string, () => Response> = { 'GET /api/me': json({ statusCode: 401 }, 401) };
+    stubApi(answers);
     vi.mocked(renewSession).mockResolvedValue('renewed');
 
     renderGate();
 
-    await waitFor(() => expect(forgetSession).toHaveBeenCalledTimes(1));
+    await screen.findByRole('heading', { name: API_ERROR_LABELS.server });
     expect(renewSession).toHaveBeenCalledTimes(1);
+    expect(forgetSession).not.toHaveBeenCalled();
     expect(screen.queryByText(APP_TEXT)).toBeNull();
+
+    answers['GET /api/me'] = json(ACTIVE_ACCOUNT);
+    fireEvent.click(screen.getByRole('button', { name: ACCOUNT_LABELS.tryAgain }));
+
+    await screen.findByText(APP_TEXT);
+    expect(forgetSession).not.toHaveBeenCalled();
   });
 
-  it('forgets the session when it cannot be renewed, and shows no app', async () => {
+  it('stops after one renewal when a slow API keeps refusing, rather than looping', async () => {
+    setSignIn('signedIn');
+    vi.stubGlobal('fetch', async () => {
+      await new Promise((resolve) => setTimeout(resolve, SLOW_ANSWER_MS));
+      return json({ statusCode: 401 }, 401)();
+    });
+    vi.mocked(renewSession).mockResolvedValue('renewed');
+
+    renderGate();
+
+    await screen.findByRole('heading', { name: API_ERROR_LABELS.server });
+    await act(() => new Promise((resolve) => setTimeout(resolve, SLOW_ANSWER_MS * 3)));
+    expect(renewSession).toHaveBeenCalledTimes(1);
+    expect(forgetSession).not.toHaveBeenCalled();
+  });
+
+  it('forgets the session only when Auth itself rejects the refresh token, and shows no app', async () => {
     setSignIn('signedIn');
     stubApi({ 'GET /api/me': json({ statusCode: 401 }, 401) });
     vi.mocked(renewSession).mockResolvedValue('refused');
@@ -422,6 +447,39 @@ describe('AccountGate', () => {
     await screen.findByRole('heading', { level: 1 });
 
     expect(screen.queryByText(TUTOR_NOTES_LABELS.footer)).toBeNull();
+  });
+
+  it('shows a returning student the error page, not the new-student welcome, when Auth cannot renew their session', () => {
+    setSignIn('authUnreachable');
+    const fetchStub = stubApi({});
+
+    renderGate();
+
+    screen.getByRole('heading', { name: API_ERROR_LABELS.network });
+    screen.getByRole('button', { name: ACCOUNT_LABELS.tryAgain });
+    screen.getByRole('button', { name: ACCOUNT_LABELS.signOut });
+    expect(screen.queryByRole('button', { name: SIGN_IN_LABELS.email })).toBeNull();
+    expect(fetchStub).not.toHaveBeenCalled();
+  });
+
+  describe('on a slow load', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('adds words to the product name after a few seconds, so it does not read as frozen', () => {
+      vi.useFakeTimers();
+      setSignIn('loading');
+      stubApi({});
+      renderGate();
+      expect(screen.getByRole('status').textContent).toBe('');
+
+      act(() => {
+        vi.advanceTimersByTime(3_000);
+      });
+
+      expect(screen.getByRole('status').textContent).toBe(ACCOUNT_LABELS.stillLoading);
+    });
   });
 
   it('offers another try and shows no app when the API fails, and does not sign out', async () => {

@@ -15,3 +15,5 @@ onlyBuiltDependencies:
 ignoredBuiltDependencies:
   - '@parcel/watcher'
   - '@scarf/scarf'
+
+engineStrict: true

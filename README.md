@@ -130,9 +130,9 @@ The guard checks the token signature against the keys that Auth publishes at `/a
 
 The guard sends `Cache-Control: no-store` on every route that is not public, so a student's answers do not stay in the browser's disk cache after sign-out.
 
-If the API refuses a token that the browser still trusts, as when the device clock runs behind, the web app renews the session and tries again, and the page on screen stays. If the API refuses the renewed token too, the web app forgets the session and shows the sign-in page. If Auth cannot be reached to renew it, the web app keeps the session. This runs only when `GET /me` gets the 401, so a 401 on another route waits for the next `GET /me`.
+If the API refuses a token that the browser still trusts, as when the device clock runs behind, the web app renews the session and tries again, and the page on screen stays. If the API refuses the renewed token too, the fault is on the API side, such as a wrong `SUPABASE_URL`, so the web app keeps the session and shows an error page with **Try again**. Only Auth rejecting the refresh token ends the session. A rate limit on the refresh, or Auth being out of reach, keeps it. An expired session that Auth cannot renew shows the same error page, not the welcome page. Renewal runs only when `GET /me` gets the 401, so a 401 on another route waits for the next `GET /me`.
 
-After sign-out, the browser has no token. Auth also refuses the refresh token, if Auth could be reached at that moment. If it could not, the browser still forgets its tokens, but a refresh token copied earlier keeps working on the server. An access token copied before the sign-out works at the API until it expires, which is 1 hour by default.
+Sign-out clears the browser first, within a moment and whatever Auth does, so a hung Auth or a closed tab cannot leave the next person signed in. It then tells Auth in the background with the token it held. If that call never lands, the refresh token still works on the server. An access token copied before the sign-out works at the API until it expires, which is 1 hour by default.
 
 Deleting or banning a user in Supabase does not stop their tokens. The API checks only the signature, so that user keeps access until the last access token expires, up to 1 hour. The guard does not ask Auth about each request.
 

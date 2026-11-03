@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthProvider, useAuth } from './AuthProvider';
-import { getSignInReturnProblem, restartAppAtHome } from './session';
+import { getSignInReturnProblem, hasStoredSession, restartAppAtHome } from './session';
 
 const USER_A = 'user-a';
 const USER_B = 'user-b';
@@ -11,6 +11,7 @@ const signInEvents = vi.hoisted(() => ({ send: (() => undefined) as (userId: str
 
 vi.mock('./session', () => ({
   getSignInReturnProblem: vi.fn(async () => null),
+  hasStoredSession: vi.fn(() => false),
   restartAppAtHome: vi.fn(),
   watchSignedInUser: (onChange: (userId: string | null) => void) => {
     signInEvents.send = onChange;
@@ -107,6 +108,17 @@ describe('AuthProvider', () => {
     send(USER_A);
 
     expect(queryClient.getQueryData(['home'])).toBe('the first student data');
+    expect(restartAppAtHome).not.toHaveBeenCalled();
+  });
+
+  it('calls no user with a stored session Auth out of reach, not signed out', async () => {
+    renderProvider();
+    await screen.findByText('loading null');
+    vi.mocked(hasStoredSession).mockReturnValueOnce(true);
+
+    send(null);
+
+    screen.getByText('authUnreachable null');
     expect(restartAppAtHome).not.toHaveBeenCalled();
   });
 

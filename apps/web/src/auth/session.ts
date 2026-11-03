@@ -3,7 +3,7 @@ import { type AuthError, createClient, isAuthRetryableFetchError } from '@supaba
 import { fetchWithTimeLimit } from './fetchWithTimeLimit';
 
 export type EmailLinkResult = 'sent' | 'invalidEmail' | 'tooManyRequests' | 'authFailed' | 'failed';
-export type SignInReturnProblem = 'linkFailed' | 'cancelled';
+export type SignInReturnProblem = 'linkFailed' | 'cancelled' | 'authUnreachable';
 export type SessionRenewal = 'renewed' | 'refused' | 'unreachable';
 
 const SESSION_STORAGE_KEY = 'astra-session';
@@ -41,9 +41,21 @@ export async function getAccessToken(): Promise<string | null> {
   return data.session?.access_token ?? null;
 }
 
+export function hasStoredSession(): boolean {
+  return window.localStorage.getItem(SESSION_STORAGE_KEY) !== null;
+}
+
 export function watchSignedInUser(onChange: (userId: string | null) => void): () => void {
   const { data } = supabase.auth.onAuthStateChange((_event, session) => onChange(session?.user.id ?? null));
-  return () => data.subscription.unsubscribe();
+  // A sign-out in another tab removes the session without telling this tab's client.
+  const followOtherTabs = (event: StorageEvent) => {
+    if ((event.key === SESSION_STORAGE_KEY || event.key === null) && !hasStoredSession()) onChange(null);
+  };
+  window.addEventListener('storage', followOtherTabs);
+  return () => {
+    data.subscription.unsubscribe();
+    window.removeEventListener('storage', followOtherTabs);
+  };
 }
 
 // Without this browser's proof the client ignores a link's code and reports no error, so a code still here means it failed.
@@ -54,6 +66,7 @@ async function readSignInReturnProblem(): Promise<SignInReturnProblem | null> {
   const hasUnusedCode = new URLSearchParams(window.location.search).has(LINK_CODE_PARAM);
   if (!error && !hasUnusedCode) return null;
   window.history.replaceState(null, '', getReturnAddress());
+  if (error && isAuthRetryableFetchError(error)) return 'authUnreachable';
   const wasCancelled = returnParams.get(RETURN_ERROR_PARAM) === REFUSED_AT_PROVIDER && !returnParams.has(RETURN_ERROR_CODE_PARAM);
   return wasCancelled ? 'cancelled' : 'linkFailed';
 }
@@ -89,6 +102,12 @@ export async function signInWithPassword(email: string, password: string): Promi
   return !error;
 }
 
+// Asking the client would wait on its lock while Auth hangs, so this reads what the client stored.
+function readStoredAccessToken(): string | null {
+  const storedSession = window.localStorage.getItem(SESSION_STORAGE_KEY);
+  return storedSession ? ((JSON.parse(storedSession) as { access_token?: string }).access_token ?? null) : null;
+}
+
 // Replaces this history entry, so Back cannot restore the last student's page from memory.
 export function restartAppAtHome(): void {
   window.location.replace('/');
@@ -100,18 +119,16 @@ export async function renewSession(): Promise<SessionRenewal> {
   return isAuthRetryableFetchError(error) ? 'unreachable' : 'refused';
 }
 
-// With Auth out of reach the client may keep its session, and the student must still leave, so forget it here.
-async function endSession(scope: 'global' | 'local'): Promise<void> {
-  const { error } = await supabase.auth.signOut({ scope });
-  if (!error) return;
+// Clears the browser first and tells Auth afterward, so a hung Auth or a closed tab cannot leave the next person signed in.
+export function signOut(): void {
+  const accessToken = readStoredAccessToken();
   window.localStorage.removeItem(SESSION_STORAGE_KEY);
+  if (accessToken) void supabase.auth.admin.signOut(accessToken, 'global');
   restartAppAtHome();
 }
 
-export function forgetSession(): Promise<void> {
-  return endSession('local');
-}
-
-export function signOut(): Promise<void> {
-  return endSession('global');
+// Auth has already rejected this session, so it needs no call to Auth.
+export function forgetSession(): void {
+  window.localStorage.removeItem(SESSION_STORAGE_KEY);
+  restartAppAtHome();
 }

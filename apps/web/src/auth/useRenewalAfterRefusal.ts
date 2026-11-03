@@ -1,35 +1,47 @@
 import { useEffect, useRef, useState } from 'react';
-import { forgetSession, renewSession } from './session';
+import type { ApiErrorKind } from '../api/apiError';
+import { forgetSession, renewSession, type SessionRenewal } from './session';
 import type { useAccount } from './useAccount';
 
 const UNAUTHORIZED_STATUS = 401;
 
-// A device clock running behind keeps a dead token in use, so one renewal comes before giving up on the session.
-// Auth being out of reach says nothing about the session, so that case keeps it and leaves the student where they are.
-export function useRenewalAfterRefusal({ error, errorUpdatedAt, refetch }: ReturnType<typeof useAccount>) {
+interface LastRenewal {
+  result: SessionRenewal;
+  refusalTime: number;
+}
+
+// Once Auth renews a session and the API still refuses it, the fault is on the API side, and only Auth can end a session.
+function getSettledKind(lastRenewal: LastRenewal | null, errorUpdatedAt: number): ApiErrorKind | null {
+  if (lastRenewal?.result === 'unreachable' && lastRenewal.refusalTime === errorUpdatedAt) return 'network';
+  if (lastRenewal?.result === 'renewed' && lastRenewal.refusalTime !== errorUpdatedAt) return 'server';
+  return null;
+}
+
+// A device clock running behind keeps a dead token in use, so a refused token gets one renewal until an answer succeeds.
+export function useRenewalAfterRefusal({ error, errorUpdatedAt, isFetching, refetch }: ReturnType<typeof useAccount>) {
   const isTokenRefused = error?.status === UNAUTHORIZED_STATUS;
-  const hasRenewed = useRef(false);
-  const [unreachableAtErrorTime, setUnreachableAtErrorTime] = useState<number | null>(null);
+  const isRunning = useRef(false);
+  const [lastRenewal, setLastRenewal] = useState<LastRenewal | null>(null);
+  // A refetch clears the error before it answers, so only a finished answer can say the token was accepted.
+  if (lastRenewal && !isFetching && !isTokenRefused) setLastRenewal(null);
 
   useEffect(() => {
-    if (!isTokenRefused) {
-      hasRenewed.current = false;
-      return;
-    }
-    if (hasRenewed.current) {
-      void forgetSession();
-      return;
-    }
-    hasRenewed.current = true;
-    void renewSession().then((renewal) => {
-      if (renewal === 'renewed') void refetch();
-      if (renewal === 'refused') void forgetSession();
-      if (renewal === 'unreachable') {
-        hasRenewed.current = false;
-        setUnreachableAtErrorTime(errorUpdatedAt);
-      }
+    if (isFetching || isRunning.current || !isTokenRefused || lastRenewal) return;
+    isRunning.current = true;
+    void renewSession().then((result) => {
+      isRunning.current = false;
+      setLastRenewal({ result, refusalTime: errorUpdatedAt });
+      if (result === 'renewed') void refetch();
+      if (result === 'refused') forgetSession();
     });
-  }, [isTokenRefused, errorUpdatedAt, refetch]);
+  }, [isTokenRefused, isFetching, errorUpdatedAt, lastRenewal, refetch]);
 
-  return { isTokenRefused, isRenewing: isTokenRefused && unreachableAtErrorTime !== errorUpdatedAt };
+  const settledKind = isTokenRefused && !isFetching ? getSettledKind(lastRenewal, errorUpdatedAt) : null;
+
+  function tryAgain() {
+    setLastRenewal(null);
+    void refetch();
+  }
+
+  return { settledKind, isRenewing: isTokenRefused && !settledKind, tryAgain };
 }

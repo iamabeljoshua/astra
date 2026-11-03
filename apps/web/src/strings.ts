@@ -10,7 +10,7 @@ export const API_ERROR_LABELS = {
   validation: 'Check the details and try again.',
   rejected: 'That could not be completed.',
   server: 'Something went wrong on our side. Try again.',
-  network: 'Could not connect. Check your connection and try again.',
+  network: 'Could not connect. Try again in a moment.',
   aborted: 'That took too long. Try again.',
 };
 
@@ -36,6 +36,7 @@ export const ACCOUNT_LABELS = {
   signOut: 'Sign out',
   closed: "We can't set up this account.",
   tryAgain: 'Try again',
+  stillLoading: 'Still opening your account. This can take a moment.',
 };
 
 export const SIGN_IN_LABELS = {
@@ -46,6 +47,7 @@ export const SIGN_IN_LABELS = {
   terms: 'By continuing you agree to the Terms and the Privacy Policy.',
   linkFailed: 'That link did not work. It may have expired, or it was opened in another browser. Ask for a new one here.',
   cancelled: 'Sign-in did not finish. You can start again here.',
+  authUnreachable: 'We could not connect to finish signing you in. Ask for a new link here in a moment.',
   emailQuestion: 'What is your email address?',
   emailPlaceholder: 'Your email address',
   sendLink: 'Send link',
@@ -55,7 +57,7 @@ export const SIGN_IN_LABELS = {
   invalidEmail: 'Enter a valid email address.',
   tooManyRequests: "We can't send another link right now. If you asked for one already, check your email. Otherwise, try again in a few minutes.",
   authFailed: 'Could not send the link. The fault is on our side, so try again soon.',
-  failed: 'Could not send the link. Check your connection and try again.',
+  failed: 'Could not send the link. Try again in a moment.',
 };
 
 export const BIRTH_DATE_LABELS = {
@@ -100,7 +102,7 @@ export const HOME_LABELS = {
     validation: 'Your home screen did not load.',
     rejected: 'Your home screen did not load.',
     server: 'Your home screen did not load. The fault is on our side.',
-    network: 'Your home screen did not load. Check your connection.',
+    network: 'Your home screen did not load. Try again in a moment.',
     aborted: 'Your home screen is taking too long to load.',
   },
   cardsCrashHeading: 'Your cards could not be shown.',
