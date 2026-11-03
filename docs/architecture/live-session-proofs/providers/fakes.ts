@@ -77,7 +77,6 @@ class InProcessTts extends tts.TTS {
   }
 }
 
-/** A voice with no vendor and no wire. It proves the seam takes any class that gives word times. */
 export const IN_PROCESS_VOICE: VoiceAdapter = { name: 'in-process', makeTts: () => new InProcessTts() };
 
 export interface FakeModelScript {

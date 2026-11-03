@@ -29,7 +29,6 @@ export type TutorEvent =
   | { kind: 'refused'; reason: string }
   | { kind: 'usage'; inputTokens: number; cachedTokens: number; outputTokens: number };
 
-/** LiveKit's model class has no room for thinking, compaction, or refusals, so this one is ours, and the agent's `llmNode` calls it. */
 export interface TutorModelAdapter {
   name: string;
   stream(request: TutorRequest, signal: AbortSignal): AsyncIterable<TutorEvent>;

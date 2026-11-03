@@ -84,7 +84,6 @@ async function withSession(name, env, drive) {
   const student = new Student();
   const joinStartedAt = Date.now();
   await student.join(`${name}-${Date.now()}`);
-  // A first run on a fresh Python environment spends most of a minute compiling and loading its models.
   const started = await waitForAgentEvent(agent, (event) => event.event === 'session_started', args.sdk === 'python' ? 90000 : 20000);
   if (!started) {
     save(`${name}.failed`, { raw: agent.raw.slice(-40), student: student.log });
@@ -280,7 +279,7 @@ async function driveReconnect({ agent, student }) {
 
 const FAST_TURN = { AGENT_REPLY: SHORT_REPLY, TURN_MODE: 'detector' };
 const BEATS_TURN = { EP_MIN_MS: '300', EP_MAX_MS: '1000' };
-const PATIENCE_TURN = { TURN_MODE: 'detector', EP_MIN_MS: '300', EP_MAX_MS: '1000' };
+const PATIENCE_TURN = { TURN_MODE: 'detector', POLICY: 'tiered', EP_MIN_MS: '300', EP_MAX_MS: '1000' };
 const CAP_HIT_MS = 1000;
 const SPOKEN_PHRASES = [
   ['question', 'Once the ball leaves my hand, what makes it come down?'],
@@ -431,7 +430,6 @@ function countBurstsSince(log, fromIndex) {
   return log.slice(fromIndex).filter((event) => event.event === 'word_burst').length;
 }
 
-// Each attempt asks the question, and the student reacts over it, so the rule must wait for the browser to report its last word.
 function driveReactionOverQuestion(speech, script) {
   return async ({ agent, student }) => {
     const outcomes = [];
@@ -460,7 +458,6 @@ function driveReactionOverQuestion(speech, script) {
   };
 }
 
-// "Yes." once the question's last word has started is an answer, and the tutor answers it.
 async function driveAnswerOverLastWord({ agent, student }) {
   const outcomes = [];
   for (let attempt = 0; attempt < Math.min(REPEAT, 5); attempt++) {
@@ -481,14 +478,12 @@ async function driveAnswerOverLastWord({ agent, student }) {
       answerReachedModel: events.some((event) => event.event === 'conversation_item_added' && event.role === 'user' && event.text === 'Yes.'),
       voiceEndToReplyMs: reply ? reply.at - speechEnd : null,
     });
-    await waitForAgentState(agent, 'listening', 30000, agent.events.length);
-    await delay(1000);
+    await waitForAgentQuiet(agent, 2500);
     await clearScript();
   }
   return { attempts: outcomes.length, answerReachedModel: outcomes.filter((outcome) => outcome.answerReachedModel).length, voiceEndToReplyMs: describeSeries(outcomes.flatMap((outcome) => outcome.voiceEndToReplyMs ?? [])), outcomes };
 }
 
-// The student finishes a thought, the turn is confirmed, the model is thinking, and the student carries on.
 async function driveTalkIntoTheGap({ agent, student }) {
   const outcomes = [];
   const offsets = [100, 400, 600];
@@ -511,14 +506,11 @@ async function driveTalkIntoTheGap({ agent, student }) {
       repliesStarted: events.filter((event) => event.event === 'llm_node_started').length,
       turnsDroppedBySdk: agent.raw.slice(rawMark).filter((line) => line.includes('skipping user input')).length,
     });
-    await waitForAgentState(agent, 'listening', 30000, agent.events.length - 1);
-    await delay(1000);
     await clearScript();
   }
   return { attempts: outcomes.length, answered: outcomes.filter((outcome) => outcome.secondSentenceReachedModel).length, dropped: outcomes.filter((outcome) => outcome.turnsDroppedBySdk > 0).length, outcomes };
 }
 
-// Interim words and then no final words, as when speech to text takes them back.
 async function driveWordsNeverFinal({ agent, student }) {
   const outcomes = [];
   for (let attempt = 0; attempt < Math.min(REPEAT, 5); attempt++) {
@@ -625,17 +617,17 @@ const SCENARIOS = {
     return withSession('question_uhhuh', { TURN_MODE: 'detector', POLICY: 'tiered', AGENT_REPLY: QUESTION_REPLY }, driveReactionOverQuestion('uhhuh', 'Uh-huh'));
   },
   async question_hmm() {
-    return withSession('question_hmm', { TURN_MODE: 'detector', POLICY: 'tiered', AGENT_REPLY: QUESTION_REPLY, ...PATIENCE_TURN, FILLER_WAIT_MS: '8000' }, driveReactionOverQuestion('hmm', 'Hmm'));
+    return withSession('question_hmm', { AGENT_REPLY: QUESTION_REPLY, ...PATIENCE_TURN, FILLER_WAIT_MS: '8000' }, driveReactionOverQuestion('hmm', 'Hmm'));
   },
   async question_answer_over_last_word() {
     return withSession('question_answer_over_last_word', { TURN_MODE: 'detector', POLICY: 'tiered', AGENT_REPLY: QUESTION_REPLY }, driveAnswerOverLastWord);
   },
   async gap_talkover() {
-    return withSession('gap_talkover', { TURN_MODE: 'detector', POLICY: 'tiered', FAKE_LLM_TTFT_MS: '800' }, driveTalkIntoTheGap);
+    return withSession('gap_talkover', { TURN_MODE: 'detector', POLICY: 'tiered', FAKE_LLM_TTFT_MS: '800', AGENT_REPLY: SHORT_REPLY }, driveTalkIntoTheGap);
   },
   async gap_talkover_late_final() {
     await setFakeSettings({ transcriptDelayMs: 200 });
-    const summary = await withSession('gap_talkover_late_final', { TURN_MODE: 'detector', POLICY: 'tiered', FAKE_LLM_TTFT_MS: '800' }, driveTalkIntoTheGap);
+    const summary = await withSession('gap_talkover_late_final', { TURN_MODE: 'detector', POLICY: 'tiered', FAKE_LLM_TTFT_MS: '800', AGENT_REPLY: SHORT_REPLY }, driveTalkIntoTheGap);
     await setFakeSettings({ transcriptDelayMs: 0 });
     return summary;
   },

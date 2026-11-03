@@ -66,7 +66,6 @@ const STORIES = [
 const REAL_WORDS = 'Wait why';
 const REACTION = 'Uh-huh.';
 
-// Walks every state the rule can reach from every order of events, with a small model of the tutor and the timers beside it.
 function searchEveryOrder() {
   const violations = { realWordsNotStopped: [], reactionStopped: [], resumeWhileVoiceOn: [], resumeAfterFinalWords: [], stopWhileSilent: [], doubleYield: [], stuckYielded: [], silentForever: [] };
   const seen = new Set();

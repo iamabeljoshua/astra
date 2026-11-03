@@ -22,7 +22,6 @@ export interface Cue {
 
 /** Where a cut left one element, which stays there until the board unfreezes. */
 export type FrozenFrame = { target: ElementId } & (
-  /** The simulation's own time at the frozen frame. */
   | { simulationSeconds: number }
   /** A `reveal` cut while `overWords` ran, in the same unit as `reveal.upTo`. */
   | { revealedUpTo: number }
@@ -104,7 +103,6 @@ export interface ResumeCut extends ScriptCut {
   frozen: readonly FrozenFrame[];
 }
 
-// The words said since the cue have used up that much of its `overWords`.
 function getRemainderOfCue({ atWord, command }: Cue, fromWord: number): SceneCommand {
   if (!('overWords' in command) || command.overWords === undefined) return command;
   const wordsSaid = Math.max(fromWord - atWord, 0);

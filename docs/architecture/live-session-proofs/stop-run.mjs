@@ -22,6 +22,8 @@ const STALL_MS = 400;
 const STALL_AT_FLUSH = 3;
 const QUESTION_ATTEMPTS = 3;
 const RESUME_ATTEMPTS = 4;
+const STOP_IN_STALL_ATTEMPTS = 4;
+const LONG_STALL_MS = 2500;
 const EARLY_MS = 40;
 const LATE_MS = 100;
 
@@ -145,7 +147,22 @@ async function stallAttempt() {
   return { kind: 'stall', turnId: turnStart?.turnId };
 }
 
-// The reply is a question, and the student reacts over it, so the browser's report of its last word decides what counts as an answer.
+async function stopDuringStallAttempt() {
+  await setFakeSettings({ voiceStallMs: LONG_STALL_MS, voiceStallAtFlush: STALL_AT_FLUSH });
+  const agentMark = agentEvents.length;
+  await setScript('Gravity.');
+  await student.say('gravity');
+  const ranDry = await waitFor((event) => event.event === 'audio_ran_dry', 15000, agentMark);
+  const turnStart = agentEvents.slice(agentMark).find((event) => event.event === 'tts_node_started');
+  await setScript('Wait.');
+  await student.say('wait');
+  await waitFor((event) => event.event === 'policy_interrupt', 3000, agentEvents.indexOf(ranDry));
+  await setFakeSettings({ voiceStallMs: 0, voiceStallAtFlush: 0 });
+  await toListening(agentEvents.length - 1);
+  await delay(2500);
+  return { kind: 'stopInStall', turnId: turnStart?.turnId };
+}
+
 async function questionAttempt(speech, spokenText, afterQuestionHeard) {
   const agentMark = agentEvents.length;
   await setScript('What pulls on it?');
@@ -159,10 +176,9 @@ async function questionAttempt(speech, spokenText, afterQuestionHeard) {
   await delay(afterQuestionHeard ? 2500 : 0);
   await toListening(agentEvents.length - 1);
   await delay(1500);
-  return { kind: 'question', spokenText, afterQuestionHeard, turnId: turnStart?.turnId, agentMark };
+  return { kind: 'question', spokenText, afterQuestionHeard, turnId: turnStart?.turnId, agentMark, endMark: agentEvents.length };
 }
 
-// A long noise with no words cuts a reply with a ball in the air, and the resume must set it moving again.
 async function resumeAttempt() {
   const agentMark = agentEvents.length;
   await setScript('Watch my shot.');
@@ -204,6 +220,10 @@ for (let index = 0; index < QUESTION_ATTEMPTS; index++) {
 }
 for (let index = 0; index < RESUME_ATTEMPTS; index++) {
   results.push(await resumeAttempt());
+  console.log(JSON.stringify(results.at(-1)));
+}
+for (let index = 0; index < STOP_IN_STALL_ATTEMPTS; index++) {
+  results.push(await stopDuringStallAttempt());
   console.log(JSON.stringify(results.at(-1)));
 }
 const records = await page.evaluate(() => JSON.parse(JSON.stringify(window.boardRecords)));
@@ -254,7 +274,7 @@ function analyseStall(attempt, { turn, events, bursts }) {
 
 function analyseQuestion(attempt, { turn, events, bursts }) {
   const lastWord = turn.questionWords[0]?.at;
-  const agentForAttempt = agentEvents.slice(attempt.agentMark);
+  const agentForAttempt = agentEvents.slice(attempt.agentMark, attempt.endMark);
   return {
     kind: 'question',
     spokenText: attempt.spokenText,
@@ -264,7 +284,6 @@ function analyseQuestion(attempt, { turn, events, bursts }) {
     wordsHeard: bursts.length,
     wordsInQuestion: lastWord === undefined ? null : lastWord + 1,
     repliesAfter: agentForAttempt.filter((event) => event.event === 'tts_node_started').length - 1,
-    answerReachedTutor: agentForAttempt.some((event) => event.event === 'user_input_transcribed' && event.isFinal && event.transcript === attempt.spokenText),
   };
 }
 
@@ -299,6 +318,10 @@ function analyse(attempt) {
   const stop = events.find((event) => event.kind === 'frozen');
   const bursts = events.filter((event) => event.kind === 'arriving-burst');
   if (attempt.kind === 'stall') return analyseStall(attempt, { turn, events, bursts });
+  if (attempt.kind === 'stopInStall') {
+    const frozen = events.find((event) => event.kind === 'frozen');
+    return { kind: 'stopInStall', turnId: attempt.turnId, wordsHeardBeforeStop: bursts.filter((burst) => frozen && burst.atMs <= frozen.atMs).length, wordsReported: frozen?.playedWords ?? null, firedAfterStop: events.filter((event) => event.kind === 'cueFired' && frozen && event.atMs > frozen.atMs).length };
+  }
   if (attempt.kind === 'question') return analyseQuestion(attempt, { turn, events, bursts });
   if (attempt.kind === 'uhhuh') {
     const silences = events.filter((event) => event.kind === 'output-end').filter((event, index, list) => index < list.length - 1);
@@ -379,6 +402,7 @@ const summary = {
     lateOver100: analysed.filter((row) => row.kind === 'stall').reduce((sum, row) => sum + row.lateOver100, 0),
     worstCueErrorMs: Math.max(0, ...analysed.filter((row) => row.kind === 'stall').flatMap((row) => row.cueErrorsMs.map(Math.abs))),
   },
+  stopsDuringAStall: analysed.filter((row) => row.kind === 'stopInStall'),
   questions: analysed.filter((row) => row.kind === 'question'),
   resumes: analysed.filter((row) => row.kind === 'resume'),
 };

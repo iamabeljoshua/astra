@@ -69,7 +69,7 @@ async function playSegment({ room, source, segmentId, shouldStopEarly }) {
   const { wordStartsMs } = words;
   const pcm = renderSegment(words);
   const stalls = placeStalls(wordStartsMs);
-  const tracker = createPlayoutTracker({ onRanDry: ({ atMs }) => send(room, { type: 'audioGap', segmentId, atMs, sentAt: Date.now() }) });
+  const tracker = createPlayoutTracker({ onRanDry: ({ atMs }) => sendOnBothChannels(room, { type: 'audioGap', segmentId, atMs, sentAt: Date.now() }) });
   const stopAfterMs = shouldStopEarly ? 2000 + Math.random() * 2500 : Infinity;
   const segmentMessage = { type: 'segment', segmentId, wordStartsMs, stalls: stalls.map(({ ms, wordIndex, atMs }) => ({ ms, wordIndex, atMs })), sentAt: Date.now() };
   if (!options.wordTimesLateMs) await send(room, segmentMessage);
@@ -81,7 +81,6 @@ async function playSegment({ room, source, segmentId, shouldStopEarly }) {
     const stall = stalls.find((item) => !item.isDone && (offset / SAMPLE_RATE) * 1000 + FRAME_MS > item.atMs);
     if (stall) {
       stall.isDone = true;
-      // The voice sends nothing, so the queue drains first and then the audio really runs dry for this long.
       await delay(AGENT_OUTPUT_QUEUE_MS + stall.ms);
     }
     if (Date.now() - startedAt >= stopAfterMs) {
@@ -94,7 +93,7 @@ async function playSegment({ room, source, segmentId, shouldStopEarly }) {
     const gap = tracker.onFrame(Date.now(), FRAME_MS);
     if (gap) {
       measuredGaps.push(gap);
-      await send(room, { type: 'audioGap', segmentId, ...gap, sentAt: Date.now() });
+      await sendOnBothChannels(room, { type: 'audioGap', segmentId, ...gap, sentAt: Date.now() });
     }
     await source.captureFrame(new AudioFrame(piece, SAMPLE_RATE, 1, FRAME_SAMPLES));
   }

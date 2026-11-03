@@ -190,7 +190,6 @@ export class Student {
     }
   }
 
-  // The browser's signal that a question's last word started, in the shape M3.2 sends.
   reportQuestionIfHeard() {
     if (this.questionHasWords === null || this.audio.burstCount - this.replyWordsStartAt < this.questionHasWords) return;
     this.questionHasWords = null;

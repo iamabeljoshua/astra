@@ -21,7 +21,6 @@ function startTurn(turnId, reply) {
   turn = { turnId, reply, wordStartsMs: [], clock: createWordClock(), cues: [], fired: [], frozen: false, playedWords: 0, hasFirstSound: false, beats: [], questionWords: [] };
   records.turns.push(turn);
   note('turnStarted', { reply });
-  // On a poor link the audio can arrive first, so an onset already sounding belongs to this turn.
   if (isSounding && lastOnsetMs !== null) startClock(lastOnsetMs);
 }
 
@@ -42,7 +41,6 @@ function applyCue(cue, atMs) {
   if (command.kind === 'runSimulation' && command.action === 'play') runningSimulations.set(command.target, atMs);
 }
 
-// A cue waits for sound, and the words count only while there is sound, so a silence never adds a word or fires a drawing.
 function tick() {
   if (!turn || turn.frozen || !turn.hasFirstSound || !isBlockAudible) return;
   const position = turn.clock.getPositionMs(now(), turn.wordStartsMs[0] ?? 0);
@@ -60,7 +58,7 @@ function tick() {
       cue.firedAtMs = now();
       applyCue(cue, cue.firedAtMs);
       turn.fired.push({ atWord: cue.atWord, id: cue.command.id, kind: cue.command.kind, target: cue.command.target, action: cue.command.action, atMs: Math.round(cue.firedAtMs - turn.firstSoundAtMs) });
-      note('cueFired', { atWord: cue.atWord, id: cue.command.id, kind: cue.command.kind, positionMs: position, wordStartMs: startMs });
+      note('cueFired', { atWord: cue.atWord, id: cue.command.id, commandKind: cue.command.kind, positionMs: position, wordStartMs: startMs });
     }
   }
 }
@@ -108,7 +106,11 @@ function onMessage(message) {
   }
   if (message.type === 'audioGap') {
     target.clock.addGap(message);
-    note('audioGap', { gapAtMs: message.atMs, ms: message.ms });
+    target.gapLengths ??= new Set();
+    if (message.ms !== undefined && !target.gapLengths.has(message.atMs)) {
+      target.gapLengths.add(message.atMs);
+      note('audioGap', { gapAtMs: message.atMs, ms: message.ms });
+    }
   }
   if (message.type === 'beatClosed' && message.expectsReply) target.questionWords.push({ at: message.firstWord + message.wordCount - 1, isSent: false });
 }
@@ -146,7 +148,6 @@ async function listenToTrack(track) {
   const element = track.attach();
   element.muted = true;
   document.body.append(element);
-  window.boardReady = true;
 }
 
 const isTutorAudio = (track, participant) => track.kind === Track.Kind.Audio && participant.identity.startsWith('agent');

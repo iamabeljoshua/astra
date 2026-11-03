@@ -77,7 +77,6 @@ function interpolate(points, x, getX, getY) {
   return getY(previous);
 }
 
-// The first sound of each segment and the audio it owns, read from the worklet alone.
 function getSegmentAudio(records) {
   const segments = records.data.filter((message) => message.type === 'segment');
   const onsets = records.worklet.filter((event) => event.kind === 'onset');
@@ -91,7 +90,6 @@ function getSegmentAudio(records) {
   });
 }
 
-// Each word's true moment: the burst nearest where it must be once the stalls we caused are added.
 function matchWordsToBursts({ segment, onset, bursts }) {
   return segment.wordStartsMs.flatMap((startMs, wordIndex) => {
     const stallMs = segment.stalls.filter((stall) => stall.atMs <= startMs).reduce((sum, stall) => sum + stall.ms, 0);
@@ -102,7 +100,6 @@ function matchWordsToBursts({ segment, onset, bursts }) {
   });
 }
 
-// Replays the rejected rule at each burst, as the first two rounds' tables did, so a word right after a stall scores near 0 by construction.
 function getReanalysedErrors({ records, segment, onset, limit, matches }) {
   const clock = createGuessingClock(segment.wordStartsMs);
   const events = records.worklet.filter((event) => (event.kind === 'onset' || event.kind === 'end') && event.contextSeconds >= onset.contextSeconds && event.contextSeconds < limit);
@@ -149,7 +146,7 @@ function analyse(records) {
     if (end) stops.push((end.contextSeconds - stop.contextSeconds) * 1000);
   }
   const lastStats = records.stats.at(-1) ?? {};
-  const gaps = records.data.filter((message) => message.type === 'audioGap' && message.ms !== undefined);
+  const gaps = records.data.filter((message) => message.type === 'audioGap' && message.ms !== undefined && message.via === 'reliable');
   const decisions = records.decisions.filter((decision) => decision.silenceMs > 150);
   return {
     wordsSent,

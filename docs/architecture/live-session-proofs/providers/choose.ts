@@ -15,7 +15,6 @@ export const TRANSCRIBERS: Record<string, TranscriberAdapter> = {
   fakeDeepgram: makeDeepgramTranscriber({ name: 'fakeDeepgram', apiKey: 'fake', baseUrl: FAKE_SPEECH_URL }),
 };
 
-// The one place that chooses. M3.6 moves this to apps/agent/src/providers/. The environment override is only so a proof run can swap without an edit.
 export const ACTIVE = {
   voice: VOICES[process.env.ACTIVE_VOICE ?? 'fakeCartesia'] as VoiceAdapter,
   transcriber: TRANSCRIBERS.fakeDeepgram as TranscriberAdapter,

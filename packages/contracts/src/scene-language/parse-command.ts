@@ -58,10 +58,8 @@ const LIMITS = {
 } as const;
 
 const NUMBER_RANGES = {
-  /** Any x or y on a board. Far enough to teach with, and no sample step on it rounds away. */
   coordinate: { min: -1e6, max: 1e6 },
   angleDegrees: { min: -360, max: 360 },
-  /** The longest flight the simulation ranges allow takes about 2,010 seconds. */
   simulationSeconds: { min: 0, max: 3600 },
   occurrence: { min: 0, max: LIMITS.tex - 1 },
   overWords: { min: 1, max: BEAT_LIMITS.words },
@@ -69,7 +67,6 @@ const NUMBER_RANGES = {
 
 const CODE_LANGUAGE = /^[a-z0-9+#-]{1,20}$/;
 const CONTROL_CHARACTER = /\p{Cc}/u;
-// A second guard, because KaTeX with `trust: false` already shows these as errors.
 const TEX_NEEDING_TRUST =/\\(?:href|url|includegraphics|html[A-Za-z]*)(?![A-Za-z])/;
 
 function readLabel(place: Place): string {
@@ -98,7 +95,6 @@ function readAxisRange(place: Place): [number, number] {
   return readRange(place, NUMBER_RANGES.coordinate);
 }
 
-/** A count on most frames and an x value on a plot, so only the board can refuse a negative one. */
 export function readRevealPoint(place: Place): number {
   return readCoordinate(place);
 }
@@ -187,7 +183,6 @@ interface FilledListRules<Item> {
   readItem: (item: Place) => Item;
 }
 
-/** Only a frame that starts empty for `reveal` may have nothing in it. */
 function readFilledList<Item>(fields: CheckedFields, { name, maxLength, readItem }: FilledListRules<Item>): Item[] {
   const items = readList(fields.at(name), { maxLength, readItem });
   if (items.length === 0 && fields.at('startsEmpty').value !== true) fail(fields.at(name), 'at least one item, unless startsEmpty is true');

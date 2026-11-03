@@ -1,7 +1,6 @@
 const ADAPTERS_FOLDER = 'apps/agent/src/providers/';
 const LIVE_AGENT_FOLDER = 'apps/agent/';
 
-/** Each vendor's packages, which only its own adapter file may import. */
 const VENDOR_PACKAGES = {
   cartesia: ['@livekit/agents-plugin-cartesia', '@cartesia/'],
   deepgram: ['@livekit/agents-plugin-deepgram', '@deepgram/'],

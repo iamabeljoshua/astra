@@ -16,7 +16,7 @@ export interface TimedWord {
   startMs: number;
 }
 
-/** `yield` and `stop` go on both data channels, and the rest on the reliable one. */
+/** `yield`, `stop`, and `audioGap` go on both data channels, and the rest on the reliable one. */
 export type AgentMessage =
   | { type: 'turnStarted'; turnId: TurnId }
   | { type: 'cue'; turnId: TurnId; beatId: BeatId; atWord: number; command: SceneCommand }

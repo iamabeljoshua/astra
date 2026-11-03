@@ -53,7 +53,6 @@ function getNumberValue(token: string): number {
 
 function getTokens(text: string): string[] | null {
   const tokens = text.match(TOKEN) ?? [];
-  // A character no token takes, such as a comma or a lone dot, shows up as a difference here.
   return tokens.join('') === text.replaceAll(' ', '') ? tokens : null;
 }
 
@@ -95,7 +94,6 @@ class PlotExpressionReader {
     return this.readChain(['*', '/'], () => this.readUnary());
   }
 
-  // Every nested expression passes through here, so this one check limits all of them.
   private readUnary(): PlotNode {
     if (this.depth === MAX_DEPTH) throw new NotAnExpression();
     this.depth += 1;

@@ -147,7 +147,7 @@ export default defineAgent({
   entry: async (ctx) => {
     await ctx.connect();
     log('connected', { room: ctx.room.name });
-    const publish = (message) => ctx.room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify(message)), { reliable: true, topic: LIVE_TOPIC });
+    const publish = (message, reliable = true) => ctx.room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify(message)), { reliable, topic: LIVE_TOPIC });
     const session = new voice.AgentSession({
       llm: new NeverCalledLLM(),
       stt: ACTIVE.transcriber.makeStt(),

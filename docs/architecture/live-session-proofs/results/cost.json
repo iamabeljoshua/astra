@@ -199,7 +199,7 @@
   "allThree": 1.3
  },
  "picks": {
-  "note": "Sonnet with compaction, Cartesia Scale, Deepgram Nova-3, LiveKit Ship. API hosting, about $200 a month by the PRD, is on top.",
+  "note": "Sonnet with compaction, Cartesia Scale, Deepgram Nova-3, LiveKit Ship, the top of the open route range. API hosting, about $200 a month by the PRD, is on top.",
   "modelAlone": 452,
   "allFourServices": 979,
   "withBackgroundAndBuffer": 1459,
@@ -211,13 +211,83 @@
   "millisecondsFor200TokensAt79PerSecond": 2532,
   "millisecondsFor200TokensAt100PerSecond": 2000
  },
- "liveKitInferenceRoute": {
-  "speechMinutesPerSessionMinute": 0.595,
-  "ttsCartesiaSonicPerSpeechMinute": 0.03,
-  "sttNova3": 0.0048,
-  "sttFlux": 0.0065,
-  "tutorServicesPerMinute": 0.0243,
-  "directTutorServicesPerMinute": 0.0339,
-  "betaMonthSaving": 115
+ "liveKitInferencePrices": {
+  "charactersPerMonth": 6000000,
+  "ttsCartesiaSonicPerMillionCharactersOnShip": 50,
+  "ttsCheapestVoicePerMillionCharactersOnShip": 15,
+  "sttNova3PerMinute": 0.0048,
+  "sttFluxPerMinute": 0.0065
+ },
+ "monthlyParts": {
+  "liveKitShip": 120,
+  "deepgramWithKeyterms": 108,
+  "cartesiaScale": 299,
+  "cartesiaStartup": 262.75,
+  "inferenceCartesiaVoice": 300,
+  "inferenceCheapestVoice": 90,
+  "ourServersLow": 60,
+  "ourServersHigh": 120
+ },
+ "routesForVoiceSpeechAndHosting": {
+  "ownAccountsOnly": {
+   "low": {
+    "route": 371,
+    "allFourWithSonnetCompaction": 822,
+    "withBackgroundAndBuffer": 1256
+   },
+   "high": {
+    "route": 407,
+    "allFourWithSonnetCompaction": 859,
+    "withBackgroundAndBuffer": 1303
+   }
+  },
+  "cloudWithInference": {
+   "low": {
+    "route": 478,
+    "allFourWithSonnetCompaction": 929,
+    "withBackgroundAndBuffer": 1395
+   },
+   "high": {
+    "route": 498,
+    "allFourWithSonnetCompaction": 950,
+    "withBackgroundAndBuffer": 1422
+   }
+  },
+  "cloudWithOwnAccounts": {
+   "low": {
+    "route": 491,
+    "allFourWithSonnetCompaction": 942,
+    "withBackgroundAndBuffer": 1412
+   },
+   "high": {
+    "route": 527,
+    "allFourWithSonnetCompaction": 979,
+    "withBackgroundAndBuffer": 1459
+   }
+  },
+  "allOursWithOwnAccounts": {
+   "low": {
+    "route": 431,
+    "allFourWithSonnetCompaction": 882,
+    "withBackgroundAndBuffer": 1334
+   },
+   "high": {
+    "route": 527,
+    "allFourWithSonnetCompaction": 979,
+    "withBackgroundAndBuffer": 1459
+   }
+  },
+  "cloudWithCheapestInferenceVoice": {
+   "low": {
+    "route": 268,
+    "allFourWithSonnetCompaction": 719,
+    "withBackgroundAndBuffer": 1122
+   },
+   "high": {
+    "route": 288,
+    "allFourWithSonnetCompaction": 740,
+    "withBackgroundAndBuffer": 1149
+   }
+  }
  }
 }

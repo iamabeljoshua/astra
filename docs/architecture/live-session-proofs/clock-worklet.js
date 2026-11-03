@@ -3,7 +3,6 @@ const BURST = 0.2;
 const SILENCE_BEFORE_ONSET_BLOCKS = 40;
 const QUIET_BEFORE_BURST_BLOCKS = 20;
 
-// Reports each change between sound and silence as it happens. `onset` and `end` mark a silence long enough to matter, about 107 ms.
 class ClockProbe extends AudioWorkletProcessor {
   silentBlocks = SILENCE_BEFORE_ONSET_BLOCKS;
   quietBlocks = QUIET_BEFORE_BURST_BLOCKS;
@@ -31,7 +30,6 @@ class ClockProbe extends AudioWorkletProcessor {
         this.isSounding = false;
       }
     }
-    // Sent after `onset`, so a cue cannot fire on the first sound before the page has handled the silence.
     if (isAudible !== this.isBlockAudible) {
       this.isBlockAudible = isAudible;
       this.port.postMessage({ kind: isAudible ? 'sound' : 'quiet', frame: currentFrame });

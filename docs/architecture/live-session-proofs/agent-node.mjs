@@ -71,7 +71,6 @@ class ProofAgent extends voice.Agent {
   }
 }
 
-// Says the rest of the constant reply. The count here is cumulative, so M3.6 must not copy it. M3.6 uses `getResumeScript`.
 function connectRule({ session, room }) {
   const publish = (message) => room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify(message)), { reliable: true, topic: LIVE_TOPIC });
   connectTurnRule({

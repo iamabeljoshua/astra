@@ -1,5 +1,3 @@
-// What every adapter must give us. M3.6 moves this to apps/agent as a test, and a real vendor passes it before it ships.
-// Run with plain Node, with the fakes running: node fake-providers.mjs, then node provider-suite.ts.
 import { initializeLogger, stt, tts } from '@livekit/agents';
 import { AudioFrame } from '@livekit/rtc-node';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -19,6 +17,7 @@ const CLOSE_WITHIN_MS = 500;
 const MIC_RATE = 48000;
 const MIC_FRAME_SAMPLES = 480;
 const SETTLE_MS = 1500;
+const SILENCE_FRAMES = 60;
 const STT_PORT = process.env.FAKE_STT_PORT ?? 17802;
 const delay = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
@@ -89,7 +88,8 @@ async function checkTranscriber(adapter: TranscriberAdapter): Promise<string[]> 
   const reading = (async () => {
     for await (const event of stream) seen.push({ type: event.type, text: event.alternatives?.[0]?.text ?? '' });
   })();
-  for (const frame of readSpeechFrames()) {
+  const silence = () => new AudioFrame(new Int16Array(MIC_FRAME_SAMPLES), MIC_RATE, 1, MIC_FRAME_SAMPLES);
+  for (const frame of [...readSpeechFrames(), ...Array.from({ length: SILENCE_FRAMES }, silence)]) {
     stream.pushFrame(frame);
     await delay(1);
   }
@@ -123,7 +123,7 @@ async function checkModel(adapter: TutorModelAdapter): Promise<string[]> {
 }
 
 const TEXT = 'Gravity pulls on it the whole way down, even at the very top.';
-const SILENT_MODEL: TutorModelAdapter = {
+const WHOLE_REPLY_MODEL: TutorModelAdapter = {
   name: 'whole-reply-at-once',
   async *stream() {
     yield { kind: 'text', text: TEXT };
@@ -136,11 +136,10 @@ const cases = [
   { kind: 'transcriber', adapter: TRANSCRIBERS.fakeDeepgram, check: checkTranscriber, passes: true },
   { kind: 'model', adapter: makeFakeModel({ name: 'fake-fast', text: TEXT }), check: checkModel, passes: true },
   { kind: 'model', adapter: makeFakeModel({ name: 'fake-slow', text: TEXT, firstTextMs: 300 }), check: checkModel, passes: true },
-  { kind: 'model', adapter: SILENT_MODEL, check: checkModel, passes: false },
+  { kind: 'model', adapter: WHOLE_REPLY_MODEL, check: checkModel, passes: false },
 ];
 const rows = [];
 for (const { kind, adapter, check, passes } of cases) {
-  // Each case's own check takes that kind of adapter, and the table keeps them paired.
   const problems = await (check as (item: unknown) => Promise<string[]>)(adapter);
   rows.push({ kind, name: (adapter as { name: string }).name, shouldPass: passes, problems, asExpected: (problems.length === 0) === passes });
 }

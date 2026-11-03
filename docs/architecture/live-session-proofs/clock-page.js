@@ -70,7 +70,6 @@ function firstWordStartMs() {
   return segment.wordStartsMs[0] ?? 0;
 }
 
-// Each method fires its own cue per word from the same audio, on the real page clock, as a player would.
 function createMethods(wordStartsMs) {
   const chosen = createWordClock();
   const guessBySequence = createGuessingClock(wordStartsMs);
@@ -88,8 +87,7 @@ function createMethods(wordStartsMs) {
 }
 
 function startSegment(message) {
-  segment = { ...message, methods: createMethods(message.wordStartsMs), startedSilent: !isSounding };
-  records.data.push({ type: 'segmentStarted', segmentId: message.segmentId, isSoundingAlready: isSounding, contextSeconds: audioContext.currentTime });
+  segment = { ...message, methods: createMethods(message.wordStartsMs) };
   if (isSounding) startClocks(lastOnsetMs);
 }
 
@@ -195,7 +193,6 @@ async function listenToTrack(track) {
   source.connect(probe);
   watchReceiver();
   setInterval(tick, TICK_MS);
-  window.clockReady = true;
 }
 
 function onMessage(message) {

@@ -128,7 +128,6 @@ function applyFrozenFrames(board: Board, frames: FrozenFrame[], atMs: number): v
   }
 }
 
-// The rebuild flattens every event into timed operations, so a cue inside a beat sorts against a drag inside that beat. Each cue plays when it really fired, and a frame says where a cut left it.
 export function rebuildBoard(log: SessionEvent[], atMs: number): Board {
   const operations: { at: number; order: number; run: (board: Board) => void }[] = [];
   let snapshotSourceOrder = 0;

@@ -3,12 +3,11 @@ import { getNextTurnState, INITIAL_TURN_STATE } from './turn-rule.mjs';
 
 const REPORT_WAIT_MS = 1000;
 
-// The SDK drops a turn while a reply is active unless it has this many words, so our rule's stop is what lets a turn through. Its pause and resume stays off.
+// The SDK drops a turn while a reply is active unless it has this many words, so our rule's stop is what lets a turn through.
 export const INTERRUPTION_SETTINGS = { mode: 'vad', minDuration: 500, minWords: 9999, resumeFalseInterruption: false };
 
 const TUTOR_EVENTS = { thinking: 'tutorThinking', speaking: 'tutorStarted', listening: 'tutorFinished', idle: 'tutorFinished' };
 
-// Connects the pure rule to one session. Used by every proof agent, so they all run what M3.6 ships.
 export function connectTurnRule({ session, room, topic, publishStop, publish, log, onResume }) {
   let state = INITIAL_TURN_STATE;
   let playedWords = 0;

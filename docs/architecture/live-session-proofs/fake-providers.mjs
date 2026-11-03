@@ -96,7 +96,6 @@ function startFakeCartesia() {
           context.startedAt = Date.now();
         }
         context.flushes += 1;
-        // Waits until what was sent has played, and then this long, so the listener's audio really runs dry.
         if (scenarioSettings.voiceStallMs > 0 && context.flushes === scenarioSettings.voiceStallAtFlush) {
           const playedUntil = context.startedAt + context.cursorSeconds * 1000;
           await new Promise((resolve) => setTimeout(resolve, Math.max(0, playedUntil - Date.now()) + scenarioSettings.voiceStallMs));
@@ -202,7 +201,6 @@ function startFakeDeepgram() {
         return;
       }
       const durationSeconds = speech.lastVoicedSeconds - speech.startSeconds;
-      // A script starting with ~ gives interims and then no final words, as a retracted interim would.
       sendTranscript(makeResults({ text: speech.text.startsWith('~') ? '' : speech.text, isFinal: true, speechFinal: true, startSeconds: speech.startSeconds, durationSeconds, fromFinalize }));
       speech = null;
     };

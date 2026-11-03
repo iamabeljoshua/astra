@@ -26,7 +26,6 @@ function getReferencedElement(command: SceneCommand): string | undefined {
   return 'over' in command ? command.over : undefined;
 }
 
-// `upTo` is an x value on a plot and a count on anything else.
 function isBadRevealCount(command: SceneCommand, elementKind: BoardElementKind): boolean {
   return command.kind === 'reveal' && elementKind !== 'plot' && (!Number.isInteger(command.upTo) || command.upTo < 0);
 }

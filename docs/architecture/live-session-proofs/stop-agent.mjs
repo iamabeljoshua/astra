@@ -53,7 +53,6 @@ class BeatAgent extends voice.Agent {
     return reply;
   }
 
-  // The cut beat from the cut word, with what was moving started again, and then the beats after it.
   getResumeText({ playedWords, frozen, firedCues }) {
     const cut = this.beats.find((beat) => playedWords <= beat.firstWord + beat.wordCount) ?? this.beats.at(-1);
     const parsed = parseBeat({ id: cut.beatId, script: cut.script, expectsReply: cut.expectsReply });
@@ -89,7 +88,13 @@ class BeatAgent extends voice.Agent {
     const modelText = text.getReader();
     const voiceStream = this.getActivityOrThrow().tts.stream();
     const reply = this.takeReplyName();
-    const tracker = createPlayoutTracker({ onRanDry: ({ atMs }) => publish({ type: 'audioGap', turnId, atMs }) });
+    const tracker = createPlayoutTracker({
+      onRanDry: ({ atMs }) => {
+        log('audio_ran_dry', { turnId, atMs });
+        publish({ type: 'audioGap', turnId, atMs }, true);
+        publish({ type: 'audioGap', turnId, atMs }, false);
+      },
+    });
     publish({ type: 'turnStarted', turnId, reply });
     log('tts_node_started', { turnId, reply });
     this.beats = [];
@@ -132,7 +137,8 @@ class BeatAgent extends voice.Agent {
           const gap = tracker.onFrame(Date.now(), (chunk.frame.samplesPerChannel / chunk.frame.sampleRate) * 1000);
           if (gap) {
             log('audio_gap', { turnId, ...gap });
-            publish({ type: 'audioGap', turnId, ...gap });
+            publish({ type: 'audioGap', turnId, ...gap }, true);
+            publish({ type: 'audioGap', turnId, ...gap }, false);
           }
           if (chunk.timedTranscripts?.length) {
             chunk.frame.userdata[USERDATA_TIMED_TRANSCRIPT] = chunk.timedTranscripts;

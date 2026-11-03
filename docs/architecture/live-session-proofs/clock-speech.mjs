@@ -1,6 +1,5 @@
 // Runs the worklet's logic and the clock on real speech from say, offline, with word positions known exactly.
 // Each word is spoken alone and joined with chosen gaps, because say reports no word times of its own.
-// The stalls are the ones this script makes, so the gap list stands in for what the agent reports. The live run in clock-run.mjs measures the real report.
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -36,7 +35,6 @@ function speakWord(word, index) {
 
 const SPOKEN_WORDS = SENTENCE.map(speakWord);
 
-// A stall sits after a share of its word: 0 for the word's start, 0.5 for its middle.
 function buildSpeech({ stallAtWord = -1, stallIntoWord = 0, getPauseMs = (word) => PAUSE_AFTER[word] ?? 0 } = {}) {
   const timelineStartsMs = [];
   const trueStartsMs = [];

@@ -1,4 +1,3 @@
-// What the agent does when the student makes sound while a reply is thinking or speaking. The SDK's own word rule is off, so this rule owns every stop.
 export const TURN_TIMINGS = { wordlessStopMs: 1000, transcriptGraceMs: 700 };
 
 const SMALL_REACTIONS = new Set(['uh', 'huh', 'uh-huh', 'mm', 'mhm', 'mm-hm', 'hmm', 'yeah', 'yes', 'yep', 'ok', 'okay', 'right', 'sure']);
@@ -44,7 +43,6 @@ function onVoiceEnded(state) {
 
 function onRealWords(state, isFinal) {
   const hasFinalWords = state.hasFinalWords || isFinal;
-  // With no voice on, nothing else would end the wait for a final that may never come.
   const waitForFinal = hasFinalWords || state.isVoiceOn ? [] : [startTimer('transcriptGrace')];
   const next = { ...state, phase: 'stopped', hasFinalWords };
   if (state.phase === 'stopped') return { state: next, actions: [cancelTimer('transcriptGrace'), ...waitForFinal] };
@@ -70,7 +68,6 @@ function onReaction(state, isFinal) {
 function onWords(state, { text, isFinal }) {
   if (getWords(text).length === 0) return { state, actions: [] };
   if (state.phase === 'clear' && state.tutor === 'silent') return { state, actions: [] };
-  // Over a question beat "uh-huh" is still a reaction. Once its last word has been heard, "yes" is an answer.
   if (isSmallReaction(text) && !state.isQuestionHeard) return onReaction(state, isFinal);
   return onRealWords(state, isFinal);
 }
@@ -98,7 +95,6 @@ function onTimer(state, { name }) {
   const clearIfHeard = state.heardReaction ? [CLEAR_HELD] : [];
   if (state.phase === 'yielding') return { state: { ...state, phase: 'clear' }, actions: [{ do: 'unyield' }, ...clearIfHeard] };
   if (state.phase === 'held') return { state: { ...state, phase: 'clear' }, actions: [...clearIfHeard, RESUME] };
-  // Words that never became final, so the student has said nothing the tutor can answer.
   if (state.phase === 'stopped' && !state.hasFinalWords) return { state: { ...state, phase: 'clear' }, actions: [RESUME] };
   return { state, actions: [] };
 }

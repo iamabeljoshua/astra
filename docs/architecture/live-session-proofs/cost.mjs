@@ -11,7 +11,6 @@ const OUTPUT_TOKENS = 400;
 const BACKGROUND_PER_MINUTE = 0.012;
 const BUFFER = 1.3;
 const SOLD_PER_HOUR = 49 / 5;
-// PRD section 13's limit, read on the basis of PRD section 10's table: with background work and the 30% buffer.
 const SESSION_LIMIT_PER_MINUTE = 0.15;
 const COMPACT_AT_TOKENS = 60000;
 const SUMMARY_TOKENS = 4000;
@@ -111,13 +110,42 @@ const flat = Object.fromEntries(
   }),
 );
 
+// Read from livekit.com/pricing/inference: voices bill per character, not per minute.
 const liveKitInference = {
-  speechMinutesPerSessionMinute: round(500 / (14 * 60), 3),
-  ttsCartesiaSonicPerSpeechMinute: 0.03,
-  sttNova3: 0.0048,
-  sttFlux: 0.0065,
+  charactersPerMonth: 6e6,
+  ttsCartesiaSonicPerMillionCharactersOnShip: 50,
+  ttsCheapestVoicePerMillionCharactersOnShip: 15,
+  sttNova3PerMinute: 0.0048,
+  sttFluxPerMinute: 0.0065,
 };
-const inferencePerMinute = liveKitInference.speechMinutesPerSessionMinute * liveKitInference.ttsCartesiaSonicPerSpeechMinute + liveKitInference.sttFlux;
+const CHARACTERS_IN_MILLIONS = liveKitInference.charactersPerMonth / 1e6;
+const inferenceSpeech = { nova3: liveKitInference.sttNova3PerMinute * BETA_MINUTES, flux: liveKitInference.sttFluxPerMinute * BETA_MINUTES };
+
+const MONTHLY = {
+  liveKitShip: OTHER_SERVICES.liveKitShip * BETA_MINUTES,
+  deepgramWithKeyterms: OTHER_SERVICES.deepgramNova3WithKeyterms * BETA_MINUTES,
+  cartesiaScale: 299,
+  // Startup's $49 includes 1.25M credits, and the other 4.75M cost $45 a million.
+  cartesiaStartup: 49 + 4.75 * 45,
+  inferenceCartesiaVoice: liveKitInference.ttsCartesiaSonicPerMillionCharactersOnShip * CHARACTERS_IN_MILLIONS,
+  inferenceCheapestVoice: liveKitInference.ttsCheapestVoicePerMillionCharactersOnShip * CHARACTERS_IN_MILLIONS,
+  ourServersLow: 60,
+  ourServersHigh: 120,
+};
+const ownAccounts = { startup: MONTHLY.cartesiaStartup + MONTHLY.deepgramWithKeyterms, scale: MONTHLY.cartesiaScale + MONTHLY.deepgramWithKeyterms };
+const ROUTES = {
+  ownAccountsOnly: { low: ownAccounts.startup, high: ownAccounts.scale },
+  cloudWithInference: { low: MONTHLY.liveKitShip + MONTHLY.inferenceCartesiaVoice + inferenceSpeech.nova3, high: MONTHLY.liveKitShip + MONTHLY.inferenceCartesiaVoice + inferenceSpeech.flux },
+  cloudWithOwnAccounts: { low: MONTHLY.liveKitShip + ownAccounts.startup, high: MONTHLY.liveKitShip + ownAccounts.scale },
+  allOursWithOwnAccounts: { low: MONTHLY.ourServersLow + ownAccounts.startup, high: MONTHLY.ourServersHigh + ownAccounts.scale },
+  cloudWithCheapestInferenceVoice: { low: MONTHLY.liveKitShip + MONTHLY.inferenceCheapestVoice + inferenceSpeech.nova3, high: MONTHLY.liveKitShip + MONTHLY.inferenceCheapestVoice + inferenceSpeech.flux },
+};
+
+function getRouteMonth(route) {
+  const modelPerMonth = (getSessionModelCost({ model: 'sonnet', minutes: 30, compact: true }).modelDollars / 30) * BETA_MINUTES;
+  const allFour = modelPerMonth + route;
+  return { route: Math.round(route), allFourWithSonnetCompaction: Math.round(allFour), withBackgroundAndBuffer: Math.round((allFour + BACKGROUND_PER_MINUTE * BETA_MINUTES) * BUFFER) };
+}
 
 const summary = {
   pricesReadOn: '2026-11-03',
@@ -159,7 +187,7 @@ const summary = {
     allThree: round(['opus', 'sonnet', 'haiku'].reduce((sum, model) => sum + getThirtyTurnTestDollars(model), 0), 2),
   },
   picks: {
-    note: 'Sonnet with compaction, Cartesia Scale, Deepgram Nova-3, LiveKit Ship. API hosting, about $200 a month by the PRD, is on top.',
+    note: 'Sonnet with compaction, Cartesia Scale, Deepgram Nova-3, LiveKit Ship, the top of the open route range. API hosting, about $200 a month by the PRD, is on top.',
     ...getBetaMonth({ model: 'sonnet', minutes: 30, compact: true }),
     hostingOnTop: 200,
   },
@@ -169,7 +197,9 @@ const summary = {
     millisecondsFor200TokensAt79PerSecond: Math.round((200 / 79) * 1000),
     millisecondsFor200TokensAt100PerSecond: 2000,
   },
-  liveKitInferenceRoute: { ...liveKitInference, tutorServicesPerMinute: round(inferencePerMinute, 4), directTutorServicesPerMinute: round(OTHER_SERVICES.cartesiaScale + OTHER_SERVICES.deepgramNova3WithKeyterms, 4), betaMonthSaving: Math.round((OTHER_SERVICES.cartesiaScale + OTHER_SERVICES.deepgramNova3WithKeyterms - inferencePerMinute) * BETA_MINUTES) },
+  liveKitInferencePrices: liveKitInference,
+  monthlyParts: Object.fromEntries(Object.entries(MONTHLY).map(([name, value]) => [name, round(value, 2)])),
+  routesForVoiceSpeechAndHosting: Object.fromEntries(Object.entries(ROUTES).map(([name, { low, high }]) => [name, { low: getRouteMonth(low), high: getRouteMonth(high) }])),
 };
 writeFileSync(join(HERE, 'results', 'cost.json'), `${JSON.stringify(summary, null, 1)}\n`);
 console.log(JSON.stringify(summary, null, 1));

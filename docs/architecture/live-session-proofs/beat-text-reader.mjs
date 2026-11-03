@@ -132,7 +132,6 @@ export class BeatTextReader {
     }
   }
 
-  // Past the limit the command is still read to its end, so its tail is never spoken.
   addToCommand(character) {
     if (this.command.length < LIVE_MESSAGE_MAX_BYTES) this.command += character;
     else this.isCommandTooLong = true;
@@ -171,7 +170,6 @@ export class BeatTextReader {
     return isWordDone && (character === '"' || JSON_SYMBOL.test(character));
   }
 
-  // After JSON breaks, a newline or new brace makes the tail speech. So does a closing brace, unless the tail is one word or still looks like JSON.
   stepInBrokenTail(character) {
     if (character === '}') {
       const tail = this.brokenTail;
