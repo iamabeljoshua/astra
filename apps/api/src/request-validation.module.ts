@@ -2,7 +2,7 @@ import { BadRequestException, Module, ValidationPipe } from '@nestjs/common';
 import type { ArgumentMetadata } from '@nestjs/common';
 import { APP_PIPE } from '@nestjs/core';
 
-// The pipe's libraries recurse through a body, so very deep nesting overflows the stack. That is bad input, not a server fault.
+// The pipe and its libraries recurse through a body, so very deep nesting overflows the stack.
 class RequestValidationPipe extends ValidationPipe {
   override async transform(value: unknown, metadata: ArgumentMetadata): Promise<unknown> {
     try {

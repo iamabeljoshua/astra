@@ -22,7 +22,6 @@ export async function createTestDatabase(): Promise<TestDatabase> {
   return { databaseUrl, drop: () => dropDatabase(databaseUrl) };
 }
 
-// A module reads DATABASE_URL while it compiles, so the value can go back as soon as that ends.
 export async function withDatabaseUrl<Result>(
   databaseUrl: string,
   action: () => Promise<Result>,

@@ -22,7 +22,7 @@ jobs:
       - uses: actions/checkout@v7
       # Unpacking this image takes half the time in memory, and starting now overlaps it with the steps below.
       # ghcr.io serves the same digest as the CLI's default registry, which has rate limited runners.
-      # The CLI still picks the image that runs. A different tag means a second image, and one takes about 3.8 GB of this 6 GB disk, so a later step fails on a mismatch.
+      # The CLI still picks the image that runs. A different tag adds a second image to this 6 GB disk, which may fill it, so a later step fails on a mismatch.
       - name: Start pulling the Postgres image
         run: |
           sudo systemctl stop docker docker.socket

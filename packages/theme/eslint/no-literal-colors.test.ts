@@ -2,8 +2,9 @@ import { ESLint } from 'eslint';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
 
-// The first lint loads the whole config, which takes longer than the default 5 seconds when other test runs share the machine.
-vi.setConfig({ testTimeout: 30_000 });
+const FIRST_LINT_UNDER_LOAD_TIMEOUT_MS = 30_000;
+
+vi.setConfig({ testTimeout: FIRST_LINT_UNDER_LOAD_TIMEOUT_MS });
 
 const eslint = new ESLint({ cwd: fileURLToPath(new URL('../../..', import.meta.url)) });
 
