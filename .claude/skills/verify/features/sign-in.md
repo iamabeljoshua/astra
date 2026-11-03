@@ -1,6 +1,6 @@
 # Sign-in
 
-A student signs in with an email link and answers one question, their date of birth, before any other page opens. A student under 13 in every time zone stops at a closed page for good. Everything else in the app needs a signed-in student, and signing out leaves nothing of that student on the browser's Back button.
+A student signs in with an email link and answers one question, their date of birth, before any other page opens. A student under 13 in every time zone stops at a closed page for good. Everything else in the app needs a signed-in student. After a sign-out, Back in another tab can show the student's page for a moment, as `sign-in-out` says.
 
 ## Sub-features
 
@@ -8,7 +8,7 @@ A student signs in with an email link and answers one question, their date of bi
 - `sign-in-link` signs in from that link, in the browser that asked for it.
 - `sign-in-birth-date` asks `When were you born?`, then shows the typed date with `Is this right?`. Nothing reaches the API before `Yes, continue`, and the first confirmed answer stands.
 - `sign-in-closed` shows `We can't set up this account.` with `Sign out`, on every later sign-in.
-- `sign-in-out` signs out from the sidebar. Other tabs follow, and Back shows no student page, in this tab or in another that was already on a different site.
+- `sign-in-out` signs out from the sidebar. Other tabs follow, and Back in the tab that signed out lands on the previous site or the welcome page. In Chromium, with two tabs, one on another site and the other signing out, Back in the first shows the whole student page for about 30 ms, and up to about 0.2 s on a very slow machine. Other browsers are untested. A follow-up fixes this before real students.
 - `sign-in-development` shows the `Development sign-in` box on the dev server only.
 
 ## How to get to it (user POV)
