@@ -51,7 +51,6 @@ export class SessionRepository {
     return this.sessions.findOneBy({ id: sessionId, studentId });
   }
 
-  // Only an unfinished session changes, so a save that arrives after the end cannot rewrite a finished one.
   async updateUnfinishedForStudent(
     studentId: string,
     sessionId: string,

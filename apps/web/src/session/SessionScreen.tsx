@@ -157,7 +157,6 @@ function BoardPicture({ artwork }: { artwork: Artwork }) {
   return <img src={artwork.src} alt={artwork.description} className="block max-h-board-art max-w-full object-contain" />;
 }
 
-// Stands in for the live reply until M3.10, so a reply stays on this screen and goes nowhere.
 function ReplyBox() {
   const [reply, setReply] = useState<string | null>(null);
 

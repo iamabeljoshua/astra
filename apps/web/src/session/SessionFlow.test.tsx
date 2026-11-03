@@ -257,10 +257,7 @@ describe('the session screen', () => {
 
 describe('ending a session', () => {
   it('marks it finished with its length, returns to Home, and shows it in Recent', async () => {
-    const { getRequests, storedSessions } = renderSessionAddress(
-      { homeScreen: { ...EXAMPLE_HOME_SCREEN, continueSession: null }, sessions: [makeSession({ durationSeconds: 40 })] },
-      'a-session',
-    );
+    const { getRequests, storedSessions } = renderSessionAddress({ sessions: [makeSession({ durationSeconds: 40 })] }, 'a-session');
 
     fireEvent.click(await getEndButton());
 
@@ -271,6 +268,16 @@ describe('ending a session', () => {
     expect(window.location.pathname).toBe('/');
     const sidebar = screen.getByRole('complementary');
     await within(sidebar).findByRole('link', { name: 'Free-body diagrams' });
+  });
+
+  it('takes the session off the continue card before Home opens, so it never shows as unfinished', async () => {
+    await renderHome({ sessions: [UNFINISHED_SESSION!] });
+    fireEvent.click(await screen.findByRole('button', { name: HOME_LABELS.continueButton }));
+
+    fireEvent.click(await getEndButton());
+
+    await screen.findByRole('heading', { name: HOME_GREETING }, { timeout: 2_000 });
+    expect(screen.queryByRole('button', { name: HOME_LABELS.continueButton })).toBeNull();
   });
 
   it('stays on the session and says so when the end does not reach the API', async () => {

@@ -9,7 +9,6 @@ const BASELINE_FROM_LINE_TOP_PX = 18;
 const DOT_RADIUS_PX = 4;
 const GAP_AFTER_TEXT_PX = 1;
 const DOT_HOLD_MS = 320;
-// The box holds 28 letters on a line: 320 wide, less 32 of padding, at 10 for each letter.
 const ONE_LINE = 'Why is the sky dark?';
 const WRAPPED_LINES = 'Why is the sky dark at night when there are so many stars?';
 

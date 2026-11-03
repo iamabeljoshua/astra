@@ -1,7 +1,7 @@
 import type { operations, paths } from '@astra/contracts';
 import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
 import { things } from '../test/thingsApi';
-import { ApiError } from './apiError';
+import { ApiError, rethrowUnlessApiError } from './apiError';
 import { api } from './client';
 import { DEFAULT_REQUEST_TIMEOUT_MS } from './requestTimeout';
 
@@ -440,5 +440,15 @@ describe('the request timeout', () => {
     await api.get('/health').catch(() => undefined);
 
     expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+describe('rethrowUnlessApiError', () => {
+  it('lets an API failure stop here, because the screen shows it', () => {
+    expect(() => rethrowUnlessApiError(new ApiError({ kind: 'server', status: 500 }))).not.toThrow();
+  });
+
+  it('passes on anything else, because that is a bug', () => {
+    expect(() => rethrowUnlessApiError(new TypeError('a bug'))).toThrow('a bug');
   });
 });

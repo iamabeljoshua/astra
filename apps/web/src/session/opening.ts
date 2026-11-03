@@ -74,8 +74,7 @@ export function holdDot(): Promise<void> {
   return wait(DOT_HOLD_MS);
 }
 
-// The page element leaves with its route, so nothing has to bring its opacity back.
-export function fadeOutPage(): Promise<void> {
+export function fadeOutLeavingPage(): Promise<void> {
   const page = document.querySelector<HTMLElement>('[data-page]');
   if (page) {
     page.style.transition = `opacity ${FADE_MS}ms linear`;

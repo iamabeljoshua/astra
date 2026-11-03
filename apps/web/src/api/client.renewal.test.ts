@@ -29,7 +29,6 @@ interface FakeServices {
   refreshStatus?: number;
 }
 
-// The real sign-in client runs here, so a renewal is counted where Auth would see it.
 function stubServices({ acceptsToken = (token) => token === NEW_TOKEN, refreshStatus = 200 }: FakeServices = {}) {
   const refreshes: string[] = [];
   const apiCalls: { path: string; method: string; token: string | null; body: string }[] = [];

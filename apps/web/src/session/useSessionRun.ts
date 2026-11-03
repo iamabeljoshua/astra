@@ -1,8 +1,9 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
+import { rethrowUnlessApiError } from '../api/apiError';
 import { API_ERROR_LABELS } from '../strings';
-import { fadeOutPage } from './opening';
+import { fadeOutLeavingPage } from './opening';
 import { refreshSessionViews, type Session, useUpdateSession } from './sessionQueries';
 
 const TICK_MS = 1_000;
@@ -14,7 +15,7 @@ function createClock(startingSeconds: number) {
   return () => startingSeconds + Math.floor((Date.now() - openedAtMs) / MS_PER_SECOND);
 }
 
-// Stands in for the live session's clock until M3.10. Saving as it runs means a refresh loses seconds, not the length.
+// Stands in for the live session's clock until M3.10.
 export function useSessionRun(session: Session) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -22,7 +23,7 @@ export function useSessionRun(session: Session) {
   const finish = useUpdateSession(session.id);
   const [readSeconds] = useState(() => createClock(session.durationSeconds));
   const [seconds, setSeconds] = useState(session.durationSeconds);
-  // The mutation reports pending only after a tick, so a second click inside it would otherwise send twice.
+  // The mutation's pending flag starts a tick late and ends before the fade, so this guards the whole ending.
   const isEnding = useRef(false);
 
   useEffect(() => {
@@ -40,10 +41,10 @@ export function useSessionRun(session: Session) {
     try {
       await finish.mutateAsync({ durationSeconds: readSeconds(), status: 'finished' });
       await refreshSessionViews(queryClient);
-      await fadeOutPage();
+      await fadeOutLeavingPage();
       navigate('/', { replace: true });
-    } catch {
-      // The mutation holds the error, and the screen shows it.
+    } catch (thrown) {
+      rethrowUnlessApiError(thrown);
     } finally {
       isEnding.current = false;
     }

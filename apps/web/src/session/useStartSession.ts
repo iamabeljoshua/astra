@@ -1,33 +1,32 @@
 import type { components } from '@astra/contracts';
 import { useRef } from 'react';
 import { useNavigate } from 'react-router';
+import { rethrowUnlessApiError } from '../api/apiError';
 import { API_ERROR_LABELS, SESSION_LABELS } from '../strings';
-import { fadeOutPage, getFullStopPoint, holdDot, landDot } from './opening';
+import { fadeOutLeavingPage, getFullStopPoint, holdDot, landDot } from './opening';
 import { getSessionPath } from './sessionPath';
 import { type NewSession, type Session, useCreateSession } from './sessionQueries';
 
 type PickCard = components['schemas']['PickCardResponseDto'];
 
 const SESSION_LANGUAGE = 'en';
-const MAX_TITLE_CHARACTERS = 200;
+const API_MAX_TITLE_CHARACTERS = 200;
 
-// A question can be any length, and a title is one line of at most the length the API takes.
 function toSessionTitle(question: string) {
-  return Array.from(question.replace(/\s+/g, ' ')).slice(0, MAX_TITLE_CHARACTERS).join('').trimEnd();
+  return Array.from(question.replace(/\s+/g, ' ')).slice(0, API_MAX_TITLE_CHARACTERS).join('').trimEnd();
 }
 
 export function useStartSession() {
   const navigate = useNavigate();
   const createSession = useCreateSession();
-  // The mutation reports pending only after a tick, so a second click inside it would otherwise start two.
+  // The mutation's pending flag starts a tick late and ends before the fade, so this guards the whole opening.
   const isOpening = useRef(false);
 
   async function fadeInto(sessionId: string) {
-    await fadeOutPage();
+    await fadeOutLeavingPage();
     navigate(getSessionPath(sessionId));
   }
 
-  // The session is saved before the page fades, so a refresh on the session screen always finds it.
   async function saveAndFadeInto(newSession: NewSession, heldBy?: Promise<void>) {
     const [session] = await Promise.all([createSession.mutateAsync(newSession), heldBy]);
     await fadeInto(session.id);
@@ -37,8 +36,7 @@ export function useStartSession() {
     if (isOpening.current) return;
     isOpening.current = true;
     open()
-      // The mutation holds the error, and the screen shows it.
-      .catch(() => undefined)
+      .catch(rethrowUnlessApiError)
       .finally(() => {
         isOpening.current = false;
       });

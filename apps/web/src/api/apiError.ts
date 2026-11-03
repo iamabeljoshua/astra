@@ -45,6 +45,10 @@ function getThrownKind(signal: AbortSignal): ApiErrorKind {
   return signal.reason === REQUEST_TIME_LIMIT_REACHED ? 'timeout' : 'aborted';
 }
 
+export function rethrowUnlessApiError(thrown: unknown): void {
+  if (!(thrown instanceof ApiError)) throw thrown;
+}
+
 export function getApiErrorFromThrown(thrown: unknown, signal: AbortSignal) {
   return new ApiError({ kind: getThrownKind(signal), cause: thrown });
 }

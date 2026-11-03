@@ -38,7 +38,6 @@ interface FakeApi {
   sessions?: Session[];
 }
 
-// A small in-memory API, so a test can follow a session from the screen through the requests and back.
 export function stubSessionsApi({ homeScreen = EXAMPLE_HOME_SCREEN, sessions = [] }: FakeApi = {}) {
   const storedSessions = [...sessions];
   let nextId = 1;
@@ -54,7 +53,7 @@ export function stubSessionsApi({ homeScreen = EXAMPLE_HOME_SCREEN, sessions = [
     const url = new URL(request.url);
     const sessionId = SESSION_PATH.exec(url.pathname)?.[1];
     if (sessionId) return answerOneSession(request, sessionId);
-    if (url.pathname === '/api/home') return json(homeScreen);
+    if (url.pathname === '/api/home') return json({ ...homeScreen, continueSession: storedSessions.find(({ status }) => status === 'in_progress') ?? null });
     if (url.pathname !== '/api/sessions') return json({ statusCode: 404 }, 404);
     if (request.method === 'GET') return json(listSessions(storedSessions, url));
     const created = makeSession({ id: `new-session-${nextId++}`, ...(await request.clone().json()) });

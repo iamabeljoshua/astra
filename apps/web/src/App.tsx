@@ -33,7 +33,6 @@ function AppRoutes() {
   );
 }
 
-// The session screen sits outside the shell, so a live session never remounts with a change to the shell's page.
 function SignedInRoutes() {
   return (
     <Routes>

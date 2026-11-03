@@ -1,6 +1,6 @@
 import type { paths } from '@astra/contracts';
 import createClient, { type FetchOptions, type FetchResponse, type Middleware } from 'openapi-fetch';
-import { readWithRenewal } from '../auth/readWithRenewal';
+import { callWithRenewal } from '../auth/callWithRenewal';
 import { getAccessToken } from '../auth/session';
 import { ApiError, getApiErrorFromResponse } from './apiError';
 import { DEFAULT_REQUEST_TIMEOUT_MS, sendWithTimeout } from './requestTimeout';
@@ -74,7 +74,7 @@ export function createApiClient<Paths extends object>(baseUrl: string) {
 
   // The guard refuses before a route runs, so sending a refused call again never repeats its work.
   const createCall = (method: ApiMethod) => (route: string, options: CallOptions = {}) =>
-    readWithRenewal(() => sendOnce(method, route, options));
+    callWithRenewal(() => sendOnce(method, route, options));
 
   return {
     get: createCall('get'),

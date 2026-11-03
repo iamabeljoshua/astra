@@ -152,7 +152,7 @@ The guard checks the token signature against the keys that Auth publishes at `/a
 
 The guard sends `Cache-Control: no-store` on every route that is not public, so a student's answers do not stay in the browser's disk cache after sign-out.
 
-If the API refuses a token that the browser still trusts, as when the device clock runs behind, the web app renews the session and asks once more, and the page on screen stays. The API client sends every call through `apps/web/src/auth/readWithRenewal.ts`, which holds this as one call, with these states:
+If the API refuses a token that the browser still trusts, as when the device clock runs behind, the web app renews the session and asks once more, and the page on screen stays. The API client sends every call through `apps/web/src/auth/callWithRenewal.ts`, which holds this as one call, with these states:
 
 | State | When | Next |
 | --- | --- | --- |
