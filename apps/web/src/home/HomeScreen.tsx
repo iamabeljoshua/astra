@@ -43,10 +43,10 @@ export function HomeScreen() {
   );
 }
 
-function Greeting({ heading, studentName }: { heading: RefObject<HTMLHeadingElement | null>; studentName?: string }) {
+function Greeting({ heading, studentName }: { heading: RefObject<HTMLHeadingElement | null>; studentName?: string | null }) {
   return (
     <header>
-      <h1 ref={heading} tabIndex={-1} className="font-voice text-greeting font-normal wrap-anywhere">
+      <h1 ref={heading} tabIndex={-1} className="font-voice text-greeting font-normal wrap-anywhere outline-none">
         {studentName ? HOME_LABELS.greeting(studentName) : HOME_LABELS.greetingWithoutName}
       </h1>
       <p className="mt-1 text-lead text-ink-2">{HOME_LABELS.question}</p>

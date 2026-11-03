@@ -10,6 +10,7 @@ The menu moves a student between Home and Sessions. On a laptop it is always in 
 
 ## How to get to it (user POV)
 
+- Sign in first. See [Sign-in](./sign-in.md).
 - On a laptop, use the sidebar on any page.
 - On a phone, press `Menu` in the header on any page.
 - Open `/sessions` directly. An unknown path goes to Home.
@@ -18,7 +19,7 @@ The menu moves a student between Home and Sessions. On a laptop it is always in 
 
 Preconditions:
 
-- `pnpm db:seed` ran on this lane's database before the journey, because the journey starts on Home.
+- `pnpm db:up` ran in this checkout, and `pnpm db:seed` ran on this lane's database before the journey, because the journey signs in as `maya@astra.test` and starts on Home.
 - `pnpm verify doctor` passes.
 
 - **Open Sessions from the menu.** Run `pnpm verify drive --journey menu`. The `journey`, `identity`, `screenshot`, and `main region` checks print `PASS` for `laptop` and `phone`, and the command exits 0.

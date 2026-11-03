@@ -4,7 +4,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 const API_DOCS_PATH = 'docs';
 
 export function createApiDocument(app: INestApplication) {
-  const documentConfig = new DocumentBuilder().setTitle('Astra API').build();
+  const documentConfig = new DocumentBuilder().setTitle('Astra API').addBearerAuth().addSecurityRequirements('bearer').build();
   return SwaggerModule.createDocument(app, documentConfig);
 }
 

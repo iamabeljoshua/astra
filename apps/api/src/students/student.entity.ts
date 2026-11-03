@@ -11,8 +11,17 @@ export class StudentEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column('text')
-  name!: string;
+  @Column('uuid', { name: 'auth_user_id', unique: true })
+  authUserId!: string;
+
+  @Column('text', { nullable: true })
+  name!: string | null;
+
+  @Column('date', { name: 'birth_date' })
+  birthDate!: string;
+
+  @Column('timestamptz', { name: 'parent_consent_at', nullable: true })
+  parentConsentAt!: Date | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;

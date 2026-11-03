@@ -25,8 +25,8 @@ export class PickCardResponseDto {
 }
 
 export class HomeScreenResponseDto {
-  /** The name the tutor calls the student. */
-  studentName!: string;
+  /** The name the tutor calls the student, or null until onboarding saves one. */
+  studentName!: string | null;
 
   /** The student's newest unfinished session, or null if there is none. */
   continueSession!: SessionResponseDto | null;

@@ -1,5 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
-import { EXAMPLE_STUDENT_ID } from '../database/example-data';
+import { CurrentStudentId } from '../auth/route-access';
 import { HomeScreenResponseDto } from './home-screen.dto';
 import { HomeService } from './home.service';
 
@@ -7,9 +7,9 @@ import { HomeService } from './home.service';
 export class HomeController {
   constructor(private readonly homeService: HomeService) {}
 
-  /** Gets what the home screen shows the current student. */
+  /** Gets what the home screen shows the signed-in student. */
   @Get()
-  getHomeScreen(): Promise<HomeScreenResponseDto> {
-    return this.homeService.getHomeScreen(EXAMPLE_STUDENT_ID);
+  getHomeScreen(@CurrentStudentId() studentId: string): Promise<HomeScreenResponseDto> {
+    return this.homeService.getHomeScreen(studentId);
   }
 }

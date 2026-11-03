@@ -1,5 +1,6 @@
 import type { paths } from '@astra/contracts';
 import createClient, { type FetchOptions, type FetchResponse, type Middleware } from 'openapi-fetch';
+import { getAccessToken } from '../auth/session';
 import { ApiError, getApiErrorFromResponse } from './apiError';
 import { DEFAULT_REQUEST_TIMEOUT_MS, sendWithTimeout } from './requestTimeout';
 
@@ -42,9 +43,12 @@ type SendRequest = (
   options: { signal: AbortSignal },
 ) => Promise<{ data?: unknown; error?: unknown; response: Response }>;
 
-// M2.3 sets the Supabase token on the request here.
 const signInMiddleware: Middleware = {
-  onRequest: ({ request }) => request,
+  onRequest: async ({ request }) => {
+    const accessToken = await getAccessToken();
+    if (accessToken) request.headers.set('Authorization', `Bearer ${accessToken}`);
+    return request;
+  },
 };
 
 export function createApiClient<Paths extends object>(baseUrl: string) {

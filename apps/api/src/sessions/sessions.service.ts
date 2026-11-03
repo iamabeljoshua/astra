@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { StudentsService } from '../students/students.service';
 import type { CreateSessionBodyDto, SessionResponseDto } from './session.dto';
 import { SessionEntity } from './session.entity';
 
@@ -23,17 +22,14 @@ function toSessionResponse(session: SessionEntity): SessionResponseDto {
 export class SessionsService {
   constructor(
     @InjectRepository(SessionEntity) private readonly sessions: Repository<SessionEntity>,
-    private readonly studentsService: StudentsService,
   ) {}
 
   async createSession(studentId: string, body: CreateSessionBodyDto): Promise<SessionResponseDto> {
-    await this.studentsService.requireStudent(studentId);
-    const { id } = await this.sessions.save(this.sessions.create({ studentId, ...body }));
+    const { id } = await this.sessions.save(this.sessions.create({ ...body, studentId }));
     return toSessionResponse(await this.sessions.findOneByOrFail({ id }));
   }
 
   async listSessions(studentId: string, limit: number): Promise<SessionResponseDto[]> {
-    await this.studentsService.requireStudent(studentId);
     const sessions = await this.sessions.find({
       where: { studentId },
       order: { startedAt: 'DESC', id: 'DESC' },

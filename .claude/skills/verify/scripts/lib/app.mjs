@@ -29,11 +29,11 @@ const APP_ROOT_MARKUP = 'id="root"';
 const BODY_EXCERPT_LENGTH = 60;
 
 export function getWebUrl(run) {
-  return `http://localhost:${run.webPort}`;
+  return `http://127.0.0.1:${run.webPort}`;
 }
 
 export function getApiUrl(run) {
-  return `http://localhost:${run.apiPort}`;
+  return `http://127.0.0.1:${run.apiPort}`;
 }
 
 function parsePort(name) {

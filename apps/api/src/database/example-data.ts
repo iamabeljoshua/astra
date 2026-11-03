@@ -1,14 +1,25 @@
+import { In } from 'typeorm';
 import type { DataSource, DeepPartial } from 'typeorm';
 import type { SessionLanguage } from '../sessions/session-options';
 import { SessionEntity } from '../sessions/session.entity';
 import { StudentProfileEntity } from '../students/student-profile.entity';
+import { ClosedAccountEntity } from '../students/closed-account.entity';
 import { StudentEntity } from '../students/student.entity';
 
 export const EXAMPLE_STUDENT_ID = '00000000-0000-4000-8000-000000000001';
 
+export const EXAMPLE_AUTH_USER_ID = '00000000-0000-4000-8000-0000000000a1';
+export const NEW_STUDENT_AUTH_USER_ID = '00000000-0000-4000-8000-0000000000a2';
+const LOCAL_AUTH_USER_IDS = [EXAMPLE_AUTH_USER_ID, NEW_STUDENT_AUTH_USER_ID];
+
 const EXAMPLE_SESSION_LANGUAGE: SessionLanguage = 'en';
 
-const EXAMPLE_STUDENT = { id: EXAMPLE_STUDENT_ID, name: 'Maya' };
+const EXAMPLE_STUDENT: Partial<StudentEntity> = {
+  id: EXAMPLE_STUDENT_ID,
+  authUserId: EXAMPLE_AUTH_USER_ID,
+  name: 'Maya',
+  birthDate: '2004-03-14',
+};
 
 const EXAMPLE_PROFILE: Partial<StudentProfileEntity> = {
   studentId: EXAMPLE_STUDENT_ID,
@@ -76,9 +87,10 @@ const EXAMPLE_SESSIONS: DeepPartial<SessionEntity>[] = [
 
 export async function replaceExampleData(dataSource: DataSource): Promise<void> {
   await dataSource.transaction(async (manager) => {
+    await manager.delete(StudentEntity, { authUserId: In(LOCAL_AUTH_USER_IDS) });
+    await manager.delete(ClosedAccountEntity, { authUserId: In(LOCAL_AUTH_USER_IDS) });
     await manager.save(StudentEntity, EXAMPLE_STUDENT);
     await manager.save(StudentProfileEntity, EXAMPLE_PROFILE);
-    await manager.delete(SessionEntity, { studentId: EXAMPLE_STUDENT_ID });
     await manager.save(
       SessionEntity,
       EXAMPLE_SESSIONS.map((session) => ({

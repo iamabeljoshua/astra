@@ -1,11 +1,14 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type { DataSource } from 'typeorm';
 import { createTestDatabase } from '../../test/test-database';
 import type { TestDatabase } from '../../test/test-database';
 import { SessionEntity } from '../sessions/session.entity';
+import { ClosedAccountEntity } from '../students/closed-account.entity';
 import { StudentProfileEntity } from '../students/student-profile.entity';
 import { StudentEntity } from '../students/student.entity';
 import { getDatabaseName, withDatabaseName } from './database-url';
-import { EXAMPLE_STUDENT_ID, replaceExampleData } from './example-data';
+import { EXAMPLE_AUTH_USER_ID, EXAMPLE_STUDENT_ID, NEW_STUDENT_AUTH_USER_ID, replaceExampleData } from './example-data';
 import { createDatabaseIfMissing, dropDatabase } from './manage-databases';
 import { openMigratedDataSource } from './open-data-source';
 
@@ -53,7 +56,7 @@ describe('a database built from migrations', () => {
 
     expect(relations.filter((relation) => relation.schema !== 'app')).toEqual([]);
     expect(relations.map((relation) => relation.name)).toEqual(
-      expect.arrayContaining(['migrations', 'students', 'student_profiles', 'sessions']),
+      expect.arrayContaining(['migrations', 'students', 'student_profiles', 'sessions', 'closed_accounts']),
     );
   });
 
@@ -102,6 +105,49 @@ describe('a database built from migrations', () => {
         goal: 'exam',
         voice: 'ada',
       });
+    });
+
+    it('links the example student to the local account that db:up creates', async () => {
+      const devAccounts = JSON.parse(readFileSync(join(__dirname, '../../../../supabase/dev-accounts.json'), 'utf8'));
+      const student = await dataSource.getRepository(StudentEntity).findOneByOrFail({ id: EXAMPLE_STUDENT_ID });
+
+      expect(student.authUserId).toBe(EXAMPLE_AUTH_USER_ID);
+      expect(devAccounts.accounts.map((account: { id: string }) => account.id)).toEqual([
+        EXAMPLE_AUTH_USER_ID,
+        NEW_STUDENT_AUTH_USER_ID,
+      ]);
+    });
+
+    it('makes the new student account new again when the seed runs', async () => {
+      await dataSource.getRepository(ClosedAccountEntity).insert({ authUserId: NEW_STUDENT_AUTH_USER_ID });
+
+      await replaceExampleData(dataSource);
+
+      expect(await dataSource.getRepository(ClosedAccountEntity).countBy({ authUserId: NEW_STUDENT_AUTH_USER_ID })).toBe(0);
+
+      await dataSource.getRepository(StudentEntity).insert({ authUserId: NEW_STUDENT_AUTH_USER_ID, birthDate: '2004-03-14' });
+
+      await replaceExampleData(dataSource);
+
+      expect(await dataSource.getRepository(StudentEntity).countBy({ authUserId: NEW_STUDENT_AUTH_USER_ID })).toBe(0);
+    });
+
+    it('replaces the example account after it answered the question by hand', async () => {
+      await dataSource.getRepository(StudentEntity).delete({ authUserId: EXAMPLE_AUTH_USER_ID });
+      await dataSource.getRepository(StudentEntity).insert({ authUserId: EXAMPLE_AUTH_USER_ID, birthDate: '2004-03-14' });
+
+      await replaceExampleData(dataSource);
+
+      const student = await dataSource.getRepository(StudentEntity).findOneByOrFail({ authUserId: EXAMPLE_AUTH_USER_ID });
+      expect(student.id).toBe(EXAMPLE_STUDENT_ID);
+    });
+
+    it('opens the example account after it was closed', async () => {
+      await dataSource.getRepository(ClosedAccountEntity).insert({ authUserId: EXAMPLE_AUTH_USER_ID });
+
+      await replaceExampleData(dataSource);
+
+      expect(await dataSource.getRepository(ClosedAccountEntity).countBy({ authUserId: EXAMPLE_AUTH_USER_ID })).toBe(0);
     });
 
     it('holds the six sessions from the prototype, one of them unfinished', async () => {

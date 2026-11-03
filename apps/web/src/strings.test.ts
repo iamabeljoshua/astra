@@ -7,6 +7,10 @@ import { App } from './App';
 import { MENU_LABELS, PRODUCT_NAME, SIDEBAR_LABELS } from './strings';
 import { EXAMPLE_HOME_SCREEN, stubFetchWithHomeScreen } from './test/homeScreenApi';
 
+vi.mock('./auth/session', () => import('./test/signedInSession'));
+vi.mock('./auth/useAccount', () => import('./test/activeAccount'));
+
+const STUDENT_NAME_FROM_API = 'Maya';
 const MARKED_STRING = /^«.*»$/s;
 const TEXT_ATTRIBUTES = ['aria-label', 'title', 'alt', 'placeholder'];
 const MARKED_SESSION_TITLE = '«Free-body diagrams»';
@@ -69,7 +73,7 @@ describe('strings.ts', () => {
 
     const texts = getTextsOnPage();
     expect(texts.length).toBeGreaterThan(0);
-    expect(texts.filter((text) => !MARKED_STRING.test(text))).toEqual([]);
+    expect(texts.filter((text) => !MARKED_STRING.test(text) && text !== STUDENT_NAME_FROM_API)).toEqual([]);
   });
 
   it('changes the product name in the page and the browser tab', async () => {

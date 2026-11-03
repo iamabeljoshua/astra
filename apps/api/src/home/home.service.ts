@@ -12,9 +12,8 @@ export class HomeService {
   ) {}
 
   async getHomeScreen(studentId: string): Promise<HomeScreenResponseDto> {
-    const student = await this.studentsService.requireStudent(studentId);
     return {
-      studentName: student.name,
+      studentName: await this.studentsService.getStudentName(studentId),
       continueSession: await this.sessionsService.getNewestUnfinishedSession(studentId),
       picks: SEEDED_PICKS,
     };

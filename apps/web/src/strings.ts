@@ -10,7 +10,9 @@ export const API_ERROR_LABELS = {
   validation: 'Check the details and try again.',
   rejected: 'That could not be completed.',
   server: 'Something went wrong on our side. Try again.',
-  network: 'Could not connect. Check your connection and try again.',
+  network: 'Could not connect. Try again in a moment.',
+  authUnreachable: 'Could not connect. Try again in a moment.',
+  tokenRefusedAfterRenewal: 'Something went wrong on our side. Try again.',
   aborted: 'That took too long. Try again.',
   timeout: 'That took too long. Try again.',
 };
@@ -32,9 +34,65 @@ export const THEME_LABELS = {
   dark: 'Dark',
 };
 
-export const PLACEHOLDER_ACCOUNT = {
-  name: 'Student',
-  status: 'Not signed in',
+export const ACCOUNT_LABELS = {
+  unnamedStudent: 'Student',
+  signOut: 'Sign out',
+  closed: "We can't set up this account.",
+  tryAgain: 'Try again',
+  stillLoading: 'Still opening your account. This can take a moment.',
+};
+
+export const SIGN_IN_LABELS = {
+  tagline: 'A learning app, made for you',
+  about: "Your tutor talks with you and draws as it explains. It's an AI, and setup takes under two minutes.",
+  google: 'Continue with Google',
+  email: 'Continue with email',
+  terms: 'By continuing you agree to the Terms and the Privacy Policy.',
+  linkFailed: 'That link did not work. It may have expired, or it was opened in another browser. Ask for a new one here.',
+  cancelled: 'Sign-in did not finish. You can start again here.',
+  authUnreachable: 'We could not connect to finish signing you in. Ask for a new link here in a moment.',
+  emailQuestion: 'What is your email address?',
+  emailPlaceholder: 'Your email address',
+  sendLink: 'Send link',
+  sentQuestion: 'Check your email.',
+  sentAbout: 'We sent a link to this address. Open it in this browser to sign in.',
+  useAnotherEmail: 'Use a different email',
+  invalidEmail: 'Enter a valid email address.',
+  tooManyRequests: "We can't send another link right now. If you asked for one already, check your email. Otherwise, try again in a few minutes.",
+  authFailed: 'Could not send the link. The fault is on our side, so try again soon.',
+  failed: 'Could not send the link. Try again in a moment.',
+};
+
+export const BIRTH_DATE_LABELS = {
+  question: 'When were you born?',
+  about: 'We use this to keep the product safe for your age.',
+  day: 'Day',
+  dayPlaceholder: 'DD',
+  month: 'Month',
+  monthPlaceholder: 'MM',
+  year: 'Year',
+  yearPlaceholder: 'YYYY',
+  next: 'Continue →',
+  rejected: 'Check the date and try again.',
+  confirmQuestion: 'Is this right?',
+  confirm: 'Yes, continue',
+  change: 'Change it',
+};
+
+export const TUTOR_NOTES_LABELS = {
+  title: "Your tutor's notes",
+  madeFor: 'Made for',
+  you: 'you',
+  into: 'Into',
+  level: 'Level',
+  goal: 'Here for',
+  voice: 'Voice',
+  footer: 'You can change any of this later.',
+};
+
+export const DEV_SIGN_IN_LABELS = {
+  title: 'Development sign-in',
+  failed: 'Sign-in failed. Run pnpm db:up to create these accounts.',
 };
 
 export const HOME_LABELS = {
@@ -50,7 +108,9 @@ export const HOME_LABELS = {
     validation: 'Your home screen did not load.',
     rejected: 'Your home screen did not load.',
     server: 'Your home screen did not load. The fault is on our side.',
-    network: 'Your home screen did not load. Check your connection.',
+    network: 'Your home screen did not load. Try again in a moment.',
+    authUnreachable: 'Your home screen did not load. Try again in a moment.',
+    tokenRefusedAfterRenewal: 'Your home screen did not load. The fault is on our side.',
     aborted: 'Your home screen is taking too long to load.',
     timeout: 'Your home screen is taking too long to load.',
   },

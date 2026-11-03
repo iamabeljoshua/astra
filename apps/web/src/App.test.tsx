@@ -2,7 +2,10 @@ import { render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App';
 import { APP_ERROR_LABELS, HOME_LABELS, PRODUCT_NAME } from './strings';
-import { EXAMPLE_HOME_SCREEN, stubFetchWithHomeScreen } from './test/homeScreenApi';
+import { EXAMPLE_STUDENT_NAME, stubFetchWithHomeScreen } from './test/homeScreenApi';
+
+vi.mock('./auth/session', () => import('./test/signedInSession'));
+vi.mock('./auth/useAccount', () => import('./test/activeAccount'));
 
 const CRASHING_PAGE_PATH = '/crashing-page';
 
@@ -24,7 +27,7 @@ describe('App', () => {
 
     render(<App />);
 
-    await screen.findByRole('heading', { name: HOME_LABELS.greeting(EXAMPLE_HOME_SCREEN.studentName) });
+    await screen.findByRole('heading', { name: HOME_LABELS.greeting(EXAMPLE_STUDENT_NAME) });
     expect(screen.getAllByText(PRODUCT_NAME).length).toBeGreaterThan(0);
     expect(document.title).toBe(PRODUCT_NAME);
   });

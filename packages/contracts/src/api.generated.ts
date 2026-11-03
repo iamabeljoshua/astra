@@ -18,32 +18,15 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/students": {
+    "/me": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
-        put?: never;
-        /** Creates a student with no profile. */
-        post: operations["StudentsController_createStudent"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/students/{studentId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Reads one student and their profile. */
-        get: operations["StudentsController_getStudent"];
+        /** Reads the signed-in account, with its student once it has one. */
+        get: operations["StudentsController_getAccount"];
         put?: never;
         post?: never;
         delete?: never;
@@ -52,7 +35,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/students/{studentId}/profile": {
+    "/me/birth-date": {
         parameters: {
             query?: never;
             header?: never;
@@ -60,7 +43,24 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Saves a student's profile, replacing any earlier one. */
+        put?: never;
+        /** Answers the date of birth question. The first answer stands, and later ones change nothing. */
+        post: operations["StudentsController_answerBirthDate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Saves the signed-in student's profile, replacing any earlier one. */
         put: operations["StudentsController_saveProfile"];
         post?: never;
         delete?: never;
@@ -69,17 +69,17 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/students/{studentId}/sessions": {
+    "/sessions": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Lists a student's sessions, newest first. */
+        /** Lists the signed-in student's sessions, newest first. */
         get: operations["SessionsController_listSessions"];
         put?: never;
-        /** Starts a session for a student. */
+        /** Starts a session for the signed-in student. */
         post: operations["SessionsController_createSession"];
         delete?: never;
         options?: never;
@@ -94,7 +94,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Gets what the home screen shows the current student. */
+        /** Gets what the home screen shows the signed-in student. */
         get: operations["HomeController_getHomeScreen"];
         put?: never;
         post?: never;
@@ -114,10 +114,6 @@ export interface components {
              * @enum {string}
              */
             status: "ok";
-        };
-        CreateStudentBodyDto: {
-            /** @description The name the tutor calls the student. */
-            name: string;
         };
         StudentProfileResponseDto: {
             /** @description What the student is into. */
@@ -141,10 +137,28 @@ export interface components {
         StudentResponseDto: {
             /** @description The ID of the student. */
             id: string;
-            /** @description The name the tutor calls the student. */
-            name: string;
+            /** @description The name the tutor calls the student, or null until onboarding saves one. */
+            name: string | null;
             /** @description The student's profile, or null until onboarding saves one. */
             profile: components["schemas"]["StudentProfileResponseDto"] | null;
+            /**
+             * Format: date-time
+             * @description When a parent or guardian gave consent, or null if no one has.
+             */
+            parentConsentAt: string | null;
+        };
+        AccountResponseDto: {
+            /**
+             * @description Whether this account must answer the date of birth question, can use the app, or is closed.
+             * @enum {string}
+             */
+            status: "needs_birth_date" | "active" | "closed";
+            /** @description The student, or null unless the status is active. */
+            student: components["schemas"]["StudentResponseDto"] | null;
+        };
+        AnswerBirthDateBodyDto: {
+            /** @description The student's date of birth, written as YYYY-MM-DD. */
+            birthDate: string;
         };
         SaveStudentProfileBodyDto: {
             /** @description What the student is into. Onboarding lets a student skip this, so the list can be empty. */
@@ -226,8 +240,8 @@ export interface components {
             artwork: "arc" | "athens" | "forces" | "growth" | "helix" | "saturn" | "wave";
         };
         HomeScreenResponseDto: {
-            /** @description The name the tutor calls the student. */
-            studentName: string;
+            /** @description The name the tutor calls the student, or null until onboarding saves one. */
+            studentName: string | null;
             /** @description The student's newest unfinished session, or null if there is none. */
             continueSession: components["schemas"]["SessionResponseDto"] | null;
             /** @description The cards offered to this student. */
@@ -261,37 +275,11 @@ export interface operations {
             };
         };
     };
-    StudentsController_createStudent: {
+    StudentsController_getAccount: {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateStudentBodyDto"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["StudentResponseDto"];
-                };
-            };
-        };
-    };
-    StudentsController_getStudent: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The ID of the student. */
-                studentId: string;
-            };
             cookie?: never;
         };
         requestBody?: never;
@@ -301,7 +289,30 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StudentResponseDto"];
+                    "application/json": components["schemas"]["AccountResponseDto"];
+                };
+            };
+        };
+    };
+    StudentsController_answerBirthDate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnswerBirthDateBodyDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountResponseDto"];
                 };
             };
         };
@@ -310,10 +321,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                /** @description The ID of the student. */
-                studentId: string;
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody: {
@@ -339,10 +347,7 @@ export interface operations {
                 limit?: number;
             };
             header?: never;
-            path: {
-                /** @description The ID of the student. */
-                studentId: string;
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
@@ -361,10 +366,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                /** @description The ID of the student. */
-                studentId: string;
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody: {

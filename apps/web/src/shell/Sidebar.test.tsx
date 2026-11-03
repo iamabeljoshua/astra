@@ -2,20 +2,23 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../App';
 import {
+  ACCOUNT_LABELS,
   HOME_LABELS,
   MENU_LABELS,
-  PLACEHOLDER_ACCOUNT,
   PRODUCT_NAME,
   SIDEBAR_LABELS,
   THEME_LABELS,
 } from '../strings';
-import { EXAMPLE_HOME_SCREEN, stubFetchWithHomeScreen } from '../test/homeScreenApi';
+import { EXAMPLE_STUDENT_NAME, stubFetchWithHomeScreen } from '../test/homeScreenApi';
+
+vi.mock('../auth/session', () => import('../test/signedInSession'));
+vi.mock('../auth/useAccount', () => import('../test/activeAccount'));
 
 const { NEW_ROW_LABEL, NEW_PAGE_TEXT } = vi.hoisted(() => ({
   NEW_ROW_LABEL: 'New row',
   NEW_PAGE_TEXT: 'New page',
 }));
-const HOME_GREETING = HOME_LABELS.greeting(EXAMPLE_HOME_SCREEN.studentName);
+const HOME_GREETING = HOME_LABELS.greeting(EXAMPLE_STUDENT_NAME);
 
 vi.mock('./menu', async (importOriginal) => {
   const { MENU } = await importOriginal<typeof import('./menu')>();
@@ -61,7 +64,8 @@ describe('Sidebar', () => {
     within(sidebar).getByText(PRODUCT_NAME);
     within(sidebar).getByText(SIDEBAR_LABELS.recent);
     within(sidebar).getByText(SIDEBAR_LABELS.noSessions);
-    within(sidebar).getByText(PLACEHOLDER_ACCOUNT.name);
+    within(sidebar).getByText('Maya');
+    within(sidebar).getByRole('button', { name: ACCOUNT_LABELS.signOut });
     within(sidebar).getByRole('button', { name: THEME_LABELS.dark });
     await screen.findByRole('heading', { level: 1 });
   });

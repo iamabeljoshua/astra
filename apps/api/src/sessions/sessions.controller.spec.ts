@@ -1,16 +1,20 @@
 import request from 'supertest';
-import { createTestApp } from '../../test/test-database';
-import type { TestApp } from '../../test/test-database';
+import { createTestApp, createTestStudent } from '../../test/test-database';
+import type { TestApp, TestStudent } from '../../test/test-database';
 
-const UNKNOWN_STUDENT_ID = '0b0e9c52-6d0c-4f3b-9a53-3f5f0d3f7c11';
+const SESSIONS_PATH = '/sessions';
 const VALID_SESSION = { title: 'Free-body diagrams', subject: 'Physics', language: 'en' };
 
 describe('the sessions routes', () => {
   let testApp: TestApp;
-  let sessionsPath: string;
+  let student: TestStudent;
 
-  function api() {
-    return request(testApp.app.getHttpServer());
+  function api({ token }: TestStudent = student) {
+    const server = request(testApp.app.getHttpServer());
+    return {
+      get: (url: string) => server.get(url).set('Authorization', `Bearer ${token}`),
+      post: (url: string) => server.post(url).set('Authorization', `Bearer ${token}`),
+    };
   }
 
   function expectBadRequestNaming(response: request.Response, fieldName: string) {
@@ -22,23 +26,22 @@ describe('the sessions routes', () => {
 
   beforeAll(async () => {
     testApp = await createTestApp();
-    const student = await api().post('/students').send({ name: 'Maya' }).expect(201);
-    sessionsPath = `/students/${student.body.id}/sessions`;
+    student = await createTestStudent(testApp);
   });
 
   afterAll(() => testApp?.close());
 
   it('saves a valid session and reads the same session back', async () => {
-    const { body: created } = await api().post(sessionsPath).send(VALID_SESSION).expect(201);
+    const { body: created } = await api().post(SESSIONS_PATH).send(VALID_SESSION).expect(201);
 
-    const { body: sessions } = await api().get(sessionsPath).expect(200);
+    const { body: sessions } = await api().get(SESSIONS_PATH).expect(200);
 
     expect(sessions).toContainEqual(created);
     expect(created).toMatchObject(VALID_SESSION);
   });
 
   it('sends no internal column of a session', async () => {
-    const { body } = await api().post(sessionsPath).send(VALID_SESSION).expect(201);
+    const { body } = await api().post(SESSIONS_PATH).send(VALID_SESSION).expect(201);
 
     expect(Object.keys(body).sort()).toEqual([
       'artwork',
@@ -64,7 +67,7 @@ describe('the sessions routes', () => {
     ['a status from the client', { status: 'finished' }, 'status'],
   ])('rejects %s when starting a session', async (_caseName, change, fieldName) => {
     const response = await api()
-      .post(sessionsPath)
+      .post(SESSIONS_PATH)
       .send({ ...VALID_SESSION, ...change });
 
     expectBadRequestNaming(response, fieldName);
@@ -73,30 +76,24 @@ describe('the sessions routes', () => {
   it.each(['0', '101', '1e21', '-1', 'many', '1.5', '0x10', '0b11', '0o7', '1e1', ' 5', ''])(
     'rejects a list limit of "%s"',
     async (limit) => {
-      const response = await api().get(`${sessionsPath}?limit=${encodeURIComponent(limit)}`);
+      const response = await api().get(`${SESSIONS_PATH}?limit=${encodeURIComponent(limit)}`);
 
       expectBadRequestNaming(response, 'limit');
     },
   );
 
   it('returns at most 50 sessions when the limit is left out', async () => {
-    const student = await api().post('/students').send({ name: 'Ada' }).expect(201);
-    const manySessionsPath = `/students/${student.body.id}/sessions`;
+    const busyStudent = await createTestStudent(testApp);
     for (let count = 0; count < 51; count += 1) {
-      await api().post(manySessionsPath).send(VALID_SESSION).expect(201);
+      await api(busyStudent).post(SESSIONS_PATH).send(VALID_SESSION).expect(201);
     }
 
-    const { body: sessions } = await api().get(manySessionsPath).expect(200);
+    const { body: sessions } = await api(busyStudent).get(SESSIONS_PATH).expect(200);
 
     expect(sessions).toHaveLength(50);
   });
 
   it('accepts the largest list limit', async () => {
-    await api().get(`${sessionsPath}?limit=100`).expect(200);
-  });
-
-  it('answers 404 for a student that does not exist', async () => {
-    await api().post(`/students/${UNKNOWN_STUDENT_ID}/sessions`).send(VALID_SESSION).expect(404);
-    await api().get(`/students/${UNKNOWN_STUDENT_ID}/sessions`).expect(404);
+    await api().get(`${SESSIONS_PATH}?limit=100`).expect(200);
   });
 });

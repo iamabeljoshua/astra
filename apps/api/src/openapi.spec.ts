@@ -15,6 +15,9 @@ import { RequestValidationModule } from './request-validation.module';
 const HTTP_METHODS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'] as const;
 const WRITE_METHODS: readonly string[] = ['post', 'put', 'patch'];
 const WRITE_ROUTES_WITHOUT_BODY: readonly string[] = [];
+const STUDENT_ID_NAME = /student.?id|auth.?user/i;
+const SCHEMA_REF_PREFIX = '#/components/schemas/';
+const JSON_CONTENT = 'application/json';
 // A DTO imported with `import type` reaches the document as this schema.
 const ERASED_DTO_SCHEMA = '#/components/schemas/Function';
 
@@ -131,6 +134,52 @@ function findRoutesWithUncheckedBodies(document: OpenAPIObject): string[] {
   );
 }
 
+type DocumentOperation = NonNullable<OpenAPIObject['paths'][string]['get']>;
+
+interface WalkedSchema {
+  $ref?: string;
+  properties?: Record<string, WalkedSchema>;
+  items?: WalkedSchema;
+  allOf?: WalkedSchema[];
+  anyOf?: WalkedSchema[];
+  oneOf?: WalkedSchema[];
+}
+
+function getSchemaByRef(document: OpenAPIObject, ref: string): WalkedSchema | undefined {
+  return document.components?.schemas?.[ref.replace(SCHEMA_REF_PREFIX, '')] as WalkedSchema | undefined;
+}
+
+function findStudentIdFields(document: OpenAPIObject, schema: WalkedSchema, seenRefs: Set<string>): string[] {
+  if (schema.$ref) {
+    if (seenRefs.has(schema.$ref)) return [];
+    seenRefs.add(schema.$ref);
+    const target = getSchemaByRef(document, schema.$ref);
+    return target ? findStudentIdFields(document, target, seenRefs) : [];
+  }
+  const children = [...(schema.allOf ?? []), ...(schema.anyOf ?? []), ...(schema.oneOf ?? []), ...(schema.items ? [schema.items] : [])];
+  return [
+    ...Object.entries(schema.properties ?? {}).flatMap(([fieldName, field]) => [
+      ...(STUDENT_ID_NAME.test(fieldName) ? [fieldName] : []),
+      ...findStudentIdFields(document, field, seenRefs),
+    ]),
+    ...children.flatMap((child) => findStudentIdFields(document, child, seenRefs)),
+  ];
+}
+
+function findStudentIdInputs(document: OpenAPIObject): string[] {
+  return Object.entries(document.paths).flatMap(([path, pathItem]) =>
+    Object.entries(pathItem as Record<string, DocumentOperation>).flatMap(([method, operation]) => {
+      const fromParameters = (operation.parameters ?? [])
+        .filter((parameter) => 'name' in parameter && STUDENT_ID_NAME.test(parameter.name))
+        .map((parameter) => `${method} ${path} parameter ${'name' in parameter ? parameter.name : ''}`);
+      const { requestBody } = operation;
+      const bodySchema = requestBody && 'content' in requestBody ? requestBody.content[JSON_CONTENT]?.schema : undefined;
+      const fromBody = bodySchema ? findStudentIdFields(document, bodySchema as WalkedSchema, new Set()) : [];
+      return [...fromParameters, ...fromBody.map((fieldName) => `${method} ${path} body field ${fieldName}`)];
+    }),
+  );
+}
+
 function findEntitySchemas(document: OpenAPIObject): string[] {
   return Object.keys(document.components?.schemas ?? {}).filter((name) => name.endsWith('Entity'));
 }
@@ -228,6 +277,10 @@ describe('the OpenAPI document', () => {
     it('sends no entity from any route', () => {
       expect(findEntitySchemas(document)).toEqual([]);
     });
+
+    it('takes no student ID from any path, query, or body', () => {
+      expect(findStudentIdInputs(document)).toEqual([]);
+    });
   });
 
   it('flags every body shape that validation cannot check, and not a DTO body', async () => {
@@ -248,6 +301,41 @@ describe('the OpenAPI document', () => {
     ]);
 
     await app.close();
+  });
+
+  it('flags a route that takes a student ID', () => {
+    const body = (name: string) => ({ content: { 'application/json': { schema: { $ref: `#/components/schemas/${name}` } } } });
+    const document = {
+      paths: {
+        '/things/{studentId}': { get: { parameters: [{ name: 'studentId', in: 'path' }] } },
+        '/direct': { post: { requestBody: body('ThingBodyDto') } },
+        '/any-dto-name': { post: { requestBody: body('WriteForStudent') } },
+        '/nested': { post: { requestBody: body('OuterBodyDto') } },
+        '/in-a-list': { post: { requestBody: body('ListBodyDto') } },
+        '/in-a-union': { search: { requestBody: body('UnionBodyDto') } },
+        '/looped': { post: { requestBody: body('LoopBodyDto') } },
+      },
+      components: {
+        schemas: {
+          ThingBodyDto: { properties: { student_id: {} } },
+          WriteForStudent: { properties: { studentId: {} } },
+          OuterBodyDto: { properties: { owner: { $ref: '#/components/schemas/ThingBodyDto' } } },
+          ListBodyDto: { properties: { owners: { type: 'array', items: { $ref: '#/components/schemas/ThingBodyDto' } } } },
+          UnionBodyDto: { properties: { owner: { oneOf: [{ $ref: '#/components/schemas/ThingBodyDto' }] } } },
+          LoopBodyDto: { properties: { next: { $ref: '#/components/schemas/LoopBodyDto' }, authUser: {} } },
+        },
+      },
+    } as unknown as OpenAPIObject;
+
+    expect(findStudentIdInputs(document)).toEqual([
+      'get /things/{studentId} parameter studentId',
+      'post /direct body field student_id',
+      'post /any-dto-name body field studentId',
+      'post /nested body field student_id',
+      'post /in-a-list body field student_id',
+      'search /in-a-union body field student_id',
+      'post /looped body field authUser',
+    ]);
   });
 
   it('flags a route that sends an entity', async () => {

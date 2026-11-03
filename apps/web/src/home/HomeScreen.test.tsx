@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createQueryClient } from '../api/queryClient';
 import { ARTWORK_LABELS, CHAT_BOX_LABELS, HOME_LABELS } from '../strings';
 import { notifyResizeObservers } from '../test/fakeLayout';
-import { EXAMPLE_HOME_SCREEN, stubFetchWithHomeScreen } from '../test/homeScreenApi';
+import { EXAMPLE_HOME_SCREEN, EXAMPLE_STUDENT_NAME, stubFetchWithHomeScreen } from '../test/homeScreenApi';
 import { renderWithQueryClient } from '../test/renderWithQueryClient';
 import { HomeScreen } from './HomeScreen';
 
@@ -25,7 +25,7 @@ function typeQuestion() {
 async function renderLoadedHome(homeScreen = EXAMPLE_HOME_SCREEN) {
   stubFetchWithHomeScreen(homeScreen);
   const rendered = renderWithQueryClient(<HomeScreen />);
-  await screen.findByRole('heading', { level: 1, name: HOME_LABELS.greeting(homeScreen.studentName) });
+  await screen.findByRole('heading', { level: 1, name: HOME_LABELS.greeting(EXAMPLE_STUDENT_NAME) });
   return rendered;
 }
 
@@ -73,6 +73,14 @@ describe('HomeScreen', () => {
       await renderLoadedHome();
 
       screen.getByText(HOME_LABELS.question);
+    });
+
+    it('greets a new student who has no name yet without showing any name', async () => {
+      stubFetchWithHomeScreen({ ...EXAMPLE_HOME_SCREEN, studentName: null, continueSession: null });
+      renderWithQueryClient(<HomeScreen />);
+
+      await screen.findByText(PICKS[0]!.title);
+      screen.getByRole('heading', { level: 1, name: HOME_LABELS.greetingWithoutName });
     });
 
     it('offers the unfinished session with a drawing from its board', async () => {
@@ -183,7 +191,7 @@ describe('HomeScreen', () => {
       stubFetchWithHomeScreen();
       fireEvent.click(getTryAgainButton());
 
-      await screen.findByRole('heading', { level: 1, name: HOME_LABELS.greeting(EXAMPLE_HOME_SCREEN.studentName) });
+      await screen.findByRole('heading', { level: 1, name: HOME_LABELS.greeting(EXAMPLE_STUDENT_NAME) });
       expect(screen.queryByRole('alert')).toBeNull();
       expect(getTextBox().value).toBe(QUESTION);
     });
@@ -195,7 +203,7 @@ describe('HomeScreen', () => {
       stubFetchWithHomeScreen();
       fireEvent.click(getTryAgainButton());
 
-      const greeting = await screen.findByRole('heading', { level: 1, name: HOME_LABELS.greeting(EXAMPLE_HOME_SCREEN.studentName) });
+      const greeting = await screen.findByRole('heading', { level: 1, name: HOME_LABELS.greeting(EXAMPLE_STUDENT_NAME) });
       expect(document.activeElement).toBe(greeting);
     });
 

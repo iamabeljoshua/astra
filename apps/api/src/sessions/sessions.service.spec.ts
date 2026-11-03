@@ -1,13 +1,12 @@
-import { NotFoundException } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import { DataSource } from 'typeorm';
-import { createTestApp } from '../../test/test-database';
+import { createTestApp, OLD_ENOUGH_BIRTH_DATE } from '../../test/test-database';
 import type { TestApp } from '../../test/test-database';
 import { StudentsService } from '../students/students.service';
 import type { CreateSessionBodyDto } from './session.dto';
 import { SessionEntity } from './session.entity';
 import { SessionsService } from './sessions.service';
 
-const UNKNOWN_STUDENT_ID = '0b0e9c52-6d0c-4f3b-9a53-3f5f0d3f7c11';
 const SESSION: CreateSessionBodyDto = { title: 'Free-body diagrams', subject: 'Physics', language: 'en' };
 
 describe('SessionsService', () => {
@@ -24,7 +23,8 @@ describe('SessionsService', () => {
   afterAll(() => testApp?.close());
 
   async function createStudentId() {
-    return (await studentsService.createStudent({ name: 'Maya' })).id;
+    const { student } = await studentsService.answerBirthDate(randomUUID(), OLD_ENOUGH_BIRTH_DATE);
+    return student?.id as string;
   }
 
   function moveSessionStart(sessionId: string, startedAt: string) {
@@ -50,6 +50,16 @@ describe('SessionsService', () => {
     expect(created.startedAt).toBeInstanceOf(Date);
   });
 
+  it('gives a new session to the student from the token, whatever the body says', async () => {
+    const studentId = await createStudentId();
+    const otherStudentId = await createStudentId();
+
+    await sessionsService.createSession(studentId, { ...SESSION, studentId: otherStudentId } as CreateSessionBodyDto);
+
+    expect(await sessionsService.listSessions(studentId, 10)).toHaveLength(1);
+    expect(await sessionsService.listSessions(otherStudentId, 10)).toEqual([]);
+  });
+
   it('lists sessions newest first, up to the limit', async () => {
     const studentId = await createStudentId();
     const oldest = await sessionsService.createSession(studentId, { ...SESSION, title: 'oldest' });
@@ -69,14 +79,5 @@ describe('SessionsService', () => {
     await sessionsService.createSession(await createStudentId(), SESSION);
 
     expect(await sessionsService.listSessions(studentId, 10)).toEqual([]);
-  });
-
-  it('reports a student that does not exist', async () => {
-    await expect(sessionsService.createSession(UNKNOWN_STUDENT_ID, SESSION)).rejects.toThrow(
-      NotFoundException,
-    );
-    await expect(sessionsService.listSessions(UNKNOWN_STUDENT_ID, 10)).rejects.toThrow(
-      NotFoundException,
-    );
   });
 });

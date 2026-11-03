@@ -9,7 +9,7 @@ Students use the web app, so drive the web app. Run every command from the repo 
 
 ## Set up each copy
 
-Use Node 22 (`.nvmrc`) and pnpm 10.32.1 (`packageManager` in `package.json`).
+Use Node 22.22 or newer on the 22 line, 24.11 or newer on 24, or 26 and up, and pnpm 10.32.1 (`packageManager` in `package.json`). `.nvmrc` holds `22`. `pnpm install` refuses every other Node, including 23, 25, and 24 before 24.11.
 
 ```sh
 pnpm install --frozen-lockfile
@@ -31,7 +31,8 @@ A project that lost its build fails with `Executable doesn't exist at <path>` an
 
 - Set `DATABASE_URL` as above for every command in this skill. If your shell does not keep an `export` between commands, put it in front of each command. With no `DATABASE_URL`, every lane uses the same `astra` database.
 - `pnpm verify start` runs `pnpm db:migrate` with your `DATABASE_URL`. This creates the database if it is missing, and changes nothing if it is current. It runs before the dev servers, because its `nest build` empties `apps/api/dist`, which the watcher builds into. `start` does not start the stack, and `stop` does not stop it.
-- Nothing in `pnpm verify` seeds, and the seed must run before the journey. Home reads `GET /home` for the example student, and `doctor`, Home, Menu, and Appearance all open Home. On a database with no seed, `GET /home` answers 404, so `doctor` fails with `FAIL console error`, and a journey fails with that and a timeout on the greeting. `pnpm db:seed` replaces the example student and their sessions each time, so you can run it again, before `pnpm verify start` or after it.
+- `pnpm db:up` also writes `apps/web/.env.development.local`, which the web app needs to reach Auth, and creates the two development accounts. Run it once in each worktree.
+- Nothing in `pnpm verify` seeds, and the seed must run before the journey. The Home, Menu, and Appearance journeys sign in as `maya@astra.test`, the seeded student. On a database with no seed, that account has no student, so sign-in lands on the date of birth question and the journey times out on the greeting. `doctor` stops at the sign-in page, so it passes with no seed. `pnpm db:seed` replaces the example student and their sessions each time, and makes `new-student@astra.test` new again, so you can run it again, before `pnpm verify start` or after it.
 - Never run `supabase stop`, with or without flags, because it stops the stack for every other lane. To test a missing database, point `DATABASE_URL` at a closed port.
 
 ## Prove a change in one command
@@ -59,7 +60,7 @@ pnpm verify start
 - The command picks two free ports and prints the URLs, so lanes running at the same time do not collide. To choose the ports, set `WEB_PORT` and `API_PORT`.
 - A taken port stops the command with the owner's process ID. This includes a port held on one address only, where `pnpm dev` itself prints no error.
 - The command returns when both ports belong to this run, the latest API compile has no errors, the web app answers, the API answers `GET /health`, and `GET /api/health` answers through the dev proxy.
-- Use the printed URL. On this Mac, Vite listens on `[::1]` only, so `127.0.0.1` refuses the connection.
+- Use the printed URL. Vite and the API listen on `127.0.0.1` only, and the stack sends an email link back only to that host.
 - Running it again replaces the earlier run from this checkout.
 - Read `.verify/dev.log` for the web and API logs. A healthy `start` logs no proxy error, because the command probes the proxy only after the API answers. A proxy error there means a page called the API while the API was down.
 - If the app does not start, the command stops it and prints the last 30 lines of the log, which show the API's own error.
@@ -87,8 +88,8 @@ pnpm verify drive --journey home --viewports laptop,phone --out <dir>
 All three options are optional, and these are the defaults for the first two. `drive` needs a running app. A journey is a name in `journeys/` or a path to any `.mjs` file. The file needs no imports, and it needs a default export that is a function:
 
 ```js
-export default async function menu({ page, capture, viewportName }) {
-  await page.goto('/');
+export default async function menu({ page, capture, viewportName, signIn }) {
+  await signIn();
   await page.getByRole('heading', { name: 'Welcome back, Maya.' }).waitFor();
   if (viewportName === 'phone') await page.getByRole('button', { name: 'Menu' }).click();
   await page.getByRole('navigation', { name: 'Menu' }).getByRole('link', { name: 'Sessions' }).click();
@@ -97,7 +98,8 @@ export default async function menu({ page, capture, viewportName }) {
 }
 ```
 
-- `page` is a Playwright `Page` with the base URL set. `page.goto('/')` opens Home.
+- `page` is a Playwright `Page` with the base URL set. Every page but sign-in needs a signed-in student, so `page.goto('/')` alone opens the sign-in page.
+- `signIn(email)` opens the sign-in page and presses that account in the **Development sign-in** box, then returns. With no argument it signs in as `maya@astra.test`, the seeded student. `signIn('new-student@astra.test')` lands on the date of birth question. Wait for the page you expect afterward. The box uses a password, which the API accepts only when `NODE_ENV` is exactly `development`.
 - `capture(label)` saves a screenshot now.
 - `viewportName` is `laptop` or `phone`. Use it to branch when the path differs by width. The phone layout hides the sidebar behind the `Menu` button, as above.
 - Use roles and accessible names. Use exact text from `apps/web/src/strings.ts` when the element has no role. Home's question under the greeting is a plain `<p>`, so `getByText` is right for it.

@@ -1,19 +1,23 @@
+import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
-import { createTestApp } from '../../test/test-database';
+import { createTestApp, createTestStudent } from '../../test/test-database';
 import type { TestApp } from '../../test/test-database';
-import { EXAMPLE_STUDENT_ID, replaceExampleData } from '../database/example-data';
+import { EXAMPLE_AUTH_USER_ID, EXAMPLE_STUDENT_ID, replaceExampleData } from '../database/example-data';
 import { SessionEntity } from '../sessions/session.entity';
-import { StudentEntity } from '../students/student.entity';
 
-const OTHER_STUDENT_ID = '0b0e9c52-6d0c-4f3b-9a53-3f5f0d3f7c11';
 const SEEDED_UNFINISHED_TITLE = 'Free-body diagrams';
 
 describe('GET /home', () => {
   let testApp: TestApp;
+  let mayaToken: string;
+
+  function getHomeWithToken(token: string) {
+    return request(testApp.app.getHttpServer()).get('/home').set('Authorization', `Bearer ${token}`);
+  }
 
   function getHome() {
-    return request(testApp.app.getHttpServer()).get('/home');
+    return getHomeWithToken(mayaToken);
   }
 
   function sessions() {
@@ -32,6 +36,7 @@ describe('GET /home', () => {
 
   beforeAll(async () => {
     testApp = await createTestApp();
+    mayaToken = await testApp.supabaseAuth.signToken(EXAMPLE_AUTH_USER_ID);
   });
 
   beforeEach(() => replaceExampleData(testApp.app.get(DataSource)));
@@ -100,18 +105,25 @@ describe('GET /home', () => {
     expect(body.continueSession).toBeNull();
   });
 
-  it("does not offer another student's session", async () => {
-    await testApp.app.get(DataSource).getRepository(StudentEntity).save({ id: OTHER_STUDENT_ID, name: 'Ada' });
-    await saveUnfinishedSession(OTHER_STUDENT_ID, 'Not for Maya', '2026-11-02T12:00:00Z');
+  it('shows each student their own home, whatever the example data holds', async () => {
+    const newStudent = await createTestStudent(testApp);
+    const returningStudent = await createTestStudent(testApp);
+    await saveUnfinishedSession(returningStudent.studentId, 'Only for this student', '2026-11-02T12:00:00Z');
 
-    const { body } = await getHome().expect(200);
+    const { body: newHome } = await getHomeWithToken(newStudent.token).expect(200);
+    const { body: returningHome } = await getHomeWithToken(returningStudent.token).expect(200);
+    const { body: mayaHome } = await getHome().expect(200);
 
-    expect(body.continueSession.title).toBe(SEEDED_UNFINISHED_TITLE);
+    expect(newHome).toMatchObject({ studentName: null, continueSession: null });
+    expect(returningHome).toMatchObject({ studentName: null, continueSession: { title: 'Only for this student' } });
+    expect(mayaHome).toMatchObject({ studentName: 'Maya', continueSession: { title: SEEDED_UNFINISHED_TITLE } });
   });
 
-  it('answers 404 when the current student does not exist', async () => {
-    await testApp.app.get(DataSource).getRepository(StudentEntity).delete({ id: EXAMPLE_STUDENT_ID });
+  it('refuses a request with no token', async () => {
+    await request(testApp.app.getHttpServer()).get('/home').expect(401);
+  });
 
-    await getHome().expect(404);
+  it('refuses a signed-in user who has no student yet', async () => {
+    await getHomeWithToken(await testApp.supabaseAuth.signToken(randomUUID())).expect(403);
   });
 });

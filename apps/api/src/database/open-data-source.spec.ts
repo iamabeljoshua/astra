@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-import { withDatabaseUrl } from '../../test/test-database';
+import { withEnvironment } from '../../test/test-database';
 import { DatabaseModule } from './database.module';
 import { openDataSource } from './open-data-source';
 
@@ -30,19 +30,19 @@ describe('connecting with no database to reach', () => {
   });
 
   it('stops the API on the first attempt with the same message', async () => {
-    await expect(withDatabaseUrl(CLOSED_PORT_URL, compileDatabaseModule)).rejects.toThrow(/pnpm db:up/);
+    await expect(withEnvironment({ DATABASE_URL: CLOSED_PORT_URL }, compileDatabaseModule)).rejects.toThrow(/pnpm db:up/);
   });
 
   it('stops the API on a non-local URL that would connect in plaintext', async () => {
     const plaintextUrl = 'postgresql://postgres:secret-password@db.example.invalid:5432/astra';
 
-    await expect(withDatabaseUrl(plaintextUrl, compileDatabaseModule)).rejects.toThrow(/plaintext/);
+    await expect(withEnvironment({ DATABASE_URL: plaintextUrl }, compileDatabaseModule)).rejects.toThrow(/plaintext/);
   });
 
   it('puts DATABASE_URL back after the attempt', async () => {
     const urlBefore = process.env.DATABASE_URL;
 
-    await withDatabaseUrl(CLOSED_PORT_URL, compileDatabaseModule).catch(() => undefined);
+    await withEnvironment({ DATABASE_URL: CLOSED_PORT_URL }, compileDatabaseModule).catch(() => undefined);
 
     expect(process.env.DATABASE_URL).toBe(urlBefore);
   });
