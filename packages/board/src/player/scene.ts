@@ -1,0 +1,19 @@
+import type { SceneCommand } from '@astra/contracts';
+
+export type SceneParameters = Readonly<Record<string, number>>;
+
+/**
+ * Anything the board can run: a 2D simulation today, a generated 3D scene if Abel chooses one.
+ * It must be a pure function of its own seconds, because rewind, replay, and a camera all depend on asking for any moment in any order.
+ */
+export interface Scene<Frame = unknown> {
+  /** What a command can point at, as "element.part". */
+  readonly parts: readonly string[];
+  /** Named points on the scene's own timeline, in seconds, which a cue can play to or jump to. */
+  readonly moments: Readonly<Record<string, number>>;
+  readonly durationSeconds: number;
+  getFrame(seconds: number): Frame;
+}
+
+/** Turns a placing command into its scene. Returns null when the command places something that does not move. */
+export type SceneCatalog = (command: SceneCommand, parameterChanges: SceneParameters) => Scene | null;

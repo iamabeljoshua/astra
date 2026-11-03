@@ -125,7 +125,7 @@ export function readPlayReport(fields: CheckedFields): PlayReport {
   const playedWords = readWholeNumber(fields.at('playedWords'));
   if (playedWords > wordStartsMs.length) fail(fields.at('playedWords'), 'no more words than there are word times');
   const durationMs = readWholeNumber(fields.at('durationMs'));
-  if (durationMs < (wordStartsMs.at(-1) ?? 0)) fail(fields.at('durationMs'), 'the audio to reach the last word');
+  if (durationMs < (wordStartsMs[playedWords - 1] ?? 0)) fail(fields.at('durationMs'), 'the audio to reach the last word played');
   const firedCueMs = readTimesInOrder(fields.at('firedCueMs'), BEAT_LIMITS.commands);
   const ending = readOneOf(fields.at('ending'), BEAT_ENDINGS);
   return { wordStartsMs, durationMs, playedWords, firedCueMs, ending, frozen: readFrozenFrames(fields.at('frozen')) };
