@@ -98,7 +98,7 @@ export default async function menu({ page, capture, viewportName, signIn }) {
 }
 ```
 
-- `page` is a Playwright `Page` with the base URL set. Every page but sign-in needs a signed-in student, so `page.goto('/')` alone opens the sign-in page.
+- `page` is a Playwright `Page` with the base URL set. Every page but sign-in, `/terms`, and `/privacy` needs a signed-in student, so `page.goto('/')` alone opens the sign-in page.
 - `signIn(email)` opens the sign-in page and presses that account in the **Development sign-in** box, then returns. With no argument it signs in as `maya@astra.test`, the seeded student. `signIn('new-student@astra.test')` lands on the date of birth question. Wait for the page you expect afterward. The box uses a password, which the API accepts only when `NODE_ENV` is exactly `development`.
 - `capture(label)` saves a screenshot now.
 - `viewportName` is `laptop` or `phone`. Use it to branch when the path differs by width. The phone layout hides the sidebar behind the `Menu` button, as above.

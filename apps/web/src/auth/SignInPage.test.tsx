@@ -1,9 +1,11 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DEV_SIGN_IN_LABELS, SIGN_IN_LABELS, TUTOR_NOTES_LABELS } from '../strings';
+import { DEV_SIGN_IN_LABELS, LEGAL_PAGES, SIGN_IN_LABELS, TUTOR_NOTES_LABELS } from '../strings';
 import { useAuth } from './AuthProvider';
 import { sendEmailLink, signInWithGoogle } from './session';
 import { SignInPage } from './SignInPage';
+import { useSignInDraft } from './useSignInDraft';
 
 vi.mock('./AuthProvider', () => ({ useAuth: vi.fn() }));
 vi.mock('./session', () => ({
@@ -11,6 +13,18 @@ vi.mock('./session', () => ({
   signInWithGoogle: vi.fn(),
   signInWithPassword: vi.fn(),
 }));
+
+function SignInPageWithDraft() {
+  return <SignInPage draft={useSignInDraft()} />;
+}
+
+function renderSignInPage() {
+  render(
+    <MemoryRouter>
+      <SignInPageWithDraft />
+    </MemoryRouter>,
+  );
+}
 
 function chooseEmail() {
   fireEvent.click(screen.getByRole('button', { name: SIGN_IN_LABELS.email }));
@@ -34,7 +48,7 @@ afterEach(() => {
 
 describe('SignInPage', () => {
   it('hides the Google button until the Google flag is set', () => {
-    render(<SignInPage />);
+    renderSignInPage();
 
     expect(screen.queryByRole('button', { name: SIGN_IN_LABELS.google })).toBeNull();
     screen.getByRole('button', { name: SIGN_IN_LABELS.email });
@@ -43,7 +57,7 @@ describe('SignInPage', () => {
   it('shows a working Google button when the flag is set', () => {
     vi.stubEnv('VITE_GOOGLE_SIGN_IN', 'on');
 
-    render(<SignInPage />);
+    renderSignInPage();
     fireEvent.click(screen.getByRole('button', { name: SIGN_IN_LABELS.google }));
 
     expect(signInWithGoogle).toHaveBeenCalledTimes(1);
@@ -51,7 +65,7 @@ describe('SignInPage', () => {
 
   it('sends a link and says to check the email', async () => {
     vi.mocked(sendEmailLink).mockResolvedValue('sent');
-    render(<SignInPage />);
+    renderSignInPage();
     chooseEmail();
 
     await submitEmail('  maya@astra.test ');
@@ -63,7 +77,7 @@ describe('SignInPage', () => {
 
   it('goes back to the address with its text kept, to fix a typo', async () => {
     vi.mocked(sendEmailLink).mockResolvedValue('sent');
-    render(<SignInPage />);
+    renderSignInPage();
     chooseEmail();
     await submitEmail('maya@astra.test');
     await screen.findByRole('heading', { name: SIGN_IN_LABELS.sentQuestion });
@@ -75,7 +89,7 @@ describe('SignInPage', () => {
 
   it.each(['invalidEmail', 'tooManyRequests', 'authFailed', 'failed'] as const)('says what went wrong for %s', async (result) => {
     vi.mocked(sendEmailLink).mockResolvedValue(result);
-    render(<SignInPage />);
+    renderSignInPage();
     chooseEmail();
 
     await submitEmail('maya@astra.test');
@@ -87,14 +101,14 @@ describe('SignInPage', () => {
   it.each(['linkFailed', 'cancelled', 'authUnreachable'] as const)('says what happened on a return with %s', (returnProblem) => {
     vi.mocked(useAuth).mockReturnValue({ signIn: { status: 'signedOut' }, returnProblem });
 
-    render(<SignInPage />);
+    renderSignInPage();
 
     expect(screen.getByRole('alert').textContent).toBe(SIGN_IN_LABELS[returnProblem]);
   });
 
   it('takes focus to the result when the link is sent, on a wide screen and a phone', async () => {
     vi.mocked(sendEmailLink).mockResolvedValue('sent');
-    render(<SignInPage />);
+    renderSignInPage();
     chooseEmail();
 
     await submitEmail('maya@astra.test');
@@ -105,7 +119,7 @@ describe('SignInPage', () => {
 
   it('ties the address to the heading, so a screen reader says where the link went', async () => {
     vi.mocked(sendEmailLink).mockResolvedValue('sent');
-    render(<SignInPage />);
+    renderSignInPage();
     chooseEmail();
 
     await submitEmail('maya@astra.test');
@@ -120,7 +134,7 @@ describe('SignInPage', () => {
     ['a phone, on the heading', false, () => screen.getByRole('heading', { name: SIGN_IN_LABELS.emailQuestion })],
   ])('takes focus into the email step on %s', (_caseName, isWide, getExpected) => {
     vi.stubGlobal('matchMedia', () => ({ matches: isWide }));
-    render(<SignInPage />);
+    renderSignInPage();
 
     chooseEmail();
 
@@ -130,7 +144,7 @@ describe('SignInPage', () => {
   it('keeps focus on the button and sends once, and leaves it there when sending fails', async () => {
     let answerSend: (result: 'failed') => void = () => undefined;
     vi.mocked(sendEmailLink).mockImplementation(() => new Promise((resolve) => (answerSend = resolve)));
-    render(<SignInPage />);
+    renderSignInPage();
     chooseEmail();
     fireEvent.change(screen.getByPlaceholderText(SIGN_IN_LABELS.emailPlaceholder), { target: { value: 'maya@astra.test' } });
     const button = screen.getByRole<HTMLButtonElement>('button', { name: SIGN_IN_LABELS.sendLink });
@@ -152,7 +166,7 @@ describe('SignInPage', () => {
 
   it('ties a refused address to its message', async () => {
     vi.mocked(sendEmailLink).mockResolvedValue('invalidEmail');
-    render(<SignInPage />);
+    renderSignInPage();
     chooseEmail();
 
     await submitEmail('maya@astra');
@@ -163,14 +177,25 @@ describe('SignInPage', () => {
     expect(field.getAttribute('aria-describedby')).toBe(message.id);
   });
 
+  it.each([
+    ['the welcome step', () => undefined],
+    ['the email step', chooseEmail],
+  ])('links the agreement words to both pages on %s', (_stepName, reachStep) => {
+    renderSignInPage();
+    reachStep();
+
+    expect(screen.getByRole('link', { name: LEGAL_PAGES.terms.title }).getAttribute('href')).toBe('/terms');
+    expect(screen.getByRole('link', { name: LEGAL_PAGES.privacy.title }).getAttribute('href')).toBe('/privacy');
+  });
+
   it('shows the change-later note on the sign-in page', () => {
-    render(<SignInPage />);
+    renderSignInPage();
 
     screen.getByText(TUTOR_NOTES_LABELS.footer);
   });
 
   it('offers the development sign-in in a development build', async () => {
-    render(<SignInPage />);
+    renderSignInPage();
 
     await screen.findByRole('heading', { name: DEV_SIGN_IN_LABELS.title });
   });

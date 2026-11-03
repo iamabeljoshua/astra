@@ -1,25 +1,27 @@
 import { type FormEvent, lazy, Suspense, useRef, useState } from 'react';
-import { SIGN_IN_LABELS } from '../strings';
+import { Link } from 'react-router';
+import { LEGAL_PATHS } from '../legal/legalPaths';
+import { LEGAL_PAGES, SIGN_IN_LABELS } from '../strings';
 import { useAuth } from './AuthProvider';
 import { OnboardingFrame } from './OnboardingFrame';
 import { sendEmailLink, signInWithGoogle, type EmailLinkResult } from './session';
 import { StepHeading } from './StepHeading';
+import type { SignInDraft } from './useSignInDraft';
 
-type SignInStep = 'welcome' | 'email' | 'sent';
 type SendFailure = Exclude<EmailLinkResult, 'sent'>;
 
 const GOOGLE_SIGN_IN_FLAG = 'on';
 const SEND_PROBLEM_ID = 'send-problem';
 const SENT_ABOUT_ID = 'sign-in-sent-about';
 const SENT_ADDRESS_ID = 'sign-in-sent-address';
+const AGREEMENT_LINK = 'underline underline-offset-2 hover:text-accent';
 
 declare const __DEV_SIGN_IN__: boolean;
 
 const DevSignIn = __DEV_SIGN_IN__ ? lazy(() => import('./DevSignIn')) : null;
 
-export function SignInPage() {
-  const [step, setStep] = useState<SignInStep>('welcome');
-  const [email, setEmail] = useState('');
+export function SignInPage({ draft }: { draft: SignInDraft }) {
+  const { step, email, setStep, setEmail } = draft;
 
   return (
     <OnboardingFrame showsChangeLaterNote>
@@ -41,13 +43,25 @@ export function SignInPage() {
   );
 }
 
+function AgreementLine() {
+  return (
+    <p className="text-fine text-ink-2">
+      {SIGN_IN_LABELS.agreementStart}
+      <Link to={LEGAL_PATHS.terms} className={AGREEMENT_LINK}>{LEGAL_PAGES.terms.title}</Link>
+      {SIGN_IN_LABELS.agreementJoin}
+      <Link to={LEGAL_PATHS.privacy} className={AGREEMENT_LINK}>{LEGAL_PAGES.privacy.title}</Link>
+      {SIGN_IN_LABELS.agreementEnd}
+    </p>
+  );
+}
+
 function WelcomeStep({ onChooseEmail }: { onChooseEmail: () => void }) {
   const { returnProblem } = useAuth();
   const canUseGoogle = import.meta.env.VITE_GOOGLE_SIGN_IN === GOOGLE_SIGN_IN_FLAG;
 
   return (
     <>
-      <h1 className="text-tagline font-semibold tracking-[-0.005em] text-balance uppercase">{SIGN_IN_LABELS.tagline}</h1>
+      <StepHeading className="text-tagline tracking-[-0.005em] uppercase">{SIGN_IN_LABELS.tagline}</StepHeading>
       <p className="max-w-[46ch] text-sub text-ink-2">{SIGN_IN_LABELS.about}</p>
       {returnProblem && <p role="alert" className="stop-note">{SIGN_IN_LABELS[returnProblem]}</p>}
       <div className="flex max-w-90 flex-col gap-2">
@@ -60,7 +74,7 @@ function WelcomeStep({ onChooseEmail }: { onChooseEmail: () => void }) {
           {SIGN_IN_LABELS.email}
         </button>
       </div>
-      <p className="text-fine text-ink-2">{SIGN_IN_LABELS.terms}</p>
+      <AgreementLine />
     </>
   );
 }
@@ -109,6 +123,7 @@ function EmailStep({ email, onChangeEmail, onSent }: EmailStepProps) {
           {SIGN_IN_LABELS.sendLink}
         </button>
       </div>
+      <AgreementLine />
     </form>
   );
 }

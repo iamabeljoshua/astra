@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { createElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App';
+import { LEGAL_PATHS } from './legal/legalPaths';
 import { MENU_LABELS, PRODUCT_NAME, SIDEBAR_LABELS } from './strings';
 import { EXAMPLE_HOME_SCREEN, stubFetchWithHomeScreen } from './test/homeScreenApi';
 
@@ -34,6 +35,7 @@ vi.mock('./strings', async (importOriginal) => {
   const markStrings = (value: unknown): unknown => {
     if (typeof value === 'string') return `«${value}»`;
     if (typeof value === 'function') return (...text: unknown[]) => `«${value(...text)}»`;
+    if (Array.isArray(value)) return value.map(markStrings);
     return Object.fromEntries(Object.entries(value as object).map(([key, inner]) => [key, markStrings(inner)]));
   };
   return markStrings(await importOriginal());
@@ -74,6 +76,17 @@ describe('strings.ts', () => {
     const texts = getTextsOnPage();
     expect(texts.length).toBeGreaterThan(0);
     expect(texts.filter((text) => !MARKED_STRING.test(text) && text !== STUDENT_NAME_FROM_API)).toEqual([]);
+  });
+
+  it.each(Object.values(LEGAL_PATHS))('supplies all the text on %s, so a lawyer edits one file', async (path) => {
+    window.history.replaceState(null, '', path);
+
+    render(createElement(App));
+    await screen.findByRole('heading', { level: 1 });
+
+    const texts = getTextsOnPage();
+    expect(texts.length).toBeGreaterThan(0);
+    expect(texts.filter((text) => !MARKED_STRING.test(text))).toEqual([]);
   });
 
   it('changes the product name in the page and the browser tab', async () => {

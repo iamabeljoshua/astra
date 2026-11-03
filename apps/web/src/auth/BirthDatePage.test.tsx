@@ -76,8 +76,11 @@ describe('the date of birth question', () => {
     }
   });
 
-  it('has no age limit anywhere in the text that the web app ships', () => {
-    expect(getAllText(strings).join(' ')).not.toMatch(/\b13\b|thirteen|old enough|too young|minimum age|age limit/i);
+  it('keeps the age limit out of every screen, so only the Terms and the Privacy Policy state it', () => {
+    const { LEGAL_PAGES, ...screenStrings } = strings;
+
+    expect(getAllText(screenStrings).join(' ')).not.toMatch(/\b13\b|thirteen|old enough|too young|minimum age|age limit/i);
+    expect(getAllText(LEGAL_PAGES).join(' ')).toMatch(/\b13\b/);
   });
 
   it.each(['2026', '2025', '1950'])('sends a date in %s to the server without judging the age itself', async (year) => {
