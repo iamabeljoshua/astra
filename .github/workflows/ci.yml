@@ -15,11 +15,18 @@ permissions:
 jobs:
   checks:
     runs-on: ubuntu-latest
-    timeout-minutes: 4
+    timeout-minutes: 12
     env:
       POSTGRES_TAG: 17.6.1.075
     steps:
       - uses: actions/checkout@v7
+      - name: DIAG start the sampler
+        run: |
+          nproc; lscpu | grep -E 'Model name|^CPU\(s\)|Thread|MHz'; free -m; df -h / /mnt 2>/dev/null
+          docker version --format 'docker {{.Server.Version}}'; which unpigz pigz zstd || true
+          docker info 2>/dev/null | grep -E 'Storage Driver|Docker Root|driver-type' || true
+          nohup sh -c 'vmstat -n -t 1 > /tmp/vmstat.log' > /dev/null 2>&1 &
+          nohup sh -c 'top -b -d 5 -w 110 | grep --line-buffered -A7 "^top -" > /tmp/top.log' > /dev/null 2>&1 &
       # Unpacking this image takes half the time in memory, and starting now overlaps it with the steps below.
       # ghcr.io serves the same digest as the CLI's default registry, which has rate limited runners.
       # The CLI still picks the image that runs. A different tag adds a second image to this 6 GB disk, which may fill it, so a later step fails on a mismatch.
@@ -30,7 +37,7 @@ jobs:
           sudo mount -t tmpfs -o size=6g tmpfs /dockerdata
           echo '{"data-root":"/dockerdata"}' | sudo tee /etc/docker/daemon.json > /dev/null
           sudo systemctl start docker
-          nohup docker pull -q "ghcr.io/supabase/postgres:$POSTGRES_TAG" > /dev/null 2>&1 &
+          nohup sh -c 'date +"pull-start %T"; docker pull "ghcr.io/supabase/postgres:$POSTGRES_TAG" | while IFS= read -r line; do echo "$(date +%T) $line"; done; date +"pull-end %T"' > /tmp/pull.log 2>&1 &
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
@@ -53,16 +60,47 @@ jobs:
           }
       - run: pnpm lint
       - run: pnpm typecheck
+      - name: Run the tests that need no database
+        background: true
+        run: pnpm -r --no-bail --filter '!astra' --filter '!@astra/api' test
       - name: Start Postgres on the image that the pinned Supabase CLI uses locally
         env:
           SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
         run: pnpm exec supabase db start
       - name: Build a fresh database from the migrations and seed it
         run: pnpm db:migrate && pnpm db:seed
-      - run: pnpm test
+      - name: Run the API tests
+        run: pnpm --filter @astra/api test
       - name: Build the web app, which fails if a development account reaches any file in the output
         env:
           VITE_SUPABASE_URL: https://example.supabase.co
           VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_example
         run: pnpm --filter @astra/web build
       - run: pnpm verify start && pnpm verify stop
+      - name: Fail if the tests that need no database failed
+        wait-all:
+      - name: DIAG print the trace
+        if: always()
+        run: |
+          echo "== pull"; grep -E 'pull-start|pull-end|Status|Digest' /tmp/pull.log; grep -c 'Pull complete' /tmp/pull.log; grep -E 'Download complete' /tmp/pull.log | tail -1; grep 'Pull complete' /tmp/pull.log | sed -n '1p;$p'
+          echo "== images"; docker system df; docker images
+          echo "== vmstat"; cat /tmp/vmstat.log
+          echo "== top"; cat /tmp/top.log
+      - name: DIAG measure the image options
+        if: always()
+        env:
+          IMAGE_TAG: 17.6.1.075
+        run: |
+          image="ghcr.io/supabase/postgres:$IMAGE_TAG"
+          pkill vmstat || true; pkill top || true
+          stamp() { echo "$(date +%T) $*"; }
+          stamp save-start; docker save "$image" -o /tmp/pg.tar; stamp save-end; ls -l /tmp/pg.tar
+          stamp zstd-start; zstd -T0 -3 -q /tmp/pg.tar -o /tmp/pg.tar.zst; stamp zstd-end; ls -l /tmp/pg.tar.zst
+          docker ps -aq | xargs -r docker rm -f > /dev/null
+          docker rmi -f "$image" > /dev/null; docker image prune -af > /dev/null; free -m
+          stamp load-start; docker load -q -i /tmp/pg.tar; stamp load-end; free -m
+          docker rmi -f "$image" > /dev/null; docker image prune -af > /dev/null
+          stamp idle-pull-start; docker pull -q "$image"; stamp idle-pull-end
+          docker rmi -f "$image" > /dev/null; docker image prune -af > /dev/null
+          if ! which unpigz; then sudo apt-get install -y -qq pigz > /dev/null 2>&1; sudo systemctl restart docker; fi
+          stamp pigz-pull-start; docker pull -q "$image"; stamp pigz-pull-end
