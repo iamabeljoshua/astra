@@ -141,11 +141,10 @@ describe('the API docs routes', () => {
     expect(await getDocsStatuses('development')).toEqual({ docsPage: 200, docsJson: 200 });
   });
 
-  it('serves the page and the document when no environment is set', async () => {
-    expect(await getDocsStatuses(undefined)).toEqual({ docsPage: 200, docsJson: 200 });
-  });
-
-  it('serves neither the page nor the document in production', async () => {
-    expect(await getDocsStatuses('production')).toEqual({ docsPage: 404, docsJson: 404 });
-  });
+  it.each([undefined, 'production', 'staging', 'prod'])(
+    'serves neither the page nor the document when NODE_ENV is %s',
+    async (nodeEnv) => {
+      expect(await getDocsStatuses(nodeEnv)).toEqual({ docsPage: 404, docsJson: 404 });
+    },
+  );
 });
