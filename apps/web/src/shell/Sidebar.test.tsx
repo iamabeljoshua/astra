@@ -101,6 +101,15 @@ describe('the phone menu', () => {
     expect(document.activeElement).toBe(getMenuButton());
   });
 
+  it('closes when the row for the current page is chosen', () => {
+    render(<App />);
+    fireEvent.click(getMenuButton());
+
+    fireEvent.click(getMenuRow(MENU_LABELS.home));
+
+    expect(isOpen()).toBe(false);
+  });
+
   it('closes and returns focus to the Menu button on Escape', () => {
     render(<App />);
     fireEvent.click(getMenuButton());

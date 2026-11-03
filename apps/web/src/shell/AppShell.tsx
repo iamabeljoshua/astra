@@ -1,42 +1,19 @@
-import { useRef, useState } from 'react';
+import type { RefObject } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router';
 import { PRODUCT_NAME, SIDEBAR_LABELS } from '../strings';
 import { MENU } from './menu';
 import { Sidebar } from './Sidebar';
+import { usePhoneMenu } from './usePhoneMenu';
 
 const SIDEBAR_ID = 'sidebar';
 
 export function AppShell() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const menuButton = useRef<HTMLButtonElement>(null);
-
-  function closeMenu() {
-    if (!isMenuOpen) return;
-    setIsMenuOpen(false);
-    menuButton.current?.focus();
-  }
+  const { isMenuOpen, menuButton, toggleMenu, closeMenu } = usePhoneMenu();
 
   return (
-    <div
-      className="flex min-h-dvh flex-col"
-      onKeyDown={(event) => {
-        if (event.key === 'Escape') closeMenu();
-      }}
-    >
+    <div className="flex min-h-dvh flex-col">
       <title>{PRODUCT_NAME}</title>
-      <header className="flex items-center justify-between border-b border-line px-4 py-3 md:hidden">
-        <div className="product-mark">{PRODUCT_NAME}</div>
-        <button
-          ref={menuButton}
-          type="button"
-          aria-expanded={isMenuOpen}
-          aria-controls={SIDEBAR_ID}
-          onClick={() => setIsMenuOpen(!isMenuOpen)}
-          className="label -m-2 p-2"
-        >
-          {SIDEBAR_LABELS.menu}
-        </button>
-      </header>
+      <PhoneHeader isMenuOpen={isMenuOpen} menuButton={menuButton} onToggleMenu={toggleMenu} />
       <div className="flex flex-1">
         <Sidebar id={SIDEBAR_ID} isOpenOnPhone={isMenuOpen} onChoosePage={closeMenu} />
         <main className={`${isMenuOpen ? 'max-md:hidden' : ''} min-w-0 flex-1 px-page-side pt-page-top pb-7`}>
@@ -44,6 +21,30 @@ export function AppShell() {
         </main>
       </div>
     </div>
+  );
+}
+
+interface PhoneHeaderProps {
+  isMenuOpen: boolean;
+  menuButton: RefObject<HTMLButtonElement | null>;
+  onToggleMenu: () => void;
+}
+
+function PhoneHeader({ isMenuOpen, menuButton, onToggleMenu }: PhoneHeaderProps) {
+  return (
+    <header className="flex items-center justify-between border-b border-line px-4 py-3 md:hidden">
+      <div className="product-mark">{PRODUCT_NAME}</div>
+      <button
+        ref={menuButton}
+        type="button"
+        aria-expanded={isMenuOpen}
+        aria-controls={SIDEBAR_ID}
+        onClick={onToggleMenu}
+        className="label -m-2 p-2"
+      >
+        {SIDEBAR_LABELS.menu}
+      </button>
+    </header>
   );
 }
 
