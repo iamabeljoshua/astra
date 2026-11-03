@@ -1,0 +1,90 @@
+PASS fits without scrolling at 1440x900 light (900/900)
+PASS chat box at the bottom at 1440x900 light (dock bottom 900, form bottom 886)
+PASS no console problems at 1440x900 light
+PASS fits without scrolling at 1440x900 dark (900/900)
+PASS chat box at the bottom at 1440x900 dark (dock bottom 900, form bottom 886)
+PASS no console problems at 1440x900 dark
+PASS fits without scrolling at 1366x768 light (768/768)
+PASS chat box at the bottom at 1366x768 light (dock bottom 768, form bottom 754)
+PASS no console problems at 1366x768 light
+PASS fits without scrolling at 1366x768 dark (768/768)
+PASS chat box at the bottom at 1366x768 dark (dock bottom 768, form bottom 754)
+PASS no console problems at 1366x768 dark
+PASS fits without scrolling at 1280x720 light (720/720)
+PASS chat box at the bottom at 1280x720 light (dock bottom 720, form bottom 706)
+PASS no console problems at 1280x720 light
+PASS fits without scrolling at 1280x720 dark (720/720)
+PASS chat box at the bottom at 1280x720 dark (dock bottom 720, form bottom 706)
+PASS no console problems at 1280x720 dark
+PASS send disabled when empty
+PASS send disabled with only spaces
+PASS send enabled with text
+PASS Shift+Enter adds a line ("First line\nSecond line")
+PASS no notice before sending
+PASS Enter sends and shows the notice (Sessions open soon. Your question is still here.)
+PASS Enter keeps the text and adds no line
+PASS notice does not push the page into a scroll at 1440x900
+PASS Talk shows pressed
+PASS Talk placeholder is honest
+PASS Talk turns off
+PASS send stays disabled with only a file
+PASS file chip goes away
+PASS Continue says sessions open soon
+PASS A card says sessions open soon
+PASS Theme change keeps the text
+PASS Clicking Home on Home keeps the text
+PASS no console problems in the interaction run
+PASS cards stack in one column at 390 light
+PASS chat box docked at 390 light (dock 0..390, bottom 844)
+PASS box grows with a long question at 390 light (90 to 114 to 188)
+PASS text area stops at 140 and scrolls at 390 light (height 140)
+PASS still docked after growing at 390 light
+PASS no sideways scroll after growing at 390 light (390/390)
+PASS last card is not hidden behind the grown box at 390 light (card bottom 617.25, box top 648)
+PASS still docked after scrolling at 390 light
+PASS cards stack in one column at 390 dark
+PASS chat box docked at 390 dark (dock 0..390, bottom 844)
+PASS box grows with a long question at 390 dark (90 to 114 to 188)
+PASS text area stops at 140 and scrolls at 390 dark (height 140)
+PASS still docked after growing at 390 dark
+PASS no sideways scroll after growing at 390 dark (390/390)
+PASS last card is not hidden behind the grown box at 390 dark (card bottom 617.25, box top 648)
+PASS still docked after scrolling at 390 dark
+PASS phone menu hides the page and the dock
+PASS phone menu keeps the text
+PASS no sideways scroll at 320 (320/320, columns 1)
+PASS column count at 320 (1)
+PASS docked at 320 (568)
+PASS no sideways scroll at 761 (761/761, columns 2)
+PASS column count at 761 (2)
+PASS docked at 761 (800)
+PASS no sideways scroll at 800 (800/800, columns 2)
+PASS column count at 800 (2)
+PASS docked at 800 (800)
+PASS no sideways scroll at 1020 (1020/1020, columns 2)
+PASS column count at 1020 (2)
+PASS docked at 1020 (800)
+PASS no sideways scroll at 1021 (1021/1021, columns 3)
+PASS column count at 1021 (3)
+PASS docked at 1021 (800)
+PASS text typed while loading stays
+PASS picks section does not jump when data arrives (325.796875 then 325.1875)
+PASS error state retried before showing (3 tries)
+PASS Try again recovers and keeps the text
+PASS a crash leaves a calm line, not a blank page
+PASS a crash keeps the tab title (Astra)
+PASS Reload brings Home back
+PASS long name and title cause no sideways scroll (1440/1440)
+PASS Sessions downloads no greeting font (0 requests)
+PASS Sessions has no console problems
+PASS Home opens from Sessions
+PASS Home downloads the greeting font once (link 132000)
+PASS Home has no preload warning
+PASS a long question at 1280x720 keeps the box at the bottom (dock bottom 720, text 140)
+PASS the last card clears a grown box at 1280x720 (card bottom 485.984375, box top 517.984375)
+PASS sidebar stays in view while the page scrolls at 1280x720
+PASS phone on its side keeps the box docked (dock bottom 390, 844/844)
+PASS the same file can be chosen again after removing it
+PASS dock and box fade with the page on a theme change ({"body":"rgb(0, 0, 0)","dock":"rgb(0, 0, 0)","form":"rgb(0, 0, 0)"})
+
+88 of 88 passed

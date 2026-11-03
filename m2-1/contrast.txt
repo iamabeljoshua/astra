@@ -1,0 +1,2 @@
+light panel #EFE8DA 1.08:1, ink #1B1815 15.69:1, ink-2 #5F574C 6.31:1, line #CFC6B5 1.50:1, accent #1B1815 15.69:1
+dark panel #0E0D0B 1.08:1, ink #FFFBF5 20.37:1, ink-2 #A79F92 8.02:1, line #2B2823 1.43:1, accent #FFCC94 14.32:1

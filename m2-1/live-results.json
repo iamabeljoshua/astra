@@ -1,0 +1,442 @@
+[
+ {
+  "name": "fits without scrolling at 1440x900 light",
+  "ok": true,
+  "detail": "900/900"
+ },
+ {
+  "name": "chat box at the bottom at 1440x900 light",
+  "ok": true,
+  "detail": "dock bottom 900, form bottom 886"
+ },
+ {
+  "name": "no console problems at 1440x900 light",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "fits without scrolling at 1440x900 dark",
+  "ok": true,
+  "detail": "900/900"
+ },
+ {
+  "name": "chat box at the bottom at 1440x900 dark",
+  "ok": true,
+  "detail": "dock bottom 900, form bottom 886"
+ },
+ {
+  "name": "no console problems at 1440x900 dark",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "fits without scrolling at 1366x768 light",
+  "ok": true,
+  "detail": "768/768"
+ },
+ {
+  "name": "chat box at the bottom at 1366x768 light",
+  "ok": true,
+  "detail": "dock bottom 768, form bottom 754"
+ },
+ {
+  "name": "no console problems at 1366x768 light",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "fits without scrolling at 1366x768 dark",
+  "ok": true,
+  "detail": "768/768"
+ },
+ {
+  "name": "chat box at the bottom at 1366x768 dark",
+  "ok": true,
+  "detail": "dock bottom 768, form bottom 754"
+ },
+ {
+  "name": "no console problems at 1366x768 dark",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "fits without scrolling at 1280x720 light",
+  "ok": true,
+  "detail": "720/720"
+ },
+ {
+  "name": "chat box at the bottom at 1280x720 light",
+  "ok": true,
+  "detail": "dock bottom 720, form bottom 706"
+ },
+ {
+  "name": "no console problems at 1280x720 light",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "fits without scrolling at 1280x720 dark",
+  "ok": true,
+  "detail": "720/720"
+ },
+ {
+  "name": "chat box at the bottom at 1280x720 dark",
+  "ok": true,
+  "detail": "dock bottom 720, form bottom 706"
+ },
+ {
+  "name": "no console problems at 1280x720 dark",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "send disabled when empty",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "send disabled with only spaces",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "send enabled with text",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "Shift+Enter adds a line",
+  "ok": true,
+  "detail": "\"First line\\nSecond line\""
+ },
+ {
+  "name": "no notice before sending",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "Enter sends and shows the notice",
+  "ok": true,
+  "detail": "Sessions open soon. Your question is still here."
+ },
+ {
+  "name": "Enter keeps the text and adds no line",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "notice does not push the page into a scroll at 1440x900",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "Talk shows pressed",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "Talk placeholder is honest",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "Talk turns off",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "send stays disabled with only a file",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "file chip goes away",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "Continue says sessions open soon",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "A card says sessions open soon",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "Theme change keeps the text",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "Clicking Home on Home keeps the text",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "no console problems in the interaction run",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "cards stack in one column at 390 light",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "chat box docked at 390 light",
+  "ok": true,
+  "detail": "dock 0..390, bottom 844"
+ },
+ {
+  "name": "box grows with a long question at 390 light",
+  "ok": true,
+  "detail": "90 to 114 to 188"
+ },
+ {
+  "name": "text area stops at 140 and scrolls at 390 light",
+  "ok": true,
+  "detail": "height 140"
+ },
+ {
+  "name": "still docked after growing at 390 light",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "no sideways scroll after growing at 390 light",
+  "ok": true,
+  "detail": "390/390"
+ },
+ {
+  "name": "last card is not hidden behind the grown box at 390 light",
+  "ok": true,
+  "detail": "card bottom 617.25, box top 648"
+ },
+ {
+  "name": "still docked after scrolling at 390 light",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "cards stack in one column at 390 dark",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "chat box docked at 390 dark",
+  "ok": true,
+  "detail": "dock 0..390, bottom 844"
+ },
+ {
+  "name": "box grows with a long question at 390 dark",
+  "ok": true,
+  "detail": "90 to 114 to 188"
+ },
+ {
+  "name": "text area stops at 140 and scrolls at 390 dark",
+  "ok": true,
+  "detail": "height 140"
+ },
+ {
+  "name": "still docked after growing at 390 dark",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "no sideways scroll after growing at 390 dark",
+  "ok": true,
+  "detail": "390/390"
+ },
+ {
+  "name": "last card is not hidden behind the grown box at 390 dark",
+  "ok": true,
+  "detail": "card bottom 617.25, box top 648"
+ },
+ {
+  "name": "still docked after scrolling at 390 dark",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "phone menu hides the page and the dock",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "phone menu keeps the text",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "no sideways scroll at 320",
+  "ok": true,
+  "detail": "320/320, columns 1"
+ },
+ {
+  "name": "column count at 320",
+  "ok": true,
+  "detail": "1"
+ },
+ {
+  "name": "docked at 320",
+  "ok": true,
+  "detail": "568"
+ },
+ {
+  "name": "no sideways scroll at 761",
+  "ok": true,
+  "detail": "761/761, columns 2"
+ },
+ {
+  "name": "column count at 761",
+  "ok": true,
+  "detail": "2"
+ },
+ {
+  "name": "docked at 761",
+  "ok": true,
+  "detail": "800"
+ },
+ {
+  "name": "no sideways scroll at 800",
+  "ok": true,
+  "detail": "800/800, columns 2"
+ },
+ {
+  "name": "column count at 800",
+  "ok": true,
+  "detail": "2"
+ },
+ {
+  "name": "docked at 800",
+  "ok": true,
+  "detail": "800"
+ },
+ {
+  "name": "no sideways scroll at 1020",
+  "ok": true,
+  "detail": "1020/1020, columns 2"
+ },
+ {
+  "name": "column count at 1020",
+  "ok": true,
+  "detail": "2"
+ },
+ {
+  "name": "docked at 1020",
+  "ok": true,
+  "detail": "800"
+ },
+ {
+  "name": "no sideways scroll at 1021",
+  "ok": true,
+  "detail": "1021/1021, columns 3"
+ },
+ {
+  "name": "column count at 1021",
+  "ok": true,
+  "detail": "3"
+ },
+ {
+  "name": "docked at 1021",
+  "ok": true,
+  "detail": "800"
+ },
+ {
+  "name": "text typed while loading stays",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "picks section does not jump when data arrives",
+  "ok": true,
+  "detail": "325.796875 then 325.1875"
+ },
+ {
+  "name": "error state retried before showing",
+  "ok": true,
+  "detail": "3 tries"
+ },
+ {
+  "name": "Try again recovers and keeps the text",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "a crash leaves a calm line, not a blank page",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "a crash keeps the tab title",
+  "ok": true,
+  "detail": "Astra"
+ },
+ {
+  "name": "Reload brings Home back",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "long name and title cause no sideways scroll",
+  "ok": true,
+  "detail": "1440/1440"
+ },
+ {
+  "name": "Sessions downloads no greeting font",
+  "ok": true,
+  "detail": "0 requests"
+ },
+ {
+  "name": "Sessions has no console problems",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "Home opens from Sessions",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "Home downloads the greeting font once",
+  "ok": true,
+  "detail": "link 132000"
+ },
+ {
+  "name": "Home has no preload warning",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "a long question at 1280x720 keeps the box at the bottom",
+  "ok": true,
+  "detail": "dock bottom 720, text 140"
+ },
+ {
+  "name": "the last card clears a grown box at 1280x720",
+  "ok": true,
+  "detail": "card bottom 485.984375, box top 517.984375"
+ },
+ {
+  "name": "sidebar stays in view while the page scrolls at 1280x720",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "phone on its side keeps the box docked",
+  "ok": true,
+  "detail": "dock bottom 390, 844/844"
+ },
+ {
+  "name": "the same file can be chosen again after removing it",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "dock and box fade with the page on a theme change",
+  "ok": true,
+  "detail": "{\"body\":\"rgb(0, 0, 0)\",\"dock\":\"rgb(0, 0, 0)\",\"form\":\"rgb(0, 0, 0)\"}"
+ }
+]

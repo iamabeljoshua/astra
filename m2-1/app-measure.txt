@@ -1,0 +1,83 @@
+
+== laptop-light page scroll 900/900 wide 1440/1440 (proto 900/900)
+greeting           app 318,40.5 1020x41.8             x+0.0 y-32.0 w+0.0 h+0.0  
+question           app 318,86.3 1020x25.5             x+0.0 y-32.0 w+0.0 h+0.0  
+continueCard       app 318,133.8 1020x169.4           x+0.0 y-32.0 w+0.0 h+0.0  
+continueLabel      app 339,152.8 63.5x16.5            x+0.0 y-32.0 w+0.0 h+0.0  
+continueTitle      app 339,174.3 194.7x26.4           x+0.0 y-32.0 w+0.0 h+0.0  
+continueDetail     app 339,203.7 277.8x22.5           x+0.0 y-32.0 w+0.0 h+0.0  
+continueButton     app 339,241.2 155.4x43             x+0.0 y-32.0 w+0.0 h+0.0  
+continueArt        app 1093,150.1 228x136.8           x+0.0 y-32.0 w+0.0 h+0.0  
+picksLabel         app 318,325.2 1020x16.5            x+0.0 y-32.0 w+918.0 h+0.0  
+picksGrid          app 318,351.7 1020x201.9           x+0.0 y-32.0 w+0.0 h+0.0  
+firstPick          app 318,351.7 333.3x90             x+0.0 y-32.0 w+0.0 h+0.0  
+firstThumb         app 329,362.7 68x68                x+0.0 y-32.0 w+0.0 h+0.0  
+firstPickLabel     app 409,368.7 100.6x13             x+0.0 y-33.0 w+12.1 h+1.0  font app[Barlow 11px/16.5px 500] proto[Barlow 10px/15px 500] 
+firstPickTitle     app 409,386.2 231.3x18.8           x+0.0 y-32.0 w+0.0 h+0.0  
+firstPickWhy       app 409,406.9 231.3x16.9           x+0.0 y-32.0 w+0.0 h+0.0  
+secondThumbImage   app 672.3,362.7 68x68              x+0.0 y-32.0 w+0.0 h+0.0  
+dock               app 318,796 1020x90                x+0.0 y+10.0 w+0.0 h-24.0   color app[rgb(27, 24, 21) rgb(246, 241, 230) 1px rgb(27, 24, 21)] proto[rgb(27, 24, 21) rgb(246, 241, 230) 0px rgb(27, 24, 21)]
+chatBox            app 318,796 1020x90                x+0.0 y+0.0 w+0.0 h+0.0  
+chatInput          app 319,797 1018x42                x+0.0 y+0.0 w+0.0 h+0.0  
+chatTools          app 319,839 1018x46                x+0.0 y+0.0 w+0.0 h+0.0  
+attachButton       app 329,845 113.4x32               x+0.0 y+0.0 w+0.0 h+0.0  
+talkButton         app 448.4,845 63.4x32              x+0.0 y+0.0 w+0.0 h+0.0  
+sendButton         app 1297,845 32x32                 x+0.0 y+0.0 w+0.0 h+0.0  
+sidebar            app 0,0 216x900                    x+0.0 y-32.0 w+0.0 h+32.0   color app[rgb(27, 24, 21) rgba(0, 0, 0, 0) 0px rgb(207, 198, 181)] proto[rgb(27, 24, 21) rgba(0, 0, 0, 0) 0px rgb(27, 24, 21)]
+main               app 216,0 1224x900                 x+0.0 y-32.0 w+0.0 h+32.0  
+
+== smallLaptop-light page scroll 720/720 wide 1280/1280 (proto 723/720)
+greeting           app 254.4,32.4 987.2x39.4          x+0.0 y-32.0 w+0.0 h+0.0  
+question           app 254.4,75.8 987.2x25.5          x+0.0 y-32.0 w+0.0 h+0.0  
+continueCard       app 254.4,123.3 987.2x169.4        x+0.0 y-32.0 w+0.0 h+0.0  
+continueLabel      app 275.4,142.3 63.5x16.5          x+0.0 y-32.0 w+0.0 h+0.0  
+continueTitle      app 275.4,163.8 194.7x26.4         x+0.0 y-32.0 w+0.0 h+0.0  
+continueDetail     app 275.4,193.2 277.8x22.5         x+0.0 y-32.0 w+0.0 h+0.0  
+continueButton     app 275.4,230.7 155.4x43           x+0.0 y-32.0 w+0.0 h+0.0  
+continueArt        app 996.6,139.6 228x136.8          x+0.0 y-32.0 w+0.0 h+0.0  
+picksLabel         app 254.4,314.7 987.2x16.5         x+0.0 y-32.0 w+885.2 h+0.0  
+picksGrid          app 254.4,341.2 987.2x213.8        x+0.0 y-32.0 w+0.0 h+0.0  
+firstPick          app 254.4,341.2 322.4x101.9        x+0.0 y-32.0 w+0.0 h+0.0  
+firstThumb         app 265.4,352.2 68x68              x+0.0 y-32.0 w+0.0 h+0.0  
+firstPickLabel     app 345.4,358.2 100.6x13           x+0.0 y-33.0 w+12.1 h+1.0  font app[Barlow 11px/16.5px 500] proto[Barlow 10px/15px 500] 
+firstPickTitle     app 345.4,375.7 220.4x18.8         x+0.0 y-32.0 w+0.0 h+0.0  
+firstPickWhy       app 345.4,396.5 220.4x16.9         x+0.0 y-32.0 w+0.0 h+0.0  
+secondThumbImage   app 597.8,352.2 68x68              x+0.0 y-32.0 w+0.0 h+0.0  
+dock               app 254.4,616 987.2x90             x+0.0 y+10.0 w+0.0 h-24.0   color app[rgb(27, 24, 21) rgb(246, 241, 230) 1px rgb(27, 24, 21)] proto[rgb(27, 24, 21) rgb(246, 241, 230) 0px rgb(27, 24, 21)]
+chatBox            app 254.4,616 987.2x90             x+0.0 y+0.0 w+0.0 h+0.0  
+chatInput          app 255.4,617 985.2x42             x+0.0 y+0.0 w+0.0 h+0.0  
+chatTools          app 255.4,659 985.2x46             x+0.0 y+0.0 w+0.0 h+0.0  
+attachButton       app 265.4,665 113.4x32             x+0.0 y+0.0 w+0.0 h+0.0  
+talkButton         app 384.8,665 63.4x32              x+0.0 y+0.0 w+0.0 h+0.0  
+sendButton         app 1200.6,665 32x32               x+0.0 y+0.0 w+0.0 h+0.0  
+sidebar            app 0,0 216x720                    x+0.0 y-32.0 w+0.0 h+32.0   color app[rgb(27, 24, 21) rgba(0, 0, 0, 0) 0px rgb(207, 198, 181)] proto[rgb(27, 24, 21) rgba(0, 0, 0, 0) 0px rgb(27, 24, 21)]
+main               app 216,0 1064x720                 x+0.0 y-32.0 w+0.0 h+29.0  
+
+== phone-light page scroll 1117/844 wide 390/390 (proto 1158/844)
+greeting           app 16,84 358x33                   x+0.0 y-32.0 w+0.0 h+0.0  
+question           app 16,121 358x25.5                x+0.0 y-32.0 w+0.0 h+0.0  
+continueCard       app 16,168.5 358x169.4             x+0.0 y-32.0 w+0.0 h+0.0  
+continueLabel      app 37,187.5 63.5x16.5             x+0.0 y-32.0 w+0.0 h+0.0  
+continueTitle      app 37,209 194.7x26.4              x+0.0 y-32.0 w+0.0 h+0.0  
+continueDetail     app 37,238.4 277.8x22.5            x+0.0 y-32.0 w+0.0 h+0.0  
+continueButton     app 37,275.9 155.4x43              x+0.0 y-32.0 w+0.0 h+0.0  
+continueArt        app 0,0 0x0                        x+0.0 y+0.0 w+0.0 h+0.0  
+picksLabel         app 16,359.9 358x16.5              x+0.0 y-32.0 w+256.0 h+0.0  
+picksGrid          app 16,386.4 358x601.9             x+0.0 y-32.0 w+0.0 h+0.0  
+firstPick          app 16,386.4 358x90                x+0.0 y-32.0 w+0.0 h+0.0  
+firstThumb         app 27,397.4 68x68                 x+0.0 y-32.0 w+0.0 h+0.0  
+firstPickLabel     app 107,403.4 100.6x13             x+0.0 y-33.0 w+12.1 h+1.0  font app[Barlow 11px/16.5px 500] proto[Barlow 10px/15px 500] 
+firstPickTitle     app 107,420.9 256x18.8             x+0.0 y-32.0 w+0.0 h+0.0  
+firstPickWhy       app 107,441.6 256x16.9             x+0.0 y-32.0 w+0.0 h+0.0  
+secondThumbImage   app 27,497.4 68x68                 x+0.0 y-32.0 w+0.0 h+0.0  
+dock               app 16,746 358x90                  x+16.0 y+9.0 w-32.0 h-17.0   color app[rgb(27, 24, 21) rgb(246, 241, 230) 1px rgb(27, 24, 21)] proto[rgb(27, 24, 21) rgb(246, 241, 230) 1px rgb(207, 198, 181)]
+chatBox            app 16,746 358x90                  x+0.0 y+0.0 w+0.0 h+0.0  
+chatInput          app 17,747 356x42                  x+0.0 y+0.0 w+0.0 h+0.0  
+chatTools          app 17,789 356x46                  x+0.0 y+0.0 w+0.0 h+0.0  
+attachButton       app 27,795 113.4x32                x+0.0 y+0.0 w+0.0 h+0.0  
+talkButton         app 146.4,795 63.4x32              x+0.0 y+0.0 w+0.0 h+0.0  
+sendButton         app 333,795 32x32                  x+0.0 y+0.0 w+0.0 h+0.0  
+sidebar            app 0,0 0x0                        x+0.0 y+0.0 w+0.0 h+0.0  
+main               app 0,46 390x1071.3                x+0.0 y-32.0 w+0.0 h-9.0  
+
+console problems: none

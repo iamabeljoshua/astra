@@ -1,0 +1,4 @@
+laptop light: {"contentPercentDifferent":1.32,"chatBoxPercentDifferent":0}
+laptop dark: {"contentPercentDifferent":1.34,"chatBoxPercentDifferent":0}
+phone light: {"contentPercentDifferent":3.01,"chatBoxPercentDifferent":0}
+phone dark: {"contentPercentDifferent":2.99,"chatBoxPercentDifferent":0}

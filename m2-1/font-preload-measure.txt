@@ -1,0 +1,4 @@
+fast3g baseline: greeting shows 2149 (2133 to 2159) ms, name shows 2764 (2744 to 2774) ms, font done 3768 (3759 to 3783) ms, fallback on screen 1626 (1616 to 1633) ms, font requests 11111, problems none
+fast3g preload: greeting shows 2682 (2672 to 2716) ms, name shows 3277 (3269 to 3312) ms, font done 2858 (2847 to 2875) ms, fallback on screen 174 (155 to 176) ms, font requests 11111, problems none
+slow4g baseline: greeting shows 711 (697 to 718) ms, name shows 889 (873 to 895) ms, font done 1247 (1236 to 1256) ms, fallback on screen 538 (532 to 539) ms, font requests 11111, problems none
+slow4g preload: greeting shows 909 (888 to 915) ms, name shows 1088 (1066 to 1090) ms, font done 935 (929 to 941) ms, fallback on screen 27 (25 to 41) ms, font requests 11111, problems none
