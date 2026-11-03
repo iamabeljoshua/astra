@@ -21,7 +21,7 @@ declare const __DEV_SIGN_IN__: boolean;
 const DevSignIn = __DEV_SIGN_IN__ ? lazy(() => import('./DevSignIn')) : null;
 
 export function SignInPage({ draft }: { draft: SignInDraft }) {
-  const { step, email, setStep, setEmail } = draft;
+  const { step, email, isSending, setStep, setEmail, setIsSending } = draft;
 
   return (
     <OnboardingFrame showsChangeLaterNote>
@@ -29,7 +29,9 @@ export function SignInPage({ draft }: { draft: SignInDraft }) {
       {step === 'email' && (
         <EmailStep
           email={email}
+          isSending={isSending}
           onChangeEmail={setEmail}
+          onChangeIsSending={setIsSending}
           onSent={() => setStep('sent')}
         />
       )}
@@ -81,22 +83,23 @@ function WelcomeStep({ onChooseEmail }: { onChooseEmail: () => void }) {
 
 interface EmailStepProps {
   email: string;
+  isSending: boolean;
   onChangeEmail: (email: string) => void;
+  onChangeIsSending: (isSending: boolean) => void;
   onSent: () => void;
 }
 
-function EmailStep({ email, onChangeEmail, onSent }: EmailStepProps) {
+function EmailStep({ email, isSending, onChangeEmail, onChangeIsSending, onSent }: EmailStepProps) {
   const input = useRef<HTMLInputElement>(null);
-  const [isSending, setIsSending] = useState(false);
   const [failure, setFailure] = useState<SendFailure | null>(null);
 
   async function send(event: FormEvent) {
     event.preventDefault();
     if (isSending) return;
-    setIsSending(true);
+    onChangeIsSending(true);
     setFailure(null);
     const result = await sendEmailLink(email.trim());
-    setIsSending(false);
+    onChangeIsSending(false);
     if (result === 'sent') onSent();
     else setFailure(result);
   }

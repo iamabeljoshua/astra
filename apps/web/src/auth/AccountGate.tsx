@@ -3,6 +3,7 @@ import { AccountClosedPage, AccountErrorPage, LoadingPage } from './AccountNotic
 import { useAuth } from './AuthProvider';
 import { BirthDatePage } from './BirthDatePage';
 import { SignInPage } from './SignInPage';
+import { areNewSignUpsStopped, stopNewSignUpsForADay } from './signUpStop';
 import { useAccount } from './useAccount';
 import type { SignInDraft } from './useSignInDraft';
 
@@ -35,7 +36,12 @@ function useFocusPageHeadingAfterGatePage(isOnGatePage: boolean) {
 function SignedInGate({ children }: PropsWithChildren) {
   const { data: account, error, refetch } = useAccount();
   const isOnGatePage = account ? account.status !== 'active' : error !== null;
+  const isClosed = account?.status === 'closed';
   useFocusPageHeadingAfterGatePage(isOnGatePage);
+
+  useEffect(() => {
+    if (isClosed) stopNewSignUpsForADay();
+  }, [isClosed]);
 
   if (!account) {
     if (!error) return <LoadingPage />;
@@ -44,7 +50,7 @@ function SignedInGate({ children }: PropsWithChildren) {
 
   switch (account.status) {
     case 'needs_birth_date':
-      return <BirthDatePage />;
+      return areNewSignUpsStopped() ? <AccountClosedPage /> : <BirthDatePage />;
     case 'closed':
       return <AccountClosedPage />;
     case 'active':

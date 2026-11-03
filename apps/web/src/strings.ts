@@ -60,6 +60,7 @@ export const SIGN_IN_LABELS = {
   sentQuestion: 'Check your email.',
   sentAbout: 'We sent a link to this address. Open it in this browser to sign in.',
   useAnotherEmail: 'Use a different email',
+  signUpStopped: ACCOUNT_LABELS.closed,
   invalidEmail: 'Enter a valid email address.',
   tooManyRequests: "We can't send another link right now. If you asked for one already, check your email. Otherwise, try again in a few minutes.",
   authFailed: 'Could not send the link. The fault is on our side, so try again soon.',
@@ -258,7 +259,7 @@ export interface LegalDocument {
 export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
   terms: {
     title: 'Terms',
-    intro: `These terms apply when you use ${PRODUCT_NAME}. A line marked planned describes something that is not built yet.`,
+    intro: `These terms apply when you use ${PRODUCT_NAME}. A line marked planned describes something the app does not offer yet.`,
     sections: [
       {
         heading: `What ${PRODUCT_NAME} is`,
@@ -304,7 +305,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
   },
   privacy: {
     title: 'Privacy Policy',
-    intro: `This page says what ${PRODUCT_NAME} collects today, who receives it, and what is planned. A line marked planned describes something that is not built yet, and no data moves for it.`,
+    intro: `This page says what ${PRODUCT_NAME} collects today, who receives it, and what is planned. A line marked planned describes something the app does not offer yet, and the app sends no data for it.`,
     sections: [
       {
         heading: 'What we store',
@@ -323,7 +324,8 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
       {
         heading: 'In your browser',
         today: [
-          'Your browser keeps your sign-in and your light or dark choice in local storage, and the address of the last sign-in link you asked for in session storage. The app sets no cookies and runs no analytics or advertising code.',
+          'Your browser keeps your sign-in and your light or dark choice in local storage. Its session storage holds the email address you last asked a sign-in link for and the time you asked.',
+          'When an account closes, or a closed account signs in again, the app sets one cookie that stops new sign-ups on this browser for a day. It holds no name, address, or date, it expires by itself, and nothing on our servers reads it. Accounts already set up can still sign in. The app sets no other cookies and runs no analytics or advertising code.',
         ],
         planned: [],
       },
@@ -332,7 +334,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
         today: [
           'If the date you confirm shows you are under 13 in every time zone, the account closes and we do not store that date.',
           'We keep a record holding only the account ID and the time, so the account stays closed on every later sign-in.',
-          'Your email address is not deleted. It stays in Supabase Auth, in its user and identity records and in its logs, and nothing in the app removes it. We keep it for now because deleting it would let the same address sign up and answer again.',
+          "Your email address is not deleted. It stays in Supabase Auth, in its user and identity records and in its logs, and nothing in the app removes it. We keep it for now because deleting it would let the same address sign up and answer again. The times you signed in, your IP address, and your browser's description of itself stay in Supabase Auth too.",
         ],
         planned: [
           'Before any real student joins, deleting the address from Supabase Auth, including its logs, and refusing that address from then on by keeping only a keyed hash of it.',
@@ -349,7 +351,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
       {
         heading: 'Who receives your data',
         today: [
-          'Supabase runs our sign-in service and our database, so it holds everything listed under What we store, and it sends the sign-in email.',
+          'Supabase runs our sign-in service and our database, so it holds your email address, your sign-in records, and your date of birth, and it sends the sign-in email.',
           'No other outside service receives student data today. The app serves its own fonts and pictures.',
         ],
         planned: [

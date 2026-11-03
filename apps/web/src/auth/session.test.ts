@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { areNewSignUpsStopped, stopNewSignUpsForADay } from './signUpStop';
 
 const SESSION_STORAGE_KEY = 'astra-session';
 const CODE_VERIFIER_KEY = 'astra-session-code-verifier';
@@ -161,6 +162,38 @@ describe('sendEmailLink', () => {
   });
 });
 
+describe('sendEmailLink while new sign-ups are stopped on this browser', () => {
+  it('lets Auth create a user when nothing stops it', async () => {
+    const fetchStub = stubAuthAnswer(200, {});
+    stubLocation();
+    const { sendEmailLink } = await loadSession();
+
+    await sendEmailLink('maya@astra.test');
+
+    expect(JSON.parse(String(fetchStub.mock.calls[0]?.[1]?.body))).toMatchObject({ create_user: true });
+  });
+
+  it('asks Auth not to create a user, so a known address still gets its link', async () => {
+    stopNewSignUpsForADay();
+    const fetchStub = stubAuthAnswer(200, {});
+    stubLocation();
+    const { sendEmailLink } = await loadSession();
+
+    await expect(sendEmailLink('maya@astra.test')).resolves.toBe('sent');
+
+    expect(JSON.parse(String(fetchStub.mock.calls[0]?.[1]?.body))).toMatchObject({ create_user: false });
+  });
+
+  it('says the sign-up stopped when Auth does not know the address', async () => {
+    stopNewSignUpsForADay();
+    stubAuthAnswer(422, { error_code: 'otp_disabled' });
+    stubLocation();
+    const { sendEmailLink } = await loadSession();
+
+    await expect(sendEmailLink('second-address@astra.test')).resolves.toBe('signUpStopped');
+  });
+});
+
 describe('sendEmailLink with a damaged record', () => {
   it('still sends when the record of the last link is not readable', async () => {
     stubAuthAnswer(200, {});
@@ -298,6 +331,70 @@ describe('signOut', () => {
     signOut();
 
     expect(document.documentElement.style.visibility).toBe('hidden');
+  });
+
+  it('keeps the stop on new sign-ups, which belongs to the browser and not to the student', async () => {
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(STORED_SESSION));
+    stopNewSignUpsForADay();
+    stubAuthAnswer(204, {});
+    stubLocation();
+    const { signOut } = await loadSession();
+
+    signOut();
+
+    expect(areNewSignUpsStopped()).toBe(true);
+  });
+});
+
+describe('restartAppAtHome', () => {
+  function listenOnSessionChannel() {
+    const channel = new BroadcastChannel(SESSION_STORAGE_KEY);
+    const firstMessage = new Promise<void>((resolve) => channel.addEventListener('message', () => resolve(), { once: true }));
+    return { channel, firstMessage };
+  }
+
+  it('posts one message on the session channel just before it leaves, so Chromium drops a kept page', async () => {
+    const replace = stubLocation();
+    const { restartAppAtHome } = await loadSession();
+    const { channel, firstMessage } = listenOnSessionChannel();
+    const post = vi.spyOn(BroadcastChannel.prototype, 'postMessage');
+
+    restartAppAtHome();
+
+    await firstMessage;
+    expect(post).toHaveBeenCalledTimes(1);
+    expect(post.mock.invocationCallOrder[0]).toBeLessThan(replace.mock.invocationCallOrder[0] ?? 0);
+    post.mockRestore();
+    channel.close();
+  });
+
+  it('leaves a live tab on its page and its student, because the message says nothing about the session', async () => {
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(STORED_SESSION));
+    stubLocation();
+    const { restartAppAtHome, watchSignedInUser } = await loadSession();
+    const onChange = vi.fn();
+    const stop = watchSignedInUser(onChange);
+    await vi.waitFor(() => expect(onChange).toHaveBeenCalledWith(USER.id));
+    onChange.mockClear();
+    const { channel, firstMessage } = listenOnSessionChannel();
+
+    restartAppAtHome();
+
+    await firstMessage;
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(onChange).not.toHaveBeenCalled();
+    stop();
+    channel.close();
+  });
+
+  it('still leaves in a browser without the channel', async () => {
+    vi.stubGlobal('BroadcastChannel', undefined);
+    const replace = stubLocation();
+    const { restartAppAtHome } = await loadSession();
+
+    restartAppAtHome();
+
+    expect(replace).toHaveBeenCalledWith('/');
   });
 });
 
