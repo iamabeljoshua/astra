@@ -15,6 +15,7 @@ const STRINGS_PATH = join(REPO_ROOT, 'apps/web/src/strings.ts');
 const PRODUCT_NAME_PATTERN = /PRODUCT_NAME\s*=\s*'([^']+)'/;
 
 export const TIMEOUTS_MS = {
+  migrate: 60_000,
   appReady: 30_000,
   shutdownGrace: 10_000,
   httpProbe: 2_000,

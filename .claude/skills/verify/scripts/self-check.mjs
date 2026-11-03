@@ -34,6 +34,7 @@ const LOOPBACK_ADDRESSES = ['127.0.0.1', '::1'];
 const UNUSED_PORT = 1;
 const LEADER_EXIT_TIMEOUT_MS = 5_000;
 const CLI_TIMEOUT_MS = 90_000;
+const BOTH_VIEWPORTS = Object.keys(VIEWPORTS).join(',');
 
 const ASTRA_TITLE = '<!doctype html><title>Astra</title>';
 const BLANK_PAGES = {
@@ -48,6 +49,34 @@ const PLAIN_PAGES = {
     <div style="width: 1px; height: 1px; background: #fff"></div></body>`,
 };
 const OTHER_APP_PAGE = '<!doctype html><title>Some other app</title><h1>Some other app</h1>';
+
+function getAddStyleScript(css) {
+  return `document.head.insertAdjacentHTML('beforeend', '<style>${css}</style>')`;
+}
+
+const BLANK_HOME_SCRIPTS = {
+  'opacity 0 on its content': getAddStyleScript('main > * { opacity: 0 }'),
+  'its content off screen': getAddStyleScript('main > * { position: absolute; left: -9999px }'),
+  'nothing rendered 100 ms after the connected line': `setTimeout(() => document.querySelector('main').replaceChildren(), 100)`,
+  'transparent text everywhere': getAddStyleScript('* { color: transparent !important }'),
+  'a hidden main element': getAddStyleScript('main { display: none }'),
+};
+const PLAIN_HOME_SCRIPT = `document.querySelector('main').replaceChildren('Word')`;
+const CLOSED_DATABASE_URL = 'postgresql://postgres:postgres@127.0.0.1:1/astra_closed_port';
+const SIGNAL_ROUTES = {
+  'to the verify process': {
+    command: 'node',
+    commandArgs: [CLI_PATH],
+    detached: false,
+    sendSignal: (child, signal) => child.kill(signal),
+  },
+  "to pnpm's whole process group": {
+    command: 'pnpm',
+    commandArgs: ['verify'],
+    detached: true,
+    sendSignal: (child, signal) => process.kill(-child.pid, signal),
+  },
+};
 
 const scratchDir = mkdtempSync(join(tmpdir(), 'astra-verify-self-'));
 const evidenceDir = join(scratchDir, 'evidence');
@@ -76,16 +105,17 @@ function assertPassed({ exitCode, output }) {
   assert.equal(exitCode, 0, output);
 }
 
-function runCliAndSignalOnOutput({ args, expectedOutput, signal }) {
+function runCliAndSignalOnOutput({ route, args, expectedOutput, signal }) {
+  const { command, commandArgs, detached, sendSignal } = route;
   const env = { ...process.env, ...ports, VERIFY_RUN_DIR: runDir };
-  const child = spawn('node', [CLI_PATH, ...args], { env, cwd: REPO_ROOT });
+  const child = spawn(command, [...commandArgs, ...args], { env, cwd: REPO_ROOT, detached });
   let output = '';
   let isSignalSent = false;
   const collectOutput = (data) => {
     output += data;
     if (isSignalSent || !output.includes(expectedOutput)) return;
     isSignalSent = true;
-    child.kill(signal);
+    sendSignal(child, signal);
   };
   child.stdout.on('data', collectOutput);
   child.stderr.on('data', collectOutput);
@@ -94,6 +124,10 @@ function runCliAndSignalOnOutput({ args, expectedOutput, signal }) {
 
 function getRecordedRun() {
   return JSON.parse(readFileSync(runStatePath, 'utf8'));
+}
+
+function getRealCommandPath(name) {
+  return execFileSync('which', [name], { encoding: 'utf8' }).trim();
 }
 
 function installFakeCommand(name, script) {
@@ -202,7 +236,7 @@ const SELF_CHECKS = [
   [
     'start waits until the web app and the API both answer',
     async () => {
-      assertPassed(await runCli(['start'], { npm_config_reporter: 'silent' }));
+      assertPassed(await runCli(['start'], { npm_config_reporter: 'silent', FORCE_COLOR: '1' }));
       const response = await fetch(`http://localhost:${ports.WEB_PORT}/api/health`);
       assert.deepEqual(await response.json(), { status: 'ok' });
       const devLog = readFileSync(devLogPath, 'utf8');
@@ -285,6 +319,28 @@ const SELF_CHECKS = [
     `a plain page passes: ${kind}`,
     async () => assertPassed(await runCli(driveFixture('served-page'), { SERVED_PAGE_HTML: html })),
   ]),
+  ...Object.entries(BLANK_HOME_SCRIPTS).map(([kind, script]) => [
+    `a blank Home inside the shell fails at both widths: ${kind}`,
+    async () => {
+      const result = await runCli(driveFixture('changed-home', BOTH_VIEWPORTS), { HOME_CHANGE_SCRIPT: script });
+      assertFailed(result, /FAIL laptop main region/);
+      assert.match(result.output, /FAIL phone main region/);
+      assertImages({
+        present: ['changed-home-laptop-failed.png', 'changed-home-phone-failed.png'],
+        absent: ['changed-home-laptop.png', 'changed-home-phone.png'],
+      });
+    },
+  ]),
+  [
+    'a plain Home inside the shell passes at both widths',
+    async () => {
+      const result = await runCli(driveFixture('changed-home', BOTH_VIEWPORTS), { HOME_CHANGE_SCRIPT: PLAIN_HOME_SCRIPT });
+      assertPassed(result);
+      assert.match(result.output, /PASS laptop main region: has more than one color/);
+      assert.match(result.output, /PASS phone main region: has more than one color/);
+      assertImages({ present: ['changed-home-laptop.png', 'changed-home-phone.png'] });
+    },
+  ],
   [
     'a rerun replaces the images of that journey and viewport',
     async () => {
@@ -433,7 +489,7 @@ const SELF_CHECKS = [
     'stop keeps its record when a port read fails',
     async () => {
       assertPassed(await runCli(['start']));
-      const realLsof = execFileSync('which', ['lsof'], { encoding: 'utf8' }).trim();
+      const realLsof = getRealCommandPath('lsof');
       const failingPortRead = installFakeCommand(
         'lsof',
         `case "$*" in *-iTCP*) echo "lsof: deliberate failure" >&2; exit 1;; esac\nexec ${realLsof} "$@"`,
@@ -486,29 +542,44 @@ const SELF_CHECKS = [
       assertNothingLeftRunning();
     },
   ],
-  ...['SIGINT', 'SIGTERM'].map((signal) => [
-    `run reports ${signal} and stops the app`,
-    async () => {
-      const args = ['run', ...driveFixture('waits-for-signal').slice(1)];
-      const result = await runCliAndSignalOnOutput({ args, expectedOutput: 'the journey is waiting', signal });
-      assertFailed(result, new RegExp(`FAIL interrupted by ${signal}`));
-      assert.equal(result.exitCode, 1, 'verify.mjs, not Playwright, chose the exit code');
-      assert.equal(existsSync(runStatePath), false, 'the record is gone');
-      assertNothingLeftRunning();
-    },
-  ]),
+  ...Object.entries(SIGNAL_ROUTES).flatMap(([routeName, route]) =>
+    ['SIGINT', 'SIGTERM'].map((signal) => [
+      `run reports ${signal} sent ${routeName} and stops the app`,
+      async () => {
+        const args = ['run', ...driveFixture('waits-for-signal').slice(1)];
+        const result = await runCliAndSignalOnOutput({ route, args, expectedOutput: 'the journey is waiting', signal });
+        assertFailed(result, new RegExp(`FAIL interrupted by ${signal}`));
+        assert.equal(result.exitCode, 1, 'verify.mjs, not Playwright, chose the exit code');
+        assert.equal(existsSync(runStatePath), false, 'the record is gone');
+        assertNothingLeftRunning();
+      },
+    ]),
+  ),
   [
     'start shows the API error when the app does not start',
     async () => {
-      const failingDevCommand = installFakeCommand('pnpm', 'echo "Error: deliberate API boot failure"\nexit 1');
+      const failingDevCommand = installFakeCommand(
+        'pnpm',
+        `case "$1" in dev) echo "Error: deliberate API boot failure"; exit 1;; esac\nexec ${getRealCommandPath('pnpm')} "$@"`,
+      );
       assertFailed(await runCli(['start'], failingDevCommand), /Error: deliberate API boot failure/);
+    },
+  ],
+  [
+    'start shows a migrate failure and starts nothing',
+    async () => {
+      const result = await runCli(['start'], { DATABASE_URL: CLOSED_DATABASE_URL, npm_config_reporter: 'silent' });
+      assertFailed(result, /pnpm db:migrate failed[\s\S]*ECONNREFUSED/);
+      assert.doesNotMatch(result.output, /App not ready/, 'it does not wait for the app');
+      assert.equal(existsSync(runStatePath), false, 'no app was started');
+      assertNothingLeftRunning();
     },
   ],
 ];
 
-function driveFixture(name) {
+function driveFixture(name, viewports = 'laptop') {
   const journey = join(FIXTURES_DIR, `${name}.mjs`);
-  return ['drive', '--journey', journey, '--viewports', 'laptop', '--out', evidenceDir];
+  return ['drive', '--journey', journey, '--viewports', viewports, '--out', evidenceDir];
 }
 
 async function main() {

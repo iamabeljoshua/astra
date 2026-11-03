@@ -17,7 +17,7 @@ Preconditions:
 
 - `pnpm verify doctor` passes.
 
-- **Open Home.** Run `pnpm verify drive --journey home`. The `journey`, `identity`, and `screenshot` checks print `PASS` for `laptop` and `phone`, and the command exits 0.
+- **Open Home.** Run `pnpm verify drive --journey home`. The `journey`, `identity`, `screenshot`, and `main region` checks print `PASS` for `laptop` and `phone`, and the command exits 0.
 - **Proof.** Open `.verify/evidence/home-laptop.png` and `.verify/evidence/home-phone.png`. Each shows `The API is connected.`.
 
 ## Gotchas

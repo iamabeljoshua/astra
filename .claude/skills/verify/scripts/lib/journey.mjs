@@ -4,7 +4,13 @@ import { setImmediate as getNextEventLoopTurn, setTimeout as sleep } from 'node:
 import { pathToFileURL } from 'node:url';
 import { stripVTControlCharacters } from 'node:util';
 import { getWebUrl } from './app.mjs';
-import { getIdentityCheck, getScreenshotCheck, launchBrowser, watchContextFailures } from './browser.mjs';
+import {
+  getIdentityCheck,
+  getMainRegionCheck,
+  getScreenshotCheck,
+  launchBrowser,
+  watchContextFailures,
+} from './browser.mjs';
 import { getProductName, JOURNEYS_DIR, TIMEOUTS_MS, VIEWPORTS } from './settings.mjs';
 
 function findJourneyPath(nameOrPath) {
@@ -42,7 +48,6 @@ function clearEarlierImages({ journeyName, viewportNames, evidenceDir }) {
   }
 }
 
-// Clears before it validates, so a refused run also leaves no earlier pass image behind.
 export function clearImagesAndPlanDrive({ journey, viewports, out }) {
   const viewportNames = viewports.split(',');
   clearEarlierImages({ journeyName: getJourneyName(journey), viewportNames, evidenceDir: out });
@@ -83,8 +88,9 @@ async function readFinalPage({ browser, page, productName }) {
   await sleep(TIMEOUTS_MS.settle);
   const identityCheck = await getIdentityCheck(page, productName);
   const screenshot = await page.screenshot({ fullPage: true, animations: 'disabled' });
-  const screenshotCheck = await getScreenshotCheck({ browser, screenshot });
-  return { finalChecks: [identityCheck, screenshotCheck], screenshot };
+  const screenshotCheck = await getScreenshotCheck({ browser, name: 'screenshot', screenshot });
+  const mainRegionCheck = await getMainRegionCheck({ browser, page });
+  return { finalChecks: [identityCheck, screenshotCheck, mainRegionCheck], screenshot };
 }
 
 async function getFinalPage(options) {

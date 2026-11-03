@@ -1,7 +1,9 @@
+import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
+import { promisify } from 'node:util';
 import {
   getFreePort,
   getListenerProcessIds,
@@ -17,14 +19,16 @@ import {
 import { DEV_LOG_PATH, POLL_INTERVAL_MS, REPO_ROOT, RUN_STATE_PATH, TIMEOUTS_MS } from './settings.mjs';
 
 const DEV_COMMAND = { command: 'pnpm', args: ['dev'] };
-// "pnpm --silent verify" passes a silent reporter down, which would empty the dev log.
-const DEV_LOG_ENV = { NO_COLOR: '1', npm_config_reporter: 'append-only' };
+const MIGRATE_COMMAND = { command: 'pnpm', args: ['db:migrate'] };
+// "pnpm --silent verify" passes a silent reporter down, which would empty the dev log. Color would hide the compile result.
+const DEV_LOG_ENV = { NO_COLOR: '1', FORCE_COLOR: '0', npm_config_reporter: 'append-only' };
 const RUN_ID_VARIABLE = 'VERIFY_RUN_ID';
 const COMPILE_RESULT_PATTERN = /^apps\/api dev: .*(Found (\d+) errors?)\b/gm;
 const LOG_TAIL_LINES = 30;
 const HIGHEST_PORT = 65_535;
 const APP_ROOT_MARKUP = 'id="root"';
 const BODY_EXCERPT_LENGTH = 60;
+const runCommand = promisify(execFile);
 
 export function getWebUrl(run) {
   return `http://localhost:${run.webPort}`;
@@ -55,6 +59,16 @@ function assertPortIsFree({ name, port }) {
   if (listeners.length === 0) return;
   const owners = listeners.map((processId) => `${processId} (${getProcessCommand(processId)})`);
   throw new Error(`${name} ${port} is taken by process ${owners.join(', ')}. Choose another port.`);
+}
+
+async function migrateDatabase() {
+  const options = { cwd: REPO_ROOT, env: { ...process.env, ...DEV_LOG_ENV }, timeout: TIMEOUTS_MS.migrate };
+  try {
+    await runCommand(MIGRATE_COMMAND.command, MIGRATE_COMMAND.args, options);
+  } catch (error) {
+    const outcome = error.killed ? `did not finish within ${TIMEOUTS_MS.migrate} ms` : 'failed';
+    throw new Error(`The app did not start, because pnpm db:migrate ${outcome}.\n${error.stdout}${error.message}`);
+  }
 }
 
 function launchDevServers({ webPort, apiPort }) {
@@ -173,6 +187,7 @@ export async function startApp() {
   const { webPort, apiPort } = await getRequestedPorts();
   assertPortIsFree({ name: 'WEB_PORT', port: webPort });
   assertPortIsFree({ name: 'API_PORT', port: apiPort });
+  await migrateDatabase();
   const run = launchDevServers({ webPort, apiPort });
   try {
     await waitUntilReady(run);

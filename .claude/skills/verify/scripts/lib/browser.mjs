@@ -6,6 +6,7 @@ const GPU_CAPABLE_CHANNEL = 'chromium';
 const FAKE_MICROPHONE_ARGS = ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'];
 const WEBGL_CLEAR_COLOR = [255, 128, 0, 255];
 const AUDIBLE_PEAK = 0.01;
+const MAIN_REGION_SELECTOR = 'main';
 // verify.mjs owns signals, because Playwright's handlers can exit the process before the app stops.
 const LAUNCH_OPTIONS = {
   channel: GPU_CAPABLE_CHANNEL,
@@ -112,15 +113,24 @@ async function readUniformColor(pngBase64) {
   return isUniform ? `rgba(${data.slice(0, 4).join(', ')})` : null;
 }
 
-export async function getScreenshotCheck({ browser, screenshot }) {
+export async function getScreenshotCheck({ browser, name, screenshot }) {
   const inspector = await browser.newPage();
   try {
     const uniformColor = await inspector.evaluate(readUniformColor, screenshot.toString('base64'));
-    const detail = uniformColor ? `every pixel is ${uniformColor}, so the page looks blank` : 'has more than one color';
-    return { name: 'screenshot', passed: !uniformColor, detail };
+    const detail = uniformColor ? `every pixel is ${uniformColor}, so it looks blank` : 'has more than one color';
+    return { name, passed: !uniformColor, detail };
   } finally {
     await inspector.close();
   }
+}
+
+export async function getMainRegionCheck({ browser, page }) {
+  const name = 'main region';
+  const mainRegion = page.locator(MAIN_REGION_SELECTOR);
+  if ((await mainRegion.count()) === 0) return { name, passed: true, detail: 'this page has no main element' };
+  if (!(await mainRegion.isVisible())) return { name, passed: false, detail: 'the main element is hidden or has no size' };
+  const screenshot = await mainRegion.screenshot({ animations: 'disabled' });
+  return getScreenshotCheck({ browser, name, screenshot });
 }
 
 export function watchContextFailures(context) {

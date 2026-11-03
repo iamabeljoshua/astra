@@ -18,7 +18,7 @@ Preconditions:
 
 - `pnpm verify doctor` passes.
 
-- **Choose dark and reload.** Run `pnpm verify drive --journey appearance`. The `journey`, `identity`, and `screenshot` checks print `PASS` for `laptop` and `phone`, and the command exits 0.
+- **Choose dark and reload.** Run `pnpm verify drive --journey appearance`. The `journey`, `identity`, `screenshot`, and `main region` checks print `PASS` for `laptop` and `phone`, and the command exits 0.
 - **Proof.** Open `.verify/evidence/appearance-laptop-dark.png` and `.verify/evidence/appearance-laptop-dark-after-reload.png`, and the two `phone` images. Each shows the dark theme.
 
 ## Gotchas

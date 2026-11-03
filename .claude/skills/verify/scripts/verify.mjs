@@ -19,8 +19,8 @@ import {
 } from './lib/journey.mjs';
 import { DEFAULT_EVIDENCE_DIR, getProductName, VIEWPORTS } from './lib/settings.mjs';
 
-const USAGE = `Usage: [WEB_PORT=<port>] [API_PORT=<port>] pnpm verify <command>
-  start    Start Astra and wait until the web app and the API both answer.
+const USAGE = `Usage: [WEB_PORT=<port>] [API_PORT=<port>] [DATABASE_URL=<url>] pnpm verify <command>
+  start    Migrate the database, start Astra, and wait until the web app and the API both answer.
   doctor   Check the running instance, its ports, the page identity, WebGL, and audio.
   drive    Drive a journey and save screenshots. Needs a running instance.
            --journey <name or path>   Default: home
@@ -108,14 +108,17 @@ function watchFailuresOutsideChecks(command) {
   // Node raises an unhandled rejection as an uncaught exception, so this one listener sees both.
   process.on('uncaughtException', addStrayError);
   const cleanUp = command === runOnce ? stopApp : async () => {};
-  for (const signal of INTERRUPT_SIGNALS) {
-    process.once(signal, () => {
-      addFailureOutsideChecks(`interrupted by ${signal}`);
-      cleanUp()
-        .catch((error) => console.error(stripVTControlCharacters(error.message)))
-        .finally(() => process.exit(1));
-    });
-  }
+  let isInterrupted = false;
+  // pnpm forwards the terminal's Ctrl-C, so one key press arrives twice, and a signal with no listener kills the cleanup.
+  const handleInterrupt = (signal) => {
+    if (isInterrupted) return;
+    isInterrupted = true;
+    addFailureOutsideChecks(`interrupted by ${signal}`);
+    cleanUp()
+      .catch((error) => console.error(stripVTControlCharacters(error.message)))
+      .finally(() => process.exit(1));
+  };
+  for (const signal of INTERRUPT_SIGNALS) process.on(signal, handleInterrupt);
 }
 
 async function main() {

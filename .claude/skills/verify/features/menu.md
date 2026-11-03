@@ -20,10 +20,11 @@ Preconditions:
 
 - `pnpm verify doctor` passes.
 
-- **Open Sessions from the menu.** Run `pnpm verify drive --journey menu`. The `journey`, `identity`, and `screenshot` checks print `PASS` for `laptop` and `phone`, and the command exits 0.
+- **Open Sessions from the menu.** Run `pnpm verify drive --journey menu`. The `journey`, `identity`, `screenshot`, and `main region` checks print `PASS` for `laptop` and `phone`, and the command exits 0.
 - **Proof.** Open `.verify/evidence/menu-laptop-sessions.png` and `.verify/evidence/menu-phone-sessions.png`. Each shows the `Sessions` heading.
 
 ## Gotchas
 
 - `Menu` is both the phone button and the name of the navigation landmark. Scope a link with `getByRole('navigation', { name: 'Menu' })`.
 - On a phone, the sidebar links are not visible until `Menu` is open, so a click without it times out.
+- On a phone, `main` is hidden while `Menu` is open, so a journey that ends there fails `main region`.
