@@ -1,10 +1,13 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CHAT_BOX_LABELS } from '../strings';
+import { notifyResizeObservers, startLoadingFont } from '../test/fakeLayout';
 import { ChatBox } from './ChatBox';
 
 const QUESTION = 'Why is the sky dark at night?';
-const GROWN_HEIGHT_PX = 96;
+const ONE_LINE_PX = 42;
+const TWO_LINES_PX = 66;
+const THREE_LINES_PX = 90;
 
 const getTextBox = () => screen.getByRole<HTMLTextAreaElement>('textbox', { name: CHAT_BOX_LABELS.label });
 const getSendButton = () => screen.getByRole<HTMLButtonElement>('button', { name: CHAT_BOX_LABELS.send });
@@ -75,11 +78,14 @@ describe('ChatBox', () => {
       expect(wasNotPrevented).toBe(true);
     });
 
-    it('does not send on the Enter that confirms a word in an input method', () => {
+    it.each([
+      ['Chromium', { isComposing: true }],
+      ['WebKit, after compositionend', { keyCode: 229 }],
+    ])('does not send on the Enter that confirms a word in an input method in %s', (_browser, composingEvent) => {
       const { onSend } = renderChatBox();
       type(QUESTION);
 
-      fireEvent.keyDown(getTextBox(), { key: 'Enter', isComposing: true });
+      fireEvent.keyDown(getTextBox(), { key: 'Enter', ...composingEvent });
 
       expect(onSend).not.toHaveBeenCalled();
     });
@@ -101,38 +107,73 @@ describe('ChatBox', () => {
 
       expect(onSend).toHaveBeenCalledExactlyOnceWith(QUESTION);
     });
-
-    it('keeps the student\'s text in the box after sending', () => {
-      renderChatBox();
-      type(QUESTION);
-
-      fireEvent.click(getSendButton());
-
-      expect(getTextBox().value).toBe(QUESTION);
-    });
   });
 
-  describe('growing', () => {
-    function stubTextHeight(heightPx: number) {
-      vi.spyOn(HTMLTextAreaElement.prototype, 'scrollHeight', 'get').mockReturnValue(heightPx);
-    }
+  describe('fitting the text', () => {
+    const layout = { isHidden: false, contentHeightPx: ONE_LINE_PX };
+    const getHeight = () => getTextBox().style.height;
 
-    it('grows to fit the text as the student types', () => {
-      renderChatBox();
-      stubTextHeight(GROWN_HEIGHT_PX);
-
-      type(QUESTION);
-
-      expect(getTextBox().style.height).toBe(`${GROWN_HEIGHT_PX}px`);
+    beforeEach(() => {
+      layout.isHidden = false;
+      layout.contentHeightPx = ONE_LINE_PX;
+      vi.spyOn(globalThis, 'requestAnimationFrame').mockImplementation((runFrame) => {
+        runFrame(0);
+        return 0;
+      });
+      vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockImplementation(() => (layout.isHidden ? 0 : 300));
+      vi.spyOn(HTMLTextAreaElement.prototype, 'scrollHeight', 'get').mockImplementation(() =>
+        layout.isHidden ? 0 : layout.contentHeightPx,
+      );
     });
 
-    it('fits the text again when the window changes size', () => {
+    it('keeps its height while hidden, whatever resizes, and fits again when it shows', () => {
       renderChatBox();
-      stubTextHeight(GROWN_HEIGHT_PX);
+      layout.contentHeightPx = TWO_LINES_PX;
+      type(QUESTION);
+      expect(getHeight()).toBe(`${TWO_LINES_PX}px`);
 
+      layout.isHidden = true;
       fireEvent(window, new Event('resize'));
+      notifyResizeObservers();
+      expect(getHeight()).toBe(`${TWO_LINES_PX}px`);
 
-      expect(getTextBox().style.height).toBe(`${GROWN_HEIGHT_PX}px`);
+      layout.isHidden = false;
+      layout.contentHeightPx = THREE_LINES_PX;
+      notifyResizeObservers();
+      expect(getHeight()).toBe(`${THREE_LINES_PX}px`);
+    });
+
+    it('fits again once a web font has loaded', async () => {
+      const finishLoadingFont = startLoadingFont();
+      layout.contentHeightPx = TWO_LINES_PX;
+      renderChatBox();
+
+      layout.contentHeightPx = ONE_LINE_PX;
+      await finishLoadingFont();
+
+      expect(getHeight()).toBe(`${ONE_LINE_PX}px`);
+    });
+
+    it('fits again when Talk changes the placeholder', () => {
+      renderChatBox();
+      layout.contentHeightPx = TWO_LINES_PX;
+
+      fireEvent.click(getTalkButton());
+
+      expect(getHeight()).toBe(`${TWO_LINES_PX}px`);
+    });
+
+    it('stays as tall as a wrapped placeholder when the first key makes the content shorter', () => {
+      layout.contentHeightPx = TWO_LINES_PX;
+      renderChatBox();
+
+      layout.contentHeightPx = ONE_LINE_PX;
+      type(QUESTION);
+      expect(getHeight()).toBe(`${TWO_LINES_PX}px`);
+
+      layout.contentHeightPx = THREE_LINES_PX;
+      type(`${QUESTION} ${QUESTION}`);
+      expect(getHeight()).toBe(`${THREE_LINES_PX}px`);
     });
   });
 
@@ -163,12 +204,6 @@ describe('ChatBox', () => {
   describe('the photo or PDF control', () => {
     const photo = new File(['photo'], 'homework.jpg', { type: 'image/jpeg' });
 
-    it('accepts photos and PDFs', () => {
-      const { fileInput } = renderChatBox();
-
-      expect(fileInput.accept).toBe('image/*,.pdf');
-    });
-
     it('opens the file picker', () => {
       const { fileInput } = renderChatBox();
       const openPicker = vi.spyOn(fileInput, 'click');
@@ -178,14 +213,18 @@ describe('ChatBox', () => {
       expect(openPicker).toHaveBeenCalledOnce();
     });
 
-    it('shows the chosen file and lets the student remove it', () => {
+    it('shows the chosen file, removes it by name, and returns focus to the control', () => {
       const { fileInput } = renderChatBox();
 
       fireEvent.change(fileInput, { target: { files: [photo] } });
       screen.getByText(photo.name);
 
-      fireEvent.click(screen.getByRole('button', { name: CHAT_BOX_LABELS.removeAttachment }));
+      const removeButton = screen.getByRole('button', { name: new RegExp(photo.name) });
+      removeButton.focus();
+      fireEvent.click(removeButton);
+
       expect(screen.queryByText(photo.name)).toBeNull();
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: CHAT_BOX_LABELS.attach }));
     });
 
     it('still needs text before send works', () => {

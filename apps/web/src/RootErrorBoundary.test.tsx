@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { useEffect, type ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from './api/apiError';
@@ -37,14 +37,16 @@ afterEach(() => {
 });
 
 describe('RootErrorBoundary', () => {
-  it('shows a calm line and a reload control in place of a crashed screen', () => {
+  it('announces a heading and a calm line, with a reload control, in place of a crashed screen', () => {
     render(
       <RootErrorBoundary>
         <ScreenThatThrows />
       </RootErrorBoundary>,
     );
 
-    screen.getByText(APP_ERROR_LABELS.message);
+    const announcement = within(screen.getByRole('alert'));
+    announcement.getByRole('heading', { level: 1, name: APP_ERROR_LABELS.heading });
+    announcement.getByText(APP_ERROR_LABELS.message);
     screen.getByRole('button', { name: APP_ERROR_LABELS.reload });
     expect(document.title).toBe(PRODUCT_NAME);
   });
@@ -71,7 +73,7 @@ describe('RootErrorBoundary', () => {
     );
 
     screen.getByText(SCREEN_TEXT);
-    expect(screen.queryByText(APP_ERROR_LABELS.message)).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 });
 
@@ -82,7 +84,7 @@ describe('the shared throwOnError default', () => {
   ])('sends a plain error from %s to the boundary', async (_name, screenWithError) => {
     renderWithQueryClient(<RootErrorBoundary>{screenWithError}</RootErrorBoundary>);
 
-    await screen.findByText(APP_ERROR_LABELS.message);
+    await screen.findByRole('alert');
   });
 
   it.each([
@@ -92,6 +94,6 @@ describe('the shared throwOnError default', () => {
     renderWithQueryClient(<RootErrorBoundary>{screenWithError}</RootErrorBoundary>);
 
     await screen.findByText(SCREEN_TEXT);
-    expect(screen.queryByText(APP_ERROR_LABELS.message)).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 });

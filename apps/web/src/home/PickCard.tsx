@@ -1,15 +1,11 @@
 import type { components } from '@astra/contracts';
 import { HOME_LABELS } from '../strings';
-import { DRAWINGS } from './drawings';
+import { findArtwork } from './artwork';
 
-const PICK_IMAGES: Record<string, string> = {
-  athens: '/picks/athens.jpg',
-  saturn: '/picks/saturn.jpg',
-  wave: '/picks/wave.jpg',
-};
+type PickCardResponse = components['schemas']['PickCardResponseDto'];
 
 interface PickCardProps {
-  pick: components['schemas']['PickCardResponseDto'];
+  pick: PickCardResponse;
   onChoose: () => void;
 }
 
@@ -21,7 +17,7 @@ export function PickCard({ pick, onChoose }: PickCardProps) {
       className="grid size-full grid-cols-pick items-start gap-3 border border-line p-2.5 text-left hover:border-ink"
     >
       <span aria-hidden className="block size-thumb overflow-hidden bg-panel">
-        <PickPicture artwork={pick.artwork} />
+        <PickPicture artworkName={pick.artwork} />
       </span>
       <span className="min-w-0">
         <span className="label text-ink-2">{HOME_LABELS.pickDetails(pick.subject, pick.lengthMinutes)}</span>
@@ -32,8 +28,9 @@ export function PickCard({ pick, onChoose }: PickCardProps) {
   );
 }
 
-function PickPicture({ artwork }: { artwork: string }) {
-  const Drawing = DRAWINGS[artwork];
-  if (Drawing) return <Drawing className="thumb-strokes block size-full p-1.5" />;
-  return <img src={PICK_IMAGES[artwork]} alt="" className="block size-full object-cover" />;
+function PickPicture({ artworkName }: { artworkName: PickCardResponse['artwork'] }) {
+  const artwork = findArtwork(artworkName);
+  if (!artwork) return null;
+  if (artwork.kind === 'drawing') return <artwork.Drawing className="thumb-strokes block size-full p-1.5" />;
+  return <img src={artwork.src} alt="" className="block size-full object-cover" />;
 }

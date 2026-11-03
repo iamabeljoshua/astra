@@ -4,6 +4,16 @@ import { App } from './App';
 import { APP_ERROR_LABELS, HOME_LABELS, PRODUCT_NAME } from './strings';
 import { EXAMPLE_HOME_SCREEN, stubFetchWithHomeScreen } from './test/homeScreenApi';
 
+const CRASHING_PAGE_PATH = '/crashing-page';
+
+vi.mock('./shell/menu', async (importOriginal) => {
+  const { MENU } = await importOriginal<typeof import('./shell/menu')>();
+  const CrashingPage = () => {
+    throw new Error('a bug in a page');
+  };
+  return { MENU: [...MENU, { path: '/crashing-page', label: 'Crashing page', Page: CrashingPage }] };
+});
+
 afterEach(() => {
   vi.restoreAllMocks();
 });
@@ -19,13 +29,13 @@ describe('App', () => {
     expect(document.title).toBe(PRODUCT_NAME);
   });
 
-  it('shows a calm line and a reload control when a screen crashes', async () => {
+  it('shows the crash page with a reload control when a page crashes', () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    vi.stubGlobal('fetch', async () => new Response(JSON.stringify({ studentName: 'Maya' })));
+    window.history.replaceState(null, '', CRASHING_PAGE_PATH);
 
     render(<App />);
 
-    await screen.findByText(APP_ERROR_LABELS.message);
+    screen.getByRole('heading', { level: 1, name: APP_ERROR_LABELS.heading });
     screen.getByRole('button', { name: APP_ERROR_LABELS.reload });
     expect(document.title).toBe(PRODUCT_NAME);
   });

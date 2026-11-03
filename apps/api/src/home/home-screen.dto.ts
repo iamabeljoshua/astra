@@ -1,3 +1,6 @@
+import { IsIn } from 'class-validator';
+import { ARTWORK_NAMES } from '../artwork';
+import type { ArtworkName } from '../artwork';
 import { SessionResponseDto } from '../sessions/session.dto';
 
 export class PickCardResponseDto {
@@ -17,7 +20,8 @@ export class PickCardResponseDto {
   reason!: string;
 
   /** The name of the picture that the web app shows on this card. */
-  artwork!: string;
+  @IsIn(ARTWORK_NAMES)
+  artwork!: ArtworkName;
 }
 
 export class HomeScreenResponseDto {

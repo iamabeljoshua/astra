@@ -202,8 +202,11 @@ export interface components {
             durationSeconds: number;
             /** @description A line on where the session left off, or null if there is none. */
             detail: string | null;
-            /** @description The name of the picture that the web app shows for this session, or null if there is none. */
-            artwork: string | null;
+            /**
+             * @description The name of the picture that the web app shows for this session, or null if there is none.
+             * @enum {string|null}
+             */
+            artwork: "arc" | "athens" | "forces" | "growth" | "helix" | "saturn" | "wave" | null;
         };
         PickCardResponseDto: {
             /** @description The ID of the card. */
@@ -216,8 +219,11 @@ export interface components {
             lengthMinutes: number;
             /** @description Why the card suits this student. */
             reason: string;
-            /** @description The name of the picture that the web app shows on this card. */
-            artwork: string;
+            /**
+             * @description The name of the picture that the web app shows on this card.
+             * @enum {string}
+             */
+            artwork: "arc" | "athens" | "forces" | "growth" | "helix" | "saturn" | "wave";
         };
         HomeScreenResponseDto: {
             /** @description The name the tutor calls the student. */
