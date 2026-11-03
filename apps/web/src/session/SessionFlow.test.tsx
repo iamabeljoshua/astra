@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../App';
 import { API_ERROR_LABELS, CHAT_BOX_LABELS, HOME_LABELS, REPLY_BOX_LABELS, SESSION_LABELS, SIDEBAR_LABELS } from '../strings';
 import { EXAMPLE_HOME_SCREEN, EXAMPLE_STUDENT_NAME } from '../test/homeScreenApi';
@@ -10,6 +10,7 @@ vi.mock('../auth/useAccount', () => import('../test/activeAccount'));
 
 const QUESTION = 'Why is the sky dark at night?';
 const MAX_TITLE_CHARACTERS = 200;
+const SLOW_START_NOTICE_MS = 1_500;
 const { continueSession: UNFINISHED_SESSION, picks: PICKS } = EXAMPLE_HOME_SCREEN;
 const HOME_GREETING = HOME_LABELS.greeting(EXAMPLE_STUDENT_NAME);
 
@@ -36,6 +37,11 @@ function sendQuestion(question = QUESTION) {
   fireEvent.change(getTextBox(), { target: { value: question } });
   fireEvent.click(screen.getByRole('button', { name: CHAT_BOX_LABELS.send }));
 }
+
+// The hold and the fade take no time with less motion, which keeps this file fast, and opening.test.ts covers their length.
+beforeEach(() => {
+  vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('reduced-motion') }));
+});
 
 afterEach(() => {
   vi.useRealTimers();
@@ -66,7 +72,7 @@ describe('sending a question', () => {
     );
 
     sendQuestion();
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 50));
 
     const page = document.querySelector<HTMLElement>('[data-page]');
     expect(page?.style.opacity).toBe('');
@@ -77,6 +83,7 @@ describe('sending a question', () => {
 
   it('adds a line when the save is slow, so the wait does not read as frozen', async () => {
     let finishSaving!: (response: Response) => void;
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     const { fetchStub } = await renderHome();
     const answerOtherCalls = fetchStub.getMockImplementation()!;
     fetchStub.mockImplementation((request) =>
@@ -85,7 +92,8 @@ describe('sending a question', () => {
 
     fireEvent.click(screen.getByRole('button', { name: new RegExp(PICKS[0]!.title) }));
 
-    await screen.findByText(HOME_LABELS.stillStarting, {}, { timeout: 2_500 });
+    await act(() => vi.advanceTimersByTimeAsync(SLOW_START_NOTICE_MS));
+    screen.getByText(HOME_LABELS.stillStarting);
     await act(async () => finishSaving(new Response(JSON.stringify(makeSession({ id: 'saved', title: PICKS[0]!.title })), { status: 201 })));
     await getSessionHeading(PICKS[0]!.title);
   });
