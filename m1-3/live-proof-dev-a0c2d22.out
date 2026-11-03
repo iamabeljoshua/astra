@@ -1,0 +1,146 @@
+
+== Default theme
+PASS  light on first visit with the system set to dark  [rgb(246, 241, 230)]
+PASS  Light shows as pressed
+PASS  no console errors or warnings on load
+PASS  no failed responses on load, favicon included
+PASS  favicon loaded
+PASS  every request stays on this origin
+
+== Tokens in the running page match docs/DESIGN.md
+PASS  light paper  [#F6F1E6]
+PASS  light panel  [#EFE8DA]
+PASS  light ink  [#1B1815]
+PASS  light ink-2  [#5F574C]
+PASS  light line  [#CFC6B5]
+PASS  light accent  [#1B1815]
+PASS  dark paper  [#000000]
+PASS  dark panel  [#0E0D0B]
+PASS  dark ink  [#FFFBF5]
+PASS  dark ink-2  [#A79F92]
+PASS  dark line  [#2B2823]
+PASS  dark accent  [#FFCC94]
+
+== Toggle survives reloads
+PASS  one click turns the page dark  [rgb(0, 0, 0)]
+PASS  dark after reload on Home
+PASS  dark after loading Sessions directly
+PASS  dark in a new tab
+PASS  back to light after reload
+
+== No flash of the wrong theme, painted frames on a slow network with no cache
+PASS  saved dark paints no light frame  [37 frames: 0,0,0]
+PASS  control: with the script made late, the instrument sees the flash  [50 frames: 0,0,0 246,241,230 229,224,214 212,208,198 195,191,182 178,174,166 161,157,150 144,141,134 126,124,118 109,107,102 92,90,86 75,74,70 58,57,54 41,40,38 24,23,22 7,7,6]
+PASS  saved light with a dark system paints no dark frame  [35 frames: 246,241,230]
+
+== Fonts
+PASS  Barlow 400, 500, and 600 loaded  [Barlow 400, Barlow 500, Barlow 600, Newsreader 200 800]
+PASS  Newsreader loaded for the greeting
+PASS  font files come from /fonts on this origin  [barlow-latin-500-normal.woff2, barlow-latin-400-normal.woff2, barlow-latin-600-normal.woff2, newsreader-latin-opsz-normal.woff2]
+PASS  Latin Extended and Vietnamese files stay unloaded on an English page
+PASS  a Yoruba name loads the subset that holds its letters  [2 faces]
+
+== Sizes against the prototype, in pixels with its 32px strip removed
+PASS  sidebar  [0 / 0 / 216 / 900 / 15px / 400 / normal / 22.5px / rgb(27, 24, 21) / rgba(0, 0, 0, 0)]
+PASS  mark  [14 / 18 / 187 / 21 / 14px / 600 / 4.76px / 21px / rgb(27, 24, 21) / rgba(0, 0, 0, 0)]
+PASS  nav  [14 / 59 / 187 / 75 / 15px / 400 / normal / 22.5px / rgb(27, 24, 21) / rgba(0, 0, 0, 0)]
+PASS  current row  [14 / 59 / 187 / 36.5 / 15px / 500 / normal / 22.5px / rgb(27, 24, 21) / rgb(239, 232, 218)]
+PASS  other row  [14 / 97.5 / 187 / 36.5 / 15px / 500 / normal / 22.5px / rgb(95, 87, 76) / rgba(0, 0, 0, 0)]
+PASS  recent label  [22 / 154 / 171 / 16.5 / 11px / 500 / 1.54px / 16.5px / rgb(95, 87, 76) / rgba(0, 0, 0, 0)]
+PASS  account  [14 / 833.75 / 187 / 52.25 / 15px / 400 / normal / 22.5px / rgb(27, 24, 21) / rgba(0, 0, 0, 0)]
+PASS  account name  [22 / 844.75 / 73.515625 / 18.75 / 15px / 500 / normal / 18.75px / rgb(27, 24, 21) / rgba(0, 0, 0, 0)]
+PASS  toggle  [107.765625 / 852.125 / 85.234375 / 26.5 / 15px / 400 / normal / 22.5px / rgb(27, 24, 21) / rgba(0, 0, 0, 0)]
+PASS  toggle button  [108.765625 / 853.125 / 43.078125 / 24.5 / 11px / 500 / normal / 16.5px / rgb(246, 241, 230) / rgb(27, 24, 21)]
+PASS  column  [318 / 40.5 / 1020 / 83.296875 / 15px / 400 / normal / 22.5px / rgb(27, 24, 21) / rgba(0, 0, 0, 0)]
+PASS  greeting  [318 / 40.5 / 1020 / 41.796875 / 38px / 400 / normal / 41.8px / rgb(27, 24, 21) / rgba(0, 0, 0, 0)]
+
+== Phone width, 390px
+PASS  light home: no sideways scroll  [0px]
+PASS  light home: sidebar hidden behind a Menu button
+PASS  light home: Menu opens the sidebar and hides the page
+PASS  light home: no sideways scroll with the Menu open  [0px]
+PASS  light home: Menu closes it again
+PASS  light sessions: no sideways scroll  [0px]
+PASS  light sessions: sidebar hidden behind a Menu button
+PASS  light sessions: Menu opens the sidebar and hides the page
+PASS  light sessions: no sideways scroll with the Menu open  [0px]
+PASS  light sessions: Menu closes it again
+PASS  light: no console errors or failed responses
+PASS  dark home: no sideways scroll  [0px]
+PASS  dark home: sidebar hidden behind a Menu button
+PASS  dark home: Menu opens the sidebar and hides the page
+PASS  dark home: no sideways scroll with the Menu open  [0px]
+PASS  dark home: Menu closes it again
+PASS  dark sessions: no sideways scroll  [0px]
+PASS  dark sessions: sidebar hidden behind a Menu button
+PASS  dark sessions: Menu opens the sidebar and hides the page
+PASS  dark sessions: no sideways scroll with the Menu open  [0px]
+PASS  dark sessions: Menu closes it again
+PASS  dark: no console errors or failed responses
+PASS  320px also has no sideways scroll  [0px]
+PASS  320px with the Menu open also has no sideways scroll  [0px]
+
+== Breakpoint, as in the prototype
+PASS  760px shows the Menu button
+PASS  761px shows the sidebar and the page, even with the Menu left open
+PASS  761px sidebar is 216px wide
+
+== Letters in Yoruba and Igbo names use our fonts, not a fallback
+PASS  Barlow has every letter  [true,true,true,true,true,true,true,true]
+PASS  Newsreader has every letter  [true,true,true,true,true,true,true,true]
+PASS  a regular name with a letter the fonts lack has no bold letter  [Barlow-Regular + HelveticaNeue]
+PASS  a medium name with a letter the fonts lack has no bold letter  [HelveticaNeue-Medium + Barlow-Medium]
+
+== Phone menu behavior
+PASS  choosing a row opens that page and closes the menu
+PASS  Escape closes it and returns focus to the Menu button
+PASS  no keydown listener on the document while the Menu is closed
+PASS  one keydown listener on the document while the Menu is open
+PASS  clicking a blank part of the Menu puts focus on the page body
+PASS  Escape with focus on the page body closes it and returns focus to the Menu button
+PASS  no keydown listener on the document after it closes
+PASS  Back with the Menu open closes it and shows the page
+PASS  Back returns focus to the Menu button
+PASS  Forward leaves it closed
+
+== Keyboard focus is always visible
+PASS  laptop light home: tab reaches every control in order  [Home,Sessions,Light,Dark]
+PASS  laptop light home: every focused control shows a 2px accent ring  [solid 2px rgb(27, 24, 21)]
+PASS  laptop light sessions: tab reaches every control in order  [Home,Sessions,Light,Dark]
+PASS  laptop light sessions: every focused control shows a 2px accent ring  [solid 2px rgb(27, 24, 21)]
+PASS  laptop dark home: tab reaches every control in order  [Home,Sessions,Light,Dark]
+PASS  laptop dark home: every focused control shows a 2px accent ring  [solid 2px rgb(255, 204, 148)]
+PASS  laptop dark sessions: tab reaches every control in order  [Home,Sessions,Light,Dark]
+PASS  laptop dark sessions: every focused control shows a 2px accent ring  [solid 2px rgb(255, 204, 148)]
+PASS  phone light home: with the Menu closed, tab skips the hidden sidebar
+PASS  phone light home: tab reaches every control in order  [Menu,Home,Sessions,Light,Dark]
+PASS  phone light home: every focused control shows a 2px accent ring  [solid 2px rgb(27, 24, 21)]
+PASS  phone light sessions: with the Menu closed, tab skips the hidden sidebar
+PASS  phone light sessions: tab reaches every control in order  [Menu,Home,Sessions,Light,Dark]
+PASS  phone light sessions: every focused control shows a 2px accent ring  [solid 2px rgb(27, 24, 21)]
+PASS  phone dark home: with the Menu closed, tab skips the hidden sidebar
+PASS  phone dark home: tab reaches every control in order  [Menu,Home,Sessions,Light,Dark]
+PASS  phone dark home: every focused control shows a 2px accent ring  [solid 2px rgb(255, 204, 148)]
+PASS  phone dark sessions: with the Menu closed, tab skips the hidden sidebar
+PASS  phone dark sessions: tab reaches every control in order  [Menu,Home,Sessions,Light,Dark]
+PASS  phone dark sessions: every focused control shows a 2px accent ring  [solid 2px rgb(255, 204, 148)]
+
+== Motion
+PASS  reduced motion removes the theme fade and the page fade  [{"transition":"0s","animation":"none","running":0}]
+PASS  normal motion is one quiet fade  [{"transition":"0.24s, 0.24s","animation":"arrive","duration":"0.5s","iterations":"1"}]
+PASS  the page is still at rest, so nothing can flash  [0 running animations]
+PASS  changing the view runs one fade  [arrive]
+
+== Routes
+PASS  Sessions has its own address
+PASS  Sessions shows the empty state
+PASS  reload stays on Sessions
+PASS  Back returns to Sessions
+PASS  an unknown address opens Home
+
+== API connection line on Home
+PASS  shows connected against the real API
+PASS  shows not connected when the health check fails
+PASS  recovers with no reload
+
+ALL PASSED

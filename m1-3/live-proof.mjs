@@ -332,6 +332,33 @@ section('Letters in Yoruba and Igbo names use our fonts, not a fallback');
   check('Newsreader has every letter', widths.Newsreader.every(Boolean), widths.Newsreader.join());
   await context.close();
 }
+{
+  const { context, page } = await openPage();
+  await settle(page);
+  await page.evaluate(() => {
+    for (const weight of [400, 500]) {
+      const name = document.createElement('span');
+      name.className = 'probe-name';
+      name.style.fontWeight = String(weight);
+      name.textContent = 'Ṣade';
+      document.querySelector('aside').append(name);
+    }
+  });
+  await page.waitForTimeout(600);
+  const client = await context.newCDPSession(page);
+  await client.send('DOM.enable');
+  await client.send('CSS.enable');
+  const { root } = await client.send('DOM.getDocument', { depth: 0 });
+  const { nodeIds } = await client.send('DOM.querySelectorAll', { nodeId: root.nodeId, selector: '.probe-name' });
+  const drawnWith = [];
+  for (const nodeId of nodeIds) {
+    const { fonts } = await client.send('CSS.getPlatformFontsForNode', { nodeId });
+    drawnWith.push(fonts.map((font) => font.postScriptName).join(' + '));
+  }
+  check('a regular name with a letter the fonts lack has no bold letter', !drawnWith[0].includes('Bold'), drawnWith[0]);
+  check('a medium name with a letter the fonts lack has no bold letter', !drawnWith[1].includes('Bold'), drawnWith[1]);
+  await context.close();
+}
 
 section('Phone menu behavior');
 {
@@ -345,6 +372,40 @@ section('Phone menu behavior');
   await page.keyboard.press('Tab');
   await page.keyboard.press('Escape');
   check('Escape closes it and returns focus to the Menu button', !(await page.locator('aside').isVisible()) && (await page.evaluate(() => document.activeElement?.textContent)) === 'Menu');
+  await context.close();
+}
+{
+  const { context, page } = await openPage({ viewport: PHONE });
+  const getFocusName = () => page.evaluate(() => (document.activeElement === document.body ? 'BODY' : document.activeElement?.textContent));
+  const countKeydownListeners = async () => {
+    const client = await context.newCDPSession(page);
+    const { result } = await client.send('Runtime.evaluate', { expression: 'document' });
+    const { listeners } = await client.send('DOMDebugger.getEventListeners', { objectId: result.objectId });
+    await client.detach();
+    return listeners.filter((listener) => listener.type === 'keydown').length;
+  };
+  const menuButton = page.getByRole('button', { name: 'Menu' });
+  check('no keydown listener on the document while the Menu is closed', (await countKeydownListeners()) === 0);
+  await menuButton.click();
+  check('one keydown listener on the document while the Menu is open', (await countKeydownListeners()) === 1);
+  await page.mouse.click(200, 500);
+  check('clicking a blank part of the Menu puts focus on the page body', (await getFocusName()) === 'BODY');
+  await page.keyboard.press('Escape');
+  check('Escape with focus on the page body closes it and returns focus to the Menu button', !(await page.locator('aside').isVisible()) && (await getFocusName()) === 'Menu');
+  check('no keydown listener on the document after it closes', (await countKeydownListeners()) === 0);
+
+  await page.goto(`${base}/`);
+  await menuButton.click();
+  await page.getByRole('link', { name: 'Sessions' }).click();
+  await page.getByRole('heading', { name: 'Sessions' }).waitFor();
+  await menuButton.click();
+  await page.goBack();
+  await page.getByRole('heading', { level: 1, name: 'Welcome.' }).waitFor();
+  check('Back with the Menu open closes it and shows the page', !(await page.locator('aside').isVisible()) && (await page.locator('main').isVisible()));
+  check('Back returns focus to the Menu button', (await getFocusName()) === 'Menu');
+  await page.goForward();
+  await page.getByRole('heading', { name: 'Sessions' }).waitFor();
+  check('Forward leaves it closed', !(await page.locator('aside').isVisible()));
   await context.close();
 }
 

@@ -1,0 +1,19 @@
+== Escape, phone
+keydown listeners on document, Menu closed: 0
+keydown listeners on document, Menu open: 1
+open, then clicked the blank part so focus is on body: {"path":"/","expanded":"true","sidebarShown":true,"mainShown":false,"focus":"BODY"}
+after Escape on body: {"path":"/","expanded":"false","sidebarShown":false,"mainShown":true,"focus":"Menu"}
+keydown listeners on document, after that Escape: 0
+opened by keyboard, focus on a row: {"path":"/","expanded":"true","sidebarShown":true,"mainShown":false,"focus":"Home"}
+after Escape on a row: {"path":"/","expanded":"false","sidebarShown":false,"mainShown":true,"focus":"Menu"}
+console errors: []
+== Back with the Menu open, phone
+chose Sessions: {"path":"/sessions","expanded":"false","sidebarShown":false,"mainShown":true,"focus":"Menu"}
+opened on Sessions: {"path":"/sessions","expanded":"true","sidebarShown":true,"mainShown":false,"focus":"Menu"}
+after Back: {"path":"/","expanded":"false","sidebarShown":false,"mainShown":true,"focus":"Menu"}
+after Forward, must stay closed: {"path":"/sessions","expanded":"false","sidebarShown":false,"mainShown":true,"focus":"Menu"}
+opened again, focus inside the Menu: {"path":"/sessions","expanded":"true","sidebarShown":true,"mainShown":false,"focus":"Home"}
+after Back with focus inside the Menu: {"path":"/","expanded":"false","sidebarShown":false,"mainShown":true,"focus":"Menu"}
+console errors: []
+== Account row, 1440 by 900
+account row: {"height":52.25,"ruleY":833.75,"bottom":886,"toggleY":852.125,"toggleHeight":26.5}

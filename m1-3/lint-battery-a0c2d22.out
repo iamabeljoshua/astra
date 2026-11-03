@@ -1,0 +1,100 @@
+
+== COLOR bypass candidates (want: flagged)
+clean   ternary style                       
+clean   logical style                       
+clean   const then style                    
+clean   template named                      
+clean   JSX expr fill                       
+clean   JSX ternary fill                    
+clean   component color prop default        
+clean   DOM style assign                    
+clean   canvas fillStyle                    
+clean   setAttribute fill                   
+clean   setProperty                         
+clean   object const                        
+clean   color() fn                          
+clean   color-mix named                     
+clean   system color                        
+clean   tw arbitrary property               
+clean   tw arbitrary property bg            
+clean   tw custom prop                      
+clean   tw shadow named                     
+clean   tw border shorthand named           
+FLAGGED tw hex + underscore                 theme/no-literal-colors
+FLAGGED tw gradient hex underscore          theme/no-literal-colors
+FLAGGED tw hex plain (control)              theme/no-literal-colors
+clean   tw color-mix                        
+FLAGGED tw with opacity                     theme/no-literal-colors
+FLAGGED tw variant                          theme/no-literal-colors
+clean   hex split template                  
+clean   css @apply                          
+FLAGGED css @theme hex                      theme/no-literal-colors
+clean   css custom prop named               
+FLAGGED css nested named                    theme/no-literal-colors
+FLAGGED css @media hex                      theme/no-literal-colors
+FLAGGED css @layer named                    theme/no-literal-colors
+clean   css color()                         
+clean   css custom prop indirect            
+
+== COLOR false alarm candidates (want: clean)
+FLAGGED anchor #add                         no-restricted-syntax
+FLAGGED anchor #feed                        no-restricted-syntax
+FLAGGED querySelector #face                 theme/no-literal-colors
+clean   copy Question #123                  
+clean   copy Issue #1000                    
+clean   copy lab(s)                         
+clean   strings key outline w/ color word   
+clean   strings key background copy         
+clean   strings key colorQuestion copy      
+clean   domain field fillPrompt             
+clean   word constructor in outline         
+clean   transparent                         
+clean   currentColor                        
+clean   none/solid                          
+clean   test file expecting token           
+clean   css transition                      
+clean   css url with color word             
+clean   css grid-area named-like            
+clean   css animation name red              
+FLAGGED import subpath                      theme/no-literal-colors
+
+== TEXT bypass candidates (want: flagged)
+FLAGGED JSXText (control)                   no-restricted-syntax
+FLAGGED aria-label literal (control)        no-restricted-syntax
+clean   expr string child                   
+clean   template child                      
+clean   ternary child                       
+clean   logical child                       
+clean   aria-label expr                     
+clean   aria-label ternary                  
+clean   title expr                          
+clean   alt expr                            
+clean   aria-description                    
+clean   aria-valuetext                      
+clean   aria-placeholder                    
+clean   aria-roledescription                
+clean   value on input submit               
+clean   custom label prop                   
+clean   custom text prop                    
+clean   custom heading prop                 
+clean   optgroup label                      
+clean   .ts MENU row label                  
+clean   .ts hook error string               
+clean   const in tsx                        
+clean   alert in tsx                        
+clean   document.title                      
+clean   createElement child                 
+FLAGGED svg title                           no-restricted-syntax
+clean   setError                            
+
+== TEXT false alarm candidates (want: clean)
+clean   separator dot                       
+clean   slash between values                
+clean   nbsp entity                         
+clean   times entity                        
+clean   comma list                          
+clean   percent                             
+FLAGGED stories file                        no-restricted-syntax
+FLAGGED test helper tsx                     no-restricted-syntax
+clean   alt empty                           
+clean   title empty                         

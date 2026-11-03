@@ -1,0 +1,60 @@
+phone light home closed | 1 Menu fv=true inView=true | T100 B100 L100 R100
+phone light home closed | 2 left the page
+phone light home open | 1 Menu fv=true inView=true | T100 B100 L100 R100
+phone light home open | 2 Home fv=true inView=true | T100 B75 L100 R100 <-- EDGE MISSING
+phone light home open | 3 Sessions fv=true inView=true | T75 B100 L99 R99 <-- EDGE MISSING
+phone light home open | 4 Light fv=true inView=true | T100 B100 L100 R100
+phone light home open | 5 Dark fv=true inView=true | T100 B100 L100 R100
+phone light home open | 6 Menu fv=true inView=true | T100 B100 L100 R100
+phone light home open | 7 Home fv=true inView=true | T100 B75 L100 R100 <-- EDGE MISSING
+phone light home open | 8 Sessions fv=true inView=true | T75 B100 L99 R99 <-- EDGE MISSING
+laptop light home | 1 Home fv=true inView=true | T100 B76 L100 R100 <-- EDGE MISSING
+laptop light home | 2 Sessions fv=true inView=true | T75 B100 L99 R99 <-- EDGE MISSING
+laptop light home | 3 Light fv=true inView=true | T100 B100 L100 R100
+laptop light home | 4 Dark fv=true inView=true | T100 B100 L100 R100
+laptop light home | 5 left the page
+phone light sessions closed | 1 Menu fv=true inView=true | T100 B100 L100 R100
+phone light sessions closed | 2 left the page
+phone light sessions open | 1 Menu fv=true inView=true | T100 B100 L100 R100
+phone light sessions open | 2 Home fv=true inView=true | T100 B75 L100 R100 <-- EDGE MISSING
+phone light sessions open | 3 Sessions fv=true inView=true | T75 B100 L99 R99 <-- EDGE MISSING
+phone light sessions open | 4 Light fv=true inView=true | T100 B100 L100 R100
+phone light sessions open | 5 Dark fv=true inView=true | T100 B100 L100 R100
+phone light sessions open | 6 Menu fv=true inView=true | T100 B100 L100 R100
+phone light sessions open | 7 Home fv=true inView=true | T100 B75 L100 R100 <-- EDGE MISSING
+phone light sessions open | 8 Sessions fv=true inView=true | T75 B100 L99 R99 <-- EDGE MISSING
+laptop light sessions | 1 Home fv=true inView=true | T100 B76 L100 R100 <-- EDGE MISSING
+laptop light sessions | 2 Sessions fv=true inView=true | T75 B100 L99 R99 <-- EDGE MISSING
+laptop light sessions | 3 Light fv=true inView=true | T100 B100 L100 R100
+laptop light sessions | 4 Dark fv=true inView=true | T100 B100 L100 R100
+laptop light sessions | 5 left the page
+phone dark home closed | 1 Menu fv=true inView=true | T100 B100 L100 R100
+phone dark home closed | 2 left the page
+phone dark home open | 1 Menu fv=true inView=true | T100 B100 L100 R100
+phone dark home open | 2 Home fv=true inView=true | T100 B75 L100 R100 <-- EDGE MISSING
+phone dark home open | 3 Sessions fv=true inView=true | T75 B100 L99 R99 <-- EDGE MISSING
+phone dark home open | 4 Light fv=true inView=true | T100 B100 L100 R100
+phone dark home open | 5 Dark fv=true inView=true | T100 B100 L100 R100
+phone dark home open | 6 Menu fv=true inView=true | T100 B100 L100 R100
+phone dark home open | 7 Home fv=true inView=true | T100 B75 L100 R100 <-- EDGE MISSING
+phone dark home open | 8 Sessions fv=true inView=true | T75 B100 L99 R99 <-- EDGE MISSING
+laptop dark home | 1 Home fv=true inView=true | T100 B76 L100 R100 <-- EDGE MISSING
+laptop dark home | 2 Sessions fv=true inView=true | T75 B100 L99 R99 <-- EDGE MISSING
+laptop dark home | 3 Light fv=true inView=true | T100 B100 L100 R100
+laptop dark home | 4 Dark fv=true inView=true | T100 B100 L100 R100
+laptop dark home | 5 left the page
+phone dark sessions closed | 1 Menu fv=true inView=true | T100 B100 L100 R100
+phone dark sessions closed | 2 left the page
+phone dark sessions open | 1 Menu fv=true inView=true | T100 B100 L100 R100
+phone dark sessions open | 2 Home fv=true inView=true | T100 B75 L100 R100 <-- EDGE MISSING
+phone dark sessions open | 3 Sessions fv=true inView=true | T75 B100 L99 R99 <-- EDGE MISSING
+phone dark sessions open | 4 Light fv=true inView=true | T100 B100 L100 R100
+phone dark sessions open | 5 Dark fv=true inView=true | T100 B100 L100 R100
+phone dark sessions open | 6 Menu fv=true inView=true | T100 B100 L100 R100
+phone dark sessions open | 7 Home fv=true inView=true | T100 B75 L100 R100 <-- EDGE MISSING
+phone dark sessions open | 8 Sessions fv=true inView=true | T75 B100 L99 R99 <-- EDGE MISSING
+laptop dark sessions | 1 Home fv=true inView=true | T100 B76 L100 R100 <-- EDGE MISSING
+laptop dark sessions | 2 Sessions fv=true inView=true | T75 B100 L99 R99 <-- EDGE MISSING
+laptop dark sessions | 3 Light fv=true inView=true | T100 B100 L100 R100
+laptop dark sessions | 4 Dark fv=true inView=true | T100 B100 L100 R100
+laptop dark sessions | 5 left the page

@@ -1,0 +1,21 @@
+head a0c2d22bd5a501e3d835f6a2b13ac6af02c80d00
+
+Done in 373ms using pnpm v10.32.1
+exit install: 0
+
+exit generated types drift: 0
+> astra@ lint /Users/abel/startup/astra-worktrees/m1-3
+> eslint apps packages --max-warnings 0
+
+exit lint: 0
+apps/api typecheck: Done
+packages/contracts typecheck: Done
+apps/web typecheck$ tsc
+apps/web typecheck: Done
+exit typecheck: 0
+packages/theme test:  Test Files  2 passed (2)
+packages/theme test:       Tests  46 passed (46)
+apps/api test: Tests:       32 passed, 32 total
+apps/web test:  Test Files  4 passed (4)
+apps/web test:       Tests  34 passed (34)
+exit test: 0

@@ -1,0 +1,17 @@
+== before the reset, parent commit 4dbfce0
+css file index-CLW2bJo9.css, 23006 bytes
+generated: shadow-2xs shadow-xs shadow-sm shadow shadow-md shadow-lg shadow-xl shadow-2xl drop-shadow-xs drop-shadow-sm drop-shadow drop-shadow-md drop-shadow-lg drop-shadow-xl drop-shadow-2xl rounded-xs rounded-sm rounded rounded-md rounded-lg rounded-xl rounded-2xl rounded-3xl rounded-4xl rounded-t-lg rounded-s-md rounded-tl-xl inset-shadow-sm inset-shadow-xs text-shadow-md text-shadow-sm shadow-none drop-shadow-none rounded-none rounded-full ring ring-2 shadow-[0_0_4px_tomato] rounded-[4px] bg-paper text-ink
+nothing: bg-red-500 text-4xl bg-white text-sm
+--shadow- vars: 0, --drop-shadow- vars: 6, --radius- vars: 8
+
+== after the reset, head a0c2d22
+css file index-2a2eQfYv.css, 17612 bytes
+generated: inset-shadow-sm inset-shadow-xs text-shadow-md text-shadow-sm shadow-none drop-shadow-none rounded-none rounded-full ring ring-2 shadow-[0_0_4px_tomato] rounded-[4px] bg-paper text-ink
+nothing: shadow-2xs shadow-xs shadow-sm shadow shadow-md shadow-lg shadow-xl shadow-2xl drop-shadow-xs drop-shadow-sm drop-shadow drop-shadow-md drop-shadow-lg drop-shadow-xl drop-shadow-2xl rounded-xs rounded-sm rounded rounded-md rounded-lg rounded-xl rounded-2xl rounded-3xl rounded-4xl rounded-t-lg rounded-s-md rounded-tl-xl bg-red-500 text-4xl bg-white text-sm
+--shadow- vars: 0, --drop-shadow- vars: 0, --radius- vars: 0
+
+== production build of the shell without the probe, before and after
+byte identical ./assets/index-CAp0SiQD.js
+byte identical ./assets/index-D9cxBz3A.css
+byte identical ./favicon.svg
+byte identical ./index.html

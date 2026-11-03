@@ -1,0 +1,28 @@
+== at e175074, new Menu tests on the old shell
+     × closes and returns focus to the Menu button on Escape with focus on the page body 10ms
+     × closes and returns focus to the Menu button when the browser goes Back 21ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: expected true to be false // Object.is equality
+AssertionError: expected true to be false // Object.is equality
+ Test Files  1 failed (1)
+      Tests  2 failed | 8 passed (10)
+== at 3be44c2, new lint tests on the old rule and config
+     × rejects a hex color followed by an underscore in a component 5ms
+     × allows copy under a color property in a component 2ms
+     × allows a word on the object prototype in a component 2ms
+     × allows an href to a page anchor in a component 2ms
+     × allows an href in braces in a component 2ms
+     × allows an href in a template in a component 5ms
+     × allows an href that picks between anchors in a component 4ms
+     × allows an href in an object in a component 2ms
+     × allows a word on the object prototype in a stylesheet 1ms
+     × allows copy with a number sign in strings.ts 3ms
+     × allows a color in a test file 1ms
+     × allows a color in a component test file 1ms
+     × allows a decorative image 2ms
+     × allows a slash between values 3ms
+     × allows a percent sign after a value 3ms
+     × allows a separator dot 2ms
+⎯⎯⎯⎯⎯⎯ Failed Tests 16 ⎯⎯⎯⎯⎯⎯⎯
+ Test Files  1 failed (1)
+      Tests  16 failed | 26 passed (42)

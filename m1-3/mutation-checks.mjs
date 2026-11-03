@@ -10,6 +10,9 @@ const theme = (file) => ['pnpm', ['--filter', '@astra/theme', 'exec', 'vitest', 
 const lint = ['pnpm', ['lint']];
 const sidebar = 'apps/web/src/shell/Sidebar.tsx';
 const shell = 'apps/web/src/shell/AppShell.tsx';
+const phoneMenu = 'apps/web/src/shell/usePhoneMenu.ts';
+const colorRule = 'packages/theme/eslint/no-literal-colors.mjs';
+const lintTests = 'eslint/no-literal-colors.test.ts';
 const home = 'apps/web/src/shell/EmptyHomePage.tsx';
 const css = 'packages/theme/src/theme.css';
 
@@ -22,9 +25,11 @@ const MUTATIONS = [
   ['sidebar ignores new MENU entries', sidebar, 'MENU.map((item)', 'MENU.slice(0, 2).map((item)', web('src/shell/Sidebar.test.tsx'), 'renders a row and a page'],
   ['routes ignore new MENU entries', shell, 'MENU.map(({ path, Page })', 'MENU.slice(0, 2).map(({ path, Page })', web('src/shell/Sidebar.test.tsx'), 'renders a row and a page'],
   ['unknown address shows nothing', shell, '<Route path="*" element={<Navigate to="/" replace />} />', '', web('src/shell/Sidebar.test.tsx'), 'opens Home for an address'],
-  ['choosing a row leaves the menu open', sidebar, 'onClick={onChoosePage}', '', web('src/shell/Sidebar.test.tsx'), 'closes and returns focus to the Menu button when a row'],
-  ['Escape does nothing', shell, "if (event.key === 'Escape') closeMenu();", '', web('src/shell/Sidebar.test.tsx'), 'on Escape'],
-  ['closing moves focus even with the menu closed', shell, 'if (!isMenuOpen) return;', '', web('src/shell/Sidebar.test.tsx'), 'leaves focus alone'],
+  ['choosing a row leaves the menu open', sidebar, 'onClick={onChoosePage}', '', web('src/shell/Sidebar.test.tsx'), 'row for the current page'],
+  ['Escape does nothing', phoneMenu, "if (event.key === 'Escape') closeMenu();", '', web('src/shell/Sidebar.test.tsx'), 'on Escape'],
+  ['Escape is heard only inside the app', phoneMenu, "document.addEventListener('keydown', closeOnEscape);", "document.getElementById('root')?.addEventListener('keydown', closeOnEscape);", web('src/shell/Sidebar.test.tsx'), 'on the page body'],
+  ['closing the Menu leaves focus where it was', phoneMenu, 'menuButtonElement?.focus()', 'undefined', web('src/shell/Sidebar.test.tsx'), 'returns focus'],
+  ['Back leaves the Menu open', phoneMenu, 'setLastPathname(pathname);\n    closeMenu();', 'setLastPathname(pathname);', web('src/shell/Sidebar.test.tsx'), 'goes Back'],
   ['recent section missing', sidebar, '<RecentSessions />', '', web('src/shell/Sidebar.test.tsx'), 'an empty Recent section'],
   ['literal text in the sidebar', sidebar, '{SIDEBAR_LABELS.recent}', 'Recent', web('src/strings.test.ts'), 'supplies all the text'],
   ['literal aria-label in the sidebar', sidebar, 'aria-label={SIDEBAR_LABELS.menu}', 'aria-label="Menu"', web('src/strings.test.ts'), 'supplies all the text'],
@@ -40,6 +45,13 @@ const MUTATIONS = [
   ['hex color in app CSS fails pnpm lint', 'apps/web/src/theme/app.css', "@import 'tailwindcss';", "@import 'tailwindcss';\n.example { color: #ff0000; }", lint, 'no-literal-colors'],
   ['literal text in a component fails pnpm lint', sidebar, '{SIDEBAR_LABELS.recent}', 'Recent', lint, 'strings.ts'],
   ['literal aria-label fails pnpm lint', sidebar, 'aria-label={SIDEBAR_LABELS.menu}', 'aria-label="Menu"', lint, 'strings.ts'],
+  ['a prototype word counts as a color', colorRule, 'Object.hasOwn(namedColors, word.toLowerCase())', 'word.toLowerCase() in namedColors', theme(lintTests), 'object prototype'],
+  ['a color word inside a sentence counts as a color', colorRule, 'isNamedColor(valueNode.value)', 'hasNamedColor(valueNode.value)', theme(lintTests), 'copy under a color property'],
+  ['the color rule reads strings.ts and test files', 'eslint.config.mjs', "ignores: ['apps/web/src/strings.ts', '**/*.test.{ts,tsx}'],", '', theme(lintTests), 'number sign in strings.ts'],
+  ['an href counts as a color', colorRule, 'isLiteralColor(node.value) && !isHrefValue(node)', 'isLiteralColor(node.value)', theme(lintTests), 'an href to a page anchor'],
+  ['an empty alt fails the text rule', 'eslint.config.mjs', "Literal[value=${HAS_A_LETTER}]`", "Literal`", theme(lintTests), 'decorative image'],
+  ['text with no letter fails the text rule', 'eslint.config.mjs', "`JSXText[value=${HAS_A_LETTER}]`", "'JSXText[value=/\\\\S/]'", theme(lintTests), 'separator dot'],
+  ['a hex color before an underscore passes', colorRule, '(?![0-9a-z])', '\\b', theme(lintTests), 'followed by an underscore'],
 ];
 
 let failures = 0;

@@ -1,0 +1,25 @@
+--font-ui: "Barlow", "Helvetica Neue", Arial, sans-serif
+--font-ui 400      Ṣade          WEB Barlow-Regular x3 + SYS HelveticaNeue x1
+--font-ui 400      Ọṣun          WEB Barlow-Regular x3 + SYS HelveticaNeue x1
+--font-ui 400      Ṅke           WEB Barlow-Regular x2 + SYS HelveticaNeue x1
+--font-ui 400      Aṅụ           WEB Barlow-Regular x2 + SYS HelveticaNeue x1
+--font-ui 400      Ǹnamdi        WEB Barlow-Regular x5 + SYS HelveticaNeue x1
+--font-ui 400      Adébáyọ̀      WEB Barlow-Regular x8
+--font-ui 500      Ṣade          SYS HelveticaNeue-Medium x1 + WEB Barlow-Medium x3
+--font-ui 500      Ọṣun          SYS HelveticaNeue-Medium x1 + WEB Barlow-Medium x3
+--font-ui 500      Ṅke           SYS HelveticaNeue-Medium x1 + WEB Barlow-Medium x2
+--font-ui 500      Aṅụ           SYS HelveticaNeue-Medium x1 + WEB Barlow-Medium x2
+--font-ui 500      Ǹnamdi        SYS HelveticaNeue-Medium x1 + WEB Barlow-Medium x5
+--font-ui 500      Adébáyọ̀      WEB Barlow-Medium x8
+--font-ui 600      Ṣade          SYS HelveticaNeue-Bold x1 + WEB Barlow-SemiBold x3
+--font-ui 600      Ọṣun          SYS HelveticaNeue-Bold x1 + WEB Barlow-SemiBold x3
+--font-ui 600      Ṅke           SYS HelveticaNeue-Bold x1 + WEB Barlow-SemiBold x2
+--font-ui 600      Aṅụ           SYS HelveticaNeue-Bold x1 + WEB Barlow-SemiBold x2
+--font-ui 600      Ǹnamdi        SYS HelveticaNeue-Bold x1 + WEB Barlow-SemiBold x5
+--font-ui 600      Adébáyọ̀      WEB Barlow-SemiBold x8
+--font-voice 400   Ṣade          SYS Georgia x1 + WEB Newsreader16pt-Regular_wght_opsz2C0000 x3
+--font-voice 400   Ọṣun          SYS Georgia x1 + WEB Newsreader16pt-Regular_wght_opsz2C0000 x3
+--font-voice 400   Ṅke           SYS Georgia x1 + WEB Newsreader16pt-Regular_wght_opsz2C0000 x2
+--font-voice 400   Aṅụ           SYS Georgia x1 + WEB Newsreader16pt-Regular_wght_opsz2C0000 x2
+--font-voice 400   Ǹnamdi        SYS Georgia x1 + WEB Newsreader16pt-Regular_wght_opsz2C0000 x5
+--font-voice 400   Adébáyọ̀      WEB Newsreader16pt-Regular_wght_opsz2C0000 x8
