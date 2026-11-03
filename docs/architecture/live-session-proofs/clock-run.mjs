@@ -22,6 +22,7 @@ const SERVER_UDP_PORT = Number(process.env.CLOCK_SERVER_UDP_PORT ?? 7882);
 const RELAY_PORT = Number(process.env.CLOCK_RELAY_PORT ?? 17982);
 const RTP_CLOCK_HZ = 48000;
 const WORD_MATCH_MS = 150;
+const BETWEEN_TURNS_SECONDS = 1.4;
 const EARLY_MS = 40;
 const LAN_ADDRESS = Object.values(networkInterfaces()).flat().find((entry) => entry.family === 'IPv4' && !entry.internal)?.address;
 
@@ -80,7 +81,13 @@ function interpolate(points, x, getX, getY) {
 function getSegmentAudio(records) {
   const segments = records.data.filter((message) => message.type === 'segment');
   const onsets = records.worklet.filter((event) => event.kind === 'onset');
-  const firstOnsets = segments.map((segment) => onsets.reduce((nearest, onset) => (!nearest || Math.abs(onset.contextSeconds - segment.contextSeconds) < Math.abs(nearest.contextSeconds - segment.contextSeconds) ? onset : nearest), null));
+  const ends = records.worklet.filter((event) => event.kind === 'end');
+  // Turns sit further apart than any silence inside one, so this finds a turn's first sound without trusting when its message arrived.
+  const turnOnsets = onsets.filter((onset) => {
+    const lastEnd = ends.filter((end) => end.contextSeconds < onset.contextSeconds).at(-1);
+    return !lastEnd || onset.contextSeconds - lastEnd.contextSeconds >= BETWEEN_TURNS_SECONDS;
+  });
+  const firstOnsets = segments.map((segment) => turnOnsets.filter((onset) => onset.contextSeconds <= segment.contextSeconds + BETWEEN_TURNS_SECONDS).at(-1));
   return segments.flatMap((segment, index) => {
     const onset = firstOnsets[index];
     if (!onset) return [];

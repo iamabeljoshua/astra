@@ -49,7 +49,7 @@ uv pip install --python .venv/bin/python -r requirements.txt
 PYTHON_BIN=.venv/bin/python node run.mjs --sdk python
 ```
 
-The first run on a fresh environment spends most of a minute compiling and loading, so `run.mjs` waits up to 90 s for it.
+A verifier's first run on a fresh environment exited on its first scenario, with the session not started in time. `run.mjs` now waits up to 90 s for Python, and that wait and `download-files` have not been rerun on a fresh environment.
 
 Run one thing at a time, because an agent worker takes every new room on that server, including a clock run's. The Python worker refuses a job above 70% CPU, so if a scenario fails that way on a busy machine, run it again. Timing spreads widen under load, so each `run.mjs` result records `machineLoadAtEnd`.
 

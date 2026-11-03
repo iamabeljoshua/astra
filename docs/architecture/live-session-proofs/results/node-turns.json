@@ -65,6 +65,110 @@
   "agentMemoryMb": 414,
   "machineLoadAtEnd": 10
  },
+ "gap_talkover": {
+  "attempts": 6,
+  "answered": 6,
+  "dropped": 0,
+  "outcomes": [
+   {
+    "offsetAfterThinkingMs": 100,
+    "stops": 1,
+    "secondSentenceReachedModel": true,
+    "repliesStarted": 2,
+    "turnsDroppedBySdk": 0
+   },
+   {
+    "offsetAfterThinkingMs": 400,
+    "stops": 2,
+    "secondSentenceReachedModel": true,
+    "repliesStarted": 2,
+    "turnsDroppedBySdk": 0
+   },
+   {
+    "offsetAfterThinkingMs": 600,
+    "stops": 2,
+    "secondSentenceReachedModel": true,
+    "repliesStarted": 2,
+    "turnsDroppedBySdk": 0
+   },
+   {
+    "offsetAfterThinkingMs": 100,
+    "stops": 2,
+    "secondSentenceReachedModel": true,
+    "repliesStarted": 2,
+    "turnsDroppedBySdk": 0
+   },
+   {
+    "offsetAfterThinkingMs": 400,
+    "stops": 2,
+    "secondSentenceReachedModel": true,
+    "repliesStarted": 2,
+    "turnsDroppedBySdk": 0
+   },
+   {
+    "offsetAfterThinkingMs": 600,
+    "stops": 2,
+    "secondSentenceReachedModel": true,
+    "repliesStarted": 2,
+    "turnsDroppedBySdk": 0
+   }
+  ],
+  "joinToSessionStartedMs": 452,
+  "agentMemoryMb": 607,
+  "machineLoadAtEnd": 13
+ },
+ "gap_talkover_late_final": {
+  "attempts": 6,
+  "answered": 6,
+  "dropped": 0,
+  "outcomes": [
+   {
+    "offsetAfterThinkingMs": 100,
+    "stops": 1,
+    "secondSentenceReachedModel": true,
+    "repliesStarted": 2,
+    "turnsDroppedBySdk": 0
+   },
+   {
+    "offsetAfterThinkingMs": 400,
+    "stops": 2,
+    "secondSentenceReachedModel": true,
+    "repliesStarted": 2,
+    "turnsDroppedBySdk": 0
+   },
+   {
+    "offsetAfterThinkingMs": 600,
+    "stops": 2,
+    "secondSentenceReachedModel": true,
+    "repliesStarted": 2,
+    "turnsDroppedBySdk": 0
+   },
+   {
+    "offsetAfterThinkingMs": 100,
+    "stops": 2,
+    "secondSentenceReachedModel": true,
+    "repliesStarted": 2,
+    "turnsDroppedBySdk": 0
+   },
+   {
+    "offsetAfterThinkingMs": 400,
+    "stops": 2,
+    "secondSentenceReachedModel": true,
+    "repliesStarted": 2,
+    "turnsDroppedBySdk": 0
+   },
+   {
+    "offsetAfterThinkingMs": 600,
+    "stops": 2,
+    "secondSentenceReachedModel": true,
+    "repliesStarted": 2,
+    "turnsDroppedBySdk": 0
+   }
+  ],
+  "joinToSessionStartedMs": 449,
+  "agentMemoryMb": 396,
+  "machineLoadAtEnd": 8
+ },
  "held_reaction_cleared": {
   "attempts": 6,
   "answeredOnItsOwn": 0,
@@ -101,9 +205,9 @@
     "staleInNextTurn": false
    }
   ],
-  "joinToSessionStartedMs": 535,
-  "agentMemoryMb": 290,
-  "machineLoadAtEnd": 10
+  "joinToSessionStartedMs": 454,
+  "agentMemoryMb": 402,
+  "machineLoadAtEnd": 5
  },
  "held_reaction_uncleared": {
   "attempts": 6,
@@ -132,7 +236,7 @@
    },
    {
     "answeredOnItsOwn": false,
-    "nextTurnText": "Uh-huh",
+    "nextTurnText": "Uh-huh Gravity.",
     "staleInNextTurn": true
    },
    {
@@ -141,9 +245,9 @@
     "staleInNextTurn": true
    }
   ],
-  "joinToSessionStartedMs": 606,
-  "agentMemoryMb": 307,
-  "machineLoadAtEnd": 45
+  "joinToSessionStartedMs": 432,
+  "agentMemoryMb": 333,
+  "machineLoadAtEnd": 8
  },
  "noise_resume": {
   "attempts": 5,
@@ -151,52 +255,52 @@
   "everyWordHeardWithTheCutWordTwice": 5,
   "voiceEndToResumedAudioMs": {
    "count": 5,
-   "p50": 1139,
-   "p95": 1150,
-   "min": 1101,
-   "max": 1150
+   "p50": 1154,
+   "p95": 1156,
+   "min": 1134,
+   "max": 1156
   },
   "outcomes": [
    {
-    "stopAfterMs": 1175,
+    "stopAfterMs": 1181,
     "resumed": true,
-    "voiceEndToResumedAudioMs": 1101,
+    "voiceEndToResumedAudioMs": 1156,
     "wordsHeardBefore": 13,
     "fromWord": 12,
     "wordsHeardAfter": 52,
     "replyWords": 64
    },
    {
-    "stopAfterMs": 1168,
+    "stopAfterMs": 1171,
     "resumed": true,
-    "voiceEndToResumedAudioMs": 1142,
+    "voiceEndToResumedAudioMs": 1145,
     "wordsHeardBefore": 13,
     "fromWord": 12,
     "wordsHeardAfter": 52,
     "replyWords": 64
    },
    {
-    "stopAfterMs": 1165,
+    "stopAfterMs": 1179,
     "resumed": true,
-    "voiceEndToResumedAudioMs": 1139,
+    "voiceEndToResumedAudioMs": 1155,
     "wordsHeardBefore": 13,
     "fromWord": 12,
     "wordsHeardAfter": 52,
     "replyWords": 64
    },
    {
-    "stopAfterMs": 1177,
+    "stopAfterMs": 1161,
     "resumed": true,
-    "voiceEndToResumedAudioMs": 1150,
+    "voiceEndToResumedAudioMs": 1134,
     "wordsHeardBefore": 13,
     "fromWord": 12,
     "wordsHeardAfter": 52,
     "replyWords": 64
    },
    {
-    "stopAfterMs": 1175,
+    "stopAfterMs": 1159,
     "resumed": true,
-    "voiceEndToResumedAudioMs": 1129,
+    "voiceEndToResumedAudioMs": 1154,
     "wordsHeardBefore": 13,
     "fromWord": 12,
     "wordsHeardAfter": 52,
@@ -204,198 +308,198 @@
    }
   ],
   "joinToSessionStartedMs": 434,
-  "agentMemoryMb": 331,
-  "machineLoadAtEnd": 130
+  "agentMemoryMb": 445,
+  "machineLoadAtEnd": 4
  },
  "one_word_transcript_0": {
   "attempts": 5,
   "stopped": 5,
   "stopAfterMs": {
    "count": 5,
-   "p50": 615,
-   "p95": 666,
-   "min": 454,
-   "max": 666
+   "p50": 486,
+   "p95": 511,
+   "min": 437,
+   "max": 511
   },
   "outcomes": [
    {
     "stopped": true,
-    "stopAfterMs": 625,
+    "stopAfterMs": 486,
     "reason": "real word"
    },
    {
     "stopped": true,
-    "stopAfterMs": 454,
+    "stopAfterMs": 457,
     "reason": "real word"
    },
    {
     "stopped": true,
-    "stopAfterMs": 615,
+    "stopAfterMs": 494,
     "reason": "real word"
    },
    {
     "stopped": true,
-    "stopAfterMs": 464,
+    "stopAfterMs": 511,
     "reason": "real word"
    },
    {
     "stopped": true,
-    "stopAfterMs": 666,
+    "stopAfterMs": 437,
     "reason": "real word"
    }
   ],
-  "joinToSessionStartedMs": 439,
-  "agentMemoryMb": 551,
-  "machineLoadAtEnd": 168
+  "joinToSessionStartedMs": 450,
+  "agentMemoryMb": 421,
+  "machineLoadAtEnd": 7
  },
  "one_word_transcript_300": {
   "attempts": 5,
   "stopped": 5,
   "stopAfterMs": {
    "count": 5,
-   "p50": 929,
-   "p95": 1007,
-   "min": 758,
-   "max": 1007
+   "p50": 924,
+   "p95": 1016,
+   "min": 786,
+   "max": 1016
   },
   "outcomes": [
    {
     "stopped": true,
-    "stopAfterMs": 929,
+    "stopAfterMs": 807,
     "reason": "real word"
    },
    {
     "stopped": true,
-    "stopAfterMs": 758,
+    "stopAfterMs": 786,
     "reason": "real word"
    },
    {
     "stopped": true,
-    "stopAfterMs": 1007,
+    "stopAfterMs": 1016,
     "reason": "real word"
    },
    {
     "stopped": true,
-    "stopAfterMs": 758,
+    "stopAfterMs": 924,
     "reason": "real word"
    },
    {
     "stopped": true,
-    "stopAfterMs": 980,
+    "stopAfterMs": 985,
     "reason": "real word"
    }
   ],
-  "joinToSessionStartedMs": 423,
-  "agentMemoryMb": 499,
-  "machineLoadAtEnd": 196
+  "joinToSessionStartedMs": 516,
+  "agentMemoryMb": 453,
+  "machineLoadAtEnd": 5
  },
  "one_word_transcript_600": {
   "attempts": 5,
   "stopped": 5,
   "stopAfterMs": {
    "count": 5,
-   "p50": 1252,
-   "p95": 1290,
-   "min": 1081,
-   "max": 1290
+   "p50": 1220,
+   "p95": 1241,
+   "min": 1030,
+   "max": 1241
   },
   "outcomes": [
    {
     "stopped": true,
-    "stopAfterMs": 1290,
+    "stopAfterMs": 1237,
     "reason": "real word"
    },
    {
     "stopped": true,
-    "stopAfterMs": 1108,
+    "stopAfterMs": 1070,
     "reason": "real word"
    },
    {
     "stopped": true,
-    "stopAfterMs": 1288,
+    "stopAfterMs": 1241,
     "reason": "real word"
    },
    {
     "stopped": true,
-    "stopAfterMs": 1252,
+    "stopAfterMs": 1030,
     "reason": "real word"
    },
    {
     "stopped": true,
-    "stopAfterMs": 1081,
+    "stopAfterMs": 1220,
     "reason": "real word"
    }
   ],
-  "joinToSessionStartedMs": 557,
-  "agentMemoryMb": 439,
-  "machineLoadAtEnd": 183
+  "joinToSessionStartedMs": 401,
+  "agentMemoryMb": 628,
+  "machineLoadAtEnd": 5
  },
  "one_word_transcript_900": {
   "attempts": 5,
   "stopped": 5,
   "stopAfterMs": {
    "count": 5,
-   "p50": 1428,
-   "p95": 1640,
-   "min": 1361,
-   "max": 1640
+   "p50": 1595,
+   "p95": 1606,
+   "min": 1368,
+   "max": 1606
   },
   "outcomes": [
    {
     "stopped": true,
-    "stopAfterMs": 1399,
+    "stopAfterMs": 1408,
     "reason": "real word"
    },
    {
     "stopped": true,
-    "stopAfterMs": 1600,
-    "reason": "late word"
-   },
-   {
-    "stopped": true,
-    "stopAfterMs": 1361,
+    "stopAfterMs": 1368,
     "reason": "real word"
    },
    {
     "stopped": true,
-    "stopAfterMs": 1428,
+    "stopAfterMs": 1595,
     "reason": "real word"
    },
    {
     "stopped": true,
-    "stopAfterMs": 1640,
-    "reason": "late word"
+    "stopAfterMs": 1595,
+    "reason": "real word"
+   },
+   {
+    "stopped": true,
+    "stopAfterMs": 1606,
+    "reason": "real word"
    }
   ],
-  "joinToSessionStartedMs": 456,
-  "agentMemoryMb": 424,
-  "machineLoadAtEnd": 158
+  "joinToSessionStartedMs": 440,
+  "agentMemoryMb": 451,
+  "machineLoadAtEnd": 5
  },
  "patience_filler_3s": {
   "attempts": 5,
   "tutorStartedAfterMs": [
-   3134,
-   3143,
-   3170,
+   3147,
+   3131,
+   3137,
    3153,
-   3172
+   3168
   ],
-  "joinToSessionStartedMs": 451,
-  "agentMemoryMb": 434,
-  "machineLoadAtEnd": 10
+  "joinToSessionStartedMs": 452,
+  "agentMemoryMb": 419,
+  "machineLoadAtEnd": 2
  },
  "patience_filler_8s": {
   "attempts": 5,
   "tutorStartedAfterMs": [
-   8179,
-   8145,
-   8159,
-   8152,
-   8169
+   8155,
+   8156,
+   8154,
+   8160,
+   8157
   ],
-  "joinToSessionStartedMs": 482,
-  "agentMemoryMb": 344,
-  "machineLoadAtEnd": 15
+  "joinToSessionStartedMs": 491,
+  "agentMemoryMb": 386,
+  "machineLoadAtEnd": 3
  },
  "patience_filler_then_answer": {
   "attempts": 5,
@@ -403,28 +507,28 @@
   "outcomes": [
    {
     "agentJumpedInDuringPause": false,
-    "answerEndToThinkingMs": 474
+    "answerEndToThinkingMs": 486
    },
    {
     "agentJumpedInDuringPause": false,
-    "answerEndToThinkingMs": 487
+    "answerEndToThinkingMs": 481
    },
    {
     "agentJumpedInDuringPause": false,
-    "answerEndToThinkingMs": 456
+    "answerEndToThinkingMs": 439
    },
    {
     "agentJumpedInDuringPause": false,
-    "answerEndToThinkingMs": 478
+    "answerEndToThinkingMs": 457
    },
    {
     "agentJumpedInDuringPause": false,
-    "answerEndToThinkingMs": 489
+    "answerEndToThinkingMs": 464
    }
   ],
-  "joinToSessionStartedMs": 473,
-  "agentMemoryMb": 613,
-  "machineLoadAtEnd": 10
+  "joinToSessionStartedMs": 412,
+  "agentMemoryMb": 396,
+  "machineLoadAtEnd": 5
  },
  "patience_words_pause_1s": {
   "attempts": 5,
@@ -432,28 +536,28 @@
   "outcomes": [
    {
     "agentJumpedInDuringPause": true,
-    "answerEndToThinkingMs": -1723
+    "answerEndToThinkingMs": -1694
    },
    {
     "agentJumpedInDuringPause": true,
-    "answerEndToThinkingMs": -1731
+    "answerEndToThinkingMs": -1737
    },
    {
     "agentJumpedInDuringPause": true,
-    "answerEndToThinkingMs": -1732
+    "answerEndToThinkingMs": -1710
    },
    {
     "agentJumpedInDuringPause": true,
-    "answerEndToThinkingMs": -1746
+    "answerEndToThinkingMs": -1750
    },
    {
     "agentJumpedInDuringPause": true,
-    "answerEndToThinkingMs": -1742
+    "answerEndToThinkingMs": -1718
    }
   ],
-  "joinToSessionStartedMs": 434,
-  "agentMemoryMb": 645,
-  "machineLoadAtEnd": 8
+  "joinToSessionStartedMs": 510,
+  "agentMemoryMb": 546,
+  "machineLoadAtEnd": 5
  },
  "patience_words_pause_2s": {
   "attempts": 5,
@@ -461,7 +565,7 @@
   "outcomes": [
    {
     "agentJumpedInDuringPause": false,
-    "answerEndToThinkingMs": 451
+    "answerEndToThinkingMs": 450
    },
    {
     "agentJumpedInDuringPause": false,
@@ -469,46 +573,179 @@
    },
    {
     "agentJumpedInDuringPause": false,
-    "answerEndToThinkingMs": 472
+    "answerEndToThinkingMs": 474
    },
    {
     "agentJumpedInDuringPause": false,
-    "answerEndToThinkingMs": 466
+    "answerEndToThinkingMs": 469
    },
    {
     "agentJumpedInDuringPause": false,
-    "answerEndToThinkingMs": 470
+    "answerEndToThinkingMs": 448
    }
   ],
   "joinToSessionStartedMs": 435,
-  "agentMemoryMb": 632,
-  "machineLoadAtEnd": 5
+  "agentMemoryMb": 445,
+  "machineLoadAtEnd": 4
  },
  "patience_words_silence_1s": {
   "attempts": 5,
   "tutorStartedAfterMs": [
-   1145,
-   1115,
-   1190,
-   1169,
-   1126
+   1158,
+   1154,
+   1172,
+   1151,
+   1168
   ],
-  "joinToSessionStartedMs": 419,
-  "agentMemoryMb": 486,
-  "machineLoadAtEnd": 9
+  "joinToSessionStartedMs": 455,
+  "agentMemoryMb": 420,
+  "machineLoadAtEnd": 5
  },
  "patience_words_silence_2s": {
   "attempts": 5,
   "tutorStartedAfterMs": [
-   2127,
-   2150,
-   2157,
-   2173,
-   2167
+   2135,
+   2153,
+   2139,
+   2155,
+   2142
   ],
-  "joinToSessionStartedMs": 493,
-  "agentMemoryMb": 589,
-  "machineLoadAtEnd": 9
+  "joinToSessionStartedMs": 437,
+  "agentMemoryMb": 400,
+  "machineLoadAtEnd": 5
+ },
+ "question_answer_over_last_word": {
+  "attempts": 5,
+  "answerReachedModel": 5,
+  "voiceEndToReplyMs": {
+   "count": 5,
+   "p50": 487,
+   "p95": 505,
+   "min": 461,
+   "max": 505
+  },
+  "outcomes": [
+   {
+    "stopped": false,
+    "answerReachedModel": true,
+    "voiceEndToReplyMs": 468
+   },
+   {
+    "stopped": true,
+    "answerReachedModel": true,
+    "voiceEndToReplyMs": 505
+   },
+   {
+    "stopped": true,
+    "answerReachedModel": true,
+    "voiceEndToReplyMs": 487
+   },
+   {
+    "stopped": true,
+    "answerReachedModel": true,
+    "voiceEndToReplyMs": 490
+   },
+   {
+    "stopped": true,
+    "answerReachedModel": true,
+    "voiceEndToReplyMs": 461
+   }
+  ],
+  "joinToSessionStartedMs": 403,
+  "agentMemoryMb": 523,
+  "machineLoadAtEnd": 25
+ },
+ "question_hmm": {
+  "attempts": 5,
+  "stopped": 0,
+  "heardInFull": 5,
+  "tutorStayedQuietForT5": 5,
+  "outcomes": [
+   {
+    "stopped": false,
+    "wordsHeard": 31,
+    "ofWords": 31,
+    "questionHeardSent": true,
+    "repliesWithinT5": 0
+   },
+   {
+    "stopped": false,
+    "wordsHeard": 31,
+    "ofWords": 31,
+    "questionHeardSent": true,
+    "repliesWithinT5": 0
+   },
+   {
+    "stopped": false,
+    "wordsHeard": 31,
+    "ofWords": 31,
+    "questionHeardSent": true,
+    "repliesWithinT5": 0
+   },
+   {
+    "stopped": false,
+    "wordsHeard": 31,
+    "ofWords": 31,
+    "questionHeardSent": true,
+    "repliesWithinT5": 0
+   },
+   {
+    "stopped": false,
+    "wordsHeard": 31,
+    "ofWords": 31,
+    "questionHeardSent": true,
+    "repliesWithinT5": 0
+   }
+  ],
+  "joinToSessionStartedMs": 474,
+  "agentMemoryMb": 381,
+  "machineLoadAtEnd": 13
+ },
+ "question_uhhuh": {
+  "attempts": 5,
+  "stopped": 0,
+  "heardInFull": 5,
+  "tutorStayedQuietForT5": 5,
+  "outcomes": [
+   {
+    "stopped": false,
+    "wordsHeard": 31,
+    "ofWords": 31,
+    "questionHeardSent": true,
+    "repliesWithinT5": 0
+   },
+   {
+    "stopped": false,
+    "wordsHeard": 31,
+    "ofWords": 31,
+    "questionHeardSent": true,
+    "repliesWithinT5": 0
+   },
+   {
+    "stopped": false,
+    "wordsHeard": 31,
+    "ofWords": 31,
+    "questionHeardSent": true,
+    "repliesWithinT5": 0
+   },
+   {
+    "stopped": false,
+    "wordsHeard": 31,
+    "ofWords": 31,
+    "questionHeardSent": true,
+    "repliesWithinT5": 0
+   },
+   {
+    "stopped": false,
+    "wordsHeard": 31,
+    "ofWords": 31,
+    "questionHeardSent": true,
+    "repliesWithinT5": 0
+   }
+  ],
+  "joinToSessionStartedMs": 641,
+  "agentMemoryMb": 413,
+  "machineLoadAtEnd": 8
  },
  "tiered_backchannel": {
   "attempts": 10,
@@ -518,96 +755,96 @@
    {
     "agentStopped": false,
     "audioWentSilent": false,
-    "yieldAfterMs": 162,
-    "yieldHeldMs": 829
+    "yieldAfterMs": 146,
+    "yieldHeldMs": 932
    },
    {
     "agentStopped": false,
     "audioWentSilent": false,
-    "yieldAfterMs": 162,
-    "yieldHeldMs": 898
-   },
-   {
-    "agentStopped": false,
-    "audioWentSilent": false,
-    "yieldAfterMs": 173,
-    "yieldHeldMs": 846
-   },
-   {
-    "agentStopped": false,
-    "audioWentSilent": false,
-    "yieldAfterMs": 157,
-    "yieldHeldMs": 832
-   },
-   {
-    "agentStopped": false,
-    "audioWentSilent": false,
-    "yieldAfterMs": 149,
-    "yieldHeldMs": 941
-   },
-   {
-    "agentStopped": false,
-    "audioWentSilent": false,
-    "yieldAfterMs": 148,
-    "yieldHeldMs": 848
-   },
-   {
-    "agentStopped": false,
-    "audioWentSilent": false,
-    "yieldAfterMs": 148,
-    "yieldHeldMs": 861
-   },
-   {
-    "agentStopped": false,
-    "audioWentSilent": false,
-    "yieldAfterMs": 159,
-    "yieldHeldMs": 841
+    "yieldAfterMs": 146,
+    "yieldHeldMs": 912
    },
    {
     "agentStopped": false,
     "audioWentSilent": false,
     "yieldAfterMs": 156,
-    "yieldHeldMs": 831
+    "yieldHeldMs": 865
    },
    {
     "agentStopped": false,
     "audioWentSilent": false,
-    "yieldAfterMs": 170,
-    "yieldHeldMs": 812
+    "yieldAfterMs": 157,
+    "yieldHeldMs": 841
+   },
+   {
+    "agentStopped": false,
+    "audioWentSilent": false,
+    "yieldAfterMs": 136,
+    "yieldHeldMs": 832
+   },
+   {
+    "agentStopped": false,
+    "audioWentSilent": false,
+    "yieldAfterMs": 147,
+    "yieldHeldMs": 901
+   },
+   {
+    "agentStopped": false,
+    "audioWentSilent": false,
+    "yieldAfterMs": 156,
+    "yieldHeldMs": 852
+   },
+   {
+    "agentStopped": false,
+    "audioWentSilent": false,
+    "yieldAfterMs": 147,
+    "yieldHeldMs": 838
+   },
+   {
+    "agentStopped": false,
+    "audioWentSilent": false,
+    "yieldAfterMs": 157,
+    "yieldHeldMs": 911
+   },
+   {
+    "agentStopped": false,
+    "audioWentSilent": false,
+    "yieldAfterMs": 158,
+    "yieldHeldMs": 930
    }
   ],
-  "joinToSessionStartedMs": 438,
-  "agentMemoryMb": 621,
+  "joinToSessionStartedMs": 437,
+  "agentMemoryMb": 344,
   "machineLoadAtEnd": 5
  },
  "tiered_interrupt": {
   "speechStartToYieldMessageMs": {
    "count": 10,
-   "p50": 169,
+   "p50": 171,
    "p95": 182,
-   "min": 148,
+   "min": 152,
    "max": 182
   },
   "speechStartToStopMessageMs": {
    "count": 10,
-   "p50": 641,
-   "p95": 693,
-   "min": 420,
-   "max": 693
+   "p50": 674,
+   "p95": 714,
+   "min": 483,
+   "max": 714
   },
   "speechStartToLastAudioMs": {
    "count": 10,
-   "p50": 771,
-   "p95": 791,
-   "min": 491,
-   "max": 791
+   "p50": 788,
+   "p95": 790,
+   "min": 588,
+   "max": 790
   },
   "stopMessageToLastAudioMs": {
    "count": 10,
-   "p50": 109,
-   "p95": 148,
-   "min": 71,
-   "max": 148
+   "p50": 105,
+   "p95": 117,
+   "min": 64,
+   "max": 117
   },
   "reasons": [
    "real word",
@@ -621,9 +858,9 @@
    "real word",
    "real word"
   ],
-  "joinToSessionStartedMs": 614,
-  "agentMemoryMb": 580,
-  "machineLoadAtEnd": 5
+  "joinToSessionStartedMs": 509,
+  "agentMemoryMb": 610,
+  "machineLoadAtEnd": 6
  },
  "vendor_settings": {
   "speechToTextAsksNotToTrain": true,
@@ -633,83 +870,83 @@
  },
  "warmup_first_speech_off_0": {
   "tutorStopped": true,
-  "stopAfterMs": 673,
+  "stopAfterMs": 667,
   "heardWords": true,
-  "joinToSessionStartedMs": 476,
-  "agentMemoryMb": 783,
-  "machineLoadAtEnd": 8
+  "joinToSessionStartedMs": 456,
+  "agentMemoryMb": 627,
+  "machineLoadAtEnd": 3
  },
  "warmup_first_speech_off_1": {
   "tutorStopped": true,
-  "stopAfterMs": 665,
+  "stopAfterMs": 674,
   "heardWords": true,
-  "joinToSessionStartedMs": 431,
-  "agentMemoryMb": 752,
-  "machineLoadAtEnd": 6
+  "joinToSessionStartedMs": 435,
+  "agentMemoryMb": 604,
+  "machineLoadAtEnd": 3
  },
  "warmup_first_speech_off_2": {
   "tutorStopped": true,
-  "stopAfterMs": 674,
+  "stopAfterMs": 648,
   "heardWords": true,
-  "joinToSessionStartedMs": 421,
-  "agentMemoryMb": 693,
-  "machineLoadAtEnd": 6
+  "joinToSessionStartedMs": 440,
+  "agentMemoryMb": 601,
+  "machineLoadAtEnd": 3
  },
  "warmup_first_speech_off_3": {
   "tutorStopped": true,
-  "stopAfterMs": 681,
+  "stopAfterMs": 661,
   "heardWords": true,
-  "joinToSessionStartedMs": 552,
-  "agentMemoryMb": 573,
-  "machineLoadAtEnd": 10
+  "joinToSessionStartedMs": 416,
+  "agentMemoryMb": 713,
+  "machineLoadAtEnd": 3
  },
  "warmup_first_speech_off_4": {
   "tutorStopped": true,
-  "stopAfterMs": 662,
+  "stopAfterMs": 681,
   "heardWords": true,
-  "joinToSessionStartedMs": 444,
-  "agentMemoryMb": 676,
-  "machineLoadAtEnd": 10
+  "joinToSessionStartedMs": 431,
+  "agentMemoryMb": 697,
+  "machineLoadAtEnd": 3
  },
  "warmup_first_speech_sdk_default_0": {
   "tutorStopped": true,
-  "stopAfterMs": 1157,
+  "stopAfterMs": 1173,
   "heardWords": true,
-  "joinToSessionStartedMs": 550,
-  "agentMemoryMb": 583,
-  "machineLoadAtEnd": 11
+  "joinToSessionStartedMs": 485,
+  "agentMemoryMb": 699,
+  "machineLoadAtEnd": 5
  },
  "warmup_first_speech_sdk_default_1": {
   "tutorStopped": true,
-  "stopAfterMs": 1174,
+  "stopAfterMs": 1161,
   "heardWords": true,
-  "joinToSessionStartedMs": 421,
-  "agentMemoryMb": 666,
-  "machineLoadAtEnd": 11
+  "joinToSessionStartedMs": 448,
+  "agentMemoryMb": 589,
+  "machineLoadAtEnd": 4
  },
  "warmup_first_speech_sdk_default_2": {
   "tutorStopped": true,
-  "stopAfterMs": 1145,
+  "stopAfterMs": 1186,
   "heardWords": true,
-  "joinToSessionStartedMs": 417,
-  "agentMemoryMb": 763,
-  "machineLoadAtEnd": 9
+  "joinToSessionStartedMs": 444,
+  "agentMemoryMb": 646,
+  "machineLoadAtEnd": 4
  },
  "warmup_first_speech_sdk_default_3": {
   "tutorStopped": true,
-  "stopAfterMs": 1155,
+  "stopAfterMs": 1178,
   "heardWords": true,
-  "joinToSessionStartedMs": 449,
-  "agentMemoryMb": 605,
-  "machineLoadAtEnd": 10
+  "joinToSessionStartedMs": 467,
+  "agentMemoryMb": 641,
+  "machineLoadAtEnd": 4
  },
  "warmup_first_speech_sdk_default_4": {
   "tutorStopped": true,
-  "stopAfterMs": 1177,
+  "stopAfterMs": 1163,
   "heardWords": true,
-  "joinToSessionStartedMs": 426,
-  "agentMemoryMb": 657,
-  "machineLoadAtEnd": 9
+  "joinToSessionStartedMs": 440,
+  "agentMemoryMb": 592,
+  "machineLoadAtEnd": 4
  },
  "warmup_rejoin_off": {
   "attempts": 3,
@@ -719,25 +956,25 @@
    {
     "stillTalking": true,
     "tutorStopped": true,
+    "stopAfterMs": 487,
+    "heardWords": true
+   },
+   {
+    "stillTalking": true,
+    "tutorStopped": true,
+    "stopAfterMs": 531,
+    "heardWords": true
+   },
+   {
+    "stillTalking": true,
+    "tutorStopped": true,
     "stopAfterMs": 502,
-    "heardWords": true
-   },
-   {
-    "stillTalking": true,
-    "tutorStopped": true,
-    "stopAfterMs": 474,
-    "heardWords": true
-   },
-   {
-    "stillTalking": true,
-    "tutorStopped": true,
-    "stopAfterMs": 486,
     "heardWords": true
    }
   ],
-  "joinToSessionStartedMs": 432,
-  "agentMemoryMb": 450,
-  "machineLoadAtEnd": 8
+  "joinToSessionStartedMs": 615,
+  "agentMemoryMb": 437,
+  "machineLoadAtEnd": 5
  },
  "warmup_rejoin_sdk_default": {
   "attempts": 3,
@@ -747,24 +984,59 @@
    {
     "stillTalking": true,
     "tutorStopped": true,
-    "stopAfterMs": 504,
+    "stopAfterMs": 490,
     "heardWords": true
    },
    {
     "stillTalking": true,
     "tutorStopped": true,
-    "stopAfterMs": 1175,
+    "stopAfterMs": 1156,
     "heardWords": true
    },
    {
     "stillTalking": true,
     "tutorStopped": true,
-    "stopAfterMs": 1183,
+    "stopAfterMs": 1161,
     "heardWords": true
    }
   ],
-  "joinToSessionStartedMs": 433,
-  "agentMemoryMb": 436,
-  "machineLoadAtEnd": 6
+  "joinToSessionStartedMs": 476,
+  "agentMemoryMb": 408,
+  "machineLoadAtEnd": 4
+ },
+ "words_never_final": {
+  "attempts": 5,
+  "stopped": 5,
+  "resumed": 5,
+  "outcomes": [
+   {
+    "stopped": true,
+    "resumed": true,
+    "voiceEndToResumeMs": 1055
+   },
+   {
+    "stopped": true,
+    "resumed": true,
+    "voiceEndToResumeMs": 1107
+   },
+   {
+    "stopped": true,
+    "resumed": true,
+    "voiceEndToResumeMs": 1085
+   },
+   {
+    "stopped": true,
+    "resumed": true,
+    "voiceEndToResumeMs": 1072
+   },
+   {
+    "stopped": true,
+    "resumed": true,
+    "voiceEndToResumeMs": 1074
+   }
+  ],
+  "joinToSessionStartedMs": 421,
+  "agentMemoryMb": 305,
+  "machineLoadAtEnd": 4
  }
 }

@@ -6,6 +6,7 @@ const POLL_MS = 10;
 const STATS_POLL_MS = 50;
 const TICK_MS = 4;
 const RTP_CLOCK_HZ = 48000;
+const RECENT_SOUND_MS = 300;
 
 // Sends WebRTC through the local relay that delays and drops packets, by rewriting what the server offers.
 function routeThroughRelay(serverPort, relayPort) {
@@ -42,7 +43,7 @@ function routeThroughRelay(serverPort, relayPort) {
   };
 }
 
-const records = { worklet: [], data: [], clockMap: [], rtp: [], stats: [], fired: [], decisions: [] };
+const records = { worklet: [], data: [], clockMap: [], rtp: [], stats: [], fired: [], decisions: [], firstSounds: [] };
 window.clockRecords = records;
 let audioContext;
 let receiver;
@@ -88,7 +89,9 @@ function createMethods(wordStartsMs) {
 
 function startSegment(message) {
   segment = { ...message, methods: createMethods(message.wordStartsMs) };
-  if (isSounding) startClocks(lastOnsetMs);
+  // A late message can land in a pause in this turn's speech, and the last turn's audio ended long before.
+  const isSoundRecent = isSounding || (lastEndMs !== null && nowMs() - lastEndMs <= RECENT_SOUND_MS);
+  if (isSoundRecent && lastOnsetMs !== null) startClocks(lastOnsetMs);
 }
 
 function startClocks(atMs) {
@@ -96,6 +99,7 @@ function startClocks(atMs) {
   for (const name of ['guessBySequence', 'guessByRtp', 'guessByRtpOldGate']) segment.methods[name].clock.onOnset(atMs);
   segment.hasFirstSound = true;
   segment.rtpAtFirstSound = rtpAtLastOnset ?? undefined;
+  records.firstSounds.push({ segmentId: segment.segmentId, contextSeconds: atMs / 1000 });
 }
 
 function onSilenceOver(atMs) {

@@ -44,7 +44,7 @@ function buildSpeech({ stallAtWord = -1, stallIntoWord = 0, getPauseMs = (word) 
   let trueMs = 0;
   SPOKEN_WORDS.forEach((samples, index) => {
     timelineStartsMs.push(timelineMs);
-    trueStartsMs.push(trueMs);
+    trueStartsMs.push(trueMs + (index === stallAtWord && stallIntoWord === 0 ? STALL_MS : 0));
     const wordMs = (samples.length / SAMPLE_RATE) * 1000;
     const gapMs = getPauseMs(SENTENCE[index]);
     if (index === stallAtWord) {
@@ -129,8 +129,8 @@ const summary = {
   naturalPauses: fireWords({ Probe, ...buildSpeech() }),
   stallAtAWordStart: fireWords({ Probe, ...buildSpeech({ stallAtWord: 6 }) }),
   stallAtAWordStartWithNoGapReport: fireWords({ Probe, ...buildSpeech({ stallAtWord: 6 }), usesGaps: false }),
-  randomPausesAndAStall: repeat((run) => fireWords({ Probe, ...buildSpeech({ stallAtWord: run % SENTENCE.length, getPauseMs: randomPause }) })),
-  stallInsideAWord: repeat((run) => fireWords({ Probe, ...buildSpeech({ stallAtWord: run % SENTENCE.length, stallIntoWord: 0.5, getPauseMs: randomPause }) })),
+  randomPausesAndAStall: repeat((run) => fireWords({ Probe, ...buildSpeech({ stallAtWord: 1 + (run % (SENTENCE.length - 1)), getPauseMs: randomPause }) })),
+  stallInsideAWord: repeat((run) => fireWords({ Probe, ...buildSpeech({ stallAtWord: 1 + (run % (SENTENCE.length - 1)), stallIntoWord: 0.5, getPauseMs: randomPause }) })),
   lostAudio: LOST_CASES_MS.map((lost) => ({ ...lost, ...fireWords({ Probe, ...loseAudio(buildSpeech(), lost) }) })),
   wordTimesWith30MsNoise: repeat(() => fireWords({ Probe, ...addWordTimeNoise(buildSpeech()) })),
 };

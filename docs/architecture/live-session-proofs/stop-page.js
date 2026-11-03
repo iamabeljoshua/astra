@@ -3,6 +3,7 @@ import { createWordClock } from './clock-rule.mjs';
 
 const YIELD_GAIN = 0.25;
 const TICK_MS = 4;
+const RECENT_SOUND_MS = 300;
 const records = { events: [], turns: [] };
 window.boardRecords = records;
 let audioContext;
@@ -12,6 +13,7 @@ let turn = null;
 let isBlockAudible = false;
 let isSounding = false;
 let lastOnsetMs = null;
+let lastEndMs = null;
 const runningSimulations = new Map();
 const now = () => audioContext.currentTime * 1000;
 const note = (kind, fields = {}) => records.events.push({ kind, atMs: now(), epochMs: performance.timeOrigin + performance.now(), turnId: turn?.turnId, ...fields });
@@ -22,7 +24,8 @@ function startTurn(turnId, reply) {
   records.turns.push(turn);
   note('turnStarted', { reply });
   // On a poor link the audio can arrive first, so an onset already sounding belongs to this turn.
-  if (isSounding && lastOnsetMs !== null) startClock(lastOnsetMs);
+  const isSoundRecent = isSounding || (lastEndMs !== null && now() - lastEndMs <= RECENT_SOUND_MS);
+  if (isSoundRecent && lastOnsetMs !== null) startClock(lastOnsetMs);
 }
 
 function startClock(atMs) {
@@ -122,7 +125,10 @@ function onProbe(kind, atMs) {
     lastOnsetMs = atMs;
     if (turn && !turn.hasFirstSound) startClock(atMs);
   }
-  if (kind === 'end') isSounding = false;
+  if (kind === 'end') {
+    isSounding = false;
+    lastEndMs = atMs;
+  }
   if (kind === 'sound') isBlockAudible = true;
   if (kind === 'quiet') isBlockAudible = false;
 }

@@ -2,46 +2,46 @@
  "beats_budget_voice_0": {
   "speechEndToFirstAudioMs": {
    "count": 8,
-   "p50": 1090,
-   "p95": 1110,
-   "min": 1071,
-   "max": 1110
+   "p50": 1137,
+   "p95": 1157,
+   "min": 1117,
+   "max": 1157
   },
   "firstAudioMs": [
-   1089,
-   1071,
-   1100,
-   1110,
-   1080,
-   1100,
-   1080,
-   1090
+   1137,
+   1137,
+   1117,
+   1137,
+   1156,
+   1147,
+   1157,
+   1118
   ],
-  "joinToSessionStartedMs": 438,
-  "agentMemoryMb": 645,
-  "machineLoadAtEnd": 3
+  "joinToSessionStartedMs": 468,
+  "agentMemoryMb": 419,
+  "machineLoadAtEnd": 4
  },
  "beats_budget_voice_200": {
   "speechEndToFirstAudioMs": {
    "count": 8,
-   "p50": 1331,
-   "p95": 1438,
-   "min": 1298,
-   "max": 1438
+   "p50": 1370,
+   "p95": 1471,
+   "min": 1341,
+   "max": 1471
   },
   "firstAudioMs": [
-   1312,
-   1298,
-   1332,
-   1322,
-   1321,
+   1371,
+   1350,
+   1471,
+   1370,
+   1341,
    1352,
-   1331,
-   1438
+   1370,
+   1353
   ],
-  "joinToSessionStartedMs": 434,
-  "agentMemoryMb": 606,
-  "machineLoadAtEnd": 4
+  "joinToSessionStartedMs": 448,
+  "agentMemoryMb": 597,
+  "machineLoadAtEnd": 5
  },
  "beats_command_bytes_off": {
   "cuesSent": 4,
@@ -49,9 +49,9 @@
   "cuesUnchanged": 4,
   "changed": [],
   "spoken": "Look at this really neat curve and this code and this note.",
-  "joinToSessionStartedMs": 405,
-  "agentMemoryMb": 981,
-  "machineLoadAtEnd": 3
+  "joinToSessionStartedMs": 492,
+  "agentMemoryMb": 422,
+  "machineLoadAtEnd": 4
  },
  "beats_command_bytes_sdk_default": {
   "cuesSent": 4,
@@ -110,27 +110,27 @@
    }
   ],
   "spoken": "Look at this really neat curve and this code and this note.",
-  "joinToSessionStartedMs": 396,
-  "agentMemoryMb": 949,
-  "machineLoadAtEnd": 4
+  "joinToSessionStartedMs": 466,
+  "agentMemoryMb": 495,
+  "machineLoadAtEnd": 5
  },
  "beats_flush_chosen": {
   "attempts": 15,
   "speechEndToFirstAudioMs": {
    "count": 15,
-   "p50": 540,
-   "p95": 610,
-   "min": 508,
-   "max": 610
+   "p50": 582,
+   "p95": 621,
+   "min": 554,
+   "max": 621
   },
   "firstFragmentToFirstAudioMs": {
    "count": 15,
-   "p50": 77,
-   "p95": 96,
-   "min": 67,
-   "max": 96
+   "p50": 98,
+   "p95": 115,
+   "min": 79,
+   "max": 115
   },
-  "lowestCueLeadMs": 822,
+  "lowestCueLeadMs": 848,
   "wordsHeard": 375,
   "wordsTimed": 375,
   "sdkTranscriptShowedCommands": 0,
@@ -141,16 +141,16 @@
   ],
   "sample": {
    "sdkTranscriptShowsCommands": false,
-   "speechEndToFirstAudioMs": 538,
-   "firstFragmentToFirstAudioMs": 72,
-   "firstFragmentToFirstTtsFrameMs": 37,
+   "speechEndToFirstAudioMs": 581,
+   "firstFragmentToFirstAudioMs": 102,
+   "firstFragmentToFirstTtsFrameMs": 33,
    "wordsHeard": 25,
    "wordsTimed": 25,
-   "wordTimesLeadOverAudioMs": 34,
+   "wordTimesLeadOverAudioMs": 68,
    "cueLeadOverWordMs": [
-    832,
-    1987,
-    2870
+    859,
+    2007,
+    2890
    ],
    "cueKinds": [
     "drawing",
@@ -163,14 +163,14 @@
     14
    ]
   },
-  "joinToSessionStartedMs": 539,
-  "agentMemoryMb": 635,
-  "machineLoadAtEnd": 4
+  "joinToSessionStartedMs": 601,
+  "agentMemoryMb": 601,
+  "machineLoadAtEnd": 7
  },
  "beats_speculative": {
   "attempts": 15,
-  "attemptsWithAStaleReply": 0,
-  "attemptsWhereEveryCutSentAStop": 0,
+  "attemptsWithAStaleReply": 1,
+  "attemptsWhereEveryCutSentAStop": 1,
   "outcomes": [
    {
     "cuesDuringPause": 0,
@@ -188,13 +188,13 @@
     "cuesDuringPause": 0,
     "replies": 1,
     "cuts": 1,
-    "stopsHeard": 1
+    "stopsHeard": 2
    },
    {
     "cuesDuringPause": 0,
-    "replies": 1,
-    "cuts": 1,
-    "stopsHeard": 1
+    "replies": 2,
+    "cuts": 2,
+    "stopsHeard": 2
    },
    {
     "cuesDuringPause": 0,
@@ -263,14 +263,14 @@
     "stopsHeard": 1
    }
   ],
-  "joinToSessionStartedMs": 559,
-  "agentMemoryMb": 540,
-  "machineLoadAtEnd": 7
+  "joinToSessionStartedMs": 464,
+  "agentMemoryMb": 644,
+  "machineLoadAtEnd": 14
  },
  "beats_speculative_late_final": {
   "attempts": 15,
-  "attemptsWithAStaleReply": 1,
-  "attemptsWhereEveryCutSentAStop": 1,
+  "attemptsWithAStaleReply": 10,
+  "attemptsWhereEveryCutSentAStop": 10,
   "outcomes": [
    {
     "cuesDuringPause": 0,
@@ -280,9 +280,51 @@
    },
    {
     "cuesDuringPause": 0,
+    "replies": 2,
+    "cuts": 2,
+    "stopsHeard": 2
+   },
+   {
+    "cuesDuringPause": 0,
+    "replies": 2,
+    "cuts": 2,
+    "stopsHeard": 2
+   },
+   {
+    "cuesDuringPause": 0,
+    "replies": 2,
+    "cuts": 2,
+    "stopsHeard": 2
+   },
+   {
+    "cuesDuringPause": 0,
     "replies": 1,
     "cuts": 1,
-    "stopsHeard": 1
+    "stopsHeard": 2
+   },
+   {
+    "cuesDuringPause": 0,
+    "replies": 2,
+    "cuts": 2,
+    "stopsHeard": 2
+   },
+   {
+    "cuesDuringPause": 0,
+    "replies": 1,
+    "cuts": 1,
+    "stopsHeard": 2
+   },
+   {
+    "cuesDuringPause": 0,
+    "replies": 2,
+    "cuts": 2,
+    "stopsHeard": 2
+   },
+   {
+    "cuesDuringPause": 0,
+    "replies": 2,
+    "cuts": 2,
+    "stopsHeard": 2
    },
    {
     "cuesDuringPause": 0,
@@ -292,79 +334,37 @@
    },
    {
     "cuesDuringPause": 0,
-    "replies": 1,
-    "cuts": 1,
-    "stopsHeard": 1
+    "replies": 2,
+    "cuts": 2,
+    "stopsHeard": 2
    },
    {
     "cuesDuringPause": 0,
     "replies": 1,
     "cuts": 1,
-    "stopsHeard": 1
+    "stopsHeard": 2
+   },
+   {
+    "cuesDuringPause": 0,
+    "replies": 2,
+    "cuts": 2,
+    "stopsHeard": 2
    },
    {
     "cuesDuringPause": 0,
     "replies": 1,
     "cuts": 1,
-    "stopsHeard": 1
+    "stopsHeard": 2
    },
    {
     "cuesDuringPause": 0,
-    "replies": 1,
-    "cuts": 1,
-    "stopsHeard": 1
-   },
-   {
-    "cuesDuringPause": 0,
-    "replies": 1,
-    "cuts": 1,
-    "stopsHeard": 1
-   },
-   {
-    "cuesDuringPause": 0,
-    "replies": 1,
-    "cuts": 1,
-    "stopsHeard": 1
-   },
-   {
-    "cuesDuringPause": 0,
-    "replies": 1,
-    "cuts": 1,
-    "stopsHeard": 1
-   },
-   {
-    "cuesDuringPause": 0,
-    "replies": 1,
-    "cuts": 1,
-    "stopsHeard": 1
-   },
-   {
-    "cuesDuringPause": 0,
-    "replies": 1,
-    "cuts": 1,
-    "stopsHeard": 1
-   },
-   {
-    "cuesDuringPause": 0,
-    "replies": 1,
-    "cuts": 1,
-    "stopsHeard": 1
-   },
-   {
-    "cuesDuringPause": 0,
-    "replies": 1,
-    "cuts": 1,
-    "stopsHeard": 1
-   },
-   {
-    "cuesDuringPause": 0,
-    "replies": 1,
-    "cuts": 1,
-    "stopsHeard": 1
+    "replies": 2,
+    "cuts": 2,
+    "stopsHeard": 2
    }
   ],
-  "joinToSessionStartedMs": 411,
-  "agentMemoryMb": 646,
-  "machineLoadAtEnd": 4
+  "joinToSessionStartedMs": 465,
+  "agentMemoryMb": 628,
+  "machineLoadAtEnd": 5
  }
 }

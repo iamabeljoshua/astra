@@ -1,6 +1,6 @@
 {
  "result": {
-  "machineLoadAtEnd": 4,
+  "machineLoadAtEnd": 11,
   "audioInfo": {
    "sampleRate": 48000,
    "baseLatency": 0.005333333333333333,
@@ -16,15 +16,15 @@
   },
   "arrivingAudioAfterStopMs": {
    "count": 10,
-   "p50": 120,
-   "max": 173,
-   "min": 77
+   "p50": 128,
+   "max": 168,
+   "min": 69
   },
   "stopDeliveryMs": {
-   "count": 20,
-   "p50": 2,
-   "max": 6,
-   "min": 1
+   "count": 36,
+   "p50": 0,
+   "max": 5,
+   "min": -9
   },
   "uhhuh": [
    {
@@ -52,7 +52,7 @@
     "cuesReceived": 4,
     "cuesFired": 4,
     "firedDuringYield": 0,
-    "yieldHeldMs": 832,
+    "yieldHeldMs": 827,
     "outputSilences": 0
    },
    {
@@ -66,7 +66,7 @@
     "cuesReceived": 4,
     "cuesFired": 4,
     "firedDuringYield": 0,
-    "yieldHeldMs": 832,
+    "yieldHeldMs": 827,
     "outputSilences": 0
    },
    {
@@ -94,7 +94,7 @@
     "cuesReceived": 4,
     "cuesFired": 4,
     "firedDuringYield": 1,
-    "yieldHeldMs": 2245,
+    "yieldHeldMs": 2240,
     "outputSilences": 0
    },
    {
@@ -113,11 +113,246 @@
    }
   ],
   "cuesFiredAfterFreeze": 0,
-  "cuesSentAfterStop": 1,
-  "cuesReceivedAfterFreeze": 1,
+  "cuesSentAfterStop": 0,
+  "cuesReceivedAfterFreeze": 0,
   "firedPastHeardWord": 0,
   "cuesForHeardWordsNotFired": 0,
   "rebuildMatches": 10,
-  "attemptsWhereModelStillWriting": 3
+  "attemptsWhereModelStillWriting": 3,
+  "stalls": {
+   "attempts": 6,
+   "gapsReportedMs": [
+    534,
+    534,
+    531,
+    552,
+    531,
+    533
+   ],
+   "silencesHeardMs": [
+    528,
+    540,
+    530,
+    559,
+    530,
+    528
+   ],
+   "cuesFired": 24,
+   "earlyOver40": 0,
+   "lateOver100": 0,
+   "worstCueErrorMs": 35
+  },
+  "stopsDuringAStall": [
+   {
+    "kind": "stopInStall",
+    "turnId": "t53",
+    "wordsHeardBeforeStop": 8,
+    "wordsReported": 8,
+    "firedAfterStop": 0
+   },
+   {
+    "kind": "stopInStall",
+    "turnId": "t55",
+    "wordsHeardBeforeStop": 8,
+    "wordsReported": 8,
+    "firedAfterStop": 0
+   },
+   {
+    "kind": "stopInStall",
+    "turnId": "t57",
+    "wordsHeardBeforeStop": 8,
+    "wordsReported": 8,
+    "firedAfterStop": 0
+   },
+   {
+    "kind": "stopInStall",
+    "turnId": "t59",
+    "wordsHeardBeforeStop": 8,
+    "wordsReported": 8,
+    "firedAfterStop": 0
+   }
+  ],
+  "questions": [
+   {
+    "kind": "question",
+    "spokenText": "Uh-huh",
+    "afterQuestionHeard": false,
+    "frozen": false,
+    "questionHeardSent": true,
+    "wordsHeard": 28,
+    "wordsInQuestion": 28,
+    "repliesAfter": 0
+   },
+   {
+    "kind": "question",
+    "spokenText": "Hmm",
+    "afterQuestionHeard": false,
+    "frozen": false,
+    "questionHeardSent": true,
+    "wordsHeard": 28,
+    "wordsInQuestion": 28,
+    "repliesAfter": 0
+   },
+   {
+    "kind": "question",
+    "spokenText": "Yes.",
+    "afterQuestionHeard": true,
+    "frozen": false,
+    "questionHeardSent": true,
+    "wordsHeard": 28,
+    "wordsInQuestion": 28,
+    "repliesAfter": 1
+   },
+   {
+    "kind": "question",
+    "spokenText": "Uh-huh",
+    "afterQuestionHeard": false,
+    "frozen": false,
+    "questionHeardSent": true,
+    "wordsHeard": 28,
+    "wordsInQuestion": 28,
+    "repliesAfter": 0
+   },
+   {
+    "kind": "question",
+    "spokenText": "Hmm",
+    "afterQuestionHeard": false,
+    "frozen": false,
+    "questionHeardSent": true,
+    "wordsHeard": 28,
+    "wordsInQuestion": 28,
+    "repliesAfter": 0
+   },
+   {
+    "kind": "question",
+    "spokenText": "Yes.",
+    "afterQuestionHeard": true,
+    "frozen": false,
+    "questionHeardSent": true,
+    "wordsHeard": 28,
+    "wordsInQuestion": 28,
+    "repliesAfter": 1
+   },
+   {
+    "kind": "question",
+    "spokenText": "Uh-huh",
+    "afterQuestionHeard": false,
+    "frozen": false,
+    "questionHeardSent": true,
+    "wordsHeard": 28,
+    "wordsInQuestion": 28,
+    "repliesAfter": 0
+   },
+   {
+    "kind": "question",
+    "spokenText": "Hmm",
+    "afterQuestionHeard": false,
+    "frozen": false,
+    "questionHeardSent": true,
+    "wordsHeard": 28,
+    "wordsInQuestion": 28,
+    "repliesAfter": 0
+   },
+   {
+    "kind": "question",
+    "spokenText": "Yes.",
+    "afterQuestionHeard": true,
+    "frozen": false,
+    "questionHeardSent": true,
+    "wordsHeard": 28,
+    "wordsInQuestion": 28,
+    "repliesAfter": 1
+   }
+  ],
+  "resumes": [
+   {
+    "kind": "resume",
+    "frozen": [
+     {
+      "target": "shot",
+      "simulationSeconds": 2.475
+     }
+    ],
+    "fromWord": 15,
+    "playCueAfterResume": {
+     "kind": "runSimulation",
+     "target": "shot",
+     "action": "play",
+     "until": "landing",
+     "overWords": 12
+    },
+    "playFiredOnFirstWord": true,
+    "noDrawingFiredTwice": true,
+    "wordsBefore": 16,
+    "wordsAfter": 29,
+    "wordsInReply": 44
+   },
+   {
+    "kind": "resume",
+    "frozen": [
+     {
+      "target": "shot",
+      "simulationSeconds": 2.48
+     }
+    ],
+    "fromWord": 15,
+    "playCueAfterResume": {
+     "kind": "runSimulation",
+     "target": "shot",
+     "action": "play",
+     "until": "landing",
+     "overWords": 12
+    },
+    "playFiredOnFirstWord": true,
+    "noDrawingFiredTwice": true,
+    "wordsBefore": 16,
+    "wordsAfter": 29,
+    "wordsInReply": 44
+   },
+   {
+    "kind": "resume",
+    "frozen": [
+     {
+      "target": "shot",
+      "simulationSeconds": 2.501
+     }
+    ],
+    "fromWord": 15,
+    "playCueAfterResume": {
+     "kind": "runSimulation",
+     "target": "shot",
+     "action": "play",
+     "until": "landing",
+     "overWords": 12
+    },
+    "playFiredOnFirstWord": true,
+    "noDrawingFiredTwice": true,
+    "wordsBefore": 16,
+    "wordsAfter": 29,
+    "wordsInReply": 44
+   },
+   {
+    "kind": "resume",
+    "frozen": [
+     {
+      "target": "shot",
+      "simulationSeconds": 2.485
+     }
+    ],
+    "fromWord": 15,
+    "playCueAfterResume": {
+     "kind": "runSimulation",
+     "target": "shot",
+     "action": "play",
+     "until": "landing",
+     "overWords": 12
+    },
+    "playFiredOnFirstWord": true,
+    "noDrawingFiredTwice": true,
+    "wordsBefore": 16,
+    "wordsAfter": 29,
+    "wordsInReply": 44
+   }
+  ]
  }
 }
