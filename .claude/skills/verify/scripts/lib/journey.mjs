@@ -12,6 +12,7 @@ import {
   watchContextFailures,
 } from './browser.mjs';
 import { getProductName, JOURNEYS_DIR, TIMEOUTS_MS, VIEWPORTS } from './settings.mjs';
+import { createSignIn } from './sign-in.mjs';
 
 function findJourneyPath(nameOrPath) {
   const givenPath = resolve(nameOrPath);
@@ -74,7 +75,7 @@ async function withDeadline({ task, timeoutMs, description }) {
 async function getJourneyCheck({ journey, page, capture, viewportName }) {
   try {
     await withDeadline({
-      task: journey.drive({ page, capture, viewportName }),
+      task: journey.drive({ page, capture, viewportName, signIn: createSignIn(page) }),
       timeoutMs: journey.deadlineMs,
       description: 'The journey',
     });

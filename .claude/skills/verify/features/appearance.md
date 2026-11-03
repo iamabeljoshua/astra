@@ -9,6 +9,7 @@ A student chooses a light or dark theme with the `Light` and `Dark` buttons in t
 
 ## How to get to it (user POV)
 
+- Sign in first for the sidebar, because the sign-in page has its own `Light` and `Dark` buttons at the top. See [Sign-in](./sign-in.md).
 - On a laptop, use the `Appearance` group at the bottom of the sidebar on any page.
 - On a phone, press `Menu` in the header first.
 
@@ -16,7 +17,7 @@ A student chooses a light or dark theme with the `Light` and `Dark` buttons in t
 
 Preconditions:
 
-- `pnpm db:seed` ran on this lane's database before the journey, because the journey starts on Home.
+- `pnpm db:up` ran in this checkout, and `pnpm db:seed` ran on this lane's database before the journey, because the journey signs in as `maya@astra.test` and starts on Home.
 - `pnpm verify doctor` passes.
 
 - **Choose dark and reload.** Run `pnpm verify drive --journey appearance`. The `journey`, `identity`, `screenshot`, and `main region` checks print `PASS` for `laptop` and `phone`, and the command exits 0.

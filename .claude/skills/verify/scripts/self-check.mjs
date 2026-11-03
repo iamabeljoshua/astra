@@ -245,7 +245,7 @@ const SELF_CHECKS = [
     'start waits until the web app and the API both answer',
     async () => {
       assertPassed(await runCli(['start'], { npm_config_reporter: 'silent', FORCE_COLOR: '1' }));
-      const response = await fetch(`http://localhost:${ports.WEB_PORT}/api/health`);
+      const response = await fetch(`http://127.0.0.1:${ports.WEB_PORT}/api/health`);
       assert.deepEqual(await response.json(), { status: 'ok' });
       const devLog = readFileSync(devLogPath, 'utf8');
       assert.match(devLog, /apps\/web dev/, 'the dev log has output');
