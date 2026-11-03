@@ -43,6 +43,7 @@ async function loadSession() {
 beforeEach(() => {
   localStorage.clear();
   sessionStorage.clear();
+  document.documentElement.style.visibility = '';
 });
 
 afterEach(() => {
@@ -160,6 +161,28 @@ describe('sendEmailLink', () => {
   });
 });
 
+describe('sendEmailLink with a damaged record', () => {
+  it('still sends when the record of the last link is not readable', async () => {
+    stubAuthAnswer(200, {});
+    sessionStorage.setItem('astra-last-link', 'not json');
+    const { sendEmailLink } = await loadSession();
+
+    await expect(sendEmailLink('maya@astra.test')).resolves.toBe('sent');
+  });
+
+});
+
+describe('hasStoredSession', () => {
+  it('finds the session under the key the client writes, and nothing else', async () => {
+    const { hasStoredSession } = await loadSession();
+    localStorage.setItem(CODE_VERIFIER_KEY, 'a-proof');
+    expect(hasStoredSession()).toBe(false);
+
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(STORED_SESSION));
+    expect(hasStoredSession()).toBe(true);
+  });
+});
+
 describe('the stored session', () => {
   it('gives no token when nobody is signed in', async () => {
     const { getAccessToken } = await loadSession();
@@ -248,9 +271,51 @@ describe('signOut', () => {
 
     expect(fetchStub).not.toHaveBeenCalled();
   });
+
+  it('leaves nothing of the student in this browser, and keeps what belongs to the browser', async () => {
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(STORED_SESSION));
+    localStorage.setItem(CODE_VERIFIER_KEY, 'a-proof');
+    localStorage.setItem('astra-session-flow-a1-code-verifier', 'a-proof');
+    localStorage.setItem('astra-session-flows-code-verifier', '["a1"]');
+    sessionStorage.setItem('astra-last-link', JSON.stringify({ email: 'maya@astra.test', sentAt: Date.now() }));
+    localStorage.setItem('theme', 'dark');
+    stubAuthAnswer(204, {});
+    stubLocation();
+    const { signOut } = await loadSession();
+
+    signOut();
+
+    expect(Object.keys(localStorage)).toEqual(['theme']);
+    expect(sessionStorage.getItem('astra-last-link')).toBeNull();
+  });
+
+  it('hides the page at once, so a slow next document cannot show the student to the next person', async () => {
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(STORED_SESSION));
+    stubAuthAnswer(204, {});
+    stubLocation();
+    const { signOut } = await loadSession();
+
+    signOut();
+
+    expect(document.documentElement.style.visibility).toBe('hidden');
+  });
 });
 
 describe('watchSignedInUser', () => {
+  it('reports no one leaving while another tab only changes the session', async () => {
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(STORED_SESSION));
+    const { watchSignedInUser } = await loadSession();
+    const onChange = vi.fn();
+    const stop = watchSignedInUser(onChange);
+    await vi.waitFor(() => expect(onChange).toHaveBeenCalledWith(USER.id));
+    onChange.mockClear();
+
+    window.dispatchEvent(new StorageEvent('storage', { key: SESSION_STORAGE_KEY }));
+
+    expect(onChange).not.toHaveBeenCalled();
+    stop();
+  });
+
   it('reports no user when another tab removes the session', async () => {
     localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(STORED_SESSION));
     const { watchSignedInUser } = await loadSession();
@@ -290,6 +355,19 @@ describe('renewSession', () => {
 
     await expect(renewal).resolves.toBe('unreachable');
     expect(localStorage.getItem(SESSION_STORAGE_KEY)).not.toBeNull();
+  });
+
+  it('says renewed when another tab renews first, and uses the token that tab stored', async () => {
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(STORED_SESSION));
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({ ...STORED_SESSION, access_token: 'from-the-other-tab', refresh_token: 'rotated-by-the-other-tab' }));
+      return new Response(JSON.stringify({ ...STORED_SESSION, access_token: 'from-this-tab', refresh_token: 'rotated-by-this-tab' }), { status: 200, headers: { 'content-type': 'application/json' } });
+    }));
+    const { getAccessToken, renewSession } = await loadSession();
+
+    await expect(renewSession()).resolves.toBe('renewed');
+
+    await expect(getAccessToken()).resolves.toBe('from-the-other-tab');
   });
 
   it('says unreachable and keeps the session when Auth cannot be reached', async () => {

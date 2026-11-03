@@ -48,11 +48,18 @@ function getSignInStatus(userId: string | null) {
   return hasStoredSession() ? 'authUnreachable' : 'signedOut';
 }
 
-// A browser can restore a page from memory on Back, with the last student's data still on it.
+// A browser can restore a page from memory on Back, and it paints that page before any script can run. So the page hides before it is kept.
 function reloadWhenRestoredFromHistory() {
+  const hideBeforeBeingKept = (event: PageTransitionEvent) => {
+    if (event.persisted) document.documentElement.style.visibility = 'hidden';
+  };
   const reloadIfRestored = (event: PageTransitionEvent) => {
     if (event.persisted) window.location.reload();
   };
+  window.addEventListener('pagehide', hideBeforeBeingKept);
   window.addEventListener('pageshow', reloadIfRestored);
-  return () => window.removeEventListener('pageshow', reloadIfRestored);
+  return () => {
+    window.removeEventListener('pagehide', hideBeforeBeingKept);
+    window.removeEventListener('pageshow', reloadIfRestored);
+  };
 }

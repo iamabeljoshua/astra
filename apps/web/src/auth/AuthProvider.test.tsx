@@ -142,4 +142,16 @@ describe('AuthProvider', () => {
     window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
     expect(reload).toHaveBeenCalledTimes(1);
   });
+
+  it('hides a page the browser may keep in memory, so Back cannot show it, and leaves any other page alone', async () => {
+    renderProvider();
+    await screen.findByText('loading null');
+
+    window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: false }));
+    expect(document.documentElement.style.visibility).toBe('');
+
+    window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: true }));
+    expect(document.documentElement.style.visibility).toBe('hidden');
+    document.documentElement.style.visibility = '';
+  });
 });

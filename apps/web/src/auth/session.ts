@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-import { type AuthError, createClient, isAuthRetryableFetchError } from '@supabase/supabase-js';
+import { type AuthError, createClient, isAuthRefreshDiscardedError, isAuthRetryableFetchError } from '@supabase/supabase-js';
 import { fetchForAuth } from './fetchForAuth';
 
 export type EmailLinkResult = 'sent' | 'invalidEmail' | 'tooManyRequests' | 'authFailed' | 'failed';
@@ -33,6 +33,15 @@ function createSupabaseClient() {
 
 const supabase = createSupabaseClient();
 
+// A browser can block storage, and then reading it throws. The client keeps its session in memory there, so treat storage as empty.
+function withStorage<Result>(action: (local: Storage, tab: Storage) => Result, whenBlocked: Result): Result {
+  try {
+    return action(window.localStorage, window.sessionStorage);
+  } catch {
+    return whenBlocked;
+  }
+}
+
 function getReturnAddress() {
   return `${window.location.origin}/`;
 }
@@ -44,7 +53,7 @@ export async function getAccessToken(): Promise<string | null> {
 }
 
 export function hasStoredSession(): boolean {
-  return window.localStorage.getItem(SESSION_STORAGE_KEY) !== null;
+  return withStorage((local) => local.getItem(SESSION_STORAGE_KEY) !== null, false);
 }
 
 export function watchSignedInUser(onChange: (userId: string | null) => void): () => void {
@@ -85,25 +94,27 @@ function toSendFailure(error: AuthError): Exclude<EmailLinkResult, 'sent'> {
 
 // Auth ties a known address's newest link to the newest request, even a refused one, so asking too soon must not reach it.
 function wasLinkJustSent(email: string): boolean {
-  const lastLink = JSON.parse(window.sessionStorage.getItem(LAST_LINK_STORAGE_KEY) ?? 'null') as { email: string; sentAt: number } | null;
-  return lastLink?.email === email.toLowerCase() && Date.now() - lastLink.sentAt < LINK_COOLDOWN_MS;
+  return withStorage((_local, tab) => {
+    const lastLink = JSON.parse(tab.getItem(LAST_LINK_STORAGE_KEY) ?? 'null') as { email: string; sentAt: number } | null;
+    return lastLink?.email === email.toLowerCase() && Date.now() - lastLink.sentAt < LINK_COOLDOWN_MS;
+  }, false);
 }
 
 function rememberLinkSent(email: string) {
-  window.sessionStorage.setItem(LAST_LINK_STORAGE_KEY, JSON.stringify({ email: email.toLowerCase(), sentAt: Date.now() }));
+  withStorage((_local, tab) => tab.setItem(LAST_LINK_STORAGE_KEY, JSON.stringify({ email: email.toLowerCase(), sentAt: Date.now() })), undefined);
 }
 
 export async function sendEmailLink(email: string): Promise<EmailLinkResult> {
   if (!USABLE_EMAIL_ADDRESS.test(email)) return 'invalidEmail';
   if (wasLinkJustSent(email)) return 'tooManyRequests';
-  const earlierLinkProof = window.localStorage.getItem(CODE_VERIFIER_STORAGE_KEY);
+  const earlierLinkProof = withStorage((local) => local.getItem(CODE_VERIFIER_STORAGE_KEY), null);
   const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: getReturnAddress() } });
   if (!error) {
     rememberLinkSent(email);
     return 'sent';
   }
   // The client deletes this browser's proof when a send fails, which would kill a new address's link already in the inbox.
-  if (earlierLinkProof) window.localStorage.setItem(CODE_VERIFIER_STORAGE_KEY, earlierLinkProof);
+  if (earlierLinkProof) withStorage((local) => local.setItem(CODE_VERIFIER_STORAGE_KEY, earlierLinkProof), undefined);
   return toSendFailure(error);
 }
 
@@ -116,26 +127,41 @@ export async function signInWithPassword(email: string, password: string): Promi
   return !error;
 }
 
+// Hides the page first, because the next document can take seconds to arrive, and the next person must not see this one.
 export function restartAppAtHome(): void {
+  document.documentElement.style.visibility = 'hidden';
+  withStorage((_local, tab) => tab.removeItem(LAST_LINK_STORAGE_KEY), undefined);
   window.location.replace('/');
 }
 
+// A discarded refresh means another tab renewed first, so the session in storage is already the new one.
 export async function renewSession(): Promise<SessionRenewal> {
   const { error } = await supabase.auth.refreshSession();
-  if (!error) return 'renewed';
+  if (!error || isAuthRefreshDiscardedError(error)) return 'renewed';
   return isAuthRetryableFetchError(error) ? 'unreachable' : 'refused';
 }
 
+function removeStoredSignIn() {
+  withStorage((local) => {
+    for (const key of Object.keys(local)) {
+      if (key.startsWith(SESSION_STORAGE_KEY)) local.removeItem(key);
+    }
+  }, undefined);
+}
+
 export function forgetSession(): void {
-  window.localStorage.removeItem(SESSION_STORAGE_KEY);
+  removeStoredSignIn();
   restartAppAtHome();
+}
+
+// The client's own read can wait on a refresh, so this reads storage to keep sign-out from waiting on Auth.
+function readStoredAccessToken(): string | null {
+  return withStorage((local) => (JSON.parse(local.getItem(SESSION_STORAGE_KEY) ?? 'null') as { access_token: string } | null)?.access_token ?? null, null);
 }
 
 // Clears the browser first, so a hung Auth or a closed tab cannot leave the next person signed in.
 export function signOut(): void {
-  const storedSession = window.localStorage.getItem(SESSION_STORAGE_KEY);
+  const accessToken = readStoredAccessToken();
   forgetSession();
-  if (!storedSession) return;
-  const { access_token: accessToken } = JSON.parse(storedSession) as { access_token: string };
-  void supabase.auth.admin.signOut(accessToken, 'global');
+  if (accessToken) void supabase.auth.admin.signOut(accessToken, 'global');
 }
