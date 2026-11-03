@@ -4,11 +4,12 @@ Astra is a voice-first personal AI tutor. A student asks a question and has a sp
 
 Astra is a codename and is not public yet. The name that users see is in `apps/web/src/strings.ts`.
 
-The repo is a pnpm workspace with three packages:
+The repo is a pnpm workspace with four packages:
 
 - `apps/web` is the web app, on React and Vite.
 - `apps/api` is the API, on NestJS.
 - `packages/contracts` holds shared types. `pnpm api:types` generates its `api.generated.ts` from the API.
+- `packages/theme` holds the colors, fonts, and sizes from `docs/DESIGN.md`.
 
 ## Install
 

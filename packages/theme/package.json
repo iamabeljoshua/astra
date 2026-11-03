@@ -1,0 +1,19 @@
+{
+  "name": "@astra/theme",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./theme.css": "./src/theme.css"
+  },
+  "scripts": {
+    "typecheck": "tsc",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "color-name": "^2.1.1",
+    "eslint": "^10.14.0",
+    "typescript": "catalog:",
+    "vitest": "^5.1.0"
+  }
+}

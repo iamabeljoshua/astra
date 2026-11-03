@@ -10,6 +10,7 @@
     "test": "pnpm -r test"
   },
   "devDependencies": {
+    "@eslint/css": "^2.0.1",
     "@eslint/js": "^10.0.1",
     "eslint": "^10.14.0",
     "eslint-plugin-react-hooks": "^7.1.1",
