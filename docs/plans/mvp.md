@@ -53,7 +53,7 @@ Each PR has one GitHub issue with the same acceptance criteria, and this plan ho
   - [ ] M1.4 after M1.1 and M1.5.
   - [ ] M1.6 after M1.3 and M1.5.
   - [ ] M2.1 after M1.3 and M1.4 and M1.6.
-  - [ ] M2.2 after M1.4.
+  - [ ] M2.2 after M1.4 and M2.1.
   - [ ] M2.3 after M1.3 and M1.4 and M1.6.
   - [ ] M2.4 after M2.1 and M2.3.
   - [ ] M2.5 after M2.1 and M2.3.
@@ -277,7 +277,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 - [ ] Add a global `ValidationPipe` with `whitelist`, `forbidNonWhitelisted`, and `transform`.
 - [ ] Use DTO classes for query strings and route parameters as well as bodies, so their comments reach Swagger without relying on `@param` tags.
 - [ ] Register the plugin's AST transformer with `ts-jest`, because Jest compiles in memory and skips the Nest CLI plugin.
-- [ ] Serve Swagger UI at `/docs` outside production.
+- [ ] Serve Swagger UI at `/docs` only in development.
 - [ ] Add `pnpm api:types`, which generates `packages/contracts/src/api.generated.ts` from the OpenAPI document with `openapi-typescript`, and add a CI check for drift.
 - [ ] Keep hand-written shapes that are not HTTP, such as the scene language, in `packages/contracts`.
 
@@ -329,7 +329,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 **Build.**
 
-- [ ] Run Postgres through the local Supabase stack, and connect TypeORM to it directly with `DATABASE_URL`, so a hosted Supabase project later changes only environment values. TypeORM owns the migrations, `synchronize` stays off, and nothing writes to the `auth` schema.
+- [ ] Run Postgres through the local Supabase stack, and connect TypeORM to it directly with `DATABASE_URL`, with app tables in a private `app` schema that Supabase's anon key cannot reach. A hosted project later needs the environment values, TLS settings, and dashboard steps in the README. TypeORM owns the migrations, `synchronize` stays off, and nothing writes to the `auth` schema.
 - [ ] Name the data shapes first as entities and DTOs in `apps/api`, with `language` stored on each session so languages can be added later (PRD Q12).
 - [ ] Validate every request at the API boundary with the DTOs and global validation from M1.5.
 - [ ] Add `pnpm db:up`, `pnpm db:migrate`, and `pnpm db:seed`.
@@ -481,7 +481,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 ## Add the library of pre-made picks (M2.2)
 
-**Depends on.** M1.4.
+**Depends on.** M1.4, M2.1.
 
 **Files.**
 
