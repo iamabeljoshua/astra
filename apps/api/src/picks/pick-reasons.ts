@@ -31,8 +31,10 @@ const REASONS_BY_LEVEL: Record<StudentLevel, LevelReasons> = {
 
 export const STARTER_REASON = 'A good place to start';
 
+const WORDS_THAT_TAKE_THE = new Set(['NBA', 'WNBA', 'Lakers']);
+
 export function getInterestReason(interestWord: string): string {
-  return `Because you're into ${interestWord}`;
+  return `Because you're into ${WORDS_THAT_TAKE_THE.has(interestWord) ? `the ${interestWord}` : interestWord}`;
 }
 
 export function getGoalReason(goal: StudentGoal, level: StudentLevel): string {

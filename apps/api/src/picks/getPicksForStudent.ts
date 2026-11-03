@@ -1,6 +1,7 @@
 import type { PickCardResponseDto } from '../home/home-screen.dto';
 import { STUDENT_LEVELS } from '../students/student-profile-options';
 import type { StudentProfileResponseDto } from '../students/student-profile.dto';
+import { readsAsLiking, splitIntoPhrases, toWordSearchText } from './interest-phrases';
 import { getGoalReason, getInterestReason, getLevelReason, STARTER_REASON } from './pick-reasons';
 import type { Library, LibraryInterest, LibraryTopic } from './library';
 
@@ -20,19 +21,15 @@ interface InterestMatch {
   word: string;
 }
 
-function toWordSearchText(text: string): string {
-  return ` ${text.toLowerCase().replaceAll(/[^\p{L}\p{N}]+/gu, ' ').trim()} `;
-}
-
-function findMatchedWord(studentInterest: string, { words }: LibraryInterest): string | undefined {
-  const searchText = toWordSearchText(studentInterest);
-  return words.find((word) => searchText.includes(toWordSearchText(word)));
+function findMatchedWord(phrase: string, { words }: LibraryInterest): string | undefined {
+  const searchText = toWordSearchText(phrase);
+  return words.find((word) => searchText.includes(toWordSearchText(word)) && readsAsLiking(phrase, word));
 }
 
 function getInterestMatches(studentInterests: string[], libraryInterests: LibraryInterest[]): InterestMatch[] {
-  return studentInterests.flatMap((studentInterest) =>
+  return studentInterests.flatMap(splitIntoPhrases).flatMap((phrase) =>
     libraryInterests.flatMap((interest) => {
-      const word = findMatchedWord(studentInterest, interest);
+      const word = findMatchedWord(phrase, interest);
       return word ? [{ name: interest.name, word }] : [];
     }),
   );

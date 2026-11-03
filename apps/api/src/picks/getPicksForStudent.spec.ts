@@ -77,11 +77,42 @@ describe('getPicksForStudent', () => {
     it.each([
       ['Basketball', 'basketball'],
       ['pick-up BASKETBALL!', 'basketball'],
-      ['nba', 'NBA'],
-    ])('reads %s as the library word %s', (interest, word) => {
+      ['I love basketball', 'basketball'],
+      ['nba', 'the NBA'],
+      ['the NBA', 'the NBA'],
+    ])('reads %s as into %s', (interest, wordInReason) => {
       const library = makeLibrary([makeTopic('basketball', { interests: ['basketball'] })]);
 
-      expect(getReasonOf('basketball', { ...FIT, interests: [interest] }, library)).toBe(`Because you're into ${word}`);
+      expect(getReasonOf('basketball', { ...FIT, interests: [interest] }, library)).toBe(`Because you're into ${wordInReason}`);
+    });
+
+    it.each([
+      'I hate basketball',
+      'hate basketball',
+      "I don't like basketball",
+      'not basketball',
+      'no basketball',
+      'basketball sucks',
+      'basketball is boring',
+      'anti-basketball',
+      'my brother plays basketball',
+    ])('claims nothing and ranks nothing from %s', (interest) => {
+      const library = makeLibrary([makeTopic('plain'), makeTopic('basketball', { interests: ['basketball'] })]);
+      const student = { ...FIT, interests: [interest] };
+
+      expect(getPickIds(student, library)).toEqual(['plain', 'basketball']);
+      expect(getReasonOf('basketball', student, library)).toBe('Set at high school level');
+    });
+
+    it('reads each part of a typed list on its own', () => {
+      const library = makeLibrary([
+        makeTopic('basketball', { interests: ['basketball'] }),
+        makeTopic('football', { interests: ['football'] }),
+      ]);
+      const student = { ...FIT, interests: ['I hate basketball, Arsenal'] };
+
+      expect(getReasonOf('football', student, library)).toBe("Because you're into Arsenal");
+      expect(getReasonOf('basketball', student, library)).toBe('Set at high school level');
     });
 
     it('names a specific team when the student named one', () => {
