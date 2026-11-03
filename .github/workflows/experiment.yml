@@ -1,0 +1,84 @@
+name: Experiment
+on: pull_request
+permissions:
+  contents: read
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      IMAGE: public.ecr.aws/supabase/postgres:17.6.1.075
+      CACHE_KEY: experiment-postgres-image-1
+    steps:
+      - name: Report the runner
+        run: |
+          nproc; free -h; df -h / /mnt || true
+          docker info --format '{{.ServerVersion}} driver={{.Driver}} {{.DriverStatus}}'
+          command -v unpigz || echo no-unpigz
+          cat /etc/docker/daemon.json || true
+      - name: A1 cold pull
+        run: docker pull -q "$IMAGE"
+      - name: Save the image as a tar
+        run: docker save -o /tmp/image.tar "$IMAGE" && ls -la /tmp/image.tar
+      - name: Write to the Actions cache
+        uses: actions/cache/save@v4
+        with:
+          path: /tmp/image.tar
+          key: ${{ env.CACHE_KEY }}
+      - name: Remove the image and the tar
+        run: rm /tmp/image.tar && docker rmi -f "$IMAGE" && docker system df
+      - name: B1 restore from the Actions cache
+        uses: actions/cache/restore@v4
+        with:
+          path: /tmp/image.tar
+          key: ${{ env.CACHE_KEY }}
+      - name: B2 docker load
+        run: ls -la /tmp/image.tar && docker load -q -i /tmp/image.tar
+      - name: Confirm the loaded image runs
+        run: docker run --rm "$IMAGE" postgres --version
+      - name: Remove the image
+        run: rm /tmp/image.tar && docker rmi -f "$IMAGE"
+      - name: Move Docker to /mnt
+        continue-on-error: true
+        run: |
+          sudo systemctl stop docker docker.socket
+          jq '. + {"data-root":"/mnt/docker"}' /etc/docker/daemon.json | sudo tee /tmp/daemon.json
+          sudo cp /tmp/daemon.json /etc/docker/daemon.json
+          sudo mkdir -p /mnt/docker
+          sudo systemctl start docker
+      - name: D cold pull on /mnt
+        continue-on-error: true
+        run: docker pull -q "$IMAGE"
+      - name: Move Docker to tmpfs
+        continue-on-error: true
+        run: |
+          sudo systemctl stop docker docker.socket
+          sudo mkdir -p /dockertmp
+          sudo mount -t tmpfs -o size=6g tmpfs /dockertmp
+          jq '. + {"data-root":"/dockertmp"}' /etc/docker/daemon.json | sudo tee /tmp/daemon.json
+          sudo cp /tmp/daemon.json /etc/docker/daemon.json
+          sudo systemctl start docker
+      - name: E cold pull on tmpfs
+        continue-on-error: true
+        run: docker pull -q "$IMAGE" && free -h
+      - name: Move Docker back to the root disk
+        continue-on-error: true
+        run: |
+          sudo systemctl stop docker docker.socket
+          sudo umount /dockertmp
+          sudo rm -rf /mnt/docker
+          jq 'del(."data-root")' /etc/docker/daemon.json | sudo tee /tmp/daemon.json
+          sudo cp /tmp/daemon.json /etc/docker/daemon.json
+          sudo systemctl start docker
+          docker images
+      - name: Install pigz
+        continue-on-error: true
+        run: sudo apt-get install -y -q pigz
+      - name: F cold pull with pigz
+        continue-on-error: true
+        run: docker pull -q "$IMAGE"
+      - name: Remove the image and pigz
+        continue-on-error: true
+        run: docker rmi -f "$IMAGE" && sudo apt-get remove -y -q pigz
+      - name: A2 cold pull again
+        run: docker pull -q "$IMAGE"
