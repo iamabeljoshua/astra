@@ -52,7 +52,7 @@ async function driveViewport({ browser, baseURL, journey, viewportName, evidence
     saveScreenshot({ page, evidenceDir, fileStem: `${fileStem}-${label}` });
 
   const journeyCheck = await getJourneyCheck(() =>
-    journey.drive({ page, capture, viewportName, productName }),
+    journey.drive({ page, capture, viewportName }),
   );
   const identityCheck = await getIdentityCheck(page, productName);
   const checks = [journeyCheck, identityCheck, ...pageFailures];

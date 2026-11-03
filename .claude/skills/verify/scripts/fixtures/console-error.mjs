@@ -1,5 +1,4 @@
-export default async function consoleError({ page, productName }) {
+export default async function consoleError({ page }) {
   await page.goto('/');
-  await page.getByRole('heading', { name: productName }).waitFor();
   await page.evaluate(() => console.error('deliberate console error'));
 }

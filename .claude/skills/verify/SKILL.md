@@ -56,7 +56,7 @@ pnpm verify drive --journey home --viewports laptop,phone --out <dir>
 All three options are optional, and these are the defaults for the first two. `drive` needs a running app. A journey is a name in `journeys/` or a path to any `.mjs` file. The file needs no imports:
 
 ```js
-export default async function askQuestion({ page, capture, viewportName, productName }) {
+export default async function askQuestion({ page, capture, viewportName }) {
   await page.goto('/');
   await page.getByRole('button', { name: 'Ask' }).click();
   await capture('after-ask');
