@@ -22,6 +22,10 @@ describe('getSupabaseUrl', () => {
     expect(() => getSupabaseUrl({ SUPABASE_URL: 'http://abc.supabase.co' })).toThrow(/https/);
   });
 
+  it.each(['ftp://127.0.0.1', 'file:///etc/hosts', 'javascript:alert(1)', 'ws://127.0.0.1:54421'])('refuses %s, which is not http or https', (value) => {
+    expect(() => getSupabaseUrl({ SUPABASE_URL: value })).toThrow(/https/);
+  });
+
   it('refuses text that is not a URL', () => {
     expect(() => getSupabaseUrl({ SUPABASE_URL: 'abc.supabase.co' })).toThrow(/not a valid URL/);
   });

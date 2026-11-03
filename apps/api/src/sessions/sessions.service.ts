@@ -25,7 +25,7 @@ export class SessionsService {
   ) {}
 
   async createSession(studentId: string, body: CreateSessionBodyDto): Promise<SessionResponseDto> {
-    const { id } = await this.sessions.save(this.sessions.create({ studentId, ...body }));
+    const { id } = await this.sessions.save(this.sessions.create({ ...body, studentId }));
     return toSessionResponse(await this.sessions.findOneByOrFail({ id }));
   }
 

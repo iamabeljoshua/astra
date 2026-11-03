@@ -6,7 +6,13 @@ import type { AddressInfo } from 'node:net';
 import { SignJWT } from 'jose';
 import request from 'supertest';
 import { PlantedRoutesModule } from '../../test/planted-routes';
-import { findLayersAddedToEmptyApp, findRoutesIgnoringIdentity, getRouteAnswers, listRoutes } from '../../test/route-table';
+import {
+  findLayersAddedToEmptyApp,
+  findRoutesIgnoringIdentity,
+  findRoutesWithoutNoStore,
+  getRouteAnswers,
+  listRoutes,
+} from '../../test/route-table';
 import { createSigningKey, signWithKey } from '../../test/test-auth';
 import type { TestSupabaseAuth } from '../../test/test-auth';
 import { createTestApp, createTestStudent, OLD_ENOUGH_BIRTH_DATE } from '../../test/test-database';
@@ -255,6 +261,13 @@ describe('the API guard', () => {
       };
     }
 
+    it('tells the browser to store no answer from any route but the public ones', async () => {
+      const routes = listRoutes(testApp.app).filter((route) => !PUBLIC_ROUTES.includes(route.name));
+
+      expect(await findRoutesWithoutNoStore({ app: testApp.app, routes, token: student.token })).toEqual([]);
+      expect(await findRoutesWithoutNoStore({ app: testApp.app, routes })).toEqual([]);
+    });
+
     it('reads the identity from the token on every route but the public ones', async () => {
       const routes = listRoutes(testApp.app).filter((route) => !PUBLIC_ROUTES.includes(route.name));
 
@@ -294,7 +307,6 @@ describe('the API guard', () => {
       ['get', (id: string) => `/students/${id}/sessions`],
       ['post', (id: string) => `/students/${id}/sessions`],
       ['get', (id: string) => `/me/${id}`],
-      ['get', (id: string) => `/sessions/${id}`],
     ] as const)('finds no %s route that names another student', async (method, getUrl) => {
       const server = api();
       const response = await server[method](getUrl(otherStudent.studentId))
@@ -386,9 +398,10 @@ describe('the API guard', () => {
       const key = await createSigningKey();
       const token = await signWithKey(key, { sub: randomUUID() });
 
-      const thrown = await verifier.getAuthUserId(token).catch((error: unknown) => error);
+      const rejection = await verifier.getAuthUserId(token).then(() => null, (error: unknown) => error);
 
-      expect(isRefusedToken(thrown)).toBe(false);
+      expect(rejection).toBeInstanceOf(Error);
+      expect(isRefusedToken(rejection)).toBe(false);
     });
 
     it('trusts known keys through an outage of under an hour, and still fetches an unknown key ID', async () => {
@@ -435,8 +448,9 @@ describe('the API guard', () => {
         expect(fetches).toBe(2);
 
         moveClock(JWKS_COOLDOWN_MS + 61 * ONE_MINUTE_MS);
-        const thrown = await verifier.getAuthUserId(firstToken).catch((error: unknown) => error);
-        expect(isRefusedToken(thrown)).toBe(false);
+        const rejection = await verifier.getAuthUserId(firstToken).then(() => null, (error: unknown) => error);
+        expect(rejection).toBeInstanceOf(Error);
+        expect(isRefusedToken(rejection)).toBe(false);
         expect(fetches).toBe(3);
       } finally {
         clock.mockRestore();

@@ -62,10 +62,15 @@ export class StudentsService {
     });
   }
 
-  // A closed account has no student today, and this keeps it shut if someone closes one that does.
+  // A closed account has no student today, and the join keeps it shut if someone closes one that does.
   async findStudentId(authUserId: string): Promise<string | null> {
-    if (await this.dataSource.manager.existsBy(ClosedAccountEntity, { authUserId })) return null;
-    const student = await this.students.findOne({ where: { authUserId }, select: { id: true } });
+    const student = await this.students
+      .createQueryBuilder('student')
+      .select('student.id')
+      .leftJoin(ClosedAccountEntity, 'closed', 'closed.authUserId = student.authUserId')
+      .where('student.authUserId = :authUserId', { authUserId })
+      .andWhere('closed.authUserId IS NULL')
+      .getOne();
     return student?.id ?? null;
   }
 
@@ -78,7 +83,7 @@ export class StudentsService {
     studentId: string,
     body: SaveStudentProfileBodyDto,
   ): Promise<StudentProfileResponseDto> {
-    await this.profiles.upsert({ studentId, ...body }, ['studentId']);
+    await this.profiles.upsert({ ...body, studentId }, ['studentId']);
     return toProfileResponse(await this.profiles.findOneByOrFail({ studentId }));
   }
 }

@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { request as sendHttpRequest } from 'node:http';
+import type { IncomingMessage } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -57,13 +58,13 @@ export function listRoutes(app: INestApplication): TableRoute[] {
   );
 }
 
-function callRoute(app: INestApplication, route: TableRoute, token?: string): Promise<number> {
+function callRoute(app: INestApplication, route: TableRoute, token?: string): Promise<IncomingMessage> {
   const { port } = (app.getHttpServer() as { address: () => AddressInfo }).address();
   const headers = token ? { authorization: `Bearer ${token}` } : {};
   return new Promise((resolve, reject) => {
     sendHttpRequest({ host: '127.0.0.1', port, method: route.verb.toUpperCase(), path: route.url, headers }, (response) => {
       response.resume();
-      response.on('end', () => resolve(response.statusCode ?? 0));
+      response.on('end', () => resolve(response));
     })
       .on('error', reject)
       .end();
@@ -77,7 +78,12 @@ export interface RouteWalk {
 }
 
 export async function getRouteAnswers({ app, routes, token }: RouteWalk): Promise<string[]> {
-  return Promise.all(routes.map(async (route) => `${route.name} -> ${await callRoute(app, route, token)}`));
+  return Promise.all(routes.map(async (route) => `${route.name} -> ${(await callRoute(app, route, token)).statusCode}`));
+}
+
+export async function findRoutesWithoutNoStore({ app, routes, token }: RouteWalk): Promise<string[]> {
+  const answers = await Promise.all(routes.map(async (route) => ({ route, response: await callRoute(app, route, token) })));
+  return answers.filter(({ response }) => response.headers['cache-control'] !== 'no-store').map(({ route }) => route.name);
 }
 
 function watchIdentityReads(signedInRequest: SignedInRequest, onRead: () => void) {
@@ -107,8 +113,8 @@ export async function findRoutesIgnoringIdentity({ app, routes, token }: RouteWa
   try {
     for (const route of routes) {
       currentRoute = route.name;
-      const status = await callRoute(app, route, token);
-      if (!REFUSED_STATUSES.includes(status) && !routesThatRead.has(route.name)) ignoring.push(route.name);
+      const { statusCode } = await callRoute(app, route, token);
+      if (!REFUSED_STATUSES.includes(statusCode ?? 0) && !routesThatRead.has(route.name)) ignoring.push(route.name);
     }
     return ignoring;
   } finally {

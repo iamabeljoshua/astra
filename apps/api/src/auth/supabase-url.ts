@@ -6,8 +6,9 @@ export function getSupabaseUrl(env: NodeJS.ProcessEnv): string {
   if (!supabaseUrl) throw new Error('SUPABASE_URL is not set. The API needs it to check sign-in tokens.');
   if (!URL.canParse(supabaseUrl)) throw new Error('SUPABASE_URL is not a valid URL.');
   const { origin, protocol, hostname } = new URL(supabaseUrl);
-  if (protocol !== 'https:' && !LOCAL_HOSTS.includes(hostname)) {
-    throw new Error('SUPABASE_URL must use https on a host that is not local.');
+  const isPlainHttpOnLocalHost = protocol === 'http:' && LOCAL_HOSTS.includes(hostname);
+  if (protocol !== 'https:' && !isPlainHttpOnLocalHost) {
+    throw new Error('SUPABASE_URL must use https, or http on a local host.');
   }
   return origin;
 }

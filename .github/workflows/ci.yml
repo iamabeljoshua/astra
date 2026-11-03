@@ -60,4 +60,9 @@ jobs:
       - name: Build a fresh database from the migrations and seed it
         run: pnpm db:migrate && pnpm db:seed
       - run: pnpm test
+      - name: Build the web app, which fails if a development account reaches the output
+        env:
+          VITE_SUPABASE_URL: https://example.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_example
+        run: pnpm --filter @astra/web build
       - run: pnpm verify start && pnpm verify stop

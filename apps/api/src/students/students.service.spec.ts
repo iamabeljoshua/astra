@@ -95,9 +95,29 @@ describe('StudentsService', () => {
     await studentsService.answerBirthDate(authUserId, YOUNG_BIRTH_DATE);
 
     const dataSource = testApp.app.get(DataSource);
-    const [closedAccount] = await dataSource.getRepository(ClosedAccountEntity).findBy({ authUserId });
-    expect(Object.keys(closedAccount ?? {}).sort()).toEqual(['authUserId', 'closedAt']);
+    const [storedRow] = await dataSource.query('SELECT * FROM "app"."closed_accounts" WHERE "auth_user_id" = $1', [authUserId]);
+    expect(Object.keys(storedRow).sort()).toEqual(['auth_user_id', 'closed_at']);
     expect(await dataSource.getRepository(StudentEntity).countBy({ authUserId })).toBe(0);
+  });
+
+  it('saves a profile for the student from the token, whatever the body says', async () => {
+    const { authUserId, id } = await createStudent();
+    const other = await createStudent();
+
+    await studentsService.saveProfile(id, { ...PROFILE, studentId: other.id } as SaveStudentProfileBodyDto);
+
+    expect(await readProfile(authUserId)).toEqual(PROFILE);
+    expect(await readProfile(other.authUserId)).toBeNull();
+  });
+
+  it('finds a student with one query, because every student route runs this first', async () => {
+    const { authUserId } = await createStudent();
+    const logQuery = jest.spyOn(testApp.app.get(DataSource).logger, 'logQuery');
+
+    await studentsService.findStudentId(authUserId);
+
+    expect(logQuery).toHaveBeenCalledTimes(1);
+    logQuery.mockRestore();
   });
 
   it('finds no student once the account of an active student is closed', async () => {

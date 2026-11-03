@@ -2,6 +2,9 @@
   "name": "astra",
   "private": true,
   "packageManager": "pnpm@10.32.1",
+  "engines": {
+    "node": ">=22.12"
+  },
   "scripts": {
     "dev": "pnpm -r --parallel dev",
     "api:types": "pnpm --filter @astra/api api:types",

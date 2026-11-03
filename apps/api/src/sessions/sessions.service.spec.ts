@@ -50,6 +50,16 @@ describe('SessionsService', () => {
     expect(created.startedAt).toBeInstanceOf(Date);
   });
 
+  it('gives a new session to the student from the token, whatever the body says', async () => {
+    const studentId = await createStudentId();
+    const otherStudentId = await createStudentId();
+
+    await sessionsService.createSession(studentId, { ...SESSION, studentId: otherStudentId } as CreateSessionBodyDto);
+
+    expect(await sessionsService.listSessions(studentId, 10)).toHaveLength(1);
+    expect(await sessionsService.listSessions(otherStudentId, 10)).toEqual([]);
+  });
+
   it('lists sessions newest first, up to the limit', async () => {
     const studentId = await createStudentId();
     const oldest = await sessionsService.createSession(studentId, { ...SESSION, title: 'oldest' });

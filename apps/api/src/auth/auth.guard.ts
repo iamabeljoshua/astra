@@ -7,6 +7,12 @@ import type { RouteAccess, SignedInRequest } from './route-access';
 import { describeRefusal, isRefusedToken, TokenVerifier } from './token-verifier';
 
 const BEARER_TOKEN = /^Bearer (\S+)$/i;
+// A student's answers must not stay in the disk cache of a shared browser after sign-out.
+const NO_STORE = 'no-store';
+
+interface StudentResponse {
+  setHeader: (name: string, value: string) => void;
+}
 
 @Injectable()
 export class AuthGuard implements CanActivate {
@@ -22,7 +28,9 @@ export class AuthGuard implements CanActivate {
     const routeAccess = this.readRouteAccess(context);
     if (routeAccess === 'public') return true;
 
-    const request = context.switchToHttp().getRequest<SignedInRequest>();
+    const http = context.switchToHttp();
+    http.getResponse<StudentResponse>().setHeader('Cache-Control', NO_STORE);
+    const request = http.getRequest<SignedInRequest>();
     request.authUserId = await this.readAuthUserId(request);
     if (routeAccess === 'signedIn') return true;
 

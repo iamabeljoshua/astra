@@ -67,7 +67,7 @@ if (error) console.error(`Cannot run the Supabase CLI: ${error.message}. Run pnp
 process.exitCode = status ?? 1;
 if (status === 0) {
   await prepareForSignIn().catch((failure) => {
-    console.error(`Could not prepare sign-in: ${failure.message} An interrupted start can leave Postgres running alone. Run pnpm exec supabase stop, then pnpm db:up.`);
+    console.error(`Could not prepare sign-in: ${failure.message} An interrupted start can leave Postgres running alone. If nothing else is using the stack, run pnpm exec supabase stop, then pnpm db:up. The stop affects every worktree.`);
     process.exitCode = 1;
   });
 }
