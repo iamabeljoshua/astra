@@ -4,6 +4,7 @@ export class CreateStudentsAndSessions1793666578779 implements MigrationInterfac
   name = 'CreateStudentsAndSessions1793666578779';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`CREATE SCHEMA IF NOT EXISTS "app"`);
     await queryRunner.query(`CREATE TABLE "app"."students" ("id" uuid NOT NULL DEFAULT gen_random_uuid(), "name" text NOT NULL, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_7d7f07271ad4ce999880713f05e" PRIMARY KEY ("id"))`);
     await queryRunner.query(`CREATE TYPE "app"."session_status" AS ENUM('in_progress', 'finished')`);
     await queryRunner.query(`CREATE TABLE "app"."sessions" ("id" uuid NOT NULL DEFAULT gen_random_uuid(), "student_id" uuid NOT NULL, "title" text NOT NULL, "subject" text NOT NULL, "language" text NOT NULL, "status" "app"."session_status" NOT NULL DEFAULT 'in_progress', "started_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "duration_seconds" integer NOT NULL DEFAULT '0', "detail" text, "artwork" text, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_3238ef96f18b355b671619111bc" PRIMARY KEY ("id"))`);

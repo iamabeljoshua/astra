@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-import { withEnvironment } from '../../test/test-database';
+import { withEnvironment } from '../../../test/test-database';
 import { DatabaseModule } from './database.module';
 import { openDataSource } from './open-data-source';
 

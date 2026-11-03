@@ -1,30 +1,31 @@
+import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { DataSource } from 'typeorm';
-import { createTestDatabase } from '../../test/test-database';
-import type { TestDatabase } from '../../test/test-database';
-import { SessionEntity } from '../sessions/session.entity';
-import { ClosedAccountEntity } from '../students/closed-account.entity';
-import { StudentProfileEntity } from '../students/student-profile.entity';
-import { StudentEntity } from '../students/student.entity';
+import { DataSource } from 'typeorm';
+import type { DataSourceOptions } from 'typeorm';
+import { createTestDatabase } from '../../../test/test-database';
+import type { TestDatabase } from '../../../test/test-database';
+import { SessionEntity } from './entities/session.entity';
+import { ClosedAccountEntity } from './entities/closed-account.entity';
+import { StudentProfileEntity } from './entities/student-profile.entity';
+import { StudentEntity } from './entities/student.entity';
+import { createDataSourceOptions } from './data-source-options';
 import { getDatabaseName, withDatabaseName } from './database-url';
 import { EXAMPLE_AUTH_USER_ID, EXAMPLE_STUDENT_ID, NEW_STUDENT_AUTH_USER_ID, replaceExampleData } from './example-data';
 import { createDatabaseIfMissing, dropDatabase } from './manage-databases';
-import { openMigratedDataSource } from './open-data-source';
+import { CreateStudentsAndSessions1793666578779 } from './migrations/1793666578779-create-students-and-sessions';
+import { AddSignInAndAgeGate1793686438335 } from './migrations/1793686438335-add-sign-in-and-age-gate';
+import { openDataSourceWithMigrationLog, openMigratedDataSource } from './open-data-source';
 
-const APP_SCHEMA_ROLES_QUERY = `
-  SELECT role.rolname AS role, has_schema_privilege(role.rolname, 'app', 'USAGE') AS has_usage
-  FROM pg_roles AS role
-  WHERE role.rolname IN ('anon', 'authenticated')
-  ORDER BY role.rolname`;
-
-// Views and foreign tables count too, because the Data API serves those as well.
+// Views and foreign tables count too, because the Data API serves those as well and row security cannot close them.
 const USER_RELATIONS_QUERY = `
-  SELECT namespace.nspname AS schema, relation.relname AS name
+  SELECT namespace.nspname AS schema, relation.relname AS name, relation.relrowsecurity AS has_row_security
   FROM pg_class AS relation
   JOIN pg_namespace AS namespace ON namespace.oid = relation.relnamespace
   WHERE relation.relkind IN ('r', 'p', 'v', 'm', 'f')
     AND namespace.nspname NOT IN ('pg_catalog', 'information_schema')`;
+
+const MIGRATIONS_BEFORE_THE_MOVE = [CreateStudentsAndSessions1793666578779, AddSignInAndAgeGate1793686438335];
 
 describe('a database built from migrations', () => {
   let testDatabase: TestDatabase;
@@ -51,20 +52,20 @@ describe('a database built from migrations', () => {
     }
   });
 
-  it('keeps every table in the app schema, the migrations table included', async () => {
+  it('keeps every table in public, the migrations table included', async () => {
     const relations: { schema: string; name: string }[] = await dataSource.query(USER_RELATIONS_QUERY);
 
-    expect(relations.filter((relation) => relation.schema !== 'app')).toEqual([]);
+    expect(relations.filter((relation) => relation.schema !== 'public')).toEqual([]);
     expect(relations.map((relation) => relation.name)).toEqual(
       expect.arrayContaining(['migrations', 'students', 'student_profiles', 'sessions', 'closed_accounts']),
     );
   });
 
-  it('gives anon and authenticated no way into the app schema', async () => {
-    expect(await dataSource.query(APP_SCHEMA_ROLES_QUERY)).toEqual([
-      { role: 'anon', has_usage: false },
-      { role: 'authenticated', has_usage: false },
-    ]);
+  it('turns row security on for every table and adds no policy', async () => {
+    const relations: { name: string; has_row_security: boolean }[] = await dataSource.query(USER_RELATIONS_QUERY);
+
+    expect(relations.filter((relation) => !relation.has_row_security)).toEqual([]);
+    expect(await dataSource.query('SELECT policyname FROM pg_policies')).toEqual([]);
   });
 
   it('stops the API on a database that has migrations to run', async () => {
@@ -78,6 +79,33 @@ describe('a database built from migrations', () => {
       await expect(openMigratedDataSource(unmigratedUrl)).rejects.toThrow(/pnpm db:migrate/);
     } finally {
       await dropDatabase(unmigratedUrl);
+    }
+  });
+
+  it('moves a database from before the move to public, and keeps its rows and its log', async () => {
+    const oldUrl = withDatabaseName(testDatabase.databaseUrl, `${getDatabaseName(testDatabase.databaseUrl)}_old`);
+    const authUserId = randomUUID();
+    await createDatabaseIfMissing(oldUrl);
+
+    try {
+      const oldDataSource = await new DataSource({
+        ...createDataSourceOptions(oldUrl),
+        migrations: MIGRATIONS_BEFORE_THE_MOVE,
+      } as DataSourceOptions).initialize();
+      await oldDataSource.runMigrations();
+      await oldDataSource.query('INSERT INTO "app"."closed_accounts" ("auth_user_id") VALUES ($1)', [authUserId]);
+      await oldDataSource.query('ALTER TABLE "public"."migrations" SET SCHEMA "app"');
+      await oldDataSource.destroy();
+
+      const movedDataSource = await openDataSourceWithMigrationLog(oldUrl);
+      await movedDataSource.runMigrations();
+
+      expect(await movedDataSource.query('SELECT "auth_user_id" AS id FROM "public"."closed_accounts"')).toEqual([{ id: authUserId }]);
+      const relations: { schema: string; has_row_security: boolean }[] = await movedDataSource.query(USER_RELATIONS_QUERY);
+      expect(relations.filter((relation) => relation.schema !== 'public' || !relation.has_row_security)).toEqual([]);
+      await movedDataSource.destroy();
+    } finally {
+      await dropDatabase(oldUrl);
     }
   });
 
@@ -108,7 +136,7 @@ describe('a database built from migrations', () => {
     });
 
     it('links the example student to the local account that db:up creates', async () => {
-      const devAccounts = JSON.parse(readFileSync(join(__dirname, '../../../../supabase/dev-accounts.json'), 'utf8'));
+      const devAccounts = JSON.parse(readFileSync(join(__dirname, '../../../../../supabase/dev-accounts.json'), 'utf8'));
       const student = await dataSource.getRepository(StudentEntity).findOneByOrFail({ id: EXAMPLE_STUDENT_ID });
 
       expect(student.authUserId).toBe(EXAMPLE_AUTH_USER_ID);

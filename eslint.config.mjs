@@ -18,12 +18,25 @@ const REAL_FETCH_CALLS = [
     message: API_CLIENT_MESSAGE,
   },
 ];
+const ORM_BOUNDARY_MESSAGE = 'Only apps/api/src/infrastructure/orm uses TypeORM. Call a named repository method.';
+const ORM_PACKAGES = ['typeorm', 'typeorm/*', '@nestjs/typeorm', '@nestjs/typeorm/*'];
 
 export default defineConfig([
   globalIgnores(['**/dist']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [js.configs.recommended, tseslint.configs.recommended],
+  },
+  {
+    files: ['apps/api/src/**/*.ts'],
+    ignores: ['apps/api/src/infrastructure/orm/**', '**/*.spec.ts'],
+    rules: {
+      'no-restricted-imports': ['error', { patterns: [{ group: ORM_PACKAGES, message: ORM_BOUNDARY_MESSAGE }] }],
+      'no-restricted-syntax': [
+        'error',
+        { selector: 'ImportExpression[source.value=/^(@nestjs.)?typeorm/]', message: ORM_BOUNDARY_MESSAGE },
+      ],
+    },
   },
   {
     files: ['apps/web/**/*.{ts,tsx}'],

@@ -4,8 +4,8 @@ import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import type { QueryFailedError } from 'typeorm';
-import { createTestApp, OLD_ENOUGH_BIRTH_DATE } from '../../test/test-database';
-import type { TestApp } from '../../test/test-database';
+import { createTestApp, OLD_ENOUGH_BIRTH_DATE } from '../../../test/test-database';
+import type { TestApp } from '../../../test/test-database';
 import { QueryErrorFilter } from './query-error.filter';
 
 const REQUEST_VALUE = 'maya.parent@example.com';
@@ -43,7 +43,7 @@ describe('a failed database query', () => {
     };
     const stdout = jest.spyOn(process.stdout, 'write').mockImplementation(captureWrite);
     const stderr = jest.spyOn(process.stderr, 'write').mockImplementation(captureWrite);
-    await testApp.app.get(DataSource).query('ALTER TABLE "app"."students" RENAME COLUMN "birth_date" TO "hidden_birth_date"');
+    await testApp.app.get(DataSource).query('ALTER TABLE "students" RENAME COLUMN "birth_date" TO "hidden_birth_date"');
 
     try {
       await request(testApp.app.getHttpServer())
@@ -54,7 +54,7 @@ describe('a failed database query', () => {
     } finally {
       stdout.mockRestore();
       stderr.mockRestore();
-      await testApp.app.get(DataSource).query('ALTER TABLE "app"."students" RENAME COLUMN "hidden_birth_date" TO "birth_date"');
+      await testApp.app.get(DataSource).query('ALTER TABLE "students" RENAME COLUMN "hidden_birth_date" TO "birth_date"');
     }
 
     const allLogs = logged.join('');

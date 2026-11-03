@@ -1,10 +1,10 @@
 import { In } from 'typeorm';
 import type { DataSource, DeepPartial } from 'typeorm';
-import type { SessionLanguage } from '../sessions/session-options';
-import { SessionEntity } from '../sessions/session.entity';
-import { StudentProfileEntity } from '../students/student-profile.entity';
-import { ClosedAccountEntity } from '../students/closed-account.entity';
-import { StudentEntity } from '../students/student.entity';
+import type { SessionLanguage } from '../../sessions/session-options';
+import { SessionEntity } from './entities/session.entity';
+import { StudentProfileEntity } from './entities/student-profile.entity';
+import { ClosedAccountEntity } from './entities/closed-account.entity';
+import { StudentEntity } from './entities/student.entity';
 
 export const EXAMPLE_STUDENT_ID = '00000000-0000-4000-8000-000000000001';
 

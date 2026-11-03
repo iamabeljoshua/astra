@@ -2,9 +2,9 @@ import { randomUUID } from 'node:crypto';
 import { DataSource } from 'typeorm';
 import { createTestApp, OLD_ENOUGH_BIRTH_DATE } from '../../test/test-database';
 import type { TestApp } from '../../test/test-database';
-import { ClosedAccountEntity } from './closed-account.entity';
+import { ClosedAccountEntity } from '../infrastructure/orm/entities/closed-account.entity';
 import type { SaveStudentProfileBodyDto } from './student-profile.dto';
-import { StudentEntity } from './student.entity';
+import { StudentEntity } from '../infrastructure/orm/entities/student.entity';
 import { StudentsService } from './students.service';
 
 const ROUNDS_TO_CATCH_A_LOST_RACE = 5;
@@ -95,7 +95,7 @@ describe('StudentsService', () => {
     await studentsService.answerBirthDate(authUserId, YOUNG_BIRTH_DATE);
 
     const dataSource = testApp.app.get(DataSource);
-    const [storedRow] = await dataSource.query('SELECT * FROM "app"."closed_accounts" WHERE "auth_user_id" = $1', [authUserId]);
+    const [storedRow] = await dataSource.query('SELECT * FROM "closed_accounts" WHERE "auth_user_id" = $1', [authUserId]);
     expect(Object.keys(storedRow).sort()).toEqual(['auth_user_id', 'closed_at']);
     expect(await dataSource.getRepository(StudentEntity).countBy({ authUserId })).toBe(0);
   });

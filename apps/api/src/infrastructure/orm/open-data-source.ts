@@ -1,10 +1,11 @@
 import { DataSource } from 'typeorm';
-import { APP_SCHEMA, createDataSourceOptions } from './data-source-options';
+import { createDataSourceOptions } from './data-source-options';
 import { describeDatabaseWithoutPassword, isLocalDatabase } from './database-url';
 
 const LOCAL_SETUP_STEPS = 'Run pnpm db:up, then pnpm db:migrate, or set DATABASE_URL.';
 const HOSTED_SETUP_STEPS =
   'Check DATABASE_URL against "Connect a hosted project" in the README, then run pnpm db:migrate with it.';
+const MOVE_MIGRATION_LOG_TO_PUBLIC = 'ALTER TABLE IF EXISTS "app"."migrations" SET SCHEMA "public"';
 
 function getSetupSteps(databaseUrl: string): string {
   return isLocalDatabase(databaseUrl) ? LOCAL_SETUP_STEPS : HOSTED_SETUP_STEPS;
@@ -26,15 +27,15 @@ export async function openDataSource(databaseUrl: string): Promise<DataSource> {
   }
 }
 
-// TypeORM creates its migrations table in the app schema, so the schema must exist before any migration check.
-export async function openDataSourceWithAppSchema(databaseUrl: string): Promise<DataSource> {
+// A database from before the move keeps its log in app, and TypeORM would start an empty one in public without this.
+export async function openDataSourceWithMigrationLog(databaseUrl: string): Promise<DataSource> {
   const dataSource = await openDataSource(databaseUrl);
-  await dataSource.query(`CREATE SCHEMA IF NOT EXISTS "${APP_SCHEMA}"`);
+  await dataSource.query(MOVE_MIGRATION_LOG_TO_PUBLIC);
   return dataSource;
 }
 
 export async function openMigratedDataSource(databaseUrl: string): Promise<DataSource> {
-  const dataSource = await openDataSourceWithAppSchema(databaseUrl);
+  const dataSource = await openDataSourceWithMigrationLog(databaseUrl);
   if (await dataSource.showMigrations()) {
     await dataSource.destroy();
     throw new Error(
