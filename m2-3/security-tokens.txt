@@ -42,3 +42,4 @@ PASS a student ID in the query is rejected 400
 PASS a student ID in a body is rejected 400
 PASS Maya reads her seeded student
 sample refused body {"message":"Unauthorized","statusCode":401}
+security exit 0

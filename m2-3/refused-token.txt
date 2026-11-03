@@ -1,0 +1,4 @@
+GET /api/me 401, POST /auth/v1/token 200, GET /api/me 200
+PASS a token the API refuses but the browser trusts: one renewal, and the student stays in the app
+GET /api/me 401, POST /auth/v1/token 400, POST /auth/v1/logout 403
+PASS a refused token with a dead refresh token: session forgotten, sign-in page

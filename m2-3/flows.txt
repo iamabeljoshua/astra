@@ -6,10 +6,10 @@ PASS a new tab is signed in too
 PASS sign out: sign-in page, no Maya
 PASS sign out: session removed from the browser
 PASS after sign out the browser's API call is refused (401)
-PASS Back after sign out shows no student data (real back-forward cache on)
+PASS Back after sign out shows no student data
 PASS student B never sees student A on the same browser
 PASS the question page text has no hint of the cutoff
-FAIL the question page markup has no hint of the cutoff
+PASS the question page markup has no hint of the cutoff
 PASS the inputs set no min or max
 PASS an impossible date asks again and closes nothing
 PASS under 13: stopped, with no inputs
@@ -30,3 +30,4 @@ PASS a used link says it failed, offers a new one, and cleans the address
 PASS signing out in one tab ends the other tab with no click
 PASS a tab holding Maya drops her when another tab signs in as someone else
 PASS sign out with Auth out of reach still ends the session in this browser
+flows exit 0

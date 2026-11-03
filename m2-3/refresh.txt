@@ -1,0 +1,4 @@
+PASS a reload with an expired token refreshes it for real, and the student stays signed in
+PASS the new token works at the API
+Auth out of reach with an expired token: sign-in page after 25.5 s
+PASS the student keeps the session through an Auth outage

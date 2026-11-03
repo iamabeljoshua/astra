@@ -20,3 +20,13 @@ KILLED    gate shows the app to everyone:  FAIL  src/auth/AccountGate.test.tsx >
 KILLED    Google button always shown:  FAIL  src/auth/SignInPage.test.tsx > SignInPage > hides the Google button until the Google flag is set 
 KILLED    implicit flow instead of PKCE:  FAIL  src/auth/session.test.ts > sendEmailLink > asks Auth for a link that returns to this app, with a proof  
 KILLED    cutoff named in the app text:  FAIL  src/auth/BirthDatePage.test.tsx > the date of birth question > has no age limit anywhere in the text th 
+SURVIVED  failed refresh replaces the app
+KILLED    closed account with a student can read: FAIL src/students/students.service.spec.ts   ● StudentsService › finds no student once the account of an active student is closed 
+KILLED    failed refresh replaces the app:  FAIL  src/auth/AccountGate.test.tsx > AccountGate > keeps the app on screen when a later refresh of the accou 
+KILLED    no renewal before forgetting the session:  FAIL  src/auth/AccountGate.test.tsx > AccountGate > renews the session once and opens the app when the API re  FAIL  src/auth/AccountGate.test.tsx > AccountGate > forgets the session when the API refuses the renewed toke 
+KILLED    renews forever:  FAIL  src/auth/AccountGate.test.tsx > AccountGate > forgets the session when the API refuses the renewed toke 
+KILLED    dev box follows the build command being ignored:  FAIL  src/auth/SignInPage.test.tsx > SignInPage > offers the development sign-in in a development build 
+KILLED    seed leaves the example account closed: FAIL src/database/database.spec.ts   ● a database built from migrations › after the seed › makes the new student account new again when the seed  
+KILLED    seed fails after a hand answer: FAIL src/database/database.spec.ts   ● a database built from migrations › after the seed › makes the new student account new again when the seed  
+KILLED    refusal log holds the message: FAIL src/auth/auth.guard.spec.ts   ● the API guard › with no valid token › logs why it refused a token, and nothing from the token 
+KILLED    example date as a placeholder:  FAIL  src/auth/BirthDatePage.test.tsx > the date of birth question > shows no example date that a student cou 

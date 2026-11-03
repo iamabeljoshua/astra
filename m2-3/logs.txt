@@ -1,0 +1,10 @@
+dev log lines:       72
+tokens: 0
+emails: 0
+keys or password: 0
+birth dates: 0
+refusal lines: 40
+  18 Refused a token: ERR_JOSE_ALG_NOT_ALLOWED
+   1 Refused a token: ERR_JWKS_NO_MATCHING_KEY
+   7 Refused a token: ERR_JWS_INVALID
+  14 Refused a token: ERR_JWS_SIGNATURE_VERIFICATION_FAILED
