@@ -54,6 +54,20 @@ describe('the parent consent page', () => {
     expect(routes).toEqual([`GET /api${LINK_PATH}`]);
   });
 
+  it('tells a parent what is held before they accept and after, and that lessons are planned', async () => {
+    stubApi(() => json({ studentName: 'Tolu', isAccepted: false }));
+
+    renderPage();
+
+    await screen.findByRole('button', { name: PARENT_CONSENT_LABELS.accept });
+    const page = screen.getByRole('main').textContent;
+    for (const fact of ['date of birth', 'their email address', 'when they signed in', 'IP address', 'browser', 'interests', 'tutor voice', 'first answer']) {
+      expect(page).toContain(fact);
+    }
+    expect(page).toContain('planned and not open yet');
+    expect(page).not.toContain('talks with your child');
+  });
+
   it('calls only the public routes and shows thanks after accepting', async () => {
     let isAccepted = false;
     const routes = stubApi((route) => {

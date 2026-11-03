@@ -132,6 +132,7 @@ export const FIRST_ANSWER_BOX_LABELS = {
   placeholder: 'Type your answer',
   placeholderWhileTalkIsOn: 'Talking opens soon. Type for now.',
   send: 'Send your answer',
+  limitReached: (maxLength: number) => `Your answer can be up to ${maxLength} characters.`,
 };
 
 export const STUDENT_LEVEL_LABELS = {
@@ -165,8 +166,8 @@ export const PROFILE_LABELS = {
 
 export const PARENT_CONSENT_LABELS = {
   question: (studentName: string | null) => `${studentName ?? 'Your child'} would like to use ${PRODUCT_NAME}.`,
-  about: `${PRODUCT_NAME} is a learning app. An AI tutor talks with your child and draws as it explains. The tutor is an AI, and it can be wrong.`,
-  stored: 'So far we hold their name, their date of birth, and your email address. If you accept, we also keep what they tell the tutor about their interests, their level, and their goals.',
+  about: `${PRODUCT_NAME} is a learning app being built around an AI tutor. Today your child can answer a few questions, hear a scripted hello from the tutor, and see suggested lessons. Spoken lessons are planned and not open yet. When they open, the tutor will talk with your child and draw as it explains. The tutor is an AI, and it can be wrong.`,
+  stored: 'So far we hold their name, their date of birth, and your email address. Supabase Auth, our sign-in service, holds their email address, when they signed in, and the IP address and browser they used. If you accept, we also keep their interests, their level, their goal, the tutor voice they choose, and their first answer to the tutor, in their own words.',
   agreementStart: 'By accepting you confirm that you are their parent or guardian, and you agree to the ',
   agreementJoin: ' and the ',
   agreementEnd: '.',
@@ -384,7 +385,8 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
         heading: 'If you are under 18',
         today: [
           "We ask for the email address of a parent or guardian. We store that address, a fingerprint of their consent link rather than the link, and the time they accept.",
-          'Until they accept, we hold only your name, your date of birth, your account ID, and their address, and the app asks you nothing more.',
+          'Until they accept, we hold your name, your date of birth, your account ID, and their address. Supabase Auth, our sign-in service, also holds your email address, the times you sign in, and the IP address and browser you sign in with.',
+          'The app asks you nothing more until they accept. Your interests, level, goal, tutor voice, and first answer to the tutor are stored only after that.',
           "No email goes out yet. The consent link is written to our server's log, and anyone who can read that log could use it, so no real student under 18 can join until the email is built.",
         ],
         planned: [
