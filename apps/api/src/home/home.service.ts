@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { SessionsService } from '../sessions/sessions.service';
 import { StudentsService } from '../students/students.service';
+import { getPicksForStudent } from '../picks/getPicksForStudent';
+import { LIBRARY } from '../picks/library';
 import type { HomeScreenResponseDto } from './home-screen.dto';
-import { SEEDED_PICKS } from './seeded-picks';
 
 @Injectable()
 export class HomeService {
@@ -15,7 +16,7 @@ export class HomeService {
     return {
       studentName: await this.studentsService.getStudentName(studentId),
       continueSession: await this.sessionsService.getNewestUnfinishedSession(studentId),
-      picks: SEEDED_PICKS,
+      picks: getPicksForStudent(await this.studentsService.getProfile(studentId), LIBRARY),
     };
   }
 }

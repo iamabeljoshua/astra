@@ -108,7 +108,7 @@ Students sign in with an email link or Google, through Supabase Auth. Students h
 
 To sign in on the local stack, use one of these:
 
-- The **Development sign-in** box on the sign-in page. `maya@astra.test` is the seeded student, and `new-student@astra.test` has no student yet. Only the Vite dev server shows the box, because `vite.config.ts` turns it off for every build. These accounts exist only on the local stack.
+- The **Development sign-in** box on the sign-in page. `maya@astra.test` and `tola@astra.test` are seeded students with different levels and interests, and `new-student@astra.test` has no student yet. Only the Vite dev server shows the box, because `vite.config.ts` turns it off for every build. These accounts exist only on the local stack.
 - An email link. Enter any address that ends in `@astra.test`, open the local inbox at http://127.0.0.1:54424, and follow the link in the same browser. No real email leaves your computer.
 
 Open the app on `127.0.0.1`. Auth sends a link back only to the host of its site URL, on any port, or to an address on its allow list. It sends any other address to the site URL instead. `supabase/config.toml` allows `localhost` with a port of exactly four digits, written as `http://localhost:[0-9][0-9][0-9][0-9]/**`. Do not widen this to `http://localhost:*/**`, because that pattern also matches `http://localhost:x@evil/`, whose real host is `evil`, and hands the sign-in code to that host. A stack that is already running keeps its old settings until it restarts, and a restart affects every worktree. Measured on a private Auth service.
