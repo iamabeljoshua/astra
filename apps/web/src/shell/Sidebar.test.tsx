@@ -112,6 +112,30 @@ describe('the phone menu', () => {
     expect(document.activeElement).toBe(getMenuButton());
   });
 
+  it('closes and returns focus to the Menu button on Escape with focus on the page body', () => {
+    render(<App />);
+    fireEvent.click(getMenuButton());
+    expect(document.activeElement).toBe(document.body);
+
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+
+    expect(isOpen()).toBe(false);
+    expect(document.activeElement).toBe(getMenuButton());
+  });
+
+  it('closes and returns focus to the Menu button when the browser goes Back', async () => {
+    render(<App />);
+    fireEvent.click(getMenuRow(MENU_LABELS.sessions));
+    await screen.findByRole('heading', { name: MENU_LABELS.sessions });
+    fireEvent.click(getMenuButton());
+
+    window.history.back();
+
+    await screen.findByText(API_CONNECTION_LABELS.connected);
+    expect(isOpen()).toBe(false);
+    expect(document.activeElement).toBe(getMenuButton());
+  });
+
   it('leaves focus alone when a row is chosen with the menu closed', () => {
     render(<App />);
     const row = getMenuRow(MENU_LABELS.sessions);
