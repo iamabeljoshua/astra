@@ -1,10 +1,15 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Injectable } from '@nestjs/common';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { DataSource, Repository } from 'typeorm';
+import type { EntityManager } from 'typeorm';
+import { isOldEnough } from '../auth/age-gate';
+import { ClosedAccountEntity } from './closed-account.entity';
 import type { SaveStudentProfileBodyDto, StudentProfileResponseDto } from './student-profile.dto';
 import { StudentProfileEntity } from './student-profile.entity';
-import type { CreateStudentBodyDto, StudentResponseDto } from './student.dto';
+import type { AccountResponseDto } from './student.dto';
 import { StudentEntity } from './student.entity';
+
+const HOLD_ACCOUNT_UNTIL_COMMIT = 'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))';
 
 function toProfileResponse(profile: StudentProfileEntity): StudentProfileResponseDto {
   return {
@@ -15,41 +20,58 @@ function toProfileResponse(profile: StudentProfileEntity): StudentProfileRespons
   };
 }
 
+async function readAccount(manager: EntityManager, authUserId: string): Promise<AccountResponseDto> {
+  if (await manager.existsBy(ClosedAccountEntity, { authUserId })) return { status: 'closed', student: null };
+  const student = await manager.findOneBy(StudentEntity, { authUserId });
+  if (!student) return { status: 'needs_birth_date', student: null };
+  const profile = await manager.findOneBy(StudentProfileEntity, { studentId: student.id });
+  return {
+    status: 'active',
+    student: {
+      id: student.id,
+      name: student.name,
+      profile: profile && toProfileResponse(profile),
+      parentConsentAt: student.parentConsentAt,
+    },
+  };
+}
+
 @Injectable()
 export class StudentsService {
   constructor(
+    @InjectDataSource() private readonly dataSource: DataSource,
     @InjectRepository(StudentEntity) private readonly students: Repository<StudentEntity>,
     @InjectRepository(StudentProfileEntity)
     private readonly profiles: Repository<StudentProfileEntity>,
   ) {}
 
-  async createStudent(body: CreateStudentBodyDto): Promise<StudentResponseDto> {
-    const student = await this.students.save(this.students.create({ name: body.name }));
-    return { id: student.id, name: student.name, profile: null };
+  getAccount(authUserId: string): Promise<AccountResponseDto> {
+    return readAccount(this.dataSource.manager, authUserId);
   }
 
-  async getStudent(studentId: string): Promise<StudentResponseDto> {
-    const student = await this.requireStudent(studentId);
-    const profile = await this.profiles.findOneBy({ studentId });
-    return {
-      id: student.id,
-      name: student.name,
-      profile: profile && toProfileResponse(profile),
-    };
+  // Two tabs can answer at once, so the lock makes the first answer stand and a closed account stay closed.
+  answerBirthDate(authUserId: string, birthDate: string): Promise<AccountResponseDto> {
+    return this.dataSource.transaction(async (manager) => {
+      await manager.query(HOLD_ACCOUNT_UNTIL_COMMIT, [authUserId]);
+      const account = await readAccount(manager, authUserId);
+      if (account.status !== 'needs_birth_date') return account;
+
+      if (isOldEnough(birthDate, new Date())) await manager.insert(StudentEntity, { authUserId, birthDate });
+      else await manager.insert(ClosedAccountEntity, { authUserId });
+      return readAccount(manager, authUserId);
+    });
+  }
+
+  async findStudentId(authUserId: string): Promise<string | null> {
+    const student = await this.students.findOne({ where: { authUserId }, select: { id: true } });
+    return student?.id ?? null;
   }
 
   async saveProfile(
     studentId: string,
     body: SaveStudentProfileBodyDto,
   ): Promise<StudentProfileResponseDto> {
-    await this.requireStudent(studentId);
     await this.profiles.upsert({ studentId, ...body }, ['studentId']);
     return toProfileResponse(await this.profiles.findOneByOrFail({ studentId }));
-  }
-
-  async requireStudent(studentId: string): Promise<StudentEntity> {
-    const student = await this.students.findOneBy({ id: studentId });
-    if (!student) throw new NotFoundException('Student not found');
-    return student;
   }
 }

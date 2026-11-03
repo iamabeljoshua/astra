@@ -1,0 +1,7 @@
+{
+  "password": "local-development-only",
+  "accounts": [
+    { "id": "00000000-0000-4000-8000-0000000000a1", "email": "maya@astra.test" },
+    { "id": "00000000-0000-4000-8000-0000000000a2", "email": "new-student@astra.test" }
+  ]
+}

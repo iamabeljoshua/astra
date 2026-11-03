@@ -15,6 +15,7 @@ import { RequestValidationModule } from './request-validation.module';
 const HTTP_METHODS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'] as const;
 const WRITE_METHODS: readonly string[] = ['post', 'put', 'patch'];
 const WRITE_ROUTES_WITHOUT_BODY: readonly string[] = [];
+const STUDENT_ID_NAME = /student.?id|auth.?user/i;
 // A DTO imported with `import type` reaches the document as this schema.
 const ERASED_DTO_SCHEMA = '#/components/schemas/Function';
 
@@ -131,6 +132,25 @@ function findRoutesWithUncheckedBodies(document: OpenAPIObject): string[] {
   );
 }
 
+// A student ID from the client could name someone else, so identity comes only from the token.
+function findStudentIdInputs(document: OpenAPIObject): string[] {
+  const fromParameters = Object.entries(document.paths).flatMap(([path, pathItem]) =>
+    HTTP_METHODS.flatMap((method) =>
+      (pathItem[method]?.parameters ?? [])
+        .filter((parameter) => 'name' in parameter && STUDENT_ID_NAME.test(parameter.name))
+        .map((parameter) => `${method} ${path} parameter ${'name' in parameter ? parameter.name : ''}`),
+    ),
+  );
+  const fromBodies = Object.entries(document.components?.schemas ?? {})
+    .filter(([schemaName]) => schemaName.endsWith('BodyDto'))
+    .flatMap(([schemaName, schema]) =>
+      Object.keys('properties' in schema ? (schema.properties ?? {}) : {})
+        .filter((fieldName) => STUDENT_ID_NAME.test(fieldName))
+        .map((fieldName) => `${schemaName}.${fieldName}`),
+    );
+  return [...fromParameters, ...fromBodies];
+}
+
 function findEntitySchemas(document: OpenAPIObject): string[] {
   return Object.keys(document.components?.schemas ?? {}).filter((name) => name.endsWith('Entity'));
 }
@@ -228,6 +248,10 @@ describe('the OpenAPI document', () => {
     it('sends no entity from any route', () => {
       expect(findEntitySchemas(document)).toEqual([]);
     });
+
+    it('takes no student ID from any path, query, or body', () => {
+      expect(findStudentIdInputs(document)).toEqual([]);
+    });
   });
 
   it('flags every body shape that validation cannot check, and not a DTO body', async () => {
@@ -248,6 +272,18 @@ describe('the OpenAPI document', () => {
     ]);
 
     await app.close();
+  });
+
+  it('flags a route that takes a student ID', () => {
+    const document = {
+      paths: { '/things/{studentId}': { get: { parameters: [{ name: 'studentId', in: 'path' }] } } },
+      components: { schemas: { ThingBodyDto: { properties: { student_id: {} } } } },
+    } as unknown as OpenAPIObject;
+
+    expect(findStudentIdInputs(document)).toEqual([
+      'get /things/{studentId} parameter studentId',
+      'ThingBodyDto.student_id',
+    ]);
   });
 
   it('flags a route that sends an entity', async () => {

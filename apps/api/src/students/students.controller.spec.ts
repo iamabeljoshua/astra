@@ -1,21 +1,38 @@
+import { randomUUID } from 'node:crypto';
 import request from 'supertest';
-import { createTestApp } from '../../test/test-database';
-import type { TestApp } from '../../test/test-database';
+import { createTestApp, createTestStudent, OLD_ENOUGH_BIRTH_DATE } from '../../test/test-database';
+import type { TestApp, TestStudent } from '../../test/test-database';
 
-const UNKNOWN_STUDENT_ID = '0b0e9c52-6d0c-4f3b-9a53-3f5f0d3f7c11';
 const VALID_PROFILE = {
   interests: ['Basketball', 'Space'],
   level: 'university',
   goal: 'exam',
   voice: 'ada',
 };
+const MILLISECONDS_PER_DAY = 86_400_000;
+const CLOSED_ACCOUNT = { status: 'closed', student: null };
+const ANSWERS_AT_ONCE = 20;
 
-describe('the students routes', () => {
+function getYoungBirthDate() {
+  return new Date(Date.now() - 365 * MILLISECONDS_PER_DAY).toISOString().slice(0, 10);
+}
+
+describe('the account routes', () => {
   let testApp: TestApp;
-  let studentId: string;
+  let student: TestStudent;
 
-  function api() {
-    return request(testApp.app.getHttpServer());
+  function api(token: string) {
+    const server = request(testApp.app.getHttpServer());
+    const bearer = `Bearer ${token}`;
+    return {
+      getAccount: () => server.get('/me').set('Authorization', bearer),
+      answer: (birthDate: unknown) => server.post('/me/birth-date').set('Authorization', bearer).send({ birthDate }),
+      saveProfile: (body: object) => server.put('/me/profile').set('Authorization', bearer).send(body),
+    };
+  }
+
+  function createNewAccountToken() {
+    return testApp.supabaseAuth.signToken(randomUUID());
   }
 
   function expectBadRequestNaming(response: request.Response, fieldName: string) {
@@ -27,62 +44,141 @@ describe('the students routes', () => {
 
   beforeAll(async () => {
     testApp = await createTestApp();
-    studentId = (await api().post('/students').send({ name: 'Maya' }).expect(201)).body.id;
+    student = await createTestStudent(testApp);
   });
 
   afterAll(() => testApp?.close());
 
-  it('saves a valid student and reads the same student back', async () => {
-    const created = await api().post('/students').send({ name: 'Adaeze Ọkàfọ́r' }).expect(201);
+  describe('the date of birth question', () => {
+    it('makes an account with a student when the answer is old enough', async () => {
+      const token = await createNewAccountToken();
 
-    await api()
-      .get(`/students/${created.body.id}`)
-      .expect(200, { id: created.body.id, name: 'Adaeze Ọkàfọ́r', profile: null });
-  });
+      const { body } = await api(token).answer(OLD_ENOUGH_BIRTH_DATE).expect(200);
 
-  it.each([
-    ['an emoji', '\u{1F3C0}'],
-    ['an emoji joined with zero-width characters', '\u{1F469}\u200D\u{1F680}'],
-    ['a name with a zero-width joiner', 'Niv\u200Da'],
-    ['a name with combining tone marks', 'Ade\u0300\u0323'],
-  ])('saves %s and reads the same text back', async (_caseName, name) => {
-    const created = await api().post('/students').send({ name }).expect(201);
+      expect(body).toEqual({
+        status: 'active',
+        student: { id: expect.any(String), name: null, profile: null, parentConsentAt: null },
+      });
+      await api(token).getAccount().expect(200, body);
+    });
 
-    await api().get(`/students/${created.body.id}`).expect(200, { id: created.body.id, name, profile: null });
+    it('closes the account when the answer is too young', async () => {
+      const token = await createNewAccountToken();
+
+      await api(token).answer(getYoungBirthDate()).expect(200, CLOSED_ACCOUNT);
+
+      await api(token).getAccount().expect(200, CLOSED_ACCOUNT);
+    });
+
+    it('keeps the account closed after an older answer', async () => {
+      const token = await createNewAccountToken();
+      await api(token).answer(getYoungBirthDate()).expect(200);
+
+      await api(token).answer(OLD_ENOUGH_BIRTH_DATE).expect(200, CLOSED_ACCOUNT);
+
+      await api(token).getAccount().expect(200, CLOSED_ACCOUNT);
+    });
+
+    it('keeps the account closed under a new token for the same user', async () => {
+      const authUserId = randomUUID();
+      await api(await testApp.supabaseAuth.signToken(authUserId)).answer(getYoungBirthDate()).expect(200);
+
+      const nextToken = await testApp.supabaseAuth.signToken(authUserId);
+
+      await api(nextToken).getAccount().expect(200, CLOSED_ACCOUNT);
+      await api(nextToken).answer(OLD_ENOUGH_BIRTH_DATE).expect(200, CLOSED_ACCOUNT);
+    });
+
+    it('refuses every student route for a closed account', async () => {
+      const token = await createNewAccountToken();
+      await api(token).answer(getYoungBirthDate()).expect(200);
+
+      await api(token).saveProfile(VALID_PROFILE).expect(403);
+      await request(testApp.app.getHttpServer()).get('/sessions').set('Authorization', `Bearer ${token}`).expect(403);
+    });
+
+    it('keeps the first answer of an active student', async () => {
+      const first = await api(student.token).getAccount().expect(200);
+
+      await api(student.token).answer(getYoungBirthDate()).expect(200, first.body);
+
+      await api(student.token).getAccount().expect(200, first.body);
+    });
+
+    it('stores one outcome when answers race, and a closed account stays closed', async () => {
+      const token = await createNewAccountToken();
+
+      const answers = await Promise.all(
+        Array.from({ length: ANSWERS_AT_ONCE }, (_unused, index) =>
+          api(token).answer(index % 2 === 0 ? getYoungBirthDate() : OLD_ENOUGH_BIRTH_DATE),
+        ),
+      );
+
+      const { body: account } = await api(token).getAccount().expect(200);
+      expect(account).toEqual(answers[0]?.body);
+      expect(new Set(answers.map((answer) => JSON.stringify(answer.body))).size).toBe(1);
+    });
+
+    it('creates one student when the same answer arrives many times', async () => {
+      const token = await createNewAccountToken();
+
+      const answers = await Promise.all(
+        Array.from({ length: ANSWERS_AT_ONCE }, () => api(token).answer(OLD_ENOUGH_BIRTH_DATE)),
+      );
+
+      expect(answers.map((answer) => answer.status)).toEqual(Array(ANSWERS_AT_ONCE).fill(200));
+      expect(new Set(answers.map((answer) => answer.body.student.id)).size).toBe(1);
+    });
+
+    it.each([
+      ['a missing date', undefined],
+      ['a date that is not text', 20040314],
+      ['a date that does not exist', '2013-02-30'],
+      ['a date in the future', '2999-01-01'],
+      ['a date long ago', '1899-12-31'],
+      ['the wrong format', '14/03/2004'],
+    ])('rejects %s and lets the student try again', async (_caseName, birthDate) => {
+      const token = await createNewAccountToken();
+
+      expectBadRequestNaming(await api(token).answer(birthDate), 'birthDate');
+
+      await api(token).getAccount().expect(200, { status: 'needs_birth_date', student: null });
+    });
+
+    it('never says the age limit in its answers', async () => {
+      const token = await createNewAccountToken();
+
+      const answers = [
+        await api(token).answer('not a date'),
+        await api(token).answer(getYoungBirthDate()),
+        await api(token).getAccount(),
+      ];
+
+      expect(JSON.stringify(answers.map((answer) => answer.body))).not.toMatch(/\b13\b|thirteen|young|\bunder\b|\bage\b/i);
+    });
+
+    it('sends no birth date back', async () => {
+      const { body } = await api(await createNewAccountToken()).answer(OLD_ENOUGH_BIRTH_DATE).expect(200);
+
+      expect(JSON.stringify(body)).not.toContain(OLD_ENOUGH_BIRTH_DATE);
+    });
   });
 
   it('saves a valid profile and reads the same profile back', async () => {
-    await api().put(`/students/${studentId}/profile`).send(VALID_PROFILE).expect(200, VALID_PROFILE);
+    await api(student.token).saveProfile(VALID_PROFILE).expect(200, VALID_PROFILE);
 
-    await api()
-      .get(`/students/${studentId}`)
-      .expect(200, { id: studentId, name: 'Maya', profile: VALID_PROFILE });
+    const { body } = await api(student.token).getAccount().expect(200);
+
+    expect(body.student.profile).toEqual(VALID_PROFILE);
   });
 
   it('sends no internal column of a student or a profile', async () => {
-    await api().put(`/students/${studentId}/profile`).send(VALID_PROFILE).expect(200);
+    await api(student.token).saveProfile(VALID_PROFILE).expect(200);
 
-    const { body } = await api().get(`/students/${studentId}`).expect(200);
+    const { body } = await api(student.token).getAccount().expect(200);
 
-    expect(Object.keys(body).sort()).toEqual(['id', 'name', 'profile']);
-    expect(Object.keys(body.profile).sort()).toEqual(['goal', 'interests', 'level', 'voice']);
-  });
-
-  it.each([
-    ['a missing name', {}, 'name'],
-    ['a name that is not text', { name: 42 }, 'name'],
-    ['an empty name', { name: '' }, 'name'],
-    ['a blank name', { name: '   ' }, 'name'],
-    ['a name with a null character', { name: 'Ma\u0000ya' }, 'name'],
-    ['a name of only zero-width characters', { name: '\u200B\u200C\u200D\u2060\uFEFF' }, 'name'],
-    ['a name of only variation selectors', { name: '\uFE0F\uFE0F' }, 'name'],
-    ['a name of only combining marks', { name: '\u0301\u0323' }, 'name'],
-    ['a name with a lone high surrogate', { name: 'Ma\uD83Dya' }, 'name'],
-    ['a name with a lone low surrogate', { name: 'Ma\uDE00ya' }, 'name'],
-    ['a name that is too long', { name: 'M'.repeat(81) }, 'name'],
-    ['a field the DTO does not declare', { name: 'Maya', isAdmin: true }, 'isAdmin'],
-  ])('rejects %s when creating a student', async (_caseName, body, fieldName) => {
-    expectBadRequestNaming(await api().post('/students').send(body), fieldName);
+    expect(Object.keys(body.student).sort()).toEqual(['id', 'name', 'parentConsentAt', 'profile']);
+    expect(Object.keys(body.student.profile).sort()).toEqual(['goal', 'interests', 'level', 'voice']);
   });
 
   it.each([
@@ -98,19 +194,6 @@ describe('the students routes', () => {
     ['a goal that is not on the list', { goal: 'fame' }, 'goal'],
     ['a voice that is not on the list', { voice: 'hal' }, 'voice'],
   ])('rejects %s when saving a profile', async (_caseName, change, fieldName) => {
-    const response = await api()
-      .put(`/students/${studentId}/profile`)
-      .send({ ...VALID_PROFILE, ...change });
-
-    expectBadRequestNaming(response, fieldName);
-  });
-
-  it('rejects a student ID that is not a UUID', async () => {
-    expectBadRequestNaming(await api().get('/students/not-a-uuid'), 'studentId');
-  });
-
-  it('answers 404 for a student that does not exist', async () => {
-    await api().get(`/students/${UNKNOWN_STUDENT_ID}`).expect(404);
-    await api().put(`/students/${UNKNOWN_STUDENT_ID}/profile`).send(VALID_PROFILE).expect(404);
+    expectBadRequestNaming(await api(student.token).saveProfile({ ...VALID_PROFILE, ...change }), fieldName);
   });
 });

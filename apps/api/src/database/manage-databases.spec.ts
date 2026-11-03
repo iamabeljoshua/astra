@@ -1,11 +1,11 @@
-import { createTestDatabase, withDatabaseUrl } from '../../test/test-database';
+import { createTestDatabase, withEnvironment } from '../../test/test-database';
 import { dropDatabase } from './manage-databases';
 
 const CLOSED_PORT_URL = 'postgresql://postgres:postgres@127.0.0.1:1/astra';
 
 describe('the commands that can damage a database', () => {
   it('refuses to create test databases anywhere but the local stack', async () => {
-    await expect(withDatabaseUrl(CLOSED_PORT_URL, createTestDatabase)).rejects.toThrow(
+    await expect(withEnvironment({ DATABASE_URL: CLOSED_PORT_URL }, createTestDatabase)).rejects.toThrow(
       /Refusing to create test databases/,
     );
   });

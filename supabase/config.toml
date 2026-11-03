@@ -31,3 +31,7 @@ enabled = false
 
 [edge_runtime]
 enabled = false
+
+[auth]
+site_url = "http://127.0.0.1:5173"
+additional_redirect_urls = ["http://localhost:*/**"]
