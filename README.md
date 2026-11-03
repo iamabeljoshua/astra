@@ -132,7 +132,7 @@ Do not write Swagger decorators by hand. `pnpm test` fails if a route, a route p
 
 Every API call in the web app goes through `api` in `apps/web/src/api/client.ts`. `pnpm lint` rejects a direct `fetch` in `apps/web` outside `apps/web/src/api/`.
 
-This section continues from the last step of "Add a DTO". It needs a controller that is listed in `apps/api/src/app.module.ts` and types from `pnpm api:types`. The examples use `GET /things`, which takes a `limit` query and returns a list of `ThingResponseDto`, and `POST /things`, which takes a `CreateThingBodyDto` with a `title`.
+This section continues from the last step of "Add a DTO". List a new controller in `controllers` of its feature module, and list a new module in `imports` in `apps/api/src/app.module.ts`. `pnpm api:types` exits 0 and generates no routes for a controller that is not listed. The examples use `GET /things`, which takes a `limit` query and returns a list of `ThingResponseDto`, and `POST /things`, which takes a `CreateThingBodyDto` with a `title`.
 
 1. Create the hooks, for example in `apps/web/src/things/useThings.ts`. Pass the `signal` from React Query, so that leaving the screen cancels the request. After a mutation, invalidate the key of each query that it changes.
 
@@ -159,7 +159,7 @@ This section continues from the last step of "Add a DTO". It needs a controller 
    }
    ```
 
-   `api.get` and the other calls return the response data and throw an `ApiError` for every failure. `pnpm typecheck` fails if the route, the query, or the body is wrong. A route parameter goes in `params: { path: { thingId } }`. A query DTO is not in `components`, so write `import type { paths } from '@astra/contracts'` and read its type as `paths['/things']['get']['parameters']['query']`.
+   `api.get` and the other calls return the response data and throw an `ApiError` for every failure. `pnpm typecheck` fails if the route, the query, or the body is wrong. A route parameter goes in `params: { path: { thingId } }`. A query DTO and a route parameter DTO are not in `components`, so write `import type { paths } from '@astra/contracts'` and read their types as `paths['/things']['get']['parameters']['query']` and `paths['/things/{thingId}']['get']['parameters']['path']`.
 
 2. Add the text for the screen to `apps/web/src/strings.ts`.
 
@@ -196,7 +196,7 @@ This section continues from the last step of "Add a DTO". It needs a controller 
            }}
          >
            <input aria-label={THING_LABELS.title} value={title} onChange={(event) => setTitle(event.target.value)} />
-           <button>{THING_LABELS.create}</button>
+           <button disabled={createThing.isPending}>{THING_LABELS.create}</button>
          </form>
          {createThing.error && (
            <p>
@@ -216,15 +216,26 @@ This section continues from the last step of "Add a DTO". It needs a controller 
 
    ```tsx
    import { fireEvent, screen } from '@testing-library/react';
-   import { it, vi } from 'vitest';
+   import { afterEach, it, vi } from 'vitest';
    import { THING_LABELS } from '../strings';
    import { renderWithQueryClient } from '../test/renderWithQueryClient';
    import { Things } from './Things';
 
+   const TITLE_REJECTED_BODY = {
+     message: ['title must be a string'],
+     error: 'Bad Request',
+     statusCode: 400,
+     fieldMessages: { title: ['title must be a string'] },
+   };
+
+   afterEach(() => {
+     vi.unstubAllGlobals();
+   });
+
    it('says when the API rejects the title', async () => {
      vi.stubGlobal('fetch', async (request: Request) =>
        request.method === 'POST'
-         ? new Response(JSON.stringify({ message: ['title must be a string'], statusCode: 400 }), { status: 400 })
+         ? new Response(JSON.stringify(TITLE_REJECTED_BODY), { status: 400 })
          : new Response('[]'),
      );
 
@@ -239,17 +250,30 @@ Every failed request reaches the screen as the same `ApiError`, with these field
 
 | `kind` | When | `status` | `fieldMessages` |
 | --- | --- | --- | --- |
-| `validation` | `ValidationPipe` rejected the request. | 400 | The messages for each field, by path, such as `title`, `owner.ownerName`, or `sensors.0.sensorName`. |
-| `rejected` | The API refused the request, as with a 401 or a 404. | The status | Empty |
-| `server` | The answer has a status of 500 or above. | The status | Empty |
-| `network` | No usable answer arrived, because the API cannot be reached or a read returned no JSON. | `null` | Empty |
-| `aborted` | A signal stopped the request, as with a timeout. | `null` | Empty |
+| `validation` | `ValidationPipe` rejected the request. | 400 | The sentences for each field, by path, such as `title`, `owner.ownerName`, or `sensors.0.sensorName`. Empty if the request is nested too deeply. |
+| `rejected` | The API refused the request, as with a 401, a 404, or a 400 for JSON that it cannot read. | The status | Empty |
+| `server` | The answer has a status of 500 or above. Under `pnpm dev`, a stopped API arrives here as a 502 from the Vite dev server. | The status | Empty |
+| `network` | The browser cannot reach the web server, a read returned no JSON, or a write returned something other than JSON. | `null` | Empty |
+| `aborted` | A signal or the request timeout stopped the request. | `null` | Empty |
 
-The web app finds each field from the start of the default `class-validator` message, so do not set a custom `message` on a DTO rule. A rule with a custom message still gives a `validation` error, with no field.
+The API sends each rejected field as data. A validation 400 has this body, and `apps/api/src/request-validation.module.ts` builds it:
 
-`createQueryClient` in `apps/web/src/api/queryClient.ts` holds the shared defaults. A query tries a `server`, `network`, or `aborted` failure up to 3 times and a `validation` or `rejected` failure once. A mutation does not retry. Data stays fresh for 30 seconds. Set an option on a hook only if that hook needs something else, as `apps/web/src/useApiConnection.ts` does because it keeps checking until the API answers.
+```json
+{
+  "message": ["owner.ownerName must be a string"],
+  "error": "Bad Request",
+  "statusCode": 400,
+  "fieldMessages": { "owner.ownerName": ["owner.ownerName must be a string"] }
+}
+```
 
-`pnpm dev` shows the React Query devtools button on the page. The devtools are not in the production build.
+A custom `message` on a DTO rule keeps its field. A rule on each value of a list, such as `@IsString({ each: true })`, names the list and not the item.
+
+`createQueryClient` in `apps/web/src/api/queryClient.ts` holds the shared defaults. A query tries a `server`, `network`, or `aborted` failure up to 3 times and a `validation` or `rejected` failure once. A mutation does not retry. Data stays fresh for 30 seconds. A query with stale data or a failure runs again when the browser comes back online. Set an option on a hook only if that hook needs something else, as `apps/web/src/useApiConnection.ts` does because it keeps checking until the API answers.
+
+Each call stops after `DEFAULT_REQUEST_TIMEOUT_MS`, 10 seconds, with an `aborted` error. With its retries, a read that never answers reaches the screen after about 33 seconds. For a call that is slow on purpose, pass your own limit, as in `api.post('/things', { body, timeoutMs: 120_000 })`.
+
+`pnpm dev` shows the React Query devtools button at the top left of the page. The devtools are not in the production build.
 
 ## Test
 
