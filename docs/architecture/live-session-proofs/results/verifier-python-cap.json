@@ -1,0 +1,49 @@
+{
+ "turn_phrases": {
+  "perPhrase": {
+   "question": {
+    "speechEndToFirstAudioMs": {
+     "count": 20,
+     "p50": 517,
+     "p95": 1227,
+     "min": 487,
+     "max": 1227
+    },
+    "probabilities": []
+   },
+   "gravity": {
+    "speechEndToFirstAudioMs": {
+     "count": 20,
+     "p50": 528,
+     "p95": 587,
+     "min": 487,
+     "max": 587
+    },
+    "probabilities": []
+   },
+   "twice": {
+    "speechEndToFirstAudioMs": {
+     "count": 20,
+     "p50": 536,
+     "p95": 639,
+     "min": 506,
+     "max": 639
+    },
+    "probabilities": []
+   },
+   "interrupt": {
+    "speechEndToFirstAudioMs": {
+     "count": 20,
+     "p50": 529,
+     "p95": 1337,
+     "min": 478,
+     "max": 1337
+    },
+    "probabilities": []
+   }
+  },
+  "joinToSessionStartedMs": 620,
+  "agentMemoryMb": 210,
+  "machineLoadAtEnd": 8
+ }
+}

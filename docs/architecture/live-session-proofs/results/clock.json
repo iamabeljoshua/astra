@@ -1,0 +1,654 @@
+{
+ "clean": {
+  "profile": "clean",
+  "machineLoadAtEnd": 7,
+  "impairment": null,
+  "audioInfo": {
+   "sampleRate": 48000,
+   "baseLatency": 0.005333333333333333,
+   "outputLatency": 0.032
+  },
+  "ranAt": "2026-11-03T10:48:54.915Z",
+  "messageDeliveryMs": {
+   "reliable": {
+    "count": 733,
+    "p50": 1,
+    "p95": 3,
+    "absP50": 1,
+    "absP95": 3,
+    "absMax": 11
+   },
+   "lossy": {
+    "count": 733,
+    "p50": 1,
+    "p95": 3,
+    "absP50": 1,
+    "absP95": 3,
+    "absMax": 15
+   },
+   "firstOfBoth": {
+    "count": 733,
+    "p50": 1,
+    "p95": 3,
+    "absP50": 1,
+    "absP95": 3,
+    "absMax": 11
+   },
+   "lossyNeverArrived": 0
+  },
+  "wordError": {
+   "sampleCountFromOnsetMs": {
+    "count": 162,
+    "p50": 0,
+    "p95": 3,
+    "absP50": 0,
+    "absP95": 3,
+    "absMax": 12
+   },
+   "chosenClockMs": {
+    "count": 162,
+    "p50": 0,
+    "p95": 3,
+    "absP50": 0,
+    "absP95": 3,
+    "absMax": 12
+   },
+   "dataMessageArrivalMs": {
+    "count": 161,
+    "p50": 61,
+    "p95": 67,
+    "absP50": 61,
+    "absP95": 67,
+    "absMax": 74
+   },
+   "rtpTimestampFromOnsetMs": {
+    "count": 162,
+    "p50": 1,
+    "p95": 5,
+    "absP50": 2,
+    "absP95": 7,
+    "absMax": 10
+   }
+  },
+  "driftAtSegmentEndMs": {
+   "count": 12,
+   "p50": 0,
+   "p95": 3,
+   "absP50": 0,
+   "absP95": 3,
+   "absMax": 3
+  },
+  "wordTimesArriveBeforeAudioMs": {
+   "count": 12,
+   "p50": 61,
+   "p95": 68,
+   "absP50": 61,
+   "absP95": 68,
+   "absMax": 68
+  },
+  "audioKeepsPlayingAfterStopMessageMs": {
+   "count": 6,
+   "p50": 69,
+   "p95": 80,
+   "absP50": 69,
+   "absP95": 80,
+   "absMax": 80
+  },
+  "wordTimesLateCount": 0,
+  "network": {
+   "packetsReceived": 3951,
+   "packetsLost": 0,
+   "jitterSeconds": 0.001,
+   "meanJitterBufferMs": 31,
+   "concealedSamples": 576,
+   "insertedSamples": 1224,
+   "removedSamples": 1536
+  }
+ },
+ "gap": {
+  "profile": "gap",
+  "machineLoadAtEnd": 4,
+  "impairment": null,
+  "audioInfo": {
+   "sampleRate": 48000,
+   "baseLatency": 0.005333333333333333,
+   "outputLatency": 0.032
+  },
+  "ranAt": "2026-11-03T10:53:21.601Z",
+  "messageDeliveryMs": {
+   "reliable": {
+    "count": 951,
+    "p50": 1,
+    "p95": 3,
+    "absP50": 1,
+    "absP95": 3,
+    "absMax": 7
+   },
+   "lossy": {
+    "count": 951,
+    "p50": 1,
+    "p95": 3,
+    "absP50": 1,
+    "absP95": 3,
+    "absMax": 8
+   },
+   "firstOfBoth": {
+    "count": 951,
+    "p50": 1,
+    "p95": 3,
+    "absP50": 1,
+    "absP95": 3,
+    "absMax": 7
+   },
+   "lossyNeverArrived": 0
+  },
+  "wordError": {
+   "sampleCountFromOnsetMs": {
+    "count": 207,
+    "p50": 500,
+    "p95": 511,
+    "absP50": 500,
+    "absP95": 511,
+    "absMax": 511
+   },
+   "chosenClockMs": {
+    "count": 207,
+    "p50": 1,
+    "p95": 16,
+    "absP50": 1,
+    "absP95": 16,
+    "absMax": 19
+   },
+   "dataMessageArrivalMs": {
+    "count": 207,
+    "p50": 562,
+    "p95": 573,
+    "absP50": 562,
+    "absP95": 573,
+    "absMax": 576
+   },
+   "rtpTimestampFromOnsetMs": {
+    "count": 207,
+    "p50": 497,
+    "p95": 513,
+    "absP50": 497,
+    "absP95": 513,
+    "absMax": 516
+   }
+  },
+  "driftAtSegmentEndMs": {
+   "count": 12,
+   "p50": 502,
+   "p95": 511,
+   "absP50": 502,
+   "absP95": 511,
+   "absMax": 511
+  },
+  "wordTimesArriveBeforeAudioMs": {
+   "count": 12,
+   "p50": 65,
+   "p95": 71,
+   "absP50": 65,
+   "absP95": 71,
+   "absMax": 71
+  },
+  "audioKeepsPlayingAfterStopMessageMs": {
+   "count": 0
+  },
+  "wordTimesLateCount": 0,
+  "network": {
+   "packetsReceived": 3991,
+   "packetsLost": 0,
+   "jitterSeconds": 0.001,
+   "meanJitterBufferMs": 32,
+   "concealedSamples": 0,
+   "insertedSamples": 240,
+   "removedSamples": 0
+  }
+ },
+ "lost": {
+  "profile": "lost",
+  "machineLoadAtEnd": 5,
+  "impairment": {
+   "delayMs": 20,
+   "jitterMs": 5,
+   "lossPercent": 0,
+   "blackoutEveryMs": 8000,
+   "blackoutMs": 1000
+  },
+  "relayed": {
+   "forwarded": 5851,
+   "dropped": 700
+  },
+  "audioInfo": {
+   "sampleRate": 48000,
+   "baseLatency": 0.005333333333333333,
+   "outputLatency": 0.032
+  },
+  "ranAt": "2026-11-03T10:56:20.598Z",
+  "messageDeliveryMs": {
+   "reliable": {
+    "count": 712,
+    "p50": 26,
+    "p95": 2304,
+    "absP50": 26,
+    "absP95": 2304,
+    "absMax": 2976
+   },
+   "lossy": {
+    "count": 632,
+    "p50": 25,
+    "p95": 1558,
+    "absP50": 25,
+    "absP95": 1558,
+    "absMax": 2490
+   },
+   "firstOfBoth": {
+    "count": 712,
+    "p50": 23,
+    "p95": 2288,
+    "absP50": 23,
+    "absP95": 2288,
+    "absMax": 2976
+   },
+   "lossyNeverArrived": 80
+  },
+  "wordError": {
+   "sampleCountFromOnsetMs": {
+    "count": 166,
+    "p50": 0,
+    "p95": 6,
+    "absP50": 4,
+    "absP95": 9,
+    "absMax": 10
+   },
+   "chosenClockMs": {
+    "count": 166,
+    "p50": 0,
+    "p95": 6,
+    "absP50": 4,
+    "absP95": 9,
+    "absMax": 10
+   },
+   "dataMessageArrivalMs": {
+    "count": 165,
+    "p50": 63,
+    "p95": 78,
+    "absP50": 68,
+    "absP95": 1310,
+    "absMax": 2069
+   },
+   "rtpTimestampFromOnsetMs": {
+    "count": 166,
+    "p50": -1,
+    "p95": 4,
+    "absP50": 3,
+    "absP95": 6,
+    "absMax": 9
+   }
+  },
+  "driftAtSegmentEndMs": {
+   "count": 4,
+   "p50": 0,
+   "p95": 9,
+   "absP50": 0,
+   "absP95": 9,
+   "absMax": 9
+  },
+  "wordTimesArriveBeforeAudioMs": {
+   "count": 4,
+   "p50": 62,
+   "p95": 69,
+   "absP50": 69,
+   "absP95": 1124,
+   "absMax": 1124
+  },
+  "audioKeepsPlayingAfterStopMessageMs": {
+   "count": 2,
+   "p50": 75,
+   "p95": 75,
+   "absP50": 899,
+   "absP95": 899,
+   "absMax": 899
+  },
+  "wordTimesLateCount": 1,
+  "network": {
+   "packetsReceived": 2945,
+   "packetsLost": 76,
+   "jitterSeconds": 0.005,
+   "meanJitterBufferMs": 29,
+   "concealedSamples": 445218,
+   "insertedSamples": 240,
+   "removedSamples": 0
+  }
+ },
+ "poor": {
+  "profile": "poor",
+  "machineLoadAtEnd": 5,
+  "impairment": {
+   "delayMs": 100,
+   "jitterMs": 70,
+   "lossPercent": 4
+  },
+  "relayed": {
+   "forwarded": 6550,
+   "dropped": 280
+  },
+  "audioInfo": {
+   "sampleRate": 48000,
+   "baseLatency": 0.005333333333333333,
+   "outputLatency": 0.032
+  },
+  "ranAt": "2026-11-03T10:51:38.131Z",
+  "messageDeliveryMs": {
+   "reliable": {
+    "count": 716,
+    "p50": 119,
+    "p95": 313,
+    "absP50": 119,
+    "absP95": 313,
+    "absMax": 1327
+   },
+   "lossy": {
+    "count": 675,
+    "p50": 101,
+    "p95": 212,
+    "absP50": 101,
+    "absP95": 212,
+    "absMax": 282
+   },
+   "firstOfBoth": {
+    "count": 716,
+    "p50": 73,
+    "p95": 181,
+    "absP50": 73,
+    "absP95": 181,
+    "absMax": 394
+   },
+   "lossyNeverArrived": 41
+  },
+  "wordError": {
+   "sampleCountFromOnsetMs": {
+    "count": 156,
+    "p50": 1,
+    "p95": 37,
+    "absP50": 1,
+    "absP95": 37,
+    "absMax": 52
+   },
+   "chosenClockMs": {
+    "count": 156,
+    "p50": 1,
+    "p95": 37,
+    "absP50": 1,
+    "absP95": 37,
+    "absMax": 52
+   },
+   "dataMessageArrivalMs": {
+    "count": 153,
+    "p50": 169,
+    "p95": 284,
+    "absP50": 174,
+    "absP95": 291,
+    "absMax": 965
+   },
+   "rtpTimestampFromOnsetMs": {
+    "count": 156,
+    "p50": 0,
+    "p95": 4,
+    "absP50": 1,
+    "absP95": 7,
+    "absMax": 12
+   }
+  },
+  "driftAtSegmentEndMs": {
+   "count": 12,
+   "p50": 0,
+   "p95": 52,
+   "absP50": 10,
+   "absP95": 52,
+   "absMax": 52
+  },
+  "wordTimesArriveBeforeAudioMs": {
+   "count": 12,
+   "p50": 161,
+   "p95": 281,
+   "absP50": 161,
+   "absP95": 281,
+   "absMax": 281
+  },
+  "audioKeepsPlayingAfterStopMessageMs": {
+   "count": 6,
+   "p50": 176,
+   "p95": 317,
+   "absP50": 176,
+   "absP95": 317,
+   "absMax": 317
+  },
+  "wordTimesLateCount": 0,
+  "network": {
+   "packetsReceived": 2781,
+   "packetsLost": 130,
+   "jitterSeconds": 0.057,
+   "meanJitterBufferMs": 156,
+   "concealedSamples": 41455,
+   "insertedSamples": 2712,
+   "removedSamples": 0
+  }
+ },
+ "shortGap": {
+  "profile": "shortGap",
+  "machineLoadAtEnd": 5,
+  "impairment": null,
+  "audioInfo": {
+   "sampleRate": 48000,
+   "baseLatency": 0.005333333333333333,
+   "outputLatency": 0.032
+  },
+  "ranAt": "2026-11-03T10:55:01.551Z",
+  "messageDeliveryMs": {
+   "reliable": {
+    "count": 916,
+    "p50": 1,
+    "p95": 3,
+    "absP50": 1,
+    "absP95": 3,
+    "absMax": 24
+   },
+   "lossy": {
+    "count": 916,
+    "p50": 1,
+    "p95": 4,
+    "absP50": 1,
+    "absP95": 4,
+    "absMax": 26
+   },
+   "firstOfBoth": {
+    "count": 916,
+    "p50": 1,
+    "p95": 3,
+    "absP50": 1,
+    "absP95": 3,
+    "absMax": 24
+   },
+   "lossyNeverArrived": 0
+  },
+  "wordError": {
+   "sampleCountFromOnsetMs": {
+    "count": 202,
+    "p50": 200,
+    "p95": 211,
+    "absP50": 200,
+    "absP95": 211,
+    "absMax": 211
+   },
+   "chosenClockMs": {
+    "count": 202,
+    "p50": 2,
+    "p95": 18,
+    "absP50": 2,
+    "absP95": 18,
+    "absMax": 19
+   },
+   "dataMessageArrivalMs": {
+    "count": 202,
+    "p50": 261,
+    "p95": 273,
+    "absP50": 261,
+    "absP95": 273,
+    "absMax": 280
+   },
+   "rtpTimestampFromOnsetMs": {
+    "count": 202,
+    "p50": 195,
+    "p95": 213,
+    "absP50": 195,
+    "absP95": 213,
+    "absMax": 216
+   }
+  },
+  "driftAtSegmentEndMs": {
+   "count": 12,
+   "p50": 210,
+   "p95": 211,
+   "absP50": 210,
+   "absP95": 211,
+   "absMax": 211
+  },
+  "wordTimesArriveBeforeAudioMs": {
+   "count": 12,
+   "p50": 63,
+   "p95": 72,
+   "absP50": 63,
+   "absP95": 72,
+   "absMax": 72
+  },
+  "audioKeepsPlayingAfterStopMessageMs": {
+   "count": 0
+  },
+  "wordTimesLateCount": 0,
+  "network": {
+   "packetsReceived": 4901,
+   "packetsLost": 0,
+   "jitterSeconds": 0.003,
+   "meanJitterBufferMs": 36,
+   "concealedSamples": 0,
+   "insertedSamples": 1080,
+   "removedSamples": 0
+  }
+ },
+ "uneven": {
+  "profile": "uneven",
+  "machineLoadAtEnd": 8,
+  "impairment": {
+   "delayMs": 40,
+   "jitterMs": 30,
+   "lossPercent": 1
+  },
+  "relayed": {
+   "forwarded": 6405,
+   "dropped": 62
+  },
+  "audioInfo": {
+   "sampleRate": 48000,
+   "baseLatency": 0.005333333333333333,
+   "outputLatency": 0.032
+  },
+  "ranAt": "2026-11-03T10:50:18.059Z",
+  "messageDeliveryMs": {
+   "reliable": {
+    "count": 751,
+    "p50": 46,
+    "p95": 100,
+    "absP50": 46,
+    "absP95": 100,
+    "absMax": 279
+   },
+   "lossy": {
+    "count": 719,
+    "p50": 41,
+    "p95": 88,
+    "absP50": 41,
+    "absP95": 88,
+    "absMax": 141
+   },
+   "firstOfBoth": {
+    "count": 751,
+    "p50": 29,
+    "p95": 68,
+    "absP50": 29,
+    "absP95": 68,
+    "absMax": 99
+   },
+   "lossyNeverArrived": 32
+  },
+  "wordError": {
+   "sampleCountFromOnsetMs": {
+    "count": 163,
+    "p50": 0,
+    "p95": 20,
+    "absP50": 0,
+    "absP95": 20,
+    "absMax": 35
+   },
+   "chosenClockMs": {
+    "count": 163,
+    "p50": 0,
+    "p95": 20,
+    "absP50": 0,
+    "absP95": 20,
+    "absMax": 35
+   },
+   "dataMessageArrivalMs": {
+    "count": 162,
+    "p50": 110,
+    "p95": 149,
+    "absP50": 110,
+    "absP95": 149,
+    "absMax": 160
+   },
+   "rtpTimestampFromOnsetMs": {
+    "count": 163,
+    "p50": 1,
+    "p95": 7,
+    "absP50": 2,
+    "absP95": 7,
+    "absMax": 12
+   }
+  },
+  "driftAtSegmentEndMs": {
+   "count": 12,
+   "p50": 0,
+   "p95": 35,
+   "absP50": 0,
+   "absP95": 35,
+   "absMax": 35
+  },
+  "wordTimesArriveBeforeAudioMs": {
+   "count": 12,
+   "p50": 108,
+   "p95": 144,
+   "absP50": 108,
+   "absP95": 144,
+   "absMax": 144
+  },
+  "audioKeepsPlayingAfterStopMessageMs": {
+   "count": 6,
+   "p50": 133,
+   "p95": 171,
+   "absP50": 133,
+   "absP95": 171,
+   "absMax": 171
+  },
+  "wordTimesLateCount": 0,
+  "network": {
+   "packetsReceived": 3052,
+   "packetsLost": 26,
+   "jitterSeconds": 0.032,
+   "meanJitterBufferMs": 79,
+   "concealedSamples": 14658,
+   "insertedSamples": 2352,
+   "removedSamples": 0
+  }
+ }
+}

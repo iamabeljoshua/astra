@@ -1,0 +1,177 @@
+{
+ "pricesReadOn": "2026-11-03",
+ "soldPerHourInPrdQ21": 9.8,
+ "otherServicesPerMinute": {
+  "cartesiaScale": 0.0249,
+  "deepgramNova3WithKeyterms": 0.009,
+  "liveKitShip": 0.01
+ },
+ "otherPerMinute": 0.0439,
+ "flatPrefixAsInThePrd": {
+  "opus": {
+   "modelPerMinute": 0.06,
+   "allServicesPerMinute": 0.1039,
+   "perHour": 6.23,
+   "perHourWithBackgroundAndBuffer": 9.04,
+   "betaMonth": 1247
+  },
+  "sonnet": {
+   "modelPerMinute": 0.024,
+   "allServicesPerMinute": 0.0679,
+   "perHour": 4.08,
+   "perHourWithBackgroundAndBuffer": 6.23,
+   "betaMonth": 815
+  },
+  "haiku": {
+   "modelPerMinute": 0.0014,
+   "allServicesPerMinute": 0.0453,
+   "perHour": 2.72,
+   "perHourWithBackgroundAndBuffer": 4.47,
+   "betaMonth": 544
+  }
+ },
+ "withHistoryGrowth": {
+  "opus18": {
+   "model": "opus",
+   "minutes": 18,
+   "modelDollars": 1.7,
+   "modelPerMinute": 0.094,
+   "allServicesPerMinute": 0.138,
+   "overTheLimit": false,
+   "perHour": 8.3,
+   "perHourWithBackgroundAndBuffer": 11.73,
+   "lastPrefixTokens": 101400
+  },
+  "opus30": {
+   "model": "opus",
+   "minutes": 30,
+   "modelDollars": 3.35,
+   "modelPerMinute": 0.112,
+   "allServicesPerMinute": 0.156,
+   "overTheLimit": true,
+   "perHour": 9.34,
+   "perHourWithBackgroundAndBuffer": 13.08,
+   "lastPrefixTokens": 159000
+  },
+  "opus60": {
+   "model": "opus",
+   "minutes": 60,
+   "modelDollars": 9.3,
+   "modelPerMinute": 0.155,
+   "allServicesPerMinute": 0.199,
+   "overTheLimit": true,
+   "perHour": 11.93,
+   "perHourWithBackgroundAndBuffer": 16.45,
+   "lastPrefixTokens": 303000
+  },
+  "sonnet60": {
+   "model": "sonnet",
+   "minutes": 60,
+   "modelDollars": 3.88,
+   "modelPerMinute": 0.065,
+   "allServicesPerMinute": 0.109,
+   "overTheLimit": false,
+   "perHour": 6.51,
+   "perHourWithBackgroundAndBuffer": 9.4,
+   "lastPrefixTokens": 267000
+  },
+  "haiku60": {
+   "model": "haiku",
+   "minutes": 60,
+   "modelDollars": 1.37,
+   "modelPerMinute": 0.023,
+   "allServicesPerMinute": 0.067,
+   "overTheLimit": false,
+   "perHour": 4,
+   "perHourWithBackgroundAndBuffer": 6.14,
+   "lastPrefixTokens": 267000
+  }
+ },
+ "withCompactionAt60kTokens": {
+  "opus30": {
+   "model": "opus",
+   "minutes": 30,
+   "compact": true,
+   "modelDollars": 2.8,
+   "modelPerMinute": 0.093,
+   "allServicesPerMinute": 0.137,
+   "overTheLimit": false,
+   "perHour": 8.24,
+   "perHourWithBackgroundAndBuffer": 11.65,
+   "lastPrefixTokens": 33400
+  },
+  "opus60": {
+   "model": "opus",
+   "minutes": 60,
+   "compact": true,
+   "modelDollars": 5.65,
+   "modelPerMinute": 0.094,
+   "allServicesPerMinute": 0.138,
+   "overTheLimit": false,
+   "perHour": 8.29,
+   "perHourWithBackgroundAndBuffer": 11.71,
+   "lastPrefixTokens": 52600
+  },
+  "sonnet60": {
+   "model": "sonnet",
+   "minutes": 60,
+   "compact": true,
+   "modelDollars": 2.33,
+   "modelPerMinute": 0.039,
+   "allServicesPerMinute": 0.083,
+   "overTheLimit": false,
+   "perHour": 4.96,
+   "perHourWithBackgroundAndBuffer": 7.39,
+   "lastPrefixTokens": 56800
+  },
+  "haiku60": {
+   "model": "haiku",
+   "minutes": 60,
+   "compact": true,
+   "modelDollars": 0.15,
+   "modelPerMinute": 0.003,
+   "allServicesPerMinute": 0.046,
+   "overTheLimit": false,
+   "perHour": 2.79,
+   "perHourWithBackgroundAndBuffer": 4.56,
+   "lastPrefixTokens": 56800
+  }
+ },
+ "betaMonth400Sessions30Minutes": {
+  "opusGrowing": {
+   "allFourServices": 1871,
+   "withBackgroundAndBuffer": 2620
+  },
+  "opusCompacting": {
+   "allFourServices": 1643,
+   "withBackgroundAndBuffer": 2323
+  },
+  "sonnetGrowing": {
+   "allFourServices": 1079,
+   "withBackgroundAndBuffer": 1590
+  },
+  "sonnetCompacting": {
+   "allFourServices": 983,
+   "withBackgroundAndBuffer": 1465
+  },
+  "haikuCompacting": {
+   "allFourServices": 551,
+   "withBackgroundAndBuffer": 904
+  }
+ },
+ "thinking": {
+  "opusWithoutThinkingPerMinute": 0.048,
+  "opusWith200ThinkingTokensPerMinute": 0.06,
+  "millisecondsFor200TokensAt79PerSecond": 2532,
+  "millisecondsFor200TokensAt100PerSecond": 2000
+ },
+ "liveKitInferenceRoute": {
+  "speechMinutesPerSessionMinute": 0.595,
+  "ttsCartesiaSonicPerSpeechMinute": 0.03,
+  "sttNova3": 0.0048,
+  "sttFlux": 0.0065,
+  "tutorServicesPerMinute": 0.0243,
+  "directTutorServicesPerMinute": 0.0339,
+  "betaMonthSaving": 115
+ }
+}

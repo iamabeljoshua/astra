@@ -1,0 +1,170 @@
+{
+ "stories": 18,
+ "passed": 18,
+ "rows": [
+  {
+   "story": "a real sentence stops the tutor on its first word",
+   "passed": true,
+   "actions": [
+    "yield",
+    "stop"
+   ],
+   "phase": "stopped"
+  },
+  {
+   "story": "\"Wait.\" with the final after the voice ended still stops",
+   "passed": true,
+   "actions": [
+    "yield",
+    "stop"
+   ],
+   "phase": "stopped"
+  },
+  {
+   "story": "\"Wait.\" with the final after the grace still stops",
+   "passed": true,
+   "actions": [
+    "yield",
+    "unyield",
+    "stop"
+   ],
+   "phase": "stopped"
+  },
+  {
+   "story": "a word after the late window is left to the next turn",
+   "passed": true,
+   "actions": [
+    "yield",
+    "unyield"
+   ],
+   "phase": "clear"
+  },
+  {
+   "story": "\"uh-huh\" releases the yield and clears what the SDK held",
+   "passed": true,
+   "actions": [
+    "yield",
+    "unyield",
+    "clearHeldWords"
+   ],
+   "phase": "clear"
+  },
+  {
+   "story": "a final \"uh-huh\" before the voice ends releases at the voice end",
+   "passed": true,
+   "actions": [
+    "yield",
+    "unyield",
+    "clearHeldWords"
+   ],
+   "phase": "clear"
+  },
+  {
+   "story": "an interim \"uh-huh\" with no final clears at the grace",
+   "passed": true,
+   "actions": [
+    "yield",
+    "unyield",
+    "clearHeldWords"
+   ],
+   "phase": "clear"
+  },
+  {
+   "story": "a late \"uh-huh\" still clears what the SDK held",
+   "passed": true,
+   "actions": [
+    "yield",
+    "unyield",
+    "clearHeldWords"
+   ],
+   "phase": "clear"
+  },
+  {
+   "story": "with the tutor silent, the rule leaves words alone",
+   "passed": true,
+   "actions": [],
+   "phase": "clear"
+  },
+  {
+   "story": "the tutor finishing releases the yield",
+   "passed": true,
+   "actions": [
+    "yield",
+    "unyield"
+   ],
+   "phase": "clear"
+  },
+  {
+   "story": "reactions clear the 1 s rule while the voice goes on",
+   "passed": true,
+   "actions": [
+    "yield"
+   ],
+   "phase": "yielding"
+  },
+  {
+   "story": "after a question, \"yes\" is an answer",
+   "passed": true,
+   "actions": [
+    "yield",
+    "stop"
+   ],
+   "phase": "stopped"
+  },
+  {
+   "story": "a cough with no words releases the yield",
+   "passed": true,
+   "actions": [
+    "yield",
+    "unyield"
+   ],
+   "phase": "clear"
+  },
+  {
+   "story": "1 s of sound with no words cuts the tutor, then resumes",
+   "passed": true,
+   "actions": [
+    "yield",
+    "stop",
+    "resume"
+   ],
+   "phase": "clear"
+  },
+  {
+   "story": "words after the cut cancel the resume",
+   "passed": true,
+   "actions": [
+    "yield",
+    "stop"
+   ],
+   "phase": "stopped"
+  },
+  {
+   "story": "a reaction after the cut resumes at once",
+   "passed": true,
+   "actions": [
+    "yield",
+    "stop",
+    "clearHeldWords",
+    "resume"
+   ],
+   "phase": "clear"
+  },
+  {
+   "story": "more sound during the grace keeps the tutor held",
+   "passed": true,
+   "actions": [
+    "yield",
+    "stop",
+    "resume"
+   ],
+   "phase": "clear"
+  },
+  {
+   "story": "no yield while the tutor is silent",
+   "passed": true,
+   "actions": [],
+   "phase": "clear"
+  }
+ ]
+}

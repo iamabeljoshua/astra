@@ -1,0 +1,40 @@
+{
+ "beats_speculative": {
+  "attempts": 5,
+  "outcomes": [
+   {
+    "startedDuringPause": 1,
+    "cuesDuringPause": 0,
+    "modelStarts": 2,
+    "cuesInTurn": 6
+   },
+   {
+    "startedDuringPause": 1,
+    "cuesDuringPause": 0,
+    "modelStarts": 2,
+    "cuesInTurn": 4
+   },
+   {
+    "startedDuringPause": 1,
+    "cuesDuringPause": 2,
+    "modelStarts": 3,
+    "cuesInTurn": 5
+   },
+   {
+    "startedDuringPause": 1,
+    "cuesDuringPause": 0,
+    "modelStarts": 3,
+    "cuesInTurn": 3
+   },
+   {
+    "startedDuringPause": 1,
+    "cuesDuringPause": 0,
+    "modelStarts": 3,
+    "cuesInTurn": 3
+   }
+  ],
+  "joinToSessionStartedMs": 605,
+  "agentMemoryMb": 579,
+  "machineLoadAtEnd": 10
+ }
+}

@@ -1,0 +1,98 @@
+{
+ "speech": {
+  "lostAudio": [
+   {
+    "lostFromMs": 1500,
+    "lostForMs": 800,
+    "ruleWithoutRtp": {
+     "words": 26,
+     "of": 29,
+     "absP50": 1117,
+     "absP95": 1385,
+     "absMax": 1409
+    },
+    "ruleWithRtp": {
+     "words": 29,
+     "of": 29,
+     "absP50": 7,
+     "absP95": 15,
+     "absMax": 16
+    }
+   },
+   {
+    "lostFromMs": 3000,
+    "lostForMs": 1500,
+    "ruleWithoutRtp": {
+     "words": 24,
+     "of": 29,
+     "absP50": 1773,
+     "absP95": 2163,
+     "absMax": 2163
+    },
+    "ruleWithRtp": {
+     "words": 29,
+     "of": 29,
+     "absP50": 7,
+     "absP95": 16,
+     "absMax": 16
+    }
+   },
+   {
+    "lostFromMs": 1500,
+    "lostForMs": 3000,
+    "ruleWithoutRtp": {
+     "words": 21,
+     "of": 29,
+     "absP50": 3405,
+     "absP95": 3437,
+     "absMax": 3437
+    },
+    "ruleWithRtp": {
+     "words": 29,
+     "of": 29,
+     "absP50": 7,
+     "absP95": 15,
+     "absMax": 16
+    }
+   }
+  ],
+  "randomPausesAndAStall": {
+   "runs": 20,
+   "worstAbsP95": 18,
+   "worstAbsMax": 18,
+   "allWordsFired": true
+  },
+  "naturalPauses": {
+   "restartOnNextUnplayedWord": {
+    "words": 29,
+    "of": 29,
+    "absP50": 6,
+    "absP95": 16,
+    "absMax": 16
+   },
+   "chosenRule": {
+    "words": 29,
+    "of": 29,
+    "absP50": 7,
+    "absP95": 16,
+    "absMax": 16
+   }
+  },
+  "pausesAnd500msStall": {
+   "restartOnNextUnplayedWord": {
+    "words": 29,
+    "of": 29,
+    "absP50": 7,
+    "absP95": 16,
+    "absMax": 17
+   },
+   "chosenRule": {
+    "words": 29,
+    "of": 29,
+    "absP50": 12,
+    "absP95": 16,
+    "absMax": 17
+   }
+  }
+ }
+}
