@@ -1,0 +1,121 @@
+{
+ "machineLoadAtEnd": 26,
+ "audioInfo": {
+  "sampleRate": 48000,
+  "baseLatency": 0.005333333333333333,
+  "outputLatency": 0.032
+ },
+ "interrupts": 10,
+ "frozeEveryTime": true,
+ "outputAudioAfterStopMs": {
+  "count": 10,
+  "p50": 0,
+  "max": 0,
+  "min": 0
+ },
+ "arrivingAudioAfterStopMs": {
+  "count": 10,
+  "p50": 144,
+  "max": 157,
+  "min": 96
+ },
+ "stopDeliveryMs": {
+  "count": 20,
+  "p50": 2,
+  "max": 5,
+  "min": 1
+ },
+ "uhhuh": [
+  {
+   "kind": "uhhuh",
+   "spokenText": "Uh-huh",
+   "turnId": "t21",
+   "frozen": false,
+   "wordsTimed": 33,
+   "burstsHeard": 33,
+   "playedWords": 33,
+   "cuesReceived": 4,
+   "cuesFired": 4,
+   "firedDuringYield": 0,
+   "yieldHeldMs": 837,
+   "outputSilences": 0
+  },
+  {
+   "kind": "uhhuh",
+   "spokenText": "Uh-huh",
+   "turnId": "t22",
+   "frozen": false,
+   "wordsTimed": 33,
+   "burstsHeard": 33,
+   "playedWords": 33,
+   "cuesReceived": 4,
+   "cuesFired": 4,
+   "firedDuringYield": 0,
+   "yieldHeldMs": 800,
+   "outputSilences": 0
+  },
+  {
+   "kind": "uhhuh",
+   "spokenText": "Uh-huh",
+   "turnId": "t23",
+   "frozen": false,
+   "wordsTimed": 33,
+   "burstsHeard": 33,
+   "playedWords": 33,
+   "cuesReceived": 4,
+   "cuesFired": 4,
+   "firedDuringYield": 0,
+   "yieldHeldMs": 837,
+   "outputSilences": 0
+  },
+  {
+   "kind": "uhhuh",
+   "spokenText": "Uh-huh",
+   "turnId": "t24",
+   "frozen": false,
+   "wordsTimed": 33,
+   "burstsHeard": 33,
+   "playedWords": 33,
+   "cuesReceived": 4,
+   "cuesFired": 4,
+   "firedDuringYield": 0,
+   "yieldHeldMs": 827,
+   "outputSilences": 0
+  },
+  {
+   "kind": "uhhuh",
+   "spokenText": "yeah yeah okay right",
+   "turnId": "t25",
+   "frozen": false,
+   "wordsTimed": 33,
+   "burstsHeard": 33,
+   "playedWords": 33,
+   "cuesReceived": 4,
+   "cuesFired": 4,
+   "firedDuringYield": 1,
+   "yieldHeldMs": 2245,
+   "outputSilences": 0
+  },
+  {
+   "kind": "uhhuh",
+   "spokenText": "yeah yeah okay right",
+   "turnId": "t26",
+   "frozen": false,
+   "wordsTimed": 33,
+   "burstsHeard": 33,
+   "playedWords": 33,
+   "cuesReceived": 4,
+   "cuesFired": 4,
+   "firedDuringYield": 1,
+   "yieldHeldMs": 2240,
+   "outputSilences": 0
+  }
+ ],
+ "cuesFiredAfterFreeze": 0,
+ "cuesSentAfterStop": 1,
+ "cuesReceivedAfterFreeze": 1,
+ "firedPastHeardWord": 0,
+ "cuesForHeardWordsNotFired": 0,
+ "rebuildMatches": 10,
+ "attemptsWhereModelStillWriting": 2
+}
