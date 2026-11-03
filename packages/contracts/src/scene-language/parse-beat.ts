@@ -6,6 +6,8 @@ import type { SceneCommand } from './scene-command.ts';
 
 const MAX_SCRIPT_PARTS = 200;
 const BEAT_KEYS = ['id', 'script', 'expectsReply'];
+const HOLDS_LETTER_OR_DIGIT = /[\p{L}\p{N}]/u;
+const ONLY_ZERO_WIDTH = /^\p{Cf}+$/u;
 
 function countCommands(script: Beat['script']): number {
   return script.filter((part) => typeof part !== 'string').length;
@@ -15,15 +17,19 @@ function getCreatedIds(script: Beat['script']): string[] {
   return script.flatMap((part) => (typeof part !== 'string' && 'id' in part ? [part.id] : []));
 }
 
+function checkWords(words: string[], place: Place): void {
+  if (!words.some((word) => HOLDS_LETTER_OR_DIGIT.test(word))) fail(place, 'at least one spoken word');
+  if (words.some((word) => ONLY_ZERO_WIDTH.test(word))) fail(place, 'no word made only of zero-width characters');
+  if (words.length > BEAT_LIMITS.words) fail(place, `at most ${BEAT_LIMITS.words} words`);
+}
+
 function checkScript(script: Beat['script'], place: Place): void {
   const text = getScriptText(script);
   checkStorableText(text, place);
   if (countCommands(script) > BEAT_LIMITS.commands) fail(place, `at most ${BEAT_LIMITS.commands} commands`);
   const createdIds = getCreatedIds(script);
   if (new Set(createdIds).size !== createdIds.length) fail(place, 'each id to be created once');
-  const wordCount = getSpokenWords(text).length;
-  if (wordCount === 0) fail(place, 'at least one spoken word');
-  if (wordCount > BEAT_LIMITS.words) fail(place, `at most ${BEAT_LIMITS.words} words`);
+  checkWords(getSpokenWords(text), place);
   if (text.length > BEAT_LIMITS.characters) fail(place, `at most ${BEAT_LIMITS.characters} characters`);
 }
 

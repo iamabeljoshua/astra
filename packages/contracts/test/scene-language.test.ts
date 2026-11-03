@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   BEAT_LIMITS,
   getBeatText,
+  type FrozenFrame,
   getCues,
   getPlayedCues,
+  getResumeScript,
   getScriptFromWord,
   getScriptText,
   getSpokenWords,
@@ -20,6 +22,9 @@ const INVALID_BEATS: [string, unknown, RegExp][] = [
   ['no words', makeBeat({ script: ['   '] }), /at least one spoken word/],
   ['only a command', makeBeat({ script: [{ kind: 'clearBoard' }] }), /at least one spoken word/],
   ['an empty script', makeBeat({ script: [] }), /at least one spoken word/],
+  ['a zero-width space as its only word', makeBeat({ script: ['\u200B'] }), /at least one spoken word/],
+  ['only punctuation', makeBeat({ script: ['... ?!'] }), /at least one spoken word/],
+  ['a word made only of zero-width characters', makeBeat({ script: ['Watch \u200B\u200D this.'] }), /no word made only of zero-width characters/],
   ['a script that is not a list', makeBeat({ script: 'Watch this arrow.' }), /beat\.script: expected a list/],
   ['too many words', makeBeat({ script: [Array.from({ length: 61 }, () => 'word').join(' ')] }), /at most 60 words/],
   ['too much text', makeBeat({ script: ['a'.repeat(601)] }), /at most 600 characters/],
@@ -82,6 +87,14 @@ describe('parseBeat', () => {
 
   it('accepts a part name with capitals, such as a geometry point', () => {
     expect(parseBeat(withCommand({ kind: 'focus', target: 'figure.A' })).ok).toBe(true);
+  });
+
+  it.each([
+    ['a number as its only word', '42'],
+    ['a word in another script', 'नमस्ते'],
+    ['a zero-width joiner inside a word', 'می\u200Cخواهم'],
+  ])('accepts %s', (_name, words) => {
+    expect(parseBeat(makeBeat({ script: [words] })).ok).toBe(true);
   });
 });
 
@@ -242,5 +255,111 @@ describe('getScriptFromWord', () => {
         expect(rest.filter((part) => typeof part !== 'string')).toEqual(commands.slice(firedCues));
       }
     }
+  });
+});
+
+describe('getResumeScript', () => {
+  const SHOT = 'shot' as FrozenFrame['target'];
+  const VALUES = 'values' as FrozenFrame['target'];
+  const play = { kind: 'runSimulation', target: 'shot', action: 'play', until: 'landing', overWords: 5 };
+  const arrow = { kind: 'trackVector', id: 'arrow', target: 'shot', quantity: 'velocity-y' };
+  const reveal = { kind: 'reveal', target: 'values', upTo: 3, overWords: 4 };
+  const beat = parseOrThrow(makeBeat({ script: [play, reveal, 'Watch ', arrow, 'this arrow come back down now.'] }));
+
+  function getCommands(script: unknown[]): unknown[] {
+    return script.filter((part) => typeof part !== 'string');
+  }
+
+  it('plays the frozen ball again on the first resumed word, with its stop kept and the said words taken off', () => {
+    const frozen = [{ target: SHOT, simulationSeconds: 0.71 }];
+    const script = getResumeScript(beat, { fromWord: 2, firedCues: 3, frozen });
+    const resumed = parseOrThrow(makeBeat({ script }));
+    expect(getCues(resumed)).toEqual([{ atWord: 0, command: { ...play, overWords: 3 } }]);
+    expect(getBeatText(resumed)).toBe('arrow come back down now.');
+  });
+
+  it('never fires twice a command that already fired', () => {
+    const frozen = [{ target: SHOT, simulationSeconds: 0.71 }];
+    const commands = getCommands(getResumeScript(beat, { fromWord: 2, firedCues: 3, frozen }));
+    expect(commands).toEqual([{ ...play, overWords: 3 }]);
+  });
+
+  it('still fires a late command that never fired, after the one it prepends', () => {
+    const frozen = [{ target: SHOT, simulationSeconds: 0.71 }];
+    const commands = getCommands(getResumeScript(beat, { fromWord: 2, firedCues: 2, frozen }));
+    expect(commands).toEqual([{ ...play, overWords: 3 }, arrow]);
+  });
+
+  it('adds nothing when nothing is frozen', () => {
+    const cut = { fromWord: 2, firedCues: 3 };
+    expect(getResumeScript(beat, { ...cut, frozen: [] })).toEqual(getScriptFromWord(beat, cut));
+  });
+
+  it('keeps at least one word for the motion to finish over', () => {
+    const frozen = [{ target: SHOT, simulationSeconds: 0.71 }];
+    const commands = getCommands(getResumeScript(beat, { fromWord: 6, firedCues: 3, frozen }));
+    expect(commands).toEqual([{ ...play, overWords: 1 }]);
+  });
+
+  it('takes nothing off when the cue fired ahead of its word', () => {
+    const early = parseOrThrow(makeBeat({ script: ['Watch this ', play, 'arrow now.'] }));
+    const frozen = [{ target: SHOT, simulationSeconds: 0.71 }];
+    expect(getResumeScript(early, { fromWord: 1, firedCues: 1, frozen })[0]).toEqual(play);
+  });
+
+  it('leaves overWords out when the cue had none, and keeps its stop', () => {
+    const plain = { kind: 'runSimulation', target: 'shot', action: 'play', until: 0.9 };
+    const noWords = parseOrThrow(makeBeat({ script: [plain, 'Watch this arrow.'] }));
+    const frozen = [{ target: SHOT, simulationSeconds: 0.3 }];
+    expect(getResumeScript(noWords, { fromWord: 1, firedCues: 1, frozen })).toEqual([plain, 'this arrow.']);
+  });
+
+  it('uses the last play that fired for that target, and ignores other actions and other targets', () => {
+    const first = { kind: 'runSimulation', target: 'shot', action: 'play', until: 'peak' };
+    const other = { kind: 'runSimulation', target: 'other', action: 'play', until: 0.2 };
+    const pause = { kind: 'runSimulation', target: 'shot', action: 'pause' };
+    const second = { kind: 'runSimulation', target: 'shot', action: 'play', until: 'landing' };
+    const many = parseOrThrow(makeBeat({ script: [first, 'One ', second, 'two ', other, pause, 'three four.'] }));
+    const frozen = [{ target: SHOT, simulationSeconds: 0.3 }];
+    expect(getCommands(getResumeScript(many, { fromWord: 3, firedCues: 4, frozen }))).toEqual([second]);
+  });
+
+  it('plays plainly when the motion started in an earlier beat', () => {
+    const later = parseOrThrow(makeBeat({ script: ['Watch this arrow.'] }));
+    const frozen = [{ target: SHOT, simulationSeconds: 0.3 }];
+    expect(getResumeScript(later, { fromWord: 1, firedCues: 0, frozen })).toEqual([{ kind: 'runSimulation', target: 'shot', action: 'play' }, 'this arrow.']);
+  });
+
+  it('does not count a play that has not fired as the cue to repeat', () => {
+    const frozen = [{ target: SHOT, simulationSeconds: 0.3 }];
+    const commands = getCommands(getResumeScript(beat, { fromWord: 0, firedCues: 0, frozen }));
+    expect(commands[0]).toEqual({ kind: 'runSimulation', target: 'shot', action: 'play' });
+  });
+
+  it('carries on a cut reveal, with the said words taken off', () => {
+    const frozen = [{ target: VALUES, revealedUpTo: 1.5 }];
+    expect(getCommands(getResumeScript(beat, { fromWord: 3, firedCues: 3, frozen }))).toEqual([{ ...reveal, overWords: 1 }]);
+    expect(getCommands(getResumeScript(beat, { fromWord: 1, firedCues: 3, frozen }))).toEqual([{ ...reveal, overWords: 3 }]);
+  });
+
+  it('drops a reveal frame with no reveal fired in this beat', () => {
+    const frozen = [{ target: VALUES, revealedUpTo: 1.5 }];
+    expect(getCommands(getResumeScript(beat, { fromWord: 0, firedCues: 0, frozen }))).toEqual([play, reveal, arrow]);
+  });
+
+  it('adds nothing for an entrance, which the board finishes when it unfreezes', () => {
+    const frozen = [{ target: SHOT, drawnFraction: 0.4 }, { target: VALUES, drawnFraction: 0.4 }];
+    expect(getCommands(getResumeScript(beat, { fromWord: 2, firedCues: 3, frozen }))).toEqual([]);
+  });
+
+  it('gives one command per frame, in the order of the frames', () => {
+    const frozen = [{ target: VALUES, revealedUpTo: 1 }, { target: SHOT, simulationSeconds: 0.3 }];
+    expect(getCommands(getResumeScript(beat, { fromWord: 1, firedCues: 3, frozen }))).toEqual([{ ...reveal, overWords: 3 }, { ...play, overWords: 4 }]);
+  });
+
+  it('leaves the beat it was given unchanged', () => {
+    const before = JSON.stringify(beat);
+    getResumeScript(beat, { fromWord: 3, firedCues: 3, frozen: [{ target: SHOT, simulationSeconds: 0.3 }] });
+    expect(JSON.stringify(beat)).toBe(before);
   });
 });

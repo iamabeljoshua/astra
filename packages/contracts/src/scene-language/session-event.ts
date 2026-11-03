@@ -1,4 +1,4 @@
-import type { Beat } from './beat.ts';
+import type { Beat, FrozenFrame } from './beat.ts';
 import type { ElementId, FileId, TurnId } from './ids.ts';
 import type { SimulationParameter } from './scene-command.ts';
 
@@ -10,13 +10,6 @@ export type BeatEnding = (typeof BEAT_ENDINGS)[number];
 
 export const PLAY_REPORTERS = ['browser', 'agent-estimate'] as const;
 export type PlayReporter = (typeof PLAY_REPORTERS)[number];
-
-/** A frozen simulation stays on this frame until a later `runSimulation`. */
-export interface FrozenSimulation {
-  target: ElementId;
-  /** The simulation's own time at the frozen frame. */
-  simulationSeconds: number;
-}
 
 /** Each sample sets the value and restarts the motion. */
 export interface SliderSample {
@@ -30,7 +23,7 @@ export type InkPoint = [x: number, y: number, afterMs: number];
 
 export type StudentAction =
   | { action: 'sliderDragged'; target: ElementId; parameter: SimulationParameter; samples: SliderSample[] }
-  | { action: 'rewound'; toBeat: Beat['id'] }
+  | { action: 'rewound'; turnId: TurnId; toBeat: Beat['id'] }
   /** A long stroke is sent as several actions with the same id. */
   | { action: 'inkStroke'; id: ElementId; points: InkPoint[] }
   | { action: 'inkErased'; target: ElementId }
@@ -42,10 +35,10 @@ export interface PlayReport {
   durationMs: number;
   /** Counts the words that started playing, so a cut word counts. */
   playedWords: number;
-  /** Counts, in script order, the cues that really fired. */
-  firedCues: number;
+  /** When each fired cue really fired, in ms after `atMs` and in script order. Its length is how many fired, and a replay uses these instead of the word's time. */
+  firedCueMs: number[];
   ending: BeatEnding;
-  frozen: FrozenSimulation[];
+  frozen: FrozenFrame[];
 }
 
 export interface BeatPlayed extends PlayReport {
@@ -80,7 +73,7 @@ export interface ConnectionGap {
 export interface BoardFrozen {
   kind: 'boardFrozen';
   turnId: TurnId;
-  frozen: FrozenSimulation[];
+  frozen: FrozenFrame[];
 }
 
 export type SessionEventBody = BeatPlayed | StudentSpoke | StudentActed | ConnectionGap | BoardFrozen;

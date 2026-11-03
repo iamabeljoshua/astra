@@ -1,38 +1,58 @@
 import { build } from 'esbuild';
 import { spawn } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createSocket } from 'node:dgram';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { loadavg, networkInterfaces } from 'node:os';
 import { dirname, join } from 'node:path';
-import { parseArgs } from 'node:util';
 import { fileURLToPath } from 'node:url';
+import { parseArgs } from 'node:util';
 import { AccessToken } from 'livekit-server-sdk';
 import { chromium } from 'playwright-core';
-import { createWordClock, getIsAudioLost } from './clock-rule.mjs';
+import { createGuessingClock, getIsLostByRtp } from './clock-rejected.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const RUNS = join(HERE, 'runs', 'clock');
 mkdirSync(RUNS, { recursive: true });
-const { values: args } = parseArgs({ options: { segments: { type: 'string', default: '10' }, only: { type: 'string' }, reanalyse: { type: 'boolean', default: false } } });
+const { values: args } = parseArgs({ options: { only: { type: 'string' }, repeat: { type: 'string', default: '1' } } });
 
 const LIVEKIT_URL = process.env.CLOCK_LIVEKIT_URL ?? 'ws://127.0.0.1:7880';
 const PAGE_PORT = Number(process.env.CLOCK_PAGE_PORT ?? 17811);
-const RTP_CLOCK_HZ = 48000;
 const SERVER_UDP_PORT = Number(process.env.CLOCK_SERVER_UDP_PORT ?? 7882);
 const RELAY_PORT = Number(process.env.CLOCK_RELAY_PORT ?? 17982);
+const RTP_CLOCK_HZ = 48000;
+const WORD_MATCH_MS = 150;
+const EARLY_MS = 40;
 const LAN_ADDRESS = Object.values(networkInterfaces()).flat().find((entry) => entry.family === 'IPv4' && !entry.internal)?.address;
-const PROFILES = {
-  clean: null,
-  uneven: { delayMs: 40, jitterMs: 30, lossPercent: 1 },
-  poor: { delayMs: 100, jitterMs: 70, lossPercent: 4 },
-  gap: null,
-  shortGap: null,
-  lost: { delayMs: 20, jitterMs: 5, lossPercent: 0, blackoutEveryMs: 8000, blackoutMs: 1000 },
+
+const UNEVEN = { delayMs: 40, jitterMs: 30, lossPercent: 1 };
+const POOR = { delayMs: 100, jitterMs: 70, lossPercent: 4 };
+const BLACKOUT = { delayMs: 20, jitterMs: 5, lossPercent: 0, blackoutEveryMs: 8000, blackoutMs: 1000 };
+const MIDDLE = 0.5;
+const INTO_WORD_MS = 90;
+const PAUSES = { everyWords: 4, ms: 250 };
+const LONG_TURNS = { segmentMs: 30000, segments: 3 };
+const stallOf = (ms, intoWordMs = 0) => [{ wordFraction: MIDDLE, ms, intoWordMs }];
+
+const SCENARIOS = {
+  clean: { options: { stopsEarly: true } },
+  uneven: { impair: UNEVEN, options: { stopsEarly: true } },
+  poor: { impair: POOR, options: { stopsEarly: true } },
+  'stall-120': { options: { stalls: stallOf(120) } },
+  'stall-200': { options: { stalls: stallOf(200) } },
+  'stall-500': { options: { stalls: stallOf(500) } },
+  'stall-90': { options: { stalls: stallOf(90) } },
+  'stall-200-mid-word': { options: { stalls: stallOf(200, INTO_WORD_MS) } },
+  'stall-500-mid-word': { options: { stalls: stallOf(500, INTO_WORD_MS) } },
+  'stall-200-uneven': { impair: UNEVEN, options: { stalls: stallOf(200) } },
+  'stall-500-poor': { impair: POOR, options: { stalls: stallOf(500) } },
+  pauses: { options: { pause: PAUSES } },
+  'pauses-stall-300': { options: { pause: PAUSES, stalls: stallOf(300) } },
+  lost: { impair: BLACKOUT, options: LONG_TURNS },
+  'pauses-lost': { impair: BLACKOUT, options: { ...LONG_TURNS, pause: PAUSES } },
+  'words-late-300': { options: { wordTimesLateMs: 300 } },
+  'words-late-300-poor': { impair: POOR, options: { wordTimesLateMs: 300 } },
 };
-const GAP_PROFILE_MS = { gap: 500, shortGap: 200 };
-const LOST_PROFILE_SEGMENT_MS = 30000;
-const LOST_PROFILE_SEGMENTS = 4;
 
 const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
@@ -41,7 +61,7 @@ function describeSeries(values) {
   const sorted = [...values].sort((a, b) => a - b);
   const absolute = values.map(Math.abs).sort((a, b) => a - b);
   const at = (list, fraction) => Math.round(list[Math.min(list.length - 1, Math.floor(fraction * list.length))]);
-  return { count: values.length, p50: at(sorted, 0.5), p95: at(sorted, 0.95), absP50: at(absolute, 0.5), absP95: at(absolute, 0.95), absMax: Math.round(absolute.at(-1)) };
+  return { count: values.length, p50: at(sorted, 0.5), p95: at(sorted, 0.95), absP50: at(absolute, 0.5), absP95: at(absolute, 0.95), absMax: Math.round(absolute.at(-1)), earlyOver40: values.filter((value) => value < -EARLY_MS).length, lateOver100: values.filter((value) => value > 100).length };
 }
 
 function interpolate(points, x, getX, getY) {
@@ -57,96 +77,92 @@ function interpolate(points, x, getX, getY) {
   return getY(previous);
 }
 
-// Pairs each burst with its nearest expected word, or by order when `isInOrder`, because a deliberate gap shifts every later word.
-function matchWords({ onset, bursts, wordStartsMs, isInOrder }) {
-  return bursts.map((burst, burstIndex) => {
-    const elapsedMs = (burst.contextSeconds - onset.contextSeconds) * 1000;
-    if (isInOrder) return { wordIndex: Math.min(burstIndex, wordStartsMs.length - 1), burst, elapsedMs };
-    let bestIndex = 0;
-    for (let index = 1; index < wordStartsMs.length; index++) {
-      if (Math.abs(wordStartsMs[index] - elapsedMs) < Math.abs(wordStartsMs[bestIndex] - elapsedMs)) bestIndex = index;
-    }
-    return { wordIndex: bestIndex, burst, elapsedMs };
-  });
-}
-
-function getEpochMs(records, contextSeconds) {
-  return interpolate(records.clockMap, contextSeconds, (point) => point.contextTime, (point) => point.epochMs);
-}
-
-function getIsLostAtOnset({ records, onset }) {
-  const silenceStart = records.worklet.filter((event) => event.kind === 'end' && event.contextSeconds < onset.contextSeconds).at(-1);
-  if (!silenceStart) return false;
-  const rtpPolls = records.rtp.map((poll) => ({ atMs: poll.pollEpochMs, rtpTimestamp: poll.rtpTimestamp }));
-  return getIsAudioLost({ silenceStartMs: getEpochMs(records, silenceStart.contextSeconds), silenceEndMs: getEpochMs(records, onset.contextSeconds), rtpPolls, rtpClockHz: RTP_CLOCK_HZ });
-}
-
-function analyse(records, isInOrder) {
+// The first sound of each segment and the audio it owns, read from the worklet alone.
+function getSegmentAudio(records) {
   const segments = records.data.filter((message) => message.type === 'segment');
   const onsets = records.worklet.filter((event) => event.kind === 'onset');
-  const ends = records.worklet.filter((event) => event.kind === 'end');
-  const errors = { sampleCount: [], chosenClock: [], arrival: [], rtp: [] };
+  const firstOnsets = segments.map((segment) => onsets.reduce((nearest, onset) => (!nearest || Math.abs(onset.contextSeconds - segment.contextSeconds) < Math.abs(nearest.contextSeconds - segment.contextSeconds) ? onset : nearest), null));
+  return segments.flatMap((segment, index) => {
+    const onset = firstOnsets[index];
+    if (!onset) return [];
+    const limit = firstOnsets[index + 1]?.contextSeconds ?? Infinity;
+    const bursts = records.worklet.filter((event) => event.kind === 'burst' && event.contextSeconds >= onset.contextSeconds - 0.02 && event.contextSeconds < limit - 0.02);
+    return [{ segment, onset, limit, bursts }];
+  });
+}
+
+// Each word's true moment: the burst nearest where it must be once the stalls we caused are added.
+function matchWordsToBursts({ segment, onset, bursts }) {
+  return segment.wordStartsMs.flatMap((startMs, wordIndex) => {
+    const stallMs = segment.stalls.filter((stall) => stall.atMs <= startMs).reduce((sum, stall) => sum + stall.ms, 0);
+    const expectedSeconds = onset.contextSeconds + (startMs + stallMs) / 1000;
+    const nearest = bursts.reduce((best, burst) => (!best || Math.abs(burst.contextSeconds - expectedSeconds) < Math.abs(best.contextSeconds - expectedSeconds) ? burst : best), null);
+    if (!nearest || Math.abs(nearest.contextSeconds - expectedSeconds) * 1000 > WORD_MATCH_MS) return [];
+    return [{ wordIndex, burst: nearest, startMs }];
+  });
+}
+
+// Replays the rejected rule at each burst, as the first two rounds' tables did, so a word right after a stall scores near 0 by construction.
+function getReanalysedErrors({ records, segment, onset, limit, matches }) {
+  const clock = createGuessingClock(segment.wordStartsMs);
+  const events = records.worklet.filter((event) => (event.kind === 'onset' || event.kind === 'end') && event.contextSeconds >= onset.contextSeconds && event.contextSeconds < limit);
+  const rtpPolls = records.rtp.map((poll) => ({ atMs: poll.pollEpochMs, rtpTimestamp: poll.rtpTimestamp }));
+  const toEpochMs = (seconds) => interpolate(records.clockMap, seconds, (point) => point.contextTime, (point) => point.epochMs);
+  let lastEnd = null;
+  return matches.map(({ burst, startMs }) => {
+    while (events.length > 0 && events[0].contextSeconds <= burst.contextSeconds + 0.003) {
+      const event = events.shift();
+      if (event.kind === 'end') {
+        clock.onEnd(event.contextSeconds * 1000);
+        lastEnd = event.contextSeconds;
+      } else {
+        const isAudioLost = lastEnd !== null && getIsLostByRtp({ silenceStartMs: toEpochMs(lastEnd), silenceEndMs: toEpochMs(event.contextSeconds), rtpPolls, rtpClockHz: RTP_CLOCK_HZ });
+        clock.onOnset(event.contextSeconds * 1000, { isAudioLost });
+      }
+    }
+    return clock.getPositionMs(burst.contextSeconds * 1000) - startMs;
+  });
+}
+
+function analyse(records) {
+  const methods = {};
+  const reanalysed = [];
   const leads = [];
   const stops = [];
-  const drift = [];
-  const getNearestOnset = (segment) => onsets.reduce((nearest, event) => (!nearest || Math.abs(event.contextSeconds - segment.contextSeconds) < Math.abs(nearest.contextSeconds - segment.contextSeconds) ? event : nearest), null);
-  segments.forEach((segment) => {
-    // The word times can land just after the audio starts on a bad link, so take the nearest onset, not the next one.
-    const onset = getNearestOnset(segment);
-    if (!onset) return;
+  const ends = records.worklet.filter((event) => event.kind === 'end');
+  let wordsSent = 0;
+  let wordsHeard = 0;
+  for (const audio of getSegmentAudio(records)) {
+    const { segment, onset } = audio;
+    wordsSent += segment.wordStartsMs.length;
     leads.push((onset.contextSeconds - segment.contextSeconds) * 1000);
-    const nextSegment = segments.find((other) => other.segmentId === segment.segmentId + 1);
-    const limit = nextSegment ? getNearestOnset(nextSegment).contextSeconds - 0.02 : Infinity;
-    const bursts = records.worklet.filter((event) => event.kind === 'burst' && event.contextSeconds >= onset.contextSeconds - 0.02 && event.contextSeconds < limit);
-    const matches = matchWords({ onset, bursts, wordStartsMs: segment.wordStartsMs, isInOrder });
-    const onsetEpochMs = interpolate(records.clockMap, onset.contextSeconds, (point) => point.contextTime, (point) => point.epochMs);
-    const rtpAtOnset = interpolate(records.rtp, onsetEpochMs, (point) => point.timestamp, (point) => point.rtpTimestamp);
-    const clock = createWordClock(segment.wordStartsMs);
-    const clockEvents = records.worklet.filter((event) => event.kind !== 'burst' && event.contextSeconds >= onset.contextSeconds && event.contextSeconds < limit);
-    for (const { wordIndex, burst, elapsedMs } of matches) {
-      errors.sampleCount.push(elapsedMs - segment.wordStartsMs[wordIndex]);
-      while (clockEvents.length > 0 && clockEvents[0].contextSeconds <= burst.contextSeconds + 0.003) {
-        const event = clockEvents.shift();
-        if (event.kind === 'onset') clock.onOnset(event.contextSeconds * 1000, { isAudioLost: getIsLostAtOnset({ records, onset: event }) });
-        else clock.onEnd(event.contextSeconds * 1000);
+    const matches = matchWordsToBursts(audio);
+    wordsHeard += matches.length;
+    reanalysed.push(...getReanalysedErrors({ records, ...audio, matches }));
+    for (const { wordIndex, burst } of matches) {
+      for (const fired of records.fired.filter((item) => item.segmentId === segment.segmentId && item.wordIndex === wordIndex)) {
+        (methods[fired.method] ??= []).push((fired.contextSeconds - burst.contextSeconds) * 1000);
       }
-      errors.chosenClock.push(clock.getPositionMs(burst.contextSeconds * 1000) - segment.wordStartsMs[wordIndex]);
-      const arrival = records.data.find((message) => message.type === 'word' && message.segmentId === segment.segmentId && message.wordIndex === wordIndex);
-      if (arrival) errors.arrival.push((burst.contextSeconds - arrival.contextSeconds) * 1000);
-      const burstEpochMs = interpolate(records.clockMap, burst.contextSeconds, (point) => point.contextTime, (point) => point.epochMs);
-      const rtpAtBurst = interpolate(records.rtp, burstEpochMs, (point) => point.timestamp, (point) => point.rtpTimestamp);
-      errors.rtp.push(((rtpAtBurst - rtpAtOnset) / RTP_CLOCK_HZ) * 1000 - segment.wordStartsMs[wordIndex]);
     }
-    const lastMatch = matches.at(-1);
-    if (lastMatch) drift.push(lastMatch.elapsedMs - segment.wordStartsMs[lastMatch.wordIndex]);
     const stop = records.data.find((message) => message.type === 'stop' && message.segmentId === segment.segmentId);
-    if (stop) {
-      const end = ends.find((event) => event.contextSeconds >= onset.contextSeconds);
-      if (end) stops.push((end.contextSeconds - stop.contextSeconds) * 1000);
-    }
-  });
+    const end = stop && ends.find((event) => event.contextSeconds >= onset.contextSeconds);
+    if (end) stops.push((end.contextSeconds - stop.contextSeconds) * 1000);
+  }
   const lastStats = records.stats.at(-1) ?? {};
+  const gaps = records.data.filter((message) => message.type === 'audioGap' && message.ms !== undefined);
+  const decisions = records.decisions.filter((decision) => decision.silenceMs > 150);
   return {
-    messageDeliveryMs: analyseProbes(records.data),
-    wordError: {
-      sampleCountFromOnsetMs: describeSeries(errors.sampleCount),
-      chosenClockMs: describeSeries(errors.chosenClock),
-      dataMessageArrivalMs: describeSeries(errors.arrival),
-      rtpTimestampFromOnsetMs: describeSeries(errors.rtp),
-    },
-    driftAtSegmentEndMs: describeSeries(drift),
-    wordTimesArriveBeforeAudioMs: describeSeries(leads),
-    audioKeepsPlayingAfterStopMessageMs: describeSeries(stops),
+    wordsSent,
+    wordsHeard,
+    liveFiredErrorMs: Object.fromEntries(Object.entries(methods).map(([name, values]) => [name, describeSeries(values)])),
+    reanalysedRejectedRuleMs: describeSeries(reanalysed),
+    wordTimesLeadAudioMs: describeSeries(leads),
     wordTimesLateCount: leads.filter((lead) => lead < 0).length,
-    network: {
-      packetsReceived: lastStats.packetsReceived,
-      packetsLost: lastStats.packetsLost,
-      jitterSeconds: lastStats.jitter,
-      meanJitterBufferMs: lastStats.jitterBufferEmittedCount ? Math.round((lastStats.jitterBufferDelay / lastStats.jitterBufferEmittedCount) * 1000) : null,
-      concealedSamples: lastStats.concealedSamples,
-      insertedSamples: lastStats.insertedSamplesForDeceleration,
-      removedSamples: lastStats.removedSamplesForAcceleration,
-    },
+    audioKeepsPlayingAfterStopMessageMs: describeSeries(stops),
+    messageDeliveryMs: analyseProbes(records.data),
+    gapsReported: { count: gaps.length, ms: describeSeries(gaps.map((gap) => gap.ms)) },
+    silences: { count: decisions.length, calledLostByRtp: decisions.filter((decision) => decision.isLostByRtp).length, calledLostBySequence: decisions.filter((decision) => decision.isLostBySequence).length, sample: decisions.slice(0, 40).map(({ silenceMs, isLostByRtp, isLostBySequence, packetsLostDuringSilence }) => ({ silenceMs: Math.round(silenceMs), isLostByRtp, isLostBySequence, packetsLostDuringSilence })) },
+    network: { packetsReceived: lastStats.packetsReceived, packetsLost: lastStats.packetsLost, concealedSamples: lastStats.concealedSamples, meanJitterBufferMs: lastStats.jitterBufferEmittedCount ? Math.round((lastStats.jitterBufferDelay / lastStats.jitterBufferEmittedCount) * 1000) : null },
   };
 }
 
@@ -156,11 +172,9 @@ function analyseProbes(messages) {
     bySeq.set(message.seq, { ...bySeq.get(message.seq), [message.via]: message.epochMs - message.sentAt });
   }
   const probes = [...bySeq.values()];
-  const round = (values) => values.map((value) => Math.round(value));
   return {
-    reliable: describeSeries(round(probes.flatMap((probe) => probe.reliable ?? []))),
-    lossy: describeSeries(round(probes.flatMap((probe) => probe.lossy ?? []))),
-    firstOfBoth: describeSeries(round(probes.map((probe) => Math.min(probe.reliable ?? Infinity, probe.lossy ?? Infinity)))),
+    reliable: describeSeries(probes.flatMap((probe) => probe.reliable ?? [])),
+    firstOfBoth: describeSeries(probes.map((probe) => Math.min(probe.reliable ?? Infinity, probe.lossy ?? Infinity))),
     lossyNeverArrived: probes.filter((probe) => probe.lossy === undefined).length,
   };
 }
@@ -207,7 +221,7 @@ function startRelay({ delayMs, jitterMs, lossPercent, blackoutEveryMs = 0, black
 }
 
 async function makeToken(roomName) {
-  const token = new AccessToken('devkey', process.env.LIVEKIT_API_SECRET ?? 'secret', { identity: 'student-browser', ttl: '10m' });
+  const token = new AccessToken('devkey', process.env.LIVEKIT_API_SECRET ?? 'secret', { identity: 'student-browser', ttl: '20m' });
   token.addGrant({ room: roomName, roomJoin: true, canPublish: true, canSubscribe: true, canPublishData: true });
   return token.toJwt();
 }
@@ -234,49 +248,33 @@ function servePage(bundle) {
   return new Promise((resolve) => server.listen(PAGE_PORT, '127.0.0.1', () => resolve(server)));
 }
 
-async function runProfile(name, impairment) {
+async function runScenario(name, { impair, options }, runLabel) {
   const roomName = `clock-${name}-${Date.now()}`;
-  const launchArgs = ['--autoplay-policy=no-user-gesture-required', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'];
-  const relay = impairment ? startRelay(impairment) : null;
-  const browser = await chromium.launch({ headless: true, args: launchArgs });
+  const relay = impair ? startRelay(impair) : null;
+  const browser = await chromium.launch({ headless: true, args: ['--autoplay-policy=no-user-gesture-required', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--use-mock-keychain'] });
   const page = await browser.newPage();
   page.on('pageerror', (error) => console.error('page error', error.message));
   await page.goto(`http://127.0.0.1:${PAGE_PORT}/`);
-  const audioInfo = await page.evaluate((options) => window.startClockProof(options), { url: LIVEKIT_URL, token: await makeToken(roomName), relay: impairment ? { serverPort: SERVER_UDP_PORT, relayPort: RELAY_PORT } : null });
-  const publisher = spawn('node', [join(HERE, 'clock-publisher.mjs')], { env: { ...process.env, CLOCK_ROOM: roomName, CLOCK_SEGMENTS: name === 'lost' ? String(LOST_PROFILE_SEGMENTS) : args.segments, LIVEKIT_URL, CLOCK_GAP_MS: String(GAP_PROFILE_MS[name] ?? 0), CLOCK_SEGMENT_MS: name === 'lost' ? String(LOST_PROFILE_SEGMENT_MS) : '6000' }, stdio: 'inherit' });
+  const audioInfo = await page.evaluate((proof) => window.startClockProof(proof), { url: LIVEKIT_URL, token: await makeToken(roomName), relay: impair ? { serverPort: SERVER_UDP_PORT, relayPort: RELAY_PORT } : null });
+  const publisher = spawn('node', [join(HERE, 'clock-publisher.mjs')], { env: { ...process.env, CLOCK_ROOM: roomName, LIVEKIT_URL, CLOCK_OPTIONS: JSON.stringify(options) }, stdio: 'inherit' });
   await new Promise((resolve) => publisher.on('exit', resolve));
   await delay(500);
   const records = await page.evaluate(() => window.clockRecords);
   await browser.close();
   relay?.close();
-  const summary = { profile: name, machineLoadAtEnd: Math.round(loadavg()[0]), impairment, relayed: relay?.counts, audioInfo, ranAt: new Date().toISOString(), ...analyse(records, name in GAP_PROFILE_MS) };
-  writeFileSync(join(RUNS, `${name}.json`), `${JSON.stringify({ summary, worklet: records.worklet, data: records.data, stats: records.stats, rtp: records.rtp, clockMap: records.clockMap }, null, 0)}\n`);
-  console.log(JSON.stringify(summary));
+  const summary = { scenario: name, machineLoadAtEnd: Math.round(loadavg()[0]), impair: impair ?? null, options, relayed: relay?.counts, audioInfo, ranAt: new Date().toISOString(), ...analyse(records) };
+  writeFileSync(join(RUNS, `${runLabel}.json`), `${JSON.stringify({ summary, records })}\n`);
+  const { silences, ...brief } = summary;
+  console.log(JSON.stringify({ ...brief, silences: { count: silences.count, calledLostByRtp: silences.calledLostByRtp, calledLostBySequence: silences.calledLostBySequence } }));
   return summary;
 }
 
-// Runs the current clock rule over the browser events already recorded, without a browser.
-function reanalyse() {
-  const names = Object.keys(PROFILES).filter((name) => !args.only || args.only.split(',').includes(name));
-  const summaries = Object.fromEntries(names.map((name) => {
-    const run = JSON.parse(readFileSync(join(RUNS, `${name}.json`), 'utf8'));
-    const summary = { ...run.summary, ...analyse(run, name in GAP_PROFILE_MS) };
-    writeFileSync(join(RUNS, `${name}.json`), `${JSON.stringify({ ...run, summary }, null, 0)}\n`);
-    return [name, summary];
-  }));
-  writeFileSync(join(RUNS, 'summary.json'), `${JSON.stringify(summaries, null, 1)}\n`);
-  for (const [name, summary] of Object.entries(summaries)) console.log(name, JSON.stringify(Object.fromEntries(Object.entries(summary.wordError).map(([method, errors]) => [method, errors.absP95]))));
-  process.exit(0);
-}
-
-if (args.reanalyse) reanalyse();
-
 const server = await servePage(await bundlePage());
-const summaries = {};
-for (const [name, trial] of Object.entries(PROFILES)) {
-  if (args.only && !args.only.split(',').includes(name)) continue;
-  summaries[name] = await runProfile(name, trial);
+const names = args.only ? args.only.split(',') : Object.keys(SCENARIOS);
+for (const name of names) {
+  for (let run = 0; run < Number(args.repeat); run++) {
+    await runScenario(name, SCENARIOS[name], Number(args.repeat) === 1 ? name : `${name}-run${run + 1}`);
+  }
 }
-writeFileSync(join(RUNS, 'summary.json'), `${JSON.stringify(summaries, null, 1)}\n`);
 server.close();
 process.exit(0);

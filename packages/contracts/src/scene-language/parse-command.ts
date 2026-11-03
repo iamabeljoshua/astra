@@ -1,6 +1,7 @@
 import { BEAT_LIMITS } from './beat.ts';
 import { readElementId, readElementRef, readFileId, readPartName } from './ids.ts';
 import { COMMAND_MAX_BYTES } from './live-message.ts';
+import { parsePlotExpression, PLOT_EXPRESSION_MAX_CHARACTERS } from './plot-expression.ts';
 import {
   checkJsonSize,
   fail,
@@ -10,12 +11,12 @@ import {
   readBoolean,
   readFields,
   readList,
-  readNumber,
+  readNumberInRange,
   readOneOf,
   readRange,
   readString,
   readVariant,
-  readWholeNumber,
+  readWholeNumberInRange,
   toParseResult,
   type VariantTable,
 } from './read.ts';
@@ -29,9 +30,12 @@ import {
   type SceneCommand,
   SIMULATION_MODELS,
   SIMULATION_MOMENTS,
+  SIMULATION_PARAMETER_RULES,
   SIMULATION_PARAMETERS,
   type Simulation,
   type SimulationModel,
+  type SimulationParameter,
+  type SimulationParameterRule,
   type SimulationPoint,
   type SimulationRun,
   type Timeline,
@@ -41,7 +45,7 @@ import {
 
 const LIMITS = {
   tex: 500,
-  expression: 200,
+  expression: PLOT_EXPRESSION_MAX_CHARACTERS,
   label: 80,
   alt: 200,
   text: 400,
@@ -53,15 +57,20 @@ const LIMITS = {
   edges: 20,
 } as const;
 
+const NUMBER_RANGES = {
+  /** Any x or y on a board. Far enough to teach with, and no sample step on it rounds away. */
+  coordinate: { min: -1e6, max: 1e6 },
+  angleDegrees: { min: -360, max: 360 },
+  /** The longest flight the simulation ranges allow takes about 2,010 seconds. */
+  simulationSeconds: { min: 0, max: 3600 },
+  occurrence: { min: 0, max: LIMITS.tex - 1 },
+  overWords: { min: 1, max: BEAT_LIMITS.words },
+} as const;
+
 const CODE_LANGUAGE = /^[a-z0-9+#-]{1,20}$/;
 const CONTROL_CHARACTER = /\p{Cc}/u;
-
-const EXPRESSION_VALUE = '\\d+(?:\\.\\d+)?|\\.\\d+|x|pi|e|\\)';
-const EXPRESSION_FUNCTION = 'sin|cos|tan|exp|ln|log|sqrt|abs';
-const EXPRESSION_OPERATOR = '[-+*/^,(]';
-
-// A value cannot touch the next value, so 2x and 2(x) are refused.
-const PLOT_EXPRESSION = new RegExp(`^(?: *(?:(?:${EXPRESSION_VALUE})(?! *[\\w.(])|(?:${EXPRESSION_FUNCTION})(?= *\\()|${EXPRESSION_OPERATOR}))+ *$`);
+// A second guard, because KaTeX with `trust: false` already shows these as errors.
+const TEX_NEEDING_TRUST =/\\(?:href|url|includegraphics|html[A-Za-z]*)(?![A-Za-z])/;
 
 function readLabel(place: Place): string {
   return readString(place, LIMITS.label);
@@ -69,15 +78,37 @@ function readLabel(place: Place): string {
 
 // JSON turns "\frac" into a form feed and "\theta" into a tab, so a control character means the math is already broken.
 function readTex(place: Place): string {
+  if (typeof place.value === 'string' && CONTROL_CHARACTER.test(place.value)) fail(place, 'math with no control characters');
   const tex = readString(place, LIMITS.tex);
-  if (CONTROL_CHARACTER.test(tex)) fail(place, 'math with no control characters');
+  if (TEX_NEEDING_TRUST.test(tex)) fail(place, 'math with no links, images, or raw HTML');
   return tex;
 }
 
 function readExpression(place: Place): string {
   const expression = readString(place, LIMITS.expression);
-  if (!PLOT_EXPRESSION.test(expression)) fail(place, 'an expression in x with known functions and an explicit *');
+  if (parsePlotExpression(expression) === null) fail(place, 'an expression in x with known functions and an explicit *');
   return expression;
+}
+
+function readCoordinate(place: Place): number {
+  return readNumberInRange(place, NUMBER_RANGES.coordinate);
+}
+
+function readAxisRange(place: Place): [number, number] {
+  return readRange(place, NUMBER_RANGES.coordinate);
+}
+
+/** A count on most frames and an x value on a plot, so only the board can refuse a negative one. */
+export function readRevealPoint(place: Place): number {
+  return readCoordinate(place);
+}
+
+export function readSimulationSeconds(place: Place): number {
+  return readNumberInRange(place, NUMBER_RANGES.simulationSeconds);
+}
+
+export function readParameterValue(place: Place, parameter: SimulationParameter): number {
+  return readNumberInRange(place, SIMULATION_PARAMETER_RULES[parameter]);
 }
 
 function readLanguage(place: Place): string {
@@ -86,24 +117,22 @@ function readLanguage(place: Place): string {
 }
 
 function readOverWords(place: Place): number {
-  const words = readWholeNumber(place);
-  if (words < 1 || words > BEAT_LIMITS.words) fail(place, `a whole number from 1 to ${BEAT_LIMITS.words}`);
-  return words;
+  return readWholeNumberInRange(place, NUMBER_RANGES.overWords);
 }
 
 function readSimulationPoint(place: Place): SimulationPoint {
-  if (typeof place.value !== 'number') return readOneOf(place, SIMULATION_MOMENTS);
-  const seconds = readNumber(place);
-  if (seconds < 0) fail(place, 'simulation seconds of 0 or more');
-  return seconds;
+  return typeof place.value === 'number' ? readSimulationSeconds(place) : readOneOf(place, SIMULATION_MOMENTS);
+}
+
+function readParameter(place: Place, rule: SimulationParameterRule): number {
+  return place.value === undefined && rule.default !== undefined ? rule.default : readNumberInRange(place, rule);
 }
 
 function readParameters(place: Place, model: SimulationModel): Simulation['parameters'] {
-  const { required, defaults } = SIMULATION_MODELS[model];
-  const fields = readFields(place, [...required, ...Object.keys(defaults)]);
-  const requiredValues = required.map((name) => ({ [name]: readNumber(fields.at(name)) }));
-  const givenValues = Object.keys(defaults).map((name) => fields.optional(name, readNumber));
-  return Object.assign({}, ...requiredValues, defaults, ...givenValues);
+  const rules: Record<string, SimulationParameterRule> = SIMULATION_MODELS[model].parameters;
+  const fields = readFields(place, Object.keys(rules));
+  const values = Object.entries(rules).map(([name, rule]) => [name, readParameter(fields.at(name), rule)]);
+  return Object.fromEntries(values) as Simulation['parameters'];
 }
 
 function readSimulation(place: Place): Simulation {
@@ -135,7 +164,7 @@ const GEOMETRY_STEPS: VariantTable<GeometryStep, 'shape'> = {
   variants: {
     point: {
       keys: ['name', 'x', 'y'],
-      read: (fields) => ({ shape: 'point', name: readPartName(fields.at('name')), x: readNumber(fields.at('x')), y: readNumber(fields.at('y')) }),
+      read: (fields) => ({ shape: 'point', name: readPartName(fields.at('name')), x: readCoordinate(fields.at('x')), y: readCoordinate(fields.at('y')) }),
     },
     segment: {
       keys: ['from', 'to'],
@@ -151,6 +180,19 @@ const GEOMETRY_STEPS: VariantTable<GeometryStep, 'shape'> = {
     },
   },
 };
+
+interface FilledListRules<Item> {
+  name: string;
+  maxLength: number;
+  readItem: (item: Place) => Item;
+}
+
+/** Only a frame that starts empty for `reveal` may have nothing in it. */
+function readFilledList<Item>(fields: CheckedFields, { name, maxLength, readItem }: FilledListRules<Item>): Item[] {
+  const items = readList(fields.at(name), { maxLength, readItem });
+  if (items.length === 0 && fields.at('startsEmpty').value !== true) fail(fields.at(name), 'at least one item, unless startsEmpty is true');
+  return items;
+}
 
 function readDrawingLabel(place: Place): NonNullable<Drawing['labels']>[number] {
   const fields = readFields(place, ['part', 'text']);
@@ -168,6 +210,12 @@ function readEdgeEnd(place: Place, nodeNames: ReadonlySet<string>): string {
   return name;
 }
 
+function readDiagramNodes(fields: CheckedFields): Diagram['nodes'] {
+  const nodes = readFilledList(fields, { name: 'nodes', maxLength: LIMITS.nodes, readItem: readDiagramNode });
+  if (new Set(nodes.map((node) => node.name)).size !== nodes.length) fail(fields.at('nodes'), 'each node name once');
+  return nodes;
+}
+
 function readDiagramEdge(place: Place, nodeNames: ReadonlySet<string>): Diagram['edges'][number] {
   const fields = readFields(place, ['from', 'to', 'label']);
   return { from: readEdgeEnd(fields.at('from'), nodeNames), to: readEdgeEnd(fields.at('to'), nodeNames), ...fields.optional('label', readLabel) };
@@ -183,15 +231,15 @@ function readTableRow(place: Place): string[] {
 }
 
 function readTableCells(fields: CheckedFields): { columns: string[]; rows: string[][] } {
-  const columns = readTableRow(fields.at('columns'));
-  const rows = readList(fields.at('rows'), { maxLength: LIMITS.rows, readItem: readTableRow });
+  const columns = readFilledList(fields, { name: 'columns', maxLength: LIMITS.columns, readItem: readLabel });
+  const rows = readFilledList(fields, { name: 'rows', maxLength: LIMITS.rows, readItem: readTableRow });
   if (rows.some((row) => row.length !== columns.length)) fail(fields.at('rows'), `${columns.length} cells in each row`);
   return { columns, rows };
 }
 
-function readSliderBounds(fields: CheckedFields): { min: number; max: number } {
-  const min = readNumber(fields.at('min'));
-  const max = readNumber(fields.at('max'));
+function readSliderBounds(fields: CheckedFields, parameter: SimulationParameter): { min: number; max: number } {
+  const min = readParameterValue(fields.at('min'), parameter);
+  const max = readParameterValue(fields.at('max'), parameter);
   if (min >= max) fail(fields.at('max'), 'a number above min');
   return { min, max };
 }
@@ -220,16 +268,17 @@ const COMMANDS: VariantTable<SceneCommand, 'kind'> = {
         id: readElementId(fields.at('id')),
         target: readElementRef(fields.at('target')),
         ...fields.optional('tex', readTex),
-        ...fields.optional('occurrence', readWholeNumber),
+        ...fields.optional('occurrence', (place) => readWholeNumberInRange(place, NUMBER_RANGES.occurrence)),
       }),
     },
     plot: {
-      keys: ['id', 'expression', 'domain', 'label', 'xLabel', 'yLabel', 'over', 'startsEmpty'],
+      keys: ['id', 'expression', 'domain', 'yRange', 'label', 'xLabel', 'yLabel', 'over', 'startsEmpty'],
       read: (fields) => ({
         kind: 'plot',
         id: readElementId(fields.at('id')),
         expression: readExpression(fields.at('expression')),
-        domain: readRange(fields.at('domain')),
+        domain: readAxisRange(fields.at('domain')),
+        ...fields.optional('yRange', readAxisRange),
         ...fields.optional('label', readLabel),
         ...fields.optional('xLabel', readLabel),
         ...fields.optional('yLabel', readLabel),
@@ -239,7 +288,7 @@ const COMMANDS: VariantTable<SceneCommand, 'kind'> = {
     },
     numberLine: {
       keys: ['id', 'domain'],
-      read: (fields) => ({ kind: 'numberLine', id: readElementId(fields.at('id')), domain: readRange(fields.at('domain')) }),
+      read: (fields) => ({ kind: 'numberLine', id: readElementId(fields.at('id')), domain: readAxisRange(fields.at('domain')) }),
     },
     markValue: {
       keys: ['id', 'target', 'at', 'label'],
@@ -247,7 +296,7 @@ const COMMANDS: VariantTable<SceneCommand, 'kind'> = {
         kind: 'markValue',
         id: readElementId(fields.at('id')),
         target: readElementId(fields.at('target')),
-        at: readNumber(fields.at('at')),
+        at: readCoordinate(fields.at('at')),
         ...fields.optional('label', readLabel),
       }),
     },
@@ -256,8 +305,8 @@ const COMMANDS: VariantTable<SceneCommand, 'kind'> = {
       read: (fields) => ({
         kind: 'geometry',
         id: readElementId(fields.at('id')),
-        xRange: readRange(fields.at('xRange')),
-        yRange: readRange(fields.at('yRange')),
+        xRange: readAxisRange(fields.at('xRange')),
+        yRange: readAxisRange(fields.at('yRange')),
       }),
     },
     construct: {
@@ -275,7 +324,7 @@ const COMMANDS: VariantTable<SceneCommand, 'kind'> = {
         kind: 'vector',
         id: readElementId(fields.at('id')),
         on: readElementRef(fields.at('on')),
-        angleDegrees: readNumber(fields.at('angleDegrees')),
+        angleDegrees: readNumberInRange(fields.at('angleDegrees'), NUMBER_RANGES.angleDegrees),
         length: readOneOf(fields.at('length'), VECTOR_LENGTHS),
         ...fields.optional('label', readLabel),
       }),
@@ -299,12 +348,10 @@ const COMMANDS: VariantTable<SceneCommand, 'kind'> = {
     },
     setParameter: {
       keys: ['target', 'parameter', 'value'],
-      read: (fields) => ({
-        kind: 'setParameter',
-        target: readElementId(fields.at('target')),
-        parameter: readOneOf(fields.at('parameter'), SIMULATION_PARAMETERS),
-        value: readNumber(fields.at('value')),
-      }),
+      read: (fields) => {
+        const parameter = readOneOf(fields.at('parameter'), SIMULATION_PARAMETERS);
+        return { kind: 'setParameter', target: readElementId(fields.at('target')), parameter, value: readParameterValue(fields.at('value'), parameter) };
+      },
     },
     trackVector: {
       keys: ['id', 'target', 'quantity', 'label'],
@@ -318,13 +365,10 @@ const COMMANDS: VariantTable<SceneCommand, 'kind'> = {
     },
     slider: {
       keys: ['id', 'target', 'parameter', 'min', 'max'],
-      read: (fields) => ({
-        kind: 'slider',
-        id: readElementId(fields.at('id')),
-        target: readElementId(fields.at('target')),
-        parameter: readOneOf(fields.at('parameter'), SIMULATION_PARAMETERS),
-        ...readSliderBounds(fields),
-      }),
+      read: (fields) => {
+        const parameter = readOneOf(fields.at('parameter'), SIMULATION_PARAMETERS);
+        return { kind: 'slider', id: readElementId(fields.at('id')), target: readElementId(fields.at('target')), parameter, ...readSliderBounds(fields, parameter) };
+      },
     },
     ghostPath: {
       keys: ['id', 'target'],
@@ -342,7 +386,7 @@ const COMMANDS: VariantTable<SceneCommand, 'kind'> = {
     diagram: {
       keys: ['id', 'nodes', 'edges', 'handwritten', 'startsEmpty'],
       read: (fields) => {
-        const nodes = readList(fields.at('nodes'), { maxLength: LIMITS.nodes, readItem: readDiagramNode });
+        const nodes = readDiagramNodes(fields);
         const nodeNames = new Set(nodes.map((node) => node.name));
         return {
           kind: 'diagram',
@@ -368,7 +412,7 @@ const COMMANDS: VariantTable<SceneCommand, 'kind'> = {
       read: (fields) => ({
         kind: 'timeline',
         id: readElementId(fields.at('id')),
-        events: readList(fields.at('events'), { maxLength: LIMITS.events, readItem: readTimelineEvent }),
+        events: readFilledList(fields, { name: 'events', maxLength: LIMITS.events, readItem: readTimelineEvent }),
         ...fields.optional('startsEmpty', readBoolean),
       }),
     },
@@ -387,7 +431,7 @@ const COMMANDS: VariantTable<SceneCommand, 'kind'> = {
       read: (fields) => ({
         kind: 'reveal',
         target: readElementId(fields.at('target')),
-        upTo: readNumber(fields.at('upTo')),
+        upTo: readRevealPoint(fields.at('upTo')),
         ...fields.optional('overWords', readOverWords),
       }),
     },
@@ -410,12 +454,13 @@ const COMMANDS: VariantTable<SceneCommand, 'kind'> = {
       }),
     },
     annotate: {
-      keys: ['id', 'target', 'mark'],
+      keys: ['id', 'target', 'mark', 'label'],
       read: (fields) => ({
         kind: 'annotate',
         id: readElementId(fields.at('id')),
         target: readElementRef(fields.at('target')),
         mark: readOneOf(fields.at('mark'), ANNOTATION_MARKS),
+        ...fields.optional('label', readLabel),
       }),
     },
     focus: {

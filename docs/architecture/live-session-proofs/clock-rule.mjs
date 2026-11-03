@@ -1,34 +1,54 @@
-const STALL_TOLERANCE_MS = 40;
-const MINIMUM_RTP_ADVANCE_MS = 20;
-const RTP_EDGE_MS = 30;
+const SMALLEST_GAP_MS = 20;
+const HELD_SHORT_MS = 1;
 
-// After a silence the clock moves back only if the audio came late, because lost audio took its words with it.
-export function createWordClock(wordStartsMs) {
-  let positionZeroAtMs = null;
-  let stoppedAtPositionMs = 0;
-  const getPositionMs = (atMs) => (positionZeroAtMs === null ? null : atMs - positionZeroAtMs);
-
+// The agent reports when its audio ran dry, so a silence needs no guess: a report is skipped, and anything else is on the timeline.
+export function createWordClock() {
+  let firstSoundAtMs = null;
+  const gaps = [];
   return {
-    getPositionMs,
-    onOnset(atMs, { isAudioLost = false } = {}) {
-      if (positionZeroAtMs === null) {
-        positionZeroAtMs = atMs - wordStartsMs[0];
-        return;
-      }
-      if (isAudioLost) return;
-      const nextWordMs = wordStartsMs.find((startMs) => startMs >= stoppedAtPositionMs - STALL_TOLERANCE_MS);
-      if (nextWordMs !== undefined && getPositionMs(atMs) > nextWordMs + STALL_TOLERANCE_MS) positionZeroAtMs = atMs - nextWordMs;
+    onFirstSound(atMs) {
+      firstSoundAtMs ??= atMs;
     },
-    onEnd(atMs) {
-      stoppedAtPositionMs = getPositionMs(atMs);
+    // A gap with no length is still open, because the agent says when its audio runs dry and again when it comes back.
+    addGap({ atMs, ms = null }) {
+      const open = gaps.find((gap) => gap.atMs === atMs);
+      if (open) open.ms = ms;
+      else gaps.push({ atMs, ms });
+      gaps.sort((first, second) => first.atMs - second.atMs);
+    },
+    // Word times count from the first sound, so the first word sets the zero once it is known.
+    getPositionMs(atMs, firstWordStartMs = 0) {
+      if (firstSoundAtMs === null) return null;
+      let positionMs = atMs - firstSoundAtMs + firstWordStartMs;
+      for (const gap of gaps) {
+        if (positionMs < gap.atMs) break;
+        // Held just short, so a word that starts right after the gap waits for its own sound.
+        if (gap.ms === null) return gap.atMs - HELD_SHORT_MS;
+        positionMs -= gap.ms;
+      }
+      return positionMs;
     },
   };
 }
 
-// RTP moves through a late stall because packets keep arriving, and stands still through a loss.
-export function getIsAudioLost({ silenceStartMs, silenceEndMs, rtpPolls, rtpClockHz }) {
-  const during = rtpPolls.filter((poll) => poll.atMs >= silenceStartMs + RTP_EDGE_MS && poll.atMs <= silenceEndMs - RTP_EDGE_MS);
-  if (during.length < 2) return false;
-  const advanceMs = ((during.at(-1).rtpTimestamp - during[0].rtpTimestamp) / rtpClockHz) * 1000;
-  return advanceMs < MINIMUM_RTP_ADVANCE_MS;
+// Runs in the agent. The audio in flight is still ahead of the browser when the queue empties, so a report sent then arrives before the silence does.
+export function createPlayoutTracker({ onRanDry }) {
+  let queuedUntilMs = null;
+  let audioMs = 0;
+  let dryTimer = null;
+  return {
+    onFrame(nowMs, frameMs) {
+      clearTimeout(dryTimer);
+      const lateByMs = queuedUntilMs === null ? 0 : nowMs - queuedUntilMs;
+      const gap = lateByMs >= SMALLEST_GAP_MS ? { atMs: Math.round(audioMs), ms: Math.round(lateByMs) } : null;
+      queuedUntilMs = Math.max(queuedUntilMs ?? nowMs, nowMs) + frameMs;
+      audioMs += frameMs;
+      const atMs = Math.round(audioMs);
+      dryTimer = setTimeout(() => onRanDry({ atMs }), queuedUntilMs + SMALLEST_GAP_MS - nowMs);
+      return gap;
+    },
+    close() {
+      clearTimeout(dryTimer);
+    },
+  };
 }

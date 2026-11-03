@@ -65,6 +65,56 @@
    "name": "11. hide cue never played: arrow stays on the board in both",
    "agrees": true,
    "expected": "match"
+  },
+  {
+   "name": "12. a play that fired 630 ms after its word replays when it really fired",
+   "agrees": true,
+   "expected": "match"
+  },
+  {
+   "name": "13. a late setParameter after a drag ends on the same value and frame",
+   "agrees": true,
+   "expected": "match"
+  },
+  {
+   "name": "14a. a drag stamped with startedMsAgo keeps its order against a cue",
+   "agrees": true,
+   "expected": "match"
+  },
+  {
+   "name": "14b. the same drag stamped when it arrived, 918 ms late (trap, expected to differ)",
+   "agrees": false,
+   "expected": "known-gap"
+  },
+  {
+   "name": "15. a cut during a reveal over words rebuilds from its frame",
+   "agrees": true,
+   "expected": "match"
+  },
+  {
+   "name": "16. a stop 100 ms after the last word, with a drawing still appearing",
+   "agrees": true,
+   "expected": "match"
+  },
+  {
+   "name": "17. a resume sets a frozen ball moving again, and it lands on the same word",
+   "agrees": true,
+   "expected": "match"
+  },
+  {
+   "name": "17b. the resumed ball is not still frozen",
+   "agrees": true,
+   "expected": "match"
+  },
+  {
+   "name": "18. seek and play until a moment",
+   "agrees": true,
+   "expected": "match"
+  },
+  {
+   "name": "19. ink drawn and erased",
+   "agrees": true,
+   "expected": "match"
   }
  ]
 }

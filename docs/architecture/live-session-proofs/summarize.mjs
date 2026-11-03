@@ -7,10 +7,11 @@ const RUNS = join(HERE, 'runs');
 const RESULTS = join(HERE, 'results');
 mkdirSync(RESULTS, { recursive: true });
 
-for (const folder of readdirSync(RUNS)) {
+const folders = readdirSync(RUNS, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name);
+for (const folder of folders) {
   const scenarios = {};
   for (const file of readdirSync(join(RUNS, folder))) {
-    if (!file.endsWith('.json') || file === 'summary.json') continue;
+    if (!file.endsWith('.json') || file === 'summary.json' || file.endsWith('.failed.json')) continue;
     const { summary } = JSON.parse(readFileSync(join(RUNS, folder, file), 'utf8'));
     scenarios[file.replace('.json', '')] = summary;
   }

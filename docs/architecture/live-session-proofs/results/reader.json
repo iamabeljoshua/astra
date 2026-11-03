@@ -1,12 +1,8 @@
 {
  "reader": {
-  "passed": 128,
-  "total": 128,
-  "cases": 32,
-  "flushesOnALongFirstSentence": [
-   "firstWords",
-   "beatEnd"
-  ],
+  "passed": 176,
+  "total": 176,
+  "cases": 44,
   "failed": []
  }
 }

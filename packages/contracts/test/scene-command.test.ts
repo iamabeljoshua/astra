@@ -1,10 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { BEAT_LIMITS, parseBeat, parseSceneCommand, SCENE_COMMAND_KINDS, TRACKED_QUANTITIES } from '../src/index.ts';
+import {
+  BEAT_LIMITS,
+  parseBeat,
+  parseSceneCommand,
+  SCENE_COMMAND_KINDS,
+  SIMULATION_MODELS,
+  SIMULATION_PARAMETER_RULES,
+  SIMULATION_PARAMETERS,
+  TRACKED_QUANTITIES,
+} from '../src/index.ts';
 import { commandOrThrow, expectRefused, ONE_OF_EACH_COMMAND, withCommand, withoutField } from './helpers.ts';
 
 const RUN = { kind: 'runSimulation', target: 'shot' };
 const SHOT_WITHOUT_GRAVITY = { horizontalSpeed: 4.2, upwardSpeed: 5.6, releaseHeight: 2.2 };
 const PLOT = { kind: 'plot', id: 'curve', domain: [-2, 2] };
+const COORDINATE_LIMIT = 1e6;
+const WILD = 1e308;
 
 function expectAccepted(command: unknown): void {
   expect(parseSceneCommand(command)).toEqual({ ok: true, value: command });
@@ -27,6 +38,11 @@ describe('parseSceneCommand', () => {
     ['an inherited kind', { kind: 'constructor' }],
   ])('refuses %s', (_name, input) => {
     expectRefused(parseSceneCommand(input), /command\.kind: expected one of/);
+  });
+
+  it('reads only the fields a value owns, so nothing inherited can stand in for one', () => {
+    expectRefused(parseSceneCommand(Object.create({ kind: 'clearBoard' })), /command\.kind: expected one of/);
+    expectRefused(parseSceneCommand(Object.assign(Object.create({ target: 'a' }), { kind: 'focus' })), /command\.target: expected an element reference/);
   });
 });
 
@@ -59,7 +75,7 @@ describe('runSimulation', () => {
     ['a word count on seek', { ...RUN, action: 'seek', to: 'peak', overWords: 3 }, /overWords: unknown field/],
     ['a seek with nowhere to go', { ...RUN, action: 'seek' }, /\.to: expected one of release, peak, landing/],
     ['a moment we do not have', { ...RUN, action: 'play', until: 'apex' }, /until: expected one of release, peak, landing/],
-    ['negative seconds', { ...RUN, action: 'seek', to: -1 }, /\.to: expected simulation seconds of 0 or more/],
+    ['negative seconds', { ...RUN, action: 'seek', to: -1 }, /\.to: expected a number from 0 to 3600/],
     ['infinite seconds', { ...RUN, action: 'play', until: Number.POSITIVE_INFINITY }, /until: expected a finite number/],
     ['zero words', { ...RUN, action: 'play', overWords: 0 }, /overWords: expected a whole number from 1 to 60/],
     ['more words than a beat holds', { ...RUN, action: 'play', overWords: BEAT_LIMITS.words + 1 }, /overWords: expected a whole number from 1 to 60/],
@@ -100,6 +116,135 @@ describe('building in steps', () => {
   });
 });
 
+describe('wild numbers', () => {
+  const POINT = { kind: 'construct', id: 'a', target: 'figure' };
+  const LOW_AND_HIGH = /expected a low and a high number at least 0\.000001 apart/;
+
+  it.each<[string, unknown, RegExp]>([
+    ['a plot domain 1e308 wide', { ...PLOT, expression: 'x', domain: [-WILD, WILD] }, /domain\[0\]: expected a number from -1000000 to 1000000/],
+    ['a plot domain too thin to sample', { ...PLOT, expression: 'x', domain: [0, 5e-324] }, LOW_AND_HIGH],
+    ['a plot y range 1e308 wide', { ...PLOT, expression: 'x', yRange: [0, WILD] }, /yRange\[1\]: expected a number from/],
+    ['a backwards plot y range', { ...PLOT, expression: 'x', yRange: [2, -2] }, LOW_AND_HIGH],
+    ['a plot y range with one end', { ...PLOT, expression: 'x', yRange: [2] }, LOW_AND_HIGH],
+    ['a number line 1e308 wide', { kind: 'numberLine', id: 'line', domain: [-WILD, WILD] }, /domain\[0\]: expected a number from/],
+    ['a geometry x range 1e308 wide', { kind: 'geometry', id: 'figure', xRange: [0, WILD], yRange: [0, 1] }, /xRange\[1\]: expected a number from/],
+    ['a geometry y range 1e308 wide', { kind: 'geometry', id: 'figure', xRange: [0, 1], yRange: [-WILD, 0] }, /yRange\[0\]: expected a number from/],
+    ['a mark far off any axis', { kind: 'markValue', id: 'mark', target: 'line', at: WILD }, /\.at: expected a number from/],
+    ['a huge reveal', { kind: 'reveal', target: 'values', upTo: WILD }, /upTo: expected a number from/],
+    ['a huge negative reveal', { kind: 'reveal', target: 'curve', upTo: -WILD }, /upTo: expected a number from/],
+    ['a seek past any flight', { ...RUN, action: 'seek', to: WILD }, /\.to: expected a number from 0 to 3600/],
+    ['a play until past any flight', { ...RUN, action: 'play', until: 3601 }, /until: expected a number from 0 to 3600/],
+    ['a vector angle of 1e308', { kind: 'vector', id: 'v', on: 'a', angleDegrees: WILD, length: 'short' }, /angleDegrees: expected a number from -360 to 360/],
+    ['a vector angle past a full turn', { kind: 'vector', id: 'v', on: 'a', angleDegrees: -361, length: 'short' }, /angleDegrees: expected a number from -360 to 360/],
+    ['an occurrence no math can hold', { kind: 'highlight', id: 'h', target: 'a', tex: 'x', occurrence: 9e15 }, /occurrence: expected a whole number from 0 to 499/],
+    ['a point x of 1e308', { ...POINT, step: { shape: 'point', name: 'A', x: WILD, y: 0 } }, /step\.x: expected a number from/],
+    ['a point y of -1e308', { ...POINT, step: { shape: 'point', name: 'A', x: 0, y: -WILD } }, /step\.y: expected a number from/],
+  ])('refuses %s', (_name, command, reason) => {
+    expectRefused(parseSceneCommand(command), reason);
+  });
+
+  it.each([
+    [{ ...PLOT, expression: 'x', domain: [-COORDINATE_LIMIT, COORDINATE_LIMIT], yRange: [-COORDINATE_LIMIT, COORDINATE_LIMIT] }],
+    [{ kind: 'markValue', id: 'mark', target: 'line', at: COORDINATE_LIMIT }],
+    [{ kind: 'reveal', target: 'curve', upTo: -COORDINATE_LIMIT }],
+    [{ ...RUN, action: 'seek', to: 3600 }],
+    [{ ...POINT, step: { shape: 'point', name: 'A', x: -COORDINATE_LIMIT, y: COORDINATE_LIMIT } }],
+    [{ kind: 'vector', id: 'v', on: 'a', angleDegrees: -360, length: 'short' }],
+    [{ kind: 'highlight', id: 'h', target: 'a', tex: 'x', occurrence: 499 }],
+  ])('accepts the largest value of %j', (command) => {
+    expectAccepted(command);
+  });
+});
+
+describe('simulation values', () => {
+  const makeSimulate = (parameters: unknown) => ({ kind: 'simulate', id: 'shot', simulation: { model: 'projectile', parameters } });
+  const SETTING = { kind: 'setParameter', target: 'shot' };
+  const SLIDER = { kind: 'slider', id: 'speed', target: 'shot' };
+
+  it.each<[string, Record<string, unknown>, RegExp]>([
+    ['gravity of 0, which never lands', { gravity: 0 }, /gravity: expected a number from 0\.1 to 100/],
+    ['negative gravity, which never lands', { gravity: -9.81 }, /gravity: expected a number from 0\.1 to 100/],
+    ['a speed of 1e308', { horizontalSpeed: WILD }, /horizontalSpeed: expected a number from -100 to 100/],
+    ['an upward speed of -1e308', { upwardSpeed: -WILD }, /upwardSpeed: expected a number from -100 to 100/],
+    ['a release below the ground', { releaseHeight: -5 }, /releaseHeight: expected a number from 0 to 1000/],
+    ['a release too high to draw', { releaseHeight: 1001 }, /releaseHeight: expected a number from 0 to 1000/],
+  ])('refuses %s in a simulate', (_name, change, reason) => {
+    expectRefused(parseSceneCommand(makeSimulate({ ...SHOT_WITHOUT_GRAVITY, ...change })), reason);
+  });
+
+  it('accepts the ends of every range in a simulate', () => {
+    expectAccepted(makeSimulate({ horizontalSpeed: -100, upwardSpeed: 100, releaseHeight: 0, gravity: 0.1 }));
+    expectAccepted(makeSimulate({ horizontalSpeed: 100, upwardSpeed: -100, releaseHeight: 1000, gravity: 100 }));
+  });
+
+  it.each<[string, number, RegExp]>([
+    ['gravity', 0, /value: expected a number from 0\.1 to 100/],
+    ['gravity', -WILD, /value: expected a number from 0\.1 to 100/],
+    ['horizontalSpeed', 101, /value: expected a number from -100 to 100/],
+    ['releaseHeight', -1, /value: expected a number from 0 to 1000/],
+  ])('refuses a setParameter of %s to %d', (parameter, value, reason) => {
+    expectRefused(parseSceneCommand({ ...SETTING, parameter, value }), reason);
+  });
+
+  it('accepts a setParameter inside the range', () => {
+    expectAccepted({ ...SETTING, parameter: 'gravity', value: 1.62 });
+  });
+
+  it.each<[string, number, number, RegExp]>([
+    ['gravity', 0, 20, /\.min: expected a number from 0\.1 to 100/],
+    ['gravity', 1, 101, /\.max: expected a number from 0\.1 to 100/],
+    ['horizontalSpeed', -WILD, WILD, /\.min: expected a number from -100 to 100/],
+    ['releaseHeight', -1, 10, /\.min: expected a number from 0 to 1000/],
+  ])('keeps a slider on %s inside the range: %d to %d', (parameter, min, max, reason) => {
+    expectRefused(parseSceneCommand({ ...SLIDER, parameter, min, max }), reason);
+  });
+
+  it('accepts a slider across the whole range', () => {
+    expectAccepted({ ...SLIDER, parameter: 'gravity', min: 0.1, max: 100 });
+  });
+
+  it('gives every parameter a range that holds its default', () => {
+    expect(SIMULATION_PARAMETERS).toEqual(['horizontalSpeed', 'upwardSpeed', 'releaseHeight', 'gravity']);
+    for (const parameter of SIMULATION_PARAMETERS) {
+      const { min, max, default: defaultValue = min } = SIMULATION_PARAMETER_RULES[parameter];
+      expect(min, parameter).toBeLessThan(max);
+      expect(defaultValue, parameter).toBeGreaterThanOrEqual(min);
+      expect(defaultValue, parameter).toBeLessThanOrEqual(max);
+    }
+  });
+
+  it('uses one range for a parameter name across every model', () => {
+    for (const { parameters } of Object.values(SIMULATION_MODELS)) {
+      expect(SIMULATION_PARAMETER_RULES).toMatchObject(parameters);
+    }
+  });
+
+  it('lets a seek reach the landing of the longest flight the ranges allow', () => {
+    const { upwardSpeed, releaseHeight, gravity } = SIMULATION_MODELS.projectile.parameters;
+    const landingSeconds = (upwardSpeed.max + Math.sqrt(upwardSpeed.max ** 2 + 2 * gravity.min * releaseHeight.max)) / gravity.min;
+    expectAccepted({ ...RUN, action: 'seek', to: landingSeconds });
+  });
+});
+
+describe('a frame with nothing in it', () => {
+  const EMPTY_FRAMES: [string, Record<string, unknown>, RegExp][] = [
+    ['a diagram with no nodes', { kind: 'diagram', id: 'd', nodes: [], edges: [] }, /nodes: expected at least one item/],
+    ['a timeline with no events', { kind: 'timeline', id: 't', events: [] }, /events: expected at least one item/],
+    ['a table with no columns or rows', { kind: 'table', id: 't', columns: [], rows: [] }, /columns: expected at least one item/],
+    ['a table with no columns', { kind: 'table', id: 't', columns: [], rows: [[]] }, /columns: expected at least one item/],
+    ['a table with no rows', { kind: 'table', id: 't', columns: ['x'], rows: [] }, /rows: expected at least one item/],
+  ];
+
+  it.each(EMPTY_FRAMES)('refuses %s', (_name, command, reason) => {
+    expectRefused(parseSceneCommand(command), reason);
+    expectRefused(parseSceneCommand({ ...command, startsEmpty: false }), reason);
+  });
+
+  it.each(EMPTY_FRAMES)('accepts %s that starts empty for reveal', (_name, command) => {
+    expectAccepted({ ...command, startsEmpty: true });
+  });
+});
+
 describe('changing a value', () => {
   it.each<[string, unknown, RegExp]>([
     ['an unknown parameter', { kind: 'setParameter', target: 'shot', parameter: 'spin', value: 1 }, /parameter: expected one of/],
@@ -114,6 +259,24 @@ describe('changing a value', () => {
     expect(TRACKED_QUANTITIES).toEqual(['velocity', 'velocity-x', 'velocity-y', 'acceleration']);
     for (const quantity of TRACKED_QUANTITIES) expectAccepted({ kind: 'trackVector', id: 'arrow', target: 'shot', quantity });
     expectRefused(parseSceneCommand({ kind: 'trackVector', id: 'arrow', target: 'shot', quantity: 'speed' }), /quantity: expected one of/);
+  });
+});
+
+describe('annotate', () => {
+  const MARK = { kind: 'annotate', id: 'mark', target: 'ink-1' };
+
+  it.each(['underline', 'circle', 'check', 'cross'])('marks student work with a %s', (mark) => {
+    expectAccepted({ ...MARK, mark });
+  });
+
+  it('takes a label, checked as a label', () => {
+    expectAccepted({ ...MARK, mark: 'cross', label: 'flip the sign' });
+    expectRefused(parseSceneCommand({ ...MARK, mark: 'cross', label: 'x'.repeat(81) }), /label: expected at most 80 characters/);
+    expectRefused(parseSceneCommand({ ...MARK, mark: 'cross', label: 7 }), /label: expected text/);
+  });
+
+  it('refuses a mark we do not have', () => {
+    expectRefused(parseSceneCommand({ ...MARK, mark: 'star' }), /mark: expected one of underline, circle, check, cross/);
   });
 });
 
@@ -221,11 +384,45 @@ describe('a diagram edge', () => {
     expectAccepted({ kind: 'diagram', id: 'cycle', nodes, edges: [{ from: 'a', to: 'b' }] });
   });
 
+  it('cannot be aimed at a name two nodes share', () => {
+    const twice = [{ name: 'a', label: 'Rain' }, { name: 'a', label: 'River' }];
+    expectRefused(parseSceneCommand({ kind: 'diagram', id: 'cycle', nodes: twice, edges: [] }), /nodes: expected each node name once/);
+  });
+
   it.each<[string, unknown]>([
     ['a start', { from: 'missing', to: 'b' }],
     ['an end', { from: 'a', to: 'missing' }],
   ])('refuses %s that is not a node', (_name, edge) => {
     expectRefused(parseSceneCommand({ kind: 'diagram', id: 'cycle', nodes, edges: [edge] }), /edges\[0\]\.\w+: expected a node of this diagram/);
+  });
+});
+
+describe('free text', () => {
+  const TEXT_PLACES: [string, (text: string) => unknown][] = [
+    ['text', (text) => ({ kind: 'text', id: 'note', text })],
+    ['alt', (alt) => ({ kind: 'image', id: 'picture', asset: 'saturn', alt })],
+    ['label', (label) => ({ kind: 'markValue', id: 'mark', target: 'line', at: 1, label })],
+    ['source', (source) => ({ kind: 'code', id: 'snippet', language: 'python', source })],
+  ];
+  const UNSAFE_CHARACTERS = ['\u0007', '\u000B', '\u000C', '\r', '\u001B', '\u007F', '\u0085', '\u202A', '\u202B', '\u202C', '\u202D', '\u202E', '\u2066', '\u2067', '\u2068', '\u2069'];
+
+  describe.each(TEXT_PLACES)('in %s', (place, makeCommand) => {
+    it.each(UNSAFE_CHARACTERS)('refuses the character %j', (character) => {
+      expectRefused(parseSceneCommand(makeCommand(`a${character}b`)), new RegExp(`${place}: expected text with no control or bidi characters`));
+    });
+
+    it.each(['\t', '\n'])('accepts %j', (character) => {
+      expect(parseSceneCommand(makeCommand(`a${character}b`)).ok).toBe(true);
+    });
+
+    it('accepts the right-to-left text a student might read', () => {
+      expect(parseSceneCommand(makeCommand('מים נוזל')).ok).toBe(true);
+    });
+  });
+
+  it('keeps the lines and indents of code, and nothing else below a space', () => {
+    expectAccepted({ kind: 'code', id: 'snippet', language: 'python', source: 'def f(x):\n\treturn x\n' });
+    expectRefused(parseSceneCommand({ kind: 'code', id: 'snippet', language: 'python', source: 'def f(x):\r\n\treturn x' }), /source: expected text with no control/);
   });
 });
 
@@ -253,7 +450,7 @@ describe('plot.expression', () => {
     'pi*x',
     'exp(-x)',
     'ln(x)',
-    'log(x, 2)',
+    'log(x)',
     'sqrt(abs(x))',
     'cos(x)^2 + tan(x)',
     'sin (x)',
@@ -268,7 +465,14 @@ describe('plot.expression', () => {
     '`x`',
     "constructor.constructor('alert(1)')()",
     'y = x^2',
-    'x**2 + y',
+    'x**2',
+    '+++',
+    '((((',
+    'sin(',
+    '()',
+    '1,2',
+    'log(x, 2)',
+    `${'sqrt('.repeat(33)}x${')'.repeat(33)}`,
     String.raw`\frac{x}{2}`,
     'the parabola',
     '2x',
@@ -309,6 +513,28 @@ describe('tex', () => {
 
     it('accepts math with its backslashes intact', () => {
       expect(parseSceneCommand(makeCommand(String.raw`\frac{1}{2} + \theta`)).ok).toBe(true);
+    });
+
+    it.each([
+      String.raw`\href{javascript:alert(1)}{x}`,
+      String.raw`\href {https://example.com}{x}`,
+      String.raw`x + \url{https://example.com}`,
+      String.raw`\includegraphics{https://example.com/a.png}`,
+      String.raw`\htmlClass{a}{x}`,
+      String.raw`\htmlId{a}{x}`,
+      String.raw`\htmlStyle{color:red}{x}`,
+      String.raw`\htmlData{a=b}{x}`,
+      String.raw`\html{x}`,
+    ])('refuses %s, which needs trust KaTeX does not give', (tex) => {
+      expectRefused(parseSceneCommand(makeCommand(tex)), /tex: expected math with no links, images, or raw HTML/);
+    });
+
+    it.each([String.raw`\urcorner`, String.raw`\hrule`, 'href', 'url'])('accepts %s, which only looks like one', (tex) => {
+      expect(parseSceneCommand(makeCommand(tex)).ok).toBe(true);
+    });
+
+    it('refuses a bidi override', () => {
+      expectRefused(parseSceneCommand(makeCommand('a\u202Eb')), /tex: expected text with no control or bidi characters/);
     });
   });
 });

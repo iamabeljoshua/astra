@@ -3,10 +3,12 @@ import {
   type BoardElementKind,
   type BoardKinds,
   getBoardAfter,
+  getBoardAfterAction,
   getBoardProblem,
   getCues,
   SCENE_COMMAND_KINDS,
   type SceneCommand,
+  type StudentAction,
 } from '../src/index.ts';
 import { commandOrThrow, makeBeat, parseOrThrow } from './helpers.ts';
 
@@ -20,7 +22,7 @@ const NEEDS_A_KIND: [string, unknown, BoardElementKind[]][] = [
   ['runSimulation', { kind: 'runSimulation', target: 'a', action: 'play' }, ['simulate']],
   ['setParameter', { kind: 'setParameter', target: 'a', parameter: 'gravity', value: 1 }, ['simulate']],
   ['trackVector', { kind: 'trackVector', id: 'm', target: 'a', quantity: 'velocity' }, ['simulate']],
-  ['slider', { kind: 'slider', id: 'm', target: 'a', parameter: 'gravity', min: 0, max: 1 }, ['simulate']],
+  ['slider', { kind: 'slider', id: 'm', target: 'a', parameter: 'gravity', min: 1, max: 2 }, ['simulate']],
   ['ghostPath', { kind: 'ghostPath', id: 'm', target: 'a' }, ['simulate']],
   ['reveal', { kind: 'reveal', target: 'a', upTo: 1 }, ['plot', 'diagram', 'table', 'timeline', 'code']],
   ['plot.over', { kind: 'plot', id: 'm', expression: 'x', domain: [0, 1], over: 'a' }, ['plot']],
@@ -130,6 +132,67 @@ describe('getBoardAfter', () => {
       expect(getBoardAfter(command, board)).not.toBe(board);
       expect([...board]).toEqual([['a', 'text']]);
     }
+  });
+});
+
+describe('a reveal on the board', () => {
+  const FRAMES_WITH_A_COUNT: BoardElementKind[] = ['diagram', 'table', 'timeline', 'code'];
+
+  describe.each(FRAMES_WITH_A_COUNT)('on a %s', (kind) => {
+    it.each([0, 3])('counts up to %d', (upTo) => {
+      expect(getBoardProblem(commandOrThrow({ kind: 'reveal', target: 'a', upTo }), boardOf([['a', kind]]))).toBeNull();
+    });
+
+    it.each([-1, 2.5])('refuses %d as a count', (upTo) => {
+      expect(getBoardProblem(commandOrThrow({ kind: 'reveal', target: 'a', upTo }), boardOf([['a', kind]]))).toBe(`reveal needs a whole count on a ${kind}`);
+    });
+  });
+
+  it.each([-1.5, 0, 2.5])('takes %d on a plot, where it is an x value', (upTo) => {
+    expect(getBoardProblem(commandOrThrow({ kind: 'reveal', target: 'a', upTo }), boardOf([['a', 'plot']]))).toBeNull();
+  });
+});
+
+describe('getBoardAfterAction', () => {
+  const STROKE = { action: 'inkStroke', id: 'ink-1', points: [[0, 0, 0]] } as unknown as StudentAction;
+  const ERASE = { action: 'inkErased', target: 'ink-1' } as unknown as StudentAction;
+
+  it('adds a stroke as ink, so the tutor can point at it', () => {
+    const board = getBoardAfterAction(STROKE, boardOf([['shot', 'simulate']]));
+    expect([...board]).toEqual([['shot', 'simulate'], ['ink-1', 'ink']]);
+    expect(getBoardProblem(commandOrThrow({ kind: 'annotate', id: 'm', target: 'ink-1', mark: 'cross' }), board)).toBeNull();
+  });
+
+  it('keeps one entry for a long stroke sent in several actions', () => {
+    const board = getBoardAfterAction(STROKE, getBoardAfterAction(STROKE, boardOf([])));
+    expect([...board]).toEqual([['ink-1', 'ink']]);
+  });
+
+  it('removes erased ink, so the tutor can no longer point at it', () => {
+    const board = getBoardAfterAction(ERASE, boardOf([['ink-1', 'ink'], ['shot', 'simulate']]));
+    expect([...board]).toEqual([['shot', 'simulate']]);
+    expect(getBoardProblem(commandOrThrow({ kind: 'focus', target: 'ink-1' }), board)).toMatch(/not on the board/);
+  });
+
+  it('never lets a stroke or an erase take a tutor element', () => {
+    const board = boardOf([['ink-1', 'simulate']]);
+    expect([...getBoardAfterAction(STROKE, board)]).toEqual([['ink-1', 'simulate']]);
+    expect([...getBoardAfterAction(ERASE, board)]).toEqual([['ink-1', 'simulate']]);
+  });
+
+  it.each<[string, unknown]>([
+    ['a slider drag', { action: 'sliderDragged', target: 'shot', parameter: 'gravity', samples: [] }],
+    ['a rewind', { action: 'rewound', turnId: 't1', toBeat: 'b1' }],
+    ['a shared file', { action: 'fileShared', fileId: 'file-1', name: 'a.pdf' }],
+  ])('changes nothing for %s', (_name, action) => {
+    const board = boardOf([['shot', 'simulate']]);
+    expect([...getBoardAfterAction(action as StudentAction, board)]).toEqual([...board]);
+  });
+
+  it('returns a new board and never changes the one it was given', () => {
+    const board = boardOf([['ink-1', 'ink']]);
+    expect(getBoardAfterAction(ERASE, board)).not.toBe(board);
+    expect([...board]).toEqual([['ink-1', 'ink']]);
   });
 });
 

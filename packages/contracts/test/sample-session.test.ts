@@ -51,7 +51,14 @@ describe('fixture checks: the sample session from PRD section 6.4', () => {
   it('fires every cue of every beat, so what played is what was written', () => {
     for (const event of EVENTS) {
       if (event.kind !== 'beatPlayed') continue;
-      expect(getPlayedCues(event.beat, event.firedCues), event.beat.id).toEqual(getCues(event.beat));
+      expect(getPlayedCues(event.beat, event.firedCueMs.length), event.beat.id).toEqual(getCues(event.beat));
+    }
+  });
+
+  it('fires each cue as its word starts, because every report here is on time', () => {
+    for (const event of EVENTS) {
+      if (event.kind !== 'beatPlayed') continue;
+      expect(event.firedCueMs, event.beat.id).toEqual(getCues(event.beat).map((cue) => event.wordStartsMs[cue.atWord]));
     }
   });
 
@@ -65,8 +72,8 @@ describe('fixture checks: the sample session from PRD section 6.4', () => {
     for (const event of EVENTS) {
       if (event.kind !== 'beatPlayed') continue;
       if (!turns.has(event.turnId)) turns.set(event.turnId, event.atMs);
-      const firstCue = getCues(event.beat)[0];
-      if (firstCue && !firstDrawings.has(event.turnId)) firstDrawings.set(event.turnId, event.atMs + (event.wordStartsMs[firstCue.atWord] ?? 0));
+      const firstFiredMs = event.firedCueMs[0];
+      if (firstFiredMs !== undefined && !firstDrawings.has(event.turnId)) firstDrawings.set(event.turnId, event.atMs + firstFiredMs);
     }
     expect(turns.size).toBe(5);
     for (const [turnId, startedAtMs] of turns) expect((firstDrawings.get(turnId) ?? Infinity) - startedAtMs, turnId).toBeLessThanOrEqual(1000);

@@ -2,9 +2,10 @@ import { BEAT_LIMITS } from './beat.ts';
 import { readBeatId, readTurnId } from './ids.ts';
 import { type AgentMessage, type BrowserMessage, LIVE_MESSAGE_MAX_BYTES, type TimedWord } from './live-message.ts';
 import { readSceneCommand } from './parse-command.ts';
-import { PLAY_REPORT_KEYS, readFrozenList, readPlayReport, readStudentAction } from './parse-event.ts';
+import { PLAY_REPORT_KEYS, readFrozenFrames, readPlayReport, readStudentAction } from './parse-event.ts';
 import {
   checkJsonSize,
+  fail,
   type ParseResult,
   type Place,
   readBoolean,
@@ -16,6 +17,14 @@ import {
   toParseResult,
   type VariantTable,
 } from './read.ts';
+
+const SHORTEST_AUDIO_GAP_MS = 1;
+
+function readAudioGapMs(place: Place): number {
+  const ms = readWholeNumber(place);
+  if (ms < SHORTEST_AUDIO_GAP_MS) fail(place, `a whole number of ${SHORTEST_AUDIO_GAP_MS} or more`);
+  return ms;
+}
 
 function readTimedWord(place: Place): TimedWord {
   const fields = readFields(place, ['text', 'startMs']);
@@ -50,12 +59,13 @@ const AGENT_MESSAGES: VariantTable<AgentMessage, 'type'> = {
       }),
     },
     beatClosed: {
-      keys: ['turnId', 'beatId', 'wordCount'],
+      keys: ['turnId', 'beatId', 'wordCount', 'expectsReply'],
       read: (fields) => ({
         type: 'beatClosed',
         turnId: readTurnId(fields.at('turnId')),
         beatId: readBeatId(fields.at('beatId')),
         wordCount: readWholeNumber(fields.at('wordCount')),
+        expectsReply: readBoolean(fields.at('expectsReply')),
       }),
     },
     yield: {
@@ -65,6 +75,15 @@ const AGENT_MESSAGES: VariantTable<AgentMessage, 'type'> = {
     stop: {
       keys: ['turnId'],
       read: (fields) => ({ type: 'stop', turnId: readTurnId(fields.at('turnId')) }),
+    },
+    audioGap: {
+      keys: ['turnId', 'atMs', 'ms'],
+      read: (fields) => ({
+        type: 'audioGap',
+        turnId: readTurnId(fields.at('turnId')),
+        atMs: readWholeNumber(fields.at('atMs')),
+        ...fields.optional('ms', readAudioGapMs),
+      }),
     },
   },
 };
@@ -83,12 +102,26 @@ const BROWSER_MESSAGES: VariantTable<BrowserMessage, 'type'> = {
       }),
     },
     acted: {
-      keys: ['action'],
-      read: (fields) => ({ type: 'acted', action: readStudentAction(fields.at('action')) }),
+      keys: ['startedMsAgo', 'action'],
+      read: (fields) => ({ type: 'acted', startedMsAgo: readWholeNumber(fields.at('startedMsAgo')), action: readStudentAction(fields.at('action')) }),
     },
     boardFrozen: {
-      keys: ['turnId', 'frozen'],
-      read: (fields) => ({ type: 'boardFrozen', turnId: readTurnId(fields.at('turnId')), frozen: readFrozenList(fields.at('frozen')) }),
+      keys: ['turnId', 'startedMsAgo', 'frozen'],
+      read: (fields) => ({
+        type: 'boardFrozen',
+        turnId: readTurnId(fields.at('turnId')),
+        startedMsAgo: readWholeNumber(fields.at('startedMsAgo')),
+        frozen: readFrozenFrames(fields.at('frozen')),
+      }),
+    },
+    questionHeard: {
+      keys: ['turnId', 'beatId', 'startedMsAgo'],
+      read: (fields) => ({
+        type: 'questionHeard',
+        turnId: readTurnId(fields.at('turnId')),
+        beatId: readBeatId(fields.at('beatId')),
+        startedMsAgo: readWholeNumber(fields.at('startedMsAgo')),
+      }),
     },
   },
 };

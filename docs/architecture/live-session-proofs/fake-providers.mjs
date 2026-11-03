@@ -4,7 +4,7 @@ import { WebSocketServer } from 'ws';
 const TTS_PORT = Number(process.env.FAKE_TTS_PORT ?? 17801);
 const STT_PORT = Number(process.env.FAKE_STT_PORT ?? 17802);
 const STT_ENDPOINT_MS = Number(process.env.FAKE_STT_ENDPOINT_MS ?? 200);
-const scenarioSettings = { ttsFirstAudioMs: Number(process.env.FAKE_TTS_TTFB_MS ?? 0), transcriptDelayMs: 0 };
+const scenarioSettings = { ttsFirstAudioMs: Number(process.env.FAKE_TTS_TTFB_MS ?? 0), transcriptDelayMs: 0, voiceStallMs: 0, voiceStallAtFlush: 0 };
 
 const TTS_SAMPLE_RATE = 24000;
 const BURST_MS = 70;
@@ -86,13 +86,20 @@ function startFakeCartesia() {
         contexts.delete(contextId);
         return;
       }
-      if (!contexts.has(contextId)) contexts.set(contextId, { id: contextId, cursorSeconds: 0 });
+      if (!contexts.has(contextId)) contexts.set(contextId, { id: contextId, cursorSeconds: 0, flushes: 0 });
       const context = contexts.get(contextId);
       chain = chain.then(async () => {
         if (!contexts.has(contextId)) return;
         if (!context.spokeOnce) {
           context.spokeOnce = true;
           if (scenarioSettings.ttsFirstAudioMs > 0) await new Promise((resolve) => setTimeout(resolve, scenarioSettings.ttsFirstAudioMs));
+          context.startedAt = Date.now();
+        }
+        context.flushes += 1;
+        // Waits until what was sent has played, and then this long, so the listener's audio really runs dry.
+        if (scenarioSettings.voiceStallMs > 0 && context.flushes === scenarioSettings.voiceStallAtFlush) {
+          const playedUntil = context.startedAt + context.cursorSeconds * 1000;
+          await new Promise((resolve) => setTimeout(resolve, Math.max(0, playedUntil - Date.now()) + scenarioSettings.voiceStallMs));
         }
         synthesize(socket, context, message.transcript ?? '');
         if (message.continue === false) {
@@ -195,7 +202,8 @@ function startFakeDeepgram() {
         return;
       }
       const durationSeconds = speech.lastVoicedSeconds - speech.startSeconds;
-      sendTranscript(makeResults({ text: speech.text, isFinal: true, speechFinal: true, startSeconds: speech.startSeconds, durationSeconds, fromFinalize }));
+      // A script starting with ~ gives interims and then no final words, as a retracted interim would.
+      sendTranscript(makeResults({ text: speech.text.startsWith('~') ? '' : speech.text, isFinal: true, speechFinal: true, startSeconds: speech.startSeconds, durationSeconds, fromFinalize }));
       speech = null;
     };
     socket.on('message', (raw, isBinary) => {
@@ -218,7 +226,7 @@ function startFakeDeepgram() {
         if ((nowSeconds - speech.lastInterimSeconds) * 1000 >= INTERIM_EVERY_MS) {
           speech.lastInterimSeconds = nowSeconds;
           const spokenCount = Math.max(1, Math.round((nowSeconds - speech.startSeconds) * WORDS_PER_SECOND));
-          const interim = speech.text.split(/\s+/).slice(0, spokenCount).join(' ');
+          const interim = speech.text.replace(/^~/, '').split(/\s+/).slice(0, spokenCount).join(' ');
           if (interim !== '') sendTranscript(makeResults({ text: interim, isFinal: false, speechFinal: false, startSeconds: speech.startSeconds, durationSeconds: nowSeconds - speech.startSeconds }));
         }
       } else if (speech && (nowSeconds - speech.lastVoicedSeconds) * 1000 >= STT_ENDPOINT_MS) {

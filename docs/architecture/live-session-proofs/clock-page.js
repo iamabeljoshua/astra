@@ -1,6 +1,11 @@
 import { Room, RoomEvent, Track } from 'livekit-client';
+import { createGuessingClock, getIsLostByRtp, getIsLostBySequence } from './clock-rejected.mjs';
+import { createWordClock } from './clock-rule.mjs';
 
 const POLL_MS = 10;
+const STATS_POLL_MS = 50;
+const TICK_MS = 4;
+const RTP_CLOCK_HZ = 48000;
 
 // Sends WebRTC through the local relay that delays and drops packets, by rewriting what the server offers.
 function routeThroughRelay(serverPort, relayPort) {
@@ -37,51 +42,167 @@ function routeThroughRelay(serverPort, relayPort) {
   };
 }
 
-const records = { worklet: [], data: [], clockMap: [], rtp: [], stats: [] };
+const records = { worklet: [], data: [], clockMap: [], rtp: [], stats: [], fired: [], decisions: [] };
 window.clockRecords = records;
 let audioContext;
+let receiver;
+let segment = null;
+let isBlockAudible = false;
+let isSounding = false;
+let lastOnsetMs = null;
+let lastEndMs = null;
+let rtpAtLastOnset = null;
+let lostAtSilenceStart = 0;
 
-function noteClockMap() {
-  records.clockMap.push({ contextTime: audioContext.currentTime, epochMs: performance.timeOrigin + performance.now() });
+const nowMs = () => audioContext.currentTime * 1000;
+const toEpochMs = (contextMs) => performance.timeOrigin + performance.now() - (nowMs() - contextMs);
+const readRtp = () => receiver?.getSynchronizationSources()[0]?.rtpTimestamp;
+const rtpPolls = () => records.rtp.map((poll) => ({ atMs: poll.pollEpochMs, rtpTimestamp: poll.rtpTimestamp }));
+const statsNow = async () => {
+  let inbound = null;
+  (await receiver.getStats()).forEach((entry) => {
+    if (entry.type === 'inbound-rtp') inbound = entry;
+  });
+  return inbound;
+};
+
+function firstWordStartMs() {
+  return segment.wordStartsMs[0] ?? 0;
 }
 
-function watchReceiver(receiver) {
+// Each method fires its own cue per word from the same audio, on the real page clock, as a player would.
+function createMethods(wordStartsMs) {
+  const chosen = createWordClock();
+  const guessBySequence = createGuessingClock(wordStartsMs);
+  const guessByRtp = createGuessingClock(wordStartsMs);
+  const guessByRtpOldGate = createGuessingClock(wordStartsMs);
+  const countOnly = createWordClock();
+  return {
+    chosen: { clock: chosen, next: 0, position: (at) => chosen.getPositionMs(at, firstWordStartMs()), isOpen: () => isBlockAudible },
+    guessBySequence: { clock: guessBySequence, next: 0, position: (at) => guessBySequence.getPositionMs(at), isPending: false, isOpen() { return isBlockAudible && !this.isPending; } },
+    guessByRtp: { clock: guessByRtp, next: 0, position: (at) => guessByRtp.getPositionMs(at), isOpen: () => isBlockAudible },
+    guessByRtpOldGate: { clock: guessByRtpOldGate, next: 0, position: (at) => guessByRtpOldGate.getPositionMs(at), isOpen: () => isSounding },
+    countOnly: { clock: countOnly, next: 0, position: (at) => countOnly.getPositionMs(at, firstWordStartMs()), isOpen: () => isBlockAudible },
+    rtpOnly: { next: 0, position: () => (segment.rtpAtFirstSound === undefined || readRtp() === undefined ? null : ((readRtp() - segment.rtpAtFirstSound) / RTP_CLOCK_HZ) * 1000), isOpen: () => isBlockAudible },
+  };
+}
+
+function startSegment(message) {
+  segment = { ...message, methods: createMethods(message.wordStartsMs), startedSilent: !isSounding };
+  records.data.push({ type: 'segmentStarted', segmentId: message.segmentId, isSoundingAlready: isSounding, contextSeconds: audioContext.currentTime });
+  if (isSounding) startClocks(lastOnsetMs);
+}
+
+function startClocks(atMs) {
+  for (const name of ['chosen', 'countOnly']) segment.methods[name].clock.onFirstSound(atMs);
+  for (const name of ['guessBySequence', 'guessByRtp', 'guessByRtpOldGate']) segment.methods[name].clock.onOnset(atMs);
+  segment.hasFirstSound = true;
+  segment.rtpAtFirstSound = rtpAtLastOnset ?? undefined;
+}
+
+function onSilenceOver(atMs) {
+  if (!segment) return;
+  if (!segment.hasFirstSound) {
+    startClocks(atMs);
+    return;
+  }
+  const silenceMs = atMs - lastEndMs;
+  const isLostByRtp = getIsLostByRtp({ silenceStartMs: toEpochMs(lastEndMs), silenceEndMs: toEpochMs(atMs), rtpPolls: rtpPolls(), rtpClockHz: RTP_CLOCK_HZ });
+  segment.methods.guessByRtp.clock.onOnset(atMs, { isAudioLost: isLostByRtp });
+  segment.methods.guessByRtpOldGate.clock.onOnset(atMs, { isAudioLost: isLostByRtp });
+  const bySequence = segment.methods.guessBySequence;
+  bySequence.isPending = true;
+  const lostBefore = lostAtSilenceStart;
+  const segmentThen = segment;
+  statsNow().then((inbound) => {
+    const packetsLostDuringSilence = (inbound?.packetsLost ?? 0) - lostBefore;
+    const isLostBySequence = getIsLostBySequence({ packetsLostDuringSilence, silenceMs });
+    bySequence.clock.onOnset(atMs, { isAudioLost: isLostBySequence });
+    bySequence.isPending = false;
+    records.decisions.push({ segmentId: segmentThen.segmentId, atMs, silenceMs, isLostByRtp, isLostBySequence, packetsLostDuringSilence });
+  });
+}
+
+function onWorkletEvent(event) {
+  if (event.kind === 'onset') {
+    isSounding = true;
+    lastOnsetMs = event.atMs;
+    rtpAtLastOnset = readRtp() ?? null;
+    onSilenceOver(event.atMs);
+  } else if (event.kind === 'end') {
+    isSounding = false;
+    lastEndMs = event.atMs;
+    if (segment) for (const name of ['guessBySequence', 'guessByRtp', 'guessByRtpOldGate']) segment.methods[name].clock.onEnd(event.atMs);
+  } else if (event.kind === 'sound') {
+    isBlockAudible = true;
+  } else if (event.kind === 'quiet') {
+    isBlockAudible = false;
+  }
+}
+
+function tick() {
+  if (!segment) return;
+  const at = nowMs();
+  for (const [name, method] of Object.entries(segment.methods)) {
+    if (!method.isOpen()) continue;
+    const position = method.position(at);
+    while (position !== null && method.next < segment.wordStartsMs.length && position >= segment.wordStartsMs[method.next]) {
+      records.fired.push({ method: name, segmentId: segment.segmentId, wordIndex: method.next, contextSeconds: at / 1000 });
+      method.next += 1;
+    }
+  }
+}
+
+function watchReceiver() {
   setInterval(() => {
     const [source] = receiver.getSynchronizationSources();
     if (source) records.rtp.push({ rtpTimestamp: source.rtpTimestamp, timestamp: source.timestamp, pollEpochMs: performance.timeOrigin + performance.now() });
-    noteClockMap();
+    records.clockMap.push({ contextTime: audioContext.currentTime, epochMs: performance.timeOrigin + performance.now() });
   }, POLL_MS);
   setInterval(async () => {
-    const report = await receiver.getStats();
-    report.forEach((entry) => {
-      if (entry.type !== 'inbound-rtp') return;
-      records.stats.push({
-        at: performance.timeOrigin + performance.now(),
-        packetsReceived: entry.packetsReceived,
-        packetsLost: entry.packetsLost,
-        jitter: entry.jitter,
-        jitterBufferDelay: entry.jitterBufferDelay,
-        jitterBufferEmittedCount: entry.jitterBufferEmittedCount,
-        concealedSamples: entry.concealedSamples,
-        insertedSamplesForDeceleration: entry.insertedSamplesForDeceleration,
-        removedSamplesForAcceleration: entry.removedSamplesForAcceleration,
-        totalSamplesReceived: entry.totalSamplesReceived,
-        estimatedPlayoutTimestamp: entry.estimatedPlayoutTimestamp,
-      });
+    const entry = await statsNow();
+    if (!entry) return;
+    if (isSounding) lostAtSilenceStart = entry.packetsLost;
+    records.stats.push({
+      at: performance.timeOrigin + performance.now(),
+      packetsReceived: entry.packetsReceived,
+      packetsLost: entry.packetsLost,
+      packetsDiscarded: entry.packetsDiscarded,
+      jitter: entry.jitter,
+      jitterBufferDelay: entry.jitterBufferDelay,
+      jitterBufferEmittedCount: entry.jitterBufferEmittedCount,
+      concealedSamples: entry.concealedSamples,
+      silentConcealedSamples: entry.silentConcealedSamples,
+      insertedSamplesForDeceleration: entry.insertedSamplesForDeceleration,
+      removedSamplesForAcceleration: entry.removedSamplesForAcceleration,
+      totalSamplesReceived: entry.totalSamplesReceived,
     });
-  }, 1000);
+  }, STATS_POLL_MS);
 }
 
 async function listenToTrack(track) {
+  receiver = track.receiver;
   const element = track.attach();
   element.muted = true;
   document.body.append(element);
   const source = audioContext.createMediaStreamSource(new MediaStream([track.mediaStreamTrack]));
   const probe = new AudioWorkletNode(audioContext, 'clock-probe');
-  probe.port.onmessage = ({ data }) => records.worklet.push({ ...data, contextSeconds: data.frame / audioContext.sampleRate });
+  probe.port.onmessage = ({ data }) => {
+    const atMs = (data.frame / audioContext.sampleRate) * 1000;
+    if (data.kind !== 'sound' && data.kind !== 'quiet') records.worklet.push({ ...data, contextSeconds: atMs / 1000 });
+    onWorkletEvent({ ...data, atMs });
+  };
   source.connect(probe);
-  watchReceiver(track.receiver);
+  watchReceiver();
+  setInterval(tick, TICK_MS);
   window.clockReady = true;
+}
+
+function onMessage(message) {
+  records.data.push({ ...message, contextSeconds: audioContext.currentTime, epochMs: performance.timeOrigin + performance.now() });
+  if (message.type === 'segment') startSegment(message);
+  if (message.type === 'audioGap' && segment?.segmentId === message.segmentId) segment.methods.chosen.clock.addGap(message);
+  if (message.type === 'word') records.fired.push({ method: 'dataMessage', segmentId: message.segmentId, wordIndex: message.wordIndex, contextSeconds: audioContext.currentTime });
 }
 
 window.startClockProof = async ({ url, token, relay }) => {
@@ -94,8 +215,7 @@ window.startClockProof = async ({ url, token, relay }) => {
     if (track.kind === Track.Kind.Audio) listenToTrack(track);
   });
   room.on(RoomEvent.DataReceived, (payload, _participant, _kind, topic) => {
-    if (topic !== 'clock') return;
-    records.data.push({ ...JSON.parse(new TextDecoder().decode(payload)), contextSeconds: audioContext.currentTime, epochMs: performance.timeOrigin + performance.now() });
+    if (topic === 'clock') onMessage(JSON.parse(new TextDecoder().decode(payload)));
   });
   await room.connect(url, token);
   return { sampleRate: audioContext.sampleRate, baseLatency: audioContext.baseLatency, outputLatency: audioContext.outputLatency };

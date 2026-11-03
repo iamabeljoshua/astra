@@ -133,7 +133,7 @@ def attach_tiered_policy(ctx: JobContext, session: AgentSession) -> None:
     session.on("user_input_transcribed", on_transcribed)
 
 
-server = AgentServer(num_idle_processes=1)
+server = AgentServer(num_idle_processes=1, port=int(os.environ.get('AGENT_WORKER_PORT', '8081')))
 
 
 @server.rtc_session()

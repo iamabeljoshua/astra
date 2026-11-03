@@ -2,10 +2,11 @@
 import { BEAT_LIMITS, getBoardAfter, getBoardProblem, LIVE_MESSAGE_MAX_BYTES, parseSceneCommand } from '../../../packages/contracts/src/index.ts';
 
 const FIRST_FLUSH_AFTER_WORDS = 8;
-const UNSPEAKABLE = /[\u0000*_`~#[\]️‍\uD800-\uDFFF]|\p{Extended_Pictographic}/u;
+const UNSPEAKABLE = /[\u0000*_`~#[\]\uFE0F\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF\uD800-\uDFFF]|\p{Extended_Pictographic}/u;
 const JSON_SYMBOL = /[\s{}[\]:,\d.+-]/;
 const JSON_WORDS = ['true', 'false', 'null'];
 const LETTER = /[a-zA-Z]/;
+const JSON_MARKS = /[":]/;
 
 export class BeatTextReader {
   held = '';
@@ -16,7 +17,8 @@ export class BeatTextReader {
   isEscaped = false;
   jsonWord = '';
   brokenTail = null;
-  hasFlushedVoice = false;
+  isCommandTooLong = false;
+  hasFlushedFirstWords = false;
   hasUnflushedWords = false;
   wordsThisTurn = 0;
   isTurnOver = false;
@@ -74,7 +76,7 @@ export class BeatTextReader {
     if (character === '"') {
       this.flushVoice('command');
       Object.assign(this, { command: `${this.held}"`, depth: 1, isInString: true, isEscaped: false, jsonWord: '', held: '' });
-    } else if (/\s/.test(character) && character !== '\n') {
+    } else if (/\s/.test(character)) {
       this.held += character;
     } else {
       const spaces = this.held.slice(1);
@@ -105,7 +107,7 @@ export class BeatTextReader {
     this.addToScript(character);
     if (!isSpace) return;
     this.sendWordsToVoice();
-    if (!this.hasFlushedVoice && this.wordsThisTurn >= FIRST_FLUSH_AFTER_WORDS) this.flushVoice('firstWords');
+    if (!this.hasFlushedFirstWords && this.wordsThisTurn >= FIRST_FLUSH_AFTER_WORDS) this.flushVoice('firstWords');
   }
 
   addToScript(text) {
@@ -118,22 +120,26 @@ export class BeatTextReader {
     this.waitingCues = [];
   }
 
+  // JSON allows a newline between its parts, and a string cannot hold one, so there it means the string never closes.
   stepInCommand(character) {
-    if (character === '\n') {
+    if (!this.isInString) {
+      this.stepInJson(character);
+    } else if (character === '\n') {
       this.refuseCommand('the command never closed');
       this.endBeat();
-    } else if (this.command.length >= LIVE_MESSAGE_MAX_BYTES) {
-      this.refuseCommand('the command is too long');
-      this.step(character);
-    } else if (this.isInString) {
-      this.stepInString(character);
     } else {
-      this.stepInJson(character);
+      this.stepInString(character);
     }
   }
 
+  // Past the limit the command is still read to its end, so its tail is never spoken.
+  addToCommand(character) {
+    if (this.command.length < LIVE_MESSAGE_MAX_BYTES) this.command += character;
+    else this.isCommandTooLong = true;
+  }
+
   stepInString(character) {
-    this.command += character;
+    this.addToCommand(character);
     if (this.isEscaped) this.isEscaped = false;
     else if (character === '\\') this.isEscaped = true;
     else if (character === '"') this.isInString = false;
@@ -146,7 +152,7 @@ export class BeatTextReader {
       this.jsonWord = '';
       return;
     }
-    this.command += character;
+    this.addToCommand(character);
     if (character === '"') this.isInString = true;
     if (character === '{') this.depth += 1;
     if (character === '}') this.depth -= 1;
@@ -165,11 +171,13 @@ export class BeatTextReader {
     return isWordDone && (character === '"' || JSON_SYMBOL.test(character));
   }
 
-  // After JSON breaks, a closing brace makes it all one bad command, and a newline or new brace makes the tail speech.
+  // After JSON breaks, a newline or new brace makes the tail speech. So does a closing brace, unless the tail is one word or still looks like JSON.
   stepInBrokenTail(character) {
     if (character === '}') {
+      const tail = this.brokenTail;
       this.brokenTail = null;
       this.refuseCommand('the command is not JSON');
+      if (/\s\S/.test(tail.trim()) && !JSON_MARKS.test(tail)) for (const spoken of tail) this.stepInSpeech(spoken);
     } else if (character === '\n' || character === '{') {
       this.releaseBrokenTail();
       this.step(character);
@@ -188,6 +196,11 @@ export class BeatTextReader {
   finishCommand() {
     const text = this.command;
     this.command = null;
+    if (this.isCommandTooLong) {
+      this.isCommandTooLong = false;
+      this.onBadCommand('the command is too long');
+      return;
+    }
     let value;
     try {
       value = JSON.parse(text);
@@ -218,7 +231,8 @@ export class BeatTextReader {
   }
 
   refuseCommand(problem) {
-    this.onBadCommand(problem);
+    this.onBadCommand(this.isCommandTooLong ? 'the command is too long' : problem);
+    this.isCommandTooLong = false;
     this.command = null;
   }
 
@@ -232,7 +246,7 @@ export class BeatTextReader {
   flushVoice(reason) {
     if (!this.hasUnflushedWords) return;
     this.hasUnflushedWords = false;
-    this.hasFlushedVoice = true;
+    if (this.wordsThisTurn >= FIRST_FLUSH_AFTER_WORDS) this.hasFlushedFirstWords = true;
     this.onFlush(reason);
   }
 

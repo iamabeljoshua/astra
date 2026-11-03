@@ -9,14 +9,26 @@ let audioContext;
 let gain;
 let room;
 let turn = null;
+let isBlockAudible = false;
+let isSounding = false;
+let lastOnsetMs = null;
+const runningSimulations = new Map();
 const now = () => audioContext.currentTime * 1000;
 const note = (kind, fields = {}) => records.events.push({ kind, atMs: now(), epochMs: performance.timeOrigin + performance.now(), turnId: turn?.turnId, ...fields });
+const send = (message) => room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify(message)), { reliable: true, topic: 'astra.live' });
 
 function startTurn(turnId, reply) {
-  const wordStartsMs = [];
-  turn = { turnId, reply, wordStartsMs, clock: createWordClock(wordStartsMs), sounding: false, cues: [], fired: [], frozen: false, playedWords: 0, heardOnset: false };
+  turn = { turnId, reply, wordStartsMs: [], clock: createWordClock(), cues: [], fired: [], frozen: false, playedWords: 0, hasFirstSound: false, beats: [], questionWords: [] };
   records.turns.push(turn);
   note('turnStarted', { reply });
+  // On a poor link the audio can arrive first, so an onset already sounding belongs to this turn.
+  if (isSounding && lastOnsetMs !== null) startClock(lastOnsetMs);
+}
+
+function startClock(atMs) {
+  turn.hasFirstSound = true;
+  turn.firstSoundAtMs = atMs;
+  turn.clock.onFirstSound(atMs);
 }
 
 function getPlayedWords(position) {
@@ -25,20 +37,38 @@ function getPlayedWords(position) {
   return count;
 }
 
+function applyCue(cue, atMs) {
+  const { command } = cue;
+  if (command.kind === 'runSimulation' && command.action === 'play') runningSimulations.set(command.target, atMs);
+}
+
+// A cue waits for sound, and the words count only while there is sound, so a silence never adds a word or fires a drawing.
 function tick() {
-  if (!turn || turn.frozen || !turn.heardOnset) return;
-  const position = turn.clock.getPositionMs(now());
+  if (!turn || turn.frozen || !turn.hasFirstSound || !isBlockAudible) return;
+  const position = turn.clock.getPositionMs(now(), turn.wordStartsMs[0] ?? 0);
   turn.playedWords = Math.max(turn.playedWords, getPlayedWords(position));
-  if (!turn.sounding) return;
+  for (const word of turn.questionWords) {
+    if (word.isSent || turn.wordStartsMs[word.at] === undefined || position < turn.wordStartsMs[word.at]) continue;
+    word.isSent = true;
+    note('questionHeard', { atWord: word.at });
+    send({ type: 'questionHeard', turnId: turn.turnId, startedMsAgo: 0 });
+  }
   for (const cue of turn.cues) {
     if (cue.firedAtMs !== undefined) continue;
     const startMs = turn.wordStartsMs[cue.atWord];
     if (startMs !== undefined && position >= startMs) {
       cue.firedAtMs = now();
-      turn.fired.push({ atWord: cue.atWord, id: cue.command.id, kind: cue.command.kind });
-      note('cueFired', { atWord: cue.atWord, id: cue.command.id, positionMs: position, wordStartMs: startMs });
+      applyCue(cue, cue.firedAtMs);
+      turn.fired.push({ atWord: cue.atWord, id: cue.command.id, kind: cue.command.kind, target: cue.command.target, action: cue.command.action, atMs: Math.round(cue.firedAtMs - turn.firstSoundAtMs) });
+      note('cueFired', { atWord: cue.atWord, id: cue.command.id, kind: cue.command.kind, positionMs: position, wordStartMs: startMs });
     }
   }
+}
+
+function freezeSimulations() {
+  const frozen = [...runningSimulations].map(([target, startedAtMs]) => ({ target, simulationSeconds: Math.round(now() - startedAtMs) / 1000 }));
+  runningSimulations.clear();
+  return frozen;
 }
 
 function onStop(via, at) {
@@ -46,12 +76,12 @@ function onStop(via, at) {
   if (!turn || turn.frozen) return;
   gain.gain.setValueAtTime(0, audioContext.currentTime);
   turn.frozen = true;
-  const positionMs = turn.clock.getPositionMs(now());
-  turn.playedWords = Math.max(turn.playedWords, getPlayedWords(positionMs));
+  const positionMs = turn.hasFirstSound ? turn.clock.getPositionMs(now(), turn.wordStartsMs[0] ?? 0) : 0;
+  if (isBlockAudible && turn.hasFirstSound) turn.playedWords = Math.max(turn.playedWords, getPlayedWords(positionMs));
   turn.frozenAtMs = now();
-  note('frozen', { via, positionMs, playedWords: turn.playedWords, firedCount: turn.fired.length });
-  const report = { type: 'played', turnId: turn.turnId, playedWords: turn.playedWords, ending: 'interrupted', fired: turn.fired };
-  room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify(report)), { reliable: true, topic: 'astra.live' });
+  const frozen = freezeSimulations();
+  note('frozen', { via, positionMs, playedWords: turn.playedWords, firedCount: turn.fired.length, frozen });
+  send({ type: 'played', turnId: turn.turnId, playedWords: turn.playedWords, ending: 'interrupted', fired: turn.fired, firedCueMs: turn.fired.map((cue) => cue.atMs), frozen, startedMsAgo: 0 });
 }
 
 function onMessage(message) {
@@ -74,8 +104,24 @@ function onMessage(message) {
   }
   if (message.type === 'wordTimes') {
     for (const word of message.words) target.wordStartsMs.push(word.startMs);
-    note('wordTimes', { count: message.words.length, afterFreeze: target.frozen });
+    note('wordTimes', { count: message.words.length, afterFreeze: target.frozen, lateByMs: target.hasFirstSound ? now() - target.firstSoundAtMs : null });
   }
+  if (message.type === 'audioGap') {
+    target.clock.addGap(message);
+    note('audioGap', { gapAtMs: message.atMs, ms: message.ms });
+  }
+  if (message.type === 'beatClosed' && message.expectsReply) target.questionWords.push({ at: message.firstWord + message.wordCount - 1, isSent: false });
+}
+
+function onProbe(kind, atMs) {
+  if (kind === 'onset') {
+    isSounding = true;
+    lastOnsetMs = atMs;
+    if (turn && !turn.hasFirstSound) startClock(atMs);
+  }
+  if (kind === 'end') isSounding = false;
+  if (kind === 'sound') isBlockAudible = true;
+  if (kind === 'quiet') isBlockAudible = false;
 }
 
 async function listenToTrack(track) {
@@ -86,19 +132,12 @@ async function listenToTrack(track) {
   const toMs = (frame) => (frame / audioContext.sampleRate) * 1000;
   before.port.onmessage = ({ data }) => {
     const atMs = toMs(data.frame);
-    records.events.push({ kind: `arriving-${data.kind}`, atMs, turnId: turn?.turnId });
-    if (!turn) return;
-    if (data.kind === 'onset') {
-      turn.heardOnset = true;
-      turn.sounding = true;
-      turn.clock.onOnset(atMs);
-    }
-    if (data.kind === 'end') {
-      turn.sounding = false;
-      turn.clock.onEnd(atMs);
-    }
+    if (data.kind !== 'sound' && data.kind !== 'quiet') records.events.push({ kind: `arriving-${data.kind}`, atMs, turnId: turn?.turnId });
+    onProbe(data.kind, atMs);
   };
-  after.port.onmessage = ({ data }) => records.events.push({ kind: `output-${data.kind}`, atMs: toMs(data.frame), turnId: turn?.turnId });
+  after.port.onmessage = ({ data }) => {
+    if (data.kind !== 'sound' && data.kind !== 'quiet') records.events.push({ kind: `output-${data.kind}`, atMs: toMs(data.frame), turnId: turn?.turnId });
+  };
   source.connect(before);
   source.connect(gain);
   gain.connect(after);

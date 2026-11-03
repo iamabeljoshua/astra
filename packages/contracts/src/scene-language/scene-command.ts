@@ -6,22 +6,34 @@ export type DrawingName = (typeof DRAWINGS)[number];
 export const IMAGE_ASSETS = ['great-wave', 'school-of-athens', 'saturn'] as const;
 export type ImageAsset = (typeof IMAGE_ASSETS)[number];
 
-/** A parameter added later goes in `defaults`, so older stored rows still parse. */
+export interface SimulationParameterRule {
+  readonly min: number;
+  readonly max: number;
+  readonly default?: number;
+}
+
+/** A parameter added later comes with a `default`, so older stored rows still parse. A name means one thing across models. */
 export const SIMULATION_MODELS = {
   projectile: {
-    required: ['horizontalSpeed', 'upwardSpeed', 'releaseHeight'],
-    defaults: { gravity: 9.81 },
+    parameters: {
+      horizontalSpeed: { min: -100, max: 100 },
+      upwardSpeed: { min: -100, max: 100 },
+      releaseHeight: { min: 0, max: 1000 },
+      gravity: { min: 0.1, max: 100, default: 9.81 },
+    },
   },
-} as const;
+} as const satisfies Record<string, { parameters: Record<string, SimulationParameterRule> }>;
 
 type ModelTable = typeof SIMULATION_MODELS;
 export type SimulationModel = keyof ModelTable;
-type ParameterOf<Model extends SimulationModel> = ModelTable[Model]['required'][number] | keyof ModelTable[Model]['defaults'];
+type ParameterOf<Model extends SimulationModel> = keyof ModelTable[Model]['parameters'];
 export type SimulationParameter = { [Model in SimulationModel]: ParameterOf<Model> }[SimulationModel];
 
-export const SIMULATION_PARAMETERS = [
-  ...new Set(Object.values(SIMULATION_MODELS).flatMap(({ required, defaults }) => [...required, ...Object.keys(defaults)])),
-] as SimulationParameter[];
+const MODEL_PARAMETERS: Record<string, SimulationParameterRule>[] = Object.values(SIMULATION_MODELS).map(({ parameters }) => parameters);
+
+export const SIMULATION_PARAMETER_RULES = Object.assign({}, ...MODEL_PARAMETERS) as Record<SimulationParameter, SimulationParameterRule>;
+
+export const SIMULATION_PARAMETERS = Object.keys(SIMULATION_PARAMETER_RULES) as SimulationParameter[];
 
 export const TRACKED_QUANTITIES = ['velocity', 'velocity-x', 'velocity-y', 'acceleration'] as const;
 export type TrackedQuantity = (typeof TRACKED_QUANTITIES)[number];
@@ -29,7 +41,7 @@ export type TrackedQuantity = (typeof TRACKED_QUANTITIES)[number];
 export const VECTOR_LENGTHS = ['short', 'medium', 'long'] as const;
 export type VectorLength = (typeof VECTOR_LENGTHS)[number];
 
-export const ANNOTATION_MARKS = ['underline', 'circle', 'check'] as const;
+export const ANNOTATION_MARKS = ['underline', 'circle', 'check', 'cross'] as const;
 export type AnnotationMark = (typeof ANNOTATION_MARKS)[number];
 
 export const SIMULATION_MOMENTS = ['release', 'peak', 'landing'] as const;
@@ -85,6 +97,8 @@ export interface Plot extends BuildsInSteps {
   id: ElementId;
   expression: string;
   domain: [number, number];
+  /** Limits what the axes show, so a curve such as 1/x stays readable. */
+  yRange?: [number, number];
   label?: string;
   xLabel?: string;
   yLabel?: string;
@@ -150,6 +164,7 @@ export type SimulationRun =
 
 export type RunSimulation = { kind: 'runSimulation'; target: ElementId } & SimulationRun;
 
+/** Sets the value and restarts the motion from its first frame, the same as a slider sample. A paused simulation stays still until a later `play`. */
 export interface SetParameter {
   kind: 'setParameter';
   target: ElementId;
@@ -240,6 +255,7 @@ export interface Annotate {
   id: ElementId;
   target: ElementRef;
   mark: AnnotationMark;
+  label?: string;
 }
 
 /** Moves the dot to the element under discussion. */

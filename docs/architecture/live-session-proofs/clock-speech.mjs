@@ -1,5 +1,6 @@
 // Runs the worklet's logic and the clock on real speech from say, offline, with word positions known exactly.
 // Each word is spoken alone and joined with chosen gaps, because say reports no word times of its own.
+// The stalls are the ones this script makes, so the gap list stands in for what the agent reports. The live run in clock-run.mjs measures the real report.
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -12,10 +13,14 @@ const SAMPLE_RATE = 48000;
 const BLOCK = 128;
 const TRIM_THRESHOLD = 0.002;
 const STALL_MS = 500;
-const SOUNDING_WITHIN_MS = 3;
 const SENTENCE = "Once the ball leaves your hand, what's still pushing it toward the hoop? Your hand, right up until it lets go. After that, nothing is pushing it at all.".split(' ');
 const PAUSE_AFTER = { 'hand,': 180, 'hoop?': 400, 'go.': 350, 'that,': 150 };
 const FOLDER = mkdtempSync(join(tmpdir(), 'astra-clock-speech-'));
+const RANDOM_RUNS = 20;
+const LONGEST_RANDOM_PAUSE_MS = 400;
+const WORD_NEAR_LOSS_MS = 50;
+const LOST_CASES_MS = [{ lostFromMs: 1500, lostForMs: 800 }, { lostFromMs: 3000, lostForMs: 1500 }, { lostFromMs: 1500, lostForMs: 3000 }];
+const NOISE_MS = 30;
 
 function speakWord(word, index) {
   const path = join(FOLDER, `${index}.wav`);
@@ -30,27 +35,31 @@ function speakWord(word, index) {
 }
 
 const SPOKEN_WORDS = SENTENCE.map(speakWord);
-const RANDOM_RUNS = 20;
-const WORD_NEAR_LOSS_MS = 50;
-const LOST_CASES_MS = [{ lostFromMs: 1500, lostForMs: 800 }, { lostFromMs: 3000, lostForMs: 1500 }, { lostFromMs: 1500, lostForMs: 3000 }];
-const LONGEST_RANDOM_PAUSE_MS = 400;
 
-function buildSpeech(stallAfterWord, getPauseMs = (word) => PAUSE_AFTER[word] ?? 0) {
-  const words = SPOKEN_WORDS;
+// A stall sits after a share of its word: 0 for the word's start, 0.5 for its middle.
+function buildSpeech({ stallAtWord = -1, stallIntoWord = 0, getPauseMs = (word) => PAUSE_AFTER[word] ?? 0 } = {}) {
   const timelineStartsMs = [];
   const trueStartsMs = [];
   const pieces = [];
+  const gaps = [];
   let timelineMs = 0;
   let trueMs = 0;
-  words.forEach((samples, index) => {
+  SPOKEN_WORDS.forEach((samples, index) => {
     timelineStartsMs.push(timelineMs);
     trueStartsMs.push(trueMs);
     const wordMs = (samples.length / SAMPLE_RATE) * 1000;
     const gapMs = getPauseMs(SENTENCE[index]);
-    const stallMs = index === stallAfterWord ? STALL_MS : 0;
-    pieces.push(samples, new Float32Array(Math.round(((gapMs + stallMs) / 1000) * SAMPLE_RATE)));
+    if (index === stallAtWord) {
+      const splitAt = Math.round(samples.length * stallIntoWord);
+      gaps.push({ atMs: timelineMs + (splitAt / SAMPLE_RATE) * 1000, ms: STALL_MS });
+      pieces.push(samples.subarray(0, splitAt), new Float32Array(Math.round((STALL_MS / 1000) * SAMPLE_RATE)), samples.subarray(splitAt));
+      trueMs += STALL_MS;
+    } else {
+      pieces.push(samples);
+    }
+    pieces.push(new Float32Array(Math.round((gapMs / 1000) * SAMPLE_RATE)));
     timelineMs += wordMs + gapMs;
-    trueMs += wordMs + gapMs + stallMs;
+    trueMs += wordMs + gapMs;
   });
   const audio = new Float32Array(pieces.reduce((sum, piece) => sum + piece.length, 0));
   let cursor = 0;
@@ -58,7 +67,20 @@ function buildSpeech(stallAfterWord, getPauseMs = (word) => PAUSE_AFTER[word] ??
     audio.set(piece, cursor);
     cursor += piece.length;
   }
-  return { audio, timelineStartsMs, trueStartsMs };
+  return { audio, timelineStartsMs, trueStartsMs, gaps };
+}
+
+function loseAudio(speech, { lostFromMs, lostForMs }) {
+  const audio = speech.audio.slice();
+  audio.fill(0, Math.round((lostFromMs / 1000) * SAMPLE_RATE), Math.round(((lostFromMs + lostForMs) / 1000) * SAMPLE_RATE));
+  const isWordKept = (startMs) => startMs < lostFromMs - WORD_NEAR_LOSS_MS || startMs > lostFromMs + lostForMs;
+  return { ...speech, audio, keptWords: speech.trueStartsMs.map(isWordKept) };
+}
+
+function addWordTimeNoise(speech) {
+  const noisy = speech.timelineStartsMs.map((startMs) => startMs + NOISE_MS * Math.sqrt(-2 * Math.log(1 - Math.random())) * Math.cos(2 * Math.PI * Math.random()));
+  noisy[0] = speech.timelineStartsMs[0];
+  return { ...speech, timelineStartsMs: noisy };
 }
 
 async function loadProbe() {
@@ -73,36 +95,15 @@ async function loadProbe() {
   return Probe;
 }
 
-// The rule first tried: after any silence, the next word not yet fired starts now.
-function createNaiveClock(wordStartsMs) {
-  let positionZeroAtMs = null;
-  let nextUnplayed = 0;
-  return {
-    getPositionMs: (atMs) => (positionZeroAtMs === null ? null : atMs - positionZeroAtMs),
-    markFired: (index) => {
-      nextUnplayed = index + 1;
-    },
-    onOnset(atMs) {
-      positionZeroAtMs = atMs - wordStartsMs[Math.min(nextUnplayed, wordStartsMs.length - 1)];
-    },
-    onEnd() {},
-  };
-}
-
-function buildLostSpeech({ lostFromMs, lostForMs }) {
-  const speech = buildSpeech(-1);
-  const audio = speech.audio.slice();
-  audio.fill(0, Math.round((lostFromMs / 1000) * SAMPLE_RATE), Math.round(((lostFromMs + lostForMs) / 1000) * SAMPLE_RATE));
-  const isWordKept = (startMs) => startMs < lostFromMs - WORD_NEAR_LOSS_MS || startMs > lostFromMs + lostForMs;
-  return { ...speech, audio, keptWords: speech.trueStartsMs.map(isWordKept) };
-}
-
-function fireWords({ Probe, audio, timelineStartsMs, trueStartsMs, clock, isLost = () => false, keptWords }) {
+function fireWords({ Probe, audio, timelineStartsMs, trueStartsMs, gaps, keptWords, usesGaps = true }) {
+  const clock = createWordClock();
+  if (usesGaps) for (const gap of gaps) clock.addGap(gap);
+  let isAudible = false;
   const firedAtMs = [];
   globalThis.onProbeMessage = ({ kind, frame }) => {
-    const atMs = (frame / SAMPLE_RATE) * 1000;
-    if (kind === 'onset') clock.onOnset(atMs, { isAudioLost: isLost(atMs) });
-    if (kind === 'end') clock.onEnd(atMs);
+    if (kind === 'onset') clock.onFirstSound((frame / SAMPLE_RATE) * 1000);
+    if (kind === 'sound') isAudible = true;
+    if (kind === 'quiet') isAudible = false;
   };
   const probe = new Probe();
   for (let frame = 0; frame < audio.length + SAMPLE_RATE; frame += BLOCK) {
@@ -111,46 +112,29 @@ function fireWords({ Probe, audio, timelineStartsMs, trueStartsMs, clock, isLost
     block.set(audio.subarray(frame, frame + BLOCK));
     probe.process([[block]]);
     const nowMs = ((frame + BLOCK) / SAMPLE_RATE) * 1000;
-    const positionMs = clock.getPositionMs(nowMs);
-    // A cue waits for sound, so one due during a stall fires when the audio returns and not before.
-    const isSoundingNow = nowMs - (probe.lastAudibleFrame / SAMPLE_RATE) * 1000 <= SOUNDING_WITHIN_MS;
-    while (positionMs !== null && firedAtMs.length < timelineStartsMs.length && positionMs >= timelineStartsMs[firedAtMs.length] && isSoundingNow) {
-      clock.markFired?.(firedAtMs.length);
-      firedAtMs.push(nowMs);
-    }
+    const positionMs = clock.getPositionMs(nowMs, timelineStartsMs[0]);
+    while (isAudible && positionMs !== null && firedAtMs.length < timelineStartsMs.length && positionMs >= timelineStartsMs[firedAtMs.length]) firedAtMs.push(nowMs);
   }
   const errors = firedAtMs.map((atMs, index) => atMs - trueStartsMs[index]).filter((_, index) => keptWords?.[index] ?? true);
   const absolute = errors.map(Math.abs).sort((a, b) => a - b);
   return { words: firedAtMs.length, of: timelineStartsMs.length, absP50: Math.round(absolute[Math.floor(absolute.length * 0.5)]), absP95: Math.round(absolute[Math.floor(absolute.length * 0.95)]), absMax: Math.round(absolute.at(-1)) };
 }
 
+function summarizeRuns(rows) {
+  return { runs: rows.length, worstAbsP95: Math.max(...rows.map((row) => row.absP95)), worstAbsMax: Math.max(...rows.map((row) => row.absMax)), medianAbsP95: rows.map((row) => row.absP95).sort((a, b) => a - b)[Math.floor(rows.length / 2)], allWordsFired: rows.every((row) => row.words === row.of) };
+}
+
 const Probe = await loadProbe();
-const natural = buildSpeech(-1);
-const stalled = buildSpeech(6);
-const randomErrors = Array.from({ length: RANDOM_RUNS }, (_, run) => {
-  const speech = buildSpeech(run % SENTENCE.length, () => (Math.random() < 0.5 ? 0 : Math.random() * LONGEST_RANDOM_PAUSE_MS));
-  return fireWords({ Probe, ...speech, clock: createWordClock(speech.timelineStartsMs) });
-});
-const lostRows = LOST_CASES_MS.map((lost) => {
-  const speech = buildLostSpeech(lost);
-  const isLost = (atMs) => atMs >= lost.lostFromMs + lost.lostForMs - WORD_NEAR_LOSS_MS;
-  return {
-    ...lost,
-    ruleWithoutRtp: fireWords({ Probe, ...speech, clock: createWordClock(speech.timelineStartsMs) }),
-    ruleWithRtp: fireWords({ Probe, ...speech, isLost, clock: createWordClock(speech.timelineStartsMs) }),
-  };
-});
+const randomPause = () => (Math.random() < 0.5 ? 0 : Math.random() * LONGEST_RANDOM_PAUSE_MS);
+const repeat = (makeRow) => summarizeRuns(Array.from({ length: RANDOM_RUNS }, (_, run) => makeRow(run)));
 const summary = {
-  lostAudio: lostRows,
-  randomPausesAndAStall: { runs: RANDOM_RUNS, worstAbsP95: Math.max(...randomErrors.map((row) => row.absP95)), worstAbsMax: Math.max(...randomErrors.map((row) => row.absMax)), allWordsFired: randomErrors.every((row) => row.words === row.of) },
-  naturalPauses: {
-    restartOnNextUnplayedWord: fireWords({ Probe, ...natural, clock: createNaiveClock(natural.timelineStartsMs) }),
-    chosenRule: fireWords({ Probe, ...natural, clock: createWordClock(natural.timelineStartsMs) }),
-  },
-  pausesAnd500msStall: {
-    restartOnNextUnplayedWord: fireWords({ Probe, ...stalled, clock: createNaiveClock(stalled.timelineStartsMs) }),
-    chosenRule: fireWords({ Probe, ...stalled, clock: createWordClock(stalled.timelineStartsMs) }),
-  },
+  naturalPauses: fireWords({ Probe, ...buildSpeech() }),
+  stallAtAWordStart: fireWords({ Probe, ...buildSpeech({ stallAtWord: 6 }) }),
+  stallAtAWordStartWithNoGapReport: fireWords({ Probe, ...buildSpeech({ stallAtWord: 6 }), usesGaps: false }),
+  randomPausesAndAStall: repeat((run) => fireWords({ Probe, ...buildSpeech({ stallAtWord: run % SENTENCE.length, getPauseMs: randomPause }) })),
+  stallInsideAWord: repeat((run) => fireWords({ Probe, ...buildSpeech({ stallAtWord: run % SENTENCE.length, stallIntoWord: 0.5, getPauseMs: randomPause }) })),
+  lostAudio: LOST_CASES_MS.map((lost) => ({ ...lost, ...fireWords({ Probe, ...loseAudio(buildSpeech(), lost) }) })),
+  wordTimesWith30MsNoise: repeat(() => fireWords({ Probe, ...addWordTimeNoise(buildSpeech()) })),
 };
 mkdirSync(join(HERE, 'runs', 'clock-speech'), { recursive: true });
 writeFileSync(join(HERE, 'runs', 'clock-speech', 'speech.json'), `${JSON.stringify({ summary }, null, 1)}\n`);

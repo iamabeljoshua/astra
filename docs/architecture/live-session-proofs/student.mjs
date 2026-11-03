@@ -64,6 +64,8 @@ export async function setScript(text) {
 export class Student {
   log = [];
   replyWordsStartAt = 0;
+  questionHasWords = null;
+  answersStop = true;
   micSamples = null;
   micCursor = 0;
   running = true;
@@ -100,7 +102,7 @@ export class Student {
     this.room.on(RoomEvent.DataReceived, (payload, _participant, _kind, topic) => {
       const text = new TextDecoder().decode(payload);
       this.note('data_received', { topic, text });
-      if (topic === 'astra.live' && JSON.parse(text).type === 'stop') {
+      if (this.answersStop && topic === 'astra.live' && JSON.parse(text).type === 'stop') {
         const report = { type: 'played', playedWords: this.audio.burstCount - this.replyWordsStartAt };
         this.room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify(report)), { reliable: true, topic });
       }
@@ -180,11 +182,20 @@ export class Student {
       if (state.quietFrames >= QUIET_FRAMES_BEFORE_BURST) {
         state.burstCount += 1;
         this.note('word_burst', { index: state.burstCount - 1 });
+        this.reportQuestionIfHeard();
       }
       state.quietFrames = 0;
     } else {
       state.quietFrames += 1;
     }
+  }
+
+  // The browser's signal that a question's last word started, in the shape M3.2 sends.
+  reportQuestionIfHeard() {
+    if (this.questionHasWords === null || this.audio.burstCount - this.replyWordsStartAt < this.questionHasWords) return;
+    this.questionHasWords = null;
+    this.note('question_heard_sent');
+    this.room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify({ type: 'questionHeard' })), { reliable: true, topic: 'astra.live' });
   }
 
   async waitForEvent(predicate, timeoutMs) {

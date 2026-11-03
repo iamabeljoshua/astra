@@ -35,9 +35,10 @@
    "model": "opus",
    "minutes": 18,
    "modelDollars": 1.7,
-   "modelPerMinute": 0.094,
-   "allServicesPerMinute": 0.138,
-   "overTheLimit": false,
+   "modelPerMinute": 0.0944,
+   "allServicesPerMinute": 0.1384,
+   "prdBasisPerMinute": 0.1955,
+   "overThePrdLimit": true,
    "perHour": 8.3,
    "perHourWithBackgroundAndBuffer": 11.73,
    "lastPrefixTokens": 101400
@@ -46,9 +47,10 @@
    "model": "opus",
    "minutes": 30,
    "modelDollars": 3.35,
-   "modelPerMinute": 0.112,
-   "allServicesPerMinute": 0.156,
-   "overTheLimit": true,
+   "modelPerMinute": 0.1117,
+   "allServicesPerMinute": 0.1556,
+   "prdBasisPerMinute": 0.2179,
+   "overThePrdLimit": true,
    "perHour": 9.34,
    "perHourWithBackgroundAndBuffer": 13.08,
    "lastPrefixTokens": 159000
@@ -57,9 +59,10 @@
    "model": "opus",
    "minutes": 60,
    "modelDollars": 9.3,
-   "modelPerMinute": 0.155,
-   "allServicesPerMinute": 0.199,
-   "overTheLimit": true,
+   "modelPerMinute": 0.1549,
+   "allServicesPerMinute": 0.1988,
+   "prdBasisPerMinute": 0.2741,
+   "overThePrdLimit": true,
    "perHour": 11.93,
    "perHourWithBackgroundAndBuffer": 16.45,
    "lastPrefixTokens": 303000
@@ -68,9 +71,10 @@
    "model": "sonnet",
    "minutes": 60,
    "modelDollars": 3.88,
-   "modelPerMinute": 0.065,
-   "allServicesPerMinute": 0.109,
-   "overTheLimit": false,
+   "modelPerMinute": 0.0646,
+   "allServicesPerMinute": 0.1085,
+   "prdBasisPerMinute": 0.1567,
+   "overThePrdLimit": true,
    "perHour": 6.51,
    "perHourWithBackgroundAndBuffer": 9.4,
    "lastPrefixTokens": 267000
@@ -79,9 +83,10 @@
    "model": "haiku",
    "minutes": 60,
    "modelDollars": 1.37,
-   "modelPerMinute": 0.023,
-   "allServicesPerMinute": 0.067,
-   "overTheLimit": false,
+   "modelPerMinute": 0.0228,
+   "allServicesPerMinute": 0.0667,
+   "prdBasisPerMinute": 0.1024,
+   "overThePrdLimit": false,
    "perHour": 4,
    "perHourWithBackgroundAndBuffer": 6.14,
    "lastPrefixTokens": 267000
@@ -93,9 +98,10 @@
    "minutes": 30,
    "compact": true,
    "modelDollars": 2.8,
-   "modelPerMinute": 0.093,
-   "allServicesPerMinute": 0.137,
-   "overTheLimit": false,
+   "modelPerMinute": 0.0935,
+   "allServicesPerMinute": 0.1374,
+   "prdBasisPerMinute": 0.1942,
+   "overThePrdLimit": true,
    "perHour": 8.24,
    "perHourWithBackgroundAndBuffer": 11.65,
    "lastPrefixTokens": 33400
@@ -105,9 +111,10 @@
    "minutes": 60,
    "compact": true,
    "modelDollars": 5.65,
-   "modelPerMinute": 0.094,
-   "allServicesPerMinute": 0.138,
-   "overTheLimit": false,
+   "modelPerMinute": 0.0942,
+   "allServicesPerMinute": 0.1381,
+   "prdBasisPerMinute": 0.1951,
+   "overThePrdLimit": true,
    "perHour": 8.29,
    "perHourWithBackgroundAndBuffer": 11.71,
    "lastPrefixTokens": 52600
@@ -117,9 +124,10 @@
    "minutes": 60,
    "compact": true,
    "modelDollars": 2.33,
-   "modelPerMinute": 0.039,
-   "allServicesPerMinute": 0.083,
-   "overTheLimit": false,
+   "modelPerMinute": 0.0388,
+   "allServicesPerMinute": 0.0827,
+   "prdBasisPerMinute": 0.1231,
+   "overThePrdLimit": false,
    "perHour": 4.96,
    "perHourWithBackgroundAndBuffer": 7.39,
    "lastPrefixTokens": 56800
@@ -129,9 +137,10 @@
    "minutes": 60,
    "compact": true,
    "modelDollars": 0.15,
-   "modelPerMinute": 0.003,
-   "allServicesPerMinute": 0.046,
-   "overTheLimit": false,
+   "modelPerMinute": 0.0025,
+   "allServicesPerMinute": 0.0465,
+   "prdBasisPerMinute": 0.076,
+   "overThePrdLimit": false,
    "perHour": 2.79,
    "perHourWithBackgroundAndBuffer": 4.56,
    "lastPrefixTokens": 56800
@@ -139,25 +148,62 @@
  },
  "betaMonth400Sessions30Minutes": {
   "opusGrowing": {
-   "allFourServices": 1871,
-   "withBackgroundAndBuffer": 2620
+   "modelAlone": 1341,
+   "allFourServices": 1868,
+   "withBackgroundAndBuffer": 2615
   },
   "opusCompacting": {
-   "allFourServices": 1643,
-   "withBackgroundAndBuffer": 2323
+   "modelAlone": 1122,
+   "allFourServices": 1649,
+   "withBackgroundAndBuffer": 2331
   },
   "sonnetGrowing": {
-   "allFourServices": 1079,
-   "withBackgroundAndBuffer": 1590
+   "modelAlone": 548,
+   "allFourServices": 1075,
+   "withBackgroundAndBuffer": 1585
   },
   "sonnetCompacting": {
-   "allFourServices": 983,
-   "withBackgroundAndBuffer": 1465
+   "modelAlone": 452,
+   "allFourServices": 979,
+   "withBackgroundAndBuffer": 1459
+  },
+  "haikuGrowing": {
+   "modelAlone": 114,
+   "allFourServices": 641,
+   "withBackgroundAndBuffer": 1021
   },
   "haikuCompacting": {
-   "allFourServices": 551,
-   "withBackgroundAndBuffer": 904
+   "modelAlone": 30,
+   "allFourServices": 557,
+   "withBackgroundAndBuffer": 911
+  },
+  "opusNoThinkingGrowing": {
+   "modelAlone": 1097,
+   "allFourServices": 1624,
+   "withBackgroundAndBuffer": 2298
+  },
+  "opusNoThinkingCompacting": {
+   "modelAlone": 903,
+   "allFourServices": 1430,
+   "withBackgroundAndBuffer": 2046
   }
+ },
+ "compactionSavesPerMonth": {
+  "opus": 219,
+  "sonnet": 96
+ },
+ "thirtyTurnTestDollars": {
+  "opus": 0.9,
+  "sonnet": 0.37,
+  "haiku": 0.02,
+  "allThree": 1.3
+ },
+ "picks": {
+  "note": "Sonnet with compaction, Cartesia Scale, Deepgram Nova-3, LiveKit Ship. API hosting, about $200 a month by the PRD, is on top.",
+  "modelAlone": 452,
+  "allFourServices": 979,
+  "withBackgroundAndBuffer": 1459,
+  "hostingOnTop": 200
  },
  "thinking": {
   "opusWithoutThinkingPerMinute": 0.048,

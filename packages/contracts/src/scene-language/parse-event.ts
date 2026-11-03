@@ -1,6 +1,7 @@
-import { BEAT_LIMITS, getBeatText, getCues, getSpokenWords } from './beat.ts';
+import { BEAT_LIMITS, type FrozenFrame, getBeatText, getCues, getSpokenWords } from './beat.ts';
 import { readBeatId, readElementId, readFileId, readTurnId } from './ids.ts';
 import { readBeat } from './parse-beat.ts';
+import { readParameterValue, readRevealPoint, readSimulationSeconds } from './parse-command.ts';
 import {
   fail,
   type CheckedFields,
@@ -10,7 +11,7 @@ import {
   readBoolean,
   readFields,
   readList,
-  readNumber,
+  readNumberInRange,
   readOneOf,
   readString,
   readVariant,
@@ -18,11 +19,10 @@ import {
   toParseResult,
   type VariantTable,
 } from './read.ts';
-import { SIMULATION_PARAMETERS } from './scene-command.ts';
+import { SIMULATION_PARAMETERS, type SimulationParameter } from './scene-command.ts';
 import {
   BEAT_ENDINGS,
   type BeatPlayed,
-  type FrozenSimulation,
   type InkPoint,
   PLAY_REPORTERS,
   type PlayReport,
@@ -34,35 +34,41 @@ import {
 } from './session-event.ts';
 
 const LIMITS = { text: 2000, name: 200, frozen: 32, strokePoints: 300, sliderSamples: 300 } as const;
+const FRACTION = { min: 0, max: 1 } as const;
 const INK_POINT_LENGTH = 3;
 const STAMP_KEYS = ['seq', 'atMs'];
+const FROZEN_VALUE_NAMES = ['simulationSeconds', 'revealedUpTo', 'drawnFraction'];
 
-export const PLAY_REPORT_KEYS = ['wordStartsMs', 'durationMs', 'playedWords', 'firedCues', 'ending', 'frozen'];
+export const PLAY_REPORT_KEYS = ['wordStartsMs', 'durationMs', 'playedWords', 'firedCueMs', 'ending', 'frozen'];
 
-function readFrozen(place: Place): FrozenSimulation {
-  const fields = readFields(place, ['target', 'simulationSeconds']);
-  return { target: readElementId(fields.at('target')), simulationSeconds: readNumber(fields.at('simulationSeconds')) };
+function readFraction(place: Place): number {
+  return readNumberInRange(place, FRACTION);
 }
 
-export function readFrozenList(place: Place): FrozenSimulation[] {
-  return readList(place, { maxLength: LIMITS.frozen, readItem: readFrozen });
+function readFrozenFrame(place: Place): FrozenFrame {
+  const fields = readFields(place, ['target', ...FROZEN_VALUE_NAMES]);
+  const values = {
+    ...fields.optional('simulationSeconds', readSimulationSeconds),
+    ...fields.optional('revealedUpTo', readRevealPoint),
+    ...fields.optional('drawnFraction', readFraction),
+  };
+  if (Object.keys(values).length !== 1) fail(place, `exactly one of ${FROZEN_VALUE_NAMES.join(', ')}`);
+  return { target: readElementId(fields.at('target')), ...values } as FrozenFrame;
 }
 
-function readInkFraction(place: Place): number {
-  const fraction = readNumber(place);
-  if (fraction < 0 || fraction > 1) fail(place, 'a fraction from 0 to 1');
-  return fraction;
+export function readFrozenFrames(place: Place): FrozenFrame[] {
+  return readList(place, { maxLength: LIMITS.frozen, readItem: readFrozenFrame });
 }
 
 function readInkPoint(place: Place): InkPoint {
   const [x, y, afterMs] = readList(place, { maxLength: INK_POINT_LENGTH, readItem: (item) => item });
   if (x === undefined || y === undefined || afterMs === undefined) fail(place, 'x, y, and afterMs');
-  return [readInkFraction(x), readInkFraction(y), readWholeNumber(afterMs)];
+  return [readFraction(x), readFraction(y), readWholeNumber(afterMs)];
 }
 
-function readSliderSample(place: Place): SliderSample {
+function readSliderSample(place: Place, parameter: SimulationParameter): SliderSample {
   const fields = readFields(place, ['afterMs', 'value']);
-  return { afterMs: readWholeNumber(fields.at('afterMs')), value: readNumber(fields.at('value')) };
+  return { afterMs: readWholeNumber(fields.at('afterMs')), value: readParameterValue(fields.at('value'), parameter) };
 }
 
 const STUDENT_ACTIONS: VariantTable<StudentAction, 'action'> = {
@@ -70,16 +76,19 @@ const STUDENT_ACTIONS: VariantTable<StudentAction, 'action'> = {
   variants: {
     sliderDragged: {
       keys: ['target', 'parameter', 'samples'],
-      read: (fields) => ({
-        action: 'sliderDragged',
-        target: readElementId(fields.at('target')),
-        parameter: readOneOf(fields.at('parameter'), SIMULATION_PARAMETERS),
-        samples: readList(fields.at('samples'), { maxLength: LIMITS.sliderSamples, readItem: readSliderSample }),
-      }),
+      read: (fields) => {
+        const parameter = readOneOf(fields.at('parameter'), SIMULATION_PARAMETERS);
+        return {
+          action: 'sliderDragged',
+          target: readElementId(fields.at('target')),
+          parameter,
+          samples: readList(fields.at('samples'), { maxLength: LIMITS.sliderSamples, readItem: (sample) => readSliderSample(sample, parameter) }),
+        };
+      },
     },
     rewound: {
-      keys: ['toBeat'],
-      read: (fields) => ({ action: 'rewound', toBeat: readBeatId(fields.at('toBeat')) }),
+      keys: ['turnId', 'toBeat'],
+      read: (fields) => ({ action: 'rewound', turnId: readTurnId(fields.at('turnId')), toBeat: readBeatId(fields.at('toBeat')) }),
     },
     inkStroke: {
       keys: ['id', 'points'],
@@ -104,23 +113,22 @@ export function readStudentAction(place: Place): StudentAction {
   return readVariant<StudentAction>(place, STUDENT_ACTIONS);
 }
 
-function readWordStarts(place: Place): number[] {
-  const wordStartsMs = readList(place, { maxLength: BEAT_LIMITS.words, readItem: readWholeNumber });
-  const isInOrder = wordStartsMs.every((startMs, index) => index === 0 || startMs >= (wordStartsMs[index - 1] as number));
+function readTimesInOrder(place: Place, maxLength: number): number[] {
+  const times = readList(place, { maxLength, readItem: readWholeNumber });
+  const isInOrder = times.every((time, index) => index === 0 || time >= (times[index - 1] as number));
   if (!isInOrder) fail(place, 'times in order');
-  return wordStartsMs;
+  return times;
 }
 
 export function readPlayReport(fields: CheckedFields): PlayReport {
-  const wordStartsMs = readWordStarts(fields.at('wordStartsMs'));
+  const wordStartsMs = readTimesInOrder(fields.at('wordStartsMs'), BEAT_LIMITS.words);
   const playedWords = readWholeNumber(fields.at('playedWords'));
   if (playedWords > wordStartsMs.length) fail(fields.at('playedWords'), 'no more words than there are word times');
   const durationMs = readWholeNumber(fields.at('durationMs'));
   if (durationMs < (wordStartsMs.at(-1) ?? 0)) fail(fields.at('durationMs'), 'the audio to reach the last word');
-  const firedCues = readWholeNumber(fields.at('firedCues'));
-  if (firedCues > BEAT_LIMITS.commands) fail(fields.at('firedCues'), `at most ${BEAT_LIMITS.commands} cues`);
+  const firedCueMs = readTimesInOrder(fields.at('firedCueMs'), BEAT_LIMITS.commands);
   const ending = readOneOf(fields.at('ending'), BEAT_ENDINGS);
-  return { wordStartsMs, durationMs, playedWords, firedCues, ending, frozen: readFrozenList(fields.at('frozen')) };
+  return { wordStartsMs, durationMs, playedWords, firedCueMs, ending, frozen: readFrozenFrames(fields.at('frozen')) };
 }
 
 function readBeatPlayed(fields: CheckedFields): BeatPlayed {
@@ -131,7 +139,7 @@ function readBeatPlayed(fields: CheckedFields): BeatPlayed {
   if (report.wordStartsMs.length > wordCount) fail(fields.at('wordStartsMs'), `no more than the beat's ${wordCount} words`);
   const isFinished = report.ending === 'finished';
   if (isFinished && report.playedWords !== wordCount) fail(fields.at('playedWords'), `all ${wordCount} words of a finished beat`);
-  if (report.firedCues > cueCount) fail(fields.at('firedCues'), `no more than the beat's ${cueCount} cues`);
+  if (report.firedCueMs.length > cueCount) fail(fields.at('firedCueMs'), `no more than the beat's ${cueCount} cues`);
   const reportedBy = readOneOf(fields.at('reportedBy'), PLAY_REPORTERS);
   return { kind: 'beatPlayed', turnId: readTurnId(fields.at('turnId')), beat, ...report, reportedBy };
 }
@@ -163,7 +171,7 @@ const EVENT_BODIES: VariantTable<SessionEventBody, 'kind'> = {
     },
     boardFrozen: {
       keys: [...STAMP_KEYS, 'turnId', 'frozen'],
-      read: (fields) => ({ kind: 'boardFrozen', turnId: readTurnId(fields.at('turnId')), frozen: readFrozenList(fields.at('frozen')) }),
+      read: (fields) => ({ kind: 'boardFrozen', turnId: readTurnId(fields.at('turnId')), frozen: readFrozenFrames(fields.at('frozen')) }),
     },
   },
 };

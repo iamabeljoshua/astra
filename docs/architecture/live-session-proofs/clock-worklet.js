@@ -3,19 +3,21 @@ const BURST = 0.2;
 const SILENCE_BEFORE_ONSET_BLOCKS = 40;
 const QUIET_BEFORE_BURST_BLOCKS = 20;
 
-// Reports the frame at which tutor audio starts, bursts, and stops.
+// Reports each change between sound and silence as it happens. `onset` and `end` mark a silence long enough to matter, about 107 ms.
 class ClockProbe extends AudioWorkletProcessor {
   silentBlocks = SILENCE_BEFORE_ONSET_BLOCKS;
   quietBlocks = QUIET_BEFORE_BURST_BLOCKS;
   lastAudibleFrame = 0;
   isSounding = false;
+  isBlockAudible = false;
 
   process(inputs) {
     const channel = inputs[0]?.[0];
     if (!channel) return true;
     let peak = 0;
     for (const sample of channel) peak = Math.max(peak, Math.abs(sample));
-    if (peak >= AUDIBLE) {
+    const isAudible = peak >= AUDIBLE;
+    if (isAudible) {
       if (!this.isSounding && this.silentBlocks >= SILENCE_BEFORE_ONSET_BLOCKS) {
         this.port.postMessage({ kind: 'onset', frame: currentFrame + channel.findIndex((sample) => Math.abs(sample) >= AUDIBLE) });
         this.isSounding = true;
@@ -28,6 +30,11 @@ class ClockProbe extends AudioWorkletProcessor {
         this.port.postMessage({ kind: 'end', frame: this.lastAudibleFrame });
         this.isSounding = false;
       }
+    }
+    // Sent after `onset`, so a cue cannot fire on the first sound before the page has handled the silence.
+    if (isAudible !== this.isBlockAudible) {
+      this.isBlockAudible = isAudible;
+      this.port.postMessage({ kind: isAudible ? 'sound' : 'quiet', frame: currentFrame });
     }
     if (peak >= BURST) {
       if (this.quietBlocks >= QUIET_BEFORE_BURST_BLOCKS) {

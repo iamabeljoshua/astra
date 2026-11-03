@@ -3,13 +3,13 @@ import * as cartesia from '@livekit/agents-plugin-cartesia';
 import * as deepgram from '@livekit/agents-plugin-deepgram';
 import { ReadableStream } from 'node:stream/web';
 import { fileURLToPath } from 'node:url';
-import { getNextTurnState, INITIAL_TURN_STATE, isSmallReaction } from './turn-rule.mjs';
+import { isSmallReaction } from './turn-rule.mjs';
+import { connectTurnRule, INTERRUPTION_SETTINGS } from './turn-wiring.mjs';
 
 const REPLY = process.env.AGENT_REPLY ?? 'So its sideways speed never changes. Watch this arrow as the ball climbs and then falls back toward the hoop. The sideways arrow keeps its length the whole way, and the vertical arrow shrinks, reaches zero at the top, and then flips to point down. Nothing is pushing the ball forward any more, and that is the part most people find strange at first.';
 const LLM_TTFT_MS = Number(process.env.FAKE_LLM_TTFT_MS ?? 0);
 const WORDS_PER_LLM_CHUNK = 3;
 const FILLER_WORDS = new Set(['hmm', 'um', 'uh', 'let', 'me', 'think', 'see', 'so', 'well']);
-const FRAMEWORK_RULE_OFF_WORDS = 9999;
 const LIVE_TOPIC = 'astra.live';
 const LLM_CHUNK_MS = 15;
 
@@ -71,55 +71,23 @@ class ProofAgent extends voice.Agent {
   }
 }
 
-function runTurnRule({ session, room }) {
+// Says the rest of the constant reply. The count here is cumulative, so M3.6 must not copy it. M3.6 uses `getResumeScript`.
+function connectRule({ session, room }) {
   const publish = (message) => room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify(message)), { reliable: true, topic: LIVE_TOPIC });
-  let state = INITIAL_TURN_STATE;
-  let playedWords = 0;
-  const timers = new Map();
-  const dispatch = (event) => {
-    const next = getNextTurnState(state, event);
-    state = next.state;
-    next.actions.forEach(runAction);
-  };
-  const resumeFromCutWord = () => {
-    const words = REPLY.split(' ');
-    const fromWord = Math.max(playedWords - 1, 0);
-    log('policy_resume', { fromWord, of: words.length });
-    session.say(words.slice(fromWord).join(' '));
-  };
-  const runAction = (action) => {
-    if (action.do === 'startTimer') timers.set(action.name, setTimeout(() => dispatch({ type: 'timer', name: action.name }), action.ms));
-    if (action.do === 'cancelTimer') clearTimeout(timers.get(action.name));
-    if (action.do === 'yield' || action.do === 'unyield') {
-      log(`policy_${action.do}`);
-      publish({ type: action.do, at: Date.now() });
-    }
-    if (action.do === 'stop') {
-      log('policy_interrupt', { reason: action.reason });
-      publish({ type: 'stop', at: Date.now() });
-      session.interrupt();
-    }
-    if (action.do === 'resume') resumeFromCutWord();
-    if (action.do === 'clearHeldWords' && process.env.CLEAR_HELD !== '0') {
-      log('policy_clear_held');
-      // The SDK stores a final transcript just after it reports one, so a clear in the same tick would miss it.
-      setTimeout(() => session.clearUserTurn(), 0);
-    }
-  };
-  room.on('dataReceived', (payload, _participant, _kind, topic) => {
-    if (topic !== LIVE_TOPIC) return;
-    const message = JSON.parse(new TextDecoder().decode(payload));
-    if (message.type === 'played') playedWords = message.playedWords;
+  connectTurnRule({
+    session,
+    room,
+    topic: LIVE_TOPIC,
+    publish,
+    publishStop: () => publish({ type: 'stop', at: Date.now() }),
+    log,
+    onResume: ({ playedWords }) => {
+      const words = REPLY.split(' ');
+      const fromWord = Math.max(playedWords - 1, 0);
+      log('policy_resume', { fromWord, of: words.length });
+      session.say(words.slice(fromWord).join(' '));
+    },
   });
-  session.on(voice.AgentSessionEventTypes.UserStateChanged, (event) => {
-    if (event.newState === 'speaking') dispatch({ type: 'voiceStarted', isTutorSpeaking: session.agentState === 'speaking' });
-    if (event.oldState === 'speaking') dispatch({ type: 'voiceEnded' });
-  });
-  session.on(voice.AgentSessionEventTypes.AgentStateChanged, (event) => {
-    if (event.newState === 'speaking') dispatch({ type: 'tutorStarted' });
-    if (event.oldState === 'speaking') dispatch({ type: 'tutorFinished' });
-  });
-  session.on(voice.AgentSessionEventTypes.UserInputTranscribed, (event) => dispatch({ type: 'words', text: event.transcript, isFinal: event.isFinal, expectsReply: false, isTutorSpeaking: session.agentState === 'speaking' }));
 }
 
 export default defineAgent({
@@ -137,13 +105,15 @@ export default defineAgent({
       turnHandling: {
         turnDetection: readTurnDetection(),
         endpointing: { minDelay: Number(process.env.EP_MIN_MS ?? 300), maxDelay: Number(process.env.EP_MAX_MS ?? 3000) },
-        interruption: {
-          mode: 'vad',
-          minDuration: Number(process.env.INT_MIN_MS ?? 500),
-          minWords: process.env.POLICY ? FRAMEWORK_RULE_OFF_WORDS : Number(process.env.INT_MIN_WORDS ?? 0),
-          falseInterruptionTimeout: Number(process.env.INT_FALSE_MS ?? 2000),
-          resumeFalseInterruption: process.env.INT_RESUME !== '0',
-        },
+        interruption: process.env.POLICY
+          ? INTERRUPTION_SETTINGS
+          : {
+              mode: 'vad',
+              minDuration: Number(process.env.INT_MIN_MS ?? 500),
+              minWords: Number(process.env.INT_MIN_WORDS ?? 0),
+              falseInterruptionTimeout: Number(process.env.INT_FALSE_MS ?? 2000),
+              resumeFalseInterruption: process.env.INT_RESUME !== '0',
+            },
         preemptiveGeneration: { enabled: process.env.PREEMPT === '1', preemptiveTts: process.env.PREEMPT_TTS === '1' },
       },
     });
@@ -175,7 +145,7 @@ export default defineAgent({
         session.interrupt();
       });
     }
-    if (process.env.POLICY === 'tiered') runTurnRule({ session, room: ctx.room });
+    if (process.env.POLICY === 'tiered') connectRule({ session, room: ctx.room });
     await session.start({ agent: new ProofAgent({ instructions: 'proof' }), room: ctx.room, record: false, inputOptions: { closeOnDisconnect: process.env.CLOSE_ON_DISCONNECT !== '0' } });
     log('session_started');
   },

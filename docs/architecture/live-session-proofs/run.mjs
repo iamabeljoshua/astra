@@ -84,7 +84,8 @@ async function withSession(name, env, drive) {
   const student = new Student();
   const joinStartedAt = Date.now();
   await student.join(`${name}-${Date.now()}`);
-  const started = await waitForAgentEvent(agent, (event) => event.event === 'session_started', 20000);
+  // A first run on a fresh Python environment spends most of a minute compiling and loading its models.
+  const started = await waitForAgentEvent(agent, (event) => event.event === 'session_started', args.sdk === 'python' ? 90000 : 20000);
   if (!started) {
     save(`${name}.failed`, { raw: agent.raw.slice(-40), student: student.log });
     await student.leave();
@@ -215,7 +216,7 @@ async function driveTieredInterrupts({ agent, student }) {
     await spoken;
     await delay(400);
     const messages = readLiveMessages(student.log, speechMark);
-    const yieldMessage = messages.find((message) => message.type === 'yield');
+    const yieldMessage = messages.find((message) => message.type === 'yield' && message.isYielding !== false);
     const stopMessage = messages.find((message) => message.type === 'stop');
     const firstStop = student.log.slice(studentMark).find((event) => event.event === 'agent_audio_stopped' && event.lastAudibleAt > speechStart);
     if (yieldMessage) toYield.push(yieldMessage.receivedAt - speechStart);
@@ -241,8 +242,8 @@ async function driveTieredBackchannels({ agent, student }) {
     await delay(1200);
     const stopped = agent.events.slice(stateMark).find((event) => event.event === 'agent_state_changed' && event.oldState === 'speaking');
     const messages = readLiveMessages(student.log, speechMark);
-    const yieldMessage = messages.find((message) => message.type === 'yield');
-    const unyieldMessage = messages.find((message) => message.type === 'unyield');
+    const yieldMessage = messages.find((message) => message.type === 'yield' && message.isYielding !== false);
+    const unyieldMessage = messages.find((message) => message.type === 'yield' && message.isYielding === false);
     const silence = student.log.slice(speechMark).filter((event) => event.event === 'agent_audio_stopped');
     outcomes.push({ agentStopped: Boolean(stopped), audioWentSilent: silence.length > 0, yieldAfterMs: yieldMessage ? yieldMessage.receivedAt - speechStart : null, yieldHeldMs: yieldMessage && unyieldMessage ? unyieldMessage.receivedAt - yieldMessage.receivedAt : null });
     if (!stopped) await waitForAgentState(agent, 'listening', 40000, stateMark);
@@ -422,6 +423,119 @@ async function driveCommandBytes({ agent, student }) {
   };
 }
 
+const QUESTION_REPLY = 'So once the ball has left your hand and nothing is pushing it forward any more, what do you think is still pulling on it while it flies through the air?';
+const QUESTION_WORDS = QUESTION_REPLY.split(' ').length;
+const T5_WAIT_MS = 8000;
+
+function countBurstsSince(log, fromIndex) {
+  return log.slice(fromIndex).filter((event) => event.event === 'word_burst').length;
+}
+
+// Each attempt asks the question, and the student reacts over it, so the rule must wait for the browser to report its last word.
+function driveReactionOverQuestion(speech, script) {
+  return async ({ agent, student }) => {
+    const outcomes = [];
+    for (let attempt = 0; attempt < Math.min(REPEAT, 5); attempt++) {
+      student.startCountingReplyWords();
+      student.questionHasWords = QUESTION_WORDS;
+      const replyMark = student.log.length;
+      const { agentMark } = await startLongReply({ agent, student });
+      await setScript(script);
+      const speechMark = student.log.length;
+      await student.say(speech);
+      await waitForAgentState(agent, 'listening', 30000, agentMark + 1);
+      const repliesBefore = agent.events.slice(agentMark).filter((event) => event.event === 'llm_node_started').length;
+      await delay(T5_WAIT_MS);
+      const events = agent.events.slice(agentMark);
+      outcomes.push({
+        stopped: readLiveMessages(student.log, speechMark).some((message) => message.type === 'stop'),
+        wordsHeard: countBurstsSince(student.log, replyMark),
+        ofWords: QUESTION_WORDS,
+        questionHeardSent: student.log.slice(replyMark).some((event) => event.event === 'question_heard_sent'),
+        repliesWithinT5: events.filter((event) => event.event === 'llm_node_started').length - repliesBefore,
+      });
+      await clearScript();
+    }
+    return { attempts: outcomes.length, stopped: outcomes.filter((outcome) => outcome.stopped).length, heardInFull: outcomes.filter((outcome) => outcome.wordsHeard === outcome.ofWords).length, tutorStayedQuietForT5: outcomes.filter((outcome) => outcome.repliesWithinT5 === 0).length, outcomes };
+  };
+}
+
+// "Yes." once the question's last word has started is an answer, and the tutor answers it.
+async function driveAnswerOverLastWord({ agent, student }) {
+  const outcomes = [];
+  for (let attempt = 0; attempt < Math.min(REPEAT, 5); attempt++) {
+    student.startCountingReplyWords();
+    student.questionHasWords = QUESTION_WORDS;
+    const replyMark = student.log.length;
+    const { agentMark } = await startLongReply({ agent, student });
+    await student.waitForEvent((event, index) => index >= replyMark && event.event === 'question_heard_sent', 20000);
+    await setScript('Yes.');
+    const speechMark = student.log.length;
+    await student.say('gravity');
+    const speechEnd = student.voicedEndedAt;
+    const reply = await waitForAgentEvent(agent, (event) => event.event === 'llm_node_started' && event.at > speechEnd - 2000, 4000, agentMark + 1);
+    await delay(500);
+    const events = agent.events.slice(agentMark);
+    outcomes.push({
+      stopped: readLiveMessages(student.log, speechMark).some((message) => message.type === 'stop'),
+      answerReachedModel: events.some((event) => event.event === 'conversation_item_added' && event.role === 'user' && event.text === 'Yes.'),
+      voiceEndToReplyMs: reply ? reply.at - speechEnd : null,
+    });
+    await waitForAgentState(agent, 'listening', 30000, agent.events.length);
+    await delay(1000);
+    await clearScript();
+  }
+  return { attempts: outcomes.length, answerReachedModel: outcomes.filter((outcome) => outcome.answerReachedModel).length, voiceEndToReplyMs: describeSeries(outcomes.flatMap((outcome) => outcome.voiceEndToReplyMs ?? [])), outcomes };
+}
+
+// The student finishes a thought, the turn is confirmed, the model is thinking, and the student carries on.
+async function driveTalkIntoTheGap({ agent, student }) {
+  const outcomes = [];
+  const offsets = [100, 400, 600];
+  for (let attempt = 0; attempt < Math.min(REPEAT, 6); attempt++) {
+    await setScript('Gravity.');
+    const agentMark = agent.events.length;
+    const studentMark = student.log.length;
+    const rawMark = agent.raw.length;
+    await student.say('gravity');
+    await waitForAgentState(agent, 'thinking', 6000, agentMark);
+    await delay(offsets[attempt % offsets.length]);
+    await setScript('It lands twice as far.');
+    await student.say('twice');
+    await waitForAgentQuiet(agent, 3000);
+    const events = agent.events.slice(agentMark);
+    outcomes.push({
+      offsetAfterThinkingMs: offsets[attempt % offsets.length],
+      stops: readLiveMessages(student.log, studentMark).filter((message) => message.type === 'stop').length,
+      secondSentenceReachedModel: events.some((event) => event.event === 'conversation_item_added' && event.role === 'user' && event.text?.includes('twice')),
+      repliesStarted: events.filter((event) => event.event === 'llm_node_started').length,
+      turnsDroppedBySdk: agent.raw.slice(rawMark).filter((line) => line.includes('skipping user input')).length,
+    });
+    await waitForAgentState(agent, 'listening', 30000, agent.events.length - 1);
+    await delay(1000);
+    await clearScript();
+  }
+  return { attempts: outcomes.length, answered: outcomes.filter((outcome) => outcome.secondSentenceReachedModel).length, dropped: outcomes.filter((outcome) => outcome.turnsDroppedBySdk > 0).length, outcomes };
+}
+
+// Interim words and then no final words, as when speech to text takes them back.
+async function driveWordsNeverFinal({ agent, student }) {
+  const outcomes = [];
+  for (let attempt = 0; attempt < Math.min(REPEAT, 5); attempt++) {
+    const { agentMark } = await startLongReply({ agent, student });
+    const stateMark = agent.events.length;
+    await setScript('~Wait then why');
+    await student.say('question');
+    const speechEnd = student.voicedEndedAt;
+    const resume = await waitForAgentEvent(agent, (event) => event.event === 'policy_resume', 6000, stateMark);
+    outcomes.push({ stopped: agent.events.slice(stateMark).some((event) => event.event === 'policy_interrupt'), resumed: Boolean(resume), voiceEndToResumeMs: resume ? resume.at - speechEnd : null });
+    await waitForAgentState(agent, 'listening', 60000, (resume ? agent.events.indexOf(resume) : agentMark) + 1);
+    await delay(1000);
+    await clearScript();
+  }
+  return { attempts: outcomes.length, stopped: outcomes.filter((outcome) => outcome.stopped).length, resumed: outcomes.filter((outcome) => outcome.resumed).length, outcomes };
+}
+
 async function driveHeldReaction({ agent, student }) {
   const outcomes = [];
   for (let attempt = 0; attempt < Math.min(REPEAT, 6); attempt++) {
@@ -506,6 +620,27 @@ async function driveRejoinOverReply({ agent, student }) {
 const SCENARIOS = {
   async turn_phrases() {
     return withSession('turn_phrases', { AGENT_REPLY: 'Right.', TURN_MODE: 'detector', EP_MIN_MS: '300', EP_MAX_MS: '1000' }, drivePhrases);
+  },
+  async question_uhhuh() {
+    return withSession('question_uhhuh', { TURN_MODE: 'detector', POLICY: 'tiered', AGENT_REPLY: QUESTION_REPLY }, driveReactionOverQuestion('uhhuh', 'Uh-huh'));
+  },
+  async question_hmm() {
+    return withSession('question_hmm', { TURN_MODE: 'detector', POLICY: 'tiered', AGENT_REPLY: QUESTION_REPLY, ...PATIENCE_TURN, FILLER_WAIT_MS: '8000' }, driveReactionOverQuestion('hmm', 'Hmm'));
+  },
+  async question_answer_over_last_word() {
+    return withSession('question_answer_over_last_word', { TURN_MODE: 'detector', POLICY: 'tiered', AGENT_REPLY: QUESTION_REPLY }, driveAnswerOverLastWord);
+  },
+  async gap_talkover() {
+    return withSession('gap_talkover', { TURN_MODE: 'detector', POLICY: 'tiered', FAKE_LLM_TTFT_MS: '800' }, driveTalkIntoTheGap);
+  },
+  async gap_talkover_late_final() {
+    await setFakeSettings({ transcriptDelayMs: 200 });
+    const summary = await withSession('gap_talkover_late_final', { TURN_MODE: 'detector', POLICY: 'tiered', FAKE_LLM_TTFT_MS: '800' }, driveTalkIntoTheGap);
+    await setFakeSettings({ transcriptDelayMs: 0 });
+    return summary;
+  },
+  async words_never_final() {
+    return withSession('words_never_final', { TURN_MODE: 'detector', POLICY: 'tiered' }, driveWordsNeverFinal);
   },
   async tiered_interrupt() {
     return withSession('tiered_interrupt', { TURN_MODE: 'detector', POLICY: 'tiered' }, driveTieredInterrupts);
@@ -881,7 +1016,7 @@ async function driveFalseInterruption({ agent, student }) {
 const fakes = spawn('node', [join(HERE, 'fake-providers.mjs')], { stdio: 'ignore' });
 await delay(500);
 const isBeatsAgent = args.sdk === 'beats';
-const NODE_ONLY = ['pause_detector_cap_1s', 'pause_filler_rule', 'one_word_transcript_0', 'one_word_transcript_300', 'one_word_transcript_600', 'one_word_transcript_900', 'noise_resume', 'patience_filler_8s', 'patience_filler_then_answer', 'patience_filler_3s', 'patience_words_silence_1s', 'patience_words_silence_2s', 'patience_words_pause_1s', 'patience_words_pause_2s', 'patience_phrases_2s', 'held_reaction_uncleared', 'held_reaction_cleared', 'warmup_first_speech_sdk_default', 'warmup_first_speech_off', 'warmup_rejoin_sdk_default', 'warmup_rejoin_off', 'budget_voice_0', 'budget_voice_200', 'budget_voice_200_preemptive_tts', 'vendor_settings'];
+const NODE_ONLY = ['question_uhhuh', 'question_hmm', 'question_answer_over_last_word', 'gap_talkover', 'gap_talkover_late_final', 'words_never_final', 'pause_detector_cap_1s', 'pause_filler_rule', 'one_word_transcript_0', 'one_word_transcript_300', 'one_word_transcript_600', 'one_word_transcript_900', 'noise_resume', 'patience_filler_8s', 'patience_filler_then_answer', 'patience_filler_3s', 'patience_words_silence_1s', 'patience_words_silence_2s', 'patience_words_pause_1s', 'patience_words_pause_2s', 'patience_phrases_2s', 'held_reaction_uncleared', 'held_reaction_cleared', 'warmup_first_speech_sdk_default', 'warmup_first_speech_off', 'warmup_rejoin_sdk_default', 'warmup_rejoin_off', 'budget_voice_0', 'budget_voice_200', 'budget_voice_200_preemptive_tts', 'vendor_settings'];
 const names = args.only ? args.only.split(',') : Object.keys(SCENARIOS).filter((name) => name.startsWith('beats_') === isBeatsAgent && !(args.sdk === 'python' && NODE_ONLY.includes(name)));
 const summaries = {};
 try {

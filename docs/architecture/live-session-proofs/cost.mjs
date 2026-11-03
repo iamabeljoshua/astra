@@ -11,12 +11,15 @@ const OUTPUT_TOKENS = 400;
 const BACKGROUND_PER_MINUTE = 0.012;
 const BUFFER = 1.3;
 const SOLD_PER_HOUR = 49 / 5;
+// PRD section 13's limit, read on the basis of PRD section 10's table: with background work and the 30% buffer.
 const SESSION_LIMIT_PER_MINUTE = 0.15;
 const COMPACT_AT_TOKENS = 60000;
 const SUMMARY_TOKENS = 4000;
+const THIRTY_TURNS = 30;
 
 const MODELS = {
   opus: { read: 0.2, write: 5, input: 4, output: 20, thinking: 200 },
+  opusNoThinking: { read: 0.2, write: 5, input: 4, output: 20, thinking: 0 },
   sonnet: { read: 0.1, write: 2.5, input: 2, output: 10, thinking: 0 },
   haiku: { read: 0.01, write: 0.125, input: 0.1, output: 0.5, thinking: 0, over100k: { read: 0.05, write: 0.625, output: 2.5 } },
 };
@@ -63,6 +66,10 @@ function getSessionModelCost({ model, minutes, compact = false }) {
   return { modelDollars: dollars, lastPrefixTokens: prefixTokens };
 }
 
+function withBackgroundAndBuffer(perMinute) {
+  return (perMinute + BACKGROUND_PER_MINUTE) * BUFFER;
+}
+
 function describeSession(options) {
   const { modelDollars, lastPrefixTokens } = getSessionModelCost(options);
   const modelPerMinute = modelDollars / options.minutes;
@@ -70,11 +77,12 @@ function describeSession(options) {
   return {
     ...options,
     modelDollars: round(modelDollars, 2),
-    modelPerMinute: round(modelPerMinute, 3),
-    allServicesPerMinute: round(allServices, 3),
-    overTheLimit: allServices > SESSION_LIMIT_PER_MINUTE,
+    modelPerMinute: round(modelPerMinute, 4),
+    allServicesPerMinute: round(allServices, 4),
+    prdBasisPerMinute: round(withBackgroundAndBuffer(allServices), 4),
+    overThePrdLimit: withBackgroundAndBuffer(allServices) > SESSION_LIMIT_PER_MINUTE,
     perHour: round(allServices * 60, 2),
-    perHourWithBackgroundAndBuffer: round((allServices + BACKGROUND_PER_MINUTE) * BUFFER * 60, 2),
+    perHourWithBackgroundAndBuffer: round(withBackgroundAndBuffer(allServices) * 60, 2),
     lastPrefixTokens,
   };
 }
@@ -84,13 +92,19 @@ function round(value, places) {
 }
 
 function getBetaMonth(options) {
-  const { modelPerMinute } = describeSession(options);
-  const withServices = (modelPerMinute + otherPerMinute) * BETA_MINUTES;
-  return { allFourServices: Math.round(withServices), withBackgroundAndBuffer: Math.round((withServices + BACKGROUND_PER_MINUTE * BETA_MINUTES) * BUFFER) };
+  const { modelDollars } = getSessionModelCost(options);
+  const modelPerMinute = modelDollars / options.minutes;
+  const allServices = modelPerMinute + otherPerMinute;
+  return { modelAlone: Math.round(modelPerMinute * BETA_MINUTES), allFourServices: Math.round(allServices * BETA_MINUTES), withBackgroundAndBuffer: Math.round(withBackgroundAndBuffer(allServices) * BETA_MINUTES) };
+}
+
+function getThirtyTurnTestDollars(model) {
+  const { modelDollars } = getSessionModelCost({ model, minutes: THIRTY_TURNS / TURNS_PER_MINUTE });
+  return modelDollars + (FLAT_PREFIX_TOKENS * MODELS[model].write) / 1e6;
 }
 
 const flat = Object.fromEntries(
-  Object.keys(MODELS).map((model) => {
+  ['opus', 'sonnet', 'haiku'].map((model) => {
     const modelPerMinute = getFlatModelPerMinute(model);
     const perMinute = modelPerMinute + otherPerMinute;
     return [model, { modelPerMinute: round(modelPerMinute, 4), allServicesPerMinute: round(perMinute, 4), perHour: round(perMinute * 60, 2), perHourWithBackgroundAndBuffer: round((perMinute + BACKGROUND_PER_MINUTE) * BUFFER * 60, 2), betaMonth: Math.round(perMinute * BETA_MINUTES) }];
@@ -129,7 +143,25 @@ const summary = {
     opusCompacting: getBetaMonth({ model: 'opus', minutes: 30, compact: true }),
     sonnetGrowing: getBetaMonth({ model: 'sonnet', minutes: 30 }),
     sonnetCompacting: getBetaMonth({ model: 'sonnet', minutes: 30, compact: true }),
+    haikuGrowing: getBetaMonth({ model: 'haiku', minutes: 30 }),
     haikuCompacting: getBetaMonth({ model: 'haiku', minutes: 30, compact: true }),
+    opusNoThinkingGrowing: getBetaMonth({ model: 'opusNoThinking', minutes: 30 }),
+    opusNoThinkingCompacting: getBetaMonth({ model: 'opusNoThinking', minutes: 30, compact: true }),
+  },
+  compactionSavesPerMonth: {
+    opus: getBetaMonth({ model: 'opus', minutes: 30 }).allFourServices - getBetaMonth({ model: 'opus', minutes: 30, compact: true }).allFourServices,
+    sonnet: getBetaMonth({ model: 'sonnet', minutes: 30 }).allFourServices - getBetaMonth({ model: 'sonnet', minutes: 30, compact: true }).allFourServices,
+  },
+  thirtyTurnTestDollars: {
+    opus: round(getThirtyTurnTestDollars('opus'), 2),
+    sonnet: round(getThirtyTurnTestDollars('sonnet'), 2),
+    haiku: round(getThirtyTurnTestDollars('haiku'), 2),
+    allThree: round(['opus', 'sonnet', 'haiku'].reduce((sum, model) => sum + getThirtyTurnTestDollars(model), 0), 2),
+  },
+  picks: {
+    note: 'Sonnet with compaction, Cartesia Scale, Deepgram Nova-3, LiveKit Ship. API hosting, about $200 a month by the PRD, is on top.',
+    ...getBetaMonth({ model: 'sonnet', minutes: 30, compact: true }),
+    hostingOnTop: 200,
   },
   thinking: {
     opusWithoutThinkingPerMinute: round((TURNS_PER_MINUTE * (FLAT_PREFIX_TOKENS * 0.2 + NEW_INPUT_TOKENS * 5 + OUTPUT_TOKENS * 20)) / 1e6, 3),

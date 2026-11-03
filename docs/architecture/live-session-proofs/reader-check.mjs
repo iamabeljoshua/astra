@@ -13,6 +13,9 @@ const ONE_LONG_WORD = 'a'.repeat(1300);
 const MANY_COMMANDS = `Watch ${CLEAR.repeat(14)}this.`;
 const BAD_SIMULATE = '{"kind":"simulate","id":"s","simulation":{"model":"bogus"}}';
 const RUN_S = '{"kind":"runSimulation","target":"s","action":"play"}';
+const OVER_THE_LIMIT = 16 * 1024;
+const LONG_STRING = `{"kind":"text","id":"t","text":"${'y'.repeat(OVER_THE_LIMIT)}","handwritten":true}`;
+const LONG_LIST = `{"kind":"plot","id":"p2","expression":"x","domain":[${'1,'.repeat(OVER_THE_LIMIT / 2)}1]}`;
 
 const CASES = [
   { name: 'a command before its word', text: `Your ${HIDE}hand.`, spoken: 'Your hand. ', cues: [1] },
@@ -45,6 +48,13 @@ const CASES = [
   { name: 'the same id twice in a beat', text: `Watch ${'{"kind":"writeMath","id":"e","tex":"x"}'}this ${'{"kind":"writeMath","id":"e","tex":"y"}'}now.`, spoken: 'Watch this now.', cues: [1], bad: 1 },
   { name: 'a dropped simulate takes its later commands with it, and the words still play', text: `Watch ${BAD_SIMULATE}this ${RUN_S}go.`, spoken: 'Watch this go.', bad: 2 },
   { name: 'a command on an element of the wrong kind', text: 'Watch {"kind":"runSimulation","target":"p","action":"play"}this.', spoken: 'Watch this.', bad: 1 },
+  { name: 'a pretty-printed command is a command', text: 'Watch {\n  "kind": "hide",\n  "target": "a"\n}this.', spoken: 'Watch this.', cues: [1] },
+  { name: 'a newline in the middle of a command is a command', text: 'Watch {"kind":"hide",\n"target":"a"}this now.', spoken: 'Watch this now.', cues: [1] },
+  { name: 'a brace and a newline then speech', text: 'Watch {\nthis now.', spoken: 'Watch this now.', beats: 2 },
+  { name: 'an oversized string speaks none of its tail', text: `Look ${LONG_STRING}here.`, spoken: 'Look here.', bad: 1 },
+  { name: 'an oversized list speaks none of its tail', text: `Look ${LONG_LIST}here.`, spoken: 'Look here.', bad: 1 },
+  { name: 'a broken command with a far closing brace keeps its words', text: 'Watch {"kind":"hide","target":"a" lets go now. And the set is 1} more.', spoken: 'Watch lets go now. And the set is 1 more.', bad: 1 },
+  { name: 'a zero-width space and a bidi override are not spoken', text: 'Watch\u200B this\u202E now.', spoken: 'Watch this now.' },
   { name: 'a question ends the turn, so the tutor cannot answer itself', text: 'What pulls on it?\nGravity pulls on it.', spoken: 'What pulls on it?', replies: [true], textAfter: 'Gravity pulls on it.' },
   { name: 'a question inside a line does not end the beat', text: 'What pulls on it? Gravity.\nNext.', spoken: 'What pulls on it? Gravity. Next.', replies: [false, false] },
 ];
@@ -106,12 +116,26 @@ const results = CASES.flatMap(({ name, text, spoken, cues = [], bad = 0, beats, 
   }),
 );
 
-const firstWordsFlush = read('So the thing to notice here is that the sideways speed never changes at all.', 3).flushes;
+const FLUSH_CASES = [
+  { name: 'a long first sentence flushes after 8 words and at its end', text: 'So the thing to notice here is that the sideways speed never changes at all.', flushes: ['firstWords', 'beatEnd'] },
+  { name: 'a command flushes before itself', text: `Your ${HIDE}hand.`, flushes: ['command', 'beatEnd'] },
+  { name: 'an early command does not cancel the first-words flush', text: `Watch ${HIDE}the thing to notice here is that it never changes at all.`, flushes: ['command', 'firstWords', 'beatEnd'] },
+  { name: 'each beat end flushes', text: 'One thing.\nAnother thing.', flushes: ['beatEnd', 'beatEnd'] },
+  { name: 'a command inside a word flushes the words before that word', text: `Watch this ar${HIDE}row.`, flushes: ['command', 'beatEnd'] },
+];
+const flushResults = FLUSH_CASES.flatMap(({ name, text, flushes }) =>
+  [1, 3, 14, 60].map((fragmentSize) => {
+    const seen = read(text, fragmentSize);
+    const problems = JSON.stringify(seen.flushes) === JSON.stringify(flushes) ? [] : [`flushed ${JSON.stringify(seen.flushes)}`];
+    if (seen.flushInsideAWord) problems.push('a flush fell inside a word');
+    return { name, fragmentSize, problems };
+  }),
+);
+results.push(...flushResults);
 const summary = {
   passed: results.filter((row) => row.problems.length === 0).length,
   total: results.length,
-  cases: CASES.length,
-  flushesOnALongFirstSentence: firstWordsFlush,
+  cases: CASES.length + FLUSH_CASES.length,
   failed: results.filter((row) => row.problems.length > 0),
 };
 writeFileSync(join(HERE, 'results', 'reader.json'), `${JSON.stringify({ reader: summary }, null, 1)}\n`);

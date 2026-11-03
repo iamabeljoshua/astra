@@ -2,16 +2,30 @@
 import { writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getBeatText, getCues, getPlayedCues, getScriptFromWord, getSpokenWords, parseBeat, parseSessionEvent, type Beat, type ElementId, type SceneCommand, type SessionEvent, type SessionEventBody, type BeatPlayed } from '../../../packages/contracts/src/index.ts';
+import { getBeatText, getCues, getPlayedCues, getResumeScript, getScriptFromWord, getSpokenWords, parseBeat, parseSessionEvent, type Beat, type ElementId, type SceneCommand, type SessionEvent, type SessionEventBody, type FrozenFrame, type BeatPlayed } from '../../../packages/contracts/src/index.ts';
 
 const ASSUMED_REVEAL_MS = 600;
 const FLIGHT_SECONDS = 1.45;
 const WORD_MS = 300;
+const MOMENTS = { release: 0, peak: FLIGHT_SECONDS / 2, landing: FLIGHT_SECONDS };
 
-interface Element { kind: string; tex?: string; revealStartMs: number; revealFrozenAtMs?: number }
-interface Sim { seconds: number; status: 'paused' | 'running'; gravity: number }
+interface Reveal { startMs: number; from: number; to: number; overMs: number; frozenAt?: number }
+interface Element { kind: string; tex?: string; revealStartMs: number; revealFrozenAtMs?: number; reveal?: Reveal }
+interface Sim { seconds: number; status: 'paused' | 'running'; gravity: number; holdAt: number; speed: number }
 interface Board { elements: Map<string, Element>; sims: Map<string, Sim>; dot: string | null; marks: string[]; ghosts: number }
 const emptyBoard = (): Board => ({ elements: new Map(), sims: new Map(), dot: null, marks: [], ghosts: 0 });
+
+function toSimulationSeconds(point: number | keyof typeof MOMENTS): number {
+  return typeof point === 'number' ? point : MOMENTS[point];
+}
+
+function getRevealedUpTo(element: Element, atMs: number): number {
+  const { reveal } = element;
+  if (!reveal) return 0;
+  const end = reveal.frozenAt ?? atMs;
+  const share = reveal.overMs === 0 ? 1 : Math.min(1, (end - reveal.startMs) / reveal.overMs);
+  return reveal.from + (reveal.to - reveal.from) * share;
+}
 
 function applyCommand(board: Board, command: SceneCommand, atMs: number): void {
   switch (command.kind) {
@@ -24,12 +38,29 @@ function applyCommand(board: Board, command: SceneCommand, atMs: number): void {
     case 'runSimulation': {
       const sim = board.sims.get(command.target);
       if (!sim) return;
-      if (command.action === 'play') sim.status = 'running';
+      if (command.action === 'play') {
+        sim.status = 'running';
+        sim.holdAt = command.until === undefined ? FLIGHT_SECONDS : toSimulationSeconds(command.until);
+        sim.speed = command.overWords === undefined ? 1 : (sim.holdAt - sim.seconds) / ((command.overWords * WORD_MS) / 1000);
+      }
       if (command.action === 'pause') sim.status = 'paused';
-      if (command.action === 'restart') { sim.seconds = 0; sim.status = 'running'; }
+      if (command.action === 'restart') { sim.seconds = 0; sim.status = 'running'; sim.holdAt = FLIGHT_SECONDS; sim.speed = 1; }
+      if (command.action === 'seek') { sim.seconds = toSimulationSeconds(command.to); sim.status = 'paused'; }
       return;
     }
-    case 'simulate': board.sims.set(command.id, { seconds: 0, status: 'paused', gravity: command.simulation.parameters.gravity }); break;
+    case 'setParameter': {
+      const sim = board.sims.get(command.target);
+      if (!sim) return;
+      if (command.parameter === 'gravity') sim.gravity = command.value;
+      sim.seconds = 0;
+      return;
+    }
+    case 'reveal': {
+      const element = board.elements.get(command.target);
+      if (element) element.reveal = { startMs: atMs, from: element.reveal ? getRevealedUpTo(element, atMs) : 0, to: command.upTo, overMs: (command.overWords ?? 0) * WORD_MS };
+      return;
+    }
+    case 'simulate': board.sims.set(command.id, { seconds: 0, status: 'paused', gravity: command.simulation.parameters.gravity, holdAt: FLIGHT_SECONDS, speed: 1 }); break;
     default: break;
   }
   if ('id' in command) board.elements.set(command.id, { kind: command.kind, tex: 'tex' in command ? command.tex : undefined, revealStartMs: atMs });
@@ -37,14 +68,15 @@ function applyCommand(board: Board, command: SceneCommand, atMs: number): void {
 
 function advance(board: Board, ms: number): void {
   for (const sim of board.sims.values()) {
-    if (sim.status === 'running') sim.seconds = Math.min(FLIGHT_SECONDS, sim.seconds + ms / 1000);
+    if (sim.status === 'running') sim.seconds = Math.min(sim.holdAt, sim.seconds + (ms / 1000) * sim.speed);
   }
 }
 
 function describe(board: Board, atMs: number) {
   const elements = [...board.elements.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([id, element]) => {
     const end = element.revealFrozenAtMs ?? atMs;
-    return `${id}:${element.kind}${element.tex ? `(${element.tex})` : ''}@${Math.min(1, (end - element.revealStartMs) / ASSUMED_REVEAL_MS).toFixed(2)}`;
+    const reveal = element.reveal ? ` upTo ${getRevealedUpTo(element, atMs).toFixed(2)}` : '';
+    return `${id}:${element.kind}${element.tex ? `(${element.tex})` : ''}@${Math.min(1, (end - element.revealStartMs) / ASSUMED_REVEAL_MS).toFixed(2)}${reveal}`;
   });
   const sims = [...board.sims.entries()].map(([id, sim]) => `${id}:${sim.status}@${sim.seconds.toFixed(2)}s g=${sim.gravity}`);
   return { elements, sims, dot: board.dot, marks: [...board.marks].sort(), ghosts: board.ghosts };
@@ -53,7 +85,9 @@ function describe(board: Board, atMs: number) {
 type Step =
   | { at: number; type: 'cue'; command: SceneCommand }
   | { at: number; type: 'stop' }
-  | { at: number; type: 'drag'; simId: string; gravity: number };
+  | { at: number; type: 'drag'; simId: string; gravity: number }
+  | { at: number; type: 'ink'; id: string }
+  | { at: number; type: 'inkErased'; id: string };
 
 function runTruth(steps: Step[], endMs: number): Board {
   const board = emptyBoard();
@@ -65,40 +99,66 @@ function runTruth(steps: Step[], endMs: number): Board {
     if (step.type === 'cue') applyCommand(board, step.command, step.at);
     if (step.type === 'stop') {
       for (const sim of board.sims.values()) sim.status = 'paused';
-      for (const element of board.elements.values()) if (element.revealFrozenAtMs === undefined && step.at - element.revealStartMs < ASSUMED_REVEAL_MS) element.revealFrozenAtMs = step.at;
+      for (const element of board.elements.values()) {
+        if (element.revealFrozenAtMs === undefined && step.at - element.revealStartMs < ASSUMED_REVEAL_MS) element.revealFrozenAtMs = step.at;
+        if (element.reveal && element.reveal.frozenAt === undefined) element.reveal.frozenAt = step.at;
+      }
     }
     if (step.type === 'drag') {
       const sim = board.sims.get(step.simId);
       if (sim) { sim.gravity = step.gravity; sim.seconds = 0; sim.status = 'running'; }
     }
+    if (step.type === 'ink') board.elements.set(step.id, { kind: 'ink', revealStartMs: step.at - ASSUMED_REVEAL_MS });
+    if (step.type === 'inkErased') board.elements.delete(step.id);
   }
   advance(board, endMs - clock);
   return board;
 }
 
-// The rebuild flattens every event into timed operations, so a cue inside a beat sorts against a drag inside that beat.
+function applyFrozenFrames(board: Board, frames: FrozenFrame[], atMs: number): void {
+  for (const frame of frames) {
+    if ('simulationSeconds' in frame) {
+      const sim = board.sims.get(frame.target);
+      if (sim) { sim.status = 'paused'; sim.seconds = frame.simulationSeconds; }
+    }
+    const element = board.elements.get(frame.target);
+    if (!element) continue;
+    if ('revealedUpTo' in frame) element.reveal = { startMs: atMs, from: frame.revealedUpTo, to: frame.revealedUpTo, overMs: 0, frozenAt: atMs };
+    if ('drawnFraction' in frame) { element.revealStartMs = atMs - frame.drawnFraction * ASSUMED_REVEAL_MS; element.revealFrozenAtMs = atMs; }
+  }
+}
+
+// The rebuild flattens every event into timed operations, so a cue inside a beat sorts against a drag inside that beat. Each cue plays when it really fired, and a frame says where a cut left it.
 export function rebuildBoard(log: SessionEvent[], atMs: number): Board {
   const operations: { at: number; order: number; run: (board: Board) => void }[] = [];
   let snapshotSourceOrder = 0;
   for (const event of log) {
     if (event.kind === 'beatPlayed') {
-      for (const cue of getPlayedCues(event.beat, event.firedCues)) {
-        const at = event.atMs + (event.wordStartsMs[cue.atWord] ?? 0);
+      getPlayedCues(event.beat, event.firedCueMs.length).forEach((cue, index) => {
+        const at = event.atMs + (event.firedCueMs[index] ?? 0);
         operations.push({ at, order: snapshotSourceOrder++, run: (board) => applyCommand(board, cue.command, at) });
-      }
+      });
       if (event.ending !== 'finished') {
         const at = event.atMs + event.durationMs;
         operations.push({ at, order: snapshotSourceOrder++, run: (board) => {
           for (const element of board.elements.values()) if (element.revealFrozenAtMs === undefined && at - element.revealStartMs < ASSUMED_REVEAL_MS) element.revealFrozenAtMs = at;
-          for (const frozen of event.frozen) { const sim = board.sims.get(frozen.target); if (sim) { sim.status = 'paused'; sim.seconds = frozen.simulationSeconds; } }
+          applyFrozenFrames(board, event.frozen, at);
         } });
       }
     }
     if (event.kind === 'boardFrozen') {
       operations.push({ at: event.atMs, order: snapshotSourceOrder++, run: (board) => {
-        for (const frozen of event.frozen) { const sim = board.sims.get(frozen.target); if (sim) { sim.status = 'paused'; sim.seconds = frozen.simulationSeconds; } }
+        applyFrozenFrames(board, event.frozen, event.atMs);
         for (const sim of board.sims.values()) sim.status = 'paused';
       } });
+    }
+    if (event.kind === 'studentActed' && event.action.action === 'inkStroke') {
+      const { id } = event.action;
+      operations.push({ at: event.atMs, order: snapshotSourceOrder++, run: (board) => board.elements.set(id, { kind: 'ink', revealStartMs: event.atMs - ASSUMED_REVEAL_MS }) });
+    }
+    if (event.kind === 'studentActed' && event.action.action === 'inkErased') {
+      const { target } = event.action;
+      operations.push({ at: event.atMs, order: snapshotSourceOrder++, run: (board) => board.elements.delete(target) });
     }
     if (event.kind === 'studentActed' && event.action.action === 'sliderDragged') {
       const { samples, target } = event.action;
@@ -142,11 +202,12 @@ const wordStarts = (beat: Beat) => Array.from({ length: wordCount(beat) }, (_, i
 function cueSteps(beat: Beat, startMs: number): Step[] {
   return getCues(beat).map((cue) => ({ at: startMs + cue.atWord * WORD_MS, type: 'cue' as const, command: cue.command }));
 }
-function played(beat: Beat, atMs: number, cutAfterMs: number | null, frozen: { target: string; simulationSeconds: number }[] = [], lateCues = 0): BeatPlayed & { atMs: number } {
+function played(beat: Beat, atMs: number, cutAfterMs: number | null, frozen: object[] = [], lateCues = 0): BeatPlayed & { atMs: number } {
   const starts = wordStarts(beat);
   const durationMs = cutAfterMs ?? starts.length * WORD_MS;
   const playedWords = cutAfterMs === null ? starts.length : starts.filter((start) => start <= cutAfterMs).length;
-  return { kind: 'beatPlayed', atMs, turnId: 't' as never, beat, wordStartsMs: starts.slice(0, Math.max(playedWords, 0)), durationMs, playedWords, firedCues: getCues(beat).filter((cue) => cue.atWord < playedWords).length - lateCues, ending: cutAfterMs === null ? 'finished' : 'interrupted', frozen: frozen as never, reportedBy: 'browser' };
+  const firedCueMs = getCues(beat).filter((cue) => cue.atWord < playedWords).map((cue) => starts[cue.atWord] as number);
+  return { kind: 'beatPlayed', atMs, turnId: 't' as never, beat, wordStartsMs: starts.slice(0, Math.max(playedWords, 0)), durationMs, playedWords, firedCueMs: firedCueMs.slice(0, firedCueMs.length - lateCues), ending: cutAfterMs === null ? 'finished' : 'interrupted', frozen: frozen as never, reportedBy: 'browser' };
 }
 
 let failures = 0;
@@ -210,7 +271,7 @@ const shotCommand = { kind: 'simulate', id: 'shot', simulation: { model: 'projec
   let clock = 0;
   for (const event of log) {
     advance(naive, Math.max(0, event.atMs - clock)); clock = Math.max(clock, event.atMs);
-    if (event.kind === 'beatPlayed') for (const cue of getPlayedCues(event.beat, event.firedCues)) applyCommand(naive, cue.command, event.atMs + (event.wordStartsMs[cue.atWord] ?? 0));
+    if (event.kind === 'beatPlayed') for (const cue of getPlayedCues(event.beat, event.firedCueMs.length)) applyCommand(naive, cue.command, event.atMs + (event.wordStartsMs[cue.atWord] ?? 0));
     if (event.kind === 'studentActed' && event.action.action === 'sliderDragged') { const sim = naive.sims.get(event.action.target); if (sim) { sim.gravity = 1.6; sim.seconds = 0; sim.status = 'running'; } }
   }
   advance(naive, 3000 - clock);
@@ -222,12 +283,12 @@ const shotCommand = { kind: 'simulate', id: 'shot', simulation: { model: 'projec
   const setup = makeBeat('s6a', [shotCommand, 'Set up.']);
   const cut = 2 * WORD_MS + 100;
   const playedEvent = played(beat, 1000, cut);
-  const rest = makeBeat('s6r', getScriptFromWord(beat, { fromWord: playedEvent.playedWords, firedCues: playedEvent.firedCues }));
+  const rest = makeBeat('s6r', getScriptFromWord(beat, { fromWord: playedEvent.playedWords, firedCues: playedEvent.firedCueMs.length }));
   const steps: Step[] = [...cueSteps(setup, 0), ...cueSteps(beat, 1000).filter((s) => s.at <= 1000 + cut), { at: 1000 + cut, type: 'stop' }, ...cueSteps(rest, 6000)];
   const truth = runTruth(steps, 9000);
   const log = parseLog([played(setup, 0, null), { ...playedEvent, ending: 'disconnected' }, { kind: 'connectionGap', atMs: 1000 + cut, durationMs: 4000 }, played(rest, 6000, null)]);
   compare('6. disconnect mid-word, resume with the rest of the beat', truth, rebuildBoard(log, 9000), 9000);
-  const firedBefore = getPlayedCues(beat, playedEvent.firedCues).map((cue) => cue.command.kind);
+  const firedBefore = getPlayedCues(beat, playedEvent.firedCueMs.length).map((cue) => cue.command.kind);
   const firedAfter = getCues(rest).map((cue) => cue.command.kind);
   console.log(`   cues before ${JSON.stringify(firedBefore)} after ${JSON.stringify(firedAfter)}; words after "${getBeatText(rest)}"`);
   let bad = 0;
@@ -250,14 +311,14 @@ const shotCommand = { kind: 'simulate', id: 'shot', simulation: { model: 'projec
 {
   const first = makeBeat('s7a', ['First ', { kind: 'writeMath', id: 'one', tex: '1' }, 'one.']);
   const second = makeBeat('s7b', ['Then ', { kind: 'writeMath', id: 'two', tex: '2' }, 'two.']);
-  const log = parseLog([played(first, 0, null), played(second, 1000, null), { kind: 'studentActed', atMs: 2000, action: { action: 'rewound', toBeat: 's7b' as never } }, played(second, 2100, null)]);
+  const log = parseLog([played(first, 0, null), played(second, 1000, null), { kind: 'studentActed', atMs: 2000, action: { action: 'rewound', turnId: 't' as never, toBeat: 's7b' as never } }, played(second, 2100, null)]);
   const rewindIndex = log.findIndex((event) => event.kind === 'studentActed');
   const beatToRewind = log.slice(0, rewindIndex).filter((event) => event.kind === 'beatPlayed').at(-1)!;
   const kept = [...log.slice(0, log.indexOf(beatToRewind)), ...log.slice(rewindIndex + 1)];
   const truth = runTruth([...cueSteps(first, 0), ...cueSteps(second, 2100)], 4000);
   compare('7. rewound, with the rule "drop the toBeat play and everything after it"', truth, rebuildBoard(kept, 4000), 4000);
-  const reused = parseLog([played(makeBeat('b1', ['One.']), 0, null), played(makeBeat('b1', ['Other.']), 1000, null), { kind: 'studentActed', atMs: 1500, action: { action: 'rewound', toBeat: 'b1' as never } }]);
-  console.log(`   two turns can reuse beat id "b1" and the rewind cannot name which: every event still parses (${reused.length} events). rewound has no turnId.`);
+  const reused = parseLog([played(makeBeat('b1', ['One.']), 0, null), played(makeBeat('b1', ['Other.']), 1000, null), { kind: 'studentActed', atMs: 1500, action: { action: 'rewound', turnId: 't' as never, toBeat: 'b1' as never } }]);
+  console.log(`   two turns can reuse beat id "b1", and rewound names its turn: every event still parses (${reused.length} events).`);
 }
 
 {
@@ -279,7 +340,7 @@ const shotCommand = { kind: 'simulate', id: 'shot', simulation: { model: 'projec
 
 {
   const beat = makeBeat('s10', [{ kind: 'writeMath', id: 'never', tex: 'x' }, 'Hello there.']);
-  const zero = parseLog([{ ...played(beat, 0, 0), wordStartsMs: [], playedWords: 0, firedCues: 0 }]);
+  const zero = parseLog([{ ...played(beat, 0, 0), wordStartsMs: [], playedWords: 0, firedCueMs: [] }]);
   compare('10. stopped before word 0: no cue fires', runTruth([{ at: 0, type: 'stop' }], 1000), rebuildBoard(zero, 1000), 1000);
 }
 
@@ -288,6 +349,85 @@ const shotCommand = { kind: 'simulate', id: 'shot', simulation: { model: 'projec
   const cut = 4 * WORD_MS;
   const truth = runTruth([...cueSteps(beat, 0).filter((s) => s.at <= cut), { at: cut, type: 'stop' }], 3000);
   compare('11. hide cue never played: arrow stays on the board in both', truth, rebuildBoard(parseLog([played(beat, 0, cut)]), 3000), 3000);
+}
+
+{
+  const beat = makeBeat('s12', [shotCommand, 'Now ', { kind: 'runSimulation', target: 'shot', action: 'play' }, 'watch this one go.']);
+  const lateByMs = 630;
+  const playAt = WORD_MS + lateByMs;
+  const truth = runTruth([{ at: 0, type: 'cue', command: getCues(beat)[0]!.command }, { at: playAt, type: 'cue', command: getCues(beat)[1]!.command }], 1500);
+  const log = parseLog([{ ...played(beat, 0, null), firedCueMs: [0, playAt] }]);
+  compare('12. a play that fired 630 ms after its word replays when it really fired', truth, rebuildBoard(log, 1500), 1500);
+}
+
+{
+  const beat = makeBeat('s13', [shotCommand, 'Now ', { kind: 'setParameter', target: 'shot', parameter: 'gravity', value: 1.6 }, 'the moon pulls less.']);
+  const cueAt = WORD_MS + 700;
+  const dragAt = WORD_MS + 200;
+  const truth = runTruth([{ at: 0, type: 'cue', command: getCues(beat)[0]!.command }, { at: dragAt, type: 'drag', simId: 'shot', gravity: 20 }, { at: cueAt, type: 'cue', command: getCues(beat)[1]!.command }], 2000);
+  const log = parseLog([{ ...played(beat, 0, null), firedCueMs: [0, cueAt] }, { kind: 'studentActed', atMs: dragAt, action: { action: 'sliderDragged', target: 'shot' as ElementId, parameter: 'gravity', samples: [{ afterMs: 0, value: 20 }] } }]);
+  compare('13. a late setParameter after a drag ends on the same value and frame', truth, rebuildBoard(log, 2000), 2000);
+}
+
+{
+  const beat = makeBeat('s14', [shotCommand, { kind: 'runSimulation', target: 'shot', action: 'play' }, 'Watch ', { kind: 'runSimulation', target: 'shot', action: 'pause' }, 'this one.']);
+  const dragAt = 100;
+  const arrivedAt = 100 + 918;
+  const truth = runTruth([...cueSteps(beat, 0), { at: dragAt, type: 'drag', simId: 'shot', gravity: 1.6 }], 2000);
+  const body = (atMs: number) => ({ kind: 'studentActed' as const, atMs, action: { action: 'sliderDragged' as const, target: 'shot' as ElementId, parameter: 'gravity' as const, samples: [{ afterMs: 0, value: 1.6 }] } });
+  compare('14a. a drag stamped with startedMsAgo keeps its order against a cue', truth, rebuildBoard(parseLog([played(beat, 0, null), body(arrivedAt - 918)]), 2000), 2000);
+  compare('14b. the same drag stamped when it arrived, 918 ms late (trap, expected to differ)', truth, rebuildBoard(parseLog([played(beat, 0, null), body(arrivedAt)]), 2000), 2000, 'known-gap');
+}
+
+{
+  const setup = makeBeat('s15a', ['Here ', { kind: 'plot', id: 'graph', expression: 'x', domain: [0, 10], startsEmpty: true }, 'it is.']);
+  const beat = makeBeat('s15b', ['Now ', { kind: 'reveal', target: 'graph', upTo: 10, overWords: 4 }, 'it draws as I say this.']);
+  const cut = WORD_MS + 600;
+  const truth = runTruth([...cueSteps(setup, 0), ...cueSteps(beat, 1000).filter((step) => step.at <= 1000 + cut), { at: 1000 + cut, type: 'stop' }], 4000);
+  const revealedUpTo = (600 / (4 * WORD_MS)) * 10;
+  const log = parseLog([played(setup, 0, null), played(beat, 1000, cut, [{ target: 'graph', revealedUpTo }])]);
+  compare('15. a cut during a reveal over words rebuilds from its frame', truth, rebuildBoard(log, 4000), 4000);
+}
+
+{
+  const beat = makeBeat('s16', [{ kind: 'drawing', id: 'court', name: 'hoop-side' }, 'Look.']);
+  const stopAt = WORD_MS + 100;
+  const truth = runTruth([{ at: 0, type: 'cue', command: getCues(beat)[0]!.command }, { at: stopAt, type: 'stop' }], 2000);
+  const log = parseLog([played(beat, 0, null), { kind: 'boardFrozen', atMs: stopAt, turnId: 't' as never, frozen: [{ target: 'court' as ElementId, drawnFraction: stopAt / ASSUMED_REVEAL_MS }] }]);
+  compare('16. a stop 100 ms after the last word, with a drawing still appearing', truth, rebuildBoard(log, 2000), 2000);
+}
+
+{
+  const setup = makeBeat('s17a', [shotCommand, 'Set up.']);
+  const beat = makeBeat('s17b', [{ kind: 'runSimulation', target: 'shot', action: 'play', until: 'landing', overWords: 6 }, 'Watch it climb and then fall back.']);
+  const cut = 2 * WORD_MS + 100;
+  const cutSeconds = (FLIGHT_SECONDS / (6 * WORD_MS)) * cut;
+  const event = played(beat, 1000, cut, [{ target: 'shot', simulationSeconds: cutSeconds }]);
+  const fromWord = event.playedWords - 1;
+  const rest = makeBeat('s17r', getResumeScript(beat, { fromWord, firedCues: event.firedCueMs.length, frozen: event.frozen }));
+  const resumeAt = 3000;
+  const truth = runTruth([...cueSteps(setup, 0), ...cueSteps(beat, 1000), { at: 1000 + cut, type: 'stop' }, ...cueSteps(rest, resumeAt)], 6000);
+  const log = parseLog([played(setup, 0, null), event, played(rest, resumeAt, null)]);
+  compare('17. a resume sets a frozen ball moving again, and it lands on the same word', truth, rebuildBoard(log, 6000), 6000);
+  console.log(`   resumed cue ${JSON.stringify(getCues(rest)[0])}`);
+  const board = rebuildBoard(log, resumeAt + 4 * WORD_MS + 1);
+  rows.push({ name: '17b. the resumed ball is not still frozen', agrees: board.sims.get('shot')?.seconds === FLIGHT_SECONDS, expected: 'match' });
+  if (board.sims.get('shot')?.seconds !== FLIGHT_SECONDS) failures += 1;
+}
+
+{
+  const beat = makeBeat('s18', [shotCommand, { kind: 'runSimulation', target: 'shot', action: 'seek', to: 'peak' }, 'Here ', { kind: 'runSimulation', target: 'shot', action: 'play', until: 'landing' }, 'it falls.']);
+  const truth = runTruth(cueSteps(beat, 0), 900);
+  compare('18. seek and play until a moment', truth, rebuildBoard(parseLog([played(beat, 0, null)]), 900), 900);
+}
+
+{
+  const strokeAt = 500;
+  const eraseAt = 900;
+  const point: [number, number, number] = [0.2, 0.2, 0];
+  const truth = runTruth([{ at: strokeAt, type: 'ink', id: 'ink-1' }, { at: eraseAt, type: 'inkErased', id: 'ink-1' }, { at: strokeAt, type: 'ink', id: 'ink-2' }], 1500);
+  const log = parseLog([{ kind: 'studentActed', atMs: strokeAt, action: { action: 'inkStroke', id: 'ink-1' as ElementId, points: [point] } }, { kind: 'studentActed', atMs: strokeAt, action: { action: 'inkStroke', id: 'ink-2' as ElementId, points: [point] } }, { kind: 'studentActed', atMs: eraseAt, action: { action: 'inkErased', target: 'ink-1' as ElementId } }]);
+  compare('19. ink drawn and erased', truth, rebuildBoard(log, 1500), 1500);
 }
 
 writeFileSync(join(dirname(fileURLToPath(import.meta.url)), 'results', 'replay.json'), `${JSON.stringify({ unexpected: failures, rows }, null, 1)}\n`);

@@ -21,7 +21,10 @@ export function fail(place: Place, expected: string): never {
 }
 
 const LONE_SURROGATE = /[\uD800-\uDFFF]/u;
+// Code needs tabs and newlines. A bidi override can make text read differently from what it holds.
+const UNSAFE_CHARACTER = /(?![\t\n])[\p{Cc}\u202A-\u202E\u2066-\u2069]/u;
 const RANGE_LENGTH = 2;
+const SMALLEST_RANGE_WIDTH = 1e-6;
 
 // A NUL or a lone surrogate passes JSON.parse, and then Postgres refuses to store it.
 export function checkStorableText(text: string, place: Place): void {
@@ -33,18 +36,36 @@ export function readString(place: Place, maxLength: number): string {
   if (typeof value !== 'string' || value.trim() === '') fail(place, 'text');
   if (value.length > maxLength) fail(place, `at most ${maxLength} characters`);
   checkStorableText(value, place);
+  if (UNSAFE_CHARACTER.test(value)) fail(place, 'text with no control or bidi characters');
   return value;
 }
 
-export function readNumber(place: Place): number {
+function readNumber(place: Place): number {
   const { value } = place;
   if (typeof value !== 'number' || !Number.isFinite(value)) fail(place, 'a finite number');
+  return value;
+}
+
+interface NumberRange {
+  min: number;
+  max: number;
+}
+
+export function readNumberInRange(place: Place, { min, max }: NumberRange): number {
+  const value = readNumber(place);
+  if (value < min || value > max) fail(place, `a number from ${min} to ${max}`);
   return value;
 }
 
 export function readWholeNumber(place: Place): number {
   const { value } = place;
   if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) fail(place, 'a whole number of 0 or more');
+  return value;
+}
+
+export function readWholeNumberInRange(place: Place, { min, max }: NumberRange): number {
+  const value = readWholeNumber(place);
+  if (value < min || value > max) fail(place, `a whole number from ${min} to ${max}`);
   return value;
 }
 
@@ -72,9 +93,9 @@ export function readList<Item>(place: Place, { maxLength, readItem }: ListRules<
   return value.map((item: unknown, index) => readItem({ value: item, path: `${path}[${index}]` }));
 }
 
-export function readRange(place: Place): [number, number] {
-  const [low, high] = readList(place, { maxLength: RANGE_LENGTH, readItem: readNumber });
-  if (low === undefined || high === undefined || low >= high) fail(place, 'a low and a high number');
+export function readRange(place: Place, limits: NumberRange): [number, number] {
+  const [low, high] = readList(place, { maxLength: RANGE_LENGTH, readItem: (end) => readNumberInRange(end, limits) });
+  if (low === undefined || high === undefined || high - low < SMALLEST_RANGE_WIDTH) fail(place, `a low and a high number at least ${SMALLEST_RANGE_WIDTH} apart`);
   return [low, high];
 }
 
