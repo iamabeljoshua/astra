@@ -1,5 +1,7 @@
 import { type DefaultOptions, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import type { PropsWithChildren } from 'react';
+import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createQueryClient } from '../api/queryClient';
 import { ACCOUNT_LABELS, API_ERROR_LABELS, BIRTH_DATE_LABELS, PRODUCT_NAME, SIGN_IN_LABELS, TUTOR_NOTES_LABELS } from '../strings';
@@ -7,6 +9,7 @@ import { renderWithQueryClient } from '../test/renderWithQueryClient';
 import { AccountGate } from './AccountGate';
 import { useAuth } from './AuthProvider';
 import { forgetSession, renewSession } from './session';
+import { useSignInDraft } from './useSignInDraft';
 
 const APP_TEXT = 'The app';
 const APP_HEADING = 'The first page';
@@ -43,14 +46,22 @@ function json(body: object, status = 200) {
   return () => new Response(JSON.stringify(body), { status });
 }
 
+function GateWithDraft({ children }: PropsWithChildren) {
+  return (
+    <MemoryRouter>
+      <AccountGate signInDraft={useSignInDraft()}>{children}</AccountGate>
+    </MemoryRouter>
+  );
+}
+
 function renderGate() {
   return renderWithQueryClient(
-    <AccountGate>
+    <GateWithDraft>
       <main>
         <h1 tabIndex={-1}>{APP_HEADING}</h1>
         <p>{APP_TEXT}</p>
       </main>
-    </AccountGate>,
+    </GateWithDraft>,
   );
 }
 
@@ -59,9 +70,9 @@ function renderGateWithClient(queryOptions: DefaultOptions['queries']) {
   queryClient.setDefaultOptions({ queries: { ...queryClient.getDefaultOptions().queries, ...queryOptions } });
   render(
     <QueryClientProvider client={queryClient}>
-      <AccountGate>
+      <GateWithDraft>
         <p>{APP_TEXT}</p>
-      </AccountGate>
+      </GateWithDraft>
     </QueryClientProvider>,
   );
   return queryClient;

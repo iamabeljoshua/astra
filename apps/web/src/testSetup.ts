@@ -4,6 +4,7 @@ import { FakeResizeObserver, fakeFonts } from './test/fakeLayout';
 
 globalThis.ResizeObserver = FakeResizeObserver;
 Object.defineProperty(document, 'fonts', { value: fakeFonts });
+window.scrollTo = () => undefined;
 
 afterEach(() => {
   cleanup();

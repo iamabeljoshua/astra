@@ -4,12 +4,17 @@ import { useAuth } from './AuthProvider';
 import { BirthDatePage } from './BirthDatePage';
 import { SignInPage } from './SignInPage';
 import { useAccount } from './useAccount';
+import type { SignInDraft } from './useSignInDraft';
 
-export function AccountGate({ children }: PropsWithChildren) {
+interface AccountGateProps extends PropsWithChildren {
+  signInDraft: SignInDraft;
+}
+
+export function AccountGate({ signInDraft, children }: AccountGateProps) {
   const { signIn } = useAuth();
 
   if (signIn.status === 'loading') return <LoadingPage />;
-  if (signIn.status === 'signedOut') return <SignInPage />;
+  if (signIn.status === 'signedOut') return <SignInPage draft={signInDraft} />;
   if (signIn.status === 'authUnreachable') return <AccountErrorPage errorKind="network" onTryAgain={reloadPage} />;
   return <SignedInGate>{children}</SignedInGate>;
 }

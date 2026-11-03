@@ -160,9 +160,17 @@ Deleting or banning a user in Supabase does not stop their tokens. The API check
 
 The page shows the date the student typed with **Is this right?**, for every date, and sends nothing to the API until the student confirms. `POST /me/birth-date` takes the first confirmed answer, and later answers change nothing. A student who is old enough gets a row in `students`. A student who is too young gets no student row, the API never stores the date, and a row in `closed_accounts` holds only the Supabase user ID and the time. Every later sign-in with that user finds the account closed, on any device.
 
-The server's clock and UTC+14 decide the student's age. UTC+14 is the first place on Earth to reach each date, so the API closes an account only when the student is under 13 in every time zone. A real 13-year-old is never locked out, and a student can get in up to 26 hours before the birthday where they live. A device's clock and time zone play no part. A birthday on 29 February falls on 1 March in other years. `apps/api/src/auth/age-gate.ts` holds the rule, and no web code or message states the age.
+The server's clock and UTC+14 decide the student's age. UTC+14 is the first place on Earth to reach each date, so the API closes an account only when the student is under 13 in every time zone. A real 13-year-old is never locked out, and a student can get in up to 26 hours before the birthday where they live. A device's clock and time zone play no part. A birthday on 29 February falls on 1 March in other years. `apps/api/src/auth/age-gate.ts` holds the rule. No web code or screen states the age. Only the Terms and the Privacy Policy state it, because they must say what happens to an under-13 account.
 
 `students.auth_user_id` and `closed_accounts.auth_user_id` are plain uuids with no foreign key, because the local app databases have no `auth` schema. Deleting a user in Supabase therefore leaves that user's rows in place. No token can reach those rows once the user's last token expires. To remove a student, delete the row in `students`, which also removes the profile and sessions, before you delete the Supabase user. Deleting the Supabase user of a closed account lets the same address sign up as a new user and answer again, so keep that user until the deletion work in M4.5 settles how to prevent it.
+
+### The Terms and the Privacy Policy
+
+`/terms` and `/privacy` are public pages outside the account gate. They are drafts, each page says so at the top, and a lawyer reviews them before real students use the app.
+
+- All of their text is in `LEGAL_PAGES` in `apps/web/src/strings.ts`, so a lawyer's edits change one file.
+- Each section has `today` lines and `planned` lines, and the page labels every `planned` line. A `today` line must be true of the running app. When a PR changes what the app stores, who receives data, or what happens to an under-13 account, it moves or edits the line in the same PR.
+- The sign-in step and typed address are held above the routes in `useSignInDraft`, so opening a page and coming back keeps them. They live in memory only, so a reload on the page clears them.
 
 ## Connect a hosted project
 
