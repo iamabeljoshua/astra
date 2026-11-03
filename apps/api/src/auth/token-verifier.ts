@@ -10,6 +10,12 @@ const SIGNED_IN_ROLE = 'authenticated';
 // Never a shared-secret algorithm. The local stack's secret is public, and its anon key is signed with it.
 const ACCEPTED_ALGORITHMS = ['ES256', 'RS256'];
 const REQUIRED_CLAIMS = ['sub', 'exp'];
+const SIGNING_KEYS_MAX_AGE_MS = 3_600_000;
+
+// Students have no passwords. Auth still accepts them, so anyone could plant one on an address they do not own.
+const STUDENT_SIGN_IN_METHODS: ReadonlySet<string> = new Set(['otp', 'magiclink', 'email/signup', 'oauth']);
+const DEVELOPMENT_SIGN_IN_METHODS: ReadonlySet<string> = new Set([...STUDENT_SIGN_IN_METHODS, 'password']);
+const DEVELOPMENT = 'development';
 
 const TOKEN_ERRORS = [
   errors.JOSEAlgNotAllowed,
@@ -32,12 +38,29 @@ export function describeRefusal(refusal: errors.JOSEError): string {
   return refusal instanceof errors.JWTClaimValidationFailed ? `${refusal.code} ${refusal.claim}` : refusal.code;
 }
 
+export function getAcceptedSignInMethods(nodeEnv: string | undefined): ReadonlySet<string> {
+  return nodeEnv === DEVELOPMENT ? DEVELOPMENT_SIGN_IN_METHODS : STUDENT_SIGN_IN_METHODS;
+}
+
+// Fails closed, because the claim is optional and a list could mix a password with a link.
+function usedOnlyAcceptedMethods(amr: unknown, acceptedMethods: ReadonlySet<string>): boolean {
+  return (
+    Array.isArray(amr) &&
+    amr.length > 0 &&
+    amr.every((entry: { method?: string } | null) => acceptedMethods.has(entry?.method ?? ''))
+  );
+}
+
 export class TokenVerifier {
   private readonly keys: JWTVerifyGetKey;
   private readonly issuer: string;
 
-  constructor(supabaseUrl: string) {
-    this.keys = createRemoteJWKSet(new URL(KEYS_PATH, supabaseUrl));
+  constructor(
+    supabaseUrl: string,
+    private readonly acceptedSignInMethods: ReadonlySet<string>,
+  ) {
+    // Matches a token's life, so a short key server outage refuses nobody. An unknown key ID still refetches.
+    this.keys = createRemoteJWKSet(new URL(KEYS_PATH, supabaseUrl), { cacheMaxAge: SIGNING_KEYS_MAX_AGE_MS });
     this.issuer = `${supabaseUrl}${ISSUER_PATH}`;
   }
 
@@ -50,6 +73,9 @@ export class TokenVerifier {
     });
     if (payload.role !== SIGNED_IN_ROLE || !isUUID(payload.sub)) {
       throw new errors.JWTInvalid('The token is not for a signed-in user.');
+    }
+    if (!usedOnlyAcceptedMethods(payload.amr, this.acceptedSignInMethods)) {
+      throw new errors.JWTClaimValidationFailed('The token came from a sign-in method that is not accepted.', payload, 'amr');
     }
     return payload.sub as string;
   }

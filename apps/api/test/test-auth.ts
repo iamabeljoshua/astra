@@ -57,6 +57,7 @@ export async function startTestSupabaseAuth(): Promise<TestSupabaseAuth> {
         role: 'authenticated',
         sub: authUserId,
         exp: Math.floor(Date.now() / 1000) + ONE_HOUR_SECONDS,
+        amr: [{ method: 'magiclink', timestamp: Math.floor(Date.now() / 1000) }],
         ...claims,
       }),
     close: () =>

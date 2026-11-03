@@ -10,7 +10,7 @@ import type { TestSupabaseAuth } from '../../test/test-auth';
 import { createTestApp, createTestStudent, OLD_ENOUGH_BIRTH_DATE } from '../../test/test-database';
 import type { TestApp, TestStudent } from '../../test/test-database';
 import { createApiDocument } from '../api-docs';
-import { isRefusedToken, TokenVerifier } from './token-verifier';
+import { getAcceptedSignInMethods, isRefusedToken, TokenVerifier } from './token-verifier';
 
 type HttpMethod = 'get' | 'put' | 'post' | 'delete' | 'patch';
 
@@ -22,6 +22,12 @@ const VALID_SESSION = { title: 'Free-body diagrams', subject: 'Physics', languag
 const VALID_PROFILE = { interests: ['Space'], level: 'university', goal: 'exam', voice: 'ada' };
 const PAST_SECONDS = Math.floor(Date.now() / 1000) - 60;
 const FUTURE_SECONDS = Math.floor(Date.now() / 1000) + 3600;
+const ONE_MINUTE_MS = 60_000;
+const JWKS_COOLDOWN_MS = 31_000;
+
+function verifierFor(supabaseUrl: string) {
+  return new TokenVerifier(supabaseUrl, getAcceptedSignInMethods(undefined));
+}
 
 function encodeSegment(value: object) {
   return Buffer.from(JSON.stringify(value)).toString('base64url');
@@ -39,6 +45,10 @@ function listRoutes(testApp: TestApp) {
 }
 
 type TokenFactory = (auth: TestSupabaseAuth, authUserId: string) => Promise<string>;
+
+function signedInWith(auth: TestSupabaseAuth, authUserId: string, method: string) {
+  return auth.signToken(authUserId, { claims: { amr: [{ method, timestamp: PAST_SECONDS }] } });
+}
 
 const REFUSED_TOKENS: [string, TokenFactory][] = [
   ['an expired token', (auth, id) => auth.signToken(id, { claims: { exp: PAST_SECONDS } })],
@@ -80,6 +90,16 @@ const REFUSED_TOKENS: [string, TokenFactory][] = [
   ['a token with no user', (auth) => auth.signToken('', { claims: { sub: undefined } })],
   ['a token whose user is not a UUID', (auth) => auth.signToken('not-a-uuid')],
   ['text that is not a token', async () => 'not-a-token'],
+  ['a token from a password', (auth, id) => signedInWith(auth, id, 'password')],
+  ['a token from an anonymous sign-in', (auth, id) => auth.signToken(id, { claims: { amr: [{ method: 'anonymous' }], is_anonymous: true } })],
+  ['a token that names no sign-in method', (auth, id) => auth.signToken(id, { claims: { amr: undefined } })],
+  ['a token with an empty list of sign-in methods', (auth, id) => auth.signToken(id, { claims: { amr: [] } })],
+  ['a token whose sign-in method is not a list', (auth, id) => auth.signToken(id, { claims: { amr: 'magiclink' } })],
+  ['a token whose sign-in methods are plain strings', (auth, id) => auth.signToken(id, { claims: { amr: ['magiclink'] } })],
+  ['a token with an empty sign-in method', (auth, id) => auth.signToken(id, { claims: { amr: [null] } })],
+  ['a token whose sign-in method is a list', (auth, id) => auth.signToken(id, { claims: { amr: [{ method: ['magiclink'] }] } })],
+  ['a token that adds a password to a link', (auth, id) => auth.signToken(id, { claims: { amr: [{ method: 'magiclink' }, { method: 'password' }] } })],
+  ['a token from an unknown sign-in method', (auth, id) => signedInWith(auth, id, 'recovery')],
 ];
 
 describe('the API guard', () => {
@@ -163,7 +183,56 @@ describe('the API guard', () => {
       testApp.supabaseAuth.keys.push(rsaKey);
       const token = await testApp.supabaseAuth.signToken(student.authUserId, { key: rsaKey });
 
-      await expect(new TokenVerifier(testApp.supabaseAuth.url).getAuthUserId(token)).resolves.toBe(student.authUserId);
+      await expect(verifierFor(testApp.supabaseAuth.url).getAuthUserId(token)).resolves.toBe(student.authUserId);
+    });
+  });
+
+  describe('by how the student signed in', () => {
+    it.each(['otp', 'magiclink', 'email/signup', 'oauth'])('accepts a token from %s', async (method) => {
+      const token = await signedInWith(testApp.supabaseAuth, student.authUserId, method);
+
+      await api().get('/me').set('Authorization', `Bearer ${token}`).expect(200);
+    });
+
+    it('logs that a sign-in method was refused, and which claim', async () => {
+      const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+      const token = await signedInWith(testApp.supabaseAuth, student.authUserId, 'password');
+
+      await api().get('/me').set('Authorization', `Bearer ${token}`).expect(401, { message: 'Unauthorized', statusCode: 401 });
+
+      const logged = warn.mock.calls.flat().join(' ');
+      warn.mockRestore();
+      expect(logged).toContain('ERR_JWT_CLAIM_VALIDATION_FAILED amr');
+    });
+
+    it.each(['production', 'test', 'staging', 'Development', ' development', undefined])(
+      'accepts no password when NODE_ENV is %s',
+      (nodeEnv) => {
+        expect(getAcceptedSignInMethods(nodeEnv).has('password')).toBe(false);
+      },
+    );
+
+    describe('in development', () => {
+      let developmentApp: TestApp;
+
+      beforeAll(async () => {
+        developmentApp = await createTestApp({ nodeEnv: 'development' });
+      });
+
+      afterAll(() => developmentApp?.close());
+
+      function getMeWith(token: string) {
+        return request(developmentApp.app.getHttpServer()).get('/me').set('Authorization', `Bearer ${token}`);
+      }
+
+      it('accepts a password, for the development sign-in box', async () => {
+        await getMeWith(await signedInWith(developmentApp.supabaseAuth, randomUUID(), 'password')).expect(200);
+      });
+
+      it('still refuses an anonymous sign-in and a token that names no method', async () => {
+        await getMeWith(await signedInWith(developmentApp.supabaseAuth, randomUUID(), 'anonymous')).expect(401);
+        await getMeWith(await developmentApp.supabaseAuth.signToken(randomUUID(), { claims: { amr: undefined } })).expect(401);
+      });
     });
   });
 
@@ -274,13 +343,65 @@ describe('the API guard', () => {
       ['answers with text that is not JSON', 200, 'not json'],
       ['answers with no key list', 200, '{"nothing":true}'],
     ])('does not blame the token when the key server %s', async (_caseName, status, body) => {
-      const verifier = new TokenVerifier(await startKeyServer(status, body));
+      const verifier = verifierFor(await startKeyServer(status, body));
       const key = await createSigningKey();
       const token = await signWithKey(key, { sub: randomUUID() });
 
       const thrown = await verifier.getAuthUserId(token).catch((error: unknown) => error);
 
       expect(isRefusedToken(thrown)).toBe(false);
+    });
+
+    it('trusts known keys through an outage of under an hour, and still fetches an unknown key ID', async () => {
+      const firstKey = await createSigningKey();
+      const newKey = await createSigningKey();
+      const servedKeys = [firstKey];
+      let isDown = false;
+      let fetches = 0;
+      keyServer = createServer((_request, response) => {
+        fetches += 1;
+        response.writeHead(isDown ? 500 : 200, { 'content-type': 'application/json' });
+        response.end(JSON.stringify({ keys: servedKeys.map((key) => key.publicJwk) }));
+      });
+      await new Promise<void>((resolve) => keyServer.listen(0, '127.0.0.1', resolve));
+      const url = `http://127.0.0.1:${(keyServer.address() as AddressInfo).port}`;
+      const verifier = verifierFor(url);
+      const authUserId = randomUUID();
+      const claims = {
+        iss: `${url}/auth/v1`,
+        aud: 'authenticated',
+        role: 'authenticated',
+        sub: authUserId,
+        exp: FUTURE_SECONDS,
+        amr: [{ method: 'magiclink' }],
+      };
+      const firstToken = await signWithKey(firstKey, claims);
+      const startedAt = Date.now();
+      const clock = jest.spyOn(Date, 'now');
+      const moveClock = (elapsedMs: number) => clock.mockReturnValue(startedAt + elapsedMs);
+
+      try {
+        moveClock(0);
+        await expect(verifier.getAuthUserId(firstToken)).resolves.toBe(authUserId);
+        expect(fetches).toBe(1);
+
+        servedKeys.push(newKey);
+        moveClock(JWKS_COOLDOWN_MS);
+        await expect(verifier.getAuthUserId(await signWithKey(newKey, claims))).resolves.toBe(authUserId);
+        expect(fetches).toBe(2);
+
+        isDown = true;
+        moveClock(JWKS_COOLDOWN_MS + 59 * ONE_MINUTE_MS);
+        await expect(verifier.getAuthUserId(firstToken)).resolves.toBe(authUserId);
+        expect(fetches).toBe(2);
+
+        moveClock(JWKS_COOLDOWN_MS + 61 * ONE_MINUTE_MS);
+        const thrown = await verifier.getAuthUserId(firstToken).catch((error: unknown) => error);
+        expect(isRefusedToken(thrown)).toBe(false);
+        expect(fetches).toBe(3);
+      } finally {
+        clock.mockRestore();
+      }
     });
 
     it('answers 503 and sends no data when the key server is down', async () => {

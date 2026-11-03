@@ -47,11 +47,16 @@ export interface TestApp {
   close: () => Promise<void>;
 }
 
-export async function createTestApp({ supabaseUrl }: { supabaseUrl?: string } = {}): Promise<TestApp> {
+interface TestAppOptions {
+  supabaseUrl?: string;
+  nodeEnv?: string;
+}
+
+export async function createTestApp({ supabaseUrl, nodeEnv = 'test' }: TestAppOptions = {}): Promise<TestApp> {
   const { databaseUrl, drop } = await createTestDatabase();
   const supabaseAuth = await startTestSupabaseAuth();
   const testingModule = await withEnvironment(
-    { DATABASE_URL: databaseUrl, SUPABASE_URL: supabaseUrl ?? supabaseAuth.url },
+    { DATABASE_URL: databaseUrl, SUPABASE_URL: supabaseUrl ?? supabaseAuth.url, NODE_ENV: nodeEnv },
     () => Test.createTestingModule({ imports: [AppModule] }).compile(),
   );
   const app = testingModule.createNestApplication();
