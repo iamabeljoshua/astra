@@ -6,13 +6,15 @@
       "Bash(git worktree *)", "Bash(git fetch *)", "Bash(git pull *)", "Bash(git push *)",
       "Bash(git status *)", "Bash(git diff *)", "Bash(git log *)", "Bash(git rebase *)",
       "Bash(gh pr *)", "Bash(gh issue *)", "Bash(gh run *)",
-      "Bash(docker compose *)", "Bash(ffmpeg *)"
+      "Bash(docker *)", "Bash(supabase *)", "Bash(ffmpeg *)"
     ],
     "deny": [
       "Bash(git push --force origin main*)", "Bash(git push -f origin main*)",
       "Bash(git push --force-with-lease origin main*)", "Bash(git push origin main --force*)",
       "Bash(git push origin main -f*)", "Bash(git push origin +main*)",
-      "Bash(gh repo delete *)"
+      "Bash(gh repo delete *)",
+      "Bash(docker system prune*)", "Bash(docker volume rm*)", "Bash(docker volume prune*)",
+      "Bash(supabase stop --project-id*)"
     ]
   }
 }
