@@ -1,0 +1,41 @@
+# M1.5 drift check, GREEN run
+Base head under test: 0c02c0cb6627365465c2ad36c3fe0b85c1ccb97e
+Temporary PR: https://github.com/iamabeljoshua/astra/pull/36
+Commit: 424e014a4e9fd97fde3509bba5f01b5c5f4b4421 (ran pnpm api:types and committed api.generated.ts)
+Run: https://github.com/iamabeljoshua/astra/actions/runs/41546866346
+
+## Run summary
+{"conclusion":"success","createdAt":"2026-11-02T23:37:32Z","event":"pull_request","headSha":"424e014a4e9fd97fde3509bba5f01b5c5f4b4421","startedAt":"2026-11-02T23:37:32Z","status":"completed","updatedAt":"2026-11-02T23:38:11Z","url":"https://github.com/iamabeljoshua/astra/actions/runs/41546866346"}
+
+## Job and step results
+job checks: success 2026-11-02T23:37:35Z -> 2026-11-02T23:38:10Z https://github.com/iamabeljoshua/astra/actions/runs/41546866346/job/125624454977
+  success	2026-11-02T23:37:35Z -> 2026-11-02T23:37:37Z	Set up job
+  success	2026-11-02T23:37:37Z -> 2026-11-02T23:37:38Z	Run actions/checkout@v7
+  success	2026-11-02T23:37:38Z -> 2026-11-02T23:37:42Z	Run pnpm/action-setup@v6
+  success	2026-11-02T23:37:42Z -> 2026-11-02T23:37:43Z	Run actions/setup-node@v7
+  success	2026-11-02T23:37:43Z -> 2026-11-02T23:37:48Z	Run pnpm install --frozen-lockfile
+  success	2026-11-02T23:37:48Z -> 2026-11-02T23:37:52Z	Run pnpm api:types
+  success	2026-11-02T23:37:52Z -> 2026-11-02T23:37:52Z	Fail if the generated API types are out of date
+  success	2026-11-02T23:37:52Z -> 2026-11-02T23:37:54Z	Run pnpm lint
+  success	2026-11-02T23:37:54Z -> 2026-11-02T23:37:58Z	Run pnpm typecheck
+  success	2026-11-02T23:37:58Z -> 2026-11-02T23:38:04Z	Run pnpm test
+  success	2026-11-02T23:38:04Z -> 2026-11-02T23:38:08Z	Post Run actions/setup-node@v7
+  success	2026-11-02T23:38:08Z -> 2026-11-02T23:38:08Z	Post Run pnpm/action-setup@v6
+  success	2026-11-02T23:38:08Z -> 2026-11-02T23:38:08Z	Post Run actions/checkout@v7
+  success	2026-11-02T23:38:08Z -> 2026-11-02T23:38:08Z	Complete job
+
+## Annotations
+{"annotation_level":"notice","message":"\"The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748\"","path":".github","start_line":1}
+
+## Drift step and final test lines from the full log
+checks	Fail if the generated API types are out of date	﻿2026-11-02T23:37:52.8731326Z ##[group]Run git diff --exit-code packages/contracts/src/api.generated.ts || {
+checks	Fail if the generated API types are out of date	2026-11-02T23:37:52.8732180Z git diff --exit-code packages/contracts/src/api.generated.ts || {
+checks	Fail if the generated API types are out of date	2026-11-02T23:37:52.8733171Z   echo "::error file=packages/contracts/src/api.generated.ts::The generated API types are out of date. Run pnpm api:
+checks	Fail if the generated API types are out of date	2026-11-02T23:37:52.8734101Z   exit 1
+checks	Fail if the generated API types are out of date	2026-11-02T23:37:52.8734432Z }
+checks	Fail if the generated API types are out of date	2026-11-02T23:37:52.8751897Z shell: /usr/bin/bash -e {0}
+checks	Fail if the generated API types are out of date	2026-11-02T23:37:52.8752322Z env:
+checks	Fail if the generated API types are out of date	2026-11-02T23:37:52.8752882Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+checks	Fail if the generated API types are out of date	2026-11-02T23:37:52.8753379Z ##[endgroup]
+checks	Run pnpm test	2026-11-02T23:38:02.4968324Z apps/api test: Test Suites: 3 passed, 3 total
+checks	Run pnpm test	2026-11-02T23:38:02.5008534Z apps/api test: Tests:       22 passed, 22 total

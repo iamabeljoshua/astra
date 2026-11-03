@@ -1,0 +1,54 @@
+# M1.5 drift check, RED run
+Base head under test: 0c02c0cb6627365465c2ad36c3fe0b85c1ccb97e
+Temporary PR: https://github.com/iamabeljoshua/astra/pull/36
+Commit: 02e6f73763cd6f778a22cf52e72a51f905e0c356 (DTO changed, types not regenerated)
+Run: https://github.com/iamabeljoshua/astra/actions/runs/41546709563
+
+## Run summary
+{"conclusion":"failure","createdAt":"2026-11-02T23:36:17Z","event":"pull_request","headSha":"02e6f73763cd6f778a22cf52e72a51f905e0c356","startedAt":"2026-11-02T23:36:17Z","status":"completed","updatedAt":"2026-11-02T23:36:47Z","url":"https://github.com/iamabeljoshua/astra/actions/runs/41546709563"}
+
+## Job and step results
+job checks: failure 2026-11-02T23:36:19Z -> 2026-11-02T23:36:46Z
+  success	Set up job
+  success	Run actions/checkout@v7
+  success	Run pnpm/action-setup@v6
+  success	Run actions/setup-node@v7
+  success	Run pnpm install --frozen-lockfile
+  success	Run pnpm api:types
+  failure	Fail if the generated API types are out of date
+  skipped	Run pnpm lint
+  skipped	Run pnpm typecheck
+  skipped	Run pnpm test
+  skipped	Post Run actions/setup-node@v7
+  success	Post Run pnpm/action-setup@v6
+  success	Post Run actions/checkout@v7
+  success	Complete job
+
+## Annotations
+[{"path":".github","blob_href":"https://github.com/iamabeljoshua/astra/blob/02e6f73763cd6f778a22cf52e72a51f905e0c356/.github","start_line":24,"start_column":null,"end_line":24,"end_column":null,"annotation_level":"failure","title":"","message":"Process completed with exit code 1.","raw_details":""},{"path":"packages/contracts/src/api.generated.ts","blob_href":"https://github.com/iamabeljoshua/astra/blob/02e6f73763cd6f778a22cf52e72a51f905e0c356/packages/contracts/src/api.generated.ts","start_line":0,"start_column":null,"end_line":0,"end_column":null,"annotation_level":"failure","title":"","message":"The generated API types are out of date. Run pnpm api:types and commit the result.","raw_details":""},{"path":".github","blob_href":"https://github.com/iamabeljoshua/astra/blob/02e6f73763cd6f778a22cf52e72a51f905e0c356/.github","start_line":1,"start_column":null,"end_line":1,"end_column":null,"annotation_level":"notice","title":"","message":"\"The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748\"","raw_details":""}]
+
+## Failed step log (gh run view --log-failed)
+checks	Fail if the generated API types are out of date	﻿2026-11-02T23:36:41.6389690Z ##[group]Run git diff --exit-code packages/contracts/src/api.generated.ts || {
+checks	Fail if the generated API types are out of date	2026-11-02T23:36:41.6390337Z [36;1mgit diff --exit-code packages/contracts/src/api.generated.ts || {[0m
+checks	Fail if the generated API types are out of date	2026-11-02T23:36:41.6391171Z [36;1m  echo "::error file=packages/contracts/src/api.generated.ts::The generated API types are out of date. Run pnpm api:types and commit the result."[0m
+checks	Fail if the generated API types are out of date	2026-11-02T23:36:41.6391907Z [36;1m  exit 1[0m
+checks	Fail if the generated API types are out of date	2026-11-02T23:36:41.6392213Z [36;1m}[0m
+checks	Fail if the generated API types are out of date	2026-11-02T23:36:41.6407659Z shell: /usr/bin/bash -e {0}
+checks	Fail if the generated API types are out of date	2026-11-02T23:36:41.6408055Z env:
+checks	Fail if the generated API types are out of date	2026-11-02T23:36:41.6408394Z   PNPM_HOME: /home/runner/setup-pnpm/node_modules/.bin
+checks	Fail if the generated API types are out of date	2026-11-02T23:36:41.6408812Z ##[endgroup]
+checks	Fail if the generated API types are out of date	2026-11-02T23:36:41.6468101Z diff --git a/packages/contracts/src/api.generated.ts b/packages/contracts/src/api.generated.ts
+checks	Fail if the generated API types are out of date	2026-11-02T23:36:41.6469332Z index b7877ba..d01808c 100644
+checks	Fail if the generated API types are out of date	2026-11-02T23:36:41.6470004Z --- a/packages/contracts/src/api.generated.ts
+checks	Fail if the generated API types are out of date	2026-11-02T23:36:41.6470506Z +++ b/packages/contracts/src/api.generated.ts
+checks	Fail if the generated API types are out of date	2026-11-02T23:36:41.6471196Z @@ -28,6 +28,8 @@ export interface components {
+checks	Fail if the generated API types are out of date	2026-11-02T23:36:41.6471622Z               * @enum {string}
+checks	Fail if the generated API types are out of date	2026-11-02T23:36:41.6471932Z               */
+checks	Fail if the generated API types are out of date	2026-11-02T23:36:41.6472261Z              status: "ok";
+checks	Fail if the generated API types are out of date	2026-11-02T23:36:41.6472832Z +            /** @description Temporary field that proves the CI drift check fails on stale types. */
+checks	Fail if the generated API types are out of date	2026-11-02T23:36:41.6473443Z +            driftCheck?: string;
+checks	Fail if the generated API types are out of date	2026-11-02T23:36:41.6473855Z          };
+checks	Fail if the generated API types are out of date	2026-11-02T23:36:41.6474120Z      };
+checks	Fail if the generated API types are out of date	2026-11-02T23:36:41.6474440Z      responses: never;
+checks	Fail if the generated API types are out of date	2026-11-02T23:36:41.6497380Z ##[error]The generated API types are out of date. Run pnpm api:types and commit the result.
+checks	Fail if the generated API types are out of date	2026-11-02T23:36:41.6506764Z ##[error]Process completed with exit code 1.
