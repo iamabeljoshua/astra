@@ -9,6 +9,7 @@ import { renderWithQueryClient } from '../test/renderWithQueryClient';
 import { AccountGate } from './AccountGate';
 import { useAuth } from './AuthProvider';
 import { forgetSession, renewSession } from './session';
+import { areNewSignUpsStopped, stopNewSignUpsForADay } from './signUpStop';
 import { useSignInDraft } from './useSignInDraft';
 
 const APP_TEXT = 'The app';
@@ -224,6 +225,51 @@ describe('AccountGate', () => {
     expect(screen.queryByLabelText(BIRTH_DATE_LABELS.year)).toBeNull();
     expect(screen.queryByText(APP_TEXT)).toBeNull();
     screen.getByRole('button', { name: ACCOUNT_LABELS.signOut });
+  });
+
+  it('stops new sign-ups on this browser when the API closes the account', async () => {
+    setSignIn('signedIn');
+    stubApi({ 'GET /api/me': json(NEEDS_BIRTH_DATE), 'POST /api/me/birth-date': json(CLOSED_ACCOUNT) });
+    renderGate();
+    await screen.findByRole('heading', { name: BIRTH_DATE_LABELS.question });
+    expect(areNewSignUpsStopped()).toBe(false);
+
+    enterAndConfirmBirthDate('1', '1', '2020');
+
+    await screen.findByRole('heading', { name: ACCOUNT_LABELS.closed });
+    expect(areNewSignUpsStopped()).toBe(true);
+  });
+
+  it('stops new sign-ups on this browser when a closed account signs in here', async () => {
+    setSignIn('signedIn');
+    stubApi({ 'GET /api/me': json(CLOSED_ACCOUNT) });
+
+    renderGate();
+
+    await screen.findByRole('heading', { name: ACCOUNT_LABELS.closed });
+    expect(areNewSignUpsStopped()).toBe(true);
+  });
+
+  it('gives a new account the closed page in place of the question while new sign-ups are stopped', async () => {
+    stopNewSignUpsForADay();
+    setSignIn('signedIn');
+    stubApi({ 'GET /api/me': json(NEEDS_BIRTH_DATE) });
+
+    renderGate();
+
+    await screen.findByRole('heading', { name: ACCOUNT_LABELS.closed });
+    expect(screen.queryByLabelText(BIRTH_DATE_LABELS.year)).toBeNull();
+    screen.getByRole('button', { name: ACCOUNT_LABELS.signOut });
+  });
+
+  it('lets an active student in while new sign-ups are stopped', async () => {
+    stopNewSignUpsForADay();
+    setSignIn('signedIn');
+    stubApi({ 'GET /api/me': json(ACTIVE_ACCOUNT) });
+
+    renderGate();
+
+    await screen.findByText(APP_TEXT);
   });
 
   it('shows the closed page straight away when the API says the account is closed', async () => {

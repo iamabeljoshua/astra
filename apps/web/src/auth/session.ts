@@ -1,8 +1,9 @@
 /// <reference types="vite/client" />
 import { type AuthError, createClient, isAuthRefreshDiscardedError, isAuthRetryableFetchError } from '@supabase/supabase-js';
 import { fetchForAuth } from './fetchForAuth';
+import { areNewSignUpsStopped } from './signUpStop';
 
-export type EmailLinkResult = 'sent' | 'invalidEmail' | 'tooManyRequests' | 'authFailed' | 'failed';
+export type EmailLinkResult = 'sent' | 'signUpStopped' | 'invalidEmail' | 'tooManyRequests' | 'authFailed' | 'failed';
 export type SignInReturnProblem = 'linkFailed' | 'cancelled' | 'authUnreachable';
 export type SessionRenewal = 'renewed' | 'refused' | 'unreachable';
 
@@ -15,9 +16,11 @@ const REFUSED_AT_PROVIDER = 'access_denied';
 const TOO_MANY_REQUESTS_STATUS = 429;
 const NO_ANSWER_STATUS = 0;
 const INVALID_EMAIL_CODES: ReadonlySet<string | undefined> = new Set(['validation_failed', 'email_address_invalid']);
+const NEW_USER_REFUSED_CODE = 'otp_disabled';
 const USABLE_EMAIL_ADDRESS = /^(?!.*\.\.)[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const LAST_LINK_STORAGE_KEY = 'astra-last-link';
 const LINK_COOLDOWN_MS = 60_000;
+const KEPT_PAGE_DROP_EVENT: string = 'ASTRA_DROP_KEPT_PAGE';
 
 function createSupabaseClient() {
   const url = import.meta.env.VITE_SUPABASE_URL;
@@ -57,7 +60,9 @@ export function hasStoredSession(): boolean {
 }
 
 export function watchSignedInUser(onChange: (userId: string | null) => void): () => void {
-  const { data } = supabase.auth.onAuthStateChange((_event, session) => onChange(session?.user.id ?? null));
+  const { data } = supabase.auth.onAuthStateChange((event, session) => {
+    if (event !== KEPT_PAGE_DROP_EVENT) onChange(session?.user.id ?? null);
+  });
   const followOtherTabs = (event: StorageEvent) => {
     if ((event.key === SESSION_STORAGE_KEY || event.key === null) && !hasStoredSession()) onChange(null);
   };
@@ -87,6 +92,7 @@ export function getSignInReturnProblem(): Promise<SignInReturnProblem | null> {
 }
 
 function toSendFailure(error: AuthError): Exclude<EmailLinkResult, 'sent'> {
+  if (error.code === NEW_USER_REFUSED_CODE) return 'signUpStopped';
   if (error.status === TOO_MANY_REQUESTS_STATUS) return 'tooManyRequests';
   if (INVALID_EMAIL_CODES.has(error.code)) return 'invalidEmail';
   return error.status === NO_ANSWER_STATUS ? 'failed' : 'authFailed';
@@ -108,7 +114,10 @@ export async function sendEmailLink(email: string): Promise<EmailLinkResult> {
   if (!USABLE_EMAIL_ADDRESS.test(email)) return 'invalidEmail';
   if (wasLinkJustSent(email)) return 'tooManyRequests';
   const earlierLinkProof = withStorage((local) => local.getItem(CODE_VERIFIER_STORAGE_KEY), null);
-  const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: getReturnAddress() } });
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: getReturnAddress(), shouldCreateUser: !areNewSignUpsStopped() },
+  });
   if (!error) {
     rememberLinkSent(email);
     return 'sent';
@@ -127,10 +136,22 @@ export async function signInWithPassword(email: string, password: string): Promi
   return !error;
 }
 
+// Chromium drops a kept page when a message reaches a channel it holds open, and the client holds this one.
+function dropKeptPages() {
+  try {
+    const channel = new BroadcastChannel(SESSION_STORAGE_KEY);
+    channel.postMessage({ event: KEPT_PAGE_DROP_EVENT });
+    channel.close();
+  } catch {
+    // Leaving must still happen in a browser that has no channel or refuses one.
+  }
+}
+
 // Hides the page first, because the next document can take seconds to arrive.
 export function restartAppAtHome(): void {
   document.documentElement.style.visibility = 'hidden';
   withStorage((_local, tab) => tab.removeItem(LAST_LINK_STORAGE_KEY), undefined);
+  dropKeptPages();
   window.location.replace('/');
 }
 

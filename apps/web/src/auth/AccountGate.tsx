@@ -4,6 +4,7 @@ import { hasFinishedOnboarding } from '../onboarding/steps';
 import { AccountClosedPage, AccountErrorPage, LoadingPage } from './AccountNotices';
 import { useAuth } from './AuthProvider';
 import { SignInPage } from './SignInPage';
+import { areNewSignUpsStopped, stopNewSignUpsForADay } from './signUpStop';
 import { useAccount } from './useAccount';
 import type { SignInDraft } from './useSignInDraft';
 
@@ -36,7 +37,12 @@ function useFocusPageHeadingAfterGatePage(isOnGatePage: boolean) {
 function SignedInGate({ children }: PropsWithChildren) {
   const { data: account, error, refetch } = useAccount();
   const isOnGatePage = account ? !hasFinishedOnboarding(account.student) : error !== null;
+  const isClosed = account?.status === 'closed';
   useFocusPageHeadingAfterGatePage(isOnGatePage);
+
+  useEffect(() => {
+    if (isClosed) stopNewSignUpsForADay();
+  }, [isClosed]);
 
   if (!account) {
     if (!error) return <LoadingPage />;
@@ -44,5 +50,6 @@ function SignedInGate({ children }: PropsWithChildren) {
   }
 
   if (account.status === 'closed') return <AccountClosedPage />;
+  if (account.status === 'needs_birth_date' && areNewSignUpsStopped()) return <AccountClosedPage />;
   return hasFinishedOnboarding(account.student) ? children : <OnboardingFlow student={account.student} />;
 }
