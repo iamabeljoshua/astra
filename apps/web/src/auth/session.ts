@@ -16,6 +16,8 @@ const TOO_MANY_REQUESTS_STATUS = 429;
 const NO_ANSWER_STATUS = 0;
 const INVALID_EMAIL_CODES: ReadonlySet<string | undefined> = new Set(['validation_failed', 'email_address_invalid']);
 const USABLE_EMAIL_ADDRESS = /^(?!.*\.\.)[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const LAST_LINK_STORAGE_KEY = 'astra-last-link';
+const LINK_COOLDOWN_MS = 60_000;
 
 function createSupabaseClient() {
   const url = import.meta.env.VITE_SUPABASE_URL;
@@ -83,12 +85,26 @@ function toSendFailure(error: AuthError): Exclude<EmailLinkResult, 'sent'> {
   return error.status === NO_ANSWER_STATUS ? 'failed' : 'authFailed';
 }
 
+function wasLinkJustSent(email: string): boolean {
+  const lastLink = JSON.parse(window.sessionStorage.getItem(LAST_LINK_STORAGE_KEY) ?? 'null') as { email: string; sentAt: number } | null;
+  return lastLink?.email === email.toLowerCase() && Date.now() - lastLink.sentAt < LINK_COOLDOWN_MS;
+}
+
+function rememberLinkSent(email: string) {
+  window.sessionStorage.setItem(LAST_LINK_STORAGE_KEY, JSON.stringify({ email: email.toLowerCase(), sentAt: Date.now() }));
+}
+
+// Auth ties a known address's newest link to the newest request, even a refused one, so asking too soon must not reach it.
 export async function sendEmailLink(email: string): Promise<EmailLinkResult> {
   if (!USABLE_EMAIL_ADDRESS.test(email)) return 'invalidEmail';
+  if (wasLinkJustSent(email)) return 'tooManyRequests';
   const earlierLinkProof = window.localStorage.getItem(CODE_VERIFIER_STORAGE_KEY);
   const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: getReturnAddress() } });
-  if (!error) return 'sent';
-  // The client deletes this browser's proof when a send fails, which would kill a good link already in the inbox.
+  if (!error) {
+    rememberLinkSent(email);
+    return 'sent';
+  }
+  // The client deletes this browser's proof when a send fails, which would kill a new address's link already in the inbox.
   if (earlierLinkProof) window.localStorage.setItem(CODE_VERIFIER_STORAGE_KEY, earlierLinkProof);
   return toSendFailure(error);
 }
@@ -102,12 +118,6 @@ export async function signInWithPassword(email: string, password: string): Promi
   return !error;
 }
 
-// Asking the client would wait on its lock while Auth hangs, so this reads what the client stored.
-function readStoredAccessToken(): string | null {
-  const storedSession = window.localStorage.getItem(SESSION_STORAGE_KEY);
-  return storedSession ? ((JSON.parse(storedSession) as { access_token?: string }).access_token ?? null) : null;
-}
-
 // Replaces this history entry, so Back cannot restore the last student's page from memory.
 export function restartAppAtHome(): void {
   window.location.replace('/');
@@ -119,16 +129,18 @@ export async function renewSession(): Promise<SessionRenewal> {
   return isAuthRetryableFetchError(error) ? 'unreachable' : 'refused';
 }
 
-// Clears the browser first and tells Auth afterward, so a hung Auth or a closed tab cannot leave the next person signed in.
-export function signOut(): void {
-  const accessToken = readStoredAccessToken();
-  window.localStorage.removeItem(SESSION_STORAGE_KEY);
-  if (accessToken) void supabase.auth.admin.signOut(accessToken, 'global');
-  restartAppAtHome();
-}
-
-// Auth has already rejected this session, so it needs no call to Auth.
+// Auth has already rejected this session, or is told about it afterward, so nothing here waits on Auth.
 export function forgetSession(): void {
   window.localStorage.removeItem(SESSION_STORAGE_KEY);
   restartAppAtHome();
+}
+
+// Clears the browser first, so a hung Auth or a closed tab cannot leave the next person signed in.
+// Reads what the client stored, because asking the client would wait on its lock while Auth hangs.
+export function signOut(): void {
+  const storedSession = window.localStorage.getItem(SESSION_STORAGE_KEY);
+  forgetSession();
+  if (!storedSession) return;
+  const { access_token: accessToken } = JSON.parse(storedSession) as { access_token: string };
+  void supabase.auth.admin.signOut(accessToken, 'global');
 }

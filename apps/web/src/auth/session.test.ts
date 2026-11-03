@@ -42,6 +42,7 @@ async function loadSession() {
 
 beforeEach(() => {
   localStorage.clear();
+  sessionStorage.clear();
 });
 
 afterEach(() => {
@@ -97,28 +98,65 @@ describe('sendEmailLink', () => {
     },
   );
 
-  it('keeps the proof for a link already in the inbox when asking again is refused', async () => {
+  it('asks Auth for nothing when the same address asks again within a minute, so the link in the inbox stays good', async () => {
+    const fetchStub = stubAuthAnswer(200, {});
+    const { sendEmailLink } = await loadSession();
+    await sendEmailLink('maya@astra.test');
+    const proof = localStorage.getItem(CODE_VERIFIER_KEY);
+    fetchStub.mockClear();
+
+    await expect(sendEmailLink('MAYA@astra.test')).resolves.toBe('tooManyRequests');
+
+    expect(fetchStub).not.toHaveBeenCalled();
+    expect(localStorage.getItem(CODE_VERIFIER_KEY)).toBe(proof);
+  });
+
+  it('remembers the last link across a reload of the page', async () => {
+    const fetchStub = stubAuthAnswer(200, {});
+    await (await loadSession()).sendEmailLink('maya@astra.test');
+    fetchStub.mockClear();
+
+    await expect((await loadSession()).sendEmailLink('maya@astra.test')).resolves.toBe('tooManyRequests');
+
+    expect(fetchStub).not.toHaveBeenCalled();
+  });
+
+  it('lets a student fix a typo at once, because a different address is a different link', async () => {
+    const fetchStub = stubAuthAnswer(200, {});
+    const { sendEmailLink } = await loadSession();
+    await sendEmailLink('maya@astra.tset');
+    fetchStub.mockClear();
+
+    await expect(sendEmailLink('maya@astra.test')).resolves.toBe('sent');
+
+    expect(fetchStub).toHaveBeenCalled();
+  });
+
+  it('sends again after a minute, with a new proof', async () => {
     stubAuthAnswer(200, {});
     const { sendEmailLink } = await loadSession();
     await sendEmailLink('maya@astra.test');
+    const proof = localStorage.getItem(CODE_VERIFIER_KEY);
+    const startedAt = Date.now();
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(startedAt + 61_000);
+
+    await expect(sendEmailLink('maya@astra.test')).resolves.toBe('sent');
+
+    clock.mockRestore();
+    expect(localStorage.getItem(CODE_VERIFIER_KEY)).not.toBe(proof);
+  });
+
+  it('keeps the proof for a link already in the inbox when Auth refuses a send that reaches it', async () => {
+    stubAuthAnswer(200, {});
+    const { sendEmailLink } = await loadSession();
+    await sendEmailLink('new-student@astra.test');
     const proof = localStorage.getItem(CODE_VERIFIER_KEY);
     expect(proof).not.toBeNull();
 
     stubAuthAnswer(429, { error_code: 'over_email_send_rate_limit' });
-    await expect(sendEmailLink('maya@astra.test')).resolves.toBe('tooManyRequests');
+    await expect(sendEmailLink('other@astra.test')).resolves.toBe('tooManyRequests');
 
     expect(localStorage.getItem(CODE_VERIFIER_KEY)).toBe(proof);
-  });
-
-  it('replaces the proof when a new link is really sent', async () => {
-    stubAuthAnswer(200, {});
-    const { sendEmailLink } = await loadSession();
-    await sendEmailLink('maya@astra.test');
-    const proof = localStorage.getItem(CODE_VERIFIER_KEY);
-
-    await sendEmailLink('maya@astra.test');
-
-    expect(localStorage.getItem(CODE_VERIFIER_KEY)).not.toBe(proof);
   });
 });
 

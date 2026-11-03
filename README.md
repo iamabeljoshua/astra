@@ -99,7 +99,7 @@ To sign in on the local stack, use one of these:
 
 Open the app on `127.0.0.1`. Auth sends a link back only to the host of its site URL, on any port, or to an address on its allow list. It sends any other address to the site URL instead. `supabase/config.toml` allows `localhost` with a port of exactly four digits, written as `http://localhost:[0-9][0-9][0-9][0-9]/**`. Do not widen this to `http://localhost:*/**`, because that pattern also matches `http://localhost:x@evil/`, whose real host is `evil`, and hands the sign-in code to that host. A stack that is already running keeps its old settings until it restarts, and a restart affects every worktree. Measured on a private Auth service.
 
-The sign-in link works only in the browser that asked for it, because the flow is PKCE. A browser with nobody signed in shows the sign-in page and asks for a new link. A browser where another student is already signed in stays signed in as that student and shows no message, so the link does nothing there. A student who asks again too soon gets a refusal, and the link already in their inbox keeps working. Only the newest link that Auth really sent works in that browser.
+The sign-in link works only in the browser that asked for it, because the flow is PKCE. A browser with nobody signed in shows the sign-in page and asks for a new link. A browser where another student is already signed in stays signed in as that student and shows no message, so the link does nothing there. Only the newest link that Auth really sent works in that browser. The page does not ask Auth for a second link to the same address within 60 seconds, so the link in the student's inbox keeps working. A different address goes through at once, so a student can fix a typo.
 
 Sign-out is global. It ends the student's sessions on every device, not only this browser.
 
@@ -108,6 +108,7 @@ The email keeps its link, and these limits are known and accepted:
 - A mail scanner that opens links can use up a link before the student does.
 - On hosted settings, with **Confirm email** on, a new student's first link dies after 5 minutes. A later link to the same address lasts longer. Measured on a private Auth service, at 5.5 minutes.
 - Asking for links for two addresses in one browser loses both links, because the browser keeps one proof. Measured.
+- A refused request that still reaches Auth, as with the project-wide email cap or a second tab, breaks the earlier link of an address that has signed in before, because Auth pairs that link with the refused request. A new address keeps its link. Measured.
 
 To turn on the Google button, build the web app with `VITE_GOOGLE_SIGN_IN=on` once the project has Google credentials. Until then the button stays hidden.
 
