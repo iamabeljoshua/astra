@@ -1,1 +1,1 @@
-export type { components } from './api.generated';
+export type { components, operations, paths } from './api.generated';
