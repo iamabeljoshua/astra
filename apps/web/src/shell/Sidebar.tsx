@@ -48,7 +48,7 @@ function AccountRow() {
     <div className="flex items-center justify-between gap-2 border-t border-line px-2 pt-2.5">
       <div className="min-w-0">
         <div className="leading-tight font-medium">{PLACEHOLDER_ACCOUNT.name}</div>
-        <div className="text-fine text-ink-2">{PLACEHOLDER_ACCOUNT.status}</div>
+        <span className="text-fine text-ink-2">{PLACEHOLDER_ACCOUNT.status}</span>
       </div>
       <ThemeToggle />
     </div>
