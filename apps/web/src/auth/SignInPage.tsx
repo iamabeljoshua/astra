@@ -10,6 +10,8 @@ type SendFailure = Exclude<EmailLinkResult, 'sent'>;
 
 const GOOGLE_SIGN_IN_FLAG = 'on';
 const SEND_PROBLEM_ID = 'send-problem';
+const SENT_ABOUT_ID = 'sign-in-sent-about';
+const SENT_ADDRESS_ID = 'sign-in-sent-address';
 
 declare const __DEV_SIGN_IN__: boolean;
 
@@ -114,9 +116,9 @@ function EmailStep({ email, onChangeEmail, onSent }: EmailStepProps) {
 function SentStep({ email, onUseAnotherEmail }: { email: string; onUseAnotherEmail: () => void }) {
   return (
     <>
-      <StepHeading>{SIGN_IN_LABELS.sentQuestion}</StepHeading>
-      <p className="max-w-[46ch] text-sub text-ink-2">{SIGN_IN_LABELS.sentAbout}</p>
-      <p className="font-medium wrap-anywhere">{email}</p>
+      <StepHeading describedBy={`${SENT_ABOUT_ID} ${SENT_ADDRESS_ID}`}>{SIGN_IN_LABELS.sentQuestion}</StepHeading>
+      <p id={SENT_ABOUT_ID} className="max-w-[46ch] text-sub text-ink-2">{SIGN_IN_LABELS.sentAbout}</p>
+      <p id={SENT_ADDRESS_ID} className="font-medium wrap-anywhere">{email}</p>
       <div>
         <button type="button" className="button button-outline" onClick={onUseAnotherEmail}>
           {SIGN_IN_LABELS.useAnotherEmail}

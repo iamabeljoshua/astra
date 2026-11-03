@@ -103,6 +103,18 @@ describe('SignInPage', () => {
     expect(document.activeElement).toBe(heading);
   });
 
+  it('ties the address to the heading, so a screen reader says where the link went', async () => {
+    vi.mocked(sendEmailLink).mockResolvedValue('sent');
+    render(<SignInPage />);
+    chooseEmail();
+
+    await submitEmail('maya@astra.test');
+
+    const heading = await screen.findByRole('heading', { name: SIGN_IN_LABELS.sentQuestion });
+    const description = (heading.getAttribute('aria-describedby') ?? '').split(' ').map((id) => document.getElementById(id)?.textContent);
+    expect(description).toContain('maya@astra.test');
+  });
+
   it.each([
     ['a wide screen, on the field', true, () => screen.getByPlaceholderText(SIGN_IN_LABELS.emailPlaceholder)],
     ['a phone, on the heading', false, () => screen.getByRole('heading', { name: SIGN_IN_LABELS.emailQuestion })],

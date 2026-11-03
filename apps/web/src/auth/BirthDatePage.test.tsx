@@ -1,4 +1,4 @@
-import { fireEvent, screen } from '@testing-library/react';
+import { act, fireEvent, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithQueryClient } from '../test/renderWithQueryClient';
 import * as strings from '../strings';
@@ -38,6 +38,11 @@ function stubApiAnswer(status: number, body: object) {
 }
 
 const NOT_ANSWERED_YET = () => new Promise<Response>(() => undefined);
+const LONGER_THAN_A_SEND_TAKES_MS = 50;
+
+function waitLongerThanASendTakes() {
+  return act(() => new Promise((resolve) => setTimeout(resolve, LONGER_THAN_A_SEND_TAKES_MS)));
+}
 
 beforeEach(() => {
   vi.stubGlobal('matchMedia', () => ({ matches: false }));
@@ -134,7 +139,7 @@ describe('the date of birth question', () => {
       ['a date that closes an account', '1', '1', '2020'],
       ['a date that opens one', '14', '3', '2004'],
       ['a date around the age limit', '3', '11', '2013'],
-    ])('asks about %s in the same words, and sends nothing until the student confirms', (_caseName, day, month, year) => {
+    ])('asks about %s in the same words, and sends nothing until the student confirms', async (_caseName, day, month, year) => {
       const sentBodies = stubApiAnswer(200, { status: 'active', student: null });
       const { container } = renderWithQueryClient(<BirthDatePage />);
       enterDate(day, month, year);
@@ -145,10 +150,15 @@ describe('the date of birth question', () => {
       screen.getByRole('heading', { name: strings.BIRTH_DATE_LABELS.confirmQuestion });
       screen.getByText(expectedDate);
       expect(container.textContent?.replace(expectedDate, '')).not.toMatch(AGE_LIMIT_WORDS);
+      await waitLongerThanASendTakes();
       expect(sentBodies).toEqual([]);
+
+      confirmDate();
+
+      await vi.waitFor(() => expect(sentBodies).toHaveLength(1));
     });
 
-    it('goes back with the typed date kept when the student changes it, having sent nothing', () => {
+    it('goes back with the typed date kept when the student changes it, having sent nothing', async () => {
       const sentBodies = stubApiAnswer(200, { status: 'active', student: null });
       renderWithQueryClient(<BirthDatePage />);
       enterDate('14', '3', '2004');
@@ -158,6 +168,7 @@ describe('the date of birth question', () => {
 
       expect(screen.getByLabelText<HTMLInputElement>(strings.BIRTH_DATE_LABELS.day).value).toBe('14');
       expect(screen.getByLabelText<HTMLInputElement>(strings.BIRTH_DATE_LABELS.year).value).toBe('2004');
+      await waitLongerThanASendTakes();
       expect(sentBodies).toEqual([]);
     });
 
@@ -221,12 +232,27 @@ describe('the date of birth question', () => {
     button.focus();
 
     confirmDate();
+    confirmDate();
     await vi.waitFor(() => expect(button.getAttribute('aria-disabled')).toBe('true'));
     confirmDate();
+    await waitLongerThanASendTakes();
 
     expect(document.activeElement).toBe(button);
     expect(button.disabled).toBe(false);
-    await vi.waitFor(() => expect(fetchStub).toHaveBeenCalledTimes(1));
+    expect(fetchStub).toHaveBeenCalledTimes(1);
+  });
+
+  it('can send again after a failed send', async () => {
+    const sentBodies = stubApiAnswer(500, {});
+    renderWithQueryClient(<BirthDatePage />);
+    enterDate('14', '3', '2004');
+    submitDate();
+    confirmDate();
+    await screen.findByText(strings.API_ERROR_LABELS.server);
+
+    confirmDate();
+
+    await vi.waitFor(() => expect(sentBodies).toHaveLength(2));
   });
 
   it.each([

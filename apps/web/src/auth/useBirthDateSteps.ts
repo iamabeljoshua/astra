@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { API_ERROR_LABELS } from '../strings';
 import { type DateParts, toBirthDate } from './birthDateParts';
 import { useAnswerBirthDate } from './useAccount';
@@ -10,6 +10,8 @@ export function useBirthDateSteps() {
   const [dateParts, setDateParts] = useState(EMPTY_DATE);
   const [dateToConfirm, setDateToConfirm] = useState<string | null>(null);
   const [isDateRejected, setIsDateRejected] = useState(false);
+  // The mutation reports pending only after a tick, so a double click would otherwise send twice.
+  const isAnswerOnItsWay = useRef(false);
 
   function reviewDate() {
     const birthDate = toBirthDate(dateParts);
@@ -23,8 +25,12 @@ export function useBirthDateSteps() {
   }
 
   function confirmDate() {
-    if (!dateToConfirm || answerBirthDate.isPending) return;
+    if (!dateToConfirm || isAnswerOnItsWay.current) return;
+    isAnswerOnItsWay.current = true;
     answerBirthDate.mutate(dateToConfirm, {
+      onSettled: () => {
+        isAnswerOnItsWay.current = false;
+      },
       onError: ({ kind }) => {
         if (kind !== 'validation') return;
         setIsDateRejected(true);
