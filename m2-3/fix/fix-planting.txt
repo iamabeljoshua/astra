@@ -1,19 +1,13 @@
 production API, private Auth, Confirm email on | planted signup 200 session in reply false
-node:internal/modules/run_main:123
-    triggerUncaughtException(
-    ^
-
-locator.waitFor: Timeout 30000ms exceeded.
-Call log:
-[2m  - waiting for getByRole('heading', { name: 'Check your email.' }) to be visible[22m
-
-    at askForLink (/private/tmp/claude-501/-Users-abel-startup-einstain-ai/043bc9b9-6c62-4e41-9461-4fb93f368259/scratchpad/m2-3-fix-round/browser.mjs:11:66)
-    at async signInByLink (/private/tmp/claude-501/-Users-abel-startup-einstain-ai/043bc9b9-6c62-4e41-9461-4fb93f368259/scratchpad/m2-3-fix-round/browser.mjs:14:3)
-    at async file:///private/tmp/claude-501/-Users-abel-startup-einstain-ai/043bc9b9-6c62-4e41-9461-4fb93f368259/scratchpad/m2-3-fix-round/proof-planting.mjs:15:1 {
-  log: [
-    "  - waiting for getByRole('heading', { name: 'Check your email.' }) to be visible"
-  ],
-  name: 'TimeoutError'
-}
-
-Node.js v22.22.1
+production API, private Auth, Confirm email on | student signed in by link ["email/signup"] GET /me 200
+production API, private Auth, Confirm email on | other party password grant 200 ["password"]
+production API, private Auth, Confirm email on | other party GET /me 401 {"message":"Unauthorized","statusCode":401}
+production API, private Auth, Confirm email on | other party after a refresh GET /me 401
+production API, private Auth, Confirm email on | other party in a browser ends on "Something went wrong on our side. Try again." | student page shown: false
+production API, shared stack, autoconfirm on | planted signup 200 session in reply true
+production API, shared stack, autoconfirm on | planted token at the API 401
+production API, shared stack, autoconfirm on | student signed in by link ["magiclink"] GET /me 200
+production API, shared stack, autoconfirm on | other party password grant 200 ["password"]
+production API, shared stack, autoconfirm on | other party GET /me 401 {"message":"Unauthorized","statusCode":401}
+production API, shared stack, autoconfirm on | other party after a refresh GET /me 401
+production API, shared stack, autoconfirm on | other party in a browser ends on "Something went wrong on our side. Try again." | student page shown: false

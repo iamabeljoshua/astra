@@ -1,0 +1,6 @@
+anonymous sign-in 200 {"amr":["anonymous"],"is_anonymous":true,"shape":"method,timestamp"} | GET /me 401
+session ended elsewhere: logout 204 | refresh token at Auth 400
+Auth rejects the refresh token: ends on the sign-in page ["GET /api/me 401","POST /token 400"] | session stored false
+date fields group name: When were you born?
+rejected date: aria-invalid true | aria-describedby points at the message true
+after a change: alerts 0 | aria-invalid false

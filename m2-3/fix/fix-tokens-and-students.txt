@@ -21,3 +21,8 @@ GET /home as B 200 continueSession null cache no-store
 GET /sessions as B 200 [] cache no-store
 GET /home as A, token copied before sign-out 200 Only for student A
 POST /sessions as B naming A in the body 400
+> node .claude/skills/verify/scripts/verify.mjs run --journey /private/tmp/claude-501/-Users-abel-startup-einstain-ai/043bc9b9-6c62-4e41-9461-4fb93f368259/scratchpad/m2-3-fix-round/link-in-other-brows
+signed-in browser after another student's link: h1 "Welcome back, Maya.", alerts 0
+browser with nobody signed in: "That link did not work. It may have expired, or it was opened in another browser. Ask for a new one here."
+saved /private/tmp/claude-501/-Users-abel-startup-einstain-ai/043bc9b9-6c62-4e41-9461-4fb93f368259/scratchpad/m2-3-fix-round/out/other-browser/link-in-other-browser-laptop.png
+PASSED

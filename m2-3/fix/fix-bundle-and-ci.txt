@@ -1,0 +1,3 @@
+Main bundle at e897abf, from vite build:
+dist/assets/index-DDWscD2u.js 551.67 kB, gzip 160.89 kB
+CI run 41630210601 at e897abf: 3m19s of the 4 minute limit. Web build step 1 s, pnpm test 55 s, verify start and stop 15 s.

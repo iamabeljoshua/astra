@@ -1,0 +1,58 @@
+killed  GET /home serves the seeded student  <- src/home/home.controller.spec.ts
+killed  age rule back on UTC-12  <- src/auth/age-gate.spec.ts
+killed  no amr check  <- src/auth/auth.guard.spec.ts
+killed  amr any instead of every  <- src/auth/auth.guard.spec.ts
+killed  password accepted everywhere  <- src/auth/auth.guard.spec.ts
+killed  default key cache age  <- src/auth/auth.guard.spec.ts
+killed  no no-store header  <- src/auth/auth.guard.spec.ts
+killed  a route ignores the token  <- src/auth/auth.guard.spec.ts
+killed  body beats the token on sessions  <- src/sessions/sessions.service.spec.ts
+killed  body beats the token on profiles  <- src/students/students.service.spec.ts
+killed  closed account finds its student  <- src/students/students.service.spec.ts
+killed  query error logs its message  <- src/database/query-error.filter.spec.ts
+killed  ftp boots  <- src/auth/supabase-url.spec.ts
+killed  body walk stops at references  <- src/openapi.spec.ts
+killed  sign-out adds a history entry  <- forgets the session at once, then ends it on the server with the token it held 3ms
+killed  asking too soon reaches Auth  <- asks Auth for nothing when the same address asks again within a minute, so the link in the inbox stays good 5ms
+killed  refused send loses the proof  <- keeps the proof for a link already in the inbox when Auth refuses a send that reaches it 4ms
+killed  two dots reach Auth  <- calls maya..parent@astra.test invalid and asks Auth for nothing, because Auth answers some of these with a 500 5ms
+killed  sign-out leaves the session  <- forgets the session at once, then ends it on the server with the token it held 4ms
+killed  other tabs do not follow  <- reports no user when another tab removes the session 54ms
+killed  cancelled called a failed link  <- calls it cancelled and cleans the address when the student comes back from cancelling at Google 4ms
+killed  logout has no keepalive  <- forgets the session at once, then ends it on the server with the token it held 4ms
+killed  429 on refresh ends the session  <- says unreachable and keeps the session when Auth limits an expired session, because a limit says nothing about it 12ms
+killed  renewal loops on a slow API  <- stops after one renewal when a slow API keeps refusing, rather than looping 1014ms
+killed  second refusal never renews  <- renews again for a later refused token, rather than signing the student out 1012ms
+killed  app unmounts during renewal  <- keeps the app on screen while a refused token renews, so a lesson does not vanish 9ms
+killed  renewed token refused signs out  <- renews the session once and opens the app when the API refused a token that was out of date 1007ms
+killed  returning student gets the welcome  <- shows a returning student the error page, not the new-student welcome, when Auth cannot renew their session 18ms
+killed  no focus after a step  <- takes focus to the closed page heading when the answer closes the account 30ms
+killed  no focus on the page after a step  <- takes focus to the first page heading when the answer opens the app 33ms
+killed  date sent with no confirm  <- sends a date in 2026 to the server without judging the age itself 105ms
+killed  no digit conversion  <- reads Arabic-Indic digits 39ms
+killed  message stays after a change  <- clears the message when the student changes the date 15ms
+killed  button disabled while sending  <- keeps focus on the button and sends once, and leaves it there when sending fails 13ms
+killed  change-later note everywhere  <- promises nothing about changing it later beside the date of birth question 12ms
+killed  development accounts allowed in a build  <- fail a build that lets the development box in 324ms
+killed  secret key allowed  <- refuses a secret key 3ms
+killed  any URL allowed in a build  <- refuses plain http on a host that is not local 3ms
+killed  email offers a code  <- offers no code, because the app has nowhere to enter one 2ms
+killed  cache kept on sign-out  <- empties the cache, signs out, and looks disabled 72ms
+
+40 mutations, 0 not killed
+killed  GET /home serves the seeded student  <- GET /home › shows each student their own home, whatever the example data holds
+killed  age rule back on UTC-12  <- isOldEnough › decides the moment the 13th birthday begins in UTC+14
+killed  no amr check  <- the API guard › with no valid token › refuses a token from a password and sends no data
+killed  amr any instead of every  <- the API guard › with no valid token › refuses a token that adds a password to a link and sends no data
+killed  password accepted everywhere  <- the API guard › with no valid token › refuses a token from a password and sends no data
+killed  default key cache age  <- the API guard › when the signing keys cannot be read › trusts known keys through an outage of under an hour, and still fetches an unknown key ID
+killed  no no-store header  <- the API guard › between two students › tells the browser to store no answer from any route but the public ones
+killed  a route ignores the token  <- the API guard › between two students › reads the identity from the token on every route but the public ones
+killed  body beats the token on sessions  <- SessionsService › gives a new session to the student from the token, whatever the body says
+killed  body beats the token on profiles  <- StudentsService › saves a profile for the student from the token, whatever the body says
+killed  closed account finds its student  <- StudentsService › finds no student once the account of an active student is closed
+killed  query error logs its message  <- a failed database query › logs the code and leaves out a request value that Postgres repeats in its message
+killed  ftp boots  <- getSupabaseUrl › refuses ftp://127.0.0.1, which is not http or https
+killed  body walk stops at references  <- the OpenAPI document › flags a route that takes a student ID
+
+40 mutations, 0 not killed
