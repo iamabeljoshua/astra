@@ -1,9 +1,7 @@
-import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
-import { promisify } from 'node:util';
 import {
   getFreePort,
   getListenerProcessIds,
@@ -13,6 +11,7 @@ import {
   isProcessGroupAlive,
   isProcessGroupCarrying,
   isProcessGroupInDirectory,
+  runProcessGroup,
   signalProcessGroup,
   spawnProcessGroup,
 } from './processes.mjs';
@@ -28,7 +27,6 @@ const LOG_TAIL_LINES = 30;
 const HIGHEST_PORT = 65_535;
 const APP_ROOT_MARKUP = 'id="root"';
 const BODY_EXCERPT_LENGTH = 60;
-const runCommand = promisify(execFile);
 
 export function getWebUrl(run) {
   return `http://localhost:${run.webPort}`;
@@ -62,13 +60,16 @@ function assertPortIsFree({ name, port }) {
 }
 
 async function migrateDatabase() {
-  const options = { cwd: REPO_ROOT, env: { ...process.env, ...DEV_LOG_ENV }, timeout: TIMEOUTS_MS.migrate };
-  try {
-    await runCommand(MIGRATE_COMMAND.command, MIGRATE_COMMAND.args, options);
-  } catch (error) {
-    const outcome = error.killed ? `did not finish within ${TIMEOUTS_MS.migrate} ms` : 'failed';
-    throw new Error(`The app did not start, because pnpm db:migrate ${outcome}.\n${error.stdout}${error.message}`);
+  const { exitCode, isPastLimit, output } = await runProcessGroup({
+    ...MIGRATE_COMMAND,
+    cwd: REPO_ROOT,
+    env: { ...process.env, ...DEV_LOG_ENV },
+    timeoutMs: TIMEOUTS_MS.migrate,
+  });
+  if (isPastLimit) {
+    throw new Error(`The app did not start, because pnpm db:migrate did not finish within ${TIMEOUTS_MS.migrate} ms.\n${output}`);
   }
+  if (exitCode !== 0) throw new Error(`The app did not start, because pnpm db:migrate failed.\n${output}`);
 }
 
 function launchDevServers({ webPort, apiPort }) {

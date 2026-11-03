@@ -53,7 +53,7 @@ Exit code 0 and a `PASSED` line mean every check passed. Exit code 1 means somet
 pnpm verify start
 ```
 
-- The command first runs `pnpm db:migrate`. If that fails, the command stops at once, shows the error, and starts nothing. A database that does not answer and a type error in the API both fail here.
+- The command first runs `pnpm db:migrate`, with a limit of 60 seconds. If that fails or passes the limit, the command kills the migrate step, shows the error, and starts nothing. A refused connection and a type error in the API fail at once. A database that accepts a connection and never answers fails at the limit. For a migration that needs longer, run `pnpm db:migrate` yourself first.
 - The command picks two free ports and prints the URLs, so lanes running at the same time do not collide. To choose the ports, set `WEB_PORT` and `API_PORT`.
 - A taken port stops the command with the owner's process ID. This includes a port held on one address only, where `pnpm dev` itself prints no error.
 - The command returns when both ports belong to this run, the latest API compile has no errors, the web app answers, the API answers `GET /health`, and `GET /api/health` answers through the dev proxy.
@@ -190,7 +190,7 @@ Run this after every `start`, including after a failure. It is safe to run twice
 - Before any signal, it proves the group is this run's. The group must have a member in this checkout, and its leader must have the start time in `.verify/run.json`. If the leader already died, a member must carry this run's ID in its environment. A reused group ID fails that proof, so `stop` leaves it alone.
 - It keeps `.verify/run.json` until the group is gone and both ports read free. If a port is still held or cannot be read, it fails, and you can run it again once that is fixed. If another program holds a port after a reboot, stop that program or delete `.verify/run.json`.
 
-Only `run` stops the app when it gets a signal. After a SIGKILL to the `verify` process, or any signal during `start`, including a Ctrl-C once the servers have launched, the app keeps running and `.verify/run.json` stays. After a SIGKILL, Chromium exits by itself, and its temporary profile stays in the system temp folder. In each case, run `pnpm verify stop` to end the app.
+Only `run` stops the app when it gets a signal. After a SIGKILL to the `verify` process, or any signal during `start`, including a Ctrl-C once the servers have launched, the app keeps running and `.verify/run.json` stays. After a SIGKILL, Chromium exits by itself, and its temporary profile stays in the system temp folder. In each case, run `pnpm verify stop` to end the app. A signal during the migrate step, before the servers launch, kills that step and leaves nothing.
 
 ## Self-check
 

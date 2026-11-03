@@ -1,4 +1,5 @@
 import { execFileSync, spawn } from 'node:child_process';
+import { once } from 'node:events';
 import { closeSync, openSync } from 'node:fs';
 import { createServer } from 'node:net';
 
@@ -35,6 +36,30 @@ export function spawnProcessGroup({ command, args, cwd, env, logPath }) {
   child.unref();
   closeSync(logFile);
   return child.pid;
+}
+
+// SIGTERM to pnpm alone can exit 0 and leave its script running, so the limit and this process's exit kill the whole group.
+export async function runProcessGroup({ command, args, cwd, env, timeoutMs }) {
+  const child = spawn(command, args, { cwd, env, detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
+  let output = '';
+  const collectOutput = (data) => {
+    output += data;
+  };
+  child.stdout.on('data', collectOutput);
+  child.stderr.on('data', collectOutput);
+  const killGroup = () => {
+    if (isProcessGroupAlive(child.pid)) signalProcessGroup(child.pid, 'SIGKILL');
+  };
+  process.once('exit', killGroup);
+  let isPastLimit = false;
+  const limitTimer = setTimeout(() => {
+    isPastLimit = true;
+    killGroup();
+  }, timeoutMs);
+  const [exitCode] = await once(child, 'close');
+  clearTimeout(limitTimer);
+  process.off('exit', killGroup);
+  return { exitCode, isPastLimit, output };
 }
 
 export function isProcessGroupAlive(processGroupId) {
