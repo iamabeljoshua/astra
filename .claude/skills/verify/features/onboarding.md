@@ -31,6 +31,7 @@ Preconditions:
 - **Complete it as an adult.** Run `pnpm verify drive --journey onboarding-adult`. It prints the seconds from the tagline to Home, and it exits 0 with `PASSED`.
 - **Time it at a student's pace.** Run `ONBOARDING_PACE_MS=4000 pnpm verify drive --journey onboarding-adult`. It waits 4 seconds on each screen and types at about 11 keys a second.
 - **Complete it as a 15-year-old.** Run `pnpm verify drive --journey onboarding-minor --viewports phone`. It reads the logged link, proves a session is refused with 403, accepts as a signed-out parent, and proves the session then starts with 201.
+- **Try a long name.** Run `pnpm verify drive --journey onboarding-long-name`. It uses a 60-character name with no spaces and fails if the parent page, the hello, or Home scrolls sideways. It also pastes past the 500-character limit in the hello's answer box and looks for the line that says so.
 - **See it in dark.** Put `ONBOARDING_THEME=dark` in front of either command.
 - **Proof.** Open the `onboarding-adult-*` and `onboarding-minor-*` images in `.verify/evidence/`. Set `ONBOARDING_EVIDENCE` to the `--out` folder for the minor journey's two parent page images.
 

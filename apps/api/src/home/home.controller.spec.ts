@@ -97,6 +97,8 @@ describe('GET /home', () => {
 
     const { body: firstVisit } = await getHomeWithToken(student.token).expect(200);
     expect(firstVisit).toMatchObject({ studentName: 'Tolu', isNewStudent: true, startHereQuestion: 'Why is the sky blue?' });
+    expect(firstVisit.picks).toHaveLength(6);
+    expect(firstVisit.picks.map((pick: { reason: string }) => pick.reason)).not.toContain('A good place to start');
 
     await saveUnfinishedSession(student.studentId, 'Why is the sky blue?', '2026-11-01T12:00:00Z');
 
@@ -166,6 +168,7 @@ describe('GET /home', () => {
 
     const { body } = await getHomeWithToken(newStudent.token).expect(200);
 
+    expect(body).toMatchObject({ isNewStudent: true, startHereQuestion: null });
     expect(body.picks).toHaveLength(6);
     expect(new Set(body.picks.map((pick: { reason: string }) => pick.reason))).toEqual(new Set(['A good place to start']));
   });

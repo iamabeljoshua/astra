@@ -21,12 +21,14 @@ import { getAcceptedSignInMethods, isRefusedToken, TokenVerifier } from './token
 
 const PUBLIC_ROUTES: readonly string[] = ['get /health', 'get /parent-consent/:token', 'post /parent-consent/accept'];
 const SIGNED_IN_ROUTES: readonly string[] = ['get /me', 'post /me/birth-date'];
+const BEFORE_CONSENT_ROUTES: readonly string[] = ['put /me/parent-consent'];
 const CLOSED_PORT_URL = 'http://127.0.0.1:1';
 const VALID_SESSION = { title: 'Free-body diagrams', subject: 'Physics', language: 'en' };
 const VALID_PROFILE = { name: 'Maya', interests: ['Space'], level: 'university', goal: 'exam', voice: 'ada', firstQuestion: null };
 const PAST_SECONDS = Math.floor(Date.now() / 1000) - 60;
 const FUTURE_SECONDS = Math.floor(Date.now() / 1000) + 3600;
 const ONE_MINUTE_MS = 60_000;
+const UNDER_EIGHTEEN_BIRTH_DATE = `${new Date().getUTCFullYear() - 15}-06-01`;
 const JWKS_COOLDOWN_MS = 31_000;
 
 function verifierFor(supabaseUrl: string) {
@@ -249,6 +251,21 @@ describe('the API guard', () => {
       const token = await testApp.supabaseAuth.signToken(randomUUID());
 
       await api().get('/me').set('Authorization', `Bearer ${token}`).expect(200, { status: 'needs_birth_date', student: null });
+    });
+  });
+
+  describe('with a token for a student under 18 with no consent', () => {
+    it('refuses every student route but the listed ones, so a route cannot join them quietly', async () => {
+      const token = await testApp.supabaseAuth.signToken(randomUUID());
+      await api().post('/me/birth-date').set('Authorization', `Bearer ${token}`).send({ birthDate: UNDER_EIGHTEEN_BIRTH_DATE, name: 'Tolu' }).expect(200);
+      const routes = listRoutes(testApp.app).filter(
+        (route) => !PUBLIC_ROUTES.includes(route.name) && !SIGNED_IN_ROUTES.includes(route.name),
+      );
+
+      const answers = await getRouteAnswers({ app: testApp.app, routes, token });
+
+      const routesNotRefused = answers.filter((answer) => !answer.endsWith('403')).map((answer) => answer.split(' -> ')[0]);
+      expect(routesNotRefused).toEqual(BEFORE_CONSENT_ROUTES);
     });
   });
 

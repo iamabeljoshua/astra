@@ -89,7 +89,7 @@ function Accepted({ studentName }: { studentName: string | null }) {
   return (
     <>
       <StepHeading>{PARENT_CONSENT_LABELS.acceptedQuestion}</StepHeading>
-      <p className="max-w-[46ch] text-sub text-ink-2">{PARENT_CONSENT_LABELS.acceptedAbout(studentName)}</p>
+      <p className="max-w-[46ch] text-sub text-ink-2 wrap-anywhere">{PARENT_CONSENT_LABELS.acceptedAbout(studentName)}</p>
     </>
   );
 }

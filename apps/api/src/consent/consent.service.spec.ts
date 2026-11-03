@@ -3,6 +3,7 @@ import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { createTestApp, createTestStudent } from '../../test/test-database';
 import type { TestApp } from '../../test/test-database';
+import { StudentEntity } from '../infrastructure/orm/entities/student.entity';
 import { ConsentLinkDelivery } from './consent-link-delivery';
 
 const MILLISECONDS_PER_YEAR = 365.25 * 86_400_000;
@@ -47,6 +48,11 @@ describe('parent consent', () => {
     const token = await testApp.supabaseAuth.signToken(randomUUID());
     await api(token).answerBirthDate(getBirthDateAtAge(15)).expect(200);
     return api(token);
+  }
+
+  async function readAcceptedAt(studentId: string): Promise<Date | null> {
+    const student = await testApp.app.get(DataSource).getRepository(StudentEntity).findOneByOrFail({ id: studentId });
+    return student.parentConsentAt;
   }
 
   function getLastLinkToken() {
@@ -154,10 +160,15 @@ describe('parent consent', () => {
     const minor = await createMinor();
     await minor.askParent(PARENT_EMAIL).expect(200);
     const linkToken = getLastLinkToken();
+    const { body: account } = await minor.getAccount().expect(200);
 
     await parentPage(linkToken).accept().expect(200);
+    const firstAcceptedAt = await readAcceptedAt(account.student.id);
     await parentPage(linkToken).accept().expect(200, { studentName: 'Tolu', isAccepted: true });
     await parentPage(linkToken).read().expect(200, { studentName: 'Tolu', isAccepted: true });
+
+    expect(firstAcceptedAt).toBeInstanceOf(Date);
+    expect(await readAcceptedAt(account.student.id)).toEqual(firstAcceptedAt);
   });
 
   it('never gives the link to the student', async () => {

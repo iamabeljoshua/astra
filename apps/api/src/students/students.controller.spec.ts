@@ -177,9 +177,20 @@ describe('the account routes', () => {
   });
 
   it('accepts a profile with no first question yet', async () => {
-    const { body } = await api(student.token).saveProfile({ ...VALID_PROFILE, firstQuestion: null }).expect(200);
+    const newStudent = await createTestStudent(testApp);
+
+    const { body } = await api(newStudent.token).saveProfile({ ...VALID_PROFILE, firstQuestion: null }).expect(200);
 
     expect(body.student.profile.firstQuestion).toBeNull();
+  });
+
+  it('keeps a saved first question when another tab saves with none', async () => {
+    await api(student.token).saveProfile(VALID_PROFILE).expect(200);
+
+    await api(student.token).saveProfile({ ...VALID_PROFILE, level: 'high_school', firstQuestion: null }).expect(200);
+
+    const { body } = await api(student.token).getAccount().expect(200);
+    expect(body.student.profile).toMatchObject({ level: 'high_school', firstQuestion: VALID_PROFILE.firstQuestion });
   });
 
   it('stores the name given with the date of birth', async () => {

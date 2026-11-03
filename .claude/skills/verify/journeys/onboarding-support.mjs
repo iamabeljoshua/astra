@@ -1,9 +1,11 @@
+import { readFile } from 'node:fs/promises';
 import { setTimeout as sleep } from 'node:timers/promises';
 
 const LOCAL_INBOX = 'http://127.0.0.1:54424';
 const SIGN_IN_LINK = /https?:\/\/\S+\/verify\?\S+/;
 const INBOX_POLL_MS = 200;
 const INBOX_TRIES = 50;
+const DEV_LOG = '.verify/dev.log';
 
 const PACE_MS = Number(process.env.ONBOARDING_PACE_MS ?? 0);
 const TYPING_DELAY_MS = PACE_MS ? 90 : 0;
@@ -61,7 +63,22 @@ export async function answerName(page, capture, name) {
   await page.getByRole('button', { name: 'Continue' }).click();
 }
 
-export async function answerQuestionsToHome(page, capture, { answers, checkSpeech }) {
+async function readConsentLinks(parentEmail) {
+  const log = await readFile(DEV_LOG, 'utf8');
+  const lines = log.split('\n').filter((line) => line.includes(`Consent link for ${parentEmail}:`));
+  return lines.map((line) => /https?:\/\/[^\s\u001b]+/.exec(line)[0]);
+}
+
+export async function waitForConsentLink(parentEmail) {
+  for (let attempt = 0; attempt < 25; attempt += 1) {
+    const links = await readConsentLinks(parentEmail);
+    if (links.length > 0) return links;
+    await sleep(200);
+  }
+  throw new Error(`No consent link for ${parentEmail} in ${DEV_LOG}.`);
+}
+
+export async function answerQuestionsToHome(page, capture, { answers, checkSpeech, checkHello }) {
   await page.getByRole('heading', { name: 'What are you into?' }).waitFor();
   await page.getByRole('button', { name: 'Space' }).click();
   await typeInto(page.getByRole('textbox', { name: 'Be specific. Arsenal beats football.' }), answers.interest);
@@ -93,6 +110,7 @@ export async function answerQuestionsToHome(page, capture, { answers, checkSpeec
   await page.getByRole('heading', { name: new RegExp(`Hi ${answers.name}\\. I'm your tutor, and I'm an AI\\. You said you're into ${answers.interest}`) }).waitFor();
   await page.getByText('Listening').waitFor({ timeout: 20_000 });
   await capture('hello');
+  await checkHello?.();
   await page.waitForFunction(() => window.spokenLines.at(-1).text.includes("I'm an AI") && window.spokenLines.at(-1).started, undefined, { timeout: 10_000 });
   await pause();
   await typeInto(page.getByRole('textbox', { name: 'Your answer' }), answers.firstQuestion);

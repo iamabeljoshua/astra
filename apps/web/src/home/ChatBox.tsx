@@ -15,15 +15,21 @@ interface ChatBoxLabels {
   send: string;
 }
 
+interface ChatBoxLimit {
+  maxLength: number;
+  reachedNote: string;
+}
+
 interface ChatBoxProps {
   onSend: (question: string) => void;
   onEdit: () => void;
   labels?: ChatBoxLabels;
   canAttach?: boolean;
   textBoxHandle?: Ref<HTMLTextAreaElement | null>;
+  limit?: ChatBoxLimit;
 }
 
-export function ChatBox({ onSend, onEdit, labels = CHAT_BOX_LABELS, canAttach = true, textBoxHandle }: ChatBoxProps) {
+export function ChatBox({ onSend, onEdit, labels = CHAT_BOX_LABELS, canAttach = true, textBoxHandle, limit }: ChatBoxProps) {
   const [question, setQuestion] = useState('');
   const [isTalkOn, setIsTalkOn] = useState(false);
   const [attachment, setAttachment] = useState<File | null>(null);
@@ -57,9 +63,15 @@ export function ChatBox({ onSend, onEdit, labels = CHAT_BOX_LABELS, canAttach = 
         label={labels.label}
         handle={textBoxHandle}
         placeholder={isTalkOn ? labels.placeholderWhileTalkIsOn : labels.placeholder}
+        maxLength={limit?.maxLength}
         onChange={editQuestion}
         onEnter={send}
       />
+      {limit && (
+        <p role="status" className="px-4 pt-1 text-fine text-ink-2 empty:hidden">
+          {question.length >= limit.maxLength && limit.reachedNote}
+        </p>
+      )}
       <div className="flex items-center gap-1.5 pt-1.5 pr-2 pb-2 pl-2.5">
         {canAttach && <AttachButton button={attachButton} onChoose={setAttachment} />}
         <TalkButton isOn={isTalkOn} onToggle={() => setIsTalkOn(!isTalkOn)} />
@@ -79,11 +91,12 @@ interface QuestionBoxProps {
   label: string;
   handle?: Ref<HTMLTextAreaElement | null>;
   placeholder: string;
+  maxLength?: number;
   onChange: (question: string) => void;
   onEnter: () => void;
 }
 
-function QuestionBox({ question, label, handle, placeholder, onChange, onEnter }: QuestionBoxProps) {
+function QuestionBox({ question, label, handle, placeholder, maxLength, onChange, onEnter }: QuestionBoxProps) {
   const textBox = useHeightThatFitsText(question, placeholder);
   useImperativeHandle<HTMLTextAreaElement | null, HTMLTextAreaElement | null>(handle, () => textBox.current, [textBox]);
 
@@ -94,6 +107,7 @@ function QuestionBox({ question, label, handle, placeholder, onChange, onEnter }
       value={question}
       aria-label={label}
       placeholder={placeholder}
+      maxLength={maxLength}
       autoComplete="off"
       onChange={(event) => onChange(event.target.value)}
       onKeyDown={(event) => {

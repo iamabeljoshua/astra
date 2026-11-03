@@ -20,7 +20,7 @@ export function StepHeading({ id, describedBy, fieldToFocus, className = 'text-q
   }, [fieldToFocus]);
 
   return (
-    <h1 ref={heading} id={id} aria-describedby={describedBy} tabIndex={-1} className={`${className} text-balance outline-none`}>
+    <h1 ref={heading} id={id} aria-describedby={describedBy} tabIndex={-1} className={`${className} text-balance wrap-anywhere outline-none`}>
       {children}
     </h1>
   );

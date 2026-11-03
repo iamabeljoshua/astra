@@ -1,11 +1,9 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
 import { setTimeout as sleep } from 'node:timers/promises';
-import { answerBirthDate, answerName, answerQuestionsToHome, recordSpeech, signInAsNewStudent } from './onboarding-support.mjs';
+import { answerBirthDate, answerName, answerQuestionsToHome, recordSpeech, signInAsNewStudent, waitForConsentLink } from './onboarding-support.mjs';
 
 export const deadlineMs = 240_000;
 
-const DEV_LOG = '.verify/dev.log';
 const SESSION_STORAGE_KEY = 'astra-session';
 const CONSENT_MOVE_ON_LIMIT_MS = 12_000;
 const FADE_MS = 600;
@@ -17,21 +15,6 @@ const ANSWERS = {
   goal: 'A class I am taking',
   firstQuestion: 'How does a speaker make sound?',
 };
-
-async function readConsentLinks(parentEmail) {
-  const log = await readFile(DEV_LOG, 'utf8');
-  const lines = log.split('\n').filter((line) => line.includes(`Consent link for ${parentEmail}:`));
-  return lines.map((line) => /https?:\/\/[^\s\u001b]+/.exec(line)[0]);
-}
-
-async function waitForConsentLink(parentEmail) {
-  for (let attempt = 0; attempt < 25; attempt += 1) {
-    const links = await readConsentLinks(parentEmail);
-    if (links.length > 0) return links;
-    await sleep(200);
-  }
-  throw new Error(`No consent link for ${parentEmail} in ${DEV_LOG}.`);
-}
 
 async function tryToStartSession(page) {
   const session = await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), SESSION_STORAGE_KEY);

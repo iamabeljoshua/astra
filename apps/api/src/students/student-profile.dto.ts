@@ -35,7 +35,7 @@ export class SaveStudentProfileBodyDto {
   @IsIn(TUTOR_VOICES)
   voice!: TutorVoice;
 
-  /** The student's answer to the tutor's first question, or null until they give it. */
+  /** The student's answer to the tutor's first question, or null until they give it. A null never clears a saved answer. */
   @ValidateIf((body: SaveStudentProfileBodyDto) => body.firstQuestion !== null)
   @IsString()
   @MaxLength(MAX_FIRST_QUESTION_LENGTH)

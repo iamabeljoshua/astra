@@ -3,9 +3,15 @@ import { StepHeading } from '../auth/StepHeading';
 import { ChatBox } from '../home/ChatBox';
 import { FIRST_ANSWER_BOX_LABELS, ONBOARDING_LABELS } from '../strings';
 import { getHelloLine } from './answers';
+import { MAX_FIRST_QUESTION_LENGTH } from './fieldLimits';
 import { StepScreen } from './StepScreen';
 import type { StepProps } from './useOnboarding';
 import { useSpokenLine } from './useSpokenLine';
+
+const ANSWER_LIMIT = {
+  maxLength: MAX_FIRST_QUESTION_LENGTH,
+  reachedNote: FIRST_ANSWER_BOX_LABELS.limitReached(MAX_FIRST_QUESTION_LENGTH),
+};
 
 export function HelloStep({ flow }: StepProps) {
   const line = getHelloLine(flow.answers);
@@ -28,7 +34,7 @@ export function HelloStep({ flow }: StepProps) {
           ))}
         </span>
       </StepHeading>
-      <ChatBox labels={FIRST_ANSWER_BOX_LABELS} canAttach={false} textBoxHandle={answerBox} onSend={flow.finish} onEdit={() => undefined} />
+      <ChatBox labels={FIRST_ANSWER_BOX_LABELS} canAttach={false} textBoxHandle={answerBox} limit={ANSWER_LIMIT} onSend={flow.finish} onEdit={() => undefined} />
       {flow.saveProblem && <p role="alert" className="stop-note">{flow.saveProblem}</p>}
     </StepScreen>
   );

@@ -14,6 +14,7 @@ import {
   TUTOR_VOICE_LABELS,
 } from '../strings';
 import { renderWithQueryClient } from '../test/renderWithQueryClient';
+import { MAX_FIRST_QUESTION_LENGTH } from './fieldLimits';
 
 const HOME_TEXT = 'The app';
 const NEEDS_BIRTH_DATE = { status: 'needs_birth_date', student: null };
@@ -193,6 +194,21 @@ describe('onboarding as an adult', () => {
     await screen.findByRole('alert');
     expect(answerBox.value).toBe('Why do free kicks curve?');
     expect(screen.queryByText(HOME_TEXT)).toBeNull();
+  });
+
+  it('stops the first answer at the limit and says so', async () => {
+    stubSpeech();
+    const profile = { interests: ['Space'], level: 'university', goal: 'exam', voice: 'ada', firstQuestion: null };
+    stubApi({ 'GET /api/me': () => ({ status: 'active', student: { ...STUDENT, profile } }) });
+    renderWithQueryClient(<Gate />);
+    const limitNote = FIRST_ANSWER_BOX_LABELS.limitReached(MAX_FIRST_QUESTION_LENGTH);
+
+    const answerBox = await screen.findByLabelText<HTMLTextAreaElement>(FIRST_ANSWER_BOX_LABELS.label);
+    expect(screen.queryByText(limitNote)).toBeNull();
+    expect(answerBox.maxLength).toBe(MAX_FIRST_QUESTION_LENGTH);
+    fireEvent.change(answerBox, { target: { value: 'Q'.repeat(MAX_FIRST_QUESTION_LENGTH) } });
+
+    screen.getByText(limitNote);
   });
 
   it('will not leave the name question blank', async () => {

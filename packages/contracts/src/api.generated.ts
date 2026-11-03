@@ -241,7 +241,7 @@ export interface components {
              * @enum {string}
              */
             voice: "ada" | "kofi" | "noor";
-            /** @description The student's answer to the tutor's first question, or null until they give it. */
+            /** @description The student's answer to the tutor's first question, or null until they give it. A null never clears a saved answer. */
             firstQuestion: string | null;
         };
         AskParentBodyDto: {
