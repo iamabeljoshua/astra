@@ -19,12 +19,11 @@ import { createTestApp, createTestStudent, OLD_ENOUGH_BIRTH_DATE } from '../../t
 import type { TestApp, TestStudent } from '../../test/test-database';
 import { getAcceptedSignInMethods, isRefusedToken, TokenVerifier } from './token-verifier';
 
-const PUBLIC_ROUTES: readonly string[] = ['get /health', 'get /parent-consent/:token', 'post /parent-consent/accept'];
+const PUBLIC_ROUTES: readonly string[] = ['get /health'];
 const SIGNED_IN_ROUTES: readonly string[] = ['get /me', 'post /me/birth-date'];
-const BEFORE_CONSENT_ROUTES: readonly string[] = ['put /me/parent-consent'];
 const CLOSED_PORT_URL = 'http://127.0.0.1:1';
 const VALID_SESSION = { title: 'Free-body diagrams', subject: 'Physics', language: 'en' };
-const VALID_PROFILE = { name: 'Maya', interests: ['Space'], level: 'university', goal: 'exam', voice: 'ada', firstQuestion: null };
+const VALID_PROFILE = { name: 'Maya', interests: ['space'], level: 'university', goal: 'exam' };
 const PAST_SECONDS = Math.floor(Date.now() / 1000) - 60;
 const FUTURE_SECONDS = Math.floor(Date.now() / 1000) + 3600;
 const ONE_MINUTE_MS = 60_000;
@@ -254,8 +253,8 @@ describe('the API guard', () => {
     });
   });
 
-  describe('with a token for a student under 18 with no consent', () => {
-    it('refuses every student route but the listed ones, so a route cannot join them quietly', async () => {
+  describe('with a token for a student under 18', () => {
+    it('refuses no student route, because they are treated like any other student', async () => {
       const token = await testApp.supabaseAuth.signToken(randomUUID());
       await api().post('/me/birth-date').set('Authorization', `Bearer ${token}`).send({ birthDate: UNDER_EIGHTEEN_BIRTH_DATE, name: 'Tolu' }).expect(200);
       const routes = listRoutes(testApp.app).filter(
@@ -264,8 +263,8 @@ describe('the API guard', () => {
 
       const answers = await getRouteAnswers({ app: testApp.app, routes, token });
 
-      const routesNotRefused = answers.filter((answer) => !answer.endsWith('403')).map((answer) => answer.split(' -> ')[0]);
-      expect(routesNotRefused).toEqual(BEFORE_CONSENT_ROUTES);
+      expect(answers.length).toBeGreaterThan(0);
+      expect(answers.filter((answer) => answer.endsWith('403'))).toEqual([]);
     });
   });
 

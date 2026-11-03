@@ -1,5 +1,5 @@
-import { STUDENT_GOALS, STUDENT_LEVELS } from '../students/student-profile-options';
-import type { StudentGoal, StudentLevel } from '../students/student-profile-options';
+import { STUDENT_GOALS, STUDENT_INTERESTS, STUDENT_LEVELS } from '../students/student-profile-options';
+import type { StudentGoal, StudentInterest, StudentLevel } from '../students/student-profile-options';
 import { getPicksForStudent } from './getPicksForStudent';
 import type { StudentFit } from './getPicksForStudent';
 import { LIBRARY } from './library';
@@ -23,14 +23,7 @@ function makeTopic(id: string, fields: Partial<LibraryTopic> = {}): LibraryTopic
 }
 
 function makeLibrary(topics: LibraryTopic[]): Library {
-  return {
-    interests: [
-      { name: 'basketball', words: ['basketball', 'NBA'] },
-      { name: 'football', words: ['football', 'Arsenal'] },
-      { name: 'art', words: ['art'] },
-    ],
-    topics,
-  };
+  return { topics };
 }
 
 function getPickIds(student: StudentFit | null, library: Library) {
@@ -49,7 +42,7 @@ describe('getPicksForStudent', () => {
         makeTopic('high-school-plain'),
       ]);
 
-      expect(getPickIds({ ...FIT, interests: ['Basketball'] }, library)).toEqual(['high-school-plain']);
+      expect(getPickIds({ ...FIT, interests: ['basketball'] }, library)).toEqual(['high-school-plain']);
     });
   });
 
@@ -57,7 +50,7 @@ describe('getPicksForStudent', () => {
     it('puts topics that match an interest ahead of the ones that come first in the library', () => {
       const library = makeLibrary([makeTopic('plain'), makeTopic('basketball', { interests: ['basketball'] })]);
 
-      expect(getPickIds({ ...FIT, interests: ['Basketball'] }, library)).toEqual(['basketball', 'plain']);
+      expect(getPickIds({ ...FIT, interests: ['basketball'] }, library)).toEqual(['basketball', 'plain']);
     });
 
     it('gives each interest a turn before the first one gets a second card', () => {
@@ -67,72 +60,28 @@ describe('getPicksForStudent', () => {
         makeTopic('football-1', { interests: ['football'] }),
       ]);
 
-      expect(getPickIds({ ...FIT, interests: ['Basketball', 'Football'] }, library)).toEqual([
+      expect(getPickIds({ ...FIT, interests: ['basketball', 'football'] }, library)).toEqual([
         'basketball-1',
         'football-1',
         'basketball-2',
       ]);
     });
 
-    it.each([
-      ['Basketball', 'basketball'],
-      ['pick-up BASKETBALL!', 'basketball'],
-      ['I love basketball', 'basketball'],
-      ['nba', 'the NBA'],
-      ['the NBA', 'the NBA'],
-    ])('reads %s as into %s', (interest, wordInReason) => {
-      const library = makeLibrary([makeTopic('basketball', { interests: ['basketball'] })]);
-
-      expect(getReasonOf('basketball', { ...FIT, interests: [interest] }, library)).toBe(`Because you're into ${wordInReason}`);
-    });
-
-    it.each([
-      'I hate basketball',
-      'hate basketball',
-      "I don't like basketball",
-      'not basketball',
-      'no basketball',
-      'basketball sucks',
-      'basketball is boring',
-      'anti-basketball',
-      'my brother plays basketball',
-    ])('claims nothing and ranks nothing from %s', (interest) => {
-      const library = makeLibrary([makeTopic('plain'), makeTopic('basketball', { interests: ['basketball'] })]);
-      const student = { ...FIT, interests: [interest] };
-
-      expect(getPickIds(student, library)).toEqual(['plain', 'basketball']);
-      expect(getReasonOf('basketball', student, library)).toBe('Set at high school level');
-    });
-
-    it('reads each part of a typed list on its own', () => {
+    it('names only the chip that brought the card', () => {
       const library = makeLibrary([
         makeTopic('basketball', { interests: ['basketball'] }),
         makeTopic('football', { interests: ['football'] }),
       ]);
-      const student = { ...FIT, interests: ['I hate basketball, Arsenal'] };
+      const student: StudentFit = { ...FIT, interests: ['football'] };
 
-      expect(getReasonOf('football', student, library)).toBe("Because you're into Arsenal");
+      expect(getReasonOf('football', student, library)).toBe("Because you're into football");
       expect(getReasonOf('basketball', student, library)).toBe('Set at high school level');
     });
 
-    it('names a specific team when the student named one', () => {
-      const library = makeLibrary([makeTopic('football', { interests: ['football'] })]);
+    it('claims no interest when the student chose none', () => {
+      const library = makeLibrary([makeTopic('basketball', { interests: ['basketball'] })]);
 
-      expect(getReasonOf('football', { ...FIT, interests: ['Arsenal FC'] }, library)).toBe("Because you're into Arsenal");
-    });
-
-    it('does not match a word hidden inside another word', () => {
-      const library = makeLibrary([makeTopic('art', { interests: ['art'] })]);
-
-      expect(getReasonOf('art', { ...FIT, interests: ['smart cars', 'martial arts'] }, library)).not.toContain('into');
-    });
-
-    it('never repeats what the student typed when nothing in the library matches it', () => {
-      const library = makeLibrary([makeTopic('plain')]);
-
-      const reason = getReasonOf('plain', { ...FIT, interests: ['My private diary'] }, library);
-
-      expect(reason).toBe('Set at high school level');
+      expect(getReasonOf('basketball', FIT, library)).toBe('Set at high school level');
     });
   });
 
@@ -152,8 +101,8 @@ describe('getPicksForStudent', () => {
     it('prefers the interest reason over the goal reason on one card', () => {
       const library = makeLibrary([makeTopic('both', { goals: ['class'], interests: ['basketball'] })]);
 
-      expect(getPicksForStudent({ ...FIT, interests: ['Basketball'] }, library)).toHaveLength(1);
-      expect(getReasonOf('both', { ...FIT, interests: ['Basketball'] }, library)).toBe("Because you're into basketball");
+      expect(getPicksForStudent({ ...FIT, interests: ['basketball'] }, library)).toHaveLength(1);
+      expect(getReasonOf('both', { ...FIT, interests: ['basketball'] }, library)).toBe("Because you're into basketball");
     });
   });
 
@@ -209,13 +158,10 @@ describe('getPicksForStudent', () => {
   });
 
   describe('with the real library', () => {
+    const STUDENT_CHOICES: StudentInterest[][] = [[], ['basketball'], ['cooking', 'music']];
     const STUDENTS = STUDENT_LEVELS.flatMap((level) =>
       STUDENT_GOALS.flatMap((goal) =>
-        [[], ['Basketball'], ['Cooking', 'Music'], ['Something the library has never heard of']].map((interests) => ({
-          level,
-          goal,
-          interests,
-        })),
+        STUDENT_CHOICES.map((interests) => ({ level, goal, interests })),
       ),
     );
 
@@ -230,6 +176,28 @@ describe('getPicksForStudent', () => {
       }
     });
 
+    it.each(STUDENT_INTERESTS)('claims no chip but %s when that is the one chosen', (interest) => {
+      for (const level of STUDENT_LEVELS) {
+        for (const goal of STUDENT_GOALS) {
+          const claims = getPicksForStudent({ interests: [interest], level, goal }, LIBRARY)
+            .map((pick) => pick.reason)
+            .filter((reason) => reason.startsWith('Because'));
+
+          expect(new Set(claims)).toEqual(new Set([`Because you're into ${interest}`]));
+        }
+      }
+    });
+
+    it('claims no chip for a student who chose none', () => {
+      for (const level of STUDENT_LEVELS) {
+        for (const goal of STUDENT_GOALS) {
+          const reasons = getPicksForStudent({ interests: [], level, goal }, LIBRARY).map((pick) => pick.reason);
+
+          expect(reasons.filter((reason) => reason.startsWith('Because'))).toEqual([]);
+        }
+      }
+    });
+
     it('gives a new student six cards from six subjects', () => {
       const picks = getPicksForStudent(null, LIBRARY);
 
@@ -238,8 +206,8 @@ describe('getPicksForStudent', () => {
     });
 
     it('shows two different students different cards', () => {
-      const universityBasketball = getPickIds({ interests: ['Basketball', 'Space'], level: 'university', goal: 'exam' }, LIBRARY);
-      const highSchoolCooking = getPickIds({ interests: ['Cooking', 'Music'], level: 'high_school', goal: 'class' }, LIBRARY);
+      const universityBasketball = getPickIds({ interests: ['basketball', 'space'], level: 'university', goal: 'exam' }, LIBRARY);
+      const highSchoolCooking = getPickIds({ interests: ['cooking', 'music'], level: 'high_school', goal: 'class' }, LIBRARY);
 
       expect(universityBasketball.filter((id) => highSchoolCooking.includes(id))).toEqual([]);
     });

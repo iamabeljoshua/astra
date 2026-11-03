@@ -33,7 +33,7 @@ export class AuthGuard implements CanActivate {
     request.authUserId = await this.readAuthUserId(request);
     if (routeAccess === 'signedIn') return true;
 
-    request.studentId = await this.readStudentId(request.authUserId, routeAccess);
+    request.studentId = await this.readStudentId(request.authUserId);
     return true;
   }
 
@@ -60,10 +60,9 @@ export class AuthGuard implements CanActivate {
     }
   }
 
-  private async readStudentId(authUserId: string, routeAccess: RouteAccess): Promise<string> {
-    const access = await this.studentsService.findStudentAccess(authUserId);
-    if (!access) throw new ForbiddenException();
-    if (access.isWaitingForParent && routeAccess !== 'studentBeforeConsent') throw new ForbiddenException();
-    return access.studentId;
+  private async readStudentId(authUserId: string): Promise<string> {
+    const studentId = await this.studentsService.findStudentId(authUserId);
+    if (!studentId) throw new ForbiddenException();
+    return studentId;
   }
 }

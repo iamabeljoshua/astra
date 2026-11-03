@@ -1,25 +1,24 @@
-import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AccountGate } from '../auth/AccountGate';
 import { useAuth } from '../auth/AuthProvider';
 import { useSignInDraft } from '../auth/useSignInDraft';
 import {
+  API_ERROR_LABELS,
   BIRTH_DATE_LABELS,
-  FIRST_ANSWER_BOX_LABELS,
   ONBOARDING_LABELS,
   STUDENT_GOAL_LABELS,
+  STUDENT_INTEREST_LABELS,
   STUDENT_LEVEL_LABELS,
   TUTOR_NOTES_LABELS,
-  TUTOR_VOICE_LABELS,
 } from '../strings';
 import { renderWithQueryClient } from '../test/renderWithQueryClient';
-import { MAX_FIRST_QUESTION_LENGTH } from './fieldLimits';
 
 const HOME_TEXT = 'The app';
 const NEEDS_BIRTH_DATE = { status: 'needs_birth_date', student: null };
-const STUDENT = { id: 'student', name: 'Maya', profile: null, parentConsent: null };
-const PARENT_EMAIL = 'parent@astra.test';
+const STUDENT = { id: 'student', name: 'Maya', profile: null };
+const PROFILE = { interests: ['space'], level: 'university', goal: 'exam' };
 
 vi.mock('../auth/AuthProvider', () => ({ useAuth: vi.fn() }));
 vi.mock('../auth/session', () => ({
@@ -29,11 +28,15 @@ vi.mock('../auth/session', () => ({
   signOut: vi.fn(),
 }));
 
-function Gate() {
+function AppBehindTheGate() {
+  return <main>{`${HOME_TEXT} at ${useLocation().pathname}`}</main>;
+}
+
+function Gate({ startPath = '/' }: { startPath?: string }) {
   return (
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[startPath]}>
       <AccountGate signInDraft={useSignInDraft()}>
-        <main>{HOME_TEXT}</main>
+        <AppBehindTheGate />
       </AccountGate>
     </MemoryRouter>
   );
@@ -51,18 +54,6 @@ function stubApi(answers: Record<string, Answer>) {
     return answer ? new Response(JSON.stringify(answer(body))) : new Response(null, { status: 404 });
   });
   return sent;
-}
-
-function stubSpeech(voices = [{ name: 'Samantha', lang: 'en-US', localService: true, default: true }]) {
-  const engine = { cancel: vi.fn(), speak: vi.fn(), getVoices: () => voices };
-  vi.stubGlobal('speechSynthesis', engine);
-  vi.stubGlobal(
-    'SpeechSynthesisUtterance',
-    class {
-      constructor(readonly text: string) {}
-    },
-  );
-  return engine;
 }
 
 function clickContinue() {
@@ -99,9 +90,23 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('onboarding as an adult', () => {
-  it('asks one thing per screen, fills the sheet, and saves every answer', async () => {
-    stubSpeech();
+function stubStudentWithNoProfile() {
+  return stubApi({
+    'GET /api/me': () => ({ status: 'active', student: STUDENT }),
+    'PUT /api/me/profile': (body) => ({ status: 'active', student: { ...STUDENT, profile: body } }),
+  });
+}
+
+async function reachGoalStep() {
+  await screen.findByRole('heading', { name: ONBOARDING_LABELS.levelQuestion });
+  clickChoice(STUDENT_LEVEL_LABELS.university);
+  await screen.findByRole('heading', { name: ONBOARDING_LABELS.intoQuestion });
+  clickContinue();
+  await screen.findByRole('heading', { name: ONBOARDING_LABELS.goalQuestion });
+}
+
+describe('onboarding', () => {
+  it('asks one thing per screen, fills the sheet, and goes to Home after the goal', async () => {
     const sent = stubApi({
       'GET /api/me': () => NEEDS_BIRTH_DATE,
       'POST /api/me/birth-date': () => ({ status: 'active', student: STUDENT }),
@@ -116,99 +121,132 @@ describe('onboarding as an adult', () => {
     clickContinue();
 
     await passBirthDate();
-    await screen.findByRole('heading', { name: ONBOARDING_LABELS.intoQuestion });
-    expect(sent.find(({ route }) => route === 'POST /api/me/birth-date')?.body).toEqual({ birthDate: '2004-03-14', name: 'Maya' });
-    fireEvent.click(screen.getByRole('button', { name: 'Space' }));
-    fireEvent.change(screen.getByLabelText(ONBOARDING_LABELS.intoPlaceholder), { target: { value: 'Arsenal' } });
-    expect(readSheetRow(TUTOR_NOTES_LABELS.into)).toBe('Space, Arsenal');
-    clickContinue();
-
     await screen.findByRole('heading', { name: ONBOARDING_LABELS.levelQuestion });
+    expect(sent.find(({ route }) => route === 'POST /api/me/birth-date')?.body).toEqual({ birthDate: '2004-03-14', name: 'Maya' });
     clickChoice(STUDENT_LEVEL_LABELS.university);
     expect(readSheetRow(TUTOR_NOTES_LABELS.level)).toBe(STUDENT_LEVEL_LABELS.university);
+
+    await screen.findByRole('heading', { name: ONBOARDING_LABELS.intoQuestion });
+    fireEvent.click(screen.getByRole('button', { name: STUDENT_INTEREST_LABELS.space }));
+    fireEvent.click(screen.getByRole('button', { name: STUDENT_INTEREST_LABELS.music }));
+    expect(readSheetRow(TUTOR_NOTES_LABELS.into)).toBe('Space, Music');
+    clickContinue();
 
     await screen.findByRole('heading', { name: ONBOARDING_LABELS.goalQuestion });
     clickChoice(STUDENT_GOAL_LABELS.exam);
     expect(readSheetRow(TUTOR_NOTES_LABELS.goal)).toBe(STUDENT_GOAL_LABELS.exam);
 
-    await screen.findByRole('heading', { name: ONBOARDING_LABELS.voiceQuestion });
-    clickChoice(TUTOR_VOICE_LABELS.noor.name);
-    expect(readSheetRow(TUTOR_NOTES_LABELS.voice)).toBe(TUTOR_VOICE_LABELS.noor.name);
-    clickContinue();
-
-    await screen.findByRole('heading', { name: /I'm your tutor, and I'm an AI. You said you're into Arsenal/ });
-    fireEvent.change(screen.getByLabelText(FIRST_ANSWER_BOX_LABELS.label), { target: { value: 'Why do free kicks curve?' } });
-    fireEvent.click(screen.getByRole('button', { name: FIRST_ANSWER_BOX_LABELS.send }));
-
-    await screen.findByText(HOME_TEXT);
-    expect(sent.filter(({ route }) => route === 'PUT /api/me/profile').at(-1)?.body).toEqual({
-      name: 'Maya',
-      interests: ['Space', 'Arsenal'],
-      level: 'university',
-      goal: 'exam',
-      voice: 'noor',
-      firstQuestion: 'Why do free kicks curve?',
-    });
+    await screen.findByText(`${HOME_TEXT} at /`);
+    expect(sent.filter(({ route }) => route === 'PUT /api/me/profile').map(({ body }) => body)).toEqual([
+      { name: 'Maya', interests: ['space', 'music'], level: 'university', goal: 'exam' },
+    ]);
   });
 
-  it('plays the sample of each voice the student tries', async () => {
-    const engine = stubSpeech();
-    stubApi({ 'GET /api/me': () => ({ status: 'active', student: STUDENT }) });
+  it('offers the three goals', async () => {
+    stubStudentWithNoProfile();
     renderWithQueryClient(<Gate />);
-    await screen.findByRole('heading', { name: ONBOARDING_LABELS.intoQuestion });
-    clickContinue();
+
+    await reachGoalStep();
+
+    for (const goal of ['Improve my grades', 'Get ready for an exam', "Learn anything I'm curious about"]) {
+      screen.getByRole('button', { name: goal });
+    }
+  });
+
+  it('lets a student choose many interests and change their mind, with no box to type in', async () => {
+    stubStudentWithNoProfile();
+    renderWithQueryClient(<Gate />);
+    await screen.findByRole('heading', { name: ONBOARDING_LABELS.levelQuestion });
     clickChoice(STUDENT_LEVEL_LABELS.university);
-    await screen.findByRole('heading', { name: ONBOARDING_LABELS.goalQuestion });
+    await screen.findByRole('heading', { name: ONBOARDING_LABELS.intoQuestion });
+
+    expect(screen.queryByRole('textbox')).toBeNull();
+    const space = screen.getByRole('button', { name: STUDENT_INTEREST_LABELS.space });
+    const music = screen.getByRole('button', { name: STUDENT_INTEREST_LABELS.music });
+    fireEvent.click(space);
+    fireEvent.click(music);
+    expect(space.getAttribute('aria-pressed')).toBe('true');
+    expect(music.getAttribute('aria-pressed')).toBe('true');
+
+    fireEvent.click(space);
+
+    expect(space.getAttribute('aria-pressed')).toBe('false');
+    expect(readSheetRow(TUTOR_NOTES_LABELS.into)).toBe(STUDENT_INTEREST_LABELS.music);
+  });
+
+  it('saves an empty interest list when the student chooses none', async () => {
+    const sent = stubStudentWithNoProfile();
+    renderWithQueryClient(<Gate />);
+
+    await reachGoalStep();
+    clickChoice(STUDENT_GOAL_LABELS.curiosity);
+
+    await screen.findByText(`${HOME_TEXT} at /`);
+    expect(sent.at(-1)?.body).toEqual({ name: 'Maya', interests: [], level: 'university', goal: 'curiosity' });
+  });
+
+  it('ends at Home wherever the student signed in', async () => {
+    stubStudentWithNoProfile();
+    renderWithQueryClient(<Gate startPath="/sessions" />);
+
+    await reachGoalStep();
+    clickChoice(STUDENT_GOAL_LABELS.class);
+
+    await screen.findByText(`${HOME_TEXT} at /`);
+  });
+
+  it('says so when the last save fails, and saves on the next try', async () => {
+    let isDown = true;
+    const sent = stubApi({
+      'GET /api/me': () => ({ status: 'active', student: STUDENT }),
+      'PUT /api/me/profile': (body) => {
+        if (isDown) throw new TypeError('network');
+        return { status: 'active', student: { ...STUDENT, profile: body } };
+      },
+    });
+    renderWithQueryClient(<Gate />);
+
+    await reachGoalStep();
     clickChoice(STUDENT_GOAL_LABELS.exam);
-    await screen.findByRole('heading', { name: ONBOARDING_LABELS.voiceQuestion });
 
-    clickChoice(TUTOR_VOICE_LABELS.ada.name);
-    clickChoice(TUTOR_VOICE_LABELS.kofi.name);
-    clickChoice(TUTOR_VOICE_LABELS.noor.name);
+    expect((await screen.findByRole('alert')).textContent).toBe(API_ERROR_LABELS.network);
+    expect(screen.queryByText(`${HOME_TEXT} at /`)).toBeNull();
 
-    expect(engine.speak).toHaveBeenCalledTimes(3);
-    expect(engine.speak.mock.lastCall?.[0]).toMatchObject({ text: ONBOARDING_LABELS.voiceSample('Maya') });
+    isDown = false;
+    clickChoice(STUDENT_GOAL_LABELS.exam);
+
+    await screen.findByText(`${HOME_TEXT} at /`);
+    expect(sent.filter(({ route }) => route === 'PUT /api/me/profile')).toHaveLength(2);
   });
 
-  it('puts the cursor in the answer box on a laptop, ready to type', async () => {
-    stubSpeech();
-    vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('min-width') }));
-    const profile = { interests: ['Space'], level: 'university', goal: 'exam', voice: 'ada', firstQuestion: null };
-    stubApi({ 'GET /api/me': () => ({ status: 'active', student: { ...STUDENT, profile } }) });
+  it('keeps the name of a student who goes back from the level', async () => {
+    stubStudentWithNoProfile();
+    renderWithQueryClient(<Gate />);
+    await screen.findByRole('heading', { name: ONBOARDING_LABELS.levelQuestion });
+
+    fireEvent.click(screen.getByRole('button', { name: ONBOARDING_LABELS.back }));
+
+    const input = await screen.findByLabelText<HTMLInputElement>(ONBOARDING_LABELS.namePlaceholder);
+    expect(input.value).toBe('Maya');
+  });
+
+  it('asks a student with a date of birth and no profile only what is left', async () => {
+    stubStudentWithNoProfile();
+    renderWithQueryClient(<Gate />);
+
+    await screen.findByRole('heading', { name: ONBOARDING_LABELS.levelQuestion });
+
+    expect(screen.queryByText(HOME_TEXT, { exact: false })).toBeNull();
+    expect(screen.queryByLabelText(BIRTH_DATE_LABELS.year)).toBeNull();
+  });
+
+  it('never sends a student with a profile back through it', async () => {
+    stubApi({ 'GET /api/me': () => ({ status: 'active', student: { ...STUDENT, profile: PROFILE } }) });
 
     renderWithQueryClient(<Gate />);
 
-    expect(await screen.findByLabelText(FIRST_ANSWER_BOX_LABELS.label)).toBe(document.activeElement);
-  });
-
-  it('shows a save failure on the first answer and keeps what was typed', async () => {
-    stubSpeech();
-    const profile = { interests: ['Space'], level: 'university', goal: 'exam', voice: 'ada', firstQuestion: null };
-    stubApi({ 'GET /api/me': () => ({ status: 'active', student: { ...STUDENT, profile } }) });
-    renderWithQueryClient(<Gate />);
-
-    const answerBox = await screen.findByLabelText<HTMLTextAreaElement>(FIRST_ANSWER_BOX_LABELS.label);
-    fireEvent.change(answerBox, { target: { value: 'Why do free kicks curve?' } });
-    fireEvent.click(screen.getByRole('button', { name: FIRST_ANSWER_BOX_LABELS.send }));
-
-    await screen.findByRole('alert');
-    expect(answerBox.value).toBe('Why do free kicks curve?');
-    expect(screen.queryByText(HOME_TEXT)).toBeNull();
-  });
-
-  it('stops the first answer at the limit and says so', async () => {
-    stubSpeech();
-    const profile = { interests: ['Space'], level: 'university', goal: 'exam', voice: 'ada', firstQuestion: null };
-    stubApi({ 'GET /api/me': () => ({ status: 'active', student: { ...STUDENT, profile } }) });
-    renderWithQueryClient(<Gate />);
-    const limitNote = FIRST_ANSWER_BOX_LABELS.limitReached(MAX_FIRST_QUESTION_LENGTH);
-
-    const answerBox = await screen.findByLabelText<HTMLTextAreaElement>(FIRST_ANSWER_BOX_LABELS.label);
-    expect(screen.queryByText(limitNote)).toBeNull();
-    expect(answerBox.maxLength).toBe(MAX_FIRST_QUESTION_LENGTH);
-    fireEvent.change(answerBox, { target: { value: 'Q'.repeat(MAX_FIRST_QUESTION_LENGTH) } });
-
-    screen.getByText(limitNote);
+    await screen.findByText(`${HOME_TEXT} at /`);
+    expect(screen.queryByRole('heading', { name: ONBOARDING_LABELS.levelQuestion })).toBeNull();
   });
 
   it('will not leave the name question blank', async () => {
@@ -235,64 +273,5 @@ describe('onboarding as an adult', () => {
 
     await waitFor(() => expect(screen.queryByLabelText(BIRTH_DATE_LABELS.year)).toBeNull());
     expect(sent.filter(({ body }) => JSON.stringify(body).includes('Maya')).map(({ route }) => route)).toEqual(['POST /api/me/birth-date']);
-  });
-});
-
-describe('onboarding under 18', () => {
-  const NOT_ASKED = { ...STUDENT, parentConsent: { status: 'not_asked', parentEmail: null } };
-  const WAITING = { ...STUDENT, parentConsent: { status: 'waiting', parentEmail: PARENT_EMAIL } };
-  const APPROVED = { ...STUDENT, parentConsent: { status: 'given', parentEmail: PARENT_EMAIL } };
-
-  it('asks for the parent, waits, and moves on once they accept', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
-    let account: object = { status: 'active', student: NOT_ASKED };
-    stubApi({
-      'GET /api/me': () => account,
-      'PUT /api/me/parent-consent': () => {
-        account = { status: 'active', student: WAITING };
-        return account;
-      },
-    });
-    renderWithQueryClient(<Gate />);
-
-    await screen.findByRole('heading', { name: ONBOARDING_LABELS.parentQuestion });
-    fireEvent.change(screen.getByLabelText(ONBOARDING_LABELS.parentPlaceholder), { target: { value: PARENT_EMAIL } });
-    clickContinue();
-
-    await screen.findByRole('heading', { name: ONBOARDING_LABELS.waitingQuestion });
-    screen.getByText(PARENT_EMAIL);
-    expect(screen.queryByRole('button', { name: ONBOARDING_LABELS.next })).toBeNull();
-
-    account = { status: 'active', student: APPROVED };
-    await act(() => vi.advanceTimersByTimeAsync(6_000));
-
-    await screen.findByRole('heading', { name: ONBOARDING_LABELS.intoQuestion });
-    vi.useRealTimers();
-  });
-
-  it('lets the student change a mistyped address while waiting', async () => {
-    const sent = stubApi({
-      'GET /api/me': () => ({ status: 'active', student: WAITING }),
-      'PUT /api/me/parent-consent': () => ({ status: 'active', student: { ...STUDENT, parentConsent: { status: 'waiting', parentEmail: 'new@astra.test' } } }),
-    });
-    renderWithQueryClient(<Gate />);
-
-    fireEvent.click(await screen.findByRole('button', { name: ONBOARDING_LABELS.useAnotherAddress }));
-    const input = screen.getByLabelText<HTMLInputElement>(ONBOARDING_LABELS.parentPlaceholder);
-    expect(input.value).toBe(PARENT_EMAIL);
-    fireEvent.change(input, { target: { value: 'new@astra.test' } });
-    clickContinue();
-
-    await screen.findByText('new@astra.test');
-    expect(sent.at(-1)).toEqual({ route: 'PUT /api/me/parent-consent', body: { parentEmail: 'new@astra.test' } });
-  });
-
-  it('never opens the app for a waiting student', async () => {
-    stubApi({ 'GET /api/me': () => ({ status: 'active', student: { ...WAITING, profile: { interests: [], level: 'high_school', goal: 'exam', voice: 'ada', firstQuestion: null } } }) });
-    renderWithQueryClient(<Gate />);
-
-    await screen.findByRole('heading', { name: ONBOARDING_LABELS.waitingQuestion });
-
-    expect(screen.queryByText(HOME_TEXT)).toBeNull();
   });
 });

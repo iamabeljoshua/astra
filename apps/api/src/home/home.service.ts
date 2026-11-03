@@ -13,14 +13,11 @@ export class HomeService {
   ) {}
 
   async getHomeScreen(studentId: string): Promise<HomeScreenResponseDto> {
-    const isNewStudent = !(await this.sessionsService.hasStartedASession(studentId));
-    const profile = await this.studentsService.getProfile(studentId);
     return {
       studentName: await this.studentsService.getStudentName(studentId),
-      isNewStudent,
-      startHereQuestion: isNewStudent ? (profile?.firstQuestion ?? null) : null,
+      isNewStudent: !(await this.sessionsService.hasStartedASession(studentId)),
       continueSession: await this.sessionsService.getNewestUnfinishedSession(studentId),
-      picks: getPicksForStudent(profile, LIBRARY),
+      picks: getPicksForStudent(await this.studentsService.getProfile(studentId), LIBRARY),
     };
   }
 }

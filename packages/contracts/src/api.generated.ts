@@ -69,57 +69,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/me/parent-consent": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /** Asks a parent or guardian to approve this student. The same address keeps its link, and a new address replaces it. */
-        put: operations["ConsentController_askParent"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/parent-consent/{token}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Reads what a consent link is asking. A parent opens this with no account, and reading it accepts nothing. */
-        get: operations["ConsentController_readLink"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/parent-consent/accept": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Records the parent or guardian's acceptance. The first acceptance stands. */
-        post: operations["ConsentController_acceptLink"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/sessions": {
         parameters: {
             query?: never;
@@ -167,8 +116,8 @@ export interface components {
             status: "ok";
         };
         StudentProfileResponseDto: {
-            /** @description What the student is into. */
-            interests: string[];
+            /** @description The interests the student chose from the list. */
+            interests: ("basketball" | "football" | "movies" | "gaming" | "music" | "art" | "space" | "cars" | "cooking" | "fashion" | "coding" | "history")[];
             /**
              * @description The stage of schooling the student is at.
              * @enum {string}
@@ -179,22 +128,6 @@ export interface components {
              * @enum {string}
              */
             goal: "class" | "exam" | "curiosity";
-            /**
-             * @description The tutor voice the student picked.
-             * @enum {string}
-             */
-            voice: "ada" | "kofi" | "noor";
-            /** @description The student's answer to the tutor's first question, or null until they give it. */
-            firstQuestion: string | null;
-        };
-        ParentConsentResponseDto: {
-            /**
-             * @description Whether a parent or guardian has not been asked yet, has been asked, or has accepted.
-             * @enum {string}
-             */
-            status: "not_asked" | "waiting" | "given";
-            /** @description The address the consent link goes to, or null until the student gives one. */
-            parentEmail: string | null;
         };
         StudentResponseDto: {
             /** @description The ID of the student. */
@@ -203,8 +136,6 @@ export interface components {
             name: string | null;
             /** @description The student's profile, or null until onboarding saves one. */
             profile: components["schemas"]["StudentProfileResponseDto"] | null;
-            /** @description Where the student stands with parent consent, or null for a student who does not need it. */
-            parentConsent: components["schemas"]["ParentConsentResponseDto"] | null;
         };
         AccountResponseDto: {
             /**
@@ -224,8 +155,8 @@ export interface components {
         SaveStudentProfileBodyDto: {
             /** @description The name the tutor calls the student. */
             name: string;
-            /** @description What the student is into. Onboarding lets a student skip this, so the list can be empty. */
-            interests: string[];
+            /** @description The interests the student chose from the list. A student can choose none. */
+            interests: ("basketball" | "football" | "movies" | "gaming" | "music" | "art" | "space" | "cars" | "cooking" | "fashion" | "coding" | "history")[];
             /**
              * @description The stage of schooling the student is at.
              * @enum {string}
@@ -236,30 +167,6 @@ export interface components {
              * @enum {string}
              */
             goal: "class" | "exam" | "curiosity";
-            /**
-             * @description The tutor voice the student picked.
-             * @enum {string}
-             */
-            voice: "ada" | "kofi" | "noor";
-            /** @description The student's answer to the tutor's first question, or null until they give it. A null never clears a saved answer. */
-            firstQuestion: string | null;
-        };
-        AskParentBodyDto: {
-            /**
-             * Format: email
-             * @description The address of the parent or guardian who approves this account.
-             */
-            parentEmail: string;
-        };
-        ConsentLinkResponseDto: {
-            /** @description The name of the student asking, or null if they have not given one. */
-            studentName: string | null;
-            /** @description Whether a parent or guardian has accepted through this link. */
-            isAccepted: boolean;
-        };
-        ConsentLinkTokenDto: {
-            /** @description The token at the end of the consent link. */
-            token: string;
         };
         CreateSessionBodyDto: {
             /** @description What the session is about. */
@@ -328,8 +235,6 @@ export interface components {
             studentName: string | null;
             /** @description True until the student has started a session. */
             isNewStudent: boolean;
-            /** @description The answer the student gave the tutor in onboarding, offered until they start a session. */
-            startHereQuestion: string | null;
             /** @description The student's newest unfinished session, or null if there is none. */
             continueSession: components["schemas"]["SessionResponseDto"] | null;
             /** @description The cards offered to this student. */
@@ -424,74 +329,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AccountResponseDto"];
-                };
-            };
-        };
-    };
-    ConsentController_askParent: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AskParentBodyDto"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AccountResponseDto"];
-                };
-            };
-        };
-    };
-    ConsentController_readLink: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The token at the end of the consent link. */
-                token: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ConsentLinkResponseDto"];
-                };
-            };
-        };
-    };
-    ConsentController_acceptLink: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ConsentLinkTokenDto"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ConsentLinkResponseDto"];
                 };
             };
         };

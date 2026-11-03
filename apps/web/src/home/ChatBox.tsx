@@ -1,4 +1,4 @@
-import { useImperativeHandle, useRef, useState, type FormEvent, type KeyboardEvent, type Ref, type RefObject } from 'react';
+import { useRef, useState, type FormEvent, type KeyboardEvent, type RefObject } from 'react';
 import { CHAT_BOX_LABELS } from '../strings';
 import { useHeightThatFitsText } from './useHeightThatFitsText';
 
@@ -8,28 +8,12 @@ const COMPOSING_KEY_CODE = 229;
 const TOOL_BUTTON =
   'inline-flex h-8 items-center gap-1.5 px-2 text-fine text-ink-2 hover:text-ink aria-pressed:font-medium aria-pressed:text-ink';
 
-interface ChatBoxLabels {
-  label: string;
-  placeholder: string;
-  placeholderWhileTalkIsOn: string;
-  send: string;
-}
-
-interface ChatBoxLimit {
-  maxLength: number;
-  reachedNote: string;
-}
-
 interface ChatBoxProps {
   onSend: (question: string) => void;
   onEdit: () => void;
-  labels?: ChatBoxLabels;
-  canAttach?: boolean;
-  textBoxHandle?: Ref<HTMLTextAreaElement | null>;
-  limit?: ChatBoxLimit;
 }
 
-export function ChatBox({ onSend, onEdit, labels = CHAT_BOX_LABELS, canAttach = true, textBoxHandle, limit }: ChatBoxProps) {
+export function ChatBox({ onSend, onEdit }: ChatBoxProps) {
   const [question, setQuestion] = useState('');
   const [isTalkOn, setIsTalkOn] = useState(false);
   const [attachment, setAttachment] = useState<File | null>(null);
@@ -60,22 +44,14 @@ export function ChatBox({ onSend, onEdit, labels = CHAT_BOX_LABELS, canAttach = 
       {attachment && <AttachmentChip fileName={attachment.name} onRemove={removeAttachment} />}
       <QuestionBox
         question={question}
-        label={labels.label}
-        handle={textBoxHandle}
-        placeholder={isTalkOn ? labels.placeholderWhileTalkIsOn : labels.placeholder}
-        maxLength={limit?.maxLength}
+        placeholder={isTalkOn ? CHAT_BOX_LABELS.placeholderWhileTalkIsOn : CHAT_BOX_LABELS.placeholder}
         onChange={editQuestion}
         onEnter={send}
       />
-      {limit && (
-        <p role="status" className="px-4 pt-1 text-fine text-ink-2 empty:hidden">
-          {question.length >= limit.maxLength && limit.reachedNote}
-        </p>
-      )}
       <div className="flex items-center gap-1.5 pt-1.5 pr-2 pb-2 pl-2.5">
-        {canAttach && <AttachButton button={attachButton} onChoose={setAttachment} />}
+        <AttachButton button={attachButton} onChoose={setAttachment} />
         <TalkButton isOn={isTalkOn} onToggle={() => setIsTalkOn(!isTalkOn)} />
-        <SendButton isEnabled={hasQuestion} label={labels.send} />
+        <SendButton isEnabled={hasQuestion} />
       </div>
     </form>
   );
@@ -88,26 +64,21 @@ function isSendKey(event: KeyboardEvent) {
 
 interface QuestionBoxProps {
   question: string;
-  label: string;
-  handle?: Ref<HTMLTextAreaElement | null>;
   placeholder: string;
-  maxLength?: number;
   onChange: (question: string) => void;
   onEnter: () => void;
 }
 
-function QuestionBox({ question, label, handle, placeholder, maxLength, onChange, onEnter }: QuestionBoxProps) {
+function QuestionBox({ question, placeholder, onChange, onEnter }: QuestionBoxProps) {
   const textBox = useHeightThatFitsText(question, placeholder);
-  useImperativeHandle<HTMLTextAreaElement | null, HTMLTextAreaElement | null>(handle, () => textBox.current, [textBox]);
 
   return (
     <textarea
       ref={textBox}
       rows={1}
       value={question}
-      aria-label={label}
+      aria-label={CHAT_BOX_LABELS.label}
       placeholder={placeholder}
-      maxLength={maxLength}
       autoComplete="off"
       onChange={(event) => onChange(event.target.value)}
       onKeyDown={(event) => {
@@ -179,13 +150,13 @@ function TalkButton({ isOn, onToggle }: { isOn: boolean; onToggle: () => void })
   );
 }
 
-function SendButton({ isEnabled, label }: { isEnabled: boolean; label: string }) {
+function SendButton({ isEnabled }: { isEnabled: boolean }) {
   return (
     <button
       type="submit"
       disabled={!isEnabled}
-      aria-label={label}
-      title={label}
+      aria-label={CHAT_BOX_LABELS.send}
+      title={CHAT_BOX_LABELS.send}
       className="ml-auto inline-flex size-8 flex-none items-center justify-center bg-ink text-paper disabled:cursor-default disabled:opacity-30"
     >
       <SendIcon />

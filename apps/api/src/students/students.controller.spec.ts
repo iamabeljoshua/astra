@@ -1,14 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import request from 'supertest';
+import { DataSource } from 'typeorm';
 import { createTestApp, createTestStudent, OLD_ENOUGH_BIRTH_DATE } from '../../test/test-database';
 import type { TestApp, TestStudent } from '../../test/test-database';
+import { StudentProfileEntity } from '../infrastructure/orm/entities/student-profile.entity';
 
 const SAVED_PROFILE = {
-  interests: ['Basketball', 'Space'],
+  interests: ['basketball', 'space'],
   level: 'university',
   goal: 'exam',
-  voice: 'ada',
-  firstQuestion: 'How does a curveball bend?',
 };
 const VALID_PROFILE = { ...SAVED_PROFILE, name: 'Maya' };
 const MILLISECONDS_PER_DAY = 86_400_000;
@@ -59,7 +59,7 @@ describe('the account routes', () => {
 
       expect(body).toEqual({
         status: 'active',
-        student: { id: expect.any(String), name: null, profile: null, parentConsent: null },
+        student: { id: expect.any(String), name: null, profile: null },
       });
       await api(token).getAccount().expect(200, body);
     });
@@ -176,21 +176,22 @@ describe('the account routes', () => {
     expect(body.student.profile).toEqual(SAVED_PROFILE);
   });
 
-  it('accepts a profile with no first question yet', async () => {
+  it('accepts a profile with no interest chosen', async () => {
     const newStudent = await createTestStudent(testApp);
 
-    const { body } = await api(newStudent.token).saveProfile({ ...VALID_PROFILE, firstQuestion: null }).expect(200);
+    const { body } = await api(newStudent.token).saveProfile({ ...VALID_PROFILE, interests: [] }).expect(200);
 
-    expect(body.student.profile.firstQuestion).toBeNull();
+    expect(body.student.profile.interests).toEqual([]);
   });
 
-  it('keeps a saved first question when another tab saves with none', async () => {
-    await api(student.token).saveProfile(VALID_PROFILE).expect(200);
+  it('opens every student route to a student under 18 once they answer', async () => {
+    const token = await createNewAccountToken();
+    const fifteenYearsAgo = `${new Date().getUTCFullYear() - 15}-06-01`;
 
-    await api(student.token).saveProfile({ ...VALID_PROFILE, level: 'high_school', firstQuestion: null }).expect(200);
+    const { body } = await api(token).answer(fifteenYearsAgo, 'Tolu').expect(200);
+    expect(body).toEqual({ status: 'active', student: { id: expect.any(String), name: 'Tolu', profile: null } });
 
-    const { body } = await api(student.token).getAccount().expect(200);
-    expect(body.student.profile).toMatchObject({ level: 'high_school', firstQuestion: VALID_PROFILE.firstQuestion });
+    await api(token).saveProfile(VALID_PROFILE).expect(200);
   });
 
   it('stores the name given with the date of birth', async () => {
@@ -223,29 +224,47 @@ describe('the account routes', () => {
 
     const { body } = await api(student.token).getAccount().expect(200);
 
-    expect(Object.keys(body.student).sort()).toEqual(['id', 'name', 'parentConsent', 'profile']);
-    expect(Object.keys(body.student.profile).sort()).toEqual(['firstQuestion', 'goal', 'interests', 'level', 'voice']);
+    expect(Object.keys(body.student).sort()).toEqual(['id', 'name', 'profile']);
+    expect(Object.keys(body.student.profile).sort()).toEqual(['goal', 'interests', 'level']);
   });
 
   it.each([
     ['a missing interest list', { interests: undefined }, 'interests'],
-    ['interests that are not a list', { interests: 'Space' }, 'interests'],
-    ['a list inside the interest list', { interests: [['Space']] }, 'interests'],
+    ['interests that are not a list', { interests: 'space' }, 'interests'],
+    ['a list inside the interest list', { interests: [['space']] }, 'interests'],
     ['an interest that is not text', { interests: [42] }, 'interests'],
-    ['a blank interest', { interests: ['  '] }, 'interests'],
-    ['an interest with a null character', { interests: ['Sp\u0000ce'] }, 'interests'],
-    ['an interest that is too long', { interests: ['S'.repeat(61)] }, 'interests'],
-    ['too many interests', { interests: Array(21).fill('Space') }, 'interests'],
+    ['free text as an interest', { interests: ['Arsenal'] }, 'interests'],
+    ['an interest in the wrong case', { interests: ['Space'] }, 'interests'],
+    ['the same interest twice', { interests: ['space', 'space'] }, 'interests'],
     ['a level that is not on the list', { level: 'wizard' }, 'level'],
     ['a goal that is not on the list', { goal: 'fame' }, 'goal'],
-    ['a voice that is not on the list', { voice: 'hal' }, 'voice'],
     ['a missing name', { name: undefined }, 'name'],
     ['a blank name', { name: '  ' }, 'name'],
     ['a name that is too long', { name: 'N'.repeat(61) }, 'name'],
-    ['a missing first question', { firstQuestion: undefined }, 'firstQuestion'],
-    ['a blank first question', { firstQuestion: '  ' }, 'firstQuestion'],
-    ['a first question that is too long', { firstQuestion: 'Q'.repeat(501) }, 'firstQuestion'],
   ])('rejects %s when saving a profile', async (_caseName, change, fieldName) => {
     expectBadRequestNaming(await api(student.token).saveProfile({ ...VALID_PROFILE, ...change }), fieldName);
+  });
+
+  it.each([['voice', 'ada'], ['firstQuestion', 'Why is the sky blue?'], ['parentEmail', 'parent@astra.test']])(
+    'refuses %s, which the flow no longer asks',
+    async (fieldName, value) => {
+      const response = await api(student.token).saveProfile({ ...VALID_PROFILE, [fieldName]: value });
+
+      expectBadRequestNaming(response, fieldName);
+    },
+  );
+
+  it('drops free text saved before interests became a list, so saving the same profile back works', async () => {
+    const newStudent = await createTestStudent(testApp);
+    await api(newStudent.token).saveProfile(VALID_PROFILE).expect(200);
+    await testApp.app.get(DataSource).getRepository(StudentProfileEntity).update(
+      { studentId: newStudent.studentId },
+      { interests: ['Arsenal', 'space'] },
+    );
+
+    const { body } = await api(newStudent.token).getAccount().expect(200);
+    expect(body.student.profile.interests).toEqual(['space']);
+
+    await api(newStudent.token).saveProfile({ name: 'Maya', ...body.student.profile }).expect(200);
   });
 });

@@ -180,20 +180,15 @@ The server's clock and UTC+14 decide the student's age. UTC+14 is the first plac
 
 `students.auth_user_id` and `closed_accounts.auth_user_id` are plain uuids with no foreign key, because the local app databases have no `auth` schema. Deleting a user in Supabase therefore leaves that user's rows in place. No token can reach those rows once the user's last token expires. To remove a student, delete the row in `students`, which also removes the profile and sessions, before you delete the Supabase user. Deleting the Supabase user of a closed account lets the same address sign up as a new user and answer again, so keep that user until the deletion work in M4.5 settles how to prevent it.
 
-### Onboarding and parent consent
+### Onboarding
 
-The steps and their order are one table in `apps/web/src/onboarding/steps.ts`. The name stays in the browser until the date of birth is confirmed, and `POST /me/birth-date` stores it only if the account opens. The other answers go to `PUT /me/profile` after the voice step, and the student's first answer goes with them on the last screen. A student has finished once that answer is saved, and a null from a second tab never clears it. A reload before the date of birth is confirmed returns to `What should your tutor call you?` with an empty box, because the name is stored only with that date. After that, a reload before the voice step keeps the name, loses the answers on those screens, and returns to `What are you into?`.
+The steps and their order are one table in `apps/web/src/onboarding/steps.ts`: name, date of birth, level, interests, goal, then Home. The name stays in the browser until the date of birth is confirmed, and `POST /me/birth-date` stores it only if the account opens. The level, interests, and goal go to `PUT /me/profile` with the name when the student picks a goal. A student has finished once they have a profile, so a student who already has one never comes back here, and a student with no profile goes through it once. A reload before the date of birth is confirmed returns to `What should your tutor call you?` with an empty box. After that, a reload keeps the name, clears the other answers, and returns to the level. `Your notes` at `/notes` changes everything but the date of birth.
 
-`apps/api/src/auth/age-gate.ts` treats a student as under 18 until they are 18 in every time zone, the reverse of the under-13 rule, so no minor skips the parent. While a student under 18 has no consent, the API refuses every student route, including any added later, except `PUT /me/parent-consent`. So before a parent accepts, our tables hold only the name, the date of birth, the account ID, and the parent's address with its link hash. Supabase Auth also holds the student's email address and sign-in time in `auth.users`, and their IP address and browser in `auth.sessions`. The parent page and the Privacy Policy say so.
+A student under 18 takes the same path as any other student, and no parent or guardian is asked. The date of birth question and the under-13 rule above are what keep under-13s out.
 
-The consent link is `/parent-consent/<token>`. It is a path and not `?code=`, because `readSignInReturnProblem` reads that query as a failed email link. No email goes out yet. **The API writes the link to its log**, and in a lane that is `.verify/dev.log`. Real email must ship before any real student under 18 signs up. The PR that adds it replaces `ConsentLinkDelivery` and the local address in `getLocalConsentLink`.
+Interests are chips. `STUDENT_INTERESTS` in `apps/api/src/students/student-profile-options.ts` is the list, `strings.ts` holds the labels, and each topic in `apps/api/src/picks/library.json` names the chips it suits. The API refuses any other value, so a pick's reason can name only a chip the student chose. A profile saved before the list can hold free text. The API leaves those values out of its answers, and the next save removes them.
 
-- The database holds a hash of the token, never the link. No API answer to a student contains it.
-- Opening the link accepts nothing, because a mail scanner may follow it. A parent accepts with the button on the page, which calls only public routes, so it works in a signed-out browser.
-- Asking again for the same address keeps its link. A new address replaces the link, and the old one stops working. A link has no expiry yet.
-- Nothing stops a student from typing an address they control. Real email does not close that gap, so counsel decides how strong this check must be (PRD Q4).
-
-The voice samples and the tutor's first line use the browser's speech engine as a stand-in until M3.6, and the first exchange is a script until M3.10. `apps/web/src/onboarding/browserVoice.ts` speaks only through on-device voices, because a cloud voice would send the student's name to a voice service. A browser with no on-device English voice stays silent and says so.
+Goals are the codes `class`, `exam`, and `curiosity`, which `getPicksForStudent` and the library read, shown as `Improve my grades`, `Get ready for an exam`, and `Learn anything I'm curious about`.
 
 ### The Terms and the Privacy Policy
 

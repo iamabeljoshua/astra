@@ -1,59 +1,40 @@
 import type { components } from '@astra/contracts';
 
 export type Student = components['schemas']['StudentResponseDto'];
-export type StepId = 'name' | 'birthDate' | 'parent' | 'into' | 'level' | 'goal' | 'voice' | 'hello';
+export type StepId = 'name' | 'birthDate' | 'level' | 'interests' | 'goal';
 
 interface OnboardingStep {
   id: StepId;
-  appliesTo: (student: Student | null) => boolean;
   isAnswered: (student: Student | null) => boolean;
-  isSkipped: (student: Student | null) => boolean;
-  canGoBack: boolean;
-  showsChangeLaterNote: boolean;
+  canChangeLater: boolean;
 }
 
 const hasStudent = (student: Student | null) => student !== null;
 const hasProfile = (student: Student | null) => Boolean(student?.profile);
-const hasConsent = (student: Student | null) => student?.parentConsent?.status === 'given';
-const ALWAYS = () => true;
-const NEVER = () => false;
-
-const QUESTION_STEP = { appliesTo: ALWAYS, isAnswered: hasProfile, isSkipped: NEVER, canGoBack: true, showsChangeLaterNote: true };
 
 const ONBOARDING_STEPS: readonly OnboardingStep[] = [
-  { ...QUESTION_STEP, id: 'name', isAnswered: (student) => Boolean(student?.name) },
-  { ...QUESTION_STEP, id: 'birthDate', isAnswered: hasStudent, isSkipped: hasStudent, showsChangeLaterNote: false },
-  {
-    ...QUESTION_STEP,
-    id: 'parent',
-    appliesTo: (student) => Boolean(student?.parentConsent),
-    isAnswered: hasConsent,
-    isSkipped: hasConsent,
-    canGoBack: false,
-    showsChangeLaterNote: false,
-  },
-  { ...QUESTION_STEP, id: 'into' },
-  { ...QUESTION_STEP, id: 'level' },
-  { ...QUESTION_STEP, id: 'goal' },
-  { ...QUESTION_STEP, id: 'voice' },
-  { ...QUESTION_STEP, id: 'hello', isAnswered: (student) => Boolean(student?.profile?.firstQuestion) },
+  { id: 'name', isAnswered: (student) => Boolean(student?.name), canChangeLater: true },
+  { id: 'birthDate', isAnswered: hasStudent, canChangeLater: false },
+  { id: 'level', isAnswered: hasProfile, canChangeLater: true },
+  { id: 'interests', isAnswered: hasProfile, canChangeLater: true },
+  { id: 'goal', isAnswered: hasProfile, canChangeLater: true },
 ];
 
 function findStepIndex(stepId: StepId) {
   return ONBOARDING_STEPS.findIndex((step) => step.id === stepId);
 }
 
+// A step that cannot change later closes once answered, so a confirmed date of birth never reopens.
 function isOpen(step: OnboardingStep, student: Student | null) {
-  return step.appliesTo(student) && !step.isSkipped(student);
+  return step.canChangeLater || !step.isAnswered(student);
 }
 
-export function getStepsFor(student: Student | null): StepId[] {
-  return ONBOARDING_STEPS.filter((step) => step.appliesTo(student)).map((step) => step.id);
+export function getSteps(): StepId[] {
+  return ONBOARDING_STEPS.map((step) => step.id);
 }
 
 export function getResumeStep(student: Student | null): StepId {
-  const firstUnanswered = ONBOARDING_STEPS.find((step) => step.appliesTo(student) && !step.isAnswered(student));
-  return firstUnanswered?.id ?? 'hello';
+  return ONBOARDING_STEPS.find((step) => !step.isAnswered(student))?.id ?? 'goal';
 }
 
 export function getNextStep(stepId: StepId, student: Student | null): StepId | null {
@@ -62,9 +43,8 @@ export function getNextStep(stepId: StepId, student: Student | null): StepId | n
 }
 
 export function getPreviousStep(stepId: StepId, student: Student | null): StepId | null {
-  const index = findStepIndex(stepId);
-  if (!ONBOARDING_STEPS[index]?.canGoBack) return null;
-  return ONBOARDING_STEPS.slice(0, index).reverse().find((step) => isOpen(step, student))?.id ?? null;
+  const earlier = ONBOARDING_STEPS.slice(0, findStepIndex(stepId)).reverse();
+  return earlier.find((step) => isOpen(step, student))?.id ?? null;
 }
 
 export function getFirstOpenStepFrom(chosenStep: StepId, student: Student | null): StepId {
@@ -74,10 +54,9 @@ export function getFirstOpenStepFrom(chosenStep: StepId, student: Student | null
 }
 
 export function showsChangeLaterNote(stepId: StepId): boolean {
-  return ONBOARDING_STEPS[findStepIndex(stepId)]?.showsChangeLaterNote ?? false;
+  return ONBOARDING_STEPS[findStepIndex(stepId)]?.canChangeLater ?? false;
 }
 
 export function hasFinishedOnboarding(student: Student | null): boolean {
-  const isWaitingForParent = Boolean(student?.parentConsent) && !hasConsent(student);
-  return Boolean(student?.profile?.firstQuestion) && !isWaitingForParent;
+  return hasProfile(student);
 }

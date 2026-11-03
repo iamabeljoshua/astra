@@ -3,21 +3,15 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import type { EntityManager, Repository } from 'typeorm';
 import { ClosedAccountEntity } from '../entities/closed-account.entity';
-import { ParentConsentRequestEntity } from '../entities/parent-consent-request.entity';
 import { StudentProfileEntity } from '../entities/student-profile.entity';
 import { StudentEntity } from '../entities/student.entity';
 
-export const HOLD_ACCOUNT_UNTIL_COMMIT = 'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))';
+const HOLD_ACCOUNT_UNTIL_COMMIT = 'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))';
 
 export type StudentAccount =
   | { status: 'closed' }
   | { status: 'needs_birth_date' }
-  | {
-      status: 'active';
-      student: StudentEntity;
-      profile: StudentProfileEntity | null;
-      consentRequest: ParentConsentRequestEntity | null;
-    };
+  | { status: 'active'; student: StudentEntity; profile: StudentProfileEntity | null };
 
 interface BirthDateAnswer {
   birthDate: string;
@@ -25,10 +19,9 @@ interface BirthDateAnswer {
   name: string | null;
 }
 
-export type OpenStudent = Pick<StudentEntity, 'id' | 'birthDate' | 'parentConsentAt'>;
-
-type ProfileFields = Pick<StudentProfileEntity, 'interests' | 'level' | 'goal' | 'voice' | 'firstQuestion'> & {
+type ProfileFields = Pick<StudentProfileEntity, 'level' | 'goal'> & {
   name: string;
+  interests: string[];
 };
 
 async function readAccount(manager: EntityManager, authUserId: string): Promise<StudentAccount> {
@@ -36,8 +29,7 @@ async function readAccount(manager: EntityManager, authUserId: string): Promise<
   const student = await manager.findOneBy(StudentEntity, { authUserId });
   if (!student) return { status: 'needs_birth_date' };
   const profile = await manager.findOneBy(StudentProfileEntity, { studentId: student.id });
-  const consentRequest = await manager.findOneBy(ParentConsentRequestEntity, { studentId: student.id });
-  return { status: 'active', student, profile, consentRequest };
+  return { status: 'active', student, profile };
 }
 
 @Injectable()
@@ -67,14 +59,15 @@ export class StudentRepository {
     });
   }
 
-  findOpenStudent(authUserId: string): Promise<OpenStudent | null> {
-    return this.students
+  async findOpenStudentId(authUserId: string): Promise<string | null> {
+    const student = await this.students
       .createQueryBuilder('student')
-      .select(['student.id', 'student.birthDate', 'student.parentConsentAt'])
+      .select('student.id')
       .leftJoin(ClosedAccountEntity, 'closed', 'closed.authUserId = student.authUserId')
       .where('student.authUserId = :authUserId', { authUserId })
       .andWhere('closed.authUserId IS NULL')
       .getOne();
+    return student?.id ?? null;
   }
 
   async findStudentName(studentId: string): Promise<string | null> {
@@ -86,13 +79,10 @@ export class StudentRepository {
     return this.profiles.findOneBy({ studentId });
   }
 
-  saveProfile(studentId: string, { name, firstQuestion, ...profileFields }: ProfileFields): Promise<StudentAccount> {
+  saveProfile(studentId: string, { name, ...profileFields }: ProfileFields): Promise<StudentAccount> {
     return this.dataSource.transaction(async (manager) => {
-      await manager.query(HOLD_ACCOUNT_UNTIL_COMMIT, [studentId]);
-      const saved = await manager.findOneBy(StudentProfileEntity, { studentId });
-      const firstQuestionOrSavedOne = firstQuestion ?? saved?.firstQuestion ?? null;
       await manager.update(StudentEntity, { id: studentId }, { name });
-      await manager.upsert(StudentProfileEntity, { ...profileFields, firstQuestion: firstQuestionOrSavedOne, studentId }, ['studentId']);
+      await manager.upsert(StudentProfileEntity, { ...profileFields, studentId }, ['studentId']);
       const { authUserId } = await manager.findOneByOrFail(StudentEntity, { id: studentId });
       return readAccount(manager, authUserId);
     });

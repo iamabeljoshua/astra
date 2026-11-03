@@ -20,8 +20,7 @@ const ACTIVE_ACCOUNT = {
   student: {
     id: '00000000-0000-4000-8000-000000000001',
     name: 'Maya',
-    profile: { interests: [], level: 'university', goal: 'exam', voice: 'ada', firstQuestion: 'How does a curveball bend?' },
-    parentConsent: null,
+    profile: { interests: [], level: 'university', goal: 'exam' },
   },
 };
 const NEEDS_BIRTH_DATE = { status: 'needs_birth_date', student: null };
@@ -231,7 +230,7 @@ describe('AccountGate', () => {
     setSignIn('signedIn');
     stubApi({ 'GET /api/me': json(NEEDS_BIRTH_DATE), 'POST /api/me/birth-date': json(CLOSED_ACCOUNT) });
     renderGate();
-    await screen.findByRole('heading', { name: BIRTH_DATE_LABELS.question });
+    await reachBirthDateQuestion();
     expect(areNewSignUpsStopped()).toBe(false);
 
     enterAndConfirmBirthDate('1', '1', '2020');

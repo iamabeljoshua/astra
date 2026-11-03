@@ -114,13 +114,20 @@ describe('returning to the welcome step', () => {
   });
 });
 
-describe('the Privacy Policy', () => {
-  it('tells a student under 18 what is held before a parent accepts and after', () => {
+describe('what the legal pages say', () => {
+  it('tells a student under 18 that no parent or guardian is asked', () => {
     const underEighteen = LEGAL_PAGES.privacy.sections.find(({ heading }) => heading === 'If you are under 18');
-    const statements = underEighteen?.today.join(' ');
 
-    for (const fact of ['date of birth', 'email address', 'IP address', 'browser', 'tutor voice', 'first answer']) {
-      expect(statements).toContain(fact);
-    }
+    expect(underEighteen?.today.join(' ')).toContain('We do not ask a parent or guardian to approve your account.');
+    expect(underEighteen?.planned).toEqual([]);
+  });
+
+  it.each([
+    ['parent consent', /consent/i],
+    ['a parent who accepts or receives anything', /parent's|for parents|or a parent|they accept/i],
+    ['a choice of voice', /tutor voice|voice samples/i],
+    ['a first answer to the tutor', /first answer|first hello|first question/i],
+  ])('claims nothing about %s, which the app no longer has', (_caseName, wording) => {
+    expect(JSON.stringify(LEGAL_PAGES)).not.toMatch(wording);
   });
 });

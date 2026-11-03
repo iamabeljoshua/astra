@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { API_ERROR_LABELS, ONBOARDING_LABELS } from '../strings';
 import { useSaveProfile } from '../auth/useAccount';
-import { type Answers, getInitialAnswers, getSheet, toProfileBody } from './answers';
-import { getFirstOpenStepFrom, getNextStep, getPreviousStep, getResumeStep, getStepsFor, showsChangeLaterNote, type Student } from './steps';
+import { type Answers, getInitialAnswers, getSheet, type StudentGoal, toProfileBody } from './answers';
+import { getFirstOpenStepFrom, getNextStep, getPreviousStep, getResumeStep, getSteps, showsChangeLaterNote, type Student } from './steps';
 
 export function useOnboarding(student: Student | null) {
   const navigate = useNavigate();
@@ -12,7 +12,7 @@ export function useOnboarding(student: Student | null) {
   const [chosenStep, setChosenStep] = useState(() => getResumeStep(student));
 
   const currentStep = getFirstOpenStepFrom(chosenStep, student);
-  const steps = getStepsFor(student);
+  const steps = getSteps();
   const previousStep = getPreviousStep(currentStep, student);
 
   function goNext() {
@@ -20,14 +20,14 @@ export function useOnboarding(student: Student | null) {
     if (nextStep) setChosenStep(nextStep);
   }
 
-  function saveAnswers(firstQuestion: string | null, onSaved: () => void) {
-    const body = toProfileBody(answers, firstQuestion);
+  function finish(goal: StudentGoal) {
+    const body = toProfileBody({ ...answers, goal });
     if (!body || saveProfile.isPending) return;
-    saveProfile.mutate(body, { onSuccess: onSaved });
+    void navigate('/', { replace: true });
+    saveProfile.mutate(body);
   }
 
   return {
-    student,
     answers,
     currentStep,
     sheet: getSheet(answers),
@@ -37,12 +37,7 @@ export function useOnboarding(student: Student | null) {
     goNext,
     changeAnswers: (change: Partial<Answers>) => setAnswers((earlier) => ({ ...earlier, ...change })),
     saveProblem: saveProfile.error && API_ERROR_LABELS[saveProfile.error.kind],
-    isSaving: saveProfile.isPending,
-    saveAndGoNext: () => saveAnswers(null, goNext),
-    finish: (firstQuestion: string) => {
-      void navigate('/', { replace: true });
-      saveAnswers(firstQuestion, () => undefined);
-    },
+    finish,
   };
 }
 

@@ -38,7 +38,7 @@ function stubApiAnswer(status: number, body: object) {
 }
 
 const STUDENT_NAME = 'Maya';
-const STEP_PROPS = { studentName: STUDENT_NAME, progress: '2 of 7', onBack: () => undefined };
+const STEP_PROPS = { studentName: STUDENT_NAME, progress: '2 of 5', onBack: () => undefined };
 const NOT_ANSWERED_YET = () => new Promise<Response>(() => undefined);
 const LONGER_THAN_A_SEND_TAKES_MS = 50;
 

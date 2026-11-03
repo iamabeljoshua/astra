@@ -9,19 +9,19 @@ import type { StepProps } from './useOnboarding';
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 const SHOW_PICK_BEFORE_MOVING_ON_MS = 240;
 
-function useMoveOnAfterPick(goNext: () => void) {
+function useMoveOnAfterPick() {
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => () => clearTimeout(timer.current), []);
 
-  return () => {
+  return (moveOn: () => void) => {
     clearTimeout(timer.current);
-    timer.current = setTimeout(goNext, window.matchMedia(REDUCED_MOTION_QUERY).matches ? 0 : SHOW_PICK_BEFORE_MOVING_ON_MS);
+    timer.current = setTimeout(moveOn, window.matchMedia(REDUCED_MOTION_QUERY).matches ? 0 : SHOW_PICK_BEFORE_MOVING_ON_MS);
   };
 }
 
 export function LevelStep({ flow }: StepProps) {
-  const moveOn = useMoveOnAfterPick(flow.goNext);
+  const moveOnAfterPick = useMoveOnAfterPick();
 
   return (
     <StepScreen flow={flow}>
@@ -32,7 +32,7 @@ export function LevelStep({ flow }: StepProps) {
         selected={flow.answers.level}
         onPick={(level) => {
           flow.changeAnswers({ level });
-          moveOn();
+          moveOnAfterPick(flow.goNext);
         }}
       />
     </StepScreen>
@@ -40,7 +40,7 @@ export function LevelStep({ flow }: StepProps) {
 }
 
 export function GoalStep({ flow }: StepProps) {
-  const moveOn = useMoveOnAfterPick(flow.goNext);
+  const moveOnAfterPick = useMoveOnAfterPick();
 
   return (
     <StepScreen flow={flow}>
@@ -51,9 +51,10 @@ export function GoalStep({ flow }: StepProps) {
         selected={flow.answers.goal}
         onPick={(goal) => {
           flow.changeAnswers({ goal });
-          moveOn();
+          moveOnAfterPick(() => flow.finish(goal));
         }}
       />
+      {flow.saveProblem && <p role="alert" className="stop-note">{flow.saveProblem}</p>}
     </StepScreen>
   );
 }

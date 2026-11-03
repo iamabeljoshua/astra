@@ -1,4 +1,4 @@
-import type { StudentGoal, StudentLevel } from '../students/student-profile-options';
+import type { StudentGoal, StudentInterest, StudentLevel } from '../students/student-profile-options';
 
 interface LevelReasons {
   class: string;
@@ -31,10 +31,8 @@ const REASONS_BY_LEVEL: Record<StudentLevel, LevelReasons> = {
 
 export const STARTER_REASON = 'A good place to start';
 
-const WORDS_THAT_TAKE_THE = new Set(['NBA', 'WNBA', 'Lakers']);
-
-export function getInterestReason(interestWord: string): string {
-  return `Because you're into ${WORDS_THAT_TAKE_THE.has(interestWord) ? `the ${interestWord}` : interestWord}`;
+export function getInterestReason(interest: StudentInterest): string {
+  return `Because you're into ${interest}`;
 }
 
 export function getGoalReason(goal: StudentGoal, level: StudentLevel): string {

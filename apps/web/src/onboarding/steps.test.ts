@@ -1,81 +1,42 @@
 import { describe, expect, it } from 'vitest';
-import { getFirstOpenStepFrom, getNextStep, getPreviousStep, getResumeStep, getStepsFor, hasFinishedOnboarding, type Student } from './steps';
+import { getFirstOpenStepFrom, getNextStep, getPreviousStep, getResumeStep, getSteps, hasFinishedOnboarding, showsChangeLaterNote, type Student } from './steps';
 
-const PROFILE: NonNullable<Student['profile']> = { interests: ['Space'], level: 'high_school', goal: 'exam', voice: 'ada', firstQuestion: null };
-const ADULT: Student = { id: 'student', name: 'Maya', profile: null, parentConsent: null };
-const MINOR: Student = { ...ADULT, parentConsent: { status: 'not_asked', parentEmail: null } };
-const WAITING_MINOR: Student = { ...ADULT, parentConsent: { status: 'waiting', parentEmail: 'parent@astra.test' } };
-const APPROVED_MINOR: Student = { ...ADULT, parentConsent: { status: 'given', parentEmail: 'parent@astra.test' } };
+const PROFILE: NonNullable<Student['profile']> = { interests: ['space'], level: 'high_school', goal: 'exam' };
+const STUDENT: Student = { id: 'student', name: 'Maya', profile: null };
 
 describe('the onboarding steps', () => {
-  it("runs in the prototype's order for an adult", () => {
-    expect(getStepsFor(ADULT)).toEqual(['name', 'birthDate', 'into', 'level', 'goal', 'voice', 'hello']);
+  it('runs name, date of birth, level, interests, goal, and stops there', () => {
+    expect(getSteps()).toEqual(['name', 'birthDate', 'level', 'interests', 'goal']);
+    expect(getNextStep('goal', STUDENT)).toBeNull();
   });
 
-  it('adds the parent step after the date of birth for a student under 18', () => {
-    expect(getStepsFor(MINOR)).toEqual(['name', 'birthDate', 'parent', 'into', 'level', 'goal', 'voice', 'hello']);
-  });
-
-  it.each([
-    ['an adult', ADULT, false],
-    ['a student whose age is not known yet', null, false],
-    ['a student under 18', MINOR, true],
-    ['a student under 18 who is waiting', WAITING_MINOR, true],
-    ['a student under 18 who has consent', APPROVED_MINOR, true],
-  ])('shows the parent step only under 18: %s', (_caseName, student, expected) => {
-    expect(getStepsFor(student).includes('parent')).toBe(expected);
-  });
-
-  it('moves from the date of birth to the parent for a minor, and past it for an adult', () => {
-    expect(getFirstOpenStepFrom('birthDate', MINOR)).toBe('parent');
-    expect(getFirstOpenStepFrom('birthDate', ADULT)).toBe('into');
-  });
-
-  it('holds a waiting minor on the parent step', () => {
-    expect(getFirstOpenStepFrom('parent', WAITING_MINOR)).toBe('parent');
-    expect(getNextStep('name', WAITING_MINOR)).toBe('parent');
-  });
-
-  it('moves on from the parent step once the parent accepts', () => {
-    expect(getFirstOpenStepFrom('parent', APPROVED_MINOR)).toBe('into');
-  });
-
-  it('moves on from the parent step if the student turns 18 while waiting', () => {
-    expect(getFirstOpenStepFrom('parent', ADULT)).toBe('into');
+  it('moves past the date of birth once it is confirmed', () => {
+    expect(getFirstOpenStepFrom('birthDate', null)).toBe('birthDate');
+    expect(getFirstOpenStepFrom('birthDate', STUDENT)).toBe('level');
   });
 
   it('never goes back to a date of birth that has been confirmed', () => {
-    expect(getPreviousStep('into', ADULT)).toBe('name');
+    expect(getPreviousStep('level', STUDENT)).toBe('name');
     expect(getPreviousStep('birthDate', null)).toBe('name');
-  });
-
-  it('offers no way back from the parent step', () => {
-    expect(getPreviousStep('parent', MINOR)).toBeNull();
+    expect(getPreviousStep('name', STUDENT)).toBeNull();
   });
 
   it.each([
     ['a new account', null, 'name'],
-    ['an account with a date and no name', { ...ADULT, name: null }, 'name'],
-    ['a minor who has not asked', MINOR, 'parent'],
-    ['a minor who is waiting', WAITING_MINOR, 'parent'],
-    ['a minor whose parent accepted', APPROVED_MINOR, 'into'],
-    ['an adult with no profile', ADULT, 'into'],
-    ['a student with a profile and no first answer', { ...ADULT, profile: PROFILE }, 'hello'],
+    ['an account with a date and no name', { ...STUDENT, name: null }, 'name'],
+    ['a student with a name and no profile', STUDENT, 'level'],
   ])('resumes %s at the right step', (_caseName, student, expected) => {
-    expect(getResumeStep(student as Student | null)).toBe(expected);
+    expect(getResumeStep(student)).toBe(expected);
   });
 
-  it('finishes only with an answer to the first question', () => {
+  it('finishes once there is a profile, so an existing student is not sent back', () => {
     expect(hasFinishedOnboarding(null)).toBe(false);
-    expect(hasFinishedOnboarding({ ...ADULT, profile: PROFILE })).toBe(false);
-    expect(hasFinishedOnboarding({ ...ADULT, profile: { ...PROFILE, firstQuestion: 'Why is the sky blue?' } })).toBe(true);
+    expect(hasFinishedOnboarding(STUDENT)).toBe(false);
+    expect(hasFinishedOnboarding({ ...STUDENT, profile: PROFILE })).toBe(true);
+    expect(hasFinishedOnboarding({ ...STUDENT, name: null, profile: PROFILE })).toBe(true);
   });
 
-  it('holds back a waiting minor who somehow has every answer', () => {
-    const profile = { ...PROFILE, firstQuestion: 'Why is the sky blue?' };
-
-    expect(hasFinishedOnboarding({ ...WAITING_MINOR, profile })).toBe(false);
-    expect(getResumeStep({ ...WAITING_MINOR, profile })).toBe('parent');
-    expect(hasFinishedOnboarding({ ...APPROVED_MINOR, profile })).toBe(true);
+  it('promises a later change on every step but the date of birth', () => {
+    expect(getSteps().filter((step) => !showsChangeLaterNote(step))).toEqual(['birthDate']);
   });
 });

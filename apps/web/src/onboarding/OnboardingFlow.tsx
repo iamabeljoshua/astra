@@ -1,14 +1,11 @@
 import type { ComponentType } from 'react';
 import { BirthDatePage } from '../auth/BirthDatePage';
 import { OnboardingLayout } from '../auth/OnboardingFrame';
-import { HelloStep } from './HelloStep';
-import { IntoStep } from './IntoStep';
+import { InterestsStep } from './InterestsStep';
 import { NameStep } from './NameStep';
 import { GoalStep, LevelStep } from './OptionStep';
-import { ParentStep } from './ParentStep';
 import type { StepId, Student } from './steps';
 import { type StepProps, useOnboarding } from './useOnboarding';
-import { VoiceStep } from './VoiceStep';
 
 function BirthDateStep({ flow }: StepProps) {
   return <BirthDatePage studentName={flow.answers.name.trim()} progress={flow.progress} onBack={flow.goBack} />;
@@ -17,12 +14,9 @@ function BirthDateStep({ flow }: StepProps) {
 const STEP_SCREENS: Record<StepId, ComponentType<StepProps>> = {
   name: NameStep,
   birthDate: BirthDateStep,
-  parent: ParentStep,
-  into: IntoStep,
   level: LevelStep,
+  interests: InterestsStep,
   goal: GoalStep,
-  voice: VoiceStep,
-  hello: HelloStep,
 };
 
 export function OnboardingFlow({ student }: { student: Student | null }) {

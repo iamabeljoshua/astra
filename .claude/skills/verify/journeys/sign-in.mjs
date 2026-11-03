@@ -42,7 +42,7 @@ export default async function signIn({ page, capture, viewportName }) {
   await page.getByRole('heading', { name: 'Is this right?' }).waitFor();
   await capture('confirm');
   await page.getByRole('button', { name: 'Yes, continue' }).click();
-  await page.getByRole('heading', { name: 'What are you into?' }).waitFor();
+  await page.getByRole('heading', { name: 'Where are you in your learning?' }).waitFor();
   await capture('onboarding');
 
   await page.getByRole('button', { name: 'Sign out' }).click();
@@ -50,6 +50,6 @@ export default async function signIn({ page, capture, viewportName }) {
 
   await page.goBack();
   await page.getByRole('button', { name: 'Continue with email' }).waitFor();
-  assert.equal(await page.getByRole('heading', { name: 'What are you into?' }).count(), 0, 'Back shows no student page');
+  assert.equal(await page.getByRole('heading', { name: 'Where are you in your learning?' }).count(), 0, 'Back shows no student page');
   await capture('after-back');
 }

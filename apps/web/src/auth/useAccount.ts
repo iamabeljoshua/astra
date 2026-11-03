@@ -5,7 +5,6 @@ import { readWithRenewal } from './readWithRenewal';
 
 const ACCOUNT_KEY = ['account'];
 const HOME_KEY = ['home'];
-const PARENT_ANSWER_CHECK_MS = 5_000;
 
 type Account = Awaited<ReturnType<typeof readAccount>>;
 type ProfileBody = components['schemas']['SaveStudentProfileBodyDto'];
@@ -21,7 +20,6 @@ export function useAccount() {
     // Null, not nothing, makes a new read keep the last error, so the error page stays in place while it runs.
     initialData: null,
     initialDataUpdatedAt: 0,
-    refetchInterval: ({ state }) => (state.data?.student?.parentConsent?.status === 'waiting' ? PARENT_ANSWER_CHECK_MS : false),
   });
 }
 
@@ -39,10 +37,6 @@ function useSetAccountAfter<Input>(sendAnswer: (input: Input) => Promise<Account
 
 export function useAnswerBirthDate() {
   return useSetAccountAfter((body: { birthDate: string; name: string }) => api.post('/me/birth-date', { body }));
-}
-
-export function useAskParent() {
-  return useSetAccountAfter((parentEmail: string) => api.put('/me/parent-consent', { body: { parentEmail } }));
 }
 
 export function useSaveProfile() {

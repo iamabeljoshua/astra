@@ -5,13 +5,12 @@ import { SignOutButton } from './SignOutButton';
 
 export interface TutorNotesSheet {
   studentName: string;
-  into: string;
   level: string;
+  into: string;
   goal: string;
-  voice: string;
 }
 
-const EMPTY_SHEET: TutorNotesSheet = { studentName: '', into: '', level: '', goal: '', voice: '' };
+const EMPTY_SHEET: TutorNotesSheet = { studentName: '', level: '', into: '', goal: '' };
 
 interface OnboardingLayoutProps extends PropsWithChildren {
   sheet?: TutorNotesSheet;
@@ -94,10 +93,9 @@ interface TutorNotesProps {
 
 function TutorNotes({ sheet, showsChangeLaterNote }: TutorNotesProps) {
   const rows = [
-    { label: TUTOR_NOTES_LABELS.into, value: sheet.into },
     { label: TUTOR_NOTES_LABELS.level, value: sheet.level },
+    { label: TUTOR_NOTES_LABELS.into, value: sheet.into },
     { label: TUTOR_NOTES_LABELS.goal, value: sheet.goal },
-    { label: TUTOR_NOTES_LABELS.voice, value: sheet.voice },
   ];
 
   return (

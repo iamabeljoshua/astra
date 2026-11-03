@@ -63,7 +63,7 @@ function WelcomeStep({ onChooseEmail }: { onChooseEmail: () => void }) {
 
   return (
     <>
-      <StepHeading className="text-tagline font-semibold tracking-[-0.005em] uppercase">{SIGN_IN_LABELS.tagline}</StepHeading>
+      <StepHeading className="text-tagline tracking-[-0.005em] uppercase">{SIGN_IN_LABELS.tagline}</StepHeading>
       <p className="max-w-[46ch] text-sub text-ink-2">{SIGN_IN_LABELS.about}</p>
       {returnProblem && <p role="alert" className="stop-note">{SIGN_IN_LABELS[returnProblem]}</p>}
       <div className="flex max-w-90 flex-col gap-2">

@@ -3,8 +3,7 @@ const ACTIVE_ACCOUNT = {
   student: {
     id: '00000000-0000-4000-8000-000000000001',
     name: 'Maya',
-    profile: { interests: ['Space'], level: 'university', goal: 'exam', voice: 'ada', firstQuestion: 'How does a curveball bend?' },
-    parentConsent: null,
+    profile: { interests: ['space'], level: 'university', goal: 'exam' },
   },
 } as const;
 

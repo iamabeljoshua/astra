@@ -5,7 +5,6 @@ import { HOME_LABELS } from '../strings';
 import { ChatBox } from './ChatBox';
 import { ContinueCard } from './ContinueCard';
 import { PickCard } from './PickCard';
-import { StartHereCard } from './StartHereCard';
 import { useHomeScreen } from './useHomeScreen';
 import { useHasWaited } from './useHasWaited';
 import { usePublishDockHeight } from './usePublishDockHeight';
@@ -106,10 +105,9 @@ interface LoadedCardsProps {
   onChooseCard: () => void;
 }
 
-function LoadedCards({ homeScreenData: { startHereQuestion, continueSession, picks }, onChooseCard }: LoadedCardsProps) {
+function LoadedCards({ homeScreenData: { continueSession, picks }, onChooseCard }: LoadedCardsProps) {
   return (
     <>
-      {startHereQuestion && <StartHereCard question={startHereQuestion} onStart={onChooseCard} />}
       {continueSession && <ContinueCard session={continueSession} onContinue={onChooseCard} />}
       <PicksSection>
         <ul className={PICK_GRID}>

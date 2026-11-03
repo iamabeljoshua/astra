@@ -16,9 +16,9 @@ export function StepScreen({ flow, action, children }: StepScreenProps) {
   );
 }
 
-export function ContinueButton({ formId, isBusy = false }: { formId: string; isBusy?: boolean }) {
+export function ContinueButton({ formId }: { formId: string }) {
   return (
-    <button type="submit" form={formId} aria-disabled={isBusy} className="button button-solid">
+    <button type="submit" form={formId} className="button button-solid">
       {ONBOARDING_LABELS.next}
     </button>
   );

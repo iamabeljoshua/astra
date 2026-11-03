@@ -1,9 +1,8 @@
 import { Module } from '@nestjs/common';
-import { ParentConsentRepository } from './parent-consent.repository';
 import { SessionRepository } from './session.repository';
 import { StudentRepository } from './student.repository';
 
-const REPOSITORIES = [StudentRepository, SessionRepository, ParentConsentRepository];
+const REPOSITORIES = [StudentRepository, SessionRepository];
 
 @Module({
   providers: REPOSITORIES,

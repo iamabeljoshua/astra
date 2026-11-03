@@ -45,7 +45,7 @@ export const ACCOUNT_LABELS = {
 
 export const SIGN_IN_LABELS = {
   tagline: 'A learning app, made for you',
-  about: "Your tutor talks with you and draws as it explains. It's an AI, and setup takes under two minutes.",
+  about: "Your tutor talks with you and draws as it explains. It's an AI, and setup takes under a minute.",
   google: 'Continue with Google',
   email: 'Continue with email',
   agreementStart: 'By continuing you agree to the ',
@@ -90,7 +90,6 @@ export const TUTOR_NOTES_LABELS = {
   into: 'Into',
   level: 'Level',
   goal: 'Here for',
-  voice: 'Voice',
   footer: 'You can change any of this later.',
 };
 
@@ -101,39 +100,10 @@ export const ONBOARDING_LABELS = {
   nameQuestion: 'What should your tutor call you?',
   namePlaceholder: 'Your first name',
   nameMissing: 'Tell your tutor what to call you.',
-  parentQuestion: 'A parent or guardian approves your account.',
-  parentAbout: 'We send them one email. You can start as soon as they say yes.',
-  parentPlaceholder: 'Their email address',
-  parentInvalid: 'Enter a valid email address.',
-  waitingQuestion: 'Waiting for your parent or guardian.',
-  waitingAbout: 'We asked them to approve your account. This page moves on as soon as they say yes, and you can close it and come back.',
-  useAnotherAddress: 'Use a different address',
   intoQuestion: 'What are you into?',
-  intoAbout: 'Your tutor uses this to pick examples you care about.',
-  intoPlaceholder: 'Be specific. Arsenal beats football.',
-  intoOptions: ['Basketball', 'Football', 'Movies', 'Gaming', 'Music', 'Art', 'Space', 'Cars', 'Cooking', 'Fashion', 'Coding', 'History'],
+  intoAbout: 'Pick as many as you like. Your tutor uses them to choose examples you care about.',
   levelQuestion: 'Where are you in your learning?',
   goalQuestion: 'What brings you here?',
-  voiceQuestion: "Pick your tutor's voice.",
-  voiceAbout: 'Tap one to hear it. You can change it any time.',
-  voiceNote: "For now these play through your device's own voices.",
-  voiceMissing: 'Pick a voice to continue.',
-  voiceSilent: 'This browser has no voice to play it with. You can still pick one.',
-  voiceSample: (studentName: string) => `Hi ${studentName}. I will be your tutor.`,
-  hello: (studentName: string, interest: string) =>
-    `Hi ${studentName}. I'm your tutor, and I'm an AI. You said you're into ${interest}. What's one thing about it you've always wondered how it works?`,
-  helloWithoutInterest: (studentName: string) =>
-    `Hi ${studentName}. I'm your tutor, and I'm an AI. What's one thing you've always wondered how it works?`,
-  speaking: 'Speaking',
-  listening: 'Listening',
-};
-
-export const FIRST_ANSWER_BOX_LABELS = {
-  label: 'Your answer',
-  placeholder: 'Type your answer',
-  placeholderWhileTalkIsOn: 'Talking opens soon. Type for now.',
-  send: 'Send your answer',
-  limitReached: (maxLength: number) => `Your answer can be up to ${maxLength} characters.`,
 };
 
 export const STUDENT_LEVEL_LABELS = {
@@ -144,40 +114,33 @@ export const STUDENT_LEVEL_LABELS = {
 };
 
 export const STUDENT_GOAL_LABELS = {
-  class: 'A class I am taking',
-  exam: 'An exam coming up',
-  curiosity: 'Pure curiosity',
+  class: 'Improve my grades',
+  exam: 'Get ready for an exam',
+  curiosity: "Learn anything I'm curious about",
 };
 
-export const TUTOR_VOICE_LABELS = {
-  ada: { name: 'Ada', about: 'Warm and unhurried' },
-  kofi: { name: 'Kofi', about: 'Clear and steady' },
-  noor: { name: 'Noor', about: 'Bright and quick' },
+export const STUDENT_INTEREST_LABELS = {
+  basketball: 'Basketball',
+  football: 'Football',
+  movies: 'Movies',
+  gaming: 'Gaming',
+  music: 'Music',
+  art: 'Art',
+  space: 'Space',
+  cars: 'Cars',
+  cooking: 'Cooking',
+  fashion: 'Fashion',
+  coding: 'Coding',
+  history: 'History',
 };
 
 export const PROFILE_LABELS = {
   title: "Your tutor's notes",
   about: 'Your tutor teaches from these. Change anything here.',
   name: 'Name',
-  firstQuestion: 'First question',
   save: 'Save changes',
   saved: 'Saved.',
-  missing: 'Your name and first question cannot be blank.',
-};
-
-export const PARENT_CONSENT_LABELS = {
-  question: (studentName: string | null) => `${studentName ?? 'Your child'} would like to use ${PRODUCT_NAME}.`,
-  about: `${PRODUCT_NAME} is a learning app being built around an AI tutor. Today your child can answer a few questions, hear a scripted hello from the tutor, and see suggested lessons. Spoken lessons are planned and not open yet. When they open, the tutor will talk with your child and draw as it explains. The tutor is an AI, and it can be wrong.`,
-  stored: 'So far we hold their name, their date of birth, and your email address. Supabase Auth, our sign-in service, holds their email address, when they signed in, and the IP address and browser they used. If you accept, we also keep their interests, their level, their goal, the tutor voice they choose, and their first answer to the tutor, in their own words.',
-  agreementStart: 'By accepting you confirm that you are their parent or guardian, and you agree to the ',
-  agreementJoin: ' and the ',
-  agreementEnd: '.',
-  accept: 'I accept',
-  acceptedQuestion: 'Thank you.',
-  acceptedAbout: (studentName: string | null) => `${studentName ?? 'Your child'} can start now. You can close this page.`,
-  loading: 'Opening this page.',
-  deadLink: 'This link no longer works. The student may have asked a different address. Ask them to send a new one.',
-  tryAgain: 'Try again',
+  missing: 'Your name cannot be blank.',
 };
 
 export const DEV_SIGN_IN_LABELS = {
@@ -192,9 +155,6 @@ export const HOME_LABELS = {
   question: 'What do you want to learn next?',
   continueLabel: 'Continue',
   continueButton: 'Continue session \u2192',
-  startHereLabel: 'Start here',
-  startHereAbout: 'Your tutor is ready when you are.',
-  startHereButton: 'Start session \u2192',
   picksLabel: 'Picked for you',
   pickDetails: (subject: string, lengthMinutes: number) => `${subject}, ${lengthMinutes} min`,
   loading: 'Loading your home screen.',
@@ -281,7 +241,7 @@ export const ARTWORK_LABELS = {
 };
 
 export const LEGAL_LABELS = {
-  draftNotice: 'Draft of 3 November 2026. A lawyer has not yet reviewed this page.',
+  draftNotice: 'Draft of 4 November 2026. A lawyer has not yet reviewed this page.',
   planned: 'Planned',
   back: `Back to ${PRODUCT_NAME}`,
   pageTitle: (documentTitle: string) => `${documentTitle} | ${PRODUCT_NAME}`,
@@ -307,7 +267,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
       {
         heading: `What ${PRODUCT_NAME} is`,
         today: [
-          `${PRODUCT_NAME} is a learning app being built around an AI tutor. Today you can sign in, answer a few questions about yourself, and open a home screen with suggested lessons. The tutor's first hello is a fixed script, and lessons do not open yet.`,
+          `${PRODUCT_NAME} is a learning app being built around an AI tutor. Today you can sign in, answer a few questions about yourself, and open a home screen with suggested lessons. Lessons do not open yet.`,
         ],
         planned: [
           'Spoken lessons, where the tutor talks with you and draws on a board as it explains. The tutor is an AI and it can be wrong, so check anything that matters.',
@@ -318,9 +278,9 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
         today: [
           `${PRODUCT_NAME} is for students aged 13 and up. After you first sign in, we ask for your date of birth. Give your real date. The first date you confirm stands, and the app has no way to change it.`,
           'If that date shows you are under 13 in every time zone, the account closes and stays closed on every later sign-in. The Privacy Policy says what we keep.',
-          'If you are under 18, you give the email address of a parent or guardian, and the account waits until they accept through a link meant for them. An adult who accepts confirms that they are your parent or guardian and agrees to these terms.',
+          'If you are under 18, these terms apply to you as they do to any other student. We do not ask a parent or guardian to approve your account.',
         ],
-        planned: ["Sending the parent's consent link by email. Today the link is written to our server's log and no email goes out, so a parent cannot yet receive it."],
+        planned: [],
       },
       {
         heading: 'Your account',
@@ -356,7 +316,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
         today: [
           "Your email address, the times you sign in, and a record of each sign-in. Supabase Auth, our sign-in service, keeps these. Its records include your IP address and your browser's description of itself.",
           'Your date of birth, if you are old enough to continue. We keep it in our database with an account ID and the time the record was made.',
-          "The name you give your tutor, what you are into, your level, your goal, your choice of tutor voice, and your answer to the tutor's first question. We keep these in our database, and you can change them under Your notes. We use your interests, level, and goal to choose the lessons suggested on your home screen.",
+          'The name you give your tutor, your level, the interests you choose, and your goal. We keep these in our database, and you can change them under Your notes. We use your level, interests, and goal to choose the lessons suggested on your home screen.',
           "The words you type into the home screen's question box and any file you attach stay in your browser. They are not sent or stored. The app does not use your microphone.",
         ],
         planned: [
@@ -368,7 +328,6 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
         today: [
           'Your browser keeps your sign-in and your light or dark choice in local storage. Its session storage holds the email address you last asked a sign-in link for and the time you asked.',
           'When an account closes, or a closed account signs in again, the app sets one cookie that stops new sign-ups on this browser for a day. It holds no name, address, or date, it expires by itself, and nothing on our servers reads it. Accounts already set up can still sign in. The app sets no other cookies and runs no analytics or advertising code.',
-          "Voice samples and the tutor's first hello, which include your name and an interest, play only through voices built into your device, so those words are not sent to a voice service.",
         ],
         planned: [],
       },
@@ -386,20 +345,15 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
       {
         heading: 'If you are under 18',
         today: [
-          "We ask for the email address of a parent or guardian. We store that address, a fingerprint of their consent link rather than the link, and the time they accept.",
-          'Until they accept, we hold your name, your date of birth, your account ID, and their address. Supabase Auth, our sign-in service, also holds your email address, the times you sign in, and the IP address and browser you sign in with.',
-          'The app asks you nothing more until they accept. Your interests, level, goal, tutor voice, and first answer to the tutor are stored only after that.',
-          "No email goes out yet. The consent link is written to our server's log, and anyone who can read that log could use it, so no real student under 18 can join until the email is built.",
+          'We store the same things about you as about any other student, as listed under What we store, and we use them the same way.',
+          'We do not ask a parent or guardian to approve your account. We do not ask for their email address, and we do not contact them.',
         ],
-        planned: [
-          'Sending that link to the parent or guardian by email.',
-          'A short summary for parents after each session, with no transcript.',
-        ],
+        planned: [],
       },
       {
         heading: 'Who receives your data',
         today: [
-          'Supabase runs our sign-in service and our database, so it holds everything listed under What we store and any parent address, and it sends the sign-in email.',
+          'Supabase runs our sign-in service and our database, so it holds everything listed under What we store, and it sends the sign-in email.',
           'No other outside service receives student data today. The app serves its own fonts and pictures.',
         ],
         planned: [
@@ -416,7 +370,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
         today: [
           'We have no retention schedule, and nothing deletes data on a timer. What we store stays until we remove it by hand. The app has no delete button yet.',
         ],
-        planned: ['A way for you or a parent to delete your data from the app.'],
+        planned: ['A way for you to delete your data from the app.'],
       },
       {
         heading: 'What we do not do',

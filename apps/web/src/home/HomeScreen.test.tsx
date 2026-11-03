@@ -73,27 +73,15 @@ describe('HomeScreen', () => {
     const NEW_STUDENT_HOME = {
       ...EXAMPLE_HOME_SCREEN,
       isNewStudent: true,
-      startHereQuestion: QUESTION,
       continueSession: null,
     };
 
-    it('says welcome, not welcome back, and offers their first answer as a card', async () => {
+    it('says welcome, not welcome back', async () => {
       stubFetchWithHomeScreen(NEW_STUDENT_HOME);
 
       renderWithQueryClient(<HomeScreen />);
 
       await screen.findByRole('heading', { level: 1, name: HOME_LABELS.newStudentGreeting(EXAMPLE_STUDENT_NAME) });
-      screen.getByRole('heading', { level: 2, name: QUESTION });
-      screen.getByText(HOME_LABELS.startHereLabel);
-    });
-
-    it('answers the card with the sessions notice until sessions open', async () => {
-      stubFetchWithHomeScreen(NEW_STUDENT_HOME);
-      renderWithQueryClient(<HomeScreen />);
-
-      fireEvent.click(await screen.findByRole('button', { name: HOME_LABELS.startHereButton }));
-
-      screen.getByText(HOME_LABELS.sessionsOpenSoon);
     });
 
     it('never calls the student a returning one while the screen loads', () => {

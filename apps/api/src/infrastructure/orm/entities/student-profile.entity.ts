@@ -7,7 +7,7 @@ import {
   PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import type { StudentGoal, StudentLevel, TutorVoice } from '../../../students/student-profile-options';
+import type { StudentGoal, StudentLevel } from '../../../students/student-profile-options';
 import { StudentEntity } from './student.entity';
 
 @Entity('student_profiles')
@@ -27,12 +27,6 @@ export class StudentProfileEntity {
 
   @Column('text')
   goal!: StudentGoal;
-
-  @Column('text')
-  voice!: TutorVoice;
-
-  @Column('text', { name: 'first_question', nullable: true })
-  firstQuestion!: string | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;

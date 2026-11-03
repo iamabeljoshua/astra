@@ -34,9 +34,6 @@ export class HomeScreenResponseDto {
   /** True until the student has started a session. */
   isNewStudent!: boolean;
 
-  /** The answer the student gave the tutor in onboarding, offered until they start a session. */
-  startHereQuestion!: string | null;
-
   /** The student's newest unfinished session, or null if there is none. */
   continueSession!: SessionResponseDto | null;
 
