@@ -18,19 +18,19 @@ function reloadPage() {
   window.location.reload();
 }
 
-// Opening the app after any other page of the gate takes focus to its heading. A plain load leaves focus alone.
-function useFocusPageHeadingAfterStep(isAtStep: boolean) {
-  const wasAtStep = useRef(false);
+function useFocusPageHeadingAfterGatePage(isOnGatePage: boolean) {
+  const wasOnGatePage = useRef(false);
 
   useEffect(() => {
-    if (!isAtStep && wasAtStep.current) document.querySelector<HTMLElement>('main h1')?.focus({ preventScroll: true });
-    wasAtStep.current = isAtStep;
-  }, [isAtStep]);
+    if (!isOnGatePage && wasOnGatePage.current) document.querySelector<HTMLElement>('main h1')?.focus({ preventScroll: true });
+    wasOnGatePage.current = isOnGatePage;
+  }, [isOnGatePage]);
 }
 
 function SignedInGate({ children }: PropsWithChildren) {
   const { data: account, error, refetch } = useAccount();
-  useFocusPageHeadingAfterStep(account ? account.status !== 'active' : error !== null);
+  const isOnGatePage = account ? account.status !== 'active' : error !== null;
+  useFocusPageHeadingAfterGatePage(isOnGatePage);
 
   if (!account) {
     if (!error) return <LoadingPage />;

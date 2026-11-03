@@ -42,7 +42,6 @@ function listFiles(folder: string) {
     .map((entry) => join(entry.parentPath, entry.name));
 }
 
-// Reads the written folder, because index.html and public/ never pass through the bundle.
 export function refuseDevelopmentAccounts(): Plugin {
   let outputFolder = '';
 

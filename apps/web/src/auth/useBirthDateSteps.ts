@@ -10,7 +10,7 @@ export function useBirthDateSteps() {
   const [dateParts, setDateParts] = useState(EMPTY_DATE);
   const [dateToConfirm, setDateToConfirm] = useState<string | null>(null);
   const [isDateRejected, setIsDateRejected] = useState(false);
-  // The mutation reports pending only after a tick, so a double click would otherwise send twice.
+  // The mutation reports pending only after a tick, so a second click inside it would otherwise send twice.
   const isAnswerOnItsWay = useRef(false);
 
   function forgetAnswer() {

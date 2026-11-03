@@ -9,7 +9,7 @@ function isTokenRefusal(thrown: unknown) {
   return thrown instanceof ApiError && thrown.status === TOKEN_REFUSED_STATUS;
 }
 
-// Each function is a state of one read and each call a transition. No path leads back, so a read renews at most once.
+// Each function is a state of one read. No path leads back, so a read renews at most once.
 export async function readWithRenewal<Answer>(askApi: AskApi<Answer>): Promise<Answer> {
   try {
     return await askApi();
@@ -27,7 +27,6 @@ async function renewing<Answer>(askApi: AskApi<Answer>): Promise<Answer> {
   throw new ApiError({ kind: 'rejected', status: TOKEN_REFUSED_STATUS });
 }
 
-// Auth has just confirmed the session, so a refusal now is a fault on the API side, and only Auth can end a session.
 async function askingWithNewToken<Answer>(askApi: AskApi<Answer>): Promise<Answer> {
   try {
     return await askApi();

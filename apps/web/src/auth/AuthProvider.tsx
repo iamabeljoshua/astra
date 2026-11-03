@@ -48,7 +48,7 @@ function getSignInStatus(userId: string | null) {
   return hasStoredSession() ? 'authUnreachable' : 'signedOut';
 }
 
-// A browser can show a page from memory on Back before any script runs, so the page hides before it is kept.
+// A page restored from memory stays on screen until its reload arrives, so it hides before it is kept.
 function reloadWhenRestoredFromHistory() {
   const hideBeforeBeingKept = (event: PageTransitionEvent) => {
     if (event.persisted) document.documentElement.style.visibility = 'hidden';

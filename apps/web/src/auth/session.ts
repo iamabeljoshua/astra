@@ -33,7 +33,7 @@ function createSupabaseClient() {
 
 const supabase = createSupabaseClient();
 
-// A browser can block storage, and then reading it throws. The client then keeps its session in memory, so storage counts as empty.
+// A browser can block storage so that reading it throws, and the client then keeps its session in memory.
 function withStorage<Result>(action: (local: Storage, tab: Storage) => Result, whenBlocked: Result): Result {
   try {
     return action(window.localStorage, window.sessionStorage);
@@ -134,10 +134,11 @@ export function restartAppAtHome(): void {
   window.location.replace('/');
 }
 
-// A discarded refresh means another tab renewed first, so the session in storage is already the new one.
+// The client discards a refresh when storage changed under it, because another tab renewed or a sign-out cleared it.
 export async function renewSession(): Promise<SessionRenewal> {
   const { error } = await supabase.auth.refreshSession();
-  if (!error || isAuthRefreshDiscardedError(error)) return 'renewed';
+  if (!error) return 'renewed';
+  if (isAuthRefreshDiscardedError(error)) return hasStoredSession() ? 'renewed' : 'refused';
   return isAuthRetryableFetchError(error) ? 'unreachable' : 'refused';
 }
 

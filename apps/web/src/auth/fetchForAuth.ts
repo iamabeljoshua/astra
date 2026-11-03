@@ -13,7 +13,7 @@ function getRequestSignal(callerSignal: AbortSignal | null | undefined) {
   return callerSignal ? AbortSignal.any([callerSignal, timeLimit]) : timeLimit;
 }
 
-// The client deletes the session on a refresh failure it cannot retry. A limit says nothing about the session, so it becomes retryable, and the retries stop here.
+// The client deletes an expired session on a refresh failure it cannot retry, and a rate limit says nothing about the session.
 export async function fetchForAuth(input: RequestInfo | URL, init?: RequestInit) {
   const url = String(input);
   const isRefresh = url.includes(REFRESH_GRANT);

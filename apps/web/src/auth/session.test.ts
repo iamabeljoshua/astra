@@ -370,6 +370,18 @@ describe('renewSession', () => {
     await expect(getAccessToken()).resolves.toBe('from-the-other-tab');
   });
 
+  it('says refused when a sign-out clears the session during the refresh, so the app restarts rather than blames the API', async () => {
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(STORED_SESSION));
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      localStorage.removeItem(SESSION_STORAGE_KEY);
+      return new Response(JSON.stringify(STORED_SESSION), { status: 200, headers: { 'content-type': 'application/json' } });
+    }));
+    const { renewSession } = await loadSession();
+
+    await expect(renewSession()).resolves.toBe('refused');
+    expect(localStorage.getItem(SESSION_STORAGE_KEY)).toBeNull();
+  });
+
   it('says unreachable and keeps the session when Auth cannot be reached', async () => {
     localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(STORED_SESSION));
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('network down')));
