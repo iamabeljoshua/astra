@@ -9,9 +9,10 @@ A student starts a session by sending a question or choosing a card, and the ses
 - `session-continue` opens the unfinished session from the continue card on Home.
 - `session-screen` shows the board, the tutor's dot, the title, stand-in words, a clock, and a reply box. A reply stays on the screen and goes nowhere.
 - `session-refresh` keeps the session on a refresh, because the record is saved before the page fades.
-- `session-end` marks the session finished with its length, and returns to Home.
+- `session-end` marks the session finished with its length, reads `Ending…` until Home is ready, returns to Home, and moves focus to Home's heading.
+- `session-leave` keeps the student where they went if they leave Home or the session screen while a start or an end is pending. The save still lands, and the dot and any fade go at once.
 - `session-finished` opens a finished session with no way to end it or reply.
-- `session-other-student` shows `This session could not be found.` for an ID that belongs to another student.
+- `session-other-student` shows `This session could not be found.` with no `Try again` for an ID that belongs to another student, and for a malformed address.
 - `sessions-list` lists each session, newest first, with title, subject, date, length, and status. `Show more` reaches sessions past the first 50.
 - `sessions-search` filters by title or subject, in any letter case.
 - `sessions-recent` lists the six newest sessions in the sidebar.
@@ -37,7 +38,7 @@ Preconditions:
 
 ## Gotchas
 
-- The dot stays on screen for about a third of a second, so wait for `.stop-dot` straight after pressing `Start session`.
+- The dot stays on screen for about 0.6 s, longer on a slow save, because it holds for 320 ms and stays through the 300 ms fade, so wait for `.stop-dot` straight after pressing `Start session`.
 - Each run adds sessions to the lane's database. Run `pnpm db:seed` to go back to the example student's six sessions.
 - A session ID is a UUID in the address, so read it from `page.url()`.
 - Search waits a quarter of a second after the last key, so wait for a row that should go to disappear rather than reading the rows at once.
