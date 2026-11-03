@@ -6,6 +6,14 @@ export const API_CONNECTION_LABELS = {
   notConnected: 'The API is not connected.',
 };
 
+export const API_ERROR_LABELS = {
+  validation: 'Check the details and try again.',
+  rejected: 'That could not be completed.',
+  server: 'Something went wrong on our side. Try again.',
+  network: 'Could not connect. Check your connection and try again.',
+  aborted: 'That took too long. Try again.',
+};
+
 export const MENU_LABELS = {
   home: 'Home',
   sessions: 'Sessions',

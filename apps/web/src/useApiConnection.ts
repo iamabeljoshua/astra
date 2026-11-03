@@ -1,51 +1,31 @@
-import type { components } from '@astra/contracts';
-import { useEffect, useState } from 'react';
+import { type QueryFunctionContext, useQuery } from '@tanstack/react-query';
+import { api } from './api/client';
 
 export type ApiConnection = 'checking' | 'connected' | 'notConnected';
 
-type HealthResponse = components['schemas']['HealthResponseDto'];
+export const HEALTH_CHECK_TIMEOUT_MS = 3000;
+export const HEALTH_CHECK_RETRY_DELAY_MS = 2000;
+const FORGET_WHEN_HOME_CLOSES = 0;
 
-const HEALTH_CHECK_TIMEOUT_MS = 3000;
-const HEALTH_CHECK_RETRY_DELAY_MS = 2000;
-
-async function fetchApiConnection(unmountSignal: AbortSignal): Promise<ApiConnection> {
-  const timeoutController = new AbortController();
-  const timeoutTimer = setTimeout(() => timeoutController.abort(), HEALTH_CHECK_TIMEOUT_MS);
+// A failed check is an answer here, not an error, so the line keeps it while the next check runs.
+async function fetchApiConnection({ signal }: QueryFunctionContext): Promise<ApiConnection> {
   try {
-    const response = await fetch('/api/health', {
-      signal: AbortSignal.any([unmountSignal, timeoutController.signal]),
-    });
-    const health = (await response.json()) as HealthResponse;
+    const health = await api.get('/health', { signal, timeoutMs: HEALTH_CHECK_TIMEOUT_MS });
     return health.status === 'ok' ? 'connected' : 'notConnected';
   } catch {
     return 'notConnected';
-  } finally {
-    clearTimeout(timeoutTimer);
   }
 }
 
 export function useApiConnection(): ApiConnection {
-  const [apiConnection, setApiConnection] = useState<ApiConnection>('checking');
-
-  useEffect(() => {
-    const unmountController = new AbortController();
-    let retryTimer: ReturnType<typeof setTimeout> | undefined;
-
-    async function checkUntilConnected() {
-      const connection = await fetchApiConnection(unmountController.signal);
-      if (unmountController.signal.aborted) return;
-      setApiConnection(connection);
-      if (connection !== 'connected') {
-        retryTimer = setTimeout(() => void checkUntilConnected(), HEALTH_CHECK_RETRY_DELAY_MS);
-      }
-    }
-
-    void checkUntilConnected();
-    return () => {
-      unmountController.abort();
-      clearTimeout(retryTimer);
-    };
-  }, []);
+  const { data: apiConnection = 'checking' } = useQuery({
+    queryKey: ['apiConnection'],
+    queryFn: fetchApiConnection,
+    gcTime: FORGET_WHEN_HOME_CLOSES,
+    staleTime: Infinity,
+    refetchInterval: (query) => (query.state.data === 'connected' ? false : HEALTH_CHECK_RETRY_DELAY_MS),
+    refetchIntervalInBackground: true,
+  });
 
   return apiConnection;
 }
