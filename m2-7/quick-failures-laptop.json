@@ -1,0 +1,11 @@
+{
+  "viewportName": "laptop",
+  "server500": {
+    "browserRequests": 3,
+    "secondsFromFirstRequestToFailureLine": 3.331
+  },
+  "networkFailure": {
+    "browserRequests": 3,
+    "secondsFromFirstRequestToFailureLine": 3.317
+  }
+}

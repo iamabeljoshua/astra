@@ -1,0 +1,21 @@
+{
+  "viewportName": "laptop",
+  "startedAtIso": "2026-11-03T11:00:16.374Z",
+  "hung": {
+    "secondsFromFirstRequestToFailureLine": 15.022,
+    "browserRequests": 3,
+    "proxyCalls": 3,
+    "secondsBrowserHeldFirstCall": 4.004,
+    "secondsBetweenBrowserRequests": [
+      5.011,
+      6.005
+    ]
+  },
+  "slow": {
+    "secondsFromRequestToCards": null,
+    "secondsFromRequestToFailureLine": 15.014,
+    "browserRequests": 3,
+    "proxyCalls": 3,
+    "cards": 0
+  }
+}

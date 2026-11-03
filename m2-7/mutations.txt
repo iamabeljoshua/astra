@@ -1,0 +1,54 @@
+
+== limit back to 10 seconds: 3 failed of 94
+  - stops a read at 30 seconds, even if the request ignores its signal
+      AssertionError: expected false to be true // Object.is equality
+  - gives the caller an answer that arrives just inside the limit
+      ApiError: The API request failed: timeout.
+  - shows the failure line at 30 seconds when the API never answers, after one try
+      AssertionError: expected <div role="alert"><p …(1)></p></div> to be null
+
+== timeout retried: 3 failed of 94
+  - tries a read that never answers once, and gives it a timeout error
+      AssertionError: expected "vi.fn()" to be called 1 times, but got 2 times
+  - shows the failure line at 30 seconds when the API never answers, after one try
+      TestingLibraryElementError: Unable to find an accessible element with the role "alert"
+  - recovers from Try again after the API never answered
+      TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "Try again"
+
+== Home sets its own 4 second limit: 2 failed of 94
+  - shows the failure line at 30 seconds when the API never answers, after one try
+      AssertionError: expected <div role="alert"><p …(1)></p></div> to be null
+  - loads the cards on the first try from an API that takes 5 seconds
+      TestingLibraryElementError: Unable to find an element with the text: How a jump shot flies. This could be because the text is broken up by multiple elements. In this case
+
+== caller abort no longer retried: 1 failed of 94
+  - tries a read that its own signal aborted three times in all
+      AssertionError: expected "vi.fn()" to be called 3 times, but got 1 times
+
+== quick server failure no longer retried: 1 failed of 94
+  - tries a server failure three times in all
+      AssertionError: expected 1 to be 3 // Object.is equality
+
+== quick network failure no longer retried: 1 failed of 94
+  - tries a network failure three times in all
+      AssertionError: expected "vi.fn()" to be called 3 times, but got 1 times
+
+== limit reads as aborted, as on trunk: 7 failed of 94
+  - stops a read at 30 seconds, even if the request ignores its signal
+      AssertionError: expected { kind: 'aborted', status: null, …(1) } to deeply equal { kind: 'timeout', status: null, …(1) }
+  - stops a call that changes data at the default timeout
+      AssertionError: expected { kind: 'aborted', status: null, …(1) } to deeply equal { kind: 'timeout', status: null, …(1) }
+  - stops an answer whose body never finishes
+      AssertionError: expected { kind: 'aborted', status: null, …(1) } to deeply equal { kind: 'timeout', status: null, …(1) }
+  - lets a caller set a longer timeout
+      AssertionError: expected { kind: 'aborted', status: null, …(1) } to deeply equal { kind: 'timeout', status: null, …(1) }
+  - tries a read that never answers once, and gives it a timeout error
+      AssertionError: expected "vi.fn()" to be called 1 times, but got 2 times
+  - shows the failure line at 30 seconds when the API never answers, after one try
+      TestingLibraryElementError: Unable to find an accessible element with the role "alert"
+  - recovers from Try again after the API never answered
+      TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "Try again"
+
+== timeout told apart by the name TimeoutError: 1 failed of 94
+  - keeps an abort from the caller an abort, even when its reason is a TimeoutError
+      AssertionError: expected { kind: 'timeout', status: null, …(1) } to deeply equal { kind: 'aborted', status: null, …(1) }

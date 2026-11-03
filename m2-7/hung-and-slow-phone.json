@@ -1,0 +1,26 @@
+{
+  "viewportName": "phone",
+  "startedAtIso": "2026-11-03T11:07:52.651Z",
+  "hung": {
+    "secondsFromFirstRequestToFailureLine": 30.007,
+    "browserRequests": 1,
+    "proxyCalls": 1,
+    "secondsBrowserHeldFirstCall": 30.003,
+    "secondsBetweenBrowserRequests": []
+  },
+  "tryAgainStillHung": {
+    "secondsFromRequestToFailureLine": 30.013,
+    "browserRequests": 1
+  },
+  "tryAgainRecovered": {
+    "alertsLeft": 0,
+    "cards": 6
+  },
+  "slow": {
+    "secondsFromRequestToCards": 5.014,
+    "secondsFromRequestToFailureLine": null,
+    "browserRequests": 1,
+    "proxyCalls": 1,
+    "cards": 6
+  }
+}
