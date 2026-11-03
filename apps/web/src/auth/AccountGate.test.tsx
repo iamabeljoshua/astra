@@ -168,6 +168,28 @@ describe('AccountGate', () => {
     expect(sentBodies).toEqual([{ birthDate: '2004-03-04' }]);
   });
 
+  it('keeps the answer when a read sent before it lands after it', async () => {
+    setSignIn('signedIn');
+    let reads = 0;
+    let deliverOldRead: (response: Response) => void = () => undefined;
+    vi.stubGlobal('fetch', async (request: Request) => {
+      if (request.method === 'POST') return json(ACTIVE_ACCOUNT)();
+      reads += 1;
+      return reads === 1 ? json(NEEDS_BIRTH_DATE)() : new Promise<Response>((resolve) => (deliverOldRead = resolve));
+    });
+    renderGateWithNoRetries();
+    await screen.findByRole('heading', { name: BIRTH_DATE_LABELS.question });
+    comeBackToTheTab();
+    await waitFor(() => expect(reads).toBe(2));
+
+    enterAndConfirmBirthDate('14', '3', '2004');
+    await screen.findByText(APP_TEXT);
+    deliverOldRead(json(NEEDS_BIRTH_DATE)());
+    await act(() => new Promise((resolve) => setTimeout(resolve, SLOW_ANSWER_MS)));
+
+    screen.getByText(APP_TEXT);
+  });
+
   it('stops at the closed page when the API closes the account, with no way to answer again', async () => {
     setSignIn('signedIn');
     stubApi({ 'GET /api/me': json(NEEDS_BIRTH_DATE), 'POST /api/me/birth-date': json(CLOSED_ACCOUNT) });

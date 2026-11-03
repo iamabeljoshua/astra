@@ -24,6 +24,10 @@ export function useAnswerBirthDate() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (birthDate: string) => api.post('/me/birth-date', { body: { birthDate } }),
-    onSuccess: (account) => queryClient.setQueryData(ACCOUNT_KEY, account),
+    // A read sent before this answer could land after it and put the old account back.
+    onSuccess: async (account) => {
+      await queryClient.cancelQueries({ queryKey: ACCOUNT_KEY });
+      queryClient.setQueryData(ACCOUNT_KEY, account);
+    },
   });
 }
