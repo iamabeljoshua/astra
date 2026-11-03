@@ -48,14 +48,12 @@ async function createDevAccount({ apiUrl, secretKey, password, account }) {
   }
 }
 
-// The stack may have been running already, so this runs after every start and changes nothing the second time.
 async function prepareForSignIn() {
   const { API_URL: apiUrl, PUBLISHABLE_KEY: publishableKey, SECRET_KEY: secretKey } = readStackValues();
   const { password, accounts } = JSON.parse(readFileSync(DEV_ACCOUNTS_URL, 'utf8'));
   for (const account of accounts) {
     await createDevAccount({ apiUrl, secretKey, password, account });
   }
-  // Only the publishable key goes here, because the browser reads this file. The secret key stays in this script.
   writeFileSync(
     WEB_ENV_URL,
     `# Written by pnpm db:up.\nVITE_SUPABASE_URL=${apiUrl}\nVITE_SUPABASE_PUBLISHABLE_KEY=${publishableKey}\n`,
@@ -67,4 +65,9 @@ const { status, error } = spawnSync('supabase', ['start'], { stdio: 'inherit' })
 lock.close();
 if (error) console.error(`Cannot run the Supabase CLI: ${error.message}. Run pnpm install, then use pnpm db:up.`);
 process.exitCode = status ?? 1;
-if (status === 0) await prepareForSignIn();
+if (status === 0) {
+  await prepareForSignIn().catch((failure) => {
+    console.error(`Could not prepare sign-in: ${failure.message} An interrupted start can leave Postgres running alone. Run pnpm exec supabase stop, then pnpm db:up.`);
+    process.exitCode = 1;
+  });
+}

@@ -55,7 +55,6 @@ export async function createTestApp({ supabaseUrl }: { supabaseUrl?: string } = 
     () => Test.createTestingModule({ imports: [AppModule] }).compile(),
   );
   const app = testingModule.createNestApplication();
-  // Supertest would otherwise start the server once per request, and a race test sends many at once.
   await app.listen(0, '127.0.0.1');
   const close = async () => {
     await app.close();

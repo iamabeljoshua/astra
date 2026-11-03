@@ -20,13 +20,13 @@ function SignedInGate({ children }: PropsWithChildren) {
   const account = useAccount();
   const isTokenRefused = account.error?.status === UNAUTHORIZED_STATUS;
 
-  // The API refusing a token the browser still trusts leaves nothing to do here but sign in again.
   useEffect(() => {
     if (isTokenRefused) void signOut();
   }, [isTokenRefused]);
 
   if (account.isPending || isTokenRefused) return null;
-  if (account.error) return <AccountErrorPage error={account.error} onTryAgain={() => void account.refetch()} />;
+  // A failed refresh keeps the last answer, so a network blip never takes the app away during a lesson.
+  if (!account.data) return <AccountErrorPage error={account.error} onTryAgain={() => void account.refetch()} />;
 
   switch (account.data.status) {
     case 'needs_birth_date':

@@ -125,7 +125,7 @@ After sign-out, the browser has no token and Auth refuses the refresh token. An 
 
 The server's clock and UTC-12 decide the student's age, so nobody counts as old enough until the birthday has begun everywhere on Earth. A device's clock and time zone play no part. A birthday on 29 February falls on 1 March in other years. `apps/api/src/auth/age-gate.ts` holds the rule, and no web code or message states the age.
 
-`students.auth_user_id` and `closed_accounts.auth_user_id` are plain uuids with no foreign key, because app databases have no `auth` schema. Deleting a user in Supabase therefore leaves that user's rows in place. No token can reach those rows once the user's last token expires. To remove a student, delete the row in `students`, which also removes the profile and sessions, before you delete the Supabase user. Deleting the Supabase user of a closed account lets the same address sign up as a new user and answer again, so keep that user until the deletion work in M4.5 settles how to prevent it.
+`students.auth_user_id` and `closed_accounts.auth_user_id` are plain uuids with no foreign key, because the local app databases have no `auth` schema. Deleting a user in Supabase therefore leaves that user's rows in place. No token can reach those rows once the user's last token expires. To remove a student, delete the row in `students`, which also removes the profile and sessions, before you delete the Supabase user. Deleting the Supabase user of a closed account lets the same address sign up as a new user and answer again, so keep that user until the deletion work in M4.5 settles how to prevent it.
 
 ## Connect a hosted project
 
@@ -140,7 +140,7 @@ No Supabase project exists yet, so nothing here has run against a real one. Meas
 7. Build the web app with `VITE_SUPABASE_URL` set to the same address and `VITE_SUPABASE_PUBLISHABLE_KEY` set to the publishable key, or the anon key on an older project. Never put the secret key or the service role key in a `VITE_` value, because the browser receives every one of those. Measured on the local stack.
 8. In **Authentication > Sign In / Providers**, keep the email provider on. Turn on **Google** when credentials exist, then set `VITE_GOOGLE_SIGN_IN=on`. Docs.
 9. Set the **Site URL** in **Authentication > URL Configuration** to the address of the web app. A link can return only to that host or to an address on the redirect list. Measured on the local stack, where hostile addresses fell back to the site URL. Docs for the dashboard.
-10. Check that **JWT Keys** shows an asymmetric signing key, ES256 or RS256. The API refuses tokens signed with a shared secret. Docs.
+10. Check that **JWT Keys** shows an asymmetric signing key, ES256 or RS256. New projects have used asymmetric keys by default since 1 October 2025. The API refuses tokens signed with a shared secret. Docs for the dashboard and the date. Measured for the refusal.
 11. Set up your own SMTP before real students use this. Built-in email allows 2 messages an hour for the whole project, and a user can ask for a new link once every 60 seconds. Docs. The app tells the student to wait when Auth answers 429. Measured on a local Auth service with its limit set to 3.
 12. If the API moves to a host that is not on the same address as the web app, add CORS for that address. The API has none, and the web app reaches it through a proxy in development. Not measured.
 
@@ -178,7 +178,7 @@ Do not write Swagger decorators by hand. `pnpm test` fails if a route, a route p
 
 ## Add a query and a mutation
 
-Every API call in the web app goes through `api` in `apps/web/src/api/client.ts`, and each call carries the signed-in student's token. `pnpm lint` rejects a direct `fetch` in `apps/web` outside `apps/web/src/api/` and `apps/web/src/auth/session.ts`.
+Every API call in the web app goes through `api` in `apps/web/src/api/client.ts`, and each call carries the signed-in student's token. `pnpm lint` rejects a direct `fetch` in `apps/web` outside `apps/web/src/api/` and `apps/web/src/auth/fetchWithTimeLimit.ts`.
 
 This section continues from the last step of "Add a DTO". List a new controller in `controllers` of its feature module, and list a new module in `imports` in `apps/api/src/app.module.ts`. `pnpm api:types` exits 0 and generates no routes for a controller that is not listed. The examples use `GET /things`, which takes a `limit` query and returns a list of `ThingResponseDto`, and `POST /things`, which takes a `CreateThingBodyDto` with a `title`.
 

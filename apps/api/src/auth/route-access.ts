@@ -5,7 +5,6 @@ export type RouteAccess = 'public' | 'signedIn' | 'student';
 
 export const ROUTE_ACCESS_KEY = 'routeAccess';
 
-// A route with neither decorator needs a student, so a new route starts closed.
 export const DEFAULT_ROUTE_ACCESS: RouteAccess = 'student';
 
 export const PublicRoute = () => SetMetadata(ROUTE_ACCESS_KEY, 'public' satisfies RouteAccess);

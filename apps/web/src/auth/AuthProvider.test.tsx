@@ -45,8 +45,8 @@ function send(userId: string | null) {
 }
 
 beforeEach(() => {
-  vi.mocked(restartAppAtHome).mockClear();
-  vi.mocked(didEmailLinkFail).mockClear();
+  vi.mocked(restartAppAtHome).mockReset();
+  vi.mocked(didEmailLinkFail).mockResolvedValue(false);
 });
 
 afterEach(() => {
@@ -116,7 +116,6 @@ describe('AuthProvider', () => {
     renderProvider();
 
     await screen.findByText('loading true');
-    vi.mocked(didEmailLinkFail).mockResolvedValue(false);
   });
 
   it('reloads when the browser restores this page from memory, as on Back after sign-out', async () => {

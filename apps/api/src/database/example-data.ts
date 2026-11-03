@@ -7,7 +7,6 @@ import { StudentEntity } from '../students/student.entity';
 
 export const EXAMPLE_STUDENT_ID = '00000000-0000-4000-8000-000000000001';
 
-// The local stack holds these two users, from supabase/dev-accounts.json.
 export const EXAMPLE_AUTH_USER_ID = '00000000-0000-4000-8000-0000000000a1';
 export const NEW_STUDENT_AUTH_USER_ID = '00000000-0000-4000-8000-0000000000a2';
 

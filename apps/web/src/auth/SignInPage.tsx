@@ -111,7 +111,7 @@ function SentStep({ email, onUseAnotherEmail }: { email: string; onUseAnotherEma
     <>
       <h1 className="text-question font-semibold text-balance">{SIGN_IN_LABELS.sentQuestion}</h1>
       <p className="max-w-[46ch] text-sub text-ink-2">{SIGN_IN_LABELS.sentAbout}</p>
-      <p className="font-medium">{email}</p>
+      <p className="font-medium wrap-anywhere">{email}</p>
       <div>
         <button type="button" className="button button-outline" onClick={onUseAnotherEmail}>
           {SIGN_IN_LABELS.useAnotherEmail}

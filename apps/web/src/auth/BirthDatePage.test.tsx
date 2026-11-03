@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithQueryClient } from '../test/renderWithQueryClient';
 import { BirthDatePage } from './BirthDatePage';
 
-const AGE_LIMIT_WORDS = /\b1[0-9]\b(?! ?-)|thirteen|old enough|too young|minimum age|age limit|at least|or older/i;
+const AGE_LIMIT_WORDS = /\b13\b|thirteen|old enough|too young|minimum age|age limit|at least|or older/i;
 
 vi.mock('./session', () => ({ signOut: vi.fn(), getAccessToken: async () => null }));
 
@@ -17,8 +17,8 @@ describe('the date of birth question', () => {
   it('gives no hint of an age limit in its words', () => {
     const { container } = renderWithQueryClient(<BirthDatePage />);
 
-    const words = [container.textContent ?? ''].join(' ').replace(/\d/g, (digit) => digit);
-    expect(words.replace('14', '')).not.toMatch(AGE_LIMIT_WORDS);
+    const placeholders = [...container.querySelectorAll('input')].map((input) => input.placeholder).join(' ');
+    expect(`${container.textContent} ${placeholders}`).not.toMatch(AGE_LIMIT_WORDS);
   });
 
   it('sets no limit on the dates a student can type', () => {

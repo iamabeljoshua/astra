@@ -11,7 +11,6 @@ const SIGNED_IN_ROLE = 'authenticated';
 const ACCEPTED_ALGORITHMS = ['ES256', 'RS256'];
 const REQUIRED_CLAIMS = ['sub', 'exp'];
 
-// Anything else, such as the key server failing, says nothing about the token, so it answers 503 and not 401.
 const TOKEN_ERRORS = [
   errors.JOSEAlgNotAllowed,
   errors.JOSENotSupported,

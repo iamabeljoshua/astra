@@ -1,11 +1,11 @@
 /// <reference types="vite/client" />
 import { createClient } from '@supabase/supabase-js';
+import { fetchWithTimeLimit } from './fetchWithTimeLimit';
 
 export type EmailLinkResult = 'sent' | 'invalidEmail' | 'tooManyRequests' | 'failed';
 
 const SESSION_STORAGE_KEY = 'astra-session';
 const LINK_CODE_PARAM = 'code';
-const REQUEST_TIMEOUT_MS = 10_000;
 const TOO_MANY_REQUESTS_STATUS = 429;
 const INVALID_EMAIL_CODES: ReadonlySet<string | undefined> = new Set(['validation_failed', 'email_address_invalid']);
 
@@ -17,8 +17,7 @@ function createSupabaseClient() {
   }
   return createClient(url, publishableKey, {
     auth: { flowType: 'pkce', storageKey: SESSION_STORAGE_KEY },
-    // The client has no time limit of its own, so a server that never answers would leave a screen waiting forever.
-    global: { fetch: (input, init) => globalThis.fetch(input, { ...init, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) }) },
+    global: { fetch: fetchWithTimeLimit },
   });
 }
 
@@ -28,7 +27,6 @@ function getReturnAddress() {
   return `${window.location.origin}/`;
 }
 
-// A failed refresh says nothing about the student, so the call fails here rather than go out with no token and read as signed out.
 export async function getAccessToken(): Promise<string | null> {
   const { data, error } = await supabase.auth.getSession();
   if (error) throw error;
@@ -71,7 +69,6 @@ export async function signInWithPassword(email: string, password: string): Promi
   return !error;
 }
 
-// A full page load drops everything in memory, so nothing from the last student can reach the next one.
 export function restartAppAtHome(): void {
   window.location.assign('/');
 }

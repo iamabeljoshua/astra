@@ -37,7 +37,6 @@ export function signWithKey(key: SigningKey, claims: JWTPayload): Promise<string
     .sign(key.privateKey);
 }
 
-// Serves its keys over HTTP as Supabase Auth does, so the API checks tokens with its production code and no Auth service.
 export async function startTestSupabaseAuth(): Promise<TestSupabaseAuth> {
   const keys = [await createSigningKey()];
   const server = createServer((request, response) => {

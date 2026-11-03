@@ -12,7 +12,6 @@ const apiPort = process.env.API_PORT ?? DEFAULT_API_PORT;
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
-    // Supabase Auth returns an email link only to the host of its site URL, so the app must run on this address.
     host: LOCAL_HOST,
     port: webPort,
     strictPort: true,

@@ -44,7 +44,7 @@ export default defineConfig([
   },
   {
     files: ['apps/web/**/*.{ts,tsx,js,jsx,mjs,cjs}'],
-    ignores: ['apps/web/src/api/**', 'apps/web/src/auth/session.ts'],
+    ignores: ['apps/web/src/api/**', 'apps/web/src/auth/fetchWithTimeLimit.ts'],
     rules: {
       'no-restricted-globals': ['error', { name: 'fetch', message: API_CLIENT_MESSAGE }],
       'no-restricted-properties': [

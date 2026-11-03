@@ -62,7 +62,9 @@ export class StudentsService {
     });
   }
 
+  // A closed account has no student today, and this keeps it shut if someone closes one that does.
   async findStudentId(authUserId: string): Promise<string | null> {
+    if (await this.dataSource.manager.existsBy(ClosedAccountEntity, { authUserId })) return null;
     const student = await this.students.findOne({ where: { authUserId }, select: { id: true } });
     return student?.id ?? null;
   }

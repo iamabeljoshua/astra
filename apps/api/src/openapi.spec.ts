@@ -132,7 +132,6 @@ function findRoutesWithUncheckedBodies(document: OpenAPIObject): string[] {
   );
 }
 
-// A student ID from the client could name someone else, so identity comes only from the token.
 function findStudentIdInputs(document: OpenAPIObject): string[] {
   const fromParameters = Object.entries(document.paths).flatMap(([path, pathItem]) =>
     HTTP_METHODS.flatMap((method) =>

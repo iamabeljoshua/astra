@@ -1,5 +1,7 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createQueryClient } from '../api/queryClient';
 import { ACCOUNT_LABELS, API_ERROR_LABELS, BIRTH_DATE_LABELS, SIGN_IN_LABELS } from '../strings';
 import { renderWithQueryClient } from '../test/renderWithQueryClient';
 import { AccountGate } from './AccountGate';
@@ -185,6 +187,33 @@ describe('AccountGate', () => {
     stubApi({ 'GET /api/me': json({ statusCode: 401 }, 401) });
 
     renderGate();
+
+    await waitFor(() => expect(signOut).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText(APP_TEXT)).toBeNull();
+  });
+
+  it('keeps the app on screen when a later refresh of the account fails', async () => {
+    setSignIn('signedIn');
+    const answers: Record<string, () => Response> = { 'GET /api/me': json(ACTIVE_ACCOUNT) };
+    stubApi(answers);
+    const queryClient = createQueryClient();
+    queryClient.setDefaultOptions({ queries: { retry: false, networkMode: 'always' } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <AccountGate>
+          <p>{APP_TEXT}</p>
+        </AccountGate>
+      </QueryClientProvider>,
+    );
+    await screen.findByText(APP_TEXT);
+
+    answers['GET /api/me'] = json({}, 503);
+    await act(() => queryClient.refetchQueries());
+
+    screen.getByText(APP_TEXT);
+
+    answers['GET /api/me'] = json({ statusCode: 401 }, 401);
+    await act(() => queryClient.refetchQueries());
 
     await waitFor(() => expect(signOut).toHaveBeenCalledTimes(1));
     expect(screen.queryByText(APP_TEXT)).toBeNull();

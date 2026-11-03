@@ -27,7 +27,6 @@ export function isValidBirthDate(text: unknown, now: Date): boolean {
 }
 
 // Compares as text, so a 29 February birthday falls on 1 March in other years.
-// Uses the server clock and UTC-12, so nobody counts as old enough until the birthday has begun everywhere.
 export function isOldEnough(validBirthDate: string, now: Date): boolean {
   const birthYear = Number(validBirthDate.slice(0, 4));
   const birthdayAtMinimumAge = `${birthYear + MINIMUM_AGE_YEARS}${validBirthDate.slice(4)}`;

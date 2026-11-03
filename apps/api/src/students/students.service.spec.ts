@@ -100,6 +100,16 @@ describe('StudentsService', () => {
     expect(await dataSource.getRepository(StudentEntity).countBy({ authUserId })).toBe(0);
   });
 
+  it('finds no student once the account of an active student is closed', async () => {
+    const { authUserId, id } = await createStudent();
+    expect(await studentsService.findStudentId(authUserId)).toBe(id);
+
+    await testApp.app.get(DataSource).getRepository(ClosedAccountEntity).insert({ authUserId });
+
+    expect(await studentsService.findStudentId(authUserId)).toBeNull();
+    expect(await studentsService.getAccount(authUserId)).toEqual({ status: 'closed', student: null });
+  });
+
   it('finds no student for an unknown user, and the student for a known one', async () => {
     const { authUserId, id } = await createStudent();
 
