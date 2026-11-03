@@ -1,0 +1,55 @@
+{
+ "beats_flush_chosen": {
+  "attempts": 5,
+  "speechEndToFirstAudioMs": {
+   "count": 5,
+   "p50": 585,
+   "p95": 1266,
+   "min": 563,
+   "max": 1266
+  },
+  "firstFragmentToFirstAudioMs": {
+   "count": 5,
+   "p50": 87,
+   "p95": 96,
+   "min": 82,
+   "max": 96
+  },
+  "lowestCueLeadMs": 844,
+  "wordsHeard": 125,
+  "wordsTimed": 125,
+  "sdkTranscriptShowedCommands": 0,
+  "agentStatesSeenByStudent": [
+   "thinking",
+   "speaking",
+   "listening"
+  ],
+  "sample": {
+   "sdkTranscriptShowsCommands": false,
+   "speechEndToFirstAudioMs": 624,
+   "firstFragmentToFirstAudioMs": 96,
+   "firstFragmentToFirstTtsFrameMs": 33,
+   "wordsHeard": 25,
+   "wordsTimed": 25,
+   "wordTimesLeadOverAudioMs": 62,
+   "cueLeadOverWordMs": [
+    862,
+    1991,
+    2877
+   ],
+   "cueKinds": [
+    "drawing",
+    "simulate",
+    "focus"
+   ],
+   "cueWords": [
+    4,
+    10,
+    14
+   ]
+  },
+  "joinToSessionStartedMs": 569,
+  "agentMemoryMb": 483,
+  "machineLoadAtEnd": 4
+ }
+}

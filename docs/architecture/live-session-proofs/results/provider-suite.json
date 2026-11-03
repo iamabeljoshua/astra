@@ -1,0 +1,61 @@
+{
+ "asExpected": 7,
+ "of": 7,
+ "rows": [
+  {
+   "kind": "voice",
+   "name": "fakeCartesia",
+   "shouldPass": true,
+   "problems": [],
+   "asExpected": true
+  },
+  {
+   "kind": "voice",
+   "name": "in-process",
+   "shouldPass": true,
+   "problems": [],
+   "asExpected": true
+  },
+  {
+   "kind": "voice",
+   "name": "no-word-times",
+   "shouldPass": false,
+   "problems": [
+    "a voice must give word times, because the board clock needs them",
+    "word times must name every word in order, and they named 0 of 13"
+   ],
+   "asExpected": true
+  },
+  {
+   "kind": "transcriber",
+   "name": "fakeDeepgram",
+   "shouldPass": true,
+   "problems": [],
+   "asExpected": true
+  },
+  {
+   "kind": "model",
+   "name": "fake-fast",
+   "shouldPass": true,
+   "problems": [],
+   "asExpected": true
+  },
+  {
+   "kind": "model",
+   "name": "fake-slow",
+   "shouldPass": true,
+   "problems": [],
+   "asExpected": true
+  },
+  {
+   "kind": "model",
+   "name": "whole-reply-at-once",
+   "shouldPass": false,
+   "problems": [
+    "a model must stream its text in pieces, because the voice starts on the first words",
+    "a model must report its tokens, because cost is measured from them"
+   ],
+   "asExpected": true
+  }
+ ]
+}

@@ -1,0 +1,1138 @@
+{
+ "a-many-small": {
+  "load": 5,
+  "wordsSent": 110,
+  "wordsHeard": 110,
+  "reports": {
+   "opens": 51,
+   "closes": 51,
+   "opensWithNoClose": 0,
+   "closeMs": {
+    "n": 51,
+    "p50": 40,
+    "p95abs": 42,
+    "maxAbs": 43,
+    "min": 32,
+    "max": 43,
+    "early40": 0,
+    "late100": 0
+   }
+  },
+  "methods": {
+   "chosen": {
+    "n": 110,
+    "p50": 0,
+    "p95abs": 10,
+    "maxAbs": 17,
+    "min": -17,
+    "max": 13,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 110
+   },
+   "countOnly": {
+    "n": 110,
+    "p50": -158,
+    "p95abs": 318,
+    "maxAbs": 359,
+    "min": -359,
+    "max": 4,
+    "early40": 86,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 110
+   },
+   "closeLate150": {
+    "n": 110,
+    "p50": 6,
+    "p95abs": 95,
+    "maxAbs": 99,
+    "min": -17,
+    "max": 99,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 110
+   },
+   "closeLate300": {
+    "n": 108,
+    "p50": 46,
+    "p95abs": 245,
+    "maxAbs": 249,
+    "min": -17,
+    "max": 249,
+    "early40": 0,
+    "late100": 49,
+    "unfired": 2,
+    "heard": 110
+   },
+   "dropOpen": {
+    "n": 110,
+    "p50": 0,
+    "p95abs": 10,
+    "maxAbs": 17,
+    "min": -17,
+    "max": 13,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 110
+   },
+   "dropClose": {
+    "n": 70,
+    "p50": 2689,
+    "p95abs": 2951,
+    "maxAbs": 2963,
+    "min": -2,
+    "max": 2963,
+    "early40": 0,
+    "late100": 58,
+    "unfired": 40,
+    "heard": 110
+   },
+   "dropBoth": {
+    "n": 110,
+    "p50": -158,
+    "p95abs": 318,
+    "maxAbs": 359,
+    "min": -359,
+    "max": 4,
+    "early40": 86,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 110
+   },
+   "lossyOnly": {
+    "n": 110,
+    "p50": 0,
+    "p95abs": 10,
+    "maxAbs": 17,
+    "min": -17,
+    "max": 13,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 110
+   },
+   "reliableOnly": {
+    "n": 110,
+    "p50": 0,
+    "p95abs": 10,
+    "maxAbs": 17,
+    "min": -17,
+    "max": 13,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 110
+   },
+   "dup": {
+    "n": 110,
+    "p50": 0,
+    "p95abs": 10,
+    "maxAbs": 17,
+    "min": -17,
+    "max": 13,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 110
+   }
+  }
+ },
+ "a-many-tiny": {
+  "load": 7,
+  "wordsSent": 106,
+  "wordsHeard": 106,
+  "reports": {
+   "opens": 4,
+   "closes": 19,
+   "opensWithNoClose": 0,
+   "closeMs": {
+    "n": 19,
+    "p50": 27,
+    "p95abs": 36,
+    "maxAbs": 36,
+    "min": 20,
+    "max": 36,
+    "early40": 0,
+    "late100": 0
+   }
+  },
+  "methods": {
+   "chosen": {
+    "n": 106,
+    "p50": -4,
+    "p95abs": 18,
+    "maxAbs": 31,
+    "min": -31,
+    "max": 17,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 106
+   },
+   "countOnly": {
+    "n": 106,
+    "p50": -38,
+    "p95abs": 107,
+    "maxAbs": 129,
+    "min": -129,
+    "max": 4,
+    "early40": 49,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 106
+   },
+   "closeLate150": {
+    "n": 106,
+    "p50": -7,
+    "p95abs": 38,
+    "maxAbs": 95,
+    "min": -55,
+    "max": 95,
+    "early40": 1,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 106
+   },
+   "closeLate300": {
+    "n": 106,
+    "p50": -9,
+    "p95abs": 38,
+    "maxAbs": 247,
+    "min": -55,
+    "max": 247,
+    "early40": 1,
+    "late100": 4,
+    "unfired": 0,
+    "heard": 106
+   },
+   "dropOpen": {
+    "n": 106,
+    "p50": -4,
+    "p95abs": 18,
+    "maxAbs": 31,
+    "min": -31,
+    "max": 17,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 106
+   },
+   "dropClose": {
+    "n": 94,
+    "p50": -30,
+    "p95abs": 1733,
+    "maxAbs": 2981,
+    "min": -95,
+    "max": 2981,
+    "early40": 37,
+    "late100": 8,
+    "unfired": 12,
+    "heard": 106
+   },
+   "dropBoth": {
+    "n": 106,
+    "p50": -38,
+    "p95abs": 107,
+    "maxAbs": 129,
+    "min": -129,
+    "max": 4,
+    "early40": 49,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 106
+   },
+   "lossyOnly": {
+    "n": 106,
+    "p50": -4,
+    "p95abs": 18,
+    "maxAbs": 31,
+    "min": -31,
+    "max": 17,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 106
+   },
+   "reliableOnly": {
+    "n": 106,
+    "p50": -4,
+    "p95abs": 18,
+    "maxAbs": 31,
+    "min": -31,
+    "max": 17,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 106
+   },
+   "dup": {
+    "n": 106,
+    "p50": -4,
+    "p95abs": 18,
+    "maxAbs": 31,
+    "min": -31,
+    "max": 17,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 106
+   }
+  }
+ },
+ "a-slow-voice-90": {
+  "load": 6,
+  "wordsSent": 102,
+  "wordsHeard": 73,
+  "reports": {
+   "opens": 0,
+   "closes": 190,
+   "opensWithNoClose": 0,
+   "closeMs": {
+    "n": 190,
+    "p50": 20,
+    "p95abs": 22,
+    "maxAbs": 24,
+    "min": 20,
+    "max": 24,
+    "early40": 0,
+    "late100": 0
+   }
+  },
+  "methods": {
+   "chosen": {
+    "n": 102,
+    "p50": -5,
+    "p95abs": 23,
+    "maxAbs": 30,
+    "min": -30,
+    "max": 10,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 102
+   },
+   "countOnly": {
+    "n": 102,
+    "p50": -315,
+    "p95abs": 617,
+    "maxAbs": 652,
+    "min": -652,
+    "max": 5,
+    "early40": 91,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 102
+   },
+   "closeLate150": {
+    "n": 102,
+    "p50": -20,
+    "p95abs": 32,
+    "maxAbs": 39,
+    "min": -39,
+    "max": 5,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 102
+   },
+   "closeLate300": {
+    "n": 102,
+    "p50": -35,
+    "p95abs": 50,
+    "maxAbs": 60,
+    "min": -60,
+    "max": 5,
+    "early40": 33,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 102
+   },
+   "dropOpen": {
+    "n": 102,
+    "p50": -5,
+    "p95abs": 23,
+    "maxAbs": 30,
+    "min": -30,
+    "max": 10,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 102
+   },
+   "dropClose": {
+    "n": 102,
+    "p50": -315,
+    "p95abs": 617,
+    "maxAbs": 652,
+    "min": -652,
+    "max": 5,
+    "early40": 91,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 102
+   },
+   "dropBoth": {
+    "n": 102,
+    "p50": -315,
+    "p95abs": 617,
+    "maxAbs": 652,
+    "min": -652,
+    "max": 5,
+    "early40": 91,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 102
+   },
+   "lossyOnly": {
+    "n": 102,
+    "p50": -5,
+    "p95abs": 23,
+    "maxAbs": 30,
+    "min": -30,
+    "max": 10,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 102
+   },
+   "reliableOnly": {
+    "n": 102,
+    "p50": -5,
+    "p95abs": 23,
+    "maxAbs": 30,
+    "min": -30,
+    "max": 10,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 102
+   },
+   "dup": {
+    "n": 102,
+    "p50": -5,
+    "p95abs": 23,
+    "maxAbs": 30,
+    "min": -30,
+    "max": 10,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 102
+   }
+  }
+ },
+ "a-slow-voice-97": {
+  "load": 5,
+  "wordsSent": 103,
+  "wordsHeard": 88,
+  "reports": {
+   "opens": 1,
+   "closes": 54,
+   "opensWithNoClose": 0,
+   "closeMs": {
+    "n": 54,
+    "p50": 20,
+    "p95abs": 22,
+    "maxAbs": 55,
+    "min": 20,
+    "max": 55,
+    "early40": 0,
+    "late100": 0
+   }
+  },
+  "methods": {
+   "chosen": {
+    "n": 103,
+    "p50": -7,
+    "p95abs": 21,
+    "maxAbs": 22,
+    "min": -22,
+    "max": 5,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 103
+   },
+   "countOnly": {
+    "n": 103,
+    "p50": -85,
+    "p95abs": 166,
+    "maxAbs": 181,
+    "min": -181,
+    "max": 4,
+    "early40": 75,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 103
+   },
+   "closeLate150": {
+    "n": 103,
+    "p50": -11,
+    "p95abs": 24,
+    "maxAbs": 29,
+    "min": -29,
+    "max": 5,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 103
+   },
+   "closeLate300": {
+    "n": 103,
+    "p50": -16,
+    "p95abs": 29,
+    "maxAbs": 32,
+    "min": -32,
+    "max": 4,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 103
+   },
+   "dropOpen": {
+    "n": 103,
+    "p50": -7,
+    "p95abs": 21,
+    "maxAbs": 22,
+    "min": -22,
+    "max": 5,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 103
+   },
+   "dropClose": {
+    "n": 103,
+    "p50": -85,
+    "p95abs": 166,
+    "maxAbs": 181,
+    "min": -181,
+    "max": 4,
+    "early40": 75,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 103
+   },
+   "dropBoth": {
+    "n": 103,
+    "p50": -85,
+    "p95abs": 166,
+    "maxAbs": 181,
+    "min": -181,
+    "max": 4,
+    "early40": 75,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 103
+   },
+   "lossyOnly": {
+    "n": 103,
+    "p50": -7,
+    "p95abs": 21,
+    "maxAbs": 22,
+    "min": -22,
+    "max": 5,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 103
+   },
+   "reliableOnly": {
+    "n": 103,
+    "p50": -7,
+    "p95abs": 21,
+    "maxAbs": 22,
+    "min": -22,
+    "max": 5,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 103
+   },
+   "dup": {
+    "n": 103,
+    "p50": -7,
+    "p95abs": 21,
+    "maxAbs": 22,
+    "min": -22,
+    "max": 5,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 103
+   }
+  }
+ },
+ "a-stall-1500": {
+  "load": 8,
+  "wordsSent": 101,
+  "wordsHeard": 101,
+  "reports": {
+   "opens": 6,
+   "closes": 6,
+   "opensWithNoClose": 0,
+   "closeMs": {
+    "n": 6,
+    "p50": 1498,
+    "p95abs": 1499,
+    "maxAbs": 1499,
+    "min": 1492,
+    "max": 1499,
+    "early40": 0,
+    "late100": 6
+   }
+  },
+  "methods": {
+   "chosen": {
+    "n": 101,
+    "p50": 1,
+    "p95abs": 7,
+    "maxAbs": 10,
+    "min": -10,
+    "max": 5,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 101
+   },
+   "countOnly": {
+    "n": 101,
+    "p50": -8,
+    "p95abs": 1500,
+    "maxAbs": 1502,
+    "min": -1502,
+    "max": 5,
+    "early40": 46,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 101
+   },
+   "closeLate150": {
+    "n": 101,
+    "p50": 1,
+    "p95abs": 86,
+    "maxAbs": 99,
+    "min": -10,
+    "max": 99,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 101
+   },
+   "closeLate300": {
+    "n": 101,
+    "p50": 1,
+    "p95abs": 235,
+    "maxAbs": 250,
+    "min": -10,
+    "max": 250,
+    "early40": 0,
+    "late100": 6,
+    "unfired": 0,
+    "heard": 101
+   },
+   "dropOpen": {
+    "n": 101,
+    "p50": 1,
+    "p95abs": 7,
+    "maxAbs": 10,
+    "min": -10,
+    "max": 5,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 101
+   },
+   "dropClose": {
+    "n": 101,
+    "p50": 2,
+    "p95abs": 1486,
+    "maxAbs": 1502,
+    "min": -1502,
+    "max": 1492,
+    "early40": 22,
+    "late100": 27,
+    "unfired": 0,
+    "heard": 101
+   },
+   "dropBoth": {
+    "n": 101,
+    "p50": -8,
+    "p95abs": 1500,
+    "maxAbs": 1502,
+    "min": -1502,
+    "max": 5,
+    "early40": 46,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 101
+   },
+   "lossyOnly": {
+    "n": 101,
+    "p50": 1,
+    "p95abs": 7,
+    "maxAbs": 10,
+    "min": -10,
+    "max": 5,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 101
+   },
+   "reliableOnly": {
+    "n": 101,
+    "p50": 1,
+    "p95abs": 7,
+    "maxAbs": 10,
+    "min": -10,
+    "max": 5,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 101
+   },
+   "dup": {
+    "n": 101,
+    "p50": 1,
+    "p95abs": 7,
+    "maxAbs": 10,
+    "min": -10,
+    "max": 5,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 101
+   }
+  }
+ },
+ "a-stall-3500": {
+  "load": 6,
+  "wordsSent": 109,
+  "wordsHeard": 109,
+  "reports": {
+   "opens": 6,
+   "closes": 6,
+   "opensWithNoClose": 0,
+   "closeMs": {
+    "n": 6,
+    "p50": 3494,
+    "p95abs": 3502,
+    "maxAbs": 3502,
+    "min": 3490,
+    "max": 3502,
+    "early40": 0,
+    "late100": 6
+   }
+  },
+  "methods": {
+   "chosen": {
+    "n": 109,
+    "p50": 0,
+    "p95abs": 8,
+    "maxAbs": 10,
+    "min": -10,
+    "max": 6,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 109
+   },
+   "countOnly": {
+    "n": 109,
+    "p50": -6,
+    "p95abs": 2591,
+    "maxAbs": 3207,
+    "min": -3207,
+    "max": 5,
+    "early40": 50,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 109
+   },
+   "closeLate150": {
+    "n": 109,
+    "p50": -6,
+    "p95abs": 2591,
+    "maxAbs": 3207,
+    "min": -3207,
+    "max": 5,
+    "early40": 50,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 109
+   },
+   "closeLate300": {
+    "n": 109,
+    "p50": -6,
+    "p95abs": 2591,
+    "maxAbs": 3207,
+    "min": -3207,
+    "max": 5,
+    "early40": 50,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 109
+   },
+   "dropOpen": {
+    "n": 109,
+    "p50": 0,
+    "p95abs": 8,
+    "maxAbs": 10,
+    "min": -10,
+    "max": 6,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 109
+   },
+   "dropClose": {
+    "n": 109,
+    "p50": -6,
+    "p95abs": 2591,
+    "maxAbs": 3207,
+    "min": -3207,
+    "max": 5,
+    "early40": 50,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 109
+   },
+   "dropBoth": {
+    "n": 109,
+    "p50": -6,
+    "p95abs": 2591,
+    "maxAbs": 3207,
+    "min": -3207,
+    "max": 5,
+    "early40": 50,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 109
+   },
+   "lossyOnly": {
+    "n": 109,
+    "p50": 0,
+    "p95abs": 8,
+    "maxAbs": 10,
+    "min": -10,
+    "max": 6,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 109
+   },
+   "reliableOnly": {
+    "n": 109,
+    "p50": 0,
+    "p95abs": 8,
+    "maxAbs": 10,
+    "min": -10,
+    "max": 6,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 109
+   },
+   "dup": {
+    "n": 109,
+    "p50": 0,
+    "p95abs": 8,
+    "maxAbs": 10,
+    "min": -10,
+    "max": 6,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 109
+   }
+  }
+ },
+ "a-stall-500-poor": {
+  "load": 5,
+  "wordsSent": 107,
+  "wordsHeard": 107,
+  "reports": {
+   "opens": 6,
+   "closes": 6,
+   "opensWithNoClose": 0,
+   "closeMs": {
+    "n": 6,
+    "p50": 499,
+    "p95abs": 503,
+    "maxAbs": 503,
+    "min": 492,
+    "max": 503,
+    "early40": 0,
+    "late100": 6
+   }
+  },
+  "methods": {
+   "chosen": {
+    "n": 107,
+    "p50": 4,
+    "p95abs": 13,
+    "maxAbs": 24,
+    "min": -7,
+    "max": 24,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 107
+   },
+   "countOnly": {
+    "n": 107,
+    "p50": -1,
+    "p95abs": 500,
+    "maxAbs": 502,
+    "min": -502,
+    "max": 24,
+    "early40": 49,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 107
+   },
+   "closeLate150": {
+    "n": 107,
+    "p50": 4,
+    "p95abs": 14,
+    "maxAbs": 63,
+    "min": -7,
+    "max": 63,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 107
+   },
+   "closeLate300": {
+    "n": 107,
+    "p50": 4,
+    "p95abs": 54,
+    "maxAbs": 213,
+    "min": -7,
+    "max": 213,
+    "early40": 0,
+    "late100": 4,
+    "unfired": 0,
+    "heard": 107
+   },
+   "dropOpen": {
+    "n": 107,
+    "p50": 4,
+    "p95abs": 13,
+    "maxAbs": 24,
+    "min": -7,
+    "max": 24,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 107
+   },
+   "dropClose": {
+    "n": 107,
+    "p50": 13,
+    "p95abs": 2491,
+    "maxAbs": 2513,
+    "min": -486,
+    "max": 2513,
+    "early40": 8,
+    "late100": 45,
+    "unfired": 0,
+    "heard": 107
+   },
+   "dropBoth": {
+    "n": 107,
+    "p50": -1,
+    "p95abs": 500,
+    "maxAbs": 502,
+    "min": -502,
+    "max": 24,
+    "early40": 49,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 107
+   },
+   "lossyOnly": {
+    "n": 107,
+    "p50": 4,
+    "p95abs": 13,
+    "maxAbs": 24,
+    "min": -7,
+    "max": 24,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 107
+   },
+   "reliableOnly": {
+    "n": 107,
+    "p50": 4,
+    "p95abs": 13,
+    "maxAbs": 24,
+    "min": -7,
+    "max": 24,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 107
+   },
+   "dup": {
+    "n": 107,
+    "p50": 4,
+    "p95abs": 13,
+    "maxAbs": 24,
+    "min": -7,
+    "max": 24,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 107
+   }
+  }
+ },
+ "a-stall-500": {
+  "load": 10,
+  "wordsSent": 113,
+  "wordsHeard": 113,
+  "reports": {
+   "opens": 6,
+   "closes": 6,
+   "opensWithNoClose": 0,
+   "closeMs": {
+    "n": 6,
+    "p50": 496,
+    "p95abs": 503,
+    "maxAbs": 503,
+    "min": 490,
+    "max": 503,
+    "early40": 0,
+    "late100": 6
+   }
+  },
+  "methods": {
+   "chosen": {
+    "n": 113,
+    "p50": 1,
+    "p95abs": 22,
+    "maxAbs": 24,
+    "min": -24,
+    "max": 8,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 113
+   },
+   "countOnly": {
+    "n": 113,
+    "p50": -8,
+    "p95abs": 510,
+    "maxAbs": 514,
+    "min": -514,
+    "max": 5,
+    "early40": 53,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 113
+   },
+   "closeLate150": {
+    "n": 113,
+    "p50": 1,
+    "p95abs": 77,
+    "maxAbs": 88,
+    "min": -24,
+    "max": 88,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 113
+   },
+   "closeLate300": {
+    "n": 113,
+    "p50": 2,
+    "p95abs": 226,
+    "maxAbs": 237,
+    "min": -24,
+    "max": 237,
+    "early40": 0,
+    "late100": 6,
+    "unfired": 0,
+    "heard": 113
+   },
+   "dropOpen": {
+    "n": 113,
+    "p50": 1,
+    "p95abs": 22,
+    "maxAbs": 24,
+    "min": -24,
+    "max": 8,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 113
+   },
+   "dropClose": {
+    "n": 113,
+    "p50": 4,
+    "p95abs": 2481,
+    "maxAbs": 2493,
+    "min": -499,
+    "max": 2493,
+    "early40": 7,
+    "late100": 50,
+    "unfired": 0,
+    "heard": 113
+   },
+   "dropBoth": {
+    "n": 113,
+    "p50": -8,
+    "p95abs": 510,
+    "maxAbs": 514,
+    "min": -514,
+    "max": 5,
+    "early40": 53,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 113
+   },
+   "lossyOnly": {
+    "n": 113,
+    "p50": 1,
+    "p95abs": 22,
+    "maxAbs": 24,
+    "min": -24,
+    "max": 8,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 113
+   },
+   "reliableOnly": {
+    "n": 113,
+    "p50": 1,
+    "p95abs": 22,
+    "maxAbs": 24,
+    "min": -24,
+    "max": 8,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 113
+   },
+   "dup": {
+    "n": 113,
+    "p50": 1,
+    "p95abs": 22,
+    "maxAbs": 24,
+    "min": -24,
+    "max": 8,
+    "early40": 0,
+    "late100": 0,
+    "unfired": 0,
+    "heard": 113
+   }
+  }
+ }
+}

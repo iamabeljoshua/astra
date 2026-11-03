@@ -1,0 +1,52 @@
+{
+ "preempt_off": {
+  "speechEndToThinkingMs": {
+   "count": 10,
+   "p50": 479,
+   "p95": 512,
+   "min": 441,
+   "max": 512
+  },
+  "speechEndToFirstAudioMs": {
+   "count": 10,
+   "p50": 916,
+   "p95": 950,
+   "min": 880,
+   "max": 950
+  },
+  "builtInTranscriptLagMs": {
+   "count": 170,
+   "p50": 96,
+   "p95": 227,
+   "min": -100,
+   "max": 247
+  },
+  "agentMemoryMb": 292,
+  "machineLoadAtEnd": 12
+ },
+ "preempt_on": {
+  "speechEndToThinkingMs": {
+   "count": 10,
+   "p50": 479,
+   "p95": 1137,
+   "min": 420,
+   "max": 1137
+  },
+  "speechEndToFirstAudioMs": {
+   "count": 10,
+   "p50": 537,
+   "p95": 1199,
+   "min": 479,
+   "max": 1199
+  },
+  "builtInTranscriptLagMs": {
+   "count": 170,
+   "p50": 80,
+   "p95": 206,
+   "min": -107,
+   "max": 227
+  },
+  "agentMemoryMb": 293,
+  "machineLoadAtEnd": 11
+ }
+}

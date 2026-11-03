@@ -3,7 +3,12 @@ import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { createTestApp, createTestStudent } from '../../test/test-database';
 import type { TestApp } from '../../test/test-database';
-import { EXAMPLE_AUTH_USER_ID, EXAMPLE_STUDENT_ID, replaceExampleData } from '../infrastructure/orm/example-data';
+import {
+  EXAMPLE_AUTH_USER_ID,
+  EXAMPLE_STUDENT_ID,
+  SECOND_STUDENT_AUTH_USER_ID,
+  replaceExampleData,
+} from '../infrastructure/orm/example-data';
 import { SessionEntity } from '../infrastructure/orm/entities/session.entity';
 
 const SEEDED_UNFINISHED_TITLE = 'Free-body diagrams';
@@ -64,6 +69,7 @@ describe('GET /home', () => {
         'artwork',
         'id',
         'lengthMinutes',
+        'openingLine',
         'reason',
         'subject',
         'title',
@@ -117,6 +123,30 @@ describe('GET /home', () => {
     expect(newHome).toMatchObject({ studentName: null, continueSession: null });
     expect(returningHome).toMatchObject({ studentName: null, continueSession: { title: 'Only for this student' } });
     expect(mayaHome).toMatchObject({ studentName: 'Maya', continueSession: { title: SEEDED_UNFINISHED_TITLE } });
+  });
+
+  it('picks six cards that fit each student, with a reason that names what they said', async () => {
+    const secondToken = await testApp.supabaseAuth.signToken(SECOND_STUDENT_AUTH_USER_ID);
+
+    const { body: mayaHome } = await getHome().expect(200);
+    const { body: secondHome } = await getHomeWithToken(secondToken).expect(200);
+
+    const getReasons = (home: { picks: { reason: string }[] }) => home.picks.map((pick) => pick.reason);
+    expect(mayaHome.picks).toHaveLength(6);
+    expect(secondHome.picks).toHaveLength(6);
+    expect(getReasons(mayaHome)).toEqual(expect.arrayContaining(["Because you're into basketball", "Because you're into space"]));
+    expect(getReasons(secondHome)).toEqual(expect.arrayContaining(["Because you're into cooking", "Because you're into music"]));
+    const secondTitles = secondHome.picks.map((pick: { title: string }) => pick.title);
+    expect(mayaHome.picks.filter((pick: { title: string }) => secondTitles.includes(pick.title))).toEqual([]);
+  });
+
+  it('gives a student with no profile six cards with an honest reason', async () => {
+    const newStudent = await createTestStudent(testApp);
+
+    const { body } = await getHomeWithToken(newStudent.token).expect(200);
+
+    expect(body.picks).toHaveLength(6);
+    expect(new Set(body.picks.map((pick: { reason: string }) => pick.reason))).toEqual(new Set(['A good place to start']));
   });
 
   it('refuses a request with no token', async () => {

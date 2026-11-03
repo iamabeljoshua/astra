@@ -11,7 +11,13 @@ import { StudentProfileEntity } from './entities/student-profile.entity';
 import { StudentEntity } from './entities/student.entity';
 import { createDataSourceOptions } from './data-source-options';
 import { getDatabaseName, withDatabaseName } from './database-url';
-import { EXAMPLE_AUTH_USER_ID, EXAMPLE_STUDENT_ID, NEW_STUDENT_AUTH_USER_ID, replaceExampleData } from './example-data';
+import {
+  EXAMPLE_AUTH_USER_ID,
+  EXAMPLE_STUDENT_ID,
+  NEW_STUDENT_AUTH_USER_ID,
+  SECOND_STUDENT_AUTH_USER_ID,
+  replaceExampleData,
+} from './example-data';
 import { createDatabaseIfMissing, dropDatabase } from './manage-databases';
 import { CreateStudentsAndSessions1793666578779 } from './migrations/1793666578779-create-students-and-sessions';
 import { AddSignInAndAgeGate1793686438335 } from './migrations/1793686438335-add-sign-in-and-age-gate';
@@ -143,6 +149,7 @@ describe('a database built from migrations', () => {
       expect(devAccounts.accounts.map((account: { id: string }) => account.id)).toEqual([
         EXAMPLE_AUTH_USER_ID,
         NEW_STUDENT_AUTH_USER_ID,
+        SECOND_STUDENT_AUTH_USER_ID,
       ]);
     });
 

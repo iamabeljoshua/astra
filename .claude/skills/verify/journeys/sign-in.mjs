@@ -40,7 +40,7 @@ export default async function signIn({ page, capture, viewportName }) {
   await page.getByRole('heading', { name: 'Is this right?' }).waitFor();
   await capture('confirm');
   await page.getByRole('button', { name: 'Yes, continue' }).click();
-  await page.getByRole('heading', { name: 'Welcome back.' }).waitFor();
+  await page.getByRole('heading', { name: 'Welcome.' }).waitFor();
   await capture('home');
 
   if (viewportName === 'phone') await page.getByRole('button', { name: 'Menu' }).click();
@@ -49,6 +49,6 @@ export default async function signIn({ page, capture, viewportName }) {
 
   await page.goBack();
   await page.getByRole('button', { name: 'Continue with email' }).waitFor();
-  assert.equal(await page.getByRole('heading', { name: 'Welcome back' }).count(), 0, 'Back shows no student page');
+  assert.equal(await page.getByRole('heading', { name: 'Welcome' }).count(), 0, 'Back shows no student page');
   await capture('after-back');
 }
