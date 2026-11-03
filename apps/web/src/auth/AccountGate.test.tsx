@@ -208,7 +208,10 @@ describe('AccountGate', () => {
     await screen.findByText(APP_TEXT);
 
     answers['GET /api/me'] = json({}, 503);
-    await act(() => queryClient.refetchQueries());
+    await act(async () => {
+      await queryClient.refetchQueries();
+      await new Promise((resolve) => setTimeout(resolve));
+    });
 
     screen.getByText(APP_TEXT);
 
