@@ -20,6 +20,7 @@ export function createDataSourceOptions(databaseUrl: string): DataSourceOptions 
     // Core Postgres has gen_random_uuid, and hosted Supabase keeps extensions outside public, so install none.
     uuidExtension: 'pgcrypto',
     installExtensions: false,
-    logging: ['error'],
+    // TypeORM's log of a failed query holds its parameters, so QueryErrorFilter logs failures instead.
+    logging: false,
   };
 }

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const SESSION_STORAGE_KEY = 'astra-session';
+const TIME_FOR_ALL_REFRESH_RETRIES_MS = 60_000;
 const USER = {
   id: '00000000-0000-4000-8000-0000000000a1',
   aud: 'authenticated',
@@ -43,6 +44,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
@@ -102,6 +104,31 @@ describe('the stored session', () => {
       });
     });
     expect(userId).toBe(USER.id);
+  });
+});
+
+describe('an expired session', () => {
+  const EXPIRED_SESSION = { ...STORED_SESSION, expires_at: Math.floor(Date.now() / 1000) - 60 };
+
+  it('gets a new token from Auth', async () => {
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(EXPIRED_SESSION));
+    stubAuthAnswer(200, { ...STORED_SESSION, access_token: 'new-access-token' });
+    const { getAccessToken } = await loadSession();
+
+    await expect(getAccessToken()).resolves.toBe('new-access-token');
+  });
+
+  it('throws instead of giving no token when Auth cannot be reached, and keeps the session', async () => {
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(EXPIRED_SESSION));
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('network down')));
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { getAccessToken } = await loadSession();
+
+    const thrown = getAccessToken().catch((error: unknown) => error);
+    await vi.advanceTimersByTimeAsync(TIME_FOR_ALL_REFRESH_RETRIES_MS);
+
+    expect(await thrown).toBeInstanceOf(Error);
+    expect(localStorage.getItem(SESSION_STORAGE_KEY)).not.toBeNull();
   });
 });
 

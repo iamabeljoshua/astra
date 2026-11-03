@@ -28,8 +28,10 @@ function getReturnAddress() {
   return `${window.location.origin}/`;
 }
 
+// A failed refresh says nothing about the student, so the call fails here rather than go out with no token and read as signed out.
 export async function getAccessToken(): Promise<string | null> {
-  const { data } = await supabase.auth.getSession();
+  const { data, error } = await supabase.auth.getSession();
+  if (error) throw error;
   return data.session?.access_token ?? null;
 }
 
