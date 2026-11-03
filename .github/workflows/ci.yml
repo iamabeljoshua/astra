@@ -15,7 +15,7 @@ permissions:
 jobs:
   checks:
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 4
     env:
       POSTGRES_TAG: 17.6.1.075
     steps:

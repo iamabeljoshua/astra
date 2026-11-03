@@ -36,7 +36,7 @@ Merge a PR when all of these are true at its current head:
 - CI passes, once CI exists.
 - Independent verification is clean.
 - Every acceptance criterion is checked, with evidence.
-- No decision from the stop list below is open on it.
+- No "Needs me" decision is open on it.
 
 Merge with `gh pr merge <pr> --repo iamabeljoshua/astra --squash --match-head-commit <verified-head>`, then read the PR back to confirm that it merged.
 
@@ -44,22 +44,24 @@ This repo has no branch protection, so GitHub does not enforce these conditions.
 
 Merging is not a deploy today. When deploys exist, stop and ask me to review this section.
 
-## Stop and ask me
+## Decisions for me
 
-Stop for my decision before you do any of these:
+Put every decision on the [Attention page](https://claude.ai/artifact/8V297oScsr7WyCSZPPSvuF), with the options, your recommendation, and what it is holding. Chat scrolls away and I may be asleep. Read my answers there at every audit tick, and act on them.
 
-- Touch auth or payments.
+**Needs me.** That one item waits, and everything it does not affect keeps moving. Add the `needs-human-review` label to the issue, and send a push notification.
+
+- Touch auth or payments, beyond what I have already approved.
 - Add or depend on a paid service.
-- Make a high-level architectural decision.
-- Change anything from an approved plan. File-level differences, such as a file name or a small helper file, do not count, so list those in the PR. Anything that changes what gets built, adds a dependency, costs money, or changes what a student sees still counts.
+- Anything legal, or about minors' data.
+- Make a high-level architectural decision, or approve a design. Run `/pstack:architect` with a checkpoint, so that I see the design before implementation.
+- Add a dependency that later work builds on.
+- Anything hard to undo.
 
-Give me the options and your recommendation. Add the `needs-human-review` label to the issue, tell me in chat, and send a push notification. Keep working on anything the decision does not affect.
-
-For architectural decisions, run `/pstack:architect` with a checkpoint, so that I see the design before implementation.
+**Review later.** Anything else that differs from an approved plan, when it is free and reversible, such as wording, a small visual difference from a prototype, or a file-level difference. Go ahead with your recommendation, list it on the Attention page and in the PR, and I can overrule it with a small follow-up.
 
 ## Verification
 
-Each PR gets 5 independent agents by default, none of which wrote the code: one runs the gates (lint, typecheck, tests), two run live scenarios, and two audit the diff. All run on Opus 5.5 except one audit agent, which runs on Sonnet so that a different model reviews the code. Add a perf check only when the PR changes performance. A PR that touches anything on the stop list gets the full verification set from the playbook.
+Each PR gets 5 independent agents by default, none of which wrote the code: one runs the gates (lint, typecheck, tests), two run live scenarios, and two audit the diff. All run on Opus 5.5 except one audit agent, which runs on Sonnet so that a different model reviews the code. Add a perf check only when the PR changes performance. A PR with a "Needs me" decision gets the full verification set from the playbook.
 
 This overrides the ten live lanes in the plan template. `check-plan.mjs` has no setting for this, so ignore only its two lane-count failures: `Verify, live lacks "Ten lanes...` and `lanes are [...], expected 1 to 10`. Fix every other failure.
 
