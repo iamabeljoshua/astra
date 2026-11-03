@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { build, type Rolldown } from 'vite';
 
 const WEB_APP_ROOT = join(import.meta.dirname, '../..');
+const BUILD_TIMEOUT_MS = 120_000;
 
 async function getBundledModules(mode: string) {
   vi.stubEnv('NODE_ENV', mode);
@@ -23,11 +24,11 @@ describe('the React Query devtools', () => {
 
     expect(modules.length).toBeGreaterThan(0);
     expect(modules.filter(isDevtoolsModule)).toEqual([]);
-  });
+  }, BUILD_TIMEOUT_MS);
 
   it('are bundled in development', async () => {
     const modules = await getBundledModules('development');
 
     expect(modules.filter(isDevtoolsModule).length).toBeGreaterThan(0);
-  });
+  }, BUILD_TIMEOUT_MS);
 });

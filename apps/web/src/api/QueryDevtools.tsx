@@ -13,7 +13,7 @@ export function QueryDevtools() {
   if (!LazyReactQueryDevtools) return null;
   return (
     <Suspense>
-      <LazyReactQueryDevtools />
+      <LazyReactQueryDevtools buttonPosition="top-left" />
     </Suspense>
   );
 }
