@@ -1,12 +1,22 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
+import { readWithRenewal } from './readWithRenewal';
 
 const ACCOUNT_KEY = ['account'];
+
+type Account = Awaited<ReturnType<typeof readAccount>>;
+
+function readAccount(signal: AbortSignal) {
+  return api.get('/me', { signal });
+}
 
 export function useAccount() {
   return useQuery({
     queryKey: ACCOUNT_KEY,
-    queryFn: ({ signal }) => api.get('/me', { signal }),
+    queryFn: ({ signal }): Promise<Account | null> => readWithRenewal(() => readAccount(signal)),
+    // Null, not nothing, makes a new read keep the last error, so the error page stays in place while it runs.
+    initialData: null,
+    initialDataUpdatedAt: 0,
   });
 }
 

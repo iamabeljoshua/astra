@@ -1,10 +1,9 @@
-import { type PropsWithChildren, useEffect, useState } from 'react';
+import { type PropsWithChildren, useEffect, useRef } from 'react';
 import { AccountClosedPage, AccountErrorPage, LoadingPage } from './AccountNotices';
 import { useAuth } from './AuthProvider';
 import { BirthDatePage } from './BirthDatePage';
 import { SignInPage } from './SignInPage';
 import { useAccount } from './useAccount';
-import { useRenewalAfterRefusal } from './useRenewalAfterRefusal';
 
 export function AccountGate({ children }: PropsWithChildren) {
   const { signIn } = useAuth();
@@ -19,30 +18,31 @@ function reloadPage() {
   window.location.reload();
 }
 
+// Opening the app after any other page of the gate takes focus to its heading. A plain load leaves focus alone.
+function useFocusPageHeadingAfterStep(isAtStep: boolean) {
+  const wasAtStep = useRef(false);
+
+  useEffect(() => {
+    if (!isAtStep && wasAtStep.current) document.querySelector<HTMLElement>('main h1')?.focus({ preventScroll: true });
+    wasAtStep.current = isAtStep;
+  }, [isAtStep]);
+}
+
 function SignedInGate({ children }: PropsWithChildren) {
-  const account = useAccount();
-  const { settledKind, isRenewing, tryAgain } = useRenewalAfterRefusal(account);
-  const [cameThroughStep, setCameThroughStep] = useState(false);
-  const isLoading = account.isPending || (isRenewing && !account.data);
-  if (!isLoading && account.data?.status !== 'active' && !cameThroughStep) setCameThroughStep(true);
+  const { data: account, error, refetch } = useAccount();
+  useFocusPageHeadingAfterStep(account ? account.status !== 'active' : error !== null);
 
-  if (isLoading) return <LoadingPage />;
-  if (!account.data) return <AccountErrorPage errorKind={settledKind ?? account.error?.kind ?? 'network'} onTryAgain={tryAgain} />;
+  if (!account) {
+    if (!error) return <LoadingPage />;
+    return <AccountErrorPage errorKind={error.kind} onTryAgain={() => refetch({ cancelRefetch: false })} />;
+  }
 
-  switch (account.data.status) {
+  switch (account.status) {
     case 'needs_birth_date':
       return <BirthDatePage />;
     case 'closed':
       return <AccountClosedPage />;
     case 'active':
-      return cameThroughStep ? <FocusPageHeadingOnArrival>{children}</FocusPageHeadingOnArrival> : children;
+      return children;
   }
-}
-
-function FocusPageHeadingOnArrival({ children }: PropsWithChildren) {
-  useEffect(() => {
-    document.querySelector<HTMLElement>('main h1')?.focus({ preventScroll: true });
-  }, []);
-
-  return children;
 }

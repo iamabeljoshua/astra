@@ -1,4 +1,4 @@
-import { QueryClientProvider } from '@tanstack/react-query';
+import { type DefaultOptions, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createQueryClient } from '../api/queryClient';
@@ -54,9 +54,9 @@ function renderGate() {
   );
 }
 
-function renderGateWithRealRetries() {
+function renderGateWithClient(queryOptions: DefaultOptions['queries']) {
   const queryClient = createQueryClient();
-  queryClient.setDefaultOptions({ queries: { retry: false, networkMode: 'always' } });
+  queryClient.setDefaultOptions({ queries: { ...queryClient.getDefaultOptions().queries, ...queryOptions } });
   render(
     <QueryClientProvider client={queryClient}>
       <AccountGate>
@@ -65,6 +65,23 @@ function renderGateWithRealRetries() {
     </QueryClientProvider>,
   );
   return queryClient;
+}
+
+function renderGateWithRealRetries() {
+  return renderGateWithClient({ retry: false, staleTime: 0 });
+}
+
+function comeBackToTheTab() {
+  act(() => {
+    document.dispatchEvent(new Event('visibilitychange', { bubbles: true }));
+  });
+}
+
+function reconnect() {
+  act(() => {
+    window.dispatchEvent(new Event('offline'));
+    window.dispatchEvent(new Event('online'));
+  });
 }
 
 function enterBirthDate(day: string, month: string, year: string) {
@@ -119,6 +136,7 @@ describe('AccountGate', () => {
 
     expect(container.textContent).toBe(PRODUCT_NAME);
     await screen.findByText(APP_TEXT);
+    expect(renewSession).not.toHaveBeenCalled();
   });
 
   it('asks for the date of birth first, and keeps the app hidden', async () => {
@@ -235,7 +253,7 @@ describe('AccountGate', () => {
 
     renderGate();
 
-    await screen.findByRole('heading', { name: API_ERROR_LABELS.server });
+    await screen.findByRole('heading', { name: API_ERROR_LABELS.tokenRefusedAfterRenewal });
     expect(renewSession).toHaveBeenCalledTimes(1);
     expect(forgetSession).not.toHaveBeenCalled();
     expect(screen.queryByText(APP_TEXT)).toBeNull();
@@ -257,7 +275,7 @@ describe('AccountGate', () => {
 
     renderGate();
 
-    await screen.findByRole('heading', { name: API_ERROR_LABELS.server });
+    await screen.findByRole('heading', { name: API_ERROR_LABELS.tokenRefusedAfterRenewal });
     await act(() => new Promise((resolve) => setTimeout(resolve, SLOW_ANSWER_MS * 3)));
     expect(renewSession).toHaveBeenCalledTimes(1);
     expect(forgetSession).not.toHaveBeenCalled();
@@ -307,7 +325,7 @@ describe('AccountGate', () => {
     const lesson = screen.getByText(APP_TEXT);
 
     answers['GET /api/me'] = json({ statusCode: 401 }, 401);
-    await act(() => queryClient.refetchQueries());
+    act(() => void queryClient.refetchQueries());
     await waitFor(() => expect(renewSession).toHaveBeenCalledTimes(1));
 
     expect(screen.getByText(APP_TEXT)).toBe(lesson);
@@ -364,7 +382,7 @@ describe('AccountGate', () => {
     vi.mocked(renewSession).mockResolvedValue('unreachable');
     renderGate();
 
-    await screen.findByRole('heading', { name: API_ERROR_LABELS.network });
+    await screen.findByRole('heading', { name: API_ERROR_LABELS.authUnreachable });
     expect(forgetSession).not.toHaveBeenCalled();
     expect(screen.queryByText(APP_TEXT)).toBeNull();
 
@@ -375,6 +393,213 @@ describe('AccountGate', () => {
     fireEvent.click(screen.getByRole('button', { name: ACCOUNT_LABELS.tryAgain }));
 
     await screen.findByText(APP_TEXT);
+  });
+
+  describe('renewal, one read of the account at a time', () => {
+    const REFUSED = json({ statusCode: 401 }, 401);
+    const ACCEPTED = json(ACTIVE_ACCOUNT);
+
+    function refusedUntilRenewed() {
+      const answers: Record<string, () => Response> = { 'GET /api/me': REFUSED };
+      stubApi(answers);
+      return answers;
+    }
+
+    function makeAuthRenew(answers: Record<string, () => Response>) {
+      vi.mocked(renewSession).mockImplementation(async () => {
+        answers['GET /api/me'] = ACCEPTED;
+        return 'renewed';
+      });
+    }
+
+    it('asking the API, a failure that is not a refusal: shows that failure and asks Auth nothing', async () => {
+      setSignIn('signedIn');
+      stubApi({ 'GET /api/me': json({}, 503) });
+
+      renderGate();
+
+      await screen.findByRole('heading', { name: API_ERROR_LABELS.server });
+      expect(renewSession).not.toHaveBeenCalled();
+    });
+
+    it('renewing on a first load: shows only the product name, not an error page', async () => {
+      setSignIn('signedIn');
+      stubApi({ 'GET /api/me': REFUSED });
+      let finishRenewal: (renewal: 'renewed') => void = () => undefined;
+      vi.mocked(renewSession).mockImplementation(() => new Promise((resolve) => (finishRenewal = resolve)));
+
+      const { container } = renderGate();
+
+      await waitFor(() => expect(renewSession).toHaveBeenCalledTimes(1));
+      expect(container.textContent).toBe(PRODUCT_NAME);
+      await act(async () => finishRenewal('renewed'));
+    });
+
+    it('asking with the new token, a failure that is not a refusal: shows that failure and keeps the session', async () => {
+      setSignIn('signedIn');
+      const answers = refusedUntilRenewed();
+      vi.mocked(renewSession).mockImplementation(async () => {
+        answers['GET /api/me'] = json({}, 503);
+        return 'renewed';
+      });
+
+      renderGate();
+
+      await screen.findByRole('heading', { name: API_ERROR_LABELS.server });
+      expect(renewSession).toHaveBeenCalledTimes(1);
+      expect(forgetSession).not.toHaveBeenCalled();
+    });
+
+    it('Auth out of reach, the student comes back to the tab: tries again, keeps the page and focus, and opens the app once Auth answers', async () => {
+      setSignIn('signedIn');
+      const answers = refusedUntilRenewed();
+      vi.mocked(renewSession).mockResolvedValueOnce('unreachable');
+      renderGate();
+      const heading = await screen.findByRole('heading', { name: API_ERROR_LABELS.authUnreachable });
+      let finishRenewal: (renewal: 'unreachable') => void = () => undefined;
+      vi.mocked(renewSession).mockImplementationOnce(() => new Promise((resolve) => (finishRenewal = resolve)));
+
+      comeBackToTheTab();
+      await waitFor(() => expect(renewSession).toHaveBeenCalledTimes(2));
+      await act(() => new Promise((resolve) => setTimeout(resolve, SLOW_ANSWER_MS)));
+
+      expect(screen.getByRole('heading', { name: API_ERROR_LABELS.authUnreachable })).toBe(heading);
+      expect(document.activeElement).toBe(heading);
+
+      await act(async () => finishRenewal('unreachable'));
+      await waitFor(() => expect(screen.getByRole('heading', { name: API_ERROR_LABELS.authUnreachable })).toBe(heading));
+      expect(document.activeElement).toBe(heading);
+
+      makeAuthRenew(answers);
+      comeBackToTheTab();
+
+      await screen.findByText(APP_TEXT);
+      expect(forgetSession).not.toHaveBeenCalled();
+    });
+
+    it('Auth out of reach, the connection comes back: tries again and opens the app', async () => {
+      setSignIn('signedIn');
+      const answers = refusedUntilRenewed();
+      vi.mocked(renewSession).mockResolvedValue('unreachable');
+      renderGate();
+      await screen.findByRole('heading', { name: API_ERROR_LABELS.authUnreachable });
+
+      makeAuthRenew(answers);
+      reconnect();
+
+      await screen.findByText(APP_TEXT);
+      expect(renewSession).toHaveBeenCalledTimes(2);
+    });
+
+    it('Auth out of reach with the app on screen, a later refusal: renews again and the app stays', async () => {
+      setSignIn('signedIn');
+      const answers: Record<string, () => Response> = { 'GET /api/me': ACCEPTED };
+      stubApi(answers);
+      vi.mocked(renewSession).mockResolvedValue('unreachable');
+      renderGateWithRealRetries();
+      const lesson = await screen.findByText(APP_TEXT);
+
+      answers['GET /api/me'] = REFUSED;
+      comeBackToTheTab();
+      await waitFor(() => expect(renewSession).toHaveBeenCalledTimes(1));
+      await act(() => new Promise((resolve) => setTimeout(resolve)));
+
+      makeAuthRenew(answers);
+      comeBackToTheTab();
+      await waitFor(() => expect(renewSession).toHaveBeenCalledTimes(2));
+      await act(() => new Promise((resolve) => setTimeout(resolve)));
+
+      expect(screen.getByText(APP_TEXT)).toBe(lesson);
+      expect(forgetSession).not.toHaveBeenCalled();
+    });
+
+    it('the API refusing a new token, a later read: renews once more, then stops', async () => {
+      setSignIn('signedIn');
+      stubApi({ 'GET /api/me': REFUSED });
+      vi.mocked(renewSession).mockResolvedValue('renewed');
+      renderGate();
+      const heading = await screen.findByRole('heading', { name: API_ERROR_LABELS.tokenRefusedAfterRenewal });
+
+      comeBackToTheTab();
+      await waitFor(() => expect(renewSession).toHaveBeenCalledTimes(2));
+      expect(screen.getByRole('heading', { name: API_ERROR_LABELS.tokenRefusedAfterRenewal })).toBe(heading);
+      await act(() => new Promise((resolve) => setTimeout(resolve, SLOW_ANSWER_MS)));
+
+      expect(renewSession).toHaveBeenCalledTimes(2);
+      expect(screen.getByRole('heading', { name: API_ERROR_LABELS.tokenRefusedAfterRenewal })).toBe(heading);
+      expect(forgetSession).not.toHaveBeenCalled();
+    });
+
+    it('a refocus during a slow renewal joins that read, so its refusal is not blamed on the new token', async () => {
+      setSignIn('signedIn');
+      const answers = refusedUntilRenewed();
+      let finishRenewal: (renewal: 'renewed') => void = () => undefined;
+      vi.mocked(renewSession).mockImplementation(() => new Promise((resolve) => (finishRenewal = resolve)));
+      renderGate();
+      await waitFor(() => expect(renewSession).toHaveBeenCalledTimes(1));
+
+      comeBackToTheTab();
+      await act(() => new Promise((resolve) => setTimeout(resolve, SLOW_ANSWER_MS)));
+      answers['GET /api/me'] = ACCEPTED;
+      await act(async () => finishRenewal('renewed'));
+
+      await screen.findByText(APP_TEXT);
+      expect(renewSession).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+      ['Auth out of reach', 'unreachable', API_ERROR_LABELS.authUnreachable],
+      ['the API refusing a new token', 'renewed', API_ERROR_LABELS.tokenRefusedAfterRenewal],
+    ] as const)('%s: the client retries nothing on its own, because a retry would renew again', async (_caseName, renewal, label) => {
+      setSignIn('signedIn');
+      stubApi({ 'GET /api/me': REFUSED });
+      vi.mocked(renewSession).mockResolvedValue(renewal);
+      renderGateWithClient({ retryDelay: 0 });
+
+      await screen.findByRole('heading', { name: label });
+      await act(() => new Promise((resolve) => setTimeout(resolve, SLOW_ANSWER_MS)));
+
+      expect(renewSession).toHaveBeenCalledTimes(1);
+    });
+
+    it('Try again that fails looks busy, then gives focus back to the heading', async () => {
+      setSignIn('signedIn');
+      stubApi({ 'GET /api/me': REFUSED });
+      let finishRenewal: (renewal: 'unreachable') => void = () => undefined;
+      vi.mocked(renewSession).mockResolvedValueOnce('unreachable');
+      renderGate();
+      await screen.findByRole('heading', { name: API_ERROR_LABELS.authUnreachable });
+      vi.mocked(renewSession).mockImplementation(() => new Promise((resolve) => (finishRenewal = resolve)));
+      const button = screen.getByRole('button', { name: ACCOUNT_LABELS.tryAgain });
+      button.focus();
+
+      fireEvent.click(button);
+
+      await waitFor(() => expect(renewSession).toHaveBeenCalledTimes(2));
+      expect(button.getAttribute('aria-disabled')).toBe('true');
+      expect(document.activeElement).toBe(button);
+      fireEvent.click(button);
+
+      await act(async () => finishRenewal('unreachable'));
+
+      await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('heading', { name: API_ERROR_LABELS.authUnreachable })));
+      expect(screen.getByRole('button', { name: ACCOUNT_LABELS.tryAgain }).getAttribute('aria-disabled')).toBe('false');
+      expect(renewSession).toHaveBeenCalledTimes(2);
+    });
+
+    it('takes focus to the page heading when coming back to the tab opens the app', async () => {
+      setSignIn('signedIn');
+      const answers = refusedUntilRenewed();
+      vi.mocked(renewSession).mockResolvedValue('unreachable');
+      renderGate();
+      await screen.findByRole('heading', { name: API_ERROR_LABELS.authUnreachable });
+
+      makeAuthRenew(answers);
+      comeBackToTheTab();
+
+      const heading = await screen.findByRole('heading', { name: APP_HEADING });
+      expect(document.activeElement).toBe(heading);
+    });
   });
 
   describe('for a screen reader', () => {
@@ -420,10 +645,12 @@ describe('AccountGate', () => {
       const heading = await screen.findByRole('heading', { level: 1, name: API_ERROR_LABELS.server });
       expect(document.activeElement).toBe(heading);
 
-      fireEvent.click(screen.getByRole('button', { name: ACCOUNT_LABELS.tryAgain }));
+      const button = screen.getByRole('button', { name: ACCOUNT_LABELS.tryAgain });
+      button.focus();
+      fireEvent.click(button);
 
-      const nextHeading = await screen.findByRole('heading', { level: 1, name: API_ERROR_LABELS.server });
-      expect(document.activeElement).toBe(nextHeading);
+      await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('heading', { level: 1, name: API_ERROR_LABELS.server })));
+      expect(document.activeElement).not.toBe(heading);
     });
 
     it('takes focus to the page heading when Try again opens the app', async () => {

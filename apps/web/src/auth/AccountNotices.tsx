@@ -7,7 +7,7 @@ import { StepHeading } from './StepHeading';
 
 const SLOW_LOAD_NOTICE_DELAY_MS = 3_000;
 
-export function LoadingPage() {
+function SlowLoadNotice() {
   const [isSlow, setIsSlow] = useState(false);
 
   useEffect(() => {
@@ -16,12 +16,18 @@ export function LoadingPage() {
   }, []);
 
   return (
+    <p role="status" className="text-fine text-ink-2">
+      {isSlow && ACCOUNT_LABELS.stillLoading}
+    </p>
+  );
+}
+
+export function LoadingPage() {
+  return (
     <div aria-busy="true" className="flex min-h-dvh animate-arrive flex-col items-center justify-center gap-3">
       <title>{PRODUCT_NAME}</title>
       <div className="product-mark">{PRODUCT_NAME}</div>
-      <p role="status" className="text-fine text-ink-2">
-        {isSlow && ACCOUNT_LABELS.stillLoading}
-      </p>
+      <SlowLoadNotice />
     </div>
   );
 }
@@ -39,17 +45,29 @@ export function AccountClosedPage() {
 
 interface AccountErrorPageProps {
   errorKind: ApiErrorKind;
-  onTryAgain: () => void;
+  onTryAgain: () => unknown;
 }
 
 export function AccountErrorPage({ errorKind, onTryAgain }: AccountErrorPageProps) {
+  const [isTrying, setIsTrying] = useState(false);
+  const [failedTries, setFailedTries] = useState(0);
+
+  async function tryAgain() {
+    if (isTrying) return;
+    setIsTrying(true);
+    await onTryAgain();
+    setIsTrying(false);
+    setFailedTries(failedTries + 1);
+  }
+
   return (
     <OnboardingFrame footer={<SignOutButton className="font-medium text-ink-2 hover:text-ink" />}>
-      <StepHeading>{API_ERROR_LABELS[errorKind]}</StepHeading>
-      <div>
-        <button type="button" className="button button-solid" onClick={onTryAgain}>
+      <StepHeading key={failedTries}>{API_ERROR_LABELS[errorKind]}</StepHeading>
+      <div className="flex flex-col items-start gap-3">
+        <button type="button" aria-disabled={isTrying} className="button button-solid aria-disabled:opacity-35" onClick={() => void tryAgain()}>
           {ACCOUNT_LABELS.tryAgain}
         </button>
+        {isTrying && <SlowLoadNotice />}
       </div>
     </OnboardingFrame>
   );

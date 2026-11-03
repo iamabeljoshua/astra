@@ -11,6 +11,8 @@ export const API_ERROR_LABELS = {
   rejected: 'That could not be completed.',
   server: 'Something went wrong on our side. Try again.',
   network: 'Could not connect. Try again in a moment.',
+  authUnreachable: 'Could not connect. Try again in a moment.',
+  tokenRefusedAfterRenewal: 'Something went wrong on our side. Try again.',
   aborted: 'That took too long. Try again.',
   timeout: 'That took too long. Try again.',
 };
@@ -107,6 +109,8 @@ export const HOME_LABELS = {
     rejected: 'Your home screen did not load.',
     server: 'Your home screen did not load. The fault is on our side.',
     network: 'Your home screen did not load. Try again in a moment.',
+    authUnreachable: 'Your home screen did not load. Try again in a moment.',
+    tokenRefusedAfterRenewal: 'Your home screen did not load. The fault is on our side.',
     aborted: 'Your home screen is taking too long to load.',
     timeout: 'Your home screen is taking too long to load.',
   },

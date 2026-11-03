@@ -14,6 +14,8 @@ const IS_RETRYABLE: Readonly<Record<ApiErrorKind, boolean>> = {
   rejected: false,
   server: true,
   network: true,
+  authUnreachable: false,
+  tokenRefusedAfterRenewal: false,
   aborted: true,
   timeout: false,
 };

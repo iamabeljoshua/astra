@@ -1,4 +1,4 @@
-export type ApiErrorKind = 'validation' | 'rejected' | 'server' | 'network' | 'aborted' | 'timeout';
+export type ApiErrorKind = 'validation' | 'rejected' | 'server' | 'network' | 'authUnreachable' | 'tokenRefusedAfterRenewal' | 'aborted' | 'timeout';
 
 type FieldMessages = Readonly<Record<string, readonly string[]>>;
 

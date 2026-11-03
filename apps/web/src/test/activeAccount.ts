@@ -4,5 +4,5 @@ const ACTIVE_ACCOUNT = {
 } as const;
 
 export function useAccount() {
-  return { isPending: false, error: null, data: ACTIVE_ACCOUNT, refetch: async () => undefined };
+  return { error: null, data: ACTIVE_ACCOUNT, refetch: async () => undefined };
 }
