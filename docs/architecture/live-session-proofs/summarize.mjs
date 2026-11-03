@@ -7,7 +7,8 @@ const RUNS = join(HERE, 'runs');
 const RESULTS = join(HERE, 'results');
 mkdirSync(RESULTS, { recursive: true });
 
-const folders = readdirSync(RUNS, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name);
+const named = process.argv.slice(2);
+const folders = named.length > 0 ? named : readdirSync(RUNS, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name);
 for (const folder of folders) {
   const scenarios = {};
   for (const file of readdirSync(join(RUNS, folder))) {

@@ -1,6 +1,6 @@
 # Proofs behind the live session design
 
-These scripts back the numbers in `docs/architecture/live-session.md`. They are throwaway, outside the pnpm workspace, and CI does not run them. M3.2 moves `clock-rule.mjs` to `packages/board/src/player/`. M3.6 moves `turn-rule.mjs`, `turn-wiring.mjs`, `providers/`, and `provider-suite.ts` to `apps/agent/`, and `createPlayoutTracker` goes with them. M3.7 moves `beat-text-reader.mjs` to `apps/agent/src/tutor/`. Do not copy `replay-check.ts`, `stop-page.js`, or the resume in `agent-node.mjs` as code: the first models a board, the second has no drawing, and the third uses a constant reply and a cumulative count. The proofs' data messages are simpler than `live-message.ts`, which is the real shape. `results/README.md` holds the tables that came out of the design, and the vendor pages read on 3 November 2026.
+These scripts back the numbers in `docs/architecture/live-session.md`. They are throwaway, outside the pnpm workspace, and CI does not run them. M3.2 moves `clock-rule.mjs` to `packages/board/src/player/`. M3.6 moves `turn-rule.mjs`, `turn-wiring.mjs`, `providers/`, and `provider-suite.ts` to `apps/agent/`, and `createPlayoutTracker` goes with them. M3.7 moves `beat-text-reader.mjs` to `apps/agent/src/tutor/`. Do not copy `replay-check.ts`, `stop-page.js`, or the resume in `agent-node.mjs` as code: the first models a board, the second has no drawing, and the third uses a constant reply and a cumulative count. The proofs' data messages are simpler than `live-message.ts`, which is the real shape, and the real parsers refuse 7 of 9 of the proofs' message shapes, so no proof exercises those parsers. `results/README.md` holds the tables that came out of the design, and the vendor pages read on 3 November 2026.
 
 They use no account and no paid service. The real LiveKit SDKs and the real Deepgram and Cartesia plugins run against `fake-providers.mjs`, a local server built from the plugins' wire formats, so the results say nothing about either vendor's speed. The model is a fake too.
 
@@ -21,7 +21,7 @@ npx playwright-core install chromium
 ./make-speech.sh
 ```
 
-Each `run.mjs` command writes one folder in `runs/`, and `node summarize.mjs` turns that folder into the file of the same name in `results/`. Ports come from `LIVEKIT_URL`, `FAKE_STT_PORT`, `FAKE_TTS_PORT`, `AGENT_WORKER_PORT`, `CLOCK_LIVEKIT_URL`, `CLOCK_SERVER_UDP_PORT`, `CLOCK_PAGE_PORT`, `CLOCK_RELAY_PORT`, and `STOP_PAGE_PORT`.
+Each `run.mjs` command writes one folder in `runs/`, and `node summarize.mjs` turns that folder into the file of the same name in `results/`. It rebuilds a file only from what is in `runs/`, so a partial rerun drops scenarios. Name the folders you mean, as in `node summarize.mjs node-numbers`, and move earlier runs aside first. Ports come from `LIVEKIT_URL`, `FAKE_STT_PORT`, `FAKE_TTS_PORT`, `AGENT_WORKER_PORT`, `CLOCK_LIVEKIT_URL`, `CLOCK_SERVER_UDP_PORT`, `CLOCK_PAGE_PORT`, `CLOCK_RELAY_PORT`, and `STOP_PAGE_PORT`.
 
 | Result | Command |
 | --- | --- |
@@ -29,8 +29,13 @@ Each `run.mjs` command writes one folder in `runs/`, and `node summarize.mjs` tu
 | `node-phrases.json` | `node run.mjs --sdk node --label phrases --repeat 20 --only turn_phrases,patience_phrases_2s` |
 | `beats-round2.json` | `node run.mjs --sdk beats --label round2 --repeat 15 --only beats_flush_chosen,beats_speculative,beats_speculative_late_final,beats_budget_voice_0,beats_budget_voice_200,beats_command_bytes_sdk_default,beats_command_bytes_off` |
 | `clock.json` | `node clock-run.mjs`, then `node clock-run.mjs --only pauses-lost --repeat 3` if you want the repeats in `results/README.md`. Every number in it fired live in the browser. |
+| `clock-fixed.json` | With `runs/clock` moved aside, `node clock-run.mjs --only clean,stall-200,stall-500`, then `node clock-run.mjs --only pauses-lost --repeat 3`. Rename the new folder `runs/clock-fixed`, and run `node summarize.mjs clock-fixed` |
+| `clock-attack.json` | `python3 clock-attack/make-attack.py`. From `runs/attack`, `ATTACK_OUT=<folder> node clock-run.mjs --only a-slow-voice-90,a-slow-voice-97,a-many-tiny,a-stall-500,a-stall-1500,a-stall-3500,a-stall-500-poor,a-many-small`. Then `node clock-attack/show-attack.mjs <folder> results/clock-attack.json` |
+| `clock-rule.json` | `node clock-rule-check.mjs` |
 | `clock-speech.json` | `node clock-speech.mjs` |
 | `stop.json` | `node stop-run.mjs` |
+| `stop-fixed.json` | `node stop-run.mjs` with `runs/stop` moved aside. Rename the new folder `runs/stop-fixed`, and run `node summarize.mjs stop-fixed` |
+| `node-numbers.json` | `node run.mjs --sdk node --label numbers --repeat 3 --only number_over_reply,number_words_over_reply,number_while_thinking,question_uhhuh,question_hmm,tiered_backchannel,gap_talkover`, then `node summarize.mjs node-numbers` |
 | `provider-suite.json` | With `node fake-providers.mjs` running, `node provider-suite.ts`. To swap a voice, change `ACTIVE` in `providers/choose.ts`, or set `ACTIVE_VOICE=inProcess` for one run |
 | `reader.json` | `node reader-check.mjs` |
 | `turn-rule.json` | `node turn-rule-check.mjs` |
@@ -49,7 +54,7 @@ uv pip install --python .venv/bin/python -r requirements.txt
 PYTHON_BIN=.venv/bin/python node run.mjs --sdk python
 ```
 
-A verifier's first run on a fresh environment exited on its first scenario, with the session not started in time. `run.mjs` now waits up to 90 s for Python, and that wait and `download-files` have not been rerun on a fresh environment.
+A verifier's first run on a fresh environment exited on its first scenario, with the session not started in time. `run.mjs` now waits up to 90 s for Python, and that wait and `download-files` have not been rerun on a fresh environment. Node has a cold start too: a reviewer's first Node run on a fresh worktree lost its first scenario, and the rerun passed.
 
 Run one thing at a time, because an agent worker takes every new room on that server, including a clock run's. The Python worker refuses a job above 70% CPU, so if a scenario fails that way on a busy machine, run it again. Timing spreads widen under load, so each `run.mjs` result records `machineLoadAtEnd`.
 
@@ -65,7 +70,8 @@ Run one thing at a time, because an agent worker takes every new room on that se
 | `turn-rule.mjs`, `turn-rule-check.mjs` | The yield, stop, and resume rule as a pure function, its stories, and a search of every state it can reach |
 | `turn-wiring.mjs` | Connects that rule to a session, with the SDK settings M3.6 ships. All three Node agents use it |
 | `clock-run.mjs`, `clock-publisher.mjs`, `clock-page.js`, `clock-worklet.js` | The browser clock proof: real Chromium, real WebRTC, a UDP relay that adds delay, jitter, and loss, and each method firing one cue per word in the page |
-| `clock-rule.mjs` | The clock the design chose, and the agent's tracker that reports when audio runs dry |
+| `clock-rule.mjs`, `clock-rule-check.mjs` | The clock the design chose, the agent's tracker that reports when audio runs dry, and checks that fail without each of the tracker's and the hold's rules |
+| `clock-attack/` | A reviewer's scripts. They copy the clock proof into `runs/attack`, add a slow voice, many small stalls, and clocks fed late, lost, or repeated reports, and summarize each run |
 | `clock-rejected.mjs` | The rule the first rounds used, kept so its rows can be run again |
 | `clock-speech.mjs` | The same clock offline on real speech with known word positions, natural pauses, stalls, and lost audio. The stalls are the script's own, so the gap list stands in for the agent's report |
 | `stop-run.mjs`, `stop-agent.mjs`, `stop-page.js` | The rule, reader, clock, and browser together in real Chromium: stop, mute, freeze, report, rebuild, a voice that stalls, reactions over a question, and a resume with a ball in the air. Its rebuild compares which drawings fired, not their motion |

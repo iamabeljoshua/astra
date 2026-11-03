@@ -4,7 +4,7 @@ Detail moved out of `docs/architecture/live-session.md`. All of this used fake v
 
 ## The clock, fired live
 
-`clock-run.mjs` runs real Chromium over real WebRTC, with a UDP relay adding delay, jitter, and loss, on a test tone. Each method fires one cue per word in the page, from the same audio, as a player would. The error is the moment the cue fired minus the moment that word's burst reached the worklet. It leaves out the speaker and the screen. Each cell is p95, worst, and how many cues fired more than 40 ms early, in ms. The last column replays the rejected rule at each word's own moment, the way the first two rounds' table did, and it scores a word right after a stall near 0 by construction. It is the only reanalysed number here.
+`clock-run.mjs` runs real Chromium over real WebRTC, with a UDP relay adding delay, jitter, and loss, on a test tone. Each method fires one cue per word in the page, from the same audio, as a player would. The error is the moment the cue fired minus the moment that word's burst reached the worklet. It leaves out the speaker and the screen. Each cell is p95, worst, and how many cues fired more than 40 ms early, in ms. The last column replays the rejected rule at each word's own moment, the way the first two rounds' table did, and it scores a word right after a stall near 0 by construction. It is the only reanalysed number here. This table ran at `02b8b67`, before this round's fix, and "After the fix" below holds the rows that ran again.
 
 | Scenario | Load | Words heard | Count samples, skip what the agent reports (chosen) | Browser guesses from packet loss, gate on each block | Browser guesses from RTP, gate on each block | Browser guesses from RTP, gate at 107 ms of silence (the last round) | Count samples only | RTP only | When a data message arrives | Rejected rule, reanalysed |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -32,7 +32,47 @@ The clean, 40 ms, and 100 ms rows also carry cut turns, so fewer words are heard
 
 **Telling lost from late.** Across the three runs with pauses and 1 s of loss every 8 s, 35 silences were longer than 350 ms. RTP called 28 of them lost, and the rest late. The packet count, read when the audio returned, called 11 of them lost. It often read 0 at that moment and 49 later. With no pauses, RTP called 12 of 12 lost, which is why the first rounds thought it worked.
 
-**The agent's report.** The tracker in `clock-rule.mjs` reads the stall from the time its frames arrive, with no knowledge of the stall we cause. With stalls of 90, 120, 200, and 500 ms it read 90, 117, 197, and 498 ms at p50. A report sent only when audio returned fired the word at a 90 ms stall early, 11 of 12, because the codec fills a short gap with audible sound. So it reports when the queue empties too.
+**The agent's report.** The tracker in `clock-rule.mjs` reads the stall from the time its frames arrive, with no knowledge of the stall we cause. With stalls of 90, 120, 200, and 500 ms it read 90, 117, 197, and 498 ms at p50. One run of a report sent only when audio returned fired the word at a 90 ms stall early, 11 of 12, and blamed the codec filling a short gap with audible sound. That did not reproduce on a reviewer's rerun, 0 of 6 at load 4, so this reason is unconfirmed. The tracker reports when the queue empties too.
+
+## After the fix
+
+After `02b8b67` the tracker adds up lateness and always closes a gap it opened, and the clock holds for at most 3 s. The turn rule counts digits as words. These are the only runs made after that change. `clock-fixed.json`, `clock-attack.json`, `stop-fixed.json`, and `node-numbers.json` hold them, and the table above stays as it ran. Each cell is p95, worst, and how many cues fired more than 40 ms early, in ms.
+
+| The clock's rows, rerun | Load | Cues fired | Chosen clock |
+| --- | --- | --- | --- |
+| clean | 8 | 157 of 157 heard | 5 / 15 / 0 |
+| stall-200 | 5 | 206 of 206 heard | 7 / 10 / 0 |
+| stall-500 | 6 | 206 of 206 heard | 8 / 18 / 0 |
+| pauses-lost, run 1 | 7 | 167 of 167 heard | 125 / 145 / 12 |
+| pauses-lost, run 2 | 6 | 195 of 195 heard | 26 / 28 / 0 |
+| pauses-lost, run 3 | 5 | 192 of 192 heard | 27 / 104 / 7 |
+
+No report was sent on the lost runs, and the chosen clock's figures there equal the count alone's, so the blackouts set that spread and not this change.
+
+A reviewer's cases, from `clock-attack/`, in 6 turns each. Words are matched in order, so a slow voice is measured against where each word really was. "Dropped" drops every closing report and keeps the opening ones. "Held back" delays each closing report 150 ms.
+
+| Case | Load | Chosen clock | Dropped | Cues fired, dropped | Held back | At `02b8b67` |
+| --- | --- | --- | --- | --- | --- | --- |
+| a-slow-voice-90 | 6 | 23 / 30 / 0 | 617 / 652 / 91 | 102 of 102 | 32 / 39 / 0 | 600 / 639 / 94, and 104 of 104 fired, dropped |
+| a-slow-voice-97 | 5 | 21 / 22 / 0 | 166 / 181 / 75 | 103 of 103 | 24 / 29 / 0 | 160 / 178 / 72, and 103 of 103 fired, dropped |
+| a-many-tiny | 7 | 18 / 31 / 0 | 1733 / 2981 / 37 | 94 of 106 | 38 / 95 / 1 | 76 / 86 / 43, and 101 of 101 fired, dropped |
+| a-stall-500 | 10 | 22 / 24 / 0 | 2481 / 2493 / 7 | 113 of 113 | 77 / 88 / 0 | 5 / 7 / 0, and 49 of 102 fired, dropped |
+| a-stall-1500 | 8 | 7 / 10 / 0 | 1486 / 1502 / 22 | 101 of 101 | 86 / 99 / 0 | Not run |
+| a-stall-3500 | 6 | 8 / 10 / 0 | 2591 / 3207 / 50 | 109 of 109 | 2591 / 3207 / 50 | Not run |
+| a-stall-500-poor | 5 | 13 / 24 / 0 | 2491 / 2513 / 8 | 107 of 107 | 14 / 63 / 0 | 30 / 33 / 0, and 51 of 103 fired, dropped |
+| a-many-small | 5 | 10 / 17 / 0 | 2951 / 2963 / 0 | 70 of 110 | 95 / 99 / 0 | 35 / 52 / 2, and 12 of 103 fired, dropped |
+
+The built session, `stop-run.mjs`, load 14. A stalling voice gave 24 cues, 0 more than 40 ms early, worst 14 ms. The agent read the stalls as 531 to 539 ms, and the browser heard 526 to 540 ms. All 10 stops froze, and 10 rebuilds matched. Over a question, reactions froze the board 0 of 6, and 3 of 3 answers got a reply. A resume restarted a frozen ball 4 of 4.
+
+| Turn rule, live, 3 attempts each | Stopped | Reached the model | Turns dropped | Load |
+| --- | --- | --- | --- | --- |
+| "42." over a reply | 3 of 3 | 3 of 3 | 0 | 12 |
+| "Forty-two." over a reply | 3 of 3 | 3 of 3 | 0 | 5 |
+| "42." during thinking | Not counted | 3 of 3 | 0 | 6 |
+| "It lands twice as far." during thinking | Not counted | 3 of 3 | 0 | 6 |
+| "Uh-huh" over a question | 0 of 3 | Not asked | Not counted | 6 |
+| "Hmm" over a question | 0 of 3 | Not asked | Not counted | 5 |
+| "Uh-huh" over a statement | 0 of 3 | Not asked | Not counted | 7 |
 
 ## The turn rule on Node
 
@@ -114,7 +154,7 @@ Audio still arriving after a `stop`, with no mute in the listener, at p50: 75 ms
 
 ## Flush detail
 
-First audio after the model's first words, at about 100 tokens a second, on the sample session's first sentence, with fakes: 77 ms at p50 in 15 runs with the rule (before each command, at each beat end, after the first 8 words), and in the first round 771 ms with a flush only at beat ends and 801 ms with none. Cues reached a listener at least 822 ms before their word, with the fake, which sends word times before audio. In the audit's replay of the sample session, 9 of 19 flushes end mid-sentence. Modeled gaps in the audio for the flagship beat: 313 ms at 79 tokens a second, 181 at 105, 35 at 165. Three commands in a row at 50 tokens a second pass Cartesia's documented 1 s context close, by 1459 to 1659 ms.
+First audio after the model's first words, at about 100 tokens a second, on the sample session's first sentence, with fakes: 98 ms at p50 in 15 runs with the rule (before each command, at each beat end, after the first 8 words), and in the first round 771 ms with a flush only at beat ends and 801 ms with none. Cues reached a listener at least 848 ms before their word, with the fake, which sends word times before audio. In the audit's replay of the sample session, 9 of 19 flushes end mid-sentence. Modeled gaps in the audio for the flagship beat: 313 ms at 79 tokens a second, 181 at 105, 35 at 165. Three commands in a row at 50 tokens a second pass Cartesia's documented 1 s context close, by 1459 to 1659 ms.
 
 ## Vendor pages read on 3 November 2026
 

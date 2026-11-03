@@ -1,0 +1,239 @@
+{
+ "gap_talkover": {
+  "attempts": 3,
+  "answered": 3,
+  "dropped": 0,
+  "outcomes": [
+   {
+    "offsetAfterThinkingMs": 100,
+    "stops": 1,
+    "secondSentenceReachedModel": true,
+    "repliesStarted": 2,
+    "turnsDroppedBySdk": 0
+   },
+   {
+    "offsetAfterThinkingMs": 400,
+    "stops": 2,
+    "secondSentenceReachedModel": true,
+    "repliesStarted": 2,
+    "turnsDroppedBySdk": 0
+   },
+   {
+    "offsetAfterThinkingMs": 600,
+    "stops": 2,
+    "secondSentenceReachedModel": true,
+    "repliesStarted": 2,
+    "turnsDroppedBySdk": 0
+   }
+  ],
+  "joinToSessionStartedMs": 450,
+  "agentMemoryMb": 594,
+  "machineLoadAtEnd": 6
+ },
+ "number_over_reply": {
+  "attempts": 3,
+  "stopped": 3,
+  "reachedModel": 3,
+  "dropped": 0,
+  "outcomes": [
+   {
+    "stopped": true,
+    "reachedModel": true,
+    "transcribed": [
+     "42.",
+     "42. (final)"
+    ],
+    "repliesStarted": 1,
+    "turnsDroppedBySdk": 0
+   },
+   {
+    "stopped": true,
+    "reachedModel": true,
+    "transcribed": [
+     "42.",
+     "42. (final)"
+    ],
+    "repliesStarted": 1,
+    "turnsDroppedBySdk": 0
+   },
+   {
+    "stopped": true,
+    "reachedModel": true,
+    "transcribed": [
+     "42.",
+     "42. (final)"
+    ],
+    "repliesStarted": 1,
+    "turnsDroppedBySdk": 0
+   }
+  ],
+  "joinToSessionStartedMs": 1003,
+  "agentMemoryMb": 369,
+  "machineLoadAtEnd": 12
+ },
+ "number_while_thinking": {
+  "attempts": 3,
+  "answered": 3,
+  "dropped": 0,
+  "outcomes": [
+   {
+    "offsetAfterThinkingMs": 100,
+    "stops": 1,
+    "secondSentenceReachedModel": true,
+    "repliesStarted": 2,
+    "turnsDroppedBySdk": 0
+   },
+   {
+    "offsetAfterThinkingMs": 400,
+    "stops": 2,
+    "secondSentenceReachedModel": true,
+    "repliesStarted": 2,
+    "turnsDroppedBySdk": 0
+   },
+   {
+    "offsetAfterThinkingMs": 600,
+    "stops": 2,
+    "secondSentenceReachedModel": true,
+    "repliesStarted": 2,
+    "turnsDroppedBySdk": 0
+   }
+  ],
+  "joinToSessionStartedMs": 433,
+  "agentMemoryMb": 596,
+  "machineLoadAtEnd": 6
+ },
+ "number_words_over_reply": {
+  "attempts": 3,
+  "stopped": 3,
+  "reachedModel": 3,
+  "dropped": 0,
+  "outcomes": [
+   {
+    "stopped": true,
+    "reachedModel": true,
+    "transcribed": [
+     "Forty-two.",
+     "Forty-two. (final)"
+    ],
+    "repliesStarted": 1,
+    "turnsDroppedBySdk": 0
+   },
+   {
+    "stopped": true,
+    "reachedModel": true,
+    "transcribed": [
+     "Forty-two.",
+     "Forty-two.",
+     "Forty-two. (final)"
+    ],
+    "repliesStarted": 1,
+    "turnsDroppedBySdk": 0
+   },
+   {
+    "stopped": true,
+    "reachedModel": true,
+    "transcribed": [
+     "Forty-two.",
+     "Forty-two. (final)"
+    ],
+    "repliesStarted": 1,
+    "turnsDroppedBySdk": 0
+   }
+  ],
+  "joinToSessionStartedMs": 432,
+  "agentMemoryMb": 397,
+  "machineLoadAtEnd": 5
+ },
+ "question_hmm": {
+  "attempts": 3,
+  "stopped": 0,
+  "heardInFull": 3,
+  "tutorStayedQuietForT5": 3,
+  "outcomes": [
+   {
+    "stopped": false,
+    "wordsHeard": 31,
+    "ofWords": 31,
+    "questionHeardSent": true,
+    "repliesWithinT5": 0
+   },
+   {
+    "stopped": false,
+    "wordsHeard": 31,
+    "ofWords": 31,
+    "questionHeardSent": true,
+    "repliesWithinT5": 0
+   },
+   {
+    "stopped": false,
+    "wordsHeard": 31,
+    "ofWords": 31,
+    "questionHeardSent": true,
+    "repliesWithinT5": 0
+   }
+  ],
+  "joinToSessionStartedMs": 462,
+  "agentMemoryMb": 569,
+  "machineLoadAtEnd": 5
+ },
+ "question_uhhuh": {
+  "attempts": 3,
+  "stopped": 0,
+  "heardInFull": 3,
+  "tutorStayedQuietForT5": 3,
+  "outcomes": [
+   {
+    "stopped": false,
+    "wordsHeard": 31,
+    "ofWords": 31,
+    "questionHeardSent": true,
+    "repliesWithinT5": 0
+   },
+   {
+    "stopped": false,
+    "wordsHeard": 31,
+    "ofWords": 31,
+    "questionHeardSent": true,
+    "repliesWithinT5": 0
+   },
+   {
+    "stopped": false,
+    "wordsHeard": 31,
+    "ofWords": 31,
+    "questionHeardSent": true,
+    "repliesWithinT5": 0
+   }
+  ],
+  "joinToSessionStartedMs": 433,
+  "agentMemoryMb": 402,
+  "machineLoadAtEnd": 6
+ },
+ "tiered_backchannel": {
+  "attempts": 3,
+  "stopped": 0,
+  "audioWentSilent": 0,
+  "outcomes": [
+   {
+    "agentStopped": false,
+    "audioWentSilent": false,
+    "yieldAfterMs": 156,
+    "yieldHeldMs": 935
+   },
+   {
+    "agentStopped": false,
+    "audioWentSilent": false,
+    "yieldAfterMs": 159,
+    "yieldHeldMs": 850
+   },
+   {
+    "agentStopped": false,
+    "audioWentSilent": false,
+    "yieldAfterMs": 179,
+    "yieldHeldMs": 903
+   }
+  ],
+  "joinToSessionStartedMs": 446,
+  "agentMemoryMb": 398,
+  "machineLoadAtEnd": 7
+ }
+}

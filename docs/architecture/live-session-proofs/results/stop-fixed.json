@@ -1,0 +1,358 @@
+{
+ "result": {
+  "machineLoadAtEnd": 14,
+  "audioInfo": {
+   "sampleRate": 48000,
+   "baseLatency": 0.005333333333333333,
+   "outputLatency": 0.032
+  },
+  "interrupts": 10,
+  "frozeEveryTime": true,
+  "outputAudioAfterStopMs": {
+   "count": 10,
+   "p50": 0,
+   "max": 0,
+   "min": 0
+  },
+  "arrivingAudioAfterStopMs": {
+   "count": 10,
+   "p50": 77,
+   "max": 152,
+   "min": 67
+  },
+  "stopDeliveryMs": {
+   "count": 36,
+   "p50": 4,
+   "max": 9,
+   "min": 2
+  },
+  "uhhuh": [
+   {
+    "kind": "uhhuh",
+    "spokenText": "Uh-huh",
+    "turnId": "t21",
+    "frozen": false,
+    "wordsTimed": 33,
+    "burstsHeard": 33,
+    "playedWords": 33,
+    "cuesReceived": 4,
+    "cuesFired": 4,
+    "firedDuringYield": 0,
+    "yieldHeldMs": 949,
+    "outputSilences": 0
+   },
+   {
+    "kind": "uhhuh",
+    "spokenText": "Uh-huh",
+    "turnId": "t22",
+    "frozen": false,
+    "wordsTimed": 33,
+    "burstsHeard": 33,
+    "playedWords": 33,
+    "cuesReceived": 4,
+    "cuesFired": 4,
+    "firedDuringYield": 0,
+    "yieldHeldMs": 832,
+    "outputSilences": 0
+   },
+   {
+    "kind": "uhhuh",
+    "spokenText": "Uh-huh",
+    "turnId": "t23",
+    "frozen": false,
+    "wordsTimed": 33,
+    "burstsHeard": 33,
+    "playedWords": 33,
+    "cuesReceived": 4,
+    "cuesFired": 4,
+    "firedDuringYield": 0,
+    "yieldHeldMs": 832,
+    "outputSilences": 0
+   },
+   {
+    "kind": "uhhuh",
+    "spokenText": "Uh-huh",
+    "turnId": "t24",
+    "frozen": false,
+    "wordsTimed": 33,
+    "burstsHeard": 33,
+    "playedWords": 33,
+    "cuesReceived": 4,
+    "cuesFired": 4,
+    "firedDuringYield": 0,
+    "yieldHeldMs": 843,
+    "outputSilences": 0
+   },
+   {
+    "kind": "uhhuh",
+    "spokenText": "yeah yeah okay right",
+    "turnId": "t25",
+    "frozen": false,
+    "wordsTimed": 33,
+    "burstsHeard": 33,
+    "playedWords": 33,
+    "cuesReceived": 4,
+    "cuesFired": 4,
+    "firedDuringYield": 1,
+    "yieldHeldMs": 2272,
+    "outputSilences": 0
+   },
+   {
+    "kind": "uhhuh",
+    "spokenText": "yeah yeah okay right",
+    "turnId": "t26",
+    "frozen": false,
+    "wordsTimed": 33,
+    "burstsHeard": 33,
+    "playedWords": 33,
+    "cuesReceived": 4,
+    "cuesFired": 4,
+    "firedDuringYield": 1,
+    "yieldHeldMs": 2245,
+    "outputSilences": 0
+   }
+  ],
+  "cuesFiredAfterFreeze": 0,
+  "cuesSentAfterStop": 1,
+  "cuesReceivedAfterFreeze": 1,
+  "firedPastHeardWord": 0,
+  "cuesForHeardWordsNotFired": 0,
+  "rebuildMatches": 10,
+  "attemptsWhereModelStillWriting": 2,
+  "stalls": {
+   "attempts": 6,
+   "gapsReportedMs": [
+    536,
+    539,
+    533,
+    531,
+    532,
+    533
+   ],
+   "silencesHeardMs": [
+    540,
+    539,
+    530,
+    530,
+    530,
+    526
+   ],
+   "cuesFired": 24,
+   "earlyOver40": 0,
+   "lateOver100": 0,
+   "worstCueErrorMs": 14
+  },
+  "stopsDuringAStall": [
+   {
+    "kind": "stopInStall",
+    "turnId": "t53",
+    "wordsHeardBeforeStop": 8,
+    "wordsReported": 8,
+    "firedAfterStop": 0
+   },
+   {
+    "kind": "stopInStall",
+    "turnId": "t55",
+    "wordsHeardBeforeStop": 8,
+    "wordsReported": 8,
+    "firedAfterStop": 0
+   },
+   {
+    "kind": "stopInStall",
+    "turnId": "t57",
+    "wordsHeardBeforeStop": 8,
+    "wordsReported": 8,
+    "firedAfterStop": 0
+   },
+   {
+    "kind": "stopInStall",
+    "turnId": "t59",
+    "wordsHeardBeforeStop": 8,
+    "wordsReported": 8,
+    "firedAfterStop": 0
+   }
+  ],
+  "questions": [
+   {
+    "kind": "question",
+    "spokenText": "Uh-huh",
+    "afterQuestionHeard": false,
+    "frozen": false,
+    "questionHeardSent": true,
+    "wordsHeard": 28,
+    "wordsInQuestion": 28,
+    "repliesAfter": 0
+   },
+   {
+    "kind": "question",
+    "spokenText": "Hmm",
+    "afterQuestionHeard": false,
+    "frozen": false,
+    "questionHeardSent": true,
+    "wordsHeard": 28,
+    "wordsInQuestion": 28,
+    "repliesAfter": 0
+   },
+   {
+    "kind": "question",
+    "spokenText": "Yes.",
+    "afterQuestionHeard": true,
+    "frozen": false,
+    "questionHeardSent": true,
+    "wordsHeard": 28,
+    "wordsInQuestion": 28,
+    "repliesAfter": 1
+   },
+   {
+    "kind": "question",
+    "spokenText": "Uh-huh",
+    "afterQuestionHeard": false,
+    "frozen": false,
+    "questionHeardSent": true,
+    "wordsHeard": 28,
+    "wordsInQuestion": 28,
+    "repliesAfter": 0
+   },
+   {
+    "kind": "question",
+    "spokenText": "Hmm",
+    "afterQuestionHeard": false,
+    "frozen": false,
+    "questionHeardSent": true,
+    "wordsHeard": 28,
+    "wordsInQuestion": 28,
+    "repliesAfter": 0
+   },
+   {
+    "kind": "question",
+    "spokenText": "Yes.",
+    "afterQuestionHeard": true,
+    "frozen": false,
+    "questionHeardSent": true,
+    "wordsHeard": 28,
+    "wordsInQuestion": 28,
+    "repliesAfter": 1
+   },
+   {
+    "kind": "question",
+    "spokenText": "Uh-huh",
+    "afterQuestionHeard": false,
+    "frozen": false,
+    "questionHeardSent": true,
+    "wordsHeard": 28,
+    "wordsInQuestion": 28,
+    "repliesAfter": 0
+   },
+   {
+    "kind": "question",
+    "spokenText": "Hmm",
+    "afterQuestionHeard": false,
+    "frozen": false,
+    "questionHeardSent": true,
+    "wordsHeard": 28,
+    "wordsInQuestion": 28,
+    "repliesAfter": 0
+   },
+   {
+    "kind": "question",
+    "spokenText": "Yes.",
+    "afterQuestionHeard": true,
+    "frozen": false,
+    "questionHeardSent": true,
+    "wordsHeard": 28,
+    "wordsInQuestion": 28,
+    "repliesAfter": 1
+   }
+  ],
+  "resumes": [
+   {
+    "kind": "resume",
+    "frozen": [
+     {
+      "target": "shot",
+      "simulationSeconds": 2.496
+     }
+    ],
+    "fromWord": 15,
+    "playCueAfterResume": {
+     "kind": "runSimulation",
+     "target": "shot",
+     "action": "play",
+     "until": "landing",
+     "overWords": 12
+    },
+    "playFiredOnFirstWord": true,
+    "noDrawingFiredTwice": true,
+    "wordsBefore": 16,
+    "wordsAfter": 29,
+    "wordsInReply": 44
+   },
+   {
+    "kind": "resume",
+    "frozen": [
+     {
+      "target": "shot",
+      "simulationSeconds": 2.491
+     }
+    ],
+    "fromWord": 15,
+    "playCueAfterResume": {
+     "kind": "runSimulation",
+     "target": "shot",
+     "action": "play",
+     "until": "landing",
+     "overWords": 12
+    },
+    "playFiredOnFirstWord": true,
+    "noDrawingFiredTwice": true,
+    "wordsBefore": 16,
+    "wordsAfter": 29,
+    "wordsInReply": 44
+   },
+   {
+    "kind": "resume",
+    "frozen": [
+     {
+      "target": "shot",
+      "simulationSeconds": 2.491
+     }
+    ],
+    "fromWord": 15,
+    "playCueAfterResume": {
+     "kind": "runSimulation",
+     "target": "shot",
+     "action": "play",
+     "until": "landing",
+     "overWords": 12
+    },
+    "playFiredOnFirstWord": true,
+    "noDrawingFiredTwice": true,
+    "wordsBefore": 16,
+    "wordsAfter": 29,
+    "wordsInReply": 44
+   },
+   {
+    "kind": "resume",
+    "frozen": [
+     {
+      "target": "shot",
+      "simulationSeconds": 2.512
+     }
+    ],
+    "fromWord": 15,
+    "playCueAfterResume": {
+     "kind": "runSimulation",
+     "target": "shot",
+     "action": "play",
+     "until": "landing",
+     "overWords": 12
+    },
+    "playFiredOnFirstWord": true,
+    "noDrawingFiredTwice": true,
+    "wordsBefore": 16,
+    "wordsAfter": 29,
+    "wordsInReply": 44
+   }
+  ]
+ }
+}
