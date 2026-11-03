@@ -47,6 +47,8 @@ pnpm verify run --journey <name or path> --viewports laptop,phone --out /tmp/swa
 
 Exit code 0 and a `PASSED` line mean every check passed. Exit code 1 means something failed, and a `FAIL` line or an error message says what. The app stops either way, including on a Ctrl-C, on SIGINT, SIGTERM, or SIGHUP, whether the signal reaches only the `verify` process or pnpm's whole process group, and when a call the journey forgot to await fails. pnpm forwards a Ctrl-C, so `verify` gets it twice, and the repeat does not stop the cleanup. Nothing can catch SIGKILL. After a hard kill, run `pnpm verify stop`. See [Cleanup](#cleanup).
 
+One signal can still leave the app running. If pnpm leads a real terminal's session and its whole group gets SIGHUP once the servers have launched, pnpm exits first. The terminal then hangs up and kills a `ps` call inside the cleanup. The command prints `FAIL interrupted by SIGHUP` and exits, and the app and `.verify/run.json` stay. Run `pnpm verify stop` to end the app. Closing the terminal itself left nothing, in the one run measured.
+
 ## Launch
 
 ```sh
