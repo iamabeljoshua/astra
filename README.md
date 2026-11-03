@@ -128,6 +128,129 @@ Every request body, query string, route parameter, and response in the API is a 
 
 Do not write Swagger decorators by hand. `pnpm test` fails if a route, a route parameter, or a DTO field has no comment, if a POST, PUT, or PATCH route has no DTO body, or if an entity appears in the docs. If a route really takes no body, add it to `WRITE_ROUTES_WITHOUT_BODY` in `apps/api/src/openapi.spec.ts`.
 
+## Add a query and a mutation
+
+Every API call in the web app goes through `api` in `apps/web/src/api/client.ts`. `pnpm lint` rejects a direct `fetch` in `apps/web` outside `apps/web/src/api/`.
+
+This section continues from the last step of "Add a DTO". It needs a controller that is listed in `apps/api/src/app.module.ts` and types from `pnpm api:types`. The examples use `GET /things`, which takes a `limit` query and returns a list of `ThingResponseDto`, and `POST /things`, which takes a `CreateThingBodyDto` with a `title`.
+
+1. Create the hooks, for example in `apps/web/src/things/useThings.ts`. Pass the `signal` from React Query, so that leaving the screen cancels the request. After a mutation, invalidate the key of each query that it changes.
+
+   ```ts
+   import type { components } from '@astra/contracts';
+   import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+   import { api } from '../api/client';
+
+   const THINGS_KEY = ['things'];
+
+   export function useThings(limit: number) {
+     return useQuery({
+       queryKey: [...THINGS_KEY, limit],
+       queryFn: ({ signal }) => api.get('/things', { params: { query: { limit } }, signal }),
+     });
+   }
+
+   export function useCreateThing() {
+     const queryClient = useQueryClient();
+     return useMutation({
+       mutationFn: (body: components['schemas']['CreateThingBodyDto']) => api.post('/things', { body }),
+       onSuccess: () => queryClient.invalidateQueries({ queryKey: THINGS_KEY }),
+     });
+   }
+   ```
+
+   `api.get` and the other calls return the response data and throw an `ApiError` for every failure. `pnpm typecheck` fails if the route, the query, or the body is wrong. A route parameter goes in `params: { path: { thingId } }`. A query DTO is not in `components`, so write `import type { paths } from '@astra/contracts'` and read its type as `paths['/things']['get']['parameters']['query']`.
+
+2. Add the text for the screen to `apps/web/src/strings.ts`.
+
+   ```ts
+   export const THING_LABELS = {
+     loading: 'Loading.',
+     title: 'Title',
+     create: 'Add',
+     titleRejected: 'Enter a title.',
+   };
+   ```
+
+3. Create the screen, for example in `apps/web/src/things/Things.tsx`. Show `API_ERROR_LABELS[error.kind]` from `strings.ts`, or your own label for a field. Do not show `error.message` or the text in `error.fieldMessages`, because the API writes them for developers.
+
+   ```tsx
+   import { useState } from 'react';
+   import { API_ERROR_LABELS, THING_LABELS } from '../strings';
+   import { useCreateThing, useThings } from './useThings';
+
+   export function Things() {
+     const things = useThings(10);
+     const createThing = useCreateThing();
+     const [title, setTitle] = useState('');
+
+     return (
+       <>
+         {things.isPending && <p>{THING_LABELS.loading}</p>}
+         {things.error && <p>{API_ERROR_LABELS[things.error.kind]}</p>}
+         {things.data?.map((thing) => <p key={thing.id}>{thing.title}</p>)}
+         <form
+           onSubmit={(event) => {
+             event.preventDefault();
+             createThing.mutate({ title });
+           }}
+         >
+           <input aria-label={THING_LABELS.title} value={title} onChange={(event) => setTitle(event.target.value)} />
+           <button>{THING_LABELS.create}</button>
+         </form>
+         {createThing.error && (
+           <p>
+             {createThing.error.fieldMessages.title
+               ? THING_LABELS.titleRejected
+               : API_ERROR_LABELS[createThing.error.kind]}
+           </p>
+         )}
+       </>
+     );
+   }
+   ```
+
+   To give the screen its own page, add `things: 'Things'` to `MENU_LABELS` in `strings.ts`, and add `{ path: '/things', label: MENU_LABELS.things, Page: Things }` to `MENU` in `apps/web/src/shell/menu.ts`.
+
+4. Test the screen with `renderWithQueryClient`. It uses the app's query defaults with no retries, so a failure reaches the screen at once.
+
+   ```tsx
+   import { fireEvent, screen } from '@testing-library/react';
+   import { it, vi } from 'vitest';
+   import { THING_LABELS } from '../strings';
+   import { renderWithQueryClient } from '../test/renderWithQueryClient';
+   import { Things } from './Things';
+
+   it('says when the API rejects the title', async () => {
+     vi.stubGlobal('fetch', async (request: Request) =>
+       request.method === 'POST'
+         ? new Response(JSON.stringify({ message: ['title must be a string'], statusCode: 400 }), { status: 400 })
+         : new Response('[]'),
+     );
+
+     renderWithQueryClient(<Things />);
+     fireEvent.click(screen.getByRole('button', { name: THING_LABELS.create }));
+
+     await screen.findByText(THING_LABELS.titleRejected);
+   });
+   ```
+
+Every failed request reaches the screen as the same `ApiError`, with these fields:
+
+| `kind` | When | `status` | `fieldMessages` |
+| --- | --- | --- | --- |
+| `validation` | `ValidationPipe` rejected the request. | 400 | The messages for each field, by path, such as `title`, `owner.ownerName`, or `sensors.0.sensorName`. |
+| `rejected` | The API refused the request, as with a 401 or a 404. | The status | Empty |
+| `server` | The answer has a status of 500 or above. | The status | Empty |
+| `network` | No usable answer arrived, because the API cannot be reached or a read returned no JSON. | `null` | Empty |
+| `aborted` | A signal stopped the request, as with a timeout. | `null` | Empty |
+
+The web app finds each field from the start of the default `class-validator` message, so do not set a custom `message` on a DTO rule. A rule with a custom message still gives a `validation` error, with no field.
+
+`createQueryClient` in `apps/web/src/api/queryClient.ts` holds the shared defaults. A query tries a `server`, `network`, or `aborted` failure up to 3 times and a `validation` or `rejected` failure once. A mutation does not retry. Data stays fresh for 30 seconds. Set an option on a hook only if that hook needs something else, as `apps/web/src/useApiConnection.ts` does because it keeps checking until the API answers.
+
+`pnpm dev` shows the React Query devtools button on the page. The devtools are not in the production build.
+
 ## Test
 
 ```sh
