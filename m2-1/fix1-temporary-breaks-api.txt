@@ -1,0 +1,5 @@
+CAUGHT finished sessions offered | 1 failing | offers no session when every session has finished | Error: expect(received).toBeNull()
+CAUGHT oldest session offered | 1 failing | offers the newest of two unfinished sessions | Error: expect(received).toBe(expected) // Object.is equality
+CAUGHT another student offered | 1 failing | does not offer another student's session | Error: expect(received).toBe(expected) // Object.is equality
+CAUGHT name dropped | 1 failing | greets the seeded student by name | Error: expect(received).toBe(expected) // Object.is equality
+CAUGHT cards dropped from the shape | 1 failing | sends the screen in the documented shape | Error: expect(received).toBeGreaterThan(expected)

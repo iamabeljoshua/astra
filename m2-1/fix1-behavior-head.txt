@@ -1,0 +1,194 @@
+PASS [1] [chromium] 390x844 to 380x844 with Menu open, 26 chars | height 42 style 42px content 42
+PASS [1] [chromium] 390x844 to 844x390 with Menu open, 20 chars | height 42 style 42px content 42
+PASS [1] [chromium] 375x667 to 667x375 with Menu open, 20 chars | height 66 style 66px content 42
+PASS [1] [chromium] 412x915 to 915x412 with Menu open, 20 chars | height 42 style 42px content 42
+PASS [1] [chromium] 360x800 to 800x360 with Menu open, 20 chars | height 66 style 66px content 42
+PASS [1] [chromium] 390x844 to 390x700 with Menu open, empty | height 42 style 42px content 42
+PASS [1] [chromium] 390x844 to 390x700 with Menu open, 20 chars | height 42 style 42px content 42
+PASS [1] [chromium] 390x844 to 390x700 with Menu open, 350 chars | height 140 style 232px content 232
+PASS [1] [chromium] 360x640 to 640x360 with Menu open, 20 chars | height 66 style 66px content 42
+PASS [1] [chromium] 390x500 to 390x844 with Menu open, 350 chars | height 140 style 232px content 232
+PASS [2] [chromium] 390x844 Tab: 7 focus stops in the cards, none covered by the dock
+PASS [2] [chromium] 390x844 Tab: focus ring clear of the dock
+PASS [2] [chromium] 390x844 Tab: focus ring inside the window
+PASS [2] [chromium] 390x844 Shift+Tab: 6 focus stops in the cards, none covered by the dock
+PASS [2] [chromium] 390x844 Shift+Tab: focus ring clear of the dock
+PASS [2] [chromium] 390x844 Shift+Tab: focus ring inside the window
+PASS [2] [chromium] 640x400 Tab: 7 focus stops in the cards, none covered by the dock
+PASS [2] [chromium] 640x400 Tab: focus ring clear of the dock
+PASS [2] [chromium] 640x400 Tab: focus ring inside the window
+PASS [2] [chromium] 640x400 Shift+Tab: 6 focus stops in the cards, none covered by the dock
+PASS [2] [chromium] 640x400 Shift+Tab: focus ring clear of the dock
+PASS [2] [chromium] 640x400 Shift+Tab: focus ring inside the window
+PASS [2] [chromium] 1280x400 Tab: 7 focus stops in the cards, none covered by the dock
+PASS [2] [chromium] 1280x400 Tab: focus ring clear of the dock
+PASS [2] [chromium] 1280x400 Tab: focus ring inside the window
+PASS [2] [chromium] 1280x400 Shift+Tab: 7 focus stops in the cards, none covered by the dock
+PASS [2] [chromium] 1280x400 Shift+Tab: focus ring clear of the dock
+PASS [2] [chromium] 1280x400 Shift+Tab: focus ring inside the window
+PASS [2] [chromium] 390x660 Tab: 7 focus stops in the cards, none covered by the dock
+PASS [2] [chromium] 390x660 Tab: focus ring clear of the dock
+PASS [2] [chromium] 390x660 Tab: focus ring inside the window
+PASS [2] [chromium] 390x660 Shift+Tab: 6 focus stops in the cards, none covered by the dock
+PASS [2] [chromium] 390x660 Shift+Tab: focus ring clear of the dock
+PASS [2] [chromium] 390x660 Shift+Tab: focus ring inside the window
+PASS [2] [chromium] 390x844 scroll padding tracks a grown dock while focus is on a card, and is off in the box | {"dock":268,"paddingWhileOnCard":"273px"} in box auto
+PASS [2] [chromium] 390x844 grown dock Shift+Tab: 7 focus stops in the cards, none covered by the dock
+PASS [2] [chromium] 390x844 grown dock Shift+Tab: focus ring clear of the dock
+PASS [2] [chromium] 390x844 grown dock Shift+Tab: focus ring inside the window
+PASS [2] [chromium] 640x400 scroll padding tracks a grown dock while focus is on a card, and is off in the box | {"dock":265,"paddingWhileOnCard":"270px"} in box auto
+PASS [2] [chromium] 640x400 grown dock Shift+Tab: 7 focus stops in the cards, none covered by the dock
+PASS [2] [chromium] 640x400 grown dock Shift+Tab: focus ring clear of the dock
+PASS [2] [chromium] 640x400 grown dock Shift+Tab: focus ring inside the window
+PASS [3] [chromium] 376 wide, height fits after Barlow arrives late | before font 66 after font 66 content 66
+PASS [3] [chromium] 380 wide, height fits after Barlow arrives late | before font 66 after font 66 content 66
+PASS [3] [chromium] 384 wide, height fits after Barlow arrives late | before font 66 after font 66 content 66
+PASS [3] [chromium] 388 wide, height fits after Barlow arrives late | before font 66 after font 66 content 66
+PASS [3] [chromium] 390 wide, height fits after Barlow arrives late | before font 42 after font 42 content 42
+PASS [3] [chromium] 400 wide, height fits after Barlow arrives late | before font 42 after font 42 content 42
+PASS [3] [chromium] 420 wide, height fits after Barlow arrives late | before font 42 after font 42 content 42
+PASS [3] [chromium] 360 wide, height fits after Barlow arrives late | before font 66 after font 66 content 66
+PASS [3] [chromium] 320 wide, Talk placeholder change fits the box | off 66 on 42 content 42
+PASS [3] [chromium] 340 wide, Talk placeholder change fits the box | off 66 on 42 content 42
+PASS [3] [chromium] 320 wide, a wrapped placeholder rests at two lines and the first key moves nothing | rest 66 typed 66 dock 669 to 669
+PASS [3] [chromium] 320 wide, longer text still grows and clearing returns to rest | long 113 cleared 66
+PASS [3] [chromium] 375 wide, a wrapped placeholder rests at two lines and the first key moves nothing | rest 66 typed 66 dock 669 to 669
+PASS [3] [chromium] 375 wide, longer text still grows and clearing returns to rest | long 89 cleared 66
+PASS [4] [chromium] Enter with keyCode 229 and isComposing false does not send | event {"keyCode":229,"isComposing":false} notice ""
+PASS [4] [chromium] Enter with isComposing true does not send
+PASS [4] [chromium] plain Enter still sends | Sessions open soon. Your question is still here.
+PASS [4] [chromium] a real Enter key press sends and adds no line
+PASS [5] [chromium] failure line is in a live region | role alert text "Your home screen did not load. The fault is on our side."
+PASS [5] [chromium] failure line does not repeat Try again | Your home screen did not load. The fault is on our side.
+PASS [5] [chromium] focus has a place while the retry runs | H1:Welcome back.
+PASS [5] [chromium] that focus shows a ring after a key press | {"visible":true,"outline":"solid"}
+PASS [5] [chromium] focus stays put when the retry fails | H1:Welcome back.
+PASS [5] [chromium] next Tab after a failed retry reaches Try again | BUTTON:Try again
+PASS [5] [chromium] focus stays put when the retry succeeds | H1:Welcome back, Maya.
+PASS [5] [chromium] next Tab after a good retry reaches Continue | BUTTON:Continue session →
+PASS [5] [chromium] a mouse press moves focus without a ring | {"tag":"H1","ring":false}
+PASS [6] [chromium] 390 wide, Remove names the file | count 1
+PASS [6] [chromium] 390 wide, a press lands on Remove across 24 by 24 px | {"boxWidth":13.5,"boxHeight":27.5,"hits":576,"total":576,"misses":[]}
+PASS [6] [chromium] 390 wide, focus returns to Photo or PDF after removing | BUTTON:Photo or PDF
+PASS [6] [chromium] 390 wide, the chip is gone
+PASS [6] [chromium] 1280 wide, Remove names the file | count 1
+PASS [6] [chromium] 1280 wide, a press lands on Remove across 24 by 24 px | {"boxWidth":13.5,"boxHeight":27.5,"hits":576,"total":576,"misses":[]}
+PASS [6] [chromium] 1280 wide, focus returns to Photo or PDF after removing | BUTTON:Photo or PDF
+PASS [6] [chromium] 1280 wide, the chip is gone
+PASS [7] [chromium] a hung API shows the failure line within about 15 seconds | 15488 ms, "What do you want to learn next?"
+PASS [8] [chromium] wrong on a background refetch at 1280 keeps the typed text | {"value":"A question I must not lose","h1":"Welcome back, Maya.","h2":["Your cards could not be shown."],"alert":"Your cards could not be shown.The fault is on our side. Anything you typed is still in the box below.","alertHeading":"Your cards could not be shown.","sidebar":true}
+PASS [8] [chromium] wrong: fallback has a heading and an announcement
+PASS [8] [chromium] wrong: Try again brings the cards back and keeps the text | {"value":"A question I must not lose","alert":null,"cards":6,"active":"H1"}
+PASS [8] [chromium] wrong-picks on a background refetch at 390 keeps the typed text | {"value":"A question I must not lose","h1":"Welcome back, Maya.","h2":["Your cards could not be shown."],"alert":"Your cards could not be shown.The fault is on our side. Anything you typed is still in the box below.","alertHeading":"Your cards could not be shown.","sidebar":true}
+PASS [8] [chromium] wrong-picks: fallback has a heading and an announcement
+PASS [8] [chromium] wrong-picks: Try again brings the cards back and keeps the text | {"value":"A question I must not lose","alert":null,"cards":6,"active":"H1"}
+PASS [8] [chromium] root fallback has a heading and an announcement with concrete wording | {"alert":"This page stopped working.The fault is on our side. Reloading opens the page again and clears anything you typed.","heading":"This page stopped working.","title":"Astra"}
+PASS [9] [chromium] a session with artwork saturn shows its picture | {"src":"/picks/saturn.jpg","alt":"Saturn and its rings, lit from behind by the Sun","width":228,"height":140,"loaded":true}
+PASS [9] [chromium] cards with unknown names and constructor keep their text and show no broken image | [{"imgs":[],"svgs":0,"title":"How a jump shot flies"},{"imgs":[],"svgs":0,"title":"Why a breaking wave curls"}]
+PASS [9] [chromium] a session with an unknown name shows no picture and takes the full width | {"images":0,"drawings":0,"columns":"985.219px"}
+PASS [10] [chromium] the shell has no Newsreader preload
+PASS [10] [chromium] the theme script is still there
+PASS [10] [chromium] Newsreader still uses font-display swap and the greeting shows before the font | {"firstTheme":"dark","h1BeforeFont":"unloaded","display":["swap"]}
+PASS [10] [chromium] a saved dark theme is set before the first element renders | dark
+PASS [11-ro] [chromium] resizing with long text fits the box and logs no error | height 89 content 89 console [] window []
+PASS [2-scroll] [chromium] 390x844 clicking and typing in the box leaves the page where it was | start 30 focus 30 typing 30 active TEXTAREA:What do you want to learn next
+PASS [2-scroll] [chromium] 640x400 clicking and typing in the box leaves the page where it was | start 30 focus 30 typing 30 active TEXTAREA:What do you want to learn next
+PASS [2-scroll] [chromium] 1366x650 clicking and typing in the box leaves the page where it was | start 28 focus 28 typing 28 active TEXTAREA:What do you want to learn next
+PASS [2-scroll] [chromium] 1366x650 Tab through the sidebar does not move the page | [["Home",0],["Sessions",0],["Light",0],["Dark",0]]
+PASS [1] [webkit] 390x844 to 380x844 with Menu open, 26 chars | height 42 style 42px content 42
+PASS [1] [webkit] 390x844 to 844x390 with Menu open, 20 chars | height 42 style 42px content 42
+PASS [1] [webkit] 375x667 to 667x375 with Menu open, 20 chars | height 62 style 62px content 42
+PASS [1] [webkit] 412x915 to 915x412 with Menu open, 20 chars | height 42 style 42px content 42
+PASS [1] [webkit] 360x800 to 800x360 with Menu open, 20 chars | height 62 style 62px content 42
+PASS [1] [webkit] 390x844 to 390x700 with Menu open, empty | height 42 style 42px content 42
+PASS [1] [webkit] 390x844 to 390x700 with Menu open, 20 chars | height 42 style 42px content 42
+PASS [1] [webkit] 390x844 to 390x700 with Menu open, 350 chars | height 140 style 232px content 232
+PASS [1] [webkit] 360x640 to 640x360 with Menu open, 20 chars | height 62 style 62px content 42
+PASS [1] [webkit] 390x500 to 390x844 with Menu open, 350 chars | height 140 style 232px content 232
+PASS [2] [webkit] 390x844 Tab: 7 focus stops in the cards, none covered by the dock
+PASS [2] [webkit] 390x844 Tab: focus ring clear of the dock
+PASS [2] [webkit] 390x844 Tab: focus ring inside the window
+PASS [2] [webkit] 390x844 Shift+Tab: 6 focus stops in the cards, none covered by the dock
+PASS [2] [webkit] 390x844 Shift+Tab: focus ring clear of the dock
+PASS [2] [webkit] 390x844 Shift+Tab: focus ring inside the window
+PASS [2] [webkit] 640x400 Tab: 7 focus stops in the cards, none covered by the dock
+PASS [2] [webkit] 640x400 Tab: focus ring clear of the dock
+PASS [2] [webkit] 640x400 Tab: focus ring inside the window
+PASS [2] [webkit] 640x400 Shift+Tab: 6 focus stops in the cards, none covered by the dock
+PASS [2] [webkit] 640x400 Shift+Tab: focus ring clear of the dock
+PASS [2] [webkit] 640x400 Shift+Tab: focus ring inside the window
+PASS [2] [webkit] 1280x400 Tab: 7 focus stops in the cards, none covered by the dock
+PASS [2] [webkit] 1280x400 Tab: focus ring clear of the dock
+PASS [2] [webkit] 1280x400 Tab: focus ring inside the window
+PASS [2] [webkit] 1280x400 Shift+Tab: 7 focus stops in the cards, none covered by the dock
+PASS [2] [webkit] 1280x400 Shift+Tab: focus ring clear of the dock
+PASS [2] [webkit] 1280x400 Shift+Tab: focus ring inside the window
+PASS [2] [webkit] 390x660 Tab: 7 focus stops in the cards, none covered by the dock
+PASS [2] [webkit] 390x660 Tab: focus ring clear of the dock
+PASS [2] [webkit] 390x660 Tab: focus ring inside the window
+PASS [2] [webkit] 390x660 Shift+Tab: 6 focus stops in the cards, none covered by the dock
+PASS [2] [webkit] 390x660 Shift+Tab: focus ring clear of the dock
+PASS [2] [webkit] 390x660 Shift+Tab: focus ring inside the window
+PASS [2] [webkit] 390x844 scroll padding tracks a grown dock while focus is on a card, and is off in the box | {"dock":268,"paddingWhileOnCard":"273px"} in box auto
+PASS [2] [webkit] 390x844 grown dock Shift+Tab: 7 focus stops in the cards, none covered by the dock
+PASS [2] [webkit] 390x844 grown dock Shift+Tab: focus ring clear of the dock
+PASS [2] [webkit] 390x844 grown dock Shift+Tab: focus ring inside the window
+PASS [2] [webkit] 640x400 scroll padding tracks a grown dock while focus is on a card, and is off in the box | {"dock":265,"paddingWhileOnCard":"270px"} in box auto
+PASS [2] [webkit] 640x400 grown dock Shift+Tab: 7 focus stops in the cards, none covered by the dock
+PASS [2] [webkit] 640x400 grown dock Shift+Tab: focus ring clear of the dock
+PASS [2] [webkit] 640x400 grown dock Shift+Tab: focus ring inside the window
+PASS [3] [webkit] 376 wide, height fits after Barlow arrives late | before font 62 after font 62 content 62
+PASS [3] [webkit] 380 wide, height fits after Barlow arrives late | before font 62 after font 62 content 62
+PASS [3] [webkit] 384 wide, height fits after Barlow arrives late | before font 62 after font 62 content 62
+PASS [3] [webkit] 388 wide, height fits after Barlow arrives late | before font 62 after font 62 content 62
+PASS [3] [webkit] 390 wide, height fits after Barlow arrives late | before font 42 after font 42 content 42
+PASS [3] [webkit] 400 wide, height fits after Barlow arrives late | before font 42 after font 42 content 42
+PASS [3] [webkit] 420 wide, height fits after Barlow arrives late | before font 42 after font 42 content 42
+PASS [3] [webkit] 360 wide, height fits after Barlow arrives late | before font 62 after font 62 content 62
+PASS [3] [webkit] 320 wide, Talk placeholder change fits the box | off 62 on 42 content 42
+PASS [3] [webkit] 340 wide, Talk placeholder change fits the box | off 62 on 42 content 42
+PASS [3] [webkit] 320 wide, a wrapped placeholder rests at two lines and the first key moves nothing | rest 62 typed 62 dock 673 to 673
+PASS [3] [webkit] 320 wide, longer text still grows and clearing returns to rest | long 113 cleared 62
+PASS [3] [webkit] 375 wide, a wrapped placeholder rests at two lines and the first key moves nothing | rest 62 typed 62 dock 673 to 673
+PASS [3] [webkit] 375 wide, longer text still grows and clearing returns to rest | long 89 cleared 62
+PASS [4] [webkit] Enter with keyCode 229 and isComposing false does not send | event {"keyCode":229,"isComposing":false} notice ""
+PASS [4] [webkit] Enter with isComposing true does not send
+PASS [4] [webkit] plain Enter still sends | Sessions open soon. Your question is still here.
+PASS [4] [webkit] a real Enter key press sends and adds no line
+PASS [5] [webkit] failure line is in a live region | role alert text "Your home screen did not load. The fault is on our side."
+PASS [5] [webkit] failure line does not repeat Try again | Your home screen did not load. The fault is on our side.
+PASS [5] [webkit] focus has a place while the retry runs | H1:Welcome back.
+PASS [5] [webkit] that focus shows a ring after a key press | {"visible":true,"outline":"solid"}
+PASS [5] [webkit] focus stays put when the retry fails | H1:Welcome back.
+PASS [5] [webkit] next Tab after a failed retry reaches Try again | BUTTON:Try again
+PASS [5] [webkit] focus stays put when the retry succeeds | H1:Welcome back, Maya.
+PASS [5] [webkit] next Tab after a good retry reaches Continue | BUTTON:Continue session →
+PASS [5] [webkit] a mouse press moves focus without a ring | {"tag":"H1","ring":false}
+PASS [6] [webkit] 390 wide, Remove names the file | count 1
+PASS [6] [webkit] 390 wide, a press lands on Remove across 24 by 24 px | {"boxWidth":13.5,"boxHeight":27.5,"hits":576,"total":576,"misses":[]}
+PASS [6] [webkit] 390 wide, focus returns to Photo or PDF after removing | BUTTON:Photo or PDF
+PASS [6] [webkit] 390 wide, the chip is gone
+PASS [6] [webkit] 1280 wide, Remove names the file | count 1
+PASS [6] [webkit] 1280 wide, a press lands on Remove across 24 by 24 px | {"boxWidth":13.5,"boxHeight":27.5,"hits":576,"total":576,"misses":[]}
+PASS [6] [webkit] 1280 wide, focus returns to Photo or PDF after removing | BUTTON:Photo or PDF
+PASS [6] [webkit] 1280 wide, the chip is gone
+PASS [7] [webkit] a hung API shows the failure line within about 15 seconds | 15594 ms, "What do you want to learn next?"
+PASS [8] [webkit] wrong on a background refetch at 1280 keeps the typed text | {"value":"A question I must not lose","h1":"Welcome back, Maya.","h2":["Your cards could not be shown."],"alert":"Your cards could not be shown.The fault is on our side. Anything you typed is still in the box below.","alertHeading":"Your cards could not be shown.","sidebar":true}
+PASS [8] [webkit] wrong: fallback has a heading and an announcement
+PASS [8] [webkit] wrong: Try again brings the cards back and keeps the text | {"value":"A question I must not lose","alert":null,"cards":6,"active":"H1"}
+PASS [8] [webkit] wrong-picks on a background refetch at 390 keeps the typed text | {"value":"A question I must not lose","h1":"Welcome back, Maya.","h2":["Your cards could not be shown."],"alert":"Your cards could not be shown.The fault is on our side. Anything you typed is still in the box below.","alertHeading":"Your cards could not be shown.","sidebar":true}
+PASS [8] [webkit] wrong-picks: fallback has a heading and an announcement
+PASS [8] [webkit] wrong-picks: Try again brings the cards back and keeps the text | {"value":"A question I must not lose","alert":null,"cards":6,"active":"H1"}
+PASS [8] [webkit] root fallback has a heading and an announcement with concrete wording | {"alert":"This page stopped working.The fault is on our side. Reloading opens the page again and clears anything you typed.","heading":"This page stopped working.","title":"Astra"}
+PASS [9] [webkit] a session with artwork saturn shows its picture | {"src":"/picks/saturn.jpg","alt":"Saturn and its rings, lit from behind by the Sun","width":228,"height":140,"loaded":true}
+PASS [9] [webkit] cards with unknown names and constructor keep their text and show no broken image | [{"imgs":[],"svgs":0,"title":"How a jump shot flies"},{"imgs":[],"svgs":0,"title":"Why a breaking wave curls"}]
+PASS [9] [webkit] a session with an unknown name shows no picture and takes the full width | {"images":0,"drawings":0,"columns":"985.21875px"}
+PASS [10] [webkit] the shell has no Newsreader preload
+PASS [10] [webkit] the theme script is still there
+PASS [10] [webkit] Newsreader still uses font-display swap and the greeting shows before the font | {"firstTheme":"dark","h1BeforeFont":"unloaded","display":["swap"]}
+PASS [10] [webkit] a saved dark theme is set before the first element renders | dark
+PASS [11-ro] [webkit] resizing with long text fits the box and logs no error | height 89 content 89 console [] window []
+PASS [2-scroll] [webkit] 390x844 clicking and typing in the box leaves the page where it was | start 30 focus 30 typing 30 active TEXTAREA:What do you want to learn next
+PASS [2-scroll] [webkit] 640x400 clicking and typing in the box leaves the page where it was | start 30 focus 30 typing 30 active TEXTAREA:What do you want to learn next
+PASS [2-scroll] [webkit] 1366x650 clicking and typing in the box leaves the page where it was | start 28 focus 28 typing 28 active TEXTAREA:What do you want to learn next
+PASS [2-scroll] [webkit] 1366x650 Tab through the sidebar does not move the page | [["Home",0],["Sessions",0],["Light",0],["Dark",0]]

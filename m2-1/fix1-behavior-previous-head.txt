@@ -1,0 +1,186 @@
+FAIL [1] [chromium] 390x844 to 380x844 with Menu open, 26 chars | height 18 style 0px content 42
+FAIL [1] [chromium] 390x844 to 844x390 with Menu open, 20 chars | height 18 style 0px content 42
+FAIL [1] [chromium] 375x667 to 667x375 with Menu open, 20 chars | height 18 style 0px content 42
+FAIL [1] [chromium] 412x915 to 915x412 with Menu open, 20 chars | height 18 style 0px content 42
+FAIL [1] [chromium] 360x800 to 800x360 with Menu open, 20 chars | height 18 style 0px content 42
+FAIL [1] [chromium] 390x844 to 390x700 with Menu open, empty | height 18 style 0px content 42
+FAIL [1] [chromium] 390x844 to 390x700 with Menu open, 20 chars | height 18 style 0px content 42
+FAIL [1] [chromium] 390x844 to 390x700 with Menu open, 350 chars | height 18 style 0px content 232
+FAIL [1] [chromium] 360x640 to 640x360 with Menu open, 20 chars | height 18 style 0px content 42
+FAIL [1] [chromium] 390x500 to 390x844 with Menu open, 350 chars | height 18 style 0px content 232
+FAIL [2] [chromium] 390x844 Tab: 7 focus stops in the cards, none covered by the dock | Astronomy, 10 minWhy Saturn  39.359375/90; Biology, 15 minHow DNA copie 107/90
+FAIL [2] [chromium] 390x844 Tab: focus ring clear of the dock | Astronomy, 10 minWhy Saturn  43.359375; Biology, 15 minHow DNA copie 111.359375
+FAIL [2] [chromium] 390x844 Tab: focus ring inside the window | Biology, 15 minHow DNA copie above 0 below 4.359375
+PASS [2] [chromium] 390x844 Shift+Tab: 6 focus stops in the cards, none covered by the dock
+PASS [2] [chromium] 390x844 Shift+Tab: focus ring clear of the dock
+PASS [2] [chromium] 390x844 Shift+Tab: focus ring inside the window
+FAIL [2] [chromium] 640x400 Tab: 7 focus stops in the cards, none covered by the dock | Continue session → 7.890625/43; Physics, 12 minHow a jump sh 107/90; Math, 15 minWhy savings grow 52.390625/90; Astronomy, 10 minWhy Saturn  107/90; Philosophy, 20 minWhat Plato 52.390625/90
+FAIL [2] [chromium] 640x400 Tab: focus ring clear of the dock | Continue session → 11.890625; Physics, 12 minHow a jump sh 111.390625; Math, 15 minWhy savings grow 56.390625; Astronomy, 10 minWhy Saturn  111.390625; Philosophy, 20 minWhat Plato 56.390625
+FAIL [2] [chromium] 640x400 Tab: focus ring inside the window | Physics, 12 minHow a jump sh above 0 below 4.390625; Astronomy, 10 minWhy Saturn  above 0 below 4.390625
+FAIL [2] [chromium] 640x400 Shift+Tab: 6 focus stops in the cards, none covered by the dock | Philosophy, 20 minWhat Plato 52.390625/90
+FAIL [2] [chromium] 640x400 Shift+Tab: focus ring clear of the dock | Philosophy, 20 minWhat Plato 56.390625
+FAIL [2] [chromium] 640x400 Shift+Tab: focus ring inside the window | Math, 15 minWhy savings grow above 3.609375 below 0
+FAIL [2] [chromium] 1280x400 Tab: 7 focus stops in the cards, none covered by the dock | Physics, 12 minHow a jump sh 113.703125/101.890625; Physics, 12 minWhy a breakin 113.703125/101.890625; Math, 15 minWhy savings grow 113.703125/101.890625
+FAIL [2] [chromium] 1280x400 Tab: focus ring clear of the dock | Physics, 12 minHow a jump sh 117.703125; Physics, 12 minWhy a breakin 117.703125; Math, 15 minWhy savings grow 117.703125
+FAIL [2] [chromium] 1280x400 Tab: focus ring inside the window | Physics, 12 minHow a jump sh above 0 below 3.703125; Physics, 12 minWhy a breakin above 0 below 3.703125; Math, 15 minWhy savings grow above 0 below 3.703125
+PASS [2] [chromium] 1280x400 Shift+Tab: 7 focus stops in the cards, none covered by the dock
+PASS [2] [chromium] 1280x400 Shift+Tab: focus ring clear of the dock
+PASS [2] [chromium] 1280x400 Shift+Tab: focus ring inside the window
+FAIL [2] [chromium] 390x660 Tab: 7 focus stops in the cards, none covered by the dock | Physics, 12 minWhy a breakin 15.078125/90; Math, 15 minWhy savings grow 107/90; Philosophy, 20 minWhat Plato 33.96875/101.890625
+FAIL [2] [chromium] 390x660 Tab: focus ring clear of the dock | Physics, 12 minWhy a breakin 19.078125; Math, 15 minWhy savings grow 111.078125; Philosophy, 20 minWhat Plato 37.96875
+FAIL [2] [chromium] 390x660 Tab: focus ring inside the window | Math, 15 minWhy savings grow above 0 below 4.078125
+FAIL [2] [chromium] 390x660 Shift+Tab: 6 focus stops in the cards, none covered by the dock | Philosophy, 20 minWhat Plato 33.96875/101.890625
+FAIL [2] [chromium] 390x660 Shift+Tab: focus ring clear of the dock | Philosophy, 20 minWhat Plato 37.96875
+FAIL [2] [chromium] 390x660 Shift+Tab: focus ring inside the window | Physics, 12 minHow a jump sh above 3.921875 below 0
+FAIL [2] [chromium] 390x844 scroll padding tracks a grown dock while focus is on a card, and is off in the box | {"dock":268,"paddingWhileOnCard":"auto"} in box auto
+PASS [2] [chromium] 390x844 grown dock Shift+Tab: 7 focus stops in the cards, none covered by the dock
+PASS [2] [chromium] 390x844 grown dock Shift+Tab: focus ring clear of the dock
+FAIL [2] [chromium] 390x844 grown dock Shift+Tab: focus ring inside the window | Physics, 12 minHow a jump sh above 3.640625 below 0
+FAIL [2] [chromium] 640x400 scroll padding tracks a grown dock while focus is on a card, and is off in the box | {"dock":265,"paddingWhileOnCard":"auto"} in box auto
+FAIL [2] [chromium] 640x400 grown dock Shift+Tab: 7 focus stops in the cards, none covered by the dock | Philosophy, 20 minWhat Plato 110.390625/90; Biology, 15 minHow DNA copie 10.390625/90; Math, 15 minWhy savings grow 110.390625/90; Physics, 12 minWhy a breakin 10.390625/90; Continue session → 86.890625/43
+FAIL [2] [chromium] 640x400 grown dock Shift+Tab: focus ring clear of the dock | Philosophy, 20 minWhat Plato 114.390625; Biology, 15 minHow DNA copie 14.390625; Math, 15 minWhy savings grow 114.390625; Physics, 12 minWhy a breakin 14.390625; Continue session → 90.890625
+FAIL [2] [chromium] 640x400 grown dock Shift+Tab: focus ring inside the window | Astronomy, 10 minWhy Saturn  above 3.609375 below 0; Physics, 12 minHow a jump sh above 3.609375 below 0
+PASS [3] [chromium] 376 wide, height fits after Barlow arrives late | before font 66 after font 66 content 66
+PASS [3] [chromium] 380 wide, height fits after Barlow arrives late | before font 66 after font 66 content 66
+PASS [3] [chromium] 384 wide, height fits after Barlow arrives late | before font 66 after font 66 content 66
+PASS [3] [chromium] 388 wide, height fits after Barlow arrives late | before font 66 after font 66 content 66
+FAIL [3] [chromium] 390 wide, height fits after Barlow arrives late | before font 66 after font 66 content 42
+FAIL [3] [chromium] 400 wide, height fits after Barlow arrives late | before font 66 after font 66 content 42
+PASS [3] [chromium] 420 wide, height fits after Barlow arrives late | before font 42 after font 42 content 42
+PASS [3] [chromium] 360 wide, height fits after Barlow arrives late | before font 66 after font 66 content 66
+FAIL [3] [chromium] 320 wide, Talk placeholder change fits the box | off 66 on 66 content 42
+FAIL [3] [chromium] 340 wide, Talk placeholder change fits the box | off 66 on 66 content 42
+FAIL [3] [chromium] 320 wide, a wrapped placeholder rests at two lines and the first key moves nothing | rest 66 typed 42 dock 669 to 693
+PASS [3] [chromium] 320 wide, longer text still grows and clearing returns to rest | long 113 cleared 66
+FAIL [3] [chromium] 375 wide, a wrapped placeholder rests at two lines and the first key moves nothing | rest 66 typed 42 dock 669 to 693
+PASS [3] [chromium] 375 wide, longer text still grows and clearing returns to rest | long 89 cleared 66
+FAIL [4] [chromium] Enter with keyCode 229 and isComposing false does not send | event {"keyCode":229,"isComposing":false} notice "Sessions open soon. Your question is still here."
+FAIL [4] [chromium] Enter with isComposing true does not send
+PASS [4] [chromium] plain Enter still sends | Sessions open soon. Your question is still here.
+PASS [4] [chromium] a real Enter key press sends and adds no line
+FAIL [5] [chromium] failure line is in a live region | role null text "Something went wrong on our side. Try again."
+FAIL [5] [chromium] failure line does not repeat Try again | Something went wrong on our side. Try again.
+FAIL [5] [chromium] focus has a place while the retry runs | BODY
+FAIL [5] [chromium] that focus shows a ring after a key press | {"visible":false,"outline":"none"}
+FAIL [5] [chromium] focus stays put when the retry fails | BODY
+PASS [5] [chromium] next Tab after a failed retry reaches Try again | BUTTON:Try again
+FAIL [5] [chromium] focus stays put when the retry succeeds | BODY
+PASS [5] [chromium] next Tab after a good retry reaches Continue | BUTTON:Continue session →
+FAIL [5] [chromium] a mouse press moves focus without a ring | {"tag":"BODY","ring":false}
+FAIL [6] [chromium] 390 wide, Remove names the file | count 0
+FAIL [6] [chromium] 390 wide, a press lands on Remove across 24 by 24 px | {"boxWidth":13.5,"boxHeight":27.5,"hits":360,"total":576,"misses":[[-11.5,-11.5,"DIV"],[-11.5,-10.5,"SPAN"],[-11.5,-9.5,"SPAN"]]}
+FAIL [6] [chromium] 390 wide, focus returns to Photo or PDF after removing | BODY
+PASS [6] [chromium] 390 wide, the chip is gone
+FAIL [6] [chromium] 1280 wide, Remove names the file | count 0
+FAIL [6] [chromium] 1280 wide, a press lands on Remove across 24 by 24 px | {"boxWidth":13.5,"boxHeight":27.5,"hits":360,"total":576,"misses":[[-11.5,-11.5,"DIV"],[-11.5,-10.5,"SPAN"],[-11.5,-9.5,"SPAN"]]}
+FAIL [6] [chromium] 1280 wide, focus returns to Photo or PDF after removing | BODY
+PASS [6] [chromium] 1280 wide, the chip is gone
+FAIL [7] [chromium] a hung API shows the failure line within about 15 seconds | 33171 ms, "What do you want to learn next?"
+FAIL [8] [chromium] wrong on a background refetch at 1280 keeps the typed text | {"value":null,"h2":[],"alert":null,"alertHeading":null,"sidebar":false}
+FAIL [8] [chromium] wrong: fallback has a heading and an announcement
+FAIL [8] [chromium] wrong-picks on a background refetch at 390 keeps the typed text | {"value":null,"h2":[],"alert":null,"alertHeading":null,"sidebar":false}
+FAIL [8] [chromium] wrong-picks: fallback has a heading and an announcement
+FAIL [8] [chromium] section threw | locator.waitFor: Timeout 5000ms exceeded.
+FAIL [9] [chromium] section threw | locator.waitFor: Timeout 30000ms exceeded.
+FAIL [10] [chromium] the shell has no Newsreader preload
+PASS [10] [chromium] the theme script is still there
+PASS [10] [chromium] Newsreader still uses font-display swap and the greeting shows before the font | {"firstTheme":"dark","h1BeforeFont":"unloaded","display":["swap"]}
+PASS [10] [chromium] a saved dark theme is set before the first element renders | dark
+PASS [11-ro] [chromium] resizing with long text fits the box and logs no error | height 89 content 89 console [] window []
+PASS [2-scroll] [chromium] 390x844 clicking and typing in the box leaves the page where it was | start 30 focus 30 typing 30 active TEXTAREA:What do you want to learn next
+PASS [2-scroll] [chromium] 640x400 clicking and typing in the box leaves the page where it was | start 30 focus 30 typing 30 active TEXTAREA:What do you want to learn next
+PASS [2-scroll] [chromium] 1366x650 clicking and typing in the box leaves the page where it was | start 28 focus 28 typing 28 active TEXTAREA:What do you want to learn next
+PASS [2-scroll] [chromium] 1366x650 Tab through the sidebar does not move the page | [["Home",0],["Sessions",0],["Light",0],["Dark",0]]
+FAIL [1] [webkit] 390x844 to 380x844 with Menu open, 26 chars | height 18 style 0px content 42
+FAIL [1] [webkit] 390x844 to 844x390 with Menu open, 20 chars | height 18 style 0px content 42
+FAIL [1] [webkit] 375x667 to 667x375 with Menu open, 20 chars | height 18 style 0px content 42
+FAIL [1] [webkit] 412x915 to 915x412 with Menu open, 20 chars | height 18 style 0px content 42
+FAIL [1] [webkit] 360x800 to 800x360 with Menu open, 20 chars | height 18 style 0px content 42
+FAIL [1] [webkit] 390x844 to 390x700 with Menu open, empty | height 18 style 0px content 42
+FAIL [1] [webkit] 390x844 to 390x700 with Menu open, 20 chars | height 18 style 0px content 42
+FAIL [1] [webkit] 390x844 to 390x700 with Menu open, 350 chars | height 18 style 0px content 232
+FAIL [1] [webkit] 360x640 to 640x360 with Menu open, 20 chars | height 18 style 0px content 42
+FAIL [1] [webkit] 390x500 to 390x844 with Menu open, 350 chars | height 18 style 0px content 232
+FAIL [2] [webkit] 390x844 Tab: 7 focus stops in the cards, none covered by the dock | Astronomy, 10 minWhy Saturn  39.359375/90; Biology, 15 minHow DNA copie 107/90
+FAIL [2] [webkit] 390x844 Tab: focus ring clear of the dock | Astronomy, 10 minWhy Saturn  43.359375; Biology, 15 minHow DNA copie 111.359375
+FAIL [2] [webkit] 390x844 Tab: focus ring inside the window | Biology, 15 minHow DNA copie above 0 below 4.359375
+PASS [2] [webkit] 390x844 Shift+Tab: 6 focus stops in the cards, none covered by the dock
+PASS [2] [webkit] 390x844 Shift+Tab: focus ring clear of the dock
+PASS [2] [webkit] 390x844 Shift+Tab: focus ring inside the window
+FAIL [2] [webkit] 640x400 Tab: 7 focus stops in the cards, none covered by the dock | Continue session → 7.890625/43; Physics, 12 minHow a jump sh 107/90; Math, 15 minWhy savings grow 52.390625/90; Astronomy, 10 minWhy Saturn  107/90; Philosophy, 20 minWhat Plato 52.390625/90
+FAIL [2] [webkit] 640x400 Tab: focus ring clear of the dock | Continue session → 11.890625; Physics, 12 minHow a jump sh 111.390625; Math, 15 minWhy savings grow 56.390625; Astronomy, 10 minWhy Saturn  111.390625; Philosophy, 20 minWhat Plato 56.390625
+FAIL [2] [webkit] 640x400 Tab: focus ring inside the window | Physics, 12 minHow a jump sh above 0 below 4.390625; Astronomy, 10 minWhy Saturn  above 0 below 4.390625
+FAIL [2] [webkit] 640x400 Shift+Tab: 6 focus stops in the cards, none covered by the dock | Philosophy, 20 minWhat Plato 52.390625/90
+FAIL [2] [webkit] 640x400 Shift+Tab: focus ring clear of the dock | Philosophy, 20 minWhat Plato 56.390625
+FAIL [2] [webkit] 640x400 Shift+Tab: focus ring inside the window | Math, 15 minWhy savings grow above 3.609375 below 0
+FAIL [2] [webkit] 1280x400 Tab: 7 focus stops in the cards, none covered by the dock | Physics, 12 minHow a jump sh 113.6875/101.890625; Physics, 12 minWhy a breakin 113.6875/101.890625; Math, 15 minWhy savings grow 113.6875/101.890625
+FAIL [2] [webkit] 1280x400 Tab: focus ring clear of the dock | Physics, 12 minHow a jump sh 117.6875; Physics, 12 minWhy a breakin 117.6875; Math, 15 minWhy savings grow 117.6875
+FAIL [2] [webkit] 1280x400 Tab: focus ring inside the window | Physics, 12 minHow a jump sh above 0 below 3.6875; Physics, 12 minWhy a breakin above 0 below 3.6875; Math, 15 minWhy savings grow above 0 below 3.6875
+PASS [2] [webkit] 1280x400 Shift+Tab: 7 focus stops in the cards, none covered by the dock
+PASS [2] [webkit] 1280x400 Shift+Tab: focus ring clear of the dock
+PASS [2] [webkit] 1280x400 Shift+Tab: focus ring inside the window
+FAIL [2] [webkit] 390x660 Tab: 7 focus stops in the cards, none covered by the dock | Physics, 12 minWhy a breakin 15.078125/90; Math, 15 minWhy savings grow 107/90; Philosophy, 20 minWhat Plato 33.96875/101.890625
+FAIL [2] [webkit] 390x660 Tab: focus ring clear of the dock | Physics, 12 minWhy a breakin 19.078125; Math, 15 minWhy savings grow 111.078125; Philosophy, 20 minWhat Plato 37.96875
+FAIL [2] [webkit] 390x660 Tab: focus ring inside the window | Math, 15 minWhy savings grow above 0 below 4.078125
+FAIL [2] [webkit] 390x660 Shift+Tab: 6 focus stops in the cards, none covered by the dock | Philosophy, 20 minWhat Plato 33.96875/101.890625
+FAIL [2] [webkit] 390x660 Shift+Tab: focus ring clear of the dock | Philosophy, 20 minWhat Plato 37.96875
+FAIL [2] [webkit] 390x660 Shift+Tab: focus ring inside the window | Physics, 12 minHow a jump sh above 3.921875 below 0
+FAIL [2] [webkit] 390x844 scroll padding tracks a grown dock while focus is on a card, and is off in the box | {"dock":268,"paddingWhileOnCard":"auto"} in box auto
+PASS [2] [webkit] 390x844 grown dock Shift+Tab: 7 focus stops in the cards, none covered by the dock
+PASS [2] [webkit] 390x844 grown dock Shift+Tab: focus ring clear of the dock
+FAIL [2] [webkit] 390x844 grown dock Shift+Tab: focus ring inside the window | Physics, 12 minHow a jump sh above 3.640625 below 0
+FAIL [2] [webkit] 640x400 scroll padding tracks a grown dock while focus is on a card, and is off in the box | {"dock":265,"paddingWhileOnCard":"auto"} in box auto
+FAIL [2] [webkit] 640x400 grown dock Shift+Tab: 7 focus stops in the cards, none covered by the dock | Philosophy, 20 minWhat Plato 110.390625/90; Biology, 15 minHow DNA copie 10.390625/90; Math, 15 minWhy savings grow 110.390625/90; Physics, 12 minWhy a breakin 10.390625/90; Continue session → 85.890625/43
+FAIL [2] [webkit] 640x400 grown dock Shift+Tab: focus ring clear of the dock | Philosophy, 20 minWhat Plato 114.390625; Biology, 15 minHow DNA copie 14.390625; Math, 15 minWhy savings grow 114.390625; Physics, 12 minWhy a breakin 14.390625; Continue session → 89.890625
+FAIL [2] [webkit] 640x400 grown dock Shift+Tab: focus ring inside the window | Astronomy, 10 minWhy Saturn  above 3.609375 below 0; Physics, 12 minHow a jump sh above 3.609375 below 0
+PASS [3] [webkit] 376 wide, height fits after Barlow arrives late | before font 62 after font 62 content 62
+PASS [3] [webkit] 380 wide, height fits after Barlow arrives late | before font 62 after font 62 content 62
+PASS [3] [webkit] 384 wide, height fits after Barlow arrives late | before font 62 after font 62 content 62
+PASS [3] [webkit] 388 wide, height fits after Barlow arrives late | before font 62 after font 62 content 62
+FAIL [3] [webkit] 390 wide, height fits after Barlow arrives late | before font 62 after font 62 content 42
+FAIL [3] [webkit] 400 wide, height fits after Barlow arrives late | before font 62 after font 62 content 42
+PASS [3] [webkit] 420 wide, height fits after Barlow arrives late | before font 42 after font 42 content 42
+PASS [3] [webkit] 360 wide, height fits after Barlow arrives late | before font 62 after font 62 content 62
+FAIL [3] [webkit] 320 wide, Talk placeholder change fits the box | off 62 on 62 content 42
+FAIL [3] [webkit] 340 wide, Talk placeholder change fits the box | off 62 on 62 content 42
+FAIL [3] [webkit] 320 wide, a wrapped placeholder rests at two lines and the first key moves nothing | rest 62 typed 42 dock 673 to 693
+PASS [3] [webkit] 320 wide, longer text still grows and clearing returns to rest | long 113 cleared 62
+FAIL [3] [webkit] 375 wide, a wrapped placeholder rests at two lines and the first key moves nothing | rest 62 typed 42 dock 673 to 693
+PASS [3] [webkit] 375 wide, longer text still grows and clearing returns to rest | long 89 cleared 62
+FAIL [4] [webkit] Enter with keyCode 229 and isComposing false does not send | event {"keyCode":229,"isComposing":false} notice "Sessions open soon. Your question is still here."
+FAIL [4] [webkit] Enter with isComposing true does not send
+PASS [4] [webkit] plain Enter still sends | Sessions open soon. Your question is still here.
+PASS [4] [webkit] a real Enter key press sends and adds no line
+FAIL [5] [webkit] failure line is in a live region | role null text "Something went wrong on our side. Try again."
+FAIL [5] [webkit] failure line does not repeat Try again | Something went wrong on our side. Try again.
+FAIL [5] [webkit] focus has a place while the retry runs | BODY
+FAIL [5] [webkit] that focus shows a ring after a key press | {"visible":false,"outline":"none"}
+FAIL [5] [webkit] focus stays put when the retry fails | BODY
+PASS [5] [webkit] next Tab after a failed retry reaches Try again | BUTTON:Try again
+FAIL [5] [webkit] focus stays put when the retry succeeds | BODY
+PASS [5] [webkit] next Tab after a good retry reaches Continue | BUTTON:Continue session →
+FAIL [5] [webkit] a mouse press moves focus without a ring | {"tag":"BODY","ring":false}
+FAIL [6] [webkit] 390 wide, Remove names the file | count 0
+FAIL [6] [webkit] 390 wide, a press lands on Remove across 24 by 24 px | {"boxWidth":13.5,"boxHeight":27.5,"hits":360,"total":576,"misses":[[-11.5,-11.5,"DIV"],[-11.5,-10.5,"SPAN"],[-11.5,-9.5,"SPAN"]]}
+FAIL [6] [webkit] 390 wide, focus returns to Photo or PDF after removing | BODY
+PASS [6] [webkit] 390 wide, the chip is gone
+FAIL [6] [webkit] 1280 wide, Remove names the file | count 0
+FAIL [6] [webkit] 1280 wide, a press lands on Remove across 24 by 24 px | {"boxWidth":13.5,"boxHeight":27.5,"hits":360,"total":576,"misses":[[-11.5,-11.5,"DIV"],[-11.5,-10.5,"SPAN"],[-11.5,-9.5,"SPAN"]]}
+FAIL [6] [webkit] 1280 wide, focus returns to Photo or PDF after removing | BODY
+PASS [6] [webkit] 1280 wide, the chip is gone
+FAIL [7] [webkit] a hung API shows the failure line within about 15 seconds | 33109 ms, "What do you want to learn next?"
+FAIL [8] [webkit] wrong on a background refetch at 1280 keeps the typed text | {"value":null,"h2":[],"alert":null,"alertHeading":null,"sidebar":false}
+FAIL [8] [webkit] wrong: fallback has a heading and an announcement
+FAIL [8] [webkit] wrong-picks on a background refetch at 390 keeps the typed text | {"value":null,"h2":[],"alert":null,"alertHeading":null,"sidebar":false}
+FAIL [8] [webkit] wrong-picks: fallback has a heading and an announcement
+FAIL [8] [webkit] section threw | locator.waitFor: Timeout 5000ms exceeded.
+FAIL [9] [webkit] section threw | locator.waitFor: Timeout 30000ms exceeded.
+FAIL [10] [webkit] the shell has no Newsreader preload
+PASS [10] [webkit] the theme script is still there
+PASS [10] [webkit] Newsreader still uses font-display swap and the greeting shows before the font | {"firstTheme":"dark","h1BeforeFont":"unloaded","display":["swap"]}
+PASS [10] [webkit] a saved dark theme is set before the first element renders | dark
+PASS [11-ro] [webkit] resizing with long text fits the box and logs no error | height 89 content 89 console [] window []
+PASS [2-scroll] [webkit] 390x844 clicking and typing in the box leaves the page where it was | start 30 focus 30 typing 30 active TEXTAREA:What do you want to learn next
+PASS [2-scroll] [webkit] 640x400 clicking and typing in the box leaves the page where it was | start 30 focus 30 typing 30 active TEXTAREA:What do you want to learn next
+PASS [2-scroll] [webkit] 1366x650 clicking and typing in the box leaves the page where it was | start 28 focus 28 typing 28 active TEXTAREA:What do you want to learn next
+PASS [2-scroll] [webkit] 1366x650 Tab through the sidebar does not move the page | [["Home",0],["Sessions",0],["Light",0],["Dark",0]]

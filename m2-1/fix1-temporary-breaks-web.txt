@@ -1,0 +1,33 @@
+CAUGHT 1 the old hook from 8c9c0c1 | 4 failing | keeps its height while hidden, whatever resizes, and fits again when it shows | AssertionError: expected '0px' to be '66px' // Object.is equality
+CAUGHT 1 no hidden guard | 1 failing | keeps its height while hidden, whatever resizes, and fits again when it shows | AssertionError: expected '42px' to be '66px' // Object.is equality
+CAUGHT 1 no refit when it shows | 1 failing | keeps its height while hidden, whatever resizes, and fits again when it shows | AssertionError: expected '66px' to be '90px' // Object.is equality
+CAUGHT 3 no refit after font | 1 failing | fits again once a web font has loaded | AssertionError: expected '66px' to be '42px' // Object.is equality
+CAUGHT 3 no refit on placeholder | 1 failing | fits again when Talk changes the placeholder | AssertionError: expected '42px' to be '66px' // Object.is equality
+CAUGHT 3 no hold at placeholder height | 1 failing | stays as tall as a wrapped placeholder when the first key makes the content shorter | AssertionError: expected '42px' to be '66px' // Object.is equality
+CAUGHT 4 no keyCode guard | 1 failing | does not send on the Enter that confirms a word in an input method in WebKit, after compositionend | AssertionError: expected "vi.fn()" to not be called at all, but actually been called 1 times
+CAUGHT 4 no isComposing guard | 1 failing | does not send on the Enter that confirms a word in an input method in Chromium | AssertionError: expected "vi.fn()" to not be called at all, but actually been called 1 times
+CAUGHT send adds a line on Enter | 1 failing | sends the question on Enter and adds no line | AssertionError: expected true to be false // Object.is equality
+CAUGHT send ignores Shift | 1 failing | leaves Shift plus Enter to the browser, which adds a line, and does not send | AssertionError: expected "vi.fn()" to not be called at all, but actually been called 1 times
+CAUGHT send keeps outer spaces | 1 failing | sends the question without its outer spaces from the send button | AssertionError: expected "vi.fn()" to be called once with arguments: [ 'Why is the sky dark at night?' ]
+CAUGHT send always on | 3 failing | disables send while the box is empty | AssertionError: expected false to be true // Object.is equality
+CAUGHT talk never on | 2 failing | shows that it is on, and says that talking is not open yet | AssertionError: expected 'false' to be 'true' // Object.is equality
+CAUGHT file picker never opens | 1 failing | opens the file picker | AssertionError: expected "click" to be called once, but got 0 times
+CAUGHT 6 Remove lacks the file name | 1 failing | shows the chosen file, removes it by name, and returns focus to the control | TestingLibraryElementError: Unable to find an accessible element with the role "button" and name `/homework.jpg/`
+CAUGHT 6 no focus return | 1 failing | shows the chosen file, removes it by name, and returns focus to the control | AssertionError: expected <body><div>…(1)</div></body> to be <button type="button" …(1)>…(2)</button> // Object.is equality
+CAUGHT 5 no focus on retry | 2 failing | keeps focus on the greeting when Try again succeeds | AssertionError: expected <body><div>…(4)</div></body> to be <h1 tabindex="-1" …(1)></h1> // Object.is equality
+CAUGHT 5 no live region | 7 failing | announces the failure and keeps the greeting and the chat box | Error: Unable to find role="alert"
+CAUGHT 5 failure line back to the old wording | 2 failing | announces the failure and keeps the greeting and the chat box | AssertionError: expected 'Something went wrong on our side. Try…' to be 'Your home screen did not load. The fa…' // Object.is equality
+CAUGHT 7 no timeout | 1 failing | shows the failure line in about 15 seconds when the API never answers | TestingLibraryElementError: Unable to find an accessible element with the role "alert"
+CAUGHT 8 no boundary | 2 failing | keeps the chat box and the student's text, and announces a heading in place of the cards | Error: Unable to find role="alert"
+CAUGHT 8 boundary never retries | 1 failing | brings the cards back from Try again once the data is right | Error: Unable to find an element with the text: How a jump shot flies. This could be because the text is broken up by multiple elements. In this case,
+CAUGHT 8 root fallback has no alert | 3 failing | announces a heading and a calm line, with a reload control, in place of a crashed screen | TestingLibraryElementError: Unable to find an accessible element with the role "alert"
+CAUGHT 8 App without the root boundary | 1 failing | shows the crash page with a reload control when a page crashes | Error: a bug in a page
+CAUGHT 9 hasOwn replaced by in | 2 failing | shows no picture on the unfinished session with the name of an object property | AssertionError: expected <img …(1)></img> to be null
+CAUGHT 9 card renders an image for an unknown name | 2 failing | keeps a card with an artwork name this build does not know and shows no broken picture | AssertionError: expected <img alt></img> to be null
+CAUGHT 9 Continue shows no picture | 1 failing | offers the unfinished session with a picture when its artwork is a picture | TestingLibraryElementError: Unable to find an accessible element with the role "img" and name "Saturn and its rings, lit from behind by the Sun"
+CAUGHT 2 dock height not published | 1 failing | publishes the dock height as the dock grows, and removes it on leaving | AssertionError: expected '' to be '135px' // Object.is equality
+CAUGHT 2 dock height left behind | 1 failing | publishes the dock height as the dock grows, and removes it on leaving | AssertionError: expected '135px' to be '' // Object.is equality
+CAUGHT card drops its reason | 1 failing | shows each card with its subject, length, reason, and picture | TestingLibraryElementError: Unable to find an element with the text: Because you play basketball. This could be because the text is broken up by multi
+CAUGHT notice stays after editing | 1 failing | drops the notice once the student edits the question | AssertionError: expected 'Sessions open soon. Your question is …' to be '' // Object.is equality
+CAUGHT Continue does nothing | 1 failing | says that sessions open soon when the student chooses Continue | AssertionError: expected '' to be 'Sessions open soon.' // Object.is equality
+status after restore: 
