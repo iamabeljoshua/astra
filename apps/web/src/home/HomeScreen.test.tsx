@@ -83,7 +83,7 @@ describe('HomeScreen', () => {
     it('says welcome, not welcome back', async () => {
       stubFetchWithHomeScreen(NEW_STUDENT_HOME);
 
-      renderWithQueryClient(<HomeScreen />);
+      renderWithQueryClient(HOME_SCREEN);
 
       await screen.findByRole('heading', { level: 1, name: HOME_LABELS.newStudentGreeting(EXAMPLE_STUDENT_NAME) });
     });
@@ -91,7 +91,7 @@ describe('HomeScreen', () => {
     it('never calls the student a returning one while the screen loads', () => {
       vi.stubGlobal('fetch', () => new Promise<Response>(() => undefined));
 
-      renderWithQueryClient(<HomeScreen />);
+      renderWithQueryClient(HOME_SCREEN);
 
       screen.getByRole('heading', { level: 1, name: HOME_LABELS.greetingWithoutName });
       expect(HOME_LABELS.greetingWithoutName).not.toMatch(/back/);
