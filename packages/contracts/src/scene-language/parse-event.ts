@@ -137,6 +137,10 @@ const STUDENT_WORK: VariantTable<StudentWork, 'way'> = {
       keys: ['task', 'placed'],
       read: (fields) => ({ way: 'place', task: readElementId(fields.at('task')), placed: readList(fields.at('placed'), { maxLength: LIMITS.slots, readItem: readPlacedSlot }) }),
     },
+    leave: {
+      keys: ['task'],
+      read: (fields) => ({ way: 'leave', task: readElementId(fields.at('task')) }),
+    },
     drag: {
       keys: ['task', 'x', 'samples'],
       read: (fields) => ({ way: 'drag', task: readElementId(fields.at('task')), x: readNumberInRange(fields.at('x'), COORDINATE), samples: readList(fields.at('samples'), { maxLength: LIMITS.sliderSamples, readItem: readPointSample }) }),

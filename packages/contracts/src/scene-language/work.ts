@@ -37,7 +37,9 @@ export type StudentWork =
   | { way: 'pick'; task: ElementId; part: string }
   /** Holds the item in each slot, or null for an empty slot, in the task's slot order. */
   | { way: 'place'; task: ElementId; placed: (string | null)[] }
-  | { way: 'drag'; task: ElementId; x: number; samples: PointSample[] };
+  | { way: 'drag'; task: ElementId; x: number; samples: PointSample[] }
+  /** The student said aloud that they want something else, so the task closes and no line lands. */
+  | { way: 'leave'; task: ElementId };
 
 /** The longest line the reader will treat as math. Anything longer is read as words. */
 export const MATH_LINE_MAX_CHARACTERS = 200;

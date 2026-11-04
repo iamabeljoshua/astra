@@ -88,7 +88,7 @@ export function checkAgainstBoard(command: SceneCommand, memory: BoardMemory): C
 }
 
 function getOpenTaskAfter(command: SceneCommand, { openTask, lines, doneTasks }: BoardMemory): OpenTask | null {
-  if (command.kind === 'clearBoard' || (command.kind === 'hide' && command.target === openTask?.id)) return null;
+  if (command.kind === 'clearBoard' || (command.kind === 'hide' && command.target === openTask?.id) || (command.kind === 'boardMode' && command.mode === 'teach')) return null;
   if (command.kind !== 'task') return openTask;
   if (doneTasks.has(command.id)) return null;
   return { id: command.id, problemTex: command.way === 'write' && command.on !== undefined ? (lines.get(command.on) ?? null) : null, studentTurns: 0 };
@@ -127,6 +127,7 @@ export function getMemoryAfterAnswering(memory: BoardMemory): BoardMemory {
 
 export function getMemoryAfterWork(work: StudentWork, { reading, verdict, closesTask }: CheckedWork, memory: BoardMemory): BoardMemory {
   const id = work.way === 'write' ? work.id : work.task;
+  if (work.way === 'leave') return { ...memory, openTask: null, doneTasks: new Set([...memory.doneTasks, work.task]) };
   const tex = reading ? getLineTex(reading) : null;
   return {
     ...memory,

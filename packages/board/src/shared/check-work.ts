@@ -28,6 +28,11 @@ const toKey = (text: string) => text.toLowerCase().replace(/\s+/g, '').replace(/
 const toPartKey = (part: string) => part.replace(/\s/g, '').replace(/^\+/, '');
 
 const BARE_NUMBER = /^-?\d*\.?\d+$/;
+const PLEASANTRY = String.raw`(?:(?:ok|okay|so|actually|um|please|can we|could we|can you|could you|let'?s|lets|i want to|i'?d like to|i wanna)[,\s]+)*`;
+const WANTS_SOMETHING_ELSE = new RegExp(String.raw`^\s*${PLEASANTRY}(?:teach me|learn(?: about)?|talk about|switch to|move on to|go back to|do something else|change (?:the )?(?:topic|subject)|new topic|another topic|different topic|something else|forget (?:this|that|it))\b(?!\s+(?:this|that|it|how to (?:do|solve) (?:this|that|it))\b)`, 'i');
+
+/** The student has asked for something else, which takes them off the task, so no later line is held to it. */
+export const wantsSomethingElse = (text: string) => WANTS_SOMETHING_ELSE.test(text);
 
 // A number can be told from a number, so 54 is not 56, and words are left for the tutor to read.
 function checkAccepted(text: string, accepts: readonly string[]): WorkVerdict | null {
@@ -54,6 +59,7 @@ function checkWrite({ text, ink, heard }: StudentWork & { way: 'write' }, contex
   const writeTask = task?.way === 'write' ? task : null;
   const reading = read ? getReaderLineReading(text, read.tex) : readLine(text, writeTask?.reads);
   if (read?.isUnsure) return { reading, verdict: UNKNOWN };
+  if (task && reading.kind === 'words' && wantsSomethingElse(text)) return { reading, verdict: UNKNOWN, closesTask: task.id };
   const accepted = writeTask?.accepts ? checkAccepted(text, writeTask.accepts) : null;
   if (reading.isAsking) return { reading, verdict: UNKNOWN };
   if (accepted) return { reading, verdict: accepted, ...closes(task, accepted.status === 'right') };
@@ -124,5 +130,7 @@ export function checkWork(work: StudentWork, context: WorkContext): CheckedWork 
       return checkPlace(work.placed, context);
     case 'drag':
       return checkDrag(work.x, context);
+    case 'leave':
+      return { verdict: UNKNOWN, ...closes(context.task, true) };
   }
 }

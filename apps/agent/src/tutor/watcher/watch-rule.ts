@@ -86,6 +86,8 @@ export function decideOnWork(work: StudentWork, checked: CheckedWork, hasTask: b
   switch (work.way) {
     case 'write':
       return decideOnLine(work.text, checked.reading, checked, hasTask);
+    case 'leave':
+      return reply('the student wants something else');
     case 'pick':
       return reply('the student picked');
     case 'place':
@@ -99,6 +101,8 @@ export function getWorkWords(work: StudentWork): string {
   switch (work.way) {
     case 'write':
       return work.text;
+    case 'leave':
+      return '(wants something else)';
     case 'pick':
       return `(picked ${work.part})`;
     case 'place':

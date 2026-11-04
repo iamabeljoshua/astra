@@ -15,6 +15,8 @@ function getWayFacts(work: StudentWork, checked: CheckedWork, context: WorkConte
   switch (work.way) {
     case 'write':
       return getLineFacts(work, checked);
+    case 'leave':
+      return { left_the_task: true };
     case 'pick':
       return { picked: work.part };
     case 'place':
@@ -35,6 +37,6 @@ export function getWorkNote(work: StudentWork, checked: CheckedWork, context: Wo
     check: verdict.status,
     ...(verdict.status === 'wrong' ? { why: verdict.why } : {}),
     ...(verdict.status === 'wrong' && verdict.isBuiltOnWrongLine ? { built_on_wrong_line: true } : {}),
-    ...(closesTask ? { task_done: true } : {}),
+    ...(closesTask ? (work.way === 'leave' || checked.verdict.status === 'unknown' ? { left_the_task: true } : { task_done: true }) : {}),
   };
 }

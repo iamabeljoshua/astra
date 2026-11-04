@@ -89,6 +89,44 @@ describe('work on the shared board', () => {
   });
 });
 
+describe('changing the subject', () => {
+  it('closes the task on a typed new topic, so later lines are not held to it', async () => {
+    const { brain, requests } = setup([SET_PROBLEM, 'Sure, here goes.']);
+    await collect(brain, 'help me');
+    expect(brain.noteWork(line('s1', 'teach me physics of the impossible', 'a1'))?.checked).toMatchObject({ verdict: { status: 'unknown' }, closesTask: 'a1' });
+    await collect(brain, 'teach me physics of the impossible');
+    expect(getNotes(requests[1]).find((note) => note.student_work)?.student_work).toMatchObject({ left_the_task: true });
+    expect(brain.getBoard().openTask).toBeNull();
+    expect(brain.noteWork(line('s2', 'x = 7', 'a1'))?.checked.verdict.status).toBe('unknown');
+  });
+
+  it('keeps the task on a request for help with it', async () => {
+    const { brain } = setup([SET_PROBLEM]);
+    await collect(brain, 'help me');
+    for (const [index, text] of ['teach me how to do this', 'teach me this', 'explain that step', 'can you help'].entries()) {
+      expect(brain.noteWork(line(`s${index + 1}`, text, 'a1'))?.checked.closesTask).toBeUndefined();
+    }
+  });
+
+  it('closes the task when the tutor goes back to teaching', async () => {
+    const { brain } = setup([SET_PROBLEM, 'Okay, {"kind":"boardMode","mode":"teach"}now we teach.']);
+    await collect(brain, 'help me');
+    await collect(brain, 'something');
+    expect(brain.getBoard().openTask).toBeNull();
+  });
+
+  it('closes the task on a new topic said aloud, with no line', async () => {
+    const { brain } = setup([SET_PROBLEM]);
+    await collect(brain, 'help me');
+    const send = vi.fn();
+    const writeHeardLog = vi.fn();
+    const seam = createBoardWork({ tutor: brain, writeLog: vi.fn(), speakUp: vi.fn(), isTutorTalking: () => false, getSecondsSinceQuestion: () => null, readMeaning: async () => null, readStrokes: async () => null, readSpokenWords: async () => ({ kind: 'talk', costUsd: 0 }), writeHeardLog, send, getNowMs: () => 0, trace: () => {} });
+    await expect(seam.onSpoken('okay teach me physics of the impossible')).resolves.toBe(true);
+    expect(send).toHaveBeenCalledWith({ type: 'workRead', work: { way: 'leave', task: 'a1' } });
+    expect(brain.getBoard().openTask).toBeNull();
+  });
+});
+
 describe('a page that floods the board', () => {
   it('holds a bounded number of notes, so the next request stays small', async () => {
     const { brain, requests } = setup(['Okay, go on.']);

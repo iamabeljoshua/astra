@@ -1,5 +1,5 @@
 import type { AgentMessage, BrowserMessage, ElementId, InkPoint, InkReading, StudentAction, StudentWork, Task } from '@astra/contracts';
-import { type CheckedWork, cleanStudentText, checkWorkOnBoard, getPickParts } from '@astra/board/shared';
+import { type CheckedWork, cleanStudentText, checkWorkOnBoard, getPickParts, wantsSomethingElse } from '@astra/board/shared';
 import type { BoardElement } from '@astra/board';
 import type { SpokenReading } from './read-spoken.ts';
 import { decideSpoken, type SpokenDecision, type SpokenPart } from './spoken-answer.ts';
@@ -122,6 +122,15 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
     const open = getOpenTask();
     if (!open) return true;
     const text = cleanStudentText(rawText);
+    if (wantsSomethingElse(text)) {
+      const leaving: StudentWork = { way: 'leave', task: open.task.id };
+      const left = tutor.noteWork?.(leaving);
+      if (left) {
+        writeHeardLog(leaving, left.checked);
+        send({ type: 'workRead', work: leaving });
+      }
+      return true;
+    }
     const decision = decideSpoken(text, open.task, getSpokenParts(open.task, open.board?.state));
     trace('spokenDecided', { ...decision });
     const work = await toSpokenWork(text, open.task, decision);

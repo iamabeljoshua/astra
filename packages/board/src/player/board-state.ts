@@ -179,6 +179,8 @@ function applyCommand(board: BoardDraft, command: SceneCommand, { atMs, overMs, 
       return;
     case 'boardMode':
       if (board.stage?.mode !== command.mode) board.stage = { mode: command.mode, sinceMs: atMs };
+      // Back to teaching means the exercise is over, so a later line is not held to it.
+      if (command.mode === 'teach') closeOpenTasks(board.elements);
       return;
     case 'transformMath': {
       const element = board.elements.get(command.target);

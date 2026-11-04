@@ -5,6 +5,7 @@ Two scripted lessons that run against any model by name. They measure speed, tok
 - `turns-30.json` is a lesson of 30 student messages, about 10 minutes at 3 turns a minute.
 - `turns-90.json` is three lessons in one session, 90 messages, about 30 minutes.
 - `groups-board.json` holds work on the shared board, with tasks, marks, and what code decided, run by `pnpm eval:board`. A turn with `work` puts that work on the board the way the page does. `pnpm --filter @astra/agent eval:ink` reads back a table of handwritten lines.
+- `spoken-lines.json` holds lines said aloud, with what Muse really wrote for each, read by `pnpm --filter @astra/agent eval:spoken`.
 - `groups-safety.json` and `groups-math.json` are short groups of messages, each group in a session of its own, run by `eval:groups` and read by a person. A failed check exits non-zero.
 
 Each row has the student's `text`, and may name a `check`. `apps/agent/src/tutor/eval/reply-checks.ts` holds what each name means, and `run-eval.ts` beside it runs them. `results/` holds the runs recorded in `docs/tests/tutor-model.md`.
