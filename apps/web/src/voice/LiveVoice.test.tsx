@@ -197,6 +197,57 @@ describe('vendor keys', () => {
   });
 });
 
+describe('a hold while the room opens', () => {
+  const openOnPress = () => {
+    const voice = makeFakeVoice();
+    let open: (opened: LiveVoice) => void = () => {};
+    const start = vi.fn(() => new Promise<LiveVoice>((resolve) => { open = resolve; }));
+    const { result } = renderHook(() => useLiveVoice({ sessionId: 'a-session', start }));
+    return { voice, result, finishOpening: () => open(voice) };
+  };
+
+  it('shows as on at once, opens the room, and reaches the microphone when it has', async () => {
+    const { voice, result, finishOpening } = openOnPress();
+    act(() => result.current.heldMic.open());
+    expect(result.current.isTalkOn).toBe(true);
+    await act(async () => finishOpening());
+    expect(voice.setMic).toHaveBeenCalledWith(true);
+    expect(result.current.view?.mic).toBe('on');
+  });
+
+  it('never opens the microphone when the student let go first', async () => {
+    const { voice, result, finishOpening } = openOnPress();
+    act(() => result.current.heldMic.open());
+    act(() => result.current.heldMic.endLine());
+    expect(result.current.isTalkOn).toBe(false);
+    await act(async () => finishOpening());
+    expect(voice.setMic).not.toHaveBeenCalled();
+    expect(result.current.view?.mic).toBe('off');
+  });
+
+  it('tells the tutor of the hold once it can, and not if it ended first', async () => {
+    const started = vi.fn();
+    const controls = { isMicOn: () => false, setMic: vi.fn(async () => {}), endLine: vi.fn(), lowerTutor: vi.fn(), tellHoldStarted: started };
+    let ready: (ready: typeof controls) => void = () => {};
+    const start = vi.fn(({ onMicReady }: { onMicReady?: (controls: never) => void }) => {
+      ready = (given) => onMicReady?.(given as never);
+      return new Promise<LiveVoice>(() => {});
+    });
+    const { result } = renderHook(() => useLiveVoice({ sessionId: 'a-session', start: start as never }));
+    act(() => {
+      result.current.heldMic.open();
+      result.current.heldMic.tellHoldStarted();
+    });
+    expect(started).not.toHaveBeenCalled();
+    await act(async () => {
+      await Promise.resolve();
+      ready(controls);
+    });
+    expect(started).toHaveBeenCalledTimes(1);
+    expect(controls.setMic).toHaveBeenCalledWith(true);
+  });
+});
+
 describe('the Privacy Policy on voice', () => {
   const privacy = LEGAL_PAGES.privacy.sections.flatMap((section) => section.today).join(' ');
 
@@ -205,6 +256,11 @@ describe('the Privacy Policy on voice', () => {
     expect(privacy).toContain('your IP address');
     expect(privacy).toContain("Meta's Muse Voice Transcribe receives your voice");
     expect(privacy).toContain('ElevenLabs receives your words too');
+  });
+
+  it('says the microphone opens on a hold of Space too, and that the invitation is stored', () => {
+    expect(privacy).toContain('press Talk or hold Space');
+    expect(privacy).toContain('The time the tutor first told you that you can talk');
   });
 
   it('says raw audio is not stored, and does not claim the microphone is unused', () => {

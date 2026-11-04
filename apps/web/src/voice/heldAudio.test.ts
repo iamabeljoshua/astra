@@ -118,6 +118,13 @@ describe('a line whose capture has ended', () => {
     expect(held.isDrained()).toBe(true);
   });
 
+  it('has nothing to play out from a hold with no sound in it, so it closes at once', () => {
+    const held = new HeldAudio();
+    run(held, Array.from({ length: 100 }, quiet));
+    held.endInput();
+    expect(held.isDrained()).toBe(true);
+  });
+
   it('is drained with nothing after a drop, so an off press never plays out', () => {
     const held = new HeldAudio();
     run(held, [voice(0.2)]);
@@ -131,16 +138,16 @@ describe('steady noise', () => {
   const BLOCKS_A_SECOND = 375;
   const noise = (rms: number) => Float32Array.from({ length: BLOCK }, (_, sample) => (sample % 2 === 0 ? rms : -rms));
 
-  it('is reported once a room stays over the quiet rule for 3 s, and only once', () => {
+  it('is reported once a room stays over the quiet rule for 5 s, and only once', () => {
     const held = new HeldAudio();
     held.release();
-    const heard = Array.from({ length: BLOCKS_A_SECOND * 6 }, () => {
+    const heard = Array.from({ length: BLOCKS_A_SECOND * 9 }, () => {
       held.process(noise(0.03), new Float32Array(BLOCK));
       return held.takeSteadyNoise();
     });
     expect(heard.filter(Boolean)).toHaveLength(1);
-    expect(heard.indexOf(true)).toBeGreaterThan(BLOCKS_A_SECOND * 2.5);
-    expect(heard.indexOf(true)).toBeLessThan(BLOCKS_A_SECOND * 4.5);
+    expect(heard.indexOf(true)).toBeGreaterThan(BLOCKS_A_SECOND * 4.5);
+    expect(heard.indexOf(true)).toBeLessThan(BLOCKS_A_SECOND * 5.5);
   });
 
   it('is not reported for a voice with gaps, however loud', () => {
@@ -148,7 +155,7 @@ describe('steady noise', () => {
     held.release();
     let heard = false;
     for (let block = 0; block < BLOCKS_A_SECOND * 30; block += 1) {
-      const isGap = block % 200 < 20;
+      const isGap = block % 800 < 40;
       held.process(isGap ? quiet() : noise(0.2), new Float32Array(BLOCK));
       heard ||= held.takeSteadyNoise();
     }
@@ -169,11 +176,22 @@ describe('steady noise', () => {
   it('is heard while holding too, before any sound has gone out', () => {
     const held = new HeldAudio();
     let heard = false;
-    for (let block = 0; block < BLOCKS_A_SECOND * 5; block += 1) {
+    for (let block = 0; block < BLOCKS_A_SECOND * 7; block += 1) {
       held.process(noise(0.03), new Float32Array(BLOCK));
       heard ||= held.takeSteadyNoise();
     }
     expect(heard).toBe(true);
   });
-});
 
+  it('reads a low hum as steady, though its own zero crossings dip inside a block', () => {
+    const held = new HeldAudio();
+    held.release();
+    const hum = (block: number) => Float32Array.from({ length: BLOCK }, (_, sample) => 0.04 * Math.sin((2 * Math.PI * 50 * (block * BLOCK + sample)) / 48_000));
+    let heard = false;
+    for (let block = 0; block < BLOCKS_A_SECOND * 7; block += 1) {
+      held.process(hum(block), new Float32Array(BLOCK));
+      heard ||= held.takeSteadyNoise();
+    }
+    expect(heard).toBe(true);
+  });
+});

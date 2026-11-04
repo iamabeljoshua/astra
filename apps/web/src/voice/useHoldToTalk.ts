@@ -6,8 +6,8 @@ import type { HeldMic } from './useLiveVoice';
 
 const TALK_BUTTON_ATTRIBUTE = 'data-talk-button';
 const TAKES_OVER_FOCUS = 'a[href],button,input,select,textarea,summary,details,label,audio[controls],video[controls],[contenteditable]:not([contenteditable="false"]),[tabindex],[role]';
-/** A click that follows a press this soon belongs to that press. */
-const CLICK_AFTER_PRESS_MS = 500;
+/** A click this soon after the pointer came up belongs to that press, however long the press was. */
+const CLICK_AFTER_RELEASE_MS = 500;
 
 /** Space belongs to anything that can take focus or a key, and to custom elements like MathLive's. It is only ours on the page itself or on Talk. */
 export function isOpenToSpace(target: EventTarget | null): boolean {
@@ -45,7 +45,7 @@ export function useHoldToTalk({ heldMic, isTalkOn, toggleTalk, isEnabled }: Hold
   const [isHolding, setIsHolding] = useState(false);
   const [hasHitLimit, setHasHitLimit] = useState(false);
   const spaceSource = useRef<PressSource | null>(null);
-  const pointerPressedAtMs = useRef(-Infinity);
+  const pointerEndedAtMs = useRef(-Infinity);
   const skipsNextClick = useRef(false);
 
   useEffect(() => {
@@ -71,7 +71,10 @@ export function useHoldToTalk({ heldMic, isTalkOn, toggleTalk, isEnabled }: Hold
     const onHidden = () => {
       if (document.visibilityState === 'hidden') loseEverything();
     };
-    const onPointerEnd = () => hold.release('talkButton');
+    const onPointerEnd = () => {
+      pointerEndedAtMs.current = performance.now();
+      hold.release('talkButton');
+    };
     window.addEventListener('blur', loseEverything);
     window.addEventListener('pagehide', loseEverything);
     window.addEventListener('pointerup', onPointerEnd);
@@ -109,7 +112,9 @@ export function useHoldToTalk({ heldMic, isTalkOn, toggleTalk, isEnabled }: Hold
       holdRef.current?.press(spaceSource.current);
     };
     const onKeyUp = (event: KeyboardEvent) => {
-      if (event.code !== 'Space' || !spaceSource.current) return;
+      if (event.code !== 'Space') return;
+      if (isTalkButton(getRealTarget(event))) event.preventDefault();
+      if (!spaceSource.current) return;
       event.preventDefault();
       // A browser turns Space on a focused button into a click, and this press has already acted.
       skipsNextClick.current = spaceSource.current === 'talkButton';
@@ -131,12 +136,14 @@ export function useHoldToTalk({ heldMic, isTalkOn, toggleTalk, isEnabled }: Hold
     style: { touchAction: 'none', userSelect: 'none', WebkitTouchCallout: 'none' },
     onPointerDown(event: PointerEvent<HTMLButtonElement>) {
       if (event.button !== 0) return;
-      pointerPressedAtMs.current = performance.now();
       setHasHitLimit(false);
       event.currentTarget.setPointerCapture?.(event.pointerId);
       holdRef.current?.press('talkButton');
     },
-    onPointerUp: () => holdRef.current?.release('talkButton'),
+    onPointerUp() {
+      pointerEndedAtMs.current = performance.now();
+      holdRef.current?.release('talkButton');
+    },
     onPointerCancel: () => holdRef.current?.lose(),
     onLostPointerCapture: () => holdRef.current?.release('talkButton'),
     onContextMenu: (event: PointerEvent<HTMLButtonElement>) => event.preventDefault(),
@@ -146,7 +153,7 @@ export function useHoldToTalk({ heldMic, isTalkOn, toggleTalk, isEnabled }: Hold
     },
     // A click with no press before it is Enter, a screen reader, or a voice control, and it means what a press once means.
     onClick() {
-      const wasOwnPress = skipsNextClick.current || performance.now() - pointerPressedAtMs.current < CLICK_AFTER_PRESS_MS;
+      const wasOwnPress = skipsNextClick.current || performance.now() - pointerEndedAtMs.current < CLICK_AFTER_RELEASE_MS;
       skipsNextClick.current = false;
       if (!wasOwnPress) void latest.current.toggleTalk();
     },

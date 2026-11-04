@@ -9,8 +9,10 @@ const QUIET_OVER_FLOOR = 2.5;
 const FIRST_FLOOR_RMS = 0.005;
 const LOWEST_FLOOR_RMS = 0.0005;
 const FLOOR_RISE_PER_BLOCK = 1.002;
-/** Three seconds at 48 kHz with the floor over the quiet rule, which a voice with gaps never gives. */
-const STEADY_NOISE_BLOCKS = 1125;
+/** About 50 ms, long enough that a low hum reads as sound through its own zero crossings. */
+const NOISE_WINDOW_BLOCKS = 19;
+/** About 5 s with every window over the quiet rule. Speech has a gap of 50 ms long before that, and at 3 s with 100 ms windows it did not always. */
+const STEADY_NOISE_WINDOWS = 100;
 
 // Keeps a microphone's sound from its first moment until the transcriber can hear it, then plays it out and skips quiet until it has caught up. It reads no words and writes nothing anywhere.
 export class HeldAudio {
@@ -19,7 +21,9 @@ export class HeldAudio {
   quietRun = 0;
   floorRms = FIRST_FLOOR_RMS;
   hasInputEnded = false;
-  loudFloorRun = 0;
+  windowEnergy = 0;
+  windowBlocks = 0;
+  loudWindowRun = 0;
   isSteadyNoiseDue = false;
   wasSteadyNoiseSaid = false;
 
@@ -28,13 +32,19 @@ export class HeldAudio {
     for (const sample of samples) sum += sample * sample;
     const rms = Math.sqrt(sum / samples.length);
     this.floorRms = Math.max(LOWEST_FLOOR_RMS, Math.min(rms, this.floorRms * FLOOR_RISE_PER_BLOCK));
-    this.noteFloor();
+    this.noteLevel(sum / samples.length);
     return rms < Math.min(NEVER_QUIET_RMS, Math.max(ALWAYS_QUIET_RMS, this.floorRms * QUIET_OVER_FLOOR));
   }
 
-  noteFloor() {
-    this.loudFloorRun = this.floorRms >= NEVER_QUIET_RMS ? this.loudFloorRun + 1 : 0;
-    if (this.loudFloorRun < STEADY_NOISE_BLOCKS || this.wasSteadyNoiseSaid) return;
+  noteLevel(energy) {
+    this.windowEnergy += energy;
+    this.windowBlocks += 1;
+    if (this.windowBlocks < NOISE_WINDOW_BLOCKS) return;
+    const windowRms = Math.sqrt(this.windowEnergy / this.windowBlocks);
+    this.windowEnergy = 0;
+    this.windowBlocks = 0;
+    this.loudWindowRun = windowRms >= NEVER_QUIET_RMS ? this.loudWindowRun + 1 : 0;
+    if (this.loudWindowRun < STEADY_NOISE_WINDOWS || this.wasSteadyNoiseSaid) return;
     this.wasSteadyNoiseSaid = true;
     this.isSteadyNoiseDue = true;
   }
@@ -59,9 +69,10 @@ export class HeldAudio {
     this.queue = [];
   }
 
-  /** The capture has ended, so what is held plays out and nothing new comes in. */
+  /** The capture has ended, so what is held plays out and nothing new comes in. A hold with no sound in it has nothing to play out. */
   endInput() {
     this.hasInputEnded = true;
+    if (this.queue.every((block) => block.isQuiet)) this.queue = [];
   }
 
   isDrained() {

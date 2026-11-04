@@ -121,11 +121,12 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
   const holdGate = createHoldGate();
   const noiseWatch = createNoiseWatch();
   let hasEverHeld = false;
+  let holdClockId: string | null = null;
   let wasLastCutWordless = false;
   let holdGiveUp: ReturnType<typeof setTimeout> | undefined;
   let flushGiveUp: ReturnType<typeof setTimeout> | undefined;
   let inviteTimer: ReturnType<typeof setTimeout> | undefined;
-  let wantsTalkInvitation = false;
+  let talkInvitation: 'notAsked' | 'wanted' | 'settled' = 'notAsked';
 
   const noteSomethingHappened = () => {
     clearTimeout(quietWarning);
@@ -188,7 +189,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       // Only a reply that played out has answered the student's words. A stored line, like the prompt after a filler, has not, and a resume with nothing left to say has, because its reply was already heard.
       if (speaking.canResume && (speaking.hasSound || speaking.continuesHeardReply)) {
         dispatch({ type: 'replyHeardOut' });
-        if (wantsTalkInvitation) inviteTimer = setTimeout(inviteToTalk, INVITE_AFTER_ANSWER_MS);
+        if (talkInvitation === 'wanted') inviteTimer = setTimeout(inviteToTalk, INVITE_AFTER_ANSWER_MS);
       }
     }
     if (reaction || reply) {
@@ -281,8 +282,8 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
 
   // One line, once, to a student who has only typed. A student busy talking or typing keeps the floor, and it waits for the next answer.
   function inviteToTalk(): void {
-    if (!wantsTalkInvitation || reply || reaction || thought || !audioRunning || state.isVoiceOn || holdGate.isHolding()) return;
-    wantsTalkInvitation = false;
+    if (talkInvitation !== 'wanted' || reply || reaction || thought || !audioRunning || state.isVoiceOn || holdGate.isHolding()) return;
+    talkInvitation = 'settled';
     reaction = speakTake('talkInvitation', { isReply: false });
     void reaction?.spoken.finished.then(() => messenger.send({ type: 'talkInvited' }));
   }
@@ -406,8 +407,9 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
 
   const dispatchAll = (events: TurnEvent[]) => events.forEach(dispatch);
 
-  const onHoldStarted = () => {
+  const onHoldStarted = (clockId: string) => {
     hasEverHeld = true;
+    holdClockId = clockId;
     noteSomethingHappened();
     clearTimeout(flushGiveUp);
     clearTimeout(holdGiveUp);
@@ -431,10 +433,10 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
   }
 
   const onHello = (message: BrowserMessage & { type: 'hello' }) => {
-    if (message.wantsGreeting) greet();
-    // A page back from a drop with no key down has nothing more to say about its old hold.
-    if (holdGate.isHolding()) onLineEnded();
-    if (message.invitesTalk) wantsTalkInvitation = true;
+    // A new page has a new clock and no key down. The same page rejoining still has its student's finger on the key.
+    if (holdGate.isHolding() && message.clockId !== holdClockId) onLineEnded();
+    if (message.wantsGreeting && !holdGate.isHolding()) greet();
+    if (message.invitesTalk && talkInvitation === 'notAsked') talkInvitation = 'wanted';
   };
 
   const onAudioState = (isRunning: boolean) => {
@@ -464,9 +466,9 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       if (message.type === 'questionHeard') dispatch({ type: 'questionHeard' });
       if (message.type === 'typed') dispatch({ type: 'typed', text: message.text });
       if (message.type === 'hello') onHello(message);
-      if (message.type === 'holdStarted') onHoldStarted();
+      if (message.type === 'holdStarted') onHoldStarted(message.clockId);
       if (message.type === 'lineEnded') onLineEnded();
-      if (message.type === 'talkPressed') wantsTalkInvitation = false;
+      if (message.type === 'talkPressed') talkInvitation = 'settled';
       if (message.type === 'pulse') link.notePulse(message.hearsAgent, getNowMs());
       if (message.type === 'audioState') onAudioState(message.isRunning);
     },

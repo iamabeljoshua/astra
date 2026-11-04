@@ -50,7 +50,6 @@ async function runClip({ mode, clip, said, lastMs, pcm, noiseLevel }: { mode: Mo
   const socket = new WebSocket('wss://api.meta.ai/v1/asr/realtime');
   const handshake = { mode: mode === 'pushToTalkEndStream' ? 'PUSH_TO_TALK' : 'ENDPOINTING', authorization: { accessToken: `Bearer ${readKey('META_API_KEY')}` }, audioEncoding: 'PCM_24KHZ', model: MUSE_MODEL, partialMode: 'CUMULATIVE', languageBias: ['English'] };
   let handshakeMs = 0;
-  let lastSoundAtMs = 0;
   let finalAtMs: number | null = null;
   let heard: string | null = null;
   let closeCode: number | null = null;
@@ -82,7 +81,7 @@ async function runClip({ mode, clip, said, lastMs, pcm, noiseLevel }: { mode: Mo
     const nextAtMs = startedAtMs + ((offset + PACKET_BYTES) / PACKET_BYTES) * PACKET_MS;
     await delay(Math.max(0, nextAtMs - Date.now()));
   }
-  lastSoundAtMs = Date.now();
+  const lastSoundAtMs = Date.now();
   if (mode !== 'endpointingSilence') socket.send('{"type":"endStream"}');
   while (mode === 'endpointingSilence' && finalAtMs === null && socket.readyState === WebSocket.OPEN && Date.now() - lastSoundAtMs < GIVE_UP_MS) {
     socket.send(makeRoomTone(PACKET_BYTES, noiseLevel));

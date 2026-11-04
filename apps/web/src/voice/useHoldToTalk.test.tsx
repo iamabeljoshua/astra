@@ -204,6 +204,21 @@ describe('the Talk button', () => {
     expect(calls.at(-1)).toBe('endLine');
   });
 
+  it('does not read the click that ends a long hold as a press, which would turn the microphone back on', () => {
+    const { getIsOn, toggleTalk } = setUp();
+    fireEvent.pointerDown(talk(), { button: 0, pointerId: 1 });
+    act(() => void vi.advanceTimersByTime(3000));
+    fireEvent.pointerUp(talk(), { button: 0, pointerId: 1 });
+    fireEvent.click(talk());
+    expect(getIsOn()).toBe(false);
+    expect(toggleTalk).not.toHaveBeenCalled();
+  });
+
+  it('stops a key-up with no key-down from clicking Talk, which a browser does while the pointer is down', () => {
+    setUp();
+    expect(!spaceUp(talk())).toBe(true);
+  });
+
   it.each(['pointerCancel', 'lostPointerCapture'] as const)('closes on %s', (event) => {
     const { getIsOn } = setUp();
     fireEvent.pointerDown(talk(), { button: 0, pointerId: 1 });

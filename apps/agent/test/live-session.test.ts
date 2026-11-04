@@ -563,12 +563,28 @@ describe('holding to talk', () => {
     expect(harness.brainRequests).toEqual(['It lands']);
   });
 
-  it('takes a page that came back with no key down as the line having ended', async () => {
+  it('takes a new page as the line having ended, because a reload has no key down', async () => {
+    const ends: string[] = [];
+    const harness = start({ endLine: () => ends.push('ended') });
+    press(harness);
+    harness.browser({ type: 'hello', ...STAMP, clockId: 'a-new-page', wantsGreeting: false, invitesTalk: false });
+    expect(ends).toEqual(['ended']);
+  });
+
+  it('keeps the hold through a hello from the same page, as on a rejoin or when the press opened the room', async () => {
     const ends: string[] = [];
     const harness = start({ endLine: () => ends.push('ended') });
     press(harness);
     harness.browser({ type: 'hello', ...STAMP, wantsGreeting: false, invitesTalk: false });
-    expect(ends).toEqual(['ended']);
+    expect(ends).toEqual([]);
+  });
+
+  it('gives no greeting to a student who opened the room by holding, because they have the floor', async () => {
+    const harness = start();
+    press(harness);
+    harness.browser({ type: 'hello', ...STAMP, wantsGreeting: true, invitesTalk: false });
+    await delay(50);
+    expect(harness.traces.some((trace) => trace.name === 'turnStarted')).toBe(false);
   });
 
   it('counts a hold as the room not being quiet', async () => {
@@ -640,10 +656,21 @@ describe('the spoken invitation', () => {
     expect(kinds(harness)).toContain('talkInvitation');
     await delay(3000);
     expect(harness.messages.filter((message) => message.type === 'talkInvited')).toHaveLength(1);
+    hello(harness, true);
     await answerTyped(harness);
     await delay(1800);
     expect(kinds(harness).filter((kind) => kind === 'talkInvitation')).toHaveLength(1);
   }, 15_000);
+
+  it('does not come after a press and a rejoin, whatever a stale page says', async () => {
+    const harness = start({ replyLine: 'one two' });
+    soundOn(harness);
+    harness.browser({ type: 'talkPressed', ...STAMP });
+    hello(harness, true);
+    await answerTyped(harness);
+    await delay(1800);
+    expect(kinds(harness)).not.toContain('talkInvitation');
+  }, 10_000);
 
   it('does not come for a student the server says is not due one', async () => {
     const harness = start({ replyLine: 'one two' });

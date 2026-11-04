@@ -1,5 +1,4 @@
-import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { VOICE_LABELS } from '../strings';
 import { NoisePrompt } from './NoisePrompt';
@@ -32,11 +31,10 @@ describe('the noise prompt', () => {
     expect(screen.getByText(VOICE_LABELS.noisyHoldTalk).textContent).not.toContain('Space');
   });
 
-  it('goes when dismissed, and comes back neither in this session nor on a reload of it', async () => {
+  it('goes when dismissed, and comes back neither in this session nor on a reload of it', () => {
     setTouchScreen(false);
-    const user = userEvent.setup();
     const first = render(<NoisePrompt sessionId="a" isRoomNoisy isHolding={false} />);
-    await user.click(screen.getByRole('button', { name: VOICE_LABELS.dismissNoisy }));
+    fireEvent.click(screen.getByRole('button', { name: VOICE_LABELS.dismissNoisy }));
     expect(screen.queryByText(VOICE_LABELS.noisyHoldSpace)).toBeNull();
     first.rerender(<NoisePrompt sessionId="a" isRoomNoisy isHolding={false} />);
     expect(screen.queryByText(VOICE_LABELS.noisyHoldSpace)).toBeNull();

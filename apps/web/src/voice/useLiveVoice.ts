@@ -146,9 +146,7 @@ export function useLiveVoice({ sessionId, usesSpeechCleanup = true, start = star
 
   const heldMic: HeldMic = {
     isMicOn: () => micControls.current?.isMicOn() ?? wantsMicWhileOpening.current,
-    open() {
-      void (micControls.current ? micControls.current.setMic(true) : askForMic(true));
-    },
+    open: () => void askForMic(true),
     close() {
       dropMicWish();
       void micControls.current?.setMic(false);
