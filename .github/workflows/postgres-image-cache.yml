@@ -38,9 +38,44 @@ jobs:
         run: |
           .github/scripts/postgres-image.sh start-docker
           .github/scripts/postgres-image.sh archive
+          .github/scripts/tmp-verify.sh remove_postgres_binary
           .github/scripts/postgres-image.sh prove
+      - name: TEMP state after the failed prove
+        if: always()
+        run: |
+          docker info --format 'driver={{.Driver}} root={{.DockerRootDir}} version={{.ServerVersion}}' || true
+          echo "pulls=$(pgrep -fc 'docker pull' || true)"
+          mount | grep -c /dockerdata/ || true
+          sudo du -sh /dockerdata || true
       - if: steps.lookup.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
         with:
           path: /tmp/postgres-image.tar.zst
           key: ${{ steps.postgres-image.outputs.key }}
+  make-old-folder:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v7
+      - run: |
+          docker version --format 'folder written by docker {{.Server.Version}}'
+          .github/scripts/postgres-image.sh start-docker
+          .github/scripts/postgres-image.sh archive
+      - uses: actions/cache/save@v6
+        with:
+          path: /tmp/postgres-image.tar.zst
+          key: tmp-verify-old-folder-${{ github.run_id }}
+  read-on-26:
+    needs: make-old-folder
+    runs-on: ubuntu-26.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/cache/restore@v6
+        with:
+          path: /tmp/postgres-image.tar.zst
+          key: tmp-verify-old-folder-${{ github.run_id }}
+          fail-on-cache-miss: true
+      - run: .github/scripts/tmp-verify.sh read_old_folder
+      - run: .github/scripts/tmp-verify.sh daemon_will_not_start
+      - run: .github/scripts/tmp-verify.sh binary_missing
