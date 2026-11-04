@@ -23,7 +23,7 @@ export type StudentFit = Pick<StudentProfileResponseDto, 'interests' | 'level' |
 export interface StudentRecord {
   fit: StudentFit | null;
   history: TopicSession[];
-  continueSessionId: string | null;
+  continueCardSessionId: string | null;
 }
 
 interface RankedTopic {
@@ -85,10 +85,9 @@ function rankByFit(fit: StudentFit | null, { library, suitableTopics }: RankingS
   ];
 }
 
-// The newest open session already has the continue card, so it does not get a second card here.
-function rankTopicsInProgress({ progressByTopic }: RankingSources, continueSessionId: string | null): RankedTopic[] {
+function rankTopicsInProgress({ progressByTopic }: RankingSources, continueCardSessionId: string | null): RankedTopic[] {
   return [...progressByTopic].flatMap(([topic, progress]) =>
-    progress.kind === 'in_progress' && progress.sessionId !== continueSessionId
+    progress.kind === 'in_progress' && progress.sessionId !== continueCardSessionId
       ? [{ topic, reason: CARRY_ON_REASON, continueSessionId: progress.sessionId, isFromHistory: true }]
       : [],
   );
@@ -120,7 +119,7 @@ function keepFirstOfEachTopic(ranked: RankedTopic[]): RankedTopic[] {
   });
 }
 
-function rankForStudent({ fit, history, continueSessionId }: StudentRecord, library: Library): RankedTopic[] {
+function rankForStudent({ fit, history, continueCardSessionId }: StudentRecord, library: Library): RankedTopic[] {
   const levelsToSuit = fit ? [fit.level] : STUDENT_LEVELS;
   const sources: RankingSources = {
     library,
@@ -128,7 +127,7 @@ function rankForStudent({ fit, history, continueSessionId }: StudentRecord, libr
     progressByTopic: getTopicProgress(history, library.topics),
   };
   return keepFirstOfEachTopic([
-    ...rankTopicsInProgress(sources, continueSessionId).slice(0, MAX_PICKS_PER_HISTORY_KIND),
+    ...rankTopicsInProgress(sources, continueCardSessionId).slice(0, MAX_PICKS_PER_HISTORY_KIND),
     ...keepFirstOfEachTopic(rankNextTopics(sources)).slice(0, MAX_PICKS_PER_HISTORY_KIND),
     ...rankByFit(fit, sources).filter(({ topic }) => !sources.progressByTopic.has(topic)),
   ]);

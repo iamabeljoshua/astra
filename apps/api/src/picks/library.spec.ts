@@ -107,7 +107,7 @@ describe('the picks library', () => {
   it.each(ONBOARDING_INTERESTS)('finds a card for the onboarding choice %s at every level', (interest) => {
     for (const level of STUDENT_LEVELS) {
       const fit = { interests: [interest], level, goal: 'class' as const };
-      const reasons = getPicksForStudent({ fit, history: [], continueSessionId: null }, LIBRARY).map((pick) => pick.reason);
+      const reasons = getPicksForStudent({ fit, history: [], continueCardSessionId: null }, LIBRARY).map((pick) => pick.reason);
 
       expect(reasons).toContain(`Because you're into ${interest.toLowerCase()}`);
     }

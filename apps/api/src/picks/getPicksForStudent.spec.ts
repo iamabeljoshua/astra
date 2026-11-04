@@ -36,7 +36,7 @@ function makeLibrary(topics: LibraryTopic[], topicOrder: Library['topicOrder'] =
 }
 
 function getPicksWithNoHistory(fit: StudentFit | null, library: Library) {
-  return getPicksForStudent({ fit, history: [], continueSessionId: null }, library);
+  return getPicksForStudent({ fit, history: [], continueCardSessionId: null }, library);
 }
 
 function getPickIds(fit: StudentFit | null, library: Library) {
@@ -173,9 +173,8 @@ describe('getPicksForStudent', () => {
 
   describe('session history', () => {
     const TEN_MINUTES_IN_SECONDS = 600;
-    // The list order is deliberately not the subject order, so these cases fail if "next" comes from the list.
     const PHYSICS_ORDER = ['forces', 'energy', 'waves', 'light'];
-    const LIBRARY_WITH_ORDER = makeLibrary(
+    const LIBRARY_LISTED_AGAINST_SUBJECT_ORDER = makeLibrary(
       [
         makeTopic('light', { subject: 'Physics', title: 'Light' }),
         makeTopic('waves', { subject: 'Physics', title: 'Waves' }),
@@ -194,16 +193,16 @@ describe('getPicksForStudent', () => {
       return { id, topicId, status: 'in_progress', durationSeconds: 60 };
     }
 
-    function getPicks(history: TopicSession[], continueSessionId: string | null = null, library = LIBRARY_WITH_ORDER) {
-      return getPicksForStudent({ fit: FIT, history, continueSessionId }, library);
+    function getPicks(history: TopicSession[], continueCardSessionId: string | null = null, library = LIBRARY_LISTED_AGAINST_SUBJECT_ORDER) {
+      return getPicksForStudent({ fit: FIT, history, continueCardSessionId }, library);
     }
 
-    function getCards(history: TopicSession[], continueSessionId: string | null = null, library = LIBRARY_WITH_ORDER) {
-      return getPicks(history, continueSessionId, library).map(({ id, reason }) => ({ id, reason }));
+    function getCards(history: TopicSession[], continueCardSessionId: string | null = null, library = LIBRARY_LISTED_AGAINST_SUBJECT_ORDER) {
+      return getPicks(history, continueCardSessionId, library).map(({ id, reason }) => ({ id, reason }));
     }
 
-    function getIds(history: TopicSession[], continueSessionId: string | null = null, library = LIBRARY_WITH_ORDER) {
-      return getPicks(history, continueSessionId, library).map((pick) => pick.id);
+    function getIds(history: TopicSession[], continueCardSessionId: string | null = null, library = LIBRARY_LISTED_AGAINST_SUBJECT_ORDER) {
+      return getPicks(history, continueCardSessionId, library).map((pick) => pick.id);
     }
 
     describe('a finished topic', () => {
@@ -271,6 +270,12 @@ describe('getPicksForStudent', () => {
           { id: 'light', reason: 'Set at high school level' },
         ]);
         expect(getIds(history)).not.toContain('Chemistry');
+      });
+
+      it('orders by when the open session started, even when the topic also has a newer finished session', () => {
+        const history = [finished('Art'), open('Music'), open('Chemistry'), open('Art')];
+
+        expect(getIds(history).slice(0, 2)).toEqual(['Music', 'Chemistry']);
       });
 
       it('stays on offer after the student level moves away from the topic', () => {
@@ -371,7 +376,7 @@ describe('getPicksForStudent', () => {
       }
 
       function expectEveryReasonToBeTrue(fit: StudentFit | null, history: TopicSession[]) {
-        const picks = getPicksForStudent({ fit, history, continueSessionId: null }, LIBRARY);
+        const picks = getPicksForStudent({ fit, history, continueCardSessionId: null }, LIBRARY);
         const finishedTopics = getFinishedTopics(history);
 
         expect(picks).toHaveLength(6);
@@ -424,7 +429,7 @@ describe('getPicksForStudent', () => {
               .slice(order.indexOf(topic.id) + 1)
               .find((id) => TOPICS.find((candidate) => candidate.id === id)?.levels.includes(level));
 
-            const [firstPick] = getPicksForStudent({ fit, history: [finished(topic.id)], continueSessionId: null }, LIBRARY);
+            const [firstPick] = getPicksForStudent({ fit, history: [finished(topic.id)], continueCardSessionId: null }, LIBRARY);
 
             if (expectedNextId) expect(firstPick).toMatchObject({ id: expectedNextId, reason: `You finished ${topic.title}` });
             else expect(firstPick?.reason).not.toMatch(/^You finished/);

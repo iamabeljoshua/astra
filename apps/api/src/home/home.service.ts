@@ -21,7 +21,7 @@ export class HomeService {
         {
           fit: await this.studentsService.getProfile(studentId),
           history: await this.sessionsService.getTopicHistory(studentId),
-          continueSessionId: continueSession?.id ?? null,
+          continueCardSessionId: continueSession?.id ?? null,
         },
         LIBRARY,
       ),

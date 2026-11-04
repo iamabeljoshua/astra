@@ -2,7 +2,6 @@ import type { SessionStatus } from '../sessions/session-options';
 import type { LibraryTopic } from './library';
 
 const SECONDS_PER_MINUTE = 60;
-// A session ended sooner than this did not finish its topic, whether that was five seconds or five minutes in.
 const SHARE_OF_LENGTH_THAT_FINISHES = 0.5;
 
 export interface TopicSession {
@@ -20,19 +19,16 @@ function getSessionProgress(session: TopicSession, topic: LibraryTopic): TopicPr
   return session.durationSeconds >= secondsToFinish ? { kind: 'finished' } : null;
 }
 
-// Takes sessions newest first and keeps that order. A topic with no entry counts as untouched.
+// Open sessions go first and the first entry for a topic wins, because a student can still return to an open session.
 export function getTopicProgress(newestFirst: TopicSession[], topics: LibraryTopic[]): Map<LibraryTopic, TopicProgress> {
   const topicsById = new Map(topics.map((topic) => [topic.id, topic]));
+  const openSessions = newestFirst.filter((session) => session.status === 'in_progress');
+  const endedSessions = newestFirst.filter((session) => session.status !== 'in_progress');
   const progressByTopic = new Map<LibraryTopic, TopicProgress>();
-  for (const session of newestFirst) {
+  for (const session of [...openSessions, ...endedSessions]) {
     const topic = topicsById.get(session.topicId);
     const progress = topic && getSessionProgress(session, topic);
-    if (!topic || !progress) continue;
-    const newestProgress = progressByTopic.get(topic);
-    // An open session outranks a finished one whenever it started, because the student can still return to it.
-    if (!newestProgress || (newestProgress.kind === 'finished' && progress.kind === 'in_progress')) {
-      progressByTopic.set(topic, progress);
-    }
+    if (topic && progress && !progressByTopic.has(topic)) progressByTopic.set(topic, progress);
   }
   return progressByTopic;
 }
