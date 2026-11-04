@@ -301,6 +301,37 @@ describe('a simulation on the board', () => {
   });
 });
 
+describe('a world with no size', () => {
+  const flight = (parameters: object) => place({ kind: 'simulate', id: 'shot', simulation: { model: 'projectile', parameters: { gravity: 9.8, ...parameters } } });
+  const getBall = (marks: readonly FigureMark[]) => marks.find((mark): mark is FigureMark & { kind: 'dot' } => mark.key === 'ball');
+
+  it.each([
+    [{ horizontalSpeed: 5, upwardSpeed: 0, releaseHeight: 0 }],
+    [{ horizontalSpeed: 0, upwardSpeed: 0, releaseHeight: 0 }],
+    [{ horizontalSpeed: -5, upwardSpeed: -3, releaseHeight: 0 }],
+    [{ horizontalSpeed: 1e-300, upwardSpeed: 1e-300, releaseHeight: 1e-300 }],
+  ])('draws axes and a ball on the ground for a flight that never leaves it: %j', (parameters) => {
+    const marks = getMarks([flight(parameters)], 'shot');
+    expect(JSON.stringify(marks)).not.toMatch(/null|NaN|Infinity/);
+    const ball = getBall(marks);
+    expect(ball?.at.x).toBeGreaterThan(0);
+    expect(ball?.at.y).toBeLessThanOrEqual(SIZES[0]?.height as number);
+    expect(marks.find((mark) => mark.key === 'axes')).toMatchObject({ branches: [[{ x: expect.any(Number) }, { x: expect.any(Number) }], [{ x: expect.any(Number) }, { x: expect.any(Number) }]] });
+  });
+
+  it.each(['10^308*x', '0-10^308*x', '10^300', '10^308+10^308*x', '10^16'])('gives %s real axes, because a range can overflow', (expression) => {
+    const marks = getMarks([place({ kind: 'plot', id: 'huge', expression, domain: [-1, 1], label: 'very big' })], 'huge');
+    expect(JSON.stringify(marks)).not.toMatch(/null|NaN|Infinity/);
+    expect(getText(marks).some((mark) => mark.key.startsWith('tick-y-'))).toBe(true);
+  });
+
+  it('writes zero as 0 on a far-off scale, and never as 0.0e0', () => {
+    const marks = getMarks([place({ kind: 'plot', id: 'wide', expression: 'x', domain: [-1000000, 1000000], yRange: [-1000000, 1000000] }), place({ kind: 'numberLine', id: 'line', domain: [-1000000, 1000000] })], 'line');
+    expect(getText(marks).map((mark) => mark.lines.join(' '))).toContain('0');
+    expect(getText(marks).map((mark) => mark.lines.join(' ')).join(' ')).not.toContain('0.0e');
+  });
+});
+
 describe('how much a model can put on one figure', () => {
   const countOf = (marks: readonly FigureMark[]) => marks.length;
 
