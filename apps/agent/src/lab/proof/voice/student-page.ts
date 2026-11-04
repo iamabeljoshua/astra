@@ -70,11 +70,11 @@ export interface PageTrace {
   outputLatencyMs: number;
 }
 
-export async function launchProofBrowser({ proxy, captureFile, isHeaded = false }: { proxy?: string; captureFile?: string; isHeaded?: boolean } = {}): Promise<Browser> {
+export async function launchProofBrowser({ proxy, captureFile, usesFullChromium = false }: { proxy?: string; captureFile?: string; usesFullChromium?: boolean } = {}): Promise<Browser> {
   const args = ['--use-mock-keychain', '--autoplay-policy=no-user-gesture-required', '--use-fake-ui-for-media-stream', '--no-sandbox'];
   if (captureFile) args.push('--use-fake-device-for-media-stream', `--use-file-for-fake-audio-capture=${captureFile}`);
   if (proxy) args.push(`--proxy-server=${proxy}`, '--force-webrtc-ip-handling-policy=disable_non_proxied_udp');
-  return chromium.launch({ headless: !isHeaded, args });
+  return chromium.launch({ headless: true, args, ...(usesFullChromium ? { channel: 'chromium' } : {}) });
 }
 
 const ALREADY_SIGNED_OUT = 'Development sign-in';

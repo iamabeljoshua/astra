@@ -14,7 +14,7 @@ const run = (events: PressEvent[], start: PressState = INITIAL_PRESS) => {
 
 const pressTalk = (micIsOn = false): PressEvent => ({ type: 'pressed', source: 'talkButton', micIsOn });
 const pressSpace = (micIsOn = false): PressEvent => ({ type: 'pressed', source: 'space', micIsOn });
-const lose = (): PressEvent => ({ type: 'lost' });
+const lose = (): PressEvent => ({ type: 'fingerLost' });
 
 describe('pressing Talk', () => {
   it('opens at once, and one quick tap leaves it on', () => {
@@ -106,6 +106,12 @@ describe('a hold ended by anything but the finger', () => {
 });
 
 describe('Space and Talk together', () => {
+  it('ends a Space hold the moment Talk is pressed, with Space still down', () => {
+    const { commands, state } = run([pressSpace(), { type: 'tapTimeUp' }, pressTalk(true)]);
+    expect(commands.slice(-2)).toEqual(['endLine', 'cancelTimers']);
+    expect(state.kind).toBe('free');
+  });
+
   it('ends a Space hold on a press of Talk, and neither release reopens it', () => {
     const { commands, state } = run([pressSpace(), { type: 'tapTimeUp' }, pressTalk(true), { type: 'released', source: 'talkButton' }, { type: 'released', source: 'space' }]);
     expect(commands.filter((command) => command === 'openMic')).toHaveLength(1);
@@ -133,9 +139,8 @@ describe('Space and Talk together', () => {
 });
 
 describe('every order of events', () => {
-  const EVENTS: PressEvent[] = [pressTalk(false), pressTalk(true), pressSpace(false), pressSpace(true), { type: 'released', source: 'talkButton' }, { type: 'released', source: 'space' }, { type: 'tapTimeUp' }, { type: 'limitReached' }, { type: 'lost' }, { type: 'micWentOff' }];
+  const EVENTS: PressEvent[] = [pressTalk(false), pressTalk(true), pressSpace(false), pressSpace(true), { type: 'released', source: 'talkButton' }, { type: 'released', source: 'space' }, { type: 'tapTimeUp' }, { type: 'limitReached' }, { type: 'fingerLost' }, { type: 'micWentOff' }];
 
-  // A real press knows whether the mic is on, so a path that presses with the wrong answer is not one a student can reach.
   it('never leaves a hold or a press open once every finger is up, in any reachable order up to six events', () => {
     const walk = (state: PressState, isMicOn: boolean, fingers: Set<string>, depth: number) => {
       if (fingers.size === 0 && (state.kind === 'pressing' || state.kind === 'holding')) throw new Error(`open with no finger: ${JSON.stringify(state)}`);

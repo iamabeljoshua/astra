@@ -69,7 +69,6 @@ function mix(first: Float32Array, second: Float32Array): Float32Array {
   return first.map((sample, index) => sample + (second[index] as number));
 }
 
-// Runs the same class the browser's worklet runs, block by block.
 function getPromptSecond(sound: Float32Array): number | null {
   const held = new HeldAudio();
   held.release();

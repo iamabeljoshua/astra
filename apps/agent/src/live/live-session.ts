@@ -43,7 +43,6 @@ export interface LiveSessionOptions {
   takes: TakePicker;
   allTakes: readonly StoredTake[];
   setTurnCap(ms: number): void;
-  /** Tells the transcriber the student's line has ended, so its final does not wait to hear silence. */
   endLine?(): void;
   /** The room stayed quiet to its limit, and the session has told the browser. */
   onQuietLimit?(): void;
@@ -175,11 +174,13 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     if (turnId) messenger.sendOnBothChannels({ type: 'yield', turnId, isYielding });
   };
 
+  // The rule's own timer for sound over the tutor, with its wait already up, because the student has the floor.
+  const cutForHold = () => dispatch({ type: 'timer', name: 'wordlessStop' });
+
   const onSpeechStarted = (speaking: Speaking) => {
     speaking.hasSound = true;
     dispatch({ type: 'tutorStarted', isReply: speaking.isReply });
-    // A reply that was thinking when the key went down starts over a student who has the floor.
-    if (holdGate.isHolding()) dispatch({ type: 'timer', name: 'wordlessStop' });
+    if (holdGate.isHolding()) cutForHold();
     if (state.phase === 'yielding') messenger.sendOnBothChannels({ type: 'yield', turnId: speaking.turnId, isYielding: true });
   };
 
@@ -283,7 +284,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     if (!reaction) reaction = speakTake('reaction', { isReply: false });
   };
 
-  // One line, once, to a student who has only typed. A student busy talking or typing keeps the floor, and it waits for the next answer.
+  // One line, once, to a student who has only typed.
   function inviteToTalk(): void {
     if (talkInvitation !== 'wanted' || reply || reaction || thought || !audioRunning || state.isVoiceOn || holdGate.isHolding()) return;
     talkInvitation = 'settled';
@@ -422,7 +423,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     dispatchAll(holdGate.onHoldStarted());
   };
 
-  // Words decided while the link is down would be dropped, and this student already let go and is not going to say them again.
+  // The turn rule ignores words decided while the link is down, and this student will not say them again.
   const onLineFlushed = () => {
     clearTimeout(flushGiveUp);
     const decided = holdGate.onLineFlushed();
@@ -440,8 +441,8 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
   }
 
   const onHello = (message: BrowserMessage & { type: 'hello' }) => {
-    // A new page has a new clock and no key down. The same page rejoining still has its student's finger on the key.
-    if (holdGate.isHolding() && message.clockId !== holdClockId) onLineEnded();
+    const isHeldPageGone = holdGate.isHolding() && message.clockId !== holdClockId;
+    if (isHeldPageGone) onLineEnded();
     if (message.wantsGreeting && !holdGate.isHolding()) greet();
     if (message.invitesTalk && talkInvitation === 'notAsked') talkInvitation = 'wanted';
   };

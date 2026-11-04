@@ -72,7 +72,7 @@ describe('holding to talk', () => {
   it('closes on losing the page, and on closing', () => {
     const lost = makeHold();
     lost.hold.press('space');
-    lost.hold.lose();
+    lost.hold.loseFinger();
     expect(lost.isMicOn()).toBe(false);
     const closed = makeHold();
     closed.hold.press('talkButton');

@@ -139,9 +139,16 @@ describe('Space', () => {
     const { calls, getIsOn } = setUp();
     spaceDown(talk());
     spaceUp(talk());
-    fireEvent.click(talk());
     expect(getIsOn()).toBe(true);
     expect(calls).toEqual(['open', 'lower']);
+  });
+
+  it('cancels both Space events on Talk, so the browser sends no click, and a later Enter still counts', () => {
+    const { toggleTalk } = setUp();
+    expect(!spaceDown(talk())).toBe(true);
+    expect(!spaceUp(talk())).toBe(true);
+    fireEvent.click(talk());
+    expect(toggleTalk).toHaveBeenCalledTimes(1);
   });
 });
 

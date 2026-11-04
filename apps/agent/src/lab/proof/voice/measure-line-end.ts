@@ -29,7 +29,6 @@ function addNoise(pcm: Buffer, level: number): Buffer {
   return noisy;
 }
 
-// The browser's catch-up plays held sound faster, so this measures what that does to Muse's words.
 function speedUp(pcm: Buffer, speed: number): Buffer {
   if (speed === 1) return pcm;
   const samples = Math.floor(pcm.length / 2);
@@ -54,12 +53,11 @@ interface Run {
   said: string;
   heard: string | null;
   handshakeMs: number;
-  /** From the last sound of the clip, the moment a student's finger would come up. */
   finalAfterLastSoundMs: number | null;
   closeCode: number | null;
 }
 
-// One clip through one raw Muse socket. Sends only the sound up to the clip's last word, as a key lifted on that word would.
+// Sends only the sound up to the clip's last word, as a key lifted on that word would.
 async function runClip({ mode, clip, said, lastMs, pcm, noiseLevel }: { mode: Mode; clip: string; said: string; lastMs: number; pcm: Buffer; noiseLevel: number }): Promise<Run> {
   const openedAtMs = Date.now();
   const socket = new WebSocket('wss://api.meta.ai/v1/asr/realtime');

@@ -7,9 +7,7 @@ export type PressEvent =
   | { type: 'released'; source: PressSource }
   | { type: 'tapTimeUp' }
   | { type: 'limitReached' }
-  /** Focus went, the tab hid, or the page is leaving, so a finger may be down that the page can no longer see. */
-  | { type: 'lost' }
-  /** Something else closed the microphone, such as the room closing. */
+  | { type: 'fingerLost' }
   | { type: 'micWentOff' };
 
 export type PressCommand = 'openMic' | 'closeMic' | 'endLine' | 'lowerTutor' | 'tellHoldStarted' | 'startTapTimer' | 'startLimitTimer' | 'cancelTimers' | 'showLimitNote';
@@ -34,19 +32,19 @@ function onPressedWhileFree(event: PressEvent & { type: 'pressed' }): PressStep 
   return { state: { kind: 'pressing', source: event.source }, commands: ['openMic', 'lowerTutor', 'startTapTimer'] };
 }
 
-// Talk pressed during a Space hold means off. The other way round, and the same finger again, change nothing.
+// Talk pressed during a Space hold means off, and any other second press changes nothing.
 function onPressedWhileDown(state: PressState & { kind: 'pressing' | 'holding' }, event: PressEvent & { type: 'pressed' }): PressStep {
   if (state.source !== 'space' || event.source !== 'talkButton') return STAY(state);
   return { state: FREE, commands: [state.kind === 'holding' ? 'endLine' : 'closeMic', 'cancelTimers'] };
 }
 
-// Only a tap of Talk leaves the microphone on. A tap of Space is usually a slip, so it must not leave one open.
+// Only a tap of Talk leaves the microphone on, because a tap of Space is usually a slip.
 function onReleased(state: PressState & { kind: 'pressing' | 'holding' }): PressStep {
   if (state.kind === 'holding') return { state: FREE, commands: ['endLine', 'cancelTimers'] };
   return { state: FREE, commands: state.source === 'space' ? ['closeMic', 'cancelTimers'] : ['cancelTimers'] };
 }
 
-// Pure, so every order of presses can be searched. One finger owns the microphone at a time, and any way a finger stops being known closes it.
+// One finger owns the microphone at a time, and any way a finger stops being known closes it.
 export function getNextPress(state: PressState, event: PressEvent): PressStep {
   if (state.kind === 'free') return event.type === 'pressed' ? onPressedWhileFree(event) : STAY(state);
   switch (event.type) {
@@ -58,7 +56,7 @@ export function getNextPress(state: PressState, event: PressEvent): PressStep {
       return state.kind === 'pressing' ? { state: { kind: 'holding', source: state.source }, commands: ['tellHoldStarted', 'startLimitTimer'] } : STAY(state);
     case 'limitReached':
       return state.kind === 'holding' ? { state: FREE, commands: ['endLine', 'cancelTimers', 'showLimitNote'] } : STAY(state);
-    case 'lost':
+    case 'fingerLost':
       return { state: FREE, commands: [state.kind === 'holding' ? 'endLine' : 'closeMic', 'cancelTimers'] };
     case 'micWentOff':
       return { state: FREE, commands: state.kind === 'holding' ? ['endLine', 'cancelTimers'] : ['cancelTimers'] };

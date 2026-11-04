@@ -19,7 +19,7 @@ export interface MuseTimings {
   closeAfterQuietMs: number;
   /** A student holding to talk sends no frames between lines, and the next hold must not pay a new handshake of 1.2 to 2.3 s. Silence costs $0.18 an hour, so this costs at most $0.003 a line. */
   closeAfterLineMs: number;
-  /** Audio takes about 143 ms longer to get here than the message saying a line ended, so the end waits for what is still on its way. Frames cannot say when that is, because they keep coming until the track leaves. */
+  /** Audio took about 143 ms longer than a data message from agent to page, and by inference about that the other way, so the end waits for what is still on its way. Frames cannot say when that is, because they keep coming until the track leaves. */
   lineTailMs: number;
   /** Muse caps a session at 60 minutes and the plugin only reports the close, so a new session opens before that. */
   rotateAtPauseAfterMs: number;
@@ -76,7 +76,7 @@ class MuseSpeechStream extends stt.SpeechStream {
     this.#closeAfterQuietMs = options.timings.closeAfterQuietMs;
   }
 
-  // Muse's only word for this is `endStream`, which ends the session, so the next one opens now and stays warm on silence. A line's final fell from 779 ms to 332 ms this way, and from 3925 ms to 460 ms at worst in noise.
+  // Muse's only word for this is `endStream`, which ends the session, so the next one opens now and stays warm on silence.
   endLine(): void {
     clearTimeout(this.#lineTailTimer);
     this.#lineTailTimer = setTimeout(() => this.#endLineNow(), this.#timings.lineTailMs);

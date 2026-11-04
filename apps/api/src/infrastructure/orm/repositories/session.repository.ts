@@ -52,7 +52,6 @@ export class SessionRepository {
     return this.sessions.countBy({ studentId, startedAt: MoreThan(since) });
   }
 
-  /** True when no session of this student started before this one. */
   async isFirstForStudent(studentId: string, sessionId: string): Promise<boolean> {
     const session = await this.sessions.findOneBy({ id: sessionId, studentId });
     if (!session) return false;

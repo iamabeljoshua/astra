@@ -10,7 +10,7 @@ const TAKES_OVER_FOCUS = ['a[href]', 'button', 'input', 'select', 'textarea', 's
 /** A click this soon after the pointer came up belongs to that press, however long the press was. */
 const CLICK_AFTER_RELEASE_MS = 500;
 
-/** Space belongs to anything a student can act on, and to custom elements like MathLive's. It is ours on the page itself, and on a heading the app put focus on when the screen opened. */
+/** Space is ours unless the target is something a student can act on, or a custom element like MathLive's. */
 export function isOpenToSpace(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return true;
   if (target.closest(TAKES_OVER_FOCUS)) return false;
@@ -24,10 +24,8 @@ const getRealTarget = (event: KeyboardEvent) => event.composedPath()[0] ?? event
 const hasOtherKeys = (event: KeyboardEvent) => event.ctrlKey || event.metaKey || event.altKey || event.shiftKey || event.isComposing;
 
 export interface HoldToTalk {
-  /** Spread onto any Talk button. */
   buttonProps: ComponentProps<'button'>;
   isHolding: boolean;
-  /** A hold reached its limit, and the student has not pressed since. */
   hasHitLimit: boolean;
 }
 
@@ -35,11 +33,10 @@ interface HoldToTalkOptions {
   heldMic: HeldMic;
   isTalkOn: boolean;
   toggleTalk(): Promise<void>;
-  /** False once the room is over, and then Space goes back to scrolling the page. */
   isEnabled: boolean;
 }
 
-// Connects the physical keys and pointer to the press rule. Anything that could hide a key's release from the page counts as losing it, because a microphone with no finger on it is the worst failure here.
+// Connects the physical keys and pointer to the press rule, and anything that could hide a release counts as losing the finger.
 export function useHoldToTalk({ heldMic, isTalkOn, toggleTalk, isEnabled }: HoldToTalkOptions): HoldToTalk {
   const latest = useRef({ heldMic, toggleTalk });
   const holdRef = useRef<MicHold | null>(null);
@@ -47,7 +44,6 @@ export function useHoldToTalk({ heldMic, isTalkOn, toggleTalk, isEnabled }: Hold
   const [hasHitLimit, setHasHitLimit] = useState(false);
   const spaceSource = useRef<PressSource | null>(null);
   const pointerEndedAtMs = useRef(-Infinity);
-  const skipsNextClick = useRef(false);
 
   useEffect(() => {
     latest.current = { heldMic, toggleTalk };
@@ -67,7 +63,7 @@ export function useHoldToTalk({ heldMic, isTalkOn, toggleTalk, isEnabled }: Hold
     holdRef.current = hold;
     const loseEverything = () => {
       spaceSource.current = null;
-      hold.lose();
+      hold.loseFinger();
     };
     const onHidden = () => {
       if (document.visibilityState === 'hidden') loseEverything();
@@ -97,10 +93,10 @@ export function useHoldToTalk({ heldMic, isTalkOn, toggleTalk, isEnabled }: Hold
   useEffect(() => {
     if (!isEnabled) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      // macOS sends no key-up while Meta is down, so a held key would look held for good.
+      // On a Mac the page gets no key-up while Meta is down, so a held key would look held for good.
       if (event.key === 'Meta' || event.key === 'OS') {
         spaceSource.current = null;
-        return holdRef.current?.lose();
+        return holdRef.current?.loseFinger();
       }
       if (event.code !== 'Space' || hasOtherKeys(event)) return;
       const target = getRealTarget(event);
@@ -117,8 +113,6 @@ export function useHoldToTalk({ heldMic, isTalkOn, toggleTalk, isEnabled }: Hold
       if (isTalkButton(getRealTarget(event))) event.preventDefault();
       if (!spaceSource.current) return;
       event.preventDefault();
-      // A browser turns Space on a focused button into a click, and this press has already acted.
-      skipsNextClick.current = spaceSource.current === 'talkButton';
       holdRef.current?.release(spaceSource.current);
       spaceSource.current = null;
     };
@@ -146,7 +140,7 @@ export function useHoldToTalk({ heldMic, isTalkOn, toggleTalk, isEnabled }: Hold
       pointerEndedAtMs.current = performance.now();
       holdRef.current?.release('talkButton');
     },
-    onPointerCancel: () => holdRef.current?.lose(),
+    onPointerCancel: () => holdRef.current?.loseFinger(),
     onLostPointerCapture: () => holdRef.current?.release('talkButton'),
     onContextMenu: (event: PointerEvent<HTMLButtonElement>) => event.preventDefault(),
     // Holding Enter clicks again and again, and each click would flip the microphone.
@@ -155,9 +149,7 @@ export function useHoldToTalk({ heldMic, isTalkOn, toggleTalk, isEnabled }: Hold
     },
     // A click with no press before it is Enter, a screen reader, or a voice control, and it means what a press once means.
     onClick() {
-      const wasOwnPress = skipsNextClick.current || performance.now() - pointerEndedAtMs.current < CLICK_AFTER_RELEASE_MS;
-      skipsNextClick.current = false;
-      if (!wasOwnPress) void latest.current.toggleTalk();
+      if (performance.now() - pointerEndedAtMs.current >= CLICK_AFTER_RELEASE_MS) void latest.current.toggleTalk();
     },
   } as ComponentProps<'button'>;
 

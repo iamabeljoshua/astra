@@ -23,7 +23,6 @@ function noteSeen(sessionId: string): void {
 
 const getWords = () => (window.matchMedia(TOUCH_SCREEN_QUERY).matches ? VOICE_LABELS.noisyHoldTalk : VOICE_LABELS.noisyHoldSpace);
 
-// A suggestion only. It changes nothing about the microphone, it shows at most once in a session, and holding to talk takes it down.
 export function NoisePrompt({ sessionId, isRoomNoisy, isHolding }: { sessionId: string; isRoomNoisy: boolean; isHolding: boolean }) {
   const [hasSeenBefore] = useState(() => readHasSeen(sessionId));
   const [isDone, setIsDone] = useState(false);

@@ -39,7 +39,6 @@ export interface LiveVoiceControls {
   connect(options?: { wantsGreeting: boolean; startsOver?: boolean }): Promise<LiveVoice | null>;
   sendTyped(text: string): Promise<boolean>;
   toggleTalk(): Promise<void>;
-  /** What a held press drives. It works before the room has opened. */
   heldMic: HeldMic;
   /** Leaves a room the tutor has gone from, and opens a new one with a new tutor. */
   openAgain(): Promise<void>;

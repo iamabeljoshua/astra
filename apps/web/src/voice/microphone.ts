@@ -14,11 +14,11 @@ export interface MicrophoneOptions<Line extends LineEnds> {
 
 export interface Microphone<Line> {
   getState(): MicState;
-  /** The line now open, if any. There is never more than one. */
+  /** The line on the wire, or the one next to go on it. A second one waits in turn. */
   getLine(): Line | null;
   toggle(): Promise<void>;
   setOn(isOn: boolean): Promise<void>;
-  /** Off for a held line: capture ends at once, and only what it already holds still goes. Any other off drops that too. */
+  /** Off for a held line: only what the capture already holds still goes. */
   finishLine(): Promise<void>;
   /** For a page leaving, which waits for nothing. */
   stopAtOnce(): void;
@@ -42,7 +42,7 @@ export function createMicrophone<Line extends LineEnds>({ capture, publish, unpu
   let line: Line | null = null;
   let state: MicState = 'off';
   let settling: Promise<void> | null = null;
-  // Lines finishing, oldest first. The agent's input follows the newest track, so they leave the room one at a time or the last words of one are lost.
+  // The agent's input follows the newest track, so lines leave the room one at a time or the last words of one are lost.
   const leaving: Line[] = [];
   let lastHasLeft: Promise<void> = Promise.resolve();
   const publishes = new Map<Line, Promise<void>>();
@@ -146,7 +146,6 @@ export function createMicrophone<Line extends LineEnds>({ capture, publish, unpu
 
   return {
     getState: () => state,
-    // The oldest line still leaving is the one on the wire, so it is the one the agent's word is about.
     getLine: () => leaving[0] ?? line,
     setOn,
     finishLine,

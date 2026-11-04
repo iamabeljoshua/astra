@@ -75,7 +75,7 @@ export class HeldAudio {
     this.queue = [];
   }
 
-  /** The capture has ended, so what is held plays out and nothing new comes in. A hold with no sound in it has nothing to play out. */
+  /** A hold with no sound in it has nothing to play out. */
   endInput() {
     this.hasInputEnded = true;
     if (this.queue.every((block) => block.isQuiet)) this.queue = [];
@@ -85,7 +85,6 @@ export class HeldAudio {
     return this.hasInputEnded && this.queue.length === 0;
   }
 
-  /** Takes one block in and writes one block out. Once the input has ended, it only writes. */
   process(input, output) {
     if (!this.hasInputEnded) this.queue.push({ samples: input.slice(), isQuiet: this.isQuiet(input) });
     if (this.isHolding || this.queue.length === 0) {
@@ -105,7 +104,7 @@ export class HeldAudio {
     return block;
   }
 
-  // A room too loud for quiet to skip never catches up otherwise, and stayed over a second behind for a whole lesson.
+  // A room too loud for quiet to skip never catches up otherwise.
   writeFaster(output) {
     for (let index = 0; index < output.length; index += 1) {
       if (!this.reading || this.readOffset >= this.reading.samples.length) {

@@ -21,7 +21,6 @@ export interface MicLine {
 
 export interface MicLineOptions {
   onSteadyNoise?(): void;
-  /** A finishing line has sent all it will send. */
   onFinished?(): void;
 }
 

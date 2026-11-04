@@ -6,16 +6,14 @@ type GatePhase = 'open' | 'holding' | 'letGo';
 
 export interface HoldGate {
   isHolding(): boolean;
-  /** The student let go, and Muse has not said it is done. */
   isWaitingForLine(): boolean;
   onHoldStarted(): TurnEvent[];
   onLineEnded(): TurnEvent[];
   onEars(event: EarsEvent): TurnEvent[];
-  /** Muse has given all it will for a line that ended. */
   onLineFlushed(): TurnEvent[];
 }
 
-// Turns a held key into events the turn rule already knows, so the rule stays as searched: the press is sound over the tutor with its wait already up, and letting go is that sound ending. While a key is down the voice detector has no say, and once it is up Muse's last word on the line decides the turn.
+// Turns a held key into events the turn rule already knows, so the rule itself does not change.
 export function createHoldGate(): HoldGate {
   let phase: GatePhase = 'open';
   let finals: string[] = [];

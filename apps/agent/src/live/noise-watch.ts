@@ -2,7 +2,7 @@
 const CUTS_WITHIN_MS = 120_000;
 
 export interface NoiseWatch {
-  /** The tutor was cut by sound that turned out to have no words. Returns true the first time that keeps happening. */
+  /** Returns true the first time wordless cuts keep happening. */
   noteWordlessCut(atMs: number): boolean;
 }
 

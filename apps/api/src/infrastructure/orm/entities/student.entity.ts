@@ -20,7 +20,6 @@ export class StudentEntity {
   @Column('date', { name: 'birth_date' })
   birthDate!: string;
 
-  /** When the tutor told this student they can talk. It is only ever said once. */
   @Column('timestamptz', { name: 'talk_invited_at', nullable: true })
   talkInvitedAt!: Date | null;
 

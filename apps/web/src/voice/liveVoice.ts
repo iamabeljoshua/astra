@@ -34,7 +34,6 @@ export interface StudentLine {
 export interface LiveVoiceView {
   phase: LivePhase;
   mic: MicState;
-  /** Code heard steady noise, or the tutor keeps getting cut off by sound with no words. */
   isRoomNoisy: boolean;
   isSoundBlocked: boolean;
   /** The room has been quiet for most of its limit and closes soon unless something happens. */
@@ -51,7 +50,6 @@ export interface LiveVoiceView {
 export interface RoomAccess {
   url: string;
   token: string;
-  /** This student's first session, and they have not been told yet that they can talk. */
   invitesTalk?: boolean;
 }
 
@@ -70,11 +68,9 @@ export interface LiveVoiceRecords {
   clockKinds: string[];
 }
 
-/** What a press on Talk or Space drives, ready before the room is, so a hold before it loses no words. */
 export interface MicControls {
   isMicOn(): boolean;
   setMic(isOn: boolean): Promise<void>;
-  /** The student let go: capture ends now, and only what it already holds still goes. */
   endLine(): void;
   lowerTutor(): void;
   tellHoldStarted(): void;
@@ -103,7 +99,6 @@ export interface LiveVoiceOptions {
   /** The browser's own speech cleanup. Only a microphone test turns it off. */
   usesSpeechCleanup?: boolean;
   onMicReady?(controls: MicControls): void;
-  /** The tutor told this student they can talk. */
   onTalkInvited?(): void;
 }
 
@@ -313,6 +308,8 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     if (view.phase !== 'connecting') setView({ phase: 'reconnecting' });
   };
 
+  const sayLineEnded = () => send({ type: 'lineEnded', ...getStamp() });
+
   const publishMic = (line: MicLine) => room.localParticipant.publishTrack(line.track, MIC_PUBLISH_OPTIONS);
 
   const publishMicIfOwed = () => {
@@ -329,7 +326,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
       if (!captured) throw new DOMException('the browser gave no track', 'NotFoundError');
       const line = openMicLine(captured, audioContext, {
         onSteadyNoise: () => setView({ isRoomNoisy: true }),
-        onFinished: () => send({ type: 'lineEnded', ...getStamp() }),
+        onFinished: sayLineEnded,
       });
       const stopWatching = listenToStudent(captured, { audioContext, onSound: localYield.onStudentSound });
       return {
@@ -371,8 +368,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
       const hasLine = mic.getState() === 'on';
       if (hasLine) showHeard();
       void mic.finishLine();
-      // A capture that never landed sent nothing, and the agent still waits to hear the line ended.
-      if (!hasLine) send({ type: 'lineEnded', ...getStamp() });
+      if (!hasLine) sayLineEnded();
     },
     lowerTutor: localYield.onStudentSound,
     tellHoldStarted: () => send({ type: 'holdStarted', ...getStamp() }),

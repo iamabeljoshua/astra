@@ -102,8 +102,8 @@ const tapTalk = async (student: StudentPage, holdMs = 40) => {
   await student.page.mouse.up();
 };
 
-async function withStudent<Result>(title: string, run: (student: StudentPage) => Promise<Result>, { proxy, isHeaded }: { proxy?: string; isHeaded?: boolean } = {}): Promise<Result> {
-  const browser = await launchProofBrowser({ proxy, isHeaded });
+async function withStudent<Result>(title: string, run: (student: StudentPage) => Promise<Result>, { proxy, usesFullChromium }: { proxy?: string; usesFullChromium?: boolean } = {}): Promise<Result> {
+  const browser = await launchProofBrowser({ proxy, usesFullChromium });
   try {
     const student = await openStudentPage(browser, { email: MAYA, title });
     return await run(student);
@@ -126,7 +126,10 @@ async function goLive(student: StudentPage): Promise<void> {
   await delay(600);
 }
 
+// Playwright fakes focus by default. With that off, moving to another tab fires a real blur, and headless Chromium still reports the page as visible.
 async function realTabSwitch(student: StudentPage) {
+  const session = await student.context.newCDPSession(student.page);
+  await session.send('Emulation.setFocusEmulationEnabled', { enabled: false });
   await clearFocus(student);
   await student.page.keyboard.down('Space');
   await waitForMicUp(student);
@@ -134,7 +137,8 @@ async function realTabSwitch(student: StudentPage) {
   const open = await readOpen(student);
   const other = await student.context.newPage();
   await other.goto('about:blank');
-  await other.bringToFront();
+  const otherSession = await student.context.newCDPSession(other);
+  await otherSession.send('Page.bringToFront');
   await delay(300);
   const visibility = await student.page.evaluate(() => ({ visibility: document.visibilityState, hasFocus: document.hasFocus() }));
   const closed = await readClosed(student);
@@ -190,14 +194,12 @@ async function releaseCases(student: StudentPage): Promise<Record<string, unknow
 }
 
 const SCENARIOS: Record<string, (stack: VoiceStack) => Promise<unknown>> = {
-  // Every way a hold can end, on one page, with the sender's own bytes.
   releases: () =>
     withStudent('Every release', async (student) => {
       await goLive(student);
       return releaseCases(student);
     }),
 
-  // Only a headed browser fires a real blur and a real hidden tab, and it takes the window for about 20 s.
   realTab: () =>
     withStudent(
       'A real tab switch',
@@ -205,10 +207,9 @@ const SCENARIOS: Record<string, (stack: VoiceStack) => Promise<unknown>> = {
         await goLive(student);
         return realTabSwitch(student);
       },
-      { isHeaded: true },
+      { usesFullChromium: true },
     ),
 
-  // Key repeat, a tap, double and triple taps, Enter, and Space in a field and on another button.
   presses: () =>
     withStudent('Every press', async (student) => {
       const page = student.page;
@@ -309,7 +310,6 @@ const SCENARIOS: Record<string, (stack: VoiceStack) => Promise<unknown>> = {
       return results;
     }),
 
-  // A hold from a cold page: the press itself opens the room, and the line ends before anyone is listening.
   beforeReady: (stack) =>
     withStudent('Before the room is ready', async (student) => {
       const focusAtStart = await student.page.evaluate(() => document.activeElement?.tagName);
@@ -337,7 +337,6 @@ const SCENARIOS: Record<string, (stack: VoiceStack) => Promise<unknown>> = {
       };
     }),
 
-  // Letting go during a drop keeps what was captured and sends it when the room is back. A hold through a whole drop stays one hold.
   drop: async (stack) => {
     const proxy = await startCutProxy();
     try {
@@ -411,7 +410,6 @@ const SCENARIOS: Record<string, (stack: VoiceStack) => Promise<unknown>> = {
       return { open, closed, pressAgain, afterKeyUp: await readClosed(student) };
     }),
 
-  // The limit on the real clock, a key that never comes up.
   longHold: () =>
     withStudent('A very long hold', async (student) => {
       await goLive(student);
@@ -436,7 +434,6 @@ const SCENARIOS: Record<string, (stack: VoiceStack) => Promise<unknown>> = {
       return { open, closedAfterMs, closed, note, repeatAfterLimit };
     }),
 
-  // Pressing while the tutor speaks stops it, and the board freezes as for a real word.
   interrupt: (stack) =>
     withStudent('Hold over the tutor', async (student) => {
       await goLive(student);
@@ -478,7 +475,6 @@ const SCENARIOS: Record<string, (stack: VoiceStack) => Promise<unknown>> = {
       return { rounds, closed: await readClosed(student) };
     }),
 
-  // Noise over a speaking tutor: with press-once it cuts in, and between holds nothing can.
   noiseCuts: (stack) =>
     withStudent('Noise over the tutor', async (student) => {
       await goLive(student);
@@ -513,7 +509,6 @@ const SCENARIOS: Record<string, (stack: VoiceStack) => Promise<unknown>> = {
       return results;
     }),
 
-  // Sound with no words cutting the tutor again and again raises the prompt, for a student who never held.
   cutsRaisePrompt: (stack) =>
     withStudent('Kept being cut', async (student) => {
       await goLiveByTap(student);
@@ -532,7 +527,6 @@ const SCENARIOS: Record<string, (stack: VoiceStack) => Promise<unknown>> = {
       return { stops: rows.filter((row) => row.name === 'stopDecided').map((row) => row.reason), resumes: rows.filter((row) => row.name === 'resumeStarted').length, prompt: await student.page.getByText('It sounds noisy.').allTextContents(), mic: await getMic(student) };
     }),
 
-  // Steady noise through the real worklet raises the prompt, and a quiet room does not.
   steadyNoise: () =>
     withStudent('Steady noise', async (student) => {
       await goLiveByTap(student);
@@ -559,7 +553,6 @@ const SCENARIOS: Record<string, (stack: VoiceStack) => Promise<unknown>> = {
       return results;
     }),
 
-  // Same clips, same stand-in brain and fake voice: press-once against hold.
   measure: (stack) => runMeasure(stack),
 
   invitation: (stack) =>

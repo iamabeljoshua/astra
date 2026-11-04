@@ -5,7 +5,6 @@ export interface VoiceAdapter {
   makeTts(): tts.TTS;
 }
 
-/** A transcriber that can be told the student's line has ended, so its final does not wait to hear silence. */
 export interface LineTranscriber extends stt.STT {
   endLine(): void;
 }

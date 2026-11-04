@@ -4,7 +4,6 @@ export interface MicHoldDeps {
   getIsMicOn(): boolean;
   openMic(): void;
   closeMic(): void;
-  /** Off for a held line: only what was captured while held still goes. */
   endLine(): void;
   lowerTutor(): void;
   tellHoldStarted(): void;
@@ -15,14 +14,12 @@ export interface MicHoldDeps {
 export interface MicHold {
   press(source: PressSource): void;
   release(source: PressSource): void;
-  /** A finger may be down that the page can no longer see, so this closes the microphone. */
-  lose(): void;
-  /** Something else closed the microphone. */
+  loseFinger(): void;
   noteMicOff(): void;
   close(): void;
 }
 
-// Runs the press rule against the microphone and its timers. It holds no rule of its own, so every path it can take is the one the rule's search covered.
+// Runs the press rule against the microphone and its timers.
 export function createMicHold({ getIsMicOn, openMic, closeMic, endLine, lowerTutor, tellHoldStarted, onHolding, onLimitReached }: MicHoldDeps): MicHold {
   let state: PressState = INITIAL_PRESS;
   let tapTimer: ReturnType<typeof setTimeout> | undefined;
@@ -58,10 +55,10 @@ export function createMicHold({ getIsMicOn, openMic, closeMic, endLine, lowerTut
   return {
     press: (source) => step({ type: 'pressed', source, micIsOn: getIsMicOn() }),
     release: (source) => step({ type: 'released', source }),
-    lose: () => step({ type: 'lost' }),
+    loseFinger: () => step({ type: 'fingerLost' }),
     noteMicOff: () => step({ type: 'micWentOff' }),
     close() {
-      step({ type: 'lost' });
+      step({ type: 'fingerLost' });
       commands.cancelTimers();
     },
   };
