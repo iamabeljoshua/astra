@@ -8,12 +8,10 @@ export interface MarkBox {
   height: number;
 }
 
-const RING = { steps: 26, paddingX: 7, paddingY: 4, wobble: 0.035, overlapRadians: 0.5, startRadians: -2.2 };
+const RING = { steps: 26, paddingX: 4.5, paddingY: 4, wobble: 0.035, largestWanderPx: 2.5, overlapRadians: 0.5, startRadians: -2.2 };
+const RING_ROUNDNESS = [2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96];
 const UNDERLINE = { steps: 8, gap: 3, wobble: 1.1 };
 const TICK = { sizeEms: 0.7, largestSize: 26, gap: 8 };
-
-/** A ring's wobble and its drift stay under this share of its size. */
-const RING_LARGEST_WANDER = 1.1;
 
 export interface MarkReach {
   left: number;
@@ -24,15 +22,27 @@ export interface MarkReach {
 
 const getTickSize = (box: MarkBox) => Math.min(box.height * TICK.sizeEms, TICK.largestSize);
 
+// An ellipse leaves a wide box's corners outside it, so the ring squares up until the whole box is inside, even at its smallest wander.
+function getRingRoundness(box: MarkBox, wander: { x: number; y: number }): number {
+  const across = box.width / 2 / (box.width / 2 + RING.paddingX - wander.x);
+  const down = box.height / 2 / (box.height / 2 + RING.paddingY - wander.y);
+  return RING_ROUNDNESS.find((power) => across ** power + down ** power <= 1) ?? (RING_ROUNDNESS.at(-1) as number);
+}
+
+const getRingWander = (radius: number) => Math.min(radius * RING.wobble, RING.largestWanderPx);
+
 function getRing(box: MarkBox, random: () => number): InkDrawing['strokes'] {
   const centerX = box.x + box.width / 2;
   const centerY = box.y + box.height / 2;
   const radiusX = box.width / 2 + RING.paddingX;
   const radiusY = box.height / 2 + RING.paddingY;
+  const wander = { x: getRingWander(radiusX), y: getRingWander(radiusY) };
+  const power = 2 / getRingRoundness(box, wander);
+  const squared = (value: number) => Math.sign(value) * Math.abs(value) ** power;
   const points: InkPosition[] = Array.from({ length: RING.steps + 1 }, (_, step) => {
     const angle = RING.startRadians + (step / RING.steps) * (2 * Math.PI + RING.overlapRadians);
-    const wander = 1 + getSpread(random, RING.wobble) + (step / RING.steps) * RING.wobble;
-    return { x: centerX + Math.cos(angle) * radiusX * wander, y: centerY + Math.sin(angle) * radiusY * wander };
+    const drift = getSpread(random, 1) / 2 + (step / RING.steps) / 2;
+    return { x: centerX + squared(Math.cos(angle)) * (radiusX + drift * wander.x), y: centerY + squared(Math.sin(angle)) * (radiusY + drift * wander.y) };
   });
   return [makeStroke(points)];
 }
@@ -59,8 +69,8 @@ function getCross(box: MarkBox): InkDrawing['strokes'] {
 
 export function getMarkReach(mark: AnnotationMark, box: MarkBox): MarkReach {
   if (mark === 'circle') {
-    const across = (box.width / 2) * (RING_LARGEST_WANDER - 1) + RING.paddingX * RING_LARGEST_WANDER;
-    const down = (box.height / 2) * (RING_LARGEST_WANDER - 1) + RING.paddingY * RING_LARGEST_WANDER;
+    const across = RING.paddingX + getRingWander(box.width / 2 + RING.paddingX);
+    const down = RING.paddingY + getRingWander(box.height / 2 + RING.paddingY);
     return { left: across, top: down, right: across, bottom: down };
   }
   if (mark === 'underline') return { left: 0, top: 0, right: 0, bottom: UNDERLINE.gap + UNDERLINE.wobble };

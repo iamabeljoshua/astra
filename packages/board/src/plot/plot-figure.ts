@@ -60,6 +60,7 @@ function addCurve(draft: FigureDraft, element: PlotElement, { frame, view, isFir
   const isWhole = upToX >= element.content.domain[1];
   const drawn = isWhole ? getPixelBranches(world, view) : getBranchesUpTo(world, upToX).map((branch) => branch.map(view.toPixel));
   draft.marks.push({ kind: 'path', key: `curve-${element.id}`, tone: isFirst ? 'ink' : 'ink-2', weight: 'bold', branches: drawn });
+  draft.linesAhead.push(...getPixelBranches(world, view));
   addSoftLine(draft, drawn);
   const anchor = drawn.at(-1)?.at(-1) ?? (isWhole ? { x: (view.rect.left + view.rect.right) / 2, y: (view.rect.top + view.rect.bottom) / 2 } : null);
   if (element.content.label && anchor) addLabel(draft, { key: `label-${element.id}`, text: element.content.label, anchor, sides: ['above-left', 'left', 'below-left', 'above', 'below', 'above-right', 'right', 'below-right'] });

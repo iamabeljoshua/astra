@@ -1,5 +1,5 @@
 import { type BoardElement, type BoardState, getMotionValue } from '@astra/board';
-import { createFigurePainter, createInkPainter, drawMark, type FigureMark, getMarkReach, type InkPainter, type LabelRequest, type MarkBox, type MovingPlacement, placeLabels, type TermBoxes, type TermQuery, writeStyle } from '@astra/board/drawing';
+import { type Branch, createFigurePainter, createInkPainter, drawMark, type FigureMark, getMarkReach, type InkPainter, type InkStroke, type LabelRequest, type MarkBox, type MovingPlacement, placeLabels, type TermBoxes, type TermQuery, writeStyle } from '@astra/board/drawing';
 import type { AnnotationMark, ElementRef } from '@astra/contracts';
 import { type BoardItem, isFigure } from './boardItems';
 
@@ -15,6 +15,7 @@ interface PaintedMark {
   group: SVGGElement;
   key: string;
   painter: InkPainter;
+  strokes: readonly InkStroke[];
 }
 
 /** A mark with nothing to point at, so the tutor is talking about a ring the student cannot see. */
@@ -96,10 +97,12 @@ function getBoxOnBoard(box: MarkBox, { placement, move }: { placement: MovingPla
   return { x: placement.x + (box.x + move.x) * placement.scale, y: placement.y + (box.y + move.y) * placement.scale, width: box.width * placement.scale, height: box.height * placement.scale };
 }
 
-function getNoteMarks(requests: readonly LabelRequest[], frame: MarksFrame): FigureMark[] {
+function getNoteMarks(requests: readonly LabelRequest[], frame: MarksFrame, linesToClear: readonly Branch[]): FigureMark[] {
   const mustAvoid = [...frame.placements.values()].filter((placement) => placement.isVisible).map(({ x, y, width, height }) => ({ left: x, top: y, right: x + width, bottom: y + height }));
-  return placeLabels(requests, { bounds: { left: 0, top: 0, right: frame.area.width, bottom: frame.area.height }, mustAvoid, shouldAvoid: [], onNoRoom: frame.onLabelWithoutRoom });
+  return placeLabels(requests, { bounds: { left: 0, top: 0, right: frame.area.width, bottom: frame.area.height }, mustAvoid, shouldAvoid: [], linesToClear, onNoRoom: frame.onLabelWithoutRoom });
 }
+
+const getStrokesOnBoard = (strokes: readonly InkStroke[], { placement, move }: { placement: MovingPlacement; move: TermBoxes['flightOffset'] }): Branch[] => strokes.map(({ points }) => points.map(({ x, y }) => ({ x: placement.x + (x + move.x) * placement.scale, y: placement.y + (y + move.y) * placement.scale })));
 
 // Marks follow the term they name through a rearrangement, and fade if it goes.
 export function createBoardMarks(overlay: SVGSVGElement, onMarkWithoutTarget?: (problem: MarkWithoutTarget) => void) {
@@ -127,12 +130,13 @@ export function createBoardMarks(overlay: SVGSVGElement, onMarkWithoutTarget?: (
     existing?.painter.remove();
     const group = existing?.group ?? document.createElementNS(SVG_NAMESPACE, 'g');
     if (!existing) noteGroup.before(group);
-    const painted = { group, key, painter: createInkPainter(group, drawMark({ mark: kind, box, seed: id })) };
+    const strokes = drawMark({ mark: kind, box, seed: id });
+    const painted = { group, key, painter: createInkPainter(group, strokes), strokes };
     marks.set(id, painted);
     return painted;
   };
 
-  const paintMark = (mark: BoardElement, content: MarkContent, frame: MarksFrame) => {
+  const paintMark = (mark: BoardElement, content: MarkContent, frame: MarksFrame, inkLines: Branch[]) => {
     const [targetId] = getTargetParts(content.target);
     const placement = frame.placements.get(targetId);
     const item = frame.getItem(targetId);
@@ -157,6 +161,7 @@ export function createBoardMarks(overlay: SVGSVGElement, onMarkWithoutTarget?: (
     const opacity = getMarkOpacity({ boxes, drawn, rearranged, isReducedMotion: frame.isReducedMotion });
     writeStyle(painted.group, 'opacity', opacity < 1 ? opacity.toFixed(3) : '');
     painted.painter.paint(frame.isReducedMotion && drawn > 0 ? 1 : drawn);
+    if (placement.isVisible) inkLines.push(...getStrokesOnBoard(painted.strokes, { placement, move }));
     if (content.kind !== 'annotate' || !content.label || drawn < 1 || !placement.isVisible) return null;
     const onBoard = getBoxOnBoard(box, { placement, move });
     return { key: `note-${mark.id}`, text: content.label, anchor: { x: onBoard.x + onBoard.width / 2, y: onBoard.y + onBoard.height }, gap: NOTE_GAP, sides: ['below', 'below-right', 'below-left'], tone: 'ink' } satisfies LabelRequest;
@@ -191,15 +196,16 @@ export function createBoardMarks(overlay: SVGSVGElement, onMarkWithoutTarget?: (
       const onMath = allMarks.filter((element) => frame.getItem(getTargetParts((element.content as MarkContent).target)[0]));
       removeGone(new Set(onMath.map((element) => element.id as string)));
       const notes: LabelRequest[] = [];
+      const inkLines: Branch[] = [];
       for (const mark of allMarks) {
         if (!onMath.includes(mark)) {
           reportIfNeverDrawn(mark, mark.content as MarkContent);
           continue;
         }
-        const note = paintMark(mark, mark.content as MarkContent, frame);
+        const note = paintMark(mark, mark.content as MarkContent, frame, inkLines);
         if (note) notes.push(note);
       }
-      notePainter.paint(getNoteMarks(notes, frame));
+      notePainter.paint(getNoteMarks(notes, frame, inkLines));
       paintFocus(frame);
     },
   };

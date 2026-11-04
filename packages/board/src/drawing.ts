@@ -5,7 +5,7 @@ export { createTablePainter } from './table/table-painter.ts';
 export { createTimelinePainter } from './timeline/timeline-painter.ts';
 export { type DiagramTextLabel, drawDiagram, type DrawnDiagram, type MeasureText } from './ink/diagram.ts';
 export { createFigurePainter } from './figure/figure-painter.ts';
-export type { FigureMark } from './figure/figure-marks.ts';
+export type { Branch, FigureMark } from './figure/figure-marks.ts';
 export { getFigureFit, getFigureMarks } from './figure/get-figure-marks.ts';
 export { type LabelRequest, placeLabels, setLabelMeasure } from './figure/place-labels.ts';
 export { canWriteByHand, writeByHand } from './ink/handwriting.ts';

@@ -14,16 +14,19 @@ export interface FigureDraft {
   labels: LabelRequest[];
   shouldAvoid: Box[];
   mustAvoid: Box[];
+  /** A curve's whole line, so a label placed before the pen arrives does not have to jump out of its way. */
+  linesAhead: Branch[];
   bounds: Box;
 }
 
 export function createFigureDraft(width: number, height: number): FigureDraft {
-  return { marks: [], ticks: [], labels: [], shouldAvoid: [], mustAvoid: [], bounds: { left: 0, top: 0, right: width, bottom: height } };
+  return { marks: [], ticks: [], labels: [], shouldAvoid: [], mustAvoid: [], linesAhead: [], bounds: { left: 0, top: 0, right: width, bottom: height } };
 }
 
 /** Text goes on top of every line, in the order that lets a tutor's words win over tick numbers they would have covered. */
-export function finishFigure({ marks, ticks, labels, shouldAvoid, mustAvoid, bounds }: FigureDraft, onNoRoom?: (text: string) => void): FigureMark[] {
-  return [...marks, ...placeLabels([...labels, ...ticks], { bounds, mustAvoid, shouldAvoid, onNoRoom })];
+export function finishFigure({ marks, ticks, labels, shouldAvoid, mustAvoid, linesAhead, bounds }: FigureDraft, onNoRoom?: (text: string) => void): FigureMark[] {
+  const linesToClear = [...linesAhead, ...marks.flatMap((mark) => (mark.kind === 'path' ? mark.branches : []))];
+  return [...marks, ...placeLabels([...labels, ...ticks], { bounds, mustAvoid, shouldAvoid, linesToClear, onNoRoom })];
 }
 
 export function addSoftLine(draft: FigureDraft, branches: readonly Branch[]): void {
