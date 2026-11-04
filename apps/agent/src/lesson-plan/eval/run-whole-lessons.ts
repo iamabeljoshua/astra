@@ -135,9 +135,10 @@ async function runLesson(script: LessonScript, student: StudentKind, ledger: Ret
   const scenesShown: { atSeconds: number; topic: string }[] = [];
   const stepsSeen = new Set<string>();
   const timeline: string[] = [];
-  let studentWords = '';
   let tutorEndedAtMs = startedAtMs;
   let isTutorOn = false;
+  const turnsRunning = new Set<unknown>();
+  const turnsSounding = new Set<unknown>();
   let isQuestionOpen = false;
   let lastSpokenBeats: readonly Beat[] = [];
   let longestSilentMs = 0;
@@ -145,13 +146,15 @@ async function runLesson(script: LessonScript, student: StudentKind, ledger: Ret
   let silenceOpenStartMs: number | null = null;
   let nudges = 0;
 
+  const lastAskedAQuestion = (kind: unknown) => kind === 'scene' || lastSpokenBeats.at(-1)?.expectsReply === true;
+
   const noteSilenceOver = () => {
-    if (isTutorOn) return;
+    if (turnsSounding.size > 0) return;
     const silence = performance.now() - tutorEndedAtMs;
     const isOpen = isQuestionOpen || brain.getBoard().openTask !== null;
     if (isOpen) longestSilentOpenMs = Math.max(longestSilentOpenMs, silence);
     else longestSilentMs = Math.max(longestSilentMs, silence);
-    if (silence > 500) timeline.push(`  [${(silence / 1000).toFixed(1)} s quiet, ${isOpen ? 'something open' : 'NOTHING OPEN'}]`);
+    if (silence > 2500) timeline.push(`  [${(silence / 1000).toFixed(1)} s quiet, ${isOpen ? 'something open' : 'NOTHING OPEN'}]`);
   };
 
   const reader = makeAnthropicJsonReader({ apiKey: readerKey });
@@ -209,16 +212,18 @@ async function runLesson(script: LessonScript, student: StudentKind, ledger: Ret
     getOpeningScene: () => scenes?.getOpeningScene() ?? Promise.resolve(null),
     waitForPicture: async () => true,
     trace(name, fields = {}) {
-      if (name === 'turnStarted') {
-        noteSilenceOver();
-        isTutorOn = true;
-        if (fields.kind === 'scene') isQuestionOpen = true;
+      if (name === 'turnStarted') turnsRunning.add(fields.turnId);
+      if (name === 'firstFrameCaptured') {
+        if (turnsSounding.size === 0) noteSilenceOver();
+        turnsSounding.add(fields.turnId);
       }
       if (name === 'turnFinished') {
-        isTutorOn = false;
-        tutorEndedAtMs = performance.now();
-        if (fields.kind !== 'reaction') isQuestionOpen = fields.kind === 'scene' || lastSpokenBeats.at(-1)?.expectsReply === true;
+        turnsRunning.delete(fields.turnId);
+        const wasSounding = turnsSounding.delete(fields.turnId);
+        if (wasSounding && turnsSounding.size === 0) tutorEndedAtMs = performance.now();
+        if (fields.kind !== 'reaction' && wasSounding) isQuestionOpen = lastAskedAQuestion(fields.kind);
       }
+      isTutorOn = turnsRunning.size > 0;
     },
   });
   const toPage = (message: SceneAgentMessage) => {
@@ -265,8 +270,8 @@ async function runLesson(script: LessonScript, student: StudentKind, ledger: Ret
 
   const say = (text: string) => {
     noteSilenceOver();
-    studentWords = text;
     timeline.push(`${seconds()} s STUDENT: ${text}`);
+    turnsSounding.clear();
     session.onEars({ type: 'voiceStarted' });
     session.onEars({ type: 'words', text, isFinal: false });
     session.onEars({ type: 'voiceEnded' });
@@ -282,7 +287,7 @@ async function runLesson(script: LessonScript, student: StudentKind, ledger: Ret
     if (isTutorOn) continue;
     const idleMs = performance.now() - tutorEndedAtMs;
     if (idleMs > GIVE_UP_AFTER_SILENCE_MS) break;
-    if (student !== 'nudging' || session.isAtPause === undefined || performance.now() - nudgedAtMs < NUDGE_AFTER_IDLE_MS) continue;
+    if (student !== 'nudging' || performance.now() - nudgedAtMs < NUDGE_AFTER_IDLE_MS) continue;
     const isOpen = isQuestionOpen || brain.getBoard().openTask !== null;
     if (idleMs < (isOpen ? NUDGE_AFTER_IDLE_MS : NUDGE_WITH_NOTHING_OPEN_MS)) continue;
     nudges += 1;
@@ -293,7 +298,6 @@ async function runLesson(script: LessonScript, student: StudentKind, ledger: Ret
   noteSilenceOver();
   await session.close();
   scenes.close();
-  void studentWords;
   const tasks = replies.flatMap(({ tasks: replyTasks }) => replyTasks);
   const words = replies.map((reply) => reply.words).sort((first, second) => first - second);
   const firstText = replies.flatMap((reply) => reply.firstTextMs ?? []).sort((first, second) => first - second);

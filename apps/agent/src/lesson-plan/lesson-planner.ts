@@ -41,7 +41,7 @@ export interface LessonPlannerOptions {
 
 const ASKS_TO_SKIP = /\bskip\s+(?:that|this|it|ahead)\b|\bskip[.!?\s]*$|(?:^|\b(?:let'?s|can we|could we|please|just)\s+)move on\b/i;
 
-const ASKS_FOR_NEXT = /\b(?:what'?s next|what comes next|next (?:idea|part|step)|what'?s the next)\b/i;
+const ASKS_FOR_NEXT = /\b(?:what'?s next\b(?! to)|(?<!know )what comes next|next (?:idea|part|step)|what'?s the next)\b/i;
 const SAYS_NOT_TO = /\b(?:don'?t|do not|dont|never|not|won'?t)\b[^.?!]*\b(?:skip|move on)\b/i;
 
 /** Code's own stage words, such as "(picked 3)", are not the student saying anything. */
@@ -58,6 +58,8 @@ const WANTS_TEACHING = /\b(?:go on|keep going|keep teaching|carry on|go ahead|te
 
 /** They asked to be taught, in the words this list knows. */
 export const asksToBeTaught = (words: string) => WANTS_TEACHING.test(words) || ASKS_TO_BE_TAUGHT.test(words);
+
+const FEWEST_STEPS_ON_A_CARD = 3;
 
 const NAMES_A_PROBLEM = /\d\s*[-+*/×÷=^%]|=|->|_{2,}|\bm\/s\b|\b(?:solve|balance|simplify|calculate|work out|factori[sz]e|derivative of|integral of|slope of|which came first)\b/i;
 const ASKS_TO_BE_TAUGHT = /^\s*(?:please\s+)?(?:teach|explain|help me (?:understand|get)|give me a lesson|i(?:'d like| would like| want| wanna)(?: to)? (?:learn|understand))\b/i;
@@ -110,10 +112,18 @@ export function createLessonPlanner({ ask, canSpend, charge, onTitleChange, onLe
   let asking: Promise<void> | null = null;
 
   let toldTitle: string | null = null;
-  let isOnACard = false;
+  let card: LessonPlan | null = null;
 
   const adopt = (move: PlanMove, { words, isOpening, startReply }: { words: string; isOpening: boolean; startReply: number }) => {
-    if (isOnACard && isOpening) return;
+    if (card && isOpening) {
+      // Most cards have no deeper ideas on the list, so the planner's later steps carry on from the card's own first one.
+      if (move.move === 'new' && state.active?.plan === card) {
+        const plan = { ...card, steps: [...card.steps, ...move.plan.steps.slice(1)] };
+        state = { ...state, active: { ...state.active, plan } };
+        onLessonChange?.(state, null);
+      }
+      return;
+    }
     const hadTopic = state.active?.plan.topic ?? null;
     state = getStateAfterMove(state, getTrustedMove(move, words), startReply);
     const topic = state.active?.plan.topic ?? null;
@@ -134,7 +144,7 @@ export function createLessonPlanner({ ask, canSpend, charge, onTitleChange, onLe
       trace('planAnswered', { move: move?.move ?? null, ms: Math.round(getNowMs() - startedAtMs), costUsd });
       if (move) adopt(move, heard);
       // Words the list already caught have had their event, and a second one would skip a step.
-      if (wants && getWordsEvent(said) === null) noteEvent(WANTS_EVENTS[wants]);
+      if (wants && !getMoveEvent(said) && !getWordsEvent(said)) noteEvent(WANTS_EVENTS[wants]);
     } catch (error) {
       trace('planFailed', { problem: String(error), ms: Math.round(getNowMs() - startedAtMs) });
     }
@@ -158,9 +168,9 @@ export function createLessonPlanner({ ask, canSpend, charge, onTitleChange, onLe
   return {
     noteStudentWords(heard) {
       if (isStageWords(heard.words) || isLineOfWork(heard.words) || IS_ONLY_A_NOD.test(heard.words.trim())) return;
-      noteEvent(getMoveEvent(heard.words));
-      noteEvent(getWordsEvent(heard.words));
-      if (heard.isOpening && isOnACard) return;
+      // One event for one line, because a second would skip a step.
+      noteEvent(getMoveEvent(heard.words) ?? getWordsEvent(heard.words));
+      if (heard.isOpening && card && card.steps.length >= FEWEST_STEPS_ON_A_CARD) return;
       waiting = { ...heard, startReply: state.repliesEnded };
       asking ??= askWhileWaiting();
     },
@@ -168,7 +178,7 @@ export function createLessonPlanner({ ask, canSpend, charge, onTitleChange, onLe
     noteWorkChecked: (checked, work) => noteEvent(getWorkEvent(checked, work)),
     noteReplyEnded: ({ wasSafety }) => noteEvent(wasSafety ? 'safetyReplyEnded' : 'replyEnded'),
     noteCardLesson(plan) {
-      isOnACard = true;
+      card = plan;
       state = getStateAfterMove(state, { move: 'new', plan });
       onLessonChange?.(state, null);
     },

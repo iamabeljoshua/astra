@@ -30,8 +30,17 @@ interface SceneRecord {
   ownerId?: string | null;
   topic?: string;
   narration?: string;
-  plan?: { close?: string };
+  plan?: { close?: string; opening?: readonly { say?: unknown }[]; more?: readonly { say?: unknown }[] };
 }
+
+/** A card's lesson: its own idea, then the deeper ones, each with the lines written for it and whether a saved scene may play. */
+export interface CardMaterial {
+  title: string;
+  ideas: { title: string; lines: string[]; hasScene: boolean }[];
+}
+
+const SHELF_KEPT_MS = 5 * 60_000;
+let shelf: { storeRoot: string; readAtMs: number; scenes: ReadonlyMap<string, { sceneId: string; lines: string[] }> } | null = null;
 
 // A damaged record cannot prove what it is, so the page leaves it out.
 function readSceneRecord(path: string): SceneRecord | null {
@@ -53,6 +62,40 @@ export function getLibraryScenes(storeRoot: string): LibrarySceneDto[] {
     if (!record?.topic || !found || record.status !== 'checked' || (record.ownerId ?? null) !== null) return [];
     return [{ sceneId, title: record.topic, kind: found.kind, subject: found.subject, narration: record.narration ?? '', close: record.plan?.close ?? '', isFlagged: existsSync(getFlagPath(storeRoot, sceneId)), isCheckedByPerson: false }];
   });
+}
+
+const toLines = (lines: readonly { say?: unknown }[] = []) => lines.flatMap(({ say }) => (typeof say === 'string' ? [say] : []));
+
+// Every session on a card reads this at its start, so the files are read once and kept a while. A flag is looked at fresh each time.
+function getShelf(storeRoot: string, nowMs: number) {
+  if (shelf?.storeRoot === storeRoot && nowMs - shelf.readAtMs < SHELF_KEPT_MS) return shelf.scenes;
+  const scenesRoot = join(storeRoot, 'scenes');
+  const listed = getListedTitles();
+  const scenes = new Map(
+    (existsSync(scenesRoot) ? readdirSync(scenesRoot) : []).filter((sceneId) => SCENE_FOLDER.test(sceneId)).flatMap((sceneId): [string, { sceneId: string; lines: string[] }][] => {
+      const record = readSceneRecord(join(scenesRoot, sceneId, 'scene.json'));
+      if (!record?.topic || !listed.has(normalizeTitle(record.topic)) || record.status !== 'checked' || (record.ownerId ?? null) !== null) return [];
+      return [[normalizeTitle(record.topic), { sceneId, lines: [...toLines(record.plan?.opening), ...toLines(record.plan?.more)] }]];
+    }),
+  );
+  shelf = { storeRoot, readAtMs: nowMs, scenes };
+  return scenes;
+}
+
+/** What a card's lesson teaches, from the server's own list. Null for a title that is not on it. With no store, the ideas still stand, with no lines and no scenes. */
+export function getCardMaterial(storeRoot: string | undefined, title: string, nowMs = Date.now()): CardMaterial | null {
+  const topic = LIBRARY.topics.find((one) => normalizeTitle(one.title) === normalizeTitle(title));
+  if (!topic) return null;
+  const titles = [topic.title, ...(deeperScenes.deeper.find(({ topicId }) => topicId === topic.id)?.titles ?? [])];
+  const scenes = storeRoot ? getShelf(storeRoot, nowMs) : new Map<string, { sceneId: string; lines: string[] }>();
+  return {
+    title: topic.title,
+    ideas: titles.map((idea) => {
+      const saved = scenes.get(normalizeTitle(idea));
+      const canShow = saved !== undefined && !existsSync(getFlagPath(storeRoot as string, saved.sceneId));
+      return { title: idea, lines: canShow ? saved.lines : [], hasScene: canShow };
+    }),
+  };
 }
 
 const getShuffleKey = (seed: number, sceneId: string) => createHash('sha256').update(`${seed}:${sceneId}`).digest('hex');

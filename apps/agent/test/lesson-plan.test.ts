@@ -325,7 +325,7 @@ describe('the tutor with a lesson planner', () => {
 
     await answer(brain, 'teach me fractions');
     await planner.whenSettled();
-    await answer(brain, 'go on');
+    await answer(brain, 'i see');
     expect(getPlanNotes(model).at(-1)).toBe(1);
     await answer(brain, 'and again');
     expect(getPlanNotes(model).at(-1)).toBe(2);
