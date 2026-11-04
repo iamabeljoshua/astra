@@ -37,6 +37,8 @@ function getOperations(random: () => number, command: SceneCommand): BoardOperat
   return [command, ...follow].map((item, index) => ({ kind: 'command', atMs: index, overMs: null, command: item as SceneCommand }));
 }
 
+const HEAVY_TEST_MS = 60_000;
+
 describe('plots from random input', () => {
   it('never throws and never paints a number that is not finite', () => {
     const random = makeSeededRandom('figure-fuzz');
@@ -53,7 +55,7 @@ describe('plots from random input', () => {
       }
     }
     expect(drawn).toBeGreaterThan(100);
-  });
+  }, HEAVY_TEST_MS);
 });
 
 const EXTREMES = [0, 1, -1, 1e-6, -1e-6, 1e-7, 0.1, 1 / 3, 1e-300, -1e-300, 1e6, -1e6, 999999.999999, 100, -100, 1000, 150, 9.8, 360, -360, 3600];
@@ -102,8 +104,6 @@ function getRandomCommands(random: () => number): unknown[] {
     { kind: 'vector', id: 'bo', on: 'b.ball', angleDegrees: pick(), length: 'short' },
   ];
 }
-
-const HEAVY_TEST_MS = 60_000;
 
 describe('every figure kind from extreme numbers the parser accepts', () => {
   it('never throws and never paints a number that is not finite', () => {

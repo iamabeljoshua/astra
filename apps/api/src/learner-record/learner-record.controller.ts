@@ -13,7 +13,7 @@ export class LearnerRecordController {
     return this.learnerRecord.getRecord(studentId);
   }
 
-  /** Deletes one note. The tutor forgets it, and running that session's update again does not bring it back. */
+  /** Deletes one note. The tutor stops reading it from the next session, and running that session's update again does not bring it back. */
   @Delete('notes/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
   deleteNote(@CurrentStudentId() studentId: string, @Param() { id }: LearnerNoteParamsDto): Promise<void> {
