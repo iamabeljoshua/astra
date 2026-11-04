@@ -68,6 +68,14 @@ describe('a line code cannot judge', () => {
     expect(said).toBe('How did you work that out?');
   });
 
+  it('sees through a filler in front of it', async () => {
+    const { brain, traces } = setup(['Here we go. {"kind":"writeMath","id":"n","tex":"x^2","claim":"new"}Your go.', "Hmm, close, but that's not quite it.", 'What did you do to the x?']);
+    await collect(brain, 'teach me derivatives');
+    brain.noteWork(line('s1', 'x^2 = 2x'));
+    expect(say(await collect(brain, 'x^2 = 2x'))).toBe('What did you do to the x?');
+    expect(traces).toContain('wordsRefused');
+  });
+
   it('leaves a reader free to answer words', async () => {
     const { brain, traces } = setup(['Tell me in words.', 'Close, and the sides do stay equal.']);
     await collect(brain, 'why do we do the same to both sides');

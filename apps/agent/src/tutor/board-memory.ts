@@ -53,7 +53,7 @@ function getMarkProblem(command: SceneCommand & { kind: 'annotate' }, { verdicts
   return command.mark === 'cross' && status !== 'wrong' ? `code says that work is ${status}, so it cannot get a cross` : null;
 }
 
-const CALLS_IT_WRONG = /^\s*(wrong|incorrect|not (right|quite)|nope?|oops|mistake|close|almost)\b/i;
+const CALLS_IT_WRONG = /^\s*(?:(?:h+m+|u+m+|u+h+|o+h+)[,.\s]+)*(wrong|incorrect|not (right|quite)|nope?|oops|mistake|close|almost)\b/i;
 
 // A note beside a line is a mark in words, so it cannot say more than code knows.
 function getNoteProblem(command: SceneCommand & { kind: 'note' }, { verdicts }: BoardMemory): string | null {
