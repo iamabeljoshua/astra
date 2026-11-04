@@ -1,8 +1,9 @@
 import { BEAT_LIMITS } from './beat.ts';
-import { readBeatId, readElementId, readTurnId } from './ids.ts';
+import { readBeatId, readElementId, readSceneId, readTurnId } from './ids.ts';
 import { type AgentMessage, type BrowserMessage, type BrowserStamp, clipTypedText, LIVE_MESSAGE_MAX_BYTES, STUDENT_WORDS_MAX_CHARACTERS, type TimedWord, TUTOR_CLOSED_REASONS } from './live-message.ts';
 import { readSceneCommand } from './parse-command.ts';
 import { PLAY_REPORT_KEYS, readFrozenFrames, readPlayReport, readStudentAction, readStudentWork } from './parse-event.ts';
+import type { SceneAgentMessage, SceneBrowserMessage } from './scene-message.ts';
 import {
   type CheckedFields,
   checkJsonSize,
@@ -218,4 +219,30 @@ export function parseAgentMessage(value: unknown): ParseResult<AgentMessage> {
 
 export function parseBrowserMessage(value: unknown): ParseResult<BrowserMessage> {
   return parseLiveMessage(value, (place) => readVariant<BrowserMessage>(place, BROWSER_MESSAGES));
+}
+
+const SCENE_AGENT_MESSAGES: VariantTable<SceneAgentMessage, 'type'> = {
+  tag: 'type',
+  variants: {
+    loadScene: { keys: ['sceneId', 'durationSeconds'], read: (fields) => ({ type: 'loadScene', sceneId: readSceneId(fields.at('sceneId')), durationSeconds: readNumberInRange(fields.at('durationSeconds'), { min: 0.1, max: 600 }) }) },
+    noLesson: { keys: [], read: () => ({ type: 'noLesson' }) },
+    voiceAtLimit: { keys: [], read: () => ({ type: 'voiceAtLimit' }) },
+  },
+};
+
+const SCENE_BROWSER_MESSAGES: VariantTable<SceneBrowserMessage, 'type'> = {
+  tag: 'type',
+  variants: {
+    sceneDevice: { keys: ['canPlay'], read: (fields) => ({ type: 'sceneDevice', canPlay: readBoolean(fields.at('canPlay')) }) },
+    sceneLoaded: { keys: ['sceneId'], read: (fields) => ({ type: 'sceneLoaded', sceneId: readSceneId(fields.at('sceneId')) }) },
+    sceneRefused: { keys: ['sceneId'], read: (fields) => ({ type: 'sceneRefused', sceneId: readSceneId(fields.at('sceneId')) }) },
+  },
+};
+
+export function parseSceneAgentMessage(value: unknown): ParseResult<SceneAgentMessage> {
+  return toParseResult(() => readVariant<SceneAgentMessage>({ value, path: 'message' }, SCENE_AGENT_MESSAGES));
+}
+
+export function parseSceneBrowserMessage(value: unknown): ParseResult<SceneBrowserMessage> {
+  return toParseResult(() => readVariant<SceneBrowserMessage>({ value, path: 'message' }, SCENE_BROWSER_MESSAGES));
 }

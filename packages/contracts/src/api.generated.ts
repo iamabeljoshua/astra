@@ -139,6 +139,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/scene-takes/{sceneId}/{theme}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Sends one stored take of a checked scene. A scene from a library card goes to any student. A scene from a typed question goes only to the student who asked, and any other student gets 404. A take never changes, so the browser keeps it. */
+        get: operations["ScenesController_getSceneTake"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sessions/{id}/scene-lesson": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Opens the stand-in lesson for the signed-in student's own session, until the live room and the tutor's brain take over. Another student's session answers 404, a finished one 409, and a student past a lesson limit 429, with the reason and the real wait in its body. */
+        post: operations["ScenesController_openSceneLesson"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -204,7 +238,7 @@ export interface components {
             goal: "class" | "exam" | "curiosity";
         };
         CreateSessionBodyDto: {
-            /** @description What the session is about. */
+            /** @description What the session is about. When a card started this session, the API uses the title in its library and ignores this one. */
             title: string;
             /** @description The subject the session belongs to. */
             subject: string;
@@ -315,6 +349,12 @@ export interface components {
              * @enum {string|null}
              */
             unavailableBecause: "notSetUp" | "dailyLimit" | null;
+        };
+        SceneLessonResponseDto: {
+            /** @description The LiveKit address that the browser connects to. */
+            url: string;
+            /** @description Lets this student join this lesson's room. */
+            token: string;
         };
     };
     responses: never;
@@ -546,6 +586,50 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LiveRoomResponseDto"];
+                };
+            };
+        };
+    };
+    ScenesController_getSceneTake: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The stored scene. */
+                sceneId: string;
+                /** @description The take is drawn once per theme. */
+                theme: "light" | "dark";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ScenesController_openSceneLesson: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The ID of the session. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SceneLessonResponseDto"];
                 };
             };
         };

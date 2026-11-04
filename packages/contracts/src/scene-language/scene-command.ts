@@ -68,8 +68,13 @@ export type AnnotationMark = (typeof ANNOTATION_MARKS)[number];
 export const SIMULATION_MOMENTS = ['release', 'peak', 'landing'] as const;
 export type SimulationMoment = (typeof SIMULATION_MOMENTS)[number];
 
-/** A named moment, or simulation seconds of 0 or more. */
-export type SimulationPoint = SimulationMoment | number;
+/** A named moment of the element's scene, or seconds of 0 or more. A simulation has its fixed moments, and a stored scene names its own. */
+export type SimulationPoint = string | number;
+
+export const SCENE_ENGINES = ['manimgx'] as const;
+export type SceneEngine = (typeof SCENE_ENGINES)[number];
+
+export const SCENE_ENGINE_VERSIONS = { manimgx: '0.1.1' } as const satisfies Record<SceneEngine, string>;
 
 /** Motion the engine computes from named values in SI units. */
 export interface ProjectileSimulation {
@@ -197,6 +202,18 @@ export interface Simulate {
   id: ElementId;
   simulation: Simulation;
   over?: ElementId;
+}
+
+/** Places a stored, checked scene at its first frame, paused. Its take is data, played by seconds on the board's clock. */
+export interface RichScene {
+  kind: 'richScene';
+  id: ElementId;
+  engine: SceneEngine;
+  /** Names the stored scene. The browser fetches the take for its own theme. */
+  sceneId: string;
+  moments: Record<string, number>;
+  parts: string[];
+  durationSeconds: number;
 }
 
 export type SimulationRun =
@@ -393,6 +410,7 @@ export type SceneCommand =
   | Construct
   | Vector
   | Simulate
+  | RichScene
   | RunSimulation
   | SetParameter
   | TrackVector

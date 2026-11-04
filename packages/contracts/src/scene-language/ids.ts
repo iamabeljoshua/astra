@@ -18,6 +18,8 @@ export type ElementRef = Branded<'ElementRef'>;
 const TOKEN = /^[a-z0-9][a-z0-9-]{0,39}$/;
 const ELEMENT_ID = /^[a-z][a-z0-9-]{0,39}$/;
 const NAME = /^[A-Za-z0-9][A-Za-z0-9-]{0,39}$/;
+const SCENE_ID = /^[a-z0-9][a-z0-9-]{0,79}$/;
+const MOMENT_NAME = /^[a-z0-9][a-z0-9_-]{0,39}$/;
 
 const UNSAFE_NAMES = new Set(['prototype', ...Object.getOwnPropertyNames(Object.prototype)]);
 
@@ -27,6 +29,16 @@ function isAllowed(value: unknown, pattern: RegExp): value is string {
 
 function readToken(place: Place, description: string): string {
   if (!isAllowed(place.value, TOKEN)) fail(place, description);
+  return place.value;
+}
+
+export function readSceneId(place: Place): string {
+  if (!isAllowed(place.value, SCENE_ID)) fail(place, 'a scene id');
+  return place.value;
+}
+
+export function readMomentName(place: Place): string {
+  if (!isAllowed(place.value, MOMENT_NAME)) fail(place, 'a moment name');
   return place.value;
 }
 

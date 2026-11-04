@@ -15,3 +15,26 @@ export interface Scene<Frame = unknown> {
 }
 
 export type SceneCatalog = (command: SceneCommand, parameterChanges: SceneParameters) => Scene | null;
+
+const isPlayable = ({ durationSeconds, moments }: Scene): boolean => Number.isFinite(durationSeconds) && durationSeconds >= 0 && Object.values(moments).every((seconds) => Number.isFinite(seconds) && seconds >= 0);
+
+function makeSceneSafely(catalog: SceneCatalog, command: SceneCommand, changes: SceneParameters): Scene | null {
+  try {
+    const scene = catalog(command, changes);
+    return scene && isPlayable(scene) ? scene : null;
+  } catch {
+    return null;
+  }
+}
+
+// The board rebuilds per frame, so a scene is made once per command, and a bad catalog leaves its element still.
+export function guardSceneCatalog(catalog: SceneCatalog): SceneCatalog {
+  const made = new WeakMap<SceneCommand, Map<string, Scene | null>>();
+  return (command, changes) => {
+    const key = JSON.stringify(changes);
+    const scenes = made.get(command) ?? new Map<string, Scene | null>();
+    made.set(command, scenes);
+    if (!scenes.has(key)) scenes.set(key, makeSceneSafely(catalog, command, changes));
+    return scenes.get(key) ?? null;
+  };
+}
