@@ -5,12 +5,12 @@ const LEFT_MS = 15_000;
 const DROPPED_MS = 120_000;
 
 describe('how long a room waits for a student who left', () => {
-  let close: ReturnType<typeof vi.fn>;
+  let close: ReturnType<typeof vi.fn<() => void>>;
   let wait: ClosingWait;
 
   beforeEach(() => {
     vi.useFakeTimers();
-    close = vi.fn();
+    close = vi.fn<() => void>();
     wait = createClosingWait({ leftOnPurposeMs: LEFT_MS, linkDroppedMs: DROPPED_MS, onClose: close });
   });
 

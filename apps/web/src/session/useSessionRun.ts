@@ -36,7 +36,7 @@ export function useSessionRun(session: Session) {
   }, [readSeconds, saveLength]);
 
   /** True once the session has finished. */
-  async function endSession(beforeFinishing: () => Promise<void>): Promise<boolean> {
+  async function endSession(beforeFinishing: () => Promise<void> = async () => {}): Promise<boolean> {
     if (isEnding) return true;
     setIsEnding(true);
     try {
