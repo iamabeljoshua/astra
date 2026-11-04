@@ -20,7 +20,7 @@ const MOST_MEASURES_KEPT = 4000;
 let measureOnPage: ((text: string) => number) | null = null;
 const measuredWidths = new Map<string, number>();
 
-/** Glyphs outside the known letters run from a hair to more than 6 em, depending on the font each device falls back to, so a browser measures them. Text in the known letters stays an estimate, the same on every device. */
+/** A glyph outside the known letters runs from a hair to more than 6 em, depending on the font each device falls back to, so a browser measures it, while the known letters stay an estimate that is the same on every device. */
 export function setLabelMeasure(measure: ((text: string) => number) | null): void {
   measureOnPage = measure;
   measuredWidths.clear();

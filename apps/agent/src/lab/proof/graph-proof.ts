@@ -291,7 +291,6 @@ async function proveLateWords(browser: Browser, run: LessonRun) {
   return { label: getLabel(run), figures: { ...figures, ballPlaces: figures.ballPlaces.length }, landing, replay: { moments: replay.moments, differing: replay.differing.length, described: replay.describedDifferently } };
 }
 
-/** Reads a curve off the page: how many separate lines it is drawn in, and how much of the axes' width they cover. */
 const readCurve = (lab: LabPage) =>
   lab.page.evaluate(() => {
     const curve = document.querySelector('[data-mark^="curve-"]')?.getAttribute('d') ?? '';
@@ -302,6 +301,7 @@ const readCurve = (lab: LabPage) =>
   });
 
 const SLIDER_WAVES = [1, 2, 3, 4, 5, 7, 10];
+const CURVE_DRAWN_MS = 950;
 
 async function proveWaves(browser: Browser, run: LessonRun) {
   const lab = await open(browser, run);
@@ -318,15 +318,18 @@ async function proveWaves(browser: Browser, run: LessonRun) {
     dragged.push({ a, ...(await readCurve(lab)) });
   }
   await lab.page.evaluate(() => (window.sceneLab as unknown as LabLog).player.finishSliderDrag());
-  const beats = LESSONS['figure-waves'][1] ?? [];
-  const named = [];
   await lab.command({ type: 'play', lesson: 'figure-waves', lessonTurn: 1 });
-  for (const [index, beat] of beats.entries()) {
-    await lab.waitForPlayedBeats(index + 2, 60_000);
-    await shoot(lab, `curve-${beat.id}`);
-    named.push({ id: beat.id, ...(await readCurve(lab)) });
-  }
+  await lab.waitForPlayedBeats(1 + (LESSONS['figure-waves'][1]?.length ?? 0), 120_000);
+  await delay(1200);
   const figures = await lab.page.evaluate(() => window.pageChecks.stopFigureWatch());
+  const placed = await lab.page.evaluate(() => (window.sceneLab?.player.getOperations() as { atMs: number; command?: { kind: string; id?: string } }[]).filter((operation) => operation.command?.kind === 'plot').map(({ atMs, command }) => ({ atMs, id: command?.id as string })));
+  const named = [];
+  for (const { atMs, id } of placed.slice(1)) {
+    await holdFrame(lab, { atMs: atMs + CURVE_DRAWN_MS, source: 'live' });
+    await shoot(lab, `curve-${id}`);
+    named.push({ id, ...(await readCurve(lab)) });
+  }
+  await holdFrame(lab, null);
   await lab.finish();
   return { label: getLabel(run), dragged, named, figures: { frames: figures.frames, notFinite: figures.notFiniteFrames, overlap: figures.textOverlapFrames, gapP95: figures.frameGapP95 } };
 }
@@ -392,7 +395,6 @@ async function proveLabels(browser: Browser, run: LessonRun) {
 
 const TOO_NARROW_SLIDERS = [{ kind: 'slider', id: 'tiny', target: 'small', constant: 'a', min: 0, max: 1e-110 }, { kind: 'slider', id: 'tiny-speed', target: 'small', parameter: 'horizontalSpeed', min: 0, max: 1e-110 }];
 
-/** Every figure and slider kind at the edge of what the parser takes, moved by keys, and then played back from the log. */
 async function proveExtremes(browser: Browser, run: LessonRun) {
   const lab = await open(browser, run);
   const errors: string[] = [];
@@ -427,9 +429,9 @@ async function proveExtremes(browser: Browser, run: LessonRun) {
   const refused = await lab.page.evaluate(() => window.sceneLab?.records.refused ?? []);
   const stopped = await lab.page.getByText('This page stopped working').count();
   const replay = await checkReplayPixels(lab);
-  const replayErrors = errors.length;
+  const sliderReplay = await checkDragReplay(lab, 3);
   await lab.finish();
-  return { label: getLabel(run), turns, sliderMoves, errors: errors.slice(0, 5), errorCount: errors.length, replayErrors, stopped, refused: refused.length, frames: figures.frames, notFinite: figures.notFiniteFrames, overlap: figures.textOverlapFrames, outside: figures.textOutsideFrames, examples: [...new Set(figures.examples)].slice(0, 6), replay: { moments: replay.moments, differing: replay.differing.length, described: replay.describedDifferently } };
+  return { label: getLabel(run), turns, sliderMoves, errors: errors.slice(0, 5), errorCount: errors.length, stopped, refused: refused.length, frames: figures.frames, notFinite: figures.notFiniteFrames, overlap: figures.textOverlapFrames, outside: figures.textOutsideFrames, examples: [...new Set(figures.examples)].slice(0, 6), liveFramesDifferingFromLog: figures.liveSamplesDifferingFromReplay, replay: { moments: replay.moments, differing: replay.differing.length, described: replay.describedDifferently }, sliderReplay: { moments: sliderReplay.moments, differing: sliderReplay.differing.length } };
 }
 
 const KEY_PRESSES = 8;
@@ -461,7 +463,6 @@ async function proveKeyboard(browser: Browser, run: LessonRun) {
   return { label: getLabel(run), presses: KEY_PRESSES, deltas, ...moments };
 }
 
-/** What a screen reader is given, from the browser's own accessibility tree. */
 async function proveSliderName(browser: Browser, run: LessonRun) {
   const lab = await open(browser, run);
   await lab.command({ type: 'play', lesson: 'shot' });

@@ -57,7 +57,7 @@ function getPlacingOrder(placed: readonly BoardElement[]): BoardElement[] {
   return [...others.flatMap((element) => [element, ...getSlidersOn(element.id)]), ...homeless];
 }
 
-// A different command under one id is a new element, and items close over their command. Math is the exception, because its content changes as it rearranges and its painter follows the line it is given.
+// Items close over their command, so new content under an id rebuilds the item, except math, whose painter follows the line it is given.
 function isSameContent(first: BoardElement['content'], second: BoardElement['content']): boolean {
   if (first === second) return true;
   if (first.kind !== second.kind) return false;

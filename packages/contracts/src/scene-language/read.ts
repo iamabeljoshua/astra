@@ -93,7 +93,6 @@ export function readList<Item>(place: Place, { maxLength, readItem }: ListRules<
   return value.map((item: unknown, index) => readItem({ value: item, path: `${path}[${index}]` }));
 }
 
-/** So a range always has a scale that can be drawn and numbers that can be written. */
 export function checkRangeWidth(place: Place, low: number, high: number): void {
   if (high - low < SMALLEST_RANGE_WIDTH) fail(place, `a low and a high number at least ${SMALLEST_RANGE_WIDTH} apart`);
 }

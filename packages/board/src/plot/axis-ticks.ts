@@ -55,7 +55,7 @@ const ZERO_PULL = 0.25;
 const ROUGH_TICKS = 8;
 const FLAT_ROOM = 1;
 const FLAT_ROOM_SHARE = 1e-3;
-/** A range wider than this can overflow, and nothing this far out fits a figure with anything else. */
+/** A value past this can overflow a range's width, and nothing this far out fits a figure with anything else. */
 const LARGEST_FITTED_VALUE = 1e300;
 
 function getQuantile(sorted: readonly number[], share: number): number {

@@ -7,9 +7,7 @@ export const CURVE_LIMITS = { baseIntervals: 240, evaluations: 4000, passes: 26 
 const BEND_SHARE_OF_VIEW = 1 / 200;
 /** A step this tall gets looked inside even if it looks straight, because two samples can straddle a pole by chance. */
 const TALL_SHARE_OF_VIEW = 1 / 8;
-/** The taller half of a halved step keeps this share of its height or more if halving did not shrink it. */
 const STUCK_SHARE = 0.9;
-/** On a base step of about 3 px, this many halvings reach a hundredth of a pixel. */
 const HALVINGS_TO_PROVE_A_BREAK = 8;
 /** The budget always covers this many halvings of every step, so a tall step still stuck after them is hardly a wave seen too coarsely. */
 const HALVINGS_TO_SUSPECT_A_BREAK = 4;
@@ -24,7 +22,7 @@ export interface CurveRequest {
   yRange: AxisRange;
 }
 
-/** `stuckHalvings` counts how many halvings in a row left the step ending here as tall as it was. A continuous curve shrinks when halved and a jump or a pole does not, so this decides every gap between two real values. */
+/** A continuous curve shrinks when halved and a jump or a pole does not, so `stuckHalvings` counts how many halvings in a row left the step ending here as tall as it was. */
 type Sample = Point & { stuckHalvings: number };
 
 const isAbove = (point: Point, yRange: AxisRange) => point.y > yRange[1];
@@ -41,7 +39,7 @@ const isTall = (first: Point, second: Point, yRange: AxisRange) => getHeight(fir
 
 const leavesView = (first: Point, second: Point, yRange: AxisRange) => isAbove(first, yRange) || isBelow(first, yRange) || isAbove(second, yRange) || isBelow(second, yRange);
 
-// A step that stays stuck long enough is a real break and leaves the line. One still tall when the budget ran out stays a gap if it did not shrink, because a line through a pole is worse than a hole in a curve too fine to see.
+// A tall step still stuck when the budget ran out stays a gap, because a line through a pole is worse than a hole in a curve too fine to see.
 function isLeftUnsure(first: Sample, second: Sample, yRange: AxisRange): boolean {
   return isTall(first, second, yRange) && second.stuckHalvings >= (leavesView(first, second, yRange) ? 1 : HALVINGS_TO_SUSPECT_A_BREAK);
 }
@@ -60,7 +58,6 @@ function needsLookInside(first: Sample, second: Sample, yRange: AxisRange): bool
   return isOnTheLine(first, second, yRange) && (isTall(first, second, yRange) || second.stuckHalvings > 0);
 }
 
-/** Marks each step by the index of its end: where it is too tall to trust, or where the line bends enough to see the corner. */
 function getStepsToHalve(samples: readonly Sample[], { yRange }: CurveRequest): Set<number> {
   const steps = new Set<number>();
   const bendLimit = getViewHeight(yRange) * BEND_SHARE_OF_VIEW;

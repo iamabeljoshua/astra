@@ -1,5 +1,5 @@
 import { getBoardAt, type BoardOperation, rebuildBoard } from '@astra/board';
-import { getTexProblem, type SessionEvent } from '@astra/contracts';
+import { getTexProblem, parseSceneCommand, parseSessionEvent, type SessionEvent } from '@astra/contracts';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BoardView } from './BoardView';
@@ -583,6 +583,47 @@ describe('BoardView, figures', () => {
       expect(container.querySelector('.board-slider input')).not.toBeNull();
       unmount();
     }
+  });
+
+  describe('extreme numbers the parser takes', () => {
+    const EXTREMES = [0, 1, -1, 1e-6, -1e-6, 1 / 3, 0.1, 100, -100, 150, 1e6, -1e6, 999999.999999, 1e-300];
+    const PARAMETERS = ['horizontalSpeed', 'upwardSpeed', 'releaseHeight', 'gravity', 'launchAngle', 'launchSpeed'];
+    const pickFrom = <Item,>(items: readonly Item[], random: () => number) => items[Math.floor(random() * items.length)] as Item;
+
+    function getRandomScript(random: () => number): unknown[] {
+      const pick = () => pickFrom(EXTREMES, random);
+      return [
+        { kind: 'plot', id: 'curve', expression: pickFrom(['a*x', 'sin(a*x)', '10^308*x', 'a/x', '10^300+a'], random), constants: [{ name: 'a', value: pick(), min: pick(), max: pick() }], domain: [pick(), pick()] },
+        { kind: 'slider', id: 'on-curve', target: 'curve', constant: 'a', min: pick(), max: pick() },
+        { kind: 'numberLine', id: 'line', domain: [pick(), pick()] },
+        { kind: 'markValue', id: 'on-line', target: 'line', at: pick(), label: 'mark' },
+        { kind: 'geometry', id: 'shape', xRange: [pick(), pick()], yRange: [pick(), pick()] },
+        { kind: 'construct', id: 'point', target: 'shape', step: { shape: 'point', name: 'A', x: pick(), y: pick() } },
+        { kind: 'simulate', id: 'flight', simulation: { model: 'projectile', parameters: { horizontalSpeed: pick(), upwardSpeed: pick(), releaseHeight: pick(), gravity: pick() } } },
+        { kind: 'slider', id: 'on-flight', target: 'flight', parameter: pickFrom(PARAMETERS, random), min: pick(), max: pick() },
+        { kind: 'readout', id: 'far', target: 'flight', quantity: 'landing-distance' },
+      ];
+    }
+
+    it('paints every figure and slider kind, live and from a stored row, with nothing not finite on the page', () => {
+      let seed = 7;
+      const random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+      let painted = 0;
+      for (let round = 0; round < 150; round += 1) {
+        const commands = getRandomScript(random).filter((command) => parseSceneCommand(command).ok);
+        const script = commands.flatMap((command) => [command, 'word ']);
+        const parsedRow = parseSessionEvent({ seq: 0, atMs: 0, kind: 'beatPlayed', beat: { id: 'extreme', expectsReply: false, script }, reportedBy: 'browser', turnId: 'turn-1', wordStartsMs: commands.map((_, index) => index * 10), durationMs: commands.length * 10, playedWords: commands.length, firedCueMs: commands.map((_, index) => index * 10), ending: 'finished', frozen: [] });
+        if (!parsedRow.ok) continue;
+        const operations = commands.flatMap((command, index) => { const parsed = parseSceneCommand(command); return parsed.ok ? [{ kind: 'command', atMs: index * 10, overMs: null, command: parsed.value } as BoardOperation] : []; });
+        painted += commands.length;
+        for (const board of [getBoardAt(operations, 5000), rebuildBoard([parsedRow.value], 5000)]) {
+          const { container, unmount } = render(<BoardView board={board} atMs={5000} canMoveSliders />);
+          expect(container.innerHTML).not.toMatch(/NaN|Infinity|undefined/);
+          unmount();
+        }
+      }
+      expect(painted).toBeGreaterThan(150);
+    });
   });
 
   describe('an id placed again', () => {

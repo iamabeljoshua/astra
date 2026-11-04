@@ -30,7 +30,7 @@ function createSliderInput(content: Slider, step: number): HTMLInputElement {
   return input;
 }
 
-// A native range input that shows the board's value, so a replay moves it too. The number on screen stays out of the label so the input keeps a name of its own, and it is no live region, because a value moving while the tutor talks must not speak over the voice.
+// A native range input that shows the board's value, so a replay moves it too, with the number outside the label so it stays out of the input's name.
 export function createSliderItem(wrapper: HTMLElement, content: Slider, { onSliderMove, onSliderRelease }: SliderHandlers): BoardItem {
   const step = getStep(content);
   const decimals = getStepDecimals(step);

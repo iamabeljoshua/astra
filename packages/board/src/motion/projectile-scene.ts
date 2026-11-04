@@ -24,7 +24,7 @@ function applyParameterChange(parameters: ProjectileParameters, [name, value]: [
   return { ...parameters, horizontalSpeed: speed * Math.cos(radians), upwardSpeed: speed * Math.sin(radians) };
 }
 
-/** In the order they were set, so the student sees the value they set last. An angle or a total speed changes the two speeds it stands for and leaves the other one as it was. */
+/** In the order they were set, so the student sees the value they set last. */
 export function resolveProjectileParameters(base: ProjectileParameters, changes: SceneParameters): ProjectileParameters {
   return Object.entries(changes).reduce(applyParameterChange, base);
 }

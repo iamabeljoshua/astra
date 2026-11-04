@@ -20,7 +20,6 @@ function getTallestStep(branches: readonly Branch[], [low, high]: Range): number
   return tallest / (high - low);
 }
 
-/** The sampler looks inside any step taller than this, so a line this tall or taller was never checked against the curve. */
 const NO_FALSE_LINE = 1 / 8;
 const crossesX = (branch: Branch, x: number) => (branch[0] as Point).x < x && (branch.at(-1) as Point).x > x;
 

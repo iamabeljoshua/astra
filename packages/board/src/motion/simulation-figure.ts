@@ -16,7 +16,6 @@ const PATH_STEPS = 72;
 const BALL_RADIUS = 6;
 const BALL_ROOM = 9;
 const WORLD_SIDE_ROOM = 0.06;
-/** A flight that never leaves the ground has no size to scale to. */
 const SMALLEST_WORLD_METRES = 1;
 const FOCUS_DOT = { radius: 3.5, above: 15 };
 const MOST_SLIDERS_FITTED = 4;
@@ -100,7 +99,6 @@ function getHoopCenter(baseScene: Scene): number {
   return path.filter((point) => point.y >= RIM_HEIGHT).at(-1)?.x ?? (path.at(-1) as Point).x * HOOP.shareOfRangeWhenShort;
 }
 
-/** The board and pole stand behind the rim as the ball flies, so `direction` is 1 for a ball going right and -1 for one going left. */
 const getHoopDirection = (baseScene: Scene) => (getFrameAt(baseScene, 0).velocity.x < 0 ? -1 : 1);
 const getBoardX = (rimX: number, direction: number) => rimX + direction * (HOOP.rimRadius + HOOP.boardGap);
 const getPoleX = (rimX: number, direction: number) => getBoardX(rimX, direction) + direction * HOOP.armLength;
