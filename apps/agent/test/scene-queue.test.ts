@@ -162,6 +162,19 @@ describe('the next scene queue', () => {
     expect(moveToNextStep).not.toHaveBeenCalled();
   });
 
+  it('passes over any other ask while one is due or a write is running', async () => {
+    const { queue, scenes } = setUp({ library: { [RINGS.topic]: [null, 'Why a moon that gets too close breaks apart', null] } });
+    const first = start(RINGS);
+    queue.onLesson(first);
+    await flush();
+    queue.noteAhead('Why a moon that gets too close breaks apart', 'ready');
+    queue.noteStudentWords("what's next");
+    queue.onLesson(OPEN_AND_FINISH(first));
+    queue.onTutorAsk('the sign of a slope');
+    queue.noteTutorReply({ spokenText: 'On we go.', refusalCategory: null });
+    expect(asked(scenes)).toEqual(['Why a moon that gets too close breaks apart']);
+  });
+
   it('names no picture to the tutor until one is ready', async () => {
     const { queue } = setUp({ library: { [RINGS.topic]: [null, 'Why a moon that gets too close breaks apart', null] } });
     queue.onLesson(start(RINGS));

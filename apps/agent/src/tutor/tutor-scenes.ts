@@ -106,7 +106,10 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
     current = null;
     // What missed its moment is saved, so asking again is free.
     if (how === 'tooLate' || how === 'movedOn' || how === 'switched' || how === 'studentTurn') askedTopics.delete(toKey(ask.topic));
-    if (ask.isAhead && how !== 'landed') onAhead?.(ask.topic, getNewsOfEnding(ask, how));
+    if (ask.isAhead && how !== 'landed') {
+      const news = getNewsOfEnding(ask, how);
+      onAhead?.(ask.topic, news);
+    }
     trace('sceneEnded', { how, afterMs: Math.round(getNowMs() - ask.askedAtMs) });
   };
 

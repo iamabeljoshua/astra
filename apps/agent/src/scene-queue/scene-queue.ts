@@ -204,6 +204,8 @@ export function createSceneQueue({ scenes, readLibrary, getFacts, canPlay, moveT
       if (isStopped) return;
       const next = lesson ? findEntry(lesson.stepIndex + 1) : undefined;
       if (next && sameWords(next.request, topic)) return moveToNextStep();
+      // What is due covers what is next, and a second write would only race it.
+      if (isMakingWrite() || entries.some((entry) => entry.state === 'due' || entry.state === 'asked')) return trace('sceneAskPassed', { text: topic });
       trace('sceneCue', { text: topic, source: 'asked', wallMs: Date.now() });
       scenes.ask(topic);
     },
