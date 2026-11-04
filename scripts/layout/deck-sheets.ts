@@ -3,8 +3,9 @@ import { join } from 'node:path';
 import type { Page } from 'playwright';
 
 const BOARD = '[data-testid="board"]';
-const LAPTOP = { width: 760, height: 752 };
-const PHONE = { width: 358, height: 506 };
+/** Each board in the page it sits in, the same pairs the sweep uses, because the page's width sets the board's text size and so where its words wrap. */
+const LAPTOP = { viewport: { width: 1366, height: 800 }, size: { width: 760, height: 752 } };
+const PHONE = { viewport: { width: 390, height: 844 }, size: { width: 358, height: 506 } };
 const WHOLE_DECK = { name: 'm3-5-deck.png', laptopWidth: 240, phoneWidth: 110, columns: 7 };
 const ONE_SUBJECT = { laptopWidth: 420, phoneWidth: 200, columns: 3 };
 const SHEET_STYLE = 'body{margin:0;padding:16px;background:#fff;font:12px/1.3 Barlow,Arial,sans-serif;color:#111}h1{font-size:18px;margin:0 0 12px}main{display:grid;gap:14px}figure{margin:0}figcaption{margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pair{display:flex;gap:4px;align-items:flex-start}img{display:block;border:1px solid #bbb}';
@@ -21,7 +22,8 @@ interface SceneShots {
   dark: string;
 }
 
-async function shootScene(page: Page, scene: string, { size, theme }: { size: { width: number; height: number }; theme: string }): Promise<string> {
+async function shootScene(page: Page, scene: string, { viewport, size, theme }: { viewport: { width: number; height: number }; size: { width: number; height: number }; theme: string }): Promise<string> {
+  await page.setViewportSize(viewport);
   await page.evaluate((chosen) => {
     document.documentElement.dataset.theme = chosen;
   }, theme);
@@ -49,7 +51,7 @@ export async function makeDeckSheets(page: Page, outFolder: string, verdict: Ver
   mkdirSync(outFolder, { recursive: true });
   const scenes = (await page.evaluate(() => window.boardDeck?.listScenes() ?? []));
   const shots: SceneShots[] = [];
-  for (const { name, subject } of scenes) shots.push({ name, subject, light: await shootScene(page, name, { size: LAPTOP, theme: 'light' }), dark: await shootScene(page, name, { size: PHONE, theme: 'dark' }) });
+  for (const { name, subject } of scenes) shots.push({ name, subject, light: await shootScene(page, name, { ...LAPTOP, theme: 'light' }), dark: await shootScene(page, name, { ...PHONE, theme: 'dark' }) });
   await writeSheet(page, { html: getSheetHtml(`The deck, ${scenes.length} scenes. Laptop in light beside phone in dark, each at rest.`, shots, WHOLE_DECK), path: join(outFolder, WHOLE_DECK.name), width: getSheetWidth(WHOLE_DECK) });
   for (const subject of new Set(scenes.map((scene) => scene.subject))) {
     await writeSheet(page, { html: getSheetHtml(subject, shots.filter((shot) => shot.subject === subject), ONE_SUBJECT), path: join(outFolder, `m3-5-deck-${subject}.png`), width: getSheetWidth(ONE_SUBJECT) });
