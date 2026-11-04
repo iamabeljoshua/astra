@@ -116,10 +116,8 @@ export interface ReplayPixels {
   describedDifferently: number;
 }
 
-/** A repaint with no write to the page has moved 140 pixels by up to 36 levels, so a browser's raster alone can break this. The limit stays strict, and a larger difference fails until a person looks. */
-const LARGEST_SETTLING_LEVELS = 2;
 
-// Evidence for a settle rule on the page and not on the pixels, which the gate does not use yet.
+// The painter's only output is the page, so with the same page and a clean second look, what differs is the browser's raster.
 async function getIsSamePage(lab: LabPage, atMs: number, shiftMs: number): Promise<boolean> {
   const readPage = () => lab.page.evaluate((selector) => document.querySelector(selector)?.outerHTML, BOARD_SELECTOR);
   await holdFrame(lab, { atMs, source: 'live' });
@@ -142,8 +140,9 @@ export async function lookAtMoment(lab: LabPage, atMs: number, shiftMs: number):
   const pixels = await lab.page.evaluate(([first, second]) => window.pageChecks.countDifferentPixels([first, second, 0]), pair);
   const levels = await lab.page.evaluate((images) => window.pageChecks.getLargestChannelDifference(images), pair);
   const again = await shootBoth();
-  const isSettled = again.live.equals(again.replay) && levels <= LARGEST_SETTLING_LEVELS;
-  console.log(`${lab.folder} differs from its replay at ${Math.round(atMs)}: ${pixels} pixels by up to ${levels} levels, the page ${await getIsSamePage(lab, atMs, shiftMs) ? 'the same' : 'different'}, second look ${again.live.equals(again.replay) ? 'clean' : 'not clean'}, ${isSettled ? 'settled' : 'a real difference'}`);
+  const isSamePage = await getIsSamePage(lab, atMs, shiftMs);
+  const isSettled = isSamePage && again.live.equals(again.replay);
+  console.log(`${lab.folder} differs from its replay at ${Math.round(atMs)}: ${pixels} pixels by up to ${levels} levels, the page ${isSamePage ? 'the same' : 'different'}, second look ${again.live.equals(again.replay) ? 'clean' : 'not clean'}, ${isSettled ? 'settled' : 'a real difference'}`);
   return isSettled ? 'settled' : 'different';
 }
 
@@ -181,5 +180,5 @@ export async function checkStillness(lab: LabPage): Promise<{ writes: number; an
   const levels = await lab.page.evaluate((images) => window.pageChecks.getLargestChannelDifference(images), [before.toString('base64'), after.toString('base64')] as [string, string]);
   const again = await shoot(lab, 'still-again');
   console.log(`${lab.folder} changed while still: up to ${levels} levels, ${writes} writes, second look ${after.equals(again) ? 'clean' : 'not clean'}`);
-  return { writes, animations, imagesMatch: levels <= LARGEST_SETTLING_LEVELS && after.equals(again) };
+  return { writes, animations, imagesMatch: writes === 0 && animations === 0 && after.equals(again) };
 }
