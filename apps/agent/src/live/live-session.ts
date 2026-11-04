@@ -367,15 +367,14 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     return reason !== null;
   };
 
-  const react = ({ canPraise }: { canPraise: boolean }) => {
+  const react = () => {
     trace('reactDecided');
     if (sendClosedNote()) return;
     messenger.send({ type: 'heard' });
     // A take under a hold is cut at its first frame, and the end of the line says any greeting owed.
     if (holdGate.isHolding()) return;
     // A session opened by a typed question has not yet said it is an AI, so its first reaction is the greeting (PRD S2).
-    const uses: TakeUse[] = !hasGreeted ? ['greeting'] : canPraise ? ['reaction', 'goodQuestion'] : ['reaction'];
-    if (!reaction) reaction = speakTake(uses, { isReply: false });
+    if (!reaction) reaction = speakTake([hasGreeted ? 'reaction' : 'greeting'], { isReply: false });
     hasGreeted = true;
   };
 
@@ -516,7 +515,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
         noteCutSettled(true);
         return void resume();
       case 'react':
-        return react(action);
+        return react();
       case 'reply':
         noteCutSettled(getWords(action.text).length - getWords(action.carried).length <= MOST_WORDS_IN_NOISE);
         trace('replyDecided', { via: action.via, words: action.text.split(/\s+/).length, text: action.text });

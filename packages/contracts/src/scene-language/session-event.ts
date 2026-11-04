@@ -29,6 +29,15 @@ export type StudentAction =
   | { action: 'inkErased'; target: ElementId }
   | { action: 'fileShared'; fileId: FileId; name: string };
 
+/** Where one `overWords` cue was aimed. All times are in ms after the beat's `atMs`. */
+export interface CueAim {
+  /** The fired cue, counting from 0 in script order. */
+  cue: number;
+  /** When the browser chose this aim. */
+  afterMs: number;
+  landsAtMs: number;
+}
+
 export interface PlayReport {
   /** When each word of the beat starts, in ms after `atMs`. */
   wordStartsMs: number[];
@@ -37,6 +46,8 @@ export interface PlayReport {
   playedWords: number;
   /** When each fired cue really fired, in ms after `atMs` and in script order. Its length is how many fired, and a replay uses these instead of the word's time. */
   firedCueMs: number[];
+  /** Absent when every cue's last word was known as it fired, because `wordStartsMs` then says all of it. */
+  cueAims?: CueAim[];
   ending: BeatEnding;
   frozen: FrozenFrame[];
 }

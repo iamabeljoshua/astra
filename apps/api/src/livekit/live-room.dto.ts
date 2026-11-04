@@ -22,6 +22,9 @@ export class LiveRoomAccessDto {
 
   /** True in a student's first session until the tutor has told them they can talk. */
   invitesTalk!: boolean;
+
+  /** A tutor was in the room just now. A browser that joins and finds nobody got there after it closed, and should ask again. */
+  isTutorThere!: boolean;
 }
 
 export class LiveRoomResponseDto {

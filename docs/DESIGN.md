@@ -64,9 +64,9 @@ Sign-in, onboarding, and the account notices are one calm page and not two halve
 - A still grid of dots in `ink` fills the page and fades out around the question. The chart's dotted rings, spokes, and scattered stars are drawn once.
 - Eight labelled subject stars form a horseshoe around the planet, joined by a faint dotted path: Motion, Light, Waves, Music, Cells, Code, Stars, and History. The email step draws the first leg, and each digit of the code draws the next, so the last digit finishes the path.
 - The planet's near dots are larger than its far ones, and it is shaded by how many dots land on it, with rings passing in front and behind.
-- The chart's title sits at the bottom right in Newsreader italic. It reads "A learning app, made for you", and it takes the student's name once they type one.
+- The chart's title sits at the bottom right in Newsreader italic. It reads "A learning app, made for you", and it takes the student's name once they type one. Beside the chart it stays on one line, so a very long name ends in an ellipsis instead of running over the stars.
 
-A browser with no canvas gets the same page without the chart. A shape or a name may be made of dots. Pictures may not, as the next section says.
+A browser with no canvas gets the same page without the chart. A browser that refuses a canvas read, or answers it with noise, keeps the planet, and the name shows in the title only. A shape or a name may be made of dots. Pictures may not, as the next section says.
 
 ## Pictures
 

@@ -31,11 +31,6 @@
   --text-entry: 22px;
   --text-question: clamp(27px, 2.5vw, 36px);
   --text-question--line-height: 1.12;
-  --text-tagline: clamp(38px, 4.3vw, 62px);
-  --text-tagline--line-height: 0.98;
-  --text-sheet-name: 30px;
-  --text-sheet-name--line-height: 1.1;
-  --text-sheet-name-phone: 18px;
   --text-chart-title: 20px;
   --text-tutor-line: clamp(28px, 2.8vw, 36px);
   --text-tutor-line--line-height: 1.22;
@@ -58,7 +53,6 @@
   --spacing-sidebar: 216px;
   --spacing-page-side: clamp(16px, 3vw, 40px);
   --spacing-page-top: clamp(20px, 4.5vh, 44px);
-  --spacing-onboarding-side: clamp(16px, 4vw, 56px);
   --spacing-page-bottom: 28px;
   --spacing-stage-side: clamp(20px, 6vw, 84px);
   --spacing-stage-edge: clamp(20px, 5vw, 56px);
@@ -74,10 +68,7 @@
   --spacing-board-art: 66vh;
   --container-column: 1020px;
   --container-onboarding: 580px;
-  --container-sheet: 348px;
   --container-stage: 500px;
-  --grid-template-columns-onboarding: minmax(0, 1fr) clamp(360px, 31vw, 460px);
-  --grid-template-columns-sheet-row: 74px minmax(0, 1fr);
   --grid-template-columns-option-row: 16px minmax(0, 1fr);
 
   --grid-template-columns-continue: minmax(0, 1fr) 244px;
@@ -359,6 +350,114 @@
   .board-dot {
     fill: var(--color-ink);
     stroke: none;
+  }
+
+  .board-figure {
+    display: block;
+    font-family: var(--font-ui);
+    font-size: 12px;
+    font-weight: 500;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .board-figure text,
+  .board-notes text {
+    font-family: var(--font-ui);
+    font-size: 12px;
+    font-weight: 500;
+    paint-order: stroke;
+    stroke: var(--color-panel);
+    stroke-width: 3px;
+    stroke-linejoin: round;
+  }
+
+  .figure-hair,
+  .figure-thin,
+  .figure-bold {
+    fill: none;
+  }
+
+  .figure-hair {
+    stroke-width: 1px;
+  }
+
+  .figure-thin {
+    stroke-width: 1.5px;
+  }
+
+  .figure-bold {
+    stroke-width: 2.25px;
+  }
+
+  .figure-dashed {
+    stroke-dasharray: 2 4;
+  }
+
+  .board-slider {
+    position: relative;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-ink);
+  }
+
+  .board-slider label {
+    display: grid;
+    gap: 2px;
+  }
+
+  .board-slider-value {
+    position: absolute;
+    top: 0;
+    right: 0;
+    color: var(--color-ink-2);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .board-slider input {
+    width: 100%;
+    height: 24px;
+    margin: 0;
+    background: transparent;
+    appearance: none;
+    cursor: pointer;
+  }
+
+  .board-slider input:disabled {
+    cursor: default;
+  }
+
+  .board-slider input::-webkit-slider-runnable-track {
+    height: 1px;
+    background: var(--color-ink-2);
+  }
+
+  .board-slider input::-moz-range-track {
+    height: 1px;
+    background: var(--color-ink-2);
+  }
+
+  .board-slider input::-webkit-slider-thumb {
+    width: 10px;
+    height: 20px;
+    margin-top: -10px;
+    background: var(--color-ink);
+    border: 0;
+    border-radius: 0;
+    appearance: none;
+  }
+
+  .board-slider input::-moz-range-thumb {
+    width: 10px;
+    height: 20px;
+    background: var(--color-ink);
+    border: 0;
+    border-radius: 0;
+  }
+
+  .board-slider input:focus-visible {
+    outline: 1px solid var(--color-accent);
+    outline-offset: 2px;
   }
 }
 

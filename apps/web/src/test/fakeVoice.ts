@@ -18,8 +18,9 @@ export function makeFakeVoice(view: Partial<LiveVoiceView> = {}): LiveVoice {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
-    getBoardNow: () => ({ board: { elements: new Map(), focus: null }, atMs: 0 }),
+    getBoardNow: () => ({ board: { elements: new Map(), focus: null, refusedSliders: [] }, atMs: 0 }),
     sendTyped: vi.fn(),
+    sendOpening: vi.fn(),
     reportMarkNotDrawn: vi.fn(),
     toggleMic: vi.fn(async () => setMic(current.mic !== 'on')),
     isMicOn: () => current.mic === 'on',

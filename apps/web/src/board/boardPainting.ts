@@ -1,7 +1,7 @@
 import { type BoardElement, type BoardState, getMotionValue } from '@astra/board';
 import { easeInOut, type LayoutArea, type MathFontProblem, type MovingBox, type MovingPlacement, placeMovingElements, writeStyle } from '@astra/board/drawing';
 import { createBoardMarks, type MarkWithoutTarget } from './boardMarks';
-import { type BoardItem, createBoardItem, hasOwnPlace, type ItemContext, type ItemSizes } from './boardItems';
+import { type BoardItem, createBoardItem, hasOwnPlace, type ItemContext, type ItemSizes, type SliderHandlers } from './boardItems';
 
 const PHONE_BOARD_WIDTH = 500;
 const SPACING = { laptop: { padding: 24, gap: 20 }, phone: { padding: 16, gap: 16 } };
@@ -11,12 +11,13 @@ export interface BoardFrame {
   board: BoardState;
   atMs: number;
   isReducedMotion: boolean;
+  canMoveSliders: boolean;
 }
 
 /** The board drew what it could and something a tutor asked for is not as asked. Math the board refused goes to `onMathRefused`. */
-export type BoardProblem = MarkWithoutTarget | ({ kind: 'fontFallback' } & MathFontProblem);
+export type BoardProblem = MarkWithoutTarget | ({ kind: 'fontFallback' } & MathFontProblem) | { kind: 'labelWithoutRoom'; text: string } | { kind: 'curveTooFine'; target: string } | { kind: 'sliderOverlaps'; sliderId: string; target: string };
 
-export interface BoardPaintingOptions {
+export interface BoardPaintingOptions extends SliderHandlers {
   boardElement: HTMLElement;
   overlay: SVGSVGElement;
   getWrapper(id: string): HTMLElement | undefined;
@@ -32,7 +33,7 @@ function getArea(boardElement: HTMLElement): LayoutArea {
 
 function getMovingBox(context: ItemContext, sizes: ItemSizes & { size: NonNullable<ItemSizes['size']> }): MovingBox {
   const to = { id: context.element.id, fit: sizes.fit, ...sizes.size };
-  const isArriving = context.progress < 1 && context.element.morphFrom === null;
+  const isArriving = context.progress < 1 && context.element.morphFrom === null && !context.element.placedScene?.reshapingFrom;
   return { to, from: isArriving ? null : sizes.fromSize ? { ...to, ...sizes.fromSize } : to };
 }
 
@@ -40,19 +41,56 @@ function getProgressAfterRoom({ element, progress }: ItemContext): number {
   return element.morphFrom === null ? Math.max(0, (progress - ENTRANCE_SHARE_MAKING_ROOM) / (1 - ENTRANCE_SHARE_MAKING_ROOM)) : progress;
 }
 
-function applyPlacement(wrapper: HTMLElement, placement: MovingPlacement, itemOpacity: number): void {
+function applyPlacement(wrapper: HTMLElement, placement: MovingPlacement, { itemOpacity, scale }: { itemOpacity: number; scale: number }): void {
   const opacity = Math.min(placement.opacity, itemOpacity);
-  writeStyle(wrapper, 'transform', `translate(${Math.round(placement.x)}px, ${Math.round(placement.y)}px) scale(${placement.scale.toFixed(4)})`);
+  writeStyle(wrapper, 'transform', `translate(${Math.round(placement.x)}px, ${Math.round(placement.y)}px) scale(${scale.toFixed(4)})`);
   writeStyle(wrapper, 'visibility', placement.isVisible ? '' : 'hidden');
   writeStyle(wrapper, 'opacity', opacity < 1 ? String(Number(opacity.toFixed(3))) : '');
 }
 
+// A slider sits under what it changes, wherever it arrived in the lesson.
+function getPlacingOrder(placed: readonly BoardElement[]): BoardElement[] {
+  const sliders = placed.filter((element) => element.content.kind === 'slider');
+  const getSlidersOn = (id: string) => sliders.filter(({ content }) => 'target' in content && content.target === id);
+  const others = placed.filter((element) => element.content.kind !== 'slider');
+  const homeless = sliders.filter(({ content }) => !others.some((element) => 'target' in content && element.id === content.target));
+  return [...others.flatMap((element) => [element, ...getSlidersOn(element.id)]), ...homeless];
+}
+
+// Items close over their command, so new content under an id rebuilds the item, except math, whose painter follows the line it is given.
+function canKeepItem(first: BoardElement['content'], second: BoardElement['content']): boolean {
+  if (first === second) return true;
+  if (first.kind !== second.kind) return false;
+  return first.kind === 'writeMath' || JSON.stringify(first) === JSON.stringify(second);
+}
+
 // Paints one frame from the board's state and the clock alone, so a frozen board writes nothing and a replay lands on the same pixels.
-export function createBoardPainting({ boardElement, overlay, getWrapper, onMathRefused, onBoardProblem }: BoardPaintingOptions) {
-  const items = new Map<string, { kind: string; item: BoardItem }>();
+export function createBoardPainting({ boardElement, overlay, getWrapper, onMathRefused, onBoardProblem, onSliderMove, onSliderRelease }: BoardPaintingOptions) {
+  const items = new Map<string, { content: BoardElement['content']; item: BoardItem }>();
   const marks = createBoardMarks(overlay, onBoardProblem);
   const reportedRefusals = new Set<string>();
+  const reportedLabels = new Set<string>();
+  const onLabelWithoutRoom = (text: string) => {
+    if (reportedLabels.has(text)) return;
+    reportedLabels.add(text);
+    onBoardProblem?.({ kind: 'labelWithoutRoom', text });
+  };
   const reportedFonts = new Set<string>();
+  const reportedCurves = new Set<string>();
+  const onCurveTooFine = ({ id, placedAtMs }: BoardElement) => {
+    const placement = `${id}@${placedAtMs}`;
+    if (reportedCurves.has(placement)) return;
+    reportedCurves.add(placement);
+    onBoardProblem?.({ kind: 'curveTooFine', target: id });
+  };
+  const reportedSliders = new Set<string>();
+  const reportRefusedSliders = ({ refusedSliders }: BoardState) => {
+    for (const { id, target } of refusedSliders) {
+      if (reportedSliders.has(id)) continue;
+      reportedSliders.add(id);
+      onBoardProblem?.({ kind: 'sliderOverlaps', sliderId: id, target });
+    }
+  };
 
   const syncItems = (placed: readonly BoardElement[]) => {
     const live = new Set(placed.map((element) => element.id as string));
@@ -63,9 +101,14 @@ export function createBoardPainting({ boardElement, overlay, getWrapper, onMathR
     }
     for (const element of placed) {
       const wrapper = getWrapper(element.id);
-      if (!wrapper || items.get(element.id)?.kind === element.content.kind) continue;
-      items.get(element.id)?.item.remove();
-      items.set(element.id, { kind: element.content.kind, item: createBoardItem(element, wrapper) });
+      const known = items.get(element.id);
+      if (!wrapper) continue;
+      if (known && canKeepItem(known.content, element.content)) {
+        known.content = element.content;
+        continue;
+      }
+      known?.item.remove();
+      items.set(element.id, { content: element.content, item: createBoardItem(element, wrapper, { onSliderMove, onSliderRelease }) });
     }
   };
 
@@ -105,24 +148,26 @@ export function createBoardPainting({ boardElement, overlay, getWrapper, onMathR
     const entry = items.get(id);
     const wrapper = getWrapper(id);
     if (!entry || !wrapper) return;
-    if (placement) applyPlacement(wrapper, placement, entry.item.getEntranceOpacity?.(context) ?? 1);
+    if (placement) applyPlacement(wrapper, placement, { itemOpacity: entry.item.getEntranceOpacity?.(context) ?? 1, scale: entry.item.ignoresPlacementScale ? 1 : placement.scale });
     else writeStyle(wrapper, 'visibility', 'hidden');
-    entry.item.paint(isMakingRoom && !context.isReducedMotion ? { ...context, progress: getProgressAfterRoom(context) } : context);
+    const placedContext = { ...context, placedSize: placement?.isVisible ? { width: placement.width, height: placement.height } : null };
+    entry.item.paint(isMakingRoom && !context.isReducedMotion ? { ...placedContext, progress: getProgressAfterRoom(context) } : placedContext);
   };
 
   return {
-    paint({ board, atMs, isReducedMotion }: BoardFrame) {
+    paint({ board, atMs, isReducedMotion, canMoveSliders }: BoardFrame) {
       const elements = [...board.elements.values()];
-      const placed = elements.filter((element) => hasOwnPlace(element.content) && getWrapper(element.id));
+      const placed = getPlacingOrder(elements.filter((element) => hasOwnPlace(element.content) && getWrapper(element.id)));
       syncItems(placed);
+      reportRefusedSliders(board);
       const area = getArea(boardElement);
       const fontSize = Number.parseFloat(getComputedStyle(boardElement).fontSize) || 16;
       const maxWidth = Math.max(0, area.width - 2 * area.padding);
-      const contexts = placed.map((element): ItemContext => ({ element, atMs, progress: getMotionValue(element.entrance, atMs), maxWidth, fontSize, isReducedMotion }));
+      const contexts = placed.map((element): ItemContext => ({ element, board, atMs, placedSize: null, canMoveSliders, onLabelWithoutRoom, onMarkWithoutPart: marks.reportMarkWithoutPart, onMarkDrawn: marks.noteMarkDrawn, onCurveTooFine, progress: getMotionValue(element.entrance, atMs), maxWidth, fontSize, isReducedMotion }));
       const { placements, isMakingRoom } = placeMovingElements(prepareBoxes(contexts), area, getSharedProgress(contexts, isReducedMotion));
       const placementsById = new Map(placements.map((placement) => [placement.id, placement]));
       for (const context of contexts) paintItem(context, placementsById.get(context.element.id), isMakingRoom);
-      marks.paint({ elements, focus: board.focus, placements: placementsById, getItem: (id) => items.get(id)?.item, atMs, isReducedMotion });
+      marks.paint({ elements, board: board.elements, focus: board.focus, placements: placementsById, getItem: (id) => items.get(id)?.item, atMs, isReducedMotion, area, onLabelWithoutRoom });
     },
   };
 }

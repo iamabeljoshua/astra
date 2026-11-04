@@ -10,11 +10,11 @@ vi.mock('../auth/session', () => import('../test/signedInSession'));
 vi.mock('../auth/useAccount', () => import('../test/activeAccount'));
 vi.mock('../voice/liveVoice', async (importOriginal) => ({ ...(await importOriginal<typeof import('../voice/liveVoice')>()), startLiveVoice: vi.fn() }));
 
-const OPEN_ROOM = { access: { url: 'wss://room.test', roomName: 'session-a-session', token: 'room-token', invitesTalk: false }, unavailableBecause: null };
+const OPEN_ROOM = { access: { url: 'wss://room.test', roomName: 'session-a-session', isTutorThere: false, invitesTalk: false, token: 'room-token' }, unavailableBecause: null };
 const CLOSED_NOTES = [
-  ['sessionLimit', 'This session has reached its limit. Start a new session to carry on.'],
-  ['dailyLimit', 'That is all your tutor time for now. It resets once a day, so please try again later. Your sessions are kept.'],
-  ['broken', 'Your tutor has stopped working in this session. Start a new one to carry on.'],
+  ['sessionLimit', VOICE_LABELS.sessionLimit],
+  ['dailyLimit', VOICE_LABELS.dailyLimit],
+  ['broken', VOICE_LABELS.broken],
 ] as const;
 
 function renderOpenRoom(view: Parameters<typeof makeFakeVoice>[0]) {

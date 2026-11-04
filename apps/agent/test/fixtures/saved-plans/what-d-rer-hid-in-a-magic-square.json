@@ -1,0 +1,36 @@
+{
+ "topic": "What Dürer hid in a magic square",
+ "plan": {
+  "opening": [
+   {
+    "say": "In fifteen fourteen, an artist named Albrecht Dürer put a small grid of numbers into one of his engravings.",
+    "note": "Dürer, 1514"
+   },
+   {
+    "say": "It's called a magic square, and the magic is that every row adds up to the very same total.",
+    "tex": "4 \\times 4 \\text{ grid}"
+   },
+   {
+    "say": "But Dürer wasn't content with rows alone. He tucked far more sums into that grid, and one is a secret.",
+    "note": "hidden sums"
+   }
+  ],
+  "more": [
+   {
+    "say": "Try a tiny case first. In a three by three square, every row, every column, and both long diagonals add to fifteen."
+   },
+   {
+    "say": "So the rule isn't just rows. A magic square keeps one total across many different lines, and that's what makes it feel designed.",
+    "tex": "\\text{sum} = 15"
+   },
+   {
+    "say": "Dürer's grid is bigger, so it has more places to hide matching totals. Let's go hunting through his square.",
+    "note": "hunt for sums"
+   }
+  ],
+  "setup": "Watch which cells light up together.",
+  "narration": "[[grid-appears]]Here's his grid, using the numbers one through sixteen. [[rows-light]]Every row adds to thirty-four. [[cols-diags]]So does every column, and both diagonals. [[corners-quad]]Now the surprise: the four corners also make thirty-four. [[center-quad]]So do the four middle cells. [[date-row]]And in the bottom row, the middle pair reads fifteen fourteen.",
+  "plan": "grid-appears: a four by four grid shows Dürer's square, rows sixteen three two thirteen; five ten eleven eight; nine six seven twelve; four fifteen fourteen one.\nrows-light: each row highlights in turn, labelled sum equals thirty-four.\ncols-diags: columns then both diagonals highlight, each again labelled thirty-four.\ncorners-quad: the four corner cells sixteen, thirteen, four, one glow together, totalling thirty-four.\ncenter-quad: the central four cells ten, eleven, six, seven glow, also thirty-four.\ndate-row: bottom row's middle cells fifteen and fourteen circle, showing the year.",
+  "close": "Can you find another group of four cells that adds to thirty-four?"
+ }
+}

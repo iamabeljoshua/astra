@@ -1,6 +1,6 @@
 import { type BoardState, createChoosingClock, createScenePlayer, describeBoard, type FiredCue, rebuildBoard, type ScenePlayer } from '@astra/board';
-import { type AgentMessage, type BrowserMessage, parseAgentMessage, parseSessionEvent, type SessionEvent } from '@astra/contracts';
-import { Room, RoomEvent, Track } from 'livekit-client';
+import { type AgentMessage, type BrowserMessage, parseAgentMessage, parseSessionEvent, SCENE_TOPIC, type SceneBrowserMessage, type SessionEvent } from '@astra/contracts';
+import { DisconnectReason, Room, RoomEvent, Track } from 'livekit-client';
 import type { BoardProblem } from '../board/boardPainting';
 import { createTutorAudioContext, listenToTutor, OUTPUT_GAINS } from '../voice/tutorAudio';
 import { createPcmRecorder, type PcmRecorder } from './pcmRecorder';
@@ -10,6 +10,10 @@ const LIVE_TOPIC = 'astra.live';
 const LAB_TOPIC = 'astra.lab';
 const TICK_MS = 4;
 const HELLO_EVERY_MS = 500;
+const TUTOR_IDENTITY = 'agent-tutor';
+
+/** moved: another tab took this lesson. ended: the tutor left the room. lost: the connection to the room went. */
+export type LessonClosed = 'moved' | 'ended' | 'lost';
 
 export interface LabRecords {
   clockKind: 'samples' | 'timer';
@@ -33,7 +37,9 @@ export interface LabSession {
   records: LabRecords;
   player: ScenePlayer;
   pcm: PcmRecorder | null;
+  clockMap(): { epochAtGraphZeroMs: number };
   command(command: object): void;
+  sendScene(message: SceneBrowserMessage): void;
   getBoardNow(): { board: BoardState; atMs: number };
   getReplayBoard(atMs: number): BoardState;
   describeLive(atMs: number): ReturnType<typeof describeBoard>;
@@ -48,6 +54,8 @@ export interface LabSessionOptions {
   shouldRecordPcm: boolean;
   onAgentReady(): void;
   onLogChange(log: readonly SessionEvent[]): void;
+  onSceneMessage?(value: unknown): void;
+  onClosed?(reason: LessonClosed): void;
 }
 
 function createRecords(clockKind: LabRecords['clockKind'], audioContext: AudioContext): LabRecords {
@@ -64,7 +72,7 @@ function noteAgentMessage(records: LabRecords, message: AgentMessage, atMs: numb
 }
 
 // Connects a real room to the real player: the tutor's audio goes through a probe that counts samples and a gain that a stop closes at once.
-export async function startLabSession({ url, token, shouldRecordPcm, onAgentReady, onLogChange }: LabSessionOptions): Promise<LabSession> {
+export async function startLabSession({ url, token, shouldRecordPcm, onAgentReady, onLogChange, onSceneMessage, onClosed }: LabSessionOptions): Promise<LabSession> {
   const audioContext = await createTutorAudioContext(shouldRecordPcm ? [pcmTapWorkletUrl] : []);
   const getGraphTimeMs = () => audioContext.currentTime * 1000;
   const getOutputLatencyMs = () => (audioContext.outputLatency || 0) * 1000;
@@ -77,6 +85,7 @@ export async function startLabSession({ url, token, shouldRecordPcm, onAgentRead
   const decoder = new TextDecoder();
   let frameAtStop = 0;
   let helloTimer: ReturnType<typeof setInterval> | undefined;
+  let isClosing = false;
 
   const publish = (topic: string, message: object) => room.localParticipant.publishData(encoder.encode(JSON.stringify(message)), { reliable: true, topic });
   const player = createScenePlayer({
@@ -128,10 +137,17 @@ export async function startLabSession({ url, token, shouldRecordPcm, onAgentRead
     helloTimer = setInterval(() => void publish(LAB_TOPIC, { type: 'hello' }), HELLO_EVERY_MS);
     void publish(LAB_TOPIC, { type: 'hello' });
   });
+  room.on(RoomEvent.ParticipantDisconnected, ({ identity }) => {
+    if (identity === TUTOR_IDENTITY && !isClosing) onClosed?.('ended');
+  });
+  room.on(RoomEvent.Disconnected, (reason) => {
+    if (!isClosing) onClosed?.(reason === DisconnectReason.DUPLICATE_IDENTITY ? 'moved' : 'lost');
+  });
   room.on(RoomEvent.DataReceived, (payload, _participant, _kind, topic) => {
     const value: unknown = JSON.parse(decoder.decode(payload));
     if (topic === LAB_TOPIC) onLabMessage(value as { type: string; event?: unknown; turnId?: string });
     if (topic === LIVE_TOPIC) onLiveMessage(value);
+    if (topic === SCENE_TOPIC) onSceneMessage?.(value);
   });
 
   await room.connect(url, token);
@@ -142,11 +158,10 @@ export async function startLabSession({ url, token, shouldRecordPcm, onAgentRead
     records,
     player,
     pcm,
+    clockMap: () => ({ epochAtGraphZeroMs: performance.timeOrigin + performance.now() - audioContext.currentTime * 1000 }),
     command: (command) => void publish(LAB_TOPIC, command),
-    getBoardNow() {
-      const atMs = clock.getNowMs();
-      return { board: player.getBoard(atMs), atMs };
-    },
+    sendScene: (message) => void publish(SCENE_TOPIC, message),
+    getBoardNow: player.advanceToNow,
     getReplayBoard: (atMs) => rebuildBoard(records.log, atMs),
     describeLive: (atMs) => describeBoard(player.getBoard(atMs), atMs),
     describeReplay: (atMs) => describeBoard(rebuildBoard(records.log, atMs), atMs),
@@ -159,6 +174,7 @@ export async function startLabSession({ url, token, shouldRecordPcm, onAgentRead
       });
     },
     async close() {
+      isClosing = true;
       clearInterval(ticker);
       clearInterval(latencyWatcher);
       clearInterval(helloTimer);

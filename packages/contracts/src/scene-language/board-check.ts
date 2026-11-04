@@ -1,4 +1,4 @@
-import type { SceneCommand } from './scene-command.ts';
+import { getSpeedPairs, type SceneCommand, SIMULATION_MOMENTS, type Slider } from './scene-command.ts';
 import type { StudentAction } from './session-event.ts';
 
 export type BoardElementKind = SceneCommand['kind'] | 'ink';
@@ -11,9 +11,9 @@ const REQUIRED_KINDS: Partial<Record<SceneCommand['kind'], readonly BoardElement
   markValue: ['plot', 'numberLine'],
   shadeArea: ['plot'],
   construct: ['geometry'],
-  runSimulation: ['simulate'],
-  setParameter: ['simulate'],
+  runSimulation: ['simulate', 'richScene'],
   trackVector: ['simulate'],
+  readout: ['simulate'],
   ghostPath: ['simulate'],
   reveal: ['plot', 'diagram', 'table', 'timeline', 'code'],
   plot: ['plot'],
@@ -31,9 +31,20 @@ function isBadRevealCount(command: SceneCommand, elementKind: BoardElementKind):
 }
 
 function getRequiredKinds(command: SceneCommand): readonly BoardElementKind[] | undefined {
-  if (command.kind === 'slider') return 'constant' in command ? ['plot'] : ['simulate'];
+  if (command.kind === 'slider' || command.kind === 'setParameter') return 'constant' in command ? ['plot'] : ['simulate'];
   if (command.kind === 'highlight' && command.tex !== undefined) return ['writeMath'];
   return REQUIRED_KINDS[command.kind];
+}
+
+function getNamedMoment(command: SceneCommand): string | null {
+  if (command.kind !== 'runSimulation') return null;
+  const point = command.action === 'play' ? command.until : command.action === 'seek' ? command.to : undefined;
+  return typeof point === 'string' ? point : null;
+}
+
+function isUnknownSimulationMoment(command: SceneCommand, elementKind: BoardElementKind): boolean {
+  const moment = getNamedMoment(command);
+  return moment !== null && elementKind === 'simulate' && !(SIMULATION_MOMENTS as readonly string[]).includes(moment);
 }
 
 export function getBoardProblem(command: SceneCommand, board: BoardKinds): string | null {
@@ -43,6 +54,7 @@ export function getBoardProblem(command: SceneCommand, board: BoardKinds): strin
   if (elementKind === undefined) return `${command.kind} names ${element}, which is not on the board`;
   const requiredKinds = getRequiredKinds(command);
   if (requiredKinds !== undefined && !requiredKinds.includes(elementKind)) return `${command.kind} needs ${requiredKinds.join(' or ')}, but ${element} is a ${elementKind}`;
+  if (isUnknownSimulationMoment(command, elementKind)) return `${element} is a simulation with the moments ${SIMULATION_MOMENTS.join(', ')}`;
   return isBadRevealCount(command, elementKind) ? `reveal needs a whole count on a ${elementKind}` : null;
 }
 
@@ -61,4 +73,11 @@ export function getBoardAfterAction(action: StudentAction, board: BoardKinds): B
   if (action.action === 'inkStroke' && !board.has(action.id)) after.set(action.id, 'ink');
   if (action.action === 'inkErased' && board.get(action.target) === 'ink') after.delete(action.target);
   return after;
+}
+
+/** The live slider on the same flight that sets this slider's speed in the other pair, if any. */
+export function getOverlappingSlider(slider: Slider, live: readonly Slider[]): Slider | null {
+  if (!('parameter' in slider)) return null;
+  const other = getSpeedPairs(slider.parameter)?.other ?? [];
+  return live.find((each) => each.id !== slider.id && each.target === slider.target && 'parameter' in each && other.includes(each.parameter)) ?? null;
 }
