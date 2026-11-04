@@ -1,7 +1,7 @@
-import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createContainerWorker, getContainerArguments, type RenderJob } from '../src/scenes/render-worker.ts';
 import { createRecordReader, MOST_TAKE_BYTES, type WorkerRecord } from '../src/scenes/worker-records.ts';
 
@@ -115,6 +115,11 @@ describe('what a job may send back', () => {
     expect((await runOnFakeDocker(Buffer.concat([GATE, take('light'), take('dark'), ...sheets, DONE]))).isOk).toBe(false);
   });
 
+  it('refuses a picture or a take with no bytes, because nobody can review nothing', async () => {
+    expect((await runOnFakeDocker(Buffer.concat([GATE, take('light'), take('dark'), LAYOUT, frame({ kind: 'sheet', theme: 'light', index: 0 }), sheet('dark'), DONE]))).isOk).toBe(false);
+    expect((await runOnFakeDocker(Buffer.concat([GATE, take('light', Buffer.alloc(0)), take('dark'), LAYOUT, sheet('light'), sheet('dark'), DONE]))).isOk).toBe(false);
+  });
+
   it('refuses a record after the last one, and a take with fields of the wrong kind', async () => {
     expect((await runOnFakeDocker(Buffer.concat([...GOOD, take('light')]))).isOk).toBe(false);
     expect((await runOnFakeDocker(Buffer.concat([GATE, frame({ kind: 'take', theme: 'light', made: { seconds: 'soon', parts: 'all' } }, Buffer.from('t')), take('dark'), LAYOUT, sheet('light'), LAYOUT, sheet('dark'), DONE]))).isOk).toBe(false);
@@ -147,5 +152,47 @@ describe('reading what the worker sends', () => {
   it('refuses a payload on a record that should carry none', () => {
     const { refused } = read(frame({ kind: 'layout' }, Buffer.from('xx')));
     expect(refused[0]).toMatch(/too large/);
+  });
+});
+
+describe('how many containers run at once', () => {
+  afterEach(() => {
+    process.env.PATH = realPath;
+  });
+
+  function makeCountingDocker() {
+    const folder = mkdtempSync(join(tmpdir(), 'fake-docker-'));
+    const release = join(folder, 'release');
+    writeFileSync(join(folder, 'records.bin'), Buffer.concat(GOOD));
+    writeFileSync(join(folder, 'docker'), `#!/bin/sh\nif [ "$1" = run ]; then echo start >> "${join(folder, 'starts')}"; while [ ! -e "${release}" ]; do sleep 0.02; done; cat "${join(folder, 'records.bin')}"; fi\nexit 0\n`);
+    chmodSync(join(folder, 'docker'), 0o755);
+    process.env.PATH = `${folder}:${realPath}`;
+    const countStarts = () => (existsSync(join(folder, 'starts')) ? readFileSync(join(folder, 'starts'), 'utf8').trim().split('\n').length : 0);
+    return { countStarts, letThemFinish: () => writeFileSync(release, '') };
+  }
+
+  it('waits for room past the cap, then runs every job', async () => {
+    const { countStarts, letThemFinish } = makeCountingDocker();
+    const worker = createContainerWorker({ limitMs: 20_000, mostAtOnce: 2 });
+    const jobs = Array.from({ length: 5 }, () => worker(JOB, new AbortController().signal));
+    await vi.waitFor(() => expect(countStarts()).toBe(2), { timeout: 5000 });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(countStarts()).toBe(2);
+    letThemFinish();
+    expect((await Promise.all(jobs)).every(({ isOk }) => isOk)).toBe(true);
+    expect(countStarts()).toBe(5);
+  });
+
+  it('gives up its place in the queue when the job is no longer wanted', async () => {
+    const { countStarts, letThemFinish } = makeCountingDocker();
+    const worker = createContainerWorker({ limitMs: 20_000, mostAtOnce: 1 });
+    const first = worker(JOB, new AbortController().signal);
+    const stopper = new AbortController();
+    const second = worker(JOB, stopper.signal);
+    stopper.abort();
+    expect((await second).isOk).toBe(false);
+    letThemFinish();
+    await first;
+    expect(countStarts()).toBe(1);
   });
 });

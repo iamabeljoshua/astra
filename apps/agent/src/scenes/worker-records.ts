@@ -100,6 +100,10 @@ function readTexts(value: unknown, name: string): string[] {
   return value as string[];
 }
 
+function requireBytes(payload: Buffer, name: string): void {
+  if (payload.length === 0) throw new RecordRefused(`a ${name} with no bytes`);
+}
+
 const isFiniteNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
 
 function readDeclared(value: unknown): Readonly<Record<string, DeclaredValue>> {
@@ -132,6 +136,7 @@ export function createRecordCollector(themes: readonly SceneTheme[]) {
       if (header.ok !== true) collected.failure = { stage: 'gate', reasons: readTexts(header.reasons, 'reasons') };
     },
     take({ header, payload }) {
+      requireBytes(payload, 'take');
       const theme = readTheme(header.theme);
       if (collected.takes.some((take) => take.theme === theme)) throw new RecordRefused('a second take for one theme');
       const made = (header.made ?? {}) as Partial<MadeTake>;
@@ -143,6 +148,7 @@ export function createRecordCollector(themes: readonly SceneTheme[]) {
       collected.layoutNotes.push(...readTexts(header.notes, 'notes'));
     },
     sheet({ header, payload }) {
+      requireBytes(payload, 'picture');
       const theme = readTheme(header.theme);
       if (collected.sheets.filter((sheet) => sheet.theme === theme).length >= MOST_SHEETS_A_THEME) throw new RecordRefused('more pictures than a job can make');
       collected.sheets.push({ theme, bytes: payload });

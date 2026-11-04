@@ -7,6 +7,7 @@ import stat
 import struct
 import subprocess
 import sys
+import time
 
 WORKER = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(WORKER))
@@ -16,7 +17,9 @@ SCENE_UID = 1000
 SCENE_GID = 1000
 JOB_ROOM = pathlib.Path("/tmp/job")
 SCENE_ROOM = pathlib.Path("/scene")
-SCENE_ENV = {"HOME": str(SCENE_ROOM), "TMPDIR": str(SCENE_ROOM), "XDG_RUNTIME_DIR": str(SCENE_ROOM), "PATH": "/usr/local/bin:/usr/bin:/bin", "PYTHONPATH": str(WORKER), "PYTHONDONTWRITEBYTECODE": "1"}
+# The software renderer spends most of a first picture optimising shaders it uses a few times, and the pixels came out the same without it.
+SCENE_ENV = {"HOME": str(SCENE_ROOM), "TMPDIR": str(SCENE_ROOM), "XDG_RUNTIME_DIR": str(SCENE_ROOM), "PATH": "/usr/local/bin:/usr/bin:/bin", "PYTHONPATH": str(WORKER), "PYTHONDONTWRITEBYTECODE": "1", "GALLIVM_PERF": "nopt"}
+SCENE_ACCOUNT = {"user": SCENE_UID, "group": SCENE_GID, "extra_groups": []}
 LATEST_MOMENT_SECONDS = 0.35
 DURATION_SLACK_SECONDS = 1.0
 TRUTH_NAMES = ("moon_orbit", "seasons(", "astra_truth")
@@ -49,18 +52,14 @@ def send_record(header, payload=b""):
 
 
 def end_scene_processes():
-    """Only the scene's own uid can signal what a scene left running, so a short-lived child steps down and sends the signal."""
-    child = os.fork()
-    if child == 0:
-        try:
-            os.setgroups([])
-            os.setgid(SCENE_GID)
-            os.setuid(SCENE_UID)
-            os.kill(-1, signal.SIGKILL)
-        except OSError:
-            pass
-        os._exit(0)
-    os.waitpid(child, 0)
+    """Only the scene's uid can signal what a scene left running. This process takes that uid as its effective one for this call alone, because a child stepping down to it could be killed first, and nothing under that uid can signal or read this process."""
+    os.seteuid(SCENE_UID)
+    try:
+        os.kill(-1, signal.SIGKILL)
+    except (ProcessLookupError, PermissionError):
+        pass
+    finally:
+        os.seteuid(0)
 
 
 def read_tail(path):
@@ -69,15 +68,21 @@ def read_tail(path):
         return stream.read().decode("utf-8", "replace")
 
 
-def run_as_scene(arguments, cwd, name, limit_seconds):
-    """Everything model-written runs here, under a uid that cannot open this process's descriptors in /proc."""
-    output_path, error_path = JOB_ROOM / f"{name}.out", JOB_ROOM / f"{name}.err"
-    with open(output_path, "wb") as output, open(error_path, "wb") as error:
-        try:
-            done = subprocess.run(arguments, cwd=cwd, env=SCENE_ENV, stdin=subprocess.DEVNULL, stdout=output, stderr=error, user=SCENE_UID, group=SCENE_GID, extra_groups=[], timeout=limit_seconds)
-        finally:
-            end_scene_processes()
-    return done.returncode, read_tail(output_path), read_tail(error_path)
+def run_as_scene(steps, limit_seconds):
+    """Everything model-written runs here, at once, under a uid that cannot open this process's descriptors in /proc. Steps maps a name to its command."""
+    running = {}
+    deadline = time.monotonic() + limit_seconds
+    try:
+        for name, arguments in steps.items():
+            with open(JOB_ROOM / f"{name}.out", "wb") as output, open(JOB_ROOM / f"{name}.err", "wb") as error:
+                running[name] = subprocess.Popen(arguments, cwd=SCENE_ROOM, env=SCENE_ENV, stdin=subprocess.DEVNULL, stdout=output, stderr=error, **SCENE_ACCOUNT)
+        for process in running.values():
+            process.wait(timeout=max(deadline - time.monotonic(), 0))
+    finally:
+        end_scene_processes()
+        for process in running.values():
+            process.wait()
+    return {name: (process.returncode, read_tail(JOB_ROOM / f"{name}.out"), read_tail(JOB_ROOM / f"{name}.err")) for name, process in running.items()}
 
 
 def read_scene_file(path, most_bytes):
@@ -133,18 +138,20 @@ def write_source(job, theme, code):
     return source_path, head_lines
 
 
-def make_theme(job, theme, code):
-    source_path, head_lines = write_source(job, theme, code)
-    take_path = SCENE_ROOM / f"{theme}.take"
-    returncode, output, error = run_as_scene([sys.executable, str(WORKER / "make_take.py"), str(source_path), str(take_path)], SCENE_ROOM, f"make-{theme}", job["stepLimitSeconds"])
-    if returncode != 0:
-        return None, [f"the scene ended with {returncode}: {describe_failure(error, code, head_lines)}"]
-    made = json.loads(output.strip().splitlines()[-1])
-    problems = get_timing_problems(job, made)
-    if problems:
-        return None, problems
-    send_record({"kind": "take", "theme": theme, "made": {name: made[name] for name in ("makeMs", "seconds", "parts")}}, read_scene_file(take_path, job["mostTakeBytes"]))
-    return made, []
+def make_themes(job, code):
+    sources = {theme: write_source(job, theme, code) for theme in job["themes"]}
+    steps = {f"make-{theme}": [sys.executable, str(WORKER / "make_take.py"), str(source_path), str(SCENE_ROOM / f"{theme}.take")] for theme, (source_path, _) in sources.items()}
+    results = run_as_scene(steps, job["stepLimitSeconds"])
+    for theme, (_, head_lines) in sources.items():
+        returncode, output, error = results[f"make-{theme}"]
+        if returncode != 0:
+            return [f"the scene ended with {returncode}: {describe_failure(error, code, head_lines)}"]
+        made = json.loads(output.strip().splitlines()[-1])
+        problems = get_timing_problems(job, made)
+        if problems:
+            return problems
+        send_record({"kind": "take", "theme": theme, "made": {name: made[name] for name in ("makeMs", "seconds", "parts")}}, read_scene_file(SCENE_ROOM / f"{theme}.take", job["mostTakeBytes"]))
+    return []
 
 
 def read_layout_report(output):
@@ -153,19 +160,23 @@ def read_layout_report(output):
     return problems, notes
 
 
-def inspect_theme(job, theme, code):
-    source_path, _ = write_source(job, theme, code)
-    sheet_prefix = SCENE_ROOM / f"{theme}-sheet"
+def inspect_themes(job, code):
+    """Both themes share one process, because the renderer's seconds of start-up come once per process and the second theme then takes under a second."""
     times = ",".join(f"{seconds:.3f}" for seconds in job["inspectSeconds"]) + ",end"
-    returncode, output, error = run_as_scene(["manimgx", "inspect", str(source_path), "Lesson", "-o", f"{sheet_prefix}.png", "-t", times], SCENE_ROOM, f"inspect-{theme}", job["stepLimitSeconds"])
-    sheets = sorted(SCENE_ROOM.glob(f"{theme}-sheet*.png"), key=lambda path: (len(path.name), path.name))[:MOST_SHEETS_A_THEME]
-    if not sheets:
+    arguments = [sys.executable, str(WORKER / "inspect_themes.py"), times]
+    for theme in job["themes"]:
+        source_path, _ = write_source(job, theme, code)
+        arguments += [str(source_path), str(SCENE_ROOM / f"{theme}-sheet.png")]
+    returncode, output, error = run_as_scene({"inspect": arguments}, job["stepLimitSeconds"])["inspect"]
+    sheets = {theme: sorted(SCENE_ROOM.glob(f"{theme}-sheet*.png"), key=lambda path: (len(path.name), path.name))[:MOST_SHEETS_A_THEME] for theme in job["themes"]}
+    if not all(sheets.values()):
         send_record({"kind": "failed", "stage": "inspect", "reasons": [f"inspect ended with {returncode}: {(error or output)[-MOST_ERROR_CHARACTERS:]}"]})
         return False
     problems, notes = read_layout_report(output)
     send_record({"kind": "layout", "problems": problems, "notes": notes})
-    for index, sheet in enumerate(sheets):
-        send_record({"kind": "sheet", "theme": theme, "index": index}, read_scene_file(sheet, MOST_SHEET_BYTES))
+    for theme, paths in sheets.items():
+        for index, sheet in enumerate(paths):
+            send_record({"kind": "sheet", "theme": theme, "index": index}, read_scene_file(sheet, MOST_SHEET_BYTES))
     return True
 
 
@@ -176,15 +187,12 @@ def run(job):
     if not gate["ok"]:
         return
     JOB_ROOM.mkdir()
-    for theme in job["themes"]:
-        made, reasons = make_theme(job, theme, code)
-        if made is None:
-            send_record({"kind": "failed", "stage": "make", "reasons": reasons})
-            return
-    if job.get("inspectSeconds"):
-        for theme in job["themes"]:
-            if not inspect_theme(job, theme, code):
-                return
+    reasons = make_themes(job, code)
+    if reasons:
+        send_record({"kind": "failed", "stage": "make", "reasons": reasons})
+        return
+    if job.get("inspectSeconds") and not inspect_themes(job, code):
+        return
     send_record({"kind": "done"})
 
 
