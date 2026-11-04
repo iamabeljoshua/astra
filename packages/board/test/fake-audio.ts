@@ -15,6 +15,8 @@ export interface FakeAudio {
   levels: OutputLevel[];
   getNowMs(): number;
   advance(ms: number): void;
+  /** Time passes with no tick, as under a busy main thread. */
+  skip(ms: number): void;
   sound(): void;
   quiet(): void;
   startSound(): void;
@@ -50,6 +52,9 @@ export function createFakeAudio({ catalog, outputLatencyMs = 0 }: { catalog?: Sc
         nowMs += Math.min(TICK_MS, ms - elapsed);
         player.tick();
       }
+    },
+    skip(ms) {
+      nowMs += ms;
     },
     sound: () => clock.onProbeEvent({ kind: 'sound', atMs: nowMs }),
     quiet: () => clock.onProbeEvent({ kind: 'quiet', atMs: nowMs }),

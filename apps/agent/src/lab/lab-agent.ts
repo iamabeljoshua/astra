@@ -3,15 +3,16 @@ import { type AgentMessage, type Beat, type BeatId, type BrowserMessage, getResu
 import type { tts } from '@livekit/agents';
 import { createSessionLog } from '../live/session-log.ts';
 import { type SpokenTurn, speakTurn, type TextPace } from '../live/speak-turn.ts';
+import { createVoiceLine } from '../live/voice-line.ts';
 import { type LabRecorder } from './lab-recorder.ts';
-import { LESSON, STOCK_TURN } from './lesson.ts';
+import { getLessonTurn, STOCK_TURN } from './lesson.ts';
 
 export const LIVE_TOPIC = 'astra.live';
 export const LAB_TOPIC = 'astra.lab';
 const AUDIO_QUEUE_MS = 200;
 
 export type LabCommand =
-  | { type: 'play'; lessonTurn?: number; isStockPhrase?: boolean; textPace?: TextPace; proofStalls?: { atAudioMs: number; ms: number }[]; wordsLateMs?: number }
+  | { type: 'play'; lessonTurn?: number; repeats?: number; cueEveryWords?: number; isStockPhrase?: boolean; textPace?: TextPace; proofStalls?: { atAudioMs: number; ms: number }[]; wordsLateMs?: number }
   | { type: 'interrupt' }
   | { type: 'resume'; textPace?: TextPace }
   | { type: 'finish' }
@@ -73,6 +74,7 @@ export async function runLabAgent({ url, token, voice, sampleRate, recorder }: L
   const options = new TrackPublishOptions();
   options.source = TrackSource.SOURCE_MICROPHONE;
   await room.localParticipant?.publishTrack(LocalAudioTrack.createAudioTrack('tutor-voice', source), options);
+  const line = createVoiceLine(source);
   voice.on('error', (error) => recorder.noteRefused(`voice error: ${String(error.error)}`));
   voice.prewarm();
 
@@ -82,7 +84,7 @@ export async function runLabAgent({ url, token, voice, sampleRate, recorder }: L
     recorder.startTurn(id, beats);
     const spoken = speakTurn({
       voice,
-      output: source,
+      line,
       messenger,
       turnId: id,
       beats,
@@ -113,7 +115,7 @@ export async function runLabAgent({ url, token, voice, sampleRate, recorder }: L
   const runCommand = (command: LabCommand) => {
     if (command.type === 'play') {
       wordsLateMs = command.wordsLateMs ?? 0;
-      startTurn(command.isStockPhrase ? STOCK_TURN : (LESSON[command.lessonTurn ?? 0] ?? []), command);
+      startTurn(command.isStockPhrase ? STOCK_TURN : getLessonTurn(command), command);
     }
     if (command.type === 'interrupt') {
       recorder.noteStopDecided(active?.id);
