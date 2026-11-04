@@ -1,3 +1,4 @@
+import { getCanvasContext } from './canvasContext';
 import type { DotPoint } from './dotDrawings';
 
 const PAPER_WIDTH = 480;
@@ -27,7 +28,7 @@ export function textToDots(text: string): DotPoint[] {
   const paper = document.createElement('canvas');
   paper.width = PAPER_WIDTH;
   paper.height = PAPER_HEIGHT;
-  const context = paper.getContext('2d', { willReadFrequently: true });
+  const context = getCanvasContext(paper, { willReadFrequently: true });
   if (!context) return [];
   fitFont(context, text, getComputedStyle(document.documentElement).getPropertyValue(FONT_FAMILY_TOKEN));
   context.textAlign = 'center';

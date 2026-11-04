@@ -10,6 +10,7 @@ import { textToDots } from './textToDots';
 const LEFT_POINTS: DotPoint[] = [[-0.5, 0]];
 const RIGHT_POINTS: DotPoint[] = [[0.5, 0]];
 const POSITION_TOLERANCE = 0.02;
+const DOTS_SURELY_ARRIVED_MS = 60_000;
 
 describe('the drawings', () => {
   it.each(Object.entries(DOT_DRAWINGS))('%s stays inside the shape box', (_name, points) => {
@@ -99,6 +100,17 @@ describe('DotStage', () => {
     screen.getByText('The question');
   });
 
+  it('gives a browser that throws when asked for a canvas a working page', () => {
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => {
+      throw new Error('This browser refuses a canvas.');
+    });
+
+    render(<DotStage shape={LEFT_POINTS}><p>The question</p></DotStage>);
+
+    screen.getByRole('main');
+    screen.getByText('The question');
+  });
+
   describe('with a canvas', () => {
     let requestFrame: ReturnType<typeof vi.fn>;
     let contexts: CanvasRenderingContext2D[];
@@ -129,6 +141,27 @@ describe('DotStage', () => {
       rerender(<DotStage shape={RIGHT_POINTS} />);
 
       expect(requestFrame).toHaveBeenCalledTimes(1);
+    });
+
+    it('stops asking for frames once the dots have arrived', () => {
+      const { rerender } = render(<DotStage shape={LEFT_POINTS} />);
+      rerender(<DotStage shape={RIGHT_POINTS} />);
+      const paintFrame = requestFrame.mock.calls[0]![0] as FrameRequestCallback;
+
+      vi.spyOn(performance, 'now').mockReturnValue(performance.now() + DOTS_SURELY_ARRIVED_MS);
+      paintFrame(0);
+
+      expect(requestFrame).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps asking for frames while the dots are on their way', () => {
+      const { rerender } = render(<DotStage shape={LEFT_POINTS} />);
+      rerender(<DotStage shape={RIGHT_POINTS} />);
+      const paintFrame = requestFrame.mock.calls[0]![0] as FrameRequestCallback;
+
+      paintFrame(0);
+
+      expect(requestFrame).toHaveBeenCalledTimes(2);
     });
 
     it('places a new shape at once under reduced motion', () => {
@@ -173,6 +206,15 @@ describe('DotStage', () => {
 describe('textToDots', () => {
   it('gives no points in a browser with no canvas', () => {
     expect(textToDots('Maya')).toEqual([]);
+  });
+
+  it('gives no points in a browser that throws when asked for a canvas', () => {
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => {
+      throw new Error('This browser refuses a canvas.');
+    });
+
+    expect(textToDots('Maya')).toEqual([]);
+    vi.restoreAllMocks();
   });
 
   it('turns the ink on a hidden canvas into points in the shape space', () => {

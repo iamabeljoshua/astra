@@ -9,7 +9,8 @@ import { DotStage } from '../ui/dots/DotStage';
 import { TextField } from '../ui/TextField';
 import { TutorQuestion } from '../ui/TutorQuestion';
 import { useAuth } from './AuthProvider';
-import { CODE_LENGTH, readCodeRequest, sendEmailCode, type SendCodeResult, signInWithGoogle } from './session';
+import { CODE_LENGTH } from './codeLength';
+import { readCodeRequest, sendEmailCode, type SendCodeResult, signInWithGoogle } from './session';
 import { useCodeEntry } from './useCodeEntry';
 import type { SignInDraft, SignInStep } from './useSignInDraft';
 

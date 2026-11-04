@@ -18,6 +18,10 @@ function getBoxes(container: HTMLElement) {
   return [...container.querySelectorAll('[aria-hidden="true"]')];
 }
 
+function getMarkedBoxes(container: HTMLElement) {
+  return getBoxes(container).flatMap((box, index) => (box.getAttribute('data-active') === 'true' ? [index] : []));
+}
+
 describe('CodeField', () => {
   it('gives a screen reader one field, with the attributes a phone needs to offer the code', () => {
     const { container } = render(<ControlledCodeField onComplete={vi.fn()} />);
@@ -104,6 +108,64 @@ describe('CodeField', () => {
     expect(activeBox()).toBe(1);
     fireEvent.keyDown(getField(), { key: 'ArrowRight' });
     expect(activeBox()).toBe(2);
+  });
+
+  it.each([
+    ['after the typed digits', '12', '12125091', '125091'],
+    ['over a selected digit', '12', '1250912', '125091'],
+  ])('lets a whole code that arrives at once replace the digits, pasted %s', (_caseName, typed, inField, pasted) => {
+    const onComplete = vi.fn();
+    render(<ControlledCodeField onComplete={onComplete} initialValue={typed} />);
+
+    fireEvent.input(getField(), { target: { value: inField }, data: pasted, inputType: 'insertFromPaste' });
+
+    expect(getField().value).toBe(pasted);
+    expect(onComplete).toHaveBeenCalledTimes(1);
+    expect(onComplete).toHaveBeenCalledWith(pasted);
+  });
+
+  it('adds a pasted part of a code to the digits already there', () => {
+    const onComplete = vi.fn();
+    render(<ControlledCodeField onComplete={onComplete} initialValue="12" />);
+
+    fireEvent.input(getField(), { target: { value: '1234' }, data: '34', inputType: 'insertFromPaste' });
+
+    expect(getField().value).toBe('1234');
+    expect(onComplete).not.toHaveBeenCalled();
+  });
+
+  it('brings the mark back to the first box when the boxes are emptied from outside', () => {
+    const { container, rerender } = render(<CodeField label={LABEL} value="123456" length={6} onChange={vi.fn()} onComplete={vi.fn()} />);
+    getField().focus();
+    getField().setSelectionRange(6, 6);
+    fireEvent.select(getField());
+    expect(getMarkedBoxes(container)).toEqual([5]);
+
+    rerender(<CodeField label={LABEL} value="" length={6} onChange={vi.fn()} onComplete={vi.fn()} />);
+
+    expect(getMarkedBoxes(container)).toEqual([0]);
+  });
+
+  it('keeps the digits and marks the next box when Tab brings focus back to a partly typed field', () => {
+    const { container } = render(<ControlledCodeField onComplete={vi.fn()} initialValue="12" />);
+    getField().focus();
+    getField().setSelectionRange(0, 2);
+    fireEvent.select(getField());
+
+    fireEvent.keyUp(getField(), { key: 'Tab' });
+
+    expect([getField().selectionStart, getField().selectionEnd]).toEqual([2, 2]);
+    expect(getMarkedBoxes(container)).toEqual([2]);
+  });
+
+  it('leaves a select-all alone, because the student asked for it', () => {
+    render(<ControlledCodeField onComplete={vi.fn()} initialValue="12" />);
+    getField().focus();
+    getField().setSelectionRange(0, 2);
+
+    fireEvent.keyUp(getField(), { key: 'a', metaKey: true });
+
+    expect([getField().selectionStart, getField().selectionEnd]).toEqual([0, 2]);
   });
 
   it('completes again when a full code is corrected', () => {

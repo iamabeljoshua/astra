@@ -23,9 +23,13 @@ function toCodeDigits(text: string, length: number) {
 export function CodeField({ label, value, length, isBusy = false, isInvalid = false, describedBy, inputRef, onChange, onComplete }: CodeFieldProps) {
   const id = useId();
   const [caret, setCaret] = useState<number | null>(null);
+  // Emptying the boxes from outside moves the real caret with no select event, and a caret cannot sit past the digits.
+  const markedBox = caret === null ? null : Math.min(caret, value.length, length - 1);
 
   function change(event: ChangeEvent<HTMLInputElement>) {
-    const digits = toCodeDigits(event.target.value, length);
+    // A paste lands at the caret, so a whole code that arrives at once replaces the digits instead of mixing with them.
+    const arrived = toCodeDigits((event.nativeEvent as InputEvent).data ?? '', length);
+    const digits = arrived.length === length ? arrived : toCodeDigits(event.target.value, length);
     if (digits === value) return;
     onChange(digits);
     if (digits.length === length) onComplete(digits);
@@ -57,6 +61,11 @@ export function CodeField({ label, value, length, isBusy = false, isInvalid = fa
     moveCaret(event.currentTarget, (event.currentTarget.selectionStart ?? 0) + step);
   }
 
+  // Tab selects every digit, in WebKit only after the focus event, and the next digit would wipe them all.
+  function keepDigitsAfterTab(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === 'Tab') moveCaret(event.currentTarget, value.length);
+  }
+
   return (
     <div className="flex flex-col gap-1.5">
       <label htmlFor={id} className="label text-ink-2">{label}</label>
@@ -65,7 +74,7 @@ export function CodeField({ label, value, length, isBusy = false, isInvalid = fa
           <span
             key={box}
             aria-hidden="true"
-            data-active={caret === box}
+            data-active={markedBox === box}
             className="flex aspect-5/6 min-w-0 flex-1 items-center justify-center border border-ink-2 bg-paper text-code-digit font-medium tabular-nums data-[active=true]:outline-2 data-[active=true]:-outline-offset-1 data-[active=true]:outline-accent"
           >
             {value[box]}
@@ -84,10 +93,11 @@ export function CodeField({ label, value, length, isBusy = false, isInvalid = fa
           aria-invalid={isInvalid}
           aria-describedby={describedBy}
           value={value}
-          className="absolute inset-0 size-full bg-transparent text-sub text-transparent caret-transparent outline-none selection:bg-transparent selection:text-transparent"
+          className="absolute inset-0 size-full bg-transparent text-sub text-transparent caret-transparent outline-none forced-color-adjust-none selection:bg-transparent selection:text-transparent"
           onChange={change}
           onClick={moveToPressedBox}
           onKeyDown={moveWithArrows}
+          onKeyUp={keepDigitsAfterTab}
           onSelect={(event) => followCaret(event.currentTarget)}
           onFocus={(event) => followCaret(event.currentTarget)}
           onBlur={() => setCaret(null)}

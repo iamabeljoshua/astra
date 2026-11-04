@@ -1,4 +1,5 @@
 import { prefersReducedMotion } from '../motion';
+import { getCanvasContext } from './canvasContext';
 import type { DotPoint } from './dotDrawings';
 import { type DotClearing, type DotLayout, getDotLayout, getShapeBoxSize } from './dotLayout';
 import { createDotSwarm, type DotSwarm, getDotPosition, isSwarmSettled, placeDots, sendDots } from './dotSwarm';
@@ -78,8 +79,8 @@ function paintSwarm(context: CanvasRenderingContext2D, swarm: DotSwarm, layout: 
 
 // A frame loop runs only while dots are on their way.
 export function createDotPainter({ stage, gridCanvas, shapeCanvas }: DotPainterParts): DotPainter | null {
-  const gridContext = gridCanvas.getContext('2d');
-  const shapeContext = shapeCanvas.getContext('2d');
+  const gridContext = getCanvasContext(gridCanvas);
+  const shapeContext = getCanvasContext(shapeCanvas);
   if (!gridContext || !shapeContext) return null;
 
   let layout = getDotLayout(stage.clientWidth, stage.clientHeight);

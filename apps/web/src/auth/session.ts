@@ -12,7 +12,6 @@ export interface CodeRequest {
 }
 export type SessionRenewal = 'renewed' | 'refused' | 'unreachable';
 
-export const CODE_LENGTH = 6;
 export const RESEND_WAIT_MS = 60_000;
 
 const CODE_LIFETIME_MS = 600_000;
@@ -123,16 +122,23 @@ export function isCodeStillGood({ sentAt }: CodeRequest): boolean {
   return Date.now() - sentAt < CODE_LIFETIME_MS;
 }
 
-function wasCodeJustSent(email: string): boolean {
+// Sending to another address moves the tab's record on, and the code sent before it still works.
+const sentAtThisPage = new Map<string, number>();
+
+function findJustSentAt(email: string): number | null {
+  const address = email.toLowerCase();
   const lastRequest = readCodeRequest();
-  return lastRequest?.email.toLowerCase() === email.toLowerCase() && Date.now() - lastRequest.sentAt < RESEND_WAIT_MS;
+  const sentAt = lastRequest?.email.toLowerCase() === address ? lastRequest.sentAt : sentAtThisPage.get(address);
+  return sentAt !== undefined && Date.now() - sentAt < RESEND_WAIT_MS ? sentAt : null;
 }
 
-function rememberCodeSent(email: string) {
-  withStorage((_local, tab) => tab.setItem(LAST_CODE_STORAGE_KEY, JSON.stringify({ email, sentAt: Date.now() })), undefined);
+function rememberCodeSent(email: string, sentAt: number) {
+  sentAtThisPage.set(email.toLowerCase(), sentAt);
+  withStorage((_local, tab) => tab.setItem(LAST_CODE_STORAGE_KEY, JSON.stringify({ email, sentAt })), undefined);
 }
 
 function forgetCodeRequest() {
+  sentAtThisPage.clear();
   withStorage((_local, tab) => tab.removeItem(LAST_CODE_STORAGE_KEY), undefined);
 }
 
@@ -147,11 +153,15 @@ function removeLinkProofs() {
 
 export async function sendEmailCode(email: string): Promise<SendCodeResult> {
   if (!USABLE_EMAIL_ADDRESS.test(email)) return 'invalidEmail';
-  if (wasCodeJustSent(email)) return 'alreadySent';
+  const justSentAt = findJustSentAt(email);
+  if (justSentAt !== null) {
+    rememberCodeSent(email, justSentAt);
+    return 'alreadySent';
+  }
   const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: !areNewSignUpsStopped() } });
   removeLinkProofs();
   if (error) return toSendFailure(error);
-  rememberCodeSent(email);
+  rememberCodeSent(email, Date.now());
   return 'sent';
 }
 

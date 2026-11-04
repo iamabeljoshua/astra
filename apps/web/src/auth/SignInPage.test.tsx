@@ -14,9 +14,8 @@ const FULL_CODE = '123456';
 
 vi.mock('./AuthProvider', () => ({ useAuth: vi.fn() }));
 vi.mock('./session', async (importOriginal) => {
-  const { CODE_LENGTH, RESEND_WAIT_MS } = await importOriginal<typeof import('./session')>();
+  const { RESEND_WAIT_MS } = await importOriginal<typeof import('./session')>();
   return {
-    CODE_LENGTH,
     RESEND_WAIT_MS,
     checkEmailCode: vi.fn(),
     isCodeStillGood: () => true,
@@ -296,6 +295,18 @@ describe('the code step', () => {
     expect(screen.getByRole('alert').textContent).toBe(SIGN_IN_LABELS.returnFailed);
   });
 
+  it('puts the mark on the first box when a wrong code empties the boxes', async () => {
+    vi.mocked(checkEmailCode).mockResolvedValue('codeWrong');
+    await reachCodeStep();
+    getCodeField().focus();
+    fireEvent.change(getCodeField(), { target: { value: FULL_CODE } });
+    getCodeField().setSelectionRange(FULL_CODE.length, FULL_CODE.length);
+    fireEvent.select(getCodeField());
+    await screen.findByRole('alert');
+
+    expect(document.querySelector('[data-active="true"]')).toBe(document.querySelector('[data-active]'));
+  });
+
   it('clears the message when the student starts typing again', async () => {
     vi.mocked(checkEmailCode).mockResolvedValue('codeWrong');
     await reachCodeStep();
@@ -352,6 +363,21 @@ describe('the resend wait', () => {
     expect(sendEmailCode).toHaveBeenCalledWith(STUDENT_EMAIL);
     screen.getByText(SIGN_IN_LABELS.newCodeSent);
     screen.getByRole('button', { name: SIGN_IN_LABELS.resendIn(60) });
+  });
+
+  it('puts the mark on the first box when a new code empties the boxes', async () => {
+    await reachCodeStepOnFakeClock();
+    waitSeconds(60);
+    getCodeField().focus();
+    fireEvent.change(getCodeField(), { target: { value: '1234' } });
+    getCodeField().setSelectionRange(4, 4);
+    fireEvent.select(getCodeField());
+
+    fireEvent.click(screen.getByRole('button', { name: SIGN_IN_LABELS.resend }));
+    await act(async () => undefined);
+
+    expect(getCodeField().value).toBe('');
+    expect(document.querySelector('[data-active="true"]')).toBe(document.querySelector('[data-active]'));
   });
 
   it('says when Auth refuses a new code', async () => {

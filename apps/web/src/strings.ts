@@ -1,3 +1,5 @@
+import { CODE_LENGTH } from './auth/codeLength';
+
 export const PRODUCT_NAME = 'Astra';
 
 export const APP_ERROR_LABELS = {
@@ -63,7 +65,7 @@ export const SIGN_IN_LABELS = {
   authFailed: 'Could not send the code. The fault is on our side, so try again soon.',
   failed: 'Could not send the code. Try again in a moment.',
   codeLine: 'Check your email. I sent you a code.',
-  codeLabel: '6-digit code',
+  codeLabel: `${CODE_LENGTH}-digit code`,
   sentTo: (email: string) => `Sent to ${email}`,
   useAnotherEmail: 'Use a different email',
   resend: 'Send a new code',

@@ -5,7 +5,7 @@ A student opens `/terms` or `/privacy` from the words under the sign-in button, 
 ## Sub-features
 
 - `legal-open` opens both pages signed out, with focus on the heading.
-- `legal-links` links the words `Terms` and `Privacy Policy` on the welcome step and the email step.
+- `legal-links` links the words `Terms` and `Privacy Policy` on the email step.
 - `legal-keep-draft` keeps the typed address after `Back to Astra` and after browser Back.
 - `legal-themes` shows both pages in light and dark, at laptop and phone widths.
 

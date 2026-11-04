@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { PRODUCT_NAME } from './strings';
+import { CODE_LENGTH } from './auth/codeLength';
+import { PRODUCT_NAME, SIGN_IN_LABELS } from './strings';
 
 const SUPABASE_FOLDER = join(import.meta.dirname, '../../../supabase');
 const CONFIG = readFileSync(join(SUPABASE_FOLDER, 'config.toml'), 'utf8');
@@ -13,6 +14,13 @@ function readTemplate(fileName: string) {
 function readConfigSection(templateKey: string) {
   return CONFIG.split(`[auth.email.template.${templateKey}]`)[1]?.split('[')[0] ?? '';
 }
+
+describe('the length of a code', () => {
+  it('is the same on the page and on the local Auth', () => {
+    expect(CONFIG).toContain(`otp_length = ${CODE_LENGTH}`);
+    expect(SIGN_IN_LABELS.codeLabel).toBe(`${CODE_LENGTH}-digit code`);
+  });
+});
 
 describe.each([
   ['magic link', 'magic_link', 'magic-link.html'],

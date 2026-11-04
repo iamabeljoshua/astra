@@ -139,6 +139,46 @@ describe('sendEmailCode', () => {
     expect(fetchStub).toHaveBeenCalled();
   });
 
+  it('goes back to the code it sent when a student returns to an address within the minute, with that code\'s own time', async () => {
+    const fetchStub = stubAuthAnswer(200, {});
+    vi.useFakeTimers({ now: 1_000_000, toFake: ['Date'] });
+    const { readCodeRequest, sendEmailCode } = await loadSession();
+
+    await sendEmailCode('maya@astra.test');
+    vi.setSystemTime(1_010_000);
+    await sendEmailCode('tola@astra.test');
+    vi.setSystemTime(1_020_000);
+
+    await expect(sendEmailCode('MAYA@astra.test')).resolves.toBe('alreadySent');
+    expect(fetchStub).toHaveBeenCalledTimes(2);
+    expect(readCodeRequest()).toMatchObject({ email: 'MAYA@astra.test', sentAt: 1_000_000 });
+  });
+
+  it('asks Auth again when a student returns to an address after the minute', async () => {
+    const fetchStub = stubAuthAnswer(200, {});
+    vi.useFakeTimers({ now: 1_000_000, toFake: ['Date'] });
+    const { sendEmailCode } = await loadSession();
+
+    await sendEmailCode('maya@astra.test');
+    await sendEmailCode('tola@astra.test');
+    vi.setSystemTime(1_060_000);
+
+    await expect(sendEmailCode('maya@astra.test')).resolves.toBe('sent');
+    expect(fetchStub).toHaveBeenCalledTimes(3);
+  });
+
+  it('removes the link proof and keeps the session of a student signed in on this browser', async () => {
+    stubAuthAnswer(200, {});
+    const { sendEmailCode } = await loadSession();
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(STORED_SESSION));
+    localStorage.setItem(CODE_VERIFIER_KEY, 'an-older-proof');
+
+    await sendEmailCode('tola@astra.test');
+
+    expect(localStorage.getItem(SESSION_STORAGE_KEY)).not.toBeNull();
+    expect(localStorage.getItem(CODE_VERIFIER_KEY)).toBeNull();
+  });
+
   it('sends again after a minute', async () => {
     const fetchStub = stubAuthAnswer(200, {});
     const { sendEmailCode } = await loadSession();
