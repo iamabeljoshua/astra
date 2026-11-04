@@ -9,7 +9,7 @@ import { type Answers, STUDENT_INTERESTS } from './answers';
 import type { StepId } from './steps';
 import { useStepChart } from './useStepChart';
 
-vi.mock('../ui/dots/textToDots', () => ({ textToDots: vi.fn() }));
+vi.mock('../ui/dots/textToDots', () => ({ NO_POINTS: [], textToDots: vi.fn() }));
 
 const NAME_DOTS = [[0.1, 0.1, 1.05]] as const;
 const NO_ANSWERS: Answers = { name: '', level: null, interests: [], goal: null };
