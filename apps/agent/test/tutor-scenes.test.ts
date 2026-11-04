@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createTopicRuns } from '../src/scenes/lesson/topic-runs.ts';
 import { createSceneStore, getSceneKey } from '../src/scenes/scene-store.ts';
 import type { LessonPlan, SceneRoute, StoredScene } from '../src/scenes/scene-types.ts';
+import type { AheadNews } from '../src/scene-queue/scene-queue.ts';
 import { createTutorScenes, getTutorSceneBeats } from '../src/tutor/tutor-scenes.ts';
 
 const USAGE = { model: 'fake', ms: 1, costUsd: 0 };
@@ -20,7 +21,7 @@ const flush = async () => {
   for (let tick = 0; tick < 6; tick += 1) await new Promise((resolve) => setImmediate(resolve));
 };
 
-function setUp({ route = { engine: 'manimgx', kind: 'graph', topic: TOPIC, ...USAGE } as SceneRoute, canSpeak = true, getScene = async () => ({ isOk: true as const, scene: SCENE }) as { isOk: true; scene: StoredScene } | { isOk: false; reasons: string[] }, cardTitle = null as string | null, onAhead = undefined as ((request: string, state: 'ready' | 'gone') => void) | undefined } = {}) {
+function setUp({ route = { engine: 'manimgx', kind: 'graph', topic: TOPIC, ...USAGE } as SceneRoute, canSpeak = true, getScene = async () => ({ isOk: true as const, scene: SCENE }) as { isOk: true; scene: StoredScene } | { isOk: false; reasons: string[] }, cardTitle = null as string | null, onAhead = undefined as ((request: string, state: AheadNews) => void) | undefined } = {}) {
   const sent: SceneAgentMessage[] = [];
   const spoken: (readonly Beat[])[] = [];
   const shown: { topic: string }[] = [];
@@ -342,13 +343,13 @@ describe('a scene started ahead of its moment', () => {
     scenes.prepare(TOPIC);
     await flush();
     scenes.onPage({ type: 'sceneRefused', sceneId: scene.id }, 'maya');
-    expect(onAhead).toHaveBeenCalledWith(TOPIC, 'gone');
+    expect(onAhead).toHaveBeenCalledWith(TOPIC, 'failed');
 
     const failing = setUp({ onAhead, getScene: async () => ({ isOk: false as const, reasons: ['nope'] }) });
     opened(failing.scenes);
     failing.scenes.prepare('another topic');
     await flush();
-    expect(onAhead).toHaveBeenLastCalledWith('another topic', 'gone');
+    expect(onAhead).toHaveBeenLastCalledWith('another topic', 'failed');
     expect(spoken).toEqual([]);
     expect(failing.spoken).toEqual([]);
     expect(sent.filter((message) => message.type === 'loadScene')).toEqual([]);

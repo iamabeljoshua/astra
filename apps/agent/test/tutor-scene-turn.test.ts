@@ -1,3 +1,4 @@
+import { LESSON_RULES } from '../src/lesson-plan/lesson-rules.ts';
 import { type Beat, parseBeat } from '@astra/contracts';
 import { describe, expect, it, vi } from 'vitest';
 import { BeatTextReader } from '../src/tutor/beat-text-reader.ts';
@@ -82,7 +83,9 @@ describe('the brain', () => {
     await read(createTutorBrain({ model }).reply({ text: 'hello' }, new AbortController().signal));
     expect(requests[0]?.system).toBe(TUTOR_SYSTEM);
     expect(TUTOR_SYSTEM).not.toContain('askScene');
-    expect(TUTOR_SYSTEM_WITH_SCENES.startsWith(TUTOR_SYSTEM)).toBe(true);
+    expect(TUTOR_SYSTEM_WITH_SCENES).toContain('askScene');
+    expect(TUTOR_SYSTEM_WITH_SCENES.endsWith(LESSON_RULES)).toBe(true);
+    expect(TUTOR_SYSTEM.endsWith(LESSON_RULES)).toBe(true);
   });
 
   it('passes the ask on and still speaks at once', async () => {

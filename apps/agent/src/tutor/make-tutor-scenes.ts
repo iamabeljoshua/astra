@@ -38,7 +38,7 @@ export function makeTutorScenes({ caps, moveToNextStep, getLastFirstTextMs, ...h
   const isFake = process.env.LESSON_FAKES === '1';
   const models: SceneModels = isFake ? makeFakeSceneModels() : makeAnthropicSceneModels({ apiKey: readKey('ANTHROPIC_API_KEY'), onUsage: ({ costUsd }) => caps.addScene(costUsd), assertRoom });
   const store = createSceneStore(getSceneStoreRoot());
-  const runs = createTopicRuns({ planner: models.planner, nameReader: models.nameReader, writers: [models.writer, models.fallbackWriter], reviewer: models.reviewer, worker: createContainerWorker(), store, warn: (line) => hooks.trace('sceneWarning', { problem: line }) });
+  const runs = createTopicRuns({ planner: models.planner, nameReader: models.nameReader, writers: [models.writer, models.fallbackWriter], reviewer: models.reviewer, worker: createContainerWorker(process.env.ASTRA_SCENE_CONTAINERS ? { mostAtOnce: Number(process.env.ASTRA_SCENE_CONTAINERS) } : {}), store, warn: (line) => hooks.trace('sceneWarning', { problem: line }) });
   let queue: SceneQueue | null = null;
   const scenes = createTutorScenes({
     ...hooks,
@@ -74,6 +74,10 @@ export function makeTutorScenes({ caps, moveToNextStep, getLastFirstTextMs, ...h
   return {
     ...scenes,
     queue,
-    onTutorAsk: (topic) => (queue ? queue.onTutorAsk(topic) : scenes.ask(topic)),
+    onTutorAsk(topic) {
+      if (queue) return queue.onTutorAsk(topic);
+      hooks.trace('sceneCue', { text: topic, source: 'asked', wallMs: Date.now() });
+      scenes.ask(topic);
+    },
   };
 }

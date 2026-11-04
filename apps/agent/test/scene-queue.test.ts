@@ -172,6 +172,30 @@ describe('the next scene queue', () => {
     expect(prepared(scenes)).toHaveLength(MOST_WRITES_AHEAD);
   });
 
+  it('a topic the router sends elsewhere costs no write and is not tried again', async () => {
+    const { queue, scenes } = setUp();
+    queue.onLesson(start(RINGS));
+    await flush();
+    queue.noteAhead("Saturn's rings: a moon too close breaks apart", 'declined');
+    queue.noteTutorReply({ spokenText: 'On we go.', refusalCategory: null });
+    expect(prepared(scenes)).toHaveLength(1);
+    expect(getWriteRefusal({ ...ROOMY, writesStarted: 0 })).toBeNull();
+  });
+
+  it('names no next picture while one is still due to land', async () => {
+    const { queue } = setUp({ library: { [RINGS.topic]: [null, 'Why a moon that gets too close breaks apart', 'How small moons carve gaps in the rings'] } });
+    const first = start(RINGS);
+    queue.onLesson(first);
+    await flush();
+    queue.noteAhead('Why a moon that gets too close breaks apart', 'ready');
+    const second = OPEN_AND_FINISH(first);
+    queue.onLesson(second);
+    queue.noteAhead('How small moons carve gaps in the rings', 'ready');
+    expect(queue.getReadyPicture()).toBeNull();
+    queue.noteAhead('Why a moon that gets too close breaks apart', 'shown');
+    expect(queue.getReadyPicture()).toBe('How small moons carve gaps in the rings');
+  });
+
   it('counts no write the desk had no use for', async () => {
     const { queue, scenes } = setUp();
     scenes.prepare.mockReturnValue(false);
@@ -185,7 +209,7 @@ describe('the next scene queue', () => {
     const first = start(RINGS);
     queue.onLesson(first);
     await flush();
-    queue.noteAhead("Saturn's rings: a moon too close breaks apart", 'gone');
+    queue.noteAhead("Saturn's rings: a moon too close breaks apart", 'failed');
     expect(queue.getEntries()).toEqual([]);
     expect(queue.getReadyPicture()).toBeNull();
     queue.onLesson(OPEN_AND_FINISH(first));

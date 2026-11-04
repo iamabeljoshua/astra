@@ -8,6 +8,9 @@ import { type AheadFacts, getPrepareRefusal, getWriteRefusal } from './ahead-bud
 export type SceneSource = 'library' | 'written';
 export type EntryState = 'making' | 'ready' | 'due' | 'shown';
 
+/** What the desk says of a scene started ahead. `missed` lost its moment and is saved, `failed` cost its try, and `declined` was no write at all. */
+export type AheadNews = 'ready' | 'shown' | 'missed' | 'failed' | 'declined';
+
 export interface QueueEntry {
   request: string;
   lessonTopic: string;
@@ -41,7 +44,7 @@ export interface SceneQueue {
   onLesson(state: LessonState): void;
   onPageReady(): void;
   onTutorAsk(topic: string): void;
-  noteAhead(request: string, state: 'ready' | 'shown' | 'gone'): void;
+  noteAhead(request: string, state: AheadNews): void;
   noteStudentWords(words: string): void;
   noteTutorReply(reply: { spokenText: string; refusalCategory: string | null }): void;
   /** The next idea's picture, once it can land, so the tutor can ask for it by name. */
@@ -75,6 +78,8 @@ export function createSceneQueue({ scenes, readLibrary, getFacts, canPlay, moveT
   let isStopped = false;
   let isHeld = false;
   let writesStarted = 0;
+  let lastRefusal: string | null = null;
+  const givenUp = new Set<string>();
   const libraryByTopic = new Map<string, readonly (string | null)[] | 'reading'>();
 
   const getLibrary = (topic: string) => {
@@ -102,10 +107,11 @@ export function createSceneQueue({ scenes, readLibrary, getFacts, canPlay, moveT
     const facts = getFactsNow();
     const refusal = wanted.source === 'library' ? getPrepareRefusal(facts) : getWriteRefusal(facts);
     if (refusal) {
-      trace('sceneAheadRefused', { refusal, source: wanted.source, stepIndex });
+      if (refusal !== lastRefusal) trace('sceneAheadRefused', { refusal, source: wanted.source, stepIndex });
+      lastRefusal = refusal;
       return null;
     }
-    if (!scenes.prepare(wanted.request)) return null;
+    if (givenUp.has(wanted.request) || !scenes.prepare(wanted.request)) return null;
     if (wanted.source === 'written') writesStarted += 1;
     const entry: QueueEntry = { ...wanted, lessonTopic: lesson.plan.topic, stepIndex, state: 'making' };
     entries = [...entries, entry];
@@ -197,10 +203,16 @@ export function createSceneQueue({ scenes, readLibrary, getFacts, canPlay, moveT
     noteAhead(request, state) {
       const entry = entries.find((one) => sameWords(one.request, request));
       if (!entry) return;
-      if (state === 'gone') entries = entries.filter((other) => other !== entry);
-      else if (state === 'shown' || entry.state !== 'due') entry.state = state;
       trace('sceneAhead', { text: request, state, wallMs: Date.now() });
-      if (state === 'shown' && !isStopped && !isHeld) fillAhead();
+      if (state === 'ready') {
+        if (entry.state === 'making') entry.state = 'ready';
+        return;
+      }
+      if (state === 'shown') entry.state = 'shown';
+      else entries = entries.filter((other) => other !== entry);
+      if (state === 'failed' || state === 'declined') givenUp.add(entry.request);
+      if (state === 'declined' && entry.source === 'written') writesStarted -= 1;
+      if (!isStopped && !isHeld) fillAhead();
     },
     noteStudentWords(words) {
       if (isAboutBeingUnsafe(words)) return stopForGood();
@@ -217,7 +229,7 @@ export function createSceneQueue({ scenes, readLibrary, getFacts, canPlay, moveT
       else if (!isStopped) fillAhead();
     },
     getReadyPicture() {
-      if (!lesson || isStopped || isHeld) return null;
+      if (!lesson || isStopped || isHeld || entries.some((entry) => entry.state === 'due')) return null;
       const next = findEntry(lesson.stepIndex + 1);
       return next?.state === 'ready' ? next.request : null;
     },

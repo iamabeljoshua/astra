@@ -5,6 +5,7 @@ import type { TopicRuns } from '../scenes/lesson/topic-runs.ts';
 import { getSceneCommand, SHOW_WINDOW_MS, type SceneState } from '../scenes/scene-desk.ts';
 import type { SceneStore } from '../scenes/scene-store.ts';
 import type { LessonPlan, SceneRouter, StoredScene } from '../scenes/scene-types.ts';
+import type { AheadNews } from '../scene-queue/scene-queue.ts';
 import type { TutorBeat } from './brain.ts';
 
 /** A take in the browser took 96 ms with the engine fetched, so this only covers a slow line. */
@@ -27,7 +28,7 @@ export interface TutorScenesOptions {
   canSpeak(): boolean;
   onShown(shown: { topic: string; beats: readonly Beat[]; isShared: boolean }): void;
   /** A scene started ahead of its moment is in the page, or will never be. */
-  onAhead?(request: string, state: 'ready' | 'gone'): void;
+  onAhead?(request: string, news: AheadNews): void;
   onPageReady?(): void;
   trace(name: string, fields?: Record<string, unknown>): void;
 }
@@ -100,6 +101,7 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
     current = null;
     // What missed its moment is saved, so asking again is free.
     if (how === 'tooLate' || how === 'movedOn' || how === 'switched') askedTopics.delete(toKey(ask.topic));
+    if (ask.isAhead && how !== 'landed') onAhead?.(ask.topic, how === 'declined' || how === 'failed' ? how : 'missed');
     trace('sceneEnded', { how, afterMs: Math.round(getNowMs() - ask.askedAtMs) });
   };
 
@@ -134,16 +136,16 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
     send({ type: 'loadScene', sceneId: scene.id, durationSeconds: scene.durationSeconds });
   };
 
-  const forgetPrepared = (ask: SceneAsk) => {
+  const forgetPrepared = (ask: SceneAsk, news: AheadNews) => {
     prepared.delete(toKey(ask.topic));
-    onAhead?.(ask.topic, 'gone');
+    onAhead?.(ask.topic, news);
   };
 
   const onDeskChange = (ask: SceneAsk, state: SceneState) => {
     trace('sceneState', { state: state.kind, afterMs: Math.round(getNowMs() - ask.askedAtMs) });
     if (prepared.get(toKey(ask.topic)) === ask) {
       if (state.kind === 'ready') send({ type: 'prepareScene', sceneId: state.scene.id });
-      if (state.kind === 'declined' || state.kind === 'failed') forgetPrepared(ask);
+      if (state.kind === 'declined' || state.kind === 'failed') forgetPrepared(ask, state.kind);
       return;
     }
     // A scene that comes after its window stays saved for the next ask, and this session has moved on.
@@ -196,7 +198,7 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
     for (const ask of prepared.values()) {
       const state = ask.work.desk.getState();
       if (state.kind !== 'ready' || state.scene.id !== message.sceneId) continue;
-      if (message.type === 'sceneRefused') forgetPrepared(ask);
+      if (message.type === 'sceneRefused') forgetPrepared(ask, 'failed');
       else onAhead?.(ask.topic, 'ready');
       return true;
     }
