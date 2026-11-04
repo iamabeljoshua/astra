@@ -2,7 +2,7 @@
   "name": "@astra/scene-worker",
   "private": true,
   "scripts": {
-    "test": "python3 -m unittest discover -s test -q",
+    "test": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s test -q",
     "image": "docker build -t astra-scene-worker:manimgx-0.1.1 ."
   }
 }
