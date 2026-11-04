@@ -4,7 +4,7 @@ import { parseArgs } from 'node:util';
 import { readKey } from '../../keys.ts';
 import { makeAnthropicSceneModels } from '../../providers/anthropic.scenes.ts';
 import { KIT_ASK_LIMIT_MS } from '../scene-desk.ts';
-import { getKitCodeProblems } from '../kit-code-check.ts';
+import { getKitCodeProblems, getKitSpokenLines } from '../kit-code-check.ts';
 import { createFrameCheck, createKitWorker } from '../kit-worker.ts';
 import { createLessonWork } from '../lesson/lesson-work.ts';
 import { createTopicRuns, type TopicRuns } from '../lesson/topic-runs.ts';
@@ -55,7 +55,7 @@ const worker: typeof checkFrames = (job, signal) => {
   writeFileSync(join(out, `attempt-${attemptNumber}.js`), job.code);
   return checkFrames(job, signal);
 };
-const kitRuns = createTopicRuns({ engine: 'kit', themes: ['dark'], checkCode: getKitCodeProblems, planner: models.planner, nameReader: models.nameReader, writers: [models.kitWriter, models.kitFallbackWriter], repairWriter: models.kitFallbackWriter, reviewer: models.kitReviewer, worker, store, warn });
+const kitRuns = createTopicRuns({ engine: 'kit', themes: ['dark'], checkCode: getKitCodeProblems, getLinesToReview: getKitSpokenLines, planner: models.planner, nameReader: models.nameReader, writers: [models.kitWriter, models.kitFallbackWriter], repairWriter: models.kitFallbackWriter, reviewer: models.kitReviewer, worker, store, warn });
 const noManimRuns = { join: () => ({ plan: Promise.resolve('nothing'), firstLine: Promise.resolve(null), getScene: async () => ({ isOk: false, reasons: ['this proof writes no ManimGX'] }), leave() {} }) } as unknown as TopicRuns;
 
 const questions = [...(args.ask ?? []), ...(args.questions ? (JSON.parse(readFileSync(args.questions, 'utf8')) as string[]) : [])];

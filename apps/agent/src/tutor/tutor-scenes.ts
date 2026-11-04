@@ -339,12 +339,13 @@ export function createTutorScenes({ router, runs, kitRuns, store, getCardTitle, 
       }
     },
     waitForPicture() {
-      if (!onScreen) return Promise.resolve(true);
+      const showing = onScreen;
+      if (!showing) return Promise.resolve(true);
       return new Promise((resolve) => {
         const limit = setTimeout(() => {
           pictureWaits.delete(settle);
           resolve(false);
-        }, getPageLimitMs(onScreen));
+        }, getPageLimitMs(showing));
         const settle = (isBack: boolean) => {
           clearTimeout(limit);
           resolve(isBack);

@@ -2,6 +2,7 @@ import { existsSync, mkdtempSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { getKitSpokenLines } from '../src/scenes/kit-code-check.ts';
 import { canTryAfterRefusal, makeScene } from '../src/scenes/make-scene.ts';
 import type { RenderResult, RenderWorker } from '../src/scenes/render-worker.ts';
 import { createSceneStore, getSceneKey } from '../src/scenes/scene-store.ts';
@@ -313,6 +314,13 @@ describe('a kit scene the review refuses', () => {
     const maker = kitMaker(passing, []);
     const made = await makeScene(maker, { topic: 'What a derivative measures', ownerId: 'ada', plan: PLAN });
     expect(made).toMatchObject({ isOk: true, scene: { engine: 'kit', engineVersion: '0.1.0', ownerId: 'ada', parts: ['ball'], isCheckedByPerson: false } });
+  });
+
+  it('reviews only the lines a student could hear over it', async () => {
+    const seen: (readonly string[])[] = [];
+    const reviewer: SceneReviewer = { review: async ({ spokenLines }) => { seen.push(spokenLines); return { isPass: true, errors: [], model: 'fake', ms: 1, costUsd: 0.01 }; } };
+    await makeScene({ ...kitMaker(reviewer, []), getLinesToReview: getKitSpokenLines }, { topic: 'What a derivative measures', ownerId: 'ada', plan: PLAN });
+    expect(seen[0]).toEqual([PLAN.setup, 'Here is the curve. And here is its slope at one point.', PLAN.close]);
   });
 
   it('gives the repair writer what the review reported, and the review reads the rewrite', async () => {

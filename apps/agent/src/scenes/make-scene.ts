@@ -29,6 +29,8 @@ export interface SceneMaker {
   /** Runs before the code reaches a worker. It replaces the plain word check, so it must hold it. */
   checkCode?(scene: { code: string; topic: string; moments: Readonly<Record<string, number>> }): readonly string[];
   writers: readonly SceneWriter[];
+  /** The lines a student could hear over this scene. Left out, every line of the plan. */
+  getLinesToReview?(plan: LessonPlan): readonly string[];
   /** Gets one try at what a review reported, and that try is reviewed again. The review itself never rewrites anything. */
   repairWriter?: SceneWriter;
   reviewer: SceneReviewer;
@@ -213,7 +215,7 @@ export async function makeScene(maker: SceneMaker, { topic, ownerId = null, plan
   }
   // An error is never a verdict, so it saves nothing that could block this topic.
   const review = (attempt: Attempt) =>
-    reviewer.review({ brief, code: attempt.code, sheets: attempt.render.sheets, spokenLines: getSpokenLines(plan) }, AbortSignal.any([AbortSignal.timeout(maker.reviewerLimitMs ?? REVIEWER_LIMIT_MS), signal])).catch((error: unknown) => {
+    reviewer.review({ brief, code: attempt.code, sheets: attempt.render.sheets, spokenLines: maker.getLinesToReview?.(plan) ?? getSpokenLines(plan) }, AbortSignal.any([AbortSignal.timeout(maker.reviewerLimitMs ?? REVIEWER_LIMIT_MS), signal])).catch((error: unknown) => {
       if (!signal.aborted) noteTrouble(store, key, getWallMs());
       return String(error);
     });

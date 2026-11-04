@@ -1,5 +1,7 @@
 import { parse } from 'acorn';
 import { getCodeProblems } from './content-check.ts';
+import { readMarks } from './narration.ts';
+import type { LessonPlan } from './scene-types.ts';
 
 const REACHES_OUTSIDE = new Set('fetch XMLHttpRequest WebSocket EventSource RTCPeerConnection webkitRTCPeerConnection Worker SharedWorker ServiceWorker BroadcastChannel MessageChannel importScripts navigator window globalThis document localStorage sessionStorage indexedDB caches eval Function setTimeout setInterval setImmediate requestAnimationFrame requestIdleCallback queueMicrotask Date performance WebAssembly Proxy Reflect'.split(' '));
 // Plain words a scene may well use for its own, as a stage's top colour or a local called parent, so they count only when nothing in the scene declares them.
@@ -97,3 +99,6 @@ export function getKitCodeProblems({ code, topic, moments }: { code: string; top
     ...TOPICS_THE_KIT_COMPUTES.filter((rule) => rule.topic.test(topic) && !code.includes(rule.needs)).map((rule) => `a scene on this topic must place its bodies with ${rule.needs}`),
   ])];
 }
+
+/** A tutor speaks its own words and only these come from the plan, so a line nobody will hear cannot refuse a scene. */
+export const getKitSpokenLines = ({ setup, narration, close }: LessonPlan): readonly string[] => [setup, readMarks(narration).text, close];
