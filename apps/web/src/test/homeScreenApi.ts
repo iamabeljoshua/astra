@@ -21,22 +21,24 @@ export const EXAMPLE_HOME_SCREEN: HomeScreenResponse = {
   },
   picks: [
     {
-      id: 'drawn-pick',
+      id: 'jump-shot',
       title: 'How a jump shot flies',
       subject: 'Physics',
       lengthMinutes: 12,
       openingLine: "Once the ball leaves your hand, what's still pushing it toward the hoop?",
       reason: "Because you're into basketball",
       artwork: 'arc',
+      continueSessionId: null,
     },
     {
-      id: 'pictured-pick',
+      id: 'breaking-wave',
       title: 'Why a breaking wave curls',
       subject: 'Astronomy',
       lengthMinutes: 10,
       openingLine: 'As the water gets shallow, which part of the wave do you think slows down first?',
       reason: "Because you're into surfing",
       artwork: 'wave',
+      continueSessionId: null,
     },
   ],
 };

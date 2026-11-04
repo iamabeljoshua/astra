@@ -47,8 +47,12 @@ export function useStartSession() {
     });
   }
 
-  function startFromPick({ title, subject, artwork }: PickCard) {
-    openOnce(() => saveAndFadeInto({ title, subject, artwork, language: SESSION_LANGUAGE }));
+  function startFromPick({ id, title, subject, artwork, continueSessionId }: PickCard) {
+    openOnce(() =>
+      continueSessionId
+        ? fadeInto(getSessionPath(continueSessionId))
+        : saveAndFadeInto({ title, subject, artwork, topicId: id, language: SESSION_LANGUAGE }),
+    );
   }
 
   function continueSession({ id }: Session) {

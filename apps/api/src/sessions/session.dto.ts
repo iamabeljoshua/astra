@@ -3,6 +3,7 @@ import { IsIn, IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from '
 import { ARTWORK_NAMES } from '../artwork';
 import type { ArtworkName } from '../artwork';
 import { IsStorableText } from '../is-storable-text';
+import { LIBRARY_TOPIC_IDS } from '../picks/library';
 import { ToStrictInteger } from '../to-strict-integer';
 import { SESSION_END_STATUS, SESSION_LANGUAGES, SESSION_STATUSES } from './session-options';
 import type { SessionLanguage, SessionStatus } from './session-options';
@@ -35,6 +36,11 @@ export class CreateSessionBodyDto {
   @IsOptional()
   @IsIn(ARTWORK_NAMES)
   artwork?: ArtworkName;
+
+  /** The ID of the topic, when a card started this session. Leave it out for a typed question. */
+  @IsOptional()
+  @IsIn(LIBRARY_TOPIC_IDS)
+  topicId?: string;
 }
 
 export class ListSessionsQueryDto {
