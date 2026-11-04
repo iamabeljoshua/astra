@@ -70,7 +70,7 @@ As of 4 November 2026, 22 of 39 PRs have merged. This section is the whole road,
 | 7 | M4.3 | Recommend picks from performance and weaknesses | #23 | M4.1 |
 | 7 | M4.4 | End sessions with a recap, and let students replay them | #24 | M3.10, M4.1 |
 
-**What the tests settled for M3.13 and M3.14.** The scene test and the ManimGX test have both reported, and ManimGX passed the bar stated to Abel, so it is in. Which models write and review scenes stays open with Abel on `scene-models`. Until he answers, scenes run on Anthropic models behind a switchable interface.
+**What the tests settled for M3.13 and M3.14.** The scene test and the ManimGX test have both reported, and ManimGX passed the bar stated to Abel, so it is in. Which models write and review scenes stays open with Abel on `scene-models`. Until Abel answers, scenes run on Anthropic models behind a switchable interface.
 
 **Still waiting on Abel.**
 
@@ -1304,8 +1304,8 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 **Build.**
 
 - [x] Build `providers/elevenlabs.ts` behind `VoiceAdapter` on `@livekit/agents-plugin-elevenlabs`. Abel approved the vendor, and the key is in the keys file as `ELEVENLABS_API_KEY`, so the adapter passes `apiKey` itself. Use test text only, with the training opt-out on.
-- [x] Use Chris, ElevenLabs voice id `iP95p4xoKVk53GoZ742B`, kept in one place in `providers/choose.ts`. Check him for overlong audio on a larger sample on the real path, because Casey's first 12 tries on the worst line had none and Eric's did.
-- [x] Start on Flash, measure Flash and Turbo the same way, and bring Abel the clips and numbers. Only the choice of model and the flush rule wait for Abel. He then kept Flash as the default. v4 Turbo is out, because it needs the dialogue socket, restarts its word times at 0 in each message, and 119 of 274 messages had none.
+- [x] Use Chris, ElevenLabs voice id `iP95p4xoKVk53GoZ742B`, kept in one place in `providers/choose.ts`. Check that voice for overlong audio on a larger sample on the real path, because Casey's first 12 tries on the worst line had none and Eric's did.
+- [x] Start on Flash, measure Flash and Turbo the same way, and bring Abel the clips and numbers. Only the choice of model and the flush rule wait for Abel. Abel then kept Flash as the default. v4 Turbo is out, because it needs the dialogue socket, restarts its word times at 0 in each message, and 119 of 274 messages had none.
 - [x] Build `ScenePlayer` so board state comes from a log of the events that actually played, through one function, `rebuildBoard(log, atMs)`, which flattens events by time and not by sequence number.
 - [x] Let a scene be any deterministic function of the clock, with named parts and named moments, and do not bake in only the planned 2D kinds, because M3.14 plugs in here.
 - [x] Drive cues from the worklet clock over real WebRTC, counting samples from the turn's first sound. The one exception to "never from timers" is the fallback when audio cannot run.
@@ -1476,7 +1476,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 **Build.**
 
-- [ ] Build `providers/meta.ts` behind `TranscriberAdapter` on `@livekit/agents-plugin-meta`, pinned to a Standard Model name. Abel approved Muse on 3 November 2026 and kept it after his real microphone test. Keep Nova-3 reachable behind the adapter.
+- [ ] Build `providers/meta.ts` behind `TranscriberAdapter` on `@livekit/agents-plugin-meta`, pinned to a Standard Model name. Abel approved Muse on 3 November 2026 and kept it after a real microphone test. Keep Nova-3 reachable behind the adapter.
 - [ ] Run through LiveKit Cloud with our own accounts, not Inference, on a free project until real students, and move to the Ship plan only then. A free local server stays for the lab page.
 - [ ] Make code react first. A reaction plays from code on the turn decision, a typed send, or a board action, in the tutor's voice from stored audio or on the dot, and the student can interrupt it. Add short reactions beyond "Let me work that out.", with no phrase playing twice in three turns.
 - [ ] Keep connections warm. Open the Muse and ElevenLabs sockets before the first turn, because a new Muse session takes 1046 to 2543 ms and a new voice socket about 420 ms, and avoid reopening on every reaction or `clearUserTurn`. Send `endStream` only if a measured rule earns it, because it ends the session.
@@ -1806,7 +1806,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 - [ ] The library holds 133 scenes, one opening scene for each of the 48 Home topics, plus 5 more for each of 17 topics.
 - [ ] The 17 topics are Saturn's rings, the Moon's one face, the seasons, black holes, how stars made your atoms, a jump shot, a rocket escaping Earth, why a rainbow is round, why moving clocks run slow, Pythagoras, derivatives, quadratics, sunflower spirals, the periodic table, what burns inside an engine, how DNA copies itself, and how a map finds the fastest route.
 - [ ] Every scene passes the automatic review before it joins the library. The review is a strict filter and not a truth gate, so a library scene still says "Not yet checked by a person" until a person checks it.
-- [ ] A simple page shows Abel a sample, weighted to opening scenes, and he can flag a scene from it. A flagged scene stops showing until someone has looked at it.
+- [ ] A simple page shows Abel a sample, weighted to opening scenes, with a way to flag a scene. A flagged scene stops showing until someone has looked at it.
 - [ ] A student who opens a Home topic with a library scene gets it with no wait and no new write.
 - [ ] The library is written once, from this list. No worker adds to it from recommendations.
 
@@ -2406,7 +2406,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 ## Appendix A. Prototype evidence
 
-- **Look.** The [look prototype](https://claude.ai/artifact/3Kw7Ggukb39GerA4E5pK7u) settled type and palette, and Abel approved it on 2 November 2026. Its source is in `docs/design/look-prototype/`. For sign-in and onboarding, Abel first chose sample C, Made of dots, with sample B's still dot background, from the [samples](https://claude.ai/artifact/X9ZFLu1ovyMHmVW7VxQzW4) on 4 November 2026. He then chose 1 + 4 the same day, the dotted Saturn on the star chart, which M2.11 built and `docs/DESIGN.md` records.
+- **Look.** The [look prototype](https://claude.ai/artifact/3Kw7Ggukb39GerA4E5pK7u) settled type and palette, and Abel approved it on 2 November 2026. Its source is in `docs/design/look-prototype/`. For sign-in and onboarding, Abel first chose sample C, Made of dots, with sample B's still dot background, from the [samples](https://claude.ai/artifact/X9ZFLu1ovyMHmVW7VxQzW4) on 4 November 2026. Abel then chose 1 + 4 the same day, the dotted Saturn on the star chart, which M2.11 built and `docs/DESIGN.md` records.
 - **Home.** The [app prototype](https://claude.ai/artifact/YJRK2QzMdDdm4c4DQhwWZq) settled the home proportions, the chat box pinned to the bottom, and the "Made for you" sheet, which M2.11 later removed. Its source is in `docs/design/app-prototype/`. A scripted click-through passed on the flows it covers, and it has not been checked on real devices. Its onboarding steps are superseded by M2.4.
 - **Live tutor facts.** `docs/architecture/live-session.md` records what M3.1 proved with fakes, and a speed test on 3 November 2026 measured the real vendors from Abel's Mac on a West African network, on synthetic speech. Its figures are labeled in that document. A real microphone test on Abel's voice kept Muse over Nova-3, on 14 clean lines. A comparison of models kept Sonnet 5.5.
 - **Shared board.** Prototype B, in `/Users/abel/startup/astra-tinker/board`, is the source for M3.12. It measured code reacting at 21 ms at p50, and Haiku alone wrongly interrupting 28 of 60.

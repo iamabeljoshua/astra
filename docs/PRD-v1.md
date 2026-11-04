@@ -1,6 +1,6 @@
 # PRD v1: a personal AI tutor that teaches out loud on a living board
 
-Status: approved by Abel on 2 November 2026, including the recommendations in section 15. Sections 6.1 and 6.2, the onboarding and home requirements, and P4 record what he added with that approval. B11 records the look he approved afterward, and he then took the particle swarm out of the v1 plan. He later set the tagline, the home screen proportions, and normal images in place of dot pictures.
+Status: approved by Abel on 2 November 2026, including the recommendations in section 15. Sections 6.1 and 6.2, the onboarding and home requirements, and P4 record what Abel added with that approval. B11 records the look Abel approved afterward, and then took the particle swarm out of the v1 plan. Abel later set the tagline, the home screen proportions, and normal images in place of dot pictures.
 Date: 2 November 2026.
 Codename: Astra. The public name is still open (Q1).
 
@@ -15,7 +15,7 @@ Abel made these decisions after approving this PRD, and the latest is dated 4 No
 | Q6 | Sign-in uses a 6-digit email code, not a link. Google stays wired and hidden until credentials exist. | 4 November 2026 |
 | Section 2's look row, section 6.1, B11 | Sign-in and onboarding use the look Abel chose, 1 + 4, a dotted Saturn on a star chart on a still dot grid, so the tutor's dot is no longer the only dot. The first line is "Welcome, I am Astra, your personal AI tutor.", and there is no sheet. Pictures stay normal images. | 4 November 2026 |
 | P4, Q19 | Home's cards use session history before the learner record exists, in M2.12. Card pictures do not change. | 4 November 2026 |
-| Q8, section 9, section 10's paid services, test 4 | ElevenLabs, with Chris as the one voice, not three, chosen by ear on 4 November in place of Casey. He stays on Flash unless Abel says otherwise. Muse Voice Transcribe replaces Deepgram, on LiveKit Cloud with a free project until real students. A blind test runs only if Abel still wants one. | 3 and 4 November 2026 |
+| Q8, section 9, section 10's paid services, test 4 | ElevenLabs, with Chris as the one voice, not three, chosen by ear on 4 November in place of Casey. Chris stays on Flash unless Abel says otherwise. Muse Voice Transcribe replaces Deepgram, on LiveKit Cloud with a free project until real students. A blind test runs only if Abel still wants one. | 3 and 4 November 2026 |
 | Q3, Q13, B3, tests 1 and 3 | Laptop first. Rich scenes target laptops and may require a laptop browser, and phones must not block them. Existing pages keep working at phone width, and a mobile app may come later. | 4 November 2026 |
 | Section 8, on sharing scenes | Scenes shared across students come only from the server's own topic list. A typed question's scene stays with that student until a person or a moderated step promotes it. The review is a strict filter and not a truth gate, so "Not yet checked by a person" stays. | 4 November 2026 |
 | Q11, on what is prepared | No worker prepares scenes from recommendations before a student arrives, which is post-MVP. Writing next scenes inside a running lesson stays. One curated library of 133 scenes is written once, after M3.14, for about $10 by estimate, with automatic review on every scene and a sample Abel checks. Everything else gets written the first time a student needs it, then saved. | 4 November 2026 |
