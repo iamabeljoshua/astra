@@ -139,7 +139,8 @@ export function createLessonPlanner({ ask, canSpend, charge, onTitleChange, onLe
     if (!canSpend()) return;
     const startedAtMs = getNowMs();
     try {
-      const { move, wants = null, costUsd } = await ask({ now: state.active?.plan.topic ?? null, earlier: getShelvedTopics(state), said, tutorSaid });
+      // A short card is on its first step already, and the planner would call its title staying on that topic.
+      const { move, wants = null, costUsd } = await ask({ now: heard.isOpening && card ? null : (state.active?.plan.topic ?? null), earlier: getShelvedTopics(state), said, tutorSaid });
       charge(costUsd);
       trace('planAnswered', { move: move?.move ?? null, ms: Math.round(getNowMs() - startedAtMs), costUsd });
       if (move) adopt(move, heard);

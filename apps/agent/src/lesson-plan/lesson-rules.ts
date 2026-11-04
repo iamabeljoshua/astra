@@ -18,6 +18,7 @@ A lesson_plan note may reach you, from a quick planner working beside you. It ho
 export const LEAD_NOTES = {
   next: "Nobody spoke, and they are listening. Say the next beat of the idea yourself, with no question needed, and never ask if they are there.",
   mustAsk: 'Nobody spoke, and you have talked for three replies in a row. This reply ends on one easy question for them, or sets the exercise.',
+  exercise: 'Nobody spoke, and this idea has been taught. Set the exercise in this reply: a few words, the problem on the board with its numbers if it has any, then its task command.',
   noAnswer: 'They did not answer. Say the answer yourself in a line, with no fuss, and teach on, asking nothing in this reply.',
   taskLeft: 'They did not try it, and it is closed now. Show how it goes in a line, then {"kind":"boardMode","mode":"teach"} and on to the next idea.',
 } as const;

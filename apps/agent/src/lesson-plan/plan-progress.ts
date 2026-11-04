@@ -49,6 +49,8 @@ const MOST_SHELVED = 8;
 
 /** Short turns take a reply or two to teach one idea, and a direct question has none to teach. */
 const REPLIES_BEFORE_THE_EXERCISE: Record<LessonKind, number> = { handsOn: 1, teachFirst: 2 };
+/** No exercise came of this idea, whatever the reason, and a lesson must not stay on one idea for good. */
+const MOST_REPLIES_ON_A_STEP = 8;
 /** A card's lines take longer to say than a planner's few words. */
 const REPLIES_ON_A_CARD_STEP = 3;
 
@@ -106,7 +108,7 @@ export function getStateAfterEvent(state: LessonState, event: LessonEvent): Less
   const isExerciseDeclined = event === 'exerciseDeclined' ? true : event === 'exerciseWanted' ? false : state.isExerciseDeclined;
   const active = state.active && getActiveAfterEvent(state.active, event, repliesEnded);
   // A student who said no exercises would otherwise stay on this step for good, because finishing one is what moves a lesson on.
-  const isPastThisStep = active !== null && isExerciseDeclined && event === 'replyEnded' && hasTaughtThisStep(active, repliesEnded);
+  const isPastThisStep = active !== null && event === 'replyEnded' && !active.isExerciseOpen && active.plan.kind === 'teachFirst' && (repliesEnded - active.stepStartReply >= MOST_REPLIES_ON_A_STEP || (isExerciseDeclined && hasTaughtThisStep(active, repliesEnded)));
   return { ...state, repliesEnded, isExerciseDeclined, active: isPastThisStep ? getActiveAfterEvent(active, 'movedOn', repliesEnded) : active };
 }
 

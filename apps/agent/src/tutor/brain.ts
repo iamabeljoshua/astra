@@ -379,6 +379,12 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     return moves;
   };
 
+  // A lead has nobody's words to read, so the plan's exercise holds it where a note beside other notes did not.
+  const isExerciseDueNow = () => {
+    const step = lessonPlanner?.getStepNote();
+    return step !== null && step !== undefined && 'exercise_due' in step && step.exercise_due === true;
+  };
+
   const startTurn = (studentText: string, signal: AbortSignal): TurnWork => {
     settleLastTurn(studentText);
     turnCount += 1;
@@ -393,7 +399,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     const levelLine = studentLevel === null ? undefined : prompt.levelLines?.[studentLevel];
     const lead = leadDue;
     leadDue = null;
-    const leadNote = lead ? { lead: LEAD_NOTES[lead] } : null;
+    const leadNote = lead ? { lead: LEAD_NOTES[isExerciseDueNow() && lead !== 'taskLeft' ? 'exercise' : lead] } : null;
     const turnNotes = [attempts.startTurn(studentText), prompt.turnNote, levelLine ? { level: levelLine } : null, shapeNote, openingNote, leadNote, isOnACard && turnCount === 1 ? OPENING_A_CARD_NOTE : null].filter((note) => note !== null);
     const turn: TurnWork = {
       mustAsk: lead === 'mustAsk',
