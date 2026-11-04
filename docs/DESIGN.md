@@ -49,12 +49,17 @@ The question gets the room. Each screen asks one thing. A small sheet headed "Ma
 - Motion needs a cause: the tutor's word or the student's action.
 - The main motion is the board drawing itself in time with speech.
 - By default, changing a view is a quiet fade of about half a second.
-- Morphing and particle effects are a judgment call. Use them where they help the lesson or the experience, and avoid them as decoration.
-- Honor the reduced-motion setting, and follow PRD B10 on flashing.
+- On a dot page, a shape made of dots forms when a step changes or a student acts, and is still otherwise. The tutor's line types out, then the field appears. The dot grid never moves, with no ripple and no expansion. Abel chose this on 4 November 2026.
+- Other morphing and particle effects are a judgment call. Use them where they help the lesson or the experience, and avoid them as decoration.
+- Honor the reduced-motion setting by showing everything at once, and follow PRD B10 on flashing.
 
 ## The dot
 
-The dot is the tutor's presence. It is a small solid circle in `ink` that rests while listening and pulses while speaking (PRD B9).
+The dot is the tutor's presence. It is a small solid circle in `ink` that rests while listening and pulses while speaking (PRD B9), which includes while its line types out.
+
+## Dot pages
+
+Sign-in, and onboarding next, are one calm page and not two halves, built on `DotStage`. A still grid of dots in `ink` fills the page and fades out around the question. A larger shape made of dots sits beside the question with no divider, and above it, smaller, on a phone. A browser with no canvas gets the same page without the dots. A shape or a name may be made of dots. Pictures may not, as the next section says.
 
 ## Pictures
 

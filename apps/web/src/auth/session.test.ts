@@ -52,22 +52,27 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('sendEmailLink', () => {
-  it('asks Auth for a link that returns to this app, with a proof that binds it to this browser', async () => {
+describe('sendEmailCode', () => {
+  it('asks Auth for a code and names no address to return to, because no link opens the session', async () => {
     const fetchStub = stubAuthAnswer(200, {});
     stubLocation();
-    const { sendEmailLink } = await loadSession();
+    const { sendEmailCode } = await loadSession();
 
-    await expect(sendEmailLink('maya@astra.test')).resolves.toBe('sent');
+    await expect(sendEmailCode('maya@astra.test')).resolves.toBe('sent');
 
     const [url, init] = fetchStub.mock.calls[0] ?? [];
     expect(String(url)).toContain('/auth/v1/otp');
-    expect(new URL(String(url)).searchParams.get('redirect_to')).toBe('http://127.0.0.1:5521/');
-    expect(JSON.parse(String(init?.body))).toMatchObject({
-      email: 'maya@astra.test',
-      code_challenge: expect.any(String),
-      code_challenge_method: 's256',
-    });
+    expect(new URL(String(url)).searchParams.get('redirect_to')).toBeNull();
+    expect(JSON.parse(String(init?.body))).toMatchObject({ email: 'maya@astra.test' });
+  });
+
+  it('keeps no proof after sending, so a link from an older mail cannot open a session in this browser', async () => {
+    stubAuthAnswer(200, {});
+    const { sendEmailCode } = await loadSession();
+
+    await sendEmailCode('maya@astra.test');
+
+    expect(Object.keys(localStorage).filter((key) => key.startsWith('astra-session'))).toEqual([]);
   });
 
   it.each([
@@ -77,109 +82,141 @@ describe('sendEmailLink', () => {
     ['a gateway that cannot reach Auth', 503, {}, 'authFailed'],
   ])('reports %s', async (_caseName, status, body, expected) => {
     stubAuthAnswer(status, body);
-    const { sendEmailLink } = await loadSession();
+    const { sendEmailCode } = await loadSession();
 
-    await expect(sendEmailLink('maya@astra.test')).resolves.toBe(expected);
+    await expect(sendEmailCode('maya@astra.test')).resolves.toBe(expected);
   });
 
   it('reports a failure when Auth cannot be reached', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('network down')));
-    const { sendEmailLink } = await loadSession();
+    const { sendEmailCode } = await loadSession();
 
-    await expect(sendEmailLink('maya@astra.test')).resolves.toBe('failed');
+    await expect(sendEmailCode('maya@astra.test')).resolves.toBe('failed');
   });
 
   it.each(['maya..parent@astra.test', 'maya@astra', 'maya@', '@astra.test', 'maya parent@astra.test', 'maya@astra..test'])(
     'calls %s invalid and asks Auth for nothing, because Auth answers some of these with a 500',
     async (address) => {
       const fetchStub = stubAuthAnswer(200, {});
-      const { sendEmailLink } = await loadSession();
+      const { sendEmailCode } = await loadSession();
 
-      await expect(sendEmailLink(address)).resolves.toBe('invalidEmail');
+      await expect(sendEmailCode(address)).resolves.toBe('invalidEmail');
       expect(fetchStub).not.toHaveBeenCalled();
     },
   );
 
-  it('asks Auth for nothing when the same address asks again within a minute, so the link in the inbox stays good', async () => {
+  it('asks Auth for nothing when the same address asks again within a minute, so the code in the inbox stays the newest', async () => {
     const fetchStub = stubAuthAnswer(200, {});
-    const { sendEmailLink } = await loadSession();
-    await sendEmailLink('maya@astra.test');
-    const proof = localStorage.getItem(CODE_VERIFIER_KEY);
+    const { sendEmailCode } = await loadSession();
+    await sendEmailCode('maya@astra.test');
     fetchStub.mockClear();
 
-    await expect(sendEmailLink('MAYA@astra.test')).resolves.toBe('tooManyRequests');
-
-    expect(fetchStub).not.toHaveBeenCalled();
-    expect(localStorage.getItem(CODE_VERIFIER_KEY)).toBe(proof);
-  });
-
-  it('remembers the last link across a reload of the page', async () => {
-    const fetchStub = stubAuthAnswer(200, {});
-    await (await loadSession()).sendEmailLink('maya@astra.test');
-    fetchStub.mockClear();
-
-    await expect((await loadSession()).sendEmailLink('maya@astra.test')).resolves.toBe('tooManyRequests');
+    await expect(sendEmailCode('MAYA@astra.test')).resolves.toBe('alreadySent');
 
     expect(fetchStub).not.toHaveBeenCalled();
   });
 
-  it('lets a student fix a typo at once, because a different address is a different link', async () => {
+  it('remembers the last code across a reload of the page', async () => {
     const fetchStub = stubAuthAnswer(200, {});
-    const { sendEmailLink } = await loadSession();
-    await sendEmailLink('maya@astra.tset');
+    await (await loadSession()).sendEmailCode('maya@astra.test');
     fetchStub.mockClear();
 
-    await expect(sendEmailLink('maya@astra.test')).resolves.toBe('sent');
+    const { readCodeRequest, sendEmailCode } = await loadSession();
+
+    expect(readCodeRequest()?.email).toBe('maya@astra.test');
+    await expect(sendEmailCode('maya@astra.test')).resolves.toBe('alreadySent');
+    expect(fetchStub).not.toHaveBeenCalled();
+  });
+
+  it('lets a student fix a typo at once, because a different address is a different code', async () => {
+    const fetchStub = stubAuthAnswer(200, {});
+    const { sendEmailCode } = await loadSession();
+    await sendEmailCode('maya@astra.tset');
+    fetchStub.mockClear();
+
+    await expect(sendEmailCode('maya@astra.test')).resolves.toBe('sent');
 
     expect(fetchStub).toHaveBeenCalled();
   });
 
-  it('sends again after a minute, with a new proof', async () => {
-    stubAuthAnswer(200, {});
-    const { sendEmailLink } = await loadSession();
-    await sendEmailLink('maya@astra.test');
-    const proof = localStorage.getItem(CODE_VERIFIER_KEY);
-    const startedAt = Date.now();
-    const clock = vi.spyOn(Date, 'now').mockReturnValue(startedAt + 61_000);
+  it('goes back to the code it sent when a student returns to an address within the minute, with that code\'s own time', async () => {
+    const fetchStub = stubAuthAnswer(200, {});
+    vi.useFakeTimers({ now: 1_000_000, toFake: ['Date'] });
+    const { readCodeRequest, sendEmailCode } = await loadSession();
 
-    await expect(sendEmailLink('maya@astra.test')).resolves.toBe('sent');
+    await sendEmailCode('maya@astra.test');
+    vi.setSystemTime(1_010_000);
+    await sendEmailCode('tola@astra.test');
+    vi.setSystemTime(1_020_000);
 
-    clock.mockRestore();
-    expect(localStorage.getItem(CODE_VERIFIER_KEY)).not.toBe(proof);
+    await expect(sendEmailCode('MAYA@astra.test')).resolves.toBe('alreadySent');
+    expect(fetchStub).toHaveBeenCalledTimes(2);
+    expect(readCodeRequest()).toMatchObject({ email: 'MAYA@astra.test', sentAt: 1_000_000 });
   });
 
-  it('keeps the proof for a link already in the inbox when Auth refuses a send that reaches it', async () => {
+  it('asks Auth again when a student returns to an address after the minute', async () => {
+    const fetchStub = stubAuthAnswer(200, {});
+    vi.useFakeTimers({ now: 1_000_000, toFake: ['Date'] });
+    const { sendEmailCode } = await loadSession();
+
+    await sendEmailCode('maya@astra.test');
+    await sendEmailCode('tola@astra.test');
+    vi.setSystemTime(1_060_000);
+
+    await expect(sendEmailCode('maya@astra.test')).resolves.toBe('sent');
+    expect(fetchStub).toHaveBeenCalledTimes(3);
+  });
+
+  it('removes the link proof and keeps the session of a student signed in on this browser', async () => {
     stubAuthAnswer(200, {});
-    const { sendEmailLink } = await loadSession();
-    await sendEmailLink('new-student@astra.test');
-    const proof = localStorage.getItem(CODE_VERIFIER_KEY);
-    expect(proof).not.toBeNull();
+    const { sendEmailCode } = await loadSession();
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(STORED_SESSION));
+    localStorage.setItem(CODE_VERIFIER_KEY, 'an-older-proof');
 
-    stubAuthAnswer(429, { error_code: 'over_email_send_rate_limit' });
-    await expect(sendEmailLink('other@astra.test')).resolves.toBe('tooManyRequests');
+    await sendEmailCode('tola@astra.test');
 
-    expect(localStorage.getItem(CODE_VERIFIER_KEY)).toBe(proof);
+    expect(localStorage.getItem(SESSION_STORAGE_KEY)).not.toBeNull();
+    expect(localStorage.getItem(CODE_VERIFIER_KEY)).toBeNull();
+  });
+
+  it('sends again after a minute', async () => {
+    const fetchStub = stubAuthAnswer(200, {});
+    const { sendEmailCode } = await loadSession();
+    await sendEmailCode('maya@astra.test');
+    fetchStub.mockClear();
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 61_000);
+
+    await expect(sendEmailCode('maya@astra.test')).resolves.toBe('sent');
+
+    clock.mockRestore();
+    expect(fetchStub).toHaveBeenCalled();
+  });
+
+  it.each(['not json', '{}', '{"email":1,"sentAt":"soon"}'])('still sends when the record of the last code is %s', async (record) => {
+    stubAuthAnswer(200, {});
+    sessionStorage.setItem('astra-last-code', record);
+    const { sendEmailCode } = await loadSession();
+
+    await expect(sendEmailCode('maya@astra.test')).resolves.toBe('sent');
   });
 });
 
-describe('sendEmailLink while new sign-ups are stopped on this browser', () => {
+describe('sendEmailCode while new sign-ups are stopped on this browser', () => {
   it('lets Auth create a user when nothing stops it', async () => {
     const fetchStub = stubAuthAnswer(200, {});
-    stubLocation();
-    const { sendEmailLink } = await loadSession();
+    const { sendEmailCode } = await loadSession();
 
-    await sendEmailLink('maya@astra.test');
+    await sendEmailCode('maya@astra.test');
 
     expect(JSON.parse(String(fetchStub.mock.calls[0]?.[1]?.body))).toMatchObject({ create_user: true });
   });
 
-  it('asks Auth not to create a user, so a known address still gets its link', async () => {
+  it('asks Auth not to create a user, so a known address still gets its code', async () => {
     stopNewSignUpsForADay();
     const fetchStub = stubAuthAnswer(200, {});
-    stubLocation();
-    const { sendEmailLink } = await loadSession();
+    const { sendEmailCode } = await loadSession();
 
-    await expect(sendEmailLink('maya@astra.test')).resolves.toBe('sent');
+    await expect(sendEmailCode('maya@astra.test')).resolves.toBe('sent');
 
     expect(JSON.parse(String(fetchStub.mock.calls[0]?.[1]?.body))).toMatchObject({ create_user: false });
   });
@@ -187,22 +224,58 @@ describe('sendEmailLink while new sign-ups are stopped on this browser', () => {
   it('says the sign-up stopped when Auth does not know the address', async () => {
     stopNewSignUpsForADay();
     stubAuthAnswer(422, { error_code: 'otp_disabled' });
-    stubLocation();
-    const { sendEmailLink } = await loadSession();
+    const { sendEmailCode } = await loadSession();
 
-    await expect(sendEmailLink('second-address@astra.test')).resolves.toBe('signUpStopped');
+    await expect(sendEmailCode('second-address@astra.test')).resolves.toBe('signUpStopped');
   });
 });
 
-describe('sendEmailLink with a damaged record', () => {
-  it('still sends when the record of the last link is not readable', async () => {
-    stubAuthAnswer(200, {});
-    sessionStorage.setItem('astra-last-link', 'not json');
-    const { sendEmailLink } = await loadSession();
+describe('checkEmailCode', () => {
+  const JUST_NOW = Date.now();
+  const ELEVEN_MINUTES_AGO = JUST_NOW - 660_000;
+  const CODE_REFUSAL = { error_code: 'otp_expired', msg: 'Token has expired or is invalid' };
 
-    await expect(sendEmailLink('maya@astra.test')).resolves.toBe('sent');
+  it('asks Auth to check the code as an email code, and signs the student in', async () => {
+    const fetchStub = stubAuthAnswer(200, STORED_SESSION);
+    const { checkEmailCode, getAccessToken } = await loadSession();
+
+    await expect(checkEmailCode('maya@astra.test', '123456', JUST_NOW)).resolves.toBe('signedIn');
+
+    const [url, init] = fetchStub.mock.calls[0] ?? [];
+    expect(String(url)).toContain('/auth/v1/verify');
+    expect(JSON.parse(String(init?.body))).toMatchObject({ email: 'maya@astra.test', token: '123456', type: 'email' });
+    await expect(getAccessToken()).resolves.toBe(STORED_SESSION.access_token);
   });
 
+  it('forgets the record of the code once it has signed the student in', async () => {
+    stubAuthAnswer(200, {});
+    const { checkEmailCode, readCodeRequest, sendEmailCode } = await loadSession();
+    await sendEmailCode('maya@astra.test');
+
+    stubAuthAnswer(200, STORED_SESSION);
+    await checkEmailCode('maya@astra.test', '123456', JUST_NOW);
+
+    expect(readCodeRequest()).toBeNull();
+  });
+
+  it.each([
+    ['a refused code soon after sending is a wrong code', 403, CODE_REFUSAL, JUST_NOW, 'codeWrong'],
+    ['a refused code past the lifetime is an expired code', 403, CODE_REFUSAL, ELEVEN_MINUTES_AGO, 'codeExpired'],
+    ['a limit on tries', 429, { error_code: 'over_request_rate_limit' }, JUST_NOW, 'tooManyTries'],
+    ['a failure inside Auth', 500, {}, JUST_NOW, 'authFailed'],
+  ])('reports %s', async (_caseName, status, body, sentAt, expected) => {
+    stubAuthAnswer(status, body);
+    const { checkEmailCode } = await loadSession();
+
+    await expect(checkEmailCode('maya@astra.test', '123456', sentAt)).resolves.toBe(expected);
+  });
+
+  it('reports a failure when Auth cannot be reached', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('network down')));
+    const { checkEmailCode } = await loadSession();
+
+    await expect(checkEmailCode('maya@astra.test', '123456', JUST_NOW)).resolves.toBe('failed');
+  });
 });
 
 describe('hasStoredSession', () => {
@@ -310,7 +383,7 @@ describe('signOut', () => {
     localStorage.setItem(CODE_VERIFIER_KEY, 'a-proof');
     localStorage.setItem('astra-session-flow-a1-code-verifier', 'a-proof');
     localStorage.setItem('astra-session-flows-code-verifier', '["a1"]');
-    sessionStorage.setItem('astra-last-link', JSON.stringify({ email: 'maya@astra.test', sentAt: Date.now() }));
+    sessionStorage.setItem('astra-last-code', JSON.stringify({ email: 'maya@astra.test', sentAt: Date.now() }));
     localStorage.setItem('theme', 'dark');
     stubAuthAnswer(204, {});
     stubLocation();
@@ -319,7 +392,7 @@ describe('signOut', () => {
     signOut();
 
     expect(Object.keys(localStorage)).toEqual(['theme']);
-    expect(sessionStorage.getItem('astra-last-link')).toBeNull();
+    expect(sessionStorage.getItem('astra-last-code')).toBeNull();
   });
 
   it('hides the page at once, so a slow next document cannot show the student to the next person', async () => {
@@ -510,30 +583,30 @@ describe('forgetSession', () => {
 });
 
 describe('getSignInReturnProblem', () => {
-  it('finds none when the address holds no link', async () => {
+  it('finds none when the address holds no return code', async () => {
     const { getSignInReturnProblem } = await loadSession();
 
     await expect(getSignInReturnProblem()).resolves.toBeNull();
   });
 
-  it('calls it a failed link and cleans the address when a link opens in a browser without its proof', async () => {
+  it('calls it a failed return and cleans the address when a return code reaches a browser without its proof', async () => {
     window.history.replaceState(null, '', '/?code=a-code-from-another-browser');
     const { getSignInReturnProblem } = await loadSession();
 
-    await expect(getSignInReturnProblem()).resolves.toBe('linkFailed');
-    await expect(getSignInReturnProblem()).resolves.toBe('linkFailed');
+    await expect(getSignInReturnProblem()).resolves.toBe('returnFailed');
+    await expect(getSignInReturnProblem()).resolves.toBe('returnFailed');
     expect(window.location.search).toBe('');
   });
 
-  it('calls it a failed link and cleans the address when Auth sends an expired link back', async () => {
+  it('calls it a failed return and cleans the address when Auth reports an error on the return', async () => {
     window.history.replaceState(null, '', '/?error=access_denied&error_code=otp_expired&error_description=expired');
     const { getSignInReturnProblem } = await loadSession();
 
-    await expect(getSignInReturnProblem()).resolves.toBe('linkFailed');
+    await expect(getSignInReturnProblem()).resolves.toBe('returnFailed');
     expect(window.location.search).toBe('');
   });
 
-  it('blames the connection, not the link, when Auth cannot be reached to finish a link', async () => {
+  it('blames the connection when Auth cannot be reached to finish a return', async () => {
     window.history.replaceState(null, '', '/?code=a-good-code');
     localStorage.setItem('astra-session-code-verifier', JSON.stringify('a-proof'));
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('network down')));

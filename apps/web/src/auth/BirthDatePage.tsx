@@ -1,5 +1,6 @@
-import { type FormEvent, type RefObject, useRef } from 'react';
+import { type FormEvent, useRef } from 'react';
 import { BIRTH_DATE_LABELS } from '../strings';
+import { BirthDateField } from '../ui/BirthDateField';
 import { formatBirthDate } from './birthDateParts';
 import { OnboardingColumn, StepFooter } from './OnboardingFrame';
 import { StepHeading } from './StepHeading';
@@ -9,12 +10,6 @@ const FORM_ID = 'birth-date';
 const QUESTION_ID = 'birth-date-question';
 const PROBLEM_ID = 'birth-date-problem';
 const TYPED_DATE_ID = 'birth-date-typed';
-
-const DATE_FIELDS = [
-  { part: 'day', label: BIRTH_DATE_LABELS.day, placeholder: BIRTH_DATE_LABELS.dayPlaceholder, maxLength: 2, width: 'w-[72px]', autoComplete: 'bday-day' },
-  { part: 'month', label: BIRTH_DATE_LABELS.month, placeholder: BIRTH_DATE_LABELS.monthPlaceholder, maxLength: 2, width: 'w-[72px]', autoComplete: 'bday-month' },
-  { part: 'year', label: BIRTH_DATE_LABELS.year, placeholder: BIRTH_DATE_LABELS.yearPlaceholder, maxLength: 4, width: 'w-[104px]', autoComplete: 'bday-year' },
-] as const;
 
 interface BirthDatePageProps {
   studentName: string;
@@ -34,7 +29,7 @@ export function BirthDatePage({ studentName, progress, onBack }: BirthDatePagePr
 
 type Steps = ReturnType<typeof useBirthDateSteps> & { progress: string };
 
-function EntryStep({ dateParts, isDateRejected, changePart, reviewDate, progress, onBack }: Steps & { onBack?: () => void }) {
+function EntryStep({ dateParts, isDateRejected, changeParts, reviewDate, progress, onBack }: Steps & { onBack?: () => void }) {
   const firstField = useRef<HTMLInputElement>(null);
 
   function submit(event: FormEvent) {
@@ -56,49 +51,17 @@ function EntryStep({ dateParts, isDateRejected, changePart, reviewDate, progress
       <form id={FORM_ID} onSubmit={submit} className="flex flex-col gap-4.5">
         <StepHeading id={QUESTION_ID} fieldToFocus={firstField}>{BIRTH_DATE_LABELS.question}</StepHeading>
         <p className="max-w-[46ch] text-sub text-ink-2">{BIRTH_DATE_LABELS.about}</p>
-        <div role="group" aria-labelledby={QUESTION_ID} className="flex flex-wrap gap-3.5">
-          {DATE_FIELDS.map((field, index) => (
-            <DatePart
-              key={field.part}
-              field={field}
-              value={dateParts[field.part]}
-              isInvalid={isDateRejected}
-              inputRef={index === 0 ? firstField : undefined}
-              onChange={(value) => changePart(field.part, value)}
-            />
-          ))}
-        </div>
+        <BirthDateField
+          labelledBy={QUESTION_ID}
+          value={dateParts}
+          isInvalid={isDateRejected}
+          describedBy={isDateRejected ? PROBLEM_ID : undefined}
+          firstFieldRef={firstField}
+          onChange={changeParts}
+        />
         {isDateRejected && <p id={PROBLEM_ID} role="alert" className="stop-note">{BIRTH_DATE_LABELS.rejected}</p>}
       </form>
     </OnboardingColumn>
-  );
-}
-
-interface DatePartProps {
-  field: (typeof DATE_FIELDS)[number];
-  value: string;
-  isInvalid: boolean;
-  inputRef?: RefObject<HTMLInputElement | null>;
-  onChange: (value: string) => void;
-}
-
-function DatePart({ field, value, isInvalid, inputRef, onChange }: DatePartProps) {
-  return (
-    <label className="label flex flex-col gap-0.75 text-ink-2">
-      {field.label}
-      <input
-        ref={inputRef}
-        className={`line-input ${field.width} text-ink`}
-        inputMode="numeric"
-        maxLength={field.maxLength}
-        autoComplete={field.autoComplete}
-        placeholder={field.placeholder}
-        aria-invalid={isInvalid}
-        aria-describedby={isInvalid ? PROBLEM_ID : undefined}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      />
-    </label>
   );
 }
 

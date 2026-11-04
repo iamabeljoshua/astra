@@ -102,7 +102,7 @@ function TutorNotes({ sheet, showsChangeLaterNote }: TutorNotesProps) {
     <div className="flex min-w-0 items-center justify-center border-l border-line bg-panel p-6 max-md:order-first max-md:justify-start max-md:border-b max-md:border-l-0 max-md:px-4 max-md:py-2">
       <div className="w-full max-w-sheet border border-line bg-paper px-5 pt-4.5 pb-4 max-md:flex max-md:max-w-none max-md:flex-wrap max-md:items-baseline max-md:gap-2.5 max-md:border-0 max-md:bg-transparent max-md:p-0">
         <div className="label flex items-center gap-2.5 text-ink-2 max-md:hidden">
-          <i className="block size-2.5 flex-none rounded-full bg-ink" />
+          <i className="block size-2.5 flex-none rounded-full bg-ink forced-color-adjust-none forced-colors:bg-[CanvasText]" />
           <span>{TUTOR_NOTES_LABELS.title}</span>
         </div>
         <h2 className="mt-2.5 mb-3 font-voice text-sheet-name font-normal wrap-anywhere max-md:m-0 max-md:text-sheet-name-phone">

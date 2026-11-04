@@ -123,11 +123,11 @@ describe('AuthProvider', () => {
   });
 
   it('says when a return from sign-in had a problem', async () => {
-    vi.mocked(getSignInReturnProblem).mockResolvedValue('linkFailed');
+    vi.mocked(getSignInReturnProblem).mockResolvedValue('returnFailed');
 
     renderProvider();
 
-    await screen.findByText('loading linkFailed');
+    await screen.findByText('loading returnFailed');
   });
 
   it('reloads when the browser restores this page from memory, as on Back after sign-out', async () => {

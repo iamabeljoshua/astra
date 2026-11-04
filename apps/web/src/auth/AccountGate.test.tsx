@@ -30,6 +30,8 @@ vi.mock('./AuthProvider', () => ({ useAuth: vi.fn() }));
 vi.mock('./session', () => ({
   forgetSession: vi.fn(),
   getAccessToken: async () => 'test-token',
+  isCodeStillGood: () => false,
+  readCodeRequest: () => null,
   renewSession: vi.fn(),
   signOut: vi.fn(),
 }));
@@ -145,7 +147,7 @@ describe('AccountGate', () => {
 
     renderGate();
 
-    screen.getByRole('button', { name: SIGN_IN_LABELS.email });
+    screen.getByRole('button', { name: SIGN_IN_LABELS.sendCode });
     expect(screen.queryByText(APP_TEXT)).toBeNull();
     expect(fetchStub).not.toHaveBeenCalled();
   });
@@ -797,7 +799,7 @@ describe('AccountGate', () => {
     screen.getByRole('heading', { name: API_ERROR_LABELS.network });
     screen.getByRole('button', { name: ACCOUNT_LABELS.tryAgain });
     screen.getByRole('button', { name: ACCOUNT_LABELS.signOut });
-    expect(screen.queryByRole('button', { name: SIGN_IN_LABELS.email })).toBeNull();
+    expect(screen.queryByRole('button', { name: SIGN_IN_LABELS.sendCode })).toBeNull();
     expect(fetchStub).not.toHaveBeenCalled();
   });
 

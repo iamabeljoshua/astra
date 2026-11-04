@@ -2,46 +2,40 @@ import { type FormEvent, lazy, Suspense, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { LEGAL_PATHS } from '../legal/legalPaths';
 import { LEGAL_PAGES, SIGN_IN_LABELS } from '../strings';
+import { Button } from '../ui/Button';
+import { CodeField } from '../ui/CodeField';
+import { DOT_DRAWINGS } from '../ui/dots/dotDrawings';
+import { DotStage } from '../ui/dots/DotStage';
+import { TextField } from '../ui/TextField';
+import { TutorQuestion } from '../ui/TutorQuestion';
 import { useAuth } from './AuthProvider';
-import { OnboardingFrame } from './OnboardingFrame';
-import { sendEmailLink, signInWithGoogle, type EmailLinkResult } from './session';
-import { StepHeading } from './StepHeading';
-import type { SignInDraft } from './useSignInDraft';
+import { CODE_LENGTH } from './codeLength';
+import { readCodeRequest, sendEmailCode, type SendCodeResult, signInWithGoogle } from './session';
+import { useCodeEntry } from './useCodeEntry';
+import type { SignInDraft, SignInStep } from './useSignInDraft';
 
-type SendFailure = Exclude<EmailLinkResult, 'sent'>;
+type SendFailure = Exclude<SendCodeResult, 'sent' | 'alreadySent'>;
 
 const GOOGLE_SIGN_IN_FLAG = 'on';
-const SEND_PROBLEM_ID = 'send-problem';
-const SENT_ABOUT_ID = 'sign-in-sent-about';
-const SENT_ADDRESS_ID = 'sign-in-sent-address';
+const SENT_TO_ID = 'sign-in-sent-to';
+const CODE_PROBLEM_ID = 'sign-in-code-problem';
 const AGREEMENT_LINK = 'underline underline-offset-2 hover:text-accent';
+const STEP_SHAPES = { email: DOT_DRAWINGS.arc, code: DOT_DRAWINGS.atom } satisfies Record<SignInStep, unknown>;
 
 declare const __DEV_SIGN_IN__: boolean;
 
 const DevSignIn = __DEV_SIGN_IN__ ? lazy(() => import('./DevSignIn')) : null;
 
 export function SignInPage({ draft }: { draft: SignInDraft }) {
-  const { step, email, isSending, setStep, setEmail, setIsSending } = draft;
-
   return (
-    <OnboardingFrame showsChangeLaterNote>
-      {step === 'welcome' && <WelcomeStep onChooseEmail={() => setStep('email')} />}
-      {step === 'email' && (
-        <EmailStep
-          email={email}
-          isSending={isSending}
-          onChangeEmail={setEmail}
-          onChangeIsSending={setIsSending}
-          onSent={() => setStep('sent')}
-        />
-      )}
-      {step === 'sent' && <SentStep email={email} onUseAnotherEmail={() => setStep('email')} />}
+    <DotStage shape={STEP_SHAPES[draft.step]}>
+      {draft.step === 'email' ? <EmailStep draft={draft} /> : <CodeStep draft={draft} />}
       {DevSignIn && (
         <Suspense>
           <DevSignIn />
         </Suspense>
       )}
-    </OnboardingFrame>
+    </DotStage>
   );
 }
 
@@ -57,91 +51,92 @@ function AgreementLine() {
   );
 }
 
-function WelcomeStep({ onChooseEmail }: { onChooseEmail: () => void }) {
+function ReturnProblem() {
   const { returnProblem } = useAuth();
-  const canUseGoogle = import.meta.env.VITE_GOOGLE_SIGN_IN === GOOGLE_SIGN_IN_FLAG;
 
-  return (
-    <>
-      <StepHeading className="text-tagline tracking-[-0.005em] uppercase">{SIGN_IN_LABELS.tagline}</StepHeading>
-      <p className="max-w-[46ch] text-sub text-ink-2">{SIGN_IN_LABELS.about}</p>
-      {returnProblem && <p role="alert" className="stop-note">{SIGN_IN_LABELS[returnProblem]}</p>}
-      <div className="flex max-w-90 flex-col gap-2">
-        {canUseGoogle && (
-          <button type="button" className="button button-solid w-full py-3" onClick={() => void signInWithGoogle()}>
-            {SIGN_IN_LABELS.google}
-          </button>
-        )}
-        <button type="button" className="button button-outline w-full py-3" onClick={onChooseEmail}>
-          {SIGN_IN_LABELS.email}
-        </button>
-      </div>
-      <AgreementLine />
-    </>
-  );
+  return returnProblem && <p role="alert" className="stop-note">{SIGN_IN_LABELS[returnProblem]}</p>;
 }
 
-interface EmailStepProps {
-  email: string;
-  isSending: boolean;
-  onChangeEmail: (email: string) => void;
-  onChangeIsSending: (isSending: boolean) => void;
-  onSent: () => void;
-}
-
-function EmailStep({ email, isSending, onChangeEmail, onChangeIsSending, onSent }: EmailStepProps) {
-  const input = useRef<HTMLInputElement>(null);
+function EmailStep({ draft }: { draft: SignInDraft }) {
+  const { email, isSending, setEmail, setIsSending, showCodeStep } = draft;
+  const field = useRef<HTMLInputElement>(null);
   const [failure, setFailure] = useState<SendFailure | null>(null);
+  const canUseGoogle = import.meta.env.VITE_GOOGLE_SIGN_IN === GOOGLE_SIGN_IN_FLAG;
 
   async function send(event: FormEvent) {
     event.preventDefault();
     if (isSending) return;
-    onChangeIsSending(true);
+    setIsSending(true);
     setFailure(null);
-    const result = await sendEmailLink(email.trim());
-    onChangeIsSending(false);
-    if (result === 'sent') onSent();
-    else setFailure(result);
+    const typedEmail = email.trim();
+    const result = await sendEmailCode(typedEmail);
+    setIsSending(false);
+    if (result === 'sent' || result === 'alreadySent') {
+      setEmail(typedEmail);
+      showCodeStep(readCodeRequest()?.sentAt ?? Date.now());
+    } else {
+      setFailure(result);
+    }
   }
 
   return (
-    <form onSubmit={(event) => void send(event)} className="flex flex-col gap-4.5">
-      <StepHeading fieldToFocus={input}>{SIGN_IN_LABELS.emailQuestion}</StepHeading>
-      <input
-        ref={input}
-        className="line-input"
-        type="email"
-        required
-        autoComplete="email"
-        aria-label={SIGN_IN_LABELS.emailPlaceholder}
-        placeholder={SIGN_IN_LABELS.emailPlaceholder}
-        aria-invalid={failure === 'invalidEmail'}
-        aria-describedby={failure ? SEND_PROBLEM_ID : undefined}
-        value={email}
-        onChange={(event) => onChangeEmail(event.target.value)}
-      />
-      {failure && <p id={SEND_PROBLEM_ID} role="alert" className="stop-note">{SIGN_IN_LABELS[failure]}</p>}
-      <div>
-        <button type="submit" aria-disabled={isSending} className="button button-solid">
-          {SIGN_IN_LABELS.sendLink}
-        </button>
-      </div>
-      <AgreementLine />
-    </form>
+    <>
+      <p className="label pl-tutor-indent text-ink-2">{SIGN_IN_LABELS.tagline}</p>
+      <TutorQuestion line={SIGN_IN_LABELS.welcomeLine} fieldToFocus={field}>
+        <ReturnProblem />
+        <form noValidate onSubmit={(event) => void send(event)} className="flex flex-col gap-4.5">
+          <TextField
+            inputRef={field}
+            label={SIGN_IN_LABELS.emailLabel}
+            type="email"
+            autoComplete="email"
+            placeholder={SIGN_IN_LABELS.emailPlaceholder}
+            error={failure === 'invalidEmail' ? SIGN_IN_LABELS.invalidEmail : null}
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+          />
+          {failure && failure !== 'invalidEmail' && <p role="alert" className="stop-note">{SIGN_IN_LABELS[failure]}</p>}
+          <div className="flex flex-wrap gap-2.5">
+            <Button type="submit" isBusy={isSending}>{SIGN_IN_LABELS.sendCode}</Button>
+            {canUseGoogle && <Button variant="outline" onClick={() => void signInWithGoogle()}>{SIGN_IN_LABELS.google}</Button>}
+          </div>
+        </form>
+        <AgreementLine />
+      </TutorQuestion>
+    </>
   );
 }
 
-function SentStep({ email, onUseAnotherEmail }: { email: string; onUseAnotherEmail: () => void }) {
+function CodeStep({ draft }: { draft: SignInDraft }) {
+  const field = useRef<HTMLInputElement>(null);
+  const { code, problem, isChecking, hasSentNewCode, resendSecondsLeft, changeCode, check, resend } = useCodeEntry(draft);
+
   return (
-    <>
-      <StepHeading describedBy={`${SENT_ABOUT_ID} ${SENT_ADDRESS_ID}`}>{SIGN_IN_LABELS.sentQuestion}</StepHeading>
-      <p id={SENT_ABOUT_ID} className="max-w-[46ch] text-sub text-ink-2">{SIGN_IN_LABELS.sentAbout}</p>
-      <p id={SENT_ADDRESS_ID} className="font-medium wrap-anywhere">{email}</p>
-      <div>
-        <button type="button" className="button button-outline" onClick={onUseAnotherEmail}>
-          {SIGN_IN_LABELS.useAnotherEmail}
-        </button>
+    <TutorQuestion line={SIGN_IN_LABELS.codeLine} describedBy={SENT_TO_ID} fieldToFocus={field}>
+      <ReturnProblem />
+      <p id={SENT_TO_ID} className="wrap-anywhere text-ink-2">{SIGN_IN_LABELS.sentTo(draft.email)}</p>
+      <CodeField
+        inputRef={field}
+        label={SIGN_IN_LABELS.codeLabel}
+        value={code}
+        length={CODE_LENGTH}
+        isBusy={isChecking}
+        isInvalid={problem !== null}
+        describedBy={problem ? CODE_PROBLEM_ID : undefined}
+        onChange={changeCode}
+        onComplete={(fullCode) => void check(fullCode)}
+      />
+      {problem && <p id={CODE_PROBLEM_ID} role="alert" className="stop-note">{problem}</p>}
+      <p role="status" className="text-fine text-ink-2 empty:hidden">
+        {isChecking && SIGN_IN_LABELS.checking}
+        {hasSentNewCode && SIGN_IN_LABELS.newCodeSent}
+      </p>
+      <div className="flex flex-wrap gap-x-5">
+        <Button variant="quiet" isBusy={resendSecondsLeft > 0 || draft.isSending} onClick={() => void resend()}>
+          {resendSecondsLeft > 0 ? SIGN_IN_LABELS.resendIn(resendSecondsLeft) : SIGN_IN_LABELS.resend}
+        </Button>
+        <Button variant="quiet" onClick={draft.showEmailStep}>{SIGN_IN_LABELS.useAnotherEmail}</Button>
       </div>
-    </>
+    </TutorQuestion>
   );
 }

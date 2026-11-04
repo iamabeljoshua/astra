@@ -36,8 +36,8 @@ async function startSession(page) {
   return response.status;
 }
 
-export default async function onboardingLongName({ page, capture, viewportName }) {
-  await signInAsNewStudent(page, `m2-4-long-${viewportName}-${Date.now()}@astra.test`);
+export default async function onboardingLongName({ page, capture, viewportName, signInWithCode }) {
+  await signInAsNewStudent(page, signInWithCode, `m2-4-long-${viewportName}-${Date.now()}@astra.test`);
 
   await answerName(page, capture, LONG_NAME);
   await answerBirthDate(page, capture, { day: '1', month: '6', year: String(new Date().getFullYear() - 15) });
