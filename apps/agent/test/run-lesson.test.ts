@@ -386,6 +386,108 @@ describe('a request with no lesson behind it', () => {
     await finished;
   });
 
+  it('declines a dangerous question calmly, with no crisis wording', async () => {
+    const work = makeWork();
+    Object.assign(work, { plan: Promise.resolve('declined'), firstLine: Promise.resolve(null) });
+    const said: string[] = [];
+    const voice = { forTurn: (beats: readonly Beat[]) => { said.push(...beats.map(getBeatText)); return { tts: makeRenderedVoice({ name: 'tone' }).makeTts() }; } };
+    const { finished } = start({ work, voice: voice as never });
+    const room = await untilConnected();
+    room.join('PA1');
+    room.send(SCENES, { type: 'sceneDevice', canPlay: true });
+    while (!room.sent.some(({ topic, message }) => topic === SCENES && message.type === 'noLesson')) await delay(1);
+    await untilClosed(room, 'declined-2');
+    const spoken = said.join(' ');
+    expect(spoken).toMatch(/won't walk through/);
+    expect(spoken).not.toMatch(/emergency|don't feel safe|adult you trust|lesson for that one/);
+    room.leave('PA1');
+    await finished;
+  });
+
+  it.each([['nothing', 'no-lesson'], ['unsafe', 'unsafe']])('tells a reloaded page again, so it gets no reply box on the %s line', async (why, beat) => {
+    const work = makeWork();
+    Object.assign(work, { plan: Promise.resolve(why), firstLine: Promise.resolve(null) });
+    const { finished } = start({ work, timings: { ...FAST, lingerMs: 2000 } });
+    const room = await untilConnected();
+    room.join('PA1');
+    room.send(SCENES, { type: 'sceneDevice', canPlay: true });
+    expect(await untilClosed(room, beat)).toBe(true);
+    await delay(60);
+    const sentBefore = room.sent.length;
+    room.join('PA2');
+    room.leave('PA1');
+    await delay(20);
+    room.send(SCENES, { type: 'sceneDevice', canPlay: true });
+    await delay(60);
+    expect(room.sent.slice(sentBefore).some(({ topic, message }) => topic === SCENES && message.type === 'noLesson')).toBe(true);
+    room.leave('PA2');
+    await finished;
+  });
+
+  it('reads no-lesson as settled on the page only after that page says it can hear', async () => {
+    const work = makeWork();
+    Object.assign(work, { plan: Promise.resolve('nothing'), firstLine: Promise.resolve(null) });
+    const { finished } = start({ work, timings: { ...FAST, lingerMs: 2000 } });
+    const room = await untilConnected();
+    room.join('PA1');
+    room.send(SCENES, { type: 'sceneDevice', canPlay: true });
+    expect(await untilClosed(room, 'no-lesson')).toBe(true);
+    const firstCount = room.sent.filter(({ message }) => message.type === 'noLesson').length;
+    room.send(SCENES, { type: 'sceneDevice', canPlay: true });
+    await delay(10);
+    expect(room.sent.filter(({ message }) => message.type === 'noLesson').length).toBeGreaterThan(firstCount);
+    room.leave('PA1');
+    await finished;
+  });
+
+  it('gives a page reloaded after the close the lesson again, and not only the question on an empty board', async () => {
+    const { finished } = start({ timings: { ...FAST, lingerMs: 3000 } });
+    const room = await untilConnected();
+    room.join('PA1');
+    room.send(SCENES, { type: 'sceneDevice', canPlay: true });
+    expect(await untilClosed(room, 'close')).toBe(true);
+    await delay(40);
+    const sentBefore = room.sent.length;
+    room.join('PA2');
+    room.leave('PA1');
+    await delay(5);
+    room.send(SCENES, { type: 'sceneDevice', canPlay: true });
+    const endAtMs = Date.now() + 4000;
+    while (room.sent.slice(sentBefore).filter(({ message }) => message.type === 'beatClosed' && message.beatId === 'close').length === 0 && Date.now() < endAtMs) await delay(5);
+    const closedAgain = room.sent.slice(sentBefore).filter(({ message }) => message.type === 'beatClosed').map(({ message }) => message.beatId);
+    expect(closedAgain).toContain('line-0');
+    expect(closedAgain).toContain('line-1');
+    expect(closedAgain.at(-1)).toBe('close');
+    room.leave('PA2');
+    await finished;
+  });
+
+  it('puts the scene back on a page reloaded after the close, then asks the question', async () => {
+    const work = makeWork({ scene: SCENE });
+    const { finished } = start({ work, timings: { ...FAST, loadLimitMs: 300, lingerMs: 3000 } });
+    const room = await untilConnected();
+    room.join('PA1');
+    room.send(SCENES, { type: 'sceneDevice', canPlay: true });
+    const answerLoads = setInterval(() => room.send(SCENES, { type: 'sceneLoaded', sceneId: SCENE.id }), 5);
+    expect(await untilClosed(room, 'close')).toBe(true);
+    await delay(40);
+    const loadsBefore = room.sent.filter(({ message }) => message.type === 'loadScene').length;
+    const sentBefore = room.sent.length;
+    room.join('PA2');
+    room.leave('PA1');
+    await delay(5);
+    room.send(SCENES, { type: 'sceneDevice', canPlay: true });
+    const endAtMs = Date.now() + 4000;
+    while (!room.sent.slice(sentBefore).some(({ message }) => message.type === 'beatClosed' && message.beatId === 'close') && Date.now() < endAtMs) await delay(5);
+    clearInterval(answerLoads);
+    expect(room.sent.filter(({ message }) => message.type === 'loadScene').length).toBeGreaterThan(loadsBefore);
+    const closedAgain = room.sent.slice(sentBefore).filter(({ message }) => message.type === 'beatClosed').map(({ message }) => message.beatId);
+    expect(closedAgain.some((id) => String(id).startsWith('scene-take'))).toBe(true);
+    expect(closedAgain.at(-1)).toBe('close');
+    room.leave('PA2');
+    await finished;
+  });
+
   it('points a request about being unsafe to an adult they trust and local emergency help, and names no hotline', async () => {
     const work = makeWork();
     Object.assign(work, { plan: Promise.resolve('unsafe'), firstLine: Promise.resolve(null) });
