@@ -142,7 +142,7 @@ export async function openStudentPage(browser: Browser, { email, title, recordVi
   const screenOpenedEpochMs = Date.now();
   if (opensScreen) {
     await page.goto(sessionUrl);
-    await page.getByRole('textbox', { name: 'Your reply' }).waitFor();
+    await page.waitForFunction(() => window.astraVoice !== undefined);
   }
   return {
     context,
