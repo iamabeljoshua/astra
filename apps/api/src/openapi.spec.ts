@@ -278,6 +278,10 @@ describe('the OpenAPI document', () => {
       expect(findEntitySchemas(document)).toEqual([]);
     });
 
+    it('keeps the agent channel out, because no browser ever calls it', () => {
+      expect(Object.keys(document.paths).filter((path) => path.startsWith('/agent'))).toEqual([]);
+    });
+
     it('takes no student ID from any path, query, or body', () => {
       expect(findStudentIdInputs(document)).toEqual([]);
     });

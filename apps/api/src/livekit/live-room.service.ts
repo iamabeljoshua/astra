@@ -1,7 +1,5 @@
 import { ConflictException, Injectable } from '@nestjs/common';
-import { StudentRepository } from '../infrastructure/orm/repositories/student.repository';
 import { SessionsService } from '../sessions/sessions.service';
-import { isStudentInterest } from '../students/students.service';
 import { TutorSpendService } from '../tutor-spend/tutor-spend.service';
 import { getRoomName, type LiveRoomKeys, makeStudentToken } from './live-room-grants';
 import type { LiveRoomResponseDto } from './live-room.dto';
@@ -17,7 +15,6 @@ export function getLiveRoomKeys(environment: NodeJS.ProcessEnv): LiveRoomKeys | 
 export class LiveRoomService {
   constructor(
     private readonly sessionsService: SessionsService,
-    private readonly students: StudentRepository,
     private readonly tutorSpend: TutorSpendService,
   ) {}
 
@@ -29,12 +26,7 @@ export class LiveRoomService {
     if (!keys) return { access: null, unavailableBecause: 'notSetUp' };
     if (await this.tutorSpend.isOverDailyLimit(studentId)) return { access: null, unavailableBecause: 'dailyLimit' };
     const roomName = getRoomName(session.id);
-    const token = await makeStudentToken({ keys, roomName, studentId, tutorBrief: await this.getTutorBrief(studentId) });
+    const token = await makeStudentToken({ keys, roomName, studentId });
     return { access: { url: keys.url, roomName, token }, unavailableBecause: null };
-  }
-
-  private async getTutorBrief(studentId: string): Promise<string> {
-    const profile = await this.students.findProfile(studentId);
-    return profile ? JSON.stringify({ level: profile.level, interests: profile.interests.filter(isStudentInterest), goal: profile.goal }) : '';
   }
 }

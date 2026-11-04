@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { decodeJwt } from 'jose';
 import request from 'supertest';
-import { createTestApp, createTestStudent } from '../../test/test-database';
+import { createTestApp, createTestStudent, OLD_ENOUGH_BIRTH_DATE } from '../../test/test-database';
 import type { TestApp, TestStudent } from '../../test/test-database';
 
 const LIVE_ROOM_KEYS = { LIVEKIT_URL: 'wss://astra-test.livekit.cloud', LIVEKIT_API_KEY: 'key-for-test', LIVEKIT_API_SECRET: 'secret-for-test-that-is-long-enough-to-sign', ASTRA_AGENT_NAME: 'tutor-for-test' };
@@ -39,13 +39,17 @@ describe('the live room route', () => {
     await testApp.close();
   });
 
-  it('starts the tutor knowing only the level, interests, and goal', async () => {
+  it('tells LiveKit which agent to call and nothing about the student', async () => {
     await server().put('/me/profile').set('Authorization', `Bearer ${student.token}`).send({ name: 'Maya', interests: ['basketball', 'space'], level: 'university', goal: 'exam' }).expect(200);
     const sessionId = await startSession();
     const { body } = await post(`/sessions/${sessionId}/live-room`).expect(200);
-    const claims = decodeJwt(getAccess(body).token) as { roomConfig: { agents: { metadata: string }[] } };
-    expect(JSON.parse(claims.roomConfig.agents[0]?.metadata ?? '{}')).toEqual({ level: 'university', interests: ['basketball', 'space'], goal: 'exam' });
-    expect(JSON.stringify(claims)).not.toContain('Maya');
+    const claims = decodeJwt(getAccess(body).token) as { roomConfig: { agents: { agentName: string; metadata?: string }[] } };
+    expect(claims.roomConfig.agents).toHaveLength(1);
+    expect(claims.roomConfig.agents[0]?.agentName).toBe('tutor-for-test');
+    expect(claims.roomConfig.agents[0]?.metadata ?? '').toBe('');
+    for (const secret of ['university', 'basketball', 'space', 'exam', 'Maya', OLD_ENOUGH_BIRTH_DATE]) {
+      expect(JSON.stringify(claims)).not.toContain(secret);
+    }
   });
 
   it('gives a token for this session room with the least it needs', async () => {

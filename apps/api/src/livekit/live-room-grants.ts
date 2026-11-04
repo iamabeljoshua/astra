@@ -31,7 +31,7 @@ export function getStudentGrant(roomName: string): VideoGrant {
   };
 }
 
-export function makeStudentToken({ keys, roomName, studentId, tutorBrief }: { keys: LiveRoomKeys; roomName: string; studentId: string; tutorBrief: string }): Promise<string> {
+export function makeStudentToken({ keys, roomName, studentId }: { keys: LiveRoomKeys; roomName: string; studentId: string }): Promise<string> {
   const token = new AccessToken(keys.apiKey, keys.apiSecret, { identity: `student-${studentId}`, ttl: TOKEN_LIFE });
   token.addGrant(getStudentGrant(roomName));
   token.roomConfig = new RoomConfiguration({
@@ -39,7 +39,7 @@ export function makeStudentToken({ keys, roomName, studentId, tutorBrief }: { ke
     maxParticipants: MOST_STUDENTS,
     emptyTimeout: EMPTY_ROOM_SECONDS,
     departureTimeout: DROPPED_STUDENT_SECONDS,
-    agents: [new RoomAgentDispatch({ agentName: keys.agentName, metadata: tutorBrief })],
+    agents: [new RoomAgentDispatch({ agentName: keys.agentName })],
   });
   return token.toJwt();
 }
