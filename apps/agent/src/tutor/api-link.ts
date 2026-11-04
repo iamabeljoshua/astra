@@ -1,4 +1,7 @@
+import type { components } from '@astra/contracts';
 import type { StudentProfile } from './brain.ts';
+
+export type LearnerRecord = components['schemas']['LearnerRecordDto'];
 
 const ROOM_PREFIX = 'session-';
 /** A room may carry a suffix after the session's uuid, so only this many characters name the session. */
@@ -15,6 +18,8 @@ export interface ApiLink {
   fetchProfile(): Promise<StudentProfile | null>;
   /** Adds to the student's total for today, and says whether that total is now over the daily limit. */
   reportSpend(usd: number): Promise<{ isOverDailyLimit: boolean }>;
+  /** What the tutor remembers about this session's student, and only that student. */
+  fetchRecord(): Promise<LearnerRecord>;
 }
 
 // The student's level, interests, and goal come straight from the API, so they never pass through the room service.
@@ -32,6 +37,9 @@ export function createApiLink({ apiUrl, agentKey, roomName }: ApiLinkOptions): A
     },
     async reportSpend(usd) {
       return (await call('spend', { method: 'POST', body: JSON.stringify({ usd }) })) as { isOverDailyLimit: boolean };
+    },
+    async fetchRecord() {
+      return (await call('record')) as LearnerRecord;
     },
   };
 }

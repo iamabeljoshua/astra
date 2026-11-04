@@ -139,6 +139,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/record": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reads everything the tutor remembers about the signed-in student. */
+        get: operations["LearnerRecordController_getRecord"];
+        put?: never;
+        post?: never;
+        /** Deletes every note about the signed-in student. */
+        delete: operations["LearnerRecordController_deleteAll"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/record/notes/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Deletes one note. The tutor forgets it, and running that session's update again does not bring it back. */
+        delete: operations["LearnerRecordController_deleteNote"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -315,6 +350,48 @@ export interface components {
              * @enum {string|null}
              */
             unavailableBecause: "notSetUp" | "dailyLimit" | null;
+        };
+        LearnerEvidenceDto: {
+            /**
+             * @description Where this came from. `board` is a line of the student's work that code checked, and `words` is the student's own words.
+             * @enum {string}
+             */
+            source: "board" | "words";
+            /** @description The line of work or the words themselves. */
+            text: string;
+            /**
+             * @description What code found when it checked a line of work. Words have no check.
+             * @enum {string|null}
+             */
+            check: "right" | "wrong" | null;
+        };
+        LearnerNoteDto: {
+            /** @description The note's ID. */
+            id: string;
+            /**
+             * @description What the note says about the student: `showed`, `struggled`, `cares_about`, or `explored`.
+             * @enum {string}
+             */
+            kind: "showed" | "struggled" | "cares_about" | "explored";
+            /** @description The thing itself, in a few plain words. */
+            topic: string;
+            /** @description One plain detail, if there is one. */
+            detail: string | null;
+            /** @description What really happened, which is why this note exists. */
+            evidence: components["schemas"]["LearnerEvidenceDto"][];
+            /** @description The session this note came from. */
+            sessionId: string;
+            /** @description That session's title. */
+            sessionTitle: string;
+            /**
+             * Format: date-time
+             * @description When the note was written.
+             */
+            notedAt: string;
+        };
+        LearnerRecordDto: {
+            /** @description Everything the tutor remembers about this student, newest first. */
+            notes: components["schemas"]["LearnerNoteDto"][];
         };
     };
     responses: never;
@@ -547,6 +624,62 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["LiveRoomResponseDto"];
                 };
+            };
+        };
+    };
+    LearnerRecordController_getRecord: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LearnerRecordDto"];
+                };
+            };
+        };
+    };
+    LearnerRecordController_deleteAll: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    LearnerRecordController_deleteNote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The ID of a note. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
