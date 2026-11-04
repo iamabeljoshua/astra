@@ -42,7 +42,7 @@ function Gate({ startPath = '/' }: { startPath?: string }) {
   );
 }
 
-type Answer = (body: unknown) => object;
+type Answer = (body: unknown) => object | Promise<object>;
 
 function stubApi(answers: Record<string, Answer>) {
   const sent: { route: string; body: unknown }[] = [];
@@ -51,7 +51,7 @@ function stubApi(answers: Record<string, Answer>) {
     const body: unknown = request.method === 'GET' ? null : await request.json();
     sent.push({ route, body });
     const answer = answers[route];
-    return answer ? new Response(JSON.stringify(answer(body))) : new Response(null, { status: 404 });
+    return answer ? new Response(JSON.stringify(await answer(body))) : new Response(null, { status: 404 });
   });
   return sent;
 }
@@ -95,6 +95,25 @@ function stubStudentWithNoProfile() {
     'GET /api/me': () => ({ status: 'active', student: STUDENT }),
     'PUT /api/me/profile': (body) => ({ status: 'active', student: { ...STUDENT, profile: body } }),
   });
+}
+
+function stubSlowSave() {
+  let finishSave = () => {};
+  const isSaveFinished = new Promise<void>((resolve) => {
+    finishSave = resolve;
+  });
+  const sent = stubApi({
+    'GET /api/me': () => ({ status: 'active', student: STUDENT }),
+    'PUT /api/me/profile': async (body) => {
+      await isSaveFinished;
+      return { status: 'active', student: { ...STUDENT, profile: body } };
+    },
+  });
+  return { sent, finishSave };
+}
+
+function readSavedGoals(sent: ReturnType<typeof stubApi>) {
+  return sent.filter(({ route }) => route === 'PUT /api/me/profile').map(({ body }) => (body as { goal: string }).goal);
 }
 
 async function reachGoalStep() {
@@ -219,6 +238,69 @@ describe('onboarding', () => {
     expect(sent.filter(({ route }) => route === 'PUT /api/me/profile')).toHaveLength(2);
   });
 
+  it('holds the goal it is saving, so the sheet never shows a goal that was not saved', async () => {
+    const { sent, finishSave } = stubSlowSave();
+    renderWithQueryClient(<Gate />);
+    await reachGoalStep();
+
+    clickChoice(STUDENT_GOAL_LABELS.class);
+    await waitFor(() => expect(readSavedGoals(sent)).toEqual(['class']));
+    clickChoice(STUDENT_GOAL_LABELS.exam);
+
+    expect(readSheetRow(TUTOR_NOTES_LABELS.goal)).toBe(STUDENT_GOAL_LABELS.class);
+    expect(screen.getByRole('button', { name: STUDENT_GOAL_LABELS.exam }).getAttribute('aria-pressed')).toBe('false');
+
+    finishSave();
+    await screen.findByText(`${HOME_TEXT} at /`);
+    expect(readSavedGoals(sent)).toEqual(['class']);
+  });
+
+  it('takes Back away while the goal saves, so no answer can change behind the save', async () => {
+    const { sent, finishSave } = stubSlowSave();
+    renderWithQueryClient(<Gate />);
+    await reachGoalStep();
+
+    clickChoice(STUDENT_GOAL_LABELS.class);
+    await waitFor(() => expect(readSavedGoals(sent)).toEqual(['class']));
+
+    await waitFor(() => expect(screen.queryByRole('button', { name: ONBOARDING_LABELS.back })).toBeNull());
+
+    finishSave();
+    await screen.findByText(`${HOME_TEXT} at /`);
+  });
+
+  it('saves the last goal when the student changes their mind before the save starts', async () => {
+    const sent = stubStudentWithNoProfile();
+    renderWithQueryClient(<Gate />);
+    await reachGoalStep();
+
+    clickChoice(STUDENT_GOAL_LABELS.class);
+    clickChoice(STUDENT_GOAL_LABELS.exam);
+
+    await screen.findByText(`${HOME_TEXT} at /`);
+    expect(readSavedGoals(sent)).toEqual(['exam']);
+  });
+
+  it('does not bring a failed save\'s alert back after Back and Continue, when nothing was tried again', async () => {
+    stubApi({
+      'GET /api/me': () => ({ status: 'active', student: STUDENT }),
+      'PUT /api/me/profile': () => {
+        throw new TypeError('network');
+      },
+    });
+    renderWithQueryClient(<Gate />);
+    await reachGoalStep();
+    clickChoice(STUDENT_GOAL_LABELS.exam);
+    await screen.findByRole('alert');
+
+    fireEvent.click(screen.getByRole('button', { name: ONBOARDING_LABELS.back }));
+    await screen.findByRole('heading', { name: ONBOARDING_LABELS.intoQuestion });
+    clickContinue();
+    await screen.findByRole('heading', { name: ONBOARDING_LABELS.goalQuestion });
+
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
   it('keeps the name of a student who goes back from the level', async () => {
     stubStudentWithNoProfile();
     renderWithQueryClient(<Gate />);
@@ -258,6 +340,21 @@ describe('onboarding', () => {
 
     screen.getByText(ONBOARDING_LABELS.nameMissing);
     expect(screen.queryByRole('heading', { name: BIRTH_DATE_LABELS.question })).toBeNull();
+  });
+
+  it.each([
+    ['a zero-width space', '\u200b'],
+    ['a soft hyphen and a space', '\u00ad '],
+  ])('treats a name of only %s as no name, and asks for it here, not at the date', async (_caseName, name) => {
+    const sent = stubApi({ 'GET /api/me': () => NEEDS_BIRTH_DATE });
+    renderWithQueryClient(<Gate />);
+    fireEvent.change(await screen.findByLabelText(ONBOARDING_LABELS.namePlaceholder), { target: { value: name } });
+
+    clickContinue();
+
+    screen.getByText(ONBOARDING_LABELS.nameMissing);
+    expect(screen.queryByRole('heading', { name: BIRTH_DATE_LABELS.question })).toBeNull();
+    expect(sent.filter(({ route }) => route !== 'GET /api/me')).toEqual([]);
   });
 
   it('keeps the name for a closed account out of every request but the answer', async () => {

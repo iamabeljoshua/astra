@@ -58,4 +58,28 @@ describe('changing answers later', () => {
     await waitFor(() => screen.getByText(PROFILE_LABELS.missing));
     expect(saved).toEqual([]);
   });
+
+  it('will not save a name of only invisible characters', async () => {
+    const saved = stubApi();
+    renderWithQueryClient(<ProfilePage />);
+
+    fireEvent.change(await screen.findByLabelText(PROFILE_LABELS.name), { target: { value: '\u200b' } });
+    fireEvent.click(screen.getByRole('button', { name: PROFILE_LABELS.save }));
+
+    await waitFor(() => screen.getByText(PROFILE_LABELS.missing));
+    expect(saved).toEqual([]);
+  });
+
+  it('drops the blank name problem as soon as the student types a name', async () => {
+    stubApi();
+    renderWithQueryClient(<ProfilePage />);
+    const name = await screen.findByLabelText(PROFILE_LABELS.name);
+    fireEvent.change(name, { target: { value: '  ' } });
+    fireEvent.click(screen.getByRole('button', { name: PROFILE_LABELS.save }));
+    await screen.findByText(PROFILE_LABELS.missing);
+
+    fireEvent.change(name, { target: { value: 'Mai' } });
+
+    expect(screen.queryByText(PROFILE_LABELS.missing)).toBeNull();
+  });
 });
