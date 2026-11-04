@@ -27,7 +27,7 @@ Preconditions:
 - `pnpm db:seed` ran on this lane's database, which also makes `new-student@astra.test` new again.
 - `pnpm verify doctor` passes.
 
-- **Sign in by email code and sign out.** Run `pnpm verify drive --journey sign-in`. The `journey`, `identity`, `screenshot`, and `main region` checks print `PASS` for `laptop` and `phone`, and the command exits 0.
+- **Sign in by email code and sign out.** Run `pnpm verify drive --journey sign-in`. The `journey`, `identity`, `screenshot`, and `main region` checks print `PASS` for `laptop` and `phone`, and the command exits 0. The journey types `12`, checks forced colors, tabs away and back, and then inserts the whole code at once, so it fails if the digits and the code mix.
 - **Proof.** After a run that printed `PASSED`, open the `sign-in-laptop-*` and `sign-in-phone-*` images in `.verify/evidence/`. They show `email`, `birth-date`, `confirm`, `onboarding`, and `after-back`.
 - **Sign in as another account in a journey.** Call `await signIn('new-student@astra.test')`. It lands on `What should your tutor call you?`. Call `await signInWithCode(address)` to go through the email and the code.
 

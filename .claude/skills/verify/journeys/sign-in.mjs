@@ -15,13 +15,12 @@ async function assertForcedColorsKeepTheCodeStepReadable(page, field) {
 }
 
 // Inserting the whole code at once has the shape of a paste, and leaves the clipboard of whoever runs this alone.
-const enterCodeAfterMistakes = (page) => async (field, code) => {
-  const wrongCode = [...code].map((digit) => (Number(digit) + 1) % 10).join('');
-  await field.pressSequentially(wrongCode);
-  await page.getByRole('alert').filter({ hasText: "didn't work" }).waitFor();
-  assert.deepEqual(await getMarkedBoxes(page), [0], 'after a wrong code the mark is on the first box');
-  await assertForcedColorsKeepTheCodeStepReadable(page, field);
+const enterCodeOverTypedDigits = (page) => async (field, code) => {
   await field.pressSequentially('12');
+  await assertForcedColorsKeepTheCodeStepReadable(page, field);
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Shift+Tab');
+  assert.deepEqual(await getMarkedBoxes(page), [2], 'Tab back keeps the digits and marks the next box');
   await page.evaluate((wholeCode) => document.execCommand('insertText', false, wholeCode), code);
 };
 
@@ -32,7 +31,7 @@ export default async function signIn({ page, capture, viewportName, signInWithCo
   await page.getByText('A learning app, made for you').waitFor();
   await capture('email');
 
-  await signInWithCode(`verify-${viewportName}-${Date.now()}@astra.test`, enterCodeAfterMistakes(page));
+  await signInWithCode(`verify-${viewportName}-${Date.now()}@astra.test`, enterCodeOverTypedDigits(page));
   await page.getByRole('textbox', { name: 'Your first name' }).fill('Maya');
   await page.getByRole('button', { name: 'Continue' }).click();
   await page.getByRole('heading', { name: 'When were you born?' }).waitFor();
