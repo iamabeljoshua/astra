@@ -537,7 +537,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     if (turn.hasAttemptText) return lastEventAtMs + timeouts.betweenTextMs;
     const hardMs = attemptStartedAtMs + timeouts.firstTextMs;
     // A filler before help reads badly, and the read usually answers well before it is due, so it waits for the read.
-    if (turn.hasSaidStillWorking || turn.safetyReading === 'pending') return hardMs;
+    if (turn.hasSaidStillWorking || turn.safetyReading === 'pending' || isAboutSafety(turn.safetyReading)) return hardMs;
     // A retry starts its own wait, or the time the first attempt took would fire a filler straight after its line.
     const softStartMs = turn.attempts > 1 ? attemptStartedAtMs : turn.startedAtMs;
     return Math.min(hardMs, softStartMs + (turn.isCheckingMath ? timeouts.checkingMathMs : timeouts.stillWorkingMs));

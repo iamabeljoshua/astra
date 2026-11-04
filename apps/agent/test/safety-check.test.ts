@@ -265,6 +265,13 @@ describe('a slow read holds back the filler', () => {
     expect(spoken).toBe(SPOKEN_LINES.safetyStop[0]);
   });
 
+  it('plays none on a slow retry after vague words, so the question and the help stay whole', async () => {
+    const { brain } = setup({ reading: 'vague', getReply: (_request, attempt) => (attempt === 1 ? { pieces: ['Which day do you mean?'] } : { firstTextMs: 120, pieces: ['What do you mean by that? If anything is worrying you, tell an adult you trust now.'] }) });
+    const spoken = await say(brain, 'i already picked the day');
+    for (const filler of SPOKEN_LINES.stillWorking) expect(spoken).not.toContain(filler);
+    expect(spoken).toMatch(/adult you trust/);
+  });
+
   it('still plays it on an ordinary slow turn once the read has answered', async () => {
     const { brain } = setup({ reading: 'school', readAfterMs: 10, getReply: () => ({ firstTextMs: 200, pieces: ['Mitosis has four stages to learn.'] }) });
     const spoken = await say(brain, 'what is mitosis');
