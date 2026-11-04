@@ -21,8 +21,10 @@ const RANGE_SAMPLES = 96;
 const WAVE_SAMPLES = 2000;
 /** Shared across a curve's sets of constants, because a curve with four has 82 of them and placing it is already a long task on a slow phone. */
 const WAVE_SAMPLES_IN_ALL = 4000;
-/** A sample sits anywhere in its own step, so two can lie this many steps apart. */
+/** A sample sits anywhere in its own step, so two can lie this many steps apart, and a climb has to reach across that gap to tell a pole from a top. */
 const WIDEST_GAP_IN_STEPS = 2;
+/** A climb reaches at least this share of the domain, so a pole this close past its edge still counts as a pole. Further out the curve really does stop at a finite top. */
+const LEAST_CLIMB_SHARE = 1 / 200;
 /** A top past the axes by this share of them is under a pixel, and moving the axes for it would cost a round number. */
 const TOP_PAST_AXES_SHARE = 1 / 200;
 const REMEMBERED_SCENES = 48;
@@ -68,7 +70,7 @@ function getScatteredCurve(evaluate: Evaluate, [low, high]: AxisRange, steps: nu
 function getRangeWithWholeTops(fitted: AxisRange, evaluators: readonly Evaluate[], domain: AxisRange): AxisRange {
   const steps = Math.min(WAVE_SAMPLES, Math.floor(WAVE_SAMPLES_IN_ALL / evaluators.length));
   const curves = evaluators.map((evaluate) => getScatteredCurve(evaluate, domain, steps));
-  const spacing = ((domain[1] - domain[0]) / steps) * WIDEST_GAP_IN_STEPS;
+  const spacing = (domain[1] - domain[0]) * Math.max(WIDEST_GAP_IN_STEPS / steps, LEAST_CLIMB_SHARE);
   const getTop = (direction: 1 | -1) => getFiniteTop(curves, { above: -direction * Number.POSITIVE_INFINITY, direction, spacing, domain });
   const pastAxes = (fitted[1] - fitted[0]) * TOP_PAST_AXES_SHARE;
   const [top, bottom] = [getTop(1), getTop(-1)];
