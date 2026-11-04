@@ -110,6 +110,10 @@ describe('the code check on names a model has read', () => {
     expect(getPlanProblems(TOPIC, saying('Isaac Newton is an idiot'), new Set(['Isaac Newton']))).toContain('it holds an insult or an accusation');
   });
 
+  it('does not read a word that opens a line as part of a name, as "Many Romans" was stopped', () => {
+    expect(getPlanProblems(TOPIC, saying('Many Romans feared this'))).toEqual([]);
+  });
+
   it('reads a capital letter with an accent as a capital letter', () => {
     expect(getPlanProblems(TOPIC, saying('Think of Émile Dubois'))).toContain('it names a person');
   });
