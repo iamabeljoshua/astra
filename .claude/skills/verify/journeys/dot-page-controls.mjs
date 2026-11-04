@@ -5,6 +5,7 @@ export const deadlineMs = 90_000;
 
 const SMALLEST_TAP_TARGET = 24;
 const HIDE_BUTTON_TEXT = 'button { color: transparent !important; }';
+const CLEAR_OF_THE_EDGES = 2;
 
 async function isOneColor(pngBase64) {
   const response = await fetch(`data:image/png;base64,${pngBase64}`);
@@ -17,7 +18,9 @@ async function isOneColor(pngBase64) {
 }
 
 async function assertNoDotShowsThroughToggle(page, screenName) {
-  const unpressed = await page.getByRole('button', { name: 'Dark' }).screenshot({ style: HIDE_BUTTON_TEXT });
+  const { x, y, width, height } = await page.getByRole('group', { name: 'Appearance' }).getByRole('button', { pressed: false }).boundingBox();
+  const clip = { x: x + CLEAR_OF_THE_EDGES, y: y + CLEAR_OF_THE_EDGES, width: width - CLEAR_OF_THE_EDGES * 2, height: height - CLEAR_OF_THE_EDGES * 2 };
+  const unpressed = await page.screenshot({ clip, style: HIDE_BUTTON_TEXT });
   assert.ok(await page.evaluate(isOneColor, unpressed.toString('base64')), `a chart dot shows through the unpressed toggle on ${screenName}`);
 }
 

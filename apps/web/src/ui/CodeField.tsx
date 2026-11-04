@@ -15,7 +15,7 @@ interface CodeFieldProps {
 
 const ARROW_STEPS: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1 };
 
-// A whole mail holds other numbers. The first run of exactly the code's length wins, standing alone before touching a word, and only then are loose digits joined.
+// A whole mail holds other numbers, so the first run of exactly the code's length wins, and one standing alone beats one touching a word.
 function toCodeDigits(text: string, length: number) {
   const latinText = toLatinDigits(text);
   const aloneRun = new RegExp(`\\b\\d{${length}}\\b`).exec(latinText)?.[0];
