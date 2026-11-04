@@ -68,6 +68,12 @@ describe('createSessionLog', () => {
     log.write(played(2000, 800, 'page-two'));
     expect(log.getEvents().map((event) => event.atMs)).toEqual([59_200, 69_200]);
   });
+
+  it('stops growing at the same bound the API keeps, so a tab cannot fill the job\'s memory', () => {
+    const log = createSessionLog({ getNowMs: () => 1000, getBeat: () => BEAT });
+    for (let index = 0; index < 5001; index += 1) log.writeSaid(`line ${index}`, 0);
+    expect(log.getEvents()).toHaveLength(5000);
+  });
 });
 
 describe('readDataMessage', () => {

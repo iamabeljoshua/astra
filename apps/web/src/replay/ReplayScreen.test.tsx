@@ -71,6 +71,26 @@ describe('the replay screen', () => {
     expect(screen.queryByRole('button', { name: REPLAY_LABELS.sound })).toBeNull();
   });
 
+  it('opens with sound off, says how it will sound, and reads aloud only once Sound is pressed', async () => {
+    const speak = vi.fn();
+    vi.stubGlobal('SpeechSynthesisUtterance', class { constructor(readonly text: string) {} });
+    vi.stubGlobal('speechSynthesis', { getVoices: () => [{ localService: true, default: true, lang: 'en-US' }], speak, cancel: vi.fn(), addEventListener: vi.fn(), removeEventListener: vi.fn() });
+    stubReplay({ replay: { recap: null, runs: [{ startedAt: 'x', events: LESSON_LOG }] } });
+    open();
+    const sound = await screen.findByRole('button', { name: REPLAY_LABELS.sound });
+    expect(sound.getAttribute('aria-pressed')).toBe('false');
+    expect(screen.getByTestId('replay-sound-note').textContent).toBe(REPLAY_LABELS.soundOffNote);
+    expect(REPLAY_LABELS.soundOffNote).toMatch(/won't sound like your tutor/);
+
+    fireEvent.click(screen.getByRole('button', { name: REPLAY_LABELS.play }));
+    expect(speak).not.toHaveBeenCalled();
+
+    fireEvent.click(sound);
+    expect(sound.getAttribute('aria-pressed')).toBe('true');
+    expect(speak).toHaveBeenCalledOnce();
+    expect(screen.getByTestId('replay-sound-note').textContent).toBe(REPLAY_LABELS.soundNote);
+  });
+
   it('takes no work, because this has already happened', async () => {
     stubReplay({ replay: { recap: null, runs: [{ startedAt: 'x', events: LESSON_LOG }] } });
     open();

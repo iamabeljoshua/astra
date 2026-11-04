@@ -7,6 +7,7 @@ export function makeFakeVoice(view: Partial<LiveVoiceView> = {}): LiveVoice {
   let current = { ...BASE_VIEW, ...view };
   const listeners = new Set<() => void>();
   return {
+    canAskForRecap: vi.fn(() => false),
     askForRecap: vi.fn(() => false),
     records: {} as LiveVoice['records'],
     player: {} as LiveVoice['player'],

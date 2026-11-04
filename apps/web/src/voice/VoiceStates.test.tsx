@@ -35,6 +35,7 @@ function makeVoice() {
     sendWork: vi.fn(),
     stopTutor: () => {},
     sendTyped: vi.fn(),
+    canAskForRecap: vi.fn(() => true),
     askForRecap: vi.fn(() => true),
     reportMarkNotDrawn: vi.fn(),
     toggleMic: vi.fn(async () => {}),
@@ -373,8 +374,8 @@ describe('what the student sees of a room', () => {
     it('finishes the session at once, keeps the room for the recap, and asks for it', async () => {
       const { voice, calls } = await openAndWatchRequests();
       pressEnd();
-      expect(voice.askForRecap).toHaveBeenCalledOnce();
       await waitFor(() => expect(calls).toContainEqual({ method: 'PATCH', body: expect.objectContaining({ status: 'finished', keepsRoomForRecap: true }) }));
+      await waitFor(() => expect(voice.askForRecap).toHaveBeenCalledOnce());
       expect(await screen.findByText(RECAP_LABELS.writing)).toBeTruthy();
       expect(screen.queryByRole('button', { name: BOARD_WORK_LABELS.pen })).toBeNull();
       expect(screen.queryByRole('textbox', { name: BOARD_WORK_LABELS.entry })).toBeNull();
@@ -433,9 +434,40 @@ describe('what the student sees of a room', () => {
       }
     });
 
+    it('keeps the tutor teaching when the end could not be saved, because the recap is asked for only after it is', async () => {
+      const { voice } = await openVoice();
+      const answer = globalThis.fetch;
+      vi.stubGlobal('fetch', async (request: Request) => (request.method === 'PATCH' ? new Response('{}', { status: 500 }) : answer(request)));
+      pressEnd();
+      await screen.findByRole('button', { name: SESSION_LABELS.endSession }, { timeout: 8000 });
+      expect(voice.askForRecap).not.toHaveBeenCalled();
+      expect(window.location.pathname).toMatch(/^\/sessions\//);
+    }, 10_000);
+
+    it('gives a tutor that never answers 8 s from the press, however long the end took to save', async () => {
+      await openVoice();
+      const answer = globalThis.fetch;
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.stubGlobal('fetch', async (request: Request) => {
+        if (request.method === 'PATCH') await new Promise((resolve) => setTimeout(resolve, 2000));
+        return answer(request);
+      });
+      try {
+        pressEnd();
+        await act(() => vi.advanceTimersByTimeAsync(2100));
+        await vi.waitFor(() => expect(screen.getByText(RECAP_LABELS.writing)).toBeTruthy());
+        await act(() => vi.advanceTimersByTimeAsync(5700));
+        expect(window.location.pathname).toMatch(/^\/sessions\//);
+        await act(() => vi.advanceTimersByTimeAsync(300));
+        await vi.waitFor(() => expect(window.location.pathname).toBe('/'), { timeout: 1000 });
+      } finally {
+        vi.useRealTimers();
+      }
+    }, 10_000);
+
     it('ends with no recap and no held room when the tutor cannot be reached', async () => {
       const { voice, calls } = await openAndWatchRequests();
-      voice.askForRecap.mockReturnValue(false);
+      voice.canAskForRecap.mockReturnValue(false);
       pressEnd();
       await waitFor(() => expect(window.location.pathname).toBe('/'));
       expect(calls.at(-1)?.body).not.toHaveProperty('keepsRoomForRecap');

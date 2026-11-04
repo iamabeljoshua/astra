@@ -233,5 +233,25 @@ describe('the agent channel', () => {
       await saveLog(sessionId, { ...RUN, events: [{ seq: 0 }] }).expect(400);
       await saveRecap(sessionId, { recap: 'words' }).expect(400);
     });
+
+    it.each([
+      ['a null character', { seq: 0, event: { text: 'a\u0000b' } }],
+      ['a lone surrogate', { seq: 0, event: { text: 'a\ud83db' } }],
+      ['a bad character far inside an event', { seq: 0, event: { action: { work: [{ text: '\u0000' }] } } }],
+      ['a bad character in a key', { seq: 0, event: { 'a\u0000': 1 } }],
+      ['a place past what a row can hold', { seq: 2_147_483_648, event: {} }],
+    ])('answers 400 and not a server error to %s, so the agent can drop it', async (_caseName, loggedEvent) => {
+      const id = await startSession();
+      await saveLog(id, { ...RUN, events: [loggedEvent] }).expect(400);
+    });
+
+    it('answers 400 to a recap Postgres could not hold', async () => {
+      await saveRecap(await startSession(), { recap: { kind: 'gentle', line: 'a\u0000b' } }).expect(400);
+    });
+
+    it('takes one save that names a place twice, with no server error', async () => {
+      const id = await startSession();
+      await saveLog(id, { ...RUN, events: [{ seq: 0, event: { a: 1 } }, { seq: 0, event: { a: 2 } }] }).expect(204);
+    });
   });
 });

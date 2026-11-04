@@ -6,11 +6,14 @@ import type { TestApp, TestStudent } from '../../test/test-database';
 import { SessionLogEventEntity } from '../infrastructure/orm/entities/session-log-event.entity';
 import type { SessionLogRun } from '../infrastructure/orm/repositories/session-log.repository';
 import { SessionEntity } from '../infrastructure/orm/entities/session.entity';
+import { SessionRepository } from '../infrastructure/orm/repositories/session.repository';
 import { LiveRooms } from '../livekit/live-rooms';
 import { SessionsService } from './sessions.service';
 
 const SESSIONS_PATH = '/sessions';
 const VALID_SESSION = { title: 'Free-body diagrams', subject: 'Physics', language: 'en' };
+const LOG_ROW_BOUND = 5_000;
+const LOG_BYTE_BOUND = 10_000_000;
 
 describe('the sessions routes', () => {
   let testApp: TestApp;
@@ -365,7 +368,7 @@ describe('the sessions routes', () => {
 
       await api().patch(`${SESSIONS_PATH}/${withRecap.id}`).send({ durationSeconds: 5, status: 'finished', keepsRoomForRecap: true }).expect(200);
       expect(close).not.toHaveBeenCalled();
-      expect(closeAfter).toHaveBeenCalledWith(withRecap.id, expect.any(Number));
+      expect(closeAfter).toHaveBeenCalledWith(withRecap.id, 120_000);
       await api().patch(`${SESSIONS_PATH}/${withNone.id}`).send({ durationSeconds: 5, status: 'finished' }).expect(200);
       expect(close).toHaveBeenCalledWith(withNone.id);
       jest.restoreAllMocks();
@@ -390,12 +393,67 @@ describe('the sessions routes', () => {
       expect((list.body as { id: string; canReplay: boolean }[]).find((session) => session.id === id)).toMatchObject({ canReplay: true });
     });
 
-    it('replaces a row saved again, so a beat that plays further has one row', async () => {
+    it('lets a beat only play further, whatever order its saves arrive in, and changes no other row', async () => {
       const id = await startSessionWithLog(student);
-      await saveRun(id, { ...RUN, events: [{ seq: 0, event: { seq: 0, playedWords: 9 } }] });
+      const saveBeat = (playedWords: number, firedCueMs: number[] = []) => saveRun(id, { ...RUN, events: [{ seq: 1, event: { seq: 1, kind: 'beatPlayed', playedWords, firedCueMs } }] });
+
+      await saveBeat(3);
+      await saveBeat(9);
+      await saveBeat(5);
+      await saveBeat(9, [100]);
+      await saveBeat(9);
+      await saveRun(id, { ...RUN, events: [{ seq: 0, event: { seq: 0, kind: 'studentSpoke', text: 'an older line' } }] });
 
       const { body } = await api().get(`${SESSIONS_PATH}/${id}/replay`).expect(200);
-      expect((body as { runs: { events: object[] }[] }).runs).toEqual([expect.objectContaining({ events: [{ seq: 0, playedWords: 9 }] })]);
+      expect((body as { runs: { events: object[] }[] }).runs[0]?.events).toEqual([RUN.events[0]?.event, { seq: 1, kind: 'beatPlayed', playedWords: 9, firedCueMs: [100] }]);
+    });
+
+    it('stops a session\'s log at its bound, in rows and in bytes, and a save past it still answers as saved', async () => {
+      const countRows = (sessionId: string) => testApp.app.get(DataSource).getRepository(SessionLogEventEntity).countBy({ sessionId });
+      const fullOfRows = (await startSession(student)).id;
+      await saveRun(fullOfRows, { ...RUN, events: Array.from({ length: LOG_ROW_BOUND }, (_, seq) => ({ seq, event: { seq } })) });
+      await saveRun(fullOfRows, { ...RUN, events: [{ seq: LOG_ROW_BOUND, event: { seq: LOG_ROW_BOUND } }] });
+      await expect(countRows(fullOfRows)).resolves.toBe(LOG_ROW_BOUND);
+
+      const fullOfBytes = (await startSession(student)).id;
+      await saveRun(fullOfBytes, { ...RUN, events: [0, 1].map((seq) => ({ seq, event: { seq, text: 'w'.repeat(LOG_BYTE_BOUND / 2) } })) });
+      await saveRun(fullOfBytes, { ...RUN, events: [{ seq: 2, event: { seq: 2 } }] });
+      await expect(countRows(fullOfBytes)).resolves.toBe(2);
+    });
+
+    it('lets no save at the moment of a delete bring the log back', async () => {
+      const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+      let cameBack = 0;
+      for (let round = 0; round < 20; round += 1) {
+        const id = await startSessionWithLog(student);
+        const saves = Array.from({ length: 12 }, (_, index) => wait(index).then(() => saveRun(id, { ...RUN, events: [{ seq: index + 1, event: { seq: index + 1 } }] })));
+        await Promise.all([...saves, api().delete(`${SESSIONS_PATH}/${id}/replay`).expect(204)]);
+        const { body } = await api().get(`${SESSIONS_PATH}/${id}/replay`).expect(200);
+        if ((body as { runs: unknown[] }).runs.length > 0) cameBack += 1;
+      }
+      expect(cameBack).toBe(0);
+    }, 60_000);
+
+    it('keeps a late answer out of a deleted replay', async () => {
+      const id = await startSessionWithLog(student);
+      await testApp.app.get(SessionsService).saveRecap(id, { kind: 'gentle', line: 'Thanks.' });
+      await api().delete(`${SESSIONS_PATH}/${id}/replay`).expect(204);
+
+      await testApp.app.get(SessionRepository).saveRecapAnswerForStudent(student.id, id, 'a late answer');
+
+      await api().get(`${SESSIONS_PATH}/${id}/replay`).expect(200, { recap: null, recapAnswer: null, runs: [] });
+    });
+
+    it('leaves a room kept for its recap alone when a length save arrives after the end', async () => {
+      const close = jest.spyOn(testApp.app.get(LiveRooms), 'close');
+      jest.spyOn(testApp.app.get(LiveRooms), 'closeAfter').mockImplementation(() => {});
+      const { id } = await startSession(student);
+
+      await api().patch(`${SESSIONS_PATH}/${id}`).send({ durationSeconds: 5, status: 'finished', keepsRoomForRecap: true }).expect(200);
+      await api().patch(`${SESSIONS_PATH}/${id}`).send({ durationSeconds: 6 }).expect(200);
+
+      expect(close).not.toHaveBeenCalled();
+      jest.restoreAllMocks();
     });
 
     it('gives another student nothing, whether they read or delete, and leaves the owner\'s log whole', async () => {

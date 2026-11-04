@@ -504,6 +504,7 @@ describe('a typed message that is too long', () => {
 
   it('never holds half an emoji', () => {
     expect(clipTypedText('😀😀'.slice(0, 3))).toBe('😀');
+    expect(clipTypedText('a\u0000b')).toBe('ab');
   });
 });
 

@@ -1,7 +1,7 @@
 import type { SessionEvent, SessionRecap } from '@astra/contracts';
 import { describe, expect, it, vi } from 'vitest';
 import { getRecapFacts, type RecapFacts } from '../src/recap/recap-facts.ts';
-import { checkRecapDraft, GENTLE_LINE, GENTLE_RECAP, getEndingKind, getRecapBeats } from '../src/recap/recap-rules.ts';
+import { checkRecapDraft, GENTLE_LINE, GENTLE_RECAP, getEndingKind, getRecapBeats, TRY_NEXT_FROM_CODE } from '../src/recap/recap-rules.ts';
 import { getSessionEnding, writeLessonRecap } from '../src/recap/write-recap.ts';
 
 const TEACHING = 'We get x alone by taking three from both sides and then dividing both sides by two, so the equation gets simpler at every single step along the way to the answer.';
@@ -55,8 +55,16 @@ describe('whether a session gets a recap', () => {
     expect(getEndingKind({ ...factsWith(), tutorWords: 'That sounds serious. Please tell an adult you trust.'.split(' ') })).toBe('gentle');
   });
 
-  it('never ends gently only for a word that looks like a worry in a lesson', () => {
-    expect(getEndingKind({ ...factsWith(), studentLines: ['what does the beat of a wave mean'] })).toBe('lesson');
+  it.each(['what does the beat of a wave mean', 'beats me', 'it beats me', 'hit me with another one', 'why does he want to die', 'does hamlet really want to die', 'what happens in an insulin overdose'])('gives an ordinary lesson its recap when the student says "%s"', (line) => {
+    expect(getEndingKind({ ...factsWith(), studentLines: [line] })).toBe('lesson');
+  });
+
+  it('gives an ordinary lesson its recap when the tutor says it was not their fault', () => {
+    expect(getEndingKind({ ...factsWith(), tutorWords: [...TEACHING.split(' '), ...'It is not your fault, this trips everyone up.'.split(' ')] })).toBe('lesson');
+  });
+
+  it.each(['my dad beats me', 'my dad hits me', 'he hits me', 'she beat me again', 'mum hit me', 'my stepdad keeps hitting me', 'i think i overdosed', 'i just want to die', 'wanna die', 'sometimes i really want to die'])('still ends gently with no model on "%s"', (line) => {
+    expect(getEndingKind({ ...factsWith(), studentLines: [line] })).toBe('gentle');
   });
 
   it('gives no praise and no talk of the work in a gentle ending', () => {
@@ -79,14 +87,29 @@ describe('the checks on what the model wrote', () => {
     expect(check).toMatchObject({ recap: { gotRight: null } });
   });
 
-  it('replaces a line naming a number that was not right with one code can stand behind', () => {
-    const check = checkRecapDraft({ ...GOOD_DRAFT, gotRight: 'You got x equals five.' }, factsWith([{ line: 'x = 4', status: 'right' }]));
+  it.each(['You got every single question right.', 'You got photosynthesis right.', 'You got x equals five.', 'You got x equals four on your own.'])('says only what code found right, whatever the draft says: "%s"', (gotRight) => {
+    const check = checkRecapDraft({ ...GOOD_DRAFT, gotRight }, factsWith([{ line: 'x = 4', status: 'right' }, { line: '2x = 14', status: 'wrong' }]));
     expect(check).toMatchObject({ recap: { gotRight: 'You got x equals 4 right.' } });
   });
 
-  it('keeps a true line in spoken numbers', () => {
-    const check = checkRecapDraft({ ...GOOD_DRAFT, gotRight: 'You got x equals four on your own.' }, factsWith([{ line: 'x = 4', status: 'right' }]));
-    expect(check).toMatchObject({ recap: { gotRight: 'You got x equals four on your own.' } });
+  it('leaves out right work too long to say, and keeps the recap', () => {
+    const check = checkRecapDraft(GOOD_DRAFT, factsWith([{ line: 'word '.repeat(30).trim(), status: 'right' }]));
+    expect(check).toMatchObject({ recap: { gotRight: null } });
+  });
+
+  it.each(['twenty-du', 'twenty-606', 'twenty-henty', 'twentydu'])('never asks the student to answer a made-up number, "%s"', (number) => {
+    const check = checkRecapDraft({ ...GOOD_DRAFT, tryNext: `Try solving three x plus two equals ${number}.` }, factsWith());
+    expect(check).toMatchObject({ recap: { tryNext: TRY_NEXT_FROM_CODE } });
+  });
+
+  it('asks the student to answer only numbers the lesson held', () => {
+    expect(checkRecapDraft({ ...GOOD_DRAFT, tryNext: 'Try solving 4x + 9 = 33.' }, factsWith())).toMatchObject({ recap: { tryNext: TRY_NEXT_FROM_CODE } });
+    expect(checkRecapDraft({ ...GOOD_DRAFT, tryNext: 'Try taking three from both sides of two x.' }, factsWith())).toMatchObject({ recap: { tryNext: 'Try taking three from both sides of two x.' } });
+  });
+
+  it('takes a tens word joined to a unit', () => {
+    const facts = { ...factsWith(), studentLines: ['is it twenty-one'] };
+    expect(checkRecapDraft({ ...GOOD_DRAFT, tryNext: 'Try writing twenty-one as a product.' }, facts)).toMatchObject({ recap: { tryNext: 'Try writing twenty-one as a product.' } });
   });
 
   it.each([
@@ -96,6 +119,7 @@ describe('the checks on what the model wrote', () => {
     ['a claim that it was solved', { ...GOOD_DRAFT, covered: 'We solved the equation by taking three from both sides.' }, 'says what the student did'],
     ['a claim about the student in tryNext', { ...GOOD_DRAFT, tryNext: 'Next, since you mastered this, try harder ones.' }, 'says what the student did'],
     ['a made up number', { ...GOOD_DRAFT, covered: 'We worked on getting x alone in 47 equations together.' }, 'numbers nobody said'],
+    ['a broken number in covered', { ...GOOD_DRAFT, covered: 'We worked on getting x alone in twenty-du steps.' }, 'broken number'],
     ['a topic nobody spoke of', { ...GOOD_DRAFT, covered: 'We studied Roman emperors.' }, 'nothing that was said'],
     ['a question to try', { ...GOOD_DRAFT, tryNext: 'Try this, what is x when 2x is 10?' }, 'asks a question'],
     ['too long', { ...GOOD_DRAFT, covered: `We ${'equation '.repeat(25)}` }, 'runs past'],

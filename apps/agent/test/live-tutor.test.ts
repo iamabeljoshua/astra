@@ -269,6 +269,13 @@ describe('an interrupted request', () => {
     await session.close();
   });
 
+  it('holds a flood of typed lines at the message gate, so they cannot fill the log', () => {
+    const { session } = setup(() => ({ pieces: ['Okay.'] }));
+    for (let index = 0; index < 5000; index += 1) session.onBrowser(typed(`line ${index}`));
+    expect(session.getLog().length).toBeLessThan(1000);
+    void session.close();
+  });
+
   it('keeps a flood of typed messages to a request every two seconds', async () => {
     const { session, model } = setup(() => ({ pieces: ['Okay, here we go.'] }));
     for (let index = 0; index < 30; index += 1) {

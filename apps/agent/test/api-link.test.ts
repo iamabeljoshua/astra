@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createApiLink } from '../src/tutor/api-link.ts';
+import { ApiRefusedError, createApiLink } from '../src/tutor/api-link.ts';
 
 const SESSION = '3f2b8c1e-9a4d-4c7b-8e21-6d5f0a9b1c2d';
 
@@ -14,5 +14,11 @@ describe('the agent link to the API', () => {
     });
     await createApiLink({ apiUrl: 'http://api.test', agentKey: 'key', roomName }).fetchProfile();
     expect(addresses).toEqual([`http://api.test/agent/sessions/${SESSION}/brief`]);
+  });
+
+  it.each([[400, true], [413, true], [500, false], [503, false]])('says a save answered %i was refused for good: %s', async (status, isRefused) => {
+    vi.stubGlobal('fetch', async () => new Response('{}', { status }));
+    const saving = createApiLink({ apiUrl: 'http://api.test', agentKey: 'key', roomName: `session-${SESSION}` }).saveLog({ runId: 'r', runStartedAt: new Date(), events: [] });
+    await expect(saving.catch((problem: unknown) => problem instanceof ApiRefusedError)).resolves.toBe(isRefused);
   });
 });
