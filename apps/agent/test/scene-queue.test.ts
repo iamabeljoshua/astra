@@ -208,6 +208,78 @@ describe('the next scene queue', () => {
     expect(queue.getEntries()).toEqual([]);
   });
 
+  it('asks for a due scene only once the reply to the student has been read, and never after a safety reply', async () => {
+    const { queue, scenes } = setUp({ library: { [RINGS.topic]: [null, 'Why a moon that gets too close breaks apart', null] } });
+    const first = start(RINGS);
+    queue.onLesson(first);
+    await flush();
+    queue.noteAhead('Why a moon that gets too close breaks apart', 'ready');
+    queue.noteStudentWords('okay that makes sense');
+    queue.onLesson(OPEN_AND_FINISH(first));
+    expect(scenes.ask).not.toHaveBeenCalled();
+    queue.noteTutorReply({ spokenText: 'That sounds serious. Please call your local emergency number.', refusalCategory: null });
+    expect(scenes.ask).not.toHaveBeenCalled();
+    expect(scenes.stop).toHaveBeenCalledOnce();
+  });
+
+  it('asks for a due scene when an ordinary reply has been read', async () => {
+    const { queue, scenes } = setUp({ library: { [RINGS.topic]: [null, 'Why a moon that gets too close breaks apart', null] } });
+    const first = start(RINGS);
+    queue.onLesson(first);
+    await flush();
+    queue.noteAhead('Why a moon that gets too close breaks apart', 'ready');
+    queue.noteStudentWords('okay that makes sense');
+    queue.onLesson(OPEN_AND_FINISH(first));
+    queue.noteTutorReply({ spokenText: 'Good. On we go.', refusalCategory: null });
+    expect(asked(scenes)).toEqual(['Why a moon that gets too close breaks apart']);
+  });
+
+  it('any student turn ends what was waiting at the desk', async () => {
+    const { queue, scenes } = setUp();
+    queue.noteStudentWords('wait, why is that');
+    expect(scenes.dropWaiting).toHaveBeenCalledWith('movedOn');
+  });
+
+  it('lands nothing in place of a step the student skipped, and the tutor can still ask for the next by name', async () => {
+    const { queue, scenes } = setUp({ library: { [RINGS.topic]: [null, 'Why a moon that gets too close breaks apart', 'How small moons carve gaps in the rings'] } });
+    const first = start(RINGS);
+    queue.onLesson(first);
+    await flush();
+    queue.noteAhead('Why a moon that gets too close breaks apart', 'ready');
+    queue.noteStudentWords('skip that');
+    queue.onLesson(getStateAfterEvent(first, 'skipped'), 'skipped');
+    queue.noteTutorReply({ spokenText: 'Sure. So moons also carve gaps.', refusalCategory: null });
+    expect(scenes.ask).not.toHaveBeenCalled();
+    expect(scenes.dropPrepared).toHaveBeenCalledWith('Why a moon that gets too close breaks apart');
+    expect(prepared(scenes).at(-1)).toBe('How small moons carve gaps in the rings');
+  });
+
+  it('after a switch, what waited is gone and nothing from the old lesson lands', async () => {
+    const { queue, scenes } = setUp({ library: { [RINGS.topic]: [null, 'Why a moon that gets too close breaks apart', null] } });
+    const rings = start(RINGS);
+    queue.onLesson(rings);
+    await flush();
+    queue.noteAhead('Why a moon that gets too close breaks apart', 'ready');
+    queue.noteStudentWords('actually teach me about paint');
+    queue.onLesson(getStateAfterMove(rings, { move: 'new', plan: MIXING }));
+    queue.noteTutorReply({ spokenText: 'Sure, paint.', refusalCategory: null });
+    expect(scenes.ask).not.toHaveBeenCalled();
+    expect(scenes.dropPrepared).toHaveBeenCalledWith('Why a moon that gets too close breaks apart');
+  });
+
+  it('starts no second write while one that missed its moment is still running', async () => {
+    const { queue, scenes } = setUp();
+    const first = start(RINGS);
+    queue.onLesson(first);
+    await flush();
+    const second = OPEN_AND_FINISH(first);
+    queue.onLesson(second);
+    queue.noteAhead("Saturn's rings: a moon too close breaks apart", 'lateWrite');
+    expect(prepared(scenes)).toHaveLength(1);
+    queue.noteAhead("Saturn's rings: a moon too close breaks apart", 'settled');
+    expect(prepared(scenes).at(-1)).toBe("Saturn's rings: moons carve gaps");
+  });
+
   it('forgets a scene that failed, and the next step still gets its try', async () => {
     const { queue, scenes } = setUp();
     const first = start(RINGS);

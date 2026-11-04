@@ -383,6 +383,21 @@ describe('a scene started ahead of its moment', () => {
     expect(sent.filter((message) => message.type === 'loadScene')).toHaveLength(2);
   });
 
+  it('says when a write that missed its moment is still running, and when it ends', async () => {
+    const onAhead = vi.fn();
+    let finish: (made: { isOk: true; scene: StoredScene }) => void = () => {};
+    const { scenes } = setUp({ onAhead, getScene: () => new Promise((resolve) => (finish = resolve)) });
+    opened(scenes);
+    scenes.prepare(TOPIC);
+    await flush();
+    scenes.ask(TOPIC);
+    scenes.dropWaiting('movedOn');
+    expect(onAhead).toHaveBeenLastCalledWith(TOPIC, 'lateWrite');
+    finish({ isOk: true, scene: SCENE });
+    await flush();
+    expect(onAhead).toHaveBeenLastCalledWith(TOPIC, 'settled');
+  });
+
   it('sends its bytes again after a reload, and brings the last scene back', async () => {
     const { scenes, sent, store } = setUp();
     const shownScene = await saveShared(store);

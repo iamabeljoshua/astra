@@ -1,15 +1,16 @@
 import { isAboutBeingUnsafe } from '../scenes/content-check.ts';
 import type { LessonPlan, LessonStep } from '../lesson-plan/lesson-plan.ts';
-import type { LessonState } from '../lesson-plan/plan-progress.ts';
+import type { LessonEvent, LessonState } from '../lesson-plan/plan-progress.ts';
 import { MAY_BE_ABOUT_SAFETY, PLAIN_REFUSALS } from '../tutor/safety-words.ts';
 import { type AheadFacts, getPrepareRefusal, getWriteRefusal } from './ahead-budget.ts';
 
 /** A scene of a saved library costs nothing, and a written one costs a write, so the two follow different rules. */
 export type SceneSource = 'library' | 'written';
-export type EntryState = 'making' | 'ready' | 'due' | 'shown';
+/** `due` waits for the reply being written, and `asked` is with the desk, waiting for the pause. */
+export type EntryState = 'making' | 'ready' | 'due' | 'asked' | 'shown';
 
-/** What the desk says of a scene started ahead. `missed` lost its moment and is saved, `failed` cost its try, and `declined` was no write at all. */
-export type AheadNews = 'ready' | 'shown' | 'missed' | 'failed' | 'declined';
+/** What the desk says of a scene started ahead. `missed` lost its moment and is saved, `lateWrite` lost it with a write still running, `settled` is that write ending, `failed` cost its try, and `declined` was no write at all. */
+export type AheadNews = 'ready' | 'shown' | 'missed' | 'lateWrite' | 'settled' | 'failed' | 'declined';
 
 export interface QueueEntry {
   request: string;
@@ -41,7 +42,7 @@ export interface SceneQueueOptions {
 }
 
 export interface SceneQueue {
-  onLesson(state: LessonState): void;
+  onLesson(state: LessonState, event?: LessonEvent | null): void;
   onPageReady(): void;
   onTutorAsk(topic: string): void;
   noteAhead(request: string, state: AheadNews): void;
@@ -77,7 +78,9 @@ export function createSceneQueue({ scenes, readLibrary, getFacts, canPlay, moveT
   let lesson: { plan: LessonPlan; stepIndex: number } | null = null;
   let isStopped = false;
   let isHeld = false;
+  let isReplying = false;
   let writesStarted = 0;
+  let lateWrites = 0;
   let lastRefusal: string | null = null;
   const givenUp = new Set<string>();
   const libraryByTopic = new Map<string, readonly (string | null)[] | 'reading'>();
@@ -119,7 +122,7 @@ export function createSceneQueue({ scenes, readLibrary, getFacts, canPlay, moveT
     return entry;
   };
 
-  const isMakingWrite = () => entries.some((entry) => entry.source === 'written' && (entry.state === 'making' || entry.state === 'due'));
+  const isMakingWrite = () => lateWrites > 0 || entries.some((entry) => entry.source === 'written' && (entry.state === 'making' || entry.state === 'due' || entry.state === 'asked'));
 
   const fillAhead = () => {
     if (!lesson) return;
@@ -130,10 +133,19 @@ export function createSceneQueue({ scenes, readLibrary, getFacts, canPlay, moveT
     startEntry(nextIndex);
   };
 
+  const askDue = () => {
+    for (const entry of entries) {
+      if (entry.state !== 'due') continue;
+      entry.state = 'asked';
+      scenes.ask(entry.request);
+    }
+  };
+
+  // Asked only once the reply to the student's last words has been read and is not a safety reply, so a scene can never land on top of one.
   const makeDue = (entry: QueueEntry) => {
     entry.state = 'due';
     trace('sceneCue', { text: entry.request, source: entry.source, stepIndex: entry.stepIndex, wallMs: Date.now() });
-    scenes.ask(entry.request);
+    if (!isReplying) askDue();
   };
 
   // A saved scene for the step the lesson is on costs nothing, so it can start here. A write for this step would come too late.
@@ -141,7 +153,7 @@ export function createSceneQueue({ scenes, readLibrary, getFacts, canPlay, moveT
     if (!lesson) return;
     const { stepIndex, plan } = lesson;
     const known = findEntry(stepIndex);
-    if (known?.state === 'due' || known?.state === 'shown') return;
+    if (known?.state === 'due' || known?.state === 'asked' || known?.state === 'shown') return;
     if (known) return makeDue(known);
     if (!getLibrary(plan.topic)?.[stepIndex]) return;
     const started = startEntry(stepIndex);
@@ -176,7 +188,7 @@ export function createSceneQueue({ scenes, readLibrary, getFacts, canPlay, moveT
   };
 
   return {
-    onLesson({ active }) {
+    onLesson({ active }, event = null) {
       if (!active) return;
       const wasTopic = lesson?.plan.topic ?? null;
       const wasStep = lesson?.stepIndex ?? null;
@@ -187,7 +199,10 @@ export function createSceneQueue({ scenes, readLibrary, getFacts, canPlay, moveT
       if (!isSwitch && wasStep !== active.stepIndex) scenes.dropWaiting('movedOn');
       dropPassed();
       startLibraryRead(active.plan);
-      if (isSwitch || wasStep !== active.stepIndex) reachStep();
+      // A student who says "skip that" gets no picture for it, and code puts none up in its place. The tutor can still ask for the next one by name.
+      const known = findEntry(active.stepIndex);
+      if (event === 'skipped' && known) remove(known);
+      else if (isSwitch || wasStep !== active.stepIndex) reachStep();
       fillAhead();
     },
     onPageReady() {
@@ -201,6 +216,12 @@ export function createSceneQueue({ scenes, readLibrary, getFacts, canPlay, moveT
       scenes.ask(topic);
     },
     noteAhead(request, state) {
+      if (state === 'settled') {
+        lateWrites -= 1;
+        if (!isStopped && !isHeld) fillAhead();
+        return;
+      }
+      if (state === 'lateWrite') lateWrites += 1;
       const entry = entries.find((one) => sameWords(one.request, request));
       if (!entry) return;
       trace('sceneAhead', { text: request, state, wallMs: Date.now() });
@@ -216,20 +237,23 @@ export function createSceneQueue({ scenes, readLibrary, getFacts, canPlay, moveT
     },
     noteStudentWords(words) {
       if (isAboutBeingUnsafe(words)) return stopForGood();
+      isReplying = true;
       const wasHeld = isHeld;
       isHeld = MAY_BE_ABOUT_SAFETY.test(words);
-      if (isHeld) {
-        scenes.dropWaiting('movedOn');
-        entries = entries.filter((entry) => entry.state !== 'due');
-      }
+      // Any student turn ends what was waiting to land, because what they just said may change everything.
+      scenes.dropWaiting('movedOn');
+      if (isHeld) entries = entries.filter((entry) => entry.state !== 'due');
       if (wasHeld && !isHeld && !isStopped) fillAhead();
     },
     noteTutorReply({ spokenText, refusalCategory }) {
-      if (SAFETY_REPLY.test(spokenText) || (refusalCategory !== null && !PLAIN_REFUSALS.has(refusalCategory))) stopForGood();
-      else if (!isStopped) fillAhead();
+      isReplying = false;
+      if (SAFETY_REPLY.test(spokenText) || (refusalCategory !== null && !PLAIN_REFUSALS.has(refusalCategory))) return stopForGood();
+      if (isStopped || isHeld) return;
+      askDue();
+      fillAhead();
     },
     getReadyPicture() {
-      if (!lesson || isStopped || isHeld || entries.some((entry) => entry.state === 'due')) return null;
+      if (!lesson || isStopped || isHeld || entries.some((entry) => entry.state === 'due' || entry.state === 'asked')) return null;
       const next = findEntry(lesson.stepIndex + 1);
       return next?.state === 'ready' ? next.request : null;
     },

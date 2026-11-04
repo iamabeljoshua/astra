@@ -2,7 +2,7 @@ import { getBeatText, type InkPoint } from '@astra/contracts';
 import { readKey } from '../keys.ts';
 import { askPlanner } from '../lesson-plan/ask-planner.ts';
 import { createLessonPlanner, type LessonPlanner } from '../lesson-plan/lesson-planner.ts';
-import type { LessonState } from '../lesson-plan/plan-progress.ts';
+import type { LessonEvent, LessonState } from '../lesson-plan/plan-progress.ts';
 import { makeAnthropicJsonReader, makeAnthropicPictureReader, makeAnthropicTutorModel, TUTOR_MODEL_NAMES, type TutorModelName } from '../providers/anthropic.ts';
 import { makeRecordedTutorModel } from '../providers/fake-model.ts';
 import { createStandInTutor } from '../live/stand-in-tutor.ts';
@@ -141,7 +141,7 @@ export interface MadeBrain {
 export interface SceneHooks {
   onAskScene(topic: string): void;
   onStudentWords?(words: string): void;
-  onLessonChange?(state: LessonState): void;
+  onLessonChange?(state: LessonState, event: LessonEvent | null): void;
   getReadyPicture?(): string | null;
   onTurnWritten?(turn: { firstTextMs: number | null; spokenText: string; refusalCategory: string | null }): void;
 }

@@ -48,6 +48,8 @@ The tutor asks and never waits. `ASTRA_TUTOR_SCENES=1` on the agent adds one com
 - **The kit.** The kit is not connected, so a route to the kit is no scene. ManimGX writing solid things scored 7 of 8 scenes with a critical item false, so calling those ManimGX would show wrong pictures. What the router lost were flat diagrams it read by subject, such as a Punnett square, so the router now sends a flat labelled diagram to ManimGX whatever its subject.
 - **What a check may do.** A scene check never speaks in a session. A safety read, a dangerous read, a kit route, a refusal, a failed run, and a late scene all mean no scene. Crisis handling is the tutor's, from its own rules.
 
+M3.13 adds what is next inside a running lesson on top of this: `docs/tests/lesson-flow.md`.
+
 What a real session measured on 4 November 2026, with real Sonnet 5.5, a real page, and the tone voice, on the Mac the rest of the program shares. Its load was 16 to 41 on 12 cores with 26 to 28 GB of swap in use. `apps/agent/src/scenes/proof/tutor-scene-proof.ts` drives it.
 
 | Check | Result |

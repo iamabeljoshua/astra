@@ -31,7 +31,7 @@ export interface LessonPlannerOptions {
   /** The lesson changed to another topic in the same session. */
   onTitleChange(title: string): void;
   /** Tells whatever prepares for the lesson that the plan or its step changed, and never waits for it. */
-  onLessonChange?(state: LessonState): void;
+  onLessonChange?(state: LessonState, event: LessonEvent | null): void;
   /** A picture of the next idea that can land now, for the tutor to ask for by name. */
   getReadyPicture?(): string | null;
   trace(name: string, fields?: Record<string, unknown>): void;
@@ -67,7 +67,7 @@ export function createLessonPlanner({ ask, canSpend, charge, onTitleChange, onLe
     state = getStateAfterMove(state, move);
     const topic = state.active?.plan.topic ?? null;
     if (!isOpening && topic !== null && topic !== hadTopic) onTitleChange(topic);
-    onLessonChange?.(state);
+    onLessonChange?.(state, null);
   };
 
   const askOnce = async ({ words: said, isOpening, tutorSaid }: HeardWords) => {
@@ -95,13 +95,13 @@ export function createLessonPlanner({ ask, canSpend, charge, onTitleChange, onLe
   const noteEvent = (event: LessonEvent | null) => {
     if (!event) return;
     state = getStateAfterEvent(state, event);
-    onLessonChange?.(state);
+    onLessonChange?.(state, event);
   };
 
   return {
     noteStudentWords(heard) {
       if (isStageWords(heard.words) || isLineOfWork(heard.words)) return;
-      if (ASKS_TO_SKIP.test(heard.words)) noteEvent('movedOn');
+      if (ASKS_TO_SKIP.test(heard.words)) noteEvent('skipped');
       waiting = heard;
       asking ??= askWhileWaiting();
     },

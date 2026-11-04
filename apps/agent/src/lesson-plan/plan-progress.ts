@@ -21,8 +21,10 @@ export type LessonEvent =
   | 'exerciseLeft'
   /** The tutor went back to teaching with an exercise open, which is how words with no answer key end. */
   | 'teachingAgain'
-  /** The student asked to skip this step, or the tutor went on to the next idea, and neither waits on an exercise. */
-  | 'movedOn';
+  /** The tutor went on to the next idea, ahead of any exercise. */
+  | 'movedOn'
+  /** The student asked to skip this step. */
+  | 'skipped';
 
 /** The only part of a plan the tutor is told on a turn, because everything before it stays cached. */
 export type StepNote = { topic: string; kind: LessonKind; is_finished: true } | { topic: string; kind: LessonKind; step: string; teach_first: string | null; then_exercise: string; next_idea: string | null; picture_topic?: string };
@@ -60,6 +62,7 @@ function getActiveAfterEvent(active: ActivePlan, event: LessonEvent): ActivePlan
     case 'teachingAgain':
       return active.isExerciseOpen ? { ...active, stepIndex: active.stepIndex + 1, isExerciseOpen: false } : active;
     case 'movedOn':
+    case 'skipped':
       return { ...active, stepIndex: active.stepIndex + 1, isExerciseOpen: false };
   }
 }

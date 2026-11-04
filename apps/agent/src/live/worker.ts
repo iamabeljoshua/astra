@@ -12,7 +12,7 @@ import { type Ears, startEars, VAD_SETTINGS } from './ears.ts';
 import { createLiveSession } from './live-session.ts';
 import { createTakePicker, loadTakes } from './reactions.ts';
 import { readDataMessage } from './read-data-message.ts';
-import type { LessonState } from '../lesson-plan/plan-progress.ts';
+import type { LessonEvent, LessonState } from '../lesson-plan/plan-progress.ts';
 import { hasTutorScenes, makeTutorBrain, warmTutorModel } from '../tutor/make-brain.ts';
 import { makeTutorScenes, type SessionScenes } from '../tutor/make-tutor-scenes.ts';
 import { getSpokenCharacters } from '../tutor/tutor-scenes.ts';
@@ -81,7 +81,7 @@ async function runSession(context: JobContext): Promise<void> {
   const sceneHooks = {
     onAskScene: (topic: string) => scenes?.onTutorAsk(topic),
     onStudentWords: (words: string) => scenes?.queue?.noteStudentWords(words),
-    onLessonChange: (state: LessonState) => scenes?.queue?.onLesson(state),
+    onLessonChange: (state: LessonState, event: LessonEvent | null) => scenes?.queue?.onLesson(state, event),
     getReadyPicture: () => scenes?.queue?.getReadyPicture() ?? null,
     onTurnWritten(turn: { firstTextMs: number | null; spokenText: string; refusalCategory: string | null }) {
       lastFirstTextMs = turn.firstTextMs;

@@ -93,6 +93,16 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
 
   const toKey = (topic: string) => topic.trim().toLowerCase();
 
+  const lateWrites = new Set<SceneAsk>();
+
+  const getNewsOfEnding = (ask: SceneAsk, how: string): AheadNews => {
+    if (how === 'declined' || how === 'failed') return how;
+    const { kind } = ask.work.desk.getState();
+    if (kind !== 'routing' && kind !== 'making') return 'missed';
+    lateWrites.add(ask);
+    return 'lateWrite';
+  };
+
   const end = (ask: SceneAsk, how: string) => {
     if (ask !== current) return;
     if (ask.windowLimit) clearTimeout(ask.windowLimit);
@@ -101,7 +111,7 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
     current = null;
     // What missed its moment is saved, so asking again is free.
     if (how === 'tooLate' || how === 'movedOn' || how === 'switched') askedTopics.delete(toKey(ask.topic));
-    if (ask.isAhead && how !== 'landed') onAhead?.(ask.topic, how === 'declined' || how === 'failed' ? how : 'missed');
+    if (ask.isAhead && how !== 'landed') onAhead?.(ask.topic, getNewsOfEnding(ask, how));
     trace('sceneEnded', { how, afterMs: Math.round(getNowMs() - ask.askedAtMs) });
   };
 
@@ -149,7 +159,10 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
       return;
     }
     // A scene that comes after its window stays saved for the next ask, and this session has moved on.
-    if (ask !== current) return;
+    if (ask !== current) {
+      if (state.kind !== 'routing' && state.kind !== 'making' && lateWrites.delete(ask)) onAhead?.(ask.topic, 'settled');
+      return;
+    }
     if (state.kind === 'ready') loadInPage(ask, state.scene);
     if (state.kind === 'declined' || state.kind === 'failed') end(ask, state.kind);
   };
