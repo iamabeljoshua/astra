@@ -37,6 +37,8 @@ export interface MarksFrame {
 
 const getTargetParts = (target: ElementRef) => target.split('.') as [string, string | undefined];
 
+const getPlacementKey = ({ id, placedAtMs }: BoardElement) => `${id}@${placedAtMs}`;
+
 const isMark = (content: BoardElement['content']): content is MarkContent => content.kind === 'highlight' || content.kind === 'annotate';
 
 const getMarkKind = (content: MarkContent): AnnotationMark => (content.kind === 'highlight' ? 'circle' : content.mark);
@@ -98,8 +100,9 @@ export function createBoardMarks(overlay: SVGSVGElement, onMarkWithoutTarget?: (
 
   // A mark that once had a box and lost it went with its term through a rearrangement, which is no problem.
   const reportIfNeverDrawn = (mark: BoardElement, content: MarkContent) => {
-    if (drawnOnce.has(mark.id) || reported.has(mark.id)) return;
-    reported.add(mark.id);
+    const placement = getPlacementKey(mark);
+    if (drawnOnce.has(placement) || reported.has(placement)) return;
+    reported.add(placement);
     const tex = content.kind === 'highlight' ? content.tex : undefined;
     onMarkWithoutTarget?.({ kind: 'markWithoutTarget', markId: mark.id, target: content.target, ...(tex === undefined ? {} : { tex }) });
   };
@@ -130,7 +133,7 @@ export function createBoardMarks(overlay: SVGSVGElement, onMarkWithoutTarget?: (
       reportIfNeverDrawn(mark, content);
       return null;
     }
-    drawnOnce.add(mark.id);
+    drawnOnce.add(getPlacementKey(mark));
     const painted = getPaintedMark({ id: mark.id, kind: getMarkKind(content), box, existing: marks.get(mark.id) });
     const drawn = getMotionValue(mark.entrance, frame.atMs);
     const move = boxes.flightOffset;

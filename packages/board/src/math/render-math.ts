@@ -29,9 +29,12 @@ function getOwnText(element: Element): string {
 
 function collectFrom(element: Element, paints: MathPaintElement[]): void {
   if (element.matches(NOT_PAINT)) return;
-  const text = getOwnText(element);
-  if (text !== '') paints.push({ element: element as HTMLElement, glyph: text });
-  else if (element.matches(SHAPE)) paints.push({ element: element as HTMLElement, glyph: null });
+  // KaTeX sets the `g` of `\log` or `\gcd` as a span inside the text of the name, so the whole name is one piece of ink, and a move carries each letter once.
+  if (getOwnText(element) !== '') {
+    paints.push({ element: element as HTMLElement, glyph: (element.textContent ?? '').replace(NO_INK, '') });
+    return;
+  }
+  if (element.matches(SHAPE)) paints.push({ element: element as HTMLElement, glyph: null });
   else if (element.querySelector(':scope > svg')) {
     paints.push({ element: element as HTMLElement, glyph: null });
     return;
@@ -64,8 +67,8 @@ function readSentinelNumber(element: HTMLElement): number | null {
   return null;
 }
 
-// The outer group is what lets a marked part stand as a script or an argument, as in `x^2`, `\hat x`, and `\frac\pi2`. The second form is for a big operator, whose limits sit above and below only while it stays an operator.
-const MARKERS: readonly ((color: string, source: string) => string)[] = [(color, source) => `{\\textcolor{${color}}{${source}}}`, (color, source) => `\\mathop{\\textcolor{${color}}{${source}}}\\limits`];
+// Each form keeps one kind of part laid out as written: a script or an argument, a big operator's limits, and the limits KaTeX keeps under `\limsup\nolimits`.
+const MARKERS: readonly ((color: string, source: string) => string)[] = [(color, source) => `{\\textcolor{${color}}{${source}}}`, (color, source) => `\\mathop{\\textcolor{${color}}{${source}}}\\limits`, (color, source) => `\\operatorname*{\\textcolor{${color}}{${source}}}`];
 
 function wrapSpans(tex: string, spans: readonly TexSpan[], marker: (typeof MARKERS)[number]): string {
   let wrapped = '';
