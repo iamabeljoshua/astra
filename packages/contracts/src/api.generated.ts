@@ -173,6 +173,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/review/flags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lists every safety flag for a named reviewer, unreviewed first and then newest first. */
+        get: operations["ReviewController_listFlags"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/review/flags/{id}/reviewed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Marks one flag reviewed. The first reviewer stays on the record. */
+        post: operations["ReviewController_markReviewed"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -357,6 +391,40 @@ export interface components {
             url: string;
             /** @description Lets this student join this lesson's room. */
             token: string;
+        };
+        /**
+         * @description What kind of concern the check found.
+         * @enum {string}
+         */
+        SafetyFlagKind: "self_harm" | "abuse" | "danger" | "grooming" | "tutor_slip";
+        /**
+         * @description Whose words raised it, the student's or the tutor's.
+         * @enum {string}
+         */
+        SafetyFlagSource: "student" | "tutor";
+        SafetyFlagResponseDto: {
+            /** @description What kind of concern the check found. */
+            kind: components["schemas"]["SafetyFlagKind"];
+            /** @description Whose words raised it, the student's or the tutor's. */
+            source: components["schemas"]["SafetyFlagSource"];
+            /** @description The ID of the flag. */
+            id: string;
+            /** @description The student the flag is about. */
+            studentId: string;
+            /** @description The session it came from, or null if that session is gone. */
+            sessionId: string | null;
+            /**
+             * Format: date-time
+             * @description When the flag was raised.
+             */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description When a reviewer marked it reviewed, or null if nobody has yet.
+             */
+            reviewedAt: string | null;
+            /** @description The auth user who reviewed it, or null if nobody has yet. */
+            reviewedBy: string | null;
         };
     };
     responses: never;
@@ -632,6 +700,47 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SceneLessonResponseDto"];
+                };
+            };
+        };
+    };
+    ReviewController_listFlags: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SafetyFlagResponseDto"][];
+                };
+            };
+        };
+    };
+    ReviewController_markReviewed: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The ID of the flag. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SafetyFlagResponseDto"];
                 };
             };
         };
