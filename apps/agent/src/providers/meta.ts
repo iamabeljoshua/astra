@@ -17,9 +17,9 @@ export interface MuseTimings {
   padAfterMs: number;
   /** With no frames for this long the microphone is off or the link is gone, so the session closes and costs nothing. It outlasts LiveKit's own retries of 3 to 5 s, and comes before Muse's own close at about 16 s, so the session ends on our word. */
   closeAfterQuietMs: number;
-  /** A student holding to talk sends no frames between lines, and the next hold must not pay a new handshake of 1.2 to 2.3 s. Silence costs $0.18 an hour, so this costs at most $0.003 a line. */
+  /** Keeps the next hold off a new handshake of 1.2 to 2.3 s. At $0.18 an hour, the silence costs at most $0.003 a line. */
   closeAfterLineMs: number;
-  /** Audio took about 143 ms longer than a data message from agent to page, and by inference about that the other way, so the end waits for what is still on its way. Frames cannot say when that is, because they keep coming until the track leaves. */
+  /** Audio took about 143 ms longer than a data message from agent to page, and by inference the other way, so the end of a line waits for it. */
   lineTailMs: number;
   /** Muse caps a session at 60 minutes and the plugin only reports the close, so a new session opens before that. */
   rotateAtPauseAfterMs: number;

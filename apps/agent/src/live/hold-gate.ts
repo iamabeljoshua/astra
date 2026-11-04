@@ -13,7 +13,7 @@ export interface HoldGate {
   onLineFlushed(): TurnEvent[];
 }
 
-// Turns a held key into events the turn rule already knows, so the rule itself does not change.
+// Turns a held key into events the turn rule already knows.
 export function createHoldGate(): HoldGate {
   let phase: GatePhase = 'open';
   let finals: string[] = [];

@@ -56,7 +56,6 @@ function countWordErrors(said: string, heard: string | null): number {
   return row.at(-1) ?? target.length;
 }
 
-// Serves the worklet with its catch-up off, so the same page can be measured with and without it.
 async function turnOffCatchUp(page: Page): Promise<void> {
   await page.route('**/held-mic-worklet.js*', async (route) => {
     const response = await route.fetch();
@@ -144,7 +143,7 @@ async function withStudent<Result>(title: string, run: (student: StudentPage) =>
   }
 }
 
-// The screen joins as it opens and the tutor answers the session's opening line by itself, so a student who has pressed nothing is here once that answer has played.
+// Returns once the tutor has played its own answer to the opening line, with nothing pressed.
 async function goLive(student: StudentPage): Promise<void> {
   await student.waitForLive();
   await waitForRows(stack, student, 0, (found) => found.some((row) => row.name === 'turnFinished' && row.kind === 'reply'), 30_000);
@@ -636,7 +635,38 @@ const SCENARIOS: Record<string, (stack: VoiceStack) => Promise<unknown>> = {
       return results;
     }),
 
-  measure: (stack) => runMeasure(stack),
+  measure: () => runMeasure(),
+
+  realTutor: (stack) =>
+    withStudent('Why does a ball fall?', async (student) => {
+      await goLive(student);
+      const clip = getClip(HOLD_LINE.id);
+      const pressedAtMs = await getEpoch(student);
+      await student.page.keyboard.down('Space');
+      await delay(700);
+      const said = await student.say(clip);
+      await student.page.keyboard.up('Space');
+      const isAnswerHeard = (found: TraceRow[]) => {
+        const decidedAt = found.findIndex((row) => row.name === 'replyDecided');
+        return decidedAt >= 0 && found.slice(decidedAt).some((row) => row.name === 'turnFinished' && row.kind === 'reply');
+      };
+      const rows = await waitForRows(stack, student, pressedAtMs, isAnswerHeard, 30_000);
+      const final = rows.find((row) => row.name === 'words' && row.isFinal);
+      const decided = rows.find((row) => row.name === 'replyDecided');
+      const trace = await student.getTrace();
+      const firstReply = rows.find((row) => row.name === 'turnStarted' && row.kind === 'reply');
+      const firstWordAtMs = firstReply?.turnId ? trace.firstAudioEpochMs[firstReply.turnId] : undefined;
+      return {
+        said: clip.text,
+        heard: final?.text ?? null,
+        lostWords: getLostWords(clip.text, final?.text ?? null),
+        decided: decided?.text ?? null,
+        lastSoundToFirstWordMs: firstWordAtMs === undefined ? null : Math.round(firstWordAtMs - said.lastSoundEpochMs),
+        turns: rows.filter((row) => row.name === 'turnStarted').map((row) => row.kind),
+        tutorSaid: trace.view.tutorHeard.join(' '),
+        closed: await readClosed(student),
+      };
+    }),
 
   invitation: (stack) =>
     withStudent('First session', async (student) => {
@@ -748,7 +778,7 @@ const summarise = (lines: MeasuredLine[], field: keyof MeasuredLine) => {
   return { n: values.length, p50: getPercentile(values, 0.5), p95: getPercentile(values, 0.95), worst: values.length ? Math.max(...values) : null };
 };
 
-async function runMeasure(stack: VoiceStack) {
+async function runMeasure() {
   const clips = CLIP_IDS.slice(0, Number(args.clips)).map(getClip);
   const noise = Number(args.noise);
   const releaseAfterLastSoundMs = Number(args.releaseAfterLastSoundMs);
@@ -808,7 +838,7 @@ async function runMeasure(stack: VoiceStack) {
 }
 
 mkdirSync(out, { recursive: true });
-const stack = await startVoiceStack({ out, agentEnv: { ASTRA_VOICE: 'fake', ...((args.only as string).includes('quietClose') ? { ASTRA_QUIET_LIMIT_MS: args.quietLimitMs as string } : {}) } });
+const stack = await startVoiceStack({ out, agentEnv: { ...((args.only as string).includes('realTutor') ? {} : { ASTRA_VOICE: 'fake' }), ...((args.only as string).includes('quietClose') ? { ASTRA_QUIET_LIMIT_MS: args.quietLimitMs as string } : {}) } });
 let didThrow = false;
 try {
   for (const name of (args.only as string).split(',')) {

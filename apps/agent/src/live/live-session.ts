@@ -30,7 +30,6 @@ const HOLD_GIVE_UP_MS = 75_000;
 const LINE_FLUSH_GIVE_UP_MS = 3000;
 /** Muse closes about 20 ms after its last final, and a slow close must not hold up the answer. */
 const FLUSH_AFTER_FINAL_MS = 200;
-/** Long enough to read as a new thought, not as more of the answer. */
 const INVITE_AFTER_ANSWER_MS = 1500;
 
 export type EarsEvent = { type: 'voiceStarted' } | { type: 'voiceEnded' } | { type: 'words'; text: string; isFinal: boolean } | { type: 'turnDecided'; text: string } | { type: 'lineFlushed' };
@@ -234,7 +233,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     if (turnId) messenger.sendOnBothChannels({ type: 'yield', turnId, isYielding });
   };
 
-  // The rule's own timer for sound over the tutor, with its wait already up, because the student has the floor.
+  // Fires the rule's wordless-stop timer now, skipping its wait.
   const cutForHold = () => dispatch({ type: 'timer', name: 'wordlessStop' });
 
   const onSpeechStarted = (speaking: Speaking) => {
@@ -370,7 +369,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     trace('reactDecided');
     if (sendClosedNote()) return;
     messenger.send({ type: 'heard' });
-    // A take under a hold would be cut at its first frame, and if it is the greeting, the end of the line says it.
+    // A take under a hold is cut at its first frame, and the end of the line says any greeting owed.
     if (holdGate.isHolding()) return;
     // A session opened by a typed question has not yet said it is an AI, so its first reaction is the greeting (PRD S2).
     const uses: TakeUse[] = !hasGreeted ? ['greeting'] : canPraise ? ['reaction', 'goodQuestion'] : ['reaction'];
@@ -395,7 +394,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     reply = speak({ voiceToUse: voice, beats: readThought(waiting), isReply: true, canResume: true, kind: 'reply', continuesHeardReply });
   }
 
-  // One line, once, to a student who has only typed. It counts as said once it has finished or been cut, so a student who cut it off does not hear it again.
+  // Says one line, once, to a student who has not pressed Talk, and a cut counts as said.
   function inviteToTalk(): void {
     if (talkInvitation !== 'wanted' || isTutorTalking() || thought || !audioRunning || state.isVoiceOn || holdGate.isHolding() || tutor.getClosedReason?.()) return;
     talkInvitation = 'settled';
@@ -577,14 +576,14 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     dispatchAll(holdGate.onHoldStarted());
   };
 
-  // A hold from before the room was ready left the greeting unsaid (PRD S2). This waits for the last words, because words cut a take still playing.
+  // A hold from before the room was ready left the greeting unsaid (PRD S2).
   const sayGreetingIfOwed = () => {
     if (hasGreeted || reaction || holdGate.isHolding()) return;
     hasGreeted = true;
     reaction = speakTake(['greeting'], { isReply: false });
   };
 
-  // The turn rule ignores words decided while the link is down, and this student will not say them again.
+  // The turn rule ignores words decided during a drop, so they wait for the link.
   const onLineFlushed = () => {
     clearTimeout(flushGiveUp);
     const decided = holdGate.onLineFlushed();

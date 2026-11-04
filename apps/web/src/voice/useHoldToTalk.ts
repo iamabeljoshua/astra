@@ -7,7 +7,6 @@ import type { HeldMic } from './useLiveVoice';
 const TALK_BUTTON_ATTRIBUTE = 'data-talk-button';
 const INTERACTIVE_ROLES = ['button', 'link', 'textbox', 'searchbox', 'combobox', 'slider', 'spinbutton', 'checkbox', 'radio', 'switch', 'tab', 'menuitem', 'option', 'listbox', 'menu', 'application', 'grid', 'tree', 'dialog'];
 const TAKES_OVER_FOCUS = ['a[href]', 'button', 'input', 'select', 'textarea', 'summary', 'details', 'label', 'audio[controls]', 'video[controls]', '[contenteditable]:not([contenteditable="false"])', '[tabindex]:not([tabindex="-1"])', ...INTERACTIVE_ROLES.map((role) => `[role="${role}"]`)].join(',');
-/** A click this soon after the pointer came up belongs to that press, however long the press was. */
 const CLICK_AFTER_RELEASE_MS = 500;
 
 /** Space is ours unless the target is something a student can act on, or a custom element like MathLive's. */

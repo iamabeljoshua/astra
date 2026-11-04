@@ -1,4 +1,3 @@
-/** Two cuts this close are a room, and one is a cough. */
 const CUTS_WITHIN_MS = 120_000;
 
 export interface NoiseWatch {

@@ -17,7 +17,7 @@ function noteSeen(sessionId: string): void {
   try {
     window.sessionStorage.setItem(getSeenKey(sessionId), 'yes');
   } catch {
-    // A browser that refuses storage shows this again after a reload, which does no harm.
+    // Blocked storage only means this shows again after a reload.
   }
 }
 

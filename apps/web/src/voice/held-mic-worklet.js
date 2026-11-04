@@ -9,7 +9,7 @@ const QUIET_OVER_FLOOR = 2.5;
 const FIRST_FLOOR_RMS = 0.005;
 const LOWEST_FLOOR_RMS = 0.0005;
 const FLOOR_RISE_PER_BLOCK = 1.002;
-/** A backlog over about 100 ms is worth reading faster. Under it a line just catches up in its next pause. */
+/** About 100 ms of backlog. Under it a line catches up in its next pause. */
 const FASTER_OVER_BLOCKS = 38;
 /** Nobody hears this, only the transcriber. At 1.25 it lost no more words than at full speed, 17 against 18 of 127, and at 1.5 it lost 23. */
 const FASTER_STEP = 1.25;
@@ -75,7 +75,6 @@ export class HeldAudio {
     this.queue = [];
   }
 
-  /** A hold with no sound in it has nothing to play out. */
   endInput() {
     this.hasInputEnded = true;
     if (this.queue.every((block) => block.isQuiet)) this.queue = [];

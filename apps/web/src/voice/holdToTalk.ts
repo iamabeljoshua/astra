@@ -17,9 +17,7 @@ export interface PressStep {
   commands: PressCommand[];
 }
 
-/** A tap is quicker than this, and anyone holding to speak is still down when it passes. */
 export const TAP_LIMIT_MS = 300;
-/** A stuck key stops here. Long enough for a student's longest explanation. */
 export const HOLD_LIMIT_MS = 60_000;
 
 export const INITIAL_PRESS: PressState = { kind: 'free' };
@@ -32,13 +30,12 @@ function onPressedWhileFree(event: PressEvent & { type: 'pressed' }): PressStep 
   return { state: { kind: 'pressing', source: event.source }, commands: ['openMic', 'lowerTutor', 'startTapTimer'] };
 }
 
-// Talk pressed during a Space hold means off, and any other second press changes nothing.
 function onPressedWhileDown(state: PressState & { kind: 'pressing' | 'holding' }, event: PressEvent & { type: 'pressed' }): PressStep {
   if (state.source !== 'space' || event.source !== 'talkButton') return STAY(state);
   return { state: FREE, commands: [state.kind === 'holding' ? 'endLine' : 'closeMic', 'cancelTimers'] };
 }
 
-// Only a tap of Talk leaves the microphone on, because a tap of Space is usually a slip.
+// Only a tap of Talk leaves the microphone on.
 function onReleased(state: PressState & { kind: 'pressing' | 'holding' }): PressStep {
   if (state.kind === 'holding') return { state: FREE, commands: ['endLine', 'cancelTimers'] };
   return { state: FREE, commands: state.source === 'space' ? ['closeMic', 'cancelTimers'] : ['cancelTimers'] };

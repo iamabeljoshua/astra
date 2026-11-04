@@ -19,7 +19,6 @@ export interface MicHold {
   close(): void;
 }
 
-// Runs the press rule against the microphone and its timers.
 export function createMicHold({ getIsMicOn, openMic, closeMic, endLine, lowerTutor, tellHoldStarted, onHolding, onLimitReached }: MicHoldDeps): MicHold {
   let state: PressState = INITIAL_PRESS;
   let tapTimer: ReturnType<typeof setTimeout> | undefined;

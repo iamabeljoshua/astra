@@ -14,7 +14,7 @@ export interface MicrophoneOptions<Line extends LineEnds> {
 
 export interface Microphone<Line> {
   getState(): MicState;
-  /** The line on the wire, or the one next to go on it. A second one waits in turn. */
+  /** The line on the wire, or the one next to go on it. */
   getLine(): Line | null;
   toggle(): Promise<void>;
   setOn(isOn: boolean): Promise<void>;
