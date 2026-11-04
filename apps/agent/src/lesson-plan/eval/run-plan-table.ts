@@ -62,8 +62,8 @@ async function runSession(reader: JsonReader, name: string) {
       if (traceName === 'planFailed') console.log(`  plan failed: ${String(fields?.problem)}`);
     },
   });
-  for (const text of messages) {
-    planner.noteStudentWords(text);
+  for (const [index, text] of messages.entries()) {
+    planner.noteStudentWords(text, index === 0);
     await planner.whenSettled();
   }
   durations.sort((first, second) => first - second);

@@ -7,6 +7,8 @@ Two scripted lessons that run against any model by name. They measure speed, tok
 - `groups-board.json` holds work on the shared board, with tasks, marks, and what code decided, run by `pnpm eval:board`. A turn with `work` puts that work on the board the way the page does. `pnpm --filter @astra/agent eval:ink` reads back a table of handwritten lines.
 - `spoken-lines.json` holds lines said aloud, with what Muse really wrote for each, read by `pnpm --filter @astra/agent eval:spoken`.
 - `groups-switch.json` holds a student changing the subject mid-task and coming back, run by `pnpm --filter @astra/agent eval:switch`.
+- `groups-lessons.json` holds the shape of a lesson: a direct question goes hands-on, a topic teaches first and then picks an exercise, the student can overrule either, a switch renames the session, and crisis words stop all of it. Run by `pnpm --filter @astra/agent eval:lessons`. Add `--planner fail` or `--planner off` to run the same turns with no plan.
+- `plan-table.json` holds what the quick planner must decide from one message, run by `pnpm --filter @astra/agent eval:plans`, which also replays `turns-30.json` for what planning costs a session.
 - `groups-safety.json` and `groups-math.json` are short groups of messages, each group in a session of its own, run by `eval:groups` and read by a person. A failed check exits non-zero.
 
 Each row has the student's `text`, and may name a `check`. `apps/agent/src/tutor/eval/reply-checks.ts` holds what each name means, and `run-eval.ts` beside it runs them. `results/` holds the runs recorded in `docs/tests/tutor-model.md`.

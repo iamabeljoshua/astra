@@ -23,6 +23,7 @@
   {"says":"can we go back to the old problem, 2x + 3 = 11?","now":"Black holes","earlier":["Solving 2x + 3 = 11"],"move":"back","topic":"Solving 2x + 3 = 11"},
   {"says":"what was that derivative thing again?","now":"Black holes","earlier":["What a derivative is"],"move":"back","topic":"What a derivative is"},
   {"says":"ok back to fractions","now":"Vaccines","earlier":["Causes of World War One","Fractions"],"move":"back","topic":"Fractions"},
+  {"says":"how does that relate to the equation I was doing earlier?","now":"Black holes","earlier":["Solving 5x - 2 = 13"],"move":"stay"},
   {"says":"ok","now":"Fractions","move":"stay"},
   {"says":"yeah that makes sense","now":"Photosynthesis","move":"stay"},
   {"says":"so what's the numerator again?","now":"Fractions","move":"stay"},

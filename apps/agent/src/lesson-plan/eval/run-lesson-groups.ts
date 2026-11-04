@@ -40,6 +40,7 @@ interface ReplyFacts {
 }
 
 const EVAL_FOLDER = join(dirname(fileURLToPath(import.meta.url)), '../../../../../evals/tutor-turns');
+const TALKS_OF_A_PLAN = /\b(?:lesson plan|the plan|my plan|planner|my notes?|a note)\b/i;
 const PROFILE = { level: 'high_school', interests: ['basketball', 'space'], goal: 'exam' };
 
 const { values: args } = parseArgs({
@@ -180,6 +181,7 @@ async function runGroup(group: LessonGroup, ledger: ReturnType<typeof createSpen
     }
     lines.push(`S: ${text}`, `T (${summary.endedAs}, a${summary.attempts}, first text ${Math.round(summary.firstTextMs ?? -1)} ms): ${summary.spokenText}`);
     for (const { cue } of cues) lines.push(`   @${cue.atWord} ${JSON.stringify(cue.command)}`);
+    if (TALKS_OF_A_PLAN.test(summary.spokenText)) failures.push(`${group.name}: talked about a plan: ${summary.spokenText.slice(0, 100)}`);
     for (const name of turn.expect ?? []) {
       if (!runCheck(name, reply)) failures.push(`${group.name}: ${name}: ${text.slice(0, 50)}: ${summary.spokenText.slice(0, 100)}`);
     }

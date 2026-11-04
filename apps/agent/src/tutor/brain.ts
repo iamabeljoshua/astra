@@ -720,7 +720,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
         return;
       }
       // Skipped on any sign of trouble, so serious words never become a lesson's title.
-      if (!MAY_BE_ABOUT_SAFETY.test(studentText)) lessonPlanner?.noteStudentWords(studentText);
+      if (!MAY_BE_ABOUT_SAFETY.test(studentText)) lessonPlanner?.noteStudentWords(studentText, turnCount === 0);
       await waitForLastTurn();
       if (profileLoading) await Promise.race([profileLoading, delay(timeouts.profileWaitMs)]);
       isTurnRunning = true;

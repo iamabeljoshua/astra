@@ -53,9 +53,9 @@ function makeVoice() {
 const getChatBox = () => screen.getByRole<HTMLTextAreaElement>('textbox', { name: REPLY_BOX_LABELS.label });
 const getBox = () => screen.getByRole<HTMLInputElement>('textbox', { name: BOARD_WORK_LABELS.entry });
 
-async function openVoice(first = makeVoice()) {
+async function openVoice(first = makeVoice(), fields: Partial<ReturnType<typeof makeSession>> = {}) {
   startLiveVoice.mockResolvedValueOnce(first.voice);
-  const session = makeSession();
+  const session = makeSession(fields);
   window.history.replaceState(null, '', `/sessions/${session.id}`);
   stubSessionsApi({ sessions: [session] });
   render(<App />);
@@ -126,6 +126,15 @@ describe('what the student sees of a room', () => {
     startLiveVoice.mockResolvedValueOnce(second.voice);
     fireEvent.click(screen.getByRole('button', { name: VOICE_LABELS.tryAgain }));
     await waitFor(() => expect(second.voice.sendTyped).toHaveBeenCalledWith(SESSION_LABELS.carryOnWith('Physics of the impossible')));
+  });
+
+  it("takes the card's picture away when the student moves to another topic, and leaves no empty box", async () => {
+    const { setView } = await openVoice(makeVoice(), { artwork: 'arc' });
+    expect(screen.getByTestId('board-visual')).toBeTruthy();
+
+    act(() => setView({ sessionTitle: 'Black holes' }));
+
+    await waitFor(() => expect(screen.queryByTestId('board-visual')).toBeNull());
   });
 
   it('says in one line that the tutor started fresh after the page landed in a new room', async () => {

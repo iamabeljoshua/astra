@@ -1,7 +1,7 @@
 import type { JsonReader } from '../providers/anthropic.ts';
 import { LESSON_KINDS, parsePlanMove, type PlanMove } from './lesson-plan.ts';
 
-/** Words what a tutor plans from, in the planner's own terms. `now` is null until a lesson has started. */
+/** What the planner sees of the session. `now` is null until a lesson has started. */
 export interface PlanAsk {
   now: string | null;
   earlier: readonly string[];
@@ -13,7 +13,7 @@ const PLANNER_SYSTEM = `You prepare a short lesson plan for a live tutor while a
 move:
 - stay: they are carrying on with the topic now. They answer the tutor, say "ok", ask more about the same topic, ask for a problem on it, give another problem of the same kind, or ask one quick side question that a single reply settles. Also stay on anything that is not a wish to learn: greetings, small talk, how they feel, questions about you. Anything about being hurt, unsafe, in danger, hurting themselves or anyone, drugs, sex, or a medical problem is always stay, whatever the wording. With stay, leave topic empty and steps empty.
 - new: they want to learn or solve something that is not the topic now, and it will take more than one reply. With no topic now, any wish to learn, any question or problem, and any "carry on with" something is new.
-- back: they want to return to one of the earlier topics, as in "go back to my problem". topic is that earlier topic, word for word, and steps is empty. If no earlier topic fits, it is stay.
+- back: they want to return to one of the earlier topics, as in "go back to my problem". topic is that earlier topic, word for word, and steps is empty. If no earlier topic fits, it is stay. A question that only mentions an earlier topic, such as how the two relate, is stay.
 
 For new:
 topic: two to six words, a plain title in sentence case with no full stop, such as "Solving 2x + 3 = 11" or "Causes of the French Revolution". Never put the student's name or any personal detail in it.

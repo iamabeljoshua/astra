@@ -137,8 +137,8 @@ describe('the lesson planner', () => {
   it('tells the planner the topic now and the topics left behind', async () => {
     const { planner, asks } = plannerWith([newPlan(FRACTIONS), newPlan(SOLVING), { move: 'stay' }]);
 
-    for (const words of ['teach me fractions', 'solve 2x + 3 = 11 now please', 'why']) {
-      planner.noteStudentWords(words);
+    for (const [index, words] of ['teach me fractions', 'solve 2x + 3 = 11 now please', 'why'].entries()) {
+      planner.noteStudentWords(words, index === 0);
       await planner.whenSettled();
     }
 
@@ -148,18 +148,30 @@ describe('the lesson planner', () => {
   it('keeps the first title, and changes it on a switch and on the way back', async () => {
     const { planner, titles } = plannerWith([newPlan(SOLVING), newPlan(FRACTIONS), { move: 'stay' }, { move: 'back', topic: SOLVING.topic }]);
 
-    for (const words of ['solve it', 'teach me fractions', 'ok then', 'go back to my problem']) {
-      planner.noteStudentWords(words);
+    for (const [index, words] of ['solve it', 'teach me fractions', 'ok then', 'go back to my problem'].entries()) {
+      planner.noteStudentWords(words, index === 0);
       await planner.whenSettled();
     }
 
     expect(titles).toEqual(['Fractions', SOLVING.topic]);
   });
 
+  it('still changes the title on a switch when the first plan never came', async () => {
+    const asks = [() => Promise.reject(new Error('no plan today')), () => Promise.resolve({ move: newPlan(FRACTIONS), costUsd: 0 })];
+    const { planner, titles } = plannerWith([], { ask: () => (asks.shift() as () => Promise<PlanAnswer>)() });
+
+    planner.noteStudentWords('solve 2x + 3 = 11', true);
+    await planner.whenSettled();
+    planner.noteStudentWords('teach me fractions', false);
+    await planner.whenSettled();
+
+    expect(titles).toEqual(['Fractions']);
+  });
+
   it.each(['(picked 3)', '(has paused)', '(wants something else)', '2x = 8', 'x = 4'])('does not plan on %s', async (words) => {
     const { planner, asks } = plannerWith([{ move: 'stay' }]);
 
-    planner.noteStudentWords(words);
+    planner.noteStudentWords(words, false);
     await planner.whenSettled();
 
     expect(asks).toEqual([]);
@@ -168,7 +180,7 @@ describe('the lesson planner', () => {
   it('plans on one question in a word, because it may start a lesson', async () => {
     const { planner, asks } = plannerWith([{ move: 'stay' }]);
 
-    planner.noteStudentWords('photosynthesis');
+    planner.noteStudentWords('photosynthesis', true);
     await planner.whenSettled();
 
     expect(asks).toHaveLength(1);
@@ -177,7 +189,7 @@ describe('the lesson planner', () => {
   it('asks once at a time, and only the latest words wait, so a flood cannot pile up', async () => {
     const { planner, asks } = plannerWith([{ move: 'stay' }]);
 
-    for (const words of ['one thing', 'two things', 'three things', 'four things']) planner.noteStudentWords(words);
+    for (const words of ['one thing', 'two things', 'three things', 'four things']) planner.noteStudentWords(words, false);
     await planner.whenSettled();
 
     expect(asks.map(({ said }) => said)).toEqual(['one thing', 'four things']);
@@ -186,9 +198,9 @@ describe('the lesson planner', () => {
   it('keeps the lesson it has when a plan fails or says nothing usable', async () => {
     const trace = vi.fn();
     const { planner } = plannerWith([newPlan(FRACTIONS), null], { trace });
-    planner.noteStudentWords('teach me fractions');
+    planner.noteStudentWords('teach me fractions', true);
     await planner.whenSettled();
-    planner.noteStudentWords('something odd');
+    planner.noteStudentWords('something odd', false);
     await planner.whenSettled();
 
     expect(planner.getStepNote()).toMatchObject({ topic: 'Fractions' });
@@ -197,20 +209,20 @@ describe('the lesson planner', () => {
   it('spends nothing past a limit, and charges what each plan cost', async () => {
     const charge = vi.fn();
     const closed = plannerWith([newPlan(FRACTIONS)], { canSpend: () => false, charge });
-    closed.planner.noteStudentWords('teach me fractions');
+    closed.planner.noteStudentWords('teach me fractions', true);
     await closed.planner.whenSettled();
     expect(closed.asks).toEqual([]);
     expect(charge).not.toHaveBeenCalled();
 
     const open = plannerWith([newPlan(FRACTIONS)], { charge });
-    open.planner.noteStudentWords('teach me fractions');
+    open.planner.noteStudentWords('teach me fractions', true);
     await open.planner.whenSettled();
     expect(charge).toHaveBeenCalledWith(0.0001);
   });
 
   it('follows the tutor from a task to teaching again', async () => {
     const { planner } = plannerWith([newPlan(FRACTIONS)]);
-    planner.noteStudentWords('teach me fractions');
+    planner.noteStudentWords('teach me fractions', true);
     await planner.whenSettled();
 
     planner.noteCommand(TASK);

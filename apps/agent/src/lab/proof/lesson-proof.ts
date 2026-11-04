@@ -290,7 +290,26 @@ async function proveVisualMove(browser: Browser) {
   await page.context().close();
 }
 
-const JOURNEYS: Record<string, (browser: Browser) => Promise<void>> = { direct: proveDirectQuestion, topic: proveTopicTeachesFirst, switch: proveSwitch, visual: proveVisualMove };
+async function proveCardPictureGoes(browser: Browser) {
+  note("\n--- a switch in a card's session takes the card's picture away, and leaves no empty box");
+  const page = await openPage(browser);
+  await page.getByRole('button', { name: /Why a curveball curves|Why Saturn|How a jump shot flies|Free-body/ }).first().click();
+  await page.locator('[data-testid="tutor-caption"]').waitFor({ timeout: SPOKEN_BEFORE_LIMIT_MS });
+  note(`tutor: ${await waitForQuiet(page)}`);
+  check(await page.locator('[data-testid="board-visual"]').count() === 1, "the card's picture is there");
+  await say(page, 'actually, teach me about black holes');
+  const said = await waitForQuiet(page);
+  note(`tutor: ${said}`);
+  check(!/new session/i.test(said), 'it never says to start a new session');
+  const title = await waitForTitle(page, /black hole/i);
+  check(/black hole/i.test(title), `the title moved: ${title}`);
+  await delay(800);
+  check(await page.locator('[data-testid="board-visual"]').count() === 0, "the card's picture has gone");
+  await shoot(page, 'card-switch-no-picture');
+  await page.context().close();
+}
+
+const JOURNEYS: Record<string, (browser: Browser) => Promise<void>> = { direct: proveDirectQuestion, topic: proveTopicTeachesFirst, switch: proveSwitch, visual: proveVisualMove, card: proveCardPictureGoes };
 
 async function main() {
   const browser = await chromium.launch({ headless: true, args: ['--autoplay-policy=no-user-gesture-required', '--use-mock-keychain'] });
