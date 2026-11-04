@@ -125,7 +125,7 @@ Over all 11, 4 landed. All 4 had a container of 17.4 s or less, all 5 with a con
 
 ## What sharing costs
 
-A card's scene is written once and is free for every later student. A typed question's scene is written once per student, because it is never shown to another student, so a question two students ask costs two writes. Each write is about $0.12 to $0.21. A question that a router names exactly as a card's title still uses the card's scene for free, and the library of 133 scenes absorbs the common topics for about $10 once. As an estimate with no real traffic behind it: 1,000 students each asking 3 typed questions that draw a scene is 3,000 writes, about $360 to $630, and sharing by topic would have paid only for the distinct topics among them.
+A card's scene is written once and is free for every later student. A typed question's scene is written once per student, because it is never shown to another student, so a question two students ask costs two writes. Each write is about $0.12 to $0.21. A question that a router names exactly as a card's title still uses the card's scene for free, and the library of 133 scenes absorbs the common topics for $13 to $28 once, the range Abel approved. As an estimate with no real traffic behind it: 1,000 students each asking 3 typed questions that draw a scene is 3,000 writes, about $360 to $630, and sharing by topic would have paid only for the distinct topics among them.
 
 ## Router
 

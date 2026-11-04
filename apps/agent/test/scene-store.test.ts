@@ -91,4 +91,13 @@ describe('saving a scene', () => {
     await store.saveChecked(makeScene(), TAKES, []);
     expect(didLoopRun).toBe(true);
   });
+
+  it('reads a damaged record as no record, so one bad file costs a rewrite and not a lesson', () => {
+    const root = mkdtempSync(join(tmpdir(), 'scene-store-damaged-'));
+    const store = createSceneStore(root);
+    const key = getSceneKey('what a slope measures');
+    mkdirSync(join(root, 'scenes', key.id), { recursive: true });
+    writeFileSync(join(root, 'scenes', key.id, 'scene.json'), '{"status":"che');
+    expect(store.find(key)).toBeNull();
+  });
 });
