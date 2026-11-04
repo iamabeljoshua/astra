@@ -15,7 +15,10 @@ A student starts a session by sending a question or choosing a card, and the ses
 - `session-refresh` keeps the session on a refresh, because the record is saved before the page fades.
 - `session-end` leaves the room, marks the session finished with its length, reads `Ending…` until Home is ready, returns to Home, and moves focus to Home's heading.
 - `session-leave` keeps the student where they went if they leave Home or the session screen while a start or an end is pending. The save still lands, and the dot and any fade go at once.
-- `session-finished` opens a finished session with no way to end it or reply.
+- `session-recap` is the end of a session with a tutor in the room. `End session` finishes the session at once, the tutor stops, and the left column shows what we covered, what the student got right, and one thing to try, as the tutor says them and the board shows its key moments. `Close` leaves at any time. The student can type their answer to the thing to try and press `Save`. A session with nothing in it, a failed recap, or a tutor that does not answer within 8 s goes straight to Home. A session that may have been about the student's safety gets one fixed gentle line.
+- `session-replay` opens a finished session with a saved log, whose row says `Replay`. It opens on the recap and the final board, and `Play`, the timeline, `1x`, `1.5x`, `2x`, and `Sound` play it back. Nothing on it takes work.
+- `session-replay-delete` asks first, then deletes the log and recap, and the row goes back to `Open`.
+- `session-finished` opens a finished session with no saved log, with no way to end it or reply.
 - `session-other-student` shows `This session could not be found.` with no `Try again` for an ID that belongs to another student, and for a malformed address.
 - `sessions-list` lists each session, newest first, with title, subject, date, length, and status. `Show more` reaches sessions past the first 50.
 - `sessions-search` filters by title or subject, in any letter case.

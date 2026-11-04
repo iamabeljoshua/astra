@@ -1,12 +1,14 @@
-import { lazy, type PropsWithChildren, type ReactNode, type RefObject, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, type PropsWithChildren, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { ChatBox } from '../home/ChatBox';
 import { findArtwork, type Artwork } from '../home/artwork';
-import { API_ERROR_LABELS, MENU_LABELS, PRODUCT_NAME, REPLY_BOX_LABELS, SESSION_LABELS, SESSIONS_LABELS, VOICE_LABELS } from '../strings';
-import { ThemeToggle } from '../theme/ThemeToggle';
+import { RecapLines } from '../replay/RecapLines';
+import { ReplayScreen } from '../replay/ReplayScreen';
+import { API_ERROR_LABELS, MENU_LABELS, RECAP_LABELS, REPLY_BOX_LABELS, SESSION_LABELS, SESSIONS_LABELS, VOICE_LABELS } from '../strings';
 import { type FilesComingSoon, useFilesComingSoon } from '../ui/useFilesComingSoon';
-import { formatSessionLength } from './formatSession';
+import { BoardPicture, getSessionVisual } from './BoardPicture';
 import { type Session, useKeepSessionTitle, useSession } from './sessionQueries';
+import { BAR_ACTION, getBarSubject, SessionFacts, SessionFrame, SessionTitle } from './SessionFrame';
 import { isLessonEnabled, isTutorSceneEnabled } from './lessonFlag';
 import { useSessionRun } from './useSessionRun';
 import { StudentCaption } from '../voice/Captions';
@@ -20,7 +22,8 @@ import { type LiveVoiceControls, useLiveVoice } from '../voice/useLiveVoice';
 
 const NOT_FOUND_STATUS = 404;
 const BAD_ID_STATUS = 400;
-const BAR_ACTION = 'button button-outline px-3 py-1.25';
+/** The tutor has this long from the press of End to say whether there is a recap, and past it the student leaves anyway. */
+const LONGEST_RECAP_WAIT_MS = 8000;
 const LessonSession = lazy(() => import('./LessonSession'));
 
 function isWrongAddress(status?: number | null) {
@@ -52,7 +55,7 @@ export function SessionScreen() {
 // The view is chosen once, so ending the session does not swap the screen while it fades out.
 function OpenSession({ session }: { session: Session }) {
   const [wasFinishedOnOpening] = useState(session.status === 'finished');
-  if (wasFinishedOnOpening) return <FinishedSession session={session} />;
+  if (wasFinishedOnOpening) return session.canReplay ? <ReplayScreen session={session} /> : <FinishedSession session={session} />;
   if (!isLessonEnabled()) return <RunningSession session={session} />;
   return (
     <Suspense>
@@ -112,10 +115,28 @@ function useIsAnswerDue(view: LiveVoiceView | null, draftEdits: number): boolean
   return useHasWaited(isWaiting, ANSWER_PROMPT_AFTER_MS, (view?.studentLines.length ?? 0) + draftEdits);
 }
 
+function useLeaveWhenNoRecap({ isEnding, isRecapping, view, leave }: { isEnding: boolean; isRecapping: boolean; view: LiveVoiceView | null; leave(): Promise<void> }) {
+  const hasWaitedTooLong = useHasWaited(isEnding && !view?.isRecapDecided, LONGEST_RECAP_WAIT_MS);
+  const hasNothingToSay = view?.isRecapDecided === true && view.recap === null;
+  const shouldLeave = isRecapping && (hasWaitedTooLong || hasNothingToSay);
+  const leaving = useRef(false);
+  useEffect(() => {
+    if (!shouldLeave || leaving.current) return;
+    leaving.current = true;
+    void leave();
+  }, [shouldLeave, leave]);
+}
+
 function RunningSession({ session }: { session: Session }) {
-  const { seconds, endSession, isEnding, endProblem } = useSessionRun(session);
   const liveVoice = useLiveVoice({ sessionId: session.id });
   const { status, view, voice } = liveVoice;
+  const { seconds, endSession, leave, isEnding, isRecapping, endProblem } = useSessionRun(session, {
+    canAskForRecap: () => voice?.canAskForRecap() ?? false,
+    askForRecap: () => voice?.askForRecap() ?? false,
+    leave: liveVoice.leave,
+    rejoin: () => liveVoice.connect({ wantsGreeting: false }),
+  });
+  useLeaveWhenNoRecap({ isEnding, isRecapping, view, leave });
   const tutorStateLine = useRef<HTMLSpanElement>(null);
   // This changes on every student action, so it is written straight to the page and the session does not render again for it.
   const showTutorState = useCallback((state: string | null) => {
@@ -127,18 +148,13 @@ function RunningSession({ session }: { session: Session }) {
   useKeepSessionTitle(session.id, view?.sessionTitle ?? null);
   const filesComingSoon = useFilesComingSoon();
 
-  // Finishing deletes the room, and a page still in it would ask for another. A student whose finish failed stays in the session, so the room opens again.
-  async function endAndLeaveRoom() {
-    if (!(await endSession(liveVoice.leave))) await liveVoice.connect({ wantsGreeting: false });
-  }
-
   const picture = <Board artwork={findArtwork(session.artwork)} note={SESSION_LABELS.boardStandIn} />;
   // The card's picture belongs to the card's topic, so it goes when the student moves off it.
   const artwork = view?.sessionTitle ? null : findArtwork(session.artwork);
   return (
-    <SessionFrame facts={<SessionFacts subject={view?.sessionTitle ?? getBarSubject(session)} seconds={seconds} tutorStateLine={tutorStateLine} costUsd={view?.costUsd ?? null} />} action={<EndButton isEnding={isEnding} onEnd={() => void endAndLeaveRoom()} />} problem={endProblem} isFullHeight>
+    <SessionFrame facts={<SessionFacts subject={view?.sessionTitle ?? getBarSubject(session)} seconds={seconds} tutorStateLine={tutorStateLine} costUsd={view?.costUsd ?? null} />} action={isRecapping ? <button type="button" onClick={() => void leave()} className={BAR_ACTION}>{SESSION_LABELS.close}</button> : <EndButton isEnding={isEnding} onEnd={() => void endSession()} />} problem={endProblem} isFullHeight>
       <div className="board-stage">
-        <div className="board-voice">
+        <div className={`board-voice ${isRecapping ? 'board-voice-reading' : ''}`}>
           <SessionTitle title={session.title} isQuiet={Boolean(voice) || isConnecting} />
           {!voice && !isConnecting && (
             <div className="label flex items-center gap-2.5">
@@ -146,15 +162,23 @@ function RunningSession({ session }: { session: Session }) {
               <span>{SESSION_LABELS.yourTutor}</span>
             </div>
           )}
-          {view?.hasTutorStarted ? (
-            <BoardCaption heard={view.tutorHeard} coming={view.tutorComing} firstWord={view.firstWord} />
+          {isRecapping ? (
+            <div className="flex flex-1 flex-col justify-end">
+              {view?.recap ? <RecapLines recap={view.recap} sessionId={session.id} /> : <p role="status" data-utterance-now className="font-voice text-voice">{RECAP_LABELS.writing}</p>}
+            </div>
           ) : (
-            <div className="flex flex-1 flex-col justify-end font-voice text-voice">{isConnecting && <p role="status">{VOICE_LABELS.connecting}</p>}</div>
+            <>
+              {view?.hasTutorStarted ? (
+                <BoardCaption heard={view.tutorHeard} coming={view.tutorComing} firstWord={view.firstWord} />
+              ) : (
+                <div className="flex flex-1 flex-col justify-end font-voice text-voice">{isConnecting && <p role="status">{VOICE_LABELS.connecting}</p>}</div>
+              )}
+              <ReplyBox liveVoice={liveVoice} isConnecting={isConnecting} carryOnLine={SESSION_LABELS.carryOnWith(session.title)} filesComingSoon={filesComingSoon} />
+            </>
           )}
-          <ReplyBox liveVoice={liveVoice} isConnecting={isConnecting} carryOnLine={SESSION_LABELS.carryOnWith(session.title)} filesComingSoon={filesComingSoon} />
         </div>
         <ConnectingSaturn isConnecting={isConnecting} />
-        {voice ? <LiveBoard voice={voice} isConnecting={isConnecting} onTutorState={showTutorState} getVisual={(frame) => getSessionVisual(artwork, frame, scene)} onTalk={() => void liveVoice.toggleTalk()} isTalkOn={view?.mic === 'on'} canTalk={!view?.closedBecause} filesComingSoon={isConnecting ? undefined : filesComingSoon} /> : <div className="board-panel">{picture}</div>}
+        {voice ? <LiveBoard voice={voice} isConnecting={isConnecting} onTutorState={showTutorState} getVisual={(frame) => getLiveVisual(artwork, frame, scene)} onTalk={() => void liveVoice.toggleTalk()} isTalkOn={view?.mic === 'on'} canTalk={!view?.closedBecause} isLookingBack={isRecapping} filesComingSoon={isConnecting ? undefined : filesComingSoon} /> : <div className="board-panel">{picture}</div>}
       </div>
     </SessionFrame>
   );
@@ -178,7 +202,7 @@ function FinishedSession({ session }: { session: Session }) {
     <SessionFrame
       facts={
         <>
-          <SessionFacts subject={session.subject} seconds={session.durationSeconds} />
+          <SessionFacts subject={getBarSubject(session)} seconds={session.durationSeconds} />
           <span className="label text-ink-2">{SESSIONS_LABELS.statuses.finished}</span>
         </>
       }
@@ -186,49 +210,6 @@ function FinishedSession({ session }: { session: Session }) {
     >
       <SessionPanels session={session} tutorWords={SESSION_LABELS.finishedWords} />
     </SessionFrame>
-  );
-}
-
-// A tester's flag, read at build time, so a build without it holds no cost line at all.
-const SessionCost = import.meta.env.VITE_SHOW_COST === '1' ? lazy(() => import('./SessionCost')) : null;
-
-export function SessionFacts({ subject, seconds, tutorStateLine, costUsd = null }: { subject: string; seconds: number; tutorStateLine?: RefObject<HTMLSpanElement | null>; costUsd?: number | null }) {
-  return (
-    <>
-      <span className="label min-w-0 wrap-anywhere text-ink-2">{subject}</span>
-      <span className="label text-ink-2">{formatSessionLength(seconds)}</span>
-      {tutorStateLine && <span ref={tutorStateLine} data-testid="tutor-state" className="label text-ink-2" />}
-      {SessionCost && costUsd !== null && (
-        <Suspense fallback={null}>
-          <SessionCost usd={costUsd} />
-        </Suspense>
-      )}
-    </>
-  );
-}
-
-interface SessionFrameProps extends PropsWithChildren {
-  facts?: ReactNode;
-  action?: ReactNode;
-  problem?: string | null;
-  isFullHeight?: boolean;
-}
-
-export function SessionFrame({ facts, action, problem, isFullHeight = false, children }: SessionFrameProps) {
-  return (
-    <div data-page className={`flex animate-arrive flex-col ${isFullHeight ? 'board-session' : 'min-h-dvh px-page-side'}`}>
-      <title>{PRODUCT_NAME}</title>
-      <header className={`flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-line py-2.5 tabular-nums ${isFullHeight ? 'px-6 max-md:px-4' : ''}`}>
-        <span className="product-mark">{PRODUCT_NAME}</span>
-        {facts}
-        <div className="ml-auto flex items-center gap-x-5">
-          <ThemeToggle />
-          {action}
-        </div>
-        {problem && <p role="alert" className="w-full text-fine text-ink-2 md:text-right">{problem}</p>}
-      </header>
-      <main className="flex min-h-0 flex-1 flex-col">{children}</main>
-    </div>
   );
 }
 
@@ -253,19 +234,6 @@ function SessionPanels({ session, tutorWords }: SessionPanelsProps) {
   );
 }
 
-// Focus was on what the student pressed, and that has gone, so it moves to the new screen's heading.
-export function SessionTitle({ title, isQuiet = false }: { title: string; isQuiet?: boolean }) {
-  const heading = useRef<HTMLHeadingElement>(null);
-
-  useEffect(() => heading.current?.focus({ preventScroll: true }), []);
-
-  return (
-    <h1 ref={heading} tabIndex={-1} className={`font-medium wrap-anywhere text-ink-2 outline-none ${isQuiet ? 'sr-only' : ''}`}>
-      {title}
-    </h1>
-  );
-}
-
 function Board({ artwork, note }: { artwork: Artwork | null; note?: string }) {
   return (
     <section className="fades-with-theme flex min-w-0 flex-1 flex-col border border-line bg-panel md:min-h-75">
@@ -275,19 +243,9 @@ function Board({ artwork, note }: { artwork: Artwork | null; note?: string }) {
   );
 }
 
-// A card always starts with a picture and a rename takes it away, so a card with none has moved to the topic in its title. A typed question never had one, so nothing saved says it moved.
-function getBarSubject({ artwork, title, subject }: Session) {
-  return !artwork && subject !== SESSION_LABELS.questionSubject ? title : subject;
-}
-
-function getSessionVisual(artwork: Artwork | null, { board, atMs }: BoardFrame, { stage, onContainer }: TutorScene) {
+function getLiveVisual(artwork: Artwork | null, { board, atMs }: BoardFrame, { stage, onContainer }: TutorScene) {
   if (hasDrawableScene(board, stage)) return <SceneLayer board={board} atMs={atMs} stage={stage} onContainer={onContainer} />;
-  return artwork && <BoardPicture artwork={artwork} />;
-}
-
-export function BoardPicture({ artwork }: { artwork: Artwork }) {
-  if (artwork.kind === 'drawing') return <artwork.Drawing className="block h-auto max-h-board-art w-full" />;
-  return <img src={artwork.src} alt={artwork.description} className="block max-h-board-art max-w-full object-contain" />;
+  return getSessionVisual(artwork);
 }
 
 function getVoiceNote({ status, waitSeconds, view }: LiveVoiceControls, isAnswerDue: boolean): string | null {

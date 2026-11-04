@@ -124,7 +124,7 @@ function SessionRow({ session }: { session: Session }) {
       <td className={WIDE_COLUMN}>{length}</td>
       <td className="py-2.75 pr-3 align-baseline whitespace-nowrap text-ink-2">{SESSIONS_LABELS.statuses[session.status]}</td>
       <td aria-hidden className="py-2.75 text-right align-baseline font-medium whitespace-nowrap">
-        {isFinished ? SESSIONS_LABELS.open : SESSIONS_LABELS.resume}
+        {!isFinished ? SESSIONS_LABELS.resume : session.canReplay ? SESSIONS_LABELS.replay : SESSIONS_LABELS.open}
       </td>
     </tr>
   );

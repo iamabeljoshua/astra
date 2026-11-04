@@ -1,7 +1,7 @@
-import { type AgentMessage, type Beat, type BrowserMessage, parseBeat, type TurnId } from '@astra/contracts';
+import { type AgentMessage, type Beat, type BrowserMessage, parseBeat, type SessionEvent, type TurnId } from '@astra/contracts';
 import { initializeLogger, tts } from '@livekit/agents';
-import { afterEach, describe, expect, it } from 'vitest';
-import { type EarsEvent, createLiveSession, type LiveSession, QUIET_ROOM_LIMIT_MS, VOICE_STALL_MS } from '../src/live/live-session.ts';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { type EarsEvent, createLiveSession, type LiveSession, type LiveSessionOptions, QUIET_ROOM_LIMIT_MS, VOICE_STALL_MS } from '../src/live/live-session.ts';
 import { createTakePicker, type StoredTake } from '../src/live/reactions.ts';
 import type { TutorBrain } from '../src/live/stand-in-tutor.ts';
 import type { TutorBeat } from '../src/tutor/brain.ts';
@@ -67,7 +67,7 @@ function makeOutput(frames: { atMs: number }[], failAfter = Infinity): VoiceOutp
   };
 }
 
-function start({ voice = makeRenderedVoice({ name: 'fake', render: renderTone }).makeTts(), failAfter, quietLimitMs, onQuietLimit, tutorBeats, getCostSoFar }: { getCostSoFar?(): number; voice?: tts.TTS; failAfter?: number; quietLimitMs?: number; onQuietLimit?(): void; tutorBeats?: readonly TutorBeat[] } = {}): Harness {
+function start({ voice = makeRenderedVoice({ name: 'fake', render: renderTone }).makeTts(), failAfter, quietLimitMs, onQuietLimit, tutorBeats, getCostSoFar, ...endingOptions }: Pick<LiveSessionOptions, 'writeRecap' | 'onRecap' | 'onEndingOver' | 'onLogWritten'> & { getCostSoFar?(): number; voice?: tts.TTS; failAfter?: number; quietLimitMs?: number; onQuietLimit?(): void; tutorBeats?: readonly TutorBeat[] } = {}): Harness {
   const messages: AgentMessage[] = [];
   const traces: Harness['traces'] = [];
   const frames: { atMs: number }[] = [];
@@ -90,6 +90,7 @@ function start({ voice = makeRenderedVoice({ name: 'fake', render: renderTone })
   };
   const send = (message: AgentMessage) => void messages.push(message);
   const session = createLiveSession({
+    ...endingOptions,
     ...(getCostSoFar ? { getCostSoFar } : {}),
     messenger: { send, sendOnBothChannels: send },
     line: createVoiceLine(makeOutput(frames, failAfter)),
@@ -650,5 +651,97 @@ describe('the greeting', () => {
     harness.browser({ type: 'hello', ...STAMP, wantsGreeting: false });
     await delay(50);
     expect(harness.traces.filter((trace) => trace.name === 'turnStarted')).toEqual([]);
+  });
+});
+
+describe('ending a session with a recap', () => {
+  const STAMP_END = { clockId: 'page', browserMs: 1000, startedMsAgo: 0 };
+  const RECAP = { kind: 'lesson', covered: 'We took three from both sides.', gotRight: null, tryNext: 'Try one more on your own.' } as const;
+  const LESSON_WORDS = Array.from({ length: 40 }, (_, index) => `word${index}`).join(' ');
+  const getRecapMessage = (messages: AgentMessage[]) => messages.find((message) => message.type === 'recap');
+
+  async function playLesson(harness: ReturnType<typeof start>) {
+    harness.browser({ type: 'typed', text: 'teach me', ...STAMP_END });
+    const closed = await vi.waitFor(() => {
+      const found = harness.messages.find((message) => message.type === 'beatClosed' && message.beatId === 'lesson');
+      if (!found) throw new Error('the lesson has not played');
+      return found as AgentMessage & { type: 'beatClosed' };
+    }, { timeout: 3000 });
+    const { turnId } = closed;
+    harness.browser({ type: 'played', turnId, beatId: 'lesson' as Beat['id'], ...STAMP_END, wordStartsMs: LESSON_WORDS.split(' ').map((_, index) => index * 10), durationMs: 400, playedWords: 40, firedCueMs: [], ending: 'finished', frozen: [] });
+    await delay(50);
+  }
+
+  it('tells the page there is no recap and lets the room go, on a session with nothing in it', async () => {
+    let isOver = false;
+    const writeRecap = vi.fn(async () => RECAP);
+    const harness = start({ writeRecap, onEndingOver: () => { isOver = true; } });
+    harness.browser({ type: 'endingSession', ...STAMP_END });
+    await delay(50);
+    expect(getRecapMessage(harness.messages)).toEqual({ type: 'recap', recap: null });
+    expect(writeRecap).not.toHaveBeenCalled();
+    expect(isOver).toBe(true);
+  });
+
+  it('shows and speaks the recap as a turn of its own, then lets the room go, and the log holds it', async () => {
+    let isOver = false;
+    const onRecap = vi.fn();
+    const harness = start({ tutorBeats: [makeBeat('lesson', LESSON_WORDS)], writeRecap: async () => RECAP, onRecap, onEndingOver: () => { isOver = true; } });
+    await playLesson(harness);
+    harness.browser({ type: 'endingSession', ...STAMP_END });
+    await delay(100);
+    expect(getRecapMessage(harness.messages)).toEqual({ type: 'recap', recap: RECAP });
+    expect(onRecap).toHaveBeenCalledWith(RECAP);
+    await vi.waitFor(() => {
+      const recapTurn = harness.getTurnsStarted().at(-1) as TurnId;
+      expect(harness.messages.flatMap((message) => (message.type === 'beatClosed' && message.turnId === recapTurn ? [message.beatId] : []))).toEqual(['recap-0', 'recap-1']);
+    }, { timeout: 3000 });
+    const recapTurn = harness.getTurnsStarted().at(-1) as TurnId;
+    for (const beatId of ['recap-0', 'recap-1']) harness.browser({ type: 'played', turnId: recapTurn, beatId: beatId as Beat['id'], ...STAMP_END, wordStartsMs: [0], durationMs: 100, playedWords: 1, firedCueMs: [], ending: 'finished', frozen: [] });
+    await vi.waitFor(() => expect(isOver).toBe(true), { timeout: 8000 });
+  }, 12_000);
+
+  it('hears nothing more from the student once ending, so no reply can start over the recap', async () => {
+    const harness = start({ tutorBeats: [makeBeat('lesson', LESSON_WORDS)], writeRecap: async () => null });
+    await playLesson(harness);
+    const repliesBefore = harness.brainRequests.length;
+    harness.browser({ type: 'endingSession', ...STAMP_END });
+    harness.browser({ type: 'typed', text: 'one more thing', ...STAMP_END });
+    await harness.say('and another thing');
+    await delay(50);
+    expect(harness.brainRequests).toHaveLength(repliesBefore);
+  });
+
+  it('asks for one recap however many times the page says it is ending', async () => {
+    const writeRecap = vi.fn(async () => null);
+    const harness = start({ tutorBeats: [makeBeat('lesson', LESSON_WORDS)], writeRecap });
+    await playLesson(harness);
+    harness.browser({ type: 'endingSession', ...STAMP_END });
+    harness.browser({ type: 'endingSession', ...STAMP_END });
+    await delay(50);
+    expect(writeRecap).toHaveBeenCalledOnce();
+  });
+
+  it('goes on to no recap when the writer fails', async () => {
+    let isOver = false;
+    const harness = start({ tutorBeats: [makeBeat('lesson', LESSON_WORDS)], writeRecap: async () => { throw new Error('model down'); }, onEndingOver: () => { isOver = true; } });
+    await playLesson(harness);
+    harness.browser({ type: 'endingSession', ...STAMP_END });
+    await delay(50);
+    expect(getRecapMessage(harness.messages)).toEqual({ type: 'recap', recap: null });
+    expect(isOver).toBe(true);
+  });
+
+  it('logs what the student typed and said as text, and leaves out the line the page opened with', async () => {
+    const logged: SessionEvent[] = [];
+    const harness = start({ onLogWritten: (event) => void logged.push(event) });
+    harness.browser({ type: 'typed', text: 'Teach me fractions', isOpening: true, ...STAMP_END });
+    harness.browser({ type: 'typed', text: 'what is a half', ...STAMP_END });
+    await harness.say('and what about a third');
+    await delay(50);
+    const spoke = logged.flatMap((event) => (event.kind === 'studentSpoke' ? [[event.source, event.text]] : []));
+    expect(spoke).toContainEqual(['typed', 'what is a half']);
+    expect(spoke).toContainEqual(['voice', 'and what about a third']);
+    expect(spoke.flat()).not.toContain('Teach me fractions');
   });
 });
