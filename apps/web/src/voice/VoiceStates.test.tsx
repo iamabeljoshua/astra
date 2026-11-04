@@ -1,7 +1,7 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../App';
-import { BOARD_WORK_LABELS, REPLY_BOX_LABELS, SESSION_LABELS, VOICE_LABELS } from '../strings';
+import { BOARD_WORK_LABELS, CHAT_BOX_LABELS, REPLY_BOX_LABELS, SESSION_LABELS, VOICE_LABELS } from '../strings';
 import { makeSession, stubSessionsApi } from '../test/sessionsApi';
 import type { LiveVoice, LiveVoiceView } from './liveVoice';
 
@@ -152,6 +152,108 @@ describe('what the student sees of a room', () => {
     act(() => setView({ hasTutorStarted: true, tutorHeard: ['Hello.'] }));
     act(() => setView({ tutorHeard: [], tutorComing: [], isThinking: true }));
     expect(screen.queryByText(VOICE_LABELS.connecting)).toBeNull();
+  });
+
+  describe('a connection that is slow', () => {
+    const wait = (ms: number) => act(() => vi.advanceTimersByTime(ms));
+    const queryChatBox = () => screen.queryByRole('textbox', { name: REPLY_BOX_LABELS.label });
+    const pressTalkInTheBox = () => fireEvent.click(within(getChatBox().closest('form')!).getByRole('button', { name: CHAT_BOX_LABELS.talk }));
+    const sendFromTheBox = (text: string) => {
+      fireEvent.change(getChatBox(), { target: { value: text } });
+      fireEvent.submit(getChatBox());
+    };
+    const openWithNoTutorYet = async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'], shouldAdvanceTime: true });
+      const opened = makeVoice();
+      opened.setView({ hasTutorStarted: false });
+      await openVoice(opened);
+      return opened;
+    };
+    const openWithTheRoomHeld = async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'], shouldAdvanceTime: true });
+      const opened = makeVoice();
+      opened.setView({ hasTutorStarted: false });
+      let openRoom = () => {};
+      startLiveVoice.mockReturnValueOnce(new Promise((resolve) => (openRoom = () => resolve(opened.voice))));
+      const session = makeSession();
+      window.history.replaceState(null, '', `/sessions/${session.id}`);
+      stubSessionsApi({ sessions: [session] });
+      render(<App />);
+      await waitFor(() => screen.getByText(VOICE_LABELS.connecting));
+      return { ...opened, openRoom: () => act(async () => openRoom()) };
+    };
+    afterEach(() => vi.useRealTimers());
+
+    it('stays out of the way of a normal connection, however close it runs', async () => {
+      const { setView } = await openWithNoTutorYet();
+      wait(7000);
+      expect(queryChatBox()).toBeNull();
+      act(() => setView({ hasTutorStarted: true }));
+      wait(9000);
+      expect(queryChatBox()).toBeNull();
+    });
+
+    it('brings the box and Talk back at about 8 s, ready for typing, while it still says it is connecting', async () => {
+      const { voice } = await openWithNoTutorYet();
+      wait(8100);
+      expect(document.activeElement).toBe(getChatBox());
+      expect(screen.getByText(VOICE_LABELS.connecting)).toBeTruthy();
+      pressTalkInTheBox();
+      expect(voice.toggleMic).toHaveBeenCalledOnce();
+    });
+
+    it('leaves a touch screen\'s keyboard closed', async () => {
+      vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('coarse'), addEventListener: () => undefined, removeEventListener: () => undefined }));
+      await openWithNoTutorYet();
+      wait(8100);
+      expect(document.activeElement).not.toBe(getChatBox());
+    });
+
+    it('sends a reply into the room, shows it waiting, and takes it all away when the tutor comes', async () => {
+      const { voice, setView } = await openWithNoTutorYet();
+      wait(8100);
+      sendFromTheBox('Is it four?');
+      await vi.waitFor(() => expect(voice.sendTyped).toHaveBeenCalledWith('Is it four?'));
+      expect(screen.getByText('Is it four?')).toBeTruthy();
+      expect(screen.getByText(SESSION_LABELS.replyWaiting)).toBeTruthy();
+      act(() => setView({ hasTutorStarted: true }));
+      expect(screen.queryByText('Is it four?')).toBeNull();
+      expect(queryChatBox()).toBeNull();
+    });
+
+    it('keeps a half typed draft when the tutor comes, until it is sent', async () => {
+      const { voice, setView } = await openWithNoTutorYet();
+      wait(8100);
+      fireEvent.change(getChatBox(), { target: { value: 'Is it' } });
+      act(() => setView({ hasTutorStarted: true }));
+      expect(getChatBox().value).toBe('Is it');
+      sendFromTheBox('Is it four?');
+      await vi.waitFor(() => expect(voice.sendTyped).toHaveBeenCalledWith('Is it four?'));
+      expect(queryChatBox()).toBeNull();
+    });
+
+    it('says a waiting reply did not reach the tutor when the room closes with no tutor', async () => {
+      const { voice, setView } = await openWithNoTutorYet();
+      wait(8100);
+      sendFromTheBox('Is it four?');
+      await vi.waitFor(() => expect(voice.sendTyped).toHaveBeenCalled());
+      act(() => setView({ phase: 'noTutor' }));
+      expect(screen.getByText('Is it four?')).toBeTruthy();
+      expect(screen.getByText(SESSION_LABELS.replyNotSent)).toBeTruthy();
+      expect(screen.queryByText(SESSION_LABELS.replyWaiting)).toBeNull();
+    });
+
+    it('holds a reply and a press of Talk for a room that has not opened, and hands both over when it does', async () => {
+      const { voice, openRoom } = await openWithTheRoomHeld();
+      wait(8100);
+      sendFromTheBox('Is it four?');
+      pressTalkInTheBox();
+      expect(screen.getByText(SESSION_LABELS.replyWaiting)).toBeTruthy();
+      expect(voice.sendTyped).not.toHaveBeenCalledWith('Is it four?');
+      await openRoom();
+      await vi.waitFor(() => expect(voice.sendTyped).toHaveBeenCalledWith('Is it four?'));
+      await vi.waitFor(() => expect(voice.toggleMic).toHaveBeenCalledOnce());
+    });
   });
 
   describe('once the tutor has finished and the student has not acted', () => {

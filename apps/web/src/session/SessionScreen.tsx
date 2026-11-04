@@ -78,23 +78,29 @@ function isTutorOnTheWay(status: LiveVoiceControls['status'], view: LiveVoiceVie
 
 /** Long enough for a student to think, so the prompt never hurries an answer on its way. */
 const ANSWER_PROMPT_AFTER_MS = 8000;
+/** A normal connection is done by now, so only a slow one brings the reply box back. */
+const REPLY_BOX_BACK_AFTER_MS = 8000;
+
+// A change to startsOver begins the wait again.
+function useHasWaited(isWaiting: boolean, waitMs: number, startsOver = 0): boolean {
+  const [hasWaited, setHasWaited] = useState(false);
+
+  useEffect(() => {
+    if (!isWaiting) return undefined;
+    const waiting = setTimeout(() => setHasWaited(true), waitMs);
+    return () => {
+      clearTimeout(waiting);
+      setHasWaited(false);
+    };
+  }, [isWaiting, waitMs, startsOver]);
+
+  return isWaiting && hasWaited;
+}
 
 // The tutor does not nag out loud. Once it has stopped and the student has done nothing for a while, the page says what they can do.
 function useIsAnswerDue(view: LiveVoiceView | null, draftEdits: number): boolean {
   const isWaiting = view !== null && view.phase === 'live' && view.mic === 'off' && !view.closedBecause && !view.isTutorSpeaking && !view.isThinking && !view.isHeard && view.tutorHeard.length > 0;
-  const studentLines = view?.studentLines.length ?? 0;
-  const [isDue, setIsDue] = useState(false);
-
-  useEffect(() => {
-    if (!isWaiting) return;
-    const prompting = setTimeout(() => setIsDue(true), ANSWER_PROMPT_AFTER_MS);
-    return () => {
-      clearTimeout(prompting);
-      setIsDue(false);
-    };
-  }, [isWaiting, studentLines, draftEdits]);
-
-  return isWaiting && isDue;
+  return useHasWaited(isWaiting, ANSWER_PROMPT_AFTER_MS, (view?.studentLines.length ?? 0) + draftEdits);
 }
 
 function RunningSession({ session }: { session: Session }) {
@@ -126,7 +132,7 @@ function RunningSession({ session }: { session: Session }) {
           ) : (
             <div className="flex flex-1 flex-col justify-end font-voice text-voice">{isConnecting && <p role="status">{VOICE_LABELS.connecting}</p>}</div>
           )}
-          <ReplyBox liveVoice={liveVoice} carryOnLine={SESSION_LABELS.carryOnWith(session.title)} />
+          <ReplyBox liveVoice={liveVoice} isConnecting={isConnecting} carryOnLine={SESSION_LABELS.carryOnWith(session.title)} />
         </div>
         <ConnectingSaturn isConnecting={isConnecting} />
         {voice ? <LiveBoard voice={voice} isConnecting={isConnecting} onTutorState={showTutorState} visual={getSessionVisual(findArtwork(session.artwork))} onTalk={() => void liveVoice.toggleTalk()} isTalkOn={view?.mic === 'on'} canTalk={!view?.closedBecause} /> : <div className="board-panel">{picture}</div>}
@@ -278,32 +284,40 @@ function getVoiceNote({ status, waitSeconds, view }: LiveVoiceControls, isAnswer
   return isAnswerDue ? VOICE_LABELS.answerPrompt : null;
 }
 
-function ReplyBox({ liveVoice, carryOnLine }: { liveVoice: LiveVoiceControls; carryOnLine: string }) {
+function ReplyBox({ liveVoice, isConnecting, carryOnLine }: { liveVoice: LiveVoiceControls; isConnecting: boolean; carryOnLine: string }) {
   const { status, view, voice, isTalkOn, sendTyped, toggleTalk, openAgain } = liveVoice;
   const isFinished = status === 'finished';
   const isOver = isFinished || status === 'tooSoon' || (view !== null && isVoiceOver(view.phase));
   // A tutor closed for spending is closed for this session too, and another room would only start it over.
   const canOpenAgain = isOver && !isFinished && status !== 'overLimit' && !view?.closedBecause;
-  const [replyWithNoRoom, setReplyWithNoRoom] = useState<string | null>(null);
+  const [reply, setReply] = useState<{ text: string; didFail: boolean } | null>(null);
   const [draftEdits, setDraftEdits] = useState(0);
+  const [hasDraft, setHasDraft] = useState(false);
+  const isBackWhileConnecting = useHasWaited(isConnecting, REPLY_BOX_BACK_AFTER_MS);
+  // A draft keeps its box when the tutor arrives, so nothing typed on a slow connection is lost.
+  const isBoxOpen = (!voice && status !== 'connecting') || isBackWhileConnecting || hasDraft;
+  if (reply && !reply.didFail && view?.hasTutorStarted) setReply(null);
+  if (reply && !reply.didFail && !view?.hasTutorStarted && isOver) setReply({ ...reply, didFail: true });
   const voiceNote = getVoiceNote(liveVoice, useIsAnswerDue(view, draftEdits + (view?.typingNotes ?? 0)));
 
   async function send(text: string) {
+    setHasDraft(false);
+    setReply({ text, didFail: false });
     const wasSent = await sendTyped(text);
-    setReplyWithNoRoom(wasSent ? null : text);
+    if (!wasSent) setReply({ text, didFail: true });
   }
 
   return (
     <div className="mt-auto flex flex-col gap-3.5">
       <div role="status" className="flex flex-col gap-3.5">
         {view?.mic === 'on' && <StudentCaption lines={view.studentLines} />}
-        {replyWithNoRoom && (
+        {reply && (
           <>
             <p className="border-t border-line pt-3 text-sub wrap-anywhere">
               <span className="label block text-ink-2">{SESSION_LABELS.you}</span>
-              {replyWithNoRoom}
+              {reply.text}
             </p>
-            <p className="text-fine text-ink-2">{SESSION_LABELS.replyNotSent}</p>
+            <p className="text-fine text-ink-2">{reply.didFail ? SESSION_LABELS.replyNotSent : SESSION_LABELS.replyWaiting}</p>
           </>
         )}
         {voiceNote && <p className="text-fine text-ink-2">{voiceNote}</p>}
@@ -323,7 +337,23 @@ function ReplyBox({ liveVoice, carryOnLine }: { liveVoice: LiveVoiceControls; ca
           {VOICE_LABELS.tapToHear}
         </button>
       )}
-      {!voice && status !== 'connecting' && <ChatBox labels={REPLY_BOX_LABELS} canAttach={false} clearsOnSend isSending={isOver} talk={{ isOn: isTalkOn, onToggle: () => void toggleTalk() }} onSend={(text) => void send(text)} onEdit={() => setDraftEdits((edits) => edits + 1)} />}
+      {isBoxOpen && (
+        <div className={isBackWhileConnecting ? 'animate-arrive' : undefined}>
+          <ChatBox
+            labels={REPLY_BOX_LABELS}
+            canAttach={false}
+            clearsOnSend
+            isSending={isOver}
+            takesFocus={isBackWhileConnecting}
+            talk={{ isOn: isTalkOn, onToggle: () => void toggleTalk() }}
+            onSend={(text) => void send(text)}
+            onEdit={(draft) => {
+              setDraftEdits((edits) => edits + 1);
+              setHasDraft(draft.trim() !== '');
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }

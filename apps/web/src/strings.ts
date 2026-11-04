@@ -315,6 +315,7 @@ export const SESSION_LABELS = {
   close: 'Close',
   yourTutor: 'Your tutor',
   replyNotSent: 'This did not reach your tutor.',
+  replyWaiting: 'Your tutor will read this as soon as it connects.',
   finishedWords: 'This session has finished.',
   boardStandIn: 'Your tutor will draw here as it speaks.',
   askAboutTopic: (title: string) => `I'd like to learn about ${title}.`,

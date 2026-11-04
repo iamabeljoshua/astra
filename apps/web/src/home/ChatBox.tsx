@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent, type KeyboardEvent, type RefObject } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type RefObject } from 'react';
 import { CHAT_BOX_LABELS } from '../strings';
 import { useHeightThatFitsText } from './useHeightThatFitsText';
 
@@ -14,13 +14,15 @@ interface ChatBoxProps {
   canAttach?: boolean;
   clearsOnSend?: boolean;
   isSending?: boolean;
+  /** A touch screen is left alone, because a keyboard opening by itself would cover the page. */
+  takesFocus?: boolean;
   /** A session's live voice owns this. Without it the button only changes the placeholder. */
   talk?: { isOn: boolean; onToggle: () => void };
   onSend: (text: string, textBox: HTMLTextAreaElement) => void;
-  onEdit: () => void;
+  onEdit: (question: string) => void;
 }
 
-export function ChatBox({ labels = CHAT_BOX_LABELS, canAttach = true, clearsOnSend = false, isSending = false, talk, onSend, onEdit }: ChatBoxProps) {
+export function ChatBox({ labels = CHAT_BOX_LABELS, canAttach = true, clearsOnSend = false, isSending = false, takesFocus = false, talk, onSend, onEdit }: ChatBoxProps) {
   const [question, setQuestion] = useState('');
   const [isLocalTalkOn, setIsLocalTalkOn] = useState(false);
   const isTalkOn = talk?.isOn ?? isLocalTalkOn;
@@ -30,6 +32,10 @@ export function ChatBox({ labels = CHAT_BOX_LABELS, canAttach = true, clearsOnSe
   const textBox = useHeightThatFitsText(question, placeholder);
   const hasQuestion = question.trim() !== '';
 
+  useEffect(() => {
+    if (takesFocus && !window.matchMedia(TOUCH_SCREEN_QUERY).matches) textBox.current?.focus({ preventScroll: true });
+  }, [takesFocus, textBox]);
+
   function send() {
     if (!hasQuestion || isSending || !textBox.current) return;
     onSend(question.trim(), textBox.current);
@@ -38,7 +44,7 @@ export function ChatBox({ labels = CHAT_BOX_LABELS, canAttach = true, clearsOnSe
 
   function editQuestion(editedQuestion: string) {
     setQuestion(editedQuestion);
-    onEdit();
+    onEdit(editedQuestion);
   }
 
   function removeAttachment() {
