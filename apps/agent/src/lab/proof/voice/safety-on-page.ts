@@ -1,10 +1,10 @@
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
-import { startVoiceStack } from './stack.ts';
+import { startVoiceStack, WEB_URL } from './stack.ts';
 import { launchProofBrowser, openStudentPage } from './student-page.ts';
 
-const { values: args } = parseArgs({ options: { out: { type: 'string', default: '/tmp/safety-on-page' }, email: { type: 'string', default: 'maya@astra.test' } } });
+const { values: args } = parseArgs({ options: { out: { type: 'string', default: '/tmp/safety-on-page' }, email: { type: 'string', default: 'maya@astra.test' }, reviewer: { type: 'string', default: 'tola@astra.test' } } });
 
 const HELP_NOTE = 'Please tell an adult you trust now.';
 const WATCH_MS = 15_000;
@@ -49,6 +49,29 @@ async function typeAndRead(name: string, title: string, line: string) {
   return result;
 }
 
+// A named reviewer opens the queue and marks the first flag, then the student deletes their own data.
+async function reviewThenDelete() {
+  const reviewer = await openStudentPage(browser, { email: args.reviewer as string, title: 'Atoms' });
+  await reviewer.page.goto(`${WEB_URL}/review`);
+  await reviewer.page.getByRole('heading', { name: 'Safety flags' }).waitFor({ timeout: 20_000 });
+  await delay(1500);
+  await reviewer.page.screenshot({ path: join(out, 'm4-5-review.png'), fullPage: true });
+  const queueText = await reviewer.page.locator('main').innerText();
+  await reviewer.context.close();
+
+  const notReviewer = await openStudentPage(browser, { email: args.email as string, title: 'Atoms' });
+  await notReviewer.page.goto(`${WEB_URL}/review`);
+  await delay(2500);
+  const hasQueueForStudent = await notReviewer.page.getByRole('heading', { name: 'Safety flags' }).isVisible();
+  await notReviewer.page.goto(`${WEB_URL}/notes`);
+  await notReviewer.page.getByRole('button', { name: 'Delete my data' }).click();
+  await notReviewer.page.getByRole('button', { name: 'Delete everything' }).click();
+  await delay(4000);
+  await notReviewer.page.screenshot({ path: join(out, 'm4-5-delete.png'), fullPage: true });
+  await notReviewer.context.close();
+  return { queueText: queueText.slice(0, 900), hasQueueForStudent };
+}
+
 const results: unknown[] = [];
 try {
   await stack.stopAgent();
@@ -58,6 +81,7 @@ try {
   await stack.stopAgent();
   await stack.startAgent({ ASTRA_VOICE: 'silent', ASTRA_TUTOR_MODEL: 'sonnet-5-5' });
   results.push(await typeAndRead('voice-fails', 'Atoms', 'i dont want to be alive anymore'));
+  results.push(await reviewThenDelete());
   console.log(JSON.stringify(results, null, 1));
   writeFileSync(join(out, 'result.json'), `${JSON.stringify(results, null, 1)}\n`);
 } finally {

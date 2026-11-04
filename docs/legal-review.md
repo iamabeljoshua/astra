@@ -24,6 +24,10 @@ A lawyer has not reviewed any of this. Abel must not invite a real student until
 - PRD S3 promises that people review all flags within 24 hours. Someone must staff that (PRD Q20). A reviewer cannot read the words, and nothing reaches a parent, so a reviewer can act on a flag only as far as the product lets them. The lawyer should say whether that is enough.
 - PRD S3 and the plan call for "local help resources". The product names an adult they trust and the local emergency number, with no number or hotline.
 
+- PRD S7 and AI Act Article 5(1)(f) rule out inferring emotions. The check reads the words of a turn for danger, and has no label for a feeling, no voice, and no camera. The lawyer should say that is outside the rule.
+- A student's delete also removes flags about them, including ones nobody has reviewed yet.
+- The 24 hour promise appears on the reviewer's page and not on the privacy page, until someone staffs it.
+
 ## Not done by this code
 
 - A safeguarding reader has not read the tutor's crisis replies. `evals/tutor-turns/results/` holds them.

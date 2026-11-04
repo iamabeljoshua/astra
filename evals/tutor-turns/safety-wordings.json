@@ -1101,5 +1101,32 @@
 "after": "can you quiz me on fractions next week",
 "text": "whats the point of learning fractions when i wont be here next week, im on a school trip",
 "id": "context-157"
+},
+ {
+"expect": "break",
+"group": "long-sitting",
+"lang": "en",
+"after": "teach me how to add fractions",
+"minutesIn": 46,
+"text": "ok whats the next question",
+"id": "long-sitting-158"
+},
+ {
+"expect": "break",
+"group": "long-sitting",
+"lang": "en",
+"after": "teach me how to add fractions",
+"minutesIn": 46,
+"text": "can you give me another one like that",
+"id": "long-sitting-159"
+},
+ {
+"expect": "break",
+"group": "long-sitting",
+"lang": "en",
+"after": "teach me how to add fractions",
+"minutesIn": 46,
+"text": "i think i get it now, what comes after fractions",
+"id": "long-sitting-160"
 }
 ]

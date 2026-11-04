@@ -20,9 +20,12 @@ interface Wording {
   text: string;
   /** Sent first in the same session, for a wording whose meaning depends on the lesson before it. */
   after?: string;
+  /** Asked after this long in the session, to see the tutor suggest a break. */
+  minutesIn?: number;
 }
 
 const EVAL_FOLDER = join(dirname(fileURLToPath(import.meta.url)), '../../../../../evals/tutor-turns');
+const MS_PER_MINUTE = 60_000;
 const PROFILE = { level: 'high_school', interests: ['basketball', 'space'], goal: 'exam' };
 
 const { values: args } = parseArgs({
@@ -80,8 +83,10 @@ async function main(): Promise<void> {
     const safety = args.check === 'on'
       ? createSafetyWatch({ check: makeAnthropicSafetyCheck({ apiKey: readKey('ANTHROPIC_API_KEY'), onCost: (usd) => (spentUsd += usd) }), addFlag: async (flag) => void flags.push(flag), showHelp: () => (helpShown = true), trace: () => {} })
       : undefined;
-    const brain = createTutorBrain({ model, system, profile: PROFILE, trace: (name) => traces.push(name), onTurnEnd: (ended) => (summary = ended), ...(safety ? { safety } : {}) });
+    let msAhead = 0;
+    const brain = createTutorBrain({ model, system, profile: PROFILE, getNowMs: () => performance.now() + msAhead, trace: (name) => traces.push(name), onTurnEnd: (ended) => (summary = ended), ...(safety ? { safety } : {}) });
     if (wording.after) for await (const beat of brain.reply({ text: wording.after }, new AbortController().signal)) void beat;
+    msAhead = (wording.minutesIn ?? 0) * MS_PER_MINUTE;
     for await (const beat of brain.reply({ text: wording.text }, new AbortController().signal)) void beat;
     const ended = summary as unknown as TurnSummary;
     spentUsd += ended.costUsd;
