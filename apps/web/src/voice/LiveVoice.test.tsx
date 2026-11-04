@@ -5,11 +5,15 @@ import { StudentCaption, TutorCaption } from './Captions';
 import type { LiveVoice, LiveVoiceView } from './liveVoice';
 import { useLiveVoice } from './useLiveVoice';
 
-const BASE_VIEW: LiveVoiceView = { phase: 'live', mic: 'off', isSoundBlocked: false, isHeard: false, isTutorSpeaking: false, studentLines: [], tutorHeard: [], tutorComing: [] };
+const BASE_VIEW: LiveVoiceView = { phase: 'live', mic: 'off', isSoundBlocked: false, isQuietWarning: false, isHeard: false, isTutorSpeaking: false, studentLines: [], tutorHeard: [], tutorComing: [] };
 
 function makeFakeVoice(view: Partial<LiveVoiceView> = {}): LiveVoice {
   let current = { ...BASE_VIEW, ...view };
   const listeners = new Set<() => void>();
+  const setMic = (isOn: boolean) => {
+    current = { ...current, mic: isOn ? 'on' : 'off' };
+    listeners.forEach((listener) => listener());
+  };
   return {
     records: {} as LiveVoice['records'],
     player: {} as LiveVoice['player'],
@@ -20,10 +24,9 @@ function makeFakeVoice(view: Partial<LiveVoiceView> = {}): LiveVoice {
     },
     getBoardNow: () => ({ board: { elements: new Map(), focus: null }, atMs: 0 }),
     sendTyped: vi.fn(),
-    setMicOn: vi.fn(async (isOn: boolean) => {
-      current = { ...current, mic: isOn ? 'on' : 'off' };
-      listeners.forEach((listener) => listener());
-    }),
+    setMicOn: vi.fn(async (isOn: boolean) => setMic(isOn)),
+    toggleMic: vi.fn(async () => setMic(current.mic !== 'on')),
+    sayStillHere: vi.fn(),
     turnOnSound: vi.fn(),
     mark: vi.fn(),
     close: vi.fn(async () => {}),
@@ -55,12 +58,11 @@ describe('useLiveVoice', () => {
     const { result } = renderHook(() => useLiveVoice({ sessionId: 'a-session', start }));
     await act(async () => void (await result.current.sendTyped('Why?')));
     expect(voice.sendTyped).toHaveBeenCalledWith('Why?');
-    expect(voice.setMicOn).not.toHaveBeenCalled();
+    expect(voice.getView().mic).toBe('off');
     await act(() => result.current.toggleTalk());
-    expect(voice.setMicOn).toHaveBeenCalledWith(true);
     expect(result.current.view?.mic).toBe('on');
     await act(() => result.current.toggleTalk());
-    expect(voice.setMicOn).toHaveBeenLastCalledWith(false);
+    expect(result.current.view?.mic).toBe('off');
     expect(start).toHaveBeenCalledTimes(1);
   });
 
@@ -79,6 +81,36 @@ describe('useLiveVoice', () => {
     });
     expect(voice.getView().mic).toBe('off');
     expect(voice.setMicOn).not.toHaveBeenCalledWith(true);
+    expect(voice.toggleMic).not.toHaveBeenCalled();
+  });
+
+  it('shows the press at once while the room opens, so it cannot look like a press that missed', async () => {
+    const voice = makeFakeVoice();
+    let open: (opened: LiveVoice) => void = () => {};
+    const start = vi.fn(() => new Promise<LiveVoice>((resolve) => { open = resolve; }));
+    const { result } = renderHook(() => useLiveVoice({ sessionId: 'a-session', start }));
+    let press: Promise<void> = Promise.resolve();
+    act(() => {
+      press = result.current.toggleTalk();
+    });
+    expect(result.current.isTalkOn).toBe(true);
+    await act(async () => {
+      open(voice);
+      await press;
+    });
+    expect(result.current.view?.mic).toBe('on');
+    expect(result.current.isTalkOn).toBe(true);
+  });
+
+  it('opens a new room with a new tutor when asked, and leaves the old one', async () => {
+    const [first, second] = [makeFakeVoice(), makeFakeVoice()];
+    const start = vi.fn<() => Promise<LiveVoice>>().mockResolvedValueOnce(first).mockResolvedValueOnce(second);
+    const { result } = renderHook(() => useLiveVoice({ sessionId: 'a-session', start }));
+    await act(async () => void (await result.current.connect()));
+    await act(() => result.current.openAgain());
+    expect(first.close).toHaveBeenCalled();
+    expect(result.current.voice).toBe(second);
+    expect(start).toHaveBeenCalledTimes(2);
   });
 
   it('says the tutor is unavailable when the room will not open, and lets the student try again', async () => {
@@ -117,6 +149,7 @@ describe('the Privacy Policy on voice', () => {
 
   it('names everyone who receives a student voice or words, in plain words', () => {
     expect(privacy).toContain('LiveKit Cloud carries your voice');
+    expect(privacy).toContain('your IP address');
     expect(privacy).toContain("Meta's Muse Voice Transcribe receives your voice");
     expect(privacy).toContain('ElevenLabs receives your words too');
   });

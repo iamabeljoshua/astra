@@ -13,8 +13,10 @@ const FRAME_MS = 100;
 const SAMPLES_PER_FRAME = (SAMPLE_RATE * FRAME_MS) / 1000;
 
 export interface MuseTimings {
-  /** Muse closes with 1008 about 16 s after its last frame, so a dropped link is padded with silence after this. */
+  /** Muse gives no final with no frames, so silence is sent after this much quiet, for a line still waiting on its final. */
   padAfterMs: number;
+  /** With no frames for this long the microphone is off or the link is gone, so the session closes and costs nothing. It outlasts LiveKit's own retries of 3 to 5 s, and Muse's own close at about 16 s. */
+  closeAfterQuietMs: number;
   /** Muse caps a session at 60 minutes and the plugin only reports the close, so a new session opens before that. */
   rotateAtPauseAfterMs: number;
   rotateAnywayAfterMs: number;
@@ -22,7 +24,7 @@ export interface MuseTimings {
   longestRetryMs: number;
 }
 
-export const MUSE_TIMINGS: MuseTimings = { padAfterMs: 400, rotateAtPauseAfterMs: 50 * 60_000, rotateAnywayAfterMs: 55 * 60_000, retryAfterMs: 500, longestRetryMs: 30_000 };
+export const MUSE_TIMINGS: MuseTimings = { padAfterMs: 400, closeAfterQuietMs: 10_000, rotateAtPauseAfterMs: 50 * 60_000, rotateAnywayAfterMs: 55 * 60_000, retryAfterMs: 500, longestRetryMs: 30_000 };
 
 export interface MuseOptions {
   apiKey: string;
@@ -31,7 +33,7 @@ export interface MuseOptions {
   onNote?(note: MuseNote): void;
 }
 
-export type MuseNote = { kind: 'opened'; atMs: number } | { kind: 'ready'; handshakeMs: number } | { kind: 'firstEvent'; openMs: number } | { kind: 'closed'; reason: string };
+export type MuseNote = { kind: 'opened'; atMs: number } | { kind: 'ready'; handshakeMs: number } | { kind: 'hearing' } | { kind: 'firstEvent'; openMs: number } | { kind: 'closed'; reason: string };
 
 function makeSilence(): AudioFrame {
   return new AudioFrame(new Int16Array(SAMPLES_PER_FRAME), SAMPLE_RATE, 1, SAMPLES_PER_FRAME);
@@ -44,7 +46,7 @@ interface MuseSession {
 }
 
 // Holds one live Muse session at a time, opened by the first real frame so a typed session never opens one, and replaced before Muse's cap or after a close.
-// The plugin paces audio from its first packet, so frames queued during a handshake would sit behind real time for the whole session, 3 s on a measured run. Frames before Muse answers are dropped, and the student is still hearing the greeting then.
+// The plugin paces audio from its first packet, so frames queued during a handshake would sit behind real time for the whole session, 3 s on a measured run. Frames before Muse answers are dropped. The browser holds the microphone's sound until this says `hearing`, so those frames are silence.
 class MuseSpeechStream extends stt.SpeechStream {
   label = 'astra.muse';
   readonly #newSession: (onReady: () => void) => stt.SpeechStream;
@@ -54,6 +56,7 @@ class MuseSpeechStream extends stt.SpeechStream {
   #nextSession: MuseSession | null = null;
   #lastFrameAtMs = 0;
   #isSpeaking = false;
+  #isHearing = false;
   #failures = 0;
   #nextOpenAtMs = 0;
   #padTimer: ReturnType<typeof setInterval> | undefined;
@@ -125,8 +128,29 @@ class MuseSpeechStream extends stt.SpeechStream {
     if (session?.isReady) session.stream.pushFrame(frame);
   }
 
-  #padIfSilent = () => {
-    if (Date.now() - this.#lastFrameAtMs >= this.#timings.padAfterMs) this.#pushToMuse(makeSilence());
+  #pushRealFrame(frame: AudioFrame): void {
+    this.#pushToMuse(frame);
+    if (this.#isHearing || !this.#session?.isReady) return;
+    this.#isHearing = true;
+    this.#onNote?.({ kind: 'hearing' });
+  }
+
+  #closeForQuiet(): void {
+    clearInterval(this.#padTimer);
+    this.#padTimer = undefined;
+    const sessions = [this.#session, this.#nextSession];
+    this.#session = null;
+    this.#nextSession = null;
+    this.#isSpeaking = false;
+    for (const session of sessions) session?.stream.close();
+  }
+
+  #onQuietTick = () => {
+    const quietMs = Date.now() - this.#lastFrameAtMs;
+    if (quietMs < this.#timings.padAfterMs) return;
+    this.#isHearing = false;
+    if (quietMs >= this.#timings.closeAfterQuietMs) this.#closeForQuiet();
+    else this.#pushToMuse(makeSilence());
   };
 
   protected async run(): Promise<void> {
@@ -136,8 +160,8 @@ class MuseSpeechStream extends stt.SpeechStream {
         continue;
       }
       this.#lastFrameAtMs = Date.now();
-      this.#padTimer ??= setInterval(this.#padIfSilent, FRAME_MS);
-      this.#pushToMuse(item);
+      this.#padTimer ??= setInterval(this.#onQuietTick, FRAME_MS);
+      this.#pushRealFrame(item);
     }
     clearInterval(this.#padTimer);
     this.#session?.stream.endInput();

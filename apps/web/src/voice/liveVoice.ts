@@ -1,8 +1,13 @@
 import { type BoardState, createChoosingClock, createScenePlayer, type FiredCue, type OutputLevel, type ScenePlayer } from '@astra/board';
 import { type AgentMessage, type BrowserMessage, LINK_QUIET_LIMIT_MS, parseAgentMessage, PULSE_EVERY_MS } from '@astra/contracts';
-import { createLocalAudioTrack, DisconnectReason, type LocalAudioTrack, type RemoteTrack, Room, RoomEvent, Track } from 'livekit-client';
+import { DisconnectReason, type RemoteTrack, Room, RoomEvent, Track } from 'livekit-client';
+import heldMicWorkletUrl from './held-mic-worklet.js?url';
 import { createLocalYield } from './localYield';
-import { createTutorAudioContext, listenToTutor, listenToStudent, OUTPUT_GAINS, type ProbeNote } from './tutorAudio';
+import { createMicrophone, type MicState } from './microphone';
+import { type MicLine, openMicLine } from './micLine';
+import { createTutorAudioContext, listenToTutor, listenToStudent, OUTPUT_GAINS, type ProbeNote, resumeAudio } from './tutorAudio';
+
+export type { MicState };
 
 export const LIVE_TOPIC = 'astra.live';
 const LAB_TOPIC = 'astra.lab';
@@ -13,9 +18,13 @@ const REJOIN_EVERY_MS = 2000;
 /** A room can say connected with a data channel that carries nothing after a drop, and only a new join clears that. */
 const REJOIN_AFTER_QUIET_MS = 3000;
 const TUTOR_ARRIVES_WITHIN_MS = 25_000;
+/** A crashed job never comes back, and each join mints a token and keeps the room alive, so a page stops trying after this many with no pulse. */
+const MOST_REJOINS_WITHOUT_TUTOR = 3;
 
-export type LivePhase = 'connecting' | 'live' | 'reconnecting' | 'noTutor' | 'ended';
-export type MicState = 'off' | 'starting' | 'on' | 'denied';
+export type LivePhase = 'connecting' | 'live' | 'reconnecting' | 'noTutor' | 'tutorLost' | 'closedForQuiet' | 'ended';
+
+/** The page has left the room for good, and only opening a new one brings the tutor back. */
+export const isVoiceOver = (phase: LivePhase) => phase === 'noTutor' || phase === 'tutorLost' || phase === 'closedForQuiet' || phase === 'ended';
 
 export interface StudentLine {
   text: string;
@@ -26,6 +35,8 @@ export interface LiveVoiceView {
   phase: LivePhase;
   mic: MicState;
   isSoundBlocked: boolean;
+  /** The room has been quiet for most of its limit and closes soon unless something happens. */
+  isQuietWarning: boolean;
   /** Code knows the student finished, so the dot shows it before any voice can. */
   isHeard: boolean;
   isTutorSpeaking: boolean;
@@ -47,6 +58,7 @@ export interface LiveVoiceRecords {
   heardEpochMs: number[];
   yieldEpochMs: { turnId: string; isYielding: boolean; atMs: number }[];
   localYieldEpochMs: number[];
+  earsOpenEpochMs: number[];
   probe: (ProbeNote & { epochMs: number })[];
   fired: (FiredCue & { firedEpochMs: number })[];
   refused: string[];
@@ -59,6 +71,9 @@ export interface LiveVoice {
   getBoardNow(): { board: BoardState; atMs: number };
   sendTyped(text: string): void;
   setMicOn(isOn: boolean): Promise<void>;
+  toggleMic(): Promise<void>;
+  /** Answers a quiet warning, so the room stays open. */
+  sayStillHere(): void;
   turnOnSound(): Promise<void>;
   mark(note: object): void;
   close(): Promise<void>;
@@ -67,7 +82,8 @@ export interface LiveVoice {
 }
 
 export interface LiveVoiceOptions {
-  getAccess(): Promise<RoomAccess>;
+  /** Null means this session has finished, so there is no room to join. */
+  getAccess(): Promise<RoomAccess | null>;
   /** False when the student opened the room by typing, because a greeting would talk over the reply. */
   wantsGreeting?: boolean;
   /** The browser's own speech cleanup. Only a microphone test turns it off. */
@@ -80,12 +96,12 @@ const getEpochMs = () => performance.timeOrigin + performance.now();
 const MIC_PUBLISH_OPTIONS = { source: Track.Source.Microphone, dtx: false, red: false };
 
 function createRecords(): LiveVoiceRecords {
-  return { firstAudioEpochMs: {}, turnStartedEpochMs: {}, stopEpochMs: {}, heardEpochMs: [], yieldEpochMs: [], localYieldEpochMs: [], probe: [], fired: [], refused: [], clockKinds: [] };
+  return { firstAudioEpochMs: {}, turnStartedEpochMs: {}, stopEpochMs: {}, heardEpochMs: [], yieldEpochMs: [], localYieldEpochMs: [], earsOpenEpochMs: [], probe: [], fired: [], refused: [], clockKinds: [] };
 }
 
 // Connects the session to its room, plays what the agent sends against what the student hears, and sends back what played. It knows nothing of React.
 export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpeechCleanup = true }: LiveVoiceOptions): Promise<LiveVoice> {
-  const audioContext = await createTutorAudioContext();
+  const audioContext = await createTutorAudioContext([heldMicWorkletUrl]);
   const clock = createChoosingClock({ getIsAudioRunning: () => audioContext.state === 'running', getGraphTimeMs: () => audioContext.currentTime * 1000, getOutputLatencyMs: () => (audioContext.outputLatency || 0) * 1000, getWallMs: () => performance.now() });
   const clockId = crypto.randomUUID();
   const records = createRecords();
@@ -95,16 +111,16 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
   const decoder = new TextDecoder();
   const listeners = new Set<() => void>();
   const outbox: BrowserMessage[] = [];
-  let view: LiveVoiceView = { phase: 'connecting', mic: 'off', isSoundBlocked: audioContext.state !== 'running', isHeard: false, isTutorSpeaking: false, studentLines: [], tutorHeard: [], tutorComing: [] };
+  let view: LiveVoiceView = { phase: 'connecting', mic: 'off', isSoundBlocked: audioContext.state !== 'running', isQuietWarning: false, isHeard: false, isTutorSpeaking: false, studentLines: [], tutorHeard: [], tutorComing: [] };
   let lastAgentPulseEpochMs: number | null = null;
   let isClosed = false;
   let hasHeardFirstOnset = false;
   let currentTurnId: string | null = null;
   let heardTimer: ReturnType<typeof setTimeout> | undefined;
   let stopListening = () => {};
-  let micTrack: LocalAudioTrack | null = null;
-  let stopWatchingMic = () => {};
   let isRejoining = false;
+  let hasLeftRoom = false;
+  let rejoinsSincePulse = 0;
   let hasSaidHello = false;
   let connectedAtEpochMs = getEpochMs();
 
@@ -159,9 +175,17 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
   const onAgentMessage = (message: AgentMessage) => {
     if (message.type === 'pulse') {
       lastAgentPulseEpochMs = getEpochMs();
+      rejoinsSincePulse = 0;
       flushOutbox();
       return;
     }
+    if (message.type === 'earsOpen') {
+      records.earsOpenEpochMs.push(getEpochMs());
+      mic.getLine()?.release();
+      return;
+    }
+    if (message.type === 'quietWarning') return setView({ isQuietWarning: message.isOn });
+    if (message.type === 'closingForQuiet') return leaveRoom('closedForQuiet');
     if (message.type === 'heard') return showHeard();
     if (message.type === 'studentWords') return addStudentWords(message);
     if (message.type === 'turnStarted') {
@@ -201,14 +225,25 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
   };
   audioContext.onstatechange = sendAudioState;
 
+  const leaveRoom = (phase: LivePhase) => {
+    hasLeftRoom = true;
+    clearTimeout(tutorWait);
+    player.freeze();
+    setView({ phase, isQuietWarning: false });
+    void mic.setOn(false);
+    void room.disconnect();
+  };
+
   const beat = () => {
+    if (hasLeftRoom) return;
     const nowMs = getEpochMs();
     const canHear = hearsAgent();
     if (!canHear && lastAgentPulseEpochMs !== null) player.freeze();
     if (room.state !== 'connected') return;
     const quietSinceMs = Math.max(lastAgentPulseEpochMs ?? nowMs, connectedAtEpochMs);
     if (lastAgentPulseEpochMs !== null && nowMs - quietSinceMs > REJOIN_AFTER_QUIET_MS) {
-      void rejoin();
+      if (rejoinsSincePulse >= MOST_REJOINS_WITHOUT_TUTOR) leaveRoom('tutorLost');
+      else void rejoin();
       return;
     }
     const message: BrowserMessage = { type: 'pulse', ...getStamp(), hearsAgent: canHear };
@@ -229,23 +264,63 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     else records.refused.push(parsed.problem);
   };
 
-  const connectRoom = async () => {
-    const { url, token } = await getAccess();
-    await room.connect(url, token);
+  const connectRoom = async (): Promise<boolean> => {
+    const access = await getAccess();
+    if (!access) return false;
+    await room.connect(access.url, access.token);
+    return true;
   };
+
+  const publishMic = (line: MicLine) => room.localParticipant.publishTrack(line.track, MIC_PUBLISH_OPTIONS);
+
+  const mic = createMicrophone<MicLine>({
+    async capture() {
+      await resumeAudio(audioContext);
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: usesSpeechCleanup, noiseSuppression: usesSpeechCleanup, autoGainControl: usesSpeechCleanup } });
+      const [captured] = stream.getAudioTracks();
+      if (!captured) throw new DOMException('the browser gave no track', 'NotFoundError');
+      const line = openMicLine(captured, audioContext);
+      const stopWatching = listenToStudent(captured, { audioContext, onSound: localYield.onStudentSound });
+      return {
+        ...line,
+        stop() {
+          stopWatching();
+          line.stop();
+        },
+      };
+    },
+    // During a rejoin the join publishes whatever line is open, so publishing here too would race it.
+    async publish(line) {
+      if (room.state === 'connected' && !isRejoining) await publishMic(line);
+    },
+    async unpublish(line) {
+      if (room.state === 'connected') await room.localParticipant.unpublishTrack(line.track);
+    },
+    onState: (state) => setView({ mic: state }),
+  });
+  const onPageHide = () => mic.stopAtOnce();
+  window.addEventListener('pagehide', onPageHide);
 
   // LiveKit retries a short drop itself. Once it gives up, or leaves a channel that carries nothing, a new token and a new join bring the same session back.
   async function rejoin(): Promise<void> {
-    if (isRejoining) return;
+    if (isRejoining || hasLeftRoom) return;
     isRejoining = true;
+    rejoinsSincePulse += 1;
     player.freeze();
+    // A new join means a new track and maybe a new Muse session, so what the student says meanwhile waits for the ears as it does at the start.
+    mic.getLine()?.hold();
     setView({ phase: 'reconnecting' });
     await room.disconnect(false).catch(() => {});
     const deadline = getEpochMs() + LONGEST_REJOIN_MS;
-    while (!isClosed && getEpochMs() < deadline) {
+    while (!isClosed && !hasLeftRoom && getEpochMs() < deadline) {
       try {
-        await connectRoom();
-        if (micTrack) await room.localParticipant.publishTrack(micTrack, MIC_PUBLISH_OPTIONS);
+        if (!(await connectRoom())) {
+          isRejoining = false;
+          return leaveRoom('ended');
+        }
+        const line = mic.getLine();
+        if (line) await publishMic(line);
+        if (line && mic.getLine() !== line) await room.localParticipant.unpublishTrack(line.track);
         connectedAtEpochMs = getEpochMs();
         isRejoining = false;
         setView({ phase: 'live' });
@@ -256,7 +331,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
       }
     }
     isRejoining = false;
-    if (!isClosed) setView({ phase: 'ended' });
+    if (!isClosed && !hasLeftRoom) leaveRoom('ended');
   }
 
   room.on(RoomEvent.TrackSubscribed, (track: RemoteTrack) => {
@@ -281,18 +356,20 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     setView({ phase: 'live' });
   });
   room.on(RoomEvent.Disconnected, (reason) => {
-    if (isRejoining) return;
+    if (isRejoining || hasLeftRoom) return;
     player.freeze();
     const isFinal = isClosed || reason === DisconnectReason.CLIENT_INITIATED || reason === DisconnectReason.DUPLICATE_IDENTITY || reason === DisconnectReason.ROOM_DELETED;
-    setView({ phase: isFinal ? 'ended' : 'reconnecting' });
-    if (!isFinal) void rejoin();
+    if (isFinal) return leaveRoom('ended');
+    setView({ phase: 'reconnecting' });
+    void rejoin();
   });
 
-  const tutorWait = setTimeout(() => setView({ phase: 'noTutor' }), TUTOR_ARRIVES_WITHIN_MS);
+  const tutorWait = setTimeout(() => leaveRoom('noTutor'), TUTOR_ARRIVES_WITHIN_MS);
   try {
-    await connectRoom();
+    if (!(await connectRoom())) throw new Error('this session has finished');
   } catch (problem) {
     clearTimeout(tutorWait);
+    window.removeEventListener('pagehide', onPageHide);
     await audioContext.close();
     throw problem;
   }
@@ -319,23 +396,13 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
       addStudentWords({ text, isFinal: true });
       send({ type: 'typed', ...getStamp(), text });
     },
-    async setMicOn(isOn) {
-      if (!isOn) {
-        stopWatchingMic();
-        if (micTrack) await room.localParticipant.unpublishTrack(micTrack);
-        micTrack?.stop();
-        micTrack = null;
-        return setView({ mic: 'off' });
-      }
-      setView({ mic: 'starting' });
-      try {
-        micTrack = await createLocalAudioTrack({ echoCancellation: usesSpeechCleanup, noiseSuppression: usesSpeechCleanup, autoGainControl: usesSpeechCleanup });
-        await room.localParticipant.publishTrack(micTrack, MIC_PUBLISH_OPTIONS);
-        stopWatchingMic = listenToStudent(micTrack.mediaStreamTrack, { audioContext, onSound: localYield.onStudentSound });
-        setView({ mic: 'on' });
-      } catch {
-        setView({ mic: 'denied' });
-      }
+    setMicOn: (isOn) => mic.setOn(isOn && !hasLeftRoom),
+    async toggleMic() {
+      if (!hasLeftRoom) await mic.toggle();
+    },
+    sayStillHere() {
+      setView({ isQuietWarning: false });
+      send({ type: 'stillHere', ...getStamp() });
     },
     async turnOnSound() {
       await audioContext.resume();
@@ -350,8 +417,8 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
       clearTimeout(heardTimer);
       clearTimeout(tutorWait);
       localYield.close();
-      stopWatchingMic();
-      micTrack?.stop();
+      window.removeEventListener('pagehide', onPageHide);
+      await mic.close();
       stopListening();
       await room.disconnect();
       await audioContext.close();

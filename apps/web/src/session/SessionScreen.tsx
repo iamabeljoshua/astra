@@ -9,7 +9,7 @@ import { type Session, useSession } from './sessionQueries';
 import { useSessionRun } from './useSessionRun';
 import { StudentCaption, TutorCaption } from '../voice/Captions';
 import { LiveBoard } from '../voice/LiveBoard';
-import type { LiveVoice, LiveVoiceView } from '../voice/liveVoice';
+import { isVoiceOver, type LiveVoice, type LiveVoiceView } from '../voice/liveVoice';
 import { type LiveVoiceControls, useLiveVoice } from '../voice/useLiveVoice';
 
 const NOT_FOUND_STATUS = 404;
@@ -194,13 +194,19 @@ function getVoiceNote(status: LiveVoiceControls['status'], view: LiveVoiceView |
   if (status === 'unavailable' || view?.phase === 'noTutor') return VOICE_LABELS.unavailable;
   if (view?.phase === 'reconnecting') return VOICE_LABELS.reconnecting;
   if (view?.phase === 'ended') return VOICE_LABELS.ended;
+  if (view?.phase === 'tutorLost') return VOICE_LABELS.tutorLost;
+  if (view?.phase === 'closedForQuiet') return VOICE_LABELS.closedForQuiet;
+  if (view?.isQuietWarning) return VOICE_LABELS.quietWarning;
   if (view?.mic === 'denied') return VOICE_LABELS.micDenied;
+  if (view?.mic === 'noDevice') return VOICE_LABELS.micNoDevice;
+  if (view?.mic === 'failed') return VOICE_LABELS.micFailed;
   if (view?.mic === 'on') return VOICE_LABELS.micOn;
   return null;
 }
 
 function ReplyBox({ liveVoice }: { liveVoice: LiveVoiceControls }) {
-  const { status, view, voice, sendTyped, toggleTalk } = liveVoice;
+  const { status, view, voice, isTalkOn, sendTyped, toggleTalk, openAgain } = liveVoice;
+  const isOver = view !== null && isVoiceOver(view.phase);
   const [replyWithNoRoom, setReplyWithNoRoom] = useState<string | null>(null);
   const voiceNote = getVoiceNote(status, view);
 
@@ -224,12 +230,22 @@ function ReplyBox({ liveVoice }: { liveVoice: LiveVoiceControls }) {
         )}
         {voiceNote && <p className="text-fine text-ink-2">{voiceNote}</p>}
       </div>
-      {view?.isSoundBlocked && (
+      {isOver && (
+        <button type="button" onClick={() => void openAgain()} className="button button-outline self-start">
+          {view.phase === 'closedForQuiet' ? VOICE_LABELS.openAgain : VOICE_LABELS.tryAgain}
+        </button>
+      )}
+      {view?.isQuietWarning && (
+        <button type="button" onClick={() => voice?.sayStillHere()} className="button button-outline self-start">
+          {VOICE_LABELS.stillHere}
+        </button>
+      )}
+      {view?.isSoundBlocked && !isOver && (
         <button type="button" onClick={() => void voice?.turnOnSound()} className="button button-outline self-start">
           {VOICE_LABELS.turnOnSound}
         </button>
       )}
-      <ChatBox labels={REPLY_BOX_LABELS} canAttach={false} clearsOnSend talk={{ isOn: view?.mic === 'on', onToggle: () => void toggleTalk() }} onSend={(text) => void send(text)} onEdit={() => undefined} />
+      <ChatBox labels={REPLY_BOX_LABELS} canAttach={false} clearsOnSend isSending={isOver} talk={{ isOn: isTalkOn, onToggle: () => void toggleTalk() }} onSend={(text) => void send(text)} onEdit={() => undefined} />
     </div>
   );
 }

@@ -46,7 +46,13 @@ export type AgentMessage =
   /** Code knows the student finished, so the dot reacts before any voice can. */
   | { type: 'heard' }
   /** Sent every half second on the lossy channel, so the browser knows the agent can still reach it. */
-  | { type: 'pulse' };
+  | { type: 'pulse' }
+  /** This microphone's sound now reaches a transcriber that has answered, so the browser lets go of what it held. */
+  | { type: 'earsOpen' }
+  /** The room has been quiet for most of its limit. A later message with `isOn` false takes the warning down. */
+  | { type: 'quietWarning'; isOn: boolean }
+  /** The room stayed quiet to its limit and closes now. */
+  | { type: 'closingForQuiet' };
 
 /**
  * `browserMs` says when this was sent, on the browser's audio clock, and `startedMsAgo` how long before that it really happened.
@@ -74,4 +80,6 @@ export type BrowserMessage = BrowserStamp &
     | { type: 'pulse'; hearsAgent: boolean }
     /** Whether audio can play. A student who cannot hear the tutor reads the captions, and the note must not say "heard". */
     | { type: 'audioState'; isRunning: boolean }
+    /** The student answered a quiet warning, so the room stays open. */
+    | { type: 'stillHere' }
   );

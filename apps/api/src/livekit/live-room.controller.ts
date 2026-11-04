@@ -1,7 +1,7 @@
-import { Controller, HttpCode, Param, Post } from '@nestjs/common';
+import { Controller, HttpCode, Param, Post, Query } from '@nestjs/common';
 import { CurrentStudentId } from '../auth/route-access';
 import { SessionParamsDto } from '../sessions/session.dto';
-import { LiveRoomResponseDto } from './live-room.dto';
+import { LiveRoomQueryDto, LiveRoomResponseDto } from './live-room.dto';
 import { LiveRoomService } from './live-room.service';
 
 const OK_STATUS = 200;
@@ -16,7 +16,8 @@ export class LiveRoomController {
   openLiveRoom(
     @CurrentStudentId() studentId: string,
     @Param() { id }: SessionParamsDto,
+    @Query() { startOver }: LiveRoomQueryDto,
   ): Promise<LiveRoomResponseDto> {
-    return this.liveRoomService.openLiveRoom(studentId, id);
+    return this.liveRoomService.openLiveRoom(studentId, id, { startOver: startOver === 'yes' });
   }
 }

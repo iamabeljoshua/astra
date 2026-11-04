@@ -21,11 +21,14 @@ export interface TutorAudioOptions {
   tapPcm?(point: 'arriving' | 'output', node: AudioNode): void;
 }
 
+// A browser can leave a resume waiting for a gesture, so this does not wait for long.
+export const resumeAudio = (audioContext: AudioContext) => Promise.race([audioContext.resume(), new Promise((resolve) => setTimeout(resolve, RESUME_LIMIT_MS))]);
+
 export async function createTutorAudioContext(extraWorklets: readonly string[] = []): Promise<AudioContext> {
   const audioContext = new AudioContext({ latencyHint: 'interactive', sampleRate: SAMPLE_RATE });
   await audioContext.audioWorklet.addModule(probeWorkletUrl);
   await Promise.all(extraWorklets.map((url) => audioContext.audioWorklet.addModule(url)));
-  await Promise.race([audioContext.resume(), new Promise((resolve) => setTimeout(resolve, RESUME_LIMIT_MS))]);
+  await resumeAudio(audioContext);
   return audioContext;
 }
 

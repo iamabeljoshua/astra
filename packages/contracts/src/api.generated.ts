@@ -518,7 +518,10 @@ export interface operations {
     };
     LiveRoomController_openLiveRoom: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Set to `yes` when the tutor has gone, to close this session's room and call a new tutor into a new one. Leave it out to join the room as it is. */
+                startOver?: "yes";
+            };
             header?: never;
             path: {
                 /** @description The ID of the session. */

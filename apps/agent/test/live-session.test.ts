@@ -1,7 +1,7 @@
 import { type AgentMessage, type Beat, type BrowserMessage, parseBeat, type TurnId } from '@astra/contracts';
 import { initializeLogger, tts } from '@livekit/agents';
 import { afterEach, describe, expect, it } from 'vitest';
-import { type EarsEvent, createLiveSession, type LiveSession, VOICE_STALL_MS } from '../src/live/live-session.ts';
+import { type EarsEvent, createLiveSession, type LiveSession, QUIET_ROOM_LIMIT_MS, VOICE_STALL_MS } from '../src/live/live-session.ts';
 import { createTakePicker, type StoredTake } from '../src/live/reactions.ts';
 import type { TutorBrain } from '../src/live/stand-in-tutor.ts';
 import { TURN_TIMINGS } from '../src/live/turn-rule.ts';
@@ -60,7 +60,7 @@ function makeOutput(frames: { atMs: number }[], failAfter = Infinity): VoiceOutp
   };
 }
 
-function start({ voice = makeRenderedVoice({ name: 'fake', render: renderTone }).makeTts(), failAfter }: { voice?: tts.TTS; failAfter?: number } = {}): Harness {
+function start({ voice = makeRenderedVoice({ name: 'fake', render: renderTone }).makeTts(), failAfter, quietLimitMs, onQuietLimit }: { voice?: tts.TTS; failAfter?: number; quietLimitMs?: number; onQuietLimit?(): void } = {}): Harness {
   const messages: AgentMessage[] = [];
   const traces: Harness['traces'] = [];
   const frames: { atMs: number }[] = [];
@@ -86,6 +86,8 @@ function start({ voice = makeRenderedVoice({ name: 'fake', render: renderTone })
     takes: createTakePicker(TAKES),
     allTakes: TAKES,
     setTurnCap: () => {},
+    onQuietLimit,
+    ...(quietLimitMs === undefined ? {} : { quietLimitMs }),
     trace: (name, fields = {}) => void traces.push({ name, fields }),
   });
   sessions.push(session);
@@ -290,6 +292,62 @@ describe('a report that reaches the agent twice', () => {
     await first.say('Why');
     await second.say('Why');
     expect(first.getTurnsStarted()[0]).not.toBe(second.getTurnsStarted()[0]);
+  });
+});
+
+describe('a quiet room', () => {
+  const warnings = (messages: AgentMessage[]) => messages.flatMap((message) => (message.type === 'quietWarning' ? [message.isOn] : []));
+
+  it('sets the limit in one number, at ten minutes', () => {
+    expect(QUIET_ROOM_LIMIT_MS).toBe(600_000);
+  });
+
+  it('warns first, and only then closes', async () => {
+    let closed = 0;
+    const { messages } = start({ quietLimitMs: 120, onQuietLimit: () => (closed += 1) });
+    await delay(80);
+    expect(warnings(messages)).toEqual([true]);
+    expect(closed).toBe(0);
+    await delay(80);
+    expect(closed).toBe(1);
+    expect(messages.some((message) => message.type === 'closingForQuiet')).toBe(true);
+  });
+
+  it('takes the warning down and starts again when the student answers it, types, speaks, or moves the board', async () => {
+    let closed = 0;
+    const { browser, ears, messages } = start({ quietLimitMs: 150, onQuietLimit: () => (closed += 1) });
+    const answers: (() => void)[] = [
+      () => browser({ type: 'stillHere', ...STAMP }),
+      () => ears({ type: 'words', text: 'Hello', isFinal: false }),
+      () => browser({ type: 'acted', ...STAMP, action: { kind: 'sliderSet', element: 'slider' as never, parameter: 'angle', value: 1 } as never }),
+    ];
+    for (const answer of answers) {
+      await delay(100);
+      answer();
+    }
+    await delay(60);
+    expect(closed).toBe(0);
+    expect(warnings(messages).filter((isOn) => !isOn).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('counts the tutor speaking as something happening', async () => {
+    let closed = 0;
+    const { say } = start({ quietLimitMs: 400, onQuietLimit: () => (closed += 1) });
+    await delay(200);
+    await say('Show me a long answer');
+    await delay(300);
+    expect(closed).toBe(0);
+  });
+
+  it('does not count a transcript with no words, or the page\'s own pulses and reports', async () => {
+    let closed = 0;
+    const { browser, ears } = start({ quietLimitMs: 100, onQuietLimit: () => (closed += 1) });
+    await delay(50);
+    ears({ type: 'words', text: ' ', isFinal: false });
+    browser({ type: 'pulse', ...STAMP, hearsAgent: true });
+    browser({ type: 'audioState', ...STAMP, isRunning: true });
+    await delay(80);
+    expect(closed).toBe(1);
   });
 });
 

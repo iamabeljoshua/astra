@@ -22,6 +22,8 @@ const AUDIO_QUEUE_MS = 200;
 const LEFT_ON_PURPOSE_MS = 15_000;
 /** A dropped link can come back, so the room waits this long before it closes. */
 const LINK_DROPPED_MS = 120_000;
+/** Long enough for the page to hear why before the room goes. */
+const SAY_WHY_BEFORE_CLOSING_MS = 500;
 const STUDENT_IDENTITY_PREFIX = 'student-';
 const LOAD_LIMIT = 0.98;
 
@@ -53,7 +55,13 @@ async function runSession(context: JobContext): Promise<void> {
   const voice = makeVoice();
   voice.on('error', (error) => trace('voiceError', { problem: String(error.error) }));
   voice.prewarm();
-  const transcriber = makeTutorTranscriber({ apiKey: readKey('META_API_KEY'), onNote: (note) => trace(`muse:${note.kind}`, note) }).makeStt();
+  const transcriber = makeTutorTranscriber({
+    apiKey: readKey('META_API_KEY'),
+    onNote(note) {
+      trace(`muse:${note.kind}`, note);
+      if (note.kind === 'hearing') publish({ type: 'earsOpen' });
+    },
+  }).makeStt();
   const allTakes = loadTakes();
   let ears: Ears | null = null;
   const session = createLiveSession({
@@ -70,6 +78,8 @@ async function runSession(context: JobContext): Promise<void> {
     takes: createTakePicker(allTakes),
     allTakes,
     setTurnCap: (ms) => ears?.setTurnCap(ms),
+    onQuietLimit: () => void setTimeout(() => context.shutdown('the room stayed quiet'), SAY_WHY_BEFORE_CLOSING_MS),
+    ...(process.env.ASTRA_QUIET_LIMIT_MS ? { quietLimitMs: Number(process.env.ASTRA_QUIET_LIMIT_MS) } : {}),
     trace,
   });
   ears = await startEars({ room, transcriber, vad: context.proc.userData.vad as inference.VAD, onEvent: session.onEars });

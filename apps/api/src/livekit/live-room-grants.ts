@@ -1,11 +1,10 @@
-import { AccessToken, RoomAgentDispatch, RoomConfiguration, TrackSource, type VideoGrant } from 'livekit-server-sdk';
+import { AccessToken, RoomConfiguration, TrackSource, type VideoGrant } from 'livekit-server-sdk';
 
-/** Long enough to join and rejoin. LiveKit refreshes the token of a student already in the room. */
-const TOKEN_LIFE = '10m';
-const MOST_STUDENTS = 1;
-/** How long a room waits for its first student before closing. */
-const EMPTY_ROOM_SECONDS = 60;
-const DROPPED_STUDENT_SECONDS = 120;
+/** Long enough to join. LiveKit refreshes the token of a student already in the room, and each rejoin asks for a new one, so an old token is useless soon after a session ends. */
+const TOKEN_LIFE = '2m';
+
+/** How long a room waits for its first student before closing, how long it waits for a dropped one, and how many students it holds. */
+export const ROOM_SETTINGS = { maxParticipants: 1, emptyTimeout: 60, departureTimeout: 120 };
 
 export interface LiveRoomKeys {
   url: string;
@@ -34,12 +33,7 @@ export function getStudentGrant(roomName: string): VideoGrant {
 export function makeStudentToken({ keys, roomName, studentId }: { keys: LiveRoomKeys; roomName: string; studentId: string }): Promise<string> {
   const token = new AccessToken(keys.apiKey, keys.apiSecret, { identity: `student-${studentId}`, ttl: TOKEN_LIFE });
   token.addGrant(getStudentGrant(roomName));
-  token.roomConfig = new RoomConfiguration({
-    name: roomName,
-    maxParticipants: MOST_STUDENTS,
-    emptyTimeout: EMPTY_ROOM_SECONDS,
-    departureTimeout: DROPPED_STUDENT_SECONDS,
-    agents: [new RoomAgentDispatch({ agentName: keys.agentName })],
-  });
+  // No agent here. A token cannot be taken back, so one that named the tutor could call a job into a finished session's room.
+  token.roomConfig = new RoomConfiguration({ name: roomName, ...ROOM_SETTINGS });
   return token.toJwt();
 }

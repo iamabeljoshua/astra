@@ -1,6 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { SessionEntity } from '../infrastructure/orm/entities/session.entity';
 import { SessionRepository } from '../infrastructure/orm/repositories/session.repository';
+import { getRoomName } from '../livekit/live-room-grants';
+import { LiveRooms } from '../livekit/live-rooms';
 import type { SessionListOptions } from '../infrastructure/orm/repositories/session.repository';
 import type { TopicSession } from '../picks/topic-progress';
 import type { CreateSessionBodyDto, SessionResponseDto, UpdateSessionBodyDto } from './session.dto';
@@ -26,7 +28,10 @@ function toSessionResponse(session: SessionEntity): SessionResponseDto {
 
 @Injectable()
 export class SessionsService {
-  constructor(private readonly sessions: SessionRepository) {}
+  constructor(
+    private readonly sessions: SessionRepository,
+    private readonly liveRooms: LiveRooms,
+  ) {}
 
   async createSession(studentId: string, body: CreateSessionBodyDto): Promise<SessionResponseDto> {
     return toSessionResponse(await this.sessions.createForStudent(studentId, body));
@@ -50,8 +55,9 @@ export class SessionsService {
     sessionId: string,
     changes: UpdateSessionBodyDto,
   ): Promise<SessionResponseDto> {
-    const session = await this.sessions.updateUnfinishedForStudent(studentId, sessionId, changes);
-    return toSessionResponse(requireSession(session));
+    const session = requireSession(await this.sessions.updateUnfinishedForStudent(studentId, sessionId, changes));
+    if (session.status === 'finished') await this.liveRooms.close(getRoomName(session.id));
+    return toSessionResponse(session);
   }
 
   async getNewestUnfinishedSession(studentId: string): Promise<SessionResponseDto | null> {

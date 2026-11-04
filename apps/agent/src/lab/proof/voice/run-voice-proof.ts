@@ -260,7 +260,7 @@ const SCENARIOS: Record<string, (context: RunContext) => Promise<unknown>> = {
       const liveAtMs = Date.now();
       const trace = await waitForTrace(stack, student, 0, (found) => found.some((row) => row.name === 'turnFinished'), 30_000);
       const after = await student.getTrace();
-      const firstAudio = after.firstAudioEpochMs['turn-1'];
+      const firstAudio = Object.values(after.firstAudioEpochMs)[0];
       const ready = trace.find((row) => row.name === 'muse:ready');
       const rtt = await student.getRoundTripMs();
       rows.push({ connectedMs: liveAtMs - pressedAtMs, jobStartedMs: Math.round((trace.find((row) => row.name === 'jobStarted')?.atMs ?? 0) - pressedAtMs), trackUpMs: Math.round((trace.find((row) => row.name === 'voiceTrackUp')?.atMs ?? 0) - pressedAtMs), greetingHeardMs: firstAudio === undefined ? null : Math.round(firstAudio - pressedAtMs), museHandshakeMs: ready?.handshakeMs ?? null, roundTripMs: rtt === null ? null : Math.round(rtt) });

@@ -1,26 +1,34 @@
 import { ConflictException, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { SessionsService } from '../sessions/sessions.service';
-import { getRoomName, type LiveRoomKeys, makeStudentToken } from './live-room-grants';
+import { getRoomName, makeStudentToken } from './live-room-grants';
 import type { LiveRoomResponseDto } from './live-room.dto';
-
-const DEFAULT_AGENT_NAME = 'astra-tutor';
-
-export function getLiveRoomKeys(environment: NodeJS.ProcessEnv): LiveRoomKeys | null {
-  const { LIVEKIT_URL: url, LIVEKIT_API_KEY: apiKey, LIVEKIT_API_SECRET: apiSecret, ASTRA_AGENT_NAME: agentName } = environment;
-  return url && apiKey && apiSecret ? { url, apiKey, apiSecret, agentName: agentName || DEFAULT_AGENT_NAME } : null;
-}
+import { getLiveRoomKeys, LiveRooms } from './live-rooms';
 
 @Injectable()
 export class LiveRoomService {
-  constructor(private readonly sessionsService: SessionsService) {}
+  constructor(
+    private readonly sessionsService: SessionsService,
+    private readonly liveRooms: LiveRooms,
+  ) {}
 
-  // The room belongs to the session, and the session lookup answers 404 for another student, so no student can get a token for another's room.
-  async openLiveRoom(studentId: string, sessionId: string): Promise<LiveRoomResponseDto> {
+  private async requireUnfinishedSession(studentId: string, sessionId: string) {
     const session = await this.sessionsService.getSession(studentId, sessionId);
     if (session.status === 'finished') throw new ConflictException('This session has finished.');
+    return session;
+  }
+
+  // The room belongs to the session, and the session lookup answers 404 for another student, so no student can get a token for another's room. Only this calls the tutor in, so a finished session can never get a job.
+  async openLiveRoom(studentId: string, sessionId: string, { startOver = false }: { startOver?: boolean } = {}): Promise<LiveRoomResponseDto> {
+    const session = await this.requireUnfinishedSession(studentId, sessionId);
     const keys = getLiveRoomKeys(process.env);
     if (!keys) throw new ServiceUnavailableException('Live voice is not set up.');
     const roomName = getRoomName(session.id);
+    await (startOver ? this.liveRooms.startOver(keys, roomName) : this.liveRooms.open(keys, roomName));
+    // The session can finish while the room opens, and that finish closed nothing, so this closes what it just opened.
+    await this.requireUnfinishedSession(studentId, sessionId).catch(async (problem: unknown) => {
+      await this.liveRooms.close(roomName);
+      throw problem;
+    });
     return { url: keys.url, roomName, token: await makeStudentToken({ keys, roomName, studentId }) };
   }
 }

@@ -38,7 +38,7 @@ describe('what the session is really started with', () => {
   it('passes record false to session.start, so a changed call fails even if the constant stays right', async () => {
     initializeLogger({ pretty: false, level: 'silent' });
     const started = vi.spyOn(voice.AgentSession.prototype, 'start').mockResolvedValue(undefined);
-    await startEars({ room: {} as Room, transcriber: new SilentTranscriber(), vad: new inference.VAD({ apiKey: 'test', apiSecret: 'test', baseURL: 'https://test' }), onEvent: () => {} });
+    await startEars({ room: {} as Room, transcriber: new SilentTranscriber(), vad: {} as inference.VAD, onEvent: () => {} });
     expect(started).toHaveBeenCalledTimes(1);
     expect(started.mock.calls[0]?.[0]).toMatchObject({ record: false, inputOptions: { closeOnDisconnect: false }, outputOptions: { audioEnabled: false, transcriptionEnabled: false } });
   });

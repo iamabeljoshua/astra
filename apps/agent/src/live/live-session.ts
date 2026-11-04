@@ -1,19 +1,25 @@
 import type { tts } from '@livekit/agents';
+import { randomUUID } from 'node:crypto';
 import { type AgentMessage, type Beat, type BeatId, type BrowserMessage, type PlayReport, type SessionEvent, type TurnId } from '@astra/contracts';
 import { createEchoFilter } from './echo-filter.ts';
 import { createLinkWatch, type LinkWatch } from './link-watch.ts';
 import { getTakeBeat, makeTakeVoice, type StoredTake, type TakePicker, type TakeUse } from './reactions.ts';
 import { getResumeBeats } from './resume-plan.ts';
-import { createSessionLog } from './session-log.ts';
+import { createSessionLog, isFurtherReport } from './session-log.ts';
 import { type SpokenTurn, speakTurn, type TurnMessenger } from './speak-turn.ts';
 import type { TutorBrain } from './stand-in-tutor.ts';
 import { getNextTurnState, INITIAL_TURN_STATE, type TimerName, type TurnAction, type TurnEvent, type TurnState } from './turn-rule.ts';
+import { hasWords } from './turn-words.ts';
 import { getSteadyNowMs, type VoiceLine } from './voice-line.ts';
 
 const REPORT_WAIT_MS = 1000;
 const REPORT_POLL_MS = 10;
 const LINK_CHECK_MS = 250;
 export const VOICE_STALL_MS = 3000;
+/** A room closes after this long with no student speech or typing and no tutor speech, because a forgotten tab keeps paying for its job and room. */
+export const QUIET_ROOM_LIMIT_MS = 10 * 60_000;
+/** A student reading the board quietly gets this long to say so before the room closes. */
+const QUIET_WARNING_LEAD_MS = 60_000;
 
 export type EarsEvent = { type: 'voiceStarted' } | { type: 'voiceEnded' } | { type: 'words'; text: string; isFinal: boolean } | { type: 'turnDecided'; text: string };
 
@@ -27,6 +33,9 @@ export interface LiveSessionOptions {
   takes: TakePicker;
   allTakes: readonly StoredTake[];
   setTurnCap(ms: number): void;
+  /** The room stayed quiet to its limit, and the session has told the browser. */
+  onQuietLimit?(): void;
+  quietLimitMs?: number;
   getNowMs?(): number;
   trace?: TraceNote;
 }
@@ -72,8 +81,10 @@ async function* getResumedThen(resumed: readonly Beat[], thought: Thought | null
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Wires what the student does to what the tutor says. The rule decides, this runs its actions, and the voice line keeps every turn apart.
-export function createLiveSession({ messenger, line, voice, tutor, takes, allTakes, setTurnCap, getNowMs = getSteadyNowMs, trace = () => {} }: LiveSessionOptions): LiveSession {
+export function createLiveSession({ messenger, line, voice, tutor, takes, allTakes, setTurnCap, onQuietLimit = () => {}, quietLimitMs = QUIET_ROOM_LIMIT_MS, getNowMs = getSteadyNowMs, trace = () => {} }: LiveSessionOptions): LiveSession {
   const startedAtMs = getNowMs();
+  // A new job in the same room restarts this count, and a page ignores a turn it has seen, so each job's turns carry their own name.
+  const jobTag = randomUUID().slice(0, 8);
   const echo = createEchoFilter();
   const takeVoices = new Map(allTakes.map((take) => [take.id, makeTakeVoice(take).makeTts()]));
   takeVoices.forEach((take) => take.on('error', (error) => trace('voiceError', { problem: String(error.error) })));
@@ -92,6 +103,27 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
   let resumeTicket = 0;
   let hasGreeted = false;
   let voiceStall: ReturnType<typeof setTimeout> | undefined;
+  let quietWarning: ReturnType<typeof setTimeout> | undefined;
+  let quietLimit: ReturnType<typeof setTimeout> | undefined;
+  let hasWarnedOfQuiet = false;
+
+  const noteSomethingHappened = () => {
+    clearTimeout(quietWarning);
+    clearTimeout(quietLimit);
+    if (hasWarnedOfQuiet) messenger.send({ type: 'quietWarning', isOn: false });
+    hasWarnedOfQuiet = false;
+    quietWarning = setTimeout(() => {
+      trace('quietWarned');
+      hasWarnedOfQuiet = true;
+      messenger.send({ type: 'quietWarning', isOn: true });
+    }, quietLimitMs - Math.min(QUIET_WARNING_LEAD_MS, quietLimitMs / 2));
+    quietLimit = setTimeout(() => {
+      trace('quietLimit');
+      messenger.send({ type: 'closingForQuiet' });
+      onQuietLimit();
+    }, quietLimitMs);
+  };
+  noteSomethingHappened();
 
   const log = createSessionLog({
     getNowMs: () => getNowMs() - startedAtMs,
@@ -141,7 +173,8 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
 
   function speak({ voiceToUse, beats, isReply, canResume, kind }: { voiceToUse: tts.TTS; beats: Iterable<Beat> | AsyncIterable<Beat>; isReply: boolean; canResume: boolean; kind: string }): Speaking {
     turnCount += 1;
-    const turnId = `turn-${turnCount}` as TurnId;
+    noteSomethingHappened();
+    const turnId = `turn-${jobTag}-${turnCount}` as TurnId;
     const speakingBeats: Beat[] = [];
     beatsByTurn.set(turnId, speakingBeats);
     trace('turnStarted', { turnId, kind });
@@ -184,6 +217,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     if (canResume) watchVoice(speaking);
     void speaking.spoken.finished.then(() => {
       trace('turnFinished', { turnId, kind });
+      noteSomethingHappened();
       onSpeechFinished(speaking);
     });
     return speaking;
@@ -311,6 +345,9 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
   const onReport = (message: BrowserMessage & { type: 'played' }) => {
     const speaking = speakingByTurn.get(message.turnId);
     if (!speaking) return;
+    const known = speaking.reports.get(message.beatId);
+    if (known && !isFurtherReport(message, known)) return trace('reportIgnored', { turnId: message.turnId, beatId: message.beatId, playedWords: message.playedWords });
+    log.write(message);
     speaking.reports.set(message.beatId, message);
     trace('played', { turnId: message.turnId, beatId: message.beatId, ending: message.ending, playedWords: message.playedWords, firedCues: message.firedCueMs.length });
     const isLiveTurn = speaking === reply || speaking === reaction;
@@ -344,11 +381,13 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
         return dispatch({ type: 'echoHeard' });
       }
       if (event.type === 'words') messenger.send({ type: 'studentWords', text: event.text, isFinal: event.isFinal } satisfies AgentMessage);
+      if (event.type === 'words' && hasWords(event.text)) noteSomethingHappened();
       dispatch(event);
     },
     onBrowser(message) {
+      if (message.type === 'played') return onReport(message);
       if (message.type !== 'pulse') log.write(message);
-      if (message.type === 'played') onReport(message);
+      if (message.type === 'typed' || message.type === 'acted' || message.type === 'stillHere') noteSomethingHappened();
       if (message.type === 'questionHeard') dispatch({ type: 'questionHeard' });
       if (message.type === 'typed') dispatch({ type: 'typed', text: message.text });
       if (message.type === 'hello' && message.wantsGreeting) greet();
@@ -360,6 +399,8 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     async close() {
       clearInterval(linkChecker);
       clearTimeout(voiceStall);
+      clearTimeout(quietWarning);
+      clearTimeout(quietLimit);
       timers.forEach((timer) => clearTimeout(timer));
       reaction?.spoken.stop();
       reply?.spoken.stop();
