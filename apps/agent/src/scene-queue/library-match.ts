@@ -54,7 +54,6 @@ export interface ShelfScene {
 
 export const toShelfScene = ({ topic, plan }: Pick<StoredScene, 'topic' | 'plan'>): ShelfScene => ({ title: topic, words: `${plan.setup} ${plan.narration}`.replace(/\[\[[^\]]*\]\]/g, ' ').replace(/\s+/g, ' ').trim() });
 
-// The first read sees every title and picks too freely, so each pick is read again against what the scene really says, and only a clear yes stands.
 export async function matchLibrary(reader: JsonReader, plan: LessonPlan, shelf: readonly ShelfScene[]): Promise<{ matches: (string | null)[]; costUsd: number }> {
   if (shelf.length === 0) return { matches: [], costUsd: 0 };
   const getIdea = (index: number) => plan.steps[index]?.teach ?? plan.steps[index]?.exercise ?? '';

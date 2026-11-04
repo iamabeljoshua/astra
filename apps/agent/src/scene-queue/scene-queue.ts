@@ -61,7 +61,6 @@ function getWanted(lessonTopic: string, step: LessonStep | undefined, title: str
   return step?.teach ? { request: toRequest(lessonTopic, step.teach), source: 'written' } : null;
 }
 
-// Holds what is next in a running lesson as data, and only ever asks the desk, so nothing here can hold a word.
 export function createSceneQueue({ scenes, readLibrary, getFacts, canPlay, moveToNextStep, trace }: SceneQueueOptions): SceneQueue {
   let entries: QueueEntry[] = [];
   let lesson: { plan: LessonPlan; stepIndex: number } | null = null;
@@ -113,6 +112,8 @@ export function createSceneQueue({ scenes, readLibrary, getFacts, canPlay, moveT
 
   const isMakingWrite = () => lateWrites > 0 || entries.some((entry) => entry.source === 'written' && (entry.state === 'making' || entry.state === 'due' || entry.state === 'asked'));
 
+  const hasSceneWaiting = () => entries.some((entry) => entry.state === 'due' || entry.state === 'asked');
+
   const fillAhead = () => {
     if (!lesson) return;
     const nextIndex = lesson.stepIndex + 1;
@@ -136,7 +137,6 @@ export function createSceneQueue({ scenes, readLibrary, getFacts, canPlay, moveT
     if (!isReplying) askDue();
   };
 
-  // A saved scene for the step the lesson is on costs nothing, so it can start here. A write for this step would come too late.
   const reachStep = () => {
     if (!lesson) return;
     const { stepIndex, plan } = lesson;
@@ -189,7 +189,6 @@ export function createSceneQueue({ scenes, readLibrary, getFacts, canPlay, moveT
       if (isStopped) return;
       const isSwitch = wasTopic !== active.plan.topic;
       if (isSwitch && wasTopic !== null) scenes.dropWaiting('switched');
-      // Anything older ended on the student's turn, so what the tutor asked for in this same reply is what it moved on to.
       const isTutorsOwnMove = event === 'teachingAgain' || event === 'movedOn';
       if (!isSwitch && !isTutorsOwnMove && wasStep !== active.stepIndex) scenes.dropWaiting('movedOn');
       dropPassed();
@@ -205,8 +204,7 @@ export function createSceneQueue({ scenes, readLibrary, getFacts, canPlay, moveT
       if (isStopped) return;
       const next = lesson ? findEntry(lesson.stepIndex + 1) : undefined;
       if (next && sameWords(next.request, topic)) return moveToNextStep();
-      // What is due covers what is next, and a second write would only race it.
-      if (isMakingWrite() || entries.some((entry) => entry.state === 'due' || entry.state === 'asked')) return trace('sceneAskPassed', { text: topic });
+      if (isMakingWrite() || hasSceneWaiting()) return trace('sceneAskPassed', { text: topic });
       trace('sceneCue', { text: topic, source: 'asked', wallMs: Date.now() });
       scenes.ask(topic);
     },
@@ -248,7 +246,7 @@ export function createSceneQueue({ scenes, readLibrary, getFacts, canPlay, moveT
       fillAhead();
     },
     getPictureTopic() {
-      if (!lesson || isStopped || isHeld || entries.some((entry) => entry.state === 'due' || entry.state === 'asked')) return null;
+      if (!lesson || isStopped || isHeld || hasSceneWaiting()) return null;
       const next = findEntry(lesson.stepIndex + 1);
       return next?.state === 'ready' ? next.request : null;
     },

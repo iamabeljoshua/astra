@@ -72,7 +72,6 @@ export interface LiveSessionOptions {
   writeRecap?(facts: RecapFacts): Promise<SessionRecap | null>;
   /** A recap has been written. Memory can note here that a `gentle` ending needs a person, and a model's `lesson` lines are not for its notes. */
   onRecap?(recap: SessionRecap): void;
-  /** The student pressed End, so anything being made for later has no later. */
   onEnding?(): void;
   /** The recap has played, or there was none, and the room can go. */
   onEndingOver?(): void;

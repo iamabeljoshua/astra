@@ -42,7 +42,6 @@ export interface TutorScenesOptions {
 export interface TutorScenes {
   /** Never waits, and nothing a student could hear comes from it unless a scene lands. */
   ask(topic: string): void;
-  /** Starts a scene before its moment. It lands only if it is asked for later. */
   prepare(request: string): boolean;
   dropPrepared(request: string): void;
   dropWaiting(how: 'movedOn' | 'switched' | 'studentTurn'): void;
@@ -168,7 +167,6 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
     end(ask, 'landed');
   };
 
-  // A scene started ahead takes its first frame only at the pause, because the page holds one player and the last scene may still be on screen.
   const getSceneWaiting = ({ isAhead, page, work }: SceneAsk): StoredScene | null => {
     if (page.kind === 'loaded') return page.scene;
     const state = work.desk.getState();
@@ -180,7 +178,6 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
     if (ask !== current || !waiting) return;
     if (ask.recheck) clearTimeout(ask.recheck);
     if (isClosed()) return end(ask, 'tutorClosed');
-    // A person can flag a scene in the seconds between it being ready and the pause it lands at.
     if (store.isFlagged({ id: waiting.id, topic: waiting.topic, ownerId: waiting.ownerId })) return end(ask, 'flagged');
     if (waiting.ownerId === null && !canPlayShared(studentId)) return end(ask, 'sharedPlaysUsed');
     if (ask.isOpening) {
@@ -226,7 +223,6 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
   const onDeskChange = (ask: SceneAsk, state: SceneState) => {
     trace('sceneState', { state: state.kind, afterMs: Math.round(getNowMs() - ask.askedAtMs) });
     if (prepared.get(toKey(ask.topic)) === ask) {
-      // The router can word two ideas into one topic, and a student should not watch the same scene twice.
       if (state.kind === 'ready' && shownSceneIds.has(state.scene.id)) forgetPrepared(ask, 'declined');
       else if (state.kind === 'ready') send({ type: 'prepareScene', sceneId: state.scene.id });
       if (state.kind === 'declined' || state.kind === 'failed') forgetPrepared(ask, state.kind);
@@ -269,7 +265,6 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
     ask.work.desk.ask(ask.work.request);
   };
 
-  // A scene still being written goes on as any ask would, and one that is ready waits only for the pause.
   const startPrepared = (ask: SceneAsk) => {
     prepared.delete(toKey(ask.topic));
     current = ask;
