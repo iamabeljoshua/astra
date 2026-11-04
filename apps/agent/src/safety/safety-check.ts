@@ -50,7 +50,6 @@ const toStudentMessage = (text: string, { studentSaid, tutorSaid }: TurnBefore) 
 const asTutorReading = (word: string): TutorReading => (word === 'tutor_slip' || word === 'none' ? word : 'unread');
 const toFirstWord = (answer: string | null): string => (answer ?? '').trim().toLowerCase().split(/\s+/)[0]?.replace(/[^a-z_]/g, '') ?? '';
 
-// One small read of one turn on the cheapest model. It runs beside the reply and never in front of it.
 export function makeAnthropicSafetyCheck(options: { apiKey: string; onCost?(usd: number): void }): SafetyCheck {
   const readWord = makeAnthropicOneWordReader(options);
   return {

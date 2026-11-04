@@ -82,7 +82,6 @@ export const TUTOR_TIMEOUTS = {
   reportWaitMs: 150,
   /** Most sessions have the profile long before the first message, and a slow API must not hold up the reply. */
   profileWaitMs: 1000,
-  /** The safety check took about 2 s under load, and 5 s when its first try timed out. Only a reply that ended first waits, and the student hears nothing different while it does. */
   safetyReadWaitMs: 4000,
 };
 
@@ -183,7 +182,6 @@ interface TurnWork {
   /** What the safety check found. `unread` means nothing is known, because there is no check or it failed. */
   safetyReading: StudentReading | 'pending';
   safetyRead: Promise<void>;
-  /** Settles only when the check reads a danger, so a slow model cannot keep the student waiting for help. */
   safetyAnswered: Promise<typeof SAFETY_ANSWERED>;
   hasStoppedForSafety: boolean;
   /** The next beat follows a cut or a retry, and may start a new sentence. */

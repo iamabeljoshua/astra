@@ -59,7 +59,7 @@ export class StudentsService {
   async answerBirthDate(signIn: SignIn, { birthDate, name }: AnswerBirthDateBodyDto): Promise<AccountResponseDto> {
     if (signIn.isAddressClosed) return this.refuseAndEraseNewSignUp(signIn);
     const isAnswerOldEnough = isOldEnough(birthDate, new Date());
-    // Only a new student needs Auth: a token outlives the delete by up to an hour, and an under-13 answer must close even with Auth down.
+    // A token outlives the delete by up to an hour, and a student made from it could never be deleted once it expires. An under-13 answer makes no student, so it never asks Auth.
     if (isAnswerOldEnough && !(await this.authAccounts.hasUser(signIn.authUserId))) throw new UnauthorizedException();
     const answer = {
       birthDate,
@@ -91,7 +91,7 @@ export class StudentsService {
     return CLOSED_ACCOUNT;
   }
 
-  // The close already stands, so a failure here only logs, and the next request from this account tries again.
+  // The close already stands, so a failure here only logs, and the account's next read or answer tries again.
   private async finishClosing({ authUserId, email }: SignIn): Promise<void> {
     try {
       const isErased = await this.authAccounts.erase({ authUserId, email });

@@ -120,7 +120,6 @@ export function makeAnthropicTutorModel({ name = 'sonnet-5-5', apiKey, thinking 
   };
 }
 
-/** A safety read must fail fast, and one retry costs the student no time because it runs beside the reply. */
 const ONE_WORD_READ_LIMIT_MS = 3000;
 const MOST_ONE_WORD_TOKENS = 8;
 

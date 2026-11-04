@@ -31,7 +31,6 @@ function listFolder(folder: string): string[] {
   return existsSync(folder) ? readdirSync(folder) : [];
 }
 
-// Damaged text cannot name an owner. A record that cannot be read at all fails the delete, so nothing claims it is gone.
 function readRecord(path: string): StoredRecord | null {
   if (!existsSync(path)) return null;
   const text = readFileSync(path, 'utf8');
