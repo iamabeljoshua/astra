@@ -42,6 +42,7 @@ function makeApiLink(roomName: string): ApiLink | null {
 export interface SpendCaps {
   getSpendLimit(): SpendLimit | null;
   addTurn(summary: { usd: number; voiceCharacters: number }): void;
+  getSpentUsd(): number;
   /** Sends what the API has not heard yet, so a room closing does not lose the last turn's charge. */
   flush(): Promise<void>;
 }
@@ -82,6 +83,7 @@ export function createSpendCaps({ link, ledger, trace, sessionLimitUsd, sessionV
       ledger?.charge({ anthropicUsd: usd, voiceCharacters });
       report();
     },
+    getSpentUsd: () => sessionUsd + sessionCharacters * VOICE_USD_PER_CHARACTER,
     async flush() {
       report();
       await reporting;
@@ -102,6 +104,8 @@ export interface MadeBrain {
   readMeaning?(words: string): Promise<WordMeaning | null>;
   readStrokes?(strokes: readonly (readonly InkPoint[])[]): Promise<{ text: string; ink: { tex?: string; isUnsure: boolean } } | null>;
   readSpokenWords?(words: string, expects: SpokenExpected): Promise<SpokenReading>;
+  /** The model and the voice so far, for a tester's estimate. */
+  getSpentUsd?(): number;
 }
 
 export function makeTutorBrain({ roomName, trace }: { roomName: string; trace: TraceNote }): MadeBrain {
@@ -144,5 +148,5 @@ export function makeTutorBrain({ roomName, trace }: { roomName: string; trace: T
     caps.addTurn({ usd: reading.costUsd, voiceCharacters: 0 });
     return reading;
   };
-  return { brain, flushSpend: caps.flush, readMeaning, readStrokes, readSpokenWords };
+  return { brain, flushSpend: caps.flush, getSpentUsd: caps.getSpentUsd, readMeaning, readStrokes, readSpokenWords };
 }

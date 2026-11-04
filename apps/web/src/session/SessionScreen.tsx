@@ -1,4 +1,4 @@
-import { type PropsWithChildren, type ReactNode, useEffect, useRef, useState } from 'react';
+import { lazy, type PropsWithChildren, type ReactNode, Suspense, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { ChatBox } from '../home/ChatBox';
 import { findArtwork, type Artwork } from '../home/artwork';
@@ -89,7 +89,7 @@ function RunningSession({ session }: { session: Session }) {
 
   const picture = <Board artwork={findArtwork(session.artwork)} note={SESSION_LABELS.boardStandIn} />;
   return (
-    <SessionFrame facts={<SessionFacts subject={session.subject} seconds={seconds} tutorState={tutorState} />} action={<EndButton isEnding={isEnding} onEnd={() => void endSession()} />} problem={endProblem} isFullHeight>
+    <SessionFrame facts={<SessionFacts subject={session.subject} seconds={seconds} tutorState={tutorState} costUsd={view?.costUsd ?? null} />} action={<EndButton isEnding={isEnding} onEnd={() => void endSession()} />} problem={endProblem} isFullHeight>
       <div className="board-stage">
         <div className="board-voice">
           <SessionTitle title={session.title} isQuiet={Boolean(voice) || isConnecting} />
@@ -138,12 +138,20 @@ function FinishedSession({ session }: { session: Session }) {
   );
 }
 
-function SessionFacts({ subject, seconds, tutorState = null }: { subject: string; seconds: number; tutorState?: string | null }) {
+// A tester's flag, read at build time, so a build without it holds no cost line at all.
+const SessionCost = import.meta.env.VITE_SHOW_COST === '1' ? lazy(() => import('./SessionCost')) : null;
+
+function SessionFacts({ subject, seconds, tutorState = null, costUsd = null }: { subject: string; seconds: number; tutorState?: string | null; costUsd?: number | null }) {
   return (
     <>
       <span className="label min-w-0 wrap-anywhere text-ink-2">{subject}</span>
       <span className="label text-ink-2">{formatSessionLength(seconds)}</span>
       {tutorState && <span data-testid="tutor-state" className="label text-ink-2">{tutorState}</span>}
+      {SessionCost && costUsd !== null && (
+        <Suspense fallback={null}>
+          <SessionCost usd={costUsd} />
+        </Suspense>
+      )}
     </>
   );
 }

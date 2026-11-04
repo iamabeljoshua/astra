@@ -106,6 +106,10 @@ A typed line is hostile input. The reader builds math only from an allow list of
 
 The right side shows the dots of a still grid drifting into the Saturn from sign-in, with its rings slowly turning: `ConnectingSaturn`, `ui/dots/gatherDots.ts`, and `ui/dots/gatherPainter.ts`. "Connecting your tutor" shows in the words column. The voice never waits for it. When the tutor is there, the dots go home over 500 ms, one dot shows for 280 ms in the middle of the side and flies to rest above the words, and the canvas stops. Reduced motion paints a still Saturn once. Abel chose this from five options.
 
+## The cost line
+
+For Abel and testers. A small estimate beside the state line, for the session so far: the model from usage, the voice from characters at the recorded rate, and Muse from open time. The agent sends it at the end of a reply only with `ASTRA_SHOW_COST=1`, and the page shows it only in a build with `VITE_SHOW_COST=1`. `refuseCostLine` in `apps/web/build-guards.ts` fails any other build that holds it, and `SessionCost.test.tsx` runs real builds both ways.
+
 ## Parity with the prototype
 
 Abel's rule: everything a student can see or do on the prototype exists on the real board. Walked from `astra-tinker/board/public/app.js`, `plain.js`, `index.html`, and `style.css`. Proofs are tests, or page runs with screenshots in the coordinator's `board-compare` folder.

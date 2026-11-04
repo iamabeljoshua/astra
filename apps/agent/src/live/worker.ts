@@ -15,6 +15,9 @@ import { readDataMessage } from './read-data-message.ts';
 import { makeTutorBrain, warmTutorModel } from '../tutor/make-brain.ts';
 import { getSteadyNowMs, createVoiceLine } from './voice-line.ts';
 
+/** The rate in `docs/architecture/live-session.md`, $3 for 1,000 minutes. */
+const MUSE_USD_PER_MINUTE = 3 / 1000;
+const MS_PER_MINUTE = 60_000;
 const LIVE_TOPIC = 'astra.live';
 const LAB_TOPIC = 'astra.lab';
 const AUDIO_QUEUE_MS = 200;
@@ -56,16 +59,20 @@ async function runSession(context: JobContext): Promise<void> {
   const voice = makeVoice();
   voice.on('error', (error) => trace('voiceError', { problem: String(error.error) }));
   voice.prewarm();
+  let hearingSinceMs: number | null = null;
   const transcriber = makeTutorTranscriber({
     apiKey: readKey('META_API_KEY'),
     onNote(note) {
       trace(`muse:${note.kind}`, note);
-      if (note.kind === 'hearing') publish({ type: 'earsOpen' });
+      if (note.kind === 'hearing') {
+        hearingSinceMs ??= Date.now();
+        publish({ type: 'earsOpen' });
+      }
     },
   }).makeStt();
   const allTakes = loadTakes();
   let ears: Ears | null = null;
-  const { brain, flushSpend, readMeaning, readStrokes, readSpokenWords } = makeTutorBrain({ roomName: room.name ?? '', trace });
+  const { brain, flushSpend, readMeaning, readStrokes, readSpokenWords, getSpentUsd } = makeTutorBrain({ roomName: room.name ?? '', trace });
   const session = createLiveSession({
     messenger: {
       send: (message) => publish(message),
@@ -86,6 +93,7 @@ async function runSession(context: JobContext): Promise<void> {
     ...(readMeaning ? { readMeaning } : {}),
     ...(readStrokes ? { readStrokes } : {}),
     ...(readSpokenWords ? { readSpokenWords } : {}),
+    ...(process.env.ASTRA_SHOW_COST === '1' ? { getCostSoFar: () => (getSpentUsd?.() ?? 0) + (hearingSinceMs === null ? 0 : ((Date.now() - hearingSinceMs) / MS_PER_MINUTE) * MUSE_USD_PER_MINUTE) } : {}),
   });
   ears = await startEars({ room, transcriber, vad: context.proc.userData.vad as inference.VAD, onEvent: session.onEars });
 

@@ -11,7 +11,7 @@ vi.mock('../auth/useAccount', () => import('../test/activeAccount'));
 const startLiveVoice = vi.hoisted(() => vi.fn());
 vi.mock('./liveVoice', async (importOriginal) => ({ ...(await importOriginal<typeof import('./liveVoice')>()), startLiveVoice }));
 
-const BASE_VIEW: LiveVoiceView = { phase: 'live', mic: 'off', isSoundBlocked: false, isQuietWarning: false, isHeard: false, isThinking: false, isTutorSpeaking: false, closedBecause: null, firstWord: null, isStopped: false, startedFresh: false, studentLines: [], tutorHeard: [], tutorComing: [] };
+const BASE_VIEW: LiveVoiceView = { phase: 'live', mic: 'off', isSoundBlocked: false, isQuietWarning: false, isHeard: false, isThinking: false, isTutorSpeaking: false, closedBecause: null, firstWord: null, isStopped: false, costUsd: null, startedFresh: false, studentLines: [], tutorHeard: [], tutorComing: [] };
 
 function makeVoice() {
   let view = BASE_VIEW;

@@ -60,6 +60,8 @@ export type AgentMessage =
   | { type: 'heard' }
   /** The tutor is working on a reply and has no words yet, so the student can see why it is quiet. */
   | { type: 'thinking'; isThinking: boolean }
+  /** What the session has cost so far, an estimate, sent only when a tester asked to see it. */
+  | { type: 'costSoFar'; usd: number }
   /** The agent read a line written with the pen or said aloud, so the page can show how, with the check on it. */
   | { type: 'workRead'; work: StudentWork }
   /** The tutor has said why it stopped, and will not speak again, so the page can keep saying why it is quiet. */

@@ -66,7 +66,7 @@ function makeOutput(frames: { atMs: number }[], failAfter = Infinity): VoiceOutp
   };
 }
 
-function start({ voice = makeRenderedVoice({ name: 'fake', render: renderTone }).makeTts(), failAfter, quietLimitMs, onQuietLimit, tutorBeats }: { voice?: tts.TTS; failAfter?: number; quietLimitMs?: number; onQuietLimit?(): void; tutorBeats?: readonly TutorBeat[] } = {}): Harness {
+function start({ voice = makeRenderedVoice({ name: 'fake', render: renderTone }).makeTts(), failAfter, quietLimitMs, onQuietLimit, tutorBeats, getCostSoFar }: { getCostSoFar?(): number; voice?: tts.TTS; failAfter?: number; quietLimitMs?: number; onQuietLimit?(): void; tutorBeats?: readonly TutorBeat[] } = {}): Harness {
   const messages: AgentMessage[] = [];
   const traces: Harness['traces'] = [];
   const frames: { atMs: number }[] = [];
@@ -86,6 +86,7 @@ function start({ voice = makeRenderedVoice({ name: 'fake', render: renderTone })
   };
   const send = (message: AgentMessage) => void messages.push(message);
   const session = createLiveSession({
+    ...(getCostSoFar ? { getCostSoFar } : {}),
     messenger: { send, sendOnBothChannels: send },
     line: createVoiceLine(makeOutput(frames, failAfter)),
     voice,
@@ -381,6 +382,17 @@ describe('a quiet room', () => {
     await until(() => closed === 1);
     expect(closed).toBe(1);
   }, 20_000);
+
+  it('tells the page about cost only when a tester asked, and once a reply', async () => {
+    const asked = start({ getCostSoFar: () => 0.04, tutorBeats: [makeBeat('short', 'one two three')] });
+    await asked.say('Show me a long answer');
+    await until(() => asked.traces.some(({ name, fields }) => name === 'turnFinished' && fields.kind === 'reply'));
+    expect(asked.messages.filter(({ type }) => type === 'costSoFar')).toEqual([{ type: 'costSoFar', usd: 0.04 }]);
+    const silent = start({ tutorBeats: [makeBeat('short', 'one two three')] });
+    await silent.say('Show me a long answer');
+    await until(() => silent.traces.some(({ name, fields }) => name === 'turnFinished' && fields.kind === 'reply'));
+    expect(silent.messages.filter(({ type }) => type === 'costSoFar')).toEqual([]);
+  });
 
   it('logs a beat that starts a new stretch, because a replay needs every word that played', async () => {
     const secondStretch = { ...makeBeat('second', 'And the next idea.'), pauseBeforeMs: 0 };

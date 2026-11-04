@@ -50,6 +50,8 @@ export interface LiveSessionOptions {
   readStrokes?(strokes: readonly (readonly InkPoint[])[]): Promise<{ text: string; ink: { tex?: string; isUnsure: boolean } } | null>;
   /** What spoken words mean, read by a cheap model. */
   readSpokenWords?(words: string, expects: SpokenExpected): Promise<SpokenReading>;
+  /** An estimate of the session so far. With none, the page is told nothing about cost. */
+  getCostSoFar?(): number;
 }
 
 export interface LiveSession {
@@ -134,7 +136,7 @@ function toLoggedBeat(beat: TutorBeat): Beat {
   return logged;
 }
 
-export function createLiveSession({ messenger, line, voice, tutor, takes, allTakes, setTurnCap, onQuietLimit = () => {}, quietLimitMs = QUIET_ROOM_LIMIT_MS, getNowMs = getSteadyNowMs, trace = () => {} , readMeaning = async () => null, readStrokes = async () => null, readSpokenWords = async () => ({ kind: 'talk', costUsd: 0 }) }: LiveSessionOptions): LiveSession {
+export function createLiveSession({ messenger, line, voice, tutor, takes, allTakes, setTurnCap, onQuietLimit = () => {}, quietLimitMs = QUIET_ROOM_LIMIT_MS, getNowMs = getSteadyNowMs, trace = () => {} , readMeaning = async () => null, readStrokes = async () => null, readSpokenWords = async () => ({ kind: 'talk', costUsd: 0 }), getCostSoFar }: LiveSessionOptions): LiveSession {
   const startedAtMs = getNowMs();
   // A new job in the same room restarts this count, and a page ignores a turn it has seen, so each job's turns carry their own name.
   const jobTag = randomUUID().slice(0, 8);
@@ -323,6 +325,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     speakingByTurn.set(turnId, speaking);
     void speaking.spoken.finished.then(() => {
       trace('turnFinished', { turnId, kind });
+      if (getCostSoFar && isReply) messenger.send({ type: 'costSoFar', usd: getCostSoFar() });
       noteSomethingHappened();
       onSpeechFinished(speaking);
     });

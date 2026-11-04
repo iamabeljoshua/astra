@@ -697,6 +697,13 @@
     opacity: 0;
   }
 
+  .board-cost {
+    color: var(--color-ink-2);
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+
   .board-math-field {
     flex: 1;
     min-height: 46px;

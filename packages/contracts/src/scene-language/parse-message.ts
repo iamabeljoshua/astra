@@ -15,11 +15,13 @@ import {
   readOneOf,
   readString,
   readVariant,
+  readNumberInRange,
   readWholeNumber,
   toParseResult,
   type VariantTable,
 } from './read.ts';
 
+const MOST_COST_USD = 1_000_000;
 const SHORTEST_AUDIO_GAP_MS = 1;
 
 function readAudioGapMs(place: Place): number {
@@ -97,6 +99,7 @@ const AGENT_MESSAGES: VariantTable<AgentMessage, 'type'> = {
     },
     heard: { keys: [], read: () => ({ type: 'heard' }) },
     thinking: { keys: ['isThinking'], read: (fields) => ({ type: 'thinking', isThinking: readBoolean(fields.at('isThinking')) }) },
+    costSoFar: { keys: ['usd'], read: (fields) => ({ type: 'costSoFar', usd: readNumberInRange(fields.at('usd'), { min: 0, max: MOST_COST_USD }) }) },
     tutorClosed: { keys: ['reason'], read: (fields) => ({ type: 'tutorClosed', reason: readOneOf(fields.at('reason'), TUTOR_CLOSED_REASONS) }) },
     pulse: { keys: [], read: () => ({ type: 'pulse' }) },
     earsOpen: { keys: [], read: () => ({ type: 'earsOpen' }) },

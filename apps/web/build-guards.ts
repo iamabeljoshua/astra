@@ -42,6 +42,26 @@ function listFiles(folder: string) {
     .map((entry) => join(entry.parentPath, entry.name));
 }
 
+/** The cost line's own mark. Testers set `VITE_SHOW_COST=1`, and no other build may hold it. */
+export const COST_LINE_MARK = 'session-cost';
+
+export function refuseCostLine(env: Record<string, string | undefined>): Plugin {
+  let outputFolder = '';
+
+  return {
+    name: 'refuse-cost-line',
+    configResolved({ root, build }) {
+      outputFolder = resolve(root, build.outDir);
+    },
+    writeBundle() {
+      if (env.VITE_SHOW_COST === '1') return;
+      for (const file of listFiles(outputFolder).filter((name) => name.endsWith('.js'))) {
+        if (readFileSync(file, 'latin1').includes(COST_LINE_MARK)) this.error(`${relative(outputFolder, file)} holds the cost line, which only a tester's build may hold.`);
+      }
+    },
+  };
+}
+
 export function refuseDevelopmentAccounts(): Plugin {
   let outputFolder = '';
 
