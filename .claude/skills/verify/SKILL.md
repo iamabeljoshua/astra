@@ -9,7 +9,7 @@ Students use the web app, so drive the web app. Run every command from the repo 
 
 ## Set up each copy
 
-Use Node 22.22 or newer on the 22 line, 24.11 or newer on 24, or 26 and up, and pnpm 10.32.1 (`packageManager` in `package.json`). `.nvmrc` holds `22`. `pnpm install` refuses every other Node, including 23, 25, and 24 before 24.11.
+Use Node 22.22 or newer on the 22 line, 24.11 or newer on 24, or 26 and up, and pnpm 10.32.1 (`packageManager` in `package.json`). `.nvmrc` holds `22.22.1`, the version CI runs. `pnpm install` refuses every other Node, including 23, 25, and 24 before 24.11.
 
 ```sh
 pnpm install --frozen-lockfile

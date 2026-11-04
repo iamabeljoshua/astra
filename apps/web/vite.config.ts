@@ -47,6 +47,8 @@ export default defineConfig(({ command, mode }) => {
     test: {
       environment: 'jsdom',
       setupFiles: ['./src/testSetup.ts'],
+      // Files in one vmForks worker share process.env, so a stub that a file forgets would reach the next file.
+      unstubEnvs: true,
       env: {
         VITE_SUPABASE_URL: 'http://127.0.0.1:54421',
         VITE_SUPABASE_PUBLISHABLE_KEY: 'test-publishable-key',
