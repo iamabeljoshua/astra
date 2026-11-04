@@ -834,7 +834,7 @@ export function createKit({ canvas, overlay, timing, textures, quality = 'high',
     part.groups = groups;
     part.squeeze = (name, s) => { const i = groups.indexOf(name); if (i >= 0 && i < 4) uGS.value.setComponent(i, s); else issue(`organic: unknown group ${name}`); return part; };
     part.show = (v) => { m.visible = v > 0.001; fadeMaterial(mat, v); return part; };
-    part.glow = (v) => { mat.emissive.set('#ffffff'); mat.emissiveIntensity = v * 0.25; return part; };
+    part.glow = (v) => { if (mat.emissive) { mat.emissive.set('#ffffff'); mat.emissiveIntensity = v * 0.25; } return part; };
     if (o.at) part.place(o.at);
     return register(o.id, part);
   }
