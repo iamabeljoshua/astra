@@ -6,52 +6,52 @@ Student played by a cheap model: You are an adult who left school years ago. You
 
 **Student:** why is the sky blue?
 
-**Tutor** (25 words, longest stretch 25, first text 1190 ms):
-> Fun one. Sunlight looks white, but it's really all the colours mixed together. Have you ever seen a rainbow or light through a glass prism?
+**Tutor** (11 words, longest stretch 11, first text 1880 ms):
+> Ever seen a rainbow, or light coming through a glass prism?
 
-**Student:** yeah, i've seen rainbows. never really thought about where the colours come from though. so white light is secretly all of them mixed up? that's kind of wild.
+**Student:** yeah, i've seen rainbows. never really thought about where the colours come from though. prism, i think i've seen one on a shelf somewhere, but i'm not sure how it works.
 
-**Tutor** (34 words, longest stretch 21, first text 1056 ms):
-> Yep, exactly. A rainbow is raindrops splitting that mix back into its colours.
->
-> So when sunlight hits our air, do you think every colour travels straight through, or might some get knocked around more?
+**Tutor** (14 words, longest stretch 14, first text 1339 ms):
+> That's fine. Sunlight looks white, but it's secretly all the rainbow colours mixed together.
 
-**Student:** uh, i'm not sure. i'd guess some get knocked around, but i don't really know why or which ones. air is just... empty to me, so i'm not sure what would be doing the knocking.
+**Student:** wait, white light is secretly all the colours? how does that work? i always thought white was just... white.
 
-**Tutor** (17 words, longest stretch 17, first text 1049 ms):
-> Good instinct, and air isn't empty. It's packed with tiny gas molecules, and those do the knocking.
+**Tutor** (30 words, longest stretch 30, first text 1186 ms):
+> Think of a chord on a piano. Many notes sound at once, and your ear hears one blended sound. A prism pulls the colours apart, like picking out single notes.
 
-**Student:** oh, so the air is full of tiny bits i can't see? that's kind of hard to picture. so the light bounces off them, and that's what makes it blue? i still don't get why it's blue and not some other colour.
+Board: `text White light = all colours mixed`
 
-**Tutor** (32 words, longest stretch 32, first text 1327 ms):
-> Right, the light bounces off them. Think of ocean waves hitting a pebble. Light is waves too, and blue has the shortest waves, so the tiny bits knock it around the most.
+**Student:** the piano bit kind of helps, but i'm not really a music person. so the prism is like splitting a bunch of notes apart so you can hear each one? what's a chord, exactly, though?
 
-Board: `text Short waves bounce most`
-
-**Student:** hmm, you lost me a bit there. "shortest waves" — what does that mean? and how does the pebble thing connect to light?
-
-**Tutor** (21 words, longest stretch 21, first text 1436 ms):
-> Fair, I rushed it. Picture ripples on a pond: the distance from one bump to the next is the wave's length.
+**Tutor** (18 words, longest stretch 18, first text 2550 ms):
+> Yes, that's it exactly. A chord is just several notes played together, so you hear one blended sound.
 
 Board: `focus`
 
-**Student:** ok, so the wave length is like the gap between one bump and the next? got it i think. but how does that make blue bounce more than red? are the blue bumps just closer together or something?
+**Student:** ah ok, so a chord is just a few notes squashed into one sound. got it. so what's the blue part got to do with the sky?
 
-**Tutor** (27 words, longest stretch 27, first text 1645 ms):
-> Yes, blue's bumps are closer together. Red's gaps are long, so it slips past the tiny air bits, while blue's short gaps get tangled up in them.
-
-Board: `focus`, `clearBoard`, `writeMath \text{red: long gaps}`
-
-**Student:** hmm, so blue's bumps are tighter, so they get caught more by the little air bits, and red's long bumps just slip by? that makes some sense. but why would tangling only send blue around and not red? i'm still kind of lost on that part.
-
-**Tutor** (27 words, longest stretch 27, first text 1277 ms):
-> Red gets bounced a little too, just far less. Think of a big ocean swell rolling past a pebble, barely noticing it, while tiny ripples scatter everywhere.
+**Tutor** (18 words, longest stretch 18, first text 1761 ms):
+> Sunlight crashes into the air's tiny gas bits, and they bounce blue light around far more than red.
 
 Board: `focus`
 
-**Student:** ok, so the big slow waves barely notice the pebble but the tiny quick ones get thrown all over? i kind of see it. honestly though, my head's getting a bit fuzzy. can you explain it like i'm 5?
+**Student:** sorry, you've lost me a bit. what do you mean by gas bits, and why would they bounce blue more than red? i don't really get how bouncing does that.
 
-**Tutor** (38 words, longest stretch 38, first text 1300 ms):
-> Sure. Sunlight's a team of colours racing through the air, and the air bits are like bouncy balls everywhere. Blue is the smallest, bounciest runner, so it pinballs all around the sky, and that's the blue you see.
+**Tutor** (21 words, longest stretch 21, first text 1842 ms):
+> Air isn't empty. It's made of countless tiny specks too small to see, called molecules. Light has to pass through them.
+
+Board: `focus`
+
+**Student:** ok, so air is full of tiny specks i can't see. light goes through them... but why does that make the sky blue? i still don't get the bouncing part.
+
+**Tutor** (27 words, longest stretch 27, first text 1840 ms):
+> Picture throwing a small ball and a big ball at a tiny post. The small one gets knocked sideways more. Blue light is like the small ball.
+
+Board: `focus`
+
+**Student:** ok, so blue is the small ball, and it gets knocked sideways more by the tiny specks. but why does getting knocked sideways make the whole sky look blue? sideways where?
+
+**Tutor** (19 words, longest stretch 19, first text 1853 ms):
+> Every direction, all across the sky. So blue light reaches your eyes from everywhere, not only from the sun.
 
 Board: `focus`

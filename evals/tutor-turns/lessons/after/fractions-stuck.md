@@ -6,56 +6,56 @@ Student played by a cheap model: You are 12. You think you add the tops and the 
 
 **Student:** how do i add 1/2 + 1/3
 
-**Tutor** (29 words, longest stretch 29, first text 1161 ms):
-> Sure, let's look at it. Half plus a third. Say you had a half cup of flour and a third cup, could you just call that two of something?
+**Tutor** (23 words, longest stretch 23, first text 1112 ms):
+> Sure, let's see it first. Half plus a third. Can you add pieces when they're different sizes, like a half-cup and a third-cup?
 
 Board: `writeMath \frac{1}{2} + \frac{1}{3}`
 
-**Student:** i dont really get what you mean. so is it 2/5?
+**Student:** i think you just add the tops and the bottoms so its 2/5
 
-**Tutor** (28 words, longest stretch 28, first text 1165 ms):
-> Not quite, two fifths is too small. A half alone is already bigger than two fifths. Cut a pizza into halves and thirds: can you add those slices?
+**Tutor** (22 words, longest stretch 22, first text 1143 ms):
+> Not quite. That's your line, and two fifths is less than a half. Does adding more to a half make it smaller?
 
-Board: `focus`, `annotate`
-
-**Student:** hmm... so like, a half slice and a third slice? i still dont see how they add up to something nice. maybe 2/6?
-
-**Tutor** (24 words, longest stretch 24, first text 1060 ms):
-> Close, but that's still off. The problem is the slices are different sizes, so we cut both into sixths. A half is three sixths.
-
-Board: `focus`, `writeMath \frac{1}{2} = \frac{3}{6}`
+Board: `writeMath \frac{1}{2} + \frac{1}{3} = \frac{2}{5}`, `annotate`
 
 **Student:** i dont know
 
-**Tutor** (22 words, longest stretch 22, first text 1096 ms):
-> That's okay. Same trick for a third: it's two sixths. Now both are sixths, so how many sixths is three plus two?
+**Tutor** (18 words, longest stretch 18, first text 1099 ms):
+> That's okay, here's the trick. Cut both into sixths so the pieces match. Three sixths plus two sixths.
 
-Board: `writeMath \frac{1}{3} = \frac{2}{6}`
+Board: `focus`, `clearBoard`, `writeMath \frac{1}{2} + \frac{1}{3}`, `transformMath \frac{3}{6} + \frac{2}{6}`
 
-**Student:** five sixths? wait, is that the answer? i still don't really get why we changed it to sixths though.
+**Student:** i dont know
 
-**Tutor** (24 words, longest stretch 24, first text 1052 ms):
-> Yes, five sixths is the answer. We switched because you can only add slices that are the same size, like counting quarters with quarters.
+**Tutor** (16 words, longest stretch 16, first text 1322 ms):
+> Fair enough, I'll finish it. Same size slices, so three plus two is five. Five sixths.
 
-Board: `writeMath \frac{3}{6} + \frac{2}{6} = \frac{5}{6}`
+Board: `focus`, `transformMath \frac{5}{6}`
 
-**Student:** ohh ok so you can only add pieces that are the same size. so like, if i had a half and a third, i need sixths to count them. that kinda makes sense.
+**Student:** oh ok so five sixths. but why sixths and not something else
 
-**Tutor** (21 words, longest stretch 21, first text 1125 ms):
-> That's the whole idea. Try one yourself: a quarter cup plus a half cup. What size pieces would you switch to?
+**Tutor** (25 words, longest stretch 25, first text 1105 ms):
+> Good thing to ask. Sixths work because both halves and thirds can be cut into them. Can you think of another size that fits both?
 
-Board: `focus`, `writeMath \frac{1}{4} + \frac{1}{2}`
+Board: `focus`
 
-**Student:** hmm, a quarter and a half... i think halves? so 2/4 + 1/4... that's 3/8? no wait, is it 3/4?
+**Student:** uh maybe fourths? or twelfths
 
-**Tutor** (15 words, longest stretch 15, first text 1042 ms):
-> Three quarters, yes. You fixed it yourself, and quarters were the right size, not halves.
+**Tutor** (19 words, longest stretch 19, first text 1145 ms):
+> Twelfths, yes. Fourths no, a third won't cut into fourths evenly. That's ten twelfths. Does that match five sixths?
 
-Board: `focus`, `writeMath \frac{1}{4} + \frac{2}{4} = \frac{3}{4}`
+Board: `focus`, `writeMath \frac{6}{12} + \frac{4}{12} = \frac{10}{12}`
 
-**Student:** oh ok so quarters works too. i think i get it now, kinda.
+**Student:** oh so 10/12 is the same as 5/6? i dont really get why that works
 
-**Tutor** (18 words, longest stretch 18, first text 1074 ms):
-> Kinda is fair. Try a third plus a quarter next, and tell me which size piece you'd pick.
+**Tutor** (28 words, longest stretch 28, first text 1158 ms):
+> They're the same, yes. Picture five pizza slices out of six. Now cut every slice in half. You get ten slices out of twelve, same amount of pizza.
+
+Board: `focus`, `transformMath \frac{10}{12} = \frac{5 \times 2}{6 \times 2}`
+
+**Student:** ohhh so multiplying top and bottom by 2 keeps it the same amount. but how do i know which number to multiply by
+
+**Tutor** (22 words, longest stretch 22, first text 1215 ms):
+> You've got it. To find it, look at the bottoms, two and three. What's the smallest number both of them go into?
 
 Board: `focus`

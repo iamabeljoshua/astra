@@ -6,40 +6,42 @@ Student played by a cheap model: You study physics at university. You know what 
 
 **Student:** Why is the sky blue?
 
-**Tutor** (20 words, longest stretch 20, first text 1042 ms):
-> Light scattering, but first: how much of the physics of light have you covered, wavelengths and that sort of thing?
+**Tutor** (20 words, longest stretch 20, first text 1138 ms):
+> Quick thing first: how much of the physics of light have you done, wavelength and scattering, that sort of thing?
 
-**Student:** i know wavelengths and the electromagnetic spectrum pretty well. i've heard of rayleigh scattering too, but i can't say why it depends on wavelength to the fourth power.
+**Student:** i know what a wavelength is and i've covered the electromagnetic spectrum. i've heard of rayleigh scattering, but i can't say why it goes as one over wavelength to the fourth.
 
-**Tutor** (29 words, longest stretch 29, first text 1506 ms):
-> Okay, start with the molecule. The light's field shakes an air molecule's charges, so it radiates like a tiny antenna. What do you think sets how much it radiates?
+**Tutor** (42 words, longest stretch 24, first text 1364 ms):
+> Then you're already past the sky, so let's go straight at that fourth power. Intensity falls off as one over lambda to the fourth.
+>
+> Light's electric field shakes the electrons in an air molecule. Do you remember what a shaking charge does?
 
 Board: `writeMath I \propto \frac{1}{\lambda^4}`
 
-**Student:** i think it has something to do with how fast the charges shake, but i'm not sure how that turns into the lambda to the fourth.
+**Student:** i dont know
 
-**Tutor** (27 words, longest stretch 27, first text 1503 ms):
-> You're right about the speed. A shaking charge radiates power proportional to its acceleration squared, and acceleration grows as omega squared. What's omega in terms of wavelength?
+**Tutor** (16 words, longest stretch 16, first text 1376 ms):
+> It radiates. An accelerating charge sends out its own wave, with field proportional to its acceleration.
 
-Board: `focus`, `writeMath P \propto a^2 \propto \omega^4`
+Board: `writeMath E_{\text{rad}} \propto a`
 
-**Student:** omega is 2 pi times frequency, right? and frequency is the speed of light over the wavelength, so omega goes like one over lambda.
+**Student:** ok so the electron radiates when it's accelerated. but i still don't see how that gives the fourth power.
 
-**Tutor** (22 words, longest stretch 22, first text 1631 ms):
-> That's right. Omega to the fourth is one over lambda to the fourth. So which ends up scattered more, blue or red?
+**Tutor** (18 words, longest stretch 18, first text 1941 ms):
+> Right, now count the powers. The electron's acceleration goes as omega squared, so the radiated field does too.
 
-Board: `transformMath P \propto \omega^4 \propto \frac{1}{\lambda^4}`
+Board: `focus`, `writeMath a = -\omega^2 x \;\Rightarrow\; E_{\text{rad}} \propto \omega^2`
 
-**Student:** blue, since blue has the shorter wavelength, so one over lambda to the fourth is bigger for it.
+**Student:** so the field goes as omega squared. and intensity is the field squared, so that's omega to the fourth? i still don't see why omega turns into one over lambda, though.
 
-**Tutor** (31 words, longest stretch 31, first text 1343 ms):
-> Yes. Blue light is scattered all over the sky, and that's what you see looking away from the sun. Violet scatters even more, though. Any idea why the sky isn't violet?
+**Tutor** (24 words, longest stretch 24, first text 1516 ms):
+> Yes, omega to the fourth. Omega is two pi c over lambda, so omega to the fourth is one over lambda to the fourth.
 
-Board: `focus`
+Board: `focus`, `writeMath \omega = \frac{2\pi c}{\lambda}`
 
-**Student:** i don't really know. i'd guess the sun emits less violet, or our eyes are less sensitive to it, but i'm not sure which of those matters.
+**Student:** oh, so omega is two pi c over lambda, and raising that to the fourth gives one over lambda to the fourth. that makes sense now.
 
-**Tutor** (38 words, longest stretch 38, first text 1428 ms):
-> Both matter, and both are right. The sun puts out less violet, the upper atmosphere absorbs some, and our eyes respond weakly to it. Which of the two would you expect to matter most for what we see?
+**Tutor** (24 words, longest stretch 24, first text 1472 ms):
+> Exactly. So blue light near four fifty nanometres scatters about six times more than red at seven hundred. Why's the sky not violet, then?
 
-Board: `focus`
+Board: `writeMath \left(\frac{700}{450}\right)^4 \approx 5.9`

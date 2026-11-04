@@ -6,40 +6,52 @@ Student played by a cheap model: You are 15. You know you get sick from germs, a
 
 **Student:** how do vaccines work
 
-**Tutor** (15 words, longest stretch 15, first text 970 ms):
-> Sure thing. Ever gotten sick with something, like chickenpox, and then never caught it again?
+**Tutor** (15 words, longest stretch 15, first text 1297 ms):
+> Sure. Have you ever gotten sick with something, like chickenpox, and never caught it again?
 
-**Student:** yeah i had a cold once. but i dont really know how any of that works, like why you dont get it twice
+**Student:** i think so, i had a cold once and i didnt get it again? not sure how that works though
 
-**Tutor** (22 words, longest stretch 22, first text 1547 ms):
-> Colds are a bit different, you can catch those again. But some illnesses, your body remembers the germ after it beats it.
+**Tutor** (25 words, longest stretch 25, first text 1139 ms):
+> Colds actually vary, so you can catch a different one. But your body does remember germs it's beaten, and that memory is what we want.
 
-**Student:** so the body remembers germs? like it keeps a copy or something
+**Student:** wait i dont get it, explain like im 5
 
-**Tutor** (22 words, longest stretch 22, first text 1411 ms):
-> Close, it keeps a description, not a copy. Think of a wanted poster, so your body knows exactly who to look for.
+**Tutor** (21 words, longest stretch 21, first text 1150 ms):
+> Sure. Picture a wanted poster. Your body keeps one for every germ it meets, so it spots them fast next time.
 
-**Student:** wait i dont get it. explain like im 5
+Board: `text WANTED: this germ`
 
-**Tutor** (23 words, longest stretch 23, first text 1371 ms):
-> Sure. Your body has tiny guards. When a germ sneaks in, they learn what it looks like. Next time, they spot it fast.
+**Student:** ok so the body keeps like a picture of the germ? how does that help though
 
-**Student:** oh ok so the guards learn the germ's face. then they catch it quick next time
+**Tutor** (19 words, longest stretch 19, first text 1671 ms):
+> Yep, that's it. With the poster ready, your body attacks the germ fast, before it can make you sick.
 
-**Tutor** (24 words, longest stretch 24, first text 1460 ms):
-> Yep, that's it. A vaccine is a safe way to show them the face without the real germ. Why would that help, you reckon?
+Board: `focus`
 
-**Student:** hmm i dont really know. maybe because the germ is safe so you dont get sick? but why would the guards need to see it first
+**Student:** oh ok so the poster means it catches the germ quick. so a vaccine is like giving you the poster for free?
 
-**Tutor** (28 words, longest stretch 28, first text 1393 ms):
-> You've got the first half right, the practice germ can't make you sick. And the guards are slow the first time, they need days to learn the face.
+**Tutor** (25 words, longest stretch 25, first text 1904 ms):
+> Exactly, you've got it. It shows your body a harmless piece or dead copy of the germ, so you make the poster without getting sick.
 
-**Student:** oh so the guards are slow at first. so if the real germ shows up before they've learned it, you get sick?
+Board: `focus`
 
-**Tutor** (23 words, longest stretch 23, first text 1931 ms):
-> Exactly. The germ gets a head start while they learn. With a vaccine, they've already learned it, so they're ready on day one.
+**Student:** oh cool so you get the wanted poster without the actual criminal showing up. wait, so does it work on any germ?
 
-**Student:** oh cool so the guards already know the face before the real one shows up. that makes sense
+**Tutor** (18 words, longest stretch 18, first text 1911 ms):
+> Not quite any. Some germs, like the flu, keep changing their face, so the old poster stops matching.
 
-**Tutor** (25 words, longest stretch 25, first text 1385 ms):
-> That's the whole idea. The real names are immune system for the guards, and antibodies for the little tags they make to grab the germ.
+Board: `focus`
+
+**Student:** oh so the poster gets outdated if the germ changes its look? so thats why you need a new flu shot every year?
+
+**Tutor** (17 words, longest stretch 17, first text 2498 ms):
+> Yep, that's exactly why. Each year scientists update the poster to match the flu strains going around.
+
+Board: `focus`
+
+**Student:** nice, so the flu shot is like an updated wanted poster each year. that makes sense. thanks, that was pretty clear
+
+**Tutor** (22 words, longest stretch 22, first text 1439 ms):
+> You've got it. One last piece: the body's memory is real cells that remember the germ, which is why the poster lasts.
+
+Board: `focus`

@@ -6,46 +6,44 @@ Student played by a cheap model: You are a strong student who already knows limi
 
 **Student:** Why is the derivative of x squared two x? I know the limit definition but I can't see why the two appears.
 
-**Tutor** (18 words, longest stretch 18, first text 1115 ms):
-> So you've got the limit definition already. Try expanding the top. What's left once the x squared cancels?
+**Tutor** (20 words, longest stretch 20, first text 1080 ms):
+> Let's expand it. Here's your limit quotient. What does the top become when you multiply out x plus h, squared?
 
 Board: `writeMath \frac{(x+h)^2 - x^2}{h}`
 
-**Student:** the top is x squared plus two x h plus h squared, minus x squared. so that leaves two x h plus h squared. divide by h and you get two x plus h. but i already know that, what i want is why the two is there.
+**Student:** i dont know
 
-**Tutor** (19 words, longest stretch 19, first text 1079 ms):
-> Fair, so look where it comes from. Two cross terms, one from each factor. Why would there be two?
+**Tutor** (20 words, longest stretch 20, first text 1080 ms):
+> No problem, I'll do it. Squaring means x plus h times itself, and the cross terms give two x h.
 
-Board: `focus`, `writeMath (x+h)(x+h) = x^2 + xh + hx + h^2`
+Board: `focus`, `transformMath \frac{x^2 + 2xh + h^2 - x^2}{h}`
 
-**Student:** ok so the two is from xh and hx, both cross terms. but why does squaring make you get two of them? that's what i'm stuck on, it's just the rule of multiplying out brackets.
+**Student:** i dont know
 
-**Tutor** (48 words, longest stretch 30, first text 1097 ms):
-> Picture a square with side x, getting a thin strip of width h added to every side that grows. Two strips grow, one on the right and one on top.
+**Tutor** (17 words, longest stretch 17, first text 1161 ms):
+> Picture a square. Grow its side by h, and two strips of x by h get added.
+
+Board: `focus`, `clearBoard`, `writeMath (x+h)^2 = x^2 + xh + xh + h^2`
+
+**Student:** i dont know
+
+**Tutor** (30 words, longest stretch 30, first text 1263 ms):
+> Okay, simpler. Picture a square floor, x tiles on each side. Now add one extra row along one edge, and one along the next. How many strips did you add?
+
+Board: `focus`
+
+**Student:** i dont know
+
+**Tutor** (25 words, longest stretch 25, first text 1899 ms):
+> Two strips, one per edge. Those are the two. They add up to two x h, and the two in your derivative comes from there.
+
+Board: `focus`, `highlight xh + xh`
+
+**Student:** ok so the two is just the two strips. i still don't see why both strips are x times h though.
+
+**Tutor** (28 words, longest stretch 25, first text 1316 ms):
+> Each strip runs along a full edge. That edge is x long, and the strip is h wide, so each one is x by h.
 >
-> Each strip has area x times h.
->
-> That's the two: a square has two edges that can grow.
+> Does that fit?
 
-Board: `focus`
-
-**Student:** ah, so the two strips are the two sides that grow, each x times h. that's the picture i was missing. i get it now, thanks.
-
-**Tutor** (21 words, longest stretch 21, first text 1176 ms):
-> Yep, and the little h squared corner is what vanishes in the limit. So what would the cube's derivative look like?
-
-Board: `focus`
-
-**Student:** cube has three faces that grow, so i'd guess three x squared. but i haven't checked the expansion, so that's a guess.
-
-**Tutor** (16 words, longest stretch 16, first text 1087 ms):
-> Good guess, and it's right. Three slabs, each x squared times h. Check the expansion yourself.
-
-Board: `focus`, `writeMath (x+h)^3 = x^3 + 3x^2h + 3xh^2 + h^3`
-
-**Student:** yeah, the h terms in the expansion have coefficient 3, so after dividing by h you get 3x squared. checks out.
-
-**Tutor** (24 words, longest stretch 24, first text 1229 ms):
-> Right, and the pattern's clear now. For x to the n, there are n faces that can grow. What would that make the derivative?
-
-Board: `focus`
+Board: `focus`, `focus`
