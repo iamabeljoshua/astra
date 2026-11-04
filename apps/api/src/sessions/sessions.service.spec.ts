@@ -94,6 +94,14 @@ describe('SessionsService', () => {
       ]);
     });
 
+    it('reads the newest thousand sessions at most, so one student cannot slow Home for others', async () => {
+      const studentId = await createStudentId();
+      const sessions = Array.from({ length: 1_001 }, () => ({ ...SESSION, studentId, topicId: 'jump-shot' }));
+      await testApp.app.get(DataSource).getRepository(SessionEntity).insert(sessions);
+
+      expect(await sessionsService.getTopicHistory(studentId)).toHaveLength(1_000);
+    });
+
     it('holds only the sessions of the given student', async () => {
       const studentId = await createStudentId();
       await sessionsService.createSession(await createStudentId(), { ...SESSION, topicId: 'jump-shot' });

@@ -14,6 +14,7 @@ export interface SessionListOptions {
 }
 
 const LIKE_PATTERN_CHARACTERS = /[\\%_]/g;
+const MAX_TOPIC_HISTORY_SESSIONS = 1_000;
 
 // Every branch names the student, because the branches of a filter are joined with OR.
 function getListFilter(studentId: string, search?: string): FindOptionsWhere<SessionEntity>[] {
@@ -65,6 +66,7 @@ export class SessionRepository {
       select: { id: true, topicId: true, status: true, durationSeconds: true },
       where: { studentId, topicId: Not(IsNull()) },
       order: { startedAt: 'DESC', id: 'DESC' },
+      take: MAX_TOPIC_HISTORY_SESSIONS,
     });
   }
 
