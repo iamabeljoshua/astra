@@ -15,6 +15,20 @@ const AFTER_LAST_COMMAND_MS = 900;
 const STROBES = /strobe/;
 const MOST_CONTRAST = 'dark';
 const THEMES = [MOST_CONTRAST, 'light'] as const;
+/** A stalled browser never answers, so a frame this late names itself and ends the run. */
+const FRAME_LIMIT_MS = 60_000;
+
+async function withinLimit<Answer>(work: Promise<Answer>, moment: string): Promise<Answer> {
+  let timer: NodeJS.Timeout | undefined;
+  const late = new Promise<never>((_, refuse) => {
+    timer = setTimeout(() => refuse(new Error(`the flash check got no answer in ${FRAME_LIMIT_MS} ms at ${moment}`)), FRAME_LIMIT_MS);
+  });
+  try {
+    return await Promise.race([work, late]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 interface Verdict {
   failures: string[];
@@ -66,8 +80,9 @@ export async function getFlashesInScene(page: Page, shots: CDPSession, { scene, 
     (window as unknown as { flashTurn?: null }).flashTurn = null;
   });
   for (let atMs = 0; atMs <= lastCommandMs + AFTER_LAST_COMMAND_MS; atMs += frameMs) {
-    await page.evaluate((request) => window.boardDeck?.show(request), { scene, size: SIZE, atMs, mount: `flash|${scene}` });
-    const direction = await readChange(page, shots, limits);
+    const moment = `${scene} ${atMs} ms`;
+    await withinLimit(page.evaluate((request) => window.boardDeck?.show(request), { scene, size: SIZE, atMs, mount: `flash|${scene}` }), moment);
+    const direction = await withinLimit(readChange(page, shots, limits), moment);
     frames += 1;
     if (direction !== 0) changes.push({ atMs, direction });
   }

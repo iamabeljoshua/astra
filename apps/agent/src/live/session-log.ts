@@ -1,4 +1,4 @@
-import { type Beat, type BeatId, type BrowserMessage, parseSessionEvent, type PlayReport, type SessionEvent, type TurnId } from '@astra/contracts';
+import { type Beat, type BeatId, type BrowserMessage, parseSessionEvent, type PlayReport, type SessionEvent, type StudentWork, type TurnId, type WorkVerdict } from '@astra/contracts';
 
 export interface SessionLogOptions {
   getNowMs(): number;
@@ -9,6 +9,8 @@ export interface SessionLogOptions {
 
 export interface SessionLog {
   write(message: BrowserMessage): SessionEvent | null;
+  writeWorked(message: BrowserMessage & { type: 'worked' }, checked: { reading?: unknown; verdict: WorkVerdict; closesTask?: string }): SessionEvent | null;
+  writeHeard(work: StudentWork, checked: { reading?: unknown; verdict: WorkVerdict; closesTask?: string }): SessionEvent | null;
   getEvents(): readonly SessionEvent[];
 }
 
@@ -46,11 +48,8 @@ export function createSessionLog({ getNowMs, getBeat, onWritten, onRefused }: Se
     return null;
   };
 
-  return {
-    getEvents: () => events,
-    write(message) {
+  const writeBody = (message: BrowserMessage, body: object | null): SessionEvent | null => {
       const offsetMs = getOffsetMs(message);
-      const body = getBody(message);
       if (!body) return null;
       const beatKey = message.type === 'played' ? `${message.turnId}/${message.beatId}` : null;
       const known = beatKey === null ? undefined : beatRows.get(beatKey);
@@ -66,6 +65,22 @@ export function createSessionLog({ getNowMs, getBeat, onWritten, onRefused }: Se
       if (message.type === 'played' && beatKey !== null) beatRows.set(beatKey, { row, report: message });
       onWritten?.(parsed.value);
       return parsed.value;
+  };
+
+  return {
+    getEvents: () => events,
+    writeHeard(work, checked) {
+      if (events.length >= MOST_EVENTS) return null;
+      const parsed = parseSessionEvent({ seq: events.length, atMs: Math.max(0, Math.round(getNowMs())), kind: 'studentActed', action: { action: 'worked', work, ...checked } });
+      if (!parsed.ok) {
+        onRefused?.(parsed.problem);
+        return null;
+      }
+      events.push(parsed.value);
+      onWritten?.(parsed.value);
+      return parsed.value;
     },
+    write: (message) => writeBody(message, getBody(message)),
+    writeWorked: (message, checked) => writeBody(message, { kind: 'studentActed', action: { action: 'worked', work: message.work satisfies StudentWork, ...checked } }),
   };
 }

@@ -15,7 +15,7 @@ const LABEL_GAP = 8;
 const LEADER_GAP = 4;
 const WOBBLE = 0.6;
 
-export interface LabeledDrawing extends DrawnDiagram {
+export interface LabeledDrawing extends Omit<DrawnDiagram, 'nodeBoxes'> {
   partBoxes: ReadonlyMap<string, MarkBox>;
 }
 
@@ -92,7 +92,8 @@ export function drawLabeledSheet({ name, labels = [] }: Pick<Drawing, 'name' | '
   const rightX = leftRoom + bodyWidth + SIDE_GAP;
   const toPage = wobble(makeSeededRandom(request.seed));
   const body: DiagramStep = { strokes: sheet.strokes.map((points) => drawSheetStroke(points, (point) => toPage(point, scale, bodyAt))), textLabels: [] };
-  const steps = [body, ...left.map((label) => getLabelStep(label, { x: 0, isLeft: true, bodyAt, scale })), ...right.map((label) => getLabelStep(label, { x: rightX, isLeft: false, bodyAt, scale }))];
+  // The left labels end level, so a leader leaves the column at once and cannot run through a longer neighbour.
+  const steps = [body, ...left.map((label) => getLabelStep(label, { x: leftRoom - SIDE_GAP - label.text.width, isLeft: true, bodyAt, scale })), ...right.map((label) => getLabelStep(label, { x: rightX, isLeft: false, bodyAt, scale }))];
   const partBoxes = new Map(Object.entries(sheet.parts).map(([partName, { x, y, radius }]) => [partName, { x: bodyAt.x + (x - radius) * scale, y: bodyAt.y + (y - radius) * scale, width: 2 * radius * scale, height: 2 * radius * scale }]));
   return { steps, width: leftRoom + bodyWidth + rightRoom, height: tallest, partBoxes };
 }

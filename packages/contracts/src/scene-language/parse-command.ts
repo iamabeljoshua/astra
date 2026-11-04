@@ -24,6 +24,7 @@ import {
 } from './read.ts';
 import {
   ANNOTATION_MARKS,
+  BOARD_MODES,
   MATH_CLAIMS,
   type Diagram,
   DRAWING_PARTS,
@@ -39,15 +40,18 @@ import {
   SIMULATION_MODELS,
   SIMULATION_PARAMETER_RULES,
   SIMULATION_PARAMETERS,
+  DRAG_SEEKS,
   type Simulation,
   type SimulationModel,
   type SimulationParameter,
   type SimulationParameterRule,
   type SimulationPoint,
   type SimulationRun,
+  type Task,
   type Timeline,
   TRACKED_QUANTITIES,
   VECTOR_LENGTHS,
+  WRITE_READINGS,
 } from './scene-command.ts';
 
 const LIMITS = {
@@ -62,6 +66,9 @@ const LIMITS = {
   rows: 12,
   events: 12,
   nodes: 12,
+  note: 48,
+  taskChoices: 12,
+  taskChoice: 80,
   edges: 20,
   plotConstants: 4,
   sceneMoments: 24,
@@ -333,6 +340,61 @@ function readImageSource(fields: CheckedFields) {
   return hasAsset ? { asset: readOneOf(fields.at('asset'), IMAGE_ASSETS) } : { fileId: readFileId(fields.at('fileId')) };
 }
 
+function readChoice(place: Place): string {
+  return readString(place, LIMITS.taskChoice);
+}
+
+function readChoices(place: Place): string[] {
+  return readList(place, { maxLength: LIMITS.taskChoices, readItem: readChoice });
+}
+
+function readDistinctChoices(place: Place): string[] {
+  const choices = readChoices(place);
+  if (choices.length === 0 || new Set(choices).size !== choices.length) fail(place, 'at least one choice, each different');
+  return choices;
+}
+
+function readPlaceAnswer(fields: CheckedFields, items: readonly string[], slots: readonly string[]): { answer?: string[] } {
+  const { answer } = fields.optional('answer', readChoices);
+  if (answer === undefined) return {};
+  if (answer.length !== slots.length || !answer.every((item) => items.includes(item))) fail(fields.at('answer'), 'one of the items for each slot');
+  return { answer };
+}
+
+const TASKS: VariantTable<Task, 'way'> = {
+  tag: 'way',
+  variants: {
+    write: {
+      keys: ['kind', 'id', 'on', 'reads', 'accepts', 'byHand'],
+      read: (fields) => ({
+        kind: 'task',
+        id: readElementId(fields.at('id')),
+        way: 'write',
+        ...fields.optional('byHand', readBoolean),
+        ...fields.optional('on', readElementId),
+        ...fields.optional('reads', (place) => readOneOf(place, WRITE_READINGS)),
+        ...fields.optional('accepts', readDistinctChoices),
+      }),
+    },
+    pick: {
+      keys: ['kind', 'id', 'on', 'answer'],
+      read: (fields) => ({ kind: 'task', id: readElementId(fields.at('id')), way: 'pick', on: readElementId(fields.at('on')), ...fields.optional('answer', readDistinctChoices) }),
+    },
+    place: {
+      keys: ['kind', 'id', 'items', 'slots', 'answer'],
+      read: (fields) => {
+        const items = readDistinctChoices(fields.at('items'));
+        const slots = readDistinctChoices(fields.at('slots'));
+        return { kind: 'task', id: readElementId(fields.at('id')), way: 'place', items, slots, ...readPlaceAnswer(fields, items, slots) };
+      },
+    },
+    drag: {
+      keys: ['kind', 'id', 'on', 'seek'],
+      read: (fields) => ({ kind: 'task', id: readElementId(fields.at('id')), way: 'drag', on: readElementId(fields.at('on')), ...fields.optional('seek', (place) => readOneOf(place, DRAG_SEEKS)) }),
+    },
+  },
+};
+
 const COMMANDS: VariantTable<SceneCommand, 'kind'> = {
   tag: 'kind',
   variants: {
@@ -587,6 +649,22 @@ const COMMANDS: VariantTable<SceneCommand, 'kind'> = {
         mark: readOneOf(fields.at('mark'), ANNOTATION_MARKS),
         ...fields.optional('label', readLabel),
       }),
+    },
+    note: {
+      keys: ['id', 'target', 'text'],
+      read: (fields) => ({ kind: 'note', id: readElementId(fields.at('id')), target: readElementId(fields.at('target')), text: readString(fields.at('text'), LIMITS.note) }),
+    },
+    tangent: {
+      keys: ['id', 'target'],
+      read: (fields) => ({ kind: 'tangent', id: readElementId(fields.at('id')), target: readElementId(fields.at('target')) }),
+    },
+    task: {
+      keys: ['id', 'way', 'on', 'reads', 'accepts', 'byHand', 'answer', 'items', 'slots', 'seek'],
+      read: (fields) => readVariant<Task>(fields.place, TASKS),
+    },
+    boardMode: {
+      keys: ['mode'],
+      read: (fields) => ({ kind: 'boardMode', mode: readOneOf(fields.at('mode'), BOARD_MODES) }),
     },
     focus: {
       keys: ['target'],

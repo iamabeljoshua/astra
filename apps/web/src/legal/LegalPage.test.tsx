@@ -150,6 +150,7 @@ describe('what the legal pages say', () => {
     ['a parent who accepts or receives anything', /parent's|for parents|or a parent|they accept/i],
     ['a choice of voice', /tutor voice|voice samples/i],
     ['a first answer to the tutor', /first answer|first hello|first question/i],
+    ['a file a student attaches, because uploads come after the MVP', /file you attach|upload/i],
   ])('claims nothing about %s, which the app no longer has', (_caseName, wording) => {
     expect(JSON.stringify(LEGAL_PAGES)).not.toMatch(wording);
   });

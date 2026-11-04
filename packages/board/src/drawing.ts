@@ -17,4 +17,6 @@ export { createMathPainter, type MathFontProblem, type MathFrame, type MathPaint
 export { easeInOut } from './math/paint-flights.ts';
 export { collectMathPaints, getPaintsOfSpans, preloadMathFonts, renderTex } from './math/render-math.ts';
 export { getStepDecimals } from './plot/axis-ticks.ts';
+export { getDragStep, getPointX, snapDragX } from './shared/drag-point.ts';
+export { getDragXAtPixel } from './plot/plot-figure.ts';
 export { writeStyle } from './style-writer.ts';

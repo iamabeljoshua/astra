@@ -223,7 +223,7 @@ describe('the Privacy Policy on voice', () => {
     expect(privacy).toContain('your IP address');
     expect(privacy).toContain("Meta's Muse Voice Transcribe receives your voice");
     expect(privacy).toContain("ElevenLabs receives the tutor's words");
-    expect(privacy).toContain('receives what you say and type in a session, a question you type on Home to start one, the tutor\'s earlier words, and your level, interests, and goal');
+    expect(privacy).toContain('receives what you say and type in a session, including lines on the board, a line you paused on without sending, a picture of anything you write with the pen, and a question you type on Home to start one, the tutor\'s earlier words, and your level, interests, and goal');
     expect(privacy).toContain('We do not send it your name, your date of birth, your email address, or an account ID');
   });
 

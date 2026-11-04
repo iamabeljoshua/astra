@@ -1,16 +1,23 @@
-import { getBeatText } from '@astra/contracts';
+import { getBeatText, type InkPoint } from '@astra/contracts';
 import { readKey } from '../keys.ts';
-import { makeAnthropicSourceFinder, makeAnthropicTutorModel, TUTOR_MODEL_NAMES, type TutorModelName } from '../providers/anthropic.ts';
+import { makeAnthropicPictureReader, makeAnthropicSourceFinder, makeAnthropicTutorModel, TUTOR_MODEL_NAMES, type TutorModelName } from '../providers/anthropic.ts';
 import { makeRecordedTutorModel } from '../providers/fake-model.ts';
 import { createStandInTutor } from '../live/stand-in-tutor.ts';
 import { type ApiLink, createApiLink } from './api-link.ts';
 import { createTutorBrain, type SpendLimit, type TraceNote, type TurnSummary, type TutorBrain } from './brain.ts';
 import { PROMPT_VERSIONS, TUTOR_PROMPT, type TutorPrompt } from './prompt.ts';
 import { createSpendLedger } from './spend-ledger.ts';
+import { readInk } from './ink/read-ink.ts';
+import { rasterizeInk } from './ink/rasterize-ink.ts';
+import { readSpoken, type SpokenReading } from './watcher/read-spoken.ts';
+import type { SpokenExpected } from './watcher/spoken-answer.ts';
+import { readWords } from './watcher/read-words.ts';
+import type { WordMeaning } from './watcher/watch-rule.ts';
 
 const STAND_IN = 'stand-in';
 const RECORDED = 'recorded';
 const DEFAULT_MODEL: TutorModelName = 'sonnet-5-5';
+const WORDS_MODEL: TutorModelName = 'haiku-5-5';
 const FIND_SOURCE_ON = 'on';
 const DEFAULT_LIMIT_USD = 8;
 const DEFAULT_LIMIT_CREDITS = 1500;
@@ -41,6 +48,7 @@ function makeApiLink(roomName: string): ApiLink | null {
 export interface SpendCaps {
   getSpendLimit(): SpendLimit | null;
   addTurn(summary: { usd: number; voiceCharacters: number }): void;
+  getSpentUsd(): number;
   /** Sends what the API has not heard yet, so a room closing does not lose the last turn's charge. */
   flush(): Promise<void>;
 }
@@ -81,6 +89,7 @@ export function createSpendCaps({ link, ledger, trace, sessionLimitUsd, sessionV
       ledger?.charge({ anthropicUsd: usd, voiceCharacters });
       report();
     },
+    getSpentUsd: () => sessionUsd + sessionCharacters * VOICE_USD_PER_CHARACTER,
     async flush() {
       report();
       await reporting;
@@ -98,6 +107,10 @@ export function warmTutorModel(): void {
 export interface MadeBrain {
   brain: TutorBrain;
   flushSpend(): Promise<void>;
+  readMeaning?(words: string): Promise<WordMeaning | null>;
+  readStrokes?(strokes: readonly (readonly InkPoint[])[]): Promise<{ text: string; ink: { tex?: string; isUnsure: boolean } } | null>;
+  readSpokenWords?(words: string, expects: SpokenExpected): Promise<SpokenReading>;
+  getSpentUsd?(): number;
 }
 
 export function makeTutorBrain({ roomName, trace }: { roomName: string; trace: TraceNote }): MadeBrain {
@@ -118,5 +131,28 @@ export function makeTutorBrain({ roomName, trace }: { roomName: string; trace: T
     caps.addTurn({ usd: costUsd, voiceCharacters: beats.map(getBeatText).join(' ').length });
   };
   const findSource = name === RECORDED || !isFindSourceOn() ? undefined : makeAnthropicSourceFinder({ apiKey: readKey('ANTHROPIC_API_KEY'), onFailed: (problem) => trace('sourceFailed', { problem }) });
-  return { brain: createTutorBrain({ model, prompt: getLivePrompt(), ...(findSource ? { findSource } : {}), loadProfile: link ? () => link.fetchProfile() : undefined, trace, onTurnEnd, getSpendLimit: caps.getSpendLimit }), flushSpend: caps.flush };
+  const brain = createTutorBrain({ model, prompt: getLivePrompt(), ...(findSource ? { findSource } : {}), loadProfile: link ? () => link.fetchProfile() : undefined, trace, onTurnEnd, getSpendLimit: caps.getSpendLimit });
+  if (name === RECORDED) return { brain, flushSpend: caps.flush };
+  const wordsModel = makeAnthropicTutorModel({ name: WORDS_MODEL, apiKey: readKey('ANTHROPIC_API_KEY') });
+  const readMeaning = async (words: string) => {
+    if (caps.getSpendLimit()) return null;
+    const { meaning, costUsd } = await readWords(wordsModel, words);
+    caps.addTurn({ usd: costUsd, voiceCharacters: 0 });
+    return meaning;
+  };
+  const pictureReader = makeAnthropicPictureReader({ apiKey: readKey('ANTHROPIC_API_KEY') });
+  const readStrokes = async (strokes: readonly (readonly InkPoint[])[]) => {
+    const png = rasterizeInk(strokes);
+    if (!png || caps.getSpendLimit()) return null;
+    const { costUsd, ...read } = await readInk(pictureReader, png);
+    caps.addTurn({ usd: costUsd, voiceCharacters: 0 });
+    return read;
+  };
+  const readSpokenWords = async (words: string, expects: SpokenExpected) => {
+    if (caps.getSpendLimit()) return { kind: 'talk' as const, costUsd: 0 };
+    const reading = await readSpoken(wordsModel, words, expects);
+    caps.addTurn({ usd: reading.costUsd, voiceCharacters: 0 });
+    return reading;
+  };
+  return { brain, flushSpend: caps.flush, getSpentUsd: caps.getSpentUsd, readMeaning, readStrokes, readSpokenWords };
 }

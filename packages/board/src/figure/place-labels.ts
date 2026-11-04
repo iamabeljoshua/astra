@@ -177,7 +177,7 @@ function findPlace(shape: Shape, request: LabelRequest, room: LabelRoom, taken: 
       for (const side of request.sides) {
         const box = getBoxAtSide(shape, request.anchor, side, request.gap * step);
         const grown = growBox(box, BOX_PADDING + shape.room);
-        if (isBoxInside(box, room.bounds) && isClear(grown, others) && !touchesLine(grown, lines)) return { box, side };
+        if (isBoxInside({ ...box, top: box.top - shape.room, bottom: box.bottom + shape.room }, room.bounds) && isClear(grown, others) && !touchesLine(grown, lines)) return { box, side };
       }
     }
   }
@@ -189,7 +189,7 @@ function findAnyPlace({ width, height, room: extraRoom }: Shape, { anchor, room,
   const others = [...room.mustAvoid, ...taken];
   const lines = room.linesToClear ?? [];
   let nearest: { box: Box; distance: number } | null = null;
-  for (let top = room.bounds.top; top + height <= room.bounds.bottom; top += LABEL_FONT.lineHeight) {
+  for (let top = room.bounds.top + extraRoom; top + height + extraRoom <= room.bounds.bottom; top += LABEL_FONT.lineHeight) {
     for (let left = room.bounds.right - width; left >= room.bounds.left; left -= FALLBACK_STEP) {
       const box = { left, top, right: left + width, bottom: top + height };
       const distance = Math.hypot(left + width / 2 - anchor.x, top + height / 2 - anchor.y);

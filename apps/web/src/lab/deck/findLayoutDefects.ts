@@ -370,11 +370,11 @@ const isTickNumber = (owner: Element) => owner.matches('[data-mark^="tick-"]');
 
 const describeStroke = (shape: Element) => `${shape.closest('[data-element]')?.getAttribute('data-element') ?? 'a mark'} ${shape.getAttribute('data-mark') ?? shape.getAttribute('data-ink') ?? 'stroke'}`;
 
-// Every stroke on the board, against every word but a tick number, and a word's box is cut down to its letters first.
+// Every stroke but a plot's grid, which lies under each word's halo, against every word but a tick number, and a word's box is cut down to its letters first.
 function findStrokesThroughText(board: HTMLElement, texts: readonly PlacedText[], paint: PaintReader): Defect[] {
   const words = texts.filter(({ owner, isMath }) => isMath || !isTickNumber(owner)).map((text) => ({ ...text, letters: getLetterBox(text.box) }));
   if (words.length === 0) return [];
-  return [...board.querySelectorAll<SVGGeometryElement>(STROKE_SHAPES)].filter((shape) => isDrawnStroke(shape, paint)).flatMap((shape): Defect[] => {
+  return [...board.querySelectorAll<SVGGeometryElement>(STROKE_SHAPES)].filter((shape) => !shape.matches('[data-mark="grid"]') && isDrawnStroke(shape, paint)).flatMap((shape): Defect[] => {
     const box = shape.getBoundingClientRect();
     const near = words.filter(({ letters }) => doOverlap(box, letters, -1));
     if (near.length === 0) return [];

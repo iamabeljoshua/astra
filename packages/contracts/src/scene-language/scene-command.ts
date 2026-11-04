@@ -349,6 +349,53 @@ export interface Annotate {
   label?: string;
 }
 
+/** A few words in the tutor's pen beside an element. */
+export interface Note {
+  kind: 'note';
+  id: ElementId;
+  target: ElementId;
+  text: string;
+}
+
+/** Shows the slope where the student's point sits on a curve, and rides along as they drag. */
+export interface Tangent {
+  kind: 'tangent';
+  id: ElementId;
+  target: ElementId;
+}
+
+export const TASK_WAYS = ['write', 'pick', 'place', 'drag'] as const;
+export type TaskWay = (typeof TASK_WAYS)[number];
+
+export const WRITE_READINGS = ['words', 'code'] as const;
+export type WriteReading = (typeof WRITE_READINGS)[number];
+
+export const DRAG_SEEKS = ['flat', 'zero'] as const;
+export type DragSeek = (typeof DRAG_SEEKS)[number];
+
+/**
+ * Asks the student to do something, in any subject. Whatever the tutor gives as the answer lets code check the work. With no answer, the tutor reads the work and says only what it can stand behind.
+ */
+export type Task = { kind: 'task'; id: ElementId } & (
+  /** Type lines of working, an answer, or code. `on` names the math line they work from. `accepts` holds short answers code may count as right. A line that matches none is not wrong. `byHand` opens the pen for them. */
+  | { way: 'write'; on?: ElementId; reads?: WriteReading; accepts?: string[]; byHand?: boolean }
+  /** Pick parts of something on the board: terms of a math line or nodes of a diagram. */
+  | { way: 'pick'; on: ElementId; answer?: string[] }
+  /** Put an item in each slot, which covers steps in order, matching, and labels. `answer` holds the right item for each slot, in slot order. */
+  | { way: 'place'; items: string[]; slots: string[]; answer?: string[] }
+  /** Drag a point along a plot's curve. `seek` names what code looks for on that curve. */
+  | { way: 'drag'; on: ElementId; seek?: DragSeek }
+);
+
+export const BOARD_MODES = ['teach', 'handsOn'] as const;
+export type BoardModeName = (typeof BOARD_MODES)[number];
+
+/** What the right side of the session is for. Teaching gives it to the visual, and hands-on gives it to the board, with the visual small in the corner. It lands on a word. */
+export interface BoardMode {
+  kind: 'boardMode';
+  mode: BoardModeName;
+}
+
 /** Moves the dot to the element under discussion. */
 export interface Focus {
   kind: 'focus';
@@ -392,6 +439,10 @@ export type SceneCommand =
   | Image
   | Text
   | Annotate
+  | Note
+  | Tangent
+  | Task
+  | BoardMode
   | Focus
   | Hide
   | ClearBoard;

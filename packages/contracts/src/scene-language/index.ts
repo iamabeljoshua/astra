@@ -12,3 +12,4 @@ export type { ParseResult } from './read.ts';
 export * from './scene-command.ts';
 export * from './scene-message.ts';
 export * from './session-event.ts';
+export * from './work.ts';

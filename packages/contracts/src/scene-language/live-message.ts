@@ -1,7 +1,8 @@
 import type { FrozenFrame } from './beat.ts';
-import type { BeatId, TurnId } from './ids.ts';
+import type { BeatId, ElementId, TurnId } from './ids.ts';
 import type { SceneCommand } from './scene-command.ts';
 import type { PlayReport, StudentAction } from './session-event.ts';
+import type { StudentWork } from './work.ts';
 
 /** Each side of a session sends a pulse this often, on the lossy channel. */
 export const PULSE_EVERY_MS = 500;
@@ -59,6 +60,10 @@ export type AgentMessage =
   | { type: 'heard' }
   /** The tutor is working on a reply and has no words yet, so the student can see why it is quiet. */
   | { type: 'thinking'; isThinking: boolean }
+  /** What the session has cost so far, an estimate, sent only when a tester asked to see it. */
+  | { type: 'costSoFar'; usd: number }
+  /** The agent read a line written with the pen or said aloud, so the page can show how, with the check on it. */
+  | { type: 'workRead'; work: StudentWork }
   /** The tutor has said why it stopped, and will not speak again, so the page can keep saying why it is quiet. */
   | { type: 'tutorClosed'; reason: TutorClosedReason }
   /** Sent every half second on the lossy channel, so the browser knows the agent can still reach it. */
@@ -101,6 +106,17 @@ export type BrowserMessage = BrowserStamp &
     | { type: 'hello'; wantsGreeting: boolean }
     /** The student typed instead of speaking. */
     | { type: 'typed'; text: string }
+    /** The student did something on the shared board. The agent works out what it means, because a browser's own word for it is not evidence. */
+    | { type: 'worked'; work: StudentWork }
+    /** The student has not touched the board for this long. `draft` is what they have typed and not sent, and it leaves the page only at a pause. */
+    | { type: 'paused'; seconds: number; draft?: string }
+    /** The student has finished a handwritten line, whose strokes came as `acted`, so the agent can read it. */
+    | { type: 'inkDone'; id: ElementId; strokes: ElementId[]; task?: ElementId }
+    /** The pen has rested a moment, so the agent can start reading these strokes before the line is done. */
+    | { type: 'inkPeek'; strokes: ElementId[] }
+    /** The student is typing or writing right now, at most a few times a second, so a reply can hold its first word. */
+    | { type: 'typing' }
+    | { type: 'stopTutor' }
     /** The board could not draw this mark, so the tutor is pointing at something the student cannot see. */
     | { type: 'markNotDrawn'; markId: string }
     /** The board drew what it could, and this did not show as the tutor asked. */

@@ -1,5 +1,5 @@
 import { type BoardElement, type BoardState, getMotionValue, type SliderMove } from '@astra/board';
-import { canWriteByHand, createFigurePainter, createInkPainter, createMathPainter, type DiagramTextLabel, drawDiagram, getFigureFit, getFigureMarks, type InkPainter, type LayoutBox, type MathFontProblem, type MathPainter, type MeasureText, setLabelMeasure, type TermBoxes, type TermQuery, writeByHand, writeStyle } from '@astra/board/drawing';
+import { canWriteByHand, createFigurePainter, createInkPainter, createMathPainter, type DiagramTextLabel, drawDiagram, getFigureFit, getFigureMarks, type InkPainter, type LayoutBox, type MarkBox, type MathFontProblem, type MathPainter, type MeasureText, setLabelMeasure, type TermBoxes, type TermQuery, writeByHand, writeStyle } from '@astra/board/drawing';
 import { BOARD_LABELS } from '../strings';
 import { drawLabeledSheet, type LabeledDrawing } from '@astra/board/drawing';
 import { createCodeItem, createTableItem, createTimelineItem } from './blockItems';
@@ -169,11 +169,13 @@ function getTextMeasure(wrapper: HTMLElement): { measureText?: MeasureText } {
 }
 
 function createDiagramItem(wrapper: HTMLElement, content: Extract<BoardElement['content'], { kind: 'diagram' }>): BoardItem {
-  return createInkItem({
+  let drawing: { nodeBoxes: ReadonlyMap<string, MarkBox>; width: number; height: number } = { nodeBoxes: new Map(), width: 0, height: 0 };
+  const item = createInkItem({
     wrapper,
     label: [...content.nodes.map((node) => node.label), ...content.edges.flatMap((edge) => (edge.label ? [edge.label] : []))].join(', '),
     draw({ element, maxWidth, fontSize }) {
       const drawn = drawDiagram(content, { fontSize: fontSize * DIAGRAM_SCALE, maxWidth, seed: element.id, ...getTextMeasure(wrapper) });
+      drawing = drawn;
       return { strokeGroups: drawn.steps.map((step) => step.strokes), textGroups: drawn.steps.map((step) => step.textLabels), size: { width: drawn.width, height: drawn.height } };
     },
     getProgress({ element, atMs, progress }, groupCount) {
@@ -182,6 +184,14 @@ function createDiagramItem(wrapper: HTMLElement, content: Extract<BoardElement['
     },
     smallestTextShare: DIAGRAM_SCALE * EDGE_LABEL_SCALE,
   });
+  return {
+    ...item,
+    getTermBoxes(query) {
+      const part = query && 'termId' in query ? drawing.nodeBoxes.get(query.termId) : undefined;
+      const whole = { x: 0, y: 0, width: drawing.width, height: drawing.height };
+      return { from: null, to: query === null ? whole : (part ?? null), flightOffset: { x: 0, y: 0 } };
+    },
+  };
 }
 
 function createDrawingItem(wrapper: HTMLElement, content: Extract<BoardElement['content'], { kind: 'drawing' }>): BoardItem {
@@ -219,6 +229,10 @@ function createPlainItem(wrapper: HTMLElement): BoardItem {
     getEntranceOpacity: ({ progress }) => progress,
     remove: () => {},
   };
+}
+
+function createStudentLineItem(wrapper: HTMLElement, element: BoardElement): BoardItem {
+  return element.math ? createMathItem(wrapper) : createPlainItem(wrapper);
 }
 
 function getFigureDescription(content: BoardElement['content']): string {
@@ -279,6 +293,7 @@ const ITEM_MAKERS: Partial<{ [Kind in BoardElement['content']['kind']]: (wrapper
   simulate: (wrapper, content) => createFigureItem(wrapper, content),
   slider: (wrapper, content, handlers) => createSliderItem(wrapper, content, handlers),
   text: (wrapper, content) => (content.handwritten && canWriteByHand(content.text) ? createHandwrittenItem(wrapper, content.text) : createPlainItem(wrapper)),
+  task: (wrapper) => createPlainItem(wrapper),
 };
 
 /** A figure draws marks on its own parts, because they move with the part. */
@@ -287,11 +302,13 @@ export function isFigure(content: BoardElement['content'] | undefined): boolean 
 }
 
 export function hasOwnPlace(content: BoardElement['content']): boolean {
+  if (content.kind === 'task') return content.way === 'place';
   if (content.kind === 'plot' && content.over !== undefined) return false;
-  return Object.hasOwn(ITEM_MAKERS, content.kind);
+  return content.kind === 'studentLine' || Object.hasOwn(ITEM_MAKERS, content.kind);
 }
 
 export function createBoardItem(element: BoardElement, wrapper: HTMLElement, handlers: SliderHandlers): BoardItem {
+  if (element.content.kind === 'studentLine') return createStudentLineItem(wrapper, element);
   const make = ITEM_MAKERS[element.content.kind] as (wrapper: HTMLElement, content: BoardElement['content'], handlers: SliderHandlers) => BoardItem;
   return make(wrapper, element.content, handlers);
 }

@@ -7,7 +7,7 @@ import type { BoardOperation } from '../src/player/board-operations.ts';
 import { getBoardAt } from '../src/player/board-state.ts';
 
 const WORD = { label: 'Q', unit: 'u' };
-const WORDS = { metres: 'm', degrees: 'd', tooFine: 'too fine', readouts: new Proxy({}, { get: () => WORD }), parameters: new Proxy({}, { get: () => WORD }) } as FigureWords;
+const WORDS = { metres: 'm', degrees: 'd', tooFine: 'too fine', slope: 'slope', readouts: new Proxy({}, { get: () => WORD }), parameters: new Proxy({}, { get: () => WORD }) } as FigureWords;
 const TOKENS = ['x', 'x', '1', '2', '0', '0.5', '999', 'pi', 'e', '+', '-', '*', '/', '^', '(', ')', 'sin(', 'cos(', 'tan(', 'exp(', 'ln(', 'log(', 'sqrt(', 'abs('];
 const CASES = 2000;
 const SIZES = [{ width: 712, height: 512 }, { width: 200, height: 144 }];

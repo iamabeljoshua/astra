@@ -67,42 +67,51 @@ function canKeepItem(first: BoardElement['content'], second: BoardElement['conte
   return first.kind === 'writeMath' || JSON.stringify(first) === JSON.stringify(second);
 }
 
+// Says each problem once, because the painter meets it on every frame and a tutor should hear of it once.
+export function createProblemReports(onBoardProblem?: (problem: BoardProblem) => void) {
+  const reportedLabels = new Set<string>();
+  const reportedCurves = new Set<string>();
+  const reportedSliders = new Set<string>();
+  const reportedTooSmall = new Set<string>();
+  return {
+    onLabelWithoutRoom(text: string) {
+      if (reportedLabels.has(text)) return;
+      reportedLabels.add(text);
+      onBoardProblem?.({ kind: 'labelWithoutRoom', text });
+    },
+    onCurveTooFine({ id, placedAtMs }: BoardElement) {
+      const placement = `${id}@${placedAtMs}`;
+      if (reportedCurves.has(placement)) return;
+      reportedCurves.add(placement);
+      onBoardProblem?.({ kind: 'curveTooFine', target: id });
+    },
+    onImageMissing(elementId: string) {
+      onBoardProblem?.({ kind: 'imageMissing', elementId });
+    },
+    reportRefusedSliders({ refusedSliders }: BoardState) {
+      for (const slider of refusedSliders) {
+        const { id, target } = slider;
+        if (reportedSliders.has(id)) continue;
+        reportedSliders.add(id);
+        onBoardProblem?.('constant' in slider ? { kind: 'sliderWithoutConstant', sliderId: id, target, constant: slider.constant } : { kind: 'sliderOverlaps', sliderId: id, target });
+      }
+    },
+    reportIfTooSmall({ element, fontSize, progress }: ItemContext, item: BoardItem, scale: number | null) {
+      if (scale === null || item.ignoresPlacementScale || progress < 1 || reportedTooSmall.has(element.id)) return;
+      if ((item.getTextPx?.() ?? fontSize) * scale >= SMALLEST_READABLE_PX) return;
+      reportedTooSmall.add(element.id);
+      onBoardProblem?.({ kind: 'tooSmallToRead', elementId: element.id });
+    },
+  };
+}
+
 // Paints one frame from the board's state and the clock alone, so a frozen board writes nothing and a replay lands on the same pixels.
 export function createBoardPainting({ boardElement, overlay, getWrapper, onMathRefused, onBoardProblem, onQualityTier, onSliderMove, onSliderRelease }: BoardPaintingOptions) {
   const items = new Map<string, { content: BoardElement['content']; item: BoardItem }>();
   const marks = createBoardMarks(overlay, onBoardProblem);
+  const reports = createProblemReports(onBoardProblem);
   const reportedRefusals = new Set<string>();
-  const reportedLabels = new Set<string>();
-  const onLabelWithoutRoom = (text: string) => {
-    if (reportedLabels.has(text)) return;
-    reportedLabels.add(text);
-    onBoardProblem?.({ kind: 'labelWithoutRoom', text });
-  };
   const reportedFonts = new Set<string>();
-  const reportedCurves = new Set<string>();
-  const onCurveTooFine = ({ id, placedAtMs }: BoardElement) => {
-    const placement = `${id}@${placedAtMs}`;
-    if (reportedCurves.has(placement)) return;
-    reportedCurves.add(placement);
-    onBoardProblem?.({ kind: 'curveTooFine', target: id });
-  };
-  const reportedSliders = new Set<string>();
-  const reportRefusedSliders = ({ refusedSliders }: BoardState) => {
-    for (const slider of refusedSliders) {
-      const { id, target } = slider;
-      if (reportedSliders.has(id)) continue;
-      reportedSliders.add(id);
-      onBoardProblem?.('constant' in slider ? { kind: 'sliderWithoutConstant', sliderId: id, target, constant: slider.constant } : { kind: 'sliderOverlaps', sliderId: id, target });
-    }
-  };
-
-  const reportedTooSmall = new Set<string>();
-  const reportIfTooSmall = ({ element, fontSize, progress }: ItemContext, item: BoardItem, placement: MovingPlacement | undefined) => {
-    if (!placement?.isVisible || item.ignoresPlacementScale || progress < 1 || reportedTooSmall.has(element.id)) return;
-    if ((item.getTextPx?.() ?? fontSize) * placement.scale >= SMALLEST_READABLE_PX) return;
-    reportedTooSmall.add(element.id);
-    onBoardProblem?.({ kind: 'tooSmallToRead', elementId: element.id });
-  };
 
   const syncItems = (placed: readonly BoardElement[]) => {
     const live = new Set(placed.map((element) => element.id as string));
@@ -120,7 +129,7 @@ export function createBoardPainting({ boardElement, overlay, getWrapper, onMathR
         continue;
       }
       known?.item.remove();
-      items.set(element.id, { content: element.content, item: createBoardItem(element, wrapper, { onSliderMove, onSliderRelease, onImageMissing: (elementId) => onBoardProblem?.({ kind: 'imageMissing', elementId }) }) });
+      items.set(element.id, { content: element.content, item: createBoardItem(element, wrapper, { onSliderMove, onSliderRelease, onImageMissing: reports.onImageMissing }) });
     }
   };
 
@@ -160,7 +169,7 @@ export function createBoardPainting({ boardElement, overlay, getWrapper, onMathR
     const entry = items.get(id);
     const wrapper = getWrapper(id);
     if (!entry || !wrapper) return;
-    reportIfTooSmall(context, entry.item, placement);
+    reports.reportIfTooSmall(context, entry.item, placement?.isVisible ? placement.scale : null);
     const entering = isMakingRoom && !context.isReducedMotion ? { ...context, progress: getProgressAfterRoom(context) } : context;
     if (placement) applyPlacement(wrapper, placement, { itemOpacity: entry.item.getEntranceOpacity?.(entering) ?? 1, scale: entry.item.ignoresPlacementScale ? 1 : placement.scale });
     else writeStyle(wrapper, 'visibility', 'hidden');
@@ -173,15 +182,15 @@ export function createBoardPainting({ boardElement, overlay, getWrapper, onMathR
       const elements = [...board.elements.values()];
       const placed = getPlacingOrder(elements.filter((element) => hasOwnPlace(element.content) && getWrapper(element.id)));
       syncItems(placed);
-      reportRefusedSliders(board);
+      reports.reportRefusedSliders(board);
       const area = getArea(boardElement);
       const fontSize = Number.parseFloat(getComputedStyle(boardElement).fontSize) || 16;
       const maxWidth = Math.max(0, area.width - 2 * area.padding);
-      const contexts = placed.map((element): ItemContext => ({ element, board, atMs, placedSize: null, canMoveSliders, onLabelWithoutRoom, onMarkWithoutPart: marks.reportMarkWithoutPart, onMarkDrawn: marks.noteMarkDrawn, onCurveTooFine, progress: getMotionValue(element.entrance, atMs), maxWidth, fontSize, isReducedMotion }));
+      const contexts = placed.map((element): ItemContext => ({ element, board, atMs, placedSize: null, canMoveSliders, onLabelWithoutRoom: reports.onLabelWithoutRoom, onMarkWithoutPart: marks.reportMarkWithoutPart, onMarkDrawn: marks.noteMarkDrawn, onCurveTooFine: reports.onCurveTooFine, progress: getMotionValue(element.entrance, atMs), maxWidth, fontSize, isReducedMotion }));
       const { placements, isMakingRoom } = placeMovingElements(prepareBoxes(contexts), area, getSharedProgress(contexts, isReducedMotion));
       const placementsById = new Map(placements.map((placement) => [placement.id, placement]));
       for (const context of contexts) paintItem(context, placementsById.get(context.element.id), isMakingRoom);
-      marks.paint({ elements, board: board.elements, focus: board.focus, placements: placementsById, getItem: (id) => items.get(id)?.item, atMs, isReducedMotion, area, onLabelWithoutRoom });
+      marks.paint({ elements, board: board.elements, focus: board.focus, placements: placementsById, getItem: (id) => items.get(id)?.item, atMs, isReducedMotion, area, onLabelWithoutRoom: reports.onLabelWithoutRoom });
   };
 
   const tiers = createTierWatch(onQualityTier);

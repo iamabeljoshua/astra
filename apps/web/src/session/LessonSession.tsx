@@ -10,7 +10,7 @@ import type { Session } from './sessionQueries';
 import { type Lesson, type LessonProblem, useLesson } from './useLesson';
 import { useSessionRun } from './useSessionRun';
 
-const EMPTY_BOARD = { elements: new Map(), focus: null, refusedSliders: [] };
+const EMPTY_BOARD = { elements: new Map(), focus: null, stage: null, refusedSliders: [] };
 function getProblemLabel(problem: LessonProblem): string {
   switch (problem.kind) {
     case 'down': return SCENE_LABELS.lessonDown;
@@ -61,7 +61,7 @@ function LessonReplyBox({ onReply }: { onReply: () => void }) {
           </>
         )}
       </div>
-      <ChatBox labels={REPLY_BOX_LABELS} canAttach={false} clearsOnSend onSend={(text) => { setReply(text); onReply(); }} onEdit={() => undefined} />
+      <ChatBox labels={REPLY_BOX_LABELS} clearsOnSend onSend={(text) => { setReply(text); onReply(); }} onEdit={() => undefined} />
     </div>
   );
 }

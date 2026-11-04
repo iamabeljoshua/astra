@@ -1,7 +1,9 @@
 import { createScenePlayer, createTimerClock } from '@astra/board';
 import { parseBeat, type TurnId } from '@astra/contracts';
-import { act, render, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ATTACH_LABELS } from '../strings';
+import { useFilesComingSoon } from '../ui/useFilesComingSoon';
 import { LiveBoard } from './LiveBoard';
 import type { LiveVoice } from './liveVoice';
 
@@ -21,8 +23,13 @@ function makeVoiceWithBoard(script: readonly unknown[], boardAtMs = 2000) {
   player.tick();
   const reportMarkNotDrawn = vi.fn();
   const reportBoardProblem = vi.fn();
-  const voice = { getBoardNow: () => ({ board: player.getBoard(boardAtMs), atMs: boardAtMs }), reportMarkNotDrawn, reportBoardProblem } as unknown as LiveVoice;
-  return { voice, reportMarkNotDrawn, reportBoardProblem };
+  const stopTutor = vi.fn();
+  const voice = { getBoardNow: () => ({ board: player.getBoard(boardAtMs), atMs: boardAtMs }), getView: () => ({ tutorHeard: [], tutorComing: [], isTutorSpeaking: false, isThinking: false, isHeard: false, closedBecause: null }), getLoudness: () => 0, sendPause: () => {}, reportMarkNotDrawn, reportBoardProblem, stopTutor } as unknown as LiveVoice;
+  return { voice, reportMarkNotDrawn, reportBoardProblem, stopTutor };
+}
+
+function BoardWithFilesComingSoon({ voice }: { voice: LiveVoice }) {
+  return <LiveBoard voice={voice} filesComingSoon={useFilesComingSoon()} />;
 }
 
 describe('the live board', () => {
@@ -31,7 +38,7 @@ describe('the live board', () => {
   it('tells the session when a ring has nothing to point at', async () => {
     const { voice, reportMarkNotDrawn } = makeVoiceWithBoard([{ kind: 'writeMath', id: 'eq', tex: '2x + 3 = 11' }, { kind: 'highlight', id: 'ring', target: 'eq', tex: 'q' }, 'Look here.']);
     await act(async () => {
-      render(<LiveBoard voice={voice} whileEmpty={null} />);
+      render(<LiveBoard voice={voice} />);
       await new Promise((resolve) => setTimeout(resolve, 50));
     });
     await waitFor(() => expect(reportMarkNotDrawn).toHaveBeenCalledWith('ring'));
@@ -39,7 +46,7 @@ describe('the live board', () => {
 
   const showBoard = async (voice: LiveVoice) => {
     await act(async () => {
-      render(<LiveBoard voice={voice} whileEmpty={null} />);
+      render(<LiveBoard voice={voice} />);
       await new Promise((resolve) => setTimeout(resolve, 50));
     });
   };
@@ -65,12 +72,26 @@ describe('the live board', () => {
   });
 
   it('tells the session when an element is too small to read', async () => {
-    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(200);
-    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(200);
-    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(4000);
-    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(4000);
-    const { voice, reportBoardProblem } = makeVoiceWithBoard([{ kind: 'text', id: 'words', text: 'Too big for this board' }, 'Look here.'], 9000);
+    vi.spyOn(window, 'getComputedStyle').mockReturnValue({ fontSize: '6px', getPropertyValue: () => '' } as unknown as CSSStyleDeclaration);
+    const { voice, reportBoardProblem } = makeVoiceWithBoard([{ kind: 'text', id: 'words', text: 'Too small for this board' }, 'Look here.'], 9000);
     await showBoard(voice);
     await waitFor(() => expect(reportBoardProblem).toHaveBeenCalledWith({ problem: 'tooSmallToRead', subject: 'words' }));
+  });
+
+  it('says photos and PDFs are coming soon, and Escape closes the note before it stops the tutor', async () => {
+    const { voice, stopTutor } = makeVoiceWithBoard(['Look here.']);
+    await act(async () => {
+      render(<BoardWithFilesComingSoon voice={voice} />);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: ATTACH_LABELS.attach }));
+    screen.getByText(ATTACH_LABELS.comingSoon);
+
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(screen.queryByText(ATTACH_LABELS.comingSoon)).toBeNull();
+    expect(stopTutor).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(stopTutor).toHaveBeenCalledOnce();
   });
 });

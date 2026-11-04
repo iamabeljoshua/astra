@@ -1,13 +1,15 @@
-import { type Beat, type BeatId, type BoardProblemReport, clipTypedText, getBeatText, getCues, getPlayedCues, getSpokenWords, parseBeat, parseWrittenBeat, type SceneCommand, TYPED_TEXT_MAX_CHARACTERS, type TutorClosedReason } from '@astra/contracts';
+import { type Beat, type BeatId, type BoardProblemReport, clipTypedText, type ElementId, getBeatText, getCues, getPlayedCues, getSpokenWords, isStudentLineId, parseBeat, parseWrittenBeat, type SceneCommand, type StudentWork, type TutorClosedReason, TYPED_TEXT_MAX_CHARACTERS } from '@astra/contracts';
+import { type BoardOperation, type BoardState, type CheckedWork, checkWorkOnBoard, cleanStudentText as cleanLine, getBoardAt, getNod, getOpenTaskOnBoard, getWorkContext } from '@astra/board/shared';
 import { type FindSource, type ModelEvent, ModelRejectedError, type ModelUsage, type TutorModelAdapter, type TutorModelRequest, type TutorTurn } from '../providers/types.ts';
 import { createAttemptTracker } from './attempts.ts';
 import { BeatTextReader, type WrittenBeatParts } from './beat-text-reader.ts';
-import { type BoardMemory, checkAgainstBoard, EMPTY_BOARD, getMemoryAfter } from './board-memory.ts';
+import { type BoardMemory, checkAgainstBoard, EMPTY_BOARD, getMemoryAfter, getMemoryAfterAnswering, getMemoryAfterWork, getMemoryOnComingBack, getMemoryOnNewTurn, getWordsProblem } from './board-memory.ts';
 import { TUTOR_PROMPT, type TutorPrompt } from './prompt.ts';
 import { createLinePicker, type SpokenLineUse } from './spoken-lines.ts';
 import { runTool, type ToolResult } from './tools/run-tool.ts';
 import type { ToolCall } from './tools/tool-call.ts';
 import { createBoardProblemNotes } from './board-problems.ts';
+import { getWorkNote } from './watcher/work-note.ts';
 
 export interface TutorRequest {
   text: string;
@@ -36,6 +38,19 @@ export interface TutorBrain {
   noteBoardProblem?(report: BoardProblemReport): void;
   /** Why the tutor will not answer again in this room, once it has said so. */
   getClosedReason?(): TutorClosedReason | null;
+  /** Checks the student's work against the board as the tutor knows it, and notes it for the next turn. Null if the work cannot stand, such as a line id already used. */
+  noteWork?(work: StudentWork): { checked: CheckedWork; hadTask: boolean } | null;
+  /** The page reloaded with the board in its hands, so the next reply is told and cannot wipe it. */
+  noteCameBack?(): void;
+  noteWatcher?(note: WatcherNote): void;
+  getBoard?(): { state: BoardState; openTask: ElementId | null };
+}
+
+/** Why code decided the tutor should speak up, read by the model on its next turn. */
+export interface WatcherNote {
+  why: string;
+  seconds_paused: number;
+  unsent_draft?: string;
 }
 
 export type SpendLimit = 'sessionLimit' | 'dailyLimit';
@@ -101,7 +116,7 @@ export interface TutorBrainOptions {
 
 type TurnStep = 'over' | 'retry';
 
-type AttemptEnd = 'ended' | 'noWords' | 'aborted' | 'stalledBeforeText' | 'stalledInText' | 'failed' | 'rejected' | 'wrongMath' | 'refused' | 'toolCall' | 'heldQuestion';
+type AttemptEnd = 'ended' | 'noWords' | 'aborted' | 'stalledBeforeText' | 'stalledInText' | 'failed' | 'rejected' | 'wrongMath' | 'wrongWords' | 'refused' | 'toolCall' | 'heldQuestion';
 
 interface TurnWork {
   id: number;
@@ -115,12 +130,15 @@ interface TurnWork {
   notes: string[];
   /** How many of the pending notes this turn took, so a note added while it runs stays for the next turn. */
   carriedNotes: number;
+  /** Code already said its nod, so the model's own opening one would double it. */
+  startsAfterNod: boolean;
   raw: string;
   hasModelWords: boolean;
   wasStoppedByLength: boolean;
   hasAttemptText: boolean;
   hasSaidStillWorking: boolean;
   wrongMath: string | null;
+  wrongWords: string | null;
   toolCall: ToolCall | null;
   toolCalls: ToolCall[];
   /** What each call came back with, so a repeat never runs again. */
@@ -146,6 +164,8 @@ interface TurnWork {
 }
 
 const RESUMED_BEAT = /^(.+?)(?:-r\d+(?:-rest)?)+$/;
+const MOST_NOTES_OF_WORK_HELD = 20;
+const MOST_WORK_IN_A_SESSION = 2000;
 const WAIT_STEP_MS = 5;
 const MAX_ATTEMPTS = 2;
 /** Each one costs a new request, about 2 s of quiet, and a search 5.5 to 8.7 s, so more than this in one reply would sound like the tutor has wandered off. */
@@ -159,9 +179,7 @@ const FEWEST_WORDS_IN_A_REPEAT = 4;
 const COMPACT_AT_TOKENS = 60_000;
 const TURNS_KEPT_AFTER_COMPACTING = 8;
 const CHARACTERS_PER_TOKEN = 3.2;
-const TOO_MANY_MARKS = /(\p{M}{4})\p{M}+/gu;
 const NAMES_HELP = /\b(?:adult|emergency)\b/i;
-const NOT_STUDENT_TEXT = /\p{Cf}|\p{Co}|\p{Cs}|\p{Variation_Selector}|[^\P{Cc}\n\t]/gu;
 
 /** What the model is told after a safety check stops a student's message, built by code, so it holds none of what was refused. */
 const DECLINED_NOTE = {
@@ -180,7 +198,7 @@ const ASKED_HOW_NOTE = { asked_how: 'They are asking you to go through the subje
 
 /** Strips control and invisible characters, which can hide text from a reader. */
 export function cleanStudentText(text: string): string {
-  return clipTypedText(text.normalize('NFC').replace(NOT_STUDENT_TEXT, '').replace(TOO_MANY_MARKS, '$1').trim());
+  return clipTypedText(cleanLine(text));
 }
 
 const isPlainRefusal = ({ refusalCategory, studentText }: { refusalCategory: string | null; studentText: string }) => refusalCategory !== null && PLAIN_REFUSALS.has(refusalCategory) && !MAY_BE_ABOUT_SAFETY.test(studentText);
@@ -199,6 +217,13 @@ function getWrittenBeat(parts: WrittenBeatParts, id: string, refused: string[]):
   const speech = parts.script.filter((part) => typeof part === 'string').join('');
   const speechOnly = parseBeat({ id, script: [speech], expectsReply: parts.expectsReply });
   return speechOnly.ok ? speechOnly.value : null;
+}
+
+const OPENING_NOD = /^\s*(?:h+m+|mm-?hm+)[.,!…]*\s+/i;
+
+function withoutOpeningNod(parts: WrittenBeatParts): WrittenBeatParts {
+  const [first, ...rest] = parts.script;
+  return typeof first === 'string' && OPENING_NOD.test(first) ? { ...parts, script: [first.replace(OPENING_NOD, ''), ...rest] } : parts;
 }
 
 function waitUntil<T>(work: Promise<T>, deadlineMs: number, signal: AbortSignal, getNowMs: () => number): Promise<T | 'deadline' | 'aborted'> {
@@ -236,7 +261,11 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
   const reports = new Map<BeatId, BeatReport>();
   let turns: TutorTurn[] = [];
   let memory: BoardMemory = EMPTY_BOARD;
+  const boardOperations: BoardOperation[] = [];
+  let workCount = 0;
+  const getBoardNow = () => getBoardAt(boardOperations, Number.POSITIVE_INFINITY);
   let toldBoard = '{}';
+  let isComeBackUnanswered = false;
   let pendingNotes: Record<string, unknown>[] = profileNote ? [profileNote] : [];
   let lastBeats: readonly Beat[] = [];
   let lastRefused: readonly string[] = [];
@@ -253,6 +282,8 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
   let isCompacting = false;
   let isTurnRunning = false;
   let lastAskedText: string | null = null;
+  const workSinceLastTurn: { work: StudentWork; checked: CheckedWork }[] = [];
+  let hasNoddedSinceLastTurn = false;
 
   // Board and heard words come from the browser's report, because the model may write past what the student saw.
   const settleLastTurn = () => {
@@ -267,6 +298,9 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
       const cues = report ? getPlayedCues(beat, report.firedCues) : getCues(beat).filter((cue) => cue.atWord < played);
       for (const { command } of cues) memory = getMemoryAfter(command, memory);
     }
+    // The last turn's commands all came before this work, so a clearBoard among them must not wipe a line the tutor is about to mark.
+    for (const { work, checked } of workSinceLastTurn) memory = getMemoryAfterWork(work, checked, memory);
+    workSinceLastTurn.length = 0;
     const note: Record<string, unknown> = {};
     if (missed.length > 0 && !hidesLastWords) note.cut = { heard: heard.join(' '), not_heard: missed.join(' ') };
     if (lastRefused.length > 0) note.refused = lastRefused;
@@ -291,6 +325,11 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
   const startTurn = (studentText: string, signal: AbortSignal): TurnWork => {
     settleLastTurn();
     turnCount += 1;
+    memory = getMemoryOnNewTurn(memory);
+    if (memory.hasComeBack && !isComeBackUnanswered) memory = { ...memory, hasComeBack: false };
+    isComeBackUnanswered = false;
+    const nodded = hasNoddedSinceLastTurn;
+    hasNoddedSinceLastTurn = false;
     let readerMemory = memory;
     const turnNotes = [attempts.startTurn(studentText), prompt.turnNote].filter((note) => note !== null);
     const turn: TurnWork = {
@@ -311,6 +350,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
         onCommandKept(command) {
           readerMemory = getMemoryAfter(command, readerMemory);
           boardProblems.noteWritten(command);
+          boardOperations.push({ kind: 'command', atMs: boardOperations.length, command, overMs: null });
           if (SHOWING_KINDS.has(command.kind)) turn.hasShownAStep = true;
           if (command.kind === 'highlight' || command.kind === 'annotate') marksDrawn.set(command.id, { target: command.target, ...('tex' in command && command.tex !== undefined ? { tex: command.tex } : {}) });
         },
@@ -321,6 +361,11 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
         onWrongMath(problem) {
           turn.wrongMath = problem;
           trace('mathRefused', { problem });
+        },
+        checkWords: (text) => getWordsProblem(text, readerMemory, turn.beats.length === 0),
+        onWrongWords(problem) {
+          turn.wrongWords = problem;
+          trace('wordsRefused', { problem });
         },
         isAlreadySaid(text) {
           if (turn.attempts < 2) return false;
@@ -337,7 +382,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
             turn.isQuestionHeld = true;
             return;
           }
-          const beat = getWrittenBeat(parts, `t${turnCount}-b${turn.beats.length}`, turn.refused);
+          const beat = getWrittenBeat(turn.startsAfterNod && turn.beats.length === 0 ? withoutOpeningNod(parts) : parts, `t${turnCount}-b${turn.beats.length}`, turn.refused);
           if (!beat) return;
           turn.hasModelWords = true;
           turn.hasWordsSinceToolResult = true;
@@ -349,12 +394,14 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
       refused: [],
       notes: [...pendingNotes, ...turnNotes].map((note) => JSON.stringify(note)),
       carriedNotes: pendingNotes.length,
+      startsAfterNod: nodded,
       raw: '',
       hasModelWords: false,
       wasStoppedByLength: false,
       hasAttemptText: false,
       hasSaidStillWorking: false,
       wrongMath: null,
+      wrongWords: null,
       toolCall: null,
       toolCalls: [],
       toolResults: new Map(),
@@ -425,6 +472,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
       turn.raw += seam + event.text;
       turn.reader.push(seam + event.text);
       if (turn.wrongMath !== null) return 'wrongMath';
+      if (turn.wrongWords !== null) return 'wrongWords';
       if (turn.toolCall !== null) return 'toolCall';
       if (turn.isQuestionHeld) return 'heldQuestion';
     }
@@ -537,6 +585,19 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
     return 'retry';
   };
 
+  const handleWrongWords = (turn: TurnWork, canRetry: boolean): TurnStep => {
+    const problem = turn.wrongWords as string;
+    turn.wrongWords = null;
+    turn.reader.closeAttempt();
+    if (!canRetry) {
+      turn.raw = getWordsSaid(turn);
+      sayLine(turn, 'mathDropped');
+      return 'over';
+    }
+    noteCorrection(turn, problem);
+    return 'retry';
+  };
+
   const handleStall = (turn: TurnWork, end: 'stalledBeforeText' | 'stalledInText' | 'failed', canRetry: boolean): TurnStep => {
     if (turn.latestToolResult?.spoken && !turn.hasWordsSinceToolResult) return sayToolResult(turn, turn.latestToolResult);
     if (!canRetry) {
@@ -589,6 +650,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
   const finishAnswer = (turn: TurnWork, canRetry: boolean): TurnStep => {
     addHelpIfMissing(turn);
     turn.reader.finish();
+    if (turn.wrongWords !== null) return handleWrongWords(turn, turn.attempts < MAX_ATTEMPTS);
     if (turn.isQuestionHeld) return handleHeldQuestion(turn, canRetry);
     if (turn.latestToolResult && !turn.hasWordsSinceToolResult) return sayToolResult(turn, turn.latestToolResult);
     if (!turn.hasModelWords) {
@@ -668,10 +730,13 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
       case 'wrongMath':
         turn.reader.closeAttempt();
         return handleWrongMath(turn, canRetry);
+      case 'wrongWords':
+        return handleWrongWords(turn, canRetry);
       case 'stalledBeforeText':
       case 'stalledInText':
       case 'failed':
         turn.reader.closeAttempt();
+        if (turn.wrongWords !== null) return handleWrongWords(turn, canRetry);
         // A question that closed as the stream dropped has ended the turn, and a new request would be thrown away.
         if (turn.reader.isTurnOver) return finishAnswer(turn, canRetry);
         return handleStall(turn, end, canRetry);
@@ -702,7 +767,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
     turn.raw = '';
   };
 
-  const getAcceptedRaw = (turn: TurnWork) => (turn.hasModelWords ? turn.raw.slice(0, turn.raw.length - turn.reader.textAfterTurn.length).trim() : '');
+  const getAcceptedRaw = (turn: TurnWork) => (turn.hasModelWords ? turn.reader.getKeptText(turn.raw).trim() : '');
 
   const startCompactingIfNeeded = () => {
     if (isCompacting || promptTokens < compactAtTokens || turns.length <= TURNS_KEPT_AFTER_COMPACTING) return;
@@ -729,6 +794,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
   };
 
   const finishTurn = (turn: TurnWork) => {
+    memory = getMemoryAfterAnswering(memory);
     turn.costUsd = (turn.usage ? model.getCostUsd(turn.usage) : 0) + turn.toolCostUsd;
     const wasRefused = turn.endedAs === 'refused';
     const text = getAcceptedRaw(turn);
@@ -840,6 +906,37 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
       if (note) pendingNotes.push({ board_problem: note });
     },
     getClosedReason: () => (hasToldClosed ? closedReason : null),
+    noteCameBack() {
+      memory = getMemoryOnComingBack(memory);
+      isComeBackUnanswered = true;
+      toldBoard = '';
+      pendingNotes.push({ came_back: true });
+    },
+    noteWork(work) {
+      if (work.way === 'write' && (!isStudentLineId(work.id) || memory.kinds.has(work.id))) return null;
+      if (workCount >= MOST_WORK_IN_A_SESSION) return null;
+      workCount += 1;
+      const board = getBoardNow();
+      const taskId = work.task;
+      const context = getWorkContext(board, taskId);
+      const hadTask = context.task !== null || (context.problemTex ?? null) !== null;
+      const checked = checkWorkOnBoard(work, board);
+      boardOperations.push({ kind: 'worked', atMs: boardOperations.length, action: { action: 'worked', work, ...checked } });
+      memory = getMemoryAfterWork(work, checked, memory);
+      workSinceLastTurn.push({ work, checked });
+      hasNoddedSinceLastTurn ||= getNod(work, checked) !== null;
+      const heldNotesOfWork = pendingNotes.filter((note) => 'student_work' in note);
+      if (heldNotesOfWork.length >= MOST_NOTES_OF_WORK_HELD) pendingNotes = pendingNotes.filter((note) => note !== heldNotesOfWork[0]);
+      pendingNotes.push({ student_work: getWorkNote(work, checked, context) });
+      return { checked, hadTask };
+    },
+    noteWatcher(note) {
+      pendingNotes.push({ watcher: note });
+    },
+    getBoard() {
+      const state = getBoardNow();
+      return { state, openTask: getOpenTaskOnBoard(state)?.id ?? null };
+    },
   };
 }
 

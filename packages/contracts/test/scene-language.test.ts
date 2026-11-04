@@ -10,6 +10,9 @@ import {
   getScriptText,
   getSpokenWords,
   parseBeat,
+  parseBrowserMessage,
+  parseSceneCommand,
+  parseSessionEvent,
   parseWrittenBeat,
   SCENE_COMMAND_KINDS,
 } from '../src/index.ts';
@@ -361,5 +364,67 @@ describe('getResumeScript', () => {
     const before = JSON.stringify(beat);
     getResumeScript(beat, { fromWord: 3, firedCues: 3, frozen: [{ target: SHOT, simulationSeconds: 0.3 }] });
     expect(JSON.stringify(beat)).toBe(before);
+  });
+});
+
+describe('the shared board language', () => {
+  const OLDER_ROW = { seq: 4, atMs: 900, kind: 'studentActed', action: { action: 'fileShared', fileId: 'file-1', name: 'notes.pdf' } };
+  it('reads every way of doing work, and refuses math the board cannot set', () => {
+    const row = (work: object) => parseSessionEvent({ seq: 1, atMs: 1, kind: 'studentActed', action: { action: 'worked', work, verdict: { status: 'unknown' } } });
+    expect(row({ way: 'leave', task: 'a1' }).ok).toBe(true);
+    expect(row({ way: 'write', id: 's1', text: '2x equals 8', heard: { tex: '2x=8', isUnsure: false } }).ok).toBe(true);
+    expect(row({ way: 'write', id: 's1', text: '(x)/(2)', keyed: { tex: '\\frac{x}{2}', isUnsure: false } }).ok).toBe(true);
+    expect(row({ way: 'write', id: 's1', text: 'x', keyed: { tex: '\\href{http://a}{b}', isUnsure: false } }).ok).toBe(false);
+  });
+
+  it('lets a task open the pen', () => {
+    expect(parseSceneCommand({ kind: 'task', id: 'a1', way: 'write', byHand: true }).ok).toBe(true);
+    expect(parseSceneCommand({ kind: 'task', id: 'a1', way: 'pick', on: 'eq', byHand: true }).ok).toBe(false);
+  });
+
+  const LINE_ROW = { seq: 5, atMs: 1000, kind: 'studentActed', action: { action: 'worked', work: { way: 'write', id: 's1', text: '2x = 14', task: 'try' }, reading: { kind: 'math', parts: [{ type: 'math', text: '2x = 14', tex: '2x=14' }], isAsking: false }, verdict: { status: 'wrong', why: '2x=14 does not follow' } } };
+
+  it.each([
+    ['a line of working', { kind: 'task', id: 'a', way: 'write', on: 'eq' }],
+    ['a free answer', { kind: 'task', id: 'a', way: 'write', reads: 'words', accepts: ['1789'] }],
+    ['lines of code', { kind: 'task', id: 'a', way: 'write', reads: 'code' }],
+    ['a term to circle', { kind: 'task', id: 'a', way: 'pick', on: 'eq', answer: ['+3'] }],
+    ['a part of a diagram', { kind: 'task', id: 'a', way: 'pick', on: 'cell', answer: ['nucleus'] }],
+    ['events in order', { kind: 'task', id: 'a', way: 'place', items: ['Bastille', 'Terror'], slots: ['First', 'Second'], answer: ['Bastille', 'Terror'] }],
+    ['matching with no key', { kind: 'task', id: 'a', way: 'place', items: ['H', 'O'], slots: ['Hydrogen', 'Oxygen'] }],
+    ['a point on a curve', { kind: 'task', id: 'a', way: 'drag', on: 'curve', seek: 'flat' }],
+  ])('takes a task for %s', (_, command) => {
+    expect(parseSceneCommand(command)).toMatchObject({ ok: true, value: command });
+  });
+
+  it.each([
+    ['a way nobody knows', { kind: 'task', id: 'a', way: 'guess' }],
+    ['a field of another way', { kind: 'task', id: 'a', way: 'write', items: ['a'] }],
+    ['a pick with no target', { kind: 'task', id: 'a', way: 'pick' }],
+    ['a key that is not an item', { kind: 'task', id: 'a', way: 'place', items: ['a'], slots: ['1'], answer: ['b'] }],
+    ['a key of the wrong length', { kind: 'task', id: 'a', way: 'place', items: ['a', 'b'], slots: ['1', '2'], answer: ['a'] }],
+    ['the same item twice', { kind: 'task', id: 'a', way: 'place', items: ['a', 'a'], slots: ['1', '2'] }],
+    ['a long note', { kind: 'note', id: 'n', target: 'eq', text: 'x'.repeat(49) }],
+  ])('refuses %s', (_, command) => {
+    expect(parseSceneCommand(command).ok).toBe(false);
+  });
+
+  it('keeps older log rows parsing, and takes the new one', () => {
+    expect(parseSessionEvent(OLDER_ROW).ok).toBe(true);
+    expect(parseSessionEvent(LINE_ROW)).toMatchObject({ ok: true });
+  });
+
+  it('refuses a stored reading whose math the board could not set', () => {
+    const forged = { ...LINE_ROW, action: { ...LINE_ROW.action, reading: { kind: 'math', parts: [{ type: 'math', text: 'x', tex: '\\href{javascript:alert(1)}{x}' }], isAsking: false } } };
+    expect(parseSessionEvent(forged).ok).toBe(false);
+  });
+
+  it('carries a student action and a pause from the page', () => {
+    expect(parseBrowserMessage({ type: 'worked', clockId: 'c', browserMs: 1, startedMsAgo: 0, work: { way: 'pick', task: 'try', part: '+3' } }).ok).toBe(true);
+    for (const message of [{ type: 'stopTutor' }, { type: 'typing' }, { type: 'inkPeek', strokes: ['s1-0'] }]) {
+      expect(parseBrowserMessage({ clockId: 'c', browserMs: 1, startedMsAgo: 0, ...message }).ok).toBe(true);
+    }
+    expect(parseBrowserMessage({ type: 'typing', clockId: 'c', browserMs: 1, startedMsAgo: 0, text: 'x' }).ok).toBe(false);
+    expect(parseBrowserMessage({ type: 'paused', clockId: 'c', browserMs: 1, startedMsAgo: 0, seconds: 3, draft: 'hmm' }).ok).toBe(true);
   });
 });

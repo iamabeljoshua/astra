@@ -7,6 +7,8 @@ const SOFT_BOX_SPACING = 26;
 const SOFT_BOX_RADIUS = 3;
 const MOST_SOFT_BOXES = 80;
 const TICK = { length: 4, labelGap: 6, xSpacing: 64, ySpacing: 40, atZeroOffset: 5 };
+/** A plot is read for its values, so it numbers closer than a simulation's scale does. */
+export const PLOT_Y_SPACING = 24;
 
 export interface FigureDraft {
   marks: FigureMark[];
@@ -19,13 +21,16 @@ export interface FigureDraft {
   bounds: Box;
 }
 
+/** The grid lies under each word's halo, so it is paper to a label and not a line to clear. */
+export const GRID_MARK = 'grid';
+
 export function createFigureDraft(width: number, height: number): FigureDraft {
   return { marks: [], ticks: [], labels: [], shouldAvoid: [], mustAvoid: [], linesAhead: [], bounds: { left: 0, top: 0, right: width, bottom: height } };
 }
 
 /** Text goes on top of every line, in the order that lets a tutor's words win over tick numbers they would have covered. */
 export function finishFigure({ marks, ticks, labels, shouldAvoid, mustAvoid, linesAhead, bounds }: FigureDraft, onNoRoom?: (text: string) => void): FigureMark[] {
-  const linesToClear = [...linesAhead, ...marks.flatMap((mark) => (mark.kind === 'path' ? mark.branches : []))];
+  const linesToClear = [...linesAhead, ...marks.flatMap((mark) => (mark.kind === 'path' && mark.key !== GRID_MARK ? mark.branches : []))];
   return [...marks, ...placeLabels([...labels, ...ticks], { bounds, mustAvoid, shouldAvoid, linesToClear, onNoRoom })];
 }
 
@@ -60,9 +65,9 @@ function addXTicks(draft: FigureDraft, view: FigureView, axisY: number, share: n
   });
 }
 
-function addYTicks(draft: FigureDraft, view: FigureView, { axisX, share, hideTicksBelow }: { axisX: number; share: number; hideTicksBelow: number }): void {
+function addYTicks(draft: FigureDraft, view: FigureView, { axisX, share, hideTicksBelow, ySpacing }: { axisX: number; share: number; hideTicksBelow: number; ySpacing: number }): void {
   const { rect, yRange } = view;
-  const tickCount = Math.max(2, Math.floor((rect.bottom - rect.top) / TICK.ySpacing));
+  const tickCount = Math.max(2, Math.floor((rect.bottom - rect.top) / ySpacing));
   const values = getTickValues(yRange, tickCount).filter((value) => value >= hideTicksBelow);
   const axisAtZero = yRange[0] <= 0 && yRange[1] >= 0 && axisX > rect.left;
   const marks = values.map((value) => view.toPixel({ x: 0, y: value }).y);
@@ -75,14 +80,24 @@ function addYTicks(draft: FigureDraft, view: FigureView, { axisX, share, hideTic
 }
 
 /** How wide the numbers on a y axis of this height will be, so a figure can leave them room. */
+/** Faint lines at each tick, for reading a place on a curve. A plot's own, since other figures have no scale to read. */
+export function addGrid(draft: FigureDraft, view: FigureView, share: number): void {
+  const { rect, xRange, yRange } = view;
+  const xValues = getTickValues(xRange, Math.max(2, Math.floor((rect.right - rect.left) / TICK.xSpacing)));
+  const yValues = getTickValues(yRange, Math.max(2, Math.floor((rect.bottom - rect.top) / PLOT_Y_SPACING)));
+  const across = xValues.map((value): Branch => [{ x: view.toPixel({ x: value, y: 0 }).x, y: rect.top }, { x: view.toPixel({ x: value, y: 0 }).x, y: rect.bottom }]);
+  const up = yValues.map((value): Branch => [{ x: rect.left, y: view.toPixel({ x: 0, y: value }).y }, { x: rect.right, y: view.toPixel({ x: 0, y: value }).y }]);
+  draft.marks.push({ kind: 'path', key: GRID_MARK, tone: 'line', weight: 'hair', branches: share < 1 ? [] : [...across, ...up] });
+}
+
 export function getWidestYTick(yRange: readonly [number, number], height: number): number {
-  const tickCount = Math.max(2, Math.floor(height / TICK.ySpacing));
+  const tickCount = Math.max(2, Math.floor(height / PLOT_Y_SPACING));
   return Math.max(0, ...getTickValues(yRange, tickCount).map((value) => estimateTextWidth(formatTick(value, yRange, tickCount))));
 }
 
 const getAxisPlace = ([low, high]: readonly [number, number]) => (low <= 0 && high >= 0 ? 0 : low);
 
-export function addAxes(draft: FigureDraft, view: FigureView, { share, xLabel, yLabel, hideTicksBelow = Number.NEGATIVE_INFINITY }: { share: number; xLabel?: string; yLabel?: string; hideTicksBelow?: number }): void {
+export function addAxes(draft: FigureDraft, view: FigureView, { share, xLabel, yLabel, hideTicksBelow = Number.NEGATIVE_INFINITY, ySpacing = TICK.ySpacing }: { share: number; xLabel?: string; yLabel?: string; hideTicksBelow?: number; ySpacing?: number }): void {
   const origin = view.toPixel({ x: getAxisPlace(view.xRange), y: getAxisPlace(view.yRange) });
   const { rect } = view;
   const xAxis: Branch = [{ x: rect.left, y: origin.y }, { x: rect.right, y: origin.y }];
@@ -90,7 +105,7 @@ export function addAxes(draft: FigureDraft, view: FigureView, { share, xLabel, y
   const yAxis: Branch = [{ x: origin.x, y: yAxisEnd }, { x: origin.x, y: rect.top }];
   draft.marks.push({ kind: 'path', key: 'axes', tone: 'ink-2', weight: 'hair', branches: [getLeadingShare(xAxis, share), getLeadingShare(yAxis, share)] });
   addXTicks(draft, view, origin.y, share);
-  addYTicks(draft, view, { axisX: origin.x, share, hideTicksBelow });
+  addYTicks(draft, view, { axisX: origin.x, share, hideTicksBelow, ySpacing });
   if (share < 1) return;
   if (origin.x > rect.left && origin.y < rect.bottom && view.xRange[0] <= 0 && view.yRange[0] <= 0) draft.ticks.push({ key: 'tick-origin', text: '0', anchor: { x: origin.x - TICK.atZeroOffset, y: origin.y + TICK.atZeroOffset }, gap: 0, sides: ['below-left'], tone: 'ink-2', isOptional: true, isFixed: true });
   if (xLabel) addLabel(draft, { key: 'x-label', text: xLabel, anchor: { x: rect.right, y: origin.y }, sides: ['above-left', 'below-left'], tone: 'ink-2' });
