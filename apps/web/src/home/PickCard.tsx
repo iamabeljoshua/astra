@@ -6,14 +6,14 @@ type PickCardResponse = components['schemas']['PickCardResponseDto'];
 
 interface PickCardProps {
   pick: PickCardResponse;
-  onChoose: () => void;
+  onChoose: (pick: PickCardResponse) => void;
 }
 
 export function PickCard({ pick, onChoose }: PickCardProps) {
   return (
     <button
       type="button"
-      onClick={onChoose}
+      onClick={() => onChoose(pick)}
       className="grid size-full grid-cols-pick items-start gap-3 border border-line p-2.5 text-left hover:border-ink"
     >
       <span aria-hidden className="block size-thumb overflow-hidden bg-panel">

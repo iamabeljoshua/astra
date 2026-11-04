@@ -27,6 +27,10 @@ describe('SessionsService', () => {
     return student?.id as string;
   }
 
+  function listTen(studentId: string) {
+    return sessionsService.listSessions(studentId, { limit: 10, offset: 0 });
+  }
+
   function moveSessionStart(sessionId: string, startedAt: string) {
     return testApp.app
       .get(DataSource)
@@ -39,7 +43,7 @@ describe('SessionsService', () => {
 
     const created = await sessionsService.createSession(studentId, SESSION);
 
-    expect(await sessionsService.listSessions(studentId, 10)).toEqual([created]);
+    expect(await listTen(studentId)).toEqual([created]);
     expect(created).toMatchObject({
       ...SESSION,
       status: 'in_progress',
@@ -56,8 +60,8 @@ describe('SessionsService', () => {
 
     await sessionsService.createSession(studentId, { ...SESSION, studentId: otherStudentId } as CreateSessionBodyDto);
 
-    expect(await sessionsService.listSessions(studentId, 10)).toHaveLength(1);
-    expect(await sessionsService.listSessions(otherStudentId, 10)).toEqual([]);
+    expect(await listTen(studentId)).toHaveLength(1);
+    expect(await listTen(otherStudentId)).toEqual([]);
   });
 
   it('lists sessions newest first, up to the limit', async () => {
@@ -69,7 +73,7 @@ describe('SessionsService', () => {
     await moveSessionStart(middle.id, '2026-10-02T12:00:00Z');
     await moveSessionStart(newest.id, '2026-10-03T12:00:00Z');
 
-    const sessions = await sessionsService.listSessions(studentId, 2);
+    const sessions = await sessionsService.listSessions(studentId, { limit: 2, offset: 0 });
 
     expect(sessions.map((session) => session.title)).toEqual(['newest', 'middle']);
   });
@@ -78,6 +82,6 @@ describe('SessionsService', () => {
     const studentId = await createStudentId();
     await sessionsService.createSession(await createStudentId(), SESSION);
 
-    expect(await sessionsService.listSessions(studentId, 10)).toEqual([]);
+    expect(await listTen(studentId)).toEqual([]);
   });
 });

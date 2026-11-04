@@ -1,7 +1,13 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import type { SessionEntity } from '../infrastructure/orm/entities/session.entity';
 import { SessionRepository } from '../infrastructure/orm/repositories/session.repository';
-import type { CreateSessionBodyDto, SessionResponseDto } from './session.dto';
+import type { SessionListOptions } from '../infrastructure/orm/repositories/session.repository';
+import type { CreateSessionBodyDto, SessionResponseDto, UpdateSessionBodyDto } from './session.dto';
+
+function requireSession(session: SessionEntity | null): SessionEntity {
+  if (!session) throw new NotFoundException('That session was not found.');
+  return session;
+}
 
 function toSessionResponse(session: SessionEntity): SessionResponseDto {
   return {
@@ -25,13 +31,26 @@ export class SessionsService {
     return toSessionResponse(await this.sessions.createForStudent(studentId, body));
   }
 
-  async listSessions(studentId: string, limit: number): Promise<SessionResponseDto[]> {
-    const sessions = await this.sessions.listNewestForStudent(studentId, limit);
+  async listSessions(studentId: string, options: SessionListOptions): Promise<SessionResponseDto[]> {
+    const sessions = await this.sessions.listNewestForStudent(studentId, options);
     return sessions.map(toSessionResponse);
   }
 
   hasStartedASession(studentId: string): Promise<boolean> {
     return this.sessions.existsForStudent(studentId);
+  }
+
+  async getSession(studentId: string, sessionId: string): Promise<SessionResponseDto> {
+    return toSessionResponse(requireSession(await this.sessions.findForStudent(studentId, sessionId)));
+  }
+
+  async updateSession(
+    studentId: string,
+    sessionId: string,
+    changes: UpdateSessionBodyDto,
+  ): Promise<SessionResponseDto> {
+    const session = await this.sessions.updateUnfinishedForStudent(studentId, sessionId, changes);
+    return toSessionResponse(requireSession(session));
   }
 
   async getNewestUnfinishedSession(studentId: string): Promise<SessionResponseDto | null> {

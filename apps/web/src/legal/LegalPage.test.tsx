@@ -19,6 +19,7 @@ const LEGAL_PAGE_CASES = [
   { path: LEGAL_PATHS.privacy, legalDocument: LEGAL_PAGES.privacy },
 ];
 const TYPED_EMAIL = 'maya@astra.test';
+const STORED_DATA_HEADING = 'What we store';
 
 function openAt(path: string) {
   window.history.replaceState(null, '', path);
@@ -99,6 +100,17 @@ describe.each(LEGAL_PAGE_CASES)('$path', ({ path, legalDocument }) => {
     const field = await screen.findByPlaceholderText<HTMLInputElement>(SIGN_IN_LABELS.emailPlaceholder);
     expect(field.value).toBe(TYPED_EMAIL);
     expect(document.activeElement).toBe(field);
+  });
+});
+
+describe('the Privacy Policy', () => {
+  it('says Supabase holds everything under What we store, so a row added there stays covered', async () => {
+    openAt(LEGAL_PATHS.privacy);
+
+    await screen.findByRole('heading', { level: 2, name: STORED_DATA_HEADING });
+    const recipients = screen.getByRole('heading', { level: 2, name: 'Who receives your data' }).parentElement!;
+
+    expect(within(recipients).getByText(/^Supabase /).textContent).toContain(`holds everything listed under ${STORED_DATA_HEADING}`);
   });
 });
 

@@ -1,10 +1,14 @@
-import { useRef, useState, type PropsWithChildren, type RefObject } from 'react';
+import { useEffect, useRef, type ComponentProps, type PropsWithChildren, type RefObject } from 'react';
+import { useLocation } from 'react-router';
 import type { ApiErrorKind } from '../api/apiError';
 import { ErrorBoundary } from '../ErrorBoundary';
+import type { ARRIVING_FROM_ENDED_SESSION } from '../session/sessionPath';
+import { useStartSession } from '../session/useStartSession';
 import { HOME_LABELS } from '../strings';
 import { ChatBox } from './ChatBox';
 import { ContinueCard } from './ContinueCard';
 import { PickCard } from './PickCard';
+import { SlowStartNotice } from './SlowStartNotice';
 import { useHomeScreen } from './useHomeScreen';
 import { useHasWaited } from './useHasWaited';
 import { usePublishDockHeight } from './usePublishDockHeight';
@@ -17,8 +21,13 @@ type HomeScreenQuery = ReturnType<typeof useHomeScreen>;
 
 export function HomeScreen() {
   const homeScreen = useHomeScreen();
-  const [notice, setNotice] = useState<string | null>(null);
+  const { startFromQuestion, startFromPick, continueSession, isStarting, problem, clearProblem } = useStartSession();
   const greeting = useRef<HTMLHeadingElement>(null);
+  const arrival = useLocation().state as typeof ARRIVING_FROM_ENDED_SESSION | null;
+
+  useEffect(() => {
+    if (arrival?.focusHeading) greeting.current?.focus({ preventScroll: true });
+  }, [arrival]);
 
   function retryLoading() {
     // Try again unmounts once the query restarts, so focus moves to the heading, which stays in every state.
@@ -32,15 +41,12 @@ export function HomeScreen() {
       <ErrorBoundary retryKey={homeScreen.dataUpdatedAt} fallback={<CardsCrash onRetry={retryLoading} />}>
         <HomeCards
           homeScreen={homeScreen}
-          onChooseCard={() => setNotice(HOME_LABELS.sessionsOpenSoon)}
+          onChoosePick={startFromPick}
+          onContinue={continueSession}
           onRetry={retryLoading}
         />
       </ErrorBoundary>
-      <ChatDock
-        notice={notice}
-        onSend={() => setNotice(HOME_LABELS.sessionsOpenSoonQuestionKept)}
-        onEdit={() => setNotice(null)}
-      />
+      <ChatDock problem={problem} isStarting={isStarting} onSend={startFromQuestion} onEdit={clearProblem} />
     </>
   );
 }
@@ -63,12 +69,13 @@ function Greeting({ heading, homeScreenData }: { heading: RefObject<HTMLHeadingE
 }
 
 interface ChatDockProps {
-  notice: string | null;
-  onSend: () => void;
+  problem: string | null;
+  isStarting: boolean;
+  onSend: ComponentProps<typeof ChatBox>['onSend'];
   onEdit: () => void;
 }
 
-function ChatDock({ notice, onSend, onEdit }: ChatDockProps) {
+function ChatDock({ problem, isStarting, onSend, onEdit }: ChatDockProps) {
   const dock = useRef<HTMLDivElement>(null);
   usePublishDockHeight(dock);
 
@@ -81,39 +88,43 @@ function ChatDock({ notice, onSend, onEdit }: ChatDockProps) {
       className="fades-with-theme sticky bottom-0 z-2 mt-auto -mb-page-bottom bg-paper pt-2.5 pb-3.5 shadow-[0_1px_0_var(--color-paper)] max-md:-mx-page-side max-md:border-t max-md:border-line max-md:px-page-side max-md:py-2"
     >
       <p role="status" className="text-fine text-ink-2">
-        {notice && <span className="block pb-2">{notice}</span>}
+        {problem && <span className="block pb-2">{problem}</span>}
+        {isStarting && <SlowStartNotice />}
       </p>
-      <ChatBox onSend={onSend} onEdit={onEdit} />
+      <ChatBox isSending={isStarting} onSend={onSend} onEdit={onEdit} />
     </div>
   );
 }
 
-interface HomeCardsProps {
+interface CardActions {
+  onChoosePick: ComponentProps<typeof PickCard>['onChoose'];
+  onContinue: ComponentProps<typeof ContinueCard>['onContinue'];
+}
+
+interface HomeCardsProps extends CardActions {
   homeScreen: HomeScreenQuery;
-  onChooseCard: () => void;
   onRetry: () => void;
 }
 
-function HomeCards({ homeScreen, onChooseCard, onRetry }: HomeCardsProps) {
-  if (homeScreen.data) return <LoadedCards homeScreenData={homeScreen.data} onChooseCard={onChooseCard} />;
+function HomeCards({ homeScreen, onChoosePick, onContinue, onRetry }: HomeCardsProps) {
+  if (homeScreen.data) return <LoadedCards homeScreenData={homeScreen.data} onChoosePick={onChoosePick} onContinue={onContinue} />;
   if (homeScreen.error) return <LoadFailure errorKind={homeScreen.error.kind} onRetry={onRetry} />;
   return <HomeCardsPlaceholder />;
 }
 
-interface LoadedCardsProps {
+interface LoadedCardsProps extends CardActions {
   homeScreenData: NonNullable<HomeScreenQuery['data']>;
-  onChooseCard: () => void;
 }
 
-function LoadedCards({ homeScreenData: { continueSession, picks }, onChooseCard }: LoadedCardsProps) {
+function LoadedCards({ homeScreenData: { continueSession, picks }, onChoosePick, onContinue }: LoadedCardsProps) {
   return (
     <>
-      {continueSession && <ContinueCard session={continueSession} onContinue={onChooseCard} />}
+      {continueSession && <ContinueCard session={continueSession} onContinue={onContinue} />}
       <PicksSection>
         <ul className={PICK_GRID}>
           {picks.map((pick) => (
             <li key={pick.id}>
-              <PickCard pick={pick} onChoose={onChooseCard} />
+              <PickCard pick={pick} onChoose={onChoosePick} />
             </li>
           ))}
         </ul>

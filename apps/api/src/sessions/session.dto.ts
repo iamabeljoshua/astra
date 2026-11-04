@@ -1,14 +1,18 @@
-import { IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { IsIn, IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
 import { ARTWORK_NAMES } from '../artwork';
 import type { ArtworkName } from '../artwork';
 import { IsStorableText } from '../is-storable-text';
 import { ToStrictInteger } from '../to-strict-integer';
-import { SESSION_LANGUAGES, SESSION_STATUSES } from './session-options';
+import { SESSION_END_STATUS, SESSION_LANGUAGES, SESSION_STATUSES } from './session-options';
 import type { SessionLanguage, SessionStatus } from './session-options';
 
 const MAX_SESSION_TITLE_LENGTH = 200;
 const MAX_SESSION_SUBJECT_LENGTH = 60;
 const MAX_SESSIONS_PER_LIST = 100;
+const MAX_SEARCH_LENGTH = 200;
+const LARGEST_DATABASE_INTEGER = 2_147_483_647;
+const MAX_SESSION_SECONDS = 24 * 60 * 60;
 
 export class CreateSessionBodyDto {
   /** What the session is about. */
@@ -26,6 +30,11 @@ export class CreateSessionBodyDto {
   /** The language the tutor speaks in this session. */
   @IsIn(SESSION_LANGUAGES)
   language!: SessionLanguage;
+
+  /** The name of the picture that the web app shows for this session. Leave it out if there is none. */
+  @IsOptional()
+  @IsIn(ARTWORK_NAMES)
+  artwork?: ArtworkName;
 }
 
 export class ListSessionsQueryDto {
@@ -36,6 +45,41 @@ export class ListSessionsQueryDto {
   @Min(1)
   @Max(MAX_SESSIONS_PER_LIST)
   limit?: number;
+
+  /** How many of the newest matching sessions to skip. The API skips none if this is left out. */
+  @IsOptional()
+  @ToStrictInteger()
+  @IsInt()
+  @Min(0)
+  @Max(LARGEST_DATABASE_INTEGER)
+  offset?: number;
+
+  /** Text to find in a session's title or subject, in any letter case. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(MAX_SEARCH_LENGTH)
+  @IsStorableText()
+  search?: string;
+}
+
+export class SessionParamsDto {
+  /** The ID of the session. */
+  @IsUUID()
+  id!: string;
+}
+
+export class UpdateSessionBodyDto {
+  /** How long the session has run in total, in seconds. A longer length is saved as 24 hours, so ending a session always works. */
+  @Transform(({ value }: { value: unknown }) => (typeof value === 'number' ? Math.min(value, MAX_SESSION_SECONDS) : value))
+  @IsInt()
+  @Min(0)
+  @Max(MAX_SESSION_SECONDS)
+  durationSeconds!: number;
+
+  /** Send `finished` to end the session. A finished session does not change again. */
+  @IsOptional()
+  @IsIn([SESSION_END_STATUS])
+  status?: typeof SESSION_END_STATUS;
 }
 
 export class SessionResponseDto {

@@ -6,7 +6,7 @@ The menu moves a student between Home and Sessions. On a laptop it is always in 
 
 - `menu-laptop` shows `Home` and `Sessions` links in the sidebar.
 - `menu-phone` hides the sidebar until the student opens `Menu`, and closes it after a choice.
-- `menu-sessions` opens the Sessions page, which says that sessions will appear there.
+- `menu-sessions` opens the Sessions page. See [Sessions](./sessions.md).
 
 ## How to get to it (user POV)
 

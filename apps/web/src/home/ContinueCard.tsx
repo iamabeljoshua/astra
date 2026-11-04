@@ -2,9 +2,11 @@ import type { components } from '@astra/contracts';
 import { HOME_LABELS } from '../strings';
 import { findArtwork, type Artwork } from './artwork';
 
+type Session = components['schemas']['SessionResponseDto'];
+
 interface ContinueCardProps {
-  session: components['schemas']['SessionResponseDto'];
-  onContinue: () => void;
+  session: Session;
+  onContinue: (session: Session) => void;
 }
 
 export function ContinueCard({ session, onContinue }: ContinueCardProps) {
@@ -16,7 +18,7 @@ export function ContinueCard({ session, onContinue }: ContinueCardProps) {
         <span className="label text-ink-2">{HOME_LABELS.continueLabel}</span>
         <h2 className="mt-0.5 text-heading font-semibold wrap-anywhere">{session.title}</h2>
         <p className="mb-3 text-ink-2">{session.detail ?? session.subject}</p>
-        <button type="button" onClick={onContinue} className="button button-solid">
+        <button type="button" onClick={() => onContinue(session)} className="button button-solid">
           {HOME_LABELS.continueButton}
         </button>
       </div>

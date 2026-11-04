@@ -5,6 +5,7 @@ import { FakeResizeObserver, fakeFonts } from './test/fakeLayout';
 globalThis.ResizeObserver = FakeResizeObserver;
 Object.defineProperty(document, 'fonts', { value: fakeFonts });
 window.scrollTo = () => undefined;
+window.matchMedia = (() => ({ matches: false })) as unknown as typeof window.matchMedia;
 
 const { asyncWrapper } = getConfig();
 const nextTask = setImmediate;
@@ -25,4 +26,5 @@ afterEach(() => {
   localStorage.clear();
   for (const cookie of document.cookie.split('; ')) document.cookie = `${cookie.split('=')[0]}=; Max-Age=0; Path=/`;
   delete document.documentElement.dataset.theme;
+  document.documentElement.style.visibility = '';
 });

@@ -13,7 +13,7 @@ export function AppShell() {
   const { isMenuOpen, menuButton, toggleMenu, closeMenu } = usePhoneMenu();
 
   return (
-    <div className="flex min-h-dvh flex-col">
+    <div data-page className="flex min-h-dvh flex-col">
       <title>{PRODUCT_NAME}</title>
       <PhoneHeader isMenuOpen={isMenuOpen} menuButton={menuButton} onToggleMenu={toggleMenu} />
       <div className="flex flex-1">

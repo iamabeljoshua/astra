@@ -1,7 +1,6 @@
 import type { components } from '@astra/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
-import { readWithRenewal } from './readWithRenewal';
 
 const ACCOUNT_KEY = ['account'];
 const HOME_KEY = ['home'];
@@ -16,7 +15,7 @@ function readAccount(signal: AbortSignal) {
 export function useAccount() {
   return useQuery({
     queryKey: ACCOUNT_KEY,
-    queryFn: ({ signal }): Promise<Account | null> => readWithRenewal(() => readAccount(signal)),
+    queryFn: ({ signal }): Promise<Account | null> => readAccount(signal),
     // Null, not nothing, makes a new read keep the last error, so the error page stays in place while it runs.
     initialData: null,
     initialDataUpdatedAt: 0,
