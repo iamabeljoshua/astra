@@ -72,6 +72,7 @@ export interface LiveSessionOptions {
   writeRecap?(facts: RecapFacts): Promise<SessionRecap | null>;
   /** A recap has been written. Memory can note here that a `gentle` ending needs a person, and a model's `lesson` lines are not for its notes. */
   onRecap?(recap: SessionRecap): void;
+  /** The student pressed End, so whatever was going to teach next has lost its moment. */
   onEnding?(): void;
   /** The recap has played, or there was none, and the room can go. */
   onEndingOver?(): void;
@@ -188,7 +189,7 @@ function recordingTo(heard: HeardTurn, messenger: TurnMessenger): TurnMessenger 
   };
 }
 
-export function createLiveSession({ messenger, line, voice, tutor, takes, allTakes, setTurnCap, onQuietLimit = () => {}, quietLimitMs = QUIET_ROOM_LIMIT_MS, getNowMs = getSteadyNowMs, trace = () => {} , readMeaning = async () => null, readStrokes = async () => null, readSpokenWords = async () => ({ kind: 'talk', costUsd: 0 }), getCostSoFar, recordTurn, onPause, onStudentTurn, getOpeningScene, onLinkChange, waitForPicture = async () => true, onLogWritten, writeRecap = async () => null, onRecap = () => {}, onEnding = () => {}, onEndingOver = () => {} }: LiveSessionOptions): LiveSession {
+export function createLiveSession({ messenger, line, voice, tutor, takes, allTakes, setTurnCap, onQuietLimit = () => {}, quietLimitMs = QUIET_ROOM_LIMIT_MS, getNowMs = getSteadyNowMs, trace = () => {} , readMeaning = async () => null, readStrokes = async () => null, readSpokenWords = async () => ({ kind: 'talk', costUsd: 0 }), getCostSoFar, recordTurn, onPause, onStudentTurn, getOpeningScene, onLinkChange, waitForPicture = async () => true, onLogWritten, writeRecap = async () => null, onRecap = () => {}, onEnding, onEndingOver = () => {} }: LiveSessionOptions): LiveSession {
   const startedAtMs = getNowMs();
   // A new job in the same room restarts this count, and a page ignores a turn it has seen, so each job's turns carry their own name.
   const jobTag = randomUUID().slice(0, 8);
@@ -640,7 +641,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
   const endWithRecap = async () => {
     if (isEnding) return;
     trace('endingStarted');
-    onEnding();
+    onEnding?.();
     stopSpeech({ do: 'stop', reason: 'typed', keepsThought: false });
     typedGate.close();
     isEnding = true;

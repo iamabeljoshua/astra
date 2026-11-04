@@ -59,6 +59,7 @@ export interface TutorScenes {
   noteTopic(title: string): void;
   notePageLink(isUp: boolean): void;
   waitForPicture(): Promise<boolean>;
+  /** The student pressed End or left, so nothing more is asked or lands. A scene already on screen can still come back to a reloaded page. */
   close(): void;
 }
 
@@ -344,7 +345,7 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
       isStopped = true;
       if (current) end(current, 'stopped');
       if (opening.kind !== 'over') giveOpening(null);
-      for (const work of works) work.leave();
+      for (const work of works.splice(0)) work.leave();
       prepared.clear();
     },
     canPlay: () => device === 'canPlay',
@@ -460,10 +461,13 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
       });
     },
     close() {
+      isStopped = true;
+      waitingForDevice = null;
       if (current) end(current, 'studentLeft');
       giveOpening(null);
       settlePictureWaits(false);
-      for (const work of works) work.leave();
+      for (const work of works.splice(0)) work.leave();
+      prepared.clear();
     },
   };
 }

@@ -677,6 +677,42 @@ describe('a safety reply', () => {
   });
 });
 
+describe('a room kept for its recap', () => {
+  it('ends a pending ask, and a loaded take never lands', async () => {
+    const { scenes, spoken, traces } = setUp();
+    opened(scenes);
+    scenes.ask(TOPIC);
+    await flush();
+    scenes.close();
+    scenes.onPage(LOADED, 'maya');
+    scenes.notePause();
+    await flush();
+    expect(spoken).toEqual([]);
+    expect(traces.find(({ name }) => name === 'sceneEnded')?.fields.how).toBe('studentLeft');
+  });
+
+  it('makes no scene ask, however late the planner or the brief comes', async () => {
+    const { scenes, traces, joinRun } = setUp({ cardTitle: TOPIC });
+    opened(scenes);
+    scenes.close();
+    scenes.ask('how a tangent line works');
+    scenes.noteCard(TOPIC);
+    await flush();
+    expect(traces.filter(({ name }) => name === 'sceneAsked')).toEqual([]);
+    expect(joinRun).not.toHaveBeenCalled();
+  });
+
+  it('drops an ask still waiting to hear what the page can play', async () => {
+    const { scenes, traces, joinRun } = setUp();
+    scenes.ask(TOPIC);
+    scenes.close();
+    opened(scenes);
+    await flush();
+    expect(traces.filter(({ name }) => name === 'sceneAsked')).toEqual([]);
+    expect(joinRun).not.toHaveBeenCalled();
+  });
+});
+
 describe('a reloaded page', () => {
   it('gets a pending scene sent again, and nothing lands on the old page\'s word', async () => {
     const { scenes, sent, spoken } = setUp();
