@@ -46,6 +46,8 @@ export default defineConfig(({ command, mode }) => {
     },
     test: {
       environment: 'jsdom',
+      // Vitest empties any stylesheet not listed here, and a test reads the font rules in KaTeX's.
+      css: { include: [/katex/] },
       setupFiles: ['./src/testSetup.ts'],
       env: {
         VITE_SUPABASE_URL: 'http://127.0.0.1:54421',

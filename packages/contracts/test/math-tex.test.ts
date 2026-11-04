@@ -21,6 +21,12 @@ describe('getTexProblem', () => {
     raw`\text{<script>alert(1)</script>}`,
     raw`f(x) = \begin{cases} 1 & x > 0 \\ 0 & x \le 0 \end{cases}`,
     raw`50\% \text{ of } x`,
+    raw`5 + 3 = 8 \quad \text{जोड़ें}`,
+    raw`\text{पढ़ें} = 5`,
+    raw`\text{पेड़ों} = 5`,
+    raw`\text{הַשָּׁמַיִם} = 5`,
+    raw`\text{မြွေ} = 5`,
+    `x${'\u20d7'.repeat(3)}`,
   ])('accepts %s', (tex) => {
     expect(getTexProblem(tex)).toBeNull();
   });
@@ -51,7 +57,9 @@ describe('getTexProblem', () => {
     ['a run of accent marks, which KaTeX nests', `x${'\u0301'.repeat(200)}`, /at most 2 accent marks/],
     ['a short run of another mark', `x${'\u0308'.repeat(3)}`, /at most 2 accent marks/],
     ['a run of marks inside text', raw`\text{x` + '\u0301'.repeat(3) + '}', /at most 2 accent marks/],
-    ['a run of marks from outside the usual block', `x${'\u20d7'.repeat(3)}`, /at most 2 accent marks/],
+    ['a run at the first mark that nests', `x${'\u0300'.repeat(3)}`, /at most 2 accent marks/],
+    ['a run at the last mark that nests', `x${'\u036f'.repeat(3)}`, /at most 2 accent marks/],
+    ['a run of marks that differ', `x\u0301\u0308\u0300`, /at most 2 accent marks/],
   ])('refuses %s', (_name, tex, problem) => {
     expect(getTexProblem(tex)).toMatch(problem);
   });
@@ -117,6 +125,16 @@ describe('findMathSpans', () => {
   it('never matches the letters of an environment name', () => {
     const tex = raw`\begin{matrix} a \end{matrix}`;
     expect(findMathSpans(tex, 'a')).toEqual([{ start: tex.indexOf(' a ') + 1, end: tex.indexOf(' a ') + 2 }]);
+  });
+
+  it('finds a whole environment, from its begin to the end of its end', () => {
+    const tex = raw`A = \begin{pmatrix} 1 \end{pmatrix} + 2`;
+    const whole = raw`\begin{pmatrix} 1 \end{pmatrix}`;
+    expect(findMathSpans(tex, whole)).toEqual([{ start: tex.indexOf(whole), end: tex.indexOf(whole) + whole.length }]);
+  });
+
+  it('never takes one environment for another with the same cells', () => {
+    expect(findMathSpans(raw`\begin{bmatrix} 1 \end{bmatrix}`, raw`\begin{pmatrix} 1 \end{pmatrix}`)).toEqual([]);
   });
 
   it('never matches inside a longer number', () => {
