@@ -56,6 +56,7 @@ async function runSession(context: JobContext): Promise<void> {
   const transcriber = makeTutorTranscriber({ apiKey: readKey('META_API_KEY'), onNote: (note) => trace(`muse:${note.kind}`, note) }).makeStt();
   const allTakes = loadTakes();
   let ears: Ears | null = null;
+  const { brain, flushSpend } = makeTutorBrain({ roomName: room.name ?? '', trace });
   const session = createLiveSession({
     messenger: {
       send: (message) => publish(message),
@@ -66,7 +67,7 @@ async function runSession(context: JobContext): Promise<void> {
     },
     line: createVoiceLine(source),
     voice,
-    tutor: makeTutorBrain({ jobMetadata: context.job.metadata, trace }),
+    tutor: brain,
     takes: createTakePicker(allTakes),
     allTakes,
     setTurnCap: (ms) => ears?.setTurnCap(ms),
@@ -112,6 +113,7 @@ async function runSession(context: JobContext): Promise<void> {
     clearTimeout(closing);
     clearInterval(pulse);
     await session.close();
+    await flushSpend();
     await ears?.close();
     await transcriber.close();
     await voice.close();

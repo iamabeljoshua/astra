@@ -119,6 +119,35 @@ const speakOverTheTutor = async (session: ReturnType<typeof setup>['session'], t
   await delay(500);
 };
 
+describe('a tutor that has closed', () => {
+  it('says why once, tells the page, and plays no reaction with nothing after it', async () => {
+    const messages: AgentMessage[] = [];
+    const model = makeFakeTutorModel(() => ({ pieces: ['Okay, here we go.'] }));
+    const notes: string[] = [];
+    const allTakes = loadTakes();
+    const trace = (name: string) => notes.push(name);
+    const session = createLiveSession({
+      messenger: { send: (message) => messages.push(message), sendOnBothChannels: (message) => messages.push(message) },
+      line: createVoiceLine({ sampleRate: 24000, captureFrame: async () => {}, clearQueue: () => {}, waitForPlayout: async () => {} }),
+      voice: makeRenderedVoice({ name: 'fake', render: renderTone }).makeTts(),
+      tutor: createTutorBrain({ model, trace, timeouts: QUICK, getSpendLimit: () => 'dailyLimit' }),
+      takes: createTakePicker(allTakes),
+      allTakes,
+      setTurnCap: () => {},
+      trace,
+    });
+    session.onBrowser(typed('one'));
+    await delay(1200);
+    expect(messages).toContainEqual({ type: 'tutorClosed', reason: 'dailyLimit' });
+    const turnsBefore = messages.filter((message) => message.type === 'turnStarted').length;
+    session.onBrowser(typed('two'));
+    await delay(300);
+    expect(model.requests).toHaveLength(0);
+    expect(messages.filter((message) => message.type === 'turnStarted').length).toBe(turnsBefore + 1);
+    await session.close();
+  });
+});
+
 describe('an interrupted request', () => {
   const BETWEEN = { ...QUICK, betweenTextMs: 5000 };
 
@@ -161,6 +190,17 @@ describe('an interrupted request', () => {
     expect(summaries[0]?.studentText).toBe('FIRST');
     expect(getUsers(model.requests.at(-1))).toEqual(['FIRST', 'SECOND']);
     expect(getSystemNotes(model.requests.at(-1)).join()).toContain('"cut"');
+    await session.close();
+  });
+
+  it('keeps a flood of typed messages to a request every two seconds', async () => {
+    const { session, model } = setup(() => ({ pieces: ['Okay, here we go.'] }));
+    for (let index = 0; index < 30; index += 1) {
+      session.onBrowser(typed(`message ${index}`));
+      await delay(10);
+    }
+    await delay(100);
+    expect(model.requests.length).toBeLessThanOrEqual(3);
     await session.close();
   });
 

@@ -129,7 +129,7 @@ async function runLesson(turns: readonly EvalTurn[]) {
       ledger.charge({ anthropicUsd: costUsd });
       console.log(`compacted ${turnsBefore} to ${turnsAfter} turns, $${costUsd.toFixed(4)}`);
     },
-    isOverBudget: ledger.isOverModelLimit,
+    getSpendLimit: () => (ledger.isOverModelLimit() ? 'sessionLimit' : null),
   });
   await model.warm(TUTOR_SYSTEM);
   for (const [index, turn] of turns.entries()) {

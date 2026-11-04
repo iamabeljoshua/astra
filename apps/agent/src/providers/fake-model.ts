@@ -51,20 +51,25 @@ export function makeFakeTutorModel(getReply: (request: TutorModelRequest, attemp
     if (signal.aborted) return;
     if (reply.startsLate) yield { type: 'started', usage: FAKE_USAGE };
     let written = 0;
-    for (const [index, piece] of reply.pieces.entries()) {
-      if (reply.stall?.beforePiece === index) await wait(reply.stall.ms, signal);
-      if (signal.aborted) {
-        aborted.streams += 1;
-        aborted.piecesNotSent += reply.pieces.length - index;
-        return;
+    let piecesSent = 0;
+    try {
+      for (const [index, piece] of reply.pieces.entries()) {
+        if (reply.stall?.beforePiece === index) await wait(reply.stall.ms, signal);
+        if (signal.aborted) return;
+        yield { type: 'text', text: piece, isNewBlock: index === 0 || (reply.newBlocksAt?.includes(index) ?? false) };
+        piecesSent += 1;
+        written += piece.length;
+        await wait(reply.msPerPiece ?? 0, signal);
       }
-      yield { type: 'text', text: piece, isNewBlock: index === 0 || (reply.newBlocksAt?.includes(index) ?? false) };
-      written += piece.length;
-      await wait(reply.msPerPiece ?? 0, signal);
+      if (signal.aborted) return;
+      if (reply.failAfterPieces) throw new Error(reply.failAfterPieces);
+      yield { type: 'finished', stopReason: reply.stopReason ?? 'finished', refusalCategory: reply.refusalCategory ?? null, usage: { ...FAKE_USAGE, outputTokens: Math.ceil(written / CHARACTERS_PER_TOKEN) } };
+    } finally {
+      if (signal.aborted && piecesSent < reply.pieces.length) {
+        aborted.streams += 1;
+        aborted.piecesNotSent += reply.pieces.length - piecesSent;
+      }
     }
-    if (signal.aborted) return;
-    if (reply.failAfterPieces) throw new Error(reply.failAfterPieces);
-    yield { type: 'finished', stopReason: reply.stopReason ?? 'finished', refusalCategory: reply.refusalCategory ?? null, usage: { ...FAKE_USAGE, outputTokens: Math.ceil(written / CHARACTERS_PER_TOKEN) } };
   }
 
   return {

@@ -3,7 +3,8 @@ import { readKey } from '../keys.ts';
 import { makeAnthropicTutorModel, TUTOR_MODEL_NAMES, type TutorModelName } from '../providers/anthropic.ts';
 import { makeRecordedTutorModel } from '../providers/fake-model.ts';
 import { createStandInTutor } from '../live/stand-in-tutor.ts';
-import { createTutorBrain, type StudentProfile, type TraceNote, type TurnSummary, type TutorBrain } from './brain.ts';
+import { type ApiLink, createApiLink } from './api-link.ts';
+import { createTutorBrain, type SpendLimit, type TraceNote, type TurnSummary, type TutorBrain } from './brain.ts';
 import { TUTOR_SYSTEM } from './prompt.ts';
 import { createSpendLedger } from './spend-ledger.ts';
 
@@ -12,13 +13,9 @@ const RECORDED = 'recorded';
 const DEFAULT_MODEL: TutorModelName = 'sonnet-5-5';
 const DEFAULT_LIMIT_USD = 8;
 const DEFAULT_LIMIT_CREDITS = 1500;
-
-// The API puts the profile on the room's dispatch, so the agent needs no database.
-function readProfile(metadata: string | undefined): StudentProfile | null {
-  if (!metadata) return null;
-  const { level, interests, goal } = JSON.parse(metadata) as Partial<StudentProfile>;
-  return typeof level === 'string' && typeof goal === 'string' && Array.isArray(interests) ? { level, goal, interests } : null;
-}
+const DEFAULT_SESSION_LIMIT_USD = 1;
+/** About an hour of speech and about $1.60 at the listed $40 a million characters. */
+const DEFAULT_SESSION_VOICE_LIMIT_CHARACTERS = 40_000;
 
 function makeLedger() {
   const path = process.env.ASTRA_SPEND_FILE;
@@ -26,16 +23,83 @@ function makeLedger() {
   return createSpendLedger(path, { limitUsd: Number(process.env.ASTRA_SPEND_LIMIT_USD ?? DEFAULT_LIMIT_USD), limitCredits: Number(process.env.ASTRA_SPEND_LIMIT_CREDITS ?? DEFAULT_LIMIT_CREDITS) });
 }
 
-export function makeTutorBrain({ jobMetadata, trace }: { jobMetadata: string | undefined; trace: TraceNote }): TutorBrain {
+function makeApiLink(roomName: string): ApiLink | null {
+  const { ASTRA_API_URL: apiUrl, ASTRA_AGENT_KEY: agentKey } = process.env;
+  return apiUrl && agentKey ? createApiLink({ apiUrl, agentKey, roomName }) : null;
+}
+
+export interface SpendCaps {
+  getSpendLimit(): SpendLimit | null;
+  addTurn(summary: { usd: number; voiceCharacters: number }): void;
+  /** Sends what the API has not heard yet, so a room closing does not lose the last turn's charge. */
+  flush(): Promise<void>;
+}
+
+// Tracks one room's spending against its own caps, the shared ledger, and the student's total for today in the API.
+export function createSpendCaps({ link, ledger, trace, sessionLimitUsd, sessionVoiceLimitCharacters }: { link: Pick<ApiLink, 'reportSpend'> | null; ledger: ReturnType<typeof makeLedger>; trace: TraceNote; sessionLimitUsd: number; sessionVoiceLimitCharacters: number }): SpendCaps {
+  let sessionUsd = 0;
+  let sessionCharacters = 0;
+  let unreportedUsd = 0;
+  let isOverDailyLimit = false;
+  let reporting: Promise<void> = Promise.resolve();
+
+  const report = () => {
+    if (!link) return;
+    reporting = reporting.then(async () => {
+      if (unreportedUsd <= 0) return;
+      const usd = unreportedUsd;
+      unreportedUsd = 0;
+      try {
+        ({ isOverDailyLimit } = await link.reportSpend(usd));
+      } catch (error) {
+        unreportedUsd += usd;
+        trace('spendReportFailed', { problem: String(error) });
+      }
+    });
+  };
+
+  return {
+    getSpendLimit() {
+      if (isOverDailyLimit) return 'dailyLimit';
+      const isOverSession = sessionUsd >= sessionLimitUsd || sessionCharacters >= sessionVoiceLimitCharacters;
+      return isOverSession || ledger?.isOverModelLimit() || ledger?.isOverVoiceLimit() ? 'sessionLimit' : null;
+    },
+    addTurn({ usd, voiceCharacters }) {
+      sessionUsd += usd;
+      sessionCharacters += voiceCharacters;
+      unreportedUsd += usd;
+      ledger?.charge({ anthropicUsd: usd, voiceCharacters });
+      report();
+    },
+    async flush() {
+      report();
+      await reporting;
+    },
+  };
+}
+
+export interface MadeBrain {
+  brain: TutorBrain;
+  flushSpend(): Promise<void>;
+}
+
+export function makeTutorBrain({ roomName, trace }: { roomName: string; trace: TraceNote }): MadeBrain {
   const name = process.env.ASTRA_TUTOR_MODEL ?? DEFAULT_MODEL;
-  if (name === STAND_IN) return createStandInTutor();
+  if (name === STAND_IN) return { brain: createStandInTutor(), flushSpend: async () => {} };
   if (name !== RECORDED && !TUTOR_MODEL_NAMES.includes(name as TutorModelName)) throw new Error(`ASTRA_TUTOR_MODEL is ${name}. Choose ${[STAND_IN, RECORDED, ...TUTOR_MODEL_NAMES].join(', ')}`);
-  const ledger = makeLedger();
+  const link = makeApiLink(roomName);
+  const caps = createSpendCaps({
+    link,
+    ledger: makeLedger(),
+    trace,
+    sessionLimitUsd: Number(process.env.ASTRA_SESSION_LIMIT_USD ?? DEFAULT_SESSION_LIMIT_USD),
+    sessionVoiceLimitCharacters: Number(process.env.ASTRA_SESSION_VOICE_LIMIT_CHARACTERS ?? DEFAULT_SESSION_VOICE_LIMIT_CHARACTERS),
+  });
   const model = name === RECORDED ? makeRecordedTutorModel() : makeAnthropicTutorModel({ name: name as TutorModelName, apiKey: readKey('ANTHROPIC_API_KEY') });
   void model.warm(TUTOR_SYSTEM).catch((error: unknown) => trace('warmFailed', { problem: String(error) }));
   const onTurnEnd = ({ firstTextMs, firstBeatMs, attempts, endedAs, costUsd, usage, refused, refusalCategory, isUsageEstimated, beats, spokenText }: TurnSummary) => {
     trace('turnWritten', { firstTextMs, firstBeatMs, attempts, endedAs, costUsd, usage, refused, refusalCategory, isUsageEstimated, words: spokenText.split(/\s+/).length });
-    ledger?.charge({ anthropicUsd: costUsd, voiceCharacters: beats.map(getBeatText).join(' ').length });
+    caps.addTurn({ usd: costUsd, voiceCharacters: beats.map(getBeatText).join(' ').length });
   };
-  return createTutorBrain({ model, profile: readProfile(jobMetadata), trace, onTurnEnd, isOverBudget: () => ledger?.isOverModelLimit() ?? false });
+  return { brain: createTutorBrain({ model, loadProfile: link ? () => link.fetchProfile() : undefined, trace, onTurnEnd, getSpendLimit: caps.getSpendLimit }), flushSpend: caps.flush };
 }

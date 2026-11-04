@@ -5,7 +5,7 @@ import { BeatTextReader, TURN_WORDS_TO_WRAP, type WrittenBeatParts } from '../sr
 const HIDE = '{"kind":"hide","target":"a"}';
 const CLEAR = '{"kind":"clearBoard"}';
 const MANY_WORDS = Array.from({ length: 130 }, (_, index) => `word${index}`).join(' ');
-const FIRST_SIXTY = Array.from({ length: 60 }, (_, index) => `word${index}`).join(' ');
+const FIRST_NINETY = Array.from({ length: 90 }, (_, index) => `word${index}`).join(' ');
 const ONE_LONG_WORD = 'a'.repeat(1300);
 const MANY_COMMANDS = `Watch ${CLEAR.repeat(14)}this.`;
 const BAD_SIMULATE = '{"kind":"simulate","id":"s","simulation":{"model":"bogus"}}';
@@ -54,7 +54,7 @@ const CASES: ReaderCase[] = [
   { name: 'a private use character and a hidden selector are not spoken', text: 'Watch\uE000 this\u{E0100} now.', spoken: 'Watch this now.' },
   { name: 'markdown and emoji are not spoken', text: 'This is *really* _neat_ `code` \u{1F600} now.', spoken: 'This is really neat code  now.' },
   { name: 'TeX marks are not spoken', text: 'So $x^2$ and \\frac are here.', spoken: 'So x2 and frac are here.' },
-  { name: 'a model that forgets the format wraps up at the turn limit', text: MANY_WORDS, spoken: FIRST_SIXTY, beats: 1 },
+  { name: 'a model that forgets the format stops at the turn limit', text: MANY_WORDS, spoken: FIRST_NINETY, beats: 2 },
   { name: 'one word longer than a beat holds', text: ONE_LONG_WORD, spoken: `${'a'.repeat(600)} ${'a'.repeat(600)} ${'a'.repeat(100)}`, beats: 3 },
   { name: 'more commands than a beat holds', text: MANY_COMMANDS, spoken: 'Watch this.', cues: Array<number>(12).fill(1), bad: 2 },
   { name: 'the same id twice in a beat', text: 'Watch {"kind":"writeMath","id":"e","tex":"x"}this {"kind":"writeMath","id":"e","tex":"y"}now.', spoken: 'Watch this now.', cues: [1], bad: 1 },

@@ -1,7 +1,9 @@
 import { BEAT_LIMITS, type Beat, type BoardKinds, getBoardAfter, getBoardProblem, LIVE_MESSAGE_MAX_BYTES, parseSceneCommand, type SceneCommand } from '@astra/contracts';
 
-/** A turn wraps up at the next clause past this, because T4 gives a spoken turn 20 seconds. */
+/** A turn wraps up at the next sentence end past this, because T4 gives a spoken turn 20 seconds. */
 export const TURN_WORDS_TO_WRAP = 50;
+/** A sentence that never ends stops here, so a run-on cannot speak for a minute. */
+const TURN_WORDS_TO_CUT = 90;
 /** B2 gives a turn's first drawing 1 s from its first word, which is about three words. */
 const DRAWING_GUARD_WORD = 3;
 const FEWEST_WORDS_BEFORE_A_COMMA = 4;
@@ -18,6 +20,7 @@ const JSON_MARKS = /[":]/;
 const ENDS_IN_QUESTION = /\?["')]*\s*$/;
 const ENDS_IN_SENTENCE = /[.!]["')]*\s*$/;
 const ENDS_IN_CLAUSE = /[,;:]\s*$/;
+const ENDS_IN_ABBREVIATION = /(?:^|[\s("'])(?:mr|mrs|ms|dr|prof|st|vs|e\.g|i\.e)\.["')]*\s*$/i;
 const STILL_A_TAG = /^<\/?(?:[A-Za-z_][\w:.-]*(?:\s[^<>\n]*)?)?$/;
 const TAG_NAME = /^<(\/?)([A-Za-z_][\w:.-]*)/;
 const PRIVATE_TAGS: ReadonlySet<string> = new Set(['thinking', 'think', 'reasoning', 'scratchpad', 'analysis', 'reflection', 'function_calls', 'invoke', 'parameter', 'system', 'system-reminder']);
@@ -61,6 +64,7 @@ export class BeatTextReader {
   #hasCommandThisTurn = false;
   #isHalted = false;
   #isTurnOver = false;
+  #wasCutShort = false;
   #textAfterTurn = '';
   #script: Beat['script'] = [];
   #cuesAwaitingWord: SceneCommand[] = [];
@@ -78,6 +82,11 @@ export class BeatTextReader {
 
   get isTurnOver(): boolean {
     return this.#isTurnOver;
+  }
+
+  /** The turn stopped at the word limit with a sentence still open, so the student has heard no ending. */
+  get wasCutShort(): boolean {
+    return this.#wasCutShort;
   }
 
   get textAfterTurn(): string {
@@ -104,13 +113,23 @@ export class BeatTextReader {
 
   /** Drops half-read commands, because the next request carries on from the words already said. */
   closeAttempt(): void {
+    this.#clearHalfRead();
+    this.#endBeat();
+  }
+
+  /** Throws away what has not been spoken yet, because a refused reply's partial output must not be used. */
+  dropAttempt(): void {
+    this.#clearHalfRead();
+    this.#startBeat();
+  }
+
+  #clearHalfRead(): void {
     this.#brokenTail = null;
     this.#command = null;
     this.#tag = null;
     this.#privateTag = null;
     this.#held = '';
     this.#isHalted = false;
-    this.#endBeat();
   }
 
   #startBeat(): void {
@@ -201,7 +220,7 @@ export class BeatTextReader {
       if (isSpace) return;
       this.#endBeat();
     }
-    if (!isSpace && this.#isAfterSpace && this.#wordCount === BEAT_LIMITS.words) this.#endBeat();
+    if (!isSpace && this.#isAfterSpace && (this.#wordCount === BEAT_LIMITS.words || this.#wordsThisTurn >= TURN_WORDS_TO_CUT)) this.#endBeat();
     if (this.#isTurnOver) {
       this.#textAfterTurn += character;
       return;
@@ -379,8 +398,11 @@ export class BeatTextReader {
     if (this.#wordCount === 0) return;
     this.#clearCuesAwaitingWord();
     const expectsReply = ENDS_IN_QUESTION.test(this.#text);
+    const endsSentence = ENDS_IN_SENTENCE.test(this.#text) && !ENDS_IN_ABBREVIATION.test(this.#text);
     this.#options.onBeatEnd({ script: this.#script, wordCount: this.#wordCount, expectsReply });
-    this.#isTurnOver = expectsReply || this.#wordsThisTurn >= TURN_WORDS_TO_WRAP;
+    const isAtCut = this.#wordsThisTurn >= TURN_WORDS_TO_CUT;
+    this.#isTurnOver = expectsReply || (endsSentence && this.#wordsThisTurn >= TURN_WORDS_TO_WRAP) || isAtCut;
+    this.#wasCutShort = isAtCut && !expectsReply && !endsSentence;
     this.#startBeat();
   }
 }

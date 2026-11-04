@@ -5,6 +5,7 @@ import { createLinkWatch, type LinkWatch } from './link-watch.ts';
 import { getTakeBeat, makeTakeVoice, type StoredTake, type TakePicker, type TakeUse } from './reactions.ts';
 import { getResumeBeats } from './resume-plan.ts';
 import { createSessionLog } from './session-log.ts';
+import { createTypedGate } from './typed-gate.ts';
 import { type SpokenTurn, speakTurn, type TurnMessenger } from './speak-turn.ts';
 import type { TutorBrain } from '../tutor/brain.ts';
 import { getNextTurnState, INITIAL_TURN_STATE, type TimerName, type TurnAction, type TurnEvent, type TurnState } from './turn-rule.ts';
@@ -89,6 +90,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
   const beatsByTurn = new Map<TurnId, readonly Beat[]>();
   const speakingByTurn = new Map<TurnId, Speaking>();
   const queuedEvents: TurnEvent[] = [];
+  const typedGate = createTypedGate({ getNowMs, onRelease: (text) => dispatch({ type: 'typed', text }), onHeld: () => trace('typedHeld') });
   let state: TurnState = INITIAL_TURN_STATE;
   let isDispatching = false;
   let turnCount = 0;
@@ -145,7 +147,8 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     if (speaking === reply) {
       setThinking(false);
       reply = null;
-      thought = null;
+      dropThought();
+      sendClosedNote();
     }
     if (reaction || reply) {
       if (reply && !reply.hasSound && !reaction) dispatch({ type: 'tutorThinking' });
@@ -234,16 +237,26 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     return speak({ voiceToUse, beats: [getTakeBeat(take, `${take.id}-${turnCount + 1}`)], isReply, canResume: false, kind: take.use });
   }
 
+  const sendClosedNote = () => {
+    const reason = tutor.getClosedReason?.() ?? null;
+    if (reason) messenger.send({ type: 'tutorClosed', reason });
+    return reason !== null;
+  };
+
   const react = () => {
     trace('reactDecided');
+    if (sendClosedNote()) return;
     messenger.send({ type: 'heard' });
     // A session opened by a typed question has not yet said it is an AI, so its first reaction is the greeting (PRD S2).
     if (!reaction) reaction = speakTake(hasGreeted ? 'reaction' : 'greeting', { isReply: false });
     hasGreeted = true;
   };
 
+  // Aborting alone leaves a brain parked at its yield, and its turn would never finish, reach history, or be charged.
   function dropThought(): void {
-    thought?.controller.abort();
+    if (!thought) return;
+    thought.controller.abort();
+    void thought.iterator.return?.(undefined).catch((error: unknown) => trace('thoughtFailed', { problem: String(error) }));
     thought = null;
   }
 
@@ -383,7 +396,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       if (message.type !== 'pulse') log.write(message);
       if (message.type === 'played') onReport(message);
       if (message.type === 'questionHeard') dispatch({ type: 'questionHeard' });
-      if (message.type === 'typed') dispatch({ type: 'typed', text: message.text });
+      if (message.type === 'typed') typedGate.offer(message.text);
       if (message.type === 'hello' && message.wantsGreeting) greet();
       if (message.type === 'pulse') link.notePulse(message.hearsAgent, getNowMs());
       if (message.type === 'audioState') onAudioState(message.isRunning);
@@ -393,6 +406,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     async close() {
       clearInterval(linkChecker);
       clearTimeout(voiceStall);
+      typedGate.close();
       timers.forEach((timer) => clearTimeout(timer));
       reaction?.spoken.stop();
       reply?.spoken.stop();

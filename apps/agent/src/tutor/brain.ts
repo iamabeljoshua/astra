@@ -1,5 +1,5 @@
-import { type Beat, type BeatId, getBeatText, getCues, getPlayedCues, getSpokenWords, parseBeat, parseWrittenBeat } from '@astra/contracts';
-import type { ModelEvent, ModelUsage, TutorModelAdapter, TutorModelRequest, TutorTurn } from '../providers/types.ts';
+import { type Beat, type BeatId, clipTypedText, getBeatText, getCues, getPlayedCues, getSpokenWords, parseBeat, parseWrittenBeat, TYPED_TEXT_MAX_CHARACTERS, type TutorClosedReason } from '@astra/contracts';
+import { type ModelEvent, ModelRejectedError, type ModelUsage, type TutorModelAdapter, type TutorModelRequest, type TutorTurn } from '../providers/types.ts';
 import { BeatTextReader, type WrittenBeatParts } from './beat-text-reader.ts';
 import { type BoardMemory, checkAgainstBoard, EMPTY_BOARD, getMemoryAfter } from './board-memory.ts';
 import { TUTOR_SYSTEM } from './prompt.ts';
@@ -19,7 +19,11 @@ export interface TutorBrain {
   reply(request: TutorRequest, signal: AbortSignal): AsyncIterable<Beat>;
   notePlayed?(report: BeatReport): void;
   noteCut?(wordsSent: ReadonlyMap<BeatId, number>): void;
+  /** Why the tutor will not answer again in this room, once it has said so. */
+  getClosedReason?(): TutorClosedReason | null;
 }
+
+export type SpendLimit = 'sessionLimit' | 'dailyLimit';
 
 export interface StudentProfile {
   level: string;
@@ -37,6 +41,8 @@ export const TUTOR_TIMEOUTS = {
   finishGraceMs: 300,
   /** A short wait for a cut turn's report, so a lost one cannot hold up the reply. */
   reportWaitMs: 150,
+  /** Most sessions have the profile long before the first message, and a slow API must not hold up the reply. */
+  profileWaitMs: 1000,
 };
 
 export type TutorTimeouts = typeof TUTOR_TIMEOUTS;
@@ -62,18 +68,19 @@ export interface TurnSummary {
 export interface TutorBrainOptions {
   model: TutorModelAdapter;
   profile?: StudentProfile | null;
-  timeouts?: TutorTimeouts;
+  loadProfile?(): Promise<StudentProfile | null>;
+  timeouts?: Partial<TutorTimeouts>;
   trace?: TraceNote;
   onTurnEnd?(summary: TurnSummary): void;
   onCompacted?(summary: { costUsd: number; turnsBefore: number; turnsAfter: number }): void;
   compactAtTokens?: number;
-  isOverBudget?(): boolean;
+  getSpendLimit?(): SpendLimit | null;
   getNowMs?(): number;
 }
 
 type TurnStep = 'over' | 'retry';
 
-type AttemptEnd = 'ended' | 'aborted' | 'stalledBeforeText' | 'stalledInText' | 'failed' | 'wrongMath' | 'refused';
+type AttemptEnd = 'ended' | 'noWords' | 'aborted' | 'stalledBeforeText' | 'stalledInText' | 'failed' | 'rejected' | 'wrongMath' | 'refused';
 
 interface TurnWork {
   id: number;
@@ -85,8 +92,11 @@ interface TurnWork {
   ready: Beat[];
   refused: string[];
   notes: string[];
+  /** How many of the pending notes this turn took, so a note added while it runs stays for the next turn. */
+  carriedNotes: number;
   raw: string;
   hasModelWords: boolean;
+  wasStoppedByLength: boolean;
   hasAttemptText: boolean;
   hasSaidStillWorking: boolean;
   wrongMath: string | null;
@@ -99,7 +109,6 @@ interface TurnWork {
   isAttemptUsageFinal: boolean;
   isUsageEstimated: boolean;
   costUsd: number;
-  wasRefused: boolean;
   endedAs: AttemptEnd;
 }
 
@@ -109,13 +118,18 @@ const MAX_ATTEMPTS = 2;
 const COMPACT_AT_TOKENS = 60_000;
 const TURNS_KEPT_AFTER_COMPACTING = 8;
 const CHARACTERS_PER_TOKEN = 3.2;
-const LONGEST_STUDENT_TEXT = 2000;
 const TOO_MANY_MARKS = /(\p{M}{4})\p{M}+/gu;
-const NOT_STUDENT_TEXT = /\p{Cf}|\p{Co}|\p{Variation_Selector}|[^\P{Cc}\n\t]/gu;
+const NOT_STUDENT_TEXT = /\p{Cf}|\p{Co}|\p{Cs}|\p{Variation_Selector}|[^\P{Cc}\n\t]/gu;
+
+/** What the model is told after a safety check stops a student's message, built by code, so it holds none of what was refused. */
+const DECLINED_NOTE = {
+  declined: "A safety check stopped the student's last message, so you cannot see it. It may have been serious. The app has already told them to tell an adult they trust or call their local emergency number. Before you teach on, ask once, gently, whether they are safe and have an adult to talk to. Do not guess what they said, and do not ask them to repeat it.",
+};
+const CLIPPED_NOTE = { clipped: 'The student wrote more than you can see, and this is only the first part. Say so in a few words, and answer what you can.' };
 
 /** Strips control and invisible characters, which can hide text from a reader. */
 export function cleanStudentText(text: string): string {
-  return text.replace(NOT_STUDENT_TEXT, '').replace(TOO_MANY_MARKS, '$1').trim().slice(0, LONGEST_STUDENT_TEXT);
+  return clipTypedText(text.replace(NOT_STUDENT_TEXT, '').replace(TOO_MANY_MARKS, '$1').trim());
 }
 
 function getWrittenBeat(parts: WrittenBeatParts, id: string, refused: string[]): Beat | null {
@@ -154,9 +168,12 @@ const addUsage = (total: ModelUsage | null, part: ModelUsage): ModelUsage =>
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export function createTutorBrain({ model, profile = null, timeouts = TUTOR_TIMEOUTS, trace = () => {}, onTurnEnd, onCompacted, compactAtTokens = COMPACT_AT_TOKENS, isOverBudget = () => false, getNowMs = () => performance.now() }: TutorBrainOptions): Required<TutorBrain> {
+const toProfileNote = ({ level, interests, goal }: StudentProfile) => ({ student: { level, interests, goal } });
+
+export function createTutorBrain({ model, profile = null, loadProfile, timeouts: chosenTimeouts, trace = () => {}, onTurnEnd, onCompacted, compactAtTokens = COMPACT_AT_TOKENS, getSpendLimit = () => null, getNowMs = () => performance.now() }: TutorBrainOptions): Required<TutorBrain> {
+  const timeouts: TutorTimeouts = { ...TUTOR_TIMEOUTS, ...chosenTimeouts };
   const pickLine = createLinePicker();
-  const profileNote = profile ? { student: { level: profile.level, interests: profile.interests, goal: profile.goal } } : null;
+  let profileNote: Record<string, unknown> | null = profile ? toProfileNote(profile) : null;
   const reports = new Map<BeatId, BeatReport>();
   let turns: TutorTurn[] = [];
   let memory: BoardMemory = EMPTY_BOARD;
@@ -164,6 +181,11 @@ export function createTutorBrain({ model, profile = null, timeouts = TUTOR_TIMEO
   let pendingNotes: Record<string, unknown>[] = profileNote ? [profileNote] : [];
   let lastBeats: readonly Beat[] = [];
   let lastRefused: readonly string[] = [];
+  /** A refused reply's words must not go back to the model, even when the student cut across them. */
+  let hidesLastWords = false;
+  let closedReason: TutorClosedReason | null = null;
+  let hasToldClosed = false;
+  let rejectionsInARow = 0;
   let cutWordsSent: ReadonlyMap<BeatId, number> | null = null;
   let turnCount = 0;
   let promptTokens = 0;
@@ -184,7 +206,7 @@ export function createTutorBrain({ model, profile = null, timeouts = TUTOR_TIMEO
       for (const { command } of cues) memory = getMemoryAfter(command, memory);
     }
     const note: Record<string, unknown> = {};
-    if (missed.length > 0) note.cut = { heard: heard.join(' '), not_heard: missed.join(' ') };
+    if (missed.length > 0 && !hidesLastWords) note.cut = { heard: heard.join(' '), not_heard: missed.join(' ') };
     if (lastRefused.length > 0) note.refused = lastRefused;
     const board = JSON.stringify(Object.fromEntries([...memory.kinds].map(([id, kind]) => [id, memory.lines.get(id) ?? kind])));
     if (board !== toldBoard) note.board = JSON.parse(board);
@@ -192,6 +214,7 @@ export function createTutorBrain({ model, profile = null, timeouts = TUTOR_TIMEO
     if (Object.keys(note).length > 0) pendingNotes.push(note);
     lastBeats = [];
     lastRefused = [];
+    hidesLastWords = false;
     cutWordsSent = null;
     reports.clear();
   };
@@ -228,15 +251,19 @@ export function createTutorBrain({ model, profile = null, timeouts = TUTOR_TIMEO
         },
         onBeatEnd(parts) {
           const beat = getWrittenBeat(parts, `t${turnCount}-b${turn.beats.length}`, turn.refused);
-          if (beat) addBeat(turn, beat);
+          if (!beat) return;
+          turn.hasModelWords = true;
+          addBeat(turn, beat);
         },
       }),
       beats: [],
       ready: [],
       refused: [],
       notes: pendingNotes.map((note) => JSON.stringify(note)),
+      carriedNotes: pendingNotes.length,
       raw: '',
       hasModelWords: false,
+      wasStoppedByLength: false,
       hasAttemptText: false,
       hasSaidStillWorking: false,
       wrongMath: null,
@@ -249,8 +276,8 @@ export function createTutorBrain({ model, profile = null, timeouts = TUTOR_TIMEO
       isAttemptUsageFinal: false,
       isUsageEstimated: false,
       costUsd: 0,
-      wasRefused: false,
-      endedAs: 'ended',
+      // What is left when the session stops reading this turn at a yield, which is an interruption.
+      endedAs: 'aborted',
     };
     return turn;
   };
@@ -291,7 +318,6 @@ export function createTutorBrain({ model, profile = null, timeouts = TUTOR_TIMEO
       turn.hasAttemptText = true;
       turn.raw += seam + event.text;
       turn.reader.push(seam + event.text);
-      turn.hasModelWords = turn.hasModelWords || turn.reader.wordsThisTurn > 0;
       if (turn.wrongMath !== null) return 'wrongMath';
     }
     if (event.type === 'finished') {
@@ -301,13 +327,18 @@ export function createTutorBrain({ model, profile = null, timeouts = TUTOR_TIMEO
         turn.refusalCategory = event.refusalCategory;
         return 'refused';
       }
+      turn.wasStoppedByLength = event.stopReason === 'lengthLimit';
       return 'ended';
     }
     return null;
   };
 
   async function* runAttempt(turn: TurnWork): AsyncGenerator<Beat, AttemptEnd> {
+    if (turn.signal.aborted) return 'aborted';
     const attempt = new AbortController();
+    // Left as it is when the session stops reading this generator at a yield, which is an interruption too.
+    let end: AttemptEnd = 'aborted';
+    const endAs = (value: AttemptEnd) => (end = value);
     turn.attempts += 1;
     turn.hasAttemptText = false;
     turn.attemptUsage = null;
@@ -319,38 +350,53 @@ export function createTutorBrain({ model, profile = null, timeouts = TUTOR_TIMEO
     try {
       for (;;) {
         const result = await waitUntil(pending, getDeadlineMs(turn, attemptStartedAtMs, lastEventAtMs), turn.signal, getNowMs);
-        if (result === 'aborted') return 'aborted';
+        if (result === 'aborted') return endAs('aborted');
         if (result === 'deadline') {
-          if (turn.reader.isTurnOver) return 'ended';
-          if (turn.hasAttemptText) return 'stalledInText';
-          if (turn.hasSaidStillWorking || getNowMs() - attemptStartedAtMs >= timeouts.firstTextMs) return 'stalledBeforeText';
+          if (turn.reader.isTurnOver) return endAs('ended');
+          if (turn.hasAttemptText) return endAs('stalledInText');
+          if (turn.hasSaidStillWorking || getNowMs() - attemptStartedAtMs >= timeouts.firstTextMs) return endAs('stalledBeforeText');
           turn.hasSaidStillWorking = true;
           sayLine(turn, 'stillWorking');
           yield* takeReady(turn);
           continue;
         }
-        if (result.done) return 'ended';
+        if (result.done) return endAs('ended');
         lastEventAtMs = getNowMs();
-        const end = readEvent(turn, result.value);
+        const eventEnd = readEvent(turn, result.value);
         yield* takeReady(turn);
-        if (end) return end;
+        if (eventEnd) return endAs(eventEnd);
         pending = events.next();
       }
     } catch (error) {
-      if (turn.signal.aborted) return 'aborted';
-      trace('modelFailed', { problem: error instanceof Error ? error.message : String(error) });
-      return turn.hasAttemptText ? 'stalledInText' : 'failed';
+      if (turn.signal.aborted) return endAs('aborted');
+      const problem = error instanceof Error ? error.message : String(error);
+      if (error instanceof ModelRejectedError) {
+        trace('modelRejected', { problem });
+        return endAs('rejected');
+      }
+      trace('modelFailed', { problem });
+      return endAs(turn.hasAttemptText ? 'stalledInText' : 'failed');
     } finally {
       attempt.abort();
       pending.catch(() => {});
-      addAttemptUsage(turn);
+      void events.return?.(undefined).catch(() => {});
+      addAttemptUsage(turn, end);
     }
   }
 
-  // A stream cut short never reports its output, so its size is estimated from the text that arrived.
-  const addAttemptUsage = (turn: TurnWork) => {
-    if (!turn.attemptUsage) return;
-    const part = turn.isAttemptUsageFinal ? turn.attemptUsage : { ...turn.attemptUsage, outputTokens: Math.ceil(turn.raw.length / CHARACTERS_PER_TOKEN) };
+  // The part already cached is what the last request reported, and the rest of what was sent is new.
+  const getEstimatedRequestUsage = (turn: TurnWork): ModelUsage => {
+    const sentTokens = Math.ceil(JSON.stringify(getRequest(turn)).length / CHARACTERS_PER_TOKEN);
+    const cachedTokens = Math.min(promptTokens, sentTokens);
+    return { inputTokens: sentTokens - cachedTokens, outputTokens: 0, cacheReadTokens: cachedTokens, cacheWriteTokens: 0 };
+  };
+
+  // A stream cut short never reports its output, and one cut before its headers reports nothing, so those are estimated. A request the API turned away costs nothing.
+  const addAttemptUsage = (turn: TurnWork, end: AttemptEnd) => {
+    const wasCutBeforeReport = !turn.attemptUsage && (end === 'aborted' || end === 'stalledBeforeText');
+    if (!turn.attemptUsage && !wasCutBeforeReport) return;
+    const reported = turn.attemptUsage ?? getEstimatedRequestUsage(turn);
+    const part = turn.isAttemptUsageFinal ? reported : { ...reported, outputTokens: Math.ceil(turn.raw.length / CHARACTERS_PER_TOKEN) };
     turn.isUsageEstimated ||= !turn.isAttemptUsageFinal;
     turn.usage = addUsage(turn.usage, part);
   };
@@ -370,6 +416,7 @@ export function createTutorBrain({ model, profile = null, timeouts = TUTOR_TIMEO
     const problem = turn.wrongMath as string;
     turn.wrongMath = null;
     if (!canRetry) {
+      turn.raw = getWordsSaid(turn);
       sayLine(turn, 'mathStillWrong');
       return 'over';
     }
@@ -392,20 +439,65 @@ export function createTutorBrain({ model, profile = null, timeouts = TUTOR_TIMEO
     return 'retry';
   };
 
+  const finishAnswer = (turn: TurnWork): TurnStep => {
+    turn.reader.finish();
+    if (!turn.hasModelWords) {
+      turn.endedAs = 'noWords';
+      trace('noWords');
+      sayLine(turn, 'couldNotReply');
+    } else if (turn.reader.wasCutShort || turn.wasStoppedByLength) {
+      sayLine(turn, 'cutShort');
+    }
+    return 'over';
+  };
+
+  // Anthropic's page on refusals says to discard partial output, so what was not yet spoken goes unsaid, and none of it stays in history.
+  const handleRefusal = (turn: TurnWork): TurnStep => {
+    turn.reader.dropAttempt();
+    turn.raw = '';
+    sayLine(turn, turn.hasModelWords ? 'refusedAfterWords' : 'refused');
+    return 'over';
+  };
+
+  const startFromCleanHistory = (turn: TurnWork) => {
+    turns = [];
+    toldBoard = '{}';
+    if (profileNote && !pendingNotes.includes(profileNote)) pendingNotes = [profileNote, ...pendingNotes];
+    turn.notes = pendingNotes.map((note) => JSON.stringify(note));
+    turn.carriedNotes = pendingNotes.length;
+  };
+
+  // The first rejection may be the student's message, which is dropped. A second, on a clean message, blames the history. A third means nothing will get through.
+  const handleRejection = (turn: TurnWork): TurnStep => {
+    rejectionsInARow += 1;
+    if (rejectionsInARow === 1) {
+      sayLine(turn, 'couldNotReply');
+      return 'over';
+    }
+    if (rejectionsInARow === 2 && turns.length > 0) {
+      startFromCleanHistory(turn);
+      return 'retry';
+    }
+    closedReason = 'broken';
+    hasToldClosed = true;
+    sayLine(turn, 'broken');
+    return 'over';
+  };
+
   const handleEnd = (turn: TurnWork, end: AttemptEnd): TurnStep => {
     const canRetry = turn.attempts < MAX_ATTEMPTS;
     turn.endedAs = end;
     switch (end) {
       case 'aborted':
+      case 'noWords':
         return 'over';
       case 'ended':
-        turn.reader.finish();
-        return 'over';
+        return finishAnswer(turn);
       case 'refused':
-        turn.reader.closeAttempt();
-        turn.wasRefused = !turn.hasModelWords;
-        sayLine(turn, turn.hasModelWords ? 'refusedAfterWords' : 'refused');
-        return 'over';
+        return handleRefusal(turn);
+      case 'rejected':
+        turn.reader.dropAttempt();
+        return handleRejection(turn);
       case 'wrongMath':
         turn.reader.closeAttempt();
         return handleWrongMath(turn, canRetry);
@@ -413,11 +505,13 @@ export function createTutorBrain({ model, profile = null, timeouts = TUTOR_TIMEO
       case 'stalledInText':
       case 'failed':
         turn.reader.closeAttempt();
+        // A question that closed as the stream dropped has ended the turn, and a new request would be thrown away.
+        if (turn.reader.isTurnOver) return finishAnswer(turn);
         return handleStall(turn, end, canRetry);
     }
   };
 
-  const getAcceptedRaw = (turn: TurnWork) => turn.raw.slice(0, turn.raw.length - turn.reader.textAfterTurn.length).trim();
+  const getAcceptedRaw = (turn: TurnWork) => (turn.hasModelWords ? turn.raw.slice(0, turn.raw.length - turn.reader.textAfterTurn.length).trim() : '');
 
   const startCompactingIfNeeded = () => {
     if (isCompacting || promptTokens < compactAtTokens || turns.length <= TURNS_KEPT_AFTER_COMPACTING) return;
@@ -445,15 +539,19 @@ export function createTutorBrain({ model, profile = null, timeouts = TUTOR_TIMEO
 
   const finishTurn = (turn: TurnWork) => {
     turn.costUsd = turn.usage ? model.getCostUsd(turn.usage) : 0;
+    const wasRefused = turn.endedAs === 'refused';
     const text = getAcceptedRaw(turn);
     if (text !== '') {
       turns.push({ role: 'user', text: turn.studentText }, ...turn.notes.map((note) => ({ role: 'system' as const, text: note })), { role: 'assistant', text });
-      pendingNotes = [];
-    } else if (!turn.wasRefused) {
+      pendingNotes = pendingNotes.slice(turn.carriedNotes);
+    } else if (!wasRefused && turn.endedAs !== 'rejected') {
       turns.push({ role: 'user', text: turn.studentText });
     }
+    if (wasRefused && !pendingNotes.includes(DECLINED_NOTE)) pendingNotes.push(DECLINED_NOTE);
+    if (turn.endedAs === 'ended') rejectionsInARow = 0;
     lastBeats = turn.beats;
-    lastRefused = turn.refused;
+    lastRefused = wasRefused ? [] : turn.refused;
+    hidesLastWords = wasRefused;
     onTurnEnd?.({
       studentText: turn.studentText,
       spokenText: getWordsSaid(turn),
@@ -472,16 +570,40 @@ export function createTutorBrain({ model, profile = null, timeouts = TUTOR_TIMEO
     startCompactingIfNeeded();
   };
 
+  const profileLoading = loadProfile?.().then(
+    (loaded) => {
+      if (!loaded) return;
+      profileNote = toProfileNote(loaded);
+      pendingNotes.push(profileNote);
+    },
+    (error: unknown) => trace('profileFailed', { problem: String(error) }),
+  );
+
+  const closeIfSpent = (turn: TurnWork) => {
+    closedReason ??= getSpendLimit();
+    if (closedReason === null || hasToldClosed) return;
+    hasToldClosed = true;
+    trace('tutorClosed', { reason: closedReason });
+    sayLine(turn, closedReason);
+  };
+
   return {
     async *reply({ text }, signal) {
-      if (cleanStudentText(text) === '') return;
+      const studentText = cleanStudentText(text);
+      if (studentText === '') {
+        const said = parseBeat({ id: `t${turnCount}-unheard`, script: [pickLine('notHeard')], expectsReply: true });
+        if (said.ok) yield said.value;
+        return;
+      }
       await waitForLastTurn();
+      if (profileLoading) await Promise.race([profileLoading, delay(timeouts.profileWaitMs)]);
       isTurnRunning = true;
-      const turn = startTurn(cleanStudentText(text), signal);
+      const turn = startTurn(studentText, signal);
+      if (Array.from(studentText).length >= TYPED_TEXT_MAX_CHARACTERS) turn.notes.push(JSON.stringify(CLIPPED_NOTE));
       try {
-        if (isOverBudget()) {
-          trace('overBudget');
-          sayLine(turn, 'couldNotReply');
+        closeIfSpent(turn);
+        if (closedReason !== null) {
+          turn.endedAs = 'ended';
           yield* takeReady(turn);
           return;
         }
@@ -506,6 +628,7 @@ export function createTutorBrain({ model, profile = null, timeouts = TUTOR_TIMEO
     noteCut(wordsSent) {
       cutWordsSent = new Map([...wordsSent].map(([beatId, words]) => [(RESUMED_BEAT.exec(beatId)?.[1] ?? beatId) as BeatId, words]));
     },
+    getClosedReason: () => (hasToldClosed ? closedReason : null),
   };
 }
 

@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import type { CompactedHistory, ModelEvent, ModelStopReason, ModelUsage, TutorModelAdapter, TutorModelRequest, TutorTurn } from './types.ts';
+import { type CompactedHistory, type ModelEvent, ModelRejectedError, type ModelStopReason, type ModelUsage, type TutorModelAdapter, type TutorModelRequest, type TutorTurn } from './types.ts';
 
 interface ModelSettings {
   id: 'claude-sonnet-5-5' | 'claude-opus-5-5' | 'claude-haiku-5-5';
@@ -13,6 +13,8 @@ const COMPACTION_BETA = 'compact-2026-09-04';
 const MAX_REPLY_TOKENS = 1000;
 const MAX_SUMMARY_TOKENS = 4000;
 const TOKENS_PER_MILLION = 1_000_000;
+/** The request itself, or the key, is at fault, so sending it again fails the same way. */
+const PERMANENT_STATUSES: ReadonlySet<number> = new Set([400, 401, 403, 404, 413, 422]);
 
 // Sonnet turns thinking off with between_tools, because disabled is a 400, and Opus cannot turn it off.
 const MODEL_SETTINGS = {
@@ -87,7 +89,9 @@ export function makeAnthropicTutorModel({ name = 'sonnet-5-5', apiKey }: { name?
       const final = await messageStream.finalMessage();
       yield { type: 'finished', stopReason: toStopReason(final.stop_reason), refusalCategory: final.stop_details?.category ?? null, usage: toUsage(final.usage) };
     } catch (error) {
-      if (!getIsAbort(signal, error)) throw error;
+      if (getIsAbort(signal, error)) return;
+      if (error instanceof Anthropic.APIError && PERMANENT_STATUSES.has(error.status as number)) throw new ModelRejectedError(error.message);
+      throw error;
     }
   }
 
