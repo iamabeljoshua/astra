@@ -361,6 +361,21 @@ export const SCENE_LABELS = {
   tryAgain: 'Try again',
 };
 
+export const SCENE_LIBRARY_LABELS = {
+  title: 'A sample of the scene library',
+  another: 'Show another sample',
+  opening: 'Opening scene.',
+  deeper: 'Deeper scene.',
+  notChecked: 'Not yet checked by a person.',
+  flag: 'Flag this scene',
+  flagged: 'Flagged. No student sees it until someone has looked at it.',
+  showAgain: 'I looked at it. Show it again',
+  notForYou: 'This page is for the people who check our scenes.',
+  backHome: 'Back to Home',
+  couldNotLoad: "The sample didn't load. Reload the page to try again.",
+  sheetAlt: (title: string) => `Frames from the scene ${title}`,
+};
+
 export const ARTWORK_LABELS = {
   alchemist: 'Pieter Bruegel\'s engraving of an alchemist at work in a cluttered room',
   arc: 'A ball leaving a hand and travelling in an arc to a hoop',

@@ -258,8 +258,9 @@ describe('the API guard', () => {
     it('refuses no student route, because they are treated like any other student', async () => {
       const token = await testApp.supabaseAuth.signToken(randomUUID());
       await api().post('/me/birth-date').set('Authorization', `Bearer ${token}`).send({ birthDate: UNDER_EIGHTEEN_BIRTH_DATE, name: 'Tolu' }).expect(200);
+      // The scene library's reviewer routes refuse every student who is not a named reviewer, whatever their age, and scene-library.routes.spec.ts proves that.
       const routes = listRoutes(testApp.app).filter(
-        (route) => !PUBLIC_ROUTES.includes(route.name) && !SIGNED_IN_ROUTES.includes(route.name),
+        (route) => !PUBLIC_ROUTES.includes(route.name) && !SIGNED_IN_ROUTES.includes(route.name) && !route.name.includes('/scene-library/'),
       );
 
       const answers = await getRouteAnswers({ app: testApp.app, routes, token });
