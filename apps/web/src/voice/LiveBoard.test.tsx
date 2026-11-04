@@ -20,7 +20,7 @@ function makeVoiceWithBoard(script: readonly unknown[]) {
   player.receive({ type: 'beatClosed', turnId: TURN, beatId: parsed.value.id, wordCount: 2, expectsReply: false });
   player.tick();
   const reportMarkNotDrawn = vi.fn();
-  const voice = { getBoardNow: () => ({ board: player.getBoard(nowMs), atMs: nowMs }), getView: () => ({ isTutorSpeaking: false, isThinking: false, isHeard: false, closedBecause: null }), getLoudness: () => 0, sendPause: () => {}, reportMarkNotDrawn } as unknown as LiveVoice;
+  const voice = { getBoardNow: () => ({ board: player.getBoard(nowMs), atMs: nowMs }), getView: () => ({ tutorHeard: [], tutorComing: [], isTutorSpeaking: false, isThinking: false, isHeard: false, closedBecause: null }), getLoudness: () => 0, sendPause: () => {}, reportMarkNotDrawn } as unknown as LiveVoice;
   return { voice, reportMarkNotDrawn };
 }
 

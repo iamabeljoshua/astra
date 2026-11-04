@@ -319,11 +319,12 @@ const TASKS: VariantTable<Task, 'way'> = {
   tag: 'way',
   variants: {
     write: {
-      keys: ['kind', 'id', 'on', 'reads', 'accepts'],
+      keys: ['kind', 'id', 'on', 'reads', 'accepts', 'byHand'],
       read: (fields) => ({
         kind: 'task',
         id: readElementId(fields.at('id')),
         way: 'write',
+        ...fields.optional('byHand', readBoolean),
         ...fields.optional('on', readElementId),
         ...fields.optional('reads', (place) => readOneOf(place, WRITE_READINGS)),
         ...fields.optional('accepts', readDistinctChoices),
@@ -581,7 +582,7 @@ const COMMANDS: VariantTable<SceneCommand, 'kind'> = {
       read: (fields) => ({ kind: 'tangent', id: readElementId(fields.at('id')), target: readElementId(fields.at('target')) }),
     },
     task: {
-      keys: ['id', 'way', 'on', 'reads', 'accepts', 'answer', 'items', 'slots', 'seek'],
+      keys: ['id', 'way', 'on', 'reads', 'accepts', 'byHand', 'answer', 'items', 'slots', 'seek'],
       read: (fields) => readVariant<Task>(fields.place, TASKS),
     },
     boardMode: {

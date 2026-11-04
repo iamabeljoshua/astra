@@ -76,6 +76,7 @@ function RunningSession({ session }: { session: Session }) {
   const { seconds, endSession, isEnding, endProblem } = useSessionRun(session);
   const liveVoice = useLiveVoice({ sessionId: session.id });
   const { view, voice } = liveVoice;
+  const [tutorState, setTutorState] = useState<string | null>(null);
   const opening = useOpeningMessage(session, liveVoice.sendTyped);
   const { warm } = liveVoice;
   // A new session warmed its room when it was made, and one continued from Home has none yet.
@@ -86,7 +87,7 @@ function RunningSession({ session }: { session: Session }) {
 
   const picture = <Board artwork={findArtwork(session.artwork)} note={SESSION_LABELS.boardStandIn} />;
   return (
-    <SessionFrame facts={<SessionFacts subject={session.subject} seconds={seconds} />} action={<EndButton isEnding={isEnding} onEnd={() => void endSession()} />} problem={endProblem} isFullHeight>
+    <SessionFrame facts={<SessionFacts subject={session.subject} seconds={seconds} tutorState={tutorState} />} action={<EndButton isEnding={isEnding} onEnd={() => void endSession()} />} problem={endProblem} isFullHeight>
       <div className="board-stage">
         <div className="board-voice">
           <SessionTitle title={session.title} isQuiet={Boolean(voice)} />
@@ -99,7 +100,7 @@ function RunningSession({ session }: { session: Session }) {
           {view ? <BoardCaption heard={view.tutorHeard} coming={view.tutorComing} firstWord={view.firstWord} /> : <div className="flex flex-1 flex-col justify-end font-voice text-voice">{idleWords}</div>}
           <ReplyBox liveVoice={liveVoice} />
         </div>
-        {voice ? <LiveBoard voice={voice} visual={getSessionVisual(findArtwork(session.artwork))} onTalk={() => void liveVoice.toggleTalk()} isTalkOn={view?.mic === 'on'} canTalk={!view?.closedBecause} /> : <div className="board-panel">{picture}</div>}
+        {voice ? <LiveBoard voice={voice} onTutorState={setTutorState} visual={getSessionVisual(findArtwork(session.artwork))} onTalk={() => void liveVoice.toggleTalk()} isTalkOn={view?.mic === 'on'} canTalk={!view?.closedBecause} /> : <div className="board-panel">{picture}</div>}
       </div>
     </SessionFrame>
   );
@@ -134,11 +135,12 @@ function FinishedSession({ session }: { session: Session }) {
   );
 }
 
-function SessionFacts({ subject, seconds }: { subject: string; seconds: number }) {
+function SessionFacts({ subject, seconds, tutorState = null }: { subject: string; seconds: number; tutorState?: string | null }) {
   return (
     <>
       <span className="label min-w-0 wrap-anywhere text-ink-2">{subject}</span>
       <span className="label text-ink-2">{formatSessionLength(seconds)}</span>
+      {tutorState && <span data-testid="tutor-state" className="label text-ink-2">{tutorState}</span>}
     </>
   );
 }

@@ -249,6 +249,7 @@ export const BOARD_WORK_LABELS = {
   visualPutBack: 'Put the picture back in the corner. Your work is still there.',
   mathKeys: 'Math keys',
   hint: 'Type, write, or talk, words or math. Esc stops the tutor.',
+  tutorState: { ready: 'Ready', talking: 'Talking', reading: 'Reading your work', waiting: 'Waiting for you', watching: 'Watching', stopped: 'Stopped' },
   placeholder: 'Type or say it. Words or math.',
   readAs: 'Read as',
   kinds: { math: 'math', words: 'words', mixed: 'words and math', code: 'code' },

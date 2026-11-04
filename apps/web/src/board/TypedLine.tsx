@@ -10,7 +10,6 @@ const LOOKS_WITH_DRAFT_SECONDS = [3, 6, 10, 15, 25];
 const LOOKS_WITH_NO_DRAFT_SECONDS = [10, 20, 30, 45, 60, 90];
 
 export interface TypedLineHandle {
-  insert(text: string): void;
   setLine(line: string): void;
   focus(): void;
 }
@@ -50,13 +49,6 @@ export const TypedLine = memo(function TypedLine({ task, getBoard, onWork, onPau
   const reading = useMemo(() => (text.trim() === '' ? null : readLine(text, reads)), [text, reads]);
 
   useImperativeHandle(handleRef, () => ({
-    insert(key) {
-      const field = input.current;
-      const start = field?.selectionStart ?? text.length;
-      const end = field?.selectionEnd ?? text.length;
-      setText(`${text.slice(0, start)}${key}${text.slice(end)}`);
-      field?.focus();
-    },
     setLine(line) {
       setText(line);
       input.current?.focus();
@@ -64,7 +56,7 @@ export const TypedLine = memo(function TypedLine({ task, getBoard, onWork, onPau
     focus() {
       input.current?.focus({ preventScroll: true });
     },
-  }), [text]);
+  }), []);
 
   const send = useCallback(
     (line: string) => {

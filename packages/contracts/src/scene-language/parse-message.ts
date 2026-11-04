@@ -170,6 +170,14 @@ const BROWSER_MESSAGES: VariantTable<BrowserMessage, 'type'> = {
       keys: [...STAMP_KEYS, 'id', 'strokes', 'task'],
       read: (fields) => ({ type: 'inkDone', ...readBrowserStamp(fields), id: readElementId(fields.at('id')), strokes: readList(fields.at('strokes'), { maxLength: MOST_STROKES_IN_A_LINE, readItem: readElementId }), ...fields.optional('task', readElementId) }),
     },
+    inkPeek: {
+      keys: [...STAMP_KEYS, 'strokes'],
+      read: (fields) => ({ type: 'inkPeek', ...readBrowserStamp(fields), strokes: readList(fields.at('strokes'), { maxLength: MOST_STROKES_IN_A_LINE, readItem: readElementId }) }),
+    },
+    typing: {
+      keys: STAMP_KEYS,
+      read: (fields) => ({ type: 'typing', ...readBrowserStamp(fields) }),
+    },
     stopTutor: {
       keys: STAMP_KEYS,
       read: (fields) => ({ type: 'stopTutor', ...readBrowserStamp(fields) }),

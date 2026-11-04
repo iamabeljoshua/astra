@@ -512,6 +512,10 @@
     transform-origin: top left;
   }
 
+  .board-row-ink .board-row-wrapper {
+    width: 100%;
+  }
+
   .board-row-wrapper .katex {
     font-size: 1em;
   }
@@ -638,10 +642,51 @@
     width: 100%;
     height: auto;
     overflow: visible;
-    fill: none;
-    stroke: var(--color-ink);
-    stroke-linecap: round;
-    stroke-linejoin: round;
+    fill: var(--color-ink);
+  }
+
+  .board-session {
+    padding-bottom: var(--math-keys-height, 0);
+  }
+
+  .ML__keyboard {
+    --keyboard-background: var(--color-panel);
+    --keyboard-border: var(--color-line);
+    --keyboard-toolbar-text: var(--color-ink);
+    --keyboard-toolbar-text-active: var(--color-pen);
+    --keyboard-toolbar-background-hover: var(--color-paper);
+    --keyboard-accent-color: var(--color-pen);
+    --keycap-background: var(--color-paper);
+    --keycap-background-hover: var(--color-panel);
+    --keycap-text: var(--color-ink);
+    --keycap-text-active: var(--color-paper);
+    --keycap-secondary-background: var(--color-line);
+    --keycap-secondary-background-hover: var(--color-paper);
+    --keycap-secondary-text: var(--color-ink);
+    --keycap-shift-color: var(--color-pen);
+    --variant-panel-background: var(--color-paper);
+    --variant-keycap-text: var(--color-ink);
+    --box-placeholder-color: var(--color-pen);
+  }
+
+  .board-math-field {
+    flex: 1;
+    min-height: 46px;
+  }
+
+  .board-math-field math-field {
+    width: 100%;
+    border: 0;
+    border-bottom: 1px solid var(--color-ink);
+    outline: 0;
+    background: transparent;
+    color: var(--color-ink);
+    font-size: 28px;
+    --hue: 25;
+  }
+
+  .board-math-field math-field::part(menu-toggle) {
+    display: none;
   }
 
   .board-live-wrap {

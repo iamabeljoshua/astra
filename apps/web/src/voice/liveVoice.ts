@@ -20,6 +20,7 @@ const REJOIN_EVERY_MS = 2000;
 const REJOIN_AFTER_QUIET_MS = 3000;
 const TUTOR_ARRIVES_WITHIN_MS = 25_000;
 const INK_POINTS_IN_A_MESSAGE = 300;
+const TYPING_NOTED_EVERY_MS = 400;
 const LOUDNESS_WINDOW = 256;
 const MIDDLE_SAMPLE = 128;
 const LOUDEST_PEAK = 60;
@@ -50,6 +51,8 @@ export interface LiveVoiceView {
   /** Why the tutor will not speak again in this room, or null while it can. */
   closedBecause: TutorClosedReason | null;
   firstWord: string | null;
+  /** The student stopped the tutor, and it has not spoken since. */
+  isStopped: boolean;
   /** This page's room closed and it joined a new one, so the tutor now holds nothing of what was said. */
   startedFresh: boolean;
   studentLines: readonly StudentLine[];
@@ -84,7 +87,9 @@ export interface LiveVoice {
   reportMarkNotDrawn(markId: string): void;
   sendWork(work: StudentWork, startedMsAgo?: number): void;
   sendInkStroke(id: ElementId, points: readonly InkPoint[]): void;
+  sendInkPeek(strokes: readonly ElementId[]): void;
   sendInkDone(id: ElementId, strokes: readonly ElementId[], task: ElementId | null): void;
+  noteTyping(): void;
   movePoint(task: ElementId, x: number): void;
   sendPause(seconds: number, draft?: string): void;
   stopTutor(): void;
@@ -136,7 +141,8 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
   const decoder = new TextDecoder();
   const listeners = new Set<() => void>();
   const outbox: BrowserMessage[] = [];
-  let view: LiveVoiceView = { phase: 'connecting', mic: 'off', isSoundBlocked: audioContext.state !== 'running', isQuietWarning: false, isThinking: false, isHeard: false, isTutorSpeaking: false, closedBecause: null, firstWord: null, startedFresh: false, studentLines: [], tutorHeard: [], tutorComing: [] };
+  let typingNotedAtMs = -Infinity;
+  let view: LiveVoiceView = { phase: 'connecting', mic: 'off', isSoundBlocked: audioContext.state !== 'running', isQuietWarning: false, isThinking: false, isHeard: false, isTutorSpeaking: false, closedBecause: null, firstWord: null, isStopped: false, startedFresh: false, studentLines: [], tutorHeard: [], tutorComing: [] };
   let lastAgentPulseEpochMs: number | null = null;
   let isClosed = false;
   let hasHeardFirstOnset = false;
@@ -238,7 +244,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     if (message.type === 'turnStarted' && message.turnId in records.turnStartedEpochMs) {
       records.replayedTurns.push(message.turnId);
     } else if (message.type === 'turnStarted') {
-      setView({ firstWord: null });
+      setView({ firstWord: null, isStopped: false });
       records.turnStartedEpochMs[message.turnId] = getEpochMs();
       records.clockKinds.push(clock.getKind());
       currentTurnId = message.turnId;
@@ -471,6 +477,15 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
       player.addStudentOperations([{ kind: 'inkStroke', atMs, id, points }]);
       for (let start = 0; start < points.length; start += INK_POINTS_IN_A_MESSAGE) send({ type: 'acted', ...getStamp(), action: { action: 'inkStroke', id, points: points.slice(start, start + INK_POINTS_IN_A_MESSAGE) } });
     },
+    sendInkPeek(strokes) {
+      send({ type: 'inkPeek', ...getStamp(), strokes: [...strokes] });
+    },
+    noteTyping() {
+      const nowMs = clock.getNowMs();
+      if (nowMs - typingNotedAtMs < TYPING_NOTED_EVERY_MS) return;
+      typingNotedAtMs = nowMs;
+      send({ type: 'typing', ...getStamp() });
+    },
     sendInkDone(id, strokes, task) {
       showHeard();
       send({ type: 'inkDone', ...getStamp(), id, strokes: [...strokes], ...(task ? { task } : {}) });
@@ -484,6 +499,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
       return Math.min(1, peak / LOUDEST_PEAK);
     },
     stopTutor() {
+      setView({ isStopped: true });
       player.freeze();
       send({ type: 'stopTutor', ...getStamp() });
     },

@@ -101,6 +101,10 @@ export type BrowserMessage = BrowserStamp &
     | { type: 'paused'; seconds: number; draft?: string }
     /** The student has finished a handwritten line, whose strokes came as `acted`, so the agent can read it. */
     | { type: 'inkDone'; id: ElementId; strokes: ElementId[]; task?: ElementId }
+    /** The pen has rested a moment, so the agent can start reading these strokes before the line is done. */
+    | { type: 'inkPeek'; strokes: ElementId[] }
+    /** The student is typing or writing right now, at most a few times a second, so a reply can hold its first word. */
+    | { type: 'typing' }
     /** The student asked the tutor to stop talking. */
     | { type: 'stopTutor' }
     /** The board could not draw this mark, so the tutor is pointing at something the student cannot see. */

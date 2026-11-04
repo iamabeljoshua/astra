@@ -4,11 +4,12 @@ import type { LiveVoice } from '../voice/liveVoice';
 import { BOARD_WORK_LABELS } from '../strings';
 import { InkLine } from './InkLine';
 
+const PEN_PEEK_MS = 650;
 const PEN_COMMIT_MS = 2000;
 
 interface PenBandProps {
   task: Task | null;
-  voice: Pick<LiveVoice, 'sendInkStroke' | 'sendInkDone'>;
+  voice: Pick<LiveVoice, 'sendInkStroke' | 'sendInkPeek' | 'sendInkDone'>;
   nextLineId(): ElementId;
   onLineChange(lineId: ElementId | null): void;
   doneRef: RefObject<(() => void) | null>;
@@ -25,6 +26,8 @@ export function PenBand({ task, voice, nextLineId, onLineChange, doneRef, onWork
   const strokeStartedAt = useRef(0);
   const strokeCount = useRef(0);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const peekTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const getStrokeIds = (id: ElementId) => Array.from({ length: strokeCount.current }, (_, index) => getInkStrokeId(id, index));
 
   const getPoint = (event: React.PointerEvent): InkPoint => {
     const box = (band.current as HTMLDivElement).getBoundingClientRect();
@@ -34,9 +37,10 @@ export function PenBand({ task, voice, nextLineId, onLineChange, doneRef, onWork
 
   const finish = useCallback(() => {
     clearTimeout(timer.current);
+    clearTimeout(peekTimer.current);
     const id = lineId.current;
     if (!id) return;
-    voice.sendInkDone(id, Array.from({ length: strokeCount.current }, (_, index) => getInkStrokeId(id, index)), task?.id ?? null);
+    voice.sendInkDone(id, getStrokeIds(id), task?.id ?? null);
     lineId.current = null;
     strokeCount.current = 0;
     setStrokes([]);
@@ -50,11 +54,18 @@ export function PenBand({ task, voice, nextLineId, onLineChange, doneRef, onWork
     doneRef.current = finish;
   }, [doneRef, finish]);
 
-  useEffect(() => () => clearTimeout(timer.current), []);
+  useEffect(
+    () => () => {
+      clearTimeout(timer.current);
+      clearTimeout(peekTimer.current);
+    },
+    [],
+  );
 
   const start = (event: React.PointerEvent) => {
     event.preventDefault();
     clearTimeout(timer.current);
+    clearTimeout(peekTimer.current);
     band.current?.setPointerCapture(event.pointerId);
     if (!lineId.current) {
       lineId.current = nextLineId();
@@ -78,6 +89,7 @@ export function PenBand({ task, voice, nextLineId, onLineChange, doneRef, onWork
     strokeCount.current += 1;
     setStrokes([...strokes, drawing]);
     setDrawing(null);
+    peekTimer.current = setTimeout(() => voice.sendInkPeek(getStrokeIds(id)), PEN_PEEK_MS);
     timer.current = setTimeout(() => latestFinish.current(), PEN_COMMIT_MS);
   };
 

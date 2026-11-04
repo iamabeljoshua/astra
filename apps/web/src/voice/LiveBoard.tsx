@@ -5,7 +5,7 @@ import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import { getVisualPlace, type VisualPeek } from '../board/boardStage';
 import { BoardStageView } from '../board/BoardStageView';
 import { getBoardRows } from '../board/boardRows';
-import { MathKeys } from '../board/MathKeys';
+import { MathField } from '../board/MathField';
 import type { MarkWithoutTarget } from '../board/boardMarks';
 import { MovingDot } from '../board/MovingDot';
 import { PenBand } from '../board/PenBand';
@@ -13,6 +13,7 @@ import { SharedBoard } from '../board/SharedBoard';
 import { TypedLine, type TypedLineHandle, useNextLineId } from '../board/TypedLine';
 import { BOARD_WORK_LABELS, VOICE_LABELS } from '../strings';
 import { isVoiceOver, type LiveVoice } from './liveVoice';
+import { getTutorState } from './tutorState';
 
 const LINES_BEFORE_THE_HINT_GOES = 2;
 
@@ -73,13 +74,14 @@ function useDotTarget(board: BoardState, isTutorSpeaking: boolean) {
 interface LiveBoardProps {
   voice: LiveVoice;
   visual?: ReactNode;
+  onTutorState?(state: string | null): void;
   onTalk?: () => void;
   isTalkOn?: boolean;
   canTalk?: boolean;
 }
 
 // The board is a pure reading of the clock, so one read per frame is all it needs.
-export function LiveBoard({ voice, visual = null, onTalk, isTalkOn = false, canTalk = true }: LiveBoardProps) {
+export function LiveBoard({ voice, visual = null, onTalk, isTalkOn = false, canTalk = true, onTutorState }: LiveBoardProps) {
   const [frame, setFrame] = useState<BoardFrame>(() => voice.getBoardNow());
   const [activity, setActivity] = useState(0);
   const [isMathKeysOpen, setIsMathKeysOpen] = useState(false);
@@ -138,18 +140,39 @@ export function LiveBoard({ voice, visual = null, onTalk, isTalkOn = false, canT
     [voice],
   );
   const onPenWorking = useCallback(() => {
+    voice.noteTyping();
     watchLiveLine();
     setActivity((count) => count + 1);
-  }, [watchLiveLine]);
+  }, [voice, watchLiveLine]);
   const onTyping = useCallback(() => {
+    voice.noteTyping();
     watchLiveLine();
     if (isVisualBigNow.current) bringBoard();
-  }, [watchLiveLine, bringBoard]);
+  }, [voice, watchLiveLine, bringBoard]);
 
   const rows = getBoardRows(board);
   const task = getOpenTaskOnBoard(board);
   const hasWrittenBefore = rows.filter(({ element }) => element.content.kind === 'studentLine').length >= LINES_BEFORE_THE_HINT_GOES;
   const isThinking = (view.isThinking || rows.some(({ isBeingRead }) => isBeingRead)) && !view.closedBecause;
+  const sendKeyedLine = ({ text, tex }: { text: string; tex: string | null }) => {
+    sendWork({ way: 'write', id: nextLineId(), text, ...(task ? { task: task.id } : {}), ...(tex === null ? {} : { keyed: { tex, isUnsure: false } }) });
+  };
+  // A task says how to answer it, so the pen opens for a line to write by hand and closes for one to type.
+  const openedFor = useRef<ElementId | null>(null);
+  useEffect(() => {
+    if (!task || openedFor.current === task.id) return;
+    openedFor.current = task.id;
+    if (task.way !== 'write') return;
+    setIsMathKeysOpen(false);
+    setIsPenOpen(task.byHand === true);
+  }, [task]);
+  const tutorState = getTutorState(view, task !== null);
+  useEffect(() => onTutorState?.(tutorState), [onTutorState, tutorState]);
+  const getBand = () => {
+    if (isPenOpen) return <PenBand task={task} voice={voice} nextLineId={nextLineId} onLineChange={setLineInTheBand} doneRef={penDone} onWorking={onPenWorking} onFinished={closePen} />;
+    if (isMathKeysOpen) return <MathField onLine={sendKeyedLine} onTyping={onTyping} />;
+    return null;
+  };
   const tools = (
     <div className="board-tools" data-testid="board-tools">
       {canTalk && <button type="button" className="board-tool" aria-pressed={isTalkOn} onClick={onTalk}>{BOARD_WORK_LABELS.talk}</button>}
@@ -182,15 +205,17 @@ export function LiveBoard({ voice, visual = null, onTalk, isTalkOn = false, canT
       <button
         type="button"
         className="board-tool"
+        disabled={isVoiceOver(view.phase)}
         aria-pressed={isMathKeysOpen}
         onClick={() => {
+          if (isVisualBig) bringBoard();
           setIsPenOpen(false);
           setIsMathKeysOpen((isOpen) => !isOpen);
         }}
       >
         {BOARD_WORK_LABELS.mathKeys}
       </button>
-      {isMathKeysOpen ? <MathKeys onKey={(key) => typedLine.current?.insert(key)} /> : <span className="board-hint">{BOARD_WORK_LABELS.hint}</span>}
+      <span className="board-hint">{BOARD_WORK_LABELS.hint}</span>
       {lineInTheBand && <button type="button" className="board-tool-main ml-auto" data-testid="pen-done" onClick={() => penDone.current?.()}>{BOARD_WORK_LABELS.done}</button>}
     </div>
   );
@@ -220,7 +245,7 @@ export function LiveBoard({ voice, visual = null, onTalk, isTalkOn = false, canT
             hasWrittenBefore={hasWrittenBefore}
             nextLineId={nextLineId}
             isClosed={isVoiceOver(view.phase)}
-            band={isPenOpen ? <PenBand task={task} voice={voice} nextLineId={nextLineId} onLineChange={setLineInTheBand} doneRef={penDone} onWorking={onPenWorking} onFinished={closePen} /> : null}
+            band={getBand()}
           />
         }
       />

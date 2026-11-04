@@ -317,8 +317,8 @@ export type DragSeek = (typeof DRAG_SEEKS)[number];
  * Asks the student to do something, in any subject. Whatever the tutor gives as the answer lets code check the work. With no answer, the tutor reads the work and says only what it can stand behind.
  */
 export type Task = { kind: 'task'; id: ElementId } & (
-  /** Type lines of working, an answer, or code. `on` names the math line they work from. `accepts` holds short answers code may count as right. A line that matches none is not wrong. */
-  | { way: 'write'; on?: ElementId; reads?: WriteReading; accepts?: string[] }
+  /** Type lines of working, an answer, or code. `on` names the math line they work from. `accepts` holds short answers code may count as right. A line that matches none is not wrong. `byHand` opens the pen for them. */
+  | { way: 'write'; on?: ElementId; reads?: WriteReading; accepts?: string[]; byHand?: boolean }
   /** Pick parts of something on the board: terms of a math line or nodes of a diagram. */
   | { way: 'pick'; on: ElementId; answer?: string[] }
   /** Put an item in each slot, which covers steps in order, matching, and labels. `answer` holds the right item for each slot, in slot order. */

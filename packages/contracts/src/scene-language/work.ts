@@ -33,7 +33,16 @@ export interface InkReading {
 /** What the student did on the board. One way for each way a task can ask. */
 export type StudentWork =
   /** `task` names the task this line answers, if one is open on the student's board. */
-  | { way: 'write'; id: ElementId; text: string; task?: ElementId; ink?: InkReading; heard?: InkReading }
+  | {
+      way: 'write';
+      id: ElementId;
+      text: string;
+      task?: ElementId;
+      ink?: InkReading;
+      heard?: InkReading;
+      /** Set in the math keyboard, so the student's own math is what gets read. `text` holds the same line in plain characters. */
+      keyed?: InkReading;
+    }
   | { way: 'pick'; task: ElementId; part: string }
   /** Holds the item in each slot, or null for an empty slot, in the task's slot order. */
   | { way: 'place'; task: ElementId; placed: (string | null)[] }

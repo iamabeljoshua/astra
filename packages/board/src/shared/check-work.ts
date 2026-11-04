@@ -55,8 +55,8 @@ function getReaderLineReading(text: string, tex: string | undefined): LineReadin
   return tex === undefined ? { kind: 'words', parts: [{ type: 'words', text }], isAsking: /\?\s*$/.test(text) } : { kind: 'math', parts: [{ type: 'math', text, tex }], isAsking: false };
 }
 
-function checkWrite({ text, ink, heard }: StudentWork & { way: 'write' }, context: WorkContext): CheckedWork {
-  const read = ink ?? heard;
+function checkWrite({ text, ink, heard, keyed }: StudentWork & { way: 'write' }, context: WorkContext): CheckedWork {
+  const read = ink ?? heard ?? keyed;
   const { task } = context;
   const writeTask = task?.way === 'write' ? task : null;
   const reading = read ? getReaderLineReading(text, read.tex) : readLine(text, writeTask?.reads);

@@ -126,8 +126,8 @@ const STUDENT_WORK: VariantTable<StudentWork, 'way'> = {
   tag: 'way',
   variants: {
     write: {
-      keys: ['id', 'text', 'task', 'ink', 'heard'],
-      read: (fields) => ({ way: 'write', id: readElementId(fields.at('id')), text: clipTypedText(readString(fields.at('text'), LIMITS.text)), ...fields.optional('task', readElementId), ...fields.optional('ink', readInkReading), ...fields.optional('heard', readInkReading) }),
+      keys: ['id', 'text', 'task', 'ink', 'heard', 'keyed'],
+      read: (fields) => ({ way: 'write', id: readElementId(fields.at('id')), text: clipTypedText(readString(fields.at('text'), LIMITS.text)), ...fields.optional('task', readElementId), ...fields.optional('ink', readInkReading), ...fields.optional('heard', readInkReading), ...fields.optional('keyed', readInkReading) }),
     },
     pick: {
       keys: ['task', 'part'],

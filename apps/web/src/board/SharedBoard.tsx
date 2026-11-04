@@ -28,10 +28,10 @@ const getRowId = ({ element }: BoardRow) => getInkLineId(element.id) ?? (element
 // A handwritten line keeps its key through the reading, so its strokes do not flicker.
 const getRowKey = (row: BoardRow) => (row.inks.length > 0 ? `ink:${getRowId(row)}` : `${row.element.id}:${row.element.content.kind}`);
 
-function getRowClass({ element, isStruck }: BoardRow): string {
+function getRowClass({ element, isStruck, inks }: BoardRow): string {
   const { content } = element;
   const owner = content.kind === 'studentLine' ? `board-row-student ${content.reading.kind === 'math' ? '' : 'board-row-words'}` : content.kind === 'writeMath' || content.kind === 'text' ? 'board-row-tutor' : '';
-  return `board-row ${owner} ${isStruck ? 'board-row-struck' : ''}`;
+  return `board-row ${owner} ${inks.length > 0 ? 'board-row-ink' : ''} ${isStruck ? 'board-row-struck' : ''}`;
 }
 
 function RowContent({ row, onWork }: { row: BoardRow; onWork?: (work: StudentWork) => void }) {

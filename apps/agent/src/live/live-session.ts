@@ -119,6 +119,14 @@ const FEWEST_MS_BETWEEN_FREEZES = 5000;
 const BREATH_RECHECK_MS = 150;
 
 // Wires what the student does to what the tutor says. The rule decides, this runs its actions, and the voice line keeps every turn apart.
+async function* afterTypingStops(beats: AsyncGenerator<TutorBeat>, waitWhileTyping: () => Promise<void>): AsyncGenerator<TutorBeat> {
+  const first = await beats.next();
+  if (first.done) return;
+  await waitWhileTyping();
+  yield first.value;
+  yield* beats;
+}
+
 /** A breath is the agent's own timing, and the log holds only what played. */
 function toLoggedBeat(beat: TutorBeat): Beat {
   const logged = { ...beat };
@@ -381,7 +389,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       return;
     }
     stretchBeforeBreath = null;
-    reply = speak({ voiceToUse: voice, beats: readThought(waiting), isReply: true, canResume: true, kind: 'reply' });
+    reply = speak({ voiceToUse: voice, beats: afterTypingStops(readThought(waiting), boardWork.waitWhileTyping), isReply: true, canResume: true, kind: 'reply' });
   }
 
   // Aborting alone leaves a brain parked at its yield, and its turn would never finish, reach history, or be charged.
@@ -425,7 +433,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     const started: Thought = { controller, iterator: tutor.reply(request, controller.signal)[Symbol.asyncIterator](), unspoken: [], reading: null, latestReader: 0 };
     thought = started;
     setThinking(true);
-    reply = speak({ voiceToUse: voice, beats: readThought(started), isReply: true, canResume: true, kind: 'reply' });
+    reply = speak({ voiceToUse: voice, beats: afterTypingStops(readThought(started), boardWork.waitWhileTyping), isReply: true, canResume: true, kind: 'reply' });
   };
 
   const stopSpeech = (action: TurnAction & { do: 'stop' }) => {
@@ -574,6 +582,8 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       }
       if (message.type === 'stopTutor') stopSpeech({ do: 'stop', reason: 'typed', keepsThought: false });
       if (message.type === 'acted' && message.action.action === 'inkStroke') boardWork.onInkStroke(message.action);
+      if (message.type === 'inkPeek') boardWork.onInkPeek(message);
+      if (message.type === 'typing') boardWork.noteTyping();
       if (message.type === 'inkDone') void boardWork.onInkDone(message);
       if (message.type === 'worked') boardWork.onWorked(message);
       // Someone talking has not paused, whatever the keyboard says.

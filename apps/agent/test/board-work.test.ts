@@ -246,9 +246,10 @@ describe('the board work seam', () => {
     const readMeaning = vi.fn(async () => 'isThinking' as const);
     const send = vi.fn();
     const writeHeardLog = vi.fn();
+    const readStrokes = vi.fn(async () => ({ text: 'x = 4', ink: { tex: 'x=4', isUnsure: false } }));
     const readSpokenWords = vi.fn(async (): Promise<SpokenReading> => ({ kind: 'talk', costUsd: 0 }));
-    const seam = createBoardWork({ tutor: brain, writeLog, speakUp, isTutorTalking: () => overrides.isTutorTalking ?? false, getSecondsSinceQuestion: () => null, readMeaning, readStrokes: async () => ({ text: 'x = 4', ink: { tex: 'x=4', isUnsure: false } }), readSpokenWords, writeHeardLog, send, getNowMs: () => NOW.value, trace: () => {} });
-    return { brain, seam, speakUp, writeLog, readMeaning, send, writeHeardLog, readSpokenWords };
+    const seam = createBoardWork({ tutor: brain, writeLog, speakUp, isTutorTalking: () => overrides.isTutorTalking ?? false, getSecondsSinceQuestion: () => null, readMeaning, readStrokes, readSpokenWords, writeHeardLog, send, getNowMs: () => NOW.value, trace: () => {} });
+    return { brain, seam, speakUp, writeLog, readMeaning, send, writeHeardLog, readSpokenWords, readStrokes };
   }
   const worked = (work: StudentWork): BrowserMessage & { type: 'worked' } => ({ type: 'worked', clockId: 'c', browserMs: 1, startedMsAgo: 0, work });
   const paused = (seconds: number, draft?: string): BrowserMessage & { type: 'paused' } => ({ type: 'paused', clockId: 'c', browserMs: 1, startedMsAgo: 0, seconds, ...(draft ? { draft } : {}) });
@@ -261,6 +262,46 @@ describe('the board work seam', () => {
     seam.onWorked(worked(line('s2', '2x = 14', 'a1')));
     expect(speakUp).toHaveBeenCalledExactlyOnceWith('2x = 14');
     expect(writeLog).toHaveBeenCalledTimes(2);
+  });
+
+  it('reads the same strokes once, so a read begun at a rest is the one a finished line uses', async () => {
+    const { brain, seam, readStrokes } = setupSeam([SET_PROBLEM]);
+    await collect(brain, 'help');
+    seam.onInkStroke({ action: 'inkStroke', id: id('s1-0'), points: [[0.1, 0.1, 0]] });
+    seam.onInkPeek({ type: 'inkPeek', strokes: [id('s1-0')], clockId: 'c', browserMs: 1, startedMsAgo: 0 });
+    seam.onInkPeek({ type: 'inkPeek', strokes: [id('s1-0')], clockId: 'c', browserMs: 2, startedMsAgo: 0 });
+    await seam.onInkDone({ type: 'inkDone', id: id('s1'), strokes: [id('s1-0')], clockId: 'c', browserMs: 3, startedMsAgo: 0 });
+    expect(readStrokes).toHaveBeenCalledOnce();
+  });
+
+  it('refuses a page that claims to have read or heard a line itself', async () => {
+    const { brain, seam, writeLog } = setupSeam([SET_PROBLEM]);
+    await collect(brain, 'help');
+    seam.onWorked(worked({ way: 'write', id: id('s1'), text: 'x = 4', heard: { tex: 'x=4', isUnsure: false } }));
+    seam.onWorked(worked({ way: 'write', id: id('s2'), text: 'x = 4', ink: { tex: 'x=4', isUnsure: false } }));
+    expect(writeLog).not.toHaveBeenCalled();
+  });
+
+  it('checks a line set in the math keys by the math it holds', async () => {
+    const { brain, seam, writeLog } = setupSeam([SET_PROBLEM]);
+    await collect(brain, 'help');
+    seam.onWorked(worked({ way: 'write', id: id('s1'), text: '(2x)=14', task: id('a1'), keyed: { tex: '2x=14', isUnsure: false } }));
+    expect(writeLog.mock.calls[0]?.[1]).toMatchObject({ verdict: { status: 'wrong' } });
+  });
+
+  it('holds a reply while the hands are moving, and lets it go when they stop', async () => {
+    const { seam } = setupSeam([SET_PROBLEM]);
+    await expect(seam.waitWhileTyping()).resolves.toBeUndefined();
+    seam.noteTyping();
+    let isDone = false;
+    const waiting = seam.waitWhileTyping().then(() => {
+      isDone = true;
+    });
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    expect(isDone).toBe(false);
+    NOW.value += 1300;
+    await waiting;
+    expect(isDone).toBe(true);
   });
 
   it('says the nod code chose over a wrong line, once, and tells the tutor it was said', async () => {

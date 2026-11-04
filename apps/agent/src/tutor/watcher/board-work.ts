@@ -1,3 +1,4 @@
+import { setTimeout as delay } from 'node:timers/promises';
 import type { AgentMessage, BrowserMessage, ElementId, InkPoint, InkReading, StudentAction, StudentWork, Task } from '@astra/contracts';
 import { type CheckedWork, cleanStudentText, checkWorkOnBoard, getNod, getPickParts, type Nod, wantsSomethingElse } from '@astra/board/shared';
 import type { BoardElement } from '@astra/board';
@@ -29,6 +30,11 @@ interface Unanswered {
 }
 
 const MOST_STROKES_HELD = 400;
+const MOST_INK_READS = 300;
+const HOLD_WHILE_TYPING_MS = 1200;
+const HOLD_LOOKS_EVERY_MS = 50;
+/** Below the turn cap, so someone typing for a long time still gets the reply they are owed. */
+const LONGEST_HOLD_MS = 8000;
 /** A spoken line takes an id the page's own count will not reach, because the page and the agent both name lines. */
 const FIRST_SPOKEN_LINE = 1000;
 const NOT_READ = '(handwriting that could not be read)';
@@ -38,6 +44,9 @@ const getWorkKey = (work: StudentWork) => JSON.stringify(work.way === 'write' ? 
 // What the student does on the board: code checks it, notes it, logs it, and decides whether the tutor answers.
 export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getSecondsSinceQuestion, readMeaning, readStrokes, readSpokenWords, writeHeardLog, send, getNowMs, trace }: BoardWorkOptions) {
   let spokenLines = 0;
+  let inkReads = 0;
+  let latestInkRead: { key: string; reading: ReturnType<BoardWorkOptions['readStrokes']> | Promise<null> } | null = null;
+  let typedAtMs: number | null = null;
   let isAnsweringJudgedWork = false;
   let nodDue: Nod | null = null;
   const inkStrokes = new Map<string, InkPoint[]>();
@@ -45,6 +54,16 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
   let unanswered: Unanswered | null = null;
   let wrongKeys: readonly string[] = [];
   let hasLeanedIn = false;
+
+  const noteTyping = () => {
+    typedAtMs = getNowMs();
+  };
+
+  // A reply holds its first word while the student's hands are still moving, as a person beside them would.
+  const waitWhileTyping = async () => {
+    const startedMs = getNowMs();
+    while (typedAtMs !== null && getNowMs() - typedAtMs < HOLD_WHILE_TYPING_MS && getNowMs() - startedMs < LONGEST_HOLD_MS) await delay(HOLD_LOOKS_EVERY_MS);
+  };
 
   const takeNod = () => {
     const nod = nodDue;
@@ -58,13 +77,14 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
   };
 
   const onWorked = (message: BrowserMessage & { type: 'worked' }) => {
-    if (message.work.way === 'write' && message.work.ink) return trace('workRefused', { way: 'ink' });
+    if (message.work.way === 'write' && (message.work.ink || message.work.heard)) return trace('workRefused', { way: 'read by the agent' });
     takeWork(message);
   };
 
   const takeWork = (message: BrowserMessage & { type: 'worked' }, onTaken?: () => void) => {
     const noted = tutor.noteWork?.(message.work);
     if (!noted) return trace('workRefused', { way: message.work.way });
+    typedAtMs = null;
     onTaken?.();
     const { checked, hadTask } = noted;
     hasLeanedIn = false;
@@ -88,14 +108,29 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
     inkStrokes.set(action.id, [...(inkStrokes.get(action.id) ?? []), ...action.points]);
   };
 
-  // Takes a finished line as work once it is read, and a failed read still reaches the tutor.
-  const onInkDone = async ({ id, strokes, task, clockId, browserMs, startedMsAgo }: BrowserMessage & { type: 'inkDone' }) => {
-    const points = strokes.map((strokeId: ElementId) => inkStrokes.get(strokeId) ?? []);
-    strokes.forEach((strokeId) => inkStrokes.delete(strokeId));
-    const read = await readStrokes(points).catch((error: unknown) => {
+  // The same strokes are read once, so a read begun while the pen rests is the one a finished line uses.
+  const readInkOnce = (strokes: readonly ElementId[]) => {
+    const key = strokes.join();
+    if (latestInkRead?.key === key) return latestInkRead.reading;
+    if (inkReads >= MOST_INK_READS) return Promise.resolve(null);
+    inkReads += 1;
+    trace('inkReadStarted', { strokes: strokes.length });
+    const reading = readStrokes(strokes.map((strokeId) => inkStrokes.get(strokeId) ?? [])).catch((error: unknown) => {
       trace('inkReadFailed', { problem: String(error) });
       return null;
     });
+    latestInkRead = { key, reading };
+    return reading;
+  };
+
+  const onInkPeek = ({ strokes }: BrowserMessage & { type: 'inkPeek' }) => void readInkOnce(strokes);
+
+  // Takes a finished line as work once it is read, and a failed read still reaches the tutor.
+  const onInkDone = async ({ id, strokes, task, clockId, browserMs, startedMsAgo }: BrowserMessage & { type: 'inkDone' }) => {
+    trace('inkDone', { strokes: strokes.length });
+    const read = await readInkOnce(strokes);
+    trace('inkRead', { strokes: strokes.length });
+    strokes.forEach((strokeId) => inkStrokes.delete(strokeId));
     const work: StudentWork = { way: 'write', id, text: read?.text || NOT_READ, ...(task ? { task } : {}), ink: read?.ink ?? { isUnsure: true } };
     takeWork({ type: 'worked', clockId, browserMs, startedMsAgo, work }, () => send({ type: 'workRead', work }));
   };
@@ -188,7 +223,7 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
     if (decision.act === 'speak' && getGate(getSituation(seconds, draft)) === null) speakAtPause(decision, seconds, draft);
   };
 
-  return { onWorked, onPaused, onInkStroke, onInkDone, onSpoken, hasOpenTask: () => getOpenTask() !== null, canReactAloud: () => !isAnsweringJudgedWork && getOpenTask() === null, takeNod, noteAnswered };
+  return { onWorked, onPaused, onInkStroke, onInkPeek, onInkDone, noteTyping, waitWhileTyping, onSpoken, hasOpenTask: () => getOpenTask() !== null, canReactAloud: () => !isAnsweringJudgedWork && getOpenTask() === null, takeNod, noteAnswered };
 }
 
 function getSpokenParts(task: Task, board: { elements: ReadonlyMap<ElementId, BoardElement> } | undefined): SpokenPart[] {
