@@ -1,5 +1,6 @@
 import { type BoardElement, type BoardState, getMotionValue, type SliderMove } from '@astra/board';
-import { canWriteByHand, createFigurePainter, createInkPainter, createMathPainter, type DiagramTextLabel, drawDiagram, drawLabeledSheet, getFigureFit, getFigureMarks, type InkPainter, type LayoutBox, type MarkBox, type MathFontProblem, type MathPainter, type MeasureText, setLabelMeasure, type TermBoxes, type TermQuery, writeByHand, writeStyle } from '@astra/board/drawing';
+import { canWriteByHand, createFigurePainter, createInkPainter, createMathPainter, type DiagramTextLabel, drawDiagram, getFigureFit, getFigureMarks, type InkPainter, type LayoutBox, type MathFontProblem, type MathPainter, type MeasureText, setLabelMeasure, type TermBoxes, type TermQuery, writeByHand, writeStyle } from '@astra/board/drawing';
+import { drawLabeledSheet, type LabeledDrawing } from '@astra/board/drawing';
 import { BOARD_LABELS } from '../strings';
 import { createCodeItem, createTableItem, createTimelineItem } from './blockItems';
 import { createImageItem } from './imageItem';
@@ -183,8 +184,8 @@ function createDiagramItem(wrapper: HTMLElement, content: Extract<BoardElement['
 }
 
 function createDrawingItem(wrapper: HTMLElement, content: Extract<BoardElement['content'], { kind: 'drawing' }>): BoardItem {
-  let parts: ReadonlyMap<string, MarkBox> = new Map();
-  let whole: MarkBox = { x: 0, y: 0, width: 0, height: 0 };
+  let parts: LabeledDrawing['partBoxes'] = new Map();
+  let whole = { x: 0, y: 0, width: 0, height: 0 };
   const item = createInkItem({
     wrapper,
     label: (content.labels ?? []).map(({ text }) => text).join(', ') || content.name,

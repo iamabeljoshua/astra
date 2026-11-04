@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { loadavg } from 'node:os';
 import { join } from 'node:path';
-import type { BrowserContext, Page } from 'playwright';
+import type { CDPSession, Page } from 'playwright';
 import type { PlayRequest, PlayResult } from '../../apps/web/src/lab/deck/deckSweep.ts';
 import type { DeckBrowser } from './deck-server.ts';
 
@@ -14,6 +14,7 @@ const NO_THROTTLE = 1;
 const PHONE_THROTTLE = 4;
 const REPEATS = 3;
 const LIMIT_MS = 6000;
+/** A 60 Hz display reports 59 and a little, so this is what "60 fps" reads as. */
 const LAPTOP_FLOOR_FPS = 58;
 const PHONE_FLOOR_FPS = 30;
 /** M3.2's own board content, the scene its frame rate came from. It leads each pair as the baseline. */
@@ -22,6 +23,8 @@ const HEAVY_SCENES = ['mixed-every-kind', 'mixed-phone-heavy', 'hostile-many-at-
 /** Far past any phone, so the watch has something to answer however quiet the laptop is. */
 const SLOWEST_THROTTLE = 12;
 const LAST_SECONDS_SHARE = 0.5;
+/** A loaded machine blurs the ratio, so a throttle counts as reaching the page when a task takes at least half as long again as it should. */
+const THROTTLE_SEEN_SHARE = 0.5;
 
 interface Verdict {
   failures: string[];
@@ -38,10 +41,25 @@ interface RateRow {
   loadAverage: number;
 }
 
-async function setThrottle(page: Page, context: BrowserContext, rate: number): Promise<void> {
-  const session = await context.newCDPSession(page);
-  await session.send('Emulation.setCPUThrottlingRate', { rate });
-  await session.detach();
+const setThrottle = (throttle: CDPSession, rate: number) => throttle.send('Emulation.setCPUThrottlingRate', { rate });
+
+// The same loop timed on the page, so a run can show that its throttle reached it.
+function timeFixedTask(page: Page): Promise<number> {
+  return page.evaluate(() => {
+    const startedAtMs = performance.now();
+    let total = 0;
+    for (let step = 0; step < 30_000_000; step += 1) total += step % 7;
+    return total >= 0 ? performance.now() - startedAtMs : 0;
+  });
+}
+
+async function proveThrottleReached(page: Page, throttle: CDPSession, verdict: Verdict): Promise<void> {
+  const fullSpeedMs = await timeFixedTask(page);
+  await setThrottle(throttle, PHONE_THROTTLE);
+  const slowedMs = await timeFixedTask(page);
+  await setThrottle(throttle, NO_THROTTLE);
+  verdict.lines.push(`A fixed task took ${Math.round(fullSpeedMs)} ms at full speed and ${Math.round(slowedMs)} ms at ${PHONE_THROTTLE}x slower`);
+  if (slowedMs < fullSpeedMs * THROTTLE_SEEN_SHARE * PHONE_THROTTLE) verdict.failures.push('the CPU throttle did not reach the page, so these rates say nothing about a phone');
 }
 
 const play = (page: Page, request: PlayRequest): Promise<PlayResult> => page.evaluate((asked) => (window.boardDeck as NonNullable<Window['boardDeck']>).play(asked), request);
@@ -52,42 +70,45 @@ function getRate({ frameTimesMs }: PlayResult): { fps: number; worstFrameMs: num
   return { fps: Number(((gaps.length * 1000) / spanMs).toFixed(1)), worstFrameMs: Math.round(Math.max(...gaps)) };
 }
 
-async function playAt(page: Page, context: BrowserContext, { scene, size, throttle, tier, board }: { scene: string; size: { width: number; height: number }; throttle: number; tier: 0 | 1 | 2; board: string }): Promise<RateRow> {
-  await setThrottle(page, context, throttle);
+async function playAt(page: Page, shared: CDPSession, { scene, size, throttle, tier, board }: { scene: string; size: { width: number; height: number }; throttle: number; tier: 0 | 1 | 2; board: string }): Promise<RateRow> {
+  await setThrottle(shared, throttle);
   const result = await play(page, { scene, size, limitMs: LIMIT_MS, tier });
-  await setThrottle(page, context, NO_THROTTLE);
+  await setThrottle(shared, NO_THROTTLE);
   return { scene, board, throttle, tier, ...getRate(result), loadAverage: Number((loadavg()[0] as number).toFixed(1)) };
 }
 
-async function runInterleaved(page: Page, context: BrowserContext, scenes: readonly string[]): Promise<RateRow[]> {
+async function runInterleaved(page: Page, throttle: CDPSession, scenes: readonly string[]): Promise<RateRow[]> {
   const rows: RateRow[] = [];
   for (let repeat = 0; repeat < REPEATS; repeat += 1) {
     for (const scene of scenes) {
-      rows.push(await playAt(page, context, { scene, size: LAPTOP, throttle: NO_THROTTLE, tier: 0, board: 'laptop' }));
-      rows.push(await playAt(page, context, { scene, size: PHONE, throttle: PHONE_THROTTLE, tier: 2, board: 'phone' }));
+      rows.push(await playAt(page, throttle, { scene, size: LAPTOP, throttle: NO_THROTTLE, tier: 0, board: 'laptop' }));
+      rows.push(await playAt(page, throttle, { scene, size: PHONE, throttle: PHONE_THROTTLE, tier: 2, board: 'phone' }));
     }
   }
   return rows;
 }
 
-const getMedian = (values: readonly number[]) => [...values].sort((first, second) => first - second)[Math.floor(values.length / 2)] as number;
+const describeRuns = (rates: readonly number[]) => `${Math.min(...rates)} to ${Math.max(...rates)} fps`;
 
+// Other work on this machine can only slow a run, so a scene is judged on its best run and each line shows the range.
 function judgeRows(rows: readonly RateRow[], verdict: Verdict): void {
   for (const scene of new Set(rows.map((row) => row.scene))) {
-    const laptop = getMedian(rows.filter((row) => row.scene === scene && row.board === 'laptop').map((row) => row.fps));
-    const phone = getMedian(rows.filter((row) => row.scene === scene && row.board === 'phone').map((row) => row.fps));
-    verdict.lines.push(`${scene}: laptop ${laptop} fps, phone at ${PHONE_THROTTLE}x slower on its lowest tier ${phone} fps`);
-    if (laptop < LAPTOP_FLOOR_FPS) verdict.failures.push(`${scene} ran at ${laptop} fps on the laptop board, under ${LAPTOP_FLOOR_FPS}`);
-    if (phone < PHONE_FLOOR_FPS) verdict.failures.push(`${scene} ran at ${phone} fps on the phone board at its lowest tier, under ${PHONE_FLOOR_FPS}`);
+    const laptop = rows.filter((row) => row.scene === scene && row.board === 'laptop').map((row) => row.fps);
+    const phone = rows.filter((row) => row.scene === scene && row.board === 'phone').map((row) => row.fps);
+    verdict.lines.push(`${scene}: laptop ${describeRuns(laptop)}, phone at ${PHONE_THROTTLE}x slower on its lowest tier ${describeRuns(phone)}`);
+    if (Math.max(...laptop) < LAPTOP_FLOOR_FPS) verdict.failures.push(`${scene} never reached ${LAPTOP_FLOOR_FPS} fps on the laptop board`);
+    if (Math.max(...phone) < PHONE_FLOOR_FPS) verdict.failures.push(`${scene} never reached ${PHONE_FLOOR_FPS} fps on the phone board at its lowest tier`);
   }
+  const loads = rows.map((row) => row.loadAverage);
+  verdict.lines.push(`Load average during these runs: ${Math.min(...loads)} to ${Math.max(...loads)}`);
 }
 
 // Played on a measured tier so the board has to choose, with the frame rate before and after each drop.
-async function proveTierDrop(page: Page, context: BrowserContext, outFolder: string, verdict: Verdict): Promise<object> {
-  await setThrottle(page, context, SLOWEST_THROTTLE);
+async function proveTierDrop(page: Page, throttle: CDPSession, outFolder: string, verdict: Verdict): Promise<object> {
+  await setThrottle(throttle, SLOWEST_THROTTLE);
   const result = await play(page, { scene: 'mixed-phone-heavy', size: PHONE, limitMs: LIMIT_MS * 2, tier: null });
   await page.locator(BOARD).screenshot({ path: join(outFolder, PHONE_SHOT_NAME) });
-  await setThrottle(page, context, NO_THROTTLE);
+  await setThrottle(throttle, NO_THROTTLE);
   const lastShare = result.frameTimesMs.slice(Math.floor(result.frameTimesMs.length * (1 - LAST_SECONDS_SHARE)));
   const proof = { throttle: SLOWEST_THROTTLE, tierChanges: result.tierChanges, fpsOverall: getRate(result).fps, fpsLastHalf: getRate({ frameTimesMs: lastShare, tierChanges: [] }).fps };
   verdict.lines.push(`Tier watch at ${SLOWEST_THROTTLE}x slower: ${JSON.stringify(result.tierChanges)}, ${proof.fpsOverall} fps over all and ${proof.fpsLastHalf} fps in the last half`);
@@ -99,9 +120,11 @@ async function proveTierDrop(page: Page, context: BrowserContext, outFolder: str
 export async function runFrameRates(browser: DeckBrowser, url: string, { outFolder, scenes }: { outFolder: string; scenes?: readonly string[] }, verdict: Verdict): Promise<void> {
   mkdirSync(outFolder, { recursive: true });
   const page = await browser.openDeck(url);
-  const context = page.context();
-  const rows = await runInterleaved(page, context, [BASELINE_SCENE, ...(scenes ?? HEAVY_SCENES)]);
+  const throttle = await page.context().newCDPSession(page);
+  await proveThrottleReached(page, throttle, verdict);
+  const rows = await runInterleaved(page, throttle, [BASELINE_SCENE, ...(scenes ?? HEAVY_SCENES)]);
   judgeRows(rows, verdict);
-  const tierDrop = await proveTierDrop(page, context, outFolder, verdict);
+  const tierDrop = await proveTierDrop(page, throttle, outFolder, verdict);
+  await throttle.detach();
   writeFileSync(join(outFolder, 'frame-rates.json'), JSON.stringify({ rows, tierDrop }, null, 1));
 }

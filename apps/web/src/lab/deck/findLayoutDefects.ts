@@ -215,6 +215,7 @@ const isInside = (point: DOMPoint, box: Box, room: number) => point.x > box.left
 function findLineDefects(board: HTMLElement): Defect[] {
   return [...board.querySelectorAll<SVGSVGElement>('[data-element] svg')].flatMap((svg) => {
     const lines = [...svg.querySelectorAll<SVGPathElement>('path[data-ink="line"]')].map(getLinePoints);
+    if (lines.length === 0) return [];
     const id = svg.closest<HTMLElement>('[data-element]')?.dataset.element;
     const boxes = [...svg.querySelectorAll('path[data-ink="box"]')].map((box) => box.getBoundingClientRect());
     const labels = [...svg.querySelectorAll('text')].map((label) => ({ words: label.textContent ?? '', box: label.getBoundingClientRect() }));

@@ -43,10 +43,30 @@ The prototype's wave is a different image, a Commons scan of a reprint made betw
 | `launch.jpg` | The Saturn V launch of Apollo 11 on 16 July 1969. Credit NASA. | [NASA Image and Video Library, 7012482](https://images.nasa.gov/details/7012482) | NASA content has no copyright in the United States. NASA asks for credit, and its images must not imply that NASA endorses a product. |
 | `nebula.jpg` | *The Eagle Nebula Observed by WISE*, 2022. Credit NASA/JPL-Caltech. | [NASA Image and Video Library, PIA25433](https://images.nasa.gov/details/PIA25433) | NASA content has no copyright in the United States. NASA asks for credit, and its images must not imply that NASA endorses a product. |
 
+## Pictures on the board
+
+Each file is in `apps/web/public/board-art/`, at most 1,200 pixels on its longest side. These are the same works as the cards above, not cropped, so the tutor can show a whole picture. Add a row here and an entry in `IMAGE_ASSETS` and `ART_SIZES` when you add a picture.
+
+| File | Work | Source and status |
+| --- | --- | --- |
+| `great-wave.jpg` | Katsushika Hokusai, *Under the Wave off Kanagawa*, about 1830 to 1832 | The Met, JP1847, as `wave.jpg` above. Public domain. |
+| `school-of-athens.jpg` | Raphael, *The School of Athens*, 1509 to 1511 | Wikimedia Commons, as `athens.jpg` above, with the same note on the Vatican Museums' terms and Abel's choice of 3 November 2026. |
+| `saturn.jpg` | *The Day the Earth Smiled*, Cassini, 19 July 2013. Credit NASA/JPL-Caltech/SSI. | NASA PIA17172, as `saturn.jpg` above. No copyright in the United States. |
+| `storming-of-the-bastille.jpg` | Charles Thévenin, *The Storming of the Bastille on 14 July 1789*, 1790 | The Met, object 384288, as `bastille.jpg` above. Public domain. |
+| `death-of-socrates.jpg` | Jacques Louis David, *The Death of Socrates*, 1787 | The Met, object 436105, as `socrates.jpg` above. Public domain. |
+| `great-pyramid.jpg` | Francis Frith, *The Great Pyramid and The Great Sphinx*, 1858 | The Met, object 286141, as `pyramid.jpg` above. Public domain. |
+| `melencolia.jpg` | Albrecht Dürer, *Melencolia I*, 1514 | The Met, object 336228, as `melencolia.jpg` above. Public domain. |
+| `sunflowers.jpg` | Vincent van Gogh, *Sunflowers*, 1887 | The Met, object 436524, as `sunflowers.jpg` above. Public domain. |
+| `earthrise.jpg` | Earth over the Moon, Apollo 8, 24 December 1968. Credit NASA. | NASA as08-14-2383, as `earthrise.jpg` above. No copyright in the United States. |
+| `whole-earth.jpg` | The whole Earth, Apollo 17, 7 December 1972. Credit NASA. | NASA as17-148-22727, as `earth.jpg` above. No copyright in the United States. |
+
+NASA asks for credit, and its images must not imply that NASA endorses a product.
+
 ## Our own drawings
 
 We made these drawings for this product.
 
+- `packages/board/src/diagram/drawing-sheets.ts` holds the board's labelled drawings: `animal-cell`, `flower`, `water-cycle`, `atom`, `music-staff`, `piano-keys`, `globe`, and `lever`.
 - `apps/web/src/home/drawings.tsx` holds `arc`, `forces`, `growth`, and `helix`.
 - `apps/web/src/home/interestDrawings.tsx` holds a drawing for each of the 12 interest chips: `basketball`, `football`, `movies`, `gaming`, `music`, `art`, `space`, `cars`, `cooking`, `fashion`, `coding`, and `history`. No team, brand, or game appears in them.
 - `apps/web/src/ui/dots/planetDots.ts` and `apps/web/src/ui/dots/chartBackdrop.ts` draw the planet and the star chart on sign-in and onboarding.

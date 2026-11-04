@@ -1,4 +1,4 @@
-import { type BoardState, type QualityTier, createSampleClock, createScenePlayer, createTimerClock, describeBoard, type FiredCue, type OutputLevel, rebuildBoard, type SampleClock, type ScenePlayer } from '@astra/board';
+import { type BoardState, createSampleClock, createScenePlayer, createTimerClock, describeBoard, type FiredCue, type OutputLevel, rebuildBoard, type SampleClock, type ScenePlayer } from '@astra/board';
 import probeWorkletUrl from '@astra/board/audio-probe-worklet.js?url';
 import { type AgentMessage, type BrowserMessage, parseAgentMessage, parseSessionEvent, type SessionEvent } from '@astra/contracts';
 import { type RemoteTrack, Room, RoomEvent, Track } from 'livekit-client';
@@ -31,7 +31,7 @@ export interface LabRecords {
   turnsSent: string[];
   refused: string[];
   boardProblems: BoardProblem[];
-  qualityTiers: { ms: number; tier: QualityTier }[];
+  qualityTiers: { ms: number; tier: number }[];
 }
 
 export interface LabSession {
