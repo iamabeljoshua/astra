@@ -1,6 +1,6 @@
 import { type BoardOperation, getBoardAt } from '@astra/board';
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getMarksArea } from './boardRowPainting';
 import { SharedBoard } from './SharedBoard';
 
@@ -24,6 +24,32 @@ describe('the room a mark has', () => {
     };
     expect(topWhenScrolledBy(0)).toBe(-padding);
     expect(topWhenScrolledBy(900)).toBe(-padding);
+  });
+});
+
+describe('following a new row', () => {
+  const withBoardHeights = (client: number, scrollHeight: number) => {
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(client);
+    vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(scrollHeight);
+  };
+  const boardWithRows = (count: number) => getBoardAt(Array.from({ length: count }, (_, index) => table(`t${String.fromCharCode(97 + index)}`, 'x', index + 1)), LONG_AFTER);
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it('glides for a row or two, and jumps when the move is longer than a screen', () => {
+    withBoardHeights(600, 600);
+    const { container, rerender } = render(<SharedBoard board={boardWithRows(1)} atMs={LONG_AFTER} />);
+    const scroller = container.querySelector<HTMLElement>('.board-scroll') as HTMLElement;
+    withBoardHeights(600, 800);
+    rerender(<SharedBoard board={boardWithRows(2)} atMs={LONG_AFTER} />);
+    expect(scroller.style.scrollBehavior).toBe('');
+    withBoardHeights(600, 3000);
+    rerender(<SharedBoard board={boardWithRows(3)} atMs={LONG_AFTER} />);
+    expect(scroller.style.scrollBehavior).toBe('auto');
+    scroller.scrollTop = 2400;
+    withBoardHeights(600, 3200);
+    rerender(<SharedBoard board={boardWithRows(4)} atMs={LONG_AFTER} />);
+    expect(scroller.style.scrollBehavior).toBe('');
   });
 });
 
@@ -63,11 +89,20 @@ describe('the shared board', () => {
     expect([...container.querySelectorAll('th')].map((cell) => cell.textContent)).toEqual(['', 'Mitosis', 'Meiosis']);
   });
 
+  it('paints no broken numbers on a row with no width yet', () => {
+    const operations = [command({ kind: 'plot', id: 'wave', expression: 'sin(x)', domain: [-6, 6], label: 'one wave' }, 1), command({ kind: 'markValue', id: 'top', target: 'wave', at: 1.57, label: 'top' }, 2)];
+    const { container } = render(<SharedBoard board={getBoardAt(operations, LONG_AFTER)} atMs={LONG_AFTER} />);
+    expect(container.querySelector('[data-element="wave"]')).toBeTruthy();
+    expect(container.innerHTML).not.toContain('NaN');
+  });
+
   it('tells the tutor once when a curve turns too fast to draw', () => {
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(600);
     const onBoardProblem = vi.fn();
     const operations = [command({ kind: 'plot', id: 'fine', expression: 'sin(9000*x)', domain: [0, 100] }, 1)];
     const { rerender } = render(<SharedBoard board={getBoardAt(operations, LONG_AFTER)} atMs={LONG_AFTER} onBoardProblem={onBoardProblem} />);
     rerender(<SharedBoard board={getBoardAt(operations, LONG_AFTER + 1)} atMs={LONG_AFTER + 1} onBoardProblem={onBoardProblem} />);
     expect(onBoardProblem.mock.calls.filter(([{ kind }]) => kind === 'curveTooFine')).toEqual([[{ kind: 'curveTooFine', target: 'fine' }]]);
+    vi.restoreAllMocks();
   });
 });

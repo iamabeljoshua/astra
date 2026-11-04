@@ -13,8 +13,10 @@ const SHOT_SCALE = 0.25;
 const SHOT_QUALITY = 60;
 const AFTER_LAST_COMMAND_MS = 900;
 const STROBES = /strobe/;
-/** The boards that fill up and scroll furthest. A scroll is the one thing here the browser could run on its own clock, so these play on the real one too. */
-const LONG_BOARDS = ['hostile-widest-diagram', 'hostile-widest-timeline', 'hostile-many-at-once', 'math-board-fills-up', 'mixed-board-fills-and-moves-on', 'mixed-phone-heavy'];
+/** A smooth scroll runs on the real clock and this check steps a simulated one, so its frames would catch the page at unrelated places. The real scroll is measured on its own clock below. */
+const INSTANT_SCROLL = '.board-scroll { scroll-behavior: auto !important; }';
+/** The boards that fill up and scroll furthest, and ordinary lessons that fill one, played on the real clock with the real scroll. */
+const LONG_BOARDS = ['hostile-widest-diagram', 'hostile-widest-timeline', 'hostile-many-at-once', 'math-board-fills-up', 'mixed-board-fills-and-moves-on', 'mixed-phone-heavy', 'mixed-every-kind', 'mixed-live-whole-board'];
 const THEMES = ['dark', 'light'] as const;
 /** A stalled browser never answers, so a frame this late names itself and ends the run. */
 const FRAME_LIMIT_MS = 60_000;
@@ -128,16 +130,17 @@ async function runRealClockScrolls(page: Page, shots: CDPSession, scenes: readon
       frames += seen.frames;
       ms += Date.now() - startedAtMs;
       if (seen.flashes >= worst.flashes) worst = { flashes: seen.flashes, scene: name, theme, furthestPxInASecond: seen.furthestPxInASecond };
-      if (seen.flashes > MOST_FLASHES_IN_A_SECOND) verdict.failures.push(`${name} in ${theme} flashes ${seen.flashes} times in one second on the real clock, and the limit is ${MOST_FLASHES_IN_A_SECOND}`);
+      if (seen.flashes > MOST_FLASHES_IN_A_SECOND) verdict.failures.push(`${name} in ${theme} flashes ${seen.flashes} times in one second on the real clock with its real scroll, and the limit is ${MOST_FLASHES_IN_A_SECOND}`);
     }
   }
-  verdict.lines.push(`Real clock: ${LONG_BOARDS.length} long boards in both themes, ${frames} frames at ${Math.round((frames * 1000) / Math.max(ms, 1))} a second. Most flashes in a second: ${worst.flashes}, in ${worst.scene} ${worst.theme}, which scrolled ${Math.round(worst.furthestPxInASecond)} px in its fastest second`);
+  verdict.lines.push(`Real clock: ${LONG_BOARDS.length} long boards in both themes with the real scroll, ${frames} frames at ${Math.round((frames * 1000) / Math.max(ms, 1))} a second. Most flashes in a second: ${worst.flashes}, in ${worst.scene} ${worst.theme}, which scrolled ${Math.round(worst.furthestPxInASecond)} px in its fastest second`);
 }
 
 export async function runFlashCheck(page: Page, { isQuick, surface, only }: { isQuick: boolean; surface: DeckSurface; only?: readonly string[] }, verdict: Verdict): Promise<void> {
   const startedAtMs = Date.now();
   await page.setViewportSize(VIEWPORT);
   const shots = await page.context().newCDPSession(page);
+  const instantScroll = await page.addStyleTag({ content: INSTANT_SCROLL });
   const scenes = (await page.evaluate(() => window.boardDeck?.listScenes() ?? [])).filter(({ name }) => (only ? only.includes(name) : !isQuick || STROBES.test(name)));
   let frames = 0;
   let worst = { flashes: 0, scene: 'none', theme: 'none' };
@@ -153,6 +156,7 @@ export async function runFlashCheck(page: Page, { isQuick, surface, only }: { is
     }
   }
   verdict.lines.push(`Flash check: ${frames} frames across ${scenes.length} scenes in both themes in ${Math.round((Date.now() - startedAtMs) / 1000)} s. Most flashes in a second: ${worst.flashes}, in ${worst.scene} ${worst.theme}`);
+  await instantScroll.evaluate((style) => style.remove());
   if (!isQuick && surface === 'rows') await runRealClockScrolls(page, shots, scenes, verdict);
   await shots.detach();
 }

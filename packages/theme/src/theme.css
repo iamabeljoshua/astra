@@ -447,6 +447,8 @@
     flex: 1;
     overflow: hidden auto;
     padding: 40px calc(44px + var(--board-kept-clear, 0px)) 24px 44px;
+    scroll-behavior: smooth;
+    container-type: inline-size;
   }
 
   .board-visual {
@@ -564,6 +566,23 @@
     font-family: var(--font-voice);
     font-size: 19px;
     font-style: italic;
+  }
+
+  /* A narrow window with a scene in the corner leaves a row no room beside a 240 px gutter, so the gutter goes under it, as on a phone. */
+  @container (max-width: 400px) {
+    .board-row {
+      grid-template-columns: minmax(0, 1fr) auto;
+      column-gap: 10px;
+    }
+
+    .board-row-gutter {
+      grid-column: 1 / -1;
+      min-height: 0;
+    }
+
+    .board-row-gutter:empty {
+      display: none;
+    }
   }
 
   .board-row-note {

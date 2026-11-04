@@ -108,7 +108,11 @@ export function SharedBoard({ board, atMs, onWork, onMovePoint, onBoardProblem, 
 
   useEffect(() => {
     const scroll = scrollRef.current;
-    if (scroll) scroll.scrollTop = scroll.scrollHeight;
+    if (!scroll) return;
+    // Gliding further than a screen sweeps the whole board past the eye, which reached 4 flashes a second on the real clock.
+    const isLongMove = scroll.scrollHeight - scroll.clientHeight - scroll.scrollTop > scroll.clientHeight;
+    scroll.style.scrollBehavior = isLongMove ? 'auto' : '';
+    scroll.scrollTop = scroll.scrollHeight;
   }, [rowCount]);
 
   return (
