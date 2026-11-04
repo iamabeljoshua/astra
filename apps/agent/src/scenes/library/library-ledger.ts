@@ -24,10 +24,12 @@ type LedgerLine = ChargeLine | TryLine;
 
 export type LibraryLedger = ReturnType<typeof createLibraryLedger>;
 
-// A crash can tear the last line, and that costs at most one cent of counting.
+// A crash can tear the last line, and that costs at most one cent of counting. The next line starts fresh, so the tear costs only itself.
 function readLines(path: string): LedgerLine[] {
   if (!existsSync(path)) return [];
-  return readFileSync(path, 'utf8').split('\n').filter(Boolean).flatMap((line) => {
+  const text = readFileSync(path, 'utf8');
+  if (text !== '' && !text.endsWith('\n')) appendFileSync(path, '\n');
+  return text.split('\n').filter(Boolean).flatMap((line) => {
     try {
       return [JSON.parse(line) as LedgerLine];
     } catch {

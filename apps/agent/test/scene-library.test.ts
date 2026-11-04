@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -148,6 +148,17 @@ describe('a flagged library scene', () => {
     const made = await makeScene({ writers: [models.writer], reviewer: models.reviewer, worker: run.worker, store: run.store, warn: () => {} }, { topic: ENTRY.title, plan: PLAN });
     expect(made.isOk).toBe(false);
     expect(calls.writes).toBe(writesBefore);
+  });
+});
+
+describe('the library ledger after a sudden stop', () => {
+  it('loses only the torn line, and the next line still counts', () => {
+    const path = join(mkdtempSync(join(tmpdir(), 'library-ledger-')), 'ledger.jsonl');
+    createLibraryLedger(path).getUsageListener('seasons')({ role: 'writer', ...USAGE });
+    appendFileSync(path, '{"kind":"charge","entryId":"rain');
+    const restarted = createLibraryLedger(path);
+    restarted.getUsageListener('rainbow')({ role: 'writer', ...USAGE });
+    expect(createLibraryLedger(path).getTotalUsd()).toBeCloseTo(0.1);
   });
 });
 
