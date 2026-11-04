@@ -126,6 +126,7 @@ async function runSession(context: JobContext): Promise<void> {
     ...(hasTutorScenes()
       ? {
           onStudentTurn: () => scenes?.noteStudentTurn(),
+          onEnding: () => scenes?.close(),
           getOpeningScene: () => scenes?.getOpeningScene() ?? Promise.resolve(null),
           onLinkChange: (isUp: boolean) => scenes?.notePageLink(isUp),
           waitForPicture: () => scenes?.waitForPicture() ?? Promise.resolve(true),

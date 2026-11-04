@@ -51,6 +51,7 @@ export interface TutorScenes {
   noteTopic(title: string): void;
   notePageLink(isUp: boolean): void;
   waitForPicture(): Promise<boolean>;
+  /** The student pressed End or left, so nothing more is asked or lands. A scene already on screen can still come back to a reloaded page. */
   close(): void;
 }
 
@@ -104,6 +105,7 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
   let asksMade = 0;
   let hasHadStudentTurn = false;
   let isAfterSafetyReply = false;
+  let isOver = false;
   let lessonTitle: string | null = null;
   // The planner answers beside the reply, so a reply already being written has not heard the new title.
   let isTitleUnheard = false;
@@ -205,7 +207,7 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
 
   const ask = (topic: string) => {
     const key = topic.trim().toLowerCase();
-    if (device === 'cannotPlay' || isAfterSafetyReply || isClosed() || key === '' || topic.length > MOST_TOPIC_CHARACTERS || askedTopics.has(key) || asksMade >= MOST_ASKS_IN_A_SESSION) return;
+    if (isOver || device === 'cannotPlay' || isAfterSafetyReply || isClosed() || key === '' || topic.length > MOST_TOPIC_CHARACTERS || askedTopics.has(key) || asksMade >= MOST_ASKS_IN_A_SESSION) return;
     if (isTitleUnheard && lessonTitle !== null && !isSameTopic(topic, lessonTitle)) return trace('sceneOffTopic', { text: topic });
     if (current) end(current, 'replaced');
     if (waitingForDevice !== null) askedTopics.delete(waitingForDevice.trim().toLowerCase());
@@ -334,10 +336,12 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
       });
     },
     close() {
+      isOver = true;
+      waitingForDevice = null;
       if (current) end(current, 'studentLeft');
       giveOpening(null);
       settlePictureWaits(false);
-      for (const work of works) work.leave();
+      for (const work of works.splice(0)) work.leave();
     },
   };
 }

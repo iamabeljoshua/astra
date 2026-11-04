@@ -1,4 +1,4 @@
-import { type AgentMessage, type Beat, parseBeat } from '@astra/contracts';
+import { type AgentMessage, type Beat, parseBeat, type SessionRecap } from '@astra/contracts';
 import { initializeLogger, tts } from '@livekit/agents';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createLiveSession, type EarsEvent, type LiveSession } from '../src/live/live-session.ts';
@@ -50,9 +50,11 @@ afterEach(async () => {
   await Promise.all(sessions.splice(0).map((session) => session.close()));
 });
 
-function start({ failAfter = Infinity, reply = makeBeat('reply-1', 'one two three four five') } = {}) {
+function start({ failAfter = Infinity, reply = makeBeat('reply-1', 'one two three four five'), recap = null as SessionRecap | null } = {}) {
   const messages: AgentMessage[] = [];
   const onPause = vi.fn();
+  const onEnding = vi.fn();
+  const onEndingOver = vi.fn();
   const said: string[] = [];
   const tutor: TutorBrain = {
     async *reply({ text }) {
@@ -62,10 +64,10 @@ function start({ failAfter = Infinity, reply = makeBeat('reply-1', 'one two thre
   };
   const send = (message: AgentMessage) => void messages.push(message);
   const voice: tts.TTS = makeRenderedVoice({ name: 'fake', render: renderTone }).makeTts();
-  const session = createLiveSession({ messenger: { send, sendOnBothChannels: send }, line: createVoiceLine(makeOutput(failAfter)), voice, tutor, takes: createTakePicker(TAKES), allTakes: TAKES, setTurnCap: () => {}, onPause });
+  const session = createLiveSession({ messenger: { send, sendOnBothChannels: send }, line: createVoiceLine(makeOutput(failAfter)), voice, tutor, takes: createTakePicker(TAKES), allTakes: TAKES, setTurnCap: () => {}, onPause, onEnding, onEndingOver, writeRecap: async () => recap });
   sessions.push(session);
   const beatsSent = () => [...new Set(messages.flatMap((message) => (message.type === 'words' ? [message.beatId as string] : [])))];
-  return { session, messages, onPause, said, beatsSent };
+  return { session, messages, onPause, onEnding, onEndingOver, said, beatsSent };
 }
 
 const untilSent = async (read: () => string[], id: string) => {
@@ -152,5 +154,74 @@ describe('a scene turn in a live session', () => {
     expect(await untilSent(beatsSent, 'reply-1')).toContain('reply-1');
     expect(said).toEqual(['wait what is a slope']);
     expect(messages.some((message) => message.type === 'stop')).toBe(true);
+  });
+});
+
+describe('an End press with a scene on screen', () => {
+  const SCENE_WORDS = Array.from({ length: 60 }, (_, index) => `word${index}`).join(' ');
+  const RECAP: SessionRecap = { kind: 'lesson', covered: 'We watched a line climb.', gotRight: null, tryNext: 'Try a steeper one.' };
+  const STAMP = { clockId: 'page', browserMs: 0, startedMsAgo: 0 };
+
+  async function endDuringScene() {
+    const started = start({ recap: RECAP });
+    const { session, messages, beatsSent } = started;
+    session.speakScene([makeBeat('scene-a', SCENE_WORDS), makeBeat('scene-b', 'the rest of the scene', 50)]);
+    await untilSent(beatsSent, 'scene-a');
+    const turn = messages.find((message) => message.type === 'turnStarted');
+    if (turn?.type !== 'turnStarted') throw new Error('no turn');
+    session.onBrowser({ type: 'played', turnId: turn.turnId, beatId: 'scene-a' as Beat['id'], ...STAMP, wordStartsMs: Array.from({ length: 60 }, (_, index) => index * 10), durationMs: 2000, playedWords: 60, firedCueMs: [], ending: 'finished', frozen: [] });
+    session.onBrowser({ type: 'endingSession', ...STAMP });
+    return { ...started, turn };
+  }
+
+  it('tells the scenes first, so nothing pending can land', async () => {
+    const { onEnding } = await endDuringScene();
+    expect(onEnding).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops the scene\'s words, and the recap is what the student hears', async () => {
+    const { messages, beatsSent } = await endDuringScene();
+    await vi.waitFor(() => expect(messages.filter((message) => message.type === 'recap')).toEqual([{ type: 'recap', recap: RECAP }]));
+    await vi.waitFor(() => expect(beatsSent().some((id) => id.startsWith('recap'))).toBe(true), { timeout: 3000 });
+    expect(beatsSent()).not.toContain('scene-b');
+  });
+
+  it('takes no late scene, not while the recap plays and not after it', async () => {
+    const { session, onEndingOver, beatsSent } = await endDuringScene();
+    expect(session.isAtPause()).toBe(false);
+    expect(session.speakScene([makeBeat('late-a', 'a scene too late')])).toBe(false);
+    await vi.waitFor(() => expect(onEndingOver).toHaveBeenCalled(), { timeout: 8000 });
+    expect(session.isAtPause()).toBe(false);
+    expect(session.speakScene([makeBeat('late-b', 'a scene far too late')])).toBe(false);
+    await delay(50);
+    expect(beatsSent().filter((id) => id.startsWith('late'))).toEqual([]);
+  }, 12_000);
+
+  it('gives no held first line after a cut opening scene', async () => {
+    const said: string[] = [];
+    const messages: AgentMessage[] = [];
+    const send = (message: AgentMessage) => void messages.push(message);
+    const session = createLiveSession({
+      messenger: { send, sendOnBothChannels: send },
+      line: createVoiceLine(makeOutput()),
+      voice: makeRenderedVoice({ name: 'fake', render: renderTone }).makeTts(),
+      tutor: {
+        async *reply({ text }) {
+          said.push(text);
+          yield makeBeat('reply-1', 'the first line');
+        },
+      },
+      takes: createTakePicker(TAKES),
+      allTakes: TAKES,
+      setTurnCap: () => {},
+      getOpeningScene: async () => [makeBeat('scene-a', SCENE_WORDS)],
+    });
+    sessions.push(session);
+    session.onBrowser({ type: 'typed', text: 'Let us talk about slopes.', isOpening: true, ...STAMP } as never);
+    await vi.waitFor(() => expect(messages.some((message) => message.type === 'words')).toBe(true), { timeout: 3000 });
+    session.onBrowser({ type: 'endingSession', ...STAMP });
+    await delay(300);
+    expect(said).toEqual([]);
+    expect(messages.filter((message) => message.type === 'recap')).toEqual([{ type: 'recap', recap: null }]);
   });
 });
