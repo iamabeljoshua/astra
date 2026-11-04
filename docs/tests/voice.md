@@ -443,7 +443,7 @@ So 0 false prompts on quiet clips, and every noise from 0.025 up is caught withi
 | The room refusing a publish | The page said so, 0 live tracks, and the next press worked |
 | Leaving the page, a route change, and leaving while opening or starting | 0 live tracks, 0 senders |
 | Signed out in another tab | The tracks ended in 30 ms, and the job closed |
-| The room deleted at LiveKit | Ended, and a later press opened nothing |
+| The room deleted at LiveKit, during a hold of Space | The session did not end. The page stayed live for at least 20 s, still showing the microphone on, with 1 live track and 0 senders. Letting go turned it off, and a later press published again, with 1 live sender and 183 bytes moved |
 | A drop, with the microphone off, on, or turned off during it | Off stayed off, on stayed on, and on then off ended off with 0 senders |
 | A press during LiveKit's own retry, 3 runs | The press showed at once, and the track went out when the room came back, about 20 s after the cut |
 | 15 patterns of presses at the screen opening, from 0 to 3000 ms apart | Each ended where the count of presses says, and the next press turned it off |
@@ -507,6 +507,10 @@ Once the tutor is live, the reply box closes and the board's own **Talk** is the
 | Steady noise | The prompt came after 5.2 s with the microphone left on and nothing switched. 0 prompts from quiet, from speech, or from a second noise after **Dismiss** |
 | The invitation | In a first session, greeting, reply, then the invitation 1522 ms after the answer. Not after later answers, not after a reload, and not in a second session |
 | Hold **Talk** at 390 by 844, with touch emulated | Heard and answered. A tap stayed on, and a second tap went off. 0 characters selected, with `touch-action` and `user-select` both `none` |
+| Follow the prompt on a phone: at 390 by 844 with touch, tap **Talk** on, raise noise, then press and hold **Talk** | Noise stayed on at 0.02. The whole line was heard and answered on the first hold, `holdStarted` and `lineEnded` both ran, and the microphone was off at release with 0 live tracks and 0 bytes moved |
+| Follow the prompt after a mouse tap, with focus on **Talk**: hold Space | The same, on the first hold |
+| Follow the prompt with focus on the page: hold Space | The same, on the first hold. Noise at 0.05 afterward moved 0 bytes |
+| A short press with the microphone on | A 60 ms tap of **Talk** went off, and a 60 ms tap of Space on a focused **Talk** went off. A 60 ms tap of Space on the page stayed on. No hold began in the Space tap on the page |
 
 First word from the last sound, in ms, p50 (p95). The load average was about 25 in quiet and 18 to 25 in noise.
 
@@ -526,16 +530,17 @@ Word errors were 0 of 21 and 0 of 27 in noise. In quiet, a hold had 2 of 39 and 
 - The board's **Talk** toggled on a press and could not be held. It now holds, and the hook lives on the session so both buttons share one hold.
 - Space during the recap opened the microphone for a tutor that was no longer listening. It now opens nothing once the student presses End.
 - The merge brought back a greeting under a hold. `live-session.test.ts` caught it.
+- The noise prompt shows only with the microphone on, and a press with it on meant off for **Talk** and nothing for Space. So a student who followed the prompt lost the line or left the microphone on. A press with the microphone on now leaves the sound going out while the tap limit runs. Past the limit the press is a hold, and it closes on letting go. Short of it, **Talk** goes off and Space leaves it on. `FollowingTheNoisePrompt.test.tsx` failed on all three ways of following the prompt.
 
 **Not proven.** No real phone, no real microphone, and no real screen reader ran this. Headless touch emulation fired no `contextmenu` on a long press, so only `SpaceOnTheBoard.test.tsx` shows that the menu is stopped. While a writing task is open, focus sits in the board line, so Space types there and a student talks by holding **Talk**. A click with no press is ignored for 500 ms after any pointer lets go anywhere on the page. A proof that clicked Math keys and pressed Enter on **Talk** straight after got nothing, and the same step passed with a 600 ms wait, so that cause is an inference.
 
 ### How to try it
 
-Open a session and hold Space or **Talk**, speak, and let go. Do it again with music playing nearby, once with a hold and once with **Talk** pressed once, and listen for the tutor being cut. To hear the invitation, run `pnpm db:seed`, sign in as `tola@astra.test`, and wait through the first answer with nothing pressed.
+Open a session and hold Space or **Talk**, speak, and let go. Do it again with music playing nearby, once with a hold and once with **Talk** pressed once, and listen for the tutor being cut. To follow the noise prompt, press **Talk** once, make steady noise until the prompt shows, and do what it says. To hear the invitation, run `pnpm db:seed`, sign in as `tola@astra.test`, and wait through the first answer with nothing pressed.
 
 ### Numbers chosen, not measured
 
-The 300 ms tap limit, the 60 s hold limit, the 1.5 s wait before the invitation, the 2 cuts in 2 minutes, and the 500 ms that ties a click to its press are choices. Nothing here measured them against other values. A shorter tap limit cuts the tutor sooner and misreads more quick taps. A shorter hold limit cuts a long explanation.
+The 300 ms tap limit, the 60 s hold limit, the 1.5 s wait before the invitation, the 2 cuts in 2 minutes, and the 500 ms that ties a click to its press are choices. Nothing here measured them against other values. A shorter tap limit cuts the tutor sooner and misreads more quick taps. With the microphone on, the same limit tells a tap that turns it off from a hold. A shorter hold limit cuts a long explanation.
 
 ### What the privacy page says
 
