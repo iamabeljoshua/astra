@@ -175,6 +175,9 @@ A false line stays out. `1/x` is 2 pieces, `tan(x)` on [-5, 5] is 5, `tan(10*x)`
 | A move landing on a move | at most 521 to 584 pixels in one 16 ms step, against 192 to 511 on a plain move |
 | Bad commands refused | 15 of 15 at both widths, with 0 frames of text on text |
 | Reduced motion | 2 runs, 2,867 frames, and the ball in 5 places |
+| A word's timing, stored Chris, shot lesson | 3 runs, 39 of 39 cues fired, p95 29, 34, and 54 ms against a 100 ms rule, and on the slowest run 2 cues more than 40 ms early |
+| A word's timing, stored Chris, curves | 1 run, 13 of 13 cues fired, and p95 28 ms |
+| M3.3's math proof | 19 lesson runs, 20,596 frames, 0 frames overlapping or showing raw source or a wrong equation, and 0 of 664 replay moments differing. 2 writes with no cause on one phone run did not come back on a rerun |
 
 The review's own flight, with a slider, key presses, a stop, a drag while frozen, and a resize, gave 3 of 3 with the scale held and a frozen board still, 0 of 300 described moments differing, 0 of 60 screenshots differing, and 0 frames of text on text in 5,303 frames.
 
