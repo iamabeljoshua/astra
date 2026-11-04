@@ -1,4 +1,4 @@
-import { PROMPT_V2, TURN_NOTE_V2 } from './v2.ts';
+import { PROMPT_V2 } from './v2.ts';
 
 const TEACHING_THIS_STUDENT = `# Teaching this student
 
@@ -22,9 +22,8 @@ Picking up where it got hard.
 
 `;
 
-/** A memory note lost to the habit of opening on a task when this lived only in the prompt, so it sits beside each message like `length`. */
-export const TURN_NOTE_V3 = {
-  ...TURN_NOTE_V2,
+/** A memory note lost to the habit of opening on a task when this lived only in the prompt, so it sits beside the message like `length`. */
+export const FIT_NOTE_V3 = {
   fit: 'Only if a memory note covers what they just asked. struggled: say so kindly in a few words, then the plain idea, with no task yet. showed: one a notch harder, and say so.',
 };
 

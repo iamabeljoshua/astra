@@ -3,7 +3,7 @@ import { parseArgs } from 'node:util';
 import { readKey } from '../../keys.ts';
 import { makeAnthropicTutorModel } from '../../providers/anthropic.ts';
 import type { TutorTurn } from '../../providers/types.ts';
-import { PROMPT_VERSIONS, type PromptVersion } from '../prompt.ts';
+import { PROMPT_VERSIONS, type PromptVersion, type TutorPrompt } from '../prompt.ts';
 
 const QUESTIONS = ['Why is the sky blue?', 'How do black holes form?', 'What is a logarithm?', 'Why do we have seasons?', 'Solve 2x + 3 = 11', 'What caused the French Revolution?', 'How does a vaccine work?', 'What is 47 times 52?', 'Why does a ball slow down as it goes up?', 'What is photosynthesis?', 'How do planes fly?', 'What is a derivative?'];
 const NOTE = JSON.stringify({ student: { level: 'high_school', interests: ['basketball', 'space'], goal: 'exam' } });
@@ -19,8 +19,8 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Stops at the first word, because only the wait is measured, and that keeps the cost near a read of the cache.
 async function getFirstTextMs(model: ReturnType<typeof makeAnthropicTutorModel>, version: PromptVersion, question: string): Promise<number | null> {
-  const { system, turnNote } = PROMPT_VERSIONS[version];
-  const turns: TutorTurn[] = [{ role: 'user', text: question }, { role: 'system', text: NOTE }, { role: 'system', text: MEMORY_NOTE }, ...(turnNote ? [{ role: 'system' as const, text: JSON.stringify(turnNote) }] : [])];
+  const { system, turnNote, fitNote }: TutorPrompt = PROMPT_VERSIONS[version];
+  const turns: TutorTurn[] = [{ role: 'user', text: question }, { role: 'system', text: NOTE }, { role: 'system', text: MEMORY_NOTE }, ...[turnNote, fitNote].flatMap((note) => (note ? [{ role: 'system' as const, text: JSON.stringify(note) }] : []))];
   const controller = new AbortController();
   const startedAt = performance.now();
   for await (const event of model.stream({ system, turns }, controller.signal)) {

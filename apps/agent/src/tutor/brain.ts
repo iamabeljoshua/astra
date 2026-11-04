@@ -172,6 +172,8 @@ const BREATHS_MS = [300, 450, 350];
 /** A repeated opening of a few words is dropped only at the start of a retry, where it sounds like starting over, and a longer repeat anywhere. */
 const FEWEST_WORDS_IN_A_REPEAT = 4;
 const COMPACT_AT_TOKENS = 60_000;
+/** A lesson's start is set in its first replies, so the fit note stops there and adds nothing to a long session. */
+const TURNS_THAT_SET_THE_START = 2;
 const TURNS_KEPT_AFTER_COMPACTING = 8;
 const CHARACTERS_PER_TOKEN = 3.2;
 const NAMES_HELP = /\b(?:adult|emergency)\b/i;
@@ -244,6 +246,8 @@ const addUsage = (total: ModelUsage | null, part: ModelUsage): ModelUsage =>
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const holdsWhereToStart = ({ memory: { notes } }: MemoryNote) => notes.some(({ kind }) => kind === 'showed' || kind === 'struggled');
+
 const toProfileNote = ({ level, interests, goal }: StudentProfile) => ({ student: { level, interests, goal } });
 
 export function createTutorBrain({ model, profile = null, loadProfile, memory: knownMemory = null, loadMemory, onWorkNoted, timeouts: chosenTimeouts, trace = () => {}, onTurnEnd, onCompacted, compactAtTokens = COMPACT_AT_TOKENS, getSpendLimit = () => null, getNowMs = () => performance.now(), prompt = TUTOR_PROMPT, findSource }: TutorBrainOptions): Required<TutorBrain> {
@@ -260,6 +264,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
   const getBoardNow = () => getBoardAt(boardOperations, Number.POSITIVE_INFINITY);
   let toldBoard = '{}';
   let memoryNote: Record<string, unknown> | null = knownMemory ? { ...knownMemory } : null;
+  let canFitTheStart = knownMemory !== null && holdsWhereToStart(knownMemory);
   const getStandingNotes = () => [profileNote, memoryNote].filter((note) => note !== null);
   let pendingNotes: Record<string, unknown>[] = getStandingNotes();
   let lastBeats: readonly Beat[] = [];
@@ -323,7 +328,8 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     const nodded = hasNoddedSinceLastTurn;
     hasNoddedSinceLastTurn = false;
     let readerMemory = memory;
-    const turnNotes = [attempts.startTurn(studentText), prompt.turnNote].filter((note) => note !== null);
+    const fitNote = canFitTheStart && turnCount <= TURNS_THAT_SET_THE_START ? (prompt.fitNote ?? null) : null;
+    const turnNotes = [attempts.startTurn(studentText), prompt.turnNote, fitNote].filter((note) => note !== null);
     const turn: TurnWork = {
       id: turnCount,
       studentText,
@@ -807,6 +813,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
   const memoryLoading = loadMemory?.().then(
     (loaded) => {
       memoryNote = { ...loaded };
+      canFitTheStart = holdsWhereToStart(loaded);
       pendingNotes.push(memoryNote);
     },
     (error: unknown) => trace('memoryFailed', { problem: String(error) }),

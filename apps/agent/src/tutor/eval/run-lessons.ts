@@ -31,6 +31,7 @@ interface LessonTurn {
   firstTextMs: number | null;
   attempts: number;
   refused: readonly string[];
+  costUsd: number;
 }
 
 const EVAL_FOLDER = join(dirname(fileURLToPath(import.meta.url)), '../../../../../evals/tutor-turns');
@@ -121,6 +122,7 @@ async function runLesson(script: LessonScript, prompt: TutorPrompt, ledger: Retu
       firstTextMs: summary.firstTextMs && Math.round(summary.firstTextMs),
       attempts: summary.attempts,
       refused: summary.refused,
+      costUsd: summary.costUsd,
     });
     if (index === script.turns - 1) break;
     const { text, costUsd } = await askStudent({ system: `${STUDENT_RULES}\n\n${script.student}`, messages: getStudentMessages(script, turns), maxTokens: STUDENT_MAX_TOKENS });
@@ -149,6 +151,7 @@ function summarise(lessons: readonly (readonly LessonTurn[])[]) {
   const turns = lessons.flat();
   return {
     turns: turns.length,
+    tutorUsdPerTurn: turns.reduce((sum, turn) => sum + turn.costUsd, 0) / Math.max(1, turns.length),
     firstTextMs: { p50: percentile(turns.flatMap((turn) => turn.firstTextMs ?? []), 0.5), p95: percentile(turns.flatMap((turn) => turn.firstTextMs ?? []), 0.95) },
     wordsPerReply: { p50: percentile(turns.map((turn) => turn.words), 0.5), p95: percentile(turns.map((turn) => turn.words), 0.95), worst: percentile(turns.map((turn) => turn.words), 1) },
     longestStretch: { p50: percentile(turns.map((turn) => turn.longestStretchWords), 0.5), p95: percentile(turns.map((turn) => turn.longestStretchWords), 0.95), worst: percentile(turns.map((turn) => turn.longestStretchWords), 1) },
