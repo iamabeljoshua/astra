@@ -453,6 +453,30 @@ describe('a drop just after the agent finished a stretch, while the page still p
     expect(spokenIn(messages, 'first-r')).toEqual(['two', 'three', 'four']);
   }, 30_000);
 
+  it('replays a whole stretch whose turn never reached the page, because the voice having left the agent does not mean it was heard', async () => {
+    const { browser, messages, traces } = await setUpStretches();
+    await until(() => spokenIn(messages, 'second').length === 4);
+    const before = spokenIn(messages, 'second').length;
+    browser({ type: 'audioState', isRunning: false, ...STAMP });
+    browser({ type: 'audioState', isRunning: true, ...STAMP });
+    await until(() => traces.some(({ name }) => name === 'resumeStarted') && spokenIn(messages, 'second').length >= before + 4);
+    expect(spokenIn(messages, 'second').slice(before)).toEqual(['five', 'six', 'seven', 'eight']);
+  }, 30_000);
+
+  it('replays a later beat of a cut stretch whole when the page has not reported it', async () => {
+    const harness = start({ tutorBeats: [FIRST, makeBeat('middle', 'nine ten eleven twelve'), SECOND] });
+    harness.browser({ type: 'audioState', isRunning: true, ...STAMP });
+    await harness.say('Show me a long answer');
+    await until(() => harness.traces.some(({ name, fields }) => name === 'turnFinished' && fields.kind === 'reply'));
+    const replyTurn = harness.traces.find(({ name, fields }) => name === 'turnFinished' && fields.kind === 'reply')?.fields.turnId as TurnId;
+    harness.browser({ type: 'played', turnId: replyTurn, beatId: FIRST.id, wordStartsMs: [0, 280], durationMs: 560, playedWords: 2, firedCueMs: [], ending: 'interrupted', frozen: [], ...STAMP });
+    harness.browser({ type: 'audioState', isRunning: false, ...STAMP });
+    harness.browser({ type: 'audioState', isRunning: true, ...STAMP });
+    await until(() => spokenIn(harness.messages, 'second').length > 0);
+    expect(spokenIn(harness.messages, 'first-r')).toEqual(['two', 'three', 'four']);
+    expect(spokenIn(harness.messages, 'middle').slice(4)).toEqual(['nine', 'ten', 'eleven', 'twelve']);
+  }, 30_000);
+
   it('replays nothing when the page played it all', async () => {
     const { browser, traces } = await setUpStretches();
     const replyTurn = traces.find(({ name, fields }) => name === 'turnFinished' && fields.kind === 'reply')?.fields.turnId as TurnId;

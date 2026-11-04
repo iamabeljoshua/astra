@@ -110,6 +110,13 @@ const STILL_PLAYING_AT_PAGE_MS = 3000;
 /** How often a breath checks whether a student who started talking has stopped. */
 const BREATH_RECHECK_MS = 150;
 
+/** A breath is the agent's own timing, and the log holds only what played. */
+function toLoggedBeat(beat: TutorBeat): Beat {
+  const logged = { ...beat };
+  delete logged.pauseBeforeMs;
+  return logged;
+}
+
 // Wires what the student does to what the tutor says. The rule decides, this runs its actions, and the voice line keeps every turn apart.
 export function createLiveSession({ messenger, line, voice, tutor, takes, allTakes, setTurnCap, onQuietLimit = () => {}, quietLimitMs = QUIET_ROOM_LIMIT_MS, getNowMs = getSteadyNowMs, trace = () => {} }: LiveSessionOptions): LiveSession {
   const startedAtMs = getNowMs();
@@ -177,7 +184,10 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
 
   const log = createSessionLog({
     getNowMs: () => getNowMs() - startedAtMs,
-    getBeat: (turnId, beatId) => beatsByTurn.get(turnId)?.find((beat) => beat.id === beatId),
+    getBeat(turnId, beatId) {
+      const found = beatsByTurn.get(turnId)?.find((beat) => beat.id === beatId);
+      return found && toLoggedBeat(found);
+    },
     onRefused: (problem) => trace('reportRefused', { problem }),
   });
 
@@ -258,8 +268,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
         // The voice cannot be late before it has words, so a slow model is never read as a failed voice.
         onBeatUnspoken: (beat) => void ownThought?.unspoken.unshift(beat),
         onBeatStarted(beat) {
-          // Only what a beat is goes in the log, because the log refuses anything else.
-          speakingBeats.push({ id: beat.id, script: beat.script, expectsReply: beat.expectsReply });
+          speakingBeats.push(beat);
           if (isReply && speakingBeats.length === 1) setThinking(false);
           if (canResume && (speakingBeats.length === 1 || speaking.isDry)) watchVoice(speaking);
         },
@@ -406,11 +415,14 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     dispatch({ type: 'linkLost', wasPlayingAtPage: unfinished !== null });
   };
 
-  // The page reports what it could not play from a stretch the agent had finished, and a beat with no report was not cut.
+  // The page keeps its reports through a drop and sends them as it comes back, so after the wait a beat with no report never played there. What left the agent says nothing about what was heard.
+  const getUnheardBeats = (speaking: Speaking, resumeTag: string, beats: readonly Beat[] = speaking.beats) => getResumeBeats({ beats, reports: speaking.reports, wordsSent: new Map(), resumeTag });
+
+  // An earlier stretch has played to its end unless the page says it was cut, because a stretch with no report may simply be late.
   const getEndOfLastStretch = (stretch: Speaking | null, resumeTag: string): Beat[] => {
     if (!stretch) return [];
-    const cutBeats = stretch.beats.filter((beat) => stretch.reports.has(beat.id) && stretch.reports.get(beat.id)?.ending !== 'finished');
-    return getResumeBeats({ beats: cutBeats, reports: stretch.reports, wordsSent: stretch.spoken.getWordsSent(), resumeTag });
+    const firstCut = stretch.beats.findIndex((beat) => stretch.reports.has(beat.id) && stretch.reports.get(beat.id)?.ending !== 'finished');
+    return firstCut < 0 ? [] : getUnheardBeats(stretch, resumeTag, stretch.beats.slice(firstCut));
   };
 
   const resume = async () => {
@@ -427,7 +439,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     while ((!hasEveryReport(cutTurn) || (earlierStretch && !hasEveryReport(earlierStretch))) && getNowMs() < deadline) await delay(REPORT_POLL_MS);
     if (ticket !== resumeTicket) return;
     const resumeTag = `r${turnCount}`;
-    const beats = [...getEndOfLastStretch(earlierStretch, resumeTag), ...getResumeBeats({ beats: cutTurn.beats, reports: cutTurn.reports, wordsSent: cutTurn.spoken.getWordsSent(), resumeTag })];
+    const beats = [...getEndOfLastStretch(earlierStretch, resumeTag), ...getUnheardBeats(cutTurn, resumeTag)];
     trace('resumeStarted', { fromTurn: cutTurn.turnId, beats: beats.length, reported: hasEveryReport(cutTurn) });
     if (beats.length === 0 && !thought) return dispatch({ type: 'tutorFinished' });
     reply = speak({ voiceToUse: voice, beats: getResumedThen(beats, thought), isReply: true, canResume: true, kind: 'resume' });
