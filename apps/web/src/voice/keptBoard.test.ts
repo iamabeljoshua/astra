@@ -43,7 +43,7 @@ describe('a board kept across a reload', () => {
   });
 
   it('drops the ink before it gives up the board, when the store cannot hold it all', () => {
-    const points = Array.from({ length: 200_000 }, (_, index) => ({ x: index, y: index, t: index }));
+    const points = Array.from({ length: 200_000 }, (_, index): [number, number, number] => [index, index, index]);
     keepBoard('room-e', [...getPageBefore(), { kind: 'inkStroke', atMs: 96_000, id: 'k1' as ElementId, points }]);
     expect(getKeptBoard('room-e').map(({ kind }) => kind)).toEqual(['command', 'worked']);
   });
