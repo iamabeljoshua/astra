@@ -82,14 +82,14 @@ afterEach(async () => {
 });
 
 // Records each thing a session's one voice track and its data channels see, in order, with the time.
-function createWatchedLine({ playoutMs = 0 } = {}) {
+function createWatchedLine({ playoutMs = 0, frameMs = 1 } = {}) {
   const events: { kind: 'frame' | 'cleared' | 'playedOut' | 'message'; turnId?: string; type?: string; atMs: number }[] = [];
   const note = (event: Omit<(typeof events)[number], 'atMs'>) => events.push({ ...event, atMs: performance.now() });
   const line = createVoiceLine({
     sampleRate: FAKE_SAMPLE_RATE,
     captureFrame: async () => {
       note({ kind: 'frame' });
-      await delay(1);
+      await delay(frameMs);
     },
     clearQueue: () => note({ kind: 'cleared' }),
     waitForPlayout: async () => {
@@ -114,7 +114,7 @@ describe('turns on one voice line', () => {
     const { turn, getTurnStartedAtMs } = createWatchedLine();
     const startedAtMs = performance.now();
     await turn('t1').finished;
-    expect(getTurnStartedAtMs('t1')).toBeLessThan(startedAtMs + 20);
+    expect(getTurnStartedAtMs('t1')).toBeLessThan(startedAtMs + TURN_SILENCE_MS);
   });
 
   it('resolves finished only once the audio has played out', async () => {
@@ -126,7 +126,7 @@ describe('turns on one voice line', () => {
   it('leaves the silence before a turn started on the last one finishing, and holds its messages with its audio', async () => {
     const { events, turn, getTurnStartedAtMs } = createWatchedLine();
     await turn('t1').finished;
-    const lastAudioGoneAtMs = performance.now();
+    const lastAudioGoneAtMs = events.findLast((event) => event.kind === 'playedOut')?.atMs as number;
     const framesOfFirstTurn = events.filter((event) => event.kind === 'frame').length;
     await turn('t2').finished;
     const firstFrameOfSecondTurn = events.filter((event) => event.kind === 'frame')[framesOfFirstTurn];
@@ -136,11 +136,11 @@ describe('turns on one voice line', () => {
   });
 
   it('leaves the silence after a stop, however soon the next turn starts', async () => {
-    const { events, turn, getTurnStartedAtMs } = createWatchedLine();
+    const { events, turn, getTurnStartedAtMs } = createWatchedLine({ frameMs: 20 });
     const first = turn('t1');
     await delay(30);
-    first.stop();
     const stoppedAtMs = performance.now();
+    first.stop();
     await delay(30);
     const framesBefore = events.filter((event) => event.kind === 'frame').length;
     await turn('t2').finished;

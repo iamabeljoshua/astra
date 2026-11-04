@@ -154,13 +154,11 @@ describe('a new turn', () => {
     expect(played(audio).map(({ ending }) => ending)).toEqual(['finished']);
   });
 
-  it('leaves a moving scene alone when the turn it replaces had finished every beat', () => {
+  it('leaves a drawing still moving alone when every beat of the turn it replaces was heard', () => {
     const audio = createFakeAudio();
-    audio.receive(started, cue(0), words(), beatClosed());
+    audio.receive(started, cue(2), words(), beatClosed());
     audio.startSound();
     audio.advance(520);
-    audio.endSound();
-    audio.advance(4);
     startNext(audio);
     expect(audio.sent.filter((message) => message.type === 'boardFrozen')).toEqual([]);
     expect(played(audio).map(({ ending }) => ending)).toEqual(['finished']);

@@ -25,18 +25,38 @@ interface RunSummary {
   gapChecks: { atMs: number; reportedMs: number; heardShiftMs: number }[];
   wordTimeBeforeSoundMs: number[];
   messagesAfterStop: { messages: number; audioMs: number }[];
-  cues: { errorMs: number; toPlacedWordMs: number; wordTimeBeforeSoundMs: number }[];
+  cues: { errorMs: number; toPlacedWordMs: number; wordTimeBeforeSoundMs: number; isEveryThird?: boolean }[];
+}
+
+interface ProbeRecords {
+  agentMessages: { type: string; atMs: number }[];
+  probe: { kind: string; atMs: number; where: string }[];
+}
+
+// What the worklet really received between the last sound and each later turn's first sound, on the audio thread's own count.
+function getSilencesBeforeTurnsMs(folder: string): number[] {
+  const { records } = JSON.parse(readFileSync(join(folder, 'page.json'), 'utf8')) as { records: ProbeRecords };
+  const arriving = records.probe.filter((event) => event.where === 'arriving');
+  return records.agentMessages
+    .filter((message) => message.type === 'turnStarted')
+    .slice(1)
+    .flatMap(({ atMs }) => {
+      const onsetIndex = arriving.findIndex((event) => event.kind === 'onset' && event.atMs >= atMs - 300);
+      const before = arriving[onsetIndex - 1];
+      const onset = arriving[onsetIndex];
+      return onset && before?.kind === 'end' ? [Math.round(onset.atMs - before.atMs)] : [];
+    });
 }
 
 const [runsFolder, outputPath] = process.argv.slice(2);
 if (!runsFolder) throw new Error('Name the folder of runs');
 
 
-const groups = new Map<string, RunSummary[]>();
+const groups = new Map<string, (RunSummary & { silencesBeforeTurnsMs: number[] })[]>();
 for (const folder of readdirSync(runsFolder)) {
   const path = join(runsFolder, folder, 'summary.json');
   if (!existsSync(path)) continue;
-  const summary = JSON.parse(readFileSync(path, 'utf8')) as RunSummary;
+  const summary = { ...(JSON.parse(readFileSync(path, 'utf8')) as RunSummary), silencesBeforeTurnsMs: getSilencesBeforeTurnsMs(join(runsFolder, folder)) };
   const key = `${folder.replace(/-\d+$/, '')}|${summary.brief.voice}`;
   groups.set(key, [...(groups.get(key) ?? []), summary]);
 }
@@ -54,6 +74,10 @@ const rows = [...groups.entries()].map(([key, group]) => {
     cuesMeasured: cues.length,
     driftToSoundAbs: getPercentiles(errors.map(Math.abs)),
     driftToSoundSigned: getPercentiles(errors),
+    driftOfScriptCues: getPercentiles(cues.filter((cue) => !cue.isEveryThird).map((cue) => Math.abs(cue.errorMs))),
+    driftEveryThirdWord: getPercentiles(cues.filter((cue) => cue.isEveryThird).map((cue) => Math.abs(cue.errorMs))),
+    cuesDecidedByTheGate: cues.filter((cue) => cue.wordTimeBeforeSoundMs >= 5).length,
+    silenceBeforeTurnsMs: getPercentiles(group.flatMap((run) => run.silencesBeforeTurnsMs)),
     driftToVendorWordTimeSigned: getPercentiles(cues.map((cue) => cue.toPlacedWordMs)),
     over100: errors.filter((error) => Math.abs(error) > 100).length,
     earlyOver40: errors.filter((error) => error < -40).length,
