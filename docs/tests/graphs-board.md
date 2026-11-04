@@ -204,6 +204,98 @@ No figure code reaches the app's own bundle yet, because only the lab imports `B
 
 The last row is the review's correction. The old row used a fixed `yRange`, which skips the fit that takes most of the time on placing, at 7,954 evaluations against at most 4,000 to draw. It is a long task on a slow phone, listed under Limits.
 
+## After the second review
+
+The second review found seven more blockers. This is the rerun after the last fix round, on the same Mac at a load near 15. "Before" is that review's measure at `b369dea`, and "after" is the same scripts at this head. `graph-proof --only replaced,pair,fine` runs the new cases on the real page.
+
+**No old mark reads on a new curve.** A beat places `plot v x^2`, `markValue at 0 label "minimum"`, and `annotate v.curve "bends up"`, and the next places `plot v 0-x^2`. The first curve reads "minimum (0, 0)" and "bends up", and the second reads neither, at both widths and on replay, with 0 of 32 replay moments differing. The rule is under "Choices worth keeping".
+
+**No number moves unless someone moved it.** The review's start, a sideways speed of 10 and an upward speed of 10 with an angle and a sideways speed on sliders, went from 2.86 m to 9.86 m on one key press, and its worst total speed jump over 300 starts was 279%. That pair is now refused. On the coherent pairs, key presses on one slider left the other's number exactly as it was in 6 of 6 steps at both widths. From all 300 starts the tutor can leave behind, one angle step changes the total speed by under 1 part in a billion. The slider that overlaps goes undrawn and reports `sliderOverlaps`, and the page holds 2 sliders.
+
+**No accepted number shows NaN, Infinity, or an absurd reading.** `{ kind: "slider", target: flight, constant: "gravity", min: -5, max: 5 }` is refused by the parser, as is a constant named `gravity` on `setParameter`, in a plot, in a stored beat, and in a stored drag. Each flight value at both ends of its rule, as a slider sample and from the tutor, gives only finite marks. A sample that tries gravity of 0 or -5 runs at 0.1. `figure-extremes` played 8 turns at both widths with 60 slider moves each: 0 page errors, 0 frames holding a number that is not finite, 0 frames of text on text, and 0 of 416 replay moments differing.
+
+**A gap means a real break, and past the budget the figure says what it could not prove.** "False pixels" are drawn pixels more than 2 px from the dense raster truth, at 660 by 300. The truth is dots where a curve is steep, so a `tan` row overstates.
+
+| Curve on [-10, 10] | Before | After |
+| --- | --- | --- |
+| `abs(sin(100*x))/sin(100*x)` | 322 of 637 jumps with a visible line, a filled block | 0 of 637, two lines, 0 false pixels, and the note |
+| The review's 24 square waves across three domains | 7,199 of 19,344 jumps with a visible line, flickering between truth and block as a changed | 0 of 19,344 |
+| `x+abs(sin(100*x))/sin(100*x)`, a square wave on a slope | not measured. A height test alone gave 1 piece and 633 lines | 0 of 637, 0 false pixels, and the note |
+| `1/sin(100*x)` on [-8, 8], which has no value between -1 and 1 | 301 lines across that hole | 0, two bands, and the note |
+| `tan(100*x)` | 6,265 false pixels in 255 columns | 997 in 138, a solid core with spikes, and the note |
+| `tan(300*x)` on [-5, 5] | 9,328 in 327 | 1,470 in 177, and the note |
+| `sin(a*x)`, every whole a from 1 to 150 | 1 piece | 1 piece for all 150, no note |
+| `sin(300*x)` | 1 piece, band short by up to 185 px | 1 piece, band short by up to 85 px, 93% of each column on average, and the note |
+| `sin(1000*x)` | 56% of each column | 74%, and the note |
+
+`1/(x-a)`, `tan(x-a)`, and the review's five other curves with a moving pole or jump, each at 444 positions, gave 0 false pixels. On the real page each of the 4 fine curves carries the note and reported `curveTooFine` once, and `sin(150*x)`, `1/(1+100*x*x)`, and `sin(x)/x` carry no note and reported nothing. A wave dragged with a real mouse from a = 1 to a = 10 stayed 1 piece over 100% of the width at both widths.
+
+The last of the budget now goes evenly across the steps that want it, instead of being left unspent when a whole pass would not fit, so `sin(1000*x)` uses 4,000 evaluations and not 2,674.
+
+**A finite peak fits whole, and an asymptote is still cut.**
+
+| Curve | Axis top before | After |
+| --- | --- | --- |
+| `1/(1+100*x*x)` on [-10, 10] | 0.014 | 1 |
+| `1/(1+10000*x*x)` on [-10, 10] | 0.00014 | 1 |
+| `sin(x)/x` on [-30, 30] | 0.3 | 1 |
+| `exp(x)` on [-5, 20] | 60 million | 500 million |
+| `1/x` on [-5, 5] | 2 | 2 |
+| `tan(x)` on [-5, 5] | 8 | 8 |
+| `1/(x*x)` on [-3, 3] | 16 | 16 |
+
+All 19 of the review's fit curves now show their true peak.
+
+**The replay gate is tight again, and a failed proof fails.** A difference settles only when a second look is clean and the first was at most 2 levels on any channel. The two-frame wait stayed. Every proof's JSON carries `settledOnSecondLook`, and `graph-proof` and `math-proof` exit non-zero on a failed proof. `getProofFailures` holds the list of what counts, and `proof-verdict.test.ts` tests it. Three plants, each patched into the page and reverted:
+
+| Plant | Before | After |
+| --- | --- | --- |
+| The first look at each live moment 40 ms late, on `graph-proof --only marks` | 0 differing, 32 of 52 settled, exit 0 | 10 of 76 differing, 0 settled, exit 1 |
+| The first look at each live moment at 0.995 opacity, on the same proof | not run | 14 settled at 1 level, 2 differing at 6 levels, exit 1 |
+| The first plant on `math-proof --only marks-and-labels` | exit 0 | 42 of 88 differing, 0 settled, exit 1 |
+
+**What held.** On the fake voice unless it says stored Chris. Across every proof below, about 2,000 replay moments, 1 settled on a second look, at 1 level, so the wait of two frames does nearly all the work.
+
+| What was checked | Result |
+| --- | --- |
+| Lesson runs, frames, and labels | 16, 16,629, and 176,087 |
+| Frames with text on text, text outside its figure, two elements overlapping, or an element off the board | 0, 0, 0, and 0 |
+| Live frames that differ from the log | 0 of 16,629 |
+| Replay screenshots that differ | 1 of 640: `triangle` on the phone, by 88 pixels and up to 18 levels with the board's description equal, so the proof exits 1. 3 more runs of that lesson and width gave 0 of 120. The same lesson and width showed the same 88 pixels in earlier rounds, and the cause is not found |
+| Writes and animations with nothing moving, and screenshots 3 s apart that differ | 0, 0, and 0 of 16 |
+| Frame gap | p50 16.6 to 16.7 ms, p95 16.9 to 17.5 ms, worst 38.1 ms, and 2 frames over 34 ms |
+| Stored Chris | 3 lesson runs and a freeze, 4,220 frames, 56,862 labels, all of the above at 0, and 0 of 212 screenshots differing |
+| Word times landing one by one, stored Chris | 3 runs, 4,246 frames, 0 differing, and 1 of 156 screenshots differing, by 1 pixel and 36 levels, so the proof exits 1. 2 reruns gave 0 of 312 and exit 0 |
+| A key press replayed | 8 of 8 at 0 ms from the board that used them at both widths. The first run had 1 of 36 differ on one look. That proof had no second look, and now takes the same one as every other, and its rerun gave 0 of 36 |
+| A reused slider | min 10, max 20, value 15, and name `b`, and 5 key presses moved the curve. It goes when its curve is replaced |
+| Marks' reports | The same 5 marks report, and the rest draw |
+| Wide labels | 0 frames of text on text in 413 frames, and 2 report no room on the phone |
+| The slider's name | Role slider, name "Sideways speed", value text "4.2 m/s", and 0 live regions on the board |
+| Bad commands refused | 15 of 15 at both widths, 0 frames of text on text, and 0 of 184 replay moments differing |
+| Launch angle dragged to 30 degrees | 17.675 and 17.673 m against a worked 17.674 m, scale held |
+| Landing after doubling the speed | 1.99995 and 2.00000 times as far, off by at most 0.27 mm |
+| First write after a slider move | p50 1.6 to 2.2 ms, p95 2.3 to 4.9 ms, and a worst of 19.2 ms |
+| M3.3's math proof | 18 lesson runs, 20,516 frames, 0 frames overlapping or showing raw source or a wrong equation, and 0 of 664 replay moments differing. It exits 1 on one thing, below |
+
+`math-proof` now exits 1 on 97 writes with no cause in one write of `marks-and-labels`, on 2 of 6 lesson runs at this head at either width. The review's run at `b369dea` shows the same 97, so this is not new. It is a whole equation's nodes written at once at a moment with no cue, and the likely cause, a late font laying the equation out again, is a guess. It had gone unseen because the proof always exited 0.
+
+**Load and cost.** At a load near 15.
+
+| | Before this round | Now |
+| --- | --- | --- |
+| Board script, gzipped | 122.1 KB | 124.0 KB |
+| First plot, this Mac | 71 ms | 57 ms, from 54 to 76 ms |
+| First plot, Slow 4G with CPU slowed 4 times | 920 ms | 882 ms, from 868 to 934 ms |
+
+| A frame's cost, on this Mac and with CPU slowed 4 times | Median ms | Worst ms |
+| --- | --- | --- |
+| Whole board and marks for a flight | 0.1 and 0.5 | 1.8 and 7.6 |
+| A curve at a new constant | 0.1 and 0.6 | 0.7 and 1.8 |
+| The hardest curve with a fixed `yRange`, sampled from nothing | 4.1 and 17.1 | 7.2 and 26.9 |
+| A 170 character curve with four constants, placed and drawn from nothing | 16.8 and 69.9 | 18.2 and 77.3 |
+
+The hardest curve now spends its whole budget and looks at its samples past the budget, which costs about 1 ms here more than the 2.9 and 5 ms above, measured at different loads. The slow row is a long task on a slow phone, as listed under Limits.
+
 ## Choices worth keeping
 
 - A gap means a real break. A continuous curve shrinks when a step is halved and a jump or a pole does not, so a line stops only where 8 halvings in a row failed to shrink a step, which reaches a hundredth of a pixel. Detail goes where the line bends or a step is tall, and a step that is merely steep needs no more samples than its shape does.
@@ -243,5 +335,6 @@ The last row is the review's correction. The old row used a fixed `yRange`, whic
 - A slider on a constant its curve does not have is disabled and shows no value, and nothing reports it yet. A slider's range can leave out the flight's starting value, so its first press lands inside the range.
 - A mixed label, in the known letters and others, is measured by the browser, so it can shift a few pixels on a fresh page with another font state. A replay on the same page stays exact.
 - The slider has not been used with a real screen reader. The browser's tree reads its name and value, and that is all that was measured.
+- `math-proof` can exit 1 on 97 writes with no cause in `marks-and-labels`, and `graph-proof` on one replay moment of `triangle` on the phone, as "After the second review" says. Neither has a known cause, and neither is new at this head.
 - A very heavy curve stalls a slow device. Nine curves with four constants placed on one word, or three of them reshaping at once, take long tasks with the CPU slowed 4 times.
 - Touch was never driven, and Safari, Firefox, and real phones are untested. M3.6 and M3.10 own those. A real voice has not paced these lessons. The stored take has real word times over other words, and the late word proof stands in for real late alignment.
