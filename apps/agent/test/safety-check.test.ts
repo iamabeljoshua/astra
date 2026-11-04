@@ -2,7 +2,8 @@ import { type Beat, getBeatText } from '@astra/contracts';
 import { describe, expect, it } from 'vitest';
 import { type FakeReply, makeFakeTutorModel } from '../src/providers/fake-model.ts';
 import type { TutorModelRequest } from '../src/providers/types.ts';
-import type { SafetyCheck, StudentReading, TutorReading } from '../src/safety/safety-check.ts';
+import type { SafetyCheck, TurnBefore, TutorReading } from '../src/safety/safety-check.ts';
+import type { StudentReading } from '../src/safety/student-reading.ts';
 import { createSafetyWatch, type SafetyFlag } from '../src/safety/safety-watch.ts';
 import { createTutorBrain, type TurnSummary } from '../src/tutor/brain.ts';
 import { SPOKEN_LINES } from '../src/tutor/spoken-lines.ts';
@@ -12,30 +13,35 @@ const STUDENT_WORDS = 'which way do u cut so it actually works';
 const delay = (ms: number) => new Promise((done) => setTimeout(done, ms));
 
 interface Setup {
-  reading?: StudentReading;
+  reading?: StudentReading | StudentReading[];
   readAfterMs?: number;
   tutorReading?: TutorReading;
+  fitsSchoolTalk?: boolean;
   getReply(request: TutorModelRequest, attempt: number): FakeReply;
   addFlag?(flag: SafetyFlag): Promise<void>;
 }
 
-function setup({ reading = 'self_harm', readAfterMs = 0, tutorReading = 'none', getReply, addFlag }: Setup) {
+function setup({ reading = 'self_harm', readAfterMs = 0, tutorReading = 'none', fitsSchoolTalk = false, getReply, addFlag }: Setup) {
   const flags: SafetyFlag[] = [];
   const traced: string[] = [];
   const shown: number[] = [];
   const summaries: TurnSummary[] = [];
+  const readings = Array.isArray(reading) ? [...reading] : [reading];
+  const readsAsked: TurnBefore[] = [];
   const check: SafetyCheck = {
-    readStudent: async () => {
+    readStudent: async (_text, before) => {
+      readsAsked.push(before);
       await delay(readAfterMs);
-      return reading;
+      return (readings.length > 1 ? readings.shift() : readings[0]) as StudentReading;
     },
+    fitsSchoolTalk: async () => fitsSchoolTalk,
     readTutor: async () => tutorReading,
   };
   const trace = (name: string, fields?: Record<string, unknown>) => traced.push(`${name} ${JSON.stringify(fields ?? {})}`);
-  const safety = createSafetyWatch({ check, addFlag: addFlag ?? (async (flag) => void flags.push(flag)), showHelp: () => shown.push(1), trace });
+  const safety = createSafetyWatch({ check, addFlag: addFlag ?? (async (flag) => void flags.push(flag)), showHelp: () => shown.push(1), trace, flagRetryWaitMs: 5 });
   const model = makeFakeTutorModel(getReply);
   const brain = createTutorBrain({ model, timeouts: QUICK, safety, trace, onTurnEnd: (summary) => summaries.push(summary) });
-  return { brain, model, safety, flags, traced, shown, summaries };
+  return { brain, model, safety, flags, traced, shown, summaries, readsAsked };
 }
 
 async function say(brain: ReturnType<typeof setup>['brain'], text = STUDENT_WORDS): Promise<string> {
@@ -155,6 +161,117 @@ describe('a signal stops the teaching, shows help, and raises a flag', () => {
   });
 });
 
+describe('vague words are read against what was just said', () => {
+  const VAGUE_WORDS = 'i already picked the day';
+  const ORDINARY_REPLY = { pieces: ['Good, we can plan back from that day.'] };
+
+  it('lets the model answer after a school turn, with no stop, no help note, and no flag', async () => {
+    const { brain, flags, shown, model } = setup({ reading: ['school', 'vague'], getReply: () => ORDINARY_REPLY });
+    await say(brain, 'can you help me with my history presentation');
+    expect(await say(brain, VAGUE_WORDS)).toBe(ORDINARY_REPLY.pieces[0]);
+    await delay(10);
+    expect(flags).toEqual([]);
+    expect(shown).toEqual([]);
+    expect(model.requests).toHaveLength(2);
+  });
+
+  it('asks again when a school talk reads as danger, and lets the model answer a line that fits', async () => {
+    const { brain, flags, shown } = setup({ reading: ['school', 'self_harm'], fitsSchoolTalk: true, getReply: () => ORDINARY_REPLY });
+    await say(brain, 'can we do more fractions next week');
+    expect(await say(brain, 'i wont be here next week')).toBe(ORDINARY_REPLY.pieces[0]);
+    await delay(10);
+    expect(flags).toEqual([]);
+    expect(shown).toEqual([]);
+  });
+
+  it('stops on danger in a school talk when the line does not fit it', async () => {
+    const { brain, flags, shown } = setup({ reading: ['school', 'self_harm'], fitsSchoolTalk: false, getReply: () => ORDINARY_REPLY });
+    await say(brain, 'how do plants make sugar');
+    expect(await say(brain, 'anyway it wont matter after friday, ill be gone for good')).toContain(SPOKEN_LINES.safetyStop[0]);
+    expect(flags).toEqual([{ kind: 'self_harm', source: 'student' }]);
+    expect(shown).toHaveLength(1);
+  });
+
+  it('keeps a greeting from passing as a lesson', async () => {
+    const { brain, flags, shown } = setup({ reading: ['none', 'vague'], getReply: (_request, attempt) => ({ pieces: [attempt === 1 ? 'Which day do you mean?' : 'What do you mean by that? If anything is worrying you, tell an adult you trust now, or call your local emergency number if you are in danger.'] }) });
+    await say(brain, 'hi');
+    expect(await say(brain, VAGUE_WORDS)).toMatch(/adult you trust/);
+    expect(shown).toHaveLength(1);
+    expect(flags).toEqual([{ kind: 'vague', source: 'student' }]);
+  });
+
+  it('shows the help note and has the model ask with help named when nothing explains them', async () => {
+    const { brain, flags, shown, model } = setup({ reading: 'vague', getReply: (_request, attempt) => ({ pieces: [attempt === 1 ? 'Which day do you mean?' : 'What do you mean by that? If anything is worrying you, tell an adult you trust now, or call your local emergency number if you are in danger.'] }) });
+    const spoken = await say(brain, VAGUE_WORDS);
+    expect(spoken).toMatch(/adult you trust/);
+    expect(spoken).not.toContain(SPOKEN_LINES.safetyStop[0]);
+    expect(model.requests).toHaveLength(2);
+    expect(shown).toHaveLength(1);
+    expect(flags).toEqual([{ kind: 'vague', source: 'student' }]);
+  });
+
+  it('keeps a reply that already asks with help named, and asks the model only once', async () => {
+    const reply = 'What do you mean by that? If anything is worrying you, tell an adult you trust now, or call your local emergency number if you are in danger.';
+    const { brain, model } = setup({ reading: 'vague', getReply: () => ({ pieces: [reply] }) });
+    expect(await say(brain, VAGUE_WORDS)).toBe(reply);
+    expect(model.requests).toHaveLength(1);
+  });
+
+  it('names help in code when the model will not', async () => {
+    const { brain } = setup({ reading: 'vague', getReply: () => ({ pieces: ['Which day do you mean?'] }) });
+    expect(await say(brain, VAGUE_WORDS)).toContain(SPOKEN_LINES.safetyHelp[0]);
+  });
+
+  it('does not excuse vague words after something worrying, even in a lesson', async () => {
+    const { brain, shown, flags } = setup({ reading: ['school', 'self_harm', 'vague'], getReply: (request) => ({ pieces: [request.turns.length < 2 ? 'Plants use sunlight to make sugar.' : 'That sounds serious. Please tell an adult you trust now.'] }) });
+    await say(brain, 'how do plants make sugar');
+    await say(brain, 'i dont want to be here anymore');
+    await say(brain, VAGUE_WORDS);
+    await delay(10);
+    expect(shown).toHaveLength(1);
+    expect(flags).toEqual(expect.arrayContaining([{ kind: 'self_harm', source: 'student' }, { kind: 'vague', source: 'student' }]));
+  });
+
+  it('gives the check the student\'s earlier words and the tutor\'s last line, because the subject is often only in the first', async () => {
+    const { brain, readsAsked } = setup({ reading: 'none', getReply: () => ({ pieces: ['Sure, what is the topic?'] }) });
+    await say(brain, 'can you help me with my history presentation');
+    await say(brain, VAGUE_WORDS);
+    expect(readsAsked).toEqual([
+      { studentSaid: '', tutorSaid: '' },
+      { studentSaid: 'can you help me with my history presentation', tutorSaid: 'Sure, what is the topic?' },
+    ]);
+  });
+});
+
+describe('a reply that stops partway reads as one person speaking', () => {
+  it('ends the words already said with a period when code cuts in', async () => {
+    const { brain, summaries } = setup({ readAfterMs: 30, getReply: () => ({ pieces: ['Nothing travels instantly, ', 'not even light, and here is why that matters.'], msPerPiece: 80 }) });
+    await say(brain);
+    expect(summaries.at(-1)?.spokenText).toBe(`Nothing travels instantly. ${SPOKEN_LINES.safetyStop[0]}`);
+  });
+
+  it('ends them with a period when a retry starts a new sentence', async () => {
+    const { brain, summaries } = setup({ getReply: (_request, attempt) => ({ pieces: [attempt === 1 ? 'Hola amigo mio, ' : 'Cuéntaselo a un adulto de confianza ahora mismo.'] }) });
+    await say(brain, 'quiero matarme');
+    expect(summaries.at(-1)?.spokenText).toBe('Hola amigo mio. Cuéntaselo a un adulto de confianza ahora mismo.');
+  });
+});
+
+describe('a slow read holds back the filler', () => {
+  it('plays no "One moment." before help when the read answers after the filler is due', async () => {
+    const { brain } = setup({ readAfterMs: 120, getReply: () => ({ firstTextMs: 200, pieces: ['That sounds serious.'] }) });
+    const spoken = await say(brain);
+    for (const filler of SPOKEN_LINES.stillWorking) expect(spoken).not.toContain(filler);
+    expect(spoken).toBe(SPOKEN_LINES.safetyStop[0]);
+  });
+
+  it('still plays it on an ordinary slow turn once the read has answered', async () => {
+    const { brain } = setup({ reading: 'school', readAfterMs: 10, getReply: () => ({ firstTextMs: 200, pieces: ['Mitosis has four stages to learn.'] }) });
+    const spoken = await say(brain, 'what is mitosis');
+    expect(SPOKEN_LINES.stillWorking.some((filler) => spoken.includes(filler))).toBe(true);
+  });
+});
+
 describe('a refusal says what fits', () => {
   it('declines a weapon recipe calmly when the check read no danger', async () => {
     const { brain } = setup({ reading: 'none', getReply: () => ({ pieces: [], stopReason: 'refused', refusalCategory: 'bio' }) });
@@ -221,6 +338,24 @@ describe('flags hold no words and reach no parent', () => {
     for await (const beat of brain.reply({ text: STUDENT_WORDS }, stopped.signal)) void beat;
     await safety.flush();
     expect(flags).toEqual([{ kind: 'self_harm', source: 'student' }]);
+  });
+
+  it('retries a flag once when it fails at the room close, because nothing runs after that', async () => {
+    const sent: SafetyFlag[] = [];
+    let failuresLeft = 2;
+    const { brain, safety } = setup({
+      getReply: () => ({ pieces: ['That sounds serious. Please tell an adult you trust now.'] }),
+      addFlag: async (flag) => {
+        if (failuresLeft > 0) {
+          failuresLeft -= 1;
+          throw new Error('down');
+        }
+        sent.push(flag);
+      },
+    });
+    await say(brain);
+    await safety.flush();
+    expect(sent).toEqual([{ kind: 'self_harm', source: 'student' }]);
   });
 
   it('keeps a flag the API did not take, and sends it as the room closes', async () => {

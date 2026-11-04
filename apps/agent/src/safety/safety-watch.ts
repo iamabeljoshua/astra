@@ -1,10 +1,11 @@
 import { soundsLikeCrisisReply } from './help-words.ts';
-import type { SafetyCheck, SafetyKind, StudentReading } from './safety-check.ts';
+import type { SafetyCheck } from './safety-check.ts';
+import { isSafetyKind, type SafetyKind, type StudentReading } from './student-reading.ts';
 
 type TraceNote = (name: string, fields?: Record<string, unknown>) => void;
 
 export type FlagSource = 'student' | 'tutor';
-export type FlagKind = SafetyKind | 'tutor_slip';
+export type FlagKind = SafetyKind | 'vague' | 'tutor_slip';
 
 /** What goes to the review queue. It has no field that could hold a word of what was said. */
 export interface SafetyFlag {
@@ -13,7 +14,7 @@ export interface SafetyFlag {
 }
 
 export interface SafetyWatch {
-  /** Reads the student's words beside the reply. A kind has already raised a flag and shown the help by the time it resolves. */
+  /** Reads the student's words beside the reply. A kind, or `vague` outside a school talk, has already raised a flag and shown the help by the time it resolves. Vague words in a school talk resolve as `school`, and they are the model's to answer. */
   readStudent(text: string, tutorSaid: string): Promise<StudentReading>;
   noteTurnEnd(turn: { spoken: string; safetyRead: Promise<void>; getKind(): SafetyKind | null }): void;
   showHelp(): void;
@@ -26,17 +27,23 @@ export interface SafetyWatchOptions {
   addFlag(flag: SafetyFlag): Promise<void>;
   showHelp(): void;
   trace: TraceNote;
+  flagRetryWaitMs?: number;
 }
+
+/** Long enough for a passing network fault to clear, and short enough for a closing room. */
+const FLAG_RETRY_WAIT_MS = 1000;
 
 const getFlagKey = ({ kind, source }: SafetyFlag) => `${kind}/${source}`;
 
 // One room's safety reads. It raises each kind of flag once, and keeps any the API has not taken. Traces name a reading and never the words.
-export function createSafetyWatch({ check, addFlag, showHelp, trace }: SafetyWatchOptions): SafetyWatch {
+export function createSafetyWatch({ check, addFlag, showHelp, trace, flagRetryWaitMs = FLAG_RETRY_WAIT_MS }: SafetyWatchOptions): SafetyWatch {
   const raised = new Set<string>();
   let unsent: SafetyFlag[] = [];
   let sending: Promise<void> = Promise.resolve();
   let isHelpShown = false;
   let reading: Promise<unknown> = Promise.resolve();
+  let studentSaid = '';
+  let isInSchoolTalk = false;
 
   const send = () => {
     sending = sending.then(async () => {
@@ -59,6 +66,14 @@ export function createSafetyWatch({ check, addFlag, showHelp, trace }: SafetyWat
     send();
   };
 
+  // One vague read in a school talk is excused. A second in a row, or anything worrying, means the talk no longer explains the words.
+  const settleReading = (studentReading: StudentReading): StudentReading => {
+    const isExcused = studentReading === 'vague' && isInSchoolTalk;
+    isInSchoolTalk = studentReading === 'school' || (isInSchoolTalk && (studentReading === 'none' || studentReading === 'unread'));
+    if (isExcused) trace('vagueInSchoolTalk');
+    return isExcused ? 'school' : studentReading;
+  };
+
   const showHelpOnce = () => {
     if (isHelpShown) return;
     isHelpShown = true;
@@ -68,14 +83,18 @@ export function createSafetyWatch({ check, addFlag, showHelp, trace }: SafetyWat
   return {
     showHelp: showHelpOnce,
     readStudent(text, tutorSaid) {
-      const read = check.readStudent(text, tutorSaid).then((studentReading) => {
+      const before = { studentSaid, tutorSaid };
+      const read = check.readStudent(text, before).then(async (firstReading) => {
+        const studentReading = isSafetyKind(firstReading) && isInSchoolTalk && (await check.fitsSchoolTalk(text, before)) ? 'vague' : firstReading;
         trace('safetyRead', { reading: studentReading });
-        if (studentReading !== 'none' && studentReading !== 'unread') {
+        const settled = settleReading(studentReading);
+        if (isSafetyKind(settled) || settled === 'vague') {
           showHelpOnce();
-          raise({ kind: studentReading, source: 'student' });
+          raise({ kind: settled, source: 'student' });
         }
-        return studentReading;
+        return settled;
       });
+      studentSaid = text;
       reading = Promise.all([reading, read]);
       return read;
     },
@@ -95,6 +114,10 @@ export function createSafetyWatch({ check, addFlag, showHelp, trace }: SafetyWat
     // A student who says something serious and closes the tab must still reach the queue, so this waits for reads still running.
     async flush() {
       await reading;
+      send();
+      await sending;
+      if (unsent.length === 0) return;
+      await new Promise((done) => setTimeout(done, flagRetryWaitMs));
       send();
       await sending;
     },

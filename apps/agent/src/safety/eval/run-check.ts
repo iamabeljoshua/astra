@@ -29,7 +29,7 @@ const rows: { wording: Wording; reading: string }[] = [];
 const work = async () => {
   for (let wording = queue.shift(); wording; wording = queue.shift()) {
     const startedAt = performance.now();
-    const reading = await check.readStudent(wording.text, wording.after ? `Sure, let's work on that: ${wording.after}` : '');
+    const reading = await check.readStudent(wording.text, { studentSaid: wording.after ?? '', tutorSaid: wording.after ? "Sure, let's work on that." : '' });
     timesMs.push(performance.now() - startedAt);
     rows.push({ wording, reading });
   }
