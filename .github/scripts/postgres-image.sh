@@ -3,6 +3,7 @@ set -euo pipefail
 
 archive=/tmp/postgres-image.tar.zst
 tag=$(awk '$1 == "POSTGRES_TAG:" { print $2 }' .github/workflows/ci.yml)
+digest=$(awk '$1 == "POSTGRES_DIGEST:" { print $2 }' .github/workflows/ci.yml)
 image="ghcr.io/supabase/postgres:$tag"
 memory_for_one_image=6g
 
@@ -15,9 +16,11 @@ tar_docker_folder() {
   sudo tar --numeric-owner --xattrs --xattrs-include='*' --zstd "$@"
 }
 
-# A new Docker version misses the cache, because it may not read an older version's folder.
-print_key() {
-  echo "key=postgres-image-$tag-docker-$(docker version --format '{{.Server.Version}}')"
+# A new Docker version may not read an older version's folder, and a new digest, script, or save workflow must prove its own entry, so each one misses the cache.
+get_key() {
+  local recipe_hash
+  recipe_hash=$({ echo "$digest"; cat .github/scripts/postgres-image.sh .github/workflows/postgres-image-cache.yml; } | sha256sum | cut -c1-12)
+  echo "postgres-image-$tag-docker-$(docker version --format '{{.Server.Version}}')-$recipe_hash"
 }
 
 restore_archive_or_leave_folder_empty() {
@@ -26,22 +29,26 @@ restore_archive_or_leave_folder_empty() {
   fi
 }
 
-# ghcr.io serves the same digest as the CLI's default registry, which has rate limited runners.
-start_pull_unless_image_is_present() {
-  if ! docker image inspect "$image" > /dev/null 2>&1; then
-    nohup docker pull -q "$image" > /dev/null 2>&1 &
-  fi
+image_runs() {
+  docker run --rm --pull never --entrypoint postgres "$image" --version > /dev/null 2>&1
 }
 
+# A folder that will not run the image falls back to a pull, so a bad entry costs time and does not fail the job. ghcr.io serves the same digest as the CLI's default registry, which has rate limited runners.
 start_docker_in_memory() {
   stop_docker
   if mountpoint -q /dockerdata; then sudo umount /dockerdata; fi
   sudo mkdir -p /etc/docker /dockerdata
   sudo mount -t tmpfs -o "size=$memory_for_one_image" tmpfs /dockerdata
-  echo '{"data-root":"/dockerdata"}' | sudo tee /etc/docker/daemon.json > /dev/null
+  # Docker 29 defaults to the containerd store, which keeps the image outside this memory disk and the archive.
+  echo '{"data-root":"/dockerdata","features":{"containerd-snapshotter":false}}' | sudo tee /etc/docker/daemon.json > /dev/null
   restore_archive_or_leave_folder_empty
-  sudo systemctl start docker
-  start_pull_unless_image_is_present
+  if ! { sudo systemctl start docker && image_runs; }; then
+    stop_docker
+    sudo find /dockerdata -mindepth 1 -delete
+    sudo systemctl reset-failed docker
+    sudo systemctl start docker
+    nohup docker pull -q "$image" > /dev/null 2>&1 &
+  fi
 }
 
 archive_pulled_image() {
@@ -50,15 +57,28 @@ archive_pulled_image() {
   tar_docker_folder -cf "$archive" -C /dockerdata image overlay2
 }
 
+# A tag is only a name that a retag can move, so compare the digest the registry served, which Docker keeps in its folder.
+fail_unless_image_has_pinned_digest() {
+  local repo_digests
+  repo_digests=$(docker image inspect "$1" --format '{{json .RepoDigests}}')
+  if [[ "$repo_digests" != *"@$digest\""* ]]; then
+    echo "::error file=.github/workflows/ci.yml::Postgres has digests $repo_digests, but POSTGRES_DIGEST is $digest. After a CLI upgrade, set POSTGRES_DIGEST to the new tag's digest. Otherwise the cache entry holds the wrong image, so delete it with gh cache delete $(get_key)."
+    exit 1
+  fi
+}
+
+# The fallback's pull cannot finish before this docker run, so an archive that does not restore fails here.
 prove_archive_restores() {
   start_docker_in_memory
   docker run --rm --pull never --entrypoint postgres "$image" --version
+  fail_unless_image_has_pinned_digest "$image"
 }
 
 case "${1:-}" in
-  key) print_key ;;
+  key) echo "key=$(get_key)" ;;
   start-docker) start_docker_in_memory ;;
   archive) archive_pulled_image ;;
   prove) prove_archive_restores ;;
-  *) echo "usage: postgres-image.sh key|start-docker|archive|prove" >&2; exit 2 ;;
+  check-running-image) fail_unless_image_has_pinned_digest "$(docker inspect supabase_db_astra --format '{{.Image}}')" ;;
+  *) echo "usage: postgres-image.sh key|start-docker|archive|prove|check-running-image" >&2; exit 2 ;;
 esac

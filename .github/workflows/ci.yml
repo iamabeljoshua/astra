@@ -18,11 +18,15 @@ jobs:
     timeout-minutes: 4
     env:
       POSTGRES_TAG: 17.6.1.075
+      POSTGRES_DIGEST: sha256:82a04ba6c05f60950a74ae46be3726abb18d06ee44da936276fd782e72e36855
     steps:
       - uses: actions/checkout@v7
       - id: postgres-image
         run: .github/scripts/postgres-image.sh key >> "$GITHUB_OUTPUT"
+      # The action allows 10 minutes per download segment, so a stalled download would use up the job's limit.
       - uses: actions/cache/restore@v6
+        timeout-minutes: 1
+        continue-on-error: true
         with:
           path: /tmp/postgres-image.tar.zst
           key: ${{ steps.postgres-image.outputs.key }}
@@ -34,7 +38,7 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Fail if the cached or pulled image is not the image that the Supabase CLI uses
+      - name: Fail if POSTGRES_TAG is not the tag that the Supabase CLI uses
         run: |
           cli_tag=$(pnpm exec supabase services | awk '$1 == "supabase/postgres" { print $3 }')
           if [ "$cli_tag" != "$POSTGRES_TAG" ]; then
@@ -58,6 +62,8 @@ jobs:
         env:
           SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
         run: pnpm exec supabase db start
+      - name: Fail if the running Postgres image does not have the pinned digest
+        run: .github/scripts/postgres-image.sh check-running-image
       - name: Build a fresh database from the migrations and seed it
         run: pnpm db:migrate && pnpm db:seed
       - name: Run the API tests
