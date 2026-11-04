@@ -255,10 +255,16 @@ importers:
       '@astra/contracts':
         specifier: workspace:*
         version: link:../contracts
+      acorn:
+        specifier: 8.19.0
+        version: 8.19.0
       katex:
         specifier: 0.19.1
         version: 0.19.1
     devDependencies:
+      three:
+        specifier: 0.170.0
+        version: 0.170.0
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
@@ -4739,6 +4745,9 @@ packages:
 
   thread-stream@3.2.0:
     resolution: {integrity: sha512-zLBvqpwr4Esa0kRjcrzGU6zL25lePWaCLMx0RQFrmteozIfeNdaMLpG5U7PeHzvlFkAWaRKA9/KVW4F60iB+qw==}
+
+  three@0.170.0:
+    resolution: {integrity: sha512-FQK+LEpYc0fBD+J8g6oSEyyNzjp+Q7Ks1C568WWaoMRLW+TkNNWmenWeGgJjV105Gd+p/2ql1ZcjYvNiPZBhuQ==}
 
   tinybench@6.2.3:
     resolution: {integrity: sha512-Al01C2JIBnO2CXCAPbpAl6sUiOZHeThGtHYNTa51JRw9PyWOCdr+9Ong05R4qg/Sk3+H645E8ov1h2c58ityNw==}
@@ -9907,6 +9916,8 @@ snapshots:
   thread-stream@3.2.0:
     dependencies:
       real-require: 0.2.0
+
+  three@0.170.0: {}
 
   tinybench@6.2.3: {}
 
