@@ -198,7 +198,7 @@ export function createTutorScenes({ router, runs, kitRuns, store, getCardTitle, 
     trace('sceneState', { state: state.kind, afterMs: Math.round(getNowMs() - ask.askedAtMs), ...(state.kind === 'failed' ? { reasons: state.reasons } : {}) });
     // A scene that comes after its window stays saved for the next ask, and this session has moved on.
     if (ask !== current) return;
-    if (state.kind === 'making' && state.route.engine === 'kit') keepAskForKit(ask);
+    if ((state.kind === 'making' && state.route.engine === 'kit') || (state.kind === 'ready' && state.scene.engine === 'kit' && !ask.isKit)) keepAskForKit(ask);
     if (state.kind === 'ready') loadInPage(ask, state.scene);
     if (state.kind === 'declined' || state.kind === 'failed') end(ask, state.kind);
   };

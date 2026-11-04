@@ -502,6 +502,21 @@ describe('a scene written live in 3D', () => {
     expect(spoken).toHaveLength(1);
   });
 
+  it('holds the same way for one saved already, which arrives by the saved route', async () => {
+    const { scenes, traces } = setUpSession();
+    const store = createSceneStore(mkdtempSync(join(tmpdir(), 'tutor-scenes-kit-saved-')));
+    await store.saveChecked({ ...KIT_SCENE, id: getSceneKey(TOPIC, { ownerId: 'maya' }).id, topic: TOPIC, status: 'checked' } as StoredScene, [], []);
+    expect(traces).toEqual([]);
+    const savedTraces: { name: string }[] = [];
+    const savedScenes = createTutorScenes({ router: { route: vi.fn(async () => KIT_ROUTE) }, runs: { join: vi.fn() } as never, store, getCardTitle: () => null, getNowMs: () => performance.now(), send: () => {}, canSpeak: () => false, speak: () => false, onShown: () => {}, trace: (name) => void savedTraces.push({ name }) });
+    opened(savedScenes);
+    savedScenes.ask(TOPIC);
+    await flush();
+    savedScenes.noteStudentTurn();
+    expect(savedTraces.map(({ name }) => name)).not.toContain('sceneEnded');
+    expect(scenes).toBeDefined();
+  });
+
   it('outlives the 20 s window and ends at its own limit, saying nothing', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
     const { scenes, spoken, sent, traces } = setUpSession(() => new Promise(() => {}));
