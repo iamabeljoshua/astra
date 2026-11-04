@@ -18,11 +18,10 @@ export interface GatherPainter {
 interface GatherPainterOptions {
   canvas: HTMLCanvasElement;
   isReducedMotion: boolean;
-  onReturned(): void;
 }
 
 // Runs a frame loop only while the dots gather, and a picture that does not move paints once.
-export function createGatherPainter({ canvas, isReducedMotion, onReturned }: GatherPainterOptions): GatherPainter | null {
+export function createGatherPainter({ canvas, isReducedMotion }: GatherPainterOptions): GatherPainter | null {
   const context = getCanvasContext(canvas);
   if (!context) return null;
   const startedAt = performance.now();
@@ -66,7 +65,6 @@ export function createGatherPainter({ canvas, isReducedMotion, onReturned }: Gat
     paint(now);
     if (handedOverAt !== null && now - handedOverAt >= RETURN_MS) {
       frame = 0;
-      onReturned();
       return;
     }
     frame = requestAnimationFrame(paintFrame);
@@ -96,12 +94,7 @@ export function createGatherPainter({ canvas, isReducedMotion, onReturned }: Gat
 
   return {
     handOver() {
-      if (handedOverAt !== null) return;
-      if (isReducedMotion) {
-        onReturned();
-        return;
-      }
-      handedOverAt = performance.now();
+      if (handedOverAt === null && !isReducedMotion) handedOverAt = performance.now();
     },
     stop() {
       cancelAnimationFrame(frame);

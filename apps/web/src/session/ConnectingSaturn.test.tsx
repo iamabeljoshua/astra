@@ -1,20 +1,18 @@
 import { act, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { RETURN_MS } from '../ui/dots/gatherDots';
 import { ConnectingSaturn } from './ConnectingSaturn';
 
-const painter = vi.hoisted(() => ({ handOver: vi.fn(), stop: vi.fn(), returned: null as null | (() => void), options: null as null | { isReducedMotion: boolean } }));
+const painter = vi.hoisted(() => ({ handOver: vi.fn(), stop: vi.fn() }));
 
-vi.mock('../ui/dots/gatherPainter', () => ({
-  createGatherPainter(options: { isReducedMotion: boolean; onReturned(): void }) {
-    painter.returned = options.onReturned;
-    painter.options = options;
-    return { handOver: painter.handOver, stop: painter.stop };
-  },
-}));
+vi.mock('../ui/dots/gatherPainter', () => ({ createGatherPainter: () => painter }));
 
 describe('the dots gathering while the tutor connects', () => {
-  beforeEach(() => vi.clearAllMocks());
-  afterEach(() => vi.unstubAllGlobals());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+  });
+  afterEach(() => vi.useRealTimers());
 
   it('shows nothing for a room that is not connecting', () => {
     render(<ConnectingSaturn isConnecting={false} />);
@@ -28,7 +26,7 @@ describe('the dots gathering while the tutor connects', () => {
     rerender(<ConnectingSaturn isConnecting={false} />);
     expect(painter.handOver).toHaveBeenCalledOnce();
     expect(shown.dataset.leaving).toBe('true');
-    act(() => painter.returned?.());
+    act(() => vi.advanceTimersByTime(RETURN_MS));
     expect(screen.queryByTestId('connecting-saturn')).toBeNull();
     expect(painter.stop).toHaveBeenCalled();
   });
@@ -36,8 +34,16 @@ describe('the dots gathering while the tutor connects', () => {
   it('comes back for a new room', () => {
     const { rerender } = render(<ConnectingSaturn isConnecting />);
     rerender(<ConnectingSaturn isConnecting={false} />);
-    act(() => painter.returned?.());
+    act(() => vi.advanceTimersByTime(RETURN_MS));
     rerender(<ConnectingSaturn isConnecting />);
+    expect(screen.getByTestId('connecting-saturn').dataset.leaving).toBe('false');
+  });
+
+  it('comes back if the room starts connecting again as it leaves', () => {
+    const { rerender } = render(<ConnectingSaturn isConnecting />);
+    rerender(<ConnectingSaturn isConnecting={false} />);
+    rerender(<ConnectingSaturn isConnecting />);
+    act(() => vi.advanceTimersByTime(RETURN_MS));
     expect(screen.getByTestId('connecting-saturn').dataset.leaving).toBe('false');
   });
 });

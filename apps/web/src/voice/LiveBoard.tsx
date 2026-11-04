@@ -89,16 +89,14 @@ interface LiveBoardProps {
 // One dot leaves the gathered dots and shows for a moment, then flies to the words, and the voice never waits for it.
 function useDotInTheMiddle(isConnecting: boolean): boolean {
   const isReducedMotion = useReducedMotion();
-  const [isInTheMiddle, setIsInTheMiddle] = useState(!isReducedMotion);
+  const [hasLeft, setHasLeft] = useState(isReducedMotion);
+  if (isConnecting && hasLeft && !isReducedMotion) setHasLeft(false);
   useEffect(() => {
-    if (isConnecting) {
-      setIsInTheMiddle(!isReducedMotion);
-      return undefined;
-    }
-    const leaving = setTimeout(() => setIsInTheMiddle(false), DOT_SHOWS_MS);
+    if (isConnecting) return undefined;
+    const leaving = setTimeout(() => setHasLeft(true), DOT_SHOWS_MS);
     return () => clearTimeout(leaving);
-  }, [isConnecting, isReducedMotion]);
-  return isInTheMiddle;
+  }, [isConnecting]);
+  return !hasLeft;
 }
 
 export function LiveBoard({ voice, visual = null, onTalk, isTalkOn = false, canTalk = true, isConnecting = false, onTutorState }: LiveBoardProps) {
