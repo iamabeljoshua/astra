@@ -767,6 +767,17 @@ describe('AccountGate', () => {
     expect(screen.queryByText(TUTOR_NOTES_LABELS.footer)).toBeNull();
   });
 
+  it('says everyone is asked the date of birth, and claims no use of it after the gate', async () => {
+    setSignIn('signedIn');
+    stubApi({ 'GET /api/me': json(NEEDS_BIRTH_DATE) });
+    renderGate();
+
+    await reachBirthDateQuestion();
+
+    screen.getByText('We ask everyone this before an account opens.');
+    expect(screen.queryByText(/safe for your age/i)).toBeNull();
+  });
+
   it('promises nothing about changing it later beside the closed page', async () => {
     setSignIn('signedIn');
     stubApi({ 'GET /api/me': json(CLOSED_ACCOUNT) });

@@ -70,7 +70,7 @@ export const SIGN_IN_LABELS = {
 
 export const BIRTH_DATE_LABELS = {
   question: 'When were you born?',
-  about: 'We use this to keep the product safe for your age.',
+  about: 'We ask everyone this before an account opens.',
   day: 'Day',
   dayPlaceholder: 'DD',
   month: 'Month',
