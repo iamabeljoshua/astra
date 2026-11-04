@@ -2,7 +2,7 @@ import { type FormEvent, type PropsWithChildren, useState } from 'react';
 import { useAccount, useSaveProfile } from '../auth/useAccount';
 import { API_ERROR_LABELS, PROFILE_LABELS, STUDENT_GOAL_LABELS, STUDENT_LEVEL_LABELS, TUTOR_NOTES_LABELS } from '../strings';
 import { type Answers, getInitialAnswers, type StudentGoal, type StudentLevel, STUDENT_GOALS, STUDENT_LEVELS, toProfileBody } from './answers';
-import { MAX_NAME_LENGTH } from './fieldLimits';
+import { isStorableName, MAX_NAME_LENGTH } from './fieldLimits';
 import { InterestsField } from './InterestsField';
 import { OptionRows } from './OptionRows';
 import type { Student } from './steps';
@@ -27,9 +27,9 @@ function ProfileForm({ student }: { student: Student }) {
   function submit(event: FormEvent) {
     event.preventDefault();
     const body = toProfileBody(answers);
-    const isComplete = Boolean(body?.name);
-    setIsMissing(!isComplete);
-    if (body && isComplete && !saveProfile.isPending) saveProfile.mutate(body);
+    const hasName = isStorableName(answers.name);
+    setIsMissing(!hasName);
+    if (body && hasName && !saveProfile.isPending) saveProfile.mutate(body);
   }
 
   return (

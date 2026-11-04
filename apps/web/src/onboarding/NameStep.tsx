@@ -1,7 +1,7 @@
 import { type FormEvent, useRef, useState } from 'react';
 import { StepHeading } from '../auth/StepHeading';
 import { ONBOARDING_LABELS } from '../strings';
-import { MAX_NAME_LENGTH } from './fieldLimits';
+import { isStorableName, MAX_NAME_LENGTH } from './fieldLimits';
 import { ContinueButton, StepScreen } from './StepScreen';
 import type { StepProps } from './useOnboarding';
 
@@ -13,7 +13,7 @@ export function NameStep({ flow }: StepProps) {
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    if (flow.answers.name.trim()) flow.goNext();
+    if (isStorableName(flow.answers.name)) flow.goNext();
     else setIsMissing(true);
   }
 

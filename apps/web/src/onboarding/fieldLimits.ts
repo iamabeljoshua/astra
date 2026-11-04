@@ -1,5 +1,10 @@
 export const MAX_NAME_LENGTH = 60;
 
+const NULL_CHARACTER = '\u0000';
+const LONE_SURROGATE = /\p{Cs}/u;
+const VISIBLE_CHARACTER = /[^\p{Z}\p{Cc}\p{Cf}\p{M}\p{Default_Ignorable_Code_Point}]/u;
+
+// The same rule as IsStorableText at the API, which refuses anything else. fieldLimits.test.ts holds the two together.
 export function isStorableName(name: string): boolean {
-  return name.trim().length > 0;
+  return VISIBLE_CHARACTER.test(name) && !name.includes(NULL_CHARACTER) && !LONE_SURROGATE.test(name);
 }
