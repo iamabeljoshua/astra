@@ -1,4 +1,4 @@
-import { checkWorkOnBoard, readLine } from '@astra/board/shared';
+import { checkWorkOnBoard, getWorkContext, readLine } from '@astra/board/shared';
 import type { BoardState } from '@astra/board';
 import type { ElementId, StudentWork, Task } from '@astra/contracts';
 import { memo, type ReactNode, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
@@ -28,8 +28,11 @@ interface TypedLineProps {
   band?: ReactNode;
 }
 
+// A reloaded page starts counting again while the agent still holds the last page's lines, so each page load numbers its own.
+const FIRST_LINE_OF_THIS_PAGE = (Math.floor(Date.now() / 1000) % 1_000_000) * 1000;
+
 export function useNextLineId(getBoard: () => BoardState) {
-  const count = useRef(0);
+  const count = useRef(FIRST_LINE_OF_THIS_PAGE);
   return useCallback(() => {
     const { elements } = getBoard();
     do count.current += 1;
@@ -69,8 +72,8 @@ export const TypedLine = memo(function TypedLine({ task, getBoard, onWork, onPau
 
   useEffect(() => {
     const trimmed = text.trim();
-    if (trimmed === '' || !task) return;
-    const { verdict } = checkWorkOnBoard({ way: 'write', id: 'draft' as ElementId, text: trimmed, task: task.id }, getBoard());
+    if (trimmed === '' || (!task && !getWorkContext(getBoard(), undefined).problemTex)) return;
+    const { verdict } = checkWorkOnBoard({ way: 'write', id: 'draft' as ElementId, text: trimmed, ...(task ? { task: task.id } : {}) }, getBoard());
     if (verdict.status !== 'right' || !reading || reading.isAsking || reading.kind !== 'math') return;
     const timer = setTimeout(() => send(trimmed), RIGHT_LINE_LANDS_AFTER_MS);
     return () => clearTimeout(timer);

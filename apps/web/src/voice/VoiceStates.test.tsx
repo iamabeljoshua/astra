@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../App';
+import '../session/SessionScreen';
 import { BOARD_WORK_LABELS, CHAT_BOX_LABELS, REPLY_BOX_LABELS, SESSION_LABELS, VOICE_LABELS } from '../strings';
 import { makeSession, stubSessionsApi } from '../test/sessionsApi';
 import type { LiveVoice, LiveVoiceView } from './liveVoice';

@@ -23,7 +23,7 @@ Lesson kinds are M3.9's. This board only has to let the tutor set any of these m
 
 Abel chose the look of Prototype B, in `/Users/abel/startup/astra-tinker/board`, so a running session follows it and not `grid-cols-session`. The tutor's words stay on the left at `minmax(300px, 400px)`, and the right side holds the visual or the board. `SharedBoard` lays out rows in normal flow, each with a 240 px gutter for marks, notes, and "Read as", and the line being typed is the next row. The student writes in `ink` and the tutor in `pen`. `MovingDot` is the one dot: it rests over the tutor's words, flies to the line on a mark or a written line, dims on the live line, breathes while thinking, and grows with the voice's loudness.
 
-These differ from `docs/DESIGN.md` on the prototype's say: no outer border on the board, the prototype's type sizes, and the proposed `pen` token. These differ from the prototype: the app's own top bar, no Numbers panel, no intro page, "Read as" on every line, a Talk button, Math keys as a row of keys for the plain line with no MathLive, and plain rounded pen strokes with no dependency for varying width.
+These differ from `docs/DESIGN.md` on the prototype's say: no outer border on the board, the prototype's type sizes, and the proposed `pen` token. These differ from the prototype: the app's own top bar, no Numbers panel, no intro page, "Read as" on every line, and a Talk button.
 
 ## Teaching and hands-on
 
@@ -47,7 +47,7 @@ It cost $0.007 for 72 reads, at 1.9 s a read.
 
 ## Dragging a point
 
-A `drag` task puts the student's point on the curve, near its start, with a ring until it is first moved. It moves in steps of about a fiftieth of the plot, and only from near the point. Letting go sends the whole path, and a press that moved nothing sends nothing. The check is never finer than the point can move, so a wide plot can always be landed. A wrong place waits, because the student may be trying places, and the tutor looks at a pause. The moves land in the log with the work, so a replay moves the point at the same moments.
+A `drag` task puts the student's point on the curve, near its start, with a ring until it is first moved. It moves in steps of about a fiftieth of the plot, and only from near the point. Letting go sends the whole path, and a press that moved nothing sends nothing. The check is never finer than the point can move, so a wide plot can always be landed. Only letting go counts, so a point still moving is not work. Each place it is let go gets the tutor's reply at once, right or wrong. A wrong place gets "Hm." first, and the prompt names the tangent as a good first hint, so the tangent arrives by the tutor's command, as it does on the prototype. The page never draws it alone. The moves land in the log with the work, so a replay moves the point at the same moments.
 
 A line the tutor rewrites with a change takes what hung on it, as PR 88 made it: the student's ring and any task on that line. It says something new, so the ring no longer points at anything, and the tutor sets a new task if it wants one.
 
@@ -60,6 +60,7 @@ Any exercise can be answered by voice, as well as by typing or the pen. The micr
 - Spoken math reads through `readLine`: "two x equals eight" is `2x = 8`, never fixed and never solved. Muse writes words, so number words run to ninety-nine.
 - A cheap model reads only what code cannot: a line that might be misheard math, or an answer in words. It is told what the student was asked for. A doubt means code judges nothing and the tutor asks.
 - A pick needs one part named. A place needs every item named, or pairs of slot and item.
+- Under a math task, a spoken answer counts as typed. "four" is the line `4`, as a typed `4` is. "The answer is four", "I think x is four", and "um x equals four" are `x = 4`, with fillers and lead-ins set aside. A question stays talk, and so does a filler on its own.
 - `pnpm --filter @astra/agent eval:spoken` runs the table in `evals/tutor-turns/spoken-lines.json`, which holds Muse's real finals on clips in two Mac voices. Wrong lines read as right must stay at zero.
 
 From the end of speech to the line on the page, on 4 November, was 2.5 s at p50 and 4.1 s at most, over 6 lines. About 1.1 s of that is the audio path, 0.2 s the voice detector, 0.6 to 0.9 s Muse's final, under 20 ms code, and 0.3 s back to the page. The agent ran on the same Mac as the browser, with LiveKit's cloud between them, so the path should be shorter in production. Landing on Muse's last partial is not built, and would save little. Over the 64 clips the last partial always matched the final, and the whole line usually arrived with the final itself, at most 1.5 s before it.
@@ -70,6 +71,7 @@ The student can leave at any moment, and the tutor follows with no fuss.
 
 - A new topic or a wish to stop, typed or said, closes the open task: `wantsSomethingElse` in `check-work.ts`. Said aloud, it is `{ way: 'leave' }` and no line lands.
 - `boardMode` teach and `clearBoard` close it too, so a task never holds a later line.
+- A words answer closes its question, unless the task has a key to meet. Typed math under a words question reads as math, so an old question never turns later working into words.
 - `pnpm --filter @astra/agent eval:switch` runs these turns on the real model, including back to an old problem and a question about an old lesson. "New session" must never appear unless a real limit is reached.
 
 ## What a verdict means
@@ -78,15 +80,25 @@ The student can leave at any moment, and the tutor follows with no fuss.
 
 - `wrong` means code is certain. A student states no claim, so a typed line is a step only where it can be shown to be one: a one-letter equation, and a line that claims the answer or carries a whole side with its letter over from the line before. Everything else is `unknown`, and the tutor asks.
 - That leaves out true calculus (`x^2` to `2x`), base 2 (`1 + 1 = 10`), clock arithmetic (`10 + 5 = 3`), and a new problem (`x + 1 = 2` to `x + 2 = 5`), all of which arithmetic would call false. An expression is never called wrong, because its rewrite could be a derivative or an inverse.
-- `packages/board/test/step-table.ts` holds the table. 88 true rows give 0 false alarms, 35 right and 53 unknown. 27 false rows give 0 praised, 18 wrong and 9 unknown. `step-generator.test.ts` runs 3,000 made-up equations, with 18,000 true steps and about 17,900 false ones, and no true step is wrong and no false step is right. Its truth comes from plain arithmetic, not from the checker.
+- `packages/board/test/step-table.ts` holds the table. 88 true rows give 0 false alarms, 35 right and 53 unknown. 27 false rows give 0 praised, 18 wrong and 9 unknown. `step-generator.test.ts` runs 3,000 made-up equations, with 30,000 true steps and 35,864 false ones, chained lines among them, and no true step is wrong and no false step is right. It also runs 3,000 fractions, where the nearest rounding is ticked and no other is. Its truth comes from plain arithmetic, not from the checker.
+- `truth-rows.ts` keeps the first reviewer's own table. Of 92 false rows, 0 read as right, 33 wrong and 59 unknown. Of 145 true rows, 0 read as wrong, 96 right and 49 unknown.
+- A chained line is judged link by link. `2x = 11 + 3 = 14` is `2x = 11 + 3` and `11 + 3 = 14`. A wrong link makes the line wrong, and the line is right only when every link is, so one true link never covers one code cannot read.
+- A rounding is right only within half a unit in its last place, and a tie rounds up, so `1/8 = 0.13` is right and `1/8 = 0.12` is not. A rounding to one place, such as `1/6 = 0.2` or `pi = 3.1`, may be true and is often rough, so it is `unknown`. Worse than half a unit, a line of numbers is false, which stops the tutor. A student is not crossed for a last digit off by one on a rounded answer, as `x = 0.66` on `3x = 2`, because it may be cut short, and the tutor reads it.
+- `x = 3 1/2` is three and a half, and it is set that way. A whole number before a fraction of digits is a mixed number, also from the tutor. `2\frac{x}{2}` has two readings, and it stays `unknown`.
+- A line is checked against the problem on the board whether or not a task has landed, as on the prototype, so a student who types before the tutor finishes asking still gets a tick or a "Hm." The problem is the tutor's latest math line, if that is a one-letter equation and not `shown`. A task with its own `on` line wins. A wish to leave ends it, and so does a new line that is not such an equation.
 - `unknown` is honest and it costs something. `x + 3 = 11` on `2x + 3 = 11` is false and stays `unknown`, because `3x + 3 = 7` looks the same from here. The tutor can still ask about it.
 
 ## What code refuses of the tutor
 
 The model is not trusted with a student's work. These run before anyone hears a word.
 
-- A check or a cross cannot go against code, and neither can land on `unknown` work. Real Sonnet tried a cross on an `unknown` line in the first evaluation run.
+- A check or a cross cannot go against code, and neither can land on `unknown` work. Real Sonnet tried a cross on an `unknown` line in the first evaluation run. A refused mark stops the words after it and the tutor tries again, so nobody hears about a cross that was not drawn.
+- A note beside a line cannot say more than code knows. "Correct!" is refused on work code has not proved, and "wrong sign" on work it has.
+- A dot on a curve is refused only while a drag is open on that curve.
+- The tutor's own opening "Hm." is dropped when code has already said its nod for that work.
+- Math with a false rounding is refused under the rule in What a verdict means, and a chained line is held link by link.
 - Words that sound like praise, opening a reply to a wrong line, stop that reply, and the model tries again with a correction.
+- Words that call a line wrong, opening a reply to math code could not judge, stop that reply too, because it may be another base. Real Sonnet told `101 + 1 = 110` in base 2 it was close, in 1 of 3 runs of `eval:board`.
 - The answer, written or said, is refused until the student has had two turns at the problem.
 - Names like `s1` are kept for the student's lines.
 
@@ -96,13 +108,21 @@ Words after a question are dropped and commands are kept, so the tutor can ask a
 
 `watch-rule.ts` decides, from timing and code's facts. Prototype B measured Haiku alone wrongly interrupting 28 of 60. A cheap model only says what unsent words mean, and only when the rule asks, so a reading alone cannot interrupt.
 
-A right line waits. A wrong line, a finished task, a question, and any words get a reply at once. Only a short fixed list such as "hmm" and "let me think" passes with no reply, because a line of words can hold a disclosure and a model must not be able to stay quiet on one. A line in a code task that is a plain sentence still goes to the tutor. `pnpm eval:board` holds this and the rest to a real model.
+A right line waits. A wrong line, a finished task, a question, and any words get a reply at once. Only a short fixed list such as "hmm" and "let me think" passes with no reply, because a line of words can hold a disclosure and a model must not be able to stay quiet on one. A line in a code task that is a plain sentence still goes to the tutor. `pnpm eval:board` holds this and the rest to a real model. A third unrelated line in a row is held only to not being called wrong, because steering back to the problem there is harmless, and `x^2 = 16` as a first line must still get a question.
 
 Unsent words stay in the browser until a pause of a few seconds. Then they can go to the tutor service and to Anthropic. The privacy page says so.
 
 ## The log and replay
 
 Work reaches the log as `worked`, written by the agent with its own reading and verdict. Live and replay reduce the same operations, so they cannot drift. Older rows parse untouched. `shared-board-replay.test.ts` checks the same board at every moment.
+
+## Coming back
+
+A reload brings the board back. On `pagehide` the page keeps its operations in the tab's own `sessionStorage`, by room, and `keptBoard.ts` puts them back just before the new page's clock starts, with everything already drawn. Ink goes first if the store cannot hold it all. Nothing stays on a shared computer once the tab closes. A new tab starts with an empty board and the tutor still remembers.
+
+Each page load numbers its own lines, so a line never takes an id the agent still holds. The agent still refuses a line it cannot place, and that line goes to the tutor as words, so a refused line never means silence. Only the same line sent again across a rejoin stays quiet.
+
+The last turn's commands are replayed into the tutor's memory at the start of the next turn, and work noted since is put back after them, so a `clearBoard` in that turn cannot wipe the line the tutor is about to mark.
 
 ## Safety
 
@@ -135,6 +155,7 @@ Abel's rule: everything a student can see or do on the prototype exists on the r
 | Placeholder gone after the first lines | Yes. Words changed by Abel's voice slice | `TypedLine.test.tsx` |
 | Any key typed anywhere goes to the line | Yes | `TypedLine.test.tsx` |
 | Enter sends, and the line lands with its tick | Yes, 37 to 61 ms | perf probe, `term-demo` run |
+| Every typed line is checked at once against the problem, with or without a task | Yes | `board-problem.test.ts`, `board-round.test.ts`, `early.mjs` run |
 | A right finished line lands by itself after 2.2 s | Yes | `TypedLine.test.tsx` |
 | Underline in the pen colour when asked | Yes | `side-by-side-*` |
 | A task focuses the line and closes pen and keys | Yes | `LiveBoard`, `pen-freehand` run |
@@ -145,6 +166,7 @@ Abel's rule: everything a student can see or do on the prototype exists on the r
 | Behavior | Real board | Proof |
 |---|---|---|
 | Terms clickable only during the task, dashed underline in the pen colour | Yes | `term-proof-1-open.png` |
+| The underline and the student's ring cover the signed term, such as `+3` or `-2x` | Yes. The sign and term are one part, and a tutor's answer of `3` still matches `+3`, or `-3` when the line has no bare `3` | `pick-parts.test.ts`, `PickTargets.test.tsx`, `renderMath.test.ts` |
 | Hover tints the term | Yes | `term-proof-2-hover.png` |
 | Hover starts a guessed reply after 160 ms | Not yet. See Head start | |
 | One click draws the student's ring in ink, others stop being clickable | Yes, ring and word in 39 ms on 5179 | `term-proof-3-clicked.png`, `term-demo` run |
@@ -169,7 +191,7 @@ Abel's rule: everything a student can see or do on the prototype exists on the r
 | Behavior | Real board | Proof |
 |---|---|---|
 | Band with a dashed guide, opened by Pen or by a task | Yes | `pen-freehand-1-writing-light.png`, `byHand` run |
-| Strokes that vary in width | Yes, `perfect-freehand` 1.2.3, MIT, about 2 KB gzipped in the main bundle | `pen-freehand-1-writing-light.png` |
+| Strokes that vary in width | Yes, `perfect-freehand` 1.2.3, MIT, about 2 KB gzipped in the session's own chunk | `pen-freehand-1-writing-light.png` |
 | Done appears after the first stroke | Yes | `pen-freehand-1-writing-light.png` |
 | Reading starts as the pen rests, 650 ms | Yes | trace `inkReadStarted` 1.4 s ahead of `inkDone`, `board-work.test.ts` |
 | A 2 s pause sends the line | Yes | `PenBand` |
@@ -204,10 +226,11 @@ Abel's rule: everything a student can see or do on the prototype exists on the r
 
 | Behavior | Real board | Proof |
 |---|---|---|
-| Plot drawn in the flow, with grid, ticks, and a true minus sign | Yes, by PR 88's figure painter. The grid follows its ticks, and the prototype has one line a unit | `drag-light-1366-*`, `figure.test.ts` |
-| Draggable point with a pulsing ring and its coordinates | Yes. Arrow keys and Enter also move and send it, which the prototype does not have | `drag-point.test.ts`, `DragSurface.test.tsx`, `drag-*-1-waiting` |
+| Plot drawn in the flow, with grid, ticks, and a true minus sign | Yes, by PR 88's figure painter, in the prototype's 620 by 340 shape. The grid follows its ticks, at least 24 px apart on a round step, so the lesson's curve has one line a unit as the prototype does. The prototype's range is padded, so it numbers up to 7 where ours stops at 6 | `drag-light-1366-*`, `figure.test.ts` |
+| Draggable point with a pulsing ring and its coordinates | Yes. It starts a sixth of the way along, which is x = 0 on the lesson's curve as on the prototype. Arrow keys and Enter also move and send it, which the prototype does not have | `drag-point.test.ts`, `DragSurface.test.tsx`, `drag-*-1-waiting` |
 | Tangent riding on the point, with its slope written | Yes | `drag-point.test.ts`, `m3-12-task-*` |
-| Code's check on release, with "Mm-hm." or "Hm." | Yes, 37 to 58 ms on the page, on the drags measured | `drag-proof.mjs`, `board-work.test.ts` |
+| Code's check on release, with "Mm-hm." or "Hm." | Yes, 40 to 69 ms on the page, on the drags measured | `drag-proof.mjs`, `board-work.test.ts` |
+| A wrong place gets the tutor's reply at once, and its tangent command as a first hint, with no wait | Yes. The prompt asks for the tangent, so the model decides, as on the prototype | `watch-rule.test.ts`, `board-work.test.ts` |
 
 ### Layout
 

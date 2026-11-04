@@ -40,7 +40,7 @@ describe('the student\'s point on a plot', () => {
     const marks = getMarksAt(opening, 3000);
     expect(named(marks, 'point-ring-')).toBeDefined();
     expect(named(marks, 'point-a1')).toBeDefined();
-    expect(textOf(named(marks, 'coordinates-'))).toBe('(-0.1, 3.4)'.replace(/-/g, '−'));
+    expect(textOf(named(marks, 'coordinates-'))).toBe('(0, 3)');
   });
 
   it('loses its ring once moved, follows the student, and writes a true minus sign', () => {
@@ -103,6 +103,16 @@ describe('a drag on a wide plot', () => {
 });
 
 describe('getPointX', () => {
+  it.each([
+    [[-1, 5], 0],
+    [[0, 100], 17],
+    [[0, 0.6], 0.1],
+    [[-3, 3], -2],
+  ] as const)('starts on %j at %s, a sixth of the way along, as the prototype does on its lesson', (domain, x) => {
+    const board = getBoardAt([place(PLOT, 0), place(DRAG, 1000)], 2500);
+    expect(getPointX(board.elements.get('a1' as ElementId) as never, domain)).toBe(x);
+  });
+
   it('reads where the student left it', () => {
     const board = getBoardAt([place(PLOT, 0), place(DRAG, 1000), moved(3, 2000)], 2500);
     expect(getPointX(board.elements.get('a1' as ElementId) as never, [-1, 5])).toBe(3);

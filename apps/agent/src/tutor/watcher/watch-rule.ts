@@ -1,5 +1,5 @@
 import type { LineReading, StudentWork, WorkVerdict } from '@astra/contracts';
-import type { CheckedWork } from '@astra/board/shared';
+import { type CheckedWork, getLineTex, isFinishedAnswer, isThinkingAloud } from '@astra/board/shared';
 
 export interface WatchSituation {
   secondsPaused: number;
@@ -61,7 +61,6 @@ export function decideOnReading(decision: WatchDecision, meaning: WordMeaning | 
 
 export type WorkDecision = { act: 'reply'; why: string } | { act: 'wait'; why: string };
 
-const THINKING_ALOUD = /^(h+m+|u+m+|u+h+|e+r+|m+|mhm|o+k+|okay|alright|right|yeah|yep|wait|hold on|one sec(ond)?|sec|thinking|let me think|let me see|ah+|oh+|hm+ ok(ay)?)[\s.!,…]*$/i;
 const PLAIN_SENTENCE = /^[\p{L}'’,.!? -]+$/u;
 const FEWEST_WORDS_IN_A_SENTENCE = 3;
 
@@ -71,13 +70,14 @@ const wait = (why: string): WorkDecision => ({ act: 'wait', why });
 const isPlainSentence = (text: string) => PLAIN_SENTENCE.test(text) && text.trim().split(/\s+/).length >= FEWEST_WORDS_IN_A_SENTENCE;
 
 function decideOnLine(text: string, reading: LineReading | undefined, checked: CheckedWork, hasTask: boolean): WorkDecision {
-  if (THINKING_ALOUD.test(text.trim())) return wait('thinking aloud');
+  if (isThinkingAloud(text)) return wait('thinking aloud');
   if (reading?.kind === 'words' || reading?.kind === 'mixed' || reading?.isAsking) return reply('the student said something');
   if (reading?.kind === 'code') return isPlainSentence(text) ? reply('the student said something') : wait('the student is writing code');
   if (!hasTask) return reply('there is no task, so this is meant for the tutor');
   const { status } = checked.verdict;
   if (status === 'wrong') return reply('code is certain the line is wrong');
-  if (status === 'right') return checked.closesTask ? reply('the student finished') : wait('a right line, and the student is working');
+  const tex = reading ? getLineTex(reading) : null;
+  if (status === 'right') return checked.closesTask || (tex !== null && isFinishedAnswer(tex)) ? reply('the student finished') : wait('a right line, and the student is working');
   return wait('code cannot judge this line, so the tutor looks at a pause');
 }
 
@@ -92,7 +92,7 @@ export function decideOnWork(work: StudentWork, checked: CheckedWork, hasTask: b
     case 'place':
       return work.placed.includes(null) ? wait('some slots are still empty') : reply('every slot is filled');
     case 'drag':
-      return checked.verdict.status === 'right' ? reply('the point is there') : wait('the student may be trying places');
+      return reply('the student let go of the point');
   }
 }
 
