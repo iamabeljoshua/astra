@@ -93,9 +93,14 @@ export function readList<Item>(place: Place, { maxLength, readItem }: ListRules<
   return value.map((item: unknown, index) => readItem({ value: item, path: `${path}[${index}]` }));
 }
 
+export function checkRangeWidth(place: Place, low: number, high: number): void {
+  if (high - low < SMALLEST_RANGE_WIDTH) fail(place, `a low and a high number at least ${SMALLEST_RANGE_WIDTH} apart`);
+}
+
 export function readRange(place: Place, limits: NumberRange): [number, number] {
   const [low, high] = readList(place, { maxLength: RANGE_LENGTH, readItem: (end) => readNumberInRange(end, limits) });
-  if (low === undefined || high === undefined || high - low < SMALLEST_RANGE_WIDTH) fail(place, `a low and a high number at least ${SMALLEST_RANGE_WIDTH} apart`);
+  if (low === undefined || high === undefined) fail(place, `a low and a high number at least ${SMALLEST_RANGE_WIDTH} apart`);
+  checkRangeWidth(place, low, high);
   return [low, high];
 }
 

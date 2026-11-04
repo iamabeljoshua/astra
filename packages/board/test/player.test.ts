@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { createChoosingClock, createTimerClock, TURN_SILENCE_MS } from '../src/player/audio-clock.ts';
 import { type BoardElement, describeBoard, getSceneFrame } from '../src/player/board-state.ts';
-import { createProjectileScene } from '../src/player/projectile-scene.ts';
+import { createProjectileScene } from '../src/motion/projectile-scene.ts';
 import { rebuildBoard } from '../src/player/rebuild-board.ts';
 import { createScenePlayer } from '../src/player/scene-player.ts';
 import { LONGEST_HOLD_MS } from '../src/player/word-clock.ts';

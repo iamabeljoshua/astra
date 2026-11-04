@@ -9,7 +9,7 @@ const SCENE = { kind: 'richScene', id: 'slope' as ElementId, engine: 'manimgx', 
 const BOARD = getBoardAt([{ kind: 'command', atMs: 0, command: SCENE, overMs: null }, { kind: 'command', atMs: 0, command: { kind: 'runSimulation', target: 'slope' as ElementId, action: 'play', until: 'secant' }, overMs: 2000 }], 1000);
 
 const makeStage = (canDraw: boolean): SceneStage => ({ load: vi.fn(), draw: vi.fn(), canDraw: () => canDraw, free: vi.fn() });
-const EMPTY = { elements: new Map(), focus: null };
+const EMPTY = { elements: new Map(), focus: null, refusedSliders: [] };
 
 describe('the scene layer', () => {
   it('draws the second the board asks for, and fades in over the plain board', () => {
