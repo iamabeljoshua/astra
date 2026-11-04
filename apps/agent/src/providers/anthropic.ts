@@ -118,3 +118,23 @@ export function makeAnthropicTutorModel({ name = 'sonnet-5-5', apiKey }: { name?
     },
   };
 }
+
+/** A safety read must fail fast, and one retry costs the student no time because it runs beside the reply. */
+const ONE_WORD_READ_LIMIT_MS = 3000;
+const MOST_ONE_WORD_TOKENS = 8;
+
+// One short answer from the cheapest model. It answers null rather than throw, because a failed read must not touch the turn it sits beside.
+export function makeAnthropicOneWordReader({ apiKey, onCost }: { apiKey: string; onCost?(usd: number): void }): (system: string, text: string) => Promise<string | null> {
+  const { id, prices } = MODEL_SETTINGS['haiku-5-5'];
+  const client = new Anthropic({ apiKey, maxRetries: 1, timeout: ONE_WORD_READ_LIMIT_MS });
+  return async (system, text) => {
+    try {
+      const reply = await client.messages.create({ model: id, max_tokens: MOST_ONE_WORD_TOKENS, system, messages: [{ role: 'user', content: text }], thinking: { type: 'disabled' } });
+      onCost?.((reply.usage.input_tokens * prices.input + reply.usage.output_tokens * prices.output) / TOKENS_PER_MILLION);
+      const [first] = reply.content;
+      return first?.type === 'text' ? first.text : null;
+    } catch {
+      return null;
+    }
+  };
+}

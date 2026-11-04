@@ -157,6 +157,13 @@ export class BeatTextReader {
     this.#textAfterTurn = '';
   }
 
+  /** Help after a question counts in any language once code has read this turn as about the student's safety, and the words that spot it are English only. */
+  releaseTextAfterTurn(): void {
+    const held = this.#textAfterTurn;
+    this.markSafetyReply();
+    this.push(held);
+  }
+
   /** Throws away what has not been spoken yet, because a refused reply's partial output must not be used. */
   dropAttempt(): void {
     this.#clearHalfRead();

@@ -57,8 +57,8 @@ export const TUTOR_TIMEOUTS = {
   reportWaitMs: 150,
   /** Most sessions have the profile long before the first message, and a slow API must not hold up the reply. */
   profileWaitMs: 1000,
-  /** The safety check took 1.8 s at p95 under load, and only a reply that ended before it has to wait. */
-  safetyReadWaitMs: 2000,
+  /** The safety check took about 2 s under load, and 5 s when its first try timed out. Only a reply that ended first waits, and the student hears nothing different while it does. */
+  safetyReadWaitMs: 4000,
 };
 
 export type TutorTimeouts = typeof TUTOR_TIMEOUTS;
@@ -316,7 +316,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
           trace('mathRefused', { problem });
         },
         isAlreadySaid(text) {
-          if (turn.attempts < 2) return false;
+          if (turn.attempts < 2 || turn.hasStoppedForSafety) return false;
           const words = toComparableWords(text);
           const isRepeat = words !== '' && toComparableWords(getWordsSaid(turn)).includes(words);
           const isLongRepeat = isRepeat && words.split(' ').length >= FEWEST_WORDS_IN_A_REPEAT;
@@ -591,6 +591,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
   };
 
   const finishAnswer = (turn: TurnWork): TurnStep => {
+    if (isSafetyKind(turn.safetyReading)) turn.reader.releaseTextAfterTurn();
     addHelpIfMissing(turn);
     turn.reader.finish();
     if (!turn.hasModelWords) {

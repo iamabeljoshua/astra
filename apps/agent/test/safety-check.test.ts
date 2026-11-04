@@ -79,6 +79,13 @@ describe('a signal stops the teaching, shows help, and raises a flag', () => {
     expect(model.requests).toHaveLength(1);
   });
 
+  it('speaks help the model wrote after a question in another language', async () => {
+    const { brain, model } = setup({ getReply: () => ({ pieces: ['Ý em là gì? Hãy nói với người lớn em tin tưởng ngay.'] }) });
+    const spoken = await say(brain, 'em muon tu tu');
+    expect(spoken).toContain('người lớn');
+    expect(model.requests).toHaveLength(1);
+  });
+
   it('asks again in the student\'s language when that reply names no help, then names it in code', async () => {
     const { brain, model } = setup({ getReply: () => ({ pieces: ['Hola, cuéntame más.'] }) });
     const spoken = await say(brain, 'quiero matarme');
