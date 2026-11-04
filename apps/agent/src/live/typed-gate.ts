@@ -24,9 +24,16 @@ export function createTypedGate({ getNowMs, onRelease, onHeld, limits = TYPED_LI
     refilledAtMs += earned * limits.refillEveryMs;
   };
 
+  const scheduleRelease = () => {
+    clearTimeout(timer);
+    timer = setTimeout(releaseHeld, Math.max(1, refilledAtMs + limits.refillEveryMs - getNowMs()));
+  };
+
+  // A timer can fire a moment early, so it tries again rather than leaving the words held.
   const releaseHeld = () => {
     refill();
-    if (held === null || tokens < 1) return;
+    if (held === null) return;
+    if (tokens < 1) return scheduleRelease();
     const text = held;
     held = null;
     tokens -= 1;
@@ -43,8 +50,7 @@ export function createTypedGate({ getNowMs, onRelease, onHeld, limits = TYPED_LI
       }
       onHeld();
       held = clipTypedText(held === null ? text : `${held}\n${text}`);
-      clearTimeout(timer);
-      timer = setTimeout(releaseHeld, Math.max(0, refilledAtMs + limits.refillEveryMs - getNowMs()));
+      scheduleRelease();
     },
     close() {
       clearTimeout(timer);
