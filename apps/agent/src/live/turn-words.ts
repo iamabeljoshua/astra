@@ -32,6 +32,9 @@ export const isFiller = (text: string) => isMadeOf(getWords(text), FILLER_WORDS,
 
 export const hasWords = (text: string) => getWords(text).length > 0;
 
+/** A typed line that truly asks something. One word such as "ok?", or math such as "x = 3?", is a check and not a question. */
+export const asksAQuestion = (text: string) => /\?\s*$/.test(text) && getWords(text).filter((word) => /[a-z]{2}/.test(word)).length >= 2;
+
 // Words of a final the tutor already answered from its partial, which only count again when the student has spoken since.
 export function dropWordsAlreadyAnswered(text: string, answered: string): string {
   const words = text.trim().split(/\s+/);

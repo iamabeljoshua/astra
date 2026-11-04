@@ -105,6 +105,8 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** A real frozen tab comes back once, and a forged report would otherwise cut and resume the voice on every message. */
 const FEWEST_MS_BETWEEN_FREEZES = 5000;
+/** The page plays a turn behind the agent by the trip and its buffer, so for about this long after the agent finishes, a drop can still take the last words. */
+const STILL_PLAYING_AT_PAGE_MS = 3000;
 /** How often a breath checks whether a student who started talking has stopped. */
 const BREATH_RECHECK_MS = 150;
 
@@ -137,6 +139,8 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
   let voiceStall: ReturnType<typeof setTimeout> | undefined;
   let breathTimer: ReturnType<typeof setTimeout> | undefined;
   let stretchBeforeBreath: Speaking | null = null;
+  let lastStretch: Speaking | null = null;
+  let lastStretchEndedAtMs = 0;
 
   let isThinking = false;
   const setThinking = (next: boolean) => {
@@ -209,6 +213,10 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     if (speaking === reply) {
       setThinking(false);
       reply = null;
+      if (speaking.canResume) {
+        lastStretch = speaking;
+        lastStretchEndedAtMs = getNowMs();
+      }
       if (thought && thought.unspoken.length > 0) {
         takeBreath(speaking, thought);
       } else {
@@ -291,7 +299,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     speaking.spoken.stop();
     if (speaking !== reply) return;
     dropThought();
-    reply = speakTake('voiceLost', { isReply: true });
+    reply = speakTake(['voiceLost'], { isReply: true });
   }
 
   function watchVoice(speaking: Speaking): void {
@@ -299,8 +307,8 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     voiceStall = setTimeout(() => onVoiceFailed(speaking, 'the voice sent nothing'), VOICE_STALL_MS);
   }
 
-  function speakTake(use: TakeUse, { isReply }: { isReply: boolean }): Speaking | null {
-    const take = takes.next(use);
+  function speakTake(uses: readonly TakeUse[], { isReply }: { isReply: boolean }): Speaking | null {
+    const take = takes.next(...uses);
     const voiceToUse = take && takeVoices.get(take.id);
     if (!take || !voiceToUse) return null;
     return speak({ voiceToUse, beats: [getTakeBeat(take, `${take.id}-${turnCount + 1}`)], isReply, canResume: false, kind: take.use });
@@ -312,12 +320,13 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     return reason !== null;
   };
 
-  const react = () => {
+  const react = ({ canPraise }: { canPraise: boolean }) => {
     trace('reactDecided');
     if (sendClosedNote()) return;
     messenger.send({ type: 'heard' });
     // A session opened by a typed question has not yet said it is an AI, so its first reaction is the greeting (PRD S2).
-    if (!reaction) reaction = speakTake(hasGreeted ? 'reaction' : 'greeting', { isReply: false });
+    const uses: TakeUse[] = !hasGreeted ? ['greeting'] : canPraise ? ['reaction', 'goodQuestion'] : ['reaction'];
+    if (!reaction) reaction = speakTake(uses, { isReply: false });
     hasGreeted = true;
   };
 
@@ -358,6 +367,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     noteCutForBrain(reply && !reply.isOver ? reply : cut);
     reply?.spoken.stop();
     cut = null;
+    lastStretch = null;
     dropThought();
     const controller = new AbortController();
     const started: Thought = { controller, iterator: tutor.reply(request, controller.signal)[Symbol.asyncIterator](), unspoken: [], reading: null, latestReader: 0 };
@@ -378,22 +388,45 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       cut = action.keepsThought ? reply : null;
       reply = null;
     }
-    if (!action.keepsThought) dropThought();
+    if (!action.keepsThought) {
+      dropThought();
+      lastStretch = null;
+    }
     dispatch({ type: 'tutorFinished' });
   };
 
   const hasEveryReport = (speaking: Speaking) => [...speaking.spoken.getWordsSent().keys()].every((beatId) => speaking.reports.has(beatId));
 
+  const isStillPlayingAtPage = (speaking: Speaking) => getNowMs() - lastStretchEndedAtMs < STILL_PLAYING_AT_PAGE_MS && [...speaking.spoken.getWordsSent().keys()].some((beatId) => speaking.reports.get(beatId)?.ending !== 'finished');
+
+  const noteLinkLost = () => {
+    const unfinished = !reply && lastStretch && isStillPlayingAtPage(lastStretch) ? lastStretch : null;
+    if (unfinished) cut = unfinished;
+    dispatch({ type: 'linkLost', wasPlayingAtPage: unfinished !== null });
+  };
+
+  // The page reports what it could not play from a stretch the agent had finished, and a beat with no report was not cut.
+  const getEndOfLastStretch = (stretch: Speaking | null, resumeTag: string): Beat[] => {
+    if (!stretch) return [];
+    const cutBeats = stretch.beats.filter((beat) => stretch.reports.has(beat.id) && stretch.reports.get(beat.id)?.ending !== 'finished');
+    return getResumeBeats({ beats: cutBeats, reports: stretch.reports, wordsSent: stretch.spoken.getWordsSent(), resumeTag });
+  };
+
   const resume = async () => {
     const cutTurn = cut;
     cut = null;
     if (!cutTurn) return;
+    // This turn carries on with the thought, so the breath that was waiting to do that stands down.
+    clearTimeout(breathTimer);
+    stretchBeforeBreath = null;
+    const earlierStretch = lastStretch === cutTurn ? null : lastStretch;
     const ticket = (resumeTicket += 1);
     dispatch({ type: 'tutorThinking' });
     const deadline = getNowMs() + REPORT_WAIT_MS;
-    while (!hasEveryReport(cutTurn) && getNowMs() < deadline) await delay(REPORT_POLL_MS);
+    while ((!hasEveryReport(cutTurn) || (earlierStretch && !hasEveryReport(earlierStretch))) && getNowMs() < deadline) await delay(REPORT_POLL_MS);
     if (ticket !== resumeTicket) return;
-    const beats = getResumeBeats({ beats: cutTurn.beats, reports: cutTurn.reports, wordsSent: cutTurn.spoken.getWordsSent(), resumeTag: `r${turnCount}` });
+    const resumeTag = `r${turnCount}`;
+    const beats = [...getEndOfLastStretch(earlierStretch, resumeTag), ...getResumeBeats({ beats: cutTurn.beats, reports: cutTurn.reports, wordsSent: cutTurn.spoken.getWordsSent(), resumeTag })];
     trace('resumeStarted', { fromTurn: cutTurn.turnId, beats: beats.length, reported: hasEveryReport(cutTurn) });
     if (beats.length === 0 && !thought) return dispatch({ type: 'tutorFinished' });
     reply = speak({ voiceToUse: voice, beats: getResumedThen(beats, thought), isReply: true, canResume: true, kind: 'resume' });
@@ -415,7 +448,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       case 'resume':
         return void resume();
       case 'react':
-        return react();
+        return react(action);
       case 'reply':
         trace('replyDecided', { via: action.via, words: action.text.split(/\s+/).length, text: action.text });
         return startReply({ text: action.text, carried: action.carried });
@@ -426,14 +459,14 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       case 'setTurnCap':
         return setTurnCap(action.ms);
       case 'promptAfterSilence':
-        reply = speakTake('prompt', { isReply: true });
+        reply = speakTake(['prompt'], { isReply: true });
     }
   }
 
   const link: LinkWatch = createLinkWatch({
     onLost() {
       trace('linkLost');
-      dispatch({ type: 'linkLost' });
+      noteLinkLost();
     },
     onBack() {
       trace('linkBack');
@@ -464,14 +497,14 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
   const greet = () => {
     if (hasGreeted || reply || reaction) return;
     hasGreeted = true;
-    reply = speakTake('greeting', { isReply: true });
+    reply = speakTake(['greeting'], { isReply: true });
   };
 
   const onAudioState = (isRunning: boolean) => {
     const wasRunning = audioRunning;
     audioRunning = isRunning;
     trace('audioState', { isRunning });
-    if (wasRunning && !isRunning) dispatch({ type: 'linkLost' });
+    if (wasRunning && !isRunning) noteLinkLost();
     if (!wasRunning && isRunning && state.phase === 'away') dispatch({ type: 'linkBack' });
   };
 

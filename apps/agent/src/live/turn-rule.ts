@@ -1,4 +1,4 @@
-import { dropWordsAlreadyAnswered, hasWords, isFiller, isSmallReaction } from './turn-words.ts';
+import { asksAQuestion, dropWordsAlreadyAnswered, hasWords, isFiller, isSmallReaction } from './turn-words.ts';
 
 /** Starting values from the design and the plan. `docs/tests/voice.md` holds what each was measured against. */
 export const TURN_TIMINGS = {
@@ -87,7 +87,8 @@ export type TurnEvent =
   | { type: 'tutorStarted'; isReply: boolean }
   | { type: 'tutorFinished' }
   | { type: 'questionHeard' }
-  | { type: 'linkLost' }
+  /** `wasPlayingAtPage`: the agent has finished speaking, and the page has not said it finished playing. */
+  | { type: 'linkLost'; wasPlayingAtPage?: boolean }
   | { type: 'linkBack' };
 
 export type TurnAction =
@@ -96,7 +97,8 @@ export type TurnAction =
   /** `keepsThought` leaves the brain's reply running, because the tutor will carry on with it. */
   | { do: 'stop'; reason: StopReason; keepsThought: boolean }
   | { do: 'resume' }
-  | { do: 'react' }
+  /** `canPraise` only when the words are known to ask something. Speech reacts before its words are read. */
+  | { do: 'react'; canPraise: boolean }
   /** `carried` is how `text` starts: the words of a reply that was cut before it finished, already asked once. */
   | { do: 'reply'; text: string; carried: string; via: ReplyVia }
   | { do: 'startTimer'; name: TimerName; ms: number }
@@ -115,7 +117,7 @@ const CANCEL_FLOOR_TIMERS: TurnAction[] = (['wordlessStop', 'transcriptGrace', '
 const CANCEL_ALL: TurnAction[] = [...CANCEL_FLOOR_TIMERS, cancelTimer('reactionFloor'), cancelTimer('patience')];
 const UNYIELD: TurnAction = { do: 'unyield' };
 const RESUME: TurnAction = { do: 'resume' };
-const REACT: TurnAction = { do: 'react' };
+const REACT: TurnAction = { do: 'react', canPraise: false };
 
 const joinWords = (...parts: string[]) => parts.filter(Boolean).join(' ');
 
@@ -195,9 +197,9 @@ function onEchoHeard(state: TurnState): TurnStep {
   return { state, actions: [] };
 }
 
-function startReply(state: TurnState, { fresh, carried = '', via, answeredPartial = null }: { fresh: string; carried?: string; via: ReplyVia; answeredPartial?: string | null }): TurnStep {
+function startReply(state: TurnState, { fresh, carried = '', via, answeredPartial = null, canPraise = false }: { fresh: string; carried?: string; via: ReplyVia; answeredPartial?: string | null; canPraise?: boolean }): TurnStep {
   const text = joinWords(carried, fresh);
-  const reactFirst = state.hasReacted ? [] : [REACT];
+  const reactFirst: TurnAction[] = state.hasReacted ? [] : [{ do: 'react', canPraise }];
   const unyieldFirst = state.phase === 'yielding' ? [UNYIELD] : [];
   const next: TurnState = { ...INITIAL_TURN_STATE, tutor: 'thinking', isVoiceOn: state.isVoiceOn, unanswered: text, hasReacted: true, answeredPartial, answering: state.isVoiceOn ? 'no' : 'replied' };
   return { state: next, actions: [...CANCEL_ALL, ...unyieldFirst, ...reactFirst, { do: 'setTurnCap', ms: TURN_TIMINGS.turnCapMs }, { do: 'reply', text, carried, via }] };
@@ -215,7 +217,7 @@ function onTurnDecided(state: TurnState, { text }: { text: string }): TurnStep {
 
 function onTyped(state: TurnState, { text }: { text: string }): TurnStep {
   const stopFirst: TurnAction[] = state.tutor === 'silent' ? [] : [{ do: 'stop', reason: 'typed', keepsThought: false }];
-  const step = startReply({ ...state, hasReacted: false }, { fresh: text, via: 'typed' });
+  const step = startReply({ ...state, hasReacted: false }, { fresh: text, via: 'typed', canPraise: !state.isQuestionHeard && asksAQuestion(text) });
   return { state: step.state, actions: [...stopFirst, ...step.actions] };
 }
 
@@ -258,11 +260,12 @@ function onTutorFinished(state: TurnState): TurnStep {
 }
 
 function onQuestionHeard(state: TurnState): TurnStep {
-  return { state: { ...state, isQuestionHeard: true, isWaitingOnStudent: true }, actions: [{ do: 'setTurnCap', ms: TURN_TIMINGS.patientTurnCapMs }, startTimer('patience')] };
+  // The tutor stays quiet however long the student takes, and the page shows the prompt.
+  return { state: { ...state, isQuestionHeard: true }, actions: [{ do: 'setTurnCap', ms: TURN_TIMINGS.patientTurnCapMs }] };
 }
 
-function onLinkLost(state: TurnState): TurnStep {
-  const wasTalking = state.tutor !== 'silent' || state.phase === 'held';
+function onLinkLost(state: TurnState, { wasPlayingAtPage = false }: { wasPlayingAtPage?: boolean }): TurnStep {
+  const wasTalking = state.tutor !== 'silent' || state.phase === 'held' || wasPlayingAtPage;
   const stopFirst: TurnAction[] = state.tutor === 'silent' ? [] : [{ do: 'stop', reason: 'link lost', keepsThought: true }];
   return { state: { ...INITIAL_TURN_STATE, phase: 'away', unanswered: state.unanswered, wasCutByLink: wasTalking, isQuestionHeard: state.isQuestionHeard, hasReacted: state.hasReacted }, actions: [...CANCEL_ALL, ...stopFirst] };
 }
@@ -301,7 +304,7 @@ export function getNextTurnState(state: TurnState, event: TurnEvent): TurnStep {
     case 'questionHeard':
       return onQuestionHeard(state);
     case 'linkLost':
-      return onLinkLost(state);
+      return onLinkLost(state, event);
     case 'linkBack':
       return onLinkBack(state);
   }
