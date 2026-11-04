@@ -121,6 +121,6 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
 }
 
 function getDraft(text: string, board: NonNullable<ReturnType<NonNullable<TutorBrain['getBoard']>>>): WatchSituation['draft'] {
-  const { reading, verdict } = checkWorkOnBoard({ way: 'write', id: 'draft' as never, text, ...(board.openTask ? { task: board.openTask } : {}) }, board.state);
+  const { reading, verdict } = checkWorkOnBoard({ way: 'write', id: 'draft' as ElementId, text, ...(board.openTask ? { task: board.openTask } : {}) }, board.state);
   return reading ? { text, reading, verdict } : null;
 }

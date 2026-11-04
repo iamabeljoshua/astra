@@ -25,7 +25,6 @@ interface SharedBoardProps {
   lineInTheBand?: string | null;
   /** A handwritten line was misread, and the student wants to type it. */
   onFixReading?: (text: string) => void;
-  flowRef?: (flow: HTMLDivElement | null) => void;
 }
 
 const getRowId = ({ element }: BoardRow) => getInkLineId(element.id) ?? (element.id as string);
@@ -63,7 +62,7 @@ function RowGutter({ row, atMs, isReducedMotion, onFixReading }: { row: BoardRow
 }
 
 // The board as lines on a page: a row for each thing written, with its marks and notes in a gutter beside it, and the line being typed as the next row.
-export function SharedBoard({ board, atMs, onWork, onMarkProblem, liveRow, lineInTheBand = null, onFixReading, flowRef }: SharedBoardProps) {
+export function SharedBoard({ board, atMs, onWork, onMarkProblem, liveRow, lineInTheBand = null, onFixReading }: SharedBoardProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<SVGSVGElement>(null);
   const wrappers = useRef(new Map<string, HTMLElement>());
@@ -106,7 +105,7 @@ export function SharedBoard({ board, atMs, onWork, onMarkProblem, liveRow, lineI
   return (
     <div className="board-panel" data-testid="board">
       <div ref={scrollRef} className="board-scroll">
-        <div ref={flowRef} className="board-flow">
+        <div className="board-flow">
           {rows.map((row) => (
             <div key={getRowKey(row)} data-row={getRowId(row)} className={getRowClass(row)}>
               <div className="board-row-content">

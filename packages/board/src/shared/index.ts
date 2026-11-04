@@ -1,7 +1,7 @@
-export { checkClaimedMath, checkMathLine, checkMathStep, type MathVerdict } from './check-math.ts';
+export { checkClaimedMath, type MathVerdict } from './check-math.ts';
 export { checkStep, getLinearAnswer, isFinishedAnswer, type StepInput } from './check-step.ts';
 export { checkWork, type CheckedWork, getCurveOf, getPointFacts, type PointFacts, type WorkContext } from './check-work.ts';
-export { cleanStudentText, cleanTypedLine, getLineTex, plainToTex, readLine } from './read-line.ts';
+export { cleanStudentText, cleanTypedLine, getLineTex, readLine } from './read-line.ts';
 export type { StudentLineContent, TaskProgress } from './student-work.ts';
 export { checkWorkOnBoard, getOpenTaskOnBoard, getWorkContext } from './work-context.ts';
 export type { BoardOperation } from '../player/board-operations.ts';

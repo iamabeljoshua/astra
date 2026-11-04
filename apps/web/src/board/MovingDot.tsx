@@ -7,7 +7,7 @@ const PHONE_WIDTH = 860;
 /** How much larger the dot grows at the voice's loudest. */
 const LARGEST_PULSE = 0.55;
 
-export interface DotState {
+interface DotState {
   /** The board row the dot sits by, or null to rest over the tutor's words. */
   rowId: string | null;
   isWatching: boolean;

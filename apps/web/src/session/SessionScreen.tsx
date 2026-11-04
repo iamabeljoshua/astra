@@ -80,7 +80,6 @@ function RunningSession({ session }: { session: Session }) {
   const idleWords = liveVoice.status === 'idle' && !opening ? SESSION_LABELS.idleWords : null;
 
   const picture = <Board artwork={findArtwork(session.artwork)} note={SESSION_LABELS.boardStandIn} />;
-  const isDotLively = view !== null && !view.closedBecause && (view.isTutorSpeaking || view.isHeard || view.isThinking);
   return (
     <SessionFrame facts={<SessionFacts subject={session.subject} seconds={seconds} />} action={<EndButton isEnding={isEnding} onEnd={() => void endSession()} />} problem={endProblem} isFullHeight>
       <div className="board-stage">
@@ -88,7 +87,7 @@ function RunningSession({ session }: { session: Session }) {
           <SessionTitle title={session.title} isQuiet={Boolean(voice)} />
           {!voice && (
             <div className="label flex items-center gap-2.5">
-              <i aria-hidden data-testid="tutor-dot" data-lively={isDotLively} className="tutor-dot" />
+              <i aria-hidden data-testid="tutor-dot" data-lively={false} className="tutor-dot" />
               <span>{SESSION_LABELS.yourTutor}</span>
             </div>
           )}
@@ -165,27 +164,22 @@ function SessionFrame({ facts, action, problem, isFullHeight = false, children }
   );
 }
 
-interface SessionPanelsProps extends PropsWithChildren {
+interface SessionPanelsProps {
   session: Session;
-  tutorWords: string | null;
-  tutorCaption?: ReactNode;
-  isDotLively?: boolean;
-  boardNote?: string;
+  tutorWords: string;
 }
 
-function SessionPanels({ session, tutorWords, tutorCaption, isDotLively = false, boardNote, children }: SessionPanelsProps) {
-  const picture = <Board artwork={findArtwork(session.artwork)} note={boardNote} />;
+function SessionPanels({ session, tutorWords }: SessionPanelsProps) {
   return (
     <div className="grid flex-1 grid-cols-session gap-session py-4 max-md:grid-cols-1">
-      {picture}
+      <Board artwork={findArtwork(session.artwork)} />
       <div className="flex min-w-0 flex-col gap-3.5">
         <div className="label flex items-center gap-2.5">
-          <i aria-hidden data-testid="tutor-dot" data-lively={isDotLively} className={`tutor-dot ${isDotLively ? 'motion-safe:animate-speak' : ''}`} />
+          <i aria-hidden data-testid="tutor-dot" className="tutor-dot" />
           <span>{SESSION_LABELS.yourTutor}</span>
         </div>
         <SessionTitle title={session.title} />
-        {tutorCaption ?? (tutorWords && <p className="font-voice text-voice">{tutorWords}</p>)}
-        {children}
+        <p className="font-voice text-voice">{tutorWords}</p>
       </div>
     </div>
   );

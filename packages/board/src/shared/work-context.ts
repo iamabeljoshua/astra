@@ -27,13 +27,9 @@ export function getWorkContext(board: BoardState, taskId: ElementId | undefined)
   };
 }
 
-export function getWorkTaskId(work: StudentWork): ElementId | undefined {
-  return work.task;
-}
-
 /** What code makes of this work on this board. The page uses it to react at once, and the agent to check the same work for itself. */
 export function checkWorkOnBoard(work: StudentWork, board: BoardState): CheckedWork {
-  return checkWork(work, getWorkContext(board, getWorkTaskId(work)));
+  return checkWork(work, getWorkContext(board, work.task));
 }
 
 /** The task open on the board now, for the page to offer. */

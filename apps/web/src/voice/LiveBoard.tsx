@@ -71,18 +71,30 @@ function useDotTarget(board: BoardState, isTutorSpeaking: boolean) {
   return { target, watchLiveLine, goToRest };
 }
 
+interface LiveBoardProps {
+  voice: LiveVoice;
+  /** What fills the right side while teaching. */
+  visual?: ReactNode;
+  onTalk?: () => void;
+  isTalkOn?: boolean;
+  canTalk?: boolean;
+}
+
 // The board is a pure reading of the clock, so one read per frame is all it needs.
-export function LiveBoard({ voice, visual = null, onTalk, isTalkOn = false, canTalk = true }: { voice: LiveVoice; visual?: ReactNode; onTalk?: () => void; isTalkOn?: boolean; canTalk?: boolean }) {
+export function LiveBoard({ voice, visual = null, onTalk, isTalkOn = false, canTalk = true }: LiveBoardProps) {
   const [frame, setFrame] = useState<BoardFrame>(() => voice.getBoardNow());
   const [activity, setActivity] = useState(0);
-  const goToRest = useRef(() => {});
-  const watchLiveLine = useRef(() => {});
-  const isVisualBigNow = useRef(false);
   const [isMathKeysOpen, setIsMathKeysOpen] = useState(false);
   const [isPenOpen, setIsPenOpen] = useState(false);
   const [lineInTheBand, setLineInTheBand] = useState<ElementId | null>(null);
+  const [peek, setPeek] = useState<VisualPeek | null>(null);
   const penDone = useRef<(() => void) | null>(null);
   const typedLine = useRef<TypedLineHandle>(null);
+  const isVisualBigNow = useRef(false);
+  const { board, atMs } = frame;
+  const view = voice.getView();
+  const { target: dotTarget, watchLiveLine, goToRest } = useDotTarget(board, view.isTutorSpeaking);
+
   useEffect(() => {
     let animationFrame = requestAnimationFrame(function draw() {
       animationFrame = requestAnimationFrame(draw);
@@ -90,18 +102,35 @@ export function LiveBoard({ voice, visual = null, onTalk, isTalkOn = false, canT
     });
     return () => cancelAnimationFrame(animationFrame);
   }, [voice]);
+
   useEffect(() => {
     const stopOnEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || event.defaultPrevented) return;
       voice.stopTutor();
-      goToRest.current();
+      goToRest();
     };
     document.addEventListener('keydown', stopOnEscape);
     return () => document.removeEventListener('keydown', stopOnEscape);
-  }, [voice]);
+  }, [voice, goToRest]);
+
+  const mode = board.stage?.mode;
+  useEffect(() => {
+    if (mode !== 'handsOn') return;
+    typedLine.current?.focus();
+    watchLiveLine();
+  }, [mode, watchLiveLine]);
+
+  const isVisualBig = Boolean(visual) && getVisualPlace({ stage: board.stage, peek, atMs, isReducedMotion: false }).smallShare === 0;
+  useEffect(() => {
+    isVisualBigNow.current = isVisualBig;
+  }, [isVisualBig]);
+
   const reportProblem = useCallback((problem: MarkWithoutTarget) => voice.reportMarkNotDrawn(problem.markId), [voice]);
   const getBoard = useCallback(() => voice.getBoardNow().board, [voice]);
   const nextLineId = useNextLineId(getBoard);
+  const sendPause = useCallback((seconds: number, draft?: string) => voice.sendPause(seconds, draft), [voice]);
+  const closePen = useCallback(() => setIsPenOpen(false), []);
+  const bringBoard = useCallback(() => setPeek({ isBig: false, atMs: voice.getBoardNow().atMs }), [voice]);
   const sendWork = useCallback(
     (work: StudentWork) => {
       voice.sendWork(work);
@@ -110,70 +139,66 @@ export function LiveBoard({ voice, visual = null, onTalk, isTalkOn = false, canT
     },
     [voice],
   );
-  const sendPause = useCallback((seconds: number, draft?: string) => voice.sendPause(seconds, draft), [voice]);
-  const { board, atMs } = frame;
-  const task = getOpenTaskOnBoard(board);
-  const hasRows = getBoardRows(board).length > 0;
-  const [peek, setPeek] = useState<VisualPeek | null>(null);
-  const isVisualBig = Boolean(visual) && getVisualPlace({ stage: board.stage, peek, atMs, isReducedMotion: false }).smallShare === 0;
-  const bringBoard = useCallback(() => {
-    setPeek({ isBig: false, atMs: voice.getBoardNow().atMs });
-  }, [voice]);
-  const mode = board.stage?.mode;
-  useEffect(() => {
-    if (mode !== 'handsOn') return;
-    typedLine.current?.focus();
-    watchLiveLine.current();
-  }, [mode]);
-  const view = voice.getView();
-  const dot = useDotTarget(board, view.isTutorSpeaking);
-  useEffect(() => {
-    goToRest.current = dot.goToRest;
-    watchLiveLine.current = dot.watchLiveLine;
-  }, [dot.goToRest, dot.watchLiveLine]);
-  const { watchLiveLine: watchLine } = dot;
-  const closePen = useCallback(() => setIsPenOpen(false), []);
   const onPenWorking = useCallback(() => {
-    watchLine();
+    watchLiveLine();
     setActivity((count) => count + 1);
-  }, [watchLine]);
+  }, [watchLiveLine]);
   const onTyping = useCallback(() => {
-    watchLine();
+    watchLiveLine();
     if (isVisualBigNow.current) bringBoard();
-  }, [watchLine, bringBoard]);
-  useEffect(() => {
-    isVisualBigNow.current = isVisualBig;
-  }, [isVisualBig]);
-  const hasWrittenBefore = [...board.elements.values()].filter(({ content }) => content.kind === 'studentLine').length >= LINES_BEFORE_THE_HINT_GOES;
+  }, [watchLiveLine, bringBoard]);
+
+  const rows = getBoardRows(board);
+  const task = getOpenTaskOnBoard(board);
+  const hasWrittenBefore = rows.filter(({ element }) => element.content.kind === 'studentLine').length >= LINES_BEFORE_THE_HINT_GOES;
+  const isThinking = (view.isThinking || rows.some(({ isBeingRead }) => isBeingRead)) && !view.closedBecause;
+  const tools = (
+    <div className="board-tools" data-testid="board-tools">
+      {canTalk && <button type="button" className="board-tool" aria-pressed={isTalkOn} onClick={onTalk}>{BOARD_WORK_LABELS.talk}</button>}
+      {isVisualBig && (
+        <button
+          type="button"
+          className="board-tool"
+          onClick={() => {
+            bringBoard();
+            typedLine.current?.focus();
+          }}
+        >
+          {BOARD_WORK_LABELS.type}
+        </button>
+      )}
+      <button
+        type="button"
+        className="board-tool"
+        data-testid="pen-tool"
+        aria-pressed={isPenOpen}
+        onClick={() => {
+          if (isVisualBig) bringBoard();
+          setIsMathKeysOpen(false);
+          setIsPenOpen((isOpen) => !isOpen);
+        }}
+      >
+        {BOARD_WORK_LABELS.pen}
+      </button>
+      <button
+        type="button"
+        className="board-tool"
+        aria-pressed={isMathKeysOpen}
+        onClick={() => {
+          setIsPenOpen(false);
+          setIsMathKeysOpen((isOpen) => !isOpen);
+        }}
+      >
+        {BOARD_WORK_LABELS.mathKeys}
+      </button>
+      {isMathKeysOpen ? <MathKeys onKey={(key) => typedLine.current?.insert(key)} /> : <span className="board-hint">{BOARD_WORK_LABELS.hint}</span>}
+      {lineInTheBand && <button type="button" className="board-tool-main ml-auto" data-testid="pen-done" onClick={() => penDone.current?.()}>{BOARD_WORK_LABELS.done}</button>}
+    </div>
+  );
   return (
-    <BoardStageView
-      stage={board.stage}
-      hasWriting={hasRows}
-      atMs={atMs}
-      visual={visual}
-      ariaLabel={VOICE_LABELS.board}
-      peek={peek}
-      onPeek={setPeek}
-      footer={
-        <div className="board-tools" data-testid="board-tools">
-          {canTalk && <button type="button" className="board-tool" aria-pressed={isTalkOn} onClick={onTalk}>{BOARD_WORK_LABELS.talk}</button>}
-          {isVisualBig && <button type="button" className="board-tool" onClick={() => { bringBoard(); typedLine.current?.focus(); }}>{BOARD_WORK_LABELS.type}</button>}
-          <button type="button" className="board-tool" data-testid="pen-tool" aria-pressed={isPenOpen} onClick={() => {
-            if (isVisualBig) bringBoard();
-            setIsMathKeysOpen(false);
-            setIsPenOpen((isOpen) => !isOpen);
-          }}>{BOARD_WORK_LABELS.pen}</button>
-          <button type="button" className="board-tool" aria-pressed={isMathKeysOpen} onClick={() => {
-            setIsPenOpen(false);
-            setIsMathKeysOpen((isOpen) => !isOpen);
-          }}>{BOARD_WORK_LABELS.mathKeys}</button>
-          {isMathKeysOpen ? <MathKeys onKey={(key) => typedLine.current?.insert(key)} /> : <span className="board-hint">{BOARD_WORK_LABELS.hint}</span>}
-          {lineInTheBand && <button type="button" className="board-tool-main ml-auto" data-testid="pen-done" onClick={() => penDone.current?.()}>{BOARD_WORK_LABELS.done}</button>}
-        </div>
-      }
-    >
+    <BoardStageView stage={board.stage} hasWriting={rows.length > 0} atMs={atMs} visual={visual} ariaLabel={VOICE_LABELS.board} peek={peek} onPeek={setPeek} footer={tools}>
       <p role="status" className="sr-only">{getLastWorkWords(board)}</p>
-      <MovingDot rowId={dot.target.rowId} isWatching={dot.target.isWatching} isThinking={(view.isThinking || getBoardRows(board).some(({ isBeingRead }) => isBeingRead)) && !view.closedBecause} isLively={!view.closedBecause && (view.isTutorSpeaking || view.isHeard || view.isThinking)} getLoudness={voice.getLoudness} />
+      <MovingDot rowId={dotTarget.rowId} isWatching={dotTarget.isWatching} isThinking={isThinking} isLively={!view.closedBecause && (view.isTutorSpeaking || view.isHeard || view.isThinking)} getLoudness={voice.getLoudness} />
       <SharedBoard
         board={board}
         atMs={atMs}

@@ -128,11 +128,9 @@ export class BeatTextReader {
 
   /** The model's text as the student got it, because a command kept after its question can sit among words that were dropped. */
   getKeptText(raw: string): string {
-    return this.#textAfterTurn === '' ? raw : this.#keptAfterQuestion.reduce((kept, command) => `${kept} ${command}`, raw.slice(0, this.#keptBeforeQuestionEnd(raw)));
-  }
-
-  #keptBeforeQuestionEnd(raw: string): number {
-    return Math.max(0, raw.length - this.#textAfterTurn.length - this.#keptAfterQuestion.join('').length);
+    if (this.#textAfterTurn === '') return raw;
+    const questionEnd = Math.max(0, raw.length - this.#textAfterTurn.length - this.#keptAfterQuestion.join('').length);
+    return [raw.slice(0, questionEnd), ...this.#keptAfterQuestion].join(' ');
   }
 
   get wordsThisTurn(): number {
