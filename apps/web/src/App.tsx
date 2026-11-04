@@ -15,6 +15,7 @@ import { AppShell } from './shell/AppShell';
 import { LEGAL_PAGES } from './strings';
 
 const ScenePlayerLab = import.meta.env.DEV ? lazy(() => import('./lab/ScenePlayerLab')) : null;
+const BoardDeckLab = import.meta.env.DEV ? lazy(() => import('./lab/BoardDeckLab')) : null;
 
 function AppRoutes() {
   const signInDraft = useSignInDraft();
@@ -27,6 +28,16 @@ function AppRoutes() {
           element={
             <Suspense>
               <ScenePlayerLab />
+            </Suspense>
+          }
+        />
+      ) : null}
+      {BoardDeckLab ? (
+        <Route
+          path="/lab/board-deck"
+          element={
+            <Suspense>
+              <BoardDeckLab />
             </Suspense>
           }
         />

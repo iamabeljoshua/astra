@@ -1,11 +1,12 @@
 import { type BoardElement, type BoardState, getMotionValue } from '@astra/board';
-import { createFigurePainter, createInkPainter, drawMark, type FigureMark, type InkPainter, type LabelRequest, type MarkBox, type MovingPlacement, placeLabels, type TermBoxes, type TermQuery, writeStyle } from '@astra/board/drawing';
+import { createFigurePainter, createInkPainter, drawMark, type FigureMark, getMarkRoomOnRight, type InkPainter, type LabelRequest, type MarkBox, type MovingPlacement, placeLabels, type TermBoxes, type TermQuery, writeStyle } from '@astra/board/drawing';
 import type { AnnotationMark, ElementRef } from '@astra/contracts';
 import { type BoardItem, isFigure } from './boardItems';
 
 const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
 const FOCUS_DOT = { radius: 3.5, inset: 8 };
 const NOTE_GAP = 3;
+const BOARD_EDGE_ROOM = 2;
 
 type MarkContent = Extract<BoardElement['content'], { kind: 'highlight' | 'annotate' }>;
 type ReportedContent = MarkContent | Extract<BoardElement['content'], { kind: 'markValue' }>;
@@ -54,6 +55,18 @@ function getMarkBoxes(content: MarkContent, placement: MovingPlacement, item: Bo
   if (item.getTermBoxes) return item.getTermBoxes(getMarkQuery(content, part));
   const isWholeElement = part === undefined && content.kind === 'annotate';
   return { from: null, to: isWholeElement || content.kind === 'highlight' ? { x: 0, y: 0, width: placement.width / placement.scale, height: placement.height / placement.scale } : null, flightOffset: { x: 0, y: 0 } };
+}
+
+// A tick beside something as wide as the board moves in over its right end, so it stays on the board.
+function keepMarkOnBoard(mark: AnnotationMark, box: MarkBox, placement: MovingPlacement, boardWidth: number): MarkBox {
+  const room = getMarkRoomOnRight(mark, box);
+  const roomLeft = (boardWidth - BOARD_EDGE_ROOM - placement.x) / placement.scale - box.x;
+  return room === 0 || box.width + room <= roomLeft ? box : { ...box, width: Math.max(0, roomLeft - room) };
+}
+
+function getBoardInside(placement: MovingPlacement, area: MarksFrame['area']): MarkBox {
+  const toElement = (onBoard: number, start: number) => (onBoard - start) / placement.scale;
+  return { x: toElement(BOARD_EDGE_ROOM, placement.x), y: toElement(BOARD_EDGE_ROOM, placement.y), width: (area.width - 2 * BOARD_EDGE_ROOM) / placement.scale, height: (area.height - 2 * BOARD_EDGE_ROOM) / placement.scale };
 }
 
 const isCrossFading = (boxes: TermBoxes, isReducedMotion: boolean) => isReducedMotion && boxes.from !== null && boxes.to !== null;
@@ -108,13 +121,13 @@ export function createBoardMarks(overlay: SVGSVGElement, onMarkWithoutTarget?: (
     onMarkWithoutTarget?.({ kind: 'markWithoutTarget', markId: mark.id, target: content.target, ...(tex === undefined ? {} : { tex }) });
   };
 
-  const getPaintedMark = ({ id, kind, box, existing }: { id: string; kind: AnnotationMark; box: MarkBox; existing: PaintedMark | undefined }): PaintedMark => {
-    const key = `${kind}|${box.x.toFixed(1)}|${box.y.toFixed(1)}|${box.width.toFixed(1)}|${box.height.toFixed(1)}`;
+  const getPaintedMark = ({ id, kind, box, within, existing }: { id: string; kind: AnnotationMark; box: MarkBox; within: MarkBox; existing: PaintedMark | undefined }): PaintedMark => {
+    const key = `${kind}|${box.x.toFixed(1)}|${box.y.toFixed(1)}|${box.width.toFixed(1)}|${box.height.toFixed(1)}|${within.y.toFixed(0)}`;
     if (existing?.key === key) return existing;
     existing?.painter.remove();
     const group = existing?.group ?? document.createElementNS(SVG_NAMESPACE, 'g');
     if (!existing) noteGroup.before(group);
-    const painted = { group, key, painter: createInkPainter(group, drawMark({ mark: kind, box, seed: id })) };
+    const painted = { group, key, painter: createInkPainter(group, drawMark({ mark: kind, box, seed: id, within })) };
     marks.set(id, painted);
     return painted;
   };
@@ -135,7 +148,7 @@ export function createBoardMarks(overlay: SVGSVGElement, onMarkWithoutTarget?: (
       return null;
     }
     drawnOnce.add(getPlacementKey(mark));
-    const painted = getPaintedMark({ id: mark.id, kind: getMarkKind(content), box, existing: marks.get(mark.id) });
+    const painted = getPaintedMark({ id: mark.id, kind: getMarkKind(content), box: keepMarkOnBoard(getMarkKind(content), box, placement, frame.area.width), within: getBoardInside(placement, frame.area), existing: marks.get(mark.id) });
     const drawn = getMotionValue(mark.entrance, frame.atMs);
     const move = boxes.flightOffset;
     writeStyle(painted.group, 'visibility', placement.isVisible ? '' : 'hidden');

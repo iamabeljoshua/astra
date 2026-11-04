@@ -1,3 +1,8 @@
+export { type BlockPainter } from './block/block-steps.ts';
+export { createCodePainter } from './code/code-painter.ts';
+export { drawLabeledSheet, type LabeledDrawing } from './diagram/label-drawing.ts';
+export { createTablePainter } from './table/table-painter.ts';
+export { createTimelinePainter } from './timeline/timeline-painter.ts';
 export { type DiagramTextLabel, drawDiagram, type DrawnDiagram, type MeasureText } from './ink/diagram.ts';
 export { createFigurePainter } from './figure/figure-painter.ts';
 export type { FigureMark } from './figure/figure-marks.ts';
@@ -6,7 +11,7 @@ export { type LabelRequest, placeLabels, setLabelMeasure } from './figure/place-
 export { canWriteByHand, writeByHand } from './ink/handwriting.ts';
 export { createInkPainter, type InkPainter } from './ink/ink-painter.ts';
 export type { InkDrawing, InkStroke } from './ink/ink-stroke.ts';
-export { drawMark, type MarkBox } from './ink/marks.ts';
+export { drawMark, getMarkRoomOnRight, type MarkBox } from './ink/marks.ts';
 export { placeMovingElements, type LayoutArea, type LayoutBox, type MovingBox, type MovingPlacement, placeElements, type Placement } from './layout/place-elements.ts';
 export { createMathPainter, type MathFontProblem, type MathFrame, type MathPainter, type MathSize, type TermBoxes, type TermQuery } from './math/math-painter.ts';
 export { easeInOut } from './math/paint-flights.ts';

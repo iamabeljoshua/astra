@@ -1,9 +1,22 @@
 import type { ElementId, ElementRef, FileId } from './ids.ts';
 
-export const DRAWINGS = ['hoop-side'] as const;
-export type DrawingName = (typeof DRAWINGS)[number];
+/** Our own drawings, each with the named parts a tutor can label or mark. A hoop is only ever drawn under a simulation, so it has no parts. */
+export const DRAWING_PARTS = {
+  'hoop-side': [],
+  'animal-cell': ['membrane', 'nucleus', 'nucleolus', 'mitochondrion', 'vacuole', 'ribosome'],
+  flower: ['petal', 'stamen', 'stem', 'leaf', 'root'],
+  'water-cycle': ['sun', 'cloud', 'rain', 'mountain', 'river', 'sea', 'evaporation'],
+  atom: ['nucleus', 'orbit', 'electron'],
+  'music-staff': ['clef', 'staff', 'note', 'stem', 'bar-line'],
+  'piano-keys': ['c', 'd', 'e', 'f', 'g', 'a', 'b', 'black-key'],
+  globe: ['north-pole', 'south-pole', 'equator', 'tropic', 'meridian'],
+  lever: ['beam', 'fulcrum', 'load', 'effort'],
+} as const satisfies Record<string, readonly string[]>;
 
-export const IMAGE_ASSETS = ['great-wave', 'school-of-athens', 'saturn'] as const;
+export type DrawingName = keyof typeof DRAWING_PARTS;
+export const DRAWINGS = Object.keys(DRAWING_PARTS) as DrawingName[];
+
+export const IMAGE_ASSETS = ['great-wave', 'school-of-athens', 'saturn', 'storming-of-the-bastille', 'death-of-socrates', 'great-pyramid', 'melencolia', 'sunflowers', 'earthrise', 'whole-earth'] as const;
 export type ImageAsset = (typeof IMAGE_ASSETS)[number];
 
 export interface SimulationParameterRule {

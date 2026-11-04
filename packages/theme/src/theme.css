@@ -1,4 +1,5 @@
 @import './fonts.css';
+@import './board-library.css';
 
 @theme static {
   --color-*: initial;
@@ -349,7 +350,9 @@
 
   .board-ink-text {
     fill: var(--color-ink);
-    stroke: none;
+    paint-order: stroke;
+    stroke: var(--color-panel);
+    stroke-width: 3px;
   }
 
   .board-marks {
