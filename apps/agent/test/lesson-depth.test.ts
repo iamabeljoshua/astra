@@ -226,7 +226,7 @@ afterEach(async () => {
 
 const FAST = { ...LEAD_TIMINGS, firstWordAfterMs: 30, afterQuestionMs: 400, afterTaskMs: 500 };
 
-function startLeading({ answers, canLead = () => true, leadTimings = FAST, mostQuietLeads }: { answers(request: string, index: number): readonly TutorBeat[]; canLead?(): boolean; leadTimings?: typeof FAST; mostQuietLeads?: number }) {
+function startLeading({ answers, canLead = () => true, leadTimings = FAST, mostQuietLeads, quietLimitMs, onQuietLimit }: { answers(request: string, index: number): readonly TutorBeat[]; canLead?(): boolean; leadTimings?: typeof FAST; mostQuietLeads?: number; quietLimitMs?: number; onQuietLimit?(): void }) {
   const asked: string[] = [];
   const leads: LeadKind[] = [];
   const left: string[] = [];
@@ -254,6 +254,8 @@ function startLeading({ answers, canLead = () => true, leadTimings = FAST, mostQ
     setTurnCap: () => {},
     leadTimings,
     ...(mostQuietLeads === undefined ? {} : { mostQuietLeads }),
+    ...(quietLimitMs === undefined ? {} : { quietLimitMs }),
+    ...(onQuietLimit ? { onQuietLimit } : {}),
   });
   sessions.push(session);
   session.onBrowser({ type: 'audioState', isRunning: true, clockId: 'c', browserMs: 1, startedMsAgo: 0 } as never);
@@ -365,6 +367,16 @@ describe('the tutor leads', () => {
     session.onBrowser({ type: 'questionHeard', clockId: 'c', browserMs: 1, startedMsAgo: 0 } as never);
     await vi.waitFor(() => expect(leads).toContain('checkIn'), { timeout: 6000 });
   }, 12_000);
+
+  it('never closes the room on a student only listening, and does once it is holding for one who has gone', async () => {
+    const onQuietLimit = vi.fn();
+    const { asked, type } = startLeading({ answers: (_request, index) => (index < 4 ? teaching(_request, index) : [makeBeat(`q${index}`, 'Which way?', true)]), quietLimitMs: 2500, onQuietLimit });
+    type('teach me rockets');
+    await vi.waitFor(() => expect(asked.length).toBeGreaterThanOrEqual(4), { timeout: 10_000 });
+    expect(onQuietLimit).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(onQuietLimit).toHaveBeenCalled(), { timeout: 12_000 });
+    expect(asked.at(-1)).toBe(LEAD_WORDS.checkIn);
+  }, 25_000);
 
   it('after a crisis nothing continues by itself', async () => {
     const { asked, type, leads } = startLeading({ answers: teaching, canLead: () => false });

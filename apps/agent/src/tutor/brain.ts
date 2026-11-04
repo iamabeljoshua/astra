@@ -382,7 +382,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
   // A lead has nobody's words to read, so the plan's exercise holds it where a note beside other notes did not.
   const isExerciseDueNow = () => {
     const step = lessonPlanner?.getStepNote();
-    return step !== null && step !== undefined && 'exercise_due' in step && step.exercise_due === true;
+    return Boolean(step && 'exercise_due' in step);
   };
 
   const startTurn = (studentText: string, signal: AbortSignal): TurnWork => {
@@ -1056,7 +1056,8 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
       if (note.why.includes('needsAPerson')) isLeadStopped = true;
       pendingNotes.push({ watcher: note });
     },
-    canLead: () => canLeadAfterLastTurn && !isLeadStopped && !hasToldClosed && closedReason === null && getSpendLimit() === null,
+    // A limit reached leaves this true, so the next lead says so in the closing line, costing nothing, and the student is not left in silence.
+    canLead: () => canLeadAfterLastTurn && !isLeadStopped && closedReason === null,
     noteLead(kind) {
       leadDue = kind;
       if (kind === 'taskLeft' || kind === 'taskTried') lessonPlanner?.moveToNextStep();
