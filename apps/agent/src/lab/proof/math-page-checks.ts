@@ -23,9 +23,11 @@ interface LabWindow {
   sceneLab?: { describeLive(atMs: number): { elements: { id: string; kind: string; tex?: string; drawn: number; morphFrom?: string; revealedUpTo?: number; sceneSeconds?: number }[] }; player: { getNowMs(): number; getOperations(): { kind: string; atMs: number }[] } };
   __frameWatch?: FrameWatch;
   __stopFrameWatch?: () => void;
+  /** The proof itself has moved the board to another moment, so what the board writes then has its cause. */
+  __proofIsHolding?: boolean;
 }
 
-const FORBIDDEN = 'script, img, iframe, object, embed, a, link, style, form, input:not(.board-slider input)';
+const FORBIDDEN = 'script, img:not(.board-image), iframe, object, embed, a, link, style, form, input:not(.board-slider input)';
 const PAINT_SHRINK = 0.2;
 const BOARD_EDGE_ROOM = 0.5;
 /** React commits after the frame that read the clock, so a board can show the last equation this long. */
@@ -165,7 +167,7 @@ export function startFrameWatch({ isReducedMotion, refusedTex }: { isReducedMoti
     return lab.describeLive(nowMs).elements.some((element) => element.drawn < 1) || lab.describeLive(nowMs - 40).elements.some((element) => element.drawn < 1) || lab.describeLive(nowMs).elements.some((element) => element.revealedUpTo !== undefined && element.revealedUpTo !== lab.describeLive(nowMs - 40).elements.find((other) => other.id === element.id)?.revealedUpTo);
   };
   const observer = new MutationObserver((records) => {
-    if (isCaused()) watch.mutationsWithCause += records.length;
+    if (page.__proofIsHolding || isCaused()) watch.mutationsWithCause += records.length;
     else {
       watch.mutationsWithNoCause += records.length;
       const target = records[0]?.target as HTMLElement | undefined;

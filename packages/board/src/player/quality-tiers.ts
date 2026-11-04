@@ -25,6 +25,7 @@ interface WatchState {
   slowWindows: number;
   fastWindows: number;
   windowsToClimb: number;
+  hasClimbed: boolean;
 }
 
 const startWindow = (state: WatchState, nowMs: number | null) => {
@@ -45,16 +46,18 @@ function judgeWindow(state: WatchState, framesPerSecond: number, onChange?: (tie
   state.slowWindows = isSlow ? state.slowWindows + 1 : 0;
   state.fastWindows = framesPerSecond >= RATE_TO_CLIMB[state.tier] ? state.fastWindows + 1 : 0;
   if (state.slowWindows >= WINDOWS_TO_DROP && state.tier < 2) {
-    if (state.fastWindows === 0 && state.tier === 0) state.windowsToClimb = Math.min(MOST_WINDOWS_TO_CLIMB, state.windowsToClimb * 2);
+    if (state.hasClimbed) state.windowsToClimb = Math.min(MOST_WINDOWS_TO_CLIMB, state.windowsToClimb * 2);
+    state.hasClimbed = false;
     moveToTier(state, (state.tier + 1) as QualityTier, onChange);
   } else if (state.fastWindows >= state.windowsToClimb && state.tier > 0) {
+    state.hasClimbed = true;
     moveToTier(state, (state.tier - 1) as QualityTier, onChange);
   }
 }
 
 /** Sets the tier from the frames it is told about. A gap over a second is a hidden tab and not a slow device, so it counts for nothing. */
 export function createTierWatch(onChange?: (tier: QualityTier) => void): TierWatch {
-  const state: WatchState = { tier: 0, windowStartMs: null, framesInWindow: 0, lastFrameMs: null, slowWindows: 0, fastWindows: 0, windowsToClimb: FIRST_WINDOWS_TO_CLIMB };
+  const state: WatchState = { tier: 0, windowStartMs: null, framesInWindow: 0, lastFrameMs: null, slowWindows: 0, fastWindows: 0, windowsToClimb: FIRST_WINDOWS_TO_CLIMB, hasClimbed: false };
   return {
     getTier: () => state.tier,
     noteFrame(nowMs) {

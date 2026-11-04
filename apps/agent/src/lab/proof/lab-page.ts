@@ -92,8 +92,11 @@ export async function openLabPage({ browser, name, lesson, viewport, theme, isRe
 
 export function holdFrame(lab: LabPage, frame: { atMs: number; source: 'live' | 'replay' } | null): Promise<void> {
   return lab.page.evaluate(async (held) => {
+    const page = window as unknown as { __proofIsHolding?: boolean };
+    page.__proofIsHolding = true;
     window.holdBoardFrame?.(held);
     for (let frames = 0; frames < 2; frames += 1) await new Promise(requestAnimationFrame);
+    page.__proofIsHolding = held !== null;
   }, frame);
 }
 
@@ -113,8 +116,17 @@ export interface ReplayPixels {
   describedDifferently: number;
 }
 
-/** A browser repaint can shift a line's antialiasing by a level or two, so only a difference this small may settle. */
+/** A repaint with no write to the page has moved 140 pixels by up to 36 levels, so a browser's raster alone can break this. The limit stays strict, and a larger difference fails until a person looks. */
 const LARGEST_SETTLING_LEVELS = 2;
+
+// Evidence for a settle rule on the page and not on the pixels, which the gate does not use yet.
+async function getIsSamePage(lab: LabPage, atMs: number, shiftMs: number): Promise<boolean> {
+  const readPage = () => lab.page.evaluate((selector) => document.querySelector(selector)?.outerHTML, BOARD_SELECTOR);
+  await holdFrame(lab, { atMs, source: 'live' });
+  const live = await readPage();
+  await holdFrame(lab, { atMs: atMs + shiftMs, source: 'replay' });
+  return live === (await readPage());
+}
 
 /** Compares a live moment with its replay, and looks a second time at any difference before calling it real. */
 export async function lookAtMoment(lab: LabPage, atMs: number, shiftMs: number): Promise<'same' | 'settled' | 'different'> {
@@ -131,7 +143,7 @@ export async function lookAtMoment(lab: LabPage, atMs: number, shiftMs: number):
   const levels = await lab.page.evaluate((images) => window.pageChecks.getLargestChannelDifference(images), pair);
   const again = await shootBoth();
   const isSettled = again.live.equals(again.replay) && levels <= LARGEST_SETTLING_LEVELS;
-  console.log(`${lab.folder} differs from its replay at ${Math.round(atMs)}: ${pixels} pixels by up to ${levels} levels, ${isSettled ? 'settled on a second look' : 'a real difference'}`);
+  console.log(`${lab.folder} differs from its replay at ${Math.round(atMs)}: ${pixels} pixels by up to ${levels} levels, the page ${await getIsSamePage(lab, atMs, shiftMs) ? 'the same' : 'different'}, second look ${again.live.equals(again.replay) ? 'clean' : 'not clean'}, ${isSettled ? 'settled' : 'a real difference'}`);
   return isSettled ? 'settled' : 'different';
 }
 

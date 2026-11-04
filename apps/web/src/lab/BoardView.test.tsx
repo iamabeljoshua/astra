@@ -523,6 +523,33 @@ describe('BoardView, hostile content from a model', () => {
   });
 });
 
+describe('BoardView, quality tiers', () => {
+  function playAt(framesPerSecond: number, seconds: number, tier?: 0 | 1 | 2) {
+    const onQualityTier = vi.fn();
+    const operations = [write('eq', 'x = 1')];
+    let nowMs = 0;
+    const clock = vi.spyOn(performance, 'now').mockImplementation(() => nowMs);
+    try {
+      const { rerender } = render(<BoardView board={getBoardAt(operations, 0)} atMs={0} onQualityTier={onQualityTier} qualityTier={tier} />);
+      for (let frame = 0; frame < framesPerSecond * seconds; frame += 1) {
+        nowMs += 1000 / framesPerSecond;
+        rerender(<BoardView board={getBoardAt(operations, nowMs)} atMs={nowMs} onQualityTier={onQualityTier} qualityTier={tier} />);
+      }
+    } finally {
+      clock.mockRestore();
+    }
+    return onQualityTier;
+  }
+
+  it('sets its own tier from the frames it paints', () => {
+    expect(playAt(20, 3).mock.calls.map(([tier]) => tier)).toEqual([1, 2]);
+  });
+
+  it('holds a tier it was given however slow the frames, so a proof compares like with like', () => {
+    expect(playAt(20, 3, 0)).not.toHaveBeenCalled();
+  });
+});
+
 describe('BoardView, figures', () => {
   beforeEach(() => {
     vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(700);
