@@ -57,7 +57,7 @@ function getMarkBoxes(content: MarkContent, placement: MovingPlacement, item: Bo
   return { from: null, to: isWholeElement || content.kind === 'highlight' ? { x: 0, y: 0, width: placement.width / placement.scale, height: placement.height / placement.scale } : null, flightOffset: { x: 0, y: 0 } };
 }
 
-// What a mark reaches past something as big as the board comes off the box it is drawn around, so the mark stays on the board.
+// Shrinks a box as big as the board by what its mark reaches past it, so the mark stays on the board.
 function keepMarkOnBoard(mark: AnnotationMark, box: MarkBox, placement: MovingPlacement, area: MarksFrame['area']): MarkBox {
   if (placement.scale === 0) return box;
   const reach = getMarkReach(mark, box);

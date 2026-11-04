@@ -1,4 +1,3 @@
-/* The board's tables, timelines, code, and pictures. Text wraps inside its own box, because a board never scrolls. */
 @layer components {
   .board-table {
     border-collapse: collapse;

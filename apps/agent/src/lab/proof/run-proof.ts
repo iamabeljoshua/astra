@@ -56,7 +56,6 @@ interface Scenario {
   resumeAfterMs?: number;
   usesStoredPhrase?: boolean;
   lesson?: LessonName;
-  /** Lets the board set its own tier from the frame rate, as it does for a student. */
   measuresTier?: boolean;
   /** Placing every word of many cut turns takes minutes, and these runs measure only their stops. */
   onlyStops?: boolean;

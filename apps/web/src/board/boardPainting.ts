@@ -13,7 +13,6 @@ export interface BoardFrame {
   atMs: number;
   isReducedMotion: boolean;
   canMoveSliders: boolean;
-  /** Holds one tier, for a proof that compares frames. With none, the measured frame rate sets it. */
   fixedTier?: QualityTier;
 }
 

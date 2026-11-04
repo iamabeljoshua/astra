@@ -24,11 +24,11 @@ Tables, timelines, code blocks, labelled drawings, layered diagrams, and picture
 - A code block holds at most 40 lines, and each long line wraps, because a board never scrolls.
 - Text and a picture's description refuse raw TeX, so math goes in `writeMath`.
 
-The deck in `packages/board/test-deck/` has SCENES scenes across math, physics, languages, history, biology, code, music, mixed lessons, and hostile input. Each command in it goes through the same parser and board check as a tutor's. The deck holds right-to-left text, Devanagari, Chinese, Korean, Thai, Burmese, Yoruba, and Igbo.
+The deck in `packages/board/test-deck/` has 118 scenes across math, physics, languages, history, biology, code, music, mixed lessons, and hostile input. Each command in it goes through the same parser and board check as a tutor's. The deck holds right-to-left text, Devanagari, Chinese, Korean, Thai, Burmese, Yoruba, and Igbo.
 
 ## The check
 
-`scripts/check-layout.ts` draws each scene on the real page and reads what the browser laid out, not what was asked for. It draws at each of 8 screens, in both themes, and under reduced motion on a laptop and a phone. Each scene is read 40, 180, and 400 ms after each command lands, and again at rest.
+`scripts/check-layout.ts` draws each scene on the real page and reads what the browser laid out, not what was asked for. It draws at 10 board sizes on 8 screens, in both themes, and under reduced motion on a laptop and a phone. Each scene is read 40, 180, and 400 ms after each command lands, and again at rest.
 
 It reports these as defects:
 
@@ -41,9 +41,9 @@ It reports these as defects:
 
 | Measure | Result |
 | --- | --- |
-| Full sweep | RENDERS renders, TEXTS text boxes, 0 defects, in SWEEP_S s |
-| Planted defects | PLANTS caught |
-| Flash check | FLASH |
+| Full sweep | 31,776 renders, 503,056 text boxes, 0 defects, in about a minute |
+| Planted defects | 36 of 36 caught: 21 in the page, 14 in the library, and 1 flash |
+| Flash check | 358 frames on the 3 strobe scenes in both themes, at most 0 flashes in any second. With the picture's hold planted out, 4 |
 
 A plant either breaks the page or rewrites one line of the library as it is served, and never touches the disk. Each must be caught by the kind of defect it plants.
 
@@ -64,9 +64,9 @@ A layered diagram now changes direction only in the gaps between ranks. Inside a
 
 The board's only motion is drawing and fading, so a normal lesson cannot flash. What can flash is a tutor sending commands faster than speech, so the deck has three strobe scenes, with a picture or a full table placed and cleared 3 to 6 times a second.
 
-`scripts/layout/flash-check.ts` steps each scene 20 times a simulated second, reads the pixels, and counts WCAG's general flash: a pair of opposing changes of 10% luminance over 25% of a 10 degree field. It reads the change in the board's mean, so opposing changes in two places can cancel out. It does not check saturated red.
+`scripts/layout/flash-check.ts` steps each strobe scene 20 times a simulated second and every other scene 10 times, reads the pixels, and counts WCAG's general flash: a pair of opposing changes of 10% luminance, with the darker side under 80%, over 25% of a 10 degree field, which is 21,824 pixels. It counts pixels on the whole board and does not ask that they touch. It does not check saturated red.
 
-A picture now waits unseen for 42% of its entrance, which is 168 ms. A picture cleared and placed again faster than that never shows, and one cleared more slowly cannot pass 3 flashes a second. Nothing else on the board has the area to flash.
+A picture now waits unseen for 42% of its entrance, which is 168 ms. A picture cleared and placed again faster than that never shows, and one cleared more slowly cannot pass 3 flashes a second. Text and ink have too little area to count.
 
 ## Frame rates and tiers
 
@@ -88,7 +88,17 @@ The laptop figure is capped by the 60 Hz display. Runs happen on a development b
 
 `createTierWatch` in `packages/board/src/player/quality-tiers.ts` sets the tier from the frames it sees. Tier 1 paints moving things about 30 times a second, and tier 2 also lands each drawing at once. Below 50 fps for a second drops from the top, and below 28 fps drops again. Audio, captions, and the clock never pass through it. `ScenePlayerLab` now holds tier 0 unless a run asks for `?tier=measured`, so a replay proof cannot see a tier change under load. The student's board has no tier set, so it measures.
 
-TIER_PROOF
+A real room played `library`, a mixed lesson with a drawing, a diagram, a table, a timeline, a picture, code, and a curve, on a stored take of Chris, one run each at a load average of about 20 to 30. Drift is the cue against the word's sound in the recorded audio, in ms.
+
+| Run | Tier | Cue drift p50, p95, worst | Cues over 100 ms late | Words found in the audio | Replay samples that differ |
+| --- | --- | --- | --- | --- | --- |
+| Laptop, full speed | Held at 0 | 22, 65, 65 | 0 of 11 | 103 of 105 | 0 of 764 |
+| Phone width, CPU 12 times slower | Held at 0 | 64, 242, 242 | 4 of 11 | 104 of 105 | 0 of 780 |
+| Phone width, CPU 12 times slower | Measured: tier 1 at 12 s, tier 2 at 50 s | 26, 229, 229 | 1 of 12 | 105 of 105 | 0 of 763 |
+
+All 105 caption words showed in all three runs, and all 12 cues fired. The board dropped a tier by itself, and the words and the audio kept their place while it did. One run each shows the drop and no harm to the voice, and it is too few to claim the lower drift as a gain. The misses at 12 times slower are a main thread stalled for up to 1.9 s, far past a mid-range phone, and the 4 times runs in the table above hold 47 fps or better.
+
+On the deck alone, `mixed-phone-heavy` on a measured tier at 12 times slower dropped to tier 1 at 2.4 s and tier 2 at 3.4 s, at 18 fps over the run and 28 fps over its last half. `packages/board/test/quality-tiers.test.ts` covers the watch itself, including a hidden tab, a slow moment that is no drop, and the longer wait after a climb that did not hold.
 
 ## The proof gate
 
@@ -98,7 +108,18 @@ TIER_PROOF
 
 The repaint comment was wrong. With 0 writes to the page, a repaint has moved 140 pixels by up to 36 levels, so a browser's raster alone can break the limit of 2 levels.
 
-PROOF_GATE
+What the proofs gave at this code, on the fake voice:
+
+| Proof | Result |
+| --- | --- |
+| `math-proof` `marks-and-labels`, laptop and phone | 0 writes with no cause, against 97 before. 88 replay moments, 0 differ |
+| `math-proof` `reduced` | 0 moving frames under reduced motion, 0 unknown colors, 0 gradients, 0 rests that differ. 1 still board moved one pixel by one level with 0 writes |
+| `math-proof` `hostile` | Markup never ran. 144 replay moments, 0 differ |
+| `graph-proof` `reduced`, `hostile`, `marks` | 2 of 364 replay moments differ: 1 pixel by 53 levels and 742 pixels by 40 levels. Both had the same page and a clean second look |
+
+A still board now takes the same second look as a replay moment, under the same limit of 2 levels, so one pixel of raster does not fail a proof and a real change does.
+
+**A rule for countersign, not in the gate.** A difference settles when the page's HTML is identical at both moments and a second look at both is clean, whatever the levels. The painter's only output is the page, so a difference with the same page can only come from the browser's raster, and `writes` and `animations` already fail on anything still moving. Each of the 2 moments above would settle under it, and none that had a different page would. `lookAtMoment` logs the page comparison today, so every run adds evidence. The rule is one commit on `feat/m3-5-settle-rule`.
 
 ## Choices worth keeping
 

@@ -18,7 +18,7 @@ const DEFAULT_WEB_PORT = 7020;
 const HOST = '127.0.0.1';
 const DECK_PATH = '/lab/board-deck';
 const READY_LIMIT_MS = 120_000;
-/** A development tool's button, drawn over every board. */
+/** TanStack Query Devtools' button, drawn over every board. */
 const HIDE_DEV_BUTTON = '.tsqd-parent-container { display: none !important; }';
 
 /** Rewrites one line of a module as it is served, so a plant reaches the real library and never touches the disk. */
@@ -86,7 +86,6 @@ export interface DeckBrowser {
   openDeck(url: string): Promise<Page>;
   browser: Browser;
   getPageErrors(): readonly string[];
-  /** A plant can make the page complain, which says nothing about the deck. */
   forgetPageErrors(): void;
   close(): Promise<void>;
 }

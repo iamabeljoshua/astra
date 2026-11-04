@@ -45,7 +45,6 @@ async function writeSheet(page: Page, { html, path, width }: { html: string; pat
 
 const getSheetWidth = ({ laptopWidth, phoneWidth, columns }: { laptopWidth: number; phoneWidth: number; columns: number }) => columns * (laptopWidth + phoneWidth + 18) + 32;
 
-/** Every scene at rest, the laptop board in light beside the phone board in dark, so Abel can judge the deck by looking. */
 export async function makeDeckSheets(page: Page, outFolder: string, verdict: Verdict): Promise<void> {
   mkdirSync(outFolder, { recursive: true });
   const scenes = (await page.evaluate(() => window.boardDeck?.listScenes() ?? []));

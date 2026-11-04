@@ -1,11 +1,9 @@
-/** 0 draws everything. 1 paints moving things at most 30 times a second. 2 also lands each drawing at once. Audio, captions, and the clock never pass through here. */
+/** 0 draws everything. 1 paints moving things at most 30 times a second. 2 also lands each drawing at once. */
 export type QualityTier = 0 | 1 | 2;
 
 const WINDOW_MS = 500;
 const LONGEST_FRAME_COUNTED_MS = 1000;
-/** Below this many frames a second a tier cannot hold. */
 const LOWEST_RATES: Record<QualityTier, number> = { 0: 50, 1: 28, 2: 0 };
-/** At or above this rate the tier above is worth trying. */
 const RATE_TO_CLIMB: Record<QualityTier, number> = { 0: Number.POSITIVE_INFINITY, 1: 57, 2: 40 };
 const WINDOWS_TO_DROP = 2;
 const FIRST_WINDOWS_TO_CLIMB = 20;
@@ -55,7 +53,7 @@ function judgeWindow(state: WatchState, framesPerSecond: number, onChange?: (tie
   }
 }
 
-/** Sets the tier from the frames it is told about. A gap over a second is a hidden tab and not a slow device, so it counts for nothing. */
+/** A gap over a second is a hidden tab and not a slow device, so it counts for nothing. */
 export function createTierWatch(onChange?: (tier: QualityTier) => void): TierWatch {
   const state: WatchState = { tier: 0, windowStartMs: null, framesInWindow: 0, lastFrameMs: null, slowWindows: 0, fastWindows: 0, windowsToClimb: FIRST_WINDOWS_TO_CLIMB, hasClimbed: false };
   return {

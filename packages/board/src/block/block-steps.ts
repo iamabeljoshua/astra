@@ -5,7 +5,6 @@ import { writeStyle } from '../style-writer.ts';
 /** A block of real HTML text that fills in steps: a table's rows, a timeline's events, or a code block's lines. */
 export interface BlockPainter {
   stepCount: number;
-  /** A block whose words decide its width gets the room it has before it is measured. */
   fitTo?(maxWidth: number): void;
   paint(reached: number, isReducedMotion: boolean): void;
   getTermBoxes(query: TermQuery): TermBoxes;
@@ -31,7 +30,6 @@ function getBoxInside(root: HTMLElement, element: Element) {
   return { x: (box.left - rootBox.left) / scale, y: (box.top - rootBox.top) / scale, width: box.width / scale, height: box.height / scale };
 }
 
-/** Marks read each part where the browser laid it out, so a wrapped cell and a long line are found as they are. */
 export function getPartBoxes(root: HTMLElement, parts: ReadonlyMap<string, Element>, query: TermQuery): TermBoxes {
   const part = query !== null && 'termId' in query ? parts.get(query.termId) : undefined;
   if (query === null) return { from: null, to: getBoxInside(root, root), flightOffset: NO_OFFSET };

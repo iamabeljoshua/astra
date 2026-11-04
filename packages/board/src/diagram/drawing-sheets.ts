@@ -1,14 +1,13 @@
 import type { DrawingName } from '@astra/contracts';
 import type { InkPosition } from '../ink/ink-stroke.ts';
 
-/** A place a label's line ends and a mark rings, in the sheet's own units. */
 export interface SheetPart {
   x: number;
   y: number;
   radius: number;
 }
 
-/** One of our own line drawings. Strokes are in the order a hand would draw them, in units where the sheet is 100 wide. */
+/** A line drawing in units where the sheet is 100 wide, with strokes in the order a hand would draw them. */
 export interface DrawingSheet {
   height: number;
   strokes: readonly (readonly InkPosition[])[];

@@ -2,7 +2,7 @@ import type { BoardElement } from '../src/player/board-state.ts';
 
 const getLabel = (content: { label?: string }) => (content.label ? [content.label] : []);
 
-/** The tutor's own words on an element, so a check can tell when they silently went missing. `isRevealedInSteps` leaves out what a reveal has not reached yet. */
+/** The tutor's own words on an element, with none when a reveal may not have reached them yet. */
 export function getShownWords(content: BoardElement['content'], isRevealedInSteps: boolean): string[] {
   if (isRevealedInSteps) return [];
   switch (content.kind) {

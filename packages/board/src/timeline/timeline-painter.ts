@@ -2,7 +2,6 @@
 import type { Timeline } from '@astra/contracts';
 import { type BlockPainter, getPartBoxes, makeTextElement, paintSteps } from '../block/block-steps.ts';
 
-/** A rule down the board with a dot per event, in the order given. Parts are event-1, event-2, and so on. */
 export function createTimelinePainter(root: HTMLElement, { events }: Pick<Timeline, 'events'>): BlockPainter {
   const list = document.createElement('ol');
   list.className = 'board-timeline';
