@@ -69,7 +69,7 @@ export function AccountErrorPage({ errorKind, onTryAgain }: AccountErrorPageProp
   }
 
   return (
-    <DotStage headerAction={<SignOutButton className="text-fine font-medium text-ink-2 hover:text-ink" />}>
+    <DotStage headerAction={<SignOutButton className="min-h-6 text-fine font-medium text-ink-2 hover:text-ink" />}>
       <TutorQuestion key={failedTries} line={API_ERROR_LABELS[errorKind]}>
         <div className="flex flex-col items-start gap-3">
           <button type="button" aria-disabled={isTrying} className="button button-solid aria-disabled:opacity-35" onClick={() => void tryAgain()}>
