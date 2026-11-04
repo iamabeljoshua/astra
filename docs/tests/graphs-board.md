@@ -137,7 +137,7 @@ The review found five blockers and a list of smaller faults. This is the rerun a
 | `abs(sin(x))` on [-20, 20] | 26 pieces, 59% | 1 piece, 100% | 3,189 and 623 |
 | `sin(30*x)` on [-10, 10] | 192 pieces, 9% | 1 piece, 100% | 3,703 and 3,841 |
 
-A false line stays out. `1/x` is 2 pieces, `tan(x)` on [-5, 5] is 5, `tan(10*x)` is 65 for its 64 poles, a jump is 2, and `sqrt(x)` starts at zero, all with no line across a break. 3,000 random continuous curves gave 5 with a gap, all finer than a pixel, at more than 500 periods across the axes.
+A false line stays out. `1/x` is 2 pieces, `tan(x)` on [-5, 5] is 5, `tan(10*x)` is 65 for its 64 poles, a jump is 2, and `sqrt(x)` starts at zero, all with no line across a break. 3,000 random continuous curves gave 5 with a gap, all finer than a pixel, at more than 300 periods across the axes.
 
 **No number in a command can take the page down.** A slider narrower than 1e-6 is refused, on the page as well as in the parser. Every figure and slider kind then played at the edge of what the parser takes, on 7 turns at 2 widths, with 42 slider moves by key: 0 page errors, 0 console errors, 0 frames holding a number that is not finite, 0 frames of text on text, 0 of 2,741 live frames differing from the log, 0 of 368 replay moments differing, and 0 of 29 moments after the slider moves differing. 20,000 rounds of extreme numbers through every figure's marks gave nothing that is not finite, and 150 rounds through `BoardView`, live and from a stored row, gave the same.
 
