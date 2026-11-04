@@ -199,7 +199,7 @@ describe('selecting a card', () => {
 
   it('opens the unfinished session of a carry-on card without starting another', async () => {
     const carryOnCard = { ...PICKS[0]!, reason: 'Carry on where you left off', continueSessionId: 'older-unfinished' };
-    const session = makeSession({ id: carryOnCard.continueSessionId, title: carryOnCard.title });
+    const session = makeSession({ id: carryOnCard.continueSessionId, title: 'The session this card opens' });
     const { getRequests } = await renderHome({
       homeScreen: { ...EXAMPLE_HOME_SCREEN, picks: [carryOnCard] },
       sessions: [UNFINISHED_SESSION!, session],
