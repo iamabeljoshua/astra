@@ -757,6 +757,20 @@ describe('holding to talk', () => {
     expect(harness.brainRequests).toEqual(['It lands']);
   });
 
+  it('still says a limit line that a hold cut, because it may be the only help this student hears', async () => {
+    const harness = start({ replyLine: 'Please tell an adult you trust.', closedReason: 'sessionLimit' });
+    harness.browser({ type: 'typed', ...STAMP, text: 'Why' });
+    await delay(150);
+    press(harness);
+    harness.ears({ type: 'words', text: 'i took some pills', isFinal: true });
+    letGo(harness);
+    await delay(1800);
+    expect(harness.brainRequests).toEqual(['Why']);
+    const kinds = harness.traces.filter((trace) => trace.name === 'turnStarted').map((trace) => trace.fields.kind);
+    expect(kinds.at(-1)).toBe('resume');
+    expect(harness.messages.filter((message) => message.type === 'tutorClosed').length).toBeGreaterThan(0);
+  }, 10_000);
+
   it('takes a new page as the line having ended, because a reload has no key down', async () => {
     const ends: string[] = [];
     const harness = start({ endLine: () => ends.push('ended') });

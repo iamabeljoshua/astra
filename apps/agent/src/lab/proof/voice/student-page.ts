@@ -98,7 +98,7 @@ function blockTutorAudio(): void {
 }
 
 // Signs in as a seeded student through the real sign-in page, starts a real session, and opens its real screen.
-export async function openStudentPage(browser: Browser, { email, title, recordVideoDir, blocksAudio = false, usesRealCapture = false, opensScreen = true, viewport = { width: 1440, height: 900 }, beforeOpen }: { beforeOpen?: (page: Page) => Promise<void>; email: string; title: string; opensScreen?: boolean; recordVideoDir?: string; blocksAudio?: boolean; usesRealCapture?: boolean; viewport?: { width: number; height: number } }): Promise<StudentPage> {
+export async function openStudentPage(browser: Browser, { email, title, subject = 'Physics', recordVideoDir, blocksAudio = false, usesRealCapture = false, opensScreen = true, viewport = { width: 1440, height: 900 }, beforeOpen }: { beforeOpen?: (page: Page) => Promise<void>; email: string; title: string; subject?: string; opensScreen?: boolean; recordVideoDir?: string; blocksAudio?: boolean; usesRealCapture?: boolean; viewport?: { width: number; height: number } }): Promise<StudentPage> {
   const context = await browser.newContext({ baseURL: WEB_URL, viewport, recordVideo: recordVideoDir ? { dir: recordVideoDir, size: viewport } : undefined, permissions: ['microphone'] });
   const videoStartedEpochMs = Date.now();
   const page = await context.newPage();
@@ -138,7 +138,7 @@ export async function openStudentPage(browser: Browser, { email, title, recordVi
     return null;
   }, undefined, { timeout: 20_000 });
   const token = await signedIn.jsonValue();
-  const created = await page.request.post(`${WEB_URL}/api/sessions`, { headers: { authorization: `Bearer ${token}` }, data: { title, subject: 'Physics', language: 'en' } });
+  const created = await page.request.post(`${WEB_URL}/api/sessions`, { headers: { authorization: `Bearer ${token}` }, data: { title, subject, language: 'en' } });
   if (!created.ok()) throw new Error(`could not start a session: ${created.status()} ${await created.text()}`);
   const { id: sessionId } = (await created.json()) as { id: string };
   const sessionUrl = `/sessions/${sessionId}`;

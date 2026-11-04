@@ -216,6 +216,23 @@ describe('vendor keys', () => {
   });
 });
 
+describe('a press after the student has left the room', () => {
+  beforeEach(() => stubSessionsApi({ liveRoom: OPEN_ROOM }));
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('opens no room and no microphone while the screen fades away', async () => {
+    const voice = makeFakeVoice();
+    const start = vi.fn(async () => voice);
+    const { result } = renderHook(() => useLiveVoice({ sessionId: 'a-session', start }));
+    await act(async () => void (await result.current.connect()));
+    await act(() => result.current.leave());
+    await act(async () => result.current.heldMic.open());
+    expect(start).toHaveBeenCalledTimes(1);
+    expect(voice.setMic).not.toHaveBeenCalledWith(true);
+    expect(result.current.isTalkOn).toBe(false);
+  });
+});
+
 describe('a hold while the room opens', () => {
   const openAtScreenOpen = () => {
     const voice = makeFakeVoice();

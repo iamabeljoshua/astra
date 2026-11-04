@@ -522,6 +522,8 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       case 'reply':
         noteCutSettled(getWords(action.text).length - getWords(action.carried).length <= MOST_WORDS_IN_NOISE);
         trace('replyDecided', { via: action.via, words: action.text.split(/\s+/).length, text: action.text });
+        // A closed tutor has nothing new to say, and the limit line a hold cut may be the only help this student hears.
+        if (cut && tutor.getClosedReason?.()) return void resume();
         return startReply({ text: action.text, carried: action.carried });
       case 'startTimer':
         return startNamedTimer(action.name, action.ms);
