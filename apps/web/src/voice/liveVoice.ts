@@ -20,6 +20,8 @@ const REJOIN_AFTER_QUIET_MS = 3000;
 const TUTOR_ARRIVES_WITHIN_MS = 25_000;
 /** A crashed job never comes back, and each join mints a token and keeps the room alive, so a page stops trying after this many with no pulse. */
 const MOST_REJOINS_WITHOUT_TUTOR = 3;
+/** A room deleted under a join leaves the join hanging for this long, and LiveKit's own 15 s is most of the wait a student gets. Joins here took at worst about 5 s. */
+const JOIN_OPTIONS = { peerConnectionTimeout: 10_000 };
 
 export type LivePhase = 'connecting' | 'live' | 'reconnecting' | 'noTutor' | 'tutorLost' | 'closedForQuiet' | 'ended';
 
@@ -139,6 +141,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
   let hasSaidHello = false;
   let roomName: string | null = null;
   let wasTutorThere = false;
+  let joining: Promise<void> | null = null;
   /** A line the tutor has not said it heard. If its room closes first, the next tutor gets it, or the student would wait on a tutor who never saw it. */
   let lineAwaitingTutor: string | null = null;
   let connectedAtEpochMs = getEpochMs();
@@ -272,6 +275,12 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
   };
   audioContext.onstatechange = sendAudioState;
 
+  let tutorWait: ReturnType<typeof setTimeout> | undefined;
+  const startTutorWait = () => {
+    clearTimeout(tutorWait);
+    tutorWait = setTimeout(() => leaveRoom('noTutor'), TUTOR_ARRIVES_WITHIN_MS);
+  };
+
   const leaveRoom = (phase: LivePhase) => {
     hasLeftRoom = true;
     clearTimeout(tutorWait);
@@ -312,16 +321,24 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     else records.refused.push(parsed.problem);
   };
 
-  const connectRoom = async (asked = getAccess()): Promise<boolean> => {
-    const access = await asked;
-    if (!access) return false;
-    if (!hasLeftRoom) await room.connect(access.url, access.token);
+  const joinRoom = async (access: RoomAccess): Promise<void> => {
+    if (!hasLeftRoom) {
+      joining = room.connect(access.url, access.token, JOIN_OPTIONS);
+      await joining.finally(() => (joining = null));
+    }
     // Each room has its own job, and a new job holds nothing of what was said, so the student hears that here and not from a tutor who has forgotten. A tutor they never heard has forgotten nothing.
     const isNewRoom = roomName !== null && access.roomName !== roomName;
     if (hasHeardTutor && isNewRoom) setView({ startedFresh: true, isThinking: false });
     if (isNewRoom && lineAwaitingTutor !== null && !outbox.some((message) => message.type === 'typed')) outbox.push({ type: 'typed', ...getStamp(), text: lineAwaitingTutor });
+    if (isNewRoom && !hasHeardTutor) startTutorWait();
     roomName = access.roomName;
     wasTutorThere = access.isTutorThere;
+  };
+
+  const connectRoom = async (): Promise<boolean> => {
+    const access = await getAccess();
+    if (!access) return false;
+    await joinRoom(access);
     return true;
   };
 
@@ -375,6 +392,8 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     // A new join means a new track and maybe a new Muse session, so what the student says meanwhile waits for the ears as it does at the start.
     mic.getLine()?.hold();
     showReconnecting();
+    // LiveKit hands a second join the first one's promise while that one is open, so the page would believe it was in the new room.
+    await joining?.catch(() => {});
     await room.disconnect(false).catch(() => {});
     const deadline = getEpochMs() + LONGEST_REJOIN_MS;
     while (!isClosed && !hasLeftRoom && getEpochMs() < deadline) {
@@ -435,9 +454,12 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     void rejoin();
   });
 
-  const tutorWait = setTimeout(() => leaveRoom('noTutor'), TUTOR_ARRIVES_WITHIN_MS);
+  startTutorWait();
   try {
-    if (!(await connectRoom(firstAccess))) throw new Error('there is no room to join');
+    const access = await firstAccess;
+    if (!access) throw new Error('there is no room to join');
+    // A join can fail because its room closed under it, and a new ask finds the session a tutor.
+    await joinRoom(access).catch(() => rejoin());
   } catch (problem) {
     clearTimeout(tutorWait);
     window.removeEventListener('pagehide', onPageHide);

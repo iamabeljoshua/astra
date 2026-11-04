@@ -14,6 +14,9 @@ const fake = vi.hoisted(() => {
     readonly handlers = new Map<string, ((...args: unknown[]) => void)[]>();
     readonly localParticipant = { publishData: vi.fn(async () => {}), publishTrack: vi.fn(async () => {}), unpublishTrack: vi.fn(async () => {}) };
     readonly connect = vi.fn(async () => {
+      const making = fake.nextConnect;
+      fake.nextConnect = null;
+      await making?.();
       this.state = 'connected';
       this.remoteParticipants.clear();
       for (const [id, participant] of fake.nextParticipants) this.remoteParticipants.set(id, participant);
@@ -32,7 +35,7 @@ const fake = vi.hoisted(() => {
       this.handlers.get(event)?.forEach((handler) => handler(...args));
     }
   }
-  return { FakeRoom, rooms: [] as FakeRoom[], nextParticipants: [] as [string, object][] };
+  return { FakeRoom, rooms: [] as FakeRoom[], nextParticipants: [] as [string, object][], nextConnect: null as (() => Promise<void>) | null };
 });
 
 vi.mock('livekit-client', async (importOriginal) => ({ ...(await importOriginal<typeof import('livekit-client')>()), Room: fake.FakeRoom }));
@@ -64,6 +67,7 @@ const typedLines = (room: InstanceType<typeof fake.FakeRoom>) =>
 beforeEach(() => {
   fake.rooms.length = 0;
   fake.nextParticipants = [];
+  fake.nextConnect = null;
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'performance', 'Date'] });
 });
 
@@ -244,6 +248,58 @@ describe('a room whose job closed just after the API saw it', () => {
     await vi.advanceTimersByTimeAsync(10_000);
     expect(getAccess.mock.calls.length).toBeLessThanOrEqual(4);
     await vi.advanceTimersByTimeAsync(TUTOR_WAIT_MS);
+    expect(voice.getView().phase).toBe('noTutor');
+    await voice.close();
+  });
+});
+
+describe('a join that a closing room leaves hanging', () => {
+  const startOpening = (getAccess: () => Promise<RoomAccess | null>) => {
+    Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: async () => ({ getAudioTracks: () => [{ stop() {} }] }) } });
+    return startLiveVoice({ getAccess });
+  };
+  const nextRoom = () => fake.rooms.at(-1) as InstanceType<typeof fake.FakeRoom>;
+
+  it('waits for that join to settle before it joins the new room, because LiveKit hands a second join the first one\'s promise', async () => {
+    let settleFirstJoin = () => {};
+    fake.nextConnect = () =>
+      new Promise<void>((resolve) => {
+        settleFirstJoin = resolve;
+      });
+    const getAccess = vi.fn<() => Promise<RoomAccess | null>>().mockResolvedValueOnce(ACCESS_WITH_TUTOR).mockResolvedValue(NEW_ACCESS);
+    const opening = startOpening(getAccess);
+    await vi.advanceTimersByTimeAsync(10);
+    const room = nextRoom();
+    room.emit(RoomEvent.Disconnected, DisconnectReason.ROOM_DELETED);
+    await vi.advanceTimersByTimeAsync(10);
+    expect(room.connect).toHaveBeenCalledTimes(1);
+    settleFirstJoin();
+    const voice = await opening;
+    await vi.advanceTimersByTimeAsync(10);
+    expect(room.connect).toHaveBeenCalledTimes(2);
+    expect(getAccess).toHaveBeenCalledTimes(2);
+    await voice.close();
+  });
+
+  it('asks again when the first join fails, rather than giving up on a room that closed', async () => {
+    fake.nextConnect = () => Promise.reject(new Error('could not establish pc connection'));
+    const getAccess = vi.fn<() => Promise<RoomAccess | null>>().mockResolvedValueOnce(ACCESS_WITH_TUTOR).mockResolvedValue(NEW_ACCESS);
+    const voice = await startOpening(getAccess);
+    await vi.advanceTimersByTimeAsync(10);
+    expect(getAccess).toHaveBeenCalledTimes(2);
+    expect(voice.getView().phase).toBe('connecting');
+    await voice.close();
+  });
+
+  it('gives a tutor in a new room its own wait', async () => {
+    const getAccess = vi.fn<() => Promise<RoomAccess | null>>().mockResolvedValueOnce(ACCESS).mockResolvedValue(NEW_ACCESS);
+    const { voice, room } = await open({ getAccess });
+    await vi.advanceTimersByTimeAsync(TUTOR_WAIT_MS - 1000);
+    room.state = 'disconnected';
+    room.emit(RoomEvent.Disconnected, DisconnectReason.ROOM_DELETED);
+    await vi.advanceTimersByTimeAsync(TUTOR_WAIT_MS - 1000);
+    expect(voice.getView().phase).toBe('connecting');
+    await vi.advanceTimersByTimeAsync(2000);
     expect(voice.getView().phase).toBe('noTutor');
     await voice.close();
   });
