@@ -43,6 +43,26 @@ describe('the scene doc states what a student sees', () => {
   });
 });
 
+describe('the scene doc on what it cannot claim', () => {
+  it('says SIGCONT reaches the worker with no effect, and does not say nothing can signal it', () => {
+    expect(doc).not.toMatch(/nothing under that uid can signal or read it/);
+    expect(doc).toMatch(/SIGCONT/);
+  });
+
+  it('says the safety wording and its false positives are untested by anyone who knows the field', () => {
+    expect(doc).toMatch(/## Requests a tutor should not teach/);
+    expect(doc).toMatch(/calm decline/i);
+    expect(doc).toMatch(/False alarms we know of/);
+    expect(doc).toMatch(/No lawyer or safeguarding reader/);
+  });
+
+  it('counts what a refused card costs beyond its writes', () => {
+    expect(doc).toMatch(/refused card/i);
+    expect(doc).toMatch(/\$0\.45/);
+    expect(doc).toMatch(/planner call/);
+  });
+});
+
 describe('the plan', () => {
   it('does not say M3.14 has not started', () => {
     const row = plan.split('\n').find((line) => line.includes('| M3.14 |'));

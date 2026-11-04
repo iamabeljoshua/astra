@@ -6,6 +6,7 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest import mock
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / "worker"))
 import run_job  # noqa: E402
@@ -40,6 +41,20 @@ class ReadingWhatASceneLeftTest(unittest.TestCase):
             read_scene_file(self.path, 10)
 
 
+class EndingWhatASceneLeftTest(unittest.TestCase):
+    def test_it_kills_all_of_the_scene_uid_as_that_uid_and_takes_its_own_uid_back(self):
+        calls = []
+        with mock.patch.object(run_job.os, "seteuid", side_effect=lambda uid: calls.append(("seteuid", uid))), mock.patch.object(run_job.os, "kill", side_effect=lambda pid, sent: calls.append(("kill", pid, sent))):
+            run_job.end_scene_processes()
+        self.assertEqual(calls, [("seteuid", run_job.SCENE_UID), ("kill", -1, signal.SIGKILL), ("seteuid", 0)])
+
+    def test_it_takes_its_own_uid_back_when_there_was_nothing_left_to_kill(self):
+        calls = []
+        with mock.patch.object(run_job.os, "seteuid", side_effect=calls.append), mock.patch.object(run_job.os, "kill", side_effect=ProcessLookupError):
+            run_job.end_scene_processes()
+        self.assertEqual(calls, [run_job.SCENE_UID, 0])
+
+
 class StepLimitTest(unittest.TestCase):
     def setUp(self):
         folder = tempfile.TemporaryDirectory()
@@ -58,6 +73,10 @@ class StepLimitTest(unittest.TestCase):
         self.ended.append(True)
         for process in subprocess.run(["pgrep", "-P", str(os.getpid()), "sleep"], capture_output=True, text=True).stdout.split():
             os.kill(int(process), signal.SIGKILL)
+
+    def test_it_ends_what_a_finished_step_left_running(self):
+        run_as_scene({"done": ["true"]}, 5)
+        self.assertEqual(self.ended, [True])
 
     def test_it_ends_a_step_at_its_limit_and_not_at_the_whole_job_limit(self):
         started = time.monotonic()

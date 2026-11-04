@@ -92,6 +92,19 @@ describe('saving a scene', () => {
     expect(didLoopRun).toBe(true);
   });
 
+  it('saves over a damaged record in a full folder, so a lesson does not pay for a write it can never keep', async () => {
+    const root = makeRoot();
+    const store = createSceneStore(root);
+    const scene = makeScene();
+    await store.saveChecked(scene, TAKES, []);
+    writeFileSync(join(root, 'scenes', scene.id, 'scene.json'), '{"status":"che');
+    const saved = await store.saveChecked({ ...scene, narration: 'second words' } as StoredScene, [{ theme: 'light', bytes: Buffer.from('second light') }, { theme: 'dark', bytes: Buffer.from('second dark') }], []);
+    expect(saved.narration).toBe('second words');
+    expect(store.find(getSceneKey(TOPIC))?.narration).toBe('second words');
+    expect(brotliDecompressSync(readFileSync(join(root, 'scenes', scene.id, 'dark.take.br'))).toString()).toBe('second dark');
+    expect(readdirSync(join(root, 'scenes'))).toEqual([scene.id]);
+  });
+
   it('reads a damaged record as no record, so one bad file costs a rewrite and not a lesson', () => {
     const root = mkdtempSync(join(tmpdir(), 'scene-store-damaged-'));
     const store = createSceneStore(root);

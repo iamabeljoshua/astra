@@ -188,3 +188,75 @@ describe('what the router and the code check decide for a typed question', () =>
     expect(await plain.work.plan).toBe('nothing');
   });
 });
+
+describe('a topic waiting after a refusal', () => {
+  const TOPIC = 'what a slope measures';
+  const REFUSED = { key: getSceneKey(TOPIC), code: 'c', plan: { ...PLAN, opening: [{ say: 'A refused line about a slope.' }] }, review: [{ moment: 'a', what: 'wrong', truth: '', confidence: 'high' as const }] };
+  const HOUR_MS = 60 * 60_000;
+
+  function setUpOpens() {
+    const store = createSceneStore(mkdtempSync(join(tmpdir(), 'lesson-wait-')));
+    let planCount = 0;
+    const plan = vi.fn(async () => {
+      planCount += 1;
+      return { ...PLAN, opening: [{ say: `A slope line, plan ${planCount}.` }], ...USAGE };
+    });
+    const write = vi.fn(async () => ({ code: 'class Lesson: pass', ...USAGE }));
+    const review = vi.fn(async () => ({ isPass: false, errors: [{ moment: 'a', what: 'wrong', truth: '', confidence: 'high' as const }], ...USAGE }));
+    const open = async (atMs: number) => {
+      const runs = createTopicRuns({ planner: { plan }, writers: [{ name: 'writer', write }], reviewer: { review }, worker, store, getWallMs: () => atMs, warn: () => {} });
+      const work = createLessonWork({ router: { route: async () => ({ engine: 'manimgx', kind: 'graph', topic: TOPIC, ...USAGE }) }, runs, store, request: TOPIC, isCard: true, studentId: 'ada', getNowMs: () => 0, getWallMs: () => atMs });
+      work.desk.ask(work.request);
+      const taught = (await work.plan) as LessonPlan;
+      for (let tries = 0; tries < 40 && !['failed', 'ready', 'declined'].includes(work.desk.getState().kind); tries += 1) await flush();
+      await flush();
+      return taught;
+    };
+    return { store, plan, write, open };
+  }
+
+  it('pays one planner call while it waits and says the same words on each open, so its voice is free too', async () => {
+    const { store, plan, write, open } = setUpOpens();
+    store.saveRefusal({ ...REFUSED, savedAt: new Date(0).toISOString() });
+    const first = await open(10 * 60_000);
+    const second = await open(20 * 60_000);
+    const third = await open(30 * 60_000);
+    expect(plan).toHaveBeenCalledOnce();
+    expect(write).not.toHaveBeenCalled();
+    expect(second.opening).toEqual(first.opening);
+    expect(third.opening).toEqual(first.opening);
+  });
+
+  it('plans again when a new try is due, and goes back to the saved words after it', async () => {
+    const { store, plan, write, open } = setUpOpens();
+    store.saveRefusal({ ...REFUSED, savedAt: new Date(0).toISOString() });
+    const waited = await open(10 * 60_000);
+    await open(HOUR_MS + 1);
+    expect(plan).toHaveBeenCalledTimes(2);
+    expect(write).toHaveBeenCalledOnce();
+    const after = await open(HOUR_MS + 2);
+    expect(plan).toHaveBeenCalledTimes(2);
+    expect(after.opening).toEqual(waited.opening);
+  });
+
+  it('never saves the words a review refused as the words to say while waiting', async () => {
+    const { store, open } = setUpOpens();
+    store.saveRefusal({ ...REFUSED, savedAt: new Date(0).toISOString() });
+    const taught = await open(10 * 60_000);
+    expect(JSON.stringify(taught)).not.toMatch(/A refused line/);
+  });
+
+  it('keeps a typed topic\'s waiting words under that student', async () => {
+    const { store, plan } = setUpOpens();
+    const key = getSceneKey(TOPIC, { ownerId: 'ada' });
+    store.saveRefusal({ ...REFUSED, key, savedAt: new Date(0).toISOString() });
+    const runs = createTopicRuns({ planner: { plan }, writers: [], reviewer: { review: async () => ({ isPass: true, errors: [], ...USAGE }) }, worker, store, warn: () => {} });
+    const make = (studentId: string) => createLessonWork({ router: { route: async () => ({ engine: 'none', kind: 'graph', topic: TOPIC, ...USAGE }) }, runs, store, request: 'tell me about a slope', isCard: false, studentId, getNowMs: () => 0, getWallMs: () => 60_000 });
+    const ada = make('ada');
+    ada.planWithoutScene();
+    await ada.plan;
+    await flush();
+    expect(store.findWaitingPlan(key)).not.toBeNull();
+    expect(store.findWaitingPlan(getSceneKey(TOPIC))).toBeNull();
+  });
+});

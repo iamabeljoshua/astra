@@ -183,6 +183,23 @@ describe('how many containers run at once', () => {
     expect(countStarts()).toBe(5);
   });
 
+  it('takes back a place in line from a docker client that never exits, because the limit stops that client too', async () => {
+    const folder = mkdtempSync(join(tmpdir(), 'fake-docker-'));
+    const pids = join(folder, 'pids');
+    writeFileSync(join(folder, 'docker'), `#!/bin/sh\nif [ "$1" = rm ]; then exit 1; fi\necho $$ >> "${pids}"\nexec sleep 600\n`);
+    chmodSync(join(folder, 'docker'), 0o755);
+    process.env.PATH = `${folder}:${realPath}`;
+    const worker = createContainerWorker({ limitMs: 100, mostAtOnce: 1, clientGraceMs: 100 });
+    const stillHeld = new Promise((resolve) => setTimeout(() => resolve('still holding its place'), 3000));
+    const first = worker(JOB, new AbortController().signal);
+    const second = worker(JOB, new AbortController().signal);
+    expect(await Promise.race([first, stillHeld])).toMatchObject({ isOk: false, stage: 'time' });
+    expect(await Promise.race([second, stillHeld])).toMatchObject({ isOk: false, stage: 'time' });
+    const started = readFileSync(pids, 'utf8').trim().split('\n').map(Number);
+    expect(started).toHaveLength(2);
+    for (const pid of started) expect(() => process.kill(pid, 0)).toThrow();
+  });
+
   it('gives up its place in the queue when the job is no longer wanted', async () => {
     const { countStarts, letThemFinish } = makeCountingDocker();
     const worker = createContainerWorker({ limitMs: 20_000, mostAtOnce: 1 });
