@@ -20,9 +20,6 @@ export class StudentEntity {
   @Column('date', { name: 'birth_date' })
   birthDate!: string;
 
-  @Column('timestamptz', { name: 'parent_consent_at', nullable: true })
-  parentConsentAt!: Date | null;
-
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 

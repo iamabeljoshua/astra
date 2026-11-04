@@ -3,15 +3,21 @@ import { isOldEnough } from '../auth/age-gate';
 import type { StudentProfileEntity } from '../infrastructure/orm/entities/student-profile.entity';
 import { StudentRepository } from '../infrastructure/orm/repositories/student.repository';
 import type { StudentAccount } from '../infrastructure/orm/repositories/student.repository';
+import { STUDENT_INTERESTS } from './student-profile-options';
+import type { StudentInterest } from './student-profile-options';
 import type { SaveStudentProfileBodyDto, StudentProfileResponseDto } from './student-profile.dto';
-import type { AccountResponseDto } from './student.dto';
+import type { AccountResponseDto, AnswerBirthDateBodyDto } from './student.dto';
 
+function isStudentInterest(interest: string): interest is StudentInterest {
+  return (STUDENT_INTERESTS as readonly string[]).includes(interest);
+}
+
+// A profile saved before interests became a list can hold free text, which no chip or reason may repeat.
 function toProfileResponse(profile: StudentProfileEntity): StudentProfileResponseDto {
   return {
-    interests: profile.interests,
+    interests: profile.interests.filter(isStudentInterest),
     level: profile.level,
     goal: profile.goal,
-    voice: profile.voice,
   };
 }
 
@@ -24,7 +30,6 @@ function toAccountResponse(account: StudentAccount): AccountResponseDto {
       id: student.id,
       name: student.name,
       profile: profile && toProfileResponse(profile),
-      parentConsentAt: student.parentConsentAt,
     },
   };
 }
@@ -37,8 +42,8 @@ export class StudentsService {
     return toAccountResponse(await this.students.findAccount(authUserId));
   }
 
-  async answerBirthDate(authUserId: string, birthDate: string): Promise<AccountResponseDto> {
-    const answer = { birthDate, isOldEnough: isOldEnough(birthDate, new Date()) };
+  async answerBirthDate(authUserId: string, { birthDate, name }: AnswerBirthDateBodyDto): Promise<AccountResponseDto> {
+    const answer = { birthDate, isOldEnough: isOldEnough(birthDate, new Date()), name: name ?? null };
     return toAccountResponse(await this.students.saveBirthDateAnswer(authUserId, answer));
   }
 
@@ -55,10 +60,7 @@ export class StudentsService {
     return profile && toProfileResponse(profile);
   }
 
-  async saveProfile(
-    studentId: string,
-    body: SaveStudentProfileBodyDto,
-  ): Promise<StudentProfileResponseDto> {
-    return toProfileResponse(await this.students.saveProfile(studentId, body));
+  async saveProfile(studentId: string, body: SaveStudentProfileBodyDto): Promise<AccountResponseDto> {
+    return toAccountResponse(await this.students.saveProfile(studentId, body));
   }
 }

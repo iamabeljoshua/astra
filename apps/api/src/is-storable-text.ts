@@ -5,7 +5,7 @@ const NULL_CHARACTER = '\u0000';
 const LONE_SURROGATE = /\p{Cs}/u;
 const VISIBLE_CHARACTER = /[^\p{Z}\p{Cc}\p{Cf}\p{M}\p{Default_Ignorable_Code_Point}]/u;
 
-function isStorableText(value: unknown): boolean {
+export function isStorableText(value: unknown): boolean {
   return (
     typeof value === 'string' &&
     VISIBLE_CHARACTER.test(value) &&
