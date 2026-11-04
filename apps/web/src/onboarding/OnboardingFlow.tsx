@@ -27,7 +27,7 @@ export function OnboardingFlow({ student }: { student: Student | null }) {
   const StepScreen = STEP_SCREENS[flow.currentStep];
 
   return (
-    <DotStage {...chart} headerAction={<SignOutButton className="text-fine font-medium text-ink-2 hover:text-ink" />}>
+    <DotStage {...chart} headerAction={<SignOutButton className="min-h-6 text-fine font-medium text-ink-2 hover:text-ink" />}>
       <StepScreen flow={flow} />
     </DotStage>
   );
