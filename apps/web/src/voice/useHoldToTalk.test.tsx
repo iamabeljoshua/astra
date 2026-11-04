@@ -55,6 +55,14 @@ const spaceUp = (target: Element) => fireEvent.keyUp(target, { code: 'Space', ke
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
 
+describe('a tutor that can no longer answer', () => {
+  it('takes no press of Talk, so a hold cannot start on a closed tutor', () => {
+    const { calls } = setUp({ isEnabled: false });
+    fireEvent.pointerDown(talk(), { button: 0, pointerId: 1 });
+    expect(calls).toEqual([]);
+  });
+});
+
 describe('Space', () => {
   it('holds on the page, and scrolls nothing', () => {
     const { calls } = setUp();

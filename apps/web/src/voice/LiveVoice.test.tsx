@@ -217,25 +217,28 @@ describe('vendor keys', () => {
 });
 
 describe('a hold while the room opens', () => {
-  const openOnPress = () => {
+  const openAtScreenOpen = () => {
     const voice = makeFakeVoice();
     let open: (opened: LiveVoice) => void = () => {};
     const start = vi.fn(() => new Promise<LiveVoice>((resolve) => { open = resolve; }));
     const { result } = renderHook(() => useLiveVoice({ sessionId: 'a-session', start }));
-    return { voice, result, finishOpening: () => open(voice) };
+    act(() => void result.current.sendTyped('the opening line'));
+    return { voice, start, result, finishOpening: () => open(voice) };
   };
 
-  it('shows as on at once, opens the room, and reaches the microphone when it has', async () => {
-    const { voice, result, finishOpening } = openOnPress();
+  it('shows as on at once, joins nothing new, and reaches the microphone when the room is up', async () => {
+    const { voice, start, result, finishOpening } = openAtScreenOpen();
     act(() => result.current.heldMic.open());
     expect(result.current.isTalkOn).toBe(true);
     await act(async () => finishOpening());
+    expect(start).toHaveBeenCalledTimes(1);
     expect(voice.setMic).toHaveBeenCalledWith(true);
+    expect(voice.sendTyped).toHaveBeenCalledWith('the opening line');
     expect(result.current.view?.mic).toBe('on');
   });
 
   it('never opens the microphone when the student let go first', async () => {
-    const { voice, result, finishOpening } = openOnPress();
+    const { voice, result, finishOpening } = openAtScreenOpen();
     act(() => result.current.heldMic.open());
     act(() => result.current.heldMic.endLine());
     expect(result.current.isTalkOn).toBe(false);

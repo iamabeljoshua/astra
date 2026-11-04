@@ -370,7 +370,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     trace('reactDecided');
     if (sendClosedNote()) return;
     messenger.send({ type: 'heard' });
-    // A take under a hold would be cut at its first frame, so the greeting a session owes waits for the next reaction.
+    // A take under a hold would be cut at its first frame, and if it is the greeting, the end of the line says it.
     if (holdGate.isHolding()) return;
     // A session opened by a typed question has not yet said it is an AI, so its first reaction is the greeting (PRD S2).
     const uses: TakeUse[] = !hasGreeted ? ['greeting'] : canPraise ? ['reaction', 'goodQuestion'] : ['reaction'];
@@ -577,12 +577,20 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     dispatchAll(holdGate.onHoldStarted());
   };
 
+  // A hold from before the room was ready left the greeting unsaid (PRD S2). This waits for the last words, because words cut a take still playing.
+  const sayGreetingIfOwed = () => {
+    if (hasGreeted || reaction || holdGate.isHolding()) return;
+    hasGreeted = true;
+    reaction = speakTake(['greeting'], { isReply: false });
+  };
+
   // The turn rule ignores words decided while the link is down, and this student will not say them again.
   const onLineFlushed = () => {
     clearTimeout(flushGiveUp);
     const decided = holdGate.onLineFlushed();
-    if (state.phase === 'away') lineWhileAway.push(...decided);
-    else dispatchAll(decided);
+    if (state.phase === 'away') return void lineWhileAway.push(...decided);
+    sayGreetingIfOwed();
+    dispatchAll(decided);
   };
 
   function onLineEnded(): void {

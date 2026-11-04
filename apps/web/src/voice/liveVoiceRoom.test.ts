@@ -365,3 +365,16 @@ describe('what the agent says about talking', () => {
   });
 });
 
+
+describe('a hold on a tutor that has closed', () => {
+  it('leaves the microphone off, and off still works', async () => {
+    const { voice, hear, tutorTrackArrives } = await open();
+    tutorTrackArrives();
+    hear({ type: 'tutorClosed', reason: 'sessionLimit' });
+    await voice.setMic(true);
+    expect(voice.getView().mic).toBe('off');
+    await voice.setMic(false);
+    expect(voice.getView().mic).toBe('off');
+    await voice.close();
+  });
+});

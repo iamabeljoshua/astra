@@ -65,6 +65,8 @@ export interface PageTrace {
   heardEpochMs: number[];
   yieldEpochMs: { turnId: string; isYielding: boolean; atMs: number }[];
   localYieldEpochMs: number[];
+  gainEpochMs: { level: string; atMs: number }[];
+  earsOpenEpochMs: number[];
   fired: { turnId: string; firedEpochMs: number; atWord: number }[];
   refused: string[];
   clockKinds: string[];
@@ -96,7 +98,7 @@ function blockTutorAudio(): void {
 }
 
 // Signs in as a seeded student through the real sign-in page, starts a real session, and opens its real screen.
-export async function openStudentPage(browser: Browser, { email, title, recordVideoDir, blocksAudio = false, usesRealCapture = false, opensScreen = true, viewport = { width: 1440, height: 900 } }: { email: string; title: string; opensScreen?: boolean; recordVideoDir?: string; blocksAudio?: boolean; usesRealCapture?: boolean; viewport?: { width: number; height: number } }): Promise<StudentPage> {
+export async function openStudentPage(browser: Browser, { email, title, recordVideoDir, blocksAudio = false, usesRealCapture = false, opensScreen = true, viewport = { width: 1440, height: 900 }, beforeOpen }: { beforeOpen?: (page: Page) => Promise<void>; email: string; title: string; opensScreen?: boolean; recordVideoDir?: string; blocksAudio?: boolean; usesRealCapture?: boolean; viewport?: { width: number; height: number } }): Promise<StudentPage> {
   const context = await browser.newContext({ baseURL: WEB_URL, viewport, recordVideo: recordVideoDir ? { dir: recordVideoDir, size: viewport } : undefined, permissions: ['microphone'] });
   const videoStartedEpochMs = Date.now();
   const page = await context.newPage();
@@ -124,6 +126,7 @@ export async function openStudentPage(browser: Browser, { email, title, recordVi
     };
   });
   if (blocksAudio) await page.addInitScript(blockTutorAudio);
+  await beforeOpen?.(page);
   await page.goto('/');
   await page.getByRole('button', { name: ALREADY_SIGNED_OUT }).click();
   await page.getByRole('button', { name: email }).click();
@@ -194,8 +197,8 @@ export async function openStudentPage(browser: Browser, { email, title, recordVi
       page.evaluate(() => {
         const voice = window.astraVoice;
         if (!voice) throw new Error('no live voice on this page');
-        const { firstAudioEpochMs, turnStartedEpochMs, stopEpochMs, heardEpochMs, yieldEpochMs, localYieldEpochMs, fired, refused, clockKinds } = voice.records;
-        return { firstAudioEpochMs, turnStartedEpochMs, stopEpochMs, heardEpochMs, yieldEpochMs, localYieldEpochMs, fired, refused, clockKinds, view: voice.getView(), outputLatencyMs: 0 } as unknown as PageTrace;
+        const { firstAudioEpochMs, turnStartedEpochMs, stopEpochMs, heardEpochMs, yieldEpochMs, localYieldEpochMs, gainEpochMs, earsOpenEpochMs, fired, refused, clockKinds } = voice.records;
+        return { firstAudioEpochMs, turnStartedEpochMs, stopEpochMs, heardEpochMs, yieldEpochMs, localYieldEpochMs, gainEpochMs, earsOpenEpochMs, fired, refused, clockKinds, view: voice.getView(), outputLatencyMs: 0 } as unknown as PageTrace;
       }),
   };
 }

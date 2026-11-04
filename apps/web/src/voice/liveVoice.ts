@@ -64,6 +64,7 @@ export interface LiveVoiceRecords {
   heardEpochMs: number[];
   yieldEpochMs: { turnId: string; isYielding: boolean; atMs: number }[];
   localYieldEpochMs: number[];
+  gainEpochMs: { level: OutputLevel; atMs: number }[];
   earsOpenEpochMs: number[];
   replayedTurns: string[];
   probe: (ProbeNote & { epochMs: number })[];
@@ -114,7 +115,7 @@ const getEpochMs = () => performance.timeOrigin + performance.now();
 const MIC_PUBLISH_OPTIONS = { source: Track.Source.Microphone, dtx: false, red: false };
 
 function createRecords(): LiveVoiceRecords {
-  return { firstAudioEpochMs: {}, turnStartedEpochMs: {}, stopEpochMs: {}, heardEpochMs: [], yieldEpochMs: [], localYieldEpochMs: [], earsOpenEpochMs: [], replayedTurns: [], probe: [], fired: [], refused: [], clockKinds: [] };
+  return { firstAudioEpochMs: {}, turnStartedEpochMs: {}, stopEpochMs: {}, heardEpochMs: [], yieldEpochMs: [], localYieldEpochMs: [], gainEpochMs: [], earsOpenEpochMs: [], replayedTurns: [], probe: [], fired: [], refused: [], clockKinds: [] };
 }
 
 // Connects the session to its room, plays what the agent sends against what the student hears, and sends back what played. It knows nothing of React.
@@ -176,7 +177,10 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
 
   const getStamp = () => ({ clockId, browserMs: Math.round(clock.getNowMs()), startedMsAgo: 0 });
 
-  const setGain = (level: OutputLevel) => gain.gain.setValueAtTime(OUTPUT_GAINS[level], audioContext.currentTime);
+  const setGain = (level: OutputLevel) => {
+    gain.gain.setValueAtTime(OUTPUT_GAINS[level], audioContext.currentTime);
+    records.gainEpochMs.push({ level, atMs: getEpochMs() });
+  };
   const localYield = createLocalYield({ setLevel: setGain, onYield: () => records.localYieldEpochMs.push(getEpochMs()) });
 
   const player = createScenePlayer({
@@ -316,7 +320,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
   const connectRoom = async (asked = getAccess()): Promise<boolean> => {
     const access = await asked;
     if (!access) return false;
-    invitesTalk = access.invitesTalk ?? false;
+    invitesTalk = access.invitesTalk;
     if (!hasLeftRoom) await room.connect(access.url, access.token);
     // Each room has its own job, and a new job holds nothing of what was said, so the student hears that here and not from a tutor who has forgotten. A tutor they never heard has forgotten nothing.
     if (hasHeardTutor && roomName !== null && access.roomName !== roomName) setView({ startedFresh: true, isThinking: false });

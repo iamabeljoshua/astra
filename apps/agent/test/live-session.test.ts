@@ -1,4 +1,4 @@
-import { type AgentMessage, type Beat, type BrowserMessage, parseBeat, type TurnId } from '@astra/contracts';
+import { type AgentMessage, type Beat, type BrowserMessage, parseBeat, type TurnId, type TutorClosedReason } from '@astra/contracts';
 import { initializeLogger, tts } from '@livekit/agents';
 import { afterEach, describe, expect, it } from 'vitest';
 import { type EarsEvent, createLiveSession, type LiveSession, QUIET_ROOM_LIMIT_MS, VOICE_STALL_MS } from '../src/live/live-session.ts';
@@ -66,7 +66,7 @@ function makeOutput(frames: { atMs: number }[], failAfter = Infinity): VoiceOutp
   };
 }
 
-function start({ voice = makeRenderedVoice({ name: 'fake', render: renderTone }).makeTts(), failAfter, quietLimitMs, onQuietLimit, tutorBeats, endLine, replyLine = LONG_LINE }: { endLine?: () => void; replyLine?: string;  voice?: tts.TTS; failAfter?: number; quietLimitMs?: number; onQuietLimit?(): void; tutorBeats?: readonly TutorBeat[] } = {}): Harness {
+function start({ voice = makeRenderedVoice({ name: 'fake', render: renderTone }).makeTts(), failAfter, quietLimitMs, onQuietLimit, tutorBeats, endLine, replyLine = LONG_LINE, closedReason = null }: { endLine?: () => void; replyLine?: string; closedReason?: TutorClosedReason | null;  voice?: tts.TTS; failAfter?: number; quietLimitMs?: number; onQuietLimit?(): void; tutorBeats?: readonly TutorBeat[] } = {}): Harness {
   const messages: AgentMessage[] = [];
   const traces: Harness['traces'] = [];
   const frames: { atMs: number }[] = [];
@@ -83,6 +83,7 @@ function start({ voice = makeRenderedVoice({ name: 'fake', render: renderTone })
       if (tutorBeats) yield* tutorBeats;
       else yield makeBeat(`reply-${replies}`, replyLine);
     },
+    getClosedReason: () => closedReason,
   };
   const send = (message: AgentMessage) => void messages.push(message);
   const session = createLiveSession({
@@ -127,6 +128,38 @@ afterEach(async () => {
 });
 
 const STAMP = { clockId: 'page', browserMs: 1000, startedMsAgo: 0 };
+
+describe('a hold from before the room was ready', () => {
+  const kinds = (harness: Harness) => harness.traces.filter((trace) => trace.name === 'turnStarted').map((trace) => trace.fields.kind);
+
+  it('still says the greeting when the hold had no words in it', async () => {
+    const harness = start({ replyLine: 'one two' });
+    harness.browser({ type: 'hello', ...STAMP, wantsGreeting: false, invitesTalk: false });
+    harness.browser({ type: 'holdStarted', ...STAMP });
+    harness.browser({ type: 'typed', ...STAMP, text: 'Tell me about gravity' });
+    harness.browser({ type: 'lineEnded', ...STAMP });
+    harness.ears({ type: 'lineFlushed' });
+    await delay(600);
+    expect(kinds(harness)).toContain('greeting');
+    expect(kinds(harness).filter((kind) => kind === 'greeting')).toHaveLength(1);
+  }, 10_000);
+
+  it('plays no greeting under the hold, and the greeting it owes comes with the answer', async () => {
+    const harness = start({ replyLine: 'one two' });
+    harness.browser({ type: 'hello', ...STAMP, wantsGreeting: false, invitesTalk: false });
+    harness.browser({ type: 'holdStarted', ...STAMP });
+    harness.browser({ type: 'typed', ...STAMP, text: 'Tell me about gravity' });
+    await delay(300);
+    expect(kinds(harness)).not.toContain('greeting');
+    harness.ears({ type: 'words', text: 'why does it fall', isFinal: true });
+    harness.browser({ type: 'lineEnded', ...STAMP });
+    harness.ears({ type: 'lineFlushed' });
+    await delay(900);
+    expect(kinds(harness).slice(-2)).toEqual(['greeting', 'reply']);
+    expect(harness.brainRequests.at(-1)).toContain('why does it fall');
+    expect(harness.brainRequests.at(-1)).toContain('Tell me about gravity');
+  }, 10_000);
+});
 
 describe('a student turn', () => {
   it('reacts in a stored voice first, with no brain in its path, then speaks the reply on its own turn', async () => {
@@ -886,6 +919,40 @@ describe('the spoken invitation', () => {
     hello(harness, true);
     await answerTyped(harness);
     await delay(1800);
+    expect(kinds(harness)).not.toContain('talkInvitation');
+  }, 10_000);
+
+  it('waits for the last stretch of the first answer, not the breath before it', async () => {
+    const stretches = [makeBeat('first', 'one two'), { ...makeBeat('second', 'three four'), pauseBeforeMs: 1800 }];
+    const harness = start({ tutorBeats: stretches });
+    soundOn(harness);
+    hello(harness, true);
+    harness.browser({ type: 'typed', ...STAMP, text: 'Why' });
+    await delay(3000);
+    expect(kinds(harness)).not.toContain('talkInvitation');
+    await delay(2500);
+    const order = kinds(harness);
+    expect(order.at(-1)).toBe('talkInvitation');
+    expect(order.filter((kind) => kind === 'reply')).toHaveLength(2);
+  }, 15_000);
+
+  it('never speaks over a reply the student asked for during its wait', async () => {
+    const harness = start({ replyLine: LONG_LINE });
+    soundOn(harness);
+    hello(harness, true);
+    harness.browser({ type: 'typed', ...STAMP, text: 'Why' });
+    await delay(1500);
+    harness.browser({ type: 'typed', ...STAMP, text: 'And then' });
+    await delay(1000);
+    expect(kinds(harness)).not.toContain('talkInvitation');
+  }, 10_000);
+
+  it('does not come from a tutor that has closed, which could not answer a press', async () => {
+    const harness = start({ replyLine: 'one two', closedReason: 'sessionLimit' });
+    soundOn(harness);
+    hello(harness, true);
+    harness.browser({ type: 'typed', ...STAMP, text: 'Why' });
+    await delay(3000);
     expect(kinds(harness)).not.toContain('talkInvitation');
   }, 10_000);
 

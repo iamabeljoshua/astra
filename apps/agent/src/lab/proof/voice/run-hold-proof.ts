@@ -5,6 +5,7 @@ import { parseArgs } from 'node:util';
 import { startCutProxy } from './cut-proxy.ts';
 import { readTrace, type TraceRow } from './read-trace.ts';
 import { startVoiceStack, type VoiceStack } from './stack.ts';
+import type { Page } from 'playwright';
 import { launchProofBrowser, loadClip, openStudentPage, type SpeechClip, type StudentPage } from './student-page.ts';
 
 const { values: args } = parseArgs({
@@ -17,6 +18,7 @@ const { values: args } = parseArgs({
     email: { type: 'string', default: 'maya@astra.test' },
     releaseAfterLastSoundMs: { type: 'string', default: '120' },
     holdsOnly: { type: 'boolean', default: false },
+    noCatchUp: { type: 'boolean', default: false },
   },
 });
 
@@ -36,6 +38,35 @@ const getLostWords = (said: string, heard: string | null) => {
   return getWords(said).filter((word) => !heardWords.has(word));
 };
 
+/** Word edits between what was said and what came back: a word lost, added, or changed each count once. */
+function countWordErrors(said: string, heard: string | null): number {
+  const target = getWords(said);
+  const found = getWords(heard ?? '');
+  let row = found.map((_, index) => index + 1);
+  target.forEach((word, targetIndex) => {
+    let diagonal = targetIndex;
+    let left = targetIndex + 1;
+    row = row.map((above, foundIndex) => {
+      const cost = Math.min(above + 1, left + 1, diagonal + (found[foundIndex] === word ? 0 : 1));
+      diagonal = above;
+      left = cost;
+      return cost;
+    });
+  });
+  return row.at(-1) ?? target.length;
+}
+
+// Serves the worklet with its catch-up off, so the same page can be measured with and without it.
+async function turnOffCatchUp(page: Page): Promise<void> {
+  await page.route('**/held-mic-worklet.js*', async (route) => {
+    const response = await route.fetch();
+    const source = await response.text();
+    const CATCH_UP = 'const FASTER_OVER_BLOCKS = 38;';
+    if (!source.includes(CATCH_UP)) throw new Error('the worklet no longer names its catch-up threshold');
+    await route.fulfill({ response, body: source.replace(CATCH_UP, 'const FASTER_OVER_BLOCKS = Infinity;') });
+  });
+}
+
 const rowsSince = (stack: VoiceStack, student: StudentPage, afterMs: number): TraceRow[] => readTrace(stack.traceFolder, `session-${student.sessionId}`).filter((row) => row.atMs >= afterMs);
 
 async function waitForRows(stack: VoiceStack, student: StudentPage, afterMs: number, isDone: (rows: TraceRow[]) => boolean, limitMs = 15_000): Promise<TraceRow[]> {
@@ -47,6 +78,7 @@ async function waitForRows(stack: VoiceStack, student: StudentPage, afterMs: num
   }
 }
 
+const getPhase = (student: StudentPage) => student.page.evaluate(() => window.astraVoice?.getView().phase ?? 'stillOpening');
 const getMic = (student: StudentPage) => student.page.evaluate(() => window.astraVoice?.getView().mic ?? 'noVoice');
 const getPressed = (student: StudentPage) => student.page.getByRole('button', { name: 'Talk' }).getAttribute('aria-pressed');
 const getEpoch = (student: StudentPage) => student.page.evaluate(() => performance.timeOrigin + performance.now());
@@ -102,28 +134,28 @@ const tapTalk = async (student: StudentPage, holdMs = 40) => {
   await student.page.mouse.up();
 };
 
-async function withStudent<Result>(title: string, run: (student: StudentPage) => Promise<Result>, { proxy, usesFullChromium }: { proxy?: string; usesFullChromium?: boolean } = {}): Promise<Result> {
+async function withStudent<Result>(title: string, run: (student: StudentPage) => Promise<Result>, { proxy, usesFullChromium, opensScreen = true }: { proxy?: string; usesFullChromium?: boolean; opensScreen?: boolean } = {}): Promise<Result> {
   const browser = await launchProofBrowser({ proxy, usesFullChromium });
   try {
-    const student = await openStudentPage(browser, { email: MAYA, title });
+    const student = await openStudentPage(browser, { email: MAYA, title, opensScreen, ...(args.noCatchUp ? { beforeOpen: turnOffCatchUp } : {}) });
     return await run(student);
   } finally {
     await browser.close();
   }
 }
 
-async function goLiveByTap(student: StudentPage): Promise<void> {
-  await tapTalk(student);
+// The screen joins as it opens and the tutor answers the session's opening line by itself, so a student who has pressed nothing is here once that answer has played.
+async function goLive(student: StudentPage): Promise<void> {
   await student.waitForLive();
-  await waitForMicUp(student);
+  await waitForRows(stack, student, 0, (found) => found.some((row) => row.name === 'turnFinished' && row.kind === 'reply'), 30_000);
+  await delay(600);
+  await clearFocus(student);
 }
 
-async function goLive(student: StudentPage): Promise<void> {
-  await clearFocus(student);
-  await student.page.keyboard.down('Space');
-  await student.waitForLive();
-  await student.page.keyboard.up('Space');
-  await delay(600);
+async function goLiveByTap(student: StudentPage): Promise<void> {
+  await goLive(student);
+  await tapTalk(student);
+  await waitForMicUp(student);
 }
 
 // Playwright fakes focus by default. With that off, moving to another tab fires a real blur, and headless Chromium still reports the page as visible.
@@ -310,32 +342,77 @@ const SCENARIOS: Record<string, (stack: VoiceStack) => Promise<unknown>> = {
       return results;
     }),
 
-  beforeReady: (stack) =>
-    withStudent('Before the room is ready', async (student) => {
-      const focusAtStart = await student.page.evaluate(() => document.activeElement?.tagName);
-      const clip = getClip(HOLD_LINE.id);
-      const startedAtMs = await getEpoch(student);
-      await student.page.keyboard.down('Space');
-      await delay(700);
-      const said = await student.say(clip);
-      const releasedAtMs = await getEpoch(student);
-      await student.page.keyboard.up('Space');
-      const pressedOpen = await readMicNow(student);
-      const rows = await waitForRows(stack, student, startedAtMs, (found) => found.some((row) => row.name === 'replyDecided'), 20_000);
-      const final = rows.find((row) => row.name === 'words' && row.isFinal);
-      return {
-        focusAtStart,
-        said: clip.text,
-        heard: final?.text ?? null,
-        lostWords: getLostWords(clip.text, final?.text ?? null),
-        phaseAtRelease: await student.page.evaluate(() => window.astraVoice?.getView().phase ?? 'none'),
-        micAtRelease: pressedOpen,
-        releaseToFinalMs: final ? Math.round(final.atMs - releasedAtMs) : null,
-        lastSoundToFinalMs: final ? Math.round(final.atMs - said.lastSoundEpochMs) : null,
-        replies: rows.filter((row) => row.name === 'replyDecided').length,
-        closed: await readClosed(student),
-      };
-    }),
+  beforeReady: async (stack) => {
+    const openScreen = async (student: StudentPage) => {
+      await student.page.goto(student.sessionUrl);
+      await student.page.getByRole('textbox', { name: 'Your reply' }).waitFor();
+      await clearFocus(student);
+      return { phaseAtPress: await getPhase(student) };
+    };
+    const getKinds = (rows: TraceRow[]) => rows.filter((row) => row.name === 'turnStarted').map((row) => row.kind);
+    const holdAcrossTheJoin = await withStudent(
+      'Before the room is ready',
+      async (student) => {
+        const atPress = await openScreen(student);
+        const clip = getClip(HOLD_LINE.id);
+        const startedAtMs = await getEpoch(student);
+        await student.page.keyboard.down('Space');
+        await delay(700);
+        const said = await student.say(clip);
+        const releasedAtMs = await getEpoch(student);
+        const phaseAtRelease = await getPhase(student);
+        await student.page.keyboard.up('Space');
+        const isAnswerHeard = (found: TraceRow[]) => {
+          const decidedAt = found.findIndex((row) => row.name === 'replyDecided' && String(row.text).includes('factor'));
+          return decidedAt >= 0 && found.slice(decidedAt).some((row) => row.name === 'turnFinished' && row.kind === 'reply');
+        };
+        const rows = await waitForRows(stack, student, startedAtMs, isAnswerHeard, 25_000);
+        const final = rows.find((row) => row.name === 'words' && row.isFinal);
+        return {
+          ...atPress,
+          phaseAtRelease,
+          said: clip.text,
+          heard: final?.text ?? null,
+          lostWords: getLostWords(clip.text, final?.text ?? null),
+          releaseToFinalMs: final ? Math.round(final.atMs - releasedAtMs) : null,
+          lastSoundToFinalMs: final ? Math.round(final.atMs - said.lastSoundEpochMs) : null,
+          replies: rows.filter((row) => row.name === 'replyDecided').map((row) => row.text),
+          turns: getKinds(rows),
+          closed: await readClosed(student),
+        };
+      },
+      { opensScreen: false },
+    );
+    const holdEndsBeforeTheTutor = await withStudent(
+      'Let go before the room is ready',
+      async (student) => {
+        const atPress = await openScreen(student);
+        const startedAtMs = await getEpoch(student);
+        await student.page.keyboard.down('Space');
+        await delay(450);
+        await student.page.keyboard.up('Space');
+        const phaseAtRelease = await getPhase(student);
+        const rows = await waitForRows(stack, student, startedAtMs, (found) => found.some((row) => row.name === 'turnFinished' && row.kind === 'reply'), 25_000);
+        return { ...atPress, phaseAtRelease, turns: getKinds(rows), replies: rows.filter((row) => row.name === 'replyDecided').map((row) => row.text), closed: await readClosed(student) };
+      },
+      { opensScreen: false },
+    );
+    const tapTalkBeforeTheTutor = await withStudent(
+      'Tap Talk before the room is ready',
+      async (student) => {
+        const atPress = await openScreen(student);
+        await tapTalk(student);
+        const pressedRightAway = await getPressed(student);
+        await student.waitForLive();
+        await waitForMicUp(student);
+        const open = await readOpen(student);
+        await tapTalk(student);
+        return { ...atPress, pressedRightAway, open, closed: await readClosed(student) };
+      },
+      { opensScreen: false },
+    );
+    return { holdAcrossTheJoin, holdEndsBeforeTheTutor, tapTalkBeforeTheTutor };
+  },
 
   drop: async (stack) => {
     const proxy = await startCutProxy();
@@ -362,6 +439,7 @@ const SCENARIOS: Record<string, (stack: VoiceStack) => Promise<unknown>> = {
           proxy.restore();
           let rows = await waitForRows(stack, student, startedAtMs, (found) => found.some((row) => row.name === 'replyDecided'), 35_000);
           let final = rows.find((row) => row.name === 'words' && row.isFinal);
+          results.letGoOrder = rows.filter((row) => ['linkLost', 'linkBack', 'lineEnded', 'muse:lineFlushed', 'replyDecided'].includes(row.name)).map((row) => ({ name: row.name, afterPressMs: Math.round(row.atMs - startedAtMs) }));
           results.letGoDuringDrop = { releasedInDrop, heard: final?.text ?? null, lostWords: getLostWords(clip.text, final?.text ?? null), replies: rows.filter((row) => row.name === 'replyDecided').length, phase: await page.evaluate(() => window.astraVoice?.getView().phase), closed: await readClosed(student) };
 
           await delay(4000);
@@ -461,6 +539,11 @@ const SCENARIOS: Record<string, (stack: VoiceStack) => Promise<unknown>> = {
         const stopAtPage = Object.values(trace.stopEpochMs).at(-1) ?? 0;
         rounds.push({
           localLowerAfterPressMs: Math.round(lastLocalYield - pressedAtMs),
+          firstLoweredGainAfterPressMs: (() => {
+            const lowered = trace.gainEpochMs.find((change) => change.atMs >= pressedAtMs && change.level === 'lowered');
+            return lowered ? Math.round(lowered.atMs - pressedAtMs) : null;
+          })(),
+          gainChanges: trace.gainEpochMs.filter((change) => change.atMs >= pressedAtMs - 3000).map((change) => ({ level: change.level, afterPressMs: Math.round(change.atMs - pressedAtMs) })),
           stopDecidedAfterPressMs: stopRow ? Math.round(stopRow.atMs - pressedAtMs) : null,
           stopAtPageAfterPressMs: Math.round(stopAtPage - pressedAtMs),
           reason: stopRow?.reason,
@@ -560,6 +643,23 @@ const SCENARIOS: Record<string, (stack: VoiceStack) => Promise<unknown>> = {
       const results: Record<string, unknown> = {};
       const page = student.page;
       const box = page.getByRole('textbox', { name: 'Your reply' });
+      const PROMPT = 'Press Talk to answer, or type.';
+      const recorded: number[] = [];
+      page.on('response', (response) => {
+        if (response.url().endsWith('/me/talk-invitation')) recorded.push(response.status());
+      });
+      const watchPrompt = () =>
+        page.evaluate((words) => {
+          const seen = { atMs: [] as number[] };
+          (window as unknown as { promptSeen: typeof seen }).promptSeen = seen;
+          let wasShowing = false;
+          setInterval(() => {
+            const isShowing = document.body.innerText.includes(words);
+            if (isShowing && !wasShowing) seen.atMs.push(performance.timeOrigin + performance.now());
+            wasShowing = isShowing;
+          }, 50);
+        }, PROMPT);
+      const getPromptTimes = () => page.evaluate(() => (window as unknown as { promptSeen: { atMs: number[] } }).promptSeen.atMs);
       const typeAndHear = async (text: string) => {
         const startedAtMs = await getEpoch(student);
         await box.fill(text);
@@ -568,11 +668,26 @@ const SCENARIOS: Record<string, (stack: VoiceStack) => Promise<unknown>> = {
         await delay(5000);
         return rowsSince(stack, student, startedAtMs).filter((row) => row.name === 'turnStarted').map((row) => row.kind);
       };
-      results.firstAnswer = await typeAndHear('Why does it fall?');
+      await watchPrompt();
+      const rows = await waitForRows(stack, student, 0, (found) => found.some((row) => row.name === 'turnFinished' && row.kind === 'talkInvitation'), 40_000);
+      const startOf = (kind: string) => rows.find((row) => row.name === 'turnStarted' && row.kind === kind)?.atMs ?? 0;
+      const endOf = (kind: string) => rows.find((row) => row.name === 'turnFinished' && row.kind === kind)?.atMs ?? 0;
+      results.firstSessionTurns = rows.filter((row) => row.name === 'turnStarted').map((row) => row.kind);
+      results.gapAfterAnswerMs = Math.round(startOf('talkInvitation') - endOf('reply'));
+      results.invitationPlayedMs = Math.round(endOf('talkInvitation') - startOf('talkInvitation'));
+      const invitedAtEpochMs = await getEpoch(student);
+      await delay(12_000);
+      const promptTimes = await getPromptTimes();
+      results.promptShownOnce = promptTimes.length === 1;
+      results.promptAfterInvitationMs = promptTimes[0] ? Math.round(promptTimes[0] - invitedAtEpochMs) : null;
+      results.promptWhileTheTutorTalks = await page.getByText(PROMPT).count() > 0 && (await page.evaluate(() => window.astraVoice?.getView().isTutorSpeaking));
+      results.recordedStatuses = recorded;
       results.secondAnswer = await typeAndHear('And then what?');
       await page.reload();
       await box.waitFor();
+      await student.waitForLive();
       results.afterReload = await typeAndHear('Tell me more.');
+      results.closed = await readClosed(student);
       return results;
     }),
 };
@@ -584,6 +699,10 @@ interface MeasuredLine {
   lastSoundToReplyDecidedMs: number | null;
   lastSoundToFirstWordMs: number | null;
   lastSoundToReactionMs: number | null;
+  wordsSaid: number;
+  wordErrors: number;
+  heard: string | null;
+  pressToEarsMs?: number | null;
   releaseToFinalMs?: number | null;
   releaseToReplyDecidedMs?: number | null;
   releaseToFirstWordMs?: number | null;
@@ -598,7 +717,7 @@ function getPercentile(values: number[], fraction: number): number | null {
   return sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * fraction))] as number;
 }
 
-const readLine = async ({ stack, student, clip, startedAtMs, lastSoundAtMs, releasedAtMs }: { stack: VoiceStack; student: StudentPage; clip: SpeechClip; startedAtMs: number; lastSoundAtMs: number; releasedAtMs?: number }): Promise<MeasuredLine> => {
+const readLine = async ({ student, clip, startedAtMs, lastSoundAtMs, releasedAtMs }: { student: StudentPage; clip: SpeechClip; startedAtMs: number; lastSoundAtMs: number; releasedAtMs?: number }): Promise<MeasuredLine> => {
   const rows = await waitForRows(stack, student, startedAtMs, (found) => found.some((row) => row.name === 'turnFinished' && row.kind === 'reply'), 15_000);
   const final = rows.find((row) => row.name === 'words' && row.isFinal);
   const replyDecided = rows.find((row) => row.name === 'replyDecided');
@@ -612,6 +731,10 @@ const readLine = async ({ stack, student, clip, startedAtMs, lastSoundAtMs, rele
   return {
     clip: clip.id,
     lostWords: getLostWords(clip.text, final?.text ?? null),
+    wordsSaid: getWords(clip.text).length,
+    wordErrors: countWordErrors(clip.text, final?.text ?? null),
+    heard: final?.text ?? null,
+    pressToEarsMs: since(startedAtMs, trace.earsOpenEpochMs.find((atMs) => atMs >= startedAtMs)),
     lastSoundToFinalMs: since(lastSoundAtMs, final?.atMs),
     lastSoundToReplyDecidedMs: since(lastSoundAtMs, replyDecided?.atMs),
     lastSoundToFirstWordMs: since(lastSoundAtMs, firstWordAtMs),
@@ -645,7 +768,7 @@ async function runMeasure(stack: VoiceStack) {
       const releasedAtMs = await getEpoch(student);
       await student.page.keyboard.up('Space');
       const said = await playing;
-      const line = await readLine({ stack, student, clip, startedAtMs, lastSoundAtMs: said.lastSoundEpochMs, releasedAtMs });
+      const line = await readLine({ student, clip, startedAtMs, lastSoundAtMs: said.lastSoundEpochMs, releasedAtMs });
       (index === 0 ? coldHolds : holds).push(line);
       await delay(800);
     }
@@ -657,20 +780,25 @@ async function runMeasure(stack: VoiceStack) {
     for (const clip of args.holdsOnly ? [] : clips) {
       const startedAtMs = await getEpoch(student);
       const said = await student.say(clip);
-      presses.push(await readLine({ stack, student, clip, startedAtMs, lastSoundAtMs: said.lastSoundEpochMs }));
+      presses.push(await readLine({ student, clip, startedAtMs, lastSoundAtMs: said.lastSoundEpochMs }));
       await delay(800);
     }
     await tapTalk(student);
     if (noise > 0) await student.setNoise(0);
-    const fields: (keyof MeasuredLine)[] = ['lastSoundToFinalMs', 'lastSoundToReplyDecidedMs', 'lastSoundToFirstWordMs', 'lastSoundToReactionMs', 'releaseToFinalMs', 'releaseToReplyDecidedMs', 'releaseToFirstWordMs', 'releaseToLineEndedMs', 'releaseToDotMs', 'releaseToReactionMs'];
+    const fields: (keyof MeasuredLine)[] = ['lastSoundToFinalMs', 'lastSoundToReplyDecidedMs', 'lastSoundToFirstWordMs', 'lastSoundToReactionMs', 'pressToEarsMs', 'releaseToFinalMs', 'releaseToReplyDecidedMs', 'releaseToFirstWordMs', 'releaseToLineEndedMs', 'releaseToDotMs', 'releaseToReactionMs'];
     return {
       noise,
       releaseAfterLastSoundMs,
       summary: {
         hold: Object.fromEntries(fields.map((field) => [field, summarise(holds, field)])),
-        pressOnce: Object.fromEntries(fields.slice(0, 4).map((field) => [field, summarise(presses, field)])),
+        pressOnce: Object.fromEntries(fields.slice(0, 5).map((field) => [field, summarise(presses, field)])),
       },
+      noCatchUp: args.noCatchUp,
       lostWords: { hold: holds.reduce((sum, line) => sum + line.lostWords.length, 0), pressOnce: presses.reduce((sum, line) => sum + line.lostWords.length, 0), coldHold: coldHolds[0]?.lostWords },
+      words: {
+        hold: { said: holds.reduce((sum, line) => sum + line.wordsSaid, 0), errors: holds.reduce((sum, line) => sum + line.wordErrors, 0) },
+        pressOnce: { said: presses.reduce((sum, line) => sum + line.wordsSaid, 0), errors: presses.reduce((sum, line) => sum + line.wordErrors, 0) },
+      },
       coldHold: coldHolds[0],
       holds,
       presses,

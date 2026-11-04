@@ -40,8 +40,8 @@ export class StudentsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async noteTalkInvitation(
     @CurrentStudentId() studentId: string,
-    @Body() { heard }: NoteTalkInvitationBodyDto,
+    @Body() _invitation: NoteTalkInvitationBodyDto,
   ): Promise<void> {
-    if (heard) await this.studentsService.noteInvitedToTalk(studentId);
+    await this.studentsService.noteInvitedToTalk(studentId);
   }
 }
