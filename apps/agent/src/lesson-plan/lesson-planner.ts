@@ -37,6 +37,7 @@ export interface LessonPlannerOptions {
 
 const ASKS_TO_SKIP = /\bskip\s+(?:that|this|it|ahead)\b|\bskip[.!?\s]*$|(?:^|\b(?:let'?s|can we|could we|please|just)\s+)move on\b/i;
 
+const ASKS_FOR_NEXT = /\b(?:what'?s next|what comes next|next (?:idea|part|step)|what'?s the next)\b/i;
 const SAYS_NOT_TO = /\b(?:don'?t|do not|dont|never|not|won'?t)\b[^.?!]*\b(?:skip|move on)\b/i;
 
 /** Code's own stage words, such as "(picked 3)", are not the student saying anything. */
@@ -100,6 +101,7 @@ export function createLessonPlanner({ ask, canSpend, charge, onTitleChange, onLe
     noteStudentWords(heard) {
       if (isStageWords(heard.words) || isLineOfWork(heard.words)) return;
       if (ASKS_TO_SKIP.test(heard.words) && !SAYS_NOT_TO.test(heard.words)) noteEvent('skipped');
+      else if (ASKS_FOR_NEXT.test(heard.words)) noteEvent('movedOn');
       waiting = heard;
       asking ??= askWhileWaiting();
     },

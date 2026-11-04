@@ -10,7 +10,7 @@ The plan from M3.9 says what is next: the concept after this one, or the exercis
 2. If a saved scene fits the step the lesson is on, it is due now, for free.
 3. For the next step, a saved scene is fetched into the page. If there is none, a write starts only when the rule below allows, and at most one runs ahead. A step with only an exercise gets a saved scene or nothing, because a picture could give away what the student is about to work out.
 4. When the bytes are in the page, the next `lesson_plan` note names the scene as `picture_topic`. The tutor asks for it by that name as it goes on to that idea, and says nothing about it. Code stops any word about a picture that is not on screen, as it did before.
-5. The lesson also reaches a step on its own, when code sees an exercise end. Either way the scene becomes due. The desk is asked for it only once the reply to the student's last words has been read and is not a safety reply. It lands at the next pause, through `speakScene`, the same seam as any scene: the picture is on screen before the setup line's first word.
+5. The lesson also reaches a step on its own, when code sees an exercise end or a student asks what is next. Either way the scene becomes due. The desk is asked for it only once the reply to the student's last words has been read and is not a safety reply. It lands at the next pause, through `speakScene`, the same seam as any scene: the picture is on screen before the setup line's first word.
 
 The page holds the bytes and nothing more until the pause, because it has one player and the last scene may still be on screen. So only the first frame is left to do. The list of saved titles is read one file at a time, because a voice is playing while it runs.
 

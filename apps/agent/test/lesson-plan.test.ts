@@ -390,6 +390,12 @@ describe('a student who asks to skip', () => {
     expect(onLessonChange.mock.calls.filter(([state]) => state.active?.stepIndex === 1)).toEqual([]);
   });
 
+  it.each(["what's next", "Okay, what's the next idea?", 'what comes next', 'go to the next part please'])('moves on for "%s", as the tutor going on would', async (words) => {
+    const { planner, onLessonChange } = await makePlanner();
+    planner.noteStudentWords({ words, isOpening: false, tutorSaid: '' });
+    expect(onLessonChange.mock.calls[0]?.[1]).toBe('movedOn');
+  });
+
   it('names a picture the queue says can land, and only on a step still to teach', async () => {
     const planner = createLessonPlanner({ ask: async () => ({ move: { move: 'new', plan: PLAN }, costUsd: 0 }), canSpend: () => true, charge: () => {}, onTitleChange: () => {}, getPictureTopic: () => 'Why gaps form', trace: () => {} });
     expect(planner.getStepNote()).toBeNull();
