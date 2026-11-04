@@ -10,7 +10,7 @@ const OK_STATUS = 200;
 export class LiveRoomController {
   constructor(private readonly liveRoomService: LiveRoomService) {}
 
-  /** Lets the signed-in student join their session's voice room. Another student's session answers 404, and a finished one 409. */
+  /** Lets the signed-in student join their session's voice room. Another student's session answers 404, and a finished one 409. Starting over too often answers 429. */
   @Post(':id/live-room')
   @HttpCode(OK_STATUS)
   openLiveRoom(

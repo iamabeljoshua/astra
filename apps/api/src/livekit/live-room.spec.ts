@@ -17,18 +17,34 @@ function stubLiveKit() {
   const realFetch = global.fetch;
   const calls: RoomCall[] = [];
   const rooms = new Map<string, { sid: string; name: string }>();
+  const stub = {
+    isDown: false,
+    calls,
+    rooms,
+    named: (method: string) => calls.filter((call) => call.method === method),
+    roomsOf: (sessionId: string) => [...rooms.keys()].filter((name) => name.startsWith(`session-${sessionId}`)),
+  };
   jest.spyOn(global, 'fetch').mockImplementation(async (input, init) => {
     const url = input instanceof Request ? input.url : String(input);
     if (!url.startsWith('https://astra-test.livekit.cloud/')) return realFetch(input, init);
+    if (stub.isDown) throw new Error('LiveKit is down');
     const method = url.split('/').at(-1) as string;
-    const body = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;
+    const body = JSON.parse(String(init?.body ?? '{}')) as { name?: string; room?: string; names?: string[] };
     calls.push({ method, body });
     if (method === 'CreateRoom') rooms.set(String(body.name), { sid: `RM_${rooms.size}`, name: String(body.name) });
     if (method === 'DeleteRoom') rooms.delete(String(body.room));
-    const answers: Record<string, object> = { CreateRoom: rooms.get(String(body.name)) ?? {}, ListRooms: { rooms: [...rooms.values()] }, DeleteRoom: {} };
+    const listed = [...rooms.values()].filter((room) => !body.names?.length || body.names.includes(room.name));
+    const answers: Record<string, object> = { CreateRoom: rooms.get(String(body.name)) ?? {}, ListRooms: { rooms: listed }, DeleteRoom: {} };
     return new Response(JSON.stringify(answers[method] ?? {}), { status: 200, headers: { 'content-type': 'application/json' } });
   });
-  return { calls, named: (method: string) => calls.filter((call) => call.method === method) };
+  return stub;
+}
+
+const WARMED_ROOM_WAIT_MS = 2000;
+
+async function waitUntil(isDone: () => boolean): Promise<void> {
+  const deadline = Date.now() + WARMED_ROOM_WAIT_MS;
+  while (!isDone() && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 5));
 }
 
 describe('the live room route', () => {
@@ -56,7 +72,11 @@ describe('the live room route', () => {
     liveKit = stubLiveKit();
   });
 
-  afterEach(() => jest.restoreAllMocks());
+  // A session warms its room after it answers, and that call must land on this stub.
+  afterEach(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    jest.restoreAllMocks();
+  });
 
   afterAll(async () => {
     process.env = savedEnvironment;
@@ -116,8 +136,9 @@ describe('the live room route', () => {
 
   it('finishes the session even when LiveKit will not close the room', async () => {
     const sessionId = await startSession();
-    (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('LiveKit is down'));
+    liveKit.isDown = true;
     await server().patch(`/sessions/${sessionId}`).set('Authorization', `Bearer ${student.token}`).send({ durationSeconds: 1, status: 'finished' }).expect(200);
+    liveKit.isDown = false;
     await post(`/sessions/${sessionId}/live-room`).expect(409);
   });
 
@@ -132,10 +153,65 @@ describe('the live room route', () => {
     await post(`/sessions/${sessionId}/live-room?startOver=maybe`).expect(400);
   });
 
-  it('answers 503 when LiveKit will not open the room, and gives no token', async () => {
+  it('calls the tutor in when a session starts, and the first press joins that room with no call to LiveKit', async () => {
     const sessionId = await startSession();
-    (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('LiveKit is down'));
+    await waitUntil(() => liveKit.named('CreateRoom').length === 1);
+    expect(liveKit.roomsOf(sessionId)).toHaveLength(1);
+    const callsBefore = liveKit.calls.length;
+    const { body } = await post(`/sessions/${sessionId}/live-room`).expect(200);
+    expect((body as { roomName: string }).roomName).toBe(liveKit.roomsOf(sessionId)[0]);
+    expect(liveKit.calls).toHaveLength(callsBefore);
+  });
+
+  it('checks the room is still open after the first join, and calls a new tutor if it has gone', async () => {
+    const sessionId = await startSession();
+    const { body: first } = await post(`/sessions/${sessionId}/live-room`).expect(200);
+    liveKit.rooms.delete((first as { roomName: string }).roomName);
+    const { body: second } = await post(`/sessions/${sessionId}/live-room`).expect(200);
+    expect((second as { roomName: string }).roomName).not.toBe((first as { roomName: string }).roomName);
+    expect(liveKit.named('CreateRoom')).toHaveLength(2);
+  });
+
+  it('closes a warmed room when the session finishes before anyone joins', async () => {
+    const sessionId = await startSession();
+    await server().patch(`/sessions/${sessionId}`).set('Authorization', `Bearer ${student.token}`).send({ durationSeconds: 1, status: 'finished' }).expect(200);
+    expect(liveKit.roomsOf(sessionId)).toEqual([]);
+  });
+
+  it('opens no room for a session with no keys, and does not stop the session starting', async () => {
+    delete process.env.LIVEKIT_API_SECRET;
+    await startSession();
+    process.env.LIVEKIT_API_SECRET = LIVE_ROOM_KEYS.LIVEKIT_API_SECRET;
+    expect(liveKit.calls).toEqual([]);
+  });
+
+  it('still starts a session when LiveKit will not warm a room', async () => {
+    liveKit.isDown = true;
+    await startSession();
+    liveKit.isDown = false;
+  });
+
+  it('limits starting over per student, because each one starts a job, and leaves joining alone', async () => {
+    const limited = await createTestStudent(testApp);
+    const sessionId = await startSession(limited);
+    for (let startOver = 0; startOver < 5; startOver += 1) await post(`/sessions/${sessionId}/live-room?startOver=yes`, limited).expect(200);
+    const createdBefore = liveKit.named('CreateRoom').length;
+    const deletedBefore = liveKit.named('DeleteRoom').length;
+    await post(`/sessions/${sessionId}/live-room?startOver=yes`, limited).expect(429);
+    const otherSession = await startSession(limited);
+    await post(`/sessions/${otherSession}/live-room?startOver=yes`, limited).expect(429);
+    expect(liveKit.named('DeleteRoom')).toHaveLength(deletedBefore);
+    expect(liveKit.named('CreateRoom').length).toBeLessThanOrEqual(createdBefore + 1);
+    await post(`/sessions/${sessionId}/live-room`, limited).expect(200);
+    const untouched = await startSession(otherStudent);
+    await post(`/sessions/${untouched}/live-room?startOver=yes`, otherStudent).expect(200);
+  });
+
+  it('answers 503 when LiveKit will not open the room, and gives no token', async () => {
+    liveKit.isDown = true;
+    const sessionId = await startSession();
     const { body } = await post(`/sessions/${sessionId}/live-room`).expect(503);
+    liveKit.isDown = false;
     expect(JSON.stringify(body)).not.toContain('token');
   });
 

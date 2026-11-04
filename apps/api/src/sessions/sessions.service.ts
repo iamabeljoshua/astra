@@ -33,7 +33,9 @@ export class SessionsService {
   ) {}
 
   async createSession(studentId: string, body: CreateSessionBodyDto): Promise<SessionResponseDto> {
-    return toSessionResponse(await this.sessions.createForStudent(studentId, body));
+    const session = await this.sessions.createForStudent(studentId, body);
+    this.liveRooms.warm(session.id);
+    return toSessionResponse(session);
   }
 
   async listSessions(studentId: string, options: SessionListOptions): Promise<SessionResponseDto[]> {

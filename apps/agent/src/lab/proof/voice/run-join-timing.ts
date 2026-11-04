@@ -40,6 +40,9 @@ try {
     const openedAtMs = Date.now();
     const student = await openStudentPage(browser, { email: 'maya@astra.test', title: `Join ${run}` });
     const seen: Record<string, number> = {};
+    student.page.on('request', (request) => {
+      if (request.url().includes('/live-room')) seen.apiAsked ??= Date.now();
+    });
     student.page.on('response', (response) => {
       if (response.url().includes('/live-room')) seen.apiAnswered ??= Date.now();
     });
@@ -62,6 +65,7 @@ try {
     const at = (name: string, kind?: string) => trace.find((row) => row.name === name && (kind === undefined || row.kind === kind))?.atMs;
     const live = Object.values(after.turnStartedEpochMs)[0];
     rows.push({
+      apiAsked: fromPress(seen.apiAsked),
       apiAnswered: fromPress(seen.apiAnswered),
       signalConnected: fromPress(seen.signalConnected),
       roomConnected: fromPress(seen.roomConnected),

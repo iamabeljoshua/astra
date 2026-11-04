@@ -101,6 +101,9 @@ function createRecords(): LiveVoiceRecords {
 
 // Connects the session to its room, plays what the agent sends against what the student hears, and sends back what played. It knows nothing of React.
 export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpeechCleanup = true }: LiveVoiceOptions): Promise<LiveVoice> {
+  // Setting up the audio took 90 to 480 ms under load, and the room's answer does not depend on it, so neither waits for the other.
+  const firstAccess = getAccess();
+  firstAccess.catch(() => {});
   const audioContext = await createTutorAudioContext([heldMicWorkletUrl]);
   const clock = createChoosingClock({ getIsAudioRunning: () => audioContext.state === 'running', getGraphTimeMs: () => audioContext.currentTime * 1000, getOutputLatencyMs: () => (audioContext.outputLatency || 0) * 1000, getWallMs: () => performance.now() });
   const clockId = crypto.randomUUID();
@@ -267,8 +270,8 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     else records.refused.push(parsed.problem);
   };
 
-  const connectRoom = async (): Promise<boolean> => {
-    const access = await getAccess();
+  const connectRoom = async (asked = getAccess()): Promise<boolean> => {
+    const access = await asked;
     if (!access) return false;
     await room.connect(access.url, access.token);
     return true;
@@ -344,6 +347,8 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     stopListening();
     stopListening = listenToTutor(track, { audioContext, gain, clock, onProbe });
     clearTimeout(tutorWait);
+    // The agent listens before it publishes this track, so hello need not wait up to a pulse's 500 ms to say the student is here.
+    lastAgentPulseEpochMs ??= getEpochMs();
     // Only a pulse says the tutor came back after a drop, because a crashed job's track can outlive it.
     if (view.phase === 'connecting') setView({ phase: 'live' });
     send({ type: 'hello', ...getStamp(), wantsGreeting: wantsGreeting && !hasSaidHello });
@@ -371,7 +376,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
 
   const tutorWait = setTimeout(() => leaveRoom('noTutor'), TUTOR_ARRIVES_WITHIN_MS);
   try {
-    if (!(await connectRoom())) throw new Error('this session has finished');
+    if (!(await connectRoom(firstAccess))) throw new Error('this session has finished');
   } catch (problem) {
     clearTimeout(tutorWait);
     window.removeEventListener('pagehide', onPageHide);
