@@ -13,7 +13,7 @@ import { createTypedGate } from './typed-gate.ts';
 import { type SpokenTurn, speakTurn, type TurnMessenger } from './speak-turn.ts';
 import type { TutorBeat, TutorBrain, TutorRequest } from '../tutor/brain.ts';
 import { getNextTurnState, INITIAL_TURN_STATE, type TimerName, type TurnAction, type TurnEvent, type TurnState } from './turn-rule.ts';
-import { hasWords } from './turn-words.ts';
+import { getWords, hasWords } from './turn-words.ts';
 import { getSteadyNowMs, type VoiceLine } from './voice-line.ts';
 
 const REPORT_WAIT_MS = 1000;
@@ -31,6 +31,8 @@ const LINE_FLUSH_GIVE_UP_MS = 3000;
 /** Muse closes about 20 ms after its last final, and a slow close must not hold up the answer. */
 const FLUSH_AFTER_FINAL_MS = 200;
 const INVITE_AFTER_ANSWER_MS = 1500;
+/** Babble gave Muse one stray word on 4 of 5 real cuts, so a line this short still counts as noise. */
+const MOST_WORDS_IN_NOISE = 1;
 
 export type EarsEvent = { type: 'voiceStarted' } | { type: 'voiceEnded' } | { type: 'words'; text: string; isFinal: boolean } | { type: 'turnDecided'; text: string } | { type: 'lineFlushed' };
 
@@ -497,6 +499,11 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     timers.set(name, setTimeout(() => dispatch({ type: 'timer', name }), ms));
   };
 
+  const noteCutSettled = (wasNoise: boolean) => {
+    if (wasLastCutWordless && wasNoise && !hasEverHeld && noiseWatch.noteNoiseCut(getNowMs())) messenger.send({ type: 'keptBeingCut' });
+    wasLastCutWordless = false;
+  };
+
   function runAction(action: TurnAction): void {
     switch (action.do) {
       case 'yield':
@@ -506,12 +513,12 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       case 'stop':
         return stopSpeech(action);
       case 'resume':
-        if (wasLastCutWordless && !hasEverHeld && noiseWatch.noteWordlessCut(getNowMs())) messenger.send({ type: 'keptBeingCut' });
-        wasLastCutWordless = false;
+        noteCutSettled(true);
         return void resume();
       case 'react':
         return react(action);
       case 'reply':
+        noteCutSettled(getWords(action.text).length - getWords(action.carried).length <= MOST_WORDS_IN_NOISE);
         trace('replyDecided', { via: action.via, words: action.text.split(/\s+/).length, text: action.text });
         return startReply({ text: action.text, carried: action.carried });
       case 'startTimer':

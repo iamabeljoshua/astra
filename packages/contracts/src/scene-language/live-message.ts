@@ -69,7 +69,7 @@ export type AgentMessage =
   | { type: 'quietWarning'; isOn: boolean }
   /** The room stayed quiet to its limit and closes now. */
   | { type: 'closingForQuiet' }
-  /** The tutor keeps getting cut off by sound with no words, so the page may suggest holding to talk. */
+  /** The tutor keeps getting cut off by sound with at most one word in it, so the page may suggest holding to talk. */
   | { type: 'keptBeingCut' }
   /** The tutor told this student they can talk, so the page records that and it is not said again. */
   | { type: 'talkInvited' };

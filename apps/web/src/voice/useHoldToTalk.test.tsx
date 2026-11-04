@@ -61,6 +61,13 @@ describe('a tutor that can no longer answer', () => {
     fireEvent.pointerDown(talk(), { button: 0, pointerId: 1 });
     expect(calls).toEqual([]);
   });
+
+  it('takes no click of Talk either, so the keyboard cannot open the microphone for a tutor that will not come', () => {
+    const { calls, toggleTalk } = setUp({ isEnabled: false });
+    fireEvent.click(talk());
+    expect(toggleTalk).not.toHaveBeenCalled();
+    expect(calls).toEqual([]);
+  });
 });
 
 describe('Space', () => {

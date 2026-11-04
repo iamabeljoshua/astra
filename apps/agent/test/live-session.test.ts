@@ -844,6 +844,31 @@ describe('a tutor kept being cut by sound with no words', () => {
     expect(countNotes()).toBe(1);
   }, 20_000);
 
+  async function cutThenHear(harness: Harness, words: string) {
+    await harness.say('Why does it fall');
+    await delay(TURN_TIMINGS.reactionFloorMs + 500);
+    harness.ears({ type: 'voiceStarted' });
+    await delay(TURN_TIMINGS.wordlessStopMs + 30);
+    harness.ears({ type: 'voiceEnded' });
+    harness.ears({ type: 'words', text: words, isFinal: true });
+    harness.ears({ type: 'turnDecided', text: words });
+    await delay(100);
+  }
+
+  it('counts a cut that left one stray word, because babble often gives Muse one', async () => {
+    const harness = start();
+    await cutThenHear(harness, 'velocity');
+    await cutThenHear(harness, 'velocity');
+    expect(harness.messages.filter((message) => message.type === 'keptBeingCut')).toHaveLength(1);
+  }, 20_000);
+
+  it('does not count a cut that became a real line, because that is a student talking', async () => {
+    const harness = start();
+    await cutThenHear(harness, 'wait so what happens next');
+    await cutThenHear(harness, 'and then what comes after');
+    expect(harness.messages.some((message) => message.type === 'keptBeingCut')).toBe(false);
+  }, 20_000);
+
   it('says nothing to a student who already holds to talk', async () => {
     const harness = start();
     harness.browser({ type: 'holdStarted', ...STAMP });

@@ -56,13 +56,19 @@ function countWordErrors(said: string, heard: string | null): number {
   return row.at(-1) ?? target.length;
 }
 
+// A worklet's fetch reaches no Playwright route, so this swaps the module where the page adds it, and the page counts each swap as proof it happened.
 async function turnOffCatchUp(page: Page): Promise<void> {
-  await page.route('**/held-mic-worklet.js*', async (route) => {
-    const response = await route.fetch();
-    const source = await response.text();
+  await page.addInitScript(() => {
     const CATCH_UP = 'const FASTER_OVER_BLOCKS = 38;';
-    if (!source.includes(CATCH_UP)) throw new Error('the worklet no longer names its catch-up threshold');
-    await route.fulfill({ response, body: source.replace(CATCH_UP, 'const FASTER_OVER_BLOCKS = Infinity;') });
+    const addModule = AudioWorklet.prototype.addModule;
+    AudioWorklet.prototype.addModule = async function (url, options) {
+      if (!String(url).includes('held-mic-worklet')) return addModule.call(this, url, options);
+      const source = await (await fetch(url)).text();
+      if (!source.includes(CATCH_UP)) throw new Error('the worklet no longer names its catch-up threshold');
+      const counted = window as unknown as { catchUpsTurnedOff?: number };
+      counted.catchUpsTurnedOff = (counted.catchUpsTurnedOff ?? 0) + 1;
+      return addModule.call(this, URL.createObjectURL(new Blob([source.replace(CATCH_UP, 'const FASTER_OVER_BLOCKS = Infinity;')], { type: 'text/javascript' })), options);
+    };
   });
 }
 
@@ -824,6 +830,7 @@ async function runMeasure() {
         pressOnce: Object.fromEntries(fields.slice(0, 5).map((field) => [field, summarise(presses, field)])),
       },
       noCatchUp: args.noCatchUp,
+      catchUpsTurnedOff: await student.page.evaluate(() => (window as unknown as { catchUpsTurnedOff?: number }).catchUpsTurnedOff ?? 0),
       lostWords: { hold: holds.reduce((sum, line) => sum + line.lostWords.length, 0), pressOnce: presses.reduce((sum, line) => sum + line.lostWords.length, 0), coldHold: coldHolds[0]?.lostWords },
       words: {
         hold: { said: holds.reduce((sum, line) => sum + line.wordsSaid, 0), errors: holds.reduce((sum, line) => sum + line.wordErrors, 0) },
@@ -838,7 +845,7 @@ async function runMeasure() {
 }
 
 mkdirSync(out, { recursive: true });
-const stack = await startVoiceStack({ out, agentEnv: { ...((args.only as string).includes('realTutor') ? {} : { ASTRA_VOICE: 'fake' }), ...((args.only as string).includes('quietClose') ? { ASTRA_QUIET_LIMIT_MS: args.quietLimitMs as string } : {}) } });
+const stack = await startVoiceStack({ out, agentEnv: { ASTRA_VOICE: 'fake', ...((args.only as string).includes('quietClose') ? { ASTRA_QUIET_LIMIT_MS: args.quietLimitMs as string } : {}) } });
 let didThrow = false;
 try {
   for (const name of (args.only as string).split(',')) {

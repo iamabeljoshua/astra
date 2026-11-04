@@ -148,7 +148,7 @@ export function useHoldToTalk({ heldMic, isTalkOn, toggleTalk, isEnabled }: Hold
     },
     // A click with no press before it is Enter, a screen reader, or a voice control, and it means what a press once means.
     onClick() {
-      if (performance.now() - pointerEndedAtMs.current >= CLICK_AFTER_RELEASE_MS) void latest.current.toggleTalk();
+      if (isEnabled && performance.now() - pointerEndedAtMs.current >= CLICK_AFTER_RELEASE_MS) void latest.current.toggleTalk();
     },
   } as ComponentProps<'button'>;
 
