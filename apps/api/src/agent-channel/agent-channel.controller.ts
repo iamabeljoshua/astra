@@ -1,7 +1,7 @@
 import { Body, Controller, Get, HttpCode, Param, Post, UseGuards } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
 import { PublicRoute } from '../auth/route-access';
-import { AddSpendBodyDto, SaveLogBodyDto, SaveRecapBodyDto } from './agent-channel.dto';
+import { AddSpendBodyDto, SaveLogBodyDto, SaveRecapBodyDto, SetTitleBodyDto } from './agent-channel.dto';
 import type { TutorBrief } from './agent-channel.dto';
 import { WriteLearnerNotesBodyDto } from '../learner-record/learner-record.dto';
 import type { LearnerRecordDto } from '../learner-record/learner-record.dto';
@@ -44,6 +44,13 @@ export class AgentChannelController {
   @HttpCode(NO_CONTENT_STATUS)
   saveRecap(@Param('id') sessionId: string, @Body() { recap }: SaveRecapBodyDto): Promise<void> {
     return this.agentChannel.saveRecap(sessionId, recap);
+  }
+
+  /** Renames a running session, when the student moved to another topic in it. A finished session keeps its title. */
+  @Post(':id/title')
+  @HttpCode(NO_CONTENT_STATUS)
+  setTitle(@Param('id') sessionId: string, @Body() { title }: SetTitleBodyDto): Promise<void> {
+    return this.agentChannel.setTitle(sessionId, title);
   }
 
   /** What the tutor remembers about the session's student, and only that student. */

@@ -39,6 +39,10 @@ export class AgentChannelService {
     await this.sessions.saveRecap(sessionId, recap);
   }
 
+  async setTitle(sessionId: string, title: string): Promise<void> {
+    await this.sessions.renameUnfinished(await this.getStudentId(sessionId), sessionId, title);
+  }
+
   async getRecord(sessionId: string): Promise<LearnerRecordDto> {
     return this.learnerRecord.getRecord(await this.getStudentId(sessionId));
   }

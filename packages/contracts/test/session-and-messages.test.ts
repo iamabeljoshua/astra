@@ -520,6 +520,10 @@ describe('the messages a held microphone and a quiet room add', () => {
     expect(parseAgentMessage({ type: 'earsOpen' })).toEqual({ ok: true, value: { type: 'earsOpen' } });
     expect(parseAgentMessage({ type: 'quietWarning', isOn: true })).toEqual({ ok: true, value: { type: 'quietWarning', isOn: true } });
     expect(parseAgentMessage({ type: 'closingForQuiet' })).toEqual({ ok: true, value: { type: 'closingForQuiet' } });
+    expect(parseAgentMessage({ type: 'sessionTitle', title: 'Physics of the impossible' })).toEqual({ ok: true, value: { type: 'sessionTitle', title: 'Physics of the impossible' } });
+    expect(parseAgentMessage({ type: 'sessionTitle', title: '   ' }).ok).toBe(false);
+    expect(parseAgentMessage({ type: 'sessionTitle', title: 'x'.repeat(201) }).ok).toBe(false);
+    expect(parseAgentMessage({ type: 'sessionTitle', title: 'a\u202Eb' }).ok).toBe(false);
   });
 
   it('refuses a quiet warning that does not say which way it goes', () => {

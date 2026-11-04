@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
-import { ArrayMaxSize, IsArray, IsDate, IsInt, IsNumber, IsObject, IsUUID, Max, Min, ValidateNested } from 'class-validator';
-import { IsStorableJson } from '../is-storable-text';
+import { ArrayMaxSize, IsArray, IsDate, IsInt, IsNumber, IsObject, IsString, IsUUID, Max, MaxLength, Min, ValidateNested } from 'class-validator';
+import { IsStorableJson, IsStorableText } from '../is-storable-text';
+import { MAX_SESSION_TITLE_LENGTH } from '../sessions/session.dto';
 import type { StudentGoal, StudentInterest, StudentLevel } from '../students/student-profile-options';
 
 const LARGEST_CHARGE_USD = 10;
@@ -52,6 +53,14 @@ export class SaveRecapBodyDto {
   @IsObject()
   @IsStorableJson()
   recap!: object;
+}
+
+export class SetTitleBodyDto {
+  /** What the session is about now. */
+  @IsString()
+  @MaxLength(MAX_SESSION_TITLE_LENGTH)
+  @IsStorableText()
+  title!: string;
 }
 
 export interface TutorBrief {

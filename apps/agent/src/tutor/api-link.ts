@@ -25,6 +25,8 @@ export interface ApiLink {
   reportSpend(usd: number): Promise<{ isOverDailyLimit: boolean }>;
   saveLog(run: { runId: string; runStartedAt: Date; events: readonly SessionEvent[] }): Promise<void>;
   saveRecap(recap: SessionRecap): Promise<void>;
+  /** The session is about something else now. */
+  setTitle(title: string): Promise<void>;
   /** What the tutor remembers about this session's student, and only that student. */
   fetchRecord(): Promise<LearnerRecord>;
   /** Adds what one room's pass found. A repeat of the same key adds nothing. */
@@ -53,6 +55,9 @@ export function createApiLink({ apiUrl, agentKey, roomName }: ApiLinkOptions): A
     },
     async saveRecap(recap) {
       await call('recap', { method: 'POST', body: JSON.stringify({ recap }) });
+    },
+    async setTitle(title) {
+      await call('title', { method: 'POST', body: JSON.stringify({ title }) });
     },
     async fetchRecord() {
       return (await call('record')) as LearnerRecord;

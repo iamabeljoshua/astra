@@ -24,6 +24,9 @@ export function clipTypedText(text: string): string {
 /** The longest caption line of the student's words, in characters. */
 export const STUDENT_WORDS_MAX_CHARACTERS = 2000;
 
+/** The longest title a session can have, in characters. */
+export const SESSION_TITLE_MAX_CHARACTERS = 200;
+
 /** The largest message allowed on the data channel, in UTF-8 bytes of its JSON. */
 export const LIVE_MESSAGE_MAX_BYTES = 15 * 1024;
 
@@ -65,6 +68,8 @@ export type AgentMessage =
   | { type: 'costSoFar'; usd: number }
   /** The agent read a line written with the pen or said aloud, so the page can show how, with the check on it. */
   | { type: 'workRead'; work: StudentWork }
+  /** The student moved to another topic, so the session has a new title. */
+  | { type: 'sessionTitle'; title: string }
   /** The tutor has said why it stopped, and will not speak again, so the page can keep saying why it is quiet. */
   | { type: 'tutorClosed'; reason: TutorClosedReason }
   /** Sent every half second on the lossy channel, so the browser knows the agent can still reach it. */

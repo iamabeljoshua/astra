@@ -21,4 +21,16 @@ describe('the agent link to the API', () => {
     const saving = createApiLink({ apiUrl: 'http://api.test', agentKey: 'key', roomName: `session-${SESSION}` }).saveLog({ runId: 'r', runStartedAt: new Date(), events: [] });
     await expect(saving.catch((problem: unknown) => problem instanceof ApiRefusedError)).resolves.toBe(isRefused);
   });
+
+  it('sends a new title', async () => {
+    const sent: { address: string; body: unknown }[] = [];
+    vi.stubGlobal('fetch', async (address: string, init: RequestInit) => {
+      sent.push({ address, body: init.body });
+      return new Response(null, { status: 204 });
+    });
+
+    await createApiLink({ apiUrl: 'http://api.test', agentKey: 'key', roomName: `session-${SESSION}` }).setTitle('Black holes');
+
+    expect(sent).toEqual([{ address: `http://api.test/agent/sessions/${SESSION}/title`, body: JSON.stringify({ title: 'Black holes' }) }]);
+  });
 });

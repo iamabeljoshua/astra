@@ -85,7 +85,7 @@ async function runSession(context: JobContext): Promise<void> {
   }).makeStt();
   const allTakes = loadTakes();
   let ears: Ears | null = null;
-  const { brain, flushSpend, readMeaning, readStrokes, readSpokenWords, writeRecap, getSpentUsd, writeRecord, noteNeedsAPerson } = makeTutorBrain({ roomName: room.name ?? '', jobId: context.job.id, trace });
+  const { brain, flushSpend, readMeaning, readStrokes, readSpokenWords, writeRecap, getSpentUsd, writeRecord, noteNeedsAPerson } = makeTutorBrain({ roomName: room.name ?? '', jobId: context.job.id, trace, onSessionTitle: (title) => publish({ type: 'sessionTitle', title }) });
   const apiLink = makeApiLink(room.name ?? '');
   const logSaver = makeLogSaver(apiLink, trace);
   const session = createLiveSession({
