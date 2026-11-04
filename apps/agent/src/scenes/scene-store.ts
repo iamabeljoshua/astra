@@ -1,7 +1,7 @@
 import { SCENE_ENGINE_VERSIONS } from '@astra/contracts';
 import { createHash, randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
-import { mkdir, rename, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { brotliCompress, constants } from 'node:zlib';
@@ -33,6 +33,8 @@ export interface SceneStore {
   findWaitingPlan(key: SceneKey): LessonPlan | null;
   saveWaitingPlan(key: SceneKey, plan: LessonPlan): void;
   list(): StoredScene[];
+  /** What every student may see, read a file at a time, because a voice is playing while this runs. */
+  listSharedTitles(): Promise<string[]>;
 }
 
 const isKeyMatch = (key: SceneKey, found: { topic?: string; ownerId?: string | null }) => normalize(found.topic ?? '') === normalize(key.topic) && (found.ownerId ?? null) === key.ownerId;
@@ -83,6 +85,15 @@ export function createSceneStore(root: string): SceneStore {
       return refusal && isKeyMatch(key, refusal.key) ? refusal : null;
     },
     list: () => (existsSync(scenesRoot) ? readdirSync(scenesRoot).filter((id) => SERVER_MADE_ID.test(id)).flatMap((id) => readChecked(id) ?? []) : []),
+    async listSharedTitles() {
+      const ids = existsSync(scenesRoot) ? (await readdir(scenesRoot)).filter((id) => SERVER_MADE_ID.test(id)) : [];
+      const titles: string[] = [];
+      for (const id of ids) {
+        const scene = await readFile(join(scenesRoot, id, 'scene.json'), 'utf8').then((text) => JSON.parse(text) as StoredScene).catch(() => null);
+        if (scene?.status === 'checked' && scene.ownerId === null) titles.push(scene.topic);
+      }
+      return titles;
+    },
     // The whole folder appears at once, and a rename onto a folder that holds files fails, so the first passing save stays and a take's address never changes what it serves.
     async saveChecked(scene, takes, sheets) {
       const target = join(scenesRoot, requireServerId(scene.id));

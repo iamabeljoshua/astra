@@ -1,4 +1,5 @@
 import { Body, Controller, Get, HttpCode, Param, Post, UseGuards } from '@nestjs/common';
+import type { SpendReply } from '../tutor-spend/tutor-spend.service';
 import { ApiExcludeController } from '@nestjs/swagger';
 import { PublicRoute } from '../auth/route-access';
 import { AddSpendBodyDto, SetTitleBodyDto } from './agent-channel.dto';
@@ -26,7 +27,7 @@ export class AgentChannelController {
   /** Adds what a turn cost to the student's total for today. A finished session takes it too, because a turn can end as its room closes. */
   @Post(':id/spend')
   @HttpCode(OK_STATUS)
-  addSpend(@Param('id') sessionId: string, @Body() { usd }: AddSpendBodyDto): Promise<{ isOverDailyLimit: boolean }> {
+  addSpend(@Param('id') sessionId: string, @Body() { usd }: AddSpendBodyDto): Promise<SpendReply> {
     return this.agentChannel.addSpend(sessionId, usd);
   }
 

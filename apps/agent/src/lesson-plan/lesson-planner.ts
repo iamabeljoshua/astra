@@ -18,6 +18,8 @@ export interface LessonPlanner {
   noteCommand(command: SceneCommand): void;
   noteWorkChecked(checked: Pick<CheckedWork, 'verdict' | 'closesTask'>): void;
   getStepNote(): StepNote | null;
+  /** The tutor went on to the next idea by asking for its picture. */
+  moveToNextStep(): void;
   /** Settles when no plan is on its way, for an evaluation that reads the next step straight after. */
   whenSettled(): Promise<void>;
 }
@@ -28,9 +30,16 @@ export interface LessonPlannerOptions {
   charge(usd: number): void;
   /** The lesson changed to another topic in the same session. */
   onTitleChange(title: string): void;
+  /** Tells whatever prepares for the lesson that the plan or its step changed, and never waits for it. */
+  onLessonChange?(state: LessonState): void;
+  /** A picture of the next idea that can land now, for the tutor to ask for by name. */
+  getReadyPicture?(): string | null;
   trace(name: string, fields?: Record<string, unknown>): void;
   getNowMs?(): number;
 }
+
+/** Skipping a picture or a step is the student's call, and a plan is too slow to hear it before the next pause. "Skip count" is a subject, so the word must stand alone or point at something. */
+const ASKS_TO_SKIP = /\bskip\s+(?:that|this|it|ahead)\b|\bskip[.!?\s]*$|\bmove on\b/i;
 
 /** Code's own stage words, such as "(picked 3)", are not the student saying anything. */
 const isStageWords = (words: string) => words.startsWith('(');
@@ -48,7 +57,7 @@ const getWorkEvent = ({ verdict, closesTask }: Pick<CheckedWork, 'verdict' | 'cl
 };
 
 // Holds the lesson in code. One plan runs at a time and only the latest words wait, so a flood of lines costs one call at a time.
-export function createLessonPlanner({ ask, canSpend, charge, onTitleChange, trace, getNowMs = () => performance.now() }: LessonPlannerOptions): LessonPlanner {
+export function createLessonPlanner({ ask, canSpend, charge, onTitleChange, onLessonChange, getReadyPicture, trace, getNowMs = () => performance.now() }: LessonPlannerOptions): LessonPlanner {
   let state: LessonState = NO_LESSON;
   let waiting: HeardWords | null = null;
   let asking: Promise<void> | null = null;
@@ -58,6 +67,7 @@ export function createLessonPlanner({ ask, canSpend, charge, onTitleChange, trac
     state = getStateAfterMove(state, move);
     const topic = state.active?.plan.topic ?? null;
     if (!isOpening && topic !== null && topic !== hadTopic) onTitleChange(topic);
+    onLessonChange?.(state);
   };
 
   const askOnce = async ({ words: said, isOpening, tutorSaid }: HeardWords) => {
@@ -83,18 +93,26 @@ export function createLessonPlanner({ ask, canSpend, charge, onTitleChange, trac
   };
 
   const noteEvent = (event: LessonEvent | null) => {
-    if (event) state = getStateAfterEvent(state, event);
+    if (!event) return;
+    state = getStateAfterEvent(state, event);
+    onLessonChange?.(state);
   };
 
   return {
     noteStudentWords(heard) {
       if (isStageWords(heard.words) || isLineOfWork(heard.words)) return;
+      if (ASKS_TO_SKIP.test(heard.words)) noteEvent('movedOn');
       waiting = heard;
       asking ??= askWhileWaiting();
     },
     noteCommand: (command) => noteEvent(toEvent(command)),
     noteWorkChecked: (checked) => noteEvent(getWorkEvent(checked)),
-    getStepNote: () => getStepNote(state),
+    getStepNote() {
+      const note = getStepNote(state);
+      const picture = getReadyPicture?.() ?? null;
+      return note && picture && 'step' in note ? { ...note, picture_topic: picture } : note;
+    },
+    moveToNextStep: () => noteEvent('movedOn'),
     whenSettled: () => asking ?? Promise.resolve(),
   };
 }

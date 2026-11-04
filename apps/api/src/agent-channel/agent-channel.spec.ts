@@ -10,6 +10,8 @@ const VALID_PROFILE = { name: 'Maya', interests: ['basketball', 'space'], level:
 const EMPTY_BRIEF = { level: null, interests: [], goal: null, cardTitle: null };
 const JSON_CONTENT = 'application/json';
 
+const hasOverLimit = (isOver: boolean) => ({ body }: { body: { isOverDailyLimit: boolean } }) => expect(body.isOverDailyLimit).toBe(isOver);
+
 describe('the agent channel', () => {
   let testApp: TestApp;
   let student: TestStudent;
@@ -175,16 +177,16 @@ describe('the agent channel', () => {
     it('adds to the student\'s total for today, and says when it reached the limit', async () => {
       const id = await startSession(await createTestStudent(testApp));
 
-      await addSpend(id, { usd: 0.4 }).expect(200, { isOverDailyLimit: false });
-      await addSpend(id, { usd: 0.4 }).expect(200, { isOverDailyLimit: false });
-      await addSpend(id, { usd: 0.2 }).expect(200, { isOverDailyLimit: true });
+      await addSpend(id, { usd: 0.4 }).expect(200).expect(hasOverLimit(false));
+      await addSpend(id, { usd: 0.4 }).expect(200).expect(hasOverLimit(false));
+      await addSpend(id, { usd: 0.2 }).expect(200).expect(hasOverLimit(true));
     });
 
     it('adds up across the student\'s sessions, because the limit is per student', async () => {
       const owner = await createTestStudent(testApp);
 
-      await addSpend(await startSession(owner), { usd: 0.6 }).expect(200, { isOverDailyLimit: false });
-      await addSpend(await startSession(owner), { usd: 0.6 }).expect(200, { isOverDailyLimit: true });
+      await addSpend(await startSession(owner), { usd: 0.6 }).expect(200).expect(hasOverLimit(false));
+      await addSpend(await startSession(owner), { usd: 0.6 }).expect(200).expect(hasOverLimit(true));
     });
 
     it('closes the student\'s next room once it reaches the limit', async () => {
@@ -194,7 +196,7 @@ describe('the agent channel', () => {
       process.env.LIVEKIT_API_KEY = 'key-for-test';
       process.env.LIVEKIT_API_SECRET = 'secret-for-test-that-is-long-enough-to-sign';
 
-      await addSpend(id, { usd: 1 }).expect(200, { isOverDailyLimit: true });
+      await addSpend(id, { usd: 1 }).expect(200).expect(hasOverLimit(true));
 
       await asStudent(server().post(`/sessions/${id}/live-room`), owner).expect(200, { access: null, unavailableBecause: 'dailyLimit' });
     });
@@ -204,8 +206,8 @@ describe('the agent channel', () => {
 
       await Promise.all(Array.from({ length: 19 }, () => addSpend(id, { usd: 0.05 }).expect(200)));
 
-      await addSpend(id, { usd: 0 }).expect(200, { isOverDailyLimit: false });
-      await addSpend(id, { usd: 0.05 }).expect(200, { isOverDailyLimit: true });
+      await addSpend(id, { usd: 0 }).expect(200).expect(hasOverLimit(false));
+      await addSpend(id, { usd: 0.05 }).expect(200).expect(hasOverLimit(true));
     });
 
     it('takes a charge on a finished session, because a turn can end as its room closes', async () => {
@@ -213,7 +215,7 @@ describe('the agent channel', () => {
       const id = await startSession(owner);
       await asStudent(server().patch(`/sessions/${id}`), owner).send({ durationSeconds: 1, status: 'finished' }).expect(200);
 
-      await addSpend(id, { usd: 1 }).expect(200, { isOverDailyLimit: true });
+      await addSpend(id, { usd: 1 }).expect(200).expect(hasOverLimit(true));
     });
 
     it.each([[0], [10], [0.000001]])('accepts %d', async (usd) => {
@@ -235,7 +237,7 @@ describe('the agent channel', () => {
 
       await server().post(`/agent/sessions/${id}/spend`).set('Authorization', `Bearer ${AGENT_KEY}`).set('Content-Type', JSON_CONTENT).send(body).expect(400);
 
-      await addSpend(id, { usd: 0 }).expect(200, { isOverDailyLimit: false });
+      await addSpend(id, { usd: 0 }).expect(200).expect(hasOverLimit(false));
     });
 
     it.each([

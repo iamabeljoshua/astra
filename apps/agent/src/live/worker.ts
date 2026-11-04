@@ -12,9 +12,10 @@ import { type Ears, startEars, VAD_SETTINGS } from './ears.ts';
 import { createLiveSession } from './live-session.ts';
 import { createTakePicker, loadTakes } from './reactions.ts';
 import { readDataMessage } from './read-data-message.ts';
+import type { LessonState } from '../lesson-plan/plan-progress.ts';
 import { hasTutorScenes, makeTutorBrain, warmTutorModel } from '../tutor/make-brain.ts';
-import { makeTutorScenes } from '../tutor/make-tutor-scenes.ts';
-import { getSpokenCharacters, type TutorScenes } from '../tutor/tutor-scenes.ts';
+import { makeTutorScenes, type SessionScenes } from '../tutor/make-tutor-scenes.ts';
+import { getSpokenCharacters } from '../tutor/tutor-scenes.ts';
 import { createHeardRecorder } from './heard-recorder.ts';
 import { getSteadyNowMs, createVoiceLine } from './voice-line.ts';
 
@@ -75,8 +76,19 @@ async function runSession(context: JobContext): Promise<void> {
   }).makeStt();
   const allTakes = loadTakes();
   let ears: Ears | null = null;
-  let scenes: TutorScenes | null = null;
-  const { brain, caps, cardTitle, flushSpend, readMeaning, readStrokes, readSpokenWords, getSpentUsd } = makeTutorBrain({ roomName: room.name ?? '', trace, onSessionTitle: (title) => publish({ type: 'sessionTitle', title }), ...(hasTutorScenes() ? { onAskScene: (topic: string) => scenes?.ask(topic) } : {}) });
+  let scenes: SessionScenes | null = null;
+  let lastFirstTextMs: number | null = null;
+  const sceneHooks = {
+    onAskScene: (topic: string) => scenes?.onTutorAsk(topic),
+    onStudentWords: (words: string) => scenes?.queue?.noteStudentWords(words),
+    onLessonChange: (state: LessonState) => scenes?.queue?.onLesson(state),
+    getReadyPicture: () => scenes?.queue?.getReadyPicture() ?? null,
+    onTurnWritten(turn: { firstTextMs: number | null; spokenText: string; refusalCategory: string | null }) {
+      lastFirstTextMs = turn.firstTextMs;
+      scenes?.queue?.noteTutorReply(turn);
+    },
+  };
+  const { brain, lessonPlanner, caps, cardTitle, flushSpend, readMeaning, readStrokes, readSpokenWords, getSpentUsd } = makeTutorBrain({ roomName: room.name ?? '', trace, onSessionTitle: (title) => publish({ type: 'sessionTitle', title }), ...(hasTutorScenes() ? { sceneHooks } : {}) });
   const session = createLiveSession({
     messenger: {
       send: (message) => publish(message),
@@ -104,6 +116,8 @@ async function runSession(context: JobContext): Promise<void> {
   if (hasTutorScenes() && caps) {
     scenes = makeTutorScenes({
       caps,
+      moveToNextStep: () => lessonPlanner?.moveToNextStep(),
+      getLastFirstTextMs: () => lastFirstTextMs,
       getCardTitle: () => cardTitle?.() ?? null,
       send: (message: SceneAgentMessage) => void room.localParticipant?.publishData(encoder.encode(JSON.stringify(message)), { reliable: true, topic: SCENE_TOPIC }).catch((error: unknown) => trace('sceneNotSent', { problem: String(error) })),
       canSpeak: session.isAtPause,

@@ -20,7 +20,7 @@ const flush = async () => {
   for (let tick = 0; tick < 6; tick += 1) await new Promise((resolve) => setImmediate(resolve));
 };
 
-function setUp({ route = { engine: 'manimgx', kind: 'graph', topic: TOPIC, ...USAGE } as SceneRoute, canSpeak = true, getScene = async () => ({ isOk: true as const, scene: SCENE }) as { isOk: true; scene: StoredScene } | { isOk: false; reasons: string[] }, cardTitle = null as string | null } = {}) {
+function setUp({ route = { engine: 'manimgx', kind: 'graph', topic: TOPIC, ...USAGE } as SceneRoute, canSpeak = true, getScene = async () => ({ isOk: true as const, scene: SCENE }) as { isOk: true; scene: StoredScene } | { isOk: false; reasons: string[] }, cardTitle = null as string | null, onAhead = undefined as ((request: string, state: 'ready' | 'gone') => void) | undefined } = {}) {
   const sent: SceneAgentMessage[] = [];
   const spoken: (readonly Beat[])[] = [];
   const shown: { topic: string }[] = [];
@@ -41,6 +41,7 @@ function setUp({ route = { engine: 'manimgx', kind: 'graph', topic: TOPIC, ...US
       return true;
     },
     onShown: (one) => void shown.push(one),
+    ...(onAhead ? { onAhead } : {}),
     trace: (name, fields = {}) => void traces.push({ name, fields }),
   });
   return { scenes, sent, spoken, shown, traces, joinRun, store, state };
@@ -273,5 +274,143 @@ describe('a topic that draws nothing', () => {
     made.store.saveRefusal({ key: getSceneKey(TOPIC, { ownerId: 'maya' }), review: [{ moment: 'a', what: 'wrong', truth: '', confidence: 'high' }], attempts: 1, savedAt: new Date().toISOString() } as never);
     await ask(made, { engine: 'manimgx', kind: 'graph', topic: TOPIC, ...USAGE });
     expect(made.plan).not.toHaveBeenCalled();
+  });
+});
+
+describe('a scene started ahead of its moment', () => {
+  const saveShared = (store: ReturnType<typeof setUp>['store'], topic = TOPIC) => {
+    const key = getSceneKey(topic);
+    const scene = { ...SCENE, id: key.id, topic, ownerId: null, status: 'checked' } as StoredScene;
+    return store.saveChecked(scene, [], []).then(() => scene);
+  };
+
+  it('holds a saved scene in the page with no model and no write, and shows nothing', async () => {
+    const { scenes, sent, spoken, joinRun, store } = setUp();
+    const scene = await saveShared(store);
+    opened(scenes);
+    expect(scenes.prepare(TOPIC)).toBe(true);
+    await flush();
+    expect(sent).toEqual([{ type: 'prepareScene', sceneId: scene.id }]);
+    expect(joinRun).not.toHaveBeenCalled();
+    expect(spoken).toEqual([]);
+  });
+
+  it('lands on the first pause once asked, and takes its first frame only then', async () => {
+    const { scenes, sent, spoken, shown, store, state } = setUp({ canSpeak: false });
+    const scene = await saveShared(store);
+    opened(scenes);
+    scenes.prepare(TOPIC);
+    await flush();
+    scenes.ask(TOPIC);
+    await flush();
+    expect(sent.some((message) => message.type === 'loadScene')).toBe(false);
+    state.canSpeak = true;
+    scenes.notePause();
+    expect(sent.at(-1)).toEqual({ type: 'loadScene', sceneId: scene.id, durationSeconds: scene.durationSeconds });
+    scenes.onPage({ type: 'sceneLoaded', sceneId: scene.id }, 'maya');
+    expect(spoken).toHaveLength(1);
+    expect(shown).toMatchObject([{ topic: TOPIC, isShared: true }]);
+  });
+
+  it('never lands when nobody asks for it', async () => {
+    const { scenes, spoken, store } = setUp();
+    await saveShared(store);
+    opened(scenes);
+    scenes.prepare(TOPIC);
+    await flush();
+    scenes.notePause();
+    expect(spoken).toEqual([]);
+  });
+
+  it('tells the queue only once the page holds the bytes', async () => {
+    const onAhead = vi.fn();
+    const { scenes, store } = setUp({ onAhead });
+    const scene = await saveShared(store);
+    opened(scenes);
+    scenes.prepare(TOPIC);
+    await flush();
+    expect(onAhead).not.toHaveBeenCalled();
+    scenes.onPage({ type: 'scenePrepared', sceneId: scene.id }, 'maya');
+    expect(onAhead).toHaveBeenCalledWith(TOPIC, 'ready');
+  });
+
+  it('goes quietly when the page refuses its take, and a failed write says nothing either', async () => {
+    const onAhead = vi.fn();
+    const { scenes, spoken, sent, store } = setUp({ onAhead });
+    const scene = await saveShared(store);
+    opened(scenes);
+    scenes.prepare(TOPIC);
+    await flush();
+    scenes.onPage({ type: 'sceneRefused', sceneId: scene.id }, 'maya');
+    expect(onAhead).toHaveBeenCalledWith(TOPIC, 'gone');
+
+    const failing = setUp({ onAhead, getScene: async () => ({ isOk: false as const, reasons: ['nope'] }) });
+    opened(failing.scenes);
+    failing.scenes.prepare('another topic');
+    await flush();
+    expect(onAhead).toHaveBeenLastCalledWith('another topic', 'gone');
+    expect(spoken).toEqual([]);
+    expect(failing.spoken).toEqual([]);
+    expect(sent.filter((message) => message.type === 'loadScene')).toEqual([]);
+    expect(failing.sent).toEqual([]);
+  });
+
+  it('stops a write nobody needs now, and leaves a shown scene alone', async () => {
+    const leave = vi.fn();
+    const { scenes, joinRun } = setUp();
+    joinRun.mockImplementation(() => ({ plan: Promise.resolve(PLAN), firstLine: Promise.resolve(null), getScene: () => new Promise(() => {}), leave }));
+    opened(scenes);
+    scenes.prepare(TOPIC);
+    await flush();
+    expect(joinRun).toHaveBeenCalledOnce();
+    scenes.dropPrepared(TOPIC);
+    expect(leave).toHaveBeenCalledOnce();
+  });
+
+  it('drops a scene whose moment passed, and asking again is free to land', async () => {
+    const { scenes, spoken, store, sent } = setUp();
+    const scene = await saveShared(store);
+    opened(scenes);
+    scenes.ask(TOPIC);
+    await flush();
+    scenes.dropWaiting('movedOn');
+    scenes.onPage({ type: 'sceneLoaded', sceneId: scene.id }, 'maya');
+    scenes.notePause();
+    expect(spoken).toEqual([]);
+    scenes.ask(TOPIC);
+    await flush();
+    expect(sent.filter((message) => message.type === 'loadScene')).toHaveLength(2);
+  });
+
+  it('sends its bytes again after a reload, and brings the last scene back', async () => {
+    const { scenes, sent, store } = setUp();
+    const shownScene = await saveShared(store);
+    opened(scenes);
+    scenes.ask(TOPIC);
+    await flush();
+    scenes.onPage({ type: 'sceneLoaded', sceneId: shownScene.id }, 'maya');
+    const next = await saveShared(store, 'the next idea');
+    scenes.prepare('the next idea');
+    await flush();
+    sent.length = 0;
+    opened(scenes);
+    expect(sent).toEqual([{ type: 'prepareScene', sceneId: next.id }, { type: 'loadScene', sceneId: shownScene.id, durationSeconds: shownScene.durationSeconds }]);
+  });
+
+  it('after a stop, nothing is prepared, asked for, or landed', async () => {
+    const { scenes, spoken, sent, store } = setUp();
+    const scene = await saveShared(store);
+    opened(scenes);
+    scenes.ask(TOPIC);
+    await flush();
+    scenes.stop();
+    scenes.onPage({ type: 'sceneLoaded', sceneId: scene.id }, 'maya');
+    scenes.notePause();
+    expect(spoken).toEqual([]);
+    sent.length = 0;
+    expect(scenes.prepare('the next idea')).toBe(false);
+    scenes.ask('the next idea');
+    await flush();
+    expect(sent).toEqual([]);
   });
 });

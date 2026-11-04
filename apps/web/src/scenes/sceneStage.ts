@@ -11,6 +11,8 @@ const SAME_FRAME_SECONDS = 0.0005;
 
 export interface SceneStage {
   load(sceneId: string, durationSeconds: number): Promise<boolean>;
+  /** Holds a take's bytes for the scene after this one, and touches nothing on screen. */
+  prepare(sceneId: string): Promise<boolean>;
   draw(sceneId: string, seconds: number): void;
   canDraw(sceneId: string): boolean;
   free(): void;
@@ -114,6 +116,15 @@ export function createSceneStage(container: HTMLElement): SceneStage {
       dropActive();
       try {
         active = await makePlayer({ sceneId, theme: getAppliedTheme(), durationSeconds }, 0);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    async prepare(sceneId) {
+      try {
+        await bootSceneEngine();
+        await getTakeBytes(sceneId, getAppliedTheme());
         return true;
       } catch {
         return false;
