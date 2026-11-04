@@ -8,7 +8,6 @@ const getRightWorkTimes = (operations: readonly BoardOperation[]) => operations.
 
 const getTutorTimes = (operations: readonly BoardOperation[]) => operations.flatMap((operation) => (operation.kind === 'command' ? [operation.atMs] : []));
 
-// The times the board is worth showing again: what the student got right, and otherwise what the tutor drew, spread evenly and ending on the latest.
 export function getKeyMoments(operations: readonly BoardOperation[]): number[] {
   const rightTimes = getRightWorkTimes(operations);
   const times = rightTimes.length > 0 ? rightTimes : getTutorTimes(operations);

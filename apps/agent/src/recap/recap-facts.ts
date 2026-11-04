@@ -2,7 +2,6 @@ import { getBeatText, getSpokenWords, type SessionEvent, type StudentWork } from
 
 export type WorkStatus = 'right' | 'wrong' | 'unknown';
 
-/** What the log can stand behind, and all a recap may draw on. */
 export interface RecapFacts {
   /** The line the page sent to start the tutor. It may hold the student's own question. */
   opening: string | null;

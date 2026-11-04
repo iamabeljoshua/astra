@@ -86,11 +86,9 @@ export async function writeLessonRecap(model: RecapModel, facts: RecapFacts): Pr
 export interface SessionEndingOptions {
   log: readonly SessionEvent[];
   opening: string | null;
-  /** Null when no model may be called, such as past a spending limit. */
   writeRecap(facts: RecapFacts): Promise<SessionRecap | null>;
 }
 
-// Code decides whether there is anything to say, and how gently, before any model runs. A failed recap never holds up the end.
 export async function getSessionEnding({ log, opening, writeRecap }: SessionEndingOptions): Promise<SessionRecap | null> {
   const facts = getRecapFacts(log, opening);
   const kind = getEndingKind(facts);

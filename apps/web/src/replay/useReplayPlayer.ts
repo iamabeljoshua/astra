@@ -13,7 +13,6 @@ export interface ReplayPlayer {
   isPlaying: boolean;
   speed: ReplaySpeed;
   isSoundOn: boolean;
-  /** Nothing has moved yet, so the screen can open on how the lesson ended. */
   hasMoved: boolean;
   /** Null until the browser has had time to list its voices. */
   canSpeak: boolean | null;
@@ -38,7 +37,6 @@ function useCanSpeak(voice: ReturnType<typeof createDeviceVoice>) {
   return canSpeak;
 }
 
-// One clock, read once a frame while it plays. A paused replay runs nothing.
 export function useReplayPlayer(lesson: ReplayLesson): ReplayPlayer {
   const [clock] = useState(() => createReplayClock(lesson.durationMs, () => performance.now()));
   const [voice] = useState(() => createDeviceVoice(window.speechSynthesis as SpeechSynthesis | undefined));

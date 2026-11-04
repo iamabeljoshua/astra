@@ -11,7 +11,6 @@ export interface SessionLog {
   write(message: BrowserMessage): SessionEvent | null;
   writeWorked(message: BrowserMessage & { type: 'worked' }, checked: { reading?: unknown; verdict: WorkVerdict; closesTask?: string }): SessionEvent | null;
   writeHeard(work: StudentWork, checked: { reading?: unknown; verdict: WorkVerdict; closesTask?: string }): SessionEvent | null;
-  /** Words the transcriber heard, as text. No sound comes here. */
   writeSaid(text: string, durationMs: number): SessionEvent | null;
   getEvents(): readonly SessionEvent[];
 }

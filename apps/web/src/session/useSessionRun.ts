@@ -16,7 +16,6 @@ function createClock(startingSeconds: number) {
   return () => startingSeconds + Math.floor(Math.max(Date.now() - openedAtMs, 0) / MS_PER_SECOND);
 }
 
-/** What ending a session asks of the room it runs in. */
 export interface SessionRoom {
   canAskForRecap(): boolean;
   askForRecap(): boolean;
@@ -53,7 +52,6 @@ export function useSessionRun(session: Session, room: SessionRoom = NO_ROOM) {
     await fadeInto('/', { replace: true, state: ARRIVING_FROM_ENDED_SESSION });
   }
 
-  /** True once the session has finished. */
   // Finishing deletes a room that is not kept for a recap, and a page still in it would ask for another. A student whose finish failed stays in the session, so that room opens again.
   async function endSession() {
     if (isEnding) return;

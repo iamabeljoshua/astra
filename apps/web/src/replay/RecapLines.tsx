@@ -14,7 +14,6 @@ function RecapLine({ label, line }: { label: string; line: string }) {
 
 const MOST_ANSWER_CHARACTERS = 2000;
 
-// Only the student's own try, with no tutor beside them. It is kept as they wrote it, and code does not judge it.
 function RecapAnswer({ sessionId, answer }: { sessionId: string; answer: string | null }) {
   const [text, setText] = useState(answer ?? '');
   const save = useSaveRecapAnswer(sessionId);

@@ -9,7 +9,6 @@ function worked(seq: number, atMs: number, id: string, text: string, tex: string
   return { seq, atMs, kind: 'studentActed', action: { action: 'worked', work: { way: 'write', id, task: 'try', text }, reading: { kind: 'math', parts: [{ type: 'math', text, tex }], isAsking: false }, verdict, ...closes } };
 }
 
-// A short lesson in the shape the agent logs, so a fresh seed shows a replay with no tutor running.
 export const EXAMPLE_REPLAY_EVENTS: object[] = [
   spoken(0, 1000, 'greet', 'turn-seed-1', ['Welcome back, Maya.']),
   spoken(1, 2500, 'set', 'turn-seed-2', [{ kind: 'writeMath', id: 'steps', tex: 'x^2 - 5x + 6 = 0', claim: 'new' }, 'Here is one to factor, x squared minus five x plus six equals zero.'], { firedCueMs: [0] }),

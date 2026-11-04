@@ -36,7 +36,6 @@ const LONGEST_RECAP_SPOKEN_MS = 60_000;
 /** The page plays behind the agent, and its reports must reach the log before the room goes. */
 const PAGE_CATCHES_UP_MS = 5000;
 const CATCH_UP_POLL_MS = 100;
-/** While a recap plays, only these still mean anything. */
 const HEARD_WHILE_ENDING: ReadonlySet<BrowserMessage['type']> = new Set(['played', 'boardFrozen', 'pulse', 'audioState']);
 
 export type EarsEvent = { type: 'voiceStarted' } | { type: 'voiceEnded' } | { type: 'words'; text: string; isFinal: boolean } | { type: 'turnDecided'; text: string };

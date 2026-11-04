@@ -34,7 +34,6 @@ interface CaptionLinesProps extends BoardCaptionProps {
   past: readonly string[];
 }
 
-// Only draws, so a replay can hand it any moment of a lesson, forward or back.
 export function CaptionLines({ past, heard, coming, firstWord = null }: CaptionLinesProps) {
   const current = heard.at(-1);
   const isNewTurn = heard.length === 0 && coming.length === 0;

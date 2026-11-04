@@ -34,12 +34,10 @@ export class SaveLogBodyDto {
   @IsUUID()
   runId!: string;
 
-  /** When that run started. */
   @Type(() => Date)
   @IsDate()
   runStartedAt!: Date;
 
-  /** The events to save. */
   @IsArray()
   @ArrayMaxSize(MOST_EVENTS_IN_A_SAVE)
   @IsObject({ each: true })
@@ -49,7 +47,6 @@ export class SaveLogBodyDto {
 }
 
 export class SaveRecapBodyDto {
-  /** What the session's end said. */
   @IsObject()
   @IsStorableJson()
   recap!: object;

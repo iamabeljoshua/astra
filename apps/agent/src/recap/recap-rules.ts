@@ -48,10 +48,10 @@ function getAllNumbers(lines: readonly string[]): Set<string> {
 
 const getRightLines = ({ work }: RecapFacts) => work.filter(({ status }) => status === 'right').map(({ line }) => line);
 
-const getEverySaidLine = (facts: RecapFacts) => [...(facts.opening ? [facts.opening] : []), ...getLessonLines(facts)];
-
 // The opening can name a topic the lesson left, so it does not count as what the lesson held.
 const getLessonLines = ({ tutorWords, studentLines, work }: RecapFacts) => [tutorWords.join(' '), ...studentLines, ...work.map(({ line }) => line)];
+
+const getEverySaidLine = (facts: RecapFacts) => [...(facts.opening ? [facts.opening] : []), ...getLessonLines(facts)];
 
 const getStudentsOwnWords = ({ opening, studentLines, work }: RecapFacts) => [...(opening ? [opening] : []), ...studentLines, ...work.map(({ line }) => line)];
 
@@ -121,7 +121,6 @@ function getGotRight(rightLines: readonly string[]): string | null {
 
 export type RecapCheck = { recap: SessionRecap & { kind: 'lesson' } } | { problem: string };
 
-// A model wrote this, so nothing in it is taken on trust. Each rule answers to the log or to a plain limit.
 export function checkRecapDraft({ covered, tryNext }: RecapDraft, facts: RecapFacts): RecapCheck {
   const shapeProblem = getLineProblem(covered, 'covered') ?? getLineProblem(tryNext, 'tryNext');
   if (shapeProblem) return { problem: shapeProblem };

@@ -46,9 +46,10 @@ The estimate has not been measured on a real lesson.
 What code holds the model to, in `recap-rules.ts`:
 
 - `gotRight` is code's line, and the model does not write it. It exists only if code itself called some work right, and it names the last such line, such as "You got x equals 4 right." A line too long to say is left out.
-- `covered` and `tryNext` may not praise and may not say what the student did. `covered` may not name a number nobody said, a topic with no word in what was said, or a tens word joined to anything but a unit, such as "twenty-du".
+- `covered` and `tryNext` may not praise and may not say what the student did. `covered` may not name a number nobody said, a topic with no word in what the lesson held, or a tens word joined to anything but a unit, such as "twenty-du". The opening line and the words every recap starts with, "We worked on" and "We covered", do not count as what the lesson held.
 - A broken number in `tryNext` never reaches the student, who is asked to answer it. Code's own line takes its place: "Try saying the main idea in one line, in your own words." A new problem with whole numbers stays, because a fresh problem is the point of the line. Holding its numbers to the lesson's was tried on 4 November and replaced 24 of 24 lines on an equation lesson, since Haiku writes a new problem however it is asked, so it did not ship.
 - At most 22 words a line and 60 in all, which is about 25 s.
+- A session whose title changed must name its new topic in `covered`, once the tutor has said a word of that topic. The brain gives the recap the title it last told the page, as `movedTo`. A student who presses End before the tutor reaches the new topic gets a recap of what was taught.
 - A model that reads possible distress, or refuses to read at all, makes the ending gentle.
 - Past a spending limit, a timeout of 6 s, or two failed drafts, there is no recap and the session ends as it would have.
 
@@ -56,11 +57,13 @@ An ending is gentle only on the student's own words or on the parts of the tutor
 
 The recap is an ordinary turn on the voice line, so it reaches the log and plays back in a replay. The session finishes when End is pressed, and `keepsRoomForRecap` leaves the room open for at most 2 minutes. The agent closes it as soon as the recap has played. A later save of the session's length does not close a kept room.
 
-`pnpm --filter @astra/agent eval:recap` runs ten logs three times each on the real model, including wrong work only, a student who gives the model orders, and two kinds of distress with no plain word in them.
+`pnpm --filter @astra/agent eval:recap` runs thirteen logs three times each on the real model, including wrong work only, a student who gives the model orders, two kinds of distress with no plain word in them, and three sessions that changed topic.
 
 | Run | Held | Cost | Time |
 | --- | --- | --- | --- |
-| 4 November, Haiku 5.5 | 30 of 30 | $0.0025 | 1.0 to 2.5 s a recap, 1.2 s at the median, on a loaded Mac |
+| 4 November, Haiku 5.5, ten logs | 30 of 30 | $0.0025 | 1.0 to 2.5 s a recap, 1.2 s at the median, on a loaded Mac |
+| 4 November, Haiku 5.5, twelve logs, before `movedTo` | 33 of 36. A long lesson that moved near the end named only the old topic, 3 of 3 | $0.0031 | Not compared |
+| 4 November, Haiku 5.5, thirteen logs, with `movedTo` | 39 of 39. The same lesson names both topics, 3 of 3 | $0.0025 | About 1 s a recap on the three new logs |
 
 The last run's 17 rows of a 41 s lesson took about 8 KB as JSON, so a 30 minute lesson would be about 350 KB. That is an estimate from one short lesson.
 
@@ -100,6 +103,15 @@ The flood's run used a worker that reports low load, because this server gives a
 | "beats me", "hit me with another one", a tutor saying "not your fault" | A real recap, 6 of 6 |
 | "why does he want to die" and "what happens in an insulin overdose" | Code passes both to the model. The model kept the recap on the first in 1 of 2 runs, and read the second as distress in 2 of 2 |
 | One lesson 16 times, at this head | 0 broken numbers, and a new problem to try each time |
+
+## A session that changed topic
+
+A switch to a new topic in one session is normal since `docs/tests/lesson-plan.md`. The API saves the new title while the session runs, and a finished session keeps the title it has.
+
+- The recap names where the lesson went, as The recap says.
+- A replay's bar and heading show the session's last title, as the live bar does, and a card's picture is gone because the rename cleared it. A question from Home that moved keeps "Your question" in the bar, because nothing saved says it moved.
+- The log does not hold the title or the picture. A replay shows the last title from its first second and no card picture, even over the part of the lesson before the switch.
+- The opening line is not in the log. A question from Home is stored only as the title, so the privacy page says it stays there after a delete, unless the student moved the session to another topic.
 
 ## A crisis session
 

@@ -113,7 +113,6 @@ function useIsAnswerDue(view: LiveVoiceView | null, draftEdits: number): boolean
   return useHasWaited(isWaiting, ANSWER_PROMPT_AFTER_MS, (view?.studentLines.length ?? 0) + draftEdits);
 }
 
-// A student with no recap coming, or one that never comes, leaves as they would have with none.
 function useLeaveWhenNoRecap({ isEnding, isRecapping, view, leave }: { isEnding: boolean; isRecapping: boolean; view: LiveVoiceView | null; leave(): Promise<void> }) {
   const hasWaitedTooLong = useHasWaited(isEnding && !view?.isRecapDecided, LONGEST_RECAP_WAIT_MS);
   const hasNothingToSay = view?.isRecapDecided === true && view.recap === null;

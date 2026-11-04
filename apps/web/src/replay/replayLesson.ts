@@ -2,7 +2,6 @@ import { type BoardOperation, type BoardState, getBoardAt, getLogOperations } fr
 import { getBeatText, getSpokenWords, parseSessionEvent, type SessionEvent } from '@astra/contracts';
 import { getKeyMoments } from './keyMoments';
 
-/** Holds the last words on screen for a moment before a replay ends. */
 const LAST_WORDS_HOLD_MS = 1500;
 const PAST_LINES_SHOWN = 2;
 
@@ -95,7 +94,6 @@ export function readReplayLesson(savedRuns: readonly { events: readonly unknown[
   return lesson;
 }
 
-/** The board as it stood at this moment of the lesson, by the same reducer the live board reads. */
 export function getReplayBoard({ runs }: ReplayLesson, atMs: number): { board: BoardState; atMs: number } {
   const run = runs.filter(({ startsAtMs }) => startsAtMs <= atMs).at(-1) ?? runs[0];
   if (!run) return { board: getBoardAt([], 0), atMs: 0 };
@@ -119,12 +117,10 @@ export function getReplayCaption({ beats }: ReplayLesson, atMs: number): Caption
   };
 }
 
-/** What the student last said or typed, as text. Their voice was never kept. */
 export function getReplayStudentLine({ studentLines }: ReplayLesson, atMs: number): string | null {
   return studentLines.filter((line) => line.atMs <= atMs).at(-1)?.text ?? null;
 }
 
-/** The beat being spoken at this moment and the word it has reached, for the device's voice to follow. */
 export function getSpokenBeatAt({ beats }: ReplayLesson, atMs: number): { beat: SpokenBeat; word: number } | null {
   const beat = beats.find((candidate) => candidate.atMs <= atMs && atMs < candidate.endMs);
   if (!beat) return null;

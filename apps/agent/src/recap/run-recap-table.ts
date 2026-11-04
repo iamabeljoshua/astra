@@ -16,7 +16,6 @@ interface RecapCase {
   expects: 'gentle' | 'lesson';
   /** A lesson's `gotRight` must hold one of these, or be null when there are none. */
   rightHolds?: readonly RegExp[];
-  /** After a change of topic, the line on what the lesson covered must hold this, and must not hold `coveredLacks`. */
   coveredHolds?: RegExp;
   coveredLacks?: RegExp;
 }

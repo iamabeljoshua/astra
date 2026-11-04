@@ -69,7 +69,6 @@ export interface LiveVoiceView {
   tutorComing: readonly string[];
   /** What the session's end says, once the tutor has decided. */
   recap: SessionRecap | null;
-  /** The tutor has said whether there is a recap. */
   isRecapDecided: boolean;
 }
 
@@ -97,7 +96,6 @@ export interface LiveVoice {
   sendTyped(text: string): void;
   /** Starts the turn with words the student did not write, so they never appear as the student's. */
   sendOpening(text: string): void;
-  /** Whether the tutor can be reached to give a recap, asking nothing yet. */
   canAskForRecap(): boolean;
   /** Asks the tutor for its recap, which also ends its teaching, and says whether the ask could be sent. */
   askForRecap(): boolean;

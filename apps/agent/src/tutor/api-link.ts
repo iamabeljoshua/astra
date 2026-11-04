@@ -8,7 +8,6 @@ const ROOM_PREFIX = 'session-';
 const SESSION_ID_LENGTH = 36;
 const REQUEST_TIMEOUT_MS = 3000;
 const NO_CONTENT_STATUS = 204;
-/** The API will answer these the same way however often it is asked. */
 const REFUSED_FOR_GOOD_STATUSES = new Set([400, 413]);
 
 export class ApiRefusedError extends Error {}

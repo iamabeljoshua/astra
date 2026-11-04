@@ -5,7 +5,6 @@ export interface ReplayClock {
   getAtMs(): number;
   isPlaying(): boolean;
   getSpeed(): ReplaySpeed;
-  /** Starts again from the top if it has reached the end. */
   play(): void;
   pause(): void;
   seek(atMs: number): void;
