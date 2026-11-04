@@ -4,6 +4,7 @@ import { ChatBox } from '../home/ChatBox';
 import { findArtwork, type Artwork } from '../home/artwork';
 import { API_ERROR_LABELS, MENU_LABELS, PRODUCT_NAME, REPLY_BOX_LABELS, SESSION_LABELS, SESSIONS_LABELS, VOICE_LABELS } from '../strings';
 import { ThemeToggle } from '../theme/ThemeToggle';
+import { type FilesComingSoon, useFilesComingSoon } from '../ui/useFilesComingSoon';
 import { formatSessionLength } from './formatSession';
 import { type Session, useKeepSessionTitle, useSession } from './sessionQueries';
 import { isLessonEnabled, isTutorSceneEnabled } from './lessonFlag';
@@ -67,7 +68,7 @@ export function getOpeningMessage({ title, subject, durationSeconds }: Pick<Sess
 }
 
 // React runs effects twice in development, and the room must open once, so this waits for the first run to settle.
-function useOpeningMessage(session: Session, sendTyped: (text: string) => Promise<boolean>) {
+function useOpeningMessage(session: Session, sendOpening: (text: string) => Promise<void>) {
   const [opening] = useState(() => getOpeningMessage(session));
   const hasSent = useRef(false);
 
@@ -75,10 +76,10 @@ function useOpeningMessage(session: Session, sendTyped: (text: string) => Promis
     const sending = setTimeout(() => {
       if (hasSent.current) return;
       hasSent.current = true;
-      void sendTyped(opening);
+      void sendOpening(opening);
     });
     return () => clearTimeout(sending);
-  }, [opening, sendTyped]);
+  }, [opening, sendOpening]);
 }
 
 function isTutorOnTheWay(status: LiveVoiceControls['status'], view: LiveVoiceView | null): boolean {
@@ -120,16 +121,22 @@ function RunningSession({ session }: { session: Session }) {
   const showTutorState = useCallback((state: string | null) => {
     if (tutorStateLine.current) tutorStateLine.current.textContent = state;
   }, []);
-  useOpeningMessage(session, liveVoice.sendTyped);
+  useOpeningMessage(session, liveVoice.sendOpening);
   const isConnecting = isTutorOnTheWay(status, view);
   const scene = useTutorScene(voice, isTutorSceneEnabled());
   useKeepSessionTitle(session.id, view?.sessionTitle ?? null);
+  const filesComingSoon = useFilesComingSoon();
+
+  // Finishing deletes the room, and a page still in it would ask for another. A student whose finish failed stays in the session, so the room opens again.
+  async function endAndLeaveRoom() {
+    if (!(await endSession(liveVoice.leave))) await liveVoice.connect({ wantsGreeting: false });
+  }
 
   // The card's picture belongs to the card's topic, so it goes when the student moves off it, and the seam for a scene stays empty.
   const artwork = view?.sessionTitle ? null : findArtwork(session.artwork);
   const picture = <Board artwork={findArtwork(session.artwork)} note={SESSION_LABELS.boardStandIn} />;
   return (
-    <SessionFrame facts={<SessionFacts subject={view?.sessionTitle ?? session.subject} seconds={seconds} tutorStateLine={tutorStateLine} costUsd={view?.costUsd ?? null} />} action={<EndButton isEnding={isEnding} onEnd={() => void endSession()} />} problem={endProblem} isFullHeight>
+    <SessionFrame facts={<SessionFacts subject={view?.sessionTitle ?? getBarSubject(session)} seconds={seconds} tutorStateLine={tutorStateLine} costUsd={view?.costUsd ?? null} />} action={<EndButton isEnding={isEnding} onEnd={() => void endAndLeaveRoom()} />} problem={endProblem} isFullHeight>
       <div className="board-stage">
         <div className="board-voice">
           <SessionTitle title={session.title} isQuiet={Boolean(voice) || isConnecting} />
@@ -144,10 +151,10 @@ function RunningSession({ session }: { session: Session }) {
           ) : (
             <div className="flex flex-1 flex-col justify-end font-voice text-voice">{isConnecting && <p role="status">{VOICE_LABELS.connecting}</p>}</div>
           )}
-          <ReplyBox liveVoice={liveVoice} isConnecting={isConnecting} carryOnLine={SESSION_LABELS.carryOnWith(session.title)} />
+          <ReplyBox liveVoice={liveVoice} isConnecting={isConnecting} carryOnLine={SESSION_LABELS.carryOnWith(session.title)} filesComingSoon={filesComingSoon} />
         </div>
         <ConnectingSaturn isConnecting={isConnecting} />
-        {voice ? <LiveBoard voice={voice} isConnecting={isConnecting} onTutorState={showTutorState} getVisual={(frame) => getSessionVisual(artwork, frame, scene)} onTalk={() => void liveVoice.toggleTalk()} isTalkOn={view?.mic === 'on'} canTalk={!view?.closedBecause} /> : <div className="board-panel">{picture}</div>}
+        {voice ? <LiveBoard voice={voice} isConnecting={isConnecting} onTutorState={showTutorState} getVisual={(frame) => getSessionVisual(artwork, frame, scene)} onTalk={() => void liveVoice.toggleTalk()} isTalkOn={view?.mic === 'on'} canTalk={!view?.closedBecause} filesComingSoon={isConnecting ? undefined : filesComingSoon} /> : <div className="board-panel">{picture}</div>}
       </div>
     </SessionFrame>
   );
@@ -268,7 +275,11 @@ function Board({ artwork, note }: { artwork: Artwork | null; note?: string }) {
   );
 }
 
-// A scene takes the place of the picture once its take can draw, and until then the student sees what they saw before.
+// A card always starts with a picture and a rename takes it away, so a card with none has moved to the topic in its title. A typed question never had one, so nothing saved says it moved.
+function getBarSubject({ artwork, title, subject }: Session) {
+  return !artwork && subject !== SESSION_LABELS.questionSubject ? title : subject;
+}
+
 function getSessionVisual(artwork: Artwork | null, { board, atMs }: BoardFrame, { stage, onContainer }: TutorScene) {
   if (hasDrawableScene(board, stage)) return <SceneLayer board={board} atMs={atMs} stage={stage} onContainer={onContainer} />;
   return artwork && <BoardPicture artwork={artwork} />;
@@ -298,7 +309,15 @@ function getVoiceNote({ status, waitSeconds, view }: LiveVoiceControls, isAnswer
   return isAnswerDue ? VOICE_LABELS.answerPrompt : null;
 }
 
-function ReplyBox({ liveVoice, isConnecting, carryOnLine }: { liveVoice: LiveVoiceControls; isConnecting: boolean; carryOnLine: string }) {
+interface ReplyBoxProps {
+  liveVoice: LiveVoiceControls;
+  isConnecting: boolean;
+  carryOnLine: string;
+  filesComingSoon: FilesComingSoon;
+}
+
+// The board's tools sit behind the connecting picture, so until the tutor arrives a file's note opens this box and shows here.
+function ReplyBox({ liveVoice, isConnecting, carryOnLine, filesComingSoon }: ReplyBoxProps) {
   const { status, view, voice, isTalkOn, sendTyped, toggleTalk, openAgain } = liveVoice;
   const isFinished = status === 'finished';
   const isOver = isFinished || status === 'tooSoon' || (view !== null && isVoiceOver(view.phase));
@@ -308,7 +327,7 @@ function ReplyBox({ liveVoice, isConnecting, carryOnLine }: { liveVoice: LiveVoi
   const [draftEdits, setDraftEdits] = useState(0);
   const [hasDraft, setHasDraft] = useState(false);
   const isBackWhileConnecting = useHasWaited(isConnecting, REPLY_BOX_BACK_AFTER_MS);
-  const isBoxOpen = (!voice && status !== 'connecting') || isBackWhileConnecting || hasDraft;
+  const isBoxOpen = (!voice && status !== 'connecting') || isBackWhileConnecting || hasDraft || (isConnecting && filesComingSoon.noteKey !== null);
   if (reply && view?.hasTutorStarted && (!reply.didFail || (!isOver && !view.closedBecause))) setReply(null);
   if (reply && !reply.didFail && !view?.hasTutorStarted && isOver) setReply({ ...reply, didFail: true });
   const voiceNote = getVoiceNote(liveVoice, useIsAnswerDue(view, draftEdits + (view?.typingNoteCount ?? 0)));
@@ -354,7 +373,7 @@ function ReplyBox({ liveVoice, isConnecting, carryOnLine }: { liveVoice: LiveVoi
         <div className={isBackWhileConnecting ? 'animate-arrive' : undefined}>
           <ChatBox
             labels={REPLY_BOX_LABELS}
-            canAttach={false}
+            filesComingSoon={!voice || isConnecting ? filesComingSoon : undefined}
             clearsOnSend
             isSending={isOver}
             takesFocus={isBackWhileConnecting}

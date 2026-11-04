@@ -5,7 +5,7 @@ import { BeatTextReader } from '../src/tutor/beat-text-reader.ts';
 import { EMPTY_BOARD, getPictureProblem } from '../src/tutor/board-memory.ts';
 import { createTutorBrain, type TutorBeat } from '../src/tutor/brain.ts';
 import { createSpendCaps } from '../src/tutor/make-brain.ts';
-import { TUTOR_SYSTEM, TUTOR_SYSTEM_WITH_SCENES } from '../src/tutor/prompt.ts';
+import { TUTOR_PROMPT, TUTOR_SYSTEM, TUTOR_SYSTEM_WITH_SCENES, withScenes } from '../src/tutor/prompt.ts';
 import type { ModelEvent, TutorModelAdapter, TutorModelRequest } from '../src/providers/types.ts';
 
 const USAGE = { inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0 };
@@ -91,14 +91,14 @@ describe('the brain', () => {
   it('passes the ask on and still speaks at once', async () => {
     const { model } = makeModel('{"kind":"askScene","topic":"slope of a line"}So slope, think of a hill.');
     const onAskScene = vi.fn();
-    const said = await read(createTutorBrain({ model, system: TUTOR_SYSTEM_WITH_SCENES, onAskScene }).reply({ text: 'what is slope' }, new AbortController().signal));
+    const said = await read(createTutorBrain({ model, prompt: withScenes(TUTOR_PROMPT), onAskScene }).reply({ text: 'what is slope' }, new AbortController().signal));
     expect(onAskScene).toHaveBeenCalledWith('slope of a line');
     expect(words(said)).toContain('So slope');
   });
 
   it('retries a reply that promises a picture, and the student never hears the promise', async () => {
     const { model, requests } = makeModel("I'll show you a picture of that.", 'So slope, think of a hill.');
-    const said = await read(createTutorBrain({ model, system: TUTOR_SYSTEM_WITH_SCENES, onAskScene: () => {} }).reply({ text: 'what is slope' }, new AbortController().signal));
+    const said = await read(createTutorBrain({ model, prompt: withScenes(TUTOR_PROMPT), onAskScene: () => {} }).reply({ text: 'what is slope' }, new AbortController().signal));
     expect(requests).toHaveLength(2);
     expect(words(said)).not.toMatch(/picture/);
     expect(words(said)).toContain('So slope');

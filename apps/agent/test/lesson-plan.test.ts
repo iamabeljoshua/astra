@@ -1,11 +1,13 @@
-import type { SceneCommand } from '@astra/contracts';
+import { getBeatText, getCues, type SceneCommand } from '@astra/contracts';
 import { describe, expect, it, vi } from 'vitest';
 import type { PlanAnswer, PlanAsk } from '../src/lesson-plan/ask-planner.ts';
 import { type LessonPlan, parsePlanMove, type PlanMove } from '../src/lesson-plan/lesson-plan.ts';
-import { createLessonPlanner, type LessonPlannerOptions } from '../src/lesson-plan/lesson-planner.ts';
+import { createLessonPlanner, getProblemNote, getTeachFirstNote, type LessonPlannerOptions } from '../src/lesson-plan/lesson-planner.ts';
 import { getStateAfterEvent, getStateAfterMove, getStepNote, NO_LESSON } from '../src/lesson-plan/plan-progress.ts';
 import { makeFakeTutorModel } from '../src/providers/fake-model.ts';
+import { LESSON_RULES } from '../src/lesson-plan/lesson-rules.ts';
 import { createTutorBrain, type TurnSummary } from '../src/tutor/brain.ts';
+import { PROMPT_V2 } from '../src/tutor/prompts/v2.ts';
 
 const SOLVING: LessonPlan = { topic: 'Solving 2x + 3 = 11', kind: 'handsOn', steps: [{ teach: null, exercise: 'Solve 2x + 3 = 11' }] };
 const FRACTIONS: LessonPlan = {
@@ -324,15 +326,16 @@ describe('the tutor with a lesson planner', () => {
     await answer(brain, 'teach me fractions');
     await planner.whenSettled();
     await answer(brain, 'go on');
-    await answer(brain, 'go on again');
     expect(getPlanNotes(model).at(-1)).toBe(1);
+    await answer(brain, 'go on again');
+    expect(getPlanNotes(model).at(-1)).toBe(2);
 
     planner.noteCommand(TASK);
     planner.noteCommand({ kind: 'boardMode', mode: 'teach' });
     await answer(brain, 'what next');
     await answer(brain, 'go on');
 
-    expect(getPlanNotes(model).at(-1)).toBe(2);
+    expect(getPlanNotes(model).at(-1)).toBe(3);
   });
 
   it('tells the planner what the student is answering', async () => {
@@ -405,5 +408,288 @@ describe('a student who asks to skip', () => {
     planner.moveToNextStep();
     planner.moveToNextStep();
     expect(planner.getStepNote()).toEqual({ topic: 'Rings', kind: 'teachFirst', is_finished: true });
+  });
+});
+
+describe('a task at the end of a reply', () => {
+  const collectFrom = async (text: string) => {
+    const summaries: TurnSummary[] = [];
+    const brain = createTutorBrain({ model: makeFakeTutorModel(() => ({ pieces: [text] })), timeouts: QUICK, onTurnEnd: (summary) => summaries.push(summary) });
+    const beats = [];
+    for await (const beat of brain.reply({ text: 'teach me greetings' }, new AbortController().signal)) beats.push(beat);
+    return { beats, brain, summaries };
+  };
+
+  it('lands, so "try it" always has somewhere to go', async () => {
+    const { beats, brain, summaries } = await collectFrom('Try it yourself, write the three greetings in order. {"kind":"task","id":"a1","way":"write","reads":"words"}');
+
+    expect(beats.flatMap((beat) => getCues(beat)).map((cue) => cue.command.kind)).toEqual(['task']);
+    expect(brain.getBoard().openTask).toBe('a1');
+    expect(summaries[0]?.refused).toEqual([]);
+    expect(beats.map(getBeatText).join(' ')).toMatch(/^Try it yourself.*in order\. .+/);
+  });
+
+  it('never lands after help in a crisis, and then the brain does not think it is open', async () => {
+    const { beats, brain } = await collectFrom('That sounds serious. Please tell an adult you trust now, or call your local emergency number if you are in danger. {"kind":"task","id":"a1","way":"write","reads":"words"}');
+
+    expect(beats.flatMap((beat) => getCues(beat))).toEqual([]);
+    expect(brain.getBoard().openTask).toBeNull();
+    expect(beats.map(getBeatText).join(' ')).not.toMatch(/over to you/i);
+  });
+});
+
+describe('a sentence with a blank', () => {
+  it('goes on the board as text, with a task of words beside it', async () => {
+    const brain = createTutorBrain({ model: makeFakeTutorModel(() => ({ pieces: ['Which fits? {"kind":"text","id":"q1","text":"The weather ___ my mood"}Have a look. {"kind":"task","id":"a1","way":"place","items":["affects","effects"],"slots":["The weather ___ my mood"],"answer":["affects"]}Put one in.'] })), timeouts: QUICK });
+    const beats = [];
+    for await (const beat of brain.reply({ text: 'affect or effect' }, new AbortController().signal)) beats.push(beat);
+
+    expect(beats.flatMap((beat) => getCues(beat)).map((cue) => cue.command.kind)).toEqual(['text', 'task']);
+    expect(brain.getBoard().openTask).toBe('a1');
+  });
+
+  it('is what the rules tell the tutor to use, and they keep the student line names for the student', () => {
+    expect(LESSON_RULES).toContain('"kind":"text","id":"q1","text":"The weather ___ my mood"');
+    expect(LESSON_RULES).toMatch(/never writeMath/);
+  });
+});
+
+describe('asking for the answer', () => {
+  const SET_PROBLEM = 'Here. {"kind":"writeMath","id":"steps","tex":"2x + 3 = 11","claim":"new"}Have a go. {"kind":"task","id":"a1","way":"write","on":"steps"}What comes first?';
+  it.each(['just tell me', 'just tell me the answer', 'can you just give me the answer', 'whats the answer'])('"%s" gets it the first time, because their own words beat the rule', async (ask) => {
+    const traces: string[] = [];
+    const replies = [SET_PROBLEM, 'Fine, x is four.'];
+    let index = 0;
+    const brain = createTutorBrain({ model: makeFakeTutorModel(() => ({ pieces: [replies[Math.min(index++, 1)] as string] })), timeouts: QUICK, trace: (name) => traces.push(name) });
+    for await (const beat of brain.reply({ text: 'help me solve 2x + 3 = 11' }, new AbortController().signal)) void beat;
+    const beats = [];
+    for await (const beat of brain.reply({ text: ask }, new AbortController().signal)) beats.push(beat);
+
+    expect(traces).not.toContain('wordsRefused');
+    expect(beats.map(getBeatText).join(' ')).toContain('x is four');
+  });
+
+  it('tells the tutor to give it on the first ask, with no argument', () => {
+    expect(PROMPT_V2).not.toMatch(/ask for one attempt first|for the answer a second time|If they ask for the answer twice/);
+    expect(PROMPT_V2).toMatch(/just tell me/);
+  });
+});
+
+describe('a words lesson', () => {
+  const WORDS_TASK = 'Your turn. {"kind":"task","id":"a1","way":"write","reads":"words"}Say why in your own words.';
+
+  it('moves on when the student has answered a task with no answer key', async () => {
+    const planner = createLessonPlanner({ ask: () => Promise.resolve({ move: newPlan(FRACTIONS), costUsd: 0 }), canSpend: () => true, charge: () => {}, onTitleChange: () => {}, trace: () => {} });
+    const brain = createTutorBrain({ model: makeFakeTutorModel(() => ({ pieces: [WORDS_TASK] })), timeouts: QUICK, lessonPlanner: planner });
+    for await (const beat of brain.reply({ text: 'teach me fractions' }, new AbortController().signal)) void beat;
+    await planner.whenSettled();
+
+    brain.noteWork({ way: 'write', id: 's1' as never, text: 'the bottom says how many parts', task: 'a1' as never });
+
+    expect(planner.getStepNote()).toMatchObject({ step: '2 of 2', next_idea: null, teach_first: 'Equal fractions' });
+  });
+
+  it.each([{ way: 'leave' }, { way: 'write', id: 's1', text: 'can we do something else instead' }])('stays on the step when the student leaves it, as %j', async (work) => {
+    const planner = createLessonPlanner({ ask: () => Promise.resolve({ move: newPlan(FRACTIONS), costUsd: 0 }), canSpend: () => true, charge: () => {}, onTitleChange: () => {}, trace: () => {} });
+    const brain = createTutorBrain({ model: makeFakeTutorModel(() => ({ pieces: [WORDS_TASK] })), timeouts: QUICK, lessonPlanner: planner });
+    for await (const beat of brain.reply({ text: 'teach me fractions' }, new AbortController().signal)) void beat;
+    await planner.whenSettled();
+
+    brain.noteWork({ ...work, task: 'a1' } as never);
+
+    expect(planner.getStepNote()).toMatchObject({ step: '1 of 2' });
+  });
+});
+
+describe('when the exercise is due', () => {
+  const note = (planner: ReturnType<typeof plannerWith>['planner']) => planner.getStepNote() as Record<string, unknown>;
+
+  it('comes after two replies of teaching', async () => {
+    const { planner } = plannerWith([newPlan(FRACTIONS)]);
+    planner.noteStudentWords(heard('teach me fractions', true));
+    await planner.whenSettled();
+    planner.noteReplyEnded({ wasSafety: false });
+    expect(note(planner).exercise_due).toBeUndefined();
+    planner.noteReplyEnded({ wasSafety: false });
+    expect(note(planner).exercise_due).toBe(true);
+  });
+
+  it('comes after one reply on a direct question', async () => {
+    const { planner } = plannerWith([newPlan(SOLVING)]);
+    planner.noteStudentWords(heard('solve it', true));
+    await planner.whenSettled();
+    planner.noteReplyEnded({ wasSafety: false });
+    expect(note(planner).exercise_due).toBe(true);
+  });
+
+  it('goes once one is set, and starts over after help in a crisis', async () => {
+    const { planner } = plannerWith([newPlan(FRACTIONS)]);
+    planner.noteStudentWords(heard('teach me fractions', true));
+    await planner.whenSettled();
+    planner.noteReplyEnded({ wasSafety: false });
+    planner.noteReplyEnded({ wasSafety: true });
+    expect(note(planner).exercise_due).toBeUndefined();
+    planner.noteReplyEnded({ wasSafety: false });
+    planner.noteReplyEnded({ wasSafety: false });
+    planner.noteCommand(TASK);
+    expect(note(planner).exercise_due).toBeUndefined();
+  });
+
+  it('never presses a student who asked for no exercises, until they ask for one', async () => {
+    const { planner } = plannerWith([newPlan(FRACTIONS), { move: 'stay' }]);
+    planner.noteStudentWords(heard('teach me fractions', true));
+    await planner.whenSettled();
+    planner.noteStudentWords(heard('no exercises please, just explain'));
+    await planner.whenSettled();
+    planner.noteReplyEnded({ wasSafety: false });
+    planner.noteReplyEnded({ wasSafety: false });
+    expect(note(planner).exercise_due).toBeUndefined();
+    planner.noteStudentWords(heard('let me try one now'));
+    await planner.whenSettled();
+    expect(note(planner).exercise_due).toBe(true);
+  });
+
+  it('is not told on a turn that may be about safety', async () => {
+    const replies = ['Fractions are parts.', 'Top and bottom.', 'That sounds serious.'];
+    let index = 0;
+    const model = makeFakeTutorModel(() => ({ pieces: [replies[Math.min(index++, 2)] as string] }));
+    const { planner } = plannerWith([newPlan(FRACTIONS)]);
+    const brain = createTutorBrain({ model, timeouts: QUICK, lessonPlanner: planner });
+    for (const text of ['teach me fractions', 'ok']) {
+      for await (const beat of brain.reply({ text }, new AbortController().signal)) void beat;
+      await planner.whenSettled();
+    }
+    for await (const beat of brain.reply({ text: 'my uncle hits me and i am scared' }, new AbortController().signal)) void beat;
+
+    expect(JSON.stringify(model.requests.at(-1)?.turns.at(-1))).not.toContain('exercise_due');
+  });
+});
+
+describe('what may become a title', () => {
+  const SENSITIVE: readonly [string, string][] = [
+    ['teach me what grooming is, my coach does things', 'Recognising grooming behaviour'],
+    ['what is the age of consent in lagos', 'Age of consent in Lagos'],
+    ['how do antidepressants work', 'How antidepressants work'],
+    ['what happens if you overdose', 'Understanding overdoses'],
+  ];
+  const planFor = (topic: string): LessonPlan => ({ topic, kind: 'teachFirst', steps: [{ teach: 'One', exercise: 'Two' }] });
+
+  it.each(SENSITIVE)('"%s" keeps the title it had, on a shared device', async (words, topic) => {
+    const { planner, titles } = plannerWith([newPlan(FRACTIONS), newPlan(planFor(topic))]);
+    planner.noteStudentWords(heard('teach me fractions', true));
+    await planner.whenSettled();
+    planner.noteStudentWords(heard(words));
+    await planner.whenSettled();
+
+    expect(titles).toEqual([]);
+    expect(planner.getStepNote()).toMatchObject({ topic: 'Fractions' });
+  });
+
+  it('holds a sensitive word in the title even when the student did not say it', async () => {
+    const { planner, titles } = plannerWith([newPlan(FRACTIONS), newPlan(planFor('Recognising grooming'))]);
+    planner.noteStudentWords(heard('teach me fractions', true));
+    await planner.whenSettled();
+    planner.noteStudentWords(heard('my coach does weird things'));
+    await planner.whenSettled();
+    expect(titles).toEqual([]);
+  });
+
+  it.each(['The Great Depression', 'Causes of the French Revolution'])('lets "%s" through', async (topic) => {
+    const { planner, titles } = plannerWith([newPlan(FRACTIONS), newPlan(planFor(topic))]);
+    planner.noteStudentWords(heard('teach me fractions', true));
+    await planner.whenSettled();
+    planner.noteStudentWords(heard(`teach me about ${topic}`));
+    await planner.whenSettled();
+    expect(titles).toEqual([topic]);
+  });
+
+  it.each(['Starting a new topic', 'Choosing a new activity', 'Switching to something else', 'A different subject'])('keeps the old title when a switch names no topic, as "%s"', async (topic) => {
+    const { planner, titles } = plannerWith([newPlan(FRACTIONS), newPlan(planFor(topic))]);
+    planner.noteStudentWords(heard('teach me fractions', true));
+    await planner.whenSettled();
+    planner.noteStudentWords(heard('can we do something else'));
+    await planner.whenSettled();
+    expect(titles).toEqual([]);
+    expect(planner.getStepNote()).toMatchObject({ topic: 'Fractions' });
+  });
+});
+
+describe('words that need no plan', () => {
+  it.each(['ok', 'Yes', 'yeah.', 'okay!', 'got it'])('"%s" costs no planner call', async (words) => {
+    const { planner, asks } = plannerWith([newPlan(FRACTIONS)]);
+    planner.noteStudentWords(heard(words));
+    await planner.whenSettled();
+    expect(asks).toEqual([]);
+  });
+});
+
+describe('sending a student away', () => {
+  it.each(['Start a new lesson for that.', 'That needs a different session.', 'Open a new conversation for it.', 'Try another chat.'])('takes back "%s"', async (line) => {
+    const replies = [line, 'Sure, black holes next.'];
+    let index = 0;
+    const summaries: TurnSummary[] = [];
+    const brain = createTutorBrain({ model: makeFakeTutorModel(() => ({ pieces: [replies[Math.min(index++, 1)] as string] })), timeouts: QUICK, onTurnEnd: (summary) => summaries.push(summary) });
+    for await (const beat of brain.reply({ text: 'teach me black holes' }, new AbortController().signal)) void beat;
+    expect(summaries[0]?.spokenText).toContain('black holes next');
+  });
+});
+
+describe('a page that reloaded', () => {
+  it('is told the title again, because it lost what it was told', async () => {
+    const { planner, titles } = plannerWith([newPlan(FRACTIONS), newPlan(SOLVING)]);
+    planner.noteStudentWords(heard('teach me fractions', true));
+    await planner.whenSettled();
+    planner.tellTitleAgain();
+    expect(titles).toEqual([]);
+    planner.noteStudentWords(heard('solve 2x + 3 = 11 instead'));
+    await planner.whenSettled();
+    planner.tellTitleAgain();
+    expect(titles).toEqual(['Solving 2x + 3 = 11', 'Solving 2x + 3 = 11']);
+  });
+});
+
+describe('a real problem', () => {
+  it.each(['balance this for me: H2 + O2 -> H2O', 'whats 3/4 of 120?', "what's 15% of 80?", 'how do I find the slope of y = 3x + 1?', "what's the derivative of x cubed", 'a ball is thrown up at 10 m/s, how long until it lands?', "should i write affect or effect in 'the weather ___ my mood'", 'which came first, the French Revolution or the American one?'])('gets a task in this reply: %s', (words) => {
+    expect(getProblemNote(words)).not.toBeNull();
+  });
+
+  it.each(['whats the capital of australia', 'why is the sky blue?', 'teach me fractions', 'teach me how to solve 2x + 3 = 11', "what's the derivative of x cubed? just explain it to me, I don't want to try one", 'just tell me the answer to 3x - 5 = 16'])('is not pressed on: %s', (words) => {
+    expect(getProblemNote(words)).toBeNull();
+  });
+
+  it('reaches the tutor with the words, and only when no task is open', async () => {
+    const replies = ['Sure. {"kind":"task","id":"a1","way":"write","reads":"words"}Have a go.', 'Keep going.'];
+    let index = 0;
+    const model = makeFakeTutorModel(() => ({ pieces: [replies[Math.min(index++, 1)] as string] }));
+    const { planner } = plannerWith([{ move: 'stay' }]);
+    const brain = createTutorBrain({ model, timeouts: QUICK, lessonPlanner: planner });
+    for await (const beat of brain.reply({ text: 'solve 2x + 3 = 11' }, new AbortController().signal)) void beat;
+    expect(JSON.stringify(model.requests.at(-1)?.turns)).toContain('problem_now');
+    for await (const beat of brain.reply({ text: 'what about 3x = 9' }, new AbortController().signal)) void beat;
+    const lastTurn = JSON.stringify(model.requests.at(-1)?.turns.at(-1));
+    expect(lastTurn).not.toContain('problem_now');
+  });
+
+  it('is not pressed when the words may be about safety', async () => {
+    const model = makeFakeTutorModel(() => ({ pieces: ['That sounds serious.'] }));
+    const { planner } = plannerWith([{ move: 'stay' }]);
+    const brain = createTutorBrain({ model, timeouts: QUICK, lessonPlanner: planner });
+    for await (const beat of brain.reply({ text: 'how many of 20 pills would kill me' }, new AbortController().signal)) void beat;
+    expect(JSON.stringify(model.requests.at(-1)?.turns)).not.toContain('problem_now');
+  });
+});
+
+describe('a wish to be taught', () => {
+  it.each(['Teach me fractions', 'explain how gravity works', "I'd like to learn about Shakespeare's sonnets", 'Give me a lesson on the causes of World War One', 'i wanna learn why ww1 started'])('holds its first reply back from a task: %s', (words) => {
+    expect(getTeachFirstNote(words, false)).not.toBeNull();
+  });
+
+  it.each(['the roman empire', 'photosynthesis', 'quantum tunneling'])('reads "%s" as a topic when it opens the session', (words) => {
+    expect(getTeachFirstNote(words, true)).not.toBeNull();
+    expect(getTeachFirstNote(words, false)).toBeNull();
+  });
+
+  it.each(['why is the sky blue?', 'solve 2x = 8', 'let me try one', 'yes', 'teach me what grooming is, my coach does things'])('says nothing on: %s', (words) => {
+    expect(getTeachFirstNote(words, true)).toBeNull();
   });
 });

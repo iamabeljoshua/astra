@@ -8,7 +8,7 @@ import { readKey } from '../../keys.ts';
 import { makeAnthropicJsonReader, makeAnthropicTutorModel } from '../../providers/anthropic.ts';
 import { createTutorBrain, type TurnSummary, type TutorBeat } from '../../tutor/brain.ts';
 import { REPLY_CHECKS } from '../../tutor/eval/reply-checks.ts';
-import { TUTOR_SYSTEM } from '../../tutor/prompt.ts';
+import { TUTOR_PROMPT } from '../../tutor/prompt.ts';
 import { createSpendLedger } from '../../tutor/spend-ledger.ts';
 import { getWorkWords } from '../../tutor/watcher/watch-rule.ts';
 import { askPlanner } from '../ask-planner.ts';
@@ -37,6 +37,7 @@ interface ReplyFacts {
   spoken: string;
   cues: readonly { cue: Cue; beatWords: number }[];
   tasksSoFar: readonly Task[];
+  refused: readonly string[];
 }
 
 const EVAL_FOLDER = join(dirname(fileURLToPath(import.meta.url)), '../../../../../evals/tutor-turns');
@@ -81,6 +82,10 @@ const LESSON_CHECKS: Record<string, (reply: ReplyFacts) => boolean> = {
   twoTasksByNow: ({ tasksSoFar }) => tasksSoFar.length > 1,
   wordsTaskByNow: ({ tasksSoFar }) => tasksSoFar.some(isWordsTask),
   workingTaskByNow: ({ tasksSoFar }) => tasksSoFar.some(isWorkingTask),
+  saysFour: ({ spoken }) => /\b(?:four|4)\b/i.test(spoken),
+  saysCanberra: ({ spoken }) => /canberra/i.test(spoken),
+  noRefusedCommand: ({ refused }) => refused.length === 0,
+  textOrChoices: (reply) => reply.cues.some(({ cue }) => cue.command.kind === 'text') || getReplyTasks(reply).some((task) => task.way === 'place'),
 };
 
 function runCheck(name: string, reply: ReplyFacts): boolean {
@@ -98,7 +103,7 @@ function getTaskWork(said: string, brain: ReturnType<typeof createTutorBrain>, l
   if (!task || !openTask) return null;
   if (task.way === 'place') return { way: 'place', task: openTask, placed: task.answer ?? task.items.slice(0, task.slots.length) };
   if (task.way === 'pick') return { way: 'pick', task: openTask, part: task.answer?.[0] ?? said };
-  if (task.way === 'drag') return null;
+  if (task.way === 'drag') return { way: 'drag', task: openTask, x: 0, samples: [] };
   return { way: 'write', id: `s${lineNumber}` as ElementId, text: said, task: openTask };
 }
 
@@ -185,9 +190,10 @@ function readReply(turn: LessonTurn, text: string, beats: readonly TutorBeat[], 
   const summary = run.getLatest();
   if (summary.firstTextMs !== null) run.firstTextMs.push(Math.round(summary.firstTextMs));
   const cues = beats.flatMap((beat) => getCues(beat).map((cue) => ({ cue, beatWords: getSpokenWords(getBeatText(beat)).length })));
-  const reply: ReplyFacts = { spoken: summary.spokenText, cues, tasksSoFar: run.tasksSoFar };
+  const reply: ReplyFacts = { spoken: summary.spokenText, cues, tasksSoFar: run.tasksSoFar, refused: summary.refused };
   run.tutorWords = summary.spokenText;
   run.tasksSoFar.push(...getReplyTasks(reply));
+  if (summary.refused.length > 0) run.lines.push(`   REFUSED: ${JSON.stringify(summary.refused)}`);
   if (getReplyTasks(reply).length > 0) {
     run.repliesWithATask += 1;
     if (cues.some(isLiteralMove)) run.repliesWithALiteralMove += 1;
@@ -236,7 +242,7 @@ async function main() {
   }
   const ledger = createSpendLedger(args.spend, { limitUsd: Number(args.limit), limitCredits: Infinity });
   const model = makeAnthropicTutorModel({ apiKey: readKey('ANTHROPIC_API_KEY') });
-  await model.warm(TUTOR_SYSTEM);
+  await model.warm(TUTOR_PROMPT.system);
   const solver = makeAnthropicTutorModel({ name: 'haiku-5-5', apiKey: readKey('ANTHROPIC_API_KEY') });
   const results = await Promise.all(groups.map((group) => runGroup(group, ledger, model, solver)));
   const transcript = results.flatMap(({ lines }) => [...lines, '']).join('\n');

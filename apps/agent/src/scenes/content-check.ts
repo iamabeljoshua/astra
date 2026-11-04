@@ -19,7 +19,6 @@ const LISTED_NAME_PAIR = new RegExp(`\\b(${LISTED_FIRST_NAMES.join('|')})\\s+(${
 const COUNT_WORD = '\\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred';
 const PILL = '(pills?|tablets?|capsules?)';
 const BODY_OR_DRUG_AMOUNT = '(milligrams?|mg|kilograms?|kilos?|kg)';
-// A shoulder blade and a turbine's blade are not what cuts anyone.
 const BLADE = '(?<!(?:shoulder|fan|rotor|turbine|propeller|helicopter|wind|saw|ceiling|grass)\\s)blade';
 const CUTTING = `(cut|cuts|cutting|slit|slits|slice|sliced|slash\\w*|${BLADE}|razor|knife)`;
 const CUT_PLACE = '(wrists?|arter(y|ies)|veins?)';

@@ -25,7 +25,7 @@ function makeVoice() {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
-    getBoardNow: () => ({ board: { elements: new Map(), focus: null, stage: null }, atMs: 0 }),
+    getBoardNow: () => ({ board: { elements: new Map(), focus: null, stage: null, refusedSliders: [] }, atMs: 0 }),
     getLoudness: () => 0,
     sendPause: () => {},
     noteTyping() {
@@ -35,6 +35,7 @@ function makeVoice() {
     sendWork: vi.fn(),
     stopTutor: () => {},
     sendTyped: vi.fn(),
+    sendOpening: vi.fn(),
     reportMarkNotDrawn: vi.fn(),
     toggleMic: vi.fn(async () => {}),
     sayStillHere: vi.fn(),
@@ -63,6 +64,13 @@ async function openVoice(first = makeVoice(), fields: Partial<ReturnType<typeof 
   await waitFor(() => getBox());
   return first;
 }
+
+describe('what the page says when no tutor can answer', () => {
+  it.each(['unavailable', 'sessionLimit', 'dailyLimit', 'broken', 'tutorLost'] as const)('names help in %s, because a student in danger may read nothing else', (label) => {
+    expect(VOICE_LABELS[label]).toMatch(/adult you trust/);
+    expect(VOICE_LABELS[label]).toMatch(/your local emergency number/);
+  });
+});
 
 describe('what the student sees of a room', () => {
   beforeEach(() => startLiveVoice.mockReset());
@@ -102,6 +110,42 @@ describe('what the student sees of a room', () => {
     expect(startLiveVoice).toHaveBeenCalledTimes(2);
   });
 
+  it('never sends the opening line as the student\'s own words', async () => {
+    const first = makeVoice();
+    startLiveVoice.mockResolvedValueOnce(first.voice);
+    const session = makeSession();
+    window.history.replaceState(null, '', `/sessions/${session.id}`);
+    stubSessionsApi({ sessions: [session] });
+    render(<App />);
+    await waitFor(() => expect(first.voice.sendOpening).toHaveBeenCalled());
+    expect(first.voice.sendTyped).not.toHaveBeenCalled();
+    expect(screen.queryByText(VOICE_LABELS.you)).toBeNull();
+  });
+
+  it('leaves the room before it finishes the session, so nothing asks for a room again', async () => {
+    const { voice } = await openVoice();
+    const order: string[] = [];
+    voice.close.mockImplementation(async () => void order.push('left the room'));
+    const answer = vi.mocked(fetch).getMockImplementation() as typeof fetch;
+    vi.mocked(fetch).mockImplementation(async (input, init) => {
+      if (input instanceof Request && input.method === 'PATCH') order.push('finished');
+      return answer(input, init);
+    });
+    fireEvent.click(screen.getByRole('button', { name: SESSION_LABELS.endSession }));
+    await waitFor(() => expect(order).toEqual(['left the room', 'finished']));
+  });
+
+  it('opens the room again if the session could not finish', async () => {
+    const { voice } = await openVoice();
+    const second = makeVoice();
+    startLiveVoice.mockResolvedValueOnce(second.voice);
+    const answer = vi.mocked(fetch).getMockImplementation() as typeof fetch;
+    vi.mocked(fetch).mockImplementation(async (input, init) => (input instanceof Request && input.method === 'PATCH' ? new Response('{}', { status: 500 }) : answer(input, init)));
+    fireEvent.click(screen.getByRole('button', { name: SESSION_LABELS.endSession }));
+    await waitFor(() => expect(voice.close).toHaveBeenCalled());
+    await waitFor(() => expect(startLiveVoice).toHaveBeenCalledTimes(2));
+  });
+
   it('opens a new room when the student asks for one, and leaves the old one', async () => {
     const { voice, setView } = await openVoice();
     act(() => setView({ phase: 'tutorLost' }));
@@ -110,8 +154,40 @@ describe('what the student sees of a room', () => {
     fireEvent.click(screen.getByRole('button', { name: VOICE_LABELS.tryAgain }));
     await waitFor(() => expect(startLiveVoice).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(voice.close).toHaveBeenCalled());
-    await waitFor(() => expect(getBox().disabled).toBe(false));
-    await waitFor(() => expect(second.voice.sendTyped).toHaveBeenCalledWith(SESSION_LABELS.carryOnWith(makeSession().title)));
+    await waitFor(() => expect(getBox().readOnly).toBe(false));
+    await waitFor(() => expect(second.voice.sendOpening).toHaveBeenCalledWith(SESSION_LABELS.carryOnWith(makeSession().title)));
+  });
+
+  it('calls the session by its new topic, in the bar, in its heading, and when it opens a new room', async () => {
+    const { setView } = await openVoice();
+    expect(screen.queryByText('Physics of the impossible')).toBeNull();
+
+    act(() => setView({ sessionTitle: 'Physics of the impossible' }));
+
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Physics of the impossible'));
+    expect(screen.getAllByText('Physics of the impossible')).toHaveLength(2);
+    act(() => setView({ phase: 'tutorLost' }));
+    const second = makeVoice();
+    startLiveVoice.mockResolvedValueOnce(second.voice);
+    fireEvent.click(screen.getByRole('button', { name: VOICE_LABELS.tryAgain }));
+    await waitFor(() => expect(second.voice.sendOpening).toHaveBeenCalledWith(SESSION_LABELS.carryOnWith('Physics of the impossible')));
+  });
+
+  it("takes the card's picture away when the student moves to another topic, and leaves no empty box", async () => {
+    const { setView } = await openVoice(makeVoice(), { artwork: 'arc' });
+    expect(screen.getByTestId('board-visual')).toBeTruthy();
+
+    act(() => setView({ sessionTitle: 'Black holes' }));
+
+    await waitFor(() => expect(screen.queryByTestId('board-visual')).toBeNull());
+  });
+
+  it('keeps the new topic in the bar after a reload, and no picture, once a card has moved off its own topic', async () => {
+    await openVoice(makeVoice(), { artwork: null, subject: 'Astronomy', title: 'A black hole' });
+
+    expect(screen.getAllByText('A black hole')).toHaveLength(2);
+    expect(screen.queryByText('Astronomy')).toBeNull();
+    expect(screen.queryByTestId('board-visual')).toBeNull();
   });
 
   it('calls the session by its new topic, in the bar, in its heading, and when it opens a new room', async () => {
@@ -275,7 +351,7 @@ describe('what the student sees of a room', () => {
       const next = makeVoice();
       startLiveVoice.mockResolvedValueOnce(next.voice);
       fireEvent.click(screen.getByRole('button', { name: VOICE_LABELS.tryAgain }));
-      await vi.waitFor(() => expect(next.voice.sendTyped).toHaveBeenCalled());
+      await vi.waitFor(() => expect(next.voice.sendOpening).toHaveBeenCalled());
       expect(screen.getByText(SESSION_LABELS.replyNotSent)).toBeTruthy();
       act(() => next.setView({ hasTutorStarted: true }));
       expect(screen.queryByText(SESSION_LABELS.replyNotSent)).toBeNull();

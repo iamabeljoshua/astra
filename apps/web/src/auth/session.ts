@@ -1,4 +1,5 @@
 /// <reference types="vite/client" />
+import { forgetKeptBoards } from '../voice/keptBoard';
 import { type AuthError, createClient, isAuthRefreshDiscardedError, isAuthRetryableFetchError } from '@supabase/supabase-js';
 import { fetchForAuth } from './fetchForAuth';
 import { areNewSignUpsStopped } from './signUpStop';
@@ -69,11 +70,16 @@ export function hasStoredSession(): boolean {
 }
 
 export function watchSignedInUser(onChange: (userId: string | null) => void): () => void {
+  const followBoards = forgetBoardsOfOtherStudents();
+  const tell = (userId: string | null) => {
+    followBoards(userId);
+    onChange(userId);
+  };
   const { data } = supabase.auth.onAuthStateChange((event, session) => {
-    if (event !== KEPT_PAGE_DROP_EVENT) onChange(session?.user.id ?? null);
+    if (event !== KEPT_PAGE_DROP_EVENT) tell(session?.user.id ?? null);
   });
   const followOtherTabs = (event: StorageEvent) => {
-    if ((event.key === SESSION_STORAGE_KEY || event.key === null) && !hasStoredSession()) onChange(null);
+    if ((event.key === SESSION_STORAGE_KEY || event.key === null) && !hasStoredSession()) tell(null);
   };
   window.addEventListener('storage', followOtherTabs);
   return () => {
@@ -225,7 +231,17 @@ function removeStoredSignIn() {
 
 export function forgetSession(): void {
   removeStoredSignIn();
+  forgetKeptBoards({ isSigningOut: true });
   restartAppAtHome();
+}
+
+/** A follower of who is signed in, which clears the boards kept in this tab when that person changes. */
+export function forgetBoardsOfOtherStudents(): (userId: string | null) => void {
+  let lastUserId: string | null = null;
+  return (userId) => {
+    if (lastUserId !== null && lastUserId !== userId) forgetKeptBoards();
+    lastUserId = userId;
+  };
 }
 
 // The client's own read can wait on a refresh, so this reads storage to keep sign-out from waiting on Auth.

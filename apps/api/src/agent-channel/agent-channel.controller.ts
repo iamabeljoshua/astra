@@ -4,6 +4,8 @@ import { ApiExcludeController } from '@nestjs/swagger';
 import { PublicRoute } from '../auth/route-access';
 import { AddSpendBodyDto, SetTitleBodyDto } from './agent-channel.dto';
 import type { TutorBrief } from './agent-channel.dto';
+import { WriteLearnerNotesBodyDto } from '../learner-record/learner-record.dto';
+import type { LearnerRecordDto } from '../learner-record/learner-record.dto';
 import { AgentChannelService } from './agent-channel.service';
 import { AgentKeyGuard } from './agent-key.guard';
 
@@ -36,5 +38,18 @@ export class AgentChannelController {
   @HttpCode(NO_CONTENT_STATUS)
   setTitle(@Param('id') sessionId: string, @Body() { title }: SetTitleBodyDto): Promise<void> {
     return this.agentChannel.setTitle(sessionId, title);
+  }
+
+  /** What the tutor remembers about the session's student, and only that student. */
+  @Get(':id/record')
+  getRecord(@Param('id') sessionId: string): Promise<LearnerRecordDto> {
+    return this.agentChannel.getRecord(sessionId);
+  }
+
+  /** Adds what one room's after-session pass found. A repeat of the same update key adds nothing. */
+  @Post(':id/record')
+  @HttpCode(OK_STATUS)
+  writeRecord(@Param('id') sessionId: string, @Body() body: WriteLearnerNotesBodyDto): Promise<{ wasApplied: boolean }> {
+    return this.agentChannel.writeRecord(sessionId, body);
   }
 }

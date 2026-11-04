@@ -17,7 +17,6 @@ const { values: args } = parseArgs({
     damageTake: { type: 'boolean', default: false },
     phone: { type: 'boolean', default: false },
     dark: { type: 'boolean', default: false },
-    /** Types these words this many seconds after the first words. */
     say: { type: 'string' },
     sayAfterS: { type: 'string', default: '3' },
     reloadAfterS: { type: 'string' },
@@ -127,6 +126,7 @@ let sceneSeenAtS: number | null = null;
 let sceneAtStart: VisualRead | null = null;
 let quietSinceS: number | null = null;
 let hasSaid = false;
+let hasShotDrawing = false;
 let saidAtS: number | null = null;
 let hasReloaded = false;
 let reloadedAtS: number | null = null;
@@ -149,6 +149,10 @@ while (atS() < waitLimitS) {
     sceneSeenAtS = atS();
     sceneAtStart = read;
     await page.screenshot({ path: join(out, 'scene-landed.png') });
+  }
+  if (sceneSeenAtS !== null && !hasShotDrawing && atS() >= sceneSeenAtS + 1.2) {
+    hasShotDrawing = true;
+    await page.screenshot({ path: join(out, 'scene-after-1s.png') });
   }
   quietSinceS = read.isSpeaking || read.isThinking ? null : (quietSinceS ?? atS());
   if (sceneSeenAtS !== null && quietSinceS !== null && atS() > quietSinceS + 2.5 && (reloadedAtS === null || atS() > reloadedAtS + 15)) break;

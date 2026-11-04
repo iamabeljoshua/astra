@@ -9,6 +9,7 @@ import { renderTone } from '../providers/fakes.ts';
 import { makeTutorTranscriber, makeTutorVoice } from '../providers/choose.ts';
 import { makeRenderedVoice, RENDERED_SAMPLE_RATE } from '../providers/rendered-voice.ts';
 import { type Ears, startEars, VAD_SETTINGS } from './ears.ts';
+import { createClosingWait } from './closing-wait.ts';
 import { createLiveSession } from './live-session.ts';
 import { createTakePicker, loadTakes } from './reactions.ts';
 import { readDataMessage } from './read-data-message.ts';
@@ -93,7 +94,10 @@ async function runSession(context: JobContext): Promise<void> {
       scenes?.queue?.noteTutorReply(turn);
     },
   };
-  const { brain, lessonPlanner, caps, cardTitle, flushSpend, readMeaning, readStrokes, readSpokenWords, getSpentUsd } = makeTutorBrain({ roomName: room.name ?? '', trace, onSessionTitle: (title) => publish({ type: 'sessionTitle', title }), ...(hasTutorScenes() ? { sceneHooks } : {}) });
+  const { brain, lessonPlanner, caps, cardTitle, flushSpend, readMeaning, readStrokes, readSpokenWords, getSpentUsd, writeRecord } = makeTutorBrain({ roomName: room.name ?? '', jobId: context.job.id, trace, onSessionTitle(title) {
+      publish({ type: 'sessionTitle', title });
+      scenes?.noteTopic(title);
+    }, ...(hasTutorScenes() ? { sceneHooks } : {}) });
   const session = createLiveSession({
     messenger: {
       send: (message) => publish(message),
@@ -147,9 +151,8 @@ async function runSession(context: JobContext): Promise<void> {
   }
   ears = await startEars({ room, transcriber, vad: context.proc.userData.vad as inference.VAD, onEvent: session.onEars });
 
-  let closing: ReturnType<typeof setTimeout> | undefined;
+  const closing = createClosingWait({ leftOnPurposeMs: LEFT_ON_PURPOSE_MS, linkDroppedMs: LINK_DROPPED_MS, onClose: () => context.shutdown('the student left') });
   const pulse = setInterval(() => publish({ type: 'pulse' }, false), PULSE_EVERY_MS);
-  const finish = () => context.shutdown('the student left');
 
   // A microphone test labels each line in the trace, and without a trace this does nothing.
   const noteMark = (payload: Uint8Array) => {
@@ -170,15 +173,19 @@ async function runSession(context: JobContext): Promise<void> {
     const read = readDataMessage(payload);
     const parsed = read.ok ? parseBrowserMessage(read.value) : read;
     if (!parsed.ok) return trace('messageRefused', { problem: parsed.problem });
-    clearTimeout(closing);
+    closing.cancel();
     session.onBrowser(parsed.value);
+  });
+  room.on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {
+    if (!participant.identity.startsWith(STUDENT_IDENTITY_PREFIX)) return;
+    trace('studentJoined');
+    closing.cancel();
   });
   room.on(RoomEvent.ParticipantDisconnected, (participant: RemoteParticipant) => {
     if (!participant.identity.startsWith(STUDENT_IDENTITY_PREFIX)) return;
     const leftOnPurpose = participant.disconnectReason === DisconnectReason.CLIENT_INITIATED;
     trace('studentLeft', { leftOnPurpose });
-    clearTimeout(closing);
-    closing = setTimeout(finish, leftOnPurpose ? LEFT_ON_PURPOSE_MS : LINK_DROPPED_MS);
+    closing.studentLeft({ leftOnPurpose });
   });
   const publishOptions = new TrackPublishOptions();
   publishOptions.source = TrackSource.SOURCE_MICROPHONE;
@@ -188,17 +195,20 @@ async function runSession(context: JobContext): Promise<void> {
 
   context.addShutdownCallback(async () => {
     trace('jobClosing');
-    clearTimeout(closing);
+    closing.cancel();
     clearInterval(pulse);
     scenes?.close();
     await session.close();
     if (process.env.ASTRA_VOICE_TRACE_WORDS === '1') trace('sessionLog', { events: session.getLog() });
     await flushSpend();
+    const recordWriting = writeRecord?.();
     await ears?.close();
     await transcriber.close();
     await voice.close();
     await source.close();
     await context.deleteRoom().catch(() => {});
+    await recordWriting;
+    await flushSpend();
     trace('jobClosed');
   });
 }

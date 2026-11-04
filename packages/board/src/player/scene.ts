@@ -16,6 +16,8 @@ export interface Scene<Frame = unknown> {
 
 export type SceneCatalog = (command: SceneCommand, parameterChanges: SceneParameters) => Scene | null;
 
+const REMEMBERED_VALUES = 48;
+
 const isPlayable = ({ durationSeconds, moments }: Scene): boolean => Number.isFinite(durationSeconds) && durationSeconds >= 0 && Object.values(moments).every((seconds) => Number.isFinite(seconds) && seconds >= 0);
 
 function makeSceneSafely(catalog: SceneCatalog, command: SceneCommand, changes: SceneParameters): Scene | null {
@@ -27,14 +29,17 @@ function makeSceneSafely(catalog: SceneCatalog, command: SceneCommand, changes: 
   }
 }
 
-// The board rebuilds per frame, so a scene is made once per command, and a bad catalog leaves its element still.
+// The board rebuilds per frame, so a scene is made once per command, and a bad catalog leaves its element still. Only the last few values stay, because a curve holds every sample it drew and a long drag passes thousands of values.
 export function guardSceneCatalog(catalog: SceneCatalog): SceneCatalog {
   const made = new WeakMap<SceneCommand, Map<string, Scene | null>>();
   return (command, changes) => {
     const key = JSON.stringify(changes);
     const scenes = made.get(command) ?? new Map<string, Scene | null>();
     made.set(command, scenes);
-    if (!scenes.has(key)) scenes.set(key, makeSceneSafely(catalog, command, changes));
+    if (!scenes.has(key)) {
+      scenes.set(key, makeSceneSafely(catalog, command, changes));
+      if (scenes.size > REMEMBERED_VALUES) scenes.delete(scenes.keys().next().value as string);
+    }
     return scenes.get(key) ?? null;
   };
 }

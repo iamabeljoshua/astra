@@ -80,7 +80,6 @@ export interface LessonPlan {
   narration: string;
   plan: string;
   close: string;
-  /** Built from the topic and a plain question when no model could write one. */
   hasNoModel?: boolean;
 }
 

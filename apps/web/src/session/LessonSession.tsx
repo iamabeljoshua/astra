@@ -61,7 +61,7 @@ function LessonReplyBox({ onReply }: { onReply: () => void }) {
           </>
         )}
       </div>
-      <ChatBox labels={REPLY_BOX_LABELS} canAttach={false} clearsOnSend onSend={(text) => { setReply(text); onReply(); }} onEdit={() => undefined} />
+      <ChatBox labels={REPLY_BOX_LABELS} clearsOnSend onSend={(text) => { setReply(text); onReply(); }} onEdit={() => undefined} />
     </div>
   );
 }

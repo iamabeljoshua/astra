@@ -60,7 +60,7 @@ Any exercise can be answered by voice, as well as by typing or the pen. The micr
 - Spoken math reads through `readLine`: "two x equals eight" is `2x = 8`, never fixed and never solved. Muse writes words, so number words run to ninety-nine.
 - A cheap model reads only what code cannot: a line that might be misheard math, or an answer in words. It is told what the student was asked for. A doubt means code judges nothing and the tutor asks.
 - A pick needs one part named. A place needs every item named, or pairs of slot and item.
-- Under a math task, a spoken answer counts as typed. "four" is the line `4`, as a typed `4` is. "The answer is four", "I think x is four", and "um x equals four" are `x = 4`, with fillers and lead-ins set aside. A question stays talk, and so does a filler on its own.
+- Under a math task, a spoken answer counts as typed. "four" and "Four." are the line `4`, as a typed `4` is. "I think x is four" and "um x equals four" are `x = 4`, with fillers and lead-ins set aside. "The answer is four." and "It's four." claim the letter only when that is proved, so `x = 4` gets its tick. Otherwise they are the line `4`, because "I got eight" may answer what the tutor just asked and not the problem. "plus or minus three" names two values, so it stays talk. So does a question, and a filler on its own.
 - `pnpm --filter @astra/agent eval:spoken` runs the table in `evals/tutor-turns/spoken-lines.json`, which holds Muse's real finals on clips in two Mac voices. Wrong lines read as right must stay at zero.
 
 From the end of speech to the line on the page, on 4 November, was 2.5 s at p50 and 4.1 s at most, over 6 lines. About 1.1 s of that is the audio path, 0.2 s the voice detector, 0.6 to 0.9 s Muse's final, under 20 ms code, and 0.3 s back to the page. The agent ran on the same Mac as the browser, with LiveKit's cloud between them, so the path should be shorter in production. Landing on Muse's last partial is not built, and would save little. Over the 64 clips the last partial always matched the final, and the whole line usually arrived with the final itself, at most 1.5 s before it.
@@ -78,26 +78,31 @@ The student can leave at any moment, and the tutor follows with no fuss.
 
 `checkWork` is one pure function, on the page and on the agent, so the page reacts before any message returns and the agent does not take the page's word for it. It returns `right`, `wrong`, or `unknown`.
 
-- `wrong` means code is certain. A student states no claim, so a typed line is a step only where it can be shown to be one: a one-letter equation, and a line that claims the answer or carries a whole side with its letter over from the line before. Everything else is `unknown`, and the tutor asks.
+- `wrong` means code is certain. A student states no claim, so a typed line is a step only where it can be shown to be one: a one-letter equation an open task names, and a line that claims the answer or carries a whole side with its letter over from the line before. Everything else is `unknown`, and the tutor asks.
 - That leaves out true calculus (`x^2` to `2x`), base 2 (`1 + 1 = 10`), clock arithmetic (`10 + 5 = 3`), and a new problem (`x + 1 = 2` to `x + 2 = 5`), all of which arithmetic would call false. An expression is never called wrong, because its rewrite could be a derivative or an inverse.
-- `packages/board/test/step-table.ts` holds the table. 88 true rows give 0 false alarms, 35 right and 53 unknown. 27 false rows give 0 praised, 18 wrong and 9 unknown. `step-generator.test.ts` runs 3,000 made-up equations, with 30,000 true steps and 35,864 false ones, chained lines among them, and no true step is wrong and no false step is right. It also runs 3,000 fractions, where the nearest rounding is ticked and no other is. Its truth comes from plain arithmetic, not from the checker.
+- `packages/board/test/step-table.ts` holds the table. 88 true rows give 0 false alarms, 35 right and 53 unknown. 27 false rows give 0 praised, 18 wrong and 9 unknown. `step-generator.test.ts` runs a fixed seeded sample of 300 made-up equations in CI, with 3,000 true steps and 3,589 false ones, and `pnpm --filter @astra/board test:steps` runs the same seeded stream to 3,000, with 30,000 true steps and 35,864 false ones. Chained lines are among them, and no true step is wrong and no false step is right. It runs as many mixed numbers, where each true step is right and no false step is right, and 3,000 fractions, where the nearest rounding is ticked and no other is. Its truth comes from plain arithmetic, not from the checker.
 - `truth-rows.ts` keeps the first reviewer's own table. Of 92 false rows, 0 read as right, 33 wrong and 59 unknown. Of 145 true rows, 0 read as wrong, 96 right and 49 unknown.
+- `second-truth-rows.ts` keeps the second reviewer's table, by subject. Of 166 false rows, 0 read as right, 42 wrong and 124 unknown. Of 293 true rows, 0 read as wrong, 113 right and 180 unknown. `guess-scenarios.test.ts` keeps their 35 scenarios, where the tutor's latest equation is not what the student is solving, and none of them crosses a right line.
 - A chained line is judged link by link. `2x = 11 + 3 = 14` is `2x = 11 + 3` and `11 + 3 = 14`. A wrong link makes the line wrong, and the line is right only when every link is, so one true link never covers one code cannot read.
 - A rounding is right only within half a unit in its last place, and a tie rounds up, so `1/8 = 0.13` is right and `1/8 = 0.12` is not. A rounding to one place, such as `1/6 = 0.2` or `pi = 3.1`, may be true and is often rough, so it is `unknown`. Worse than half a unit, a line of numbers is false, which stops the tutor. A student is not crossed for a last digit off by one on a rounded answer, as `x = 0.66` on `3x = 2`, because it may be cut short, and the tutor reads it.
+- A whole number may be a rounding either way, and the question decides which. On `30x = 100`, `x = 4` is four buses and `x = 3` is three full ones, and on `3x = 100` the same goes for `x = 34` and `x = 33`. The whole numbers either side of an answer are `unknown`, and any other is `wrong`. `V = 6 V` is six volts, so a line that gives a letter a number times itself is `unknown`. A line that opens with "is" is a question.
 - `x = 3 1/2` is three and a half, and it is set that way. A whole number before a fraction of digits is a mixed number, also from the tutor. `2\frac{x}{2}` has two readings, and it stays `unknown`.
-- A line is checked against the problem on the board whether or not a task has landed, as on the prototype, so a student who types before the tutor finishes asking still gets a tick or a "Hm." The problem is the tutor's latest math line, if that is a one-letter equation and not `shown`. A task with its own `on` line wins. A wish to leave ends it, and so does a new line that is not such an equation.
+- With no open task that names a line, the tutor's latest math line is only a guess at what the student is solving, if it is a one-letter equation and not `shown`. A student may have a problem of their own, so a guess can earn a tick and never a cross. A line code proves against it gets a tick, as on the prototype, so a student who types before the tutor finishes asking still gets one. A line out of step with it is `unknown` with `offProblem`. They hear "Hm." at once and a reply, and the tutor hears `does_not_follow_from` and decides, because only the tutor has heard the conversation. It may cross that line. "Hm." is a sound and not a verdict.
+- With no task, only a line whose own arithmetic breaks is `wrong`, as `2x = 11 + 3 = 15` is. `2x = 11 + 3 = 14` is not one: it is false on `2x + 3 = 11` and right on `2x - 3 = 11`, so it is `wrong` under a task on that line and `unknown` without one.
+- A right answer ends the guess, so the student's next line stands alone. So does a wish to leave, typed or said, and a new line that is not such an equation. A task with its own `on` line wins over all of this.
 - `unknown` is honest and it costs something. `x + 3 = 11` on `2x + 3 = 11` is false and stays `unknown`, because `3x + 3 = 7` looks the same from here. The tutor can still ask about it.
 
 ## What code refuses of the tutor
 
 The model is not trusted with a student's work. These run before anyone hears a word.
 
-- A check or a cross cannot go against code, and neither can land on `unknown` work. Real Sonnet tried a cross on an `unknown` line in the first evaluation run. A refused mark stops the words after it and the tutor tries again, so nobody hears about a cross that was not drawn.
+- A check or a cross cannot go against code, and neither can land on `unknown` work, except a cross on a line code found out of step with its guess. Real Sonnet tried a cross on an `unknown` line in the first evaluation run. A refused mark stops the words after it and the tutor tries again, so nobody hears about a cross that was not drawn.
 - A note beside a line cannot say more than code knows. "Correct!" is refused on work code has not proved, and "wrong sign" on work it has.
 - A dot on a curve is refused only while a drag is open on that curve.
 - The tutor's own opening "Hm." is dropped when code has already said its nod for that work.
 - Math with a false rounding is refused under the rule in What a verdict means, and a chained line is held link by link.
-- Words that sound like praise, opening a reply to a wrong line, stop that reply, and the model tries again with a correction.
+- A tick on the tutor's own line is held to arithmetic, and to one thing more: a line with one letter whose sides can never meet, as `2(x + 3) = 2x + 3`, is false whatever the letter is.
+- Words that sound like praise, opening a reply to a wrong line or a line out of step with the guess, stop that reply, and the model tries again with a correction.
 - Words that call a line wrong, opening a reply to math code could not judge, stop that reply too, because it may be another base. Real Sonnet told `101 + 1 = 110` in base 2 it was close, in 1 of 3 runs of `eval:board`.
 - The answer, written or said, is refused until the student has had two turns at the problem.
 - Names like `s1` are kept for the student's lines.
@@ -118,9 +123,11 @@ Work reaches the log as `worked`, written by the agent with its own reading and 
 
 ## Coming back
 
-A reload brings the board back. On `pagehide` the page keeps its operations in the tab's own `sessionStorage`, by room, and `keptBoard.ts` puts them back just before the new page's clock starts, with everything already drawn. Ink goes first if the store cannot hold it all. Nothing stays on a shared computer once the tab closes. A new tab starts with an empty board and the tutor still remembers.
+A reload brings the board back. On `pagehide` the page keeps its operations in the tab's own `sessionStorage`, by room, and `keptBoard.ts` puts them back just before the new page's clock starts, with everything already drawn. Ink goes first if the store cannot hold it all. Minors share machines, so sign-out and a change of student clear it at once, and a page leaving after a sign-out keeps nothing. Otherwise it stays until the tab closes, and a browser that reopens a closed tab may bring it back. A new tab starts with an empty board and the tutor still remembers.
 
 Each page load numbers its own lines, so a line never takes an id the agent still holds. The agent still refuses a line it cannot place, and that line goes to the tutor as words, so a refused line never means silence. Only the same line sent again across a rejoin stays quiet.
+
+A reload is a new page clock on a running session. The tutor is told `came_back` and gets the whole `board`, so it knows the student's lines survived. Real Sonnet answered a reload with `clearBoard` and "Fresh start" in one reload, and with a `hide` of its own cross in another, because nothing said the board had survived. For that one reply a `clearBoard` or a `hide` is refused, the words after it stop, and the tutor tries again. The next thing the student says lifts it, so "teach me physics" can still clear the board.
 
 The last turn's commands are replayed into the tutor's memory at the start of the next turn, and work noted since is put back after them, so a `clearBoard` in that turn cannot wipe the line the tutor is about to mark.
 
@@ -155,7 +162,7 @@ Abel's rule: everything a student can see or do on the prototype exists on the r
 | Placeholder gone after the first lines | Yes. Words changed by Abel's voice slice | `TypedLine.test.tsx` |
 | Any key typed anywhere goes to the line | Yes | `TypedLine.test.tsx` |
 | Enter sends, and the line lands with its tick | Yes, 37 to 61 ms | perf probe, `term-demo` run |
-| Every typed line is checked at once against the problem, with or without a task | Yes | `board-problem.test.ts`, `board-round.test.ts`, `early.mjs` run |
+| Every typed line is checked at once against the problem, with or without a task | Yes, and with no task a line that does not follow gets "Hm." and the tutor's reply and no cross from code, because the prototype's one problem is only a guess here | `no-guess.test.ts`, `board-problem.test.ts`, `board-round.test.ts`, `early.mjs` run |
 | A right finished line lands by itself after 2.2 s | Yes | `TypedLine.test.tsx` |
 | Underline in the pen colour when asked | Yes | `side-by-side-*` |
 | A task focuses the line and closes pen and keys | Yes | `LiveBoard`, `pen-freehand` run |

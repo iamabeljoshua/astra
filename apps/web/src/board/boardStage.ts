@@ -2,7 +2,6 @@ import type { BoardStage } from '@astra/board';
 
 const MOVE_MS = 560;
 const SMALL_SCALE = 0.3;
-/** The sample's phone shows the scene in a 34% corner. */
 const PHONE_SMALL_SCALE = 0.34;
 /** On a phone the small scene is one band of this share of its width tall, so it does not eat the student's work. */
 const PHONE_SMALL_HEIGHT_SHARE = 0.64;

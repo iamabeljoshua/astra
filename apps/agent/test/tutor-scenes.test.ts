@@ -15,7 +15,7 @@ const NO_WORKER = async () => {
 };
 const TOPIC = 'what the slope of a line tells you';
 const PLAN: LessonPlan = { opening: [{ say: 'The slope of a line tells you something.' }], more: [], setup: 'Watch the line tilt.', narration: '[[a]] The line climbs. [[b]] It climbs at one steady rate.', plan: 'a: a line climbs\nb: a triangle shows the steady rate', close: 'What would a steeper line tell you?' };
-const SCENE: StoredScene = { id: 'slope-1a2b3c4d', engine: 'manimgx', topic: TOPIC, moments: { a: 0, b: 2 }, parts: [], durationSeconds: 5, plan: PLAN, ownerId: 'maya' } as unknown as StoredScene;
+const SCENE: StoredScene = { id: `scene-${'a'.repeat(40)}`, engine: 'manimgx', topic: TOPIC, moments: { a: 0, b: 2 }, parts: [], durationSeconds: 5, plan: PLAN, ownerId: 'maya' } as unknown as StoredScene;
 
 const flush = async () => {
   for (let tick = 0; tick < 6; tick += 1) await new Promise((resolve) => setImmediate(resolve));
@@ -237,6 +237,14 @@ describe('who pays for a scene\'s words', () => {
 });
 
 describe('the words of a scene', () => {
+  it('start the take on the setup line, because a take opens on an empty frame', () => {
+    const [opening, take] = getTutorSceneBeats({ plan: PLAN, scene: SCENE, number: 1 });
+    const run = opening?.script.find((part) => typeof part === 'object' && part.kind === 'runSimulation');
+    expect(run).toEqual({ kind: 'runSimulation', target: 'scene-1', action: 'play', until: 'b', overWords: 4 });
+    expect(take?.script.find((part) => typeof part === 'object' && part.kind === 'runSimulation')).toEqual(expect.objectContaining({ until: 'b' }));
+    expect(getTutorSceneBeats({ plan: PLAN, scene: { ...SCENE, moments: { a: 0 } } as StoredScene, number: 1 })[0]?.script.filter((part) => typeof part === 'object' && part.kind === 'runSimulation')).toEqual([]);
+  });
+
   it('are only the words its review read, with the picture first and the question last', () => {
     const beats = getTutorSceneBeats({ plan: PLAN, scene: SCENE, number: 2 });
     const text = beats.map(getBeatText);
@@ -571,6 +579,29 @@ describe('a reloaded page', () => {
     scenes.onPage(LOADED, 'maya');
     opened(scenes);
     expect(sent).toEqual([{ type: 'loadScene', sceneId: SCENE.id, durationSeconds: 5 }, { type: 'loadScene', sceneId: SCENE.id, durationSeconds: 5 }]);
+  });
+});
+
+describe('a scene a person has flagged', () => {
+  it('never lands, even if it was flagged while the page was loading it', async () => {
+    const { scenes, spoken, traces, store } = setUp();
+    opened(scenes);
+    scenes.ask(TOPIC);
+    await flush();
+    vi.spyOn(store, 'isFlagged').mockReturnValue(true);
+    scenes.onPage(LOADED, 'maya');
+    expect(spoken).toEqual([]);
+    expect(traces.find(({ name }) => name === 'sceneEnded')?.fields.how).toBe('flagged');
+  });
+
+  it('never opens a card', async () => {
+    const { scenes, sent, store } = setUp({ cardTitle: TOPIC });
+    opened(scenes);
+    vi.spyOn(store, 'find').mockReturnValue(null);
+    scenes.noteCard(TOPIC);
+    await flush();
+    await expect(scenes.getOpeningScene()).resolves.toBeNull();
+    expect(sent).toEqual([]);
   });
 });
 

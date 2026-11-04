@@ -56,6 +56,15 @@ describe('the agent channel', () => {
       expect(await readTitle(running)).toBe('Physics of the impossible');
     });
 
+    it('takes the card\'s picture away with the title that named it', async () => {
+      const running = await startSession();
+
+      await setTitle(running, { title: 'A black hole' }).expect(204);
+
+      const { body } = await asStudent(server().get(`/sessions/${running}`)).expect(200);
+      expect((body as { artwork: unknown }).artwork).toBeNull();
+    });
+
     it('leaves a finished session as it was', async () => {
       const finished = await startSession();
       await asStudent(server().patch(`/sessions/${finished}`)).send({ durationSeconds: 1, status: 'finished' }).expect(200);

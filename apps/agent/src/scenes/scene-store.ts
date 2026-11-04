@@ -32,6 +32,8 @@ export interface SceneStore {
   /** The words a topic with no scene says until its next try, so each open pays neither a planner call nor new voice. */
   findWaitingPlan(key: SceneKey): LessonPlan | null;
   saveWaitingPlan(key: SceneKey, plan: LessonPlan): void;
+  /** A person flagged this scene, so it shows to nobody and is not written again until someone has looked at it. */
+  isFlagged(key: SceneKey): boolean;
   list(): StoredScene[];
   listShared(): Promise<StoredScene[]>;
 }
@@ -74,16 +76,18 @@ export function createSceneStore(root: string): SceneStore {
     const scene = readJsonFile<StoredScene>(join(scenesRoot, requireServerId(id), 'scene.json'));
     return scene?.status === 'checked' ? scene : null;
   };
+  const isFlaggedId = (id: string) => existsSync(join(root, 'flags', `${requireServerId(id)}.json`));
   return {
     find(key) {
-      const scene = readChecked(key.id);
+      const scene = isFlaggedId(key.id) ? null : readChecked(key.id);
       return scene && isKeyMatch(key, scene) ? scene : null;
     },
+    isFlagged: (key) => isFlaggedId(key.id),
     findRefusal(key) {
       const refusal = readJsonFile<SceneRefusal>(join(refusalsRoot, `${requireServerId(key.id)}.json`));
       return refusal && isKeyMatch(key, refusal.key) ? refusal : null;
     },
-    list: () => (existsSync(scenesRoot) ? readdirSync(scenesRoot).filter((id) => SERVER_MADE_ID.test(id)).flatMap((id) => readChecked(id) ?? []) : []),
+    list: () => (existsSync(scenesRoot) ? readdirSync(scenesRoot).filter((id) => SERVER_MADE_ID.test(id) && !isFlaggedId(id)).flatMap((id) => readChecked(id) ?? []) : []),
     async listShared() {
       const ids = existsSync(scenesRoot) ? (await readdir(scenesRoot)).filter((id) => SERVER_MADE_ID.test(id)) : [];
       const scenes: StoredScene[] = [];

@@ -1,4 +1,7 @@
+import type { components } from '@astra/contracts';
 import type { StudentProfile } from './brain.ts';
+
+export type LearnerRecord = components['schemas']['LearnerRecordDto'];
 
 const ROOM_PREFIX = 'session-';
 /** A room may carry a suffix after the session's uuid, so only this many characters name the session. */
@@ -18,6 +21,10 @@ export interface ApiLink {
   reportSpend(usd: number): Promise<{ isOverDailyLimit: boolean; leftTodayUsd: number }>;
   /** The session is about something else now. */
   setTitle(title: string): Promise<void>;
+  /** What the tutor remembers about this session's student, and only that student. */
+  fetchRecord(): Promise<LearnerRecord>;
+  /** Adds what one room's pass found. A repeat of the same key adds nothing. */
+  writeNotes(update: { updateKey: string; notes: readonly Pick<LearnerRecord['notes'][number], 'kind' | 'topic' | 'detail' | 'evidence'>[] }): Promise<{ wasApplied: boolean }>;
 }
 
 // The student's level, interests, and goal come straight from the API, so they never pass through the room service.
@@ -38,6 +45,12 @@ export function createApiLink({ apiUrl, agentKey, roomName }: ApiLinkOptions): A
     },
     async setTitle(title) {
       await call('title', { method: 'POST', body: JSON.stringify({ title }) });
+    },
+    async fetchRecord() {
+      return (await call('record')) as LearnerRecord;
+    },
+    async writeNotes(update) {
+      return (await call('record', { method: 'POST', body: JSON.stringify(update) })) as { wasApplied: boolean };
     },
   };
 }

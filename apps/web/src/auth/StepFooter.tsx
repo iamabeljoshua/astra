@@ -16,7 +16,7 @@ export function StepFooter({ progress, onBack, isBackLocked = false, action }: S
         <button
           type="button"
           aria-disabled={isBackLocked}
-          className="font-medium text-ink-2 hover:text-ink aria-disabled:opacity-35"
+          className="min-h-10.5 font-medium text-ink-2 hover:text-ink aria-disabled:opacity-35"
           onClick={() => {
             if (!isBackLocked) onBack();
           }}
