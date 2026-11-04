@@ -1,7 +1,7 @@
 import { type BoardElement, type BoardState, getMotionValue, getSceneFrame, type ProjectileFrame } from '@astra/board';
 import { canWriteByHand, preloadMathFonts } from '@astra/board/drawing';
 import { useEffect, useLayoutEffect, useRef } from 'react';
-import { getFigureSize, hasOwnPlace } from '../board/boardItems';
+import { FIGURE_SIZE, hasOwnPlace } from '../board/boardItems';
 import { createBoardPainting } from '../board/boardPainting';
 import { useReducedMotion } from '../board/useReducedMotion';
 
@@ -62,9 +62,8 @@ function WorldMarks({ board, atMs }: { board: BoardState; atMs: number }) {
 }
 
 function SceneStage({ board, atMs }: { board: BoardState; atMs: number }) {
-  const { width, height } = getFigureSize();
   return (
-    <svg data-testid="scene" viewBox={`0 0 ${WORLD.right - WORLD.left} ${WORLD.top - WORLD.bottom}`} width={width} height={height}>
+    <svg data-testid="scene" viewBox={`0 0 ${WORLD.right - WORLD.left} ${WORLD.top - WORLD.bottom}`} width={FIGURE_SIZE.width} height={FIGURE_SIZE.height}>
       <line x1={0} y1={toY(0)} x2={WORLD.right - WORLD.left} y2={toY(0)} stroke="var(--color-line)" strokeWidth={STROKE} />
       <WorldMarks board={board} atMs={atMs} />
     </svg>
@@ -89,14 +88,16 @@ export function BoardView({ board, atMs, onElementDrawn, onMathRefused }: BoardV
   const wrappers = useRef(new Map<string, HTMLElement>());
   const painting = useRef<ReturnType<typeof createBoardPainting> | null>(null);
   const isReducedMotion = useReducedMotion();
+  const refusalListener = useRef(onMathRefused);
 
   useEffect(() => {
     void preloadMathFonts();
   }, []);
 
   useLayoutEffect(() => {
+    refusalListener.current = onMathRefused;
     if (!boardRef.current || !overlayRef.current) return;
-    painting.current ??= createBoardPainting({ boardElement: boardRef.current, overlay: overlayRef.current, getWrapper: (id) => wrappers.current.get(id), onMathRefused: (tex) => onMathRefused?.(tex) });
+    painting.current ??= createBoardPainting({ boardElement: boardRef.current, overlay: overlayRef.current, getWrapper: (id) => wrappers.current.get(id), onMathRefused: (tex) => refusalListener.current?.(tex) });
     painting.current.paint({ board, atMs, isReducedMotion });
     for (const id of board.elements.keys()) {
       if (!seen.current.has(id)) {

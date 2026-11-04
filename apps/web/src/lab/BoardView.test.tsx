@@ -152,6 +152,13 @@ describe('BoardView, hostile content from a model', () => {
     expect(container.querySelector('.katex-error')).toBeNull();
   });
 
+  it('reports a refusal to the listener of the latest render', () => {
+    const onMathRefused = vi.fn();
+    const { rerender } = render(<BoardView board={getBoardAt([], 0)} atMs={0} />);
+    rerender(<BoardView board={getBoardAt([write('eq', 'x^2^3')], 2000)} atMs={2000} onMathRefused={onMathRefused} />);
+    expect(onMathRefused).toHaveBeenCalledWith('x^2^3');
+  });
+
   it('keeps the last good equation when a rearrangement cannot be set', () => {
     const onMathRefused = vi.fn();
     const operations = [write('eq', '2x = 8'), rearrange('eq', 'x^2^3', 2000)];

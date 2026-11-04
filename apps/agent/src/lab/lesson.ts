@@ -126,12 +126,121 @@ const DENSE_LESSON: readonly (readonly Beat[])[] = [
   ],
 ];
 
-export const LESSONS = { 'jump-shot': LESSON, algebra: ALGEBRA_LESSON, dense: DENSE_LESSON } as const satisfies Record<string, readonly (readonly Beat[])[]>;
+/** A drawing on every word, in the middle of speech with no pause to land in. */
+const EVERY_WORD_LESSON: readonly (readonly Beat[])[] = [
+  [
+    makeBeat('every-word', [
+      { kind: 'writeMath', id: 'line', tex: 'a + b = c' },
+      'First ',
+      { kind: 'highlight', id: 'ring-a', target: 'line', tex: 'a' },
+      'we ',
+      { kind: 'highlight', id: 'ring-b', target: 'line', tex: 'b' },
+      'mark ',
+      { kind: 'hide', target: 'ring-a' },
+      'both ',
+      { kind: 'hide', target: 'ring-b' },
+      'terms ',
+      { kind: 'transformMath', target: 'line', tex: 'a = c - b' },
+      'and ',
+      { kind: 'writeMath', id: 'second', tex: 'x^2 = 9' },
+      'then ',
+      { kind: 'transformMath', target: 'second', tex: String.raw`x = \pm 3` },
+      'keep ',
+      { kind: 'highlight', id: 'ring-c', target: 'line', tex: 'c' },
+      'going ',
+      { kind: 'text', id: 'note', text: 'every word', handwritten: true },
+      'on ',
+      { kind: 'hide', target: 'ring-c' },
+      'every ',
+      { kind: 'transformMath', target: 'line', tex: 'c = a + b' },
+      'word.',
+    ]),
+  ],
+];
+
+const HOSTILE_MARKUP = '<img src=x onerror="window.pwned=1"><script>window.pwned=1</script>';
+
+/** Things a careless or hostile model could write that the parser lets through, which the board must survive. */
+const HOSTILE_LESSON: readonly (readonly Beat[])[] = [
+  [
+    makeBeat('markup', [
+      { kind: 'text', id: 'plain-markup', text: HOSTILE_MARKUP },
+      'Markup as plain text ',
+      { kind: 'text', id: 'ink-markup', text: HOSTILE_MARKUP, handwritten: true },
+      'then markup by hand ',
+      { kind: 'writeMath', id: 'math-markup', tex: String.raw`\text{<script>window.pwned=1</script>}` },
+      'then markup in math. ',
+    ]),
+    makeBeat('sizes', [
+      { kind: 'clearBoard' },
+      { kind: 'writeMath', id: 'wide', tex: `x = ${Array.from({ length: 50 }, (_, index) => `a_{${index}}`).join(' + ')}` },
+      'A very wide line ',
+      { kind: 'writeMath', id: 'wide-fraction', tex: String.raw`\frac{${'a b c d e f g h i j '.repeat(8)}}{2}` },
+      'and a wide fraction ',
+      { kind: 'writeMath', id: 'tower', tex: `${String.raw`\frac{1}{`.repeat(10)}x${'}'.repeat(10)}` },
+      'and a tall tower ',
+      { kind: 'text', id: 'one-word', text: 'w'.repeat(400), handwritten: true },
+      'and one huge word. ',
+    ]),
+    makeBeat('bad-math', [
+      { kind: 'clearBoard' },
+      { kind: 'writeMath', id: 'good', tex: '2x = 8' },
+      'A good equation ',
+      { kind: 'transformMath', target: 'good', tex: 'x^2^3' },
+      'then a bad step ',
+      { kind: 'writeMath', id: 'bad', tex: String.raw`\frac{1}` },
+      'and a broken one ',
+      { kind: 'highlight', id: 'no-term', target: 'good', tex: 'y', occurrence: 99 },
+      'and a mark on nothing ',
+      { kind: 'annotate', id: 'no-part', target: 'good.t99', mark: 'cross' },
+      'and a mark on no term ',
+      { kind: 'diagram', id: 'labels', nodes: [{ name: 'a', label: HOSTILE_MARKUP.slice(0, 80) }, { name: 'b', label: 'B' }], edges: [{ from: 'a', to: 'b', label: '<b>x</b>' }], handwritten: true },
+      'and markup in a diagram. ',
+    ]),
+    makeBeat('still-works', [
+      { kind: 'clearBoard' },
+      { kind: 'writeMath', id: 'after', tex: String.raw`\frac{x}{2} = 3` },
+      'And the board still works ',
+      { kind: 'transformMath', target: 'after', tex: 'x = 6' },
+      'after all of that. ',
+    ]),
+  ],
+];
+
+/** Uses fonts no board preloads, so a late font can be seen to hold the math back. */
+const RARE_FONTS_LESSON: readonly (readonly Beat[])[] = [
+  [
+    makeBeat('rare-fonts', [
+      { kind: 'writeMath', id: 'rare', tex: String.raw`\mathcal{L} = \mathbb{R} + \mathfrak{g}` },
+      'A script letter, a blackboard letter, and a gothic letter. ',
+      { kind: 'transformMath', target: 'rare', tex: String.raw`\mathbb{R} = \mathcal{L} - \mathfrak{g}` },
+      'The same letters move across the equals sign. ',
+    ]),
+  ],
+];
+
+export const LESSONS = { 'jump-shot': LESSON, algebra: ALGEBRA_LESSON, dense: DENSE_LESSON, 'every-word': EVERY_WORD_LESSON, hostile: HOSTILE_LESSON, 'rare-fonts': RARE_FONTS_LESSON } as const satisfies Record<string, readonly (readonly Beat[])[]>;
 
 export type LessonName = keyof typeof LESSONS;
 
 export const STOCK_PHRASE = 'Let me work that out.';
 
 export const STOCK_TURN: readonly Beat[] = [makeBeat('stock', [{ kind: 'text', id: 'working', text: 'Working it out' }, 'Let me ', { kind: 'focus', target: 'working' }, 'work that out.'])];
+
+/** The stored line in Casey's real voice, with math on each of its words. */
+export const STOCK_MATH_TURN: readonly Beat[] = [
+  makeBeat('stock-math', [
+    { kind: 'writeMath', id: 'stored-line', tex: '2x + 3 = 11' },
+    'Let ',
+    { kind: 'highlight', id: 'stored-ring', target: 'stored-line', tex: '3' },
+    'me ',
+    { kind: 'transformMath', target: 'stored-line', tex: '2x = 11 - 3' },
+    'work ',
+    { kind: 'hide', target: 'stored-ring' },
+    'that ',
+    { kind: 'transformMath', target: 'stored-line', tex: '2x = 8' },
+    'out.',
+  ]),
+];
 
 export const OVERLONG_LINE = 'Nine point eight metres per second squared.';

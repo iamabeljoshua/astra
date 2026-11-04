@@ -4,7 +4,7 @@ import { canWriteByHand, createInkPainter, createMathPainter, drawDiagram, type 
 const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
 const HANDWRITING_SCALE = 1.3;
 const DIAGRAM_SCALE = 1.1;
-const FIGURE_SIZE = { width: 1000, height: 650 };
+export const FIGURE_SIZE = { width: 1000, height: 650 };
 
 export interface ItemContext {
   element: BoardElement;
@@ -131,8 +131,6 @@ function createPlainItem(wrapper: HTMLElement): BoardItem {
 function createFigureItem(): BoardItem {
   return { prepare: () => ({ fit: 'figure', size: FIGURE_SIZE, fromSize: null }), paint: () => {}, remove: () => {} };
 }
-
-export const getFigureSize = () => FIGURE_SIZE;
 
 /** The elements that take a place of their own, in a table so a new kind adds one line. */
 const ITEM_MAKERS: Partial<{ [Kind in BoardElement['content']['kind']]: (wrapper: HTMLElement, content: Extract<BoardElement['content'], { kind: Kind }>) => BoardItem }> = {

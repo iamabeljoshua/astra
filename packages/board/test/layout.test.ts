@@ -77,8 +77,19 @@ describe('placeElements', () => {
     expect((scene?.height ?? 0) / (scene?.width ?? 1)).toBeCloseTo(0.65);
   });
 
-  it.each(Array.from({ length: 300 }, (_, seed) => [seed]))('never overlaps or leaves the board, seed %i', (seed) => {
-    for (const area of [LAPTOP, PHONE]) expect(getProblems(placeElements(makeBoard(seed), area), area)).toEqual([]);
+  it.each(Array.from({ length: 300 }, (_, seed) => [seed]))('never overlaps or leaves the board, and keeps the newest, seed %i', (seed) => {
+    for (const area of [LAPTOP, PHONE]) {
+      const placed = placeElements(makeBoard(seed), area);
+      expect(getProblems(placed, area)).toEqual([]);
+      expect(placed.at(-1)?.isVisible).toBe(true);
+    }
+  });
+
+  it('keeps an element that exactly fills the board once scaled, whatever the rounding', () => {
+    const height = 633.1650000000001;
+    const [only] = placeElements([line('tall', 326, height)], { width: 358, height: 506, padding: 16, gap: 16 });
+    expect(only?.isVisible).toBe(true);
+    expect((only?.y ?? 0) + (only?.height ?? 0)).toBeCloseTo(490);
   });
 
   it('does not fail on an empty board or an empty box', () => {
@@ -95,16 +106,17 @@ describe('placeMovingElements', () => {
 
   it('moves the lines below a growing element from the clock', () => {
     const boxes = [{ to: a, from: a }, { to: tall, from: small }, { to: c, from: c }];
-    const place = (progress: number) => placeMovingElements(boxes, LAPTOP, progress).find((placement) => placement.id === 'c')?.y;
+    const place = (progress: number) => placeMovingElements(boxes, LAPTOP, progress).placements.find((placement) => placement.id === 'c')?.y;
     expect(place(0)).toBe(24 + 100 + 16 + 40 + 16);
     expect(place(1)).toBe(24 + 100 + 16 + 120 + 16);
     expect(place(0.5)).toBe(24 + 100 + 16 + 80 + 16);
   });
 
   it('keeps an old line still when a new line arrives with room to spare', () => {
-    const placed = placeMovingElements([{ to: a, from: a }, { to: c, from: null }], LAPTOP, 0.25);
-    expect(placed[0]?.y).toBe(24);
-    expect(placed[1]).toMatchObject({ y: 24 + 100 + 16, opacity: 1 });
+    const { placements, isMakingRoom } = placeMovingElements([{ to: a, from: a }, { to: c, from: null }], LAPTOP, 0.25);
+    expect(placements[0]?.y).toBe(24);
+    expect(placements[1]).toMatchObject({ y: 24 + 100 + 16, opacity: 1 });
+    expect(isMakingRoom).toBe(false);
   });
 
   it('slides an element leaving because the board filled up with the others, fading as it goes', () => {
@@ -112,15 +124,25 @@ describe('placeMovingElements', () => {
     const arriving = line('new', 200, 60);
     const boxes = [...lines.map((box) => ({ to: box, from: box })), { to: arriving, from: null }];
     const halfway = placeMovingElements(boxes, PHONE, 0.5);
-    expect(halfway[0]).toMatchObject({ isVisible: true, opacity: 0.5, y: 12 - 36 });
-    expect(halfway[1]?.y).toBeCloseTo(12 + 72 - 36);
+    expect(halfway.isMakingRoom).toBe(true);
+    expect(halfway.placements[0]).toMatchObject({ isVisible: true, opacity: 0.5, y: 12 - 36 });
+    expect(halfway.placements[1]?.y).toBeCloseTo(12 + 72 - 36);
     const done = placeMovingElements(boxes, PHONE, 1);
-    expect(done[0]?.isVisible).toBe(false);
-    expect(getProblems(done, PHONE)).toEqual([]);
+    expect(done.placements[0]?.isVisible).toBe(false);
+    expect(getProblems(done.placements, PHONE)).toEqual([]);
   });
 
   it('never overlaps at any point of a rearrangement', () => {
     const boxes = [{ to: a, from: a }, { to: tall, from: small }, { to: c, from: c }];
-    for (let step = 0; step <= 20; step += 1) expect(getProblems(placeMovingElements(boxes, LAPTOP, step / 20), LAPTOP)).toEqual([]);
+    for (let step = 0; step <= 20; step += 1) expect(getProblems(placeMovingElements(boxes, LAPTOP, step / 20).placements, LAPTOP)).toEqual([]);
+  });
+
+  it('brings a new element up with the rest when it makes room, so they never overlap on the way', () => {
+    const lines = Array.from({ length: 6 }, (_, index) => line(`line-${index}`, 200, 60));
+    const boxes = [...lines.map((box) => ({ to: box, from: box })), { to: line('new', 200, 60), from: null }];
+    for (let step = 0; step <= 20; step += 1) {
+      const staying = placeMovingElements(boxes, PHONE, step / 20).placements.filter((placement) => placement.opacity === 1);
+      for (const [index, placement] of staying.entries()) for (const other of staying.slice(index + 1)) expect(overlaps(placement, other)).toBe(false);
+    }
   });
 });

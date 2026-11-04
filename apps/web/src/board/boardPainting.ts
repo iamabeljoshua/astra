@@ -5,6 +5,8 @@ import { type BoardItem, createBoardItem, hasOwnPlace, type ItemContext, type It
 
 const PHONE_BOARD_WIDTH = 500;
 const SPACING = { laptop: { padding: 24, gap: 20 }, phone: { padding: 16, gap: 16 } };
+/** A full board makes room in the first part of a new element's entrance, and the writing starts once it has. */
+const ROOM_SHARE = 1 / 3;
 
 export interface BoardFrame {
   board: BoardState;
@@ -29,6 +31,10 @@ function getMovingBox(context: ItemContext, sizes: ItemSizes & { size: NonNullab
   const to = { id: context.element.id, fit: sizes.fit, ...sizes.size };
   const isArriving = context.progress < 1 && context.element.morphFrom === null;
   return { to, from: isArriving ? null : sizes.fromSize ? { ...to, ...sizes.fromSize } : to };
+}
+
+function getProgressAfterRoom({ element, progress }: ItemContext): number {
+  return element.morphFrom === null ? Math.max(0, (progress - ROOM_SHARE) / (1 - ROOM_SHARE)) : progress;
 }
 
 function applyPlacement(wrapper: HTMLElement, placement: MovingPlacement, itemOpacity: number): void {
@@ -68,7 +74,7 @@ export function createBoardPainting({ boardElement, overlay, getWrapper, onMathR
 
   const getSharedProgress = (contexts: readonly ItemContext[], isReducedMotion: boolean) => {
     const moving = contexts.filter(({ progress }) => progress < 1).map(({ progress }) => progress);
-    return moving.length === 0 || isReducedMotion ? 1 : easeInOut(Math.min(...moving));
+    return moving.length === 0 || isReducedMotion ? 1 : easeInOut(Math.min(1, Math.min(...moving) / ROOM_SHARE));
   };
 
   const prepareBoxes = (contexts: readonly ItemContext[]): MovingBox[] =>
@@ -80,6 +86,16 @@ export function createBoardPainting({ boardElement, overlay, getWrapper, onMathR
       return sizes.size ? [getMovingBox(context, { ...sizes, size: sizes.size })] : [];
     });
 
+  const paintItem = (context: ItemContext, placement: MovingPlacement | undefined, isMakingRoom: boolean) => {
+    const { id } = context.element;
+    const entry = items.get(id);
+    const wrapper = getWrapper(id);
+    if (!entry || !wrapper) return;
+    if (placement) applyPlacement(wrapper, placement, entry.item.getOpacity?.(context) ?? 1);
+    else writeStyle(wrapper, 'visibility', 'hidden');
+    entry.item.paint(isMakingRoom && !context.isReducedMotion ? { ...context, progress: getProgressAfterRoom(context) } : context);
+  };
+
   return {
     paint({ board, atMs, isReducedMotion }: BoardFrame) {
       const elements = [...board.elements.values()];
@@ -89,19 +105,9 @@ export function createBoardPainting({ boardElement, overlay, getWrapper, onMathR
       const fontSize = Number.parseFloat(getComputedStyle(boardElement).fontSize) || 16;
       const maxWidth = Math.max(0, area.width - 2 * area.padding);
       const contexts = placed.map((element): ItemContext => ({ element, atMs, progress: getMotionValue(element.entrance, atMs), maxWidth, fontSize, isReducedMotion }));
-      const boxes = prepareBoxes(contexts);
-      const placements = placeMovingElements(boxes, area, getSharedProgress(contexts, isReducedMotion));
+      const { placements, isMakingRoom } = placeMovingElements(prepareBoxes(contexts), area, getSharedProgress(contexts, isReducedMotion));
       const placementsById = new Map(placements.map((placement) => [placement.id, placement]));
-      for (const context of contexts) {
-        const { id } = context.element;
-        const entry = items.get(id);
-        const wrapper = getWrapper(id);
-        const placement = placementsById.get(id);
-        if (!entry || !wrapper) continue;
-        if (placement) applyPlacement(wrapper, placement, entry.item.getOpacity?.(context) ?? 1);
-        else writeStyle(wrapper, 'visibility', 'hidden');
-        entry.item.paint(context);
-      }
+      for (const context of contexts) paintItem(context, placementsById.get(context.element.id), isMakingRoom);
       marks.paint({ elements, focus: board.focus, placements: placementsById, getItem: (id) => items.get(id)?.item, atMs, isReducedMotion });
     },
   };

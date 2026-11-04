@@ -46,11 +46,12 @@ function getSmallestHeight(box: LayoutBox, area: LayoutArea): number {
   return Math.min(getFullFigureHeight(box, area), getInnerHeight(area) * SMALLEST_FIGURE_SHARE);
 }
 
-// Walks back from the newest, because the tutor is talking about what it just wrote.
+// Walks back from the newest, which always stays, because the tutor is talking about what it just wrote.
 function getFirstVisibleIndex(boxes: readonly LayoutBox[], area: LayoutArea): number {
-  let used = 0;
-  for (let index = boxes.length - 1; index >= 0; index -= 1) {
-    used += getSmallestHeight(boxes[index] as LayoutBox, area) + (index === boxes.length - 1 ? 0 : area.gap);
+  const newest = boxes.length - 1;
+  let used = newest < 0 ? 0 : getSmallestHeight(boxes[newest] as LayoutBox, area);
+  for (let index = newest - 1; index >= 0; index -= 1) {
+    used += getSmallestHeight(boxes[index] as LayoutBox, area) + area.gap;
     if (used > getInnerHeight(area)) return index + 1;
   }
   return 0;
@@ -103,15 +104,15 @@ function getUpwardShift(before: ReadonlyMap<string, Placement>, after: readonly 
 }
 
 function interpolatePlacement({ before, after, progress, shift }: { before: Placement | undefined; after: Placement; progress: number; shift: number }): MovingPlacement {
-  if (!before?.isVisible) return { ...after, opacity: after.isVisible ? 1 : 0 };
+  if (!before?.isVisible) return { ...after, y: after.y - shift * (1 - progress), opacity: after.isVisible ? 1 : 0 };
   if (!after.isVisible) return { ...before, y: before.y + shift * progress, isVisible: progress < 1, opacity: 1 - progress };
   return { id: after.id, x: after.x, y: interpolate(before.y, after.y, progress), width: interpolate(before.width, after.width, progress), height: interpolate(before.height, after.height, progress), scale: interpolate(before.scale, after.scale, progress), isVisible: true, opacity: 1 };
 }
 
-/** Pure in the sizes and the progress, so a frozen or replayed board lands in the same place with no state of its own. */
-export function placeMovingElements(boxes: readonly MovingBox[], area: LayoutArea, progress: number): MovingPlacement[] {
+/** Pure in the sizes and the progress, so a frozen or replayed board lands in the same place with no state of its own. Everything shifts together, so nothing overlaps at any point. */
+export function placeMovingElements(boxes: readonly MovingBox[], area: LayoutArea, progress: number): { placements: MovingPlacement[]; isMakingRoom: boolean } {
   const after = placeElements(boxes.map((box) => box.to), area);
   const before = new Map(placeElements(boxes.flatMap((box) => (box.from ? [box.from] : [])), area).map((placement) => [placement.id, placement]));
   const shift = getUpwardShift(before, after);
-  return after.map((placement) => interpolatePlacement({ before: before.get(placement.id), after: placement, progress, shift }));
+  return { placements: after.map((placement) => interpolatePlacement({ before: before.get(placement.id), after: placement, progress, shift })), isMakingRoom: shift !== 0 };
 }

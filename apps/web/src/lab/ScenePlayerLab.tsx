@@ -133,7 +133,8 @@ export default function ScenePlayerLab() {
             className={BUTTON}
             disabled={!isReady}
             onClick={() => {
-              send({ type: 'play', lesson: params.get('lesson') ?? undefined, lessonTurn: nextLessonTurn });
+              const lesson = params.get('lesson');
+              send(lesson ? { type: 'play', lesson } : { type: 'play', lessonTurn: nextLessonTurn });
               setNextLessonTurn((turn) => (turn + 1) % LESSON_TURNS);
             }}
           >

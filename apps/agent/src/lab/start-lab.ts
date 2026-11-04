@@ -7,6 +7,8 @@ import { makeRenderedVoice } from '../providers/fakes.ts';
 import { readKey } from './keys.ts';
 import { runLabAgent } from './lab-agent.ts';
 import { createLabRecorder } from './lab-recorder.ts';
+import { LESSONS } from './lesson.ts';
+import { makeSayRenderer } from './proof/say-voice.ts';
 import { tapVendorSocket, type VendorTap } from './proof/vendor-tap.ts';
 
 /** The local server's own development pair, which `livekit-server --dev` prints. */
@@ -16,6 +18,7 @@ const DEV_SECRET = 'secret';
 const { values: args } = parseArgs({
   options: {
     fake: { type: 'boolean', default: false },
+    say: { type: 'boolean', default: false },
     stored: { type: 'string' },
     model: { type: 'string' },
     room: { type: 'string', default: `lab-${Date.now()}` },
@@ -40,6 +43,7 @@ function pickVoice() {
     return makeRenderedVoice({ name: 'stored', render: () => ({ pcm, sampleRate: stored.sampleRate, words: stored.words }) });
   }
   if (args.fake) return makeRenderedVoice({ name: 'fake' });
+  if (args.say) return makeRenderedVoice({ name: 'say', render: makeSayRenderer([...LESSONS.algebra.flat(), ...LESSONS.dense.flat()]) });
   return makeTutorVoice({ model: args.model, apiKey: readKey('ELEVENLABS_API_KEY') });
 }
 
@@ -50,5 +54,5 @@ const studentToken = await makeToken('student-browser');
 console.log(`OPEN ${args.webUrl}/lab/scene-player?url=${encodeURIComponent(args.url)}&token=${studentToken}`);
 const voice = pickVoice().makeTts();
 await runLabAgent({ url: args.url, token: await makeToken('agent-tutor'), voice, sampleRate: voice.sampleRate, recorder });
-recorder.save({ voice: args.fake ? 'fake' : args.stored ? 'stored casey' : 'casey', model: args.model ?? 'eleven_flash_v2_5', tap });
+recorder.save({ voice: args.fake ? 'fake' : args.say ? 'say' : args.stored ? 'stored casey' : 'casey', model: args.model ?? 'eleven_flash_v2_5', tap });
 process.exit(0);

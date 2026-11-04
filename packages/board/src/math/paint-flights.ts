@@ -73,7 +73,7 @@ export function planPaints({ from, to, movedTermIds }: { from: readonly PaintInf
   };
 }
 
-const LIFT = { shareOfTravel: 0.4, mostEms: 1.1 };
+const LIFT = { shareOfTravel: 0.4, mostEms: 0.8 };
 
 interface FlightEnds {
   from: PaintInfo;

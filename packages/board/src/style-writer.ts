@@ -1,5 +1,5 @@
 /// <reference lib="dom" />
-type StyleName = 'visibility' | 'clipPath' | 'opacity' | 'transform' | 'display' | 'transformOrigin' | 'maxWidth';
+type StyleName = 'visibility' | 'clipPath' | 'opacity' | 'transform' | 'display' | 'transformOrigin' | 'maxWidth' | 'width' | 'height';
 
 const written = new WeakMap<HTMLElement | SVGElement, Map<StyleName, string>>();
 

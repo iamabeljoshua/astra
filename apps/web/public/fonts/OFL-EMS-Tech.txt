@@ -1,3 +1,5 @@
+EMS Tech, the single-line font in packages/board/src/ink/stroke-font-data.ts, is by Sheldon B. Michaels, converted to SVG by Windell H. Oskay, and derives from Architects Daughter.
+
 Copyright (c) 2010, Kimberly Geswein (kimberlygeswein.com)
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.

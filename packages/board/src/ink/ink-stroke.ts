@@ -39,8 +39,9 @@ export function getStrokePath({ points }: InkStroke): string {
 
 /** How much of each stroke has drawn when `progress` of the whole has, so the pen keeps one speed across short and long strokes. */
 export function getStrokeProgress(strokes: readonly InkStroke[], progress: number): number[] {
+  if (progress >= 1) return strokes.map(() => 1);
   const total = strokes.reduce((sum, stroke) => sum + stroke.length, 0);
-  let remaining = total * Math.min(1, Math.max(0, progress));
+  let remaining = total * Math.max(0, progress);
   return strokes.map((stroke) => {
     const drawn = stroke.length === 0 ? (remaining > 0 ? 1 : 0) : Math.min(1, remaining / stroke.length);
     remaining = Math.max(0, remaining - stroke.length);

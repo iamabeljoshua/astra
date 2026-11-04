@@ -1,9 +1,9 @@
 /// <reference lib="dom" />
 import { findMathSpans } from '@astra/contracts';
+import { writeStyle } from '../style-writer.ts';
 import { getMovedTermIds, type MathLine } from './math-line.ts';
 import { easeInOut, getBoxUnion, getFlightOffset, getFlightTransform, type PaintBox, type PaintInfo, type PaintPlan, planPaints } from './paint-flights.ts';
-import { collectMathPaints, getPaintsOfSpans, type MathPaintElement, renderTex, type TexSpan } from './render-math.ts';
-import { writeStyle } from '../style-writer.ts';
+import { collectMathPaints, getMissingFonts, getPaintsOfSpans, type MathPaintElement, renderTex, type TexSpan } from './render-math.ts';
 
 export interface MathSize {
   width: number;
@@ -52,9 +52,7 @@ export interface TermBoxes {
   flightOffset: { x: number; y: number };
 }
 
-function clearPaint(element: HTMLElement): void {
-  for (const name of ['visibility', 'clipPath', 'opacity', 'transform', 'display', 'transformOrigin'] as const) writeStyle(element, name, '');
-}
+const PAINT_STYLES = ['visibility', 'clipPath', 'opacity', 'transform', 'display', 'transformOrigin'] as const;
 
 // KaTeX breaks a long line into runs, in order. A run that starts left of the one before it starts a new row.
 function getRowOfPaint({ host, paints }: { host: HTMLElement; paints: readonly MathPaintElement[] }): number[] {
@@ -113,7 +111,7 @@ export function createMathPainter(root: HTMLElement): MathPainter {
   let builtKey = '';
   let easedNow = 1;
 
-  const areFontsLoading = () => document.fonts.status === 'loading';
+  const getFontsStillMissing = () => [to, from].flatMap((rendered) => (rendered ? getMissingFonts(rendered.paints) : []));
 
   const render = (line: MathLine, maxWidth: number): RenderedLine | null => {
     const host = document.createElement('div');
@@ -131,7 +129,7 @@ export function createMathPainter(root: HTMLElement): MathPainter {
   };
 
   const settleTree = (rendered: RenderedLine) => {
-    for (const { element } of rendered.paints) clearPaint(element);
+    for (const { element } of rendered.paints) for (const name of PAINT_STYLES) writeStyle(element, name, '');
     writeStyle(rendered.host, 'opacity', '');
   };
 
@@ -141,7 +139,7 @@ export function createMathPainter(root: HTMLElement): MathPainter {
     const nextTo = reuse(line);
     // Math that KaTeX refuses never reaches the student, and the last good equation stays on the board.
     refusedTex = nextTo ? null : line.tex;
-    const kept = nextTo ?? (renderedWidth === maxWidth ? to : null);
+    const kept = nextTo ?? (to && reuse(to.line));
     const nextFrom = nextTo && fromLine ? reuse(fromLine) : null;
     for (const rendered of previous) if (rendered && rendered !== kept && rendered !== nextFrom) rendered.host.remove();
     to = kept;
@@ -151,7 +149,9 @@ export function createMathPainter(root: HTMLElement): MathPainter {
     plan = from && to ? planPaints({ from: from.infos, to: to.infos, movedTermIds: getMovedTermIds(from.line, to.line) }) : null;
     renderedWidth = maxWidth;
     lastPaintKey = '';
-    isWaitingForFonts = areFontsLoading();
+    const missing = getFontsStillMissing();
+    isWaitingForFonts = missing.length > 0;
+    for (const font of missing) void document.fonts.load(font);
   };
 
   const prepareTrees = ({ line, morphFrom, progress, maxWidth }: MathFrame) => {
@@ -163,7 +163,7 @@ export function createMathPainter(root: HTMLElement): MathPainter {
   };
 
   const refreshAfterFonts = () => {
-    if (!isWaitingForFonts || areFontsLoading()) return;
+    if (!isWaitingForFonts || getFontsStillMissing().length > 0) return;
     isWaitingForFonts = false;
     for (const rendered of [to, from]) {
       if (!rendered) continue;
@@ -239,19 +239,18 @@ export function createMathPainter(root: HTMLElement): MathPainter {
     prepare(frame) {
       prepareTrees(frame);
       refreshAfterFonts();
+      writeStyle(root, 'width', to ? `${to.size.width}px` : '');
+      writeStyle(root, 'height', to ? `${to.size.height}px` : '');
       return { size: to?.size ?? null, fromSize: from?.size ?? null };
     },
     paint(frame) {
-      writeStyle(root, 'visibility', isWaitingForFonts ? 'hidden' : '');
+      for (const rendered of [to, from]) if (rendered) writeStyle(rendered.host, 'visibility', isWaitingForFonts ? 'hidden' : '');
       const key = `${frame.progress}|${frame.isReducedMotion}|${to?.line.tex}|${from?.line.tex}`;
       if (key === lastPaintKey || !to) return;
       lastPaintKey = key;
       if (from && plan) paintMorph(from, to, plan, frame.progress, frame.isReducedMotion);
       else if (frame.morphFrom === null) paintWriting(to, frame.progress, frame.isReducedMotion);
-      if (!from && frame.progress >= 1) {
-        for (const { element } of to.paints) clearPaint(element);
-        writeStyle(to.host, 'opacity', '');
-      }
+      if (!from && frame.progress >= 1) settleTree(to);
     },
     getTermBox: (query) => ({ from: getBoxOfSpan(from, query), to: getBoxOfSpan(to, query), flightOffset: getLiveOffset(query) }),
     getRefusedTex: () => refusedTex,

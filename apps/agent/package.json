@@ -10,7 +10,9 @@
     "test": "vitest run",
     "lab": "node src/lab/open-lab.ts",
     "proof": "node src/lab/proof/run-proof.ts",
-    "voice-probe": "node src/lab/proof/voice-probe.ts"
+    "voice-probe": "node src/lab/proof/voice-probe.ts",
+    "math-proof": "node src/lab/proof/math-proof.ts",
+    "math-load": "node src/lab/proof/math-load.ts"
   },
   "dependencies": {
     "@astra/board": "workspace:*",

@@ -4,14 +4,14 @@ import type { tts } from '@livekit/agents';
 import { createSessionLog } from '../live/session-log.ts';
 import { type SpokenTurn, speakTurn, type TextPace } from '../live/speak-turn.ts';
 import { type LabRecorder } from './lab-recorder.ts';
-import { type LessonName, LESSONS, STOCK_TURN } from './lesson.ts';
+import { type LessonName, LESSONS, STOCK_MATH_TURN, STOCK_TURN } from './lesson.ts';
 
 export const LIVE_TOPIC = 'astra.live';
 export const LAB_TOPIC = 'astra.lab';
 const AUDIO_QUEUE_MS = 200;
 
 export type LabCommand =
-  | { type: 'play'; lesson?: LessonName; lessonTurn?: number; isStockPhrase?: boolean; textPace?: TextPace; proofStalls?: { atAudioMs: number; ms: number }[]; wordsLateMs?: number }
+  | { type: 'play'; lesson?: LessonName; lessonTurn?: number; isStockPhrase?: boolean; isStockMath?: boolean; textPace?: TextPace; proofStalls?: { atAudioMs: number; ms: number }[]; wordsLateMs?: number }
   | { type: 'interrupt' }
   | { type: 'resume'; textPace?: TextPace }
   | { type: 'finish' }
@@ -101,6 +101,11 @@ export async function runLabAgent({ url, token, voice, sampleRate, recorder }: L
     });
   };
 
+  const getTurnBeats = ({ isStockPhrase, isStockMath, lesson, lessonTurn }: LabCommand & { type: 'play' }): readonly Beat[] => {
+    if (isStockMath) return STOCK_MATH_TURN;
+    return isStockPhrase ? STOCK_TURN : (LESSONS[lesson ?? 'jump-shot'][lessonTurn ?? 0] ?? []);
+  };
+
   // The rest of a cut turn, starting with the word it was cut on.
   const getResumeBeats = (turn: ActiveTurn): Beat[] =>
     turn.beats.flatMap((beat) => {
@@ -115,7 +120,7 @@ export async function runLabAgent({ url, token, voice, sampleRate, recorder }: L
   const runCommand = (command: LabCommand) => {
     if (command.type === 'play') {
       wordsLateMs = command.wordsLateMs ?? 0;
-      startTurn(command.isStockPhrase ? STOCK_TURN : (LESSONS[command.lesson ?? 'jump-shot'][command.lessonTurn ?? 0] ?? []), command);
+      startTurn(getTurnBeats(command), command);
     }
     if (command.type === 'interrupt') {
       recorder.noteStopDecided(active?.id);

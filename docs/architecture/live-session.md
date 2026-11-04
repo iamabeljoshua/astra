@@ -303,7 +303,7 @@ Replay, seeking, rewinding, and a page reload all call one function, `rebuildBoa
 
 The tutor names what to show. The engine decides where it goes and how it moves, so the model cannot place a pixel (T6).
 
-B5's library maps to these commands. Equations are `writeMath`, `transformMath`, and `highlight`. Plots and number lines are `plot`, `numberLine`, and `markValue`. Geometry is `geometry` and `construct`. Forces are `vector` and `trackVector`. Computed motion is `simulate`, `runSimulation`, `setParameter`, `slider`, and `ghostPath`. Diagrams and drawings are `diagram` and `drawing`. Then `table`, `timeline`, `code`, `image`, `text`, `annotate`, and `focus`, with `reveal` to build in steps, and `hide` and `clearBoard` to keep the page clean.
+B5's library maps to these commands. Equations are `writeMath`, `transformMath`, and `highlight`. Plots and number lines are `plot`, `shadeArea`, `numberLine`, and `markValue`. Geometry is `geometry` and `construct`. Forces are `vector` and `trackVector`. Computed motion is `simulate`, `runSimulation`, `setParameter`, `slider`, and `ghostPath`. Diagrams and drawings are `diagram` and `drawing`. Then `table`, `timeline`, `code`, `image`, `text`, `annotate`, and `focus`, with `reveal` to build in steps, and `hide` and `clearBoard` to keep the page clean.
 
 The whole sample session from PRD section 6.4 parses with these types, including the six seconds of silence, the frozen ball, and the slider drag. The parser is hand-written and has no dependency. `src/scene-language` holds 1,612 lines without blanks and comments, so "types only" no longer describes that package.
 
@@ -316,13 +316,15 @@ The whole sample session from PRD section 6.4 parses with these types, including
 - The tutor can mark student work. Ink has an id, per-point times, an erase action, and a stated frame of fractions of the board panel, and `getBoardAfterAction` puts it on the board. `image` can show an upload by `fileId`.
 - Reusing a live id replaces that element in place.
 - Limits fit the wire. LiveKit's docs say 15 KiB for a reliable message, so a long drag or stroke is split across messages, and the parser refuses anything larger.
+- A curve can have named constants. `plot.constants` declares each with a value and a range, the expression names them, and `slider.constant` lets a student change one. `shadeArea` shades under a plot between two x values. M3.3 settled these and M3.4 draws them.
+- Math and handwriting can be paced by speech. `writeMath`, `transformMath`, and `text` take `overWords`.
+- A term has an id. `getMathParts` splits source math at its top level, the id stays with a term through every `transformMath`, and a term that crosses the equals sign keeps its id. `highlight.tex` finds a term or a part inside one, and `annotate.target` can name a term as `equation.t3`.
 - A new simulation parameter comes with a default, so older rows still parse. Widening a range is safe, and narrowing one would refuse old rows.
 
 **Open, with an owner.**
 
 | Owner | What the language cannot say yet |
 | --- | --- |
-| M3.3 | Shade an area under a curve. A named constant on a curve, so a slider can change it. |
 | M3.4 | A launch angle slider. A playback rate with no word to aim at. Number readouts that follow a quantity. How `overWords` behaves when later word times have not arrived. |
 | M3.7 | B2 has a guard only in the prompt today, so M3.7 adds one: if no command has come by the turn's third word, the reader adds a `focus` on the last element, and the evaluation fails any turn over 1 s. |
 | M3.12 | Tasks, notes, and tangent, and a wider `studentActed`. |
@@ -331,7 +333,7 @@ The whole sample session from PRD section 6.4 parses with these types, including
 | M4.4 | "The board replays its key moments" (PRD section 6.6). |
 | Later | CJK and Thai count as one word, so every cue would fire at word 0. PRD Q12 says English first, so this waits. |
 
-**Safety.** The parser checks shape and not meaning, and free text can hold anything that is printable. So M3.3 to M3.5 render text as text and never as HTML, call KaTeX with `trust: false`, and keep names in Maps. The parser refuses `__proto__`, `constructor`, names no reference can reach, control characters, bidi overrides, and `\href`, `\url`, `\includegraphics`, and `\html` commands in `tex`. So a model that writes `"\frac{1}{2}"`, which JSON turns into a form feed, gets a refusal and not a wrong equation. Huge `\rule` values and macro bombs stay M3.3's. The agent strips bidi characters from student text before it stores it.
+**Safety.** The parser checks shape and not meaning, and free text can hold anything that is printable. So M3.3 to M3.5 render text as text and never as HTML, call KaTeX with `trust: false`, and keep names in Maps. The parser refuses `__proto__`, `constructor`, names no reference can reach, control characters, bidi overrides, and every TeX command outside a named list. That list has no macro definitions, sizes, colors, links, or images, so `\def`, `\rule`, `\textcolor`, and `\href` never reach KaTeX. KaTeX then runs with `maxExpand` and `maxSize` as a second wall, and math it still refuses leaves the last good equation on the board. So a model that writes `"\frac{1}{2}"`, which JSON turns into a form feed, gets a refusal and not a wrong equation. `docs/tests/math-board.md` records the hostile run. The agent strips bidi characters from student text before it stores it.
 
 **How other code loads it.** `apps/agent` runs plain Node 22.18 or newer, which strips types with no loader, and in a verifier's run 22.17.1 failed. The repo's `engines` floor of 22.22, from main, covers that. A `pnpm deploy` copy cannot load the package, because Node will not strip types under `node_modules`, so M3.6 deploys from the workspace or bundles with esbuild. When the NestJS API imports the parser, it adds the workspace dependency, `rewriteRelativeImportExtensions`, and the Jest line `moduleNameMapper: {"^(\\.{1,2}/.*)\\.js$": "$1"}`. A verifier ran that, and `nest build` passed and Jest gave 233 of 233.
 

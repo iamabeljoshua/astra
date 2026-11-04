@@ -105,6 +105,16 @@ export function getPaintsOfSpans(tex: string, spans: readonly TexSpan[], visible
   });
 }
 
+/** The fonts this ink needs that have not arrived. Drawing before they do would show wrong glyphs at wrong widths. */
+export function getMissingFonts(paints: readonly MathPaintElement[]): string[] {
+  const fonts = new Set(paints.flatMap(({ element, glyph }) => {
+    if (glyph === null) return [];
+    const { fontStyle, fontWeight, fontFamily } = getComputedStyle(element);
+    return [`${fontStyle} ${fontWeight} 16px ${fontFamily}`];
+  }));
+  return [...fonts].filter((font) => !document.fonts.check(font));
+}
+
 const MATH_FONTS = ['16px KaTeX_Main', 'italic 16px KaTeX_Math', 'bold 16px KaTeX_Main', 'italic 16px KaTeX_Main', '16px KaTeX_Size1', '16px KaTeX_Size2', '16px KaTeX_Size3', '16px KaTeX_Size4', '16px KaTeX_AMS'];
 
 /** Fetches the fonts common math needs, so a first equation does not wait on them. */

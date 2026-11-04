@@ -61,7 +61,7 @@ describe('a flight', () => {
   });
 
   it('lifts clear halfway when it crosses other terms, and stays level when it does not', () => {
-    expect(getFlightTransform(ends, 0.5)).toBe(`translate(50.00px, ${(-FONT * 1.1).toFixed(2)}px) scale(1.0000)`);
+    expect(getFlightTransform(ends, 0.5)).toBe(`translate(50.00px, ${(-FONT * 0.8).toFixed(2)}px) scale(1.0000)`);
     expect(getFlightTransform({ ...ends, isCrossing: false }, 0.5)).toBe('translate(50.00px, 0.00px) scale(1.0000)');
   });
 
