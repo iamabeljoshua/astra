@@ -1,7 +1,7 @@
-import { type AgentMessage, type BrowserMessage, parseSessionEvent, type SceneCommand, type SessionEvent } from '@astra/contracts';
+import { type AgentMessage, type BrowserMessage, parseBrowserMessage, parseSessionEvent, type SceneCommand, type SessionEvent } from '@astra/contracts';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { createTimerClock, TURN_SILENCE_MS } from '../src/player/audio-clock.ts';
+import { createChoosingClock, createTimerClock, TURN_SILENCE_MS } from '../src/player/audio-clock.ts';
 import { type BoardElement, describeBoard, getSceneFrame } from '../src/player/board-state.ts';
 import { createProjectileScene } from '../src/player/projectile-scene.ts';
 import { rebuildBoard } from '../src/player/rebuild-board.ts';
@@ -495,5 +495,75 @@ describe('a scene', () => {
     expect(frame && 'simulationSeconds' in frame && frame.simulationSeconds).toBeCloseTo(0.1, 1);
     const board = audio.player.getBoard(audio.getNowMs() + 5000);
     expect(describeBoard(board, audio.getNowMs() + 5000).elements[0]?.sceneSeconds).toBeCloseTo(0.1, 1);
+  });
+});
+
+describe('holes in word times', () => {
+  it('reports a cut beat the parser accepts when a word time never arrived', () => {
+    const audio = createFakeAudio();
+    audio.receive(started, words(0, [{ text: 'One', startMs: 0 }]), words(2, [{ text: 'three', startMs: 400 }]), beatClosed(3));
+    audio.startSound();
+    audio.advance(100);
+    audio.receive(stop);
+    const report = played(audio)[0];
+    expect(report?.wordStartsMs).toEqual([0, 0, 400]);
+    expect(parseBrowserMessage(JSON.parse(JSON.stringify(report))).ok).toBe(true);
+  });
+
+  it('counts from the first known word when the first word time never arrived', () => {
+    const audio = createFakeAudio();
+    audio.receive(started, words(1, [{ text: 'two', startMs: 300 }, { text: 'three', startMs: 500 }]), beatClosed(3));
+    audio.startSound();
+    audio.advance(100);
+    audio.receive(stop);
+    expect(played(audio)[0]?.wordStartsMs).toEqual([0, 0, 200]);
+  });
+});
+
+describe('the clock on a page where audio starts late', () => {
+  const makeChoosing = () => {
+    let wallMs = 5000;
+    let graphMs = 0;
+    let isRunning = false;
+    const clock = createChoosingClock({ getIsAudioRunning: () => isRunning, getGraphTimeMs: () => graphMs, getOutputLatencyMs: () => 0, getWallMs: () => wallMs });
+    return {
+      clock,
+      advance(ms: number) {
+        wallMs += ms;
+        if (isRunning) graphMs += ms;
+      },
+      startAudio() {
+        isRunning = true;
+      },
+    };
+  };
+
+  it('uses a timer while audio is blocked, and counts samples from the next turn once audio runs', () => {
+    const { clock, advance, startAudio } = makeChoosing();
+    const blocked = clock.startTurn();
+    blocked.noteWordTimes(0, 0);
+    advance(100);
+    expect(blocked.read()?.isGateOpen).toBe(true);
+    startAudio();
+    advance(100);
+    const counted = clock.startTurn();
+    counted.noteWordTimes(0, 0);
+    expect(counted.read()).toBeNull();
+    clock.onProbeEvent({ kind: 'onset', atMs: 100 });
+    clock.onProbeEvent({ kind: 'sound', atMs: 100 });
+    advance(50);
+    expect(counted.read()?.positionMs).toBe(50);
+    expect(clock.getKind()).toBe('samples');
+  });
+
+  it('never moves time back when audio starts, so a report cannot land before the one before it', () => {
+    const { clock, advance, startAudio } = makeChoosing();
+    advance(3000);
+    const beforeMs = clock.getNowMs();
+    startAudio();
+    advance(10);
+    expect(clock.getNowMs()).toBe(beforeMs);
+    advance(10);
+    expect(clock.getNowMs()).toBe(beforeMs + 10);
   });
 });

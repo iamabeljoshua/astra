@@ -1,6 +1,6 @@
 import { BEAT_LIMITS } from './beat.ts';
 import { readBeatId, readTurnId } from './ids.ts';
-import { type AgentMessage, type BrowserMessage, type BrowserStamp, LIVE_MESSAGE_MAX_BYTES, type TimedWord } from './live-message.ts';
+import { type AgentMessage, type BrowserMessage, type BrowserStamp, LIVE_MESSAGE_MAX_BYTES, STUDENT_WORDS_MAX_CHARACTERS, type TimedWord, TYPED_TEXT_MAX_CHARACTERS } from './live-message.ts';
 import { readSceneCommand } from './parse-command.ts';
 import { PLAY_REPORT_KEYS, readFrozenFrames, readPlayReport, readStudentAction } from './parse-event.ts';
 import {
@@ -86,13 +86,21 @@ const AGENT_MESSAGES: VariantTable<AgentMessage, 'type'> = {
         ...fields.optional('ms', readAudioGapMs),
       }),
     },
+    studentWords: {
+      keys: ['text', 'isFinal'],
+      read: (fields) => ({ type: 'studentWords', text: readString(fields.at('text'), STUDENT_WORDS_MAX_CHARACTERS), isFinal: readBoolean(fields.at('isFinal')) }),
+    },
+    heard: { keys: [], read: () => ({ type: 'heard' }) },
+    pulse: { keys: [], read: () => ({ type: 'pulse' }) },
   },
 };
 
-const STAMP_KEYS = ['browserMs', 'startedMsAgo'];
+const CLOCK_ID_MAX_CHARACTERS = 64;
+
+const STAMP_KEYS = ['clockId', 'browserMs', 'startedMsAgo'];
 
 function readBrowserStamp(fields: CheckedFields): BrowserStamp {
-  return { browserMs: readWholeNumber(fields.at('browserMs')), startedMsAgo: readWholeNumber(fields.at('startedMsAgo')) };
+  return { clockId: readString(fields.at('clockId'), CLOCK_ID_MAX_CHARACTERS), browserMs: readWholeNumber(fields.at('browserMs')), startedMsAgo: readWholeNumber(fields.at('startedMsAgo')) };
 }
 
 const BROWSER_MESSAGES: VariantTable<BrowserMessage, 'type'> = {
@@ -129,6 +137,18 @@ const BROWSER_MESSAGES: VariantTable<BrowserMessage, 'type'> = {
         beatId: readBeatId(fields.at('beatId')),
         ...readBrowserStamp(fields),
       }),
+    },
+    typed: {
+      keys: [...STAMP_KEYS, 'text'],
+      read: (fields) => ({ type: 'typed', ...readBrowserStamp(fields), text: readString(fields.at('text'), TYPED_TEXT_MAX_CHARACTERS) }),
+    },
+    pulse: {
+      keys: [...STAMP_KEYS, 'hearsAgent'],
+      read: (fields) => ({ type: 'pulse', ...readBrowserStamp(fields), hearsAgent: readBoolean(fields.at('hearsAgent')) }),
+    },
+    audioState: {
+      keys: [...STAMP_KEYS, 'isRunning'],
+      read: (fields) => ({ type: 'audioState', ...readBrowserStamp(fields), isRunning: readBoolean(fields.at('isRunning')) }),
     },
   },
 };
