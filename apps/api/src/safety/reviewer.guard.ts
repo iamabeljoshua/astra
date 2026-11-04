@@ -16,7 +16,7 @@ function getReviewerIds(env: NodeJS.ProcessEnv): string[] {
 export class ReviewerGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<ReviewerRequest>();
-    if (!request.authUserId || !getReviewerIds(process.env).includes(request.authUserId)) {
+    if (request.isAddressClosed || !request.authUserId || !getReviewerIds(process.env).includes(request.authUserId)) {
       throw new NotFoundException(`Cannot ${request.method} ${request.originalUrl}`);
     }
     return true;

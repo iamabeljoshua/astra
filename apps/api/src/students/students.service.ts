@@ -1,12 +1,18 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { isOldEnough } from '../auth/age-gate';
+import type { SignIn } from '../auth/route-access';
 import type { StudentProfileEntity } from '../infrastructure/orm/entities/student-profile.entity';
 import { StudentRepository } from '../infrastructure/orm/repositories/student.repository';
 import type { StudentAccount } from '../infrastructure/orm/repositories/student.repository';
+import { AuthAccountEraser } from './auth-account-eraser';
+import { getAddressHash } from './closed-address-hash';
+import { getSceneStorePaths, removeStudentSceneFiles } from './student-scene-files';
 import { STUDENT_INTERESTS } from './student-profile-options';
 import type { StudentInterest } from './student-profile-options';
 import type { SaveStudentProfileBodyDto, StudentProfileResponseDto } from './student-profile.dto';
-import type { AccountResponseDto, AnswerBirthDateBodyDto } from './student.dto';
+import type { AccountResponseDto, AnswerBirthDateBodyDto, DeletedAccountResponseDto } from './student.dto';
+
+const CLOSED_ACCOUNT: AccountResponseDto = { status: 'closed', student: null };
 
 export function isStudentInterest(interest: string): interest is StudentInterest {
   return (STUDENT_INTERESTS as readonly string[]).includes(interest);
@@ -36,15 +42,62 @@ function toAccountResponse(account: StudentAccount): AccountResponseDto {
 
 @Injectable()
 export class StudentsService {
-  constructor(private readonly students: StudentRepository) {}
+  private readonly logger = new Logger(StudentsService.name);
 
-  async getAccount(authUserId: string): Promise<AccountResponseDto> {
-    return toAccountResponse(await this.students.findAccount(authUserId));
+  constructor(
+    private readonly students: StudentRepository,
+    private readonly authAccounts: AuthAccountEraser,
+  ) {}
+
+  async getAccount(signIn: SignIn): Promise<AccountResponseDto> {
+    if (signIn.isAddressClosed) return this.refuseClosedAddress(signIn);
+    const account = await this.students.findAccount(signIn.authUserId);
+    if (account.status === 'closed') await this.finishClosing(signIn);
+    return toAccountResponse(account);
   }
 
-  async answerBirthDate(authUserId: string, { birthDate, name }: AnswerBirthDateBodyDto): Promise<AccountResponseDto> {
-    const answer = { birthDate, isOldEnough: isOldEnough(birthDate, new Date()), name: name ?? null };
-    return toAccountResponse(await this.students.saveBirthDateAnswer(authUserId, answer));
+  async answerBirthDate(signIn: SignIn, { birthDate, name }: AnswerBirthDateBodyDto): Promise<AccountResponseDto> {
+    if (signIn.isAddressClosed) return this.refuseClosedAddress(signIn);
+    const answer = {
+      birthDate,
+      isOldEnough: isOldEnough(birthDate, new Date()),
+      name: name ?? null,
+      addressHash: signIn.email && getAddressHash(signIn.email),
+    };
+    const account = await this.students.saveBirthDateAnswer(signIn.authUserId, answer);
+    if (account.status === 'closed') await this.finishClosing(signIn);
+    return toAccountResponse(account);
+  }
+
+  // A later step that fails leaves what it needs, so the student can press delete again.
+  async deleteAccount({ authUserId, email }: SignIn): Promise<DeletedAccountResponseDto> {
+    const studentId = await this.students.findStudentIdOfUser(authUserId);
+    if (studentId) {
+      await removeStudentSceneFiles({ ...getSceneStorePaths(process.env), studentId });
+      await this.students.deleteStudent({ studentId, authUserId });
+    }
+    await this.authAccounts.erase({ authUserId, email });
+    return { deleted: true };
+  }
+
+  isAddressClosed(email: string | null): Promise<boolean> {
+    return email ? this.students.isAddressClosed(getAddressHash(email)) : Promise.resolve(false);
+  }
+
+  // A new sign-up on a closed address is erased again. A student who changed their email to one is refused and keeps their data.
+  private async refuseClosedAddress(signIn: SignIn): Promise<AccountResponseDto> {
+    if (!(await this.students.hasStudent(signIn.authUserId))) await this.finishClosing(signIn);
+    return CLOSED_ACCOUNT;
+  }
+
+  // The close already stands, so a failure here only logs, and the next request from this account tries again.
+  private async finishClosing({ authUserId, email }: SignIn): Promise<void> {
+    try {
+      const isErased = await this.authAccounts.erase({ authUserId, email });
+      if (isErased && email) await this.students.forgetClosedAccount(authUserId);
+    } catch (thrown) {
+      this.logger.error(`Could not erase a closed account from Auth: ${thrown instanceof Error ? thrown.message : 'unknown error'}`);
+    }
   }
 
   findStudentId(authUserId: string): Promise<string | null> {

@@ -5,6 +5,7 @@ import { StudentsService } from '../students/students.service';
 import { DEFAULT_ROUTE_ACCESS, ROUTE_ACCESS_KEY } from './route-access';
 import type { RouteAccess, SignedInRequest } from './route-access';
 import { describeRefusal, isRefusedToken, TokenVerifier } from './token-verifier';
+import type { SignedInUser } from './token-verifier';
 
 const BEARER_TOKEN = /^Bearer (\S+)$/i;
 const NO_STORE = 'no-store';
@@ -30,10 +31,14 @@ export class AuthGuard implements CanActivate {
     const http = context.switchToHttp();
     http.getResponse<StudentResponse>().setHeader('Cache-Control', NO_STORE);
     const request = http.getRequest<SignedInRequest>();
-    request.authUserId = await this.readAuthUserId(request);
+    const { authUserId, email } = await this.readSignedInUser(request);
+    request.authUserId = authUserId;
+    request.authEmail = email;
+    request.isAddressClosed = await this.studentsService.isAddressClosed(email);
     if (routeAccess === 'signedIn') return true;
 
-    request.studentId = await this.readStudentId(request.authUserId);
+    if (request.isAddressClosed) throw new ForbiddenException();
+    request.studentId = await this.readStudentId(authUserId);
     return true;
   }
 
@@ -45,11 +50,11 @@ export class AuthGuard implements CanActivate {
     return routeAccess ?? DEFAULT_ROUTE_ACCESS;
   }
 
-  private async readAuthUserId(request: SignedInRequest): Promise<string> {
+  private async readSignedInUser(request: SignedInRequest): Promise<SignedInUser> {
     const token = BEARER_TOKEN.exec(request.headers.authorization ?? '')?.[1];
     if (!token) throw new UnauthorizedException();
     try {
-      return await this.tokenVerifier.getAuthUserId(token);
+      return await this.tokenVerifier.getSignedInUser(token);
     } catch (thrown) {
       if (isRefusedToken(thrown)) {
         this.logger.warn(`Refused a token: ${describeRefusal(thrown)}`);

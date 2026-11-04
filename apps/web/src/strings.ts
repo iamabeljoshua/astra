@@ -594,3 +594,13 @@ export const REVIEW_LABELS = {
   waitingInTime: (waitedHours: number, leftHours: number) => `Waiting ${waitedHours} h. ${leftHours} h left of the 24 hour promise.`,
   waitingTooLong: (waitedHours: number, overHours: number) => `Waiting ${waitedHours} h. ${overHours} h past the 24 hour promise.`,
 };
+
+export const DELETE_DATA_LABELS = {
+  title: 'Delete my data',
+  about: 'This removes your account, your notes, your sessions, and your saved lessons.',
+  confirm: 'This cannot be undone. Your account, your notes, your sessions, and your saved lessons all go, and you will be signed out.',
+  yes: 'Delete everything',
+  no: 'Keep my data',
+  deleting: 'Deleting.',
+  failed: 'That did not finish. Try again.',
+};

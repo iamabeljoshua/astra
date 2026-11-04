@@ -38,3 +38,8 @@ export class AccountResponseDto {
   /** The student, or null unless the status is active. */
   student!: StudentResponseDto | null;
 }
+
+export class DeletedAccountResponseDto {
+  /** Always true. Anything less answers with an error, and pressing delete again finishes the job. */
+  deleted!: true;
+}

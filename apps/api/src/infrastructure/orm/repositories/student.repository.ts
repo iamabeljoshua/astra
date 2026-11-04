@@ -3,6 +3,8 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import type { EntityManager, Repository } from 'typeorm';
 import { ClosedAccountEntity } from '../entities/closed-account.entity';
+import { ClosedAddressHashEntity } from '../entities/closed-address-hash.entity';
+import { SafetyFlagEntity } from '../entities/safety-flag.entity';
 import { StudentProfileEntity } from '../entities/student-profile.entity';
 import { StudentEntity } from '../entities/student.entity';
 
@@ -17,6 +19,7 @@ interface BirthDateAnswer {
   birthDate: string;
   isOldEnough: boolean;
   name: string | null;
+  addressHash: string | null;
 }
 
 type ProfileFields = Pick<StudentProfileEntity, 'level' | 'goal'> & {
@@ -30,6 +33,11 @@ async function readAccount(manager: EntityManager, authUserId: string): Promise<
   if (!student) return { status: 'needs_birth_date' };
   const profile = await manager.findOneBy(StudentProfileEntity, { studentId: student.id });
   return { status: 'active', student, profile };
+}
+
+async function closeAccount(manager: EntityManager, authUserId: string, addressHash: string | null): Promise<void> {
+  await manager.insert(ClosedAccountEntity, { authUserId });
+  if (addressHash) await manager.upsert(ClosedAddressHashEntity, { addressHash }, ['addressHash']);
 }
 
 @Injectable()
@@ -47,15 +55,41 @@ export class StudentRepository {
   }
 
   // Two tabs can answer at once, so the lock makes the first answer stand and a closed account stay closed.
-  saveBirthDateAnswer(authUserId: string, { birthDate, isOldEnough, name }: BirthDateAnswer): Promise<StudentAccount> {
+  saveBirthDateAnswer(authUserId: string, { birthDate, isOldEnough, name, addressHash }: BirthDateAnswer): Promise<StudentAccount> {
     return this.dataSource.transaction(async (manager) => {
       await manager.query(HOLD_ACCOUNT_UNTIL_COMMIT, [authUserId]);
       const account = await readAccount(manager, authUserId);
       if (account.status !== 'needs_birth_date') return account;
 
       if (isOldEnough) await manager.insert(StudentEntity, { authUserId, birthDate, name });
-      else await manager.insert(ClosedAccountEntity, { authUserId });
+      else await closeAccount(manager, authUserId, addressHash);
       return readAccount(manager, authUserId);
+    });
+  }
+
+  isAddressClosed(addressHash: string): Promise<boolean> {
+    return this.dataSource.manager.existsBy(ClosedAddressHashEntity, { addressHash });
+  }
+
+  // Once Auth has no trace of the account, the hash alone keeps the address out.
+  async forgetClosedAccount(authUserId: string): Promise<void> {
+    await this.dataSource.manager.delete(ClosedAccountEntity, { authUserId });
+  }
+
+  hasStudent(authUserId: string): Promise<boolean> {
+    return this.students.existsBy({ authUserId });
+  }
+
+  async findStudentIdOfUser(authUserId: string): Promise<string | null> {
+    const student = await this.students.findOne({ where: { authUserId }, select: { id: true } });
+    return student?.id ?? null;
+  }
+
+  // Every table with a student_id cascades from students, and delete-student.spec.ts fails on one that does not.
+  deleteStudent({ studentId, authUserId }: { studentId: string; authUserId: string }): Promise<void> {
+    return this.dataSource.transaction(async (manager) => {
+      await manager.update(SafetyFlagEntity, { reviewedBy: authUserId }, { reviewedBy: null });
+      await manager.delete(StudentEntity, { id: studentId });
     });
   }
 

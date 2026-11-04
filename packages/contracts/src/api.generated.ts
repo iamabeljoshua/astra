@@ -29,7 +29,8 @@ export interface paths {
         get: operations["StudentsController_getAccount"];
         put?: never;
         post?: never;
-        delete?: never;
+        /** Deletes everything the app holds for the signed-in student, including their sign-in. Pressing it again after a failure finishes the job. */
+        delete: operations["StudentsController_deleteAccount"];
         options?: never;
         head?: never;
         patch?: never;
@@ -248,6 +249,10 @@ export interface components {
             status: "needs_birth_date" | "active" | "closed";
             /** @description The student, or null unless the status is active. */
             student: components["schemas"]["StudentResponseDto"] | null;
+        };
+        DeletedAccountResponseDto: {
+            /** @description Always true. Anything less answers with an error, and pressing delete again finishes the job. */
+            deleted: boolean;
         };
         AnswerBirthDateBodyDto: {
             /** @description The student's date of birth, written as YYYY-MM-DD. */
@@ -469,6 +474,25 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AccountResponseDto"];
+                };
+            };
+        };
+    };
+    StudentsController_deleteAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletedAccountResponseDto"];
                 };
             };
         };

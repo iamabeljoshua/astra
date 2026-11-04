@@ -20,7 +20,7 @@ import type { TestApp, TestStudent } from '../../test/test-database';
 import { getAcceptedSignInMethods, isRefusedToken, TokenVerifier } from './token-verifier';
 
 const PUBLIC_ROUTES: readonly string[] = ['get /health'];
-const SIGNED_IN_ROUTES: readonly string[] = ['get /me', 'post /me/birth-date', 'get /review/flags', 'post /review/flags/:id/reviewed'];
+const SIGNED_IN_ROUTES: readonly string[] = ['get /me', 'post /me/birth-date', 'delete /me', 'get /review/flags', 'post /review/flags/:id/reviewed'];
 const AGENT_KEY_ROUTES: readonly string[] = ['get /agent/sessions/:id/brief', 'post /agent/sessions/:id/spend', 'post /agent/sessions/:id/flags'];
 const CLOSED_PORT_URL = 'http://127.0.0.1:1';
 const VALID_SESSION = { title: 'Free-body diagrams', subject: 'Physics', language: 'en' };
@@ -182,7 +182,7 @@ describe('the API guard', () => {
       testApp.supabaseAuth.keys.push(rsaKey);
       const token = await testApp.supabaseAuth.signToken(student.authUserId, { key: rsaKey });
 
-      await expect(verifierFor(testApp.supabaseAuth.url).getAuthUserId(token)).resolves.toBe(student.authUserId);
+      await expect(verifierFor(testApp.supabaseAuth.url).getSignedInUser(token)).resolves.toMatchObject({ authUserId: student.authUserId });
     });
   });
 
@@ -415,7 +415,7 @@ describe('the API guard', () => {
       const key = await createSigningKey();
       const token = await signWithKey(key, { sub: randomUUID() });
 
-      const rejection = await verifier.getAuthUserId(token).then(() => null, (error: unknown) => error);
+      const rejection = await verifier.getSignedInUser(token).then(() => null, (error: unknown) => error);
 
       expect(rejection).toBeInstanceOf(Error);
       expect(isRefusedToken(rejection)).toBe(false);
@@ -451,21 +451,21 @@ describe('the API guard', () => {
 
       try {
         moveClock(0);
-        await expect(verifier.getAuthUserId(firstToken)).resolves.toBe(authUserId);
+        await expect(verifier.getSignedInUser(firstToken)).resolves.toMatchObject({ authUserId });
         expect(fetches).toBe(1);
 
         servedKeys.push(newKey);
         moveClock(JWKS_COOLDOWN_MS);
-        await expect(verifier.getAuthUserId(await signWithKey(newKey, claims))).resolves.toBe(authUserId);
+        await expect(verifier.getSignedInUser(await signWithKey(newKey, claims))).resolves.toMatchObject({ authUserId });
         expect(fetches).toBe(2);
 
         isDown = true;
         moveClock(JWKS_COOLDOWN_MS + 59 * ONE_MINUTE_MS);
-        await expect(verifier.getAuthUserId(firstToken)).resolves.toBe(authUserId);
+        await expect(verifier.getSignedInUser(firstToken)).resolves.toMatchObject({ authUserId });
         expect(fetches).toBe(2);
 
         moveClock(JWKS_COOLDOWN_MS + 61 * ONE_MINUTE_MS);
-        const rejection = await verifier.getAuthUserId(firstToken).then(() => null, (error: unknown) => error);
+        const rejection = await verifier.getSignedInUser(firstToken).then(() => null, (error: unknown) => error);
         expect(rejection).toBeInstanceOf(Error);
         expect(isRefusedToken(rejection)).toBe(false);
         expect(fetches).toBe(3);
