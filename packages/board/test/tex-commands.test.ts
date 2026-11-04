@@ -3,6 +3,11 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import katex from 'katex';
 import { buildTexTree, canRenderTex, KATEX_OPTIONS } from '../src/math/tex-check.ts';
 
+// With no call left to build a tree, everything is refused, so a refusal proves nothing until this passes.
+beforeEach(() => {
+  expect(buildTexTree('x')?.children?.length, 'the KaTeX call the tree limit measures is gone').toBeGreaterThan(0);
+});
+
 const NEEDS_ITS_OWN_SHAPE: Readonly<Record<string, string>> = {
   '\\left': String.raw`\left( x \right)`,
   '\\right': String.raw`\left( x \right)`,
@@ -37,11 +42,6 @@ describe('the commands the scene language lets through', () => {
 });
 
 describe('canRenderTex', () => {
-  // With no call left to build a tree, everything is refused, so a refusal proves nothing until this passes.
-  beforeEach(() => {
-    expect(buildTexTree('x')?.children?.length, 'the KaTeX call the tree limit measures is gone').toBeGreaterThan(0);
-  });
-
   it('refuses a tree too deep to lay out, with no DOM to measure it on', () => {
     expect(canRenderTex(`x${'\u0301'.repeat(200)}`)).toBe(false);
   });
