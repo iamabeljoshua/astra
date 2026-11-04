@@ -4,6 +4,7 @@ import { ChatBox } from '../home/ChatBox';
 import { findArtwork, type Artwork } from '../home/artwork';
 import { API_ERROR_LABELS, MENU_LABELS, PRODUCT_NAME, REPLY_BOX_LABELS, SESSION_LABELS, SESSIONS_LABELS, VOICE_LABELS } from '../strings';
 import { ThemeToggle } from '../theme/ThemeToggle';
+import { type FilesComingSoon, useFilesComingSoon } from '../ui/useFilesComingSoon';
 import { formatSessionLength } from './formatSession';
 import { type Session, useSession } from './sessionQueries';
 import { useSessionRun } from './useSessionRun';
@@ -112,6 +113,7 @@ function RunningSession({ session }: { session: Session }) {
   }, []);
   useOpeningMessage(session, liveVoice.sendTyped);
   const isConnecting = isTutorOnTheWay(status, view);
+  const filesComingSoon = useFilesComingSoon();
 
   const picture = <Board artwork={findArtwork(session.artwork)} note={SESSION_LABELS.boardStandIn} />;
   return (
@@ -130,10 +132,10 @@ function RunningSession({ session }: { session: Session }) {
           ) : (
             <div className="flex flex-1 flex-col justify-end font-voice text-voice">{isConnecting && <p role="status">{VOICE_LABELS.connecting}</p>}</div>
           )}
-          <ReplyBox liveVoice={liveVoice} isConnecting={isConnecting} carryOnLine={SESSION_LABELS.carryOnWith(session.title)} />
+          <ReplyBox liveVoice={liveVoice} isConnecting={isConnecting} carryOnLine={SESSION_LABELS.carryOnWith(session.title)} filesComingSoon={filesComingSoon} />
         </div>
         <ConnectingSaturn isConnecting={isConnecting} />
-        {voice ? <LiveBoard voice={voice} isConnecting={isConnecting} onTutorState={showTutorState} visual={getSessionVisual(findArtwork(session.artwork))} onTalk={() => void liveVoice.toggleTalk()} isTalkOn={view?.mic === 'on'} canTalk={!view?.closedBecause} /> : <div className="board-panel">{picture}</div>}
+        {voice ? <LiveBoard voice={voice} isConnecting={isConnecting} onTutorState={showTutorState} visual={getSessionVisual(findArtwork(session.artwork))} onTalk={() => void liveVoice.toggleTalk()} isTalkOn={view?.mic === 'on'} canTalk={!view?.closedBecause} filesComingSoon={isConnecting ? undefined : filesComingSoon} /> : <div className="board-panel">{picture}</div>}
       </div>
     </SessionFrame>
   );
@@ -282,7 +284,15 @@ function getVoiceNote({ status, waitSeconds, view }: LiveVoiceControls, isAnswer
   return isAnswerDue ? VOICE_LABELS.answerPrompt : null;
 }
 
-function ReplyBox({ liveVoice, isConnecting, carryOnLine }: { liveVoice: LiveVoiceControls; isConnecting: boolean; carryOnLine: string }) {
+interface ReplyBoxProps {
+  liveVoice: LiveVoiceControls;
+  isConnecting: boolean;
+  carryOnLine: string;
+  filesComingSoon: FilesComingSoon;
+}
+
+// The board's tools sit behind the connecting picture, so until the tutor arrives a file's note opens this box and shows here.
+function ReplyBox({ liveVoice, isConnecting, carryOnLine, filesComingSoon }: ReplyBoxProps) {
   const { status, view, voice, isTalkOn, sendTyped, toggleTalk, openAgain } = liveVoice;
   const isFinished = status === 'finished';
   const isOver = isFinished || status === 'tooSoon' || (view !== null && isVoiceOver(view.phase));
@@ -292,7 +302,7 @@ function ReplyBox({ liveVoice, isConnecting, carryOnLine }: { liveVoice: LiveVoi
   const [draftEdits, setDraftEdits] = useState(0);
   const [hasDraft, setHasDraft] = useState(false);
   const isBackWhileConnecting = useHasWaited(isConnecting, REPLY_BOX_BACK_AFTER_MS);
-  const isBoxOpen = (!voice && status !== 'connecting') || isBackWhileConnecting || hasDraft;
+  const isBoxOpen = (!voice && status !== 'connecting') || isBackWhileConnecting || hasDraft || (isConnecting && filesComingSoon.noteKey !== null);
   if (reply && view?.hasTutorStarted && (!reply.didFail || (!isOver && !view.closedBecause))) setReply(null);
   if (reply && !reply.didFail && !view?.hasTutorStarted && isOver) setReply({ ...reply, didFail: true });
   const voiceNote = getVoiceNote(liveVoice, useIsAnswerDue(view, draftEdits + (view?.typingNoteCount ?? 0)));
@@ -338,7 +348,7 @@ function ReplyBox({ liveVoice, isConnecting, carryOnLine }: { liveVoice: LiveVoi
         <div className={isBackWhileConnecting ? 'animate-arrive' : undefined}>
           <ChatBox
             labels={REPLY_BOX_LABELS}
-            canAttach={false}
+            filesComingSoon={!voice || isConnecting ? filesComingSoon : undefined}
             clearsOnSend
             isSending={isOver}
             takesFocus={isBackWhileConnecting}

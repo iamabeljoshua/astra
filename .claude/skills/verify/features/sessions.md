@@ -8,6 +8,7 @@ A student starts a session by sending a question or choosing a card, and the ses
 - `session-card` starts a session on a card's topic straight away, with the card's picture on the board, and stores the topic.
 - `session-continue` opens the unfinished session from the continue card on Home, or from a card that says `Carry on where you left off`.
 - `session-screen` shows the board, the tutor's dot, the title, a clock, and a reply box. It joins the session's room as it opens, with no press, and says `Connecting to your tutor.` until the tutor speaks. [Live voice](./voice.md) covers that.
+- `session-coming-soon` shows the one `Photo or PDF` control on the screen: in the reply box while there is no room or the tutor is on the way, and in the board's tools once the tutor has arrived. A file dropped or pasted while the tutor is on the way opens the reply box with the note. Escape closes the note first, so it does not stop the tutor.
 - `session-returning` opens a running session with some length saved. It joins the room and sends `I'm back to carry on with this: <title>`, so the tutor speaks first there too.
 - `session-no-room` is the app with no LiveKit keys. The room route answers 200, the screen says `Your tutor could not connect just now.`, a reply stays on the screen with `This did not reach your tutor.`, and the browser logs no error.
 - `session-daily-limit` is a student whose tutor spend today has reached `ASTRA_DAILY_LIMIT_USD`. The room route answers 200 with no access, and the screen says `That is all your tutor time for today. Come back tomorrow. Your sessions are kept.`
@@ -37,6 +38,7 @@ Preconditions:
 - `pnpm verify doctor` passes.
 
 - **Send a question, end the session, start from a card, refresh, search, then reply on a session the student came back to.** Run `pnpm verify run --journey sessions`. The `journey`, `identity`, `screenshot`, and `main region` checks print `PASS` for `laptop` and `phone`, and the command exits 0.
+- **Try to add a file on the board, for no credits.** Start `livekit-server` on free ports with the pair `devkey` and `secret`, start `node src/live/worker.ts start` in `apps/agent` with `ASTRA_TUTOR_MODEL=recorded`, `ASTRA_VOICE=fake`, and any `META_API_KEY`, and give `pnpm verify start` the same `LIVEKIT_*` values. Then run `pnpm verify drive --journey coming-soon` with those values set.
 - **Proof.** After a run that printed `PASSED`, open these images in `.verify/evidence/`, for each viewport. `sessions-laptop-dot.png` shows the dot at the end of the typed line. `sessions-laptop-session.png` shows the session screen. `sessions-laptop-list.png` shows the new session first and finished. `sessions-laptop-card-session.png` shows the card's drawing after a refresh. `sessions-laptop-search.png` shows only what the search found. `sessions-laptop-returning.png` shows the invitation. `sessions-laptop-reply.png` shows the reply and what became of it.
 
 ### What the journey expects of the room
