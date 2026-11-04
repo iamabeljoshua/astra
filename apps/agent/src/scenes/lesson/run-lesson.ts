@@ -88,6 +88,12 @@ export async function runLesson({ url, token, work, voice, onEvent, onClosing, t
   const device = new Promise<boolean>((resolve) => {
     settleDevice = resolve;
   });
+  let settleOver: () => void = () => {};
+  const over = new Promise<null>((resolve) => {
+    settleOver = () => resolve(null);
+  });
+  // A lesson that has ended must not hold its room open for a slow model, because a reopening page is waiting for that room to clear.
+  const untilOver = <Value>(work: Promise<Value>) => Promise.race([work, over]);
 
   const publish = (topic: string, message: object, reliable = true) => room.localParticipant?.publishData(encoder.encode(JSON.stringify(message)), { reliable, topic })?.catch(() => {});
   const messenger = {
@@ -116,6 +122,7 @@ export async function runLesson({ url, token, work, voice, onEvent, onClosing, t
     wakes.send('over');
     settleJoined(false);
     settleDevice(false);
+    settleOver();
     onClosing?.();
   };
 
@@ -299,10 +306,11 @@ export async function runLesson({ url, token, work, voice, onEvent, onClosing, t
     if (canPlay) work.desk.ask(work.request);
     else work.planWithoutScene();
     await speak([getSpokenBeat('reaction', REACTION)]);
-    const firstLine = await work.firstLine;
+    const firstLine = await untilOver(work.firstLine);
     onEvent?.('firstLine', { hasLine: firstLine !== null });
     if (firstLine) await speakLine('line-0', firstLine);
-    const plan = await work.plan;
+    const plan = await untilOver(work.plan);
+    if (isOver) return;
     onEvent?.('planned', { hasPlan: plan !== null });
     await (plan ? teach(plan) : speakLast(getSpokenBeat('no-lesson', NO_LESSON_LINE)));
   };

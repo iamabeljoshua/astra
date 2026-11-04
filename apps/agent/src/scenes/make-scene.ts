@@ -16,6 +16,7 @@ const MOST_TROUBLED_TRIES = 3;
 const WAIT_AFTER_TROUBLE_MS = 5 * 60_000;
 const FORGET_TROUBLE_MS = 24 * 60 * 60_000;
 const CHECK_SCENE_ELEMENT = 'scene' as RichScene['id'];
+const THEMED_SOURCE = /scene-(light|dark)\.py/g;
 
 export interface SceneMaker {
   writers: readonly SceneWriter[];
@@ -67,7 +68,8 @@ function getRenderProblems(render: RenderResult, plan: LessonPlan, brief: SceneB
   const unseen = getUnseenThemes(render);
   if (unseen.length > 0) warn(`::warning title=Scene review::the review would see no ${unseen.join(' or ')} pictures, so the scene stops here`);
   const partProblems = render.takes.flatMap(({ parts }) => getSceneBeatProblems({ setup: plan.setup, narration: plan.narration, scene: getSceneCommand({ engine: 'manimgx', id: 'scene-check', moments: brief.moments, parts, durationSeconds: brief.durationSeconds }, CHECK_SCENE_ELEMENT) }));
-  return [...unseen.map((theme) => `the worker made no ${theme} pictures, so nobody can review that take`), ...new Set(partProblems), ...render.layoutProblems.map((problem) => `layout: ${problem}`)];
+  const layoutProblems = new Set(render.layoutProblems.map((problem) => `layout: ${problem.replace(THEMED_SOURCE, 'scene.py')}`));
+  return [...unseen.map((theme) => `the worker made no ${theme} pictures, so nobody can review that take`), ...new Set(partProblems), ...layoutProblems];
 }
 
 async function writeUntilClean(maker: SceneMaker, { brief, plan, values, tally, warn }: { brief: SceneBrief; plan: LessonPlan; values: Readonly<Record<string, number>>; tally: Tally; warn: (line: string) => void }): Promise<Attempt | null> {

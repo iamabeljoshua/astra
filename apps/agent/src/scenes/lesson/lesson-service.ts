@@ -59,12 +59,14 @@ function makeVoices() {
   return createLessonVoice({ root: storeRoot, voiceName: TUTOR_VOICE_NAME, makeLiveTts: () => makeTutorVoice({ apiKey: readKey('ELEVENLABS_API_KEY') }).makeTts(), ledger });
 }
 
-// The least a page needs in a stand-in lesson, which takes no microphone: this one room, the tutor's voice, and the data channel.
-const makeToken = (room: string, identity: string) => {
+const makeToken = ({ room, identity, canPublish }: { room: string; identity: string; canPublish: boolean }) => {
   const token = new AccessToken(DEV_KEY, DEV_SECRET, { identity, ttl: '10m' });
-  token.addGrant({ room, roomJoin: true, canPublish: false, canSubscribe: true, canPublishData: true, canUpdateOwnMetadata: false });
+  token.addGrant({ room, roomJoin: true, canPublish, canSubscribe: true, canPublishData: true, canUpdateOwnMetadata: false });
   return token.toJwt();
 };
+
+// The least a page needs in a stand-in lesson, which takes no microphone: this one room, the tutor's voice, and the data channel.
+const makeStudentToken = (room: string, identity: string) => makeToken({ room, identity, canPublish: false });
 
 const log = (name: string, detail: object = {}) => console.log(JSON.stringify({ at: new Date().toISOString(), name, ...detail }));
 
@@ -77,10 +79,10 @@ const runOneLesson = ({ sessionId, studentId, request, isCard, onClosing }: Less
   payingStudent.run(studentId, async () => {
     const startedAtMs = performance.now();
     const work = createLessonWork({ router: models.router, runs, store, request, isCard, studentId, getNowMs: () => performance.now(), onChange: (state, atMs) => log('scene', { sessionId, state: state.kind, afterMs: Math.round(atMs - startedAtMs), ...(state.kind === 'failed' ? { reasons: state.reasons } : {}), ...(state.kind === 'ready' ? { trace: state.scene.trace } : {}) }) });
-    await runLesson({ url: LIVEKIT_URL, token: await makeToken(`lesson-${sessionId}`, 'agent-tutor'), work, voice: voices.forStudent(studentId), onClosing, onEvent: (name, detail) => log(name, { sessionId, afterMs: Math.round(performance.now() - startedAtMs), ...detail }) });
+    await runLesson({ url: LIVEKIT_URL, token: await makeToken({ room: `lesson-${sessionId}`, identity: 'agent-tutor', canPublish: true }), work, voice: voices.forStudent(studentId), onClosing, onEvent: (name, detail) => log(name, { sessionId, afterMs: Math.round(performance.now() - startedAtMs), ...detail }) });
   });
 
-const desk = createLessonDesk({ run: runOneLesson, makeToken, ledger, getNowMs: () => Date.now(), url: LIVEKIT_URL, onFailed: (sessionId, error) => log('lessonFailed', { sessionId, error: String(error) }) });
+const desk = createLessonDesk({ run: runOneLesson, makeToken: makeStudentToken, ledger, getNowMs: () => Date.now(), url: LIVEKIT_URL, onFailed: (sessionId, error) => log('lessonFailed', { sessionId, error: String(error) }) });
 
 async function answer(body: string, response: ServerResponse): Promise<void> {
   const request = parseLessonRequest(body);

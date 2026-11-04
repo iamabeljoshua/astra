@@ -34,7 +34,7 @@ export function createTopicRuns({ planner, ...maker }: SceneMaker & { planner: L
       settleFirstLine = resolve;
     });
     const plan = getFitPlan(key, (line) => {
-      if (getLineProblems(line).length === 0) settleFirstLine(line);
+      if (getLineProblems(key.topic, line).length === 0) settleFirstLine(line);
     }).catch((error: unknown) => {
       warn(`::warning title=Lesson plan::the planner failed: ${String(error)}`);
       return null;

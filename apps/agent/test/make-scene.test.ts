@@ -67,6 +67,12 @@ describe('making a scene', () => {
     expect(store.find(getSceneKey('Slope'))).toBeNull();
   });
 
+  it('tells the writer about a layout problem once, though each theme reports it', async () => {
+    const { store, worker, reviewer } = setUp({ renders: [{ ...goodRender, layoutProblems: ['t=1s (scene-light.py:9) a line runs through the text', 't=1s (scene-dark.py:9) a line runs through the text'] } as RenderResult] });
+    const made = await makeScene({ writers: [makeWriter('only')], reviewer, worker, store }, { topic: 'Slope', plan: PLAN });
+    expect(made).toEqual({ isOk: false, reasons: ['layout: t=1s (scene.py:9) a line runs through the text'] });
+  });
+
   it('never reviews a scene with no pictures, because a reviewer would have nothing to see', async () => {
     const { store, worker, reviewer } = setUp({ renders: [{ ...goodRender, sheets: [] } as RenderResult] });
     const made = await makeScene({ writers: [makeWriter('only')], reviewer, worker, store }, { topic: 'Slope', plan: PLAN });

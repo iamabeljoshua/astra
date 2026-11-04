@@ -129,7 +129,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Sends one stored take of a checked scene. A take is shared truth with no student data, and it never changes, so the browser keeps it. */
+        /** Sends one stored take of a checked scene. A scene from a library card goes to any student. A scene from a typed question goes only to the student who asked, and any other student gets 404. A take never changes, so the browser keeps it. */
         get: operations["ScenesController_getSceneTake"];
         put?: never;
         post?: never;
@@ -148,7 +148,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Opens the stand-in lesson for the signed-in student's own session, until the live room and the tutor's brain take over. Another student's session answers 404, and a finished one 409. */
+        /** Opens the stand-in lesson for the signed-in student's own session, until the live room and the tutor's brain take over. Another student's session answers 404, a finished one 409, and a student who has opened too many lessons or spent their limit for the day 429. */
         post: operations["ScenesController_openSceneLesson"];
         delete?: never;
         options?: never;
@@ -221,7 +221,7 @@ export interface components {
             goal: "class" | "exam" | "curiosity";
         };
         CreateSessionBodyDto: {
-            /** @description What the session is about. */
+            /** @description What the session is about. When a card started this session, the API uses the title in its library and ignores this one. */
             title: string;
             /** @description The subject the session belongs to. */
             subject: string;

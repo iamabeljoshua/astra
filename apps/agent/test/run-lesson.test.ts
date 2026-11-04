@@ -1,5 +1,4 @@
 import { initializeLogger } from '@livekit/agents';
-import type { Beat } from '@astra/contracts';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { makeRenderedVoice } from '../src/providers/fakes.ts';
 import type { LessonWork } from '../src/scenes/lesson/lesson-work.ts';
@@ -203,6 +202,21 @@ describe('a student who reopens the lesson', () => {
   });
 });
 
+describe('a lesson waiting on a slow model', () => {
+  it('clears its room as soon as the student has gone, so a reopened page does not wait on it', async () => {
+    const work = makeWork();
+    Object.assign(work, { plan: new Promise(() => {}), firstLine: new Promise(() => {}) });
+    const { finished } = start({ work, timings: { ...FAST, rejoinLimitMs: 30 } });
+    const room = await untilConnected();
+    room.join('PA1');
+    room.send(SCENES, { type: 'sceneDevice', canPlay: true });
+    await untilClosed(room, 'reaction');
+    room.leave('PA1');
+    await finished;
+    expect(room.isConnected).toBe(false);
+  });
+});
+
 describe('a student who closes the tab mid-sentence', () => {
   it('does not save the cut voice as the whole line', async () => {
     const { voice, save } = makeVoice();
@@ -251,4 +265,3 @@ describe('spending before a student is there', () => {
   });
 });
 
-export type { Beat };

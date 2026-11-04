@@ -57,6 +57,7 @@ Past a voice limit that student's voice falls back to a tone, and no other stude
 | New question to a scene the student sees | 31.1 s and 34.1 s from the ask, in two runs that showed it, measured on the page. On the server, the scene was ready at 26.6 s and the lesson took it at the next pause, 27.3 s in the first run. Words started at 1.8 s, and the plain board never waited |
 | Scene made from a topic, plan included | 21 to 57 s, median 33 s, on 5 runs with one review pass. Plan about 7 s, writer 4 to 21 s, container 6 to 24 s, low review 3 to 8 s |
 | Cost of one scene | $0.07 to $0.18 on those runs, plus about $0.03 for the second review pass |
+| With a take and pictures per theme and the uid split | Container 12 to 31 s on 6 runs, against 6 to 24 s before, and both review passes $0.05 to $0.06 a scene. One fresh scene whole, $0.12 in 27 s |
 | Frame rate during a lesson | 60 fps, frame gap p95 17 ms, on Abel's Mac only |
 | Take in the browser | 96 ms from `loadScene` to a first frame ready, engine already fetched from sign-in |
 | Take size | 0.41 to 1.63 MB raw, 0.06 to 0.7 MB as sent |
@@ -67,6 +68,10 @@ Past a voice limit that student's voice falls back to a tone, and no other stude
 | Damaged take | Refused, plain board carried on, no page error |
 | Scene later than its window | The lesson ended on the plain board, the scene was saved 34 s later, and the next session on that card had it in under 1 s with no write |
 | Both writers fail the checks | The lesson carried on and ended on the plain board. Seen once on a real question |
+
+## What sharing costs
+
+A card's scene is written once and is free for every later student. A typed question's scene is written once per student, because it is never shown to another student, so a question two students ask costs two writes. Each write is about $0.12 to $0.21. A question that a router names exactly as a card's title still uses the card's scene for free, and the library of 133 scenes absorbs the common topics for about $10 once. As an estimate with no real traffic behind it: 1,000 students each asking 3 typed questions that draw a scene is 3,000 writes, about $360 to $630, and sharing by topic would have paid only for the distinct topics among them.
 
 ## Router
 

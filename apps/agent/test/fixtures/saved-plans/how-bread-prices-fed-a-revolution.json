@@ -1,0 +1,34 @@
+{
+ "topic": "How bread prices fed a revolution",
+ "plan": {
+  "opening": [
+   {
+    "say": "Picture a family in Paris in seventeen eighty-nine, where bread was the main food and most of the day's pay went to it.",
+    "note": "bread = survival"
+   },
+   {
+    "say": "Say a worker earns a fixed wage, and the price of a loaf keeps climbing after a bad harvest. What gets squeezed?",
+    "tex": "\\text{share} = \\frac{\\text{bread cost}}{\\text{wage}}"
+   },
+   {
+    "say": "That fraction is the whole story. When it grows, there's less left for rent, fuel, or anything else at all.",
+    "note": "share of income"
+   }
+  ],
+  "more": [
+   {
+    "say": "Suppose a loaf costs one unit and a worker earns four a day. If the family needs two loaves, half the pay is gone."
+   },
+   {
+    "say": "Now a hailstorm ruins the wheat, and the same loaf costs two units. The same two loaves would take all of the daily pay."
+   },
+   {
+    "say": "So nothing about the worker changed, not the job, not the hours, only the price. That's why a bad harvest could hit a whole city at once."
+   }
+  ],
+  "setup": "Watch the bread share climb as prices rise.",
+  "narration": "[[wage-line]]Wages stayed flat. [[price-curve]]Then bad harvests pushed the price of bread up. [[share-rises]]So bread swallowed more of every paycheck, [[danger-zone]]until nearly everything went to eating. [[anger-spreads]]Hungry crowds blamed the crown, and that anger helped fuel the revolution.",
+  "plan": "wage-line: a flat horizontal line labeled wage stays level across the board.\nprice-curve: a curve labeled bread price rises steadily above the wage line after a harvest dip marker.\nshare-rises: a bar showing the share, bread cost divided by wage, filling upward as the curve climbs.\ndanger-zone: the bar approaches the top and turns red near a full hundred percent of the wage.\nanger-spreads: small crowd figures appear around the bar, growing in number as the share stays high.",
+  "close": "If wages had risen along with prices, would the anger have been the same?"
+ }
+}
