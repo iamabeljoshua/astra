@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readDrawnLabels, stubCanvas } from '../../test/fakeCanvas';
-import { notifyResizeObservers } from '../../test/fakeLayout';
+import { fakeFonts, notifyResizeObservers } from '../../test/fakeLayout';
 import { getChartLayout, WIDE_LAYOUT_FROM } from './chartLayout';
 import { LIT_STAR_SPOTS, PATH_LEG_COUNT } from './chartStars';
 import { DOT_DRAWINGS } from './dotDrawings';
@@ -323,31 +323,101 @@ describe('DotStage', () => {
 });
 
 describe('textToDots', () => {
+  const [PAPER_WIDTH, PAPER_HEIGHT] = [960, 420];
+  const SOLID = 255;
+
+  function getPaper(getAlpha: (x: number, y: number) => number) {
+    const data = new Uint8ClampedArray(PAPER_WIDTH * PAPER_HEIGHT * 4);
+    for (let y = 0; y < PAPER_HEIGHT; y += 1) {
+      for (let x = 0; x < PAPER_WIDTH; x += 1) data[(y * PAPER_WIDTH + x) * 4 + 3] = getAlpha(x, y);
+    }
+    return { data };
+  }
+
+  function stubPaper(getImageData: () => { data: Uint8ClampedArray }) {
+    const fillText = vi.fn();
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => ({ font: '', measureText: () => ({ width: 100 }), fillText, getImageData }) as never);
+    return fillText;
+  }
+
+  function stubCenterInk() {
+    return stubPaper(() => getPaper((x, y) => (x === PAPER_WIDTH / 2 && y === PAPER_HEIGHT / 2 ? SOLID : 0)));
+  }
+
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  it('gives no points in a browser with no canvas', () => {
-    expect(textToDots('Maya')).toEqual([]);
+  it('gives no points in a browser with no canvas', async () => {
+    expect(await textToDots('Maya')).toEqual([]);
   });
 
-  it('gives no points in a browser that throws when asked for a canvas', () => {
+  it('gives no points in a browser that throws when asked for a canvas', async () => {
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => {
       throw new Error('This browser refuses a canvas.');
     });
 
-    expect(textToDots('Maya')).toEqual([]);
+    expect(await textToDots('Maya')).toEqual([]);
   });
 
-  it('turns the ink on a hidden canvas into points in the shape space', () => {
-    const [paperWidth, paperHeight] = [960, 420];
-    const data = new Uint8ClampedArray(paperWidth * paperHeight * 4);
-    const inkedPixel = ((paperHeight / 2) * paperWidth + paperWidth / 2) * 4;
-    data[inkedPixel + 3] = 255;
-    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(
-      () => ({ font: '', measureText: () => ({ width: 100 }), fillText: vi.fn(), getImageData: () => ({ data }) }) as never,
-    );
+  it('gives no points when the canvas read throws', async () => {
+    stubPaper(() => {
+      throw new DOMException('Blocked by this browser', 'SecurityError');
+    });
 
-    expect(textToDots('Maya')).toEqual([[0, 0, 1.05]]);
+    expect(await textToDots('Maya')).toEqual([]);
+  });
+
+  it.each<[string, (x: number) => number]>([
+    ['one solid pixel in eight, the thinnest noise a hardened Firefox gives', (x) => (x % 8 === 0 ? SOLID : 0)],
+    ['half the pixels solid, a common hardened Firefox answer', (x) => (x % 2 === 0 ? SOLID : 0)],
+    ['every pixel solid, as an all-white answer', () => SOLID],
+  ])('gives no points when the read answers with %s', async (_caseName, getAlpha) => {
+    stubPaper(() => getPaper((x) => getAlpha(x)));
+
+    expect(await textToDots('Maya')).toEqual([]);
+  });
+
+  it('turns the ink on a hidden canvas into points in the shape space', async () => {
+    stubCenterInk();
+
+    expect(await textToDots('Maya')).toEqual([[0, 0, 1.05]]);
+  });
+
+  it('keeps a name that fills all the width a name may take', async () => {
+    const [leftEdge, rightEdge] = [42, 918];
+    stubPaper(() => getPaper((x, y) => ((x === leftEdge || x === rightEdge) && y === 210 ? SOLID : 0)));
+
+    expect(await textToDots('Maya')).toHaveLength(2);
+  });
+
+  it('draws only after the font for this name has come', async () => {
+    let finishLoading = () => {};
+    const load = vi.spyOn(fakeFonts, 'load').mockReturnValue(new Promise<never[]>((resolve) => (finishLoading = () => resolve([]))));
+    const fillText = stubCenterInk();
+
+    const dots = textToDots('Ṣadé');
+    await act(() => new Promise(setImmediate));
+
+    expect(load).toHaveBeenCalledWith(expect.any(String), 'Ṣadé');
+    expect(fillText).not.toHaveBeenCalled();
+
+    finishLoading();
+
+    expect(await dots).toEqual([[0, 0, 1.05]]);
+  });
+
+  it('still draws when the font does not come', async () => {
+    vi.spyOn(fakeFonts, 'load').mockRejectedValue(new Error('The font was blocked.'));
+    stubCenterInk();
+
+    expect(await textToDots('Maya')).toEqual([[0, 0, 1.05]]);
+  });
+
+  it('asks nothing of the canvas with no name', async () => {
+    const fillText = stubCenterInk();
+
+    expect(await textToDots('')).toEqual([]);
+    expect(fillText).not.toHaveBeenCalled();
   });
 });

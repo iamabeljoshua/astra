@@ -40,6 +40,12 @@ describe.each([
     expect(template).not.toMatch(/ConfirmationURL|TokenHash|href=/);
   });
 
+  it('shows no other number the length of a code, because a pasted mail gives the first one', () => {
+    const shownText = template.replace(/<style[\s\S]*?<\/style>/g, '').replace(/<[^>]*>/g, ' ');
+
+    expect(shownText).not.toMatch(new RegExp(`\\d{${CODE_LENGTH}}`));
+  });
+
   it('states the same lifetime as the settings', () => {
     const lifetimeSeconds = Number(/otp_expiry = (\d+)/.exec(CONFIG)?.[1]);
     expect(template).toContain(`It works for ${lifetimeSeconds / 60} minutes.`);
