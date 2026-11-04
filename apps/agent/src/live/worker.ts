@@ -74,7 +74,7 @@ async function runSession(context: JobContext): Promise<void> {
   }).makeStt();
   const allTakes = loadTakes();
   let ears: Ears | null = null;
-  const { brain, flushSpend, readMeaning, readStrokes, readSpokenWords, getSpentUsd } = makeTutorBrain({ roomName: room.name ?? '', trace });
+  const { brain, flushSpend, readMeaning, readStrokes, readSpokenWords, getSpentUsd, writeRecord } = makeTutorBrain({ roomName: room.name ?? '', jobId: context.job.id, trace });
   const session = createLiveSession({
     messenger: {
       send: (message) => publish(message),
@@ -143,11 +143,14 @@ async function runSession(context: JobContext): Promise<void> {
     await session.close();
     if (process.env.ASTRA_VOICE_TRACE_WORDS === '1') trace('sessionLog', { events: session.getLog() });
     await flushSpend();
+    const recordWriting = writeRecord?.();
     await ears?.close();
     await transcriber.close();
     await voice.close();
     await source.close();
     await context.deleteRoom().catch(() => {});
+    await recordWriting;
+    await flushSpend();
     trace('jobClosed');
   });
 }
