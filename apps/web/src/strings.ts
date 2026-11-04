@@ -236,6 +236,7 @@ const IF_WORRIED = 'If anything is worrying you, or you do not feel safe, please
 export const VOICE_LABELS = {
   you: 'You',
   board: 'Board',
+  emptyBoard: 'Nothing is drawn yet. The words are on the left.',
   connecting: 'Connecting your tutor',
   unavailable: `Your tutor could not connect just now. ${IF_WORRIED}`,
   reconnecting: 'Your connection dropped. Reconnecting.',
@@ -362,6 +363,7 @@ export const REPLAY_LABELS = {
   deleteFailed: 'That did not work. Try again.',
   couldNotLoad: 'This replay did not load.',
   noneLeft: 'Nothing from this session is saved to replay.',
+  emptyBoard: 'Nothing was drawn at this point. The words are on the left.',
 } as const;
 
 export const SESSION_LABELS = {

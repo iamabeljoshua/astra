@@ -6,6 +6,22 @@ import { renderWithQueryClient } from '../test/renderWithQueryClient';
 import { RECAP_LABELS, REPLAY_LABELS } from '../strings';
 import { ReplayScreen } from './ReplayScreen';
 
+const stage = vi.hoisted(() => ({ canLoad: true, loaded: new Set<string>(), load: vi.fn(), draws: [] as [string, number][] }));
+
+vi.mock('../scenes/kitSceneStage', () => ({
+  createKitSceneStage: (_container: HTMLElement, onChange: () => void) => ({
+    load: async (sceneId: string, ...rest: unknown[]) => {
+      stage.load(sceneId, ...rest);
+      if (stage.canLoad) stage.loaded.add(sceneId);
+      onChange();
+      return stage.canLoad;
+    },
+    draw: (sceneId: string, seconds: number) => void stage.draws.push([sceneId, seconds]),
+    canDraw: (sceneId: string) => stage.loaded.has(sceneId),
+    free: () => stage.loaded.clear(),
+  }),
+}));
+
 const LESSON_LOG = [
   { seq: 0, atMs: 0, kind: 'beatPlayed', turnId: 't1', beat: { id: 'b0', script: ['Look at this line.'], expectsReply: false }, reportedBy: 'browser', wordStartsMs: [0, 200, 400, 600], durationMs: 800, playedWords: 4, firedCueMs: [], ending: 'finished', frozen: [] },
   { seq: 1, atMs: 2000, kind: 'studentSpoke', text: 'why does that work', source: 'typed', isReaction: false, durationMs: 0 },
@@ -50,25 +66,66 @@ describe('the replay screen', () => {
     expect(screen.queryByTestId('board-visual')).toBeNull();
   });
 
-  it('plays a lesson that had a scene with no scene in it, and its board and captions stay right', async () => {
+  describe('a lesson that had a scene', () => {
     const SCENE_ID = `scene-${'a'.repeat(40)}`;
-    const sceneLog = [
-      { seq: 0, atMs: 0, kind: 'beatPlayed', turnId: 't1', beat: { id: 'n1-setup', script: [{ kind: 'richScene', id: 'scene-1', engine: 'manimgx', sceneId: SCENE_ID, moments: { a: 0, b: 2 }, parts: [], durationSeconds: 5 }, { kind: 'boardMode', mode: 'teach' }, { kind: 'runSimulation', target: 'scene-1', action: 'play', until: 'b', overWords: 4 }, 'Watch the line tilt.'], expectsReply: false }, reportedBy: 'browser', wordStartsMs: [0, 200, 400, 600], durationMs: 800, playedWords: 4, firedCueMs: [0, 0, 0], ending: 'finished', frozen: [] },
+    const getSceneLog = (engine: string) => [
+      { seq: 0, atMs: 0, kind: 'beatPlayed', turnId: 't1', beat: { id: 'n1-setup', script: [{ kind: 'richScene', id: 'scene-1', engine, sceneId: SCENE_ID, moments: { a: 0, b: 2 }, parts: [], durationSeconds: 5 }, { kind: 'boardMode', mode: 'teach' }, { kind: 'runSimulation', target: 'scene-1', action: 'play', until: 'b', overWords: 4 }, 'Watch the line tilt.'], expectsReply: false }, reportedBy: 'browser', wordStartsMs: [0, 200, 400, 600], durationMs: 800, playedWords: 4, firedCueMs: [0, 0, 0], ending: 'finished', frozen: [] },
       { seq: 1, atMs: 1000, kind: 'beatPlayed', turnId: 't1', beat: { id: 'n1-close', script: ['What would a steeper line tell you?'], expectsReply: true }, reportedBy: 'browser', wordStartsMs: [0, 200, 400, 600, 800, 1000, 1200], durationMs: 1400, playedWords: 7, firedCueMs: [], ending: 'finished', frozen: [] },
       { seq: 2, atMs: 3000, kind: 'beatPlayed', turnId: 't2', beat: { id: 'b2', script: [{ kind: 'text', id: 'note', text: 'slope is rise over run' }, 'So the slope is the rate.'], expectsReply: false }, reportedBy: 'browser', wordStartsMs: [0, 200, 400, 600, 800, 1000], durationMs: 1200, playedWords: 6, firedCueMs: [0], ending: 'finished', frozen: [] },
     ];
-    stubReplay({ replay: { recap: null, runs: [{ startedAt: 'x', events: sceneLog }] } });
+
+    beforeEach(() => {
+      vi.stubEnv('VITE_TUTOR_SCENES', '1');
+      stage.canLoad = true;
+      stage.loaded.clear();
+      stage.load.mockClear();
+      stage.draws.length = 0;
+    });
+
+    it('plays its scene on the same stage and at the same moments as the live lesson, once the scene has loaded', async () => {
+      stubReplay({ replay: { recap: null, runs: [{ startedAt: 'x', events: getSceneLog('kit') }] } });
+      open({ ...session, artwork: null });
+      await screen.findByRole('slider', { name: REPLAY_LABELS.timeline });
+      seekTo(500);
+      expect(stage.load).toHaveBeenCalledWith(SCENE_ID, 5, 'kit');
+      const layer = await screen.findByTestId('scene-layer');
+      expect(layer.dataset.scene).toBe(SCENE_ID);
+      expect(Number(layer.dataset.seconds)).toBeGreaterThan(0);
+      expect(stage.draws.at(-1)?.[0]).toBe(SCENE_ID);
+      expect(screen.getByTestId('tutor-caption').textContent).toContain('Watch the line');
+    });
+
+    it('plays a stored 2D take the same way', async () => {
+      stubReplay({ replay: { recap: null, runs: [{ startedAt: 'x', events: getSceneLog('manimgx') }] } });
+      open({ ...session, artwork: null });
+      await screen.findByRole('slider', { name: REPLAY_LABELS.timeline });
+      seekTo(500);
+      expect(stage.load).toHaveBeenCalledWith(SCENE_ID, 5, 'manimgx');
+      expect(await screen.findByTestId('scene-layer')).toBeTruthy();
+    });
+
+    it('leaves the plain board, saying nothing was drawn, and no box when the scene will not load', async () => {
+      stage.canLoad = false;
+      stubReplay({ replay: { recap: null, runs: [{ startedAt: 'x', events: getSceneLog('kit') }] } });
+      open({ ...session, artwork: null });
+      await screen.findByRole('slider', { name: REPLAY_LABELS.timeline });
+      seekTo(500);
+      await waitFor(() => expect(stage.load).toHaveBeenCalled());
+      expect(screen.queryByTestId('scene-layer')).toBeNull();
+      expect(screen.queryByTestId('board-visual')).toBeNull();
+      expect(screen.getByTestId('board-empty').textContent).toBe(REPLAY_LABELS.emptyBoard);
+      seekTo(3500);
+      expect(screen.getByText('slope is rise over run')).toBeTruthy();
+      expect(screen.queryByTestId('board-empty')).toBeNull();
+    });
+  });
+
+  it('says what happened where a lesson drew nothing, so a dark board is not a black screen', async () => {
+    stubReplay({ replay: { recap: null, runs: [{ startedAt: 'x', events: LESSON_LOG }] } });
     open({ ...session, artwork: null });
     await screen.findByRole('slider', { name: REPLAY_LABELS.timeline });
-    seekTo(500);
-    expect(screen.getByTestId('tutor-caption').textContent).toContain('Watch the line');
-    expect(screen.queryByTestId('scene-layer')).toBeNull();
-    expect(screen.queryByTestId('board-visual')).toBeNull();
-    seekTo(1500);
-    expect(screen.getByTestId('tutor-caption').textContent).toContain('What would');
-    seekTo(3500);
-    expect(screen.getByTestId('tutor-caption').textContent).toContain('So the slope');
-    expect(screen.getByText('slope is rise over run')).toBeTruthy();
+    seekTo(100);
+    expect(screen.getByTestId('board-empty').textContent).toBe(REPLAY_LABELS.emptyBoard);
   });
 
   it('opens on the recap, with the lesson ready to play', async () => {

@@ -33,6 +33,10 @@ The real session path has its own switch, `ASTRA_TUTOR_SCENES=1` on the agent an
 - `--noGpu` and `--damageTake` give no scene and no word about one.
 - The seeded student's cards change, and a card needs a saved scene to land at once. A typed question writes a new scene, and on a loaded Mac that takes far longer than its window.
 
+## 3D scenes
+
+`VITE_KIT_SCENES=1` on the web build plays a topic's stored kit scene from `<store>/kit/<topicId>/` beside its 2D take. `apps/agent/src/scenes/proof/tutor-scene-proof.ts` runs on real Chrome by default, because the headless shell keeps a sandboxed frame in the page's own process. Add `--headed` for a real window. Its flags are `--phone`, `--noWebgl`, `--reducedMotion`, `--kitFails`, `--kitSlowMs <ms>`, `--kitStallsAfterFrames <count>`, `--seekTimes <list>`, and `--replay`. `[data-engine]` says `kit` or `flat`. Every headed browser needs `--mute-audio`. A run needs `ASTRA_SHARED_PLAYS_A_DAY` and `ASTRA_SPEND_LIMIT_CREDITS` raised on the agent, and a session on the card takes the card off Home, so clear that student's sessions between runs.
+
 ## Gotchas
 
 - The API must read the same `SCENE_STORE_DIR` as the lesson service, or every take is refused.

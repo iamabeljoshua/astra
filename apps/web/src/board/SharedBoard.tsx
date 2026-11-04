@@ -24,6 +24,8 @@ interface SharedBoardProps {
   liveRow?: ReactNode;
   lineInTheBand?: string | null;
   onFixReading?: (text: string) => void;
+  /** Said where the board has nothing on it, because an empty panel on the dark theme reads as a broken black box. */
+  emptyNote?: string;
 }
 
 const getRowId = ({ element }: BoardRow) => getInkLineId(element.id) ?? (element.id as string);
@@ -63,7 +65,7 @@ function RowGutter({ row, atMs, isReducedMotion, onFixReading, setWrapper }: { r
 }
 
 // The board as lines on a page, with each row's marks and notes in a gutter beside it.
-export function SharedBoard({ board, atMs, onWork, onMovePoint, onBoardProblem, liveRow, lineInTheBand = null, onFixReading }: SharedBoardProps) {
+export function SharedBoard({ board, atMs, onWork, onMovePoint, onBoardProblem, liveRow, lineInTheBand = null, onFixReading, emptyNote }: SharedBoardProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<SVGSVGElement>(null);
   const wrappers = useRef(new Map<string, HTMLElement>());
@@ -110,6 +112,7 @@ export function SharedBoard({ board, atMs, onWork, onMovePoint, onBoardProblem, 
 
   return (
     <div className="board-panel" data-testid="board">
+      {emptyNote && rowCount === 0 && <p data-testid="board-empty" className="label pointer-events-none absolute inset-0 flex items-center justify-center text-ink-2">{emptyNote}</p>}
       <div ref={scrollRef} className="board-scroll">
         <div className="board-flow">
           {rows.map((row) => {

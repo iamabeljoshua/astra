@@ -26,12 +26,13 @@ const { values: args } = parseArgs({
     reducedMotion: { type: 'boolean', default: false },
     kitFails: { type: 'boolean', default: false },
     kitSlowMs: { type: 'string' },
-    kitStallsAtS: { type: 'string' },
+    kitStallsAfterFrames: { type: 'string' },
     seekTimes: { type: 'string' },
+    replay: { type: 'boolean', default: false },
   },
 });
 
-const FLAGS = ['--enable-unsafe-webgpu', '--enable-features=Vulkan', '--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist', '--use-mock-keychain', '--autoplay-policy=no-user-gesture-required'];
+const FLAGS = ['--enable-unsafe-webgpu', '--enable-features=Vulkan', '--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist', '--use-mock-keychain', '--mute-audio', '--autoplay-policy=no-user-gesture-required'];
 const delay = (ms: number) => new Promise((done) => setTimeout(done, ms));
 const out = args.out as string;
 mkdirSync(out, { recursive: true });
@@ -141,12 +142,12 @@ if (args.kitSlowMs) {
     await route.continue();
   });
 }
-if (args.kitStallsAtS) {
-  // No loop guard can stop a regular expression, so only the page's watch on the frame can.
+if (args.kitStallsAfterFrames) {
+  // No loop guard can stop a regular expression, so only the page's watch on the frame can. It counts frames, so the sandbox's own read of its pixels at load passes.
   await page.route('**/api/scene-takes/*/kit', async (route) => {
     const reply = await route.fetch();
     const take = (await reply.json()) as { code: string };
-    const spin = `if (t > ${Number(args.kitStallsAtS)}) /(a+)+$/.test('a'.repeat(40) + 'b');`;
+    const spin = `window.kitFrames = (window.kitFrames || 0) + 1; if (window.kitFrames > ${Number(args.kitStallsAfterFrames)}) /(a+)+$/.test('a'.repeat(40) + 'b');`;
     await route.fulfill({ response: reply, json: { ...take, code: take.code.replace(/render\(t\) \{/, `render(t) { ${spin}`) } });
   });
 }
@@ -234,7 +235,8 @@ async function readKitClock() {
   const engines = [...new Set(rows.map(([, , , , engine]) => engine))];
   const lags = rows.filter(([, seconds, drawn]) => drawn !== null && seconds > 0).map(([, seconds, drawn]) => Math.abs(seconds - (drawn as number)) * 1000).sort((first, second) => first - second);
   const isHeldAt = (moment: number) => rows.find(([, seconds]) => seconds >= moment - 0.001);
-  return { rows: rows.length, engines, drawnLagMsP50: Math.round(lags[Math.floor(lags.length * 0.5)] ?? -1), drawnLagMsP95: Math.round(lags[Math.floor(lags.length * 0.95)] ?? -1), firstAndLast: [rows[0]?.[1], rows.at(-1)?.[1]], getAt: Object.fromEntries((args.seekTimes as string | undefined)?.split(',').map((moment) => [moment, isHeldAt(Number(moment))?.[3]]) ?? []) };
+  const pageGapsMs = rows.slice(1).map(([atMs], index) => atMs - (rows[index]?.[0] ?? atMs));
+  return { rows: rows.length, largestPageGapMs: Math.round(Math.max(...pageGapsMs)), engines, drawnLagMsP50: Math.round(lags[Math.floor(lags.length * 0.5)] ?? -1), drawnLagMsP95: Math.round(lags[Math.floor(lags.length * 0.95)] ?? -1), firstAndLast: [rows[0]?.[1], rows.at(-1)?.[1]], getAt: Object.fromEntries((args.seekTimes as string | undefined)?.split(',').map((moment) => [moment, isHeldAt(Number(moment))?.[3]]) ?? []) };
 }
 
 const glide: { atS: number; rect: VisualRead['rect']; transform: string | null; boardOpacity: string | null; isMoving: boolean; isSmall: boolean }[] = [];
@@ -300,9 +302,38 @@ if (sceneSeenAtS !== null && args.handsOn) {
   }
 }
 
+const sessionPath = new URL(page.url()).pathname;
 await page.getByRole('button', { name: 'End session' }).click();
 await delay(5000);
-summary.framesAfterEnd = await page.evaluate(() => document.querySelectorAll('iframe').length);
+summary.framesDuringRecap = await page.evaluate(() => document.querySelectorAll('iframe').length);
+await page.screenshot({ path: join(out, 'recap.png') });
+await page.goto('/sessions');
+await delay(1500);
+summary.framesAfterLeaving = await page.evaluate(() => document.querySelectorAll('iframe').length);
+
+async function watchReplay() {
+  await page.goto(sessionPath);
+  await page.locator('[data-testid="replay-transport"]').waitFor({ timeout: 45_000 });
+  const seek = page.getByRole('slider', { name: 'Lesson timeline' });
+  const durationMs = Number(await seek.getAttribute('max'));
+  const points: Record<string, unknown>[] = [];
+  for (const share of [1, 0.05, 0.25, 0.5, 0.75, 1]) {
+    await seek.fill(String(Math.round(durationMs * share)));
+    await delay(3500);
+    const shotName = `replay-${String(points.length)}-${Math.round(share * 100)}.png`;
+    await page.screenshot({ path: join(out, shotName) });
+    points.push({
+      share,
+      shotName,
+      ...(await page.evaluate(() => {
+        const layer = document.querySelector<HTMLElement>('[data-testid="scene-layer"]');
+        return { sceneSeconds: layer?.dataset.seconds ?? null, engine: document.querySelector<HTMLElement>('[data-engine]')?.dataset.engine ?? null, frames: document.querySelectorAll('iframe').length, emptyNote: document.querySelector('[data-testid="board-empty"]')?.textContent ?? null, hasPicture: Boolean(document.querySelector('[data-testid="board-visual"] img, [data-testid="board-visual"] svg')) };
+      })),
+    });
+  }
+  summary.replay = { durationMs, points };
+}
+if (args.replay) await watchReplay().catch((error: unknown) => problems.push(`replay: ${String(error).slice(0, 300)}`));
 await page.close();
 let trace = readTrace(args.trace);
 for (let tries = 0; tries < 60 && args.trace && !trace.some(({ name }) => name === 'jobClosed'); tries += 1) {

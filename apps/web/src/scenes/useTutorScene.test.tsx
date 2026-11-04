@@ -13,8 +13,8 @@ vi.mock('./sceneEngine', () => ({
     return engine.canPlay;
   },
 }));
-vi.mock('./sceneStage', () => ({
-  createSceneStage: (container: HTMLElement) => {
+vi.mock('./kitSceneStage', () => ({
+  createKitSceneStage: (container: HTMLElement) => {
     engine.createStage(container);
     return { load: engine.load, free: engine.free, draw: () => {}, canDraw: () => true };
   },
@@ -72,7 +72,7 @@ describe('with scenes on', () => {
     await waitFor(() => expect(sent).toHaveLength(1));
     act(() => tell({ type: 'loadScene', sceneId: 'slope-1', durationSeconds: 5 }));
     await waitFor(() => expect(sent.at(-1)).toEqual({ type: 'sceneLoaded', sceneId: 'slope-1' }));
-    expect(engine.load).toHaveBeenCalledWith('slope-1', 5);
+    expect(engine.load).toHaveBeenCalledWith('slope-1', 5, undefined);
   });
 
   it('refuses a damaged take, and the session goes on with no word', async () => {

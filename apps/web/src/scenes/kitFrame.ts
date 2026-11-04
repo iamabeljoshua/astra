@@ -6,10 +6,14 @@ const KIT_BASE = `/scene-kit/${SCENE_ENGINE_VERSIONS.kit}`;
 const FONT_WEIGHTS = [400, 500, 600];
 const PING_EVERY_MS = 500;
 const MOST_MISSED_PINGS = 4;
+/** A frame on screen that has not drawn by now is a black box to the student, so it counts as failed. */
+const FIRST_DRAW_LIMIT_MS = 2000;
 /** A silently dropped part or moment means the picture is not what was reviewed. */
 const BROKEN_SCENE = /unknown|failed|bad expression|needs points|not loaded|duplicate part/i;
 
 export interface KitFrame {
+  /** Whether the sandbox has said it drew a frame on screen since the scene last built. */
+  hasDrawn(): boolean;
   render(seconds: number): void;
   setTheme(theme: KitTheme): void;
   resize(): void;
@@ -75,9 +79,11 @@ export interface OpenKitFrameInput {
   limitMs: number;
   /** The frame stopped answering or threw after it was ready. It is already gone. */
   onStall(): void;
+  /** The frame just proved it draws on screen, which a still page has no other way to hear. */
+  onFirstDraw(): void;
 }
 
-export async function openKitFrame({ host, take, theme, limitMs, onStall }: OpenKitFrameInput): Promise<KitFrame> {
+export async function openKitFrame({ host, take, theme, limitMs, onStall, onFirstDraw }: OpenKitFrameInput): Promise<KitFrame> {
   const [{ kitBundle, fontCss }, textures] = await Promise.all([getSharedFiles(), getTextures(take.code)]);
   const page = buildKitFramePage({ kitBundle, fontCss, code: take.code });
   const iframe = createFrameElement(page);
@@ -87,6 +93,8 @@ export async function openKitFrame({ host, take, theme, limitMs, onStall }: Open
   let pingId = 0;
   let isGone = false;
   let pinging: ReturnType<typeof setInterval> | undefined;
+  let hasDrawn = false;
+  let firstDrawLimit: ReturnType<typeof setTimeout> | null = null;
   let settleOpen: { resolve(frame: KitFrame): void; reject(error: Error): void } | null = null;
 
   const tell = (command: KitFrameCommand) => iframe.contentWindow?.postMessage(command, '*');
@@ -95,6 +103,7 @@ export async function openKitFrame({ host, take, theme, limitMs, onStall }: Open
     if (isGone) return;
     isGone = true;
     clearInterval(pinging);
+    if (firstDrawLimit) clearTimeout(firstDrawLimit);
     window.removeEventListener('message', onMessage);
     tell({ type: 'dispose' });
     iframe.remove();
@@ -118,14 +127,27 @@ export async function openKitFrame({ host, take, theme, limitMs, onStall }: Open
     }, PING_EVERY_MS);
   };
 
+  const waitForFirstDraw = () => {
+    if (hasDrawn || firstDrawLimit) return;
+    firstDrawLimit = setTimeout(() => {
+      firstDrawLimit = null;
+      if (hasDrawn) return;
+      // A hidden tab draws nothing and has not failed, and its next render starts this wait again.
+      if (document.visibilityState === 'visible') fail('the scene drew no frame on screen');
+    }, FIRST_DRAW_LIMIT_MS);
+  };
+
   const frame: KitFrame = {
+    hasDrawn: () => hasDrawn,
     render(seconds) {
       wantSeconds = seconds;
+      waitForFirstDraw();
       tell({ type: 'render', seconds });
     },
     setTheme(next) {
       if (next === currentTheme) return;
       currentTheme = next;
+      hasDrawn = false;
       // A scene reads the theme as it builds, so it builds again, as a 2D take fetches its other theme.
       iframe.srcdoc = page;
     },
@@ -143,6 +165,11 @@ export async function openKitFrame({ host, take, theme, limitMs, onStall }: Open
       startPinging();
       settleOpen?.resolve(frame);
       settleOpen = null;
+    },
+    drawn() {
+      if (hasDrawn) return;
+      hasDrawn = true;
+      onFirstDraw();
     },
     pong() {
       missedPings = 0;

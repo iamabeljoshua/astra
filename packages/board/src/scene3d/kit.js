@@ -72,7 +72,7 @@ const GRADE_SHADER = {
       col=aces(col*uExposure);
       vec2 q=(vUv-.5)*vec2(uAspect,1.); float v=smoothstep(.35,1.05,length(q)); col*=1.-uVignette*v;
       col=pow(col,vec3(1./2.2));
-      col+=(rnd(vUv*vec2(1920.,1080.))-.5)*uGrain;
+      col+=(fract(52.9829189*fract(dot(gl_FragCoord.xy+vec2(mod(uT*97.,41.),mod(uT*61.,37.)),vec2(.06711056,.00583715))))-.5)*uGrain;
       gl_FragColor=vec4(col*uFade,1.);
     }`,
 };
@@ -97,7 +97,7 @@ const PLANET_VS = /* glsl */ `
   varying vec3 vN; varying vec3 vW; varying vec2 vUv; varying vec3 vLocal;
   void main(){ vUv=uv; vLocal=position; vN=normalize(mat3(modelMatrix)*normal); vec4 w=modelMatrix*vec4(position,1.); vW=w.xyz; gl_Position=projectionMatrix*viewMatrix*w; }`;
 const PLANET_FS = /* glsl */ `
-  uniform sampler2D uMap,uNight,uClouds; uniform vec3 uSun; uniform float uHasNight,uHasClouds,uOcean,uAirless,uBump,uPower,uOpacity,uGlow,uT;
+  uniform sampler2D uMap,uNight,uClouds; uniform vec3 uSun; uniform float uHasNight,uHasClouds,uOcean,uAirless,uBump,uPower,uOpacity,uGlow,uT,uGlint;
   uniform vec3 uAtmo; uniform float uAtmoPower;
   varying vec3 vN; varying vec3 vW; varying vec2 vUv; varying vec3 vLocal;
   void main(){
@@ -118,7 +118,7 @@ const PLANET_FS = /* glsl */ `
       float water=smoothstep(.02,.16,alb.b-max(alb.r,alb.g*.92));
       vec3 H=normalize(L+V); float sp=pow(max(dot(normalize(vN),H),0.),340.);
       float sp2=pow(max(dot(normalize(vN),H),0.),42.);
-      col+=water*(sp*1.5+sp2*.075)*vec3(1.,.96,.88)*wrap;
+      col+=water*(sp*1.5+sp2*.075)*uGlint*vec3(1.,.96,.88)*wrap;
       col=mix(col,col*vec3(.78,.9,1.15),water*.55);
     }
     if(uHasClouds>.5){
@@ -419,6 +419,7 @@ export function createKit({ canvas, overlay, timing, textures, quality = 'high',
   });
 
   function stage(kind = 'space', o = {}) {
+    if (kind === 'outdoor') return kit.outdoor(o);
     if (kind === 'space') {
       const skyTex = textures['2k_stars_milky_way'] ? tex('2k_stars_milky_way') : null;
       if (skyTex) {
@@ -456,14 +457,16 @@ export function createKit({ canvas, overlay, timing, textures, quality = 'high',
       const hemi = new THREE.HemisphereLight(0x8fa8ff, 0x0a0a12, 0.12); scene.add(hemi);
       kit.sunLight = new THREE.DirectionalLight(0xfff3e0, 3.2); scene.add(kit.sunLight, kit.sunLight.target);
     } else {
-      const top = hexOf(o.top ?? '#141b2b'), bottom = hexOf(o.bottom ?? '#020204'), accent = hexOf(o.accent ?? '#34222a');
+      const lightTheme = theme === 'light';
+      if (lightTheme) document.documentElement.dataset.canvas = 'light';
+      const top = hexOf(o.top ?? (lightTheme ? '#f2ebdd' : '#141b2b')), bottom = hexOf(o.bottom ?? (lightTheme ? '#cfc5b2' : '#020204')), accent = hexOf(o.accent ?? (lightTheme ? '#e8dcc6' : '#34222a'));
       const m = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 24), new THREE.ShaderMaterial({
         side: THREE.BackSide, depthTest: false, depthWrite: false,
-        uniforms: { uTop: { value: top }, uBot: { value: bottom }, uAcc: { value: accent }, uT },
+        uniforms: { uTop: { value: top }, uBot: { value: bottom }, uAcc: { value: accent }, uT, uGain: { value: lightTheme ? 1.05 : 0.62 }, uAccGain: { value: lightTheme ? 0.08 : 0.75 } },
         vertexShader: `varying vec3 vP; void main(){ vP=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
-        fragmentShader: `uniform vec3 uTop,uBot,uAcc; uniform float uT; varying vec3 vP; ${NOISE_GLSL}
+        fragmentShader: `uniform vec3 uTop,uBot,uAcc; uniform float uT,uGain,uAccGain; varying vec3 vP; ${NOISE_GLSL}
           void main(){ vec3 d=normalize(vP); float h=d.y*.5+.5; vec3 c=mix(uBot,uTop,smoothstep(.1,.95,h));
-            float n=fbm(d*2.4+vec3(uT*.012,0.,uT*.008)); c+=uAcc*smoothstep(.42,.86,n)*.75; gl_FragColor=vec4(c*.62,1.); }`,
+            float n=fbm(d*2.4+vec3(uT*.012,0.,uT*.008)); c+=uAcc*smoothstep(.42,.86,n)*uAccGain; gl_FragColor=vec4(c*uGain,1.); }`,
       }));
       m.scale.setScalar(5e4); m.renderOrder = -10; sky.add(m);
       buildEnv(o.env ?? 1);
@@ -489,7 +492,7 @@ export function createKit({ canvas, overlay, timing, textures, quality = 'high',
     const uniforms = {
       uMap: { value: tex(mapName) }, uNight: { value: tex(p.night) }, uClouds: { value: tex(p.clouds, { linear: true }) },
       uSun, uHasNight: { value: p.night ? 1 : 0 }, uHasClouds: { value: p.clouds ? 1 : 0 }, uOcean: { value: p.ocean ? 1 : 0 },
-      uAirless: { value: p.airless ? 1 : 0 }, uBump: { value: p.bump ?? 0 }, uPower: { value: p.power ?? 1.55 }, uOpacity: { value: 1 }, uGlow: { value: 0 }, uT,
+      uAirless: { value: p.airless ? 1 : 0 }, uBump: { value: p.bump ?? 0 }, uGlint: { value: p.glint ?? 1 }, uPower: { value: p.power ?? 1.55 }, uOpacity: { value: 1 }, uGlow: { value: 0 }, uT,
       uAtmo: { value: hexOf(p.atmosphere ?? '#000000') }, uAtmoPower: { value: p.atmosphere ? (p.atmoPower ?? 1) : 0 },
     };
     const mat = new THREE.ShaderMaterial({ uniforms, vertexShader: PLANET_VS, fragmentShader: PLANET_FS, transparent: false });
@@ -528,7 +531,8 @@ export function createKit({ canvas, overlay, timing, textures, quality = 'high',
     scene.add(group);
     const spin = p.spin ?? 6;
     const startSpin = THREE.MathUtils.degToRad(p.spinStart ?? 0);
-    tickers.push((t) => { spinner.rotation.y = startSpin + THREE.MathUtils.degToRad(spin) * t; if (clouds) clouds.rotation.y = 0.0009 * t * 6.28 * 3; });
+    let spinSet = null;
+    tickers.push((t) => { spinner.rotation.y = spinSet ?? (startSpin + THREE.MathUtils.degToRad(spin) * t); spinSet = null; if (clouds) clouds.rotation.y = 0.0009 * t * 6.28 * 3; });
     const part = basePart(group);
     part.radius = radius;
     part.preset = o.preset ?? o.map ?? null;
@@ -541,7 +545,10 @@ export function createKit({ canvas, overlay, timing, textures, quality = 'high',
       return part;
     };
     part.glow = (v) => { uniforms.uGlow.value = v; return part; };
-    part.spinTo = (deg) => { spinner.rotation.y = THREE.MathUtils.degToRad(deg); return part; };
+    part.ringShow = (v) => { if (ring) { ring.visible = v > 0.001; ring.material.uniforms.uOpacity.value = v; } return part; };
+    part.spinner = spinner;
+    // Render runs before the tickers, so a spin set in render is kept for that frame's ticker. Without this the ticker overwrites it.
+    part.spinTo = (deg) => { spinSet = THREE.MathUtils.degToRad(deg); spinner.rotation.y = spinSet; return part; };
     if (p.at) part.place(p.at);
     return register(p.id, part);
   }
@@ -944,7 +951,7 @@ export function createKit({ canvas, overlay, timing, textures, quality = 'high',
   const poseOf = (s, t) => ({
     target: resolveTarget(s.target, s.offset),
     distance: s.distance,
-    azimuth: s.azimuth + (s.orbit || 0) * Math.max(t - s.start, 0),
+    azimuth: (typeof s.azimuth === 'function' ? s.azimuth(t) : s.azimuth) + (s.orbit || 0) * Math.max(t - s.start, 0),
     elevation: s.elevation + (s.bob ? Math.sin(Math.max(t - s.start, 0) * 0.35) * s.bob : 0),
     fov: s.fov, roll: s.roll,
     screen: s.screen || [0, 0],
@@ -1316,7 +1323,7 @@ export function createKit({ canvas, overlay, timing, textures, quality = 'high',
     for (const e of titles) out.titles.push({ text: e.el.textContent, op: r(+(e.el.style.opacity || 0)) });
     return out;
   };
-  addStudio(kit, { scene, register, basePart, pbrMaterial, fadeMaterial, uT, overlay, W, H, issue, tickers, parts });
+  addStudio(kit, { scene, register, basePart, pbrMaterial, fadeMaterial, uT, overlay, W, H, issue, tickers, parts, renderer, sky, buildEnv, grade });
   // Mean display luminance over a grid of tiles and the whole frame, for the flash check.
   kit.__tiles = (cols = 8, rows = 4) => {
     const gl = renderer.getContext();
