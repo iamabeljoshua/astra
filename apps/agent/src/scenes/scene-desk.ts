@@ -3,8 +3,8 @@ import type { MadeScene } from './make-scene.ts';
 import type { RouteEngine, SceneRoute, StoredScene } from './scene-types.ts';
 
 export const SHOW_WINDOW_MS = 20_000;
-/** A kit scene is written and reviewed while the tutor talks, about 30 s on a loaded machine and about 60 s with one rewrite after a review, so its window is the ask's whole life. */
-export const KIT_ASK_LIMIT_MS = 60_000;
+/** Measured at load about 26, a kit scene is ready about 35 s after the ask, and about 65 s with one rewrite after a review. A later scene costs nothing, because the tutor never waits and a new topic ends the ask. */
+export const KIT_ASK_LIMIT_MS = 90_000;
 
 export type SceneState =
   | { kind: 'idle' }

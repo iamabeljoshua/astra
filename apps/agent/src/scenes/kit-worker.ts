@@ -11,7 +11,8 @@ const HOST_URL = 'http://kit-check.invalid/';
 const FRAME_WIDTH = 960;
 const FRAME_HEIGHT = 540;
 const MOST_CHECK_MS = 25_000;
-const MOST_DRAW_MS = 250;
+// The check reads every pixel back on a machine other work shares, so this stops a scene that cannot run, not one a little over a frame.
+const MOST_DRAW_MS = 600;
 const LEAST_LIT = 0.002;
 const LEAST_CONTRAST = 0.004;
 const SHEET_COLUMNS = 3;
