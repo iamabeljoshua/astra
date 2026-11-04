@@ -344,7 +344,6 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
     canPlay: () => device === 'canPlay',
     onPage(message, fromStudentId) {
       if (message.type === 'sceneDevice') {
-        const isReload = device !== 'unknown';
         device = message.canPlay ? 'canPlay' : 'cannotPlay';
         studentId = fromStudentId;
         const waiting = waitingForDevice;
