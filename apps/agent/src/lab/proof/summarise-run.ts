@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { type Beat, type BeatId, getCues } from '@astra/contracts';
 import { AUDIBLE_SAMPLE } from '../../live/first-sound.ts';
-import { findAudibleStartMs, findFirstLoudMs, findWordOnsetsAfterSilence, findWordPlaces, getPercentiles, getWordList } from './analyse-run.ts';
+import { findAudibleStartMs, findFirstLoudMs, findFirstSoundAmongOnsets, findWordOnsetsAfterSilence, findWordPlaces, getPercentiles, getWordList } from './analyse-run.ts';
 import type { RawVoiceMessage, VendorTap } from './vendor-tap.ts';
 
 const GRAPH_RATE = 48000;
@@ -13,7 +13,7 @@ export interface PageRecords {
   outputLatencyMs: number[];
   fired: { turnId: string; beatId: BeatId; atWord: number; firedAtMs: number; firedEpochMs: number; positionMs: number; wordStartMs: number }[];
   drawn: { id: string; drawnAtMs: number; paintedAtMs: number | null }[];
-  agentMessages: { type: string; atMs: number; epochMs: number; firstWord?: number; beatId?: string; count?: number; gapAtMs?: number; gapMs?: number }[];
+  agentMessages: { type: string; turnId: string; atMs: number; epochMs: number; firstWord?: number; beatId?: string; count?: number; gapAtMs?: number; gapMs?: number }[];
   browserMessages: { type: string; atMs: number }[];
   stops: { turnId: string; receivedAtMs: number; receivedEpochMs: number; audioFrameAtStop: number }[];
   probe: { kind: string; atMs: number; where: string }[];
@@ -73,28 +73,74 @@ function getVendorWordStarts(tap: VendorTap | null): (number[] | null)[] {
   });
 }
 
-function getLastAudibleAfter(pcm: Int16Array, { rate, firstFrame, frame, turnEndFrame }: { rate: number; firstFrame: number; frame: number; turnEndFrame: number }): number {
-  const toSample = (graphFrame: number) => Math.round(((graphFrame - firstFrame) / GRAPH_RATE) * rate);
-  const from = toSample(frame);
-  const to = Math.min(pcm.length, toSample(turnEndFrame));
-  let last = -1;
-  for (let index = from; index < to; index++) if (Math.abs(pcm[index] as number) >= AUDIBLE_SAMPLE) last = index;
-  return last < 0 ? 0 : ((last - from) / rate) * 1000;
+interface TapRange {
+  rate: number;
+  firstFrame: number;
+  fromFrame: number;
+  toFrame: number;
 }
 
-function getStopRows({ turns, records, arriving, output, tapRate, firstFrames }: { turns: AgentTurn[]; records: PageRecords; arriving: Int16Array | null; output: Int16Array | null; tapRate: number; firstFrames: { arriving: number; output: number } }) {
+function readAudible(pcm: Int16Array, { rate, firstFrame, fromFrame, toFrame }: TapRange) {
+  const toSample = (graphFrame: number) => Math.round(((graphFrame - firstFrame) / GRAPH_RATE) * rate);
+  const toMs = (samples: number) => (samples / rate) * 1000;
+  const from = Math.max(0, toSample(fromFrame));
+  const to = Math.min(pcm.length, toSample(toFrame));
+  let first = -1;
+  let last = -1;
+  let count = 0;
+  for (let index = from; index < to; index++) {
+    if (Math.abs(pcm[index] as number) < AUDIBLE_SAMPLE) continue;
+    if (first < 0) first = index;
+    last = index;
+    count += 1;
+  }
+  return { firstAfterMs: first < 0 ? null : toMs(first - from), lastAfterMs: last < 0 ? 0 : toMs(last - from), audibleMs: toMs(count) };
+}
+
+const AFTER_NEXT_TURN_MS = 800;
+const OLD_AUDIO_WINDOW_MS = 110;
+const CLIPPED_SEARCH_MS = 1000;
+
+interface StopRowsInput {
+  folder: string;
+  turns: AgentTurn[];
+  records: PageRecords;
+  arriving: Int16Array;
+  output: Int16Array;
+  tapRate: number;
+  firstFrames: { arriving: number; output: number };
+  earMs: number;
+}
+
+// A stop's window runs to the next turn's true first sound, found in the audio, because old audio can still pass the gain after that turn's message.
+function getStopRows({ folder, turns, records, arriving, output, tapRate, firstFrames, earMs }: StopRowsInput) {
+  const toFrame = (ms: number) => (ms / 1000) * GRAPH_RATE;
   return records.stops.map((stop) => {
     const turn = turns.find((candidate) => candidate.turnId === stop.turnId);
-    const nextTurn = records.agentMessages.find((message) => message.type === 'turnStarted' && message.atMs > stop.receivedAtMs);
-    const endFrame = ((nextTurn?.atMs ?? stop.receivedAtMs + 1200) / 1000) * GRAPH_RATE;
-    const firedAfterStop = records.fired.filter((cue) => cue.turnId === stop.turnId && cue.firedAtMs > stop.receivedAtMs).length;
+    const nextStarted = records.agentMessages.find((message) => message.type === 'turnStarted' && message.atMs > stop.receivedAtMs && message.turnId !== stop.turnId);
+    const nextTurn = turns.find((candidate) => candidate.turnId === nextStarted?.turnId);
+    const onsets = records.probe.filter((event) => event.where === 'arriving' && event.kind === 'onset' && event.atMs > stop.receivedAtMs && event.atMs < (nextStarted?.atMs ?? stop.receivedAtMs) + AFTER_NEXT_TURN_MS).map((event) => event.atMs);
+    const nextSoundAtMs = nextTurn
+      ? findFirstSoundAmongOnsets({ sentPcm: readInt16(join(folder, `${nextTurn.turnId}.pcm`)), sentRate: nextTurn.sampleRate, heardPcm: arriving, heardRate: tapRate, heardStartGraphMs: (firstFrames.arriving / GRAPH_RATE) * 1000 }, onsets)
+      : null;
+    const endMs = nextSoundAtMs ?? (nextStarted?.atMs ?? stop.receivedAtMs) + AFTER_NEXT_TURN_MS;
+    const firstCue = nextTurn && records.fired.find((cue) => cue.turnId === nextTurn.turnId);
+    const skippedMs = nextTurn?.gaps.filter((gap) => gap.ms !== undefined && firstCue !== undefined && gap.atMs <= firstCue.positionMs).reduce((sum, gap) => sum + (gap.ms as number), 0) ?? 0;
+    const clockZeroMs = firstCue ? firstCue.firedAtMs - earMs - firstCue.positionMs - skippedMs + (nextTurn?.words[0]?.words[0]?.startMs ?? 0) : null;
+    const range = { rate: tapRate, fromFrame: stop.audioFrameAtStop, toFrame: toFrame(endMs) };
+    const clipped = nextSoundAtMs === null ? null : readAudible(output, { rate: tapRate, firstFrame: firstFrames.output, fromFrame: toFrame(nextSoundAtMs), toFrame: toFrame(nextSoundAtMs + CLIPPED_SEARCH_MS) }).firstAfterMs;
     return {
       turnId: stop.turnId,
       decisionToFrozenMs: turn?.stopDecidedAtMs ? Math.round(stop.receivedEpochMs - turn.stopDecidedAtMs) : null,
-      audioAfterGainMs: output ? Math.round(getLastAudibleAfter(output, { rate: tapRate, firstFrame: firstFrames.output, frame: stop.audioFrameAtStop, turnEndFrame: endFrame })) : null,
-      audioStillArrivingMs: arriving ? Math.round(getLastAudibleAfter(arriving, { rate: tapRate, firstFrame: firstFrames.arriving, frame: stop.audioFrameAtStop, turnEndFrame: endFrame })) : null,
+      audioAfterGainMs: Math.round(readAudible(output, { ...range, firstFrame: firstFrames.output }).audibleMs),
+      audioStillArrivingMs: Math.round(readAudible(arriving, { ...range, firstFrame: firstFrames.arriving }).lastAfterMs),
       framesCapturedAfterStop: turn?.framesAfterStop ?? null,
-      firedAfterStop,
+      firedAfterStop: records.fired.filter((cue) => cue.turnId === stop.turnId && cue.firedAtMs > stop.receivedAtMs).length,
+      nextTurnMessageMs: nextStarted ? Math.round(nextStarted.atMs - stop.receivedAtMs) : null,
+      nextTurnSoundMs: nextSoundAtMs === null ? null : Math.round(nextSoundAtMs - stop.receivedAtMs),
+      nextTurnSoundClippedMs: clipped === null ? null : Math.round(clipped),
+      oldWordsPastWindow: onsets.filter((atMs) => atMs >= stop.receivedAtMs + OLD_AUDIO_WINDOW_MS && atMs < endMs).map((atMs) => Math.round(atMs - stop.receivedAtMs)),
+      nextTurnClockErrorMs: clockZeroMs === null || nextSoundAtMs === null ? null : Math.round(clockZeroMs - nextSoundAtMs),
     };
   });
 }
@@ -112,8 +158,8 @@ function getVendorMessagesAfterStop(agent: { turns: AgentTurn[]; tap: VendorTap 
 }
 
 function getFirstDrawingDelays(turns: readonly AgentTurn[], records: PageRecords): { turnId: string; ms: number }[] {
-  return turns.flatMap((turn, index) => {
-    const started = records.agentMessages.filter((message) => message.type === 'turnStarted')[index];
+  return turns.flatMap((turn) => {
+    const started = records.agentMessages.find((message) => message.type === 'turnStarted' && message.turnId === turn.turnId);
     const onset = started && records.probe.find((event) => event.where === 'arriving' && event.kind === 'onset' && event.atMs >= started.atMs - 300);
     const firstCue = records.fired.find((cue) => cue.turnId === turn.turnId);
     return onset && firstCue ? [{ turnId: turn.turnId, ms: Math.round(firstCue.firedAtMs - onset.atMs) }] : [];
@@ -157,7 +203,7 @@ function getTurnWords({ turn, turnIndex, records, vendorWordStarts, folder, arri
   const firstLoudMs = findFirstLoudMs(sentPcm, turn.sampleRate);
   const planMs = voiceWords.map((word) => word.startMs);
   const vendorStarts = vendorWordStarts[turnIndex];
-  const turnStarted = records.agentMessages.filter((message) => message.type === 'turnStarted')[turnIndex];
+  const turnStarted = records.agentMessages.find((message) => message.type === 'turnStarted' && message.turnId === turn.turnId);
   const firstSoundGraphMs = records.probe.find((event) => event.where === 'arriving' && event.kind === 'onset' && event.atMs >= (turnStarted?.atMs ?? 0) - 300)?.atMs ?? 0;
   const heardStartGraphMs = (firstFrame / GRAPH_RATE) * 1000;
   const places = findWordPlaces({ sentPcm, sentRate: turn.sampleRate, heardPcm: arriving, heardRate: tapRate, heardStartGraphMs, firstSoundGraphMs }, planMs.map((ms, index) => vendorStarts?.[index] ?? ms + firstLoudMs));
@@ -173,7 +219,7 @@ function getTurnWords({ turn, turnIndex, records, vendorWordStarts, folder, arri
 }
 
 // Compares what the browser did with where each word really landed in the audio it received.
-export function summariseRun(folder: string, settings: { name: string; network: object | null; throttle: number; phone: boolean }) {
+export function summariseRun(folder: string, settings: { name: string; network: object | null; throttle: number; phone: boolean; onlyStops: boolean }) {
   const page = JSON.parse(readFileSync(join(folder, 'page.json'), 'utf8')) as { records: PageRecords; replayCheck: { samples: ReplaySample[]; log: unknown[] } };
   const agent = JSON.parse(readFileSync(join(folder, 'agent.json'), 'utf8')) as { turns: AgentTurn[]; tap: VendorTap | null; voice: string; model: string; refused: string[] };
   const taps = JSON.parse(readFileSync(join(folder, 'taps.json'), 'utf8')) as { rate: number; arrivingFirstFrame: number; outputFirstFrame: number };
@@ -181,7 +227,7 @@ export function summariseRun(folder: string, settings: { name: string; network: 
   const arriving = readInt16(join(folder, 'arriving.pcm'));
   const output = readInt16(join(folder, 'output.pcm'));
   const vendorWordStarts = getVendorWordStarts(agent.tap);
-  const perTurn = agent.turns.map((turn, turnIndex) => getTurnWords({ turn, turnIndex, records, vendorWordStarts, folder, arriving, tapRate: taps.rate, firstFrame: taps.arrivingFirstFrame }));
+  const perTurn = settings.onlyStops ? [] : agent.turns.flatMap((turn, turnIndex) => (turn.firstFrameAtMs === null ? [] : [getTurnWords({ turn, turnIndex, records, vendorWordStarts, folder, arriving, tapRate: taps.rate, firstFrame: taps.arrivingFirstFrame })]));
   const words = perTurn.flatMap((turn) => turn.rows);
   const findWord = (cue: PageRecords['fired'][number]) => words.find((word) => word.turnId === cue.turnId && word.beatId === cue.beatId && word.wordInBeat === cue.atWord);
   const earMs = records.outputLatencyMs.at(-1) ?? 0;
@@ -211,7 +257,7 @@ export function summariseRun(folder: string, settings: { name: string; network: 
     const onset = started && records.probe.find((event) => event.where === 'arriving' && event.kind === 'onset' && event.atMs >= started.atMs - 300);
     return started && onset ? [started.epochMs + (onset.atMs - started.atMs) - turn.startedAtMs] : [];
   });
-  const stops = getStopRows({ turns: agent.turns, records, arriving, output, tapRate: taps.rate, firstFrames: { arriving: taps.arrivingFirstFrame, output: taps.outputFirstFrame } });
+  const stops = getStopRows({ folder, turns: agent.turns, records, arriving, output, tapRate: taps.rate, firstFrames: { arriving: taps.arrivingFirstFrame, output: taps.outputFirstFrame }, earMs });
   const replay = compareReplay(page.replayCheck.samples);
   const gaps = agent.turns.flatMap((turn) => turn.gaps.filter((gap) => gap.ms !== undefined).map((gap) => ({ turnId: turn.turnId, atMs: gap.atMs, ms: gap.ms })));
   const gapChecks = agent.turns.flatMap((turn) => checkGapReports(turn, words));
@@ -239,8 +285,12 @@ export function summariseRun(folder: string, settings: { name: string; network: 
     wordsLeadAudio: getPercentiles(leads),
     wordsLate: leads.filter((lead) => lead < 0).length,
     stopFrozen: getPercentiles(stops.flatMap((stop) => (stop.decisionToFrozenMs === null ? [] : [stop.decisionToFrozenMs]))),
-    stopAudioAfterGain: getPercentiles(stops.flatMap((stop) => (stop.audioAfterGainMs === null ? [] : [stop.audioAfterGainMs]))),
-    stopStillArriving: getPercentiles(stops.flatMap((stop) => (stop.audioStillArrivingMs === null ? [] : [stop.audioStillArrivingMs]))),
+    stopAudioAfterGain: getPercentiles(stops.map((stop) => stop.audioAfterGainMs)),
+    stopStillArriving: getPercentiles(stops.map((stop) => stop.audioStillArrivingMs)),
+    stopNextTurnClockError: getPercentiles(stops.flatMap((stop) => (stop.nextTurnClockErrorMs === null ? [] : [stop.nextTurnClockErrorMs]))),
+    stopsWithAudioPastGain: stops.filter((stop) => stop.audioAfterGainMs > 0).length,
+    stopNextTurnSoundClipped: getPercentiles(stops.flatMap((stop) => (stop.nextTurnSoundClippedMs === null ? [] : [stop.nextTurnSoundClippedMs]))),
+    stopsWithOldWordPastWindow: stops.filter((stop) => stop.oldWordsPastWindow.length > 0).length,
     replay,
     frameMs: getPercentiles(frameGaps),
     firstSoundFromTextMs: getPercentiles(firstSoundFromStart),

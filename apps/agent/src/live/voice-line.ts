@@ -13,7 +13,7 @@ export interface LineTurn {
   opened: Promise<void>;
   captureFrame(frame: AudioFrame): Promise<void>;
   waitForPlayout(): Promise<void>;
-  /** Drops what is queued, if this turn holds the line, and frees it at once. */
+  /** Leaves, and drops what is queued unless a later turn has opened, because then the queue is that turn's. */
   cut(): void;
   leave(): void;
 }
@@ -35,6 +35,7 @@ export function createVoiceLine(output: VoiceOutput, { getNowMs = getSteadyNowMs
   if (output.sampleRate % FRAMES_PER_SECOND !== 0) throw new Error(`A voice at ${output.sampleRate} Hz would drift, because LiveKit frames 10 ms as whole samples`);
   let lastTurnGone: Promise<void> = Promise.resolve();
   let lastSoundLeftAtMs: number | null = null;
+  let lastOpenedTurn: LineTurn | null = null;
 
   return {
     takeTurn() {
@@ -43,21 +44,21 @@ export function createVoiceLine(output: VoiceOutput, { getNowMs = getSteadyNowMs
       lastTurnGone = new Promise((resolve) => {
         markGone = resolve;
       });
-      let holdsLine = false;
       let hasSentSound = false;
       let hasLeft = false;
       const leave = () => {
         if (hasLeft) return;
         hasLeft = true;
         if (hasSentSound) lastSoundLeftAtMs = getNowMs();
-        markGone();
+        // A turn stopped in the queue leaves early, and the line stays taken until the turn before it has gone.
+        void turnBeforeGone.then(markGone);
       };
       const opened = turnBeforeGone.then(async () => {
         const waitMs = lastSoundLeftAtMs === null ? 0 : lastSoundLeftAtMs + TURN_SILENCE_MS - getNowMs();
         if (waitMs > 0) await delay(waitMs);
-        holdsLine = !hasLeft;
+        if (!hasLeft) lastOpenedTurn = turn;
       });
-      return {
+      const turn: LineTurn = {
         opened,
         leave,
         captureFrame(frame) {
@@ -66,10 +67,16 @@ export function createVoiceLine(output: VoiceOutput, { getNowMs = getSteadyNowMs
         },
         waitForPlayout: () => output.waitForPlayout(),
         cut() {
-          if (holdsLine) output.clearQueue();
           leave();
+          if (lastOpenedTurn !== turn) return;
+          try {
+            output.clearQueue();
+          } catch {
+            // A closed source throws here, and it has no queue left to clear.
+          }
         },
       };
+      return turn;
     },
   };
 }

@@ -36,10 +36,13 @@ export interface SpeakTurnOptions {
   onFrameCaptured?(note: FrameNote): void;
   onWords?(words: { atMs: number; words: TimedWord[] }): void;
   onGap?(gap: { atMs: number; ms?: number; reportedAtMs: number }): void;
+  /** The source refused a frame or the voice threw. The turn has ended as a stop, and this is the one place the cause shows. */
+  onFailure?(failure: unknown): void;
   getNowMs?(): number;
 }
 
 export interface SpokenTurn {
+  /** Settles once the turn is off the line, and never rejects, because one bad turn must not end a session. */
   finished: Promise<void>;
   stop(): void;
   getWordMismatches(): { ours: string; theirs: string }[];
@@ -158,7 +161,7 @@ async function cutIfVoiceEndedEarly({ options: { messenger, turnId }, timeline, 
 
 // Flash and Turbo send word times and audio in one message, so words go out as soon as they are read and the audio queues behind them.
 export function speakTurn(options: SpeakTurnOptions): SpokenTurn {
-  const { voice, line, messenger, turnId, beats, onGap, getNowMs = getSteadyNowMs } = options;
+  const { voice, line, messenger, turnId, beats, onGap, onFailure, getNowMs = getSteadyNowMs } = options;
   const firstSound = createFirstSound();
   const frames = createFrameQueue();
   const stream = voice.stream();
@@ -175,6 +178,16 @@ export function speakTurn(options: SpeakTurnOptions): SpokenTurn {
   });
   const work: TurnWork = { options: { ...options, messenger: heldMessenger }, stream, timeline, frames, firstSound, tracker, lineTurn, isStopped: () => isStopped };
 
+  const stop = () => {
+    if (isStopped) return;
+    isStopped = true;
+    if (!heldMessenger.isHolding()) messenger.sendOnBothChannels({ type: 'stop', turnId });
+    tracker.close();
+    frames.discard();
+    lineTurn.cut();
+    stream.close();
+  };
+
   heldMessenger.send({ type: 'turnStarted', turnId });
   void lineTurn.opened.then(() => {
     if (!isStopped) heldMessenger.release();
@@ -186,19 +199,11 @@ export function speakTurn(options: SpeakTurnOptions): SpokenTurn {
       await lineTurn.waitForPlayout();
       await cutIfVoiceEndedEarly(work);
     })
+    .catch((failure: unknown) => {
+      onFailure?.(failure);
+      stop();
+    })
     .finally(lineTurn.leave);
 
-  return {
-    finished,
-    getWordMismatches: timeline.getMismatches,
-    stop() {
-      if (isStopped) return;
-      isStopped = true;
-      if (!heldMessenger.isHolding()) messenger.sendOnBothChannels({ type: 'stop', turnId });
-      tracker.close();
-      frames.discard();
-      lineTurn.cut();
-      stream.close();
-    },
-  };
+  return { finished, getWordMismatches: timeline.getMismatches, stop };
 }

@@ -74,7 +74,20 @@ function createBeat(id: BeatId): PlayingBeat {
 // Plays what the agent sends against the audio the student hears, and reports what really happened, which becomes the log.
 export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueFired }: ScenePlayerOptions): ScenePlayer {
   let turn: PlayingTurn | null = null;
+  let levelOnceOldAudioHasGone: OutputLevel | null = null;
   const operationsOfOldTurns: BoardOperation[] = [];
+
+  const openOutput = () => {
+    if (levelOnceOldAudioHasGone === null || clock.isOldAudioArriving()) return;
+    setOutputLevel(levelOnceOldAudioHasGone);
+    levelOnceOldAudioHasGone = null;
+  };
+
+  // A turn's message can land while the last turn's cut audio is still arriving, and the gain is all that keeps that audio from the student.
+  const setTurnLevel = (level: OutputLevel) => {
+    levelOnceOldAudioHasGone = level;
+    openOutput();
+  };
 
   const getBeatRelativeWordStarts = (beat: PlayingBeat): number[] => {
     const firstWordMs = beat.words[0]?.startMs ?? 0;
@@ -153,6 +166,7 @@ export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueF
   };
 
   const tick = () => {
+    openOutput();
     if (turn?.phase !== 'playing') return;
     const reading = turn.clock.read();
     if (reading === null) return;
@@ -182,6 +196,7 @@ export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueF
   };
 
   const stop = (playing: PlayingTurn) => {
+    levelOnceOldAudioHasGone = null;
     setOutputLevel('silent');
     cutTurn(playing);
     clock.markTurnStopped();
@@ -202,7 +217,7 @@ export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueF
       operationsOfOldTurns.push(...getTurnOperations(turn));
     }
     turn = { id: turnId, phase: 'playing', clock: clock.startTurn(), beats: [] };
-    setOutputLevel('full');
+    setTurnLevel('full');
   };
 
   clock.onAudioEnded(tick);
@@ -235,7 +250,7 @@ export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueF
         return;
       }
       case 'yield':
-        setOutputLevel(message.isYielding ? 'lowered' : 'full');
+        setTurnLevel(message.isYielding ? 'lowered' : 'full');
         return;
       case 'audioGap':
         playing.clock.addGap(message);
