@@ -5,13 +5,13 @@ After signing in, a new student answers one question per screen while a sheet he
 ## Sub-features
 
 - `onboarding-welcome` is the sign-in page, which says `A learning app, made for you` and that the tutor is an AI.
-- `onboarding-steps` runs name, date of birth, level, interests, goal, then Home. Picking a level or a goal moves on by itself.
+- `onboarding-steps` runs name, date of birth, level, interests, goal, then Home. Picking a level or a goal moves on by itself. A name needs a visible character, by the same rule as the API, so a name of only a zero-width space stops at the name step.
 - `onboarding-interests` is a multi-select of chips with no text box. A student can choose none.
-- `onboarding-goals` offers `Improve my grades`, `Get ready for an exam`, and `Learn anything I'm curious about`. A failed save stays here and says so, and picking again retries.
+- `onboarding-goals` offers `Improve my grades`, `Get ready for an exam`, and `Learn anything I'm curious about`. While the goal saves, the choices take no tap and Back is gone. A failed save stays here and says so, picking again retries, and Back clears the alert.
 - `onboarding-sheet` shows the name as it is typed, and each answer as it is given.
 - `onboarding-home` shows `Welcome, <name>.` until the student starts a session, with cards whose reasons name only the chips they chose.
 - `onboarding-once` sends a student with a profile straight to Home. A student with a date of birth and no profile resumes at the first unanswered step.
-- `onboarding-notes` is `Your notes` in the sidebar, where the name, level, interests, and goal can change.
+- `onboarding-notes` is `Your notes` in the sidebar, where the name, level, interests, and goal can change. A blank name is refused, and the problem clears at the next change.
 
 ## How to get to it (user POV)
 
