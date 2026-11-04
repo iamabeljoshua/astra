@@ -257,7 +257,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
         getNowMs,
         // The voice cannot be late before it has words, so a slow model is never read as a failed voice.
         onBeatUnspoken: (beat) => void ownThought?.unspoken.unshift(beat),
-        onBeatStarted(beat) {
+        onBeatStarted({ pauseBeforeMs: _breathTaken, ...beat }: TutorBeat) {
           speakingBeats.push(beat);
           if (isReply && speakingBeats.length === 1) setThinking(false);
           if (canResume && (speakingBeats.length === 1 || speaking.isDry)) watchVoice(speaking);

@@ -311,6 +311,18 @@ describe('a reply in short stretches', () => {
     await session.close();
   });
 
+  it('keeps a log row for the first beat of a later stretch, because the log refuses what it does not know', async () => {
+    const { session, notes, messages } = setup(() => ({ pieces: [`${FIRST}\n${SECOND}`] }));
+    session.onBrowser(typed('what is photosynthesis'));
+    await until(() => replyTurns(notes).length === 2 && spokenWords(messages).includes('leaf'));
+    const turnId = (messages.findLast((message) => message.type === 'turnStarted') as { turnId: TurnId }).turnId;
+    const beatId = (messages.findLast((message) => message.type === 'words') as unknown as { beatId: string }).beatId;
+    session.onBrowser({ type: 'played', turnId, beatId: beatId as never, wordStartsMs: [0], durationMs: 100, playedWords: 1, firedCueMs: [], ending: 'finished', frozen: [], ...STAMP });
+    expect(notes.filter((note) => note.name === 'reportRefused').map((note) => note.fields.problem)).toEqual([]);
+    expect(session.getLog().some((event) => event.kind === 'beatPlayed' && event.beat.id === beatId)).toBe(true);
+    await session.close();
+  });
+
   it('lets a typed message in the breath replace the next stretch, which the next request knows was not heard', async () => {
     const { session, notes, messages, model } = setup(() => ({ pieces: [`${FIRST}\n${SECOND}`] }));
     session.onBrowser(typed('what is photosynthesis'));

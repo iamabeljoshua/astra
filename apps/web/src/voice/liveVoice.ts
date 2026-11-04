@@ -270,8 +270,8 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
       else void rejoin();
       return;
     }
-    // Before the first pulse a tutor's track is the proof, or the first beat would read as a lost link and cut the greeting.
-    const message: BrowserMessage = { type: 'pulse', ...getStamp(), hearsAgent: canReachAgent() };
+    // A link can only be lost once it has been heard, or the first beat would read as lost and cut the greeting.
+    const message: BrowserMessage = { type: 'pulse', ...getStamp(), hearsAgent: lastAgentPulseEpochMs === null || canHear };
     void room.localParticipant.publishData(encoder.encode(JSON.stringify(message)), { reliable: false, topic: LIVE_TOPIC }).catch((error: unknown) => records.refused.push(`pulse not sent: ${String(error)}`));
   };
 
