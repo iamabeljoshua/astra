@@ -93,7 +93,7 @@ def inspect_scene(job, code, folder):
     (folder / "scene.py").write_text(source)
     times = ",".join(f"{seconds:.3f}" for seconds in job["inspectSeconds"]) + ",end"
     done = subprocess.run(["manimgx", "inspect", "scene.py", "Lesson", "-o", "sheet.png", "-t", times], cwd=folder, capture_output=True, text=True, timeout=job["stepLimitSeconds"])
-    sheets = sorted(folder.glob("sheet*.png"))
+    sheets = sorted(folder.glob("sheet*.png"), key=lambda path: (len(path.name), path.name))
     if not sheets:
         send_record({"kind": "failed", "stage": "inspect", "reasons": [(done.stderr or done.stdout)[-MOST_ERROR_CHARACTERS:]]})
         return

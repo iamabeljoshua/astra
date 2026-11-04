@@ -9,8 +9,6 @@ import type { Session } from './sessionQueries';
 
 const RESUME_AFTER_MS = 2500;
 
-export const isLessonEnabled = () => import.meta.env.VITE_SCENE_LESSONS === '1';
-
 export interface LessonFrame {
   board: BoardState;
   atMs: number;
@@ -54,7 +52,6 @@ export function useLesson(session: Session): Lesson {
   }, []);
 
   useEffect(() => {
-    if (!isLessonEnabled()) return;
     let isLeaving = false;
     let animationFrame = 0;
     const draw = () => {

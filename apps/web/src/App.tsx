@@ -1,5 +1,5 @@
 import { QueryClientProvider } from '@tanstack/react-query';
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router';
 import { QueryDevtools } from './api/QueryDevtools';
 import { createQueryClient } from './api/queryClient';
@@ -9,6 +9,8 @@ import { useSignInDraft } from './auth/useSignInDraft';
 import { LegalPage } from './legal/LegalPage';
 import { LEGAL_PATHS } from './legal/legalPaths';
 import { RootErrorBoundary } from './RootErrorBoundary';
+import { fetchSceneEngineInBackground } from './scenes/sceneEngine';
+import { isLessonEnabled } from './session/lessonFlag';
 import { SESSION_ROUTE } from './session/sessionPath';
 import { SessionScreen } from './session/SessionScreen';
 import { AppShell } from './shell/AppShell';
@@ -46,6 +48,10 @@ function AppRoutes() {
 }
 
 function SignedInRoutes() {
+  useEffect(() => {
+    if (isLessonEnabled()) fetchSceneEngineInBackground();
+  }, []);
+
   return (
     <Routes>
       <Route path={SESSION_ROUTE} element={<SessionScreen />} />

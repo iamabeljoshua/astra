@@ -1,5 +1,5 @@
 import { createReadStream } from 'node:fs';
-import { Controller, Get, Header, HttpCode, NotFoundException, Param, Post, StreamableFile } from '@nestjs/common';
+import { Controller, Get, HttpCode, NotFoundException, Param, Post, Res, StreamableFile } from '@nestjs/common';
 import { CurrentStudentId } from '../auth/route-access';
 import { SessionParamsDto } from '../sessions/session.dto';
 import { SceneLessonResponseDto, SceneTakeParamsDto } from './scene.dto';
@@ -8,18 +8,22 @@ import { ScenesService } from './scenes.service';
 
 const OK_STATUS = 200;
 
+interface HeaderSetter {
+  setHeader(name: string, value: string): void;
+}
+
 @Controller()
 export class ScenesController {
   constructor(private readonly scenesService: ScenesService) {}
 
   /** Sends one stored take of a checked scene. A take is shared truth with no student data, and it never changes, so the browser keeps it. */
   @Get('scene-takes/:sceneId/:theme')
-  @Header('Content-Type', 'application/octet-stream')
-  @Header('Content-Encoding', 'br')
-  @Header('Cache-Control', 'private, max-age=31536000, immutable')
-  getSceneTake(@Param() { sceneId, theme }: SceneTakeParamsDto): StreamableFile {
+  getSceneTake(@Param() { sceneId, theme }: SceneTakeParamsDto, @Res({ passthrough: true }) response: HeaderSetter): StreamableFile {
     const path = findCheckedTake(process.env.SCENE_STORE_DIR, sceneId, theme);
     if (!path) throw new NotFoundException('This scene has no take.');
+    // Set only here, so a 404 does not claim to be compressed.
+    response.setHeader('Content-Encoding', 'br');
+    response.setHeader('Cache-Control', 'private, max-age=31536000, immutable');
     return new StreamableFile(createReadStream(path));
   }
 

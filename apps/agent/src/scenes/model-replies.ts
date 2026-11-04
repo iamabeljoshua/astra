@@ -3,7 +3,8 @@ import type { FactError, RouteEngine, SceneRoute, SceneVerdict, SceneUsage } fro
 const JSON_OBJECT = /\{[\s\S]*\}/;
 const ENGINES: readonly RouteEngine[] = ['manimgx', 'kit', 'none'];
 const MOST_TOPIC_CHARACTERS = 80;
-const CONTACT_DETAIL = /@|\d{5,}|https?:/;
+/** A topic is shared truth, so anything that points at one person means the router leaked the request into it. */
+const POINTS_AT_A_PERSON = /@|\d{5,}|https?:|\b(my|i|me|mine|our|we)\b/i;
 
 export function readJsonObject(text: string): Record<string, unknown> {
   const found = text.match(JSON_OBJECT)?.[0];
@@ -16,7 +17,7 @@ export function getRouteFromText(text: string): Omit<SceneRoute, keyof SceneUsag
   const reply = readJsonObject(text);
   const engine = ENGINES.find((name) => name === reply.engine) ?? 'none';
   const topic = typeof reply.topic === 'string' ? reply.topic.trim().slice(0, MOST_TOPIC_CHARACTERS) : '';
-  const isSafeTopic = topic !== '' && !CONTACT_DETAIL.test(topic);
+  const isSafeTopic = topic !== '' && !POINTS_AT_A_PERSON.test(topic);
   return { engine: engine !== 'none' && !isSafeTopic ? 'none' : engine, kind: typeof reply.kind === 'string' ? reply.kind : 'unknown', topic: isSafeTopic ? topic : '' };
 }
 

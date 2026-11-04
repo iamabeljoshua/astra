@@ -347,7 +347,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
       {
         heading: `What ${PRODUCT_NAME} is`,
         today: [
-          `${PRODUCT_NAME} is a learning app being built around an AI tutor. Today you can sign in, answer a few questions about yourself, open a home screen with suggested lessons, and start sessions that are saved to your account. Live lessons do not open yet.`,
+          `${PRODUCT_NAME} is a learning app being built around an AI tutor. Today you can sign in, answer a few questions about yourself, open a home screen with suggested lessons, and start sessions that are saved to your account. Spoken lessons are in testing and are not open to students yet.`,
         ],
         planned: [
           'Spoken lessons, where the tutor talks with you and draws on a board as it explains. The tutor is an AI and it can be wrong, so check anything that matters.',
@@ -398,6 +398,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
           'Your date of birth, if you are old enough to continue. We keep it in our database with an account ID and the time the record was made.',
           'The name you give your tutor, your level, the interests you choose, and your goal. We keep these in our database, and you can change them under Your notes. We use your level, interests, and goal to choose the lessons suggested on your home screen.',
           "Each session's title, subject, language, picture, length, status, and start time, and the suggested lesson it came from, if any. A question you send from the home screen becomes its session's title, cut to 200 characters, so we store those words.",
+          'The drawings a tutor makes for a test lesson are saved on our server and can be shown to other students. Each one holds its topic, its code, and its pictures, and nothing about you.',
           'We also use the sessions you start from suggested lessons, and their length, status, and start time, to choose what your home screen suggests next. A question you leave open can take the continue card, so a lesson you left open can then appear among the suggestions. Only your own sessions do this, and the words of the questions you type play no part in it.',
           "Any file you attach, and anything you type into a session's reply box, stay in your browser. They are not sent or stored. The app does not use your microphone.",
           'Words you type into the search box on the Sessions page go to our server, which uses them to find your sessions. We do not store them.',
@@ -437,6 +438,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
         heading: 'Who receives your data',
         today: [
           'Supabase runs our sign-in service and our database, so it holds everything we store on our servers, and it sends the sign-in email.',
+          "While spoken lessons are in testing, a test lesson sends the session's title, which can be a question you typed, to Anthropic's Claude models, which choose and write a drawing and the tutor's words. ElevenLabs receives the tutor's words and turns them into its voice, and the audio travels through a LiveKit server. The drawing itself is written from a short topic with nothing about you in it.",
           'No other outside service receives student data today. The app serves its own fonts and pictures.',
         ],
         planned: [
@@ -458,7 +460,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
       {
         heading: 'What we do not do',
         today: [
-          'The app shows no ads. We do not sell student data. No AI model receives student data today, so none is trained on it.',
+          'The app shows no ads. We do not sell student data. Outside the test lessons above, no AI model receives student data, and none is trained on it.',
         ],
         planned: [
           'When lessons open, raw audio is processed live and not stored, no model is trained on under-18 data, and adults opt in to any training use. The product will use no camera, no voiceprints, and no emotion inference.',

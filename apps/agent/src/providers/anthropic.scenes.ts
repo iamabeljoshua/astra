@@ -14,7 +14,7 @@ const TOKENS_PER_MILLION = 1_000_000;
 const WRITER_TOKENS = 20_000;
 const REVIEWER_TOKENS = 4000;
 const PLANNER_TOKENS = 1500;
-const ROUTER_TOKENS = 120;
+const ROUTER_TOKENS = 400;
 const CODE_BLOCK = /```(?:python|py)?\s*\n([\s\S]*?)```/;
 
 /** Dollars per million tokens, from the Claude API skill's table, read 4 November 2026. */
