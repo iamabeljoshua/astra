@@ -83,9 +83,10 @@ function createInkSvg({ width, height }: Size, label: string): SVGSVGElement {
 }
 
 // Text nodes only, so a label has no way to become markup.
-function createTextLabel(svg: SVGSVGElement, { lines, baselines, x, y, fontSize }: DiagramTextLabel): SVGTextElement {
+function createTextLabel(svg: SVGSVGElement, { lines, baselines, x, y, fontSize, role }: DiagramTextLabel): SVGTextElement {
   const text = document.createElementNS(SVG_NAMESPACE, 'text');
   text.classList.add('board-ink-text');
+  if (role) text.dataset.label = role;
   text.setAttribute('font-size', String(fontSize));
   lines.forEach((line, index) => {
     const span = document.createElementNS(SVG_NAMESPACE, 'tspan');

@@ -74,7 +74,9 @@ function getReported(problems: readonly BoardProblem[], refused: ReadonlySet<str
 
 const isWrittenInStrokes = (content: BoardElement['content']) => (content.kind === 'text' && content.handwritten === true) || (content.kind === 'diagram' && content.handwritten !== false);
 
-const getExpected = (board: BoardState): ExpectedWords[] => [...board.elements.values()].map(({ id, content, revealedUpTo }: BoardElement) => ({ elementId: id, words: getShownWords(content, revealedUpTo !== null), isWrittenInStrokes: isWrittenInStrokes(content) }));
+const getHostId = (content: BoardElement['content']) => ('target' in content && typeof content.target === 'string' ? (content.target.split('.')[0] ?? null) : content.kind === 'plot' && content.over !== undefined ? content.over : null);
+
+const getExpected = (board: BoardState): ExpectedWords[] => [...board.elements.values()].map(({ id, content, revealedUpTo }: BoardElement) => ({ elementId: id, words: getShownWords(content, revealedUpTo !== null), isWrittenInStrokes: isWrittenInStrokes(content), isRevealedInSteps: revealedUpTo !== null, hostId: getHostId(content) }));
 
 const getArriving = (board: BoardState, atMs: number) => new Set([...board.elements.values()].filter(({ entrance }) => getMotionValue(entrance, atMs) < 1).map(({ id }) => id as string));
 

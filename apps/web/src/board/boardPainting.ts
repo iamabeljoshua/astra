@@ -164,6 +164,8 @@ export function createBoardPainting({ boardElement, overlay, getWrapper, onMathR
     const entering = isMakingRoom && !context.isReducedMotion ? { ...context, progress: getProgressAfterRoom(context) } : context;
     if (placement) applyPlacement(wrapper, placement, { itemOpacity: entry.item.getEntranceOpacity?.(entering) ?? 1, scale: entry.item.ignoresPlacementScale ? 1 : placement.scale });
     else writeStyle(wrapper, 'visibility', 'hidden');
+    wrapper.toggleAttribute('data-moved-off', placement?.isVisible === false);
+    wrapper.toggleAttribute('data-no-place', placement === undefined);
     entry.item.paint({ ...entering, placedSize: placement?.isVisible ? { width: placement.width, height: placement.height } : null });
   };
 
