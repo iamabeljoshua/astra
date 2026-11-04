@@ -16,9 +16,14 @@ jobs:
   # Each job has its own 2 threads and its own limit, and they run at once, so an answer still comes within the limit of its start.
   typecheck-and-web:
     runs-on: ubuntu-latest
-    timeout-minutes: 4
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        n: [1, 2, 3]
     steps:
       - uses: actions/checkout@v7
+      - run: lscpu | grep 'Model name'
       - uses: ./.github/actions/install
       # A pnpm filter brings the root back in, and its test script would rerun every package.
       - name: Run the tests of the packages that are not an app with its own step
@@ -32,12 +37,17 @@ jobs:
 
   api-and-agent:
     runs-on: ubuntu-latest
-    timeout-minutes: 4
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        n: [1, 2, 3]
     env:
       POSTGRES_TAG: 17.6.1.075
       POSTGRES_DIGEST: sha256:82a04ba6c05f60950a74ae46be3726abb18d06ee44da936276fd782e72e36855
     steps:
       - uses: actions/checkout@v7
+      - run: lscpu | grep 'Model name'
       - id: postgres-image
         run: .github/scripts/postgres-image.sh key >> "$GITHUB_OUTPUT"
       # The action allows 10 minutes per download segment, so a stalled download would use up the job's limit.
