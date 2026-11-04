@@ -39,12 +39,9 @@ const ENDS_IN_ELLIPSIS = /\.{2,}["')]*\s*$/;
 const HOLDS_SENTENCE_END = /[a-z][.!]["')]*\s+\S/i;
 /** Words only a safety reply uses, so that reply is never paused, wrapped, or ended at a question. Help must reach the student whole. A lesson can say the second group too, so those count only inside a question. */
 const SAFETY_REPLY = /\bare you (?:okay|ok)\s*\?|\b(?:that sounds[^.?!]*serious|right thing telling me|adult you trust|trusted adult|(?:your|local) emergency (?:number|services)|are you safe)\b|\b(?:feel safe|in danger|hurting yourself|hurt yourself|ending your life|not your fault)\b[^.?!]*\?/i;
-/** Words that say something is on the board. Spoken before the drawing has been read, they could be false. */
 export const CLAIMS_A_DRAWING = /\b(here you go|there you go|here it is|here they are|here'?s|here is|here are|take a look|have a look|look at|see (?:the|this)|on the board|i'?ve (?:drawn|put|written|added)|i (?:drew|put|wrote)|this (?:table|timeline|diagram|picture|drawing|graph|plot|code|painting))\b/i;
-/** What a student would look for after hearing about it. A refused ring or note leaves the words beside it true. */
-export const DRAWN_THINGS: ReadonlySet<string> = new Set(['table', 'timeline', 'code', 'image', 'drawing', 'diagram', 'plot', 'text', 'simulate']);
+export const KINDS_A_STUDENT_LOOKS_FOR: ReadonlySet<string> = new Set(['table', 'timeline', 'code', 'image', 'drawing', 'diagram', 'plot', 'text', 'simulate']);
 const WRITTEN_KIND = /"kind"\s*:\s*"([A-Za-z]+)"/;
-/** The parts the prompt lists, which each take a mark. */
 const HAS_PARTS: ReadonlySet<string> = new Set(['table', 'timeline', 'code', 'drawing', 'diagram']);
 const STILL_A_TAG = /^<\/?(?:[A-Za-z_][\w:.-]*(?:\s[^<>\n]*)?)?$/;
 const TAG_NAME = /^<(\/?)([A-Za-z_][\w:.-]*)/;
@@ -63,7 +60,7 @@ export type CommandVerdict = { ok: true } | { ok: false; problem: string; isWron
 export interface BeatTextReaderOptions {
   onBeatEnd(beat: WrittenBeatParts): void;
   onBadCommand(problem: string): void;
-  /** The words around a drawing lean on it, so the reply stops here and is asked for again. Left out when a reply must get out whatever it drew. */
+  /** Stops the reply here so it can be asked for again. Left out when a reply must get out whatever it drew. */
   onDrawingRefused?(problem: string): void;
   onWrongMath(problem: string): void;
   onCommandKept?(command: SceneCommand): void;
@@ -103,11 +100,10 @@ function getWithTransformOfWordsAsNewLine(command: SceneCommand, board: BoardKin
   return { kind: 'writeMath', id: target, tex, ...(overWords === undefined ? {} : { overWords }), ...(claim === undefined ? {} : { claim: claim === 'step' ? 'new' : claim }) };
 }
 
-const isDrawingCue = (part: Beat['script'][number]) => typeof part !== 'string' && DRAWN_THINGS.has(part.kind);
+const isDrawingCue = (part: Beat['script'][number]) => typeof part !== 'string' && KINDS_A_STUDENT_LOOKS_FOR.has(part.kind);
 
 const isShownCue = (part: Beat['script'][number]) => isDrawingCue(part) || (typeof part !== 'string' && (part.kind === 'writeMath' || part.kind === 'transformMath'));
 
-// A tutor writes a note on the parts the prompt lists, and a note has no place on a part, so it becomes the underline and label that do.
 function withNoteOnAPartAsMark(value: unknown, board: BoardKinds): unknown {
   if (typeof value !== 'object' || value === null) return value;
   const { kind, id, target, text } = value as Record<string, unknown>;
@@ -227,7 +223,7 @@ export class BeatTextReader {
   /** Drops half-read commands and half a sentence, because the next request carries on from the words already said, and half a sentence is what a dropped stream must never speak. */
   closeAttempt(): void {
     this.#clearHalfRead();
-    if (!this.#isClaimWaiting() && (isSentenceEnd(this.#text) || ENDS_IN_QUESTION.test(this.#text))) this.#endBeat();
+    if (!this.#isClaimHeldForItsDrawing() && (isSentenceEnd(this.#text) || ENDS_IN_QUESTION.test(this.#text))) this.#endBeat();
     else this.#dropWordsKeepingCommands();
   }
 
@@ -376,7 +372,7 @@ export class BeatTextReader {
   #endLine(): void {
     const isQuestion = ENDS_IN_QUESTION.test(this.#text);
     const isTooShortForABeat = this.#wordCount < FEWEST_WORDS_IN_A_BEAT && !isQuestion;
-    if (this.#wordCount > 0 && (isTooShortForABeat || this.#isClaimWaiting() || (isQuestion && this.isSafetyReply))) {
+    if (this.#wordCount > 0 && (isTooShortForABeat || this.#isClaimHeldForItsDrawing() || (isQuestion && this.isSafetyReply))) {
       if (!this.#isAfterSpace) this.#speak(' ');
       return;
     }
@@ -429,7 +425,7 @@ export class BeatTextReader {
 
   // Beats end at commas and sentence ends, because M3.2 measured mid-sentence flushes stretching the line.
   #isAtBeatBoundary(): boolean {
-    if (this.#cuesAwaitingWord.length > 0 || this.#isClaimWaiting()) return false;
+    if (this.#cuesAwaitingWord.length > 0 || this.#isClaimHeldForItsDrawing()) return false;
     // In a safety reply a question stays in its beat until more words or the end of the reply, so a student's "yes" cannot cut off the help after it.
     if (ENDS_IN_QUESTION.test(this.#text)) return !this.isSafetyReply;
     if (this.#wordCount < FEWEST_WORDS_IN_A_BEAT) return false;
@@ -439,7 +435,7 @@ export class BeatTextReader {
   }
 
   // "Here you go." waits for the next phrase, or the drawing written after it, so a refused drawing takes those words with it.
-  #isClaimWaiting(): boolean {
+  #isClaimHeldForItsDrawing(): boolean {
     if (this.isSafetyReply || this.#script.some(isShownCue)) return false;
     return CLAIMS_A_DRAWING.test(this.#text.trimEnd().split(/(?<=[.!?,;:])\s+/).at(-1) ?? '');
   }
@@ -551,7 +547,7 @@ export class BeatTextReader {
 
   #refuse(written: string, problem: string): void {
     const kind = WRITTEN_KIND.exec(written)?.[1] ?? '';
-    if (!this.#options.onDrawingRefused || !DRAWN_THINGS.has(kind) || this.isSafetyReply) return this.#options.onBadCommand(problem);
+    if (!this.#options.onDrawingRefused || !KINDS_A_STUDENT_LOOKS_FOR.has(kind) || this.isSafetyReply) return this.#options.onBadCommand(problem);
     this.#isHalted = true;
     this.#options.onDrawingRefused(problem);
   }

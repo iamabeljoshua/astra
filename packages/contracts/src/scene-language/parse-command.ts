@@ -304,18 +304,17 @@ function readDiagramEdge(place: Place, nodeNames: ReadonlySet<string>): Diagram[
   return { from: readEdgeEnd(fields.at('from'), nodeNames), to: readEdgeEnd(fields.at('to'), nodeNames), ...(isBlankOrNullLabel(fields.at('label').value) ? {} : fields.optional('label', readLabel)) };
 }
 
-// A model sometimes adds a kind to an event, which means nothing here and is no reason to lose a whole timeline.
 function readDrawingName(place: Place): DrawingName {
   if (!DRAWINGS.includes(place.value as DrawingName)) fail(place, `one of ${DRAWINGS.filter((name) => DRAWING_PARTS[name].length > 0).join(', ')}`);
   return place.value as DrawingName;
 }
 
+// A model sometimes adds a kind to an event, which means nothing here and is no reason to lose a whole timeline.
 function readTimelineEvent(place: Place): Timeline['events'][number] {
   const fields = readFields(place, ['when', 'label', 'kind']);
   return { when: readLabel(fields.at('when')), label: readLabel(fields.at('label')) };
 }
 
-// A comparison table has an empty corner, and a tutor may leave a cell empty.
 const readTableWords = (place: Place) => (isBlankOrNullLabel(place.value) ? '' : readLabel(place));
 
 function readTableRow(place: Place): string[] {

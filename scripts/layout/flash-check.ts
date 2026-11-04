@@ -13,9 +13,8 @@ const SHOT_SCALE = 0.25;
 const SHOT_QUALITY = 60;
 const AFTER_LAST_COMMAND_MS = 900;
 const STROBES = /strobe/;
-/** A smooth scroll runs on the real clock and this check steps a simulated one, so its frames would catch the page at unrelated places. The real scroll is measured on its own clock below. */
+/** A smooth scroll runs on the real clock and this check steps a simulated one, so its frames would catch the page at unrelated places. */
 const INSTANT_SCROLL = '.board-scroll { scroll-behavior: auto !important; }';
-/** The boards that fill up and scroll furthest, and ordinary lessons that fill one, played on the real clock with the real scroll. */
 const LONG_BOARDS = ['hostile-widest-diagram', 'hostile-widest-timeline', 'hostile-many-at-once', 'math-board-fills-up', 'mixed-board-fills-and-moves-on', 'mixed-phone-heavy', 'mixed-every-kind', 'mixed-live-whole-board'];
 const THEMES = ['dark', 'light'] as const;
 /** A stalled browser never answers, so a frame this late names itself and ends the run. */
@@ -156,7 +155,7 @@ export async function runFlashCheck(page: Page, { isQuick, surface, only }: { is
     }
   }
   verdict.lines.push(`Flash check: ${frames} frames across ${scenes.length} scenes in both themes in ${Math.round((Date.now() - startedAtMs) / 1000)} s. Most flashes in a second: ${worst.flashes}, in ${worst.scene} ${worst.theme}`);
-  await instantScroll.evaluate((style) => style.remove());
+  await instantScroll.evaluate((style) => (style as HTMLStyleElement).remove());
   if (!isQuick && surface === 'rows') await runRealClockScrolls(page, shots, scenes, verdict);
   await shots.detach();
 }

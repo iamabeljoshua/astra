@@ -20,7 +20,6 @@ interface RowPaintingOptions {
 function sizeWrapper({ wrapper, element, item, size, fit, columnWidth }: { wrapper: HTMLElement; element: BoardElement; item: BoardItem; size: { width: number; height: number }; fit: string; columnWidth: number }): number {
   const content = wrapper.parentElement as HTMLElement;
   if (fit === 'figure') {
-    // A row with no width yet has a size of 0, and 0 over 0 would paint broken numbers.
     const scale = size.width === 0 ? 1 : Math.min(1, Math.min(columnWidth, LARGEST_FIGURE.width) / size.width, LARGEST_FIGURE.height / size.height);
     if (!item.ignoresPlacementScale) writeStyle(wrapper, 'transform', `scale(${scale.toFixed(4)})`);
     content.style.height = `${Math.ceil(size.height * scale)}px`;

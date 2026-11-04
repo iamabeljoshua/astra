@@ -97,12 +97,10 @@ describe('the shared board', () => {
   });
 
   it('tells the tutor once when a curve turns too fast to draw', () => {
-    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(600);
     const onBoardProblem = vi.fn();
     const operations = [command({ kind: 'plot', id: 'fine', expression: 'sin(9000*x)', domain: [0, 100] }, 1)];
     const { rerender } = render(<SharedBoard board={getBoardAt(operations, LONG_AFTER)} atMs={LONG_AFTER} onBoardProblem={onBoardProblem} />);
     rerender(<SharedBoard board={getBoardAt(operations, LONG_AFTER + 1)} atMs={LONG_AFTER + 1} onBoardProblem={onBoardProblem} />);
     expect(onBoardProblem.mock.calls.filter(([{ kind }]) => kind === 'curveTooFine')).toEqual([[{ kind: 'curveTooFine', target: 'fine' }]]);
-    vi.restoreAllMocks();
   });
 });

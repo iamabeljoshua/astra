@@ -266,7 +266,7 @@ function createFigureItem(wrapper: HTMLElement, content: BoardElement['content']
       return { fit, size, fromSize: null };
     },
     paint({ element, board, atMs, placedSize, isReducedMotion, onLabelWithoutRoom, onMarkWithoutPart, onMarkDrawn, onCurveTooFine }) {
-      if (!placedSize?.width) return;
+      if (!placedSize) return;
       const width = String(Math.round(placedSize.width));
       const height = String(Math.round(placedSize.height));
       if (svg.getAttribute('width') !== width) svg.setAttribute('width', width);

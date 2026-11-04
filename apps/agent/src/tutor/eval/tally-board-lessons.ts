@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { CLAIMS_A_DRAWING, DRAWN_THINGS } from '../beat-text-reader.ts';
+import { CLAIMS_A_DRAWING, KINDS_A_STUDENT_LOOKS_FOR } from '../beat-text-reader.ts';
 
 interface TurnRow {
   group: string;
@@ -10,7 +10,7 @@ interface TurnRow {
 }
 
 
-const isDrawn = (kind: string) => DRAWN_THINGS.has(kind) || kind === 'writeMath';
+const isDrawn = (kind: string) => KINDS_A_STUDENT_LOOKS_FOR.has(kind) || kind === 'writeMath';
 
 const rows = readFileSync(process.argv[2] as string, 'utf8').trim().split('\n').map((line) => JSON.parse(line) as TurnRow);
 interface LessonTally {
