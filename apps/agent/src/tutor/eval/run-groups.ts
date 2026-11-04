@@ -5,7 +5,9 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { type ElementId, getBeatText, getCues, type SceneCommand, type StudentWork } from '@astra/contracts';
 import { readKey } from '../../keys.ts';
-import { makeAnthropicAsker, makeAnthropicSourceFinder, makeAnthropicTutorModel, type TutorModelName } from '../../providers/anthropic.ts';
+import { askPlanner } from '../../lesson-plan/ask-planner.ts';
+import { createLessonPlanner } from '../../lesson-plan/lesson-planner.ts';
+import { makeAnthropicAsker, makeAnthropicJsonReader, makeAnthropicSourceFinder, makeAnthropicTutorModel, type TutorModelName } from '../../providers/anthropic.ts';
 import type { MemoryLine } from '../../learner-record/memory-note.ts';
 import { createTutorBrain, type StudentProfile, type TurnSummary } from '../brain.ts';
 import { CURRENT_PROMPT, PROMPT_VERSIONS, type PromptVersion, type TutorPrompt } from '../prompt.ts';
@@ -144,10 +146,14 @@ function describeDrawn(command: SceneCommand): string {
 }
 
 function makeBrain(prompt: TutorPrompt, profile: StudentProfile, traces: string[], onTurn: (summary: TurnSummary) => void, model: ReturnType<typeof makeAnthropicTutorModel>, memory?: readonly MemoryLine[]) {
-  return createTutorBrain({
+  // The same planner a room runs, so these turns test what a student gets.
+  const reader = makeAnthropicJsonReader({ apiKey: readKey('ANTHROPIC_API_KEY') });
+  const lessonPlanner = createLessonPlanner({ ask: (request) => askPlanner(reader, request), canSpend: () => true, charge: (usd) => ledger.charge({ anthropicUsd: usd }), onTitleChange: (title) => console.log(`title now: ${title}`), trace: () => {} });
+  const brain = createTutorBrain({
     model,
     prompt,
     profile,
+    lessonPlanner,
     ...(memory ? { memory: { memory: { count: memory.length, notes: [...memory] } } } : {}),
     ...(prompt === PROMPT_VERSIONS.v3FindSource ? { findSource: makeAnthropicSourceFinder({ apiKey: readKey('ANTHROPIC_API_KEY') }) } : {}),
     trace: (name, fields) => traces.push(`${name}${fields?.problem ? `: ${String(fields.problem)}` : ''}${fields?.report ? `: ${String(fields.report)}` : ''}`),
@@ -157,6 +163,7 @@ function makeBrain(prompt: TutorPrompt, profile: StudentProfile, traces: string[
     },
     getSpendLimit: () => (ledger.isOverModelLimit() ? 'sessionLimit' : null),
   });
+  return { brain, lessonPlanner };
 }
 
 function recordCodeChecks(group: PromptGroup, turn: GroupTurn, summary: TurnSummary, commands: readonly SceneCommand[]) {
@@ -183,7 +190,7 @@ interface RunContext {
 async function runGroup(group: PromptGroup, { prompt, model, askJudge }: RunContext): Promise<void> {
   const traces: string[] = [];
   let latest: TurnSummary | null = null;
-  const brain = makeBrain(prompt, group.profile ?? PROFILE, traces, (summary) => (latest = summary), model, group.memory);
+  const { brain, lessonPlanner } = makeBrain(prompt, group.profile ?? PROFILE, traces, (summary) => (latest = summary), model, group.memory);
   const exchange: string[] = [];
   const wordCounts: number[] = [];
   const replies: string[] = [];
@@ -213,6 +220,7 @@ async function runGroup(group: PromptGroup, { prompt, model, askJudge }: RunCont
       results.push({ group: group.name, check: `judged:${turn.judge}`, passed, text: text.slice(0, 60) });
       console.log(`   judged ${turn.judge}: ${verdict.replace(/\s+/g, ' ').slice(0, 160)}`);
     }
+    await lessonPlanner.whenSettled();
   }
   for (const check of group.anyReply ?? []) {
     const passed = replies.some((reply) => REPLY_CHECKS[check]?.passes(reply, []));
@@ -228,7 +236,7 @@ async function runGroup(group: PromptGroup, { prompt, model, askJudge }: RunCont
 
 async function runCompareSide(compare: LevelCompare, { level, student = {} }: { level: string; student?: CompareStudent | undefined }, { prompt, model }: RunContext): Promise<string> {
   const spoken: string[] = [];
-  const brain = makeBrain(prompt, { level, interests: student.interests ?? [], goal: 'curiosity' }, [], (summary) => spoken.push(summary.spokenText), model, student.memory);
+  const { brain } = makeBrain(prompt, { level, interests: student.interests ?? [], goal: 'curiosity' }, [], (summary) => spoken.push(summary.spokenText), model, student.memory);
   for (const text of [compare.text, compare.then]) for await (const beat of brain.reply({ text }, new AbortController().signal)) void beat;
   return spoken.join(' ');
 }

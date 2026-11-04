@@ -15,4 +15,16 @@ describe('the agent link to the API', () => {
     await createApiLink({ apiUrl: 'http://api.test', agentKey: 'key', roomName }).fetchProfile();
     expect(addresses).toEqual([`http://api.test/agent/sessions/${SESSION}/brief`]);
   });
+
+  it('sends a new title', async () => {
+    const sent: { address: string; body: unknown }[] = [];
+    vi.stubGlobal('fetch', async (address: string, init: RequestInit) => {
+      sent.push({ address, body: init.body });
+      return new Response(null, { status: 204 });
+    });
+
+    await createApiLink({ apiUrl: 'http://api.test', agentKey: 'key', roomName: `session-${SESSION}` }).setTitle('Black holes');
+
+    expect(sent).toEqual([{ address: `http://api.test/agent/sessions/${SESSION}/title`, body: JSON.stringify({ title: 'Black holes' }) }]);
+  });
 });

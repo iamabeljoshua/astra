@@ -1,9 +1,10 @@
 import { type Beat, type BeatId, clipTypedText, type ElementId, getBeatText, getCues, getPlayedCues, getSpokenWords, isStudentLineId, parseBeat, parseWrittenBeat, type SceneCommand, type StudentWork, type TutorClosedReason, TYPED_TEXT_MAX_CHARACTERS } from '@astra/contracts';
 import { type BoardOperation, type BoardState, type CheckedWork, checkWorkOnBoard, cleanStudentText as cleanLine, getBoardAt, getNod, getOpenTaskOnBoard, getWorkContext } from '@astra/board/shared';
 import { type FindSource, type ModelEvent, ModelRejectedError, type ModelUsage, type TutorModelAdapter, type TutorModelRequest, type TutorTurn } from '../providers/types.ts';
+import { getProblemNote, getTeachFirstNote, type LessonPlanner } from '../lesson-plan/lesson-planner.ts';
 import { createAttemptTracker } from './attempts.ts';
 import { BeatTextReader, type WrittenBeatParts } from './beat-text-reader.ts';
-import { type BoardMemory, checkAgainstBoard, EMPTY_BOARD, getMemoryAfter, getMemoryAfterAnswering, getMemoryAfterWork, getMemoryOnComingBack, getMemoryOnNewTurn, getWordsProblem } from './board-memory.ts';
+import { type BoardMemory, checkAgainstBoard, EMPTY_BOARD, getClaimProblem, getMemoryAfter, getMemoryAfterAnswering, getMemoryAfterWork, getMemoryOnComingBack, getMemoryOnNewTurn, getWordsProblem } from './board-memory.ts';
 import type { MemoryNote } from '../learner-record/memory-note.ts';
 import { TUTOR_PROMPT, type TutorPrompt } from './prompt.ts';
 import { createLinePicker, type SpokenLineUse } from './spoken-lines.ts';
@@ -110,6 +111,8 @@ export interface TutorBrainOptions {
   compactAtTokens?: number;
   getSpendLimit?(): SpendLimit | null;
   getNowMs?(): number;
+  /** Prepares a lesson plan beside the replies, which a reply never waits for. */
+  lessonPlanner?: LessonPlanner;
   /** Another version of the prompt, so an evaluation can run the same questions on it. */
   prompt?: TutorPrompt;
   findSource?: FindSource;
@@ -256,7 +259,7 @@ const holdsWhereToStart = ({ memory: { notes } }: MemoryNote) => notes.some(({ k
 
 const toProfileNote = ({ level, interests, goal }: StudentProfile) => ({ student: { level, interests, goal } });
 
-export function createTutorBrain({ model, profile = null, loadProfile, memory: knownMemory = null, loadMemory, onWorkNoted, timeouts: chosenTimeouts, trace = () => {}, onTurnEnd, onCompacted, compactAtTokens = COMPACT_AT_TOKENS, getSpendLimit = () => null, getNowMs = () => performance.now(), prompt = TUTOR_PROMPT, findSource }: TutorBrainOptions): Required<TutorBrain> {
+export function createTutorBrain({ model, profile = null, loadProfile, memory: knownMemory = null, loadMemory, onWorkNoted, timeouts: chosenTimeouts, trace = () => {}, onTurnEnd, onCompacted, compactAtTokens = COMPACT_AT_TOKENS, getSpendLimit = () => null, getNowMs = () => performance.now(), prompt = TUTOR_PROMPT, findSource, lessonPlanner }: TutorBrainOptions): Required<TutorBrain> {
   const timeouts: TutorTimeouts = { ...TUTOR_TIMEOUTS, ...chosenTimeouts };
   const attempts = createAttemptTracker();
   const pickLine = createLinePicker();
@@ -269,6 +272,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
   let workCount = 0;
   const getBoardNow = () => getBoardAt(boardOperations, Number.POSITIVE_INFINITY);
   let toldBoard = '{}';
+  let toldStep = 'null';
   let memoryNote: Record<string, unknown> | null = knownMemory ? { ...knownMemory } : null;
   let canFitTheStart = knownMemory !== null && holdsWhereToStart(knownMemory);
   const getStandingNotes = () => [profileNote, memoryNote].filter((note) => note !== null);
@@ -292,7 +296,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
   let hasNoddedSinceLastTurn = false;
 
   // Board and heard words come from the browser's report, because the model may write past what the student saw.
-  const settleLastTurn = () => {
+  const settleLastTurn = (studentText: string | null = null) => {
     const heard: string[] = [];
     const missed: string[] = [];
     for (const beat of lastBeats) {
@@ -313,6 +317,12 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     const board = JSON.stringify(Object.fromEntries([...memory.kinds].map(([id, kind]) => [id, memory.lines.get(id) ?? kind])));
     if (board !== toldBoard) note.board = JSON.parse(board);
     toldBoard = board;
+    // Words that may be serious get no plan at all, and the step waits for a turn that can use it.
+    if (studentText === null || !MAY_BE_ABOUT_SAFETY.test(studentText)) {
+      const step = lessonPlanner?.getStepNote() ?? null;
+      if (JSON.stringify(step) !== toldStep) note.lesson_plan = step;
+      toldStep = JSON.stringify(step);
+    }
     if (Object.keys(note).length > 0) pendingNotes.push(note);
     lastBeats = [];
     lastRefused = [];
@@ -329,16 +339,17 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
   };
 
   const startTurn = (studentText: string, signal: AbortSignal): TurnWork => {
-    settleLastTurn();
+    settleLastTurn(studentText);
     turnCount += 1;
-    memory = getMemoryOnNewTurn(memory);
+    memory = getMemoryOnNewTurn(memory, studentText);
     if (memory.hasComeBack && !isComeBackUnanswered) memory = { ...memory, hasComeBack: false };
     isComeBackUnanswered = false;
     const nodded = hasNoddedSinceLastTurn;
     hasNoddedSinceLastTurn = false;
     let readerMemory = memory;
+    const shapeNote = lessonPlanner && !memory.openTask && !MAY_BE_ABOUT_SAFETY.test(studentText) ? (getProblemNote(studentText) ?? getTeachFirstNote(studentText, turnCount === 1)) : null;
     const openingNote = canFitTheStart && turnCount <= TURNS_THAT_SET_THE_START ? (prompt.openingNote ?? null) : null;
-    const turnNotes = [attempts.startTurn(studentText), prompt.turnNote, openingNote].filter((note) => note !== null);
+    const turnNotes = [attempts.startTurn(studentText), prompt.turnNote, shapeNote, openingNote].filter((note) => note !== null);
     const turn: TurnWork = {
       id: turnCount,
       studentText,
@@ -357,8 +368,14 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
         onCommandKept(command) {
           readerMemory = getMemoryAfter(command, readerMemory);
           boardOperations.push({ kind: 'command', atMs: boardOperations.length, command, overMs: null });
+          lessonPlanner?.noteCommand(command);
           if (SHOWING_KINDS.has(command.kind)) turn.hasShownAStep = true;
           if (command.kind === 'highlight' || command.kind === 'annotate') marksDrawn.set(command.id, { target: command.target, ...('tex' in command && command.tex !== undefined ? { tex: command.tex } : {}) });
+        },
+        onCommandDropped(command) {
+          const dropped = boardOperations.findIndex((operation) => operation.kind === 'command' && operation.command === command);
+          if (dropped !== -1) boardOperations.splice(dropped, 1);
+          if ('id' in command && readerMemory.openTask?.id === command.id) readerMemory = { ...readerMemory, openTask: null };
         },
         onBadCommand(problem) {
           turn.refused.push(problem);
@@ -368,7 +385,8 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
           turn.wrongMath = problem;
           trace('mathRefused', { problem });
         },
-        checkWords: (text) => getWordsProblem(text, readerMemory, turn.beats.length === 0),
+        // Only a first attempt, because help for a student in crisis must get out, even in imperfect words.
+        checkWords: (text) => getWordsProblem(text, readerMemory, turn.beats.length === 0) ?? (turn.attempts < MAX_ATTEMPTS ? getClaimProblem(text) : null),
         onWrongWords(problem) {
           turn.wrongWords = problem;
           trace('wordsRefused', { problem });
@@ -688,6 +706,8 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
   const startFromCleanHistory = (turn: TurnWork) => {
     turns = [];
     toldBoard = '{}';
+    toldStep = 'null';
+    if (profileNote && !pendingNotes.includes(profileNote)) pendingNotes = [profileNote, ...pendingNotes];
     pendingNotes = [...getStandingNotes().filter((note) => !pendingNotes.includes(note)), ...pendingNotes];
     turn.notes = pendingNotes.map((note) => JSON.stringify(note));
     turn.carriedNotes = pendingNotes.length;
@@ -789,6 +809,8 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
         if (!result) return trace('compactionEmpty');
         turns = [{ role: 'summary', summary: result.summary }, ...turns.slice(keptFrom)];
         toldBoard = '{}';
+        toldStep = 'null';
+        if (profileNote) pendingNotes.push(profileNote);
         pendingNotes.push(...getStandingNotes());
         onCompacted?.({ costUsd: model.getCostUsd(result.usage), turnsBefore, turnsAfter: turns.length });
       })
@@ -819,6 +841,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     lastBeats = turn.beats;
     lastRefused = wasRefused ? [] : turn.refused;
     hidesLastWords = wasRefused;
+    lessonPlanner?.noteReplyEnded({ wasSafety: turn.reader.isSafetyReply });
     onTurnEnd?.({
       studentText: turn.studentText,
       spokenText: getWordsSaid(turn),
@@ -876,6 +899,8 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
         if (said.ok) yield said.value;
         return;
       }
+      // Skipped on words this list knows. Vaguer words reach the planner, whose `stay` and `getTrustedMove` hold them.
+      if (!MAY_BE_ABOUT_SAFETY.test(studentText)) lessonPlanner?.noteStudentWords({ words: studentText, isOpening: turnCount === 0, tutorSaid: lastBeats.map(getBeatText).join(' ') });
       await waitForLastTurn();
       if (profileLoading || memoryLoading) await Promise.race([Promise.all([profileLoading, memoryLoading]), delay(timeouts.profileWaitMs)]);
       isTurnRunning = true;
@@ -919,6 +944,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     },
     getClosedReason: () => (hasToldClosed ? closedReason : null),
     noteCameBack() {
+      lessonPlanner?.tellTitleAgain();
       memory = getMemoryOnComingBack(memory);
       isComeBackUnanswered = true;
       toldBoard = '';
@@ -936,6 +962,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
       boardOperations.push({ kind: 'worked', atMs: boardOperations.length, action: { action: 'worked', work, ...checked } });
       onWorkNoted?.(work, checked);
       memory = getMemoryAfterWork(work, checked, memory);
+      lessonPlanner?.noteWorkChecked(checked, work);
       workSinceLastTurn.push({ work, checked });
       hasNoddedSinceLastTurn ||= getNod(work, checked) !== null;
       const heldNotesOfWork = pendingNotes.filter((note) => 'student_work' in note);
