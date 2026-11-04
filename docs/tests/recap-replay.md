@@ -59,6 +59,18 @@ The last run's 17 rows of a 41 s lesson took about 8 KB as JSON, so a 30 minute 
 
 `apps/agent/src/lab/proof/recap-replay-proof.ts` holds a lesson on the real tutor with the fake voice, ends it, opens it from Sessions, and scrubs. It fails if a board reached by seeking back differs by one byte of its screenshot from the same moment reached going forward, if pause does not hold, or if another student gets anything but a 404. `--goal gentle` and `--goal nothing` prove the two other endings. A real voice has not read a recap, because one recap is about 125 credits and this lane had 50. It goes down the same `speak` path as every turn.
 
+| What the run on 4 November found, on real Sonnet and Haiku with the fake voice, on a loaded Mac | Result |
+| --- | --- |
+| End pressed to recap on screen, with a lesson in it | 2.4 to 3.3 s over 3 runs |
+| End pressed to Home, with nothing in the session | 1.3 s, with no recap shown |
+| A session where the student disclosed being hurt | The gentle line, decided in under 40 ms with no model |
+| Three seek points, reached forward and then back | The board's screenshot is byte for byte the same |
+| Speed at 2x | 2.15 times real time over 2 s |
+| Pause held for 800 ms | Did not move |
+| Another student, signed in, on read and delete | 404, with nothing of the lesson in the body |
+| No token | 401 |
+| Delete, then the list | The row goes back to `Open`, and the session says nothing is saved |
+
 ## A crisis session
 
 The gentle line tells them to talk to an adult they trust or call their local emergency number, as the tutor's own safety reply does. The session's log and recap stay, as any session's do, so its words can be replayed and deleted by that student. Whether a crisis session should be kept at all is on the lawyer's card.
