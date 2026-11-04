@@ -630,8 +630,8 @@ describe('a ring the board could not draw', () => {
 
 describe('the prompt names what math it may write', () => {
   it('asks for braces on a fraction and names what is refused', () => {
-    expect(TUTOR_SYSTEM).toContain('\\frac{1}{2}');
-    expect(TUTOR_SYSTEM).toContain('never \\frac12');
-    expect(TUTOR_SYSTEM).toContain('\\xrightarrow');
+    expect(TUTOR_SYSTEM).toContain('\\\\frac{1}{2}');
+    expect(TUTOR_SYSTEM).toContain('never \\\\frac12');
+    expect(TUTOR_SYSTEM).toContain('\\\\xrightarrow');
   });
 });
