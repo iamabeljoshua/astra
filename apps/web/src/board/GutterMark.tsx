@@ -5,7 +5,7 @@ const MARK_PATHS = {
   cross: ['M5 4 C11 11 18 19 26 27', 'M27 4 C19 11 11 19 4 27'],
 } as const;
 
-// A pen stroke across its length, read from the clock, so a replay draws it the same way and stops at the same moment.
+// Draws a check or cross as a pen stroke, read from the clock so a replay draws it the same way.
 export function GutterMark({ element, atMs, isReducedMotion }: { element: BoardElement; atMs: number; isReducedMotion: boolean }) {
   const { content } = element;
   if (content.kind !== 'annotate' || (content.mark !== 'check' && content.mark !== 'cross')) return null;

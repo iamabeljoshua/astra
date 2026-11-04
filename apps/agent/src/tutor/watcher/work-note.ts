@@ -1,7 +1,7 @@
 import type { StudentWork } from '@astra/contracts';
 import { type CheckedWork, getPointFacts, type WorkContext } from '@astra/board/shared';
 
-// Lines of code usually pass with no reply, so the tutor would otherwise never see them. Everything else with words in it comes as the turn's own text.
+// A line of code carries its text, because it usually passes with no reply and the tutor would not see it.
 function getLineFacts(work: StudentWork & { way: 'write' }, { reading }: CheckedWork) {
   const math = reading?.parts.flatMap((part) => (part.type === 'math' ? [part.tex] : [])) ?? [];
   const [first] = reading?.parts ?? [];
@@ -25,7 +25,6 @@ function getWayFacts(work: StudentWork, checked: CheckedWork, context: WorkConte
   }
 }
 
-/** What the tutor is told, built by code, so it holds facts and no judgment of the model's own. */
 export function getWorkNote(work: StudentWork, checked: CheckedWork, context: WorkContext) {
   const { verdict, closesTask } = checked;
   return {

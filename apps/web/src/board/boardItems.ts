@@ -177,7 +177,6 @@ function createPlainItem(wrapper: HTMLElement): BoardItem {
   };
 }
 
-// A math line is the board's math painter. Words and code are ordinary text in the row.
 function createStudentLineItem(wrapper: HTMLElement, element: BoardElement): BoardItem {
   return element.math ? createMathItem(wrapper) : createPlainItem(wrapper);
 }

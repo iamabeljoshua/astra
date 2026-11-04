@@ -7,7 +7,6 @@ function getOpenTask(board: BoardState, id: ElementId | undefined): Task | null 
   return element?.content.kind === 'task' && element.progress?.isOpen ? element.content : null;
 }
 
-/** The task a browser's message names, only if it is the open one. A forged name finds nothing. */
 export function getWorkContext(board: BoardState, taskId: ElementId | undefined): WorkContext {
   const task = getOpenTask(board, taskId);
   const progress = taskId === undefined ? undefined : board.elements.get(taskId)?.progress;
@@ -27,12 +26,10 @@ export function getWorkContext(board: BoardState, taskId: ElementId | undefined)
   };
 }
 
-/** What code makes of this work on this board. The page uses it to react at once, and the agent to check the same work for itself. */
 export function checkWorkOnBoard(work: StudentWork, board: BoardState): CheckedWork {
   return checkWork(work, getWorkContext(board, work.task));
 }
 
-/** The task open on the board now, for the page to offer. */
 export function getOpenTaskOnBoard(board: BoardState): Task | null {
   for (const element of [...board.elements.values()].reverse()) {
     if (element.content.kind === 'task' && element.progress?.isOpen) return element.content;

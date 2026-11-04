@@ -12,7 +12,7 @@ interface PlaceTaskProps {
 
 const CHOICE = 'border border-line px-3 py-1.5 text-sub text-left';
 
-// Pick an item, then the slot it goes in, so it needs no dragging and works the same by keyboard, by mouse, and on a phone. A replay passes no onWork, and shows the slots as the student left them.
+// Pick an item, then the slot it goes in, so it needs no dragging.
 export function PlaceTask({ task, progress, onWork }: PlaceTaskProps) {
   const [chosen, setChosen] = useState<string | null>(null);
   const placed = progress?.placed ?? task.slots.map(() => null);

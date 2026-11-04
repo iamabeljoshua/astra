@@ -1,27 +1,19 @@
 import type { LineReading, StudentWork, WorkVerdict } from '@astra/contracts';
 import type { CheckedWork } from '@astra/board/shared';
 
-/** Everything the rule sees. All of it is timing and code's own facts. */
 export interface WatchSituation {
   secondsPaused: number;
   isTutorTalking: boolean;
-  /** Since the tutor last asked a question, or null. */
   secondsSinceQuestion: number | null;
-  /** Since this rule last made the tutor speak up, or null. */
   secondsSinceSpokeUp: number | null;
-  /** What the student has typed and not sent. */
   draft: { text: string; reading: LineReading; verdict: WorkVerdict } | null;
-  /** The student's latest sent work that the tutor has not yet replied to. */
   unanswered: { verdict: WorkVerdict; isSameWrongLineTwice: boolean } | null;
-  /** A task is open, so a long silence may mean the student is stuck. With none, they may just be listening. */
   hasOpenTask: boolean;
-  /** The tutor has already leaned in on this silence, and asking again would nag. */
   hasLeanedInOnThisSilence: boolean;
 }
 
 export type WatchDecision = { act: 'stay'; why: string } | { act: 'speak'; why: string } | { act: 'readWords' };
 
-/** How long the rule waits, in seconds. A question gets 8 (PRD T5), and being talked over while thinking is worse than a late hint. */
 export const WATCH_SECONDS = { afterQuestion: 8, afterSpeakingUp: 20, askingForHelp: 3, wordsToRead: 3, builtOnWrongLine: 5, sameWrongLineTwice: 5, wrongLineSat: 10, unjudgedWorkSat: 10, nothingChanged: 30 } as const;
 
 const ASKING_FOR_HELP = /\b(help|stuck|don'?t (know|get)|no idea|confused|lost|is (this|that|it) (right|ok|correct))\b|\?\s*$/i;
@@ -30,7 +22,7 @@ const HOLDS_WORDS = /[a-z]{3,}/i;
 const stay = (why: string): WatchDecision => ({ act: 'stay', why });
 const speak = (why: string): WatchDecision => ({ act: 'speak', why });
 
-function getGate({ isTutorTalking, secondsSinceQuestion, secondsSinceSpokeUp }: WatchSituation): WatchDecision | null {
+export function getGate({ isTutorTalking, secondsSinceQuestion, secondsSinceSpokeUp }: WatchSituation): WatchDecision | null {
   if (isTutorTalking) return stay('the tutor is talking');
   if (secondsSinceQuestion !== null && secondsSinceQuestion < WATCH_SECONDS.afterQuestion) return stay('the student is still answering a question');
   if (secondsSinceSpokeUp !== null && secondsSinceSpokeUp < WATCH_SECONDS.afterSpeakingUp) return stay('the tutor spoke up a moment ago');
@@ -52,7 +44,6 @@ function decideOnQuiet({ unanswered, secondsPaused, hasOpenTask, hasLeanedInOnTh
   return hasOpenTask && !hasLeanedInOnThisSilence && secondsPaused >= WATCH_SECONDS.nothingChanged ? speak('nothing has changed for a long time') : stay('the student is thinking');
 }
 
-/** When to lean in is timing and facts, so code decides it. A model is asked only what typed words mean, and only when this says so. */
 export function decideWatch(situation: WatchSituation): WatchDecision {
   const gate = getGate(situation);
   if (gate) return gate;
@@ -62,7 +53,6 @@ export function decideWatch(situation: WatchSituation): WatchDecision {
 export const WORD_MEANINGS = ['asksForHelp', 'needsAPerson', 'isThinking', 'unclear'] as const;
 export type WordMeaning = (typeof WORD_MEANINGS)[number];
 
-/** What a cheap model's reading can do. It can only ever answer the rule's own `readWords`, so a reading alone cannot interrupt. */
 export function decideOnReading(decision: WatchDecision, meaning: WordMeaning | null): WatchDecision {
   if (decision.act !== 'readWords') return decision;
   if (meaning === 'asksForHelp' || meaning === 'needsAPerson') return speak(`their unsent words read as ${meaning}`);
@@ -80,9 +70,9 @@ const wait = (why: string): WorkDecision => ({ act: 'wait', why });
 
 const isPlainSentence = (text: string) => PLAIN_SENTENCE.test(text) && text.trim().split(/\s+/).length >= FEWEST_WORDS_IN_A_SENTENCE;
 
+// Past thinking aloud, words always reach the tutor, because code cannot tell a thought from a student in danger.
 function decideOnLine(text: string, reading: LineReading | undefined, checked: CheckedWork, hasTask: boolean): WorkDecision {
   if (THINKING_ALOUD.test(text.trim())) return wait('thinking aloud');
-  // Words always reach the tutor, because a line of words can hold anything, and code cannot tell a thought from a student in danger.
   if (reading?.kind === 'words' || reading?.kind === 'mixed' || reading?.isAsking) return reply('the student said something');
   if (reading?.kind === 'code') return isPlainSentence(text) ? reply('the student said something') : wait('the student is writing code');
   if (!hasTask) return reply('there is no task, so this is meant for the tutor');
@@ -92,7 +82,6 @@ function decideOnLine(text: string, reading: LineReading | undefined, checked: C
   return wait('code cannot judge this line, so the tutor looks at a pause');
 }
 
-/** Whether the tutor answers this work now. Code decides, with no model. */
 export function decideOnWork(work: StudentWork, checked: CheckedWork, hasTask: boolean): WorkDecision {
   switch (work.way) {
     case 'write':
@@ -106,7 +95,6 @@ export function decideOnWork(work: StudentWork, checked: CheckedWork, hasTask: b
   }
 }
 
-/** The words the tutor's history holds for work that has no typed words. */
 export function getWorkWords(work: StudentWork): string {
   switch (work.way) {
     case 'write':

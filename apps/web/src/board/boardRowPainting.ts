@@ -4,7 +4,6 @@ import { createBoardMarks, type MarkWithoutTarget } from './boardMarks';
 import { type BoardItem, createBoardItem, hasOwnPlace, type ItemContext } from './boardItems';
 import { isInGutter } from './boardRows';
 
-/** The prototype's graph is at most this wide, and a tall figure must leave room for the lines around it. */
 const LARGEST_FIGURE = { width: 620, height: 420 };
 
 interface RowPaintingOptions {
@@ -13,6 +12,7 @@ interface RowPaintingOptions {
   onMarkProblem?(problem: MarkWithoutTarget): void;
 }
 
+// Scales a figure to fit its column, and gives an absolute math tree the size the painter measured.
 function sizeWrapper(wrapper: HTMLElement, element: BoardElement, size: { width: number; height: number }, fit: string, columnWidth: number): number {
   const content = wrapper.parentElement as HTMLElement;
   if (fit === 'figure') {
@@ -21,7 +21,6 @@ function sizeWrapper(wrapper: HTMLElement, element: BoardElement, size: { width:
     content.style.height = `${Math.ceil(size.height * scale)}px`;
     return scale;
   }
-  // A math tree is absolute, so its row takes the size the painter measured.
   if (element.math) {
     wrapper.style.width = `${size.width}px`;
     wrapper.style.height = `${size.height}px`;
@@ -29,7 +28,7 @@ function sizeWrapper(wrapper: HTMLElement, element: BoardElement, size: { width:
   return 1;
 }
 
-// Paints one frame of the shared board's rows from its state and the clock alone. The rows sit in normal flow, like lines on a page, and the marks follow where they landed.
+// Paints one frame of the shared board's rows from its state and the clock alone.
 export function createBoardRowPainting({ overlay, getWrapper, onMarkProblem }: RowPaintingOptions) {
   const items = new Map<string, { kind: string; item: BoardItem }>();
   const marks = createBoardMarks(overlay, onMarkProblem);
@@ -79,7 +78,6 @@ export function createBoardRowPainting({ overlay, getWrapper, onMarkProblem }: R
       lastPlacements = placements;
       marks.paint({ elements: elements.filter((element) => !isInGutter(element)), focus: board.focus, placements, getItem: (id) => items.get(id)?.item, atMs, isReducedMotion });
     },
-    /** Where a part of an element sits on the board now, for a student to pick it. */
     getPartBox(id: string, query: TermQuery): MarkBox | null {
       const placement = lastPlacements.get(id);
       const box = placement ? items.get(id)?.item.getTermBoxes?.(query).to : null;

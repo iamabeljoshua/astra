@@ -3,7 +3,6 @@ import { canRenderTex } from '@astra/board/tex-check';
 import type { CommandVerdict } from './beat-text-reader.ts';
 import { type CheckedWork, checkClaimedMath, checkStep, getLinearAnswer, getLineTex, isFinishedAnswer, type MathVerdict } from '@astra/board/shared';
 
-/** The problem the student is working on, and how many times they have come back since it was set. */
 export interface OpenTask {
   id: ElementId;
   problemTex: string | null;
@@ -16,12 +15,9 @@ export interface BoardMemory {
   /** Lines written only to look at, which no later line can follow from. */
   shownLines: ReadonlySet<string>;
   lastAssertedLine: string | null;
-  /** What code said about each piece of the student's work, so a mark can never contradict it. */
   verdicts: ReadonlyMap<string, WorkVerdict['status']>;
   openTask: OpenTask | null;
-  /** Tasks the student has already finished, because the turn that set one settles after the student can answer it. */
   doneTasks: ReadonlySet<string>;
-  /** Whether the student's latest work is certainly wrong, so the tutor's next words may not praise it. */
   isLatestWorkWrong: boolean;
 }
 
@@ -29,7 +25,6 @@ export const EMPTY_BOARD: BoardMemory = { kinds: new Map(), lines: new Map(), sh
 
 export const DRAWN_KINDS: ReadonlySet<SceneCommand['kind']> = new Set(['writeMath', 'transformMath', 'highlight', 'text', 'hide', 'clearBoard', 'focus', 'simulate', 'runSimulation', 'vector', 'annotate', 'diagram', 'note', 'tangent', 'task', 'boardMode']);
 
-/** A student needs two turns at it before the tutor may write or say the answer, as the prompt says. */
 const FEWEST_TURNS_BEFORE_THE_ANSWER = 2;
 const PRAISE = /^\s*(yes|yep|yeah|right|correct|exactly|perfect|nice|great|good( job| work)?|well done|that'?s (right|correct|it)|spot on|you got it)\b/i;
 const NUMBER_NAMES: readonly string[] = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty'];
@@ -122,12 +117,10 @@ export function getMemoryAfter(command: SceneCommand, memory: BoardMemory): Boar
   return { ...memory, kinds, lines, shownLines, lastAssertedLine, openTask: getOpenTaskAfter(command, memory) };
 }
 
-/** A new turn means the student came back, whether by typing, working, or speaking. */
 export function getMemoryOnNewTurn(memory: BoardMemory): BoardMemory {
   return memory.openTask ? { ...memory, openTask: { ...memory.openTask, studentTurns: memory.openTask.studentTurns + 1 } } : memory;
 }
 
-/** The tutor has answered the wrong work, so its next "right, so" is not praise of it. */
 export function getMemoryAfterAnswering(memory: BoardMemory): BoardMemory {
   return { ...memory, isLatestWorkWrong: false };
 }
@@ -156,7 +149,7 @@ function getAnswerWords(tex: string): RegExp | null {
   return new RegExp(`\\b(?:${answer.letter}\\s+(?:is|equals|=|must be|has to be|comes to)|the answer is|answer's|it's|it is)\\s+${value}\\b`, 'i');
 }
 
-/** Words code will not let the tutor say. Only what code is certain of, since no words have played yet and the model gets another try. */
+/** Words code will not let the tutor say. */
 export function getWordsProblem(text: string, { isLatestWorkWrong, openTask }: BoardMemory, isFirstBeat: boolean): string | null {
   if (isFirstBeat && isLatestWorkWrong && PRAISE.test(text)) return "Code says the student's last work is wrong, and your words sounded like praise. Do not praise it. Point at where it went wrong, in a few words.";
   if (!openTask?.problemTex || openTask.studentTurns >= FEWEST_TURNS_BEFORE_THE_ANSWER) return null;

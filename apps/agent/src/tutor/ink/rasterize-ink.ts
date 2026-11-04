@@ -6,7 +6,6 @@ const LARGEST_SIDE = 1000;
 const PADDING = 22;
 const PEN_RADIUS = 3;
 const MOST_POINTS = 6000;
-/** A forged stroke that crosses the whole picture over and over could hold the agent up for seconds. A real line is far below this. */
 const MOST_STAMPS = 60000;
 const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 const GREYSCALE_8_BIT = [8, 0, 0, 0, 0];
@@ -51,7 +50,7 @@ function drawStroke(pixels: Uint8Array, { width, height, stampsLeft }: { width: 
   return left;
 }
 
-/** Draws only the ink, cropped and on white, so the picture costs a few hundred tokens. It is drawn here and not on the page, so what the model reads is exactly what the log holds. */
+/** Draws only the ink, cropped and on white, so the picture costs a few hundred tokens. */
 export function rasterizeInk(strokes: readonly (readonly InkPoint[])[]): Buffer | null {
   const all = strokes.flat().slice(0, MOST_POINTS);
   if (all.length === 0) return null;

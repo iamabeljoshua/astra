@@ -10,17 +10,14 @@ const PHONE_WIDTH = 860;
 interface BoardStageViewProps extends PropsWithChildren {
   stage: BoardStage | null;
   atMs: number;
-  /** The seam for what fills the right side while teaching, today a session's picture and later a scene. It is drawn once at full size and only moved. */
   visual: ReactNode;
   ariaLabel: string;
-  /** The student's own move of the visual, kept by the page because typing makes one too. */
   peek: VisualPeek | null;
   onPeek(peek: VisualPeek): void;
-  /** Stays under the right side in both modes, so the student can always answer. */
   footer: ReactNode;
 }
 
-// The right side of the session. While teaching it holds the visual. For hands-on the visual glides to the corner and the board fades in under it, all read from the clock, so a replay lands on the same frame.
+// The session's right side: the visual while teaching, and for hands-on the visual glides to the corner as the board fades in.
 export function BoardStageView({ stage, atMs, visual, ariaLabel, peek, onPeek, footer, children }: BoardStageViewProps) {
   const right = useRef<HTMLDivElement>(null);
   const visualBox = useRef<HTMLButtonElement>(null);

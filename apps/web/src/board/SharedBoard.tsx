@@ -16,20 +16,16 @@ import { useReducedMotion } from './useReducedMotion';
 interface SharedBoardProps {
   board: BoardState;
   atMs: number;
-  /** Set on a live board, so the student can act on what is open. A replay shows the work and takes none. */
   onWork?: (work: StudentWork) => void;
   onMarkProblem?: (problem: MarkWithoutTarget) => void;
-  /** The line being typed, as the board's next row. */
   liveRow?: ReactNode;
-  /** The line the pen is still on, whose strokes the band is showing. */
   lineInTheBand?: string | null;
-  /** A handwritten line was misread, and the student wants to type it. */
   onFixReading?: (text: string) => void;
 }
 
 const getRowId = ({ element }: BoardRow) => getInkLineId(element.id) ?? (element.id as string);
 
-// A handwritten line keeps its row from the moment it stops being written, so the strokes do not flicker when the reading lands.
+// A handwritten line keeps its key through the reading, so its strokes do not flicker.
 const getRowKey = (row: BoardRow) => (row.inks.length > 0 ? `ink:${getRowId(row)}` : `${row.element.id}:${row.element.content.kind}`);
 
 function getRowClass({ element, isStruck }: BoardRow): string {
@@ -61,7 +57,7 @@ function RowGutter({ row, atMs, isReducedMotion, onFixReading }: { row: BoardRow
   );
 }
 
-// The board as lines on a page: a row for each thing written, with its marks and notes in a gutter beside it, and the line being typed as the next row.
+// The board as lines on a page, with each row's marks and notes in a gutter beside it.
 export function SharedBoard({ board, atMs, onWork, onMarkProblem, liveRow, lineInTheBand = null, onFixReading }: SharedBoardProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<SVGSVGElement>(null);

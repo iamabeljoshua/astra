@@ -5,20 +5,14 @@ import { getLineTex, readLine } from './read-line.ts';
 export interface CheckedWork {
   reading?: LineReading;
   verdict: WorkVerdict;
-  /** The work finishes this task. */
   closesTask?: ElementId;
 }
 
-/** What code needs to know about the board to check a piece of work. */
 export interface WorkContext {
-  /** The task open now, if any. */
   task: Task | null;
   getLineTex(id: ElementId): string | null;
-  /** The plot's curve, in x. */
   getCurve(id: ElementId): ((x: number) => number) | null;
-  /** The student's last math line since this task opened. */
   previousTex: string | null;
-  /** Parts already picked right for this task. */
   pickedRight: readonly string[];
 }
 
@@ -35,7 +29,7 @@ const toPartKey = (part: string) => part.replace(/\s/g, '').replace(/^\+/, '');
 
 const BARE_NUMBER = /^-?\d*\.?\d+$/;
 
-// A number against a number can be told apart, so 54 is not 56. Words cannot, so "it was 1789" is left for the tutor to read.
+// A number can be told from a number, so 54 is not 56, and words are left for the tutor to read.
 function checkAccepted(text: string, accepts: readonly string[]): WorkVerdict | null {
   const typed = toKey(text);
   if (accepts.some((accepted) => toKey(accepted) === typed)) return RIGHT;
@@ -58,7 +52,6 @@ function checkWrite({ text, ink }: StudentWork & { way: 'write' }, context: Work
   const { task } = context;
   const writeTask = task?.way === 'write' ? task : null;
   const reading = ink ? getInkLineReading(text, ink.tex) : readLine(text, writeTask?.reads);
-  // A reader that doubted a symbol has not read the student's line, so code judges nothing on it.
   if (ink?.isUnsure) return { reading, verdict: UNKNOWN };
   const accepted = writeTask?.accepts ? checkAccepted(text, writeTask.accepts) : null;
   if (reading.isAsking) return { reading, verdict: UNKNOWN };
@@ -115,13 +108,11 @@ function checkDrag(x: number, { task, getCurve }: WorkContext): CheckedWork {
   return { verdict: { status: 'wrong', why: task.seek === 'flat' ? `the slope at x = ${roundFact(x)} is ${slope}` : `the curve is at ${y} at x = ${roundFact(x)}` } };
 }
 
-/** Makes a plot's expression something code can read a value from, or null if it holds a constant the plot would have to supply. */
 export function getCurveOf(expression: string, constants: ReadonlyMap<string, number> = new Map()): ((x: number) => number) | null {
   const node = parsePlotExpression(expression, new Set(constants.keys()));
   return node && ((x) => evaluatePlotExpression(node, x, constants));
 }
 
-/** The one check for any work on the board. Pure, so the page can react at once and the agent can check the same work without taking the page's word for it. */
 export function checkWork(work: StudentWork, context: WorkContext): CheckedWork {
   switch (work.way) {
     case 'write':

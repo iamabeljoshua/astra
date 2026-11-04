@@ -15,11 +15,9 @@ const SUPERSCRIPTS: Readonly<Record<string, string>> = { '⁰': '0', '¹': '1', 
 const NUMBER_WORDS: Readonly<Record<string, string>> = { zero: '0', one: '1', two: '2', three: '3', four: '4', five: '5', six: '6', seven: '7', eight: '8', nine: '9', ten: '10', eleven: '11', twelve: '12' };
 const SPOKEN_OPERATORS: Readonly<Record<string, string>> = { equals: '=', plus: '+', minus: '-', times: '*', over: '/' };
 const SPOKEN_POWERS: Readonly<Record<string, string>> = { squared: '^2', cubed: '^3' };
-/** Words a student puts before an answer. They claim the math after them, where "if" or "why" would not. */
 const CLAIM_WORDS: ReadonlySet<string> = new Set(['so', 'then', 'thus', 'hence', 'therefore', 'answer', 'answer:', 'i', 'get', 'got', 'gives', 'is', 'that', 'it', "it's", 'which', 'means', 'and', 'now', 'ok', 'okay']);
 const MANY_LETTERS = /^[xyzabcnt]+$/;
 const LONE_LETTER = /^[A-Za-z]$/;
-/** What the log can hold of one line. A line past these is simply words. */
 const MOST_PARTS = 40;
 const LONGEST_TEX = 400;
 const TRAILING_PUNCTUATION = /[?!,;:.]+$/;
@@ -29,7 +27,7 @@ const LETTER_RUN = /[A-Za-z]+/g;
 const NOT_STUDENT_TEXT = /\p{Cf}|\p{Co}|\p{Cs}|\p{Variation_Selector}|[^\P{Cc}\n\t]/gu;
 const TOO_MANY_MARKS = /(\p{M}{4})\p{M}+/gu;
 
-/** Strips control and invisible characters, which can hide text from a reader, and long runs of combining marks, which can crash a tab. Keeps the indent, because it means something in a line of code. */
+/** Strips control and invisible characters and long runs of combining marks, and keeps the indent. */
 export function cleanTypedLine(text: string): string {
   return text.normalize('NFC').replace(NOT_STUDENT_TEXT, '').replace(TOO_MANY_MARKS, '$1').trimEnd();
 }
@@ -74,7 +72,7 @@ function wrapBrackets(text: string, marker: string, makeTex: (inside: string) =>
 
 const SIMPLE_FRACTION = /(\d+(?:\.\d+)?|[a-zA-Z]|\))\s*\/\s*(\d+(?:\.\d+)?|[a-zA-Z])(?![\w^])/g;
 
-/** Plain typing becomes LaTeX here, built only from what a token allows, so no command a student types can reach KaTeX. */
+/** Turns plain typing into LaTeX, built only from what a token allows. */
 export function plainToTex(plain: string): string {
   const withRoots = wrapBrackets(plain.replace(/\s+/g, ''), 'sqrt(', (inside) => `\\sqrt{${inside}}`);
   const withPowers = wrapBrackets(withRoots, '^(', (inside) => `^{${inside}}`).replace(/\^(-?\d+(?:\.\d+)?|[a-zA-Z])/g, '^{$1}');
@@ -188,7 +186,7 @@ function toReading(text: string, parts: LinePart[], isAsking: boolean): LineRead
   return bare === null ? { kind: 'words', parts: [{ type: 'words', text }], isAsking } : { kind: 'math', parts: [{ type: 'math', text: bare, tex: bare }], isAsking };
 }
 
-/** One line of free typing is words, math, code, or a mix, and the student never has to say which. A task can say it is words or code, so a line of code is never read as an equation. */
+/** One line of free typing is words, math, code, or a mix, and the student never has to say which. */
 export function readLine(rawText: string, reads?: WriteReading): LineReading {
   const line = cleanTypedLine(rawText);
   const text = line.trim();
@@ -198,7 +196,6 @@ export function readLine(rawText: string, reads?: WriteReading): LineReading {
   return parts.length > MOST_PARTS ? { kind: 'words', parts: [{ type: 'words', text }], isAsking } : toReading(text, parts, isAsking);
 }
 
-/** The math the line claims, if it holds exactly one piece. */
 export function getLineTex(reading: LineReading): string | null {
   const [part] = reading.parts;
   return reading.kind === 'math' && part?.type === 'math' ? part.tex : null;

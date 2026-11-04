@@ -4,7 +4,6 @@ import type { LiveVoice } from '../voice/liveVoice';
 import { BOARD_WORK_LABELS } from '../strings';
 import { InkLine } from './InkLine';
 
-/** How long the pen rests before the line is read. */
 const PEN_COMMIT_MS = 2000;
 
 interface PenBandProps {
@@ -12,13 +11,12 @@ interface PenBandProps {
   voice: Pick<LiveVoice, 'sendInkStroke' | 'sendInkDone'>;
   nextLineId(): ElementId;
   onLineChange(lineId: ElementId | null): void;
-  /** Done in the tools bar calls this. */
   doneRef: RefObject<(() => void) | null>;
   onWorking(): void;
   onFinished(): void;
 }
 
-// A band to write on. Each stroke lands on the board the moment it ends, and a pause sends the line to be read, so the page has reacted long before any reader answers.
+// A band to write on: each stroke goes out as it ends, and a pause sends the line to be read.
 export function PenBand({ task, voice, nextLineId, onLineChange, doneRef, onWorking, onFinished }: PenBandProps) {
   const band = useRef<HTMLDivElement>(null);
   const [strokes, setStrokes] = useState<readonly (readonly InkPoint[])[]>([]);
@@ -46,7 +44,6 @@ export function PenBand({ task, voice, nextLineId, onLineChange, doneRef, onWork
     onFinished();
   }, [voice, task, onLineChange, onFinished]);
 
-  // A pause that was running finishes the line it was timing, whatever changed on the page since.
   const latestFinish = useRef(finish);
   useEffect(() => {
     latestFinish.current = finish;

@@ -49,7 +49,6 @@ export interface BeatTextReaderOptions {
   onWrongMath(problem: string): void;
   onCommandKept?(command: SceneCommand): void;
   checkCommand?(command: SceneCommand): CommandVerdict;
-  /** Says what is wrong with a whole beat's words before anyone hears them, or null. */
   checkWords?(text: string): string | null;
   onWrongWords?(problem: string): void;
   /** A retry that says these words again would repeat what the student heard, so they are dropped. */
@@ -94,7 +93,6 @@ export class BeatTextReader {
   #hasCommandThisTurn = false;
   #isHalted = false;
   #isTurnOver = false;
-  /** The turn's question has closed, and its beat waits for what follows, because words after it are dropped and commands are kept. */
   #isQuestionHeld = false;
   #keptAfterQuestion: string[] = [];
   #wasCutShort = false;
@@ -126,7 +124,7 @@ export class BeatTextReader {
     return this.#textAfterTurn;
   }
 
-  /** The model's text as the student got it, because a command kept after its question can sit among words that were dropped. */
+  /** The model's text as the student got it, without the words dropped after its question. */
   getKeptText(raw: string): string {
     if (this.#textAfterTurn === '') return raw;
     const questionEnd = Math.max(0, raw.length - this.#textAfterTurn.length - this.#keptAfterQuestion.join('').length);

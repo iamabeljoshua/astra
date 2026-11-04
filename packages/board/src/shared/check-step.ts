@@ -7,16 +7,13 @@ import { toFloat } from './math/rational.ts';
 
 export interface StepInput {
   tex: string;
-  /** The line the tutor set the student to work from. */
   problemTex: string | null;
-  /** The student's last math line, if any. */
   previousTex: string | null;
 }
 
 const RIGHT: WorkVerdict = { status: 'right' };
 const UNKNOWN: WorkVerdict = { status: 'unknown' };
 
-/** After a plain slash, 1/2x could mean a half of x or one over 2x, and only the student knows. */
 const CANNOT_TELL_WHICH_FRACTION = /\/\s*\d*\s*[a-zA-Z(\\]/;
 const BARE_ANSWER = /^(?:-?\s*(?:\d+(?:\.\d+)?|\\frac\{\d+\}\{\d+\}))$/;
 
@@ -47,7 +44,6 @@ function isSingleLetterEquation(tex: string): boolean {
   return sides.length === 2 && new Set(sides.flat().flatMap((term) => [...getLettersIn(term)])).size === 1;
 }
 
-/** letter = a number, which claims to be the answer, so it is a step of the problem whatever else it shares. */
 function isAnswerClaim(tex: string): boolean {
   const sides = tex.split('=');
   if (sides.length !== 2) return false;
@@ -57,9 +53,7 @@ function isAnswerClaim(tex: string): boolean {
   return (isLetter(left) && isNumbers(right)) || (isLetter(right) && isNumbers(left));
 }
 
-/**
- * A line can be shown to be a step only if it carries a whole side with its letter over from the line before, or claims the answer. Anything else may be a new problem, a different route, or something code cannot see, so it is not called wrong.
- */
+/** A step carries a whole side with its letter over from the line before, or claims the answer. */
 function isShownStep(beforeTex: string, afterTex: string): boolean {
   const [before, after] = [getSides(beforeTex), getSides(afterTex)];
   if (!isSingleLetterEquation(beforeTex) || after.length !== 2) return false;
@@ -75,9 +69,7 @@ function getWrongStep(problemTex: string, previousTex: string | null, tex: strin
   return { status: 'wrong', why, ...(isBuiltOnWrongLine ? { isBuiltOnWrongLine } : {}) };
 }
 
-/**
- * What code can say about a typed math line. Right means it is proved to mean the same as the problem, or to be plain true arithmetic. Wrong is kept for a single-letter equation the line can be shown to be a step of, because a student states no claim, and true calculus, base 2, and a new problem all look false to arithmetic.
- */
+/** Checks a typed math line, and calls it wrong only when it is shown to be a step of a single-letter equation. */
 export function checkStep({ tex, problemTex, previousTex }: StepInput): WorkVerdict {
   if (CANNOT_TELL_WHICH_FRACTION.test(tex)) return UNKNOWN;
   if (problemTex === null) return checkMathLine(tex).status === 'right' ? RIGHT : UNKNOWN;
@@ -87,7 +79,6 @@ export function checkStep({ tex, problemTex, previousTex }: StepInput): WorkVerd
   return getWrongStep(problemTex, previousTex, tex, verdict.why);
 }
 
-/** A line that holds the finished answer, which is what ends a task to solve an equation. */
 export function isFinishedAnswer(tex: string): boolean {
   const sides = tex.split('=').map(compact);
   if (sides.length !== 2) return false;

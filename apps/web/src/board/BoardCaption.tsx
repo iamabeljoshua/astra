@@ -8,7 +8,7 @@ interface BoardCaptionProps {
   firstWord?: string | null;
 }
 
-// The tutor's words as they are spoken. Words not yet heard hold their place unseen, so a line does not move as it fills, and what was said before stays above it, faint.
+// The tutor's words as they are spoken, with unheard words holding their place and earlier lines faint above.
 export function BoardCaption({ heard, coming, firstWord = null }: BoardCaptionProps) {
   const [past, setPast] = useState<readonly string[]>([]);
   const said = useRef('');

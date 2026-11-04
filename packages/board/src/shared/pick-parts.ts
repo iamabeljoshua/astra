@@ -18,7 +18,6 @@ function getMathPickParts(tex: string): PickPart[] {
   });
 }
 
-/** What a student can pick on an element: the terms of a math line, or the nodes of a diagram. */
 export function getPickParts(element: BoardElement | undefined): PickPart[] {
   if (element?.math) return getMathPickParts(element.math.tex);
   if (element?.content.kind !== 'diagram') return [];

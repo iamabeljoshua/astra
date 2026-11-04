@@ -14,7 +14,6 @@ import { TypedLine, type TypedLineHandle, useNextLineId } from '../board/TypedLi
 import { BOARD_WORK_LABELS, VOICE_LABELS } from '../strings';
 import type { LiveVoice } from './liveVoice';
 
-/** The line's hint stays until the student has plainly got the idea. */
 const LINES_BEFORE_THE_HINT_GOES = 2;
 
 interface BoardFrame {
@@ -52,7 +51,7 @@ interface DotTarget {
 const AT_REST: DotTarget = { rowId: null, isWatching: false };
 const ON_THE_LIVE_LINE: DotTarget = { rowId: 'live', isWatching: true };
 
-// The dot flies to whatever just happened, watches the live line while the student works or once the turn has played, and goes back over the tutor's words if the student stops it.
+// Says where the dot belongs: on what just happened, on the live line, or back over the tutor's words.
 function useDotTarget(board: BoardState, isTutorSpeaking: boolean) {
   const [target, setTarget] = useState<DotTarget>(AT_REST);
   const latest = getLatestRowId(board);
@@ -73,7 +72,6 @@ function useDotTarget(board: BoardState, isTutorSpeaking: boolean) {
 
 interface LiveBoardProps {
   voice: LiveVoice;
-  /** What fills the right side while teaching. */
   visual?: ReactNode;
   onTalk?: () => void;
   isTalkOn?: boolean;

@@ -142,7 +142,6 @@ interface SessionFrameProps extends PropsWithChildren {
   facts?: ReactNode;
   action?: ReactNode;
   problem?: string | null;
-  /** The running session fills the screen with its board, and the board scrolls by itself. */
   isFullHeight?: boolean;
 }
 

@@ -16,7 +16,7 @@ interface PickTargetsProps {
   onWork(work: StudentWork): void;
 }
 
-// Real buttons laid over the parts, so a keyboard and a screen reader can pick too. The board moves them each frame.
+// Real buttons laid over the parts, which the board moves each frame.
 export function PickTargets({ board, onTarget, onWork }: PickTargetsProps) {
   const task = getOpenTaskOnBoard(board);
   if (task?.way !== 'pick') return null;

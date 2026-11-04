@@ -15,7 +15,6 @@ export interface WordReading {
   costUsd: number;
 }
 
-/** The one thing a cheap model does on the board. It says what typed words mean, and never when to speak. */
 export async function readWords(model: Pick<TutorModelAdapter, 'stream' | 'getCostUsd'>, words: string): Promise<WordReading> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), LONGEST_WORDS_READ_MS);

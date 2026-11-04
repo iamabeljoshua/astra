@@ -18,7 +18,6 @@ const TUTOR_ARRIVES_WITHIN_MS = 25_000;
 const INK_POINTS_IN_A_MESSAGE = 300;
 const LOUDNESS_WINDOW = 256;
 const MIDDLE_SAMPLE = 128;
-/** Speech rarely reaches full scale, so the dot reads this much as its loudest. */
 const LOUDEST_PEAK = 60;
 
 export type LivePhase = 'connecting' | 'live' | 'reconnecting' | 'noTutor' | 'ended';
@@ -40,7 +39,6 @@ export interface LiveVoiceView {
   isTutorSpeaking: boolean;
   /** Why the tutor will not speak again in this room, or null while it can. */
   closedBecause: TutorClosedReason | null;
-  /** A first sound in words, shown the moment code finds a student's work wrong, before any voice can. */
   firstWord: string | null;
   studentLines: readonly StudentLine[];
   /** Words the student has heard this turn, and the ones already known that are still to come. */
@@ -71,19 +69,12 @@ export interface LiveVoice {
   sendTyped(text: string): void;
   /** The board could not draw this mark, so the agent can tell the tutor the student did not see it. */
   reportMarkNotDrawn(markId: string): void;
-  /** Puts the student's work on the board at once, with code's reading of it, and sends it for the agent to check for itself. `startedMsAgo` is how long a drag took. */
   sendWork(work: StudentWork, startedMsAgo?: number): void;
-  /** Puts a stroke on the board at once and sends it for the log, in pieces a message can hold. */
   sendInkStroke(id: ElementId, points: readonly InkPoint[]): void;
-  /** The student has finished a handwritten line, so the agent can read it. */
   sendInkDone(id: ElementId, strokes: readonly ElementId[], task: ElementId | null): void;
-  /** Moves the student's point while they drag it. */
   movePoint(task: ElementId, x: number): void;
-  /** The student has not touched the board for this long. */
   sendPause(seconds: number, draft?: string): void;
-  /** The student pressed Esc. The tutor stops talking, and the board keeps what it has. */
   stopTutor(): void;
-  /** How loud the tutor's voice is now, from 0 to 1. */
   getLoudness(): number;
   setMicOn(isOn: boolean): Promise<void>;
   turnOnSound(): Promise<void>;

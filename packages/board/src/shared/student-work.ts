@@ -14,21 +14,15 @@ export interface StudentLineContent {
   text: string;
   reading: LineReading;
   verdict: WorkVerdict;
-  /** Written with the pen, so the strokes are the line and the reading sits beside it. */
   isInk: boolean;
 }
 
-/** What the student has done on a task so far. */
 export interface TaskProgress {
   isOpen: boolean;
-  /** The verdict on the latest work. */
   verdict: WorkVerdict | null;
-  /** The student's last math line since this task opened. */
   lastLineTex: string | null;
   pickedRight: readonly string[];
-  /** The item in each slot of a place task. */
   placed: readonly (string | null)[];
-  /** Where the student's point is on a drag task. */
   pointX: number | null;
 }
 
@@ -65,7 +59,6 @@ function placeStudentLine(elements: Elements, work: StudentWork & { way: 'write'
   if (work.task !== undefined && tex !== null) setProgress(elements, work.task, { lastLineTex: tex });
 }
 
-// Code's own check lands in the tutor's pen, because it speaks for the tutor before the tutor has a word.
 function placeCodeCheck(elements: Elements, target: ElementId, atMs: number): void {
   const id = `${target}-checked` as ElementId;
   if (!elements.has(id)) elements.set(id, makeElement(id, { kind: 'annotate', id, target: target as string as ElementRef, mark: 'check' }, { atMs, overMs: MARK_DRAWS_MS, isStudents: false }));
@@ -96,7 +89,6 @@ function applyWorkToTask(elements: Elements, work: Exclude<StudentWork, { way: '
   if (work.way === 'drag') setProgress(elements, work.task, { pointX: work.x });
 }
 
-/** Puts a piece of the student's work on the board, the same way live and in a replay. */
 export function applyWorked(elements: Elements, { work, reading, verdict, closesTask }: Extract<StudentAction, { action: 'worked' }>, atMs: number): void {
   if (work.way === 'write') {
     if (reading) placeStudentLine(elements, work, reading, verdict, atMs);

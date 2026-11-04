@@ -33,12 +33,11 @@ export interface ReadInkResult {
   costUsd: number;
 }
 
-// A crossed x next to a sign cannot be a multiplication, so a misread like 3\times=12 is safe to repair here.
+// Repairs a crossed x the reader took for \times, as in 3\times=12.
 const repairTex = (tex: string) => tex.replace(/\s/g, '').replace(/\\times(?=(=|\+|-|$|<|>))/g, 'x').replace(/^\\times/, 'x').replace(/(\d)\\times(?!\d)/g, '$1x').replace(/\\left|\\right/g, '');
 
 const canSetTex = (tex: string) => tex !== '' && getTexProblem(tex) === null && canRenderTex(tex);
 
-/** The model's reading is untrusted text like any other, so math it wrote still has to pass as math the board can set. */
 export function toInkResult(raw: RawRead, costUsd: number): ReadInkResult {
   const tex = raw.kind === 'math' ? repairTex(raw.tex) : '';
   const isUnsure = raw.confidence < FEWEST_CONFIDENCE_TO_JUDGE || raw.unsure.trim() !== '';
@@ -46,7 +45,6 @@ export function toInkResult(raw: RawRead, costUsd: number): ReadInkResult {
   return canSetTex(tex) ? { text: text || tex, ink: { tex, isUnsure }, costUsd } : { text, ink: { isUnsure }, costUsd };
 }
 
-/** Reads a picture of a handwritten line with a small model. It reads words as well as math, and it never fixes what is written. */
 export async function readInk(reader: PictureReader, png: Buffer): Promise<ReadInkResult> {
   const { answer, costUsd } = await reader.read({ png, prompt: INK_READER_PROMPT, schema: READ_SCHEMA, timeoutMs: LONGEST_READ_MS });
   return toInkResult(answer as RawRead, costUsd);

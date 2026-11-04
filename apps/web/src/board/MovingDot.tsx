@@ -4,16 +4,13 @@ import { useReducedMotion } from './useReducedMotion';
 
 const PHONE_WIDTH = 860;
 
-/** How much larger the dot grows at the voice's loudest. */
 const LARGEST_PULSE = 0.55;
 
 interface DotState {
-  /** The board row the dot sits by, or null to rest over the tutor's words. */
   rowId: string | null;
   isWatching: boolean;
   isThinking: boolean;
   isLively: boolean;
-  /** How loud the voice is now, from 0 to 1. */
   getLoudness(): number;
 }
 
@@ -31,7 +28,7 @@ function getRestingSpot(): { x: number; y: number } | null {
   return { x: box.left, y: now ? box.top - 22 : box.bottom - 18 };
 }
 
-// The tutor's one dot. It sits by whatever is being worked on and rests over the tutor's words. It moves by a transition, so a reduced motion setting makes it simply appear.
+// The tutor's one dot, which sits by the row being worked on and rests over the tutor's words.
 export function MovingDot({ rowId, isWatching, isThinking, isLively, getLoudness }: DotState) {
   const dot = useRef<HTMLDivElement>(null);
   const body = useRef<HTMLElement>(null);

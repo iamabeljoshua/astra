@@ -3,7 +3,6 @@ import { renderTex } from '@astra/board/drawing';
 import { useLayoutEffect, useRef } from 'react';
 import { BOARD_WORK_LABELS } from '../strings';
 
-/** Set by KaTeX, so a part of a line a student wrote can never become markup. */
 export function MathPart({ tex }: { tex: string }) {
   const ref = useRef<HTMLSpanElement>(null);
   useLayoutEffect(() => {

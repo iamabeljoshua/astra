@@ -5,34 +5,26 @@ import { memo, type ReactNode, useCallback, useEffect, useImperativeHandle, useM
 import { BOARD_WORK_LABELS } from '../strings';
 import { LineParts, ReadAs } from './StudentLine';
 
-/** How long a finished right line waits before it goes on the board by itself. */
 const RIGHT_LINE_LANDS_AFTER_MS = 2200;
 const LOOKS_WITH_DRAFT_SECONDS = [3, 6, 10, 15, 25];
 const LOOKS_WITH_NO_DRAFT_SECONDS = [10, 20, 30, 45, 60, 90];
 
 export interface TypedLineHandle {
-  /** Puts a key's text where the caret is, for the math keys. */
   insert(text: string): void;
-  /** Puts a line in to edit, for one the pen's reader got wrong. */
   setLine(line: string): void;
-  /** Gets the line ready to type on, with the page left where it is. */
   focus(): void;
 }
 
 interface TypedLineProps {
-  /** The task open on the board now. */
   task: Task | null;
   getBoard(): BoardState;
   onWork(work: StudentWork): void;
   onPause(seconds: number, draft?: string): void;
-  /** The student pressed a key, so the dot can sit with them. */
   onTyping?(): void;
-  /** Bumped by the board when the student acts another way, so the pause clock starts again. */
   activity: number;
   hasWrittenBefore: boolean;
   handleRef?: React.Ref<TypedLineHandle>;
   nextLineId(): ElementId;
-  /** The line is the pen's band for now, so the typing part steps aside and keeps what it holds. */
   band?: ReactNode;
 }
 
@@ -46,7 +38,7 @@ export function useNextLineId(getBoard: () => BoardState) {
   }, [getBoard]);
 }
 
-// The board's next line. The student types straight onto it, and sees it read as they go, so they see what code will see. It tells the agent only about a pause. The board draws every frame and this has no need to, so it is memoized.
+// The board's next line, read back as the student types, and its draft leaves the page only at a pause.
 export const TypedLine = memo(function TypedLine({ task, getBoard, onWork, onPause, onTyping, activity, hasWrittenBefore, handleRef, nextLineId, band = null }: TypedLineProps) {
   const [text, setText] = useState('');
   const [isRaw, setIsRaw] = useState(false);

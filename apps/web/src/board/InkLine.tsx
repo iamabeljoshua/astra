@@ -19,7 +19,6 @@ function getInkPath(points: readonly InkPoint[]): string {
   return `${path}L${at(points.at(-1) as InkPoint)}`;
 }
 
-/** What the student wrote, at any width, from the same points the log holds, so a replay draws the same line. */
 export function InkLine({ strokes, testId = 'ink-line' }: { strokes: readonly (readonly InkPoint[])[]; testId?: string }) {
   const bottom = Math.max(0, ...strokes.flatMap((points) => points.map((point) => point[1] * UNITS)));
   return (

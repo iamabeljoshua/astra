@@ -22,7 +22,6 @@ export interface PointSample {
   x: number;
 }
 
-/** What the student did on the board. One way for each way a task can ask. */
 /** What a reader made of handwriting. Only the agent writes this, because it is the one that read it. */
 export interface InkReading {
   /** The math, if it read math. With none, `text` holds the words. */
@@ -31,6 +30,7 @@ export interface InkReading {
   isUnsure: boolean;
 }
 
+/** What the student did on the board. One way for each way a task can ask. */
 export type StudentWork =
   /** `task` names the task this line answers, if one is open on the student's board. */
   | { way: 'write'; id: ElementId; text: string; task?: ElementId; ink?: InkReading }
