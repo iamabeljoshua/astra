@@ -78,7 +78,8 @@ function decideOnLine(text: string, reading: LineReading | undefined, checked: C
   if (status === 'wrong') return reply('code is certain the line is wrong');
   const tex = reading ? getLineTex(reading) : null;
   if (status === 'right') return checked.closesTask || (tex !== null && isFinishedAnswer(tex)) ? reply('the student finished') : wait('a right line, and the student is working');
-  return wait('code cannot judge this line, so the tutor looks at a pause');
+  if (status === 'unknown' && checked.verdict.offProblem !== undefined) return reply('the line does not follow from the problem on the board');
+  return tex !== null && isFinishedAnswer(tex) ? reply('the student gave an answer code cannot judge') : wait('code cannot judge this line, so the tutor looks at a pause');
 }
 
 export function decideOnWork(work: StudentWork, checked: CheckedWork, hasTask: boolean): WorkDecision {

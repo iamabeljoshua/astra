@@ -12,6 +12,8 @@ import { PenBand } from '../board/PenBand';
 import { SharedBoard } from '../board/SharedBoard';
 import { TypedLine, type TypedLineHandle, useNextLineId } from '../board/TypedLine';
 import { BOARD_WORK_LABELS, VOICE_LABELS } from '../strings';
+import { AttachControl } from '../ui/AttachControl';
+import type { FilesComingSoon } from '../ui/useFilesComingSoon';
 import { isVoiceOver, type LiveVoice } from './liveVoice';
 import { getTutorState } from './tutorState';
 import { useReducedMotion } from '../board/useReducedMotion';
@@ -83,6 +85,8 @@ interface LiveBoardProps {
   onTalk?: () => void;
   isTalkOn?: boolean;
   canTalk?: boolean;
+  /** Without it the board offers no photo or PDF control. */
+  filesComingSoon?: FilesComingSoon;
 }
 
 function useDotInTheMiddle(isConnecting: boolean): boolean {
@@ -98,7 +102,7 @@ function useDotInTheMiddle(isConnecting: boolean): boolean {
 }
 
 // The board is a pure reading of the clock, so one read per frame is all it needs.
-export function LiveBoard({ voice, visual = null, onTalk, isTalkOn = false, canTalk = true, isConnecting = false, onTutorState }: LiveBoardProps) {
+export function LiveBoard({ voice, visual = null, onTalk, isTalkOn = false, canTalk = true, isConnecting = false, onTutorState, filesComingSoon }: LiveBoardProps) {
   const isDotInTheMiddle = useDotInTheMiddle(isConnecting);
   const [frame, setFrame] = useState<BoardFrame>(() => voice.getBoardNow());
   const [activity, setActivity] = useState(0);
@@ -203,6 +207,7 @@ export function LiveBoard({ voice, visual = null, onTalk, isTalkOn = false, canT
   };
   const tools = (
     <div className="board-tools" data-testid="board-tools">
+      {filesComingSoon && <AttachControl filesComingSoon={filesComingSoon} className="board-tool" />}
       {canTalk && <button type="button" className="board-tool" aria-pressed={isTalkOn} onClick={onTalk}>{BOARD_WORK_LABELS.talk}</button>}
       {isVisualBig && (
         <button

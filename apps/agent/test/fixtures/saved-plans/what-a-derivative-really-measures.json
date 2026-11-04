@@ -1,0 +1,39 @@
+{
+ "topic": "What a derivative really measures",
+ "plan": {
+  "opening": [
+   {
+    "say": "Say a car's odometer reads a hundred miles at noon, and a hundred and sixty at one o'clock.",
+    "note": "odometer"
+   },
+   {
+    "say": "Sixty miles in an hour is easy. But what was the speedometer showing at exactly noon, one single instant?",
+    "note": "speed at an instant"
+   },
+   {
+    "say": "Let's write the car's position as a function of time, and see how we could pin down that instant.",
+    "tex": "x(t) = \\text{position at time } t"
+   }
+  ],
+  "more": [
+   {
+    "say": "Say the car's position follows a simple rule: distance equals t squared. After two hours it's four miles out.",
+    "tex": "x(t) = t^2"
+   },
+   {
+    "say": "Between two hours and three hours, it covers five miles. That's an average speed of five miles per hour.",
+    "note": "average = 5"
+   },
+   {
+    "say": "But the car was slower at the start of that hour and faster at the end, so five isn't the speed at any one moment."
+   }
+  ],
+  "setup": "Watch the line as the second point slides closer.",
+  "narration": "[[curve-appears]]Here's position over time. [[secant-line]]Pick two points and draw a line through them. Its slope is average speed. [[points-merge]]Now slide the second point toward the first. [[tangent-line]]The line settles into a tangent. [[slope-label]]That tangent's slope is the derivative: the speed at one instant.",
+  "plan": "curve-appears: a smooth upward curve of position against time is drawn, equal to t squared.\nsecant-line: two points on the curve, a straight line through both, rise and run marked; its slope is the average rate.\npoints-merge: the second point slides along the curve toward the first, and the secant line visibly rotates.\ntangent-line: the line becomes the tangent touching the curve at exactly one point locally, matching the curve's direction.\nslope-label: the tangent's slope is labeled as the derivative, the instantaneous rate of change, the limit of the average rates.",
+  "close": "If the tangent line is flat at some point, what's the derivative there?",
+  "model": "claude-sonnet-5-5",
+  "ms": 6672.062041,
+  "costUsd": 0.008501
+ }
+}

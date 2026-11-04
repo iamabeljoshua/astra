@@ -227,7 +227,7 @@ function toReading(text: string, parts: LinePart[], isAsking: boolean): LineRead
 export function readLine(rawText: string, reads?: WriteReading): LineReading {
   const line = cleanTypedLine(rawText);
   const text = line.trim();
-  const isAsking = /\?\s*$/.test(text);
+  const isAsking = /\?\s*$|^is\b/i.test(text);
   if (reads !== undefined) return { kind: reads, parts: [{ type: 'words', text: reads === 'code' ? line : text }], isAsking };
   const parts = getParts(getTokens(text));
   return parts.length > MOST_PARTS ? { kind: 'words', parts: [{ type: 'words', text }], isAsking } : toReading(text, parts, isAsking);

@@ -78,7 +78,7 @@ function placeStudentRing(elements: Elements, taskId: ElementId, part: string, a
   elements.set(id, makeElement(id, content, { atMs, overMs: LOOP_DRAWS_MS }));
 }
 
-function applyWorkToTask(elements: Elements, work: Exclude<StudentWork, { way: 'write' }>, verdict: WorkVerdict, atMs: number): void {
+function applyWorkToTask(elements: Elements, work: Exclude<StudentWork, { way: 'write' }> & { task: ElementId }, verdict: WorkVerdict, atMs: number): void {
   const progress = elements.get(work.task)?.progress;
   if (!progress) return;
   setProgress(elements, work.task, { verdict });
@@ -93,12 +93,20 @@ function applyWorkToTask(elements: Elements, work: Exclude<StudentWork, { way: '
   if (work.way === 'drag') setProgress(elements, work.task, { pointX: work.x });
 }
 
+// A wish said aloud lands no line, so it marks the latest math line as left, and no later line is held to it.
+function leaveLatestLine(elements: Elements): void {
+  const latest = [...elements.values()].reverse().find(({ content, math }) => content.kind === 'writeMath' && math);
+  if (latest) latest.progress = { isOpen: false, verdict: null, lastLineTex: null, pickedRight: [], placed: [], pointX: null, hasLeft: true };
+}
+
 export function applyWorked(elements: Elements, { work, reading, verdict, closesTask }: Extract<StudentAction, { action: 'worked' }>, atMs: number): void {
-  if (work.way === 'write') {
+  if (work.way === 'leave' && work.task === undefined) {
+    leaveLatestLine(elements);
+  } else if (work.way === 'write') {
     if (reading) placeStudentLine(elements, work, reading, verdict, atMs);
     if (verdict.status === 'right') placeCodeCheck(elements, work.id, atMs);
   } else {
-    applyWorkToTask(elements, work, verdict, atMs);
+    applyWorkToTask(elements, work as Exclude<StudentWork, { way: 'write' }> & { task: ElementId }, verdict, atMs);
   }
   if (closesTask !== undefined) setProgress(elements, closesTask, { isOpen: false, hasLeft: work.way === 'leave' || (work.way === 'write' && wantsSomethingElse(work.text)) });
 }

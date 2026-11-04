@@ -6465,5 +6465,339 @@
     "museOpened": 2
    }
   ]
+ },
+ "joinAtOpen": {
+  "note": "A verifier's run of run-join-timing.ts at 70f4e44, from the screen opening, stand-in tutor and fake voice, 5 joins.",
+  "rows": [
+   {
+    "apiAsked": null,
+    "apiAnswered": 1227,
+    "signalConnected": 2068,
+    "roomConnected": 2937,
+    "jobRequest": 2512,
+    "jobStarted": 5440,
+    "trackUp": 5960,
+    "helloAtAgent": 6795,
+    "greetingDecided": 6464,
+    "greetingCaptured": 6473,
+    "turnAtPage": 6723,
+    "firstSound": 6794,
+    "roundTripMs": 253
+   },
+   {
+    "apiAsked": null,
+    "apiAnswered": 1289,
+    "signalConnected": 3460,
+    "roomConnected": 4250,
+    "jobRequest": 1239,
+    "jobStarted": 3762,
+    "trackUp": 4411,
+    "helloAtAgent": 5228,
+    "greetingDecided": 5240,
+    "greetingCaptured": 5249,
+    "turnAtPage": 5474,
+    "firstSound": 5572,
+    "roundTripMs": 228
+   },
+   {
+    "apiAsked": null,
+    "apiAnswered": 2377,
+    "signalConnected": 3300,
+    "roomConnected": 4018,
+    "jobRequest": 2305,
+    "jobStarted": 5738,
+    "trackUp": 6462,
+    "helloAtAgent": 7377,
+    "greetingDecided": 6970,
+    "greetingCaptured": 6987,
+    "turnAtPage": 7232,
+    "firstSound": 7338,
+    "roundTripMs": 244
+   },
+   {
+    "apiAsked": null,
+    "apiAnswered": 2541,
+    "signalConnected": 3263,
+    "roomConnected": 4079,
+    "jobRequest": 2437,
+    "jobStarted": 5110,
+    "trackUp": 5753,
+    "helloAtAgent": 6560,
+    "greetingDecided": 6250,
+    "greetingCaptured": 6304,
+    "turnAtPage": 6498,
+    "firstSound": 6592,
+    "roundTripMs": 213
+   },
+   {
+    "apiAsked": null,
+    "apiAnswered": 2371,
+    "signalConnected": 3123,
+    "roomConnected": 3904,
+    "jobRequest": 2319,
+    "jobStarted": 5120,
+    "trackUp": 5791,
+    "helloAtAgent": 6608,
+    "greetingDecided": 6283,
+    "greetingCaptured": 6295,
+    "turnAtPage": 6515,
+    "firstSound": 6596,
+    "roundTripMs": 226
+   }
+  ],
+  "summary": {
+   "apiAsked": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "apiAnswered": {
+    "count": 5,
+    "p50": 2371,
+    "p95": 2541,
+    "worst": 2541,
+    "best": 1227
+   },
+   "signalConnected": {
+    "count": 5,
+    "p50": 3263,
+    "p95": 3460,
+    "worst": 3460,
+    "best": 2068
+   },
+   "roomConnected": {
+    "count": 5,
+    "p50": 4018,
+    "p95": 4250,
+    "worst": 4250,
+    "best": 2937
+   },
+   "jobRequest": {
+    "count": 5,
+    "p50": 2319,
+    "p95": 2512,
+    "worst": 2512,
+    "best": 1239
+   },
+   "jobStarted": {
+    "count": 5,
+    "p50": 5120,
+    "p95": 5738,
+    "worst": 5738,
+    "best": 3762
+   },
+   "trackUp": {
+    "count": 5,
+    "p50": 5791,
+    "p95": 6462,
+    "worst": 6462,
+    "best": 4411
+   },
+   "helloAtAgent": {
+    "count": 5,
+    "p50": 6608,
+    "p95": 7377,
+    "worst": 7377,
+    "best": 5228
+   },
+   "greetingDecided": {
+    "count": 5,
+    "p50": 6283,
+    "p95": 6970,
+    "worst": 6970,
+    "best": 5240
+   },
+   "greetingCaptured": {
+    "count": 5,
+    "p50": 6304,
+    "p95": 6987,
+    "worst": 6987,
+    "best": 5249
+   },
+   "turnAtPage": {
+    "count": 5,
+    "p50": 6515,
+    "p95": 7232,
+    "worst": 7232,
+    "best": 5474
+   },
+   "firstSound": {
+    "count": 5,
+    "p50": 6596,
+    "p95": 7338,
+    "worst": 7338,
+    "best": 5572
+   },
+   "roundTripMs": {
+    "count": 5,
+    "p50": 228,
+    "p95": 253,
+    "worst": 253,
+    "best": 213
+   }
+  }
+ },
+ "returnAtEdge": {
+  "note": "return-at-edge.ts on real rooms, fake voice, stand-in tutor, seconds from leaving to coming back, and ms from coming back to the tutor's first turn.",
+  "rows": [
+   {
+    "offsetSeconds": 13,
+    "firstTurnMs": 5075,
+    "phase": "live",
+    "jobs": 1,
+    "timeline": [
+     "640 undefined/undefined",
+     "3840 connecting/false",
+     "4583 live/false",
+     "5075 live/true"
+    ],
+    "youLines": []
+   },
+   {
+    "offsetSeconds": 13,
+    "firstTurnMs": 11696,
+    "phase": "live",
+    "jobs": 2,
+    "timeline": [
+     "836 undefined/undefined",
+     "4617 connecting/false",
+     "11021 live/false",
+     "11696 live/true"
+    ],
+    "youLines": []
+   },
+   {
+    "offsetSeconds": 13,
+    "firstTurnMs": 16481,
+    "phase": "live",
+    "jobs": 2,
+    "timeline": [
+     "5630 undefined/undefined",
+     "12961 connecting/false",
+     "15938 live/false",
+     "16481 live/true"
+    ],
+    "youLines": []
+   },
+   {
+    "offsetSeconds": 14,
+    "firstTurnMs": 4263,
+    "phase": "live",
+    "jobs": 1,
+    "timeline": [
+     "348 undefined/undefined",
+     "3153 connecting/false",
+     "4035 live/false",
+     "4263 live/true"
+    ],
+    "youLines": []
+   },
+   {
+    "offsetSeconds": 14,
+    "firstTurnMs": 8618,
+    "phase": "live",
+    "jobs": 2,
+    "timeline": [
+     "1001 undefined/undefined",
+     "5759 connecting/false",
+     "8074 live/false",
+     "8618 live/true"
+    ],
+    "youLines": []
+   },
+   {
+    "offsetSeconds": 14,
+    "firstTurnMs": 25059,
+    "phase": "live",
+    "jobs": 2,
+    "timeline": [
+     "571 undefined/undefined",
+     "17896 connecting/false",
+     "24538 live/false",
+     "25059 live/true"
+    ],
+    "youLines": []
+   },
+   {
+    "offsetSeconds": 15,
+    "firstTurnMs": 13616,
+    "phase": "live",
+    "jobs": 2,
+    "timeline": [
+     "1934 undefined/undefined",
+     "10488 connecting/false",
+     "13198 live/false",
+     "13616 live/true"
+    ],
+    "youLines": []
+   },
+   {
+    "offsetSeconds": 15,
+    "firstTurnMs": 12760,
+    "phase": "live",
+    "jobs": 2,
+    "timeline": [
+     "1449 undefined/undefined",
+     "4927 connecting/false",
+     "12321 live/false",
+     "12760 live/true"
+    ],
+    "youLines": []
+   },
+   {
+    "offsetSeconds": 15,
+    "firstTurnMs": 7021,
+    "phase": "live",
+    "jobs": 2,
+    "timeline": [
+     "761 undefined/undefined",
+     "5132 connecting/false",
+     "6593 live/false",
+     "7021 live/true"
+    ],
+    "youLines": []
+   },
+   {
+    "offsetSeconds": 16,
+    "firstTurnMs": 13920,
+    "phase": "live",
+    "jobs": 2,
+    "timeline": [
+     "1891 undefined/undefined",
+     "9639 connecting/false",
+     "13279 live/false",
+     "13920 live/true"
+    ],
+    "youLines": []
+   },
+   {
+    "offsetSeconds": 16,
+    "firstTurnMs": 11739,
+    "phase": "live",
+    "jobs": 2,
+    "timeline": [
+     "1668 undefined/undefined",
+     "8317 connecting/false",
+     "11177 live/false",
+     "11739 live/true"
+    ],
+    "youLines": []
+   },
+   {
+    "offsetSeconds": 16,
+    "firstTurnMs": 8105,
+    "phase": "live",
+    "jobs": 2,
+    "timeline": [
+     "523 undefined/undefined",
+     "6163 connecting/false",
+     "7575 live/false",
+     "8105 live/true"
+    ],
+    "youLines": []
+   }
+  ]
  }
 }

@@ -9,7 +9,7 @@ import { useLiveVoice } from './useLiveVoice';
 
 vi.mock('../auth/session', () => import('../test/signedInSession'));
 
-const ROOM_ACCESS = { url: 'wss://room.test', roomName: 'session-a-session', token: 'room-token' };
+const ROOM_ACCESS = { url: 'wss://room.test', roomName: 'session-a-session', isTutorThere: false, token: 'room-token' };
 const OPEN_ROOM = { access: ROOM_ACCESS, unavailableBecause: null };
 
 // The real start asks for the room beside its audio setup, and refuses to go on with no access.
@@ -132,7 +132,7 @@ describe('useLiveVoice', () => {
     const { result } = renderHook(() => useLiveVoice({ sessionId: 'a-session', start }));
     await act(async () => void (await result.current.connect()));
     await act(() => result.current.openAgain('I am back.'));
-    expect(second.sendTyped).toHaveBeenCalledWith('I am back.');
+    expect(second.sendOpening).toHaveBeenCalledWith('I am back.');
     expect(first.close).toHaveBeenCalled();
     expect(result.current.voice).toBe(second);
     expect(start).toHaveBeenCalledTimes(2);
@@ -223,7 +223,7 @@ describe('the Privacy Policy on voice', () => {
     expect(privacy).toContain('your IP address');
     expect(privacy).toContain("Meta's Muse Voice Transcribe receives your voice");
     expect(privacy).toContain("ElevenLabs receives the tutor's words");
-    expect(privacy).toContain('receives what you say and type in a session, including lines on the board, a line you paused on without sending, and a picture of anything you write with the pen, the tutor\'s earlier words, your level, interests, and goal, and your tutor\'s notes from earlier sessions, without the lines of work behind them');
+    expect(privacy).toContain('receives what you say and type in a session, including lines on the board, a line you paused on without sending, a picture of anything you write with the pen, and a question you type on Home to start one, the tutor\'s earlier words, your level, interests, and goal, and your tutor\'s notes from earlier sessions, without the lines of work behind them');
     expect(privacy).toContain("When a session ends, it also receives that session's words and lines of work again");
     expect(privacy).toContain('We do not send it your name, your date of birth, your email address, or an account ID');
   });
@@ -231,6 +231,11 @@ describe('the Privacy Policy on voice', () => {
   it('says LiveKit carries voice and messages and does not receive the level, interests, or goal', () => {
     expect(privacy).toContain('LiveKit Cloud carries your voice');
     expect(privacy).toContain('We do not send LiveKit your name, your date of birth, your email address, your level, your interests, or your goal');
+  });
+
+  it("says a question from Home stays as its session's title, and that the other words are not stored", () => {
+    expect(privacy).toContain("Apart from a question from Home, which stays as its session's title, we do not store them yet.");
+    expect(privacy).not.toContain('We do not store them yet.');
   });
 
   it('says a total of what the tutor cost is stored per day, with no words in it', () => {

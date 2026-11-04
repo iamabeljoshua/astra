@@ -2,7 +2,7 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { loadEnv } from 'vite';
 import { configDefaults, defineConfig } from 'vitest/config';
-import { refuseCostLine, refuseDevelopmentAccounts, requireSupabaseValues } from './build-guards';
+import { refuseCostLine, refuseDevelopmentAccounts, refuseProofHooks, requireSupabaseValues } from './build-guards';
 
 const DEFAULT_WEB_PORT = 5173;
 const DEFAULT_API_PORT = 3000;
@@ -28,7 +28,7 @@ export default defineConfig(({ command, mode }) => {
 
   return {
     define: { __DEV_SIGN_IN__: command === 'serve' },
-    plugins: [react(), tailwindcss(), refuseDevelopmentAccounts(), refuseCostLine(env)],
+    plugins: [react(), tailwindcss(), refuseDevelopmentAccounts(), refuseProofHooks(), refuseCostLine(env)],
     server: {
       host: LOCAL_HOST,
       port: webPort,

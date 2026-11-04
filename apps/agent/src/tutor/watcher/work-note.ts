@@ -44,6 +44,7 @@ export function getWorkNote(work: StudentWork, checked: CheckedWork, context: Wo
     check: verdict.status,
     ...(verdict.status === 'wrong' ? { why: verdict.why } : {}),
     ...(verdict.status === 'wrong' && verdict.isBuiltOnWrongLine ? { built_on_wrong_line: true } : {}),
+    ...(verdict.status === 'unknown' && verdict.offProblem !== undefined ? { does_not_follow_from: verdict.offProblem } : {}),
     ...(nod ? { already_reacted: { said: nod } } : {}),
     ...(closesTask && isLeaving(work) ? { left_the_task: true } : closesTask || isFinishedLine(checked) ? { task_done: true } : {}),
   };

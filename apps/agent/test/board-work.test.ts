@@ -58,7 +58,7 @@ describe('work on the shared board', () => {
     const { brain } = setup([SET_PROBLEM]);
     await collect(brain, 'help me');
     const checked = brain.noteWork(line('s1', 'x = 7', 'forged'))?.checked;
-    expect(checked?.verdict.status).toBe('wrong');
+    expect(checked?.verdict.status).toBe('unknown');
     expect(checked?.closesTask).toBeUndefined();
   });
 
@@ -380,6 +380,22 @@ describe('the board work seam', () => {
     await expect(seam.onSpoken('Two x equals eight.')).resolves.toBe(false);
     expect(readSpokenWords).not.toHaveBeenCalled();
     expect(send).toHaveBeenCalledWith({ type: 'workRead', work: expect.objectContaining({ text: 'Two x equals eight.', heard: { tex: '2x=8', isUnsure: false } }) });
+    expect(writeHeardLog.mock.calls[0]?.[1]).toMatchObject({ verdict: { status: 'right' } });
+  });
+
+  it('gives a spoken number the letter only when code proves it, so a guess at what it answers is never crossed', async () => {
+    const { brain, seam, send, writeHeardLog } = setupSeam([SET_PROBLEM]);
+    await collect(brain, 'help');
+    await expect(seam.onSpoken('I got eight.')).resolves.toBe(true);
+    expect(send).toHaveBeenCalledWith({ type: 'workRead', work: expect.objectContaining({ heard: { tex: '8', isUnsure: false } }) });
+    expect(writeHeardLog.mock.calls[0]?.[1]).toMatchObject({ verdict: { status: 'unknown' } });
+  });
+
+  it('gives "The answer is four." the letter when that is the answer', async () => {
+    const { brain, seam, send, writeHeardLog } = setupSeam([SET_PROBLEM]);
+    await collect(brain, 'help');
+    await seam.onSpoken('The answer is four.');
+    expect(send).toHaveBeenCalledWith({ type: 'workRead', work: expect.objectContaining({ heard: { tex: 'x=4', isUnsure: false } }) });
     expect(writeHeardLog.mock.calls[0]?.[1]).toMatchObject({ verdict: { status: 'right' } });
   });
 

@@ -95,7 +95,7 @@ describe('a constant set by the tutor', () => {
 
 describe('cue aims in a report', () => {
   const report = { wordStartsMs: [0, 300, 600], durationMs: 900, playedWords: 3, firedCueMs: [0], ending: 'finished', frozen: [] };
-  const played = { type: 'played', turnId: 't', beatId: 'b', clockId: 'c', browserMs: 1000, startedMsAgo: 900, ...report };
+  const played = { type: 'played', turnId: 't', beatId: 'b', clockId: 'page', browserMs: 1000, startedMsAgo: 900, ...report };
   const beat = { id: 'b', expectsReply: false, script: [{ kind: 'runSimulation', target: 'shot', action: 'play', overWords: 2 }, 'One two three'] };
   const event = { seq: 0, atMs: 0, kind: 'beatPlayed', reportedBy: 'browser', turnId: 't', beat, ...report };
 

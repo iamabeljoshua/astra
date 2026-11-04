@@ -38,6 +38,11 @@ export interface CompactedHistory {
   usage: ModelUsage;
 }
 
+export type SourceAnswer = { found: true; title: string; site: string; url: string; costUsd: number } | { found: false; costUsd: number };
+
+/** Looks for a page that supports a claim. Only a title and an address come back, so nothing on a page can reach the tutor. */
+export type FindSource = (claim: string, signal: AbortSignal) => Promise<SourceAnswer>;
+
 /** The API refused this request for good, so sending it again would fail the same way. */
 export class ModelRejectedError extends Error {}
 
