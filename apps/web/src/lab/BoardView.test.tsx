@@ -182,6 +182,19 @@ describe('BoardView, marks', () => {
   });
 
   it.each([
+    [raw`\gcd(a,b) = 1`, raw`\gcd`],
+    [raw`\limsup\nolimits_n x`, raw`\limsup`],
+    [raw`\liminf\nolimits_n x`, raw`\liminf`],
+    [raw`\begin{pmatrix} 1 & 2 \\ 3 & 4 \end{pmatrix} = A`, raw`\begin{pmatrix} 1 & 2 \\ 3 & 4 \end{pmatrix}`],
+  ])('rings in %s the whole of %s', (tex, part) => {
+    const onBoardProblem = vi.fn();
+    const operations = [write('eq', tex), mark({ kind: 'highlight', id: 'ring', target: 'eq', tex: part }, 500)];
+    const { container } = render(<BoardView board={getBoardAt(operations, 3000)} atMs={3000} onBoardProblem={onBoardProblem} />);
+    expect(getStrokes(container)).toHaveLength(1);
+    expect(onBoardProblem).not.toHaveBeenCalled();
+  });
+
+  it.each([
     ['a part that is not there', mark({ kind: 'highlight', id: 'ring', target: 'eq', tex: 'y' }, 500), { kind: 'markWithoutTarget', markId: 'ring', target: 'eq', tex: 'y' }],
     ['an occurrence past the last', mark({ kind: 'highlight', id: 'ring', target: 'eq', tex: '8', occurrence: 3 }, 500), { kind: 'markWithoutTarget', markId: 'ring', target: 'eq', tex: '8' }],
     ['a term id that is not there', mark({ kind: 'annotate', id: 'cross', target: 'eq.t9', mark: 'cross' }, 500), { kind: 'markWithoutTarget', markId: 'cross', target: 'eq.t9' }],
@@ -194,6 +207,28 @@ describe('BoardView, marks', () => {
     rerender(<BoardView board={getBoardAt(operations, 3100)} atMs={3100} onBoardProblem={onBoardProblem} />);
     expect(onBoardProblem.mock.calls).toEqual([[problem]]);
     expect(getStrokes(container)).toHaveLength(0);
+  });
+
+  it.each([
+    ['drew', '8'],
+    ['reported', 'y'],
+  ])('reports a mark id used again on a missing target, after the first use %s', (_name, firstPart) => {
+    const onBoardProblem = vi.fn();
+    const first = [write('eq', '2x = 8'), mark({ kind: 'highlight', id: 'ring', target: 'eq', tex: firstPart }, 500)];
+    const { rerender } = render(<BoardView board={getBoardAt(first, 1000)} atMs={1000} onBoardProblem={onBoardProblem} />);
+    onBoardProblem.mockClear();
+    const reused = [...first, mark({ kind: 'hide', target: 'ring' }, 2000), mark({ kind: 'highlight', id: 'ring', target: 'eq', tex: 'q' }, 2100)];
+    rerender(<BoardView board={getBoardAt(reused, 3000)} atMs={3000} onBoardProblem={onBoardProblem} />);
+    rerender(<BoardView board={getBoardAt(reused, 3100)} atMs={3100} onBoardProblem={onBoardProblem} />);
+    expect(onBoardProblem.mock.calls).toEqual([[{ kind: 'markWithoutTarget', markId: 'ring', target: 'eq', tex: 'q' }]]);
+  });
+
+  it('reports a mark that never drew only once through a freeze', () => {
+    const onBoardProblem = vi.fn();
+    const operations: BoardOperation[] = [write('eq', '2x = 8'), mark({ kind: 'highlight', id: 'ring', target: 'eq', tex: 'q' }, 500), { kind: 'freeze', atMs: 700, frames: [] }];
+    const { rerender } = render(<BoardView board={getBoardAt(operations, 600)} atMs={600} onBoardProblem={onBoardProblem} />);
+    rerender(<BoardView board={getBoardAt(operations, 800)} atMs={800} onBoardProblem={onBoardProblem} />);
+    expect(onBoardProblem).toHaveBeenCalledTimes(1);
   });
 
   it('reports nothing when a term it ringed leaves through a rearrangement', () => {
@@ -331,6 +366,23 @@ describe('BoardView, a math font that does not arrive', () => {
     for (const arrive of arrivals) arrive([]);
     await vi.advanceTimersByTimeAsync(0);
     rerender(<BoardView board={getBoardAt(operations, 5016)} atMs={5016} />);
+    expect(container.querySelector<HTMLElement>('[data-element="eq"]')?.style.width).toBe('140px');
+  });
+
+  it('lays the equation out again when the font lands with no frame before a rebuild', async () => {
+    const arrivals: ((faces: unknown[]) => void)[] = [];
+    let hasLanded = false;
+    useFonts({ status: 'loading', ready: new Promise(() => undefined), check: () => hasLanded, load: () => new Promise((resolve) => arrivals.push(resolve)) });
+    const width = vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(100);
+    const moving = [write('eq', 'x = 4'), rearrange('eq', 'x = 2 + 2', 6000)];
+    const { container, rerender } = render(<BoardView board={getBoardAt(moving, 6100)} atMs={6100} />);
+    await vi.advanceTimersByTimeAsync(1100);
+    expect(container.querySelector<HTMLElement>('[data-element="eq"]')?.style.width).toBe('100px');
+    width.mockReturnValue(140);
+    hasLanded = true;
+    for (const arrive of arrivals) arrive([]);
+    await vi.advanceTimersByTimeAsync(0);
+    rerender(<BoardView board={getBoardAt(moving, 9000)} atMs={9000} />);
     expect(container.querySelector<HTMLElement>('[data-element="eq"]')?.style.width).toBe('140px');
   });
 

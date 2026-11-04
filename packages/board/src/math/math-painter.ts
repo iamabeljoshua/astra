@@ -180,7 +180,7 @@ export function createMathPainter(root: HTMLElement): MathPainter {
     rebuild(line, fromLine, maxWidth);
   };
 
-  // Settled first, because a piece of ink in flight would measure where it is flying and not where it sits.
+  // Runs before a rebuild, which forgets the waits and reuses old measures, and settles each tree so ink measures where it sits and not where it is flying.
   const refreshAfterFonts = () => {
     if (!fontWaits.some((wait) => wait.outcome === 'arrived')) return;
     fontWaits = fontWaits.filter((wait) => wait.outcome !== 'arrived');
@@ -257,8 +257,8 @@ export function createMathPainter(root: HTMLElement): MathPainter {
 
   return {
     prepare(frame) {
-      prepareTrees(frame);
       refreshAfterFonts();
+      prepareTrees(frame);
       writeStyle(root, 'width', to ? `${to.size.width}px` : '');
       writeStyle(root, 'height', to ? `${to.size.height}px` : '');
       return { size: to?.size ?? null, fromSize: from?.size ?? null };
