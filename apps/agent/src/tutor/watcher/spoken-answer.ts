@@ -17,6 +17,8 @@ export interface SpokenPart {
 
 const TALK_OPENING = /^\s*(wait|hold on|sorry|why|what|how|when|where|who|which|can|could|would|should|do|does|did|is it|are|am i|help|stop|repeat|again|never mind|i don'?t|i do not|i'?m (confused|lost|stuck|not sure)|i am (confused|lost|stuck|not sure)|thanks|thank you|hello|hi|hey|ok|okay|give me|show me|tell me|explain|yes|yeah|yep|no|nope|right|sure|go on|um+|uh+|hm+|mm+|let me|one sec)\b/i;
 const HOLDS_MATH_WORDS = /\b(equals?|plus|minus|times|over|squared|cubed|divided|root|negative)\b|\d|=/i;
+const WHOLE_EQUATION = /[^=]=[^=]/;
+const SAYS_EQUALS = /\b(equals?)\b|=/i;
 const SMALL_WORDS: ReadonlySet<string> = new Set(['the', 'a', 'an', 'of', 'in', 'on', 'to', 'and', 'then', 'first', 'next', 'last', 'after', 'that', 'is', 'it', 'its', 'goes', 'with']);
 
 const toWords = (text: string) => text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
@@ -51,6 +53,13 @@ function decidePick(text: string, parts: readonly SpokenPart[]): SpokenDecision 
   const spoken = toPartKey(getSpokenCompact(text.replace(/\b(the|term|one|i'?d|start|with|pick|deal|first)\b/gi, ' ').trim()));
   const matches = parts.filter(({ part }) => toPartKey(part) === spoken);
   return spoken !== '' && matches.length === 1 ? { act: 'pick', part: (matches[0] as SpokenPart).part } : { act: 'talk', why: 'it does not clearly name one part' };
+}
+
+// A whole line said during a pick is a line of work, as it would be typed, and never a pick of the first term it names.
+function decidePickOrLine(text: string, parts: readonly SpokenPart[]): SpokenDecision {
+  const tex = getLineTex(readLine(text));
+  if (tex && WHOLE_EQUATION.test(tex)) return { act: 'line', tex };
+  return SAYS_EQUALS.test(text) ? { act: 'talk', why: 'it starts a line it does not finish' } : decidePick(text, parts);
 }
 
 function splitClauses(text: string): string[] {
@@ -92,7 +101,7 @@ export function decideSpoken(text: string, task: Task | null, parts: readonly Sp
     case 'write':
       return decideWrite(text, task);
     case 'pick':
-      return decidePick(text, parts);
+      return decidePickOrLine(text, parts);
     case 'place':
       return decidePlace(text, task);
     case 'drag':

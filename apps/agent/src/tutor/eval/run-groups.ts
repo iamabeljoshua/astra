@@ -94,6 +94,7 @@ async function runGroup(group: PromptGroup, ledger: ReturnType<typeof createSpen
     for (const command of commands) console.log(`     cmd ${JSON.stringify(command)}`);
     if (traces.length > 0) console.log(`   traces: ${traces.join(' | ')}`);
     for (const check of [...group.checks, ...(turn.check ? [turn.check] : [])]) {
+      if (REPLY_CHECKS[check]?.onlyOnWork && !turn.work) continue;
       if (!REPLY_CHECKS[check]?.passes(summary.spokenText, commands.map((command) => command.kind))) failures.push(`${group.name}: ${check}: ${text.slice(0, 60)}: ${summary.spokenText.slice(0, 120)}`);
     }
   }

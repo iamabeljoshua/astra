@@ -77,6 +77,12 @@ describe('whether something said is an answer', () => {
     expect(decideSpoken(said, PICK, parts)).toEqual({ act: 'pick', part });
   });
 
+  it('takes a whole line said during a pick as a line, never a pick of the first term it names', () => {
+    expect(decideSpoken('2x equals 8', PICK, PARTS)).toEqual({ act: 'line', tex: '2x=8' });
+    expect(decideSpoken('11 equals 2x plus 3', PICK, PARTS)).toEqual({ act: 'line', tex: '11=2x+3' });
+    expect(decideSpoken('2x equals', PICK, PARTS).act).toBe('talk');
+  });
+
   it.each([['the sea or the cloud', NODES], ['something in the middle', NODES], ['seven', PARTS]])('leaves "%s" to the tutor, because it does not name one part', (said, parts) => {
     expect(decideSpoken(said, PICK, parts).act).toBe('talk');
   });
