@@ -35,6 +35,8 @@ export interface SpeakTurnOptions {
   textPace?: TextPace;
   proofStalls?: readonly { atAudioMs: number; ms: number }[];
   onBeatStarted?(beat: Beat): void;
+  /** The turn was stopped while waiting for this beat, so it was never spoken and a resume can still say it. */
+  onBeatUnspoken?(beat: Beat): void;
   onFirstAudioRead?(atMs: number): void;
   onFrameCaptured?(note: FrameNote): void;
   onWords?(words: { atMs: number; words: TimedWord[] }): void;
@@ -49,6 +51,8 @@ export interface SpokenTurn {
   finished: Promise<void>;
   stop(): void;
   getWordMismatches(): { ours: string; theirs: string }[];
+  /** Words were sent to the voice that have not come back, so a silence now is the voice's and not the writer's. */
+  isVoiceOwing(): boolean;
   /** How many words of each beat have left the agent, the only record if the browser's report is lost. */
   getWordsSent(): Map<BeatId, number>;
 }
@@ -103,7 +107,10 @@ async function writeBeat({ options: { messenger, turnId, textPace }, stream, isS
 
 async function writeText(work: TurnWork): Promise<void> {
   for await (const beat of work.options.beats) {
-    if (work.isStopped()) return;
+    if (work.isStopped()) {
+      work.options.onBeatUnspoken?.(beat);
+      return;
+    }
     work.timeline.addBeat(beat);
     work.options.onBeatStarted?.(beat);
     await writeBeat(work, beat);
@@ -239,5 +246,5 @@ export function speakTurn(options: SpeakTurnOptions): SpokenTurn {
       lineTurn.leave();
     });
 
-  return { finished, getWordMismatches: timeline.getMismatches, getWordsSent: () => timeline.getWordsSent(firstSound.toTimeline(audioSentMs)), stop };
+  return { finished, getWordMismatches: timeline.getMismatches, isVoiceOwing: () => !timeline.isComplete(), getWordsSent: () => timeline.getWordsSent(firstSound.toTimeline(audioSentMs)), stop };
 }

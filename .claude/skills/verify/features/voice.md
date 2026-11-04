@@ -1,10 +1,12 @@
 # Live voice
 
-A running session's screen connects to a real room. The student talks or types, and a stand-in tutor answers aloud with captions, reacts first from code, can be interrupted, and resumes after a dropped link.
+A running session's screen connects to a real room. The student talks or types, and the tutor reacts first from code, answers aloud with captions, can be interrupted, and resumes after a dropped link. [The tutor's brain](./tutor.md) covers what it says.
+
+The page asks `POST /sessions/:id/live-room` as the session screen opens, beside setting up its audio, and it joins the room when the answer holds access. That answer is always 200 for the student's own unfinished session. The microphone stays off, and `getUserMedia` is not called, until the student presses **Talk**. Once the tutor has stopped and the student has done nothing for 8 s, the page says `Press Talk to answer, or type.`
 
 ## Sub-features
 
-- `voice-talk` presses **Talk**, opens the room, and hears a greeting in the tutor's voice.
+- `voice-talk` opens a session, hears the tutor's greeting and then the answer or topic with no press, and presses **Talk** to answer.
 - `voice-reaction` plays a stored reaction, with the dot pulsing first, before the reply.
 - `voice-stop` lowers the tutor on the student's first sound, cuts it on the first real word, and freezes the board.
 - `voice-backchannel` lowers the tutor on "Uh-huh" and does not stop it.
@@ -13,10 +15,13 @@ A running session's screen connects to a real room. The student talks or types, 
 - `voice-tab` closes the job and the room when the tab closes.
 - `voice-second` gives a second student a separate room, and no token for the first room.
 - `voice-mic-test` is the development page at `/lab/voice-test`, for a real microphone in a real room.
+- `voice-no-room` is the app with no LiveKit keys. The answer is `{ access: null, unavailableBecause: 'notSetUp' }`, the note says `Your tutor could not connect just now.`, and the console stays clean. The `sessions` journey checks it, and `features/sessions.md` has the table of what it expects with the room service off and on.
+- `voice-daily-limit` is a student at `ASTRA_DAILY_LIMIT_USD`. The answer is `{ access: null, unavailableBecause: 'dailyLimit' }`, and a rejoin that gets it stops at once.
+- `voice-closed` is the agent's `tutorClosed` message. The note says why and stays, the dot rests, the microphone goes off, a reply stays on the screen, and the page does not rejoin.
 
 ## How to get to it (user POV)
 
-Sign in, open any running session, and press **Talk** or type a reply. Ask the tutor to show you the ball for a long line with motion. See "Talk with the tutor" in `README.md` for the keys and for `pnpm agent`.
+Sign in, open any running session, and press **Talk** or type a reply. With `ASTRA_TUTOR_MODEL=stand-in`, ask the tutor to show you the ball for a long line with motion. See "Talk with the tutor" in `README.md` for the keys and for `pnpm agent`.
 
 ## Driving it
 

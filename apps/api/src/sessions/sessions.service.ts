@@ -5,6 +5,7 @@ import { LiveRooms, MOST_WARM_ROOMS, WARM_ROOM_WINDOW_MS } from '../livekit/live
 import type { SessionListOptions } from '../infrastructure/orm/repositories/session.repository';
 import { findLibraryTopic } from '../picks/library';
 import type { TopicSession } from '../picks/topic-progress';
+import { TutorSpendService } from '../tutor-spend/tutor-spend.service';
 import type { CreateSessionBodyDto, SessionResponseDto, UpdateSessionBodyDto } from './session.dto';
 
 function requireSession(session: SessionEntity | null): SessionEntity {
@@ -31,12 +32,15 @@ export class SessionsService {
   constructor(
     private readonly sessions: SessionRepository,
     private readonly liveRooms: LiveRooms,
+    private readonly tutorSpend: TutorSpendService,
   ) {}
 
   async createSession(studentId: string, body: CreateSessionBodyDto): Promise<SessionResponseDto> {
     // A card's title comes from the library, so a browser cannot put a student's words under a shared topic.
     const topic = findLibraryTopic(body.topicId);
     const session = await this.sessions.createForStudent(studentId, topic ? { ...body, title: topic.title } : body);
+    // Warming starts a job, which spends, and a student past today's limit gets no reply from it.
+    if (await this.tutorSpend.isOverDailyLimit(studentId)) return toSessionResponse(session);
     // Counted after the insert, in the table every API process shares, so however many sessions arrive at once only the first few can read a small count.
     const startedLately = await this.sessions.countStartedSince(studentId, new Date(Date.now() - WARM_ROOM_WINDOW_MS));
     if (startedLately <= MOST_WARM_ROOMS) this.liveRooms.warm(session.id, studentId);
@@ -54,6 +58,10 @@ export class SessionsService {
 
   async getSession(studentId: string, sessionId: string): Promise<SessionResponseDto> {
     return toSessionResponse(requireSession(await this.sessions.findForStudent(studentId, sessionId)));
+  }
+
+  findStudentIdOfSession(sessionId: string): Promise<string | null> {
+    return this.sessions.findStudentIdOfSession(sessionId);
   }
 
   async getLessonRequest(studentId: string, sessionId: string): Promise<{ title: string; status: string; isCard: boolean; cardLine?: string }> {

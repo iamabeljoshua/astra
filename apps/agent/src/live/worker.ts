@@ -9,10 +9,11 @@ import { renderTone } from '../providers/fakes.ts';
 import { makeTutorTranscriber, makeTutorVoice } from '../providers/choose.ts';
 import { makeRenderedVoice, RENDERED_SAMPLE_RATE } from '../providers/rendered-voice.ts';
 import { type Ears, startEars, VAD_SETTINGS } from './ears.ts';
+import { createClosingWait } from './closing-wait.ts';
 import { createLiveSession } from './live-session.ts';
 import { createTakePicker, loadTakes } from './reactions.ts';
 import { readDataMessage } from './read-data-message.ts';
-import { createStandInTutor } from './stand-in-tutor.ts';
+import { makeTutorBrain, warmTutorModel } from '../tutor/make-brain.ts';
 import { getSteadyNowMs, createVoiceLine } from './voice-line.ts';
 
 const LIVE_TOPIC = 'astra.live';
@@ -25,7 +26,8 @@ const LINK_DROPPED_MS = 120_000;
 /** Long enough for the page to hear why before the room goes. */
 const SAY_WHY_BEFORE_CLOSING_MS = 500;
 const STUDENT_IDENTITY_PREFIX = 'student-';
-const LOAD_LIMIT = 0.98;
+// The SDK refuses students at 70% load, and any limit below none still refuses them on a busy laptop at 100%, as 0.98 did. Hosting sets its own limit when it exists.
+const LOAD_LIMIT = Number(process.env.ASTRA_AGENT_LOAD_LIMIT ?? Infinity);
 
 const encoder = new TextEncoder();
 
@@ -64,6 +66,7 @@ async function runSession(context: JobContext): Promise<void> {
   }).makeStt();
   const allTakes = loadTakes();
   let ears: Ears | null = null;
+  const { brain, flushSpend } = makeTutorBrain({ roomName: room.name ?? '', trace });
   const session = createLiveSession({
     messenger: {
       send: (message) => publish(message),
@@ -74,7 +77,7 @@ async function runSession(context: JobContext): Promise<void> {
     },
     line: createVoiceLine(source),
     voice,
-    tutor: createStandInTutor(),
+    tutor: brain,
     takes: createTakePicker(allTakes),
     allTakes,
     setTurnCap: (ms) => ears?.setTurnCap(ms),
@@ -84,9 +87,8 @@ async function runSession(context: JobContext): Promise<void> {
   });
   ears = await startEars({ room, transcriber, vad: context.proc.userData.vad as inference.VAD, onEvent: session.onEars });
 
-  let closing: ReturnType<typeof setTimeout> | undefined;
+  const closing = createClosingWait({ leftOnPurposeMs: LEFT_ON_PURPOSE_MS, linkDroppedMs: LINK_DROPPED_MS, onClose: () => context.shutdown('the student left') });
   const pulse = setInterval(() => publish({ type: 'pulse' }, false), PULSE_EVERY_MS);
-  const finish = () => context.shutdown('the student left');
 
   // A microphone test labels each line in the trace, and without a trace this does nothing.
   const noteMark = (payload: Uint8Array) => {
@@ -101,15 +103,19 @@ async function runSession(context: JobContext): Promise<void> {
     const read = readDataMessage(payload);
     const parsed = read.ok ? parseBrowserMessage(read.value) : read;
     if (!parsed.ok) return trace('messageRefused', { problem: parsed.problem });
-    clearTimeout(closing);
+    closing.cancel();
     session.onBrowser(parsed.value);
+  });
+  room.on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {
+    if (!participant.identity.startsWith(STUDENT_IDENTITY_PREFIX)) return;
+    trace('studentJoined');
+    closing.cancel();
   });
   room.on(RoomEvent.ParticipantDisconnected, (participant: RemoteParticipant) => {
     if (!participant.identity.startsWith(STUDENT_IDENTITY_PREFIX)) return;
     const leftOnPurpose = participant.disconnectReason === DisconnectReason.CLIENT_INITIATED;
     trace('studentLeft', { leftOnPurpose });
-    clearTimeout(closing);
-    closing = setTimeout(finish, leftOnPurpose ? LEFT_ON_PURPOSE_MS : LINK_DROPPED_MS);
+    closing.studentLeft({ leftOnPurpose });
   });
   const publishOptions = new TrackPublishOptions();
   publishOptions.source = TrackSource.SOURCE_MICROPHONE;
@@ -119,9 +125,10 @@ async function runSession(context: JobContext): Promise<void> {
 
   context.addShutdownCallback(async () => {
     trace('jobClosing');
-    clearTimeout(closing);
+    closing.cancel();
     clearInterval(pulse);
     await session.close();
+    await flushSpend();
     await ears?.close();
     await transcriber.close();
     await voice.close();
@@ -136,6 +143,7 @@ export default defineAgent({
     process_.userData.vad = new inference.VAD(VAD_SETTINGS);
   },
   entry: async (context: JobContext) => {
+    warmTutorModel();
     await context.connect(undefined, AutoSubscribe.AUDIO_ONLY);
     await runSession(context);
   },
@@ -148,7 +156,6 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       agent: fileURLToPath(import.meta.url),
       agentName: process.env.ASTRA_AGENT_NAME ?? 'astra-tutor',
       numIdleProcesses: 1,
-      // The SDK's 70% refuses students on a busy laptop. Hosting sets its own limit when it exists.
       loadThreshold: LOAD_LIMIT,
       port: Number(process.env.ASTRA_AGENT_PORT ?? 8081),
       wsURL: readKey('LIVEKIT_URL'),

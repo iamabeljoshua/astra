@@ -118,6 +118,12 @@ export async function runLabAgent({ url, token, voice, sampleRate, recorder }: L
     });
   };
 
+  const getTurnBeats = (command: LabCommand & { type: 'play' }): readonly Beat[] => {
+    if (command.isStockMath) return STOCK_MATH_TURN;
+    if (command.isStockPhrase) return STOCK_TURN;
+    return command.lesson ? getNamedLessonTurn({ ...command, lesson: command.lesson }) : getLessonTurn(command);
+  };
+
   const hasEveryReport = (turn: ActiveTurn) => [...turn.spoken.getWordsSent().keys()].every((beatId) => turn.reports.has(beatId));
 
   const whenReported = async (turn: ActiveTurn): Promise<void> => {
@@ -128,12 +134,6 @@ export async function runLabAgent({ url, token, voice, sampleRate, recorder }: L
   const resumeTurn = async (turn: ActiveTurn, textPace?: TextPace) => {
     await whenReported(turn);
     startTurn(getResumeBeats({ beats: turn.beats, reports: turn.reports, wordsSent: turn.spoken.getWordsSent(), resumeTag: `r${turnCount}` }), { textPace });
-  };
-
-  const getTurnBeats = (command: LabCommand & { type: 'play' }): readonly Beat[] => {
-    if (command.isStockMath) return STOCK_MATH_TURN;
-    if (command.isStockPhrase) return STOCK_TURN;
-    return command.lesson ? getNamedLessonTurn({ ...command, lesson: command.lesson }) : getLessonTurn(command);
   };
 
   const runCommand = (command: LabCommand) => {

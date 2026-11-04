@@ -145,6 +145,14 @@ describe('BoardView, marks', () => {
     expect(getStrokes(container)).toHaveLength(2);
   });
 
+  it('crosses a whole line of math, as the tutor does on a line it shows as wrong', () => {
+    const operations = [write('eq', '2x = 14'), mark({ kind: 'annotate', id: 'cross', target: 'eq', mark: 'cross' }, 500)];
+    const onBoardProblem = vi.fn();
+    const { container } = render(<BoardView board={getBoardAt(operations, 3000)} atMs={3000} onBoardProblem={onBoardProblem} />);
+    expect(getStrokes(container)).toHaveLength(2);
+    expect(onBoardProblem).not.toHaveBeenCalled();
+  });
+
   it('removes a mark with hide, and when its equation goes', () => {
     const operations = [write('eq', '2x = 8'), mark({ kind: 'highlight', id: 'ring', target: 'eq', tex: '8' }, 500)];
     const { container, rerender } = render(<BoardView board={getBoardAt(operations, 3000)} atMs={3000} />);

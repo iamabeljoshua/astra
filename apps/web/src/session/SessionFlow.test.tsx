@@ -247,7 +247,7 @@ describe('the session screen', () => {
     await waitFor(() => expect(document.activeElement).toBe(heading));
   });
 
-  it('keeps a reply on the screen and says the tutor cannot answer, when the tutor cannot connect', async () => {
+  it('keeps a reply on the screen and says it did not arrive, when the tutor cannot connect', async () => {
     renderSessionAddress({ sessions: [makeSession()] }, 'a-session');
     const replyBox = await screen.findByRole<HTMLTextAreaElement>('textbox', { name: REPLY_BOX_LABELS.label });
 
@@ -255,9 +255,57 @@ describe('the session screen', () => {
     fireEvent.click(screen.getByRole('button', { name: REPLY_BOX_LABELS.send }));
 
     await screen.findByText('Gravity, I think.');
-    screen.getByText(SESSION_LABELS.standInAnswer);
+    screen.getByText(SESSION_LABELS.replyNotSent);
     screen.getByText(VOICE_LABELS.unavailable);
     expect(replyBox.value).toBe('');
+  });
+
+  it('says plainly that today\'s tutor time is spent, and keeps the reply on the screen', async () => {
+    renderSessionAddress({ sessions: [makeSession({ durationSeconds: 65 })], liveRoom: { access: null, unavailableBecause: 'dailyLimit' } }, 'a-session');
+    const replyBox = await screen.findByRole<HTMLTextAreaElement>('textbox', { name: REPLY_BOX_LABELS.label });
+
+    fireEvent.change(replyBox, { target: { value: 'Gravity, I think.' } });
+    fireEvent.click(screen.getByRole('button', { name: REPLY_BOX_LABELS.send }));
+
+    await screen.findByText(VOICE_LABELS.dailyLimit);
+    screen.getByText('Gravity, I think.');
+    screen.getByText(SESSION_LABELS.replyNotSent);
+    expect(screen.queryByText(VOICE_LABELS.unavailable)).toBeNull();
+  });
+
+  it('shows no words of its own while the room opens on a new question, so nothing stale sits there', async () => {
+    vi.stubGlobal('AudioContext', class {
+      state = 'running';
+      audioWorklet = { addModule: async () => {} };
+      createGain = () => ({ gain: { setValueAtTime: () => {} } });
+      resume = async () => {};
+      close = async () => {};
+    });
+    const { fetchStub } = renderSessionAddress({ sessions: [makeSession({ durationSeconds: 0 })] }, 'a-session');
+    const room = holdAnswers(fetchStub, isCallTo('/api/sessions/a-session/live-room'));
+
+    await getSessionHeading('Free-body diagrams');
+    await waitFor(() => expect(room.getHeldCount()).toBe(1));
+
+    expect(screen.queryByText(/Live lessons open soon/)).toBeNull();
+    screen.getByText(VOICE_LABELS.connecting);
+
+    await room.release();
+    await screen.findByText(VOICE_LABELS.unavailable);
+    expect(screen.queryByText(/Live lessons open soon/)).toBeNull();
+  });
+
+  it('joins the room for a student who came back as the screen opens, with no press, and a reply goes to that room', async () => {
+    const { getRequests } = renderSessionAddress({ sessions: [makeSession({ durationSeconds: 65 })] }, 'a-session');
+
+    await waitFor(() => expect(getRequests('POST', '/api/sessions/a-session/live-room')).toHaveLength(1));
+    await screen.findByText(VOICE_LABELS.unavailable);
+    expect(screen.queryByText(/Live lessons open soon/)).toBeNull();
+
+    fireEvent.change(screen.getByRole('textbox', { name: REPLY_BOX_LABELS.label }), { target: { value: 'Gravity, I think.' } });
+    fireEvent.click(screen.getByRole('button', { name: REPLY_BOX_LABELS.send }));
+
+    await screen.findByText(SESSION_LABELS.replyNotSent);
   });
 
   it('counts up from the saved length and saves it as it runs', async () => {

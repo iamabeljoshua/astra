@@ -2,7 +2,7 @@
 
 This is the record M3.6 owes, and PRD test 4's measurements. `turn-rows.json` holds the 30 real turns row by row, and `node apps/agent/src/lab/proof/voice/read-turn-rows.ts` recomputes their figures. `voice-results.json` holds the other raw runs: stops, accents, every column of "How long the first word takes" under `joinTiming`, the proofs of a finish, a killed job, a quiet room, and the microphone under `safetyProofs`, the old-token checks under `oldToken`, and the attacks under `secondReview` and `finalFixRound`, from a verifier's script that is not in this repo.
 
-A figure labeled inferred is worked out from the others. These were read from a run that was not kept, so the file does not hold them: the single calls to LiveKit, a reviewer's rounds on Decision 4's pause, Muse's handshakes of 985 to 2209 ms, the first run's microphone bytes of 36404 and 49705, the drop proof's resume times, and the tab proof's 16.6 s and 20.6 s.
+A figure labeled inferred is worked out from the others. `returnAtEdge` holds the last runs of "Coming back at the edge". `joinAtOpen` holds a verifier's 5 joins from the screen opening, at `70f4e44`. These were read from a run that was not kept, so the file does not hold them: the three rows of "Joining as the screen opens", the single calls to LiveKit, a reviewer's rounds on Decision 4's pause, Muse's handshakes of 985 to 2209 ms, the first run's microphone bytes of 36404 and 49705, the drop proof's resume times, and the tab proof's 16.6 s and 20.6 s.
 
 Every figure was measured on 4 November 2026 on Abel's Mac under load from other agents, at a load average of 5 to 35. The student's browser and the agent both ran on this Mac, so **every message from the agent to the student crossed the network twice**, up to LiveKit Cloud's EU West B and back down. The round trip from this Mac to that edge was 135 to 153 ms. A hosted agent would sit beside the edge and cross it once. No figure below ran that way, so each line that removes a leg is labeled inferred.
 
@@ -128,11 +128,11 @@ One loop moves the microphone toward what the student last asked for, so a press
 
 ## Rooms, tokens, and a tutor that has gone
 
-**Only the API calls the tutor in.** A token cannot be taken back, and one that named the agent could start a job for a finished session, so tokens no longer name it and last 2 minutes rather than 10. The API opens the room and calls the tutor in, for a session that has not finished. `run-safety-proof.ts --only finished` ended a session from outside its open page. The page said the connection had ended 2 ms after the finish answered, the job closed in 1693 to 2841 ms over two runs, and a new token answered 409. The old token could still join, into an empty room, and started no job, 1 job before and 1 after.
+**Only the API calls the tutor in.** A token cannot be taken back, and one that named the agent could start a job for a finished session, so tokens no longer name it and last 2 minutes rather than 10. The API opens the room and calls the tutor in, for a session that has not finished. `run-safety-proof.ts --only finished` ended a session from outside its open page. The page said the connection had ended 2 ms after the finish answered, on the code of that run, and it now asks the API first, which answers 409. The job closed in 1693 to 2841 ms over two runs, and a new token answered 409. The old token could still join, into an empty room, and started no job, 1 job before and 1 after.
 
 **How long an old token lasts.** A token set to 2 minutes works for about 3. Fresh joins worked at 125 and 170 s and were refused at 190 s, so LiveKit allows about a minute past the expiry. The expiry only stops a new join. A token already joined was still connected at 250 s, and LiveKit does not end a connection when its token expires. So nothing in this code bounds it. It lasts until the client leaves or the room is deleted, and the finish deleted the room before that join, so nothing deletes this one. It is not a privacy problem. A normal page gets 409 and stays out, so only a script that kept its token reaches it, and that script gets a room with no tutor, no Muse, and no one else, because `maxParticipants` is 1. What it costs is LiveKit connection minutes, as any script holding an unfinished session's room does, and the limit below caps how many new rooms it can get. A sweep that deletes the rooms of finished sessions would bound it, and it is not built.
 
-**Each room gets a new name.** On LiveKit Cloud, for at least 12 s after a delete, a create of the same name answered with the old room and called no one: at 1, 3, 6, and 12 s it did, and at 25 and 50 s it did not. So `session-<id>-<8 hex>` is new each time. The API keeps the names it has given, because every call to LiveKit from this Mac is slow, as "How long the first word takes" shows. It checks a known name before reusing it, and it lists every room in the project only for a name this process has lost, such as after a restart. So more than one API process would each make that slow list, and a deploy with several should store the name on the session.
+**Each room gets a new name.** On LiveKit Cloud, for at least 12 s after a delete, a create of the same name answered with the old room and called no one: at 1, 3, 6, and 12 s it did, and at 25 and 50 s it did not. So `session-<id>-<8 hex>` is new each time. The API keeps the names it has given, because every call to LiveKit from this Mac is slow, as "How long the first word takes" shows. It reads who is in a known room before reusing it, because only a job there says a tutor is, and it lists every room in the project only for a name this process has lost, such as after a restart. So more than one API process would each make that slow list, and a deploy with several should store the name on the session.
 
 **A job that dies.** It used to leave the page flipping between live and reconnecting, each rejoin minting a token and keeping the room alive. A killed job now ends in a clear message: the page said `reconnecting` from about 3300 ms and gave up at 19778 and 24840 ms on two runs, after 3 tokens and none in the next 8 s, with the microphone off. **Try again** closes that room and opens a new one, and the tutor was back in 5270 to 5709 ms and answered. It starts fresh, without what was said so far, and the message says so. LiveKit would restart a crashed job by itself after about 25 s, measured once, and a tutor who has forgotten the lesson with no word why is worse than saying so, so the room asks it not to.
 
@@ -149,7 +149,7 @@ A student opening a few lessons meets neither. The third in 2 minutes starts a l
 
 **At the limit.** The page used to say only "could not connect", a typed reply then joined the dead room and failed at 25 s, and each join kept that room alive 2 more minutes. Now the page says how long the wait truly is, from the start that lifts the limit, the reply box stays closed, and every ask after a lost tutor is a start over until one is answered, so nothing joins the dead room. A reload does join it once, because a new page does not know the tutor has gone. It then says the tutor could not connect, **Try again** shows the wait, and that room closes by itself within 2 minutes of the last join. Rerun at the limit, a killed job read `tutorLost` at 20.7 s. **Try again** got a 429 and the page said a new tutor can start in about 10 minutes, true to the 5 starts made about half a minute before. The box was read-only, a second **Try again** got another 429, no join followed, and the room had left LiveKit's list 132 s later.
 
-**A warm room near its end.** A room with no student closes at about 120 s, and by reading `worker.ts` the job deletes it as it closes, so a press at 123 s got "Your connection to the tutor ended.", 1 of 8. A warm room nobody has joined now counts as gone from 105 s, and the press opens a new one. A room that closes before the tutor has been heard makes the page ask again, and only a finished session ends there. Rerun with presses at 106, 118, 123, and 126 s, 4 of 4 went live and got the greeting's turn 5692 to 7424 ms after the press, with no "ended". That is 4 presses and not the 8 of the first run, because the warm limit now allows 2 per student in that time. Each paid for a new job, and the old one closed by itself with no student in it.
+**A warm room near its end.** A room with no student closes at about 120 s, and by reading `worker.ts` the job deletes it as it closes, so a press at 123 s got "Your connection to the tutor ended.", 1 of 8. A warm room nobody has joined now counts as gone from 105 s, and the press opens a new one. A room that closes makes the page ask again, and only a finished session ends there. Rerun with presses at 106, 118, 123, and 126 s, 4 of 4 went live and got the greeting's turn 5692 to 7424 ms after the press, with no "ended". That is 4 presses and not the 8 of the first run, because the warm limit now allows 2 per student in that time. Each paid for a new job, and the old one closed by itself with no student in it.
 
 **A quiet room.** `QUIET_ROOM_LIMIT_MS` in `live-session.ts` is 10 minutes with no student speech or typing, no board action, and no tutor speech. A minute before, the page says so and offers **Keep the room open**. At the limit the page says why, the job ends, and **Open the room again** brings a new tutor. `run-safety-proof.ts --only quiet` ran a 40 s limit standing in for it, with the warning half way. The warning showed at 20.3 s, **Keep the room open** took it down, and the next warning came 20.0 s later. Pressing nothing then, the room closed 20.0 s after that, the page said why, the reply box stayed read-only, the room left LiveKit's list within 7.4 s, and **Open the room again** brought a new tutor in 5.5 s, who answered. Then `--only quietTen` ran the real limit on the real clock with nothing pressed: the warning at 540.5 s, the room closed at 600.3 s, and a new tutor 5.8 s after **Open the room again**.
 
@@ -188,8 +188,8 @@ A verifier ran the same script at `36f31eb`, 5 joins each, at a load of 12 to 24
 
 **What came out.**
 
-- The job. A new session opens its room as it starts, so the tutor is in the room about 3 s after that, usually before a student has pressed anything. The press makes no call to LiveKit, and the API answered in 261 ms at p50 in the table above and 551 ms in a verifier's 5 joins, both pressed after 5 s at a load of 12 or more. The tutor hears nothing until the student joins, and the student connects only on a press or a typed reply. A session opened and never spoken in cost one job for about 122 s. The room closed itself on the `emptyTimeout`, nothing reached Muse, and a press after that brought a new tutor in 5950 ms.
-- The list. The API keeps the names it has given, checks a known name before reusing it, and lists every room only for a name it has lost.
+- The job. A new session opens its room as it starts, so the tutor is in the room about 3 s after that, usually before a student has pressed anything. The press makes no call to LiveKit, and the API answered in 261 ms at p50 in the table above and 551 ms in a verifier's 5 joins, both pressed after 5 s at a load of 12 or more. The tutor hears nothing until the student joins, and the student now joins as the screen opens, with the microphone off. A session started with its screen never opened cost one job for about 122 s. The room closed itself on the `emptyTimeout`, nothing reached Muse, and a press after that brought a new tutor in 5950 ms.
+- The list. The API keeps the names it has given, reads who is in a known room before reusing it, and lists every room only for a name it has lost.
 - The audio setup. Building the audio graph took 90 to 480 ms under load, and the page waited for it before asking for the room, so the two now run together.
 - The wait for a pulse. The page held `hello` until the agent's first pulse, which comes on the lossy channel. In a run of 8 with that wait, the agent heard `hello` 1004 to 1457 ms after the student joined, and 4931 ms once. Without it, 682 to 788 ms, because a tutor's track already says the agent is listening.
 
@@ -198,7 +198,65 @@ A verifier ran the same script at `36f31eb`, 5 joins each, at a load of 12 to 24
 - Joining alongside creating the room. On a press the instant the screen opens, the student is in the room at about 2500 ms and the job at about 3600 ms, so the student's join is not what the first word waits for. A join that beat the create would also leave a room with no tutor.
 - Holding the connection to LiveKit open. It would save about 500 ms of a create, which only matters for a press within about 2 s of the screen opening. Node's `fetch` drops an idle connection after 4 s, so holding one takes a new dependency or a ping.
 
-**What is left, for M3.10.** The press now spends about 880 ms on the signal connection, 820 ms joining, 760 ms subscribing to the track and saying hello, and 330 ms on the greeting's way back. All of it is the network, at this round trip. A session continued from Home gets no warm room yet, and pays the job again: warming there needs a call from the page, and with no keys that call's 503 would fail the journeys until M3.7's route answers 200. The largest lever left is joining the room when the screen opens, which should take off about 2 s by inference from these steps, and sends a student's IP address to LiveKit before they press anything. Abel chose that on 4 November, so nobody sits waiting, and the merge with M3.7 adds it.
+**What is left, for M3.10.** The press now spends about 880 ms on the signal connection, 820 ms joining, 760 ms subscribing to the track and saying hello, and 330 ms on the greeting's way back. All of it is the network, at this round trip. Abel made the call on the largest lever left, joining when the screen opens. "Joining as the screen opens" holds the result.
+
+## Joining as the screen opens
+
+Abel: "can connect even if student hasn't pressed talk, or atleast prompt them to press talk ok? so they are not there stuck and waiting". So the page joins the room as the session screen opens, on a new session or one continued from Home, and it sends a first line that opens the turn: the question, `I'd like to learn about <title>.`, or `I'm back to carry on with this: <title>`. The tutor greets from a stored take and then answers. Nothing else needed a press.
+
+| From the screen opening to the first sound, fake voice, this Mac | p50 ms | Best to worst |
+| --- | --- | --- |
+| Now, a new session, warmed as it starts, 8 joins | 5143 | 4457 to 7431 |
+| Now, a third new session or more in 2 minutes, not warmed, 8 joins | 7380 | 6131 to 8961 |
+| Now, a session continued from Home with no room yet, 8 joins | 7586 | 5426 to 12047 |
+| Before, from pressing **Talk** at once on a new session | 5421 | 4715 to 8531 |
+| Before, from pressing **Talk** 5 s after the screen opened | 3050 | 2676 to 3162 |
+
+A verifier's 5 joins on the warmed row, at a load near 10 and a round trip of 228 ms, gave 6596 ms at p50, 5572 to 7338 ms. So the student no longer has to press anything, and the first sound comes about 5 to 6.6 s after the screen opens, about what pressing at once took. It misses PRD section 6.3's 3 s. The 3050 ms row started its clock 5 s after the screen opened, with the job already in the room, so it is not the same wait. What limits it is the job: on the warmed row the job started at about 3500 ms, and the sound came about 1300 ms later. A continued session has no warm room, so it first lists every room, about 1700 ms, because the API has lost its name, and then creates one. These ran at a machine load of 10 to 19, with other lanes on this Mac. All of them used the stand-in tutor and the fake voice, and the first sound is a stored take.
+
+`getUserMedia` is not called until the student presses **Talk**. `run-safety-proof.ts --only noPress` proved that on real Chromium: with the tutor speaking, there were 0 microphone asks, 0 tracks captured, and 0 audio senders. After the press there was 1 ask, 1 live track, and 1 live sender.
+
+| What the student sees | When |
+| --- | --- |
+| `Connecting to your tutor.` where the tutor's words go | Until the tutor's first turn in this page |
+| **Tap to hear your tutor** | The browser still blocks sound. Pressing Start on Home unlocks it, and 3 runs from a real click showed no prompt. Headless Chromium never blocks, so a script locked the audio graph until a click: the button showed, the captions ran on the timer, and one tap turned sound on and took the button away. Not run on a headed browser or Safari |
+| `Press Talk to answer, or type.` near the controls | 8 s after the tutor stopped, with the microphone off and nothing done. Writing a reply starts the wait over |
+
+The tutor no longer says "Take your time." after asking a question. It says that only after a filler such as "hmm, let me think", which the student said out loud. A student who is only listening is not counted as gone: tutor speech, a breath between stretches, and a reply longer than the limit all keep the quiet room's count from running out.
+
+| Kept working, proved live | Result |
+| --- | --- |
+| A second tab | The new tab takes over. The first says `Your connection to the tutor ended.`, with the microphone off, and asked for a room 1 time in the next 15 s, so the tabs do not fight. One student in the room |
+| Leaving the screen | The job closed about 18 s after the student left the screen, which holds the 15 s that lets a reload come back, and no one was left in the room |
+| The daily limit | The route answered `dailyLimit` as the screen opened, no job started, the screen said so, and there was no **Try again** |
+| The limit on rooms | At 12 rooms in 10 minutes the page says how long the wait is as it opens, and offers **Try again**, which answered 429 until the wait passed. A student who opens many sessions quickly meets this limit sooner than before, because opening one now starts a room |
+| A job that dies | A page opening on a room whose job had died said `Your tutor could not connect just now.` at about 25 s with **Try again**, on reloads 0.2 to 30 s after the kill. **Try again** brought a tutor back in about 7 s |
+| A warmed room no page joins | With the screen never opened, the job started at 5611 ms, heard nothing, and closed itself at 127 s. Opening the screen later called a new tutor, in 10876 ms |
+
+## With the tutor brain
+
+PR 85's rooms and PR 86's brain were merged and measured together. `docs/tests/tutor-model.md` holds what the model does.
+
+**A cut reply's words.** The turn rule says which words of `text` it carries from a cut reply, as `carried`. The brain sends only what is new when the last turn holds those words, or when a safety check dropped them, so one refusal cannot become two. If the last turn never began, nothing holds them, and they all go. So a long first message cannot crowd out what came after it.
+
+**A student jumping in.** In the first stretch, in a later stretch, and in a breath, the next request holds the question once and the jump-in once, and the note says what was heard and what was not. `live-tutor.test.ts` runs all three through the real brain and a fake model.
+
+**A drop while the page still plays.** The agent finishes a stretch while the page is still playing it. In 2 of 3 real drops on Sonnet a drop in that gap left the end of a stretch unheard, because a resume replayed only the turn it cut. A resume now also replays what the page reports it could not play, and a drop in the breath counts as a cut. Three more real drops on Sonnet then spoke every beat. A beat the page has not reported never played there, so it now replays whole, where it used to replay only its last word.
+
+**A room that closed while the page was away.** A rejoin that lands in a new room has a new job with no history, so the page says `Your tutor had to start fresh, without what was said so far.` until the student next says or types something. With a drop of 50 s and the room deleted during it, the page joined a new room, showed the line, the new tutor answered, and the line went when the student typed. A reload or a return from Home within 15 s of leaving finds the same job, which still holds the lesson, because a student joining now stops the job closing. Later than that it finds a new job, which has no line of its own, and says so if asked, as the tutor's words show.
+
+**Coming back at the edge.** A job closes 15 s after a student leaves on purpose. Leaving for Home and returning at 13 to 16 s used to fail 4 of 5, three with `noTutor` at about 25 s and one with `Your connection to the tutor ended.` at 4.3 s. There were four ways in, and each is closed:
+
+- A job cleared its wait only on a data message, and a page can take a second or more to send one after it joins. A student joining now clears it.
+- A page that heard the tutor took a deleted room as a session ending elsewhere. Now it asks the API, which answers 409 if the session has finished, and otherwise finds a tutor. A line no tutor said it heard goes again into the new room.
+- LiveKit answers for a deleted room for at least 12 s, and lets a token join it, so a room being there says nothing, and neither does its ID, which stayed the same. The API now reads who is in the room. Past the first 15 s, a room with no job in it counts as gone, and `isTutorThere` tells the page what the API saw. A page that finds nobody in a room with a tutor asks again at once. A new room with no job yet is left alone for those 15 s, so a quick reload starts no second job.
+- A room deleted under a join leaves that join open for up to 15 s, and LiveKit hands a second join the first one's promise, so the page believed it was in the new room while a new job waited for it. That was 1 of 12 in the run before this fix, by the job's trace, and the cause is inferred from it and from reading `Room.connect`. The page now waits for the open join to settle, joins time out in 10 s, a failed first join asks again, and a tutor in a new room gets its own 25 s.
+
+`return-at-edge.ts` runs this on real rooms with the fake voice and a stand-in tutor. Before the last fix, 11 of 12 got a tutor. After it, with 3 tries at each of 13, 14, 15, and 16 s from leaving, 12 of 12 got a tutor, and no page showed a line as the student's. The first turn came 4263 to 25059 ms after coming back, 11718 ms at the median. 2 of them found the same job, and the rest a new one. The worst was a join hung by the delete, which then found a new job. The page itself takes 3 to 10 s to load under this Mac's load of 15 to 25, so a return at 13 s often lands after the 15 s.
+
+**A first pulse.** A page used to say it could not hear the agent before the agent had ever sent it a pulse. In 1 of 8 real sessions that cut the first reaction 200 ms in. A link can now only be lost once it has been heard.
+
+**The log.** It refused the row of every beat that starts a stretch, because the breath's length is not part of a beat. Those rows are now kept.
 
 ## LiveKit Cloud
 
@@ -242,22 +300,21 @@ Run on the real app on this Mac. Scripts are in `apps/agent/src/lab/proof/voice/
 - 60 real minutes, and the rotation on the real socket.
 - The worst link's limits after a stop, which "What remains after a stop" in `docs/architecture/live-session.md` measures. Cloud on this network showed no audio past the gain in these runs, and they did not aim at it. The stored takes all run at least 250 ms, so none is given up as old audio.
 - The board after a page reload. The log and resume are right and the turn resumes, and the board starts empty until M3.10 rebuilds it from the log.
-- What the tutor says when the model is real. This is a stand-in.
 - The held microphone on a real microphone in a real room. Its quiet rule met clean synthetic speech and unit tests with steady noise.
 
 ## What Abel can do
 
 This takes about 10 minutes, on the built-in microphone, in a noisy room if you can, with speakers on and no headphones.
 
-1. In one terminal: `cd /Users/abel/startup/astra-worktrees/m3-6 && . ~/.config/astra/keys.env && export LIVEKIT_URL LIVEKIT_API_KEY LIVEKIT_API_SECRET ELEVENLABS_API_KEY META_API_KEY ASTRA_AGENT_NAME=astra-tutor-m3-6 ASTRA_AGENT_PORT=8391 ASTRA_VOICE_TRACE=/tmp/m3-6-mic ASTRA_VOICE_TRACE_WORDS=1 WEB_PORT=6310 API_PORT=3310 DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54422/astra_m3_6 && pnpm dev`
+1. In one terminal, from the root of a checkout of `main`: `. ~/.config/astra/keys.env && export LIVEKIT_URL LIVEKIT_API_KEY LIVEKIT_API_SECRET ELEVENLABS_API_KEY META_API_KEY ASTRA_TUTOR_MODEL=stand-in ASTRA_AGENT_NAME=astra-tutor-mic ASTRA_AGENT_PORT=8391 ASTRA_VOICE_TRACE=/tmp/astra-mic ASTRA_VOICE_TRACE_WORDS=1 WEB_PORT=6310 API_PORT=3310 DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54422/astra_mic && pnpm db:up && pnpm db:migrate && pnpm db:seed && pnpm dev`. The stand-in tutor keeps this test free of model spend, and it answers the way these lines were written for.
 2. In a second terminal, with the same exports: `pnpm agent`
 3. Open `http://127.0.0.1:6310/lab/voice-test`, press **Development sign-in**, and choose `maya@astra.test`.
 4. Press **Start with speech cleanup on**, then **Talk**, and allow the microphone. Wait for the greeting.
 5. Press **First line**, read it aloud, and wait for the tutor. Press **Next line** for each. Line 3 gets a long answer, so talk over it, say "uh-huh" over it, and notice whether the voice dips and whether it stops. The last line has a pause in it. Stop for two seconds where it says, in your natural voice, as if still thinking, then carry on. If the tutor cuts in, its next reply should answer the whole line, and `replies` in step 7 shows 2. That decides whether the wait after a question should rise.
 6. Close the tab, open the page again, and do the same with **Start with speech cleanup off**.
-7. Run `node apps/agent/src/lab/proof/voice/read-mic-test.ts /tmp/m3-6-mic`. It prints each line, its final, whether the tutor answered from the partial, and any line that hung.
+7. Run `node apps/agent/src/lab/proof/voice/read-mic-test.ts /tmp/astra-mic`. It prints each line, its final, whether the tutor answered from the partial, and any line that hung.
 
-Your own speech goes to Muse and ElevenLabs as in any session, and `ASTRA_VOICE_TRACE_WORDS=1` writes your words to `/tmp/m3-6-mic`. Delete that folder when you are done. No audio is written.
+Your own speech goes to Muse and ElevenLabs as in any session, and `ASTRA_VOICE_TRACE_WORDS=1` writes your words to `/tmp/astra-mic`. Delete that folder when you are done. No audio is written.
 
 ## Fixes that failed a test first
 
