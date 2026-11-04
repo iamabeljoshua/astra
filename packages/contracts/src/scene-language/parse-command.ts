@@ -5,6 +5,7 @@ import { getTexProblem, hasTooLongMarkRun } from './math-tex.ts';
 import { isReservedPlotName, parsePlotExpression, PLOT_EXPRESSION_MAX_CHARACTERS } from './plot-expression.ts';
 import {
   checkJsonSize,
+  checkRangeWidth,
   fail,
   type CheckedFields,
   type ParseResult,
@@ -108,11 +109,16 @@ function readPlotConstantName(place: Place): string {
   return place.value;
 }
 
+function checkMoreThanMin(place: Place, min: number, max: number): void {
+  if (min >= max) fail(place, 'a number above min');
+  checkRangeWidth(place, min, max);
+}
+
 function readPlotConstant(place: Place): PlotConstant {
   const fields = readFields(place, ['name', 'value', 'min', 'max']);
   const min = readCoordinate(fields.at('min'));
   const max = readCoordinate(fields.at('max'));
-  if (min >= max) fail(fields.at('max'), 'a number above min');
+  checkMoreThanMin(fields.at('max'), min, max);
   return { name: readPlotConstantName(fields.at('name')), value: readNumberInRange(fields.at('value'), { min, max }), min, max };
 }
 
@@ -273,7 +279,7 @@ function readTableCells(fields: CheckedFields): { columns: string[]; rows: strin
 function readSliderBounds(fields: CheckedFields, readValue: (place: Place) => number): { min: number; max: number } {
   const min = readValue(fields.at('min'));
   const max = readValue(fields.at('max'));
-  if (min >= max) fail(fields.at('max'), 'a number above min');
+  checkMoreThanMin(fields.at('max'), min, max);
   return { min, max };
 }
 

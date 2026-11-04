@@ -57,9 +57,16 @@ function getPlacingOrder(placed: readonly BoardElement[]): BoardElement[] {
   return [...others.flatMap((element) => [element, ...getSlidersOn(element.id)]), ...homeless];
 }
 
+// A different command under one id is a new element, and items close over their command. Math is the exception, because its content changes as it rearranges and its painter follows the line it is given.
+function isSameContent(first: BoardElement['content'], second: BoardElement['content']): boolean {
+  if (first === second) return true;
+  if (first.kind !== second.kind) return false;
+  return first.kind === 'writeMath' || JSON.stringify(first) === JSON.stringify(second);
+}
+
 // Paints one frame from the board's state and the clock alone, so a frozen board writes nothing and a replay lands on the same pixels.
 export function createBoardPainting({ boardElement, overlay, getWrapper, onMathRefused, onBoardProblem, onSliderMove, onSliderRelease }: BoardPaintingOptions) {
-  const items = new Map<string, { kind: string; item: BoardItem }>();
+  const items = new Map<string, { content: BoardElement['content']; item: BoardItem }>();
   const marks = createBoardMarks(overlay, onBoardProblem);
   const reportedRefusals = new Set<string>();
   const reportedLabels = new Set<string>();
@@ -79,9 +86,14 @@ export function createBoardPainting({ boardElement, overlay, getWrapper, onMathR
     }
     for (const element of placed) {
       const wrapper = getWrapper(element.id);
-      if (!wrapper || items.get(element.id)?.kind === element.content.kind) continue;
-      items.get(element.id)?.item.remove();
-      items.set(element.id, { kind: element.content.kind, item: createBoardItem(element, wrapper, { onSliderMove, onSliderRelease }) });
+      const known = items.get(element.id);
+      if (!wrapper) continue;
+      if (known && isSameContent(known.content, element.content)) {
+        known.content = element.content;
+        continue;
+      }
+      known?.item.remove();
+      items.set(element.id, { content: element.content, item: createBoardItem(element, wrapper, { onSliderMove, onSliderRelease }) });
     }
   };
 

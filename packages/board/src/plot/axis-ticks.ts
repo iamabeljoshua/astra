@@ -6,6 +6,7 @@ const LARGEST_PLAIN = 1e6;
 const SMALLEST_PLAIN = 1e-3;
 /** A computed zero can come out as 1e-15. */
 const ROUNDING_DUST = 1e-9;
+const MOST_DECIMALS = 12;
 
 /** The round step that gives about this many ticks, so a scale reads 0, 2, 4 and not 0, 1.83, 3.67. */
 export function getTickStep(range: AxisRange, tickCount: number): number {
@@ -14,11 +15,12 @@ export function getTickStep(range: AxisRange, tickCount: number): number {
   return (NICE_STEPS.find((step) => step * power >= rough) ?? 10) * power;
 }
 
-const getStepDecimals = (step: number) => Math.max(0, -Math.floor(Math.log10(step) + 1e-9));
+/** Capped, because `toFixed` throws past 100 digits and a throw during paint takes the whole page. */
+export const getStepDecimals = (step: number) => Math.min(MOST_DECIMALS, Math.max(0, -Math.floor(Math.log10(step) + 1e-9)));
 
 export function getTickValues(range: AxisRange, tickCount: number): number[] {
   const step = getTickStep(range, tickCount);
-  const decimals = Math.min(12, getStepDecimals(step));
+  const decimals = getStepDecimals(step);
   const first = Math.ceil(range[0] / step - 1e-9);
   const last = Math.floor(range[1] / step + 1e-9);
   return Array.from({ length: Math.max(0, last - first + 1) }, (_, index) => Number(((first + index) * step).toFixed(decimals)) + 0);
@@ -32,7 +34,7 @@ export function formatTick(value: number, range: AxisRange, tickCount: number): 
   const size = Math.max(Math.abs(range[0]), Math.abs(range[1]));
   const step = getTickStep(range, tickCount);
   if (size >= LARGEST_PLAIN) return withMinus(value.toExponential(Math.max(1, Math.ceil(Math.log10(size / step)))).replace('e+', 'e'));
-  return withMinus((value + 0).toFixed(Math.min(12, getStepDecimals(step))));
+  return withMinus((value + 0).toFixed(getStepDecimals(step)));
 }
 
 export function formatNumber(value: number, significant = 3): string {

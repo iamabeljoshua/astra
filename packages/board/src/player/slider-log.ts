@@ -18,13 +18,15 @@ const isSameSlider = (first: SliderMove, second: SliderMove) => first.target ===
 export function createSliderLog({ getNowMs, send }: { getNowMs(): number; send(message: BrowserMessage): void }) {
   const operations: BoardOperation[] = [];
   let open: OpenDrag | null = null;
+  // The next whole ms, because a frame can already have read this same step of the audio clock without this move.
+  const getNextWholeMs = () => Math.floor(getNowMs()) + 1;
 
   const finish = () => {
     if (!open) return;
     const { move, startedAtMs, samples } = open;
-    const browserMs = Math.round(getNowMs());
+    const browserMs = getNextWholeMs();
     const target = 'constant' in move ? { constant: move.constant } : { parameter: move.parameter };
-    send({ type: 'acted', browserMs, startedMsAgo: Math.max(0, browserMs - startedAtMs), action: { action: 'sliderDragged', target: move.target, samples, ...target } });
+    send({ type: 'acted', browserMs, startedMsAgo: browserMs - startedAtMs, action: { action: 'sliderDragged', target: move.target, samples, ...target } });
     open = null;
   };
 
@@ -32,8 +34,7 @@ export function createSliderLog({ getNowMs, send }: { getNowMs(): number; send(m
     getOperations: () => operations,
     finish,
     move(move: SliderMove) {
-      // The next whole ms, because a frame can already have read this same step of the audio clock without this move.
-      const atMs = Math.floor(getNowMs()) + 1;
+      const atMs = getNextWholeMs();
       if (open && (!isSameSlider(open.move, move) || atMs - open.startedAtMs >= SEND_EVERY_MS || open.samples.length >= MOST_SAMPLES)) finish();
       open ??= { move, startedAtMs: atMs, samples: [] };
       open.samples.push({ afterMs: atMs - open.startedAtMs, value: move.value });

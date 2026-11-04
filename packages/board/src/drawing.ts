@@ -11,4 +11,5 @@ export { placeMovingElements, type LayoutArea, type LayoutBox, type MovingBox, t
 export { createMathPainter, type MathFontProblem, type MathFrame, type MathPainter, type MathSize, type TermBoxes, type TermQuery } from './math/math-painter.ts';
 export { easeInOut } from './math/paint-flights.ts';
 export { collectMathPaints, getPaintsOfSpans, preloadMathFonts, renderTex } from './math/render-math.ts';
+export { getStepDecimals } from './plot/axis-ticks.ts';
 export { writeStyle } from './style-writer.ts';
