@@ -1,6 +1,6 @@
 import type { components } from '@astra/contracts';
 import { isSafeNoteText } from './screens.ts';
-import { isDetailOnTheList, isTopicOnTheList } from './topic-words.ts';
+import { isDetailOnTheList, isTopicOnTheList, WORKING_WORDS } from './topic-words.ts';
 import type { BoardEvent, DigestEvent, WordsEvent } from './session-digest.ts';
 
 type LearnerNote = components['schemas']['LearnerNoteDto'];
@@ -50,15 +50,11 @@ const CLAIMS_A_PATTERN = /\b(?:keeps?|kept|again|repeat\w*|always|every time|oft
 const COMMON_WORDS = `a an the of to in on at for with and or but when while how why what which that this these those it its their they them be is are was were not no as by from into up down out than then so if more less one two first second same each both about between using use used whether because had has have did do does would could across over under through within after before around again also just only very some any all
   struggled struggle found hard stuck confused mixed mix forgot forget dropped drop missed miss kept keep keeps again repeat repeated repeatedly wrong right mistake error errors step steps line lines answer problem question work working worked got get gets asked ask said says wants want loves love likes like interested curious trouble difficult moving moved move changed change solved solve solving instead still wrote written write board making make made learn learning find finding undo undoing took take taking getting went go going`;
 
-/** The parts and moves of working a problem, which name what a line shows without naming a subject the session never touched. */
-const TEACHING_WORDS = `add adding added addition subtract subtracting subtracted subtraction multiply multiplying multiplied multiplication divide dividing divided division term terms variable variables denominator denominators numerator numerators coefficient coefficients sign signs minus plus negative positive isolate isolating isolated simplify simplifying simplified expand expanding expanded factor factors factoring power powers exponent exponents equals side sides both root roots balance balancing substitute substituting substituted cancel cancelling like unlike order brackets parentheses`;
-
-
 const toWords = (text: string) => text.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
 const SHORTEST_WORD_TO_STEM = 4;
 const toStem = (word: string) => (word.length < SHORTEST_WORD_TO_STEM ? word : word.replace(/(?:ing|ed|es|e|s)$/, ''));
 const toStems = (text: string) => new Set(toWords(text).map(toStem));
-const WORDS_ANY_NOTE_MAY_USE = toStems(`${COMMON_WORDS} ${TEACHING_WORDS}`);
+const WORDS_ANY_NOTE_MAY_USE = toStems(`${COMMON_WORDS} ${WORKING_WORDS}`);
 const JOINING_WORDS = toStems(COMMON_WORDS);
 const areNotIn = (words: ReadonlySet<string>) => (word: string) => !words.has(toStem(word));
 const areAllIn = (words: readonly string[], text: string) => {
