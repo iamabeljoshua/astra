@@ -5,13 +5,13 @@ A student signs in with an email code, answers a few questions, and picks a card
 They then have a real spoken lesson on a board they share with the tutor, which draws in time with its words, working from a lesson plan and calling tools only when it needs them.
 Afterwards the tutor remembers them, recommends what comes next, and lets them replay the session.
 The rule the program enforces is the PRD's rule for the board and the tutor, proved on the real app at every PR.
-The PR ids in order are M1.1, M1.2, M1.3, M1.5, M1.4, M1.6, M2.1, M2.3, M2.6, M2.7, M2.8, M2.2, M2.9, M1.7, M3.1, M2.4, M2.5, M2.10, M2.11, M2.12, M3.2, M3.3, M3.4, M3.6, M3.5, M3.7, M3.12, M3.14, M3.8, M3.9, M3.13, M3.10, M3.11, M4.1, M4.2, M4.3, M4.4, M4.5.
+The PR ids in order are M1.1, M1.2, M1.3, M1.5, M1.4, M1.6, M2.1, M2.3, M2.6, M2.7, M2.8, M2.2, M2.9, M1.7, M3.1, M2.4, M2.5, M2.10, M2.11, M2.12, M3.2, M3.3, M3.4, M3.6, M3.5, M3.7, M3.12, M3.14, M3.15, M3.8, M3.9, M3.13, M3.10, M3.11, M4.1, M4.2, M4.3, M4.4, M4.5.
 
 ## How to read this
 
 One box is one unit of work. Every box names the evidence that checks it. A nested box is a sub-step of the box above it. Check a box only when its evidence exists, a file, a log line, a screenshot, a test run, or a SHA. The body is a how-to. The appendices explain and record. A merged PR's boxes are checked, and its text records what that PR set out to do, so a later PR can replace what it built.
 
-The program runs `skills/poteto-mode/playbooks/autopilot-full.md` from the installed plugin, changed by the rules in `CLAUDE.md` and Abel's speed rules below. The root merges each PR once its verdict is clean, without Abel's click, as `CLAUDE.md` allows. Stop-list decisions still stop for Abel, only for the item they touch, and they are named in the Build boxes of M3.2, M3.12, M3.13, M3.14, M4.4, and M4.5.
+The program runs `skills/poteto-mode/playbooks/autopilot-full.md` from the installed plugin, changed by the rules in `CLAUDE.md` and Abel's speed rules below. The root merges each PR once its verdict is clean, without Abel's click, as `CLAUDE.md` allows. Stop-list decisions still stop for Abel, only for the item they touch, and they are named in the Build boxes of M3.12, M3.14, M4.4, and M4.5.
 
 Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
@@ -20,65 +20,66 @@ Each PR has one GitHub issue with the same acceptance criteria, and this plan ho
 | Milestone | What it delivers | PRs |
 | --- | --- | --- |
 | M1 Foundation | One running app, automatic checks, the approved look, and a database. | M1.1, M1.2, M1.3, M1.5, M1.4, M1.6, M1.7 |
-| M2 Student app | Sign-in with an email code, onboarding, the home screen, picks, sessions, and the made-of-dots look. | M2.1, M2.3, M2.6, M2.7, M2.8, M2.2, M2.9, M2.4, M2.5, M2.10, M2.11, M2.12 |
-| M3 Live tutor | A real session end to end, with voice, a shared board, 3D scenes, the tutor agent, and lesson plans. | M3.1, M3.2, M3.3, M3.4, M3.6, M3.5, M3.7, M3.12, M3.14, M3.8, M3.9, M3.13, M3.10, M3.11 |
+| M2 Student app | Sign-in with a 6-digit email code, onboarding, the home screen, picks, sessions, and the dotted Saturn look. | M2.1, M2.3, M2.6, M2.7, M2.8, M2.2, M2.9, M2.4, M2.5, M2.10, M2.11, M2.12 |
+| M3 Live tutor | A real session end to end, with voice, a shared board, 3D scenes, the tutor agent, and lesson plans. | M3.1, M3.2, M3.3, M3.4, M3.6, M3.5, M3.7, M3.12, M3.14, M3.15, M3.8, M3.9, M3.13, M3.10, M3.11 |
 | M4 Learning loop | Memory, personal teaching, recommended picks, recap and replay, and safety. | M4.1, M4.2, M4.3, M4.4, M4.5 |
 
 ## Where the program stands
 
-As of 4 November 2026, 15 of 38 PRs have merged. This section is the whole road, and each PR's section below holds its detail. `docs/PRD-v1.md` lists what these decisions override under "Changes since approval", and `docs/architecture/live-session.md` holds the reasons for the live session.
+As of 4 November 2026, 22 of 39 PRs have merged. This section is the whole road, and each PR's section below holds its detail. `docs/PRD-v1.md` lists what these decisions override under "Changes since approval", and `docs/architecture/live-session.md` holds the reasons for the live session.
 
 **What Abel has decided since the plan was approved.**
 
 - **Speed, for this session.** Up to 6 PRs at once, dependent work waits for its parent to merge, and each PR gets one adversarial reviewer as soon as it is code-ready. `CLAUDE.md` stays as it is unless Abel says to make this permanent.
 - **Vendors.** ElevenLabs for the voice, Muse Voice Transcribe for transcription, and LiveKit Cloud with our own accounts, on a free project until real students. The age terms go to the lawyer before real students.
-- **Voice.** Chris, Abel's choice on 4 November in place of Casey, on Flash unless Abel says otherwise.
+- **Voice.** ElevenLabs voice Chris, on Flash, Abel's choice on 4 November in place of Casey.
 - **Tutor.** Sonnet 5.5, with code reacting first and a timeout for stalls. There is no talking router for now.
 - **Speed targets.** Two numbers replace PRD V1's rule. A first reaction under 200 ms from code, and a first real word as fast as the vendors allow.
 - **The shared board.** Student and tutor both work on the board, in M3.12, with ink and uploads narrowed to M3.11.
-- **Lessons and 3D.** A student follows a plan of concepts with a queue preparing the next scenes, in M3.13. 3D comes from a checked library first, with live generation as the fallback, in M3.14. "Videos" means our generated scenes, with no real footage and no AI-generated video.
+- **Lessons.** A student follows a plan of concepts. Inside a running lesson, a queue writes the next scenes, in M3.13.
+- **Best-effort 3D.** Voice and the 2D board never wait for a scene. A scene shows only when it is ready and checked. On a new question the tutor starts with words and simple 2D, setting up what the scene will show, then brings in 3D at a pause. Cards and planned scenes open on 3D where one is ready. A scene not ready after about 20 s is dropped from that lesson and saved. There is no spinner. M3.10 does not block on 3D, and 3D is built alongside it.
+- **Laptop first.** Rich scenes target laptops and may require a laptop browser, and phones must not block them. Existing pages keep working at phone width, and a mobile app may come later.
+- **Engines.** ManimGX for symbols, plots, grids, flat maps, and code, and our kit for solid things a camera could film, chosen by a router, in M3.14. Python runs only on a server in a locked container, and the browser plays a stored take. "Videos" means our generated scenes, with no real footage and no AI-generated video.
+- **Sharing.** Scenes shared across students come only from the server's own topic list. A typed question's scene stays with that student until a person or a moderated step promotes it. The review is a strict filter and not a truth gate, so "Not yet checked by a person" stays.
+- **No prepared scenes by worker.** No worker prepares scenes from recommendations before a student arrives. That is post-MVP, and Appendix E lists it. Writing next scenes inside a running lesson stays.
+- **Library.** One curated library, written once in M3.15, of 133 scenes for about $10 by estimate. Everything else gets written the first time a student needs it, then saved.
 - **Parents.** No parent consent, alerts, or summaries. The under-13 rule stays, and a lawyer reviews this before real students.
 - **Onboarding.** Name, date of birth, class level, interests, a goal, then Home, in M2.4.
-- **Sign-in and the look.** An email code in the made-of-dots look, in M2.10, and onboarding in that look, in M2.11. Pictures stay normal images.
+- **Sign-in and the look.** A 6-digit email code, in M2.10. Sign-in and onboarding use the look Abel chose on 4 November, 1 + 4, a dotted Saturn on a star chart on a still dot grid, in M2.11. There is no sheet, and pictures stay normal images.
 - **Recommendations.** Session history in M2.12, with the card pictures unchanged, and the learner record in M4.3.
 
-**The road ahead.** A wave is computed from the dependencies, so PRs in one wave can run together, within the limit of 6. After M3.2, Abel's order is M3.3, M3.4, and M3.6 together, then M3.5, M3.7, M3.12, the scene library in M3.14, M3.8, M3.9, the scene queue in M3.13, M3.10, M3.11, then M4.1 to M4.5. The queue follows M3.9 because it reads M3.9's concept plan. M3.10 does not wait for M3.14, so a first full session can run on the 2D board if the 3D work takes longer.
+**The road ahead.** A wave is computed from the dependencies, so PRs in one wave can run together, within the limit of 6. After M3.3, the order is M3.6 and M3.7, then M3.4, M3.5, M3.8, and M3.12, then M3.9, M3.10, M3.11, and M4.1 to M4.5. 3D is built alongside that line and never holds it. M3.14 comes first. M3.15, the library, starts after M3.14, and nothing waits for it. M3.13, the scene queue, follows M3.9 because it reads M3.9's concept plan. M3.10 waits for none of the three, so a first full session can run on the 2D board if the 3D work takes longer.
 
-| Wave | PR | What it delivers | Issue | Waits for | State |
-| --- | --- | --- | --- | --- | --- |
-| 1 | M2.4 | Build onboarding | #8 | Nothing open | In review in PR 62 |
-| 1 | M2.5 | Start sessions and list them | #9 | Nothing open | In review in PR 61 |
-| 1 | M2.10 | Sign in with an email code, in the made-of-dots look | #67 | Nothing open | Being built |
-| 1 | M3.2 | Make the board move in time with speech | #11 | Nothing open | Being built |
-| 2 | M2.11 | Bring onboarding into the made-of-dots look | #68 | M2.4, M2.10 | Not started |
-| 2 | M2.12 | Recommend from session history | #69 | M2.5 | Not started |
-| 2 | M3.3 | Draw math on the board | #12 | M3.2 | Not started |
-| 2 | M3.4 | Draw graphs, geometry, and real motion | #13 | M3.2 | Not started |
-| 2 | M3.6 | Add live voice | #15 | M3.2 | Not started |
-| 3 | M3.5 | Finish the board library and prove no layout defects | #14 | M3.3, M3.4 | Not started |
-| 3 | M3.7 | Connect the tutor's brain | #16 | M3.2, M3.6 | Not started |
-| 4 | M3.12 | Share the board between student and tutor | #70 | M3.3, M3.7 | Not started |
-| 4 | M3.14 | Add 3D scenes from a checked library, with live generation as the fallback | #72 | M3.5, M3.7 | Not started, pending the scene test |
-| 4 | M3.8 | Teach instead of tell, with tools the tutor calls when needed | #17 | M3.7 | Not started |
-| 5 | M3.9 | Prepare a lesson plan for every session | #18 | M3.8, M2.5 | Not started |
-| 6 | M3.13 | Keep the next scenes ready as the lesson flows | #71 | M3.5, M3.9 | Not started, pending the scene test |
-| 7 | M3.10 | Run the first full session end to end | #19 | M3.5, M3.9, M3.12, M3.13 | Not started |
-| 8 | M3.11 | Let students draw on the board and upload their work | #20 | M3.10, M3.12 | Not started |
-| 8 | M4.1 | Give the tutor a memory of each student | #21 | M3.10 | Not started |
-| 8 | M4.5 | Make it safe for students 13 and up | #25 | M3.10 | Not started |
-| 9 | M4.2 | Make the teaching personal | #22 | M4.1 | Not started |
-| 9 | M4.3 | Recommend picks from performance and weaknesses | #23 | M4.1, M2.12 | Not started |
-| 9 | M4.4 | End sessions with a recap, and let students replay them | #24 | M3.10, M4.1 | Not started |
+| Wave | PR | What it delivers | Issue | Waits for |
+| --- | --- | --- | --- | --- |
+| 1 | M3.4 | Draw graphs, geometry, and real motion | #13 | Nothing open |
+| 1 | M3.6 | Add live voice | #15 | Nothing open |
+| 2 | M3.5 | Finish the board library and prove no layout defects | #14 | M3.4 |
+| 2 | M3.7 | Connect the tutor's brain | #16 | M3.6 |
+| 3 | M3.12 | Share the board between student and tutor | #70 | M3.7 |
+| 3 | M3.14 | Show best-effort 3D scenes from ManimGX and our kit | #72 | M3.5, M3.7 |
+| 3 | M3.8 | Teach instead of tell, with tools the tutor calls when needed | #17 | M3.7 |
+| 4 | M3.15 | Write the approved library of 133 scenes | #91 | M3.14 |
+| 4 | M3.9 | Prepare a lesson plan for every session | #18 | M3.8 |
+| 5 | M3.13 | Keep the next scenes ready as the lesson flows | #71 | M3.5, M3.9 |
+| 5 | M3.10 | Run the first full session end to end | #19 | M3.5, M3.9, M3.12 |
+| 6 | M3.11 | Let students draw on the board and upload their work | #20 | M3.10, M3.12 |
+| 6 | M4.1 | Give the tutor a memory of each student | #21 | M3.10 |
+| 6 | M4.5 | Make it safe for students 13 and up | #25 | M3.10 |
+| 7 | M4.2 | Make the teaching personal | #22 | M4.1 |
+| 7 | M4.3 | Recommend picks from performance and weaknesses | #23 | M4.1 |
+| 7 | M4.4 | End sessions with a recap, and let students replay them | #24 | M3.10, M4.1 |
 
-**M3.13 and M3.14 are not final.** The scene test is still running. Its results settle which model writes scenes, how truth is checked, and how the queue behaves, so these two sections may change, and the change goes to Abel with the results.
+**What the tests settled for M3.13 and M3.14.** The scene test and the ManimGX test have both reported, and ManimGX passed the bar stated to Abel, so it is in. Which models write and review scenes stays open with Abel on `scene-models`. Until he answers, scenes run on Anthropic models behind a switchable interface.
 
 **Still waiting on Abel.**
 
-- M3.2's clips, to choose Flash or Turbo and the flush rule.
-- The scene test's results, for M3.13 and M3.14.
+- Whether a mid-sentence flush sounds natural on Chris, which settles the flush rule.
+- `scene-models`, for which models write and review scenes, and OpenAI, including its terms for minors and an OpenAI account of Abel's own.
+- The eight-digit code question in Appendix E.
 - The tutor's pen colour, which M3.12 proposes.
 - Confirming ElevenLabs' training opt-out on `elevenlabs-balance`.
-- Before real students, the lawyer's review on `lawyer-view`, Anthropic's Scale tier and zero-retention agreement, and a paid LiveKit plan.
+- Before real students, the lawyer's review on `lawyer-view`, which now includes ManimGX's GPL wheels on our server, H.264 if video is served, and notices for wasm and the fonts in takes, Anthropic's Scale tier and zero-retention agreement, and a paid LiveKit plan.
 - Whether to make the speed rules permanent in `CLAUDE.md`.
 - The public name (PRD Q1).
 
@@ -101,6 +102,13 @@ As of 4 November 2026, 15 of 38 PRs have merged. This section is the whole road,
 | M2.9 | Finish sign-in with the Back fix, the password trigger, and the one-day mark | #56 | PR 59, `24b652b` |
 | M1.7 | Bring CI's time down without weakening a check | #63 | PR 64, `b8ff4b6` |
 | M3.1 | Design the live session and get Abel's approval | #10 | PR 48, `30a9094` |
+| M2.4 | Build onboarding | #8 | PR 62, `ae23bcc` |
+| M2.5 | Start sessions and list them | #9 | PR 61, `2da9167` |
+| M2.10 | Sign in with an email code, in the made-of-dots look | #67 | PR 75, `ff3ad32` |
+| M2.11 | Bring sign-in and onboarding into the 1 + 4 look | #68 | PR 83, `7099f67` |
+| M2.12 | Recommend from session history | #69 | PR 77, `54d83aa` |
+| M3.2 | Make the board move in time with speech | #11 | PR 76, `0bc6e61` |
+| M3.3 | Draw math on the board | #12 | PR 81, `c9c4d33` |
 
 ## Program checklist
 
@@ -108,7 +116,7 @@ As of 4 November 2026, 15 of 38 PRs have merged. This section is the whole road,
 
 - [ ] State the protocol and this plan to the operator, then stop. Start execution only on the operator's explicit go.
 - [ ] Propose the commands to allow in `.claude/settings.json` for the operator's approval, because an unapproved command pauses the run.
-- [ ] On the operator's go, write this exact text into the standing orders and restate it in your todolist. "Plan `docs/plans/mvp.md`. PRs in order M1.1, M1.2, M1.3, M1.5, M1.4, M1.6, M2.1, M2.3, M2.6, M2.7, M2.8, M2.2, M2.9, M1.7, M3.1, M2.4, M2.5, M2.10, M2.11, M2.12, M3.2, M3.3, M3.4, M3.6, M3.5, M3.7, M3.12, M3.14, M3.8, M3.9, M3.13, M3.10, M3.11, M4.1, M4.2, M4.3, M4.4, M4.5. Tests alone are not sufficient verification, and a PR is verified only when its unit, live, and perf boxes are all checked. The root merges after a clean verdict, as `CLAUDE.md` allows. At most 6 PRs at a time under Abel's speed rules. Done when every box is checked with evidence and M3.10's recording is posted."
+- [ ] On the operator's go, write this exact text into the standing orders and restate it in your todolist. "Plan `docs/plans/mvp.md`. PRs in order M1.1, M1.2, M1.3, M1.5, M1.4, M1.6, M2.1, M2.3, M2.6, M2.7, M2.8, M2.2, M2.9, M1.7, M3.1, M2.4, M2.5, M2.10, M2.11, M2.12, M3.2, M3.3, M3.4, M3.6, M3.5, M3.7, M3.12, M3.14, M3.15, M3.8, M3.9, M3.13, M3.10, M3.11, M4.1, M4.2, M4.3, M4.4, M4.5. Tests alone are not sufficient verification, and a PR is verified only when its unit, live, and perf boxes are all checked. The root merges after a clean verdict, as `CLAUDE.md` allows. At most 6 PRs at a time under Abel's speed rules. Done when every box is checked with evidence and M3.10's recording is posted."
 - [ ] Read these from the installed plugin at program start. Re-read them at every tick.
   - [ ] `skills/poteto-mode/playbooks/autopilot-full.md`
   - [ ] `skills/swarm/SKILL.md`
@@ -139,23 +147,24 @@ As of 4 November 2026, 15 of 38 PRs have merged. This section is the whole road,
   - [x] M2.9 after M2.3.
   - [x] M1.7 after M1.1.
   - [x] M3.1 after M1.4.
-  - [ ] M2.4 after M2.1 and M2.3 and M2.6.
-  - [ ] M2.5 after M2.1 and M2.3 and M2.6.
-  - [ ] M2.10 after M2.3 and M2.9.
-  - [ ] M2.11 after M2.4 and M2.10.
-  - [ ] M2.12 after M2.5.
-  - [ ] M3.2 after M3.1 and M1.3.
-  - [ ] M3.3 after M3.2.
+  - [x] M2.4 after M2.1 and M2.3 and M2.6.
+  - [x] M2.5 after M2.1 and M2.3 and M2.6.
+  - [x] M2.10 after M2.3 and M2.9.
+  - [x] M2.11 after M2.4 and M2.10.
+  - [x] M2.12 after M2.5.
+  - [x] M3.2 after M3.1 and M1.3.
+  - [x] M3.3 after M3.2.
   - [ ] M3.4 after M3.2.
   - [ ] M3.6 after M3.2.
   - [ ] M3.5 after M3.3 and M3.4.
   - [ ] M3.7 after M3.2 and M3.6.
   - [ ] M3.12 after M3.3 and M3.7.
   - [ ] M3.14 after M3.5 and M3.7.
+  - [ ] M3.15 after M3.14.
   - [ ] M3.8 after M3.7.
   - [ ] M3.9 after M3.8 and M2.5.
   - [ ] M3.13 after M3.5 and M3.9.
-  - [ ] M3.10 after M3.5 and M3.9 and M3.12 and M3.13.
+  - [ ] M3.10 after M3.5 and M3.9 and M3.12.
   - [ ] M3.11 after M3.10 and M3.12.
   - [ ] M4.1 after M3.10.
   - [ ] M4.2 after M4.1.
@@ -999,407 +1008,410 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 ## Build onboarding (M2.4)
 
-**Status.** Open in PR 62. Abel simplified it on 4 November 2026, and this section matches the PR's head. Issue #8's body still lists the older flow, because an issue with an open PR stays as it is.
+**Status.** Done. Merged in PR 62 as `ae23bcc`. Abel simplified it on 4 November 2026, and this section matches what merged. M2.11 later replaced the sheet with the star chart.
 
 **Depends on.** M2.1, M2.3, M2.6.
 
 **Files.**
 
-- [ ] Create `apps/web/src/onboarding/`.
-- [ ] Edit `apps/web/src/auth/`, `apps/web/src/shell/`, `apps/web/src/strings.ts`, `apps/api/src/picks/`, and `apps/api/src/students/`, with a generated migration that removes consent and voice.
-- [ ] Create `.claude/skills/verify/features/onboarding.md` and the `onboarding` journeys.
+- [x] Create `apps/web/src/onboarding/`.
+- [x] Edit `apps/web/src/auth/`, `apps/web/src/shell/`, `apps/web/src/strings.ts`, `apps/api/src/picks/`, and `apps/api/src/students/`, with a generated migration that removes consent and voice.
+- [x] Create `.claude/skills/verify/features/onboarding.md` and the `onboarding` journeys.
 
 **Build.**
 
-- [ ] Build the steps as one table in `apps/web/src/onboarding/steps.ts`, so the order comes from data.
-- [ ] Remove the parent consent link, its table and routes, the browser voices, and the scripted first exchange, as Abel ruled on 4 November 2026. This overrides PRD Q4 and section 6.1, and the lawyer reviews it before real students.
-- [ ] Keep the date of birth and the under-13 closed rule exactly, because Abel did not ask to remove them.
-- [ ] Edit `LEGAL_PAGES` so it says what is stored and that no parent is asked or contacted.
+- [x] Build the steps as one table in `apps/web/src/onboarding/steps.ts`, so the order comes from data.
+- [x] Remove the parent consent link, its table and routes, the browser voices, and the scripted first exchange, as Abel ruled on 4 November 2026. This overrides PRD Q4 and section 6.1, and the lawyer reviews it before real students.
+- [x] Keep the date of birth and the under-13 closed rule exactly, because Abel did not ask to remove them.
+- [x] Edit `LEGAL_PAGES` so it says what is stored and that no parent is asked or contacted.
 
 **You see.**
 
-- [ ] The sign-in page says "A learning app, made for you" and states that the tutor is an AI.
-- [ ] Each screen asks one thing, in this order. Name, date of birth, class level, interests as a multi-select, a goal picked with one tap, then Home.
-- [ ] The sheet shows the student's name as they type and fills in with each answer.
-- [ ] A student under 13 in every time zone stops at the closed page and cannot retry.
-- [ ] A student under 18 takes the same path as anyone else, and nothing asks for a parent, a voice, or a first question.
-- [ ] All answers are saved to the student's profile and can be changed under Your notes.
-- [ ] Home says "Welcome, <name>." until the student starts a session, and its cards come from these answers, with reasons that name only what they chose.
-- [ ] A first-time student reaches Home in under a minute at a student's pace.
+- [x] The sign-in page says "A learning app, made for you" and states that the tutor is an AI.
+- [x] Each screen asks one thing, in this order. Name, date of birth, class level, interests as a multi-select, a goal picked with one tap, then Home.
+- [x] The sheet shows the student's name as they type and fills in with each answer.
+- [x] A student under 13 in every time zone stops at the closed page and cannot retry.
+- [x] A student under 18 takes the same path as anyone else, and nothing asks for a parent, a voice, or a first question.
+- [x] All answers are saved to the student's profile and can be changed under Your notes.
+- [x] Home says "Welcome, <name>." until the student starts a session, and its cards come from these answers, with reasons that name only what they chose.
+- [x] A first-time student reaches Home in under a minute at a student's pace.
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] `steps.test.ts` asserts the order and the resume step.
-- [ ] `OnboardingFlow.test.tsx` and `students.controller.spec.ts` assert the saved answers and that an under-18 student needs no parent. Run `pnpm test`.
+- [x] `steps.test.ts` asserts the order and the resume step.
+- [x] `OnboardingFlow.test.tsx` and `students.controller.spec.ts` assert the saved answers and that an under-18 student needs no parent. Run `pnpm test`.
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Two lanes on the configured `swarm workers` model at the PR head, per the boot recipe and the review rule under **Verdict and merge**.
 
-- [ ] Lane 1. Regression lane against trunk. Trunk has no onboarding, so record that and gate the end state. Run `ONBOARDING_PACE_MS=4000 pnpm verify drive --journey onboarding` at laptop width. Save `m2-4-adult.png`. Pass when the sheet fills in, Home says the student's name, and the tagline to Home takes under a minute.
-- [ ] Lane 2. Run `onboarding-long-name` as a 15-year-old at 390px, then `onboarding-under-13`. Save `m2-4-minor.png`. Pass when the 15-year-old meets no parent step and a session starts with 201, nothing scrolls sideways, and the under-13 account stops at the closed page after a reload too.
+- [x] Lane 1. Regression lane against trunk. Trunk has no onboarding, so record that and gate the end state. Run `ONBOARDING_PACE_MS=4000 pnpm verify drive --journey onboarding` at laptop width. Save `m2-4-adult.png`. Pass when the sheet fills in, Home says the student's name, and the tagline to Home takes under a minute.
+- [x] Lane 2. Run `onboarding-long-name` as a 15-year-old at 390px, then `onboarding-under-13`. Save `m2-4-minor.png`. Pass when the 15-year-old meets no parent step and a session starts with 201, nothing scrolls sideways, and the under-13 account stops at the closed page after a reload too.
 
 **Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] Metric. Not applicable. `CLAUDE.md` adds a perf check only when a PR changes performance, and this PR does not.
-- [ ] Probe. None.
-- [ ] Baseline. None.
-- [ ] Rule. None.
+- [x] Metric. Not applicable. `CLAUDE.md` adds a perf check only when a PR changes performance, and this PR does not.
+- [x] Probe. None.
+- [x] Baseline. None.
+- [x] Rule. None.
 
 **Review gate.** None. M2.4 is not review-gated, because `CLAUDE.md` lets the program merge without Abel's review.
 
 **Merge.**
 
-- [ ] Root's clean verdict at the exact head SHA.
-- [ ] Bugbot triage done.
-- [ ] Base and verdict are current under the execution playbook and the patch-id rule in `playbooks/shipping.md`.
-- [ ] Every box in **You see.** is checked with evidence on the issue, and no stop-list decision is open on it.
-- [ ] The root merges with `gh pr merge <pr> --repo iamabeljoshua/astra --squash --match-head-commit <verified-head>`, then reads the PR back to confirm the merge.
+- [x] Root's clean verdict at the exact head SHA.
+- [x] Bugbot triage done.
+- [x] Base and verdict are current under the execution playbook and the patch-id rule in `playbooks/shipping.md`.
+- [x] Every box in **You see.** is checked with evidence on the issue, and no stop-list decision is open on it.
+- [x] The root merges with `gh pr merge <pr> --repo iamabeljoshua/astra --squash --match-head-commit <verified-head>`, then reads the PR back to confirm the merge.
 
 ## Start sessions and list them (M2.5)
 
-**Status.** Open in PR 61.
+**Status.** Done. Merged in PR 61 as `2da9167`.
 
 **Depends on.** M2.1, M2.3, M2.6.
 
 **Files.**
 
-- [ ] Create `apps/web/src/session/` and `apps/web/src/sessions/`.
-- [ ] Extend `apps/api/src/sessions/` and `apps/web/src/api/`.
+- [x] Create `apps/web/src/session/` and `apps/web/src/sessions/`.
+- [x] Extend `apps/api/src/sessions/` and `apps/web/src/api/`.
 
 **Build.**
 
-- [ ] Add `POST /sessions`, `GET /sessions` with search and an offset, `GET /sessions/:id`, and `PATCH /sessions/:id`, each filtered on the student from the token.
-- [ ] Move the full-stop and fade from `docs/design/app-prototype/` into `apps/web/src/session/opening.ts`, and tie a page's fade to that page in `useLeavePage.ts`.
-- [ ] Put the session route, `/sessions/:sessionId`, outside `AppShell`, because `AppShell` keys its page on the path and M3.10's live session must not remount.
-- [ ] Create the session record before the fade, so a refresh keeps the session.
-- [ ] Edit `LEGAL_PAGES` so it says a sent question is stored as a session title.
+- [x] Add `POST /sessions`, `GET /sessions` with search and an offset, `GET /sessions/:id`, and `PATCH /sessions/:id`, each filtered on the student from the token.
+- [x] Move the full-stop and fade from `docs/design/app-prototype/` into `apps/web/src/session/opening.ts`, and tie a page's fade to that page in `useLeavePage.ts`.
+- [x] Put the session route, `/sessions/:sessionId`, outside `AppShell`, because `AppShell` keys its page on the path and M3.10's live session must not remount.
+- [x] Create the session record before the fade, so a refresh keeps the session.
+- [x] Edit `LEGAL_PAGES` so it says a sent question is stored as a session title.
 
 **You see.**
 
-- [ ] Sending a question makes the tutor's dot land where the full stop would be, and the page fades into the session screen.
-- [ ] Selecting a card starts a session on that topic straight away.
-- [ ] The session screen shows the board area, the tutor's dot, and a reply box, with stand-in content until M3.10.
-- [ ] The Sessions page lists every session, newest first, with its title, subject, date, length, and status, and search filters the list.
-- [ ] The sidebar's Recent list and the continue card show real sessions, and a new student sees a clear empty state.
-- [ ] Ending a session marks it finished and returns to Home.
+- [x] Sending a question makes the tutor's dot land where the full stop would be, and the page fades into the session screen.
+- [x] Selecting a card starts a session on that topic straight away.
+- [x] The session screen shows the board area, the tutor's dot, and a reply box, with stand-in content until M3.10.
+- [x] The Sessions page lists every session, newest first, with its title, subject, date, length, and status, and search filters the list.
+- [x] The sidebar's Recent list and the continue card show real sessions, and a new student sees a clear empty state.
+- [x] Ending a session marks it finished and returns to Home.
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] `sessions.controller.spec.ts` asserts ordering, search, and ownership.
-- [ ] `opening.test.ts` asserts the full-stop position on one line and on a wrapped line. Run `pnpm test`.
+- [x] `sessions.controller.spec.ts` asserts ordering, search, and ownership.
+- [x] `opening.test.ts` asserts the full-stop position on one line and on a wrapped line. Run `pnpm test`.
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Two lanes on the configured `swarm workers` model at the PR head, per the boot recipe and the review rule under **Verdict and merge**.
 
-- [ ] Lane 1. Regression lane against trunk. Trunk has no real sessions, so record that and gate the end state. Send a typed question, end the session, and open Sessions. Save `m2-5-list.png`. Pass when the new session is first in the list and in Recent, and is marked finished.
-- [ ] Lane 2. Start from a card, refresh during the session, then search for it from Sessions. Save `m2-5-card.png`. Pass when the refresh keeps the session and search finds it.
+- [x] Lane 1. Regression lane against trunk. Trunk has no real sessions, so record that and gate the end state. Send a typed question, end the session, and open Sessions. Save `m2-5-list.png`. Pass when the new session is first in the list and in Recent, and is marked finished.
+- [x] Lane 2. Start from a card, refresh during the session, then search for it from Sessions. Save `m2-5-card.png`. Pass when the refresh keeps the session and search finds it.
 
 **Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] Metric. Not applicable. `CLAUDE.md` adds a perf check only when a PR changes performance, and this PR does not.
-- [ ] Probe. None.
-- [ ] Baseline. None.
-- [ ] Rule. None.
+- [x] Metric. Not applicable. `CLAUDE.md` adds a perf check only when a PR changes performance, and this PR does not.
+- [x] Probe. None.
+- [x] Baseline. None.
+- [x] Rule. None.
 
 **Review gate.** None. M2.5 is not review-gated, because `CLAUDE.md` lets the program merge without Abel's review.
 
 **Merge.**
 
-- [ ] Root's clean verdict at the exact head SHA.
-- [ ] Bugbot triage done.
-- [ ] Base and verdict are current under the execution playbook and the patch-id rule in `playbooks/shipping.md`.
-- [ ] Every box in **You see.** is checked with evidence on the issue, and no stop-list decision is open on it.
-- [ ] The root merges with `gh pr merge <pr> --repo iamabeljoshua/astra --squash --match-head-commit <verified-head>`, then reads the PR back to confirm the merge.
+- [x] Root's clean verdict at the exact head SHA.
+- [x] Bugbot triage done.
+- [x] Base and verdict are current under the execution playbook and the patch-id rule in `playbooks/shipping.md`.
+- [x] Every box in **You see.** is checked with evidence on the issue, and no stop-list decision is open on it.
+- [x] The root merges with `gh pr merge <pr> --repo iamabeljoshua/astra --squash --match-head-commit <verified-head>`, then reads the PR back to confirm the merge.
 
 ## Sign in with an email code, in the made-of-dots look (M2.10)
 
-**Status.** Being built, with no PR yet. Issue #67.
+**Status.** Done. Merged in PR 75 as `ff3ad32`. Issue #67. M2.11 later moved sign-in to the look Abel chose after this one, 1 + 4.
 
 **Depends on.** M2.3, M2.9.
 
 **Files.**
 
-- [ ] Create `apps/web/src/ui/`, with the shared components, and `DotStage` with its text-to-dots function.
-- [ ] Edit `apps/web/src/auth/`, `apps/web/src/strings.ts`, `packages/theme/`, `supabase/config.toml`, `supabase/templates/`, `README.md`, and the verify features and journeys.
-- [ ] Edit the Motion and Dot sections of `docs/DESIGN.md`, because Abel chose this look. Pictures stay normal images.
+- [x] Create `apps/web/src/ui/`, with the shared components, and `DotStage` with its text-to-dots function.
+- [x] Edit `apps/web/src/auth/`, `apps/web/src/strings.ts`, `packages/theme/`, `supabase/config.toml`, `supabase/templates/`, `README.md`, and the verify features and journeys.
+- [x] Edit the Motion and Dot sections of `docs/DESIGN.md`, because Abel chose this look. Pictures stay normal images.
 
 **Build.**
 
-- [ ] Use the Supabase client's `signInWithOtp` and `verifyOtp` with `type: 'email'`, reading the installed `supabase-js` and not memory, and delete the link's sign-in path if nothing else needs it. The email change flow keeps its own link.
-- [ ] Measure guesses per hour against one address on a private Auth, from one source and from several, and whether a new code resets anything. Recommend a shorter expiry for the hosted checklist than the local 3600 s.
-- [ ] Build the dot background and shape as one reusable piece, `DotStage`, because M2.11 uses it next, without building onboarding's steps here.
-- [ ] Keep the date of birth confirm step, Abel's age rules, and neutral wording exactly, and keep the one-day mark and the password trigger.
-- [ ] Add a hosted checklist line for the email template, because a hosted project keeps its own.
+- [x] Use the Supabase client's `signInWithOtp` and `verifyOtp` with `type: 'email'`, reading the installed `supabase-js` and not memory, and delete the link's sign-in path if nothing else needs it. The email change flow keeps its own link.
+- [x] Measure guesses per hour against one address on a private Auth, from one source and from several, and whether a new code resets anything. Recommend a shorter expiry for the hosted checklist than the local 3600 s.
+- [x] Build the dot background and shape as one reusable piece, `DotStage`, because M2.11 uses it next, without building onboarding's steps here.
+- [x] Keep the date of birth confirm step, Abel's age rules, and neutral wording exactly, and keep the one-day mark and the password trigger.
+- [x] Add a hosted checklist line for the email template, because a hosted project keeps its own.
 
 **You see.**
 
-- [ ] A student enters an email, receives a 6-digit code by email, and types it to sign in. No link opens the session. Paste works, the phone offers the code from the keyboard, and it submits at the sixth digit.
-- [ ] Wrong and expired codes get calm, plain messages. Resend has a visible wait. Guessing a code is limited, measured, and stated in the README.
-- [ ] Tokens from a code are accepted, and password and anonymous tokens are still refused outside development. One student never reaches another's data.
-- [ ] The sign-in page is one calm page, not two halves, with a still dot grid that fades around the question, a dot shape beside it, and the tutor's line typing out with the dot pulsing before the field appears.
-- [ ] Proper shared components exist for the text field, the code field, the date of birth field, buttons, and chips, from tokens, in both themes and at phone width, by keyboard and screen reader.
-- [ ] Reduced motion shows everything at once. The page holds its frame rate on an emulated phone, and is still when nothing has a cause to move.
-- [ ] The email template shows the code clearly in our wording. The README, hosted checklist, feature files, journeys, and `LEGAL_PAGES` are true of what runs.
+- [x] A student enters an email, receives a 6-digit code by email, and types it to sign in. No link opens the session. Paste works, the phone offers the code from the keyboard, and it submits at the sixth digit.
+- [x] Wrong and expired codes get calm, plain messages. Resend has a visible wait. Guessing a code is limited, measured, and stated in the README.
+- [x] Tokens from a code are accepted, and password and anonymous tokens are still refused outside development. One student never reaches another's data.
+- [x] The sign-in page is one calm page, not two halves, with a still dot grid that fades around the question, a dot shape beside it, and the tutor's line typing out with the dot pulsing before the field appears.
+- [x] Proper shared components exist for the text field, the code field, the date of birth field, buttons, and chips, from tokens, in both themes and at phone width, by keyboard and screen reader.
+- [x] Reduced motion shows everything at once. The page holds its frame rate on an emulated phone, and is still when nothing has a cause to move.
+- [x] The email template shows the code clearly in our wording. The README, hosted checklist, feature files, journeys, and `LEGAL_PAGES` are true of what runs.
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] The code field's tests cover paste, moving between boxes, and submitting at the sixth digit.
-- [ ] The API's token tests accept a code's token and refuse password and anonymous tokens outside development. Run `pnpm test`.
+- [x] The code field's tests cover paste, moving between boxes, and submitting at the sixth digit.
+- [x] The API's token tests accept a code's token and refuse password and anonymous tokens outside development. Run `pnpm test`.
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Two lanes on the configured `swarm workers` model at the PR head, per the boot recipe and the review rule under **Verdict and merge**.
 
-- [ ] Lane 1. Regression lane against trunk. Trunk signs in with a link, so record that and gate the end state. Sign in with a code read from the local inbox at laptop and phone width, in both themes, typing it once and pasting it once. Save `m2-10-code.png`. Pass when the student moves on at the sixth digit and no link opens a session.
-- [ ] Lane 2. Try a wrong code, an expired code, a code used twice, a resend during the wait, a closed account, and a new address under the one-day mark. Save `m2-10-wrong.png`. Pass when each gets its calm message, and the closed account and the mark still stop a new sign-up.
+- [x] Lane 1. Regression lane against trunk. Trunk signs in with a link, so record that and gate the end state. Sign in with a code read from the local inbox at laptop and phone width, in both themes, typing it once and pasting it once. Save `m2-10-code.png`. Pass when the student moves on at the sixth digit and no link opens a session.
+- [x] Lane 2. Try a wrong code, an expired code, a code used twice, a resend during the wait, a closed account, and a new address under the one-day mark. Save `m2-10-wrong.png`. Pass when each gets its calm message, and the closed account and the mark still stop a new sign-up.
 
 **Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] Metric. Frames per second while the dot shape forms, and the page's work at rest.
-- [ ] Probe. Record frame timing on an emulated phone with CPU throttling, with a smaller dot count and lower pixel ratio where needed.
-- [ ] Baseline. Trunk has no dot stage, so these absolute budgets apply.
-- [ ] Rule. Fail if the shape forms below 30 fps on the throttled phone, or if the page keeps drawing when nothing has a cause to move.
+- [x] Metric. Frames per second while the dot shape forms, and the page's work at rest.
+- [x] Probe. Record frame timing on an emulated phone with CPU throttling, with a smaller dot count and lower pixel ratio where needed.
+- [x] Baseline. Trunk has no dot stage, so these absolute budgets apply.
+- [x] Rule. Fail if the shape forms below 30 fps on the throttled phone, or if the page keeps drawing when nothing has a cause to move.
 
 **Review gate.** None. M2.10 is not review-gated, because `CLAUDE.md` lets the program merge without Abel's review.
 
 **Merge.**
 
-- [ ] Root's clean verdict at the exact head SHA.
-- [ ] Bugbot triage done.
-- [ ] Base and verdict are current under the execution playbook and the patch-id rule in `playbooks/shipping.md`.
-- [ ] Every box in **You see.** is checked with evidence on the issue, and no stop-list decision is open on it.
-- [ ] The root merges with `gh pr merge <pr> --repo iamabeljoshua/astra --squash --match-head-commit <verified-head>`, then reads the PR back to confirm the merge.
+- [x] Root's clean verdict at the exact head SHA.
+- [x] Bugbot triage done.
+- [x] Base and verdict are current under the execution playbook and the patch-id rule in `playbooks/shipping.md`.
+- [x] Every box in **You see.** is checked with evidence on the issue, and no stop-list decision is open on it.
+- [x] The root merges with `gh pr merge <pr> --repo iamabeljoshua/astra --squash --match-head-commit <verified-head>`, then reads the PR back to confirm the merge.
 
-## Bring onboarding into the made-of-dots look (M2.11)
+## Bring sign-in and onboarding into the 1 + 4 look (M2.11)
 
-**Status.** Not started.
+**Status.** Done. Merged in PR 83 as `7099f67`.
 
 **Depends on.** M2.4, M2.10.
 
 **Files.**
 
-- [ ] Edit `apps/web/src/onboarding/`, `apps/web/src/auth/OnboardingFrame.tsx`, and `apps/web/src/strings.ts`.
-- [ ] Add the interest drawings next to `apps/web/src/home/lineDrawings.tsx`, and a row for each in `docs/credits.md`.
+- [x] Edit `apps/web/src/onboarding/`, `apps/web/src/auth/`, `apps/web/src/ui/`, and `apps/web/src/strings.ts`.
+- [x] Add the interest drawings next to `apps/web/src/home/lineDrawings.tsx`, and a row for each in `docs/credits.md`.
+- [x] Edit the dot pages section of `docs/DESIGN.md`, because Abel chose this look.
 
 **Build.**
 
-- [ ] Reuse `DotStage`, its text-to-dots function, and the shared components from M2.10, and build no second copy.
-- [ ] Follow sample C in the [samples](https://claude.ai/artifact/X9ZFLu1ovyMHmVW7VxQzW4), and rebuild it in React and Tailwind with tokens.
-- [ ] Draw the chips' pictures from the same strokes and sizes as `lineDrawings.tsx`, and read those drawings before drawing a new one.
-- [ ] Keep the answers, the sheet's data, and Your notes as M2.4 left them, unless sample C shows otherwise and the PR says so.
+- [x] Reuse `DotStage`, its text-to-dots function, and the shared components from M2.10, and build no second copy.
+- [x] Follow Abel's sample, `Option6SaturnChart.dc.html`, and rebuild it in React and Tailwind with tokens.
+- [x] Draw the chips' pictures from the same strokes and sizes as `lineDrawings.tsx`, and read those drawings before drawing a new one.
+- [x] Keep the answers and Your notes as M2.4 left them, and remove the sheet.
 
 **You see.**
 
-- [ ] Onboarding uses the same still dot background and `DotStage` as sign-in, in both themes and at phone width.
-- [ ] The tutor's line types out in Newsreader beside the small pulsing dot, then the field appears, one question at a time.
-- [ ] The student's name forms in dots as they type, and the next line says "Welcome, <name>."
-- [ ] The dot shape changes when the student picks an interest.
-- [ ] Interests are chips from `apps/web/src/ui/`, each with a small SVG picture matched to the look of Home's card drawings, in both themes. This adds no new ink style.
-- [ ] The steps stay name, date of birth, class level, interests, and a goal, then a Start button opens Home. A student under 13 still stops at the closed page.
-- [ ] Reduced motion shows everything at once, a browser with no canvas still gets a working page, and the page is still when nothing has a cause to move.
+- [x] Sign-in, onboarding, and the account notices are one calm page on `DotStage`, with a dotted Saturn on a star chart on a still dot grid, in both themes and at phone width.
+- [x] The first line reads "Welcome, I am Astra, your personal AI tutor." The student signs in with a 6-digit email code. The email step draws the chart's first leg, and each digit draws the next.
+- [x] The tutor's line types out in Newsreader beside the small pulsing dot, then the field appears, one question at a time.
+- [x] The student's name forms in dots as they type, the chart's title takes it, and the next line says "Welcome, <name>."
+- [x] Picking an interest lights a labelled star on the chart.
+- [x] There is no sheet beside onboarding, because the chart replaces it.
+- [x] Interests are chips from `apps/web/src/ui/`, each with a small SVG picture matched to the look of Home's card drawings, in both themes. This adds no new ink style.
+- [x] The steps stay name, date of birth, class level, interests, and a goal, then a Start button opens Home. A student under 13 still stops at the closed page.
+- [x] Reduced motion shows everything at once, a browser with no canvas still gets a working page, and the page is still when nothing has a cause to move.
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] A test asserts that every interest in `STUDENT_INTEREST_LABELS` has a drawing and a shape.
-- [ ] `OnboardingFlow.test.tsx` keeps passing with the new screens, with reduced motion stubbed. Run `pnpm test`.
+- [x] A test asserts that every interest in `STUDENT_INTEREST_LABELS` has a drawing and a shape.
+- [x] `OnboardingFlow.test.tsx` keeps passing with the new screens, with reduced motion stubbed. Run `pnpm test`.
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Two lanes on the configured `swarm workers` model at the PR head, per the boot recipe and the review rule under **Verdict and merge**.
 
-- [ ] Lane 1. Regression lane against trunk. Run the onboarding journey at trunk and head at laptop width in light and dark. Save `m2-11-laptop.png`. Pass when head shows the typed line, the name in dots, and the chips with drawings, the answers saved match trunk's, and the student lands on Home.
-- [ ] Lane 2. Run it at 390px with reduced motion, then again with canvas blocked. Save `m2-11-phone.png`. Pass when everything shows at once with reduced motion, the page still works with no canvas, and nothing scrolls sideways.
+- [x] Lane 1. Regression lane against trunk. Run the sign-in and onboarding journey at trunk and head at laptop width in light and dark. Save `m2-11-laptop.png`. Pass when head shows the dotted Saturn on the star chart, the first line, the typed line, the name in dots, and the chips with drawings, with no sheet, the answers saved match trunk's, and the student lands on Home.
+- [x] Lane 2. Run it at 390px with reduced motion, then again with canvas blocked. Save `m2-11-phone.png`. Pass when everything shows at once with reduced motion, the page still works with no canvas, and nothing scrolls sideways.
 
 **Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] Metric. Frames per second while a name forms and a shape changes.
-- [ ] Probe. Record frame timing on an emulated phone with CPU throttling while typing a 20-character name.
-- [ ] Baseline. M2.10's measurement on the same machine.
-- [ ] Rule. Fail if it falls below 30 fps on the throttled phone.
+- [x] Metric. Frames per second while a name forms and a shape changes.
+- [x] Probe. Record frame timing on an emulated phone with CPU throttling while typing a 20-character name.
+- [x] Baseline. M2.10's measurement on the same machine.
+- [x] Rule. Fail if it falls below 30 fps on the throttled phone.
 
 **Review gate.** None. M2.11 is not review-gated, because `CLAUDE.md` lets the program merge without Abel's review.
 
 **Merge.**
 
-- [ ] Root's clean verdict at the exact head SHA.
-- [ ] Bugbot triage done.
-- [ ] Base and verdict are current under the execution playbook and the patch-id rule in `playbooks/shipping.md`.
-- [ ] Every box in **You see.** is checked with evidence on the issue, and no stop-list decision is open on it.
-- [ ] The root merges with `gh pr merge <pr> --repo iamabeljoshua/astra --squash --match-head-commit <verified-head>`, then reads the PR back to confirm the merge.
+- [x] Root's clean verdict at the exact head SHA.
+- [x] Bugbot triage done.
+- [x] Base and verdict are current under the execution playbook and the patch-id rule in `playbooks/shipping.md`.
+- [x] Every box in **You see.** is checked with evidence on the issue, and no stop-list decision is open on it.
+- [x] The root merges with `gh pr merge <pr> --repo iamabeljoshua/astra --squash --match-head-commit <verified-head>`, then reads the PR back to confirm the merge.
 
 ## Recommend from session history (M2.12)
 
-**Status.** Not started.
+**Status.** Done. Merged in PR 77 as `54d83aa`.
 
 **Depends on.** M2.5.
 
 **Files.**
 
-- [ ] Edit `apps/api/src/picks/getPicksForStudent.ts`, `pick-reasons.ts`, and `library.json`.
-- [ ] Edit `apps/api/src/home/`, `apps/api/src/sessions/`, and `apps/web/src/session/useStartSession.ts`.
-- [ ] Add a generated migration under `apps/api/src/infrastructure/orm/migrations/`, and a method on `SessionRepository`.
+- [x] Edit `apps/api/src/picks/getPicksForStudent.ts`, `pick-reasons.ts`, and `library.json`.
+- [x] Edit `apps/api/src/home/`, `apps/api/src/sessions/`, and `apps/web/src/session/useStartSession.ts`.
+- [x] Add a generated migration under `apps/api/src/infrastructure/orm/migrations/`, and a method on `SessionRepository`.
 
 **Build.**
 
-- [ ] Store the topic's id on a session started from a card, because at PR 61's head a session holds only its title, subject, and artwork, and matching on a title is not reliable.
-- [ ] Do the ranking in `rankForStudent`, keeping it a pure function that takes the student's fit and their session history.
-- [ ] Add each subject's topic order to `library.json` as data, so "next" is written down and not guessed.
-- [ ] Change no picture, drawing, card style, or credit line, as Abel corrected on 4 November 2026.
+- [x] Store the topic's id on a session started from a card, because at PR 61's head a session holds only its title, subject, and artwork, and matching on a title is not reliable.
+- [x] Do the ranking in `rankForStudent`, keeping it a pure function that takes the student's fit and their session history.
+- [x] Add each subject's topic order to `library.json` as data, so "next" is written down and not guessed.
+- [x] Change no picture, drawing, card style, or credit line, as Abel corrected on 4 November 2026.
 
 **You see.**
 
-- [ ] A topic the student finished no longer appears among Home's cards.
-- [ ] A topic in progress appears as a card to carry on, with a reason that says so.
-- [ ] When a student has done a topic in a subject, the next topic in that subject is suggested, with a reason that names what they did.
-- [ ] Every reason is true of that student's own sessions, and only that student's sessions feed their cards.
-- [ ] A student with no sessions sees what they see today.
-- [ ] The cards' styling and pictures do not change. New topics use the same mix of pictures and drawings.
+- [x] A topic the student finished no longer appears among Home's cards.
+- [x] A topic in progress appears as a card to carry on, with a reason that says so.
+- [x] When a student has done a topic in a subject, the next topic in that subject is suggested, with a reason that names what they did.
+- [x] Every reason is true of that student's own sessions, and only that student's sessions feed their cards.
+- [x] A student with no sessions sees what they see today.
+- [x] The cards' styling and pictures do not change. New topics use the same mix of pictures and drawings.
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] `getPicksForStudent.spec.ts` gains cases for finished, in progress, next topic, no history, and a true reason on each card.
-- [ ] A sessions spec asserts that another student's sessions never change a card. Run `pnpm test`.
+- [x] `getPicksForStudent.spec.ts` gains cases for finished, in progress, next topic, no history, and a true reason on each card.
+- [x] A sessions spec asserts that another student's sessions never change a card. Run `pnpm test`.
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Two lanes on the configured `swarm workers` model at the PR head, per the boot recipe and the review rule under **Verdict and merge**.
 
-- [ ] Lane 1. Regression lane against trunk. Seed a student with one finished session, one in progress, and one finished topic with a next topic, then load Home at trunk and head. Save `m2-12-history.png`. Pass when head leaves out the finished topic, offers to carry on, and suggests the next topic with a true reason, and trunk does none of these.
-- [ ] Lane 2. Load Home as a new student and as a second student with different sessions, at 390px. Save `m2-12-other.png`. Pass when the new student's cards match trunk's, the second student's reasons match their own sessions, and the pictures look the same.
+- [x] Lane 1. Regression lane against trunk. Seed a student with one finished session, one in progress, and one finished topic with a next topic, then load Home at trunk and head. Save `m2-12-history.png`. Pass when head leaves out the finished topic, offers to carry on, and suggests the next topic with a true reason, and trunk does none of these.
+- [x] Lane 2. Load Home as a new student and as a second student with different sessions, at 390px. Save `m2-12-other.png`. Pass when the new student's cards match trunk's, the second student's reasons match their own sessions, and the pictures look the same.
 
 **Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] Metric. Not applicable. `CLAUDE.md` adds a perf check only when a PR changes performance, and this PR does not.
-- [ ] Probe. None.
-- [ ] Baseline. None.
-- [ ] Rule. None.
+- [x] Metric. Not applicable. `CLAUDE.md` adds a perf check only when a PR changes performance, and this PR does not.
+- [x] Probe. None.
+- [x] Baseline. None.
+- [x] Rule. None.
 
 **Review gate.** None. M2.12 is not review-gated, because `CLAUDE.md` lets the program merge without Abel's review.
 
 **Merge.**
 
-- [ ] Root's clean verdict at the exact head SHA.
-- [ ] Bugbot triage done.
-- [ ] Base and verdict are current under the execution playbook and the patch-id rule in `playbooks/shipping.md`.
-- [ ] Every box in **You see.** is checked with evidence on the issue, and no stop-list decision is open on it.
-- [ ] The root merges with `gh pr merge <pr> --repo iamabeljoshua/astra --squash --match-head-commit <verified-head>`, then reads the PR back to confirm the merge.
+- [x] Root's clean verdict at the exact head SHA.
+- [x] Bugbot triage done.
+- [x] Base and verdict are current under the execution playbook and the patch-id rule in `playbooks/shipping.md`.
+- [x] Every box in **You see.** is checked with evidence on the issue, and no stop-list decision is open on it.
+- [x] The root merges with `gh pr merge <pr> --repo iamabeljoshua/astra --squash --match-head-commit <verified-head>`, then reads the PR back to confirm the merge.
 
 ## Make the board move in time with speech (M3.2)
 
-**Status.** Being built, with no PR yet.
+**Status.** Done. Merged in PR 76 as `0bc6e61`. Abel then kept Chris on Flash. Its follow-ups are in Appendix E.
 
 **Depends on.** M3.1, M1.3.
 
 **Files.**
 
-- [ ] Create `packages/board/src/player/`.
-- [ ] Create `apps/agent/`, with `src/providers/elevenlabs.ts`, `src/providers/choose.ts`, and `src/live/`.
-- [ ] Create `apps/web/src/lab/` for a development-only test page.
-- [ ] Create `docs/tests/scene-player.md`, and edit `LEGAL_PAGES` in `apps/web/src/strings.ts`.
+- [x] Create `packages/board/src/player/`.
+- [x] Create `apps/agent/`, with `src/providers/elevenlabs.ts`, `src/providers/choose.ts`, and `src/live/`.
+- [x] Create `apps/web/src/lab/` for a development-only test page.
+- [x] Create `docs/tests/scene-player.md`, and edit `LEGAL_PAGES` in `apps/web/src/strings.ts`.
 
 **Build.**
 
-- [ ] Build `providers/elevenlabs.ts` behind `VoiceAdapter` on `@livekit/agents-plugin-elevenlabs`. Abel approved the vendor, and the key is in the keys file as `ELEVENLABS_API_KEY`, so the adapter passes `apiKey` itself. Use test text only, with the training opt-out on.
-- [ ] Use Chris, ElevenLabs voice id `iP95p4xoKVk53GoZ742B`, kept in one place in `providers/choose.ts`. Check him for overlong audio on a larger sample on the real path, because Casey's first 12 tries on the worst line had none and Eric's did.
-- [ ] Start on Flash, measure Flash and Turbo the same way, and bring Abel the clips and numbers. Only the choice of model and the flush rule wait for Abel. v4 Turbo is out, because it needs the dialogue socket, restarts its word times at 0 in each message, and 119 of 274 messages had none.
-- [ ] Build `ScenePlayer` so board state comes from a log of the events that actually played, through one function, `rebuildBoard(log, atMs)`, which flattens events by time and not by sequence number.
-- [ ] Let a scene be any deterministic function of the clock, with named parts and named moments, and do not bake in only the planned 2D kinds, because M3.14 plugs in here.
-- [ ] Drive cues from the worklet clock over real WebRTC, counting samples from the turn's first sound. The one exception to "never from timers" is the fallback when audio cannot run.
-- [ ] Carry the proofs' clock fixes into real code. Lateness adds up, an opened gap always closes, and the hold has a bound. Add the small publisher that sends `audioGap`.
-- [ ] Prove the browser's mute, send `questionHeard`, count words only while there is sound, and fire cues behind the per-block gate.
-- [ ] Measure everything under "What M3.2 and M3.6 must measure again" in `docs/architecture/live-session.md`. Word times with near zero lead, which is the main open risk to the clock. Dropping queued audio on stop, because `close_context` does not cancel. Zeroing the clock for 0 to 75 ms of leading silence. Opening the socket before the first turn, because a new one costs about 420 ms. `preferredAlignment` and numbers such as "2.5". Word time noise, stall reads on real chunk sizes, and the first audio step from the agent's region.
-- [ ] Take the M3.2 rows under "Follow-ups, with owners" and "For later owners" in that document, including an early-ended voice stream.
-- [ ] Record the measured numbers in `docs/tests/scene-player.md`, as PRD test 1 requires.
+- [x] Build `providers/elevenlabs.ts` behind `VoiceAdapter` on `@livekit/agents-plugin-elevenlabs`. Abel approved the vendor, and the key is in the keys file as `ELEVENLABS_API_KEY`, so the adapter passes `apiKey` itself. Use test text only, with the training opt-out on.
+- [x] Use Chris, ElevenLabs voice id `iP95p4xoKVk53GoZ742B`, kept in one place in `providers/choose.ts`. Check him for overlong audio on a larger sample on the real path, because Casey's first 12 tries on the worst line had none and Eric's did.
+- [x] Start on Flash, measure Flash and Turbo the same way, and bring Abel the clips and numbers. Only the choice of model and the flush rule wait for Abel. He then kept Flash as the default. v4 Turbo is out, because it needs the dialogue socket, restarts its word times at 0 in each message, and 119 of 274 messages had none.
+- [x] Build `ScenePlayer` so board state comes from a log of the events that actually played, through one function, `rebuildBoard(log, atMs)`, which flattens events by time and not by sequence number.
+- [x] Let a scene be any deterministic function of the clock, with named parts and named moments, and do not bake in only the planned 2D kinds, because M3.14 plugs in here.
+- [x] Drive cues from the worklet clock over real WebRTC, counting samples from the turn's first sound. The one exception to "never from timers" is the fallback when audio cannot run.
+- [x] Carry the proofs' clock fixes into real code. Lateness adds up, an opened gap always closes, and the hold has a bound. Add the small publisher that sends `audioGap`.
+- [x] Prove the browser's mute, send `questionHeard`, count words only while there is sound, and fire cues behind the per-block gate.
+- [x] Measure everything under "What M3.2 and M3.6 must measure again" in `docs/architecture/live-session.md`. Word times with near zero lead, which is the main open risk to the clock. Dropping queued audio on stop, because `close_context` does not cancel. Zeroing the clock for 0 to 75 ms of leading silence. Opening the socket before the first turn, because a new one costs about 420 ms. `preferredAlignment` and numbers such as "2.5". Word time noise, stall reads on real chunk sizes, and the first audio step from the agent's region.
+- [x] Take the M3.2 rows under "Follow-ups, with owners" and "For later owners" in that document, including an early-ended voice stream.
+- [x] Record the measured numbers in `docs/tests/scene-player.md`, as PRD test 1 requires.
 
 **You see.**
 
-- [ ] A scripted lesson plays in the browser in Chris's voice on ElevenLabs, over real WebRTC through a local LiveKit server, and drawings appear as the matching words are spoken.
-- [ ] Each drawing starts within 100 ms of its word, and a turn's first drawing appears within one second of its first word.
-- [ ] From the agent's decision to stop, the audio is silent and the board frozen within 150 ms, as decision 3 in `docs/architecture/live-session.md` reads V2, and resuming continues with the board still correct.
-- [ ] The same lesson replays exactly from its saved log, with no stored video.
-- [ ] A scene can be any deterministic function of the clock. A test scene computed only from time seeks, rewinds, and replays exactly.
-- [ ] Abel hears the voice on Flash and on Turbo as clips, and chooses the model from them and the measured numbers.
-- [ ] Each measure below is recorded in `docs/tests/scene-player.md`.
-- [ ] If any target is missed, the PR stops and reports the measured numbers to Abel before more board work starts.
+- [x] A scripted lesson plays in the browser in Chris's voice on ElevenLabs, over real WebRTC through a local LiveKit server, and drawings appear as the matching words are spoken.
+- [x] Each drawing starts within 100 ms of its word, and a turn's first drawing appears within one second of its first word.
+- [x] From the agent's decision to stop, the audio is silent and the board frozen within 150 ms, as decision 3 in `docs/architecture/live-session.md` reads V2, and resuming continues with the board still correct.
+- [x] The same lesson replays exactly from its saved log, with no stored video.
+- [x] A scene can be any deterministic function of the clock. A test scene computed only from time seeks, rewinds, and replays exactly.
+- [x] Abel hears the voice on Flash and on Turbo as clips, and chooses the model from them and the measured numbers.
+- [x] Each measure below is recorded in `docs/tests/scene-player.md`.
+- [x] If any target is missed, the PR stops and reports the measured numbers to Abel before more board work starts.
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] `player.test.ts` asserts that cues fire on their words with a fake audio clock, that a stop discards unplayed cues and queued audio, and that replaying a log rebuilds identical state.
-- [ ] A test scene computed from time alone gives the same frame at any seek point.
-- [ ] The ElevenLabs adapter passes `provider-suite.ts` on a new fake of its wire. Run `pnpm test`.
+- [x] `player.test.ts` asserts that cues fire on their words with a fake audio clock, that a stop discards unplayed cues and queued audio, and that replaying a log rebuilds identical state.
+- [x] A test scene computed from time alone gives the same frame at any seek point.
+- [x] The ElevenLabs adapter passes `provider-suite.ts` on a new fake of its wire. Run `pnpm test`.
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Two lanes on the configured `swarm workers` model at the PR head, per the boot recipe and the review rule under **Verdict and merge**.
 
-- [ ] Lane 1. Regression lane against trunk. Trunk has no player, so record that and gate the end state. Play the scripted lesson on the lab page in the chosen voice, on Flash and on Turbo, on a real network profile, and record it. Save `m3-2-lesson.png`. Pass when every drawing appears on its word in the recording, on both models.
-- [ ] Lane 2. Interrupt the lesson at five different points and resume each time, then replay the log and compare. Save `m3-2-interrupt.png`. Pass when audio and board stop together each time, the board stays correct after resuming, and the replay matches what played.
+- [x] Lane 1. Regression lane against trunk. Trunk has no player, so record that and gate the end state. Play the scripted lesson on the lab page in the chosen voice, on Flash and on Turbo, on a real network profile, and record it. Save `m3-2-lesson.png`. Pass when every drawing appears on its word in the recording, on both models.
+- [x] Lane 2. Interrupt the lesson at five different points and resume each time, then replay the log and compare. Save `m3-2-interrupt.png`. Pass when audio and board stop together each time, the board stays correct after resuming, and the replay matches what played.
 
 **Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] Metric. The drift between a word's audio start and its drawing's start, on cues really fired, the time from the decision to stop to silence and a frozen board, and first audio on Flash and on Turbo.
-- [ ] Probe. Log all three from the player during the scripted lesson on a mid-range laptop and at phone width with CPU throttling.
-- [ ] Baseline. Trunk has no player, so these absolute budgets apply. The speed test gave first audio at 253 and 319 ms on Flash, and 335 and 531 ms on Turbo, from Abel's Mac.
-- [ ] Rule. Fail if p95 drift exceeds 100 ms or p95 stop time exceeds 150 ms. First audio has no limit here, and it goes to Abel with the clips.
+- [x] Metric. The drift between a word's audio start and its drawing's start, on cues really fired, the time from the decision to stop to silence and a frozen board, and first audio on Flash and on Turbo.
+- [x] Probe. Log all three from the player during the scripted lesson on a mid-range laptop and at phone width with CPU throttling.
+- [x] Baseline. Trunk has no player, so these absolute budgets apply. The speed test gave first audio at 253 and 319 ms on Flash, and 335 and 531 ms on Turbo, from Abel's Mac.
+- [x] Rule. Fail if p95 drift exceeds 100 ms or p95 stop time exceeds 150 ms. First audio has no limit here, and it goes to Abel with the clips.
 
 **Review gate.** None. M3.2 is not review-gated, because `CLAUDE.md` lets the program merge without Abel's review.
 
 **Merge.**
 
-- [ ] Root's clean verdict at the exact head SHA.
-- [ ] Bugbot triage done.
-- [ ] Base and verdict are current under the execution playbook and the patch-id rule in `playbooks/shipping.md`.
-- [ ] Every box in **You see.** is checked with evidence on the issue, and no stop-list decision is open on it.
-- [ ] The root merges with `gh pr merge <pr> --repo iamabeljoshua/astra --squash --match-head-commit <verified-head>`, then reads the PR back to confirm the merge.
+- [x] Root's clean verdict at the exact head SHA.
+- [x] Bugbot triage done.
+- [x] Base and verdict are current under the execution playbook and the patch-id rule in `playbooks/shipping.md`.
+- [x] Every box in **You see.** is checked with evidence on the issue, and no stop-list decision is open on it.
+- [x] The root merges with `gh pr merge <pr> --repo iamabeljoshua/astra --squash --match-head-commit <verified-head>`, then reads the PR back to confirm the merge.
 
 ## Draw math on the board (M3.3)
 
-**Status.** Not started.
+**Status.** Done. Merged in PR 81 as `c9c4d33`.
 
 **Depends on.** M3.2.
 
 **Files.**
 
-- [ ] Create `packages/board/src/math/` and `packages/board/src/ink/`.
-- [ ] Create `packages/board/src/layout/`.
+- [x] Create `packages/board/src/math/` and `packages/board/src/ink/`.
+- [x] Create `packages/board/src/layout/`.
 
 **Build.**
 
-- [ ] Render math with KaTeX with `trust: false`, render text as text and never as HTML, keep names in Maps, and give each term a stable id for transforms.
-- [ ] Add `writeMath`, `transformMath`, and `highlight` to the player, using the parsers in `packages/contracts`, along with `reveal` and `overWords`.
-- [ ] Evaluate plots from `parsePlotExpression`'s tree with `evaluatePlotExpression`, with no `eval`.
-- [ ] Build the layout engine that places every element, so the model only names what to show.
-- [ ] Settle M3.3's row under "Open, with an owner" in `docs/architecture/live-session.md`, shading an area under a curve and a named constant on a curve, and stop huge `\rule` values and macro bombs.
+- [x] Render math with KaTeX with `trust: false`, render text as text and never as HTML, keep names in Maps, and give each term a stable id for transforms.
+- [x] Add `writeMath`, `transformMath`, and `highlight` to the player, using the parsers in `packages/contracts`, along with `reveal` and `overWords`.
+- [x] Evaluate plots from `parsePlotExpression`'s tree with `evaluatePlotExpression`, with no `eval`.
+- [x] Build the layout engine that places every element, so the model only names what to show.
+- [x] Settle M3.3's row under "Open, with an owner" in `docs/architecture/live-session.md`, shading an area under a curve and a named constant on a curve, and stop huge `\rule` values and macro bombs.
 
 **You see.**
 
-- [ ] The tutor can write an equation, highlight one term, and move a term so the equation rearranges smoothly.
-- [ ] Fractions, exponents, roots, and matrices all render correctly in both themes.
-- [ ] Equations place themselves, so the tutor never positions anything and nothing overlaps.
-- [ ] Text and diagrams can be written with a natural handwriting-style stroke.
-- [ ] A model's text can never run as HTML or script on the board.
+- [x] The tutor can write an equation, highlight one term, and move a term so the equation rearranges smoothly.
+- [x] Fractions, exponents, roots, and matrices all render correctly in both themes.
+- [x] Equations place themselves, so the tutor never positions anything and nothing overlaps.
+- [x] Text and diagrams can be written with a natural handwriting-style stroke.
+- [x] A model's text can never run as HTML or script on the board.
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] `transformMath.test.ts` asserts that matching terms keep their ids.
-- [ ] `layout.test.ts` asserts that no two placed elements overlap.
-- [ ] A test asserts that a command holding HTML or a macro bomb renders as text or is refused. Run `pnpm test`.
+- [x] `transformMath.test.ts` asserts that matching terms keep their ids.
+- [x] `layout.test.ts` asserts that no two placed elements overlap.
+- [x] A test asserts that a command holding HTML or a macro bomb renders as text or is refused. Run `pnpm test`.
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Two lanes on the configured `swarm workers` model at the PR head, per the boot recipe and the review rule under **Verdict and merge**.
 
-- [ ] Lane 1. Regression lane against trunk. Trunk has no math, so record that and gate the end state. Play a scripted algebra lesson on the lab page in light mode. Save `m3-3-algebra.png`. Pass when each step rearranges term by term and is readable.
-- [ ] Lane 2. Play a dense lesson with fractions and matrices in dark mode at 390px. Save `m3-3-dense.png`. Pass when nothing overlaps, clips, or overflows.
+- [x] Lane 1. Regression lane against trunk. Trunk has no math, so record that and gate the end state. Play a scripted algebra lesson on the lab page in light mode. Save `m3-3-algebra.png`. Pass when each step rearranges term by term and is readable.
+- [x] Lane 2. Play a dense lesson with fractions and matrices in dark mode at 390px. Save `m3-3-dense.png`. Pass when nothing overlaps, clips, or overflows.
 
 **Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] Metric. Not applicable. `CLAUDE.md` adds a perf check only when a PR changes performance, and this PR does not.
-- [ ] Probe. None.
-- [ ] Baseline. None.
-- [ ] Rule. None.
+- [x] Metric. Not applicable. `CLAUDE.md` adds a perf check only when a PR changes performance, and this PR does not.
+- [x] Probe. None.
+- [x] Baseline. None.
+- [x] Rule. None.
 
 **Review gate.** None. M3.3 is not review-gated, because `CLAUDE.md` lets the program merge without Abel's review.
 
 **Merge.**
 
-- [ ] Root's clean verdict at the exact head SHA.
-- [ ] Bugbot triage done.
-- [ ] Base and verdict are current under the execution playbook and the patch-id rule in `playbooks/shipping.md`.
-- [ ] Every box in **You see.** is checked with evidence on the issue, and no stop-list decision is open on it.
-- [ ] The root merges with `gh pr merge <pr> --repo iamabeljoshua/astra --squash --match-head-commit <verified-head>`, then reads the PR back to confirm the merge.
+- [x] Root's clean verdict at the exact head SHA.
+- [x] Bugbot triage done.
+- [x] Base and verdict are current under the execution playbook and the patch-id rule in `playbooks/shipping.md`.
+- [x] Every box in **You see.** is checked with evidence on the issue, and no stop-list decision is open on it.
+- [x] The root merges with `gh pr merge <pr> --repo iamabeljoshua/astra --squash --match-head-commit <verified-head>`, then reads the PR back to confirm the merge.
 
 ## Draw graphs, geometry, and real motion (M3.4)
 
-**Status.** Not started.
+**Status.** Not merged.
 
 **Depends on.** M3.2.
 
@@ -1452,7 +1464,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 ## Add live voice (M3.6)
 
-**Status.** Not started.
+**Status.** Not merged. Issue #15 keeps its older wording, and this section leads.
 
 **Depends on.** M3.2.
 
@@ -1525,7 +1537,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 ## Finish the board library and prove no layout defects (M3.5)
 
-**Status.** Not started.
+**Status.** Not merged.
 
 **Depends on.** M3.3, M3.4.
 
@@ -1576,7 +1588,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 ## Connect the tutor's brain (M3.7)
 
-**Status.** Not started.
+**Status.** Not merged.
 
 **Depends on.** M3.2, M3.6.
 
@@ -1639,7 +1651,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 ## Share the board between student and tutor (M3.12)
 
-**Status.** Not started.
+**Status.** Not merged.
 
 **Depends on.** M3.3, M3.7.
 
@@ -1699,56 +1711,65 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 - [ ] Every box in **You see.** is checked with evidence on the issue, and no stop-list decision is open on it.
 - [ ] The root merges with `gh pr merge <pr> --repo iamabeljoshua/astra --squash --match-head-commit <verified-head>`, then reads the PR back to confirm the merge.
 
-## Add 3D scenes from a checked library, with live generation as the fallback (M3.14)
+## Show best-effort 3D scenes from ManimGX and our kit (M3.14)
 
-**Status.** Not started. The scene test is still running, so this section may change when it reports.
+**Status.** Not merged. Issue #72 keeps its older wording, and this section leads.
 
 **Depends on.** M3.5, M3.7.
 
 **Files.**
 
-- [ ] Create `packages/board/src/scene3d/` for the scene command, the kit, and the sandbox.
-- [ ] Create the checked library as data, and `apps/agent/src/scenes/` for the fit router and the writer.
+- [ ] Create `apps/scene-worker/` for the locked container that runs ManimGX.
+- [ ] Create `apps/agent/src/scenes/` for the router, writer, and reviewer, and `apps/web/src/scenes/` to play stored takes.
+- [ ] Create `packages/board/src/scene3d/` for the kit and its sandbox.
 - [ ] Create `docs/tests/scenes.md`, and add textures and models with their sources to `docs/credits.md`.
 
 **Build.**
 
-- [ ] Stop here until the scene test, briefed in `/Users/abel/.claude/orchestrate/astra-mvp/scene-bakeoff-brief.md`, reports, then update this section with its results and bring the plan change to Abel. The test settles which model writes live, which writes the library, which reviews, and how truth is checked.
-- [ ] Start from `/Users/abel/startup/astra-tinker/scenes`, with `kit/kit.js`, `scenes/reference.js`, `prompts/`, and `harness/`, and the results in `scenes-race`. Use the coded way, on the kit.
-- [ ] Inject loop guards, because removing an iframe does not stop a spinning script. A scene can navigate its own frame with data in the URL, so keep student data out of it.
-- [ ] Add the fact-review step, because generated scenes passed checks that do not check facts. Use the truth methods the scene test recommends.
+- [ ] Land this in slices, each saying `Part of #72` until the last. The ManimGX path and the router's decision come first, then the kit path, the fit router's library match, and declared values in a live lesson.
+- [ ] Start from the results in `/Users/abel/startup/astra-tinker/manimgx` and `/Users/abel/startup/astra-tinker/scenes-race`, and the kit in `/Users/abel/startup/astra-tinker/scenes`. Delegate by the ManimGX test's table.
+- [ ] Keep the router, writer, and reviewer behind small switchable interfaces, on Anthropic models until Abel answers `scene-models`. Which models write and review, and any use of OpenAI, wait for that answer.
+- [ ] Run the router beside the voice, so it never delays a word. Later slices add a fit router that chooses between a library match, a library scene with changed values only where it declares them, a new scene, or no scene.
+- [ ] Take truth from the kit, with domain functions and checks written once by a person, because the test found 14 of 14 clean with them on the Moon and seasons, and 1 of 10 without. Add a right-handed helix, exact polygons, number formatting, and more domains.
+- [ ] Inject loop guards in the kit's sandbox, because removing an iframe does not stop a spinning script. A scene can navigate its own frame with data in the URL, so keep student data out of it.
+- [ ] Save a late scene, and a failed one marked as failed, so nobody pays to write it twice, and send only checked scenes to a browser.
+- [ ] Run the path once on a real laptop with Intel or AMD graphics, because everything so far ran on one Mac.
 - [ ] Record that B4's 100-scene deck does not hold for generated scenes, and state what replaces it.
 - [ ] Keep textures licensed, with CC BY 4.0 credits, and test licensed 3D models with named parts for anatomy and molecules, which are untested.
-- [ ] Edit `LEGAL_PAGES` if a scene's vendor or stored data changes.
+- [ ] Edit `LEGAL_PAGES` if a scene's vendor or stored data changes, and add ManimGX's notices for the lawyer, namely GPL wheels on our server, H.264 if video is served, wasm, and the fonts in takes.
 
 **You see.**
 
-- [ ] One scene command plugs into M3.2's clock. A scene renders from the time alone, with named parts and moments as word cues, so seek, rewind, and exact replay work.
-- [ ] A topic with a good library match shows its checked scene with no wait.
-- [ ] A saved scene holds shared truth and declared personal values. The tutor's words, order, pace, and examples are written live per student, so library first does not mean one scene for everyone.
-- [ ] A fit router chooses between a library match, a library scene with changed values only where it declares them, a new scene, or no scene. A wrong scene is the worst failure, so false matches are measured and reported.
-- [ ] A new scene is written in the background while the tutor teaches on the plain board, shown only when it passes its checks, marked unverified until a person checks it, and saved for the next student.
-- [ ] Scene code runs in a sandbox with injected loop guards and no network, and no student data ever goes into a scene.
-- [ ] Every library scene passes a fact review, and numbers on labels and curves meet T6 or carry a rule Abel has approved.
+- [ ] Voice and the 2D board never wait for a scene. A scene shows only when it is ready and checked, and there is no spinner.
+- [ ] On a new question the tutor starts with words and simple 2D, setting up what the scene will show, then brings in 3D at a pause. Cards and planned scenes open on 3D where one is ready.
+- [ ] A scene not ready after about 20 s is dropped from that lesson and saved, so a later lesson that may use it plays it at once.
+- [ ] One scene command, with an engine, plugs into M3.2's clock. A scene plays by seconds on the board's clock, with named parts and moments as word cues, so a stop, seek, rewind, and exact replay work.
+- [ ] A router chooses the engine. ManimGX takes symbols, plots, grids, flat maps, and code, and our kit takes solid things a camera could film. A wrong scene is the worst failure, so a doubtful request gets no scene, and false matches are measured and reported.
+- [ ] Python runs only on a server in a locked container, with no network, and the browser plays a stored take. Kit scene code runs in a sandbox with injected loop guards and no network.
+- [ ] Scenes shared across students come only from the server's own topic list. A typed question's scene stays with that student until a person or a moderated step promotes it.
+- [ ] The review is a strict filter and not a truth gate, so a scene that passes it still says "Not yet checked by a person" until a person checks it. Numbers on labels and curves meet T6 or carry a rule Abel has approved.
+- [ ] A saved scene holds shared truth and declared personal values, and code rejects a value it does not declare. No student data goes into a scene. The tutor's words, order, pace, and examples are written live per student.
+- [ ] Rich scenes target laptops and may require a laptop browser, and phones must not block them. At phone width, or with no WebGPU, the lesson carries on with words and the 2D board.
 - [ ] "Videos" means our generated scenes, with no real footage and no AI-generated video.
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
 - [ ] A test scene gives the same frame at any seek point, and a spinning scene is stopped by its guard.
 - [ ] The router's tests run labeled student requests, and fail on a false match.
-- [ ] A planted fact error is caught by the review. Run `pnpm test`.
+- [ ] A planted fact error is caught by the review.
+- [ ] A test asserts that a late scene is dropped from its lesson and saved, and that a typed question's scene never reaches another student. Run `pnpm test`.
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Two lanes on the configured `swarm workers` model at the PR head, per the boot recipe and the review rule under **Verdict and merge**.
 
-- [ ] Lane 1. Regression lane against trunk. Trunk has no 3D, so record that and gate the end state. Ask about the Moon's phases, a library topic, on the lab page, then seek and replay. Save `m3-14-library.png`. Pass when the checked scene appears with no wait, moves land on their words, and replay matches exactly.
-- [ ] Lane 2. Ask about a topic the library lacks, then a close-sounding topic that is not in the library, then a follow-up such as "what if gravity were half". Save `m3-14-router.png`. Pass when the tutor keeps teaching on the plain board while a new scene is built, the close-sounding topic gets no wrong scene, and the follow-up uses declared values or a new scene.
+- [ ] Lane 1. Regression lane against trunk. Trunk has no 3D, so record that and gate the end state. On a laptop, ask a new question that routes to ManimGX, then one that routes to the kit, then seek and replay. Save `m3-14-pause.png`. Pass when the words start before any scene, no spinner shows, the scene comes in at a pause, moves land on their words, and replay matches exactly.
+- [ ] Lane 2. Ask about a close-sounding topic the router should refuse, then a follow-up such as "what if gravity were half". Force a scene past about 20 s, then ask the same typed question as a second student, then load a lesson at 390px. Save `m3-14-router.png`. Pass when the close-sounding topic gets no wrong scene, the follow-up uses declared values or a new scene, the late scene is dropped from its lesson and saved, the second student never gets the first student's scene, and at 390px the lesson carries on with words and the 2D board.
 
 **Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] Metric. Time to first frame for a library scene, time for a new scene to pass, routing time, and frames per second.
-- [ ] Probe. Log them across the scene test's topics on a mid-range laptop and at phone width with CPU throttling.
-- [ ] Baseline. Prototype A gave Sonnet at low effort about 17 s and about $0.03 a scene, and Haiku with thinking off about 8.5 s and about $0.0013, on Abel's Mac. The scene test replaces these.
-- [ ] Rule. Fail if a library scene misses B1, or if throttled phone width falls below 30 fps at the lowest tier. Other limits wait for the scene test.
+- [ ] Metric. Time from a new question to a shown scene, time to first frame for a saved scene, routing time, and frames per second.
+- [ ] Probe. Log them across the test's topics on a mid-range laptop.
+- [ ] Baseline. The scene test gave Opus 5.5 low in fast mode 12.5 s at the median and $0.165 a scene, and GPT-6.1 Sol low 35.6 s and $0.033, on Abel's Mac. The ManimGX test's blind router took 884 ms.
+- [ ] Rule. Fail if the words or the 2D board ever wait on a scene, if a saved scene misses B1, or if a mid-range laptop falls below 30 fps at the lowest tier. Phone width has no frame rule here.
 
 **Review gate.** None. M3.14 is not review-gated, because `CLAUDE.md` lets the program merge without Abel's review.
 
@@ -1760,9 +1781,66 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 - [ ] Every box in **You see.** is checked with evidence on the issue, and no stop-list decision is open on it.
 - [ ] The root merges with `gh pr merge <pr> --repo iamabeljoshua/astra --squash --match-head-commit <verified-head>`, then reads the PR back to confirm the merge.
 
+## Write the approved library of 133 scenes (M3.15)
+
+**Status.** Not merged.
+
+**Depends on.** M3.14.
+
+**Files.**
+
+- [ ] Create `apps/agent/src/scenes/library/` for the list and the run that writes it.
+- [ ] Create the sample page in `apps/web/src/scenes/`, and the API routes it reads.
+- [ ] Create `docs/tests/scene-library.md`.
+
+**Build.**
+
+- [ ] Put the list on the server's own topic list, reading Home's topics from `apps/api/src/picks/library.json`, because only those scenes may be shared across students.
+- [ ] Let M3.14's router pick each scene's engine, and use the writers Abel's answer on `scene-models` sets.
+- [ ] Track spend as the run writes. M3.14's first path measured about $0.10 to $0.21 a scene with both reviews, which is above what the estimate assumes. If the run is on course to pass about $10, stop and bring Abel the number before going on.
+- [ ] Make the run safe to stop and restart, so a scene already written is never paid for twice.
+- [ ] Keep the sample page away from students, with the API refusing anyone but a named reviewer.
+
+**You see.**
+
+- [ ] The library holds 133 scenes, one opening scene for each of the 48 Home topics, plus 5 more for each of 17 topics.
+- [ ] The 17 topics are Saturn's rings, the Moon's one face, the seasons, black holes, how stars made your atoms, a jump shot, a rocket escaping Earth, why a rainbow is round, why moving clocks run slow, Pythagoras, derivatives, quadratics, sunflower spirals, the periodic table, what burns inside an engine, how DNA copies itself, and how a map finds the fastest route.
+- [ ] Every scene passes the automatic review before it joins the library. The review is a strict filter and not a truth gate, so a library scene still says "Not yet checked by a person" until a person checks it.
+- [ ] A simple page shows Abel a sample, weighted to opening scenes, and he can flag a scene from it. A flagged scene stops showing until someone has looked at it.
+- [ ] A student who opens a Home topic with a library scene gets it with no wait and no new write.
+- [ ] The library is written once, from this list. No worker adds to it from recommendations.
+
+**Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
+
+- [ ] A test asserts that the list holds 133 scenes, 48 openings and 5 for each of the 17 topics.
+- [ ] A test asserts that a scene failing review never joins the library, and that a flagged scene stops showing.
+- [ ] A test asserts that the sample is weighted to opening scenes, and that a student gets a 403 from the page's routes. Run `pnpm test`.
+
+**Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Two lanes on the configured `swarm workers` model at the PR head, per the boot recipe and the review rule under **Verdict and merge**.
+
+- [ ] Lane 1. Regression lane against trunk. Trunk has no library, so record that and gate the end state. On a laptop, as a new student, open a Home topic that has an opening scene. Save `m3-15-opening.png`. Pass when the scene opens with no wait and no model call, and it says "Not yet checked by a person".
+- [ ] Lane 2. Open the sample page as a named reviewer and flag a scene, reload, then open a lesson on that topic. Open the page again as a student. Save `m3-15-sample.png`. Pass when the sample leans to opening scenes, the flag survives the reload, the flagged scene no longer shows, and the student gets no page.
+
+**Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
+
+- [ ] Metric. Time to first frame of a library scene, and the run's spend per scene.
+- [ ] Probe. Log first frames over 20 library scenes on a mid-range laptop, and record the whole run's spend.
+- [ ] Baseline. M3.14's figures for a saved scene, and the estimate of about $10.
+- [ ] Rule. Fail if a library scene's first frame misses B1. Report the real spend beside the estimate.
+
+**Review gate.** None. M3.15 is not review-gated, because `CLAUDE.md` lets the program merge without Abel's review.
+
+**Merge.**
+
+- [ ] Root's clean verdict at the exact head SHA.
+- [ ] Bugbot triage done.
+- [ ] Base and verdict are current under the execution playbook and the patch-id rule in `playbooks/shipping.md`.
+- [ ] Every box in **You see.** is checked with evidence on the issue, and no stop-list decision is open on it.
+- [ ] The root merges with `gh pr merge <pr> --repo iamabeljoshua/astra --squash --match-head-commit <verified-head>`, then reads the PR back to confirm the merge.
+
 ## Teach instead of tell, with tools the tutor calls when needed (M3.8)
 
-**Status.** Not started.
+**Status.** Not merged.
 
 **Depends on.** M3.7.
 
@@ -1822,7 +1900,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 ## Prepare a lesson plan for every session (M3.9)
 
-**Status.** Not started.
+**Status.** Not merged.
 
 **Depends on.** M3.8, M2.5.
 
@@ -1876,7 +1954,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 ## Keep the next scenes ready as the lesson flows (M3.13)
 
-**Status.** Not started. The scene test is still running, so this section may change when it reports.
+**Status.** Not merged. Issue #71 keeps its older wording, and this section leads.
 
 **Depends on.** M3.5, M3.9.
 
@@ -1888,39 +1966,39 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 **Build.**
 
-- [ ] Stop here until the scene test, briefed in `/Users/abel/.claude/orchestrate/astra-mvp/scene-bakeoff-brief.md`, reports, because its first section tests this queue, then update this section with its results and bring the plan change to Abel.
-- [ ] Model the queue as data, with one entry per scene and a state for each, and keep it in code so a turn never waits on it.
-- [ ] Fill it from what exists when this PR runs, namely M3.5's 2D scenes, and M3.14's library and live scenes through the same scene command once that PR lands.
-- [ ] Use the same checks as M3.14 before a prepared scene is shown.
+- [ ] Model the queue as data, with one entry per scene and a state for each, including an engine and a `making` state, and keep it in code so a turn never waits on it.
+- [ ] Fill it only inside a running lesson, from what exists when this PR runs, namely M3.5's 2D scenes, and M3.14's saved and live scenes and M3.15's library through the same scene command once they land.
+- [ ] Use the same checks and sharing rule as M3.14 before a scene is shown.
+- [ ] Preload a stored take's bytes for ManimGX, because a lesson's takes are a few MB, and hold the next one or two kit scenes in the browser. The scene test measured 24 to 35 ms against 182 to 420 ms, at about 180 MB each. It also recommends three writers per lesson with preemption for urgent scenes, where 1 of 17 scenes waited and the longest wait was 1.5 s, on one run per topic.
 - [ ] Reorder from M3.9's revised plan, and cancel writes the student no longer needs, so money is not spent on them.
 - [ ] Keep the tutor's words, order, pace, and examples live per student, because only the scene is prepared ahead.
 
 **You see.**
 
-- [ ] A session opens with an instant reaction and a quick opening, while the concept plan from M3.9 finishes in the background.
 - [ ] A student follows a plan of concepts, each with several scenes, not one question and one scene.
-- [ ] A queue prepares the current concept's scenes, then the next concept's, ahead of the student.
-- [ ] The browser preloads prepared scenes with their shaders compiled ahead, so a scene's first frame is ready when the words reach it.
-- [ ] Prepared scenes are checked before they are shown, and a scene that fails never reaches the student.
-- [ ] When the student goes off plan, the queue reorders and drops work it no longer needs, and the tutor keeps talking on the plain board until the new scene is ready.
-- [ ] A slow or failed scene never stops the tutor's words.
+- [ ] Inside a running lesson, a queue writes the current concept's scenes, then the next concept's. No worker prepares scenes from recommendations before a student arrives.
+- [ ] Cards and planned scenes open on 3D where one is ready, and otherwise on words and simple 2D.
+- [ ] The browser holds the next scenes ready, so a scene's first frame is ready when the words reach it.
+- [ ] Scenes are checked before they are shown, and a scene that fails never reaches the student.
+- [ ] When the student goes off plan, the queue reorders and drops work it no longer needs, and the tutor keeps talking on the plain board until a new scene is ready.
+- [ ] A slow or failed scene never stops the tutor's words. There is no spinner, and a scene not ready after about 20 s is dropped from that lesson and saved.
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] `scene-queue.test.ts` asserts the order, the move to the next concept, reordering off plan, and dropping work.
+- [ ] `scene-queue.test.ts` asserts the order, the move to the next concept, reordering off plan, dropping work, and that a queue with no running lesson writes nothing.
 - [ ] A test asserts that a failed scene leaves the words playing and the plain board showing. Run `pnpm test`.
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Two lanes on the configured `swarm workers` model at the PR head, per the boot recipe and the review rule under **Verdict and merge**.
 
-- [ ] Lane 1. Regression lane against trunk. Trunk has no queue, so record that and gate the end state. Run a three-concept session and let it flow. Save `m3-13-flow.png`. Pass when each scene is ready when its words arrive, and the student never waits between concepts.
-- [ ] Lane 2. Go off plan in the middle of the second concept, then force the next scene to fail, at phone width with CPU throttling. Save `m3-13-off-plan.png`. Pass when the queue reorders, the tutor keeps talking on the plain board, and the failed scene never appears.
+- [ ] Lane 1. Regression lane against trunk. Trunk has no queue, so record that and gate the end state. Run a three-concept session on a laptop and let it flow. Save `m3-13-flow.png`. Pass when the words never wait, a scene that is ready shows when its words arrive, a scene that is not ready stays off the screen with no spinner, and nothing was written before the student arrived.
+- [ ] Lane 2. Go off plan in the middle of the second concept, force the next scene to fail, then hold another past about 20 s. Save `m3-13-off-plan.png`. Pass when the queue reorders, the tutor keeps talking on the plain board, the failed scene never appears, and the late scene is dropped from the lesson and saved.
 
 **Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
 - [ ] Metric. Time from a scene's word to its first frame when it was prepared, how many scenes were ready in time, and time to the first render of a session.
-- [ ] Probe. Log all three over three complete sessions, on a mid-range laptop and at phone width with CPU throttling.
+- [ ] Probe. Log all three over three complete sessions, on a mid-range laptop.
 - [ ] Baseline. Trunk has no queue, so B1's budget applies to a prepared scene.
-- [ ] Rule. Fail if a prepared scene's first frame misses B1 at p95. Limits for the share of scenes ready in time wait for the scene test.
+- [ ] Rule. Fail if a prepared scene's first frame misses B1 at p95, or if a turn's words ever wait on the queue. The share of scenes ready in time has no fixed limit, so report it to Abel.
 
 **Review gate.** None. M3.13 is not review-gated, because `CLAUDE.md` lets the program merge without Abel's review.
 
@@ -1934,9 +2012,9 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 ## Run the first full session end to end (M3.10)
 
-**Status.** Not started.
+**Status.** Not merged. Issue #19 keeps its older wording, and this section leads.
 
-**Depends on.** M3.5, M3.9, M3.12, M3.13.
+**Depends on.** M3.5, M3.9, M3.12.
 
 **Files.**
 
@@ -1950,14 +2028,15 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 - [ ] Build the dot's behaviors from PRD B9.
 - [ ] Save every event that played to the session log, and settle agent-to-API auth and the log table's owner.
 - [ ] Read a card's `openingLine` for its first words, and fix the `draughtsman` line first, as Appendix E says.
+- [ ] Do not wait for M3.13, M3.14, or M3.15. Take scenes from whatever of them has landed when this PR runs, through a seam that never holds up the words, because 3D is built alongside this PR.
 - [ ] Measure first reaction, first real word, sync, and cost on real sessions and record them in `docs/tests/first-session.md`.
 
 **You see.**
 
-- [ ] Sending a question or selecting a card starts a real session, with code reacting at once and the tutor's first real word within three seconds.
+- [ ] Sending a question or selecting a card starts a real session, with code reacting at once and the tutor's first real word within three seconds, while M3.9's concept plan finishes in the background.
 - [ ] The student and tutor talk back and forth, with captions, and the student can interrupt at any time.
 - [ ] The board draws in time with the tutor's words, using the real board library and tutor, and the student can type on it and answer its tasks.
-- [ ] Scenes arrive from the queue with no wait as the lesson moves between concepts.
+- [ ] The lesson never waits for 3D. Voice and the 2D board carry it, a scene shows only when it is ready and checked, and there is no spinner. A full session passes with no 3D at all.
 - [ ] The tutor's dot pulses with speech, moves to what it is discussing, and rests while listening, and the board stays still while the student reads.
 - [ ] The tutor states that it is an AI at the start of each session, and again after every three hours of use.
 - [ ] The student can end the session, and it is saved and appears in Sessions.
@@ -1971,7 +2050,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Two lanes on the configured `swarm workers` model at the PR head, per the boot recipe and the review rule under **Verdict and merge**.
 
 - [ ] Lane 1. Regression lane against trunk. Run the same journey from Home at trunk and head using injected audio. Save `m3-10-session.png`. Pass when head delivers a real spoken lesson with the board in sync, and trunk shows only stand-in content.
-- [ ] Lane 2. Complete a full session by typing at 390px in dark mode, interrupting twice. Save `m3-10-phone.png`. Pass when the session completes, stays in sync, and appears in Sessions.
+- [ ] Lane 2. Complete a full session by typing at 390px in dark mode, interrupting twice. Save `m3-10-phone.png`. Pass when the session completes on words and the 2D board, stays in sync, and appears in Sessions.
 
 **Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
@@ -1992,7 +2071,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 ## Let students draw on the board and upload their work (M3.11)
 
-**Status.** Not started.
+**Status.** Not merged.
 
 **Depends on.** M3.10, M3.12.
 
@@ -2049,7 +2128,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 ## Give the tutor a memory of each student (M4.1)
 
-**Status.** Not started.
+**Status.** Not merged.
 
 **Depends on.** M3.10.
 
@@ -2103,7 +2182,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 ## Make the teaching personal (M4.2)
 
-**Status.** Not started.
+**Status.** Not merged.
 
 **Depends on.** M4.1.
 
@@ -2158,7 +2237,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 ## Recommend picks from performance and weaknesses (M4.3)
 
-**Status.** Not started.
+**Status.** Not merged.
 
 **Depends on.** M4.1, M2.2, M2.12.
 
@@ -2209,7 +2288,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 ## End sessions with a recap, and let students replay them (M4.4)
 
-**Status.** Not started.
+**Status.** Not merged.
 
 **Depends on.** M3.10, M4.1.
 
@@ -2261,7 +2340,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 ## Make it safe for students 13 and up (M4.5)
 
-**Status.** Not started.
+**Status.** Not merged.
 
 **Depends on.** M3.10.
 
@@ -2322,25 +2401,25 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 ## Close the program
 
 - [ ] Every box above is checked with its evidence.
-- [ ] Run the whole journey once on a fresh database, from the tagline to a second session that shows a recommended card, and post the recording.
+- [ ] Run the whole journey once on a fresh database, from sign-in to a second session that shows a recommended card, and post the recording.
 - [ ] Reply to the operator with the report the execution playbook names, including measured first reaction, first real word, sync, and cost per minute, and the items in Appendix C and Appendix E that remain open.
 
 ## Appendix A. Prototype evidence
 
-- **Look.** The [look prototype](https://claude.ai/artifact/3Kw7Ggukb39GerA4E5pK7u) settled type and palette, and Abel approved it on 2 November 2026. Its source is in `docs/design/look-prototype/`. For sign-in and onboarding, Abel chose sample C, Made of dots, with sample B's still dot background, from the [samples](https://claude.ai/artifact/X9ZFLu1ovyMHmVW7VxQzW4) on 4 November 2026.
-- **Home.** The [app prototype](https://claude.ai/artifact/YJRK2QzMdDdm4c4DQhwWZq) settled the home proportions, the chat box pinned to the bottom, and the "Made for you" sheet. Its source is in `docs/design/app-prototype/`. A scripted click-through passed on the flows it covers, and it has not been checked on real devices. Its onboarding steps are superseded by M2.4.
+- **Look.** The [look prototype](https://claude.ai/artifact/3Kw7Ggukb39GerA4E5pK7u) settled type and palette, and Abel approved it on 2 November 2026. Its source is in `docs/design/look-prototype/`. For sign-in and onboarding, Abel first chose sample C, Made of dots, with sample B's still dot background, from the [samples](https://claude.ai/artifact/X9ZFLu1ovyMHmVW7VxQzW4) on 4 November 2026. He then chose 1 + 4 the same day, the dotted Saturn on the star chart, which M2.11 built and `docs/DESIGN.md` records.
+- **Home.** The [app prototype](https://claude.ai/artifact/YJRK2QzMdDdm4c4DQhwWZq) settled the home proportions, the chat box pinned to the bottom, and the "Made for you" sheet, which M2.11 later removed. Its source is in `docs/design/app-prototype/`. A scripted click-through passed on the flows it covers, and it has not been checked on real devices. Its onboarding steps are superseded by M2.4.
 - **Live tutor facts.** `docs/architecture/live-session.md` records what M3.1 proved with fakes, and a speed test on 3 November 2026 measured the real vendors from Abel's Mac on a West African network, on synthetic speech. Its figures are labeled in that document. A real microphone test on Abel's voice kept Muse over Nova-3, on 14 clean lines. A comparison of models kept Sonnet 5.5.
 - **Shared board.** Prototype B, in `/Users/abel/startup/astra-tinker/board`, is the source for M3.12. It measured code reacting at 21 ms at p50, and Haiku alone wrongly interrupting 28 of 60.
-- **3D scenes.** Prototype A, in `/Users/abel/startup/astra-tinker/scenes`, is the source for M3.14. One run per topic, on one Mac's GPU, with no real phone. Generated scenes passed checks that do not check facts. The scene test, in `/Users/abel/startup/astra-tinker/scenes-race`, is still running.
-- **Still unproven.** Drawing drift and stop time on real ElevenLabs audio are unproven until M3.2. First real word from the agent's region is unproven until M3.6 and M3.7. Teaching quality on Sonnet is unproven until M3.7 and M3.8. Learning gain and student reaction are unproven until real students use the product.
+- **3D scenes.** Prototype A, in `/Users/abel/startup/astra-tinker/scenes`, was the first source for M3.14. One run per topic, on one Mac's GPU, with no real phone. Generated scenes passed checks that do not check facts. The scene test, in `/Users/abel/startup/astra-tinker/scenes-race`, then compared writers, the router, and the review, and found that truth comes from the kit. The ManimGX test, in `/Users/abel/startup/astra-tinker/manimgx`, passed the bar stated to Abel, and it set which scenes go to which engine.
+- **Still unproven.** First real word from the agent's region is unproven until M3.6 and M3.7. Teaching quality on Sonnet is unproven until M3.7 and M3.8. Rich scenes on real laptops with Intel or AMD graphics are unproven, because everything ran on one Mac. Learning gain and student reaction are unproven until real students use the product.
 - **PRD section 13 tests.** Test 1 is M3.2, test 2 is M3.7, and test 4's measurements are in M3.6. Test 3 is gone, because dot pictures and the swarm left the plan. Test 5, with five students, runs after M3.10.
 
 ## Appendix B. Alternatives rejected
 
 - **Next.js.** It would hold pages and server code in one app. Abel chose React with Vite and NestJS, which matches `agentic-tutor`.
-- **Server-rendered video and a whiteboard SDK as the renderer.** PRD section 8 rejects both for live teaching. Real footage and AI-generated video are also out.
-- **Only a hand-built library, with no generated scenes.** PRD Q11 said this. Abel wants 3D for almost any topic, so M3.14 adds live generation behind a checked library.
-- **Only generated scenes.** Abel chose library first, because speed comes first and accuracy matters most.
+- **Server-rendered video and a whiteboard SDK as the renderer.** PRD section 8 rejects both for live teaching. Real footage and AI-generated video are also out. ManimGX in M3.14 is not this, because the browser plays a stored take on the board's clock, and it stops, seeks, and replays with the board.
+- **Only a hand-built library, with no generated scenes.** PRD Q11 said this. Abel wants 3D for almost any topic, so M3.14 writes a scene when a student needs one, and saves it.
+- **Only generated scenes.** Abel wants richer and faster scenes for selected topics, with cost in mind, so M3.15 writes one curated library once.
 - **A talking router with a cheap model.** No candidate met the budget, a serial classifier added about 800 ms to every turn, and Haiku as the tutor was not good enough. Sonnet 5.5 stays for now.
 - **Cartesia and Deepgram.** They stay as the reference the proofs ran against. Abel chose ElevenLabs and Muse on 3 November 2026.
 - **Parent consent by email link, and a voice choice in onboarding.** Abel removed both on 4 November 2026, because onboarding must be simple. The lawyer reviews this before real students.
@@ -2353,11 +2432,11 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 - **The board misses its timing targets on real audio.** It lands in M3.2, which stops and reports its numbers before more board work starts. Word times arrive with their audio on Flash and Turbo, and the proofs ran with a lead.
 - **First real word stays slow.** The inferred best case is about 2.1 s at p50 and 3.1 s at p95 from Abel's Mac. Code reacting first covers the silence, and M3.6 and M3.7 report each step's share. M3.9's and M3.10's limit of 3 s for a session's first word may miss on these numbers.
-- **The cost per minute is above budget.** It lands in M3.7 and M3.10, which measure it and report to Abel.
-- **Generated scenes state wrong facts.** They land in M3.14, with a fact review, and a scene is marked unverified until a person checks it. Numbers on labels and curve formulas come from the model, which breaks T6 as written, and B4 does not hold for generated scenes.
+- **The cost per minute is above budget.** It lands in M3.7 and M3.10, which measure it and report to Abel. Scenes add to it. At 100% of scenes written, the earlier estimate is about $510 a month at beta size, on top of about $1,490 for voice, tutor, and hosting, against a budget of about $2,000. It falls as scenes get saved, and a per-lesson scene cap is the lever if needed.
+- **Generated scenes state wrong facts.** They land in M3.14. The review is a strict filter and not a truth gate, so a scene says "Not yet checked by a person" until a person checks it, and a typed question's scene stays with its student. Numbers on labels and curve formulas come from the model, which breaks T6 as written, and B4 does not hold for generated scenes.
 - **Legal review for minors.** It lands in M4.5 and stays open until a lawyer reviews it, and that happens before real students. It covers having no parent consent, Meta's and ElevenLabs' under-18 rules, and vendor retention.
 - **A vendor changes the ground.** Chris is one of ElevenLabs' own voices, so ElevenLabs alone decides how long it stays. Meta may change Muse's Standard designation. LiveKit's Ship plan caps at 20 concurrent agent sessions, and the next plan is Scale at $500.
-- **CI's margin.** On an EPYC 7763 it is 41 s on `main` and 26 s with PR 76, from one run each, under a 4 minute limit, and M3.5's deck adds to it. Appendix E holds the next step.
+- **CI's margin.** On an EPYC 7763 it is 41 s on `main` and 26 s with PR 76, from one run each, under a 4 minute limit, and M3.5's deck adds to it. A cache miss has less, and Appendix E holds that and the next step.
 - **Public name.** PRD Q1 stays open, and M1.3 keeps the name in one module.
 - **Scope cuts for the MVP.** M2.2 shipped 48 topics against the PRD's estimate of 60, and M4.2 ships at least 100 concepts against its estimate of 300. Both grow before the beta.
 
@@ -2372,11 +2451,20 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 These have no PR yet. Each one goes in the next free slot or with the PR named.
 
-- **CI's next lever.** The web tests no longer end last. On a Xeon 8370C the job took 193 s before `vmForks` and 154 to 176 s after it, and `pnpm verify` now ends last. The 2 threads stay about 90% busy, so the next saving must also be less CPU work. Do not raise the limit without Abel.
+- **CI's next lever.** The web tests no longer end last. On a Xeon 8370C the job took 193 s before `vmForks` and 154 to 176 s after it, and `pnpm verify` now ends last. The 2 threads stay about 90% busy, so the next saving must also be less CPU work. A cache hit has 46 s or more of margin, measured, and a slow miss has about 20 s, by inference. Do not raise the limit without Abel.
+- **CI follow-ups.** Pin `.nvmrc` to an exact Node, because vmForks depends on an experimental flag, and CI ran 22.23.4 while local ran 22.22.1. Add `unstubEnvs: true`. The README should name the other vmForks gaps, `ReadableStream`, `WritableStream`, `TransformStream`, `CompressionStream`, `crypto.subtle`, and `performance.mark`, which do not exist there and can hide inside code that wraps errors. A window `error` listener hides timer throws in vmForks. Add a `::warning` when the Postgres cache falls back, because a bad entry costs time silently and each hit refreshes it, and add `workflow_dispatch` to `Postgres image cache`. A PR needs a new merge commit to get the cache, because a rerun reuses the old merge.
 - **CI gates read `success`.** Every gate reads a job's conclusion as `success`, because a timeout concludes `cancelled` and `gh pr checks` can exit 0 on it. The root's merges already read it this way, so owners' and reviewers' gates follow.
 - **Compare CI runs fairly.** Divide by `api:types`, lint, and typecheck, because the same steps vary by about 50% between runners.
 - **README.** Step 16 of the hosted checklist must run after step 5, or `DROP SCHEMA "app"` fails loudly. `README.md:77` is loose about `auth`, and its run counts are low.
 - **Data layer.** An old checkout on an upgraded database locks out head with `relation "migrations" already exists`, so rebase lanes and delete the startup `ALTER`. `row-security.spec.ts` reads `attnum = 1` without filtering dropped columns, a false failure. Close the lint gaps for dynamic and required TypeORM imports, and for entities importing from feature folders. A hand-written `SECURITY DEFINER` function is not covered.
 - **Picks.** The library is thin at some levels, with 5 or 6 of 6 cards shared in 110 of 792 pairs. Goal reasons have no source behind them. The `bastille` label says engraving and the Met says etching. The `draughtsman` crop cuts off the wall pin its line asks about, so M3.10 fixes that line before it reads `openingLine`.
 - **Web app.** Returning to a tab after a failure still hides Try again. No App-level test says a signed-out student on a student route sees sign-in. A session start that times out and retries can save a second session.
+- **Look polish, from PR 83's review.** `textToDots` trusts the canvas read, so noise in privacy-hardened Firefox forms a dotted rectangle, and a throwing `getImageData` gives the error page, because the call runs in render. Add try/catch and a solid-pixel sanity check. A long name's title wraps and overprints the `HISTORY` label from 33 characters at 1021. After a reload the name's dots use a fallback serif until the name changes, because `useStepChart` memoizes before Newsreader loads. The whole-mail code search takes the first exact run, which matters if the mail gains another number. On `·Dark`, a grid dot shows through the unpressed toggle. At 390, `Sign out` and `Back` are under 24 px tall. The theme tokens `--text-sheet-name*`, `--container-sheet`, `--grid-template-columns-onboarding`, `--grid-template-columns-sheet-row`, and `--spacing-onboarding-side` are unused.
+- **The eight-digit code.** Abel chose 6 digits. `README.md` works out that an attacker who asks for a new code every 10 minutes has about 33% in the first hour from 1,000 sources, and about 0.4% with 8 digits. With a real 612 s wait, expiry is true. `CODE_LENGTH` lives in `apps/web/src/auth/codeLength.ts`, so the change is small if Abel wants it.
+- **M3.2 polish.** Pin the 200 ms rule with a test, since 150 passes all 73 board tests, and raw shows 150 let a 182 ms word run a turn 328 ms early. Add tests for removing `hasTurnWordTimes = false` and the `hasSentSound` check. Decide a rewind pressed just before a cut, which shows 3.01 and not 1.
+- **For M3.4, from M3.2's review.** M3.4 owns the `overWords` row.
+- **For M3.6, from M3.2's review.** The page reload offset in `session-log.ts`, refused reports killing the agent, the lab clock race, resume double-firing beats, tight room token grants, word time holes, and a 320 ms lag step with no report on the delay profile. `stop` on a finished turn sends a stop but leaves no silence, so a stored reaction played 69 to 89 ms later is muted and its cue runs about 1030 ms late. Make it send nothing, and narrow the guard's sentence to live turns. Read `onFailure`, because `finished` never rejects.
+- **For M3.14, from M3.2's and M3.6's reviews.** Add a guard and a cache at the scene catalog boundary, because the catalog rebuilds per frame and `Scene.parts` is unread. Handle a throwing catalog during a stop and NaN durations, and use async `getFrame` for a sandbox. `run-lesson.ts:119` passes no `onFailure`, so a failure hides. Make `onFailure` required and guard a listener that throws. Fix the same faults M3.6 fixed in `run-lesson`, namely the `getRestOfTurn` double-fire, unguarded `JSON.parse` in `DataReceived`, and wide grants in `lesson-service.ts`.
+- **From M3.6's review.** M3.6's fix round moves to one mic state machine, the highest report per beat, audio buffered over Muse's handshake, a 10 minute idle cap with a warning, closing rooms when sessions finish, and region recorded beside stops. M3.7 needs per-session limits on data messages, because 150 forged `typed` lines in 143 ms started 150 replies, and it must handle a beat in flight lost on a cut that keeps the thought. A hosted agent is needed to judge voice reaction, stop, first sound to silence, first word, and join time. LiveKit can split a room across regions, which a hosted agent will not fix.
+- **A worker that prepares scenes ahead, after the MVP.** Abel's idea for later is a worker that plans and pre-generates lessons for recommended sections, so speed improves the more students use it. For the MVP, Abel ruled it out, to keep cost down. It stays separate from M3.15's one-time library and from writing next scenes inside a running lesson.
 - **Cleanup.** Remove test databases `astra_m2_2`, `astra_m2_8`, `astra_v_m28`, `astra_ci_speed`, and `astra_abel_onboarding`, and test users `m2-4-*`, `m2-8-*`, and `v28-*`. The remote branch `wip/m3-1-fix2` is a leftover, and its deletion was refused, so it stays until Abel removes it.

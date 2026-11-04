@@ -6,20 +6,23 @@ Codename: Astra. The public name is still open (Q1).
 
 ## Changes since approval
 
-Abel made these decisions after approving this PRD, and the latest is dated 4 November 2026. Where this table and the body disagree, this table wins. The body below is unchanged. `docs/plans/mvp.md` holds the work, and `docs/architecture/live-session.md` holds the reasons for the live session.
+Abel made these decisions after approving this PRD, and the latest is dated 4 November 2026. Where this table and the body disagree, this table wins. On 4 November the body was corrected where a decision on onboarding, the voice, devices, or 3D had made a line false, and it otherwise reads as approved. `docs/plans/mvp.md` holds the work, and `docs/architecture/live-session.md` holds the reasons for the live session.
 
 | What it overrides | What holds now | Decided |
 | --- | --- | --- |
 | Q4, Q5, S3, S5, sections 4, 5, and 6.1, on parents | No parent consent, parent alerts, or parent summaries. S1's under-13 rule stays. Section 11's table still describes the law, and a lawyer reviews this before real students. | 4 November 2026 |
 | H1, section 6.1 | Onboarding is name, date of birth, class level, interests as a multi-select, a goal, then Home. It has no voice choice and no first exchange with the tutor. | 4 November 2026 |
 | Q6 | Sign-in uses a 6-digit email code, not a link. Google stays wired and hidden until credentials exist. | 4 November 2026 |
-| Section 2's look row, B11 | Sign-in and onboarding use the made-of-dots look on a still dot background, so the tutor's dot is no longer the only dot. Pictures stay normal images. | 4 November 2026 |
+| Section 2's look row, section 6.1, B11 | Sign-in and onboarding use the look Abel chose, 1 + 4, a dotted Saturn on a star chart on a still dot grid, so the tutor's dot is no longer the only dot. The first line is "Welcome, I am Astra, your personal AI tutor.", and there is no sheet. Pictures stay normal images. | 4 November 2026 |
 | P4, Q19 | Home's cards use session history before the learner record exists, in M2.12. Card pictures do not change. | 4 November 2026 |
-| Q8, section 9's shortlist | ElevenLabs, with Chris as the one voice, not three, chosen by ear on 4 November in place of Casey. He stays on Flash unless Abel says otherwise. Muse Voice Transcribe replaces Deepgram, on LiveKit Cloud with a free project until real students. A blind test runs only if Abel still wants one. | 3 and 4 November 2026 |
+| Q8, section 9, section 10's paid services, test 4 | ElevenLabs, with Chris as the one voice, not three, chosen by ear on 4 November in place of Casey. He stays on Flash unless Abel says otherwise. Muse Voice Transcribe replaces Deepgram, on LiveKit Cloud with a free project until real students. A blind test runs only if Abel still wants one. | 3 and 4 November 2026 |
+| Q3, Q13, B3, tests 1 and 3 | Laptop first. Rich scenes target laptops and may require a laptop browser, and phones must not block them. Existing pages keep working at phone width, and a mobile app may come later. | 4 November 2026 |
+| Section 8, on sharing scenes | Scenes shared across students come only from the server's own topic list. A typed question's scene stays with that student until a person or a moderated step promotes it. The review is a strict filter and not a truth gate, so "Not yet checked by a person" stays. | 4 November 2026 |
+| Q11, on what is prepared | No worker prepares scenes from recommendations before a student arrives, which is post-MVP. Writing next scenes inside a running lesson stays. One curated library of 133 scenes is written once, after M3.14, for about $10 by estimate, with automatic review on every scene and a sample Abel checks. Everything else gets written the first time a student needs it, then saved. | 4 November 2026 |
 | Q9 | Sonnet 5.5 runs live turns, with code reacting first and no talking router for now. | 3 November 2026 |
 | V1 | Two numbers replace 800 ms and 1.5 s. A first reaction under 200 ms from code, and a first real word as fast as the vendors allow. | 3 November 2026 |
 | V2 | The 150 ms runs from the agent's decision to stop, with two limits from the student's first sound, as the live session design says. | 3 November 2026 |
-| Q10, Q11, section 8, B5 | The typed scene language stays for the 2D board. 3D scenes come from a checked library first, with live generation as the fallback, through one scene command. The scene test is still running, so the details may change. Section 14 still holds, because a scene is code we render, not generated video. | 3 November 2026 |
+| Q10, Q11, section 8, B5 | The typed scene language stays for the 2D board. Rich scenes are best effort, through one scene command. Voice and the 2D board never wait for a scene, a scene shows only when it is ready and checked, and a scene not ready after about 20 s is dropped from that lesson and saved, with no spinner. On a new question the tutor starts with words and simple 2D, then brings in 3D at a pause. ManimGX takes symbols, plots, grids, flat maps, and code, and our kit takes solid things a camera could film, chosen by a router. Python runs only on a server in a locked container, and the browser plays a stored take. Section 14 still holds, because a scene is code we render, not generated video. | 3 and 4 November 2026 |
 | B4, T6, for generated scenes | B4's deck does not hold for generated scenes, and their numbers can come from the model. M3.14 states what replaces both. | 3 November 2026 |
 | B8 | Typed work and tasks from the tutor come first, on the shared board in M3.12. Ink and uploads follow in M3.11. | 3 November 2026 |
 | Section 8's data shape | Commands sit inside the sentence, not `say` plus `cues` with word counts. | 3 November 2026 |
@@ -44,7 +47,7 @@ Section 15 lists 21 questions and the recommendation accepted for each. Only Q1 
 | Tutor on screen | The living dot | No face and no character. The human feel comes from voice and behavior. |
 | Visual that must be world class | Living explanations | Animated math and diagrams, rendered live and timed to speech. Simulations and hand drawing exist in simpler form. |
 | Stack | React with Vite for the web app, and NestJS with Postgres for the API | `docs/plans/mvp.md` builds on this. |
-| Look | Light and warm by default with a dark toggle, a lighter take on SpaceX, with no gradients | Pictures are normal images, and the only dot is the tutor's presence. `docs/DESIGN.md` records the rules. |
+| Look | Light and warm by default with a dark toggle, a lighter take on SpaceX, with no gradients | Pictures are normal images. Sign-in and onboarding draw a dotted Saturn on a star chart, and elsewhere the only dot is the tutor's presence. `docs/DESIGN.md` records the rules. |
 
 ## 3. Evidence shapes four product rules
 
@@ -101,14 +104,14 @@ The onboarding answers change the tutor's vocabulary, pace, and examples. They d
 
 ### 6.1 Onboarding takes under two minutes
 
-Onboarding is the first time a student meets the tutor, so it gets the same craft as the session. The welcome screen carries the tagline "A learning app, made for you". Each screen asks one thing, and a small sheet headed "Made for you" records each answer and shows the student's name as they type it. The last screen is a real exchange with the tutor.
+Onboarding is the first time a student meets the tutor, so it gets the same craft as the session. Sign-in and onboarding share one calm page, a dotted Saturn on a star chart on a still dot grid. The tutor's first line is "Welcome, I am Astra, your personal AI tutor." Each screen asks one thing, and the chart answers it, with no sheet beside it. The chart's title reads "A learning app, made for you", and it takes the student's name once they type it. The last screen opens Home.
 
-1. The student signs in (Q6) and enters a date of birth. A student under 13 stops here and cannot retry.
-2. A student under 18 gives a parent's email address for consent (Q4).
-3. The student answers "What are you into?" with picks and free text. Specifics count, so "Arsenal" beats "football".
-4. The student states their education level and what they want: class, exam, or curiosity.
-5. The student hears three voices and picks one.
-6. The tutor speaks first, says the student's name, states that it is an AI, and asks one easy question. This exchange doubles as the microphone check.
+1. The student signs in with a 6-digit email code (Q6).
+2. The student gives a name, and it forms in dots as they type.
+3. The student enters a date of birth. A student under 13 stops here and cannot retry.
+4. The student states their class level.
+5. The student answers "What are you into?" with picks, and each pick lights a star on the chart.
+6. The student states what brings them here, and a Start button opens Home.
 
 ### 6.2 The home screen offers cards, a prompt, and every past session
 
@@ -148,7 +151,7 @@ All requirements are needed for the beta unless marked otherwise. The numeric ta
 
 ### Onboarding and home
 
-- **H1.** A new student reaches their first tutor exchange in under two minutes, with one question per screen.
+- **H1.** A new student reaches Home in under two minutes, with one question per screen.
 - **H2.** Selecting a card and submitting the prompt both start a session within the limit in section 6.3.
 - **H3.** The Sessions list shows every session, newest first, and each one opens to continue or replay.
 - **H4.** Adding a menu item is a one-line change to one list.
@@ -180,7 +183,7 @@ All requirements are needed for the beta unless marked otherwise. The numeric ta
 
 - **B1.** Each visual starts within 100 ms of the word it is tied to.
 - **B2.** A turn's first visual appears within one second of its first word.
-- **B3.** The board runs at 60 fps on a mid-range laptop and at least 30 fps on a mid-range phone, with quality tiers below that (Q13).
+- **B3.** The 2D board runs at 60 fps on a mid-range laptop and at least 30 fps on a mid-range phone, with quality tiers below that (Q13). Rich scenes target laptops and may require a laptop browser (Q3).
 - **B4.** A test deck of 100 scripted scenes produces zero overlaps, overflows, or clipped elements under automated checks.
 - **B5.** The launch library covers equations with term-by-term transforms, function plots, number lines, geometry constructions, vectors and free-body diagrams, computed motion with sliders, labeled diagrams, tables, timelines, code blocks, and images from licensed or public-domain sources.
 - **B6.** The player can stop, rewind one beat, and resume, and the board stays consistent.
@@ -209,7 +212,7 @@ This is the main technical bet. It is a recommendation, not a final decision. Hi
 | --- | --- | --- | --- | --- |
 | A. Server-rendered video | The model writes Manim code and a server renders it. This is the `agentic-tutor` path. | Minutes. That project held requests open for up to 50 minutes. | No. A video cannot change once rendered. | Reject for live teaching. |
 | B. Whiteboard SDK with agent tools | The model creates shapes in a product such as tldraw, which your earlier plan chose. | Instant | Yes | Reject as the renderer. Shapes are its strength, and animation is the visual we chose to win on. Its [production license is quoted by sales](https://tldraw.dev/pricing). |
-| C. Model writes code per scene | The model generates HTML and JavaScript that runs in a sandbox. | [A minute or more](https://research.google/blog/generative-ui-a-rich-custom-visual-interactive-user-experience-for-any-prompt/) in Google's November 2025 report. | Only if each scene adds support for it | Slow path only, after the beta (Q11). |
+| C. Model writes code per scene | The model generates HTML and JavaScript that runs in a sandbox. | [A minute or more](https://research.google/blog/generative-ui-a-rich-custom-visual-interactive-user-experience-for-any-prompt/) in Google's November 2025 report. | Only if each scene adds support for it | Slow path only. It ships in v1 as best-effort rich scenes that never hold up the lesson (Q11). |
 | D. Typed scene language with our own renderer | The model emits semantic commands, and the browser renders them from a house library. | Instant | Yes, by design | **Recommended.** |
 
 ### Why option D
@@ -254,7 +257,17 @@ The stored event log also provides replay (B7) and the static-board comparison i
 
 Generative video stays out of teaching. Your earlier plan's rule holds. Generated pixels can carry mood, and code-rendered pixels carry truth.
 
-## 9. Voice: a normal model turn, with the voice chosen by blind test
+### Rich scenes come when they are ready
+
+Option D runs the 2D board. Rich scenes sit on top of it as best effort, because a student must never be stuck waiting. Voice and the 2D board never wait for a scene, and a scene shows only when it is ready and checked. On a new question the tutor starts with words and simple 2D, setting up what the scene will show, then brings in 3D at a pause. Cards and planned scenes open on 3D where one is ready. A scene not ready after about 20 s is dropped from that lesson and saved. There is no spinner.
+
+Two engines draw these scenes, and a router chooses. ManimGX takes symbols, plots, grids, flat maps, and code. Our kit takes solid things a camera could film. Python runs only on a server in a locked container, and the browser plays a stored take on the board's clock, so it stops, seeks, and replays with the board. This is not option A, because the lesson never waits for a take.
+
+Scenes shared across students come only from the server's own topic list. A typed question's scene stays with that student until a person or a moderated step promotes it. The review is a strict filter and not a truth gate, so a scene says "Not yet checked by a person" until a person checks it.
+
+No worker prepares scenes from recommendations before a student arrives. One curated library of 133 scenes is written once, and everything else gets written the first time a student needs it, then saved. Inside a running lesson the next scenes are still written ahead, because the student is there.
+
+## 9. Voice: a normal model turn, with the voice chosen by ear
 
 ### Cascaded pipeline over speech-to-speech
 
@@ -276,9 +289,9 @@ The recommendation is a cascaded pipeline on [LiveKit Agents](https://www.foraso
 | ElevenLabs Eleven v4 Turbo | Well known for voice quality | [About $40 per 1M characters](https://www.forasoft.com/blog/article/voice-ai-agents-livekit-guide) |
 | Inworld Realtime TTS | [Reported at the top of one quality ranking, built for personas](https://www.coval.ai/blog/best-text-to-speech-providers-in-2026-how-to-choose-(and-why-vendor-benchmarks-lie)/) | Tier-based, not listed |
 
-Vendor latency claims and third-party numbers disagree, so we choose by our own test. Students rate a blind five-minute tutor passage that includes math and names. We also measure time to first audio at p90 and the accuracy of word timing. Word timestamps and cancel are entry requirements. The default until that test runs is Cartesia, because it is the only candidate whose required API behavior we have verified.
+Vendor latency claims and third-party numbers disagree, so we measured the vendors ourselves, with word timestamps and cancel as entry requirements. Abel chose ElevenLabs on 3 November, then chose the voice by ear on 4 November. The voice is Chris, on Flash. Flash replaces the v4 Turbo row above, because v4 Turbo needs the dialogue socket and restarts its word times at 0 in each message. A blind test with students runs only if Abel still wants one.
 
-Launch with three voices, chosen for range of gender and accent. Use no cloned voices of real people. The tutor's human quality depends more on what it says and when it stops than on the voice itself (T4, T5, T10).
+Launch with one voice. Use no cloned voices of real people. The tutor's human quality depends more on what it says and when it stops than on the voice itself (T4, T5, T10).
 
 ## 10. Cost: about $0.08 to $0.15 a minute, within the beta budget
 
@@ -298,7 +311,7 @@ These are estimates. The token counts and talk ratios are assumptions until test
 
 Adding about $200 for hosting (a guess) keeps the highest case at about $2,000 a month, which sets the budget. Usage above the assumed four sessions needs a cap (Q14).
 
-**Paid services this implies.** The beta needs Anthropic, LiveKit Cloud, Deepgram, Cartesia, and hosting. Paid services are on the stop list, so approving this PRD does not approve them. The plan must name each one for your go. Legal review (section 11) is not in the budget, so get a quote.
+**Paid services this implies.** The beta needs Anthropic, LiveKit Cloud, Muse Voice Transcribe, ElevenLabs, and hosting. Paid services are on the stop list, so approving this PRD does not approve them. The plan must name each one for your go. Legal review (section 11) is not in the budget, so get a quote.
 
 ## 11. Safety and compliance: 13 and up worldwide means minors on day one
 
@@ -345,10 +358,10 @@ These thresholds are proposals, not benchmarks. Report the results either way.
 
 These are throwaway experiments that answer factual questions. They are not a build plan. They run first once you approve this PRD and allow the paid accounts they need.
 
-1. **Scene player.** Run scripted beats with real TTS in a browser, on a laptop and a mid-range phone. Pass means B1, B2, B6, and V2 are met.
+1. **Scene player.** Run scripted beats with real TTS in a browser, on a laptop and at phone width. Pass means B1, B2, B6, and V2 are met.
 2. **Tutor model.** Test whether Opus 5.5 at low effort, Sonnet 5.5, and Haiku 5.5 can stream valid beats within V1, scored on an evaluation of 30 scripted student turns. Measure real token counts here. Opus 5.5 and Sonnet 5.5 return text between tool calls as thinking-block progress updates, so speech interleaved with tool calls would not stream as text. Beats should arrive as one ordered structure.
-3. **Board in real time.** Measure the board's frame rate against B3, in both light and dark themes, on a budget Android phone and an older laptop.
-4. **Voice.** Run the blind TTS test, the Gemini Live benchmark, and speech recognition tests on accents from each invited region.
+3. **Board in real time.** Measure the board's frame rate against B3, in both light and dark themes, on an older laptop and, for the 2D board, a budget Android phone.
+4. **Voice.** Run the Gemini Live benchmark and speech recognition tests on accents from each invited region. The blind TTS test runs only if Abel still wants one.
 5. **Five students, one human tutor.** A person drives the scene player behind the tutor's voice for five real students. This tests whether the living board changes attention and understanding before the full system exists. Your earlier plan proposed the same test.
 
 ## 14. Out of scope for v1
@@ -370,17 +383,17 @@ These are throwaway experiments that answer factual questions. They are not a bu
 | --- | --- | --- | --- |
 | Q1 | What is the product called? | Still open. Astra is the codename for the repo and prototypes. Choose a distinct public name before any public mention. | [Astra AI](https://www.startup.si/en-us/blog/meet-astra-ai-slovenian-start-up-of-the-year-winner) is already an AI tutor with [an App Store listing](https://apps.apple.com/app/id6751030141), and it reports over 100,000 users. [Google's Project Astra](https://techcrunch.com/2025/05/20/project-astra-comes-to-google-search-gemini-and-developers) is a well-known AI assistant. A trademark search has not been run. |
 | Q2 | How deep across subjects? | Accept any topic. Go deepest in math and physics, then chemistry and computer science. Elsewhere, teach with diagrams, timelines, and text. | Animation and computation give the most in these subjects, and T6 can verify their answers. |
-| Q3 | Which platforms? | The browser only. Laptop and tablet get the full experience, and phones work with a simplified board. | Worldwide invitations need zero install, and the board needs room. A tablet with a stylus is the best ink device. |
+| Q3 | Which platforms? | Laptop first, in the browser. Rich scenes target laptops and may require a laptop browser. Existing pages keep working at phone width, and a mobile app may come later. | Worldwide invitations need zero install, and the board needs room. A tablet with a stylus is the best ink device. |
 | Q4 | How do minors enter? | Adults worldwide from day one. Every under-18 needs parent consent by email link, and each country's under-18 invitations wait for counsel. | One strict rule is simpler than a country matrix. Some countries may need stronger verification than email. |
 | Q5 | What do parents see? | Consent, a short summary after each session, and alerts for confirmed safety concerns. No transcripts by default. | Teens will not speak openly if a parent reads every word. |
-| Q6 | How do students sign in? | Email magic link and Google sign-in through a managed auth provider, with no passwords. | This is the shortest path for students. Auth is on the stop list, so you approve the provider in the plan. |
+| Q6 | How do students sign in? | A 6-digit email code and Google sign-in through a managed auth provider, with no passwords. | This is the shortest path for students. Auth is on the stop list, so you approve the provider in the plan. |
 | Q7 | Which voice architecture? | Cascaded on LiveKit Agents (section 9). | Word timing and a tutor brain we control decide it. |
-| Q8 | Which TTS and how many voices? | Cartesia by default, a blind test before committing, and three voices. | Its required API behavior is verified. Student preference should decide quality. |
+| Q8 | Which TTS and how many voices? | ElevenLabs, voice Chris on Flash, and one voice. A blind test runs only if Abel still wants one. | Word timing and cancel were the entry requirements, and Abel chose the voice by ear. |
 | Q9 | Which model runs live turns? | Start with Opus 5.5 at low effort, and move to Sonnet 5.5 or Haiku 5.5 only if test 2 shows it holds teaching quality or is needed to meet V1. Run lesson planning and session analysis on Opus 5.5. | Teaching quality is the product. The cost gap is about $0.04 a minute, and first-token latency is the real unknown. |
-| Q10 | Which rendering architecture? | Option D, the typed scene language with our renderer (section 8). | It is the only option that is both instant and interruptible while also being animation-led. |
-| Q11 | Do generated simulations ship in v1? | No. Library simulations with sliders ship, and generated code follows after the beta if test 1 leaves time. | A minute of waiting breaks a live conversation. |
+| Q10 | Which rendering architecture? | Option D, the typed scene language with our renderer, for the 2D board, with best-effort rich scenes on top (section 8). | It is the only option that is both instant and interruptible while also being animation-led. |
+| Q11 | Do generated simulations ship in v1? | Yes, as best-effort rich scenes. Voice and the 2D board never wait for one, a scene shows only when it is ready and checked, and after about 20 s it is dropped from that lesson and saved. Library simulations with sliders ship too. | A minute of waiting breaks a live conversation, so nobody waits. |
 | Q12 | Which languages? | English for the first cohort, with language stored as a session setting from day one. Add languages after English passes section 12. | Each language needs its own speech recognition, TTS, and math vocabulary checks. Worldwide reach first means English with many accents. |
-| Q13 | What about weak devices? | Three quality tiers set by measured frame rate. The lowest simplifies board animation. The dot and audio never degrade. | Worldwide means budget phones. The teaching survives with simpler animation. |
+| Q13 | What about weak devices? | Three quality tiers set by measured frame rate. The lowest simplifies board animation. The dot and audio never degrade. | Older laptops and phone widths still need the teaching, and it survives with simpler animation. |
 | Q14 | How much free use? | 4 hours a month per student, with a warning 5 minutes before the limit and an alert at $2,000 total spend. Never cut a student off mid-sentence. | Every student at the cap would cost at most $3,600 a month at $0.15 a minute, and most will use far less. |
 | Q15 | What do we store? | Transcripts, board events, and the learner record. No raw audio. Deletion on request. | Replay and memory need these records, and raw audio is the riskiest data with the least value. |
 | Q16 | Can the board show images from a student's interests? | Mention names and concepts in speech, and draw everything in our own style. No third-party game, film, or team images on the board. | Aristotle's film pastes a Minecraft screenshot. We avoid that rights risk, and our own drawing reinforces the brand. |
@@ -396,7 +409,7 @@ The recommended mix is 40 students aged 13 to 17 where counsel has cleared invit
 
 ## 16. What we reuse and where we diverge
 
-- `agentic-tutor/docs/NORTH_STAR_PLAN.md` already chose a cascaded voice pipeline on LiveKit, session records, and the sync insight. This PRD keeps those. It replaces tldraw and live Manim as the renderer, because living explanations are now the visual we must win on.
+- `agentic-tutor/docs/NORTH_STAR_PLAN.md` already chose a cascaded voice pipeline on LiveKit, session records, and the sync insight. This PRD keeps those. It replaces tldraw and live Manim as the board's renderer, because living explanations are now the visual we must win on. ManimGX comes back only for rich scenes, which never hold up the lesson (section 8).
 - The Portal trailer's ending provides the dot and the opening moment. The swarm and dot pictures in `content-videos/made-of-dots` are not in the v1 plan.
 - The [look prototype](https://claude.ai/artifact/3Kw7Ggukb39GerA4E5pK7u) sets the type and the palette. The [app prototype](https://claude.ai/artifact/YJRK2QzMdDdm4c4DQhwWZq) applies them to onboarding and the home screen.
 - The `agentic-tutor` user study had 8 participants and one topic. Your earlier plan says not to cite it externally, and that still stands.
