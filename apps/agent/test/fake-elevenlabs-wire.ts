@@ -18,6 +18,8 @@ export interface FakeWire {
   getConnectionCount(): number;
   getMessagesAfterClose(): number;
   getOutputFormats(): string[];
+  /** Each `voice_settings` the client sent, as it arrived. */
+  getVoiceSettings(): unknown[];
   close(): Promise<void>;
 }
 
@@ -83,6 +85,7 @@ export async function startFakeElevenLabsWire({ leadingSilenceMs = 0 }: FakeWire
   let connections = 0;
   let messagesAfterClose = 0;
   const outputFormats: string[] = [];
+  const voiceSettings: unknown[] = [];
   server.on('connection', (socket, request) => {
     connections += 1;
     const outputFormat = new URL(request.url ?? '', 'ws://wire').searchParams.get('output_format') ?? '';
@@ -90,7 +93,8 @@ export async function startFakeElevenLabsWire({ leadingSilenceMs = 0 }: FakeWire
     const sampleRate = Number(outputFormat.split('_')[1]);
     const contexts = new Map<string, ContextState>();
     socket.on('message', (raw) => {
-      const packet = JSON.parse(String(raw)) as { context_id: string; text?: string; close_context?: boolean };
+      const packet = JSON.parse(String(raw)) as { context_id: string; text?: string; close_context?: boolean; voice_settings?: unknown };
+      if (packet.voice_settings) voiceSettings.push(packet.voice_settings);
       const context = contexts.get(packet.context_id) ?? { id: packet.context_id, cursorMs: 0, isStarted: false, isClosed: false, queue: Promise.resolve() };
       contexts.set(packet.context_id, context);
       if (packet.close_context) {
@@ -109,6 +113,7 @@ export async function startFakeElevenLabsWire({ leadingSilenceMs = 0 }: FakeWire
     getConnectionCount: () => connections,
     getMessagesAfterClose: () => messagesAfterClose,
     getOutputFormats: () => outputFormats,
+    getVoiceSettings: () => voiceSettings,
     close: () =>
       new Promise((done) => {
         for (const client of server.clients) client.terminate();

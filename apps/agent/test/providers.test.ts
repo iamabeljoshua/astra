@@ -36,6 +36,18 @@ describe('the voice suite', () => {
 });
 
 describe('the tutor voice', () => {
+  it('sends the settings Abel chose by ear to ElevenLabs, on the wire', async () => {
+    wire = await startFakeElevenLabsWire();
+    const voice = makeTutorVoice({ apiKey: 'fake', baseURL: wire.baseURL }).makeTts();
+    const stream = voice.stream();
+    const heard = hearVoice(stream);
+    stream.pushText('Watch the ball. ');
+    stream.endInput();
+    await heard;
+    await voice.close();
+    expect(wire.getVoiceSettings()[0]).toEqual({ stability: 0.45, similarity_boost: 0.8, speed: 1 });
+  });
+
   it('is Chris, on Flash until Abel says otherwise', async () => {
     wire = await startFakeElevenLabsWire();
     const voice = makeTutorVoice({ apiKey: 'fake' }).makeTts();
