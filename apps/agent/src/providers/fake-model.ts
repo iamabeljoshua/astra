@@ -93,11 +93,14 @@ const RECORDED_REPLIES: readonly { heard: RegExp; reply: FakeReply }[] = [
 
 /** A recorded model for live proofs with no spending. It chooses its reply from what the student typed. */
 export function makeRecordedTutorModel(): FakeTutorModel {
+  const stalledOnce = new Set<string>();
   return makeFakeTutorModel((request) => {
     const lastUser = [...request.turns].reverse().find((turn) => turn.role === 'user');
     const text = lastUser && 'text' in lastUser ? lastUser.text : '';
     const recorded = RECORDED_REPLIES.find(({ heard }) => heard.test(text));
     const isSecondAttempt = request.turns.at(-1)?.role === 'system' && /correction/.test(JSON.stringify(request.turns.at(-1)));
+    if (/stall/i.test(text) && stalledOnce.has(text)) return { pieces: ['There you are. ', 'A stall ended at the timeout, and a new request answered. What next?'], msPerPiece: 40 };
+    if (/stall/i.test(text)) stalledOnce.add(text);
     if (recorded && isSecondAttempt) return { pieces: ['That line was wrong. ', '{"kind":"writeMath","id":"good","tex":"2 + 2 = 4"}', 'Two plus two is four. What is three plus three?'], msPerPiece: 40 };
     return recorded?.reply ?? { pieces: ANSWER, msPerPiece: 60, firstTextMs: 300 };
   });

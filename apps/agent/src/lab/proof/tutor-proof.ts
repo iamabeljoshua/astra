@@ -3,9 +3,9 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { chromium, type Page } from 'playwright';
-import { makeRecording } from './make-recording.ts';
+import { saveRecording } from './voice/join-recording.ts';
+import { installSpeechInPage } from './voice/speech-in-page.ts';
 
-const TAP_RATE = 24000;
 const VIEWPORT = { width: 1440, height: 900 };
 
 const { values: args } = parseArgs({
@@ -17,16 +17,14 @@ const { values: args } = parseArgs({
     ask: { type: 'string', multiple: true, default: [] },
     answerMs: { type: 'string', default: '12000' },
     record: { type: 'boolean', default: false },
-    headed: { type: 'boolean', default: false },
+    theme: { type: 'string', default: 'light' },
+    width: { type: 'string', default: String(VIEWPORT.width) },
+    height: { type: 'string', default: String(VIEWPORT.height) },
   },
 });
 
-interface Note {
-  name: string;
-  epochMs: number;
-}
-
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const getEpochMs = () => performance.timeOrigin + performance.now();
 
 async function signIn(page: Page): Promise<void> {
   await page.goto(`${args.web}/sign-in`);
@@ -35,81 +33,61 @@ async function signIn(page: Page): Promise<void> {
   await page.waitForURL((url) => !url.pathname.startsWith('/sign-in'));
 }
 
-async function startLesson(page: Page): Promise<void> {
+async function askOnHome(page: Page, text: string): Promise<number> {
   const box = page.getByRole('textbox').first();
-  await box.fill(args.question);
+  await box.fill(text);
   await box.press('Enter');
+  const sentAtMs = getEpochMs();
   await page.waitForURL(/\/sessions\/[^/]+$/);
-  await page.getByTestId('tutor-words').waitFor({ state: 'attached' });
+  return sentAtMs;
 }
 
-async function askInLesson(page: Page, text: string, waitMs: number): Promise<void> {
+async function askInLesson(page: Page, text: string): Promise<number> {
   const box = page.getByRole('textbox', { name: 'Your reply' });
   await box.fill(text);
   await box.press('Enter');
-  await delay(waitMs);
+  return getEpochMs();
 }
 
-function summarise(notes: readonly Note[]) {
-  const typed = notes.filter((note) => note.name === 'typedSent');
-  return typed.map((send, index) => {
-    const nextSendMs = typed[index + 1]?.epochMs ?? Infinity;
-    const during = notes.filter((note) => note.epochMs > send.epochMs && note.epochMs < nextSendMs);
-    const onsets = during.filter((note) => note.name === 'audioOnset').map((note) => Math.round(note.epochMs - send.epochMs));
-    const firstCue = during.find((note) => note.name === 'cueFired');
-    return { onsetsMs: onsets, firstCueMs: firstCue ? Math.round(firstCue.epochMs - send.epochMs) : null, cues: during.filter((note) => note.name === 'cueFired').length };
-  });
+interface PageRecords {
+  firstAudioEpochMs: Record<string, number>;
+  heardEpochMs: number[];
+  fired: { turnId: string; firedEpochMs: number; atWord: number }[];
+  refused: string[];
 }
 
-// Drives a real lesson the way a student does: sign in, ask on Home, and type in the session, then reads what the page heard and when.
+// Drives a real lesson the way a student does, from the question on Home, and reads what the page heard and when. The agent's trace says which turn was which.
 async function main(): Promise<void> {
   mkdirSync(args.out, { recursive: true });
-  const browser = await chromium.launch({ channel: 'chromium', headless: !args.headed, args: ['--use-mock-keychain', '--mute-audio'] });
-  const context = await browser.newContext({ viewport: VIEWPORT });
+  const browser = await chromium.launch({ channel: 'chromium', args: ['--use-mock-keychain', '--mute-audio', '--use-fake-ui-for-media-stream'] });
+  const viewport = { width: Number(args.width), height: Number(args.height) };
+  const context = await browser.newContext({ viewport, recordVideo: args.record ? { dir: args.out, size: viewport } : undefined, colorScheme: args.theme === 'dark' ? 'dark' : 'light' });
+  const videoStartedEpochMs = Date.now();
   const page = await context.newPage();
   const problems: string[] = [];
   page.on('pageerror', (error) => problems.push(error.message));
-  page.on('console', (message) => {
-    if (message.type() === 'error') problems.push(message.text());
-  });
-  if (args.record) await page.addInitScript('window.astraRecordLesson = true');
-  const cdp = await context.newCDPSession(page);
-  const frames: { epochMs: number; data: string }[] = [];
-  if (args.record) {
-    cdp.on('Page.screencastFrame', (frame) => {
-      frames.push({ epochMs: (frame.metadata.timestamp ?? 0) * 1000, data: frame.data });
-      void cdp.send('Page.screencastFrameAck', { sessionId: frame.sessionId });
-    });
-  }
+  await page.addInitScript(installSpeechInPage);
   await signIn(page);
-  if (args.record) await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 70, everyNthFrame: 1 });
-  await startLesson(page);
+  const sends: { text: string; sentEpochMs: number }[] = [{ text: args.question, sentEpochMs: await askOnHome(page, args.question) }];
+  if (args.record) await page.waitForFunction(() => window.speechInPage !== undefined).then(() => page.evaluate(() => window.speechInPage.startRecording()));
   const answerMs = Number(args.answerMs);
   await delay(answerMs);
   await page.screenshot({ path: join(args.out, 'lesson-0.png') });
-  const caption0 = await page.getByTestId('tutor-words').textContent();
-  const captions = [caption0];
   for (const [index, asked] of args.ask.entries()) {
     const [, waitMs, text = asked] = /^(\d+):(.*)$/.exec(asked) ?? [];
-    await askInLesson(page, text, waitMs ? Number(waitMs) : answerMs);
+    sends.push({ text, sentEpochMs: await askInLesson(page, text) });
+    await delay(waitMs ? Number(waitMs) : answerMs);
     await page.screenshot({ path: join(args.out, `lesson-${index + 1}.png`) });
-    captions.push(await page.getByTestId('tutor-words').textContent());
   }
-  if (args.record) await cdp.send('Page.stopScreencast');
-  const notes = await page.evaluate(() => (window as unknown as { astraLesson: { notes: Note[] } }).astraLesson.notes);
-  writeFileSync(join(args.out, 'lesson.json'), JSON.stringify({ turns: summarise(notes), captions, problems, notes }, null, 1));
-  console.log(JSON.stringify({ turns: summarise(notes), captions, problems: problems.slice(0, 5) }, null, 1));
-  if (args.record) {
-    const taps = await page.evaluate(() => {
-      const lesson = (window as unknown as { astraLesson: { pcm: { take(point: string): { firstFrame: number; base64: string } }; getGraphEpochZeroMs(): number } }).astraLesson;
-      return { output: lesson.pcm.take('output'), epochAtGraphZeroMs: lesson.getGraphEpochZeroMs() };
-    });
-    writeFileSync(join(args.out, 'output.pcm'), Buffer.from(taps.output.base64, 'base64'));
-    writeFileSync(join(args.out, 'taps.json'), JSON.stringify({ rate: TAP_RATE, outputFirstFrame: taps.output.firstFrame }));
-    writeFileSync(join(args.out, 'page.json'), JSON.stringify({ clockMap: { epochAtGraphZeroMs: taps.epochAtGraphZeroMs } }));
-    writeFileSync(join(args.out, 'screencast.json'), JSON.stringify(frames.sort((a, b) => a.epochMs - b.epochMs)));
-    makeRecording(args.out, join(args.out, 'lesson.mp4'));
-  }
+  const seen = await page.evaluate(() => {
+    const voice = (window as unknown as { astraVoice?: { records: PageRecords; getView(): { tutorHeard: string[] } } }).astraVoice;
+    return voice ? { records: voice.records, caption: voice.getView().tutorHeard.join(' ') } : null;
+  });
+  writeFileSync(join(args.out, 'lesson.json'), JSON.stringify({ sends, seen, problems }, null, 1));
+  const turns = Object.values(seen?.records.firstAudioEpochMs ?? {}).sort((a, b) => a - b);
+  const timed = sends.map(({ text, sentEpochMs }, index) => ({ text, soundsMs: turns.filter((ms) => ms > sentEpochMs && ms < (sends[index + 1]?.sentEpochMs ?? Infinity)).map((ms) => Math.round(ms - sentEpochMs)) }));
+  console.log(JSON.stringify({ timed, caption: seen?.caption, refused: seen?.records.refused, cues: seen?.records.fired.length, problems: problems.slice(0, 5) }, null, 1));
+  if (args.record) await saveRecording({ page, videoStartedEpochMs, outputPath: join(args.out, 'lesson.mp4') });
   await browser.close();
 }
 

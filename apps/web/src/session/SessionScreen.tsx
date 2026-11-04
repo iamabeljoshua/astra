@@ -48,10 +48,33 @@ function OpenSession({ session }: { session: Session }) {
   return wasFinishedOnOpening ? <FinishedSession session={session} /> : <RunningSession session={session} />;
 }
 
+/** What the student asked for, sent once as a new session opens, so the tutor starts on it without being asked twice. */
+export function getOpeningMessage({ title, subject, durationSeconds }: Pick<Session, 'title' | 'subject' | 'durationSeconds'>): string | null {
+  if (durationSeconds > 0) return null;
+  return subject === SESSION_LABELS.questionSubject ? title : SESSION_LABELS.askAboutTopic(title);
+}
+
+// React runs effects twice in development, and the room must open once, so this waits for the first run to settle.
+function useOpeningMessage(session: Session, sendTyped: (text: string) => Promise<boolean>) {
+  const [opening] = useState(() => getOpeningMessage(session));
+  const hasSent = useRef(false);
+
+  useEffect(() => {
+    if (!opening) return;
+    const sending = setTimeout(() => {
+      if (hasSent.current) return;
+      hasSent.current = true;
+      void sendTyped(opening);
+    });
+    return () => clearTimeout(sending);
+  }, [opening, sendTyped]);
+}
+
 function RunningSession({ session }: { session: Session }) {
   const { seconds, endSession, isEnding, endProblem } = useSessionRun(session);
   const liveVoice = useLiveVoice({ sessionId: session.id });
   const { view, voice } = liveVoice;
+  useOpeningMessage(session, liveVoice.sendTyped);
 
   return (
     <SessionFrame

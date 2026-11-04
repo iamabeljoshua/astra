@@ -118,6 +118,9 @@ async function runLesson(turns: readonly EvalTurn[]) {
     model,
     profile: PROFILE,
     compactAtTokens: Number(args.compactAt),
+    trace(name, fields) {
+      if (name === 'modelFailed' || name === 'compactionFailed') console.log(name, fields);
+    },
     onTurnEnd(summary) {
       latest = summary;
       ledger.charge({ anthropicUsd: summary.costUsd });

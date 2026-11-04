@@ -49,6 +49,7 @@ interface Speaking {
   beats: Beat[];
   reports: Map<BeatId, PlayReport>;
   hasSound: boolean;
+  isDry: boolean;
   isOver: boolean;
 }
 
@@ -161,6 +162,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       beats: speakingBeats,
       reports: new Map(),
       hasSound: false,
+      isDry: false,
       isOver: false,
       spoken: speakTurn({
         voice: voiceToUse,
@@ -172,9 +174,8 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
         // The voice cannot be late before it has words, so a slow model is never read as a failed voice.
         onBeatStarted(beat) {
           speakingBeats.push(beat);
-          if (speakingBeats.length > 1) return;
-          if (isReply) setThinking(false);
-          if (canResume) watchVoice(speaking);
+          if (isReply && speakingBeats.length === 1) setThinking(false);
+          if (canResume && (speakingBeats.length === 1 || speaking.isDry)) watchVoice(speaking);
         },
         onFirstAudioRead: (atMs) => {
           if (canResume) clearTimeout(voiceStall);
@@ -190,7 +191,9 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
           trace('audioGap', { turnId, ...gap });
           if (!canResume) return;
           clearTimeout(voiceStall);
-          if (gap.ms === undefined) watchVoice(speaking);
+          speaking.isDry = gap.ms === undefined;
+          // Audio running out while the model is still writing is the model's stall, which the brain covers.
+          if (speaking.isDry && speaking.spoken.isVoiceOwing()) watchVoice(speaking);
         },
       }),
     };
@@ -229,7 +232,9 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
   const react = () => {
     trace('reactDecided');
     messenger.send({ type: 'heard' });
-    if (!reaction) reaction = speakTake('reaction', { isReply: false });
+    // A session that starts on a typed question has not said what it is yet, so its first reaction says that (PRD S2).
+    if (!reaction) reaction = speakTake(hasGreeted ? 'reaction' : 'greeting', { isReply: false });
+    hasGreeted = true;
   };
 
   function dropThought(): void {

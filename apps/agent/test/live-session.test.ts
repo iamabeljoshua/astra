@@ -124,7 +124,7 @@ describe('a student turn', () => {
     await say('Why does it fall');
     await delay(TURN_TIMINGS.reactionFloorMs + 700);
     const kinds = traces.filter((trace) => trace.name === 'turnStarted').map((trace) => trace.fields.kind);
-    expect(kinds).toEqual(['reaction', 'reply']);
+    expect(kinds).toEqual(['greeting', 'reply']);
     expect(messages.some((message) => message.type === 'heard')).toBe(true);
     expect(getTurnsStarted()).toHaveLength(2);
     expect(brainRequests).toEqual(['Why does it fall']);

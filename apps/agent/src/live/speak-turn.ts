@@ -46,6 +46,8 @@ export interface SpokenTurn {
   finished: Promise<void>;
   stop(): void;
   getWordMismatches(): { ours: string; theirs: string }[];
+  /** Words were sent to the voice that have not come back, so a silence now is the voice's and not the writer's. */
+  isVoiceOwing(): boolean;
   /** How many words of each beat have left the agent, the only record if the browser's report is lost. */
   getWordsSent(): Map<BeatId, number>;
 }
@@ -220,6 +222,7 @@ export function speakTurn(options: SpeakTurnOptions): SpokenTurn {
   return {
     finished,
     getWordMismatches: timeline.getMismatches,
+    isVoiceOwing: () => !timeline.isComplete(),
     getWordsSent: () => timeline.getWordsSent(firstSound.toTimeline(audioSentMs)),
     stop() {
       if (isStopped) return;

@@ -65,7 +65,8 @@ export function makeAnthropicTutorModel({ name = 'sonnet-5-5', apiKey }: { name?
   const settings: ModelSettings = MODEL_SETTINGS[name];
   const client = new Anthropic({ apiKey, maxRetries: 0 });
   const { fallbacks, ...thinkingAndEffort } = settings.request;
-  const betas = fallbacks ? [FALLBACK_BETA] : [];
+  // A request that sends a compaction block back needs its beta, and the same list on every request keeps the cache whole.
+  const betas = fallbacks ? [FALLBACK_BETA, COMPACTION_BETA] : [COMPACTION_BETA];
   const fallbackFields = fallbacks ? { fallbacks } : {};
 
   async function* stream({ system, turns }: TutorModelRequest, signal: AbortSignal): AsyncGenerator<ModelEvent> {

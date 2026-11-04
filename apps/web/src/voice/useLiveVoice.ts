@@ -66,16 +66,21 @@ export function useLiveVoice({ sessionId, usesSpeechCleanup = true, start = star
     };
   }, []);
 
+  const sendTyped = useCallback(
+    async (text: string) => {
+      const opened = await connect({ wantsGreeting: false });
+      opened?.sendTyped(text);
+      return opened !== null;
+    },
+    [connect],
+  );
+
   return {
     status,
     view,
     voice,
     connect,
-    async sendTyped(text) {
-      const opened = await connect({ wantsGreeting: false });
-      opened?.sendTyped(text);
-      return opened !== null;
-    },
+    sendTyped,
     async toggleTalk() {
       const opened = await connect();
       if (opened) await opened.setMicOn(opened.getView().mic !== 'on');
