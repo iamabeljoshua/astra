@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { getTexProblem } from '@astra/contracts';
+import { canRenderTex } from '../src/math/tex-check.ts';
 import { checkClaimedMath, checkStep, getLineTex, isFinishedAnswer, readLine } from '../src/shared/index.ts';
 import { FALSE_ROWS, type Row, TRUE_ROWS } from './truth-rows.ts';
 
@@ -106,6 +108,17 @@ describe('a mixed number', () => {
     expect(getLineTex(readLine('x = 3 * 1/2'))).toBe('x=3\\cdot \\frac{1}{2}');
     expect(getLineTex(readLine('x = 31/2'))).toBe('x=\\frac{31}{2}');
     expect(getStatus(['2x = 7', 'x = 7/2'])).toBe('right');
+  });
+});
+
+describe('an accented word the tutor writes', () => {
+  it.each(["\\text{je suis \\'etudiante}", '\\text{étudiante}'])('sets %s', (tex) => {
+    expect(getTexProblem(tex)).toBeNull();
+    expect(canRenderTex(tex)).toBe(true);
+  });
+
+  it('still refuses a command it does not know', () => {
+    expect(getTexProblem('\\xrightarrow{a}')).not.toBeNull();
   });
 });
 
