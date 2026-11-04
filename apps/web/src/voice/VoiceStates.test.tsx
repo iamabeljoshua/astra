@@ -24,7 +24,7 @@ function makeVoice() {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
-    getBoardNow: () => ({ board: { elements: new Map(), focus: null }, atMs: 0 }),
+    getBoardNow: () => ({ board: { elements: new Map(), focus: null, refusedSliders: [] }, atMs: 0 }),
     sendTyped: vi.fn(),
     sendOpening: vi.fn(),
     reportMarkNotDrawn: vi.fn(),

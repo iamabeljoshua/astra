@@ -7,7 +7,7 @@ import { createSessionLog } from '../live/session-log.ts';
 import { type SpokenTurn, speakTurn, type TextPace } from '../live/speak-turn.ts';
 import { createVoiceLine } from '../live/voice-line.ts';
 import { type LabRecorder } from './lab-recorder.ts';
-import { getLessonTurn, type LessonName, LESSONS, STOCK_MATH_TURN, STOCK_TURN } from './lesson.ts';
+import { getLessonTurn, getNamedLessonTurn, type LessonName, STOCK_MATH_TURN, STOCK_TURN } from './lesson.ts';
 
 export const LIVE_TOPIC = 'astra.live';
 export const LAB_TOPIC = 'astra.lab';
@@ -16,7 +16,7 @@ const AUDIO_QUEUE_MS = 200;
 const REPORT_WAIT_MS = 1000;
 
 export type LabCommand =
-  | { type: 'play'; lesson?: LessonName; lessonTurn?: number; repeats?: number; cueEveryWords?: number; isStockPhrase?: boolean; isStockMath?: boolean; textPace?: TextPace; proofStalls?: { atAudioMs: number; ms: number }[]; wordsLateMs?: number }
+  | { type: 'play'; lesson?: LessonName; lessonTurn?: number; repeats?: number; cueEveryWords?: number; isStockPhrase?: boolean; isStockMath?: boolean; textPace?: TextPace; proofStalls?: { atAudioMs: number; ms: number }[]; wordsLateMs?: number; sendsWordsOneByOne?: boolean }
   | { type: 'interrupt' }
   | { type: 'resume'; textPace?: TextPace }
   | { type: 'finish' }
@@ -54,9 +54,20 @@ export async function runLabAgent({ url, token, voice, sampleRate, recorder }: L
 
   const publish = (topic: string, message: object, reliable = true) => room.localParticipant?.publishData(encoder.encode(JSON.stringify(message)), { reliable, topic });
   let wordsLateMs = 0;
+  let sendsWordsOneByOne = false;
+  let firstWordsAtMs: number | null = null;
+  // Proof only. Each word time leaves at its own moment, so a cue never knows its later words as it fires.
+  const sendEachWordAtItsTime = (message: AgentMessage & { type: 'words' }) => {
+    firstWordsAtMs ??= Date.now();
+    const startsAtMs = firstWordsAtMs;
+    message.words.forEach((word, index) => {
+      setTimeout(() => void publish(LIVE_TOPIC, { ...message, firstWord: message.firstWord + index, words: [word] }), Math.max(0, startsAtMs + word.startMs - Date.now()));
+    });
+  };
   const messenger = {
     send(message: AgentMessage) {
-      if (message.type === 'words' && wordsLateMs > 0) setTimeout(() => void publish(LIVE_TOPIC, message), wordsLateMs);
+      if (message.type === 'words' && sendsWordsOneByOne) sendEachWordAtItsTime(message);
+      else if (message.type === 'words' && wordsLateMs > 0) setTimeout(() => void publish(LIVE_TOPIC, message), wordsLateMs);
       else void publish(LIVE_TOPIC, message);
     },
     sendOnBothChannels(message: AgentMessage) {
@@ -110,7 +121,7 @@ export async function runLabAgent({ url, token, voice, sampleRate, recorder }: L
   const getTurnBeats = (command: LabCommand & { type: 'play' }): readonly Beat[] => {
     if (command.isStockMath) return STOCK_MATH_TURN;
     if (command.isStockPhrase) return STOCK_TURN;
-    return command.lesson ? (LESSONS[command.lesson][command.lessonTurn ?? 0] ?? []) : getLessonTurn(command);
+    return command.lesson ? getNamedLessonTurn({ ...command, lesson: command.lesson }) : getLessonTurn(command);
   };
 
   const hasEveryReport = (turn: ActiveTurn) => [...turn.spoken.getWordsSent().keys()].every((beatId) => turn.reports.has(beatId));
@@ -128,6 +139,8 @@ export async function runLabAgent({ url, token, voice, sampleRate, recorder }: L
   const runCommand = (command: LabCommand) => {
     if (command.type === 'play') {
       wordsLateMs = command.wordsLateMs ?? 0;
+      sendsWordsOneByOne = command.sendsWordsOneByOne ?? false;
+      firstWordsAtMs = null;
       startTurn(getTurnBeats(command), command);
     }
     if (command.type === 'interrupt') {

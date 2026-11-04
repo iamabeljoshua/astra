@@ -10,7 +10,7 @@ import type { Session } from './sessionQueries';
 import { type Lesson, type LessonProblem, useLesson } from './useLesson';
 import { useSessionRun } from './useSessionRun';
 
-const EMPTY_BOARD = { elements: new Map(), focus: null };
+const EMPTY_BOARD = { elements: new Map(), focus: null, refusedSliders: [] };
 function getProblemLabel(problem: LessonProblem): string {
   switch (problem.kind) {
     case 'down': return SCENE_LABELS.lessonDown;

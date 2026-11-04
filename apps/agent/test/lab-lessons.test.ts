@@ -15,6 +15,19 @@ describe('the lab lessons', () => {
     expect(math.filter((tex) => !canRenderTex(tex) && !MEANT_TO_FAIL.has(tex))).toEqual([]);
   });
 
+  it('never lands a mark on a ball that is still on its way, because a mark stays where the ball was', () => {
+    const beats = (['shot', 'launch'] as const).flatMap((lesson) => LESSONS[lesson].flat());
+    const early = beats.flatMap((beat) => {
+      const cues = getCues(beat);
+      return cues.flatMap(({ atWord, command }) => {
+        if (command.kind !== 'runSimulation' || !('overWords' in command) || command.overWords === undefined) return [];
+        const landsOn = atWord + command.overWords;
+        return cues.filter((cue) => (cue.command.kind === 'annotate' || cue.command.kind === 'highlight') && cue.command.target === `${command.target}.ball` && cue.atWord >= atWord && cue.atWord < landsOn).map(() => beat.id);
+      });
+    });
+    expect(early).toEqual([]);
+  });
+
   it('puts a drawing on every word of the stored line, so a real voice is tested with no pause to land in', () => {
     expect(getCues(STOCK_MATH_TURN[0] as Beat).map((cue) => cue.atWord)).toEqual([0, 1, 2, 3, 4]);
   });

@@ -15,10 +15,7 @@ const API = 'https://api.elevenlabs.io/v1';
 
 const LINES: { id: string; use: TakeUse; phrase: string }[] = [
   { id: 'reaction-hm', use: 'reaction', phrase: 'Hm.' },
-  { id: 'reaction-okay', use: 'reaction', phrase: 'Okay.' },
-  { id: 'reaction-right', use: 'reaction', phrase: 'Right.' },
   { id: 'reaction-i-see', use: 'reaction', phrase: 'I see.' },
-  { id: 'reaction-mm-okay', use: 'reaction', phrase: 'Mm, okay.' },
   { id: 'working-1', use: 'working', phrase: 'Let me work that out.' },
   { id: 'working-2', use: 'working', phrase: 'Let me work that out.' },
   { id: 'working-3', use: 'working', phrase: 'Let me work that out.' },

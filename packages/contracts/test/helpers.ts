@@ -17,6 +17,7 @@ export const ONE_OF_EACH_COMMAND: Record<SceneCommand['kind'], Record<string, un
   runSimulation: { kind: 'runSimulation', target: 'shot', action: 'play', until: 'peak', overWords: 4 },
   setParameter: { kind: 'setParameter', target: 'shot', parameter: 'gravity', value: 1.62 },
   trackVector: { kind: 'trackVector', id: 'sideways', target: 'shot', quantity: 'velocity-x' },
+  readout: { kind: 'readout', id: 'how-far', target: 'shot', quantity: 'distance', label: 'distance' },
   slider: { kind: 'slider', id: 'speed', target: 'shot', parameter: 'horizontalSpeed', min: 0, max: 12 },
   ghostPath: { kind: 'ghostPath', id: 'first-arc', target: 'shot' },
   drawing: { kind: 'drawing', id: 'court', name: 'hoop-side', labels: [{ part: 'rim', text: 'the rim' }] },
