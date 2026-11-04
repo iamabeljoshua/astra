@@ -241,6 +241,17 @@ export class BeatTextReader {
     this.push(held);
   }
 
+  // Help written after a question still held must be spoken too, so the question ends its beat and the help follows.
+  #addAfterHeldQuestion(character: string): void {
+    this.#textAfterTurn += character;
+    if (!SAFETY_REPLY.test(this.#textAfterTurn)) return;
+    const held = this.#textAfterTurn;
+    this.#textAfterTurn = '';
+    this.#isSafetyReply = true;
+    this.#endBeat();
+    this.push(held);
+  }
+
   #isPastWordCut(): boolean {
     return this.#wordsThisTurn >= TURN_WORDS_TO_CUT && !this.#isSafetyReply;
   }
@@ -321,10 +332,7 @@ export class BeatTextReader {
 
   #speak(character: string): void {
     const isSpace = /\s/.test(character);
-    if (this.#isQuestionHeld) {
-      this.#textAfterTurn += character;
-      return;
-    }
+    if (this.#isQuestionHeld) return this.#addAfterHeldQuestion(character);
     if (this.#characterCount === BEAT_LIMITS.characters) {
       if (isSpace) return;
       this.#endBeat();
