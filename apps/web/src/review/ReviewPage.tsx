@@ -19,7 +19,6 @@ export function ReviewPage() {
 
   return (
     <>
-      <title>{REVIEW_LABELS.pageTitle}</title>
       <header>
         <h1 tabIndex={-1} className="text-title font-semibold outline-none">{REVIEW_LABELS.pageTitle}</h1>
         <p className="mt-1 text-ink-2">{REVIEW_LABELS.about}</p>
