@@ -467,7 +467,7 @@ export class BeatTextReader {
       this.#stepInJson(character);
     } else if (character === '\n') {
       this.#refuseCommand('the command never closed');
-      this.#endBeat();
+      if (!this.#isHalted) this.#endBeat();
     } else {
       this.#stepInString(character);
     }

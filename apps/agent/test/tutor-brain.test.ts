@@ -185,7 +185,7 @@ describe('when a drawing is refused', () => {
   });
 
   it('stops the words for any refusal of a drawing, not only a bad shape', async () => {
-    for (const refused of ['{"kind":"timeline","id":"s18","events":[{"when":"1","label":"a"}]}', '{"kind":"image","id":"p","asset":"mona-lisa","alt":"x"}', '{"kind":"drawing","id":"d","name":"volcano"}', '{"kind":"code","id":"c","language":"python","source":"x" oops}']) {
+    for (const refused of ['{"kind":"timeline","id":"s18","events":[{"when":"1","label":"a"}]}', '{"kind":"image","id":"p","asset":"mona-lisa","alt":"x"}', '{"kind":"drawing","id":"d","name":"volcano"}', '{"kind":"code","id":"c","language":"python","source":"x" oops}', '{"kind":"code","id":"c","language":"python","source":"a\nb"}\n']) {
       const { brain } = setup((_request, attempt) => (attempt === 1 ? reply('Here you go. ', refused, 'There it is on the board. ') : reply('Let me say it instead.')));
       expect(say(await collect(brain, 'show me'))).toBe('Let me say it instead.');
     }
