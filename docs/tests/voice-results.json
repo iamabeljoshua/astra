@@ -6638,5 +6638,166 @@
     "best": 213
    }
   }
+ },
+ "returnAtEdge": {
+  "note": "return-at-edge.ts on real rooms, fake voice, stand-in tutor, seconds from leaving to coming back, and ms from coming back to the tutor's first turn.",
+  "rows": [
+   {
+    "offsetSeconds": 13,
+    "firstTurnMs": 5075,
+    "phase": "live",
+    "jobs": 1,
+    "timeline": [
+     "640 undefined/undefined",
+     "3840 connecting/false",
+     "4583 live/false",
+     "5075 live/true"
+    ],
+    "youLines": []
+   },
+   {
+    "offsetSeconds": 13,
+    "firstTurnMs": 11696,
+    "phase": "live",
+    "jobs": 2,
+    "timeline": [
+     "836 undefined/undefined",
+     "4617 connecting/false",
+     "11021 live/false",
+     "11696 live/true"
+    ],
+    "youLines": []
+   },
+   {
+    "offsetSeconds": 13,
+    "firstTurnMs": 16481,
+    "phase": "live",
+    "jobs": 2,
+    "timeline": [
+     "5630 undefined/undefined",
+     "12961 connecting/false",
+     "15938 live/false",
+     "16481 live/true"
+    ],
+    "youLines": []
+   },
+   {
+    "offsetSeconds": 14,
+    "firstTurnMs": 4263,
+    "phase": "live",
+    "jobs": 1,
+    "timeline": [
+     "348 undefined/undefined",
+     "3153 connecting/false",
+     "4035 live/false",
+     "4263 live/true"
+    ],
+    "youLines": []
+   },
+   {
+    "offsetSeconds": 14,
+    "firstTurnMs": 8618,
+    "phase": "live",
+    "jobs": 2,
+    "timeline": [
+     "1001 undefined/undefined",
+     "5759 connecting/false",
+     "8074 live/false",
+     "8618 live/true"
+    ],
+    "youLines": []
+   },
+   {
+    "offsetSeconds": 14,
+    "firstTurnMs": 25059,
+    "phase": "live",
+    "jobs": 2,
+    "timeline": [
+     "571 undefined/undefined",
+     "17896 connecting/false",
+     "24538 live/false",
+     "25059 live/true"
+    ],
+    "youLines": []
+   },
+   {
+    "offsetSeconds": 15,
+    "firstTurnMs": 13616,
+    "phase": "live",
+    "jobs": 2,
+    "timeline": [
+     "1934 undefined/undefined",
+     "10488 connecting/false",
+     "13198 live/false",
+     "13616 live/true"
+    ],
+    "youLines": []
+   },
+   {
+    "offsetSeconds": 15,
+    "firstTurnMs": 12760,
+    "phase": "live",
+    "jobs": 2,
+    "timeline": [
+     "1449 undefined/undefined",
+     "4927 connecting/false",
+     "12321 live/false",
+     "12760 live/true"
+    ],
+    "youLines": []
+   },
+   {
+    "offsetSeconds": 15,
+    "firstTurnMs": 7021,
+    "phase": "live",
+    "jobs": 2,
+    "timeline": [
+     "761 undefined/undefined",
+     "5132 connecting/false",
+     "6593 live/false",
+     "7021 live/true"
+    ],
+    "youLines": []
+   },
+   {
+    "offsetSeconds": 16,
+    "firstTurnMs": 13920,
+    "phase": "live",
+    "jobs": 2,
+    "timeline": [
+     "1891 undefined/undefined",
+     "9639 connecting/false",
+     "13279 live/false",
+     "13920 live/true"
+    ],
+    "youLines": []
+   },
+   {
+    "offsetSeconds": 16,
+    "firstTurnMs": 11739,
+    "phase": "live",
+    "jobs": 2,
+    "timeline": [
+     "1668 undefined/undefined",
+     "8317 connecting/false",
+     "11177 live/false",
+     "11739 live/true"
+    ],
+    "youLines": []
+   },
+   {
+    "offsetSeconds": 16,
+    "firstTurnMs": 8105,
+    "phase": "live",
+    "jobs": 2,
+    "timeline": [
+     "523 undefined/undefined",
+     "6163 connecting/false",
+     "7575 live/false",
+     "8105 live/true"
+    ],
+    "youLines": []
+   }
+  ]
  }
 }
