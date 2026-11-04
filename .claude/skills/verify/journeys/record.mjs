@@ -4,7 +4,7 @@ const EMPTY_LINE = /Nothing yet/;
 const REMOVED_ON_LAPTOP = 'free-body diagrams';
 const REMOVED_ON_PHONE = 'why the sky is dark at night';
 
-// The seed holds three notes, so a laptop run removes one, and a phone run after it removes another and forgets the last. Seed again before running again.
+// The seed holds four notes, so a laptop run removes one, and a phone run after it removes another and forgets the rest. Seed again before running again.
 export default async function record({ page, capture, viewportName, signIn }) {
   await signIn();
   await page.getByRole('heading', { name: 'Welcome back, Maya.' }).waitFor();

@@ -662,6 +662,12 @@ describe('getPicksForStudent', () => {
         expect(getPicksFromNotes([makeNote('struggled', 'braking distance')], { history }).map((pick) => pick.reason)).not.toContain('You got stuck on braking distance');
       });
 
+      it('puts a library lesson ahead of a lesson of its own, because it opens faster', () => {
+        const notes = [makeNote('struggled', 'free-body diagrams'), makeNote('struggled', 'braking distance')];
+
+        expect(getPicksFromNotes(notes).slice(0, 2).map((pick) => pick.id)).toEqual(['braking', 'note-note-free-body diagrams']);
+      });
+
       it('shows two at most, newest first, so other cards keep their place', () => {
         const notes = ['one', 'two', 'three'].map((word) => makeNote('struggled', `${word} body problems`));
 

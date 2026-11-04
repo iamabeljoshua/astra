@@ -44,6 +44,25 @@ What code cannot prove is that a label is the best description of a right or wro
 
 An empty list says the tutor knows nothing, and so does no note at all when the read fails. A failed or slow read never holds up the first words: it shares the profile's one second limit.
 
+## What Home reads
+
+`picks/record-picks.ts` turns notes into cards, in code, as Home loads. No model is involved, and a failed read gives a Home built from sessions and the library.
+
+| Kind | Card | Most on screen |
+| --- | --- | --- |
+| `struggled` | The library topic that names it, else the library lesson it happened in, else a lesson of its own if the words name something to teach. | 2 |
+| `showed` | The library topic that names it if unstarted, else the next topic in that subject. | 1 |
+| `cares_about` | An unstarted library topic that names it. A liking alone is not a lesson. | 1 |
+| `explored` | None. | 0 |
+
+The newest note on a topic stands, so a right answer settles an earlier struggle and a later struggle reopens it. A note from the session on the continue card waits. A session started on the topic since the note takes its card away. Finished topics stay away, and two topics in progress still fit on screen, as M2.12 requires.
+
+A library topic can list other names in `alsoCalled` in `library.json`, because a note says "free-body diagrams" and the title says "What holds a block on a slope". A note names a topic only when all its subject words match, because a true reason on the wrong card is still misleading.
+
+`usable-notes.ts` is a second screen after the agent's. It also refuses a health or distress subject on its own, with no "my" or "I'm", in the topic, the detail, the evidence, or the session's title. A lost card costs little, so it leans toward refusing, and it refuses the newest note's whole topic rather than fall back to an older note.
+
+The API sends the reason and the date apart, because only the browser knows the student's time zone.
+
 ## What we chose for minors
 
 Memory stores nothing about distress, health, or family, and nothing about a crisis, not even that one happened. A room with a crisis writes no notes at all, so it cannot become a remembered trait. A session that mentions a parent in passing still keeps its checked math, without that line. The flag queue for a person to review belongs to M4.5, and it does not read or write this table.

@@ -110,7 +110,7 @@ const EXAMPLE_SESSIONS: DeepPartial<SessionEntity>[] = [
 ];
 
 // Two kinds of evidence on real example sessions, so Home and the tutor have something to read after a seed.
-function getExampleNotes([freeBody, sky, quadratics]: SessionEntity[]): Partial<LearnerNoteEntity>[] {
+function getExampleNotes([freeBody, sky, quadratics, , compoundInterest]: SessionEntity[]): Partial<LearnerNoteEntity>[] {
   const forSession = (session: SessionEntity | undefined) => ({ studentId: EXAMPLE_STUDENT_ID, sessionId: session?.id, notedAt: session?.startedAt });
   return [
     {
@@ -136,6 +136,14 @@ function getExampleNotes([freeBody, sky, quadratics]: SessionEntity[]): Partial<
       topicKey: 'solving quadratic equations',
       detail: null,
       evidence: [{ source: 'board', text: 'x^2 - 5x + 6 = 0 becomes (x - 2)(x - 3) = 0', check: 'right' }],
+    },
+    {
+      ...forSession(compoundInterest),
+      kind: 'struggled',
+      topic: 'compound interest',
+      topicKey: 'compound interest',
+      detail: 'Added the interest once instead of each year',
+      evidence: [{ source: 'words', text: 'i do not get why the interest grows when the rate stays the same', check: null }],
     },
   ];
 }
