@@ -108,14 +108,14 @@ function toSendFailure(error: AuthError): Exclude<SendCodeResult, 'sent' | 'alre
   return error.status === NO_ANSWER_STATUS ? 'failed' : 'authFailed';
 }
 
-// A record that cannot be read counts as no record, because a send must still work.
+function isCodeRequest(stored: Partial<CodeRequest> | null): stored is CodeRequest {
+  return typeof stored?.email === 'string' && typeof stored.sentAt === 'number';
+}
+
 export function readCodeRequest(): CodeRequest | null {
   return withStorage((_local, tab) => {
-    try {
-      return JSON.parse(tab.getItem(LAST_CODE_STORAGE_KEY) ?? 'null') as CodeRequest | null;
-    } catch {
-      return null;
-    }
+    const stored = JSON.parse(tab.getItem(LAST_CODE_STORAGE_KEY) ?? 'null') as Partial<CodeRequest> | null;
+    return isCodeRequest(stored) ? stored : null;
   }, null);
 }
 

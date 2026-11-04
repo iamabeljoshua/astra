@@ -6,7 +6,6 @@ const RANDOM_MULTIPLIER = 1664525;
 const RANDOM_INCREMENT = 1013904223;
 const RANDOM_RANGE = 4294967296;
 
-// A small repeatable generator, so a shape looks the same on every load.
 export function createSeededRandom(seed: number) {
   let state = seed;
   return () => {

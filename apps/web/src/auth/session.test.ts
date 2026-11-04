@@ -152,9 +152,9 @@ describe('sendEmailCode', () => {
     expect(fetchStub).toHaveBeenCalled();
   });
 
-  it('still sends when the record of the last code is not readable', async () => {
+  it.each(['not json', '{}', '{"email":1,"sentAt":"soon"}'])('still sends when the record of the last code is %s', async (record) => {
     stubAuthAnswer(200, {});
-    sessionStorage.setItem('astra-last-code', 'not json');
+    sessionStorage.setItem('astra-last-code', record);
     const { sendEmailCode } = await loadSession();
 
     await expect(sendEmailCode('maya@astra.test')).resolves.toBe('sent');

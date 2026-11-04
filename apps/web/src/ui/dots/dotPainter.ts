@@ -34,7 +34,6 @@ function getGridDotFade(x: number, y: number, clearings: DotClearing[]) {
   return Math.min(1, Math.max(0, (reach - 1) * GRID_FADE_RATE));
 }
 
-// The grid is painted once for each size and theme, and no frame loop ever touches it.
 function paintGrid(canvas: HTMLCanvasElement, context: CanvasRenderingContext2D, stage: HTMLElement, layout: DotLayout) {
   const [width, height] = [stage.clientWidth, stage.clientHeight];
   sizeCanvas(canvas, context, width, height);
@@ -77,7 +76,7 @@ function paintSwarm(context: CanvasRenderingContext2D, swarm: DotSwarm, layout: 
   context.fill();
 }
 
-// Owns the two canvases. A frame loop runs only while dots are on their way, and nothing runs once they arrive.
+// A frame loop runs only while dots are on their way.
 export function createDotPainter({ stage, gridCanvas, shapeCanvas }: DotPainterParts): DotPainter | null {
   const gridContext = gridCanvas.getContext('2d');
   const shapeContext = shapeCanvas.getContext('2d');

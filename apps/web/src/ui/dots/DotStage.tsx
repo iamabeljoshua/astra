@@ -8,7 +8,6 @@ interface DotStageProps extends PropsWithChildren {
   shape: readonly DotPoint[];
 }
 
-// One calm page: a still dot grid, a shape made of dots that forms when `shape` changes, and the question beside it.
 export function DotStage({ shape, children }: DotStageProps) {
   const stage = useRef<HTMLDivElement>(null);
   const gridCanvas = useRef<HTMLCanvasElement>(null);

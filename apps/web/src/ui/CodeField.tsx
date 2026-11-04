@@ -49,7 +49,7 @@ export function CodeField({ label, value, length, isBusy = false, isInvalid = fa
     moveCaret(event.currentTarget, Math.floor(((event.clientX - left) / width) * length));
   }
 
-  // The browser's arrows only collapse a selected digit, which would leave the caret on the same box.
+  // Left would only collapse the selected digit and leave the caret on the same box, so both arrows step by hand.
   function moveWithArrows(event: KeyboardEvent<HTMLInputElement>) {
     const step = ARROW_STEPS[event.key];
     if (!step) return;
