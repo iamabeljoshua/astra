@@ -58,7 +58,7 @@ describe('work on the shared board', () => {
     const { brain } = setup([SET_PROBLEM]);
     await collect(brain, 'help me');
     const checked = brain.noteWork(line('s1', 'x = 7', 'forged'))?.checked;
-    expect(checked?.verdict.status).toBe('wrong');
+    expect(checked?.verdict.status).toBe('unknown');
     expect(checked?.closesTask).toBeUndefined();
   });
 

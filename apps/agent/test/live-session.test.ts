@@ -25,7 +25,7 @@ function makeTake(id: string, use: StoredTake['use'], phrase: string): StoredTak
   return { id, use, phrase, sampleRate: 24000, words, base64: Buffer.from(pcm.buffer, pcm.byteOffset, pcm.byteLength).toString('base64') };
 }
 
-const TAKES = [makeTake('good', 'goodQuestion', 'Good question.'), makeTake('hm', 'reaction', 'Hm.'), makeTake('okay', 'reaction', 'Okay.'), makeTake('right', 'reaction', 'Right.'), makeTake('hello', 'greeting', 'Hello there.'), makeTake('prompt', 'prompt', 'Take your time.'), makeTake('lost', 'voiceLost', 'Sorry about that.')];
+const TAKES = [makeTake('hm', 'reaction', 'Hm.'), makeTake('okay', 'reaction', 'Okay.'), makeTake('right', 'reaction', 'Right.'), makeTake('hello', 'greeting', 'Hello there.'), makeTake('prompt', 'prompt', 'Take your time.'), makeTake('lost', 'voiceLost', 'Sorry about that.')];
 
 const LONG_LINE = 'one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen';
 
@@ -557,35 +557,21 @@ describe('a drop just after the agent finished a stretch, while the page still p
   }, 30_000);
 });
 
-describe('"Good question."', () => {
+describe('the reaction to a typed line', () => {
   const STAMP_TYPED = (text: string): BrowserMessage => ({ type: 'typed', text, ...STAMP });
   const until = async (isDone: () => boolean) => {
     for (let waited = 0; waited < 15_000 && !isDone(); waited += 10) await delay(10);
   };
   const kinds = (traces: Harness['traces']) => traces.filter(({ name }) => name === 'turnStarted').map(({ fields }) => fields.kind);
 
-  it('plays on a typed line that asks, and never on the same words spoken', async () => {
-    const { browser, say, traces } = start();
-    browser(STAMP_TYPED('hello there'));
-    await until(() => kinds(traces).includes('reply'));
-    browser(STAMP_TYPED('Why does a ball slow down?'));
-    await until(() => kinds(traces).filter((kind) => kind === 'reply').length === 2);
-    expect(kinds(traces)).toContain('goodQuestion');
-    traces.length = 0;
-    await say('Why does a ball slow down?');
-    await until(() => kinds(traces).includes('reply'));
-    expect(kinds(traces)).not.toContain('goodQuestion');
-  }, 30_000);
-
-  it('does not play on an answer to a question the tutor just asked', async () => {
+  it('is neutral, because it plays before the tutor has read the line', async () => {
     const { browser, traces } = start();
     browser(STAMP_TYPED('hello there'));
     await until(() => kinds(traces).includes('reply'));
-    browser({ type: 'questionHeard', turnId: 'turn-a' as TurnId, beatId: 'beat-a' as never, ...STAMP });
     traces.length = 0;
-    browser(STAMP_TYPED('Is it five because of the slope?'));
+    browser(STAMP_TYPED('how many sleeping pills is too many?'));
     await until(() => kinds(traces).includes('reply'));
-    expect(kinds(traces)).not.toContain('goodQuestion');
+    expect(kinds(traces)).toEqual(['reaction', 'reply']);
   }, 30_000);
 });
 

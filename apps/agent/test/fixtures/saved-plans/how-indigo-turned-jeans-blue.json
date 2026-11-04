@@ -1,0 +1,34 @@
+{
+ "topic": "How indigo turned jeans blue",
+ "plan": {
+  "opening": [
+   {
+    "say": "Here's a funny thing about blue jeans. The dye that colors them is a pale, yellowish green when it's dissolved in water.",
+    "note": "dye starts pale"
+   },
+   {
+    "say": "The blue shows up only afterward, once the dyed cloth comes out of the vat and meets the open air.",
+    "note": "air changes it"
+   },
+   {
+    "say": "So something happens in those first seconds out of the bath, and that's the whole trick we're about to look at.",
+    "note": "what changes?"
+   }
+  ],
+  "more": [
+   {
+    "say": "Indigo on its own won't dissolve in water. It's a stubborn blue powder, so dyers had to coax it into a different form first."
+   },
+   {
+    "say": "They added something that steals oxygen, which turns the powder into a form that dissolves, and that form is the pale yellow green one."
+   },
+   {
+    "say": "Cotton soaks up that dissolved form easily. At that point the thread looks yellow green, and nothing blue is on it yet."
+   }
+  ],
+  "setup": "Watch one thread as it leaves the vat.",
+  "narration": "[[thread-dips]]Dip a thread into the vat and it soaks up the pale, dissolved indigo. [[lift-out]]Lift it out, and oxygen in the air gets to work. [[color-shift]]Within seconds the thread turns green, then blue. [[locked-in]]The dye turns back into its insoluble form, stuck inside the fibers. [[repeat-dips]]That's why dyers dip again and again, and why jeans fade slowly.",
+  "plan": "thread-dips: a white cotton thread lowers into a vat of pale yellow green liquid and takes on that color.\nlift-out: the thread rises into the air, small oxygen molecules labeled O2 drift toward it.\ncolor-shift: the thread color fades from yellow green through green to deep blue as the oxygen touches it.\nlocked-in: zoom into a fiber, showing dissolved dye molecules becoming larger blue clumps trapped in the fiber.\nrepeat-dips: the same thread dips several more times, each pass making the blue visibly darker.",
+  "close": "Why might the blue sit mostly on the outside of each thread?"
+ }
+}

@@ -1,0 +1,34 @@
+{
+ "topic": "How DNA copies itself",
+ "plan": {
+  "opening": [
+   {
+    "say": "Every time one of your cells divides, it needs a full copy of its DNA, and the copy has to be almost perfect.",
+    "note": "copy, almost perfect"
+   },
+   {
+    "say": "DNA is a double strand, like a twisted ladder, and each rung is a pair of letters that always match up.",
+    "tex": "A\\text{--}T \\qquad G\\text{--}C"
+   },
+   {
+    "say": "Because the letters pair up in a fixed way, each strand secretly holds the complete recipe for the other strand.",
+    "note": "each strand = a template"
+   }
+  ],
+  "more": [
+   {
+    "say": "Say one strand reads A, A, G, C. Its partner has to read T, T, C, G, and nothing else will fit."
+   },
+   {
+    "say": "So if you split the ladder down the middle, you haven't lost anything. Each half still tells you exactly what its missing partner looked like."
+   },
+   {
+    "say": "That's the trick the cell uses. It doesn't memorize the whole sequence. It just uses each old strand as a pattern for a new one."
+   }
+  ],
+  "setup": "Watch what happens when the ladder unzips.",
+  "narration": "[[unzip]]An enzyme called helicase unzips the ladder. [[template]]Each old strand now acts as a template. [[pairing]]Free letters line up against it, A with T, G with C. [[polymerase]]An enzyme called DNA polymerase links them into a new strand. [[two-copies]]The result is two identical double helices, each with one old strand and one new.",
+  "plan": "unzip: the double helix ladder splits down the middle from one end, two strands pulling apart into a Y shape.\ntemplate: the two separated strands are highlighted, each labeled as a template, with bare letters showing.\npairing: loose letters drift in and snap onto each template, A beside T, G beside C, matching colors.\npolymerase: a blob labeled DNA polymerase slides along a strand, joining the new letters into a continuous chain.\ntwo-copies: two complete double helices sit side by side, each showing one old strand in blue and one new strand in orange.",
+  "close": "Why does it matter that each new helix keeps one old strand?"
+ }
+}

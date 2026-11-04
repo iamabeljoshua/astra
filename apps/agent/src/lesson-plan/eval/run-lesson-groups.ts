@@ -8,7 +8,7 @@ import { readKey } from '../../keys.ts';
 import { makeAnthropicJsonReader, makeAnthropicTutorModel } from '../../providers/anthropic.ts';
 import { createTutorBrain, type TurnSummary, type TutorBeat } from '../../tutor/brain.ts';
 import { REPLY_CHECKS } from '../../tutor/eval/reply-checks.ts';
-import { TUTOR_SYSTEM } from '../../tutor/prompt.ts';
+import { TUTOR_PROMPT } from '../../tutor/prompt.ts';
 import { createSpendLedger } from '../../tutor/spend-ledger.ts';
 import { getWorkWords } from '../../tutor/watcher/watch-rule.ts';
 import { askPlanner } from '../ask-planner.ts';
@@ -236,7 +236,7 @@ async function main() {
   }
   const ledger = createSpendLedger(args.spend, { limitUsd: Number(args.limit), limitCredits: Infinity });
   const model = makeAnthropicTutorModel({ apiKey: readKey('ANTHROPIC_API_KEY') });
-  await model.warm(TUTOR_SYSTEM);
+  await model.warm(TUTOR_PROMPT.system);
   const solver = makeAnthropicTutorModel({ name: 'haiku-5-5', apiKey: readKey('ANTHROPIC_API_KEY') });
   const results = await Promise.all(groups.map((group) => runGroup(group, ledger, model, solver)));
   const transcript = results.flatMap(({ lines }) => [...lines, '']).join('\n');

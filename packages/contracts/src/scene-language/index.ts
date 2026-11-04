@@ -6,9 +6,10 @@ export { ALLOWED_TEX_COMMANDS, findMathSpans, getMathParts, getTexProblem, getTe
 export { parseBeat, parseWrittenBeat, type WrittenBeat } from './parse-beat.ts';
 export { parseSceneCommand, SCENE_COMMAND_KINDS } from './parse-command.ts';
 export { parseSessionEvent } from './parse-event.ts';
-export { parseAgentMessage, parseBrowserMessage } from './parse-message.ts';
+export { parseAgentMessage, parseBrowserMessage, parseSceneAgentMessage, parseSceneBrowserMessage } from './parse-message.ts';
 export { evaluatePlotExpression, isReservedPlotName, parsePlotExpression, type PlotNode } from './plot-expression.ts';
 export type { ParseResult } from './read.ts';
 export * from './scene-command.ts';
+export * from './scene-message.ts';
 export * from './session-event.ts';
 export * from './work.ts';

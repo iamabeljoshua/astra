@@ -1,0 +1,37 @@
+{
+ "topic": "Why savings grow slowly, then fast",
+ "plan": {
+  "opening": [
+   {
+    "say": "Say you put some money in a savings account that pays interest. Most people expect the balance to climb in a nice straight line.",
+    "note": "straight line?"
+   },
+   {
+    "say": "But it doesn't. The balance after t years follows a rule where the time sits up in the exponent, and that changes everything.",
+    "tex": "B(t) = 100 \\cdot 1.07^t"
+   },
+   {
+    "say": "So let's watch what that rule actually draws, and pay attention to how steep it is early on compared with later.",
+    "note": "early vs. late"
+   }
+  ],
+  "more": [
+   {
+    "say": "Here's a quick example. Start with one hundred dollars at seven percent. After one year you earn seven dollars of interest."
+   },
+   {
+    "say": "The next year, you earn interest on one hundred seven dollars, not one hundred. So that year's interest is a little bigger than the last."
+   },
+   {
+    "say": "Each year the pile of money earning interest is larger, so each year's gain is larger too. Gains start feeding on themselves."
+   }
+  ],
+  "setup": "Watch the curve and how its steepness changes.",
+  "narration": "[[curve-appears]]Early on, the curve looks almost flat. Each year's interest is small because the balance is small. [[later-gains]]But the balance keeps growing, so each year earns more than the last. [[steepening]]Interest starts earning its own interest, and the climb gets steeper and steeper. [[doubling]]That's why the late years feel so dramatic.",
+  "plan": "curve-appears: the curve B of t equals one hundred times one point zero seven to the t draws from t equals zero, starting at one hundred, nearly flat.\nlater-gains: two small bars mark the dollar gain in an early year and a later year, the later bar clearly taller.\nsteepening: a tangent line slides along B, getting visibly steeper; its slope equals the yearly gain rate, which grows with B.\ndoubling: markers show the balance reaching two hundred near ten years, then four hundred near twenty, equal time steps, bigger jumps.",
+  "close": "If you added to the account each year, would the curve bend sooner?",
+  "model": "claude-sonnet-5-5",
+  "ms": 7380.451666999999,
+  "costUsd": 0.0069758
+ }
+}

@@ -16,7 +16,7 @@ const LARGEST_DATABASE_INTEGER = 2_147_483_647;
 const MAX_SESSION_SECONDS = 24 * 60 * 60;
 
 export class CreateSessionBodyDto {
-  /** What the session is about. */
+  /** What the session is about. When a card started this session, the API uses the title in its library and ignores this one. */
   @IsString()
   @MaxLength(MAX_SESSION_TITLE_LENGTH)
   @IsStorableText()

@@ -1,5 +1,5 @@
 import { evaluatePlotExpression, type ElementId, type LineReading, parsePlotExpression, type StudentWork, type Task, type WorkVerdict } from '@astra/contracts';
-import { checkStep, isFinishedAnswer } from './check-step.ts';
+import { checkAgainstGuess, checkStep, isFinishedAnswer } from './check-step.ts';
 import { getMathPickParts } from './pick-parts.ts';
 import { getLineTex, readLine } from './read-line.ts';
 
@@ -15,7 +15,7 @@ export interface WorkContext {
   getCurve(id: ElementId): { value(x: number): number; within: number } | null;
   previousTex: string | null;
   pickedRight: readonly string[];
-  /** The tutor's latest equation on the board, which a line answers even before a task has landed. */
+  /** The tutor's latest equation on the board, a guess at what a line answers when no task names one. */
   problemTex?: string | null;
 }
 
@@ -54,7 +54,7 @@ const getProblemLine = (task: Task | null) => (task?.way === 'write' || task?.wa
 function checkMathLineOfWork(tex: string, { task, getLineTex: getTex, previousTex, problemTex: boardProblemTex = null }: WorkContext): CheckedWork {
   const problemLine = getProblemLine(task);
   const problemTex = problemLine === undefined ? boardProblemTex : getTex(problemLine);
-  const verdict = checkStep({ tex, problemTex, previousTex });
+  const verdict = problemLine === undefined ? checkAgainstGuess({ tex, problemTex, previousTex }) : checkStep({ tex, problemTex, previousTex });
   const answered = task?.way === 'write' || task?.way === 'pick' ? task : null;
   return { verdict, ...closes(answered, verdict.status === 'right' && problemTex !== null && isFinishedAnswer(tex)) };
 }
@@ -149,11 +149,11 @@ export function getCurveOf(expression: string, constants: ReadonlyMap<string, nu
   return node && ((x) => evaluatePlotExpression(node, x, constants));
 }
 
-export const NODS = { doubt: 'Hm.', agree: 'Mm-hm.' } as const;
+export const NODS = { doubt: 'Hm.', agree: 'Mm-hm.', neutral: 'I see.' } as const;
 export type Nod = (typeof NODS)[keyof typeof NODS];
 
 export function getNod(work: StudentWork, { verdict }: CheckedWork): Nod | null {
-  if (verdict.status === 'wrong') return NODS.doubt;
+  if (verdict.status === 'wrong' || (verdict.status === 'unknown' && verdict.offProblem !== undefined)) return NODS.doubt;
   return verdict.status === 'right' && work.way !== 'write' ? NODS.agree : null;
 }
 

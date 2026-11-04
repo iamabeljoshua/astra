@@ -1,6 +1,6 @@
 export { checkClaimedMath, type MathVerdict } from './check-math.ts';
 export { checkStep, getLinearAnswer, isFinishedAnswer, type StepInput } from './check-step.ts';
-export { checkWork, type CheckedWork, getCurveOf, getNod, getPointFacts, isThinkingAloud, type Nod, type PointFacts, type WorkContext, wantsSomethingElse } from './check-work.ts';
+export { checkWork, type CheckedWork, getCurveOf, getNod, getPointFacts, isThinkingAloud, type Nod, NODS, type PointFacts, type WorkContext, wantsSomethingElse } from './check-work.ts';
 export { cleanStudentText, cleanTypedLine, getLineTex, readLine } from './read-line.ts';
 export type { StudentLineContent, TaskProgress } from './student-work.ts';
 export { checkWorkOnBoard, getOpenDragOn, getOpenTaskOnBoard, getWorkContext } from './work-context.ts';
@@ -9,3 +9,6 @@ export { type BoardState, getBoardAt } from '../player/board-state.ts';
 export { getItemsToShow } from './place-items.ts';
 export { getPickParts, type PickPart } from './pick-parts.ts';
 export { writeByHand } from '../ink/handwriting.ts';
+export { getNumberValue, type NumberValue, toFloatValue } from './math/math-value.ts';
+export { getLetters, type MathExpression, parseMath } from './math/parse-math.ts';
+export { describeRational, getExactPlaces, type Rational, readDecimal } from './math/rational.ts';
