@@ -44,6 +44,7 @@ function SessionInNoise({ mic }: { mic: HeldMic }) {
     <>
       <NoisePrompt sessionId="noisy" isRoomNoisy isHolding={hold.isHolding} />
       <button type="button" {...hold.buttonProps}>Talk</button>
+      <textarea aria-label="reply" />
     </>
   );
 }
@@ -111,8 +112,8 @@ describe('a student in a noisy room who follows the prompt', () => {
   });
 });
 
-describe('a short press in the same room', () => {
-  it('of Talk turns the microphone off, and starts no hold', () => {
+describe('anything else in the same room', () => {
+  it('a tap of Talk turns the microphone off, and starts no hold', () => {
     const room = setUpNoisyRoom();
     pressTalk();
     wait(100);
@@ -121,7 +122,7 @@ describe('a short press in the same room', () => {
     expect(room.told).toEqual([]);
   });
 
-  it('of Space on a focused Talk turns the microphone off, as a press of Talk does', () => {
+  it('a tap of Space on a focused Talk turns the microphone off, as a press of Talk does', () => {
     const room = setUpNoisyRoom();
     pressSpace(talk());
     wait(100);
@@ -130,7 +131,7 @@ describe('a short press in the same room', () => {
     expect(room.told).toEqual([]);
   });
 
-  it('of Space on the page leaves the microphone on, because the student turned that on themselves', () => {
+  it('a tap of Space on the page leaves the microphone on, because the student turned that on themselves', () => {
     const room = setUpNoisyRoom();
     pressSpace(document.body);
     wait(100);
@@ -139,7 +140,17 @@ describe('a short press in the same room', () => {
     expect(room.told).toEqual([]);
   });
 
-  it('leaves the prompt up and the mode alone, so the noise alone changes nothing', () => {
+  it('Space in a text field stays typing, however long, and leaves the microphone on', () => {
+    const room = setUpNoisyRoom();
+    const reply = screen.getByRole('textbox', { name: 'reply' });
+    expect(pressSpace(reply)).toBe(true);
+    wait(600);
+    letGoOfSpace(reply);
+    expect(room.getIsOn()).toBe(true);
+    expect(room.told).toEqual([]);
+  });
+
+  it('noise alone leaves the prompt up and the mode as it was', () => {
     const room = setUpNoisyRoom();
     wait(60_000);
     expect(room.getIsOn()).toBe(true);

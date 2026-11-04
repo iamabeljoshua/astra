@@ -511,6 +511,8 @@ Once the tutor is live, the reply box closes and the board's own **Talk** is the
 | Follow the prompt after a mouse tap, with focus on **Talk**: hold Space | The same, on the first hold |
 | Follow the prompt with focus on the page: hold Space | The same, on the first hold. Noise at 0.05 afterward moved 0 bytes |
 | A short press with the microphone on | A 60 ms tap of **Talk** went off, and a 60 ms tap of Space on a focused **Talk** went off. A 60 ms tap of Space on the page stayed on. No hold began in the Space tap on the page |
+| Lift a second finger during a hold of **Talk**, at 390 by 844 | The microphone stayed on through the second finger's `pointerup`, and the first finger's ended the hold. With the old hook, the same second finger closed it. A line said with a second finger down was heard and answered whole |
+| Hold Space through a reload, so the page first sees a repeat | The repeat began the press, with the microphone on, `holdStarted` and `lineEnded` both traced, the line heard and answered, and the microphone off at release |
 
 First word from the last sound, in ms, p50 (p95). The load average was about 25 in quiet and 18 to 25 in noise.
 
@@ -531,8 +533,10 @@ Word errors were 0 of 21 and 0 of 27 in noise. In quiet, a hold had 2 of 39 and 
 - Space during the recap opened the microphone for a tutor that was no longer listening. It now opens nothing once the student presses End.
 - The merge brought back a greeting under a hold. `live-session.test.ts` caught it.
 - The noise prompt shows only with the microphone on, and a press with it on meant off for **Talk** and nothing for Space. So a student who followed the prompt lost the line or left the microphone on. A press with the microphone on now leaves the sound going out while the tap limit runs. Past the limit the press is a hold, and it closes on letting go. Short of it, **Talk** goes off and Space leaves it on. `FollowingTheNoisePrompt.test.tsx` failed on all three ways of following the prompt.
+- Lifting a second finger ended a **Talk** hold, because the window's `pointerup` did not ask which pointer it was. Only the pointer that pressed **Talk** ends it now.
+- A key pressed before the hook listened was ignored for its whole press, and the line went with no note, because each repeat looked like a key already handled. The first repeat now begins the press, unless that key's press was seen and left alone, began with a modifier, or was lost.
 
-**Not proven.** No real phone, no real microphone, and no real screen reader ran this. Headless touch emulation fired no `contextmenu` on a long press, so only `SpaceOnTheBoard.test.tsx` shows that the menu is stopped. While a writing task is open, focus sits in the board line, so Space types there and a student talks by holding **Talk**. A click with no press is ignored for 500 ms after any pointer lets go anywhere on the page. A proof that clicked Math keys and pressed Enter on **Talk** straight after got nothing, and the same step passed with a 600 ms wait, so that cause is an inference.
+**Not proven.** No real phone, no real microphone, and no real screen reader ran this. Touch came from `Input.dispatchTouchEvent`, whose `touchEnd` lifts the points it lists, so a proof of a second finger must list that finger. A keyboard that sends no repeats gets no press from a key that went down before the page listened, and words said before the first repeat are not captured. Headless touch emulation fired no `contextmenu` on a long press, so only `SpaceOnTheBoard.test.tsx` shows that the menu is stopped. While a writing task is open, focus sits in the board line, so Space types there and a student talks by holding **Talk**. A click with no press is ignored for 500 ms after any pointer lets go anywhere on the page. A proof that clicked Math keys and pressed Enter on **Talk** straight after got nothing, and the same step passed with a 600 ms wait, so that cause is an inference.
 
 ### How to try it
 
