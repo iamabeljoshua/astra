@@ -71,12 +71,15 @@ The rules add about 3,200 characters to the cached prompt, so about $0.0001 a tu
 | A plan never holds a word, and a failed one changes nothing | `eval:lessons --planner fail`, and `lesson-plan.test.ts` with a planner that never answers |
 | A plan is right about what the student wants | `eval:plans`, including every crisis message in `groups-safety.json` |
 | No model line can say "new session" | `getWordsProblem`, with `lesson-plan.test.ts` |
+| No first attempt can claim a feeling | `getClaimProblem`, with `lesson-plan.test.ts` and `eval:groups` |
 | A switch, a title, and the way back | `eval:switch`, and `lesson-proof --only switch` on the real page |
 | The move lands on a word, in the log, in about 560 ms | `lesson-proof --only visual` on a recorded tutor |
 
 ## Where the rules sit
 
-They come last in the prompt, after Staying safe, and that was measured. With the same words placed before Being right, crisis replies said "I'm glad" about 1.5 times in 16 turns. Placed last it was 0.5, and the prompt with no rules at all, with the planner on, was 0.25 over the same turns. The cause is not known. Anyone moving this block must rerun `eval:groups` a few times and read the replies. A check in code for claimed feelings would end this for good, and belongs with the crisis round.
+They come last in the prompt, after Staying safe, and that was measured. With the same words placed before Being right, crisis replies said "I'm glad" about 1.5 times in 16 turns. Placed last it was 0.5, and the prompt with no rules at all, with the planner on, was 0.25 over the same turns. The base, with neither, was 0 in 64 turns. The cause is not known.
+
+So `getClaimProblem` holds the prompt's own list in code. A reply that claims a feeling goes back for other words before the student hears it, on a first attempt only, because help for a student in crisis must get out even in imperfect words. Anyone moving this block must still rerun `eval:groups` a few times and read the replies.
 
 ## Cut for time
 
