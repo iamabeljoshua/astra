@@ -555,6 +555,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       log.write(message);
       if (message.type === 'acted') noteSomethingHappened();
       if (message.type === 'markNotDrawn') tutor.noteMarkNotDrawn?.(message.markId);
+      if (message.type === 'boardProblem') tutor.noteBoardProblem?.(message);
       if (message.type === 'questionHeard') dispatch({ type: 'questionHeard' });
       if (message.type === 'hello' && message.wantsGreeting) greet();
       if (message.type === 'audioState') onAudioState(message.isRunning);

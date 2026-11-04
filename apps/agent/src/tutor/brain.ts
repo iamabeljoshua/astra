@@ -1,4 +1,4 @@
-import { type Beat, type BeatId, clipTypedText, getBeatText, getCues, getPlayedCues, getSpokenWords, parseBeat, parseWrittenBeat, type SceneCommand, TYPED_TEXT_MAX_CHARACTERS, type TutorClosedReason } from '@astra/contracts';
+import { type Beat, type BeatId, type BoardProblemReport, clipTypedText, getBeatText, getCues, getPlayedCues, getSpokenWords, parseBeat, parseWrittenBeat, type SceneCommand, TYPED_TEXT_MAX_CHARACTERS, type TutorClosedReason } from '@astra/contracts';
 import { type FindSource, type ModelEvent, ModelRejectedError, type ModelUsage, type TutorModelAdapter, type TutorModelRequest, type TutorTurn } from '../providers/types.ts';
 import { createAttemptTracker } from './attempts.ts';
 import { BeatTextReader, type WrittenBeatParts } from './beat-text-reader.ts';
@@ -7,6 +7,7 @@ import { TUTOR_PROMPT, type TutorPrompt } from './prompt.ts';
 import { createLinePicker, type SpokenLineUse } from './spoken-lines.ts';
 import { runTool, type ToolResult } from './tools/run-tool.ts';
 import type { ToolCall } from './tools/tool-call.ts';
+import { createBoardProblemNotes } from './board-problems.ts';
 
 export interface TutorRequest {
   text: string;
@@ -31,6 +32,8 @@ export interface TutorBrain {
   noteCut?(wordsSent: ReadonlyMap<BeatId, number>): void;
   /** The browser could not draw this mark, so the student never saw what the tutor pointed at. */
   noteMarkNotDrawn?(markId: string): void;
+  /** Something the tutor put on the board did not show as it asked. */
+  noteBoardProblem?(report: BoardProblemReport): void;
   /** Why the tutor will not answer again in this room, once it has said so. */
   getClosedReason?(): TutorClosedReason | null;
 }
@@ -243,6 +246,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
   let hasToldClosed = false;
   let rejectionsInARow = 0;
   const marksDrawn = new Map<string, { target: string; tex?: string }>();
+  const boardProblems = createBoardProblemNotes();
   let cutWordsSent: ReadonlyMap<BeatId, number> | null = null;
   let turnCount = 0;
   let promptTokens = 0;
@@ -306,6 +310,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
         },
         onCommandKept(command) {
           readerMemory = getMemoryAfter(command, readerMemory);
+          boardProblems.noteWritten(command);
           if (SHOWING_KINDS.has(command.kind)) turn.hasShownAStep = true;
           if (command.kind === 'highlight' || command.kind === 'annotate') marksDrawn.set(command.id, { target: command.target, ...('tex' in command && command.tex !== undefined ? { tex: command.tex } : {}) });
         },
@@ -829,6 +834,10 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
       if (!mark) return;
       marksDrawn.delete(markId);
       pendingNotes.push({ mark_not_drawn: mark });
+    },
+    noteBoardProblem(report) {
+      const note = boardProblems.getNewNote(report);
+      if (note) pendingNotes.push({ board_problem: note });
     },
     getClosedReason: () => (hasToldClosed ? closedReason : null),
   };

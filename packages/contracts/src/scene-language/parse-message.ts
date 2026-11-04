@@ -1,6 +1,6 @@
 import { BEAT_LIMITS } from './beat.ts';
 import { readBeatId, readSceneId, readTurnId } from './ids.ts';
-import { type AgentMessage, type BrowserMessage, type BrowserStamp, clipTypedText, LIVE_MESSAGE_MAX_BYTES, STUDENT_WORDS_MAX_CHARACTERS, type TimedWord, TUTOR_CLOSED_REASONS } from './live-message.ts';
+import { type AgentMessage, type BrowserMessage, type BrowserStamp, clipTypedText, LIVE_MESSAGE_MAX_BYTES, STUDENT_WORDS_MAX_CHARACTERS, type TimedWord, TOLD_BOARD_PROBLEMS, TUTOR_CLOSED_REASONS } from './live-message.ts';
 import { readSceneCommand } from './parse-command.ts';
 import { PLAY_REPORT_KEYS, readFrozenFrames, readPlayReport, readStudentAction } from './parse-event.ts';
 import type { SceneAgentMessage, SceneBrowserMessage } from './scene-message.ts';
@@ -105,6 +105,8 @@ const AGENT_MESSAGES: VariantTable<AgentMessage, 'type'> = {
 
 const CLOCK_ID_MAX_CHARACTERS = 64;
 const MARK_ID_MAX_CHARACTERS = 64;
+/** A label of 80 characters, and the coordinates the board can add to it. */
+const BOARD_PROBLEM_SUBJECT_MAX_CHARACTERS = 120;
 
 const STAMP_KEYS = ['clockId', 'browserMs', 'startedMsAgo'];
 
@@ -158,6 +160,10 @@ const BROWSER_MESSAGES: VariantTable<BrowserMessage, 'type'> = {
     markNotDrawn: {
       keys: [...STAMP_KEYS, 'markId'],
       read: (fields) => ({ type: 'markNotDrawn', ...readBrowserStamp(fields), markId: readString(fields.at('markId'), MARK_ID_MAX_CHARACTERS) }),
+    },
+    boardProblem: {
+      keys: [...STAMP_KEYS, 'problem', 'subject'],
+      read: (fields) => ({ type: 'boardProblem', ...readBrowserStamp(fields), problem: readOneOf(fields.at('problem'), TOLD_BOARD_PROBLEMS), subject: readString(fields.at('subject'), BOARD_PROBLEM_SUBJECT_MAX_CHARACTERS) }),
     },
     pulse: {
       keys: [...STAMP_KEYS, 'hearsAgent'],

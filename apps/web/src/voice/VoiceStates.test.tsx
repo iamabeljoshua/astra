@@ -28,6 +28,7 @@ function makeVoice() {
     sendTyped: vi.fn(),
     sendOpening: vi.fn(),
     reportMarkNotDrawn: vi.fn(),
+    reportBoardProblem: vi.fn(),
     toggleMic: vi.fn(async () => {}),
     sayStillHere: vi.fn(),
     turnOnSound: vi.fn(),

@@ -1,4 +1,5 @@
 import type { BoardState } from '@astra/board';
+import type { BoardProblemReport } from '@astra/contracts';
 import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import type { BoardProblem } from '../board/boardPainting';
 import { BoardView } from '../lab/BoardView';
@@ -8,6 +9,20 @@ import type { LiveVoice } from './liveVoice';
 interface BoardFrame {
   board: BoardState;
   atMs: number;
+}
+
+function getReport(problem: BoardProblem): BoardProblemReport | null {
+  switch (problem.kind) {
+    case 'tooSmallToRead':
+    case 'imageMissing':
+      return { problem: problem.kind, subject: problem.elementId };
+    case 'labelWithoutRoom':
+      return { problem: problem.kind, subject: problem.text };
+    case 'sliderWithoutConstant':
+      return { problem: problem.kind, subject: problem.sliderId };
+    default:
+      return null;
+  }
 }
 
 // The board is a pure reading of the clock, so one read per frame is all it needs.
@@ -23,6 +38,8 @@ export function LiveBoard({ voice, whileEmpty }: { voice: LiveVoice; whileEmpty:
   const reportProblem = useCallback(
     (problem: BoardProblem) => {
       if (problem.kind === 'markWithoutTarget') voice.reportMarkNotDrawn(problem.markId);
+      const report = getReport(problem);
+      if (report) voice.reportBoardProblem(report);
     },
     [voice],
   );

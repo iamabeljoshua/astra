@@ -4,7 +4,7 @@ export type { BeatId, ElementId, ElementRef, FileId, TurnId } from './ids.ts';
 export * from './live-message.ts';
 export { ALLOWED_TEX_COMMANDS, findMathSpans, getMathParts, getTexProblem, getTexTokens, type MathPart, type MathPartRole, type TexToken } from './math-tex.ts';
 export { parseBeat, parseWrittenBeat, type WrittenBeat } from './parse-beat.ts';
-export { parseSceneCommand, SCENE_COMMAND_KINDS } from './parse-command.ts';
+export { parseSceneCommand, RAW_MATH, SCENE_COMMAND_KINDS } from './parse-command.ts';
 export { parseSessionEvent } from './parse-event.ts';
 export { parseAgentMessage, parseBrowserMessage, parseSceneAgentMessage, parseSceneBrowserMessage } from './parse-message.ts';
 export { evaluatePlotExpression, isReservedPlotName, parsePlotExpression, type PlotNode } from './plot-expression.ts';

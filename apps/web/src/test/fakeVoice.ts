@@ -18,6 +18,7 @@ export function makeFakeVoice(view: Partial<LiveVoiceView> = {}): LiveVoice {
     sendTyped: vi.fn(),
     sendOpening: vi.fn(),
     reportMarkNotDrawn: vi.fn(),
+    reportBoardProblem: vi.fn(),
     toggleMic: vi.fn(async () => {
       current = { ...current, mic: current.mic === 'on' ? 'off' : 'on' };
       listeners.forEach((listener) => listener());

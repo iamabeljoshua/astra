@@ -79,7 +79,7 @@ function summarise(totals: Totals, verdict: Verdict): void {
   for (const { defects } of totals.failures) for (const { kind } of defects) counts.set(kind, (counts.get(kind) ?? 0) + 1);
   verdict.lines.push(...totals.sweeps);
   verdict.lines.push(`Sweep total: ${totals.renders} renders, ${totals.textsChecked} text boxes, ${totals.failures.length} renders with a defect`);
-  verdict.lines.push(`Reported to the tutor and left out of the defects: ${totals.tooSmallReported.length} elements too small to read, ${totals.wordsReported.length} labels with no room`);
+  verdict.lines.push(`Sent to the tutor by LiveBoard and left out of the defects: ${totals.tooSmallReported.length} elements too small to read, ${totals.wordsReported.length} labels with no room`);
   if (counts.size > 0) verdict.lines.push(`Defects by kind: ${[...counts].map(([kind, count]) => `${kind} ${count}`).join(', ')}`);
   for (const failure of totals.failures.slice(0, FAILURE_LINES_SHOWN)) verdict.failures.push(`${failure.scene} at ${failure.size} ${failure.theme}, ${Math.round(failure.atMs)} ms: ${failure.defects.map(({ kind, detail }) => `${kind} (${detail})`).join('; ')}`);
   if (totals.failures.length > FAILURE_LINES_SHOWN) verdict.failures.push(`and ${totals.failures.length - FAILURE_LINES_SHOWN} more renders with a defect`);

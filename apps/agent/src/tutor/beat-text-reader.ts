@@ -476,7 +476,7 @@ export class BeatTextReader {
     try {
       return JSON.parse(text);
     } catch (error) {
-      this.#options.onBadCommand((error as Error).message);
+      this.#options.onBadCommand(`the command is not valid JSON, so write each backslash twice: ${(error as Error).message}`);
       return undefined;
     }
   }

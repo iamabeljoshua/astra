@@ -1,5 +1,5 @@
 import { type BoardState, createChoosingClock, createScenePlayer, type FiredCue, type OutputLevel, type ScenePlayer } from '@astra/board';
-import { type AgentMessage, type BrowserMessage, clipTypedText, type components, LINK_QUIET_LIMIT_MS, parseAgentMessage, PULSE_EVERY_MS, type TutorClosedReason } from '@astra/contracts';
+import { type AgentMessage, type BoardProblemReport, type BrowserMessage, clipTypedText, type components, LINK_QUIET_LIMIT_MS, parseAgentMessage, PULSE_EVERY_MS, type TutorClosedReason } from '@astra/contracts';
 import { DisconnectReason, type RemoteTrack, Room, RoomEvent, Track } from 'livekit-client';
 import heldMicWorkletUrl from './held-mic-worklet.js?url';
 import { createLocalYield } from './localYield';
@@ -82,6 +82,8 @@ export interface LiveVoice {
   sendOpening(text: string): void;
   /** The board could not draw this mark, so the agent can tell the tutor the student did not see it. */
   reportMarkNotDrawn(markId: string): void;
+  /** Something on the board did not show as asked, so the agent can tell the tutor. */
+  reportBoardProblem(report: BoardProblemReport): void;
   toggleMic(): Promise<void>;
   /** Answers a quiet warning, so the room stays open. */
   sayStillHere(): void;
@@ -495,6 +497,9 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     },
     reportMarkNotDrawn(markId) {
       send({ type: 'markNotDrawn', ...getStamp(), markId });
+    },
+    reportBoardProblem(report) {
+      send({ type: 'boardProblem', ...getStamp(), ...report });
     },
     async toggleMic() {
       if (!hasLeftRoom && !view.closedBecause) await mic.toggle();

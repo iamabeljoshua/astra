@@ -257,7 +257,7 @@ function getLiveSliders(board: BoardDraft): Slider[] {
   return [...board.elements.values()].flatMap(({ content }) => (content.kind === 'slider' ? [content] : []));
 }
 
-// A slider on a constant its curve does not use is refused too, so the tutor hears about it.
+// A slider on a constant its curve does not use is refused too, and the page tells the tutor with sliderWithoutConstant.
 function isConstantInCurve(board: BoardDraft, slider: Slider): boolean {
   const curve = board.elements.get(slider.target)?.content;
   if (!('constant' in slider) || curve?.kind !== 'plot') return true;

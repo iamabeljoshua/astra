@@ -81,10 +81,13 @@ const NUMBER_RANGES = {
 const CODE_LANGUAGE = /^[a-z0-9+#-]{1,20}$/;
 const CONTROL_CHARACTER = /\p{Cc}/u;
 const PLOT_CONSTANT_NAME = /^[a-z]{1,8}$/;
-/** A TeX command, or math between dollar signs, which would reach a student as raw source. */
-const RAW_MATH = /\\[a-zA-Z]{2,}|\$\$|\$[^$\s][^$]*[\\^_{][^$]*\$/;
+/** What JSON makes of a lone backslash, as in beta, frac, nu, rho, and theta. No real board words on main hold one, and only code keeps its lines and tabs. */
+const BROKEN_BACKSLASH = /[\b\f\n\r\t]/;
+/** A TeX command or bracket, a braced power or subscript, or math between dollars, which would reach a student as raw source. A dollar pair counts only when it hugs what it holds and holds more than a number, so money stays words. */
+export const RAW_MATH = /\\[a-zA-Z]{2,}|\\[()[\]]|[_^]\{|(?<!\$)\$\$[^$\s]|(?<![\w$])\$(?![\d.,]+\$)[^$\s](?:[^$]*[^$\s])?\$(?![\w$])/;
 
 function readWords(place: Place, maxLength: number): string {
+  if (typeof place.value === 'string' && BROKEN_BACKSLASH.test(place.value)) fail(place, 'text with no control or bidi characters, with math in writeMath and each of its backslashes doubled');
   const words = readString(place, maxLength);
   if (hasTooLongMarkRun(words)) fail(place, 'text with no stacks of combining marks');
   if (RAW_MATH.test(words)) fail(place, 'plain words, with math in writeMath');
