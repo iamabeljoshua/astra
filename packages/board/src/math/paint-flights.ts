@@ -45,6 +45,9 @@ function pairKeptTerms(from: readonly PaintInfo[], to: readonly PaintInfo[], mov
   });
 }
 
+/** A student can follow a few pieces moving. A crowd crossing each other reads as noise, so a rewrite that big fades instead. */
+const MOST_LOOSE_FLIGHTS = 6;
+
 // A glyph whose term changed still travels, so the 2 in "2x = 8" becomes the 2 under the 8 in "x = 8/2".
 function pairLooseGlyphs(from: readonly PaintInfo[], to: readonly PaintInfo[], kept: readonly Flight[]): Flight[] {
   const takenFrom = new Set(kept.map((flight) => flight.fromIndex));
@@ -57,7 +60,7 @@ function pairLooseGlyphs(from: readonly PaintInfo[], to: readonly PaintInfo[], k
     takenFrom.add(fromIndex);
     flights.push({ fromIndex, toIndex, isCrossing: true });
   });
-  return flights;
+  return flights.length > MOST_LOOSE_FLIGHTS ? [] : flights;
 }
 
 /** Decides what travels, what fades out, and what fades in when an equation rearranges. */

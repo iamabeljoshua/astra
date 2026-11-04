@@ -33,6 +33,23 @@ describe('planPaints', () => {
     expect(plan.leaving).toEqual([]);
   });
 
+  it('fades a big rewrite rather than sending a crowd of glyphs across each other', () => {
+    const glyphs = ['2', '1', '4', '3', '5', '6', '7'];
+    const from = glyphs.map((glyph) => paint('old', glyph));
+    const to = glyphs.map((glyph) => paint('new', glyph));
+    const plan = planPaints({ from, to, movedTermIds: empty });
+    expect(plan.flights).toEqual([]);
+    expect(plan.leaving).toHaveLength(glyphs.length);
+    expect(plan.arriving).toHaveLength(glyphs.length);
+  });
+
+  it('still moves a kept term during a big rewrite around it', () => {
+    const glyphs = ['2', '1', '4', '3', '5', '6', '7'];
+    const from = [paint('equals', '='), ...glyphs.map((glyph) => paint('old', glyph))];
+    const to = [...glyphs.map((glyph) => paint('new', glyph)), paint('equals', '=')];
+    expect(planPaints({ from, to, movedTermIds: empty }).flights).toEqual([{ fromIndex: 0, toIndex: 7, isCrossing: false }]);
+  });
+
   it('never flies a shape to a shape in another term', () => {
     const plan = planPaints({ from: [paint('t1', null)], to: [paint('t2', null)], movedTermIds: empty });
     expect(plan).toEqual({ flights: [], leaving: [0], arriving: [0] });
