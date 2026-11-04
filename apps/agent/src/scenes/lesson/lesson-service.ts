@@ -29,7 +29,6 @@ const isFake = process.env.LESSON_FAKES === '1';
 const spendPath = process.env.LESSON_SPEND_FILE;
 const ledger = spendPath ? createSpendLedger({ path: spendPath, limitUsd: Number(process.env.LESSON_SPEND_LIMIT ?? 5.5), note: 'lesson' }) : null;
 
-// A proof can fix the tutor's words, so its voice comes from kept takes and spends no credits, while the scene is still written live.
 function withFixedWords(models: SceneModels, planFile: string | undefined): SceneModels {
   if (!planFile) return models;
   const plan = JSON.parse(readFileSync(planFile, 'utf8')) as LessonPlan;
@@ -79,7 +78,6 @@ function startLiveKit(): ChildProcess {
 
 initializeLogger({ pretty: false, level: 'warn' });
 const liveKit = startLiveKit();
-// Local only, and a dev key, because this stands in until M3.6's live room.
 const server = createServer((request, response) => {
   let body = '';
   request.on('data', (chunk: Buffer) => (body += chunk.toString()));
@@ -88,10 +86,12 @@ const server = createServer((request, response) => {
       response.writeHead(404).end();
       return;
     }
-    void startLesson(JSON.parse(body) as { sessionId: string; request: string; isCard: boolean }).then(
-      (reply) => response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(reply)),
-      (error: unknown) => response.writeHead(500).end(String(error)),
-    );
+    void Promise.resolve()
+      .then(() => startLesson(JSON.parse(body) as { sessionId: string; request: string; isCard: boolean }))
+      .then(
+        (reply) => response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(reply)),
+        (error: unknown) => response.writeHead(500).end(String(error)),
+      );
   });
 });
 server.listen(SERVICE_PORT, '127.0.0.1', () => log('listening', { port: SERVICE_PORT, liveKit: LIVEKIT_URL, isFake }));

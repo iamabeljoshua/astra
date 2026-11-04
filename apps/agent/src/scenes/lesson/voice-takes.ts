@@ -17,7 +17,6 @@ export interface TurnVoice {
   tts: tts.TTS;
   onFrame?(frame: AudioFrame): void;
   onWords?(words: readonly { text: string; startMs: number }[]): void;
-  /** Keeps what was just spoken, so the same words never cost credits twice. */
   save?(): void;
 }
 
@@ -30,7 +29,7 @@ export interface LessonVoice {
 const getTurnText = (beats: readonly Beat[]) => beats.map(getBeatText).join('\n');
 const getTakePath = (root: string, voiceName: string, text: string) => join(root, 'voice', `${createHash('sha256').update(`${voiceName}|${text}`).digest('hex').slice(0, 24)}.json`);
 
-// Each flush asks for its next words, so a stored turn plays beat by beat, the way the voice first sent it.
+// Each flush asks for its next words, so a stored turn plays beat by beat.
 function makeStoredRender({ sampleRate, base64, words }: StoredTake): RenderSpeech {
   const bytes = Buffer.from(base64, 'base64');
   const pcm = new Int16Array(bytes.buffer, bytes.byteOffset, Math.floor(bytes.length / 2));
@@ -55,7 +54,6 @@ function saveTake(path: string, frames: readonly AudioFrame[], words: readonly {
   renameSync(`${path}.part`, path);
 }
 
-/** Plays a kept take when these exact words were spoken before, and otherwise speaks live and keeps the take. Past its character limit it falls back to a tone, so a proof cannot overspend. */
 export function createLessonVoice({ root, voiceName, makeLiveTts, characterLimit }: { root: string; voiceName: string; makeLiveTts: () => tts.TTS; characterLimit: number }): LessonVoice {
   let liveCharacters = 0;
   let live: tts.TTS | null = null;

@@ -4,7 +4,6 @@ import type { MadeTake, RenderResult, RenderWorker } from './render-worker.ts';
 import { getSceneId, type SceneStore } from './scene-store.ts';
 import { type LessonPlan, SCENE_THEMES, type SceneBrief, type SceneRepair, type SceneReviewer, type SceneTrace, type SceneWriter, type StoredScene } from './scene-types.ts';
 
-/** Past this, the fallback writer gets the job, rather than racing two at double the cost. */
 export const WRITER_LIMIT_MS = 45_000;
 const REVIEWER_LIMIT_MS = 60_000;
 const SECONDS_AFTER_MOMENT = 1.3;
@@ -53,7 +52,6 @@ function getRenderProblems(render: RenderResult): readonly string[] {
   return render.layoutProblems.map((problem) => `layout: ${problem}`);
 }
 
-// Writes, then runs the code in the locked worker. One writer that stalls or fails its gate hands over to the next, which sees why.
 async function writeUntilClean(maker: SceneMaker, brief: SceneBrief, values: Readonly<Record<string, number>>, tally: Tally): Promise<Attempt | null> {
   let repair: SceneRepair | null = null;
   for (const writer of maker.writers) {
@@ -90,7 +88,6 @@ export function getBrief(topic: string, plan: LessonPlan): SceneBrief {
   return { topic, narration: plan.narration, plan: plan.plan, ...getNominalTiming(plan.narration) };
 }
 
-// Everything that makes it this far is saved, so the next student gets a checked scene free. A scene the review failed is saved too, marked, so nobody pays to write it again and a person can read why.
 export async function makeScene(maker: SceneMaker, { topic, plan, values = {} }: SceneRequest): Promise<MadeScene> {
   const now = maker.now ?? (() => performance.now());
   const startedAt = now();

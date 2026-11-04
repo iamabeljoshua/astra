@@ -2,13 +2,11 @@ import type { RichScene } from '@astra/contracts';
 import type { MadeScene } from './make-scene.ts';
 import type { RouteEngine, SceneRoute, StoredScene } from './scene-types.ts';
 
-/** A scene this long past the tutor's first chance to use it has missed its moment. It is still saved for the next student. */
 export const SHOW_WINDOW_MS = 20_000;
 
 export type SceneState =
   | { kind: 'idle' }
   | { kind: 'routing' }
-  /** The kit path comes next, so a kit-bound request stays on the plain board for now. */
   | { kind: 'declined'; engine: RouteEngine }
   | { kind: 'making'; route: SceneRoute }
   | { kind: 'ready'; scene: StoredScene }
@@ -17,22 +15,18 @@ export type SceneState =
 
 export interface SceneDeskOptions {
   route(request: string): Promise<SceneRoute>;
-  /** Finds a saved scene or writes a new one. It keeps running after the lesson has moved on, because the result is saved. */
   make(route: SceneRoute): Promise<MadeScene>;
   getNowMs(): number;
   onChange?(state: SceneState, atMs: number): void;
 }
 
 export interface SceneDesk {
-  /** Returns at once. The voice and the board never wait on this. */
   ask(request: string): void;
-  /** Called at each pause. A ready scene comes back once, and only inside its window. */
   takeReady(): StoredScene | null;
   getState(): SceneState;
   isMissed(): boolean;
 }
 
-// One lesson's one scene at a time. It holds no student and writes nothing ahead: it starts work only when a lesson asks.
 export function createSceneDesk({ route, make, getNowMs, onChange }: SceneDeskOptions): SceneDesk {
   let state: SceneState = { kind: 'idle' };
   let firstPauseAtMs: number | null = null;

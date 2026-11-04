@@ -19,7 +19,6 @@ function LessonBoard({ session, lesson: { frame, stage, onStageContainer } }: { 
   );
 }
 
-// Loaded only when lessons are on, so the room and the board stay out of the first page's download.
 export default function LessonSession({ session }: { session: Session }) {
   const { seconds, endSession, isEnding, endProblem } = useSessionRun(session);
   const lesson = useLesson(session);

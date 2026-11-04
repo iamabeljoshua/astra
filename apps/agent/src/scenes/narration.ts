@@ -7,7 +7,6 @@ const MOMENT_DECIMALS = 3;
 
 export interface MarkedWords {
   text: string;
-  /** Each mark, in order, with the word it sits on. */
   marks: { id: string; atWord: number; atCharacter: number }[];
 }
 
@@ -25,7 +24,6 @@ export function readMarks(marked: string): MarkedWords {
   return { text: text.replace(/\s+/g, ' ').trim(), marks };
 }
 
-/** A take is made on nominal times, because the same take plays under any voice. Each moment then lands on its word through overWords. */
 export function getNominalTiming(marked: string): { moments: Record<string, number>; durationSeconds: number } {
   const { text, marks } = readMarks(marked);
   const toSeconds = (characters: number) => Number((characters / NOMINAL_CHARACTERS_PER_SECOND).toFixed(MOMENT_DECIMALS));
@@ -40,7 +38,7 @@ function getRunCommands(target: RichScene['id'], marks: MarkedWords['marks'], in
   return [{ kind: 'runSimulation', target, action: 'play', ...(next ? { until: next.id } : {}), overWords }];
 }
 
-/** Turns marked narration into one beat. The scene takes the board on its first word, and each mark plays it on to the next mark as those words pass. */
+/** Each mark plays the scene on to the next mark as those words pass. */
 export function getSceneBeat({ id, marked, scene, expectsReply = false }: { id: string; marked: string; scene: RichScene; expectsReply?: boolean }): Beat {
   const { text, marks } = readMarks(marked);
   const words = text.split(' ');

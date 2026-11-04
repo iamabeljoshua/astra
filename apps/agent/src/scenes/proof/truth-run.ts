@@ -13,7 +13,6 @@ if (!args.store || !args.ledger || !args.narrations || !args.out) throw new Erro
 
 const TOPICS = { moon: 'why-the-moon-has-phases', heart: 'a-beating-heart', blackhole: 'how-a-black-hole-bends-light', seasons: 'why-earth-has-seasons-axial-tilt', efield: 'electric-field-lines-around-charges', fourier: 'fourier-series-building-a-square-wave', mitosis: 'mitosis-how-a-cell-divides', pythagoras: 'the-pythagorean-theorem-by-rearranging-areas', dna: 'dna-replication' };
 
-// The test's topics and its exact narrations, on Astra's own path, so its truth numbers can be compared with what this path really shows.
 mkdirSync(args.store, { recursive: true });
 const ledger = createSpendLedger({ path: args.ledger, limitUsd: Number(args.limit), note: 'truth run' });
 const models = makeAnthropicSceneModels({ apiKey: readKey('ANTHROPIC_API_KEY'), onUsage: ledger.onUsage });

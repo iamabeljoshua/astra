@@ -21,7 +21,6 @@ export class ScenesController {
   getSceneTake(@Param() { sceneId, theme }: SceneTakeParamsDto, @Res({ passthrough: true }) response: HeaderSetter): StreamableFile {
     const path = findCheckedTake(process.env.SCENE_STORE_DIR, sceneId, theme);
     if (!path) throw new NotFoundException('This scene has no take.');
-    // Set only here, so a 404 does not claim to be compressed.
     response.setHeader('Content-Encoding', 'br');
     response.setHeader('Cache-Control', 'private, max-age=31536000, immutable');
     return new StreamableFile(createReadStream(path));

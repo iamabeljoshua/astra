@@ -53,7 +53,6 @@ export type SimulationPoint = string | number;
 export const SCENE_ENGINES = ['manimgx'] as const;
 export type SceneEngine = (typeof SCENE_ENGINES)[number];
 
-/** The take format is versioned, so a stored take plays only on this version of its engine. */
 export const SCENE_ENGINE_VERSIONS = { manimgx: '0.1.1' } as const satisfies Record<SceneEngine, string>;
 
 /** Motion the engine computes from named values in SI units. */

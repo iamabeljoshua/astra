@@ -2,7 +2,6 @@ import type { FactError, RouteEngine, SceneRoute, SceneVerdict, SceneUsage } fro
 
 const ENGINES: readonly RouteEngine[] = ['manimgx', 'kit', 'none'];
 const MOST_TOPIC_CHARACTERS = 80;
-/** A topic is shared truth, so anything that points at one person means the router leaked the request into it. */
 const POINTS_AT_A_PERSON = /@|\d{5,}|https?:|\b(my|i|me|mine|our|we)\b/i;
 
 export function findFirstObject(text: string): string | null {
@@ -22,14 +21,12 @@ export function findFirstObject(text: string): string | null {
   return null;
 }
 
-// A model can add words or a second object after its answer, and the first whole object is the answer.
 export function readJsonObject(text: string): Record<string, unknown> {
   const found = findFirstObject(text);
   if (!found) throw new Error('the model sent no JSON object');
   return JSON.parse(found) as Record<string, unknown>;
 }
 
-// A router that says anything else gets no scene, because a wrong scene is the worst failure.
 export function getRouteFromText(text: string): Omit<SceneRoute, keyof SceneUsage> {
   const reply = readJsonObject(text);
   const engine = ENGINES.find((name) => name === reply.engine) ?? 'none';
@@ -40,7 +37,6 @@ export function getRouteFromText(text: string): Omit<SceneRoute, keyof SceneUsag
 
 const readErrors = (value: unknown): FactError[] => (Array.isArray(value) ? value.filter((entry): entry is FactError => typeof entry === 'object' && entry !== null && typeof (entry as FactError).what === 'string') : []);
 
-// A reply we cannot read fails, because only a clear pass may reach a student.
 export function getVerdictFromText(text: string): Omit<SceneVerdict, keyof SceneUsage> {
   const reply = readJsonObject(text);
   const errors = readErrors(reply.errors);

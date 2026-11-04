@@ -7,7 +7,6 @@ import { createSpendLedger } from './spend-ledger.ts';
 const { values: args } = parseArgs({ options: { labels: { type: 'string' }, ledger: { type: 'string' }, out: { type: 'string' }, limit: { type: 'string', default: '5.5' } } });
 if (!args.labels || !args.ledger || !args.out) throw new Error('Name --labels, --ledger, and --out');
 
-// Runs requests whose labels were fixed before any model saw them, and counts a wrong scene apart from a wrong engine.
 const ledger = createSpendLedger({ path: args.ledger, limitUsd: Number(args.limit), note: 'router blind set' });
 const { router } = makeAnthropicSceneModels({ apiKey: readKey('ANTHROPIC_API_KEY'), onUsage: ledger.onUsage });
 const { requests } = JSON.parse(readFileSync(args.labels, 'utf8')) as { requests: { id: number; text: string; engine: string }[] };

@@ -1,4 +1,3 @@
-"""One job inside the locked container: the gate, a take per theme, then pictures and layout checks. Reads a JSON job on stdin and writes framed records on the stdout it was given."""
 import json
 import os
 import pathlib
@@ -20,8 +19,15 @@ LAYOUT_NOTE = re.compile(r"^\s*note:\s*(.+)$")
 SCENE_LINE = re.compile(r'scene\.py", line (\d+)')
 MOST_ERROR_CHARACTERS = 600
 
-record_stream = os.fdopen(os.dup(1), "wb", buffering=0)
-os.dup2(2, 1)
+
+def take_stdout_for_records():
+    """Keeps the real stdout for records, so anything else that prints lands on stderr."""
+    stream = os.fdopen(os.dup(1), "wb", buffering=0)
+    os.dup2(2, 1)
+    return stream
+
+
+record_stream = take_stdout_for_records()
 
 
 def send_record(header, payload=b""):

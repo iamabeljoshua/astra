@@ -8,6 +8,21 @@ A lesson asks the scene desk and never waits on it. Haiku 5.5 routes the request
 
 The browser plays a take by seconds on the board's clock. `runSimulation` plays a scene to a named moment over the words between two marks, so each moment lands on its word. A stop freezes it, and a rebuild from the log lands on the same second. The tutor sets a scene up in words at a pause. A scene not ready about 20 s after the opening ends is dropped from that lesson and stays saved.
 
+## Why it is this shape
+
+- A writer reads a `SceneBrief`, which holds a topic and shared truth and has no field that could hold a student. A card's title is already a clean topic. A typed question goes through the router, which names the topic with nothing about the person, and a topic that points at one person gets no scene.
+- The API reads a lesson's title from the session and not from the browser, so a page cannot put other words into a lesson.
+- A wrong scene is the worst failure. A router reply that names no known engine gets no scene, and a review reply that cannot be read fails, because only a clear pass may reach a student.
+- A scene the review failed is saved too, marked, so nobody pays to write it again and a person can read why. The API sends only checked scenes, so a rejected take stays on the disk.
+- The container is the wall, and the gate is only a first line. The gate refuses values a scene does not declare, so nothing about a student can slip in as a new name. The worker runs untrusted code, so the agent checks every record's length before keeping it.
+- Past 45 s the fallback writer gets the job, rather than racing two writers at double the cost.
+- The 6 MB limit: 2 of the test's 65 takes went past it, and the largest was 21 MB raw and 17.7 MB compressed. A take that large would stall a laptop on a slow line.
+- A take is made on nominal times, because the same take plays under any voice. `overWords` then lands each moment on its word.
+- A take is one immutable file per theme, compressed once so the API can send it as is. Moving to object storage later changes only `scene-store.ts` and the API's reader.
+- In the browser a take is untrusted data, so anything it throws costs that take and leaves the plain board underneath.
+- The planner streams, so the tutor speaks the first line as soon as it is written and is not silent while the rest comes.
+- The lesson service is local only, with a dev key, because it stands in until M3.6's live room. Lessons stay off unless a build sets `VITE_SCENE_LESSONS=1`. A request the router sends to the kit stays on the plain board until the kit path lands.
+
 ## Run it
 
 ```sh
@@ -17,9 +32,9 @@ SCENE_STORE_DIR=$PWD/.scene-store SCENE_LESSON_SERVICE_URL=http://127.0.0.1:7975
 VITE_SCENE_LESSONS=1 WEB_PORT=6330 API_PORT=3330 pnpm --filter @astra/web exec vite
 ```
 
-The lesson service listens on `SCENE_LESSON_PORT`, 7975 by default, and starts its own LiveKit on `LESSON_LIVEKIT_PORT`, 7970 by default. `LESSON_FAKES=1` runs a whole lesson with no model and the real container. `LESSON_VOICE=tone` spends no voice credits. `LESSON_VOICE_CHARACTER_LIMIT` caps live speech, and words already spoken play from `.scene-store/voice`.
+The lesson service listens on `SCENE_LESSON_PORT`, 7975 by default, and starts its own LiveKit on `LESSON_LIVEKIT_PORT`, 7970 by default. `LESSON_FAKES=1` runs a whole lesson with no model and the real container. `LESSON_VOICE=tone` spends no voice credits. `LESSON_VOICE_CHARACTER_LIMIT` caps live speech, past which the voice falls back to a tone so a proof cannot overspend, and words already spoken play from `.scene-store/voice`.
 
-`apps/agent/src/scenes/proof/` holds the proofs. `lesson-proof.ts` drives a real session and checks cues, seeks, and replay. `prepare-scene.ts` writes one scene. `router-blind.ts`, `truth-run.ts`, and `review-rerun.ts` made the tables below. `remake-takes.ts` makes takes again from stored code, with no model call.
+`apps/agent/src/scenes/proof/` holds the proofs. `lesson-proof.ts` drives a real session and checks cues, seeks, and replay. `prepare-scene.ts` writes one scene. `router-blind.ts`, `truth-run.ts`, and `review-rerun.ts` made the tables below. `remake-takes.ts` makes takes again from stored code, with no model call, under the id of the pinned engine version, which is what a new engine version or a new look costs.
 
 ## Live results
 

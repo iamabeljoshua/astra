@@ -1,4 +1,3 @@
-"""Runs one scene file and writes its take. Prints one JSON line of what the scene really did."""
 import importlib.util
 import json
 import sys

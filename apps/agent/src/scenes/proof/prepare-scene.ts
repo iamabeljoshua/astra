@@ -21,7 +21,6 @@ const { values: args } = parseArgs({
 });
 if (!args.topic || !args.ledger) throw new Error('Name a --topic and a --ledger file');
 
-// Sends one topic through the same path a live lesson uses, with real models and the real container.
 const ledger = createSpendLedger({ path: args.ledger, limitUsd: Number(args.limit), note: args.topic });
 ledger.assertRoom();
 const models = makeAnthropicSceneModels({ apiKey: readKey('ANTHROPIC_API_KEY'), onUsage: ledger.onUsage });

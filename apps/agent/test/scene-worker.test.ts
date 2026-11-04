@@ -44,7 +44,7 @@ describe('reading what the worker sends', () => {
     expect(refused[0]).toMatch(/take passed/);
   });
 
-  it('refuses a scene writing garbage to its stdout', () => {
+  it('refuses bytes that are not a record', () => {
     expect(read(Buffer.from('hello from a scene, not a record')).refused[0]).toMatch(/too long|could not be read/);
   });
 

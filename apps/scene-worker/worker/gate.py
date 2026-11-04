@@ -1,4 +1,3 @@
-"""The first line against a scene's code. It refuses what the code may not use and reads its declared values. The container is the real wall."""
 import ast
 
 ALLOWED_IMPORTS = {"math", "numpy", "manimgx", "itertools", "functools", "dataclasses", "typing", "collections", "astra_truth"}
@@ -18,7 +17,6 @@ def _read_number(node):
 
 
 def _read_declaration(call):
-    """A declared value is value('name', default, lo=.., hi=..) with every argument written out."""
     fields = {keyword.arg: _read_number(keyword.value) for keyword in call.keywords}
     name = call.args[0].value if call.args and isinstance(call.args[0], ast.Constant) and isinstance(call.args[0].value, str) else None
     default = _read_number(call.args[1]) if len(call.args) == 2 else None
@@ -58,7 +56,6 @@ def _check_values(values, declared, reasons):
 
 
 def check_scene_code(code, values=None):
-    """Returns {"ok", "reasons", "declared"}. Values the scene does not declare are refused here, so nothing about a student can slip in as a new name."""
     try:
         tree = ast.parse(code)
     except (SyntaxError, ValueError) as error:

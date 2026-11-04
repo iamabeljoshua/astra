@@ -163,7 +163,6 @@ async function saveRecording(recorded: Page) {
   writeFileSync(join(folder, 'screencast.json'), JSON.stringify(screencast));
 }
 
-// What the room really did: how close each cue came to its word, whether a rebuild from the log lands on the same second, and whether a seek draws the same pixels twice.
 async function readProofs(open: Page) {
   const fromPage = await open.evaluate(() => {
     const lesson = window.sceneLesson;

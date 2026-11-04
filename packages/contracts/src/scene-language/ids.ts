@@ -37,7 +37,6 @@ export function readSceneId(place: Place): string {
   return place.value;
 }
 
-/** A Map or Object.hasOwn reads these, because a scene's moments come from a model. */
 export function readMomentName(place: Place): string {
   if (!isAllowed(place.value, MOMENT_NAME)) fail(place, 'a moment name');
   return place.value;

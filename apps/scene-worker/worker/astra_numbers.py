@@ -1,4 +1,3 @@
-"""How a number reads on screen, so a label cannot show 2.9999999 or 1000000."""
 from decimal import ROUND_HALF_EVEN, Decimal, localcontext
 
 MINUS = "−"
@@ -11,7 +10,6 @@ def _rounded(number, places):
 
 
 def num(number, places=0):
-    """Groups thousands, keeps exactly `places` decimals, and writes a true minus sign."""
     rounded = _rounded(number, places)
     text = f"{abs(rounded):,.{places}f}"
     return f"{MINUS}{text}" if rounded < 0 else text

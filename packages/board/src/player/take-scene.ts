@@ -1,7 +1,6 @@
 import type { RichScene, SceneEngine } from '@astra/contracts';
 import type { Scene } from './scene.ts';
 
-/** Which second of which stored take to show. The view draws it, so this stays pure and a seek needs no replay. */
 export interface TakeFrame {
   engine: SceneEngine;
   sceneId: string;

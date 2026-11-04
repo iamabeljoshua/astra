@@ -12,7 +12,6 @@ function toBeat(id: string, script: Beat['script'], expectsReply = false): Beat 
 
 export const getSpokenBeat = (id: string, words: string, expectsReply = false) => toBeat(id, [words], expectsReply);
 
-/** One opening line on the plain board, with what it adds there placed on its first word. */
 export function getLineBeat(id: string, { say, tex, note }: OpeningLine): Beat {
   const overWords = Math.min(getSpokenWords(say).length, MOST_OVER_WORDS);
   if (tex) return toBeat(id, [{ kind: 'writeMath', id: `${id}-math` as ElementId, tex, overWords }, say]);
@@ -20,7 +19,6 @@ export function getLineBeat(id: string, { say, tex, note }: OpeningLine): Beat {
   return toBeat(id, [say]);
 }
 
-/** The words that point at the scene, then the scene under its narration. */
 export function getSceneBeats({ setup, narration, scene }: { setup: string; narration: string; scene: RichScene }): Beat[] {
   return [getSpokenBeat('scene-setup', setup), getSceneBeat({ id: 'scene-take', marked: narration, scene })];
 }

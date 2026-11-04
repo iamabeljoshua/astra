@@ -29,7 +29,6 @@ const SETTINGS = {
 type SettingName = keyof typeof SETTINGS;
 export type ReviewPass = 'reviewQuick' | 'reviewCareful';
 
-/** One pass at one effort disagreed with itself on 7 of 8 real scenes, and neither alone stopped every flawed one, so a scene must pass both. docs/tests/scenes.md has the runs. */
 const REVIEW_PASSES: readonly ReviewPass[] = ['reviewQuick', 'reviewCareful'];
 type UserContent = string | Anthropic.Beta.Messages.BetaContentBlockParam[];
 
@@ -68,7 +67,6 @@ export interface SceneModels {
   planner: LessonPlanner;
 }
 
-// Each role has its own small interface, so Abel can move one to another vendor without touching the others.
 export function makeAnthropicSceneModels({ apiKey, onUsage, reviewPasses = REVIEW_PASSES }: { apiKey: string; onUsage?: UsageListener; reviewPasses?: readonly ReviewPass[] }): SceneModels {
   const client = new Anthropic({ apiKey, maxRetries: 1 });
   const writerSystem = `${readPrompt('writer.md')}\n\n${readPrompt('truth-kit.md')}`;

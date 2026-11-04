@@ -34,13 +34,11 @@ async function readCanPlay(): Promise<boolean> {
   return adapter ? REQUIRED_GPU_FEATURES.every((feature) => adapter.features.has(feature)) : false;
 }
 
-/** Without WebGPU and these features, the student stays on the plain board. */
 export function getCanPlayScenes(): Promise<boolean> {
   canPlay ??= readCanPlay().catch(() => false);
   return canPlay;
 }
 
-// Warms the browser's cache and no more, so signing in spends nothing on a device that cannot play a scene.
 export function fetchSceneEngineInBackground(): void {
   void getCanPlayScenes().then((isAble) => {
     if (isAble) void Promise.all([fetchAppFile(WASM_PATH), fetchAppFile(FONT_PATH)]).catch(() => {});

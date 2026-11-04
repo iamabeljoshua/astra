@@ -8,7 +8,6 @@ import { createSceneStage, type SceneStage } from '../scenes/sceneStage';
 import type { Session } from './sessionQueries';
 
 const RESUME_AFTER_MS = 2500;
-/** A proof turns this on to keep the sound it heard, for a recording. */
 const RECORD_KEY = 'astra.lesson.record';
 
 export interface LessonFrame {
@@ -17,7 +16,6 @@ export interface LessonFrame {
   caption: string;
 }
 
-/** A proof pins the board to one moment, from the live operations or a rebuild from the log. */
 interface HeldFrame {
   atMs: number;
   source: 'live' | 'replay';
@@ -27,7 +25,6 @@ export interface Lesson {
   frame: LessonFrame | null;
   stage: SceneStage | null;
   onStageContainer(container: HTMLElement | null): void;
-  /** The student spoke over the tutor. The board freezes, and the stand-in carries on from the word it was cut on. */
   interrupt(): void;
 }
 
@@ -47,7 +44,7 @@ function getShouldRecord(): boolean {
   }
 }
 
-// Stands in for the live room until M3.6 and M3.7 land. It joins, plays what the agent sends on the real clock, and answers when asked to load a scene.
+// Stands in for the live room until M3.6 and M3.7 land.
 export function useLesson(session: Session): Lesson {
   const [frame, setFrame] = useState<LessonFrame | null>(null);
   const [stage, setStage] = useState<SceneStage | null>(null);

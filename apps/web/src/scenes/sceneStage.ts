@@ -2,7 +2,7 @@ import { api } from '../api/client';
 import { getAppliedTheme, type Theme } from '../theme/theme';
 import { bootSceneEngine, type EnginePlayer } from './sceneEngine';
 
-// The engine draws its controls while paused and has no switch, so the canvas is taller than its box and the box clips them. This is a hack until upstream adds the option.
+// The engine draws its controls while paused and has no switch, so the canvas is taller than its box and the box clips them.
 const CONTROLS_CLIP_PX = 120;
 const MOST_DENSITY = 2;
 const DURATION_SLACK_SECONDS = 1;
@@ -10,9 +10,9 @@ const MOST_KEPT_TAKES = 4;
 const SAME_FRAME_SECONDS = 0.0005;
 
 export interface SceneStage {
-  /** Fetches and checks a take, and draws its first frame out of sight. Resolves false if the take was refused. */
   load(sceneId: string, durationSeconds: number): Promise<boolean>;
   draw(sceneId: string, seconds: number): void;
+  canDraw(sceneId: string): boolean;
   free(): void;
 }
 
@@ -55,7 +55,6 @@ function fitCanvas(canvas: HTMLCanvasElement, player?: EnginePlayer): { width: n
   return size;
 }
 
-// Plays stored takes by seconds and nothing else. A take is untrusted data, so anything it throws costs that take and leaves the plain board underneath.
 export function createSceneStage(container: HTMLElement): SceneStage {
   let active: ActivePlayer | null = null;
   let isChangingTheme = false;
@@ -136,6 +135,7 @@ export function createSceneStage(container: HTMLElement): SceneStage {
         dropActive();
       }
     },
+    canDraw: (sceneId) => isChangingTheme || active?.sceneId === sceneId,
     free() {
       observer.disconnect();
       dropActive();

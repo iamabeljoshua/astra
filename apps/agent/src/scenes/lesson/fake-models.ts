@@ -35,7 +35,6 @@ class Lesson(Lesson2D):
         self.finish()
 `;
 
-// A whole lesson with no model behind it and the real container, so the path can be run first for free.
 export function makeFakeSceneModels(): SceneModels {
   const makeWriter = (name: string): SceneModels['writer'] => ({
     name,

@@ -10,11 +10,8 @@ const SAVED_ROUTE = { engine: 'manimgx', kind: 'saved', model: 'none', ms: 0, co
 export interface LessonWork {
   request: string;
   desk: SceneDesk;
-  /** The stand-in tutor's words. Null when the request needs no lesson. */
   plan: Promise<LessonPlan | null>;
-  /** The first of those lines, as soon as it exists, so the tutor is not silent while the rest is written. */
   firstLine: Promise<OpeningLine | null>;
-  /** Asks for words only, for a browser that cannot show a scene. */
   planWithoutScene(): void;
 }
 
@@ -22,7 +19,6 @@ export interface LessonWorkOptions extends SceneMaker {
   router: SceneRouter;
   planner: LessonPlanner;
   request: string;
-  /** A card's title is already a clean topic. A typed question goes through the router, which names the topic with nothing about the person. */
   isCard: boolean;
   getNowMs(): number;
   onChange?(state: SceneState, atMs: number): void;
@@ -48,7 +44,7 @@ export function createLessonWork({ router, planner, request, isCard, getNowMs, o
     }
     const route = await router.route(request, AbortSignal.timeout(ROUTER_LIMIT_MS));
     const topic = isCard ? request : route.topic;
-    if (route.engine === 'none' || topic === '') {
+    if ((route.engine === 'none' && !isCard) || topic === '') {
       settlePlan(null);
       return { ...route, engine: 'none', topic: '' };
     }

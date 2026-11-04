@@ -89,6 +89,7 @@ describe('the scene stage', () => {
     isBroken = false;
     expect(() => stage.draw('slope', 5)).not.toThrow();
     expect(player.freed).toBe(1);
+    expect(stage.canDraw('slope')).toBe(false);
   });
 
   it('ignores a scene it has not loaded', async () => {

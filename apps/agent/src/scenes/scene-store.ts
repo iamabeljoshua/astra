@@ -11,7 +11,6 @@ const BROTLI_QUALITY = 9;
 
 const toSlug = (text: string) => text.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, MOST_SLUG_CHARACTERS).replace(/-$/, '');
 
-/** The same topic, values, and engine version give the same id, so a saved scene is found again, and a new version of the engine makes its takes afresh. */
 export function getSceneId(topic: string, values: Readonly<Record<string, number>> = {}): string {
   const sortedValues = Object.entries(values).sort(([first], [second]) => first.localeCompare(second));
   const hash = createHash('sha256').update(JSON.stringify([topic.toLowerCase().trim(), sortedValues, SCENE_ENGINE_VERSIONS.manimgx])).digest('hex').slice(0, HASH_CHARACTERS);
@@ -29,7 +28,6 @@ const writeReplacing = (path: string, bytes: Buffer | string) => {
   renameSync(`${path}.part`, path);
 };
 
-// A take is one immutable file per theme, compressed once so the API can send it as is. Moving to object storage later changes only this file and the API's reader.
 export function createSceneStore(root: string): SceneStore {
   const scenesRoot = join(root, 'scenes');
   const read = (sceneId: string): StoredScene | null => {

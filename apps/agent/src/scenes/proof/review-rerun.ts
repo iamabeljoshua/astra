@@ -10,14 +10,12 @@ if (!args.cases || !args.ledger || !args.out) throw new Error('Name --cases, --l
 
 interface ReviewCase {
   id: string;
-  /** Pass means this scene is known to be true, and fail means a person or a planted error says it is not. */
   want: 'pass' | 'fail';
   brief: SceneBrief;
   code: string;
   sheets: string[];
 }
 
-// Runs the reviewer alone on scenes whose truth is already known, so a setting can be judged on what it catches and what it wrongly stops.
 const REVIEW_PASSES: Record<string, ReviewPass[]> = { low: ['reviewQuick'], high: ['reviewCareful'], both: ['reviewQuick', 'reviewCareful'] };
 const ledger = createSpendLedger({ path: args.ledger, limitUsd: Number(args.limit), note: `review ${args.effort}` });
 const { reviewer } = makeAnthropicSceneModels({ apiKey: readKey('ANTHROPIC_API_KEY'), onUsage: ledger.onUsage, reviewPasses: REVIEW_PASSES[args.effort as string] });

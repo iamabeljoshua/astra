@@ -2,7 +2,6 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { SceneTheme } from './scene.dto';
 
-// Only a scene that passed its checks reaches a browser, so a rejected take stays on the disk where a person can read why.
 export function findCheckedTake(storeRoot: string | undefined, sceneId: string, theme: SceneTheme): string | null {
   if (!storeRoot) return null;
   const folder = join(storeRoot, 'scenes', sceneId);

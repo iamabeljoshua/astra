@@ -35,7 +35,7 @@ interface ActiveTurn {
   isStopped: boolean;
 }
 
-// The stand-in for M3.6's worker and M3.7's brain: it speaks a plan on the real clock and takes a ready scene at each pause. Words and the board never wait on the desk.
+// Stands in for M3.6's worker and M3.7's brain: it speaks a plan and takes a ready scene at each pause.
 export async function runLesson({ url, token, work, voice, onEvent }: RunLessonOptions): Promise<void> {
   const room = new Room();
   const encoder = new TextEncoder();
@@ -161,7 +161,6 @@ export async function runLesson({ url, token, work, voice, onEvent }: RunLessonO
       void publish(SCENE_TOPIC, { type: 'loadScene', sceneId: scene.id, durationSeconds: scene.durationSeconds } satisfies SceneAgentMessage);
     });
 
-  // A pause is a turn's end. A ready scene plays here, set up in words first, and anything else keeps the lesson moving on the plain board.
   const showSceneIfReady = async (plan: LessonPlan): Promise<boolean> => {
     const scene = work.desk.takeReady();
     if (!scene) return false;

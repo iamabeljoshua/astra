@@ -1,4 +1,3 @@
-# Truth in the kit: these compute reality, so a scene cannot get the Moon's phase or the seasons wrong.
 _PHASE_DEG = {"new": 0.0, "waxing-crescent": 45.0, "first-quarter": 90.0, "waxing-gibbous": 135.0, "full": 180.0, "waning-gibbous": 225.0, "last-quarter": 270.0, "waning-crescent": 315.0}
 _PHASE_NAMES = [(22.5, "New moon"), (67.5, "Waxing crescent"), (112.5, "First quarter"), (157.5, "Waxing gibbous"), (202.5, "Full moon"), (247.5, "Waning gibbous"), (292.5, "Last quarter"), (337.5, "Waning crescent"), (360.1, "New moon")]
 _SEASON_DEG = {"march-equinox": 0.0, "june-solstice": 90.0, "september-equinox": 180.0, "december-solstice": 270.0}
@@ -63,7 +62,7 @@ def moon_orbit(scene, moon, earth, radius, sun_dir, phases):
 
 
 def _disk_outline(angle_deg, radius):
-    # The lit part of a sphere seen from Earth: a half circle plus the terminator's half ellipse. North up, and the lit limb on the right while waxing, for a northern observer.
+    # The Moon's lit part: a half circle plus the terminator's half ellipse, lit limb on the right while waxing, seen from the north.
     a = math.radians(angle_deg % _FULL_TURN)
     side = 1.0 if (angle_deg % _FULL_TURN) <= _FULL_TURN / 2 else -1.0
     limb = [np.array([side * radius * math.cos(u), radius * math.sin(u), 0.0]) for u in np.linspace(-math.pi / 2, math.pi / 2, 40)]
@@ -88,7 +87,7 @@ class Seasons:
     def __init__(self, scene, earth, sun, radius, tilt_deg, moments):
         self.scene, self.sun, self.radius, self.tilt_deg = scene, sun, radius, tilt_deg
         self.keys = _keys_from_moments(moments, _SEASON_DEG)
-        # At the June solstice Earth sits at 90 degrees, so the Sun lies toward -y from it, and the north pole leans that way all year.
+        # At the June solstice the Sun lies toward -y from Earth, and the north pole leans that way all year.
         tilt = math.radians(tilt_deg)
         self.axis = np.array([0.0, -math.sin(tilt), math.cos(tilt)])
         earth.add_updater(lambda o: o.move_to(self.position(scene.time)))

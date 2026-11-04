@@ -26,7 +26,7 @@ function makeSceneSafely(catalog: SceneCatalog, command: SceneCommand, changes: 
   }
 }
 
-// The board rebuilds per frame and during a stop, so a scene is made once per command, and a catalog that throws or returns NaN leaves that element still and the lesson running.
+// The board rebuilds per frame, so a scene is made once per command, and a bad catalog leaves its element still.
 export function guardSceneCatalog(catalog: SceneCatalog): SceneCatalog {
   const made = new WeakMap<SceneCommand, Map<string, Scene | null>>();
   return (command, changes) => {

@@ -9,7 +9,6 @@ import { useSignInDraft } from './auth/useSignInDraft';
 import { LegalPage } from './legal/LegalPage';
 import { LEGAL_PATHS } from './legal/legalPaths';
 import { RootErrorBoundary } from './RootErrorBoundary';
-import { fetchSceneEngineInBackground } from './scenes/sceneEngine';
 import { isLessonEnabled } from './session/lessonFlag';
 import { SESSION_ROUTE } from './session/sessionPath';
 import { SessionScreen } from './session/SessionScreen';
@@ -49,7 +48,7 @@ function AppRoutes() {
 
 function SignedInRoutes() {
   useEffect(() => {
-    if (isLessonEnabled()) fetchSceneEngineInBackground();
+    if (isLessonEnabled()) void import('./scenes/sceneEngine').then(({ fetchSceneEngineInBackground }) => fetchSceneEngineInBackground());
   }, []);
 
   return (

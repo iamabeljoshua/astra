@@ -8,7 +8,6 @@ interface Ledger {
 
 const readLedger = (path: string): Ledger => (existsSync(path) ? (JSON.parse(readFileSync(path, 'utf8')) as Ledger) : { anthropicUsd: 0, calls: [] });
 
-/** A proof's own hard limit on real money, measured from usage and kept across runs. */
 export function createSpendLedger({ path, limitUsd, note }: { path: string; limitUsd: number; note: string }) {
   const assertRoom = () => {
     const { anthropicUsd } = readLedger(path);

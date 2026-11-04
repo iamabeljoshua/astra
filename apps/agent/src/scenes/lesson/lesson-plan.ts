@@ -34,7 +34,6 @@ function readNarration(value: unknown): string {
 
 const OPENING_LIST = /"opening"\s*:\s*\[/;
 
-/** Reads the first opening line out of a reply still being written, or null until it is whole. */
 export function getFirstLineFromPartialText(text: string): OpeningLine | null {
   const found = OPENING_LIST.exec(text);
   const object = found ? findFirstObject(text.slice(found.index + found[0].length)) : null;

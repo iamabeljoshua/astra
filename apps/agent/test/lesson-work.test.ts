@@ -96,6 +96,12 @@ describe('a lesson asking for its scene', () => {
     expect(plan).not.toHaveBeenCalled();
   });
 
+  it('still gives a card its words when the router says no drawing', async () => {
+    const { work } = setUp({ engine: 'none', topic: '', isCard: true, request: 'What a derivative really measures' });
+    work.desk.ask(work.request);
+    expect(await work.plan).toEqual({ ...PLAN, ...USAGE });
+  });
+
   it('settles with no plan when the router fails, so the lesson never hangs', async () => {
     const { work, route } = setUp();
     route.mockRejectedValue(new Error('down'));

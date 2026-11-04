@@ -9,10 +9,8 @@ export interface SceneUsage {
   costUsd: number;
 }
 
-/** The only thing a writer reads. It has a topic and shared truth, and no field that could hold a student. */
 export interface SceneBrief {
   topic: string;
-  /** What the tutor says, with [[moment]] marks on the words each visual belongs to. */
   narration: string;
   plan: string;
   moments: Readonly<Record<string, number>>;
@@ -45,7 +43,6 @@ export interface SceneVerdict extends SceneUsage {
   errors: readonly FactError[];
 }
 
-/** Reports and never rewrites, so what passes is exactly what was written. */
 export interface SceneReviewer {
   review(request: { brief: SceneBrief; code: string; sheets: readonly Buffer[] }, signal: AbortSignal): Promise<SceneVerdict>;
 }
@@ -68,10 +65,8 @@ export interface OpeningLine {
   note?: string;
 }
 
-/** The stand-in tutor's words for one lesson, until M3.7's brain writes them live. */
 export interface LessonPlan {
   opening: readonly OpeningLine[];
-  /** More to say on the plain board, used only while a scene is still being made. */
   more?: readonly OpeningLine[];
   setup: string;
   narration: string;
@@ -80,7 +75,6 @@ export interface LessonPlan {
 }
 
 export interface LessonPlanner {
-  /** `onFirstLine` fires as soon as the first line has been written, so the tutor can start talking before the whole plan is done. */
   plan(topic: string, signal: AbortSignal, onFirstLine?: (line: OpeningLine) => void): Promise<LessonPlan & SceneUsage>;
 }
 
@@ -93,7 +87,6 @@ export interface DeclaredValue {
 
 export type SceneStatus = 'checked' | 'rejected';
 
-/** Everything a version change needs to make the takes again with no model call. */
 export interface StoredScene {
   id: string;
   topic: string;
@@ -110,7 +103,6 @@ export interface StoredScene {
   values: Readonly<Record<string, number>>;
   review: readonly FactError[];
   layoutNotes: readonly string[];
-  /** A person has not looked at this scene. M3.14's library flow can set it. */
   isCheckedByPerson: boolean;
   takeBytes: Readonly<Record<SceneTheme, number>>;
   trace: SceneTrace;
