@@ -28,7 +28,7 @@ The deck in `packages/board/test-deck/` has SCENES scenes across math, physics, 
 
 ## The check
 
-`scripts/check-layout.ts` draws each scene on the real page and reads what the browser laid out, not what was asked for. It draws at each of 8 screens, in both themes, and under reduced motion on a laptop and a phone. Each scene is read 40, 180, and 400 ms after each command lands, and again at rest.
+`scripts/check-layout.ts` draws each scene on the real page and reads what the browser laid out, not what was asked for. It draws at 10 board sizes on 8 screens, in both themes, and under reduced motion on a laptop and a phone. Each scene is read 40, 180, and 400 ms after each command lands, and again at rest.
 
 It reports these as defects:
 
@@ -98,7 +98,18 @@ TIER_PROOF
 
 The repaint comment was wrong. With 0 writes to the page, a repaint has moved 140 pixels by up to 36 levels, so a browser's raster alone can break the limit of 2 levels.
 
-PROOF_GATE
+What the proofs gave at this code, on the fake voice:
+
+| Proof | Result |
+| --- | --- |
+| `math-proof` `marks-and-labels`, laptop and phone | 0 writes with no cause, against 97 before. 88 replay moments, 0 differ |
+| `math-proof` `reduced` | 0 moving frames under reduced motion, 0 unknown colors, 0 gradients, 0 rests that differ. 1 still board moved one pixel by one level with 0 writes |
+| `math-proof` `hostile` | Markup never ran. 144 replay moments, 0 differ |
+| `graph-proof` `reduced`, `hostile`, `marks` | 2 of 364 replay moments differ: 1 pixel by 53 levels and 742 pixels by 40 levels. Both had the same page and a clean second look |
+
+A still board now takes the same second look as a replay moment, under the same limit of 2 levels, so one pixel of raster does not fail a proof and a real change does.
+
+**A rule for countersign, not in the gate.** A difference settles when the page's HTML is identical at both moments and a second look at both is clean, whatever the levels. The painter's only output is the page, so a difference with the same page can only come from the browser's raster, and `writes` and `animations` already fail on anything still moving. Each of the 2 moments above would settle under it, and none that had a different page would. `lookAtMoment` logs the page comparison today, so every run adds evidence. The rule is one commit on `feat/m3-5-settle-rule`.
 
 ## Choices worth keeping
 
