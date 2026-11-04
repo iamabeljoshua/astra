@@ -34,15 +34,6 @@ image_runs() {
   docker run --rm --pull never --entrypoint postgres "$image" --version > /dev/null 2>&1
 }
 
-# Each hit refreshes an entry's age, so a bad entry would keep costing time unless the run says so.
-warn_about_fallback() {
-  if [ -f "$archive" ]; then
-    echo "::warning file=.github/scripts/postgres-image.sh::The restored Postgres image did not run, so this job pulls it, with less margin under the limit. If this repeats, the entry is bad: find it with gh cache list --key postgres-image and remove it with gh cache delete."
-  else
-    echo "::warning file=.github/scripts/postgres-image.sh::The Postgres image cache gave no archive, so this job pulls the image, with less margin under the limit."
-  fi
-}
-
 # A folder that will not run the image falls back to a pull, so a bad entry costs time and does not fail the job.
 start_docker_in_memory() {
   stop_docker
@@ -53,7 +44,6 @@ start_docker_in_memory() {
   echo '{"data-root":"/dockerdata","features":{"containerd-snapshotter":false}}' | sudo tee /etc/docker/daemon.json > /dev/null
   restore_archive_or_leave_folder_empty
   if ! { sudo systemctl start docker && image_runs; }; then
-    warn_about_fallback
     stop_docker
     sudo find /dockerdata -mindepth 1 -delete
     sudo systemctl reset-failed docker
