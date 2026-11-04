@@ -568,3 +568,29 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
     ],
   },
 };
+
+export const REVIEW_LABELS = {
+  pageTitle: 'Safety flags',
+  about: 'A flag holds no words. It records that a safety check fired, with the student ID, session, kind, source, and time. A person reads each flag within 24 hours.',
+  empty: 'No flags yet.',
+  failed: 'That did not work. Try again.',
+  kinds: {
+    self_harm: 'Self-harm',
+    abuse: 'Abuse',
+    danger: 'Danger',
+    grooming: 'Grooming',
+    tutor_slip: 'Tutor slip',
+  },
+  sources: {
+    student: 'The student',
+    tutor: 'The tutor',
+  },
+  from: 'From',
+  student: 'Student ID',
+  session: 'Session ID',
+  noSession: 'Session removed',
+  markReviewed: 'Mark reviewed',
+  reviewedAt: (time: string) => `Reviewed ${time}.`,
+  waitingInTime: (waitedHours: number, leftHours: number) => `Waiting ${waitedHours} h. ${leftHours} h left of the 24 hour promise.`,
+  waitingTooLong: (waitedHours: number, overHours: number) => `Waiting ${waitedHours} h. ${overHours} h past the 24 hour promise.`,
+};
