@@ -67,16 +67,16 @@ describe('the switch on findSource', () => {
     const warm = vi.fn(async () => {});
     fakes.makeModel.mockReturnValue({ warm });
     warmTutorModel();
-    expect(warm).toHaveBeenLastCalledWith(PROMPT_VERSIONS.v2.system);
+    expect(warm).toHaveBeenLastCalledWith(PROMPT_VERSIONS.v3.system);
     process.env.ASTRA_FIND_SOURCE = 'on';
     warmTutorModel();
-    expect(warm).toHaveBeenLastCalledWith(PROMPT_VERSIONS.v2FindSource.system);
+    expect(warm).toHaveBeenLastCalledWith(PROMPT_VERSIONS.v3FindSource.system);
   });
 
   it('leaves the prompt the same but for the tool line, and the prompt in use by default is the one with no search', () => {
-    expect(TUTOR_SYSTEM).toBe(PROMPT_VERSIONS.v2.system);
-    expect(PROMPT_VERSIONS.v2.system).not.toContain('findSource');
-    expect(PROMPT_VERSIONS.v2FindSource.system.replace(/\{"tool":"findSource".*\n/, '')).toBe(PROMPT_VERSIONS.v2.system);
+    expect(TUTOR_SYSTEM).toBe(PROMPT_VERSIONS.v3.system);
+    expect(PROMPT_VERSIONS.v3.system).not.toContain('findSource');
+    expect(PROMPT_VERSIONS.v3FindSource.system.replace(/\{"tool":"findSource".*\n/, '')).toBe(PROMPT_VERSIONS.v3.system);
   });
 
   it('keeps the crisis sentence in the old prompt, so v1 is the old prompt word for word', () => {

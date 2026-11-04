@@ -189,9 +189,11 @@ const BREATHS_MS = [300, 450, 350];
 /** A repeated opening of a few words is dropped only at the start of a retry, where it sounds like starting over, and a longer repeat anywhere. */
 const FEWEST_WORDS_IN_A_REPEAT = 4;
 const COMPACT_AT_TOKENS = 60_000;
+const TURNS_THAT_SET_THE_START = 2;
 const TURNS_KEPT_AFTER_COMPACTING = 8;
 const CHARACTERS_PER_TOKEN = 3.2;
 const NAMES_HELP = /\b(?:adult|emergency)\b/i;
+const PERSONAL_NOTE = /^\{"(?:student|memory|fit)":/;
 
 /** What the model is told after a safety check stops a student's message, built by code, so it holds none of what was refused. */
 const DECLINED_NOTE = {
@@ -264,6 +266,8 @@ const addUsage = (total: ModelUsage | null, part: ModelUsage): ModelUsage =>
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const holdsWhereToStart = ({ memory: { notes } }: MemoryNote) => notes.some(({ kind }) => kind === 'showed' || kind === 'struggled');
+
 const toProfileNote = ({ level, interests, goal, cardTitle }: StudentProfile) => ({ student: { level, interests, goal, ...(cardTitle ? { card_title: cardTitle } : {}) } });
 
 export function createTutorBrain({ model, profile = null, loadProfile, memory: knownMemory = null, loadMemory, onWorkNoted, timeouts: chosenTimeouts, trace = () => {}, onTurnEnd, onCompacted, compactAtTokens = COMPACT_AT_TOKENS, getSpendLimit = () => null, getNowMs = () => performance.now(), prompt = TUTOR_PROMPT, findSource, lessonPlanner, onAskScene, onSafetyReply }: TutorBrainOptions): Required<TutorBrain> {
@@ -281,8 +285,11 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
   let toldBoard = '{}';
   let toldStep = 'null';
   let memoryNote: Record<string, unknown> | null = knownMemory ? { ...knownMemory } : null;
+  let canFitTheStart = knownMemory !== null && holdsWhereToStart(knownMemory);
   const getStandingNotes = () => [profileNote, memoryNote].filter((note) => note !== null);
   let isComeBackUnanswered = false;
+  let studentLevel = profile?.level ?? null;
+  let isAfterSafetyReply = false;
   let pendingNotes: Record<string, unknown>[] = getStandingNotes();
   let lastBeats: readonly Beat[] = [];
   let lastRefused: readonly string[] = [];
@@ -366,7 +373,9 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     hasNoddedSinceLastTurn = false;
     let readerMemory = memory;
     const shapeNote = lessonPlanner && !memory.openTask && !MAY_BE_ABOUT_SAFETY.test(studentText) ? (getProblemNote(studentText) ?? getTeachFirstNote(studentText, turnCount === 1)) : null;
-    const turnNotes = [attempts.startTurn(studentText), prompt.turnNote, shapeNote].filter((note) => note !== null);
+    const openingNote = canFitTheStart && turnCount <= TURNS_THAT_SET_THE_START ? (prompt.openingNote ?? null) : null;
+    const levelLine = studentLevel === null ? undefined : prompt.levelLines?.[studentLevel];
+    const turnNotes = [attempts.startTurn(studentText), prompt.turnNote, levelLine ? { level: levelLine } : null, shapeNote, openingNote].filter((note) => note !== null);
     const turn: TurnWork = {
       id: turnCount,
       studentText,
@@ -492,10 +501,10 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     sayWords(turn, pickLine(use));
   };
 
-  const getRequest = (turn: TurnWork): TutorModelRequest => ({
-    system: prompt.system,
-    turns: [...turns, { role: 'user', text: turn.studentText }, ...turn.notes.map((text) => ({ role: 'system' as const, text }))],
-  });
+  const getRequest = (turn: TurnWork): TutorModelRequest => {
+    const sent: TutorTurn[] = [...turns, { role: 'user', text: turn.studentText }, ...turn.notes.map((text) => ({ role: 'system' as const, text }))];
+    return { system: prompt.system, turns: isAfterSafetyReply ? sent.filter((entry) => entry.role !== 'system' || !PERSONAL_NOTE.test(entry.text)) : sent };
+  };
 
   const getDeadlineMs = (turn: TurnWork, attemptStartedAtMs: number, lastEventAtMs: number): number => {
     if (turn.reader.isTurnOver) return lastEventAtMs + timeouts.finishGraceMs;
@@ -867,6 +876,8 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     lastRefused = wasRefused ? [] : turn.refused;
     hidesLastWords = wasRefused;
     lessonPlanner?.noteReplyEnded({ wasSafety: turn.reader.isSafetyReply });
+    const wasSafetyReply = turn.reader.isSafetyReply || (wasRefused && !isPlainRefusal(turn));
+    isAfterSafetyReply = wasSafetyReply || (isAfterSafetyReply && !turn.hasModelWords);
     onTurnEnd?.({
       studentText: turn.studentText,
       spokenText: getWordsSaid(turn),
@@ -890,6 +901,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     (loaded) => {
       if (!loaded) return;
       profileNote = toProfileNote(loaded);
+      studentLevel = loaded.level;
       pendingNotes.push(profileNote);
     },
     (error: unknown) => trace('profileFailed', { problem: String(error) }),
@@ -899,6 +911,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
   const memoryLoading = loadMemory?.().then(
     (loaded) => {
       memoryNote = { ...loaded };
+      canFitTheStart = holdsWhereToStart(loaded);
       pendingNotes.push(memoryNote);
     },
     (error: unknown) => trace('memoryFailed', { problem: String(error) }),

@@ -76,6 +76,13 @@ describe('running a simulation', () => {
     expect(seconds(operations, 300)).toBeCloseTo(0.2, 3);
   });
 
+  it('stays put when a second play asks for the moment the first one reached', () => {
+    const [from, to] = [0.2296853825495868, 0.49399342932713947];
+    const play = { kind: 'runSimulation', target: 'shot', action: 'play', until: to };
+    const operations = [place(SHOT), place({ kind: 'runSimulation', target: 'shot', action: 'seek', to: from }, 0), place(play, 0), place(play, 2000)];
+    expect(seconds(operations, 2100)).toBeCloseTo(to, 3);
+  });
+
   it('continues without a jump when a play lands on a play', () => {
     const operations = [place(SHOT), place({ kind: 'runSimulation', target: 'shot', action: 'play', until: 'landing' }, 0), place({ kind: 'runSimulation', target: 'shot', action: 'play', until: 'landing', rate: 2 }, 500)];
     expect(seconds(operations, 500)).toBeCloseTo(0.5, 3);
