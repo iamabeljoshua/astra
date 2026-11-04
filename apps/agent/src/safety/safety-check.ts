@@ -15,7 +15,7 @@ export interface SafetyCheck {
 
 const CHECK_MODEL = 'claude-haiku-5-5';
 const MOST_ANSWER_TOKENS = 8;
-const READ_LIMIT_MS = 4000;
+const READ_LIMIT_MS = 3000;
 const USD_PER_INPUT_TOKEN = 0.1 / 1_000_000;
 const USD_PER_OUTPUT_TOKEN = 0.5 / 1_000_000;
 
@@ -37,10 +37,11 @@ const asTutorReading = (word: string): TutorReading => (word === 'tutor_slip' ||
 
 // One small read of one turn on the cheapest model. It runs beside the reply and never in front of it.
 export function makeAnthropicSafetyCheck({ apiKey, onCost }: { apiKey: string; onCost?(usd: number): void }): SafetyCheck {
-  const client = new Anthropic({ apiKey, maxRetries: 0 });
+  // One retry, because it costs the student no time, and a read that fails leaves only the prompt as a safeguard.
+  const client = new Anthropic({ apiKey, maxRetries: 1, timeout: READ_LIMIT_MS });
   const readWord = async (system: string, text: string): Promise<string | null> => {
     try {
-      const reply = await client.messages.create({ model: CHECK_MODEL, max_tokens: MOST_ANSWER_TOKENS, system, messages: [{ role: 'user', content: text }], thinking: { type: 'disabled' } }, { signal: AbortSignal.timeout(READ_LIMIT_MS) });
+      const reply = await client.messages.create({ model: CHECK_MODEL, max_tokens: MOST_ANSWER_TOKENS, system, messages: [{ role: 'user', content: text }], thinking: { type: 'disabled' } });
       onCost?.(reply.usage.input_tokens * USD_PER_INPUT_TOKEN + reply.usage.output_tokens * USD_PER_OUTPUT_TOKEN);
       const [first] = reply.content;
       return first?.type === 'text' ? (first.text.trim().toLowerCase().split(/\s+/)[0] ?? '').replace(/[^a-z_]/g, '') : null;

@@ -10,6 +10,7 @@ interface Wording {
   expect: string;
   group: string;
   text: string;
+  after?: string;
 }
 
 const EVAL_FOLDER = join(dirname(fileURLToPath(import.meta.url)), '../../../../../evals/tutor-turns');
@@ -19,7 +20,7 @@ const { values: args } = parseArgs({ options: { reps: { type: 'string', default:
 const getPercentile = (values: number[], fraction: number) => [...values].sort((first, second) => first - second)[Math.floor(values.length * fraction)] ?? null;
 
 // Reads every wording with the check alone, so the check's misses and false alarms show apart from what the tutor says.
-const wordings = (JSON.parse(readFileSync(join(EVAL_FOLDER, 'safety-wordings.json'), 'utf8')) as (Wording & { after?: string })[]).filter(({ after }) => !after);
+const wordings = JSON.parse(readFileSync(join(EVAL_FOLDER, 'safety-wordings.json'), 'utf8')) as Wording[];
 let spentUsd = 0;
 const check = makeAnthropicSafetyCheck({ apiKey: readKey('ANTHROPIC_API_KEY'), onCost: (usd) => (spentUsd += usd) });
 const queue = wordings.flatMap((wording) => Array.from({ length: Number(args.reps) }, () => wording));
@@ -28,7 +29,7 @@ const rows: { wording: Wording; reading: string }[] = [];
 const work = async () => {
   for (let wording = queue.shift(); wording; wording = queue.shift()) {
     const startedAt = performance.now();
-    const reading = await check.readStudent(wording.text);
+    const reading = await check.readStudent(wording.text, wording.after ? `Sure, let's work on that: ${wording.after}` : '');
     timesMs.push(performance.now() - startedAt);
     rows.push({ wording, reading });
   }

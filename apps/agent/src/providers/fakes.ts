@@ -14,6 +14,9 @@ function renderWord(): Int16Array {
   return Int16Array.from({ length: samples }, (_, index) => Math.round((index < loudSamples ? LOUD : QUIET) * 32767 * Math.sin((2 * Math.PI * TONE_HZ * index) / FAKE_SAMPLE_RATE)));
 }
 
+/** A voice that sends nothing, for proving what a student still gets when the voice fails. */
+export const renderNothing: RenderSpeech = () => ({ pcm: new Int16Array(0), sampleRate: RENDERED_SAMPLE_RATE, words: [] });
+
 export const renderTone: RenderSpeech = (text) => {
   const words = text.split(/\s+/).filter(Boolean);
   const pcm = new Int16Array(words.length * renderWord().length);

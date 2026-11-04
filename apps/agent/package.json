@@ -17,6 +17,8 @@
     "math-load": "node src/lab/proof/math-load.ts",
     "eval:tutor": "node src/tutor/eval/run-eval.ts",
     "eval:groups": "node src/tutor/eval/run-groups.ts",
+    "eval:safety": "node src/safety/eval/run-wordings.ts",
+    "eval:safety-check": "node src/safety/eval/run-check.ts",
     "lesson": "node src/scenes/lesson/lesson-service.ts"
   },
   "dependencies": {

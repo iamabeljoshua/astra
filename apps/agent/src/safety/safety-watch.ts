@@ -1,4 +1,4 @@
-import { promisesEmergencyHelp } from './help-words.ts';
+import { soundsLikeCrisisReply } from './help-words.ts';
 import type { SafetyCheck, SafetyKind, StudentReading } from './safety-check.ts';
 
 type TraceNote = (name: string, fields?: Record<string, unknown>) => void;
@@ -77,7 +77,7 @@ export function createSafetyWatch({ check, addFlag, showHelp, trace }: SafetyWat
     noteTurnEnd({ spoken, safetyRead, getKind }) {
       if (spoken === '') return;
       void safetyRead.then(() => {
-        if (!getKind() && promisesEmergencyHelp(spoken)) raise({ kind: 'danger', source: 'tutor' });
+        if (!getKind() && soundsLikeCrisisReply(spoken)) raise({ kind: 'danger', source: 'tutor' });
       });
       void check.readTutor(spoken).then((reading) => {
         trace('safetyRead', { reading, of: 'tutor' });

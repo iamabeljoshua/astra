@@ -5,7 +5,7 @@ import { AutoSubscribe, cli, defineAgent, inference, initializeLogger, type JobC
 import { AudioSource, DisconnectReason, LocalAudioTrack, type RemoteParticipant, RoomEvent, TrackPublishOptions, TrackSource } from '@livekit/rtc-node';
 import { type AgentMessage, parseBrowserMessage, PULSE_EVERY_MS } from '@astra/contracts';
 import { readKey } from '../keys.ts';
-import { renderTone } from '../providers/fakes.ts';
+import { renderNothing, renderTone } from '../providers/fakes.ts';
 import { makeTutorTranscriber, makeTutorVoice } from '../providers/choose.ts';
 import { makeRenderedVoice, RENDERED_SAMPLE_RATE } from '../providers/rendered-voice.ts';
 import { type Ears, startEars, VAD_SETTINGS } from './ears.ts';
@@ -43,6 +43,7 @@ function makeTraceFile(roomName: string) {
 
 function makeVoice() {
   if (process.env.ASTRA_VOICE === 'fake') return makeRenderedVoice({ name: 'fake', render: renderTone }).makeTts();
+  if (process.env.ASTRA_VOICE === 'silent') return makeRenderedVoice({ name: 'silent', render: renderNothing }).makeTts();
   return makeTutorVoice({ apiKey: readKey('ELEVENLABS_API_KEY') }).makeTts();
 }
 

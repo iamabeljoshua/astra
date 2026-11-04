@@ -1,6 +1,6 @@
 import { type Beat, type BeatId, clipTypedText, getBeatText, getCues, getPlayedCues, getSpokenWords, parseBeat, parseWrittenBeat, TYPED_TEXT_MAX_CHARACTERS, type TutorClosedReason } from '@astra/contracts';
 import { type ModelEvent, ModelRejectedError, type ModelUsage, type TutorModelAdapter, type TutorModelRequest, type TutorTurn } from '../providers/types.ts';
-import { namesHelp, promisesEmergencyHelp, readsAsEnglish } from '../safety/help-words.ts';
+import { asksToMakeAWeapon, namesHelp, readsAsEnglish, saysItCannotRead, soundsLikeCrisisReply } from '../safety/help-words.ts';
 import type { SafetyKind, StudentReading } from '../safety/safety-check.ts';
 import type { SafetyWatch } from '../safety/safety-watch.ts';
 import { BeatTextReader, type WrittenBeatParts } from './beat-text-reader.ts';
@@ -180,7 +180,7 @@ export function cleanStudentText(text: string): string {
 }
 
 // The refusal categories cover weapons and drugs too. When the check read the student's words as none of those dangers, a calm line is the honest one.
-const isPlainRefusal = ({ refusalCategory, studentText, safetyReading }: { refusalCategory: string | null; studentText: string; safetyReading: TurnWork['safetyReading'] }) => refusalCategory !== null && (PLAIN_REFUSALS.has(refusalCategory) || safetyReading === 'none') && !MAY_BE_ABOUT_SAFETY.test(studentText);
+const isPlainRefusal = ({ refusalCategory, studentText, safetyReading }: { refusalCategory: string | null; studentText: string; safetyReading: TurnWork['safetyReading'] }) => refusalCategory !== null && (PLAIN_REFUSALS.has(refusalCategory) || safetyReading === 'none' || (safetyReading === 'unread' && asksToMakeAWeapon(studentText))) && !MAY_BE_ABOUT_SAFETY.test(studentText);
 
 const isSafetyKind = (reading: TurnWork['safetyReading']): reading is SafetyKind => reading !== 'none' && reading !== 'unread' && reading !== 'pending';
 
@@ -328,7 +328,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
           const beat = getWrittenBeat(parts, `t${turnCount}-b${turn.beats.length}`, turn.refused);
           if (!beat) return;
           turn.hasModelWords = true;
-          if (promisesEmergencyHelp(getBeatText(beat))) safety?.showHelp();
+          if (soundsLikeCrisisReply(getBeatText(beat))) safety?.showHelp();
           addBeat(turn, parts.startsStretch ? { ...beat, pauseBeforeMs: getNextBreathMs() } : beat);
         },
       }),
@@ -558,7 +558,10 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
     turn.reader.push(help);
   };
 
-  const replyLacksHelp = (turn: TurnWork) => isSafetyKind(turn.safetyReading) && !turn.hasStoppedForSafety && !turn.reader.isSafetyReply && !namesHelp(`${getWordsSaid(turn)} ${turn.raw}`);
+  const replyLacksHelp = (turn: TurnWork) => {
+    const words = `${getWordsSaid(turn)} ${turn.raw}`;
+    return isSafetyKind(turn.safetyReading) && !turn.hasStoppedForSafety && (saysItCannotRead(words) || (!turn.reader.isSafetyReply && !namesHelp(words)));
+  };
 
   // In English the check's answer usually beats the model's first words, and code's line is what the model says anyway, so the student hears it sooner. A reply in another language gets to finish, because it usually names help in that language.
   const isHelpDueInCode = (turn: TurnWork) => replyLacksHelp(turn) && readsAsEnglish(turn.studentText);

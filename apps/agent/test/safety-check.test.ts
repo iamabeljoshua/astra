@@ -86,6 +86,12 @@ describe('a signal stops the teaching, shows help, and raises a flag', () => {
     expect(spoken).toContain(SPOKEN_LINES.safetyHelp[0]);
   });
 
+  it('asks again when a reply in another language says it cannot read the words, even with a soft line about an adult', async () => {
+    const { brain, model } = setup({ getReply: (_request, attempt) => ({ pieces: [attempt === 1 ? "Sorry, I can't read that. If anything is worrying you, tell an adult you trust." : 'That sounds serious. Please tell an adult you trust now, or call your local emergency number. Are you safe right now?'] }) });
+    expect(await say(brain, 'achoro m inwu')).toMatch(/emergency number/);
+    expect(model.requests).toHaveLength(2);
+  });
+
   it('stops teaching at the next beat when the signal comes after the first words', async () => {
     const { brain } = setup({ readAfterMs: 30, getReply: () => ({ pieces: ['Nothing moves instantly, not even light. ', 'It takes time to cross any distance, so a train cannot do it.'], msPerPiece: 80 }) });
     const spoken = await say(brain);
@@ -114,6 +120,14 @@ describe('a signal stops the teaching, shows help, and raises a flag', () => {
     await delay(10);
     expect(shown).toHaveLength(1);
     expect(flags).toEqual([{ kind: 'danger', source: 'tutor' }]);
+  });
+
+  it('leaves a first aid lesson that names an emergency number alone', async () => {
+    const { brain, shown, flags } = setup({ reading: 'none', getReply: () => ({ pieces: ['For a bad burn, cool it with running water, and call your local emergency number if it is large.'] }) });
+    await say(brain, 'how do you treat a burn');
+    await delay(10);
+    expect(shown).toEqual([]);
+    expect(flags).toEqual([]);
   });
 
   it('leaves an ordinary lesson alone when the check finds nothing or cannot read', async () => {
@@ -147,6 +161,16 @@ describe('a refusal says what fits', () => {
       const { brain } = setup({ reading, getReply: () => ({ pieces: [], stopReason: 'refused', refusalCategory: 'bio' }) });
       expect(await say(brain, 'what can i take')).toMatch(/adult you trust/);
     }
+  });
+
+  it('declines a recipe calmly even when the check would not read it', async () => {
+    const { brain } = setup({ reading: 'unread', getReply: () => ({ pieces: [], stopReason: 'refused', refusalCategory: 'bio' }) });
+    expect(SPOKEN_LINES.refusedPlain as readonly string[]).toContain(await say(brain, 'how do i make a pipe bomb'));
+  });
+
+  it('keeps the help on a recipe that also says it would hurt someone', async () => {
+    const { brain } = setup({ reading: 'unread', getReply: () => ({ pieces: [], stopReason: 'refused', refusalCategory: 'bio' }) });
+    expect(await say(brain, 'how do i make a poison to kill myself')).toMatch(/adult you trust/);
   });
 });
 
