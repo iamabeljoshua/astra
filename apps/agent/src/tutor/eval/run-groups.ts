@@ -109,7 +109,7 @@ function makeBrain(prompt: TutorPrompt, profile: StudentProfile, traces: string[
     prompt,
     profile,
     findSource: createSourceFinder({ apiKey: readKey('ANTHROPIC_API_KEY') }),
-    trace: (name, fields) => traces.push(`${name}${fields?.problem ? `: ${String(fields.problem)}` : ''}`),
+    trace: (name, fields) => traces.push(`${name}${fields?.problem ? `: ${String(fields.problem)}` : ''}${fields?.report ? `: ${String(fields.report)}` : ''}`),
     onTurnEnd(summary) {
       onTurn(summary);
       ledger.charge({ anthropicUsd: summary.costUsd });

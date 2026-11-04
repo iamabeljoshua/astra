@@ -295,7 +295,10 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
         onToolCall(call) {
           turn.toolCall = call;
         },
-        onAttemptReport: attempts.noteReport,
+        onAttemptReport(report) {
+          attempts.noteReport(report);
+          trace('attemptReported', { report });
+        },
         onCommandKept(command) {
           readerMemory = getMemoryAfter(command, readerMemory);
           if (SHOWING_KINDS.has(command.kind)) turn.hasShownAStep = true;

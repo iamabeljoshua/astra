@@ -7,7 +7,7 @@ import { getBeatText, getCues, parseBeat } from '@astra/contracts';
 import { readKey } from '../../keys.ts';
 import { makeAnthropicTutorModel, TUTOR_MODEL_NAMES, type TutorModelName } from '../../providers/anthropic.ts';
 import { createTutorBrain, type TurnSummary, type TutorBeat } from '../brain.ts';
-import { TUTOR_SYSTEM } from '../prompt.ts';
+import { CURRENT_PROMPT, PROMPT_VERSIONS, type PromptVersion } from '../prompt.ts';
 import { createSpendLedger } from '../spend-ledger.ts';
 import { REPLY_CHECKS } from './reply-checks.ts';
 
@@ -39,6 +39,7 @@ const { values: args } = parseArgs({
     spend: { type: 'string', default: join(tmpdir(), 'astra-eval-spend.json') },
     compactAt: { type: 'string', default: '60000' },
     label: { type: 'string', default: '' },
+    prompt: { type: 'string', default: CURRENT_PROMPT },
   },
 });
 
@@ -113,6 +114,7 @@ function summarise(reviewed: readonly Reviewed[], compactionUsd: number) {
     longestStretchWords: { p50: percentile(reviewed.map((turn) => turn.longestStretchWords), 0.5), p95: percentile(reviewed.map((turn) => turn.longestStretchWords), 0.95), worst: percentile(reviewed.map((turn) => turn.longestStretchWords), 1) },
     turnsEndingOnAQuestion: reviewed.filter((turn) => turn.endsOnQuestion).length,
     turnsOpeningWithPraise: reviewed.filter((turn) => OPENS_WITH_PRAISE.test(turn.tutor)).length,
+    turnsOverFortyFiveWords: reviewed.filter((turn) => turn.words > 45).length,
     modelUsd: usd,
     usdPerMinute: { model: modelPerMinute, voice: voicePerMinute, other: OTHER_USD_PER_MINUTE, total: modelPerMinute + voicePerMinute + OTHER_USD_PER_MINUTE, atTurnsPerMinute: TURNS_PER_MINUTE },
     lastPromptTokens: reviewed.at(-1)?.promptTokens,
@@ -137,8 +139,10 @@ async function runLesson(turns: readonly EvalTurn[]) {
   const reviewed: Reviewed[] = [];
   let compactionUsd = 0;
   let latest: TurnSummary | null = null;
+  const prompt = PROMPT_VERSIONS[args.prompt as PromptVersion];
   const brain = createTutorBrain({
     model,
+    prompt,
     profile: PROFILE,
     compactAtTokens: Number(args.compactAt),
     trace(name, fields) {
@@ -155,7 +159,7 @@ async function runLesson(turns: readonly EvalTurn[]) {
     },
     getSpendLimit: () => (ledger.isOverModelLimit() ? 'sessionLimit' : null),
   });
-  await model.warm(TUTOR_SYSTEM);
+  await model.warm(prompt.system);
   for (const [index, turn] of turns.entries()) {
     for await (const beat of brain.reply({ text: turn.text }, new AbortController().signal)) void beat;
     const review = reviewTurn(turn, latest as unknown as TurnSummary);
