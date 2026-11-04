@@ -16,6 +16,10 @@
     "./tex-check": {
       "types": "./src/math/tex-check.ts",
       "default": "./src/math/tex-check.ts"
+    },
+    "./tex-fuzz": {
+      "types": "./src/math/tex-fuzz.ts",
+      "default": "./src/math/tex-fuzz.ts"
     }
   },
   "scripts": {

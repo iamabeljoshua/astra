@@ -13,6 +13,11 @@ export function getTexTokens(tex: string): TexToken[] {
 
 const MATH_MAX_GROUP_DEPTH = 12;
 
+const MATH_MAX_MARK_RUN = 2;
+
+// KaTeX nests each combining mark as an accent with no brace to count, so a run of them builds a tree deep enough to crash the tab. A real word needs two.
+const TOO_LONG_MARK_RUN = new RegExp(`\\p{M}{${MATH_MAX_MARK_RUN + 1}}`, 'u');
+
 const SYMBOL_COMMANDS = `alpha beta gamma delta epsilon varepsilon zeta eta theta vartheta iota kappa lambda mu nu xi pi varpi rho varrho sigma varsigma tau upsilon phi varphi chi psi omega
   Gamma Delta Theta Lambda Xi Pi Sigma Upsilon Phi Psi Omega
   le leq ge geq ne neq lt gt approx equiv sim simeq cong propto in notin ni subset subseteq supset supseteq to rightarrow leftarrow Rightarrow Leftarrow leftrightarrow Leftrightarrow longrightarrow implies iff mapsto perp parallel mid nmid ll gg not
@@ -59,6 +64,7 @@ function getGroupProblem(tex: string, tokens: readonly TexToken[]): string | nul
 
 /** Says what is wrong with math a model wrote, or null. Only named commands pass, so nothing can define a macro, size a box, pick a color, or reach a link. */
 export function getTexProblem(tex: string): string | null {
+  if (TOO_LONG_MARK_RUN.test(tex)) return `math with at most ${MATH_MAX_MARK_RUN} accent marks on a character`;
   const tokens = getTexTokens(tex);
   for (const { text } of tokens) {
     if (NEEDS_TRUST.test(text)) return 'math with no links, images, or raw HTML';
@@ -127,9 +133,22 @@ const isBalanced = (tokens: readonly TexToken[]) => {
   return depth === 0;
 };
 
+// The letters of `\begin{matrix}` are a name, with no ink a tutor could mean.
+function dropEnvironmentNames(tokens: readonly TexToken[]): TexToken[] {
+  const kept: TexToken[] = [];
+  let isInName = false;
+  for (const [index, token] of tokens.entries()) {
+    const previous = tokens[index - 1]?.text;
+    if (token.text === '{' && (previous === '\\begin' || previous === '\\end')) isInName = true;
+    if (!isInName) kept.push(token);
+    if (token.text === '}') isInName = false;
+  }
+  return kept;
+}
+
 /** Every place in the source that spells `query`, counted from the left, as `highlight.occurrence` counts. */
 export function findMathSpans(tex: string, query: string): { start: number; end: number }[] {
-  const tokens = getTexTokens(tex);
+  const tokens = dropEnvironmentNames(getTexTokens(tex));
   const wanted = getTexTokens(query);
   if (wanted.length === 0 || !isBalanced(wanted)) return [];
   const spans: { start: number; end: number }[] = [];

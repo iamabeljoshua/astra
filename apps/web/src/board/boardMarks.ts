@@ -14,6 +14,14 @@ interface PaintedMark {
   painter: InkPainter;
 }
 
+/** A mark with nothing to point at, so the tutor is talking about a ring the student cannot see. */
+export interface MarkWithoutTarget {
+  kind: 'markWithoutTarget';
+  markId: string;
+  target: string;
+  tex?: string;
+}
+
 export interface MarksFrame {
   elements: readonly BoardElement[];
   focus: BoardState['focus'];
@@ -41,8 +49,16 @@ function getMarkBoxes(content: MarkContent, placement: MovingPlacement, item: Bo
   return { from: null, to: isWholeElement || content.kind === 'highlight' ? { x: 0, y: 0, width: placement.width / placement.scale, height: placement.height / placement.scale } : null, flightOffset: { x: 0, y: 0 } };
 }
 
+const isCrossFading = (boxes: TermBoxes, isReducedMotion: boolean) => isReducedMotion && boxes.from !== null && boxes.to !== null;
+
+// With no motion allowed, a ring on a term in both trees leaves with the old tree and arrives with the new one, changing places while it cannot be seen.
+function getMarkBox(boxes: TermBoxes, rearranged: number, isReducedMotion: boolean): MarkBox | null {
+  if (isCrossFading(boxes, isReducedMotion) && rearranged < 1 / 2) return boxes.from;
+  return boxes.to ?? boxes.from;
+}
+
 function getMarkOpacity({ boxes, drawn, rearranged, isReducedMotion }: { boxes: TermBoxes; drawn: number; rearranged: number; isReducedMotion: boolean }): number {
-  const fade = boxes.to ? (boxes.from ? 1 : rearranged) : 1 - rearranged;
+  const fade = isCrossFading(boxes, isReducedMotion) ? Math.abs(1 - 2 * rearranged) : boxes.to ? (boxes.from ? 1 : rearranged) : 1 - rearranged;
   return isReducedMotion ? Math.min(drawn, fade) : fade;
 }
 
@@ -57,9 +73,20 @@ function createFocusDot(overlay: SVGSVGElement): SVGCircleElement {
 }
 
 // Marks follow the term they name through a rearrangement, and fade if it goes.
-export function createBoardMarks(overlay: SVGSVGElement) {
+export function createBoardMarks(overlay: SVGSVGElement, onMarkWithoutTarget?: (problem: MarkWithoutTarget) => void) {
   const marks = new Map<string, PaintedMark>();
+  const drawnOnce = new Set<string>();
+  const reported = new Set<string>();
   const focusDot = createFocusDot(overlay);
+
+  // A mark that once had a box and lost it went with its term through a rearrangement, which is no problem. A scene draws its own marks.
+  const reportIfNeverDrawn = (mark: BoardElement, content: MarkContent, frame: MarksFrame) => {
+    const isOnScene = frame.elements.find((element) => element.id === getTargetParts(content.target)[0])?.content.kind === 'simulate';
+    if (drawnOnce.has(mark.id) || reported.has(mark.id) || isOnScene) return;
+    reported.add(mark.id);
+    const tex = content.kind === 'highlight' ? content.tex : undefined;
+    onMarkWithoutTarget?.({ kind: 'markWithoutTarget', markId: mark.id, target: content.target, ...(tex === undefined ? {} : { tex }) });
+  };
 
   const getPaintedMark = ({ id, kind, box, existing }: { id: string; kind: AnnotationMark; box: MarkBox; existing: PaintedMark | undefined }): PaintedMark => {
     const key = `${kind}|${box.x.toFixed(1)}|${box.y.toFixed(1)}|${box.width.toFixed(1)}|${box.height.toFixed(1)}`;
@@ -77,15 +104,18 @@ export function createBoardMarks(overlay: SVGSVGElement) {
     const placement = frame.placements.get(targetId);
     const item = frame.getItem(targetId);
     const boxes = placement && item ? getMarkBoxes(content, placement, item) : null;
-    const box = boxes?.to ?? boxes?.from;
+    const target = frame.elements.find((element) => element.id === targetId);
+    const isRearranging = Boolean(target?.morphFrom) && !item?.getRefusedTex?.();
+    const rearranged = isRearranging && target ? getMotionValue(target.entrance, frame.atMs) : 1;
+    const box = boxes && getMarkBox(boxes, rearranged, frame.isReducedMotion);
     if (!placement || !boxes || !box) {
       const existing = marks.get(mark.id);
       if (existing) writeStyle(existing.group, 'visibility', 'hidden');
+      reportIfNeverDrawn(mark, content, frame);
       return;
     }
+    drawnOnce.add(mark.id);
     const painted = getPaintedMark({ id: mark.id, kind: getMarkKind(content), box, existing: marks.get(mark.id) });
-    const target = frame.elements.find((element) => element.id === targetId);
-    const rearranged = target?.morphFrom ? getMotionValue(target.entrance, frame.atMs) : 1;
     const drawn = getMotionValue(mark.entrance, frame.atMs);
     const move = boxes.flightOffset;
     writeStyle(painted.group, 'visibility', placement.isVisible ? '' : 'hidden');
@@ -115,9 +145,13 @@ export function createBoardMarks(overlay: SVGSVGElement) {
 
   return {
     paint(frame: MarksFrame) {
-      const onMath = frame.elements.filter((element) => isMark(element.content) && frame.getItem(getTargetParts((element.content as MarkContent).target)[0]));
+      const allMarks = frame.elements.filter((element) => isMark(element.content));
+      const onMath = allMarks.filter((element) => frame.getItem(getTargetParts((element.content as MarkContent).target)[0]));
       removeGone(new Set(onMath.map((element) => element.id as string)));
-      for (const mark of onMath) paintMark(mark, mark.content as MarkContent, frame);
+      for (const mark of allMarks) {
+        if (onMath.includes(mark)) paintMark(mark, mark.content as MarkContent, frame);
+        else reportIfNeverDrawn(mark, mark.content as MarkContent, frame);
+      }
       paintFocus(frame);
     },
   };

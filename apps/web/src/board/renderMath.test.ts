@@ -1,5 +1,6 @@
 import { collectMathPaints, getPaintsOfSpans, renderTex } from '@astra/board/drawing';
-import { getMathParts } from '@astra/contracts';
+import { findMathSpans, getMathParts, getTexProblem } from '@astra/contracts';
+import { makeTexFuzzSources } from '@astra/board/tex-fuzz';
 import { describe, expect, it } from 'vitest';
 
 const raw = String.raw;
@@ -55,6 +56,73 @@ describe('renderTex', () => {
   });
 });
 
+function measureTree(root: Node): { depth: number; nodes: number } {
+  let deepest = 0;
+  let nodes = 0;
+  const stack: { node: Node; depth: number }[] = [{ node: root, depth: 0 }];
+  for (let entry = stack.pop(); entry; entry = stack.pop()) {
+    nodes += 1;
+    deepest = Math.max(deepest, entry.depth);
+    for (const child of entry.node.childNodes) stack.push({ node: child, depth: entry.depth + 1 });
+  }
+  return { depth: deepest, nodes };
+}
+
+describe('how large a tree renderTex may build', () => {
+  const MOST_DEPTH = 125;
+  const MOST_NODES = 6000;
+
+  it.each([
+    ['a run of accent marks', `x${'\u0301'.repeat(200)}`],
+    ['the run that first crashed a tab', `x${'\u0301'.repeat(135)}`],
+    ['a run that survived at 606 levels', `x${'\u0301'.repeat(120)}`],
+    ['another mark', `x${'\u0308'.repeat(200)}`],
+    ['marks inside text', raw`\text{x` + '\u0301'.repeat(200) + '}'],
+    ['a matrix of nothing but columns', `\\begin{matrix}${'&'.repeat(470)}\\end{matrix}`],
+  ])('refuses %s, leaving nothing behind, even past the parser', (_name, tex) => {
+    const host = document.createElement('div');
+    expect(renderTex(tex, host)).toBe(false);
+    expect(host.childNodes).toHaveLength(0);
+  });
+
+  it.each([
+    ['the longest line of terms', `${'a+'.repeat(249)}a`],
+    ['twelve fractions deep', `${raw`\frac{`.repeat(12)}x${'}{2}'.repeat(12)}`],
+    ['twelve scripts deep', `${'x^{'.repeat(12)}y${'}'.repeat(12)}`],
+    ['a six by six matrix', raw`\begin{pmatrix}` + Array.from({ length: 6 }, () => '1&2&3&4&5&6').join(raw`\\`) + raw`\end{pmatrix}`],
+  ])('still sets %s', (_name, tex) => {
+    expect(getTexProblem(tex)).toBeNull();
+    const host = render(tex);
+    expect(measureTree(host).depth).toBeLessThanOrEqual(MOST_DEPTH);
+  });
+
+  it('holds every source the fuzz builds to a bounded tree, and the parser takes none it could not set', () => {
+    let passedTheParser = 0;
+    let set = 0;
+    let deepest = 0;
+    let largest = 0;
+    for (const tex of makeTexFuzzSources(800, 'renderMath')) {
+      if (getTexProblem(tex) !== null) continue;
+      passedTheParser += 1;
+      const host = document.createElement('div');
+      if (renderTex(tex, host)) {
+        set += 1;
+        const size = measureTree(host);
+        deepest = Math.max(deepest, size.depth);
+        largest = Math.max(largest, size.nodes);
+        expect(size.depth, tex).toBeLessThanOrEqual(MOST_DEPTH);
+        expect(size.nodes, tex).toBeLessThanOrEqual(MOST_NODES);
+      } else {
+        expect(host.childNodes).toHaveLength(0);
+      }
+    }
+    expect(passedTheParser).toBeGreaterThan(200);
+    expect(set).toBeGreaterThan(150);
+    expect(deepest).toBeGreaterThan(60);
+    expect(largest).toBeGreaterThan(1000);
+  }, 60_000);
+});
+
 describe('collectMathPaints', () => {
   it('finds each glyph once, and each shape, and nothing that holds no ink', () => {
     const paints = collectMathPaints(render(raw`\frac{a}{b} + \sqrt{c}`));
@@ -78,6 +146,43 @@ describe('which ink belongs to which term', () => {
     const paints = collectMathPaints(render(tex));
     const owners = getPaintsOfSpans(tex, [{ start: 6, end: 9 }], paints) ?? [];
     expect(paints.filter((_, index) => owners[index] === 0).map((paint) => paint.glyph).sort()).toEqual(['+', '1', 'x']);
+  });
+
+  it.each([
+    ['x^2 + 1', '2', ['2']],
+    ['3x^2', '2', ['2']],
+    ['2^x', 'x', ['x']],
+    ['2^x', '2', ['2']],
+    ['e^x', 'x', ['x']],
+    ['a_1 + a_2', '2', ['2']],
+    ['a_1 + a_2', 'a_2', ['2', 'a']],
+    [raw`\sum_i x_i`, 'i', ['i']],
+    [raw`\sum_i x_i`, raw`\sum`, ['∑']],
+    [raw`\sum\limits_i x_i`, raw`\sum`, ['∑']],
+    [raw`\lim_{x \to 0} x`, raw`\lim`, ['lim']],
+    [raw`\int_0^1 x`, raw`\int`, ['∫']],
+    [raw`\sin x + 1`, raw`\sin`, ['sin']],
+    [raw`\sin x + 1`, raw`\sin x`, ['sin', 'x']],
+    [raw`\sqrt2`, '2', ['2']],
+    [raw`\hat x`, 'x', ['x']],
+    [raw`\vec v`, 'v', ['v']],
+    [raw`\frac\pi2`, raw`\pi`, ['π']],
+    [raw`\frac\pi2`, '2', ['2']],
+    ['b^2 - 4ac', '4ac', ['4', 'a', 'c']],
+    ['b^2 - 4ac', 'b^2', ['2', 'b']],
+    [raw`\begin{pmatrix} 2 & 1 \\ 1 & 3 \end{pmatrix}`, '3', ['3']],
+  ])('finds in %s the ink of %s, written without braces', (tex, query, glyphs) => {
+    const paints = collectMathPaints(render(tex));
+    const [span] = findMathSpans(tex, query);
+    const owners = getPaintsOfSpans(tex, [span as { start: number; end: number }], paints) ?? [];
+    expect(paints.filter((_, index) => owners[index] === 0).map((paint) => paint.glyph).sort()).toEqual([...glyphs].sort());
+  });
+
+  it('says it cannot tell when the part is inside a single piece of ink', () => {
+    const tex = raw`\text{area}`;
+    const paints = collectMathPaints(render(tex));
+    const spans = findMathSpans(tex, 'a');
+    expect(getPaintsOfSpans(tex, [spans[0] as { start: number; end: number }], paints)).toBeNull();
   });
 
   it('says it cannot tell, rather than guess, when the marked copy will not set', () => {
