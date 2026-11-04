@@ -45,7 +45,7 @@ describe('the tutor voice', () => {
     stream.endInput();
     await heard;
     await voice.close();
-    expect(wire.getVoiceSettings()[0]).toEqual({ stability: 0.45, similarity_boost: 0.8, speed: 1 });
+    expect(wire.getVoiceSettings()[0]).toEqual({ stability: 0.45, similarity_boost: 0.8, speed: 0.95 });
   });
 
   it('is Chris, on Flash until Abel says otherwise', async () => {

@@ -32,7 +32,7 @@ As of 4 November 2026, 22 of 39 PRs have merged. This section is the whole road,
 
 - **Speed, for this session.** Up to 6 PRs at once, dependent work waits for its parent to merge, and each PR gets one adversarial reviewer as soon as it is code-ready. `CLAUDE.md` stays as it is unless Abel says to make this permanent.
 - **Vendors.** ElevenLabs for the voice, Muse Voice Transcribe for transcription, and LiveKit Cloud with our own accounts, on a free project until real students. The age terms go to the lawyer before real students.
-- **Voice.** ElevenLabs voice Chris, on Flash, Abel's choice on 4 November in place of Casey, at stability 0.45, similarity boost 0.8, and speed 1.0, which Abel also chose by ear.
+- **Voice.** ElevenLabs voice Chris, on Flash, Abel's choice on 4 November in place of Casey, at stability 0.45, similarity boost 0.8, and speed 0.95, which Abel also chose by ear.
 - **Tutor.** Sonnet 5.5, with code reacting first and a timeout for stalls. There is no talking router for now.
 - **Speed targets.** Two numbers replace PRD V1's rule. A first reaction under 200 ms from code, and a first real word as fast as the vendors allow.
 - **The shared board.** Student and tutor both work on the board, in M3.12, with ink and uploads narrowed to M3.11.
