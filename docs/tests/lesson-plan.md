@@ -73,7 +73,7 @@ Haiku 5.5 at $0.10 and $0.50 a million tokens. `pnpm --filter @astra/agent eval:
 | Time for a plan, 47 at once | 1.7 s at p50, 3.3 s at p95, 3.5 s at most |
 | A plan's limit | 5 s, then the tutor teaches on |
 
-The rules add about 3,200 characters to the cached prompt, so about $0.0001 a turn on a cache read and about $0.002 on each cache write (computed from the price list, not measured). A spoken turn averages $0.0072, so a chatty student's 417 turns a day on the $3 limit become about 400.
+The rules add about 4,600 characters to the cached prompt, so about $0.00015 a turn on a cache read and about $0.003 on each cache write (computed from the price list, not measured). The turn note adds about 30 tokens a turn. A spoken turn averages $0.0072, so a chatty student's 417 turns a day on the $3 limit become about 400.
 
 ## How it is proved
 
@@ -86,6 +86,20 @@ The rules add about 3,200 characters to the cached prompt, so about $0.0001 a tu
 | No first attempt can claim a feeling | `getClaimProblem`, with `lesson-plan.test.ts` and `eval:groups` |
 | A switch, a title, and the way back | `eval:switch`, and `lesson-proof --only switch` on the real page |
 | The move lands on a word, in the log, in about 560 ms | `lesson-proof --only visual` on a recorded tutor |
+
+Measured on 4 November with the rules last in prompt v2, on one run of each wording, with a model playing the student:
+
+| Measure | Before this round, on v2 | After |
+| --- | --- | --- |
+| `eval:kinds` failed checks | 10 of 25 groups' checks | 0 on the tutor, in 33 groups, with 1 that the runner could not drag, since fixed |
+| Topics taught first | none set a task early, but first task at reply 3 to 5 or never | 12 of 12, all first task at reply 3 |
+| The reviewer's 12 direct wordings, task in reply 1 | 4 | 5, and 10 by reply 2 |
+| The reviewer's 24 repeats, task in reply 1 | 11 | 11 |
+| Of those 24, why, language, and code | 3 of 10 | 7 of 10 |
+| Of those 24, bare facts | 4 of 10 | 0 of 10, by design: they get the answer |
+| A sentence with a blank | 4 of 4 commands refused | 0 of 4 refused |
+
+Known misses. "if i drop a ball from 20 meters how long till it hits the ground" set no task in three replies in 1 of 2 runs, because code sees no numbers to work and "hits" keeps it from the planner. "whats a derivative?" reads as a concept and set its task at reply 3. A diagram edge with no label is refused, which cost the heart question its picture in 2 of 2.
 
 ## Where the rules sit
 

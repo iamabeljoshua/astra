@@ -553,7 +553,7 @@ describe('what may become a title', () => {
     expect(titles).toEqual([]);
   });
 
-  it.each(['The Great Depression', 'Sex-linked traits in peas'.replace('Sex-linked traits in peas', 'Causes of the French Revolution')])('lets "%s" through', async (topic) => {
+  it.each(['The Great Depression', 'Causes of the French Revolution'])('lets "%s" through', async (topic) => {
     const { planner, titles } = plannerWith([newPlan(FRACTIONS), newPlan(planFor(topic))]);
     planner.noteStudentWords(heard('teach me fractions', true));
     await planner.whenSettled();

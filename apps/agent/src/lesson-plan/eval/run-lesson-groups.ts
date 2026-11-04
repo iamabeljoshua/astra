@@ -103,7 +103,7 @@ function getTaskWork(said: string, brain: ReturnType<typeof createTutorBrain>, l
   if (!task || !openTask) return null;
   if (task.way === 'place') return { way: 'place', task: openTask, placed: task.answer ?? task.items.slice(0, task.slots.length) };
   if (task.way === 'pick') return { way: 'pick', task: openTask, part: task.answer?.[0] ?? said };
-  if (task.way === 'drag') return null;
+  if (task.way === 'drag') return { way: 'drag', task: openTask, x: 0, samples: [] };
   return { way: 'write', id: `s${lineNumber}` as ElementId, text: said, task: openTask };
 }
 
