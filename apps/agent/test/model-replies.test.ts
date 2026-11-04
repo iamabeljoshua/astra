@@ -128,6 +128,12 @@ describe('a plan that runs long', () => {
     expect(() => getPlanFromText('{"refused":true}')).toThrow(PlanRefused);
   });
 
+  it('reads a first line that comes before the scene words, and joins it to the rest of the opening', () => {
+    expect(getFirstLineFromPartialText('{"first":{"say":"The first line."},"setup":"Lo')).toEqual({ say: 'The first line.' });
+    const plan = getPlanFromText(JSON.stringify({ first: { say: 'The first line.' }, setup: 'Look.', narration: '[[a]] One. [[b]] Two.', plan: 'a: x\nb: y', opening: [{ say: 'The second line.' }], close: 'Why?' }));
+    expect(plan.opening).toEqual([{ say: 'The first line.' }, { say: 'The second line.' }]);
+  });
+
   it('hands over the scene words as soon as they are whole, before the rest of the plan', () => {
     expect(getSceneWordsFromPartialText('{"opening":[{"say":"Hi."}],"setup":"Look.","narration":"[[a]] One. [[b]] Two.","pl')).toBeNull();
     expect(getSceneWordsFromPartialText('{"opening":[{"say":"Hi."}],"setup":"Look.","narration":"[[a]] One. [[b]] Two.","plan":"a: x\\nb: y","mo')).toEqual({ narration: '[[a]] One. [[b]] Two.', plan: 'a: x\nb: y' });

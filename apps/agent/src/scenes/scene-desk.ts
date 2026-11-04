@@ -29,7 +29,6 @@ export interface SceneDesk {
   /** Settles when a scene is ready, or none can come, or the 20 s are up, so a lesson can wait out the window without polling. */
   untilLastChance(): Promise<void>;
   getState(): SceneState;
-  isMissed(): boolean;
 }
 
 const WAITING_KINDS: readonly SceneState['kind'][] = ['routing', 'making'];
@@ -92,7 +91,6 @@ export function createSceneDesk({ route, make, getNowMs, onChange }: SceneDeskOp
       });
     },
     getState: () => state,
-    isMissed: isPastWindow,
   };
 }
 

@@ -350,6 +350,28 @@ describe('a scene already saved when the lesson opens', () => {
   });
 });
 
+describe('how long one turn runs', () => {
+  it('makes each line of a long take its own turn, so no turn runs on past 45 words', async () => {
+    const long = `[[curve]] ${'Here is a curve that runs on across the page. '.repeat(3)}[[point]] ${'Now a point sits on it for a while. '.repeat(4)}`;
+    const scene = { ...SCENE, narration: long, plan: { ...PLAN, narration: long } } as StoredScene;
+    const turns: string[] = [];
+    const voice = { forTurn: (beats: readonly Beat[]) => { turns.push(beats.map(getBeatText).join(' ')); return { tts: makeRenderedVoice({ name: 'tone' }).makeTts() }; } };
+    const { work, finishMake } = makeRealDeskWork();
+    finishMake({ isOk: true, scene });
+    const { finished } = start({ work, voice: voice as never, timings: { ...FAST, loadLimitMs: 300 } });
+    const room = await untilConnected();
+    room.join('PA1');
+    room.send(SCENES, { type: 'sceneDevice', canPlay: true });
+    await vi.waitFor(() => expect(room.sent.some(({ message }) => message.type === 'loadScene')).toBe(true), { timeout: 2000 });
+    room.send(SCENES, { type: 'sceneLoaded', sceneId: SCENE.id });
+    expect(await untilClosed(room, 'close')).toBe(true);
+    expect(turns.length).toBeGreaterThan(3);
+    for (const turn of turns) expect(turn.split(' ').length).toBeLessThanOrEqual(45);
+    room.leave('PA1');
+    await finished;
+  });
+});
+
 describe('a request with no lesson behind it', () => {
   it('tells the page, so it can offer a way back and no reply box that cannot answer', async () => {
     const work = makeWork();

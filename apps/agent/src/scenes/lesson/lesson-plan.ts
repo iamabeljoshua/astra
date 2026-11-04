@@ -49,10 +49,10 @@ function readSceneWords(narrationValue: unknown, planValue: unknown): SceneWords
   return words;
 }
 
-const OPENING_LIST = /"opening"\s*:\s*\[/;
+const FIRST_LINE = /"first"\s*:\s*|"opening"\s*:\s*\[/;
 
 export function getFirstLineFromPartialText(text: string): OpeningLine | null {
-  const found = OPENING_LIST.exec(text);
+  const found = FIRST_LINE.exec(text);
   const object = found ? findFirstObject(text.slice(found.index + found[0].length)) : null;
   if (!object) return null;
   try {
@@ -86,9 +86,10 @@ export function getSceneWordsFromPartialText(text: string): SceneWords | null {
 export function getPlanFromText(text: string): LessonPlan {
   const reply = readJsonObject(text);
   if (reply.refused) throw new PlanRefused('the planner says a tutor should not teach this');
-  if (!Array.isArray(reply.opening) || reply.opening.length === 0) throw new Error('the plan has no opening');
+  const opening = [...(reply.first ? [reply.first] : []), ...(Array.isArray(reply.opening) ? (reply.opening as unknown[]) : [])];
+  if (opening.length === 0) throw new Error('the plan has no opening');
   const plan: LessonPlan = {
-    opening: reply.opening.slice(0, MOST_LESSON_LINES).map(readLine),
+    opening: opening.slice(0, MOST_LESSON_LINES).map(readLine),
     more: Array.isArray(reply.more) ? reply.more.slice(0, MOST_LESSON_LINES).map(readLine) : [],
     setup: readText(reply.setup, 'setup'),
     ...readSceneWords(reply.narration, reply.plan),

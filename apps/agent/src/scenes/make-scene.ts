@@ -18,6 +18,8 @@ const WAIT_AFTER_REFUSAL_MS = 60 * 60_000;
 const FORGET_TROUBLE_MS = 24 * 60 * 60_000;
 const CHECK_SCENE_ELEMENT = 'scene' as RichScene['id'];
 const THEMED_SOURCE = /scene-(light|dark)\.py/g;
+const MOST_NOTICE_CHARACTERS = 300;
+const LINE_THROUGH_TEXT = /(runs|edge) through the text/;
 
 export interface SceneMaker {
   writers: readonly SceneWriter[];
@@ -66,13 +68,14 @@ function getUnseenThemes(render: GoodRender): readonly string[] {
   return SCENE_THEMES.filter((theme) => !render.sheets.some((sheet) => sheet.theme === theme));
 }
 
-function getRenderProblems(render: RenderResult, plan: LessonPlan, brief: SceneBrief, warn: (line: string) => void): readonly string[] {
+function getRenderProblems(render: RenderResult, plan: LessonPlan, brief: SceneBrief, warn: (line: string) => void, canKeepLinesThroughText: boolean): readonly string[] {
   if (!render.isOk) return render.reasons;
   if (render.sheets.length === 0) return ['the worker made no pictures, so nobody can review this scene'];
   const unseen = getUnseenThemes(render);
   if (unseen.length > 0) warn(`::warning title=Scene review::the review would see no ${unseen.join(' or ')} pictures, so the scene stops here`);
   const partProblems = render.takes.flatMap(({ parts }) => getSceneBeatProblems({ setup: plan.setup, narration: plan.narration, scene: getSceneCommand({ engine: 'manimgx', id: 'scene-check', moments: brief.moments, parts, durationSeconds: brief.durationSeconds }, CHECK_SCENE_ELEMENT) }));
-  const layoutProblems = new Set(render.layoutProblems.map((problem) => `layout: ${problem.replace(THEMED_SOURCE, 'scene.py')}`));
+  // A rewrite costs a typed scene its moment and has often failed the same way, so a line through a label stays as a note there and on a last try. A card, which many students see, gets one rewrite first.
+  const layoutProblems = new Set(render.layoutProblems.filter((problem) => !canKeepLinesThroughText || !LINE_THROUGH_TEXT.test(problem)).map((problem) => `layout: ${problem.replace(THEMED_SOURCE, 'scene.py')}`));
   return [...unseen.map((theme) => `the worker made no ${theme} pictures, so nobody can review that take`), ...new Set(partProblems), ...layoutProblems];
 }
 
@@ -84,9 +87,10 @@ interface WriteRun {
   warn: (line: string) => void;
   signal: AbortSignal;
   earlyWrite: Promise<WrittenScene> | null;
+  isTyped: boolean;
 }
 
-async function writeUntilClean(maker: SceneMaker, { brief, plan, values, tally, warn, signal, earlyWrite }: WriteRun): Promise<Attempt | null> {
+async function writeUntilClean(maker: SceneMaker, { brief, plan, values, tally, warn, signal, earlyWrite, isTyped }: WriteRun): Promise<Attempt | null> {
   let repair: SceneRepair | null = null;
   for (const [index, writer] of maker.writers.entries()) {
     if (signal.aborted) return null;
@@ -97,9 +101,10 @@ async function writeUntilClean(maker: SceneMaker, { brief, plan, values, tally, 
     const contentProblems = getCodeProblems(code);
     const render = contentProblems.length > 0 || signal.aborted ? null : await maker.worker({ code, moments: brief.moments, durationSeconds: brief.durationSeconds, themes: SCENE_THEMES, values, inspectSeconds: getInspectSeconds(brief) }, AbortSignal.any([AbortSignal.timeout(2 * WRITER_LIMIT_MS), signal]));
     tally.renderMs += render?.ms ?? 0;
-    const problems = render ? getRenderProblems(render, plan, brief, warn) : contentProblems;
+    const problems = render ? getRenderProblems(render, plan, brief, warn, isTyped || index === maker.writers.length - 1) : contentProblems;
     if (render?.isOk && problems.length === 0) return { code, render };
     tally.problems.push(...problems);
+    if (!signal.aborted) warn(`::notice title=Scene try::${writer.name} did not pass: ${problems.join('; ').slice(0, MOST_NOTICE_CHARACTERS)}`);
     repair = { problems, code };
   }
   return null;
@@ -136,6 +141,8 @@ function noteTrouble(store: SceneStore, key: SceneKey, nowMs: number, wasRefused
   store.saveTrouble(key, { tries: isTroubleForgotten(trouble, nowMs) ? 1 : trouble.tries + 1, lastAtMs: nowMs, wasRefused });
 }
 
+export const canTryNow = ({ store, getWallMs = () => Date.now() }: SceneMaker, key: SceneKey): boolean => getCanTry(store.getTrouble(key), getWallMs());
+
 /** A review can refuse a true scene, and on a card that would leave it with no scene for anyone, so a refusal may be written again after a wait, a few times a day. */
 export function canTryAfterRefusal(store: SceneStore, key: SceneKey, nowMs: number): boolean {
   const refusal = store.findRefusal(key);
@@ -161,7 +168,7 @@ function toStoredScene({ key, plan, brief, attempt, verdict, trace, values }: { 
     declared: attempt.render.declared,
     values,
     review: verdict.errors,
-    layoutNotes: attempt.render.layoutNotes,
+    layoutNotes: [...attempt.render.layoutNotes, ...attempt.render.layoutProblems],
     isCheckedByPerson: false,
     takeBytes: getTakeBytes(attempt.render.takes),
     trace,
@@ -180,7 +187,7 @@ export async function makeScene(maker: SceneMaker, { topic, ownerId = null, plan
   if (!getCanTry(store.getTrouble(key), getWallMs())) return { isOk: false, reasons: ['this scene hit errors recently, so it waits before trying again'] };
   const brief = getBrief(topic, plan);
   const tally: Tally = { writer: '', attempts: 0, writeMs: 0, renderMs: 0, costUsd: 0, problems: [] };
-  const attempt = await writeUntilClean(maker, { brief, plan, values, tally, warn, signal, earlyWrite });
+  const attempt = await writeUntilClean(maker, { brief, plan, values, tally, warn, signal, earlyWrite, isTyped: ownerId !== null });
   if (signal.aborted) return NO_LONGER_WANTED;
   if (!attempt) {
     noteTrouble(store, key, getWallMs());

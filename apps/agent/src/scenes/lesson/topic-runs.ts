@@ -1,5 +1,5 @@
 import { getLineProblems, getPlanProblems, getSceneWordProblems, IS_DANGEROUS, IS_OFF_TOPIC } from '../content-check.ts';
-import { getBrief, type MadeScene, makeScene, type SceneMaker, WRITER_LIMIT_MS } from '../make-scene.ts';
+import { canTryNow, getBrief, type MadeScene, makeScene, type SceneMaker, WRITER_LIMIT_MS } from '../make-scene.ts';
 import { type LessonPlan, type LessonPlanner, type NoLesson, type OpeningLine, PlanRefused, type SceneKey, type SceneWords, type WrittenScene } from '../scene-types.ts';
 
 const PLANNER_LIMIT_MS = 15_000;
@@ -58,7 +58,7 @@ export function createTopicRuns({ planner, ...maker }: SceneMaker & { planner: L
 
     const startEarlyWrite = () => {
       const writer = maker.writers[0];
-      if (earlyWrite || !sceneWords || !writer || !isSceneWanted) return;
+      if (earlyWrite || !sceneWords || !writer || !isSceneWanted || !canTryNow(maker, key)) return;
       const stopEarly = new AbortController();
       const written = writer.write(getBrief(key.topic, sceneWords), null, AbortSignal.any([AbortSignal.timeout(WRITER_LIMIT_MS), stopper.signal, stopEarly.signal]));
       written.catch(() => {});

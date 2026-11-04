@@ -70,12 +70,11 @@ As of 4 November 2026, 22 of 39 PRs have merged. This section is the whole road,
 | 7 | M4.3 | Recommend picks from performance and weaknesses | #23 | M4.1 |
 | 7 | M4.4 | End sessions with a recap, and let students replay them | #24 | M3.10, M4.1 |
 
-**What the tests settled for M3.13 and M3.14.** The scene test and the ManimGX test have both reported, and ManimGX passed the bar stated to Abel, so it is in. Which models write and review scenes stays open with Abel on `scene-models`. Until Abel answers, scenes run on Anthropic models behind a switchable interface.
+**What the tests settled for M3.13 and M3.14.** The scene test and the ManimGX test have both reported, and ManimGX passed the bar stated to Abel, so it is in. Abel chose Anthropic models to write and review scenes and the library, with no OpenAI. The writer stays behind one small interface, so a later model is a one-line change.
 
 **Still waiting on Abel.**
 
 - Whether a mid-sentence flush sounds natural on Chris, which settles the flush rule.
-- `scene-models`, for which models write and review scenes, and OpenAI, including its terms for minors and an OpenAI account of Abel's own.
 - The eight-digit code question in Appendix E.
 - The tutor's pen colour, which M3.12 proposes.
 - Confirming ElevenLabs' training opt-out on `elevenlabs-balance`.
@@ -1728,11 +1727,11 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 - [ ] Land this in slices, each saying `Part of #72` until the last. The ManimGX path and the router's decision come first, then the kit path, the fit router's library match, and declared values in a live lesson.
 - [ ] Start from the results in `/Users/abel/startup/astra-tinker/manimgx` and `/Users/abel/startup/astra-tinker/scenes-race`, and the kit in `/Users/abel/startup/astra-tinker/scenes`. Delegate by the ManimGX test's table.
-- [ ] Keep the router, writer, and reviewer behind small switchable interfaces, on Anthropic models until Abel answers `scene-models`. Which models write and review, and any use of OpenAI, wait for that answer.
+- [ ] Keep the router, writer, and reviewer behind small switchable interfaces, on Anthropic models, as Abel chose.
 - [ ] Run the router beside the voice, so it never delays a word. Later slices add a fit router that chooses between a library match, a library scene with changed values only where it declares them, a new scene, or no scene.
 - [ ] Take truth from the kit, with domain functions and checks written once by a person, because the test found 14 of 14 clean with them on the Moon and seasons, and 1 of 10 without. Add a right-handed helix, exact polygons, number formatting, and more domains.
 - [ ] Inject loop guards in the kit's sandbox, because removing an iframe does not stop a spinning script. A scene can navigate its own frame with data in the URL, so keep student data out of it.
-- [ ] Save a late scene, and a failed one marked as failed, so nobody pays to write it twice, and send only checked scenes to a browser.
+- [ ] Save a late scene, and a refused one marked as refused, so nobody pays to write it again soon, and send only checked scenes to a browser. A refusal can be written again after an hour, at most 3 tries a day, because the review can refuse a true scene. A typed question's write stops once its student has gone. A card's keeps going.
 - [ ] Run the path once on a real laptop with Intel or AMD graphics, because everything so far ran on one Mac.
 - [ ] Record that B4's 100-scene deck does not hold for generated scenes, and state what replaces it.
 - [ ] Keep textures licensed, with CC BY 4.0 credits, and test licensed 3D models with named parts for anatomy and molecules, which are untested.
@@ -1742,7 +1741,8 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 - [ ] Voice and the 2D board never wait for a scene. A scene shows only when it is ready and checked, and there is no spinner.
 - [ ] On a new question the tutor starts with words and simple 2D, setting up what the scene will show, then brings in 3D at a pause. Cards and planned scenes open on 3D where one is ready.
-- [ ] A scene not ready after about 20 s is dropped from that lesson and saved, so a later lesson that may use it plays it at once.
+- [ ] A scene not ready about 20 s after the opening is dropped from that lesson and saved, so a later lesson that may use it plays it at once. It can still land after the closing question, inside that time, and the question comes again after it.
+- [ ] Every spoken line is short, as a person talks: usually under 25 words and never more than 45. A long line splits into more lines rather than running on.
 - [ ] One scene command, with an engine, plugs into M3.2's clock. A scene plays by seconds on the board's clock, with named parts and moments as word cues, so a stop, seek, rewind, and exact replay work.
 - [ ] A router chooses the engine. ManimGX takes symbols, plots, grids, flat maps, and code, and our kit takes solid things a camera could film. A wrong scene is the worst failure, so a doubtful request gets no scene, and false matches are measured and reported.
 - [ ] Python runs only on a server in a locked container, with no network, and the browser plays a stored take. Kit scene code runs in a sandbox with injected loop guards and no network.
@@ -1796,7 +1796,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 **Build.**
 
 - [ ] Put the list on the server's own topic list, reading Home's topics from `apps/api/src/picks/library.json`, because only those scenes may be shared across students.
-- [ ] Let M3.14's router pick each scene's engine, and use the writers Abel's answer on `scene-models` sets.
+- [ ] Let M3.14's router pick each scene's engine, and write with M3.14's Anthropic writers, behind the same interface.
 - [ ] Track spend as the run writes. M3.14's first path measured about $0.10 to $0.21 a scene with both reviews, which is above what the estimate assumes. If the run is on course to pass about $10, stop and bring Abel the number before going on.
 - [ ] Make the run safe to stop and restart, so a scene already written is never paid for twice.
 - [ ] Keep the sample page away from students, with the API refusing anyone but a named reviewer.
@@ -2354,7 +2354,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 - [ ] Run the safety check beside each turn, without slowing the first reaction or the first real word.
 - [ ] Add a flag queue and a review page limited to named reviewers. Nothing contacts a parent, as Abel ruled, and this overrides PRD Q4, Q5, S3, and S5's parent lines.
-- [ ] Add data deletion across every table, and an automated check that no audio files are written.
+- [ ] Add data deletion across every table, and an automated check that no audio files are written. Both must take in M3.14's scene store, which is not a table: typed scenes and refusals in `.scene-store`, a typed lesson's tutor audio in `student-voice/<student id>`, and student IDs in `lesson-spend.jsonl`. The store keeps tutor audio on purpose, so either the check names students' audio only, or this PR removes those files. `docs/tests/scenes.md` says what to remove for one student today.
 - [ ] Add a credit surface, because `docs/credits.md` alone leaves 5 NASA pictures without a visible credit.
 - [ ] Put Anthropic's zero-retention agreement, Meta's and ElevenLabs' age rules, and a full read of their terms into the legal review, with the M4.5 row under "For later owners" in `docs/architecture/live-session.md`.
 - [ ] Stop and tell Abel that the lawyer's review is still needed before any real student is invited, recorded on `lawyer-view` (PRD section 11).

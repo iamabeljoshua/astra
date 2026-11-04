@@ -60,17 +60,18 @@ describe('making a scene', () => {
     expect(made.isOk).toBe(true);
   });
 
-  it('treats text crossed by a line as a failed check', async () => {
-    const { store, worker, reviewer } = setUp({ renders: [{ ...goodRender, layoutProblems: ['t=16s Line runs through the text'] } as RenderResult] });
-    const made = await makeScene({ writers: [makeWriter('only')], reviewer, worker, store }, { topic: 'Slope', plan: PLAN });
-    expect(made.isOk).toBe(false);
-    expect(store.find(getSceneKey('Slope'))).toBeNull();
+  it('treats text crossed by a line as a failed check on a first try for a card', async () => {
+    const { store, worker, reviewer } = setUp({ renders: [{ ...goodRender, layoutProblems: ['t=16s Line runs through the text'] } as RenderResult, goodRender] });
+    let writes = 0;
+    const made = await makeScene({ writers: [makeWriter('first', undefined, () => { writes += 1; }), makeWriter('second', undefined, () => { writes += 1; })], reviewer, worker, store, warn: () => {} }, { topic: 'what a derivative measures', plan: PLAN });
+    expect(made.isOk).toBe(true);
+    expect(writes).toBe(2);
   });
 
   it('tells the writer about a layout problem once, though each theme reports it', async () => {
-    const { store, worker, reviewer } = setUp({ renders: [{ ...goodRender, layoutProblems: ['t=1s (scene-light.py:9) a line runs through the text', 't=1s (scene-dark.py:9) a line runs through the text'] } as RenderResult] });
-    const made = await makeScene({ writers: [makeWriter('only')], reviewer, worker, store }, { topic: 'Slope', plan: PLAN });
-    expect(made).toEqual({ isOk: false, reasons: ['layout: t=1s (scene.py:9) a line runs through the text'] });
+    const { store, worker, reviewer } = setUp({ renders: [{ ...goodRender, layoutProblems: ['t=1s (scene-light.py:9) a label is cut by the frame', 't=1s (scene-dark.py:9) a label is cut by the frame'] } as RenderResult] });
+    const made = await makeScene({ writers: [makeWriter('first')], reviewer, worker, store, warn: () => {} }, { topic: 'what a derivative measures', plan: PLAN });
+    expect(made).toEqual({ isOk: false, reasons: ['layout: t=1s (scene.py:9) a label is cut by the frame'] });
   });
 
   it('never reviews a scene with no pictures, because a reviewer would have nothing to see', async () => {
@@ -268,5 +269,34 @@ describe('a scene nobody wants any more', () => {
     const made = await makeScene({ writers: [writer, second], reviewer: passing, worker, store, warn: () => {} }, { topic: 'topic of slopes', plan: { ...PLAN, opening: [{ say: 'Topic of slopes first.' }] }, signal: stopper.signal });
     expect(made).toEqual({ isOk: false, reasons: ['no longer wanted'] });
     expect(store.getTrouble(getSceneKey('topic of slopes')).tries).toBe(0);
+  });
+});
+
+describe('a line through a label', () => {
+  const CROSSED: RenderResult = { ...goodRender, layoutProblems: ["t=15s (scene-light.py:130)  rl (Text 'right 1') and ring (Circle): Circle runs through the text"] };
+  const CUT: RenderResult = { ...goodRender, layoutProblems: ["t=15s (scene-light.py:130)  label (Text 'slope') is cut by the frame"] };
+  const WORDS = { topic: 'topic of slopes', plan: { ...PLAN, opening: [{ say: 'Topic of slopes first.' }] } };
+
+  it('stays as a note on a typed scene, which keeps its moment and writes once', async () => {
+    const { store, worker } = setUp({ renders: [CROSSED] });
+    let writes = 0;
+    const made = await makeScene({ writers: [makeWriter('w', undefined, () => { writes += 1; }), makeWriter('second', undefined, () => { writes += 1; })], reviewer: passing, worker, store, warn: () => {} }, { ...WORDS, ownerId: 'maya' });
+    expect(made.isOk).toBe(true);
+    expect(writes).toBe(1);
+    if (made.isOk) expect(made.scene.layoutNotes.join()).toMatch(/runs through the text/);
+  });
+
+  it('gets a card one rewrite first, and then stays as a note, so the card still has a scene', async () => {
+    const { store, worker } = setUp({ renders: [CROSSED, CROSSED] });
+    let writes = 0;
+    const made = await makeScene({ writers: [makeWriter('w', undefined, () => { writes += 1; }), makeWriter('second', undefined, () => { writes += 1; })], reviewer: passing, worker, store, warn: () => {} }, WORDS);
+    expect(made.isOk).toBe(true);
+    expect(writes).toBe(2);
+  });
+
+  it('still stops a label cut by the frame, on any scene', async () => {
+    const { store, worker } = setUp({ renders: [CUT] });
+    const made = await makeScene({ writers: [makeWriter('w')], reviewer: passing, worker, store, warn: () => {} }, { ...WORDS, ownerId: 'maya' });
+    expect(made.isOk).toBe(false);
   });
 });

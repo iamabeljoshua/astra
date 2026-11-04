@@ -305,6 +305,21 @@ describe('a writer that starts from the streamed plan', () => {
     expect(write).toHaveBeenCalledOnce();
   });
 
+  it('writes nothing early on a topic that waits after trouble', async () => {
+    const store = createSceneStore(mkdtempSync(join(tmpdir(), 'plan-trouble-')));
+    const key = getSceneKey(TOPIC);
+    store.saveTrouble(key, { tries: 1, lastAtMs: Date.now() });
+    const write = vi.fn(async () => ({ code: 'class Lesson: pass', ...USAGE }));
+    const plan = vi.fn(async (_topic: string, _signal: AbortSignal, hooks: { onSceneWords?(words: typeof WORDS): void }) => {
+      hooks.onSceneWords?.(WORDS);
+      return { ...PLAN, ...USAGE };
+    });
+    const runs = createTopicRuns({ planner: { plan: plan as never }, writers: [{ name: 'writer', write }], reviewer: { review: async () => ({ isPass: true, errors: [], ...USAGE }) }, worker, store, warn: () => {} });
+    const made = await runs.join(key).getScene();
+    expect(made.isOk).toBe(false);
+    expect(write).not.toHaveBeenCalled();
+  });
+
   it('writes nothing early when nobody asked for a scene, as on a browser that cannot play one', async () => {
     const { write, release, runs } = makeStreaming(PLAN);
     const run = runs.join(getSceneKey(TOPIC));

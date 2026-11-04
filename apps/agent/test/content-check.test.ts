@@ -81,6 +81,10 @@ describe('the code check on making something dangerous', () => {
     expect(getPlanProblems(TOPIC, { ...PLAN, ...fields })).toContain('it gives specifics of something dangerous');
   });
 
+  it('passes a word like explosive when it is about growth', () => {
+    expect(getPlanProblems('why savings grow slowly, then fast', { ...PLAN, opening: [{ say: 'Savings can make growth explosive in the end.' }], narration: '[[a]] Savings grow. [[b]] Then faster.', plan: 'a: a curve\nb: a steeper curve', close: 'When do savings speed up?' })).toEqual([]);
+  });
+
   it('passes ordinary chemistry and medicine', () => {
     expect(getPlanProblems('why chemical equations balance', { ...PLAN, opening: [{ say: 'An acid and a base make salt and water in a balanced equation.' }], narration: '[[a]] Count the atoms. [[b]] Each side balances.', plan: 'a: an equation\nb: atoms', close: 'What balances the equation?' })).toEqual([]);
   });

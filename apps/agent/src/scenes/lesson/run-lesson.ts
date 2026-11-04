@@ -230,14 +230,14 @@ export async function runLesson({ url, token, work, voice, onEvent, onClosing, o
       return parsed.ok ? [parsed.value] : [];
     });
 
-  // A new page has none of the old page's board or words, so it gets each unfinished beat whole, and a take running over several lines starts again from the line that puts it on the board.
-  const getUnfinishedBeats = (turn: ActiveTurn): Beat[] => {
-    const firstUnfinished = turn.beats.findIndex((beat) => turn.reports.get(beat.id)?.ending !== 'finished');
-    if (firstUnfinished < 0) return [];
-    const sceneLine = turn.beats.findIndex((beat) => beat.script.some((item) => typeof item === 'object' && item.kind === 'richScene'));
-    return turn.beats.slice(sceneLine >= 0 && sceneLine < firstUnfinished ? sceneLine : firstUnfinished);
+  // A new page has none of the old page's board or words, so it hears the cut line whole, and a take running over several lines starts again from the line that puts it on the board.
+  const getBeatsForNewPage = (beats: readonly Beat[], remaining: readonly Beat[]): readonly Beat[] => {
+    const cutLine = Math.max(beats.length - remaining.length, 0);
+    const sceneLine = beats.findIndex((beat) => beat.script.some((item) => typeof item === 'object' && item.kind === 'richScene'));
+    return beats.slice(sceneLine >= 0 && sceneLine < cutLine ? sceneLine : cutLine);
   };
 
+  // Each line is its own turn, because a person breathes between lines, and a scene holds at its moment over the gap.
   const speak = async (beats: readonly Beat[], prepareNewPage?: () => Promise<boolean>): Promise<void> => {
     let remaining = beats;
     wakes.clear();
@@ -245,14 +245,19 @@ export async function runLesson({ url, token, work, voice, onEvent, onClosing, o
       if (presence.getState() === 'away') {
         const reason = await wakes.wait();
         if (reason === 'newPage' && prepareNewPage && !(await prepareNewPage())) return;
+        if (reason === 'newPage') remaining = getBeatsForNewPage(beats, remaining);
         continue;
       }
-      const turn = await speakOnce(remaining);
-      if (!turn.isStopped) return;
+      const [line, ...later] = remaining as [Beat, ...Beat[]];
+      const turn = await speakOnce([line]);
+      if (!turn.isStopped) {
+        remaining = later;
+        continue;
+      }
       const reason = await wakes.wait();
       if (reason === 'over') return;
       if (reason === 'newPage' && prepareNewPage && !(await prepareNewPage())) return;
-      remaining = reason === 'newPage' ? getUnfinishedBeats(turn) : getRestOfTurn(turn);
+      remaining = reason === 'newPage' ? getBeatsForNewPage(beats, remaining) : [...getRestOfTurn(turn), ...later];
     }
   };
 

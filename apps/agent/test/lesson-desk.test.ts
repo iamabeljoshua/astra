@@ -147,3 +147,17 @@ describe('a normal student going back and forth', () => {
     expect(await desk.start({ ...REQUEST, studentId: 'ada', sessionId: 'other' })).toMatchObject({ refused: 'everyoneSpent', retryAfterSeconds: expect.any(Number) });
   });
 });
+
+describe('what crosses from the API', () => {
+  it('refuses a student ID that is not one plain name, because it names a folder of kept lines', () => {
+    const body = (studentId: string) => JSON.stringify({ ...REQUEST, studentId });
+    expect(parseLessonRequest(body('../../etc'))).toBeNull();
+    expect(parseLessonRequest(body('a/b'))).toBeNull();
+    expect(parseLessonRequest(body('00000000-0000-4000-8000-000000000001'))).not.toBeNull();
+  });
+
+  it('keeps a card line only when it is short text', () => {
+    expect(parseLessonRequest(JSON.stringify({ ...REQUEST, cardLine: 'What is still pushing it?' }))?.cardLine).toBe('What is still pushing it?');
+    expect(parseLessonRequest(JSON.stringify({ ...REQUEST, cardLine: 7 }))?.cardLine).toBeUndefined();
+  });
+});

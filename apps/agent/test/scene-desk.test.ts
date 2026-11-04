@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { MadeScene } from '../src/scenes/make-scene.ts';
 import { createSceneDesk, SHOW_WINDOW_MS } from '../src/scenes/scene-desk.ts';
 import type { RouteEngine, SceneRoute, StoredScene } from '../src/scenes/scene-types.ts';
@@ -52,7 +52,6 @@ describe('the scene desk', () => {
     await flush();
     expect(desk.getState().kind).toBe('ready');
     expect(desk.takeReady()).toBeNull();
-    expect(desk.isMissed()).toBe(true);
   });
 
   it('still shows a scene just inside the window', async () => {
@@ -98,5 +97,69 @@ describe('the scene desk', () => {
     desk.ask('what does a derivative measure');
     await flush();
     expect(desk.getState().kind).toBe('failed');
+  });
+});
+
+describe('waiting out the window', () => {
+  it('settles as soon as a scene is ready, and that scene can be taken', async () => {
+    const { desk, finish } = setUp();
+    desk.ask('what does a derivative measure');
+    await flush();
+    let isSettled = false;
+    void desk.untilLastChance().then(() => {
+      isSettled = true;
+    });
+    await flush();
+    expect(isSettled).toBe(false);
+    finish({ isOk: true, scene: SCENE });
+    await flush();
+    expect(isSettled).toBe(true);
+    expect(desk.takeReady()).toBe(SCENE);
+  });
+
+  it('settles when the scene fails, because nothing else is coming', async () => {
+    const { desk, finish } = setUp();
+    desk.ask('what does a derivative measure');
+    await flush();
+    const settled = desk.untilLastChance();
+    finish({ isOk: false, reasons: ['refused'] });
+    await settled;
+    expect(desk.takeReady()).toBeNull();
+  });
+
+  it('settles at once with no scene asked for, as on a browser that cannot play one', async () => {
+    const { desk } = setUp();
+    await desk.untilLastChance();
+    expect(desk.takeReady()).toBeNull();
+  });
+
+  it('gives up at the end of the 20 s, however long the scene takes', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout'] });
+    try {
+      const { desk } = setUp();
+      desk.ask('what does a derivative measure');
+      await vi.advanceTimersByTimeAsync(0);
+      let isSettled = false;
+      void desk.untilLastChance().then(() => {
+        isSettled = true;
+      });
+      await vi.advanceTimersByTimeAsync(SHOW_WINDOW_MS - 1);
+      expect(isSettled).toBe(false);
+      await vi.advanceTimersByTimeAsync(2);
+      expect(isSettled).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('takes a scene saved already without starting the 20 s, so it does not cost a later scene its window', async () => {
+    const { desk, finish, advance } = setUp();
+    desk.ask('what does a derivative measure');
+    await flush();
+    expect(desk.takeAtOpening()).toBeNull();
+    finish({ isOk: true, scene: SCENE });
+    await flush();
+    advance(SHOW_WINDOW_MS * 2);
+    expect(desk.takeAtOpening()).toBe(SCENE);
   });
 });
