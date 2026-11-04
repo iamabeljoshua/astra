@@ -1,4 +1,5 @@
 import type { SessionEvent } from '@astra/contracts';
+import { ApiRefusedError } from '../tutor/api-link.ts';
 
 const SAVE_EVERY_MS = 5000;
 const MOST_EVENTS_IN_A_SAVE = 200;
@@ -32,11 +33,24 @@ export function createLogSaver({ save, onFailed = () => {} }: LogSaverOptions): 
     return taken;
   };
 
+  // A save the API refuses for good would otherwise come back every 5 s and hold up the log behind it, so it splits until only the bad event is left, and that goes.
+  const saveOrDropRefused = async (events: SessionEvent[]): Promise<void> => {
+    try {
+      await save(events);
+    } catch (problem) {
+      if (!(problem instanceof ApiRefusedError)) throw problem;
+      if (events.length === 1) return onFailed(`dropped: ${String(problem)}`);
+      const middle = Math.ceil(events.length / 2);
+      await saveOrDropRefused(events.slice(0, middle));
+      await saveOrDropRefused(events.slice(middle));
+    }
+  };
+
   const saveAll = async () => {
     while (unsaved.size > 0) {
       const taken = takeSave();
       try {
-        await save(taken);
+        await saveOrDropRefused(taken);
       } catch (problem) {
         for (const event of taken) if (!unsaved.has(event.seq)) unsaved.set(event.seq, event);
         return onFailed(String(problem));

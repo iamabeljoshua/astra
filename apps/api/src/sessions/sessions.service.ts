@@ -74,8 +74,9 @@ export class SessionsService {
     { keepsRoomForRecap = false, ...changes }: UpdateSessionBodyDto,
   ): Promise<SessionResponseDto> {
     const session = requireSession(await this.sessions.updateUnfinishedForStudent(studentId, sessionId, changes));
+    // A length save can arrive after the end, and it must not close a room kept for a recap.
     if (session.status === 'finished' && keepsRoomForRecap) this.liveRooms.closeAfter(session.id, RECAP_ROOM_LASTS_MS);
-    else if (session.status === 'finished') await this.liveRooms.close(session.id);
+    else if (changes.status === 'finished') await this.liveRooms.close(session.id);
     return toSessionResponse(session);
   }
 
@@ -84,7 +85,6 @@ export class SessionsService {
     return { recap: session.recap, recapAnswer: session.recapAnswer, runs: await this.sessionLogs.listRuns(session.id) };
   }
 
-  // M4.1 reads this as the student's own record of what they tried, once memory exists.
   async saveRecapAnswer(studentId: string, sessionId: string, answer: string): Promise<void> {
     const session = requireSession(await this.sessions.findForStudent(studentId, sessionId));
     if (!session.recap) throw new NotFoundException('That session has no recap.');
@@ -93,13 +93,12 @@ export class SessionsService {
 
   async deleteReplay(studentId: string, sessionId: string): Promise<void> {
     const session = requireSession(await this.sessions.findForStudent(studentId, sessionId));
-    await this.sessions.markReplayDeletedForStudent(studentId, session.id);
-    await this.sessionLogs.deleteForSession(session.id);
+    await this.sessionLogs.deleteReplayForStudent(studentId, session.id);
   }
 
   // Only the agent calls these two, for a session the room's name gave it.
-  async saveLog(sessionId: string, run: SessionLogRun): Promise<void> {
-    if (!(await this.sessions.isReplayDeleted(sessionId))) await this.sessionLogs.saveEvents(sessionId, run);
+  saveLog(sessionId: string, run: SessionLogRun): Promise<void> {
+    return this.sessionLogs.saveUnlessDeleted(sessionId, run);
   }
 
   saveRecap(sessionId: string, recap: object): Promise<void> {

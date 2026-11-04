@@ -16,9 +16,9 @@ export const TYPED_TEXT_MAX_CHARACTERS = 2000;
 
 const LONE_SURROGATE = /\p{Cs}/gu;
 
-/** Cuts between whole characters, because half an emoji makes the JSON the model's API reads invalid. */
+/** Cuts between whole characters, because half an emoji makes the JSON the model's API reads invalid. A null character goes too, because Postgres cannot store it and a pasted one should not cost the student their line. */
 export function clipTypedText(text: string): string {
-  return Array.from(text.replace(LONE_SURROGATE, '')).slice(0, TYPED_TEXT_MAX_CHARACTERS).join('');
+  return Array.from(text.replace(LONE_SURROGATE, '').replaceAll('\u0000', '')).slice(0, TYPED_TEXT_MAX_CHARACTERS).join('');
 }
 
 /** The longest caption line of the student's words, in characters. */

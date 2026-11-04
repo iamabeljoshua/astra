@@ -439,7 +439,7 @@ describe('the sessions routes', () => {
       await testApp.app.get(SessionsService).saveRecap(id, { kind: 'gentle', line: 'Thanks.' });
       await api().delete(`${SESSIONS_PATH}/${id}/replay`).expect(204);
 
-      await testApp.app.get(SessionRepository).saveRecapAnswerForStudent(student.id, id, 'a late answer');
+      await testApp.app.get(SessionRepository).saveRecapAnswerForStudent(student.studentId, id, 'a late answer');
 
       await api().get(`${SESSIONS_PATH}/${id}/replay`).expect(200, { recap: null, recapAnswer: null, runs: [] });
     });

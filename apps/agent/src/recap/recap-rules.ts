@@ -1,5 +1,4 @@
 import { type Beat, getSpokenWords, parseBeat, type SessionRecap } from '@astra/contracts';
-import { SAFETY_REPLY } from '../tutor/beat-text-reader.ts';
 import type { RecapFacts } from './recap-facts.ts';
 
 export const GENTLE_LINE = "Thanks for talking with me today. You don't have to carry this alone. Please tell an adult you trust, or call your local emergency number. I'm here whenever you want to come back.";
@@ -10,8 +9,12 @@ const MOST_WORDS_IN_A_LINE = 22;
 const MOST_WORDS_IN_A_RECAP = 60;
 const SHORTEST_ANCHOR_LETTERS = 5;
 
-/** A student's own words that mean this ending must be gentle, whatever else the session held. A wrong match costs one gentle ending, and a miss costs praise after a disclosure. */
-const NEEDS_CARE = /\b(?:suicid\w*|sewerslide|kms|kill(?:ing)? myself|end(?:ing)? (?:my life|it all)|wan(?:t|na) to die|wanna die|don'?t want to (?:be here|live|be alive)|hurt(?:ing)? myself|cut(?:ting)? myself|harm(?:ing)? myself|self[- ]harm|overdose|(?:hits?|hurts?|beats?|touche[sd]|touch|rapes?|raped|abuses?|abused) me|i'?m not safe|not safe at home|have a plan for how to do it)\b/i;
+/** A student's own words that mean this ending must be gentle, whatever else the session held. A wrong match costs one gentle ending, and a miss costs praise after a disclosure, though the model reads what these miss. */
+const NEEDS_CARE = /\b(?:suicid\w*|sewerslide|kms|kill(?:ing)? myself|end(?:ing)? (?:my life|it all)|(?<!\b(?:he|she|they|who|anyone|someone|people|characters?|does|did)\s(?:(?!i\s)\w+\s){0,2})(?:want to|wanna) die|don'?t want to (?:be here|live|be alive)|hurt(?:ing)? myself|cut(?:ting)? myself|harm(?:ing)? myself|self[- ]harm|(?:i|i'?m|i'?ve|gonna|going to|wanna|want to|took an?)\s(?:\w+\s)?overdos\w*|(?:hurts?|touche[sd]|touch|rapes?|raped|abuses?|abused) me|i'?m not safe|not safe at home|have a plan for how to do it)\b/i;
+/** "Beats me" and "hit me with another one" are how students talk, so these two need someone doing it. */
+const SOMEONE_HITS_ME = /\b(?:he|she|they|someone|somebody|people|kids|my \w+(?:'s \w+)?|(?:step)?(?:mom|mum|mam|dad|father|mother|brother|sister)|uncle|aunt(?:ie)?|grandpa|grandma|cousin|teacher|coach|boyfriend|girlfriend)(?:'s|'re)?(?: \w+){0,3}? (?:beats?|beating|hits?|hitting) me\b/i;
+/** The parts of the tutor's safety reply that only it says. A tutor can tell a student a mistake is not their fault in any lesson. */
+const TUTOR_GAVE_SAFETY_REPLY = /\b(?:that sounds serious|right thing telling me|adult you trust|emergency number|are you safe)\b/i;
 
 const PRAISE = /\b(?:great|amazing|awesome|excellent|fantastic|wonderful|perfect(?:ly)?|brilliant|superb|incredible|impressive|outstanding|proud|genius|smart|well done|good job|nice (?:job|work)|nailed|crushed|keep it up|way to go)\b/i;
 
@@ -21,6 +24,8 @@ const CLAIMS_SUCCESS = /\b(?:you (?:got|solved|figured|mastered|understood|learn
 const NUMBER_WORDS = new Map(['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'].map((word, value) => [word, value]));
 const TENS_WORDS = new Map(['twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'].map((word, index) => [word, (index + 2) * 10]));
 const IN_NUMBERS = /\d+(?:\.\d+)?|\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)(?:[- ](?:one|two|three|four|five|six|seven|eight|nine))?\b/gi;
+/** A tens word joins only a unit. The model has written "twenty-du", "twenty-606", and "twenty-henty", and a student would be asked to answer them. */
+const BROKEN_NUMBER = /\b(?:twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)(?:[-\u2010\u2011]?)(?!(?:[-\u2010\u2011]?(?:one|two|three|four|five|six|seven|eight|nine)\b))[\p{L}\p{N}]/iu;
 /** "one thing" is a way of talking, and not a claim about the student's work. */
 const ONE_AS_WORD = /(?<!(?:twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)[- ])\bone\b/gi;
 
@@ -44,15 +49,16 @@ const getEverySaidLine = ({ opening, tutorWords, studentLines, work }: RecapFact
 const getStudentsOwnWords = ({ opening, studentLines, work }: RecapFacts) => [...(opening ? [opening] : []), ...studentLines, ...work.map(({ line }) => line)];
 
 export function getEndingKind(facts: RecapFacts): 'gentle' | 'nothing' | 'lesson' {
-  if (SAFETY_REPLY.test(facts.tutorWords.join(' ')) || getStudentsOwnWords(facts).some((line) => NEEDS_CARE.test(line))) return 'gentle';
+  if (TUTOR_GAVE_SAFETY_REPLY.test(facts.tutorWords.join(' ')) || getStudentsOwnWords(facts).some((line) => NEEDS_CARE.test(line) || SOMEONE_HITS_ME.test(line))) return 'gentle';
   return facts.tutorWords.length >= FEWEST_TUTOR_WORDS_TO_RECAP || facts.work.length > 0 ? 'lesson' : 'nothing';
 }
 
 export const GENTLE_RECAP: SessionRecap = { kind: 'gentle', line: GENTLE_LINE };
 
+export const TRY_NEXT_FROM_CODE = 'Try saying the main idea in one line, in your own words.';
+
 export interface RecapDraft {
   covered?: unknown;
-  gotRight?: unknown;
   tryNext?: unknown;
 }
 
@@ -69,6 +75,7 @@ function getLineProblem(line: unknown, name: string): string | null {
 
 function getCoveredProblem(covered: string, facts: RecapFacts): string | null {
   if (CLAIMS_SUCCESS.test(covered)) return 'covered says what the student did';
+  if (BROKEN_NUMBER.test(covered)) return 'covered holds a broken number';
   const known = getAllNumbers(getEverySaidLine(facts));
   const madeUp = getNumbers(covered).filter((number) => !known.has(number));
   if (madeUp.length > 0) return `covered names numbers nobody said: ${madeUp.join(', ')}`;
@@ -82,31 +89,35 @@ function getTryNextProblem(tryNext: string): string | null {
   return tryNext.includes('?') ? 'tryNext asks a question' : null;
 }
 
-// A draft line about right work must name a number only from that work, or it is replaced by a line code can stand behind.
-function getGotRight(draft: unknown, rightLines: readonly string[]): string | null {
+// A student answers this line, so every number in it must be whole and come from the lesson, or code's own line stands in.
+function getCheckedTryNext(tryNext: string, facts: RecapFacts): string {
+  const known = getAllNumbers(getEverySaidLine(facts));
+  return !BROKEN_NUMBER.test(tryNext) && getNumbers(tryNext).every((number) => known.has(number)) ? tryNext : TRY_NEXT_FROM_CODE;
+}
+
+// Code writes this line alone, because a model's line can claim more than code found right with no number in it to catch.
+function getGotRight(rightLines: readonly string[]): string | null {
   const lastRight = rightLines.at(-1);
   if (lastRight === undefined) return null;
-  const onlyFromCode = `You got ${toSpokenMath(lastRight)} right.`;
-  if (typeof draft !== 'string' || getLineProblem(draft, 'gotRight')) return onlyFromCode;
-  const known = getAllNumbers(rightLines);
-  const line = cleanLine(draft);
-  return getNumbers(line).every((number) => known.has(number)) ? line : onlyFromCode;
+  const line = `You got ${toSpokenMath(lastRight)} right.`;
+  return getSpokenWords(line).length > MOST_WORDS_IN_A_LINE ? null : line;
 }
 
 export type RecapCheck = { recap: SessionRecap & { kind: 'lesson' } } | { problem: string };
 
 // A model wrote this, so nothing in it is taken on trust. Each rule answers to the log or to a plain limit.
-export function checkRecapDraft({ covered, gotRight, tryNext }: RecapDraft, facts: RecapFacts): RecapCheck {
+export function checkRecapDraft({ covered, tryNext }: RecapDraft, facts: RecapFacts): RecapCheck {
   const shapeProblem = getLineProblem(covered, 'covered') ?? getLineProblem(tryNext, 'tryNext');
   if (shapeProblem) return { problem: shapeProblem };
   const cleanCovered = cleanLine(covered as string);
   const cleanTryNext = cleanLine(tryNext as string);
   const problem = getCoveredProblem(cleanCovered, facts) ?? getTryNextProblem(cleanTryNext);
   if (problem) return { problem };
-  const checkedRight = getGotRight(gotRight, getRightLines(facts));
-  const words = [cleanCovered, checkedRight ?? '', cleanTryNext].flatMap(getSpokenWords).length;
+  const checkedRight = getGotRight(getRightLines(facts));
+  const checkedTryNext = getCheckedTryNext(cleanTryNext, facts);
+  const words = [cleanCovered, checkedRight ?? '', checkedTryNext].flatMap(getSpokenWords).length;
   if (words > MOST_WORDS_IN_A_RECAP) return { problem: `the recap runs past ${MOST_WORDS_IN_A_RECAP} words` };
-  return { recap: { kind: 'lesson', covered: cleanCovered, gotRight: checkedRight, tryNext: cleanTryNext } };
+  return { recap: { kind: 'lesson', covered: cleanCovered, gotRight: checkedRight, tryNext: checkedTryNext } };
 }
 
 export function getRecapLines(recap: SessionRecap): string[] {

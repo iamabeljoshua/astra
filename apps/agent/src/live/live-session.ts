@@ -62,7 +62,7 @@ export interface LiveSessionOptions {
   recordTurn?: RecordTurn;
   onLogWritten?(event: SessionEvent): void;
   writeRecap?(facts: RecapFacts): Promise<SessionRecap | null>;
-  /** A recap has been written. M4.1's memory takes its note from a `lesson` recap here, and a `gentle` one holds no note. */
+  /** A recap has been written. Memory can note here that a `gentle` ending needs a person, and a model's `lesson` lines are not for its notes. */
   onRecap?(recap: SessionRecap): void;
   /** The recap has played, or there was none, and the room can go. */
   onEndingOver?(): void;
@@ -671,12 +671,6 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     onBrowser(message) {
       if (message.type === 'endingSession') return void endWithRecap().catch((problem: unknown) => trace('endingFailed', { problem: String(problem) }));
       if (isEnding && !HEARD_WHILE_ENDING.has(message.type)) return;
-      if (message.type === 'typed') {
-        noteSomethingHappened();
-        if (message.isOpening) openingLine ??= message.text;
-        else log.write(message);
-        return typedGate.offer(message.text);
-      }
       if (message.type === 'pulse') return link.notePulse(message.hearsAgent, getNowMs());
       // Past the limit too, because a student keeping their room open must always be heard.
       if (message.type === 'stillHere') return noteSomethingHappened();
@@ -686,6 +680,12 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
         return;
       }
       isDroppingMessages = false;
+      if (message.type === 'typed') {
+        noteSomethingHappened();
+        if (message.isOpening) openingLine ??= message.text;
+        else log.write(message);
+        return typedGate.offer(message.text);
+      }
       if (message.type === 'played') return onReport(message);
       log.write(message);
       if (message.type === 'acted') noteSomethingHappened();

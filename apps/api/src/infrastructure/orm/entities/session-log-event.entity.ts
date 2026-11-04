@@ -1,7 +1,7 @@
 import { Column, Entity, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
 import { SessionEntity } from './session.entity';
 
-// One row per event of a session's log, so a beat that plays further replaces its own row and a repeated save changes nothing. No audio passes through here.
+// One row per event of a session's log. A row keeps what it first held, except that a beat that plays further replaces its own row. No audio passes through here.
 @Entity('session_log_events')
 export class SessionLogEventEntity {
   @PrimaryColumn('uuid', { name: 'session_id' })

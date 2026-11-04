@@ -1,9 +1,11 @@
 import { Type } from 'class-transformer';
 import { ArrayMaxSize, IsArray, IsDate, IsInt, IsNumber, IsObject, IsUUID, Max, Min, ValidateNested } from 'class-validator';
+import { IsStorableJson } from '../is-storable-text';
 import type { StudentGoal, StudentInterest, StudentLevel } from '../students/student-profile-options';
 
 const LARGEST_CHARGE_USD = 10;
 const MOST_EVENTS_IN_A_SAVE = 500;
+const LARGEST_POSTGRES_INTEGER = 2_147_483_647;
 
 export class AddSpendBodyDto {
   /** What the turn cost, in US dollars. */
@@ -14,13 +16,15 @@ export class AddSpendBodyDto {
 }
 
 export class LoggedEventDto {
-  /** Where this event sits in its run's log. Saving the same place again replaces it, because a beat's row grows as it plays. */
+  /** Where this event sits in its run's log. Saving the same place again changes nothing, unless it is a beat that has played further. */
   @IsInt()
   @Min(0)
+  @Max(LARGEST_POSTGRES_INTEGER)
   seq!: number;
 
   /** The whole event, which the agent has parsed. */
   @IsObject()
+  @IsStorableJson()
   event!: object;
 }
 
@@ -46,6 +50,7 @@ export class SaveLogBodyDto {
 export class SaveRecapBodyDto {
   /** What the session's end said. */
   @IsObject()
+  @IsStorableJson()
   recap!: object;
 }
 

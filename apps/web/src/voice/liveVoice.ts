@@ -92,7 +92,9 @@ export interface LiveVoice {
   getBoardNow(): { board: BoardState; atMs: number };
   /** `isOpening` marks a line this page sends to start the tutor, which the student did not type. */
   sendTyped(text: string, isOpening?: boolean): void;
-  /** Asks the tutor for its recap, and says whether it can be reached to give one. */
+  /** Whether the tutor can be reached to give a recap, asking nothing yet. */
+  canAskForRecap(): boolean;
+  /** Asks the tutor for its recap, which also ends its teaching, and says whether the ask could be sent. */
   askForRecap(): boolean;
   /** The board could not draw this mark, so the agent can tell the tutor the student did not see it. */
   reportMarkNotDrawn(markId: string): void;
@@ -493,6 +495,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
       addStudentWords({ text: clipped, isFinal: true });
       send({ type: 'typed', ...getStamp(), text: clipped, ...(isOpening ? { isOpening } : {}) });
     },
+    canAskForRecap: () => !hasLeftRoom && canReachAgent(),
     askForRecap() {
       if (hasLeftRoom || !canReachAgent()) return false;
       void mic.setOn(false);

@@ -434,7 +434,7 @@ These were all the changes this design made to the approved plan. They went into
 | M3.9 | `system` and `tools` stay frozen for prompt caching, so the current step goes in as an appended message. |
 | M3.10 | Its perf rule measures first real word, not first audio. |
 | M3.11 | Narrowed to ink and uploads, which use the shapes above, with handwriting through a small reader call and then the code check. It settles its open row. |
-| M4.4 | Adds the key-moments command. |
+| M4.4 | Adds no key-moments command. Code picks the moments from the log, as `docs/tests/recap-replay.md` says. |
 | M4.5 | Anthropic's zero-retention agreement, Meta's and ElevenLabs' age rules, and a full read of their terms go into the legal review. |
 | PRD section 10 | The cost table is superseded by the table above. |
 | PRD Q8, plan section on live tutor facts | ElevenLabs and Chris replace Cartesia. Muse replaces Deepgram. You chose Chris by ear, so a blind test of voices runs only if you still want one. |

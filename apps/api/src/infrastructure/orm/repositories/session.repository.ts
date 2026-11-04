@@ -79,16 +79,8 @@ export class SessionRepository {
     await this.sessions.update({ id: sessionId, replayDeletedAt: IsNull() }, { recap });
   }
 
-  async markReplayDeletedForStudent(studentId: string, sessionId: string): Promise<void> {
-    await this.sessions.update({ id: sessionId, studentId }, { recap: null, recapAnswer: null, replayDeletedAt: new Date() });
-  }
-
   async saveRecapAnswerForStudent(studentId: string, sessionId: string, recapAnswer: string): Promise<void> {
-    await this.sessions.update({ id: sessionId, studentId }, { recapAnswer });
-  }
-
-  isReplayDeleted(sessionId: string): Promise<boolean> {
-    return this.sessions.existsBy({ id: sessionId, replayDeletedAt: Not(IsNull()) });
+    await this.sessions.update({ id: sessionId, studentId, replayDeletedAt: IsNull() }, { recapAnswer });
   }
 
   listNewestWithTopicForStudent(studentId: string): Promise<SessionEntity[]> {

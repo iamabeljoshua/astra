@@ -46,7 +46,7 @@ export function useReplayPlayer(lesson: ReplayLesson): ReplayPlayer {
   const [atMs, setAtMs] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeedState] = useState<ReplaySpeed>(1);
-  const [isSoundOn, setIsSoundOn] = useState(true);
+  const [isSoundOn, setIsSoundOn] = useState(false);
   const [hasMoved, setHasMoved] = useState(false);
   const lastAtMs = useRef(0);
 

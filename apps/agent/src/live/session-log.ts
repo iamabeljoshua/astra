@@ -16,7 +16,8 @@ export interface SessionLog {
   getEvents(): readonly SessionEvent[];
 }
 
-const MOST_EVENTS = 50_000;
+/** The API keeps no more of a session than this, so a tab cannot fill the job's memory with rows nobody will store. */
+const MOST_EVENTS = 5_000;
 const MOST_CLOCK_IDS = 16;
 
 /** A beat only ever plays further, so a report of fewer words or cues is an old one arriving again. */

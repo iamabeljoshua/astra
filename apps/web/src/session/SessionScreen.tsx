@@ -18,7 +18,7 @@ import { type LiveVoiceControls, useLiveVoice } from '../voice/useLiveVoice';
 
 const NOT_FOUND_STATUS = 404;
 const BAD_ID_STATUS = 400;
-/** The tutor has this long to say whether there is a recap, and past it the student leaves anyway. */
+/** The tutor has this long from the press of End to say whether there is a recap, and past it the student leaves anyway. */
 const LONGEST_RECAP_WAIT_MS = 8000;
 
 function isWrongAddress(status?: number | null) {
@@ -106,10 +106,10 @@ function useIsAnswerDue(view: LiveVoiceView | null, draftEdits: number): boolean
 }
 
 // A student with no recap coming, or one that never comes, leaves as they would have with none.
-function useLeaveWhenNoRecap({ isRecapping, view, leave }: { isRecapping: boolean; view: LiveVoiceView | null; leave(): Promise<void> }) {
-  const hasWaitedTooLong = useHasWaited(isRecapping && !view?.isRecapDecided, LONGEST_RECAP_WAIT_MS);
-  const hasNothingToSay = isRecapping && view?.isRecapDecided === true && view.recap === null;
-  const shouldLeave = hasWaitedTooLong || hasNothingToSay;
+function useLeaveWhenNoRecap({ isEnding, isRecapping, view, leave }: { isEnding: boolean; isRecapping: boolean; view: LiveVoiceView | null; leave(): Promise<void> }) {
+  const hasWaitedTooLong = useHasWaited(isEnding && !view?.isRecapDecided, LONGEST_RECAP_WAIT_MS);
+  const hasNothingToSay = view?.isRecapDecided === true && view.recap === null;
+  const shouldLeave = isRecapping && (hasWaitedTooLong || hasNothingToSay);
   const leaving = useRef(false);
   useEffect(() => {
     if (!shouldLeave || leaving.current) return;
@@ -121,8 +121,8 @@ function useLeaveWhenNoRecap({ isRecapping, view, leave }: { isRecapping: boolea
 function RunningSession({ session }: { session: Session }) {
   const liveVoice = useLiveVoice({ sessionId: session.id });
   const { status, view, voice } = liveVoice;
-  const { seconds, endSession, leave, isEnding, isRecapping, endProblem } = useSessionRun(session, () => voice?.askForRecap() ?? false);
-  useLeaveWhenNoRecap({ isRecapping, view, leave });
+  const { seconds, endSession, leave, isEnding, isRecapping, endProblem } = useSessionRun(session, { canAsk: () => voice?.canAskForRecap() ?? false, ask: () => voice?.askForRecap() ?? false });
+  useLeaveWhenNoRecap({ isEnding, isRecapping, view, leave });
   const tutorStateLine = useRef<HTMLSpanElement>(null);
   // This changes on every student action, so it is written straight to the page and the session does not render again for it.
   const showTutorState = useCallback((state: string | null) => {

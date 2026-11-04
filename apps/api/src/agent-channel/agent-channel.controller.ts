@@ -30,7 +30,7 @@ export class AgentChannelController {
     return this.agentChannel.addSpend(sessionId, usd);
   }
 
-  /** Saves part of a session's log. Saving the same event again changes nothing, so the agent can always try again. */
+  /** Saves part of a session's log. Saving the same event again changes nothing, so the agent can always try again. A 400 means that save can never be stored, and past a session's bound a save stores nothing and still answers 204. */
   @Post(':id/log')
   @HttpCode(NO_CONTENT_STATUS)
   saveLog(@Param('id') sessionId: string, @Body() run: SaveLogBodyDto): Promise<void> {

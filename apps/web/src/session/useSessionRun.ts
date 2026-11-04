@@ -16,8 +16,8 @@ function createClock(startingSeconds: number) {
   return () => startingSeconds + Math.floor(Math.max(Date.now() - openedAtMs, 0) / MS_PER_SECOND);
 }
 
-// Stands in for the live session's clock until M3.10. The session is finished the moment the student presses End, whatever becomes of the recap.
-export function useSessionRun(session: Session, askForRecap: () => boolean) {
+// Stands in for the live session's clock until M3.10. The session is finished the moment the student presses End, whatever becomes of the recap, and a tutor is told only once that has saved, so a failed end leaves it teaching.
+export function useSessionRun(session: Session, recap: { canAsk(): boolean; ask(): boolean }) {
   const queryClient = useQueryClient();
   const { fadeInto } = useLeavePage();
   const { mutate: saveLength } = useUpdateSession(session.id);
@@ -46,10 +46,10 @@ export function useSessionRun(session: Session, askForRecap: () => boolean) {
   async function endSession() {
     if (isEnding) return;
     setIsEnding(true);
-    const isRecapComing = askForRecap();
+    const canRecap = recap.canAsk();
     try {
-      await finish.mutateAsync({ durationSeconds: readSeconds(), status: 'finished', ...(isRecapComing ? { keepsRoomForRecap: true } : {}) });
-      if (isRecapComing) setIsRecapping(true);
+      await finish.mutateAsync({ durationSeconds: readSeconds(), status: 'finished', ...(canRecap ? { keepsRoomForRecap: true } : {}) });
+      if (canRecap && recap.ask()) setIsRecapping(true);
       else await leave();
     } catch (thrown) {
       setIsEnding(false);
