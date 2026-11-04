@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   # Each job has its own 2 threads and its own limit, and they run at once, so an answer still comes within the limit of its start.
-  renamed-job:
+  typecheck-and-web:
     runs-on: ubuntu-latest
     timeout-minutes: 4
     steps:
