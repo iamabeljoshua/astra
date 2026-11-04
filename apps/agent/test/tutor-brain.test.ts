@@ -705,7 +705,7 @@ describe('words a cut reply carries into the next request', () => {
 });
 
 describe('the memory note', () => {
-  const MEMORY = { memory: { notes: [{ kind: 'struggled' as const, about: 'moving a term', days_ago: 2, known_from: 'checked_on_board' as const }] } };
+  const MEMORY = { memory: { count: 1, notes: [{ kind: 'struggled' as const, about: 'moving a term', days_ago: 2, known_from: 'checked_on_board' as const }] } };
   const getNotes = (request: TutorModelRequest | undefined) => (request?.turns ?? []).flatMap((turn) => (turn.role === 'system' ? [JSON.parse(turn.text) as Record<string, unknown>] : []));
 
   function makeBrain(options: Partial<Parameters<typeof createTutorBrain>[0]>) {
@@ -729,11 +729,11 @@ describe('the memory note', () => {
   });
 
   it('says an empty memory out loud, so the tutor knows it knows nothing', async () => {
-    const { brain, requests } = makeBrain({ loadMemory: async () => ({ memory: { notes: [] } }) });
+    const { brain, requests } = makeBrain({ loadMemory: async () => ({ memory: { count: 0, notes: [] } }) });
 
     await collect(brain, 'hello');
 
-    expect(getNotes(requests[0])).toContainEqual({ memory: { notes: [] } });
+    expect(getNotes(requests[0])).toContainEqual({ memory: { count: 0, notes: [] } });
   });
 
   it('answers with no note and no failure when memory cannot be read', async () => {

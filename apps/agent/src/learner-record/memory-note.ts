@@ -13,8 +13,9 @@ export interface MemoryLine {
   known_from: 'checked_on_board' | 'their_words';
 }
 
+/** `count` is there because the model denied holding a one-note list in 5 of 6 replies without it, and in 0 of 18 with it. */
 export interface MemoryNote {
-  memory: { notes: MemoryLine[] };
+  memory: { count: number; notes: MemoryLine[] };
 }
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -56,5 +57,5 @@ export function getMemoryNote({ notes }: LearnerRecord, now: Date): MemoryNote {
   }
   const kept = [...newestPerTopic.values()];
   const lines = MOST_OF_EACH_KIND.flatMap(([kind, most]) => kept.filter((note) => note.kind === kind).slice(0, most));
-  return { memory: { notes: lines.map((note) => toMemoryLine(note, now)) } };
+  return { memory: { count: lines.length, notes: lines.map((note) => toMemoryLine(note, now)) } };
 }

@@ -21,7 +21,7 @@ function setup(changes: Partial<RecordPass> = {}) {
     model,
     writeNotes: async (update) => void written.push(update),
     updateKey: 'job-1',
-    isOverSpendLimit: () => false,
+    isOverDailyLimit: () => false,
     addCost: (usd) => costs.push(usd),
     trace: (name, fields) => traces.push({ name, ...(fields ? { fields } : {}) }),
     ...changes,
@@ -66,19 +66,19 @@ describe('the pass that writes a room\'s notes', () => {
     expect(keys).toEqual(['job-1', 'job-1']);
   });
 
-  it('spends nothing over the spend limit', async () => {
+  it('spends nothing over the daily limit', async () => {
     const asks: unknown[] = [];
     const model = makeFakeTutorModel((request) => {
       asks.push(request);
       return { pieces: ['{}'] };
     });
-    const { pass, traces, written } = setup({ model, isOverSpendLimit: () => true });
+    const { pass, traces, written } = setup({ model, isOverDailyLimit: () => true });
 
     await writeRecordOfRoom(pass);
 
     expect(asks).toEqual([]);
     expect(written).toEqual([]);
-    expect(traces).toEqual([{ name: 'recordPassSkipped', fields: { why: 'spendLimit' } }]);
+    expect(traces).toEqual([{ name: 'recordPassSkipped', fields: { why: 'dailyLimit' } }]);
   });
 
   it('spends nothing on a room where nothing happened', async () => {

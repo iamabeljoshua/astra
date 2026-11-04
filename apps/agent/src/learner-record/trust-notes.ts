@@ -87,10 +87,10 @@ const RULES: readonly { name: string; passes(cited: Cited): boolean }[] = [
   { name: 'pattern', passes: (cited) => hasThePatternItClaims(cited.candidate.topic, cited) },
 ];
 
-// A detail that goes past the lines costs only the detail, because the note under it still stands on its evidence.
+// Only a struggle has anything to add to its evidence. A detail that goes past the lines costs only the detail, because the note under it still stands on its evidence.
 function getTrustedDetail(cited: Cited): string | null {
   const { kind, detail } = cited.candidate;
-  if (kind === 'explored' || detail === null) return null;
+  if (kind !== 'struggled' || detail === null) return null;
   return isGrounded(detail, cited) && hasThePatternItClaims(detail, cited) ? detail : null;
 }
 
@@ -120,6 +120,20 @@ function getCited(candidate: Candidate, events: readonly DigestEvent[]): Cited |
   return { candidate, events, boards: cited.filter((line): line is BoardEvent => line.kind === 'board'), words: cited.filter((line): line is WordsEvent => line.kind === 'words') };
 }
 
+function judge(raw: unknown, events: readonly DigestEvent[]): { note: TrustedNote; claim: string } | { refusedBecause: string } {
+  const candidate = readCandidate(raw);
+  if (!candidate) return { refusedBecause: 'badShape' };
+  const cited = getCited(candidate, events);
+  if (!cited) return { refusedBecause: 'citesNoRealLine' };
+  const failed = RULES.find((rule) => !rule.passes(cited));
+  if (failed) return { refusedBecause: failed.name };
+  const { kind, topic, evidence } = candidate;
+  return {
+    claim: `${kind}:${evidence.toSorted().join()}`,
+    note: { kind, topic, detail: getTrustedDetail(cited), evidence: [...cited.boards, ...cited.words].map(toEvidence) },
+  };
+}
+
 export interface TrustReading {
   notes: TrustedNote[];
   /** How many candidates each rule stopped, with no words of the student's in it, so it can go in a trace. */
@@ -128,29 +142,16 @@ export interface TrustReading {
 
 // Code decides. The model only proposes a label and points at lines, and the evidence kept is code's own copy of those lines.
 export function getTrustedNotes(rawCandidates: readonly unknown[], events: readonly DigestEvent[]): TrustReading {
-  const notes: TrustedNote[] = [];
+  const kept = new Map<string, TrustedNote>();
   const refused: Record<string, number> = {};
   const refuse = (reason: string) => {
     refused[reason] = (refused[reason] ?? 0) + 1;
   };
   for (const raw of rawCandidates) {
-    const candidate = readCandidate(raw);
-    if (!candidate) {
-      refuse('badShape');
-      continue;
-    }
-    const cited = getCited(candidate, events);
-    if (!cited) {
-      refuse('citesNoRealLine');
-      continue;
-    }
-    const failed = RULES.find((rule) => !rule.passes(cited));
-    if (failed) {
-      refuse(failed.name);
-      continue;
-    }
-    const { kind, topic } = candidate;
-    notes.push({ kind, topic, detail: getTrustedDetail(cited), evidence: [...cited.boards, ...cited.words].map(toEvidence) });
+    const judged = judge(raw, events);
+    if ('refusedBecause' in judged) refuse(judged.refusedBecause);
+    else if (kept.has(judged.claim)) refuse('sameLinesTwice');
+    else kept.set(judged.claim, judged.note);
   }
-  return { notes: notes.slice(0, MOST_NOTES_A_ROOM), refused };
+  return { notes: [...kept.values()].slice(0, MOST_NOTES_A_ROOM), refused };
 }

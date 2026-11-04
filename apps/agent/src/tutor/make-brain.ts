@@ -166,7 +166,7 @@ export function makeTutorBrain({ roomName, jobId, trace }: { roomName: string; j
           model: wordsModel,
           writeNotes: link.writeNotes,
           updateKey: jobId,
-          isOverSpendLimit: () => caps.getSpendLimit() !== null,
+          isOverDailyLimit: () => caps.getSpendLimit() === 'dailyLimit',
           addCost: (usd) => caps.addTurn({ usd, voiceCharacters: 0 }),
           trace,
         })

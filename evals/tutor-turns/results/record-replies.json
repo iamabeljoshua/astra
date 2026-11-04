@@ -3,7 +3,7 @@
   {
    "kind": "explored",
    "topic": "solving two-step equations",
-   "detail": "asked to learn how to solve two-step equations",
+   "detail": null,
    "evidence": [
     "w1"
    ]
@@ -11,7 +11,7 @@
   {
    "kind": "struggled",
    "topic": "moving a term across the equals sign",
-   "detail": "kept the plus sign when moving the 3, and repeated the same wrong line",
+   "detail": "kept the plus when moving the 3, repeated on two lines",
    "evidence": [
     "b3",
     "w5",
@@ -20,16 +20,16 @@
   },
   {
    "kind": "showed",
-   "topic": "undoing addition to isolate x",
-   "detail": "got 2x = 8 right after taking the 3 away from both sides",
+   "topic": "removing a constant from both sides",
+   "detail": null,
    "evidence": [
     "b9"
    ]
   },
   {
    "kind": "showed",
-   "topic": "dividing to solve for x",
-   "detail": "wrote x = 4 correctly from 2x = 8",
+   "topic": "isolating x after removing a constant",
+   "detail": null,
    "evidence": [
     "b11"
    ]
@@ -39,7 +39,7 @@
   {
    "kind": "cares_about",
    "topic": "building rockets",
-   "detail": "Said they love rockets and want to build them one day.",
+   "detail": null,
    "evidence": [
     "w3"
    ]
@@ -47,7 +47,7 @@
   {
    "kind": "explored",
    "topic": "why rockets have stages",
-   "detail": "Asked why rockets have stages and how dropping weight helps speed.",
+   "detail": null,
    "evidence": [
     "w1",
     "w5"
@@ -58,7 +58,7 @@
   {
    "kind": "explored",
    "topic": "derivatives",
-   "detail": "Asked what a derivative is and what it is used for.",
+   "detail": null,
    "evidence": [
     "w1",
     "w3"
@@ -66,8 +66,8 @@
   },
   {
    "kind": "explored",
-   "topic": "derivatives in money",
-   "detail": "Asked how derivatives are used in money.",
+   "topic": "derivatives in money and prices",
+   "detail": null,
    "evidence": [
     "w5"
    ]
@@ -77,7 +77,7 @@
   {
    "kind": "explored",
    "topic": "adding fractions",
-   "detail": "asked to learn fractions and how to add them",
+   "detail": null,
    "evidence": [
     "w1"
    ]
@@ -85,16 +85,9 @@
   {
    "kind": "struggled",
    "topic": "adding fractions with different denominators",
-   "detail": "said they do not get adding when the bottoms differ",
+   "detail": "does not get how to add when the bottoms differ",
    "evidence": [
-    "w3"
-   ]
-  },
-  {
-   "kind": "struggled",
-   "topic": "making denominators match",
-   "detail": "said making the bottoms match is confusing",
-   "evidence": [
+    "w3",
     "w5"
    ]
   }
@@ -103,15 +96,15 @@
   {
    "kind": "explored",
    "topic": "area of a circle",
-   "detail": "asked to learn the area of a circle",
+   "detail": null,
    "evidence": [
     "w1"
    ]
   },
   {
    "kind": "showed",
-   "topic": "area of a circle formula",
-   "detail": "wrote the formula A = πr² correctly on the board",
+   "topic": "area formula of a circle",
+   "detail": null,
    "evidence": [
     "b3"
    ]
@@ -121,7 +114,7 @@
   {
    "kind": "explored",
    "topic": "simplifying expressions",
-   "detail": "Asked to learn about simplifying expressions.",
+   "detail": null,
    "evidence": [
     "w1"
    ]
@@ -129,7 +122,7 @@
   {
    "kind": "showed",
    "topic": "combining like terms",
-   "detail": "Correctly simplified 3x + 2x to 5x on the board.",
+   "detail": null,
    "evidence": [
     "b3"
    ]
@@ -137,7 +130,7 @@
   {
    "kind": "struggled",
    "topic": "multiplying terms with variables",
-   "detail": "Wrote 3x * 2x as 6x instead of 6x^2.",
+   "detail": "wrote 6x for 3x * 2x instead of 6x^2",
    "evidence": [
     "b5"
    ]
@@ -145,27 +138,27 @@
  ],
  "does-not-like-it": [
   {
-   "kind": "explored",
-   "topic": "percentages",
-   "detail": "Asked to learn about percentages.",
+   "kind": "cares_about",
+   "topic": "music",
+   "detail": null,
    "evidence": [
-    "w1"
+    "w5"
    ]
   },
   {
-   "kind": "cares_about",
-   "topic": "music",
-   "detail": "Asked to use music for the examples.",
+   "kind": "explored",
+   "topic": "percentages",
+   "detail": null,
    "evidence": [
-    "w5"
+    "w1"
    ]
   }
  ],
  "health-and-family-in-passing": [
   {
    "kind": "explored",
-   "topic": "adding fractions with unlike denominators",
-   "detail": "Asked to learn fractions and worked on half plus a quarter.",
+   "topic": "adding fractions",
+   "detail": null,
    "evidence": [
     "w1"
    ]
@@ -173,7 +166,7 @@
   {
    "kind": "showed",
    "topic": "adding a half and a quarter",
-   "detail": "Got 1/2 + 1/4 = 3/4 right on the board.",
+   "detail": null,
    "evidence": [
     "b5"
    ]
@@ -183,15 +176,15 @@
   {
    "kind": "cares_about",
    "topic": "calculus",
-   "detail": "Said they would like to learn about calculus.",
+   "detail": null,
    "evidence": [
     "w1"
    ]
   },
   {
    "kind": "explored",
-   "topic": "slope of a line",
-   "detail": "Worked on finding the slope of y equals two x.",
+   "topic": "slopes",
+   "detail": null,
    "evidence": [
     "w1"
    ]
@@ -201,7 +194,7 @@
   {
    "kind": "explored",
    "topic": "graphs",
-   "detail": "asked to learn about graphs",
+   "detail": null,
    "evidence": [
     "w1"
    ]
@@ -209,7 +202,7 @@
   {
    "kind": "cares_about",
    "topic": "chess",
-   "detail": "said they really like chess",
+   "detail": null,
    "evidence": [
     "w4"
    ]
@@ -217,17 +210,17 @@
  ],
  "misread-handwriting": [
   {
-   "kind": "cares_about",
+   "kind": "explored",
    "topic": "solving equations",
-   "detail": "Said they would like to learn about solving equations.",
+   "detail": null,
    "evidence": [
     "w1"
    ]
   },
   {
    "kind": "showed",
-   "topic": "solving an equation to x = 1",
-   "detail": "Wrote x = 1 as the next line on the board.",
+   "topic": "solving for x",
+   "detail": null,
    "evidence": [
     "w4"
    ]

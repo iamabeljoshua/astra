@@ -75,6 +75,14 @@ describe('what a session may never become', () => {
     expect(session.read()).toEqual({ canRemember: false, why: 'safety' });
   });
 
+  it.each(['a blade of grass bends in the wind', 'why is my shoulder blade sore after lifting'])('does not stop the room on %j', (words) => {
+    const session = createSessionDigest();
+    session.addTurn({ studentText: 'Teach me fractions', spokenText: 'Sure.', endedAs: 'ended', beats: [] });
+    session.addTurn({ studentText: words, spokenText: 'Okay.', endedAs: 'ended', beats: [] });
+
+    expect(session.read()).toMatchObject({ canRemember: true });
+  });
+
   it('stops the whole room when a safety check refused a message, whatever the words were', () => {
     const session = createSessionDigest();
     session.addTurn({ studentText: 'Teach me fractions', spokenText: 'Sure.', endedAs: 'ended', beats: [] });
@@ -154,6 +162,19 @@ describe('what the model proposes, when code disagrees', () => {
     const { notes } = getTrustedNotes([{ kind: 'struggled', topic: 'moving a term', detail: null, evidence: [wrongLine], text: 'forged', quote: 'forged' }], events);
 
     expect(notes[0]?.evidence).toEqual([{ source: 'board', text: '2x = 14', check: 'wrong' }]);
+  });
+
+  it('keeps one note when two claim the same thing from the same lines', () => {
+    const { notes, refused } = getTrustedNotes(
+      [
+        { kind: 'struggled', topic: 'moving a term', detail: null, evidence: [wrongLine] },
+        { kind: 'struggled', topic: 'undoing addition', detail: null, evidence: [wrongLine] },
+      ],
+      events,
+    );
+
+    expect(notes.map(({ topic }) => topic)).toEqual(['moving a term']);
+    expect(refused).toEqual({ sameLinesTwice: 1 });
   });
 
   it('never takes a liking from what the tutor said', () => {

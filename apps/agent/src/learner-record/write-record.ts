@@ -9,7 +9,7 @@ export interface RecordPass {
   model: Pick<TutorModelAdapter, 'stream' | 'getCostUsd'>;
   writeNotes(update: { updateKey: string; notes: TrustedNote[] }): Promise<unknown>;
   updateKey: string;
-  isOverSpendLimit(): boolean;
+  isOverDailyLimit(): boolean;
   addCost(usd: number): void;
   trace: TraceNote;
 }
@@ -28,10 +28,10 @@ async function sendNotes({ writeNotes, updateKey, trace }: RecordPass, notes: Tr
 }
 
 async function runPass(pass: RecordPass): Promise<void> {
-  const { digest, model, isOverSpendLimit, addCost, trace } = pass;
+  const { digest, model, isOverDailyLimit, addCost, trace } = pass;
   const reading = digest.read();
   if (!reading.canRemember) return trace('recordPassSkipped', { why: reading.why });
-  if (isOverSpendLimit()) return trace('recordPassSkipped', { why: 'spendLimit' });
+  if (isOverDailyLimit()) return trace('recordPassSkipped', { why: 'dailyLimit' });
   const { skip, candidates, costUsd } = await extractNotes(model, reading.events);
   addCost(costUsd);
   if (skip) return trace('recordPassSkipped', { why: 'modelSawSafety', costUsd });

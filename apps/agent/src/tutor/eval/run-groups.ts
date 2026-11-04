@@ -69,11 +69,12 @@ function loadGroups(name: string): PromptGroup[] {
 async function runGroup(group: PromptGroup, ledger: ReturnType<typeof createSpendLedger>, model: ReturnType<typeof makeAnthropicTutorModel>): Promise<string[]> {
   const traces: string[] = [];
   const failures: string[] = [];
+  const softMisses: string[] = [];
   let latest: TurnSummary | null = null;
   const brain = createTutorBrain({
     model,
     profile: PROFILE,
-    ...(group.memory ? { memory: { memory: { notes: [...group.memory] } } } : {}),
+    ...(group.memory ? { memory: { memory: { count: group.memory.length, notes: [...group.memory] } } } : {}),
     trace: (name, fields) => traces.push(`${name}${fields?.problem ? `: ${String(fields.problem)}` : ''}`),
     onTurnEnd(summary) {
       latest = summary;
@@ -98,9 +99,11 @@ async function runGroup(group: PromptGroup, ledger: ReturnType<typeof createSpen
     if (traces.length > 0) console.log(`   traces: ${traces.join(' | ')}`);
     for (const check of [...group.checks, ...(turn.check ? [turn.check] : [])]) {
       if (REPLY_CHECKS[check]?.onlyOnWork && !turn.work) continue;
-      if (!REPLY_CHECKS[check]?.passes(summary.spokenText, commands.map((command) => command.kind))) failures.push(`${group.name}: ${check}: ${text.slice(0, 60)}: ${summary.spokenText.slice(0, 120)}`);
+      if (REPLY_CHECKS[check]?.passes(summary.spokenText, commands.map((command) => command.kind))) continue;
+      (REPLY_CHECKS[check]?.isSoft ? softMisses : failures).push(`${group.name}: ${check}: ${text.slice(0, 60)}: ${summary.spokenText.slice(0, 120)}`);
     }
   }
+  for (const miss of softMisses) console.log(`soft miss, not a failure: ${miss}`);
   return failures;
 }
 

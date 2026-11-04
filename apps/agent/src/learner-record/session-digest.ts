@@ -83,7 +83,7 @@ export function createSessionDigest(): SessionDigest {
       if (isCrisis(text)) isSafetyStop = true;
       hasStudentActed = true;
       lastWorkText = work.way === 'write' ? cleanStudentText(work.text) : null;
-      if (text === '' || WRITTEN_BY_THE_APP.test(text) || !isSafeToRemember(text)) return;
+      if (text === '' || !isSafeToRemember(text)) return;
       if (isTrustedCheck(work, checked)) {
         const { status } = checked.verdict;
         add({ kind: 'board', text, check: status, why: status === 'wrong' ? (checked.verdict.why ?? null) : null, task: work.task ?? null, wasShownFirst: tutorLines.has(toLineKey(text)) });

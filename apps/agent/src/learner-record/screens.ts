@@ -4,7 +4,7 @@
 const CRISIS_WORDS = [
   /\b(?:kill(?:ing)?\s*(?:my\s?self|me)|kms|suicid\w*|sewerslide|unalive|end(?:ing)? (?:it all|my life)|(?:want|wanted|wanna|going) to die|wanna die|achoro m inwu)\b/i,
   /\b(?:don'?t|do not) want to (?:be alive|live|be here|wake up)\b|\bbetter off without me\b|\bplan for how to do it\b|\b(?:not|never) wake up\b|\bhow many (?:pills|tablets|paracetamol)\b/i,
-  /\b(?:hurt(?:ing)?|harm(?:ing)?|cut(?:ting)?) my\s?self\b|\bself[- ]?harm\w*\b|\boverdos\w*\b|\bblade\b/i,
+  /\b(?:hurt(?:ing)?|harm(?:ing)?|cut(?:ting)?) my\s?self\b|\bself[- ]?harm\w*\b|\boverdos\w*\b|\bmy blade\b|\bblade (?:in|under|on) my\b/i,
   /\b(?:hits?|hitting|beats?|beating|touch(?:es|ed|ing)?|hurts?|hurting|threaten(?:s|ed)?) me\b|\bwith a belt\b|\b(?:rape|raped|molest\w*|abuse[ds]?|abusing|groom(?:ed|ing)?|nudes?|bruises?)\b/i,
   /\bscared to go home\b|\b(?:i'?m|i am|am i|feel) (?:not )?(?:unsafe|in danger|safe)\b|\bsecrets? from my (?:parents|mum|mom|dad)\b|\bkeep (?:our|this|it) (?:chats? )?secret\b/i,
 ];
@@ -25,7 +25,7 @@ const INSTRUCTION_WORDS = [
   /\b(?:ignore|disregard|forget|override|bypass)\b.{0,40}\b(?:rules?|instructions?|prompt|previous|above|everything|safety)\b/i,
   /\b(?:system|developer|admin)\s*(?:prompt|message|note|mode|says?)\b|\bjailbreak\b|\bdo anything now\b|\bnew (?:rules?|instructions?)\b/i,
   /\byou (?:are|must|should|will|have to|need to|may|can now)\b|\bfrom now on\b|\bact as\b|\bpretend\b|\brole-?play\b/i,
-  /\b(?:always|never) (?:say|call|answer|tell|give|ask|reply|mention)\b|\bcall me\b|\btell (?:the student|them|me) (?:that|the answer)\b|\brepeat (?:this|after|your)\b|\bsay (?:that|the word)\b/i,
+  /\b(?:always|never) (?:say|call|answer|tell|give|ask|reply|mention)\b|\bcall me\b|\btell (?:the student|them|him|her)\b|\btell me (?:that|the answer)\b|\brepeat (?:this|after|your)\b|\bsay (?:that|the word)\b/i,
   /\bremember (?:that|this)\b|\b(?:write|save|store|record) (?:a |this |that )?(?:note|fact|down)\b|\bnote that\b/i,
 ];
 
