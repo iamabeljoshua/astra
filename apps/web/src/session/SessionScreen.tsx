@@ -297,6 +297,7 @@ function ReplyBox({ liveVoice, carryOnLine }: { liveVoice: LiveVoiceControls; ca
             <p className="text-fine text-ink-2">{SESSION_LABELS.replyNotSent}</p>
           </>
         )}
+        {view?.showsSafetyHelp && <p role="status" className="text-fine text-ink-1">{VOICE_LABELS.safetyHelp}</p>}
         {voiceNote && <p className="text-fine text-ink-2">{voiceNote}</p>}
       </div>
       {canOpenAgain && (

@@ -66,7 +66,7 @@ async function runSession(context: JobContext): Promise<void> {
   }).makeStt();
   const allTakes = loadTakes();
   let ears: Ears | null = null;
-  const { brain, flushSpend } = makeTutorBrain({ roomName: room.name ?? '', trace });
+  const { brain, flushSpend } = makeTutorBrain({ roomName: room.name ?? '', trace, showSafetyHelp: () => publish({ type: 'safetyHelp' }) });
   const session = createLiveSession({
     messenger: {
       send: (message) => publish(message),

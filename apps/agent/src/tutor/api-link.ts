@@ -1,3 +1,4 @@
+import type { SafetyFlag } from '../safety/safety-watch.ts';
 import type { StudentProfile } from './brain.ts';
 
 const ROOM_PREFIX = 'session-';
@@ -15,6 +16,8 @@ export interface ApiLink {
   fetchProfile(): Promise<StudentProfile | null>;
   /** Adds to the student's total for today, and says whether that total is now over the daily limit. */
   reportSpend(usd: number): Promise<{ isOverDailyLimit: boolean }>;
+  /** Adds to the queue a named person reviews. It holds a kind and a source, and never the student's words. */
+  addFlag(flag: SafetyFlag): Promise<void>;
 }
 
 // The student's level, interests, and goal come straight from the API, so they never pass through the room service.
@@ -32,6 +35,9 @@ export function createApiLink({ apiUrl, agentKey, roomName }: ApiLinkOptions): A
     },
     async reportSpend(usd) {
       return (await call('spend', { method: 'POST', body: JSON.stringify({ usd }) })) as { isOverDailyLimit: boolean };
+    },
+    async addFlag({ kind, source }) {
+      await call('flags', { method: 'POST', body: JSON.stringify({ kind, source }) });
     },
   };
 }

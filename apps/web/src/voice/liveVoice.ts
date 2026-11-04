@@ -46,6 +46,8 @@ export interface LiveVoiceView {
   isTutorSpeaking: boolean;
   /** Why the tutor will not speak again in this room, or null while it can. */
   closedBecause: TutorClosedReason | null;
+  /** This session's words may be about the student's safety, so the page keeps the help on screen, in case the voice fails. */
+  showsSafetyHelp: boolean;
   /** This page's room closed and it joined a new one, so the tutor now holds nothing of what was said. */
   startedFresh: boolean;
   /** The tutor has begun its first turn in this page, so the wait for it is over. */
@@ -125,7 +127,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
   const decoder = new TextDecoder();
   const listeners = new Set<() => void>();
   const outbox: BrowserMessage[] = [];
-  let view: LiveVoiceView = { phase: 'connecting', mic: 'off', isSoundBlocked: audioContext.state !== 'running', isQuietWarning: false, isThinking: false, isHeard: false, isTutorSpeaking: false, closedBecause: null, startedFresh: false, hasTutorStarted: false, studentLines: [], tutorHeard: [], tutorComing: [] };
+  let view: LiveVoiceView = { phase: 'connecting', mic: 'off', showsSafetyHelp: false, isSoundBlocked: audioContext.state !== 'running', isQuietWarning: false, isThinking: false, isHeard: false, isTutorSpeaking: false, closedBecause: null, startedFresh: false, hasTutorStarted: false, studentLines: [], tutorHeard: [], tutorComing: [] };
   let lastAgentPulseEpochMs: number | null = null;
   let isClosed = false;
   let hasHeardFirstOnset = false;
@@ -209,6 +211,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     clearTimeout(tutorWait);
     if (view.phase === 'connecting') setView({ phase: 'live' });
     if (message.type === 'tutorClosed') return closeTutor(message.reason);
+    if (message.type === 'safetyHelp') return setView({ showsSafetyHelp: true });
     if (message.type === 'pulse') {
       lastAgentPulseEpochMs = getEpochMs();
       rejoinsSincePulse = 0;

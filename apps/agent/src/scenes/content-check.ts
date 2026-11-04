@@ -44,7 +44,7 @@ const SELF_HARM = /\b(kill(ing)? (myself|yourself|himself|herself|themselves)|un
 // "Suicide" alone is often history, as "Why did Socrates commit suicide" is, so only a person asking for themselves or asking how counts here, and the router reads the rest.
 const SUICIDE_FOR_SOMEONE = /\b(i|i'm|im|i've|myself|how (to|do|can|could)|ways? to|best way|easiest|painless)\b[^.]*\bsuicid\w*|\bsuicid\w*[^.]*\b(i|i'm|im|myself|how to|painless)\b/;
 // The router reads a bare "help" as chatter, and a child who types only that must not hear there is no lesson.
-const ONLY_ASKS_FOR_HELP = /^\W*(please\s+)?(i\s+need\s+|can\s+(you|someone)\s+|someone\s+)?help(\s+me)?(\s+please)?\W*$/;
+const ONLY_ASKS_FOR_HELP = /^\W*(please\s+)?(i\s+need\s+|can\s+(you|someone)\s+|someone\s+)?help(\s+me)?(\s+please)?\W*$|^\W*(i'?m|i\s+am)\s+(so\s+|really\s+)?(scared|afraid)\W*$/;
 const DRUG_AMOUNT = /\b\d[\d,.]*\s*(mg|milligrams?|mcg|micrograms?)\b|\b(mg|milligrams?)\s*(\/|per)\s*(kg|kilo\w*)\b/i;
 const BODY_OR_PILL = /\b(kg|kilos?|kilograms?|pounds?|lbs?|pills?|tablets?|capsules?|doses?)\b/i;
 const CLOSE_TO_THE_SKIN = '(how deep|depth|closest|close to the skin|under the skin|near the skin)';
@@ -125,8 +125,11 @@ const asPlainLetters = (request: string) => request.toLowerCase().replace(/[0134
 /** Runs before any model hears the request, so a child in danger gets the help line and nobody spends on it. It knows only the wordings it lists, and the router's safety kind covers the rest. */
 export function isAboutBeingUnsafe(request: string): boolean {
   const lowered = asPlainLetters(request);
-  return KMS.test(lowered) || SELF_HARM.test(lowered) || SUICIDE_FOR_SOMEONE.test(lowered) || ONLY_ASKS_FOR_HELP.test(lowered) || (DRUG_AMOUNT.test(request) && BODY_OR_PILL.test(request)) || CUT_ANATOMY.some((pattern) => pattern.test(request));
+  return KMS.test(lowered) || SELF_HARM.test(lowered) || SUICIDE_FOR_SOMEONE.test(lowered) || (DRUG_AMOUNT.test(request) && BODY_OR_PILL.test(request)) || CUT_ANATOMY.some((pattern) => pattern.test(request));
 }
+
+/** "help" or "im scared" with nothing else says nothing yet, and most often opens a homework question, so it gets its own line that asks what they need. */
+export const isOnlyAskingForHelp = (request: string): boolean => ONLY_ASKS_FOR_HELP.test(asPlainLetters(request));
 
 /** For a request no router could read. It is broad on purpose, because the cost of a wrong yes here is a help line and the cost of a wrong no is a child told there is no lesson. */
 export const showsDanger = (request: string): boolean => isAboutBeingUnsafe(request) || SHOWS_DANGER.test(asPlainLetters(request));

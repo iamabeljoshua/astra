@@ -3,6 +3,8 @@ import { readKey } from '../keys.ts';
 import { makeAnthropicTutorModel, TUTOR_MODEL_NAMES, type TutorModelName } from '../providers/anthropic.ts';
 import { makeRecordedTutorModel } from '../providers/fake-model.ts';
 import { createStandInTutor } from '../live/stand-in-tutor.ts';
+import { makeAnthropicSafetyCheck } from '../safety/safety-check.ts';
+import { createSafetyWatch } from '../safety/safety-watch.ts';
 import { type ApiLink, createApiLink } from './api-link.ts';
 import { createTutorBrain, type SpendLimit, type TraceNote, type TurnSummary, type TutorBrain } from './brain.ts';
 import { TUTOR_SYSTEM } from './prompt.ts';
@@ -94,7 +96,13 @@ export interface MadeBrain {
   flushSpend(): Promise<void>;
 }
 
-export function makeTutorBrain({ roomName, trace }: { roomName: string; trace: TraceNote }): MadeBrain {
+// A recorded model has no key and no words worth reading, so only a real one gets a check.
+function makeSafetyWatch({ name, link, showHelp, trace, onCost }: { name: string; link: ApiLink | null; showHelp(): void; trace: TraceNote; onCost(usd: number): void }) {
+  if (name === RECORDED) return undefined;
+  return createSafetyWatch({ check: makeAnthropicSafetyCheck({ apiKey: readKey('ANTHROPIC_API_KEY'), onCost }), addFlag: (flag) => link?.addFlag(flag) ?? Promise.resolve(), showHelp, trace });
+}
+
+export function makeTutorBrain({ roomName, trace, showSafetyHelp }: { roomName: string; trace: TraceNote; showSafetyHelp(): void }): MadeBrain {
   const name = process.env.ASTRA_TUTOR_MODEL ?? DEFAULT_MODEL;
   if (name === STAND_IN) return { brain: createStandInTutor(), flushSpend: async () => {} };
   if (name !== RECORDED && !TUTOR_MODEL_NAMES.includes(name as TutorModelName)) throw new Error(`ASTRA_TUTOR_MODEL is ${name}. Choose ${[STAND_IN, RECORDED, ...TUTOR_MODEL_NAMES].join(', ')}`);
@@ -107,9 +115,17 @@ export function makeTutorBrain({ roomName, trace }: { roomName: string; trace: T
     sessionVoiceLimitCharacters: Number(process.env.ASTRA_SESSION_VOICE_LIMIT_CHARACTERS ?? DEFAULT_SESSION_VOICE_LIMIT_CHARACTERS),
   });
   const model = name === RECORDED ? makeRecordedTutorModel() : makeAnthropicTutorModel({ name: name as TutorModelName, apiKey: readKey('ANTHROPIC_API_KEY') });
+  let checkUsd = 0;
   const onTurnEnd = ({ firstTextMs, firstBeatMs, attempts, endedAs, costUsd, usage, refused, refusalCategory, isUsageEstimated, beats, spokenText }: TurnSummary) => {
     trace('turnWritten', { firstTextMs, firstBeatMs, attempts, endedAs, costUsd, usage, refused, refusalCategory, isUsageEstimated, words: spokenText.split(/\s+/).length });
-    caps.addTurn({ usd: costUsd, voiceCharacters: beats.map(getBeatText).join(' ').length });
+    caps.addTurn({ usd: costUsd + checkUsd, voiceCharacters: beats.map(getBeatText).join(' ').length });
+    checkUsd = 0;
   };
-  return { brain: createTutorBrain({ model, loadProfile: link ? () => link.fetchProfile() : undefined, trace, onTurnEnd, getSpendLimit: caps.getSpendLimit }), flushSpend: caps.flush };
+  const safety = makeSafetyWatch({ name, link, showHelp: showSafetyHelp, trace, onCost: (usd) => (checkUsd += usd) });
+  return {
+    brain: createTutorBrain({ model, loadProfile: link ? () => link.fetchProfile() : undefined, trace, onTurnEnd, getSpendLimit: caps.getSpendLimit, ...(safety ? { safety } : {}) }),
+    async flushSpend() {
+      await Promise.all([caps.flush(), safety?.flush()]);
+    },
+  };
 }

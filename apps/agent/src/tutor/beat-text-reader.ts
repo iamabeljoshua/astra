@@ -149,6 +149,13 @@ export class BeatTextReader {
     else this.#dropWordsKeepingCommands();
   }
 
+  /** Code read this turn as about the student's safety, so nothing may cut off the words that come next. */
+  markSafetyReply(): void {
+    this.#isSafetyReply = true;
+    this.#isTurnOver = false;
+    this.#wasCutShort = false;
+  }
+
   /** Throws away what has not been spoken yet, because a refused reply's partial output must not be used. */
   dropAttempt(): void {
     this.#clearHalfRead();
