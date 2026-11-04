@@ -2,29 +2,26 @@ import { guardLoops } from './guard-loops.ts';
 
 export const KIT_FRAME_CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; font-src data:; img-src data: blob:; media-src 'none'; connect-src 'none'; worker-src 'none'; frame-src 'none'; object-src 'none'; form-action 'none'; base-uri 'none'";
 
+// The labels' colours for each theme come from `THEME_CSS` in studio.js, which the scene's build adds.
 const FRAME_CSS = `
-:root{--plate:#0E0D0B;--label-ink:#FFFBF5;--label-ink-2:#A79F92;--label-line:#2B2823}
-:root[data-theme=light]{--plate:#EFE8DA;--label-ink:#1B1815;--label-ink-2:#5F574C;--label-line:#CFC6B5}
-:root{--leader:#FFFBF5}
-:root[data-theme=light][data-stage=studio]{--leader:#1B1815}
 html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:Barlow,system-ui,sans-serif}
 canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
-#o{position:absolute;inset:0;pointer-events:none;overflow:hidden;color:var(--label-ink)}
+#o{position:absolute;inset:0;pointer-events:none;overflow:hidden;color:#FFFBF5}
 .leaders{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
-.leaders line{stroke:var(--leader);stroke-width:1;opacity:0}
-.leaders circle{fill:var(--leader);opacity:0}
-.lbl{position:absolute;left:0;top:0;opacity:0;white-space:nowrap;padding:5px 9px 6px;background:var(--plate);border:1px solid var(--label-line);will-change:transform}
+.leaders line{stroke:#FFFBF5;stroke-width:1;opacity:0}
+.leaders circle{fill:#FFFBF5;opacity:0}
+.lbl{position:absolute;left:0;top:0;opacity:0;white-space:nowrap;padding:5px 9px 6px;background:rgba(6,6,8,.62);border-left:1px solid rgba(255,251,245,.8);will-change:transform}
 .lbl-main{font-size:12px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;line-height:1.25}
-.lbl-sub{font-size:13px;font-weight:400;color:var(--label-ink-2);line-height:1.3;margin-top:2px}
+.lbl-sub{font-size:13px;font-weight:400;color:#D8D0C2;line-height:1.3;margin-top:2px}
 .lbl.big .lbl-main{font-size:15px}
-.ttl{position:absolute;opacity:0;background:var(--plate);border:1px solid var(--label-line);padding:6px 10px}
+.ttl{position:absolute;opacity:0}
 .ttl.lower{left:28px;bottom:26px;max-width:62%}
 .ttl.upper{left:28px;top:24px;max-width:62%}
 .ttl.corner{right:18px;bottom:14px}
 .ttl-main{font-size:24px;font-weight:600;line-height:1.15;letter-spacing:-.005em}
-.ttl-sub{font-size:14px;color:var(--label-ink-2);margin-top:4px;line-height:1.3}
-.ttl.corner .ttl-main{font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--label-ink-2)}
-.inset-frame{position:absolute;border:1px solid var(--label-line);opacity:0;box-sizing:border-box}
+.ttl-sub{font-size:14px;color:#D8D0C2;margin-top:4px;line-height:1.3}
+.ttl.corner .ttl-main{font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:#A79F92}
+.inset-frame{position:absolute;border:1px solid rgba(255,251,245,.55);opacity:0;box-sizing:border-box}
 .inset-cap{position:absolute;left:0;top:-1px;transform:translateY(-100%);font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;padding-bottom:4px;white-space:nowrap}
 `;
 

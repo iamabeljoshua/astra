@@ -13,12 +13,13 @@ export type KitFrameCommand =
   | { type: 'load'; timing: KitTake['timing']; textures: Record<string, Blob>; quality?: KitQuality; theme: KitTheme }
   | { type: 'render'; seconds: number }
   | { type: 'resize' }
-  | { type: 'theme'; theme: KitTheme }
   | { type: 'dispose' }
   | { type: 'ping'; id: number }
   /** Reads the frame back, for the checks. A session never sends these. */
   | { type: 'gate'; times: number[] }
   | { type: 'snapshot'; times: number[] }
+  | { type: 'audit'; times: number[] }
+  | { type: 'flash'; times: number[] }
   | { type: 'picture'; seconds: number; id: number };
 
 export type KitFrameReply =
@@ -29,4 +30,6 @@ export type KitFrameReply =
   | { type: 'error'; phase: 'script' | 'promise' | 'shader' | 'build' | 'render'; message: string; stack?: string; line?: number; col?: number; seconds?: number }
   | { type: 'gate'; result?: { samples: { t: number; mean: number; std: number; lit: number; hash: number }[]; deterministic: boolean; mismatches: number[]; costMean: number }; error?: string; issues: string[] }
   | { type: 'snapshot'; result: unknown[]; params?: Record<string, unknown>; error?: string }
+  | { type: 'audit'; result: unknown[]; error?: string }
+  | { type: 'flash'; result: { t: number; mean: number; tiles: number[] }[]; error?: string }
   | { type: 'picture'; url: string; id: number };
