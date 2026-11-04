@@ -902,7 +902,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     lastRefused = wasRefused ? [] : turn.refused;
     hidesLastWords = wasRefused;
     // A lead the student cut before a word of it was not a reply, so it does not bring the exercise closer.
-    if (turn.beats.length > 0) lessonPlanner?.noteReplyEnded({ wasSafety: turn.reader.isSafetyReply });
+    if (turn.beats.length > 0) lessonPlanner?.noteReplyEnded({ wasSafety: turn.reader.isSafetyReply, wasLead: turn.isLead });
     const wasSafetyReply = turn.reader.isSafetyReply || (wasRefused && !isPlainRefusal(turn));
     isAfterSafetyReply = wasSafetyReply || (isAfterSafetyReply && !turn.hasModelWords);
     // After a crisis only the student's own wish to be taught starts it again.

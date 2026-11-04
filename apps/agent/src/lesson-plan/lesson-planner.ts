@@ -16,7 +16,7 @@ export interface LessonPlanner {
   noteStudentWords(heard: HeardWords): void;
   noteCommand(command: SceneCommand): void;
   noteWorkChecked(checked: Pick<CheckedWork, 'closesTask'>, work: StudentWork): void;
-  noteReplyEnded(reply: { wasSafety: boolean }): void;
+  noteReplyEnded(reply: { wasSafety: boolean; wasLead?: boolean }): void;
   /** A card's lesson comes from the server's list, so no planner guesses at it. */
   noteCardLesson(plan: LessonPlan): void;
   /** A page that reloaded lost the title it was told. */
@@ -202,7 +202,7 @@ export function createLessonPlanner({ ask, askMore, canSpend, charge, onTitleCha
     },
     noteCommand: (command) => noteEvent(toEvent(command)),
     noteWorkChecked: (checked, work) => noteEvent(getWorkEvent(checked, work)),
-    noteReplyEnded: ({ wasSafety }) => noteEvent(wasSafety ? 'safetyReplyEnded' : 'replyEnded'),
+    noteReplyEnded: ({ wasSafety, wasLead = false }) => noteEvent(wasSafety ? 'safetyReplyEnded' : wasLead ? 'leadEnded' : 'replyEnded'),
     noteCardLesson(plan) {
       card = plan;
       state = getStateAfterMove(state, { move: 'new', plan });

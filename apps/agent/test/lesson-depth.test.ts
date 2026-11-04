@@ -60,24 +60,30 @@ describe('a lesson from a card', () => {
   });
 
   it('teaches for longer on a card, then asks for the exercise, and stops repeating the lines once it is due', () => {
-    expect(getStepNote(afterReplies(4))).not.toHaveProperty('exercise_due');
-    const due = getStepNote(afterReplies(5));
+    expect(getStepNote(afterReplies(2))).not.toHaveProperty('exercise_due');
+    const due = getStepNote(afterReplies(3));
     expect(due).toMatchObject({ exercise_due: true });
     expect(due).not.toHaveProperty('material');
   });
 
+  it('holds the exercise off for longer while the student only listens', () => {
+    const afterLeads = (count: number) => Array.from({ length: count }).reduce<ReturnType<typeof atCard>>((next) => getStateAfterEvent(next, 'leadEnded'), atCard());
+    expect(getStepNote(afterLeads(6))).not.toHaveProperty('exercise_due');
+    expect(getStepNote(afterLeads(7))).toMatchObject({ exercise_due: true });
+  });
+
   it('moves through every step for a student who said no exercises', () => {
     let state = getStateAfterEvent(atCard(), 'exerciseDeclined');
-    state = afterReplies(5, state);
+    state = afterReplies(3, state);
     expect(getStepNote(state)).toMatchObject({ step: '2 of 3' });
-    state = afterReplies(5, state);
+    state = afterReplies(3, state);
     expect(getStepNote(state)).toMatchObject({ step: '3 of 3' });
   });
 });
 
 describe('asking to be taught', () => {
   it('ends the exercise that was due, and moves on, because this step has been taught', () => {
-    const state = getStateAfterEvent(afterReplies(5), 'teachingWanted');
+    const state = getStateAfterEvent(afterReplies(3), 'teachingWanted');
     expect(getStepNote(state)).not.toHaveProperty('exercise_due');
     expect(getStepNote(state)).toMatchObject({ step: '2 of 3' });
   });
@@ -85,12 +91,12 @@ describe('asking to be taught', () => {
   it('starts the count over and stays when the step has barely begun', () => {
     const state = getStateAfterEvent(afterReplies(2), 'teachingWanted');
     expect(getStepNote(state)).toMatchObject({ step: '1 of 3' });
-    expect(getStepNote(afterReplies(4, state))).not.toHaveProperty('exercise_due');
-    expect(getStepNote(afterReplies(5, state))).toMatchObject({ exercise_due: true });
+    expect(getStepNote(afterReplies(2, state))).not.toHaveProperty('exercise_due');
+    expect(getStepNote(afterReplies(3, state))).toMatchObject({ exercise_due: true });
   });
 
   it('moves on after an exercise they left, which already taught this step', () => {
-    let state = getStateAfterEvent(afterReplies(5), 'exerciseSet');
+    let state = getStateAfterEvent(afterReplies(3), 'exerciseSet');
     state = getStateAfterEvent(state, 'exerciseLeft');
     expect(getStepNote(getStateAfterEvent(state, 'teachingWanted'))).toMatchObject({ step: '2 of 3' });
   });
@@ -98,7 +104,7 @@ describe('asking to be taught', () => {
   function plannerAtDue(wants: string | null = null) {
     const planner = createLessonPlanner({ ask: async () => ({ move: { move: 'stay' }, wants, costUsd: 0 }) as never, canSpend: () => true, charge: () => {}, onTitleChange: () => {}, trace: () => {} });
     planner.noteCardLesson(PLAN);
-    for (let reply = 0; reply < 5; reply += 1) planner.noteReplyEnded({ wasSafety: false });
+    for (let reply = 0; reply < 3; reply += 1) planner.noteReplyEnded({ wasSafety: false });
     expect(planner.getStepNote()).toMatchObject({ exercise_due: true });
     return planner;
   }

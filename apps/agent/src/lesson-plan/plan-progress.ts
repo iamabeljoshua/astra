@@ -8,6 +8,8 @@ interface ActivePlan {
   stepStartReply: number;
   /** An exercise was set on this step, so its idea has been taught even if they left it. */
   hasHadExercise?: boolean;
+  /** Replies on this step the tutor went on with by itself. */
+  leadsOnStep?: number;
   /** When they last asked to be taught, which holds the exercise off. It does not hold the next idea off, or a student who keeps asking would hear this idea for good. */
   teachingAskedAtReply?: number;
 }
@@ -31,6 +33,8 @@ export type LessonEvent =
   /** The tutor went back to teaching with an exercise open, which is how words with no answer key end. */
   | 'teachingAgain'
   | 'replyEnded'
+  /** A reply nobody asked for, because the tutor went on by itself. */
+  | 'leadEnded'
   /** Help in a crisis is not teaching, so the step's count starts over. */
   | 'safetyReplyEnded'
   | 'exerciseDeclined'
@@ -50,13 +54,20 @@ const MOST_SHELVED = 8;
 /** Short turns take a reply or two to teach one idea, and a direct question has none to teach. */
 const REPLIES_BEFORE_THE_EXERCISE: Record<LessonKind, number> = { handsOn: 1, teachFirst: 2 };
 /** No exercise came of this idea, whatever the reason, and a lesson must not stay on one idea for good. */
-const MOST_REPLIES_ON_A_STEP = 8;
+const MOST_REPLIES_ON_A_STEP = 12;
 /** A card's lines take longer to say than a planner's few words. */
-const REPLIES_ON_A_CARD_STEP = 5;
+const REPLIES_ON_A_CARD_STEP = 3;
+/** A student only listening hears more of an idea before the exercise, because that is what fills a 20 minute lesson with 6 to 10 ideas. A student talking gets there sooner, in fewer and longer exchanges. */
+const REPLIES_WHILE_LISTENING: Record<LessonKind, number> = { handsOn: 1, teachFirst: 6 };
+const REPLIES_WHILE_LISTENING_ON_A_CARD = 7;
 
 const getRepliesBeforeTheExercise = ({ plan, stepIndex }: ActivePlan) => (plan.steps[stepIndex]?.material ? REPLIES_ON_A_CARD_STEP : REPLIES_BEFORE_THE_EXERCISE[plan.kind]);
 
-const hasTaughtThisStep = (active: ActivePlan, repliesEnded: number) => active.hasHadExercise === true || repliesEnded - active.stepStartReply >= getRepliesBeforeTheExercise(active);
+const getRepliesWhileListening = ({ plan, stepIndex }: ActivePlan) => (plan.steps[stepIndex]?.material ? REPLIES_WHILE_LISTENING_ON_A_CARD : REPLIES_WHILE_LISTENING[plan.kind]);
+
+const isCountReached = (active: ActivePlan, replies: number) => replies - (active.leadsOnStep ?? 0) >= getRepliesBeforeTheExercise(active) || replies >= getRepliesWhileListening(active);
+
+const hasTaughtThisStep = (active: ActivePlan, repliesEnded: number) => active.hasHadExercise === true || isCountReached(active, repliesEnded - active.stepStartReply);
 
 const isNotTopic = (topic: string) => (other: ActivePlan) => other.plan.topic.toLowerCase() !== topic.toLowerCase();
 
@@ -78,7 +89,7 @@ export function getStateAfterMove(state: LessonState, move: PlanMove, startReply
 }
 
 function getActiveAfterEvent(active: ActivePlan, event: LessonEvent, repliesEnded: number): ActivePlan {
-  const nextStep = { ...active, stepIndex: active.stepIndex + 1, isExerciseOpen: false, stepStartReply: repliesEnded, hasHadExercise: false, teachingAskedAtReply: 0 };
+  const nextStep = { ...active, stepIndex: active.stepIndex + 1, isExerciseOpen: false, stepStartReply: repliesEnded, hasHadExercise: false, teachingAskedAtReply: 0, leadsOnStep: 0 };
   switch (event) {
     case 'exerciseSet':
       return { ...active, isExerciseOpen: true, hasHadExercise: true };
@@ -96,7 +107,9 @@ function getActiveAfterEvent(active: ActivePlan, event: LessonEvent, repliesEnde
     case 'safetyReplyEnded':
       return { ...active, stepStartReply: repliesEnded };
     case 'exerciseWanted':
-      return { ...active, stepStartReply: repliesEnded - getRepliesBeforeTheExercise(active), teachingAskedAtReply: 0 };
+      return { ...active, stepStartReply: repliesEnded - getRepliesBeforeTheExercise(active), teachingAskedAtReply: 0, leadsOnStep: 0 };
+    case 'leadEnded':
+      return { ...active, leadsOnStep: (active.leadsOnStep ?? 0) + 1 };
     case 'replyEnded':
     case 'exerciseDeclined':
       return active;
@@ -104,15 +117,15 @@ function getActiveAfterEvent(active: ActivePlan, event: LessonEvent, repliesEnde
 }
 
 export function getStateAfterEvent(state: LessonState, event: LessonEvent): LessonState {
-  const repliesEnded = state.repliesEnded + (event === 'replyEnded' || event === 'safetyReplyEnded' ? 1 : 0);
+  const repliesEnded = state.repliesEnded + (event === 'replyEnded' || event === 'leadEnded' || event === 'safetyReplyEnded' ? 1 : 0);
   const isExerciseDeclined = event === 'exerciseDeclined' ? true : event === 'exerciseWanted' ? false : state.isExerciseDeclined;
   const active = state.active && getActiveAfterEvent(state.active, event, repliesEnded);
   // A student who said no exercises would otherwise stay on this step for good, because finishing one is what moves a lesson on.
-  const isPastThisStep = active !== null && event === 'replyEnded' && !active.isExerciseOpen && active.plan.kind === 'teachFirst' && (repliesEnded - active.stepStartReply >= MOST_REPLIES_ON_A_STEP || (isExerciseDeclined && hasTaughtThisStep(active, repliesEnded)));
+  const isPastThisStep = active !== null && (event === 'replyEnded' || event === 'leadEnded') && !active.isExerciseOpen && active.plan.kind === 'teachFirst' && (repliesEnded - active.stepStartReply >= MOST_REPLIES_ON_A_STEP || (isExerciseDeclined && hasTaughtThisStep(active, repliesEnded)));
   return { ...state, repliesEnded, isExerciseDeclined, active: isPastThisStep ? getActiveAfterEvent(active, 'movedOn', repliesEnded) : active };
 }
 
-const isExerciseDue = ({ active, repliesEnded, isExerciseDeclined }: LessonState) => active !== null && !isExerciseDeclined && !active.isExerciseOpen && repliesEnded - Math.max(active.stepStartReply, active.teachingAskedAtReply ?? 0) >= getRepliesBeforeTheExercise(active);
+const isExerciseDue = ({ active, repliesEnded, isExerciseDeclined }: LessonState) => active !== null && !isExerciseDeclined && !active.isExerciseOpen && isCountReached(active, repliesEnded - Math.max(active.stepStartReply, active.teachingAskedAtReply ?? 0));
 
 export function getStepNote(state: LessonState): StepNote | null {
   const { active } = state;
