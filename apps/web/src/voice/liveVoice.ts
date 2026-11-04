@@ -1,5 +1,5 @@
 import { type BoardState, createChoosingClock, createScenePlayer, type FiredCue, type OutputLevel, type ScenePlayer } from '@astra/board';
-import { type AgentMessage, type BrowserMessage, LINK_QUIET_LIMIT_MS, parseAgentMessage, PULSE_EVERY_MS } from '@astra/contracts';
+import { type AgentMessage, type BrowserMessage, type components, LINK_QUIET_LIMIT_MS, parseAgentMessage, PULSE_EVERY_MS } from '@astra/contracts';
 import { createLocalAudioTrack, DisconnectReason, type LocalAudioTrack, type RemoteTrack, Room, RoomEvent, Track } from 'livekit-client';
 import { createLocalYield } from './localYield';
 import { createTutorAudioContext, listenToTutor, listenToStudent, OUTPUT_GAINS, type ProbeNote } from './tutorAudio';
@@ -37,10 +37,8 @@ export interface LiveVoiceView {
   tutorComing: readonly string[];
 }
 
-export interface RoomAccess {
-  url: string;
-  token: string;
-}
+export type RoomAnswer = components['schemas']['LiveRoomResponseDto'];
+export type RoomAccess = NonNullable<RoomAnswer['access']>;
 
 export interface LiveVoiceRecords {
   firstAudioEpochMs: Record<string, number>;
@@ -69,7 +67,10 @@ export interface LiveVoice {
 }
 
 export interface LiveVoiceOptions {
-  getAccess(): Promise<RoomAccess>;
+  /** The first join's access. The caller reads the answer first, because with no access there is nothing to start. */
+  access: RoomAccess;
+  /** Asks the API again, for a rejoin. */
+  getAccess(): Promise<RoomAnswer>;
   /** False when the student opened the room by typing, because a greeting would talk over the reply. */
   wantsGreeting?: boolean;
   /** The browser's own speech cleanup. Only a microphone test turns it off. */
@@ -86,7 +87,7 @@ function createRecords(): LiveVoiceRecords {
 }
 
 // Connects the session to its room, plays what the agent sends against what the student hears, and sends back what played. It knows nothing of React.
-export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpeechCleanup = true }: LiveVoiceOptions): Promise<LiveVoice> {
+export async function startLiveVoice({ access, getAccess, wantsGreeting = true, usesSpeechCleanup = true }: LiveVoiceOptions): Promise<LiveVoice> {
   const audioContext = await createTutorAudioContext();
   const clock = createChoosingClock({ getIsAudioRunning: () => audioContext.state === 'running', getGraphTimeMs: () => audioContext.currentTime * 1000, getOutputLatencyMs: () => (audioContext.outputLatency || 0) * 1000, getWallMs: () => performance.now() });
   const clockId = crypto.randomUUID();
@@ -232,12 +233,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     else records.refused.push(parsed.problem);
   };
 
-  const connectRoom = async () => {
-    const { url, token } = await getAccess();
-    await room.connect(url, token);
-  };
-
-  // LiveKit retries a short drop itself. Once it gives up, or leaves a channel that carries nothing, a new token and a new join bring the same session back.
+  // LiveKit retries a short drop itself. Once it gives up, or leaves a channel that carries nothing, a new token and a new join bring the same session back. An answer with no access will not change on a retry, so it ends the wait, and a failed request does not.
   async function rejoin(): Promise<void> {
     if (isRejoining) return;
     isRejoining = true;
@@ -247,7 +243,9 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     const deadline = getEpochMs() + LONGEST_REJOIN_MS;
     while (!isClosed && getEpochMs() < deadline) {
       try {
-        await connectRoom();
+        const answer = await getAccess();
+        if (!answer.access) break;
+        await room.connect(answer.access.url, answer.access.token);
         if (micTrack) await room.localParticipant.publishTrack(micTrack, MIC_PUBLISH_OPTIONS);
         connectedAtEpochMs = getEpochMs();
         isRejoining = false;
@@ -293,7 +291,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
 
   const tutorWait = setTimeout(() => setView({ phase: 'noTutor' }), TUTOR_ARRIVES_WITHIN_MS);
   try {
-    await connectRoom();
+    await room.connect(access.url, access.token);
   } catch (problem) {
     clearTimeout(tutorWait);
     await audioContext.close();

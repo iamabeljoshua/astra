@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 import { api } from '../api/client';
 import { type LiveVoice, type LiveVoiceView, startLiveVoice } from './liveVoice';
 
-export type LiveVoiceStatus = 'idle' | 'connecting' | 'live' | 'unavailable';
+export type LiveVoiceStatus = 'idle' | 'connecting' | 'live' | 'unavailable' | 'overLimit';
 
 const noSubscribe = () => () => {};
 const noView = () => null;
@@ -28,7 +28,7 @@ export interface LiveVoiceControls {
   toggleTalk(): Promise<void>;
 }
 
-// One room for one session screen, opened by the student's own press, because audio needs a user gesture.
+// One room for one session screen, opened by the student's own press, because audio needs a user gesture. It reads the API's answer first, so with no access it starts no room and no audio.
 export function useLiveVoice({ sessionId, usesSpeechCleanup = true, start = startLiveVoice }: UseLiveVoiceOptions): LiveVoiceControls {
   const [status, setStatus] = useState<LiveVoiceStatus>('idle');
   const [voice, setVoice] = useState<LiveVoice | null>(null);
@@ -40,7 +40,14 @@ export function useLiveVoice({ sessionId, usesSpeechCleanup = true, start = star
     opening.current ??= (async () => {
       setStatus('connecting');
       try {
-        const opened = await start({ usesSpeechCleanup, wantsGreeting, getAccess: () => api.post('/sessions/{id}/live-room', { params: { path: { id: sessionId } } }) });
+        const getAccess = () => api.post('/sessions/{id}/live-room', { params: { path: { id: sessionId } } });
+        const { access, unavailableBecause } = await getAccess();
+        if (!access) {
+          opening.current = null;
+          setStatus(unavailableBecause === 'dailyLimit' ? 'overLimit' : 'unavailable');
+          return null;
+        }
+        const opened = await start({ access, getAccess, usesSpeechCleanup, wantsGreeting });
         if (isGone.current) {
           await opened.close();
           return null;

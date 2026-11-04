@@ -1,10 +1,15 @@
 import { act, render, renderHook, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LEGAL_PAGES } from '../strings';
+import { stubSessionsApi } from '../test/sessionsApi';
 import { StudentCaption, TutorCaption } from './Captions';
 import type { LiveVoice, LiveVoiceView } from './liveVoice';
 import { useLiveVoice } from './useLiveVoice';
 
+vi.mock('../auth/session', () => import('../test/signedInSession'));
+
+const ROOM_ACCESS = { url: 'wss://room.test', roomName: 'session-a-session', token: 'room-token' };
+const OPEN_ROOM = { access: ROOM_ACCESS, unavailableBecause: null };
 const BASE_VIEW: LiveVoiceView = { phase: 'live', mic: 'off', isSoundBlocked: false, isHeard: false, isThinking: false, isTutorSpeaking: false, studentLines: [], tutorHeard: [], tutorComing: [] };
 
 function makeFakeVoice(view: Partial<LiveVoiceView> = {}): LiveVoice {
@@ -49,6 +54,46 @@ describe('the captions', () => {
 });
 
 describe('useLiveVoice', () => {
+  beforeEach(() => stubSessionsApi({ liveRoom: OPEN_ROOM }));
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('joins with the access the API gave', async () => {
+    const start = vi.fn(async () => makeFakeVoice());
+    const { result } = renderHook(() => useLiveVoice({ sessionId: 'a-session', start }));
+    await act(async () => void (await result.current.connect()));
+    expect(start).toHaveBeenCalledWith(expect.objectContaining({ access: ROOM_ACCESS }));
+    expect(result.current.status).toBe('live');
+  });
+
+  it.each([
+    ['notSetUp', 'unavailable'],
+    ['dailyLimit', 'overLimit'],
+  ] as const)('starts nothing when the API answers %s, says %s, and keeps the reply on the screen', async (unavailableBecause, status) => {
+    stubSessionsApi({ liveRoom: { access: null, unavailableBecause } });
+    const start = vi.fn(async () => makeFakeVoice());
+    const { result } = renderHook(() => useLiveVoice({ sessionId: 'a-session', start }));
+    let wasSent = true;
+    await act(async () => {
+      wasSent = await result.current.sendTyped('Why?');
+    });
+    expect(start).not.toHaveBeenCalled();
+    expect(wasSent).toBe(false);
+    expect(result.current.status).toBe(status);
+    expect(result.current.view).toBeNull();
+  });
+
+  it('asks the API again on the next try, so a room service that comes up is found', async () => {
+    stubSessionsApi();
+    const start = vi.fn(async () => makeFakeVoice());
+    const { result } = renderHook(() => useLiveVoice({ sessionId: 'a-session', start }));
+    await act(async () => void (await result.current.sendTyped('Why?')));
+    expect(start).not.toHaveBeenCalled();
+    stubSessionsApi({ liveRoom: OPEN_ROOM });
+    await act(async () => void (await result.current.sendTyped('Why?')));
+    expect(start).toHaveBeenCalledTimes(1);
+    expect(result.current.status).toBe('live');
+  });
+
   it('asks for the microphone only when the student presses Talk, and a typed reply opens the room with it off', async () => {
     const voice = makeFakeVoice();
     const start = vi.fn(async () => voice);

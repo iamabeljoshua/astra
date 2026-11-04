@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { StudentRepository } from '../infrastructure/orm/repositories/student.repository';
 import { SessionsService } from '../sessions/sessions.service';
 import { isStudentInterest } from '../students/students.service';
@@ -24,9 +24,10 @@ export class LiveRoomService {
     const session = await this.sessionsService.getSession(studentId, sessionId);
     if (session.status === 'finished') throw new ConflictException('This session has finished.');
     const keys = getLiveRoomKeys(process.env);
-    if (!keys) throw new ServiceUnavailableException('Live voice is not set up.');
+    if (!keys) return { access: null, unavailableBecause: 'notSetUp' };
     const roomName = getRoomName(session.id);
-    return { url: keys.url, roomName, token: await makeStudentToken({ keys, roomName, studentId, tutorBrief: await this.getTutorBrief(studentId) }) };
+    const token = await makeStudentToken({ keys, roomName, studentId, tutorBrief: await this.getTutorBrief(studentId) });
+    return { access: { url: keys.url, roomName, token }, unavailableBecause: null };
   }
 
   private async getTutorBrief(studentId: string): Promise<string> {

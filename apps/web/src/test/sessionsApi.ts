@@ -4,8 +4,11 @@ import { EXAMPLE_HOME_SCREEN } from './homeScreenApi';
 
 type HomeScreenResponse = components['schemas']['HomeScreenResponseDto'];
 type Session = components['schemas']['SessionResponseDto'];
+type LiveRoomAnswer = components['schemas']['LiveRoomResponseDto'];
 
 const SESSION_PATH = /^\/api\/sessions\/([^/]+)$/;
+const LIVE_ROOM_PATH = /^\/api\/sessions\/[^/]+\/live-room$/;
+export const NO_ROOM_SERVICE: LiveRoomAnswer = { access: null, unavailableBecause: 'notSetUp' };
 const FAKE_NOW = '2026-11-03T12:00:00.000Z';
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
@@ -36,9 +39,10 @@ function listSessions(sessions: Session[], url: URL) {
 interface FakeApi {
   homeScreen?: HomeScreenResponse;
   sessions?: Session[];
+  liveRoom?: LiveRoomAnswer;
 }
 
-export function stubSessionsApi({ homeScreen = EXAMPLE_HOME_SCREEN, sessions = [] }: FakeApi = {}) {
+export function stubSessionsApi({ homeScreen = EXAMPLE_HOME_SCREEN, sessions = [], liveRoom = NO_ROOM_SERVICE }: FakeApi = {}) {
   const storedSessions = sessions.map((session) => ({ ...session }));
   let nextId = 1;
 
@@ -51,6 +55,7 @@ export function stubSessionsApi({ homeScreen = EXAMPLE_HOME_SCREEN, sessions = [
 
   const fetchStub = vi.fn(async (request: Request) => {
     const url = new URL(request.url);
+    if (LIVE_ROOM_PATH.test(url.pathname)) return json(liveRoom);
     const sessionId = SESSION_PATH.exec(url.pathname)?.[1];
     if (sessionId) return answerOneSession(request, sessionId);
     if (url.pathname === '/api/home') return json({ ...homeScreen, continueSession: storedSessions.find(({ status }) => status === 'in_progress') ?? null });

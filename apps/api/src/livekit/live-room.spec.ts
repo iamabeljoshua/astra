@@ -7,6 +7,10 @@ import type { TestApp, TestStudent } from '../../test/test-database';
 const LIVE_ROOM_KEYS = { LIVEKIT_URL: 'wss://astra-test.livekit.cloud', LIVEKIT_API_KEY: 'key-for-test', LIVEKIT_API_SECRET: 'secret-for-test-that-is-long-enough-to-sign', ASTRA_AGENT_NAME: 'tutor-for-test' };
 const VALID_SESSION = { title: 'Free-body diagrams', subject: 'Physics', language: 'en' };
 
+function getAccess(answer: unknown) {
+  return (answer as { access: { url: string; token: string; roomName: string } }).access;
+}
+
 describe('the live room route', () => {
   let testApp: TestApp;
   let student: TestStudent;
@@ -20,8 +24,11 @@ describe('the live room route', () => {
     return (body as { id: string }).id;
   };
 
-  beforeAll(async () => {
+  beforeEach(() => {
     Object.assign(process.env, LIVE_ROOM_KEYS);
+  });
+
+  beforeAll(async () => {
     testApp = await createTestApp();
     student = await createTestStudent(testApp);
     otherStudent = await createTestStudent(testApp);
@@ -36,7 +43,7 @@ describe('the live room route', () => {
     await server().put('/me/profile').set('Authorization', `Bearer ${student.token}`).send({ name: 'Maya', interests: ['basketball', 'space'], level: 'university', goal: 'exam' }).expect(200);
     const sessionId = await startSession();
     const { body } = await post(`/sessions/${sessionId}/live-room`).expect(200);
-    const claims = decodeJwt((body as { token: string }).token) as { roomConfig: { agents: { metadata: string }[] } };
+    const claims = decodeJwt(getAccess(body).token) as { roomConfig: { agents: { metadata: string }[] } };
     expect(JSON.parse(claims.roomConfig.agents[0]?.metadata ?? '{}')).toEqual({ level: 'university', interests: ['basketball', 'space'], goal: 'exam' });
     expect(JSON.stringify(claims)).not.toContain('Maya');
   });
@@ -44,7 +51,7 @@ describe('the live room route', () => {
   it('gives a token for this session room with the least it needs', async () => {
     const sessionId = await startSession();
     const { body } = await post(`/sessions/${sessionId}/live-room`).expect(200);
-    const claims = decodeJwt((body as { token: string }).token) as Record<string, unknown> & { exp: number; nbf: number };
+    const claims = decodeJwt(getAccess(body).token) as Record<string, unknown> & { exp: number; nbf: number };
     expect(claims.video).toEqual({ room: `session-${sessionId}`, roomJoin: true, canSubscribe: true, canPublish: true, canPublishSources: ['microphone'], canPublishData: true, canUpdateOwnMetadata: false });
     expect(claims.roomConfig).toMatchObject({ name: `session-${sessionId}`, maxParticipants: 1, departureTimeout: 120, agents: [{ agentName: 'tutor-for-test' }] });
     expect(claims.exp - claims.nbf).toBeLessThanOrEqual(600);
@@ -55,9 +62,10 @@ describe('the live room route', () => {
   it('sends the browser no key, only the address, the token, and the room name', async () => {
     const sessionId = await startSession();
     const { body, text } = await post(`/sessions/${sessionId}/live-room`).expect(200);
-    expect(Object.keys(body as object).sort()).toEqual(['roomName', 'token', 'url']);
+    expect(body).toMatchObject({ unavailableBecause: null });
+    expect(Object.keys(getAccess(body)).sort()).toEqual(['roomName', 'token', 'url']);
     expect(text).not.toContain(LIVE_ROOM_KEYS.LIVEKIT_API_SECRET);
-    expect(JSON.stringify(decodeJwt((body as { token: string }).token))).not.toContain(LIVE_ROOM_KEYS.LIVEKIT_API_SECRET);
+    expect(JSON.stringify(decodeJwt(getAccess(body).token))).not.toContain(LIVE_ROOM_KEYS.LIVEKIT_API_SECRET);
   });
 
   it('gives each session its own room, and another student no token at all', async () => {
@@ -65,7 +73,7 @@ describe('the live room route', () => {
     const theirs = await startSession(otherStudent);
     const { body: first } = await post(`/sessions/${mine}/live-room`).expect(200);
     const { body: second } = await post(`/sessions/${theirs}/live-room`, otherStudent).expect(200);
-    expect((first as { roomName: string }).roomName).not.toBe((second as { roomName: string }).roomName);
+    expect(getAccess(first).roomName).not.toBe(getAccess(second).roomName);
     await post(`/sessions/${theirs}/live-room`, student).expect(404);
     await post(`/sessions/${randomUUID()}/live-room`).expect(404);
   });
@@ -81,10 +89,20 @@ describe('the live room route', () => {
     await server().post(`/sessions/${sessionId}/live-room`).expect(401);
   });
 
-  it('answers 503 when live voice has no keys, so the rest of the app runs without them', async () => {
+  it('answers 200 with no access when live voice has no keys, because that is an expected state and not a server error', async () => {
     const sessionId = await startSession();
     delete process.env.LIVEKIT_API_SECRET;
-    await post(`/sessions/${sessionId}/live-room`).expect(503);
-    process.env.LIVEKIT_API_SECRET = LIVE_ROOM_KEYS.LIVEKIT_API_SECRET;
+    const { body } = await post(`/sessions/${sessionId}/live-room`).expect(200);
+    expect(body).toEqual({ access: null, unavailableBecause: 'notSetUp' });
+  });
+
+  it('still answers 404, 409, and 401 with no keys, so no state hides behind the expected one', async () => {
+    const mine = await startSession();
+    const theirs = await startSession(otherStudent);
+    await server().patch(`/sessions/${mine}`).set('Authorization', `Bearer ${student.token}`).send({ durationSeconds: 1, status: 'finished' }).expect(200);
+    delete process.env.LIVEKIT_API_SECRET;
+    await post(`/sessions/${theirs}/live-room`).expect(404);
+    await post(`/sessions/${mine}/live-room`).expect(409);
+    await server().post(`/sessions/${theirs}/live-room`).expect(401);
   });
 });
