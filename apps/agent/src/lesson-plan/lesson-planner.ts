@@ -17,6 +17,8 @@ export interface LessonPlanner {
   noteCommand(command: SceneCommand): void;
   noteWorkChecked(checked: Pick<CheckedWork, 'closesTask'>, work: StudentWork): void;
   noteReplyEnded(reply: { wasSafety: boolean }): void;
+  /** A page that reloaded lost the title it was told. */
+  tellTitleAgain(): void;
   getStepNote(): StepNote | null;
   /** Settles when no plan is on its way, for an evaluation that reads the next step straight after. */
   whenSettled(): Promise<void>;
@@ -63,11 +65,16 @@ export function createLessonPlanner({ ask, canSpend, charge, onTitleChange, trac
   let waiting: (HeardWords & { startReply: number }) | null = null;
   let asking: Promise<void> | null = null;
 
+  let toldTitle: string | null = null;
+
   const adopt = (move: PlanMove, { words, isOpening, startReply }: { words: string; isOpening: boolean; startReply: number }) => {
     const hadTopic = state.active?.plan.topic ?? null;
     state = getStateAfterMove(state, getTrustedMove(move, words), startReply);
     const topic = state.active?.plan.topic ?? null;
-    if (!isOpening && topic !== null && topic !== hadTopic) onTitleChange(topic);
+    if (!isOpening && topic !== null && topic !== hadTopic) {
+      toldTitle = topic;
+      onTitleChange(topic);
+    }
   };
 
   const askOnce = async (heard: HeardWords & { startReply: number }) => {
@@ -107,6 +114,9 @@ export function createLessonPlanner({ ask, canSpend, charge, onTitleChange, trac
     noteCommand: (command) => noteEvent(toEvent(command)),
     noteWorkChecked: (checked, work) => noteEvent(getWorkEvent(checked, work)),
     noteReplyEnded: ({ wasSafety }) => noteEvent(wasSafety ? 'safetyReplyEnded' : 'replyEnded'),
+    tellTitleAgain() {
+      if (toldTitle !== null) onTitleChange(toldTitle);
+    },
     getStepNote: () => getStepNote(state),
     whenSettled: () => asking ?? Promise.resolve(),
   };

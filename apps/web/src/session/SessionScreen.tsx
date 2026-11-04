@@ -133,7 +133,7 @@ function RunningSession({ session }: { session: Session }) {
   // The card's picture belongs to the card's topic, so it goes when the student moves off it, and the seam for a scene stays empty.
   const visual = view?.sessionTitle ? null : getSessionVisual(findArtwork(session.artwork));
   return (
-    <SessionFrame facts={<SessionFacts subject={view?.sessionTitle ?? session.subject} seconds={seconds} tutorStateLine={tutorStateLine} costUsd={view?.costUsd ?? null} />} action={<EndButton isEnding={isEnding} onEnd={() => void endAndLeaveRoom()} />} problem={endProblem} isFullHeight>
+    <SessionFrame facts={<SessionFacts subject={view?.sessionTitle ?? getBarSubject(session)} seconds={seconds} tutorStateLine={tutorStateLine} costUsd={view?.costUsd ?? null} />} action={<EndButton isEnding={isEnding} onEnd={() => void endAndLeaveRoom()} />} problem={endProblem} isFullHeight>
       <div className="board-stage">
         <div className="board-voice">
           <SessionTitle title={session.title} isQuiet={Boolean(voice) || isConnecting} />
@@ -270,6 +270,11 @@ function Board({ artwork, note }: { artwork: Artwork | null; note?: string }) {
       {note && <p className="label border-t border-line px-3 py-1.75 text-ink-2">{note}</p>}
     </section>
   );
+}
+
+// A card always starts with a picture, and a rename takes it away, so a card with none has moved to the topic in its title.
+function getBarSubject({ topicId, artwork, title, subject }: Session) {
+  return topicId && !artwork ? title : subject;
 }
 
 function getSessionVisual(artwork: Artwork | null) {

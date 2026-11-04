@@ -66,6 +66,22 @@
    {"text":"Teach me fractions","expect":["teachesFirst"]},
    {"text":"let me try one now","expect":["handsOnNow","boardOnWord"]}]},
  {"name":"direct-but-just-tell-me","turns":[{"text":"what's the derivative of x cubed? just explain it to me, I don't want to try one","expect":["noTask"]}]},
+ {"name":"just-tell-me-on-an-open-problem","turns":[
+   {"text":"Solve 3x = 12","expect":["handsOnNow"]},
+   {"text":"just tell me the answer","expect":["saysFour"]}]},
+ {"name":"blank-goes-on-the-board-as-text","turns":[{"text":"should i write affect or effect in 'the weather ___ my mood'","expect":["handsOnNow","noRefusedCommand","textOrChoices"]}]},
+ {"name":"direct-why","turns":[{"text":"why is the sky blue?"},{"text":"yeah i have","expect":["taskByNow"]}]},
+ {"name":"direct-code-why","turns":[{"text":"why does my python for loop stop at 4 when i wrote range(5)"},{"text":"not sure","expect":["taskByNow"]}]},
+ {"name":"direct-language","turns":[{"text":"how do you say good morning in spanish"},{"text":"no idea","expect":["taskByNow"]}]},
+ {"name":"bare-fact-just-answers","turns":[{"text":"whats the capital of australia","expect":["saysCanberra"]}]},
+ {"name":"topic-gravity-exercise-by-reply-3","turns":[
+   {"text":"explain how gravity works","expect":["teachesFirst"]},
+   {"text":"ok"},
+   {"text":"ok","expect":["taskByNow"]}]},
+ {"name":"topic-roman-empire-exercise-by-reply-3","turns":[
+   {"text":"the roman empire","expect":["teachesFirst"]},
+   {"text":"ok"},
+   {"text":"ok","expect":["taskByNow","wordsTaskByNow"]}]},
  {"name":"switch-with-title","turns":[
    {"text":"Help me solve 2x + 3 = 11. I want to do it myself on the board, line by line.","expect":["handsOnNow"]},
    {"work":{"way":"write","id":"s1","text":"teach me physics of the impossible"},"expect":["noNewSession","goesToTeach","noTask"],"title":"impossible"},

@@ -76,7 +76,8 @@ export class SessionRepository {
   }
 
   async renameUnfinishedForStudent(studentId: string, sessionId: string, title: string): Promise<void> {
-    await this.sessions.update({ id: sessionId, studentId, status: 'in_progress' }, { title });
+    // A card's picture belongs to the card's topic, so it goes with the title that named it.
+    await this.sessions.update({ id: sessionId, studentId, status: 'in_progress' }, { title, artwork: null });
   }
 
   listNewestWithTopicForStudent(studentId: string): Promise<SessionEntity[]> {

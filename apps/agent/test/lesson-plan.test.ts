@@ -326,15 +326,16 @@ describe('the tutor with a lesson planner', () => {
     await answer(brain, 'teach me fractions');
     await planner.whenSettled();
     await answer(brain, 'go on');
-    await answer(brain, 'go on again');
     expect(getPlanNotes(model).at(-1)).toBe(1);
+    await answer(brain, 'go on again');
+    expect(getPlanNotes(model).at(-1)).toBe(2);
 
     planner.noteCommand(TASK);
     planner.noteCommand({ kind: 'boardMode', mode: 'teach' });
     await answer(brain, 'what next');
     await answer(brain, 'go on');
 
-    expect(getPlanNotes(model).at(-1)).toBe(2);
+    expect(getPlanNotes(model).at(-1)).toBe(3);
   });
 
   it('tells the planner what the student is answering', async () => {
@@ -589,5 +590,19 @@ describe('sending a student away', () => {
     const brain = createTutorBrain({ model: makeFakeTutorModel(() => ({ pieces: [replies[Math.min(index++, 1)] as string] })), timeouts: QUICK, onTurnEnd: (summary) => summaries.push(summary) });
     for await (const beat of brain.reply({ text: 'teach me black holes' }, new AbortController().signal)) void beat;
     expect(summaries[0]?.spokenText).toContain('black holes next');
+  });
+});
+
+describe('a page that reloaded', () => {
+  it('is told the title again, because it lost what it was told', async () => {
+    const { planner, titles } = plannerWith([newPlan(FRACTIONS), newPlan(SOLVING)]);
+    planner.noteStudentWords(heard('teach me fractions', true));
+    await planner.whenSettled();
+    planner.tellTitleAgain();
+    expect(titles).toEqual([]);
+    planner.noteStudentWords(heard('solve 2x + 3 = 11 instead'));
+    await planner.whenSettled();
+    planner.tellTitleAgain();
+    expect(titles).toEqual(['Solving 2x + 3 = 11', 'Solving 2x + 3 = 11']);
   });
 });

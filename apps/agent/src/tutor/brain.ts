@@ -286,7 +286,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
   let hasNoddedSinceLastTurn = false;
 
   // Board and heard words come from the browser's report, because the model may write past what the student saw.
-  const settleLastTurn = () => {
+  const settleLastTurn = (studentText: string | null = null) => {
     const heard: string[] = [];
     const missed: string[] = [];
     for (const beat of lastBeats) {
@@ -308,7 +308,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
     if (board !== toldBoard) note.board = JSON.parse(board);
     toldBoard = board;
     // Words that may be serious get no plan at all, and the step waits for a turn that can use it.
-    if (!MAY_BE_ABOUT_SAFETY.test(studentText)) {
+    if (studentText === null || !MAY_BE_ABOUT_SAFETY.test(studentText)) {
       const step = lessonPlanner?.getStepNote() ?? null;
       if (JSON.stringify(step) !== toldStep) note.lesson_plan = step;
       toldStep = JSON.stringify(step);
@@ -329,7 +329,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
   };
 
   const startTurn = (studentText: string, signal: AbortSignal): TurnWork => {
-    settleLastTurn();
+    settleLastTurn(studentText);
     turnCount += 1;
     memory = getMemoryOnNewTurn(memory, studentText);
     if (memory.hasComeBack && !isComeBackUnanswered) memory = { ...memory, hasComeBack: false };
@@ -919,6 +919,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
     },
     getClosedReason: () => (hasToldClosed ? closedReason : null),
     noteCameBack() {
+      lessonPlanner?.tellTitleAgain();
       memory = getMemoryOnComingBack(memory);
       isComeBackUnanswered = true;
       toldBoard = '';
