@@ -485,6 +485,8 @@ All on real Chromium, the real room, and real Muse, with the fake voice. The loa
 | A crisis reply cut by a hold, with words said | On real Sonnet, the next reply answered the crisis line again with the new words after it, named help, and played to its end, all 27 words |
 | Noise between holds | Three clips at once, four times: 0 voice starts, 0 stops, and 0 bytes. Press once on the same bursts gave 4 voice starts and 3 stops |
 
+The noise prompt came 5.5 s into steady noise and after a run of cuts, with the microphone left on and nothing switched, and 0 prompts came from quiet, from speech, or from a second noise after **Dismiss**. `run-safety-proof.ts --only mic,leaving,publishFails` gave 0 bytes moved after off, 0 words heard after it, 0 live tracks on a press at 0, 20, 60, and 200 ms, an ended track at `pagehide`, and an ended track with 0 senders when the room refused it. `v-attack.ts --only offOnEars` ended on with 1 live track and 1 sender at all 9 gaps. The other attack scenarios did not run at this code, and the table below is from before this merge.
+
 **Found here.** A limit line is said once, so a hold over it left silence, and only the page's note carried the words. A closed tutor now resumes the line a hold cut. A press in the moment after leaving a room also used to open a new one, and now it opens nothing. `live-session.test.ts` and `LiveVoice.test.tsx` fail without each fix.
 
 ### How to try it

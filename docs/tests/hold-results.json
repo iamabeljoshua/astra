@@ -5806,6 +5806,195 @@
     "mic": "off",
     "pressed": "false"
    }
-  }
+  },
+  "steadyNoise": {
+   "afterQuiet": 0,
+   "afterSpeech": 0,
+   "secondsToPrompt": 5.45,
+   "mic": "on",
+   "afterDismiss": 0,
+   "afterSecondNoise": 0,
+   "closed": {
+    "isClosed": true,
+    "liveTracks": 0,
+    "liveSenders": 0,
+    "bytesMoved": 0,
+    "mic": "off",
+    "pressed": "false"
+   }
+  },
+  "cutsRaisePrompt": {
+   "stops": [
+    "no words",
+    "no words",
+    "link lost",
+    "real word",
+    "no words"
+   ],
+   "resumes": 0,
+   "prompt": [
+    "It sounds noisy. Hold Space to talk."
+   ],
+   "mic": "on"
+  },
+  "safety": {
+   "mic": {
+    "doublePress": {
+     "view": "off",
+     "pressed": "false",
+     "evidence": {
+      "tracks": [
+       "ended"
+      ],
+      "senders": []
+     }
+    },
+    "threePressesThenOff": {
+     "micAfterOff": "off",
+     "pressed": "false",
+     "whileOn": {
+      "tracks": [
+       "ended",
+       "live"
+      ],
+      "senders": [
+       {
+        "state": "live",
+        "bytes": 25376
+       }
+      ]
+     },
+     "bytesMovedWhileOn": 18392,
+     "afterOff": {
+      "tracks": [
+       "ended",
+       "ended"
+      ],
+      "senders": [
+       {
+        "state": "removed",
+        "bytes": 44578
+       }
+      ]
+     },
+     "bytesMovedAfterOff": 0,
+     "agentHeardAfterOff": [],
+     "museClosedAfterOffMs": null
+    },
+    "pressDuringStarting": [
+     {
+      "gapMs": 0,
+      "mic": "off",
+      "liveTracks": 0,
+      "liveSenders": 0
+     },
+     {
+      "gapMs": 20,
+      "mic": "off",
+      "liveTracks": 0,
+      "liveSenders": 0
+     },
+     {
+      "gapMs": 60,
+      "mic": "off",
+      "liveTracks": 0,
+      "liveSenders": 0
+     },
+     {
+      "gapMs": 200,
+      "mic": "off",
+      "liveTracks": 0,
+      "liveSenders": 0
+     }
+    ]
+   },
+   "leaving": {
+    "before": [
+     "live"
+    ],
+    "onPageHide": [
+     "ended"
+    ],
+    "afterRoute": {
+     "tracks": [
+      "ended"
+     ],
+     "senders": []
+    }
+   },
+   "publishFails": {
+    "mic": "failed",
+    "tracks": [
+     "ended"
+    ],
+    "senders": [],
+    "notes": " | Youhello thereYour microphone could not start. You can type instead."
+   }
+  },
+  "attackOffOnEars": [
+   {
+    "gap": 0,
+    "earsTook": 1625,
+    "mic": "on",
+    "live": 1,
+    "liveSenders": 1
+   },
+   {
+    "gap": 0,
+    "earsTook": 1572,
+    "mic": "on",
+    "live": 1,
+    "liveSenders": 1
+   },
+   {
+    "gap": 50,
+    "earsTook": 1769,
+    "mic": "on",
+    "live": 1,
+    "liveSenders": 1
+   },
+   {
+    "gap": 100,
+    "earsTook": 1483,
+    "mic": "on",
+    "live": 1,
+    "liveSenders": 1
+   },
+   {
+    "gap": 200,
+    "earsTook": 1445,
+    "mic": "on",
+    "live": 1,
+    "liveSenders": 1
+   },
+   {
+    "gap": 300,
+    "earsTook": 1305,
+    "mic": "on",
+    "live": 1,
+    "liveSenders": 1
+   },
+   {
+    "gap": 500,
+    "earsTook": 1984,
+    "mic": "on",
+    "live": 1,
+    "liveSenders": 1
+   },
+   {
+    "gap": 1000,
+    "earsTook": 1096,
+    "mic": "on",
+    "live": 1,
+    "liveSenders": 1
+   },
+   {
+    "gap": 2000,
+    "earsTook": 1162,
+    "mic": "on",
+    "live": 1,
+    "liveSenders": 1
+   }
+  ]
  }
 }
