@@ -51,16 +51,6 @@
    {"text":"Teach me python loops in one sentence, then have me type a loop that prints 0 to 2 on the board, line by line.","check":"setsTask"},
    {"work":{"way":"write","id":"s1","text":"for i in range(3):"},"silent":true},
    {"work":{"way":"write","id":"s2","text":"    print(i)"},"check":"speaks"}]},
- {"name":"switch-topic-mid-task","checks":["noNewSession","notCalledWrong"],"turns":[
-   {"text":"Help me solve 2x + 3 = 11. I want to do it myself on the board, line by line.","check":"setsTask"},
-   {"work":{"way":"write","id":"s1","text":"teach me physics of the impossible"},"check":"speaks"},
-   {"work":{"way":"write","id":"s2","text":"ok give me a problem on that"},"check":"setsTask"},
-   {"text":"can we go back to the old problem, 2x + 3 = 11?","check":"setsTask"},
-   {"work":{"way":"write","id":"s3","text":"2x = 8"},"silent":true}]},
- {"name":"teach-then-problem","checks":["noNewSession"],"turns":[
-   {"text":"Teach me what a derivative is in one sentence.","check":"speaks"},
-   {"text":"ok give me a problem","check":"setsTask"},
-   {"work":{"way":"write","id":"s1","text":"actually teach me about black holes"},"check":"speaks"}]},
  {"name":"pick-a-part","checks":[],"turns":[
    {"text":"Draw a small diagram of the water cycle on the board, four boxes, and have me click the one where water turns to vapour.","check":"setsPickTask"},
    {"work":{"way":"pick","part":"sea"},"check":"speaks"}]},

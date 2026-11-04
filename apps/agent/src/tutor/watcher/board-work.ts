@@ -2,7 +2,7 @@ import type { AgentMessage, BrowserMessage, ElementId, InkPoint, InkReading, Stu
 import { type CheckedWork, cleanStudentText, checkWorkOnBoard, getPickParts, wantsSomethingElse } from '@astra/board/shared';
 import type { BoardElement } from '@astra/board';
 import type { SpokenReading } from './read-spoken.ts';
-import { decideSpoken, type SpokenDecision, type SpokenPart } from './spoken-answer.ts';
+import { decideSpoken, type SpokenDecision, type SpokenExpected, type SpokenPart } from './spoken-answer.ts';
 import type { TutorBrain } from '../brain.ts';
 import { decideOnReading, decideOnWork, decideWatch, getGate, getWorkWords, type WatchDecision, type WatchSituation, type WordMeaning } from './watch-rule.ts';
 
@@ -15,7 +15,7 @@ export interface BoardWorkOptions {
   readMeaning(words: string): Promise<WordMeaning | null>;
   readStrokes(strokes: readonly (readonly InkPoint[])[]): Promise<{ text: string; ink: { tex?: string; isUnsure: boolean } } | null>;
   /** What spoken words mean, read by a cheap model. */
-  readSpokenWords(words: string): Promise<SpokenReading>;
+  readSpokenWords(words: string, expects: SpokenExpected): Promise<SpokenReading>;
   /** Writes work the agent read itself, with no page behind it to stamp the time. */
   writeHeardLog(work: StudentWork, checked: CheckedWork): void;
   send(message: AgentMessage): void;
@@ -38,6 +38,7 @@ const getWorkKey = (work: StudentWork) => JSON.stringify(work.way === 'write' ? 
 // What the student does on the board: code checks it, notes it, logs it, and decides whether the tutor answers.
 export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getSecondsSinceQuestion, readMeaning, readStrokes, readSpokenWords, writeHeardLog, send, getNowMs, trace }: BoardWorkOptions) {
   let spokenLines = 0;
+  let isAnsweringJudgedWork = false;
   const inkStrokes = new Map<string, InkPoint[]>();
   let spokeUpAtMs: number | null = null;
   let unanswered: Unanswered | null = null;
@@ -45,6 +46,7 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
   let hasLeanedIn = false;
 
   const noteAnswered = () => {
+    isAnsweringJudgedWork = false;
     unanswered = null;
   };
 
@@ -66,6 +68,7 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
     trace('workDecided', { way: message.work.way, status: checked.verdict.status, ...decision });
     if (decision.act === 'reply') {
       noteAnswered();
+      isAnsweringJudgedWork = checked.verdict.status !== 'unknown';
       speakUp(getWorkWords(message.work));
     } else {
       unanswered = { checked, keys: wrongKeys };
@@ -105,7 +108,7 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
       case 'place':
         return { way: 'place', task: task.id, placed: decision.placed };
       case 'read': {
-        const reading = await readSpokenWords(text);
+        const reading = await readSpokenWords(text, decision.expects);
         return reading.kind === 'line' ? getHeardWork(text, reading.heard, task.id) : null;
       }
     }
@@ -176,7 +179,7 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
     if (decision.act === 'speak' && getGate(getSituation(seconds, draft)) === null) speakAtPause(decision, seconds, draft);
   };
 
-  return { onWorked, onPaused, onInkStroke, onInkDone, onSpoken, hasOpenTask: () => getOpenTask() !== null, noteAnswered };
+  return { onWorked, onPaused, onInkStroke, onInkDone, onSpoken, hasOpenTask: () => getOpenTask() !== null, canReactAloud: () => !isAnsweringJudgedWork && getOpenTask() === null, noteAnswered };
 }
 
 function getSpokenParts(task: Task, board: { elements: ReadonlyMap<ElementId, BoardElement> } | undefined): SpokenPart[] {

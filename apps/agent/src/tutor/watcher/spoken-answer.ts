@@ -1,13 +1,15 @@
 import type { Task } from '@astra/contracts';
 import { getLineTex, readLine } from '@astra/board/shared';
 
+export type SpokenExpected = 'math' | 'words';
+
 export type SpokenDecision =
   /** Conversation. It goes to the tutor, and no line lands. */
   | { act: 'talk'; why: string }
   /** Code reads this as a line of math, with nothing to doubt. */
   | { act: 'line'; tex: string }
-  /** Only what the words mean can settle it, so a cheap model reads them. */
-  | { act: 'read' }
+  /** Only what the words mean can settle it, so a cheap model reads them, knowing what the student was asked for. */
+  | { act: 'read'; expects: SpokenExpected }
   | { act: 'pick'; part: string }
   | { act: 'place'; placed: (string | null)[] };
 
@@ -17,7 +19,7 @@ export interface SpokenPart {
   label: string;
 }
 
-const TALK_OPENING = /^\s*(wait|hold on|sorry|why|what|how|when|where|who|which|can|could|would|should|do|does|did|is it|are|am i|help|stop|repeat|again|never mind|i don'?t|i do not|i'?m (confused|lost|stuck|not sure)|i am (confused|lost|stuck|not sure)|thanks|thank you|hello|hi|hey|ok|okay|yes|yeah|yep|no|nope|right|sure|go on|um+|uh+|hm+|mm+|let me|one sec)\b/i;
+const TALK_OPENING = /^\s*(wait|hold on|sorry|why|what|how|when|where|who|which|can|could|would|should|do|does|did|is it|are|am i|help|stop|repeat|again|never mind|i don'?t|i do not|i'?m (confused|lost|stuck|not sure)|i am (confused|lost|stuck|not sure)|thanks|thank you|hello|hi|hey|ok|okay|give me|show me|tell me|explain|yes|yeah|yep|no|nope|right|sure|go on|um+|uh+|hm+|mm+|let me|one sec)\b/i;
 const HOLDS_MATH_WORDS = /\b(equals?|plus|minus|times|over|squared|cubed|divided|root|negative)\b|\d|=/i;
 const SMALL_WORDS: ReadonlySet<string> = new Set(['the', 'a', 'an', 'of', 'in', 'on', 'to', 'and', 'then', 'first', 'next', 'last', 'after', 'that', 'is', 'it', 'its', 'goes', 'with']);
 
@@ -79,12 +81,12 @@ function decidePlace(text: string, task: Task & { way: 'place' }): SpokenDecisio
 
 function decideWrite(text: string, task: Task & { way: 'write' }): SpokenDecision {
   if (task.reads === 'code') return { act: 'talk', why: 'lines of code are typed' };
-  if (task.reads === 'words') return { act: 'read' };
+  if (task.reads === 'words') return { act: 'read', expects: 'words' };
   const reading = readLine(text);
   const tex = getLineTex(reading);
   if (tex !== null && !reading.isAsking) return { act: 'line', tex };
-  if (task.accepts) return { act: 'read' };
-  return HOLDS_MATH_WORDS.test(text) ? { act: 'read' } : { act: 'talk', why: 'it holds no math and this task is math' };
+  if (task.accepts || !task.on) return { act: 'read', expects: 'words' };
+  return HOLDS_MATH_WORDS.test(text) ? { act: 'read', expects: 'math' } : { act: 'talk', why: 'it holds no math and this task is math' };
 }
 
 /** Whether something said aloud is an answer to the open task, from code alone wherever it can tell. A question stays conversation, so "wait, why that step?" never lands as a line. */

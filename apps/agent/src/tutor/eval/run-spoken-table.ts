@@ -37,7 +37,7 @@ async function main() {
     let isUnsure = false;
     if (decision.act === 'read') {
       tally.askedTheReader += 1;
-      const read = await readSpoken(model, row.final);
+      const read = await readSpoken(model, row.final, decision.expects);
       tally.usd += read.costUsd;
       ledger.charge({ anthropicUsd: read.costUsd });
       if (read.kind === 'line') {

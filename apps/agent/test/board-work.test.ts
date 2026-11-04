@@ -256,6 +256,18 @@ describe('the board work seam', () => {
     expect(writeLog).toHaveBeenCalledTimes(2);
   });
 
+  it('leaves stock words out of a reply to work, because one could praise a wrong step', async () => {
+    const { brain, seam } = setupSeam([SET_PROBLEM]);
+    expect(seam.canReactAloud()).toBe(true);
+    await collect(brain, 'help');
+    expect(seam.canReactAloud()).toBe(false);
+    seam.onWorked(worked(line('s1', '2x = 14', 'a1')));
+    brain.noteWork(line('s2', 'teach me about black holes', 'a1'));
+    expect(seam.canReactAloud()).toBe(false);
+    seam.noteAnswered();
+    expect(seam.canReactAloud()).toBe(true);
+  });
+
   it('lands a spoken math line, with what code read, and asks the tutor nothing on a right step', async () => {
     const { brain, seam, send, writeHeardLog, readSpokenWords } = setupSeam([SET_PROBLEM]);
     await collect(brain, 'help');
@@ -279,6 +291,15 @@ describe('the board work seam', () => {
     await expect(seam.onSpoken('wait, why that step?')).resolves.toBe(true);
     expect(send).not.toHaveBeenCalled();
     expect(readSpokenWords).not.toHaveBeenCalled();
+  });
+
+  it('lands a spoken answer in words as words, with no math made of it', async () => {
+    const { brain, seam, send, readSpokenWords } = setupSeam(['{"kind":"task","id":"a1","way":"write","reads":"words"}Why did they storm it?']);
+    await collect(brain, 'help');
+    readSpokenWords.mockResolvedValueOnce({ kind: 'line', heard: { isUnsure: false }, costUsd: 0 });
+    await expect(seam.onSpoken('They wanted the gunpowder.')).resolves.toBe(true);
+    expect(readSpokenWords).toHaveBeenCalledWith('They wanted the gunpowder.', 'words');
+    expect(send).toHaveBeenCalledWith({ type: 'workRead', work: expect.objectContaining({ text: 'They wanted the gunpowder.', heard: { isUnsure: false } }) });
   });
 
   it('judges nothing the reader doubted', async () => {

@@ -13,7 +13,7 @@ import { getWorkWords } from '../watcher/watch-rule.ts';
 import { REPLY_CHECKS } from './reply-checks.ts';
 
 /** Work on the board. A place names how to fill the open task's slots, because the tutor chose the items. */
-type GroupWork = { way: 'write'; id: string; text: string } | { way: 'pick'; part: string } | { way: 'place'; placed: 'rightOrder' | 'wrongOrder' };
+type GroupWork = { way: 'write'; id: string; text: string } | { way: 'leave' } | { way: 'pick'; part: string } | { way: 'place'; placed: 'rightOrder' | 'wrongOrder' };
 
 interface GroupTurn {
   text?: string;
@@ -29,6 +29,7 @@ function toStudentWork(work: GroupWork, brain: ReturnType<typeof createTutorBrai
   const task = element?.content.kind === 'task' ? element.content : null;
   if (work.way === 'write') return { way: 'write', id: work.id as ElementId, text: work.text, ...(openTask ? { task: openTask } : {}) };
   if (!openTask || !task) throw new Error('the tutor set no task');
+  if (work.way === 'leave') return { way: 'leave', task: openTask };
   if (work.way === 'pick') return { way: 'pick', task: openTask, part: work.part };
   if (task.way !== 'place') throw new Error('the tutor set no place task');
   const right = task.answer ?? task.items.slice(0, task.slots.length);

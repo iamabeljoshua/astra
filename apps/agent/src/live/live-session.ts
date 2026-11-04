@@ -12,6 +12,7 @@ import { type SpokenTurn, speakTurn, type TurnMessenger } from './speak-turn.ts'
 import type { TutorBeat, TutorBrain, TutorRequest } from '../tutor/brain.ts';
 import { createBoardWork } from '../tutor/watcher/board-work.ts';
 import type { SpokenReading } from '../tutor/watcher/read-spoken.ts';
+import type { SpokenExpected } from '../tutor/watcher/spoken-answer.ts';
 import type { WordMeaning } from '../tutor/watcher/watch-rule.ts';
 import { getNextTurnState, INITIAL_TURN_STATE, type TimerName, type TurnAction, type TurnEvent, type TurnState } from './turn-rule.ts';
 import { hasWords } from './turn-words.ts';
@@ -48,7 +49,7 @@ export interface LiveSessionOptions {
   /** Reads a handwritten line's strokes with a small model. */
   readStrokes?(strokes: readonly (readonly InkPoint[])[]): Promise<{ text: string; ink: { tex?: string; isUnsure: boolean } } | null>;
   /** What spoken words mean, read by a cheap model. */
-  readSpokenWords?(words: string): Promise<SpokenReading>;
+  readSpokenWords?(words: string, expects: SpokenExpected): Promise<SpokenReading>;
 }
 
 export interface LiveSession {
@@ -343,7 +344,8 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     if (sendClosedNote()) return;
     messenger.send({ type: 'heard' });
     // A session opened by a typed question has not yet said it is an AI, so its first reaction is the greeting (PRD S2).
-    if (!reaction) reaction = speakTake(hasGreeted ? 'reaction' : 'greeting', { isReply: false });
+    // Over work on the board a stock word could praise a wrong step, so the line landing is the reaction.
+    if (!reaction && boardWork.canReactAloud()) reaction = speakTake(hasGreeted ? 'reaction' : 'greeting', { isReply: false });
     hasGreeted = true;
   };
 
