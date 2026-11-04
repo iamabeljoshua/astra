@@ -104,7 +104,7 @@ describe('the picks library', () => {
   it.each(STUDENT_INTERESTS)('finds a card for the chip %s at every level', (interest) => {
     for (const level of STUDENT_LEVELS) {
       const fit = { interests: [interest], level, goal: 'class' as const };
-      const reasons = getPicksForStudent({ fit, history: [], continueCardSessionId: null }, LIBRARY).map((pick) => pick.reason);
+      const reasons = getPicksForStudent({ fit, history: [], continueCardSessionId: null, notes: [], now: new Date() }, LIBRARY).map((pick) => pick.reason);
 
       expect(reasons).toContain(`Because you're into ${interest}`);
     }

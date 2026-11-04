@@ -47,11 +47,11 @@ export function useStartSession() {
     });
   }
 
-  function startFromPick({ id, title, subject, artwork, continueSessionId }: PickCard) {
+  function startFromPick({ topicId, title, subject, artwork, continueSessionId }: PickCard) {
     openOnce(() =>
       continueSessionId
         ? fadeInto(getSessionPath(continueSessionId))
-        : saveAndFadeInto({ title, subject, artwork, topicId: id, language: SESSION_LANGUAGE }),
+        : saveAndFadeInto({ title, subject, artwork, topicId: topicId ?? undefined, language: SESSION_LANGUAGE }),
     );
   }
 

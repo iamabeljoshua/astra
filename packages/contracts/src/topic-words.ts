@@ -1,7 +1,3 @@
-import type { components } from '@astra/contracts';
-
-type NoteKind = components['schemas']['LearnerNoteDto']['kind'];
-
 // A topic passes only if every word is on these lists, so a place, a name, a school, a faith, a health condition, a substance, or a sexuality cannot be kept: it is simply not here. Words match exactly, with no stemming, because "rape" must not pass on the strength of "rap". Leave out on purpose any word that could describe a child, such as thin, fat, gay, or sick, and do not add `my`, `i`, or `being`.
 
 /** Every word of the library's titles, subjects, and interests, including the deeper scenes, less the few in `LEFT_OUT_OF_THE_LIBRARY`. */
@@ -68,9 +64,6 @@ const IRREGULAR_PLURALS = `volcanoes mitochondria nuclei bacteria fungi leaves t
 const CONCEPTS = new Set([...toList(LIBRARY_WORDS), ...toList(JOINING_WORDS), ...toList(WORKING_WORDS), ...withPlurals(CURRICULUM_NOUNS), ...toList(CURRICULUM_WORDS), ...toList(IRREGULAR_PLURALS)]);
 const CONCEPTS_AND_INTERESTS = new Set([...CONCEPTS, ...withPlurals(INTEREST_NOUNS), ...toList(INTEREST_WORDS)]);
 
-/** The words each kind of note may use. */
-const WORDS_FOR_A_TOPIC: Record<NoteKind, ReadonlySet<string>> = { showed: CONCEPTS, struggled: CONCEPTS, explored: CONCEPTS, cares_about: CONCEPTS_AND_INTERESTS };
-
 /** Words a detail may use on top of a topic's, to say what went wrong. */
 const WORDS_FOR_A_DETAIL = new Set([...CONCEPTS, ...toList(`but so then instead kept keep keeps forgot forget dropped drop missed miss mixed mix changed change wrote written took take got get gets went go did had has have after before still also just only very because would could up down out`)]);
 
@@ -79,7 +72,11 @@ const MATH_TOKEN = /^(?:\p{L}|\d{1,3}\p{L}?)$/u;
 /** Full-width letters, hidden characters, and accents are read as the plain word they look like, and anything else stays off the list. */
 export const toListWords = (text: string) => text.normalize('NFKD').replace(/\p{Cf}|\p{M}/gu, '').toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
 
-const areAllAllowed = (text: string, allowed: ReadonlySet<string>) => toListWords(text).every((word) => allowed.has(word) || MATH_TOKEN.test(word));
+function areAllAllowed(text: string, allowed: ReadonlySet<string>): boolean {
+  const words = toListWords(text);
+  return words.length > 0 && words.every((word) => allowed.has(word) || MATH_TOKEN.test(word));
+}
 
-export const isTopicOnTheList = (kind: NoteKind, topic: string) => areAllAllowed(topic, WORDS_FOR_A_TOPIC[kind]);
+/** Only `cares_about` may use the interests, and every other kind of note, known or not, gets the narrower list. */
+export const isTopicOnTheList = (kind: string, topic: string) => areAllAllowed(topic, kind === 'cares_about' ? CONCEPTS_AND_INTERESTS : CONCEPTS);
 export const isDetailOnTheList = (detail: string) => areAllAllowed(detail, WORDS_FOR_A_DETAIL);

@@ -155,6 +155,36 @@ describe('the learner record', () => {
     });
   });
 
+  describe('the closed list on the agent\'s write', () => {
+    const noteOn = (topic: string): NewLearnerNoteDto => ({ ...ROCKETS, kind: 'struggled', topic });
+
+    it.each(['self harm', 'suicide', 'my depression', 'my dad hits me', 'my dads drinking', '\u{1F642}'])('refuses an update whose only topic is %j, and stores nothing', async (topic) => {
+      const owner = await getNewStudent();
+
+      await asAgent(server().post(`/agent/sessions/${owner.sessionId}/record`)).send({ updateKey: 'room-a', notes: [noteOn(topic)] }).expect(400);
+
+      expect(await getTopics(owner)).toEqual([]);
+    });
+
+    it('keeps the listed notes of an update that mixes them with one off the list', async () => {
+      const owner = await getNewStudent();
+
+      const { body } = await asAgent(server().post(`/agent/sessions/${owner.sessionId}/record`)).send({ updateKey: 'room-a', notes: [noteOn('self harm'), ROCKETS] }).expect(200);
+
+      expect(body).toEqual({ wasApplied: true });
+      expect(await getTopics(owner)).toEqual([ROCKETS.topic]);
+    });
+
+    it('keeps a listed note and drops a detail off the list', async () => {
+      const owner = await getNewStudent();
+
+      await asAgent(server().post(`/agent/sessions/${owner.sessionId}/record`)).send({ updateKey: 'room-a', notes: [{ ...SIGN_ERROR, detail: 'my dad hits me' }] }).expect(200);
+
+      const { notes } = await learnerRecord.getRecord(owner.studentId);
+      expect(notes.map(({ topic, detail }) => [topic, detail])).toEqual([[SIGN_ERROR.topic, null]]);
+    });
+  });
+
   it('deletes everything about a student when the student is deleted', async () => {
     const owner = await getNewStudent();
     await learnerRecord.applyUpdate({ ...owner, updateKey: 'room-a', notes: [SIGN_ERROR, ROCKETS] });
