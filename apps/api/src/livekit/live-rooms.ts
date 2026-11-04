@@ -159,6 +159,11 @@ export class LiveRooms {
     }
   }
 
+  /** The tutor closes its own room after a recap. This is for a tutor that never does. */
+  closeAfter(sessionId: string, waitMs: number): void {
+    setTimeout(() => void this.close(sessionId), waitMs).unref();
+  }
+
   // A room that will not close must not stop a session finishing. It closes itself once the student has gone, and a finished session gets no new token.
   async close(sessionId: string): Promise<void> {
     const keys = getLiveRoomKeys(process.env);

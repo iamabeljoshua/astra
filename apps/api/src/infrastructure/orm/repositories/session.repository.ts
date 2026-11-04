@@ -75,6 +75,18 @@ export class SessionRepository {
     return this.findForStudent(studentId, sessionId);
   }
 
+  async saveRecap(sessionId: string, recap: object): Promise<void> {
+    await this.sessions.update({ id: sessionId, replayDeletedAt: IsNull() }, { recap });
+  }
+
+  async markReplayDeletedForStudent(studentId: string, sessionId: string): Promise<void> {
+    await this.sessions.update({ id: sessionId, studentId }, { recap: null, replayDeletedAt: new Date() });
+  }
+
+  isReplayDeleted(sessionId: string): Promise<boolean> {
+    return this.sessions.existsBy({ id: sessionId, replayDeletedAt: Not(IsNull()) });
+  }
+
   listNewestWithTopicForStudent(studentId: string): Promise<SessionEntity[]> {
     return this.sessions.find({
       select: { id: true, topicId: true, status: true, durationSeconds: true },

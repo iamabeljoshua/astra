@@ -3,7 +3,7 @@ import { isUUID } from 'class-validator';
 import { SessionsService } from '../sessions/sessions.service';
 import { StudentsService } from '../students/students.service';
 import { TutorSpendService } from '../tutor-spend/tutor-spend.service';
-import type { TutorBrief } from './agent-channel.dto';
+import type { SaveLogBodyDto, TutorBrief } from './agent-channel.dto';
 
 const NO_BRIEF: TutorBrief = { level: null, interests: [], goal: null };
 
@@ -24,6 +24,16 @@ export class AgentChannelService {
 
   async addSpend(sessionId: string, usd: number): Promise<{ isOverDailyLimit: boolean }> {
     return this.tutorSpend.addSpend(await this.getStudentId(sessionId), usd);
+  }
+
+  async saveLog(sessionId: string, run: SaveLogBodyDto): Promise<void> {
+    await this.getStudentId(sessionId);
+    await this.sessions.saveLog(sessionId, run);
+  }
+
+  async saveRecap(sessionId: string, recap: object): Promise<void> {
+    await this.getStudentId(sessionId);
+    await this.sessions.saveRecap(sessionId, recap);
   }
 
   private async getStudentId(sessionId: string): Promise<string> {

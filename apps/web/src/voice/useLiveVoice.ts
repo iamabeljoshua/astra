@@ -32,7 +32,7 @@ export interface LiveVoiceControls {
   /** Follows the student's press at once, so a room still opening cannot look like a press that missed. */
   isTalkOn: boolean;
   connect(options?: { wantsGreeting: boolean; startsOver?: boolean }): Promise<LiveVoice | null>;
-  sendTyped(text: string): Promise<boolean>;
+  sendTyped(text: string, isOpening?: boolean): Promise<boolean>;
   toggleTalk(): Promise<void>;
   /** Leaves a room the tutor has gone from, opens a new one with a new tutor, and starts it talking with this line. */
   openAgain(opening: string): Promise<void>;
@@ -102,10 +102,10 @@ export function useLiveVoice({ sessionId, usesSpeechCleanup = true, start = star
   }, []);
 
   const sendTyped = useCallback(
-    async (text: string) => {
+    async (text: string, isOpening = false) => {
       const opened = await connect({ wantsGreeting: false });
       if (!opened || opened.getView().closedBecause) return false;
-      opened.sendTyped(text);
+      opened.sendTyped(text, isOpening);
       return true;
     },
     [connect],
@@ -138,7 +138,7 @@ export function useLiveVoice({ sessionId, usesSpeechCleanup = true, start = star
       setVoice(null);
       await old?.close();
       const opened = await connect({ wantsGreeting: false, startsOver: true });
-      opened?.sendTyped(openingLine);
+      opened?.sendTyped(openingLine, true);
     },
   };
 }

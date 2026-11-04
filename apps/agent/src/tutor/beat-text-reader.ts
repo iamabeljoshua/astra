@@ -28,7 +28,7 @@ const ENDS_IN_CLAUSE = /[,;:]\s*$/;
 const ENDS_IN_ABBREVIATION = /(?:^|[\s("'])(?:mr|mrs|ms|dr|prof|st|vs|(?:[a-z]\.)+[a-z])\.["')]*\s*$/i;
 const ENDS_IN_ELLIPSIS = /\.{2,}["')]*\s*$/;
 /** Words only a safety reply uses, so that reply is never paused or wrapped. */
-const SAFETY_REPLY = /\b(?:that sounds serious|right thing telling me|not your fault|adult you trust|emergency number|are you safe)\b/i;
+export const SAFETY_REPLY = /\b(?:that sounds serious|right thing telling me|not your fault|adult you trust|emergency number|are you safe)\b/i;
 const STILL_A_TAG = /^<\/?(?:[A-Za-z_][\w:.-]*(?:\s[^<>\n]*)?)?$/;
 const TAG_NAME = /^<(\/?)([A-Za-z_][\w:.-]*)/;
 const PRIVATE_TAGS: ReadonlySet<string> = new Set(['thinking', 'think', 'reasoning', 'scratchpad', 'analysis', 'reflection', 'function_calls', 'invoke', 'parameter', 'system', 'system-reminder']);

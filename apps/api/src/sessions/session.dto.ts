@@ -1,5 +1,6 @@
 import { Transform } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
+import { IsBoolean, IsIn, IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
 import { ARTWORK_NAMES } from '../artwork';
 import type { ArtworkName } from '../artwork';
 import { IsStorableText } from '../is-storable-text';
@@ -86,6 +87,11 @@ export class UpdateSessionBodyDto {
   @IsOptional()
   @IsIn([SESSION_END_STATUS])
   status?: typeof SESSION_END_STATUS;
+
+  /** With `finished`, leaves the room open for a short while, so the tutor can speak its recap. */
+  @IsOptional()
+  @IsBoolean()
+  keepsRoomForRecap?: boolean;
 }
 
 export class SessionResponseDto {
@@ -118,4 +124,25 @@ export class SessionResponseDto {
   /** The name of the picture that the web app shows for this session, or null if there is none. */
   @IsIn(ARTWORK_NAMES)
   artwork!: ArtworkName | null;
+
+  /** Whether this session has a saved log to replay. */
+  canReplay!: boolean;
+}
+
+export class SessionReplayRunDto {
+  /** When this stretch of the session started. A session the student came back to has one stretch per tutor. */
+  startedAt!: Date;
+
+  /** What happened in this stretch, in order, as the agent logged it. Read these with `parseSessionEvent`. */
+  @ApiProperty({ type: 'array', items: { type: 'object', additionalProperties: true } })
+  events!: object[];
+}
+
+export class SessionReplayResponseDto {
+  /** What the session's end said, or null if it said nothing. Read this with `parseSessionRecap`. */
+  @ApiProperty({ type: 'object', additionalProperties: true, nullable: true })
+  recap!: object | null;
+
+  /** Each stretch of the session, oldest first. */
+  runs!: SessionReplayRunDto[];
 }

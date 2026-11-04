@@ -208,4 +208,30 @@ describe('the agent channel', () => {
       await addSpend(id, { usd: 0.01 }).expect(404);
     });
   });
+  describe('saving a session\'s log and recap', () => {
+    const saveLog = (id: string, body: object, key = AGENT_KEY) => server().post(`/agent/sessions/${id}/log`).set('Authorization', `Bearer ${key}`).send(body);
+    const saveRecap = (id: string, body: object) => server().post(`/agent/sessions/${id}/recap`).set('Authorization', `Bearer ${AGENT_KEY}`).send(body);
+    const RUN = { runId: randomUUID(), runStartedAt: '2026-11-04T10:00:00.000Z', events: [{ seq: 0, event: { seq: 0, atMs: 5, kind: 'studentSpoke', text: 'a line' } }] };
+
+    it('saves the log and the recap for the session\'s own student to read, finished or not', async () => {
+      const id = await startSession();
+      await asStudent(server().patch(`/sessions/${id}`)).send({ durationSeconds: 5, status: 'finished' }).expect(200);
+
+      await saveLog(id, RUN).expect(204);
+      await saveRecap(id, { recap: { kind: 'gentle', line: 'Thanks for talking.' } }).expect(204);
+
+      const { body } = await asStudent(server().get(`/sessions/${id}/replay`)).expect(200);
+      expect(body).toEqual({ recap: { kind: 'gentle', line: 'Thanks for talking.' }, runs: [{ startedAt: RUN.runStartedAt, events: [RUN.events[0]?.event] }] });
+    });
+
+    it('refuses a wrong key, an unknown session, and a body that is not a log', async () => {
+      await saveLog(sessionId, RUN, 'a-wrong-key-that-is-just-as-long').expect(401);
+      await saveLog(randomUUID(), RUN).expect(404);
+      await saveRecap(randomUUID(), { recap: { kind: 'gentle', line: 'x' } }).expect(404);
+      await saveLog(sessionId, { ...RUN, runId: 'not-a-uuid' }).expect(400);
+      await saveLog(sessionId, { ...RUN, events: [{ seq: -1, event: {} }] }).expect(400);
+      await saveLog(sessionId, { ...RUN, events: [{ seq: 0 }] }).expect(400);
+      await saveRecap(sessionId, { recap: 'words' }).expect(400);
+    });
+  });
 });

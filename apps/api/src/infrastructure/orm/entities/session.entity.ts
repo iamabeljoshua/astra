@@ -7,6 +7,7 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
+  VirtualColumn,
 } from 'typeorm';
 import type { ArtworkName } from '../../../artwork';
 import { StudentEntity } from './student.entity';
@@ -57,6 +58,18 @@ export class SessionEntity {
 
   @Column('text', { name: 'topic_id', nullable: true })
   topicId!: string | null;
+
+  /** What the session's end said. Only the agent writes it, and only the web app reads inside it. */
+  @Column('jsonb', { nullable: true })
+  recap!: object | null;
+
+  /** Set when the student deletes the replay, so a tutor still closing cannot save it back. */
+  @Column('timestamptz', { name: 'replay_deleted_at', nullable: true })
+  replayDeletedAt!: Date | null;
+
+  /** Asked of the key's first column on every read, so it cannot go stale when a log is saved or deleted. */
+  @VirtualColumn({ type: 'boolean', query: (session) => `SELECT EXISTS (SELECT 1 FROM session_log_events logged WHERE logged.session_id = ${session}.id)` })
+  hasLog!: boolean;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;

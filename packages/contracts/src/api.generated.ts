@@ -105,6 +105,24 @@ export interface paths {
         patch: operations["SessionsController_updateSession"];
         trace?: never;
     };
+    "/sessions/{id}/replay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Gets what the signed-in student's session kept, to play it again. Another student's session answers 404. */
+        get: operations["SessionsController_getReplay"];
+        put?: never;
+        post?: never;
+        /** Deletes what a session kept to replay, leaving its title and length in the list. Another student's session answers 404. */
+        delete: operations["SessionsController_deleteReplay"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/home": {
         parameters: {
             query?: never;
@@ -255,6 +273,27 @@ export interface components {
              * @enum {string|null}
              */
             artwork: "alchemist" | "arc" | "athens" | "balance" | "bars" | "bastille" | "binary" | "blackhole" | "braking" | "branches" | "cake" | "circuit" | "clock" | "curve" | "draughtsman" | "earth" | "earthrise" | "forces" | "frames" | "grid" | "growth" | "ham" | "helix" | "indigo" | "launch" | "lock" | "loom" | "lute" | "melencolia" | "nebula" | "parabola" | "piston" | "pitch" | "prism" | "pyramid" | "route" | "saturn" | "socrates" | "string" | "sunflowers" | "table" | "tangent" | "terrain" | "triangle" | "wave" | "waveform" | "wheat" | null;
+            /** @description Whether this session has a saved log to replay. */
+            canReplay: boolean;
+        };
+        SessionReplayRunDto: {
+            /** @description What happened in this stretch, in order, as the agent logged it. Read these with `parseSessionEvent`. */
+            events: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Format: date-time
+             * @description When this stretch of the session started. A session the student came back to has one stretch per tutor.
+             */
+            startedAt: string;
+        };
+        SessionReplayResponseDto: {
+            /** @description What the session's end said, or null if it said nothing. Read this with `parseSessionRecap`. */
+            recap: {
+                [key: string]: unknown;
+            } | null;
+            /** @description Each stretch of the session, oldest first. */
+            runs: components["schemas"]["SessionReplayRunDto"][];
         };
         UpdateSessionBodyDto: {
             /** @description How long the session has run in total, in seconds. A longer length is saved as 24 hours, so ending a session always works. */
@@ -264,6 +303,8 @@ export interface components {
              * @enum {string}
              */
             status?: "finished";
+            /** @description With `finished`, leaves the room open for a short while, so the tutor can speak its recap. */
+            keepsRoomForRecap?: boolean;
         };
         PickCardResponseDto: {
             /**
@@ -503,6 +544,48 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["SessionResponseDto"];
                 };
+            };
+        };
+    };
+    SessionsController_getReplay: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The ID of the session. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionReplayResponseDto"];
+                };
+            };
+        };
+    };
+    SessionsController_deleteReplay: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The ID of the session. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

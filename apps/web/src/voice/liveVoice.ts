@@ -1,6 +1,6 @@
 import { type BoardState, createChoosingClock, createScenePlayer, type FiredCue, type OutputLevel, type ScenePlayer } from '@astra/board';
 import { checkWorkOnBoard, cleanTypedLine, getNod } from '@astra/board/shared';
-import { type AgentMessage, type BrowserMessage, clipTypedText, type components, type ElementId, type InkPoint, LINK_QUIET_LIMIT_MS, parseAgentMessage, PULSE_EVERY_MS, type StudentWork, type TutorClosedReason } from '@astra/contracts';
+import { type AgentMessage, type BrowserMessage, clipTypedText, type components, type ElementId, type InkPoint, LINK_QUIET_LIMIT_MS, parseAgentMessage, PULSE_EVERY_MS, type SessionRecap, type StudentWork, type TutorClosedReason } from '@astra/contracts';
 import { DisconnectReason, type RemoteTrack, Room, RoomEvent, Track } from 'livekit-client';
 import heldMicWorkletUrl from './held-mic-worklet.js?url';
 import { createLocalYield } from './localYield';
@@ -62,6 +62,11 @@ export interface LiveVoiceView {
   /** Words the student has heard this turn, and the ones already known that are still to come. */
   tutorHeard: readonly string[];
   tutorComing: readonly string[];
+  /** What the session's end says, once the tutor has decided. */
+  recap: SessionRecap | null;
+  /** The tutor has said whether there is a recap. */
+  isRecapDecided: boolean;
+  isRecapOver: boolean;
 }
 
 export type RoomAccess = NonNullable<components['schemas']['LiveRoomResponseDto']['access']>;
@@ -85,7 +90,10 @@ export interface LiveVoice {
   getView(): LiveVoiceView;
   subscribe(listener: () => void): () => void;
   getBoardNow(): { board: BoardState; atMs: number };
-  sendTyped(text: string): void;
+  /** `isOpening` marks a line this page sends to start the tutor, which the student did not type. */
+  sendTyped(text: string, isOpening?: boolean): void;
+  /** Asks the tutor for its recap, and says whether it can be reached to give one. */
+  askForRecap(): boolean;
   /** The board could not draw this mark, so the agent can tell the tutor the student did not see it. */
   reportMarkNotDrawn(markId: string): void;
   sendWork(work: StudentWork, startedMsAgo?: number): void;
@@ -145,7 +153,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
   const listeners = new Set<() => void>();
   const outbox: BrowserMessage[] = [];
   let typingNotedAtMs = -Infinity;
-  let view: LiveVoiceView = { phase: 'connecting', mic: 'off', isSoundBlocked: audioContext.state !== 'running', isQuietWarning: false, isThinking: false, isHeard: false, isTutorSpeaking: false, closedBecause: null, firstWord: null, isStopped: false, typingNoteCount: 0, costUsd: null, startedFresh: false, hasTutorStarted: false, studentLines: [], tutorHeard: [], tutorComing: [] };
+  let view: LiveVoiceView = { phase: 'connecting', mic: 'off', isSoundBlocked: audioContext.state !== 'running', isQuietWarning: false, isThinking: false, isHeard: false, isTutorSpeaking: false, closedBecause: null, firstWord: null, isStopped: false, typingNoteCount: 0, costUsd: null, startedFresh: false, hasTutorStarted: false, studentLines: [], tutorHeard: [], tutorComing: [], recap: null, isRecapDecided: false, isRecapOver: false };
   let lastAgentPulseEpochMs: number | null = null;
   let isClosed = false;
   let hasHeardFirstOnset = false;
@@ -247,6 +255,8 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     }
     if (message.type === 'quietWarning') return setView({ isQuietWarning: message.isOn });
     if (message.type === 'closingForQuiet') return leaveRoom('closedForQuiet');
+    if (message.type === 'recap') return setView({ recap: message.recap, isRecapDecided: true, isThinking: false, isRecapOver: message.recap === null });
+    if (message.type === 'recapOver') return setView({ isRecapOver: true });
     if (message.type === 'heard') return showHeard();
     if (message.type === 'thinking') return setView({ isThinking: message.isThinking });
     if (message.type === 'costSoFar') return setView({ costUsd: message.usd });
@@ -474,11 +484,17 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
       const atMs = clock.getNowMs();
       return { board: player.getBoard(atMs), atMs };
     },
-    sendTyped(text) {
+    sendTyped(text, isOpening = false) {
       const clipped = clipTypedText(text);
       showHeard();
       addStudentWords({ text: clipped, isFinal: true });
-      send({ type: 'typed', ...getStamp(), text: clipped });
+      send({ type: 'typed', ...getStamp(), text: clipped, ...(isOpening ? { isOpening } : {}) });
+    },
+    askForRecap() {
+      if (hasLeftRoom || !canReachAgent()) return false;
+      void mic.setOn(false);
+      send({ type: 'endingSession', ...getStamp() });
+      return true;
     },
     reportMarkNotDrawn(markId) {
       send({ type: 'markNotDrawn', ...getStamp(), markId });

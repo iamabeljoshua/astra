@@ -1,11 +1,16 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { SessionEntity } from '../infrastructure/orm/entities/session.entity';
+import { SessionLogRepository } from '../infrastructure/orm/repositories/session-log.repository';
 import { SessionRepository } from '../infrastructure/orm/repositories/session.repository';
 import { LiveRooms, MOST_WARM_ROOMS, WARM_ROOM_WINDOW_MS } from '../livekit/live-rooms';
+import type { SessionLogRun } from '../infrastructure/orm/repositories/session-log.repository';
 import type { SessionListOptions } from '../infrastructure/orm/repositories/session.repository';
 import type { TopicSession } from '../picks/topic-progress';
 import { TutorSpendService } from '../tutor-spend/tutor-spend.service';
-import type { CreateSessionBodyDto, SessionResponseDto, UpdateSessionBodyDto } from './session.dto';
+import type { CreateSessionBodyDto, SessionReplayResponseDto, SessionResponseDto, UpdateSessionBodyDto } from './session.dto';
+
+/** A student asking to keep a room is not trusted to let it go, so it closes after this long at most. */
+const RECAP_ROOM_LASTS_MS = 120_000;
 
 function requireSession(session: SessionEntity | null): SessionEntity {
   if (!session) throw new NotFoundException('That session was not found.');
@@ -23,6 +28,7 @@ function toSessionResponse(session: SessionEntity): SessionResponseDto {
     durationSeconds: session.durationSeconds,
     detail: session.detail,
     artwork: session.artwork,
+    canReplay: session.hasLog ?? false,
   };
 }
 
@@ -30,6 +36,7 @@ function toSessionResponse(session: SessionEntity): SessionResponseDto {
 export class SessionsService {
   constructor(
     private readonly sessions: SessionRepository,
+    private readonly sessionLogs: SessionLogRepository,
     private readonly liveRooms: LiveRooms,
     private readonly tutorSpend: TutorSpendService,
   ) {}
@@ -64,11 +71,32 @@ export class SessionsService {
   async updateSession(
     studentId: string,
     sessionId: string,
-    changes: UpdateSessionBodyDto,
+    { keepsRoomForRecap = false, ...changes }: UpdateSessionBodyDto,
   ): Promise<SessionResponseDto> {
     const session = requireSession(await this.sessions.updateUnfinishedForStudent(studentId, sessionId, changes));
-    if (session.status === 'finished') await this.liveRooms.close(session.id);
+    if (session.status === 'finished' && keepsRoomForRecap) this.liveRooms.closeAfter(session.id, RECAP_ROOM_LASTS_MS);
+    else if (session.status === 'finished') await this.liveRooms.close(session.id);
     return toSessionResponse(session);
+  }
+
+  async getReplay(studentId: string, sessionId: string): Promise<SessionReplayResponseDto> {
+    const session = requireSession(await this.sessions.findForStudent(studentId, sessionId));
+    return { recap: session.recap, runs: await this.sessionLogs.listRuns(session.id) };
+  }
+
+  async deleteReplay(studentId: string, sessionId: string): Promise<void> {
+    const session = requireSession(await this.sessions.findForStudent(studentId, sessionId));
+    await this.sessions.markReplayDeletedForStudent(studentId, session.id);
+    await this.sessionLogs.deleteForSession(session.id);
+  }
+
+  // Only the agent calls these two, for a session the room's name gave it.
+  async saveLog(sessionId: string, run: SessionLogRun): Promise<void> {
+    if (!(await this.sessions.isReplayDeleted(sessionId))) await this.sessionLogs.saveEvents(sessionId, run);
+  }
+
+  saveRecap(sessionId: string, recap: object): Promise<void> {
+    return this.sessions.saveRecap(sessionId, recap);
   }
 
   async getNewestUnfinishedSession(studentId: string): Promise<SessionResponseDto | null> {

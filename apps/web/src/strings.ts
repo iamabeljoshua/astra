@@ -301,6 +301,7 @@ export const SESSIONS_LABELS = {
   },
   resume: 'Continue \u2192',
   open: 'Open \u2192',
+  replay: 'Replay \u2192',
   today: 'Today',
   rowDetails: (subject: string, date: string, length: string) => `${subject}, ${date}, ${length}`,
   noMatch: 'No sessions match that search.',
@@ -308,6 +309,34 @@ export const SESSIONS_LABELS = {
   loading: 'Loading your sessions.',
   tryAgain: 'Try again',
 };
+
+export const RECAP_LABELS = {
+  writing: 'Looking back over your lesson.',
+  covered: 'What we covered',
+  gotRight: 'What you got right',
+  tryNext: 'One thing to try',
+} as const;
+
+export const REPLAY_LABELS = {
+  status: 'Replay',
+  play: 'Play',
+  pause: 'Pause',
+  timeline: 'Lesson timeline',
+  speed: 'Speed',
+  speedLabel: (speed: number) => `${speed}x`,
+  sound: 'Sound',
+  you: 'You',
+  soundNote: "Your tutor's voice isn't saved. This plays the exact words in your device's own voice.",
+  noSoundNote: "Your tutor's voice isn't saved, and this device has no voice to read it, so the words play as captions.",
+  soundOffNote: "Your tutor's voice isn't saved. The words play as captions.",
+  deleteReplay: 'Delete this replay',
+  deleteQuestion: "Delete this replay for good? The session stays in your list, and its words and board don't.",
+  confirmDelete: 'Delete',
+  keep: 'Keep it',
+  deleteFailed: 'That did not work. Try again.',
+  couldNotLoad: 'This replay did not load.',
+  noneLeft: 'Nothing from this session is saved to replay.',
+} as const;
 
 export const SESSION_LABELS = {
   questionSubject: 'Your question',
@@ -317,7 +346,7 @@ export const SESSION_LABELS = {
   yourTutor: 'Your tutor',
   replyNotSent: 'This did not reach your tutor.',
   replyWaiting: 'Your tutor will read this as soon as it connects.',
-  finishedWords: 'This session has finished.',
+  finishedWords: 'This session has finished, and nothing from it is saved to replay.',
   boardStandIn: 'Your tutor will draw here as it speaks.',
   askAboutTopic: (title: string) => `I'd like to learn about ${title}.`,
   carryOnWith: (title: string) => `I'm back to carry on with this: ${title}`,
@@ -507,16 +536,16 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
           'We also use the sessions you start from suggested lessons, and their length, status, and start time, to choose what your home screen suggests next. A question you leave open can take the continue card, so a lesson you left open can then appear among the suggestions. Only your own sessions do this, and the words of the questions you type play no part in it.',
           'Any file you attach stays in your browser. It is not sent or stored.',
           'Your microphone stays off until you press Talk in a session, and your browser asks first. While it is on, your voice goes live to the services named under Who receives your data. We do not store your voice or any recording of it.',
-          "The words you say or type in a session go to our tutor service, which holds them in memory while the session runs and drops them when it ends. It passes them to Anthropic, as Who receives your data says. We do not store them yet.",
-          "So do the lines you type on the board, what you pick, place, or drag there, and what our code made of each one. We do not store them yet either.",
+          "The words you say or type in a session go to our tutor service, which passes them to Anthropic, as Who receives your data says. We store them as text in that session's log, so you can replay the lesson. Words you say are stored as the text our transcriber heard. We do not store the sound.",
+          "That log also holds the tutor's words and when each one played, what the tutor drew, the lines you type on the board, what you pick, place, or drag there, and what our code made of each one.",
+          "When you end a session, a small AI model at Anthropic reads the tutor's words, what you said and typed, and your work from that session, and writes a short recap. We store the recap with the session. The tutor's voice reads it through ElevenLabs. If a session may have been about your safety, you get a fixed message instead, written with no model.",
+          "When you replay a lesson, we do not store the tutor's voice and we do not make it again. Your own device reads the tutor's words aloud, using only a voice on the device, and nothing leaves it for this.",
           "A line you have typed on the board and not sent stays in your browser until you pause for a few seconds. Then it can go to our tutor service and to Anthropic, so the tutor can tell whether you need help. We do not store it.",
-          "If you write with the pen, your strokes go to our tutor service, which holds them in memory while the session runs. It makes a picture of what you wrote and sends that picture to Anthropic to read it. We do not store the strokes or the picture yet.",
+          "If you write with the pen, your strokes go to our tutor service, which stores them in that session's log so a replay can draw them again. It makes a picture of what you wrote and sends that picture to Anthropic to read it. We do not store the picture.",
           'Words you type into the search box on the Sessions page go to our server, which uses them to find your sessions. We do not store them.',
           'A running total of what the tutor cost for you each day, with no words in it. We use it to stop tutor time for the day at a limit.',
         ],
-        planned: [
-          "Each lesson's transcript and board drawings, with what you typed, wrote, picked, placed, or dragged on the board, kept while the account is active. Your voice itself stays unstored.",
-        ],
+        planned: [],
       },
       {
         heading: 'In your browser',
@@ -564,9 +593,11 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
       {
         heading: 'How long we keep it',
         today: [
-          'We have no retention schedule, and nothing deletes data on a timer. What we store stays until we remove it by hand, except that a change under Your notes replaces the answer it changes. The app has no delete button yet.',
+          "We have no retention schedule, and nothing deletes data on a timer. A session's log and recap stay for as long as your account has that session, unless you delete them. Anyone signed in to your account can open them, and no other student can.",
+          "To delete a session's log and recap, open the session from Sessions and choose Delete this replay. That removes them from our database at once. The session's title, subject, length, and date stay in your list.",
+          'What else we store stays until we remove it by hand, except that a change under Your notes replaces the answer it changes.',
         ],
-        planned: ['A way for you to delete your data from the app.'],
+        planned: ['A way for you to delete the rest of your data from the app.'],
       },
       {
         heading: 'What we do not do',

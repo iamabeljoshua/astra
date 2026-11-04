@@ -1,15 +1,17 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
 import { CurrentStudentId } from '../auth/route-access';
 import {
   CreateSessionBodyDto,
   ListSessionsQueryDto,
   SessionParamsDto,
+  SessionReplayResponseDto,
   SessionResponseDto,
   UpdateSessionBodyDto,
 } from './session.dto';
 import { SessionsService } from './sessions.service';
 
 const DEFAULT_SESSIONS_PER_LIST = 50;
+const NO_CONTENT_STATUS = 204;
 
 @Controller('sessions')
 export class SessionsController {
@@ -40,6 +42,25 @@ export class SessionsController {
     @Param() { id }: SessionParamsDto,
   ): Promise<SessionResponseDto> {
     return this.sessionsService.getSession(studentId, id);
+  }
+
+  /** Gets what the signed-in student's session kept, to play it again. Another student's session answers 404. */
+  @Get(':id/replay')
+  getReplay(
+    @CurrentStudentId() studentId: string,
+    @Param() { id }: SessionParamsDto,
+  ): Promise<SessionReplayResponseDto> {
+    return this.sessionsService.getReplay(studentId, id);
+  }
+
+  /** Deletes what a session kept to replay, leaving its title and length in the list. Another student's session answers 404. */
+  @Delete(':id/replay')
+  @HttpCode(NO_CONTENT_STATUS)
+  deleteReplay(
+    @CurrentStudentId() studentId: string,
+    @Param() { id }: SessionParamsDto,
+  ): Promise<void> {
+    return this.sessionsService.deleteReplay(studentId, id);
   }
 
   /** Saves a session's length and can end it. Another student's session answers 404. */

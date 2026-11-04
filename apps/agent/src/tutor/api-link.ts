@@ -1,9 +1,11 @@
+import type { SessionEvent, SessionRecap } from '@astra/contracts';
 import type { StudentProfile } from './brain.ts';
 
 const ROOM_PREFIX = 'session-';
 /** A room may carry a suffix after the session's uuid, so only this many characters name the session. */
 const SESSION_ID_LENGTH = 36;
 const REQUEST_TIMEOUT_MS = 3000;
+const NO_CONTENT_STATUS = 204;
 
 export interface ApiLinkOptions {
   apiUrl: string;
@@ -15,6 +17,8 @@ export interface ApiLink {
   fetchProfile(): Promise<StudentProfile | null>;
   /** Adds to the student's total for today, and says whether that total is now over the daily limit. */
   reportSpend(usd: number): Promise<{ isOverDailyLimit: boolean }>;
+  saveLog(run: { runId: string; runStartedAt: Date; events: readonly SessionEvent[] }): Promise<void>;
+  saveRecap(recap: SessionRecap): Promise<void>;
 }
 
 // The student's level, interests, and goal come straight from the API, so they never pass through the room service.
@@ -23,7 +27,7 @@ export function createApiLink({ apiUrl, agentKey, roomName }: ApiLinkOptions): A
   const call = async (path: string, init: RequestInit = {}): Promise<unknown> => {
     const response = await fetch(`${apiUrl}/agent/sessions/${sessionId}/${path}`, { ...init, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS), headers: { authorization: `Bearer ${agentKey}`, 'content-type': 'application/json' } });
     if (!response.ok) throw new Error(`The API answered ${response.status} to ${path}`);
-    return response.json();
+    return response.status === NO_CONTENT_STATUS ? null : response.json();
   };
   return {
     async fetchProfile() {
@@ -32,6 +36,12 @@ export function createApiLink({ apiUrl, agentKey, roomName }: ApiLinkOptions): A
     },
     async reportSpend(usd) {
       return (await call('spend', { method: 'POST', body: JSON.stringify({ usd }) })) as { isOverDailyLimit: boolean };
+    },
+    async saveLog({ runId, runStartedAt, events }) {
+      await call('log', { method: 'POST', body: JSON.stringify({ runId, runStartedAt, events: events.map((event) => ({ seq: event.seq, event })) }) });
+    },
+    async saveRecap(recap) {
+      await call('recap', { method: 'POST', body: JSON.stringify({ recap }) });
     },
   };
 }

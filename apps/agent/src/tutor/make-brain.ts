@@ -1,8 +1,11 @@
-import { getBeatText, type InkPoint } from '@astra/contracts';
+import { getBeatText, type InkPoint, type SessionRecap } from '@astra/contracts';
 import { readKey } from '../keys.ts';
 import { makeAnthropicPictureReader, makeAnthropicTutorModel, TUTOR_MODEL_NAMES, type TutorModelName } from '../providers/anthropic.ts';
 import { makeRecordedTutorModel } from '../providers/fake-model.ts';
 import { createStandInTutor } from '../live/stand-in-tutor.ts';
+import type { RecapFacts } from '../recap/recap-facts.ts';
+import { getRecapLines } from '../recap/recap-rules.ts';
+import { writeLessonRecap } from '../recap/write-recap.ts';
 import { type ApiLink, createApiLink } from './api-link.ts';
 import { createTutorBrain, type SpendLimit, type TraceNote, type TurnSummary, type TutorBrain } from './brain.ts';
 import { TUTOR_SYSTEM } from './prompt.ts';
@@ -34,7 +37,7 @@ function makeLedger() {
   return createSpendLedger(path, { limitUsd: Number(process.env.ASTRA_SPEND_LIMIT_USD ?? DEFAULT_LIMIT_USD), limitCredits: Number(process.env.ASTRA_SPEND_LIMIT_CREDITS ?? DEFAULT_LIMIT_CREDITS) });
 }
 
-function makeApiLink(roomName: string): ApiLink | null {
+export function makeApiLink(roomName: string): ApiLink | null {
   const { ASTRA_API_URL: apiUrl, ASTRA_AGENT_KEY: agentKey } = process.env;
   return apiUrl && agentKey ? createApiLink({ apiUrl, agentKey, roomName }) : null;
 }
@@ -104,6 +107,7 @@ export interface MadeBrain {
   readMeaning?(words: string): Promise<WordMeaning | null>;
   readStrokes?(strokes: readonly (readonly InkPoint[])[]): Promise<{ text: string; ink: { tex?: string; isUnsure: boolean } } | null>;
   readSpokenWords?(words: string, expects: SpokenExpected): Promise<SpokenReading>;
+  writeRecap?(facts: RecapFacts): Promise<SessionRecap | null>;
   getSpentUsd?(): number;
 }
 
@@ -147,5 +151,11 @@ export function makeTutorBrain({ roomName, trace }: { roomName: string; trace: T
     caps.addTurn({ usd: reading.costUsd, voiceCharacters: 0 });
     return reading;
   };
-  return { brain, flushSpend: caps.flush, getSpentUsd: caps.getSpentUsd, readMeaning, readStrokes, readSpokenWords };
+  const writeRecap = async (facts: RecapFacts) => {
+    if (caps.getSpendLimit()) return null;
+    const { recap, costUsd } = await writeLessonRecap(wordsModel, facts);
+    caps.addTurn({ usd: costUsd, voiceCharacters: recap ? getRecapLines(recap).join(' ').length : 0 });
+    return recap;
+  };
+  return { brain, flushSpend: caps.flush, getSpentUsd: caps.getSpentUsd, readMeaning, readStrokes, readSpokenWords, writeRecap };
 }

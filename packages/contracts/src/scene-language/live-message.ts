@@ -2,6 +2,7 @@ import type { FrozenFrame } from './beat.ts';
 import type { BeatId, ElementId, TurnId } from './ids.ts';
 import type { SceneCommand } from './scene-command.ts';
 import type { PlayReport, StudentAction } from './session-event.ts';
+import type { SessionRecap } from './session-recap.ts';
 import type { StudentWork } from './work.ts';
 
 /** Each side of a session sends a pulse this often, on the lossy channel. */
@@ -73,7 +74,11 @@ export type AgentMessage =
   /** The room has been quiet for most of its limit. A later message with `isOn` false takes the warning down. */
   | { type: 'quietWarning'; isOn: boolean }
   /** The room stayed quiet to its limit and closes now. */
-  | { type: 'closingForQuiet' };
+  | { type: 'closingForQuiet' }
+  /** What this session's end says, to show as it is spoken, or null when it has nothing to say. */
+  | { type: 'recap'; recap: SessionRecap | null }
+  /** The recap has been spoken, and the tutor leaves the room. */
+  | { type: 'recapOver' };
 
 /**
  * `browserMs` says when this was sent, on the browser's audio clock, and `startedMsAgo` how long before that it really happened.
@@ -95,8 +100,8 @@ export type BrowserMessage = BrowserStamp &
     | { type: 'questionHeard'; turnId: TurnId; beatId: BeatId }
     /** The page has joined and hears the tutor's track. `wantsGreeting` is false when the student opened the room by typing, or came back after a drop. */
     | { type: 'hello'; wantsGreeting: boolean }
-    /** The student typed instead of speaking. */
-    | { type: 'typed'; text: string }
+    /** The student typed instead of speaking. `isOpening` marks a line the page sends to start the tutor, which the student did not type. */
+    | { type: 'typed'; text: string; isOpening?: boolean }
     /** The student did something on the shared board. The agent works out what it means, because a browser's own word for it is not evidence. */
     | { type: 'worked'; work: StudentWork }
     /** The student has not touched the board for this long. `draft` is what they have typed and not sent, and it leaves the page only at a pause. */
@@ -116,4 +121,6 @@ export type BrowserMessage = BrowserStamp &
     | { type: 'audioState'; isRunning: boolean }
     /** The student answered a quiet warning, so the room stays open. */
     | { type: 'stillHere' }
+    /** The student pressed End, so the tutor stops and gives its recap. */
+    | { type: 'endingSession' }
   );
