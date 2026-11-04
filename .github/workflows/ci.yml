@@ -11,7 +11,24 @@ permissions:
   contents: read
 
 jobs:
-  checks:
+  # Each job has its own 2 threads and its own limit, and they run at once, so an answer still comes within the limit of its start.
+  typecheck-and-web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/install
+      # A pnpm filter brings the root back in, and its test script would rerun every package.
+      - name: Run the tests of the packages that are not an app with its own step
+        background: true
+        run: pnpm -r --no-bail --filter '!astra' --filter '!@astra/api' --filter '!@astra/agent' --filter '!@astra/web' test
+      - run: pnpm typecheck
+      - name: Run the web tests on both threads
+        run: pnpm --filter @astra/web test --maxWorkers=2
+      - name: Fail if the other packages' tests failed
+        wait-all:
+
+  api-and-agent:
     runs-on: ubuntu-latest
     timeout-minutes: 4
     env:
@@ -30,29 +47,17 @@ jobs:
         with:
           path: /tmp/postgres-image.tar.zst
           key: ${{ steps.postgres-image.outputs.key }}
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
-        with:
-          node-version-file: .nvmrc
-      - id: pnpm-store
-        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
-      # setup-node's cache misses completely on a new lockfile and saves at the very end, which has cancelled a green job at the limit.
-      - id: restore-pnpm-store
-        uses: actions/cache/restore@v6
+      - id: install
+        uses: ./.github/actions/install
+      - name: Save the new pnpm store
+        if: steps.install.outputs.store-hit != 'true'
+        uses: actions/cache/save@v6
+        background: true
         timeout-minutes: 1
         continue-on-error: true
         with:
-          path: ${{ steps.pnpm-store.outputs.path }}
-          key: pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: pnpm-store-
-      - run: pnpm install --frozen-lockfile
-      - if: steps.restore-pnpm-store.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v6
-        background: true
-        continue-on-error: true
-        with:
-          path: ${{ steps.pnpm-store.outputs.path }}
-          key: pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
+          path: ${{ steps.install.outputs.store-path }}
+          key: ${{ steps.install.outputs.store-key }}
       - name: Fail if POSTGRES_TAG is not the tag that the Supabase CLI uses
         run: |
           cli_tag=$(pnpm exec supabase services | awk '$1 == "supabase/postgres" { print $3 }')
@@ -75,13 +80,11 @@ jobs:
             echo "::error file=packages/contracts/src/api.generated.ts::The generated API types are out of date. Run pnpm api:types and commit the result."
             exit 1
           }
-      # These two use both threads alone, so they run before the tests, and the tests with real timers see no extra load.
       - run: pnpm lint
-      - run: pnpm typecheck
-      # A pnpm filter brings the root back in, and its test script would rerun every package.
-      - name: Run the tests that need no database
+      # Lint uses both threads, so it finishes first, and these tests with real timers see no extra load.
+      - name: Run the agent tests
         background: true
-        run: pnpm -r --no-bail --filter '!astra' --filter '!@astra/api' test
+        run: pnpm --filter @astra/agent test
       - name: Wait for Postgres
         wait: postgres
       - name: Fail if the running Postgres image does not have the pinned digest
@@ -98,5 +101,15 @@ jobs:
           VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_example
         run: pnpm --filter @astra/web build
       - run: pnpm verify start && pnpm verify stop
-      - name: Fail if the tests that need no database failed
+      - name: Fail if the agent tests failed
         wait-all:
+
+  # Merges read this one status. A job that was cancelled at its limit is not a success, so this fails too.
+  checks:
+    needs: [typecheck-and-web, api-and-agent]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Fail unless every job succeeded
+        run: test "${{ needs.typecheck-and-web.result }}" = success && test "${{ needs.api-and-agent.result }}" = success
