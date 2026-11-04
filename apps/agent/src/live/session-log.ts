@@ -12,6 +12,9 @@ export interface SessionLog {
   getEvents(): readonly SessionEvent[];
 }
 
+const MOST_EVENTS = 50_000;
+const MOST_CLOCK_IDS = 16;
+
 // Writes what the browser says played, on one offset per page clock, so a slow message cannot move a beat against its neighbours, and a report it refuses never ends a lesson.
 export function createSessionLog({ getNowMs, getBeat, onWritten, onRefused }: SessionLogOptions): SessionLog {
   const events: SessionEvent[] = [];
@@ -21,6 +24,7 @@ export function createSessionLog({ getNowMs, getBeat, onWritten, onRefused }: Se
     const known = browserToSessionMs.get(clockId);
     if (known !== undefined) return known;
     const offsetMs = Math.round(getNowMs()) - browserMs;
+    if (browserToSessionMs.size >= MOST_CLOCK_IDS) browserToSessionMs.delete(browserToSessionMs.keys().next().value as string);
     browserToSessionMs.set(clockId, offsetMs);
     return offsetMs;
   };
@@ -41,7 +45,7 @@ export function createSessionLog({ getNowMs, getBeat, onWritten, onRefused }: Se
     write(message) {
       const offsetMs = getOffsetMs(message);
       const body = getBody(message);
-      if (!body) return null;
+      if (!body || events.length >= MOST_EVENTS) return null;
       const parsed = parseSessionEvent({ seq: events.length, atMs: Math.max(0, offsetMs + message.browserMs - message.startedMsAgo), ...body });
       if (!parsed.ok) {
         onRefused?.(parsed.problem);

@@ -4,6 +4,7 @@ import { createEchoFilter } from './echo-filter.ts';
 import { createLinkWatch, type LinkWatch } from './link-watch.ts';
 import { getTakeBeat, makeTakeVoice, type StoredTake, type TakePicker, type TakeUse } from './reactions.ts';
 import { getResumeBeats } from './resume-plan.ts';
+import { createMessageGate } from './message-gate.ts';
 import { createSessionLog } from './session-log.ts';
 import { createTypedGate } from './typed-gate.ts';
 import { type SpokenTurn, speakTurn, type TurnMessenger } from './speak-turn.ts';
@@ -57,17 +58,24 @@ interface Thought {
   iterator: AsyncIterator<Beat>;
   /** Beats a stopped turn had taken and never spoke, kept for a resume. */
   unspoken: Beat[];
+  /** The one read of the brain in progress. A resume takes it over, because a second read would queue behind it and let its beat go to a stopped turn. */
+  reading: Promise<IteratorResult<Beat>> | null;
+  latestReader: number;
 }
 
 async function* readThought(thought: Thought | null): AsyncGenerator<Beat> {
   if (!thought) return;
+  const reader = (thought.latestReader += 1);
   for (;;) {
     const unspoken = thought.unspoken.shift();
     if (unspoken) {
       yield unspoken;
       continue;
     }
-    const { done, value } = await thought.iterator.next();
+    thought.reading ??= thought.iterator.next();
+    const { done, value } = await thought.reading;
+    if (reader !== thought.latestReader) return;
+    thought.reading = null;
     if (done) return;
     yield value;
   }
@@ -80,6 +88,9 @@ async function* getResumedThen(resumed: readonly Beat[], thought: Thought | null
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/** A real frozen tab comes back once, and a forged report would otherwise cut and resume the voice on every message. */
+const FEWEST_MS_BETWEEN_FREEZES = 5000;
+
 // Wires what the student does to what the tutor says. The rule decides, this runs its actions, and the voice line keeps every turn apart.
 export function createLiveSession({ messenger, line, voice, tutor, takes, allTakes, setTurnCap, getNowMs = getSteadyNowMs, trace = () => {} }: LiveSessionOptions): LiveSession {
   const startedAtMs = getNowMs();
@@ -91,6 +102,9 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
   const speakingByTurn = new Map<TurnId, Speaking>();
   const queuedEvents: TurnEvent[] = [];
   const typedGate = createTypedGate({ getNowMs, onRelease: (text) => dispatch({ type: 'typed', text }), onHeld: () => trace('typedHeld') });
+  const messageGate = createMessageGate({ getNowMs });
+  let isDroppingMessages = false;
+  let lastFreezeAtMs = Number.NEGATIVE_INFINITY;
   let state: TurnState = INITIAL_TURN_STATE;
   let isDispatching = false;
   let turnCount = 0;
@@ -160,6 +174,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
   function speak({ voiceToUse, beats, isReply, canResume, kind }: { voiceToUse: tts.TTS; beats: Iterable<Beat> | AsyncIterable<Beat>; isReply: boolean; canResume: boolean; kind: string }): Speaking {
     turnCount += 1;
     const turnId = `turn-${turnCount}` as TurnId;
+    const ownThought = canResume ? thought : null;
     const speakingBeats: Beat[] = [];
     beatsByTurn.set(turnId, speakingBeats);
     trace('turnStarted', { turnId, kind });
@@ -180,7 +195,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
         beats,
         getNowMs,
         // The voice cannot be late before it has words, so a slow model is never read as a failed voice.
-        onBeatUnspoken: (beat) => void thought?.unspoken.push(beat),
+        onBeatUnspoken: (beat) => void ownThought?.unspoken.push(beat),
         onBeatStarted(beat) {
           speakingBeats.push(beat);
           if (isReply && speakingBeats.length === 1) setThinking(false);
@@ -271,7 +286,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     cut = null;
     dropThought();
     const controller = new AbortController();
-    const started: Thought = { controller, iterator: tutor.reply({ text }, controller.signal)[Symbol.asyncIterator](), unspoken: [] };
+    const started: Thought = { controller, iterator: tutor.reply({ text }, controller.signal)[Symbol.asyncIterator](), unspoken: [], reading: null, latestReader: 0 };
     thought = started;
     setThinking(true);
     reply = speak({ voiceToUse: voice, beats: readThought(started), isReply: true, canResume: true, kind: 'reply' });
@@ -360,7 +375,8 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     tutor.notePlayed?.({ beatId: message.beatId, playedWords: message.playedWords, firedCues: message.firedCueMs.length });
     trace('played', { turnId: message.turnId, beatId: message.beatId, ending: message.ending, playedWords: message.playedWords, firedCues: message.firedCueMs.length });
     const isLiveTurn = speaking === reply || speaking === reaction;
-    if (message.ending === 'interrupted' && isLiveTurn && state.phase !== 'away') {
+    if (message.ending === 'interrupted' && isLiveTurn && state.phase !== 'away' && getNowMs() - lastFreezeAtMs >= FEWEST_MS_BETWEEN_FREEZES) {
+      lastFreezeAtMs = getNowMs();
       trace('browserFroze', { turnId: message.turnId });
       dispatch({ type: 'linkLost' });
       dispatch({ type: 'linkBack' });
@@ -393,12 +409,19 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       dispatch(event);
     },
     onBrowser(message) {
-      if (message.type !== 'pulse') log.write(message);
+      if (message.type === 'typed') return typedGate.offer(message.text);
+      if (message.type === 'pulse') return link.notePulse(message.hearsAgent, getNowMs());
+      if (!messageGate.take()) {
+        if (!isDroppingMessages) trace('messagesDropped');
+        isDroppingMessages = true;
+        return;
+      }
+      isDroppingMessages = false;
+      log.write(message);
+      if (message.type === 'markNotDrawn') tutor.noteMarkNotDrawn?.(message.markId);
       if (message.type === 'played') onReport(message);
       if (message.type === 'questionHeard') dispatch({ type: 'questionHeard' });
-      if (message.type === 'typed') typedGate.offer(message.text);
       if (message.type === 'hello' && message.wantsGreeting) greet();
-      if (message.type === 'pulse') link.notePulse(message.hearsAgent, getNowMs());
       if (message.type === 'audioState') onAudioState(message.isRunning);
     },
     getLog: () => log.getEvents(),

@@ -86,6 +86,8 @@ export type BrowserMessage = BrowserStamp &
     | { type: 'hello'; wantsGreeting: boolean }
     /** The student typed instead of speaking. */
     | { type: 'typed'; text: string }
+    /** The board could not draw this mark, so the tutor is pointing at something the student cannot see. */
+    | { type: 'markNotDrawn'; markId: string }
     /** Sent every half second on the lossy channel. `hearsAgent` is false once the agent's own pulse has stopped arriving. */
     | { type: 'pulse'; hearsAgent: boolean }
     /** Whether audio can play. A student who cannot hear the tutor reads the captions, and the note must not say "heard". */

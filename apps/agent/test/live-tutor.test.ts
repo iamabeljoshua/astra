@@ -119,6 +119,59 @@ const speakOverTheTutor = async (session: ReturnType<typeof setup>['session'], t
   await delay(500);
 };
 
+describe('hostile data messages', () => {
+  const PLAYED = { wordStartsMs: [0], durationMs: 100, playedWords: 1, firedCueMs: [], ending: 'interrupted' as const, frozen: [], ...STAMP };
+
+  it('starts few replies from 150 forged typed lines in a burst, and loses no words', async () => {
+    const { session, model, messages } = setup(() => ({ pieces: ['Okay, here we go.'] }));
+    for (let index = 0; index < 150; index += 1) session.onBrowser(typed(`line ${index}`));
+    await delay(200);
+    expect(model.requests.length).toBeLessThanOrEqual(3);
+    expect(messages.filter((message) => message.type === 'heard').length).toBeLessThanOrEqual(3);
+    await delay(2100);
+    expect(JSON.stringify(model.requests.at(-1)?.turns)).toContain('line 149');
+    await session.close();
+  });
+
+  it('keeps a loop of forged reports from cutting and resuming the voice again and again', async () => {
+    const words = Array.from({ length: 40 }, (_, index) => `word${index}`).join(' ');
+    const { session, notes, messages } = setup(() => ({ pieces: [words] }));
+    session.onBrowser({ type: 'audioState', isRunning: true, ...STAMP });
+    session.onBrowser(typed('count'));
+    await delay(400);
+    for (let index = 0; index < 6; index += 1) {
+      const turnId = (messages.filter((message) => message.type === 'turnStarted').at(-1) as { turnId: TurnId }).turnId;
+      session.onBrowser({ type: 'played', turnId, beatId: 't1-b0' as never, ...PLAYED });
+      await delay(120);
+    }
+    expect(notes.filter((note) => note.name === 'browserFroze').length).toBeLessThanOrEqual(1);
+    await session.close();
+  });
+
+  it('drops a flood of other messages, so the log stays bounded', () => {
+    const { session, notes } = setup(() => ({ pieces: ['Okay.'] }));
+    for (let index = 0; index < 5000; index += 1) session.onBrowser({ type: 'acted', action: { kind: 'stroke', elementId: 'x', points: [] } as never, ...STAMP });
+    expect(session.getLog().length).toBeLessThan(1000);
+    expect(notes.filter((note) => note.name === 'messagesDropped').length).toBeGreaterThan(0);
+    void session.close();
+  });
+});
+
+describe('a beat still on its way when a cut keeps the thought', () => {
+  it('is said when the tutor carries on', async () => {
+    const { session, messages } = setup(() => ({ pieces: ['Alpha beta. ', 'Delta now.'], stall: { beforePiece: 1, ms: 3500 } }), { ...QUICK, betweenTextMs: 6000 });
+    session.onBrowser(typed('count'));
+    await delay(400);
+    session.onEars({ type: 'voiceStarted' });
+    await delay(TURN_TIMINGS.wordlessStopMs + 100);
+    session.onEars({ type: 'voiceEnded' });
+    await delay(TURN_TIMINGS.transcriptGraceMs + 1800);
+    const spoken = messages.flatMap((message) => (message.type === 'words' ? message.words.map((word) => word.text) : []));
+    expect(spoken.join(' ')).toContain('Delta');
+    await session.close();
+  });
+});
+
 describe('a tutor that has closed', () => {
   it('says why once, tells the page, and plays no reaction with nothing after it', async () => {
     const messages: AgentMessage[] = [];

@@ -99,6 +99,7 @@ const AGENT_MESSAGES: VariantTable<AgentMessage, 'type'> = {
 };
 
 const CLOCK_ID_MAX_CHARACTERS = 64;
+const MARK_ID_MAX_CHARACTERS = 64;
 
 const STAMP_KEYS = ['clockId', 'browserMs', 'startedMsAgo'];
 
@@ -148,6 +149,10 @@ const BROWSER_MESSAGES: VariantTable<BrowserMessage, 'type'> = {
     typed: {
       keys: [...STAMP_KEYS, 'text'],
       read: (fields) => ({ type: 'typed', ...readBrowserStamp(fields), text: clipTypedText(readString(fields.at('text'), LIVE_MESSAGE_MAX_BYTES)) }),
+    },
+    markNotDrawn: {
+      keys: [...STAMP_KEYS, 'markId'],
+      read: (fields) => ({ type: 'markNotDrawn', ...readBrowserStamp(fields), markId: readString(fields.at('markId'), MARK_ID_MAX_CHARACTERS) }),
     },
     pulse: {
       keys: [...STAMP_KEYS, 'hearsAgent'],

@@ -19,6 +19,8 @@ export interface TutorBrain {
   reply(request: TutorRequest, signal: AbortSignal): AsyncIterable<Beat>;
   notePlayed?(report: BeatReport): void;
   noteCut?(wordsSent: ReadonlyMap<BeatId, number>): void;
+  /** The browser could not draw this mark, so the student never saw what the tutor pointed at. */
+  noteMarkNotDrawn?(markId: string): void;
   /** Why the tutor will not answer again in this room, once it has said so. */
   getClosedReason?(): TutorClosedReason | null;
 }
@@ -129,7 +131,7 @@ const CLIPPED_NOTE = { clipped: 'The student wrote more than you can see, and th
 
 /** Strips control and invisible characters, which can hide text from a reader. */
 export function cleanStudentText(text: string): string {
-  return clipTypedText(text.replace(NOT_STUDENT_TEXT, '').replace(TOO_MANY_MARKS, '$1').trim());
+  return clipTypedText(text.normalize('NFC').replace(NOT_STUDENT_TEXT, '').replace(TOO_MANY_MARKS, '$1').trim());
 }
 
 function getWrittenBeat(parts: WrittenBeatParts, id: string, refused: string[]): Beat | null {
@@ -186,6 +188,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
   let closedReason: TutorClosedReason | null = null;
   let hasToldClosed = false;
   let rejectionsInARow = 0;
+  const marksDrawn = new Map<string, { target: string; tex?: string }>();
   let cutWordsSent: ReadonlyMap<BeatId, number> | null = null;
   let turnCount = 0;
   let promptTokens = 0;
@@ -240,6 +243,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
         checkCommand: (command) => checkAgainstBoard(command, readerMemory),
         onCommandKept(command) {
           readerMemory = getMemoryAfter(command, readerMemory);
+          if (command.kind === 'highlight' || command.kind === 'annotate') marksDrawn.set(command.id, { target: command.target, ...('tex' in command && command.tex !== undefined ? { tex: command.tex } : {}) });
         },
         onBadCommand(problem) {
           turn.refused.push(problem);
@@ -627,6 +631,13 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
     },
     noteCut(wordsSent) {
       cutWordsSent = new Map([...wordsSent].map(([beatId, words]) => [(RESUMED_BEAT.exec(beatId)?.[1] ?? beatId) as BeatId, words]));
+    },
+    // Built from what the model itself wrote, so a forged report can name only a mark that already exists.
+    noteMarkNotDrawn(markId) {
+      const mark = marksDrawn.get(markId);
+      if (!mark) return;
+      marksDrawn.delete(markId);
+      pendingNotes.push({ mark_not_drawn: mark });
     },
     getClosedReason: () => (hasToldClosed ? closedReason : null),
   };

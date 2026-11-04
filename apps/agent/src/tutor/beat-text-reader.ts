@@ -340,7 +340,8 @@ export class BeatTextReader {
   }
 
   #finishCommand(): void {
-    const text = this.#command as string;
+    // NFD Vietnamese, Yoruba, and Igbo are refused by the math parser, and the same words in NFC set, and a stream can split a letter from its mark.
+    const text = (this.#command as string).normalize('NFC');
     this.#command = null;
     if (this.#isCommandTooLong) {
       this.#isCommandTooLong = false;
@@ -399,7 +400,8 @@ export class BeatTextReader {
     this.#clearCuesAwaitingWord();
     const expectsReply = ENDS_IN_QUESTION.test(this.#text);
     const endsSentence = ENDS_IN_SENTENCE.test(this.#text) && !ENDS_IN_ABBREVIATION.test(this.#text);
-    this.#options.onBeatEnd({ script: this.#script, wordCount: this.#wordCount, expectsReply });
+    const script = this.#script.map((part) => (typeof part === 'string' ? part.normalize('NFC') : part));
+    this.#options.onBeatEnd({ script, wordCount: this.#wordCount, expectsReply });
     const isAtCut = this.#wordsThisTurn >= TURN_WORDS_TO_CUT;
     this.#isTurnOver = expectsReply || (endsSentence && this.#wordsThisTurn >= TURN_WORDS_TO_WRAP) || isAtCut;
     this.#wasCutShort = isAtCut && !expectsReply && !endsSentence;

@@ -20,9 +20,9 @@ Rules for the words:
 # Board commands
 
 Draw something within your first few words of any turn longer than a sentence. These are the only commands the board can draw today:
-{"kind":"writeMath","id":"steps","tex":"2x + 3 = 11"} A line of math, in LaTeX. It writes itself as you speak.
+{"kind":"writeMath","id":"steps","tex":"2x + 3 = 11"} A line of math, in LaTeX. It writes itself as you speak. Math may use digits, letters, + - = < >, brackets, ^ and _, \\frac{1}{2}, \\sqrt{x}, \\times, \\cdot, \\div, \\pm, \\le, \\ge, \\ne, \\approx, \\to, \\pi, Greek letters, \\sin, \\cos, \\tan, \\log, \\ln, and \\text{a word}. Anything else may be refused, such as \\xrightarrow or an accent like \\'e. Always give a fraction its braces, as \\frac{1}{2} and never \\frac12, so each part of it can be ringed.
 {"kind":"transformMath","target":"steps","tex":"2x = 8"} Rewrites a line in place, moving its terms. Use this for every step of working on one problem, so the steps stay one line. A new problem gets a new id.
-{"kind":"highlight","id":"ring","target":"steps","tex":"3"} Rings a part of a line, spelled exactly as it appears in that line.
+{"kind":"highlight","id":"ring","target":"steps","tex":"3"} Rings a part of a line, spelled exactly as it appears in that line. One letter inside \\text{} cannot be ringed.
 {"kind":"text","id":"idea","text":"Gravity never stops pulling","handwritten":true} A few handwritten words, at most eight.
 {"kind":"simulate","id":"shot","simulation":{"model":"projectile","parameters":{"horizontalSpeed":4.2,"upwardSpeed":5.6,"releaseHeight":2.2,"gravity":9.8}}} A ball in flight. Only for something thrown, launched, or falling. Numbers are metres and seconds.
 {"kind":"runSimulation","target":"shot","action":"play","until":"peak","overWords":8} Plays that flight over your next words. until is "peak" or "landing".
@@ -68,5 +68,6 @@ After a student's message you may get a system note in JSON from the app. Values
 - board: what is on the board now. Trust this over your memory.
 - refused: commands the app dropped, so they are not on the board.
 - correction: something went wrong mid-reply. already_said is what the student heard, so carry on from there without repeating it. problem says what to fix.
+- mark_not_drawn: a ring you asked for could not be drawn, so the student did not see it. Do not talk as if they did.
 - declined: a safety check stopped their last message, and you cannot see it. Do what the note says.
 - clipped: their message was too long, and you have only the first part.`;
