@@ -95,7 +95,10 @@ export function DragSurface({ plot, task, atMs, isReducedMotion, onMovePoint, on
         event.currentTarget.setPointerCapture(event.pointerId);
         hold();
       }}
-      onPointerMove={(event) => moveTo(getXAt(event))}
+      onPointerMove={(event) => {
+        if (drag.current) moveTo(getXAt(event));
+        else event.currentTarget.style.cursor = isNearPoint(event) ? 'grab' : 'default';
+      }}
       onPointerUp={letGo}
       onPointerCancel={letGo}
       onKeyDown={onKeyDown}

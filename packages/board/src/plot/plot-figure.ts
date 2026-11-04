@@ -7,8 +7,8 @@ import type { BoardElement } from '../player/board-state.ts';
 import { getReshapedValues } from '../player/board-state.ts';
 import { PLANNED_SCENES } from '../player/planned-scenes.ts';
 import { getPointFacts } from '../shared/check-work.ts';
-import { getPointX, snapDragX } from '../shared/drag-point.ts';
-import { formatNumber } from './axis-ticks.ts';
+import { getDragStep, getPointX, snapDragX } from '../shared/drag-point.ts';
+import { formatNumber, getStepDecimals } from './axis-ticks.ts';
 import type { PlotFrame } from './plot-scene.ts';
 import { type CurveDrawing, getBranchesUpTo } from './sample-curve.ts';
 
@@ -119,9 +119,13 @@ function getMiddleOfCurve(root: PlotElement, { frame, view }: { frame: FigureFra
   return middle ? view.toPixel(middle) : { x: (view.rect.left + view.rect.right) / 2, y: (view.rect.top + view.rect.bottom) / 2 };
 }
 
-const formatOnPoint = (value: number) => formatNumber(Number(value.toFixed(1)), 4);
+const getPointFormatter = (domain: readonly [number, number]) => {
+  const decimals = Math.max(1, getStepDecimals(getDragStep(domain)));
+  return (value: number) => formatNumber(Number(value.toFixed(decimals)), decimals + 3);
+};
 
 function addTangent(draft: FigureDraft, element: BoardElement, { at, x, slope, frame, view, root }: { at: Point; x: number; slope: number; frame: FigureFrame; view: FigureView; root: PlotElement }): void {
+  if (!Number.isFinite(slope)) return;
   const [low, high] = root.content.domain;
   const reach = (high - low) * TANGENT_REACH_SHARE;
   const y = (getPlotFrame(root, frame)?.getValue(x) as number);
@@ -130,7 +134,7 @@ function addTangent(draft: FigureDraft, element: BoardElement, { at, x, slope, f
   const shown = Math.abs(slope) < SLOPE.flatBelow ? 0 : slope;
   const slopeX = Math.max(view.rect.left + SLOPE.gapX, Math.min(view.rect.right - SLOPE.gapX, at.x + (shown < 0 ? -SLOPE.gapX : SLOPE.gapX)));
   const slopeY = at.y + SLOPE.gapY > view.rect.bottom ? at.y - SLOPE.gapY : at.y + SLOPE.gapY;
-  draft.marks.push({ kind: 'text', key: `slope-${element.id}`, at: { x: slopeX, y: slopeY }, lines: [`${frame.words.slope} ${formatOnPoint(shown)}`], anchor: 'middle', tone: 'pen' });
+  draft.marks.push({ kind: 'text', key: `slope-${element.id}`, at: { x: slopeX, y: slopeY }, lines: [`${frame.words.slope} ${getPointFormatter(root.content.domain)(shown)}`], anchor: 'middle', tone: 'pen' });
 }
 
 // The student's point rides on the curve, with a ring until it is first moved, its coordinates, and the tangent if the tutor has shown it.
@@ -149,7 +153,7 @@ function addDragPoint(draft: FigureDraft, element: BoardElement & { content: Tas
     kind: 'text',
     key: `coordinates-${element.id}`,
     at: { x: fitsRight ? at.x + COORDINATES.gapX : at.x - COORDINATES.gapX - COORDINATES.width, y: at.y - COORDINATES.gapY < view.rect.top + COORDINATES.gapY ? at.y + COORDINATES.gapY * 2 : at.y - COORDINATES.gapY },
-    lines: [`(${formatOnPoint(x)}, ${formatOnPoint(y)})`],
+    lines: [`(${getPointFormatter(root.content.domain)(x)}, ${getPointFormatter(root.content.domain)(y)})`],
     anchor: 'start',
     tone: 'ink',
   });

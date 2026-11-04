@@ -62,6 +62,7 @@ describe('the student\'s point on a plot', () => {
     const marks = getMarksAt([place(PLOT, 0), place(DRAG, 1000), place(TANGENT, 1000), moved(5, 3000)], 3500);
     const tangent = named(marks, 'tangent-');
     if (tangent?.kind !== 'path') throw new Error('no tangent');
+    expect(textOf(named(marks, 'slope-'))).toBe('slope 6');
     for (const point of tangent.branches.flat()) {
       expect(point.x).toBeLessThanOrEqual(SIZE.width);
       expect(point.y).toBeGreaterThanOrEqual(0);
@@ -77,6 +78,13 @@ describe('the student\'s point on a plot', () => {
     expect(getDragXAtPixel(frame, 5000)).toBe(5);
     const tenths = getDragXAtPixel(frame, SIZE.width / 2) * 10;
     expect(Math.abs(tenths - Math.round(tenths))).toBeLessThan(1e-6);
+  });
+});
+
+describe('a drag on a small plot', () => {
+  it('writes as many places as the point moves in', () => {
+    const marks = getMarksAt([place({ ...PLOT, expression: 'x', domain: [0, 1] }, 0), place(DRAG, 1000), moved(0.37, 3000)], 3500);
+    expect(textOf(named(marks, 'coordinates-'))).toBe('(0.37, 0.37)');
   });
 });
 

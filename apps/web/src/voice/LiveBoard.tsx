@@ -42,7 +42,7 @@ function getLatestRowId(board: BoardState): string | null {
       const root = hangsOn.split('.')[0] as string;
       if (board.elements.has(root as ElementId)) return root;
     }
-    if (content.kind === 'writeMath' || content.kind === 'studentLine' || content.kind === 'text' || content.kind === 'diagram' || content.kind === 'task') return id;
+    if (content.kind === 'writeMath' || content.kind === 'studentLine' || content.kind === 'text' || content.kind === 'diagram' || content.kind === 'plot' || content.kind === 'task') return id;
   }
   return null;
 }

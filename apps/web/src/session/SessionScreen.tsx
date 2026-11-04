@@ -299,7 +299,7 @@ function ReplyBox({ liveVoice, isConnecting, carryOnLine }: { liveVoice: LiveVoi
 
   async function send(text: string) {
     setHasDraft(false);
-    setReply({ text, didFail: false });
+    setReply(isConnecting ? { text, didFail: false } : null);
     const wasSent = await sendTyped(text);
     if (!wasSent) setReply({ text, didFail: true });
   }
