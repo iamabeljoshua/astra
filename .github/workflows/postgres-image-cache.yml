@@ -15,7 +15,6 @@ on:
       - .github/scripts/postgres-image.sh
   schedule:
     - cron: '17 5 * * *'
-  workflow_dispatch:
 
 permissions:
   contents: read

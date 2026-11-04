@@ -1,0 +1,33 @@
+name: Probe
+on: pull_request
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        n: [1, 2]
+    env:
+      POSTGRES_TAG: 17.6.1.075
+      POSTGRES_DIGEST: sha256:82a04ba6c05f60950a74ae46be3726abb18d06ee44da936276fd782e72e36855
+    steps:
+      - uses: actions/checkout@v7
+      - id: postgres-image
+        run: .github/scripts/postgres-image.sh key >> "$GITHUB_OUTPUT"
+      - uses: actions/cache/restore@v6
+        timeout-minutes: 1
+        continue-on-error: true
+        with:
+          path: /tmp/postgres-image.tar.zst
+          key: ${{ steps.postgres-image.outputs.key }}
+      - run: .github/scripts/postgres-image.sh start-docker
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: bash .github/probe/probe.sh
