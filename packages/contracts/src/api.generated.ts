@@ -139,6 +139,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/record": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reads everything the tutor remembers about the signed-in student. */
+        get: operations["LearnerRecordController_getRecord"];
+        put?: never;
+        post?: never;
+        /** Deletes every note about the signed-in student. */
+        delete: operations["LearnerRecordController_deleteAll"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/record/notes/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Deletes one note. The tutor forgets it, and running that session's update again does not bring it back. */
+        delete: operations["LearnerRecordController_deleteNote"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/scene-takes/{sceneId}/{theme}": {
         parameters: {
             query?: never;
@@ -168,6 +203,58 @@ export interface paths {
         /** Opens the stand-in lesson for the signed-in student's own session, until the live room and the tutor's brain take over. Another student's session answers 404, a finished one 409, and a student past a lesson limit 429, with the reason and the real wait in its body. */
         post: operations["ScenesController_openSceneLesson"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/scene-library/sample": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A sample of the library for a named reviewer, weighted to opening scenes. Anyone else gets 403. */
+        get: operations["SceneLibraryController_getSample"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/scene-library/{sceneId}/sheet": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The frames a scene's review saw, in the light theme, for a named reviewer. Anyone else gets 403. */
+        get: operations["SceneLibraryController_getSheet"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/scene-library/{sceneId}/flag": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Flags a scene, so no student sees it until someone has looked at it. Anyone but a named reviewer gets 403. */
+        put: operations["SceneLibraryController_flagScene"];
+        post?: never;
+        /** Someone has looked at a flagged scene, and it may show again. Anyone but a named reviewer gets 403. */
+        delete: operations["SceneLibraryController_clearFlag"];
         options?: never;
         head?: never;
         patch?: never;
@@ -352,11 +439,74 @@ export interface components {
              */
             unavailableBecause: "notSetUp" | "dailyLimit" | null;
         };
+        LearnerEvidenceDto: {
+            /**
+             * @description Where this came from. `board` is a line of math or a task that code checked. `words` says the note stands on what the student said.
+             * @enum {string}
+             */
+            source: "board" | "words";
+            /** @description The checked line on `board`. Always empty on `words`, because a student's own words are never stored. */
+            text: string;
+            /**
+             * @description What code found when it checked a line of work. Words have no check.
+             * @enum {string|null}
+             */
+            check: "right" | "wrong" | null;
+        };
+        LearnerNoteDto: {
+            /** @description The note's ID. */
+            id: string;
+            /**
+             * @description What the note says about the student: `showed`, `struggled`, `cares_about`, or `explored`.
+             * @enum {string}
+             */
+            kind: "showed" | "struggled" | "cares_about" | "explored";
+            /** @description The thing itself, in a few plain words. */
+            topic: string;
+            /** @description One plain detail, if there is one. */
+            detail: string | null;
+            /** @description What really happened, which is why this note exists. */
+            evidence: components["schemas"]["LearnerEvidenceDto"][];
+            /** @description The session this note came from. */
+            sessionId: string;
+            /** @description That session's title. */
+            sessionTitle: string;
+            /**
+             * Format: date-time
+             * @description When the note was written.
+             */
+            notedAt: string;
+        };
+        LearnerRecordDto: {
+            /** @description Everything the tutor remembers about this student, newest first. */
+            notes: components["schemas"]["LearnerNoteDto"][];
+        };
         SceneLessonResponseDto: {
             /** @description The LiveKit address that the browser connects to. */
             url: string;
             /** @description Lets this student join this lesson's room. */
             token: string;
+        };
+        LibrarySceneDto: {
+            /** @description The stored scene. */
+            sceneId: string;
+            /** @description The title on the server's own list. */
+            title: string;
+            /**
+             * @description An opening scene for a Home topic, or one of the deeper scenes on it.
+             * @enum {string}
+             */
+            kind: "opening" | "deeper";
+            /** @description The subject of the Home topic it belongs to. */
+            subject: string;
+            /** @description What the tutor says over the scene, with its moment marks. */
+            narration: string;
+            /** @description The question the tutor asks after it. */
+            close: string;
+            /** @description A reviewer flagged it, so no student sees it until someone has looked at it. */
+            isFlagged: boolean;
+            /** @description Always false for now, because no person has checked a library scene. */
+            isCheckedByPerson: boolean;
         };
     };
     responses: never;
@@ -592,6 +742,62 @@ export interface operations {
             };
         };
     };
+    LearnerRecordController_getRecord: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LearnerRecordDto"];
+                };
+            };
+        };
+    };
+    LearnerRecordController_deleteAll: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    LearnerRecordController_deleteNote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The ID of a note. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     ScenesController_getSceneTake: {
         parameters: {
             query?: never;
@@ -633,6 +839,88 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["SceneLessonResponseDto"];
                 };
+            };
+        };
+    };
+    SceneLibraryController_getSample: {
+        parameters: {
+            query?: {
+                /** @description The same number draws the same sample. */
+                seed?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibrarySceneDto"][];
+                };
+            };
+        };
+    };
+    SceneLibraryController_getSheet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The stored scene. */
+                sceneId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SceneLibraryController_flagScene: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The stored scene. */
+                sceneId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SceneLibraryController_clearFlag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The stored scene. */
+                sceneId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

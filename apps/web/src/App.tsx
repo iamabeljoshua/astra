@@ -9,6 +9,7 @@ import { useSignInDraft } from './auth/useSignInDraft';
 import { LegalPage } from './legal/LegalPage';
 import { LEGAL_PATHS } from './legal/legalPaths';
 import { RootErrorBoundary } from './RootErrorBoundary';
+import { SCENE_LIBRARY_PATH, SceneLibraryPage } from './scenes/SceneLibraryPage';
 import { isLessonEnabled } from './session/lessonFlag';
 import { SESSION_ROUTE } from './session/sessionPath';
 import { AppShell } from './shell/AppShell';
@@ -88,6 +89,7 @@ function SignedInRoutes() {
           </Suspense>
         }
       />
+      <Route path={SCENE_LIBRARY_PATH} element={<SceneLibraryPage />} />
       <Route path="*" element={<AppShell />} />
     </Routes>
   );

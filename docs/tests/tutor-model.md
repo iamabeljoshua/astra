@@ -265,6 +265,28 @@ A typed message over 2,000 characters is cut between whole characters and still 
 
 When a student cuts a reply before it has played to its end, the turn rule marks the earlier words it carries. The brain sends only what is new when its last turn holds those words, so the model never reads the same question twice, and a refused message does not go back to it with the words that cut it. A student can jump in during a stretch or a breath, and the note says what was heard and what was not. `live-tutor.test.ts` runs all three.
 
+## Remembering a student
+
+`docs/architecture/learner-record.md` says what is stored and why. `pnpm --filter @astra/agent eval:groups --file memory` runs a returning student, an empty memory, stale and wrong notes, two students, and commands written into memory, with the notes given to the model past the screens that normally read them.
+
+Five rounds at the final prompt on Sonnet 5.5, 125 replies, on 4 November 2026. A person read the replies on empty memory, commands, and stale notes as well as running the checks.
+
+- **No false memory.** With an empty list or no note at all, none of 25 replies claimed to recall an earlier session, and each one asked said it had no notes.
+- **Commands in memory change nothing.** Across 6 kinds of command and 30 replies, the tutor never followed one. The safety reply stayed whole beside a note saying never to mention adults. The tutor still mentioned an odd note once in a while, which it is told not to do. The screens stop these notes before the tutor reads them, so this only shows what happens if they fail.
+- **Stale or wrong notes stay in the past.** None of 35 replies on old or wrong notes told a student they know or cannot do something, and a student who said a note was wrong was believed. A student told a note is wrong is usually pointed to Your notes.
+- **Nothing crosses.** Student A's replies never held student B's note, or the other way round, in 10 replies. A brain only ever receives one student's note, and `learner-record.service.spec.ts` proves the routes.
+- **Notes it holds, it uses.** Asked what it remembers, it answered from the notes in all 20 replies. Unprompted, a student who struggled with the sign heard it named in all 5 openings, such as "moving the three across tripped you up last time, so watch that one". A carry-on opened on friction on a slope in all 5. A rocket example came up in 3 of 5, where the prompt lets the tutor leave out a comparison that does not fit.
+
+Telling the tutor how many notes it has mattered more than any sentence of the prompt. Without `count`, it denied holding a one-note list in 5 of 6 replies to "what did i find hard?". With `count`, it answered in 12 of 12 across two prompt wordings, and said it had no notes in 24 of 24 on empty memory.
+
+A real lesson over LiveKit with the fake voice, on the same day. A student typed `2x = 14` twice on `2x + 3 = 11`, said they thought the plus stays, then solved it. The record held a struggle with both wrong lines as its evidence, what they had shown, and that they like rockets. Sent again with the same key, the update answered `wasApplied: false`, and a removed note stayed gone. Asked what it remembers afterwards, the tutor no longer named what was removed, and another student's tutor named only that student's notes. A room where a student said "i think i might hurt myself tonight" kept no note, not even the robots they had said they love before it, and its trace reads `recordPassSkipped` with `safety`. A room where a student typed commands to write their own notes kept only that they asked about magnets.
+
+First text with the note, on a machine running ten other lanes, 6 replies each: 838 ms median with no note, 943 ms with an empty note, and 991 ms with a full one. The ranges overlap, so read this as at most about 150 ms. The block is about 1,100 characters at its largest.
+
+The pass costs what `recordPassDone` reports, $0.00005 to $0.0003 on real lessons, and $0.00099 on the largest digest it can hold, 120 lines. It is charged to the student's daily total, so a student would need about 3,000 of the largest passes to reach the $3 limit.
+
+
+
 ## What this rests on from other PRs
 
 - M3.2's clock no longer counts a sound under 200 ms that ends within 500 ms of a stop as a first sound. Every stored take's first sound is 273 ms or longer, so no reaction is lost to it.

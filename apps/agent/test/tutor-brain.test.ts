@@ -1,6 +1,6 @@
 import { type Beat, getBeatText, getCues, parseBeat, type SceneCommand, type TurnId } from '@astra/contracts';
 import { createScenePlayer, createTimerClock } from '@astra/board';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { makeFakeTutorModel, type FakeReply } from '../src/providers/fake-model.ts';
 import type { TutorModelRequest } from '../src/providers/types.ts';
 import { createTutorBrain, type TurnSummary, TUTOR_TIMEOUTS, type TutorBrain } from '../src/tutor/brain.ts';
@@ -765,5 +765,73 @@ describe('words a cut reply carries into the next request', () => {
     await ask(brain, 'A refused message are you there', 'A refused message');
     expect(getUsers(model.requests.at(-1))).toEqual(['are you there']);
     expect(JSON.stringify(model.requests.at(-1)?.turns)).toContain('A safety check stopped an earlier message');
+  });
+});
+
+describe('the memory note', () => {
+  const MEMORY = { memory: { count: 1, notes: [{ kind: 'struggled' as const, about: 'moving a term', days_ago: 2, known_from: 'checked_on_board' as const }] } };
+  const getNotes = (request: TutorModelRequest | undefined) => (request?.turns ?? []).flatMap((turn) => (turn.role === 'system' ? [JSON.parse(turn.text) as Record<string, unknown>] : []));
+
+  function makeBrain(options: Partial<Parameters<typeof createTutorBrain>[0]>) {
+    const requests: TutorModelRequest[] = [];
+    const notes: string[] = [];
+    const model = makeFakeTutorModel((request) => {
+      requests.push(request);
+      return reply('Sure, take a look.');
+    });
+    return { requests, notes, brain: createTutorBrain({ model, timeouts: QUICK, trace: (name) => notes.push(name), ...options }) };
+  }
+
+  it('reaches the first reply as data, once', async () => {
+    const { brain, requests } = makeBrain({ loadMemory: async () => MEMORY });
+
+    await collect(brain, 'hello');
+    await collect(brain, 'and again');
+
+    expect(getNotes(requests[0])).toContainEqual(MEMORY);
+    expect(getNotes(requests[1]).filter((note) => 'memory' in note)).toHaveLength(1);
+  });
+
+  it('says an empty memory out loud, so the tutor knows it knows nothing', async () => {
+    const { brain, requests } = makeBrain({ loadMemory: async () => ({ memory: { count: 0, notes: [] } }) });
+
+    await collect(brain, 'hello');
+
+    expect(getNotes(requests[0])).toContainEqual({ memory: { count: 0, notes: [] } });
+  });
+
+  it('answers with no note and no failure when memory cannot be read', async () => {
+    const { brain, requests, notes } = makeBrain({ loadMemory: () => Promise.reject(new Error('The API answered 503')) });
+
+    const beats = await collect(brain, 'hello');
+
+    expect(say(beats)).toContain('Sure');
+    expect(getNotes(requests[0]).filter((note) => 'memory' in note)).toEqual([]);
+    expect(notes).toContain('memoryFailed');
+  });
+
+  it('never holds up the first words on a slow read', async () => {
+    const { brain } = makeBrain({ loadMemory: () => new Promise(() => {}), timeouts: { ...QUICK, profileWaitMs: 20 } });
+    const startedMs = performance.now();
+
+    await collect(brain, 'hello');
+
+    expect(performance.now() - startedMs).toBeLessThan(1000);
+  });
+
+  it('comes back after the history is compacted', async () => {
+    const compact = vi.fn(async () => ({ summary: { type: 'compaction', content: 'summary' }, usage: { inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0 } }));
+    const requests: TutorModelRequest[] = [];
+    const model = { ...makeFakeTutorModel((request) => {
+      requests.push(request);
+      return reply('Sure, take a look.');
+    }), compact };
+    const brain = createTutorBrain({ model, timeouts: QUICK, memory: MEMORY, compactAtTokens: 1 });
+
+    for (let turn = 0; turn < 14; turn += 1) await collect(brain, `line ${turn}`);
+    await collect(brain, 'one more');
+
+    expect(compact).toHaveBeenCalled();
+    expect(getNotes(requests.at(-1)).filter((note) => 'memory' in note).length).toBeGreaterThan(0);
   });
 });
