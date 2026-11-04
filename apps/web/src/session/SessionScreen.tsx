@@ -272,9 +272,9 @@ function Board({ artwork, note }: { artwork: Artwork | null; note?: string }) {
   );
 }
 
-// A card always starts with a picture, and a rename takes it away, so a card with none has moved to the topic in its title.
-function getBarSubject({ topicId, artwork, title, subject }: Session) {
-  return topicId && !artwork ? title : subject;
+// A card always starts with a picture and a rename takes it away, so a card with none has moved to the topic in its title. A typed question never had one, so nothing saved says it moved.
+function getBarSubject({ artwork, title, subject }: Session) {
+  return !artwork && subject !== SESSION_LABELS.questionSubject ? title : subject;
 }
 
 function getSessionVisual(artwork: Artwork | null) {

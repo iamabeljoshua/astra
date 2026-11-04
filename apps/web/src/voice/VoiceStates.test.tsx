@@ -182,6 +182,14 @@ describe('what the student sees of a room', () => {
     await waitFor(() => expect(screen.queryByTestId('board-visual')).toBeNull());
   });
 
+  it('keeps the new topic in the bar after a reload, and no picture, once a card has moved off its own topic', async () => {
+    await openVoice(makeVoice(), { artwork: null, subject: 'Astronomy', title: 'A black hole' });
+
+    expect(screen.getAllByText('A black hole')).toHaveLength(2);
+    expect(screen.queryByText('Astronomy')).toBeNull();
+    expect(screen.queryByTestId('board-visual')).toBeNull();
+  });
+
   it('says in one line that the tutor started fresh after the page landed in a new room', async () => {
     const { setView } = await openVoice();
     act(() => setView({ startedFresh: true }));
