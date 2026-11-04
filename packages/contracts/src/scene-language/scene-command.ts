@@ -73,6 +73,8 @@ export interface WriteMath {
   kind: 'writeMath';
   id: ElementId;
   tex: string;
+  /** Writes it as that many words pass, so the tutor says it as it forms. */
+  overWords?: number;
 }
 
 /** Rearranges an equation in place, so matching terms move and keep their identity. */
@@ -80,6 +82,7 @@ export interface TransformMath {
   kind: 'transformMath';
   target: ElementId;
   tex: string;
+  overWords?: number;
 }
 
 /** Marks an element, or one term of an equation when `tex` names the term. */
@@ -92,10 +95,19 @@ export interface Highlight {
   occurrence?: number;
 }
 
+/** A named value in a plot's expression, such as the `a` in `a*x^2`, which a slider can change. */
+export interface PlotConstant {
+  name: string;
+  value: number;
+  min: number;
+  max: number;
+}
+
 export interface Plot extends BuildsInSteps {
   kind: 'plot';
   id: ElementId;
   expression: string;
+  constants?: PlotConstant[];
   domain: [number, number];
   /** Limits what the axes show, so a curve such as 1/x stays readable. */
   yRange?: [number, number];
@@ -110,6 +122,16 @@ export interface NumberLine {
   kind: 'numberLine';
   id: ElementId;
   domain: [number, number];
+}
+
+/** Shades the area under a plot's curve between two x values. */
+export interface ShadeArea {
+  kind: 'shadeArea';
+  id: ElementId;
+  target: ElementId;
+  from: number;
+  to: number;
+  label?: string;
 }
 
 /** Marks one value on a plot or a number line. */
@@ -181,14 +203,17 @@ export interface TrackVector {
   label?: string;
 }
 
-export interface Slider {
+export type Slider = {
   kind: 'slider';
   id: ElementId;
   target: ElementId;
-  parameter: SimulationParameter;
   min: number;
   max: number;
-}
+} & (
+  | { parameter: SimulationParameter }
+  /** Changes a named constant of a plot. */
+  | { constant: string }
+);
 
 /** Draws the current computed path as a faint line, kept when the student changes a value. */
 export interface GhostPath {
@@ -248,6 +273,7 @@ export interface Text {
   id: ElementId;
   text: string;
   handwritten?: boolean;
+  overWords?: number;
 }
 
 export interface Annotate {
@@ -278,6 +304,7 @@ export type SceneCommand =
   | TransformMath
   | Highlight
   | Plot
+  | ShadeArea
   | NumberLine
   | MarkValue
   | Geometry

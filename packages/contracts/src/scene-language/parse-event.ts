@@ -1,7 +1,7 @@
 import { BEAT_LIMITS, type FrozenFrame, getBeatText, getCues, getSpokenWords } from './beat.ts';
 import { readBeatId, readElementId, readFileId, readTurnId } from './ids.ts';
 import { readBeat } from './parse-beat.ts';
-import { readParameterValue, readRevealPoint, readSimulationSeconds } from './parse-command.ts';
+import { readConstantSliderTarget, readConstantValue, readParameterValue, readRevealPoint, readSimulationSeconds } from './parse-command.ts';
 import {
   fail,
   type CheckedFields,
@@ -19,7 +19,7 @@ import {
   toParseResult,
   type VariantTable,
 } from './read.ts';
-import { SIMULATION_PARAMETERS, type SimulationParameter } from './scene-command.ts';
+import { SIMULATION_PARAMETERS } from './scene-command.ts';
 import {
   BEAT_ENDINGS,
   type BeatPlayed,
@@ -66,23 +66,29 @@ function readInkPoint(place: Place): InkPoint {
   return [readFraction(x), readFraction(y), readWholeNumber(afterMs)];
 }
 
-function readSliderSample(place: Place, parameter: SimulationParameter): SliderSample {
+function readSliderSample(place: Place, readValue: (value: Place) => number): SliderSample {
   const fields = readFields(place, ['afterMs', 'value']);
-  return { afterMs: readWholeNumber(fields.at('afterMs')), value: readParameterValue(fields.at('value'), parameter) };
+  return { afterMs: readWholeNumber(fields.at('afterMs')), value: readValue(fields.at('value')) };
+}
+
+function readDragTarget(fields: CheckedFields) {
+  if (fields.at('constant').value !== undefined) return { ...readConstantSliderTarget(fields), readValue: readConstantValue };
+  const parameter = readOneOf(fields.at('parameter'), SIMULATION_PARAMETERS);
+  return { parameter, readValue: (value: Place) => readParameterValue(value, parameter) };
 }
 
 const STUDENT_ACTIONS: VariantTable<StudentAction, 'action'> = {
   tag: 'action',
   variants: {
     sliderDragged: {
-      keys: ['target', 'parameter', 'samples'],
+      keys: ['target', 'parameter', 'constant', 'samples'],
       read: (fields) => {
-        const parameter = readOneOf(fields.at('parameter'), SIMULATION_PARAMETERS);
+        const { readValue, ...dragged } = readDragTarget(fields);
         return {
           action: 'sliderDragged',
           target: readElementId(fields.at('target')),
-          parameter,
-          samples: readList(fields.at('samples'), { maxLength: LIMITS.sliderSamples, readItem: (sample) => readSliderSample(sample, parameter) }),
+          ...dragged,
+          samples: readList(fields.at('samples'), { maxLength: LIMITS.sliderSamples, readItem: (sample) => readSliderSample(sample, readValue) }),
         };
       },
     },

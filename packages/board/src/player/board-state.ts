@@ -1,10 +1,14 @@
 import type { ElementId, ElementRef, FrozenFrame, InkPoint, SceneCommand, SimulationPoint } from '@astra/contracts';
+import { type MathLine, startMathLine, transformMathLine } from '../math/math-line.ts';
 import type { BoardOperation } from './board-operations.ts';
 import { getMotionValue, holdMotion, isMoving, type Motion, moveOver } from './motion.ts';
 import { PLANNED_SCENES } from './projectile-scene.ts';
 import type { Scene, SceneCatalog, SceneParameters } from './scene.ts';
 
 const ENTRANCE_MS = 400;
+const REARRANGE_MS = 800;
+const WRITING_MS_PER_CHARACTER = 35;
+const LONGEST_WRITING_MS = 1600;
 const MS_PER_SECOND = 1000;
 
 type PlacingCommand = Extract<SceneCommand, { id: ElementId }>;
@@ -24,10 +28,13 @@ export interface PlacedScene {
 export interface BoardElement {
   id: ElementId;
   content: PlacingCommand | InkContent;
-  /** From 0 to 1, how much of its entrance has drawn. */
+  /** From 0 to 1, how much of its entrance or its latest rearrangement has drawn. */
   entrance: Motion;
   placedScene: PlacedScene | null;
   revealedUpTo: Motion | null;
+  math: MathLine | null;
+  /** The equation it is rearranging from, while `entrance` runs. */
+  morphFrom: MathLine | null;
 }
 
 export interface BoardState {
@@ -109,15 +116,30 @@ function setSceneParameter(element: BoardElement, { parameter, value, atMs, keep
   element.placedScene = { scene, parameterChanges, playhead };
 }
 
-function place(board: BoardDraft, command: PlacingCommand, { atMs, catalog }: { atMs: number; catalog: SceneCatalog }): void {
+function getWritingMs(command: PlacingCommand): number {
+  const written = command.kind === 'writeMath' ? command.tex.length : command.kind === 'text' && command.handwritten ? command.text.length : 0;
+  return Math.min(LONGEST_WRITING_MS, Math.max(ENTRANCE_MS, written * WRITING_MS_PER_CHARACTER));
+}
+
+function place(board: BoardDraft, command: PlacingCommand, { atMs, overMs, catalog }: { atMs: number; overMs: number | null; catalog: SceneCatalog }): void {
   const scene = catalog(command, {});
   board.elements.set(command.id, {
     id: command.id,
     content: command,
-    entrance: moveOver({ from: 0, to: 1, atMs, overMs: ENTRANCE_MS }),
+    entrance: moveOver({ from: 0, to: 1, atMs, overMs: overMs ?? getWritingMs(command) }),
     placedScene: scene && { scene, parameterChanges: {}, playhead: holdMotion(0, atMs) },
     revealedUpTo: 'startsEmpty' in command && command.startsEmpty ? holdMotion(0, atMs) : null,
+    math: command.kind === 'writeMath' ? startMathLine(command.tex) : null,
+    morphFrom: null,
   });
+}
+
+function rearrange(element: BoardElement, command: SceneCommand & { kind: 'transformMath' }, { atMs, overMs }: { atMs: number; overMs: number | null }): void {
+  if (element.content.kind !== 'writeMath' || !element.math) return;
+  element.morphFrom = element.math;
+  element.math = transformMathLine(element.math, command.tex);
+  element.content = { ...element.content, tex: command.tex };
+  element.entrance = moveOver({ from: 0, to: 1, atMs, overMs: overMs ?? REARRANGE_MS });
 }
 
 function applyCommand(board: BoardDraft, command: SceneCommand, { atMs, overMs, catalog }: { atMs: number; overMs: number | null; catalog: SceneCatalog }): void {
@@ -134,7 +156,7 @@ function applyCommand(board: BoardDraft, command: SceneCommand, { atMs, overMs, 
       return;
     case 'transformMath': {
       const element = board.elements.get(command.target);
-      if (element?.content.kind === 'writeMath') element.content = { ...element.content, tex: command.tex };
+      if (element) rearrange(element, command, { atMs, overMs });
       return;
     }
     case 'runSimulation': {
@@ -153,7 +175,7 @@ function applyCommand(board: BoardDraft, command: SceneCommand, { atMs, overMs, 
       return;
     }
     default:
-      place(board, command, { atMs, catalog });
+      place(board, command, { atMs, overMs, catalog });
   }
 }
 
@@ -161,7 +183,7 @@ function addInk(board: BoardDraft, operation: BoardOperation & { kind: 'inkStrok
   const existing = board.elements.get(operation.id);
   if (existing && existing.content.kind !== 'ink') return;
   const points = existing?.content.kind === 'ink' ? [...existing.content.points, ...operation.points] : operation.points;
-  board.elements.set(operation.id, { id: operation.id, content: { kind: 'ink', points }, entrance: holdMotion(1, operation.atMs), placedScene: null, revealedUpTo: null });
+  board.elements.set(operation.id, { id: operation.id, content: { kind: 'ink', points }, entrance: holdMotion(1, operation.atMs), placedScene: null, revealedUpTo: null, math: null, morphFrom: null });
 }
 
 interface ReduceContext {
@@ -241,6 +263,8 @@ export function describeBoard(board: BoardState, atMs: number) {
       id: element.id,
       kind: element.content.kind,
       tex: 'tex' in element.content ? element.content.tex : undefined,
+      terms: element.math?.terms.map((term) => `${term.id}:${term.tex}`),
+      morphFrom: element.morphFrom?.tex,
       drawn: round(getMotionValue(element.entrance, atMs)),
       sceneSeconds: element.placedScene ? round(getMotionValue(element.placedScene.playhead, atMs)) : undefined,
       revealedUpTo: element.revealedUpTo ? round(getMotionValue(element.revealedUpTo, atMs)) : undefined,

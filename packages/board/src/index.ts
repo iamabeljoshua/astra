@@ -1,4 +1,5 @@
 export { type AudioClock, type ClockReading, createSampleClock, createTimerClock, type ProbeEvent, type SampleClock, type TurnClock } from './player/audio-clock.ts';
+export { type MathLine, type MathTerm, startMathLine, transformMathLine } from './math/math-line.ts';
 export type { BoardOperation } from './player/board-operations.ts';
 export { type BoardElement, type BoardState, describeBoard, getBoardAt, getSceneFrame } from './player/board-state.ts';
 export { getMotionValue } from './player/motion.ts';
