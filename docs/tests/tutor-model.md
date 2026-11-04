@@ -71,7 +71,7 @@ At 3 turns a minute, the PRD's pace, from real tokens:
 
 The rule is to tell Abel above $0.15. This is under a third of that. Voice and transport are listed prices from the design, and the model is measured. The design guessed $0.071 before its buffer, because it assumed a 15,000 token prompt growing 1,600 tokens a turn, and the real prompt starts at about 2,100 tokens and grows about 135 a turn. M3.8's tools and M3.9's lesson plan will grow it, so this is a floor.
 
-Caching works: 97 to 98% of prompt tokens were read from the cache, at $0.10 a million, and the first turn read 2,078 tokens that warming had written. The frozen system prompt has its own breakpoint, and automatic caching carries the rest of the conversation. `claude-api`'s table says $0.20 for a cache read, and Anthropic's pricing page says $0.10, which is what `providers/anthropic.ts` uses.
+Caching works: 97 to 98% of prompt tokens were read from the cache, at $0.10 a million, and the first turn read 2,078 tokens that warming had written. The frozen system prompt has its own breakpoint, and automatic caching carries the rest of the conversation. The `claude-api` skill says $0.20 for a cache read on Sonnet 5.5. Anthropic's pricing and prompt caching pages, read on 4 November 2026, both say $0.10, 0.05 times the input price, so `providers/anthropic.ts` uses $0.10. If the skill were right, the 90 turn run would cost $0.0024 more a minute, which changes no decision.
 
 ## Long sessions
 
@@ -121,6 +121,13 @@ Student data sent to the model is the level, interests, and goal. The name, date
 
 - M3.3 draws no ring on a part written without braces, like `x^2`, and its fix round is open, so until it lands the tutor can point at nothing there.
 - M3.2's clock no longer counts a sound under 200 ms that ends within 500 ms of a stop as a first sound. Every stored take's first sound is 273 ms or longer, so no reaction is lost to it.
+
+## For later owners
+
+- M3.8: `TUTOR_SYSTEM` is frozen for the cache, and tools cost about 400 ms, as above. `DRAWN_KINDS`, the prompt, and the test that holds them equal change together.
+- M3.9: the current step goes in a note, not the system prompt.
+- M3.12: `BeatTextReader` and `checkAgainstBoard` take new kinds. `check-math.ts` reads the model's math, and a student's step can use `checkMathStep`.
+- PR 87, scenes: the session is `createLiveSession` in `live/live-session.ts`. This branch's early `createTutorSession` is gone. Ask in `startReply`, take what is ready in `onSpeechFinished`, and speak through its `speak`.
 
 ## Choices worth keeping
 
