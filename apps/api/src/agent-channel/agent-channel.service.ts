@@ -23,6 +23,10 @@ export class AgentChannelService {
     return this.tutorSpend.addSpend(await this.getStudentId(sessionId), usd);
   }
 
+  async setTitle(sessionId: string, title: string): Promise<void> {
+    await this.sessions.renameUnfinished(await this.getStudentId(sessionId), sessionId, title);
+  }
+
   private async getStudentId(sessionId: string): Promise<string> {
     const studentId = isUUID(sessionId) ? await this.sessions.findStudentIdOfSession(sessionId) : null;
     if (!studentId) throw new NotFoundException('That session was not found.');

@@ -25,6 +25,10 @@ export interface BoardMemory {
   isLatestMathUnjudged: boolean;
 }
 
+/** A change of subject never needs another session, and the real limits have spoken lines of their own, which this does not read. */
+const SENDS_THEM_AWAY = /\b(?:new|fresh|another|separate)\s+(?:session|chat)\b/i;
+const STAY_IN_THIS_SESSION = 'Never send them to another session. Anything they ask for belongs in this one. Follow what they just asked, right here.';
+
 export const EMPTY_BOARD: BoardMemory = { kinds: new Map(), lines: new Map(), shownLines: new Set(), lastAssertedLine: null, verdicts: new Map(), openTask: null, doneTasks: new Set(), isLatestWorkWrong: false, isLatestMathUnjudged: false };
 
 export const DRAWN_KINDS: ReadonlySet<SceneCommand['kind']> = new Set(['writeMath', 'transformMath', 'plot', 'markValue', 'highlight', 'text', 'hide', 'clearBoard', 'focus', 'simulate', 'runSimulation', 'vector', 'annotate', 'diagram', 'note', 'tangent', 'task', 'boardMode']);
@@ -182,7 +186,16 @@ const NO_PICTURE_YET = 'You spoke as if a picture were on screen or on its way, 
 
 export const getPictureProblem = (text: string, { kinds }: BoardMemory): string | null => (COUNTS_ON_A_PICTURE.some((pattern) => pattern.test(text)) && ![...kinds.values()].includes('richScene') ? NO_PICTURE_YET : null);
 
+/** The prompt's own list of what the tutor may never claim, held here too, because the model still says "I'm glad you told me" to a student in crisis. */
+const CLAIMS_A_FEELING = /\bI(?:'m| am)\s+(?:(?:really|so|very|truly|just)\s+)?(?:glad|happy|sorry|worried|proud)\b|\bI\s+(?:really\s+|do\s+)?care\b|\bmatters?\s+to\s+me\b/i;
+const SAY_WHAT_IS_TRUE = 'You are an AI, so you were about to claim a feeling you do not have, and the student did not hear it. Say what is true instead, such as "that sounds serious" or "you did the right thing telling me". Keep everything else you were going to say.';
+
+export function getClaimProblem(text: string): string | null {
+  return CLAIMS_A_FEELING.test(text) ? SAY_WHAT_IS_TRUE : null;
+}
+
 export function getWordsProblem(text: string, { isLatestWorkWrong, isLatestMathUnjudged, openTask }: BoardMemory, isFirstBeat: boolean): string | null {
+  if (SENDS_THEM_AWAY.test(text)) return STAY_IN_THIS_SESSION;
   if (isFirstBeat && isLatestMathUnjudged && CALLS_IT_WRONG.test(text)) return "Code cannot tell whether the student's last line is wrong, and your words called it wrong. It may be another base or a route of their own. Do not say it is right or wrong. Ask what they did.";
   if (isFirstBeat && isLatestWorkWrong && PRAISE.test(text)) return "Code says the student's last work is wrong, and your words sounded like praise. Do not praise it. Point at where it went wrong, in a few words.";
   if (!openTask?.problemTex || openTask.studentTurns >= FEWEST_TURNS_BEFORE_THE_ANSWER) return null;

@@ -1,8 +1,9 @@
 import { type Beat, type BeatId, type ElementId, clipTypedText, getBeatText, getCues, getPlayedCues, getSpokenWords, isStudentLineId, parseBeat, parseWrittenBeat, type StudentWork, TYPED_TEXT_MAX_CHARACTERS, type TutorClosedReason } from '@astra/contracts';
 import { type BoardOperation, type BoardState, type CheckedWork, checkWorkOnBoard, cleanStudentText as cleanLine, getBoardAt, getNod, getOpenTaskOnBoard, getWorkContext } from '@astra/board/shared';
 import { type ModelEvent, ModelRejectedError, type ModelUsage, type TutorModelAdapter, type TutorModelRequest, type TutorTurn } from '../providers/types.ts';
+import type { LessonPlanner } from '../lesson-plan/lesson-planner.ts';
 import { BeatTextReader, type WrittenBeatParts } from './beat-text-reader.ts';
-import { type BoardMemory, checkAgainstBoard, EMPTY_BOARD, getMemoryAfter, getMemoryAfterAnswering, getMemoryAfterWork, getMemoryOnNewTurn, getPictureProblem, getWordsProblem } from './board-memory.ts';
+import { type BoardMemory, checkAgainstBoard, EMPTY_BOARD, getClaimProblem, getMemoryAfter, getMemoryAfterAnswering, getMemoryAfterWork, getMemoryOnNewTurn, getPictureProblem, getWordsProblem } from './board-memory.ts';
 import { TUTOR_SYSTEM } from './prompt.ts';
 import { createLinePicker, type SpokenLineUse } from './spoken-lines.ts';
 import { getWorkNote } from './watcher/work-note.ts';
@@ -107,6 +108,8 @@ export interface TutorBrainOptions {
   /** The system prompt, frozen for one session because the cache is a prefix match. */
   system?: string;
   onAskScene?(topic: string): void;
+  /** Prepares a lesson plan beside the replies, which a reply never waits for. */
+  lessonPlanner?: LessonPlanner;
 }
 
 type TurnStep = 'over' | 'retry';
@@ -231,7 +234,7 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const toProfileNote = ({ level, interests, goal, cardTitle }: StudentProfile) => ({ student: { level, interests, goal, ...(cardTitle ? { card_title: cardTitle } : {}) } });
 
-export function createTutorBrain({ model, profile = null, loadProfile, timeouts: chosenTimeouts, trace = () => {}, onTurnEnd, onCompacted, compactAtTokens = COMPACT_AT_TOKENS, getSpendLimit = () => null, system = TUTOR_SYSTEM, onAskScene, getNowMs = () => performance.now() }: TutorBrainOptions): Required<TutorBrain> {
+export function createTutorBrain({ model, profile = null, loadProfile, timeouts: chosenTimeouts, trace = () => {}, onTurnEnd, onCompacted, compactAtTokens = COMPACT_AT_TOKENS, getSpendLimit = () => null, system = TUTOR_SYSTEM, onAskScene, getNowMs = () => performance.now(), lessonPlanner }: TutorBrainOptions): Required<TutorBrain> {
   const timeouts: TutorTimeouts = { ...TUTOR_TIMEOUTS, ...chosenTimeouts };
   const pickLine = createLinePicker();
   let breathsTaken = 0;
@@ -243,6 +246,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
   let workCount = 0;
   const getBoardNow = () => getBoardAt(boardOperations, Number.POSITIVE_INFINITY);
   let toldBoard = '{}';
+  let toldStep = 'null';
   let pendingNotes: Record<string, unknown>[] = profileNote ? [profileNote] : [];
   let lastBeats: readonly Beat[] = [];
   let lastRefused: readonly string[] = [];
@@ -283,6 +287,9 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
     const board = JSON.stringify(Object.fromEntries([...memory.kinds].map(([id, kind]) => [id, memory.lines.get(id) ?? kind])));
     if (board !== toldBoard) note.board = JSON.parse(board);
     toldBoard = board;
+    const step = lessonPlanner?.getStepNote() ?? null;
+    if (JSON.stringify(step) !== toldStep) note.lesson_plan = step;
+    toldStep = JSON.stringify(step);
     if (Object.keys(note).length > 0) pendingNotes.push(note);
     lastBeats = [];
     lastRefused = [];
@@ -317,6 +324,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
         onCommandKept(command) {
           readerMemory = getMemoryAfter(command, readerMemory);
           boardOperations.push({ kind: 'command', atMs: boardOperations.length, command, overMs: null });
+          lessonPlanner?.noteCommand(command);
           if (command.kind === 'highlight' || command.kind === 'annotate') marksDrawn.set(command.id, { target: command.target, ...('tex' in command && command.tex !== undefined ? { tex: command.tex } : {}) });
         },
         onBadCommand(problem) {
@@ -327,7 +335,8 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
           turn.wrongMath = problem;
           trace('mathRefused', { problem });
         },
-        checkWords: (text) => (onAskScene ? getPictureProblem(text, readerMemory) : null) ?? getWordsProblem(text, readerMemory, turn.beats.length === 0),
+        // Only a first attempt, because help for a student in crisis must get out, even in imperfect words.
+        checkWords: (text) => (onAskScene ? getPictureProblem(text, readerMemory) : null) ?? getWordsProblem(text, readerMemory, turn.beats.length === 0) ?? (turn.attempts < MAX_ATTEMPTS ? getClaimProblem(text) : null),
         onWrongWords(problem) {
           turn.wrongWords = problem;
           trace('wordsRefused', { problem });
@@ -591,6 +600,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
   const startFromCleanHistory = (turn: TurnWork) => {
     turns = [];
     toldBoard = '{}';
+    toldStep = 'null';
     if (profileNote && !pendingNotes.includes(profileNote)) pendingNotes = [profileNote, ...pendingNotes];
     turn.notes = pendingNotes.map((note) => JSON.stringify(note));
     turn.carriedNotes = pendingNotes.length;
@@ -659,6 +669,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
         if (!result) return trace('compactionEmpty');
         turns = [{ role: 'summary', summary: result.summary }, ...turns.slice(keptFrom)];
         toldBoard = '{}';
+        toldStep = 'null';
         if (profileNote) pendingNotes.push(profileNote);
         onCompacted?.({ costUsd: model.getCostUsd(result.usage), turnsBefore, turnsAfter: turns.length });
       })
@@ -734,6 +745,8 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
         if (said.ok) yield said.value;
         return;
       }
+      // Skipped on any sign of trouble, so serious words never become a lesson's title.
+      if (!MAY_BE_ABOUT_SAFETY.test(studentText)) lessonPlanner?.noteStudentWords({ words: studentText, isOpening: turnCount === 0, tutorSaid: lastBeats.map(getBeatText).join(' ') });
       await waitForLastTurn();
       if (profileLoading) await Promise.race([profileLoading, delay(timeouts.profileWaitMs)]);
       isTurnRunning = true;
@@ -791,6 +804,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
       const checked = checkWorkOnBoard(work, board);
       boardOperations.push({ kind: 'worked', atMs: boardOperations.length, action: { action: 'worked', work, ...checked } });
       memory = getMemoryAfterWork(work, checked, memory);
+      lessonPlanner?.noteWorkChecked(checked);
       workSinceLastTurn.push({ work, checked });
       hasNoddedSinceLastTurn ||= getNod(work, checked) !== null;
       const heldNotesOfWork = pendingNotes.filter((note) => 'student_work' in note);

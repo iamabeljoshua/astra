@@ -55,6 +55,8 @@ export interface LiveVoiceView {
   isStopped: boolean;
   typingNoteCount: number;
   costUsd: number | null;
+  /** The student moved to another topic in this room, so the session is called this now. */
+  sessionTitle: string | null;
   /** This page's room closed and it joined a new one, so the tutor now holds nothing of what was said. */
   startedFresh: boolean;
   /** The tutor has begun its first turn in this page, so the wait for it is over. */
@@ -149,7 +151,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
   const listeners = new Set<() => void>();
   const outbox: BrowserMessage[] = [];
   let typingNotedAtMs = -Infinity;
-  let view: LiveVoiceView = { phase: 'connecting', mic: 'off', isSoundBlocked: audioContext.state !== 'running', isQuietWarning: false, isThinking: false, isHeard: false, isTutorSpeaking: false, closedBecause: null, firstWord: null, isStopped: false, typingNoteCount: 0, costUsd: null, startedFresh: false, hasTutorStarted: false, studentLines: [], tutorHeard: [], tutorComing: [] };
+  let view: LiveVoiceView = { phase: 'connecting', mic: 'off', isSoundBlocked: audioContext.state !== 'running', isQuietWarning: false, isThinking: false, isHeard: false, isTutorSpeaking: false, closedBecause: null, firstWord: null, isStopped: false, typingNoteCount: 0, costUsd: null, sessionTitle: null, startedFresh: false, hasTutorStarted: false, studentLines: [], tutorHeard: [], tutorComing: [] };
   let lastAgentPulseEpochMs: number | null = null;
   let isClosed = false;
   let hasHeardFirstOnset = false;
@@ -255,6 +257,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     if (message.type === 'heard') return showHeard();
     if (message.type === 'thinking') return setView({ isThinking: message.isThinking });
     if (message.type === 'costSoFar') return setView({ costUsd: message.usd });
+    if (message.type === 'sessionTitle') return setView({ sessionTitle: message.title });
     if (message.type === 'studentWords') return addStudentWords(message);
     if (message.type === 'turnStarted' && message.turnId in records.turnStartedEpochMs) {
       records.replayedTurns.push(message.turnId);

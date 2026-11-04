@@ -80,6 +80,10 @@ export class SessionRepository {
     return this.findForStudent(studentId, sessionId);
   }
 
+  async renameUnfinishedForStudent(studentId: string, sessionId: string, title: string): Promise<void> {
+    await this.sessions.update({ id: sessionId, studentId, status: 'in_progress' }, { title });
+  }
+
   listNewestWithTopicForStudent(studentId: string): Promise<SessionEntity[]> {
     return this.sessions.find({
       select: { id: true, topicId: true, status: true, durationSeconds: true },

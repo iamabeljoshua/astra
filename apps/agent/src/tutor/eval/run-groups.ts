@@ -5,7 +5,9 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { type ElementId, getCues, type StudentWork } from '@astra/contracts';
 import { readKey } from '../../keys.ts';
-import { makeAnthropicTutorModel } from '../../providers/anthropic.ts';
+import { askPlanner } from '../../lesson-plan/ask-planner.ts';
+import { createLessonPlanner } from '../../lesson-plan/lesson-planner.ts';
+import { makeAnthropicJsonReader, makeAnthropicTutorModel } from '../../providers/anthropic.ts';
 import { createTutorBrain, type TurnSummary } from '../brain.ts';
 import { TUTOR_SYSTEM } from '../prompt.ts';
 import { createSpendLedger } from '../spend-ledger.ts';
@@ -67,9 +69,13 @@ async function runGroup(group: PromptGroup, ledger: ReturnType<typeof createSpen
   const traces: string[] = [];
   const failures: string[] = [];
   let latest: TurnSummary | null = null;
+  // The same planner a room runs, so these turns test what a student gets.
+  const reader = makeAnthropicJsonReader({ apiKey: readKey('ANTHROPIC_API_KEY') });
+  const lessonPlanner = createLessonPlanner({ ask: (request) => askPlanner(reader, request), canSpend: () => true, charge: (usd) => ledger.charge({ anthropicUsd: usd }), onTitleChange: (title) => console.log(`[${group.name}] title now: ${title}`), trace: () => {} });
   const brain = createTutorBrain({
     model,
     profile: PROFILE,
+    lessonPlanner,
     trace: (name, fields) => traces.push(`${name}${fields?.problem ? `: ${String(fields.problem)}` : ''}`),
     onTurnEnd(summary) {
       latest = summary;
@@ -96,6 +102,7 @@ async function runGroup(group: PromptGroup, ledger: ReturnType<typeof createSpen
       if (REPLY_CHECKS[check]?.onlyOnWork && !turn.work) continue;
       if (!REPLY_CHECKS[check]?.passes(summary.spokenText, commands.map((command) => command.kind))) failures.push(`${group.name}: ${check}: ${text.slice(0, 60)}: ${summary.spokenText.slice(0, 120)}`);
     }
+    await lessonPlanner.whenSettled();
   }
   return failures;
 }

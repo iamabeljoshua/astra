@@ -5,7 +5,7 @@ import { findArtwork, type Artwork } from '../home/artwork';
 import { API_ERROR_LABELS, MENU_LABELS, PRODUCT_NAME, REPLY_BOX_LABELS, SESSION_LABELS, SESSIONS_LABELS, VOICE_LABELS } from '../strings';
 import { ThemeToggle } from '../theme/ThemeToggle';
 import { formatSessionLength } from './formatSession';
-import { type Session, useSession } from './sessionQueries';
+import { type Session, useKeepSessionTitle, useSession } from './sessionQueries';
 import { isLessonEnabled, isTutorSceneEnabled } from './lessonFlag';
 import { useSessionRun } from './useSessionRun';
 import { StudentCaption } from '../voice/Captions';
@@ -123,10 +123,13 @@ function RunningSession({ session }: { session: Session }) {
   useOpeningMessage(session, liveVoice.sendTyped);
   const isConnecting = isTutorOnTheWay(status, view);
   const scene = useTutorScene(voice, isTutorSceneEnabled());
+  useKeepSessionTitle(session.id, view?.sessionTitle ?? null);
 
+  // The card's picture belongs to the card's topic, so it goes when the student moves off it, and the seam for a scene stays empty.
+  const artwork = view?.sessionTitle ? null : findArtwork(session.artwork);
   const picture = <Board artwork={findArtwork(session.artwork)} note={SESSION_LABELS.boardStandIn} />;
   return (
-    <SessionFrame facts={<SessionFacts subject={session.subject} seconds={seconds} tutorStateLine={tutorStateLine} costUsd={view?.costUsd ?? null} />} action={<EndButton isEnding={isEnding} onEnd={() => void endSession()} />} problem={endProblem} isFullHeight>
+    <SessionFrame facts={<SessionFacts subject={view?.sessionTitle ?? session.subject} seconds={seconds} tutorStateLine={tutorStateLine} costUsd={view?.costUsd ?? null} />} action={<EndButton isEnding={isEnding} onEnd={() => void endSession()} />} problem={endProblem} isFullHeight>
       <div className="board-stage">
         <div className="board-voice">
           <SessionTitle title={session.title} isQuiet={Boolean(voice) || isConnecting} />
@@ -144,7 +147,7 @@ function RunningSession({ session }: { session: Session }) {
           <ReplyBox liveVoice={liveVoice} isConnecting={isConnecting} carryOnLine={SESSION_LABELS.carryOnWith(session.title)} />
         </div>
         <ConnectingSaturn isConnecting={isConnecting} />
-        {voice ? <LiveBoard voice={voice} isConnecting={isConnecting} onTutorState={showTutorState} getVisual={(frame) => getSessionVisual(findArtwork(session.artwork), frame, scene)} onTalk={() => void liveVoice.toggleTalk()} isTalkOn={view?.mic === 'on'} canTalk={!view?.closedBecause} /> : <div className="board-panel">{picture}</div>}
+        {voice ? <LiveBoard voice={voice} isConnecting={isConnecting} onTutorState={showTutorState} getVisual={(frame) => getSessionVisual(artwork, frame, scene)} onTalk={() => void liveVoice.toggleTalk()} isTalkOn={view?.mic === 'on'} canTalk={!view?.closedBecause} /> : <div className="board-panel">{picture}</div>}
       </div>
     </SessionFrame>
   );

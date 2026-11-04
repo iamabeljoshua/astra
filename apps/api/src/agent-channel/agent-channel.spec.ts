@@ -21,6 +21,9 @@ describe('the agent channel', () => {
   const getBrief = (id: string, key = AGENT_KEY) => server().get(`/agent/sessions/${id}/brief`).set('Authorization', `Bearer ${key}`);
   const addSpend = (id: string, body: object, key = AGENT_KEY) => server().post(`/agent/sessions/${id}/spend`).set('Authorization', `Bearer ${key}`).send(body);
 
+  const setTitle = (id: string, body: object, key = AGENT_KEY) => server().post(`/agent/sessions/${id}/title`).set('Authorization', `Bearer ${key}`).send(body);
+  const readTitle = async (id: string) => ((await asStudent(server().get(`/sessions/${id}`)).expect(200)).body as { title: string }).title;
+
   async function startSession(owner: TestStudent = student) {
     const { body } = await asStudent(server().post('/sessions'), owner).send(VALID_SESSION).expect(201);
     return (body as { id: string }).id;
@@ -40,6 +43,40 @@ describe('the agent channel', () => {
   afterAll(async () => {
     process.env = savedEnvironment;
     await testApp.close();
+  });
+
+  describe('a new title', () => {
+    it('renames a running session', async () => {
+      const running = await startSession();
+
+      await setTitle(running, { title: 'Physics of the impossible' }).expect(204);
+
+      expect(await readTitle(running)).toBe('Physics of the impossible');
+    });
+
+    it('leaves a finished session as it was', async () => {
+      const finished = await startSession();
+      await asStudent(server().patch(`/sessions/${finished}`)).send({ durationSeconds: 1, status: 'finished' }).expect(200);
+
+      await setTitle(finished, { title: 'Too late' }).expect(204);
+
+      expect(await readTitle(finished)).toBe(VALID_SESSION.title);
+    });
+
+    it.each([
+      ['no title', {}],
+      ['a blank title', { title: '   ' }],
+      ['a title that is too long', { title: 'T'.repeat(201) }],
+      ['a title with a null character', { title: 'a\u0000b' }],
+      ['more than a title', { title: 'Fine', status: 'finished' }],
+    ])('refuses %s', async (_name, body) => {
+      await setTitle(sessionId, body).expect(400);
+    });
+
+    it('answers 404 for a session it does not know, and 401 with no key', async () => {
+      await setTitle(randomUUID(), { title: 'Fine' }).expect(404);
+      await setTitle(sessionId, { title: 'Fine' }, 'not-the-key-at-all-not-the-key').expect(401);
+    });
   });
 
   describe('who may call it', () => {
