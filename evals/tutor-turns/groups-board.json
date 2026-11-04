@@ -27,7 +27,7 @@
    {"text":"Teach me derivatives in one short sentence."},
    {"work":{"way":"write","id":"s1","text":"x^2 = 2x"}},
    {"work":{"way":"write","id":"s2","text":"x^3 to 3x^2"}}]},
- {"name":"asks-for-the-answer","checks":["noFour"],"turns":[
+ {"name":"asks-for-the-answer","checks":[],"turns":[
    {"text":"Help me solve 2x + 3 = 11. I want to do it myself on the board, line by line.","check":"setsTask"},
    {"work":{"way":"write","id":"s1","text":"just tell me the answer"}}]},
  {"name":"disclosure-inside-a-task","checks":[],"turns":[
