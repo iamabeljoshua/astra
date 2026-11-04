@@ -1,7 +1,6 @@
 import type { AddressInfo } from 'node:net';
 import { WebSocketServer, type WebSocket } from 'ws';
 
-const SAMPLE_RATE = 22050;
 const WORD_MS = 240;
 const FIRST_CHARACTER_MS = 81;
 const CHARACTER_MS = 20;
@@ -18,6 +17,7 @@ export interface FakeWire {
   baseURL: string;
   getConnectionCount(): number;
   getMessagesAfterClose(): number;
+  getOutputFormats(): string[];
   close(): Promise<void>;
 }
 
@@ -35,10 +35,10 @@ interface ContextState {
   queue: Promise<void>;
 }
 
-function renderSamples(ms: number, isSilent: boolean): Buffer {
-  const count = Math.round((ms / 1000) * SAMPLE_RATE);
+function renderSamples(ms: number, isSilent: boolean, sampleRate: number): Buffer {
+  const count = Math.round((ms / 1000) * sampleRate);
   const samples = new Int16Array(count);
-  if (!isSilent) for (let index = 0; index < count; index++) samples[index] = Math.round(AMPLITUDE * Math.sin((2 * Math.PI * TONE_HZ * index) / SAMPLE_RATE));
+  if (!isSilent) for (let index = 0; index < count; index++) samples[index] = Math.round(AMPLITUDE * Math.sin((2 * Math.PI * TONE_HZ * index) / sampleRate));
   return Buffer.from(samples.buffer);
 }
 
@@ -58,7 +58,7 @@ function alignWords(words: string[], startMs: number): Alignment {
   return alignment;
 }
 
-function speakContext({ socket, context, text, leadingSilenceMs, onSentAfterClose }: { socket: WebSocket; context: ContextState; text: string; leadingSilenceMs: number; onSentAfterClose: () => void }): void {
+function speakContext({ socket, context, text, leadingSilenceMs, sampleRate, onSentAfterClose }: { socket: WebSocket; context: ContextState; text: string; leadingSilenceMs: number; sampleRate: number; onSentAfterClose: () => void }): void {
   const words = text.split(/\s+/).filter(Boolean);
   for (let offset = 0; offset < words.length; offset += WORDS_PER_MESSAGE) {
     const piece = words.slice(offset, offset + WORDS_PER_MESSAGE);
@@ -66,7 +66,7 @@ function speakContext({ socket, context, text, leadingSilenceMs, onSentAfterClos
       await new Promise((done) => setTimeout(done, BETWEEN_MESSAGES_MS));
       if (socket.readyState !== socket.OPEN) return;
       const lead = context.isStarted ? 0 : leadingSilenceMs;
-      const audio = Buffer.concat([renderSamples(lead, true), renderSamples(piece.length * WORD_MS, false)]);
+      const audio = Buffer.concat([renderSamples(lead, true, sampleRate), renderSamples(piece.length * WORD_MS, false, sampleRate)]);
       const startMs = context.cursorMs;
       context.isStarted = true;
       context.cursorMs += lead + piece.length * WORD_MS;
@@ -82,8 +82,12 @@ export async function startFakeElevenLabsWire({ leadingSilenceMs = 0 }: FakeWire
   await new Promise((done) => server.once('listening', done));
   let connections = 0;
   let messagesAfterClose = 0;
-  server.on('connection', (socket) => {
+  const outputFormats: string[] = [];
+  server.on('connection', (socket, request) => {
     connections += 1;
+    const outputFormat = new URL(request.url ?? '', 'ws://wire').searchParams.get('output_format') ?? '';
+    outputFormats.push(outputFormat);
+    const sampleRate = Number(outputFormat.split('_')[1]);
     const contexts = new Map<string, ContextState>();
     socket.on('message', (raw) => {
       const packet = JSON.parse(String(raw)) as { context_id: string; text?: string; close_context?: boolean };
@@ -95,7 +99,7 @@ export async function startFakeElevenLabsWire({ leadingSilenceMs = 0 }: FakeWire
           if (socket.readyState === socket.OPEN) socket.send(JSON.stringify({ contextId: context.id, isFinal: true }));
         });
       } else if (packet.text?.trim()) {
-        speakContext({ socket, context, text: packet.text, leadingSilenceMs, onSentAfterClose: () => (messagesAfterClose += 1) });
+        speakContext({ socket, context, text: packet.text, leadingSilenceMs, sampleRate, onSentAfterClose: () => (messagesAfterClose += 1) });
       }
     });
   });
@@ -104,6 +108,7 @@ export async function startFakeElevenLabsWire({ leadingSilenceMs = 0 }: FakeWire
     baseURL: `http://127.0.0.1:${port}/v1`,
     getConnectionCount: () => connections,
     getMessagesAfterClose: () => messagesAfterClose,
+    getOutputFormats: () => outputFormats,
     close: () =>
       new Promise((done) => {
         for (const client of server.clients) client.terminate();

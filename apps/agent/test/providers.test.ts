@@ -31,6 +31,18 @@ describe('the voice suite', () => {
 });
 
 describe('the ElevenLabs adapter', () => {
+  it('asks for a rate LiveKit can frame in whole samples, because 22050 Hz plays slow by 2.27 ms a second', async () => {
+    const voice = (await makeWireVoice()).makeTts();
+    const stream = voice.stream();
+    const heard = hearVoice(stream);
+    stream.pushText('One two ');
+    stream.endInput();
+    await heard;
+    await voice.close();
+    expect(wire?.getOutputFormats()).toEqual(['pcm_24000']);
+    expect(voice.sampleRate % 100).toBe(0);
+  });
+
   it('keeps word times from the first character, not the second, so no word lands early', async () => {
     const voice = (await makeWireVoice()).makeTts();
     const stream = voice.stream();
