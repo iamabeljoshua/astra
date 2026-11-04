@@ -18,6 +18,8 @@ const DEFAULT_WEB_PORT = 7020;
 const HOST = '127.0.0.1';
 const DECK_PATH = '/lab/board-deck';
 const READY_LIMIT_MS = 120_000;
+/** A development tool's button, drawn over every board. */
+const HIDE_DEV_BUTTON = '.tsqd-parent-container { display: none !important; }';
 
 /** Rewrites one line of a module as it is served, so a plant reaches the real library and never touches the disk. */
 export interface SourcePlant {
@@ -91,6 +93,7 @@ export interface DeckBrowser {
 
 export async function waitForDeck(page: Page): Promise<void> {
   await page.waitForFunction(() => window.boardDeck !== undefined, undefined, { timeout: READY_LIMIT_MS });
+  await page.addStyleTag({ content: HIDE_DEV_BUTTON });
   await page.evaluate(() => window.boardDeck?.prepare());
 }
 

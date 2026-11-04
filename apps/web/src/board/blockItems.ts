@@ -11,6 +11,7 @@ function createBlockItem(wrapper: HTMLElement, painter: BlockPainter): BoardItem
   return {
     prepare({ maxWidth }) {
       writeStyle(wrapper, 'maxWidth', `${maxWidth}px`);
+      painter.fitTo?.(maxWidth);
       return { fit: 'line', size: { width: wrapper.offsetWidth, height: wrapper.offsetHeight }, fromSize: null };
     },
     paint: (context) => painter.paint(getReachedStep(context, painter.stepCount), context.isReducedMotion),

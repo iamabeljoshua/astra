@@ -2,6 +2,8 @@
 import type { Table } from '@astra/contracts';
 import { type BlockPainter, getPartBoxes, makeTextElement, paintSteps } from '../block/block-steps.ts';
 
+const BREAKS_WORDS = 'board-table-breaks-words';
+
 function makeHeader(columns: readonly string[]): HTMLTableSectionElement {
   const head = document.createElement('thead');
   const row = document.createElement('tr');
@@ -35,8 +37,16 @@ export function createTablePainter(root: HTMLElement, { columns, rows }: Pick<Ta
   [...(head.rows[0]?.cells ?? [])].forEach((cell, index) => parts.set(`column-${index + 1}`, cell));
   table.append(head, body);
   root.append(table);
+  let fittedWidth = 0;
   return {
     stepCount: rows.length,
+    // Words stay whole while the table fits, and break only when they must.
+    fitTo(maxWidth) {
+      if (maxWidth === fittedWidth) return;
+      fittedWidth = maxWidth;
+      table.classList.remove(BREAKS_WORDS);
+      if (table.offsetWidth > maxWidth) table.classList.add(BREAKS_WORDS);
+    },
     paint: (reached, isReducedMotion) => paintSteps(rowElements, reached, isReducedMotion),
     getTermBoxes: (query) => getPartBoxes(root, parts, query),
     getTextPx: () => Number.parseFloat(getComputedStyle(table).fontSize),

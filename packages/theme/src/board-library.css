@@ -9,10 +9,14 @@
 
   .board-table-cell {
     border-bottom: 1px solid var(--color-line);
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
     padding: 0.35em 0.7em 0.35em 0;
     text-align: start;
     vertical-align: top;
+  }
+
+  .board-table-breaks-words .board-table-cell {
+    overflow-wrap: anywhere;
   }
 
   th.board-table-cell {

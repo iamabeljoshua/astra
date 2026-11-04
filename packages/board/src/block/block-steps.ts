@@ -5,6 +5,8 @@ import { writeStyle } from '../style-writer.ts';
 /** A block of real HTML text that fills in steps: a table's rows, a timeline's events, or a code block's lines. */
 export interface BlockPainter {
   stepCount: number;
+  /** A block whose words decide its width gets the room it has before it is measured. */
+  fitTo?(maxWidth: number): void;
   paint(reached: number, isReducedMotion: boolean): void;
   getTermBoxes(query: TermQuery): TermBoxes;
   getTextPx(): number;

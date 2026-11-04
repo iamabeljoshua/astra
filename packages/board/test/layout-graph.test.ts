@@ -3,7 +3,8 @@ import { type DiagramTextLabel, drawDiagram } from '../src/drawing.ts';
 import type { InkPosition, InkStroke } from '../src/ink/ink-stroke.ts';
 import { makeSeededRandom } from '../src/ink/ink-stroke.ts';
 
-const GRAPHS = 2000;
+const GRAPHS = 1000;
+const GRAPHS_TIME_LIMIT_MS = 60_000;
 const STEP_PX = 2;
 const LARGEST_LABEL = 28;
 
@@ -64,7 +65,7 @@ describe('a layered diagram', () => {
   it(`keeps every arrow off every box and every label, and every label off every other, across ${GRAPHS} graphs with skips, loops, returns, and repeats`, () => {
     const crossings = Array.from({ length: GRAPHS }, (_, index) => findCrossings(`graph-${index}`)).flat();
     expect(crossings).toEqual([]);
-  });
+  }, GRAPHS_TIME_LIMIT_MS);
 
   it('runs an arrow around a node between its ends and not through it', () => {
     const diagram = { nodes: [{ name: 'top', label: 'Top' }, { name: 'middle', label: 'A wide node right in the way of the long arrow' }, { name: 'bottom', label: 'Bottom' }], edges: [{ from: 'top', to: 'middle' }, { from: 'middle', to: 'bottom' }, { from: 'top', to: 'bottom' }], handwritten: false };

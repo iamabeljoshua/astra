@@ -8,6 +8,8 @@ const LARGEST_BODY_WIDTH = 460;
 const SMALLEST_GUTTER = 72;
 const LARGEST_GUTTER = 190;
 const GUTTER_SHARE = 0.27;
+/** A label's longest word can widen the gutter this far, so a word stays whole on a phone. */
+const WIDEST_GUTTER_SHARE = 0.36;
 const SIDE_GAP = 10;
 const LABEL_GAP = 8;
 const LEADER_GAP = 4;
@@ -59,11 +61,17 @@ function getLabelStep(label: PlacedLabel, { x, isLeft, bodyAt, scale }: { x: num
   return { strokes: [leader], textLabels: [{ ...(label.text.text as DiagramTextLabel), x, y: label.y }] };
 }
 
+function getGutter(labels: DrawingLabels, { maxWidth, fontSize, measureText }: DiagramRequest): number {
+  const longestWord = Math.max(0, ...labels.flatMap(({ text }) => text.split(/\s+/).map((word) => setPlainLabel(word, { fontSize, maxWidth: Number.POSITIVE_INFINITY, measureText }).width)));
+  const share = Math.max(maxWidth * GUTTER_SHARE, Math.min(longestWord, maxWidth * WIDEST_GUTTER_SHARE));
+  return Math.max(SMALLEST_GUTTER, Math.min(LARGEST_GUTTER, share));
+}
+
 /** One of our drawings, drawn first, with each label then arriving in a gutter beside it on a line to its part. A short board shrinks the whole, so nothing here depends on height. */
 export function drawLabeledSheet({ name, labels = [] }: Pick<Drawing, 'name' | 'labels'>, request: DiagramRequest): LabeledDrawing | null {
   const sheet = DRAWING_SHEETS[name];
   if (!sheet) return null;
-  const gutter = Math.max(SMALLEST_GUTTER, Math.min(LARGEST_GUTTER, request.maxWidth * GUTTER_SHARE));
+  const gutter = getGutter(labels, request);
   const left = getSideLabels(labels, sheet, true, { ...request, gutter });
   const right = getSideLabels(labels, sheet, false, { ...request, gutter });
   const leftRoom = left.length > 0 ? Math.max(...left.map(({ text }) => text.width)) + SIDE_GAP : 0;

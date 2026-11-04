@@ -15,6 +15,8 @@ const CHARACTER_WIDTHS = [
 const OTHER_CHARACTER_EMS = 1.05;
 const NOT_THE_KNOWN_LETTERS = /[^\s!-\u024F\u2212\u00B0]/;
 const MEASURED_ROOM = 1.05;
+/** A font a device falls back to can stand far taller than ours, and only its width gets measured. */
+const FALLBACK_FONT_ROOM = 8;
 const MOST_MEASURES_KEPT = 4000;
 
 let measureOnPage: ((text: string) => number) | null = null;
@@ -101,11 +103,13 @@ interface Shape {
   lines: string[];
   width: number;
   height: number;
+  /** Clear space past the usual padding. */
+  room: number;
 }
 
 function getTextShape(text: string, maxWidth: number): Shape {
   const lines = wrapLabel(text, maxWidth);
-  return { lines, width: Math.max(...lines.map(estimateTextWidth)), height: lines.length * LABEL_FONT.lineHeight };
+  return { lines, width: Math.max(...lines.map(estimateTextWidth)), height: lines.length * LABEL_FONT.lineHeight, room: NOT_THE_KNOWN_LETTERS.test(text) ? FALLBACK_FONT_ROOM : 0 };
 }
 
 function getBoxAtSide({ width, height }: Shape, anchor: Point, side: LabelSide, gap: number): Box {
@@ -118,7 +122,7 @@ function getBoxAtSide({ width, height }: Shape, anchor: Point, side: LabelSide, 
   return { left, top, right: left + width, bottom: top + height };
 }
 
-const growBox = (box: Box): Box => ({ left: box.left - BOX_PADDING, top: box.top - BOX_PADDING, right: box.right + BOX_PADDING, bottom: box.bottom + BOX_PADDING });
+const growBox = (box: Box, by = BOX_PADDING): Box => ({ left: box.left - by, top: box.top - by, right: box.right + by, bottom: box.bottom + by });
 
 function isClear(box: Box, others: readonly Box[]): boolean {
   return !others.some((other) => doBoxesOverlap(box, other));
@@ -131,22 +135,25 @@ function findPlace(shape: Shape, request: LabelRequest, room: LabelRoom, taken: 
     for (const step of steps) {
       for (const side of request.sides) {
         const box = getBoxAtSide(shape, request.anchor, side, request.gap * step);
-        if (isBoxInside(box, room.bounds) && isClear(growBox(box), others)) return { box, side };
+        if (isBoxInside(box, room.bounds) && isClear(growBox(box, BOX_PADDING + shape.room), others)) return { box, side };
       }
     }
   }
   return null;
 }
 
-function findAnyPlace({ width, height }: Shape, room: LabelRoom, taken: readonly Box[]): Box | null {
+// The free spot nearest the point the label names, so one with no room beside its mark still reads as belonging to it.
+function findAnyPlace({ width, height, room: extraRoom }: Shape, { anchor, room, taken }: { anchor: Point; room: LabelRoom; taken: readonly Box[] }): Box | null {
   const others = [...room.mustAvoid, ...taken];
+  let nearest: { box: Box; distance: number } | null = null;
   for (let top = room.bounds.top; top + height <= room.bounds.bottom; top += LABEL_FONT.lineHeight) {
     for (let left = room.bounds.right - width; left >= room.bounds.left; left -= FALLBACK_STEP) {
       const box = { left, top, right: left + width, bottom: top + height };
-      if (isClear(growBox(box), others)) return box;
+      const distance = Math.hypot(left + width / 2 - anchor.x, top + height / 2 - anchor.y);
+      if ((!nearest || distance < nearest.distance) && isClear(growBox(box, BOX_PADDING + extraRoom), others)) nearest = { box, distance };
     }
   }
-  return null;
+  return nearest?.box ?? null;
 }
 
 function getAnchor(side: LabelSide | null): TextAnchor {
@@ -165,12 +172,12 @@ export function placeLabels(requests: readonly LabelRequest[], room: LabelRoom):
   return requests.flatMap((request) => {
     const shape = getTextShape(request.text, maxWidth);
     const found = findPlace(shape, request, room, taken);
-    const box = found?.box ?? (request.isOptional ? null : findAnyPlace(shape, room, taken));
+    const box = found?.box ?? (request.isOptional ? null : findAnyPlace(shape, { anchor: request.anchor, room, taken }));
     if (!box) {
       if (!request.isOptional) room.onNoRoom?.(request.text);
       return [];
     }
-    taken.push(box);
+    taken.push(growBox(box, shape.room));
     return [getTextMark(request, shape, box, found?.side ?? null)];
   });
 }
