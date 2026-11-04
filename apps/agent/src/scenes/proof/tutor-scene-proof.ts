@@ -20,6 +20,7 @@ const { values: args } = parseArgs({
     say: { type: 'string' },
     sayAfterS: { type: 'string', default: '3' },
     reloadAfterS: { type: 'string' },
+    realChrome: { type: 'boolean', default: true },
     noWebgl: { type: 'boolean', default: false },
     reducedMotion: { type: 'boolean', default: false },
     kitFails: { type: 'boolean', default: false },
@@ -97,7 +98,8 @@ function readTrace(folder: string | undefined) {
     .flatMap((path) => readFileSync(path, 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line) as { name: string; atMs: number } & Record<string, unknown>));
 }
 
-const browser = await chromium.launch({ headless: !args.headed, args: [...FLAGS, ...(args.noWebgl ? ['--disable-webgl', '--disable-webgl2'] : [])] });
+// The headless shell keeps a sandboxed frame in the page's own process, and real Chrome does not, so a stall means nothing on the shell.
+const browser = await chromium.launch({ ...(args.realChrome ? { channel: 'chrome' } : {}), headless: !args.headed, args: [...FLAGS, ...(args.noWebgl ? ['--disable-webgl', '--disable-webgl2'] : [])] });
 const context = await browser.newContext({ viewport: args.phone ? { width: 390, height: 844 } : { width: 1440, height: 900 }, colorScheme: 'light', baseURL: args.web as string, ...(args.reducedMotion ? { reducedMotion: 'reduce' as const } : {}) });
 const page = await context.newPage();
 const problems: string[] = [];
