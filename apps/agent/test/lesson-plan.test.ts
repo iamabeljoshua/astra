@@ -2,7 +2,7 @@ import { getBeatText, getCues, type SceneCommand } from '@astra/contracts';
 import { describe, expect, it, vi } from 'vitest';
 import type { PlanAnswer, PlanAsk } from '../src/lesson-plan/ask-planner.ts';
 import { type LessonPlan, parsePlanMove, type PlanMove } from '../src/lesson-plan/lesson-plan.ts';
-import { createLessonPlanner, getProblemNote, type LessonPlannerOptions } from '../src/lesson-plan/lesson-planner.ts';
+import { createLessonPlanner, getProblemNote, getTeachFirstNote, type LessonPlannerOptions } from '../src/lesson-plan/lesson-planner.ts';
 import { getStateAfterEvent, getStateAfterMove, getStepNote, NO_LESSON } from '../src/lesson-plan/plan-progress.ts';
 import { makeFakeTutorModel } from '../src/providers/fake-model.ts';
 import { LESSON_RULES } from '../src/lesson-plan/lesson-rules.ts';
@@ -635,5 +635,20 @@ describe('a real problem', () => {
     const brain = createTutorBrain({ model, timeouts: QUICK, lessonPlanner: planner });
     for await (const beat of brain.reply({ text: 'how many of 20 pills would kill me' }, new AbortController().signal)) void beat;
     expect(JSON.stringify(model.requests.at(-1)?.turns)).not.toContain('problem_now');
+  });
+});
+
+describe('a wish to be taught', () => {
+  it.each(['Teach me fractions', 'explain how gravity works', "I'd like to learn about Shakespeare's sonnets", 'Give me a lesson on the causes of World War One', 'i wanna learn why ww1 started'])('holds its first reply back from a task: %s', (words) => {
+    expect(getTeachFirstNote(words, false)).not.toBeNull();
+  });
+
+  it.each(['the roman empire', 'photosynthesis', 'quantum tunneling'])('reads "%s" as a topic when it opens the session', (words) => {
+    expect(getTeachFirstNote(words, true)).not.toBeNull();
+    expect(getTeachFirstNote(words, false)).toBeNull();
+  });
+
+  it.each(['why is the sky blue?', 'solve 2x = 8', 'let me try one', 'yes', 'teach me what grooming is, my coach does things'])('says nothing on: %s', (words) => {
+    expect(getTeachFirstNote(words, true)).toBeNull();
   });
 });

@@ -1,7 +1,7 @@
 import { type CheckedWork, readLine, wantsSomethingElse } from '@astra/board/shared';
 import type { SceneCommand, StudentWork } from '@astra/contracts';
 import type { PlanAnswer, PlanAsk } from './ask-planner.ts';
-import { getTrustedMove, type PlanMove } from './lesson-plan.ts';
+import { getTrustedMove, isSensitive, type PlanMove } from './lesson-plan.ts';
 import { getShelvedTopics, getStateAfterEvent, getStateAfterMove, getStepNote, type LessonEvent, type LessonState, NO_LESSON, type StepNote } from './plan-progress.ts';
 
 export interface HeardWords {
@@ -44,12 +44,23 @@ const DECLINES_EXERCISES = /\bdon'?t want to try\b|\b(?:no|without|skip|stop)\s+
 const WANTS_AN_EXERCISE = /\b(?:let\s+me|can\s+i|i(?:'ll|\s+will|\s+want\s+to)|i\s+wanna)\s+try\b|\b(?:give|set)\s+me\s+(?:a|an|one|another)\b/i;
 
 const NAMES_A_PROBLEM = /\d\s*[-+*/×÷=^%]|=|->|_{2,}|\bm\/s\b|\b(?:solve|balance|simplify|calculate|work out|factori[sz]e|derivative of|integral of|slope of|which came first)\b/i;
-const ASKS_TO_BE_TAUGHT = /^\s*(?:please\s+)?(?:teach|explain|help me (?:understand|get)|i (?:want|wanna|would like|'d like) to (?:learn|understand))\b/i;
+const ASKS_TO_BE_TAUGHT = /^\s*(?:please\s+)?(?:teach|explain|help me (?:understand|get)|give me a lesson|i(?:'d like| would like| want| wanna)(?: to)? (?:learn|understand))\b/i;
+const IS_A_BARE_TOPIC = /^[\p{L}' -]+$/u;
+const MOST_WORDS_IN_A_BARE_TOPIC = 4;
 
 /** Said beside their words, where it holds the model best, because the first reply cannot wait for a plan. Null when they asked to be taught or told. */
 export function getProblemNote(words: string): Record<string, string> | null {
-  if (!NAMES_A_PROBLEM.test(words) || ASKS_TO_BE_TAUGHT.test(words) || DECLINES_EXERCISES.test(words)) return null;
+  if (!NAMES_A_PROBLEM.test(words) || ASKS_TO_BE_TAUGHT.test(words) || DECLINES_EXERCISES.test(words) || isSensitive(words)) return null;
   return { problem_now: 'They gave you something to work out. This reply puts it on the board and holds a task command.' };
+}
+
+const isBareTopic = (words: string) => IS_A_BARE_TOPIC.test(words) && words.split(/\s+/).length <= MOST_WORDS_IN_A_BARE_TOPIC && !IS_ONLY_A_NOD.test(words);
+
+/** The other half of the same steer: a topic is taught before anything is set, and a topic on its own only reads as one when it opens the session. */
+export function getTeachFirstNote(words: string, isFirstTurn: boolean): Record<string, string> | null {
+  const trimmed = words.trim();
+  const isTopic = ASKS_TO_BE_TAUGHT.test(trimmed) || (isFirstTurn && isBareTopic(trimmed));
+  return isTopic && !WANTS_AN_EXERCISE.test(trimmed) && !isSensitive(trimmed) ? { teach_first_now: 'They want to be taught. This reply teaches and holds no task command, even if it asks them something.' } : null;
 }
 
 const getWordsEvent = (words: string): LessonEvent | null => {

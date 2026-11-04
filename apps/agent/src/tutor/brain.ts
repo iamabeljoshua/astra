@@ -1,7 +1,7 @@
 import { type Beat, type BeatId, clipTypedText, type ElementId, getBeatText, getCues, getPlayedCues, getSpokenWords, isStudentLineId, parseBeat, parseWrittenBeat, type SceneCommand, type StudentWork, type TutorClosedReason, TYPED_TEXT_MAX_CHARACTERS } from '@astra/contracts';
 import { type BoardOperation, type BoardState, type CheckedWork, checkWorkOnBoard, cleanStudentText as cleanLine, getBoardAt, getNod, getOpenTaskOnBoard, getWorkContext } from '@astra/board/shared';
 import { type FindSource, type ModelEvent, ModelRejectedError, type ModelUsage, type TutorModelAdapter, type TutorModelRequest, type TutorTurn } from '../providers/types.ts';
-import { getProblemNote, type LessonPlanner } from '../lesson-plan/lesson-planner.ts';
+import { getProblemNote, getTeachFirstNote, type LessonPlanner } from '../lesson-plan/lesson-planner.ts';
 import { createAttemptTracker } from './attempts.ts';
 import { BeatTextReader, type WrittenBeatParts } from './beat-text-reader.ts';
 import { type BoardMemory, checkAgainstBoard, EMPTY_BOARD, getClaimProblem, getMemoryAfter, getMemoryAfterAnswering, getMemoryAfterWork, getMemoryOnComingBack, getMemoryOnNewTurn, getWordsProblem } from './board-memory.ts';
@@ -337,8 +337,8 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
     const nodded = hasNoddedSinceLastTurn;
     hasNoddedSinceLastTurn = false;
     let readerMemory = memory;
-    const problemNote = lessonPlanner && !memory.openTask && !MAY_BE_ABOUT_SAFETY.test(studentText) ? getProblemNote(studentText) : null;
-    const turnNotes = [attempts.startTurn(studentText), prompt.turnNote, problemNote].filter((note) => note !== null);
+    const shapeNote = lessonPlanner && !memory.openTask && !MAY_BE_ABOUT_SAFETY.test(studentText) ? (getProblemNote(studentText) ?? getTeachFirstNote(studentText, turnCount === 1)) : null;
+    const turnNotes = [attempts.startTurn(studentText), prompt.turnNote, shapeNote].filter((note) => note !== null);
     const turn: TurnWork = {
       id: turnCount,
       studentText,
@@ -875,7 +875,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
         if (said.ok) yield said.value;
         return;
       }
-      // Skipped on any sign of trouble, so serious words never become a lesson's title.
+      // Skipped on words this list knows. Vaguer words reach the planner, whose `stay` and `getTrustedMove` hold them.
       if (!MAY_BE_ABOUT_SAFETY.test(studentText)) lessonPlanner?.noteStudentWords({ words: studentText, isOpening: turnCount === 0, tutorSaid: lastBeats.map(getBeatText).join(' ') });
       await waitForLastTurn();
       if (profileLoading) await Promise.race([profileLoading, delay(timeouts.profileWaitMs)]);

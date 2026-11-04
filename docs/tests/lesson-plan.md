@@ -4,15 +4,19 @@ M3.9. The tutor picks the shape of a lesson from how the student asked, follows 
 
 ## What a student gets
 
-- A direct question or a problem goes hands-on in the first reply: a few words, the problem on the board, a task, and they try. The answer waits until they have tried, unless they say they just want it.
+- A real problem goes hands-on in the first reply: a few words, the problem on the board, a task, and they try. This is a strong steer and not a promise, because a model writes the reply. The table under How it is proved says how often it held.
+- A why question, language, or code with working to do gets a task in the first or second reply.
+- A bare fact, such as "whats the capital of australia", gets its answer, and then a question or a task if there is something worth doing.
 - A topic, a lesson, or a wish to understand teaches first, then picks an exercise to do together. One short problem after each concept that has working to do.
-- A subject with no working gets an exercise that suits it, on the same board, with words: put events in order, match pairs, pick on a diagram, or explain it back.
-- Their own words beat all of it. "No exercises" means none until they ask. "Let me try one" means now.
+- A subject with no working gets an exercise that suits it, on the same board: put events in order, match pairs, pick on a diagram, fill a blank in a sentence, or explain it back. A sentence goes on the board with `text`, with the choices in a `place` task or a `write` task with `reads` and `accepts`, because math on the board refuses sentences.
+- Their own words beat all of it. "No exercises" means none until they ask. "Let me try one" means now. "Just tell me" gets the answer the first time, and code lets it through.
 - A new topic mid-session is normal. The tutor follows at once, the session's title changes, and "go back to my problem" works. It never tells them to start a new session unless a real limit is reached.
 
 ## Who decides what
 
-The first reply cannot wait for anything, so the shape of that reply comes from the rules in `apps/agent/src/lesson-plan/lesson-rules.ts`, a block of its own in the tutor's prompt. Sonnet reads how the student asked and picks.
+The first reply cannot wait for anything, so the shape of that reply comes from the rules in `apps/agent/src/lesson-plan/lesson-rules.ts`, a block of its own last in prompt v2, and from two notes beside the student's words: `getProblemNote` adds `problem_now` when code can see a problem in them, and `getTeachFirstNote` adds `teach_first_now` when they ask to be taught. Neither goes on words that may be serious. Sonnet reads how the student asked and picks.
+
+Prompt v2 asks for 15 words a turn, and that fought the exercises. So commands do not count as words, and a reply that sets a task may take 30. Both are in the turn note, as `exercise`, from `LESSON_TURN_NOTE`.
 
 Beside each reply, `lesson-planner.ts` asks Haiku 5.5 what the message does to the lesson. The answer is a `PlanMove`: `stay`, `new` with a `LessonPlan`, or `back` to an earlier topic. Nothing waits for it. What it gives is what the first reply cannot have: a title for a switch, a spine of two to four steps, and a place to go back to.
 
@@ -21,9 +25,11 @@ Beside each reply, `lesson-planner.ts` asks Haiku 5.5 what the message does to t
 | Event | Seen as | Step |
 | --- | --- | --- |
 | The tutor sets a task | a kept `task` command | Stays, with an exercise open |
-| Code sees it finished | work that closes the task, and is right or wrong | Moves on |
-| The tutor teaches again | `boardMode` `teach` with an exercise open, which is how words with no key end | Moves on |
-| The student leaves it | `leave`, or work that closes the task as `unknown` | Stays |
+| Code sees it finished | work that closes the task, including words with no key, which close as `unknown` | Moves on |
+| The tutor teaches again | `boardMode` `teach` while an exercise is open, when the tutor closes it before the student does | Moves on |
+| The student leaves it | `leave`, or words that say they want something else | Stays |
+
+`exercise_due` joins the step's note when no exercise is open and enough replies have ended on the step: one for `handsOn` and two for `teachFirst`. Help in a crisis starts that count over. "No exercises" stops it until they ask for one, and code reads those words, because a pushed note would otherwise beat them.
 
 The next turn gets only the current step, as a `lesson_plan` note, and only when it changed. `system` stays frozen, so the prompt cache still holds. After compaction or a clean start the note goes again.
 
@@ -31,15 +37,21 @@ The tutor treats the note as a suggestion from something that sees less than it 
 
 ## Safety
 
-Words that may be about safety never reach the planner, by the same check the brain uses on a refused message, and the planner holds any such words it does see at `stay`. So serious words cannot become a session's title. A title is cleaned in `parsePlanMove` and checked again by the API and the page. `groups-lessons.json` holds crisis messages in a lesson, on an open exercise, before a plan lands, and as the first message. `groups-safety.json` runs with the planner on.
+Three things hold serious words away from a title, and none of them is a guarantee.
+
+- `MAY_BE_ABOUT_SAFETY` keeps words it recognises from the planner. It is a word list. On vague wordings it stopped 0 of 33 in the reviewer's run.
+- Haiku is told to answer `stay` on anything about being hurt, drugs, sex, or a medical problem. That held those 33, and it is a model's answer.
+- `getTrustedMove` turns a `new` move into `stay` when the student's words or the planner's topic hold a word from `NOT_FOR_A_TITLE`, such as grooming, consent, or antidepressants. The tutor still teaches, with no plan, and the session keeps the title it had. A shared device must not show "Age of consent in Lagos". The list catches only what it names, and a topic it misses can still become a title.
+
+A switch with no topic, such as "Starting a new topic", also stays, so the old title remains. A title is cleaned in `parsePlanMove` and checked again by the API and the page. `groups-lessons.json` holds crisis messages in a lesson, on an open exercise, before a plan lands, and as the first message. `groups-safety.json` runs with the planner on.
 
 ## A switch and the title
 
 The first words of a room come from the session's own title, so the first plan never renames it. Any later change of topic does: `sessionTitle` goes to the page, and `POST /agent/sessions/:id/title` saves it. A finished session keeps its title. A failed save keeps the session running, with the page's title and a trace.
 
-The bar shows the new topic where it showed the subject, "Your question" included. After a reload it shows the subject again, and the saved title stays in the heading, the sessions page, and the carry-on line.
+The bar shows the new topic where it showed the subject, "Your question" included. After a reload in the same room, the planner tells the page the title again. In a new room, a card that has moved shows its saved title, because the save also clears its picture. A question in a new room shows "Your question" in the bar, because nothing saved says it moved, and the heading shows the title.
 
-A card's picture belongs to the card's topic, so it goes at a switch and the visual stays empty, with no box where it stood. PR 87's scene plugs into the same seam, the `visual` prop.
+A card's picture belongs to the card's topic, so it goes at a switch and the visual stays empty, with no box where it stood. The save clears `artwork`, so the picture stays gone after a reload and on the sessions page. PR 87's scene plugs into the same seam, the `visual` prop.
 
 ## Moving to the board
 
@@ -67,17 +79,17 @@ The rules add about 3,200 characters to the cached prompt, so about $0.0001 a tu
 
 | Promise | Proof |
 | --- | --- |
-| A direct question goes hands-on, a topic teaches first, no working means words, and their words overrule | `eval:lessons`, 25 groups on the real tutor and the real planner |
-| A plan never holds a word, and a failed one means the tutor just teaches | `eval:lessons --planner fail`, and `lesson-plan.test.ts` with a planner that never answers |
+| A real problem gets a task, a topic teaches first, no working means words, and their words overrule | `eval:kinds`, on the real tutor and the real planner. Measured counts are in the PR |
+| A plan never holds a word, and a failed one means the tutor just teaches | `eval:kinds --planner fail`, and `lesson-plan.test.ts` with a planner that never answers |
 | A plan is right about what the student wants | `eval:plans`, including every crisis message in `groups-safety.json` |
-| No model line can say "new session" | `getWordsProblem`, with `lesson-plan.test.ts` |
+| A model line saying "new session", "new lesson", "different session", or "new conversation" goes back for other words | `getWordsProblem`, with `lesson-plan.test.ts`. Other wordings are not caught |
 | No first attempt can claim a feeling | `getClaimProblem`, with `lesson-plan.test.ts` and `eval:groups` |
 | A switch, a title, and the way back | `eval:switch`, and `lesson-proof --only switch` on the real page |
 | The move lands on a word, in the log, in about 560 ms | `lesson-proof --only visual` on a recorded tutor |
 
 ## Where the rules sit
 
-They come last in the prompt, after Staying safe, and that was measured. With the same words placed before Being right, crisis replies said "I'm glad" about 1.5 times in 16 turns. Placed last it was 0.5, and the prompt with no rules at all, with the planner on, was 0.25 over the same turns. The base, with neither, was 0 in 64 turns. The cause is not known, so this is a measure and not an explanation.
+They come last in prompt v2, after Notes you receive, and that was measured on the prompt before v2. With the same words placed before Being right, crisis replies said "I'm glad" about 1.5 times in 16 turns. Placed last it was 0.5, and the prompt with no rules at all, with the planner on, was 0.25 over the same turns. The base, with neither, was 0 in 64 turns. The cause is not known, so this is a measure and not an explanation.
 
 So `getClaimProblem` holds the prompt's own list in code. A reply that claims a feeling goes back for other words before the student hears it, on a first attempt only, because help for a student in crisis must get out even in imperfect words. Anyone moving this block must still rerun `eval:groups` a few times and read the replies.
 
