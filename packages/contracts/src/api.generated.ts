@@ -122,6 +122,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/sessions/{id}/live-room": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Lets the signed-in student join their session's voice room. Another student's session answers 404, and a finished one 409. */
+        post: operations["LiveRoomController_openLiveRoom"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -281,6 +298,14 @@ export interface components {
             continueSession: components["schemas"]["SessionResponseDto"] | null;
             /** @description The cards offered to this student. */
             picks: components["schemas"]["PickCardResponseDto"][];
+        };
+        LiveRoomResponseDto: {
+            /** @description The LiveKit address that the browser connects to. */
+            url: string;
+            /** @description Lets this student join this session's room, for a short time, with their microphone and the data channel only. */
+            token: string;
+            /** @description The name of this session's room. */
+            roomName: string;
         };
     };
     responses: never;
@@ -487,6 +512,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HomeScreenResponseDto"];
+                };
+            };
+        };
+    };
+    LiveRoomController_openLiveRoom: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The ID of the session. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LiveRoomResponseDto"];
                 };
             };
         };

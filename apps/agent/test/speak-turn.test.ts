@@ -99,8 +99,8 @@ function createWatchedLine({ playoutMs = 0, frameMs = 1 } = {}) {
     },
   });
   const messenger = {
-    send: (message: AgentMessage) => note({ kind: 'message', turnId: 'turnId' in message ? message.turnId : null, type: message.type }),
-    sendOnBothChannels: (message: AgentMessage) => note({ kind: 'message', turnId: 'turnId' in message ? message.turnId : null, type: message.type }),
+    send: (message: AgentMessage) => note({ kind: 'message', turnId: 'turnId' in message ? message.turnId : undefined, type: message.type }),
+    sendOnBothChannels: (message: AgentMessage) => note({ kind: 'message', turnId: 'turnId' in message ? message.turnId : undefined, type: message.type }),
   };
   const turn = (turnId: string) => speakTurn({ voice: makeRenderedVoice({ name: 'fake', render: renderTone }).makeTts(), line, messenger, turnId: turnId as TurnId, beats: BEATS });
   const getTurnStartedAtMs = (turnId: string) => events.find((event) => event.type === 'turnStarted' && event.turnId === turnId)?.atMs;

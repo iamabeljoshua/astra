@@ -4,6 +4,7 @@ const LIVE_AGENT_FOLDER = 'apps/agent/';
 const VENDOR_PACKAGES = {
   cartesia: ['@livekit/agents-plugin-cartesia', '@cartesia/'],
   deepgram: ['@livekit/agents-plugin-deepgram', '@deepgram/'],
+  meta: ['@livekit/agents-plugin-meta'],
   anthropic: ['@livekit/agents-plugin-anthropic', '@anthropic-ai/'],
   elevenlabs: ['@livekit/agents-plugin-elevenlabs', '@elevenlabs/', 'elevenlabs'],
   openai: ['@livekit/agents-plugin-openai', 'openai'],

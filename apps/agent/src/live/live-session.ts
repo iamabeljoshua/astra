@@ -1,0 +1,372 @@
+import type { tts } from '@livekit/agents';
+import { type AgentMessage, type Beat, type BeatId, type BrowserMessage, type PlayReport, type SessionEvent, type TurnId } from '@astra/contracts';
+import { createEchoFilter } from './echo-filter.ts';
+import { createLinkWatch, type LinkWatch } from './link-watch.ts';
+import { getTakeBeat, makeTakeVoice, type StoredTake, type TakePicker, type TakeUse } from './reactions.ts';
+import { getResumeBeats } from './resume-plan.ts';
+import { createSessionLog } from './session-log.ts';
+import { type SpokenTurn, speakTurn, type TurnMessenger } from './speak-turn.ts';
+import type { TutorBrain } from './stand-in-tutor.ts';
+import { getNextTurnState, INITIAL_TURN_STATE, type TimerName, type TurnAction, type TurnEvent, type TurnState } from './turn-rule.ts';
+import { getSteadyNowMs, type VoiceLine } from './voice-line.ts';
+
+/** A resume waits this long for the browser to say what played, as the design's wiring does. */
+const REPORT_WAIT_MS = 1000;
+const REPORT_POLL_MS = 10;
+const LINK_CHECK_MS = 250;
+/** A voice that sends nothing can hold a student in silence for 11 s before its plugin gives up, so the tutor says so long before that. Flash's first audio has a p95 of about 320 ms. */
+export const VOICE_STALL_MS = 3000;
+
+export type EarsEvent = { type: 'voiceStarted' } | { type: 'voiceEnded' } | { type: 'words'; text: string; isFinal: boolean } | { type: 'turnDecided'; text: string };
+
+export type TraceNote = (name: string, fields?: Record<string, unknown>) => void;
+
+export interface LiveSessionOptions {
+  messenger: TurnMessenger;
+  line: VoiceLine;
+  voice: tts.TTS;
+  tutor: TutorBrain;
+  takes: TakePicker;
+  allTakes: readonly StoredTake[];
+  setTurnCap(ms: number): void;
+  getNowMs?(): number;
+  trace?: TraceNote;
+}
+
+export interface LiveSession {
+  onEars(event: EarsEvent): void;
+  onBrowser(message: BrowserMessage): void;
+  /** The browser has joined and hears the tutor's track, so the first line loses no sound. */
+  greet(): void;
+  getLog(): readonly SessionEvent[];
+  doesStudentHearAudio(): boolean;
+  close(): Promise<void>;
+}
+
+interface Speaking {
+  turnId: TurnId;
+  isReply: boolean;
+  canResume: boolean;
+  spoken: SpokenTurn;
+  beats: Beat[];
+  reports: Map<BeatId, PlayReport>;
+  hasSound: boolean;
+  isOver: boolean;
+}
+
+interface Thought {
+  controller: AbortController;
+  iterator: AsyncIterator<Beat>;
+}
+
+async function* readThought(thought: Thought | null): AsyncGenerator<Beat> {
+  if (!thought) return;
+  for (;;) {
+    const { done, value } = await thought.iterator.next();
+    if (done) return;
+    yield value;
+  }
+}
+
+async function* getResumedThen(resumed: readonly Beat[], thought: Thought | null): AsyncGenerator<Beat> {
+  yield* resumed;
+  yield* readThought(thought);
+}
+
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Wires what the student does to what the tutor says. The rule decides, this runs its actions, and the voice line keeps every turn apart.
+export function createLiveSession({ messenger, line, voice, tutor, takes, allTakes, setTurnCap, getNowMs = getSteadyNowMs, trace = () => {} }: LiveSessionOptions): LiveSession {
+  const startedAtMs = getNowMs();
+  const echo = createEchoFilter();
+  const takeVoices = new Map(allTakes.map((take) => [take.id, makeTakeVoice(take).makeTts()]));
+  takeVoices.forEach((take) => take.on('error', (error) => trace('voiceError', { problem: String(error.error) })));
+  const timers = new Map<TimerName, ReturnType<typeof setTimeout>>();
+  const beatsByTurn = new Map<TurnId, readonly Beat[]>();
+  const speakingByTurn = new Map<TurnId, Speaking>();
+  const queuedEvents: TurnEvent[] = [];
+  let state: TurnState = INITIAL_TURN_STATE;
+  let isDispatching = false;
+  let turnCount = 0;
+  let audioRunning = true;
+  let reaction: Speaking | null = null;
+  let reply: Speaking | null = null;
+  let cut: Speaking | null = null;
+  let thought: Thought | null = null;
+  let resumeTicket = 0;
+  let hasGreeted = false;
+  let voiceStall: ReturnType<typeof setTimeout> | undefined;
+
+  const log = createSessionLog({
+    getNowMs: () => getNowMs() - startedAtMs,
+    getBeat: (turnId, beatId) => beatsByTurn.get(turnId)?.find((beat) => beat.id === beatId),
+    onRefused: (problem) => trace('reportRefused', { problem }),
+  });
+
+  const dispatch = (event: TurnEvent) => {
+    queuedEvents.push(event);
+    if (isDispatching) return;
+    isDispatching = true;
+    for (let next = queuedEvents.shift(); next !== undefined; next = queuedEvents.shift()) {
+      const step = getNextTurnState(state, next);
+      state = step.state;
+      step.actions.forEach(runAction);
+    }
+    isDispatching = false;
+  };
+
+  const getAudibleTurn = () => reaction?.turnId ?? reply?.turnId ?? null;
+
+  const sendYield = (isYielding: boolean) => {
+    const turnId = getAudibleTurn();
+    trace(isYielding ? 'yieldDecided' : 'unyieldDecided', { turnId });
+    if (turnId) messenger.sendOnBothChannels({ type: 'yield', turnId, isYielding });
+  };
+
+  const onSpeechStarted = (speaking: Speaking) => {
+    speaking.hasSound = true;
+    dispatch({ type: 'tutorStarted', isReply: speaking.isReply });
+    if (state.phase === 'yielding') messenger.sendOnBothChannels({ type: 'yield', turnId: speaking.turnId, isYielding: true });
+  };
+
+  const onSpeechFinished = (speaking: Speaking) => {
+    speaking.isOver = true;
+    if (speaking === reaction) reaction = null;
+    if (speaking === reply) {
+      reply = null;
+      thought = null;
+    }
+    if (reaction || reply) {
+      if (reply && !reply.hasSound && !reaction) dispatch({ type: 'tutorThinking' });
+      return;
+    }
+    dispatch({ type: 'tutorFinished' });
+  };
+
+  function speak({ voiceToUse, beats, isReply, canResume, kind }: { voiceToUse: tts.TTS; beats: Iterable<Beat> | AsyncIterable<Beat>; isReply: boolean; canResume: boolean; kind: string }): Speaking {
+    turnCount += 1;
+    const turnId = `turn-${turnCount}` as TurnId;
+    const speakingBeats: Beat[] = [];
+    beatsByTurn.set(turnId, speakingBeats);
+    trace('turnStarted', { turnId, kind });
+    const speaking: Speaking = {
+      turnId,
+      isReply,
+      canResume,
+      beats: speakingBeats,
+      reports: new Map(),
+      hasSound: false,
+      isOver: false,
+      spoken: speakTurn({
+        voice: voiceToUse,
+        line,
+        messenger,
+        turnId,
+        beats,
+        getNowMs,
+        onBeatStarted: (beat) => speakingBeats.push(beat),
+        onFirstAudioRead: (atMs) => {
+          clearTimeout(voiceStall);
+          trace('firstAudioRead', { turnId, kind, atMs });
+        },
+        onFrameCaptured: ({ capturedAtMs }) => {
+          if (speaking.hasSound) return;
+          trace('firstFrameCaptured', { turnId, kind, atMs: capturedAtMs });
+          onSpeechStarted(speaking);
+        },
+        onWords: ({ atMs, words }) => echo.noteTutorWords(words.map((word) => word.text), atMs),
+        onGap: (gap) => {
+          trace('audioGap', { turnId, ...gap });
+          clearTimeout(voiceStall);
+          if (gap.ms === undefined && canResume) watchVoice(speaking);
+        },
+      }),
+    };
+    speakingByTurn.set(turnId, speaking);
+    if (canResume) watchVoice(speaking);
+    void speaking.spoken.finished
+      .catch((error: unknown) => onVoiceFailed(speaking, String(error)))
+      .then(() => {
+        trace('turnFinished', { turnId, kind });
+        onSpeechFinished(speaking);
+      });
+    return speaking;
+  };
+
+  // A failing voice must not end the session or leave the student waiting, so the turn is cut and the tutor says what happened in a stored line.
+  function onVoiceFailed(speaking: Speaking, why: string): void {
+    trace('voiceFailed', { why, turnId: speaking.turnId });
+    clearTimeout(voiceStall);
+    speaking.spoken.stop();
+    if (speaking !== reply) return;
+    dropThought();
+    reply = speakTake('voiceLost', { isReply: true });
+  }
+
+  function watchVoice(speaking: Speaking): void {
+    clearTimeout(voiceStall);
+    voiceStall = setTimeout(() => onVoiceFailed(speaking, 'the voice sent nothing'), VOICE_STALL_MS);
+  }
+
+  function speakTake(use: TakeUse, { isReply }: { isReply: boolean }): Speaking | null {
+    const take = takes.next(use);
+    const voiceToUse = take && takeVoices.get(take.id);
+    if (!take || !voiceToUse) return null;
+    return speak({ voiceToUse, beats: [getTakeBeat(take, `${take.use}-${turnCount + 1}`)], isReply, canResume: false, kind: take.use });
+  }
+
+  const react = () => {
+    trace('reactDecided');
+    messenger.send({ type: 'heard' });
+    if (!reaction) reaction = speakTake('reaction', { isReply: false });
+  };
+
+  function dropThought(): void {
+    thought?.controller.abort();
+    thought = null;
+  }
+
+  const startReply = (text: string) => {
+    resumeTicket += 1;
+    reply?.spoken.stop();
+    cut = null;
+    dropThought();
+    const controller = new AbortController();
+    const started: Thought = { controller, iterator: tutor.reply({ text }, controller.signal)[Symbol.asyncIterator]() };
+    thought = started;
+    reply = speak({ voiceToUse: voice, beats: readThought(started), isReply: true, canResume: true, kind: 'reply' });
+  };
+
+  const stopSpeech = (action: TurnAction & { do: 'stop' }) => {
+    trace('stopDecided', { reason: action.reason, turnId: getAudibleTurn() });
+    clearTimeout(voiceStall);
+    resumeTicket += 1;
+    reaction?.spoken.stop();
+    reaction = null;
+    if (reply) {
+      reply.spoken.stop();
+      cut = action.keepsThought ? reply : null;
+      reply = null;
+    }
+    if (!action.keepsThought) dropThought();
+    dispatch({ type: 'tutorFinished' });
+  };
+
+  const hasEveryReport = (speaking: Speaking) => [...speaking.spoken.getWordsSent().keys()].every((beatId) => speaking.reports.has(beatId));
+
+  const resume = async () => {
+    const cutTurn = cut;
+    cut = null;
+    if (!cutTurn) return;
+    const ticket = (resumeTicket += 1);
+    dispatch({ type: 'tutorThinking' });
+    const deadline = getNowMs() + REPORT_WAIT_MS;
+    while (!hasEveryReport(cutTurn) && getNowMs() < deadline) await delay(REPORT_POLL_MS);
+    if (ticket !== resumeTicket) return;
+    const beats = getResumeBeats({ beats: cutTurn.beats, reports: cutTurn.reports, wordsSent: cutTurn.spoken.getWordsSent(), resumeTag: `r${turnCount}` });
+    trace('resumeStarted', { fromTurn: cutTurn.turnId, beats: beats.length, reported: hasEveryReport(cutTurn) });
+    if (beats.length === 0 && !thought) return dispatch({ type: 'tutorFinished' });
+    reply = speak({ voiceToUse: voice, beats: getResumedThen(beats, thought), isReply: true, canResume: true, kind: 'resume' });
+  };
+
+  const startNamedTimer = (name: TimerName, ms: number) => {
+    clearTimeout(timers.get(name));
+    timers.set(name, setTimeout(() => dispatch({ type: 'timer', name }), ms));
+  };
+
+  function runAction(action: TurnAction): void {
+    switch (action.do) {
+      case 'yield':
+        return sendYield(true);
+      case 'unyield':
+        return sendYield(false);
+      case 'stop':
+        return stopSpeech(action);
+      case 'resume':
+        return void resume();
+      case 'react':
+        return react();
+      case 'reply':
+        trace('replyDecided', { via: action.via, words: action.text.split(/\s+/).length });
+        return startReply(action.text);
+      case 'startTimer':
+        return startNamedTimer(action.name, action.ms);
+      case 'cancelTimer':
+        return clearTimeout(timers.get(action.name));
+      case 'setTurnCap':
+        return setTurnCap(action.ms);
+      case 'promptAfterSilence':
+        reply = speakTake('prompt', { isReply: true });
+    }
+  }
+
+  const link: LinkWatch = createLinkWatch({
+    onLost() {
+      trace('linkLost');
+      dispatch({ type: 'linkLost' });
+    },
+    onBack() {
+      trace('linkBack');
+      dispatch({ type: 'linkBack' });
+    },
+  });
+  const linkChecker = setInterval(() => link.check(getNowMs()), LINK_CHECK_MS);
+
+  const onReport = (message: BrowserMessage & { type: 'played' }) => {
+    const speaking = speakingByTurn.get(message.turnId);
+    if (!speaking) return;
+    speaking.reports.set(message.beatId, message);
+    trace('played', { turnId: message.turnId, beatId: message.beatId, ending: message.ending, playedWords: message.playedWords, firedCues: message.firedCueMs.length });
+    const isLiveTurn = speaking === reply || speaking === reaction;
+    if (message.ending === 'interrupted' && isLiveTurn && state.phase !== 'away') {
+      trace('browserFroze', { turnId: message.turnId });
+      dispatch({ type: 'linkLost' });
+      dispatch({ type: 'linkBack' });
+    }
+  };
+
+  const onAudioState = (isRunning: boolean) => {
+    const wasRunning = audioRunning;
+    audioRunning = isRunning;
+    trace('audioState', { isRunning });
+    if (hasGreeted && wasRunning && !isRunning) dispatch({ type: 'linkLost' });
+    if (!wasRunning && isRunning && state.phase === 'away') dispatch({ type: 'linkBack' });
+  };
+
+  return {
+    onEars(event) {
+      trace(event.type, event.type === 'words' ? { isFinal: event.isFinal, words: event.text.split(/\s+/).length } : {});
+      if (event.type === 'words' && state.tutor === 'speaking' && echo.isEcho(event.text, getNowMs())) {
+        trace('echoHeard');
+        return dispatch({ type: 'echoHeard' });
+      }
+      if (event.type === 'words') messenger.send({ type: 'studentWords', text: event.text, isFinal: event.isFinal } satisfies AgentMessage);
+      dispatch(event);
+    },
+    onBrowser(message) {
+      if (message.type !== 'pulse') log.write(message);
+      if (message.type === 'played') onReport(message);
+      if (message.type === 'questionHeard') dispatch({ type: 'questionHeard' });
+      if (message.type === 'typed') dispatch({ type: 'typed', text: message.text });
+      if (message.type === 'pulse') link.notePulse(message.hearsAgent, getNowMs());
+      if (message.type === 'audioState') onAudioState(message.isRunning);
+    },
+    greet() {
+      if (hasGreeted) return;
+      hasGreeted = true;
+      reply = speakTake('greeting', { isReply: true });
+    },
+    getLog: () => log.getEvents(),
+    doesStudentHearAudio: () => audioRunning,
+    async close() {
+      clearInterval(linkChecker);
+      clearTimeout(voiceStall);
+      timers.forEach((timer) => clearTimeout(timer));
+      reaction?.spoken.stop();
+      reply?.spoken.stop();
+      dropThought();
+      await Promise.allSettled([reaction?.spoken.finished, reply?.spoken.finished]);
+      await Promise.all([...takeVoices.values()].map((take) => take.close()));
+    },
+  };
+}
