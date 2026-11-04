@@ -15,6 +15,8 @@ const RIGHT: WorkVerdict = { status: 'right' };
 const UNKNOWN: WorkVerdict = { status: 'unknown' };
 
 const CANNOT_TELL_WHICH_FRACTION = /\/\s*\d*\s*[a-zA-Z(\\]/;
+/** V = 6 V is six volts, and x = 4x is no step a student means. */
+const READS_AS_A_UNIT = /^([A-Za-z])=(?:.*=)?\d+(?:\.\d+)?\1$/;
 const BARE_ANSWER = /^(?:-?\s*(?:\d+(?:\.\d+)?|\d*\\frac\{\d+\}\{\d+\}))$/;
 
 type Sides = readonly (readonly string[])[];
@@ -75,12 +77,34 @@ function getWrongStep(problemTex: string, previousTex: string | null, tex: strin
 
 /** Checks a typed math line, and calls it wrong only when it is shown to be a step of a single-letter equation. */
 export function checkStep({ tex, problemTex, previousTex }: StepInput): WorkVerdict {
-  if (CANNOT_TELL_WHICH_FRACTION.test(tex)) return UNKNOWN;
+  if (CANNOT_TELL_WHICH_FRACTION.test(tex) || READS_AS_A_UNIT.test(compact(tex))) return UNKNOWN;
   if (problemTex === null) return checkMathLine(tex).status === 'right' ? RIGHT : UNKNOWN;
   const verdict = checkMathStep(problemTex, tex);
   if (verdict.status === 'right') return RIGHT;
   if (verdict.status === 'unknown' || !isSingleLetterEquation(problemTex)) return UNKNOWN;
   return getWrongStep(problemTex, previousTex, tex, verdict.why);
+}
+
+// A link of plain numbers that is false in base ten, with no rounding that could explain it, in a line that holds a letter.
+function getBrokenLink(tex: string): WorkVerdict | null {
+  const links = getChainLinks(tex);
+  if (links.length < 2 || !links.some(isSingleLetterEquation)) return null;
+  return links.map(checkMathLine).find((verdict, index) => verdict.status === 'wrong' && !isLastDigitSlip(links[index] as string, links[index] as string)) ?? null;
+}
+
+/**
+ * Checks a line against the tutor's latest equation when no open task names one. That equation is a guess at what the student is solving, and they may have a problem of their own, so it can earn a tick and never a cross. Being out of step with it is a fact for the tutor, who has heard the conversation.
+ */
+export function checkAgainstGuess({ tex, problemTex, previousTex }: StepInput): WorkVerdict {
+  const verdict = checkStep({ tex, problemTex, previousTex });
+  if (verdict.status === 'right' || problemTex === null) return verdict;
+  if (CANNOT_TELL_WHICH_FRACTION.test(tex) || READS_AS_A_UNIT.test(compact(tex))) return UNKNOWN;
+  const broken = getBrokenLink(tex);
+  if (broken) return broken;
+  const holdsItsLetter = getChainLinks(tex).some(isSingleLetterEquation);
+  const isOutOfStep = holdsItsLetter && isSingleLetterEquation(problemTex) && checkMathStep(problemTex, tex).status === 'wrong';
+  const isOnlySlips = getChainLinks(tex).every((link) => checkMathStep(problemTex, link).status !== 'wrong' || isLastDigitSlip(problemTex, link));
+  return isOutOfStep && !isOnlySlips ? { status: 'unknown', offProblem: problemTex } : UNKNOWN;
 }
 
 export function isFinishedAnswer(tex: string): boolean {

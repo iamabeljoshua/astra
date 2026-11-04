@@ -224,6 +224,17 @@ export class BeatTextReader {
     this.push(held);
   }
 
+  // Help written after a held question must be spoken too, so it lets the question go.
+  #addAfterHeldQuestion(character: string): void {
+    this.#textAfterTurn += character;
+    if (!SAFETY_REPLY.test(this.#textAfterTurn)) return;
+    const held = this.#textAfterTurn;
+    this.#textAfterTurn = '';
+    this.#isQuestionHeld = false;
+    this.#isSafetyReply = true;
+    this.push(held);
+  }
+
   #isPastWordCut(): boolean {
     return this.#wordsThisTurn >= TURN_WORDS_TO_CUT && !this.#isSafetyReply;
   }
@@ -237,7 +248,7 @@ export class BeatTextReader {
     if (this.#held !== '') this.#stepAfterOpenBrace(character);
     else if (character === '{') this.#held = character;
     else if (character === '<') this.#tag = character;
-    else if (character === '\n' && this.#isQuestionHeld) this.#textAfterTurn += character;
+    else if (character === '\n' && this.#isQuestionHeld) this.#addAfterHeldQuestion(character);
     else if (character === '\n') this.#endLineOrHoldQuestion();
     else if (character !== '}' && !UNSPEAKABLE.test(character) && !this.#isOneMarkTooMany(character)) this.#speak(character);
   }
@@ -304,10 +315,7 @@ export class BeatTextReader {
 
   #speak(character: string): void {
     const isSpace = /\s/.test(character);
-    if (this.#isQuestionHeld) {
-      this.#textAfterTurn += character;
-      return;
-    }
+    if (this.#isQuestionHeld) return this.#addAfterHeldQuestion(character);
     if (this.#characterCount === BEAT_LIMITS.characters) {
       if (isSpace) return;
       this.#endBeat();
@@ -323,12 +331,12 @@ export class BeatTextReader {
   }
 
   #endBeatOrHoldQuestion(): void {
-    if (this.#wordCount > 0 && ENDS_IN_QUESTION.test(this.#text)) this.#isQuestionHeld = true;
+    if (this.#wordCount > 0 && ENDS_IN_QUESTION.test(this.#text) && !this.isSafetyReply) this.#isQuestionHeld = true;
     else this.#endBeat();
   }
 
   #endLineOrHoldQuestion(): void {
-    if (this.#wordCount > 0 && ENDS_IN_QUESTION.test(this.#text)) this.#isQuestionHeld = true;
+    if (this.#wordCount > 0 && ENDS_IN_QUESTION.test(this.#text) && !this.isSafetyReply) this.#isQuestionHeld = true;
     else this.#endLine();
   }
 

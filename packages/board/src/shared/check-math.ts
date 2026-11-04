@@ -100,7 +100,8 @@ function checkExactEquals(left: MathSide, right: MathSide, a: Rational, b: Ratio
 function checkFloatEquals(left: MathSide, right: MathSide, a: number, b: number): MathVerdict {
   const places = Math.max(getBareDecimalPlaces(left.tex), getBareDecimalPlaces(right.tex));
   const gap = Math.abs(a - b);
-  if (gap <= SAME_FLOAT) return RIGHT;
+  // Digits written past what the float can tell still have to be true, so pi = 3.1415926530 gets no tick.
+  if (gap <= (places > 0 ? Math.min(SAME_FLOAT, 10 ** -places / 2) : SAME_FLOAT)) return RIGHT;
   if (places > 0 && gap <= 10 ** -places / 2) return places >= FEWEST_PLACES_TO_PROVE ? RIGHT : UNKNOWN;
   const isClaimedRounding = places > 0 && !MAY_BE_ANOTHER_BASE.test(left.tex + right.tex);
   return isClaimedRounding || isAbsurdlyFar(a, b) ? wrong(`${left.tex} is ${describeFloat(a)}, not ${describeFloat(b)}`) : UNKNOWN;
@@ -286,6 +287,9 @@ export function checkMathStep(beforeTex: string, afterTex: string): MathVerdict 
 
 const isWithinLastDigit = (gap: number, places: number) => places > 0 && Math.abs(gap) <= 10 ** -places + SAME_FLOAT;
 
+// A whole number may be a rounding, up or down, and a question decides which: 100 students need 4 buses of 30.
+const isWholeRounding = (exact: number, written: number) => Number.isInteger(written) && !Number.isInteger(exact) && Math.abs(exact - written) < 1;
+
 function getRootOf({ value, symbols }: Rewrite): number | null {
   const [letter] = symbols;
   if (!value || !isPolynomial(value) || symbols.size !== 1 || letter === undefined) return null;
@@ -293,16 +297,18 @@ function getRootOf({ value, symbols }: Rewrite): number | null {
   return getDegree(gap) === 1 ? toFloat(getLinearRoot(gap)) : null;
 }
 
-/** A last digit off by one may be cut short and not rounded, as 0.66 for 2/3 is. A student is not crossed for it, and the tutor is held to the rounding. */
+/** A last digit off by one may be cut short and not rounded, as 0.66 for 2/3 is, and a whole number may be rounded either way. A student is not crossed for it, and the tutor is held to the rounding. */
 export function isLastDigitSlip(beforeTex: string, tex: string): boolean {
   const [before, after] = [readRewrite(beforeTex), readRewrite(tex)];
   if (!after || after.kind !== 'equation') return false;
   if (after.letters.size === 0) {
     const [left, right] = readStatement(tex).sides.map(({ expression }) => (expression ? getNumberValue(expression) : null));
-    return !!left && !!right && isDefined(left) && isDefined(right) && isWithinLastDigit(toFloatValue(left) - toFloatValue(right), after.places);
+    if (!left || !right || !isDefined(left) || !isDefined(right)) return false;
+    const [a, b] = [toFloatValue(left), toFloatValue(right)];
+    return isWithinLastDigit(a - b, after.places) || isWholeRounding(a, b) || isWholeRounding(b, a);
   }
   const [was, now] = [before && getRootOf(before), getRootOf(after)];
-  return was !== null && now !== null && isWithinLastDigit(was - now, after.places);
+  return was !== null && now !== null && (isWithinLastDigit(was - now, after.places) || isWholeRounding(was, now));
 }
 
 // A line that follows another need not follow from it, as a derivative, a new problem, and a student's wrong line all show, so code judges only what the line says it is. No claim means no check.

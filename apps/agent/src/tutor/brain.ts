@@ -2,7 +2,7 @@ import { type Beat, type BeatId, type ElementId, clipTypedText, getBeatText, get
 import { type BoardOperation, type BoardState, type CheckedWork, checkWorkOnBoard, cleanStudentText as cleanLine, getBoardAt, getNod, getOpenTaskOnBoard, getWorkContext } from '@astra/board/shared';
 import { type ModelEvent, ModelRejectedError, type ModelUsage, type TutorModelAdapter, type TutorModelRequest, type TutorTurn } from '../providers/types.ts';
 import { BeatTextReader, type WrittenBeatParts } from './beat-text-reader.ts';
-import { type BoardMemory, checkAgainstBoard, EMPTY_BOARD, getMemoryAfter, getMemoryAfterAnswering, getMemoryAfterWork, getMemoryOnNewTurn, getWordsProblem } from './board-memory.ts';
+import { type BoardMemory, checkAgainstBoard, EMPTY_BOARD, getMemoryAfter, getMemoryAfterAnswering, getMemoryAfterWork, getMemoryOnComingBack, getMemoryOnNewTurn, getWordsProblem } from './board-memory.ts';
 import { TUTOR_SYSTEM } from './prompt.ts';
 import { createLinePicker, type SpokenLineUse } from './spoken-lines.ts';
 import { getWorkNote } from './watcher/work-note.ts';
@@ -34,6 +34,8 @@ export interface TutorBrain {
   getClosedReason?(): TutorClosedReason | null;
   /** Checks the student's work against the board as the tutor knows it, and notes it for the next turn. Null if the work cannot stand, such as a line id already used. */
   noteWork?(work: StudentWork): { checked: CheckedWork; hadTask: boolean } | null;
+  /** The page reloaded with the board in its hands, so the next reply is told and cannot wipe it. */
+  noteCameBack?(): void;
   noteWatcher?(note: WatcherNote): void;
   getBoard?(): { state: BoardState; openTask: ElementId | null };
 }
@@ -237,6 +239,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
   let workCount = 0;
   const getBoardNow = () => getBoardAt(boardOperations, Number.POSITIVE_INFINITY);
   let toldBoard = '{}';
+  let isComeBackUnanswered = false;
   let pendingNotes: Record<string, unknown>[] = profileNote ? [profileNote] : [];
   let lastBeats: readonly Beat[] = [];
   let lastRefused: readonly string[] = [];
@@ -296,6 +299,8 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
     settleLastTurn();
     turnCount += 1;
     memory = getMemoryOnNewTurn(memory);
+    if (memory.hasComeBack && !isComeBackUnanswered) memory = { ...memory, hasComeBack: false };
+    isComeBackUnanswered = false;
     const nodded = hasNoddedSinceLastTurn;
     hasNoddedSinceLastTurn = false;
     let readerMemory = memory;
@@ -778,6 +783,12 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
       pendingNotes.push({ mark_not_drawn: mark });
     },
     getClosedReason: () => (hasToldClosed ? closedReason : null),
+    noteCameBack() {
+      memory = getMemoryOnComingBack(memory);
+      isComeBackUnanswered = true;
+      toldBoard = '';
+      pendingNotes.push({ came_back: true });
+    },
     noteWork(work) {
       if (work.way === 'write' && (!isStudentLineId(work.id) || memory.kinds.has(work.id))) return null;
       if (workCount >= MOST_WORK_IN_A_SESSION) return null;

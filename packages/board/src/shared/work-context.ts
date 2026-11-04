@@ -1,7 +1,7 @@
 import type { ElementId, StudentWork, Task } from '@astra/contracts';
 import type { BoardElement, BoardState } from '../player/board-state.ts';
-import { checkWork, type CheckedWork, FEWEST_WITHIN_X, getCurveOf, type WorkContext } from './check-work.ts';
-import { isSingleLetterEquation } from './check-step.ts';
+import { checkWork, type CheckedWork, FEWEST_WITHIN_X, getCurveOf, wantsSomethingElse, type WorkContext } from './check-work.ts';
+import { isFinishedAnswer, isSingleLetterEquation } from './check-step.ts';
 import { getDragStep } from './drag-point.ts';
 
 function getOpenTask(board: BoardState, id: ElementId | undefined): Task | null {
@@ -9,12 +9,16 @@ function getOpenTask(board: BoardState, id: ElementId | undefined): Task | null 
   return element?.content.kind === 'task' && element.progress?.isOpen ? element.content : null;
 }
 
-// Only the tutor's latest line can be the problem, so a new topic's line ends the old one, as a wish to leave does. A line written only to look at, as a common mistake is, is not one.
+// Only the tutor's latest line can be the problem, so a new topic's line ends the old one, as a wish to leave and a right answer do. A line written only to look at, as a common mistake is, is not one.
 function getProblemOnBoard(board: BoardState): { problemTex: string; lastLineTex: string | null } | null {
   let lastLineTex: string | null = null;
   for (const { content, math, progress } of [...board.elements.values()].reverse()) {
     if (progress?.hasLeft) return null;
-    if (content.kind === 'studentLine' && math) lastLineTex ??= math.tex;
+    if (content.kind === 'studentLine' && content.reading.kind === 'words' && wantsSomethingElse(content.text)) return null;
+    if (content.kind === 'studentLine' && math) {
+      if (content.verdict.status === 'right' && isFinishedAnswer(math.tex)) return null;
+      lastLineTex ??= math.tex;
+    }
     if (content.kind !== 'writeMath' || !math || content.claim === 'shown') continue;
     return isSingleLetterEquation(math.tex) ? { problemTex: math.tex, lastLineTex } : null;
   }

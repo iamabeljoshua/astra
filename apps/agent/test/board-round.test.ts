@@ -43,7 +43,7 @@ describe('a line noted between two turns', () => {
   it('keeps its verdict through the replay of a clearBoard, so its cross lands', async () => {
     const { brain, traces } = setup([SET_PROBLEM, 'Look here. {"kind":"annotate","id":"m1","target":"s1","mark":"cross"}That one does not follow.']);
     await collect(brain, 'give me a problem');
-    expect(brain.noteWork(line('s1', '2x = 14'))?.checked.verdict.status).toBe('wrong');
+    expect(brain.noteWork(line('s1', '2x = 14'))?.checked.verdict).toEqual({ status: 'unknown', offProblem: '2x + 3 = 11' });
     const beats = await collect(brain, '2x = 14');
     expect(traces).not.toContain('commandRefused');
     expect(commandsOf(beats).some((command) => command.kind === 'annotate' && command.mark === 'cross')).toBe(true);
@@ -170,7 +170,7 @@ describe('spoken answers under a math task', () => {
     ['maybe eight', 'x=8'],
     ['so two x equals eight', '2x=8'],
   ])('%s lands as %s', (said, tex) => {
-    expect(decideSpoken(said, task, [], 'x')).toEqual({ act: 'line', tex });
+    expect(decideSpoken(said, task, [], 'x')).toMatchObject({ act: 'line', tex });
   });
 
   it.each(['um', 'okay', 'um what', 'is it four', 'four?', 'I think I am lost', 'thank you', 'I think we should stop'])('%s stays talk', (said) => {
@@ -201,7 +201,7 @@ describe('a typed line before any task has landed', () => {
     expect(speakUp).toHaveBeenCalledWith('2x = 14');
     expect(work.takeNod()).toBe('Hm.');
     await collect(brain, '2x = 14');
-    expect(JSON.stringify(requests.at(-1)?.turns)).toContain('\\"check\\":\\"wrong\\"');
+    expect(JSON.stringify(requests.at(-1)?.turns)).toContain('\\"does_not_follow_from\\":\\"2x + 3 = 11\\"');
   });
 
   it('stays quiet on a right step, as under a task', async () => {
@@ -245,6 +245,6 @@ describe('the board checks against the problem', () => {
   it('uses the same context on the agent as on the page', async () => {
     const { brain } = setup([SET_PROBLEM]);
     await collect(brain, 'give me a problem');
-    expect(checkWorkOnBoard(line('s1', 'x = 7'), brain.getBoard().state).verdict.status).toBe('wrong');
+    expect(checkWorkOnBoard(line('s1', 'x = 7'), brain.getBoard().state).verdict).toEqual({ status: 'unknown', offProblem: '2x + 3 = 11' });
   });
 });

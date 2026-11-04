@@ -1,6 +1,6 @@
 export { checkClaimedMath, type MathVerdict } from './check-math.ts';
 export { checkStep, getLinearAnswer, isFinishedAnswer, type StepInput } from './check-step.ts';
-export { checkWork, type CheckedWork, getCurveOf, getNod, getPointFacts, isThinkingAloud, type Nod, type PointFacts, type WorkContext, wantsSomethingElse } from './check-work.ts';
+export { checkWork, type CheckedWork, getCurveOf, getNod, getPointFacts, isThinkingAloud, type Nod, NODS, type PointFacts, type WorkContext, wantsSomethingElse } from './check-work.ts';
 export { cleanStudentText, cleanTypedLine, getLineTex, readLine } from './read-line.ts';
 export type { StudentLineContent, TaskProgress } from './student-work.ts';
 export { checkWorkOnBoard, getOpenDragOn, getOpenTaskOnBoard, getWorkContext } from './work-context.ts';
