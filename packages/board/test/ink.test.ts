@@ -110,6 +110,63 @@ describe('drawDiagram', () => {
     for (const step of narrow.steps) for (const stroke of step.strokes) for (const point of stroke.points) expect(point.x).toBeLessThanOrEqual(narrow.width + 1e-6);
   });
 
+  describe('a label the strokes cannot write', () => {
+    const OUTSIDE = { nodes: [{ name: 'a', label: 'H\u2082O' }, { name: 'b', label: '\u0394v' }, { name: 'c', label: 'Water' }], edges: [{ from: 'a', to: 'b', label: '\u2192 heat' }, { from: 'b', to: 'c', label: 'runs' }] };
+    const REQUEST = { fontSize: 18, maxWidth: 600, seed: 'd', measureText: (text: string, fontSize: number) => text.length * fontSize * 0.5 };
+    const textLabels = (drawn: ReturnType<typeof drawDiagram>) => drawn.steps.flatMap((step) => step.textLabels);
+
+    it('is set as plain text, and a label the strokes can write stays strokes', () => {
+      expect(textLabels(drawDiagram(OUTSIDE, REQUEST)).map((label) => label.lines.join(' '))).toEqual(['H\u2082O', '\u0394v', '\u2192 heat']);
+      expect(textLabels(drawDiagram(diagram, REQUEST))).toEqual([]);
+    });
+
+    it('sits inside a box sized for it', () => {
+      const drawn = drawDiagram({ nodes: OUTSIDE.nodes.slice(0, 1), edges: [] }, REQUEST);
+      const [label] = textLabels(drawn);
+      const xs = drawn.steps[0]?.strokes[0]?.points.map((point) => point.x) ?? [];
+      const ys = drawn.steps[0]?.strokes[0]?.points.map((point) => point.y) ?? [];
+      expect(label?.x).toBeGreaterThan(Math.min(...xs));
+      expect((label?.x ?? 0) + (label?.width ?? 0)).toBeLessThan(Math.max(...xs));
+      expect(label?.y).toBeGreaterThan(Math.min(...ys));
+      expect((label?.y ?? 0) + (label?.height ?? 0)).toBeLessThan(Math.max(...ys));
+    });
+
+    it('wraps to the width it has, however long, and stays inside the size it reports', () => {
+      const long = { nodes: [{ name: 'a', label: `\u0394${'long words here '.repeat(4)}` }, { name: 'b', label: `\u0394${'w'.repeat(79)}` }], edges: [] };
+      const drawn = drawDiagram(long, { ...REQUEST, maxWidth: 160 });
+      for (const label of textLabels(drawn)) {
+        expect(label.lines.length).toBeGreaterThan(1);
+        expect(label.x + label.width).toBeLessThanOrEqual(drawn.width + 1e-6);
+        expect(label.y + label.height).toBeLessThanOrEqual(drawn.height + 1e-6);
+      }
+      const boxWobble = 3;
+      expect(drawn.width).toBeLessThanOrEqual(160 + boxWobble);
+    });
+
+    it('widens the gap an edge label needs, as a written one does', () => {
+      const gapOf = (label: string) => {
+        const drawn = drawDiagram({ nodes: OUTSIDE.nodes.slice(0, 2), edges: [{ from: 'a', to: 'b', label }] }, REQUEST);
+        return drawn.width;
+      };
+      expect(gapOf('\u2192 a very long heat label')).toBeGreaterThan(gapOf('\u2192'));
+    });
+
+    it('puts the label of an edge between two rows in the gap, not over a box', () => {
+      const drawn = drawDiagram({ nodes: OUTSIDE.nodes.slice(0, 2), edges: [{ from: 'a', to: 'b', label: '\u2192 runs' }] }, { ...REQUEST, maxWidth: 90 });
+      const getBox = (step: number) => {
+        const ys = drawn.steps[step]?.strokes[0]?.points.map((point) => point.y) ?? [];
+        return { top: Math.min(...ys), bottom: Math.max(...ys) };
+      };
+      const [label] = textLabels(drawn).filter((candidate) => candidate.lines.join(' ').includes('runs'));
+      expect(label?.y).toBeGreaterThanOrEqual(getBox(0).bottom - 3);
+      expect((label?.y ?? 0) + (label?.height ?? 0)).toBeLessThanOrEqual(getBox(1).top + 3);
+    });
+
+    it('holds every label as plain text when the diagram is not handwritten', () => {
+      expect(textLabels(drawDiagram({ ...diagram, handwritten: false }, REQUEST)).map((label) => label.lines.join(' '))).toEqual(['Rain', 'River', 'runs', 'Sea']);
+    });
+  });
+
   it('keeps every stroke inside the size it reports, with no negative positions', () => {
     const drawn = drawDiagram(diagram, { fontSize: 18, maxWidth: 200, seed: 'd' });
     for (const step of drawn.steps) for (const stroke of step.strokes) for (const point of stroke.points) expect(point.y).toBeGreaterThanOrEqual(-1e-6);

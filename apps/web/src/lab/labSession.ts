@@ -2,6 +2,7 @@ import { type BoardState, createSampleClock, createScenePlayer, createTimerClock
 import probeWorkletUrl from '@astra/board/audio-probe-worklet.js?url';
 import { type AgentMessage, type BrowserMessage, parseAgentMessage, parseSessionEvent, SCENE_TOPIC, type SceneBrowserMessage, type SessionEvent } from '@astra/contracts';
 import { type RemoteTrack, Room, RoomEvent, Track } from 'livekit-client';
+import type { BoardProblem } from '../board/boardPainting';
 import { createPcmRecorder, type PcmRecorder } from './pcmRecorder';
 import pcmTapWorkletUrl from './pcm-tap-worklet.js?url';
 
@@ -21,7 +22,7 @@ export interface LabRecords {
   outputLatencyMs: number[];
   fired: (FiredCue & { firedEpochMs: number })[];
   drawn: { id: string; drawnAtMs: number; drawnEpochMs: number; paintedAtMs: number | null }[];
-  agentMessages: { type: AgentMessage['type']; atMs: number; epochMs: number; firstWord?: number; beatId?: string; count?: number; gapAtMs?: number; gapMs?: number }[];
+  agentMessages: { type: AgentMessage['type']; turnId: string; atMs: number; epochMs: number; firstWord?: number; beatId?: string; count?: number; gapAtMs?: number; gapMs?: number }[];
   browserMessages: { type: BrowserMessage['type']; atMs: number }[];
   stops: { turnId: string; receivedAtMs: number; receivedEpochMs: number; audioFrameAtStop: number }[];
   probe: { kind: string; atMs: number; where: 'arriving' | 'output' }[];
@@ -29,6 +30,7 @@ export interface LabRecords {
   log: SessionEvent[];
   turnsSent: string[];
   refused: string[];
+  boardProblems: BoardProblem[];
 }
 
 export interface LabSession {
@@ -56,14 +58,15 @@ export interface LabSessionOptions {
 }
 
 function createRecords(clockKind: LabRecords['clockKind'], audioContext: AudioContext): LabRecords {
-  return { clockKind, sampleRate: audioContext.sampleRate, baseLatency: audioContext.baseLatency, outputLatencyMs: [], fired: [], drawn: [], agentMessages: [], browserMessages: [], stops: [], probe: [], frames: [], log: [], turnsSent: [], refused: [] };
+  return { clockKind, sampleRate: audioContext.sampleRate, baseLatency: audioContext.baseLatency, outputLatencyMs: [], fired: [], drawn: [], agentMessages: [], browserMessages: [], stops: [], probe: [], frames: [], log: [], turnsSent: [], refused: [], boardProblems: [] };
 }
 
 function noteAgentMessage(records: LabRecords, message: AgentMessage, atMs: number): void {
   const epochMs = performance.timeOrigin + performance.now();
-  if (message.type === 'words') records.agentMessages.push({ type: message.type, atMs, epochMs, beatId: message.beatId, firstWord: message.firstWord, count: message.words.length });
-  else if (message.type === 'audioGap') records.agentMessages.push({ type: message.type, atMs, epochMs, gapAtMs: message.atMs, gapMs: message.ms });
-  else records.agentMessages.push({ type: message.type, atMs, epochMs });
+  const { type, turnId } = message;
+  if (message.type === 'words') records.agentMessages.push({ type, turnId, atMs, epochMs, beatId: message.beatId, firstWord: message.firstWord, count: message.words.length });
+  else if (message.type === 'audioGap') records.agentMessages.push({ type, turnId, atMs, epochMs, gapAtMs: message.atMs, gapMs: message.ms });
+  else records.agentMessages.push({ type, turnId, atMs, epochMs });
 }
 
 interface TutorAudio {

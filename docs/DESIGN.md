@@ -41,7 +41,7 @@ Aristotle's logged-in home sets the proportions, in our type and palette. A side
 
 ## Onboarding
 
-The question gets the room. Each screen asks one thing. A small sheet headed "Made for you" sits beside it and records each answer, and it shows the student's name as they type it, so the tagline "A learning app, made for you" comes true on screen. No picture panel and no captions.
+The question gets the room. Each screen asks one thing, on the same dot page as sign-in. The tutor's line types out, then the field appears. The chart beside it records the answers: the student's name forms in the planet's dots as they type it, the chart's title says "made for" that name, and each interest picked lights a new labelled star. The level and goal steps give the dots a fitting shape, and the other steps hold the name. No picture panel and no captions.
 
 ## Motion
 
@@ -49,7 +49,7 @@ The question gets the room. Each screen asks one thing. A small sheet headed "Ma
 - Motion needs a cause: the tutor's word or the student's action.
 - The main motion is the board drawing itself in time with speech.
 - By default, changing a view is a quiet fade of about half a second.
-- On a dot page, a shape made of dots forms when a step changes or a student acts, and is still otherwise. The tutor's line types out, then the field appears. The dot grid never moves, with no ripple and no expansion. Abel chose this on 4 November 2026.
+- On a dot page, a shape made of dots forms when a step changes or a student acts, and is still otherwise. The sign-in page's dots gather once when it opens. A path leg draws when a digit is typed, and a star lights when a chip is picked. The tutor's line types out, then the field appears. The dot grid and the chart's rings, spokes, and scattered stars never move, with no ripple and no expansion. Abel chose this on 4 November 2026.
 - Other morphing and particle effects are a judgment call. Use them where they help the lesson or the experience, and avoid them as decoration.
 - Honor the reduced-motion setting by showing everything at once, and follow PRD B10 on flashing.
 
@@ -59,7 +59,14 @@ The dot is the tutor's presence. It is a small solid circle in `ink` that rests 
 
 ## Dot pages
 
-Sign-in, and onboarding next, are one calm page and not two halves, built on `DotStage`. A still grid of dots in `ink` fills the page and fades out around the question. A larger shape made of dots sits beside the question with no divider, and above it, smaller, on a phone. A browser with no canvas gets the same page without the dots. A shape or a name may be made of dots. Pictures may not, as the next section says.
+Sign-in, onboarding, and the account notices are one calm page and not two halves, built on `DotStage`. Abel chose this look, the dotted Saturn on the star chart, on 4 November 2026. The question sits on the left and the chart fills the right, with the planet at its center. Below 1,021px the chart is a band across the top, with the form below it.
+
+- A still grid of dots in `ink` fills the page and fades out around the question. The chart's dotted rings, spokes, and scattered stars are drawn once.
+- Eight labelled subject stars form a horseshoe around the planet, joined by a faint dotted path: Motion, Light, Waves, Music, Cells, Code, Stars, and History. The email step draws the first leg, and each digit of the code draws the next, so the last digit finishes the path.
+- The planet's near dots are larger than its far ones, and it is shaded by how many dots land on it, with rings passing in front and behind.
+- The chart's title sits at the bottom right in Newsreader italic. It reads "A learning app, made for you", and it takes the student's name once they type one.
+
+A browser with no canvas gets the same page without the chart. A shape or a name may be made of dots. Pictures may not, as the next section says.
 
 ## Pictures
 
@@ -67,6 +74,7 @@ Pictures are normal images. Abel ruled out rendering them as dots on 2 November 
 
 - Use public-domain art, licensed images, and our own vector drawings.
 - Draw our own diagrams in `ink` strokes on `panel`, so the board can reveal them stroke by stroke in time with speech.
+- Interest chips carry a small drawing each, in the same 1.3px strokes as Home's card drawings, in the chip's text color. These drawings are decorative, and the chip's name is what a screen reader reads.
 
 ## Marketing demos
 

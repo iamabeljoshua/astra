@@ -1,6 +1,6 @@
 import { type FormEvent, useRef, useState } from 'react';
-import { StepHeading } from '../auth/StepHeading';
 import { ONBOARDING_LABELS } from '../strings';
+import { TextField } from '../ui/TextField';
 import { isStorableName, MAX_NAME_LENGTH } from './fieldLimits';
 import { ContinueButton, StepScreen } from './StepScreen';
 import type { StepProps } from './useOnboarding';
@@ -18,23 +18,20 @@ export function NameStep({ flow }: StepProps) {
   }
 
   return (
-    <StepScreen flow={flow} action={<ContinueButton formId={FORM_ID} />}>
-      <form id={FORM_ID} onSubmit={submit} className="flex flex-col gap-4.5">
-        <StepHeading fieldToFocus={input}>{ONBOARDING_LABELS.nameQuestion}</StepHeading>
-        <input
-          ref={input}
-          className="line-input"
+    <StepScreen flow={flow} line={ONBOARDING_LABELS.nameQuestion} fieldToFocus={input} action={<ContinueButton formId={FORM_ID} />}>
+      <form id={FORM_ID} onSubmit={submit}>
+        <TextField
+          inputRef={input}
+          label={ONBOARDING_LABELS.nameLabel}
           autoComplete="given-name"
           maxLength={MAX_NAME_LENGTH}
-          aria-label={ONBOARDING_LABELS.namePlaceholder}
-          placeholder={ONBOARDING_LABELS.namePlaceholder}
+          error={isMissing ? ONBOARDING_LABELS.nameMissing : null}
           value={flow.answers.name}
           onChange={(event) => {
             flow.changeAnswers({ name: event.target.value });
             setIsMissing(false);
           }}
         />
-        {isMissing && <p role="alert" className="stop-note">{ONBOARDING_LABELS.nameMissing}</p>}
       </form>
     </StepScreen>
   );

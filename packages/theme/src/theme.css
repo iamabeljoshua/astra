@@ -36,6 +36,7 @@
   --text-sheet-name: 30px;
   --text-sheet-name--line-height: 1.1;
   --text-sheet-name-phone: 18px;
+  --text-chart-title: 20px;
   --text-tutor-line: clamp(28px, 2.8vw, 36px);
   --text-tutor-line--line-height: 1.22;
   --text-code-digit: 24px;
@@ -59,10 +60,12 @@
   --spacing-page-top: clamp(20px, 4.5vh, 44px);
   --spacing-onboarding-side: clamp(16px, 4vw, 56px);
   --spacing-page-bottom: 28px;
-  --spacing-stage-side: clamp(20px, 7vw, 96px);
-  --spacing-stage-shape-room: 158px;
+  --spacing-stage-side: clamp(20px, 6vw, 84px);
+  --spacing-stage-edge: clamp(20px, 5vw, 56px);
+  --spacing-stage-band: 286px;
   --spacing-tutor-indent: 30px;
   --spacing-thumb: 68px;
+  --spacing-chip-picture: 21px;
   --spacing-continue-art-height: 140px;
   --spacing-continue-placeholder: 170px;
   --spacing-pick-placeholder: 90px;
@@ -72,7 +75,7 @@
   --container-column: 1020px;
   --container-onboarding: 580px;
   --container-sheet: 348px;
-  --container-stage: 560px;
+  --container-stage: 500px;
   --grid-template-columns-onboarding: minmax(0, 1fr) clamp(360px, 31vw, 460px);
   --grid-template-columns-sheet-row: 74px minmax(0, 1fr);
   --grid-template-columns-option-row: 16px minmax(0, 1fr);
@@ -225,6 +228,7 @@
 @utility chip {
   display: inline-flex;
   align-items: center;
+  gap: 8px;
   min-height: 44px;
   border: 1px solid var(--color-line);
   padding: 11px 16px;
@@ -241,6 +245,16 @@
     border-color: var(--color-ink);
     background-color: var(--color-ink);
     color: var(--color-paper);
+  }
+
+  /* Forced colors drop the fill that marks a picked chip, so the system's own highlight takes its place. */
+  @media (forced-colors: active) {
+    &[aria-pressed='true'] {
+      forced-color-adjust: none;
+      border-color: Highlight;
+      background-color: Highlight;
+      color: HighlightText;
+    }
   }
 }
 
@@ -331,6 +345,11 @@
     stroke-width: 1.8;
     stroke-linecap: round;
     stroke-linejoin: round;
+  }
+
+  .board-ink-text {
+    fill: var(--color-ink);
+    stroke: none;
   }
 
   .board-marks {

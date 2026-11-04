@@ -15,8 +15,15 @@ interface CodeFieldProps {
 
 const ARROW_STEPS: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1 };
 
+// A whole mail holds other numbers, so a run of exactly the code's length wins before loose digits are joined.
 function toCodeDigits(text: string, length: number) {
-  return toLatinDigits(text).replace(/\D/g, '').slice(0, length);
+  const latinText = toLatinDigits(text);
+  const wholeCode = new RegExp(`\\b\\d{${length}}\\b`).exec(latinText)?.[0];
+  return wholeCode ?? latinText.replace(/\D/g, '').slice(0, length);
+}
+
+function hasNoDigit(text: string) {
+  return !/\d/.test(toLatinDigits(text));
 }
 
 // One real input sits over the boxes, so paste, the phone's code suggestion, and a screen reader all meet a single field.
@@ -26,9 +33,19 @@ export function CodeField({ label, value, length, isBusy = false, isInvalid = fa
   // Emptying the boxes from outside moves the real caret with no select event, and a caret cannot sit past the digits.
   const markedBox = caret === null ? null : Math.min(caret, value.length, length - 1);
 
+  function undoStrayText(input: HTMLInputElement) {
+    input.value = value;
+    moveCaret(input, markedBox ?? value.length);
+  }
+
   function change(event: ChangeEvent<HTMLInputElement>) {
+    const typed = (event.nativeEvent as InputEvent).data ?? '';
+    if (typed && hasNoDigit(typed)) {
+      undoStrayText(event.target);
+      return;
+    }
     // A paste lands at the caret, so a whole code that arrives at once replaces the digits instead of mixing with them.
-    const arrived = toCodeDigits((event.nativeEvent as InputEvent).data ?? '', length);
+    const arrived = toCodeDigits(typed, length);
     const digits = arrived.length === length ? arrived : toCodeDigits(event.target.value, length);
     if (digits === value) return;
     onChange(digits);

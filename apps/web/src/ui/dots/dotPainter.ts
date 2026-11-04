@@ -1,132 +1,154 @@
 import { prefersReducedMotion } from '../motion';
 import { getCanvasContext } from './canvasContext';
-import type { DotPoint } from './dotDrawings';
-import { type DotClearing, type DotLayout, getDotLayout, getShapeBoxSize } from './dotLayout';
-import { createDotSwarm, type DotSwarm, getDotPosition, isSwarmSettled, placeDots, sendDots } from './dotSwarm';
+import { paintBackdrop } from './chartBackdrop';
+import { type ChartLayout, getChartLayout } from './chartLayout';
+import { type ChartColors, isAnyStarLightingUp, type LitStar, type LitStarOnChart, paintLitStars, paintPath, paintSubjectStars } from './chartStars';
+import type { DotPoint } from './dotPoint';
+import { createDotSwarm, type DotSwarm, getDotPosition, isSwarmSettled, placeDots, scatterDots, sendDots } from './dotSwarm';
+import { getGlideValue, type Glide, isGlideMoving } from './glide';
 
+const DOT_COUNT = 3000;
+const DOT_OPACITY = 0.86;
 const LARGEST_PIXEL_RATIO = 2;
 const FULL_TURN = Math.PI * 2;
-const GRID_DOT_RADIUS = 1.15;
-const GRID_OPACITY = { light: 0.26, dark: 0.3 };
-const GRID_FADE_RATE = 1.6;
-const SHAPE_OPACITY = 0.82;
 const THEME_ATTRIBUTE = 'data-theme';
+const LABEL_FONT_TOKEN = '--font-ui';
+const LABEL_FONT_SAMPLE = '500 11px';
+const ALREADY_LIT = Number.NEGATIVE_INFINITY;
+
+export interface StageChart {
+  shape: readonly DotPoint[];
+  legsDrawn: number;
+  litStars: readonly LitStar[];
+}
 
 interface DotPainterParts {
   stage: HTMLElement;
-  gridCanvas: HTMLCanvasElement;
-  shapeCanvas: HTMLCanvasElement;
+  backdropCanvas: HTMLCanvasElement;
+  liveCanvas: HTMLCanvasElement;
+  formsOnArrival: boolean;
 }
 
 export interface DotPainter {
-  showShape: (points: readonly DotPoint[]) => void;
+  show: (chart: StageChart) => void;
   stop: () => void;
 }
 
-function sizeCanvas(canvas: HTMLCanvasElement, context: CanvasRenderingContext2D, width: number, height: number) {
+interface ShowMoment {
+  isCalm: boolean;
+  isFirst: boolean;
+  now: number;
+}
+
+function sizeCanvas(canvas: HTMLCanvasElement, context: CanvasRenderingContext2D, { width, height }: ChartLayout) {
   const pixelRatio = Math.min(window.devicePixelRatio || 1, LARGEST_PIXEL_RATIO);
   canvas.width = Math.round(width * pixelRatio);
   canvas.height = Math.round(height * pixelRatio);
   context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
 }
 
-function getGridDotFade(x: number, y: number, clearings: DotClearing[]) {
-  const reach = Math.min(...clearings.map(({ centerX, centerY, radiusX, radiusY }) => ((x - centerX) / radiusX) ** 2 + ((y - centerY) / radiusY) ** 2));
-  return Math.min(1, Math.max(0, (reach - 1) * GRID_FADE_RATE));
+function readChartColors(canvas: HTMLCanvasElement): ChartColors {
+  const { color, backgroundColor } = getComputedStyle(canvas);
+  return { ink: color, paper: backgroundColor, isDark: document.documentElement.dataset.theme === 'dark' };
 }
 
-function paintGrid(canvas: HTMLCanvasElement, context: CanvasRenderingContext2D, stage: HTMLElement, layout: DotLayout) {
-  const [width, height] = [stage.clientWidth, stage.clientHeight];
-  sizeCanvas(canvas, context, width, height);
-  context.fillStyle = getComputedStyle(canvas).color;
-  const opacity = document.documentElement.dataset.theme === 'dark' ? GRID_OPACITY.dark : GRID_OPACITY.light;
-  for (let y = layout.gridGap / 2; y < height; y += layout.gridGap) {
-    for (let x = layout.gridGap / 2; x < width; x += layout.gridGap) {
-      const fade = getGridDotFade(x, y, layout.clearings);
-      if (fade === 0) continue;
-      context.globalAlpha = opacity * fade;
-      context.beginPath();
-      context.arc(x, y, GRID_DOT_RADIUS, 0, FULL_TURN);
-      context.fill();
-    }
-  }
-}
-
-function placeShapeCanvas(canvas: HTMLCanvasElement, context: CanvasRenderingContext2D, layout: DotLayout) {
-  const boxSize = getShapeBoxSize(layout);
-  canvas.style.width = `${boxSize}px`;
-  canvas.style.height = `${boxSize}px`;
-  canvas.style.left = `${layout.shape.centerX - boxSize / 2}px`;
-  canvas.style.top = `${layout.shape.centerY - boxSize / 2}px`;
-  sizeCanvas(canvas, context, boxSize, boxSize);
-  context.fillStyle = getComputedStyle(canvas).color;
-  context.globalAlpha = SHAPE_OPACITY;
-}
-
-function paintSwarm(context: CanvasRenderingContext2D, swarm: DotSwarm, layout: DotLayout, now: number) {
-  const boxSize = getShapeBoxSize(layout);
-  const { scale, dotRadius } = layout.shape;
-  context.clearRect(0, 0, boxSize, boxSize);
+function paintSwarm(context: CanvasRenderingContext2D, swarm: DotSwarm, layout: ChartLayout, now: number) {
+  const { center, planetScale, dotRadius } = layout;
+  context.globalAlpha = DOT_OPACITY;
   context.beginPath();
   for (let dot = 0; dot < swarm.count; dot += 1) {
-    const [x, y] = getDotPosition(swarm, dot, now);
-    const [pixelX, pixelY] = [boxSize / 2 + x * scale, boxSize / 2 + y * scale];
-    context.moveTo(pixelX + dotRadius, pixelY);
-    context.arc(pixelX, pixelY, dotRadius, 0, FULL_TURN);
+    const [x, y, size] = getDotPosition(swarm, dot, now);
+    const [pixelX, pixelY, radius] = [center.x + x * planetScale, center.y + y * planetScale, dotRadius * size];
+    context.moveTo(pixelX + radius, pixelY);
+    context.arc(pixelX, pixelY, radius, 0, FULL_TURN);
   }
   context.fill();
 }
 
-// A frame loop runs only while dots are on their way.
-export function createDotPainter({ stage, gridCanvas, shapeCanvas }: DotPainterParts): DotPainter | null {
-  const gridContext = getCanvasContext(gridCanvas);
-  const shapeContext = getCanvasContext(shapeCanvas);
-  if (!gridContext || !shapeContext) return null;
+// A frame loop runs only while something on the chart is on its way.
+export function createDotPainter({ stage, backdropCanvas, liveCanvas, formsOnArrival }: DotPainterParts): DotPainter | null {
+  const backdropContext = getCanvasContext(backdropCanvas);
+  const liveContext = getCanvasContext(liveCanvas);
+  if (!backdropContext || !liveContext) return null;
 
-  let layout = getDotLayout(stage.clientWidth, stage.clientHeight);
-  let swarm = createDotSwarm(layout.shape.dotCount);
-  let currentPoints: readonly DotPoint[] = [];
+  const swarm = createDotSwarm(DOT_COUNT);
+  const fontFamily = getComputedStyle(document.documentElement).getPropertyValue(LABEL_FONT_TOKEN);
+  let layout = getChartLayout(stage.clientWidth, stage.clientHeight);
+  let colors = readChartColors(backdropCanvas);
+  let legs: Glide = { from: 0, to: 0, startedAt: 0 };
+  let litStars: LitStarOnChart[] = [];
+  let currentShape: readonly DotPoint[] = [];
   let frame = 0;
+
+  const paintLive = (now: number) => {
+    const legsDrawn = getGlideValue(legs, now);
+    liveContext.clearRect(0, 0, layout.width, layout.height);
+    liveContext.fillStyle = colors.ink;
+    paintSwarm(liveContext, swarm, layout, now);
+    paintPath(liveContext, layout, legsDrawn);
+    paintSubjectStars(liveContext, layout, colors, { legsDrawn, fontFamily });
+    paintLitStars(liveContext, layout, colors, { stars: litStars, fontFamily, now });
+  };
+
+  const isMoving = (now: number) => !isSwarmSettled(swarm, now) || isGlideMoving(legs, now) || isAnyStarLightingUp(litStars, now);
 
   const paintFrame = () => {
     const now = performance.now();
-    paintSwarm(shapeContext, swarm, layout, now);
-    frame = isSwarmSettled(swarm, now) ? 0 : requestAnimationFrame(paintFrame);
+    paintLive(now);
+    frame = isMoving(now) ? requestAnimationFrame(paintFrame) : 0;
   };
 
   const paintAll = () => {
-    layout = getDotLayout(stage.clientWidth, stage.clientHeight);
-    paintGrid(gridCanvas, gridContext, stage, layout);
-    placeShapeCanvas(shapeCanvas, shapeContext, layout);
-    if (swarm.count !== layout.shape.dotCount) {
-      swarm = createDotSwarm(layout.shape.dotCount);
-      placeDots(swarm, currentPoints);
-    }
-    paintSwarm(shapeContext, swarm, layout, performance.now());
+    layout = getChartLayout(stage.clientWidth, stage.clientHeight);
+    colors = readChartColors(backdropCanvas);
+    sizeCanvas(backdropCanvas, backdropContext, layout);
+    sizeCanvas(liveCanvas, liveContext, layout);
+    paintBackdrop(backdropContext, layout, colors);
+    paintLive(performance.now());
   };
 
-  const showShape = (points: readonly DotPoint[]) => {
-    if (points.length === 0) return;
-    const isFirstShape = currentPoints.length === 0;
-    currentPoints = points;
-    if (isFirstShape || prefersReducedMotion()) {
-      cancelAnimationFrame(frame);
-      frame = 0;
-      placeDots(swarm, points);
-      paintAll();
+  const moveDotsTo = (shape: readonly DotPoint[], { isCalm, isFirst, now }: ShowMoment) => {
+    if (shape.length === 0 || shape === currentShape) return;
+    currentShape = shape;
+    if (isCalm || (isFirst && !formsOnArrival)) {
+      placeDots(swarm, shape);
       return;
     }
-    sendDots(swarm, points, performance.now());
-    if (!frame) frame = requestAnimationFrame(paintFrame);
+    if (isFirst) scatterDots(swarm);
+    sendDots(swarm, shape, now);
+  };
+
+  const moveLegsTo = (legsDrawn: number, { isCalm, isFirst, now }: ShowMoment) => {
+    if (legs.to === legsDrawn) return;
+    const isPlaced = isCalm || (isFirst && !formsOnArrival);
+    legs = isPlaced ? { from: legsDrawn, to: legsDrawn, startedAt: now } : { from: getGlideValue(legs, now), to: legsDrawn, startedAt: now };
+  };
+
+  const updateLitStars = (next: readonly LitStar[], { isCalm, isFirst, now }: ShowMoment) => {
+    const litAt = isCalm || isFirst ? ALREADY_LIT : now;
+    litStars = next.map((star) => litStars.find(({ spot }) => spot === star.spot) ?? { ...star, litAt });
+  };
+
+  const show = ({ shape, legsDrawn, litStars: nextLitStars }: StageChart) => {
+    const now = performance.now();
+    const moment = { isCalm: prefersReducedMotion(), isFirst: currentShape.length === 0, now };
+    moveDotsTo(shape, moment);
+    moveLegsTo(legsDrawn, moment);
+    updateLitStars(nextLitStars, moment);
+    if (moment.isFirst) paintAll();
+    else paintLive(now);
+    if (isMoving(now) && !frame) frame = requestAnimationFrame(paintFrame);
   };
 
   const resizeObserver = new ResizeObserver(paintAll);
   resizeObserver.observe(stage);
   const themeObserver = new MutationObserver(paintAll);
   themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: [THEME_ATTRIBUTE] });
+  const paintWithLoadedFont = () => paintLive(performance.now());
+  void document.fonts.load(`${LABEL_FONT_SAMPLE} ${fontFamily}`).then(paintWithLoadedFont, paintWithLoadedFont);
 
   return {
-    showShape,
+    show,
     stop: () => {
       cancelAnimationFrame(frame);
       resizeObserver.disconnect();

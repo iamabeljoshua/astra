@@ -118,7 +118,7 @@ export default function ScenePlayerLab() {
     <main className="grid min-h-svh grid-cols-1 gap-6 bg-paper p-4 text-ink md:grid-cols-12 md:p-6">
       <title>{PRODUCT_NAME}</title>
       <section aria-label={LAB_LABELS.board} className="h-[60svh] md:col-span-7 md:h-auto">
-        {frame ? <BoardView board={frame.board} atMs={frame.atMs} onElementDrawn={phase === 'replaying' ? undefined : (id) => sessionRef.current?.noteDrawn(id)} onMathRefused={(tex) => sessionRef.current?.records.refused.push(`math: ${tex}`)} /> : <BoardView board={{ elements: new Map(), focus: null }} atMs={0} />}
+        {frame ? <BoardView board={frame.board} atMs={frame.atMs} onElementDrawn={phase === 'replaying' ? undefined : (id) => sessionRef.current?.noteDrawn(id)} onMathRefused={(tex) => sessionRef.current?.records.refused.push(`math: ${tex}`)} onBoardProblem={(problem) => sessionRef.current?.records.boardProblems.push(problem)} /> : <BoardView board={{ elements: new Map(), focus: null }} atMs={0} />}
       </section>
       <section aria-label={LAB_LABELS.controls} className="flex flex-col gap-4 md:col-span-5">
         <h1 className="text-heading">{LAB_LABELS.title}</h1>

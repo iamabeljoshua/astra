@@ -174,6 +174,61 @@ describe('turns on one voice line', () => {
     expect(events.filter((event) => event.type === 'turnStarted').map((event) => event.turnId)).toEqual(['t1', 't3']);
   });
 
+  it('keeps the line taken when a turn queued behind a playing one is stopped, so the next waits for the one still playing', async () => {
+    const { events, turn } = createWatchedLine({ playoutMs: 20, frameMs: 5 });
+    const first = turn('t1');
+    const second = turn('t2');
+    const third = turn('t3');
+    second.stop();
+    await Promise.all([first.finished, second.finished, third.finished]);
+    const playedOut = events.findIndex((event) => event.kind === 'playedOut');
+    const started = events.findIndex((event) => event.type === 'turnStarted' && event.turnId === 't3');
+    expect(started).toBeGreaterThan(playedOut);
+  });
+
+  it('leaves the next turn\'s queue alone when a stop comes late for a turn that has already left', async () => {
+    const { events, turn } = createWatchedLine({ frameMs: 20 });
+    const first = turn('t1');
+    await first.finished;
+    const second = turn('t2');
+    await delay(TURN_SILENCE_MS + 40);
+    first.stop();
+    expect(events.filter((event) => event.kind === 'cleared')).toEqual([]);
+    second.stop();
+    await second.finished;
+    expect(events.filter((event) => event.kind === 'cleared')).toHaveLength(1);
+  });
+
+  it('turns a frame the source refuses into a stop, so the agent lives, the browser reports what was heard, and the next turn gets the line', async () => {
+    const sent: AgentMessage[] = [];
+    const failures: unknown[] = [];
+    let frames = 0;
+    let sourceIsBroken = true;
+    const line = createVoiceLine({
+      sampleRate: FAKE_SAMPLE_RATE,
+      captureFrame: async () => {
+        frames += 1;
+        if (sourceIsBroken && frames === 3) throw new Error('InvalidState - failed to capture frame');
+      },
+      clearQueue: () => {
+        if (sourceIsBroken) throw new Error('handle not found');
+      },
+      waitForPlayout: async () => {},
+    });
+    const messenger = { send: (message: AgentMessage) => sent.push(message), sendOnBothChannels: (message: AgentMessage) => sent.push(message) };
+    const voice = makeRenderedVoice({ name: 'fake' }).makeTts();
+    const failing = speakTurn({ voice, line, messenger, turnId: 'failing' as TurnId, beats: BEATS, onFailure: (failure) => failures.push(failure) });
+    await failing.finished;
+    expect(String(failures[0])).toContain('InvalidState');
+    expect(sent.filter((message) => message.type === 'stop').map((message) => message.turnId)).toEqual(['failing']);
+    await delay(20);
+    expect(frames).toBe(3);
+    sourceIsBroken = false;
+    await speakTurn({ voice, line, messenger, turnId: 'next' as TurnId, beats: BEATS }).finished;
+    expect(frames).toBeGreaterThan(3);
+    expect(sent.filter((message) => message.type === 'turnStarted').map((message) => message.turnId)).toEqual(['failing', 'next']);
+  });
+
   it('refuses a rate LiveKit cannot frame in whole samples, because that audio plays slow and nothing reports it', () => {
     const output = { sampleRate: 22050, captureFrame: async () => {}, clearQueue: () => {}, waitForPlayout: async () => {} };
     expect(() => createVoiceLine(output)).toThrow(/22050/);

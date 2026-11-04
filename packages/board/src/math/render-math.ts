@@ -1,18 +1,14 @@
 /// <reference lib="dom" />
 /// <reference lib="dom.iterable" />
-import katex from 'katex';
-import 'katex/dist/katex.min.css';
-import { DISPLAY_STYLE, KATEX_OPTIONS } from './tex-check.ts';
+// The swap build, because the default holds text invisible for 3 s behind a stalled font, past the point the painter gives up waiting.
+import 'katex/dist/katex-swap.min.css';
+import { buildTexTree } from './tex-check.ts';
 
 /** Builds real DOM nodes and text nodes, with no HTML string anywhere, so math text has no way to become markup. */
 export function renderTex(tex: string, into: HTMLElement): boolean {
-  try {
-    katex.render(DISPLAY_STYLE + tex, into, KATEX_OPTIONS);
-    return true;
-  } catch {
-    into.replaceChildren();
-    return false;
-  }
+  const tree = buildTexTree(tex);
+  into.replaceChildren(...(tree ? [tree.toNode()] : []));
+  return tree !== null;
 }
 
 export interface MathPaintElement {
@@ -68,26 +64,56 @@ function readSentinelNumber(element: HTMLElement): number | null {
   return null;
 }
 
-function wrapSpans(tex: string, spans: readonly TexSpan[]): string {
+// The outer group is what lets a marked part stand as a script or an argument, as in `x^2`, `\hat x`, and `\frac\pi2`. The second form is for a big operator, whose limits sit above and below only while it stays an operator.
+const MARKERS: readonly ((color: string, source: string) => string)[] = [(color, source) => `{\\textcolor{${color}}{${source}}}`, (color, source) => `\\mathop{\\textcolor{${color}}{${source}}}\\limits`];
+
+function wrapSpans(tex: string, spans: readonly TexSpan[], marker: (typeof MARKERS)[number]): string {
   let wrapped = '';
   let position = 0;
   spans.forEach(({ start, end }, index) => {
-    wrapped += `${tex.slice(position, start)}\\textcolor{${toSentinelColor(index + 1)}}{${tex.slice(start, end)}}`;
+    wrapped += `${tex.slice(position, start)}${marker(toSentinelColor(index + 1), tex.slice(start, end))}`;
     position = end;
   });
   return wrapped + tex.slice(position);
 }
 
+function readOwner(paint: MathPaintElement): number | null {
+  const number = readSentinelNumber(paint.element);
+  return number === null ? null : number - 1;
+}
+
+// KaTeX sets a run such as `lim` as one span, and as one span per letter once it has a color, so one visible glyph may take several marked ones.
+function alignOwners(visible: readonly MathPaintElement[], marked: readonly MathPaintElement[]): (number | null)[] | null {
+  const owners: (number | null)[] = [];
+  let next = 0;
+  for (const { glyph } of visible) {
+    const first = marked[next];
+    if (!first || (first.glyph === null) !== (glyph === null)) return null;
+    next += 1;
+    let text = first.glyph;
+    while (text !== glyph) {
+      const more = marked[next];
+      if (!more?.glyph || !glyph?.startsWith(`${text}${more.glyph}`) || readOwner(more) !== readOwner(first)) return null;
+      text = `${text}${more.glyph}`;
+      next += 1;
+    }
+    owners.push(readOwner(first));
+  }
+  return next === marked.length ? owners : null;
+}
+
+function readOwners(markedTex: string, visible: readonly MathPaintElement[]): (number | null)[] | null {
+  const hidden = document.createElement('div');
+  return renderTex(markedTex, hidden) ? alignOwners(visible, collectMathPaints(hidden)) : null;
+}
+
 // KaTeX keeps no ids under `trust: false`, but a color passes through to every span it sets, so marker colors in a hidden copy show which ink each span made.
 export function getPaintsOfSpans(tex: string, spans: readonly TexSpan[], visible: readonly MathPaintElement[]): (number | null)[] | null {
-  const hidden = document.createElement('div');
-  if (!renderTex(wrapSpans(tex, spans), hidden)) return null;
-  const marked = collectMathPaints(hidden);
-  if (marked.length !== visible.length || marked.some((paint, index) => paint.glyph !== visible[index]?.glyph)) return null;
-  return marked.map((paint) => {
-    const number = readSentinelNumber(paint.element);
-    return number === null ? null : number - 1;
-  });
+  for (const marker of MARKERS) {
+    const owners = readOwners(wrapSpans(tex, spans, marker), visible);
+    if (owners) return owners;
+  }
+  return null;
 }
 
 export function getMissingFonts(paints: readonly MathPaintElement[]): string[] {
@@ -98,6 +124,39 @@ export function getMissingFonts(paints: readonly MathPaintElement[]): string[] {
   }));
   return [...fonts].filter((font) => !document.fonts.check(font));
 }
+
+/** How long an equation stays hidden for a font on the way. A slow phone link brings a font well inside it, and a student is still on the word when it ends. */
+export const FONT_HOLD_LIMIT_MS = 1000;
+
+export interface FontWait {
+  font: string;
+  outcome: 'pending' | 'arrived' | 'failed';
+  startedMs: number;
+  settled: Promise<void>;
+}
+
+const fontWaitsOfPage = new WeakMap<FontFaceSet, Map<string, FontWait>>();
+
+/** One wait per font per page, so the next equation never waits again for a font that already ran out of time. */
+export function getFontWait(font: string): FontWait {
+  const waits = fontWaitsOfPage.get(document.fonts) ?? new Map<string, FontWait>();
+  fontWaitsOfPage.set(document.fonts, waits);
+  const known = waits.get(font);
+  if (known) return known;
+  const wait: FontWait = { font, outcome: 'pending', startedMs: performance.now(), settled: Promise.resolve() };
+  wait.settled = document.fonts.load(font).then(
+    () => {
+      wait.outcome = 'arrived';
+    },
+    () => {
+      wait.outcome = 'failed';
+    },
+  );
+  waits.set(font, wait);
+  return wait;
+}
+
+export const isFontHoldOver = ({ outcome, startedMs }: FontWait) => outcome !== 'pending' || performance.now() - startedMs >= FONT_HOLD_LIMIT_MS;
 
 const MATH_FONTS = ['16px KaTeX_Main', 'italic 16px KaTeX_Math', '16px KaTeX_Size1', '16px KaTeX_Size2'];
 
