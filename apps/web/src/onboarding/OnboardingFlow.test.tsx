@@ -22,6 +22,8 @@ const PROFILE = { interests: ['space'], level: 'university', goal: 'exam' };
 
 vi.mock('../auth/AuthProvider', () => ({ useAuth: vi.fn() }));
 vi.mock('../auth/session', () => ({
+  isCodeStillGood: () => false,
+  readCodeRequest: () => null,
   forgetSession: vi.fn(),
   getAccessToken: async () => 'test-token',
   renewSession: vi.fn(),

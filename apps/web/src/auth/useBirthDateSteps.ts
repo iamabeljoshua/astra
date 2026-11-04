@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { API_ERROR_LABELS } from '../strings';
-import { type DateParts, toBirthDate } from './birthDateParts';
+import type { DateParts } from '../ui/BirthDateField';
+import { toBirthDate } from './birthDateParts';
 import { useAnswerBirthDate } from './useAccount';
 
 const EMPTY_DATE: DateParts = { day: '', month: '', year: '' };
@@ -44,8 +45,8 @@ export function useBirthDateSteps(studentName: string) {
     });
   }
 
-  function changePart(part: keyof DateParts, value: string) {
-    setDateParts({ ...dateParts, [part]: value });
+  function changeParts(parts: DateParts) {
+    setDateParts(parts);
     setIsDateRejected(false);
     forgetAnswer();
   }
@@ -59,6 +60,6 @@ export function useBirthDateSteps(studentName: string) {
     reviewDate,
     changeDate,
     confirmDate,
-    changePart,
+    changeParts,
   };
 }

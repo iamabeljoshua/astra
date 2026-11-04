@@ -28,9 +28,9 @@ async function changeAnswerLater(page, viewportName) {
   assert.equal(await page.getByRole('button', { name: 'Art', exact: true }).getAttribute('aria-pressed'), 'true', 'the chip survives a reload');
 }
 
-export default async function onboarding({ page, capture, viewportName }) {
+export default async function onboarding({ page, capture, viewportName, signInWithCode }) {
   const startedAt = Date.now();
-  await signInAsNewStudent(page, `m2-4-${viewportName}-${Date.now()}@astra.test`);
+  await signInAsNewStudent(page, signInWithCode, `m2-4-${viewportName}-${Date.now()}@astra.test`);
   const signedInAt = Date.now();
 
   await answerName(page, capture, ANSWERS.name);
