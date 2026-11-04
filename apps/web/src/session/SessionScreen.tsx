@@ -67,13 +67,16 @@ function useOpeningMessage(session: Session, sendTyped: (text: string) => Promis
     });
     return () => clearTimeout(sending);
   }, [opening, sendTyped]);
+
+  return opening;
 }
 
 function RunningSession({ session }: { session: Session }) {
   const { seconds, endSession, isEnding, endProblem } = useSessionRun(session);
   const liveVoice = useLiveVoice({ sessionId: session.id });
   const { view, voice } = liveVoice;
-  useOpeningMessage(session, liveVoice.sendTyped);
+  const opening = useOpeningMessage(session, liveVoice.sendTyped);
+  const idleWords = liveVoice.status === 'idle' && !opening ? SESSION_LABELS.idleWords : null;
 
   return (
     <SessionFrame
@@ -83,7 +86,7 @@ function RunningSession({ session }: { session: Session }) {
     >
       <SessionPanels
         session={session}
-        tutorWords={SESSION_LABELS.standInWords}
+        tutorWords={idleWords}
         tutorCaption={view && <TutorCaption heard={view.tutorHeard} coming={view.tutorComing} />}
         isDotLively={view !== null && (view.isTutorSpeaking || view.isHeard || view.isThinking)}
         boardNote={SESSION_LABELS.boardStandIn}
@@ -159,7 +162,7 @@ function SessionFrame({ facts, action, problem, children }: SessionFrameProps) {
 
 interface SessionPanelsProps extends PropsWithChildren {
   session: Session;
-  tutorWords: string;
+  tutorWords: string | null;
   tutorCaption?: ReactNode;
   isDotLively?: boolean;
   boardNote?: string;
@@ -177,7 +180,7 @@ function SessionPanels({ session, tutorWords, tutorCaption, isDotLively = false,
           <span>{SESSION_LABELS.yourTutor}</span>
         </div>
         <SessionTitle title={session.title} />
-        {tutorCaption ?? <p className="font-voice text-voice">{tutorWords}</p>}
+        {tutorCaption ?? (tutorWords && <p className="font-voice text-voice">{tutorWords}</p>)}
         {children}
       </div>
     </div>
@@ -241,7 +244,7 @@ function ReplyBox({ liveVoice }: { liveVoice: LiveVoiceControls }) {
               <span className="label block text-ink-2">{SESSION_LABELS.you}</span>
               {replyWithNoRoom}
             </p>
-            <p className="font-voice text-lead">{SESSION_LABELS.standInAnswer}</p>
+            <p className="text-fine text-ink-2">{SESSION_LABELS.replyNotSent}</p>
           </>
         )}
         {voiceNote && <p className="text-fine text-ink-2">{voiceNote}</p>}

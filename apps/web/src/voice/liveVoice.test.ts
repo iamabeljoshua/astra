@@ -8,7 +8,7 @@ const { FakeRoom, rooms, makeFakeAudioContext } = vi.hoisted(() => {
     state = 'disconnected';
     handlers = new Map<string, (...args: unknown[]) => void>();
     localParticipant = {
-      publishData: vi.fn(async (_payload: Uint8Array, _options: object) => {}),
+      publishData: vi.fn<(payload: Uint8Array, options: object) => Promise<void>>(async () => {}),
       publishTrack: vi.fn(async () => {}),
       unpublishTrack: vi.fn(async () => {}),
     };
