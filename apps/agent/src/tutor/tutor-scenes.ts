@@ -238,10 +238,11 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
       ask.work.leave();
     },
     dropWaiting(how) {
-      const ask = current;
-      if (!ask) return;
-      end(ask, how);
-      if (how === 'switched') ask.work.leave();
+      if (how === 'switched') {
+        for (const late of lateWrites) late.work.leave();
+        return;
+      }
+      if (current) end(current, how);
     },
     stopForSafety() {
       isStopped = true;

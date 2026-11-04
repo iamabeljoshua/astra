@@ -398,6 +398,25 @@ describe('a scene started ahead of its moment', () => {
     expect(onAhead).toHaveBeenLastCalledWith(TOPIC, 'settled');
   });
 
+  it('on a switch, stops a write left over from the old lesson, and leaves an ask for the new one alone', async () => {
+    const leave = vi.fn();
+    const { scenes, joinRun, sent, store } = setUp();
+    joinRun.mockImplementation(() => ({ plan: Promise.resolve(PLAN), firstLine: Promise.resolve(null), getScene: () => new Promise(() => {}), leave }));
+    opened(scenes);
+    scenes.prepare('the old idea');
+    await flush();
+    scenes.ask('the old idea');
+    scenes.dropWaiting('studentTurn');
+    const fresh = await saveShared(store, 'the new idea');
+    scenes.ask('the new idea');
+    await flush();
+    scenes.dropWaiting('switched');
+    expect(leave).toHaveBeenCalledOnce();
+    expect(sent.at(-1)).toEqual({ type: 'loadScene', sceneId: fresh.id, durationSeconds: fresh.durationSeconds });
+    scenes.onPage({ type: 'sceneLoaded', sceneId: fresh.id }, 'maya');
+    scenes.notePause();
+  });
+
   it('sends its bytes again after a reload, and brings the last scene back', async () => {
     const { scenes, sent, store } = setUp();
     const shownScene = await saveShared(store);

@@ -120,6 +120,15 @@ describe('the next scene queue', () => {
     expect(scenes.dropWaiting).toHaveBeenCalledWith('movedOn');
   });
 
+  it('leaves what the tutor asked for in this reply when its own words move the lesson on', async () => {
+    const { queue, scenes } = setUp();
+    const first = getStateAfterEvent(start(RINGS), 'exerciseSet');
+    queue.onLesson(first);
+    await flush();
+    queue.onLesson(getStateAfterEvent(first, 'teachingAgain'), 'teachingAgain');
+    expect(scenes.dropWaiting).not.toHaveBeenCalled();
+  });
+
   it('drops what was being prepared on a switch, and goes back without paying for a second read', async () => {
     const { queue, scenes, readLibrary } = setUp();
     const rings = start(RINGS);

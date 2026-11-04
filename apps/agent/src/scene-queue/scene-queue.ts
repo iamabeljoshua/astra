@@ -188,7 +188,9 @@ export function createSceneQueue({ scenes, readLibrary, getFacts, canPlay, moveT
       if (isStopped) return;
       const isSwitch = wasTopic !== active.plan.topic;
       if (isSwitch && wasTopic !== null) scenes.dropWaiting('switched');
-      if (!isSwitch && wasStep !== active.stepIndex) scenes.dropWaiting('movedOn');
+      // Anything older ended on the student's turn, so what the tutor asked for in this same reply is what it moved on to.
+      const isTutorsOwnMove = event === 'teachingAgain' || event === 'movedOn';
+      if (!isSwitch && !isTutorsOwnMove && wasStep !== active.stepIndex) scenes.dropWaiting('movedOn');
       dropPassed();
       startLibraryRead(active.plan);
       if (event === 'skipped') dropStepSkippedTo(active.stepIndex);
