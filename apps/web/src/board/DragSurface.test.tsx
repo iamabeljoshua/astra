@@ -47,6 +47,16 @@ describe('moving the student\'s point', () => {
     expect(startedMsAgo).toBeGreaterThanOrEqual(0);
   });
 
+  it('counts a point still moving as no work, and only letting go sends it', () => {
+    const { surface, onMovePoint, onWork } = open();
+    fireEvent.pointerDown(surface, { clientX: 110, pointerId: 1 });
+    fireEvent.pointerMove(surface, { clientX: 300, pointerId: 1 });
+    expect(onMovePoint).toHaveBeenCalledOnce();
+    expect(onWork).not.toHaveBeenCalled();
+    fireEvent.pointerUp(surface, { pointerId: 1 });
+    expect(onWork).toHaveBeenCalledOnce();
+  });
+
   it('sends nothing for a press that moved nothing', () => {
     const { surface, onWork } = open();
     fireEvent.pointerDown(surface, { clientX: 110, pointerId: 1 });

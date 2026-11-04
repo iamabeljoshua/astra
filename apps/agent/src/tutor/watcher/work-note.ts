@@ -1,5 +1,5 @@
 import type { StudentWork } from '@astra/contracts';
-import { type CheckedWork, getNod, getPointFacts, type WorkContext } from '@astra/board/shared';
+import { type CheckedWork, getLineTex, getNod, getPointFacts, isFinishedAnswer, wantsSomethingElse, type WorkContext } from '@astra/board/shared';
 
 function getLineFacts(work: StudentWork & { way: 'write' }, { reading }: CheckedWork) {
   const math = reading?.parts.flatMap((part) => (part.type === 'math' ? [part.tex] : [])) ?? [];
@@ -27,6 +27,13 @@ function getWayFacts(work: StudentWork, checked: CheckedWork, context: WorkConte
   }
 }
 
+const isLeaving = (work: StudentWork) => work.way === 'leave' || (work.way === 'write' && wantsSomethingElse(work.text));
+
+function isFinishedLine({ reading, verdict }: CheckedWork): boolean {
+  const tex = reading ? getLineTex(reading) : null;
+  return verdict.status === 'right' && tex !== null && isFinishedAnswer(tex);
+}
+
 export function getWorkNote(work: StudentWork, checked: CheckedWork, context: WorkContext) {
   const { verdict, closesTask } = checked;
   const nod = getNod(work, checked);
@@ -38,6 +45,6 @@ export function getWorkNote(work: StudentWork, checked: CheckedWork, context: Wo
     ...(verdict.status === 'wrong' ? { why: verdict.why } : {}),
     ...(verdict.status === 'wrong' && verdict.isBuiltOnWrongLine ? { built_on_wrong_line: true } : {}),
     ...(nod ? { already_reacted: { said: nod } } : {}),
-    ...(closesTask ? (work.way === 'leave' || checked.verdict.status === 'unknown' ? { left_the_task: true } : { task_done: true }) : {}),
+    ...(closesTask && isLeaving(work) ? { left_the_task: true } : closesTask || isFinishedLine(checked) ? { task_done: true } : {}),
   };
 }

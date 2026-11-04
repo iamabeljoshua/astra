@@ -38,7 +38,8 @@ const STRUCTURE_COMMANDS = `frac dfrac tfrac cfrac sqrt binom dbinom tbinom over
 
 export const ALLOWED_TEX_COMMANDS: ReadonlySet<string> = new Set(`${SYMBOL_COMMANDS} ${FUNCTION_COMMANDS} ${STRUCTURE_COMMANDS}`.split(/\s+/).map((name) => `\\${name}`));
 
-const ALLOWED_ESCAPES: ReadonlySet<string> = new Set(['\\,', '\\;', '\\:', '\\!', '\\ ', '\\{', '\\}', '\\%', '\\$', '\\&', '\\_', '\\|', '\\\\']);
+/** The last five are accents, as in a French word in text, which a tutor writes in a language lesson. KaTeX takes them only in text, and a mark run is limited below. */
+const ALLOWED_ESCAPES: ReadonlySet<string> = new Set(['\\,', '\\;', '\\:', '\\!', '\\ ', '\\{', '\\}', '\\%', '\\$', '\\&', '\\_', '\\|', '\\\\', "\\'", '\\`', '\\^', '\\"', '\\~']);
 
 const ALLOWED_ENVIRONMENTS: ReadonlySet<string> = new Set(['matrix', 'pmatrix', 'bmatrix', 'Bmatrix', 'vmatrix', 'Vmatrix', 'smallmatrix', 'cases', 'rcases', 'dcases', 'aligned', 'gathered']);
 

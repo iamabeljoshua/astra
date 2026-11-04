@@ -7,6 +7,8 @@ import type { FigureFrame } from './figure-input.ts';
 import type { FigureMark } from './figure-marks.ts';
 
 const FIGURE_SHAPE = 0.72;
+/** The prototype draws its graphs 620 by 340. */
+const PLOT_SHAPE = 340 / 620;
 
 const FIGURE_MARKS = { plot: getPlotMarks, numberLine: getNumberLineMarks, geometry: getGeometryMarks, simulate: getSimulationMarks } as const;
 
@@ -17,5 +19,6 @@ export function getFigureMarks(frame: FigureFrame): FigureMark[] {
 }
 
 export function getFigureFit(element: BoardElement, maxWidth: number): { fit: 'line' | 'figure'; size: { width: number; height: number } } {
-  return element.content.kind === 'numberLine' ? { fit: 'line', size: { width: maxWidth, height: NUMBER_LINE_HEIGHT } } : { fit: 'figure', size: { width: maxWidth, height: maxWidth * FIGURE_SHAPE } };
+  if (element.content.kind === 'numberLine') return { fit: 'line', size: { width: maxWidth, height: NUMBER_LINE_HEIGHT } };
+  return { fit: 'figure', size: { width: maxWidth, height: maxWidth * (element.content.kind === 'plot' ? PLOT_SHAPE : FIGURE_SHAPE) } };
 }
