@@ -118,29 +118,34 @@ function getStopRows({ folder, turns, records, arriving, output, tapRate, firstF
   return records.stops.map((stop) => {
     const turn = turns.find((candidate) => candidate.turnId === stop.turnId);
     const nextStarted = records.agentMessages.find((message) => message.type === 'turnStarted' && message.atMs > stop.receivedAtMs && message.turnId !== stop.turnId);
-    const nextTurn = turns.find((candidate) => candidate.turnId === nextStarted?.turnId);
+    const nextTurn = turns.find((candidate) => candidate.turnId === nextStarted?.turnId && candidate.firstFrameAtMs !== null);
     const onsets = records.probe.filter((event) => event.where === 'arriving' && event.kind === 'onset' && event.atMs > stop.receivedAtMs && event.atMs < (nextStarted?.atMs ?? stop.receivedAtMs) + AFTER_NEXT_TURN_MS).map((event) => event.atMs);
     const nextSoundAtMs = nextTurn
       ? findFirstSoundAmongOnsets({ sentPcm: readInt16(join(folder, `${nextTurn.turnId}.pcm`)), sentRate: nextTurn.sampleRate, heardPcm: arriving, heardRate: tapRate, heardStartGraphMs: (firstFrames.arriving / GRAPH_RATE) * 1000 }, onsets)
       : null;
+    const isNextSoundUnknown = nextTurn !== undefined && nextSoundAtMs === null;
     const endMs = nextSoundAtMs ?? (nextStarted?.atMs ?? stop.receivedAtMs) + AFTER_NEXT_TURN_MS;
-    const firstCue = nextTurn && records.fired.find((cue) => cue.turnId === nextTurn.turnId);
-    const skippedMs = nextTurn?.gaps.filter((gap) => gap.ms !== undefined && firstCue !== undefined && gap.atMs <= firstCue.positionMs).reduce((sum, gap) => sum + (gap.ms as number), 0) ?? 0;
-    const clockZeroMs = firstCue ? firstCue.firedAtMs - earMs - firstCue.positionMs - skippedMs + (nextTurn?.words[0]?.words[0]?.startMs ?? 0) : null;
+    const cues = records.fired.filter((cue) => cue.turnId === nextTurn?.turnId);
+    const getClockErrorMs = (cue: PageRecords['fired'][number] | undefined) => {
+      if (!cue || nextSoundAtMs === null) return null;
+      const skippedMs = nextTurn?.gaps.filter((gap) => gap.ms !== undefined && gap.atMs <= cue.positionMs).reduce((sum, gap) => sum + (gap.ms as number), 0) ?? 0;
+      return Math.round(cue.firedAtMs - earMs - cue.positionMs - skippedMs + (nextTurn?.words[0]?.words[0]?.startMs ?? 0) - nextSoundAtMs);
+    };
     const range = { rate: tapRate, fromFrame: stop.audioFrameAtStop, toFrame: toFrame(endMs) };
     const clipped = nextSoundAtMs === null ? null : readAudible(output, { rate: tapRate, firstFrame: firstFrames.output, fromFrame: toFrame(nextSoundAtMs), toFrame: toFrame(nextSoundAtMs + CLIPPED_SEARCH_MS) }).firstAfterMs;
     return {
       turnId: stop.turnId,
       decisionToFrozenMs: turn?.stopDecidedAtMs ? Math.round(stop.receivedEpochMs - turn.stopDecidedAtMs) : null,
-      audioAfterGainMs: Math.round(readAudible(output, { ...range, firstFrame: firstFrames.output }).audibleMs),
-      audioStillArrivingMs: Math.round(readAudible(arriving, { ...range, firstFrame: firstFrames.arriving }).lastAfterMs),
+      audioAfterGainMs: isNextSoundUnknown ? null : Math.round(readAudible(output, { ...range, firstFrame: firstFrames.output }).audibleMs),
+      audioStillArrivingMs: isNextSoundUnknown ? null : Math.round(readAudible(arriving, { ...range, firstFrame: firstFrames.arriving }).lastAfterMs),
       framesCapturedAfterStop: turn?.framesAfterStop ?? null,
       firedAfterStop: records.fired.filter((cue) => cue.turnId === stop.turnId && cue.firedAtMs > stop.receivedAtMs).length,
       nextTurnMessageMs: nextStarted ? Math.round(nextStarted.atMs - stop.receivedAtMs) : null,
       nextTurnSoundMs: nextSoundAtMs === null ? null : Math.round(nextSoundAtMs - stop.receivedAtMs),
       nextTurnSoundClippedMs: clipped === null ? null : Math.round(clipped),
-      oldWordsPastWindow: onsets.filter((atMs) => atMs >= stop.receivedAtMs + OLD_AUDIO_WINDOW_MS && atMs < endMs).map((atMs) => Math.round(atMs - stop.receivedAtMs)),
-      nextTurnClockErrorMs: clockZeroMs === null || nextSoundAtMs === null ? null : Math.round(clockZeroMs - nextSoundAtMs),
+      oldWordsPastWindow: isNextSoundUnknown ? [] : onsets.filter((atMs) => atMs >= stop.receivedAtMs + OLD_AUDIO_WINDOW_MS && atMs < endMs).map((atMs) => Math.round(atMs - stop.receivedAtMs)),
+      nextTurnFirstCueClockErrorMs: getClockErrorMs(cues[0]),
+      nextTurnClockErrorMs: getClockErrorMs(cues.at(-1)),
     };
   });
 }
@@ -285,10 +290,11 @@ export function summariseRun(folder: string, settings: { name: string; network: 
     wordsLeadAudio: getPercentiles(leads),
     wordsLate: leads.filter((lead) => lead < 0).length,
     stopFrozen: getPercentiles(stops.flatMap((stop) => (stop.decisionToFrozenMs === null ? [] : [stop.decisionToFrozenMs]))),
-    stopAudioAfterGain: getPercentiles(stops.map((stop) => stop.audioAfterGainMs)),
-    stopStillArriving: getPercentiles(stops.map((stop) => stop.audioStillArrivingMs)),
+    stopAudioAfterGain: getPercentiles(stops.flatMap((stop) => (stop.audioAfterGainMs === null ? [] : [stop.audioAfterGainMs]))),
+    stopStillArriving: getPercentiles(stops.flatMap((stop) => (stop.audioStillArrivingMs === null ? [] : [stop.audioStillArrivingMs]))),
     stopNextTurnClockError: getPercentiles(stops.flatMap((stop) => (stop.nextTurnClockErrorMs === null ? [] : [stop.nextTurnClockErrorMs]))),
-    stopsWithAudioPastGain: stops.filter((stop) => stop.audioAfterGainMs > 0).length,
+    stopsWithAudioPastGain: stops.filter((stop) => (stop.audioAfterGainMs ?? 0) > 0).length,
+    stopsWithNextSoundUnknown: stops.filter((stop) => stop.audioAfterGainMs === null).length,
     stopNextTurnSoundClipped: getPercentiles(stops.flatMap((stop) => (stop.nextTurnSoundClippedMs === null ? [] : [stop.nextTurnSoundClippedMs]))),
     stopsWithOldWordPastWindow: stops.filter((stop) => stop.oldWordsPastWindow.length > 0).length,
     replay,

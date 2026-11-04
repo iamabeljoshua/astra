@@ -251,6 +251,94 @@ describe('a new turn', () => {
     expect(Math.round(firedForNext(audio)[0]?.positionMs as number)).toBeLessThan(10);
   });
 
+  describe('a short word of old audio past the 110 ms', () => {
+    const LEEWAY_MS = 6;
+    const stopThenStartNext = () => {
+      const audio = createFakeAudio();
+      audio.receive(started, cue(0), words(), beatClosed());
+      audio.startSound();
+      audio.advance(300);
+      audio.endSound();
+      audio.advance(50);
+      audio.receive(stop);
+      startNext(audio, 2);
+      return audio;
+    };
+    const playSound = (audio: FakeAudio, ms: number) => {
+      audio.startSound();
+      audio.advance(ms);
+      audio.quiet();
+      const lastAudibleAtMs = audio.getNowMs();
+      audio.advance(107);
+      audio.clock.onProbeEvent({ kind: 'end', atMs: lastAudibleAtMs });
+    };
+
+    it('stops counting as the first sound once it ends, so the turn runs from its real one', () => {
+      const audio = stopThenStartNext();
+      audio.advance(160);
+      playSound(audio, 90);
+      audio.advance(40);
+      audio.startSound();
+      const firstSoundAtMs = audio.getNowMs();
+      audio.advance(600);
+      expect(Math.abs((firedForNext(audio)[0]?.firedAtMs as number) - firstSoundAtMs - 500)).toBeLessThan(LEEWAY_MS);
+    });
+
+    it('is not taken as the first sound either when both arrive before the turn\'s message', () => {
+      const audio = createFakeAudio();
+      audio.receive(started, cue(0), words(), beatClosed());
+      audio.startSound();
+      audio.advance(300);
+      audio.endSound();
+      audio.advance(50);
+      audio.receive(stop);
+      audio.advance(160);
+      playSound(audio, 90);
+      audio.advance(40);
+      audio.startSound();
+      const firstSoundAtMs = audio.getNowMs();
+      audio.advance(30);
+      startNext(audio, 2);
+      audio.advance(570);
+      expect(Math.abs((firedForNext(audio)[0]?.firedAtMs as number) - firstSoundAtMs - 500)).toBeLessThan(LEEWAY_MS);
+    });
+
+    it('still lets a turn with no other sound start by the limit, so it cannot leave the turn deaf', () => {
+      const audio = stopThenStartNext();
+      audio.advance(160);
+      playSound(audio, 90);
+      audio.advance(3000);
+      expect(firedForNext(audio)).toHaveLength(1);
+    });
+
+    it('keeps a first sound long enough to be a word, with a pause after it', () => {
+      const audio = stopThenStartNext();
+      audio.advance(160);
+      const firstSoundAtMs = audio.getNowMs();
+      playSound(audio, 200);
+      audio.advance(40);
+      audio.startSound();
+      audio.advance(400);
+      expect(Math.abs((firedForNext(audio)[0]?.firedAtMs as number) - firstSoundAtMs - 500)).toBeLessThan(LEEWAY_MS);
+    });
+
+    it('keeps a short first sound when no stop came before it', () => {
+      const audio = createFakeAudio();
+      audio.receive(started, words(), beatClosed());
+      audio.startSound();
+      audio.advance(600);
+      audio.endSound();
+      audio.advance(150);
+      startNext(audio, 2);
+      const firstSoundAtMs = audio.getNowMs();
+      playSound(audio, 90);
+      audio.advance(40);
+      audio.startSound();
+      audio.advance(400);
+      expect(Math.abs((firedForNext(audio)[0]?.firedAtMs as number) - firstSoundAtMs - 500)).toBeLessThan(LEEWAY_MS);
+    });
+  });
+
   it('does not count from the last turn\'s first sound when it starts right after that turn ended', () => {
     const audio = createFakeAudio();
     audio.receive(started, cue(0), words(), beatClosed());

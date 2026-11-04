@@ -47,6 +47,9 @@ const OLD_AUDIO_LIMIT_MS = 500;
 /** A first sound this long after a turn's first word times was lost, or has no silence before it, and the turn must not wait for it for ever. */
 const FIRST_SOUND_LIMIT_MS = 1000;
 
+/** A word of old audio that starts past the 110 ms is cut off by the stop, so it is short, at most 104 ms on the worst link. A turn's first word with a pause after it runs longer. */
+const SHORTEST_FIRST_SOUND_MS = 150;
+
 const RECENT_SOUND_MS = 300;
 
 interface SampleClockOptions {
@@ -61,6 +64,7 @@ export function createSampleClock({ getGraphTimeMs, getOutputLatencyMs }: Sample
   let soundEndedAtMs: number | null = null;
   let onsets: number[] = [];
   let onOnset: ((atMs: number) => void) | null = null;
+  let onFalseStart: (() => void) | null = null;
   let firstAudibleOfTurnAtMs: number | null = null;
   let oldAudioEndsByMs = 0;
   let oldAudioLimitMs = 0;
@@ -97,6 +101,10 @@ export function createSampleClock({ getGraphTimeMs, getOutputLatencyMs }: Sample
       if (kind === 'end') {
         isAudioSounding = false;
         soundEndedAtMs = atMs;
+        if (lastOnsetAtMs >= oldAudioEndsByMs && atMs < oldAudioLimitMs && atMs - lastOnsetAtMs < SHORTEST_FIRST_SOUND_MS) {
+          onsets = onsets.filter((onsetAtMs) => onsetAtMs !== lastOnsetAtMs);
+          onFalseStart?.();
+        }
         notifyAudioEnded();
       }
       if (kind === 'sound') {
@@ -115,6 +123,10 @@ export function createSampleClock({ getGraphTimeMs, getOutputLatencyMs }: Sample
       const heardAlready = isSoundRecent() ? onsets[0] : undefined;
       if (heardAlready !== undefined) wordClock.onFirstSound(heardAlready);
       onOnset = (atMs) => wordClock.onFirstSound(atMs);
+      onFalseStart = () => {
+        wordClock.forgetFirstSound();
+        firstAudibleOfTurnAtMs = null;
+      };
       return {
         addGap: (gap) => wordClock.addGap(gap),
         noteWordTimes(firstStartMs) {
