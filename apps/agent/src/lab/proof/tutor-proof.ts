@@ -17,8 +17,6 @@ const { values: args } = parseArgs({
     ask: { type: 'string', multiple: true, default: [] },
     answerMs: { type: 'string', default: '12000' },
     record: { type: 'boolean', default: false },
-    shot: { type: 'string', multiple: true, default: [] },
-    interruptAfterMs: { type: 'string' },
     headed: { type: 'boolean', default: false },
   },
 });
@@ -91,8 +89,9 @@ async function main(): Promise<void> {
   await page.screenshot({ path: join(args.out, 'lesson-0.png') });
   const caption0 = await page.getByTestId('tutor-words').textContent();
   const captions = [caption0];
-  for (const [index, text] of args.ask.entries()) {
-    await askInLesson(page, text, answerMs);
+  for (const [index, asked] of args.ask.entries()) {
+    const [, waitMs, text = asked] = /^(\d+):(.*)$/.exec(asked) ?? [];
+    await askInLesson(page, text, waitMs ? Number(waitMs) : answerMs);
     await page.screenshot({ path: join(args.out, `lesson-${index + 1}.png`) });
     captions.push(await page.getByTestId('tutor-words').textContent());
   }
@@ -108,7 +107,7 @@ async function main(): Promise<void> {
     writeFileSync(join(args.out, 'output.pcm'), Buffer.from(taps.output.base64, 'base64'));
     writeFileSync(join(args.out, 'taps.json'), JSON.stringify({ rate: TAP_RATE, outputFirstFrame: taps.output.firstFrame }));
     writeFileSync(join(args.out, 'page.json'), JSON.stringify({ clockMap: { epochAtGraphZeroMs: taps.epochAtGraphZeroMs } }));
-    writeFileSync(join(args.out, 'screencast.json'), JSON.stringify(frames));
+    writeFileSync(join(args.out, 'screencast.json'), JSON.stringify(frames.sort((a, b) => a.epochMs - b.epochMs)));
     makeRecording(args.out, join(args.out, 'lesson.mp4'));
   }
   await browser.close();

@@ -328,7 +328,7 @@ export function createTutorBrain({ model, profile = null, timeouts = TUTOR_TIMEO
         if (result === 'deadline') {
           if (turn.reader.isTurnOver) return 'ended';
           if (turn.hasAttemptText) return 'stalledInText';
-          if (getNowMs() - attemptStartedAtMs >= timeouts.firstTextMs) return 'stalledBeforeText';
+          if (turn.hasSaidStillWorking || getNowMs() - attemptStartedAtMs >= timeouts.firstTextMs) return 'stalledBeforeText';
           turn.hasSaidStillWorking = true;
           sayLine(turn, 'stillWorking');
           yield* takeReady(turn);

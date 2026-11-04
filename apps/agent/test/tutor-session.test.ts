@@ -39,6 +39,8 @@ function setup(getReply: () => FakeReply) {
 describe('a typed lesson', () => {
   it('reacts from code first, with no model in the path, then the model speaks on the same line', async () => {
     const { session, find, messages, model } = setup(() => ({ pieces: ['Okay, here we go.'], firstTextMs: 400 }));
+    session.greet();
+    await delay(2400);
     session.onBrowser(typed('Why does it fall?'));
     await delay(1200);
     const received = find('typedReceived')?.atMs as number;
@@ -46,13 +48,14 @@ describe('a typed lesson', () => {
     const reply = find('firstFrameCaptured', 'reply')?.atMs as number;
     expect(reaction - received).toBeLessThan(200);
     expect(reply).toBeGreaterThan(reaction);
-    expect(messages[0]).toEqual({ type: 'heard' });
+    expect(messages).toContainEqual({ type: 'heard' });
     expect(model.requests).toHaveLength(1);
     await session.close();
   });
 
   it('stops the voice and the model when a new message arrives, and answers that instead', async () => {
     const { session, messages, model, find } = setup(() => ({ pieces: Array.from({ length: 40 }, (_, index) => `word${index} `), msPerPiece: 10 }));
+    session.greet();
     session.onBrowser(typed('First question'));
     await delay(150);
     session.onBrowser(typed('Actually, a second one'));
@@ -66,7 +69,6 @@ describe('a typed lesson', () => {
 
   it('lets a question sent as the page opens wait behind the greeting', async () => {
     const { session, messages, find } = setup(() => ({ pieces: ['Okay, here we go.'] }));
-    session.greet();
     session.onBrowser(typed('My first question'));
     await delay(800);
     expect(find('turnStarted', 'greeting')).toBeDefined();

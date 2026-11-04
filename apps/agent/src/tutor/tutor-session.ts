@@ -130,11 +130,19 @@ export function createTutorSession({ messenger, line, voice, brain, takes, allTa
     messenger.send({ type: 'heard' } satisfies AgentMessage);
     stopEverything();
     // The greeting is the first thing code says, so a question sent as the page opens waits behind it instead of cutting it off.
+    greet();
     if (!greeting || greeting.isOver) reaction = speakTake('reaction');
     think(text).catch((error: unknown) => trace('thoughtFailed', { problem: String(error) }));
   };
 
+  function greet() {
+    if (hasGreeted) return;
+    hasGreeted = true;
+    greeting = speakTake('greeting');
+  }
+
   return {
+    greet,
     onBrowser(message) {
       if (message.type !== 'pulse' && message.type !== 'typed') log.write(message);
       if (message.type === 'typed') onTyped(message.text);
@@ -142,11 +150,6 @@ export function createTutorSession({ messenger, line, voice, brain, takes, allTa
         brain.notePlayed({ beatId: message.beatId, playedWords: message.playedWords, firedCues: message.firedCueMs.length, isFinished: message.ending === 'finished' });
         trace('played', { turnId: message.turnId, beatId: message.beatId, ending: message.ending, playedWords: message.playedWords, firedCues: message.firedCueMs.length });
       }
-    },
-    greet() {
-      if (hasGreeted) return;
-      hasGreeted = true;
-      greeting = speakTake('greeting');
     },
     async close() {
       stopEverything();

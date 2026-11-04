@@ -347,10 +347,10 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
       {
         heading: `What ${PRODUCT_NAME} is`,
         today: [
-          `${PRODUCT_NAME} is a learning app being built around an AI tutor. Today you can sign in, answer a few questions about yourself, open a home screen with suggested lessons, and start sessions that are saved to your account. Live lessons do not open yet.`,
+          `${PRODUCT_NAME} is a learning app built around an AI tutor. You can sign in, answer a few questions about yourself, open a home screen with suggested lessons, and start sessions that are saved to your account. In a lesson the tutor talks and draws on a board, and you reply by typing. The tutor is an AI and it can be wrong, so check anything that matters.`,
         ],
         planned: [
-          'Spoken lessons, where the tutor talks with you and draws on a board as it explains. The tutor is an AI and it can be wrong, so check anything that matters.',
+          'Talking to the tutor out loud.',
         ],
       },
       {
@@ -399,7 +399,8 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
           'The name you give your tutor, your level, the interests you choose, and your goal. We keep these in our database, and you can change them under Your notes. We use your level, interests, and goal to choose the lessons suggested on your home screen.',
           "Each session's title, subject, language, picture, length, status, and start time, and the suggested lesson it came from, if any. A question you send from the home screen becomes its session's title, cut to 200 characters, so we store those words.",
           'We also use the sessions you start from suggested lessons, and their length, status, and start time, to choose what your home screen suggests next. A question you leave open can take the continue card, so a lesson you left open can then appear among the suggestions. Only your own sessions do this, and the words of the questions you type play no part in it.',
-          "Any file you attach, and anything you type into a session's reply box, stay in your browser. They are not sent or stored. The app does not use your microphone.",
+          "Any file you attach stays in your browser. It is not sent or stored. The app does not use your microphone.",
+          "What you type in a lesson goes to our tutor service and on to Anthropic, as Who receives your data says. We hold it only while the lesson runs, and do not store it. A question you send from the home screen is the exception, as above.",
           'Words you type into the search box on the Sessions page go to our server, which uses them to find your sessions. We do not store them.',
         ],
         planned: [
@@ -437,13 +438,14 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
         heading: 'Who receives your data',
         today: [
           'Supabase runs our sign-in service and our database, so it holds everything we store on our servers, and it sends the sign-in email.',
+          "Anthropic, whose Claude model writes the tutor's replies. In a lesson it receives what you type, the tutor's earlier words, and your level, interests, and goal. It does not receive your name, your date of birth, your email address, or an account ID. Anthropic's terms say it does not train on this by default, and that it keeps it for a limited time. We have no zero-retention agreement with it yet.",
+          "ElevenLabs, which receives the tutor's words and turns them into its voice. Those words can repeat what you typed. It does not receive your name, or anything you typed that the tutor does not say. We have not yet confirmed the setting that stops it training on those words.",
           'No other outside service receives student data today. The app serves its own fonts and pictures.',
         ],
         planned: [
-          'LiveKit Cloud, which will carry lesson audio between you and the tutor.',
+          'LiveKit Cloud, which will carry lesson audio and messages between you and the tutor. Today a server we run ourselves does this.',
           "Meta's Muse Voice Transcribe, which will receive your voice and turn it into text.",
-          "Anthropic, whose Claude models will receive the lesson conversation and write the tutor's replies.",
-          "ElevenLabs, which will receive the tutor's words, which can include your name, and turn them into its voice.",
+          'A zero-retention agreement with Anthropic, which we will ask for before any student under 18 joins.',
           'Google, if we turn on sign-in with Google, which will handle that sign-in and pass your account details to Supabase Auth.',
           'An email delivery service and a hosting provider, not yet chosen. We will name them here before real students join.',
         ],
@@ -458,10 +460,10 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
       {
         heading: 'What we do not do',
         today: [
-          'The app shows no ads. We do not sell student data. No AI model receives student data today, so none is trained on it.',
+          'The app shows no ads. We do not sell student data. We do not train any AI model on it, and Anthropic and ElevenLabs receive only what Who receives your data says.',
         ],
         planned: [
-          'When lessons open, raw audio is processed live and not stored, no model is trained on under-18 data, and adults opt in to any training use. The product will use no camera, no voiceprints, and no emotion inference.',
+          'When you can talk to the tutor, raw audio is processed live and not stored, no model is trained on under-18 data, and adults opt in to any training use. The product will use no camera, no voiceprints, and no emotion inference.',
         ],
       },
       {
