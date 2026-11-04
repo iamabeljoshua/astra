@@ -11,7 +11,7 @@ import { SPOKEN_LINES } from '../src/tutor/spoken-lines.ts';
 /** These tests read the notes a turn collects, and the length reminder that goes with every message has its own test. */
 const NO_TURN_NOTE = { ...TUTOR_PROMPT, turnNote: null };
 const QUICK = { stillWorkingMs: 40, firstTextMs: 120, betweenTextMs: 80, finishGraceMs: 20, reportWaitMs: 30 };
-const PROFILE = { level: 'secondary', interests: ['space', 'basketball'], goal: 'exam' };
+const PROFILE = { level: 'high_school', interests: ['space', 'basketball'], goal: 'exam' };
 
 async function collect(brain: Pick<TutorBrain, 'reply'>, text: string, signal = new AbortController().signal): Promise<Beat[]> {
   const beats: Beat[] = [];
@@ -65,7 +65,7 @@ describe('the tutor brain', () => {
     await collect(brain, 'hello');
     const sent = JSON.stringify(model.requests[0]);
     expect(model.requests[0]?.turns.map((turn) => turn.role)).toEqual(['user', 'system']);
-    expect(lastSystemNote(model.requests[0])?.student).toEqual({ level: 'secondary', interests: ['space', 'basketball'], goal: 'exam' });
+    expect(lastSystemNote(model.requests[0])?.student).toEqual({ level: 'high_school', interests: ['space', 'basketball'], goal: 'exam' });
     expect(sent).not.toMatch(/birth|email|name"/i);
   });
 

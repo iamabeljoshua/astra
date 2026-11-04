@@ -17,7 +17,7 @@ interface EvalTurn {
 }
 
 const EVAL_FOLDER = join(dirname(fileURLToPath(import.meta.url)), '../../../../../evals/tutor-turns');
-const PROFILE = { level: 'secondary', interests: ['basketball', 'space'], goal: 'exam' };
+const PROFILE = { level: 'high_school', interests: ['basketball', 'space'], goal: 'exam' };
 const TURNS_PER_MINUTE = 3;
 /** Listed prices, from `docs/architecture/live-session.md`. */
 const VOICE_USD_PER_CHARACTER = 40 / 1_000_000;
