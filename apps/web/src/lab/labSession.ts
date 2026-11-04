@@ -31,6 +31,7 @@ export interface LabRecords {
   turnsSent: string[];
   refused: string[];
   boardProblems: BoardProblem[];
+  qualityTiers: { ms: number; tier: number }[];
 }
 
 export interface LabSession {
@@ -59,7 +60,7 @@ export interface LabSessionOptions {
 }
 
 function createRecords(clockKind: LabRecords['clockKind'], audioContext: AudioContext): LabRecords {
-  return { clockKind, sampleRate: audioContext.sampleRate, baseLatency: audioContext.baseLatency, outputLatencyMs: [], fired: [], drawn: [], agentMessages: [], browserMessages: [], stops: [], probe: [], frames: [], log: [], turnsSent: [], refused: [], boardProblems: [] };
+  return { clockKind, sampleRate: audioContext.sampleRate, baseLatency: audioContext.baseLatency, outputLatencyMs: [], fired: [], drawn: [], agentMessages: [], browserMessages: [], stops: [], probe: [], frames: [], log: [], turnsSent: [], refused: [], boardProblems: [], qualityTiers: [] };
 }
 
 function noteAgentMessage(records: LabRecords, message: AgentMessage, atMs: number): void {

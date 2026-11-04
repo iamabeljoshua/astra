@@ -6,6 +6,7 @@ import { parseArgs } from 'node:util';
 import { getBeatText, getCues, type SceneCommand } from '@astra/contracts';
 import { readKey } from '../../keys.ts';
 import { makeAnthropicAsker, makeAnthropicTutorModel, type TutorModelName } from '../../providers/anthropic.ts';
+import type { MemoryLine } from '../../learner-record/memory-note.ts';
 import { createTutorBrain, type StudentProfile, type TurnSummary, type TutorBeat } from '../brain.ts';
 import { CURRENT_PROMPT, PROMPT_VERSIONS, type PromptVersion, type TutorPrompt } from '../prompt.ts';
 import { createSpendLedger } from '../spend-ledger.ts';
@@ -13,6 +14,7 @@ import { createSpendLedger } from '../spend-ledger.ts';
 interface LessonScript {
   name: string;
   profile: StudentProfile;
+  memory?: readonly MemoryLine[];
   opening: string;
   student: string;
   turns: number;
@@ -22,12 +24,14 @@ interface LessonTurn {
   student: string;
   tutor: string;
   stretches: string[];
-  drawn: string[];
+  drawnForTranscript: string[];
+  shown: string[];
   words: number;
   longestStretchWords: number;
   firstTextMs: number | null;
   attempts: number;
   refused: readonly string[];
+  costUsd: number;
 }
 
 const EVAL_FOLDER = join(dirname(fileURLToPath(import.meta.url)), '../../../../../evals/tutor-turns');
@@ -39,6 +43,7 @@ const STUDENT_RULES = 'You are playing a student in a voice conversation with a 
 const { values: args } = parseArgs({
   options: {
     prompt: { type: 'string', default: CURRENT_PROMPT },
+    file: { type: 'string', default: 'lessons' },
     label: { type: 'string', default: 'run' },
     only: { type: 'string', default: '' },
     limit: { type: 'string', default: '2' },
@@ -70,6 +75,13 @@ function describeCommand(command: SceneCommand): string {
   return parts.join(' ');
 }
 
+function getShownWords(command: SceneCommand): string[] {
+  if (command.kind === 'simulate') return ['a ball in flight'];
+  if ('tex' in command && command.tex) return [command.tex];
+  if ('text' in command && command.text) return [command.text];
+  return 'label' in command && command.label ? [command.label] : [];
+}
+
 const percentile = (values: readonly number[], share: number) => {
   const sorted = [...values].sort((a, b) => a - b);
   return sorted.length === 0 ? null : Math.round(sorted[Math.min(sorted.length - 1, Math.ceil(sorted.length * share) - 1)] as number);
@@ -79,7 +91,7 @@ function getStudentMessages(script: LessonScript, turns: readonly LessonTurn[]):
   const history: Parameters<StudentAsker>[0]['messages'] = [{ role: 'user', content: `The tutor is ready. You have just said: ${script.opening}` }];
   for (const [index, turn] of turns.entries()) {
     if (index > 0) history.push({ role: 'assistant', content: turn.student });
-    const board = turn.drawn.length > 0 ? ` [On the board: ${turn.drawn.join('; ')}]` : '';
+    const board = turn.shown.length > 0 ? ` [On the board: ${turn.shown.join('; ')}]` : '';
     history.push({ role: 'user', content: `Tutor says: ${turn.tutor}${board}` });
   }
   return history;
@@ -94,6 +106,7 @@ async function runLesson(script: LessonScript, prompt: TutorPrompt, ledger: Retu
     model,
     prompt,
     profile: script.profile,
+    ...(script.memory ? { memory: { memory: { count: script.memory.length, notes: [...script.memory] } } } : {}),
     onTurnEnd(summary) {
       latest = summary;
       ledger.charge({ anthropicUsd: summary.costUsd });
@@ -110,12 +123,14 @@ async function runLesson(script: LessonScript, prompt: TutorPrompt, ledger: Retu
       student: studentText,
       tutor: summary.spokenText,
       stretches,
-      drawn: summary.beats.flatMap((beat) => getCues(beat).map((cue) => describeCommand(cue.command))),
+      drawnForTranscript: summary.beats.flatMap((beat) => getCues(beat).map((cue) => describeCommand(cue.command))),
+      shown: summary.beats.flatMap((beat) => getCues(beat).flatMap((cue) => getShownWords(cue.command))),
       words: countWords(summary.spokenText),
       longestStretchWords: Math.max(0, ...stretches.map(countWords)),
       firstTextMs: summary.firstTextMs && Math.round(summary.firstTextMs),
       attempts: summary.attempts,
       refused: summary.refused,
+      costUsd: summary.costUsd,
     });
     if (index === script.turns - 1) break;
     const { text, costUsd } = await askStudent({ system: `${STUDENT_RULES}\n\n${script.student}`, messages: getStudentMessages(script, turns), maxTokens: STUDENT_MAX_TOKENS });
@@ -126,13 +141,14 @@ async function runLesson(script: LessonScript, prompt: TutorPrompt, ledger: Retu
 }
 
 function writeTranscript(script: LessonScript, turns: readonly LessonTurn[], folder: string, version: string) {
-  const lines = [`# ${script.name}`, '', `Prompt ${version}. Level ${script.profile.level}, interests ${script.profile.interests.join(', ')}, goal ${script.profile.goal}.`, '', `Student played by a cheap model: ${script.student}`, ''];
+  const remembered = script.memory?.map(({ kind, about, days_ago: daysAgo }) => `${kind} "${about}", ${daysAgo} days ago`).join('; ') ?? 'nothing';
+  const lines = [`# ${script.name}`, '', `Prompt ${version}. Level ${script.profile.level}, interests ${script.profile.interests.join(', ')}, goal ${script.profile.goal}. Remembers ${remembered}.`, '', `Student played by a cheap model: ${script.student}`, ''];
   for (const turn of turns) {
     lines.push(`**Student:** ${turn.student}`, '');
     lines.push(`**Tutor** (${turn.words} words, longest stretch ${turn.longestStretchWords}, first text ${turn.firstTextMs} ms):`);
     for (const stretch of turn.stretches) lines.push(`> ${stretch}`, '>');
     lines.pop();
-    if (turn.drawn.length > 0) lines.push('', `Board: ${turn.drawn.map((item) => `\`${item}\``).join(', ')}`);
+    if (turn.drawnForTranscript.length > 0) lines.push('', `Board: ${turn.drawnForTranscript.map((item) => `\`${item}\``).join(', ')}`);
     if (turn.refused.length > 0) lines.push('', `Refused by code: ${turn.refused.join('; ')}`);
     lines.push('');
   }
@@ -143,6 +159,7 @@ function summarise(lessons: readonly (readonly LessonTurn[])[]) {
   const turns = lessons.flat();
   return {
     turns: turns.length,
+    tutorUsdPerTurn: turns.reduce((sum, turn) => sum + turn.costUsd, 0) / Math.max(1, turns.length),
     firstTextMs: { p50: percentile(turns.flatMap((turn) => turn.firstTextMs ?? []), 0.5), p95: percentile(turns.flatMap((turn) => turn.firstTextMs ?? []), 0.95) },
     wordsPerReply: { p50: percentile(turns.map((turn) => turn.words), 0.5), p95: percentile(turns.map((turn) => turn.words), 0.95), worst: percentile(turns.map((turn) => turn.words), 1) },
     longestStretch: { p50: percentile(turns.map((turn) => turn.longestStretchWords), 0.5), p95: percentile(turns.map((turn) => turn.longestStretchWords), 0.95), worst: percentile(turns.map((turn) => turn.longestStretchWords), 1) },
@@ -162,7 +179,7 @@ async function main() {
   const version = args.prompt as PromptVersion;
   const prompt = PROMPT_VERSIONS[version];
   if (!prompt) throw new Error(`Unknown prompt ${args.prompt}. Choose ${Object.keys(PROMPT_VERSIONS).join(', ')}`);
-  const all = JSON.parse(readFileSync(join(EVAL_FOLDER, 'lessons.json'), 'utf8')) as LessonScript[];
+  const all = JSON.parse(readFileSync(join(EVAL_FOLDER, `${args.file}.json`), 'utf8')) as LessonScript[];
   const chosen = args.only ? all.filter((script) => args.only?.split(',').includes(script.name)) : all;
   if (args['dry-run']) {
     console.log(`Loaded ${chosen.length} lessons on prompt ${version}. Nothing was sent.`);

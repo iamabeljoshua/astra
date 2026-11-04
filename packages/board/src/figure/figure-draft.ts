@@ -16,16 +16,20 @@ export interface FigureDraft {
   labels: LabelRequest[];
   shouldAvoid: Box[];
   mustAvoid: Box[];
+  linesAhead: Branch[];
   bounds: Box;
 }
 
+export const GRID_MARK = 'grid';
+
 export function createFigureDraft(width: number, height: number): FigureDraft {
-  return { marks: [], ticks: [], labels: [], shouldAvoid: [], mustAvoid: [], bounds: { left: 0, top: 0, right: width, bottom: height } };
+  return { marks: [], ticks: [], labels: [], shouldAvoid: [], mustAvoid: [], linesAhead: [], bounds: { left: 0, top: 0, right: width, bottom: height } };
 }
 
 /** Text goes on top of every line, in the order that lets a tutor's words win over tick numbers they would have covered. */
-export function finishFigure({ marks, ticks, labels, shouldAvoid, mustAvoid, bounds }: FigureDraft, onNoRoom?: (text: string) => void): FigureMark[] {
-  return [...marks, ...placeLabels([...labels, ...ticks], { bounds, mustAvoid, shouldAvoid, onNoRoom })];
+export function finishFigure({ marks, ticks, labels, shouldAvoid, mustAvoid, linesAhead, bounds }: FigureDraft, onNoRoom?: (text: string) => void): FigureMark[] {
+  const linesToClear = [...linesAhead, ...marks.flatMap((mark) => (mark.kind === 'path' && mark.key !== GRID_MARK ? mark.branches : []))];
+  return [...marks, ...placeLabels([...labels, ...ticks], { bounds, mustAvoid, shouldAvoid, linesToClear, onNoRoom })];
 }
 
 export function addSoftLine(draft: FigureDraft, branches: readonly Branch[]): void {
@@ -81,7 +85,7 @@ export function addGrid(draft: FigureDraft, view: FigureView, share: number): vo
   const yValues = getTickValues(yRange, Math.max(2, Math.floor((rect.bottom - rect.top) / PLOT_Y_SPACING)));
   const across = xValues.map((value): Branch => [{ x: view.toPixel({ x: value, y: 0 }).x, y: rect.top }, { x: view.toPixel({ x: value, y: 0 }).x, y: rect.bottom }]);
   const up = yValues.map((value): Branch => [{ x: rect.left, y: view.toPixel({ x: 0, y: value }).y }, { x: rect.right, y: view.toPixel({ x: 0, y: value }).y }]);
-  draft.marks.push({ kind: 'path', key: 'grid', tone: 'line', weight: 'hair', branches: share < 1 ? [] : [...across, ...up] });
+  draft.marks.push({ kind: 'path', key: GRID_MARK, tone: 'line', weight: 'hair', branches: share < 1 ? [] : [...across, ...up] });
 }
 
 export function getWidestYTick(yRange: readonly [number, number], height: number): number {

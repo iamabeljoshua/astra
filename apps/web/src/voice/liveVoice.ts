@@ -1,7 +1,7 @@
 import { type BoardState, createChoosingClock, createScenePlayer, type FiredCue, type OutputLevel, type ScenePlayer } from '@astra/board';
 import { checkWorkOnBoard, cleanTypedLine, getNod } from '@astra/board/shared';
 import { getKeptBoard, keepBoard } from './keptBoard.ts';
-import { type AgentMessage, type BrowserMessage, clipTypedText, type components, type ElementId, type InkPoint, LINK_QUIET_LIMIT_MS, parseAgentMessage, parseSceneAgentMessage, PULSE_EVERY_MS, SCENE_TOPIC, type SceneAgentMessage, type SceneBrowserMessage, type SessionRecap, type StudentWork, type TutorClosedReason } from '@astra/contracts';
+import { type AgentMessage, type BoardProblemReport, type BrowserMessage, clipTypedText, type components, type ElementId, type InkPoint, LINK_QUIET_LIMIT_MS, parseAgentMessage, parseSceneAgentMessage, PULSE_EVERY_MS, SCENE_TOPIC, type SceneAgentMessage, type SceneBrowserMessage, type SessionRecap, type StudentWork, type TutorClosedReason } from '@astra/contracts';
 import { DisconnectReason, type RemoteTrack, Room, RoomEvent, Track } from 'livekit-client';
 import heldMicWorkletUrl from './held-mic-worklet.js?url';
 import { createLocalYield } from './localYield';
@@ -101,6 +101,7 @@ export interface LiveVoice {
   askForRecap(): boolean;
   /** The board could not draw this mark, so the agent can tell the tutor the student did not see it. */
   reportMarkNotDrawn(markId: string): void;
+  reportBoardProblem(report: BoardProblemReport): void;
   sendWork(work: StudentWork, startedMsAgo?: number): void;
   sendInkStroke(id: ElementId, points: readonly InkPoint[]): void;
   sendInkPeek(strokes: readonly ElementId[]): void;
@@ -581,6 +582,9 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     },
     reportMarkNotDrawn(markId) {
       send({ type: 'markNotDrawn', ...getStamp(), markId });
+    },
+    reportBoardProblem(report) {
+      send({ type: 'boardProblem', ...getStamp(), ...report });
     },
     sendWork(given, startedMsAgo = 0) {
       const work = given.way === 'write' ? { ...given, text: clipTypedText(cleanTypedLine(given.text)) } : given;

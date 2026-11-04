@@ -1,4 +1,4 @@
-import { type BoardElement, type BoardState, getMotionValue } from '@astra/board';
+import { type BoardElement, type BoardState, canPaintAt, createTierWatch, getMotionValue, landsDrawingsAtOnce, type QualityTier } from '@astra/board';
 import { easeInOut, type LayoutArea, type MathFontProblem, type MovingBox, type MovingPlacement, placeMovingElements, writeStyle } from '@astra/board/drawing';
 import { createBoardMarks, type MarkWithoutTarget } from './boardMarks';
 import { type BoardItem, createBoardItem, hasOwnPlace, type ItemContext, type ItemSizes, type SliderHandlers } from './boardItems';
@@ -6,16 +6,18 @@ import { type BoardItem, createBoardItem, hasOwnPlace, type ItemContext, type It
 const PHONE_BOARD_WIDTH = 500;
 const SPACING = { laptop: { padding: 24, gap: 20 }, phone: { padding: 16, gap: 16 } };
 const ENTRANCE_SHARE_MAKING_ROOM = 1 / 3;
+const SMALLEST_READABLE_PX = 9;
 
 export interface BoardFrame {
   board: BoardState;
   atMs: number;
   isReducedMotion: boolean;
   canMoveSliders: boolean;
+  fixedTier?: QualityTier;
 }
 
 /** The board drew what it could and something a tutor asked for is not as asked. Math the board refused goes to `onMathRefused`. */
-export type BoardProblem = MarkWithoutTarget | ({ kind: 'fontFallback' } & MathFontProblem) | { kind: 'labelWithoutRoom'; text: string } | { kind: 'curveTooFine'; target: string } | { kind: 'sliderOverlaps'; sliderId: string; target: string };
+export type BoardProblem = MarkWithoutTarget | ({ kind: 'fontFallback' } & MathFontProblem) | { kind: 'labelWithoutRoom'; text: string } | { kind: 'curveTooFine'; target: string } | { kind: 'sliderOverlaps'; sliderId: string; target: string } | { kind: 'sliderWithoutConstant'; sliderId: string; target: string; constant: string } | { kind: 'tooSmallToRead'; elementId: string } | { kind: 'imageMissing'; elementId: string };
 
 export interface BoardPaintingOptions extends SliderHandlers {
   boardElement: HTMLElement;
@@ -23,6 +25,7 @@ export interface BoardPaintingOptions extends SliderHandlers {
   getWrapper(id: string): HTMLElement | undefined;
   onMathRefused?(tex: string): void;
   onBoardProblem?(problem: BoardProblem): void;
+  onQualityTier?(tier: QualityTier): void;
 }
 
 function getArea(boardElement: HTMLElement): LayoutArea {
@@ -33,7 +36,7 @@ function getArea(boardElement: HTMLElement): LayoutArea {
 
 function getMovingBox(context: ItemContext, sizes: ItemSizes & { size: NonNullable<ItemSizes['size']> }): MovingBox {
   const to = { id: context.element.id, fit: sizes.fit, ...sizes.size };
-  const isArriving = context.progress < 1 && context.element.morphFrom === null && !context.element.placedScene?.reshapingFrom;
+  const isArriving = context.progress < ENTRANCE_SHARE_MAKING_ROOM && context.element.morphFrom === null && !context.element.placedScene?.reshapingFrom;
   return { to, from: isArriving ? null : sizes.fromSize ? { ...to, ...sizes.fromSize } : to };
 }
 
@@ -64,33 +67,50 @@ function canKeepItem(first: BoardElement['content'], second: BoardElement['conte
   return first.kind === 'writeMath' || JSON.stringify(first) === JSON.stringify(second);
 }
 
+export function createProblemReports(onBoardProblem?: (problem: BoardProblem) => void) {
+  const reportedLabels = new Set<string>();
+  const reportedCurves = new Set<string>();
+  const reportedSliders = new Set<string>();
+  const reportedTooSmall = new Set<string>();
+  return {
+    onLabelWithoutRoom(text: string) {
+      if (reportedLabels.has(text)) return;
+      reportedLabels.add(text);
+      onBoardProblem?.({ kind: 'labelWithoutRoom', text });
+    },
+    onCurveTooFine({ id, placedAtMs }: BoardElement) {
+      const placement = `${id}@${placedAtMs}`;
+      if (reportedCurves.has(placement)) return;
+      reportedCurves.add(placement);
+      onBoardProblem?.({ kind: 'curveTooFine', target: id });
+    },
+    onImageMissing(elementId: string) {
+      onBoardProblem?.({ kind: 'imageMissing', elementId });
+    },
+    reportRefusedSliders({ refusedSliders }: BoardState) {
+      for (const slider of refusedSliders) {
+        const { id, target } = slider;
+        if (reportedSliders.has(id)) continue;
+        reportedSliders.add(id);
+        onBoardProblem?.('constant' in slider ? { kind: 'sliderWithoutConstant', sliderId: id, target, constant: slider.constant } : { kind: 'sliderOverlaps', sliderId: id, target });
+      }
+    },
+    reportIfTooSmall({ element, fontSize, progress }: ItemContext, item: BoardItem, scale: number | null) {
+      if (scale === null || item.ignoresPlacementScale || progress < 1 || reportedTooSmall.has(element.id)) return;
+      if ((item.getTextPx?.() ?? fontSize) * scale >= SMALLEST_READABLE_PX) return;
+      reportedTooSmall.add(element.id);
+      onBoardProblem?.({ kind: 'tooSmallToRead', elementId: element.id });
+    },
+  };
+}
+
 // Paints one frame from the board's state and the clock alone, so a frozen board writes nothing and a replay lands on the same pixels.
-export function createBoardPainting({ boardElement, overlay, getWrapper, onMathRefused, onBoardProblem, onSliderMove, onSliderRelease }: BoardPaintingOptions) {
+export function createBoardPainting({ boardElement, overlay, getWrapper, onMathRefused, onBoardProblem, onQualityTier, onSliderMove, onSliderRelease }: BoardPaintingOptions) {
   const items = new Map<string, { content: BoardElement['content']; item: BoardItem }>();
   const marks = createBoardMarks(overlay, onBoardProblem);
+  const reports = createProblemReports(onBoardProblem);
   const reportedRefusals = new Set<string>();
-  const reportedLabels = new Set<string>();
-  const onLabelWithoutRoom = (text: string) => {
-    if (reportedLabels.has(text)) return;
-    reportedLabels.add(text);
-    onBoardProblem?.({ kind: 'labelWithoutRoom', text });
-  };
   const reportedFonts = new Set<string>();
-  const reportedCurves = new Set<string>();
-  const onCurveTooFine = ({ id, placedAtMs }: BoardElement) => {
-    const placement = `${id}@${placedAtMs}`;
-    if (reportedCurves.has(placement)) return;
-    reportedCurves.add(placement);
-    onBoardProblem?.({ kind: 'curveTooFine', target: id });
-  };
-  const reportedSliders = new Set<string>();
-  const reportRefusedSliders = ({ refusedSliders }: BoardState) => {
-    for (const { id, target } of refusedSliders) {
-      if (reportedSliders.has(id)) continue;
-      reportedSliders.add(id);
-      onBoardProblem?.({ kind: 'sliderOverlaps', sliderId: id, target });
-    }
-  };
 
   const syncItems = (placed: readonly BoardElement[]) => {
     const live = new Set(placed.map((element) => element.id as string));
@@ -108,7 +128,7 @@ export function createBoardPainting({ boardElement, overlay, getWrapper, onMathR
         continue;
       }
       known?.item.remove();
-      items.set(element.id, { content: element.content, item: createBoardItem(element, wrapper, { onSliderMove, onSliderRelease }) });
+      items.set(element.id, { content: element.content, item: createBoardItem(element, wrapper, { onSliderMove, onSliderRelease, onImageMissing: reports.onImageMissing }) });
     }
   };
 
@@ -148,26 +168,53 @@ export function createBoardPainting({ boardElement, overlay, getWrapper, onMathR
     const entry = items.get(id);
     const wrapper = getWrapper(id);
     if (!entry || !wrapper) return;
-    if (placement) applyPlacement(wrapper, placement, { itemOpacity: entry.item.getEntranceOpacity?.(context) ?? 1, scale: entry.item.ignoresPlacementScale ? 1 : placement.scale });
+    reports.reportIfTooSmall(context, entry.item, placement?.isVisible ? placement.scale : null);
+    const entering = isMakingRoom && !context.isReducedMotion ? { ...context, progress: getProgressAfterRoom(context) } : context;
+    if (placement) applyPlacement(wrapper, placement, { itemOpacity: entry.item.getEntranceOpacity?.(entering) ?? 1, scale: entry.item.ignoresPlacementScale ? 1 : placement.scale });
     else writeStyle(wrapper, 'visibility', 'hidden');
-    const placedContext = { ...context, placedSize: placement?.isVisible ? { width: placement.width, height: placement.height } : null };
-    entry.item.paint(isMakingRoom && !context.isReducedMotion ? { ...placedContext, progress: getProgressAfterRoom(context) } : placedContext);
+    wrapper.toggleAttribute('data-moved-off', placement?.isVisible === false);
+    wrapper.toggleAttribute('data-no-place', placement === undefined);
+    entry.item.paint({ ...entering, placedSize: placement?.isVisible ? { width: placement.width, height: placement.height } : null });
   };
 
-  return {
-    paint({ board, atMs, isReducedMotion, canMoveSliders }: BoardFrame) {
+  const paintNow = ({ board, atMs, isReducedMotion, canMoveSliders }: BoardFrame) => {
       const elements = [...board.elements.values()];
       const placed = getPlacingOrder(elements.filter((element) => hasOwnPlace(element.content) && getWrapper(element.id)));
       syncItems(placed);
-      reportRefusedSliders(board);
+      reports.reportRefusedSliders(board);
       const area = getArea(boardElement);
       const fontSize = Number.parseFloat(getComputedStyle(boardElement).fontSize) || 16;
       const maxWidth = Math.max(0, area.width - 2 * area.padding);
-      const contexts = placed.map((element): ItemContext => ({ element, board, atMs, placedSize: null, canMoveSliders, onLabelWithoutRoom, onMarkWithoutPart: marks.reportMarkWithoutPart, onMarkDrawn: marks.noteMarkDrawn, onCurveTooFine, progress: getMotionValue(element.entrance, atMs), maxWidth, fontSize, isReducedMotion }));
+      const contexts = placed.map((element): ItemContext => ({ element, board, atMs, placedSize: null, canMoveSliders, onLabelWithoutRoom: reports.onLabelWithoutRoom, onMarkWithoutPart: marks.reportMarkWithoutPart, onMarkDrawn: marks.noteMarkDrawn, onCurveTooFine: reports.onCurveTooFine, progress: getMotionValue(element.entrance, atMs), maxWidth, fontSize, isReducedMotion }));
       const { placements, isMakingRoom } = placeMovingElements(prepareBoxes(contexts), area, getSharedProgress(contexts, isReducedMotion));
       const placementsById = new Map(placements.map((placement) => [placement.id, placement]));
       for (const context of contexts) paintItem(context, placementsById.get(context.element.id), isMakingRoom);
-      marks.paint({ elements, board: board.elements, focus: board.focus, placements: placementsById, getItem: (id) => items.get(id)?.item, atMs, isReducedMotion, area, onLabelWithoutRoom });
+      marks.paint({ elements, board: board.elements, focus: board.focus, placements: placementsById, getItem: (id) => items.get(id)?.item, atMs, isReducedMotion, area, onLabelWithoutRoom: reports.onLabelWithoutRoom });
+  };
+
+  const tiers = createTierWatch(onQualityTier);
+  let lastPaintMs = Number.NEGATIVE_INFINITY;
+  let waitingFrame: { frame: BoardFrame; tier: QualityTier } | null = null;
+
+  const paintWithTier = (frame: BoardFrame, tier: QualityTier) => {
+    waitingFrame = null;
+    lastPaintMs = performance.now();
+    paintNow({ ...frame, isReducedMotion: frame.isReducedMotion || landsDrawingsAtOnce(tier) });
+  };
+
+  const paintWhenDue = () => {
+    if (waitingFrame) paintWithTier(waitingFrame.frame, waitingFrame.tier);
+  };
+
+  return {
+    paint(frame: BoardFrame) {
+      const tier = frame.fixedTier ?? tiers.noteFrame(performance.now());
+      if (canPaintAt(tier, performance.now() - lastPaintMs)) {
+        paintWithTier(frame, tier);
+        return;
+      }
+      if (!waitingFrame) requestAnimationFrame(paintWhenDue);
+      waitingFrame = { frame, tier };
     },
   };
 }

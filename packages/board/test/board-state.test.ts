@@ -14,6 +14,19 @@ const SHOT = { kind: 'simulate', id: 'shot', simulation: { model: 'projectile', 
 const element = (operations: BoardOperation[], id: string, atMs: number) => getBoardAt(operations, atMs).elements.get(id as never) as BoardElement;
 const ids = (operations: BoardOperation[], atMs: number) => [...getBoardAt(operations, atMs).elements.keys()];
 
+describe('describing a board', () => {
+  const movedAt = (atMs: number) => [place({ kind: 'boardMode', mode: 'handsOn' }, atMs)];
+  const describeAt = (operations: BoardOperation[], atMs: number) => describeBoard(getBoardAt(operations, atMs), atMs);
+
+  it('reads the same on a replay whose clock is shifted', () => {
+    expect(describeAt(movedAt(5100), 5400)).toEqual(describeAt(movedAt(100), 400));
+  });
+
+  it('tells apart a replay that moved the board at another moment', () => {
+    expect(describeAt(movedAt(5200), 5400)).not.toEqual(describeAt(movedAt(100), 400));
+  });
+});
+
 describe('hiding', () => {
   const figure = [
     place(SHOT),
@@ -61,6 +74,13 @@ describe('running a simulation', () => {
     const operations = [place(SHOT), place({ kind: 'runSimulation', target: 'shot', action: 'seek', to: 'landing' }, 0), place({ kind: 'runSimulation', target: 'shot', action: 'play', until: 'peak' }, 100)];
     expect(seconds(operations, 100)).toBe(0);
     expect(seconds(operations, 300)).toBeCloseTo(0.2, 3);
+  });
+
+  it('stays put when a second play asks for the moment the first one reached', () => {
+    const [from, to] = [0.2296853825495868, 0.49399342932713947];
+    const play = { kind: 'runSimulation', target: 'shot', action: 'play', until: to };
+    const operations = [place(SHOT), place({ kind: 'runSimulation', target: 'shot', action: 'seek', to: from }, 0), place(play, 0), place(play, 2000)];
+    expect(seconds(operations, 2100)).toBeCloseTo(to, 3);
   });
 
   it('continues without a jump when a play lands on a play', () => {

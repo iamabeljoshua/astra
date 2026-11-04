@@ -27,6 +27,7 @@ export interface Placement {
 }
 
 const SMALLEST_FIGURE_SHARE = 0.4;
+const LEAVING_SHARE = 0.5;
 
 const getInnerWidth = (area: LayoutArea) => Math.max(0, area.width - 2 * area.padding);
 const getInnerHeight = (area: LayoutArea) => Math.max(0, area.height - 2 * area.padding);
@@ -107,9 +108,10 @@ function getUpwardShift({ before, after, gap }: { before: ReadonlyMap<string, Pl
 }
 
 function interpolatePlacement({ before, after, progress, shift }: { before: Placement | undefined; after: Placement; progress: number; shift: number }): MovingPlacement {
-  if (!before?.isVisible) return { ...after, y: after.y - shift * (1 - progress), opacity: after.isVisible ? 1 : 0 };
-  if (!after.isVisible) return { ...before, y: before.y + shift * progress, isVisible: progress < 1, opacity: 1 - progress };
-  return { id: after.id, x: after.x, y: interpolate(before.y, after.y, progress), width: interpolate(before.width, after.width, progress), height: interpolate(before.height, after.height, progress), scale: interpolate(before.scale, after.scale, progress), isVisible: true, opacity: 1 };
+  const moved = shift === 0 ? progress : Math.max(0, (progress - LEAVING_SHARE) / (1 - LEAVING_SHARE));
+  if (!before?.isVisible) return { ...after, y: after.y - shift * (1 - moved), opacity: after.isVisible ? 1 : 0 };
+  if (!after.isVisible) return { ...before, isVisible: progress < LEAVING_SHARE, opacity: Math.max(0, 1 - progress / LEAVING_SHARE) };
+  return { id: after.id, x: after.x, y: interpolate(before.y, after.y, moved), width: interpolate(before.width, after.width, moved), height: interpolate(before.height, after.height, moved), scale: interpolate(before.scale, after.scale, moved), isVisible: true, opacity: 1 };
 }
 
 // What arrives waits below what is still shrinking, so no two elements cross while the board makes room.
@@ -129,5 +131,6 @@ export function placeMovingElements(boxes: readonly MovingBox[], area: LayoutAre
   const before = new Map(placeElements(boxes.flatMap((box) => (box.from ? [box.from] : [])), area).map((placement) => [placement.id, placement]));
   const shift = getUpwardShift({ before, after, gap: area.gap });
   const moving = after.map((placement) => interpolatePlacement({ before: before.get(placement.id), after: placement, progress, shift }));
-  return { placements: keepArrivalsBelow(moving, { before, gap: area.gap }), isMakingRoom: shift !== 0 };
+  const isAnyResizing = after.some((placement) => before.get(placement.id)?.isVisible && (before.get(placement.id) as Placement).height !== placement.height);
+  return { placements: keepArrivalsBelow(moving, { before, gap: area.gap }), isMakingRoom: shift !== 0 || isAnyResizing };
 }

@@ -27,6 +27,8 @@ import {
   BOARD_MODES,
   MATH_CLAIMS,
   type Diagram,
+  DRAWING_PARTS,
+  type DrawingName,
   DRAWINGS,
   type Drawing,
   type GeometryStep,
@@ -59,6 +61,7 @@ const LIMITS = {
   alt: 200,
   text: 400,
   source: 2000,
+  codeLines: 40,
   columns: 8,
   rows: 12,
   events: 12,
@@ -85,11 +88,27 @@ const NUMBER_RANGES = {
 const CODE_LANGUAGE = /^[a-z0-9+#-]{1,20}$/;
 const CONTROL_CHARACTER = /\p{Cc}/u;
 const PLOT_CONSTANT_NAME = /^[a-z]{1,8}$/;
+/** What JSON makes of a lone backslash, as in beta, frac, nu, rho, and theta. */
+const BROKEN_BACKSLASH = /[\b\f\n\r\t]/;
+export const RAW_MATH = /\\[a-zA-Z]{2,}|\\[()[\]]|[_^]\{|(?<!\$)\$\$[^$\s]|(?<![\w$])\$(?![\d.,]+\$)[^$\s](?:[^$]*[^$\s])?\$(?![\w$])/;
+
+function readWords(place: Place, maxLength: number): string {
+  if (typeof place.value === 'string' && BROKEN_BACKSLASH.test(place.value)) fail(place, 'text with no control or bidi characters, with math in writeMath and each of its backslashes doubled');
+  const words = readString(place, maxLength);
+  if (hasTooLongMarkRun(words)) fail(place, 'text with no stacks of combining marks');
+  if (RAW_MATH.test(words)) fail(place, 'plain words, with math in writeMath');
+  return words;
+}
 
 function readLabel(place: Place): string {
-  const label = readString(place, LIMITS.label);
-  if (hasTooLongMarkRun(label)) fail(place, 'a label with no stacks of combining marks');
-  return label;
+  return readWords(place, LIMITS.label);
+}
+
+function readCodeSource(place: Place): string {
+  const source = readString(place, LIMITS.source);
+  if (hasTooLongMarkRun(source)) fail(place, 'code with no stacks of combining marks');
+  if (source.split('\n').length > LIMITS.codeLines) fail(place, `at most ${LIMITS.codeLines} lines`);
+  return source;
 }
 
 // JSON turns "\frac" into a form feed and "\theta" into a tab, so a control character means the math is already broken.
@@ -254,9 +273,11 @@ function readFilledList<Item>(fields: CheckedFields, { name, maxLength, readItem
   return items;
 }
 
-function readDrawingLabel(place: Place): NonNullable<Drawing['labels']>[number] {
+function readDrawingLabel(place: Place, name: DrawingName): NonNullable<Drawing['labels']>[number] {
   const fields = readFields(place, ['part', 'text']);
-  return { part: readPartName(fields.at('part')), text: readLabel(fields.at('text')) };
+  const parts: readonly string[] = DRAWING_PARTS[name];
+  if (parts.length === 0) fail(fields.at('part'), 'no label, because this drawing has no named parts');
+  return { part: readOneOf(fields.at('part'), parts), text: readLabel(fields.at('text')) };
 }
 
 function readDiagramNode(place: Place): Diagram['nodes'][number] {
@@ -537,12 +558,15 @@ const COMMANDS: VariantTable<SceneCommand, 'kind'> = {
     },
     drawing: {
       keys: ['id', 'name', 'labels'],
-      read: (fields) => ({
-        kind: 'drawing',
-        id: readElementId(fields.at('id')),
-        name: readOneOf(fields.at('name'), DRAWINGS),
-        ...fields.optional('labels', (labels) => readList(labels, { maxLength: LIMITS.nodes, readItem: readDrawingLabel })),
-      }),
+      read: (fields) => {
+        const name = readOneOf(fields.at('name'), DRAWINGS);
+        return {
+          kind: 'drawing',
+          id: readElementId(fields.at('id')),
+          name,
+          ...fields.optional('labels', (labels) => readList(labels, { maxLength: LIMITS.nodes, readItem: (label) => readDrawingLabel(label, name) })),
+        };
+      },
     },
     diagram: {
       keys: ['id', 'nodes', 'edges', 'handwritten', 'startsEmpty'],
@@ -583,7 +607,7 @@ const COMMANDS: VariantTable<SceneCommand, 'kind'> = {
         kind: 'code',
         id: readElementId(fields.at('id')),
         language: readLanguage(fields.at('language')),
-        source: readString(fields.at('source'), LIMITS.source),
+        source: readCodeSource(fields.at('source')),
         ...fields.optional('startsEmpty', readBoolean),
       }),
     },
@@ -601,7 +625,7 @@ const COMMANDS: VariantTable<SceneCommand, 'kind'> = {
       read: (fields) => ({
         kind: 'image',
         id: readElementId(fields.at('id')),
-        alt: readString(fields.at('alt'), LIMITS.alt),
+        alt: readWords(fields.at('alt'), LIMITS.alt),
         ...readImageSource(fields),
       }),
     },
@@ -610,7 +634,7 @@ const COMMANDS: VariantTable<SceneCommand, 'kind'> = {
       read: (fields) => ({
         kind: 'text',
         id: readElementId(fields.at('id')),
-        text: readString(fields.at('text'), LIMITS.text),
+        text: readWords(fields.at('text'), LIMITS.text),
         ...fields.optional('handwritten', readBoolean),
         ...fields.optional('overWords', readOverWords),
       }),
