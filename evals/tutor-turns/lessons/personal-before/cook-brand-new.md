@@ -6,56 +6,60 @@ Student played by a cheap model: You are 13 and you love cooking. You have never
 
 **Student:** how does projectile motion work?
 
-**Tutor** (18 words, longest stretch 18, first text 2218 ms):
-> Think of throwing a ball. When it leaves your hand, what do you think keeps pulling it down?
+**Tutor** (19 words, longest stretch 19, first text 1151 ms):
+> Picture tossing a ball across the room. When it leaves your hand, what's the only thing pulling on it?
 
 Board: `simulate`
 
-**Student:** huh, um, gravity? i think? like it just pulls things down, i guess.
+**Student:** Um, gravity? Like it falls down I guess. huh, is that the only thing though?
 
-**Tutor** (15 words, longest stretch 15, first text 1086 ms):
-> Yep, gravity. Watch it rise, slow down, and stop at the top. Why'd it slow?
-
-Board: `runSimulation`
-
-**Student:** huh, um, because gravity is pulling it back down? i'm not sure why that makes it slow though.
-
-**Tutor** (19 words, longest stretch 19, first text 970 ms):
-> That's right, and the slowing is the pull. Going up, the pull works against it, so it loses speed.
-
-Board: `focus`, `vector gravity`
-
-**Student:** oh, so gravity fights the way it's going up? like a brake? huh, that makes sense i guess.
-
-**Tutor** (21 words, longest stretch 21, first text 1428 ms):
-> Exactly, a brake. Past the top, that same pull speeds it up going down. What about sideways, is anything slowing that?
+**Tutor** (19 words, longest stretch 19, first text 1076 ms):
+> Yep, only gravity, once it's let go. Nothing pushes it sideways, so watch how it keeps drifting forward anyway.
 
 Board: `focus`, `runSimulation`
 
-**Student:** huh, sideways? i don't know. like if i throw it straight, nothing pushes it back? i think it just keeps going.
+**Student:** oh, so it keeps going forward even with nothing pushing it? huh, that's weird. like why doesn't it just drop straight down?
 
-**Tutor** (19 words, longest stretch 19, first text 1663 ms):
-> You've got it, it keeps going. Gravity only pulls down, so sideways speed stays the same the whole flight.
-
-Board: `focus`
-
-**Student:** oh, so the sideways part never changes? that's kind of cool. huh, so it's like two separate things happening at once?
-
-**Tutor** (22 words, longest stretch 22, first text 1140 ms):
-> Yes, exactly that. Sideways just cruises along while up and down gets braked, then sped up. Together they make the curved path.
+**Tutor** (23 words, longest stretch 23, first text 997 ms):
+> It is weird at first. Things keep moving unless something changes that. Slide a pan across a smooth counter, what makes it stop?
 
 Board: `focus`
 
-**Student:** oh, so the path is curved because two things happen at once? huh, that's kind of neat. like when i pour batter it does something similar, i guess.
+**Student:** oh, friction I guess? like the counter is rough so it slows down. huh, so the pan wants to keep going otherwise?
 
-**Tutor** (28 words, longest stretch 28, first text 977 ms):
-> It does, the batter arcs the same way. It leaves the spoon moving sideways while gravity pulls it down. Where does your batter land if you pour faster?
+**Tutor** (29 words, longest stretch 25, first text 982 ms):
+> Right, that's it. In the air there's almost nothing to slow the ball sideways, so it keeps its sideways speed while gravity pulls it down.
+>
+> Watch both happen together.
+
+Board: `focus`, `runSimulation`
+
+**Student:** oh, so sideways it just keeps going and down it gets pulled, both at once? huh, so that's why it curves.
+
+**Tutor** (31 words, longest stretch 31, first text 999 ms):
+> Exactly, two separate things at once, and together they bend the path. That curve even has a name, a parabola. What do you think happens if you throw it harder sideways?
 
 Board: `focus`
 
-**Student:** huh, farther away? i think if it goes sideways faster it would land further out. not totally sure though.
+**Student:** um, it goes further before it hits the floor? like the sideways part is bigger so it takes longer to drop? huh, not sure about the curve though.
 
-**Tutor** (21 words, longest stretch 21, first text 1739 ms):
-> Right, you can trust that. It falls for the same time either way, so more sideways speed just carries it farther.
+**Tutor** (27 words, longest stretch 27, first text 954 ms):
+> Further, yes. But the drop takes the same time either way, because sideways speed doesn't change how gravity pulls. Watch it land, then I'll untangle the curve.
+
+Board: `focus`, `runSimulation`
+
+**Student:** oh, so the drop takes the same time no matter what? huh, that's kinda surprising. so it just goes further, not falls faster?
+
+**Tutor** (37 words, longest stretch 30, first text 940 ms):
+> That's it, same fall time, just more distance covered sideways. Drop a ball from your hand and throw one flat from the same height, and they hit the floor together.
+>
+> Want to see why the path curves?
 
 Board: `focus`
+
+**Student:** yeah, show me. huh, wait, really? they hit at the same time? that's wild.
+
+**Tutor** (28 words, longest stretch 28, first text 1088 ms):
+> Really, yes, try it with two coins sometime. Gravity pulls down, so the ball's downward speed grows every second, while sideways stays steady. That mix bends the path.
+
+Board: `focus`, `vector gravity`

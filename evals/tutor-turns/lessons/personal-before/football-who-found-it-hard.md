@@ -1,61 +1,61 @@
 # football-who-found-it-hard
 
-Prompt v2. Level high_school, interests football, goal exam. Remembers struggled "splitting a speed into up and across", 3 days ago; cares_about "playing football at the weekend", 3 days ago.
+Prompt v2. Level high_school, interests football, goal exam. Remembers struggled "the speed of a projectile", 3 days ago; cares_about "football", 3 days ago.
 
 Student played by a cheap model: You are 16 and you play football every weekend. You know what speed is. Last session you added the upward speed and the sideways speed together, and you still half think they are one thing. You answer briefly. If the tutor uses a word you have not met, you say so. You are not good with formulas but you get things when you can picture them.
 
 **Student:** how does projectile motion work?
 
-**Tutor** (21 words, longest stretch 21, first text 1685 ms):
-> Picture a football kicked off the ground. Once it leaves your foot, what do you think is still pushing it forward?
-
-**Student:** nothing, i reckon? my foot's not touching it anymore so it should just stop going forward, right?
-
-**Tutor** (23 words, longest stretch 23, first text 2599 ms):
-> Half right. Nothing is pushing it forward, but it doesn't stop. Watch the ball's sideways speed. Does it slow down as it flies?
+**Tutor** (20 words, longest stretch 20, first text 1111 ms):
+> Picture a football kicked off the ground. Once it leaves your boot, what forces do you think act on it?
 
 Board: `simulate`
 
-**Student:** hmm, i think it does slow down a bit? like it doesnt zoom off the whole way. but i dont get why it keeps going if nothing's pushing it.
+**Student:** hmm, gravity pulling it down I guess? and maybe the kick, but that's over once it's left my boot right?
 
-**Tutor** (24 words, longest stretch 24, first text 1876 ms):
-> Think of a puck sliding on ice. It keeps gliding because nothing's slowing it, and the air here barely does. Does that sound fair?
+**Tutor** (15 words, longest stretch 15, first text 1537 ms):
+> Right, the kick's done. Only gravity pulls on it now, so watch how it climbs.
 
 Board: `focus`, `runSimulation`
 
-**Student:** kinda, yeah. like on ice it just keeps sliding. but a ball on grass stops, so something must be slowing it down, right?
+**Student:** ok so it's slowing down going up then? like it's losing the upward push
 
-**Tutor** (24 words, longest stretch 24, first text 2593 ms):
-> Exactly, grass rubs against it. That rubbing has a name, friction. In the air there's almost none, so the sideways speed stays the same.
-
-Board: `focus`
-
-**Student:** oh ok, so in the air the sideways speed just stays the same? what about the up and down bit then, does that stay the same too?
-
-**Tutor** (27 words, longest stretch 27, first text 1784 ms):
-> That's it for sideways. Up and down is different. Gravity's pulling the ball down the whole time. What do you think that does to its upward speed?
+**Tutor** (18 words, longest stretch 18, first text 1081 ms):
+> It does slow going up, yes. But nothing's pushing it up. Gravity is dragging that upward speed away.
 
 Board: `focus`, `vector gravity`
 
-**Student:** hmm, gravity pulls it down so the upward speed gets smaller? like it slows down going up. but i thought the upward speed and sideways speed kinda just add up into one speed, is that wrong?
+**Student:** wait so gravity is slowing the upward bit but not the sideways bit? i thought it was all one speed though
 
-**Tutor** (34 words, longest stretch 30, first text 1327 ms):
-> You're right about the upward speed shrinking. On adding, they combine, but not like plain adding. They're separate directions, so the ball's real speed is along the slant between them.
->
-> Want to see that?
+**Tutor** (23 words, longest stretch 23, first text 980 ms):
+> Exactly, you've got it. Gravity points straight down, so it only touches the upward part. Sideways, nothing acts, so it stays the same.
 
 Board: `focus`
 
-**Student:** yeah go on, but can you keep it simple? i get pictures better than sums.
+**Student:** so the sideways speed just stays the same the whole way? and the upward one is the only bit changing? that's kinda weird but ok
 
-**Tutor** (20 words, longest stretch 20, first text 1250 ms):
-> Picture walking across a field. Walk four steps east, then three north. You've ended up five steps away, not seven.
+**Tutor** (19 words, longest stretch 19, first text 1594 ms):
+> Yep, that's it. It feels odd, but a ball on smooth ice keeps sliding sideways too. Nothing's slowing it.
 
-Board: `focus`, `diagram`
+Board: `focus`
 
-**Student:** ohh, so you don't just add them, the walk's a diagonal? that's kinda weird but i get it. so the ball's speed is the slant, not the two bits added together?
+**Student:** ohh ok that actually makes sense, like a puck sliding. so the ball's kind of doing two things at once then?
 
-**Tutor** (30 words, longest stretch 30, first text 2223 ms):
-> Yes, that's it. The slant is the ball's real speed, and the sideways and upward bits are its two parts. That's what tripped you up before, so you've fixed it.
+**Tutor** (29 words, longest stretch 29, first text 1087 ms):
+> Yes, two separate motions running together. Sideways it cruises steadily, up and down it speeds up and slows down. Want to see where that puts it at the top?
+
+Board: `focus`
+
+**Student:** yeah go on. like does it hang there for a sec at the top or what?
+
+**Tutor** (18 words, longest stretch 18, first text 1037 ms):
+> Not quite hanging. Up there the upward speed hits zero for an instant, but it's still moving sideways.
+
+Board: `focus`, `annotate top`
+
+**Student:** wait so at the top it's not moving up at all for a split second? but still going sideways? so it's just moving flat at that point
+
+**Tutor** (21 words, longest stretch 21, first text 958 ms):
+> Yes, flat for that instant, moving at just the sideways speed. And gravity's still pulling, so it turns and starts down.
 
 Board: `focus`

@@ -6,54 +6,56 @@ Student played by a cheap model: You are 13 and you love cooking. You have never
 
 **Student:** how does projectile motion work?
 
-**Tutor** (13 words, longest stretch 13, first text 1731 ms):
-> Alright, picture throwing a ball. Ever noticed it curves instead of flying straight?
+**Tutor** (22 words, longest stretch 22, first text 1877 ms):
+> Okay, picture tossing a ball across a room. Once it leaves your hand, what do you think is still pushing it forward?
 
-**Student:** huh, yeah i guess it does curve. like it goes up then comes down.
+Board: `simulate`, `runSimulation`
 
-**Tutor** (13 words, longest stretch 13, first text 1756 ms):
-> Right. Here's a throw. What do you think is pulling it back down?
+**Student:** uh, i think my hand is still pushing it? like it keeps going because of that
 
-Board: `simulate`
+**Tutor** (30 words, longest stretch 30, first text 1046 ms):
+> Lots of people think that. Your hand lets go though, so it can't push anymore. Only gravity pulls on it now. What do you think that does to its path?
 
-**Student:** hmm, gravity? like the thing that makes stuff fall off the counter.
+Board: `focus`, `vector gravity`
 
-**Tutor** (17 words, longest stretch 17, first text 1950 ms):
-> Yep, that's it. Watch the ball slow its climb, because gravity pulls it down the whole time.
+**Student:** huh, so gravity just pulls it down the whole time? i don't really get how that makes it curve though
 
-Board: `focus`, `runSimulation`, `vector gravity`
-
-**Student:** oh ok. so it slows down going up cause gravity keeps pulling? huh, that's kinda neat.
-
-**Tutor** (21 words, longest stretch 21, first text 1284 ms):
-> Exactly. At the top it stops climbing for a moment, then falls. Does gravity pull it sideways at all, you think?
+**Tutor** (28 words, longest stretch 28, first text 1117 ms):
+> Yep, the whole time. Picture a ball rolling straight off a table edge. It keeps drifting sideways, but gravity drags it down. Sideways plus down makes a curve.
 
 Board: `focus`
 
-**Student:** hmm, no? gravity just pulls down, right? i don't think it pushes it sideways.
+**Student:** oh, so the sideways part is just it still moving from the table? and the down part is gravity? i kinda get it, but why does the curve look like that?
 
-**Tutor** (20 words, longest stretch 20, first text 1321 ms):
-> Right, only down. So the sideways speed never changes, and the ball keeps drifting forward while it rises and falls.
+**Tutor** (32 words, longest stretch 32, first text 1182 ms):
+> Exactly, you've got both parts. The curve happens because gravity keeps adding downward speed, so the fall gets faster each moment. Watch how it slows going up, then speeds up coming down.
 
 Board: `focus`, `runSimulation`
 
-**Student:** oh, so it keeps going forward the whole time? like the sideways part just stays the same? huh.
+**Student:** oh wait, so it slows down going up because gravity is pulling against it? and then it speeds up on the way down? huh, that's kinda cool
 
-**Tutor** (25 words, longest stretch 25, first text 2296 ms):
-> Yep. Two separate things happening at once: steady sideways, changing up and down. Put them together and you get the curve. Is that making sense?
+**Tutor** (25 words, longest stretch 25, first text 1076 ms):
+> That's it. At the very top, it's not moving up or down for a split second. What do you think it's still doing sideways there?
+
+Board: `annotate top`
+
+**Student:** uh, it's still moving sideways at the top? like the sideways speed doesn't change at all? huh, i'm not totally sure why that would be
+
+**Tutor** (21 words, longest stretch 21, first text 1266 ms):
+> Right, it doesn't change. Gravity only pulls straight down, so it never touches the sideways speed. Nothing's there to slow it.
+
+Board: `focus`
+
+**Student:** oh, so gravity only tugs down and never touches the sideways part? that makes sense i guess. so the sideways speed just stays the same the whole way?
+
+**Tutor** (29 words, longest stretch 29, first text 1167 ms):
+> Yep, the whole way. We're ignoring air, which would slow it a little. So the curve is steady sideways plus a speeding-up fall. Want to try changing the throw?
 
 Board: `focus`
 
-**Student:** kinda? like the ball moves sideways at the same speed and up and down changes, so together it makes the curve. huh, i think i get it.
+**Student:** sure, like throw it harder? i think it would go farther but i'm not sure how the curve changes
 
-**Tutor** (23 words, longest stretch 23, first text 1793 ms):
-> That's exactly it. That curve even has a name, a parabola. If you threw it harder sideways, would it land nearer or farther?
+**Tutor** (20 words, longest stretch 20, first text 1612 ms):
+> Your guess is right, it goes farther. I doubled the sideways speed. Same height, but it covers twice the ground.
 
-Board: `focus`
-
-**Student:** farther? cause it keeps going sideways more before it comes down. huh, i think.
-
-**Tutor** (26 words, longest stretch 26, first text 1055 ms):
-> Farther, yes, and your reason's right. It spends the same time falling, but covers more ground sideways in that time. You can trust that "I think".
-
-Board: `focus`
+Board: `focus`, `clearBoard`, `simulate`, `runSimulation`
