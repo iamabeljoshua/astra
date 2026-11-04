@@ -11,7 +11,7 @@
     "db:up": "node supabase/start-stack.mjs",
     "db:migrate": "pnpm --filter @astra/api db migrate",
     "db:reset": "pnpm --filter @astra/api db reset",
-    "db:seed": "pnpm --filter @astra/api db seed",
+    "db:seed": "pnpm --filter @astra/api db sed",
     "db:migration": "pnpm --filter @astra/api db migration",
     "lint": "eslint apps packages --max-warnings 0",
     "typecheck": "pnpm -r typecheck",

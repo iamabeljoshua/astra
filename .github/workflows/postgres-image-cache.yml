@@ -8,11 +8,6 @@ on:
       - .github/workflows/ci.yml
       - .github/workflows/postgres-image-cache.yml
       - .github/scripts/postgres-image.sh
-  pull_request:
-    paths:
-      - .github/workflows/ci.yml
-      - .github/workflows/postgres-image-cache.yml
-      - .github/scripts/postgres-image.sh
   schedule:
     - cron: '17 5 * * *'
   workflow_dispatch:

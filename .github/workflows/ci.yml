@@ -120,3 +120,50 @@ jobs:
         env:
           RESULTS: ${{ toJSON(needs.*.result) }}
         run: jq -e 'length > 0 and all(. == "success")' <<< "$RESULTS"
+
+  planted-skipped:
+    if: false
+    runs-on: ubuntu-latest
+    steps:
+      - run: 'true'
+
+  planted-cancelled:
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - run: sleep 120
+
+  gate-on-skipped:
+    needs: [planted-skipped]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Fail unless every job in needs succeeded
+        if: ${{ !cancelled() }}
+        env:
+          RESULTS: ${{ toJSON(needs.*.result) }}
+        run: jq -e 'length > 0 and all(. == "success")' <<< "$RESULTS"
+
+  gate-on-cancelled:
+    needs: [planted-cancelled]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Fail unless every job in needs succeeded
+        if: ${{ !cancelled() }}
+        env:
+          RESULTS: ${{ toJSON(needs.*.result) }}
+        run: jq -e 'length > 0 and all(. == "success")' <<< "$RESULTS"
+
+  gate-on-no-needs:
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Fail unless every job in needs succeeded
+        if: ${{ !cancelled() }}
+        env:
+          RESULTS: ${{ toJSON(needs.*.result) }}
+        run: jq -e 'length > 0 and all(. == "success")' <<< "$RESULTS"
