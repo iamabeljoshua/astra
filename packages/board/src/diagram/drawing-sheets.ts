@@ -1,5 +1,5 @@
 import type { DrawingName } from '@astra/contracts';
-import type { InkPosition } from '../ink/ink-stroke.ts';
+import { holdCorners, type InkPosition } from '../ink/ink-stroke.ts';
 
 export interface SheetPart {
   x: number;
@@ -16,18 +16,31 @@ export interface DrawingSheet {
 
 const FULL_TURN = 2 * Math.PI;
 const CURVE_STEPS = 32;
+const HELD_CORNER_REACH = 1.2;
+const LEAF = { bellyAt: 0.45, bellyWidth: 0.38 };
+const PIANO = { whiteWidth: 96 / 7, top: 2, bottom: 44, blackHalfWidth: 4, blackBottom: 28, blackAfter: new Set([1, 2, 4, 5, 6]), shadingTurns: 10 };
 
 type Pair = readonly [number, number];
 
 const makeLine = (...points: readonly Pair[]) => points.map(([x, y]) => ({ x, y }));
 
+const makeCornered = (...points: readonly Pair[]) => holdCorners(makeLine(...points), HELD_CORNER_REACH);
+
+// The painter starts and ends a stroke on its exact points, so a ring that starts on one of its points shows a nib there.
+function closeCurve(points: readonly InkPosition[]): InkPosition[] {
+  const [first, second] = points as [InkPosition, InkPosition];
+  const seam = { x: (first.x + second.x) / 2, y: (first.y + second.y) / 2 };
+  return [seam, ...points.slice(1, -1), first, seam];
+}
+
 function makeEllipse({ x, y, width, height = width, turnRadians = 0, from = 0, to = FULL_TURN, steps = CURVE_STEPS }: { x: number; y: number; width: number; height?: number; turnRadians?: number; from?: number; to?: number; steps?: number }): InkPosition[] {
-  return Array.from({ length: steps + 1 }, (_, step) => {
+  const points = Array.from({ length: steps + 1 }, (_, step) => {
     const angle = from + ((to - from) * step) / steps;
     const across = Math.cos(angle) * width;
     const down = Math.sin(angle) * height;
     return { x: x + across * Math.cos(turnRadians) - down * Math.sin(turnRadians), y: y + across * Math.sin(turnRadians) + down * Math.cos(turnRadians) };
   });
+  return to - from === FULL_TURN ? closeCurve(points) : points;
 }
 
 const makeDot = (x: number, y: number, radius = 1) => makeEllipse({ x, y, width: radius, steps: 10 });
@@ -37,6 +50,13 @@ function makeWave({ fromX, toX, y, height, waves }: { fromX: number; toX: number
     const along = step / CURVE_STEPS;
     return { x: fromX + (toX - fromX) * along, y: y + Math.sin(along * waves * FULL_TURN) * height };
   });
+}
+
+// A leaf's sides curve and its tip comes to a point, so only the tip holds its corner.
+function makeLeaf([baseX, baseY]: Pair, [tipX, tipY]: Pair): InkPosition[] {
+  const getBelly = (side: number): InkPosition => ({ x: baseX + (tipX - baseX) * LEAF.bellyAt - side * (tipY - baseY) * LEAF.bellyWidth, y: baseY + (tipY - baseY) * LEAF.bellyAt + side * (tipX - baseX) * LEAF.bellyWidth });
+  const base = { x: baseX, y: baseY };
+  return [base, ...holdCorners([getBelly(1), { x: tipX, y: tipY }, getBelly(-1)], HELD_CORNER_REACH), base];
 }
 
 const part = (x: number, y: number, radius = 4): SheetPart => ({ x, y, radius });
@@ -50,7 +70,7 @@ function drawAnimalCell(): DrawingSheet {
   return {
     height: 82,
     strokes: [
-      membrane,
+      closeCurve(membrane),
       makeEllipse({ x: 46, y: 39, width: 14, height: 13 }),
       makeDot(49, 36, 4),
       makeEllipse({ x: 73, y: 25, width: 9, height: 5, turnRadians: 0.4 }),
@@ -78,8 +98,8 @@ function drawFlower(): DrawingSheet {
       ...petals,
       makeDot(50, 22, 4),
       makeLine([50, 34], [51, 50], [49, 66], [50, 78]),
-      makeLine([50, 58], [62, 48], [74, 47], [68, 56], [50, 58]),
-      makeLine([50, 66], [38, 56], [26, 56], [32, 65], [50, 66]),
+      makeLeaf([50, 58], [74, 47]),
+      makeLeaf([50, 66], [26, 56]),
       makeLine([18, 78], [82, 78]),
       makeLine([50, 78], [50, 96]),
       makeLine([50, 82], [38, 94]),
@@ -104,14 +124,14 @@ function drawWaterCycle(): DrawingSheet {
       makeEllipse({ x: 66, y: 13, width: 9, height: 7 }),
       makeEllipse({ x: 75, y: 18, width: 7, height: 5 }),
       ...rain,
-      makeLine([54, 66], [74, 38], [94, 66]),
+      makeCornered([54, 66], [74, 38], [94, 66]),
       makeLine([68, 66], [56, 62], [46, 66], [36, 63]),
       makeWave({ fromX: 3, toX: 36, y: 64, height: 1.2, waves: 3 }),
       makeWave({ fromX: 3, toX: 36, y: 68, height: 1.2, waves: 3 }),
       makeLine([14, 60], [14, 36]),
-      makeLine([11, 40], [14, 36], [17, 40]),
+      makeCornered([11, 40], [14, 36], [17, 40]),
       makeLine([26, 60], [26, 40]),
-      makeLine([23, 44], [26, 40], [29, 44]),
+      makeCornered([23, 44], [26, 40], [29, 44]),
     ],
     parts: { sun: part(14, 13, 8), cloud: part(66, 14, 13), rain: part(62, 30, 8), mountain: part(74, 44, 8), river: part(52, 63, 5), sea: part(18, 66, 9), evaporation: part(26, 48, 6) },
   };
@@ -127,7 +147,7 @@ function drawAtom(): DrawingSheet {
   });
   return {
     height: 88,
-    strokes: [...turns.map((turnRadians) => makeEllipse({ x: 50, y: 44, width: 46, height: 16, turnRadians })), makeDot(50, 44, 5), makeDot(47, 42, 2.4), makeDot(53, 46, 2.4), ...electrons.map(({ x, y }) => makeDot(x, y, 1.8))],
+    strokes: [...turns.map((turnRadians) => makeEllipse({ x: 50, y: 44, width: 46, height: 16, turnRadians })), makeDot(50, 44, 5), makeDot(48, 42.5, 1.6), makeDot(52, 42.5, 1.6), makeDot(50, 46, 1.6), ...electrons.map(({ x, y }) => makeDot(x, y, 1.8))],
     parts: { nucleus: part(50, 44, 7), orbit: part(96, 44, 3), electron: part(electrons[0]?.x ?? 60, electrons[0]?.y ?? 50, 4) },
   };
 }
@@ -148,15 +168,29 @@ function drawMusicStaff(): DrawingSheet {
   };
 }
 
+// A white key is narrower where a black key sits beside it, as on a real keyboard, so no line runs through a black key.
+function makeWhiteKey(index: number): InkPosition[] {
+  const { whiteWidth, top, bottom, blackHalfWidth, blackBottom, blackAfter } = PIANO;
+  const left = 2 + index * whiteWidth;
+  const right = left + whiteWidth;
+  const topLeft = blackAfter.has(index) ? left + blackHalfWidth : left;
+  const topRight = blackAfter.has(index + 1) ? right - blackHalfWidth : right;
+  const rightNotch: Pair[] = blackAfter.has(index + 1) ? [[topRight, blackBottom], [right, blackBottom]] : [];
+  const leftNotch: Pair[] = blackAfter.has(index) ? [[left, blackBottom], [topLeft, blackBottom]] : [];
+  return makeCornered([topLeft, top], [topRight, top], ...rightNotch, [right, bottom], [left, bottom], ...leftNotch, [topLeft, top]);
+}
+
+function makeBlackKey(index: number): InkPosition[][] {
+  const { whiteWidth, top, blackHalfWidth, blackBottom, shadingTurns } = PIANO;
+  const x = 2 + index * whiteWidth;
+  const shading = Array.from({ length: shadingTurns + 1 }, (_, turn): Pair => [x + (turn % 2 === 0 ? -blackHalfWidth : blackHalfWidth), top + (turn * (blackBottom - top)) / shadingTurns]);
+  return [makeCornered([x - blackHalfWidth, top], [x + blackHalfWidth, top], [x + blackHalfWidth, blackBottom], [x - blackHalfWidth, blackBottom], [x - blackHalfWidth, top]), makeCornered(...shading)];
+}
+
 function drawPianoKeys(): DrawingSheet {
-  const whiteWidth = 96 / 7;
-  const whites = Array.from({ length: 7 }, (_, index) => makeLine([2 + index * whiteWidth, 2], [2 + (index + 1) * whiteWidth, 2], [2 + (index + 1) * whiteWidth, 44], [2 + index * whiteWidth, 44], [2 + index * whiteWidth, 2]));
-  const blacks = [1, 2, 4, 5, 6].flatMap((index) => {
-    const x = 2 + index * whiteWidth;
-    return [makeLine([x - 4, 2], [x + 4, 2], [x + 4, 28], [x - 4, 28], [x - 4, 2]), makeLine([x - 4, 8], [x + 4, 2], [x - 4, 16], [x + 4, 8], [x - 4, 24], [x + 4, 16], [x - 2, 28], [x + 4, 24])];
-  });
+  const { whiteWidth, blackAfter } = PIANO;
   const keyPart = (index: number) => part(2 + (index + 0.5) * whiteWidth, 38, 4);
-  return { height: 46, strokes: [...whites, ...blacks], parts: { c: keyPart(0), d: keyPart(1), e: keyPart(2), f: keyPart(3), g: keyPart(4), a: keyPart(5), b: keyPart(6), 'black-key': part(2 + whiteWidth, 15, 5) } };
+  return { height: 46, strokes: [...Array.from({ length: 7 }, (_, index) => makeWhiteKey(index)), ...[...blackAfter].flatMap(makeBlackKey)], parts: { c: keyPart(0), d: keyPart(1), e: keyPart(2), f: keyPart(3), g: keyPart(4), a: keyPart(5), b: keyPart(6), 'black-key': part(2 + whiteWidth, 15, 5) } };
 }
 
 function drawGlobe(): DrawingSheet {
@@ -181,11 +215,11 @@ function drawLever(): DrawingSheet {
     height: 52,
     strokes: [
       makeLine([6, 22], [94, 22]),
-      makeLine([34, 22], [26, 40], [42, 40], [34, 22]),
+      makeCornered([34, 22], [26, 40], [42, 40], [34, 22]),
       makeLine([4, 40], [96, 40]),
-      makeLine([8, 10], [22, 10], [22, 22], [8, 22], [8, 10]),
+      makeCornered([8, 10], [22, 10], [22, 22], [8, 22], [8, 10]),
       makeLine([86, 2], [86, 20]),
-      makeLine([83, 16], [86, 20], [89, 16]),
+      makeCornered([83, 16], [86, 20], [89, 16]),
     ],
     parts: { beam: part(60, 22, 3), fulcrum: part(34, 32, 6), load: part(15, 16, 8), effort: part(86, 10, 5) },
   };

@@ -45,7 +45,7 @@ The prototype's wave is a different image, a Commons scan of a reprint made betw
 
 ## Pictures on the board
 
-Each file is in `apps/web/public/board-art/`, at most 1,200 pixels on its longest side. These are the same works as the cards above, not cropped, so the tutor can show a whole picture. Add a row here and an entry in `IMAGE_ASSETS` and `ART_SIZES` when you add a picture.
+Each file is in `apps/web/public/board-art/`, at most 1,200 pixels on its longest side, with `-480` and `-800` copies at those widths so a phone downloads less. These are the same works as the cards above, not cropped, so the tutor can show a whole picture. Add a row here, the two smaller copies, and an entry in `IMAGE_ASSETS` and `ART_SIZES` when you add a picture.
 
 | File | Work | Source and status |
 | --- | --- | --- |

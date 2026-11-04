@@ -1,7 +1,7 @@
 import type { Diagram } from '@astra/contracts';
 import { layoutGraph, type GraphRoute } from '../diagram/layout-graph.ts';
 import { BASELINE_EMS, DESCENT_EMS, LINE_HEIGHT_EMS, wrapText, writeByHand } from './handwriting.ts';
-import { type InkDrawing, type InkPosition, type InkStroke, getSpread, makeSeededRandom, makeStroke } from './ink-stroke.ts';
+import { type InkDrawing, type InkPosition, type InkStroke, getSpread, holdCorners, makeSeededRandom, makeStroke } from './ink-stroke.ts';
 import type { MarkBox } from './marks.ts';
 
 const BOX = { paddingX: 12, paddingY: 7, wobble: 1.2, sides: 4, stepsPerSide: 4 };
@@ -21,6 +21,7 @@ export interface DiagramTextLabel {
   width: number;
   height: number;
   fontSize: number;
+  role?: 'node' | 'edge' | 'part';
 }
 
 /** One node and the edges that arrive with it, so `reveal` can draw a diagram one node at a time. */
@@ -76,6 +77,8 @@ function drawLabel(text: string, isHandwritten: boolean, request: DiagramRequest
   return written ? { strokes: written.strokes, text: null, width: written.width, height: written.height } : setPlainLabel(text, request);
 }
 
+const nameLabel = (label: LabelDrawing, word: string, role: DiagramTextLabel['role']): LabelDrawing => ({ ...label, strokes: label.strokes.map((stroke) => ({ ...stroke, word })), text: label.text && { ...label.text, role } });
+
 const moveTextLabel = (label: DiagramTextLabel, by: InkPosition): DiagramTextLabel => ({ ...label, x: label.x + by.x, y: label.y + by.y });
 
 function moveStroke(stroke: InkStroke, by: InkPosition): InkStroke {
@@ -97,38 +100,23 @@ function getRoughBox(box: MarkBox, random: () => number): InkStroke {
   return { ...makeStroke(points), role: 'box' };
 }
 
-// The painter rounds a corner through the midpoints of its sides, so a point each side of it keeps the line on its route.
-function holdCorners(points: readonly InkPosition[]): InkPosition[] {
-  return points.flatMap((corner, index) => {
-    const before = points[index - 1];
-    const after = points[index + 1];
-    if (!before || !after) return [corner];
-    const pointToward = (other: InkPosition): InkPosition => {
-      const distance = Math.hypot(other.x - corner.x, other.y - corner.y);
-      const share = Math.min(ARROW.cornerReach, distance / 2) / (distance || 1);
-      return { x: corner.x + (other.x - corner.x) * share, y: corner.y + (other.y - corner.y) * share };
-    };
-    return [pointToward(before), corner, pointToward(after)];
-  });
-}
-
 function getArrow(points: readonly InkPosition[]): InkStroke[] {
   const end = points.at(-1) as InkPosition;
   const before = points.at(-2) as InkPosition;
   const angle = Math.atan2(end.y - before.y, end.x - before.x);
   const headPoint = (side: number): InkPosition => ({ x: end.x - Math.cos(angle + side * ARROW.headAngle) * ARROW.headLength, y: end.y - Math.sin(angle + side * ARROW.headAngle) * ARROW.headLength });
-  return [{ ...makeStroke(holdCorners(points)), role: 'line' }, { ...makeStroke([headPoint(1), end, headPoint(-1)]), role: 'line' }];
+  return [{ ...makeStroke(holdCorners(points, ARROW.cornerReach)), role: 'line' }, { ...makeStroke([headPoint(1), end, headPoint(-1)]), role: 'line' }];
 }
 
 function drawEdgeLabel(edge: Diagram['edges'][number], isHandwritten: boolean, request: DiagramRequest): LabelDrawing | null {
   if (!edge.label) return null;
   const smaller = request.fontSize * ARROW.labelScale;
-  return drawLabel(edge.label, isHandwritten, { ...request, fontSize: smaller, maxWidth: Math.max(smaller * 4, Math.min(request.maxWidth / 2, smaller * LARGEST_EDGE_LABEL_EMS)), seed: `${request.seed}.${edge.from}.${edge.to}` });
+  return nameLabel(drawLabel(edge.label, isHandwritten, { ...request, fontSize: smaller, maxWidth: Math.max(smaller * 4, Math.min(request.maxWidth / 2, smaller * LARGEST_EDGE_LABEL_EMS)), seed: `${request.seed}.${edge.from}.${edge.to}` }), `edge-${edge.from}-${edge.to}`, 'edge');
 }
 
 function drawNodes(diagram: DrawableDiagram, request: DiagramRequest): (PlacedNode & { size: { width: number; height: number } })[] {
   return diagram.nodes.map((node) => {
-    const label = drawLabel(node.label, diagram.handwritten !== false, { ...request, maxWidth: request.maxWidth - 2 * BOX.paddingX, seed: `${request.seed}.${node.name}` });
+    const label = nameLabel(drawLabel(node.label, diagram.handwritten !== false, { ...request, maxWidth: request.maxWidth - 2 * BOX.paddingX, seed: `${request.seed}.${node.name}` }), `node-${node.name}`, 'node');
     return { name: node.name, label, box: { x: 0, y: 0, width: 0, height: 0 }, size: { width: label.width + 2 * BOX.paddingX, height: label.height + 2 * BOX.paddingY } };
   });
 }

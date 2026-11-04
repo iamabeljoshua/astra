@@ -29,6 +29,15 @@ type DrawingLabels = NonNullable<Drawing['labels']>;
 
 const wobble = (random: () => number) => (point: InkPosition, scale: number, at: InkPosition): InkPosition => ({ x: at.x + point.x * scale + getSpread(random, WOBBLE), y: at.y + point.y * scale + getSpread(random, WOBBLE) });
 
+// A closed shape ends where it began, so its last point takes the first one's wobble and the line meets itself.
+function drawSheetStroke(points: readonly InkPosition[], toPage: (point: InkPosition) => InkPosition): InkStroke {
+  const drawn = points.map(toPage);
+  const first = points[0];
+  const last = points.at(-1);
+  const isClosed = first !== undefined && last !== undefined && points.length > 2 && first.x === last.x && first.y === last.y;
+  return makeStroke(isClosed ? [...drawn.slice(0, -1), drawn[0] as InkPosition] : drawn);
+}
+
 function getSideLabels(labels: DrawingLabels, sheet: DrawingSheet, isLeft: boolean, request: DiagramRequest & { gutter: number }): PlacedLabel[] {
   const picked = labels.flatMap((label) => {
     const anchor = sheet.parts[label.part];
@@ -55,8 +64,8 @@ function stackLabels(labels: PlacedLabel[], { scale, bodyHeight, topRoom }: { sc
 function getLabelStep(label: PlacedLabel, { x, isLeft, bodyAt, scale }: { x: number; isLeft: boolean; bodyAt: InkPosition; scale: number }): DiagramStep {
   const middleY = label.y + label.text.height / 2;
   const startX = isLeft ? x + label.text.width + LEADER_GAP : x - LEADER_GAP;
-  const leader: InkStroke = makeStroke([{ x: startX, y: middleY }, { x: bodyAt.x + label.anchor.x * scale, y: bodyAt.y + label.anchor.y * scale }]);
-  return { strokes: [leader], textLabels: [{ ...(label.text.text as DiagramTextLabel), x, y: label.y }] };
+  const leader: InkStroke = { ...makeStroke([{ x: startX, y: middleY }, { x: bodyAt.x + label.anchor.x * scale, y: bodyAt.y + label.anchor.y * scale }]), role: 'leader' };
+  return { strokes: [leader], textLabels: [{ ...(label.text.text as DiagramTextLabel), x, y: label.y, role: 'part' }] };
 }
 
 function getGutter(labels: DrawingLabels, { maxWidth, fontSize, measureText }: DiagramRequest): number {
@@ -82,7 +91,7 @@ export function drawLabeledSheet({ name, labels = [] }: Pick<Drawing, 'name' | '
   const bodyAt = { x: leftRoom, y: 0 };
   const rightX = leftRoom + bodyWidth + SIDE_GAP;
   const toPage = wobble(makeSeededRandom(request.seed));
-  const body: DiagramStep = { strokes: sheet.strokes.map((points) => makeStroke(points.map((point) => toPage(point, scale, bodyAt)))), textLabels: [] };
+  const body: DiagramStep = { strokes: sheet.strokes.map((points) => drawSheetStroke(points, (point) => toPage(point, scale, bodyAt))), textLabels: [] };
   const steps = [body, ...left.map((label) => getLabelStep(label, { x: 0, isLeft: true, bodyAt, scale })), ...right.map((label) => getLabelStep(label, { x: rightX, isLeft: false, bodyAt, scale }))];
   const partBoxes = new Map(Object.entries(sheet.parts).map(([partName, { x, y, radius }]) => [partName, { x: bodyAt.x + (x - radius) * scale, y: bodyAt.y + (y - radius) * scale, width: 2 * radius * scale, height: 2 * radius * scale }]));
   return { steps, width: leftRoom + bodyWidth + rightRoom, height: tallest, partBoxes };
