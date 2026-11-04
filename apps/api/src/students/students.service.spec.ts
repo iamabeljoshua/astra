@@ -10,12 +10,12 @@ import { StudentsService } from './students.service';
 const ROUNDS_TO_CATCH_A_LOST_RACE = 5;
 const SAVES_AT_ONCE = 20;
 const YOUNG_BIRTH_DATE = new Date().toISOString().slice(0, 10);
-const PROFILE: SaveStudentProfileBodyDto = {
-  interests: ['Basketball', 'Space'],
+const SAVED_PROFILE: Omit<SaveStudentProfileBodyDto, 'name'> = {
+  interests: ['basketball', 'space'],
   level: 'university',
   goal: 'exam',
-  voice: 'ada',
 };
+const PROFILE: SaveStudentProfileBodyDto = { ...SAVED_PROFILE, name: 'Maya' };
 
 describe('StudentsService', () => {
   let testApp: TestApp;
@@ -30,7 +30,7 @@ describe('StudentsService', () => {
 
   async function createStudent() {
     const authUserId = randomUUID();
-    const { student } = await studentsService.answerBirthDate(authUserId, OLD_ENOUGH_BIRTH_DATE);
+    const { student } = await studentsService.answerBirthDate(authUserId, { birthDate: OLD_ENOUGH_BIRTH_DATE });
     return { authUserId, id: student?.id as string };
   }
 
@@ -43,10 +43,10 @@ describe('StudentsService', () => {
 
     await studentsService.saveProfile(id, PROFILE);
 
-    expect(await readProfile(authUserId)).toEqual(PROFILE);
+    expect(await readProfile(authUserId)).toEqual(SAVED_PROFILE);
   });
 
-  it('keeps an empty interest list, because onboarding lets a student skip it', async () => {
+  it('keeps an empty interest list, because a student can choose none', async () => {
     const { authUserId, id } = await createStudent();
 
     await studentsService.saveProfile(id, { ...PROFILE, interests: [] });
@@ -58,12 +58,8 @@ describe('StudentsService', () => {
     const { authUserId, id } = await createStudent();
     await studentsService.saveProfile(id, PROFILE);
 
-    const changedProfile: SaveStudentProfileBodyDto = {
-      ...PROFILE,
-      interests: ['Music'],
-      voice: 'noor',
-    };
-    await studentsService.saveProfile(id, changedProfile);
+    const changedProfile: typeof SAVED_PROFILE = { ...SAVED_PROFILE, interests: ['music'], goal: 'curiosity' };
+    await studentsService.saveProfile(id, { ...changedProfile, name: 'Maya' });
 
     expect(await readProfile(authUserId)).toEqual(changedProfile);
   });
@@ -77,7 +73,7 @@ describe('StudentsService', () => {
         Array.from({ length: SAVES_AT_ONCE }, () => studentsService.saveProfile(id, PROFILE)),
       );
 
-      expect(await readProfile(authUserId)).toEqual(PROFILE);
+      expect(await readProfile(authUserId)).toEqual(SAVED_PROFILE);
     },
   );
 
@@ -92,7 +88,7 @@ describe('StudentsService', () => {
   it('stores only the user ID and the time for a closed account, and no student', async () => {
     const authUserId = randomUUID();
 
-    await studentsService.answerBirthDate(authUserId, YOUNG_BIRTH_DATE);
+    await studentsService.answerBirthDate(authUserId, { birthDate: YOUNG_BIRTH_DATE });
 
     const dataSource = testApp.app.get(DataSource);
     const [storedRow] = await dataSource.query('SELECT * FROM "closed_accounts" WHERE "auth_user_id" = $1', [authUserId]);
@@ -106,7 +102,7 @@ describe('StudentsService', () => {
 
     await studentsService.saveProfile(id, { ...PROFILE, studentId: other.id } as SaveStudentProfileBodyDto);
 
-    expect(await readProfile(authUserId)).toEqual(PROFILE);
+    expect(await readProfile(authUserId)).toEqual(SAVED_PROFILE);
     expect(await readProfile(other.authUserId)).toBeNull();
   });
 

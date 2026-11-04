@@ -1,8 +1,7 @@
 import { type FormEvent, type RefObject, useRef } from 'react';
 import { BIRTH_DATE_LABELS } from '../strings';
 import { formatBirthDate } from './birthDateParts';
-import { OnboardingFrame } from './OnboardingFrame';
-import { SignOutButton } from './SignOutButton';
+import { OnboardingColumn, StepFooter } from './OnboardingFrame';
 import { StepHeading } from './StepHeading';
 import { useBirthDateSteps } from './useBirthDateSteps';
 
@@ -10,7 +9,6 @@ const FORM_ID = 'birth-date';
 const QUESTION_ID = 'birth-date-question';
 const PROBLEM_ID = 'birth-date-problem';
 const TYPED_DATE_ID = 'birth-date-typed';
-const SIGN_OUT_STYLE = 'font-medium text-ink-2 hover:text-ink';
 
 const DATE_FIELDS = [
   { part: 'day', label: BIRTH_DATE_LABELS.day, placeholder: BIRTH_DATE_LABELS.dayPlaceholder, maxLength: 2, width: 'w-[72px]', autoComplete: 'bday-day' },
@@ -18,15 +16,25 @@ const DATE_FIELDS = [
   { part: 'year', label: BIRTH_DATE_LABELS.year, placeholder: BIRTH_DATE_LABELS.yearPlaceholder, maxLength: 4, width: 'w-[104px]', autoComplete: 'bday-year' },
 ] as const;
 
-export function BirthDatePage() {
-  const steps = useBirthDateSteps();
-
-  return steps.dateToConfirm ? <ConfirmStep {...steps} dateToConfirm={steps.dateToConfirm} /> : <EntryStep {...steps} />;
+interface BirthDatePageProps {
+  studentName: string;
+  progress: string;
+  onBack?: () => void;
 }
 
-type Steps = ReturnType<typeof useBirthDateSteps>;
+export function BirthDatePage({ studentName, progress, onBack }: BirthDatePageProps) {
+  const steps = useBirthDateSteps(studentName);
 
-function EntryStep({ dateParts, isDateRejected, changePart, reviewDate }: Steps) {
+  return steps.dateToConfirm ? (
+    <ConfirmStep {...steps} dateToConfirm={steps.dateToConfirm} progress={progress} />
+  ) : (
+    <EntryStep {...steps} progress={progress} onBack={onBack} />
+  );
+}
+
+type Steps = ReturnType<typeof useBirthDateSteps> & { progress: string };
+
+function EntryStep({ dateParts, isDateRejected, changePart, reviewDate, progress, onBack }: Steps & { onBack?: () => void }) {
   const firstField = useRef<HTMLInputElement>(null);
 
   function submit(event: FormEvent) {
@@ -35,12 +43,14 @@ function EntryStep({ dateParts, isDateRejected, changePart, reviewDate }: Steps)
   }
 
   return (
-    <OnboardingFrame
+    <OnboardingColumn
+      canSignOut
       footer={
-        <>
-          <SignOutButton className={SIGN_OUT_STYLE} />
-          <button type="submit" form={FORM_ID} className="button button-solid">{BIRTH_DATE_LABELS.next}</button>
-        </>
+        <StepFooter
+          progress={progress}
+          onBack={onBack}
+          action={<button type="submit" form={FORM_ID} className="button button-solid">{BIRTH_DATE_LABELS.next}</button>}
+        />
       }
     >
       <form id={FORM_ID} onSubmit={submit} className="flex flex-col gap-4.5">
@@ -60,7 +70,7 @@ function EntryStep({ dateParts, isDateRejected, changePart, reviewDate }: Steps)
         </div>
         {isDateRejected && <p id={PROBLEM_ID} role="alert" className="stop-note">{BIRTH_DATE_LABELS.rejected}</p>}
       </form>
-    </OnboardingFrame>
+    </OnboardingColumn>
   );
 }
 
@@ -92,26 +102,29 @@ function DatePart({ field, value, isInvalid, inputRef, onChange }: DatePartProps
   );
 }
 
-function ConfirmStep({ dateToConfirm, isSending, sendProblem, confirmDate, changeDate }: Steps & { dateToConfirm: string }) {
+function ConfirmStep({ dateToConfirm, isSending, sendProblem, confirmDate, changeDate, progress }: Steps & { dateToConfirm: string }) {
   return (
-    <OnboardingFrame
+    <OnboardingColumn
+      canSignOut
       footer={
-        <>
-          <SignOutButton className={SIGN_OUT_STYLE} />
-          <div className="flex gap-2.5">
-            <button type="button" className="button button-outline" onClick={changeDate}>
-              {BIRTH_DATE_LABELS.change}
-            </button>
-            <button type="button" aria-disabled={isSending} aria-describedby={TYPED_DATE_ID} className="button button-solid" onClick={confirmDate}>
-              {BIRTH_DATE_LABELS.confirm}
-            </button>
-          </div>
-        </>
+        <StepFooter
+          progress={progress}
+          action={
+            <div className="flex gap-2.5">
+              <button type="button" className="button button-outline" onClick={changeDate}>
+                {BIRTH_DATE_LABELS.change}
+              </button>
+              <button type="button" aria-disabled={isSending} aria-describedby={TYPED_DATE_ID} className="button button-solid" onClick={confirmDate}>
+                {BIRTH_DATE_LABELS.confirm}
+              </button>
+            </div>
+          }
+        />
       }
     >
       <StepHeading describedBy={TYPED_DATE_ID}>{BIRTH_DATE_LABELS.confirmQuestion}</StepHeading>
       <p id={TYPED_DATE_ID} className="text-entry">{formatBirthDate(dateToConfirm)}</p>
       {sendProblem && <p role="alert" className="stop-note">{sendProblem}</p>}
-    </OnboardingFrame>
+    </OnboardingColumn>
   );
 }

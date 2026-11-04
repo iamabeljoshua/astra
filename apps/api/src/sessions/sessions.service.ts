@@ -36,6 +36,10 @@ export class SessionsService {
     return sessions.map(toSessionResponse);
   }
 
+  hasStartedASession(studentId: string): Promise<boolean> {
+    return this.sessions.existsForStudent(studentId);
+  }
+
   async getSession(studentId: string, sessionId: string): Promise<SessionResponseDto> {
     return toSessionResponse(requireSession(await this.sessions.findForStudent(studentId, sessionId)));
   }

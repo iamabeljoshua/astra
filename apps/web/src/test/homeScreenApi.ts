@@ -7,6 +7,7 @@ export const EXAMPLE_STUDENT_NAME = 'Maya';
 
 export const EXAMPLE_HOME_SCREEN: HomeScreenResponse = {
   studentName: EXAMPLE_STUDENT_NAME,
+  isNewStudent: false,
   continueSession: {
     id: 'unfinished-session',
     title: 'Free-body diagrams',
