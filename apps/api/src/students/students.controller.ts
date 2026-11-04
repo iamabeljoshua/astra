@@ -1,6 +1,6 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post, Put } from '@nestjs/common';
 import { CurrentAuthUserId, CurrentStudentId, SignedInRoute } from '../auth/route-access';
-import { SaveStudentProfileBodyDto, StudentProfileResponseDto } from './student-profile.dto';
+import { SaveStudentProfileBodyDto } from './student-profile.dto';
 import { AccountResponseDto, AnswerBirthDateBodyDto } from './student.dto';
 import { StudentsService } from './students.service';
 
@@ -23,15 +23,15 @@ export class StudentsController {
     @CurrentAuthUserId() authUserId: string,
     @Body() body: AnswerBirthDateBodyDto,
   ): Promise<AccountResponseDto> {
-    return this.studentsService.answerBirthDate(authUserId, body.birthDate);
+    return this.studentsService.answerBirthDate(authUserId, body);
   }
 
-  /** Saves the signed-in student's profile, replacing any earlier one. */
+  /** Saves the signed-in student's name and profile, replacing any earlier ones. */
   @Put('profile')
   saveProfile(
     @CurrentStudentId() studentId: string,
     @Body() body: SaveStudentProfileBodyDto,
-  ): Promise<StudentProfileResponseDto> {
+  ): Promise<AccountResponseDto> {
     return this.studentsService.saveProfile(studentId, body);
   }
 }

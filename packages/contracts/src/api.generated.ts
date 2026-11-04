@@ -60,7 +60,7 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Saves the signed-in student's profile, replacing any earlier one. */
+        /** Saves the signed-in student's name and profile, replacing any earlier ones. */
         put: operations["StudentsController_saveProfile"];
         post?: never;
         delete?: never;
@@ -134,8 +134,8 @@ export interface components {
             status: "ok";
         };
         StudentProfileResponseDto: {
-            /** @description What the student is into. */
-            interests: string[];
+            /** @description The interests the student chose from the list. */
+            interests: ("basketball" | "football" | "movies" | "gaming" | "music" | "art" | "space" | "cars" | "cooking" | "fashion" | "coding" | "history")[];
             /**
              * @description The stage of schooling the student is at.
              * @enum {string}
@@ -146,11 +146,6 @@ export interface components {
              * @enum {string}
              */
             goal: "class" | "exam" | "curiosity";
-            /**
-             * @description The tutor voice the student picked.
-             * @enum {string}
-             */
-            voice: "ada" | "kofi" | "noor";
         };
         StudentResponseDto: {
             /** @description The ID of the student. */
@@ -159,11 +154,6 @@ export interface components {
             name: string | null;
             /** @description The student's profile, or null until onboarding saves one. */
             profile: components["schemas"]["StudentProfileResponseDto"] | null;
-            /**
-             * Format: date-time
-             * @description When a parent or guardian gave consent, or null if no one has.
-             */
-            parentConsentAt: string | null;
         };
         AccountResponseDto: {
             /**
@@ -177,10 +167,14 @@ export interface components {
         AnswerBirthDateBodyDto: {
             /** @description The student's date of birth, written as YYYY-MM-DD. */
             birthDate: string;
+            /** @description The name the tutor calls the student. It is stored only if the account opens. */
+            name?: string | null;
         };
         SaveStudentProfileBodyDto: {
-            /** @description What the student is into. Onboarding lets a student skip this, so the list can be empty. */
-            interests: string[];
+            /** @description The name the tutor calls the student. */
+            name: string;
+            /** @description The interests the student chose from the list. A student can choose none. */
+            interests: ("basketball" | "football" | "movies" | "gaming" | "music" | "art" | "space" | "cars" | "cooking" | "fashion" | "coding" | "history")[];
             /**
              * @description The stage of schooling the student is at.
              * @enum {string}
@@ -191,11 +185,6 @@ export interface components {
              * @enum {string}
              */
             goal: "class" | "exam" | "curiosity";
-            /**
-             * @description The tutor voice the student picked.
-             * @enum {string}
-             */
-            voice: "ada" | "kofi" | "noor";
         };
         CreateSessionBodyDto: {
             /** @description What the session is about. */
@@ -276,6 +265,8 @@ export interface components {
         HomeScreenResponseDto: {
             /** @description The name the tutor calls the student, or null until onboarding saves one. */
             studentName: string | null;
+            /** @description True until the student has started a session. */
+            isNewStudent: boolean;
             /** @description The student's newest unfinished session, or null if there is none. */
             continueSession: components["schemas"]["SessionResponseDto"] | null;
             /** @description The cards offered to this student. */
@@ -369,7 +360,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StudentProfileResponseDto"];
+                    "application/json": components["schemas"]["AccountResponseDto"];
                 };
             };
         };

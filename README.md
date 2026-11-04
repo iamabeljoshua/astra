@@ -47,7 +47,7 @@ The API stores its data in Postgres and connects through `DATABASE_URL`. If you 
 | `pnpm db:up` | Starts the local Supabase stack in Docker if it is not running. It needs no account. It then creates the local sign-in accounts and writes `apps/web/.env.development.local`, so run it once in each worktree. |
 | `pnpm db:migrate` | Creates the database in `DATABASE_URL` if it is missing, then runs the migrations. A database from before the move to `public` keeps its rows. |
 | `pnpm db:migration <name>` | Runs the migrations that the database in `DATABASE_URL` is missing, then writes a new migration from the entity changes. It works only on the local stack, on port 54422. |
-| `pnpm db:seed` | Replaces the example student and their six sessions, and makes the `new-student@astra.test` account new again. It works only on the local stack, on port 54422. |
+| `pnpm db:seed` | Replaces the two example students, Maya with her six sessions and Tola with none, and makes the `new-student@astra.test` account new again. It works only on the local stack, on port 54422. |
 | `pnpm db:reset` | Drops the database in `DATABASE_URL` and builds it again from the migrations. It works only on an app database on the local stack, on port 54422. |
 | `pnpm exec supabase stop` | Stops the local stack for every worktree and every agent that shares it. The data stays in a Docker volume. Run it, then `pnpm db:up`, only if an interrupted start leaves Postgres running without the other services and nothing else is using the stack. |
 
@@ -194,6 +194,16 @@ A closed account also stops new sign-ups on that browser for a day, so a child w
 The server's clock and UTC+14 decide the student's age. UTC+14 is the first place on Earth to reach each date, so the API closes an account only when the student is under 13 in every time zone. A real 13-year-old is never locked out, and a student can get in up to 26 hours before the birthday where they live. A device's clock and time zone play no part. A birthday on 29 February falls on 1 March in other years. `apps/api/src/auth/age-gate.ts` holds the rule. No web code or screen states the age. Only the Terms and the Privacy Policy state it, because they must say what happens to an under-13 account.
 
 `students.auth_user_id` and `closed_accounts.auth_user_id` are plain uuids with no foreign key, because the local app databases have no `auth` schema. Deleting a user in Supabase therefore leaves that user's rows in place. No token can reach those rows once the user's last token expires. To remove a student, delete the row in `students`, which also removes the profile and sessions, before you delete the Supabase user. Deleting the Supabase user of a closed account lets the same address sign up as a new user and answer again, so keep that user until the deletion work in M4.5 settles how to prevent it.
+
+### Onboarding
+
+The steps and their order are one table in `apps/web/src/onboarding/steps.ts`: name, date of birth, level, interests, goal, then Home. The name stays in the browser until the date of birth is confirmed, and `POST /me/birth-date` stores it only if the account opens. `isStorableName` in `apps/web/src/onboarding/fieldLimits.ts` is the same rule as `IsStorableText` at the API, and `fieldLimits.test.ts` fails if the two disagree, because a name the API refuses would otherwise surface as a problem with the date. The level, interests, and goal go to `PUT /me/profile` with the name when the student picks a goal. A student has finished once they have a profile, so a student who already has one never comes back here, and a student with no profile goes through it once. A reload before the date of birth is confirmed returns to `What should your tutor call you?` with an empty box. After that, a reload keeps the name, clears the other answers, and returns to the level. `Your notes` at `/notes` changes everything but the date of birth.
+
+A student under 18 takes the same path as any other student, and no parent or guardian is asked. The date of birth question and the under-13 rule above are what keep under-13s out.
+
+Interests are chips. `STUDENT_INTERESTS` in `apps/api/src/students/student-profile-options.ts` is the list, `strings.ts` holds the labels, and each topic in `apps/api/src/picks/library.json` names the chips it suits. The API refuses any other value, so a pick's reason can name only a chip the student chose. A profile saved before the list can hold free text. The API leaves those values out of its answers, and the next save removes them.
+
+Goals are the codes `class`, `exam`, and `curiosity`, which `getPicksForStudent` and the library read, shown as `Improve my grades`, `Get ready for an exam`, and `Learn anything I'm curious about`.
 
 ### The Terms and the Privacy Policy
 

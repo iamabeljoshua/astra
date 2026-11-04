@@ -6,7 +6,7 @@ import { useAnswerBirthDate } from './useAccount';
 
 const EMPTY_DATE: DateParts = { day: '', month: '', year: '' };
 
-export function useBirthDateSteps() {
+export function useBirthDateSteps(studentName: string) {
   const answerBirthDate = useAnswerBirthDate();
   const [dateParts, setDateParts] = useState(EMPTY_DATE);
   const [dateToConfirm, setDateToConfirm] = useState<string | null>(null);
@@ -33,7 +33,7 @@ export function useBirthDateSteps() {
   function confirmDate() {
     if (!dateToConfirm || isAnswerOnItsWay.current) return;
     isAnswerOnItsWay.current = true;
-    answerBirthDate.mutate(dateToConfirm, {
+    answerBirthDate.mutate({ birthDate: dateToConfirm, name: studentName }, {
       onSettled: () => {
         isAnswerOnItsWay.current = false;
       },
