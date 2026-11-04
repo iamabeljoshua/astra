@@ -302,6 +302,38 @@ const SCENARIOS: Record<string, (context: RunContext) => Promise<unknown>> = {
     return { saved: 'm3-6-talk.mp4' };
   },
 
+  // One take of a real drop and its return. The cut happens mid-sentence, with the ball in the air.
+  async filmDrop({ stack, out }) {
+    const proxy = await startCutProxy();
+    const browser = await launchProofBrowser({ proxy: `127.0.0.1:${proxy.port}` });
+    const student = await openStudentPage(browser, { email: MAYA, title: 'A dropped network', recordVideoDir: join(out, 'video') });
+    await student.pressTalk();
+    await student.waitForLive();
+    await student.page.waitForFunction(() => window.speechInPage.canRecord(), undefined, { timeout: 30_000 });
+    await student.page.evaluate(() => window.speechInPage.startRecording());
+    await waitForTrace(stack, student, 0, (rows) => rows.some((row) => row.name === 'turnFinished'), 30_000);
+    await delay(800);
+    const startedAtMs = Date.now();
+    await typeReply(student, 'show me the ball');
+    await waitForTrace(stack, student, startedAtMs, (rows) => rows.some((row) => row.name === 'firstFrameCaptured' && row.kind === 'reply'));
+    await delay(2400);
+    const cutAtMs = Date.now();
+    proxy.cut();
+    await delay(3500);
+    const during = await student.getTrace();
+    await student.page.screenshot({ path: join(out, 'm3-6-drop.png') });
+    proxy.restore();
+    const rows = await waitForTrace(stack, student, cutAtMs, (found) => found.some((row) => row.name === 'turnFinished' && row.kind === 'resume'), 45_000);
+    await delay(1500);
+    const after = await student.getTrace();
+    await student.page.screenshot({ path: join(out, 'm3-6-resumed.png') });
+    await saveRecording({ page: student.page, videoStartedEpochMs: student.videoStartedEpochMs, outputPath: join(out, 'm3-6-drop.mp4') });
+    await student.context.close();
+    await browser.close();
+    proxy.close();
+    return { heardAtDrop: during.view.tutorHeard.join(' '), heardAfterResume: after.view.tutorHeard.join(' '), resumed: rows.some((row) => row.name === 'resumeStarted') };
+  },
+
   // The screen at laptop and phone widths, in both themes, mid-sentence with the ball moving and captions on.
   async shots({ stack, browser, out }) {
     for (const [name, viewport] of [['laptop', { width: 1440, height: 900 }], ['phone', { width: 390, height: 844 }]] as const) {
@@ -391,8 +423,10 @@ const SCENARIOS: Record<string, (context: RunContext) => Promise<unknown>> = {
     const reactDecided = over.find((row) => row.name === 'reactDecided');
     const reactionCaptured = over.find((row) => row.name === 'firstFrameCaptured' && row.kind === 'reaction');
     await student.page.screenshot({ path: join(out, 'm3-6-typed.png') });
+    const video = student.page.video();
     const museOpened = readTrace(stack.traceFolder, getRoomName(student)).some((row) => row.name === 'muse:opened');
     await student.context.close();
+    await video?.saveAs(join(out, 'm3-6-typed.webm'));
     return { reactionCapturedAfterStopMs: reactDecided && reactionCaptured ? Math.round(reactionCaptured.atMs - reactDecided.atMs) : null, soundBlocked: first.view.isSoundBlocked, clockKinds: last.clockKinds, museOpened, firstReplyWords: first.view.tutorHeard, stoppedByTyping: over.some((row) => row.name === 'stopDecided' && row.reason === 'typed'), lastWords: last.view.tutorHeard, studentLines: last.view.studentLines, rowsSeen: rows.map((row) => row.name).filter((name) => name === 'turnStarted').length };
   },
 

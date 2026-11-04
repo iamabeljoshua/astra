@@ -9,7 +9,7 @@ import { type Session, useSession } from './sessionQueries';
 import { useSessionRun } from './useSessionRun';
 import { StudentCaption, TutorCaption } from '../voice/Captions';
 import { LiveBoard } from '../voice/LiveBoard';
-import type { LiveVoiceView } from '../voice/liveVoice';
+import type { LiveVoice, LiveVoiceView } from '../voice/liveVoice';
 import { type LiveVoiceControls, useLiveVoice } from '../voice/useLiveVoice';
 
 const NOT_FOUND_STATUS = 404;
@@ -65,7 +65,7 @@ function RunningSession({ session }: { session: Session }) {
         tutorCaption={view && <TutorCaption heard={view.tutorHeard} coming={view.tutorComing} />}
         isDotLively={view !== null && (view.isTutorSpeaking || view.isHeard)}
         boardNote={SESSION_LABELS.boardStandIn}
-        liveBoard={voice && <LiveBoard voice={voice} />}
+        liveVoice={voice}
       >
         <ReplyBox liveVoice={liveVoice} />
       </SessionPanels>
@@ -141,13 +141,14 @@ interface SessionPanelsProps extends PropsWithChildren {
   tutorCaption?: ReactNode;
   isDotLively?: boolean;
   boardNote?: string;
-  liveBoard?: ReactNode;
+  liveVoice?: LiveVoice | null;
 }
 
-function SessionPanels({ session, tutorWords, tutorCaption, isDotLively = false, boardNote, liveBoard, children }: SessionPanelsProps) {
+function SessionPanels({ session, tutorWords, tutorCaption, isDotLively = false, boardNote, liveVoice, children }: SessionPanelsProps) {
+  const picture = <Board artwork={findArtwork(session.artwork)} note={boardNote} />;
   return (
     <div className="grid flex-1 grid-cols-session gap-session py-4 max-md:grid-cols-1">
-      {liveBoard ? <section aria-label={VOICE_LABELS.board} className="fades-with-theme flex min-h-75 min-w-0 flex-col border border-line bg-panel">{liveBoard}</section> : <Board artwork={findArtwork(session.artwork)} note={boardNote} />}
+      {liveVoice ? <LiveBoard voice={liveVoice} whileEmpty={picture} /> : picture}
       <div className="flex min-w-0 flex-col gap-3.5">
         <div className="label flex items-center gap-2.5">
           <i aria-hidden data-testid="tutor-dot" data-lively={isDotLively} className={`tutor-dot ${isDotLively ? 'motion-safe:animate-speak' : ''}`} />
@@ -189,8 +190,8 @@ function BoardPicture({ artwork }: { artwork: Artwork }) {
 }
 
 function getVoiceNote(status: LiveVoiceControls['status'], view: LiveVoiceView | null): string | null {
-  if (status === 'connecting') return VOICE_LABELS.connecting;
-  if (status === 'unavailable') return VOICE_LABELS.unavailable;
+  if (status === 'connecting' || view?.phase === 'connecting') return VOICE_LABELS.connecting;
+  if (status === 'unavailable' || view?.phase === 'noTutor') return VOICE_LABELS.unavailable;
   if (view?.phase === 'reconnecting') return VOICE_LABELS.reconnecting;
   if (view?.phase === 'ended') return VOICE_LABELS.ended;
   if (view?.mic === 'denied') return VOICE_LABELS.micDenied;
