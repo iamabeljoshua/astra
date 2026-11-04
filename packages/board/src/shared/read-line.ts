@@ -25,6 +25,9 @@ const TRAILING_PUNCTUATION = /[?!,;:.]+$/;
 const ENDS_A_CHUNK = /[,:;]$/;
 const ALLOWED_IN_MATH = /^[0-9A-Za-zπ().^+\-*/=±<>≥≤|]+$/;
 const LETTER_RUN = /[A-Za-z]+/g;
+/** A-T is a base pair and 2H2O a molecule, and a student means neither as a minus sign or a product. */
+const CAPITALS_JOINED = /^[A-Z](?:-[A-Z])+$/;
+const CHEMICAL_FORMULA = /^\d+[A-Z]+\d/;
 const NOT_STUDENT_TEXT = /\p{Cf}|\p{Co}|\p{Cs}|\p{Variation_Selector}|[^\P{Cc}\n\t]/gu;
 const TOO_MANY_MARKS = /(\p{M}{4})\p{M}+/gu;
 
@@ -71,10 +74,12 @@ function wrapBrackets(text: string, marker: string, makeTex: (inside: string) =>
   return result;
 }
 
+const MIXED_NUMBER = /(?<![\d.^/])(\d+)\s+(\d+)\s*\/\s*(\d+)(?![\d.^a-zA-Z(])/g;
 const SIMPLE_FRACTION = /(\d+(?:\.\d+)?|[a-zA-Z]|\))\s*\/\s*(\d+(?:\.\d+)?|[a-zA-Z])(?![\w^])/g;
 
 export function plainToTex(plain: string): string {
-  const withRoots = wrapBrackets(plain.replace(/\s+/g, ''), 'sqrt(', (inside) => `\\sqrt{${inside}}`);
+  const withMixedNumbers = plain.replace(MIXED_NUMBER, (_, whole: string, top: string, bottom: string) => `${whole}\\frac{${top}}{${bottom}}`);
+  const withRoots = wrapBrackets(withMixedNumbers.replace(/\s+/g, ''), 'sqrt(', (inside) => `\\sqrt{${inside}}`);
   const withPowers = wrapBrackets(withRoots, '^(', (inside) => `^{${inside}}`).replace(/\^(-?\d+(?:\.\d+)?|[a-zA-Z])/g, '^{$1}');
   return withPowers
     .replace(SIMPLE_FRACTION, (whole, top: string, bottom: string) => (top === ')' ? whole : `\\frac{${top}}{${bottom}}`))
@@ -93,7 +98,7 @@ function hasOnlyMathLetters(compact: string): boolean {
 
 function classifySymbol(symbol: string): TokenKind {
   const compact = symbol.replace(TRAILING_PUNCTUATION, '');
-  if (compact === '' || !ALLOWED_IN_MATH.test(compact) || !hasOnlyMathLetters(compact)) return 'word';
+  if (compact === '' || !ALLOWED_IN_MATH.test(compact) || !hasOnlyMathLetters(compact) || CAPITALS_JOINED.test(compact) || CHEMICAL_FORMULA.test(compact)) return 'word';
   if (/^[=+\-*/<>≥≤]$/.test(compact)) return 'op';
   if (/^-?\d*\.?\d+$/.test(compact)) return 'number';
   if (LONE_LETTER.test(compact)) return 'letter';

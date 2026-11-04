@@ -1,5 +1,5 @@
 import { type Beat, type BeatId, type ElementId, clipTypedText, getBeatText, getCues, getPlayedCues, getSpokenWords, isStudentLineId, parseBeat, parseWrittenBeat, type StudentWork, TYPED_TEXT_MAX_CHARACTERS, type TutorClosedReason } from '@astra/contracts';
-import { type BoardOperation, type BoardState, type CheckedWork, checkWorkOnBoard, cleanStudentText as cleanLine, getBoardAt, getOpenTaskOnBoard, getWorkContext } from '@astra/board/shared';
+import { type BoardOperation, type BoardState, type CheckedWork, checkWorkOnBoard, cleanStudentText as cleanLine, getBoardAt, getNod, getOpenTaskOnBoard, getWorkContext } from '@astra/board/shared';
 import { type ModelEvent, ModelRejectedError, type ModelUsage, type TutorModelAdapter, type TutorModelRequest, type TutorTurn } from '../providers/types.ts';
 import { BeatTextReader, type WrittenBeatParts } from './beat-text-reader.ts';
 import { type BoardMemory, checkAgainstBoard, EMPTY_BOARD, getMemoryAfter, getMemoryAfterAnswering, getMemoryAfterWork, getMemoryOnNewTurn, getWordsProblem } from './board-memory.ts';
@@ -122,6 +122,8 @@ interface TurnWork {
   notes: string[];
   /** How many of the pending notes this turn took, so a note added while it runs stays for the next turn. */
   carriedNotes: number;
+  /** Code already said its nod, so the model's own opening one would double it. */
+  startsAfterNod: boolean;
   raw: string;
   hasModelWords: boolean;
   wasStoppedByLength: boolean;
@@ -193,6 +195,13 @@ function getWrittenBeat(parts: WrittenBeatParts, id: string, refused: string[]):
   return speechOnly.ok ? speechOnly.value : null;
 }
 
+const OPENING_NOD = /^\s*(?:h+m+|mm-?hm+)[.,!…]*\s+/i;
+
+function withoutOpeningNod(parts: WrittenBeatParts): WrittenBeatParts {
+  const [first, ...rest] = parts.script;
+  return typeof first === 'string' && OPENING_NOD.test(first) ? { ...parts, script: [first.replace(OPENING_NOD, ''), ...rest] } : parts;
+}
+
 function waitUntil<T>(work: Promise<T>, deadlineMs: number, signal: AbortSignal, getNowMs: () => number): Promise<T | 'deadline' | 'aborted'> {
   if (signal.aborted) return Promise.resolve('aborted');
   return new Promise((resolve, reject) => {
@@ -248,6 +257,8 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
   let isCompacting = false;
   let isTurnRunning = false;
   let lastAskedText: string | null = null;
+  const workSinceLastTurn: { work: StudentWork; checked: CheckedWork }[] = [];
+  let hasNoddedSinceLastTurn = false;
 
   // Board and heard words come from the browser's report, because the model may write past what the student saw.
   const settleLastTurn = () => {
@@ -262,6 +273,9 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
       const cues = report ? getPlayedCues(beat, report.firedCues) : getCues(beat).filter((cue) => cue.atWord < played);
       for (const { command } of cues) memory = getMemoryAfter(command, memory);
     }
+    // The last turn's commands all came before this work, so a clearBoard among them must not wipe a line the tutor is about to mark.
+    for (const { work, checked } of workSinceLastTurn) memory = getMemoryAfterWork(work, checked, memory);
+    workSinceLastTurn.length = 0;
     const note: Record<string, unknown> = {};
     if (missed.length > 0 && !hidesLastWords) note.cut = { heard: heard.join(' '), not_heard: missed.join(' ') };
     if (lastRefused.length > 0) note.refused = lastRefused;
@@ -287,6 +301,8 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     settleLastTurn();
     turnCount += 1;
     memory = getMemoryOnNewTurn(memory);
+    const nodded = hasNoddedSinceLastTurn;
+    hasNoddedSinceLastTurn = false;
     let readerMemory = memory;
     const turn: TurnWork = {
       id: turnCount,
@@ -324,7 +340,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
           return isLongRepeat || isOpeningRepeat;
         },
         onBeatEnd(parts) {
-          const beat = getWrittenBeat(parts, `t${turnCount}-b${turn.beats.length}`, turn.refused);
+          const beat = getWrittenBeat(turn.startsAfterNod && turn.beats.length === 0 ? withoutOpeningNod(parts) : parts, `t${turnCount}-b${turn.beats.length}`, turn.refused);
           if (!beat) return;
           turn.hasModelWords = true;
           addBeat(turn, parts.startsStretch ? { ...beat, pauseBeforeMs: getNextBreathMs() } : beat);
@@ -335,6 +351,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
       refused: [],
       notes: pendingNotes.map((note) => JSON.stringify(note)),
       carriedNotes: pendingNotes.length,
+      startsAfterNod: nodded,
       raw: '',
       hasModelWords: false,
       wasStoppedByLength: false,
@@ -508,7 +525,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     }
     // The student never saw the false line or heard its words, so nothing needs correcting aloud, and a quiet retry keeps the exchange from sounding confused.
     turn.isCheckingMath = true;
-    noteCorrection(turn, `The line of math you were about to write is false: ${problem}. It is not on the board and the student did not hear it. Write the right line and carry straight on. If you did not mean it as an equal step, write it with the claim that says what it is instead.`);
+    noteCorrection(turn, `What you were about to put on the board is false: ${problem}. Code stopped it, and the student did not hear the words after it. Write what is true and carry straight on, and never tick a false line. If you did not mean a line as an equal step, write it with the claim that says what it is instead.`);
     return 'retry';
   };
 
@@ -771,14 +788,17 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
       workCount += 1;
       const board = getBoardNow();
       const taskId = work.task;
-      const hadTask = getWorkContext(board, taskId).task !== null;
+      const context = getWorkContext(board, taskId);
+      const hadTask = context.task !== null || (context.problemTex ?? null) !== null;
       const checked = checkWorkOnBoard(work, board);
       boardOperations.push({ kind: 'worked', atMs: boardOperations.length, action: { action: 'worked', work, ...checked } });
       onWorkNoted?.(work, checked);
       memory = getMemoryAfterWork(work, checked, memory);
+      workSinceLastTurn.push({ work, checked });
+      hasNoddedSinceLastTurn ||= getNod(work, checked) !== null;
       const heldNotesOfWork = pendingNotes.filter((note) => 'student_work' in note);
       if (heldNotesOfWork.length >= MOST_NOTES_OF_WORK_HELD) pendingNotes = pendingNotes.filter((note) => note !== heldNotesOfWork[0]);
-      pendingNotes.push({ student_work: getWorkNote(work, checked, getWorkContext(board, taskId)) });
+      pendingNotes.push({ student_work: getWorkNote(work, checked, context) });
       return { checked, hadTask };
     },
     noteWatcher(note) {

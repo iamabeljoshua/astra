@@ -87,11 +87,12 @@ describe('whether the tutor answers work now', () => {
     expect(decideOnWork(line('2x = 8'), right, false).act).toBe('reply');
   });
 
-  it('waits for every slot, and lets a student try places on a curve', () => {
+  it('waits for every slot, and answers a point the moment it is let go, wherever it landed', () => {
     const task = 'a1' as ElementId;
     expect(decideOnWork({ way: 'place', task, placed: ['a', null] }, { verdict: { status: 'unknown' } }, WITH_TASK).act).toBe('wait');
     expect(decideOnWork({ way: 'place', task, placed: ['a', 'b'] }, { verdict: wrongLine }, WITH_TASK).act).toBe('reply');
-    expect(decideOnWork({ way: 'drag', task, x: 1, samples: [] }, { verdict: wrongLine }, WITH_TASK).act).toBe('wait');
+    expect(decideOnWork({ way: 'drag', task, x: 1, samples: [] }, { verdict: wrongLine }, WITH_TASK).act).toBe('reply');
     expect(decideOnWork({ way: 'drag', task, x: 2, samples: [] }, { verdict: { status: 'right' }, closesTask: task }, WITH_TASK).act).toBe('reply');
+    expect(decideOnWork({ way: 'drag', task, x: 3, samples: [] }, { verdict: { status: 'unknown' } }, WITH_TASK).act).toBe('reply');
   });
 });

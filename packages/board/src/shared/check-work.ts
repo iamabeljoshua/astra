@@ -1,5 +1,6 @@
 import { evaluatePlotExpression, type ElementId, type LineReading, parsePlotExpression, type StudentWork, type Task, type WorkVerdict } from '@astra/contracts';
 import { checkStep, isFinishedAnswer } from './check-step.ts';
+import { getMathPickParts } from './pick-parts.ts';
 import { getLineTex, readLine } from './read-line.ts';
 
 export interface CheckedWork {
@@ -14,6 +15,8 @@ export interface WorkContext {
   getCurve(id: ElementId): { value(x: number): number; within: number } | null;
   previousTex: string | null;
   pickedRight: readonly string[];
+  /** The tutor's latest equation on the board, which a line answers even before a task has landed. */
+  problemTex?: string | null;
 }
 
 const UNKNOWN: WorkVerdict = { status: 'unknown' };
@@ -34,6 +37,10 @@ const WANTS_SOMETHING_ELSE = new RegExp(String.raw`^\s*${PLEASANTRY}(?:teach me|
 
 export const wantsSomethingElse = (text: string) => WANTS_SOMETHING_ELSE.test(text);
 
+const THINKING_ALOUD = /^(h+m+|u+m+|u+h+|e+r+|m+|mhm|o+k+|okay|alright|right|yeah|yep|wait|hold on|one sec(ond)?|sec|thinking|let me think|let me see|ah+|oh+|hm+ ok(ay)?)[\s.!,…]*$/i;
+
+export const isThinkingAloud = (text: string) => THINKING_ALOUD.test(text.trim());
+
 function checkAccepted(text: string, accepts: readonly string[]): WorkVerdict | null {
   const typed = toKey(text);
   if (accepts.some((accepted) => toKey(accepted) === typed)) return RIGHT;
@@ -44,12 +51,22 @@ function checkAccepted(text: string, accepts: readonly string[]): WorkVerdict | 
 
 const getProblemLine = (task: Task | null) => (task?.way === 'write' || task?.way === 'pick' ? task.on : undefined);
 
-function checkMathLineOfWork(tex: string, { task, getLineTex: getTex, previousTex }: WorkContext): CheckedWork {
+function checkMathLineOfWork(tex: string, { task, getLineTex: getTex, previousTex, problemTex: boardProblemTex = null }: WorkContext): CheckedWork {
   const problemLine = getProblemLine(task);
-  const problemTex = problemLine === undefined ? null : getTex(problemLine);
+  const problemTex = problemLine === undefined ? boardProblemTex : getTex(problemLine);
   const verdict = checkStep({ tex, problemTex, previousTex });
-  return { verdict, ...closes(task, verdict.status === 'right' && problemTex !== null && isFinishedAnswer(tex)) };
+  const answered = task?.way === 'write' || task?.way === 'pick' ? task : null;
+  return { verdict, ...closes(answered, verdict.status === 'right' && problemTex !== null && isFinishedAnswer(tex)) };
 }
+
+// An old words question must not hold later math as words, and a line that is only math is math.
+function readWorkLine(text: string, task: (Task & { way: 'write' }) | null): LineReading {
+  if (task?.reads !== 'words') return readLine(text, task?.reads);
+  const plain = readLine(text);
+  return plain.kind === 'math' ? plain : readLine(text, 'words');
+}
+
+const isOpenQuestion = (task: (Task & { way: 'write' }) | null) => task !== null && task.reads !== 'code' && task.on === undefined && task.accepts === undefined;
 
 function getReaderLineReading(text: string, tex: string | undefined): LineReading {
   return tex === undefined ? { kind: 'words', parts: [{ type: 'words', text }], isAsking: /\?\s*$/.test(text) } : { kind: 'math', parts: [{ type: 'math', text, tex }], isAsking: false };
@@ -59,20 +76,29 @@ function checkWrite({ text, ink, heard, keyed }: StudentWork & { way: 'write' },
   const read = ink ?? heard ?? keyed;
   const { task } = context;
   const writeTask = task?.way === 'write' ? task : null;
-  const reading = read ? getReaderLineReading(text, read.tex) : readLine(text, writeTask?.reads);
+  const reading = read ? getReaderLineReading(text, read.tex) : readWorkLine(text, writeTask);
   if (read?.isUnsure) return { reading, verdict: UNKNOWN };
   if (task && reading.kind === 'words' && wantsSomethingElse(text)) return { reading, verdict: UNKNOWN, closesTask: task.id };
   const accepted = writeTask?.accepts ? checkAccepted(text, writeTask.accepts) : null;
   if (reading.isAsking) return { reading, verdict: UNKNOWN };
   if (accepted) return { reading, verdict: accepted, ...closes(task, accepted.status === 'right') };
+  const answersQuestion = isOpenQuestion(writeTask) && !isThinkingAloud(text) ? closes(task, true) : {};
   const tex = getLineTex(reading);
-  return tex === null ? { reading, verdict: UNKNOWN } : { reading, ...checkMathLineOfWork(tex, context) };
+  return tex === null ? { reading, verdict: UNKNOWN, ...answersQuestion } : { reading, ...checkMathLineOfWork(tex, context), ...answersQuestion };
 }
 
-function checkPick(part: string, { task, pickedRight }: WorkContext): CheckedWork {
+// A tutor may name -3 as 3, so a bare answer means the signed term unless the line also holds it bare.
+function getAnswerKey(answer: string, partsOnLine: readonly string[]): string {
+  const key = toPartKey(answer);
+  return partsOnLine.includes(key) || !partsOnLine.includes(`-${key}`) ? key : `-${key}`;
+}
+
+function checkPick(part: string, { task, pickedRight, getLineTex: getTex }: WorkContext): CheckedWork {
   if (task?.way !== 'pick') return { verdict: UNKNOWN };
   if (!task.answer) return { verdict: UNKNOWN, ...closes(task, true) };
-  const answers = task.answer.map(toPartKey);
+  const tex = getTex(task.on);
+  const partsOnLine = tex === null ? [] : getMathPickParts(tex).map((pickPart) => toPartKey(pickPart.part));
+  const answers = task.answer.map((answer) => getAnswerKey(answer, partsOnLine));
   if (!answers.includes(toPartKey(part))) return { verdict: { status: 'wrong', why: `${part} is not the part the tutor asked for` }, ...closes(task, new Set(answers).size === 1) };
   const picked = new Set([...pickedRight.map(toPartKey), toPartKey(part)]);
   return { verdict: RIGHT, ...closes(task, answers.every((answer) => picked.has(answer))) };

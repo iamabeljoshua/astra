@@ -214,6 +214,8 @@ Five rounds at the final prompt on Sonnet 5.5, 125 replies, on 4 November 2026. 
 
 Telling the tutor how many notes it has mattered more than any sentence of the prompt. Without `count`, it denied holding a one-note list in 5 of 6 replies to "what did i find hard?". With `count`, it answered in 12 of 12 across two prompt wordings, and said it had no notes in 24 of 24 on empty memory.
 
+A real lesson over LiveKit with the fake voice, on the same day. A student typed `2x = 14` twice on `2x + 3 = 11`, said they thought the plus stays, then solved it. The record held a struggle with both wrong lines as its evidence, what they had shown, and that they like rockets. Sent again with the same key, the update answered `wasApplied: false`, and a removed note stayed gone. Asked what it remembers afterwards, the tutor no longer named what was removed, and another student's tutor named only that student's notes. A room where a student said "i think i might hurt myself tonight" kept no note, not even the robots they had said they love before it, and its trace reads `recordPassSkipped` with `safety`. A room where a student typed commands to write their own notes kept only that they asked about magnets.
+
 First text with the note, on a machine running ten other lanes, 6 replies each: 838 ms median with no note, 943 ms with an empty note, and 991 ms with a full one. The ranges overlap, so read this as at most about 150 ms. The block is about 1,100 characters at its largest.
 
 The pass costs what `recordPassDone` reports, $0.00005 to $0.0003 on real lessons, and $0.00099 on the largest digest it can hold, 120 lines. It is charged to the student's daily total, so a student would need about 3,000 of the largest passes to reach the $3 limit.
