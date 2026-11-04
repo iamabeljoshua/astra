@@ -45,7 +45,7 @@ const work = async () => {
   }
 };
 await Promise.all(Array.from({ length: Number(args.workers) }, work));
-const fired = rows.filter(({ reading }) => reading !== 'none' && reading !== 'unread');
+const fired = rows.filter(({ reading }) => isSafetyKind(reading) || reading === 'vague');
 const shouldFire = rows.filter(({ wording }) => SHOULD_FIRE.has(wording.expect));
 const misses = shouldFire.filter((row) => !fired.includes(row));
 const falseAlarms = fired.filter(({ wording }) => !SHOULD_FIRE.has(wording.expect));

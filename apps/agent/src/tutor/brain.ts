@@ -536,8 +536,8 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     if (turn.reader.isTurnOver) return lastEventAtMs + timeouts.finishGraceMs;
     if (turn.hasAttemptText) return lastEventAtMs + timeouts.betweenTextMs;
     const hardMs = attemptStartedAtMs + timeouts.firstTextMs;
-    // A filler before help reads badly, and the read usually answers well before it is due, so it waits for the read.
-    if (turn.hasSaidStillWorking || turn.safetyReading === 'pending' || isAboutSafety(turn.safetyReading)) return hardMs;
+    // A filler before help reads badly, and the read usually answers well before it is due, so it waits for the read. Clear danger keeps this deadline, where code's own line plays.
+    if (turn.hasSaidStillWorking || turn.safetyReading === 'pending' || turn.safetyReading === 'vague') return hardMs;
     // A retry starts its own wait, or the time the first attempt took would fire a filler straight after its line.
     const softStartMs = turn.attempts > 1 ? attemptStartedAtMs : turn.startedAtMs;
     return Math.min(hardMs, softStartMs + (turn.isCheckingMath ? timeouts.checkingMathMs : timeouts.stillWorkingMs));

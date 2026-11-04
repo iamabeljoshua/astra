@@ -116,6 +116,7 @@ describe('deleting my data', () => {
         deletes.push(new URL(request.url).pathname);
         return new Response(JSON.stringify({ deleted: true }), { status: deleteStatus });
       }
+      if (new URL(request.url).pathname.endsWith('/me/record')) return new Response(JSON.stringify({ notes: [] }));
       return new Response(JSON.stringify(ACCOUNT));
     });
     return deletes;
