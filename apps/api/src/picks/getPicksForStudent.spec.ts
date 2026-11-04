@@ -768,6 +768,8 @@ describe('getPicksForStudent', () => {
         ['a topic', { topic: 'self-harm' }],
         ['a topic', { topic: 'my diabetes' }],
         ['a topic', { topic: 'mental health' }],
+        ['a topic', { topic: 'my period' }],
+        ['a topic', { topic: 'grief' }],
         ['a detail', { detail: 'felt too anxious to go on' }],
         ['the evidence', { evidence: [{ source: 'words' as const, text: 'braking makes me so stressed i want to die', check: null }] }],
         ['the session title', { sessionTitle: 'why do i feel so hopeless' }],

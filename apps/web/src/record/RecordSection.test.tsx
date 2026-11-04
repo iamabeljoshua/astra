@@ -47,21 +47,16 @@ afterEach(() => {
 });
 
 describe('what the tutor remembers, on the Your notes page', () => {
-  it('refreshes Home in the background when a note goes, so its card goes at once', async () => {
+  it('drops the cards Home saved when a note goes, and loads new ones, so its reason cannot show again', async () => {
+    const savedCards = { picks: [{ reason: 'You got stuck on moving a term' }] };
     stubApi([SIGN_ERROR]);
     const { queryClient } = renderWithQueryClient(<RecordSection />);
-    let homeLoads = 0;
-    await queryClient.prefetchQuery({
-      queryKey: HOME_SCREEN_KEY,
-      queryFn: () => {
-        homeLoads += 1;
-        return { picks: [] };
-      },
-    });
+    queryClient.setQueryData(HOME_SCREEN_KEY, savedCards);
 
     fireEvent.click(await screen.findByRole('button', { name: RECORD_LABELS.removeNamed(SIGN_ERROR.topic) }));
 
-    await waitFor(() => expect(homeLoads).toBe(2));
+    await waitFor(() => expect(screen.queryByText(SIGN_ERROR.topic)).toBeNull());
+    await waitFor(() => expect(queryClient.getQueryData(HOME_SCREEN_KEY)).toEqual({ notes: [] }));
   });
 
   it('says so plainly when there is nothing yet', async () => {
