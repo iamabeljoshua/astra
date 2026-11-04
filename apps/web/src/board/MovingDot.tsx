@@ -11,6 +11,8 @@ interface DotState {
   isWatching: boolean;
   isThinking: boolean;
   isLively: boolean;
+  /** Connecting, the dot waits unseen in the middle of the board's side, and then shows there before it flies to the words. */
+  arrival?: 'hidden' | 'shown' | null;
   getLoudness(): number;
 }
 
@@ -28,8 +30,15 @@ function getRestingSpot(): { x: number; y: number } | null {
   return { x: box.left, y: now ? box.top - 22 : box.bottom - 18 };
 }
 
+function getSideCenter(): { x: number; y: number } | null {
+  const side = document.querySelector('[data-testid="connecting-saturn"], [data-testid="board"]');
+  if (!side) return null;
+  const box = side.getBoundingClientRect();
+  return { x: box.left + box.width / 2 - 6.5, y: box.top + box.height / 2 - 6.5 };
+}
+
 // The tutor's one dot, which sits by the row being worked on and rests over the tutor's words.
-export function MovingDot({ rowId, isWatching, isThinking, isLively, getLoudness }: DotState) {
+export function MovingDot({ rowId, isWatching, isThinking, isLively, arrival = null, getLoudness }: DotState) {
   const dot = useRef<HTMLDivElement>(null);
   const body = useRef<HTMLElement>(null);
   const isReducedMotion = useReducedMotion();
@@ -37,13 +46,13 @@ export function MovingDot({ rowId, isWatching, isThinking, isLively, getLoudness
   useLayoutEffect(() => {
     if (!dot.current) return;
     const row = rowId === null ? null : document.querySelector(`[data-row="${rowId}"]`);
-    const spot = row ? getRowSpot(row) : getRestingSpot();
+    const spot = arrival ? getSideCenter() : row ? getRowSpot(row) : getRestingSpot();
     if (spot) writeStyle(dot.current, 'transform', `translate(${Math.round(spot.x)}px, ${Math.round(spot.y)}px)`);
     if (body.current) writeStyle(body.current, 'transform', isReducedMotion ? '' : `scale(${(1 + getLoudness() * LARGEST_PULSE).toFixed(3)})`);
   });
 
   return (
-    <div ref={dot} aria-hidden data-testid="tutor-dot" data-lively={isLively} data-thinking={isThinking} data-watching={isWatching} className="board-moving-dot">
+    <div ref={dot} aria-hidden data-testid="tutor-dot" data-arrival={arrival ?? undefined} data-lively={isLively} data-thinking={isThinking} data-watching={isWatching} className="board-moving-dot">
       <i ref={body} />
     </div>
   );

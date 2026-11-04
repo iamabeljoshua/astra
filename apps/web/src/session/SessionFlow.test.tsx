@@ -257,7 +257,7 @@ describe('the session screen', () => {
     await screen.findByText('Gravity, I think.');
     screen.getByText(SESSION_LABELS.replyNotSent);
     screen.getByText(VOICE_LABELS.unavailable);
-    expect(replyBox.value).toBe('');
+    expect(screen.getByRole<HTMLTextAreaElement>('textbox', { name: REPLY_BOX_LABELS.label }).value).toBe('');
   });
 
   it('says plainly that today\'s tutor time is spent, and keeps the reply on the screen', async () => {

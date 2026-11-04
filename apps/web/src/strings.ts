@@ -214,7 +214,7 @@ export const REPLY_BOX_LABELS = {
 export const VOICE_LABELS = {
   you: 'You',
   board: 'Board',
-  connecting: 'Connecting to your tutor.',
+  connecting: 'Connecting your tutor',
   unavailable: 'Your tutor could not connect just now.',
   reconnecting: 'Your connection dropped. Reconnecting.',
   ended: 'Your connection to the tutor ended.',

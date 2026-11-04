@@ -14,6 +14,9 @@ import { TypedLine, type TypedLineHandle, useNextLineId } from '../board/TypedLi
 import { BOARD_WORK_LABELS, VOICE_LABELS } from '../strings';
 import { isVoiceOver, type LiveVoice } from './liveVoice';
 import { getTutorState } from './tutorState';
+import { useReducedMotion } from '../board/useReducedMotion';
+
+const DOT_SHOWS_MS = 280;
 
 const LINES_BEFORE_THE_HINT_GOES = 2;
 
@@ -74,6 +77,8 @@ function useDotTarget(board: BoardState, isTutorSpeaking: boolean) {
 interface LiveBoardProps {
   voice: LiveVoice;
   visual?: ReactNode;
+  /** The tutor is still connecting, so its dot has not arrived. */
+  isConnecting?: boolean;
   onTutorState?(state: string | null): void;
   onTalk?: () => void;
   isTalkOn?: boolean;
@@ -81,7 +86,23 @@ interface LiveBoardProps {
 }
 
 // The board is a pure reading of the clock, so one read per frame is all it needs.
-export function LiveBoard({ voice, visual = null, onTalk, isTalkOn = false, canTalk = true, onTutorState }: LiveBoardProps) {
+// One dot leaves the gathered dots and shows for a moment, then flies to the words, and the voice never waits for it.
+function useDotInTheMiddle(isConnecting: boolean): boolean {
+  const isReducedMotion = useReducedMotion();
+  const [isInTheMiddle, setIsInTheMiddle] = useState(!isReducedMotion);
+  useEffect(() => {
+    if (isConnecting) {
+      setIsInTheMiddle(!isReducedMotion);
+      return undefined;
+    }
+    const leaving = setTimeout(() => setIsInTheMiddle(false), DOT_SHOWS_MS);
+    return () => clearTimeout(leaving);
+  }, [isConnecting, isReducedMotion]);
+  return isInTheMiddle;
+}
+
+export function LiveBoard({ voice, visual = null, onTalk, isTalkOn = false, canTalk = true, isConnecting = false, onTutorState }: LiveBoardProps) {
+  const isDotInTheMiddle = useDotInTheMiddle(isConnecting);
   const [frame, setFrame] = useState<BoardFrame>(() => voice.getBoardNow());
   const [activity, setActivity] = useState(0);
   const [isMathKeysOpen, setIsMathKeysOpen] = useState(false);
@@ -222,7 +243,7 @@ export function LiveBoard({ voice, visual = null, onTalk, isTalkOn = false, canT
   return (
     <BoardStageView stage={board.stage} atMs={atMs} visual={visual} ariaLabel={VOICE_LABELS.board} peek={peek} onPeek={setPeek} footer={tools}>
       <p role="status" className="sr-only">{getLastWorkWords(board)}</p>
-      <MovingDot rowId={dotTarget.rowId} isWatching={dotTarget.isWatching} isThinking={isThinking} isLively={!view.closedBecause && (view.isTutorSpeaking || view.isHeard || view.isThinking)} getLoudness={voice.getLoudness} />
+      <MovingDot arrival={isConnecting ? 'hidden' : isDotInTheMiddle ? 'shown' : null} rowId={dotTarget.rowId} isWatching={dotTarget.isWatching} isThinking={isThinking} isLively={!view.closedBecause && (view.isTutorSpeaking || view.isHeard || view.isThinking)} getLoudness={voice.getLoudness} />
       <SharedBoard
         board={board}
         atMs={atMs}

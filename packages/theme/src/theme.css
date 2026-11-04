@@ -676,6 +676,27 @@
     --box-placeholder-color: var(--color-pen);
   }
 
+  .board-stage > :not(.board-voice) {
+    grid-area: 1 / 2;
+  }
+
+  .board-connecting {
+    z-index: 5;
+    min-height: 0;
+    background: var(--color-panel);
+    opacity: 1;
+    transition: opacity 0.5s ease-in;
+  }
+
+  .board-connecting[data-leaving='true'] {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .board-dot[data-arrival='hidden'] {
+    opacity: 0;
+  }
+
   .board-math-field {
     flex: 1;
     min-height: 46px;
@@ -888,6 +909,10 @@
     .board-stage {
       grid-template-rows: auto minmax(0, 1fr);
       grid-template-columns: 1fr;
+    }
+
+    .board-stage > :not(.board-voice) {
+      grid-area: 2 / 1;
     }
 
     .board-voice {

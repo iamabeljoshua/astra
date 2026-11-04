@@ -11,6 +11,7 @@ import { StudentCaption } from '../voice/Captions';
 import { BoardCaption } from '../board/BoardCaption';
 import { LiveBoard } from '../voice/LiveBoard';
 import { isVoiceOver, type LiveVoiceView } from '../voice/liveVoice';
+import { ConnectingSaturn } from './ConnectingSaturn';
 import { type LiveVoiceControls, useLiveVoice } from '../voice/useLiveVoice';
 
 const NOT_FOUND_STATUS = 404;
@@ -84,14 +85,15 @@ function RunningSession({ session }: { session: Session }) {
     if (!opening) warm();
   }, [opening, warm]);
   const idleWords = liveVoice.status === 'idle' && !opening ? SESSION_LABELS.idleWords : null;
+  const isConnecting = liveVoice.status === 'connecting' || view?.phase === 'connecting' || (liveVoice.status === 'idle' && Boolean(opening));
 
   const picture = <Board artwork={findArtwork(session.artwork)} note={SESSION_LABELS.boardStandIn} />;
   return (
     <SessionFrame facts={<SessionFacts subject={session.subject} seconds={seconds} tutorState={tutorState} />} action={<EndButton isEnding={isEnding} onEnd={() => void endSession()} />} problem={endProblem} isFullHeight>
       <div className="board-stage">
         <div className="board-voice">
-          <SessionTitle title={session.title} isQuiet={Boolean(voice)} />
-          {!voice && (
+          <SessionTitle title={session.title} isQuiet={Boolean(voice) || isConnecting} />
+          {!voice && !isConnecting && (
             <div className="label flex items-center gap-2.5">
               <i aria-hidden data-testid="tutor-dot" data-lively={false} className="tutor-dot" />
               <span>{SESSION_LABELS.yourTutor}</span>
@@ -100,7 +102,8 @@ function RunningSession({ session }: { session: Session }) {
           {view ? <BoardCaption heard={view.tutorHeard} coming={view.tutorComing} firstWord={view.firstWord} /> : <div className="flex flex-1 flex-col justify-end font-voice text-voice">{idleWords}</div>}
           <ReplyBox liveVoice={liveVoice} />
         </div>
-        {voice ? <LiveBoard voice={voice} onTutorState={setTutorState} visual={getSessionVisual(findArtwork(session.artwork))} onTalk={() => void liveVoice.toggleTalk()} isTalkOn={view?.mic === 'on'} canTalk={!view?.closedBecause} /> : <div className="board-panel">{picture}</div>}
+        <ConnectingSaturn isConnecting={isConnecting} />
+        {voice ? <LiveBoard voice={voice} isConnecting={isConnecting} onTutorState={setTutorState} visual={getSessionVisual(findArtwork(session.artwork))} onTalk={() => void liveVoice.toggleTalk()} isTalkOn={view?.mic === 'on'} canTalk={!view?.closedBecause} /> : <div className="board-panel">{picture}</div>}
       </div>
     </SessionFrame>
   );
@@ -285,7 +288,7 @@ function ReplyBox({ liveVoice }: { liveVoice: LiveVoiceControls }) {
           {VOICE_LABELS.turnOnSound}
         </button>
       )}
-      {!voice && <ChatBox labels={REPLY_BOX_LABELS} canAttach={false} clearsOnSend isSending={isOver} talk={{ isOn: isTalkOn, onToggle: () => void toggleTalk() }} onSend={(text) => void send(text)} onEdit={() => undefined} />}
+      {!voice && status !== 'connecting' && <ChatBox labels={REPLY_BOX_LABELS} canAttach={false} clearsOnSend isSending={isOver} talk={{ isOn: isTalkOn, onToggle: () => void toggleTalk() }} onSend={(text) => void send(text)} onEdit={() => undefined} />}
     </div>
   );
 }
