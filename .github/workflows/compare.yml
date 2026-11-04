@@ -1,0 +1,177 @@
+name: Compare
+on: pull_request
+permissions:
+  contents: read
+jobs:
+  before:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        n: [1, 2]
+    env:
+      POSTGRES_TAG: 17.6.1.075
+      POSTGRES_DIGEST: sha256:82a04ba6c05f60950a74ae46be3726abb18d06ee44da936276fd782e72e36855
+    steps:
+      - uses: actions/checkout@v7
+      - name: Print the CPU
+        run: lscpu | grep 'Model name'; nohup vmstat -n 5 > /tmp/vmstat.log 2>&1 &
+      - name: Put the old test settings back
+        run: git apply -R .github/probe/tests.patch
+      - id: postgres-image
+        run: .github/scripts/postgres-image.sh key >> "$GITHUB_OUTPUT"
+      # The action allows 10 minutes per download segment, so a stalled download would use up the job's limit.
+      - uses: actions/cache/restore@v6
+        timeout-minutes: 1
+        continue-on-error: true
+        with:
+          path: /tmp/postgres-image.tar.zst
+          key: ${{ steps.postgres-image.outputs.key }}
+      - name: Start Docker with the cached Postgres image, or start pulling it
+        run: .github/scripts/postgres-image.sh start-docker
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Fail if POSTGRES_TAG is not the tag that the Supabase CLI uses
+        run: |
+          cli_tag=$(pnpm exec supabase services | awk '$1 == "supabase/postgres" { print $3 }')
+          if [ "$cli_tag" != "$POSTGRES_TAG" ]; then
+            echo "::error file=.github/workflows/ci.yml::ci.yml pulls Postgres $POSTGRES_TAG, but the pinned Supabase CLI uses ${cli_tag:-an unknown tag}. Set POSTGRES_TAG to the tag that the CLI uses."
+            exit 1
+          fi
+      - run: pnpm api:types
+      - name: Fail if the generated API types are out of date
+        run: |
+          git diff --exit-code packages/contracts/src/api.generated.ts || {
+            echo "::error file=packages/contracts/src/api.generated.ts::The generated API types are out of date. Run pnpm api:types and commit the result."
+            exit 1
+          }
+      - run: pnpm lint
+      - run: pnpm typecheck
+      # A pnpm filter brings the root back in, and its test script would rerun every package.
+      - name: Run the tests that need no database
+        background: true
+        run: pnpm -r --no-bail --filter '!astra' --filter '!@astra/api' test
+      - name: Start Postgres on the image that the pinned Supabase CLI uses locally
+        env:
+          SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
+        run: pnpm exec supabase db start
+      - name: Fail if the running Postgres image does not have the pinned digest
+        run: .github/scripts/postgres-image.sh check-running-image
+      - name: Build a fresh database from the migrations and seed it
+        run: pnpm db:migrate && pnpm db:seed
+      - name: Run the API tests
+        run: pnpm --filter @astra/api test
+      - name: Build the web app, which fails if a development account reaches any file in the output
+        env:
+          VITE_SUPABASE_URL: https://example.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_example
+        run: pnpm --filter @astra/web build
+      - run: pnpm verify start && pnpm verify stop
+      - name: Fail if the tests that need no database failed
+        wait-all:
+      - name: Print CPU use
+        if: always()
+        run: tail -n +1 /tmp/vmstat.log | awk 'NR>2 {print $4, $13+$14, $15, $16}' | tr '\n' ';' ; free -m
+  after:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        n: [1, 2]
+    env:
+      POSTGRES_TAG: 17.6.1.075
+      POSTGRES_DIGEST: sha256:82a04ba6c05f60950a74ae46be3726abb18d06ee44da936276fd782e72e36855
+    steps:
+      - uses: actions/checkout@v7
+      - name: Print the CPU
+        run: lscpu | grep 'Model name'; nohup vmstat -n 5 > /tmp/vmstat.log 2>&1 &
+      - id: postgres-image
+        run: .github/scripts/postgres-image.sh key >> "$GITHUB_OUTPUT"
+      # The action allows 10 minutes per download segment, so a stalled download would use up the job's limit.
+      - id: restore-postgres-image
+        uses: actions/cache/restore@v6
+        background: true
+        timeout-minutes: 1
+        continue-on-error: true
+        with:
+          path: /tmp/postgres-image.tar.zst
+          key: ${{ steps.postgres-image.outputs.key }}
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+      # setup-node's cache misses completely on a new lockfile and saves at the very end, which has cancelled a green job at the limit.
+      - id: restore-pnpm-store
+        uses: actions/cache/restore@v6
+        timeout-minutes: 1
+        continue-on-error: true
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-
+      - run: pnpm install --frozen-lockfile
+      - if: steps.restore-pnpm-store.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        background: true
+        continue-on-error: true
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Fail if POSTGRES_TAG is not the tag that the Supabase CLI uses
+        run: |
+          cli_tag=$(pnpm exec supabase services | awk '$1 == "supabase/postgres" { print $3 }')
+          if [ "$cli_tag" != "$POSTGRES_TAG" ]; then
+            echo "::error file=.github/workflows/ci.yml::ci.yml pulls Postgres $POSTGRES_TAG, but the pinned Supabase CLI uses ${cli_tag:-an unknown tag}. Set POSTGRES_TAG to the tag that the CLI uses."
+            exit 1
+          fi
+      - name: Wait for the Postgres image cache
+        wait: restore-postgres-image
+      - id: postgres
+        name: Start Docker with the cached Postgres image, then Postgres on the image that the pinned Supabase CLI uses locally
+        background: true
+        env:
+          SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
+        run: .github/scripts/postgres-image.sh start-docker && pnpm exec supabase db start
+      - run: pnpm api:types
+      - name: Fail if the generated API types are out of date
+        run: |
+          git diff --exit-code packages/contracts/src/api.generated.ts || {
+            echo "::error file=packages/contracts/src/api.generated.ts::The generated API types are out of date. Run pnpm api:types and commit the result."
+            exit 1
+          }
+      # These two use both threads alone, so they run before the tests, and the tests with real timers see no extra load.
+      - run: pnpm lint
+      - run: pnpm typecheck
+      # A pnpm filter brings the root back in, and its test script would rerun every package.
+      - name: Run the tests that need no database
+        background: true
+        run: pnpm -r --no-bail --filter '!astra' --filter '!@astra/api' test
+      - name: Wait for Postgres
+        wait: postgres
+      - name: Fail if the running Postgres image does not have the pinned digest
+        run: .github/scripts/postgres-image.sh check-running-image
+      # pnpm db:migrate and pnpm db:seed would each rebuild what pnpm api:types just built, and pnpm verify start still runs pnpm db:migrate.
+      - name: Build a fresh database from the migrations and seed it
+        working-directory: apps/api
+        run: node dist/infrastructure/orm/cli.js migrate && node dist/infrastructure/orm/cli.js seed
+      - name: Run the API tests
+        run: pnpm --filter @astra/api test
+      - name: Build the web app, which fails if a development account reaches any file in the output
+        env:
+          VITE_SUPABASE_URL: https://example.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_example
+        run: pnpm --filter @astra/web build
+      - run: pnpm verify start && pnpm verify stop
+      - name: Fail if the tests that need no database failed
+        wait-all:
+      - name: Print CPU use
+        if: always()
+        run: tail -n +1 /tmp/vmstat.log | awk 'NR>2 {print $4, $13+$14, $15, $16}' | tr '\n' ';' ; free -m
