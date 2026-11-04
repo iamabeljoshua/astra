@@ -70,6 +70,9 @@ importers:
       '@livekit/rtc-node':
         specifier: 1.2.1
         version: 1.2.1
+      acorn:
+        specifier: 8.19.0
+        version: 8.19.0
       livekit-server-sdk:
         specifier: 2.19.2
         version: 2.19.2

@@ -18,6 +18,8 @@ export interface SceneDeskOptions {
   make(route: SceneRoute): Promise<MadeScene>;
   getNowMs(): number;
   onChange?(state: SceneState, atMs: number): void;
+  /** The engines this lesson may write with. Anything else is no scene. */
+  engines?: readonly RouteEngine[];
 }
 
 export interface SceneDesk {
@@ -33,7 +35,7 @@ export interface SceneDesk {
 
 const WAITING_KINDS: readonly SceneState['kind'][] = ['routing', 'making'];
 
-export function createSceneDesk({ route, make, getNowMs, onChange }: SceneDeskOptions): SceneDesk {
+export function createSceneDesk({ route, make, getNowMs, onChange, engines = ['manimgx'] }: SceneDeskOptions): SceneDesk {
   let state: SceneState = { kind: 'idle' };
   let firstPauseAtMs: number | null = null;
   const waiters = new Set<() => void>();
@@ -49,7 +51,7 @@ export function createSceneDesk({ route, make, getNowMs, onChange }: SceneDeskOp
   const run = async (request: string) => {
     setState({ kind: 'routing' });
     const chosen = await route(request);
-    if (chosen.engine !== 'manimgx') {
+    if (!engines.includes(chosen.engine)) {
       setState({ kind: 'declined', engine: chosen.engine });
       return;
     }

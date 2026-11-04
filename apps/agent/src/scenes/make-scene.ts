@@ -1,11 +1,11 @@
-import { type RichScene, SCENE_ENGINE_VERSIONS } from '@astra/contracts';
+import { type RichScene, SCENE_ENGINE_VERSIONS, type SceneEngine } from '@astra/contracts';
 import { type ClearedNames, getCodeProblems, getPlanProblems } from './content-check.ts';
 import { getPlanBeatProblems, getSceneBeatProblems, getSpokenLines } from './lesson/lesson-beats.ts';
 import { getNominalTiming } from './narration.ts';
 import type { RenderResult, RenderWorker } from './render-worker.ts';
 import { getSceneCommand } from './scene-desk.ts';
 import { getSceneKey, type SceneStore } from './scene-store.ts';
-import { type LessonPlan, SCENE_THEMES, type SceneBrief, type SceneKey, type SceneOwner, type SceneRepair, type SceneReviewer, type SceneTrace, type SceneTrouble, type SceneVerdict, type SceneWords, type SceneWriter, type StoredScene, type WrittenScene } from './scene-types.ts';
+import { type LessonPlan, SCENE_THEMES, type SceneBrief, type SceneKey, type SceneOwner, type SceneRepair, type SceneReviewer, type SceneTheme, type SceneTrace, type SceneTrouble, type SceneVerdict, type SceneWords, type SceneWriter, type StoredScene, type WrittenScene } from './scene-types.ts';
 import type { MadeTake } from './worker-records.ts';
 
 export const WRITER_LIMIT_MS = 45_000;
@@ -22,6 +22,12 @@ const MOST_NOTICE_CHARACTERS = 300;
 const LINE_THROUGH_TEXT = /(runs|edge) through the text/;
 
 export interface SceneMaker {
+  /** What the scene's code runs on, ManimGX unless a run says otherwise. */
+  engine?: SceneEngine;
+  /** The themes the review must see. A kit scene looks the same on either, so it shows one. */
+  themes?: readonly SceneTheme[];
+  /** Runs before the code reaches a worker. It replaces the plain word check, so it must hold it. */
+  checkCode?(scene: { code: string; topic: string; moments: Readonly<Record<string, number>> }): readonly string[];
   writers: readonly SceneWriter[];
   reviewer: SceneReviewer;
   worker: RenderWorker;
@@ -69,16 +75,16 @@ function getInspectSeconds({ moments, durationSeconds }: Pick<SceneBrief, 'momen
   return [...new Set([Math.min(FIRST_FRAME_SECONDS, durationSeconds), ...afterMoments])].sort((first, second) => first - second);
 }
 
-function getUnseenThemes(render: GoodRender): readonly string[] {
-  return SCENE_THEMES.filter((theme) => !render.sheets.some((sheet) => sheet.theme === theme));
+function getUnseenThemes(render: GoodRender, themes: readonly SceneTheme[]): readonly string[] {
+  return themes.filter((theme) => !render.sheets.some((sheet) => sheet.theme === theme));
 }
 
-function getRenderProblems(render: RenderResult, plan: LessonPlan, brief: SceneBrief, warn: (line: string) => void, canKeepLinesThroughText: boolean): readonly string[] {
+function getRenderProblems(render: RenderResult, plan: LessonPlan, brief: SceneBrief, warn: (line: string) => void, canKeepLinesThroughText: boolean, engine: SceneEngine, themes: readonly SceneTheme[]): readonly string[] {
   if (!render.isOk) return render.reasons;
   if (render.sheets.length === 0) return ['the worker made no pictures, so nobody can review this scene'];
-  const unseen = getUnseenThemes(render);
+  const unseen = getUnseenThemes(render, themes);
   if (unseen.length > 0) warn(`::warning title=Scene review::the review would see no ${unseen.join(' or ')} pictures, so the scene stops here`);
-  const partProblems = render.takes.flatMap(({ parts }) => getSceneBeatProblems({ setup: plan.setup, narration: plan.narration, scene: getSceneCommand({ engine: 'manimgx', id: 'scene-check', moments: brief.moments, parts, durationSeconds: brief.durationSeconds }, CHECK_SCENE_ELEMENT) }));
+  const partProblems = render.takes.flatMap(({ parts }) => getSceneBeatProblems({ setup: plan.setup, narration: plan.narration, scene: getSceneCommand({ engine, id: 'scene-check', moments: brief.moments, parts, durationSeconds: brief.durationSeconds }, CHECK_SCENE_ELEMENT) }));
   // A rewrite costs a typed scene its moment and has often failed the same way, so a line through a label stays as a note there and on a last try. A card, which many students see, gets one rewrite first.
   const layoutProblems = new Set(render.layoutProblems.filter((problem) => !canKeepLinesThroughText || !LINE_THROUGH_TEXT.test(problem)).map((problem) => `layout: ${problem.replace(THEMED_SOURCE, 'scene.py')}`));
   return [...unseen.map((theme) => `the worker made no ${theme} pictures, so nobody can review that take`), ...new Set(partProblems), ...layoutProblems];
@@ -103,10 +109,11 @@ async function writeUntilClean(maker: SceneMaker, { brief, plan, values, tally, 
     tally.writer = writer.name;
     const code = await takeWritten(writer, tally, index === 0 && earlyWrite ? earlyWrite : writer.write(brief, repair, AbortSignal.any([AbortSignal.timeout(maker.writerLimitMs ?? WRITER_LIMIT_MS), signal])));
     if (code === null) continue;
-    const contentProblems = getCodeProblems(code);
-    const render = contentProblems.length > 0 || signal.aborted ? null : await maker.worker({ code, moments: brief.moments, durationSeconds: brief.durationSeconds, themes: SCENE_THEMES, values, inspectSeconds: getInspectSeconds(brief) }, AbortSignal.any([AbortSignal.timeout(2 * (maker.writerLimitMs ?? WRITER_LIMIT_MS)), signal]));
+    const contentProblems = maker.checkCode ? maker.checkCode({ code, topic: brief.topic, moments: brief.moments }) : getCodeProblems(code);
+    const themes = maker.themes ?? SCENE_THEMES;
+    const render = contentProblems.length > 0 || signal.aborted ? null : await maker.worker({ code, moments: brief.moments, durationSeconds: brief.durationSeconds, themes, values, inspectSeconds: getInspectSeconds(brief) }, AbortSignal.any([AbortSignal.timeout(2 * (maker.writerLimitMs ?? WRITER_LIMIT_MS)), signal]));
     tally.renderMs += render?.ms ?? 0;
-    const problems = render ? getRenderProblems(render, plan, brief, warn, isTyped || index === maker.writers.length - 1) : contentProblems;
+    const problems = render ? getRenderProblems(render, plan, brief, warn, isTyped || index === maker.writers.length - 1, maker.engine ?? 'manimgx', themes) : contentProblems;
     if (render?.isOk && problems.length === 0) return { code, render };
     tally.problems.push(...problems);
     if (!signal.aborted) warn(`::notice title=Scene try::${writer.name} did not pass: ${problems.join('; ').slice(0, MOST_NOTICE_CHARACTERS)}`);
@@ -156,14 +163,14 @@ export function canTryAfterRefusal(store: SceneStore, key: SceneKey, nowMs: numb
   return getCanTry(trouble.tries === 0 ? { tries: 1, lastAtMs: Date.parse(refusal.savedAt), wasRefused: true } : trouble, nowMs);
 }
 
-function toStoredScene({ key, plan, brief, attempt, verdict, trace, values }: { key: SceneKey; plan: LessonPlan; brief: SceneBrief; attempt: Attempt; verdict: SceneVerdict; trace: SceneTrace; values: Readonly<Record<string, number>> }): StoredScene {
+function toStoredScene({ engine, key, plan, brief, attempt, verdict, trace, values }: { engine: SceneEngine; key: SceneKey; plan: LessonPlan; brief: SceneBrief; attempt: Attempt; verdict: SceneVerdict; trace: SceneTrace; values: Readonly<Record<string, number>> }): StoredScene {
   return {
     id: key.id,
     topic: key.topic,
     ownerId: key.ownerId,
     status: 'checked',
-    engine: 'manimgx',
-    engineVersion: SCENE_ENGINE_VERSIONS.manimgx,
+    engine,
+    engineVersion: SCENE_ENGINE_VERSIONS[engine],
     code: attempt.code,
     narration: plan.narration,
     plan,
@@ -212,6 +219,6 @@ export async function makeScene(maker: SceneMaker, { topic, ownerId = null, plan
     return { isOk: false, reasons: verdict.errors.map(({ what }) => what) };
   }
   const trace: SceneTrace = { writer: tally.writer, attempts: tally.attempts, writeMs: tally.writeMs, renderMs: tally.renderMs, reviewMs: verdict.ms, totalMs: now() - startedAt, costUsd: tally.costUsd + verdict.costUsd, problems: tally.problems };
-  const scene = await store.saveChecked(toStoredScene({ key, plan, brief, attempt, verdict, trace, values }), attempt.render.takes, attempt.render.sheets);
+  const scene = await store.saveChecked(toStoredScene({ engine: maker.engine ?? 'manimgx', key, plan, brief, attempt, verdict, trace, values }), attempt.render.takes, attempt.render.sheets);
   return { isOk: true, scene };
 }

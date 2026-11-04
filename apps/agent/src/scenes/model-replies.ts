@@ -3,6 +3,9 @@ import type { FactError, RouteEngine, SceneRoute, SceneVerdict, SceneUsage } fro
 const ENGINES: readonly RouteEngine[] = ['manimgx', 'kit', 'none'];
 export const SAFETY_KIND = 'safety';
 export const DANGEROUS_KIND = 'dangerous';
+/** Solid things a camera could film. A kit route with any other kind is the router in doubt, and a wrong scene is the worst failure. */
+const KIT_KINDS: readonly string[] = ['physics-object', 'chemistry', 'biology', 'astronomy', 'earth-engineering'];
+const NEVER_A_SOLID_THING = /\b(solve|solving|equations?|derivatives?|integrals?|graphs?|plots?|algebra|fractions?|theorems?|probability|statistics|percent(age)?s?|formulas?|functions?|code|algorithm|programming|maps?|grids?|tables?|histor(y|ical)|wars?|politics|economy|feelings?|love)/i;
 const CLEARED_NAME_KINDS = ['place', 'event', 'thing', 'figure'];
 const MOST_TOPIC_CHARACTERS = 80;
 const POINTS_AT_A_PERSON = /@|https?:|\b(my|me|mine|our|we)\b|\bi['’](m|ve|d|ll)\b/i;
@@ -72,7 +75,9 @@ export function getRouteFromText(text: string): Omit<SceneRoute, keyof SceneUsag
   const engine = ENGINES.find((name) => name === reply.engine) ?? 'none';
   const topic = typeof reply.topic === 'string' ? reply.topic.trim().slice(0, MOST_TOPIC_CHARACTERS) : '';
   const isSafeTopic = topic !== '' && !pointsAtAPerson(topic);
-  return { engine: engine !== 'none' && !isSafeTopic ? 'none' : engine, kind: typeof reply.kind === 'string' ? reply.kind : 'unknown', topic: isSafeTopic ? topic : '' };
+  const kind = typeof reply.kind === 'string' ? reply.kind : 'unknown';
+  const isKitInDoubt = engine === 'kit' && (!KIT_KINDS.includes(kind) || NEVER_A_SOLID_THING.test(topic));
+  return { engine: (engine !== 'none' && !isSafeTopic) || isKitInDoubt ? 'none' : engine, kind, topic: isSafeTopic ? topic : '' };
 }
 
 /** Only a name it was asked about, of a kind a lesson may say, and a reply it cannot read clears nothing. */

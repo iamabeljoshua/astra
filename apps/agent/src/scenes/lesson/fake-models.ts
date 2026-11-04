@@ -35,6 +35,13 @@ class Lesson(Lesson2D):
         self.finish()
 `;
 
+const FAKE_KIT_CODE = `function scene(kit) {
+  kit.stage('studio', {});
+  const ball = kit.mesh({ id: 'ball', shape: 'sphere', size: 1, material: 'ceramic', color: '#c9b08a' });
+  kit.shots([{ at: 0, move: 'cut', target: 'ball', distance: 5 }]);
+  return { render(t) { ball.show(kit.env(t, 'curve', null, 1)); ball.scale(1 + kit.p(t, 'point') + kit.p(t, 'line') + kit.p(t, 'slope')); } };
+}`;
+
 export function makeFakeSceneModels(): SceneModels {
   const makeWriter = (name: string): SceneModels['writer'] => ({
     name,
@@ -47,6 +54,9 @@ export function makeFakeSceneModels(): SceneModels {
     writer: makeWriter('fake-writer'),
     fallbackWriter: makeWriter('fake-fallback'),
     reviewer: { review: async () => ({ isPass: true, errors: [], ...FAKE_USAGE }) },
+    kitWriter: { name: 'fake-kit-writer', write: async () => ({ code: FAKE_KIT_CODE, ...FAKE_USAGE }) },
+    kitFallbackWriter: { name: 'fake-kit-fallback', write: async () => ({ code: FAKE_KIT_CODE, ...FAKE_USAGE }) },
+    kitReviewer: { review: async () => ({ isPass: true, errors: [], ...FAKE_USAGE }) },
     router: { route: async (request) => ({ engine: 'manimgx', kind: 'graph', topic: request, ...FAKE_USAGE }) },
     nameReader: { clear: async () => new Set() },
     planner: { plan: async (topic, _signal, hooks) => { const plan = getPlanFromText(FAKE_PLAN); hooks?.onSceneWords?.({ narration: plan.narration, plan: plan.plan }); return { ...plan, opening: [...plan.opening, { say: `And that is what this lesson on ${topic} is about.` }], ...FAKE_USAGE }; } },

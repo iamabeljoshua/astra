@@ -1,9 +1,11 @@
 import { readKey } from '../keys.ts';
 import { makeAnthropicSceneModels, type SceneModels } from '../providers/anthropic.scenes.ts';
+import { getKitCodeProblems } from '../scenes/kit-code-check.ts';
+import { createKitWorker } from '../scenes/kit-worker.ts';
 import { makeFakeSceneModels } from '../scenes/lesson/fake-models.ts';
 import { createTopicRuns } from '../scenes/lesson/topic-runs.ts';
 import { createContainerWorker } from '../scenes/render-worker.ts';
-import { getSceneStoreRoot } from '../scenes/scene-settings.ts';
+import { getSceneStoreRoot, hasKitLive } from '../scenes/scene-settings.ts';
 import { createSceneStore } from '../scenes/scene-store.ts';
 import type { SpendCaps } from './make-brain.ts';
 import { createTutorScenes, type TutorScenes, type TutorScenesOptions } from './tutor-scenes.ts';
@@ -24,6 +26,8 @@ export function makeTutorScenes({ caps, ...hooks }: SessionHooks & { isTutorClos
   };
   const models: SceneModels = process.env.LESSON_FAKES === '1' ? makeFakeSceneModels() : makeAnthropicSceneModels({ apiKey: readKey('ANTHROPIC_API_KEY'), onUsage: ({ costUsd }) => caps.addScene(costUsd), assertRoom });
   const store = createSceneStore(getSceneStoreRoot());
-  const runs = createTopicRuns({ planner: models.planner, nameReader: models.nameReader, writers: [models.writer, models.fallbackWriter], reviewer: models.reviewer, worker: createContainerWorker(), store, warn: (line) => hooks.trace('sceneWarning', { problem: line }) });
-  return createTutorScenes({ ...hooks, isClosed: () => caps.getSpendLimit() !== null || (hooks.isTutorClosed?.() ?? false), canPlayShared: (studentId) => caps.getSharedPlaysToday(studentId) < sharedPlaysADay, router: models.router, runs, store, getNowMs: () => performance.now() });
+  const warn = (line: string) => hooks.trace('sceneWarning', { problem: line });
+  const runs = createTopicRuns({ planner: models.planner, nameReader: models.nameReader, writers: [models.writer, models.fallbackWriter], reviewer: models.reviewer, worker: createContainerWorker(), store, warn });
+  const kitRuns = hasKitLive() ? createTopicRuns({ engine: 'kit', themes: ['dark'], checkCode: getKitCodeProblems, planner: models.planner, nameReader: models.nameReader, writers: [models.kitWriter, models.kitFallbackWriter], reviewer: models.kitReviewer, worker: createKitWorker(), store, warn }) : undefined;
+  return createTutorScenes({ ...hooks, ...(kitRuns ? { kitRuns } : {}), isClosed: () => caps.getSpendLimit() !== null || (hooks.isTutorClosed?.() ?? false), canPlayShared: (studentId) => caps.getSharedPlaysToday(studentId) < sharedPlaysADay, router: models.router, runs, store, getNowMs: () => performance.now() });
 }

@@ -39,6 +39,7 @@
     "@livekit/agents-plugin-elevenlabs": "1.9.5",
     "@livekit/agents-plugin-meta": "1.9.5",
     "@livekit/rtc-node": "1.2.1",
+    "acorn": "8.19.0",
     "livekit-server-sdk": "2.19.2",
     "ws": "8.22.1"
   },

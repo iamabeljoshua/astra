@@ -26,6 +26,8 @@ export interface LessonWork {
 export interface LessonWorkOptions {
   router: SceneRouter;
   runs: TopicRuns;
+  /** Writes 3D scenes live. Left out, a request the router sends to the kit gets no scene. */
+  kitRuns?: TopicRuns;
   store: SceneStore;
   request: string;
   isCard: boolean;
@@ -39,9 +41,11 @@ export interface LessonWorkOptions {
   isOnlyForScene?: boolean;
 }
 
-export function createLessonWork({ router, runs, store, request, isCard, studentId, cardLine, getNowMs, getWallMs = () => Date.now(), onChange, isOnlyForScene = false }: LessonWorkOptions): LessonWork {
+export function createLessonWork({ router, runs, kitRuns, store, request, isCard, studentId, cardLine, getNowMs, getWallMs = () => Date.now(), onChange, isOnlyForScene = false }: LessonWorkOptions): LessonWork {
   // A card's title comes from the server's own list, so its scene is shared. A typed question stays with its student, because router-cleaned words are still a student's words shaped by a model.
   const ownerId = isCard ? null : studentId;
+  // A card's scene reaches every student, so only the reviewed library may give one a 3D scene.
+  const writesKit = kitRuns !== undefined && !isCard;
   let settlePlan: (plan: LessonPlan | NoLesson) => void = () => {};
   const plan = new Promise<LessonPlan | NoLesson>((resolve) => {
     settlePlan = resolve;
@@ -70,7 +74,7 @@ export function createLessonWork({ router, runs, store, request, isCard, student
   const isScenePaused = (topic: string) => !canTryNow({ store, getWallMs }, getOwnKey(topic)) || !canTryAfterRefusal(store, getOwnKey(topic), getWallMs());
 
   // A topic whose next try is not due can draw nothing today, so it says one plan's words on every open. Lines a model wrote are kept, even a plan's clean lines, and a fallback with no model behind it is not.
-  const joinRun = (topic: string) => {
+  const joinRun = (topic: string, engine: SceneRoute['engine']) => {
     keepVoiceWith(topic, null);
     const key = getOwnKey(topic);
     const isPaused = isScenePaused(topic);
@@ -80,7 +84,7 @@ export function createLessonWork({ router, runs, store, request, isCard, student
       settlePlan(waiting);
       return;
     }
-    run = runs.join(key, cardLine ? { plainLine: { say: cardLine } } : {});
+    run = (engine === 'kit' && writesKit ? kitRuns : runs).join(key, cardLine ? { plainLine: { say: cardLine } } : {});
     void run.firstLine.then(settleFirstLine);
     void run.plan.then((planned) => {
       settlePlan(planned);
@@ -120,7 +124,7 @@ export function createLessonWork({ router, runs, store, request, isCard, student
     }
     const savedByTopic = findSaved(topic);
     if (savedByTopic) useSaved(topic, savedByTopic);
-    else if (!isOnlyForScene || route.engine === 'manimgx') joinRun(topic);
+    else if (!isOnlyForScene || route.engine === 'manimgx' || (route.engine === 'kit' && writesKit)) joinRun(topic, route.engine);
     return { ...route, topic };
   };
 
@@ -130,6 +134,7 @@ export function createLessonWork({ router, runs, store, request, isCard, student
   const desk = createSceneDesk({
     getNowMs,
     onChange,
+    engines: writesKit ? ['manimgx', 'kit'] : ['manimgx'],
     route: () =>
       getRoute().catch((error: unknown) => {
         settleWithNoRoute();

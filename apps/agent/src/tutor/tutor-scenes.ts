@@ -21,6 +21,8 @@ const OPENING_WAIT_MS = 2500;
 export interface TutorScenesOptions {
   router: SceneRouter;
   runs: TopicRuns;
+  /** Writes 3D scenes live. Left out, a request the router sends to the kit gets no scene. */
+  kitRuns?: TopicRuns;
   store: SceneStore;
   /** The library's title when this session came from a card. Only that title may share a scene. */
   getCardTitle(): string | null;
@@ -96,7 +98,7 @@ export function getTutorSceneBeats({ plan, scene, number, endsOnQuestion = true 
   return [opening, ...[...rest, ...(endsOnQuestion ? [close] : [])].map((beat) => ({ ...beat, pauseBeforeMs: BREATH_MS }))];
 }
 
-export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs, send, speak, canSpeak, onShown, isClosed = () => false, canPlayShared = () => true, trace }: TutorScenesOptions): TutorScenes {
+export function createTutorScenes({ router, runs, kitRuns, store, getCardTitle, getNowMs, send, speak, canSpeak, onShown, isClosed = () => false, canPlayShared = () => true, trace }: TutorScenesOptions): TutorScenes {
   let device: Device = 'unknown';
   let studentId = '';
   let current: SceneAsk | null = null;
@@ -197,7 +199,7 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
       return;
     }
     asksMade += 1;
-    const work = createLessonWork({ router, runs, store, request: isCard ? cardTitle : topic, isCard, studentId, getNowMs, isOnlyForScene: true, onChange: (state) => onDeskChange(ask, state) });
+    const work = createLessonWork({ router, runs, ...(kitRuns ? { kitRuns } : {}), store, request: isCard ? cardTitle : topic, isCard, studentId, getNowMs, isOnlyForScene: true, onChange: (state) => onDeskChange(ask, state) });
     const ask: SceneAsk = { topic, work, askedAtMs: getNowMs(), askLimit: setTimeout(() => end(ask, 'tooLate'), ASK_LIMIT_MS), windowLimit: null, recheck: null, page: { kind: 'notAsked' }, isOpening: isCard && opening.kind === 'possible' };
     works.push(work);
     current = ask;

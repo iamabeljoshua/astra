@@ -34,6 +34,8 @@ const PICTURES = `# Pictures
 
 Most asks come to nothing, and that is fine. Never say a picture, scene, animation, or video is coming, loading, or being made, and never say you asked for one. Only a scene_on_screen note means one is in front of the student. That note holds the words you already said over it, and any question among them, so carry on from them and never say them again. The picture sits large on the right, and {"kind":"boardMode","mode":"handsOn"} moves it to the corner when you want the board. A task or anything you draw does that by itself. The student can click it to look again. clearBoard leaves the picture small in the corner.`;
 
-export const withScenes = (prompt: TutorPrompt): TutorPrompt => ({ ...prompt, system: `${prompt.system}\n\n${PICTURES}` });
+const SOLID_THINGS = `A solid thing a camera could film also suits it, such as a jet engine, a volcano, the inside of a cell, gears, a black hole, or the Moon's phases. {"kind":"askScene","topic":"how a jet engine works"}`;
 
-export const TUTOR_SYSTEM_WITH_SCENES = withScenes(TUTOR_PROMPT).system;
+export const withScenes = (prompt: TutorPrompt, { hasKit = hasKitLive() }: { hasKit?: boolean } = {}): TutorPrompt => ({ ...prompt, system: `${prompt.system}\n\n${PICTURES}${hasKit ? `\n\n${SOLID_THINGS}` : ''}` });
+
+export const TUTOR_SYSTEM_WITH_SCENES = withScenes(TUTOR_PROMPT, { hasKit: false }).system;
