@@ -20,6 +20,7 @@ function ProfileForm({ student }: { student: Student }) {
 
   function change(answerChange: Partial<Answers>) {
     setAnswers({ ...answers, ...answerChange });
+    setIsMissing(false);
     saveProfile.reset();
   }
 
