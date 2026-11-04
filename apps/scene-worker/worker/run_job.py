@@ -2,22 +2,35 @@ import json
 import os
 import pathlib
 import re
+import signal
+import stat
 import struct
 import subprocess
 import sys
-import tempfile
 
 WORKER = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(WORKER))
 from gate import check_scene_code  # noqa: E402
 
+SCENE_UID = 1000
+SCENE_GID = 1000
+JOB_ROOM = pathlib.Path("/tmp/job")
+SCENE_ROOM = pathlib.Path("/scene")
+SCENE_ENV = {"HOME": str(SCENE_ROOM), "TMPDIR": str(SCENE_ROOM), "XDG_RUNTIME_DIR": str(SCENE_ROOM), "PATH": "/usr/local/bin:/usr/bin:/bin", "PYTHONPATH": str(WORKER), "PYTHONDONTWRITEBYTECODE": "1"}
 LATEST_MOMENT_SECONDS = 0.35
 DURATION_SLACK_SECONDS = 1.0
 TRUTH_NAMES = ("moon_orbit", "seasons(", "astra_truth")
 LAYOUT_PROBLEM = re.compile(r"^\s*\[\d+\]\s*(.+)$")
 LAYOUT_NOTE = re.compile(r"^\s*note:\s*(.+)$")
-SCENE_LINE = re.compile(r'scene\.py", line (\d+)')
+SCENE_LINE = re.compile(r'scene[^"]*\.py", line (\d+)')
 MOST_ERROR_CHARACTERS = 600
+MOST_OUTPUT_BYTES = 64 * 1024
+MOST_SHEET_BYTES = 4 * 1024 * 1024
+MOST_SHEETS_A_THEME = 6
+
+
+class SceneFileRefused(Exception):
+    pass
 
 
 def take_stdout_for_records():
@@ -33,6 +46,48 @@ record_stream = take_stdout_for_records()
 def send_record(header, payload=b""):
     head = json.dumps({**header, "bytes": len(payload)}).encode()
     record_stream.write(struct.pack(">I", len(head)) + head + payload)
+
+
+def end_scene_processes():
+    """Only the scene's own uid can signal what a scene left running, so a short-lived child steps down and sends the signal."""
+    child = os.fork()
+    if child == 0:
+        try:
+            os.setgroups([])
+            os.setgid(SCENE_GID)
+            os.setuid(SCENE_UID)
+            os.kill(-1, signal.SIGKILL)
+        except OSError:
+            pass
+        os._exit(0)
+    os.waitpid(child, 0)
+
+
+def read_tail(path):
+    with open(path, "rb") as stream:
+        stream.seek(max(path.stat().st_size - MOST_OUTPUT_BYTES, 0))
+        return stream.read().decode("utf-8", "replace")
+
+
+def run_as_scene(arguments, cwd, name, limit_seconds):
+    """Everything model-written runs here, under a uid that cannot open this process's descriptors in /proc."""
+    output_path, error_path = JOB_ROOM / f"{name}.out", JOB_ROOM / f"{name}.err"
+    with open(output_path, "wb") as output, open(error_path, "wb") as error:
+        try:
+            done = subprocess.run(arguments, cwd=cwd, env=SCENE_ENV, stdin=subprocess.DEVNULL, stdout=output, stderr=error, user=SCENE_UID, group=SCENE_GID, extra_groups=[], timeout=limit_seconds)
+        finally:
+            end_scene_processes()
+    return done.returncode, read_tail(output_path), read_tail(error_path)
+
+
+def read_scene_file(path, most_bytes):
+    """The scene owns its folder, so a name there can be a link to anything this process could read."""
+    descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    with os.fdopen(descriptor, "rb") as stream:
+        info = os.fstat(stream.fileno())
+        if not stat.S_ISREG(info.st_mode) or info.st_size > most_bytes:
+            raise SceneFileRefused(f"{path.name} is not a file the worker can send")
+        return stream.read(most_bytes + 1)
 
 
 def build_source(job, theme, code):
@@ -71,20 +126,24 @@ def get_timing_problems(job, made):
     return reasons
 
 
-def make_theme(job, theme, code, folder):
+def write_source(job, theme, code):
     source, head_lines = build_source(job, theme, code)
-    source_path = folder / f"scene-{theme}.py"
-    take_path = folder / f"{theme}.take"
+    source_path = JOB_ROOM / f"scene-{theme}.py"
     source_path.write_text(source)
-    done = subprocess.run([sys.executable, str(WORKER / "make_take.py"), str(source_path), str(take_path)], capture_output=True, text=True, timeout=job["stepLimitSeconds"])
-    if done.returncode != 0:
-        return None, [describe_failure(done.stderr, code, head_lines)]
-    made = json.loads(done.stdout.strip().splitlines()[-1])
+    return source_path, head_lines
+
+
+def make_theme(job, theme, code):
+    source_path, head_lines = write_source(job, theme, code)
+    take_path = SCENE_ROOM / f"{theme}.take"
+    returncode, output, error = run_as_scene([sys.executable, str(WORKER / "make_take.py"), str(source_path), str(take_path)], SCENE_ROOM, f"make-{theme}", job["stepLimitSeconds"])
+    if returncode != 0:
+        return None, [describe_failure(error, code, head_lines)]
+    made = json.loads(output.strip().splitlines()[-1])
     problems = get_timing_problems(job, made)
     if problems:
         return None, problems
-    send_record({"kind": "take", "theme": theme, "made": made}, take_path.read_bytes())
-    take_path.unlink()
+    send_record({"kind": "take", "theme": theme, "made": {name: made[name] for name in ("makeMs", "seconds", "parts")}}, read_scene_file(take_path, job["mostTakeBytes"]))
     return made, []
 
 
@@ -94,19 +153,20 @@ def read_layout_report(output):
     return problems, notes
 
 
-def inspect_scene(job, code, folder):
-    source, _ = build_source(job, job["themes"][0], code)
-    (folder / "scene.py").write_text(source)
+def inspect_theme(job, theme, code):
+    source_path, _ = write_source(job, theme, code)
+    sheet_prefix = SCENE_ROOM / f"{theme}-sheet"
     times = ",".join(f"{seconds:.3f}" for seconds in job["inspectSeconds"]) + ",end"
-    done = subprocess.run(["manimgx", "inspect", "scene.py", "Lesson", "-o", "sheet.png", "-t", times], cwd=folder, capture_output=True, text=True, timeout=job["stepLimitSeconds"])
-    sheets = sorted(folder.glob("sheet*.png"), key=lambda path: (len(path.name), path.name))
+    returncode, output, error = run_as_scene(["manimgx", "inspect", str(source_path), "Lesson", "-o", f"{sheet_prefix}.png", "-t", times], SCENE_ROOM, f"inspect-{theme}", job["stepLimitSeconds"])
+    sheets = sorted(SCENE_ROOM.glob(f"{theme}-sheet*.png"), key=lambda path: (len(path.name), path.name))[:MOST_SHEETS_A_THEME]
     if not sheets:
-        send_record({"kind": "failed", "stage": "inspect", "reasons": [(done.stderr or done.stdout)[-MOST_ERROR_CHARACTERS:]]})
-        return
-    problems, notes = read_layout_report(done.stdout)
+        send_record({"kind": "failed", "stage": "inspect", "reasons": [f"inspect ended with {returncode}: {(error or output)[-MOST_ERROR_CHARACTERS:]}"]})
+        return False
+    problems, notes = read_layout_report(output)
     send_record({"kind": "layout", "problems": problems, "notes": notes})
     for index, sheet in enumerate(sheets):
-        send_record({"kind": "sheet", "index": index}, sheet.read_bytes())
+        send_record({"kind": "sheet", "theme": theme, "index": index}, read_scene_file(sheet, MOST_SHEET_BYTES))
+    return True
 
 
 def run(job):
@@ -115,19 +175,34 @@ def run(job):
     send_record({"kind": "gate", **gate})
     if not gate["ok"]:
         return
-    with tempfile.TemporaryDirectory(dir="/tmp") as folder_name:
-        folder = pathlib.Path(folder_name)
+    JOB_ROOM.mkdir()
+    for theme in job["themes"]:
+        made, reasons = make_theme(job, theme, code)
+        if made is None:
+            send_record({"kind": "failed", "stage": "make", "reasons": reasons})
+            return
+    if job.get("inspectSeconds"):
         for theme in job["themes"]:
-            made, reasons = make_theme(job, theme, code, folder)
-            if made is None:
-                send_record({"kind": "failed", "stage": "make", "reasons": reasons})
+            if not inspect_theme(job, theme, code):
                 return
-        if job.get("inspectSeconds"):
-            inspect_scene(job, code, folder)
     send_record({"kind": "done"})
 
 
-try:
-    run(json.load(sys.stdin))
-except subprocess.TimeoutExpired:
-    send_record({"kind": "failed", "stage": "time", "reasons": ["the scene took too long to make"]})
+def stop_at_the_limit(_signal, _frame):
+    raise subprocess.TimeoutExpired("job", 0)
+
+
+def main():
+    signal.signal(signal.SIGALRM, stop_at_the_limit)
+    try:
+        job = json.load(sys.stdin)
+        signal.alarm(job["wholeLimitSeconds"])
+        run(job)
+    except subprocess.TimeoutExpired:
+        send_record({"kind": "failed", "stage": "time", "reasons": ["the scene took too long to make"]})
+    except (SceneFileRefused, OSError, ValueError, KeyError, IndexError, TypeError) as error:
+        send_record({"kind": "failed", "stage": "worker", "reasons": [str(error)[:MOST_ERROR_CHARACTERS]]})
+
+
+if __name__ == "__main__":
+    main()

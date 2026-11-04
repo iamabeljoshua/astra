@@ -1,5 +1,11 @@
-import { describe, expect, it } from 'vitest';
-import { createRecordReader, getContainerArguments, MOST_TAKE_BYTES, type WorkerRecord } from '../src/scenes/render-worker.ts';
+import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { afterEach, describe, expect, it } from 'vitest';
+import { createContainerWorker, getContainerArguments, type RenderJob } from '../src/scenes/render-worker.ts';
+import { createRecordReader, MOST_TAKE_BYTES, type WorkerRecord } from '../src/scenes/worker-records.ts';
+
+const WORKER_FOLDER = resolve(import.meta.dirname, '../../scene-worker');
 
 function frame(header: object, payload = Buffer.alloc(0)): Buffer {
   const head = Buffer.from(JSON.stringify({ ...header, bytes: payload.length }));
@@ -22,6 +28,96 @@ describe('the container a scene runs in', () => {
     for (const flag of ['--read-only', '--cap-drop=ALL', '--cpus=2', '--memory=512m', '--memory-swap=512m', '--pids-limit=64', '--rm']) expect(args).toContain(flag);
     expect(args.slice(args.indexOf('--network'), args.indexOf('--network') + 2)).toEqual(['--network', 'none']);
     expect(args.slice(args.indexOf('--security-opt'), args.indexOf('--security-opt') + 2)).toEqual(['--security-opt', 'no-new-privileges']);
+  });
+});
+
+describe('the pins on what a scene runs on', () => {
+  it('runs no logging driver, so a flood of output cannot reach the disk', () => {
+    const args = getContainerArguments('astra-scene-1');
+    expect(args.slice(args.indexOf('--log-driver'), args.indexOf('--log-driver') + 2)).toEqual(['--log-driver', 'none']);
+  });
+
+  it('pins a seccomp profile, because a daemon set to unconfined would give hostile code a user namespace', () => {
+    const args = getContainerArguments('astra-scene-1');
+    const pinned = args.find((arg) => arg.startsWith('seccomp='));
+    expect(pinned).toBeDefined();
+    const profile = JSON.parse(readFileSync((pinned as string).slice('seccomp='.length), 'utf8')) as { defaultAction: string; syscalls: { names: string[]; action: string; args?: unknown[] }[] };
+    expect(profile.defaultAction).toBe('SCMP_ACT_ERRNO');
+    const allowedOutright = profile.syscalls.filter(({ action, args: rules }) => action === 'SCMP_ACT_ALLOW' && !rules?.length).flatMap(({ names }) => names);
+    for (const name of ['unshare', 'setns', 'mount', 'ptrace', 'bpf', 'clone', 'clone3', 'socket', 'memfd_create', 'process_vm_writev', 'io_uring_setup', 'userfaultfd', 'perf_event_open', 'keyctl']) expect(allowedOutright).not.toContain(name);
+  });
+
+  it('gives the worker only the rights it needs to step down to the scene user', () => {
+    const args = getContainerArguments('astra-scene-1');
+    expect(args.filter((arg) => arg.startsWith('--cap-add'))).toEqual(['--cap-add=SETUID', '--cap-add=SETGID']);
+  });
+
+  it('pins the base image by digest and every wheel by hash', () => {
+    const dockerfile = readFileSync(join(WORKER_FOLDER, 'Dockerfile'), 'utf8');
+    expect(dockerfile).toMatch(/^FROM python:3\.14-slim@sha256:[0-9a-f]{64}$/m);
+    expect(dockerfile).toContain('--require-hashes');
+    const requirements = readFileSync(join(WORKER_FOLDER, 'requirements.lock'), 'utf8').split(/\n(?=\S)/).filter((entry) => entry.trim() !== '');
+    expect(requirements.length).toBeGreaterThan(10);
+    for (const requirement of requirements) expect(requirement).toMatch(/^\S+==\S+[\s\\]+--hash=sha256:[0-9a-f]{64}/);
+  });
+});
+
+const JOB: RenderJob = { code: 'class Lesson: pass', moments: { a: 1 }, durationSeconds: 4, themes: ['light', 'dark'], values: {}, inspectSeconds: [1] };
+const realPath = process.env.PATH;
+
+function runOnFakeDocker(records: Buffer) {
+  const folder = mkdtempSync(join(tmpdir(), 'fake-docker-'));
+  writeFileSync(join(folder, 'records.bin'), records);
+  writeFileSync(join(folder, 'docker'), `#!/bin/sh\n[ "$1" = run ] && cat "${join(folder, 'records.bin')}"\nexit 0\n`);
+  chmodSync(join(folder, 'docker'), 0o755);
+  process.env.PATH = `${folder}:${realPath}`;
+  return createContainerWorker({ limitMs: 20_000 })(JOB, new AbortController().signal);
+}
+
+const MADE = { makeMs: 1, seconds: 4, parts: ['a'] };
+const GATE = frame({ kind: 'gate', ok: true, reasons: [], declared: {} });
+const LAYOUT = frame({ kind: 'layout', problems: [], notes: [] });
+const DONE = frame({ kind: 'done' });
+const take = (theme: string, bytes = Buffer.from('take')) => frame({ kind: 'take', theme, made: MADE }, bytes);
+const sheet = (theme: string) => frame({ kind: 'sheet', theme, index: 0 }, Buffer.from('png'));
+const GOOD = [GATE, take('light'), take('dark'), LAYOUT, sheet('light'), LAYOUT, sheet('dark'), DONE];
+
+describe('what a job may send back', () => {
+  afterEach(() => {
+    process.env.PATH = realPath;
+  });
+
+  it('takes a good run, with a take and a sheet per theme', async () => {
+    const result = await runOnFakeDocker(Buffer.concat(GOOD));
+    expect(result.isOk).toBe(true);
+    if (result.isOk) expect(result.takes.map(({ theme }) => theme)).toEqual(['light', 'dark']);
+  });
+
+  it.each(['../../../outside/escaped', '../other-scene/light', 'sepia', ''])('refuses a take with the theme %j', async (theme) => {
+    expect((await runOnFakeDocker(Buffer.concat([GATE, take(theme), take('light'), take('dark'), LAYOUT, sheet('light'), LAYOUT, sheet('dark'), DONE]))).isOk).toBe(false);
+  });
+
+  it('refuses a second take for one theme', async () => {
+    expect((await runOnFakeDocker(Buffer.concat([GATE, take('light'), take('light'), take('dark'), LAYOUT, sheet('light'), LAYOUT, sheet('dark'), DONE]))).isOk).toBe(false);
+  });
+
+  it('refuses a run with a take missing for a theme it asked for', async () => {
+    expect((await runOnFakeDocker(Buffer.concat([GATE, take('light'), LAYOUT, sheet('light'), LAYOUT, sheet('dark'), DONE]))).isOk).toBe(false);
+  });
+
+  it('refuses more records than a job can make, as 101 takes did', async () => {
+    const flood = Array.from({ length: 101 }, () => take('light', Buffer.alloc(1024)));
+    expect((await runOnFakeDocker(Buffer.concat([GATE, ...flood, DONE]))).isOk).toBe(false);
+  });
+
+  it('refuses more bytes in all than a job can make', async () => {
+    const sheets = Array.from({ length: 40 }, () => frame({ kind: 'sheet', theme: 'light', index: 0 }, Buffer.alloc(3 * 1024 * 1024)));
+    expect((await runOnFakeDocker(Buffer.concat([GATE, take('light'), take('dark'), ...sheets, DONE]))).isOk).toBe(false);
+  });
+
+  it('refuses a record after the last one, and a take with fields of the wrong kind', async () => {
+    expect((await runOnFakeDocker(Buffer.concat([...GOOD, take('light')]))).isOk).toBe(false);
+    expect((await runOnFakeDocker(Buffer.concat([GATE, frame({ kind: 'take', theme: 'light', made: { seconds: 'soon', parts: 'all' } }, Buffer.from('t')), take('dark'), LAYOUT, sheet('light'), LAYOUT, sheet('dark'), DONE]))).isOk).toBe(false);
   });
 });
 
