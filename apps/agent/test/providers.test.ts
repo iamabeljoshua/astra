@@ -1,10 +1,14 @@
-import { initializeLogger } from '@livekit/agents';
+import { initializeLogger, type stt } from '@livekit/agents';
+import { AudioFrame } from '@livekit/rtc-node';
 import { afterEach, describe, expect, it } from 'vitest';
 import { makeTutorVoice, TUTOR_VOICE_ID } from '../src/providers/choose.ts';
 import { makeElevenLabsVoice } from '../src/providers/elevenlabs.ts';
-import { makeRenderedVoice } from '../src/providers/fakes.ts';
+import { makeMuseTranscriber, MUSE_MODEL, MUSE_TIMINGS, type MuseTimings } from '../src/providers/meta.ts';
+import { makeRenderedVoice } from '../src/providers/rendered-voice.ts';
+import { renderTone } from '../src/providers/fakes.ts';
 import { type FakeWire, startFakeElevenLabsWire } from './fake-elevenlabs-wire.ts';
-import { getVoiceProblems, hearVoice } from './provider-suite.ts';
+import { type FakeMuseWire, startFakeMuseWire } from './fake-muse-wire.ts';
+import { getTranscriberProblems, getVoiceProblems, hearVoice } from './provider-suite.ts';
 
 initializeLogger({ pretty: false, level: 'silent' });
 
@@ -23,7 +27,7 @@ async function makeWireVoice(leadingSilenceMs = 0) {
 
 describe('the voice suite', () => {
   it('passes the rendered fake', async () => {
-    expect(await getVoiceProblems(makeRenderedVoice({ name: 'rendered' }))).toEqual([]);
+    expect(await getVoiceProblems(makeRenderedVoice({ name: 'rendered', render: renderTone }))).toEqual([]);
   });
 
   it('passes the ElevenLabs adapter on a fake of its wire', async () => {
@@ -99,5 +103,159 @@ describe('the ElevenLabs adapter', () => {
     await voice.close();
     expect(wire?.getMessagesAfterClose()).toBeGreaterThan(0);
     expect(framesAfterClose).toBe(0);
+  });
+});
+
+describe('the Muse adapter', () => {
+  const SILENCE_MS = 40;
+  let muse: FakeMuseWire | null = null;
+
+  afterEach(async () => {
+    await muse?.close();
+    muse = null;
+  });
+
+  const makeFrame = (level = 8000) => new AudioFrame(Int16Array.from({ length: 2400 }, (_, index) => (index % 2 === 0 ? level : -level)), 24000, 1, 2400);
+
+  async function makeAdapter(timings: Partial<MuseTimings> = {}, handshakeMs = 0) {
+    muse = await startFakeMuseWire({ handshakeMs });
+    return makeMuseTranscriber({ apiKey: 'fake', webSocketFactory: (url, options) => (muse as FakeMuseWire).makeSocket(url, options), timings });
+  }
+
+  async function consume(stream: stt.SpeechStream) {
+    const events: stt.SpeechEvent[] = [];
+    void (async () => {
+      for await (const event of stream) events.push(event);
+    })();
+    return events;
+  }
+
+  it('passes the transcriber suite on a fake of its wire', async () => {
+    expect(await getTranscriberProblems(await makeAdapter())).toEqual([]);
+  });
+
+  it('pins the Standard Model by name, and leaves keywords off', async () => {
+    const transcriber = (await makeAdapter()).makeStt();
+    const stream = transcriber.stream();
+    stream.pushFrame(makeFrame());
+    await delay(150);
+    stream.close();
+    await transcriber.close();
+    expect(MUSE_MODEL).toBe('muse-voice-transcribe-1.0');
+    expect(muse?.getHandshakes()[0]?.model).toBe(MUSE_MODEL);
+    expect(muse?.getHandshakes()[0]?.keywords).toBeUndefined();
+  });
+
+  it('opens no session for a student with no microphone, because a typed lesson sends Muse nothing', async () => {
+    const transcriber = (await makeAdapter()).makeStt();
+    const stream = transcriber.stream();
+    await delay(150);
+    stream.close();
+    await transcriber.close();
+    expect(muse?.getConnectionCount()).toBe(0);
+  });
+
+  it('drops frames until Muse answers, because the plugin paces from its first packet and queued frames would stay late for the whole session', async () => {
+    const transcriber = (await makeAdapter({}, 300)).makeStt();
+    const stream = transcriber.stream();
+    await consume(stream);
+    for (let frame = 0; frame < 6; frame += 1) {
+      stream.pushFrame(makeFrame());
+      await delay(40);
+    }
+    await delay(150);
+    stream.close();
+    await transcriber.close();
+    expect(muse?.getBytesHeard()).toBe(0);
+  });
+
+  it('says it is hearing only once a real frame reaches a Muse that has answered, and says so again after frames stop', async () => {
+    const notes: string[] = [];
+    muse = await startFakeMuseWire({ handshakeMs: 120 });
+    const transcriber = makeMuseTranscriber({ apiKey: 'fake', webSocketFactory: (url, options) => (muse as FakeMuseWire).makeSocket(url, options), timings: { padAfterMs: 60 }, onNote: (note) => notes.push(note.kind) }).makeStt();
+    const stream = transcriber.stream();
+    await consume(stream);
+    stream.pushFrame(makeFrame());
+    await delay(40);
+    expect(notes).not.toContain('hearing');
+    await delay(150);
+    stream.pushFrame(makeFrame());
+    await delay(20);
+    expect(notes.filter((kind) => kind === 'hearing')).toHaveLength(1);
+    await delay(150);
+    stream.pushFrame(makeFrame());
+    await delay(20);
+    expect(notes.filter((kind) => kind === 'hearing')).toHaveLength(2);
+    stream.close();
+    await transcriber.close();
+  });
+
+  it('ships a quiet close at 10 s, because a test with its own timings would hide a raised one and Muse is paid until it closes', () => {
+    expect(MUSE_TIMINGS.closeAfterQuietMs).toBe(10_000);
+  });
+
+  it('stops paying for Muse once frames have stayed away, and opens again at once on the next frame', async () => {
+    const transcriber = (await makeAdapter({ padAfterMs: 20, closeAfterQuietMs: 120 })).makeStt();
+    const stream = transcriber.stream();
+    await consume(stream);
+    stream.pushFrame(makeFrame());
+    await delay(20);
+    stream.pushFrame(makeFrame());
+    await delay(300);
+    const heardWhenClosed = muse?.getBytesHeard() ?? 0;
+    await delay(200);
+    expect(muse?.getBytesHeard()).toBe(heardWhenClosed);
+    expect(muse?.getOpenCount()).toBe(0);
+    stream.pushFrame(makeFrame());
+    await delay(60);
+    expect(muse?.getConnectionCount()).toBe(2);
+    stream.close();
+    await transcriber.close();
+  });
+
+  it('pads silence when frames stop, because no frames means no final and Muse closes at 16 s', async () => {
+    const transcriber = (await makeAdapter({ padAfterMs: SILENCE_MS })).makeStt();
+    const stream = transcriber.stream();
+    await consume(stream);
+    stream.pushFrame(makeFrame());
+    await delay(150);
+    const heardBefore = muse?.getBytesHeard() ?? 0;
+    await delay(400);
+    expect(muse?.getBytesHeard() ?? 0).toBeGreaterThan(heardBefore);
+    stream.close();
+    await transcriber.close();
+  });
+
+  it('opens a new session before the cap, and keeps the words flowing', async () => {
+    const transcriber = (await makeAdapter({ rotateAtPauseAfterMs: 100, rotateAnywayAfterMs: 150 })).makeStt();
+    const stream = transcriber.stream();
+    await consume(stream);
+    for (let frame = 0; frame < 12; frame += 1) {
+      stream.pushFrame(makeFrame());
+      await delay(30);
+    }
+    stream.close();
+    await transcriber.close();
+    expect(muse?.getConnectionCount()).toBeGreaterThanOrEqual(2);
+  });
+
+  it('opens a new session after Muse closes one, and raises no error the session would end on', async () => {
+    const transcriber = (await makeAdapter({ retryAfterMs: 20 })).makeStt();
+    const errors: unknown[] = [];
+    transcriber.on('error', (error) => errors.push(error));
+    const stream = transcriber.stream();
+    await consume(stream);
+    stream.pushFrame(makeFrame());
+    await delay(100);
+    muse?.closeAll(1008);
+    await delay(100);
+    for (let frame = 0; frame < 3; frame += 1) {
+      stream.pushFrame(makeFrame());
+      await delay(30);
+    }
+    stream.close();
+    await transcriber.close();
+    expect(muse?.getConnectionCount()).toBe(2);
+    expect(errors).toEqual([]);
   });
 });

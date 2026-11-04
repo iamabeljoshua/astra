@@ -18,6 +18,8 @@ export interface FiredCue {
 
 export interface ScenePlayerOptions {
   clock: AudioClock;
+  /** Names this page's clock, so the agent keeps a reloaded page's reports apart from the last page's. */
+  clockId?: string;
   send(message: BrowserMessage): void;
   setOutputLevel(level: OutputLevel): void;
   catalog?: SceneCatalog;
@@ -27,6 +29,8 @@ export interface ScenePlayerOptions {
 export interface ScenePlayer {
   receive(message: AgentMessage): void;
   tick(): void;
+  /** Mutes and freezes as a stop would, for a browser that has lost the agent and cannot wait to be told. */
+  freeze(): void;
   getBoard(atMs: number): BoardState;
   /** It fires what is due first, because the audio clock moves in steps and a cue due at this very reading would otherwise show one frame after a replay shows it. */
   advanceToNow(): { board: BoardState; atMs: number };
@@ -37,6 +41,8 @@ export interface ScenePlayer {
   moveSlider(move: SliderMove): void;
   /** Sends what a drag has not reported yet, when the student lets go. */
   finishSliderDrag(): void;
+  /** The same words, with those already known and not yet heard, so a caption can follow each word as it plays. */
+  getCaptionWords(): { heard: string[]; coming: string[] };
 }
 
 interface PlayingBeat {
@@ -82,11 +88,12 @@ function createBeat(id: BeatId): PlayingBeat {
 }
 
 // Plays what the agent sends against the audio the student hears, and reports what really happened, which becomes the log.
-export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueFired }: ScenePlayerOptions): ScenePlayer {
+export function createScenePlayer({ clock, clockId = 'page', send, setOutputLevel, catalog, onCueFired }: ScenePlayerOptions): ScenePlayer {
   let turn: PlayingTurn | null = null;
   let levelOnceOldAudioHasGone: OutputLevel | null = null;
   const operationsOfOldTurns: BoardOperation[] = [];
-  const sliderLog = createSliderLog({ getNowMs: () => clock.getNowMs(), send });
+  const sliderLog = createSliderLog({ clockId, getNowMs: () => clock.getNowMs(), send });
+  const seenTurnIds = new Set<TurnId>();
 
   const openOutput = () => {
     if (levelOnceOldAudioHasGone === null || turn?.clock.isOldAudioArriving()) return;
@@ -100,9 +107,14 @@ export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueF
     openOutput();
   };
 
+  // A word time that never arrived takes the time of the word before it, because the contract has no hole and a report must not be refused for one.
   const getBeatRelativeWordStarts = (beat: PlayingBeat): number[] => {
-    const firstWordMs = beat.words[0]?.startMs ?? 0;
-    return beat.words.map(({ startMs }) => Math.max(0, Math.round(startMs - firstWordMs)));
+    const firstKnownMs = beat.words.find((word) => word !== undefined)?.startMs ?? 0;
+    let lastKnownMs = firstKnownMs;
+    return Array.from(beat.words, (word) => {
+      lastKnownMs = word?.startMs ?? lastKnownMs;
+      return Math.max(0, Math.round(lastKnownMs - firstKnownMs));
+    });
   };
 
   const getBeatView = (beat: StartedBeat): PlayedBeatView => ({
@@ -129,6 +141,7 @@ export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueF
       type: 'played',
       turnId: playing.id,
       beatId: beat.id,
+      clockId,
       browserMs,
       startedMsAgo: Math.max(0, browserMs - (beat.startedAtMs ?? browserMs)),
       wordStartsMs,
@@ -151,7 +164,7 @@ export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueF
     const isLastWordHeard = beat.wordCount !== null && beat.playedWords === beat.wordCount;
     if (beat.expectsReply && isLastWordHeard && !beat.isQuestionHeard) {
       beat.isQuestionHeard = true;
-      send({ type: 'questionHeard', turnId: playing.id, beatId: beat.id, browserMs: Math.round(nowMs), startedMsAgo: Math.max(0, Math.round(reading.positionMs - (beat.words.at(-1)?.startMs ?? reading.positionMs))) });
+      send({ type: 'questionHeard', turnId: playing.id, beatId: beat.id, clockId, browserMs: Math.round(nowMs), startedMsAgo: Math.max(0, Math.round(reading.positionMs - (beat.words.at(-1)?.startMs ?? reading.positionMs))) });
     }
   };
 
@@ -219,7 +232,7 @@ export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueF
     }
     if (!cutBeat && frames.length > 0) {
       operationsOfOldTurns.push({ kind: 'freeze', atMs: nowMs, frames });
-      send({ type: 'boardFrozen', turnId: playing.id, browserMs: nowMs, startedMsAgo: 0, frozen: frames });
+      send({ type: 'boardFrozen', turnId: playing.id, clockId, browserMs: nowMs, startedMsAgo: 0, frozen: frames });
     }
     clock.markTurnAudioOver();
   };
@@ -290,11 +303,24 @@ export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueF
     }
   };
 
+  const freeze = () => {
+    if (turn?.phase === 'playing') stop(turn);
+  };
+
   return {
     tick,
+    freeze,
     getNowMs: () => clock.getNowMs(),
     getOperations,
     getCaption: () => (turn ? turn.beats.flatMap((beat) => beat.words.slice(0, beat.playedWords).map((word) => word.text)).join(' ') : ''),
+    getCaptionWords() {
+      const beats = turn?.beats ?? [];
+      const isFrozen = turn?.phase === 'frozen';
+      return {
+        heard: beats.flatMap((beat) => beat.words.slice(0, beat.playedWords).map((word) => word.text)),
+        coming: isFrozen ? [] : beats.flatMap((beat) => beat.words.slice(beat.playedWords).flatMap((word) => (word ? [word.text] : []))),
+      };
+    },
     getBoard: (atMs) => getBoardAt(getOperations(), atMs, catalog),
     advanceToNow() {
       tick();
@@ -304,8 +330,13 @@ export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueF
     moveSlider: sliderLog.move,
     finishSliderDrag: sliderLog.finish,
     receive(message) {
-      if (message.type === 'turnStarted') return startTurn(message.turnId);
-      if (turn?.phase === 'playing' && message.turnId === turn.id) receiveForTurn(turn, message);
+      // Reliable messages can reach the browser again across a rejoin, and a second start of a turn would report it as unheard and fire its cues again.
+      if (message.type === 'turnStarted') {
+        if (seenTurnIds.has(message.turnId)) return;
+        seenTurnIds.add(message.turnId);
+        return startTurn(message.turnId);
+      }
+      if ('turnId' in message && turn?.phase === 'playing' && message.turnId === turn.id) receiveForTurn(turn, message);
     },
   };
 }

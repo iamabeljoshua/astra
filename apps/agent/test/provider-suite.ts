@@ -1,5 +1,6 @@
-import { tts } from '@livekit/agents';
-import type { VoiceAdapter } from '../src/providers/types.ts';
+import { stt, tts } from '@livekit/agents';
+import { AudioFrame } from '@livekit/rtc-node';
+import type { TranscriberAdapter, VoiceAdapter } from '../src/providers/types.ts';
 
 const FIRST_LINE = 'Your hand, right up until it lets go.';
 const SECOND_LINE = 'After that, nothing pushes it.';
@@ -48,6 +49,50 @@ export async function getVoiceProblems(adapter: VoiceAdapter): Promise<string[]>
   const isTimedOut = await Promise.race([stopped.then(() => false), delay(CLOSE_WITHIN_MS).then(() => true)]);
   if (isTimedOut) problems.push(`a closed stream must end within ${CLOSE_WITHIN_MS} ms`);
   await voice.close();
+  return problems;
+}
+
+const TONE_FRAME_SAMPLES = 2400;
+
+function makeLoudFrame(): AudioFrame {
+  return new AudioFrame(Int16Array.from({ length: TONE_FRAME_SAMPLES }, (_, index) => (index % 2 === 0 ? 8000 : -8000)), 24000, 1, TONE_FRAME_SAMPLES);
+}
+
+function makeSilentFrame(): AudioFrame {
+  return new AudioFrame(new Int16Array(TONE_FRAME_SAMPLES), 24000, 1, TONE_FRAME_SAMPLES);
+}
+
+const LOUD_FRAMES = 4;
+const QUIET_FRAMES = 2;
+
+// A transcriber gives interim text before final text, and a closed stream ends.
+export async function getTranscriberProblems(adapter: TranscriberAdapter): Promise<string[]> {
+  const problems: string[] = [];
+  const transcriber = adapter.makeStt();
+  const stream = transcriber.stream();
+  const heard: { type: stt.SpeechEventType; text: string }[] = [];
+  const reading = (async () => {
+    for await (const event of stream) heard.push({ type: event.type, text: event.alternatives?.[0]?.text ?? '' });
+  })();
+  for (let frame = 0; frame < LOUD_FRAMES; frame += 1) {
+    stream.pushFrame(makeLoudFrame());
+    await delay(20);
+  }
+  for (let frame = 0; frame < QUIET_FRAMES; frame += 1) {
+    stream.pushFrame(makeSilentFrame());
+    await delay(20);
+  }
+  const deadline = Date.now() + CLOSE_WITHIN_MS;
+  while (Date.now() < deadline && !heard.some((event) => event.type === stt.SpeechEventType.FINAL_TRANSCRIPT)) await delay(20);
+  const interimAt = heard.findIndex((event) => event.type === stt.SpeechEventType.INTERIM_TRANSCRIPT);
+  const finalAt = heard.findIndex((event) => event.type === stt.SpeechEventType.FINAL_TRANSCRIPT);
+  if (interimAt < 0) problems.push('a transcriber must give interim text');
+  if (finalAt < 0) problems.push('a transcriber must give final text');
+  if (interimAt > finalAt) problems.push('interim text must come before final text');
+  stream.close();
+  const isTimedOut = await Promise.race([reading.then(() => false), delay(CLOSE_WITHIN_MS).then(() => true)]);
+  if (isTimedOut) problems.push(`a closed stream must end within ${CLOSE_WITHIN_MS} ms`);
+  await transcriber.close();
   return problems;
 }
 

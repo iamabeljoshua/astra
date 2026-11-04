@@ -3,7 +3,8 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { type Beat, getBeatText, getSpokenWords } from '@astra/contracts';
-import { FAKE_SAMPLE_RATE, type RenderSpeech, type SpokenAudio } from '../../providers/fakes.ts';
+import { FAKE_SAMPLE_RATE } from '../../providers/fakes.ts';
+import type { RenderSpeech, SpokenAudio } from '../../providers/rendered-voice.ts';
 
 const SAY_VOICE = 'Samantha';
 const MS_PER_SECOND = 1000;

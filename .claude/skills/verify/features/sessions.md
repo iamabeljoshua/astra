@@ -7,7 +7,7 @@ A student starts a session by sending a question or choosing a card, and the ses
 - `session-question` lands the tutor's dot where the full stop of the typed question would sit, then fades into the session screen.
 - `session-card` starts a session on a card's topic straight away, with the card's picture on the board, and stores the topic.
 - `session-continue` opens the unfinished session from the continue card on Home, or from a card that says `Carry on where you left off`.
-- `session-screen` shows the board, the tutor's dot, the title, stand-in words, a clock, and a reply box. A reply stays on the screen and goes nowhere.
+- `session-screen` shows the board, the tutor's dot, the title, stand-in words, a clock, and a reply box. A reply opens the session's room, and the tutor answers. [Live voice](./voice.md) covers that. With no LiveKit keys the screen says the tutor could not connect, and the reply stays on the screen.
 - `session-refresh` keeps the session on a refresh, because the record is saved before the page fades.
 - `session-end` marks the session finished with its length, reads `Ending…` until Home is ready, returns to Home, and moves focus to Home's heading.
 - `session-leave` keeps the student where they went if they leave Home or the session screen while a start or an end is pending. The save still lands, and the dot and any fade go at once.

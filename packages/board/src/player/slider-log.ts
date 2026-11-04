@@ -15,7 +15,7 @@ const MOST_SAMPLES = 300;
 const isSameSlider = (first: SliderMove, second: SliderMove) => first.target === second.target && ('constant' in first ? 'constant' in second && first.constant === second.constant : 'parameter' in second && first.parameter === second.parameter);
 
 /** A student's drags on the board's clock, kept for this board and sent in pieces to the log, which replays each sample at its own moment. */
-export function createSliderLog({ getNowMs, send }: { getNowMs(): number; send(message: BrowserMessage): void }) {
+export function createSliderLog({ clockId, getNowMs, send }: { clockId: string; getNowMs(): number; send(message: BrowserMessage): void }) {
   const operations: BoardOperation[] = [];
   let open: OpenDrag | null = null;
   // The next whole ms, because a frame can already have read this same step of the audio clock without this move.
@@ -26,7 +26,7 @@ export function createSliderLog({ getNowMs, send }: { getNowMs(): number; send(m
     const { move, startedAtMs, samples } = open;
     const browserMs = getNextWholeMs();
     const target = 'constant' in move ? { constant: move.constant } : { parameter: move.parameter };
-    send({ type: 'acted', browserMs, startedMsAgo: browserMs - startedAtMs, action: { action: 'sliderDragged', target: move.target, samples, ...target } });
+    send({ type: 'acted', clockId, browserMs, startedMsAgo: browserMs - startedAtMs, action: { action: 'sliderDragged', target: move.target, samples, ...target } });
     open = null;
   };
 

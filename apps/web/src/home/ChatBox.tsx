@@ -14,13 +14,16 @@ interface ChatBoxProps {
   canAttach?: boolean;
   clearsOnSend?: boolean;
   isSending?: boolean;
+  /** A session's live voice owns this. Without it the button only changes the placeholder. */
+  talk?: { isOn: boolean; onToggle: () => void };
   onSend: (text: string, textBox: HTMLTextAreaElement) => void;
   onEdit: () => void;
 }
 
-export function ChatBox({ labels = CHAT_BOX_LABELS, canAttach = true, clearsOnSend = false, isSending = false, onSend, onEdit }: ChatBoxProps) {
+export function ChatBox({ labels = CHAT_BOX_LABELS, canAttach = true, clearsOnSend = false, isSending = false, talk, onSend, onEdit }: ChatBoxProps) {
   const [question, setQuestion] = useState('');
-  const [isTalkOn, setIsTalkOn] = useState(false);
+  const [isLocalTalkOn, setIsLocalTalkOn] = useState(false);
+  const isTalkOn = talk?.isOn ?? isLocalTalkOn;
   const [attachment, setAttachment] = useState<File | null>(null);
   const attachButton = useRef<HTMLButtonElement>(null);
   const placeholder = isTalkOn ? labels.placeholderWhileTalkIsOn : labels.placeholder;
@@ -28,7 +31,7 @@ export function ChatBox({ labels = CHAT_BOX_LABELS, canAttach = true, clearsOnSe
   const hasQuestion = question.trim() !== '';
 
   function send() {
-    if (!hasQuestion || !textBox.current) return;
+    if (!hasQuestion || isSending || !textBox.current) return;
     onSend(question.trim(), textBox.current);
     if (clearsOnSend) setQuestion('');
   }
@@ -62,7 +65,7 @@ export function ChatBox({ labels = CHAT_BOX_LABELS, canAttach = true, clearsOnSe
       />
       <div className="flex items-center gap-1.5 pt-1.5 pr-2 pb-2 pl-2.5">
         {canAttach && <AttachButton button={attachButton} onChoose={setAttachment} />}
-        <TalkButton isOn={isTalkOn} onToggle={() => setIsTalkOn(!isTalkOn)} />
+        <TalkButton isOn={isTalkOn} onToggle={talk?.onToggle ?? (() => setIsLocalTalkOn(!isLocalTalkOn))} />
         <SendButton label={labels.send} isEnabled={hasQuestion && !isSending} />
       </div>
     </form>

@@ -8,7 +8,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { speakTurn, type SpeakTurnOptions } from '../src/live/speak-turn.ts';
 import { createVoiceLine } from '../src/live/voice-line.ts';
 import { makeElevenLabsVoice } from '../src/providers/elevenlabs.ts';
-import { FAKE_SAMPLE_RATE, makeRenderedVoice, type RenderSpeech, renderTone } from '../src/providers/fakes.ts';
+import { FAKE_SAMPLE_RATE, renderTone } from '../src/providers/fakes.ts';
+import { makeRenderedVoice, type RenderSpeech } from '../src/providers/rendered-voice.ts';
 import { type FakeWire, startFakeElevenLabsWire } from './fake-elevenlabs-wire.ts';
 
 initializeLogger({ pretty: false, level: 'silent' });
@@ -33,7 +34,7 @@ const withLeadingSilence: RenderSpeech = (text) => {
   return { pcm: padded, sampleRate, words: words.map((word) => ({ ...word, startMs: word.startMs + LEADING_SILENCE_MS })) };
 };
 
-function speak({ render = renderTone, ...options }: Partial<SpeakTurnOptions> & { render?: RenderSpeech } = {}) {
+function speak({ render = renderTone, frameMs = 1, ...options }: Partial<SpeakTurnOptions> & { render?: RenderSpeech; frameMs?: number } = {}) {
   const sent: { message: AgentMessage; isUrgent: boolean }[] = [];
   const captured: AudioFrame[] = [];
   let queueClears = 0;
@@ -49,7 +50,7 @@ function speak({ render = renderTone, ...options }: Partial<SpeakTurnOptions> & 
         if (isStopped) framesAfterStop += 1;
         captured.push(frame);
         // A real source takes frames as fast as its queue allows, so this stands in for that pace.
-        await delay(1);
+        await delay(frameMs);
       },
       clearQueue: () => (queueClears += 1),
       waitForPlayout: async () => {},
@@ -98,10 +99,10 @@ function createWatchedLine({ playoutMs = 0, frameMs = 1 } = {}) {
     },
   });
   const messenger = {
-    send: (message: AgentMessage) => note({ kind: 'message', turnId: message.turnId, type: message.type }),
-    sendOnBothChannels: (message: AgentMessage) => note({ kind: 'message', turnId: message.turnId, type: message.type }),
+    send: (message: AgentMessage) => note({ kind: 'message', turnId: 'turnId' in message ? message.turnId : undefined, type: message.type }),
+    sendOnBothChannels: (message: AgentMessage) => note({ kind: 'message', turnId: 'turnId' in message ? message.turnId : undefined, type: message.type }),
   };
-  const turn = (turnId: string) => speakTurn({ voice: makeRenderedVoice({ name: 'fake' }).makeTts(), line, messenger, turnId: turnId as TurnId, beats: BEATS });
+  const turn = (turnId: string) => speakTurn({ voice: makeRenderedVoice({ name: 'fake', render: renderTone }).makeTts(), line, messenger, turnId: turnId as TurnId, beats: BEATS });
   const getTurnStartedAtMs = (turnId: string) => events.find((event) => event.type === 'turnStarted' && event.turnId === turnId)?.atMs;
   return { events, line, turn, getTurnStartedAtMs };
 }
@@ -133,6 +134,14 @@ describe('turns on one voice line', () => {
     expect(firstFrameOfSecondTurn?.atMs).toBeGreaterThanOrEqual(lastAudioGoneAtMs + TURN_SILENCE_MS - LEEWAY_MS);
     expect(getTurnStartedAtMs('t2')).toBeGreaterThanOrEqual(lastAudioGoneAtMs + TURN_SILENCE_MS - LEEWAY_MS);
     expect(getTurnStartedAtMs('t2')).toBeLessThanOrEqual(firstFrameOfSecondTurn?.atMs as number);
+  });
+
+  it('sends nothing for a stop on a finished turn, because no silence follows it and the browser would mute the next turn', async () => {
+    const { turn, events } = createWatchedLine();
+    const first = turn('t1');
+    await first.finished;
+    first.stop();
+    expect(events.filter((event) => event.type === 'stop')).toEqual([]);
   });
 
   it('leaves the silence after a stop, however soon the next turn starts', async () => {
@@ -216,7 +225,7 @@ describe('turns on one voice line', () => {
       waitForPlayout: async () => {},
     });
     const messenger = { send: (message: AgentMessage) => sent.push(message), sendOnBothChannels: (message: AgentMessage) => sent.push(message) };
-    const voice = makeRenderedVoice({ name: 'fake' }).makeTts();
+    const voice = makeRenderedVoice({ name: 'fake', render: renderTone }).makeTts();
     const failing = speakTurn({ voice, line, messenger, turnId: 'failing' as TurnId, beats: BEATS, onFailure: (failure) => failures.push(failure) });
     await failing.finished;
     expect(String(failures[0])).toContain('InvalidState');
@@ -279,7 +288,7 @@ describe('speakTurn', () => {
   });
 
   it('on a stop, tells the browser on both channels, clears the queue, and hands over no more audio', async () => {
-    const run = speak();
+    const run = speak({ frameMs: 20 });
     await delay(30);
     run.stop();
     await run.spoken.finished;

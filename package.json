@@ -17,6 +17,7 @@
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r --no-bail test",
     "lab": "pnpm --filter @astra/agent lab",
+    "agent": "pnpm --filter @astra/agent start",
     "verify": "node .claude/skills/verify/scripts/verify.mjs",
     "verify:self": "node .claude/skills/verify/scripts/self-check.mjs"
   },

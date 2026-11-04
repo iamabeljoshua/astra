@@ -6,6 +6,7 @@ interface ApiErrorDetails {
   kind: ApiErrorKind;
   status?: number;
   fieldMessages?: FieldMessages;
+  retryAfterSeconds?: number | null;
   cause?: unknown;
 }
 
@@ -18,13 +19,15 @@ export class ApiError extends Error {
   readonly kind: ApiErrorKind;
   readonly status: number | null;
   readonly fieldMessages: FieldMessages;
+  readonly retryAfterSeconds: number | null;
 
-  constructor({ kind, status, fieldMessages = {}, cause }: ApiErrorDetails) {
+  constructor({ kind, status, fieldMessages = {}, retryAfterSeconds = null, cause }: ApiErrorDetails) {
     super(`The API request failed: ${kind}${status === undefined ? '' : ` ${status}`}.`, { cause });
     this.name = 'ApiError';
     this.kind = kind;
     this.status = status ?? null;
     this.fieldMessages = fieldMessages;
+    this.retryAfterSeconds = retryAfterSeconds;
   }
 }
 
@@ -34,10 +37,15 @@ function getFieldMessages(responseBody: unknown) {
   return isFieldMap ? (fieldMessages as FieldMessages) : null;
 }
 
+function getRetryAfterSeconds(responseBody: unknown) {
+  const seconds = (responseBody as { retryAfterSeconds?: unknown } | null)?.retryAfterSeconds;
+  return typeof seconds === 'number' ? seconds : null;
+}
+
 export function getApiErrorFromResponse(status: number, responseBody: unknown) {
   const fieldMessages = status === VALIDATION_STATUS ? getFieldMessages(responseBody) : null;
   if (fieldMessages) return new ApiError({ kind: 'validation', status, fieldMessages });
-  return new ApiError({ kind: status >= FIRST_SERVER_STATUS ? 'server' : 'rejected', status });
+  return new ApiError({ kind: status >= FIRST_SERVER_STATUS ? 'server' : 'rejected', status, retryAfterSeconds: getRetryAfterSeconds(responseBody) });
 }
 
 function getThrownKind(signal: AbortSignal): ApiErrorKind {

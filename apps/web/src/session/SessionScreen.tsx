@@ -2,11 +2,15 @@ import { type PropsWithChildren, type ReactNode, useEffect, useRef, useState } f
 import { Link, useParams } from 'react-router';
 import { ChatBox } from '../home/ChatBox';
 import { findArtwork, type Artwork } from '../home/artwork';
-import { API_ERROR_LABELS, MENU_LABELS, PRODUCT_NAME, REPLY_BOX_LABELS, SESSION_LABELS, SESSIONS_LABELS } from '../strings';
+import { API_ERROR_LABELS, MENU_LABELS, PRODUCT_NAME, REPLY_BOX_LABELS, SESSION_LABELS, SESSIONS_LABELS, VOICE_LABELS } from '../strings';
 import { ThemeToggle } from '../theme/ThemeToggle';
 import { formatSessionLength } from './formatSession';
 import { type Session, useSession } from './sessionQueries';
 import { useSessionRun } from './useSessionRun';
+import { StudentCaption, TutorCaption } from '../voice/Captions';
+import { LiveBoard } from '../voice/LiveBoard';
+import { isVoiceOver, type LiveVoice } from '../voice/liveVoice';
+import { type LiveVoiceControls, useLiveVoice } from '../voice/useLiveVoice';
 
 const NOT_FOUND_STATUS = 404;
 const BAD_ID_STATUS = 400;
@@ -46,6 +50,8 @@ function OpenSession({ session }: { session: Session }) {
 
 function RunningSession({ session }: { session: Session }) {
   const { seconds, endSession, isEnding, endProblem } = useSessionRun(session);
+  const liveVoice = useLiveVoice({ sessionId: session.id });
+  const { view, voice } = liveVoice;
 
   return (
     <SessionFrame
@@ -53,8 +59,15 @@ function RunningSession({ session }: { session: Session }) {
       action={<EndButton isEnding={isEnding} onEnd={() => void endSession()} />}
       problem={endProblem}
     >
-      <SessionPanels session={session} tutorWords={SESSION_LABELS.standInWords} boardNote={SESSION_LABELS.boardStandIn}>
-        <ReplyBox />
+      <SessionPanels
+        session={session}
+        tutorWords={SESSION_LABELS.standInWords}
+        tutorCaption={view && <TutorCaption heard={view.tutorHeard} coming={view.tutorComing} />}
+        isDotLively={view !== null && (view.isTutorSpeaking || view.isHeard)}
+        boardNote={SESSION_LABELS.boardStandIn}
+        liveVoice={voice}
+      >
+        <ReplyBox liveVoice={liveVoice} />
       </SessionPanels>
     </SessionFrame>
   );
@@ -125,20 +138,24 @@ function SessionFrame({ facts, action, problem, children }: SessionFrameProps) {
 interface SessionPanelsProps extends PropsWithChildren {
   session: Session;
   tutorWords: string;
+  tutorCaption?: ReactNode;
+  isDotLively?: boolean;
   boardNote?: string;
+  liveVoice?: LiveVoice | null;
 }
 
-function SessionPanels({ session, tutorWords, boardNote, children }: SessionPanelsProps) {
+function SessionPanels({ session, tutorWords, tutorCaption, isDotLively = false, boardNote, liveVoice, children }: SessionPanelsProps) {
+  const picture = <Board artwork={findArtwork(session.artwork)} note={boardNote} />;
   return (
     <div className="grid flex-1 grid-cols-session gap-session py-4 max-md:grid-cols-1">
-      <Board artwork={findArtwork(session.artwork)} note={boardNote} />
+      {liveVoice ? <LiveBoard voice={liveVoice} whileEmpty={picture} /> : picture}
       <div className="flex min-w-0 flex-col gap-3.5">
         <div className="label flex items-center gap-2.5">
-          <i aria-hidden className="tutor-dot" />
+          <i aria-hidden data-testid="tutor-dot" data-lively={isDotLively} className={`tutor-dot ${isDotLively ? 'motion-safe:animate-speak' : ''}`} />
           <span>{SESSION_LABELS.yourTutor}</span>
         </div>
         <SessionTitle title={session.title} />
-        <p className="font-voice text-voice">{tutorWords}</p>
+        {tutorCaption ?? <p className="font-voice text-voice">{tutorWords}</p>}
         {children}
       </div>
     </div>
@@ -172,23 +189,66 @@ function BoardPicture({ artwork }: { artwork: Artwork }) {
   return <img src={artwork.src} alt={artwork.description} className="block max-h-board-art max-w-full object-contain" />;
 }
 
-function ReplyBox() {
-  const [reply, setReply] = useState<string | null>(null);
+function getVoiceNote({ status, waitSeconds, view }: LiveVoiceControls): string | null {
+  if (status === 'finished') return VOICE_LABELS.sessionFinished;
+  if (status === 'tooSoon') return VOICE_LABELS.tooSoon(waitSeconds);
+  if (status === 'connecting' || view?.phase === 'connecting') return VOICE_LABELS.connecting;
+  if (status === 'unavailable' || view?.phase === 'noTutor') return VOICE_LABELS.unavailable;
+  if (view?.phase === 'reconnecting') return VOICE_LABELS.reconnecting;
+  if (view?.phase === 'ended') return VOICE_LABELS.ended;
+  if (view?.phase === 'tutorLost') return VOICE_LABELS.tutorLost;
+  if (view?.phase === 'closedForQuiet') return VOICE_LABELS.closedForQuiet;
+  if (view?.isQuietWarning) return VOICE_LABELS.quietWarning;
+  if (view?.mic === 'denied') return VOICE_LABELS.micDenied;
+  if (view?.mic === 'noDevice') return VOICE_LABELS.micNoDevice;
+  if (view?.mic === 'failed') return VOICE_LABELS.micFailed;
+  if (view?.mic === 'on') return VOICE_LABELS.micOn;
+  return null;
+}
+
+function ReplyBox({ liveVoice }: { liveVoice: LiveVoiceControls }) {
+  const { status, view, voice, isTalkOn, sendTyped, toggleTalk, openAgain } = liveVoice;
+  const isFinished = status === 'finished';
+  const isOver = isFinished || status === 'tooSoon' || (view !== null && isVoiceOver(view.phase));
+  const [replyWithNoRoom, setReplyWithNoRoom] = useState<string | null>(null);
+  const voiceNote = getVoiceNote(liveVoice);
+
+  async function send(text: string) {
+    const wasSent = await sendTyped(text);
+    setReplyWithNoRoom(wasSent ? null : text);
+  }
 
   return (
     <div className="mt-auto flex flex-col gap-3.5">
       <div role="status" className="flex flex-col gap-3.5">
-        {reply && (
+        {view && <StudentCaption lines={view.studentLines} />}
+        {replyWithNoRoom && (
           <>
             <p className="border-t border-line pt-3 text-sub wrap-anywhere">
               <span className="label block text-ink-2">{SESSION_LABELS.you}</span>
-              {reply}
+              {replyWithNoRoom}
             </p>
             <p className="font-voice text-lead">{SESSION_LABELS.standInAnswer}</p>
           </>
         )}
+        {voiceNote && <p className="text-fine text-ink-2">{voiceNote}</p>}
       </div>
-      <ChatBox labels={REPLY_BOX_LABELS} canAttach={false} clearsOnSend onSend={setReply} onEdit={() => undefined} />
+      {isOver && !isFinished && (
+        <button type="button" onClick={() => void openAgain()} className="button button-outline self-start">
+          {view?.phase === 'closedForQuiet' ? VOICE_LABELS.openAgain : VOICE_LABELS.tryAgain}
+        </button>
+      )}
+      {view?.isQuietWarning && (
+        <button type="button" onClick={() => voice?.sayStillHere()} className="button button-outline self-start">
+          {VOICE_LABELS.stillHere}
+        </button>
+      )}
+      {view?.isSoundBlocked && !isOver && (
+        <button type="button" onClick={() => void voice?.turnOnSound()} className="button button-outline self-start">
+          {VOICE_LABELS.turnOnSound}
+        </button>
+      )}
+      <ChatBox labels={REPLY_BOX_LABELS} canAttach={false} clearsOnSend isSending={isOver} talk={{ isOn: isTalkOn, onToggle: () => void toggleTalk() }} onSend={(text) => void send(text)} onEdit={() => undefined} />
     </div>
   );
 }
