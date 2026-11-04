@@ -16,6 +16,8 @@ export interface TurnClock {
   read(): ClockReading | null;
   /** False once the turn's audio has gone quiet for longer than a pause inside a word. */
   isSounding(): boolean;
+  /** True while audio from before a stop can still be arriving, so opening the gain now would play it. */
+  isOldAudioArriving(): boolean;
 }
 
 /** The board's one source of time: audio, a timer, or a test's fake. */
@@ -25,8 +27,6 @@ export interface AudioClock {
   markTurnAudioOver(): void;
   /** Audio already on its way still arrives after a stop, and must not read as the next turn's first sound. */
   markTurnStopped(): void;
-  /** True while audio from before a stop can still be arriving, so opening the gain now would play it. */
-  isOldAudioArriving(): boolean;
   /** Called in audio order, so a turn can close on its own end before the next turn's first sound is read. */
   onAudioEnded(listener: () => void): void;
 }
@@ -41,7 +41,7 @@ export const TURN_SILENCE_MS = 150;
 /** The next turn's sound cannot come sooner after a stop than the agent's silence, less what a late stop message takes from it. */
 const OLD_AUDIO_AFTER_STOP_MS = TURN_SILENCE_MS - 40;
 
-/** The last of the old audio arrived up to 283 ms after a stop on the worst link, and its `end` takes 107 ms more. The gain never stays shut past this, so old and new audio merging with no `end` cannot leave a turn mute. */
+/** The last of the old audio arrived up to 309 ms after a stop on the worst link, and its `end` takes 107 ms more. The gain never stays shut past this, so old and new audio merging with no `end` cannot leave a turn mute. */
 const OLD_AUDIO_LIMIT_MS = 500;
 
 /** A first sound this long after a turn's first word times was lost, or has no silence before it, and the turn must not wait for it for ever. */
@@ -81,10 +81,6 @@ export function createSampleClock({ getGraphTimeMs, getOutputLatencyMs }: Sample
       if (!hasTurnWordTimes && !isSoundRecent()) return;
       oldAudioEndsByMs = getGraphTimeMs() + OLD_AUDIO_AFTER_STOP_MS;
       oldAudioLimitMs = getGraphTimeMs() + OLD_AUDIO_LIMIT_MS;
-    },
-    isOldAudioArriving() {
-      const nowMs = getGraphTimeMs();
-      return nowMs < oldAudioEndsByMs || (isAudioSounding && lastOnsetAtMs < oldAudioEndsByMs && nowMs < oldAudioLimitMs);
     },
     onAudioEnded(listener) {
       notifyAudioEnded = listener;
@@ -132,6 +128,10 @@ export function createSampleClock({ getGraphTimeMs, getOutputLatencyMs }: Sample
           return positionMs === null ? null : { positionMs, isGateOpen: isBlockAudible };
         },
         isSounding: () => isAudioSounding,
+        isOldAudioArriving() {
+          const nowMs = getGraphTimeMs();
+          return nowMs < oldAudioEndsByMs || (isAudioSounding && lastOnsetAtMs < oldAudioEndsByMs && nowMs < oldAudioLimitMs);
+        },
       };
     },
   };
@@ -149,7 +149,6 @@ export function createTimerClock({ getNowMs }: TimerClockOptions): AudioClock {
     getNowMs,
     markTurnAudioOver() {},
     markTurnStopped() {},
-    isOldAudioArriving: () => false,
     onAudioEnded() {},
     startTurn() {
       const wordClock = createWordClock();
@@ -170,6 +169,7 @@ export function createTimerClock({ getNowMs }: TimerClockOptions): AudioClock {
           const positionMs = wordClock.getPositionMs(getNowMs(), firstWordStartMs);
           return positionMs === null || positionMs < lastWordStartMs + TAIL_OF_LAST_WORD_MS;
         },
+        isOldAudioArriving: () => false,
       };
     },
   };

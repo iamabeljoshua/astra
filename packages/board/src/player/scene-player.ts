@@ -78,7 +78,7 @@ export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueF
   const operationsOfOldTurns: BoardOperation[] = [];
 
   const openOutput = () => {
-    if (levelOnceOldAudioHasGone === null || clock.isOldAudioArriving()) return;
+    if (levelOnceOldAudioHasGone === null || turn?.clock.isOldAudioArriving()) return;
     setOutputLevel(levelOnceOldAudioHasGone);
     levelOnceOldAudioHasGone = null;
   };
