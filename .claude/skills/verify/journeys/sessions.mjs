@@ -5,7 +5,6 @@ const CARD_TITLE = 'How a jump shot flies';
 const RETURNING_SESSION_TITLE = 'Free-body diagrams';
 const STALE_LINE = 'Live lessons open soon';
 const NO_ROOM_NOTE = 'Your tutor could not connect just now.';
-const IDLE_WORDS = 'To carry on, type a reply or press Talk.';
 const REPLY_NOT_SENT = 'This did not reach your tutor.';
 const LIVE_ROOM_ADDRESS = /\/api\/sessions\/[0-9a-f-]{36}\/live-room$/;
 
@@ -46,7 +45,6 @@ async function sendQuestionAndEnd({ page, capture, viewportName }) {
   await capture('dot');
   await page.getByRole('heading', { level: 1, name: question }).waitFor();
   await assertTheRoomAnsweredAsExpected(page, roomAnswer);
-  assert.equal(await page.getByText(IDLE_WORDS).count(), 0, 'a new question does not invite a reply to itself');
   await capture('session');
   assert.match(new URL(page.url()).pathname, /^\/sessions\/[0-9a-f-]{36}$/);
 
@@ -92,16 +90,14 @@ async function replyOnReturningSession({ page, capture, viewportName }) {
   const roomAnswer = waitForRoomAnswer(page);
   await page.getByRole('table').getByRole('link', { name: RETURNING_SESSION_TITLE }).click();
   await page.getByRole('heading', { level: 1, name: RETURNING_SESSION_TITLE }).waitFor();
-  await page.getByText(IDLE_WORDS).waitFor();
+  await assertTheRoomAnsweredAsExpected(page, roomAnswer);
   assert.equal(await page.getByText(STALE_LINE).count(), 0, 'a returning student is not told live lessons open soon');
   await capture('returning');
 
   const reply = `Gravity, I think. ${viewportName} ${Date.now()}`;
   await page.getByRole('textbox', { name: 'Your reply' }).fill(reply);
   await page.getByRole('button', { name: 'Send reply' }).click();
-  await assertTheRoomAnsweredAsExpected(page, roomAnswer);
   await page.getByText(reply).waitFor();
-  assert.equal(await page.getByText(IDLE_WORDS).count(), 0, 'the invitation goes once the student replies');
   assert.equal(await page.getByText(REPLY_NOT_SENT).count(), hasRoomService ? 0 : 1, 'the screen says a reply did not arrive only when it did not');
   await capture('reply');
 }

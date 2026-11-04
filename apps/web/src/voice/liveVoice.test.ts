@@ -215,6 +215,25 @@ describe('joining a room', () => {
   });
 });
 
+describe('a room that opens with no press', () => {
+  it('touches no microphone until the student presses Talk, while the tutor speaks', async () => {
+    const { getUserMedia } = stubMicrophone();
+    const { room } = await openVoice();
+
+    room.emit('TrackSubscribed', { kind: 'audio' });
+    fromAgent(room, { type: 'pulse' });
+    fromAgent(room, { type: 'turnStarted', turnId: 'turn-a-1' });
+    await vi.advanceTimersByTimeAsync(5000);
+
+    expect(getUserMedia).not.toHaveBeenCalled();
+    expect(room.localParticipant.publishTrack).not.toHaveBeenCalled();
+    expect(voice.getView().mic).toBe('off');
+
+    await voice.toggleMic();
+    expect(getUserMedia).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('the first pulses of a room', () => {
   const getPulses = (room: InstanceType<typeof FakeRoom>) => getSentMessages(room).filter((message) => message.type === 'pulse') as unknown as { hearsAgent: boolean }[];
 

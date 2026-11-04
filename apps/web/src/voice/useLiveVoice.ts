@@ -1,4 +1,3 @@
-import type { components } from '@astra/contracts';
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { ApiError } from '../api/apiError';
 import { api } from '../api/client';
@@ -7,10 +6,6 @@ import { type LiveVoice, type LiveVoiceView, startLiveVoice } from './liveVoice'
 export type LiveVoiceStatus = 'idle' | 'connecting' | 'live' | 'unavailable' | 'overLimit' | 'finished';
 
 const SESSION_FINISHED_STATUS = 409;
-/** A room with no student closes after 120 s and its token lasts as long, so an answer older than this is asked for again. */
-const WARM_ANSWER_LASTS_MS = 100_000;
-
-type RoomAnswer = components['schemas']['LiveRoomResponseDto'];
 
 const noSubscribe = () => () => {};
 const noView = () => null;
@@ -34,48 +29,31 @@ export interface LiveVoiceControls {
   /** Follows the student's press at once, so a room still opening cannot look like a press that missed. */
   isTalkOn: boolean;
   connect(options?: { wantsGreeting: boolean; startsOver?: boolean }): Promise<LiveVoice | null>;
-  /** Calls the tutor in before the student presses anything, so the first press does not wait for a job. */
-  warm(): void;
   sendTyped(text: string): Promise<boolean>;
   toggleTalk(): Promise<void>;
-  /** Leaves a room the tutor has gone from, and opens a new one with a new tutor. */
-  openAgain(): Promise<void>;
+  /** Leaves a room the tutor has gone from, opens a new one with a new tutor, and starts it talking with this line. */
+  openAgain(opening: string): Promise<void>;
 }
 
-// One room for one session screen, opened by the student's own press, because audio needs a user gesture. With no access from the API it joins no room.
+// One room for one session screen, joined as the screen opens so the student is never left waiting. The microphone stays off until they press Talk. With no access from the API it joins no room.
 export function useLiveVoice({ sessionId, usesSpeechCleanup = true, start = startLiveVoice }: UseLiveVoiceOptions): LiveVoiceControls {
   const [status, setStatus] = useState<LiveVoiceStatus>('idle');
   const [voice, setVoice] = useState<LiveVoice | null>(null);
   const opening = useRef<Promise<LiveVoice | null> | null>(null);
-  const warmed = useRef<{ answer: Promise<RoomAnswer>; askedAtMs: number } | null>(null);
   const isGone = useRef(false);
   const pressesWhileOpening = useRef(0);
   const [isTalkWaiting, setIsTalkWaiting] = useState(false);
   const view = useSyncExternalStore(voice?.subscribe ?? noSubscribe, voice?.getView ?? noView);
 
-  const askForRoom = useCallback((query: { startOver?: 'yes' } = {}) => api.post('/sessions/{id}/live-room', { params: { path: { id: sessionId }, query } }), [sessionId]);
-
-  const warm = useCallback(() => {
-    if (warmed.current || opening.current) return;
-    const answer = askForRoom();
-    answer.catch(() => {});
-    warmed.current = { answer, askedAtMs: Date.now() };
-  }, [askForRoom]);
-
   const connect = useCallback(({ wantsGreeting, startsOver = false }: { wantsGreeting: boolean; startsOver?: boolean } = { wantsGreeting: true }) => {
     opening.current ??= (async () => {
       setStatus('connecting');
       let nextAskStartsOver = startsOver;
-      const takeWarmAnswer = () => {
-        const held = warmed.current;
-        warmed.current = null;
-        return held && Date.now() - held.askedAtMs < WARM_ANSWER_LASTS_MS ? held.answer.catch(() => askForRoom()) : askForRoom();
-      };
       const getAccess = async () => {
-        const asking = nextAskStartsOver ? askForRoom({ startOver: 'yes' }) : takeWarmAnswer();
+        const query = nextAskStartsOver ? { startOver: 'yes' as const } : {};
         nextAskStartsOver = false;
         try {
-          const { access, unavailableBecause } = await asking;
+          const { access, unavailableBecause } = await api.post('/sessions/{id}/live-room', { params: { path: { id: sessionId }, query } });
           if (!access) setStatus(unavailableBecause === 'dailyLimit' ? 'overLimit' : 'unavailable');
           return access;
         } catch (problem) {
@@ -101,7 +79,7 @@ export function useLiveVoice({ sessionId, usesSpeechCleanup = true, start = star
       }
     })();
     return opening.current;
-  }, [askForRoom, start, usesSpeechCleanup]);
+  }, [sessionId, start, usesSpeechCleanup]);
 
   useEffect(() => {
     isGone.current = false;
@@ -129,7 +107,6 @@ export function useLiveVoice({ sessionId, usesSpeechCleanup = true, start = star
     voice,
     isTalkOn,
     connect,
-    warm,
     sendTyped,
     // Every press counts, because a second press while the room opens means off. Only the sum of them reaches the microphone.
     async toggleTalk() {
@@ -142,12 +119,13 @@ export function useLiveVoice({ sessionId, usesSpeechCleanup = true, start = star
       setIsTalkWaiting(false);
       if (opened && presses % 2 === 1) await opened.toggleMic();
     },
-    async openAgain() {
+    async openAgain(openingLine) {
       const old = await opening.current;
       opening.current = null;
       setVoice(null);
       await old?.close();
-      await connect({ wantsGreeting: false, startsOver: true });
+      const opened = await connect({ wantsGreeting: false, startsOver: true });
+      opened?.sendTyped(openingLine);
     },
   };
 }

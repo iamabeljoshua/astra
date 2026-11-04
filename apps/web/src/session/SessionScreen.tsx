@@ -48,8 +48,9 @@ function OpenSession({ session }: { session: Session }) {
   return wasFinishedOnOpening ? <FinishedSession session={session} /> : <RunningSession session={session} />;
 }
 
-export function getOpeningMessage({ title, subject, durationSeconds }: Pick<Session, 'title' | 'subject' | 'durationSeconds'>): string | null {
-  if (durationSeconds > 0) return null;
+// Every session speaks first, so a student is never left waiting on a blank screen. Sending this opens the room.
+export function getOpeningMessage({ title, subject, durationSeconds }: Pick<Session, 'title' | 'subject' | 'durationSeconds'>): string {
+  if (durationSeconds > 0) return SESSION_LABELS.carryOnWith(title);
   return subject === SESSION_LABELS.questionSubject ? title : SESSION_LABELS.askAboutTopic(title);
 }
 
@@ -59,7 +60,6 @@ function useOpeningMessage(session: Session, sendTyped: (text: string) => Promis
   const hasSent = useRef(false);
 
   useEffect(() => {
-    if (!opening) return;
     const sending = setTimeout(() => {
       if (hasSent.current) return;
       hasSent.current = true;
@@ -67,21 +67,40 @@ function useOpeningMessage(session: Session, sendTyped: (text: string) => Promis
     });
     return () => clearTimeout(sending);
   }, [opening, sendTyped]);
+}
 
-  return opening;
+function isTutorOnTheWay(status: LiveVoiceControls['status'], view: LiveVoiceView | null): boolean {
+  if (view) return !isVoiceOver(view.phase) && view.phase !== 'reconnecting' && !view.closedBecause;
+  return status === 'idle' || status === 'connecting';
+}
+
+/** Long enough for a student to think, so the prompt never hurries an answer on its way. */
+const ANSWER_PROMPT_AFTER_MS = 8000;
+
+// The tutor does not nag out loud. Once it has stopped and the student has done nothing for a while, the page says what they can do.
+function useIsAnswerDue(view: LiveVoiceView | null, draftEdits: number): boolean {
+  const isWaiting = view !== null && view.phase === 'live' && view.mic === 'off' && !view.closedBecause && !view.isTutorSpeaking && !view.isThinking && !view.isHeard && view.tutorHeard.length > 0;
+  const studentLines = view?.studentLines.length ?? 0;
+  const [isDue, setIsDue] = useState(false);
+
+  useEffect(() => {
+    if (!isWaiting) return;
+    const prompting = setTimeout(() => setIsDue(true), ANSWER_PROMPT_AFTER_MS);
+    return () => {
+      clearTimeout(prompting);
+      setIsDue(false);
+    };
+  }, [isWaiting, studentLines, draftEdits]);
+
+  return isWaiting && isDue;
 }
 
 function RunningSession({ session }: { session: Session }) {
   const { seconds, endSession, isEnding, endProblem } = useSessionRun(session);
   const liveVoice = useLiveVoice({ sessionId: session.id });
-  const { view, voice } = liveVoice;
-  const opening = useOpeningMessage(session, liveVoice.sendTyped);
-  const { warm } = liveVoice;
-  // A new session warmed its room when it was made, and one continued from Home has none yet.
-  useEffect(() => {
-    if (!opening) warm();
-  }, [opening, warm]);
-  const idleWords = liveVoice.status === 'idle' && !opening ? SESSION_LABELS.idleWords : null;
+  const { status, view, voice } = liveVoice;
+  useOpeningMessage(session, liveVoice.sendTyped);
+  const hasTutorWords = view !== null && view.tutorHeard.length + view.tutorComing.length > 0;
 
   return (
     <SessionFrame
@@ -91,13 +110,13 @@ function RunningSession({ session }: { session: Session }) {
     >
       <SessionPanels
         session={session}
-        tutorWords={idleWords}
-        tutorCaption={view && <TutorCaption heard={view.tutorHeard} coming={view.tutorComing} />}
+        tutorWords={!hasTutorWords && isTutorOnTheWay(status, view) ? VOICE_LABELS.connecting : null}
+        tutorCaption={hasTutorWords ? <TutorCaption heard={view.tutorHeard} coming={view.tutorComing} /> : null}
         isDotLively={view !== null && !view.closedBecause && (view.isTutorSpeaking || view.isHeard || view.isThinking)}
         boardNote={SESSION_LABELS.boardStandIn}
         liveVoice={voice}
       >
-        <ReplyBox liveVoice={liveVoice} />
+        <ReplyBox liveVoice={liveVoice} carryOnLine={SESSION_LABELS.carryOnWith(session.title)} />
       </SessionPanels>
     </SessionFrame>
   );
@@ -185,7 +204,7 @@ function SessionPanels({ session, tutorWords, tutorCaption, isDotLively = false,
           <span>{SESSION_LABELS.yourTutor}</span>
         </div>
         <SessionTitle title={session.title} />
-        {tutorCaption ?? (tutorWords && <p className="font-voice text-voice">{tutorWords}</p>)}
+        {tutorCaption ?? (tutorWords && <p role="status" className="font-voice text-voice">{tutorWords}</p>)}
         {children}
       </div>
     </div>
@@ -219,11 +238,10 @@ function BoardPicture({ artwork }: { artwork: Artwork }) {
   return <img src={artwork.src} alt={artwork.description} className="block max-h-board-art max-w-full object-contain" />;
 }
 
-function getVoiceNote(status: LiveVoiceControls['status'], view: LiveVoiceView | null): string | null {
+function getVoiceNote(status: LiveVoiceControls['status'], view: LiveVoiceView | null, isAnswerDue: boolean): string | null {
   if (view?.closedBecause) return VOICE_LABELS[view.closedBecause];
   if (status === 'overLimit') return VOICE_LABELS.dailyLimit;
   if (status === 'finished') return VOICE_LABELS.sessionFinished;
-  if (status === 'connecting' || view?.phase === 'connecting') return VOICE_LABELS.connecting;
   if (status === 'unavailable' || view?.phase === 'noTutor') return VOICE_LABELS.unavailable;
   if (view?.phase === 'reconnecting') return VOICE_LABELS.reconnecting;
   if (view?.phase === 'ended') return VOICE_LABELS.ended;
@@ -235,17 +253,18 @@ function getVoiceNote(status: LiveVoiceControls['status'], view: LiveVoiceView |
   if (view?.mic === 'noDevice') return VOICE_LABELS.micNoDevice;
   if (view?.mic === 'failed') return VOICE_LABELS.micFailed;
   if (view?.mic === 'on') return VOICE_LABELS.micOn;
-  return null;
+  return isAnswerDue ? VOICE_LABELS.answerPrompt : null;
 }
 
-function ReplyBox({ liveVoice }: { liveVoice: LiveVoiceControls }) {
+function ReplyBox({ liveVoice, carryOnLine }: { liveVoice: LiveVoiceControls; carryOnLine: string }) {
   const { status, view, voice, isTalkOn, sendTyped, toggleTalk, openAgain } = liveVoice;
   const isFinished = status === 'finished';
   const isOver = isFinished || (view !== null && isVoiceOver(view.phase));
   // A tutor closed for spending is closed for this session too, and another room would only start it over.
   const canOpenAgain = isOver && !isFinished && status !== 'overLimit' && !view?.closedBecause;
   const [replyWithNoRoom, setReplyWithNoRoom] = useState<string | null>(null);
-  const voiceNote = getVoiceNote(status, view);
+  const [draftEdits, setDraftEdits] = useState(0);
+  const voiceNote = getVoiceNote(status, view, useIsAnswerDue(view, draftEdits));
 
   async function send(text: string) {
     const wasSent = await sendTyped(text);
@@ -268,7 +287,7 @@ function ReplyBox({ liveVoice }: { liveVoice: LiveVoiceControls }) {
         {voiceNote && <p className="text-fine text-ink-2">{voiceNote}</p>}
       </div>
       {canOpenAgain && (
-        <button type="button" onClick={() => void openAgain()} className="button button-outline self-start">
+        <button type="button" onClick={() => void openAgain(carryOnLine)} className="button button-outline self-start">
           {view?.phase === 'closedForQuiet' ? VOICE_LABELS.openAgain : VOICE_LABELS.tryAgain}
         </button>
       )}
@@ -279,10 +298,10 @@ function ReplyBox({ liveVoice }: { liveVoice: LiveVoiceControls }) {
       )}
       {view?.isSoundBlocked && !isOver && (
         <button type="button" onClick={() => void voice?.turnOnSound()} className="button button-outline self-start">
-          {VOICE_LABELS.turnOnSound}
+          {VOICE_LABELS.tapToHear}
         </button>
       )}
-      <ChatBox labels={REPLY_BOX_LABELS} canAttach={false} clearsOnSend isSending={isOver} talk={{ isOn: isTalkOn, onToggle: () => void toggleTalk() }} onSend={(text) => void send(text)} onEdit={() => undefined} />
+      <ChatBox labels={REPLY_BOX_LABELS} canAttach={false} clearsOnSend isSending={isOver} talk={{ isOn: isTalkOn, onToggle: () => void toggleTalk() }} onSend={(text) => void send(text)} onEdit={() => setDraftEdits((edits) => edits + 1)} />
     </div>
   );
 }

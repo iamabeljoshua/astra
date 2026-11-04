@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../App';
-import { REPLY_BOX_LABELS, VOICE_LABELS } from '../strings';
+import { REPLY_BOX_LABELS, SESSION_LABELS, VOICE_LABELS } from '../strings';
 import { makeSession, stubSessionsApi } from '../test/sessionsApi';
 import type { LiveVoice, LiveVoiceView } from './liveVoice';
 
@@ -86,6 +86,7 @@ describe('what the student sees of a room', () => {
     await waitFor(() => expect(startLiveVoice).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(voice.close).toHaveBeenCalled());
     await waitFor(() => expect(getBox().readOnly).toBe(false));
+    await waitFor(() => expect(second.voice.sendTyped).toHaveBeenCalledWith(SESSION_LABELS.carryOnWith(makeSession().title)));
   });
 
   it('says in one line that the tutor started fresh after the page landed in a new room', async () => {
@@ -103,6 +104,84 @@ describe('what the student sees of a room', () => {
     expect(screen.getByText(VOICE_LABELS.sessionLimit)).toBeTruthy();
     expect(screen.queryByRole('button', { name: VOICE_LABELS.openAgain })).toBeNull();
     expect(screen.queryByRole('button', { name: VOICE_LABELS.tryAgain })).toBeNull();
+  });
+
+  it('shows one clear prompt to tap when the browser blocks sound, not a blank wait', async () => {
+    const { voice, setView } = await openVoice();
+    act(() => setView({ isSoundBlocked: true }));
+    fireEvent.click(screen.getByRole('button', { name: VOICE_LABELS.tapToHear }));
+    expect(voice.turnOnSound).toHaveBeenCalled();
+  });
+
+  it('shows a calm line while the tutor has not said anything yet, and drops it for the first words', async () => {
+    const { setView } = await openVoice();
+    act(() => setView({ phase: 'connecting' }));
+    expect(screen.getByText(VOICE_LABELS.connecting)).toBeTruthy();
+    act(() => setView({ phase: 'live' }));
+    expect(screen.getByText(VOICE_LABELS.connecting)).toBeTruthy();
+    act(() => setView({ tutorHeard: ['Welcome,'], tutorComing: ['I', 'am'], isTutorSpeaking: true }));
+    expect(screen.queryByText(VOICE_LABELS.connecting)).toBeNull();
+  });
+
+  describe('once the tutor has finished and the student has not acted', () => {
+    const FINISHED = { tutorHeard: ['What', 'is', 'x?'], tutorComing: [], isTutorSpeaking: false };
+    const openAndFinish = async () => {
+      const opened = await openVoice();
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      act(() => opened.setView(FINISHED));
+      return opened;
+    };
+    const wait = (ms: number) => act(() => vi.advanceTimersByTime(ms));
+    afterEach(() => vi.useRealTimers());
+
+    it('shows a quiet prompt after about 8 s, and not before', async () => {
+      await openAndFinish();
+      wait(7900);
+      expect(screen.queryByText(VOICE_LABELS.answerPrompt)).toBeNull();
+      wait(200);
+      expect(screen.getByText(VOICE_LABELS.answerPrompt)).toBeTruthy();
+    });
+
+    it('takes it down when the tutor speaks again, and starts the wait over after', async () => {
+      const { setView } = await openAndFinish();
+      wait(8100);
+      act(() => setView({ tutorComing: ['And'], isTutorSpeaking: true }));
+      expect(screen.queryByText(VOICE_LABELS.answerPrompt)).toBeNull();
+      act(() => setView(FINISHED));
+      expect(screen.queryByText(VOICE_LABELS.answerPrompt)).toBeNull();
+      wait(8100);
+      expect(screen.getByText(VOICE_LABELS.answerPrompt)).toBeTruthy();
+    });
+
+    it('starts over when the student says or types something', async () => {
+      const { setView } = await openAndFinish();
+      wait(7000);
+      act(() => setView({ studentLines: [{ text: 'Hello', isFinal: true }] }));
+      wait(7000);
+      expect(screen.queryByText(VOICE_LABELS.answerPrompt)).toBeNull();
+      wait(1100);
+      expect(screen.getByText(VOICE_LABELS.answerPrompt)).toBeTruthy();
+    });
+
+    it('starts over while the student is writing a reply', async () => {
+      await openAndFinish();
+      wait(7000);
+      fireEvent.change(getBox(), { target: { value: 'I think' } });
+      wait(7000);
+      expect(screen.queryByText(VOICE_LABELS.answerPrompt)).toBeNull();
+    });
+
+    it.each([
+      ['the microphone is on', { mic: 'on' }],
+      ['the tutor is thinking', { isThinking: true }],
+      ['the room is dropping', { phase: 'reconnecting' }],
+      ['the tutor has closed', { closedBecause: 'sessionLimit' }],
+    ] as const)('stays away when %s', async (_name, view) => {
+      const { setView } = await openAndFinish();
+      act(() => setView(view));
+      wait(9000);
+      expect(screen.queryByText(VOICE_LABELS.answerPrompt)).toBeNull();
+    });
   });
 
   it('warns before a quiet room closes, and the student can keep it open', async () => {

@@ -7,8 +7,8 @@ A student starts a session by sending a question or choosing a card, and the ses
 - `session-question` lands the tutor's dot where the full stop of the typed question would sit, then fades into the session screen.
 - `session-card` starts a session on a card's topic straight away, with the card's picture on the board, and stores the topic.
 - `session-continue` opens the unfinished session from the continue card on Home, or from a card that says `Carry on where you left off`.
-- `session-screen` shows the board, the tutor's dot, the title, a clock, and a reply box. A new question shows no words of its own while the room opens. A reply opens the session's room, and the tutor answers. [Live voice](./voice.md) covers that.
-- `session-returning` opens a running session with some length saved. It shows `To carry on, type a reply or press Talk.` and opens no room until the student types or presses Talk.
+- `session-screen` shows the board, the tutor's dot, the title, a clock, and a reply box. It joins the session's room as it opens, with no press, and says `Connecting to your tutor.` until the tutor speaks. [Live voice](./voice.md) covers that.
+- `session-returning` opens a running session with some length saved. It joins the room and sends `I'm back to carry on with this: <title>`, so the tutor speaks first there too.
 - `session-no-room` is the app with no LiveKit keys. The room route answers 200, the screen says `Your tutor could not connect just now.`, a reply stays on the screen with `This did not reach your tutor.`, and the browser logs no error.
 - `session-daily-limit` is a student whose tutor spend today has reached `ASTRA_DAILY_LIMIT_USD`. The room route answers 200 with no access, and the screen says `That is all your tutor time for today. Come back tomorrow. Your sessions are kept.`
 - `session-refresh` keeps the session on a refresh, because the record is saved before the page fades.
