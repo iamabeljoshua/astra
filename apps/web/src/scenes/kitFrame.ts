@@ -79,7 +79,8 @@ export interface OpenKitFrameInput {
 
 export async function openKitFrame({ host, take, theme, limitMs, onStall }: OpenKitFrameInput): Promise<KitFrame> {
   const [{ kitBundle, fontCss }, textures] = await Promise.all([getSharedFiles(), getTextures(take.code)]);
-  const iframe = createFrameElement(buildKitFramePage({ kitBundle, fontCss, code: take.code }));
+  const page = buildKitFramePage({ kitBundle, fontCss, code: take.code });
+  const iframe = createFrameElement(page);
   let currentTheme = theme;
   let wantSeconds = 0;
   let missedPings = 0;
@@ -125,7 +126,8 @@ export async function openKitFrame({ host, take, theme, limitMs, onStall }: Open
     setTheme(next) {
       if (next === currentTheme) return;
       currentTheme = next;
-      tell({ type: 'theme', theme: next });
+      // A scene reads the theme as it builds, so it builds again, as a 2D take fetches its other theme.
+      iframe.srcdoc = page;
     },
     resize: () => tell({ type: 'resize' }),
     dispose,

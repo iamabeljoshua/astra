@@ -114,7 +114,6 @@ async function load(command) {
   }));
   const momentsSeen = new Set();
   try {
-    document.documentElement.dataset.theme = command.theme;
     kit = createKit({ canvas: document.getElementById('c'), overlay: document.getElementById('o'), timing: command.timing, textures, quality: command.quality ?? 'high', theme: command.theme, onIssue: (message) => issues.push(message) });
     noteMoments(momentsSeen);
     const buildStartedAt = real.now();
@@ -158,10 +157,19 @@ function runGate(times) {
   return result;
 }
 
+function freeGpu() {
+  kit.scene.traverse((object) => {
+    object.geometry?.dispose();
+    for (const material of [object.material].flat()) material?.dispose();
+  });
+  kit.renderer.dispose();
+  kit.renderer.forceContextLoss();
+}
+
 function dispose() {
   isDisposed = true;
   wantSeconds = null;
-  kit?.__dispose();
+  if (kit) freeGpu();
   kit = null;
   sceneObject = null;
   for (const bitmap of bitmaps) bitmap.close();
@@ -172,7 +180,6 @@ const COMMANDS = {
   load,
   render: ({ seconds }) => { wantSeconds = seconds; },
   resize: () => { kit?.__resize(); lastSeconds = null; },
-  theme: ({ theme }) => { document.documentElement.dataset.theme = theme; kit?.__theme(theme); lastSeconds = null; },
   dispose,
   ping: ({ id }) => tell({ type: 'pong', id }),
   gate({ times }) {
@@ -183,6 +190,18 @@ const COMMANDS = {
     const result = [];
     try { for (const time of times) { draw(time); result.push(kit.__snapshot(time)); } tell({ type: 'snapshot', result, params: kit.__params() }); }
     catch (error) { tell({ type: 'snapshot', error: String(error.message), result }); }
+    lastSeconds = null;
+  },
+  audit({ times }) {
+    const result = [];
+    try { for (const time of times) { draw(time); result.push({ t: time, rects: kit.__rects().map((rect) => ({ ...rect })), hud: kit.__hud(), probe: sceneObject.probe ? sceneObject.probe(time) : null, info: kit.__info() }); } tell({ type: 'audit', result }); }
+    catch (error) { tell({ type: 'audit', error: String(error.message), result }); }
+    lastSeconds = null;
+  },
+  flash({ times }) {
+    const result = [];
+    try { for (const time of times) { draw(time); const { mean, tiles } = kit.__tiles(); result.push({ t: time, mean, tiles }); } tell({ type: 'flash', result }); }
+    catch (error) { tell({ type: 'flash', error: String(error.message), result }); }
     lastSeconds = null;
   },
   picture({ seconds, id }) {
