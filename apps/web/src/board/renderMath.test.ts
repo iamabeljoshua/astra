@@ -1,15 +1,28 @@
 import { collectMathPaints, getPaintsOfSpans, renderTex } from '@astra/board/drawing';
 import { findMathSpans, getMathParts, getTexProblem } from '@astra/contracts';
 import { makeTexFuzzSources } from '@astra/board/tex-fuzz';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 const raw = String.raw;
+
+// With no call left to build a tree, everything is refused, so a refusal proves nothing until this passes.
+beforeEach(() => {
+  expect(renderTex('x', document.createElement('div')), 'the KaTeX call the tree limit measures is gone').toBe(true);
+});
 
 function render(tex: string): HTMLElement {
   const host = document.createElement('div');
   expect(renderTex(tex, host)).toBe(true);
   return host;
 }
+
+describe('the stylesheet the board loads', () => {
+  it('sets every KaTeX font to swap, because the blocking build leaves a stalled font blank for 3 s', () => {
+    const faces = [...document.querySelectorAll('style')].flatMap((style) => style.textContent.match(/@font-face\s*\{[^}]*\}/g) ?? []);
+    expect(faces.length).toBeGreaterThan(0);
+    expect(faces.filter((face) => !/font-display:\s*swap/.test(face))).toEqual([]);
+  });
+});
 
 describe('renderTex', () => {
   it('sets math as KaTeX spans', () => {
@@ -90,6 +103,8 @@ describe('how large a tree renderTex may build', () => {
     ['twelve fractions deep', `${raw`\frac{`.repeat(12)}x${'}{2}'.repeat(12)}`],
     ['twelve scripts deep', `${'x^{'.repeat(12)}y${'}'.repeat(12)}`],
     ['a six by six matrix', raw`\begin{pmatrix}` + Array.from({ length: 6 }, () => '1&2&3&4&5&6').join(raw`\\`) + raw`\end{pmatrix}`],
+    ['a Hindi word with three marks in a row', raw`5 + 3 = 8 \quad \text{जोड़ें}`],
+    ['the longest run of a mark that does not nest', `x${'\u20d7'.repeat(495)}`],
   ])('still sets %s', (_name, tex) => {
     expect(getTexProblem(tex)).toBeNull();
     const host = render(tex);
@@ -171,6 +186,15 @@ describe('which ink belongs to which term', () => {
     ['b^2 - 4ac', '4ac', ['4', 'a', 'c']],
     ['b^2 - 4ac', 'b^2', ['2', 'b']],
     [raw`\begin{pmatrix} 2 & 1 \\ 1 & 3 \end{pmatrix}`, '3', ['3']],
+    [raw`\gcd(a,b)`, raw`\gcd`, ['cd', 'g']],
+    [raw`\gcd x`, raw`\gcd`, ['cd', 'g']],
+    [raw`\gcd_a x`, raw`\gcd`, ['cd', 'g']],
+    [raw`\gcd\limits_a x`, raw`\gcd`, ['cd', 'g']],
+    [raw`\gcd\nolimits_a x`, raw`\gcd`, ['cd', 'g']],
+    [raw`\limsup\nolimits_n x`, raw`\limsup`, ['lim', 'sup']],
+    [raw`\liminf\nolimits_n x`, raw`\liminf`, ['inf', 'lim']],
+    [raw`\begin{pmatrix} 2 & 1 \\ 1 & 3 \end{pmatrix} = A`, raw`\begin{pmatrix} 2 & 1 \\ 1 & 3 \end{pmatrix}`, ['(', ')', '1', '1', '2', '3']],
+    [raw`A = \begin{cases} x & y \end{cases}`, raw`\begin{cases} x & y \end{cases}`, ['x', 'y', '{']],
   ])('finds in %s the ink of %s, written without braces', (tex, query, glyphs) => {
     const paints = collectMathPaints(render(tex));
     const [span] = findMathSpans(tex, query);

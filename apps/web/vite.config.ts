@@ -46,6 +46,8 @@ export default defineConfig(({ command, mode }) => {
     },
     test: {
       environment: 'jsdom',
+      // The one stylesheet a test reads. Every other one stays out, which keeps the tests fast.
+      css: { include: [/katex/] },
       setupFiles: ['./src/testSetup.ts'],
       env: {
         VITE_SUPABASE_URL: 'http://127.0.0.1:54421',

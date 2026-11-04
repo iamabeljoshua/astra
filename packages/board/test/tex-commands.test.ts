@@ -1,7 +1,7 @@
-import { ALLOWED_TEX_COMMANDS } from '@astra/contracts';
-import { describe, expect, it } from 'vitest';
+import { ALLOWED_TEX_COMMANDS, getTexProblem } from '@astra/contracts';
+import { beforeEach, describe, expect, it } from 'vitest';
 import katex from 'katex';
-import { canRenderTex, KATEX_OPTIONS } from '../src/math/tex-check.ts';
+import { buildTexTree, canRenderTex, KATEX_OPTIONS } from '../src/math/tex-check.ts';
 
 const NEEDS_ITS_OWN_SHAPE: Readonly<Record<string, string>> = {
   '\\left': String.raw`\left( x \right)`,
@@ -37,6 +37,11 @@ describe('the commands the scene language lets through', () => {
 });
 
 describe('canRenderTex', () => {
+  // With no call left to build a tree, everything is refused, so a refusal proves nothing until this passes.
+  beforeEach(() => {
+    expect(buildTexTree('x')?.children?.length, 'the KaTeX call the tree limit measures is gone').toBeGreaterThan(0);
+  });
+
   it('refuses a tree too deep to lay out, with no DOM to measure it on', () => {
     expect(canRenderTex(`x${'\u0301'.repeat(200)}`)).toBe(false);
   });
@@ -47,6 +52,47 @@ describe('canRenderTex', () => {
 
   it('still takes the deepest nesting the parser lets through', () => {
     expect(canRenderTex(`${String.raw`\overset{a}{`.repeat(12)}x${'}'.repeat(12)}`)).toBe(true);
+  });
+});
+
+describe('combining marks', () => {
+  const ALL_MARKS = Array.from({ length: 0x110000 }, (_, codePoint) => codePoint)
+    .filter((codePoint) => codePoint < 0xd800 || codePoint > 0xdfff)
+    .map((codePoint) => String.fromCodePoint(codePoint))
+    .filter((character) => /\p{M}/u.test(character));
+  const LONG_RUN = 30;
+
+  it('refuses a run of exactly the marks KaTeX cannot set in a run', () => {
+    expect(ALL_MARKS.length).toBeGreaterThan(2000);
+    const wronglyJudged = ALL_MARKS.filter((mark) => {
+      const tex = `x${mark.repeat(LONG_RUN)}`;
+      return (getTexProblem(tex) === null) !== canRenderTex(tex);
+    });
+    expect(wronglyJudged).toEqual([]);
+  });
+
+  it.each([24, 50, 100, 120, 135, 200, 300, 400, 495])('refuses at both layers the run of %i marks the tab crash work tried', (count) => {
+    const tex = `x${'\u0301'.repeat(count)}`;
+    expect(getTexProblem(tex)).toMatch(/at most 2 accent marks/);
+    expect(canRenderTex(tex)).toBe(false);
+  });
+
+  it('stays bounded when marks that do not nest split a run of marks that do', () => {
+    const tex = 'x\u0301\u0301\u093c'.repeat(120);
+    expect(getTexProblem(tex)).toBeNull();
+    expect(canRenderTex(tex)).toBe(false);
+  });
+
+  it.each([
+    ['the add word', String.raw`5 + 3 = 8 \quad \text{जोड़ें}`],
+    ['the read word', String.raw`\text{पढ़ें} = 5`],
+    ['the trees word', String.raw`\text{पेड़ों} = 5`],
+    ['a pointed Hebrew word', String.raw`\text{הַשָּׁמַיִם} = 5`],
+    ['a Burmese word', String.raw`\text{မြွေ} = 5`],
+    ['the longest run of a mark that does not nest', `x${'\u20d7'.repeat(495)}`],
+  ])('takes %s at both layers', (_name, tex) => {
+    expect(getTexProblem(tex)).toBeNull();
+    expect(canRenderTex(tex)).toBe(true);
   });
 });
 
