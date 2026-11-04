@@ -398,6 +398,36 @@ export const LAB_LABELS = {
   logEvents: 'Events in the log:',
 };
 
+export const BOARD_LABELS = {
+  figures: {
+    metres: 'm',
+    degrees: '\u00b0',
+    readouts: {
+      time: { label: 'Time', unit: 's' },
+      height: { label: 'Height', unit: 'm' },
+      distance: { label: 'Distance', unit: 'm' },
+      speed: { label: 'Speed', unit: 'm/s' },
+      'velocity-x': { label: 'Sideways speed', unit: 'm/s' },
+      'velocity-y': { label: 'Upward speed', unit: 'm/s' },
+      'peak-height': { label: 'Highest point', unit: 'm' },
+      'landing-distance': { label: 'Lands at', unit: 'm' },
+    },
+    parameters: {
+      horizontalSpeed: { label: 'Sideways speed', unit: 'm/s' },
+      upwardSpeed: { label: 'Upward speed', unit: 'm/s' },
+      releaseHeight: { label: 'Release height', unit: 'm' },
+      gravity: { label: 'Gravity', unit: 'm/s\u00b2' },
+      launchAngle: { label: 'Launch angle', unit: '\u00b0' },
+      launchSpeed: { label: 'Launch speed', unit: 'm/s' },
+    },
+    tooFine: 'Too fine to draw here',
+  },
+  numberLine: 'Number line',
+  geometry: 'Geometry figure',
+  simulation: 'Moving ball, with its path',
+  graphOf: 'Graph of y =',
+};
+
 export const LEGAL_LABELS = {
   draftNotice: 'Draft of 4 November 2026. A lawyer has not yet reviewed this page.',
   planned: 'Planned',
@@ -511,7 +541,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy' | 'credits', LegalDocument>
           'We also use the sessions you start from suggested lessons, and their length, status, and start time, to choose what your home screen suggests next. A question you leave open can take the continue card, so a lesson you left open can then appear among the suggestions. Only your own sessions do this, and the words of the questions you type play no part in it.',
           'Any file you attach stays in your browser. It is not sent or stored.',
           'Your microphone stays off until you press Talk in a session, and your browser asks first. While it is on, your voice goes live to the services named under Who receives your data. We do not store your voice or any recording of it.',
-          "The words you say or type in a session, and a question you type on Home to start one, go to our tutor service, which holds them in memory while the session runs and drops them when it ends. It passes them to Anthropic, as Who receives your data says. We do not store them yet.",
+          "The words you say or type in a session, and a question you type on Home to start one, go to our tutor service, which holds them in memory while the session runs and drops them when it ends. It passes them to Anthropic, as Who receives your data says. Apart from a question from Home, which stays as its session's title, we do not store them yet.",
           'Words you type into the search box on the Sessions page go to our server, which uses them to find your sessions. We do not store them.',
           'A running total of what the tutor cost for you each day, with no words in it. We use it to stop tutor time for the day at a limit.',
           "If what a student says or what the tutor replies looks like a safety concern, we record that a flag happened, with the account ID, session, kind, whether it came from the student's words or the tutor's, the time, and who reviewed it and when. A flag holds none of the words, and people named by us read the list. Nothing is sent to a parent.",
@@ -556,6 +586,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy' | 'credits', LegalDocument>
           'When a session opens, your browser joins LiveKit Cloud, even before you press Talk, so LiveKit receives your IP address and your student ID, a random code that does not include your name. During the session, LiveKit Cloud carries your voice, the tutor\'s voice, and the messages between your browser and the tutor, including your words as text. We do not ask it to record any of this. We do not send LiveKit your name, your date of birth, your email address, your level, your interests, or your goal, though it carries anything you say or type yourself.',
           "While your microphone is on, Meta's Muse Voice Transcribe receives your voice and turns it into text. Meta's terms let it keep what it receives for safety checks and human review.",
           "Anthropic, whose Claude model writes the tutor's replies, receives what you say and type in a session, a question you type on Home to start one, the tutor's earlier words, and your level, interests, and goal. We do not send it your name, your date of birth, your email address, or an account ID, though it receives anything you say or type yourself. Anthropic's terms say it does not train on this by default, and that it keeps it for a limited time.",
+          "A second Claude model at Anthropic reads each thing you say or type, and each tutor reply, to look for a safety concern. It reads the words only, not your voice, and it receives the same terms as the first model.",
           "ElevenLabs receives the tutor's words and turns them into its voice. Those words can repeat what you said or typed.",
           ...inTestLessons("While spoken lessons are in testing, a test lesson sends Anthropic's Claude models the title of the suggested lesson, or the whole question you typed, whatever it says, which they use to choose and write a drawing and the tutor's words. A model then writes the drawing from a short topic it takes from your question, and it can get that wrong, so a personal detail in your question can reach those models and the words a tutor says to you. ElevenLabs receives the tutor's words and turns them into its voice, and the audio travels through a LiveKit server. Please leave your name, school, and other personal details out of your questions."),
           'No other outside service receives student data today. The app serves its own fonts and pictures.',

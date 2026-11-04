@@ -454,7 +454,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
           continue;
         }
         if (result === 'deadline') {
-          if (isSafetyKind(turn.safetyReading) && !turn.isCheckingMath && !turn.hasStoppedForSafety) return endAs('stoppedForSafety');
+          if (replyLacksHelp(turn) && !turn.isCheckingMath) return endAs('stoppedForSafety');
           if (turn.reader.isTurnOver) return endAs('ended');
           if (turn.hasAttemptText) return endAs('stalledInText');
           if (turn.hasSaidStillWorking || getNowMs() - attemptStartedAtMs >= timeouts.firstTextMs) return endAs('stalledBeforeText');
@@ -553,7 +553,6 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
     if (!isAboutSafety || namesHelp(`${getWordsSaid(turn)} ${turn.raw}`)) return;
     const help = ` ${pickLine('safetyHelp')}`;
     trace('helpAdded');
-    turn.reader.markSafetyReply();
     turn.raw += help;
     turn.reader.push(help);
   };

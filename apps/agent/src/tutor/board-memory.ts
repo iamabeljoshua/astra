@@ -42,6 +42,7 @@ export function checkAgainstBoard(command: SceneCommand, memory: BoardMemory): C
   // A tick says the line is right, whatever claim it was written with.
   if (command.kind === 'annotate' && command.mark === 'check') {
     const line = lines.get(command.target);
+    if (memory.shownLines.has(command.target)) return { ok: false, problem: `a tick on ${line}, a line you wrote only to look at. If it is true, write it again with the claim new and tick that. If it is not, leave the tick off`, isWrongMath: true };
     const verdict = line === undefined ? null : checkClaimedMath('new', undefined, line);
     if (verdict?.status === 'wrong') return { ok: false, problem: `a tick on ${line}, which is false: ${verdict.why}`, isWrongMath: true };
   }

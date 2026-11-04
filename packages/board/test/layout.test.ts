@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { type LayoutBox, type Placement, placeElements, placeMovingElements } from '../src/layout/place-elements.ts';
+import { type LayoutBox, type MovingPlacement, type Placement, placeElements, placeMovingElements } from '../src/layout/place-elements.ts';
 
 const LAPTOP = { width: 760, height: 620, padding: 24, gap: 16 };
 const PHONE = { width: 358, height: 480, padding: 12, gap: 12 };
@@ -155,6 +155,19 @@ describe('placeMovingElements', () => {
     for (let step = 0; step <= 20; step += 1) {
       const staying = placeMovingElements(boxes, PHONE, step / 20).placements.filter((placement) => placement.opacity === 1);
       for (const [index, placement] of staying.entries()) for (const other of staying.slice(index + 1)) expect(overlaps(placement, other)).toBe(false);
+    }
+  });
+});
+
+describe('two figures sharing a board', () => {
+  const area = { width: 700, height: 600, padding: 24, gap: 20 };
+  const figure = (id: string) => ({ id, fit: 'figure' as const, width: 652, height: 470 });
+
+  it('never crosses while the first shrinks to make room for the second', () => {
+    for (let step = 0; step <= 20; step += 1) {
+      const { placements } = placeMovingElements([{ to: figure('first'), from: figure('first') }, { to: figure('second'), from: null }], area, step / 20);
+      const [first, second] = placements as [MovingPlacement, MovingPlacement];
+      expect(second.y).toBeGreaterThanOrEqual(first.y + first.height);
     }
   });
 });

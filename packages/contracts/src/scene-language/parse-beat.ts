@@ -1,8 +1,9 @@
 import { type Beat, BEAT_LIMITS, getScriptText, getSpokenWords } from './beat.ts';
+import { getOverlappingSlider } from './board-check.ts';
 import { readBeatId } from './ids.ts';
 import { readSceneCommand } from './parse-command.ts';
 import { checkStorableText, fail, type CheckedFields, getField, type ParseResult, type Place, readBoolean, readFields, readList, toParseResult } from './read.ts';
-import type { SceneCommand } from './scene-command.ts';
+import type { SceneCommand, Slider } from './scene-command.ts';
 
 const MAX_SCRIPT_PARTS = 200;
 const BEAT_KEYS = ['id', 'script', 'expectsReply'];
@@ -17,6 +18,25 @@ function getCreatedIds(script: Beat['script']): string[] {
   return script.flatMap((part) => (typeof part !== 'string' && 'id' in part ? [part.id] : []));
 }
 
+const SAME_SPEED_TWO_WAYS = 'no two sliders on one flight that say the same speed two ways';
+
+function getSlidersAfter(command: SceneCommand, sliders: readonly Slider[]): readonly Slider[] {
+  if (command.kind === 'clearBoard') return [];
+  if (command.kind === 'hide') return sliders.filter(({ id, target }) => id !== command.target && target !== command.target);
+  if (command.kind === 'slider') return [...sliders.filter(({ id }) => id !== command.id), command];
+  return 'id' in command ? sliders.filter(({ target }) => target !== command.id) : sliders;
+}
+
+function getSlidersIn(script: Beat['script']): readonly Slider[] {
+  return script.reduce<readonly Slider[]>((sliders, part) => (typeof part === 'string' ? sliders : getSlidersAfter(part, sliders)), []);
+}
+
+function checkSliders(script: Beat['script'], place: Place): void {
+  script.forEach((part, index) => {
+    if (typeof part !== 'string' && part.kind === 'slider' && getOverlappingSlider(part, getSlidersIn(script.slice(0, index)))) fail(place, SAME_SPEED_TWO_WAYS);
+  });
+}
+
 function checkWords(words: string[], place: Place): void {
   if (!words.some((word) => HOLDS_LETTER_OR_DIGIT.test(word))) fail(place, 'at least one spoken word');
   if (words.some((word) => ONLY_ZERO_WIDTH.test(word))) fail(place, 'no word made only of zero-width characters');
@@ -29,6 +49,7 @@ function checkScript(script: Beat['script'], place: Place): void {
   if (countCommands(script) > BEAT_LIMITS.commands) fail(place, `at most ${BEAT_LIMITS.commands} commands`);
   const createdIds = getCreatedIds(script);
   if (new Set(createdIds).size !== createdIds.length) fail(place, 'each id to be created once');
+  checkSliders(script, place);
   checkWords(getSpokenWords(text), place);
   if (text.length > BEAT_LIMITS.characters) fail(place, `at most ${BEAT_LIMITS.characters} characters`);
 }
@@ -65,6 +86,7 @@ function readPartThatFits(part: Place, script: Beat['script']): string | SceneCo
   const command = readSceneCommand(part);
   if (countCommands(script) === BEAT_LIMITS.commands) fail(part, `no more than ${BEAT_LIMITS.commands} commands in a beat`);
   if ('id' in command && getCreatedIds(script).includes(command.id)) fail(getField(part, 'id'), 'an id not yet created in this beat');
+  if (command.kind === 'slider' && getOverlappingSlider(command, getSlidersIn(script))) fail(part, SAME_SPEED_TWO_WAYS);
   return command;
 }
 

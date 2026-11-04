@@ -207,6 +207,15 @@ describe('flags hold no words and reach no parent', () => {
     expect(flags).toHaveLength(1);
   });
 
+  it('raises the flag of a read still running when the room closes', async () => {
+    const { brain, safety, flags } = setup({ readAfterMs: 50, getReply: () => ({ pieces: ['That sounds serious. Please tell an adult you trust now.'] }) });
+    const stopped = new AbortController();
+    stopped.abort();
+    for await (const beat of brain.reply({ text: STUDENT_WORDS }, stopped.signal)) void beat;
+    await safety.flush();
+    expect(flags).toEqual([{ kind: 'self_harm', source: 'student' }]);
+  });
+
   it('keeps a flag the API did not take, and sends it as the room closes', async () => {
     const sent: SafetyFlag[] = [];
     let isApiDown = true;

@@ -18,6 +18,10 @@ const MATH_MAX_MARK_RUN = 2;
 // KaTeX nests only U+0300 to U+036F as accents, with no brace to count, so a run of them builds a tree deep enough to crash the tab.
 const TOO_LONG_MARK_RUN = new RegExp(`[\\u0300-\\u036f]{${MATH_MAX_MARK_RUN + 1}}`);
 
+export function hasTooLongMarkRun(text: string): boolean {
+  return TOO_LONG_MARK_RUN.test(text);
+}
+
 const SYMBOL_COMMANDS = `alpha beta gamma delta epsilon varepsilon zeta eta theta vartheta iota kappa lambda mu nu xi pi varpi rho varrho sigma varsigma tau upsilon phi varphi chi psi omega
   Gamma Delta Theta Lambda Xi Pi Sigma Upsilon Phi Psi Omega
   le leq ge geq ne neq lt gt approx equiv sim simeq cong propto in notin ni subset subseteq supset supseteq to rightarrow leftarrow Rightarrow Leftarrow leftrightarrow Leftrightarrow longrightarrow implies iff mapsto perp parallel mid nmid ll gg not
@@ -64,7 +68,7 @@ function getGroupProblem(tex: string, tokens: readonly TexToken[]): string | nul
 
 /** Says what is wrong with math a model wrote, or null. Only named commands pass, so nothing can define a macro, size a box, pick a color, or reach a link. */
 export function getTexProblem(tex: string): string | null {
-  if (TOO_LONG_MARK_RUN.test(tex)) return `math with at most ${MATH_MAX_MARK_RUN} accent marks on a character`;
+  if (hasTooLongMarkRun(tex)) return `math with at most ${MATH_MAX_MARK_RUN} accent marks on a character`;
   const tokens = getTexTokens(tex);
   for (const { text } of tokens) {
     if (NEEDS_TRUST.test(text)) return 'math with no links, images, or raw HTML';

@@ -36,6 +36,7 @@ export function createSafetyWatch({ check, addFlag, showHelp, trace }: SafetyWat
   let unsent: SafetyFlag[] = [];
   let sending: Promise<void> = Promise.resolve();
   let isHelpShown = false;
+  let reading: Promise<unknown> = Promise.resolve();
 
   const send = () => {
     sending = sending.then(async () => {
@@ -66,25 +67,34 @@ export function createSafetyWatch({ check, addFlag, showHelp, trace }: SafetyWat
 
   return {
     showHelp: showHelpOnce,
-    async readStudent(text, tutorSaid) {
-      const reading = await check.readStudent(text, tutorSaid);
-      trace('safetyRead', { reading });
-      if (reading === 'none' || reading === 'unread') return reading;
-      showHelpOnce();
-      raise({ kind: reading, source: 'student' });
-      return reading;
+    readStudent(text, tutorSaid) {
+      const read = check.readStudent(text, tutorSaid).then((studentReading) => {
+        trace('safetyRead', { reading: studentReading });
+        if (studentReading !== 'none' && studentReading !== 'unread') {
+          showHelpOnce();
+          raise({ kind: studentReading, source: 'student' });
+        }
+        return studentReading;
+      });
+      reading = Promise.all([reading, read]);
+      return read;
     },
     noteTurnEnd({ spoken, safetyRead, getKind }) {
       if (spoken === '') return;
       void safetyRead.then(() => {
         if (!getKind() && soundsLikeCrisisReply(spoken)) raise({ kind: 'danger', source: 'tutor' });
       });
-      void check.readTutor(spoken).then((reading) => {
-        trace('safetyRead', { reading, of: 'tutor' });
-        if (reading === 'tutor_slip') raise({ kind: reading, source: 'tutor' });
-      });
+      reading = Promise.all([
+        reading,
+        check.readTutor(spoken).then((tutorReading) => {
+          trace('safetyRead', { reading: tutorReading, of: 'tutor' });
+          if (tutorReading === 'tutor_slip') raise({ kind: tutorReading, source: 'tutor' });
+        }),
+      ]);
     },
+    // A student who says something serious and closes the tab must still reach the queue, so this waits for reads still running.
     async flush() {
+      await reading;
       send();
       await sending;
     },

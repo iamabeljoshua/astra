@@ -116,7 +116,7 @@ describe('rebuildBoard', () => {
     const first = makeBeat('a', [{ kind: 'writeMath', id: 'eq', tex: 'x' }, { kind: 'text', id: 'note', text: 'n' }, 'One ', { kind: 'transformMath', target: 'eq', tex: 'y' }, 'two ', { kind: 'hide', target: 'note' }, 'three.']);
     const second = makeBeat('b', [{ kind: 'text', id: 'eq', text: 'now text' }, 'Four ', { kind: 'clearBoard' }, 'five.']);
     const log = parseLog([finished(first, 0, [0, 0, 300, 600]), finished(second, 900, [0, 300])]);
-    expect(describeBoard(rebuildBoard(log, 300), 300).elements[0]?.tex).toBe('y');
+    expect(describeBoard(rebuildBoard(log, 500), 500).elements[0]?.tex).toBe('y');
     expect(getIds(log, 300)).toEqual(['eq', 'note']);
     expect(getIds(log, 600)).toEqual(['eq']);
     expect(describeBoard(rebuildBoard(log, 900), 900).elements[0]?.kind).toBe('text');
