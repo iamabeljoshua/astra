@@ -104,6 +104,25 @@ export function findWordPlaces({ sentPcm, sentRate, heardPcm, heardRate, heardSt
   });
 }
 
+/** A short window survives a stall right after the first word, and a long one survives a packet lost inside it. */
+const FIRST_SOUND_MATCHES_MS = [60, 300];
+const FIRST_SOUND_SEARCH_MS = 15;
+
+/** The first onset that sounds like the start of what was sent, so a turn's true start does not depend on the clock under test. */
+export function findFirstSoundAmongOnsets({ sentPcm, sentRate, heardPcm, heardRate, heardStartGraphMs }: Omit<TurnAudio, 'firstSoundGraphMs'>, onsetsGraphMs: readonly number[]): number | null {
+  const sent = resample(sentPcm, sentRate, ANALYSIS_RATE);
+  const heard = resample(heardPcm, heardRate, ANALYSIS_RATE);
+  const sentStart = toSamples(findFirstLoudMs(sentPcm, sentRate));
+  const matchesStart = (onsetMs: number) => {
+    const centre = toSamples(onsetMs - heardStartGraphMs);
+    for (let heardStart = centre - toSamples(FIRST_SOUND_SEARCH_MS); heardStart <= centre + toSamples(FIRST_SOUND_SEARCH_MS); heardStart++) {
+      if (FIRST_SOUND_MATCHES_MS.some((ms) => getMatch({ sent, heard, sentStart, heardStart: Math.max(0, heardStart), length: toSamples(ms) }) >= GOOD_MATCH)) return true;
+    }
+    return false;
+  };
+  return onsetsGraphMs.find(matchesStart) ?? null;
+}
+
 const LOUD_SEARCH_MS = 500;
 const LOUD_BLOCK_MS = 3;
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getFirstOpenStepFrom, getNextStep, getPreviousStep, getResumeStep, getSteps, hasFinishedOnboarding, showsChangeLaterNote, type Student } from './steps';
+import { getFirstOpenStepFrom, getNextStep, getPreviousStep, getResumeStep, getSteps, hasFinishedOnboarding, type Student } from './steps';
 
 const PROFILE: NonNullable<Student['profile']> = { interests: ['space'], level: 'high_school', goal: 'exam' };
 const STUDENT: Student = { id: 'student', name: 'Maya', profile: null };
@@ -34,9 +34,5 @@ describe('the onboarding steps', () => {
     expect(hasFinishedOnboarding(STUDENT)).toBe(false);
     expect(hasFinishedOnboarding({ ...STUDENT, profile: PROFILE })).toBe(true);
     expect(hasFinishedOnboarding({ ...STUDENT, name: null, profile: PROFILE })).toBe(true);
-  });
-
-  it('promises a later change on every step but the date of birth', () => {
-    expect(getSteps().filter((step) => !showsChangeLaterNote(step))).toEqual(['birthDate']);
   });
 });

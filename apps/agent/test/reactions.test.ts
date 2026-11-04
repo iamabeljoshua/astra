@@ -26,6 +26,10 @@ describe('the stored takes', () => {
     for (const take of takes) expect(Math.abs(getTakeAudio(take).pcm[0] as number)).toBeGreaterThanOrEqual(AUDIBLE_SAMPLE);
   });
 
+  it('run at least 250 ms, because a shorter first word right after a stop is given up as old audio', () => {
+    for (const take of takes) expect((getTakeAudio(take).pcm.length / take.sampleRate) * 1000).toBeGreaterThanOrEqual(250);
+  });
+
   it('include several short reactions, the working phrase, and the lines the session needs', () => {
     const uses = (use: StoredTake['use']) => takes.filter((take) => take.use === use).length;
     expect(uses('reaction')).toBeGreaterThanOrEqual(3);
