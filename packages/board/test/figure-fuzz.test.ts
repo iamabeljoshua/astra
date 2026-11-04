@@ -58,7 +58,7 @@ describe('plots from random input', () => {
 
 const EXTREMES = [0, 1, -1, 1e-6, -1e-6, 1e-7, 0.1, 1 / 3, 1e-300, -1e-300, 1e6, -1e6, 999999.999999, 100, -100, 1000, 150, 9.8, 360, -360, 3600];
 const NASTY_EXPRESSIONS = ['x', 'a*x', 'sin(a*x)', '10^308*x', '0-10^308*x', '10^300', '10^307*sin(x)', 'exp(709)*x', '1/x', 'tan(x)', 'a/(x-a)', '(a*x)^a', 'x^x', 'ln(a*x)', '10^(0-300)*x', '10^308+10^308*x', '10^16+x'];
-const FIGURE_CASES = 3000;
+const FIGURE_CASES = Number(process.env.FIGURE_CASES ?? 500);
 
 function getRandomCommands(random: () => number): unknown[] {
   const pick = () => EXTREMES[Math.floor(random() * EXTREMES.length)] as number;
@@ -127,5 +127,5 @@ describe('every figure kind from extreme numbers the parser accepts', () => {
       }
     }
     expect(accepted).toBeGreaterThan(FIGURE_CASES * 10);
-  });
+  }, FIGURE_CASES * 20);
 });

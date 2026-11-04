@@ -123,7 +123,7 @@ function getRefinedSamples(request: CurveRequest): Sample[] {
 function clipToView(first: Point, second: Point, [low, high]: AxisRange): [Point, Point] {
   const getInside = (point: Point, other: Point): Point => {
     const edge = point.y > high ? high : point.y < low ? low : null;
-    return edge === null ? { x: point.x, y: point.y } : { x: point.x + ((other.x - point.x) * (edge - point.y)) / (other.y - point.y), y: edge };
+    return edge === null ? { x: point.x, y: point.y } : { x: point.x + (other.x - point.x) * ((edge - point.y) / (other.y - point.y)), y: edge };
   };
   return [getInside(first, second), getInside(second, first)];
 }

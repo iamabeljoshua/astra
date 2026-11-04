@@ -31,6 +31,7 @@ function withMinus(text: string): string {
 }
 
 export function formatTick(value: number, range: AxisRange, tickCount: number): string {
+  if (value === 0) return '0';
   const size = Math.max(Math.abs(range[0]), Math.abs(range[1]));
   const step = getTickStep(range, tickCount);
   if (size >= LARGEST_PLAIN) return withMinus(value.toExponential(Math.max(1, Math.ceil(Math.log10(size / step)))).replace('e+', 'e'));
@@ -53,6 +54,9 @@ const HIGH_SHARE = 0.9;
 const ZERO_PULL = 0.25;
 const ROUGH_TICKS = 8;
 const FLAT_ROOM = 1;
+const FLAT_ROOM_SHARE = 1e-3;
+/** A range wider than this can overflow, and nothing this far out fits a figure with anything else. */
+const LARGEST_FITTED_VALUE = 1e300;
 
 function getQuantile(sorted: readonly number[], share: number): number {
   return sorted[Math.round(share * (sorted.length - 1))] as number;
@@ -76,10 +80,12 @@ function pullToZero([low, high]: [number, number]): [number, number] {
 
 /** Fits the curve's values, leaving out the far reaches near an asymptote, on round numbers. */
 export function getAutoYRange(values: readonly number[]): AxisRange {
-  const sorted = values.filter(Number.isFinite).sort((first, second) => first - second);
+  const sorted = values.filter((value) => Math.abs(value) <= LARGEST_FITTED_VALUE).sort((first, second) => first - second);
   if (sorted.length === 0) return [-FLAT_ROOM, FLAT_ROOM];
   const [low, high] = pullToZero(getCoreRange(sorted));
-  if (high - low < 1e-9) return [low - FLAT_ROOM, high + FLAT_ROOM];
+  const room = Math.max(FLAT_ROOM, Math.abs(low) * FLAT_ROOM_SHARE);
+  if (high - low < 1e-9) return [low - room, high + room];
   const step = getTickStep([low, high], ROUGH_TICKS);
-  return [Math.floor(low / step) * step, Math.ceil(high / step) * step];
+  const [fittedLow, fittedHigh] = [Math.floor(low / step) * step, Math.ceil(high / step) * step];
+  return fittedHigh > fittedLow ? [fittedLow, fittedHigh] : [low - room, high + room];
 }

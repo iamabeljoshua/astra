@@ -16,6 +16,8 @@ const PATH_STEPS = 72;
 const BALL_RADIUS = 6;
 const BALL_ROOM = 9;
 const WORLD_SIDE_ROOM = 0.06;
+/** A flight that never leaves the ground has no size to scale to. */
+const SMALLEST_WORLD_METRES = 1;
 const FOCUS_DOT = { radius: 3.5, above: 15 };
 const MOST_SLIDERS_FITTED = 4;
 const SLIDER_LEVELS_BY_COUNT = [1, 9, 5, 3, 3];
@@ -131,10 +133,12 @@ function getWorldBounds(root: SimulationElement, attached: readonly BoardElement
 }
 
 function getView(bounds: WorldBounds, frame: FigureFrame, readoutsHeight: number): FigureView {
-  const roomX = (bounds.right - bounds.left) * WORLD_SIDE_ROOM;
-  const roomY = (bounds.top - bounds.bottom) * WORLD_SIDE_ROOM;
+  const right = Math.max(bounds.right, bounds.left + SMALLEST_WORLD_METRES);
+  const top = Math.max(bounds.top, bounds.bottom + SMALLEST_WORLD_METRES);
+  const roomX = (right - bounds.left) * WORLD_SIDE_ROOM;
+  const roomY = (top - bounds.bottom) * WORLD_SIDE_ROOM;
   const rect = { left: MARGIN.left, top: MARGIN.top + readoutsHeight, right: frame.width - MARGIN.right, bottom: frame.height - MARGIN.bottom };
-  return createEqualView({ xRange: [bounds.left - roomX, bounds.right + roomX], yRange: [bounds.bottom, bounds.top + roomY], rect, keepsLowEnds: true });
+  return createEqualView({ xRange: [bounds.left - roomX, right + roomX], yRange: [bounds.bottom, top + roomY], rect, keepsLowEnds: true });
 }
 
 function addPath(draft: FigureDraft, scene: Scene, { view, seconds }: { view: FigureView; seconds: number }): Point {
