@@ -3,10 +3,17 @@ import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { createTestApp, createTestStudent } from '../../test/test-database';
 import type { TestApp, TestStudent } from '../../test/test-database';
+import { SessionLogEventEntity } from '../infrastructure/orm/entities/session-log-event.entity';
+import type { SessionLogRun } from '../infrastructure/orm/repositories/session-log.repository';
 import { SessionEntity } from '../infrastructure/orm/entities/session.entity';
+import { SessionRepository } from '../infrastructure/orm/repositories/session.repository';
+import { LiveRooms } from '../livekit/live-rooms';
+import { SessionsService } from './sessions.service';
 
 const SESSIONS_PATH = '/sessions';
 const VALID_SESSION = { title: 'Free-body diagrams', subject: 'Physics', language: 'en' };
+const LOG_ROW_BOUND = 5_000;
+const LOG_BYTE_BOUND = 10_000_000;
 
 describe('the sessions routes', () => {
   let testApp: TestApp;
@@ -18,6 +25,8 @@ describe('the sessions routes', () => {
       get: (url: string) => server.get(url).set('Authorization', `Bearer ${token}`),
       post: (url: string) => server.post(url).set('Authorization', `Bearer ${token}`),
       patch: (url: string) => server.patch(url).set('Authorization', `Bearer ${token}`),
+      delete: (url: string) => server.delete(url).set('Authorization', `Bearer ${token}`),
+      put: (url: string) => server.put(url).set('Authorization', `Bearer ${token}`),
     };
   }
 
@@ -93,6 +102,7 @@ describe('the sessions routes', () => {
 
     expect(Object.keys(body).sort()).toEqual([
       'artwork',
+      'canReplay',
       'detail',
       'durationSeconds',
       'id',
@@ -337,6 +347,165 @@ describe('the sessions routes', () => {
       const created = await startSession(student);
 
       expectBadRequestNaming(await api().patch(`${SESSIONS_PATH}/${created.id}`).send(body), fieldName);
+    });
+  });
+  describe('the replay', () => {
+    const RUN: SessionLogRun = { runId: randomUUID(), runStartedAt: new Date('2026-11-04T10:00:00Z'), events: [{ seq: 0, event: { seq: 0, atMs: 0, kind: 'studentSpoke', text: 'what is a half' } }] };
+    const saveRun = (sessionId: string, run = RUN) => testApp.app.get(SessionsService).saveLog(sessionId, run);
+
+    async function startSessionWithLog(owner: TestStudent) {
+      const { id } = await startSession(owner);
+      await saveRun(id);
+      return id;
+    }
+
+    it('closes the room at once when a session ends with no recap coming, and only later when one is', async () => {
+      const liveRooms = testApp.app.get(LiveRooms);
+      const close = jest.spyOn(liveRooms, 'close');
+      const closeAfter = jest.spyOn(liveRooms, 'closeAfter').mockImplementation(() => {});
+      const withRecap = await startSession(student);
+      const withNone = await startSession(student);
+
+      await api().patch(`${SESSIONS_PATH}/${withRecap.id}`).send({ durationSeconds: 5, status: 'finished', keepsRoomForRecap: true }).expect(200);
+      expect(close).not.toHaveBeenCalled();
+      expect(closeAfter).toHaveBeenCalledWith(withRecap.id, 120_000);
+      await api().patch(`${SESSIONS_PATH}/${withNone.id}`).send({ durationSeconds: 5, status: 'finished' }).expect(200);
+      expect(close).toHaveBeenCalledWith(withNone.id);
+      jest.restoreAllMocks();
+    });
+
+    it('gives a session with no log nothing to replay', async () => {
+      const { id } = await startSession(student);
+
+      const { body } = await api().get(`${SESSIONS_PATH}/${id}`).expect(200);
+      expect(body).toMatchObject({ canReplay: false });
+      await api().get(`${SESSIONS_PATH}/${id}/replay`).expect(200, { recap: null, recapAnswer: null, runs: [] });
+    });
+
+    it('gives the student their own session back, run by run, and the list says it can replay', async () => {
+      const id = await startSessionWithLog(student);
+      const secondRun = { runId: randomUUID(), runStartedAt: new Date('2026-11-04T11:00:00Z'), events: [{ seq: 0, event: { seq: 0, kind: 'second' } }] };
+      await saveRun(id, secondRun);
+
+      const { body } = await api().get(`${SESSIONS_PATH}/${id}/replay`).expect(200);
+      expect((body as { runs: { events: object[] }[] }).runs.map(({ events }) => events)).toEqual([[RUN.events[0]?.event], [secondRun.events[0]?.event]]);
+      const list = await api().get(SESSIONS_PATH).expect(200);
+      expect((list.body as { id: string; canReplay: boolean }[]).find((session) => session.id === id)).toMatchObject({ canReplay: true });
+    });
+
+    it('lets a beat only play further, whatever order its saves arrive in, and changes no other row', async () => {
+      const id = await startSessionWithLog(student);
+      const saveBeat = (playedWords: number, firedCueMs: number[] = []) => saveRun(id, { ...RUN, events: [{ seq: 1, event: { seq: 1, kind: 'beatPlayed', playedWords, firedCueMs } }] });
+
+      await saveBeat(3);
+      await saveBeat(9);
+      await saveBeat(5);
+      await saveBeat(9, [100]);
+      await saveBeat(9);
+      await saveRun(id, { ...RUN, events: [{ seq: 0, event: { seq: 0, kind: 'studentSpoke', text: 'an older line' } }] });
+
+      const { body } = await api().get(`${SESSIONS_PATH}/${id}/replay`).expect(200);
+      expect((body as { runs: { events: object[] }[] }).runs[0]?.events).toEqual([RUN.events[0]?.event, { seq: 1, kind: 'beatPlayed', playedWords: 9, firedCueMs: [100] }]);
+    });
+
+    it('stops a session\'s log at its bound, in rows and in bytes, and a save past it still answers as saved', async () => {
+      const countRows = (sessionId: string) => testApp.app.get(DataSource).getRepository(SessionLogEventEntity).countBy({ sessionId });
+      const fullOfRows = (await startSession(student)).id;
+      await saveRun(fullOfRows, { ...RUN, events: Array.from({ length: LOG_ROW_BOUND }, (_, seq) => ({ seq, event: { seq } })) });
+      await saveRun(fullOfRows, { ...RUN, events: [{ seq: LOG_ROW_BOUND, event: { seq: LOG_ROW_BOUND } }] });
+      await expect(countRows(fullOfRows)).resolves.toBe(LOG_ROW_BOUND);
+
+      const fullOfBytes = (await startSession(student)).id;
+      await saveRun(fullOfBytes, { ...RUN, events: [0, 1].map((seq) => ({ seq, event: { seq, text: 'w'.repeat(LOG_BYTE_BOUND / 2) } })) });
+      await saveRun(fullOfBytes, { ...RUN, events: [{ seq: 2, event: { seq: 2 } }] });
+      await expect(countRows(fullOfBytes)).resolves.toBe(2);
+    });
+
+    it('lets no save at the moment of a delete bring the log back', async () => {
+      const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+      let cameBack = 0;
+      for (let round = 0; round < 20; round += 1) {
+        const id = await startSessionWithLog(student);
+        const saves = Array.from({ length: 12 }, (_, index) => wait(index).then(() => saveRun(id, { ...RUN, events: [{ seq: index + 1, event: { seq: index + 1 } }] })));
+        await Promise.all([...saves, api().delete(`${SESSIONS_PATH}/${id}/replay`).expect(204)]);
+        const { body } = await api().get(`${SESSIONS_PATH}/${id}/replay`).expect(200);
+        if ((body as { runs: unknown[] }).runs.length > 0) cameBack += 1;
+      }
+      expect(cameBack).toBe(0);
+    }, 60_000);
+
+    it('keeps a late answer out of a deleted replay', async () => {
+      const id = await startSessionWithLog(student);
+      await testApp.app.get(SessionsService).saveRecap(id, { kind: 'gentle', line: 'Thanks.' });
+      await api().delete(`${SESSIONS_PATH}/${id}/replay`).expect(204);
+
+      await testApp.app.get(SessionRepository).saveRecapAnswerForStudent(student.studentId, id, 'a late answer');
+
+      await api().get(`${SESSIONS_PATH}/${id}/replay`).expect(200, { recap: null, recapAnswer: null, runs: [] });
+    });
+
+    it('leaves a room kept for its recap alone when a length save arrives after the end', async () => {
+      const close = jest.spyOn(testApp.app.get(LiveRooms), 'close');
+      jest.spyOn(testApp.app.get(LiveRooms), 'closeAfter').mockImplementation(() => {});
+      const { id } = await startSession(student);
+
+      await api().patch(`${SESSIONS_PATH}/${id}`).send({ durationSeconds: 5, status: 'finished', keepsRoomForRecap: true }).expect(200);
+      await api().patch(`${SESSIONS_PATH}/${id}`).send({ durationSeconds: 6 }).expect(200);
+
+      expect(close).not.toHaveBeenCalled();
+      jest.restoreAllMocks();
+    });
+
+    it('gives another student nothing, whether they read or delete, and leaves the owner\'s log whole', async () => {
+      const id = await startSessionWithLog(student);
+      const other = await createTestStudent(testApp);
+
+      const read = await api(other).get(`${SESSIONS_PATH}/${id}/replay`).expect(404);
+      expect(JSON.stringify(read.body)).not.toContain('what is a half');
+      await api(other).delete(`${SESSIONS_PATH}/${id}/replay`).expect(404);
+      await request(testApp.app.getHttpServer()).get(`${SESSIONS_PATH}/${id}/replay`).expect(401);
+      const { body } = await api().get(`${SESSIONS_PATH}/${id}/replay`).expect(200);
+      expect((body as { runs: unknown[] }).runs).toHaveLength(1);
+    });
+
+    it('keeps the student\'s answer to the recap for them alone, and only where a recap exists', async () => {
+      const id = await startSessionWithLog(student);
+      const other = await createTestStudent(testApp);
+      await api().put(`${SESSIONS_PATH}/${id}/recap-answer`).send({ answer: '3x = 15' }).expect(404);
+      await testApp.app.get(SessionsService).saveRecap(id, { kind: 'lesson', covered: 'a', gotRight: null, tryNext: 'b' });
+
+      await api(other).put(`${SESSIONS_PATH}/${id}/recap-answer`).send({ answer: 'not theirs' }).expect(404);
+      await api().put(`${SESSIONS_PATH}/${id}/recap-answer`).send({ answer: '' }).expect(400);
+      await api().put(`${SESSIONS_PATH}/${id}/recap-answer`).send({ answer: '3x = 15' }).expect(204);
+
+      const { body } = await api().get(`${SESSIONS_PATH}/${id}/replay`).expect(200);
+      expect(body).toMatchObject({ recapAnswer: '3x = 15' });
+      await api().delete(`${SESSIONS_PATH}/${id}/replay`).expect(204);
+      const after = await api().get(`${SESSIONS_PATH}/${id}/replay`).expect(200);
+      expect(after.body).toEqual({ recap: null, recapAnswer: null, runs: [] });
+    });
+
+    it('deletes the log and the recap for good, and a tutor still closing cannot save them back', async () => {
+      const id = await startSessionWithLog(student);
+      await testApp.app.get(SessionsService).saveRecap(id, { kind: 'gentle', line: 'Thanks.' });
+
+      await api().delete(`${SESSIONS_PATH}/${id}/replay`).expect(204);
+
+      await saveRun(id);
+      await testApp.app.get(SessionsService).saveRecap(id, { kind: 'gentle', line: 'Thanks.' });
+      await api().get(`${SESSIONS_PATH}/${id}/replay`).expect(200, { recap: null, recapAnswer: null, runs: [] });
+      const { body } = await api().get(`${SESSIONS_PATH}/${id}`).expect(200);
+      expect(body).toMatchObject({ canReplay: false, title: VALID_SESSION.title });
+    });
+
+    it('goes with the student, so nothing is left when an account is removed', async () => {
+      const owner = await createTestStudent(testApp);
+      const id = await startSessionWithLog(owner);
+      const dataSource = testApp.app.get(DataSource);
+
+      await dataSource.getRepository(SessionEntity).delete(id);
+
+      await expect(dataSource.getRepository(SessionLogEventEntity).countBy({ sessionId: id })).resolves.toBe(0);
     });
   });
 });

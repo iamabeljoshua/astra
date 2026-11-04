@@ -22,6 +22,7 @@ export function makeSession(fields: Partial<Session> = {}): Session {
     status: 'in_progress',
     startedAt: FAKE_NOW,
     durationSeconds: 0,
+    canReplay: false,
     detail: null,
     artwork: null,
     ...fields,

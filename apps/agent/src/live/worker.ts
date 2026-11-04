@@ -2,6 +2,7 @@ import { appendFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AutoSubscribe, cli, defineAgent, inference, initializeLogger, type JobContext, type JobProcess, ServerOptions } from '@livekit/agents';
+import { randomUUID } from 'node:crypto';
 import { AudioSource, DisconnectReason, LocalAudioTrack, type RemoteParticipant, RoomEvent, TrackPublishOptions, TrackSource } from '@livekit/rtc-node';
 import { type AgentMessage, parseBrowserMessage, parseSceneBrowserMessage, PULSE_EVERY_MS, SCENE_TOPIC, type SceneAgentMessage } from '@astra/contracts';
 import { readKey } from '../keys.ts';
@@ -14,10 +15,12 @@ import { createLiveSession } from './live-session.ts';
 import { createTakePicker, loadTakes } from './reactions.ts';
 import { readDataMessage } from './read-data-message.ts';
 import type { LessonEvent, LessonState } from '../lesson-plan/plan-progress.ts';
-import { hasTutorScenes, makeTutorBrain, warmTutorModel } from '../tutor/make-brain.ts';
+import type { ApiLink } from '../tutor/api-link.ts';
+import { hasTutorScenes, makeApiLink, makeTutorBrain, warmTutorModel } from '../tutor/make-brain.ts';
 import { makeTutorScenes, type SessionScenes } from '../tutor/make-tutor-scenes.ts';
 import { getSpokenCharacters } from '../tutor/tutor-scenes.ts';
 import { createHeardRecorder } from './heard-recorder.ts';
+import { createLogSaver, type LogSaver } from './log-saver.ts';
 import { getSteadyNowMs, createVoiceLine } from './voice-line.ts';
 
 /** The rate in `docs/architecture/live-session.md`, $3 for 1,000 minutes. */
@@ -51,6 +54,14 @@ function makeTraceFile(roomName: string) {
 function makeVoice() {
   if (process.env.ASTRA_VOICE === 'fake') return makeRenderedVoice({ name: 'fake', render: renderTone }).makeTts();
   return makeTutorVoice({ apiKey: readKey('ELEVENLABS_API_KEY') }).makeTts();
+}
+
+// A session the student comes back to gets a new job with its own clock and count, so each job saves its own run of the log.
+function makeLogSaver(link: ApiLink | null, trace: (name: string, fields?: Record<string, unknown>) => void): LogSaver | null {
+  if (!link) return null;
+  const runId = randomUUID();
+  const runStartedAt = new Date();
+  return createLogSaver({ save: (events) => link.saveLog({ runId, runStartedAt, events }), onFailed: (problem) => trace('logSaveFailed', { problem }) });
 }
 
 async function runSession(context: JobContext): Promise<void> {
@@ -94,10 +105,12 @@ async function runSession(context: JobContext): Promise<void> {
       scenes?.queue?.noteTutorReply(turn);
     },
   };
-  const { brain, lessonPlanner, caps, cardTitle, flushSpend, readMeaning, readStrokes, readSpokenWords, getSpentUsd, writeRecord } = makeTutorBrain({ roomName: room.name ?? '', jobId: context.job.id, trace, onSessionTitle(title) {
+  const { brain, lessonPlanner, caps, cardTitle, flushSpend, readMeaning, readStrokes, readSpokenWords, writeRecap, getSpentUsd, writeRecord, noteNeedsAPerson } = makeTutorBrain({ roomName: room.name ?? '', jobId: context.job.id, trace, onSessionTitle(title) {
       publish({ type: 'sessionTitle', title });
       scenes?.noteTopic(title);
     }, ...(hasTutorScenes() ? { sceneHooks } : {}) });
+  const apiLink = makeApiLink(room.name ?? '');
+  const logSaver = makeLogSaver(apiLink, trace);
   const session = createLiveSession({
     messenger: {
       send: (message) => publish(message),
@@ -118,6 +131,13 @@ async function runSession(context: JobContext): Promise<void> {
     ...(readMeaning ? { readMeaning } : {}),
     ...(readStrokes ? { readStrokes } : {}),
     ...(readSpokenWords ? { readSpokenWords } : {}),
+    ...(writeRecap ? { writeRecap } : {}),
+    ...(logSaver ? { onLogWritten: logSaver.note } : {}),
+    onRecap(recap) {
+      if (recap.kind === 'gentle') noteNeedsAPerson?.();
+      void apiLink?.saveRecap(recap).catch((problem: unknown) => trace('recapSaveFailed', { problem: String(problem) }));
+    },
+    onEndingOver: () => void setTimeout(() => context.shutdown('the recap is over'), SAY_WHY_BEFORE_CLOSING_MS),
     ...(process.env.ASTRA_SAVE_HEARD && process.env.NODE_ENV !== 'production' ? { recordTurn: createHeardRecorder(process.env.ASTRA_SAVE_HEARD, room.name ?? 'room') } : {}),
     onPause: () => scenes?.notePause(),
     ...(hasTutorScenes()
@@ -199,6 +219,7 @@ async function runSession(context: JobContext): Promise<void> {
     clearInterval(pulse);
     scenes?.close();
     await session.close();
+    await logSaver?.close();
     if (process.env.ASTRA_VOICE_TRACE_WORDS === '1') trace('sessionLog', { events: session.getLog() });
     await flushSpend();
     const recordWriting = writeRecord?.();

@@ -2,7 +2,7 @@ import { Body, Controller, Get, HttpCode, Param, Post, UseGuards } from '@nestjs
 import type { SpendReply } from '../tutor-spend/tutor-spend.service';
 import { ApiExcludeController } from '@nestjs/swagger';
 import { PublicRoute } from '../auth/route-access';
-import { AddSpendBodyDto, SetTitleBodyDto } from './agent-channel.dto';
+import { AddSpendBodyDto, SaveLogBodyDto, SaveRecapBodyDto, SetTitleBodyDto } from './agent-channel.dto';
 import type { TutorBrief } from './agent-channel.dto';
 import { WriteLearnerNotesBodyDto } from '../learner-record/learner-record.dto';
 import type { LearnerRecordDto } from '../learner-record/learner-record.dto';
@@ -31,6 +31,20 @@ export class AgentChannelController {
   @HttpCode(OK_STATUS)
   addSpend(@Param('id') sessionId: string, @Body() { usd }: AddSpendBodyDto): Promise<SpendReply> {
     return this.agentChannel.addSpend(sessionId, usd);
+  }
+
+  /** Saves part of a session's log. Saving the same event again changes nothing, so the agent can always try again. A 400 means that save can never be stored, and past a session's bound a save stores nothing and still answers 204. */
+  @Post(':id/log')
+  @HttpCode(NO_CONTENT_STATUS)
+  saveLog(@Param('id') sessionId: string, @Body() run: SaveLogBodyDto): Promise<void> {
+    return this.agentChannel.saveLog(sessionId, run);
+  }
+
+  /** Saves what the session's end said. A finished session takes it too, because the recap comes after the end. */
+  @Post(':id/recap')
+  @HttpCode(NO_CONTENT_STATUS)
+  saveRecap(@Param('id') sessionId: string, @Body() { recap }: SaveRecapBodyDto): Promise<void> {
+    return this.agentChannel.saveRecap(sessionId, recap);
   }
 
   /** Renames a running session, when the student moved to another topic in it. A finished session keeps its title. */

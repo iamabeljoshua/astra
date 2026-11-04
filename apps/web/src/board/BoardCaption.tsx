@@ -26,11 +26,20 @@ export function BoardCaption({ heard, coming, firstWord = null }: BoardCaptionPr
     if (!isNewTurn) said.current = [...heard, ...coming].join(' ');
   }, [heard, coming, heardText, isNewTurn]);
 
-  const current = heard.at(-1);
   const shownPast = firstWord && !isNewTurn ? [...past, [...heard, ...coming].join(' ')].slice(-PAST_SHOWN) : past;
+  return <CaptionLines past={shownPast} heard={heard} coming={coming} firstWord={firstWord} />;
+}
+
+interface CaptionLinesProps extends BoardCaptionProps {
+  past: readonly string[];
+}
+
+export function CaptionLines({ past, heard, coming, firstWord = null }: CaptionLinesProps) {
+  const current = heard.at(-1);
+  const isNewTurn = heard.length === 0 && coming.length === 0;
   return (
     <div className="board-caption" data-testid="tutor-caption">
-      {shownPast.map((text, index) => <p key={`${index}:${text.slice(0, 16)}`} className="board-utterance board-utterance-past">{text}</p>)}
+      {past.map((text, index) => <p key={`${index}:${text.slice(0, 16)}`} className="board-utterance board-utterance-past">{text}</p>)}
       {firstWord && <p data-testid="first-word" data-utterance-now className="board-utterance">{firstWord}</p>}
       {!firstWord && !isNewTurn && (
         <p data-utterance-now className="board-utterance">
