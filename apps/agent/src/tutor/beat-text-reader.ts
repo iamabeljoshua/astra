@@ -5,6 +5,8 @@ export const TURN_WORDS_TO_WRAP = 50;
 /** B2 gives a turn's first drawing 1 s from its first word, which is about three words. */
 const DRAWING_GUARD_WORD = 3;
 const FEWEST_WORDS_BEFORE_A_COMMA = 4;
+/** The first words start the voice, so they go out sooner, at the cost of a short phrase. */
+const FEWEST_WORDS_BEFORE_THE_FIRST_COMMA = 2;
 const LONGEST_TAG_CHARACTERS = 200;
 
 const UNSPEAKABLE = /[\u0000*_`~#[\]$\\^️​-‏‪-‮⁠-⁩﻿\uD800-\uDFFF]|\p{Extended_Pictographic}/u;
@@ -226,7 +228,8 @@ export class BeatTextReader {
   #isAtBeatBoundary(): boolean {
     if (this.#waitingCues.length > 0) return false;
     if (ENDS_IN_QUESTION.test(this.#text) || ENDS_IN_SENTENCE.test(this.#text)) return true;
-    return ENDS_IN_CLAUSE.test(this.#text) && this.#wordCount >= FEWEST_WORDS_BEFORE_A_COMMA;
+    const isFirstBeat = this.#wordsThisTurn === this.#wordCount;
+    return ENDS_IN_CLAUSE.test(this.#text) && this.#wordCount >= (isFirstBeat ? FEWEST_WORDS_BEFORE_THE_FIRST_COMMA : FEWEST_WORDS_BEFORE_A_COMMA);
   }
 
   #addToScript(text: string): void {

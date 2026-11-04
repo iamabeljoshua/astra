@@ -1,4 +1,4 @@
-import { type PropsWithChildren, type ReactNode, useEffect, useRef, useState } from 'react';
+import { lazy, type PropsWithChildren, type ReactNode, Suspense, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { ChatBox } from '../home/ChatBox';
 import { findArtwork, type Artwork } from '../home/artwork';
@@ -7,6 +7,9 @@ import { ThemeToggle } from '../theme/ThemeToggle';
 import { formatSessionLength } from './formatSession';
 import { type Session, useSession } from './sessionQueries';
 import { useSessionRun } from './useSessionRun';
+
+// Off by default until M3.10 replaces the stand-in, because a lesson needs the agent and a room server running beside the app.
+const LiveLesson = import.meta.env.VITE_LIVE_TUTOR === '1' ? lazy(() => import('./LiveLesson')) : null;
 
 const NOT_FOUND_STATUS = 404;
 const BAD_ID_STATUS = 400;
@@ -53,9 +56,15 @@ function RunningSession({ session }: { session: Session }) {
       action={<EndButton isEnding={isEnding} onEnd={() => void endSession()} />}
       problem={endProblem}
     >
-      <SessionPanels session={session} tutorWords={SESSION_LABELS.standInWords} boardNote={SESSION_LABELS.boardStandIn}>
-        <ReplyBox />
-      </SessionPanels>
+      {LiveLesson ? (
+        <Suspense fallback={<p role="status" className="sr-only">{SESSION_LABELS.loading}</p>}>
+          <LiveLesson session={session} />
+        </Suspense>
+      ) : (
+        <SessionPanels session={session} tutorWords={SESSION_LABELS.standInWords} boardNote={SESSION_LABELS.boardStandIn}>
+          <ReplyBox />
+        </SessionPanels>
+      )}
     </SessionFrame>
   );
 }

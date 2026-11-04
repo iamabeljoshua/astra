@@ -33,8 +33,8 @@ export interface StudentProfile {
 }
 
 export const TUTOR_TIMEOUTS = {
-  /** Speech starts here if the model has said nothing, about its p95 on a warm cache. */
-  stillWorkingMs: 2500,
+  /** Speech starts here if the model has said nothing. Its first text took 2656 ms at worst in 30 turns. */
+  stillWorkingMs: 3000,
   /** Sonnet stalled for 9 to 10 s in the speed test, and a new request answers in under 2 s. */
   firstTextMs: 5000,
   betweenTextMs: 4000,

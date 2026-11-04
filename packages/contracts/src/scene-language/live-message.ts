@@ -39,6 +39,8 @@ export type AgentMessage =
   | { type: 'studentWords'; text: string; isFinal: boolean }
   /** Code knows the student finished, so the dot reacts before any voice can. */
   | { type: 'heard' }
+  /** The tutor is working on a reply and has no words yet, so the student can see why it is quiet. */
+  | { type: 'thinking'; isThinking: boolean }
   /** Sent every half second on the lossy channel, so the browser knows the agent can still reach it. */
   | { type: 'pulse' };
 

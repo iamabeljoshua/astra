@@ -113,12 +113,12 @@ export function createTutorSession({ messenger, line, voice, brain, takes, allTa
   const think = async (text: string) => {
     const controller = new AbortController();
     thought = controller;
+    messenger.send({ type: 'thinking', isThinking: true });
     const beats = brain.reply({ text }, controller.signal)[Symbol.asyncIterator]();
     const first = await beats.next();
-    if (first.done || controller.signal.aborted) {
-      void beats.return?.();
-      return;
-    }
+    if (controller.signal.aborted) return void beats.return?.();
+    messenger.send({ type: 'thinking', isThinking: false });
+    if (first.done) return;
     trace('firstBeatReady', { atMs: getNowMs() });
     reply = speak(voice, withFirst(first.value, beats), 'reply');
   };

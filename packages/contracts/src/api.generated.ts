@@ -105,6 +105,23 @@ export interface paths {
         patch: operations["SessionsController_updateSession"];
         trace?: never;
     };
+    "/sessions/{id}/live": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Starts the tutor for one of the signed-in student's sessions and gives the browser a pass into its room. Another student's session answers 404. */
+        post: operations["LiveRoomController_joinLiveRoom"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/home": {
         parameters: {
             query?: never;
@@ -247,6 +264,12 @@ export interface components {
              * @enum {string}
              */
             status?: "finished";
+        };
+        LiveRoomResponseDto: {
+            /** @description The address the browser connects to for this lesson. */
+            url: string;
+            /** @description A short-lived pass into this session's room. It lets the browser hear the tutor and send messages. */
+            token: string;
         };
         PickCardResponseDto: {
             /**
@@ -468,6 +491,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SessionResponseDto"];
+                };
+            };
+        };
+    };
+    LiveRoomController_joinLiveRoom: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The ID of the session. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LiveRoomResponseDto"];
                 };
             };
         };

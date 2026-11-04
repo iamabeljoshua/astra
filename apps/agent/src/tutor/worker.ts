@@ -141,6 +141,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       agent: fileURLToPath(import.meta.url),
       agentName: process.env.ASTRA_AGENT_NAME ?? AGENT_NAME,
       numIdleProcesses: 1,
+      // The default refuses every session above 70% CPU, which a busy laptop reaches, and M3.10 sets a real limit when it picks hosting.
+      loadThreshold: Number.POSITIVE_INFINITY,
       port: Number(process.env.ASTRA_AGENT_PORT ?? 8081),
       wsURL: process.env.LIVEKIT_URL ?? readKey('LIVEKIT_URL'),
       apiKey: process.env.LIVEKIT_API_KEY ?? readKey('LIVEKIT_API_KEY'),

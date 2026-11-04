@@ -116,6 +116,9 @@ importers:
       jose:
         specifier: ^6.2.15
         version: 6.2.15
+      livekit-server-sdk:
+        specifier: 2.19.2
+        version: 2.19.2
       pg:
         specifier: ^8.23.1
         version: 8.23.1

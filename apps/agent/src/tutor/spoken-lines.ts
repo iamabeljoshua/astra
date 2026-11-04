@@ -1,6 +1,6 @@
 /** What the tutor says from code, when the model cannot speak for itself. Each has versions, because a repeated phrase turns into a tic. */
 export const SPOKEN_LINES = {
-  stillWorking: ['Let me work that out.', 'Give me a second with this.', 'One moment, I want to get this right.'],
+  stillWorking: ['One moment.', 'Let me think about that.', 'Let me work that out.'],
   stillThere: ['Still with you, nearly there.', 'Bear with me a moment.', 'Sorry, this is taking a little longer.'],
   couldNotReply: ["I can't reach my notes right now. Ask me again in a moment?", "Something's slow on my side. Could you ask that again?", "I lost my connection for a moment. Would you ask me again?"],
   lostThread: ['Sorry, I lost my thread for a second.', 'Hold on, I lost my place.', 'Sorry, let me pick that back up.'],

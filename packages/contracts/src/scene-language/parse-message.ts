@@ -91,6 +91,7 @@ const AGENT_MESSAGES: VariantTable<AgentMessage, 'type'> = {
       read: (fields) => ({ type: 'studentWords', text: readString(fields.at('text'), STUDENT_WORDS_MAX_CHARACTERS), isFinal: readBoolean(fields.at('isFinal')) }),
     },
     heard: { keys: [], read: () => ({ type: 'heard' }) },
+    thinking: { keys: ['isThinking'], read: (fields) => ({ type: 'thinking', isThinking: readBoolean(fields.at('isThinking')) }) },
     pulse: { keys: [], read: () => ({ type: 'pulse' }) },
   },
 };

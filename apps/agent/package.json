@@ -13,7 +13,8 @@
     "voice-probe": "node src/lab/proof/voice-probe.ts",
     "math-proof": "node src/lab/proof/math-proof.ts",
     "math-load": "node src/lab/proof/math-load.ts",
-    "tutor": "node src/tutor/worker.ts start"
+    "tutor": "node src/tutor/worker.ts start",
+    "eval:tutor": "node src/tutor/eval/run-eval.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "1.4.0",
