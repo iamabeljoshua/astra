@@ -12,7 +12,7 @@ import { type Ears, startEars, VAD_SETTINGS } from './ears.ts';
 import { createLiveSession } from './live-session.ts';
 import { createTakePicker, loadTakes } from './reactions.ts';
 import { readDataMessage } from './read-data-message.ts';
-import { makeTutorBrain } from '../tutor/make-brain.ts';
+import { makeTutorBrain, warmTutorModel } from '../tutor/make-brain.ts';
 import { getSteadyNowMs, createVoiceLine } from './voice-line.ts';
 
 const LIVE_TOPIC = 'astra.live';
@@ -23,7 +23,8 @@ const LEFT_ON_PURPOSE_MS = 15_000;
 /** A dropped link can come back, so the room waits this long before it closes. */
 const LINK_DROPPED_MS = 120_000;
 const STUDENT_IDENTITY_PREFIX = 'student-';
-const LOAD_LIMIT = 0.98;
+// The SDK refuses students at 70% load, and any limit below none still refuses them on a busy laptop at 100%, as 0.98 did. Hosting sets its own limit when it exists.
+const LOAD_LIMIT = Number(process.env.ASTRA_AGENT_LOAD_LIMIT ?? Infinity);
 
 const encoder = new TextEncoder();
 
@@ -128,6 +129,7 @@ export default defineAgent({
     process_.userData.vad = new inference.VAD(VAD_SETTINGS);
   },
   entry: async (context: JobContext) => {
+    warmTutorModel();
     await context.connect(undefined, AutoSubscribe.AUDIO_ONLY);
     await runSession(context);
   },
@@ -140,7 +142,6 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       agent: fileURLToPath(import.meta.url),
       agentName: process.env.ASTRA_AGENT_NAME ?? 'astra-tutor',
       numIdleProcesses: 1,
-      // The SDK's 70% refuses students on a busy laptop. Hosting sets its own limit when it exists.
       loadThreshold: LOAD_LIMIT,
       port: Number(process.env.ASTRA_AGENT_PORT ?? 8081),
       wsURL: readKey('LIVEKIT_URL'),

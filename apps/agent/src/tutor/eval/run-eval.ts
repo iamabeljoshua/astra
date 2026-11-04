@@ -3,10 +3,10 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { getCues, parseBeat } from '@astra/contracts';
+import { getBeatText, getCues, parseBeat } from '@astra/contracts';
 import { readKey } from '../../keys.ts';
 import { makeAnthropicTutorModel, TUTOR_MODEL_NAMES, type TutorModelName } from '../../providers/anthropic.ts';
-import { createTutorBrain, type TurnSummary } from '../brain.ts';
+import { createTutorBrain, type TurnSummary, type TutorBeat } from '../brain.ts';
 import { TUTOR_SYSTEM } from '../prompt.ts';
 import { createSpendLedger } from '../spend-ledger.ts';
 import { REPLY_CHECKS } from './reply-checks.ts';
@@ -53,14 +53,29 @@ const percentile = (values: readonly number[], share: number) => {
   return sorted.length === 0 ? null : Math.round(sorted[Math.min(sorted.length - 1, Math.ceil(sorted.length * share) - 1)] as number);
 };
 
+const countWords = (text: string) => text.split(/\s+/).filter(Boolean).length;
+
+function getLongestStretchWords(beats: readonly TutorBeat[]): number {
+  let longest = 0;
+  let stretch = 0;
+  for (const beat of beats) {
+    if (beat.pauseBeforeMs !== undefined) stretch = 0;
+    stretch += countWords(getBeatText(beat));
+    longest = Math.max(longest, stretch);
+  }
+  return longest;
+}
+
 function reviewTurn(turn: EvalTurn, summary: TurnSummary) {
   const commands = summary.beats.flatMap((beat) => getCues(beat).map((cue) => cue.command.kind));
   const check = turn.check ? REPLY_CHECKS[turn.check] : undefined;
-  const words = summary.spokenText.split(/\s+/).filter(Boolean).length;
+  const words = countWords(summary.spokenText);
   return {
     student: turn.text,
     tutor: summary.spokenText,
     words,
+    longestStretchWords: getLongestStretchWords(summary.beats),
+    endsOnQuestion: /\?\s*$/.test(summary.spokenText),
     commands,
     refused: summary.refused,
     firstTextMs: summary.firstTextMs && Math.round(summary.firstTextMs),
@@ -76,7 +91,7 @@ function reviewTurn(turn: EvalTurn, summary: TurnSummary) {
     hasSpokenMathMark: SPOKEN_MATH_MARK.test(summary.spokenText),
     hasTag: INTERNAL_TAG.test(summary.spokenText),
     isOverOneSecondWithNoDrawing: words >= 3 && commands.length === 0,
-    allBeatsParse: summary.beats.every((beat) => parseBeat(beat).ok),
+    allBeatsParse: summary.beats.every(({ pauseBeforeMs: _pause, ...beat }) => parseBeat(beat).ok),
   };
 }
 
@@ -93,6 +108,8 @@ function summarise(reviewed: readonly Reviewed[], compactionUsd: number) {
     firstTextMs: { p50: percentile(reviewed.flatMap((turn) => turn.firstTextMs ?? []), 0.5), p95: percentile(reviewed.flatMap((turn) => turn.firstTextMs ?? []), 0.95), worst: percentile(reviewed.flatMap((turn) => turn.firstTextMs ?? []), 1) },
     firstBeatMs: { p50: percentile(reviewed.flatMap((turn) => turn.firstBeatMs ?? []), 0.5), p95: percentile(reviewed.flatMap((turn) => turn.firstBeatMs ?? []), 0.95), worst: percentile(reviewed.flatMap((turn) => turn.firstBeatMs ?? []), 1) },
     wordsPerTurn: { p50: percentile(reviewed.map((turn) => turn.words), 0.5), p95: percentile(reviewed.map((turn) => turn.words), 0.95), worst: percentile(reviewed.map((turn) => turn.words), 1) },
+    longestStretchWords: { p50: percentile(reviewed.map((turn) => turn.longestStretchWords), 0.5), p95: percentile(reviewed.map((turn) => turn.longestStretchWords), 0.95), worst: percentile(reviewed.map((turn) => turn.longestStretchWords), 1) },
+    turnsEndingOnAQuestion: reviewed.filter((turn) => turn.endsOnQuestion).length,
     modelUsd: usd,
     usdPerMinute: { model: modelPerMinute, voice: voicePerMinute, other: OTHER_USD_PER_MINUTE, total: modelPerMinute + voicePerMinute + OTHER_USD_PER_MINUTE, atTurnsPerMinute: TURNS_PER_MINUTE },
     lastPromptTokens: reviewed.at(-1)?.promptTokens,

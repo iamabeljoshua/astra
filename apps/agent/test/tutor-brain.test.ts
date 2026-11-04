@@ -36,9 +36,9 @@ const lastSystemNote = (request: TutorModelRequest | undefined) => {
 
 describe('the tutor brain', () => {
   it('turns one ordered stream into beats, with the drawing on its word', async () => {
-    const { brain } = setup(() => reply('Okay, look. ', '{"kind":"writeMath","id":"steps","tex":"2x + 3 = 11"}', 'Two x plus three equals eleven. ', 'What goes first?'));
+    const { brain } = setup(() => reply('Okay, look here. ', '{"kind":"writeMath","id":"steps","tex":"2x + 3 = 11"}', 'Two x plus three equals eleven. ', 'What goes first?'));
     const beats = await collect(brain, 'Help me solve this');
-    expect(say(beats)).toBe('Okay, look. Two x plus three equals eleven. What goes first?');
+    expect(say(beats)).toBe('Okay, look here. Two x plus three equals eleven. What goes first?');
     expect(commandsOf(beats).map((command) => command.kind)).toEqual(['writeMath']);
     expect(beats.at(-1)?.expectsReply).toBe(true);
     expect(getCues(beats[1] as Beat)[0]?.atWord).toBe(0);

@@ -25,6 +25,15 @@ describe('what the docs promise about the tutor', () => {
     expect(read('apps/agent/src/tutor/eval/run-eval.ts')).toMatch(/beatsThatDoNotParse > 0 \|\| summary\.tags > 0 \|\| summary\.silentTurns > 0 \|\| summary\.safetyChecksFailed\.length > 0/);
   });
 
+  it('states what claims give up, and refusals by category', () => {
+    const doc = read('docs/tests/tutor-model.md');
+    expect(doc).toMatch(/What this design gives up/);
+    expect(doc).toMatch(/`bio` 12, `reasoning_extraction` 10, and `cyber` 2/);
+    expect(doc).not.toMatch(/No real refusal happened/);
+    expect(doc).not.toMatch(/about 2,100 tokens/);
+    expect(doc).not.toMatch(/a very fast first turn/);
+  });
+
   it('states the first turn truly in the latency numbers', () => {
     expect(read('docs/tests/tutor-model.md')).toMatch(/With the first turn counted, first real word heard is 6695 ms at p95/);
   });

@@ -82,6 +82,13 @@ export function createSpendCaps({ link, ledger, trace, sessionLimitUsd, sessionV
   };
 }
 
+// The API reads the cache only from about 800 ms after warming starts, measured at 0 reads of 10 at 0 to 300 ms and 9 of 10 at 800 ms and up, and waiting for it costs 885 to 1404 ms. So it starts with the job, before anything else, and nothing waits on it.
+export function warmTutorModel(): void {
+  const name = process.env.ASTRA_TUTOR_MODEL ?? DEFAULT_MODEL;
+  if (!TUTOR_MODEL_NAMES.includes(name as TutorModelName)) return;
+  void makeAnthropicTutorModel({ name: name as TutorModelName, apiKey: readKey('ANTHROPIC_API_KEY') }).warm(TUTOR_SYSTEM).catch(() => {});
+}
+
 export interface MadeBrain {
   brain: TutorBrain;
   flushSpend(): Promise<void>;
@@ -100,7 +107,6 @@ export function makeTutorBrain({ roomName, trace }: { roomName: string; trace: T
     sessionVoiceLimitCharacters: Number(process.env.ASTRA_SESSION_VOICE_LIMIT_CHARACTERS ?? DEFAULT_SESSION_VOICE_LIMIT_CHARACTERS),
   });
   const model = name === RECORDED ? makeRecordedTutorModel() : makeAnthropicTutorModel({ name: name as TutorModelName, apiKey: readKey('ANTHROPIC_API_KEY') });
-  void model.warm(TUTOR_SYSTEM).catch((error: unknown) => trace('warmFailed', { problem: String(error) }));
   const onTurnEnd = ({ firstTextMs, firstBeatMs, attempts, endedAs, costUsd, usage, refused, refusalCategory, isUsageEstimated, beats, spokenText }: TurnSummary) => {
     trace('turnWritten', { firstTextMs, firstBeatMs, attempts, endedAs, costUsd, usage, refused, refusalCategory, isUsageEstimated, words: spokenText.split(/\s+/).length });
     caps.addTurn({ usd: costUsd, voiceCharacters: beats.map(getBeatText).join(' ').length });
