@@ -551,7 +551,7 @@ export interface components {
          * @description What kind of concern the check found.
          * @enum {string}
          */
-        SafetyFlagKind: "self_harm" | "abuse" | "danger" | "grooming" | "tutor_slip";
+        SafetyFlagKind: "self_harm" | "abuse" | "danger" | "grooming" | "vague" | "tutor_slip";
         /**
          * @description Whose words raised it, the student's or the tutor's.
          * @enum {string}

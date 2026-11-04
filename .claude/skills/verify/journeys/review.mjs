@@ -13,6 +13,9 @@ async function flagFirstSession(page) {
   assert.equal(flagged.status(), 200, 'the agent route takes the flag');
 }
 
+// The sign-in page says "Welcome, I am Astra" too, so only a session list loaded for a signed-in student proves Tola is in.
+const signedInHome = (page) => page.waitForResponse((response) => new URL(response.url()).pathname === '/api/sessions' && response.ok());
+
 export default async function review({ page, capture, signIn }) {
   const flagged = flagFirstSession(page);
   await signIn();
@@ -30,8 +33,9 @@ export default async function review({ page, capture, signIn }) {
   await capture('reviewed');
 
   await page.evaluate(() => localStorage.clear());
+  const tolaIsIn = signedInHome(page);
   await signIn(NOT_A_REVIEWER);
-  await page.getByRole('heading', { name: /^Welcome/ }).waitFor();
+  await tolaIsIn;
   await page.goto('/review');
   await page.waitForURL((url) => url.pathname === '/');
   assert.equal(await page.getByRole('heading', { name: 'Safety flags' }).count(), 0, 'a non-reviewer never sees the queue');

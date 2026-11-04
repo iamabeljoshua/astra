@@ -97,6 +97,22 @@ describe('closing an account under 13', () => {
     expect(await findAuthTablesHolding(dataSource, again.email)).toEqual([]);
   });
 
+  it.each([
+    ['a plus alias', (local: string) => `${local}+school@gmail.com`],
+    ['dots in a Gmail address', (local: string) => `${local.slice(0, 4)}.${local.slice(4)}@gmail.com`],
+    ['the other Gmail domain', (local: string) => `${local}@googlemail.com`],
+  ])('refuses %s of a closed address', async (_name, getAlias) => {
+    const local = randomUUID().replaceAll('-', '');
+    const closed = await signUp(`${local}@gmail.com`);
+    await asToken(server().post('/me/birth-date'), closed.token).send({ birthDate: YOUNG_BIRTH_DATE }).expect(200, CLOSED_ACCOUNT);
+
+    const again = await signUp(getAlias(local));
+
+    await asToken(server().get('/me'), again.token).expect(200, CLOSED_ACCOUNT);
+    await asToken(server().post('/me/birth-date'), again.token).send({ birthDate: OLD_ENOUGH_BIRTH_DATE }).expect(200, CLOSED_ACCOUNT);
+    expect(await countStudents(again.authUserId)).toBe(0);
+  });
+
   it('refuses a student who changes their email to a closed address, and keeps their data', async () => {
     const closed = await closeNewAccount();
     const student = await signUp(getNewAddress());

@@ -12,6 +12,11 @@ export class AuthAccountEraser {
     private readonly traces: AuthTraceRepository,
   ) {}
 
+  // With no secret key this is a local stack, where nothing is erased from Auth, so the user is still there.
+  hasUser(authUserId: string): Promise<boolean> {
+    return this.admin ? this.admin.hasUser(authUserId) : Promise.resolve(true);
+  }
+
   async erase({ authUserId, email }: { authUserId: string; email: string | null }): Promise<boolean> {
     if (!this.admin) {
       this.logger.warn('SUPABASE_SECRET_KEY is not set, so this account stays in Auth.');

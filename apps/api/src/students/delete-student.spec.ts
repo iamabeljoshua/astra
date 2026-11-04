@@ -11,22 +11,29 @@ import type { TestApp } from '../../test/test-database';
 const AGENT_KEY = 'agent-key-for-test-that-is-long';
 const VALID_SESSION = { title: 'Free-body diagrams', subject: 'Physics', language: 'en' };
 const VALID_PROFILE = { name: 'Maya', interests: ['space'], level: 'university', goal: 'exam' };
-const TABLES_WITH_STUDENT_ID = ['safety_flags', 'sessions', 'student_daily_spend', 'student_profiles'];
+const RECORD_UPDATE = { updateKey: 'room-one', notes: [{ kind: 'explored', topic: 'gravity', detail: null, evidence: [{ source: 'board', text: 'x = 3' }] }] };
+const TABLES_WITH_STUDENT_ID = ['learner_notes', 'safety_flags', 'sessions', 'student_daily_spend', 'student_profiles'];
 const TABLES_WITH_AUTH_USER_ID = ['closed_accounts', 'students'];
-const STUDENT_COLUMN_NAMES = ['student_id', 'auth_user_id'];
+const STUDENT_COLUMN_NAMES = ['student_id', 'auth_user_id', 'session_id'];
+/** Every table a student's rows live in. `session_log_events` lands soon, and it is here so its own PR proves it cascades. */
+const TABLES_GONE_WITH_A_STUDENT = ['learner_notes', 'learner_record_updates', 'safety_flags', 'session_log_events', 'sessions', 'student_daily_spend', 'student_profiles'];
+const TABLES_WITH_NO_STUDENT_ROWS = ['closed_accounts', 'closed_address_hashes', 'migrations', 'students'];
 
 const STUDENT_COLUMNS_QUERY = `
   SELECT table_name, column_name FROM information_schema.columns
   WHERE table_schema = 'public' AND column_name = ANY($1) ORDER BY table_name`;
 
-const CASCADING_STUDENT_ID_COLUMNS_QUERY = `
-  SELECT source.relname AS table_name
-  FROM pg_constraint AS link
-  JOIN pg_class AS source ON source.oid = link.conrelid
-  JOIN pg_namespace AS namespace ON namespace.oid = source.relnamespace
-  JOIN pg_attribute AS attribute ON attribute.attrelid = source.oid AND attribute.attnum = ANY(link.conkey)
-  WHERE link.contype = 'f' AND link.confdeltype = 'c' AND link.confrelid = 'public.students'::regclass
-    AND namespace.nspname = 'public' AND attribute.attname = 'student_id'`;
+const PUBLIC_TABLES_QUERY = `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE' ORDER BY table_name`;
+
+/** Follows delete cascades down from `students`, so a table counts only if deleting a student really reaches it. */
+const TABLES_REACHED_BY_A_STUDENT_DELETE_QUERY = `
+  WITH RECURSIVE reached AS (
+    SELECT 'public.students'::regclass AS table_oid
+    UNION
+    SELECT link.conrelid::regclass FROM pg_constraint AS link JOIN reached ON link.confrelid = reached.table_oid
+    WHERE link.contype = 'f' AND link.confdeltype = 'c'
+  )
+  SELECT source.relname AS table_name FROM reached JOIN pg_class AS source ON source.oid = reached.table_oid`;
 
 interface StudentColumn {
   table_name: string;
@@ -37,12 +44,12 @@ function listStudentColumns(dataSource: DataSource): Promise<StudentColumn[]> {
   return dataSource.query(STUDENT_COLUMNS_QUERY, [STUDENT_COLUMN_NAMES]);
 }
 
-async function findStudentIdColumnsThatDoNotCascade(dataSource: DataSource): Promise<string[]> {
-  const cascading: { table_name: string }[] = await dataSource.query(CASCADING_STUDENT_ID_COLUMNS_QUERY);
-  const cascadingTables = new Set(cascading.map(({ table_name: tableName }) => tableName));
-  return (await listStudentColumns(dataSource))
-    .filter((column) => column.column_name === 'student_id' && !cascadingTables.has(column.table_name))
-    .map((column) => column.table_name);
+// A table's name is not enough, because a jsonb column can hold a student's words under any name, so every table must be reached by the delete or be listed as holding no student's rows.
+async function findTablesADeleteMisses(dataSource: DataSource): Promise<string[]> {
+  const reached: { table_name: string }[] = await dataSource.query(TABLES_REACHED_BY_A_STUDENT_DELETE_QUERY);
+  const reachedTables = new Set(reached.map(({ table_name: tableName }) => tableName));
+  const tables: { table_name: string }[] = await dataSource.query(PUBLIC_TABLES_QUERY);
+  return tables.map(({ table_name: tableName }) => tableName).filter((tableName) => !reachedTables.has(tableName) && !TABLES_WITH_NO_STUDENT_ROWS.includes(tableName));
 }
 
 function listEveryFile(folder: string): string[] {
@@ -86,13 +93,14 @@ describe('deleting a student', () => {
     const sessionId = (session as { id: string }).id;
     await agentCall(server().post(`/agent/sessions/${sessionId}/spend`)).send({ usd: 0.01 }).expect(200);
     await agentCall(server().post(`/agent/sessions/${sessionId}/flags`)).send({ kind: 'danger', source: 'tutor' }).expect(200);
-    return { authUserId, email, token, studentId };
+    await agentCall(server().post(`/agent/sessions/${sessionId}/record`)).send(RECORD_UPDATE).expect(200);
+    return { authUserId, email, token, studentId, sessionId };
   }
 
-  async function countRowsFor(ids: { studentId: string; authUserId: string }) {
+  async function countRowsFor(ids: { studentId: string; authUserId: string; sessionId: string }) {
     const counts: Record<string, number> = {};
     for (const { table_name: tableName, column_name: columnName } of await listStudentColumns(dataSource)) {
-      const id = columnName === 'student_id' ? ids.studentId : ids.authUserId;
+      const id = { student_id: ids.studentId, auth_user_id: ids.authUserId, session_id: ids.sessionId }[columnName] as string;
       const [row] = await dataSource.query(`SELECT count(*)::int AS total FROM "${tableName}" WHERE "${columnName}" = $1`, [id]);
       counts[`${tableName}.${columnName}`] = (row as { total: number }).total;
     }
@@ -123,7 +131,7 @@ describe('deleting a student', () => {
 
     await asToken(server().delete('/me'), student.token).expect(200, { deleted: true });
 
-    expect(rowsBefore).toMatchObject({ 'students.auth_user_id': 1, 'student_profiles.student_id': 1, 'sessions.student_id': 1, 'student_daily_spend.student_id': 1, 'safety_flags.student_id': 1 });
+    expect(rowsBefore).toMatchObject({ 'students.auth_user_id': 1, 'student_profiles.student_id': 1, 'sessions.student_id': 1, 'student_daily_spend.student_id': 1, 'safety_flags.student_id': 1, 'learner_notes.student_id': 1, 'learner_notes.session_id': 1, 'learner_record_updates.session_id': 1 });
     expect(Object.values(await countRowsFor(student)).every((total) => total === 0)).toBe(true);
     expect(await countRowsFor(otherStudent)).toEqual(otherRowsBefore);
   });
@@ -170,14 +178,36 @@ describe('deleting a student', () => {
     expect(await findAuthTablesHolding(dataSource, student.email)).toEqual([]);
   });
 
-  it('keeps no hash of an old enough address, so that student can come back', async () => {
+  it('keeps no hash of an old enough address, so that student can come back as a new Auth user', async () => {
     const student = await createFullStudent();
 
     await asToken(server().delete('/me'), student.token).expect(200);
 
-    await asToken(server().get('/me'), student.token).expect(200, { status: 'needs_birth_date', student: null });
-    await asToken(server().post('/me/birth-date'), student.token).send({ birthDate: OLD_ENOUGH_BIRTH_DATE }).expect(200);
+    const authUserId = randomUUID();
+    await addAuthUser(dataSource, { authUserId, email: student.email });
+    const token = await testApp.supabaseAuth.signToken(authUserId, { claims: { email: student.email } });
+    await asToken(server().post('/me/birth-date'), token).send({ birthDate: OLD_ENOUGH_BIRTH_DATE }).expect(200);
+    await asToken(server().delete('/me'), token).expect(200);
+  });
+
+  it('refuses to create a student for a token whose Auth user is gone, because nothing could delete that student once the token expires', async () => {
+    const student = await createFullStudent();
     await asToken(server().delete('/me'), student.token).expect(200);
+
+    await asToken(server().post('/me/birth-date'), student.token).send({ birthDate: OLD_ENOUGH_BIRTH_DATE }).expect(401);
+
+    const [row] = await dataSource.query('SELECT count(*)::int AS total FROM students WHERE auth_user_id = $1', [student.authUserId]);
+    expect((row as { total: number }).total).toBe(0);
+  });
+
+  it('refuses a birth date while Auth cannot say the user exists, rather than risk a student nothing can delete', async () => {
+    const authUserId = randomUUID();
+    const token = await testApp.supabaseAuth.signToken(authUserId, { claims: { email: `${authUserId}@astra.test` } });
+    const answerAsAuthDoes = testApp.supabaseAuth.onGetUser;
+    testApp.supabaseAuth.onGetUser = () => Promise.reject(new Error('Auth is down'));
+
+    await asToken(server().post('/me/birth-date'), token).send({ birthDate: OLD_ENOUGH_BIRTH_DATE }).expect(500);
+    testApp.supabaseAuth.onGetUser = answerAsAuthDoes;
   });
 
   it('asks for a token', async () => {
@@ -187,17 +217,24 @@ describe('deleting a student', () => {
   it('knows every column that names a student, so a new one has to be added here on purpose', async () => {
     const columns = await listStudentColumns(dataSource);
 
+    expect(columns.filter(({ column_name: columnName }) => columnName === 'session_id').map(({ table_name: tableName }) => tableName).every((tableName) => TABLES_GONE_WITH_A_STUDENT.includes(tableName))).toBe(true);
     expect(columns.filter(({ column_name: columnName }) => columnName === 'student_id').map(({ table_name: tableName }) => tableName)).toEqual(TABLES_WITH_STUDENT_ID);
     expect(columns.filter(({ column_name: columnName }) => columnName === 'auth_user_id').map(({ table_name: tableName }) => tableName)).toEqual(TABLES_WITH_AUTH_USER_ID);
   });
 
-  it('fails on a table with a student_id that does not cascade from students', async () => {
-    expect(await findStudentIdColumnsThatDoNotCascade(dataSource)).toEqual([]);
+  it('reaches every table but the ones listed as holding no student\'s rows', async () => {
+    expect(await findTablesADeleteMisses(dataSource)).toEqual([]);
+  });
 
-    await dataSource.query('CREATE TABLE "learner_notes_planted" ("student_id" uuid NOT NULL)');
-    const found = await findStudentIdColumnsThatDoNotCascade(dataSource);
-    await dataSource.query('DROP TABLE "learner_notes_planted"');
+  it.each([
+    ['a student_id', '"student_id" uuid NOT NULL'],
+    ['a session_id and jsonb words, with no foreign key', '"session_id" uuid NOT NULL, "words" jsonb NOT NULL'],
+    ['only jsonb words', '"words" jsonb NOT NULL'],
+  ])('fails on a planted table with %s, that a delete would miss', async (_name, columns) => {
+    await dataSource.query(`CREATE TABLE "planted_table" (${columns})`);
+    const missed = await findTablesADeleteMisses(dataSource);
+    await dataSource.query('DROP TABLE "planted_table"');
 
-    expect(found).toEqual(['learner_notes_planted']);
+    expect(missed).toEqual(['planted_table']);
   });
 });

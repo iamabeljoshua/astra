@@ -25,6 +25,8 @@ export interface TestSupabaseAuth {
   keys: SigningKey[];
   // What Auth does when the admin API deletes a user. A throw answers 500, as Auth does when it fails.
   onDeleteUser: (authUserId: string) => Promise<void>;
+  // What Auth says when the admin API looks a user up. A throw answers 500. Anyone not deleted through the admin API exists.
+  onGetUser: (authUserId: string) => Promise<void>;
   signToken: (authUserId: string, token?: TestToken) => Promise<string>;
   close: () => Promise<void>;
 }
@@ -43,13 +45,28 @@ export function signWithKey(key: SigningKey, claims: JWTPayload): Promise<string
 
 export async function startTestSupabaseAuth(): Promise<TestSupabaseAuth> {
   const keys = [await createSigningKey()];
+  const deletedUserIds = new Set<string>();
   const answerDeleteUser = async (authUserId: string, authorization: string | undefined) => {
     if (authorization !== `Bearer ${TEST_SECRET_KEY}`) return 401;
-    return auth.onDeleteUser(authUserId).then(() => 200, () => 500);
+    return auth.onDeleteUser(authUserId).then(() => {
+      deletedUserIds.add(authUserId);
+      return 200;
+    }, () => 500);
+  };
+  const answerGetUser = async (authUserId: string, authorization: string | undefined) => {
+    if (authorization !== `Bearer ${TEST_SECRET_KEY}`) return 401;
+    return auth.onGetUser(authUserId).then(() => (deletedUserIds.has(authUserId) ? 404 : 200), () => 500);
   };
   const server = createServer((request, response) => {
     if (request.method === 'DELETE' && request.url?.startsWith(ADMIN_USERS_PATH)) {
       void answerDeleteUser(request.url.slice(ADMIN_USERS_PATH.length), request.headers.authorization).then((status) => {
+        response.writeHead(status, { 'content-type': 'application/json' });
+        response.end('{}');
+      });
+      return;
+    }
+    if (request.method === 'GET' && request.url?.startsWith(ADMIN_USERS_PATH)) {
+      void answerGetUser(request.url.slice(ADMIN_USERS_PATH.length), request.headers.authorization).then((status) => {
         response.writeHead(status, { 'content-type': 'application/json' });
         response.end('{}');
       });
@@ -66,6 +83,7 @@ export async function startTestSupabaseAuth(): Promise<TestSupabaseAuth> {
     url,
     keys,
     onDeleteUser: () => Promise.resolve(),
+    onGetUser: () => Promise.resolve(),
     signToken: (authUserId, { claims, key = keys[0] as SigningKey } = {}) =>
       signWithKey(key, {
         iss: `${url}/auth/v1`,

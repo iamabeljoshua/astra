@@ -4,7 +4,7 @@ export class AddSafetyFlags1793817583484 implements MigrationInterface {
   name = 'AddSafetyFlags1793817583484';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`CREATE TYPE "public"."safety_flag_kind" AS ENUM('self_harm', 'abuse', 'danger', 'grooming', 'tutor_slip')`);
+    await queryRunner.query(`CREATE TYPE "public"."safety_flag_kind" AS ENUM('self_harm', 'abuse', 'danger', 'grooming', 'vague', 'tutor_slip')`);
     await queryRunner.query(`CREATE TYPE "public"."safety_flag_source" AS ENUM('student', 'tutor')`);
     await queryRunner.query(`CREATE TABLE "safety_flags" ("id" uuid NOT NULL DEFAULT gen_random_uuid(), "student_id" uuid NOT NULL, "session_id" uuid, "kind" "public"."safety_flag_kind" NOT NULL, "source" "public"."safety_flag_source" NOT NULL, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "reviewed_at" TIMESTAMP WITH TIME ZONE, "reviewed_by" uuid, CONSTRAINT "PK_2d0fdfc45618e30dd3c6878bc69" PRIMARY KEY ("id"))`);
     await queryRunner.query(`ALTER TABLE "safety_flags" ENABLE ROW LEVEL SECURITY`);

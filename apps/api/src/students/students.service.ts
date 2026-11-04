@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { isOldEnough } from '../auth/age-gate';
 import type { SignIn } from '../auth/route-access';
 import type { StudentProfileEntity } from '../infrastructure/orm/entities/student-profile.entity';
@@ -58,6 +58,8 @@ export class StudentsService {
 
   async answerBirthDate(signIn: SignIn, { birthDate, name }: AnswerBirthDateBodyDto): Promise<AccountResponseDto> {
     if (signIn.isAddressClosed) return this.refuseAndEraseNewSignUp(signIn);
+    // A token outlives the delete by up to an hour, and a student made from it could never be deleted once it expires.
+    if (!(await this.authAccounts.hasUser(signIn.authUserId))) throw new UnauthorizedException();
     const answer = {
       birthDate,
       isOldEnough: isOldEnough(birthDate, new Date()),

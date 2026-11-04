@@ -9,12 +9,18 @@ const READS_THE_MICROPHONE = /RemoteAudioTrack|RemoteTrack|AudioStream|inputAudi
 const STARTS_A_RECORDING = /EgressClient|startRoomCompositeEgress|startTrackEgress|startParticipantEgress/;
 
 const FILE_WRITERS: Record<string, string> = {
+  'apps/agent/src/live/heard-recorder.ts': "the tutor's beats and voice, only outside production when a test asks for them, never a student's",
   'apps/agent/src/live/worker.ts': 'a timing trace, only when a test asks for one, no audio',
+  'apps/agent/src/scenes/library/contact-sheet.ts': 'a page of shared library scenes, on a developer machine',
+  'apps/agent/src/scenes/library/library-ledger.ts': 'library costs, on a developer machine',
+  'apps/agent/src/scenes/library/run-library.ts': 'a library run summary, on a developer machine',
+  'apps/agent/src/scenes/library/write-entry.ts': 'a library scene plan and its code, on a developer machine',
   'apps/agent/src/scenes/lesson/voice-takes.ts': "the tutor's voice from text to speech, never a student's",
   'apps/agent/src/scenes/scene-store.ts': 'scene records, takes, and sheets',
   'apps/agent/src/scenes/spend-ledger.ts': 'lesson costs',
   'apps/agent/src/tutor/spend-ledger.ts': 'tutor costs',
   'apps/api/src/infrastructure/orm/generate-migration.ts': 'a migration, on a developer machine',
+  'apps/api/src/scenes/scene-library.ts': "a reviewer's flag on a shared scene, with no student in it",
   'apps/api/src/students/student-scene-files.ts': 'the lesson cost ledger, without one student',
 };
 

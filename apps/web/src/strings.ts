@@ -615,7 +615,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy' | 'credits', LegalDocument>
           "If you write with the pen, your strokes go to our tutor service, which holds them in memory while the session runs. It makes a picture of what you wrote and sends that picture to Anthropic to read it. We do not store the strokes or the picture yet.",
           'Words you type into the search box on the Sessions page go to our server, which uses them to find your sessions. We do not store them.',
           'A running total of what the tutor cost for you each day, with no words in it. We use it to stop tutor time for the day at a limit.',
-          "If what a student says or what the tutor replies looks like a safety concern, we record that a flag happened, with the account ID, session, kind, whether it came from the student's words or the tutor's, the time, and who reviewed it and when. A flag holds none of the words, and people named by us read the list. Nothing is sent to a parent.",
+          "If what a student says or what the tutor replies looks like a safety concern, we record that a flag happened, with the account ID, session, kind, whether it came from the student's words or the tutor's, the time, and who reviewed it and when. A flag holds none of the words, and people named by us can read the list. Nothing is sent to a parent.",
         ],
         planned: [
           "Each lesson's transcript and board drawings, with what you typed, wrote, picked, placed, or dragged on the board, kept while the account is active. Your voice itself stays unstored.",
@@ -725,6 +725,7 @@ export const REVIEW_LABELS = {
     abuse: 'Abuse',
     danger: 'Danger',
     grooming: 'Grooming',
+    vague: 'Vague words',
     tutor_slip: 'Tutor slip',
   },
   sources: {

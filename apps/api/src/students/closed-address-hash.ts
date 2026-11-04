@@ -12,7 +12,15 @@ export function requireAddressHashKey(env: NodeJS.ProcessEnv): void {
   }
 }
 
-// Auth treats an address as one account whatever its case, so the hash does too.
+const GMAIL_DOMAINS: readonly string[] = ['gmail.com', 'googlemail.com'];
+
+// One mailbox answers to many spellings, so a closed child must not get back in with a `+` alias, or on Gmail with dots or its other domain.
+function toMailboxAddress(email: string): string {
+  const [local = '', domain = ''] = email.trim().toLowerCase().split('@');
+  const untagged = local.split('+')[0] ?? local;
+  return GMAIL_DOMAINS.includes(domain) ? `${untagged.replaceAll('.', '')}@gmail.com` : `${untagged}@${domain}`;
+}
+
 export function getAddressHash(email: string): string {
-  return createHmac('sha256', getAddressHashKey(process.env)).update(email.trim().toLowerCase()).digest('hex');
+  return createHmac('sha256', getAddressHashKey(process.env)).update(toMailboxAddress(email)).digest('hex');
 }
