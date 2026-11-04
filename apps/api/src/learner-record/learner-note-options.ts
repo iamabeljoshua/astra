@@ -25,6 +25,12 @@ export const MAX_EVIDENCE_PER_NOTE = 4;
 export const MAX_NOTES_PER_UPDATE = 8;
 export const MAX_UPDATE_KEY_LENGTH = 120;
 
+const NOT_TOPIC_KEY_CHARACTERS = /[^\p{L}\p{N}]+/gu;
+
+export function getTopicKey(topic: string): string {
+  return topic.toLowerCase().replace(NOT_TOPIC_KEY_CHARACTERS, ' ').trim();
+}
+
 const isBoardLine = (check: LearnerEvidenceCheck) => (evidence: LearnerEvidence) => evidence.source === 'board' && evidence.check === check;
 const isTheirWords = (evidence: LearnerEvidence) => evidence.source === 'words';
 const keepsNoFreeWords = ({ source, text }: LearnerEvidence) => (source === 'words' ? text === '' : text !== '');
