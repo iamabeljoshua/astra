@@ -1,4 +1,3 @@
-import { LESSON_RULES } from '../src/lesson-plan/lesson-rules.ts';
 import { type Beat, parseBeat } from '@astra/contracts';
 import { describe, expect, it, vi } from 'vitest';
 import { BeatTextReader } from '../src/tutor/beat-text-reader.ts';
