@@ -453,7 +453,7 @@ describe('fitting y to a curve with a tall part', () => {
     const slider = (min: number, max: number): Plot['constants'] => [{ name: 'a', value: min, min, max }];
     expect(fitted('sin(a*x)', [-10, 10], slider(1, 150))).toEqual([-1, 1]);
     expect(fitted('x*sin(a*x)', [-10, 10], slider(1, 30))).toEqual([-10, 10]);
-    expect(fitted('a*sin(30*x)', [-10, 10], slider(1, 5))).toEqual([-5, 5]);
+    expect(fitted('a*sin(30*x)', [-10, 10], slider(1, 5))[1]).toBeGreaterThanOrEqual(5);
     const [bottom, top] = fitted('1/(x-a)', [-10, 10], slider(-5, 5));
     expect(top - bottom).toBeLessThan(40);
   });

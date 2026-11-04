@@ -5,6 +5,8 @@ const HALVINGS_COMPARED = 12;
 const MOST_PEAKS_MEASURED = 6;
 /** A gain below this share of the top counts as evaluation noise, not a climb. */
 const NOISE_SHARE = 1e-9;
+/** A pole falls away by far more than this share over the last halvings compared, and a finite top is flat at that scale. */
+const SPIKE_SHARE = 16;
 
 interface Top {
   x: number;
@@ -14,6 +16,12 @@ interface Top {
 export interface SampledCurve {
   evaluate(x: number): number;
   samples: readonly Top[];
+}
+
+// A climb can stop gaining by chance when its last steps all overshoot a pole, so a top must also hold up beside itself.
+function isSpike(evaluate: (x: number) => number, { x, y }: Top, step: number): boolean {
+  const beside = Math.max(...[x - step, x + step].map(evaluate).filter(Number.isFinite));
+  return y - beside > Math.abs(beside) * SPIKE_SHARE;
 }
 
 /** Climbs by halving its step, and returns null unless the gain keeps at least halving, because a finite top settles and a pole or a log does not. */
@@ -32,7 +40,8 @@ function climbToTop(evaluate: (x: number) => number, start: Top, { spacing, doma
   }
   const gainedLast = best.y - (tops[HALVINGS - HALVINGS_COMPARED] as number);
   const gainedBefore = (tops[HALVINGS - HALVINGS_COMPARED] as number) - (tops[HALVINGS - 2 * HALVINGS_COMPARED] as number);
-  return gainedLast > Math.abs(best.y) * NOISE_SHARE && gainedLast >= gainedBefore / 2 ? null : best;
+  if (gainedLast > Math.abs(best.y) * NOISE_SHARE && gainedLast >= gainedBefore / 2) return null;
+  return isSpike(evaluate, best, spacing / 2 ** (HALVINGS - HALVINGS_COMPARED)) ? null : best;
 }
 
 // A top at a domain edge may be a pole just past it, as with tan(x) on [-1.57, 1.57], so it climbs again past the edge.
