@@ -15,7 +15,6 @@ interface SpokenRow {
   said: string;
   truth: 'right' | 'wrong' | 'talk';
   voice: string;
-  /** What Muse really wrote for this clip. */
   final: string;
 }
 

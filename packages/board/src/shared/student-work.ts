@@ -48,8 +48,8 @@ export function moveTaskPoint(elements: Elements, task: ElementId, pointX: numbe
   setProgress(elements, task, { pointX });
 }
 
-function makeElement(id: ElementId, content: BoardElement['content'], { atMs, overMs, math = null, isStudents = true }: { atMs: number; overMs: number; math?: BoardElement['math']; isStudents?: boolean }): BoardElement {
-  return { id, placedAtMs: atMs, content, entrance: moveOver({ from: 0, to: 1, atMs, overMs }), placedScene: null, revealedUpTo: null, math, morphFrom: null, isStudents };
+function makeElement(id: ElementId, content: BoardElement['content'], { atMs, overMs, math = null, isStudentMark = true }: { atMs: number; overMs: number; math?: BoardElement['math']; isStudentMark?: boolean }): BoardElement {
+  return { id, placedAtMs: atMs, content, entrance: moveOver({ from: 0, to: 1, atMs, overMs }), placedScene: null, revealedUpTo: null, math, morphFrom: null, isStudentMark };
 }
 
 function placeStudentLine(elements: Elements, work: StudentWork & { way: 'write' }, reading: LineReading, verdict: WorkVerdict, atMs: number): void {
@@ -62,7 +62,7 @@ function placeStudentLine(elements: Elements, work: StudentWork & { way: 'write'
 
 function placeCodeCheck(elements: Elements, target: ElementId, atMs: number): void {
   const id = `${target}-checked` as ElementId;
-  if (!elements.has(id)) elements.set(id, makeElement(id, { kind: 'annotate', id, target: target as string as ElementRef, mark: 'check' }, { atMs, overMs: MARK_DRAWS_MS, isStudents: false }));
+  if (!elements.has(id)) elements.set(id, makeElement(id, { kind: 'annotate', id, target: target as string as ElementRef, mark: 'check' }, { atMs, overMs: MARK_DRAWS_MS, isStudentMark: false }));
 }
 
 function placeStudentRing(elements: Elements, taskId: ElementId, part: string, atMs: number): void {

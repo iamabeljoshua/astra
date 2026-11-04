@@ -17,7 +17,6 @@ function getStatus(problem: string, typed: string) {
 
 const signed = (value: number) => (value < 0 ? `- ${-value}` : `+ ${value}`);
 
-/** Builds ax + b = c with a whole root, and steps from it whose truth comes from plain arithmetic here, not from the checker. */
 function makeProblem(random: (below: number) => number) {
   const a = 2 + random(8);
   const root = random(21) - 10;

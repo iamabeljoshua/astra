@@ -8,7 +8,6 @@ import type { Scene, SceneCatalog, SceneParameters } from './scene.ts';
 
 const ENTRANCE_MS = 400;
 const REARRANGE_MS = 800;
-/** A pen's loop or tick, drawn fast enough to land on its word. */
 const MARK_DRAWS_MS = 340;
 const WRITING_MS_PER_CHARACTER = 35;
 const LONGEST_WRITING_MS = 1600;
@@ -42,13 +41,10 @@ export interface BoardElement {
   math: MathLine | null;
   /** The equation it is rearranging from, while `entrance` runs. */
   morphFrom: MathLine | null;
-  /** Set on a task, for what the student has done on it so far. */
   progress?: TaskProgress;
-  /** A mark the student made rather than the tutor, so it takes the student's ink and not the tutor's pen. */
-  isStudents?: boolean;
+  isStudentMark?: boolean;
 }
 
-/** What the right side is for, and since when, so the move reads from the clock. */
 export interface BoardStage {
   mode: BoardModeName;
   sinceMs: number;
@@ -57,7 +53,6 @@ export interface BoardStage {
 export interface BoardState {
   readonly elements: ReadonlyMap<ElementId, BoardElement>;
   readonly focus: ElementRef | null;
-  /** Null until the tutor first writes or names a mode. */
   readonly stage: BoardStage | null;
 }
 
@@ -145,7 +140,6 @@ function getWritingMs(command: PlacingCommand): number {
 function place(board: BoardDraft, command: PlacingCommand, { atMs, overMs, catalog }: { atMs: number; overMs: number | null; catalog: SceneCatalog }): void {
   const scene = catalog(command, {});
   if (command.kind === 'task') closeOpenTasks(board.elements);
-  // Anything new written or asked for needs the board, so it comes in, even if the tutor never said so.
   if (BRINGS_THE_BOARD.has(command.kind) && board.stage?.mode !== 'handsOn') board.stage = { mode: 'handsOn', sinceMs: atMs };
   board.elements.set(command.id, {
     id: command.id,

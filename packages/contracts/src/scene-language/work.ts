@@ -8,7 +8,6 @@ export type LineKind = (typeof LINE_KINDS)[number];
 
 export type LinePart = { type: 'words'; text: string } | { type: 'math'; text: string; tex: string };
 
-/** How one typed line was read, which the student always sees. */
 export interface LineReading {
   kind: LineKind;
   parts: LinePart[];
@@ -22,15 +21,13 @@ export interface PointSample {
   x: number;
 }
 
-/** What a reader made of handwriting. Only the agent writes this, because it is the one that read it. */
-export interface InkReading {
+export interface ReadMath {
   /** The math, if it read math. With none, `text` holds the words. */
   tex?: string;
   /** The reader doubted a symbol, so nothing may be judged on it. */
   isUnsure: boolean;
 }
 
-/** What the student did on the board. One way for each way a task can ask. */
 export type StudentWork =
   /** `task` names the task this line answers, if one is open on the student's board. */
   | {
@@ -38,10 +35,10 @@ export type StudentWork =
       id: ElementId;
       text: string;
       task?: ElementId;
-      ink?: InkReading;
-      heard?: InkReading;
+      ink?: ReadMath;
+      heard?: ReadMath;
       /** Set in the math keyboard, so the student's own math is what gets read. `text` holds the same line in plain characters. */
-      keyed?: InkReading;
+      keyed?: ReadMath;
     }
   | { way: 'pick'; task: ElementId; part: string }
   /** Holds the item in each slot, or null for an empty slot, in the task's slot order. */
@@ -60,7 +57,6 @@ export const isStudentLineId = (id: string) => STUDENT_LINE_ID.test(id);
 
 const INK_SUFFIX = '-ink-';
 
-/** The strokes of a handwritten line take ids from the line they will become. */
 export const getInkStrokeId = (lineId: ElementId, index: number) => `${lineId}${INK_SUFFIX}${index}` as ElementId;
 
 export const getInkLineId = (strokeId: string) => (strokeId.includes(INK_SUFFIX) ? (strokeId.split(INK_SUFFIX)[0] as ElementId) : null);

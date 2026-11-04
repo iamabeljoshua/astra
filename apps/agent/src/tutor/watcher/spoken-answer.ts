@@ -55,7 +55,6 @@ function decidePick(text: string, parts: readonly SpokenPart[]): SpokenDecision 
   return spoken !== '' && matches.length === 1 ? { act: 'pick', part: (matches[0] as SpokenPart).part } : { act: 'talk', why: 'it does not clearly name one part' };
 }
 
-// A whole line said during a pick is a line of work, as it would be typed, and never a pick of the first term it names.
 function decidePickOrLine(text: string, parts: readonly SpokenPart[]): SpokenDecision {
   const tex = getLineTex(readLine(text));
   if (tex && WHOLE_EQUATION.test(tex)) return { act: 'line', tex };

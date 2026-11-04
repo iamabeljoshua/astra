@@ -36,7 +36,6 @@ function getSideCenter(): { x: number; y: number } | null {
   return { x: box.left + box.width / 2 - 6.5, y: box.top + box.height / 2 - 6.5 };
 }
 
-// The tutor's one dot, which sits by the row being worked on and rests over the tutor's words.
 export function MovingDot({ rowId, isWatching, isThinking, isLively, arrival = null, getLoudness }: DotState) {
   const dot = useRef<HTMLDivElement>(null);
   const body = useRef<HTMLElement>(null);

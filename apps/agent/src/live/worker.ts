@@ -94,7 +94,6 @@ async function runSession(context: JobContext): Promise<void> {
     ...(readMeaning ? { readMeaning } : {}),
     ...(readStrokes ? { readStrokes } : {}),
     ...(readSpokenWords ? { readSpokenWords } : {}),
-    // A demo's tool only, so a production room can never keep a recording.
     ...(process.env.ASTRA_SAVE_HEARD && process.env.NODE_ENV !== 'production' ? { recordTurn: createHeardRecorder(process.env.ASTRA_SAVE_HEARD, room.name ?? 'room') } : {}),
     ...(process.env.ASTRA_SHOW_COST === '1' ? { getCostSoFar: () => (getSpentUsd?.() ?? 0) + (hearingSinceMs === null ? 0 : ((Date.now() - hearingSinceMs) / MS_PER_MINUTE) * MUSE_USD_PER_MINUTE) } : {}),
   });

@@ -6,7 +6,6 @@ import { readInk } from '../ink/read-ink.ts';
 import { rasterizeInk } from '../ink/rasterize-ink.ts';
 import { createSpendLedger } from '../spend-ledger.ts';
 
-/** Lines a student could write, and whether each is true of its problem. The worst failure is a false line read so that code calls it right. */
 interface InkRow {
   problem: string | null;
   written: string;

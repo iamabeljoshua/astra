@@ -107,7 +107,6 @@ export type BrowserMessage = BrowserStamp &
     | { type: 'inkPeek'; strokes: ElementId[] }
     /** The student is typing or writing right now, at most a few times a second, so a reply can hold its first word. */
     | { type: 'typing' }
-    /** The student asked the tutor to stop talking. */
     | { type: 'stopTutor' }
     /** The board could not draw this mark, so the tutor is pointing at something the student cannot see. */
     | { type: 'markNotDrawn'; markId: string }

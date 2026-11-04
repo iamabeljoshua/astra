@@ -41,7 +41,6 @@ function toWav(frames: readonly AudioFrame[]): Buffer {
   return wav;
 }
 
-// For a tester chasing a sound that does not match the words: each tutor turn's text, what the page was told, and the audio that left. The student's voice never passes here.
 export function createHeardRecorder(folder: string, sessionName: string): RecordTurn {
   mkdirSync(folder, { recursive: true });
   return ({ turnId, kind }) => {

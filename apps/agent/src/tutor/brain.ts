@@ -34,9 +34,15 @@ export interface TutorBrain {
   getClosedReason?(): TutorClosedReason | null;
   /** Checks the student's work against the board as the tutor knows it, and notes it for the next turn. Null if the work cannot stand, such as a line id already used. */
   noteWork?(work: StudentWork): { checked: CheckedWork; hadTask: boolean } | null;
-  /** Why code decided the tutor should speak up, for the next turn. */
-  noteWatcher?(note: Record<string, unknown>): void;
+  noteWatcher?(note: WatcherNote): void;
   getBoard?(): { state: BoardState; openTask: ElementId | null };
+}
+
+/** Why code decided the tutor should speak up, read by the model on its next turn. */
+export interface WatcherNote {
+  why: string;
+  seconds_paused: number;
+  unsent_draft?: string;
 }
 
 export type SpendLimit = 'sessionLimit' | 'dailyLimit';
@@ -134,7 +140,6 @@ interface TurnWork {
 }
 
 const RESUMED_BEAT = /^(.+?)(?:-r\d+(?:-rest)?)+$/;
-/** A page could flood the board with work that gets no reply, and each piece would be paid for in the next request. */
 const MOST_NOTES_OF_WORK_HELD = 20;
 const MOST_WORK_IN_A_SESSION = 2000;
 const WAIT_STEP_MS = 5;
@@ -501,7 +506,6 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
     return 'retry';
   };
 
-  // No words of this beat have played, so the retry can simply say the right thing.
   const handleWrongWords = (turn: TurnWork, canRetry: boolean): TurnStep => {
     const problem = turn.wrongWords as string;
     turn.wrongWords = null;

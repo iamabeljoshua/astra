@@ -49,7 +49,6 @@ export interface DrawnDiagram {
   steps: readonly DiagramStep[];
   width: number;
   height: number;
-  /** Where each node sits, by its name, so a mark or a student's pick can find it. */
   nodeBoxes: ReadonlyMap<string, MarkBox>;
 }
 

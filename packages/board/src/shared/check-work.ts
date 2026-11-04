@@ -33,7 +33,6 @@ const WANTS_SOMETHING_ELSE = new RegExp(String.raw`^\s*${PLEASANTRY}(?:teach me|
 
 export const wantsSomethingElse = (text: string) => WANTS_SOMETHING_ELSE.test(text);
 
-// A number can be told from a number, so 54 is not 56, and words are left for the tutor to read.
 function checkAccepted(text: string, accepts: readonly string[]): WorkVerdict | null {
   const typed = toKey(text);
   if (accepts.some((accepted) => toKey(accepted) === typed)) return RIGHT;
@@ -126,7 +125,6 @@ export function getCurveOf(expression: string, constants: ReadonlyMap<string, nu
 export const NODS = { doubt: 'Hm.', agree: 'Mm-hm.' } as const;
 export type Nod = (typeof NODS)[keyof typeof NODS];
 
-/** What the tutor says the instant code is sure, so it cannot praise a wrong step, and a right written line gets its tick and no sound. */
 export function getNod(work: StudentWork, { verdict }: CheckedWork): Nod | null {
   if (verdict.status === 'wrong') return NODS.doubt;
   return verdict.status === 'right' && work.way !== 'write' ? NODS.agree : null;

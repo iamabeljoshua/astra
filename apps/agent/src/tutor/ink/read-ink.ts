@@ -1,6 +1,6 @@
 import { canRenderTex } from '@astra/board/tex-check';
 import { cleanStudentText } from '@astra/board/shared';
-import { getTexProblem, type InkReading } from '@astra/contracts';
+import { getTexProblem, type ReadMath } from '@astra/contracts';
 import type { PictureReader } from '../../providers/anthropic.ts';
 
 const LONGEST_READ_MS = 6000;
@@ -29,7 +29,7 @@ interface RawRead {
 
 export interface ReadInkResult {
   text: string;
-  ink: InkReading;
+  ink: ReadMath;
   costUsd: number;
 }
 

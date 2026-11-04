@@ -14,7 +14,7 @@ interface ChatBoxProps {
   canAttach?: boolean;
   clearsOnSend?: boolean;
   isSending?: boolean;
-  /** A touch screen is left alone, because a keyboard opening by itself would cover the page. */
+  /** A touch screen is left alone, so no keyboard opens by itself. */
   takesFocus?: boolean;
   /** A session's live voice owns this. Without it the button only changes the placeholder. */
   talk?: { isOn: boolean; onToggle: () => void };

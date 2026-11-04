@@ -52,8 +52,7 @@ export interface LiveVoiceView {
   closedBecause: TutorClosedReason | null;
   firstWord: string | null;
   isStopped: boolean;
-  /** Goes up while the student types or writes on the board. */
-  typingNotes: number;
+  typingNoteCount: number;
   costUsd: number | null;
   /** This page's room closed and it joined a new one, so the tutor now holds nothing of what was said. */
   startedFresh: boolean;
@@ -146,7 +145,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
   const listeners = new Set<() => void>();
   const outbox: BrowserMessage[] = [];
   let typingNotedAtMs = -Infinity;
-  let view: LiveVoiceView = { phase: 'connecting', mic: 'off', isSoundBlocked: audioContext.state !== 'running', isQuietWarning: false, isThinking: false, isHeard: false, isTutorSpeaking: false, closedBecause: null, firstWord: null, isStopped: false, typingNotes: 0, costUsd: null, startedFresh: false, hasTutorStarted: false, studentLines: [], tutorHeard: [], tutorComing: [] };
+  let view: LiveVoiceView = { phase: 'connecting', mic: 'off', isSoundBlocked: audioContext.state !== 'running', isQuietWarning: false, isThinking: false, isHeard: false, isTutorSpeaking: false, closedBecause: null, firstWord: null, isStopped: false, typingNoteCount: 0, costUsd: null, startedFresh: false, hasTutorStarted: false, studentLines: [], tutorHeard: [], tutorComing: [] };
   let lastAgentPulseEpochMs: number | null = null;
   let isClosed = false;
   let hasHeardFirstOnset = false;
@@ -505,7 +504,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
       const nowMs = clock.getNowMs();
       if (nowMs - typingNotedAtMs < TYPING_NOTED_EVERY_MS) return;
       typingNotedAtMs = nowMs;
-      setView({ typingNotes: view.typingNotes + 1 });
+      setView({ typingNoteCount: view.typingNoteCount + 1 });
       send({ type: 'typing', ...getStamp() });
     },
     sendInkDone(id, strokes, task) {

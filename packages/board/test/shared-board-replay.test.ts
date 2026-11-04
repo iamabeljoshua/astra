@@ -11,7 +11,6 @@ const line = (lineId: string, text: string, task: ElementId): StudentWork => ({ 
 
 const beat = (seq: number, atMs: number, commands: readonly object[]) => ({ seq, atMs, kind: 'beatPlayed', turnId: 'turn-1', beat: { id: `b${seq}`, script: [...commands, 'Look here now.'], expectsReply: false }, reportedBy: 'browser', wordStartsMs: [0, 100, 200], durationMs: 300, playedWords: 3, firedCueMs: commands.map(() => 0), ending: 'finished', frozen: [] }) as unknown as SessionEvent;
 
-// Plays the work the way the page does, and writes the log the way the agent does, so a replay must land on the same board.
 function playAndLog(works: readonly { atMs: number; work: StudentWork }[]) {
   const operations: BoardOperation[] = [setProblem, setTask].map((command) => ({ kind: 'command', atMs: 10, command, overMs: null }));
   const log: SessionEvent[] = [beat(0, 10, [setProblem, setTask])];

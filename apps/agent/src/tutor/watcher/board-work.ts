@@ -1,5 +1,5 @@
 import { setTimeout as delay } from 'node:timers/promises';
-import type { AgentMessage, BrowserMessage, ElementId, InkPoint, InkReading, StudentAction, StudentWork, Task } from '@astra/contracts';
+import type { AgentMessage, BrowserMessage, ElementId, InkPoint, ReadMath, StudentAction, StudentWork, Task } from '@astra/contracts';
 import { type CheckedWork, cleanStudentText, checkWorkOnBoard, getNod, getPickParts, type Nod, wantsSomethingElse } from '@astra/board/shared';
 import type { BoardElement } from '@astra/board';
 import type { SpokenReading } from './read-spoken.ts';
@@ -128,7 +128,7 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
     takeWork({ type: 'worked', clockId, browserMs, startedMsAgo, work }, () => send({ type: 'workRead', work }));
   };
 
-  const getHeardWork = (text: string, heard: InkReading, task: ElementId): StudentWork => {
+  const getHeardWork = (text: string, heard: ReadMath, task: ElementId): StudentWork => {
     spokenLines += 1;
     return { way: 'write', id: `s${FIRST_SPOKEN_LINE + spokenLines}` as ElementId, text, task, heard };
   };

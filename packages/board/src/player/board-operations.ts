@@ -12,9 +12,7 @@ export type BoardOperation =
   | { kind: 'inkStroke'; atMs: number; id: ElementId; points: readonly InkPoint[] }
   | { kind: 'inkErased'; atMs: number; target: ElementId }
   | { kind: 'rewound'; atMs: number; toMs: number }
-  /** Work on the shared board, with what code made of it. */
   | { kind: 'worked'; atMs: number; action: Extract<StudentAction, { action: 'worked' }> }
-  /** The student's point on a curve, while they drag it. */
   | { kind: 'pointMoved'; atMs: number; task: ElementId; x: number };
 
 export interface PlayedBeatView {
@@ -55,7 +53,6 @@ function getRewoundToMs(log: readonly SessionEvent[], event: SessionEvent & { ki
   return rewoundBeat?.atMs ?? event.atMs;
 }
 
-// A drag is logged when it ends, stamped when it began, so the point moves through its samples before the work lands.
 function getWorkedOperations(action: Extract<StudentAction, { action: 'worked' }>, atMs: number): BoardOperation[] {
   const { work } = action;
   if (work.way !== 'drag') return [{ kind: 'worked', atMs, action }];

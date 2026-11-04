@@ -150,7 +150,6 @@ function getAnswerWords(tex: string): RegExp | null {
   return new RegExp(`\\b(?:${answer.letter}\\s+(?:is|equals|=|must be|has to be|comes to)|the answer is|answer's|it's|it is)\\s+${value}\\b`, 'i');
 }
 
-/** Words code will not let the tutor say. */
 export function getWordsProblem(text: string, { isLatestWorkWrong, openTask }: BoardMemory, isFirstBeat: boolean): string | null {
   if (isFirstBeat && isLatestWorkWrong && PRAISE.test(text)) return "Code says the student's last work is wrong, and your words sounded like praise. Do not praise it. Point at where it went wrong, in a few words.";
   if (!openTask?.problemTex || openTask.studentTurns >= FEWEST_TURNS_BEFORE_THE_ANSWER) return null;

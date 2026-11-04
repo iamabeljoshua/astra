@@ -31,7 +31,6 @@ export interface ScenePlayer {
   /** Mutes and freezes as a stop would, for a browser that has lost the agent and cannot wait to be told. */
   freeze(): void;
   getBoard(atMs: number): BoardState;
-  /** Puts what the student just did on the board, so the page shows it before any message leaves. */
   addStudentOperations(operations: readonly BoardOperation[]): void;
   getNowMs(): number;
   getOperations(): BoardOperation[];

@@ -91,12 +91,12 @@ export function createBoardMarks(overlay: SVGSVGElement, onMarkWithoutTarget?: (
     onMarkWithoutTarget?.({ kind: 'markWithoutTarget', markId: mark.id, target: content.target, ...(tex === undefined ? {} : { tex }) });
   };
 
-  const getPaintedMark = ({ id, kind, box, existing, isStudents }: { id: string; kind: AnnotationMark; box: MarkBox; existing: PaintedMark | undefined; isStudents: boolean }): PaintedMark => {
+  const getPaintedMark = ({ id, kind, box, existing, isStudentMark }: { id: string; kind: AnnotationMark; box: MarkBox; existing: PaintedMark | undefined; isStudentMark: boolean }): PaintedMark => {
     const key = `${kind}|${box.x.toFixed(1)}|${box.y.toFixed(1)}|${box.width.toFixed(1)}|${box.height.toFixed(1)}`;
     if (existing?.key === key) return existing;
     existing?.painter.remove();
     const group = existing?.group ?? document.createElementNS(SVG_NAMESPACE, 'g');
-    group.classList.toggle('board-mark-student', isStudents);
+    group.classList.toggle('board-mark-student', isStudentMark);
     if (!existing) overlay.append(group);
     const painted = { group, key, painter: createInkPainter(group, drawMark({ mark: kind, box, seed: id })) };
     marks.set(id, painted);
@@ -119,7 +119,7 @@ export function createBoardMarks(overlay: SVGSVGElement, onMarkWithoutTarget?: (
       return;
     }
     drawnOnce.add(getPlacementKey(mark));
-    const painted = getPaintedMark({ id: mark.id, kind: getMarkKind(content), box, existing: marks.get(mark.id), isStudents: mark.isStudents === true });
+    const painted = getPaintedMark({ id: mark.id, kind: getMarkKind(content), box, existing: marks.get(mark.id), isStudentMark: mark.isStudentMark === true });
     const drawn = getMotionValue(mark.entrance, frame.atMs);
     const move = boxes.flightOffset;
     writeStyle(painted.group, 'visibility', placement.isVisible ? '' : 'hidden');

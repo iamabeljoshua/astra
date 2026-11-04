@@ -39,11 +39,11 @@ Each stroke lands as it is drawn and goes through `inkStroke`, so it is in the l
 
 | Lines | Read exactly | Code said | Worst case |
 | --- | --- | --- | --- |
-| 44 wrong math lines | 44 | 37 wrong, 7 unsure | 0 read as right |
-| 12 right math lines | 12 | 9 right, 3 unsure | 0 called wrong |
+| 44 wrong math lines | 44 | 39 wrong, 5 unsure | 0 read as right |
+| 12 right math lines | 12 | 8 right, 4 unsure | 0 called wrong |
 | 16 lines of words, one misspelled on purpose | 16 | Not judged | 0 fixed |
 
-It cost $0.007 for 72 reads, at 1.53 s a read.
+It cost $0.007 for 72 reads, at 1.9 s a read.
 
 ## Answering aloud
 
@@ -112,6 +112,10 @@ The reply box and Talk stay away for a normal connection. After 8 s of connectin
 
 For Abel and testers. A small estimate beside the state line, for the session so far: the model from usage, the voice from characters at the recorded rate, and Muse from open time. The agent sends it at the end of a reply only with `ASTRA_SHOW_COST=1`, and the page shows it only in a build with `VITE_SHOW_COST=1`. `refuseCostLine` in `apps/web/build-guards.ts` fails any other build that holds it, and `SessionCost.test.tsx` runs real builds both ways.
 
+## Hearing what left
+
+For a tester chasing a sound that does not match the words. `ASTRA_SAVE_HEARD` names a folder, and each tutor turn saves there the words sent to the voice, what the page was told, the voice's `wordMismatches`, and a WAV of the audio that left. A production room never records, and the student's voice never passes here.
+
 ## Parity with the prototype
 
 Abel's rule: everything a student can see or do on the prototype exists on the real board. Walked from `astra-tinker/board/public/app.js`, `plain.js`, `index.html`, and `style.css`. Proofs are tests, or page runs with screenshots in the coordinator's `board-compare` folder.
@@ -171,7 +175,7 @@ Abel's rule: everything a student can see or do on the prototype exists on the r
 | Behavior | Real board | Proof |
 |---|---|---|
 | MathLive field and its keyboard | Yes, `mathlive` 0.111.4, MIT. Its own chunk, 804 KB, 219 KB gzipped, loaded only on opening. No fonts or sounds of its own | `math-keys-2-typed-dark.png`, `MathField.test.tsx` |
-| Enter sends the math as set | Yes, checked by what it holds | `board-work.test.ts`, `math-keys-3-sent-*` |
+| Enter sends the math as set, and leaving the field or the window sends nothing | Yes, checked by what it holds | `board-work.test.ts`, `MathField.test.tsx`, `math-keys-3-sent-*` |
 | The menu toggle hidden | Yes | `math-keys-*` |
 | The keyboard in the theme, with room kept for the words and tools | Added. On the prototype it covers them | `math-keys-2-typed-dark.png` |
 

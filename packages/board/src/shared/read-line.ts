@@ -73,7 +73,6 @@ function wrapBrackets(text: string, marker: string, makeTex: (inside: string) =>
 
 const SIMPLE_FRACTION = /(\d+(?:\.\d+)?|[a-zA-Z]|\))\s*\/\s*(\d+(?:\.\d+)?|[a-zA-Z])(?![\w^])/g;
 
-/** Turns plain typing into LaTeX, built only from what a token allows. */
 export function plainToTex(plain: string): string {
   const withRoots = wrapBrackets(plain.replace(/\s+/g, ''), 'sqrt(', (inside) => `\\sqrt{${inside}}`);
   const withPowers = wrapBrackets(withRoots, '^(', (inside) => `^{${inside}}`).replace(/\^(-?\d+(?:\.\d+)?|[a-zA-Z])/g, '^{$1}');
@@ -215,7 +214,6 @@ function toReading(text: string, parts: LinePart[], isAsking: boolean): LineRead
   return bare === null ? { kind: 'words', parts: [{ type: 'words', text }], isAsking } : { kind: 'math', parts: [{ type: 'math', text: bare, tex: bare }], isAsking };
 }
 
-/** One line of free typing is words, math, code, or a mix, and the student never has to say which. */
 export function readLine(rawText: string, reads?: WriteReading): LineReading {
   const line = cleanTypedLine(rawText);
   const text = line.trim();

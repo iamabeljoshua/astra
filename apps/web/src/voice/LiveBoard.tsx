@@ -32,15 +32,14 @@ function getLastWorkWords(board: BoardState): string {
   return line.verdict.status === 'right' ? `${read} ${BOARD_WORK_LABELS.checked}` : read;
 }
 
-/** The newest row anything happened on, which the dot follows. */
 function getLatestRowId(board: BoardState): string | null {
   const focused = board.focus?.split('.')[0];
-  if (focused && board.elements.has(focused as never)) return focused;
+  if (focused && board.elements.has(focused as ElementId)) return focused;
   const elements = [...board.elements.values()];
   for (const { id, content } of elements.reverse()) {
     if ('target' in content && typeof content.target === 'string') {
       const root = content.target.split('.')[0] as string;
-      if (board.elements.has(root as never)) return root;
+      if (board.elements.has(root as ElementId)) return root;
     }
     if (content.kind === 'writeMath' || content.kind === 'studentLine' || content.kind === 'text' || content.kind === 'diagram' || content.kind === 'task') return id;
   }

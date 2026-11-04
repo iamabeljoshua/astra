@@ -1,5 +1,3 @@
-/** A table of student steps. `problem` is the line the tutor set, or null for no task. A row in TRUE_STEPS is work a good student could really write, so code may never call it wrong. A row in FALSE_STEPS is certainly false as a step, so code may never call it right. */
-
 export interface StepRow {
   name: string;
   problem: string | null;
@@ -37,7 +35,6 @@ const ROUTES: readonly string[] = [
   'x - 4 = 0',
 ];
 
-/** Different routes, new problems, skipped steps, other kinds of math, and other subjects' numbers. None of these may be called wrong. */
 export const TRUE_STEPS: readonly StepRow[] = [
   ...ROUTES.map((typed) => row('a route', LINEAR, typed)),
   row('skips straight to the answer', LINEAR, 'x = 4'),
@@ -107,7 +104,6 @@ export const TRUE_STEPS: readonly StepRow[] = [
   row('a hypothesis', LINEAR, 'what if x = 5'),
 ];
 
-/** Certainly false as a step of the problem, so code may never call one right. Most should be wrong, and the rest unknown. */
 export const FALSE_STEPS: readonly StepRow[] = [
   row('sign error', LINEAR, '2x = 14'),
   row('one side only', LINEAR, '2x + 3 = 8'),
@@ -138,7 +134,6 @@ export const FALSE_STEPS: readonly StepRow[] = [
   row('wrong arithmetic answer', '7 * 8', '54'),
 ];
 
-/** The steps on `2x + 3 = 11` that the plan names, which must be exactly this. */
 export const NAMED_STEPS: readonly (readonly [string, 'right' | 'wrong'])[] = [
   ['2x = 8', 'right'],
   ['x = 4', 'right'],

@@ -1,7 +1,6 @@
 import type { StudentWork } from '@astra/contracts';
 import { type CheckedWork, getNod, getPointFacts, type WorkContext } from '@astra/board/shared';
 
-// A line of code carries its text, because it usually passes with no reply and the tutor would not see it.
 function getLineFacts(work: StudentWork & { way: 'write' }, { reading }: CheckedWork) {
   const math = reading?.parts.flatMap((part) => (part.type === 'math' ? [part.tex] : [])) ?? [];
   const [first] = reading?.parts ?? [];

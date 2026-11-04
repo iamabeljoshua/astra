@@ -86,7 +86,6 @@ export function isFinishedAnswer(tex: string): boolean {
   return (/^[A-Za-z]$/.test(left) && BARE_ANSWER.test(right)) || (/^[A-Za-z]$/.test(right) && BARE_ANSWER.test(left));
 }
 
-/** The answer to a one-letter linear equation, or null for anything else. */
 export function getLinearAnswer(tex: string): { letter: string; value: number } | null {
   const sides = tex.split('=');
   if (sides.length !== 2) return null;

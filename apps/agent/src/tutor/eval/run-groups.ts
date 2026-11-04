@@ -12,14 +12,12 @@ import { createSpendLedger } from '../spend-ledger.ts';
 import { getWorkWords } from '../watcher/watch-rule.ts';
 import { REPLY_CHECKS } from './reply-checks.ts';
 
-/** Work on the board. A place names how to fill the open task's slots, because the tutor chose the items. */
 type GroupWork = { way: 'write'; id: string; text: string } | { way: 'leave' } | { way: 'pick'; part: string } | { way: 'place'; placed: 'rightOrder' | 'wrongOrder' };
 
 interface GroupTurn {
   text?: string;
   work?: GroupWork;
   check?: string;
-  /** Code would not call the tutor for this work, so the turn only notes it. */
   silent?: boolean;
 }
 

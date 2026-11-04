@@ -12,7 +12,7 @@ const RING = { paddingX: 5, paddingY: 2, steps: 44, startRadians: -2.2, overlapR
 const UNDERLINE = { steps: 8, gap: 3, wobble: 1.1 };
 const TICK = { sizeEms: 0.7, gap: 8 };
 
-// A loose loop in one stroke, a little past where it began, so it reads as a pen and not a shape. The seed turns the wobble, so a replay draws the same loop.
+// A loose loop in one stroke, a little past where it began, so it reads as a pen and not a shape.
 function getRing(box: MarkBox, random: () => number): InkDrawing['strokes'] {
   const centerX = box.x + box.width / 2;
   const centerY = box.y + box.height / 2;

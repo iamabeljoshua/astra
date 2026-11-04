@@ -1,8 +1,6 @@
-export type MathFieldElement = HTMLElement & {
-  getValue(format: 'latex' | 'ascii-math'): string;
-  value: string;
-  mathVirtualKeyboardPolicy: 'auto' | 'manual' | 'sandboxed';
-};
+import type { MathfieldElement as MathLiveField } from 'mathlive';
+
+export type MathFieldElement = MathLiveField;
 
 interface LoadedMathField {
   makeField(): MathFieldElement;
@@ -20,7 +18,7 @@ export function loadMathField(): Promise<LoadedMathField> {
     MathfieldElement.soundsDirectory = null;
     return {
       makeField() {
-        const field = new MathfieldElement() as unknown as MathFieldElement;
+        const field = new MathfieldElement();
         field.mathVirtualKeyboardPolicy = 'manual';
         return field;
       },

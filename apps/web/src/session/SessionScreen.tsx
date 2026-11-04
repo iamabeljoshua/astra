@@ -78,7 +78,6 @@ function isTutorOnTheWay(status: LiveVoiceControls['status'], view: LiveVoiceVie
 
 /** Long enough for a student to think, so the prompt never hurries an answer on its way. */
 const ANSWER_PROMPT_AFTER_MS = 8000;
-/** A normal connection is done by now, so only a slow one brings the reply box back. */
 const REPLY_BOX_BACK_AFTER_MS = 8000;
 
 // A change to startsOver begins the wait again.
@@ -97,7 +96,6 @@ function useHasWaited(isWaiting: boolean, waitMs: number, startsOver = 0): boole
   return isWaiting && hasWaited;
 }
 
-// The tutor does not nag out loud. Once it has stopped and the student has done nothing for a while, the page says what they can do.
 function useIsAnswerDue(view: LiveVoiceView | null, draftEdits: number): boolean {
   const isWaiting = view !== null && view.phase === 'live' && view.mic === 'off' && !view.closedBecause && !view.isTutorSpeaking && !view.isThinking && !view.isHeard && view.tutorHeard.length > 0;
   return useHasWaited(isWaiting, ANSWER_PROMPT_AFTER_MS, (view?.studentLines.length ?? 0) + draftEdits);
@@ -294,11 +292,10 @@ function ReplyBox({ liveVoice, isConnecting, carryOnLine }: { liveVoice: LiveVoi
   const [draftEdits, setDraftEdits] = useState(0);
   const [hasDraft, setHasDraft] = useState(false);
   const isBackWhileConnecting = useHasWaited(isConnecting, REPLY_BOX_BACK_AFTER_MS);
-  // A draft keeps its box when the tutor arrives, so nothing typed on a slow connection is lost.
   const isBoxOpen = (!voice && status !== 'connecting') || isBackWhileConnecting || hasDraft;
   if (reply && !reply.didFail && view?.hasTutorStarted) setReply(null);
   if (reply && !reply.didFail && !view?.hasTutorStarted && isOver) setReply({ ...reply, didFail: true });
-  const voiceNote = getVoiceNote(liveVoice, useIsAnswerDue(view, draftEdits + (view?.typingNotes ?? 0)));
+  const voiceNote = getVoiceNote(liveVoice, useIsAnswerDue(view, draftEdits + (view?.typingNoteCount ?? 0)));
 
   async function send(text: string) {
     setHasDraft(false);

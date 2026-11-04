@@ -45,13 +45,10 @@ export interface LiveSessionOptions {
   quietLimitMs?: number;
   getNowMs?(): number;
   trace?: TraceNote;
-  /** What a student's unsent words mean, read by a cheap model. */
   readMeaning?(words: string): Promise<WordMeaning | null>;
-  /** Reads a handwritten line's strokes with a small model. */
   readStrokes?(strokes: readonly (readonly InkPoint[])[]): Promise<{ text: string; ink: { tex?: string; isUnsure: boolean } } | null>;
   readSpokenWords?(words: string, expects: SpokenExpected): Promise<SpokenReading>;
   getCostSoFar?(): number;
-  /** A tester's recording of what each tutor turn sent out. With none, nothing is kept. */
   recordTurn?: RecordTurn;
 }
 
