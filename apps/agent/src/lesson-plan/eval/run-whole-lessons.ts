@@ -337,7 +337,7 @@ async function runLesson(script: LessonScript, student: StudentKind, ledger: Ret
       if (task.way === 'drag') return { way: 'leave', task: taskId };
       const problem = task.on ? state.elements.get(task.on)?.math?.tex : undefined;
       const said = replies.at(-1)?.spoken ?? '';
-      const { text, costUsd } = await askStudent({ system: STUDENT_RULES, messages: [{ role: 'user', content: `The tutor said: ${said}${problem ? ` On the board: ${problem}` : ''}` }], maxTokens: 40 });
+      const { text, costUsd } = await askStudent({ system: STUDENT_RULES, messages: [{ role: 'user', content: `The tutor said: ${said}${problem ? ` On the board: ${problem}` : ''}` }], maxTokens: 300 });
       ledger.charge({ anthropicUsd: costUsd });
       studentLines += 1;
       return { way: 'write', id: `s${studentLines}` as ElementId, text: text || 'not sure', task: taskId };

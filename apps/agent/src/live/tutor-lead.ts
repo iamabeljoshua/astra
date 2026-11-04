@@ -1,5 +1,5 @@
 /** Why the tutor is speaking with nobody having asked. A short turn holds one thought, so depth has to come from many turns in a row. */
-export type LeadKind = 'next' | 'noAnswer' | 'taskLeft' | 'checkIn';
+export type LeadKind = 'next' | 'noAnswer' | 'taskLeft' | 'taskTried' | 'checkIn';
 
 export const LEAD_TIMINGS = {
   /** The model starts as the last reply ends, because its own first beat takes about 1.8 s to reach the voice, so a student hears about 2 s of quiet and this only holds a quick model back. */
@@ -8,6 +8,8 @@ export const LEAD_TIMINGS = {
   afterQuestionMs: 15_000,
   /** A student working on paper needs a while, and the watcher has already leaned in at 30 s. */
   afterTaskMs: 60_000,
+  /** They had a go and the tutor has answered it, so this only leaves a moment to look at the board or to try again. */
+  afterTaskTriedMs: 5000,
 };
 
 export type LeadTimings = typeof LEAD_TIMINGS;
@@ -18,11 +20,13 @@ export const MOST_UNANSWERED_IN_A_ROW = 2;
 export const MOST_QUIET_LEADS = 30;
 
 /** Code's own words in the student's place. They stay in brackets, so the planner and the prompt can never read them as the student's. */
-export const LEAD_WORDS: Readonly<Record<LeadKind, string>> = { next: '(carry on)', noAnswer: '(no answer)', taskLeft: '(did not try it)', checkIn: '(still quiet)' };
+export const LEAD_WORDS: Readonly<Record<LeadKind, string>> = { next: '(carry on)', noAnswer: '(no answer)', taskLeft: '(did not try it)', taskTried: '(carry on after the exercise)', checkIn: '(still quiet)' };
 
 export interface LeadFacts {
   isQuestionOpen: boolean;
   hasOpenTask: boolean;
+  /** They had a go at the open task, code does not say it was wrong, and the tutor has answered it. */
+  hasTriedTask: boolean;
   /** Asks that went unanswered with no sign of the student since. */
   unansweredInARow: number;
   quietLeads: number;
@@ -35,8 +39,9 @@ export interface Lead {
   firstWordAfterMs: number;
 }
 
-export function getLead({ isQuestionOpen, hasOpenTask, unansweredInARow, quietLeads, mostQuietLeads }: LeadFacts, timings: LeadTimings = LEAD_TIMINGS): Lead | null {
+export function getLead({ isQuestionOpen, hasOpenTask, hasTriedTask, unansweredInARow, quietLeads, mostQuietLeads }: LeadFacts, timings: LeadTimings = LEAD_TIMINGS): Lead | null {
   if (quietLeads >= mostQuietLeads) return null;
+  if (hasOpenTask && hasTriedTask && !isQuestionOpen) return { kind: 'taskTried', afterMs: timings.afterTaskTriedMs, firstWordAfterMs: 0 };
   const isAsked = hasOpenTask || isQuestionOpen;
   if (!isAsked) return { kind: 'next', afterMs: 0, firstWordAfterMs: timings.firstWordAfterMs };
   const afterMs = hasOpenTask ? timings.afterTaskMs : timings.afterQuestionMs;

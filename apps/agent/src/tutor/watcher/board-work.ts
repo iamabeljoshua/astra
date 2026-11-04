@@ -50,6 +50,7 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
   let unanswered: Unanswered | null = null;
   let wrongKeys: readonly string[] = [];
   let hasLeanedIn = false;
+  let triedTask: ElementId | null = null;
   const takenKeys = new Set<string>();
 
   const noteTyping = () => {
@@ -77,6 +78,13 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
     takeWork(message);
   };
 
+  // Noted as the tutor answers, so work it stays quiet on, like a right line on the way, does not end the exercise.
+  const noteTried = ({ verdict }: CheckedWork) => {
+    triedTask = verdict.status === 'wrong' ? null : (getOpenTask()?.task.id ?? null);
+  };
+
+  const hasTriedOpenTask = () => triedTask !== null && getOpenTask()?.task.id === triedTask;
+
   const takeWork = (message: BrowserMessage & { type: 'worked' }, onTaken?: () => void) => {
     const noted = tutor.noteWork?.(message.work);
     const key = getWorkKey(message.work);
@@ -96,6 +104,7 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
     const decision = decideOnWork(message.work, checked, hadTask);
     trace('workDecided', { way: message.work.way, status: checked.verdict.status, ...decision });
     if (decision.act === 'reply') {
+      noteTried(checked);
       noteAnswered();
       isAnsweringJudgedWork = checked.verdict.status !== 'unknown';
       // "Hm." in front of a line that turns out right sounds like doubt, so a line code cannot judge gets a sound that says nothing.
@@ -200,7 +209,9 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
     send({ type: 'workRead', work });
     hasLeanedIn = false;
     nodDue = getNod(work, noted.checked);
-    return decideOnSpokenWork(work, noted.checked, noted.hadTask).act === 'reply';
+    const wantsReply = decideOnSpokenWork(work, noted.checked, noted.hadTask).act === 'reply';
+    if (wantsReply) noteTried(noted.checked);
+    return wantsReply;
   };
 
   const getSituation = (seconds: number, draftText: string | undefined): WatchSituation => {
@@ -236,7 +247,7 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
     if (decision.act === 'speak' && getGate(getSituation(seconds, draft)) === null) speakAtPause(decision, seconds, draft);
   };
 
-  return { onWorked, onPaused, onInkStroke, onInkPeek, onInkDone, noteTyping, waitWhileTyping, onSpoken, hasOpenTask: () => getOpenTask() !== null, canSayStockWord: () => !isAnsweringJudgedWork && getOpenTask() === null, takeNod, noteAnswered, leaveOpenTask };
+  return { onWorked, onPaused, onInkStroke, onInkPeek, onInkDone, noteTyping, waitWhileTyping, onSpoken, hasOpenTask: () => getOpenTask() !== null, canSayStockWord: () => !isAnsweringJudgedWork && getOpenTask() === null, takeNod, noteAnswered, leaveOpenTask, hasTriedOpenTask };
 }
 
 function getSpokenParts(task: Task, board: { elements: ReadonlyMap<ElementId, BoardElement> } | undefined): SpokenPart[] {

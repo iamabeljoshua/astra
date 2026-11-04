@@ -385,16 +385,16 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
   function checkLead(): void {
     if (isEnding || isHolding || !tutor.canLead?.() || isTutorTalking() || thought || cut || heldReply) return;
     if (isThinking || !audioRunning || state.phase !== 'clear' || state.tutor !== 'silent' || state.isVoiceOn || hasWords(state.partial)) return armLead(LEAD_RECHECK_MS);
-    const lead = getLead({ isQuestionOpen, hasOpenTask: boardWork.hasOpenTask(), unansweredInARow, quietLeads, mostQuietLeads }, leadTimings);
+    const lead = getLead({ isQuestionOpen, hasOpenTask: boardWork.hasOpenTask(), hasTriedTask: boardWork.hasTriedOpenTask(), unansweredInARow, quietLeads, mostQuietLeads }, leadTimings);
     if (!lead) return;
     const nowMs = getNowMs();
     const leftMs = Math.max(lastSpokeAtMs + lead.afterMs, lastStudentSignAtMs + Math.max(lead.afterMs, leadTimings.firstWordAfterMs)) - nowMs;
     if (leftMs > 0) return armLead(leftMs);
     quietLeads += 1;
-    if (lead.kind !== 'next') unansweredInARow += 1;
+    if (lead.kind === 'noAnswer' || lead.kind === 'taskLeft' || lead.kind === 'checkIn') unansweredInARow += 1;
     isHolding = lead.kind === 'checkIn';
     tutor.noteLead?.(lead.kind);
-    if (lead.kind === 'taskLeft') boardWork.leaveOpenTask();
+    if (lead.kind === 'taskLeft' || lead.kind === 'taskTried') boardWork.leaveOpenTask();
     firstWordAtMs = lastSpokeAtMs + lead.firstWordAfterMs;
     dispatch({ type: 'leadDue', text: LEAD_WORDS[lead.kind] });
   }

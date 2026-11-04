@@ -22,7 +22,7 @@ if (!args.web || !args.out || !args.trace) throw new Error('Give --web, --out, a
 
 const OUT = args.out;
 const TRACE = args.trace;
-const FLAGS = ['--enable-unsafe-webgpu', '--enable-features=Vulkan', '--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist', '--use-mock-keychain', '--autoplay-policy=no-user-gesture-required'];
+const FLAGS = ['--enable-unsafe-webgpu', '--enable-features=Vulkan', '--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist', '--use-mock-keychain', '--mute-audio', '--autoplay-policy=no-user-gesture-required'];
 const POLL_MS = 200;
 const AFTER_THE_LAST_REPLY_MS = 6000;
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));

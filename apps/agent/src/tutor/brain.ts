@@ -1059,7 +1059,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     canLead: () => canLeadAfterLastTurn && !isLeadStopped && !hasToldClosed && closedReason === null && getSpendLimit() === null,
     noteLead(kind) {
       leadDue = kind;
-      if (kind === 'taskLeft') lessonPlanner?.moveToNextStep();
+      if (kind === 'taskLeft' || kind === 'taskTried') lessonPlanner?.moveToNextStep();
     },
     getBoard() {
       const state = getBoardNow();

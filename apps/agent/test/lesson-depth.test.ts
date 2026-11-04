@@ -6,7 +6,7 @@ import { createLessonPlanner, getTeachFirstNote } from '../src/lesson-plan/lesso
 import { getStateAfterEvent, getStateAfterMove, getStepNote, NO_LESSON } from '../src/lesson-plan/plan-progress.ts';
 import { createLiveSession, type LiveSession } from '../src/live/live-session.ts';
 import { createTakePicker, type StoredTake } from '../src/live/reactions.ts';
-import { LEAD_TIMINGS, LEAD_WORDS, type LeadKind } from '../src/live/tutor-lead.ts';
+import { getLead, LEAD_TIMINGS, LEAD_WORDS, type LeadKind } from '../src/live/tutor-lead.ts';
 import { createVoiceLine, type VoiceOutput } from '../src/live/voice-line.ts';
 import { makeFakeTutorModel } from '../src/providers/fake-model.ts';
 import { renderTone } from '../src/providers/fakes.ts';
@@ -256,6 +256,26 @@ function startLeading({ answers, canLead = () => true, leadTimings = FAST, mostQ
 }
 
 const teaching = (_request: string, index: number) => [makeBeat(`r${index}`, 'Gravity pulls back.')];
+
+describe('what comes next', () => {
+  const FACTS = { isQuestionOpen: false, hasOpenTask: false, hasTriedTask: false, unansweredInARow: 0, quietLeads: 0, mostQuietLeads: 30 };
+
+  it('goes on at once with nothing open, and waits on a question or a task', () => {
+    expect(getLead(FACTS)).toMatchObject({ kind: 'next', afterMs: 0 });
+    expect(getLead({ ...FACTS, isQuestionOpen: true })).toMatchObject({ kind: 'noAnswer', afterMs: LEAD_TIMINGS.afterQuestionMs });
+    expect(getLead({ ...FACTS, hasOpenTask: true })).toMatchObject({ kind: 'taskLeft', afterMs: LEAD_TIMINGS.afterTaskMs });
+  });
+
+  it('moves on soon after a tried exercise, unless the tutor asked them something about it', () => {
+    expect(getLead({ ...FACTS, hasOpenTask: true, hasTriedTask: true })).toMatchObject({ kind: 'taskTried', afterMs: LEAD_TIMINGS.afterTaskTriedMs });
+    expect(getLead({ ...FACTS, hasOpenTask: true, hasTriedTask: true, isQuestionOpen: true })).toMatchObject({ kind: 'taskLeft' });
+  });
+
+  it('checks once at the second unanswered ask, and stops at the backstop', () => {
+    expect(getLead({ ...FACTS, isQuestionOpen: true, unansweredInARow: 1 })).toMatchObject({ kind: 'checkIn' });
+    expect(getLead({ ...FACTS, quietLeads: 30 })).toBeNull();
+  });
+});
 
 describe('the tutor leads', () => {
   it('follows a reply that asks nothing with the next one, by itself, and never as the student', async () => {
