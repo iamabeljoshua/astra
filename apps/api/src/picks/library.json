@@ -9,7 +9,8 @@
       "artwork": "arc",
       "levels": ["middle_school", "high_school", "university", "out_of_school"],
       "goals": ["class", "curiosity"],
-      "interests": ["basketball"]
+      "interests": ["basketball"],
+      "alsoCalled": ["projectile motion", "projectiles"]
     },
     {
       "id": "free-kick",
@@ -20,7 +21,8 @@
       "artwork": "curve",
       "levels": ["middle_school", "high_school", "university", "out_of_school"],
       "goals": ["curiosity"],
-      "interests": ["football"]
+      "interests": ["football"],
+      "alsoCalled": ["magnus effect"]
     },
     {
       "id": "breaking-wave",
@@ -42,7 +44,8 @@
       "artwork": "braking",
       "levels": ["middle_school", "high_school", "out_of_school"],
       "goals": ["class", "exam"],
-      "interests": ["cars"]
+      "interests": ["cars"],
+      "alsoCalled": ["stopping distance"]
     },
     {
       "id": "string-pitch",
@@ -53,7 +56,8 @@
       "artwork": "string",
       "levels": ["middle_school", "high_school", "out_of_school"],
       "goals": ["class", "curiosity"],
-      "interests": ["music"]
+      "interests": ["music"],
+      "alsoCalled": ["standing waves", "harmonics"]
     },
     {
       "id": "rainbow",
@@ -64,7 +68,8 @@
       "artwork": "prism",
       "levels": ["middle_school", "high_school", "out_of_school"],
       "goals": ["class", "curiosity"],
-      "interests": ["art"]
+      "interests": ["art"],
+      "alsoCalled": ["refraction", "dispersion of light"]
     },
     {
       "id": "slope-friction",
@@ -75,7 +80,8 @@
       "artwork": "forces",
       "levels": ["high_school", "university"],
       "goals": ["class", "exam"],
-      "interests": []
+      "interests": [],
+      "alsoCalled": ["friction", "free-body diagram", "normal force", "inclined plane", "forces on a slope"]
     },
     {
       "id": "rocket-escape",
@@ -86,7 +92,8 @@
       "artwork": "launch",
       "levels": ["high_school", "university", "out_of_school"],
       "goals": ["class", "curiosity"],
-      "interests": ["space"]
+      "interests": ["space"],
+      "alsoCalled": ["escape velocity"]
     },
     {
       "id": "moving-clocks",
@@ -97,7 +104,8 @@
       "artwork": "clock",
       "levels": ["high_school", "university", "out_of_school"],
       "goals": ["class", "exam", "curiosity"],
-      "interests": ["space"]
+      "interests": ["space"],
+      "alsoCalled": ["time dilation", "relativity"]
     },
     {
       "id": "circuit-current",
@@ -108,7 +116,8 @@
       "artwork": "circuit",
       "levels": ["middle_school", "high_school"],
       "goals": ["class", "exam"],
-      "interests": []
+      "interests": [],
+      "alsoCalled": ["electric current", "circuits", "ohm law", "voltage", "resistors"]
     },
     {
       "id": "savings-growth",
@@ -119,7 +128,8 @@
       "artwork": "growth",
       "levels": ["high_school", "university", "out_of_school"],
       "goals": ["class", "curiosity"],
-      "interests": []
+      "interests": [],
+      "alsoCalled": ["compound interest", "exponential growth"]
     },
     {
       "id": "free-throw-odds",
@@ -130,7 +140,8 @@
       "artwork": "branches",
       "levels": ["high_school", "university", "out_of_school"],
       "goals": ["class", "exam"],
-      "interests": ["basketball"]
+      "interests": ["basketball"],
+      "alsoCalled": ["binomial probability"]
     },
     {
       "id": "expected-goals",
@@ -141,7 +152,8 @@
       "artwork": "pitch",
       "levels": ["high_school", "university", "out_of_school"],
       "goals": ["curiosity"],
-      "interests": ["football"]
+      "interests": ["football"],
+      "alsoCalled": ["expected value"]
     },
     {
       "id": "pythagoras",
@@ -152,7 +164,8 @@
       "artwork": "triangle",
       "levels": ["middle_school", "high_school"],
       "goals": ["class", "exam"],
-      "interests": []
+      "interests": [],
+      "alsoCalled": ["pythagorean theorem", "hypotenuse", "right triangles"]
     },
     {
       "id": "quadratics",
@@ -163,7 +176,8 @@
       "artwork": "parabola",
       "levels": ["high_school", "out_of_school"],
       "goals": ["class", "exam"],
-      "interests": []
+      "interests": [],
+      "alsoCalled": ["quadratic equation", "quadratic formula", "factoring quadratics", "completing the square", "parabolas"]
     },
     {
       "id": "derivative",
@@ -174,7 +188,8 @@
       "artwork": "tangent",
       "levels": ["high_school", "university"],
       "goals": ["class", "exam"],
-      "interests": ["cars"]
+      "interests": ["cars"],
+      "alsoCalled": ["differentiation", "rate of change", "chain rule", "tangent line"]
     },
     {
       "id": "magic-square",
@@ -196,7 +211,8 @@
       "artwork": "draughtsman",
       "levels": ["middle_school", "high_school", "out_of_school"],
       "goals": ["class", "curiosity"],
-      "interests": ["art"]
+      "interests": ["art"],
+      "alsoCalled": ["vanishing point", "linear perspective"]
     },
     {
       "id": "sunflower-spirals",
@@ -207,7 +223,8 @@
       "artwork": "sunflowers",
       "levels": ["middle_school", "high_school", "university", "out_of_school"],
       "goals": ["curiosity"],
-      "interests": []
+      "interests": [],
+      "alsoCalled": ["fibonacci", "golden angle", "golden ratio"]
     },
     {
       "id": "positive-test",
@@ -218,7 +235,8 @@
       "artwork": "grid",
       "levels": ["high_school", "university", "out_of_school"],
       "goals": ["class", "exam", "curiosity"],
-      "interests": []
+      "interests": [],
+      "alsoCalled": ["bayes theorem", "bayes rule", "conditional probability", "false positives"]
     },
     {
       "id": "balancing-equations",
@@ -229,7 +247,8 @@
       "artwork": "balance",
       "levels": ["middle_school", "high_school"],
       "goals": ["class", "exam"],
-      "interests": []
+      "interests": [],
+      "alsoCalled": ["conservation of mass", "stoichiometry"]
     },
     {
       "id": "periodic-table",
@@ -240,7 +259,8 @@
       "artwork": "table",
       "levels": ["high_school", "university"],
       "goals": ["class", "exam"],
-      "interests": []
+      "interests": [],
+      "alsoCalled": ["electron shells"]
     },
     {
       "id": "browned-food",
@@ -251,7 +271,8 @@
       "artwork": "ham",
       "levels": ["middle_school", "high_school", "out_of_school"],
       "goals": ["curiosity"],
-      "interests": ["cooking"]
+      "interests": ["cooking"],
+      "alsoCalled": ["maillard reaction"]
     },
     {
       "id": "cake-rise",
@@ -262,7 +283,8 @@
       "artwork": "cake",
       "levels": ["middle_school", "high_school", "out_of_school"],
       "goals": ["class", "curiosity"],
-      "interests": ["cooking"]
+      "interests": ["cooking"],
+      "alsoCalled": ["baking soda", "raising agents"]
     },
     {
       "id": "indigo-dye",
@@ -284,7 +306,8 @@
       "artwork": "piston",
       "levels": ["high_school", "out_of_school"],
       "goals": ["class", "exam"],
-      "interests": ["cars"]
+      "interests": ["cars"],
+      "alsoCalled": ["combustion"]
     },
     {
       "id": "alchemists",
@@ -295,7 +318,8 @@
       "artwork": "alchemist",
       "levels": ["middle_school", "high_school", "out_of_school"],
       "goals": ["curiosity"],
-      "interests": ["history"]
+      "interests": ["history"],
+      "alsoCalled": ["transmutation"]
     },
     {
       "id": "game-worlds",
@@ -306,7 +330,8 @@
       "artwork": "terrain",
       "levels": ["middle_school", "high_school", "university", "out_of_school"],
       "goals": ["curiosity"],
-      "interests": ["gaming", "coding"]
+      "interests": ["gaming", "coding"],
+      "alsoCalled": ["procedural generation"]
     },
     {
       "id": "fastest-route",
@@ -317,7 +342,8 @@
       "artwork": "route",
       "levels": ["high_school", "university", "out_of_school"],
       "goals": ["class", "exam", "curiosity"],
-      "interests": ["cars", "coding"]
+      "interests": ["cars", "coding"],
+      "alsoCalled": ["dijkstra", "shortest path", "graph search"]
     },
     {
       "id": "binary-counting",
@@ -328,7 +354,8 @@
       "artwork": "binary",
       "levels": ["middle_school", "high_school", "out_of_school"],
       "goals": ["class", "exam"],
-      "interests": ["coding", "gaming"]
+      "interests": ["coding", "gaming"],
+      "alsoCalled": ["binary", "base two"]
     },
     {
       "id": "recursion",
@@ -350,7 +377,8 @@
       "artwork": "bars",
       "levels": ["high_school", "university"],
       "goals": ["class", "exam"],
-      "interests": ["coding"]
+      "interests": ["coding"],
+      "alsoCalled": ["sorting algorithms", "merge sort", "quicksort", "bubble sort"]
     },
     {
       "id": "music-file",
@@ -361,7 +389,8 @@
       "artwork": "waveform",
       "levels": ["high_school", "university", "out_of_school"],
       "goals": ["curiosity"],
-      "interests": ["music", "coding"]
+      "interests": ["music", "coding"],
+      "alsoCalled": ["audio compression", "mp3 files"]
     },
     {
       "id": "two-strangers",
@@ -372,7 +401,8 @@
       "artwork": "lock",
       "levels": ["high_school", "university", "out_of_school"],
       "goals": ["class", "curiosity"],
-      "interests": ["coding"]
+      "interests": ["coding"],
+      "alsoCalled": ["public key", "key exchange", "diffie hellman", "encryption", "cryptography"]
     },
     {
       "id": "programmable-loom",
@@ -383,7 +413,8 @@
       "artwork": "loom",
       "levels": ["middle_school", "high_school", "university", "out_of_school"],
       "goals": ["curiosity"],
-      "interests": ["fashion", "coding", "history"]
+      "interests": ["fashion", "coding", "history"],
+      "alsoCalled": ["jacquard", "punch cards", "punched cards"]
     },
     {
       "id": "saturn-rings",
@@ -405,7 +436,8 @@
       "artwork": "earthrise",
       "levels": ["middle_school", "high_school", "out_of_school"],
       "goals": ["class", "curiosity"],
-      "interests": ["space"]
+      "interests": ["space"],
+      "alsoCalled": ["tidal locking"]
     },
     {
       "id": "seasons",
@@ -416,7 +448,8 @@
       "artwork": "earth",
       "levels": ["middle_school", "high_school"],
       "goals": ["class", "exam"],
-      "interests": ["space"]
+      "interests": ["space"],
+      "alsoCalled": ["axial tilt", "earth tilt"]
     },
     {
       "id": "black-hole-edge",
@@ -427,7 +460,8 @@
       "artwork": "blackhole",
       "levels": ["high_school", "university", "out_of_school"],
       "goals": ["curiosity"],
-      "interests": ["space", "movies"]
+      "interests": ["space", "movies"],
+      "alsoCalled": ["event horizon"]
     },
     {
       "id": "star-atoms",
@@ -438,7 +472,8 @@
       "artwork": "nebula",
       "levels": ["high_school", "university", "out_of_school"],
       "goals": ["class", "curiosity"],
-      "interests": ["space"]
+      "interests": ["space"],
+      "alsoCalled": ["nuclear fusion", "nucleosynthesis", "supernova"]
     },
     {
       "id": "dna-copying",
@@ -449,7 +484,8 @@
       "artwork": "helix",
       "levels": ["high_school", "university"],
       "goals": ["class", "exam"],
-      "interests": []
+      "interests": [],
+      "alsoCalled": ["dna replication", "base pairs"]
     },
     {
       "id": "still-frames",
@@ -482,7 +518,8 @@
       "artwork": "socrates",
       "levels": ["high_school", "university", "out_of_school"],
       "goals": ["curiosity"],
-      "interests": ["history"]
+      "interests": ["history"],
+      "alsoCalled": ["socrates"]
     },
     {
       "id": "bread-revolution",
@@ -493,7 +530,8 @@
       "artwork": "bastille",
       "levels": ["middle_school", "high_school", "university", "out_of_school"],
       "goals": ["class", "exam"],
-      "interests": ["history", "cooking"]
+      "interests": ["history", "cooking"],
+      "alsoCalled": ["french revolution"]
     },
     {
       "id": "great-pyramid",
@@ -504,7 +542,8 @@
       "artwork": "pyramid",
       "levels": ["middle_school", "high_school", "out_of_school"],
       "goals": ["curiosity"],
-      "interests": ["history"]
+      "interests": ["history"],
+      "alsoCalled": ["pyramids"]
     },
     {
       "id": "minor-chord",
@@ -515,7 +554,8 @@
       "artwork": "lute",
       "levels": ["middle_school", "high_school", "out_of_school"],
       "goals": ["curiosity"],
-      "interests": ["music"]
+      "interests": ["music"],
+      "alsoCalled": ["minor chords", "major and minor"]
     },
     {
       "id": "van-gogh-motion",
@@ -526,7 +566,8 @@
       "artwork": "wheat",
       "levels": ["middle_school", "high_school", "university", "out_of_school"],
       "goals": ["curiosity"],
-      "interests": ["art"]
+      "interests": ["art"],
+      "alsoCalled": ["starry night"]
     }
   ],
   "topicOrder": {

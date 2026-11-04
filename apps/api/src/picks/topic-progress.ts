@@ -1,3 +1,4 @@
+import type { ArtworkName } from '../artwork';
 import type { SessionStatus } from '../sessions/session-options';
 import type { LibraryTopic } from './library';
 
@@ -6,9 +7,13 @@ const SHARE_OF_LENGTH_THAT_FINISHES = 0.5;
 
 export interface TopicSession {
   id: string;
-  topicId: string;
+  topicId: string | null;
+  title: string;
+  subject: string;
+  artwork: ArtworkName | null;
   status: SessionStatus;
   durationSeconds: number;
+  startedAt: Date;
 }
 
 export type TopicProgress = { kind: 'in_progress'; sessionId: string } | { kind: 'finished' };
@@ -26,7 +31,7 @@ export function getTopicProgress(newestFirst: TopicSession[], topics: LibraryTop
   const endedSessions = newestFirst.filter((session) => session.status !== 'in_progress');
   const progressByTopic = new Map<LibraryTopic, TopicProgress>();
   for (const session of [...openSessions, ...endedSessions]) {
-    const topic = topicsById.get(session.topicId);
+    const topic = session.topicId ? topicsById.get(session.topicId) : undefined;
     const progress = topic && getSessionProgress(session, topic);
     if (topic && progress && !progressByTopic.has(topic)) progressByTopic.set(topic, progress);
   }
