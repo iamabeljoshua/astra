@@ -18,7 +18,7 @@ const TABLES_WITH_FIRST_COLUMN_QUERY = `
   WHERE relation.relkind IN ('r', 'p') AND namespace.nspname = 'public'`;
 
 const ROW_SECURITY_REFUSAL = 'new row violates row-level security policy';
-const TABLES_WITH_EXAMPLE_ROWS = ['migrations', 'students', 'student_profiles', 'sessions', 'closed_accounts'];
+const TABLES_WITH_EXAMPLE_ROWS = ['migrations', 'students', 'student_profiles', 'sessions', 'closed_accounts', 'student_daily_spend'];
 
 interface PublicTable {
   name: string;

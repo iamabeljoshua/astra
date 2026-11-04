@@ -8,7 +8,7 @@ import type { StudentInterest } from './student-profile-options';
 import type { SaveStudentProfileBodyDto, StudentProfileResponseDto } from './student-profile.dto';
 import type { AccountResponseDto, AnswerBirthDateBodyDto } from './student.dto';
 
-function isStudentInterest(interest: string): interest is StudentInterest {
+export function isStudentInterest(interest: string): interest is StudentInterest {
   return (STUDENT_INTERESTS as readonly string[]).includes(interest);
 }
 

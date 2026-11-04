@@ -1,0 +1,209 @@
+import type { APIConnectOptions } from '@livekit/agents';
+import { DEFAULT_API_CONNECT_OPTIONS, stt } from '@livekit/agents';
+import * as meta from '@livekit/agents-plugin-meta';
+import { AudioFrame } from '@livekit/rtc-node';
+import { WebSocket } from 'ws';
+import type { TranscriberAdapter } from './types.ts';
+
+/** Meta's designation policy lists this name as a Standard Model, so using it is Standard Services, which do not train on content. Pinned, because Contributor Services do. */
+export const MUSE_MODEL = 'muse-voice-transcribe-1.0';
+
+const SAMPLE_RATE = 24_000;
+const FRAME_MS = 100;
+const SAMPLES_PER_FRAME = (SAMPLE_RATE * FRAME_MS) / 1000;
+
+export interface MuseTimings {
+  /** Muse closes with 1008 about 16 s after its last frame, so a dropped link is padded with silence after this. */
+  padAfterMs: number;
+  /** Muse caps a session at 60 minutes and the plugin only reports the close, so a new session opens before that. */
+  rotateAtPauseAfterMs: number;
+  rotateAnywayAfterMs: number;
+  retryAfterMs: number;
+  longestRetryMs: number;
+}
+
+export const MUSE_TIMINGS: MuseTimings = { padAfterMs: 400, rotateAtPauseAfterMs: 50 * 60_000, rotateAnywayAfterMs: 55 * 60_000, retryAfterMs: 500, longestRetryMs: 30_000 };
+
+export interface MuseOptions {
+  apiKey: string;
+  timings?: Partial<MuseTimings>;
+  webSocketFactory?: meta.WebSocketFactory;
+  onNote?(note: MuseNote): void;
+}
+
+export type MuseNote = { kind: 'opened'; atMs: number } | { kind: 'ready'; handshakeMs: number } | { kind: 'firstEvent'; openMs: number } | { kind: 'closed'; reason: string };
+
+function makeSilence(): AudioFrame {
+  return new AudioFrame(new Int16Array(SAMPLES_PER_FRAME), SAMPLE_RATE, 1, SAMPLES_PER_FRAME);
+}
+
+interface MuseSession {
+  stream: stt.SpeechStream;
+  openedAtMs: number;
+  isReady: boolean;
+}
+
+// Holds one live Muse session at a time, opened by the first real frame so a typed session never opens one, and replaced before Muse's cap or after a close.
+// The plugin paces audio from its first packet, so frames queued during a handshake would sit behind real time for the whole session, 3 s on a measured run. Frames before Muse answers are dropped, and the student is still hearing the greeting then.
+class MuseSpeechStream extends stt.SpeechStream {
+  label = 'astra.muse';
+  readonly #newSession: (onReady: () => void) => stt.SpeechStream;
+  readonly #timings: MuseTimings;
+  readonly #onNote?: (note: MuseNote) => void;
+  #session: MuseSession | null = null;
+  #nextSession: MuseSession | null = null;
+  #lastFrameAtMs = 0;
+  #isSpeaking = false;
+  #failures = 0;
+  #nextOpenAtMs = 0;
+  #padTimer: ReturnType<typeof setInterval> | undefined;
+
+  constructor(transcriber: stt.STT, options: { newSession(onReady: () => void): stt.SpeechStream; timings: MuseTimings; onNote?(note: MuseNote): void; connOptions?: APIConnectOptions }) {
+    super(transcriber, SAMPLE_RATE, options.connOptions ?? DEFAULT_API_CONNECT_OPTIONS);
+    this.#newSession = options.newSession;
+    this.#timings = options.timings;
+    this.#onNote = options.onNote;
+  }
+
+  #open(): MuseSession | null {
+    if (Date.now() < this.#nextOpenAtMs) return null;
+    const openedAtMs = Date.now();
+    const session: MuseSession = {
+      openedAtMs,
+      isReady: false,
+      stream: this.#newSession(() => {
+        session.isReady = true;
+        this.#onNote?.({ kind: 'ready', handshakeMs: Date.now() - openedAtMs });
+      }),
+    };
+    this.#onNote?.({ kind: 'opened', atMs: openedAtMs });
+    void this.#forward(session);
+    return session;
+  }
+
+  async #forward(session: MuseSession): Promise<void> {
+    let hasHeard = false;
+    let closeReason = 'ended';
+    try {
+      for await (const event of session.stream) {
+        if (!hasHeard) this.#onNote?.({ kind: 'firstEvent', openMs: Date.now() - session.openedAtMs });
+        hasHeard = true;
+        this.#failures = 0;
+        if (event.type === stt.SpeechEventType.START_OF_SPEECH) this.#isSpeaking = true;
+        if (event.type === stt.SpeechEventType.END_OF_SPEECH) this.#isSpeaking = false;
+        if (!this.closed) this.queue.put(event);
+      }
+    } catch (error) {
+      closeReason = String(error);
+    }
+    this.#onNote?.({ kind: 'closed', reason: closeReason });
+    if (this.#nextSession === session) this.#nextSession = null;
+    if (this.#session !== session) return;
+    this.#session = null;
+    this.#isSpeaking = false;
+    this.#failures += 1;
+    const waitMs = Math.min(this.#timings.retryAfterMs * 2 ** (this.#failures - 1), this.#timings.longestRetryMs);
+    this.#nextOpenAtMs = Date.now() + waitMs;
+  }
+
+  // The old session keeps hearing audio until the new one has answered, so a rotation loses no word.
+  #getSession(): MuseSession | null {
+    const session = this.#session;
+    if (!session) return (this.#session = this.#open());
+    const ageMs = Date.now() - session.openedAtMs;
+    const isDue = ageMs >= this.#timings.rotateAnywayAfterMs || (ageMs >= this.#timings.rotateAtPauseAfterMs && !this.#isSpeaking);
+    if (isDue) this.#nextSession ??= this.#open();
+    if (!this.#nextSession?.isReady) return session;
+    session.stream.endInput();
+    this.#session = this.#nextSession;
+    this.#nextSession = null;
+    return this.#session;
+  }
+
+  #pushToMuse(frame: AudioFrame): void {
+    const session = this.#getSession();
+    if (session?.isReady) session.stream.pushFrame(frame);
+  }
+
+  #padIfSilent = () => {
+    if (Date.now() - this.#lastFrameAtMs >= this.#timings.padAfterMs) this.#pushToMuse(makeSilence());
+  };
+
+  protected async run(): Promise<void> {
+    for await (const item of this.input) {
+      if (typeof item === 'symbol') {
+        this.#session?.stream.flush();
+        continue;
+      }
+      this.#lastFrameAtMs = Date.now();
+      this.#padTimer ??= setInterval(this.#padIfSilent, FRAME_MS);
+      this.#pushToMuse(item);
+    }
+    clearInterval(this.#padTimer);
+    this.#session?.stream.endInput();
+  }
+
+  override close(): void {
+    clearInterval(this.#padTimer);
+    this.#session?.stream.close();
+    this.#nextSession?.stream.close();
+    this.#session = null;
+    this.#nextSession = null;
+    super.close();
+  }
+}
+
+class MuseTranscriber extends stt.STT {
+  label = 'astra.muse';
+  readonly #muse: meta.STT;
+  readonly #timings: MuseTimings;
+  readonly #onNote?: (note: MuseNote) => void;
+  #onNextSocketReady: () => void = () => {};
+
+  constructor({ apiKey, timings, webSocketFactory, onNote }: MuseOptions) {
+    super({ streaming: true, interimResults: true, diarization: false, alignedTranscript: false });
+    this.#muse = new meta.STT({
+      apiKey,
+      model: MUSE_MODEL,
+      languageBias: ['English'],
+      keywords: [],
+      // Muse's first message answers the handshake, and nothing else in the plugin says when that happened.
+      webSocketFactory: (url, options) => {
+        const socket = webSocketFactory ? webSocketFactory(url, options) : new WebSocket(url, options);
+        socket.once('message', this.#onNextSocketReady);
+        return socket;
+      },
+    });
+    this.#muse.on('error', (error) => onNote?.({ kind: 'closed', reason: String(error.error) }));
+    this.#timings = { ...MUSE_TIMINGS, ...timings };
+    this.#onNote = onNote;
+  }
+
+  override get model(): string {
+    return MUSE_MODEL;
+  }
+
+  override get provider(): string {
+    return 'Meta';
+  }
+
+  protected override _recognize(): Promise<stt.SpeechEvent> {
+    throw new Error('the live session only streams');
+  }
+
+  override stream(options?: { connOptions?: APIConnectOptions }): stt.SpeechStream {
+    const newSession = (onReady: () => void) => {
+      this.#onNextSocketReady = onReady;
+      return this.#muse.stream({ connOptions: { ...DEFAULT_API_CONNECT_OPTIONS, maxRetry: 0 } });
+    };
+    return new MuseSpeechStream(this, { newSession, timings: this.#timings, onNote: this.#onNote, connOptions: options?.connOptions });
+  }
+
+  override async close(): Promise<void> {
+    await this.#muse.close();
+  }
+}
+
+export function makeMuseTranscriber(options: MuseOptions): TranscriberAdapter {
+  return { name: 'muse', makeStt: () => new MuseTranscriber(options) };
+}

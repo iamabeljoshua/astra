@@ -22,6 +22,7 @@ describe('the vendor import check in pnpm lint', () => {
     ['the session wiring', 'apps/agent/src/session.ts'],
     ['the turn rule', 'apps/agent/src/turn/turn-rule.ts'],
     ['another vendor adapter', 'apps/agent/src/providers/deepgram.ts'],
+    ['the Muse adapter, for a vendor it does not hold', 'apps/agent/src/providers/meta.ts'],
     ['the API', 'apps/api/src/example.ts'],
     ['the web app', 'apps/web/src/example.ts'],
     ['the contracts', 'packages/contracts/src/example.ts'],
