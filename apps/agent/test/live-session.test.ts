@@ -382,6 +382,16 @@ describe('a quiet room', () => {
     expect(closed).toBe(1);
   }, 20_000);
 
+  it('leaves no quiet count running once the session has closed, even with a turn ending as it closes', async () => {
+    let closed = 0;
+    const { session, say, traces } = start({ quietLimitMs: 100, onQuietLimit: () => (closed += 1), tutorBeats: [makeBeat('short', 'one two three four five six')] });
+    await say('Show me a long answer');
+    await until(() => traces.some(({ name, fields }) => name === 'firstFrameCaptured' && fields.kind === 'reply'));
+    await session.close();
+    await delay(200);
+    expect(closed).toBe(0);
+  });
+
   it('hears a student keeping the room open even past the limit on other messages', async () => {
     let closed = 0;
     const { browser, messages } = start({ quietLimitMs: 200, onQuietLimit: () => (closed += 1) });

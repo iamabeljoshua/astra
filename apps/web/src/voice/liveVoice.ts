@@ -270,7 +270,8 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
       else void rejoin();
       return;
     }
-    const message: BrowserMessage = { type: 'pulse', ...getStamp(), hearsAgent: canHear };
+    // Before the first pulse a tutor's track is the proof, or the first beat would read as a lost link and cut the greeting.
+    const message: BrowserMessage = { type: 'pulse', ...getStamp(), hearsAgent: canReachAgent() };
     void room.localParticipant.publishData(encoder.encode(JSON.stringify(message)), { reliable: false, topic: LIVE_TOPIC }).catch((error: unknown) => records.refused.push(`pulse not sent: ${String(error)}`));
   };
 

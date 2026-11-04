@@ -215,6 +215,30 @@ describe('joining a room', () => {
   });
 });
 
+describe('the first pulses of a room', () => {
+  const getPulses = (room: InstanceType<typeof FakeRoom>) => getSentMessages(room).filter((message) => message.type === 'pulse') as unknown as { hearsAgent: boolean }[];
+
+  it('do not read as a lost link while a tutor track is here and no agent pulse has come yet, so the greeting is not cut', async () => {
+    const { room } = await openVoice();
+
+    room.emit('TrackSubscribed', { kind: 'audio' });
+    await vi.advanceTimersByTimeAsync(600);
+
+    expect(getPulses(room).length).toBeGreaterThan(0);
+    expect(getPulses(room).every((pulse) => pulse.hearsAgent)).toBe(true);
+  });
+
+  it('do say the link is lost once an agent that was heard goes quiet', async () => {
+    const { room } = await openVoice();
+    room.emit('TrackSubscribed', { kind: 'audio' });
+    fromAgent(room, { type: 'pulse' });
+
+    await vi.advanceTimersByTimeAsync(2000);
+
+    expect(getPulses(room).at(-1)?.hearsAgent).toBe(false);
+  });
+});
+
 describe('rejoining after a drop', () => {
   it('joins again with the new access', async () => {
     const { room } = await openVoice(async () => ({ ...ROOM_ACCESS, token: 'fresh-token' }));

@@ -514,13 +514,14 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       clearInterval(linkChecker);
       clearTimeout(voiceStall);
       typedGate.close();
-      clearTimeout(quietWarning);
-      clearTimeout(quietLimit);
       timers.forEach((timer) => clearTimeout(timer));
       reaction?.spoken.stop();
       reply?.spoken.stop();
       dropThought();
       await Promise.allSettled([reaction?.spoken.finished, reply?.spoken.finished]);
+      // After the wait, because a turn ending starts the quiet count again.
+      clearTimeout(quietWarning);
+      clearTimeout(quietLimit);
       await Promise.all([...takeVoices.values()].map((take) => take.close()));
     },
   };
