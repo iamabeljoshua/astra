@@ -45,6 +45,13 @@ export function useTutorScene(voice: LiveVoice | null, isEnabled: boolean): Tuto
       const made = createSceneStage(host);
       setStage(made);
       stopListening = voice.onSceneMessage((message) => {
+        if (message.type === 'prepareScene') {
+          const { sceneId } = message;
+          void made.prepare(sceneId).then((isHeld) => {
+            if (!isGone) voice.sendScene({ type: isHeld ? 'scenePrepared' : 'sceneRefused', sceneId });
+          });
+          return;
+        }
         if (message.type !== 'loadScene') return;
         const { sceneId, durationSeconds } = message;
         void made.load(sceneId, durationSeconds).then((isLoaded) => {
