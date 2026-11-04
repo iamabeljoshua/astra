@@ -151,6 +151,23 @@ const EVERY_WORD_LESSON: readonly (readonly Beat[])[] = [
   ],
 ];
 
+const RAPID_MOVES_LESSON: readonly (readonly Beat[])[] = [
+  [
+    makeBeat('rapid-moves', [
+      { kind: 'writeMath', id: 'steps', tex: '2x + 3 = 11' },
+      'Take three from both sides, ',
+      { kind: 'transformMath', target: 'steps', tex: '2x = 11 - 3' },
+      'cross ',
+      { kind: 'transformMath', target: 'steps', tex: '2x = 8' },
+      'it ',
+      { kind: 'transformMath', target: 'steps', tex: String.raw`x = \frac{8}{2}` },
+      'over ',
+      { kind: 'transformMath', target: 'steps', tex: 'x = 4' },
+      'and read the answer, four, once it has all settled down. ',
+    ]),
+  ],
+];
+
 const HOSTILE_MARKUP = '<img src=x onerror="window.pwned=1"><script>window.pwned=1</script>';
 
 const HOSTILE_LESSON: readonly (readonly Beat[])[] = [
@@ -210,7 +227,7 @@ const RARE_FONTS_LESSON: readonly (readonly Beat[])[] = [
   ],
 ];
 
-export const LESSONS = { 'jump-shot': LESSON, algebra: ALGEBRA_LESSON, dense: DENSE_LESSON, 'every-word': EVERY_WORD_LESSON, hostile: HOSTILE_LESSON, 'rare-fonts': RARE_FONTS_LESSON, ...GRAPH_LESSONS } as const satisfies Record<string, readonly (readonly Beat[])[]>;
+export const LESSONS = { 'jump-shot': LESSON, algebra: ALGEBRA_LESSON, dense: DENSE_LESSON, 'every-word': EVERY_WORD_LESSON, hostile: HOSTILE_LESSON, 'rare-fonts': RARE_FONTS_LESSON, 'rapid-moves': RAPID_MOVES_LESSON, ...GRAPH_LESSONS } as const satisfies Record<string, readonly (readonly Beat[])[]>;
 
 export type LessonName = keyof typeof LESSONS;
 

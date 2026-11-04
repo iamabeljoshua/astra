@@ -276,6 +276,20 @@ async function proveMoves(browser: Browser, run: LessonRun) {
   return { label: getLabel(run), worstByMove };
 }
 
+/** The voice's word times land one by one, so every cue over words fires not knowing its last word. What the student saw must still be what the log replays. */
+async function proveLateWords(browser: Browser, run: LessonRun) {
+  const lab = await open(browser, run);
+  await lab.page.evaluate(() => window.pageChecks.startFigureWatch());
+  await lab.command({ type: 'play', lesson: run.lesson, sendsWordsOneByOne: true });
+  await lab.waitForPlayedBeats(beatsOf(run.lesson), 120_000);
+  await delay(1800);
+  const figures = await lab.page.evaluate(() => window.pageChecks.stopFigureWatch());
+  const landing = await lab.page.evaluate(() => window.pageChecks.getLandingErrors());
+  const replay = await checkReplayPixels(lab);
+  await lab.finish();
+  return { label: getLabel(run), figures: { ...figures, ballPlaces: figures.ballPlaces.length }, landing, replay: { moments: replay.moments, differing: replay.differing.length, described: replay.describedDifferently } };
+}
+
 const LESSON_PAIRS: LessonRun[] = (['shot', 'graphs', 'number-line', 'triangle', 'free-body', 'launch'] as const).flatMap((lesson) => [{ lesson, viewport: 'laptop', theme: 'light' }, { lesson, viewport: 'phone', theme: 'dark' }] as LessonRun[]);
 
 const PROOFS = {
@@ -293,7 +307,8 @@ const PROOFS = {
   arc: async (browser: Browser) => [await proveArc(browser, { lesson: 'shot', viewport: 'laptop', theme: 'light' }), await proveArc(browser, { lesson: 'shot', viewport: 'phone', theme: 'dark' })],
   freeze: async (browser: Browser) => [await proveFreeze(browser, { lesson: 'shot', viewport: 'laptop', theme: 'light' }), await proveFreeze(browser, { lesson: 'shot', viewport: 'phone', theme: 'dark' })],
   hostile: async (browser: Browser) => [await proveHostile(browser, { lesson: 'figure-hostile', viewport: 'laptop', theme: 'light' }), await proveHostile(browser, { lesson: 'figure-hostile', viewport: 'phone', theme: 'dark' })],
-  moves: async (browser: Browser) => [await proveMoves(browser, { lesson: 'every-word', viewport: 'laptop', theme: 'light' }), await proveMoves(browser, { lesson: 'algebra', viewport: 'laptop', theme: 'light' })],
+  'late-words': async (browser: Browser) => [await proveLateWords(browser, { lesson: 'shot', viewport: 'laptop', theme: 'light', label: 'late-words' }), await proveLateWords(browser, { lesson: 'shot', viewport: 'phone', theme: 'dark', label: 'late-words' }), await proveLateWords(browser, { lesson: 'graphs', viewport: 'laptop', theme: 'light', label: 'late-words' })],
+  moves: async (browser: Browser) => [await proveMoves(browser, { lesson: 'rapid-moves', viewport: 'laptop', theme: 'light' }), await proveMoves(browser, { lesson: 'algebra', viewport: 'laptop', theme: 'light' })],
   stored: async (browser: Browser) => [await proveLesson(browser, { lesson: 'shot', viewport: 'laptop', theme: 'light', label: 'stored' }), await proveLesson(browser, { lesson: 'shot', viewport: 'phone', theme: 'dark', label: 'stored' }), await proveLesson(browser, { lesson: 'graphs', viewport: 'laptop', theme: 'dark', label: 'stored' }), await proveFreeze(browser, { lesson: 'shot', viewport: 'laptop', theme: 'light', label: 'stored-freeze' })],
   resize: async (browser: Browser) => [await proveResize(browser, { lesson: 'launch', viewport: 'laptop', theme: 'light' }), await proveResize(browser, { lesson: 'free-body', viewport: 'laptop', theme: 'dark' })],
 } as const;

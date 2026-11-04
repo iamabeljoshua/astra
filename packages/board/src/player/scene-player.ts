@@ -28,6 +28,8 @@ export interface ScenePlayer {
   receive(message: AgentMessage): void;
   tick(): void;
   getBoard(atMs: number): BoardState;
+  /** The board for this frame. It fires what is due first, because the audio clock moves in steps and a cue due at this very reading would otherwise show one frame after a replay shows it. */
+  getBoardNow(): { board: BoardState; atMs: number };
   getNowMs(): number;
   getOperations(): BoardOperation[];
   /** The words heard so far this turn, on the same clock as the board. */
@@ -296,6 +298,11 @@ export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueF
     getOperations,
     getCaption: () => (turn ? turn.beats.flatMap((beat) => beat.words.slice(0, beat.playedWords).map((word) => word.text)).join(' ') : ''),
     getBoard: (atMs) => getBoardAt(getOperations(), atMs, catalog),
+    getBoardNow() {
+      tick();
+      const atMs = clock.getNowMs();
+      return { board: getBoardAt(getOperations(), atMs, catalog), atMs };
+    },
     moveSlider: sliderLog.move,
     finishSliderDrag: sliderLog.finish,
     receive(message) {

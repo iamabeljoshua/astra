@@ -12,7 +12,7 @@ export const LAB_TOPIC = 'astra.lab';
 const AUDIO_QUEUE_MS = 200;
 
 export type LabCommand =
-  | { type: 'play'; lesson?: LessonName; lessonTurn?: number; repeats?: number; cueEveryWords?: number; isStockPhrase?: boolean; isStockMath?: boolean; textPace?: TextPace; proofStalls?: { atAudioMs: number; ms: number }[]; wordsLateMs?: number }
+  | { type: 'play'; lesson?: LessonName; lessonTurn?: number; repeats?: number; cueEveryWords?: number; isStockPhrase?: boolean; isStockMath?: boolean; textPace?: TextPace; proofStalls?: { atAudioMs: number; ms: number }[]; wordsLateMs?: number; sendsWordsOneByOne?: boolean }
   | { type: 'interrupt' }
   | { type: 'resume'; textPace?: TextPace }
   | { type: 'finish' }
@@ -51,9 +51,20 @@ export async function runLabAgent({ url, token, voice, sampleRate, recorder }: L
 
   const publish = (topic: string, message: object, reliable = true) => room.localParticipant?.publishData(encoder.encode(JSON.stringify(message)), { reliable, topic });
   let wordsLateMs = 0;
+  let sendsWordsOneByOne = false;
+  let firstWordsAtMs: number | null = null;
+  // Proof only. Each word time leaves at its own moment, so a cue never knows its later words as it fires, which is the worst a real voice does.
+  const sendEachWordAtItsTime = (message: AgentMessage & { type: 'words' }) => {
+    firstWordsAtMs ??= Date.now();
+    const startsAtMs = firstWordsAtMs;
+    message.words.forEach((word, index) => {
+      setTimeout(() => void publish(LIVE_TOPIC, { ...message, firstWord: message.firstWord + index, words: [word] }), Math.max(0, startsAtMs + word.startMs - Date.now()));
+    });
+  };
   const messenger = {
     send(message: AgentMessage) {
-      if (message.type === 'words' && wordsLateMs > 0) setTimeout(() => void publish(LIVE_TOPIC, message), wordsLateMs);
+      if (message.type === 'words' && sendsWordsOneByOne) sendEachWordAtItsTime(message);
+      else if (message.type === 'words' && wordsLateMs > 0) setTimeout(() => void publish(LIVE_TOPIC, message), wordsLateMs);
       else void publish(LIVE_TOPIC, message);
     },
     sendOnBothChannels(message: AgentMessage) {
@@ -123,6 +134,8 @@ export async function runLabAgent({ url, token, voice, sampleRate, recorder }: L
   const runCommand = (command: LabCommand) => {
     if (command.type === 'play') {
       wordsLateMs = command.wordsLateMs ?? 0;
+      sendsWordsOneByOne = command.sendsWordsOneByOne ?? false;
+      firstWordsAtMs = null;
       startTurn(getTurnBeats(command), command);
     }
     if (command.type === 'interrupt') {

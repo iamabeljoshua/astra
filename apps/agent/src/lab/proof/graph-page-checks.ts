@@ -4,7 +4,7 @@ export * from './math-page-checks.ts';
 
 interface LabWindow {
   sceneLab: {
-    player: { getNowMs(): number; getOperations(): { kind: string; atMs: number; command?: { kind: string; target?: string; action?: string; overWords?: number }; overMs?: number | null; landsAtMs?: number }[] };
+    player: { tick(): void; getNowMs(): number; getOperations(): { kind: string; atMs: number; command?: { kind: string; target?: string; action?: string; overWords?: number }; overMs?: number | null; landsAtMs?: number }[] };
     describeLive(atMs: number): unknown;
     describeReplay(atMs: number): unknown;
     records: { log: { atMs: number; kind: string }[] };
@@ -33,7 +33,7 @@ const TEXT_SHRINK = 1;
 const getLab = () => (window as unknown as LabWindow).sceneLab;
 
 function getFigureTexts(root: Element): SVGTextElement[] {
-  return [...root.querySelectorAll<SVGTextElement>('svg.board-figure text, .board-notes text')].filter((text) => text.textContent !== '');
+  return [...root.querySelectorAll<SVGTextElement>('svg.board-figure text, .board-notes text')].filter((text) => text.textContent !== '' && getComputedStyle(text).visibility !== 'hidden');
 }
 
 function isOverlapping(first: DOMRect, second: DOMRect): boolean {
@@ -95,6 +95,7 @@ export function startFigureWatch(): void {
     checkFinite(board, watch);
     noteMotion(board, watch);
     if (watch.samples.length < MOST_SAMPLES) {
+      getLab().player.tick();
       const atMs = getLab().player.getNowMs();
       watch.samples.push({ atMs, board: JSON.stringify(getLab().describeLive(atMs)) });
     }
@@ -112,6 +113,13 @@ function getPercentile(values: readonly number[], share: number): number {
   return sorted[Math.min(sorted.length - 1, Math.floor(share * sorted.length))] ?? 0;
 }
 
+// A jump in a run shows as one step far above the rest, and a jump back as a step below zero.
+function getBallMotion(samples: readonly { board: string }[]): { worstStepBack: number; worstStepForward: number } {
+  const seconds = samples.flatMap(({ board }) => (JSON.parse(board) as { elements: { id: string; sceneSeconds?: number; kind: string }[] }).elements.find((element) => element.kind === 'simulate')?.sceneSeconds ?? []);
+  const steps = seconds.slice(1).map((value, index) => value - (seconds[index] as number));
+  return { worstStepBack: Math.min(0, ...steps), worstStepForward: Math.max(0, ...steps) };
+}
+
 /** Stops the watch and compares every board the student saw with what the log gives at that moment. */
 export function stopFigureWatch() {
   const page = window as unknown as LabWindow;
@@ -123,8 +131,9 @@ export function stopFigureWatch() {
   const shiftMs = logStart - liveStart;
   const differing = watch.samples.filter(({ atMs, board }) => JSON.stringify(getLab().describeReplay(atMs + shiftMs)) !== board);
   const differingExamples = differing.slice(0, 2).map(({ atMs, board }) => ({ atMs, live: board.slice(0, 600), replay: JSON.stringify(getLab().describeReplay(atMs + shiftMs)).slice(0, 600) }));
+  const motion = getBallMotion(watch.samples);
   const { frameGapsMs, textChecks, textOverlapFrames, textOutsideFrames, notFiniteFrames, frames, ballPlaces, curveDrawings, examples } = watch;
-  return { frames, textChecks, textOverlapFrames, textOutsideFrames, notFiniteFrames, ballPlaces, curveDrawings, examples, differingExamples, frameGapP50: getPercentile(frameGapsMs, 0.5), frameGapP95: getPercentile(frameGapsMs, 0.95), frameGapWorst: Math.max(...frameGapsMs), framesOverBudget: frameGapsMs.filter((gap) => gap > 34).length, liveSamples: watch.samples.length, liveSamplesDifferingFromReplay: differing.length };
+  return { ...motion, frames, textChecks, textOverlapFrames, textOutsideFrames, notFiniteFrames, ballPlaces, curveDrawings, examples, differingExamples, frameGapP50: getPercentile(frameGapsMs, 0.5), frameGapP95: getPercentile(frameGapsMs, 0.95), frameGapWorst: Math.max(...frameGapsMs), framesOverBudget: frameGapsMs.filter((gap) => gap > 34).length, liveSamples: watch.samples.length, liveSamplesDifferingFromReplay: differing.length };
 }
 
 function getPathNumbers(data: string | null): number[] {

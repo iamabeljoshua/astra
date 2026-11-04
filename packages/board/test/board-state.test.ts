@@ -167,7 +167,7 @@ describe('a slider drag', () => {
     const acted = sent.filter((message): message is BrowserMessage & { type: 'acted' } => message.type === 'acted');
     expect(acted.length).toBeGreaterThan(1);
     const samples = acted.flatMap((message) => (message.action.action === 'sliderDragged' ? message.action.samples.map(({ afterMs, value }) => ({ atMs: message.browserMs - message.startedMsAgo + afterMs, value })) : []));
-    expect(samples).toEqual([{ atMs: 1000, value: 5 }, { atMs: 1120, value: 6 }, { atMs: 1240, value: 7 }, { atMs: 1360, value: 8 }]);
+    expect(samples).toEqual([{ atMs: 1001, value: 5 }, { atMs: 1121, value: 6 }, { atMs: 1241, value: 7 }, { atMs: 1361, value: 8 }]);
   });
 
   it('gives the replay the same board at every moment of the drag', () => {

@@ -32,7 +32,9 @@ export interface LabPage {
 function startAgent(room: string, folder: string, voice: readonly string[]): Promise<{ child: ChildProcess; openUrl: string }> {
   const flags = ['src/lab/start-lab.ts', '--room', room, '--url', LIVEKIT_URL, '--webUrl', WEB_URL, '--out', folder, ...voice];
   const child = spawn(process.execPath, flags, { cwd: AGENT_ROOT, stdio: ['ignore', 'pipe', openSync(join(folder, 'agent.log'), 'a')] });
-  process.once('exit', () => child.kill());
+  const stopAgent = () => child.kill();
+  process.once('exit', stopAgent);
+  child.once('exit', () => process.off('exit', stopAgent));
   return new Promise((resolve, reject) => {
     child.stdout?.on('data', (data: Buffer) => {
       const match = /OPEN (\S+)/.exec(data.toString());

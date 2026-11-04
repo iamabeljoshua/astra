@@ -184,10 +184,7 @@ export async function startLabSession({ url, token, shouldRecordPcm, onAgentRead
     player,
     pcm,
     command: (command) => void publish(LAB_TOPIC, command),
-    getBoardNow() {
-      const atMs = clock.getNowMs();
-      return { board: player.getBoard(atMs), atMs };
-    },
+    getBoardNow: player.getBoardNow,
     getReplayBoard: (atMs) => rebuildBoard(records.log, atMs),
     describeLive: (atMs) => describeBoard(player.getBoard(atMs), atMs),
     describeReplay: (atMs) => describeBoard(rebuildBoard(records.log, atMs), atMs),
