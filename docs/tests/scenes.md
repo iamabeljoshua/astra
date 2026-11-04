@@ -27,7 +27,7 @@ A person talks in short lines, so every spoken line is usually under 25 words an
 - A take is one immutable file per theme, compressed once, off the event loop, so the API can send it as is. Moving to object storage later changes only `scene-store.ts` and the API's reader.
 - In the browser a take is untrusted data, so anything it throws costs that take and leaves the plain board underneath.
 - The planner streams, so the tutor speaks the first line as soon as it is written and is not silent while the rest comes, and the writer starts as soon as the narration and plan have arrived. A plan the checks then refuse stops that write.
-- `manimgx inspect` took about 6 s a theme whatever the number of pictures, nearly all of it the first picture, in the renderer's start-up and shader optimisation. So both themes share one process and shaders go unoptimised. A pixel comparison of both themes' sheets found no difference on one 2D scene.
+- `manimgx inspect` took about 6 s a theme whatever the number of pictures, nearly all of it the first picture, in the renderer's start-up and shader optimisation. So both themes share one process and shaders go unoptimised. A pixel comparison of both themes' sheets found no difference on one 2D scene and one 3D scene.
 - The first screen reads board math and listed names as well as spoken words. A pair of listed first and last names counts in any case, and capitalised pairs count as before. A name not on the lists, written with no capitals, reaches only the review.
 - Lesson audio is kept to save credits. A card's lines are in `.scene-store/voice`, and any student's lesson on that card can play them. A typed lesson's lines are in `.scene-store/student-voice/<student id>/<scene id>`, are played only to that student, and are removed with the rest of that student's data. Before a typed lesson has a topic it keeps nothing, and it only says the app's fixed lines then.
 - The lesson service is local only, with a dev key, because it stands in until M3.6's live room. Lessons stay off unless a build sets `VITE_SCENE_LESSONS=1`. A request the router sends to the kit stays on the plain board until the kit path lands.
@@ -96,7 +96,7 @@ A request about a student hurting themselves or being in danger gets the tutor b
 
 ## Six fresh typed questions
 
-Real models and a real page, with the tone voice, on 4 November 2026, on the Mac the rest of the program shares. "Seen" is the first moment the page shows the scene, from pressing Enter. A dash means it never showed. "Ready" is on the service's clock, about 1 s behind the page's, and the window closed at about 42 to 44 s on it. Every line was 15 words or fewer, apart from the scene's narration, which played as one long turn in these six and now plays line by line.
+Real models and a real page, with the tone voice, on 4 November 2026, on the Mac the rest of the program shares. "Seen" is the first moment the page shows the scene, from pressing Enter. "None" means it never showed. "Ready" is on the service's clock, about 1 s behind the page's, and the window closed at about 42 to 44 s on it. Every line was 15 words or fewer, apart from the scene's narration, which played as one long turn in these six and now plays line by line.
 
 | Question | First words | Container | Ready | Seen | Cost | What happened |
 | --- | --- | --- | --- | --- | --- | --- |
