@@ -29,6 +29,9 @@ export interface SceneMaker {
   now?(): number;
   getWallMs?(): number;
   warn?(line: string): void;
+  /** A run with no student waiting can give a plain writer and a careful review longer. */
+  writerLimitMs?: number;
+  reviewerLimitMs?: number;
 }
 
 export interface SceneRequest {
@@ -98,7 +101,7 @@ async function writeUntilClean(maker: SceneMaker, { brief, plan, values, tally, 
     if (signal.aborted) return null;
     tally.attempts += 1;
     tally.writer = writer.name;
-    const code = await takeWritten(writer, tally, index === 0 && earlyWrite ? earlyWrite : writer.write(brief, repair, AbortSignal.any([AbortSignal.timeout(WRITER_LIMIT_MS), signal])));
+    const code = await takeWritten(writer, tally, index === 0 && earlyWrite ? earlyWrite : writer.write(brief, repair, AbortSignal.any([AbortSignal.timeout(maker.writerLimitMs ?? WRITER_LIMIT_MS), signal])));
     if (code === null) continue;
     const contentProblems = getCodeProblems(code);
     const render = contentProblems.length > 0 || signal.aborted ? null : await maker.worker({ code, moments: brief.moments, durationSeconds: brief.durationSeconds, themes: SCENE_THEMES, values, inspectSeconds: getInspectSeconds(brief) }, AbortSignal.any([AbortSignal.timeout(2 * WRITER_LIMIT_MS), signal]));
@@ -143,7 +146,7 @@ function noteTrouble(store: SceneStore, key: SceneKey, nowMs: number, wasRefused
   store.saveTrouble(key, { tries: isTroubleForgotten(trouble, nowMs) ? 1 : trouble.tries + 1, lastAtMs: nowMs, wasRefused });
 }
 
-export const canTryNow = ({ store, getWallMs = () => Date.now() }: Pick<SceneMaker, 'store' | 'getWallMs'>, key: SceneKey): boolean => getCanTry(store.getTrouble(key), getWallMs());
+export const canTryNow = ({ store, getWallMs = () => Date.now() }: Pick<SceneMaker, 'store' | 'getWallMs'>, key: SceneKey): boolean => !store.isFlagged(key) && getCanTry(store.getTrouble(key), getWallMs());
 
 /** A review can refuse a true scene, and on a card that would leave it with no scene for anyone, so a refusal may be written again after a wait, a few times a day. */
 export function canTryAfterRefusal(store: SceneStore, key: SceneKey, nowMs: number): boolean {
@@ -186,6 +189,7 @@ export async function makeScene(maker: SceneMaker, { topic, ownerId = null, plan
   const key = getSceneKey(topic, { ownerId, values });
   const planProblems = [...getPlanBeatProblems(plan), ...getPlanProblems(topic, plan, clearedNames)];
   if (planProblems.length > 0) return { isOk: false, reasons: planProblems };
+  if (store.isFlagged(key)) return { isOk: false, reasons: ['a person flagged this scene, so it waits until someone has looked at it'] };
   if (!getCanTry(store.getTrouble(key), getWallMs())) return { isOk: false, reasons: ['this scene hit errors recently, so it waits before trying again'] };
   const brief = getBrief(topic, plan);
   const tally: Tally = { writer: '', attempts: 0, writeMs: 0, renderMs: 0, costUsd: 0, problems: [] };
@@ -196,7 +200,7 @@ export async function makeScene(maker: SceneMaker, { topic, ownerId = null, plan
     return { isOk: false, reasons: tally.problems };
   }
   // An error is never a verdict, so it saves nothing that could block this topic.
-  const verdict = await reviewer.review({ brief, code: attempt.code, sheets: attempt.render.sheets, spokenLines: getSpokenLines(plan) }, AbortSignal.any([AbortSignal.timeout(REVIEWER_LIMIT_MS), signal])).catch((error: unknown) => {
+  const verdict = await reviewer.review({ brief, code: attempt.code, sheets: attempt.render.sheets, spokenLines: getSpokenLines(plan) }, AbortSignal.any([AbortSignal.timeout(maker.reviewerLimitMs ?? REVIEWER_LIMIT_MS), signal])).catch((error: unknown) => {
     if (!signal.aborted) noteTrouble(store, key, getWallMs());
     return String(error);
   });
