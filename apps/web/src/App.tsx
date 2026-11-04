@@ -63,8 +63,8 @@ function AppRoutes() {
 function SignedInRoutes() {
   // Fetched once signed in, so opening a session does not wait on it. A failed fetch is left to the route, which tries again.
   useEffect(() => {
-    if (isLessonEnabled()) void import('./scenes/sceneEngine').then(({ fetchSceneEngineInBackground }) => fetchSceneEngineInBackground());
     loadSessionScreen().catch(() => {});
+    if (isLessonEnabled()) void import('./scenes/sceneEngine').then(({ fetchSceneEngineInBackground }) => fetchSceneEngineInBackground());
   }, []);
 
   return (

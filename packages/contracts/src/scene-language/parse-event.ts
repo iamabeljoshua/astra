@@ -98,8 +98,9 @@ export function readLineReading(place: Place): LineReading {
 }
 
 function readWorkVerdict(place: Place): WorkVerdict {
-  const fields = readFields(place, ['status', 'why', 'isBuiltOnWrongLine']);
+  const fields = readFields(place, ['status', 'why', 'isBuiltOnWrongLine', 'offProblem']);
   const status = readOneOf(fields.at('status'), ['right', 'wrong', 'unknown']);
+  if (status === 'unknown') return { status, ...fields.optional('offProblem', (at) => readString(at, LIMITS.why)) };
   if (status !== 'wrong') return { status };
   return { status, why: readString(fields.at('why'), LIMITS.why), ...fields.optional('isBuiltOnWrongLine', readBoolean) };
 }
@@ -140,7 +141,7 @@ const STUDENT_WORK: VariantTable<StudentWork, 'way'> = {
     },
     leave: {
       keys: ['task'],
-      read: (fields) => ({ way: 'leave', task: readElementId(fields.at('task')) }),
+      read: (fields) => ({ way: 'leave', ...fields.optional('task', readElementId) }),
     },
     drag: {
       keys: ['task', 'x', 'samples'],

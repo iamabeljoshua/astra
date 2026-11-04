@@ -19,7 +19,7 @@ const post = vi.mocked(api.post);
 const startSession = vi.mocked(startLabSession);
 
 function makeLab({ caption = 'Words from the tutor', messages = [{ type: 'words' }] as object[] } = {}) {
-  return { records: { frames: [], agentMessages: messages, log: [] }, player: { getCaption: () => caption }, getBoardNow: () => ({ board: { elements: new Map(), focus: null, stage: null, refusedSliders: [] }, atMs: 0 }), sendScene: vi.fn(), command: vi.fn(), close: vi.fn(async () => {}) } as never;
+  return { records: { frames: [], agentMessages: messages, log: [] }, player: { getCaption: () => caption }, getBoardNow: () => ({ board: { elements: new Map(), focus: null, refusedSliders: [] }, atMs: 0 }), sendScene: vi.fn(), command: vi.fn(), close: vi.fn(async () => {}) } as never;
 }
 
 const open = () => render(<MemoryRouter><LessonSession session={SESSION} /></MemoryRouter>);

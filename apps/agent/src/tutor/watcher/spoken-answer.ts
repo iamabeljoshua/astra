@@ -5,7 +5,8 @@ export type SpokenExpected = 'math' | 'words';
 
 export type SpokenDecision =
   | { act: 'talk'; why: string }
-  | { act: 'line'; tex: string }
+  /** bareTex is the number with no letter, for when code cannot prove the letter is what they answered. */
+  | { act: 'line'; tex: string; bareTex?: string }
   | { act: 'askModel'; expects: SpokenExpected }
   | { act: 'pick'; part: string }
   | { act: 'place'; placed: (string | null)[] };
@@ -24,6 +25,8 @@ const SMALL_WORDS: ReadonlySet<string> = new Set(['the', 'a', 'an', 'of', 'in', 
 const FILLER = /^\s*(?:um+|uh+|er+|erm|hm+|mm+|so|well|okay|ok)\b[\s,.]*/i;
 const ANSWER_LEAD = /^\s*(?:i think|i guess|i believe|maybe|probably|the answer is|the answer's|answer is|my answer is|i got|i get|i have|it'?s|it is|that'?s|that is)\b[\s,:]*/i;
 const BARE_NUMBER = /^-?\d+(?:\.\d+)?$/;
+const TWO_VALUES = /\bplus or minus\b|±/i;
+const ENDS_A_SENTENCE = /[\s.!,;:…]+$/;
 
 function withoutOpening(text: string, opening: RegExp): string {
   let rest = text;
@@ -99,7 +102,7 @@ function decideMath(text: string, letter: string | null): SpokenDecision | null 
   const reading = readLine(rest);
   const tex = getLineTex(reading);
   const number = getSpokenCompact(rest);
-  if (BARE_NUMBER.test(number) && !reading.isAsking) return { act: 'line', tex: rest !== text && letter !== null ? `${letter}=${number}` : number };
+  if (BARE_NUMBER.test(number) && !reading.isAsking) return rest !== text && letter !== null ? { act: 'line', tex: `${letter}=${number}`, bareTex: number } : { act: 'line', tex: number };
   return tex !== null && !reading.isAsking ? { act: 'line', tex } : null;
 }
 
@@ -117,8 +120,9 @@ function decideWrite(text: string, task: Task & { way: 'write' }, letter: string
 
 export function decideSpoken(saidText: string, task: Task | null, parts: readonly SpokenPart[], letter: string | null = null): SpokenDecision {
   if (!task) return { act: 'talk', why: 'no task is open' };
-  const text = withoutOpening(saidText, FILLER);
+  const text = withoutOpening(saidText, FILLER).replace(ENDS_A_SENTENCE, '');
   if (text === '' || isAsking(text)) return { act: 'talk', why: 'it is a question or a word to the tutor' };
+  if (TWO_VALUES.test(text)) return { act: 'talk', why: 'it names two values, so the tutor reads it' };
   switch (task.way) {
     case 'write':
       return decideWrite(text, task, letter);

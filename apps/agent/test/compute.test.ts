@@ -23,8 +23,18 @@ describe('compute, against worked answers', () => {
   });
 
   it('rounds what has no exact form, and says only about that much', () => {
-    expect(compute({ expression: '\\sqrt{2}', values: {} })).toEqual({ ok: true, value: '1.41421' });
-    expect(compute({ expression: '2 \\pi', values: {} })).toEqual({ ok: true, value: '6.28319' });
+    expect(compute({ expression: '\\sqrt{2}', values: {} })).toEqual({ ok: true, value: '1.41421', about: '1.41421' });
+    expect(compute({ expression: '2 \\pi', values: {} })).toEqual({ ok: true, value: '6.28319', about: '6.28319' });
+  });
+
+  it.each([
+    ['x^2', { x: -3 }, '9'],
+    ['-x^2', { x: -3 }, '-9'],
+    ['x - y', { x: 1, y: -2 }, '3'],
+    ['\\frac{1}{x}', { x: -4 }, '-0.25'],
+    ['\\frac{1}{2} m v^2', { m: 2, v: -3 }, '9'],
+  ])('reads a negative value as a whole number: %s with %j is %s', (expression, values, value) => {
+    expect(compute({ expression, values })).toMatchObject({ ok: true, value });
   });
 
   it('takes values for letters', () => {

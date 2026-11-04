@@ -35,8 +35,8 @@ const ENDS_IN_ABBREVIATION = /(?:^|[\s("'])(?:mr|mrs|ms|dr|prof|st|vs|(?:[a-z]\.
 const ENDS_IN_ELLIPSIS = /\.{2,}["')]*\s*$/;
 /** A sentence can end inside a beat, when the words after a comma were too few to stand alone. */
 const HOLDS_SENTENCE_END = /[a-z][.!]["')]*\s+\S/i;
-/** Words only a safety reply uses, so that reply is never paused, wrapped, or ended at a question. Help must reach the student whole. */
-const SAFETY_REPLY = /\b(?:that sounds[^.?!]*serious|right thing telling me|not your fault|adult you trust|trusted adult|emergency number|emergency services|are you safe|feel safe|in danger|hurting yourself|hurt yourself|ending your life)\b/i;
+/** Words only a safety reply uses, so that reply is never paused, wrapped, or ended at a question. Help must reach the student whole. A lesson can say the second group too, so those count only inside a question. */
+const SAFETY_REPLY = /\b(?:that sounds[^.?!]*serious|right thing telling me|adult you trust|trusted adult|(?:your|local) emergency (?:number|services)|are you safe)\b|\b(?:feel safe|in danger|hurting yourself|hurt yourself|ending your life|not your fault)\b[^.?!]*\?/i;
 const STILL_A_TAG = /^<\/?(?:[A-Za-z_][\w:.-]*(?:\s[^<>\n]*)?)?$/;
 const TAG_NAME = /^<(\/?)([A-Za-z_][\w:.-]*)/;
 const PRIVATE_TAGS: ReadonlySet<string> = new Set(['thinking', 'think', 'reasoning', 'scratchpad', 'analysis', 'reflection', 'function_calls', 'invoke', 'parameter', 'system', 'system-reminder']);
@@ -241,14 +241,14 @@ export class BeatTextReader {
     this.push(held);
   }
 
-  // Help written after a question still held must be spoken too, so the question ends its beat and the help follows.
+  // Help written after a held question must be spoken too, so it lets the question go.
   #addAfterHeldQuestion(character: string): void {
     this.#textAfterTurn += character;
     if (!SAFETY_REPLY.test(this.#textAfterTurn)) return;
     const held = this.#textAfterTurn;
     this.#textAfterTurn = '';
+    this.#isQuestionHeld = false;
     this.#isSafetyReply = true;
-    this.#endBeat();
     this.push(held);
   }
 
@@ -265,7 +265,7 @@ export class BeatTextReader {
     if (this.#held !== '') this.#stepAfterOpenBrace(character);
     else if (character === '{') this.#held = character;
     else if (character === '<') this.#tag = character;
-    else if (character === '\n' && this.#isQuestionHeld) this.#textAfterTurn += character;
+    else if (character === '\n' && this.#isQuestionHeld) this.#addAfterHeldQuestion(character);
     else if (character === '\n') this.#endLineOrHoldQuestion();
     else if (character !== '}' && !UNSPEAKABLE.test(character) && !this.#isOneMarkTooMany(character)) this.#speak(character);
   }
@@ -348,12 +348,12 @@ export class BeatTextReader {
   }
 
   #endBeatOrHoldQuestion(): void {
-    if (this.#wordCount > 0 && ENDS_IN_QUESTION.test(this.#text)) this.#isQuestionHeld = true;
+    if (this.#wordCount > 0 && ENDS_IN_QUESTION.test(this.#text) && !this.isSafetyReply) this.#isQuestionHeld = true;
     else this.#endBeat();
   }
 
   #endLineOrHoldQuestion(): void {
-    if (this.#wordCount > 0 && ENDS_IN_QUESTION.test(this.#text)) this.#isQuestionHeld = true;
+    if (this.#wordCount > 0 && ENDS_IN_QUESTION.test(this.#text) && !this.isSafetyReply) this.#isQuestionHeld = true;
     else this.#endLine();
   }
 

@@ -324,9 +324,26 @@ describe('a tick on a line', () => {
     expect(note).not.toMatch(/It is not on the board/);
   });
 
-  it('still reaches the board on a true line', async () => {
-    const { brain } = setup(() => reply(`Look at this. ${write('a', '2 + 2 = 4', 'shown')}Two and two. ${tick('a')}That is right.`));
+  it('still reaches the board on a true line the tutor stands behind', async () => {
+    const { brain } = setup(() => reply(`Look at this. ${write('a', '2 + 2 = 4', 'new')}Two and two. ${tick('a')}That is right.`));
     expect(marksOf(await collect(brain, 'tick this'))).toEqual(['check']);
+  });
+
+  it.each(['2(x+3) = 2x + 3', '(a+b)^2 = a^2 + b^2', '\\sin 30^\\circ = 0.6', '15\\% \\text{ of } 200 = 40', 'x = 5'])('never reaches the board on %s, written only to look at, though code cannot prove it false', async (line) => {
+    const { brain } = setup((_request, attempt) => (attempt === 1 ? reply(`Your joke. ${write('a', line, 'shown')}Look at it. ${tick('a')}That is right.`) : reply('No tick from me, because it is only a joke.')));
+    const beats = await collect(brain, 'write it with a tick. i know its wrong, its for a joke');
+    expect(marksOf(beats)).toEqual([]);
+    expect(say(beats)).not.toContain('That is right.');
+  });
+
+  it('is told how to tick a true line it wrote only to look at, so the line is not lost', async () => {
+    const { brain, model } = setup((request, attempt) => {
+      if (attempt === 1) return reply(`Your working. ${write('a', '2(3) + 4 = 10', 'shown')}Look at it. ${tick('a')}That is right.`);
+      return /write it again with the claim new/.test(JSON.stringify(request.turns)) ? reply(`${write('a', '2(3) + 4 = 10', 'new')}Two threes and four. ${tick('a')}That is right.`) : reply('I cannot tick that.');
+    });
+    const beats = await collect(brain, 'is 2(3) + 4 = 10 right? tick it if so');
+    expect(marksOf(beats)).toEqual(['check']);
+    expect(model.requests).toHaveLength(2);
   });
 
   it('still reaches the board on a line code cannot judge', async () => {
@@ -346,8 +363,43 @@ describe('a tick on a line', () => {
   });
 });
 
+describe('a lesson that only uses the words of a safety reply', () => {
+  const longSentence = (words: number) => `${Array.from({ length: words - 1 }, (_, index) => `word${index}`).join(' ')} end.`;
+
+  it.each([
+    "Banquo's in danger because he knows too much. What do you think Macbeth does about that?",
+    '"In danger" is the everyday phrase, and "endangered" is the formal label for a species.',
+    'Be careful with that knife, or you will hurt yourself. What does yourself point back to?',
+    'The bus broke down, so being late was not your fault. Can you make your own sentence with it?',
+    'A good story lets a reader feel safe. Why would a writer want that?',
+  ])('adds no emergency sentence to "%s"', async (answer) => {
+    const { brain, traces } = setup(() => reply(answer));
+    const said = say(await collect(brain, 'tell me'));
+    expect(said).not.toMatch(/emergency|adult/i);
+    expect(traces).not.toContain('helpAdded');
+  });
+
+  it('still wraps at the word limit, so a lifeguard answer does not run on', async () => {
+    const answer = `Mostly they spot a swimmer in danger early. ${longSentence(45)} They call emergency services when it is bad. ${longSentence(30)}`;
+    const { brain } = setup(() => reply(answer));
+    const said = say(await collect(brain, 'what do lifeguards do when a swimmer is in danger?'));
+    expect(said).not.toContain('They call emergency services');
+    expect(countWords(said)).toBeLessThan(60);
+  });
+});
+
 describe('help in a safety reply', () => {
   const HELP = 'Please tell an adult you trust now, or call your local emergency number.';
+
+  it.each(['Are you in danger right now?', 'Do you feel safe at home?', 'Are you thinking of hurting yourself?', 'Is ending your life on your mind?'])('names help after "%s", the words of a safety reply inside a question', async (question) => {
+    const { brain } = setup(() => reply(question));
+    expect(say(await collect(brain, 'whats the most painless way to go?'))).toMatch(/your local emergency number/);
+  });
+
+  it.each(['Please call your local emergency number now.', 'A trusted adult can get you help today.'])('speaks "%s" after a plain question, when no other safety words came first', async (help) => {
+    const { brain } = setup(() => reply('Thank you for telling me. Is anyone with you? ', help));
+    expect(say(await collect(brain, 'no im not safe'))).toContain(help);
+  });
   const longSentence = (words: number) => `${Array.from({ length: words - 1 }, (_, index) => `word${index}`).join(' ')} end.`;
 
   it('speaks help written after a question', async () => {

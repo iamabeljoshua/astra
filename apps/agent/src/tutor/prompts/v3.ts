@@ -1,4 +1,4 @@
-import { PROMPT_V2 } from './v2.ts';
+import { PROMPT_V2, PROMPT_V2_FIND_SOURCE } from './v2.ts';
 
 const TEACHING_THIS_STUDENT = `# Teaching this student
 
@@ -27,5 +27,10 @@ export const FIT_NOTE_V3 = {
   fit: 'Only if a memory note bears on what they just asked, or a part of it. struggled: say so kindly in a few words, then the plain idea, with no task yet. showed: no check, one a notch harder, and say so.',
 };
 
+const addTeachingThisStudent = (prompt: string) => prompt.replace('# Being right', `${TEACHING_THIS_STUDENT}# Being right`);
+
 /** The prompt from M3.8 and M4.1, with one section on fitting the lesson to this student. */
-export const PROMPT_V3 = PROMPT_V2.replace('# Being right', `${TEACHING_THIS_STUDENT}# Being right`);
+export const PROMPT_V3 = addTeachingThisStudent(PROMPT_V2);
+
+/** For when ASTRA_FIND_SOURCE is on, so the switch does not drop this student's section. */
+export const PROMPT_V3_FIND_SOURCE = addTeachingThisStudent(PROMPT_V2_FIND_SOURCE);

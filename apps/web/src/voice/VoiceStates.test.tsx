@@ -154,7 +154,7 @@ describe('what the student sees of a room', () => {
     fireEvent.click(screen.getByRole('button', { name: VOICE_LABELS.tryAgain }));
     await waitFor(() => expect(startLiveVoice).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(voice.close).toHaveBeenCalled());
-    await waitFor(() => expect(getBox().disabled).toBe(false));
+    await waitFor(() => expect(getBox().readOnly).toBe(false));
     await waitFor(() => expect(second.voice.sendOpening).toHaveBeenCalledWith(SESSION_LABELS.carryOnWith(makeSession().title)));
   });
 

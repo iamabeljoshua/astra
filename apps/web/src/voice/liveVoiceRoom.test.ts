@@ -1,3 +1,4 @@
+import type { ElementId } from '@astra/contracts';
 import { DisconnectReason, RoomEvent, Track } from 'livekit-client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LIVE_TOPIC, type RoomAccess, startLiveVoice } from './liveVoice';
@@ -393,6 +394,19 @@ describe('the microphone when the page stops being in a room', () => {
     expect(captured.stop).toHaveBeenCalled();
     expect(voice.getView().mic).toBe('off');
     await voice.close();
+  });
+
+  it('keeps the board for this room when the page goes, and puts it back on the next load', async () => {
+    const { voice, hear } = await open();
+    hear({ type: 'pulse' });
+    voice.sendWork({ way: 'write', id: 's1' as ElementId, text: '2x = 8' });
+    window.dispatchEvent(new Event('pagehide'));
+    expect(sessionStorage.getItem(`astra.board.${ACCESS.roomName}`)).toContain('2x = 8');
+    await voice.close();
+    const next = await open();
+    expect(next.voice.getBoardNow().board.elements.has('s1' as ElementId)).toBe(true);
+    await next.voice.close();
+    sessionStorage.clear();
   });
 
   it('ends the capture when the page goes, before anything can wait', async () => {

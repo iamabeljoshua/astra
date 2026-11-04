@@ -126,6 +126,7 @@ export interface PictureReader {
 
 const PICTURE_MODEL = MODEL_SETTINGS['haiku-5-5'];
 const PICTURE_MOST_TOKENS = 400;
+const TOKENS_PER_PRICE = 1_000_000;
 
 export function makeAnthropicPictureReader({ apiKey }: { apiKey: string }): PictureReader {
   const client = new Anthropic({ apiKey, maxRetries: 0 });
@@ -143,7 +144,7 @@ export function makeAnthropicPictureReader({ apiKey }: { apiKey: string }): Pict
       );
       const text = message.content.find((block) => block.type === 'text')?.text ?? '{}';
       const { input, output } = PICTURE_MODEL.prices;
-      return { answer: JSON.parse(text) as unknown, costUsd: (message.usage.input_tokens * input + message.usage.output_tokens * output) / TOKENS_PER_MILLION };
+      return { answer: JSON.parse(text) as unknown, costUsd: (message.usage.input_tokens * input + message.usage.output_tokens * output) / TOKENS_PER_PRICE };
     },
   };
 }

@@ -5,7 +5,7 @@
 export const LEARNER_NOTE_KINDS = ['showed', 'struggled', 'cares_about', 'explored'] as const;
 export type LearnerNoteKind = (typeof LEARNER_NOTE_KINDS)[number];
 
-/** `board` is a line of the student's work that code checked. `words` is the student's own words. */
+/** `board` is a line of math or a task that code checked. `words` says a note stands on what the student said, and holds none of it. */
 export const LEARNER_EVIDENCE_SOURCES = ['board', 'words'] as const;
 export type LearnerEvidenceSource = (typeof LEARNER_EVIDENCE_SOURCES)[number];
 
@@ -27,9 +27,11 @@ export const MAX_UPDATE_KEY_LENGTH = 120;
 
 const isBoardLine = (check: LearnerEvidenceCheck) => (evidence: LearnerEvidence) => evidence.source === 'board' && evidence.check === check;
 const isTheirWords = (evidence: LearnerEvidence) => evidence.source === 'words';
+const keepsNoFreeWords = ({ source, text }: LearnerEvidence) => (source === 'words' ? text === '' : text !== '');
 
 // The bar each kind must clear. Only a line code marked right can say a student showed something, and a wrong line stops it.
 export function isBackedByEvidence(kind: LearnerNoteKind, evidence: LearnerEvidence[]): boolean {
+  if (!evidence.every(keepsNoFreeWords)) return false;
   if (kind === 'showed') return evidence.some(isBoardLine('right')) && !evidence.some(isBoardLine('wrong'));
   if (kind === 'struggled') return evidence.some(isBoardLine('wrong')) || evidence.some(isTheirWords);
   if (kind === 'cares_about') return evidence.some(isTheirWords);

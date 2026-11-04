@@ -25,7 +25,7 @@ function toExactDecimal(value: Rational): string {
 function describeAnswer(value: NumberValue): ComputeAnswer {
   if (value.kind === 'undefined') return { ok: false, problem: 'that is not defined, as dividing by zero is not' };
   if (value.kind === 'open') return { ok: false, problem: 'that does not come to one number' };
-  if (value.kind === 'real') return { ok: true, value: toAboutText(value.value) };
+  if (value.kind === 'real') return { ok: true, value: toAboutText(value.value), about: toAboutText(value.value) };
   return getExactPlaces(value.value) === null ? { ok: true, value: describeRational(value.value), about: toAboutText(toFloatValue(value)) } : { ok: true, value: toExactDecimal(value.value) };
 }
 

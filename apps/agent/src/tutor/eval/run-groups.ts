@@ -6,7 +6,7 @@ import { parseArgs } from 'node:util';
 import { type ElementId, getBeatText, getCues, type SceneCommand, type StudentWork } from '@astra/contracts';
 import { readKey } from '../../keys.ts';
 import { makeAnthropicAsker, makeAnthropicSourceFinder, makeAnthropicTutorModel, type TutorModelName } from '../../providers/anthropic.ts';
-import type { MemoryLine, MemoryNote } from '../../learner-record/memory-note.ts';
+import type { MemoryLine } from '../../learner-record/memory-note.ts';
 import { createTutorBrain, type StudentProfile, type TurnSummary } from '../brain.ts';
 import { CURRENT_PROMPT, PROMPT_VERSIONS, type PromptVersion, type TutorPrompt } from '../prompt.ts';
 import { createSpendLedger } from '../spend-ledger.ts';
@@ -23,6 +23,20 @@ interface GroupTurn {
   judge?: string;
   terms?: readonly string[];
   answer?: string;
+}
+
+function toStudentWork(work: GroupWork, brain: ReturnType<typeof createTutorBrain>): StudentWork {
+  const { state, openTask } = brain.getBoard();
+  const element = openTask === null ? undefined : state.elements.get(openTask);
+  const task = element?.content.kind === 'task' ? element.content : null;
+  if (work.way === 'write') return { way: 'write', id: work.id as ElementId, text: work.text, ...(openTask ? { task: openTask } : {}) };
+  if (!openTask || !task) throw new Error('the tutor set no task');
+  if (work.way === 'leave') return { way: 'leave', task: openTask };
+  if (work.way === 'pick') return { way: 'pick', task: openTask, part: work.part };
+  if (work.way === 'drag') return { way: 'drag', task: openTask, x: work.x, samples: [{ afterMs: 0, x: work.x }] };
+  if (task.way !== 'place') throw new Error('the tutor set no place task');
+  const right = task.answer ?? task.items.slice(0, task.slots.length);
+  return { way: 'place', task: openTask, placed: work.placed === 'rightOrder' ? right : [...right].reverse() };
 }
 
 interface LevelCompare {
@@ -102,8 +116,6 @@ function loadGroups(name: string): PromptGroup[] {
   return args.only ? groups.filter((group) => chosen?.includes(group.name)) : groups;
 }
 
-const toMemoryNote = (lines: readonly MemoryLine[]): MemoryNote => ({ memory: { count: lines.length, notes: [...lines] } });
-
 function makeJudge() {
   const ask = makeAnthropicAsker({ name: JUDGE_MODEL, apiKey: readKey('ANTHROPIC_API_KEY') });
   return async (content: string): Promise<string> => {
@@ -131,13 +143,13 @@ function describeDrawn(command: SceneCommand): string {
   return 'text' in command && command.text ? command.text : '';
 }
 
-function makeBrain({ prompt, profile, memory, traces, onTurn, model }: { prompt: TutorPrompt; profile: StudentProfile; memory?: readonly MemoryLine[]; traces: string[]; onTurn(summary: TurnSummary): void; model: ReturnType<typeof makeAnthropicTutorModel> }) {
+function makeBrain(prompt: TutorPrompt, profile: StudentProfile, traces: string[], onTurn: (summary: TurnSummary) => void, model: ReturnType<typeof makeAnthropicTutorModel>, memory?: readonly MemoryLine[]) {
   return createTutorBrain({
     model,
     prompt,
     profile,
-    ...(memory ? { memory: toMemoryNote(memory) } : {}),
-    findSource: makeAnthropicSourceFinder({ apiKey: readKey('ANTHROPIC_API_KEY') }),
+    ...(memory ? { memory: { memory: { count: memory.length, notes: [...memory] } } } : {}),
+    ...(prompt === PROMPT_VERSIONS.v3FindSource ? { findSource: makeAnthropicSourceFinder({ apiKey: readKey('ANTHROPIC_API_KEY') }) } : {}),
     trace: (name, fields) => traces.push(`${name}${fields?.problem ? `: ${String(fields.problem)}` : ''}${fields?.report ? `: ${String(fields.report)}` : ''}`),
     onTurnEnd(summary) {
       onTurn(summary);
@@ -147,21 +159,7 @@ function makeBrain({ prompt, profile, memory, traces, onTurn, model }: { prompt:
   });
 }
 
-function toStudentWork(work: GroupWork, brain: ReturnType<typeof createTutorBrain>): StudentWork {
-  const { state, openTask } = brain.getBoard();
-  const element = openTask === null ? undefined : state.elements.get(openTask);
-  const task = element?.content.kind === 'task' ? element.content : null;
-  if (work.way === 'write') return { way: 'write', id: work.id as ElementId, text: work.text, ...(openTask ? { task: openTask } : {}) };
-  if (!openTask || !task) throw new Error('the tutor set no task');
-  if (work.way === 'leave') return { way: 'leave', task: openTask };
-  if (work.way === 'pick') return { way: 'pick', task: openTask, part: work.part };
-  if (work.way === 'drag') return { way: 'drag', task: openTask, x: work.x, samples: [{ afterMs: 0, x: work.x }] };
-  if (task.way !== 'place') throw new Error('the tutor set no place task');
-  const right = task.answer ?? task.items.slice(0, task.slots.length);
-  return { way: 'place', task: openTask, placed: work.placed === 'rightOrder' ? right : [...right].reverse() };
-}
-
-function recordCodeChecks({ group, turn, text, summary, commands }: { group: PromptGroup; turn: GroupTurn; text: string; summary: TurnSummary; commands: readonly SceneCommand[] }) {
+function recordCodeChecks(group: PromptGroup, turn: GroupTurn, summary: TurnSummary, commands: readonly SceneCommand[]) {
   const details = { drawn: commands.map(describeDrawn), toolCalls: summary.toolCalls.map((call) => call.tool), terms: turn.terms ?? [], answer: turn.answer ? new RegExp(turn.answer, 'i') : null, longestStretchWords: getLongestStretchWords(summary.beats) };
   for (const check of [...(group.checks ?? []), ...(turn.check ? [turn.check] : [])]) {
     if (REPLY_CHECKS[check]?.onlyOnWork && !turn.work) continue;
@@ -170,7 +168,7 @@ function recordCodeChecks({ group, turn, text, summary, commands }: { group: Pro
       console.log(`   soft miss, not a failure: ${check}`);
       continue;
     }
-    results.push({ group: group.name, check, passed, text: text.slice(0, 60) });
+    results.push({ group: group.name, check, passed, text: (turn.text ?? '').slice(0, 60) });
     if (!passed) console.log(`   FAILED ${check}`);
   }
 }
@@ -185,7 +183,7 @@ interface RunContext {
 async function runGroup(group: PromptGroup, { prompt, model, askJudge }: RunContext): Promise<void> {
   const traces: string[] = [];
   let latest: TurnSummary | null = null;
-  const brain = makeBrain({ prompt, profile: group.profile ?? PROFILE, ...(group.memory ? { memory: group.memory } : {}), traces, onTurn: (summary) => (latest = summary), model });
+  const brain = makeBrain(prompt, group.profile ?? PROFILE, traces, (summary) => (latest = summary), model, group.memory);
   const exchange: string[] = [];
   const wordCounts: number[] = [];
   const replies: string[] = [];
@@ -205,7 +203,7 @@ async function runGroup(group: PromptGroup, { prompt, model, askJudge }: RunCont
     for (const command of commands) console.log(`     cmd ${JSON.stringify(command)}`);
     for (const call of summary.toolCalls) console.log(`     tool ${JSON.stringify(call)}`);
     if (traces.length > 0) console.log(`   traces: ${traces.join(' | ')}`);
-    recordCodeChecks({ group, turn, text, summary, commands });
+    recordCodeChecks(group, turn, summary, commands);
     wordCounts.push(summary.spokenText.split(/\s+/).filter(Boolean).length);
     replies.push(summary.spokenText);
     exchange.push(`Student: ${text}`, `Tutor: ${summary.spokenText}`);
@@ -230,7 +228,7 @@ async function runGroup(group: PromptGroup, { prompt, model, askJudge }: RunCont
 
 async function runCompareSide(compare: LevelCompare, { level, student = {} }: { level: string; student?: CompareStudent | undefined }, { prompt, model }: RunContext): Promise<string> {
   const spoken: string[] = [];
-  const brain = makeBrain({ prompt, profile: { level, interests: student.interests ?? [], goal: 'curiosity' }, ...(student.memory ? { memory: student.memory } : {}), traces: [], onTurn: (summary) => spoken.push(summary.spokenText), model });
+  const brain = makeBrain(prompt, { level, interests: student.interests ?? [], goal: 'curiosity' }, [], (summary) => spoken.push(summary.spokenText), model, student.memory);
   for (const text of [compare.text, compare.then]) for await (const beat of brain.reply({ text }, new AbortController().signal)) void beat;
   return spoken.join(' ');
 }

@@ -1,10 +1,11 @@
 import type { components } from '@astra/contracts';
 import { isSafeNoteText } from './screens.ts';
+import { isDetailOnTheList, isTopicOnTheList } from './topic-words.ts';
 
 type LearnerRecord = components['schemas']['LearnerRecordDto'];
 type LearnerNote = LearnerRecord['notes'][number];
 
-/** One thing the tutor may know from an earlier session. Holds no quotes, so the student's raw words never reach the prompt from memory. */
+/** One thing the tutor may know from an earlier session, in words from a closed list. */
 export interface MemoryLine {
   kind: LearnerNote['kind'];
   about: string;
@@ -43,11 +44,11 @@ function toMemoryLine({ kind, topic, detail, notedAt, evidence }: LearnerNote, n
   };
 }
 
-function isUsable({ topic, detail, notedAt }: LearnerNote, now: Date): boolean {
-  return getDaysAgo(notedAt, now) <= STALE_AFTER_DAYS && isSafeNoteText(topic) && (detail === null || isSafeNoteText(detail));
+function isUsable({ kind, topic, detail, notedAt }: LearnerNote, now: Date): boolean {
+  return getDaysAgo(notedAt, now) <= STALE_AFTER_DAYS && isSafeNoteText(topic) && isTopicOnTheList(kind, topic) && (detail === null || (isSafeNoteText(detail) && isDetailOnTheList(detail)));
 }
 
-// The newest note on a topic wins, so a student who struggled and later got it right is not reminded of the struggle. Screens run again here, so a note that got into the table some other way is still never read.
+// The newest note on a topic wins, so a student who struggled and later got it right is not reminded of the struggle. The screens and the list run again here, so a note that got into the table some other way is still never read.
 export function getMemoryNote({ notes }: LearnerRecord, now: Date): MemoryNote {
   const newestPerTopic = new Map<string, LearnerNote>();
   for (const note of notes) {

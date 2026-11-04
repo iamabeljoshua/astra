@@ -1,8 +1,9 @@
-import { getCues, type StudentWork } from '@astra/contracts';
-import { type CheckedWork, cleanStudentText } from '@astra/board/shared';
+import type { StudentWork } from '@astra/contracts';
+import { type CheckedWork, cleanStudentText, readLine } from '@astra/board/shared';
 import type { TurnSummary } from '../tutor/brain.ts';
 import { getWorkWords } from '../tutor/watcher/watch-rule.ts';
 import { isCrisis, isSafeToRemember, isTutorSafetyLine } from './screens.ts';
+import { createTutorShown } from './tutor-shown.ts';
 
 export type WordsEvent = { id: string; kind: 'words'; text: string; isOpening: boolean };
 export type BoardEvent = { id: string; kind: 'board'; text: string; check: 'right' | 'wrong'; why: string | null; task: string | null; wasShownFirst: boolean };
@@ -24,8 +25,6 @@ const MOST_CHARACTERS_OF_TUTOR = 200;
 const MOST_CHARACTERS_OF_STUDENT = 160;
 const WRITTEN_BY_THE_APP = /^\(.*\)$/;
 
-const toLineKey = (text: string) => text.toLowerCase().replace(/\s+/g, '');
-
 function getWorkText(work: StudentWork): string {
   return getWorkWords(work).replace(/^\((.*)\)$/, '$1');
 }
@@ -39,8 +38,12 @@ function isTrustedCheck(work: StudentWork, checked: CheckedWork): checked is Che
   return checked.verdict.status === 'right' && !read.isUnsure;
 }
 
-function getLinesTheTutorWrote(beats: TurnSummary['beats']): string[] {
-  return beats.flatMap((beat) => getCues(beat).flatMap(({ command }) => ('tex' in command && typeof command.tex === 'string' ? [toLineKey(command.tex)] : [])));
+/** Only the math of a typed line can become a board line, so free words on the same line are never kept, and neither is a scrap of math among them. A task the student did is in the app's own words. */
+function getBoardText(work: StudentWork): string | null {
+  if (work.way !== 'write') return getWorkText(work);
+  const reading = readLine(work.text);
+  const maths = reading.parts.flatMap((part) => (part.type === 'math' && (reading.kind === 'math' || part.tex.includes('=')) ? [part.text] : []));
+  return maths.length === 0 ? null : cleanStudentText(maths.join(', ')).slice(0, MOST_CHARACTERS_OF_STUDENT);
 }
 
 export function createSessionDigest(): SessionDigest {
@@ -50,7 +53,7 @@ export function createSessionDigest(): SessionDigest {
   let turnsSeen = 0;
   let lastWorkText: string | null = null;
   let nextId = 1;
-  const tutorLines = new Set<string>();
+  const tutorShown = createTutorShown();
 
   const add = (event: Omit<WordsEvent, 'id'> | Omit<BoardEvent, 'id'> | Omit<TutorEvent, 'id'>) => {
     const prefix = event.kind === 'words' ? 'w' : event.kind === 'board' ? 'b' : 't';
@@ -67,7 +70,6 @@ export function createSessionDigest(): SessionDigest {
       turnsSeen += 1;
       const isOpening = turnsSeen === 1;
       if (endedAs === 'refused' || isCrisis(studentText) || isTutorSafetyLine(spokenText)) isSafetyStop = true;
-      for (const line of getLinesTheTutorWrote(beats)) tutorLines.add(line);
       const isWrittenByTheApp = WRITTEN_BY_THE_APP.test(studentText.trim()) || cleanStudentText(studentText) === lastWorkText;
       lastWorkText = null;
       if (!isWrittenByTheApp && endedAs !== 'rejected') {
@@ -76,6 +78,7 @@ export function createSessionDigest(): SessionDigest {
       }
       const tutorWords = spokenText.trim().slice(0, MOST_CHARACTERS_OF_TUTOR);
       if (tutorWords !== '') add({ kind: 'tutor', text: tutorWords });
+      tutorShown.addTurn({ spokenText, beats });
     },
     addWork(work, checked) {
       if (work.way === 'leave') return;
@@ -84,9 +87,10 @@ export function createSessionDigest(): SessionDigest {
       hasStudentActed = true;
       lastWorkText = work.way === 'write' ? cleanStudentText(work.text) : null;
       if (text === '' || !isSafeToRemember(text)) return;
-      if (isTrustedCheck(work, checked)) {
+      const boardText = getBoardText(work);
+      if (boardText !== null && isTrustedCheck(work, checked)) {
         const { status } = checked.verdict;
-        add({ kind: 'board', text, check: status, why: status === 'wrong' ? (checked.verdict.why ?? null) : null, task: work.task ?? null, wasShownFirst: tutorLines.has(toLineKey(text)) });
+        add({ kind: 'board', text: boardText, check: status, why: status === 'wrong' ? (checked.verdict.why ?? null) : null, task: work.task ?? null, wasShownFirst: work.way === 'write' && tutorShown.hasShown(work.text) });
       } else if (work.way === 'write' && !work.ink && !work.heard) {
         add({ kind: 'words', text, isOpening: false });
       }

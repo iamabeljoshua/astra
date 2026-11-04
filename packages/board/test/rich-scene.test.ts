@@ -45,6 +45,12 @@ describe('a stored take on the board clock', () => {
     expect(getTakeSeconds(operations, 3000)).toBe(4);
   });
 
+  it('starts over on a play to a moment it has passed, because time does not run backward', () => {
+    const operations = [place(0), play(0, 'tangent', 1000), play(2000, 'secant', 2000)];
+    expect(getTakeSeconds(operations, 2000)).toBe(0);
+    expect(getTakeSeconds(operations, 4000)).toBe(4);
+  });
+
   it('plays to its end when no moment is named', () => {
     expect(getTakeSeconds([place(0), play(0, undefined, 2000)], 2000)).toBe(20);
   });
@@ -71,6 +77,20 @@ describe('the catalog boundary', () => {
     const operations = [place(0), play(0, 'tangent', 5000)];
     for (let atMs = 0; atMs < 600; atMs += 16) getBoardAt(operations, atMs, catalog);
     expect(made).toBe(1);
+  });
+
+  it('keeps only the last values of a long drag, because a curve holds every sample it drew', () => {
+    let made = 0;
+    const catalog = guardSceneCatalog(() => {
+      made += 1;
+      return createTakeScene({ kind: 'richScene', id: elementId('slope'), engine: 'manimgx', sceneId: 'a' as never, moments: {}, parts: [], durationSeconds: 1 });
+    });
+    for (let value = 0; value <= 48; value += 1) catalog(FLIGHT, { speed: value });
+    const madeInTheDrag = made;
+    catalog(FLIGHT, { speed: 48 });
+    expect(made).toBe(madeInTheDrag);
+    catalog(FLIGHT, { speed: 0 });
+    expect(made).toBe(madeInTheDrag + 1);
   });
 
   it('makes a new scene when a parameter changes', () => {

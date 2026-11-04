@@ -389,11 +389,11 @@ export interface components {
         };
         LearnerEvidenceDto: {
             /**
-             * @description Where this came from. `board` is a line of the student's work that code checked, and `words` is the student's own words.
+             * @description Where this came from. `board` is a line of math or a task that code checked. `words` says the note stands on what the student said.
              * @enum {string}
              */
             source: "board" | "words";
-            /** @description The line of work or the words themselves. */
+            /** @description The checked line on `board`. Always empty on `words`, because a student's own words are never stored. */
             text: string;
             /**
              * @description What code found when it checked a line of work. Words have no check.

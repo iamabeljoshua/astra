@@ -12,7 +12,6 @@ const REQUIRED_KINDS: Partial<Record<SceneCommand['kind'], readonly BoardElement
   shadeArea: ['plot'],
   construct: ['geometry'],
   runSimulation: ['simulate', 'richScene'],
-  setParameter: ['simulate'],
   trackVector: ['simulate'],
   readout: ['simulate'],
   ghostPath: ['simulate'],

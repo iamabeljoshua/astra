@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { ArrayMaxSize, ArrayMinSize, IsArray, IsIn, IsOptional, IsString, IsUUID, MaxLength, MinLength, ValidateNested } from 'class-validator';
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsIn, IsOptional, IsString, IsUUID, MaxLength, MinLength, ValidateIf, ValidateNested } from 'class-validator';
 import { IsStorableText } from '../is-storable-text';
 import {
   LEARNER_EVIDENCE_CHECKS,
@@ -21,13 +21,13 @@ export class LearnerNoteParamsDto {
 }
 
 export class LearnerEvidenceDto {
-  /** Where this came from. `board` is a line of the student's work that code checked, and `words` is the student's own words. */
+  /** Where this came from. `board` is a line of math or a task that code checked. `words` says the note stands on what the student said. */
   @IsIn(LEARNER_EVIDENCE_SOURCES)
   source!: LearnerEvidenceSource;
 
-  /** The line of work or the words themselves. */
+  /** The checked line on `board`. Always empty on `words`, because a student's own words are never stored. */
+  @ValidateIf(({ source }: LearnerEvidenceDto) => source === 'board')
   @IsString()
-  @MinLength(1)
   @MaxLength(MAX_EVIDENCE_TEXT_LENGTH)
   @IsStorableText()
   text!: string;

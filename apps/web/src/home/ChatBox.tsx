@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type RefObject } from 'react';
+import { useEffect, useState, type FormEvent, type KeyboardEvent, type RefObject } from 'react';
 import { CHAT_BOX_LABELS } from '../strings';
+import { AttachControl } from '../ui/AttachControl';
+import type { FilesComingSoon } from '../ui/useFilesComingSoon';
 import { useHeightThatFitsText } from './useHeightThatFitsText';
 
-const ACCEPTED_ATTACHMENTS = 'image/*,.pdf';
 // WebKit fires compositionend before keydown, so the Enter that confirms a word has this code and isComposing false.
 const COMPOSING_KEY_CODE = 229;
 const TOUCH_SCREEN_QUERY = '(pointer: coarse)';
@@ -11,7 +12,8 @@ const TOOL_BUTTON =
 
 interface ChatBoxProps {
   labels?: Pick<typeof CHAT_BOX_LABELS, 'label' | 'placeholder' | 'placeholderWhileTalkIsOn' | 'send'>;
-  canAttach?: boolean;
+  /** Without it the box offers no photo or PDF control. */
+  filesComingSoon?: FilesComingSoon;
   clearsOnSend?: boolean;
   isSending?: boolean;
   /** A touch screen is left alone, so no keyboard opens by itself. */
@@ -22,12 +24,10 @@ interface ChatBoxProps {
   onEdit: (question: string) => void;
 }
 
-export function ChatBox({ labels = CHAT_BOX_LABELS, canAttach = true, clearsOnSend = false, isSending = false, takesFocus = false, talk, onSend, onEdit }: ChatBoxProps) {
+export function ChatBox({ labels = CHAT_BOX_LABELS, filesComingSoon, clearsOnSend = false, isSending = false, takesFocus = false, talk, onSend, onEdit }: ChatBoxProps) {
   const [question, setQuestion] = useState('');
   const [isLocalTalkOn, setIsLocalTalkOn] = useState(false);
   const isTalkOn = talk?.isOn ?? isLocalTalkOn;
-  const [attachment, setAttachment] = useState<File | null>(null);
-  const attachButton = useRef<HTMLButtonElement>(null);
   const placeholder = isTalkOn ? labels.placeholderWhileTalkIsOn : labels.placeholder;
   const textBox = useHeightThatFitsText(question, placeholder);
   const hasQuestion = question.trim() !== '';
@@ -47,11 +47,6 @@ export function ChatBox({ labels = CHAT_BOX_LABELS, canAttach = true, clearsOnSe
     onEdit(editedQuestion);
   }
 
-  function removeAttachment() {
-    setAttachment(null);
-    attachButton.current?.focus();
-  }
-
   function submit(event: FormEvent) {
     event.preventDefault();
     send();
@@ -59,7 +54,6 @@ export function ChatBox({ labels = CHAT_BOX_LABELS, canAttach = true, clearsOnSe
 
   return (
     <form onSubmit={submit} className="fades-with-theme border border-ink bg-paper focus-within:outline focus-within:outline-accent">
-      {attachment && <AttachmentChip fileName={attachment.name} onRemove={removeAttachment} />}
       <QuestionBox
         textBox={textBox}
         label={labels.label}
@@ -70,7 +64,7 @@ export function ChatBox({ labels = CHAT_BOX_LABELS, canAttach = true, clearsOnSe
         onEnter={send}
       />
       <div className="flex items-center gap-1.5 pt-1.5 pr-2 pb-2 pl-2.5">
-        {canAttach && <AttachButton button={attachButton} onChoose={setAttachment} />}
+        {filesComingSoon && <AttachControl filesComingSoon={filesComingSoon} className={TOOL_BUTTON} isLabelShown />}
         <TalkButton isOn={isTalkOn} onToggle={talk?.onToggle ?? (() => setIsLocalTalkOn(!isLocalTalkOn))} />
         <SendButton label={labels.send} isEnabled={hasQuestion && !isSending} />
       </div>
@@ -116,56 +110,6 @@ function QuestionBox({ textBox, label, question, placeholder, isReadOnly, onChan
   );
 }
 
-function AttachmentChip({ fileName, onRemove }: { fileName: string; onRemove: () => void }) {
-  return (
-    <div className="px-4 pt-2">
-      <div className="inline-flex max-w-full items-center gap-2 border border-line px-2 py-0.75 text-fine text-ink-2">
-        <span className="truncate">{fileName}</span>
-        <button
-          type="button"
-          aria-label={CHAT_BOX_LABELS.removeAttachment(fileName)}
-          onClick={onRemove}
-          className="minimum-target -m-1 p-1 hover:text-ink"
-        >
-          {CHAT_BOX_LABELS.removeAttachmentMark}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-interface AttachButtonProps {
-  button: RefObject<HTMLButtonElement | null>;
-  onChoose: (file: File | null) => void;
-}
-
-function AttachButton({ button, onChoose }: AttachButtonProps) {
-  const fileInput = useRef<HTMLInputElement>(null);
-
-  function openFilePicker() {
-    if (!fileInput.current) return;
-    // A browser can fire no change event for the same file twice, so a removed file could not come back.
-    fileInput.current.value = '';
-    fileInput.current.click();
-  }
-
-  return (
-    <>
-      <input
-        ref={fileInput}
-        type="file"
-        hidden
-        accept={ACCEPTED_ATTACHMENTS}
-        onChange={(event) => onChoose(event.target.files?.[0] ?? null)}
-      />
-      <button ref={button} type="button" onClick={openFilePicker} className={TOOL_BUTTON}>
-        <AttachIcon />
-        <span>{CHAT_BOX_LABELS.attach}</span>
-      </button>
-    </>
-  );
-}
-
 function TalkButton({ isOn, onToggle }: { isOn: boolean; onToggle: () => void }) {
   return (
     <button type="button" aria-pressed={isOn} onClick={onToggle} className={TOOL_BUTTON}>
@@ -186,14 +130,6 @@ function SendButton({ label, isEnabled }: { label: string; isEnabled: boolean })
     >
       <SendIcon />
     </button>
-  );
-}
-
-function AttachIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden className="size-4.5 flex-none">
-      <path d="M20 11.5 12.2 19.3a4.6 4.6 0 0 1-6.5-6.5l8-8a3 3 0 0 1 4.3 4.3l-8 8a1.5 1.5 0 0 1-2.1-2.1l7.3-7.3" />
-    </svg>
   );
 }
 

@@ -16,7 +16,7 @@ const makeNote = (changes: Partial<LearnerNote> & { daysAgo?: number } = {}): Le
     kind: 'explored',
     topic: `topic ${nextId}`,
     detail: null,
-    evidence: [{ source: 'words', text: 'their words', check: null }],
+    evidence: [{ source: 'words', text: '', check: null }],
     sessionId: 'session',
     sessionTitle: 'A session',
     notedAt: new Date(NOW.getTime() - daysAgo * DAY_MS).toISOString(),
@@ -64,7 +64,7 @@ describe('the memory note the tutor reads', () => {
   });
 
   it('stops reading a note too old to trust', () => {
-    expect(getLines([makeNote({ topic: 'old', daysAgo: 121 }), makeNote({ topic: 'recent', daysAgo: 120 })]).map(({ about }) => about)).toEqual(['recent']);
+    expect(getLines([makeNote({ topic: 'fractions', daysAgo: 121 }), makeNote({ topic: 'decimals', daysAgo: 120 })]).map(({ about }) => about)).toEqual(['decimals']);
   });
 
   it.each([

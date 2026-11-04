@@ -17,8 +17,7 @@ async function buildHolds(extraEnv: Record<string, string>): Promise<boolean> {
   try {
     await run(join(WEB_FOLDER, 'node_modules/.bin/vite'), ['build', '--outDir', outDir, '--emptyOutDir', '--logLevel', 'silent'], {
       cwd: WEB_FOLDER,
-      // Vitest sets NODE_ENV to test, and a build under that keeps the development-only proof hooks the build guards refuse.
-      env: { ...process.env, NODE_ENV: 'production', VITE_SUPABASE_URL: 'http://127.0.0.1:54321', VITE_SUPABASE_PUBLISHABLE_KEY: 'build-check', VITE_SHOW_COST: '', ...extraEnv },
+      env: { ...process.env, VITE_SUPABASE_URL: 'http://127.0.0.1:54321', VITE_SUPABASE_PUBLISHABLE_KEY: 'build-check', VITE_SHOW_COST: '', NODE_ENV: 'production', ...extraEnv },
     });
     const scripts = readdirSync(join(outDir, 'assets')).filter((name) => name.endsWith('.js'));
     return scripts.some((name) => readFileSync(join(outDir, 'assets', name), 'latin1').includes(COST_LINE_MARK));

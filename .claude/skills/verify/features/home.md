@@ -10,7 +10,8 @@ Home is the page a student opens first. It greets the student by name and asks w
 - `home-picks` lists up to six cards under `Picked for you`, chosen from the student's level, interests, and goal, each with a picture and a reason. `maya@astra.test` and `tola@astra.test` see different cards. They stack in one column on a phone. Cards fall below six once a level runs short. A student sees five after finishing 21 of 26 topics at middle school, 43 of 48 at high school, 23 of 28 at university, or 33 of 38 out of school.
 - `home-history` changes the cards from the student's sessions on library topics. A finished topic leaves, the next topic in its subject appears with `You finished <title>`, and an older open topic appears with `Carry on where you left off` and opens its own session. The newest open session has the continue card, so it gets no second card. A session counts as finished at half the topic's length or more. Sooner than that it does not count. History takes at most two carry-on and two next-topic cards. A typed question adds no card and finishes no topic, whatever its words. An open one can take the continue card, so a lesson it displaced can then appear with `Carry on where you left off`.
 - `home-wait` adds `Still loading your home screen.` to the placeholder after 4 seconds. The failure line still comes at 30 seconds.
-- `home-chat` keeps the chat box at the bottom. `Start session` works only with text in the box, and `Photo or PDF` and `Talk` show their state.
+- `home-chat` keeps the chat box at the bottom. `Start session` works only with text in the box, and `Talk` shows its state.
+- `home-coming-soon` answers `Photo or PDF`, or a file dropped or pasted on the page, with `Photos and PDFs are coming soon.` just above the control. No file picker opens, the note closes by itself after 5 seconds, on Escape, or when the student types, and nothing is sent.
 - `home-start` starts a session from a card or a sent question, and `Continue session` opens the unfinished one. See [Sessions](./sessions.md).
 
 ## How to get to it (user POV)
@@ -27,6 +28,7 @@ Preconditions:
 
 - **Open Home.** Run `pnpm verify drive --journey home`. The `journey`, `identity`, `screenshot`, and `main region` checks print `PASS` for `laptop` and `phone`, and the command exits 0.
 - **Proof.** Open `.verify/evidence/home-laptop.png` and `.verify/evidence/home-phone.png`. Each shows the greeting, the continue card, the picks, and the chat box.
+- **Try to add a file.** Run `pnpm verify run --journey coming-soon`. It clicks the control, drops a real file, and pastes one on Home and in the session, and it fails if a file's name or bytes appear in any request. Set `COMING_SOON_LOG_FOLDER` to choose where `coming-soon-<viewport>-network.jsonl` goes. With a room service on, the session half runs on the board. See [Sessions](./sessions.md).
 - **Change the cards from sessions.** Run `pnpm db:seed`, then `pnpm verify run --journey history-picks --viewports laptop`. Run `pnpm db:seed` again before `--viewports phone`, because the journey needs a `tola@astra.test` with no sessions. It finishes a topic, ends one after seconds, leaves two open, and reopens the older one from its card.
 
 ## Gotchas

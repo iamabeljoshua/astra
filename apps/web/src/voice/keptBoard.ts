@@ -3,10 +3,26 @@ import type { BoardOperation } from '@astra/board';
 const MOST_KEPT_CHARACTERS = 2_000_000;
 const SETTLED_MS_BEFORE_THIS_PAGE = 2000;
 
-const getKey = (roomName: string) => `astra.board.${roomName}`;
+const KEY_START = 'astra.board.';
+let isSignedOut = false;
 
-/** Kept for this tab only, so a reload brings the board back and nothing stays on a shared computer once the tab closes. */
+const getKey = (roomName: string) => `${KEY_START}${roomName}`;
+
+/** Students share machines, so a kept board goes at sign-out and when another student takes over. A sign-out leaves the page, and leaving is what keeps a board, so nothing is kept after it. */
+export function forgetKeptBoards({ isSigningOut = false } = {}): void {
+  isSignedOut ||= isSigningOut;
+  try {
+    for (const key of Object.keys(sessionStorage)) {
+      if (key.startsWith(KEY_START)) sessionStorage.removeItem(key);
+    }
+  } catch {
+    // A blocked store holds nothing to forget.
+  }
+}
+
+/** Kept for this tab only, so a reload brings the board back. */
 export function keepBoard(roomName: string, operations: readonly BoardOperation[]): void {
+  if (isSignedOut) return;
   try {
     const whole = JSON.stringify(operations);
     sessionStorage.setItem(getKey(roomName), whole.length <= MOST_KEPT_CHARACTERS ? whole : JSON.stringify(operations.filter(({ kind }) => kind !== 'inkStroke')));
