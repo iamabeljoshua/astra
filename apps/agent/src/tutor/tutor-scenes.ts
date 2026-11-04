@@ -12,6 +12,7 @@ const PAGE_LOAD_LIMIT_MS = 6000;
 const MOST_ASKS_IN_A_SESSION = 6;
 const MOST_TOPIC_CHARACTERS = 80;
 const BREATH_MS = 300;
+const RECHECK_PAUSE_MS = 500;
 
 export interface TutorScenesOptions {
   router: SceneRouter;
@@ -44,6 +45,7 @@ interface SceneAsk {
   work: LessonWork;
   askedAtMs: number;
   windowLimit: ReturnType<typeof setTimeout> | null;
+  recheck: ReturnType<typeof setTimeout> | null;
   page: PageState;
 }
 
@@ -74,6 +76,7 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
   const end = (ask: SceneAsk, how: string) => {
     if (ask !== current) return;
     if (ask.windowLimit) clearTimeout(ask.windowLimit);
+    if (ask.recheck) clearTimeout(ask.recheck);
     if (ask.page.kind === 'loading') clearTimeout(ask.page.limit);
     current = null;
     // What missed its moment is saved, so asking again is free.
@@ -82,7 +85,12 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
   };
 
   const land = (ask: SceneAsk) => {
-    if (ask !== current || ask.page.kind !== 'loaded' || !canSpeak()) return;
+    if (ask !== current || ask.page.kind !== 'loaded') return;
+    if (ask.recheck) clearTimeout(ask.recheck);
+    if (!canSpeak()) {
+      ask.recheck = setTimeout(() => land(ask), RECHECK_PAUSE_MS);
+      return;
+    }
     const scene = ask.work.desk.takeReady();
     if (!scene) return end(ask, 'tooLate');
     const number = (scenesShown += 1);
@@ -109,7 +117,7 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
   const start = (topic: string) => {
     const cardTitle = getCardTitle();
     const isCard = cardTitle !== null && sameWords(cardTitle, topic);
-    const ask: SceneAsk = { topic, askedAtMs: getNowMs(), windowLimit: null, page: { kind: 'notAsked' }, work: undefined as unknown as LessonWork };
+    const ask: SceneAsk = { topic, askedAtMs: getNowMs(), windowLimit: null, recheck: null, page: { kind: 'notAsked' }, work: undefined as unknown as LessonWork };
     ask.work = createLessonWork({ router, runs, store, request: isCard ? cardTitle : topic, isCard, studentId, getNowMs, isOnlyForScene: true, onChange: (state) => onDeskChange(ask, state) });
     works.push(ask.work);
     current = ask;

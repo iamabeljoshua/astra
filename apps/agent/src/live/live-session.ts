@@ -121,6 +121,9 @@ async function* getResumedThen(resumed: readonly Beat[], thought: Thought | null
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/** A student asked something needs a moment to start answering, and a scene talking straight over the question would take it from them. */
+const ROOM_TO_ANSWER_MS = 5000;
+
 async function* toBeatStream(beats: readonly TutorBeat[]): AsyncGenerator<TutorBeat> {
   yield* beats;
 }
@@ -193,6 +196,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
   let stretchBeforeBreath: Speaking | null = null;
   let lastStretch: Speaking | null = null;
   let lastStretchEndedAtMs = 0;
+  let askedAtMs = Number.NEGATIVE_INFINITY;
 
   let isThinking = false;
   const setThinking = (next: boolean) => {
@@ -283,6 +287,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     if (speaking === reply) {
       setThinking(false);
       reply = null;
+      if (speaking.beats.at(-1)?.expectsReply) askedAtMs = getNowMs();
       if (speaking.canResume) {
         lastStretch = speaking;
         lastStretchEndedAtMs = getNowMs();
@@ -463,7 +468,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     dispatch({ type: 'workLanded' });
   };
 
-  const isAtPause = () => !isTutorTalking() && !thought && !cut && !isThinking && state.phase === 'clear' && !state.isVoiceOn && state.partial === '' && !boardWork.hasOpenTask();
+  const isAtPause = () => !isTutorTalking() && !thought && !cut && !isThinking && state.phase === 'clear' && !state.isVoiceOn && state.partial === '' && !boardWork.hasOpenTask() && getNowMs() - askedAtMs >= ROOM_TO_ANSWER_MS;
 
   const startReply = (request: TutorRequest) => {
     spokenTicket += 1;

@@ -80,6 +80,17 @@ describe('asking for a scene', () => {
     expect(spoken).toHaveLength(1);
   });
 
+  it('lands by itself once the student has had room to answer', async () => {
+    const { scenes, spoken, state } = setUp({ canSpeak: false });
+    opened(scenes);
+    scenes.ask(TOPIC);
+    await flush();
+    scenes.onPage(LOADED, 'maya');
+    scenes.notePause();
+    state.canSpeak = true;
+    await vi.waitFor(() => expect(spoken).toHaveLength(1), { timeout: 2000 });
+  });
+
   it('drops a scene not ready 20 s after the first pause, silently, even if it comes later', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     let finish: (made: { isOk: true; scene: StoredScene }) => void = () => {};

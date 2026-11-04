@@ -50,14 +50,14 @@ afterEach(async () => {
   await Promise.all(sessions.splice(0).map((session) => session.close()));
 });
 
-function start({ failAfter = Infinity } = {}) {
+function start({ failAfter = Infinity, reply = makeBeat('reply-1', 'one two three four five') } = {}) {
   const messages: AgentMessage[] = [];
   const onPause = vi.fn();
   const said: string[] = [];
   const tutor: TutorBrain = {
     async *reply({ text }) {
       said.push(text);
-      yield makeBeat('reply-1', 'one two three four five');
+      yield reply;
     },
   };
   const send = (message: AgentMessage) => void messages.push(message);
@@ -94,6 +94,17 @@ describe('a scene turn in a live session', () => {
     for (let tries = 0; tries < 400 && onPause.mock.calls.length === 0; tries += 1) await delay(10);
     expect(onPause).toHaveBeenCalled();
     expect(session.isAtPause()).toBe(true);
+  });
+
+  it('leaves room to answer after a question, so a scene never talks straight over it', async () => {
+    const question = parseBeat({ id: 'reply-1', script: ['what do you think it means?'], expectsReply: true });
+    if (!question.ok) throw new Error(question.problem);
+    const { session, onPause } = start({ reply: question.value });
+    session.onBrowser({ type: 'typed', text: 'why does it fall' } as never);
+    for (let tries = 0; tries < 400 && onPause.mock.calls.length === 0; tries += 1) await delay(10);
+    expect(onPause).toHaveBeenCalled();
+    expect(session.isAtPause()).toBe(false);
+    expect(session.speakScene([makeBeat('scene-a', 'watch the line')])).toBe(false);
   });
 
   it('refuses while the student is talking', () => {
