@@ -20,7 +20,7 @@ The lab is a development page that plays a scripted lesson in a real voice throu
 - **Real voice, measured.** Run `pnpm --filter @astra/agent proof --only clean,interrupt --out <folder>`. Each run writes `summary.json`, with drift and stop times measured against the audio the browser received. It spends about 100 credits a run on the account Abel's videos share, and `docs/tests/scene-player.md` lists the limits. Add `--fake` to spend nothing, but drift is not meaningful on a tone, because a repeated tone matches itself.
 
 - **A new turn right after the last.** Run `pnpm --filter @astra/agent proof --fake --only next-on-finished,after-stop --out <folder>`. Add `-poor` to either name for the worst link. Both spend nothing. `silenceBeforeTurnsMs` from `collect-results.ts` says what the browser really received.
-- **Drift on any word, for no credits.** A real run with `--only clean-every-third` puts a cue on every third word of the lesson's first turn, about 68 credits. `node apps/agent/src/lab/proof/store-run.ts <run> <take.json> [repeats]` keeps its audio and word times, and `--stored <take.json>` plays them through `uneven-every-third`, `poor-every-third`, or `long-every-third`.
+- **Drift on any word, for no credits.** A real run with `--only clean-every-third` puts a cue on every third word of the lesson, about 100 credits. `node apps/agent/src/lab/proof/store-run.ts <run> <take.json> [repeats]` keeps its audio and word times, and `--stored <take.json>` plays them through `uneven-every-third` or `poor-every-third`. `long-every-third` plays lesson turn 0 four times, so give it a take made with `4 turn-1` after the file names.
 
 ## Gotchas
 

@@ -6,6 +6,7 @@ globalThis.ResizeObserver = FakeResizeObserver;
 Object.defineProperty(document, 'fonts', { value: fakeFonts });
 window.scrollTo = () => undefined;
 window.matchMedia = (() => ({ matches: false, addEventListener: () => undefined, removeEventListener: () => undefined })) as unknown as typeof window.matchMedia;
+HTMLCanvasElement.prototype.getContext = () => null;
 
 const { asyncWrapper } = getConfig();
 const nextTask = setImmediate;

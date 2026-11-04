@@ -1,36 +1,37 @@
 import assert from 'node:assert/strict';
-import { setTimeout as sleep } from 'node:timers/promises';
-
-const LOCAL_INBOX = 'http://127.0.0.1:54424';
-const SIGN_IN_LINK = /https?:\/\/\S+\/verify\?\S+/;
-const INBOX_POLL_MS = 200;
-const INBOX_TRIES = 50;
 
 export const deadlineMs = 90_000;
 
-async function readLinkFromInbox(email) {
-  for (let attempt = 0; attempt < INBOX_TRIES; attempt += 1) {
-    const search = await fetch(`${LOCAL_INBOX}/api/v1/search?query=${encodeURIComponent(`to:"${email}"`)}`);
-    const [newest] = (await search.json()).messages;
-    if (newest) {
-      const message = await (await fetch(`${LOCAL_INBOX}/api/v1/message/${newest.ID}`)).json();
-      return SIGN_IN_LINK.exec(message.Text)[0];
-    }
-    await sleep(INBOX_POLL_MS);
-  }
-  throw new Error(`No mail reached ${email} in the local inbox.`);
+function getMarkedBoxes(page) {
+  return page.locator('[data-active]').evaluateAll((boxes) => boxes.flatMap((box, index) => (box.dataset.active === 'true' ? [index] : [])));
 }
 
-export default async function signIn({ page, capture, viewportName }) {
-  const email = `verify-${viewportName}-${Date.now()}@astra.test`;
-  await page.goto('/');
-  await page.getByRole('button', { name: 'Continue with email' }).click();
-  await page.getByRole('textbox', { name: 'Your email address' }).fill(email);
-  await page.getByRole('button', { name: 'Send link' }).click();
-  await page.getByRole('heading', { name: 'Check your email.' }).waitFor();
-  await capture('sent');
+async function assertForcedColorsKeepTheCodeStepReadable(page, field) {
+  await page.emulateMedia({ forcedColors: 'active' });
+  assert.equal(await field.evaluate((input) => getComputedStyle(input).color), 'rgba(0, 0, 0, 0)', 'forced colors draw the typed digits once');
+  const [dot, pageColor] = await page.locator('main .rounded-full').first().evaluate((element) => [getComputedStyle(element).backgroundColor, getComputedStyle(document.body).backgroundColor]);
+  assert.notEqual(dot, pageColor, 'forced colors keep the tutor dot');
+  await page.emulateMedia({ forcedColors: 'none' });
+}
 
-  await page.goto(await readLinkFromInbox(email));
+// Inserting the whole code at once has the shape of a paste, and leaves the clipboard of whoever runs this alone.
+const enterCodeOverTypedDigits = (page) => async (field, code) => {
+  await field.pressSequentially('12');
+  await assertForcedColorsKeepTheCodeStepReadable(page, field);
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Shift+Tab');
+  assert.deepEqual(await getMarkedBoxes(page), [2], 'Tab back keeps the digits and marks the next box');
+  await page.evaluate((wholeCode) => document.execCommand('insertText', false, wholeCode), code);
+};
+
+export default async function signIn({ page, capture, viewportName, signInWithCode }) {
+  await page.goto('/terms');
+  await page.goto('/');
+  await page.getByRole('heading', { name: 'Welcome, I am Astra, your personal AI tutor.' }).waitFor();
+  await page.getByText('A learning app, made for you').waitFor();
+  await capture('email');
+
+  await signInWithCode(`verify-${viewportName}-${Date.now()}@astra.test`, enterCodeOverTypedDigits(page));
   await page.getByRole('textbox', { name: 'Your first name' }).fill('Maya');
   await page.getByRole('button', { name: 'Continue' }).click();
   await page.getByRole('heading', { name: 'When were you born?' }).waitFor();
@@ -46,10 +47,10 @@ export default async function signIn({ page, capture, viewportName }) {
   await capture('onboarding');
 
   await page.getByRole('button', { name: 'Sign out' }).click();
-  await page.getByRole('button', { name: 'Continue with email' }).waitFor();
+  await page.getByRole('textbox', { name: 'Your email' }).waitFor();
 
   await page.goBack();
-  await page.getByRole('button', { name: 'Continue with email' }).waitFor();
+  await page.getByRole('heading', { name: 'Terms' }).waitFor();
   assert.equal(await page.getByRole('heading', { name: 'Where are you in your learning?' }).count(), 0, 'Back shows no student page');
   await capture('after-back');
 }

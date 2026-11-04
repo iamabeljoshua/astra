@@ -8,7 +8,7 @@ import { LEGAL_PATHS } from './legalPaths';
 vi.mock('../auth/session', async () => ({
   ...(await import('../test/signedInSession')),
   hasStoredSession: () => false,
-  sendEmailLink: vi.fn(),
+  sendEmailCode: vi.fn(),
   signInWithGoogle: vi.fn(),
   signInWithPassword: vi.fn(),
   watchSignedInUser: vi.fn(),
@@ -25,18 +25,13 @@ function openAt(path: string) {
   render(<App />);
 }
 
-function getEmailField() {
-  return screen.getByPlaceholderText<HTMLInputElement>(SIGN_IN_LABELS.emailPlaceholder);
-}
-
 function clickBackLink() {
   fireEvent.click(screen.getAllByRole('link', { name: LEGAL_LABELS.back }).at(0)!);
 }
 
 async function typeEmailThenOpen(linkName: string) {
   openAt('/');
-  fireEvent.click(await screen.findByRole('button', { name: SIGN_IN_LABELS.email }));
-  fireEvent.change(getEmailField(), { target: { value: TYPED_EMAIL } });
+  fireEvent.change(await screen.findByPlaceholderText(SIGN_IN_LABELS.emailPlaceholder), { target: { value: TYPED_EMAIL } });
   fireEvent.click(screen.getByRole('link', { name: linkName }));
   await screen.findByRole('heading', { level: 1, name: linkName });
 }
@@ -114,15 +109,15 @@ describe('the Privacy Policy', () => {
   });
 });
 
-describe('returning to the welcome step', () => {
-  it('takes focus to its heading, so a keyboard or screen reader user is not left on the body', async () => {
+describe('returning to the first step', () => {
+  it('takes focus to its field, so a keyboard or screen reader user is not left on the body', async () => {
     openAt('/');
     fireEvent.click(await screen.findByRole('link', { name: LEGAL_PAGES.terms.title }));
     await screen.findByRole('heading', { level: 1, name: LEGAL_PAGES.terms.title });
 
     clickBackLink();
 
-    expect(document.activeElement).toBe(await screen.findByRole('heading', { level: 1, name: SIGN_IN_LABELS.tagline }));
+    expect(document.activeElement).toBe(await screen.findByPlaceholderText(SIGN_IN_LABELS.emailPlaceholder));
   });
 });
 

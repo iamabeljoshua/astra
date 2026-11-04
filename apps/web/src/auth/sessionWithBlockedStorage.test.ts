@@ -26,10 +26,10 @@ describe('a browser that blocks storage', () => {
     expect(hasStoredSession()).toBe(false);
   });
 
-  it('can still ask for a link', async () => {
-    const { sendEmailLink } = await import('./session');
+  it('can still ask for a code', async () => {
+    const { sendEmailCode } = await import('./session');
 
-    await expect(sendEmailLink('maya@astra.test')).resolves.toBe('sent');
+    await expect(sendEmailCode('maya@astra.test')).resolves.toBe('sent');
   });
 
   it('still restarts the app on sign-out', async () => {

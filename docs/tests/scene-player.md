@@ -160,7 +160,7 @@ Word times stretch with the sound, so nothing in the audio shows the fault. The 
 
 So a line running long can be detected on the real path, and early. The watch tripped at 355 to 483 ms from the text on a warm socket, within 1 ms of the first audio, because the vendor sends the whole stretched line in one burst. None of it has played by then, so a cut and a fresh request is possible. This PR does not act on it, because Casey did not run long and Eric is not the voice, so the watch stays in the proof folder. Casey's pace is 57 to 77 ms a character on these lines, against Eric's 42, so the watch takes the pace per voice. Casey's 0 of 112 across all checks, counting the earlier 12, still leaves about a 3% upper bound at 95% confidence, on this one line.
 
-**Chris did not run long.** He ran 0 of 40 overlong on the worst line on Flash, at the 51 ms a character his lesson takes measured, with no false alarm. His lengths stayed within 12% of each other. That leaves about a 7% upper bound at 95% confidence, on this one line, on Flash, so a larger sample would narrow it. Turbo was not tested on him, and Eric's fault appeared on Turbo.
+**Chris did not run long.** He ran 0 of 40 overlong on the worst line on Flash, at the 51 ms a character his lesson takes measured, with no false alarm. His lengths stayed within 13% of each other. That leaves about a 7% upper bound at 95% confidence, on this one line, on Flash, so a larger sample would narrow it. Turbo was not tested on him, and Eric's fault appeared on Turbo.
 
 ## Stock phrases
 

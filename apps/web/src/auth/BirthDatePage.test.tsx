@@ -278,7 +278,7 @@ describe('the date of birth question', () => {
   });
 
   it.each([
-    ['a wide screen, on the first field', true, () => screen.getByLabelText(strings.BIRTH_DATE_LABELS.day)],
+    ['a wide screen, on the first field', true, () => screen.getAllByRole('textbox')[0]!],
     ['a phone, on the heading', false, () => screen.getByRole('heading', { level: 1 })],
   ])('moves focus into the step on %s', (_caseName, isWide, getExpected) => {
     vi.stubGlobal('matchMedia', () => ({ matches: isWide }));

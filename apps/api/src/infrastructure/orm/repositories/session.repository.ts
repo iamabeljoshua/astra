@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource, ILike } from 'typeorm';
+import { DataSource, ILike, IsNull, Not } from 'typeorm';
 import type { FindOptionsWhere, Repository } from 'typeorm';
 import { SessionEntity } from '../entities/session.entity';
 
-type NewSession = Pick<SessionEntity, 'title' | 'subject' | 'language'> & Partial<Pick<SessionEntity, 'artwork'>>;
+type NewSession = Pick<SessionEntity, 'title' | 'subject' | 'language'> & Partial<Pick<SessionEntity, 'artwork' | 'topicId'>>;
 type SessionChanges = Pick<SessionEntity, 'durationSeconds'> & Partial<Pick<SessionEntity, 'status'>>;
 
 export interface SessionListOptions {
@@ -14,6 +14,7 @@ export interface SessionListOptions {
 }
 
 const LIKE_PATTERN_CHARACTERS = /[\\%_]/g;
+const MAX_TOPIC_HISTORY_SESSIONS = 1_000;
 
 // Every branch names the student, because the branches of a filter are joined with OR.
 function getListFilter(studentId: string, search?: string): FindOptionsWhere<SessionEntity>[] {
@@ -62,6 +63,15 @@ export class SessionRepository {
   ): Promise<SessionEntity | null> {
     await this.sessions.update({ id: sessionId, studentId, status: 'in_progress' }, changes);
     return this.findForStudent(studentId, sessionId);
+  }
+
+  listNewestWithTopicForStudent(studentId: string): Promise<SessionEntity[]> {
+    return this.sessions.find({
+      select: { id: true, topicId: true, status: true, durationSeconds: true },
+      where: { studentId, topicId: Not(IsNull()) },
+      order: { startedAt: 'DESC', id: 'DESC' },
+      take: MAX_TOPIC_HISTORY_SESSIONS,
+    });
   }
 
   findNewestUnfinishedForStudent(studentId: string): Promise<SessionEntity | null> {
