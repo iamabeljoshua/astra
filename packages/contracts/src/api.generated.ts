@@ -208,6 +208,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/scene-library/sample": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A sample of the library for a named reviewer, weighted to opening scenes. Anyone else gets 403. */
+        get: operations["SceneLibraryController_getSample"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/scene-library/{sceneId}/sheet": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The frames a scene's review saw, in the light theme, for a named reviewer. Anyone else gets 403. */
+        get: operations["SceneLibraryController_getSheet"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/scene-library/{sceneId}/flag": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Flags a scene, so no student sees it until someone has looked at it. Anyone but a named reviewer gets 403. */
+        put: operations["SceneLibraryController_flagScene"];
+        post?: never;
+        /** Someone has looked at a flagged scene, and it may show again. Anyone but a named reviewer gets 403. */
+        delete: operations["SceneLibraryController_clearFlag"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -434,6 +486,27 @@ export interface components {
             url: string;
             /** @description Lets this student join this lesson's room. */
             token: string;
+        };
+        LibrarySceneDto: {
+            /** @description The stored scene. */
+            sceneId: string;
+            /** @description The title on the server's own list. */
+            title: string;
+            /**
+             * @description An opening scene for a Home topic, or one of the deeper scenes on it.
+             * @enum {string}
+             */
+            kind: "opening" | "deeper";
+            /** @description The subject of the Home topic it belongs to. */
+            subject: string;
+            /** @description What the tutor says over the scene, with its moment marks. */
+            narration: string;
+            /** @description The question the tutor asks after it. */
+            close: string;
+            /** @description A reviewer flagged it, so no student sees it until someone has looked at it. */
+            isFlagged: boolean;
+            /** @description Always false for now, because no person has checked a library scene. */
+            isCheckedByPerson: boolean;
         };
     };
     responses: never;
@@ -766,6 +839,88 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["SceneLessonResponseDto"];
                 };
+            };
+        };
+    };
+    SceneLibraryController_getSample: {
+        parameters: {
+            query?: {
+                /** @description The same number draws the same sample. */
+                seed?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibrarySceneDto"][];
+                };
+            };
+        };
+    };
+    SceneLibraryController_getSheet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The stored scene. */
+                sceneId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SceneLibraryController_flagScene: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The stored scene. */
+                sceneId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SceneLibraryController_clearFlag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The stored scene. */
+                sceneId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
