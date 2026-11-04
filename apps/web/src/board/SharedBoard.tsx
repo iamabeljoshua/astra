@@ -1,4 +1,4 @@
-import type { BoardElement, BoardState, StudentLineContent } from '@astra/board';
+import type { BoardState, StudentLineContent } from '@astra/board';
 import { canWriteByHand, preloadMathFonts, writeStyle } from '@astra/board/drawing';
 import { getInkLineId, type StudentWork } from '@astra/contracts';
 import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef } from 'react';

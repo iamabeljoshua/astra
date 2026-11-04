@@ -1,7 +1,8 @@
 import { parseArgs } from 'node:util';
 import { checkStep, getLineTex, readLine, writeByHand } from '@astra/board/shared';
 import { readKey } from '../../keys.ts';
-import { makeInkClient, readInk } from '../ink/read-ink.ts';
+import { makeAnthropicPictureReader } from '../../providers/anthropic.ts';
+import { readInk } from '../ink/read-ink.ts';
 import { rasterizeInk } from '../ink/rasterize-ink.ts';
 import { createSpendLedger } from '../spend-ledger.ts';
 
@@ -33,7 +34,7 @@ const toStrokes = (text: string, seed: string) => {
 const toKey = (text: string) => text.toLowerCase().replace(/\s/g, '');
 
 async function main() {
-  const client = makeInkClient(readKey('ANTHROPIC_API_KEY'));
+  const reader = makeAnthropicPictureReader({ apiKey: readKey('ANTHROPIC_API_KEY') });
   const ledger = createSpendLedger(args.spend, { limitUsd: Number(args.limit), limitCredits: Infinity });
   const tally = { wrongRows: 0, wrongReadExact: 0, wrongStillWrong: 0, wrongUnknownOrUnsure: 0, wrongReadAsRight: 0, rightRows: 0, rightReadRight: 0, rightUnknownOrUnsure: 0, rightCalledWrong: 0, wordsRows: 0, wordsExact: 0, wordsFixedOrMisread: 0, usd: 0, msTotal: 0 };
   for (let hand = 0; hand < Number(args.hands); hand += 1) {
@@ -41,7 +42,7 @@ async function main() {
       if (ledger.isOverModelLimit()) break;
       const png = rasterizeInk(toStrokes(row.written, `hand-${hand}-${row.written}`));
       const startedAt = performance.now();
-      const { text, ink, costUsd } = await readInk(client, png as Buffer);
+      const { text, ink, costUsd } = await readInk(reader, png as Buffer);
       tally.msTotal += performance.now() - startedAt;
       tally.usd += costUsd;
       ledger.charge({ anthropicUsd: costUsd });

@@ -1,14 +1,10 @@
-import Anthropic from '@anthropic-ai/sdk';
 import { canRenderTex } from '@astra/board/tex-check';
 import { cleanStudentText } from '@astra/board/shared';
 import { getTexProblem, type InkReading } from '@astra/contracts';
+import type { PictureReader } from '../../providers/anthropic.ts';
 
-const READER_MODEL = 'claude-haiku-5-5';
 const LONGEST_READ_MS = 6000;
-const MOST_TOKENS = 400;
 const FEWEST_CONFIDENCE_TO_JUDGE = 0.7;
-/** Haiku 5.5's list price in dollars for a million tokens, from `providers/anthropic.ts`. */
-const PRICES = { input: 0.1, output: 0.5 };
 
 export const INK_READER_PROMPT = `This picture shows one line a student wrote by hand. It may be math, words, a label, or a mix. Read exactly what is written, character by character. Do not fix it. Do not solve it. Do not correct spelling, grammar, or facts. If it is wrong, keep it wrong, because a tutor needs to see the student's real mistake. Pay close attention to minus signs, and tell 1 from 7, z from 2, x from a multiplication sign, and 5 from S.
 
@@ -50,24 +46,8 @@ export function toInkResult(raw: RawRead, costUsd: number): ReadInkResult {
   return canSetTex(tex) ? { text: text || tex, ink: { tex, isUnsure }, costUsd } : { text, ink: { isUnsure }, costUsd };
 }
 
-const getCost = ({ input_tokens: input, output_tokens: output }: { input_tokens: number; output_tokens: number }) => (input * PRICES.input + output * PRICES.output) / 1_000_000;
-
 /** Reads a picture of a handwritten line with a small model. It reads words as well as math, and it never fixes what is written. */
-export async function readInk(client: Anthropic, png: Buffer): Promise<ReadInkResult> {
-  const message = await client.messages.create(
-    {
-      model: READER_MODEL,
-      max_tokens: MOST_TOKENS,
-      thinking: { type: 'disabled' },
-      output_config: { effort: 'low', format: { type: 'json_schema', schema: READ_SCHEMA } },
-      messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: png.toString('base64') } }, { type: 'text', text: INK_READER_PROMPT }] }],
-    } as never,
-    { timeout: LONGEST_READ_MS },
-  ) as unknown as { content: { type: string; text?: string }[]; usage: { input_tokens: number; output_tokens: number } };
-  const text = message.content.find((block) => block.type === 'text')?.text ?? '{}';
-  return toInkResult(JSON.parse(text) as RawRead, getCost(message.usage));
-}
-
-export function makeInkClient(apiKey: string): Anthropic {
-  return new Anthropic({ apiKey, maxRetries: 0 });
+export async function readInk(reader: PictureReader, png: Buffer): Promise<ReadInkResult> {
+  const { answer, costUsd } = await reader.read({ png, prompt: INK_READER_PROMPT, schema: READ_SCHEMA, timeoutMs: LONGEST_READ_MS });
+  return toInkResult(answer as RawRead, costUsd);
 }

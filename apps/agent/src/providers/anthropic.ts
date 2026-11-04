@@ -118,3 +118,31 @@ export function makeAnthropicTutorModel({ name = 'sonnet-5-5', apiKey }: { name?
     },
   };
 }
+
+export interface PictureReader {
+  /** Asks a small model about one picture and returns the JSON it gave, with what that cost. */
+  read(request: { png: Buffer; prompt: string; schema: object; timeoutMs: number }): Promise<{ answer: unknown; costUsd: number }>;
+}
+
+const PICTURE_MODEL = MODEL_SETTINGS['haiku-5-5'];
+const PICTURE_MOST_TOKENS = 400;
+const TOKENS_PER_PRICE = 1_000_000;
+
+export function makeAnthropicPictureReader({ apiKey }: { apiKey: string }): PictureReader {
+  const client = new Anthropic({ apiKey, maxRetries: 0 });
+  return {
+    async read({ png, prompt, schema, timeoutMs }) {
+      const request = {
+        model: PICTURE_MODEL.id,
+        max_tokens: PICTURE_MOST_TOKENS,
+        thinking: { type: 'disabled' },
+        output_config: { effort: 'low', format: { type: 'json_schema', schema } },
+        messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: png.toString('base64') } }, { type: 'text', text: prompt }] }],
+      };
+      const message = (await client.messages.create(request as never, { timeout: timeoutMs })) as unknown as { content: { type: string; text?: string }[]; usage: { input_tokens: number; output_tokens: number } };
+      const text = message.content.find((block) => block.type === 'text')?.text ?? '{}';
+      const { input, output } = PICTURE_MODEL.prices;
+      return { answer: JSON.parse(text) as unknown, costUsd: (message.usage.input_tokens * input + message.usage.output_tokens * output) / TOKENS_PER_PRICE };
+    },
+  };
+}
