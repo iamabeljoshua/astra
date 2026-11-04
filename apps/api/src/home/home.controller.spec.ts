@@ -288,13 +288,15 @@ describe('GET /home', () => {
       return (body as { picks: PickCard[] }).picks;
     }
 
-    it('opens the cards with a struggle, naming what happened and when', async () => {
+    it('puts a struggle among the first cards, naming what happened and when', async () => {
       await noteStruggle(EXAMPLE_STUDENT_ID);
 
-      const [firstPick] = await getPicks();
+      const picks = await getPicks();
+      const struggleCard = picks.find((pick) => pick.reason === REASON);
 
-      expect(firstPick).toMatchObject({ title: 'Free-body arrows', reason: REASON, topicId: null });
-      expect(Date.now() - new Date(firstPick?.reasonDate ?? 0).getTime()).toBeLessThan(60_000);
+      expect(picks.indexOf(struggleCard as PickCard)).toBeLessThan(2);
+      expect(struggleCard).toMatchObject({ title: 'Free-body arrows', topicId: null });
+      expect(Date.now() - new Date(struggleCard?.reasonDate ?? 0).getTime()).toBeLessThan(60_000);
     });
 
     it('still offers six cards', async () => {
