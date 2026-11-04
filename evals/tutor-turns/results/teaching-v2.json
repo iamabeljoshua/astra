@@ -1,282 +1,282 @@
 {
  "prompt": "v2",
- "repeat": 4,
+ "repeat": 3,
  "shares": {
-  "plain-sky fortyFiveAtMost": {
-   "passed": 4,
-   "total": 4
-  },
-  "plain-sky namesNothingYet": {
-   "passed": 4,
-   "total": 4
-  },
   "plain-black-holes fortyFiveAtMost": {
-   "passed": 4,
-   "total": 4
+   "passed": 3,
+   "total": 3
   },
   "plain-black-holes namesNothingYet": {
-   "passed": 4,
-   "total": 4
+   "passed": 3,
+   "total": 3
   },
   "plain-photosynthesis fortyFiveAtMost": {
-   "passed": 4,
-   "total": 4
+   "passed": 3,
+   "total": 3
   },
   "plain-photosynthesis namesNothingYet": {
-   "passed": 4,
-   "total": 4
+   "passed": 3,
+   "total": 3
   },
-  "plain-sky judged:plainFirst": {
-   "passed": 4,
-   "total": 4
+  "plain-sky fortyFiveAtMost": {
+   "passed": 3,
+   "total": 3
+  },
+  "plain-sky namesNothingYet": {
+   "passed": 3,
+   "total": 3
   },
   "plain-black-holes judged:plainFirst": {
-   "passed": 4,
-   "total": 4
+   "passed": 3,
+   "total": 3
+  },
+  "plain-sky judged:plainFirst": {
+   "passed": 3,
+   "total": 3
   },
   "plain-photosynthesis judged:plainFirst": {
-   "passed": 4,
-   "total": 4
-  },
-  "name-comes-after fortyFiveAtMost": {
-   "passed": 16,
-   "total": 16
+   "passed": 3,
+   "total": 3
   },
   "check-seasons noTestFeel": {
-   "passed": 4,
-   "total": 4
+   "passed": 3,
+   "total": 3
   },
   "check-seasons checksTheGround": {
-   "passed": 4,
-   "total": 4
+   "passed": 3,
+   "total": 3
+  },
+  "name-comes-after fortyFiveAtMost": {
+   "passed": 12,
+   "total": 12
   },
   "check-sky noTestFeel": {
-   "passed": 4,
-   "total": 4
+   "passed": 3,
+   "total": 3
   },
   "check-sky checksTheGround": {
-   "passed": 4,
-   "total": 4
+   "passed": 3,
+   "total": 3
+  },
+  "check-sky judged:lightCheck": {
+   "passed": 3,
+   "total": 3
   },
   "check-seasons judged:lightCheck": {
    "passed": 1,
-   "total": 4
-  },
-  "check-sky judged:lightCheck": {
-   "passed": 4,
-   "total": 4
+   "total": 3
   },
   "check-vaccines noTestFeel": {
-   "passed": 4,
-   "total": 4
+   "passed": 3,
+   "total": 3
   },
   "check-vaccines checksTheGround": {
-   "passed": 4,
-   "total": 4
+   "passed": 3,
+   "total": 3
   },
   "check-then-build noTestFeel": {
-   "passed": 8,
-   "total": 8
+   "passed": 6,
+   "total": 6
   },
   "check-vaccines judged:lightCheck": {
-   "passed": 4,
-   "total": 4
-  },
-  "name-comes-after judged:namesAndMeans": {
-   "passed": 4,
-   "total": 4
+   "passed": 3,
+   "total": 3
   },
   "eli5-vaccines noTestFeel": {
-   "passed": 16,
-   "total": 16
+   "passed": 12,
+   "total": 12
   },
   "eli5-vaccines fortyFiveAtMost": {
-   "passed": 16,
-   "total": 16
+   "passed": 12,
+   "total": 12
+  },
+  "name-comes-after judged:namesAndMeans": {
+   "passed": 3,
+   "total": 3
   },
   "check-then-build judged:teachesTheGap": {
-   "passed": 2,
-   "total": 4
+   "passed": 1,
+   "total": 3
   },
   "eli5-confused noTestFeel": {
-   "passed": 12,
-   "total": 12
+   "passed": 9,
+   "total": 9
   },
   "eli5-confused fortyFiveAtMost": {
-   "passed": 12,
-   "total": 12
+   "passed": 9,
+   "total": 9
   },
   "eli5-gravity fortyFiveAtMost": {
-   "passed": 8,
-   "total": 8
-  },
-  "eli5-confused thirtyFiveAtMost": {
-   "passed": 4,
-   "total": 4
+   "passed": 6,
+   "total": 6
   },
   "eli5-vaccines thirtyFiveAtMost": {
    "passed": 3,
-   "total": 4
+   "total": 3
+  },
+  "eli5-confused thirtyFiveAtMost": {
+   "passed": 3,
+   "total": 3
+  },
+  "eli5-vaccines judged:everydayPicture": {
+   "passed": 3,
+   "total": 3
   },
   "eli5-gravity thirtyFiveAtMost": {
    "passed": 3,
-   "total": 4
+   "total": 3
   },
   "eli5-confused judged:everydayPicture": {
    "passed": 0,
-   "total": 4
-  },
-  "eli5-vaccines judged:everydayPicture": {
-   "passed": 4,
-   "total": 4
+   "total": 3
   },
   "eli5-gravity judged:everydayPicture": {
-   "passed": 4,
-   "total": 4
-  },
-  "eli5-confused judged:climbsBack": {
-   "passed": 1,
-   "total": 4
+   "passed": 3,
+   "total": 3
   },
   "eli5-vaccines judged:climbsBack": {
    "passed": 3,
-   "total": 4
+   "total": 3
+  },
+  "eli5-confused judged:climbsBack": {
+   "passed": 2,
+   "total": 3
   },
   "level-sky level:lowerIsPlain": {
-   "passed": 4,
-   "total": 4
+   "passed": 3,
+   "total": 3
   },
   "level-sky level:higherIsProper": {
-   "passed": 4,
-   "total": 4
-  },
-  "level-sky judged:differentByLevel": {
-   "passed": 4,
-   "total": 4
+   "passed": 2,
+   "total": 3
   },
   "gauge-down fortyFiveAtMost": {
-   "passed": 4,
-   "total": 4
+   "passed": 3,
+   "total": 3
   },
   "gauge-down namesNothingYet": {
-   "passed": 4,
-   "total": 4
-  },
-  "gauge-up fortyFiveAtMost": {
-   "passed": 4,
-   "total": 4
-  },
-  "gauge-down judged:plainFirst": {
-   "passed": 4,
-   "total": 4
+   "passed": 3,
+   "total": 3
   },
   "level-ice level:lowerIsPlain": {
-   "passed": 4,
-   "total": 4
+   "passed": 3,
+   "total": 3
   },
   "level-ice level:higherIsProper": {
-   "passed": 4,
-   "total": 4
-  },
-  "gauge-up judged:meetsThemWhereTheyAre": {
    "passed": 3,
-   "total": 4
+   "total": 3
   },
-  "short-why fortyFiveAtMost": {
-   "passed": 32,
-   "total": 32
+  "level-sky judged:differentByLevel": {
+   "passed": 2,
+   "total": 3
+  },
+  "gauge-down judged:plainFirst": {
+   "passed": 3,
+   "total": 3
   },
   "level-ice judged:differentByLevel": {
-   "passed": 4,
-   "total": 4
+   "passed": 3,
+   "total": 3
   },
-  "short-how fortyFiveAtMost": {
+  "short-why fortyFiveAtMost": {
    "passed": 24,
    "total": 24
   },
+  "gauge-up fortyFiveAtMost": {
+   "passed": 3,
+   "total": 3
+  },
+  "short-how fortyFiveAtMost": {
+   "passed": 18,
+   "total": 18
+  },
+  "gauge-up judged:meetsThemWhereTheyAre": {
+   "passed": 3,
+   "total": 3
+  },
   "welcome-1 noWelcomeBack": {
-   "passed": 4,
-   "total": 4
+   "passed": 3,
+   "total": 3
   },
   "welcome-2 noWelcomeBack": {
-   "passed": 4,
-   "total": 4
+   "passed": 3,
+   "total": 3
   },
   "welcome-3 noWelcomeBack": {
-   "passed": 4,
-   "total": 4
+   "passed": 3,
+   "total": 3
   },
   "welcome-4 noWelcomeBack": {
-   "passed": 4,
-   "total": 4
-  },
-  "tool-compute numberIsChecked": {
-   "passed": 4,
-   "total": 4
+   "passed": 3,
+   "total": 3
   },
   "short-how stat:usuallyUnder25": {
-   "passed": 2,
-   "total": 4
+   "passed": 3,
+   "total": 3
   },
   "short-why stat:usuallyUnder25": {
    "passed": 3,
-   "total": 4
+   "total": 3
   },
   "tool-t6-gap numberIsChecked": {
-   "passed": 4,
-   "total": 4
-  },
-  "tool-compute-spoken calledCompute": {
-   "passed": 4,
-   "total": 4
-  },
-  "no-tool-for-chat calledNoTool": {
-   "passed": 8,
-   "total": 8
+   "passed": 3,
+   "total": 3
   },
   "tool-plot-values calledPlotValues": {
-   "passed": 4,
-   "total": 4
+   "passed": 3,
+   "total": 3
   },
-  "stuck-algebra noFinalAnswer": {
-   "passed": 4,
-   "total": 4
+  "tool-compute-spoken calledCompute": {
+   "passed": 3,
+   "total": 3
   },
-  "stuck-algebra noThirdQuestion": {
-   "passed": 4,
-   "total": 4
-  },
-  "demand-answer noFinalAnswer": {
-   "passed": 4,
-   "total": 4
-  },
-  "stuck-idk noThirdQuestion": {
-   "passed": 4,
-   "total": 4
-  },
-  "demand-answer givesAnswerAndAnother": {
-   "passed": 4,
-   "total": 4
-  },
-  "clarify fortyFiveAtMost": {
-   "passed": 12,
-   "total": 12
-  },
-  "quick-fact fortyFiveAtMost": {
-   "passed": 4,
-   "total": 4
-  },
-  "quick-fact answersQuickFact": {
-   "passed": 4,
-   "total": 4
-  },
-  "clarify judged:answersTheClarification": {
-   "passed": 4,
-   "total": 4
+  "no-tool-for-chat calledNoTool": {
+   "passed": 6,
+   "total": 6
   },
   "tool-source calledFindSource": {
-   "passed": 4,
-   "total": 4
+   "passed": 3,
+   "total": 3
+  },
+  "stuck-algebra noFinalAnswer": {
+   "passed": 3,
+   "total": 3
+  },
+  "stuck-algebra noThirdQuestion": {
+   "passed": 3,
+   "total": 3
+  },
+  "stuck-idk noThirdQuestion": {
+   "passed": 3,
+   "total": 3
+  },
+  "clarify fortyFiveAtMost": {
+   "passed": 9,
+   "total": 9
+  },
+  "demand-answer noFinalAnswer": {
+   "passed": 3,
+   "total": 3
+  },
+  "demand-answer givesAnswerAndAnother": {
+   "passed": 3,
+   "total": 3
+  },
+  "quick-fact fortyFiveAtMost": {
+   "passed": 3,
+   "total": 3
+  },
+  "quick-fact answersQuickFact": {
+   "passed": 3,
+   "total": 3
+  },
+  "clarify judged:answersTheClarification": {
+   "passed": 3,
+   "total": 3
+  },
+  "tool-compute numberIsChecked": {
+   "passed": 3,
+   "total": 3
   }
  }
 }

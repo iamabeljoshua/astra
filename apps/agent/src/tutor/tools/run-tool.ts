@@ -1,5 +1,5 @@
+import type { FindSource } from '../../providers/types.ts';
 import { compute, plotValues } from './compute.ts';
-import type { FindSource } from './find-source.ts';
 import type { ToolCall } from './tool-call.ts';
 
 export interface ToolResult {

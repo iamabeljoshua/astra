@@ -3,14 +3,12 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import Anthropic from '@anthropic-ai/sdk';
 import { getBeatText, getCues, type SceneCommand } from '@astra/contracts';
 import { readKey } from '../../keys.ts';
-import { makeAnthropicTutorModel, type TutorModelName } from '../../providers/anthropic.ts';
+import { makeAnthropicAsker, makeAnthropicSourceFinder, makeAnthropicTutorModel, type TutorModelName } from '../../providers/anthropic.ts';
 import { createTutorBrain, type StudentProfile, type TurnSummary } from '../brain.ts';
 import { CURRENT_PROMPT, PROMPT_VERSIONS, type PromptVersion, type TutorPrompt } from '../prompt.ts';
 import { createSpendLedger } from '../spend-ledger.ts';
-import { createSourceFinder } from '../tools/find-source.ts';
 import { JUDGED_CHECKS, LEVELS_QUESTION, REPLY_CHECKS } from './reply-checks.ts';
 
 interface GroupTurn {
@@ -51,8 +49,7 @@ interface CheckResult {
 
 const EVAL_FOLDER = join(dirname(fileURLToPath(import.meta.url)), '../../../../../evals/tutor-turns');
 const PROFILE: StudentProfile = { level: 'high_school', interests: ['basketball', 'space'], goal: 'exam' };
-const JUDGE_MODEL = 'claude-sonnet-5-5';
-const JUDGE_USD_PER_MILLION = { input: 2, output: 10 };
+const JUDGE_MODEL: TutorModelName = 'sonnet-5-5';
 const JUDGE_MAX_TOKENS = 120;
 const USUAL_WORDS = 25;
 const USUAL_SHARE = 0.5;
@@ -89,11 +86,11 @@ function loadGroups(name: string): PromptGroup[] {
 }
 
 function makeJudge() {
-  const client = new Anthropic({ apiKey: readKey('ANTHROPIC_API_KEY'), maxRetries: 2 });
+  const ask = makeAnthropicAsker({ name: JUDGE_MODEL, apiKey: readKey('ANTHROPIC_API_KEY') });
   return async (content: string): Promise<string> => {
-    const reply = await client.messages.create({ model: JUDGE_MODEL, max_tokens: JUDGE_MAX_TOKENS, system: 'You judge a spoken tutoring exchange. Answer exactly as asked.', messages: [{ role: 'user', content }] });
-    ledger.charge({ anthropicUsd: (reply.usage.input_tokens * JUDGE_USD_PER_MILLION.input + reply.usage.output_tokens * JUDGE_USD_PER_MILLION.output) / 1_000_000 });
-    return reply.content.flatMap((block) => (block.type === 'text' ? [block.text] : [])).join('\n').trim();
+    const { text, costUsd } = await ask({ system: 'You judge a spoken tutoring exchange. Answer exactly as asked.', messages: [{ role: 'user', content }], maxTokens: JUDGE_MAX_TOKENS });
+    ledger.charge({ anthropicUsd: costUsd });
+    return text;
   };
 }
 
@@ -120,7 +117,7 @@ function makeBrain(prompt: TutorPrompt, profile: StudentProfile, traces: string[
     model,
     prompt,
     profile,
-    findSource: createSourceFinder({ apiKey: readKey('ANTHROPIC_API_KEY') }),
+    findSource: makeAnthropicSourceFinder({ apiKey: readKey('ANTHROPIC_API_KEY') }),
     trace: (name, fields) => traces.push(`${name}${fields?.problem ? `: ${String(fields.problem)}` : ''}${fields?.report ? `: ${String(fields.report)}` : ''}`),
     onTurnEnd(summary) {
       onTurn(summary);

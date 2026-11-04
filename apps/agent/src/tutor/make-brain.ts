@@ -1,13 +1,12 @@
 import { getBeatText } from '@astra/contracts';
 import { readKey } from '../keys.ts';
-import { makeAnthropicTutorModel, TUTOR_MODEL_NAMES, type TutorModelName } from '../providers/anthropic.ts';
+import { makeAnthropicSourceFinder, makeAnthropicTutorModel, TUTOR_MODEL_NAMES, type TutorModelName } from '../providers/anthropic.ts';
 import { makeRecordedTutorModel } from '../providers/fake-model.ts';
 import { createStandInTutor } from '../live/stand-in-tutor.ts';
 import { type ApiLink, createApiLink } from './api-link.ts';
 import { createTutorBrain, type SpendLimit, type TraceNote, type TurnSummary, type TutorBrain } from './brain.ts';
 import { TUTOR_SYSTEM } from './prompt.ts';
 import { createSpendLedger } from './spend-ledger.ts';
-import { createSourceFinder } from './tools/find-source.ts';
 
 const STAND_IN = 'stand-in';
 const RECORDED = 'recorded';
@@ -112,6 +111,6 @@ export function makeTutorBrain({ roomName, trace }: { roomName: string; trace: T
     trace('turnWritten', { firstTextMs, firstBeatMs, attempts, endedAs, costUsd, usage, refused, refusalCategory, isUsageEstimated, words: spokenText.split(/\s+/).length });
     caps.addTurn({ usd: costUsd, voiceCharacters: beats.map(getBeatText).join(' ').length });
   };
-  const findSource = name === RECORDED ? undefined : createSourceFinder({ apiKey: readKey('ANTHROPIC_API_KEY'), onFailed: (problem) => trace('sourceFailed', { problem }) });
+  const findSource = name === RECORDED ? undefined : makeAnthropicSourceFinder({ apiKey: readKey('ANTHROPIC_API_KEY'), onFailed: (problem) => trace('sourceFailed', { problem }) });
   return { brain: createTutorBrain({ model, ...(findSource ? { findSource } : {}), loadProfile: link ? () => link.fetchProfile() : undefined, trace, onTurnEnd, getSpendLimit: caps.getSpendLimit }), flushSpend: caps.flush };
 }

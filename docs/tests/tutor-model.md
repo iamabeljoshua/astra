@@ -11,6 +11,10 @@ pnpm eval:tutor --turns 90           # about $0.20
 pnpm eval:tutor --turns 90 --compactAt 8000 --label compacted   # forces compaction, about $0.30
 pnpm --filter @astra/agent eval:groups --file safety   # safety prompts, each group in its own session, about $0.02
 pnpm --filter @astra/agent eval:groups --file math     # right steps that must draw no apology, about $0.02
+pnpm --filter @astra/agent eval:groups --file teaching --repeat 3 --min-share 0.66              # the teaching cases, about $0.40
+pnpm --filter @astra/agent eval:groups --file teaching --prompt v1 --repeat 2 --min-share 0.66  # the same cases on the prompt before M3.8
+pnpm --filter @astra/agent eval:lessons --label after  # eight whole lessons, a cheap model plays the student, about $0.15
+pnpm --filter @astra/agent eval:first-text             # two prompts in pairs at the same time, about $0.05
 ```
 
 `evals/tutor-turns/results/` holds these runs with every transcript. `--model` runs them on another model by name.
@@ -59,9 +63,9 @@ Prototype B's first text was 1.18 s. The speed test's was 1834 ms and the later 
 | `between_tools`, low, strict tool declared | 1490, 1642 | 1701, 1930 |
 | Adaptive, low, no tool | 931, 1173 | 1262, 1412 |
 
-Two settings explain the gap. Declaring a tool costs about 400 ms of first text, and the speed test and comparison both declared one. They also timed the first flush, about 8 words, which adds about 340 ms. Prototype B timed first text with no tool. So **M3.8's tools will cost about 400 ms on every turn**, whether or not the model calls one, and M3.8 should measure that before it ships.
+Two settings explain the gap. Declaring a tool costs about 400 ms of first text, and the speed test and comparison both declared one. They also timed the first flush, about 8 words, which adds about 340 ms. Prototype B timed first text with no tool. So declaring tools would cost about 400 ms on every turn, whether or not the model calls one. M3.8 measured that again on the real prompt, 24 pairs at a load near 8: first text p50 1042 ms, p95 1733 ms with no tools, and 1460 ms, 2013 ms with three declared. So the tools are not declared, as the Tools section says.
 
-Adaptive thinking at low effort matched thinking off on these 7 questions. That is too few to change Abel's choice, and it needs the thinking blocks kept in history. It may help accuracy, so M3.8 should run it through the evaluations.
+Adaptive thinking at low effort matched thinking off on these 7 questions, and M3.8 ran it through whole lessons, 32 turns on each side at the same time. Replies were shorter, at 20 words p50 against 33, and first text was slower, at 1452 ms p50 and 4384 ms p95 against 1175 ms and 1557 ms, with 3 of 32 past 3 s. Thinking stays off, because a tighter note closed most of the word gap at no wait. It is Abel's call to reopen. `eval:lessons --thinking adaptive` runs it.
 
 ## Cost
 
@@ -114,12 +118,46 @@ Compaction under decision 11 works, and a real request that sent its block back 
 Abel cares about accuracy most, so here is what stands behind what the tutor says.
 
 - **Some drawn math is checked.** What the tutor claims as a step, and plain arithmetic it writes as true, are, as above. Other math is `unknown` or not judged, and rests on the model.
-- **Spoken numbers and facts are not.** T6 says all numbers come from code, and that holds only for what is on the board. In the 90 turn run the tutor said "About seventy degrees Celsius" and "Seventeen eighty-nine" with nothing checking them. Those were right, and that is the model's knowledge and not a check. M3.8's `compute` and `find_source` close this, at the 400 ms above.
+- **Worked out numbers come from code.** A result is a board line with a claim, or it comes from `compute` first. That rests on the prompt, and the `numberIsChecked` and `calledCompute` cases measure it.
+- **Remembered facts are not checked.** In the 90 turn run the tutor said "About seventy degrees Celsius" and "Seventeen eighty-nine" with nothing checking them. Those were right, and that is the model's knowledge and not a check. On request, `findSource` finds a page for a claim, and the tutor names the site.
 - **It says when it is not sure.** The prompt says to say "I'm not sure", to say what it does know, and to say how to check, and never to invent a name, date, number, quote, or source. On "who won the 1987 Lagos science fair?" it said it did not know and would not guess. On "what is the exact population of my town?" it said it could not know. That is two scripted turns a run, and M3.8 owns the full evaluation.
+
+## Teaching
+
+Abel on the tutor before this: it "introduced raylenght scattering or something but didn't make sure i know the funamentals", and it must "explain like i am 5 sometimes when it needs to" and "talk like a human". `prompts/v2.ts` holds what follows. `prompts/v1.ts` keeps the old prompt word for word, so `--prompt v1` shows each case failing.
+
+| What the student should feel | What the prompt says | Case in `groups-teaching.json` |
+| --- | --- | --- |
+| A plain idea comes before its name | No word they have not met goes unexplained, and a name follows the idea with what it means | `plain-*`, `name-comes-after` |
+| A light check before building on something | One easy question about real life, and no "quick check", "quiz", or "does that make sense" | `check-*` |
+| Simpler on request or on confusion | One everyday picture, small words, no new term, then back to the real idea one step at a time | `eli5-*` |
+| The same question differs by level | Four levels with an example each, and in the first few replies their own words beat their profile | `level-*`, `gauge-*` |
+| Short human turns | Usually under 25 words, never more than 45 at a stretch, and a `length` note on every message | `short-*`, every `fortyFiveAtMost` |
+
+RESULTS_TABLE
+
+What moved the reply length was the `length` note, sent after every student message, because a rule far back in the prompt loses to the model's habit. Its name matters. The same words under the name `reply` gave 32 words p50 on 60 turns, and under `length` gave 21. An example lesson in the prompt moved the opening replies from explaining to asking.
+
+Lowering `TURN_WORDS_TO_WRAP` from 45 would hold whole replies shorter, and it is not done. In 160 crisis and safety replies, 19 said to find help only past word 30, so an earlier wrap would drop that help. The stretch is what code holds: a breath at the next sentence end past 25 words, at the next beat past 35, and at word 42 with no beat at all. A sentence that ended inside a beat used to escape this, and a stretch reached 54 words.
+
+"Welcome back." opened 13 of 14 carry-on replies, and now opens none, because the prompt says the app has already greeted them.
+
+Failed attempts are counted in `attempts.ts`, so the dead-end rule does not rest on the model's memory. The model writes `{"attempt":"missed"}` or `{"attempt":"got"}` after its first words, and a student who says "i dont know" to a question counts by itself. From one miss, a note tells the next request where things stand. At two, a question with no step drawn first is held unheard and asked for again. If the model asks once more, a plain line stands in. A safety reply is never held.
+
+The 8 s timer keeps its stored "Take your time.", and the board stays still. It costs nothing, and any line that offered help would talk over a student who is thinking. A student who wants help says so.
+
+## Tools
+
+The tutor can call `compute`, `plotValues`, and `findSource`. A call is one JSON object in the reply's own text, read by `BeatTextReader` like a board command, and it is never declared to the API. So a turn with no call pays nothing, against about 400 ms a turn when declared. A turn with a call stops reading at the call, speaks what came before it, and sends a new request carrying the result in a `tool_result` note, which costs about one first text.
+
+- `compute` and `plotValues` use the same exact arithmetic as `check-math.ts`, and answer in code with no model. They read what the board reads, so `\sin` is refused, because a line does not say whether it means degrees.
+- `findSource` asks Haiku with Anthropic's web search, once, limited to a list of trusted sites, and returns only a title and an address, so nothing on a page can reach the tutor. One search measured 3.9 s and $0.012, and its cost counts toward a student's caps. The privacy page says what it sends.
+- A reply can call at most 3 tools. A call does not use up the one retry a false line gets.
+- A tool cannot draw. The model writes what it wants on the board, and code checks that as it checks any line.
 
 ## Short turns
 
-Abel heard the tutor as too fast. By the clock it was not, at 190 to 204 words a minute against a prototype they liked, so the long stretches were the cause. The tutor now talks the way the prototype does: two to four words that can stand alone, one or two short sentences, usually under 25 words, never more than 45. An explanation is one idea, a line break, then the next idea.
+Abel heard the tutor as too fast. By the clock it was not, at 190 to 204 words a minute against a prototype they liked, so the long stretches were the cause. The tutor now talks the way the prototype does: two to four words that can stand alone, one or two short sentences, usually under 25 words, never more than 45. Only a student who asks for the whole picture gets two stretches, one idea, a line break, then the next idea.
 
 Each stretch is its own turn on the voice line. The session stops at the next stretch's first beat, waits for the audio to finish, takes a breath of 300 to 450 ms, and starts it, so the gap heard is 760 to 1080 ms once the voice's own start is counted, measured on the saved clip. A student who jumps in during a breath replaces the next stretch, and the next request says it was not heard. A noise or an "mm" lets it carry on. Code breathes on its own at the next sentence end past 25 words. Sentence gaps inside a stretch stay at the voice's own 180 to 260 ms, with nothing added. Chris runs on the voice's own defaults. Abel tried stability 0.45, similarity 0.8, at speed 1.0 and 0.95 on real lessons, and rejected them because one word stretched.
 
@@ -206,7 +244,9 @@ When a student cuts a reply before it has played to its end, the turn rule marks
 
 ## For later owners
 
-- M3.8: `TUTOR_SYSTEM` is frozen for the cache, and tools cost about 400 ms, as above. `DRAWN_KINDS`, the prompt, and the test that holds them equal change together.
+- Prompt changes: add a new `prompts/v<n>.ts`, keep the old one, and run `eval:groups --file teaching`, `--file safety`, and `--file math` plus `eval:lessons` on it. Read the lessons and every crisis reply. `DRAWN_KINDS`, the prompt, and the test that holds them equal change together.
+- PR 88: its `curveTooFine` and `sliderOverlaps` reports and its coherent slider pairs are not on this base, so nothing here wires them. When plots reach `DRAWN_KINDS`, add to the prompt that a label or `yRange` added to a curve takes its marks, offer pairs a flight takes together, such as speed with angle, and say that a word like "minimum" must not stay on a curve a slider turned upside down.
+- M4.2: the level gauge here is the prompt reading the first few replies, and nothing is stored. `note_evidence` and `get_learner_record` can use the same reply-line channel as `{"attempt":"missed"}`.
 - M3.9: the current step goes in a note, not the system prompt.
 - M3.12: `BeatTextReader` and `checkAgainstBoard` take new kinds. `check-math.ts` reads the model's math, and a student's step can use `checkMathStep`.
 - PR 87, scenes: the session is `createLiveSession` in `live/live-session.ts`. This branch's early `createTutorSession` is gone. Ask in `startReply`, take what is ready in `onSpeechFinished`, and speak through its `speak`.
@@ -227,6 +267,6 @@ Known and left for later, none of which risks a student: a compaction summary ca
 ## Limits
 
 - First word is measured over LiveKit Cloud from one Mac on one network. Sixteen turns is few.
-- Teaching quality is one person's read of these transcripts. M3.8 builds the suite that judges it.
+- Teaching quality rests on a person's read of `evals/tutor-turns/lessons/`, and on a second model's yes or no on the judged cases. A cheap model plays the student in those lessons, and it is more articulate than most students. No real student has used this.
 - The tutor's turns on a typed session have run with a real voice. A spoken session through Muse runs the same path and has not been run with the real model here.
 - Plots, geometry, tables, and diagrams wait for M3.4 and M3.5, so the prompt does not offer them. Each adds its kinds to `DRAWN_KINDS` and to the prompt.

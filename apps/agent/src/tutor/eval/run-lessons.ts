@@ -3,10 +3,9 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import Anthropic from '@anthropic-ai/sdk';
 import { getBeatText, getCues, type SceneCommand } from '@astra/contracts';
 import { readKey } from '../../keys.ts';
-import { makeAnthropicTutorModel, type TutorModelName } from '../../providers/anthropic.ts';
+import { makeAnthropicAsker, makeAnthropicTutorModel, type TutorModelName } from '../../providers/anthropic.ts';
 import { createTutorBrain, type StudentProfile, type TurnSummary, type TutorBeat } from '../brain.ts';
 import { CURRENT_PROMPT, PROMPT_VERSIONS, type PromptVersion, type TutorPrompt } from '../prompt.ts';
 import { createSpendLedger } from '../spend-ledger.ts';
@@ -33,8 +32,7 @@ interface LessonTurn {
 
 const EVAL_FOLDER = join(dirname(fileURLToPath(import.meta.url)), '../../../../../evals/tutor-turns');
 /** Haiku plays the student, at about a hundredth of the tutor's cost a word, because the tutor is what is measured. */
-const STUDENT_MODEL = 'claude-haiku-5-5';
-const STUDENT_USD_PER_MILLION = { input: 0.1, output: 0.5 };
+const STUDENT_MODEL: TutorModelName = 'haiku-5-5';
 const STUDENT_MAX_TOKENS = 120;
 const STUDENT_RULES = 'You are playing a student in a voice conversation with a tutor. Reply with only what the student says out loud, in one or two short casual lines of at most 20 words, in lower case, with no quotes and no stage directions. Stay exactly as limited as the description says. Never pretend to know something the description says you do not know, and never teach the tutor. When the tutor asks something you cannot answer, say so or guess badly, as the description says.';
 
@@ -77,8 +75,8 @@ const percentile = (values: readonly number[], share: number) => {
   return sorted.length === 0 ? null : Math.round(sorted[Math.min(sorted.length - 1, Math.ceil(sorted.length * share) - 1)] as number);
 };
 
-function getStudentMessages(script: LessonScript, turns: readonly LessonTurn[]): Anthropic.MessageParam[] {
-  const history: Anthropic.MessageParam[] = [{ role: 'user', content: `The tutor is ready. You have just said: ${script.opening}` }];
+function getStudentMessages(script: LessonScript, turns: readonly LessonTurn[]): Parameters<StudentAsker>[0]['messages'] {
+  const history: Parameters<StudentAsker>[0]['messages'] = [{ role: 'user', content: `The tutor is ready. You have just said: ${script.opening}` }];
   for (const [index, turn] of turns.entries()) {
     if (index > 0) history.push({ role: 'assistant', content: turn.student });
     const board = turn.drawn.length > 0 ? ` [On the board: ${turn.drawn.join('; ')}]` : '';
@@ -87,7 +85,9 @@ function getStudentMessages(script: LessonScript, turns: readonly LessonTurn[]):
   return history;
 }
 
-async function runLesson(script: LessonScript, prompt: TutorPrompt, ledger: ReturnType<typeof createSpendLedger>, studentClient: Anthropic) {
+type StudentAsker = ReturnType<typeof makeAnthropicAsker>;
+
+async function runLesson(script: LessonScript, prompt: TutorPrompt, ledger: ReturnType<typeof createSpendLedger>, askStudent: StudentAsker) {
   const model = makeAnthropicTutorModel({ name: args.model as TutorModelName, apiKey: readKey('ANTHROPIC_API_KEY'), ...(args.thinking === 'adaptive' ? { thinking: 'adaptive' as const } : {}) });
   let latest: TurnSummary | null = null;
   const brain = createTutorBrain({
@@ -118,9 +118,9 @@ async function runLesson(script: LessonScript, prompt: TutorPrompt, ledger: Retu
       refused: summary.refused,
     });
     if (index === script.turns - 1) break;
-    const reply = await studentClient.messages.create({ model: STUDENT_MODEL, max_tokens: STUDENT_MAX_TOKENS, system: `${STUDENT_RULES}\n\n${script.student}`, messages: getStudentMessages(script, turns) });
-    ledger.charge({ anthropicUsd: (reply.usage.input_tokens * STUDENT_USD_PER_MILLION.input + reply.usage.output_tokens * STUDENT_USD_PER_MILLION.output) / 1_000_000 });
-    studentText = reply.content.flatMap((block) => (block.type === 'text' ? [block.text] : [])).join(' ').trim() || 'i dont know';
+    const { text, costUsd } = await askStudent({ system: `${STUDENT_RULES}\n\n${script.student}`, messages: getStudentMessages(script, turns), maxTokens: STUDENT_MAX_TOKENS });
+    ledger.charge({ anthropicUsd: costUsd });
+    studentText = text || 'i dont know';
   }
   return turns;
 }
@@ -169,11 +169,11 @@ async function main() {
     return;
   }
   const ledger = createSpendLedger(args.spend, { limitUsd: Number(args.limit), limitCredits: Infinity });
-  const studentClient = new Anthropic({ apiKey: readKey('ANTHROPIC_API_KEY'), maxRetries: 2 });
+  const askStudent = makeAnthropicAsker({ name: STUDENT_MODEL, apiKey: readKey('ANTHROPIC_API_KEY') });
   const folder = join(args.out, args.label);
   mkdirSync(folder, { recursive: true });
   const lessons = await runInGroups(chosen, Number(args.together), async (script) => {
-    const turns = await runLesson(script, prompt, ledger, studentClient);
+    const turns = await runLesson(script, prompt, ledger, askStudent);
     writeTranscript(script, turns, folder, version);
     console.log(`${script.name}: done, ${turns.length} turns`);
     return turns;

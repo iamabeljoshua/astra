@@ -1,10 +1,9 @@
 import { type Beat, getBeatText } from '@astra/contracts';
 import { describe, expect, it } from 'vitest';
 import { type FakeReply, makeFakeTutorModel } from '../src/providers/fake-model.ts';
-import type { TutorModelRequest } from '../src/providers/types.ts';
+import type { FindSource, TutorModelRequest } from '../src/providers/types.ts';
 import { createTutorBrain, type TurnSummary } from '../src/tutor/brain.ts';
 import { TUTOR_PROMPT } from '../src/tutor/prompt.ts';
-import type { FindSource } from '../src/tutor/tools/find-source.ts';
 
 const QUICK = { stillWorkingMs: 400, firstTextMs: 1200, betweenTextMs: 800, finishGraceMs: 20, reportWaitMs: 30 };
 const COMPUTE_CALL = '{"tool":"compute","expression":"47 \\\\times 52"}';
