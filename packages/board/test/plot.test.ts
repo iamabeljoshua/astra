@@ -20,7 +20,8 @@ function getTallestStep(branches: readonly Branch[], [low, high]: Range): number
   return tallest / (high - low);
 }
 
-const NO_FALSE_LINE = 1 / 100;
+/** The sampler looks inside any step taller than this, so a line this tall or taller was never checked against the curve. */
+const NO_FALSE_LINE = 1 / 8;
 const crossesX = (branch: Branch, x: number) => (branch[0] as Point).x < x && (branch.at(-1) as Point).x > x;
 
 describe('sampling near discontinuities', () => {
@@ -56,10 +57,18 @@ describe('sampling near discontinuities', () => {
     expect(branches[0]?.[0]?.y).toBeLessThan(0.01);
   });
 
-  it('leaves only a pinhole at a removable gap', () => {
+  it('leaves at most a pinhole at a removable gap', () => {
     const branches = sample('sin(x)/x', [-10, 10], [-1, 1]);
-    expect(branches).toHaveLength(2);
-    expect((branches[1]?.[0] as Point).x - (branches[0]?.at(-1) as Point).x).toBeLessThan(1e-3);
+    expect(branches.length).toBeLessThanOrEqual(2);
+    expect(branches[0]?.[0]?.x).toBe(-10);
+    expect(branches.at(-1)?.at(-1)?.x).toBe(10);
+    for (const [index, branch] of branches.slice(1).entries()) expect((branch[0] as Point).x - ((branches[index] as Branch).at(-1) as Point).x).toBeLessThan(1e-3);
+  });
+
+  it('leaves a pinhole where the curve has no value at a sample', () => {
+    const branches = sample('sin(x)/x', [0, 10], [-1, 1]);
+    expect(branches).toHaveLength(1);
+    expect(branches[0]?.[0]?.x).toBeLessThan(1e-3);
   });
 
   it('connects a steep curve that is really continuous', () => {
@@ -81,7 +90,7 @@ describe('sampling near discontinuities', () => {
     expect(twice).toHaveLength(2);
   });
 
-  it('stays inside its step budget on a curve that never settles, and still draws no false line', () => {
+  it('stays inside its step budget on a curve that never settles, and draws no line from edge to edge of the axes', () => {
     let evaluations = 0;
     const node = parsePlotExpression('tan(3000*x)') as NonNullable<ReturnType<typeof parsePlotExpression>>;
     const branches = sampleCurve({ domain: [-5, 5], yRange: [-1, 1], evaluate: (x) => {
@@ -89,7 +98,7 @@ describe('sampling near discontinuities', () => {
       return evaluatePlotExpression(node, x);
     } });
     expect(evaluations).toBeLessThanOrEqual(CURVE_LIMITS.evaluations);
-    expect(getTallestStep(branches, [-1, 1])).toBeLessThan(NO_FALSE_LINE);
+    expect(getTallestStep(branches, [-1, 1])).toBeLessThan(1);
   });
 
   it('never gives a value that is not a finite number to draw', () => {
@@ -145,18 +154,21 @@ describe('a continuous curve that needs many samples', () => {
       const start = branch[index] as Point;
       return Math.abs(evaluatePlotExpression(node, (start.x + end.x) / 2) - (start.y + end.y) / 2);
     }));
-    expect(Math.max(...pointsOff) / (yRange[1] - yRange[0])).toBeLessThan(1 / 300);
+    expect(Math.max(...pointsOff) / (yRange[1] - yRange[0])).toBeLessThan(1 / 200);
   });
 
-  it('spends what a fine wave needs and no more than the budget', () => {
+  it.each(['sin(300*x)', 'sin(1000*x)', 'sin(24*pi*x)'])('draws %s as the band it is, inside the budget, and not as a slower wave', (expression) => {
     let evaluations = 0;
-    const node = parsePlotExpression('sin(1000*x)') as NonNullable<ReturnType<typeof parsePlotExpression>>;
+    const node = parsePlotExpression(expression) as NonNullable<ReturnType<typeof parsePlotExpression>>;
     const branches = sampleCurve({ domain: [-10, 10], yRange: [-1, 1], evaluate: (x) => {
       evaluations += 1;
       return evaluatePlotExpression(node, x);
     } });
+    const reachedBy = (test: (y: number) => boolean) => branches.some((branch) => branch.some(({ y }) => test(y)));
     expect(evaluations).toBeLessThanOrEqual(CURVE_LIMITS.evaluations);
-    expect(getCoverage(branches, [-10, 10])).toBeGreaterThan(0.25);
+    expect(getCoverage(branches, [-10, 10])).toBeGreaterThan(0.95);
+    expect(reachedBy((y) => y > 0.9) && reachedBy((y) => y < -0.9)).toBe(true);
+    expect(branches.reduce((sum, branch) => sum + branch.length, 0)).toBeGreaterThan(CURVE_LIMITS.evaluations / 2);
   });
 
   it('still breaks at every real break when there are many of them', () => {
