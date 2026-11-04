@@ -74,15 +74,13 @@ const readVisual = (page: Page): Promise<VisualRead> =>
     };
   });
 
-function readTrace(folder: string | undefined, sinceMs: number) {
+function readTrace(folder: string | undefined) {
   if (!folder) return [];
-  const newest = readdirSync(folder)
+  return readdirSync(folder)
     .map((name) => join(folder, name))
     .filter((path) => path.endsWith('.jsonl'))
     .sort()
     .flatMap((path) => readFileSync(path, 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line) as { name: string; atMs: number } & Record<string, unknown>));
-  void sinceMs;
-  return newest;
 }
 
 const browser = await chromium.launch({ headless: !args.headed, args: FLAGS });
@@ -90,8 +88,9 @@ const context = await browser.newContext({ viewport: { width: 1440, height: 900 
 const page = await context.newPage();
 const problems: string[] = [];
 page.on('pageerror', (error) => problems.push(`pageerror: ${error.message}`));
+// LiveKit logs its own closing channels as errors when the proof leaves the room.
 page.on('console', (message) => {
-  if (message.type() === 'error') problems.push(`console: ${message.text().slice(0, 300)}`);
+  if (message.type() === 'error' && !/data channel|DataChannel/.test(message.text())) problems.push(`console: ${message.text().slice(0, 300)}`);
 });
 if (args.noGpu) await page.addInitScript(() => Object.defineProperty(Navigator.prototype, 'gpu', { get: () => undefined }));
 if (args.damageTake) await page.route('**/api/scene-takes/**', (route) => route.fulfill({ status: 200, contentType: 'application/octet-stream', body: Buffer.from(Array.from({ length: 4096 }, (_, index) => (index * 37) % 256)) }));
@@ -134,7 +133,7 @@ while (atS() < waitLimitS) {
 await page.screenshot({ path: join(out, sceneSeenAtS === null ? 'no-scene.png' : 'scene-played.png') });
 
 const glide: { atS: number; rect: VisualRead['rect']; transform: string | null; boardOpacity: string | null; isMoving: boolean; isSmall: boolean }[] = [];
-const summary: Record<string, unknown> = { ask: args.card ?? args.ask, firstWordsAtS, sceneSeenAtS, sceneId: sceneAtStart?.sceneId ?? null, canvasPixels: sceneAtStart?.canvasPixels ?? 0, secondsAtEnd: timeline.at(-1)?.sceneSeconds ?? null };
+const summary: Record<string, unknown> = { ask: args.card ?? args.ask, firstWordsAtS, sceneSeenAtS, sceneId: sceneAtStart?.sceneId ?? null, canvasPixels: sceneAtStart?.canvasPixels ?? 0, secondsAtEnd: timeline.at(-1)?.sceneSeconds ?? null, wordsHeard: timeline.at(-1)?.caption ?? '' };
 
 if (sceneSeenAtS !== null && args.handsOn) {
   await page.evaluate((words) => (window as unknown as { astraVoice: { sendTyped(text: string): void } }).astraVoice.sendTyped(words), args.handsOn);
@@ -177,7 +176,7 @@ if (sceneSeenAtS !== null && args.handsOn) {
 
 await page.getByRole('button', { name: 'End session' }).click();
 await delay(3000);
-const trace = readTrace(args.trace, 0);
+const trace = readTrace(args.trace);
 summary.problems = problems;
 writeFileSync(join(out, 'summary.json'), JSON.stringify(summary, null, 2));
 writeFileSync(join(out, 'timeline.json'), JSON.stringify(timeline));

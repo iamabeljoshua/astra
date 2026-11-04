@@ -25,11 +25,14 @@ function makeTake(id: string, use: StoredTake['use'], phrase: string): StoredTak
 
 const TAKES = [makeTake('hm', 'reaction', 'Hm.'), makeTake('okay', 'reaction', 'Okay.'), makeTake('greet', 'greeting', 'Hi there.')];
 
-function makeOutput(): VoiceOutput {
+function makeOutput(failAfter = Infinity): VoiceOutput {
   let queuedUntilMs = 0;
+  let framesTaken = 0;
   return {
     sampleRate: 24000,
     async captureFrame(frame: { samplesPerChannel: number; sampleRate: number }) {
+      framesTaken += 1;
+      if (framesTaken > failAfter) throw new Error('InvalidState - failed to capture frame');
       const nowMs = performance.now();
       queuedUntilMs = Math.max(queuedUntilMs, nowMs) + (frame.samplesPerChannel / frame.sampleRate) * 1000;
     },
@@ -47,7 +50,7 @@ afterEach(async () => {
   await Promise.all(sessions.splice(0).map((session) => session.close()));
 });
 
-function start() {
+function start({ failAfter = Infinity } = {}) {
   const messages: AgentMessage[] = [];
   const onPause = vi.fn();
   const said: string[] = [];
@@ -59,7 +62,7 @@ function start() {
   };
   const send = (message: AgentMessage) => void messages.push(message);
   const voice: tts.TTS = makeRenderedVoice({ name: 'fake', render: renderTone }).makeTts();
-  const session = createLiveSession({ messenger: { send, sendOnBothChannels: send }, line: createVoiceLine(makeOutput()), voice, tutor, takes: createTakePicker(TAKES), allTakes: TAKES, setTurnCap: () => {}, onPause });
+  const session = createLiveSession({ messenger: { send, sendOnBothChannels: send }, line: createVoiceLine(makeOutput(failAfter)), voice, tutor, takes: createTakePicker(TAKES), allTakes: TAKES, setTurnCap: () => {}, onPause });
   sessions.push(session);
   const beatsSent = () => [...new Set(messages.flatMap((message) => (message.type === 'words' ? [message.beatId as string] : [])))];
   return { session, messages, onPause, said, beatsSent };
@@ -67,6 +70,11 @@ function start() {
 
 const untilSent = async (read: () => string[], id: string) => {
   for (let tries = 0; tries < 200 && !read().includes(id); tries += 1) await delay(10);
+  return read();
+};
+
+const untilMatching = async (read: () => string[], pattern: RegExp) => {
+  for (let tries = 0; tries < 500 && !read().some((id) => pattern.test(id)); tries += 1) await delay(10);
   return read();
 };
 
@@ -93,6 +101,35 @@ describe('a scene turn in a live session', () => {
     session.onEars({ type: 'voiceStarted' } satisfies EarsEvent);
     expect(session.isAtPause()).toBe(false);
     expect(session.speakScene([makeBeat('scene-a', 'watch the line')])).toBe(false);
+  });
+
+  it('carries on from the cut word after a cough, and fires nothing twice', async () => {
+    const { session, messages, beatsSent } = start();
+    const scene = parseBeat({ id: 'scene-a', script: [{ kind: 'text', id: 'a-note', text: 'n' }, 'one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen'], expectsReply: false });
+    if (!scene.ok) throw new Error(scene.problem);
+    session.speakScene([scene.value]);
+    await untilSent(beatsSent, 'scene-a');
+    const turn = messages.find((message) => message.type === 'turnStarted');
+    if (turn?.type !== 'turnStarted') throw new Error('no turn');
+    session.onEars({ type: 'voiceStarted' });
+    for (let tries = 0; tries < 300 && !messages.some((message) => message.type === 'stop'); tries += 1) await delay(10);
+    session.onBrowser({ type: 'played', turnId: turn.turnId, beatId: 'scene-a', playedWords: 3, firedCueMs: [0], frozen: [], ending: 'interrupted', clockId: 'page', browserMs: 1000, startedMsAgo: 0 } as never);
+    session.onEars({ type: 'voiceEnded' });
+    const resumed = (await untilMatching(beatsSent, /^scene-a-r\d+$/)).find((id) => /^scene-a-r\d+$/.test(id));
+    expect(resumed).toBeDefined();
+    const cues = messages.filter((message) => message.type === 'cue' && message.command.kind === 'text');
+    expect(cues).toHaveLength(1);
+    const words = messages.flatMap((message) => (message.type === 'words' && message.beatId === resumed ? message.words.map(({ text }) => text) : []));
+    expect(words[0]).toBe('three');
+  });
+
+  it('survives a voice that fails, with a stored line, and the session goes on', async () => {
+    const { session, beatsSent, onPause } = start({ failAfter: 3 });
+    session.speakScene([makeBeat('scene-a', 'one two three four five six seven eight nine ten eleven twelve')]);
+    await untilSent(beatsSent, 'scene-a');
+    for (let tries = 0; tries < 400 && onPause.mock.calls.length === 0; tries += 1) await delay(10);
+    expect(onPause).toHaveBeenCalled();
+    expect(session.speakScene([makeBeat('scene-b', 'and back again')])).toBeTypeOf('boolean');
   });
 
   it('gives way to a typed question at once, and the brain answers it', async () => {

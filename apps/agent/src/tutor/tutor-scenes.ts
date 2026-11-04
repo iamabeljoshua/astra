@@ -145,6 +145,7 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
       const ask = current;
       if (!ask) return;
       if (!ask.windowLimit) {
+        // Starts the desk's own clock without taking the scene.
         void ask.work.desk.untilLastChance();
         ask.windowLimit = setTimeout(() => end(ask, 'tooLate'), SHOW_WINDOW_MS);
       }
