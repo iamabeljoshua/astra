@@ -34,6 +34,7 @@ const { values: args } = parseArgs({
     out: { type: 'string', default: '/tmp/m3-2-proof' },
     fake: { type: 'boolean', default: false },
     model: { type: 'string', default: 'eleven_flash_v2_5' },
+    stored: { type: 'string' },
     screencast: { type: 'boolean', default: false },
     browser: { type: 'string', default: 'chromium' },
   },
@@ -46,6 +47,9 @@ interface Scenario {
   drive(run: RunContext): Promise<void>;
   proofStalls?: { atAudioMs: number; ms: number }[];
   textPace?: { msPerWord: number; flushBeforeCues: boolean };
+  cueEveryWords?: number;
+  repeats?: number;
+  resumeAfterMs?: number;
   usesStoredPhrase?: boolean;
 }
 
@@ -68,6 +72,44 @@ async function playWholeLesson({ command, waitForPlayedBeats, scenario }: RunCon
   await delay(600);
 }
 
+async function playFirstTurn({ command, waitForPlayedBeats, scenario: { cueEveryWords, repeats = 1 } }: RunContext): Promise<void> {
+  await command({ type: 'play', lessonTurn: 0, repeats, cueEveryWords });
+  await waitForPlayedBeats(beatsOf(0) * repeats, 120_000);
+  await delay(600);
+}
+
+async function playNextTurnOnFinished({ page, command }: RunContext): Promise<void> {
+  await command({ type: 'play', isStockPhrase: true });
+  await waitForAudioSent(page, 1);
+  await command({ type: 'play', isStockPhrase: true });
+  await waitForAudioSent(page, 2);
+  await delay(1500);
+}
+
+async function resumeRightAfterStop({ page, command }: RunContext): Promise<void> {
+  await command({ type: 'play', lessonTurn: 0 });
+  await waitForFirstSoundOfNewTurn(page);
+  await delay(1500);
+  await command({ type: 'interrupt' });
+  await delay(30);
+  await command({ type: 'resume' });
+  await waitForAudioSent(page, 2);
+  await delay(1500);
+}
+
+const STOCK_STOPS = 2;
+
+async function interruptStockPhrase({ page, command }: RunContext): Promise<void> {
+  for (let attempt = 1; attempt <= STOCK_STOPS; attempt += 1) {
+    await command({ type: 'play', isStockPhrase: true });
+    await page.waitForFunction((count) => window.sceneLab?.records.agentMessages.filter((message) => message.type === 'turnStarted').length === count, attempt);
+    await waitForFirstSoundOfNewTurn(page);
+    await delay(500);
+    await command({ type: 'interrupt' });
+    await delay(1400);
+  }
+}
+
 async function playStockPhraseThreeTimes({ command, waitForPlayedBeats }: RunContext): Promise<void> {
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     await command({ type: 'play', isStockPhrase: true });
@@ -84,14 +126,14 @@ async function playWithWordsLate({ command, waitForPlayedBeats }: RunContext): P
 
 const INTERRUPT_AFTER_MS = [900, 1700, 2600, 3400, 4300];
 
-async function interruptFiveTimes({ page, command, folder }: RunContext): Promise<void> {
+async function interruptFiveTimes({ page, command, folder, scenario: { resumeAfterMs = 1400 } }: RunContext): Promise<void> {
   await command({ type: 'play', lessonTurn: 0 });
   for (const [index, afterMs] of INTERRUPT_AFTER_MS.entries()) {
     await waitForFirstSoundOfNewTurn(page);
     await delay(afterMs);
     await command({ type: 'interrupt' });
-    await delay(1400);
-    await page.screenshot({ path: join(folder, `interrupted-${index + 1}.png`) });
+    await delay(resumeAfterMs);
+    if (resumeAfterMs > 100) await page.screenshot({ path: join(folder, `interrupted-${index + 1}.png`) });
     await command({ type: 'resume' });
   }
   await waitForAudioSent(page, INTERRUPT_AFTER_MS.length + 1);
@@ -131,7 +173,17 @@ const SCENARIOS: Record<string, Scenario> = {
   model: { drive: playWholeLesson, textPace: { msPerWord: 120, flushBeforeCues: true } },
   'words-late-300': { drive: playWithWordsLate },
   stored: { drive: playStockPhraseThreeTimes, usesStoredPhrase: true },
+  'clean-every-third': { drive: playFirstTurn, cueEveryWords: 3 },
+  'uneven-every-third': { drive: playFirstTurn, cueEveryWords: 3, network: NETWORKS.uneven },
+  'poor-every-third': { drive: playFirstTurn, cueEveryWords: 3, network: NETWORKS.poor },
+  'long-every-third': { drive: playFirstTurn, cueEveryWords: 3, repeats: 3 },
+  'next-on-finished': { drive: playNextTurnOnFinished },
+  'next-on-finished-poor': { drive: playNextTurnOnFinished, network: NETWORKS.poor },
+  'after-stop': { drive: resumeRightAfterStop },
+  'after-stop-poor': { drive: resumeRightAfterStop, network: NETWORKS.poor },
+  'interrupt-stock': { drive: interruptStockPhrase },
   interrupt: { drive: interruptFiveTimes },
+  'interrupt-tight': { drive: interruptFiveTimes, resumeAfterMs: 30 },
   'interrupt-poor': { drive: interruptFiveTimes, network: NETWORKS.poor },
   'interrupt-phone': { drive: interruptFiveTimes, throttle: 4, phone: true },
 };
@@ -151,6 +203,7 @@ function noteCredits(characters: number): void {
 }
 
 function getVoiceFlags(scenario: Pick<Scenario, 'usesStoredPhrase'>): string[] {
+  if (args.stored) return ['--stored', args.stored];
   if (scenario.usesStoredPhrase) return ['--stored', join(args.out as string, 'stock-phrase.json')];
   return args.fake ? ['--fake'] : ['--model', args.model as string, '--tap'];
 }
@@ -246,7 +299,7 @@ async function runScenario(name: string, scenario: Scenario, browser: Browser, r
   await new Promise((done) => child.once('exit', done));
   writeFileSync(join(folder, 'page.json'), JSON.stringify({ records, clockMap, replayCheck }));
   if (screencastFrames.length > 0) writeFileSync(join(folder, 'screencast.json'), JSON.stringify(screencastFrames));
-  if (!args.fake && !scenario.usesStoredPhrase) noteCredits(getCharactersSent(folder));
+  if (!args.fake && !args.stored && !scenario.usesStoredPhrase) noteCredits(getCharactersSent(folder));
   await context.close();
   relay?.close();
   const summary = summariseRun(folder, { name, network: scenario.network ?? null, throttle: scenario.throttle ?? 1, phone: scenario.phone ?? false });

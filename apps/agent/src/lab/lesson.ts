@@ -54,6 +54,25 @@ export const LESSON: readonly (readonly Beat[])[] = [
   ],
 ];
 
+// Proof only. The script's own cues sit where a writer put them, so these show what a cue on any other word would do.
+function addCueEveryWords(beat: Beat, every: number): Beat {
+  let wordIndex = 0;
+  const script = beat.script.flatMap((part): unknown[] => {
+    if (typeof part !== 'string') return [part];
+    return part.split(/(?<=\s)/).flatMap((word) => {
+      const index = wordIndex++;
+      return index % every === 0 ? [{ kind: 'text', id: `${beat.id}-w${index}`, text: 'x' }, word] : [word];
+    });
+  });
+  return makeBeat(beat.id, script, beat.expectsReply);
+}
+
+export function getLessonTurn({ lessonTurn = 0, repeats = 1, cueEveryWords }: { lessonTurn?: number; repeats?: number; cueEveryWords?: number }): readonly Beat[] {
+  const beats = LESSON[lessonTurn] ?? [];
+  const repeated = Array.from({ length: repeats }, (_, round) => beats.map((beat) => (repeats === 1 ? beat : makeBeat(`${beat.id}-r${round}`, [...beat.script], beat.expectsReply)))).flat();
+  return cueEveryWords ? repeated.map((beat) => addCueEveryWords(beat, cueEveryWords)) : repeated;
+}
+
 export const STOCK_PHRASE = 'Let me work that out.';
 
 export const STOCK_TURN: readonly Beat[] = [makeBeat('stock', [{ kind: 'text', id: 'working', text: 'Working it out' }, 'Let me ', { kind: 'focus', target: 'working' }, 'work that out.'])];
