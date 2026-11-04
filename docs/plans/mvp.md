@@ -911,7 +911,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 - [x] Run the tests of every package except the API in a background step right after typecheck.
 - [x] Run the API's tests as their own step once the database is ready, and fail `checks` at the end of the job if the background step failed.
-- [x] Keep `--filter '!astra'`, and leave the Postgres image cache out, as Appendix E records.
+- [x] Keep `--filter '!astra'`, and leave the Postgres image cache out. Issue #74 adds that cache later.
 
 **You see.**
 
@@ -2357,7 +2357,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 - **Generated scenes state wrong facts.** They land in M3.14, with a fact review, and a scene is marked unverified until a person checks it. Numbers on labels and curve formulas come from the model, which breaks T6 as written, and B4 does not hold for generated scenes.
 - **Legal review for minors.** It lands in M4.5 and stays open until a lawyer reviews it, and that happens before real students. It covers having no parent consent, Meta's and ElevenLabs' under-18 rules, and vendor retention.
 - **A vendor changes the ground.** Casey is a library voice whose owner can withdraw it after a notice of 730 days. Meta may change Muse's Standard designation. LiveKit's Ship plan caps at 20 concurrent agent sessions, and the next plan is Scale at $500.
-- **CI's margin.** It is 22 to 32 s on a slow runner under a 4 minute limit, and M3.5's deck adds to it. Appendix E holds the next step.
+- **CI's margin.** On an EPYC 7763 it is 41 s on `main` and 26 s with PR 76, from one run each, under a 4 minute limit, and M3.5's deck adds to it. Appendix E holds the next step.
 - **Public name.** PRD Q1 stays open, and M1.3 keeps the name in one module.
 - **Scope cuts for the MVP.** M2.2 shipped 48 topics against the PRD's estimate of 60, and M4.2 ships at least 100 concepts against its estimate of 300. Both grow before the beta.
 
@@ -2372,6 +2372,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 These have no PR yet. Each one goes in the next free slot or with the PR named.
 
+- **Speed up the web tests in CI.** They are the next lever on CI's margin and on the standing order of under 3 minutes. They take 85 to 100 s of wall time on slow runs, with `environment` at 43 to 44% of Vitest's phase time. No fix has been measured. Do not raise the limit without Abel.
 - **CI gates read `success`.** Every gate reads a job's conclusion as `success`, because a timeout concludes `cancelled` and `gh pr checks` can exit 0 on it. The root's merges already read it this way, so owners' and reviewers' gates follow.
 - **Compare CI runs fairly.** Divide by `api:types`, lint, and typecheck, because the same steps vary by about 50% between runners.
 - **README.** Step 16 of the hosted checklist must run after step 5, or `DROP SCHEMA "app"` fails loudly. `README.md:77` is loose about `auth`, and its run counts are low.
