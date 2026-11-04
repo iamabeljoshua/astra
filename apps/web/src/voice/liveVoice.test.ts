@@ -7,6 +7,7 @@ const { FakeRoom, rooms, makeFakeAudioContext } = vi.hoisted(() => {
 
   class FakeRoom {
     state = 'disconnected';
+    remoteParticipants = new Map<string, object>();
     handlers = new Map<string, (...args: unknown[]) => void>();
     localParticipant = {
       publishData: vi.fn<(payload: Uint8Array, options: object) => Promise<void>>(async () => {}),
@@ -66,7 +67,7 @@ vi.mock('./tutorAudio', () => ({
   OUTPUT_GAINS: { full: 1, lowered: 0.25, silent: 0 },
 }));
 
-const ROOM_ACCESS = { url: 'wss://room.test', roomName: 'session-a-session', token: 'room-token' };
+const ROOM_ACCESS = { url: 'wss://room.test', roomName: 'session-a-session', isTutorThere: false, token: 'room-token' };
 const DROPPED = 99;
 const QUIET_LONG_ENOUGH_TO_REJOIN_MS = 4000;
 
@@ -276,7 +277,7 @@ describe('rejoining after a drop', () => {
     room.emit('Disconnected', DROPPED);
     await vi.advanceTimersByTimeAsync(0);
 
-    expect(room.connect).toHaveBeenLastCalledWith(ROOM_ACCESS.url, 'fresh-token');
+    expect(room.connect).toHaveBeenLastCalledWith(ROOM_ACCESS.url, 'fresh-token', expect.anything());
     fromAgent(room, { type: 'pulse' });
     expect(voice.getView().phase).toBe('live');
     expect(voice.getView().startedFresh).toBe(false);

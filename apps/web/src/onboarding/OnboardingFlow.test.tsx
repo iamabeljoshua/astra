@@ -176,6 +176,22 @@ describe('onboarding', () => {
     await screen.findByRole('heading', { name: BIRTH_DATE_QUESTION });
   });
 
+  it('keeps the page, with the name in plain type on the chart, when a browser refuses canvas reads', async () => {
+    stubCanvas(() => {
+      throw new DOMException('Blocked by this browser', 'SecurityError');
+    });
+    stubApi({ 'GET /api/me': () => NEEDS_BIRTH_DATE });
+    renderWithQueryClient(<Gate />);
+
+    await screen.findByRole('heading', { name: ONBOARDING_LABELS.nameQuestion });
+    fireEvent.change(screen.getByLabelText(ONBOARDING_LABELS.nameLabel), { target: { value: 'Maya' } });
+    await act(() => new Promise(setImmediate));
+
+    screen.getByText(CHART_LABELS.titleFor('Maya'));
+    screen.getByRole('heading', { name: ONBOARDING_LABELS.nameQuestion });
+    vi.restoreAllMocks();
+  });
+
   it('lights a labelled star on the chart for each chip picked, and takes it away when unpicked', async () => {
     const contexts = stubCanvas();
     vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('reduce') }));
@@ -184,7 +200,7 @@ describe('onboarding', () => {
     await screen.findByRole('heading', { name: ONBOARDING_LABELS.levelQuestion });
     clickChoice(STUDENT_LEVEL_LABELS.university);
     await screen.findByRole('heading', { name: ONBOARDING_LABELS.intoQuestion });
-    const liveContext = contexts.at(-1) ?? contexts[0]!;
+    const liveContext = contexts[1]!;
     const readLabelsAfter = async (change: () => void) => {
       vi.mocked(liveContext.fillText).mockClear();
       change();

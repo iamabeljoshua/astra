@@ -9,7 +9,7 @@ import { useLiveVoice } from './useLiveVoice';
 
 vi.mock('../auth/session', () => import('../test/signedInSession'));
 
-const ROOM_ACCESS = { url: 'wss://room.test', roomName: 'session-a-session', token: 'room-token' };
+const ROOM_ACCESS = { url: 'wss://room.test', roomName: 'session-a-session', isTutorThere: false, token: 'room-token' };
 const OPEN_ROOM = { access: ROOM_ACCESS, unavailableBecause: null };
 
 // The real start asks for the room beside its audio setup, and refuses to go on with no access.
@@ -132,7 +132,7 @@ describe('useLiveVoice', () => {
     const { result } = renderHook(() => useLiveVoice({ sessionId: 'a-session', start }));
     await act(async () => void (await result.current.connect()));
     await act(() => result.current.openAgain('I am back.'));
-    expect(second.sendTyped).toHaveBeenCalledWith('I am back.');
+    expect(second.sendOpening).toHaveBeenCalledWith('I am back.');
     expect(first.close).toHaveBeenCalled();
     expect(result.current.voice).toBe(second);
     expect(start).toHaveBeenCalledTimes(2);
@@ -223,7 +223,7 @@ describe('the Privacy Policy on voice', () => {
     expect(privacy).toContain('your IP address');
     expect(privacy).toContain("Meta's Muse Voice Transcribe receives your voice");
     expect(privacy).toContain("ElevenLabs receives the tutor's words");
-    expect(privacy).toContain('receives what you say and type in a session, the tutor\'s earlier words, and your level, interests, and goal');
+    expect(privacy).toContain('receives what you say and type in a session, a question you type on Home to start one, the tutor\'s earlier words, and your level, interests, and goal');
     expect(privacy).toContain('We do not send it your name, your date of birth, your email address, or an account ID');
   });
 

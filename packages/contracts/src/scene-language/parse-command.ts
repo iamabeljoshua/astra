@@ -1,5 +1,5 @@
 import { BEAT_LIMITS } from './beat.ts';
-import { readElementId, readElementRef, readFileId, readPartName } from './ids.ts';
+import { readElementId, readElementRef, readFileId, readMomentName, readPartName, readSceneId } from './ids.ts';
 import { COMMAND_MAX_BYTES } from './live-message.ts';
 import { getTexProblem } from './math-tex.ts';
 import { isReservedPlotName, parsePlotExpression, PLOT_EXPRESSION_MAX_CHARACTERS } from './plot-expression.ts';
@@ -30,9 +30,9 @@ import {
   type GeometryStep,
   IMAGE_ASSETS,
   type PlotConstant,
+  SCENE_ENGINES,
   type SceneCommand,
   SIMULATION_MODELS,
-  SIMULATION_MOMENTS,
   SIMULATION_PARAMETER_RULES,
   SIMULATION_PARAMETERS,
   type Simulation,
@@ -59,12 +59,15 @@ const LIMITS = {
   nodes: 12,
   edges: 20,
   plotConstants: 4,
+  sceneMoments: 24,
+  sceneParts: 24,
 } as const;
 
 const NUMBER_RANGES = {
   coordinate: { min: -1e6, max: 1e6 },
   angleDegrees: { min: -360, max: 360 },
   simulationSeconds: { min: 0, max: 3600 },
+  sceneDuration: { min: 0.1, max: 600 },
   occurrence: { min: 0, max: LIMITS.tex - 1 },
   overWords: { min: 1, max: BEAT_LIMITS.words },
 } as const;
@@ -151,7 +154,15 @@ function readOverWords(place: Place): number {
 }
 
 function readSimulationPoint(place: Place): SimulationPoint {
-  return typeof place.value === 'number' ? readSimulationSeconds(place) : readOneOf(place, SIMULATION_MOMENTS);
+  return typeof place.value === 'number' ? readSimulationSeconds(place) : readMomentName(place);
+}
+
+function readSceneMoments(place: Place, durationSeconds: number): Record<string, number> {
+  if (typeof place.value !== 'object' || place.value === null || Array.isArray(place.value)) fail(place, 'an object of moments');
+  const names = Object.keys(place.value);
+  if (names.length > LIMITS.sceneMoments) fail(place, `at most ${LIMITS.sceneMoments} moments`);
+  const fields = readFields(place, names);
+  return Object.fromEntries(names.map((name) => [readMomentName({ value: name, path: `${place.path}.${name}` }), readNumberInRange(fields.at(name), { min: 0, max: durationSeconds })]));
 }
 
 function readParameter(place: Place, rule: SimulationParameterRule): number {
@@ -387,6 +398,21 @@ const COMMANDS: VariantTable<SceneCommand, 'kind'> = {
         simulation: readSimulation(fields.at('simulation')),
         ...fields.optional('over', readElementId),
       }),
+    },
+    richScene: {
+      keys: ['id', 'engine', 'sceneId', 'moments', 'parts', 'durationSeconds'],
+      read: (fields) => {
+        const durationSeconds = readNumberInRange(fields.at('durationSeconds'), NUMBER_RANGES.sceneDuration);
+        return {
+          kind: 'richScene',
+          id: readElementId(fields.at('id')),
+          engine: readOneOf(fields.at('engine'), SCENE_ENGINES),
+          sceneId: readSceneId(fields.at('sceneId')),
+          moments: readSceneMoments(fields.at('moments'), durationSeconds),
+          parts: readList(fields.at('parts'), { maxLength: LIMITS.sceneParts, readItem: readPartName }),
+          durationSeconds,
+        };
+      },
     },
     runSimulation: {
       keys: ['target', 'action', 'until', 'overWords', 'to'],

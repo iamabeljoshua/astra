@@ -18,7 +18,8 @@
     "eval:tutor": "node src/tutor/eval/run-eval.ts",
     "eval:groups": "node src/tutor/eval/run-groups.ts",
     "eval:lessons": "node src/tutor/eval/run-lessons.ts",
-    "eval:first-text": "node src/tutor/eval/first-text-ab.ts"
+    "eval:first-text": "node src/tutor/eval/first-text-ab.ts",
+    "lesson": "node src/scenes/lesson/lesson-service.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "1.4.0",

@@ -1,4 +1,4 @@
-import { asksAQuestion, dropWordsAlreadyAnswered, hasWords, isFiller, isSmallReaction } from './turn-words.ts';
+import { dropWordsAlreadyAnswered, hasWords, isFiller, isSmallReaction } from './turn-words.ts';
 
 /** Starting values from the design and the plan. `docs/tests/voice.md` holds what each was measured against. */
 export const TURN_TIMINGS = {
@@ -102,8 +102,7 @@ export type TurnAction =
   /** `keepsThought` leaves the brain's reply running, because the tutor will carry on with it. */
   | { do: 'stop'; reason: StopReason; keepsThought: boolean }
   | { do: 'resume' }
-  /** `canPraise` only when the words are known to ask something. Speech reacts before its words are read. */
-  | { do: 'react'; canPraise: boolean }
+  | { do: 'react' }
   /** `carried` is how `text` starts: the words of a reply that was cut before it finished, already asked once. */
   | { do: 'reply'; text: string; carried: string; via: ReplyVia }
   | { do: 'startTimer'; name: TimerName; ms: number }
@@ -122,7 +121,7 @@ const CANCEL_FLOOR_TIMERS: TurnAction[] = (['wordlessStop', 'transcriptGrace', '
 const CANCEL_ALL: TurnAction[] = [...CANCEL_FLOOR_TIMERS, cancelTimer('reactionFloor'), cancelTimer('patience')];
 const UNYIELD: TurnAction = { do: 'unyield' };
 const RESUME: TurnAction = { do: 'resume' };
-const REACT: TurnAction = { do: 'react', canPraise: false };
+const REACT: TurnAction = { do: 'react' };
 
 const joinWords = (...parts: string[]) => parts.filter(Boolean).join(' ');
 const getNewestWords = (text: string) => text.split(/\s+/).slice(-MOST_WORDS_OWED).join(' ');
@@ -203,9 +202,9 @@ function onEchoHeard(state: TurnState): TurnStep {
   return { state, actions: [] };
 }
 
-function startReply(state: TurnState, { fresh, carried = '', via, answeredPartial = null, canPraise = false }: { fresh: string; carried?: string; via: ReplyVia; answeredPartial?: string | null; canPraise?: boolean }): TurnStep {
+function startReply(state: TurnState, { fresh, carried = '', via, answeredPartial = null }: { fresh: string; carried?: string; via: ReplyVia; answeredPartial?: string | null }): TurnStep {
   const text = joinWords(carried, fresh);
-  const reactFirst: TurnAction[] = state.hasReacted ? [] : [{ do: 'react', canPraise }];
+  const reactFirst: TurnAction[] = state.hasReacted ? [] : [REACT];
   const unyieldFirst = state.phase === 'yielding' ? [UNYIELD] : [];
   const next: TurnState = { ...INITIAL_TURN_STATE, tutor: 'thinking', isVoiceOn: state.isVoiceOn, unanswered: getNewestWords(text), hasReacted: true, answeredPartial, answering: state.isVoiceOn ? 'no' : 'replied' };
   return { state: next, actions: [...CANCEL_ALL, ...unyieldFirst, ...reactFirst, { do: 'setTurnCap', ms: TURN_TIMINGS.turnCapMs }, { do: 'reply', text, carried, via }] };
@@ -223,7 +222,7 @@ function onTurnDecided(state: TurnState, { text }: { text: string }): TurnStep {
 
 function onTyped(state: TurnState, { text }: { text: string }): TurnStep {
   const stopFirst: TurnAction[] = state.tutor === 'silent' ? [] : [{ do: 'stop', reason: 'typed', keepsThought: false }];
-  const step = startReply({ ...state, hasReacted: false }, { fresh: text, via: 'typed', canPraise: !state.isQuestionHeard && asksAQuestion(text) });
+  const step = startReply({ ...state, hasReacted: false }, { fresh: text, via: 'typed' });
   return { state: step.state, actions: [...stopFirst, ...step.actions] };
 }
 

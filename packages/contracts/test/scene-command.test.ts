@@ -73,8 +73,9 @@ describe('runSimulation', () => {
     ['a destination on play', { ...RUN, action: 'play', to: 'peak' }, /\.to: unknown field/],
     ['a stop on seek', { ...RUN, action: 'seek', to: 'peak', until: 'landing' }, /until: unknown field/],
     ['a word count on seek', { ...RUN, action: 'seek', to: 'peak', overWords: 3 }, /overWords: unknown field/],
-    ['a seek with nowhere to go', { ...RUN, action: 'seek' }, /\.to: expected one of release, peak, landing/],
-    ['a moment we do not have', { ...RUN, action: 'play', until: 'apex' }, /until: expected one of release, peak, landing/],
+    ['a seek with nowhere to go', { ...RUN, action: 'seek' }, /\.to: expected a moment name/],
+    ['a moment name that could reach the prototype', { ...RUN, action: 'play', until: '__proto__' }, /until: expected a moment name/],
+    ['a moment name with a space', { ...RUN, action: 'play', until: 'the top' }, /until: expected a moment name/],
     ['negative seconds', { ...RUN, action: 'seek', to: -1 }, /\.to: expected a number from 0 to 3600/],
     ['infinite seconds', { ...RUN, action: 'play', until: Number.POSITIVE_INFINITY }, /until: expected a finite number/],
     ['zero words', { ...RUN, action: 'play', overWords: 0 }, /overWords: expected a whole number from 1 to 60/],
@@ -623,5 +624,25 @@ describe('stored simulations when a parameter is added later', () => {
 describe('a beat holding a command', () => {
   it('reads commands with the same rules as parseSceneCommand', () => {
     expectRefused(parseBeat(withCommand({ kind: 'focus', target: 'constructor' })), /script\[0\]\.target: expected an element reference/);
+  });
+});
+
+describe('a stored scene', () => {
+  const SCENE = { kind: 'richScene', id: 'slope', engine: 'manimgx', sceneId: 'slope-1a2b', moments: { secant: 3.2 }, parts: ['curve'], durationSeconds: 20 };
+
+  it('reads a scene, its string moments, and its parts', () => {
+    expect(parseSceneCommand(SCENE)).toEqual({ ok: true, value: SCENE });
+  });
+
+  it.each([
+    ['an engine we do not run', { ...SCENE, engine: 'flash' }, /engine: expected one of manimgx/],
+    ['a moment past the end', { ...SCENE, moments: { secant: 21 } }, /moments\.secant: expected a number from 0 to 20/],
+    ['a moment that is not a number', { ...SCENE, moments: { secant: Number.NaN } }, /moments\.secant/],
+    ['a moment name that could reach the prototype', { ...SCENE, moments: JSON.parse('{"__proto__": 1}') }, /expected a moment name/],
+    ['a scene id with a path in it', { ...SCENE, sceneId: '../secret' }, /sceneId: expected a scene id/],
+    ['a length of NaN', { ...SCENE, durationSeconds: Number.NaN }, /durationSeconds/],
+    ['a length of zero', { ...SCENE, durationSeconds: 0 }, /durationSeconds: expected a number from 0.1 to 600/],
+  ])('refuses %s', (_name, input, problem) => {
+    expectRefused(parseSceneCommand(input), problem);
   });
 });

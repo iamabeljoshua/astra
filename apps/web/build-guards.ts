@@ -36,6 +36,13 @@ export function findDevelopmentAccountText(text: string) {
   return DEVELOPMENT_ACCOUNT_TEXT.find((accountText) => text.includes(accountText));
 }
 
+// Proof runs drive a development server. A build holds none of these, with the flag on or off.
+const PROOF_HOOK = /\.(sceneLesson|sceneStage|holdLessonFrame)\b|[{,](sceneLesson|sceneStage|holdLessonFrame):|astra\.lesson\.record/;
+
+export function findProofHookText(text: string) {
+  return PROOF_HOOK.exec(text)?.[0];
+}
+
 function listFiles(folder: string) {
   return readdirSync(folder, { recursive: true, withFileTypes: true })
     .filter((entry) => entry.isFile())
@@ -56,6 +63,26 @@ export function refuseDevelopmentAccounts(): Plugin {
           this.error(`${relative(outputFolder, file)} holds a development account or its password. They must never reach a build.`);
         }
       }
+    },
+  };
+}
+
+export function findProofHookInFolder(folder: string) {
+  const found = listFiles(folder).find((file) => findProofHookText(readFileSync(file, 'latin1')));
+  return found && relative(folder, found);
+}
+
+export function refuseProofHooks(): Plugin {
+  let outputFolder = '';
+
+  return {
+    name: 'refuse-proof-hooks',
+    configResolved({ root, build }) {
+      outputFolder = resolve(root, build.outDir);
+    },
+    writeBundle() {
+      const file = findProofHookInFolder(outputFolder);
+      if (file) this.error(`${file} holds a proof hook. They must never reach a build.`);
     },
   };
 }
