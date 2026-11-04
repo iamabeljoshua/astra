@@ -5,11 +5,8 @@ import { type AxisRange, getAutoYRange } from './axis-ticks.ts';
 import { sampleCurve } from './sample-curve.ts';
 
 export interface PlotFrame {
-  /** The scale for the axes, which stays put as a constant changes, so the change shows. */
   yRange: AxisRange;
-  /** Sampled the first time it is asked for, because a drag passes through values no frame draws. */
   getCurve(yRange: AxisRange): readonly Branch[];
-  /** The curve's own value, which a mark on it shows. */
   getValue(x: number): number;
 }
 
@@ -23,6 +20,7 @@ const RANGE_SAMPLES = 96;
 const REMEMBERED_SCENES = 48;
 const NO_MOMENTS = {};
 const PLOT_PARTS = ['curve'] as const;
+const LEVELS_BY_CONSTANT_COUNT = [1, 9, 5, 3, 3];
 
 const plotDataByCommand = new WeakMap<Plot, PlotData | null>();
 
@@ -30,18 +28,19 @@ function getEvaluator(node: PlotNode, constants: ReadonlyMap<string, number>) {
   return (x: number) => evaluatePlotExpression(node, x, constants);
 }
 
-// Every corner of the constants' ranges, so no drag can carry the curve off the axes the student started with.
-function getConstantCorners(plot: Plot): ReadonlyMap<string, number>[] {
+// Evenly through each range and not only its ends, because a curve such as 5*sin(a) peaks in the middle.
+function getConstantSets(plot: Plot): ReadonlyMap<string, number>[] {
   const declared = plot.constants ?? [];
+  const levels = LEVELS_BY_CONSTANT_COUNT[declared.length] ?? 1;
   const start = new Map(declared.map(({ name, value }) => [name, value]));
-  const corners = declared.reduce<Map<string, number>[]>((sets, { name, min, max }) => sets.flatMap((set) => [new Map(set).set(name, min), new Map(set).set(name, max)]), [new Map(start)]);
-  return [start, ...(declared.length > 0 ? corners : [])];
+  const spread = declared.reduce<Map<string, number>[]>((sets, { name, min, max }) => sets.flatMap((set) => Array.from({ length: levels }, (_, level) => new Map(set).set(name, min + ((max - min) * level) / (levels - 1)))), [new Map(start)]);
+  return [start, ...(declared.length > 0 ? spread : [])];
 }
 
 function getPlotYRange(plot: Plot, node: PlotNode): AxisRange {
   if (plot.yRange) return plot.yRange;
   const [low, high] = plot.domain;
-  const values = getConstantCorners(plot).flatMap((constants) => {
+  const values = getConstantSets(plot).flatMap((constants) => {
     const evaluate = getEvaluator(node, constants);
     return Array.from({ length: RANGE_SAMPLES + 1 }, (_, index) => evaluate(low + ((high - low) * index) / RANGE_SAMPLES));
   });
@@ -77,7 +76,7 @@ function buildPlotScene(plot: Plot, { node, yRange }: PlotData, values: ScenePar
   return { parts: PLOT_PARTS, moments: NO_MOMENTS, durationSeconds: 0, values, getFrame: () => frame };
 }
 
-/** A curve as a scene with no timeline of its own, whose constants are its parameters. The same command and values give the same scene object. */
+/** A curve as a scene with no timeline of its own, whose constants are its parameters. */
 export function createPlotScene(plot: Plot, changes: SceneParameters): Scene<PlotFrame> | null {
   const data = getPlotData(plot);
   if (!data) return null;

@@ -18,7 +18,6 @@ const MATH_MAX_MARK_RUN = 2;
 // KaTeX nests each combining mark as an accent with no brace to count, so a run of them builds a tree deep enough to crash the tab. A real word needs two.
 const TOO_LONG_MARK_RUN = new RegExp(`\\p{M}{${MATH_MAX_MARK_RUN + 1}}`, 'u');
 
-/** A stack of marks is drawn taller than its line in any font, so a label takes the same limit as math. */
 export function hasTooLongMarkRun(text: string): boolean {
   return TOO_LONG_MARK_RUN.test(text);
 }

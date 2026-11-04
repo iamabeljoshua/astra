@@ -1,7 +1,6 @@
 import type { Branch, Point } from '../figure/figure-marks.ts';
 import type { AxisRange } from './axis-ticks.ts';
 
-/** Bounds the work on one curve whatever the expression, so a model's input cannot stall a frame for long. */
 export const CURVE_LIMITS = { baseIntervals: 240, evaluations: 4000, passes: 26 };
 
 const STEP_SHARE_OF_VIEW = 1 / 120;
@@ -53,7 +52,7 @@ function countDetailWanted(samples: readonly Point[], request: CurveRequest): nu
   return wanted;
 }
 
-// Doubles the samples only where the curve steps too far. What stays too far at the finest level is a jump or a pole.
+// Doubles the samples only where the curve steps too far.
 function getRefinedSamples(request: CurveRequest): Point[] {
   let samples = getBaseSamples(request);
   for (let pass = 0; pass < CURVE_LIMITS.passes; pass += 1) {
@@ -72,10 +71,7 @@ function clipToView(first: Point, second: Point, [low, high]: AxisRange): [Point
   return [getInside(first, second), getInside(second, first)];
 }
 
-/**
- * Samples a curve into lines it is safe to draw. A step that stays too tall after every refinement is left as a gap, because a gap
- * shows less than the truth and a line through an asymptote shows something false.
- */
+/** A step that stays too tall after every refinement is left as a gap. */
 export function sampleCurve(request: CurveRequest): Branch[] {
   const samples = getRefinedSamples(request);
   const branches: Point[][] = [];
@@ -100,7 +96,6 @@ export function sampleCurve(request: CurveRequest): Branch[] {
   return branches;
 }
 
-/** The part of a sampled curve up to an x value, which is how a curve draws from left to right. */
 export function getBranchesUpTo(branches: readonly Branch[], x: number): Branch[] {
   return branches.flatMap((branch): Branch[] => {
     const first = branch[0] as Point;

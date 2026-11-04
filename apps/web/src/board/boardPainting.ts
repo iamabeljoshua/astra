@@ -15,7 +15,7 @@ export interface BoardFrame {
 }
 
 /** The board drew what it could and something a tutor asked for is not as asked. Math the board refused goes to `onMathRefused`. */
-export type BoardProblem = MarkWithoutTarget | ({ kind: 'fontFallback' } & MathFontProblem);
+export type BoardProblem = MarkWithoutTarget | ({ kind: 'fontFallback' } & MathFontProblem) | { kind: 'labelWithoutRoom'; text: string };
 
 export interface BoardPaintingOptions extends SliderHandlers {
   boardElement: HTMLElement;
@@ -62,6 +62,12 @@ export function createBoardPainting({ boardElement, overlay, getWrapper, onMathR
   const items = new Map<string, { kind: string; item: BoardItem }>();
   const marks = createBoardMarks(overlay, onBoardProblem);
   const reportedRefusals = new Set<string>();
+  const reportedLabels = new Set<string>();
+  const onLabelWithoutRoom = (text: string) => {
+    if (reportedLabels.has(text)) return;
+    reportedLabels.add(text);
+    onBoardProblem?.({ kind: 'labelWithoutRoom', text });
+  };
   const reportedFonts = new Set<string>();
 
   const syncItems = (placed: readonly BoardElement[]) => {
@@ -115,7 +121,7 @@ export function createBoardPainting({ boardElement, overlay, getWrapper, onMathR
     const entry = items.get(id);
     const wrapper = getWrapper(id);
     if (!entry || !wrapper) return;
-    if (placement) applyPlacement(wrapper, placement, { itemOpacity: entry.item.getEntranceOpacity?.(context) ?? 1, scale: entry.item.drawsToSize ? 1 : placement.scale });
+    if (placement) applyPlacement(wrapper, placement, { itemOpacity: entry.item.getEntranceOpacity?.(context) ?? 1, scale: entry.item.ignoresPlacementScale ? 1 : placement.scale });
     else writeStyle(wrapper, 'visibility', 'hidden');
     const placedContext = { ...context, placedSize: placement?.isVisible ? { width: placement.width, height: placement.height } : null };
     entry.item.paint(isMakingRoom && !context.isReducedMotion ? { ...placedContext, progress: getProgressAfterRoom(context) } : placedContext);
@@ -129,11 +135,11 @@ export function createBoardPainting({ boardElement, overlay, getWrapper, onMathR
       const area = getArea(boardElement);
       const fontSize = Number.parseFloat(getComputedStyle(boardElement).fontSize) || 16;
       const maxWidth = Math.max(0, area.width - 2 * area.padding);
-      const contexts = placed.map((element): ItemContext => ({ element, board, atMs, placedSize: null, canMoveSliders, progress: getMotionValue(element.entrance, atMs), maxWidth, fontSize, isReducedMotion }));
+      const contexts = placed.map((element): ItemContext => ({ element, board, atMs, placedSize: null, canMoveSliders, onLabelWithoutRoom, progress: getMotionValue(element.entrance, atMs), maxWidth, fontSize, isReducedMotion }));
       const { placements, isMakingRoom } = placeMovingElements(prepareBoxes(contexts), area, getSharedProgress(contexts, isReducedMotion));
       const placementsById = new Map(placements.map((placement) => [placement.id, placement]));
       for (const context of contexts) paintItem(context, placementsById.get(context.element.id), isMakingRoom);
-      marks.paint({ elements, focus: board.focus, placements: placementsById, getItem: (id) => items.get(id)?.item, atMs, isReducedMotion, area });
+      marks.paint({ elements, focus: board.focus, placements: placementsById, getItem: (id) => items.get(id)?.item, atMs, isReducedMotion, area, onLabelWithoutRoom });
     },
   };
 }

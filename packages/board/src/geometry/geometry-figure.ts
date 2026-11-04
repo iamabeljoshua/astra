@@ -1,7 +1,7 @@
 import type { Construct, Geometry, GeometryStep } from '@astra/contracts';
 import { type FigureFrame, getAttachedElements, getDrawnShare, keepNewestOnFigure } from '../figure/figure-input.ts';
-import { addArrow, addLabel, addPartMark, addSoftLine, clipToRect, createFigureDraft, type FigureDraft, finishFigure, getFixedVectorTip } from '../figure/figure-draft.ts';
-import { type Branch, type FigureMark, getDistance, getLeadingShare, type Point } from '../figure/figure-marks.ts';
+import { addArrow, addLabel, addPartMark, addSoftLine, createFigureDraft, type FigureDraft, finishFigure, getFixedVectorTip } from '../figure/figure-draft.ts';
+import { type Branch, clipBranch, type FigureMark, getDistance, getLeadingShare, type Point } from '../figure/figure-marks.ts';
 import { createEqualView, type FigureView } from '../figure/figure-view.ts';
 import type { BoardElement } from '../player/board-state.ts';
 import { formatNumber } from '../plot/axis-ticks.ts';
@@ -29,7 +29,7 @@ function addPoint(draft: FigureDraft, element: StepElement, { step, view, share 
 }
 
 function addLine(draft: FigureDraft, { key, points, view, share }: { key: string; points: Branch; view: FigureView; share: number }): void {
-  const branches = clipToRect(points.map(view.toPixel), view.rect).map((branch) => getLeadingShare(branch, share));
+  const branches = clipBranch(points.map(view.toPixel), view.rect).map((branch) => getLeadingShare(branch, share));
   draft.marks.push({ kind: 'path', key, tone: 'ink', weight: 'thin', branches });
   addSoftLine(draft, branches);
 }
@@ -86,7 +86,6 @@ function addOnFigure(draft: FigureDraft, element: BoardElement, { points, view, 
   }
 }
 
-/** A figure built one step at a time on a scale with no distortion, so what looks like 60 degrees is 60 degrees. */
 export function getGeometryMarks(frame: FigureFrame): FigureMark[] {
   const { element, width, height, board } = frame;
   const { xRange, yRange } = element.content as Geometry;
@@ -97,5 +96,5 @@ export function getGeometryMarks(frame: FigureFrame): FigureMark[] {
   const points = getPointsBefore(steps);
   for (const step of keepNewestOnFigure(steps)) addStep(draft, step, { points, view, frame });
   for (const attachment of keepNewestOnFigure(attached)) addOnFigure(draft, attachment, { points, view, frame });
-  return finishFigure(draft);
+  return finishFigure(draft, frame.onLabelWithoutRoom);
 }

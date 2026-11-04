@@ -12,12 +12,10 @@ const FIGURE_MARKS = { plot: getPlotMarks, numberLine: getNumberLineMarks, geome
 
 type FigureKind = keyof typeof FIGURE_MARKS;
 
-/** The same board, moment, and size always give the same marks, which is what makes a replay land on the same pixels. */
 export function getFigureMarks(frame: FigureFrame): FigureMark[] {
   return FIGURE_MARKS[frame.element.content.kind as FigureKind](frame);
 }
 
-/** A figure takes the board's width, and a number line only the height of its one line. */
 export function getFigureFit(element: BoardElement, maxWidth: number): { fit: 'line' | 'figure'; size: { width: number; height: number } } {
   return element.content.kind === 'numberLine' ? { fit: 'line', size: { width: maxWidth, height: NUMBER_LINE_HEIGHT } } : { fit: 'figure', size: { width: maxWidth, height: maxWidth * FIGURE_SHAPE } };
 }

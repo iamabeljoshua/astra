@@ -1,6 +1,6 @@
 import { formatTick, getTickValues } from '../plot/axis-ticks.ts';
-import { ALL_SIDES, LABEL_FONT, type LabelRequest, type LabelSide, placeLabels } from './place-labels.ts';
-import { type Box, type Branch, clipBranch, type FigureMark, getArrowBranches, getDistance, getLeadingShare, type MarkTone, type Point } from './figure-marks.ts';
+import { ALL_SIDES, estimateTextWidth, LABEL_FONT, type LabelRequest, type LabelSide, placeLabels } from './place-labels.ts';
+import { type Box, type Branch, type FigureMark, getArrowBranches, getDistance, getLeadingShare, type MarkTone, type Point } from './figure-marks.ts';
 import type { FigureView } from './figure-view.ts';
 
 const SOFT_BOX_SPACING = 26;
@@ -12,18 +12,18 @@ export interface FigureDraft {
   marks: FigureMark[];
   ticks: LabelRequest[];
   labels: LabelRequest[];
-  soft: Box[];
-  solid: Box[];
+  shouldAvoid: Box[];
+  mustAvoid: Box[];
   bounds: Box;
 }
 
 export function createFigureDraft(width: number, height: number): FigureDraft {
-  return { marks: [], ticks: [], labels: [], soft: [], solid: [], bounds: { left: 0, top: 0, right: width, bottom: height } };
+  return { marks: [], ticks: [], labels: [], shouldAvoid: [], mustAvoid: [], bounds: { left: 0, top: 0, right: width, bottom: height } };
 }
 
 /** Text goes on top of every line, in the order that lets a tutor's words win over tick numbers they would have covered. */
-export function finishFigure({ marks, ticks, labels, soft, solid, bounds }: FigureDraft): FigureMark[] {
-  return [...marks, ...placeLabels([...labels, ...ticks], { bounds, solid, soft })];
+export function finishFigure({ marks, ticks, labels, shouldAvoid, mustAvoid, bounds }: FigureDraft, onNoRoom?: (text: string) => void): FigureMark[] {
+  return [...marks, ...placeLabels([...labels, ...ticks], { bounds, mustAvoid, shouldAvoid, onNoRoom })];
 }
 
 export function addSoftLine(draft: FigureDraft, branches: readonly Branch[]): void {
@@ -34,7 +34,7 @@ export function addSoftLine(draft: FigureDraft, branches: readonly Branch[]): vo
     branch.forEach((point, index) => {
       if (index % every !== 0 || (lastBoxed && getDistance(lastBoxed, point) < SOFT_BOX_SPACING)) return;
       lastBoxed = point;
-      draft.soft.push({ left: point.x - SOFT_BOX_RADIUS, top: point.y - SOFT_BOX_RADIUS, right: point.x + SOFT_BOX_RADIUS, bottom: point.y + SOFT_BOX_RADIUS });
+      draft.shouldAvoid.push({ left: point.x - SOFT_BOX_RADIUS, top: point.y - SOFT_BOX_RADIUS, right: point.x + SOFT_BOX_RADIUS, bottom: point.y + SOFT_BOX_RADIUS });
     });
   }
 }
@@ -71,9 +71,14 @@ function addYTicks(draft: FigureDraft, view: FigureView, { axisX, share, hideTic
   });
 }
 
+/** How wide the numbers on a y axis of this height will be, so a figure can leave them room. */
+export function getWidestYTick(yRange: readonly [number, number], height: number): number {
+  const tickCount = Math.max(2, Math.floor(height / TICK.ySpacing));
+  return Math.max(0, ...getTickValues(yRange, tickCount).map((value) => estimateTextWidth(formatTick(value, yRange, tickCount))));
+}
+
 const getAxisPlace = ([low, high]: readonly [number, number]) => (low <= 0 && high >= 0 ? 0 : low);
 
-/** Axes cross at zero when zero is on them. Otherwise they sit at the low edge, and the numbers on them say where that is. */
 export function addAxes(draft: FigureDraft, view: FigureView, { share, xLabel, yLabel, hideTicksBelow = Number.NEGATIVE_INFINITY }: { share: number; xLabel?: string; yLabel?: string; hideTicksBelow?: number }): void {
   const origin = view.toPixel({ x: getAxisPlace(view.xRange), y: getAxisPlace(view.yRange) });
   const { rect } = view;
@@ -113,7 +118,6 @@ export function addArrow(draft: FigureDraft, { key, from, to, share, tone, label
   }
 }
 
-/** A mark a tutor put on one part of a figure, which moves with that part. */
 export function addPartMark(draft: FigureDraft, { key, at, mark, share, label }: { key: string; at: Point; mark: 'underline' | 'circle' | 'check' | 'cross'; share: number; label?: string }): void {
   const size = 14;
   const shapes: Record<typeof mark, Branch[]> = {
@@ -124,8 +128,4 @@ export function addPartMark(draft: FigureDraft, { key, at, mark, share, label }:
   };
   draft.marks.push({ kind: 'path', key, tone: 'ink', weight: 'thin', branches: shapes[mark].map((branch) => getLeadingShare(branch, share)) });
   if (label && share >= 1) addLabel(draft, { key: `${key}-label`, text: label, anchor: at, gap: size + 4 });
-}
-
-export function clipToRect(branch: Branch, rect: Box): Branch[] {
-  return clipBranch(branch, rect);
 }

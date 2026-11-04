@@ -60,18 +60,15 @@ export interface LabelRequest {
   gap: number;
   sides: readonly LabelSide[];
   tone: MarkTone;
-  /** A tick number can go when the room is taken. A name the tutor gave cannot. */
   isOptional?: boolean;
-  /** Keeps its anchor's place and never moves off it, for a tick. */
   isFixed?: boolean;
 }
 
 export interface LabelRoom {
   bounds: Box;
-  /** Other marks it must never cover. */
-  solid: readonly Box[];
-  /** Lines it should stay off when it can. It has a halo for when it cannot. */
-  soft: readonly Box[];
+  mustAvoid: readonly Box[];
+  shouldAvoid: readonly Box[];
+  onNoRoom?(text: string): void;
 }
 
 interface Shape {
@@ -103,8 +100,8 @@ function isClear(box: Box, others: readonly Box[]): boolean {
 
 function findPlace(shape: Shape, request: LabelRequest, room: LabelRoom, taken: readonly Box[]): { box: Box; side: LabelSide } | null {
   const steps = request.isFixed ? [1] : GAP_STEPS;
-  const solid = [...room.solid, ...taken];
-  for (const others of request.isFixed ? [solid] : [[...solid, ...room.soft], solid]) {
+  const mustAvoid = [...room.mustAvoid, ...taken];
+  for (const others of request.isFixed ? [mustAvoid] : [[...mustAvoid, ...room.shouldAvoid], mustAvoid]) {
     for (const step of steps) {
       for (const side of request.sides) {
         const box = getBoxAtSide(shape, request.anchor, side, request.gap * step);
@@ -115,9 +112,8 @@ function findPlace(shape: Shape, request: LabelRequest, room: LabelRoom, taken: 
   return null;
 }
 
-// Nothing near its anchor is free, so it takes the first free spot on the figure rather than cover anything.
 function findAnyPlace({ width, height }: Shape, room: LabelRoom, taken: readonly Box[]): Box | null {
-  const others = [...room.solid, ...taken];
+  const others = [...room.mustAvoid, ...taken];
   for (let top = room.bounds.top; top + height <= room.bounds.bottom; top += LABEL_FONT.lineHeight) {
     for (let left = room.bounds.right - width; left >= room.bounds.left; left -= FALLBACK_STEP) {
       const box = { left, top, right: left + width, bottom: top + height };
@@ -144,7 +140,10 @@ export function placeLabels(requests: readonly LabelRequest[], room: LabelRoom):
     const shape = getTextShape(request.text, maxWidth);
     const found = findPlace(shape, request, room, taken);
     const box = found?.box ?? (request.isOptional ? null : findAnyPlace(shape, room, taken));
-    if (!box) return [];
+    if (!box) {
+      if (!request.isOptional) room.onNoRoom?.(request.text);
+      return [];
+    }
     taken.push(box);
     return [getTextMark(request, shape, box, found?.side ?? null)];
   });

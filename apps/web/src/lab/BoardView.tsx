@@ -10,7 +10,7 @@ interface BoardViewProps {
   atMs: number;
   onElementDrawn?(id: string): void;
   onMathRefused?(tex: string): void;
-  /** A student's drag. With no listener, as in a replay, a slider shows its value and cannot be moved. */
+  canMoveSliders?: boolean;
   onSliderMove?(move: SliderMove): void;
   onSliderRelease?(): void;
   onBoardProblem?(problem: BoardProblem): void;
@@ -26,7 +26,7 @@ function ElementContent({ element }: { element: BoardElement }) {
   return null;
 }
 
-export function BoardView({ board, atMs, onElementDrawn, onMathRefused, onBoardProblem, onSliderMove, onSliderRelease }: BoardViewProps) {
+export function BoardView({ board, atMs, onElementDrawn, onMathRefused, onBoardProblem, canMoveSliders = false, onSliderMove, onSliderRelease }: BoardViewProps) {
   const seen = useRef(new Set<string>());
   const boardRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<SVGSVGElement>(null);
@@ -49,7 +49,7 @@ export function BoardView({ board, atMs, onElementDrawn, onMathRefused, onBoardP
     sliderReleaseListener.current = onSliderRelease;
     if (!boardRef.current || !overlayRef.current) return;
     painting.current ??= createBoardPainting({ boardElement: boardRef.current, overlay: overlayRef.current, getWrapper: (id) => wrappers.current.get(id), onMathRefused: (tex) => refusalListener.current?.(tex), onBoardProblem: (problem) => problemListener.current?.(problem), onSliderMove: (move) => sliderMoveListener.current?.(move), onSliderRelease: () => sliderReleaseListener.current?.() });
-    painting.current.paint({ board, atMs, isReducedMotion, canMoveSliders: onSliderMove !== undefined });
+    painting.current.paint({ board, atMs, isReducedMotion, canMoveSliders });
     for (const id of board.elements.keys()) {
       if (!seen.current.has(id)) {
         seen.current.add(id);

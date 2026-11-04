@@ -54,15 +54,13 @@ export interface OpenOptions {
   prepare?(page: Page): Promise<void>;
   outFolder: string;
   checksPath: string;
-  /** Flags that pick the tutor's voice for the lab agent. */
-  voice?: readonly string[];
-  isRecording?: boolean;
+  voiceFlags?: readonly string[];
 }
 
-export async function openLabPage({ browser, name, lesson, viewport, theme, isReducedMotion, prepare, outFolder, checksPath, voice = ['--fake'] }: OpenOptions): Promise<LabPage> {
+export async function openLabPage({ browser, name, lesson, viewport, theme, isReducedMotion, prepare, outFolder, checksPath, voiceFlags = ['--fake'] }: OpenOptions): Promise<LabPage> {
   const folder = join(outFolder, name);
   mkdirSync(folder, { recursive: true });
-  const { child, openUrl } = await startAgent(`board-${name}-${Date.now()}`, folder, voice);
+  const { child, openUrl } = await startAgent(`board-${name}-${Date.now()}`, folder, voiceFlags);
   const context = await browser.newContext({ viewport: VIEWPORTS[viewport], reducedMotion: isReducedMotion ? 'reduce' : 'no-preference' });
   await context.addInitScript((chosen) => localStorage.setItem('theme', chosen), theme);
   const page = await context.newPage();
@@ -75,7 +73,7 @@ export async function openLabPage({ browser, name, lesson, viewport, theme, isRe
   await page.getByRole('button', { name: 'Connect' }).click();
   await page.getByRole('button', { name: 'Play the lesson' }).and(page.locator(':enabled')).waitFor({ timeout: 30_000 });
   await page.evaluate(async (path) => {
-    window.pageChecks = (await import(/* @vite-ignore */ path)) as typeof window.pageChecks;
+    window.pageChecks = (await import(path)) as typeof window.pageChecks;
   }, checksPath);
   return {
     page,
@@ -105,7 +103,6 @@ export async function getCommandTimes(lab: LabPage): Promise<number[]> {
   return lab.page.evaluate(() => window.sceneLab?.player.getOperations().filter((operation) => operation.kind === 'command').map((operation) => operation.atMs) ?? []);
 }
 
-/** The same moments from the live board and from the log, by bytes, including moments in the middle of a move. */
 export async function checkReplayPixels(lab: LabPage): Promise<{ moments: number; differing: number[]; describedDifferently: number }> {
   const times = await getCommandTimes(lab);
   const { shiftMs, firstLive } = await lab.page.evaluate(() => {

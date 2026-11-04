@@ -32,7 +32,6 @@ function getProjectileValues(parameters: ProjectileParameters): SceneParameters 
   return { ...parameters, launchSpeed: Math.hypot(horizontalSpeed, upwardSpeed), launchAngle: Math.atan2(upwardSpeed, horizontalSpeed) * DEGREES_PER_RADIAN };
 }
 
-/** Motion in closed form, so any moment can be asked for in any order and the shape is correct by calculation. */
 export function createProjectileScene(parameters: ProjectileParameters): Scene<ProjectileFrame> {
   const { horizontalSpeed, upwardSpeed, releaseHeight, gravity } = parameters;
   const landing = getLandingSeconds(parameters);

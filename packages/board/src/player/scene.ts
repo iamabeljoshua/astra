@@ -14,5 +14,4 @@ export interface Scene<Frame = unknown> {
   getFrame(seconds: number): Frame;
 }
 
-/** Turns a placing command into its scene. Returns null when the command places something that does not move. */
 export type SceneCatalog = (command: SceneCommand, parameterChanges: SceneParameters) => Scene | null;

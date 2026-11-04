@@ -1,4 +1,4 @@
-import { type BoardElement, getMotionValue, type SliderMove } from '@astra/board';
+import type { SliderMove } from '@astra/board';
 import { writeStyle } from '@astra/board/drawing';
 import type { ElementId, Slider } from '@astra/contracts';
 import { BOARD_LABELS } from '../strings';
@@ -26,7 +26,7 @@ function getSliderMove(content: Slider, value: number): SliderMove {
   return 'constant' in content ? { target, value, constant: content.constant } : { target, value, parameter: content.parameter };
 }
 
-// A real range input, so it takes a mouse, a finger, or the arrow keys. It shows the board's value, so a replay moves it too.
+// A native range input that shows the board's value, so a replay moves it too.
 export function createSliderItem(wrapper: HTMLElement, content: Slider, { onSliderMove, onSliderRelease }: SliderHandlers): BoardItem {
   const step = getStep(content);
   const words = getSliderWords(content);
@@ -54,7 +54,7 @@ export function createSliderItem(wrapper: HTMLElement, content: Slider, { onSlid
       if (output.textContent !== shown) output.textContent = shown;
       if (Math.abs(Number(input.value) - value) > step / 2) input.value = String(value);
     },
-    getEntranceOpacity: ({ element, atMs }: { element: BoardElement; atMs: number }) => getMotionValue(element.entrance, atMs),
+    getEntranceOpacity: ({ progress }) => progress,
     remove: () => label.remove(),
   };
 }

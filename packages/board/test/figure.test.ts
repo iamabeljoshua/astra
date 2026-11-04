@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { type Box, doBoxesOverlap, type FigureMark, getLeadingShare, clipBranch } from '../src/figure/figure-marks.ts';
-import { createEqualView, createFreeView } from '../src/figure/figure-view.ts';
+import { createEqualView, createStretchedView } from '../src/figure/figure-view.ts';
 import type { FigureFrame, FigureWords } from '../src/figure/figure-input.ts';
 import { getFigureMarks } from '../src/figure/get-figure-marks.ts';
 import { estimateTextWidth, LABEL_FONT, placeLabels, wrapLabel } from '../src/figure/place-labels.ts';
@@ -94,10 +94,10 @@ describe('text on a figure', () => {
 
   it('gives a name a free spot when the room near it is taken, and drops only a tick', () => {
     const bounds = { left: 0, top: 0, right: 200, bottom: 100 };
-    const solid = [{ left: 80, top: 30, right: 120, bottom: 70 }];
+    const mustAvoid = [{ left: 80, top: 30, right: 120, bottom: 70 }];
     const named = { key: 'name', text: 'a name', anchor: { x: 100, y: 50 }, gap: 0, sides: ['right'] as const, tone: 'ink' as const, isFixed: true };
     const tick = { ...named, key: 'tick', text: '12', isOptional: true };
-    const placed = placeLabels([named, tick], { bounds, solid, soft: [] });
+    const placed = placeLabels([named, tick], { bounds, mustAvoid, shouldAvoid: [] });
     expect(placed.map((mark) => mark.key)).toEqual(['name']);
   });
 
@@ -109,7 +109,7 @@ describe('text on a figure', () => {
 
 describe('scales', () => {
   it('fills the figure on a free view, with up as up', () => {
-    const view = createFreeView({ xRange: [0, 10], yRange: [0, 5], rect: { left: 0, top: 0, right: 100, bottom: 50 } });
+    const view = createStretchedView({ xRange: [0, 10], yRange: [0, 5], rect: { left: 0, top: 0, right: 100, bottom: 50 } });
     expect(view.toPixel({ x: 10, y: 5 })).toEqual({ x: 100, y: 0 });
     expect(view.toPixel({ x: 0, y: 0 })).toEqual({ x: 0, y: 50 });
   });
@@ -337,5 +337,53 @@ describe('how much a model can put on one figure', () => {
       expect(JSON.stringify(marks)).not.toMatch(/null|NaN|Infinity/);
       expect(getText(marks).find((mark) => mark.key === 'readout-r59')).toBeDefined();
     }
+  });
+});
+
+describe('axes that hold still', () => {
+  const parameters = { horizontalSpeed: 10, upwardSpeed: 10, releaseHeight: 0, gravity: 9.8 };
+  const shot = place({ kind: 'simulate', id: 'shot', simulation: { model: 'projectile', parameters } });
+
+  it('does not move through a whole drag of a launch angle, which lands farthest in the middle', () => {
+    const angle = place({ kind: 'slider', id: 'angle', target: 'shot', parameter: 'launchAngle', min: 10, max: 80 });
+    const tickAt = (value: number) => {
+      const drag: BoardOperation = { kind: 'parameterSample', atMs: 2000, target: 'shot' as never, parameter: 'launchAngle', value };
+      return getText(getMarks([shot, angle, drag], 'shot')).find((mark) => mark.key === 'tick-x-10')?.at.x;
+    };
+    const atRest = tickAt(45);
+    for (const value of [10, 20, 33, 44, 46, 60, 80]) expect(tickAt(value)).toBe(atRest);
+  });
+
+  it('keeps every arc a slider reaches on the figure', () => {
+    const angle = place({ kind: 'slider', id: 'angle', target: 'shot', parameter: 'launchAngle', min: 10, max: 80 });
+    const size = SIZES[0] as { width: number; height: number };
+    for (const value of [10, 45, 80]) {
+      const drag: BoardOperation = { kind: 'parameterSample', atMs: 2000, target: 'shot' as never, parameter: 'launchAngle', value };
+      const path = getMarks([shot, angle, drag], 'shot', size).find((mark) => mark.key === 'path') as FigureMark & { kind: 'path' };
+      for (const { x, y } of path.branches.flat()) {
+        expect(x).toBeLessThanOrEqual(size.width);
+        expect(y).toBeGreaterThanOrEqual(0);
+      }
+    }
+  });
+
+  it('fits a curve whose constant peaks inside its range', () => {
+    const marks = getMarks([place({ kind: 'plot', id: 'p', expression: '5*sin(a)', constants: [{ name: 'a', value: 0, min: 0, max: 3.14159 }], domain: [0, 1] }), { kind: 'parameterSample', atMs: 1, target: 'p' as never, parameter: 'a', value: 1.5708 }], 'p');
+    const curve = marks.find((mark) => mark.key === 'curve-p') as FigureMark & { kind: 'path' };
+    expect(curve.branches.flat().length).toBeGreaterThan(1);
+  });
+
+  it('gives each tick its own number on a far-off range', () => {
+    const marks = getMarks([place({ kind: 'plot', id: 'p', expression: '1000000+x', domain: [0, 10], yRange: [1000000, 1000010] })], 'p');
+    const text = getText(marks).filter((mark) => mark.key.startsWith('tick-y')).map((mark) => mark.lines[0]);
+    expect(new Set(text).size).toBe(text.length);
+    expect(text.length).toBeGreaterThan(2);
+  });
+
+  it('says so when a tutor\'s label has no room anywhere on the figure', () => {
+    const lost: string[] = [];
+    const board = getBoardAt([place({ kind: 'plot', id: 'p', expression: 'x', domain: [0, 1], label: 'a label with no room at all' })], LATE_MS);
+    getFigureMarks({ board, element: board.elements.get('p' as never) as FigureFrame['element'], atMs: LATE_MS, width: 40, height: 20, isReducedMotion: false, words: WORDS, onLabelWithoutRoom: (text) => lost.push(text) });
+    expect(lost).toEqual(['a label with no room at all']);
   });
 });

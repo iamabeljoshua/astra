@@ -78,28 +78,28 @@ describe('a constant set by the tutor', () => {
   });
 });
 
-describe('cue paces in a report', () => {
+describe('cue aims in a report', () => {
   const report = { wordStartsMs: [0, 300, 600], durationMs: 900, playedWords: 3, firedCueMs: [0], ending: 'finished', frozen: [] };
   const played = { type: 'played', turnId: 't', beatId: 'b', browserMs: 1000, startedMsAgo: 900, ...report };
   const beat = { id: 'b', expectsReply: false, script: [{ kind: 'runSimulation', target: 'shot', action: 'play', overWords: 2 }, 'One two three'] };
   const event = { seq: 0, atMs: 0, kind: 'beatPlayed', reportedBy: 'browser', turnId: 't', beat, ...report };
 
   it('reads them from the browser and into the log', () => {
-    const cuePaces = [{ cue: 0, afterMs: 0, landsAtMs: 600 }, { cue: 0, afterMs: 200, landsAtMs: 640 }];
-    expect(parseBrowserMessage({ ...played, cuePaces })).toMatchObject({ ok: true, value: { cuePaces } });
-    expect(parseSessionEvent({ ...event, cuePaces })).toMatchObject({ ok: true, value: { cuePaces } });
+    const cueAims = [{ cue: 0, afterMs: 0, landsAtMs: 600 }, { cue: 0, afterMs: 200, landsAtMs: 640 }];
+    expect(parseBrowserMessage({ ...played, cueAims })).toMatchObject({ ok: true, value: { cueAims } });
+    expect(parseSessionEvent({ ...event, cueAims })).toMatchObject({ ok: true, value: { cueAims } });
   });
 
   it('still reads a stored row with none', () => {
     const parsed = parseSessionEvent(event);
     expect(parsed).toMatchObject({ ok: true });
-    expect(parsed.ok && 'cuePaces' in parsed.value).toBe(false);
+    expect(parsed.ok && 'cueAims' in parsed.value).toBe(false);
   });
 
-  it('refuses a pace for a cue that never fired, or a list too long to store', () => {
-    expectRefused(parseBrowserMessage({ ...played, cuePaces: [{ cue: 1, afterMs: 0, landsAtMs: 600 }] }), /cue/);
-    expectRefused(parseBrowserMessage({ ...played, cuePaces: Array.from({ length: 121 }, () => ({ cue: 0, afterMs: 0, landsAtMs: 600 })) }), /cuePaces/);
-    expectRefused(parseBrowserMessage({ ...played, cuePaces: [{ cue: 0, afterMs: -1, landsAtMs: 600 }] }), /afterMs/);
+  it('refuses a aim for a cue that never fired, or a list too long to store', () => {
+    expectRefused(parseBrowserMessage({ ...played, cueAims: [{ cue: 1, afterMs: 0, landsAtMs: 600 }] }), /cue/);
+    expectRefused(parseBrowserMessage({ ...played, cueAims: Array.from({ length: 121 }, () => ({ cue: 0, afterMs: 0, landsAtMs: 600 })) }), /cueAims/);
+    expectRefused(parseBrowserMessage({ ...played, cueAims: [{ cue: 0, afterMs: -1, landsAtMs: 600 }] }), /afterMs/);
   });
 
   it('leaves the agent messages as they were', () => {

@@ -53,7 +53,7 @@ export async function runLabAgent({ url, token, voice, sampleRate, recorder }: L
   let wordsLateMs = 0;
   let sendsWordsOneByOne = false;
   let firstWordsAtMs: number | null = null;
-  // Proof only. Each word time leaves at its own moment, so a cue never knows its later words as it fires, which is the worst a real voice does.
+  // Proof only. Each word time leaves at its own moment, so a cue never knows its later words as it fires.
   const sendEachWordAtItsTime = (message: AgentMessage & { type: 'words' }) => {
     firstWordsAtMs ??= Date.now();
     const startsAtMs = firstWordsAtMs;

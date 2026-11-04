@@ -28,14 +28,13 @@ function withMinus(text: string): string {
   return text.startsWith('-') ? `${MINUS}${text.slice(1)}` : text;
 }
 
-/** A tick's number, with as many decimals as its step shows, so ticks 0.98 and 0.99 never both read 1. */
 export function formatTick(value: number, range: AxisRange, tickCount: number): string {
   const size = Math.max(Math.abs(range[0]), Math.abs(range[1]));
-  if (size >= LARGEST_PLAIN) return withMinus(value.toExponential(1).replace('e+', 'e'));
-  return withMinus((value + 0).toFixed(Math.min(12, getStepDecimals(getTickStep(range, tickCount)))));
+  const step = getTickStep(range, tickCount);
+  if (size >= LARGEST_PLAIN) return withMinus(value.toExponential(Math.max(1, Math.ceil(Math.log10(size / step)))).replace('e+', 'e'));
+  return withMinus((value + 0).toFixed(Math.min(12, getStepDecimals(step))));
 }
 
-/** Trims a computed value for reading, with a real minus sign and no negative zero. */
 export function formatNumber(value: number, significant = 3): string {
   const size = Math.abs(value);
   if (size < ROUNDING_DUST) return '0';

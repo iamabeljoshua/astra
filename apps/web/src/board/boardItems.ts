@@ -11,9 +11,9 @@ export interface ItemContext {
   element: BoardElement;
   board: BoardState;
   atMs: number;
-  /** The element's size on the board, once it has a place. */
   placedSize: { width: number; height: number } | null;
   canMoveSliders: boolean;
+  onLabelWithoutRoom(text: string): void;
   progress: number;
   maxWidth: number;
   fontSize: number;
@@ -34,9 +34,7 @@ export interface SliderHandlers {
 }
 
 export interface BoardItem {
-  /** It draws itself at its true size, so its text stays readable however small the board makes it. */
-  drawsToSize?: boolean;
-  /** It marks its own parts, so a mark can move with the part. */
+  ignoresPlacementScale?: boolean;
   ownsPartMarks?: boolean;
   prepare(context: ItemContext): ItemSizes;
   paint(context: ItemContext): void;
@@ -196,19 +194,19 @@ function createFigureItem(wrapper: HTMLElement, content: BoardElement['content']
   wrapper.append(svg);
   const painter = createFigurePainter(svg);
   return {
-    drawsToSize: true,
+    ignoresPlacementScale: true,
     ownsPartMarks: true,
     prepare({ element, maxWidth }) {
       const { fit, size } = getFigureFit(element, maxWidth);
       return { fit, size, fromSize: null };
     },
-    paint({ element, board, atMs, placedSize, isReducedMotion }) {
+    paint({ element, board, atMs, placedSize, isReducedMotion, onLabelWithoutRoom }) {
       if (!placedSize) return;
       const width = String(Math.round(placedSize.width));
       const height = String(Math.round(placedSize.height));
       if (svg.getAttribute('width') !== width) svg.setAttribute('width', width);
       if (svg.getAttribute('height') !== height) svg.setAttribute('height', height);
-      painter.paint(getFigureMarks({ board, element, atMs, width: Math.round(placedSize.width), height: Math.round(placedSize.height), isReducedMotion, words: BOARD_LABELS.figures }));
+      painter.paint(getFigureMarks({ board, element, atMs, width: Math.round(placedSize.width), height: Math.round(placedSize.height), isReducedMotion, words: BOARD_LABELS.figures, onLabelWithoutRoom }));
     },
     remove: () => svg.remove(),
   };

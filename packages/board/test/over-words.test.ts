@@ -21,8 +21,8 @@ const cue = (atWord: number, command: unknown): AgentMessage => ({ type: 'cue', 
 function writeLog(audio: FakeAudio): SessionEvent[] {
   return audio.sent.flatMap((message: BrowserMessage, seq): SessionEvent[] => {
     if (message.type !== 'played') return [];
-    const { turnId: reportedTurn, wordStartsMs, durationMs, playedWords, firedCueMs, cuePaces, ending, frozen } = message;
-    const parsed = parseSessionEvent(JSON.parse(JSON.stringify({ seq, atMs: message.browserMs - message.startedMsAgo, kind: 'beatPlayed', beat: BEAT_JSON, reportedBy: 'browser', turnId: reportedTurn, wordStartsMs, durationMs, playedWords, firedCueMs, cuePaces, ending, frozen })));
+    const { turnId: reportedTurn, wordStartsMs, durationMs, playedWords, firedCueMs, cueAims, ending, frozen } = message;
+    const parsed = parseSessionEvent(JSON.parse(JSON.stringify({ seq, atMs: message.browserMs - message.startedMsAgo, kind: 'beatPlayed', beat: BEAT_JSON, reportedBy: 'browser', turnId: reportedTurn, wordStartsMs, durationMs, playedWords, firedCueMs, cueAims, ending, frozen })));
     if (!parsed.ok) throw new Error(parsed.problem);
     return [parsed.value];
   });
@@ -94,7 +94,7 @@ describe('a cue over words whose later word times have not landed', () => {
     audio.endSound();
     audio.advance(500);
     const report = audio.sent.find((message) => message.type === 'played');
-    expect(report && 'cuePaces' in report ? report.cuePaces : undefined).toBeUndefined();
+    expect(report && 'cueAims' in report ? report.cueAims : undefined).toBeUndefined();
   });
 
   it('freezes where it was aimed, and a replay agrees to the frame', () => {

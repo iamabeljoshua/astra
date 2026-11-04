@@ -88,19 +88,19 @@ async function playMathLesson({ command, waitForPlayedBeats, scenario }: RunCont
 }
 
 const SLIDER_DRAG_STEPS = 24;
+const SHOT_SLIDER = { start: 4.2, doubled: 8.4, max: 10, thumbWidth: 10 };
 
-// A student's drag with a real mouse: double the sideways speed, and watch the ball land twice as far.
 async function playShotAndDragSlider({ page, command, waitForPlayedBeats }: RunContext): Promise<void> {
   await command({ type: 'play', lesson: 'shot' });
   await waitForPlayedBeats(LESSONS.shot[0]?.length ?? 0, 120_000);
   await delay(1200);
   const slider = page.locator('.board-slider input');
   const box = (await slider.boundingBox()) as { x: number; y: number; width: number; height: number };
-  const getThumbX = (value: number) => box.x + 5 + (value / 10) * (box.width - 10);
-  await page.mouse.move(getThumbX(4.2), box.y + box.height / 2);
+  const getThumbX = (value: number) => box.x + SHOT_SLIDER.thumbWidth / 2 + (value / SHOT_SLIDER.max) * (box.width - SHOT_SLIDER.thumbWidth);
+  await page.mouse.move(getThumbX(SHOT_SLIDER.start), box.y + box.height / 2);
   await page.mouse.down();
   for (let step = 1; step <= SLIDER_DRAG_STEPS; step += 1) {
-    await page.mouse.move(getThumbX(4.2 + (4.2 * step) / SLIDER_DRAG_STEPS), box.y + box.height / 2);
+    await page.mouse.move(getThumbX(SHOT_SLIDER.start + ((SHOT_SLIDER.doubled - SHOT_SLIDER.start) * step) / SLIDER_DRAG_STEPS), box.y + box.height / 2);
     await delay(40);
   }
   await page.mouse.up();

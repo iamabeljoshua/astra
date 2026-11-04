@@ -506,7 +506,7 @@ describe('BoardView, figures', () => {
   it('gives a slider the board value and sends a student move', () => {
     const onSliderMove = vi.fn();
     const onSliderRelease = vi.fn();
-    const { container } = render(<BoardView board={getBoardAt([plot, slider], 5000)} atMs={5000} onSliderMove={onSliderMove} onSliderRelease={onSliderRelease} />);
+    const { container } = render(<BoardView board={getBoardAt([plot, slider], 5000)} atMs={5000} canMoveSliders onSliderMove={onSliderMove} onSliderRelease={onSliderRelease} />);
     const input = container.querySelector<HTMLInputElement>('.board-slider input') as HTMLInputElement;
     expect(Number(input.value)).toBe(1);
     expect(container.querySelector('.board-slider output')?.textContent).toBe('1.00');

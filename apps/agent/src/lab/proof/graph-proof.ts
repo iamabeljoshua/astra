@@ -33,8 +33,8 @@ interface LessonRun {
 const getLabel = ({ lesson, viewport, theme, isReducedMotion, label }: LessonRun) => `${lesson}-${viewport}-${theme}${isReducedMotion ? '-reduced' : ''}${label ? `-${label}` : ''}`;
 
 async function open(browser: Browser, run: LessonRun): Promise<LabPage> {
-  const voice = args.stored ? ['--stored', args.stored] : undefined;
-  const lab = await openLabPage({ browser, name: getLabel(run), ...run, outFolder: args.out as string, checksPath: CHECKS_PATH, voice });
+  const voiceFlags = args.stored ? ['--stored', args.stored] : undefined;
+  const lab = await openLabPage({ browser, name: getLabel(run), ...run, outFolder: args.out as string, checksPath: CHECKS_PATH, voiceFlags });
   await lab.page.addStyleTag({ content: HIDE_DEV_BUTTON });
   return lab;
 }
@@ -90,7 +90,6 @@ async function nudgeSliderTo(lab: LabPage, value: number): Promise<void> {
   }
 }
 
-/** The moments of the drag from the log, against the live board, by bytes, so a replay of a student's hand lands on the same pixels. */
 async function checkDragReplay(lab: LabPage) {
   const { times, shiftMs } = await lab.page.evaluate(() => {
     const operations = window.sceneLab?.player.getOperations() ?? [];
@@ -213,9 +212,7 @@ async function proveHostile(browser: Browser, run: LessonRun) {
   await lab.page.waitForFunction(() => (window.sceneLab?.records.fired.length ?? 0) > 0, undefined, { timeout: 30_000 });
   const turnId = await lab.page.evaluate(() => window.sceneLab?.records.fired[0]?.turnId);
   await lab.command({ type: 'sendRaw', messages: REFUSED_COMMANDS.map(({ command }) => ({ type: 'cue', turnId, beatId: 'crowded', atWord: 1, command })) });
-  const shots: string[] = [];
   await lab.page.waitForFunction((count) => (window.sceneLab?.records.browserMessages.filter((message) => message.type === 'played').length ?? 0) >= count, 1, { timeout: 90_000 });
-  shots.push('after-first');
   await shoot(lab, 'hostile-first');
   await lab.waitForPlayedBeats(beatsOf('figure-hostile'), 120_000);
   await delay(1500);
@@ -251,7 +248,7 @@ const MOVE_STEP_MS = 16;
 const MOVE_STEPS = 28;
 const JUMP_THRESHOLD = 24;
 
-/** Frame by frame across every rearrangement, the most pixels that change in one 16 ms step. A jump shows as a spike over what a move changes anyway. */
+/** Frame by frame across every rearrangement, the most pixels that change in one 16 ms step. */
 async function proveMoves(browser: Browser, run: LessonRun) {
   const lab = await open(browser, run);
   await lab.command({ type: 'play', lesson: run.lesson });
@@ -276,7 +273,6 @@ async function proveMoves(browser: Browser, run: LessonRun) {
   return { label: getLabel(run), worstByMove };
 }
 
-/** The voice's word times land one by one, so every cue over words fires not knowing its last word. What the student saw must still be what the log replays. */
 async function proveLateWords(browser: Browser, run: LessonRun) {
   const lab = await open(browser, run);
   await lab.page.evaluate(() => window.pageChecks.startFigureWatch());
@@ -288,6 +284,33 @@ async function proveLateWords(browser: Browser, run: LessonRun) {
   const replay = await checkReplayPixels(lab);
   await lab.finish();
   return { label: getLabel(run), figures: { ...figures, ballPlaces: figures.ballPlaces.length }, landing, replay: { moments: replay.moments, differing: replay.differing.length, described: replay.describedDifferently } };
+}
+
+const ANGLE_SLIDER = { min: 10, max: 80 };
+const LAUNCH = { speed: Math.hypot(10, 10), gravity: 9.8 };
+
+/** A launch angle lands farthest in the middle of its range, so this is the drag most likely to move the axes under the student's hand. */
+async function proveAngleSlider(browser: Browser, run: LessonRun) {
+  const lab = await open(browser, run);
+  await lab.command({ type: 'play', lesson: 'launch' });
+  await lab.waitForPlayedBeats(beatsOf('launch'), 120_000);
+  await delay(2500);
+  const scales: number[] = [];
+  const noteScale = async () => scales.push((await lab.page.evaluate(() => window.pageChecks.getBallMetres()))?.metresPerPixel ?? 0);
+  await noteScale();
+  await dragSliderTo(lab, { from: 45, to: 78, ...ANGLE_SLIDER });
+  await noteScale();
+  await dragSliderTo(lab, { from: 78, to: 30, ...ANGLE_SLIDER });
+  await nudgeSliderTo(lab, 30);
+  await noteScale();
+  const angle = Number(await lab.page.locator('.board-slider input').first().inputValue());
+  await lab.page.evaluate(() => (window.sceneLab as unknown as LabLog).player.finishSliderDrag());
+  await delay(2600);
+  const landed = await lab.page.evaluate(() => window.pageChecks.getBallMetres());
+  const workedRange = (LAUNCH.speed ** 2 * Math.sin((2 * angle * Math.PI) / 180)) / LAUNCH.gravity;
+  await shoot(lab, 'angle-slider');
+  await lab.finish();
+  return { label: getLabel(run), angle, scales, scaleHeld: Math.max(...scales) - Math.min(...scales) < 1e-6, landedX: landed?.x, workedRange, errorMetres: Math.abs((landed?.x ?? 0) - workedRange) };
 }
 
 const LESSON_PAIRS: LessonRun[] = (['shot', 'graphs', 'number-line', 'triangle', 'free-body', 'launch'] as const).flatMap((lesson) => [{ lesson, viewport: 'laptop', theme: 'light' }, { lesson, viewport: 'phone', theme: 'dark' }] as LessonRun[]);
@@ -308,6 +331,7 @@ const PROOFS = {
   freeze: async (browser: Browser) => [await proveFreeze(browser, { lesson: 'shot', viewport: 'laptop', theme: 'light' }), await proveFreeze(browser, { lesson: 'shot', viewport: 'phone', theme: 'dark' })],
   hostile: async (browser: Browser) => [await proveHostile(browser, { lesson: 'figure-hostile', viewport: 'laptop', theme: 'light' }), await proveHostile(browser, { lesson: 'figure-hostile', viewport: 'phone', theme: 'dark' })],
   'late-words': async (browser: Browser) => [await proveLateWords(browser, { lesson: 'shot', viewport: 'laptop', theme: 'light', label: 'late-words' }), await proveLateWords(browser, { lesson: 'shot', viewport: 'phone', theme: 'dark', label: 'late-words' }), await proveLateWords(browser, { lesson: 'graphs', viewport: 'laptop', theme: 'light', label: 'late-words' })],
+  'angle-slider': async (browser: Browser) => [await proveAngleSlider(browser, { lesson: 'launch', viewport: 'laptop', theme: 'light' }), await proveAngleSlider(browser, { lesson: 'launch', viewport: 'phone', theme: 'dark' })],
   moves: async (browser: Browser) => [await proveMoves(browser, { lesson: 'rapid-moves', viewport: 'laptop', theme: 'light' }), await proveMoves(browser, { lesson: 'algebra', viewport: 'laptop', theme: 'light' })],
   stored: async (browser: Browser) => [await proveLesson(browser, { lesson: 'shot', viewport: 'laptop', theme: 'light', label: 'stored' }), await proveLesson(browser, { lesson: 'shot', viewport: 'phone', theme: 'dark', label: 'stored' }), await proveLesson(browser, { lesson: 'graphs', viewport: 'laptop', theme: 'dark', label: 'stored' }), await proveFreeze(browser, { lesson: 'shot', viewport: 'laptop', theme: 'light', label: 'stored-freeze' })],
   resize: async (browser: Browser) => [await proveResize(browser, { lesson: 'launch', viewport: 'laptop', theme: 'light' }), await proveResize(browser, { lesson: 'free-body', viewport: 'laptop', theme: 'dark' })],

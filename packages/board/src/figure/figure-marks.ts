@@ -15,11 +15,10 @@ export type MarkWeight = 'hair' | 'thin' | 'bold';
 export type TextAnchor = 'start' | 'middle';
 export type Branch = readonly Point[];
 
-/** One thing a figure paints, in the figure's own pixels. A key names it across frames, so an unchanged mark writes nothing to the page. */
 export type FigureMark =
   | { kind: 'path'; key: string; branches: readonly Branch[]; tone: MarkTone; weight: MarkWeight; isDashed?: boolean }
   | { kind: 'area'; key: string; polygons: readonly Branch[]; tone: MarkTone }
-  | { kind: 'dot'; key: string; at: Point; radius: number; tone: MarkTone; isHollow?: boolean }
+  | { kind: 'dot'; key: string; at: Point; radius: number; tone: MarkTone }
   | { kind: 'text'; key: string; at: Point; lines: readonly string[]; anchor: TextAnchor; tone: MarkTone };
 
 export const getDistance = (first: Point, second: Point) => Math.hypot(second.x - first.x, second.y - first.y);
@@ -38,7 +37,6 @@ export function isBoxInside(box: Box, bounds: Box): boolean {
 
 const ARROW_HEAD = { length: 9, spread: 0.45 };
 
-/** A shaft and a head that opens back from the tip. */
 export function getArrowBranches(from: Point, to: Point): Branch[] {
   if (getDistance(from, to) < 1) return [];
   const angle = Math.atan2(to.y - from.y, to.x - from.x);
@@ -79,7 +77,6 @@ function clipSegment(first: Point, second: Point, box: Box): [Point, Point] | nu
   return [interpolatePoint(first, second, enter), interpolatePoint(first, second, leave)];
 }
 
-/** Cuts a line at a box, so what leaves is gone rather than drawn along the edge. */
 export function clipBranch(points: Branch, box: Box): Branch[] {
   const branches: Point[][] = [];
   let current: Point[] = [];

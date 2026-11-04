@@ -1,14 +1,12 @@
-import { type BeatEnding, type Cue, type CuePace, type FrozenFrame, getCues, type InkPoint, type SceneCommand, type SessionEvent, type ElementId } from '@astra/contracts';
+import { type BeatEnding, type Cue, type CueAim, type FrozenFrame, getCues, type InkPoint, type SceneCommand, type SessionEvent, type ElementId } from '@astra/contracts';
 
-/** The length of a word until the beat has shown its own. */
 const ASSUMED_WORD_MS = 300;
 
-/** Every change to the board, in session ms. A live board and a replay reduce this one list, and a report carries what the live board decided with words it had not yet been told. */
+/** Every change to the board, in session ms. */
 export type BoardOperation =
   | { kind: 'beatStarted'; atMs: number }
   | { kind: 'command'; atMs: number; command: SceneCommand; overMs: number | null }
-  /** A cue still moving is aimed at a better landing, once more word times have come in. */
-  | { kind: 'repace'; atMs: number; command: SceneCommand; landsAtMs: number }
+  | { kind: 'reaim'; atMs: number; command: SceneCommand; landsAtMs: number }
   | { kind: 'freeze'; atMs: number; frames: readonly FrozenFrame[] }
   | { kind: 'parameterSample'; atMs: number; target: ElementId; parameter: string; value: number }
   | { kind: 'inkStroke'; atMs: number; id: ElementId; points: readonly InkPoint[] }
@@ -20,7 +18,7 @@ export interface PlayedBeatView {
   cues: readonly Cue[];
   wordStartsMs: readonly number[];
   firedCueMs: readonly number[];
-  cuePaces?: readonly CuePace[];
+  cueAims?: readonly CueAim[];
   ending: BeatEnding | null;
   durationMs: number;
   frozen: readonly FrozenFrame[];
@@ -52,11 +50,11 @@ export function getCueAim(cue: Cue, wordStartsMs: readonly number[]): { landsAtM
 function getFiredOperations(view: PlayedBeatView): BoardOperation[] {
   return view.firedCueMs.flatMap((firedMs, index): BoardOperation[] => {
     const cue = view.cues[index] as Cue;
-    const paces = view.cuePaces?.filter((pace) => pace.cue === index) ?? [];
-    const landsAtMs = paces[0]?.landsAtMs ?? getCueAim(cue, view.wordStartsMs)?.landsAtMs ?? null;
+    const aims = view.cueAims?.filter((aim) => aim.cue === index) ?? [];
+    const landsAtMs = aims[0]?.landsAtMs ?? getCueAim(cue, view.wordStartsMs)?.landsAtMs ?? null;
     const overMs = landsAtMs === null ? null : Math.max(0, landsAtMs - firedMs);
     const fired: BoardOperation = { kind: 'command', atMs: view.atMs + firedMs, command: cue.command, overMs };
-    return [fired, ...paces.slice(1).map((pace): BoardOperation => ({ kind: 'repace', atMs: view.atMs + pace.afterMs, command: cue.command, landsAtMs: view.atMs + pace.landsAtMs }))];
+    return [fired, ...aims.slice(1).map((aim): BoardOperation => ({ kind: 'reaim', atMs: view.atMs + aim.afterMs, command: cue.command, landsAtMs: view.atMs + aim.landsAtMs }))];
   });
 }
 

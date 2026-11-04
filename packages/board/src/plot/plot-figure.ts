@@ -1,8 +1,8 @@
 import type { MarkValue, Plot, ShadeArea } from '@astra/contracts';
 import { FIGURE_LIMITS, type FigureFrame, getAttachedElements, getDrawnShare, getShownValue, keepNewestOnFigure } from '../figure/figure-input.ts';
-import { addArrow, addAxes, addLabel, addPartMark, addSoftLine, createFigureDraft, type FigureDraft, finishFigure, getFixedVectorTip } from '../figure/figure-draft.ts';
+import { addArrow, addAxes, addLabel, addPartMark, addSoftLine, createFigureDraft, type FigureDraft, finishFigure, getFixedVectorTip, getWidestYTick } from '../figure/figure-draft.ts';
 import { type Branch, type FigureMark, interpolate, type Point } from '../figure/figure-marks.ts';
-import { createFreeView, type FigureView, getPixelBranches } from '../figure/figure-view.ts';
+import { createStretchedView, type FigureView, getPixelBranches } from '../figure/figure-view.ts';
 import type { BoardElement } from '../player/board-state.ts';
 import { getReshapedValues } from '../player/board-state.ts';
 import { PLANNED_SCENES } from '../player/planned-scenes.ts';
@@ -13,6 +13,8 @@ import { getBranchesUpTo } from './sample-curve.ts';
 const PLOT_MARGIN = { left: 42, right: 14, top: 14, bottom: 26 };
 const AXES_SHARE_OF_ENTRANCE = 1 / 3;
 const MARK_DOT_RADIUS = 4;
+const WIDEST_LEFT_MARGIN_SHARE = 0.3;
+const TICK_ROOM = 8;
 
 type PlotElement = BoardElement & { content: Plot };
 
@@ -106,13 +108,13 @@ function addAttachment(draft: FigureDraft, element: BoardElement, { root, frame,
   if ((content.kind === 'annotate' || content.kind === 'highlight') && content.target.includes('.')) addPartMark(draft, { key: `note-${element.id}`, at: getMiddleOfCurve(root, { frame, view }), mark: content.kind === 'annotate' ? content.mark : 'circle', share: getDrawnShare(element, frame), label: content.kind === 'annotate' ? content.label : undefined });
 }
 
-/** Axes, then curves with what hangs on them. Every number here is computed from the expression. */
 export function getPlotMarks(frame: FigureFrame): FigureMark[] {
   const root = frame.element as PlotElement;
   const { domain, xLabel, yLabel, yRange: askedRange } = root.content;
   const yRange = getPlotFrame(root, frame)?.yRange ?? askedRange ?? [-1, 1];
-  const rect = { left: PLOT_MARGIN.left, top: PLOT_MARGIN.top, right: frame.width - PLOT_MARGIN.right, bottom: frame.height - PLOT_MARGIN.bottom };
-  const view = createFreeView({ xRange: domain, yRange, rect });
+  const left = Math.min(frame.width * WIDEST_LEFT_MARGIN_SHARE, Math.max(PLOT_MARGIN.left, getWidestYTick(yRange, frame.height - PLOT_MARGIN.top - PLOT_MARGIN.bottom) + TICK_ROOM));
+  const rect = { left, top: PLOT_MARGIN.top, right: frame.width - PLOT_MARGIN.right, bottom: frame.height - PLOT_MARGIN.bottom };
+  const view = createStretchedView({ xRange: domain, yRange, rect });
   const draft = createFigureDraft(frame.width, frame.height);
   addAxes(draft, view, { share: getAxesShare(root, frame), xLabel, yLabel });
   addCurve(draft, root, { frame, view, isFirst: true });
@@ -120,5 +122,5 @@ export function getPlotMarks(frame: FigureFrame): FigureMark[] {
   const curves = attached.filter(({ content }) => content.kind === 'plot');
   const curvesLeftOut = new Set(curves.slice(0, -FIGURE_LIMITS.curves));
   for (const element of attached) if (!curvesLeftOut.has(element)) addAttachment(draft, element, { root, frame, view });
-  return finishFigure(draft);
+  return finishFigure(draft, frame.onLabelWithoutRoom);
 }

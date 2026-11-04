@@ -18,7 +18,7 @@ const BALL_ROOM = 9;
 const WORLD_SIDE_ROOM = 0.06;
 const FOCUS_DOT = { radius: 3.5, above: 15 };
 const MOST_SLIDERS_FITTED = 4;
-/** A tracked arrow reaches where the ball would be in this time, so its length is a true measure of its speed. */
+const SLIDER_LEVELS_BY_COUNT = [1, 9, 5, 3, 3];
 const ARROW_SECONDS = 0.25;
 const RIM_HEIGHT = 3.05;
 const HOOP = { rimRadius: 0.225, boardGap: 0.15, boardBelowRim: 0.15, boardAboveRim: 0.9, armLength: 0.6, armHeight: 3.7, shareOfRangeWhenShort: 0.75 };
@@ -31,7 +31,6 @@ interface WorldBounds {
 }
 
 type SimulationElement = BoardElement & { content: Simulate };
-type ProjectileScene = Scene<ProjectileFrame>;
 type ParameterSlider = Slider & { parameter: string };
 
 interface ReadoutRow {
@@ -63,9 +62,22 @@ const joinBounds = (first: WorldBounds, second: WorldBounds): WorldBounds => ({ 
 
 const blendBounds = (from: WorldBounds, to: WorldBounds, share: number): WorldBounds => ({ left: interpolate(from.left, to.left, share), right: interpolate(from.right, to.right, share), bottom: interpolate(from.bottom, to.bottom, share), top: interpolate(from.top, to.top, share) });
 
-// Every corner of what the sliders can reach, so the axes hold still while a student drags and the change can be seen.
-function getSliderCorners(sliders: readonly ParameterSlider[], base: SceneParameters): SceneParameters[] {
-  return sliders.slice(-MOST_SLIDERS_FITTED).reduce<SceneParameters[]>((corners, { parameter, min, max }) => corners.flatMap((corner) => [{ ...corner, [parameter]: min }, { ...corner, [parameter]: max }]), [base]);
+// Evenly through each range, because a launch angle lands farthest in the middle. Then the axes hold still through a whole drag.
+function getSliderValues(sliders: readonly ParameterSlider[], base: SceneParameters): SceneParameters[] {
+  const kept = sliders.slice(-MOST_SLIDERS_FITTED);
+  const levels = SLIDER_LEVELS_BY_COUNT[kept.length] ?? 1;
+  return kept.reduce<SceneParameters[]>((sets, { parameter, min, max }) => sets.flatMap((set) => Array.from({ length: levels }, (_, level) => ({ ...set, [parameter]: min + ((max - min) * level) / (levels - 1) }))), [base]);
+}
+
+const sliderReachByCommand = new WeakMap<Simulate, Map<string, WorldBounds>>();
+
+function getSliderReach(command: Simulate, { sliders, base }: { sliders: readonly ParameterSlider[]; base: SceneParameters }): WorldBounds {
+  const known = sliderReachByCommand.get(command) ?? new Map<string, WorldBounds>();
+  sliderReachByCommand.set(command, known);
+  const key = JSON.stringify([sliders.map(({ parameter, min, max }) => [parameter, min, max]), base]);
+  const reach = known.get(key) ?? getSliderValues(sliders, base).map((values) => getArcBounds(PLANNED_SCENES(command, values) as Scene)).reduce(joinBounds);
+  known.set(key, reach);
+  return reach;
 }
 
 function getReach(scene: Scene, quantity: string): WorldBounds {
@@ -82,9 +94,12 @@ function getHoopCenter(baseScene: Scene): number {
   return atRimHeight?.x ?? getArcBounds(baseScene).right * HOOP.shareOfRangeWhenShort;
 }
 
+const getBoardX = (rimX: number) => rimX + HOOP.rimRadius + HOOP.boardGap;
+const getPoleX = (rimX: number) => getBoardX(rimX) + HOOP.armLength;
+
 function getHoopBranches(rimX: number): Branch[] {
-  const boardX = rimX + HOOP.rimRadius + HOOP.boardGap;
-  const poleX = boardX + HOOP.armLength;
+  const boardX = getBoardX(rimX);
+  const poleX = getPoleX(rimX);
   return [
     [{ x: rimX - HOOP.rimRadius, y: RIM_HEIGHT }, { x: boardX, y: RIM_HEIGHT }],
     [{ x: boardX, y: RIM_HEIGHT - HOOP.boardBelowRim }, { x: boardX, y: RIM_HEIGHT + HOOP.boardAboveRim }],
@@ -92,18 +107,24 @@ function getHoopBranches(rimX: number): Branch[] {
   ];
 }
 
+function getChangesNoSliderHolds(changes: SceneParameters, sliders: readonly ParameterSlider[]): SceneParameters {
+  return Object.fromEntries(Object.entries(changes).filter(([name]) => !sliders.some(({ parameter }) => parameter === name)));
+}
+
+function getStartingBounds(root: SimulationElement, { attached, baseScene, others }: { attached: readonly BoardElement[]; baseScene: Scene; others: SceneParameters }): WorldBounds {
+  const held = Object.keys(others).length === 0 ? [] : [root.placedScene?.scene as Scene];
+  const arcs = [baseScene, ...held, ...attached.flatMap((element) => element.ghostScene ?? [])].map(getArcBounds).reduce(joinBounds);
+  return root.content.over ? joinBounds(arcs, { left: 0, right: getPoleX(getHoopCenter(baseScene)), bottom: 0, top: RIM_HEIGHT + HOOP.boardAboveRim }) : arcs;
+}
+
 function getWorldBounds(root: SimulationElement, attached: readonly BoardElement[], frame: FigureFrame, baseScene: Scene): WorldBounds {
-  const scene = root.placedScene?.scene as ProjectileScene;
-  const startBounds = [baseScene, scene, ...attached.flatMap((element) => element.capturedScene ?? [])].map(getArcBounds).reduce(joinBounds);
-  const withHoop = root.content.over ? joinBounds(startBounds, { left: 0, right: getHoopBranches(getHoopCenter(baseScene))[2]?.[1]?.x ?? 0, bottom: 0, top: RIM_HEIGHT + HOOP.boardAboveRim }) : startBounds;
-  const sliders: (BoardElement & { content: ParameterSlider })[] = attached.filter((element): element is BoardElement & { content: ParameterSlider } => element.content.kind === 'slider' && 'parameter' in element.content);
-  const changes = root.placedScene?.parameterChanges ?? {};
-  const fitSliders = (bounds: WorldBounds, slider: BoardElement, index: number) => {
-    const reached = getSliderCorners(sliders.slice(0, index + 1).map(({ content }) => content), changes).map((corner) => getArcBounds(PLANNED_SCENES(root.content, corner) as Scene)).reduce(joinBounds, bounds);
-    return blendBounds(bounds, reached, easeInOut(getDrawnShare(slider, frame)));
-  };
-  const withSliders = sliders.reduce(fitSliders, withHoop);
+  const sliders = attached.filter((element): element is BoardElement & { content: ParameterSlider } => element.content.kind === 'slider' && 'parameter' in element.content);
+  const sliderCommands = sliders.map(({ content }) => content);
+  const others = getChangesNoSliderHolds(root.placedScene?.parameterChanges ?? {}, sliderCommands);
+  const start = getStartingBounds(root, { attached, baseScene, others });
+  const withSliders = sliders.reduce((bounds, slider, index) => blendBounds(bounds, joinBounds(bounds, getSliderReach(root.content, { sliders: sliderCommands.slice(0, index + 1), base: others })), easeInOut(getDrawnShare(slider, frame))), start);
   const tracked = attached.filter((element): element is BoardElement & { content: TrackVector } => element.content.kind === 'trackVector');
+  const scene = root.placedScene?.scene as Scene;
   return tracked.reduce((bounds, element) => blendBounds(bounds, joinBounds(bounds, getReach(scene, element.content.quantity)), easeInOut(getDrawnShare(element, frame))), withSliders);
 }
 
@@ -135,9 +156,9 @@ function getQuantityArrow(frame: ProjectileFrame, quantity: string): Point {
 function addOnBall(draft: FigureDraft, element: BoardElement, { ballAt, world, view, frame, scene }: { ballAt: Point; world: ProjectileFrame; view: FigureView; frame: FigureFrame; scene: Scene }): void {
   const { content } = element;
   const share = getDrawnShare(element, frame);
-  if (content.kind === 'ghostPath' && element.capturedScene) draft.marks.unshift({ kind: 'path', key: `ghost-${element.id}`, tone: 'ink-2', weight: 'thin', branches: share >= 1 ? getPixelBranches(getScenePath(element.capturedScene), view) : [] });
+  if (content.kind === 'ghostPath' && element.ghostScene) draft.marks.unshift({ kind: 'path', key: `ghost-${element.id}`, tone: 'ink-2', weight: 'thin', branches: share >= 1 ? getPixelBranches(getScenePath(element.ghostScene), view) : [] });
   if (content.kind === 'vector') addArrow(draft, { key: `vector-${element.id}`, from: ballAt, to: getFixedVectorTip(ballAt, content, frame), share, tone: 'ink', label: content.label });
-  if ((content.kind === 'annotate' || content.kind === 'highlight') && content.target.includes('.')) addPartMark(draft, { key: `note-${element.id}`, at: view.toPixel(getFrameAt(scene, element.capturedSeconds ?? 0).ball), mark: content.kind === 'annotate' ? content.mark : 'circle', share, label: content.kind === 'annotate' ? content.label : undefined });
+  if ((content.kind === 'annotate' || content.kind === 'highlight') && content.target.includes('.')) addPartMark(draft, { key: `note-${element.id}`, at: view.toPixel(getFrameAt(scene, element.targetSecondsWhenPlaced ?? 0).ball), mark: content.kind === 'annotate' ? content.mark : 'circle', share, label: content.kind === 'annotate' ? content.label : undefined });
   if (content.kind === 'trackVector') {
     const arrow = getQuantityArrow(world, content.quantity);
     const to = view.toPixel({ x: world.ball.x + arrow.x * ARROW_SECONDS, y: world.ball.y + arrow.y * ARROW_SECONDS });
@@ -175,11 +196,10 @@ function getReadoutLines(attached: readonly BoardElement[], { frame, scene, worl
     const value = formatNumber(getReadoutValue(content.quantity, { scene, world, seconds }), 3);
     return [{ key: `readout-${element.id}`, lines: wrapLabel(`${content.label ?? label} ${value} ${unit}`.trim(), maxWidth) }];
   });
-  return keepReadoutsThatFit(rows, frame.height * FIGURE_LIMITS.readoutShareOfHeight);
+  return keepNewestReadoutsThatFit(rows, frame.height * FIGURE_LIMITS.readoutShareOfHeight);
 }
 
-// The newest stay, so numbers can never push the motion off its own figure.
-function keepReadoutsThatFit(rows: readonly ReadoutRow[], maxHeight: number): ReadoutRow[] {
+function keepNewestReadoutsThatFit(rows: readonly ReadoutRow[], maxHeight: number): ReadoutRow[] {
   const kept: ReadoutRow[] = [];
   let height = 0;
   for (const row of [...rows].reverse()) {
@@ -196,7 +216,7 @@ function addReadouts(draft: FigureDraft, rows: readonly ReadoutRow[]): void {
     draft.marks.push({ kind: 'text', key, at: { x: MARGIN.left, y: top + LABEL_FONT.ascent }, lines, anchor: 'start', tone: 'ink' });
     top += lines.length * LABEL_FONT.lineHeight;
   }
-  if (rows.length > 0) draft.solid.push({ left: MARGIN.left, top: MARGIN.top, right: draft.bounds.right - MARGIN.right, bottom: top });
+  if (rows.length > 0) draft.mustAvoid.push({ left: MARGIN.left, top: MARGIN.top, right: draft.bounds.right - MARGIN.right, bottom: top });
 }
 
 function addLandingNote(draft: FigureDraft, { scene, view, seconds, hasSlider, metres }: { scene: Scene; view: FigureView; seconds: number; hasSlider: boolean; metres: string }): void {
@@ -205,7 +225,6 @@ function addLandingNote(draft: FigureDraft, { scene, view, seconds, hasSlider, m
   addLabel(draft, { key: 'landing-label', text: `${formatNumber(landing.x, 3)} ${metres}`, anchor: view.toPixel(landing), gap: 8, sides: ['above-right', 'above', 'above-left', 'right', 'left'], tone: 'ink-2' });
 }
 
-/** A world drawn to one scale from the clock alone: the path, the ball, and whatever arrows and numbers follow it. */
 export function getSimulationMarks(frame: FigureFrame): FigureMark[] {
   const root = frame.element as SimulationElement;
   const placed = root.placedScene;
@@ -227,7 +246,7 @@ export function getSimulationMarks(frame: FigureFrame): FigureMark[] {
   for (const element of attached) addOnBall(draft, element, { ballAt, world, view, frame, scene });
   addLandingNote(draft, { scene, view, seconds, hasSlider: attached.some((element) => element.content.kind === 'slider'), metres: frame.words.metres });
   draft.marks.push({ kind: 'dot', key: 'ball', at: ballAt, radius: BALL_RADIUS * share, tone: 'ink' });
-  draft.solid.push({ left: ballAt.x - BALL_ROOM, top: ballAt.y - BALL_ROOM, right: ballAt.x + BALL_ROOM, bottom: ballAt.y + BALL_ROOM });
+  draft.mustAvoid.push({ left: ballAt.x - BALL_ROOM, top: ballAt.y - BALL_ROOM, right: ballAt.x + BALL_ROOM, bottom: ballAt.y + BALL_ROOM });
   if (frame.board.focus === `${root.id}.ball`) draft.marks.push({ kind: 'dot', key: 'focus-dot', at: { x: ballAt.x, y: ballAt.y - FOCUS_DOT.above }, radius: FOCUS_DOT.radius, tone: 'ink-2' });
-  return finishFigure(draft);
+  return finishFigure(draft, frame.onLabelWithoutRoom);
 }

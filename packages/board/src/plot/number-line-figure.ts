@@ -17,7 +17,6 @@ function addValueMark(draft: FigureDraft, mark: BoardElement & { content: MarkVa
   addLabel(draft, { key: `label-${mark.id}`, text: mark.content.label ? `${mark.content.label} ${value}` : value, anchor: at, gap: LINE.labelGap, sides: ['above', 'above-right', 'above-left', 'right', 'left'] });
 }
 
-/** A scale with one line, and each marked value at its true place. */
 export function getNumberLineMarks(frame: FigureFrame): FigureMark[] {
   const { element, width, height } = frame;
   const { domain } = element.content as NumberLine;
@@ -35,5 +34,5 @@ export function getNumberLineMarks(frame: FigureFrame): FigureMark[] {
   for (const mark of keepNewestOnFigure(getAttachedElements(frame.board, element.id))) {
     if (mark.content.kind === 'markValue' && mark.content.at >= domain[0] && mark.content.at <= domain[1]) addValueMark(draft, mark as BoardElement & { content: MarkValue }, { at: toPoint(mark.content.at), frame });
   }
-  return finishFigure(draft);
+  return finishFigure(draft, frame.onLabelWithoutRoom);
 }

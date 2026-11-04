@@ -1,4 +1,4 @@
-import type { AgentMessage, BeatEnding, BeatId, BrowserMessage, Cue, CuePace, FrozenFrame, TimedWord, TurnId } from '@astra/contracts';
+import type { AgentMessage, BeatEnding, BeatId, BrowserMessage, Cue, CueAim, FrozenFrame, TimedWord, TurnId } from '@astra/contracts';
 import type { AudioClock, ClockReading, TurnClock } from './audio-clock.ts';
 import { type BoardOperation, getBeatOperations, getCueAim, type PlayedBeatView, sortOperations } from './board-operations.ts';
 import { type BoardState, getBoardAt, getFrozenFrames } from './board-state.ts';
@@ -28,13 +28,12 @@ export interface ScenePlayer {
   receive(message: AgentMessage): void;
   tick(): void;
   getBoard(atMs: number): BoardState;
-  /** The board for this frame. It fires what is due first, because the audio clock moves in steps and a cue due at this very reading would otherwise show one frame after a replay shows it. */
-  getBoardNow(): { board: BoardState; atMs: number };
+  /** It fires what is due first, because the audio clock moves in steps and a cue due at this very reading would otherwise show one frame after a replay shows it. */
+  advanceToNow(): { board: BoardState; atMs: number };
   getNowMs(): number;
   getOperations(): BoardOperation[];
   /** The words heard so far this turn, on the same clock as the board. */
   getCaption(): string;
-  /** The student moved a slider. The board answers on the next frame, and the log gets the same sample. */
   moveSlider(move: SliderMove): void;
   /** Sends what a drag has not reported yet, when the student lets go. */
   finishSliderDrag(): void;
@@ -46,7 +45,7 @@ interface PlayingBeat {
   firedCueMs: number[];
   /** Word starts are on the turn's timeline. Holes wait for a late message. */
   words: TimedWord[];
-  cuePaces: CuePace[];
+  cueAims: CueAim[];
   wordCount: number | null;
   expectsReply: boolean;
   playedWords: number;
@@ -70,7 +69,6 @@ interface PlayingTurn {
 
 /** A word this far past its time with no sound was heard or lost, so it stops waiting. */
 const SILENT_WORD_LIMIT_MS = 1000;
-/** A smaller change of aim would not show, and would only lengthen the report. */
 const SMALLEST_REAIM_MS = 10;
 const MOST_CUE_PACES = 120;
 
@@ -80,7 +78,7 @@ const getMsSince = (startedAtMs: number, nowMs: number) => Math.max(0, Math.ceil
 const isStarted = (beat: PlayingBeat): beat is StartedBeat => beat.startedAtMs !== null;
 
 function createBeat(id: BeatId): PlayingBeat {
-  return { id, cues: [], firedCueMs: [], words: [], cuePaces: [], wordCount: null, expectsReply: false, playedWords: 0, startedAtMs: null, isQuestionHeard: false, ending: null, durationMs: 0, frozen: [] };
+  return { id, cues: [], firedCueMs: [], words: [], cueAims: [], wordCount: null, expectsReply: false, playedWords: 0, startedAtMs: null, isQuestionHeard: false, ending: null, durationMs: 0, frozen: [] };
 }
 
 // Plays what the agent sends against the audio the student hears, and reports what really happened, which becomes the log.
@@ -112,7 +110,7 @@ export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueF
     cues: beat.cues,
     wordStartsMs: getBeatRelativeWordStarts(beat),
     firedCueMs: beat.firedCueMs,
-    cuePaces: beat.cuePaces,
+    cueAims: beat.cueAims,
     ending: beat.ending,
     durationMs: beat.durationMs,
     frozen: beat.frozen,
@@ -137,7 +135,7 @@ export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueF
       durationMs: beat.durationMs,
       playedWords: beat.playedWords,
       firedCueMs: beat.firedCueMs,
-      ...(beat.cuePaces.length > 0 ? { cuePaces: beat.cuePaces } : {}),
+      ...(beat.cueAims.length > 0 ? { cueAims: beat.cueAims } : {}),
       ending,
       frozen: beat.frozen,
     });
@@ -164,22 +162,22 @@ export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueF
       if (wordStartMs === undefined || cue.atWord >= beat.playedWords || beat.startedAtMs === null) return;
       const firedMs = getMsSince(beat.startedAtMs, nowMs);
       const aim = getCueAim(cue, getBeatRelativeWordStarts(beat));
-      if (aim && !aim.isKnown) beat.cuePaces.push({ cue: beat.firedCueMs.length, afterMs: firedMs, landsAtMs: aim.landsAtMs });
+      if (aim && !aim.isKnown) beat.cueAims.push({ cue: beat.firedCueMs.length, afterMs: firedMs, landsAtMs: aim.landsAtMs });
       beat.firedCueMs.push(firedMs);
       onCueFired?.({ turnId: playing.id, beatId: beat.id, atWord: cue.atWord, firedAtMs: nowMs, positionMs: reading.positionMs, wordStartMs });
     }
   };
 
-  // New word times can move where a running cue should land. Each change goes in the report, so a replay moves as the student saw.
+  // Each change goes in the report, so a replay moves as the student saw.
   const reaimCues = (beat: PlayingBeat) => {
     if (beat.startedAtMs === null || beat.ending !== null) return;
     const wordStarts = getBeatRelativeWordStarts(beat);
     const afterMs = getMsSince(beat.startedAtMs, clock.getNowMs());
-    const aimedCues = new Set(beat.cuePaces.map((pace) => pace.cue));
+    const aimedCues = new Set(beat.cueAims.map((aim) => aim.cue));
     for (const cue of aimedCues) {
-      const lastAim = beat.cuePaces.filter((pace) => pace.cue === cue).at(-1) as CuePace;
+      const lastAim = beat.cueAims.filter((aim) => aim.cue === cue).at(-1) as CueAim;
       const aim = getCueAim(beat.cues[cue] as Cue, wordStarts);
-      if (aim && Math.abs(aim.landsAtMs - lastAim.landsAtMs) >= SMALLEST_REAIM_MS && beat.cuePaces.length < MOST_CUE_PACES) beat.cuePaces.push({ cue, afterMs, landsAtMs: aim.landsAtMs });
+      if (aim && Math.abs(aim.landsAtMs - lastAim.landsAtMs) >= SMALLEST_REAIM_MS && beat.cueAims.length < MOST_CUE_PACES) beat.cueAims.push({ cue, afterMs, landsAtMs: aim.landsAtMs });
     }
   };
 
@@ -298,7 +296,7 @@ export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueF
     getOperations,
     getCaption: () => (turn ? turn.beats.flatMap((beat) => beat.words.slice(0, beat.playedWords).map((word) => word.text)).join(' ') : ''),
     getBoard: (atMs) => getBoardAt(getOperations(), atMs, catalog),
-    getBoardNow() {
+    advanceToNow() {
       tick();
       const atMs = clock.getNowMs();
       return { board: getBoardAt(getOperations(), atMs, catalog), atMs };

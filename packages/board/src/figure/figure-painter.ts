@@ -52,7 +52,7 @@ function paintMark(painted: PaintedMark, mark: FigureMark): void {
     setAttribute(node, 'cx', String(toFixed(mark.at.x)));
     setAttribute(node, 'cy', String(toFixed(mark.at.y)));
     setAttribute(node, 'r', String(toFixed(mark.radius)));
-    setAttribute(node, 'fill', mark.isHollow ? 'none' : TONES[mark.tone]);
+    setAttribute(node, 'fill', TONES[mark.tone]);
     return;
   }
   const branches = mark.kind === 'path' ? mark.branches : mark.polygons;
@@ -66,7 +66,7 @@ function paintMark(painted: PaintedMark, mark: FigureMark): void {
   setAttribute(node, 'class', mark.isDashed ? `${WEIGHT_CLASSES[mark.weight]} figure-dashed` : WEIGHT_CLASSES[mark.weight]);
 }
 
-/** Turns marks into SVG by their keys. A mark that did not change writes nothing, so a frozen board stays untouched. Text is only ever text. */
+/** A mark that did not change writes nothing, so a frozen board stays untouched. */
 export function createFigurePainter(svg: SVGElement) {
   const painted = new Map<string, PaintedMark>();
   let lastOrder = '';

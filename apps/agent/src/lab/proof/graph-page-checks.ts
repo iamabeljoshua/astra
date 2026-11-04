@@ -77,7 +77,6 @@ function noteMotion(board: Element, watch: FigureWatch): void {
   }
 }
 
-/** Every frame: text clear of text and inside its figure, no broken numbers, and what the student saw, for comparing with the replay later. */
 export function startFigureWatch(): void {
   const page = window as unknown as LabWindow;
   const board = document.querySelector('[data-testid="board"]') as HTMLElement;
@@ -108,19 +107,27 @@ export function startFigureWatch(): void {
   };
 }
 
+const NUMBER_ROOM = 0.0015;
+
+// `describeBoard` rounds to 3 decimals, and adding the shift to a time moves it by a floating point hair, so two equal values can round either side of a step.
+function isSameBoard(first: unknown, second: unknown): boolean {
+  if (typeof first === 'number' && typeof second === 'number') return Math.abs(first - second) <= NUMBER_ROOM;
+  if (typeof first !== 'object' || typeof second !== 'object' || first === null || second === null) return first === second;
+  const keys = new Set([...Object.keys(first), ...Object.keys(second)]);
+  return [...keys].every((key) => isSameBoard((first as Record<string, unknown>)[key], (second as Record<string, unknown>)[key]));
+}
+
 function getPercentile(values: readonly number[], share: number): number {
   const sorted = [...values].sort((first, second) => first - second);
   return sorted[Math.min(sorted.length - 1, Math.floor(share * sorted.length))] ?? 0;
 }
 
-// A jump in a run shows as one step far above the rest, and a jump back as a step below zero.
 function getBallMotion(samples: readonly { board: string }[]): { worstStepBack: number; worstStepForward: number } {
   const seconds = samples.flatMap(({ board }) => (JSON.parse(board) as { elements: { id: string; sceneSeconds?: number; kind: string }[] }).elements.find((element) => element.kind === 'simulate')?.sceneSeconds ?? []);
   const steps = seconds.slice(1).map((value, index) => value - (seconds[index] as number));
   return { worstStepBack: Math.min(0, ...steps), worstStepForward: Math.max(0, ...steps) };
 }
 
-/** Stops the watch and compares every board the student saw with what the log gives at that moment. */
 export function stopFigureWatch() {
   const page = window as unknown as LabWindow;
   page.__stopFigureWatch?.();
@@ -129,7 +136,7 @@ export function stopFigureWatch() {
   const liveStart = operations.find((operation) => operation.kind === 'beatStarted')?.atMs ?? 0;
   const logStart = getLab().records.log[0]?.atMs ?? 0;
   const shiftMs = logStart - liveStart;
-  const differing = watch.samples.filter(({ atMs, board }) => JSON.stringify(getLab().describeReplay(atMs + shiftMs)) !== board);
+  const differing = watch.samples.filter(({ atMs, board }) => !isSameBoard(getLab().describeReplay(atMs + shiftMs), JSON.parse(board)));
   const differingExamples = differing.slice(0, 2).map(({ atMs, board }) => ({ atMs, live: board.slice(0, 600), replay: JSON.stringify(getLab().describeReplay(atMs + shiftMs)).slice(0, 600) }));
   const motion = getBallMotion(watch.samples);
   const { frameGapsMs, textChecks, textOverlapFrames, textOutsideFrames, notFiniteFrames, frames, ballPlaces, curveDrawings, examples } = watch;
@@ -140,7 +147,7 @@ function getPathNumbers(data: string | null): number[] {
   return (data ?? '').match(/-?\d+(\.\d+)?/g)?.map(Number) ?? [];
 }
 
-/** Reads the world off the page: zero from the axes, and the scale from two tick numbers, so it checks what was drawn and not what was asked. */
+/** Reads the world off the page, so it checks what was drawn and not what was asked. */
 export function getBallMetres(): { x: number; y: number; metresPerPixel: number } | null {
   const ball = document.querySelector('[data-mark="ball"]');
   const axes = getPathNumbers(document.querySelector('svg.board-figure [data-mark="axes"]')?.getAttribute('d') ?? null);
@@ -152,7 +159,6 @@ export function getBallMetres(): { x: number; y: number; metresPerPixel: number 
   return { x: (Number(ball.getAttribute('cx')) - zeroX) * metresPerPixel, y: (groundY - Number(ball.getAttribute('cy'))) * metresPerPixel, metresPerPixel };
 }
 
-/** Times from each student move to the first write it causes on the figure, which is what "straight away" means. */
 export function startSliderLatencyWatch(): void {
   const page = window as unknown as LabWindow;
   const latencies: number[] = [];
@@ -175,13 +181,13 @@ export function getSliderLatency(): { moves: number; p50: number; p95: number; w
 }
 
 /** For each cue over words, its last aim against when its last word really started, read from the log. */
-export function getLandingErrors(): { cues: number; paces: number; errorsMs: number[] } {
-  const log = getLab().records.log as unknown as { kind: string; beat: { script: (string | { overWords?: number })[] }; wordStartsMs: number[]; firedCueMs: number[]; cuePaces?: { cue: number; landsAtMs: number }[] }[];
+export function getLandingErrors(): { cues: number; aims: number; errorsMs: number[] } {
+  const log = getLab().records.log as unknown as { kind: string; beat: { script: (string | { overWords?: number })[] }; wordStartsMs: number[]; firedCueMs: number[]; cueAims?: { cue: number; landsAtMs: number }[] }[];
   const errorsMs: number[] = [];
-  let paces = 0;
+  let aims = 0;
   for (const event of log) {
     if (event.kind !== 'beatPlayed') continue;
-    paces += event.cuePaces?.length ?? 0;
+    aims += event.cueAims?.length ?? 0;
     let wordsBefore = 0;
     let cue = 0;
     for (const part of event.beat.script) {
@@ -190,10 +196,10 @@ export function getLandingErrors(): { cues: number; paces: number; errorsMs: num
         continue;
       }
       const lastWordMs = part.overWords === undefined ? undefined : event.wordStartsMs[wordsBefore + part.overWords];
-      const aim = event.cuePaces?.filter((pace) => pace.cue === cue).at(-1)?.landsAtMs ?? lastWordMs;
+      const aim = event.cueAims?.filter((aim) => aim.cue === cue).at(-1)?.landsAtMs ?? lastWordMs;
       if (cue < event.firedCueMs.length && lastWordMs !== undefined && aim !== undefined) errorsMs.push(aim - lastWordMs);
       cue += 1;
     }
   }
-  return { cues: errorsMs.length, paces, errorsMs };
+  return { cues: errorsMs.length, aims, errorsMs };
 }

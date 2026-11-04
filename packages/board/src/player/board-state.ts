@@ -9,7 +9,6 @@ const ENTRANCE_MS = 400;
 const REARRANGE_MS = 800;
 const RESHAPE_MS = 600;
 const CURVE_DRAWING_MS = 900;
-/** How long a running move gets to finish when another lands on it. */
 const HANDOVER_MS = 120;
 const WRITING_MS_PER_CHARACTER = 35;
 const LONGEST_WRITING_MS = 1600;
@@ -41,10 +40,8 @@ export interface BoardElement {
   math: MathLine | null;
   /** The equation it is rearranging from, while `entrance` runs. */
   morphFrom: MathLine | null;
-  /** What a ghost path keeps, from the moment it was placed. */
-  capturedScene: Scene | null;
-  /** Where on its timeline the target was when this mark landed, so a mark on a moving ball stays at that spot on the path. */
-  capturedSeconds: number | null;
+  ghostScene: Scene | null;
+  targetSecondsWhenPlaced: number | null;
 }
 
 export interface BoardState {
@@ -61,7 +58,6 @@ interface BoardDraft {
   elements: Map<ElementId, BoardElement>;
   focus: ElementRef | null;
   isFrozen: boolean;
-  /** A rearrangement waiting for the one it landed on to finish. */
   pendingMoves: Map<ElementId, PendingMove>;
 }
 
@@ -102,6 +98,9 @@ function getScenePoint(point: SimulationPoint | undefined, scene: Scene): number
   return point === undefined ? scene.durationSeconds : (scene.moments[point] ?? scene.durationSeconds);
 }
 
+// Time does not run backward, so a play to a moment already passed starts over.
+const getPlayStart = (now: number, to: number) => (to < now ? 0 : now);
+
 function runScene(element: BoardElement, command: SceneCommand & { kind: 'runSimulation' }, { atMs, overMs }: { atMs: number; overMs: number | null }): void {
   const placed = element.placedScene;
   if (!placed) return;
@@ -110,8 +109,7 @@ function runScene(element: BoardElement, command: SceneCommand & { kind: 'runSim
   switch (command.action) {
     case 'play': {
       const to = getScenePoint(command.until, scene);
-      // Time does not run backward, so a play to a moment already passed starts over.
-      const from = to < now ? 0 : now;
+      const from = getPlayStart(now, to);
       placed.playhead = moveOver({ from, to, atMs, overMs: overMs ?? ((to - from) * MS_PER_SECOND) / (command.rate ?? 1) });
       return;
     }
@@ -135,7 +133,6 @@ function setSceneParameter(element: BoardElement, { parameter, value, atMs, keep
   element.placedScene = { scene, parameterChanges, playhead, reshapingFrom: null };
 }
 
-/** The values a curve shows right now, partway from one set to the next while it reshapes. */
 export function getReshapedValues(element: BoardElement, atMs: number): SceneParameters {
   const placed = element.placedScene;
   if (!placed) return {};
@@ -165,11 +162,11 @@ function getRevealStart(content: BoardElement['content']): number {
   return content.kind === 'plot' ? content.domain[0] : 0;
 }
 
-function getCapturedScene(board: BoardDraft, command: PlacingCommand): Scene | null {
+function getGhostScene(board: BoardDraft, command: PlacingCommand): Scene | null {
   return command.kind === 'ghostPath' ? (board.elements.get(command.target)?.placedScene?.scene ?? null) : null;
 }
 
-function getCapturedSeconds(board: BoardDraft, command: PlacingCommand, atMs: number): number | null {
+function getTargetSecondsNow(board: BoardDraft, command: PlacingCommand, atMs: number): number | null {
   if (command.kind !== 'annotate' && command.kind !== 'highlight') return null;
   const playhead = board.elements.get(command.target.split('.')[0] as ElementId)?.placedScene?.playhead;
   return playhead ? getMotionValue(playhead, atMs) : null;
@@ -186,8 +183,8 @@ function place(board: BoardDraft, command: PlacingCommand, { atMs, overMs, catal
     revealedUpTo: 'startsEmpty' in command && command.startsEmpty ? holdMotion(getRevealStart(command), atMs) : null,
     math: command.kind === 'writeMath' ? startMathLine(command.tex) : null,
     morphFrom: null,
-    capturedScene: getCapturedScene(board, command),
-    capturedSeconds: getCapturedSeconds(board, command, atMs),
+    ghostScene: getGhostScene(board, command),
+    targetSecondsWhenPlaced: getTargetSecondsNow(board, command, atMs),
   });
 }
 
@@ -226,12 +223,10 @@ function getAttachedTarget(content: BoardElement['content']): string | null {
   return 'over' in content && content.over !== undefined && content.kind === 'plot' ? content.over : null;
 }
 
-/** Whichever element this one is drawn on, or null if it stands alone. */
 export function getAttachedElementId(element: BoardElement): ElementId | null {
   return getAttachedTarget(element.content) as ElementId | null;
 }
 
-// An arrow on a ball means nothing with no ball, so what hangs on an element goes with it, all the way down.
 function removeWithAttached(board: BoardDraft, id: ElementId): void {
   board.elements.delete(id);
   board.pendingMoves.delete(id);
@@ -282,7 +277,7 @@ function applyCommand(board: BoardDraft, command: SceneCommand, { atMs, overMs, 
   }
 }
 
-function repaceCommand(board: BoardDraft, { atMs, command, landsAtMs }: BoardOperation & { kind: 'repace' }): void {
+function reaimCommand(board: BoardDraft, { atMs, command, landsAtMs }: BoardOperation & { kind: 'reaim' }): void {
   const targetId = 'id' in command ? command.id : 'target' in command ? (command.target as ElementId) : null;
   const element = targetId === null ? undefined : board.elements.get(targetId);
   if (!element) return;
@@ -300,7 +295,7 @@ function addInk(board: BoardDraft, operation: BoardOperation & { kind: 'inkStrok
   const existing = board.elements.get(operation.id);
   if (existing && existing.content.kind !== 'ink') return;
   const points = existing?.content.kind === 'ink' ? [...existing.content.points, ...operation.points] : operation.points;
-  board.elements.set(operation.id, { id: operation.id, content: { kind: 'ink', points }, entrance: holdMotion(1, operation.atMs), placedScene: null, revealedUpTo: null, math: null, morphFrom: null, capturedScene: null, capturedSeconds: null });
+  board.elements.set(operation.id, { id: operation.id, content: { kind: 'ink', points }, entrance: holdMotion(1, operation.atMs), placedScene: null, revealedUpTo: null, math: null, morphFrom: null, ghostScene: null, targetSecondsWhenPlaced: null });
 }
 
 interface ReduceContext {
@@ -318,8 +313,8 @@ function applyOperation(board: BoardDraft, operation: BoardOperation, { operatio
     case 'command':
       applyCommand(board, operation.command, { atMs, overMs: operation.overMs, catalog });
       return;
-    case 'repace':
-      repaceCommand(board, operation);
+    case 'reaim':
+      reaimCommand(board, operation);
       return;
     case 'freeze':
       freeze(board, operation.frames, atMs);
@@ -345,7 +340,6 @@ function applyOperation(board: BoardDraft, operation: BoardOperation, { operatio
   }
 }
 
-// A drag leaves hundreds of samples, and each only matters until the next, so a frame after a long drag costs no more than one before it.
 function isReplacedByNext(operation: BoardOperation, next: BoardOperation | undefined, atMs: number): boolean {
   return operation.kind === 'parameterSample' && next?.kind === 'parameterSample' && next.atMs <= atMs && next.target === operation.target && next.parameter === operation.parameter;
 }

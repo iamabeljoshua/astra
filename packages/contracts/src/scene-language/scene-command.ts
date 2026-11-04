@@ -200,7 +200,7 @@ export type SetParameter = {
   target: ElementId;
   value: number;
 } & (
-  /** Sets the value and restarts the motion from its first frame, the same as a slider sample. A paused simulation stays still until a later `play`. */
+  /** Sets the value and restarts the motion from its first frame. A paused simulation stays still until a later `play`. */
   | { parameter: SimulationParameter }
   /** Reshapes a plot's curve from its current constants to this one, as that many words pass. */
   | { constant: string; overWords?: number }

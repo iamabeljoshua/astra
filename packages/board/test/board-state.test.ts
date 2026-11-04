@@ -85,7 +85,7 @@ describe('running a simulation', () => {
 
   it('keeps a ghost of the path it had when the ghost was placed', () => {
     const operations: BoardOperation[] = [place(SHOT), place({ kind: 'ghostPath', id: 'ghost', target: 'shot' }, 100), { kind: 'parameterSample', atMs: 200, target: 'shot' as never, parameter: 'horizontalSpeed', value: 8 }];
-    expect(element(operations, 'ghost', 300).capturedScene?.values?.horizontalSpeed).toBe(4);
+    expect(element(operations, 'ghost', 300).ghostScene?.values?.horizontalSpeed).toBe(4);
     expect(element(operations, 'shot', 300).placedScene?.scene.values?.horizontalSpeed).toBe(8);
   });
 });

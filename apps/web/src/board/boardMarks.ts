@@ -31,6 +31,7 @@ export interface MarksFrame {
   atMs: number;
   isReducedMotion: boolean;
   area: { width: number; height: number };
+  onLabelWithoutRoom(text: string): void;
 }
 
 const getTargetParts = (target: ElementRef) => target.split('.') as [string, string | undefined];
@@ -79,8 +80,8 @@ function getBoxOnBoard(box: MarkBox, { placement, move }: { placement: MovingPla
 }
 
 function getNoteMarks(requests: readonly LabelRequest[], frame: MarksFrame): FigureMark[] {
-  const solid = [...frame.placements.values()].filter((placement) => placement.isVisible).map(({ x, y, width, height }) => ({ left: x, top: y, right: x + width, bottom: y + height }));
-  return placeLabels(requests, { bounds: { left: 0, top: 0, right: frame.area.width, bottom: frame.area.height }, solid, soft: [] });
+  const mustAvoid = [...frame.placements.values()].filter((placement) => placement.isVisible).map(({ x, y, width, height }) => ({ left: x, top: y, right: x + width, bottom: y + height }));
+  return placeLabels(requests, { bounds: { left: 0, top: 0, right: frame.area.width, bottom: frame.area.height }, mustAvoid, shouldAvoid: [], onNoRoom: frame.onLabelWithoutRoom });
 }
 
 // Marks follow the term they name through a rearrangement, and fade if it goes.
