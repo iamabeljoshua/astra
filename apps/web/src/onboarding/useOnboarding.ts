@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { API_ERROR_LABELS, ONBOARDING_LABELS } from '../strings';
 import { useSaveProfile } from '../auth/useAccount';
-import { type Answers, getInitialAnswers, getSheet, type StudentGoal, toProfileBody } from './answers';
-import { getFirstOpenStepFrom, getNextStep, getPreviousStep, getResumeStep, getSteps, showsChangeLaterNote, type StepId, type Student } from './steps';
+import { type Answers, getInitialAnswers, type StudentGoal, toProfileBody } from './answers';
+import { getFirstOpenStepFrom, getNextStep, getPreviousStep, getResumeStep, getSteps, type StepId, type Student } from './steps';
 
 export function useOnboarding(student: Student | null) {
   const navigate = useNavigate();
@@ -35,10 +35,8 @@ export function useOnboarding(student: Student | null) {
   return {
     answers,
     currentStep,
-    sheet: getSheet(answers),
-    showsChangeLaterNote: showsChangeLaterNote(currentStep),
     progress: ONBOARDING_LABELS.progress(steps.indexOf(currentStep) + 1, steps.length),
-    goBack: previousStep && !saveProfile.isPending ? () => goBackTo(previousStep) : undefined,
+    goBack: previousStep ? () => goBackTo(previousStep) : undefined,
     goNext,
     changeAnswers: (change: Partial<Answers>) => setAnswers((earlier) => ({ ...earlier, ...change })),
     isSaving: saveProfile.isPending,

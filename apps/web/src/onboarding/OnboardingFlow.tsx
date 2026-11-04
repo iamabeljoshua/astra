@@ -1,11 +1,13 @@
 import type { ComponentType } from 'react';
 import { BirthDatePage } from '../auth/BirthDatePage';
-import { OnboardingLayout } from '../auth/OnboardingFrame';
+import { SignOutButton } from '../auth/SignOutButton';
+import { DotStage } from '../ui/dots/DotStage';
 import { InterestsStep } from './InterestsStep';
 import { NameStep } from './NameStep';
 import { GoalStep, LevelStep } from './OptionStep';
 import type { StepId, Student } from './steps';
 import { type StepProps, useOnboarding } from './useOnboarding';
+import { useStepChart } from './useStepChart';
 
 function BirthDateStep({ flow }: StepProps) {
   return <BirthDatePage studentName={flow.answers.name.trim()} progress={flow.progress} onBack={flow.goBack} />;
@@ -21,11 +23,12 @@ const STEP_SCREENS: Record<StepId, ComponentType<StepProps>> = {
 
 export function OnboardingFlow({ student }: { student: Student | null }) {
   const flow = useOnboarding(student);
+  const chart = useStepChart(flow);
   const StepScreen = STEP_SCREENS[flow.currentStep];
 
   return (
-    <OnboardingLayout sheet={flow.sheet} showsChangeLaterNote={flow.showsChangeLaterNote}>
+    <DotStage {...chart} headerAction={<SignOutButton className="text-fine font-medium text-ink-2 hover:text-ink" />}>
       <StepScreen flow={flow} />
-    </OnboardingLayout>
+    </DotStage>
   );
 }

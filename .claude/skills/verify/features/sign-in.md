@@ -4,9 +4,9 @@ A student signs in with a 6-digit code from their email, then goes through [onbo
 
 ## Sub-features
 
-- `sign-in-page` is one calm page: a still dot grid that fades around the question, a shape made of dots beside it, and the tutor's line typing out beside the small pulsing dot. It forms a new shape when the step changes, and nothing moves at rest. Reduced motion shows everything at once. A browser with no canvas gets the same page without the dots.
-- `sign-in-email` asks for `Your email` under `Welcome, I am Astra, your personal AI tutor.` and the tagline, sends a code on `Continue`, and says `Check your email. I sent you a code.`.
-- `sign-in-code` signs in from that code, in any browser. The field is one input drawn as 6 boxes. It takes a paste and checks the code at the sixth digit. A wrong, replaced, or used code says `That code didn't work.`, and one past 10 minutes on this tab's clock says `That code has expired.`. `Send a new code` counts down 60 seconds in sight. A reload comes back to this step for the code's lifetime, from the tab's session storage.
+- `sign-in-page` is one calm page: a still dot grid that fades around the question, a star chart beside it with a planet made of dots at its center, and the tutor's line typing out beside the small pulsing dot. The dots gather once on arrival and then nothing moves until the student acts. On a phone and a narrow tablet the chart is a band across the top. The page is the same without a canvas, and everything shows at once with reduced motion.
+- `sign-in-email` asks for `Your email` under `Welcome, I am Astra, your personal AI tutor.`, with the chart's title `A learning app, made for you`, and draws the first leg of the path. It sends a code on `Continue` and says `Check your email. I sent you a code.`.
+- `sign-in-code` signs in from that code, in any browser. The field is one input drawn as 6 boxes. It takes a paste, finds the code in a whole pasted mail, ignores a letter, and checks the code at the sixth digit. Each digit draws the next leg of the path. `Send a new code` returns focus to the boxes. A wrong, replaced, or used code says `That code didn't work.`, and one past 10 minutes on this tab's clock says `That code has expired.`. `Send a new code` counts down 60 seconds in sight. A reload comes back to this step for the code's lifetime, from the tab's session storage.
 - `sign-in-birth-date` asks `When were you born?`, then shows the typed date with `Is this right?`. Nothing reaches the API before `Yes, continue`, and the first confirmed answer stands.
 - `sign-in-closed` shows `We can't set up this account.` with `Sign out`, on every later sign-in.
 - `sign-in-stop` sets the `astra-sign-up-stop` cookie for a day when a closed account is on screen. While it is set, a new address gets `We can't set up this account.` on the email step, an account with no confirmed date gets the closed page, and a set-up student signs in as usual.
@@ -29,7 +29,7 @@ Preconditions:
 
 - **Sign in by email code and sign out.** Run `pnpm verify drive --journey sign-in`. The `journey`, `identity`, `screenshot`, and `main region` checks print `PASS` for `laptop` and `phone`, and the command exits 0. The journey types `12`, checks forced colors, tabs away and back, and then inserts the whole code at once, so it fails if the digits and the code mix.
 - **Proof.** After a run that printed `PASSED`, open the `sign-in-laptop-*` and `sign-in-phone-*` images in `.verify/evidence/`. They show `email`, `birth-date`, `confirm`, `onboarding`, and `after-back`.
-- **Sign in as another account in a journey.** Call `await signIn('new-student@astra.test')`. It lands on `What should your tutor call you?`. Call `await signInWithCode(address)` to go through the email and the code.
+- **Sign in as another account in a journey.** Call `await signIn('new-student@astra.test')`. It lands on `You're in. What should I call you?`. Call `await signInWithCode(address)` to go through the email and the code.
 
 ## Gotchas
 

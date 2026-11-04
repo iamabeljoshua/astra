@@ -94,6 +94,7 @@ export async function runLabAgent({ url, token, voice, sampleRate, recorder }: L
       onFrameCaptured: (note) => recorder.noteFrame(id, note),
       onWords: (words) => recorder.noteWords(id, words),
       onGap: (gap) => recorder.noteGap(id, gap),
+      onFailure: (failure) => recorder.noteRefused(`turn failed: ${String(failure)}`),
     });
     active = { id, beats, spoken, reports: new Map() };
     void spoken.finished.then(() => {
