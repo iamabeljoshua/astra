@@ -1,5 +1,6 @@
 import { BEAT_LIMITS, type FrozenFrame, getBeatText, getCues, getSpokenWords } from './beat.ts';
 import { readBeatId, readElementId, readFileId, readTurnId } from './ids.ts';
+import { getTexProblem } from './math-tex.ts';
 import { readBeat } from './parse-beat.ts';
 import { readConstantSliderTarget, readConstantValue, readParameterValue, readRevealPoint, readSimulationSeconds } from './parse-command.ts';
 import {
@@ -32,8 +33,11 @@ import {
   SPEECH_SOURCES,
   type StudentAction,
 } from './session-event.ts';
+import { clipTypedText } from './live-message.ts';
+import { LINE_KINDS, type LinePart, type LineReading, type PointSample, type StudentWork, type WorkVerdict } from './work.ts';
 
-const LIMITS = { text: 2000, name: 200, frozen: 32, strokePoints: 300, sliderSamples: 300 } as const;
+const LIMITS = { text: 2000, name: 200, frozen: 32, strokePoints: 300, sliderSamples: 300, tex: 500, lineParts: 64, why: 600, slots: 12 } as const;
+const COORDINATE = { min: -1e6, max: 1e6 } as const;
 const FRACTION = { min: 0, max: 1 } as const;
 const INK_POINT_LENGTH = 3;
 const STAMP_KEYS = ['seq', 'atMs'];
@@ -77,6 +81,63 @@ function readDragTarget(fields: CheckedFields) {
   return { parameter, readValue: (value: Place) => readParameterValue(value, parameter) };
 }
 
+function readLinePart(place: Place): LinePart {
+  const fields = readFields(place, ['type', 'text', 'tex']);
+  const type = readOneOf(fields.at('type'), ['words', 'math']);
+  const text = readString(fields.at('text'), LIMITS.text);
+  if (type === 'words') return { type, text };
+  const tex = readString(fields.at('tex'), LIMITS.tex);
+  if (getTexProblem(tex) !== null) fail(fields.at('tex'), 'math the board can set');
+  return { type, text, tex };
+}
+
+export function readLineReading(place: Place): LineReading {
+  const fields = readFields(place, ['kind', 'parts', 'isAsking']);
+  return { kind: readOneOf(fields.at('kind'), LINE_KINDS), parts: readList(fields.at('parts'), { maxLength: LIMITS.lineParts, readItem: readLinePart }), isAsking: readBoolean(fields.at('isAsking')) };
+}
+
+function readWorkVerdict(place: Place): WorkVerdict {
+  const fields = readFields(place, ['status', 'why', 'isBuiltOnWrongLine']);
+  const status = readOneOf(fields.at('status'), ['right', 'wrong', 'unknown']);
+  if (status !== 'wrong') return { status };
+  return { status, why: readString(fields.at('why'), LIMITS.why), ...fields.optional('isBuiltOnWrongLine', readBoolean) };
+}
+
+function readPointSample(place: Place): PointSample {
+  const fields = readFields(place, ['afterMs', 'x']);
+  return { afterMs: readWholeNumber(fields.at('afterMs')), x: readNumberInRange(fields.at('x'), COORDINATE) };
+}
+
+function readPlacedSlot(place: Place): string | null {
+  return place.value === null ? null : readString(place, LIMITS.name);
+}
+
+const STUDENT_WORK: VariantTable<StudentWork, 'way'> = {
+  tag: 'way',
+  variants: {
+    write: {
+      keys: ['id', 'text', 'task'],
+      read: (fields) => ({ way: 'write', id: readElementId(fields.at('id')), text: clipTypedText(readString(fields.at('text'), LIMITS.text)), ...fields.optional('task', readElementId) }),
+    },
+    pick: {
+      keys: ['task', 'part'],
+      read: (fields) => ({ way: 'pick', task: readElementId(fields.at('task')), part: readString(fields.at('part'), LIMITS.name) }),
+    },
+    place: {
+      keys: ['task', 'placed'],
+      read: (fields) => ({ way: 'place', task: readElementId(fields.at('task')), placed: readList(fields.at('placed'), { maxLength: LIMITS.slots, readItem: readPlacedSlot }) }),
+    },
+    drag: {
+      keys: ['task', 'x', 'samples'],
+      read: (fields) => ({ way: 'drag', task: readElementId(fields.at('task')), x: readNumberInRange(fields.at('x'), COORDINATE), samples: readList(fields.at('samples'), { maxLength: LIMITS.sliderSamples, readItem: readPointSample }) }),
+    },
+  },
+};
+
+export function readStudentWork(place: Place): StudentWork {
+  return readVariant<StudentWork>(place, STUDENT_WORK);
+}
+
 const STUDENT_ACTIONS: VariantTable<StudentAction, 'action'> = {
   tag: 'action',
   variants: {
@@ -111,6 +172,16 @@ const STUDENT_ACTIONS: VariantTable<StudentAction, 'action'> = {
     fileShared: {
       keys: ['fileId', 'name'],
       read: (fields) => ({ action: 'fileShared', fileId: readFileId(fields.at('fileId')), name: readString(fields.at('name'), LIMITS.name) }),
+    },
+    worked: {
+      keys: ['work', 'reading', 'verdict', 'closesTask'],
+      read: (fields) => ({
+        action: 'worked',
+        work: readStudentWork(fields.at('work')),
+        ...fields.optional('reading', readLineReading),
+        verdict: readWorkVerdict(fields.at('verdict')),
+        ...fields.optional('closesTask', readElementId),
+      }),
     },
   },
 };

@@ -2,6 +2,7 @@ import type { FrozenFrame } from './beat.ts';
 import type { BeatId, TurnId } from './ids.ts';
 import type { SceneCommand } from './scene-command.ts';
 import type { PlayReport, StudentAction } from './session-event.ts';
+import type { StudentWork } from './work.ts';
 
 /** Each side of a session sends a pulse this often, on the lossy channel. */
 export const PULSE_EVERY_MS = 500;
@@ -86,6 +87,10 @@ export type BrowserMessage = BrowserStamp &
     | { type: 'hello'; wantsGreeting: boolean }
     /** The student typed instead of speaking. */
     | { type: 'typed'; text: string }
+    /** The student did something on the shared board. The agent works out what it means, because a browser's own word for it is not evidence. */
+    | { type: 'worked'; work: StudentWork }
+    /** The student has not touched the board for this long. `draft` is what they have typed and not sent, and it leaves the page only at a pause. */
+    | { type: 'paused'; seconds: number; draft?: string }
     /** The board could not draw this mark, so the tutor is pointing at something the student cannot see. */
     | { type: 'markNotDrawn'; markId: string }
     /** Sent every half second on the lossy channel. `hearsAgent` is false once the agent's own pulse has stopped arriving. */

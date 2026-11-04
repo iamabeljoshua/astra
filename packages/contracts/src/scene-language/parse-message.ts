@@ -2,7 +2,7 @@ import { BEAT_LIMITS } from './beat.ts';
 import { readBeatId, readTurnId } from './ids.ts';
 import { type AgentMessage, type BrowserMessage, type BrowserStamp, clipTypedText, LIVE_MESSAGE_MAX_BYTES, STUDENT_WORDS_MAX_CHARACTERS, type TimedWord, TUTOR_CLOSED_REASONS } from './live-message.ts';
 import { readSceneCommand } from './parse-command.ts';
-import { PLAY_REPORT_KEYS, readFrozenFrames, readPlayReport, readStudentAction } from './parse-event.ts';
+import { PLAY_REPORT_KEYS, readFrozenFrames, readPlayReport, readStudentAction, readStudentWork } from './parse-event.ts';
 import {
   type CheckedFields,
   checkJsonSize,
@@ -149,6 +149,14 @@ const BROWSER_MESSAGES: VariantTable<BrowserMessage, 'type'> = {
     typed: {
       keys: [...STAMP_KEYS, 'text'],
       read: (fields) => ({ type: 'typed', ...readBrowserStamp(fields), text: clipTypedText(readString(fields.at('text'), LIVE_MESSAGE_MAX_BYTES)) }),
+    },
+    worked: {
+      keys: [...STAMP_KEYS, 'work'],
+      read: (fields) => ({ type: 'worked', ...readBrowserStamp(fields), work: readStudentWork(fields.at('work')) }),
+    },
+    paused: {
+      keys: [...STAMP_KEYS, 'seconds', 'draft'],
+      read: (fields) => ({ type: 'paused', ...readBrowserStamp(fields), seconds: readWholeNumber(fields.at('seconds')), ...fields.optional('draft', (place) => clipTypedText(readString(place, LIVE_MESSAGE_MAX_BYTES))) }),
     },
     markNotDrawn: {
       keys: [...STAMP_KEYS, 'markId'],

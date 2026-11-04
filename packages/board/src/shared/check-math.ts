@@ -1,4 +1,4 @@
-import { getMathParts, getTexTokens } from '@astra/contracts';
+import { getMathParts, getTexTokens, type WorkVerdict } from '@astra/contracts';
 import { areSameFraction, type Fraction, getNumberValue, isPolynomial, type NumberValue, subtractFractions, toFloatValue, toFraction } from './math/math-value.ts';
 import { getLetters, type MathExpression, parseMath } from './math/parse-math.ts';
 import { areProportional, divides, getCoefficient, getCommonDivisor, getDegree, getLinearRoot, getWithSingleRoots, type OneLetterPolynomial, toOneLetter } from './math/polynomial.ts';
@@ -7,7 +7,7 @@ import { compareRationals, describeRational, divideRationals, getAbsolute, getEx
 /**
  * What code knows about a line of math. `wrong` means code is certain the line is false, and only `wrong` stops the tutor. `right` means code proved it. `unknown` is everything else, and it is never treated as doubt.
  */
-export type MathVerdict = { status: 'right' } | { status: 'wrong'; why: string } | { status: 'unknown' };
+export type MathVerdict = WorkVerdict;
 
 const RIGHT: MathVerdict = { status: 'right' };
 const UNKNOWN: MathVerdict = { status: 'unknown' };

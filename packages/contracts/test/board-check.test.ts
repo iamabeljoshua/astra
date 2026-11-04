@@ -19,7 +19,7 @@ const NEEDS_A_KIND: [string, unknown, BoardElementKind[]][] = [
   ['transformMath', { kind: 'transformMath', target: 'a', tex: 'x' }, ['writeMath']],
   ['markValue', { kind: 'markValue', id: 'm', target: 'a', at: 1 }, ['plot', 'numberLine']],
   ['shadeArea', { kind: 'shadeArea', id: 'm', target: 'a', from: 0, to: 1 }, ['plot']],
-  ['highlight.tex', { kind: 'highlight', id: 'm', target: 'a', tex: 'x' }, ['writeMath']],
+  ['highlight.tex', { kind: 'highlight', id: 'm', target: 'a', tex: 'x' }, ['writeMath', 'studentLine']],
   ['slider.constant', { kind: 'slider', id: 'm', target: 'a', constant: 'c', min: 1, max: 2 }, ['plot']],
   ['construct', { kind: 'construct', id: 'm', target: 'a', step: { shape: 'point', name: 'A', x: 0, y: 0 } }, ['geometry']],
   ['runSimulation', { kind: 'runSimulation', target: 'a', action: 'play' }, ['simulate']],

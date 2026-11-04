@@ -1,5 +1,6 @@
 import type { ElementId, ElementRef, FrozenFrame, InkPoint, SceneCommand, SimulationPoint } from '@astra/contracts';
 import { type MathLine, startMathLine, transformMathLine } from '../math/math-line.ts';
+import { applyWorked, closeOpenTasks, moveTaskPoint, startProgress, type StudentLineContent, type TaskProgress } from '../shared/student-work.ts';
 import type { BoardOperation } from './board-operations.ts';
 import { getMotionValue, holdMotion, isMoving, type Motion, moveOver } from './motion.ts';
 import { PLANNED_SCENES } from './projectile-scene.ts';
@@ -27,7 +28,7 @@ export interface PlacedScene {
 
 export interface BoardElement {
   id: ElementId;
-  content: PlacingCommand | InkContent;
+  content: PlacingCommand | InkContent | StudentLineContent;
   /** From 0 to 1, how much of its entrance or its latest rearrangement has drawn. */
   entrance: Motion;
   placedScene: PlacedScene | null;
@@ -35,6 +36,10 @@ export interface BoardElement {
   math: MathLine | null;
   /** The equation it is rearranging from, while `entrance` runs. */
   morphFrom: MathLine | null;
+  /** Set on a task, for what the student has done on it so far. */
+  progress?: TaskProgress;
+  /** A mark the student made rather than the tutor, so it takes the student's ink and not the tutor's pen. */
+  isStudents?: boolean;
 }
 
 export interface BoardState {
@@ -109,7 +114,7 @@ function runScene(element: BoardElement, command: SceneCommand & { kind: 'runSim
 
 function setSceneParameter(element: BoardElement, { parameter, value, atMs, keepsMoving, catalog }: { parameter: string; value: number; atMs: number; keepsMoving: boolean; catalog: SceneCatalog }): void {
   const placed = element.placedScene;
-  if (!placed || element.content.kind === 'ink') return;
+  if (!placed || element.content.kind === 'ink' || element.content.kind === 'studentLine') return;
   const parameterChanges = { ...placed.parameterChanges, [parameter]: value };
   const scene = catalog(element.content, parameterChanges) ?? placed.scene;
   const playhead = keepsMoving ? moveOver({ from: 0, to: scene.durationSeconds, atMs, overMs: scene.durationSeconds * MS_PER_SECOND }) : holdMotion(0, atMs);
@@ -123,6 +128,7 @@ function getWritingMs(command: PlacingCommand): number {
 
 function place(board: BoardDraft, command: PlacingCommand, { atMs, overMs, catalog }: { atMs: number; overMs: number | null; catalog: SceneCatalog }): void {
   const scene = catalog(command, {});
+  if (command.kind === 'task') closeOpenTasks(board.elements);
   board.elements.set(command.id, {
     id: command.id,
     content: command,
@@ -131,6 +137,7 @@ function place(board: BoardDraft, command: PlacingCommand, { atMs, overMs, catal
     revealedUpTo: 'startsEmpty' in command && command.startsEmpty ? holdMotion(0, atMs) : null,
     math: command.kind === 'writeMath' ? startMathLine(command.tex) : null,
     morphFrom: null,
+    ...(command.kind === 'task' ? { progress: startProgress(command) } : {}),
   });
 }
 
@@ -214,6 +221,12 @@ function applyOperation(board: BoardDraft, operation: BoardOperation, { operatio
     case 'inkErased':
       if (board.elements.get(operation.target)?.content.kind === 'ink') board.elements.delete(operation.target);
       return;
+    case 'worked':
+      applyWorked(board.elements, operation.action, atMs);
+      return;
+    case 'pointMoved':
+      moveTaskPoint(board.elements, operation.task, operation.x);
+      return;
     case 'rewound': {
       const before = reduce(operations.filter((other) => other.atMs < operation.toMs), { operations, catalog }, operation.toMs);
       board.elements = before.elements;
@@ -268,6 +281,8 @@ export function describeBoard(board: BoardState, atMs: number) {
       drawn: round(getMotionValue(element.entrance, atMs)),
       sceneSeconds: element.placedScene ? round(getMotionValue(element.placedScene.playhead, atMs)) : undefined,
       revealedUpTo: element.revealedUpTo ? round(getMotionValue(element.revealedUpTo, atMs)) : undefined,
+      verdict: element.content.kind === 'studentLine' ? element.content.verdict.status : undefined,
+      progress: element.progress,
     })),
   };
 }

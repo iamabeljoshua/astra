@@ -3,6 +3,7 @@ export { type MathLine, type MathTerm, startMathLine, transformMathLine } from '
 export type { BoardOperation } from './player/board-operations.ts';
 export { type BoardElement, type BoardState, describeBoard, getBoardAt, getSceneFrame } from './player/board-state.ts';
 export { getMotionValue } from './player/motion.ts';
+export type { StudentLineContent, TaskProgress } from './shared/student-work.ts';
 export { createPlayoutTracker, type PlayoutTracker } from './player/playout-tracker.ts';
 export type { ProjectileFrame } from './player/projectile-scene.ts';
 export { rebuildBoard } from './player/rebuild-board.ts';

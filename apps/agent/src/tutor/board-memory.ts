@@ -1,7 +1,7 @@
 import { type BoardKinds, findMathSpans, getBoardAfter, type SceneCommand } from '@astra/contracts';
 import { canRenderTex } from '@astra/board/tex-check';
 import type { CommandVerdict } from './beat-text-reader.ts';
-import { checkMathLine, checkMathStep, type MathVerdict } from './check-math.ts';
+import { checkMathLine, checkMathStep, type MathVerdict } from '@astra/board/shared';
 
 export interface BoardMemory {
   kinds: BoardKinds;

@@ -1,0 +1,130 @@
+import { evaluatePlotExpression, type ElementId, type LineReading, parsePlotExpression, type StudentWork, type Task, type WorkVerdict } from '@astra/contracts';
+import { checkStep, isFinishedAnswer } from './check-step.ts';
+import { getLineTex, readLine } from './read-line.ts';
+
+export interface CheckedWork {
+  reading?: LineReading;
+  verdict: WorkVerdict;
+  /** The work finishes this task. */
+  closesTask?: ElementId;
+}
+
+/** What code needs to know about the board to check a piece of work. */
+export interface WorkContext {
+  /** The task open now, if any. */
+  task: Task | null;
+  getLineTex(id: ElementId): string | null;
+  /** The plot's curve, in x. */
+  getCurve(id: ElementId): ((x: number) => number) | null;
+  /** The student's last math line since this task opened. */
+  previousTex: string | null;
+  /** Parts already picked right for this task. */
+  pickedRight: readonly string[];
+}
+
+const UNKNOWN: WorkVerdict = { status: 'unknown' };
+const RIGHT: WorkVerdict = { status: 'right' };
+const WITHIN_X = 0.1;
+const SLOPE_STEP = 1e-4;
+
+const closes = (task: Task | null, isDone: boolean) => (task && isDone ? { closesTask: task.id } : {});
+
+const toKey = (text: string) => text.toLowerCase().replace(/\s+/g, '').replace(/[?!.,;:]+$/, '');
+
+const toPartKey = (part: string) => part.replace(/\s/g, '').replace(/^\+/, '');
+
+const BARE_NUMBER = /^-?\d*\.?\d+$/;
+
+// A number against a number can be told apart, so 54 is not 56. Words cannot, so "it was 1789" is left for the tutor to read.
+function checkAccepted(text: string, accepts: readonly string[]): WorkVerdict | null {
+  const typed = toKey(text);
+  if (accepts.some((accepted) => toKey(accepted) === typed)) return RIGHT;
+  const isNumberAgainstNumbers = BARE_NUMBER.test(typed) && accepts.every((accepted) => BARE_NUMBER.test(toKey(accepted)));
+  if (!isNumberAgainstNumbers) return null;
+  return accepts.some((accepted) => Number(toKey(accepted)) === Number(typed)) ? RIGHT : { status: 'wrong', why: `${typed} is not the answer the tutor set` };
+}
+
+function checkMathLineOfWork(tex: string, { task, getLineTex: getTex, previousTex }: WorkContext): CheckedWork {
+  const problemTex = task?.way === 'write' && task.on !== undefined ? getTex(task.on) : null;
+  const verdict = checkStep({ tex, problemTex, previousTex });
+  return { verdict, ...closes(task, verdict.status === 'right' && problemTex !== null && isFinishedAnswer(tex)) };
+}
+
+function checkWrite(text: string, context: WorkContext): CheckedWork {
+  const { task } = context;
+  const writeTask = task?.way === 'write' ? task : null;
+  const reading = readLine(text, writeTask?.reads);
+  const accepted = writeTask?.accepts ? checkAccepted(text, writeTask.accepts) : null;
+  if (reading.isAsking) return { reading, verdict: UNKNOWN };
+  if (accepted) return { reading, verdict: accepted, ...closes(task, accepted.status === 'right') };
+  const tex = getLineTex(reading);
+  return tex === null ? { reading, verdict: UNKNOWN } : { reading, ...checkMathLineOfWork(tex, context) };
+}
+
+function checkPick(part: string, { task, pickedRight }: WorkContext): CheckedWork {
+  if (task?.way !== 'pick' || !task.answer) return { verdict: UNKNOWN };
+  const answers = task.answer.map(toPartKey);
+  if (!answers.includes(toPartKey(part))) return { verdict: { status: 'wrong', why: `${part} is not the part the tutor asked for` } };
+  const picked = new Set([...pickedRight.map(toPartKey), toPartKey(part)]);
+  return { verdict: RIGHT, ...closes(task, answers.every((answer) => picked.has(answer))) };
+}
+
+function getWrongSlots(task: Task & { way: 'place' }, placed: readonly (string | null)[]): string[] {
+  return task.slots.flatMap((slot, index) => (placed[index] === task.answer?.[index] ? [] : [`${slot} holds ${placed[index] ?? 'nothing'}`]));
+}
+
+function checkPlace(placed: readonly (string | null)[], { task }: WorkContext): CheckedWork {
+  if (task?.way !== 'place' || !task.answer || placed.length !== task.slots.length || placed.includes(null)) return { verdict: UNKNOWN };
+  const wrongSlots = getWrongSlots(task, placed);
+  if (wrongSlots.length === 0) return { verdict: RIGHT, ...closes(task, true) };
+  return { verdict: { status: 'wrong', why: wrongSlots.join(', ') } };
+}
+
+const getSlopeAt = (curve: (x: number) => number, x: number) => (curve(x + SLOPE_STEP) - curve(x - SLOPE_STEP)) / (2 * SLOPE_STEP);
+
+const crossesZeroNear = (value: (x: number) => number, x: number) => {
+  const [before, at, after] = [value(x - WITHIN_X), value(x), value(x + WITHIN_X)];
+  return Math.abs(at) < 1e-9 || before * after <= 0;
+};
+
+export interface PointFacts {
+  x: number;
+  y: number;
+  slope: number;
+}
+
+const roundFact = (value: number) => Number(value.toFixed(3));
+
+export function getPointFacts(curve: (x: number) => number, x: number): PointFacts {
+  return { x: roundFact(x), y: roundFact(curve(x)), slope: roundFact(getSlopeAt(curve, x)) };
+}
+
+function checkDrag(x: number, { task, getCurve }: WorkContext): CheckedWork {
+  if (task?.way !== 'drag' || task.seek === undefined) return { verdict: UNKNOWN };
+  const curve = getCurve(task.on);
+  if (!curve) return { verdict: UNKNOWN };
+  const isThere = crossesZeroNear(task.seek === 'flat' ? (at) => getSlopeAt(curve, at) : curve, x);
+  if (isThere) return { verdict: RIGHT, ...closes(task, true) };
+  const { y, slope } = getPointFacts(curve, x);
+  return { verdict: { status: 'wrong', why: task.seek === 'flat' ? `the slope at x = ${roundFact(x)} is ${slope}` : `the curve is at ${y} at x = ${roundFact(x)}` } };
+}
+
+/** Makes a plot's expression something code can read a value from, or null if it holds a constant the plot would have to supply. */
+export function getCurveOf(expression: string, constants: ReadonlyMap<string, number> = new Map()): ((x: number) => number) | null {
+  const node = parsePlotExpression(expression, new Set(constants.keys()));
+  return node && ((x) => evaluatePlotExpression(node, x, constants));
+}
+
+/** The one check for any work on the board. Pure, so the page can react at once and the agent can check the same work without taking the page's word for it. */
+export function checkWork(work: StudentWork, context: WorkContext): CheckedWork {
+  switch (work.way) {
+    case 'write':
+      return checkWrite(work.text, context);
+    case 'pick':
+      return checkPick(work.part, context);
+    case 'place':
+      return checkPlace(work.placed, context);
+    case 'drag':
+      return checkDrag(work.x, context);
+  }
+}

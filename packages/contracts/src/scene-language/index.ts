@@ -11,3 +11,4 @@ export { evaluatePlotExpression, isReservedPlotName, parsePlotExpression, type P
 export type { ParseResult } from './read.ts';
 export * from './scene-command.ts';
 export * from './session-event.ts';
+export * from './work.ts';

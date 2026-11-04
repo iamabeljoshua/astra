@@ -1,4 +1,4 @@
-import { type BeatEnding, type Cue, type FrozenFrame, getCues, type InkPoint, type SceneCommand, type SessionEvent, type ElementId } from '@astra/contracts';
+import { type BeatEnding, type Cue, type FrozenFrame, getCues, type InkPoint, type SceneCommand, type SessionEvent, type ElementId, type StudentAction } from '@astra/contracts';
 
 /** Only for a cue whose later word times are unknown. A live frame drawn before they land can show this guess, and a replay reads the times the report settled on. */
 const ASSUMED_WORD_MS = 300;
@@ -11,7 +11,11 @@ export type BoardOperation =
   | { kind: 'parameterSample'; atMs: number; target: ElementId; parameter: string; value: number }
   | { kind: 'inkStroke'; atMs: number; id: ElementId; points: readonly InkPoint[] }
   | { kind: 'inkErased'; atMs: number; target: ElementId }
-  | { kind: 'rewound'; atMs: number; toMs: number };
+  | { kind: 'rewound'; atMs: number; toMs: number }
+  /** Work on the shared board, with what code made of it. */
+  | { kind: 'worked'; atMs: number; action: Extract<StudentAction, { action: 'worked' }> }
+  /** The student's point on a curve, while they drag it. */
+  | { kind: 'pointMoved'; atMs: number; task: ElementId; x: number };
 
 export interface PlayedBeatView {
   atMs: number;
@@ -51,6 +55,14 @@ function getRewoundToMs(log: readonly SessionEvent[], event: SessionEvent & { ki
   return rewoundBeat?.atMs ?? event.atMs;
 }
 
+// A drag is logged when it ends, stamped when it began, so the point moves through its samples before the work lands.
+function getWorkedOperations(action: Extract<StudentAction, { action: 'worked' }>, atMs: number): BoardOperation[] {
+  const { work } = action;
+  if (work.way !== 'drag') return [{ kind: 'worked', atMs, action }];
+  const moves = work.samples.map(({ afterMs, x }): BoardOperation => ({ kind: 'pointMoved', atMs: atMs + afterMs, task: work.task, x }));
+  return [...moves, { kind: 'worked', atMs: atMs + (work.samples.at(-1)?.afterMs ?? 0), action }];
+}
+
 function getActionOperations(log: readonly SessionEvent[], event: SessionEvent & { kind: 'studentActed' }): BoardOperation[] {
   const { action, atMs } = event;
   switch (action.action) {
@@ -66,6 +78,8 @@ function getActionOperations(log: readonly SessionEvent[], event: SessionEvent &
       return [{ kind: 'rewound', atMs, toMs: getRewoundToMs(log, event) }];
     case 'fileShared':
       return [];
+    case 'worked':
+      return getWorkedOperations(action, atMs);
   }
 }
 

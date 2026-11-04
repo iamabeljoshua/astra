@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkMathLine, checkMathStep } from '../src/tutor/check-math.ts';
+import { checkMathLine, checkMathStep } from '../src/shared/check-math.ts';
 import { FALSE_LINES, FALSE_STEPS, REPORTED_FALSE_LINES, REPORTED_FALSE_STEPS, REPORTED_TRUE_LINES, REPORTED_TRUE_STEPS, TRUE_LINES, TRUE_STEPS } from './math-table.ts';
 
 const FEWEST_TRUE_STEPS = 500;

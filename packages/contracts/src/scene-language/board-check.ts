@@ -1,7 +1,7 @@
-import type { SceneCommand } from './scene-command.ts';
+import type { SceneCommand, Task } from './scene-command.ts';
 import type { StudentAction } from './session-event.ts';
 
-export type BoardElementKind = SceneCommand['kind'] | 'ink';
+export type BoardElementKind = SceneCommand['kind'] | 'ink' | 'studentLine';
 
 /** A Map, so a name can never reach Object.prototype. */
 export type BoardKinds = ReadonlyMap<string, BoardElementKind>;
@@ -18,11 +18,19 @@ const REQUIRED_KINDS: Partial<Record<SceneCommand['kind'], readonly BoardElement
   reveal: ['plot', 'diagram', 'table', 'timeline', 'code'],
   plot: ['plot'],
   simulate: ['drawing'],
+  tangent: ['plot'],
+};
+
+const TASK_TARGET_KINDS: Readonly<Record<Task['way'], readonly BoardElementKind[]>> = {
+  write: ['writeMath', 'studentLine'],
+  pick: ['writeMath', 'studentLine', 'diagram'],
+  place: [],
+  drag: ['plot'],
 };
 
 function getReferencedElement(command: SceneCommand): string | undefined {
   if ('target' in command) return command.target.split('.')[0];
-  if ('on' in command) return command.on.split('.')[0];
+  if ('on' in command) return command.on?.split('.')[0];
   return 'over' in command ? command.over : undefined;
 }
 
@@ -32,7 +40,8 @@ function isBadRevealCount(command: SceneCommand, elementKind: BoardElementKind):
 
 function getRequiredKinds(command: SceneCommand): readonly BoardElementKind[] | undefined {
   if (command.kind === 'slider') return 'constant' in command ? ['plot'] : ['simulate'];
-  if (command.kind === 'highlight' && command.tex !== undefined) return ['writeMath'];
+  if (command.kind === 'task') return TASK_TARGET_KINDS[command.way];
+  if (command.kind === 'highlight' && command.tex !== undefined) return ['writeMath', 'studentLine'];
   return REQUIRED_KINDS[command.kind];
 }
 
@@ -60,5 +69,6 @@ export function getBoardAfterAction(action: StudentAction, board: BoardKinds): B
   const after = new Map(board);
   if (action.action === 'inkStroke' && !board.has(action.id)) after.set(action.id, 'ink');
   if (action.action === 'inkErased' && board.get(action.target) === 'ink') after.delete(action.target);
+  if (action.action === 'worked' && action.work.way === 'write' && !board.has(action.work.id)) after.set(action.work.id, 'studentLine');
   return after;
 }

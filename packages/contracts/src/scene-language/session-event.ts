@@ -1,6 +1,7 @@
 import type { Beat, FrozenFrame } from './beat.ts';
 import type { ElementId, FileId, TurnId } from './ids.ts';
 import type { SimulationParameter } from './scene-command.ts';
+import type { LineReading, StudentWork, WorkVerdict } from './work.ts';
 
 export const SPEECH_SOURCES = ['voice', 'typed'] as const;
 export type SpeechSource = (typeof SPEECH_SOURCES)[number];
@@ -27,7 +28,9 @@ export type StudentAction =
   /** A long stroke is sent as several actions with the same id. */
   | { action: 'inkStroke'; id: ElementId; points: InkPoint[] }
   | { action: 'inkErased'; target: ElementId }
-  | { action: 'fileShared'; fileId: FileId; name: string };
+  | { action: 'fileShared'; fileId: FileId; name: string }
+  /** Work on the shared board, with what code made of it, so a replay shows what the student saw whatever later code would say. */
+  | { action: 'worked'; work: StudentWork; reading?: LineReading; verdict: WorkVerdict; closesTask?: ElementId };
 
 export interface PlayReport {
   /** When each word of the beat starts, in ms after `atMs`. */
