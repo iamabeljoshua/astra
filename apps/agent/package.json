@@ -27,6 +27,7 @@
     "eval:kinds": "node src/lesson-plan/eval/run-lesson-groups.ts",
     "eval:ink": "node src/tutor/eval/run-ink-table.ts",
     "eval:spoken": "node src/tutor/eval/run-spoken-table.ts",
+    "eval:recap": "node src/recap/run-recap-table.ts",
     "eval:record": "node src/tutor/eval/run-record-table.ts",
     "eval:lessons": "node src/tutor/eval/run-lessons.ts",
     "eval:first-text": "node src/tutor/eval/first-text-ab.ts",
