@@ -163,7 +163,11 @@ export function makeTutorBrain({ roomName, jobId, trace, onSessionTitle = () => 
     trace('turnWritten', { firstTextMs, firstBeatMs, attempts, endedAs, costUsd, usage, refused, refusalCategory, isUsageEstimated, words: spokenText.split(/\s+/).length });
     caps.addTurn({ usd: costUsd, voiceCharacters: beats.map(getBeatText).join(' ').length });
   };
-  const lessonPlanner = name === RECORDED ? undefined : makeLessonPlanner({ link, caps, trace, onSessionTitle });
+  let movedTo: string | null = null;
+  const lessonPlanner = name === RECORDED ? undefined : makeLessonPlanner({ link, caps, trace, onSessionTitle(title) {
+    movedTo = title;
+    onSessionTitle(title);
+  } });
   const loadMemory = link ? async () => getMemoryNote(await link.fetchRecord(), new Date()) : undefined;
   const findSource = name === RECORDED || !isFindSourceOn() ? undefined : makeAnthropicSourceFinder({ apiKey: readKey('ANTHROPIC_API_KEY'), onFailed: (problem) => trace('sourceFailed', { problem }) });
   const brain = createTutorBrain({ model, prompt: getLivePrompt(), ...(findSource ? { findSource } : {}), loadProfile: link ? () => link.fetchProfile() : undefined, loadMemory, onWorkNoted: digest.addWork, trace, onTurnEnd, getSpendLimit: caps.getSpendLimit, ...(lessonPlanner ? { lessonPlanner } : {}) });
@@ -192,7 +196,7 @@ export function makeTutorBrain({ roomName, jobId, trace, onSessionTitle = () => 
   };
   const writeRecap = async (facts: RecapFacts) => {
     if (caps.getSpendLimit()) return null;
-    const { recap, costUsd } = await writeLessonRecap(wordsModel, facts);
+    const { recap, costUsd } = await writeLessonRecap(wordsModel, { ...facts, movedTo });
     caps.addTurn({ usd: costUsd, voiceCharacters: recap ? getRecapLines(recap).join(' ').length : 0 });
     return recap;
   };

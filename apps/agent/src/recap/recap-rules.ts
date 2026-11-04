@@ -8,6 +8,10 @@ const FEWEST_TUTOR_WORDS_TO_RECAP = 30;
 const MOST_WORDS_IN_A_LINE = 22;
 const MOST_WORDS_IN_A_RECAP = 60;
 const SHORTEST_ANCHOR_LETTERS = 5;
+/** Shorter words, such as "the", say nothing about a topic. */
+const SHORTEST_TOPIC_LETTERS = 4;
+/** Every recap starts this way, so these words cannot stand behind a topic. */
+const COVERED_START = /^we (?:worked on|covered)\b/i;
 
 /** A student's own words that mean this ending must be gentle, whatever else the session held. A wrong match costs one gentle ending, and a miss costs praise after a disclosure, though the model reads what these miss. */
 const NEEDS_CARE = /\b(?:suicid\w*|sewerslide|kms|kill(?:ing)? myself|end(?:ing)? (?:my life|it all)|(?<!\b(?:he|she|they|who|anyone|someone|people|characters?|does|did)\s(?:(?!i\s)\w+\s){0,2})(?:want to|wanna) die|don'?t want to (?:be here|live|be alive)|hurt(?:ing)? myself|cut(?:ting)? myself|harm(?:ing)? myself|self[- ]harm|(?:i|i'?m|i'?ve|gonna|going to|wanna|want to|took an?)\s(?:\w+\s)?overdos\w*|(?:hurts?|touche[sd]|touch|rapes?|raped|abuses?|abused) me|i'?m not safe|not safe at home|have a plan for how to do it)\b/i;
@@ -44,7 +48,10 @@ function getAllNumbers(lines: readonly string[]): Set<string> {
 
 const getRightLines = ({ work }: RecapFacts) => work.filter(({ status }) => status === 'right').map(({ line }) => line);
 
-const getEverySaidLine = ({ opening, tutorWords, studentLines, work }: RecapFacts) => [...(opening ? [opening] : []), tutorWords.join(' '), ...studentLines, ...work.map(({ line }) => line)];
+const getEverySaidLine = (facts: RecapFacts) => [...(facts.opening ? [facts.opening] : []), ...getLessonLines(facts)];
+
+// The opening can name a topic the lesson left, so it does not count as what the lesson held.
+const getLessonLines = ({ tutorWords, studentLines, work }: RecapFacts) => [tutorWords.join(' '), ...studentLines, ...work.map(({ line }) => line)];
 
 const getStudentsOwnWords = ({ opening, studentLines, work }: RecapFacts) => [...(opening ? [opening] : []), ...studentLines, ...work.map(({ line }) => line)];
 
@@ -73,15 +80,27 @@ function getLineProblem(line: unknown, name: string): string | null {
   return null;
 }
 
+const getLetterWords = (text: string) => getSpokenWords(text.toLowerCase().replace(/[^\p{L}\s]/gu, ' '));
+
+function holdsTopic(text: string, topic: string): boolean {
+  const words = getLetterWords(topic).filter((word) => word.length >= SHORTEST_TOPIC_LETTERS);
+  return words.length === 0 || words.some((word) => text.toLowerCase().includes(word));
+}
+
+// A student can press End before the tutor has taught the new topic, and then a recap has nothing true to say of it.
+export const getTaughtTopic = ({ movedTo, tutorWords }: RecapFacts) => (movedTo && holdsTopic(tutorWords.join(' '), movedTo) ? movedTo : null);
+
 function getCoveredProblem(covered: string, facts: RecapFacts): string | null {
   if (CLAIMS_SUCCESS.test(covered)) return 'covered says what the student did';
   if (BROKEN_NUMBER.test(covered)) return 'covered holds a broken number';
   const known = getAllNumbers(getEverySaidLine(facts));
   const madeUp = getNumbers(covered).filter((number) => !known.has(number));
   if (madeUp.length > 0) return `covered names numbers nobody said: ${madeUp.join(', ')}`;
-  const everySaid = getEverySaidLine(facts).join(' ').toLowerCase();
-  const hasAnchor = getSpokenWords(covered.toLowerCase().replace(/[^\p{L}\s]/gu, ' ')).some((word) => word.length >= SHORTEST_ANCHOR_LETTERS && everySaid.includes(word));
-  return hasAnchor ? null : 'covered names nothing that was said';
+  const lessonSaid = getLessonLines(facts).join(' ').toLowerCase();
+  const hasAnchor = getLetterWords(covered.replace(COVERED_START, '')).some((word) => word.length >= SHORTEST_ANCHOR_LETTERS && lessonSaid.includes(word));
+  if (!hasAnchor) return 'covered names nothing that was said';
+  const topic = getTaughtTopic(facts);
+  return topic && !holdsTopic(covered, topic) ? `covered leaves out ${topic}, where the lesson went` : null;
 }
 
 function getTryNextProblem(tryNext: string): string | null {

@@ -9,7 +9,7 @@ const beat = (seq: number, text: string, playedWords = text.split(' ').length) =
 const worked = (seq: number, line: string, status: 'right' | 'wrong' | 'unknown') => ({ seq, atMs: seq * 1000, kind: 'studentActed', action: { action: 'worked', work: { way: 'write', id: `s${seq}`, text: line }, verdict: status === 'wrong' ? { status, why: 'it does not follow' } : { status } } }) as unknown as SessionEvent;
 const said = (seq: number, text: string) => ({ seq, atMs: seq * 1000, kind: 'studentSpoke', text, source: 'typed', isReaction: false, durationMs: 0 }) as unknown as SessionEvent;
 
-const factsWith = (work: RecapFacts['work'] = []): RecapFacts => ({ opening: null, tutorWords: TEACHING.split(' '), studentLines: [], work });
+const factsWith = (work: RecapFacts['work'] = []): RecapFacts => ({ opening: null, movedTo: null, tutorWords: TEACHING.split(' '), studentLines: [], work });
 const GOOD_DRAFT = { covered: 'We worked on getting x alone by taking three from both sides.', gotRight: null, tryNext: 'Try one more equation on your own.' };
 
 function fakeModel(replies: string[], stopReason: 'finished' | 'refused' = 'finished') {
@@ -30,6 +30,43 @@ describe('what a recap draws on', () => {
   it('keeps what code said of each piece of work', () => {
     const { work } = getRecapFacts([worked(0, '2x = 14', 'wrong'), worked(1, 'x = 4', 'right')], null);
     expect(work).toEqual([{ line: '2x = 14', status: 'wrong' }, { line: 'x = 4', status: 'right' }]);
+  });
+});
+
+describe('a session that moved to another topic', () => {
+  const BLACK_HOLES = 'A black hole is what is left when a giant star collapses, and its gravity is so strong that not even light can get back out once it worked its way past the edge.'.split(' ');
+  const moved = (fields: Partial<RecapFacts>): RecapFacts => ({ ...factsWith(), tutorWords: BLACK_HOLES, ...fields });
+  const TRY = 'Try saying why light cannot get out.';
+
+  it('refuses a topic only the opening named, because the lesson left it', () => {
+    const check = checkRecapDraft({ covered: 'We worked on photosynthesis.', tryNext: TRY }, moved({ opening: 'I would like to learn about photosynthesis', studentLines: ['actually black holes instead'] }));
+    expect(check).toEqual({ problem: 'covered names nothing that was said' });
+  });
+
+  it('does not take the words every recap starts with as a topic', () => {
+    expect(checkRecapDraft({ covered: 'We worked on tectonics.', tryNext: TRY }, moved({}))).toEqual({ problem: 'covered names nothing that was said' });
+  });
+
+  it('refuses a recap that leaves out where the lesson went', () => {
+    const facts = moved({ movedTo: 'Black holes', tutorWords: [...TEACHING.split(' '), ...BLACK_HOLES] });
+    expect(checkRecapDraft({ covered: 'We covered getting x alone by taking three from both sides.', tryNext: TRY }, facts)).toEqual({ problem: 'covered leaves out Black holes, where the lesson went' });
+    expect(checkRecapDraft({ covered: 'We covered getting x alone, then black holes.', tryNext: TRY }, facts)).toMatchObject({ recap: { kind: 'lesson' } });
+  });
+
+  it('does not ask for a topic the tutor never reached, because End came first', () => {
+    const facts = moved({ movedTo: 'Black holes', tutorWords: TEACHING.split(' '), studentLines: ['wait what is a black hole'] });
+    expect(checkRecapDraft({ covered: 'We covered getting x alone by taking three from both sides.', tryNext: TRY }, facts)).toMatchObject({ recap: { kind: 'lesson' } });
+  });
+
+  it('tells the model where the lesson went only once the tutor has taught it', async () => {
+    const asked = async (facts: RecapFacts) => {
+      const model = fakeModel([JSON.stringify({ needsCare: false, ...GOOD_DRAFT })]);
+      await writeLessonRecap(model, facts);
+      const [request] = model.stream.mock.calls[0] as unknown as [{ turns: { text: string }[] }];
+      return JSON.parse(request.turns[0]?.text ?? '') as { moved_to: string | null };
+    };
+    await expect(asked(moved({ movedTo: 'Black holes' }))).resolves.toMatchObject({ moved_to: 'Black holes' });
+    await expect(asked({ ...factsWith(), movedTo: 'Black holes' })).resolves.toMatchObject({ moved_to: null });
   });
 });
 

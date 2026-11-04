@@ -8,7 +8,7 @@ import { API_ERROR_LABELS, MENU_LABELS, RECAP_LABELS, REPLY_BOX_LABELS, SESSION_
 import { type FilesComingSoon, useFilesComingSoon } from '../ui/useFilesComingSoon';
 import { BoardPicture, getSessionVisual } from './BoardPicture';
 import { type Session, useKeepSessionTitle, useSession } from './sessionQueries';
-import { BAR_ACTION, SessionFacts, SessionFrame, SessionTitle } from './SessionFrame';
+import { BAR_ACTION, getBarSubject, SessionFacts, SessionFrame, SessionTitle } from './SessionFrame';
 import { isLessonEnabled } from './lessonFlag';
 import { useSessionRun } from './useSessionRun';
 import { StudentCaption } from '../voice/Captions';
@@ -200,7 +200,7 @@ function FinishedSession({ session }: { session: Session }) {
     <SessionFrame
       facts={
         <>
-          <SessionFacts subject={session.subject} seconds={session.durationSeconds} />
+          <SessionFacts subject={getBarSubject(session)} seconds={session.durationSeconds} />
           <span className="label text-ink-2">{SESSIONS_LABELS.statuses.finished}</span>
         </>
       }
@@ -239,11 +239,6 @@ function Board({ artwork, note }: { artwork: Artwork | null; note?: string }) {
       {note && <p className="label border-t border-line px-3 py-1.75 text-ink-2">{note}</p>}
     </section>
   );
-}
-
-// A card always starts with a picture and a rename takes it away, so a card with none has moved to the topic in its title. A typed question never had one, so nothing saved says it moved.
-function getBarSubject({ artwork, title, subject }: Session) {
-  return !artwork && subject !== SESSION_LABELS.questionSubject ? title : subject;
 }
 
 function getVoiceNote({ status, waitSeconds, view }: LiveVoiceControls, isAnswerDue: boolean): string | null {

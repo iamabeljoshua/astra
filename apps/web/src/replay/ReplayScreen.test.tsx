@@ -24,11 +24,11 @@ function stubReplay(answers: { replay?: object | null; deleteStatus?: number }) 
   return calls;
 }
 
-function open() {
+function open(opened = session) {
   return renderWithQueryClient(
     <MemoryRouter initialEntries={['/sessions/done']}>
       <Routes>
-        <Route path="/sessions/done" element={<ReplayScreen session={session} />} />
+        <Route path="/sessions/done" element={<ReplayScreen session={opened} />} />
         <Route path="/sessions" element={<p>The list</p>} />
       </Routes>
     </MemoryRouter>,
@@ -40,6 +40,15 @@ const seekTo = (atMs: number) => fireEvent.change(screen.getByRole('slider', { n
 describe('the replay screen', () => {
   beforeEach(() => vi.stubGlobal('speechSynthesis', undefined));
   afterEach(() => vi.unstubAllGlobals());
+
+  it('calls a session that moved to another topic by that topic, with no picture from the card it left', async () => {
+    stubReplay({ replay: { recap: RECAP, runs: [{ startedAt: 'x', events: LESSON_LOG }] } });
+    open({ ...session, artwork: null, subject: 'Astronomy', title: 'Black holes' });
+    await screen.findByRole('slider', { name: REPLAY_LABELS.timeline });
+    expect(screen.getAllByText('Black holes')).toHaveLength(2);
+    expect(screen.queryByText('Astronomy')).toBeNull();
+    expect(screen.queryByTestId('board-visual')).toBeNull();
+  });
 
   it('opens on the recap, with the lesson ready to play', async () => {
     stubReplay({ replay: { recap: RECAP, runs: [{ startedAt: 'x', events: LESSON_LOG }] } });

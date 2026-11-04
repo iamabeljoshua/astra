@@ -238,6 +238,10 @@ describe('the Privacy Policy on voice', () => {
     expect(privacy).not.toContain('we do not store them yet');
   });
 
+  it("says a question from Home stays as its session's title, even after the replay is deleted", () => {
+    expect(privacy).toContain("A question you type on Home stays as that session's title, even after you delete the replay, unless you move to another topic in that session.");
+  });
+
   it('says a total of what the tutor cost is stored per day, with no words in it', () => {
     expect(privacy).toContain('A running total of what the tutor cost for you each day');
   });
