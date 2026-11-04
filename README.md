@@ -237,6 +237,7 @@ pnpm agent
 | `ASTRA_API_URL` | Agent | The agent's address for the API, where it reads a student's level, interests, and goal and adds what each turn cost. |
 | `ASTRA_DAILY_LIMIT_USD` | API | What one student's tutor time may cost in a UTC day, $3 by default. At the limit the API opens no room, and the session screen says the time resets once a day and to try again later. |
 | `ASTRA_SESSION_LIMIT_USD`, `ASTRA_SESSION_VOICE_LIMIT_CHARACTERS` | Agent | What one session may cost, $1 by default, and how many characters of voice it may use, 40,000 by default. Past either one, the tutor closes for that session. |
+| `ASTRA_FIND_SOURCE=on` | Agent | Tells the tutor about `findSource` and lets it run Anthropic's web search. Off by default, and Abel decides on switching it on. `docs/tests/tutor-model.md` says what changes with it. |
 | `META_API_KEY` | Agent | Muse Voice Transcribe. A typed session never opens it. |
 | `ELEVENLABS_API_KEY` | Agent | The tutor's voice. |
 | `ASTRA_VOICE=fake` | Agent | A tone instead of the real voice, to spend no credits. |
