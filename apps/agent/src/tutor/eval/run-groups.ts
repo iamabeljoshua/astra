@@ -49,6 +49,13 @@ interface LevelCompare {
   higher: string;
   plainTerms: readonly string[];
   properTerms: readonly string[];
+  lowerStudent?: CompareStudent;
+  higherStudent?: CompareStudent;
+}
+
+interface CompareStudent {
+  interests?: readonly string[];
+  memory?: readonly MemoryLine[];
 }
 
 interface PromptGroup {
@@ -63,6 +70,7 @@ interface PromptGroup {
   stat?: 'usuallyShort';
   /** The same question at two levels, in two sessions. */
   compare?: LevelCompare;
+  anyReply?: readonly string[];
 }
 
 interface CheckResult {
@@ -75,7 +83,8 @@ interface CheckResult {
 const EVAL_FOLDER = join(dirname(fileURLToPath(import.meta.url)), '../../../../../evals/tutor-turns');
 const PROFILE: StudentProfile = { level: 'high_school', interests: ['basketball', 'space'], goal: 'exam' };
 const JUDGE_MODEL: TutorModelName = 'sonnet-5-5';
-const JUDGE_MAX_TOKENS = 120;
+/** The judge thinks first on a close call, and at 120 tokens that left no verdict at all, which counted as a miss. */
+const JUDGE_MAX_TOKENS = 1500;
 const USUAL_WORDS = 25;
 const USUAL_SHARE = 0.5;
 /** These protect a minor, so one failure across all repeats fails the file. */
@@ -103,7 +112,7 @@ const results: CheckResult[] = [];
 
 function loadGroups(name: string): PromptGroup[] {
   const groups = JSON.parse(readFileSync(join(EVAL_FOLDER, `groups-${name}.json`), 'utf8')) as PromptGroup[];
-  const names = groups.flatMap((group) => [...(group.checks ?? []), ...(group.turns ?? []).flatMap((turn) => turn.check ?? [])]);
+  const names = groups.flatMap((group) => [...(group.checks ?? []), ...(group.anyReply ?? []), ...(group.turns ?? []).flatMap((turn) => turn.check ?? [])]);
   const unknown = names.filter((check) => !REPLY_CHECKS[check]);
   const unknownJudged = groups.flatMap((group) => (group.turns ?? []).flatMap((turn) => turn.judge ?? [])).filter((judge) => !JUDGED_CHECKS[judge]);
   if (unknown.length > 0 || unknownJudged.length > 0) throw new Error(`Unknown checks: ${[...unknown, ...unknownJudged].join(', ')}`);
@@ -148,7 +157,7 @@ function makeBrain(prompt: TutorPrompt, profile: StudentProfile, traces: string[
     profile,
     lessonPlanner,
     ...(memory ? { memory: { memory: { count: memory.length, notes: [...memory] } } } : {}),
-    ...(prompt === PROMPT_VERSIONS.v2FindSource ? { findSource: makeAnthropicSourceFinder({ apiKey: readKey('ANTHROPIC_API_KEY') }) } : {}),
+    ...(prompt === PROMPT_VERSIONS.v3FindSource ? { findSource: makeAnthropicSourceFinder({ apiKey: readKey('ANTHROPIC_API_KEY') }) } : {}),
     trace: (name, fields) => traces.push(`${name}${fields?.problem ? `: ${String(fields.problem)}` : ''}${fields?.report ? `: ${String(fields.report)}` : ''}`),
     onTurnEnd(summary) {
       onTurn(summary);
@@ -160,7 +169,8 @@ function makeBrain(prompt: TutorPrompt, profile: StudentProfile, traces: string[
 }
 
 function recordCodeChecks(group: PromptGroup, turn: GroupTurn, summary: TurnSummary, commands: readonly SceneCommand[]) {
-  const details = { drawn: commands.map(describeDrawn), toolCalls: summary.toolCalls.map((call) => call.tool), terms: turn.terms ?? [], answer: turn.answer ? new RegExp(turn.answer, 'i') : null, longestStretchWords: getLongestStretchWords(summary.beats) };
+  const interests = [...(group.profile ?? PROFILE).interests, ...(group.memory ?? []).filter(({ kind }) => kind === 'cares_about').map(({ about }) => about)];
+  const details = { drawn: commands.map(describeDrawn), toolCalls: summary.toolCalls.map((call) => call.tool), terms: turn.terms ?? [], answer: turn.answer ? new RegExp(turn.answer, 'i') : null, longestStretchWords: getLongestStretchWords(summary.beats), interests };
   for (const check of [...(group.checks ?? []), ...(turn.check ? [turn.check] : [])]) {
     if (REPLY_CHECKS[check]?.onlyOnWork && !turn.work) continue;
     const passed = REPLY_CHECKS[check]?.passes(summary.spokenText, commands.map((command) => command.kind), details) ?? false;
@@ -192,6 +202,7 @@ async function runGroup(group: PromptGroup, { prompt, model, askJudge }: RunCont
   const { brain, lessonPlanner } = makeBrain(prompt, group.profile ?? PROFILE, traces, (summary) => (latest = summary), model, group.memory);
   const exchange: string[] = [];
   const wordCounts: number[] = [];
+  const replies: string[] = [];
   for (const turn of group.turns ?? []) {
     traces.length = 0;
     const beats = [];
@@ -212,6 +223,7 @@ async function runGroup(group: PromptGroup, { prompt, model, askJudge }: RunCont
     recordCodeChecks(group, turn, summary, commands);
     if (args.transcript) appendFileSync(args.transcript, `${JSON.stringify({ group: group.name, text, spoken: summary.spokenText, commands, refused: traces.filter((trace) => trace.startsWith('commandRefused')) })}\n`);
     wordCounts.push(summary.spokenText.split(/\s+/).filter(Boolean).length);
+    replies.push(summary.spokenText);
     exchange.push(`Student: ${text}`, `Tutor: ${summary.spokenText}`);
     if (turn.judge) {
       const verdict = await askJudge(`${exchange.join('\n')}\n\nQuestion about the tutor's last reply: ${JUDGED_CHECKS[turn.judge] as string}\nAnswer YES or NO on the first line, then one short reason.`);
@@ -221,6 +233,11 @@ async function runGroup(group: PromptGroup, { prompt, model, askJudge }: RunCont
     }
     await lessonPlanner.whenSettled();
   }
+  for (const check of group.anyReply ?? []) {
+    const passed = replies.some((reply) => REPLY_CHECKS[check]?.passes(reply, []));
+    results.push({ group: group.name, check, passed, text: 'on any reply' });
+    if (!passed) console.log(`   FAILED ${check} on every reply`);
+  }
   if (group.stat === 'usuallyShort') {
     const passed = wordCounts.filter((count) => count < USUAL_WORDS).length / wordCounts.length >= USUAL_SHARE;
     results.push({ group: group.name, check: 'stat:usuallyUnder25', passed, text: wordCounts.join(',') });
@@ -228,18 +245,19 @@ async function runGroup(group: PromptGroup, { prompt, model, askJudge }: RunCont
   }
 }
 
-async function runCompareSide(compare: LevelCompare, level: string, { prompt, model }: RunContext): Promise<string> {
+async function runCompareSide(compare: LevelCompare, { level, student = {} }: { level: string; student?: CompareStudent | undefined }, { prompt, model }: RunContext): Promise<string> {
   const spoken: string[] = [];
-  const { brain } = makeBrain(prompt, { level, interests: [], goal: 'curiosity' }, [], (summary) => spoken.push(summary.spokenText), model);
+  const { brain } = makeBrain(prompt, { level, interests: student.interests ?? [], goal: 'curiosity' }, [], (summary) => spoken.push(summary.spokenText), model, student.memory);
   for (const text of [compare.text, compare.then]) for await (const beat of brain.reply({ text }, new AbortController().signal)) void beat;
+  console.log(`   ${level} words a reply ${spoken.map((reply) => reply.split(/\s+/).filter(Boolean).length).join(', ')}`);
   return spoken.join(' ');
 }
 
 async function runCompare(group: PromptGroup, compare: LevelCompare, context: RunContext): Promise<void> {
-  const [lower, higher] = await Promise.all([runCompareSide(compare, compare.lower, context), runCompareSide(compare, compare.higher, context)]);
+  const [lower, higher] = await Promise.all([runCompareSide(compare, { level: compare.lower, student: compare.lowerStudent }, context), runCompareSide(compare, { level: compare.higher, student: compare.higherStudent }, context)]);
   console.log(`[${group.name}] ${compare.lower}: ${lower}\n[${group.name}] ${compare.higher}: ${higher}`);
   const namesPlain = !compare.plainTerms.some((term) => lower.toLowerCase().includes(term));
-  const namesProper = compare.properTerms.some((term) => higher.toLowerCase().includes(term));
+  const namesProper = compare.properTerms.length === 0 || compare.properTerms.some((term) => higher.toLowerCase().includes(term));
   results.push({ group: group.name, check: 'level:lowerIsPlain', passed: namesPlain, text: compare.text }, { group: group.name, check: 'level:higherIsProper', passed: namesProper, text: compare.text });
   // The order changes at random, so a judge's habit of picking one letter cannot pass.
   const isHigherFirst = Math.random() < 0.5;

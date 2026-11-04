@@ -15,9 +15,10 @@ export function moveOver({ from, to, atMs, overMs }: { from: number; to: number;
   return { startedAtMs: atMs, from, to, unitsPerMs: Math.abs(to - from) / overMs };
 }
 
+// Lands on `to` itself, because `from` plus the distance can round one step past it, and a second play to that moment would read as going backward and start over.
 export function getMotionValue(motion: Motion, atMs: number): number {
-  const travelled = Math.min(Math.abs(motion.to - motion.from), Math.max(0, atMs - motion.startedAtMs) * motion.unitsPerMs);
-  return motion.from + Math.sign(motion.to - motion.from) * travelled;
+  const travelled = Math.max(0, atMs - motion.startedAtMs) * motion.unitsPerMs;
+  return travelled >= Math.abs(motion.to - motion.from) ? motion.to : motion.from + Math.sign(motion.to - motion.from) * travelled;
 }
 
 export function isMoving(motion: Motion, atMs: number): boolean {
