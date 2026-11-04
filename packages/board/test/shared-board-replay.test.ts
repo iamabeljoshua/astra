@@ -59,6 +59,21 @@ describe('a replay of the shared board', () => {
     expect(rebuildBoard(log, 1250).elements.get(id('a3'))?.progress?.pointX).toBe(2);
   });
 
+  it('takes a student\'s ring and the task when the tutor rewrites their line with a change, live and in a replay', () => {
+    const pickTask = { kind: 'task', id: id('a4'), way: 'pick', on: id('steps') } as const;
+    const pick = { way: 'pick', task: id('a4'), part: '+3' } as const;
+    const rewritten = { ...setProblem, tex: '2x + 5 = 11' } as const;
+    const checked = checkWorkOnBoard(pick, getBoardAt([{ kind: 'command', atMs: 10, command: setProblem, overMs: null }, { kind: 'command', atMs: 20, command: pickTask, overMs: null }], 500));
+    const action = { action: 'worked', work: pick, ...checked } as const;
+    const log: SessionEvent[] = [beat(0, 10, [setProblem, pickTask]), { seq: 1, atMs: 1000, kind: 'studentActed', action }, beat(2, 2000, [rewritten])];
+    const operations: BoardOperation[] = [{ kind: 'command', atMs: 10, command: setProblem, overMs: null }, { kind: 'command', atMs: 10, command: pickTask, overMs: null }, { kind: 'worked', atMs: 1000, action }, { kind: 'command', atMs: 2000, command: rewritten, overMs: null }];
+    expect([...rebuildBoard(log, 1500).elements.values()].some(({ isStudentMark }) => isStudentMark)).toBe(true);
+    for (const board of [rebuildBoard(log, 2500), getBoardAt(operations, 2500)]) {
+      expect([...board.elements.values()].some(({ isStudentMark }) => isStudentMark)).toBe(false);
+      expect(board.elements.has(id('a4'))).toBe(false);
+    }
+  });
+
   it('closes a task on the work that finishes it, and a new task closes the one before', () => {
     const { log } = playAndLog([{ atMs: 1000, work: line('s1', 'x = 4', id('a1')) }]);
     expect(rebuildBoard(log, 500).elements.get(id('a1'))?.progress?.isOpen).toBe(true);

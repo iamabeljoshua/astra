@@ -59,5 +59,6 @@
    {"work":{"way":"place","placed":"rightOrder"},"check":"speaks"}]},
  {"name":"pick-a-term","checks":[],"turns":[
    {"text":"For 2x + 3 = 11, write it on the board and have me pick which term I would deal with first, by clicking it.","check":"setsPickTask"},
-   {"work":{"way":"pick","part":"3"},"check":"speaks"}]}
+   {"work":{"way":"pick","part":"3"},"check":"speaks"}]},
+  {"name": "drag-a-point", "checks": [], "turns": [{"text": "Graph y = x^2 - 4x + 3 and let me drag a point along the curve to find the vertex, where it goes flat.", "check": "plotsAndSetsDrag"}, {"work": {"way": "drag", "x": 0.5}, "silent": true}, {"work": {"way": "drag", "x": 2}, "check": "speaks"}]}
 ]

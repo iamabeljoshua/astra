@@ -13,7 +13,7 @@ A `task` has one general shape, set on a word of the tutor's, at any moment in a
 | `write` with `reads` `words` or `code` | Types thoughts, answers, or code | Nothing. No line of code ever runs |
 | `pick` | Picks a term of a math line or a node of a diagram | Against `answer`, if the tutor gave one |
 | `place` | Puts an item in each slot, for steps in order, matching, and labels | Against `answer`, if the tutor gave one |
-| `drag` | Moves a point along a plot's curve, which needs M3.4's plots on the page | `flat` and `zero`, read from the curve itself |
+| `drag` | Moves a point along a plot's curve | `flat` and `zero`, read from the curve itself |
 
 An answer key comes from the tutor, so code is certain only against that key. `drag` is the one way where code needs no key.
 
@@ -44,6 +44,12 @@ Each stroke lands as it is drawn and goes through `inkStroke`, so it is in the l
 | 16 lines of words, one misspelled on purpose | 16 | Not judged | 0 fixed |
 
 It cost $0.007 for 72 reads, at 1.9 s a read.
+
+## Dragging a point
+
+A `drag` task puts the student's point on the curve, near its start, with a ring until it is first moved. It moves in steps of about a fiftieth of the plot, and only from near the point. Letting go sends the whole path, and a press that moved nothing sends nothing. The check is never finer than the point can move, so a wide plot can always be landed. A wrong place waits, because the student may be trying places, and the tutor looks at a pause. The moves land in the log with the work, so a replay moves the point at the same moments.
+
+A line the tutor rewrites with a change takes what hung on it, as PR 88 made it: the student's ring and any task on that line. It says something new, so the ring no longer points at anything, and the tutor sets a new task if it wants one.
 
 ## Answering aloud
 
@@ -198,10 +204,10 @@ Abel's rule: everything a student can see or do on the prototype exists on the r
 
 | Behavior | Real board | Proof |
 |---|---|---|
-| Plot drawn in the flow, with grid, ticks, and a true minus sign | Waits for PR 88 | |
-| Draggable point with a pulsing ring and its coordinates | Waits for PR 88 | |
-| Tangent riding on the point, with its slope written | Waits for PR 88 | |
-| Code's check on release, with "Mm-hm." or "Hm." | Check and nods are in, `check-work.ts`. The page waits for PR 88 | `step-generator.test.ts`, `board-work.test.ts` |
+| Plot drawn in the flow, with ticks and a true minus sign | Yes, by PR 88's figure painter. No grid lines, as in its look | `drag-light-1366-*`, `figure.test.ts` |
+| Draggable point with a pulsing ring and its coordinates | Yes. Arrow keys and Enter also move and send it, which the prototype does not have | `drag-point.test.ts`, `DragSurface.test.tsx`, `drag-*-1-waiting` |
+| Tangent riding on the point, with its slope written | Yes | `drag-point.test.ts`, `m3-12-task-*` |
+| Code's check on release, with "Mm-hm." or "Hm." | Yes, 37 to 58 ms on the page, on the drags measured | `drag-proof.mjs`, `board-work.test.ts` |
 
 ### Layout
 

@@ -4,7 +4,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { makeTexFuzzSources } from '@astra/board/tex-fuzz';
-import { type Browser, chromium, type Page } from 'playwright';
+import { type Browser, chromium } from 'playwright';
 import { type LessonName, LESSONS } from '../lesson.ts';
 import { BOARD_SELECTOR, checkReplayPixels, checkStillness, getCommandTimes, HIDE_DEV_BUTTON, holdFrame, type LabPage, openLabPage, shoot, type Theme, type ViewportName, VIEWPORTS } from './lab-page.ts';
 import { delay, REPO_ROOT, startLabStack } from './lab-stack.ts';
