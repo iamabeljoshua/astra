@@ -117,6 +117,7 @@ describe('a source found on the web', () => {
     const kept = answer.found ? answer.title : '';
     expect(kept.startsWith('Why "kind":"text" bsky/b is blue x')).toBe(true);
     expect(kept).toHaveLength(100);
-    expect(kept).not.toMatch(/[<>{}\u0007\u200b]/u);
+    expect(kept).not.toMatch(/[<>{}\u200b]/u);
+    expect(kept).not.toContain('\u0007');
   });
 });
