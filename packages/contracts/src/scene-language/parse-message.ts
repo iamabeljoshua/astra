@@ -1,6 +1,6 @@
 import { BEAT_LIMITS } from './beat.ts';
 import { readBeatId, readTurnId } from './ids.ts';
-import { type AgentMessage, type BrowserMessage, type BrowserStamp, LIVE_MESSAGE_MAX_BYTES, STUDENT_WORDS_MAX_CHARACTERS, type TimedWord, TYPED_TEXT_MAX_CHARACTERS } from './live-message.ts';
+import { type AgentMessage, type BrowserMessage, type BrowserStamp, clipTypedText, LIVE_MESSAGE_MAX_BYTES, STUDENT_WORDS_MAX_CHARACTERS, type TimedWord, TUTOR_CLOSED_REASONS } from './live-message.ts';
 import { readSceneCommand } from './parse-command.ts';
 import { PLAY_REPORT_KEYS, readFrozenFrames, readPlayReport, readStudentAction } from './parse-event.ts';
 import {
@@ -12,6 +12,7 @@ import {
   readBoolean,
   readFields,
   readList,
+  readOneOf,
   readString,
   readVariant,
   readWholeNumber,
@@ -92,6 +93,7 @@ const AGENT_MESSAGES: VariantTable<AgentMessage, 'type'> = {
     },
     heard: { keys: [], read: () => ({ type: 'heard' }) },
     thinking: { keys: ['isThinking'], read: (fields) => ({ type: 'thinking', isThinking: readBoolean(fields.at('isThinking')) }) },
+    tutorClosed: { keys: ['reason'], read: (fields) => ({ type: 'tutorClosed', reason: readOneOf(fields.at('reason'), TUTOR_CLOSED_REASONS) }) },
     pulse: { keys: [], read: () => ({ type: 'pulse' }) },
   },
 };
@@ -145,7 +147,7 @@ const BROWSER_MESSAGES: VariantTable<BrowserMessage, 'type'> = {
     },
     typed: {
       keys: [...STAMP_KEYS, 'text'],
-      read: (fields) => ({ type: 'typed', ...readBrowserStamp(fields), text: readString(fields.at('text'), TYPED_TEXT_MAX_CHARACTERS) }),
+      read: (fields) => ({ type: 'typed', ...readBrowserStamp(fields), text: clipTypedText(readString(fields.at('text'), LIVE_MESSAGE_MAX_BYTES)) }),
     },
     pulse: {
       keys: [...STAMP_KEYS, 'hearsAgent'],

@@ -12,6 +12,13 @@ export const LINK_QUIET_LIMIT_MS = 3 * PULSE_EVERY_MS;
 /** The longest typed reply, in characters. */
 export const TYPED_TEXT_MAX_CHARACTERS = 2000;
 
+const LONE_SURROGATE = /\p{Cs}/gu;
+
+/** Cuts between whole characters, because half an emoji makes the JSON the model's API reads invalid. */
+export function clipTypedText(text: string): string {
+  return Array.from(text.replace(LONE_SURROGATE, '')).slice(0, TYPED_TEXT_MAX_CHARACTERS).join('');
+}
+
 /** The longest caption line of the student's words, in characters. */
 export const STUDENT_WORDS_MAX_CHARACTERS = 2000;
 
@@ -27,6 +34,11 @@ export interface TimedWord {
   text: string;
   startMs: number;
 }
+
+export const TUTOR_CLOSED_REASONS = ['sessionLimit', 'dailyLimit', 'broken'] as const;
+
+/** Why the tutor will not answer again in this room: a spending limit, or a model that rejects every request. */
+export type TutorClosedReason = (typeof TUTOR_CLOSED_REASONS)[number];
 
 /** `yield`, `stop`, and `audioGap` go on both data channels, and the rest on the reliable one. */
 export type AgentMessage =
@@ -47,6 +59,8 @@ export type AgentMessage =
   | { type: 'heard' }
   /** The tutor is working on a reply and has no words yet, so the student can see why it is quiet. */
   | { type: 'thinking'; isThinking: boolean }
+  /** The tutor has said why it stopped, and will not speak again, so the page can keep saying why it is quiet. */
+  | { type: 'tutorClosed'; reason: TutorClosedReason }
   /** Sent every half second on the lossy channel, so the browser knows the agent can still reach it. */
   | { type: 'pulse' };
 
