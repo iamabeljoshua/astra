@@ -43,7 +43,7 @@ It reports these as defects:
 | --- | --- |
 | Full sweep | 31,776 renders, 503,056 text boxes, 0 defects, in about a minute |
 | Planted defects | 36 of 36 caught: 21 in the page, 14 in the library, and 1 flash |
-| Flash check | 358 frames on the 3 strobe scenes in both themes, at most 0 flashes in any second. With the picture's hold planted out, 4 |
+| Flash check | 3,669 frames across all 118 scenes, with the 3 strobe scenes in both themes. At most 2 flashes in any second, in `hostile-many-at-once` in dark, and 0 in the strobe scenes. With the picture's hold planted out, 4 |
 
 A plant either breaks the page or rewrites one line of the library as it is served, and never touches the disk. Each must be caught by the kind of defect it plants.
 
