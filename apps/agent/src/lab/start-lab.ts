@@ -3,17 +3,19 @@ import { parseArgs } from 'node:util';
 import { initializeLogger } from '@livekit/agents';
 import { AccessToken } from 'livekit-server-sdk';
 import { makeTutorVoice, TUTOR_VOICE_NAME } from '../providers/choose.ts';
-import { FAKE_SAMPLE_RATE, makeRenderedVoice, type RenderSpeech } from '../providers/fakes.ts';
-import { readKey } from './keys.ts';
+import { FAKE_SAMPLE_RATE, renderTone } from '../providers/fakes.ts';
+import { makeRenderedVoice, type RenderSpeech } from '../providers/rendered-voice.ts';
+import { readKey } from '../keys.ts';
+import { getLabGrant } from './lab-grants.ts';
 import { runLabAgent } from './lab-agent.ts';
 import { createLabRecorder } from './lab-recorder.ts';
 import { LESSONS } from './lesson.ts';
 import { makeSayRenderer } from './proof/say-voice.ts';
 import { tapVendorSocket, type VendorTap } from './proof/vendor-tap.ts';
 
-/** The local server's own development pair, which `livekit-server --dev` prints. */
-const DEV_KEY = 'devkey';
-const DEV_SECRET = 'secret';
+/** The local server's own development pair, which `livekit-server --dev` prints. A proof on Cloud sets the project's pair. */
+const LAB_KEY = process.env.LAB_API_KEY ?? 'devkey';
+const LAB_SECRET = process.env.LAB_API_SECRET ?? 'secret';
 
 const { values: args } = parseArgs({
   options: {
@@ -29,9 +31,9 @@ const { values: args } = parseArgs({
   },
 });
 
-async function makeToken(identity: string): Promise<string> {
-  const token = new AccessToken(DEV_KEY, DEV_SECRET, { identity, ttl: '30m' });
-  token.addGrant({ room: args.room, roomJoin: true, canPublish: true, canSubscribe: true, canPublishData: true });
+async function makeToken(identity: string, side: 'page' | 'agent'): Promise<string> {
+  const token = new AccessToken(LAB_KEY, LAB_SECRET, { identity, ttl: '30m' });
+  token.addGrant(getLabGrant(args.room, side));
   return token.toJwt();
 }
 
@@ -56,7 +58,7 @@ function makeStoredRender(path: string): RenderSpeech {
 
 function pickVoice() {
   if (args.stored) return makeRenderedVoice({ name: 'stored', render: makeStoredRender(args.stored) });
-  if (args.fake) return makeRenderedVoice({ name: 'fake' });
+  if (args.fake) return makeRenderedVoice({ name: 'fake', render: renderTone });
   if (args.say) return makeRenderedVoice({ name: 'say', render: makeSayRenderer([...LESSONS.algebra.flat(), ...LESSONS.dense.flat()]) });
   return makeTutorVoice({ model: args.model, apiKey: readKey('ELEVENLABS_API_KEY') });
 }
@@ -64,9 +66,9 @@ function pickVoice() {
 initializeLogger({ pretty: false, level: 'warn' });
 const recorder = createLabRecorder(args.out ?? null);
 const tap: VendorTap | null = args.tap ? tapVendorSocket() : null;
-const studentToken = await makeToken('student-browser');
+const studentToken = await makeToken('student-browser', 'page');
 console.log(`OPEN ${args.webUrl}/lab/scene-player?url=${encodeURIComponent(args.url)}&token=${studentToken}`);
 const voice = pickVoice().makeTts();
-await runLabAgent({ url: args.url, token: await makeToken('agent-tutor'), voice, sampleRate: voice.sampleRate, recorder });
+await runLabAgent({ url: args.url, token: await makeToken('agent-tutor', 'agent'), voice, sampleRate: voice.sampleRate, recorder });
 recorder.save({ voice: args.fake ? 'fake' : args.say ? 'say' : args.stored ? `stored ${TUTOR_VOICE_NAME}` : TUTOR_VOICE_NAME, model: args.model ?? 'eleven_flash_v2_5', tap });
 process.exit(0);

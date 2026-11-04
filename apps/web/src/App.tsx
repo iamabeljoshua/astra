@@ -15,12 +15,25 @@ import { AppShell } from './shell/AppShell';
 import { LEGAL_PAGES } from './strings';
 
 const ScenePlayerLab = import.meta.env.DEV ? lazy(() => import('./lab/ScenePlayerLab')) : null;
+const VoiceTestPage = import.meta.env.DEV ? lazy(() => import('./lab/VoiceTestPage')) : null;
 
 function AppRoutes() {
   const signInDraft = useSignInDraft();
 
   return (
     <Routes>
+      {VoiceTestPage ? (
+        <Route
+          path="/lab/voice-test"
+          element={
+            <AccountGate signInDraft={signInDraft}>
+              <Suspense>
+                <VoiceTestPage />
+              </Suspense>
+            </AccountGate>
+          }
+        />
+      ) : null}
       {ScenePlayerLab ? (
         <Route
           path="/lab/scene-player"

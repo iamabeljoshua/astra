@@ -1,6 +1,8 @@
 import { AudioSource, dispose, LocalAudioTrack, Room, RoomEvent, TrackPublishOptions, TrackSource } from '@livekit/rtc-node';
-import { type AgentMessage, type Beat, type BeatId, type BrowserMessage, getResumeScript, parseBeat, parseBrowserMessage, type PlayReport, type TurnId } from '@astra/contracts';
+import { type AgentMessage, type Beat, type BeatId, type BrowserMessage, parseBrowserMessage, type PlayReport, type TurnId } from '@astra/contracts';
 import type { tts } from '@livekit/agents';
+import { getResumeBeats } from '../live/resume-plan.ts';
+import { readDataMessage } from '../live/read-data-message.ts';
 import { createSessionLog } from '../live/session-log.ts';
 import { type SpokenTurn, speakTurn, type TextPace } from '../live/speak-turn.ts';
 import { createVoiceLine } from '../live/voice-line.ts';
@@ -10,6 +12,8 @@ import { getLessonTurn, type LessonName, LESSONS, STOCK_MATH_TURN, STOCK_TURN } 
 export const LIVE_TOPIC = 'astra.live';
 export const LAB_TOPIC = 'astra.lab';
 const AUDIO_QUEUE_MS = 200;
+/** How long a resume waits for the browser to say what it played, as the design's wiring does. */
+const REPORT_WAIT_MS = 1000;
 
 export type LabCommand =
   | { type: 'play'; lesson?: LessonName; lessonTurn?: number; repeats?: number; cueEveryWords?: number; isStockPhrase?: boolean; isStockMath?: boolean; textPace?: TextPace; proofStalls?: { atAudioMs: number; ms: number }[]; wordsLateMs?: number }
@@ -39,7 +43,6 @@ interface ActiveTurn {
 export async function runLabAgent({ url, token, voice, sampleRate, recorder }: LabAgentOptions): Promise<void> {
   const room = new Room();
   const encoder = new TextEncoder();
-  const decoder = new TextDecoder();
   const startedAtMs = Date.now();
   let turnCount = 0;
   let active = null as ActiveTurn | null;
@@ -68,6 +71,7 @@ export async function runLabAgent({ url, token, voice, sampleRate, recorder }: L
       void publish(LAB_TOPIC, { type: 'logEvent', event });
       recorder.noteLogEvent(event);
     },
+    onRefused: (problem) => recorder.noteRefused(`log refused: ${problem}`),
   });
 
   await room.connect(url, token, { autoSubscribe: false, dynacast: false });
@@ -103,22 +107,23 @@ export async function runLabAgent({ url, token, voice, sampleRate, recorder }: L
     });
   };
 
+  const hasEveryReport = (turn: ActiveTurn) => [...turn.spoken.getWordsSent().keys()].every((beatId) => turn.reports.has(beatId));
+
+  const whenReported = async (turn: ActiveTurn): Promise<void> => {
+    const deadline = Date.now() + REPORT_WAIT_MS;
+    while (!hasEveryReport(turn) && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 10));
+  };
+
+  const resumeTurn = async (turn: ActiveTurn, textPace?: TextPace) => {
+    await whenReported(turn);
+    startTurn(getResumeBeats({ beats: turn.beats, reports: turn.reports, wordsSent: turn.spoken.getWordsSent(), resumeTag: `r${turnCount}` }), { textPace });
+  };
+
   const getTurnBeats = (command: LabCommand & { type: 'play' }): readonly Beat[] => {
     if (command.isStockMath) return STOCK_MATH_TURN;
     if (command.isStockPhrase) return STOCK_TURN;
     return command.lesson ? (LESSONS[command.lesson][command.lessonTurn ?? 0] ?? []) : getLessonTurn(command);
   };
-
-  // The rest of a cut turn, starting with the word it was cut on.
-  const getResumeBeats = (turn: ActiveTurn): Beat[] =>
-    turn.beats.flatMap((beat) => {
-      const report = turn.reports.get(beat.id);
-      if (!report) return [beat];
-      if (report.ending === 'finished') return [];
-      const fromWord = Math.max(report.playedWords - 1, 0);
-      const parsed = parseBeat({ id: `${beat.id}-r${turnCount}`, script: getResumeScript(beat, { fromWord, firedCues: report.firedCueMs.length, frozen: report.frozen }), expectsReply: beat.expectsReply });
-      return parsed.ok ? [parsed.value] : [];
-    });
 
   const runCommand = (command: LabCommand) => {
     if (command.type === 'play') {
@@ -129,7 +134,7 @@ export async function runLabAgent({ url, token, voice, sampleRate, recorder }: L
       recorder.noteStopDecided(active?.id);
       active?.spoken.stop();
     }
-    if (command.type === 'resume' && active) startTurn(getResumeBeats(active), command);
+    if (command.type === 'resume' && active) void resumeTurn(active, command.textPace);
     if (command.type === 'finish') finish();
     if (command.type === 'sendRaw') for (const message of command.messages) void publish(LIVE_TOPIC, message as object);
     if (command.type === 'hello') void publish(LAB_TOPIC, { type: 'agentReady' });
@@ -142,10 +147,11 @@ export async function runLabAgent({ url, token, voice, sampleRate, recorder }: L
   };
 
   room.on(RoomEvent.DataReceived, (payload, _participant, _kind, topic) => {
-    const value: unknown = JSON.parse(decoder.decode(payload));
-    if (topic === LAB_TOPIC) runCommand(value as LabCommand);
+    const read = readDataMessage(payload);
+    if (!read.ok) return recorder.noteRefused(read.problem);
+    if (topic === LAB_TOPIC) runCommand(read.value as LabCommand);
     if (topic !== LIVE_TOPIC) return;
-    const parsed = parseBrowserMessage(value);
+    const parsed = parseBrowserMessage(read.value);
     if (parsed.ok) onBrowserMessage(parsed.value);
     else recorder.noteRefused(parsed.problem);
   });
