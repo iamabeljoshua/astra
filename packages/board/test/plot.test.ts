@@ -1,6 +1,7 @@
 import { evaluatePlotExpression, parsePlotExpression, type Plot } from '@astra/contracts';
 import { describe, expect, it } from 'vitest';
 import type { Branch, Point } from '../src/figure/figure-marks.ts';
+import { makeSeededRandom } from '../src/ink/ink-stroke.ts';
 import { formatNumber, getAutoYRange, getTickValues } from '../src/plot/axis-ticks.ts';
 import { createPlotScene, type PlotFrame } from '../src/plot/plot-scene.ts';
 import { CURVE_LIMITS, getBranchesUpTo, sampleCurve } from '../src/plot/sample-curve.ts';
@@ -191,6 +192,21 @@ describe('a continuous curve that needs many samples', () => {
     expect(branches).toHaveLength(1);
     expect(branches[0]?.[0]?.y).toBe(-1);
     expect(branches[0]?.at(-1)?.y).toBe(1);
+  });
+
+  it('keeps random continuous curves whole, as long as a pixel can show their wiggles', () => {
+    const random = makeSeededRandom('continuous-curves');
+    const pick = (low: number, high: number) => low + random() * (high - low);
+    for (let round = 0; round < 400; round += 1) {
+      const domain: Range = [-pick(1, 20), pick(1, 20)];
+      const rate = (pick(0.1, 200) * 2 * Math.PI) / (domain[1] - domain[0]);
+      const shapes = [`${pick(0.1, 20)}*sin(${rate}*x)`, `cos(${rate}*x+${pick(0, 5)})`, `abs(sin(${rate}*x))`, `exp(sin(${rate}*x))`, `${pick(0.1, 5)}*x+sin(${rate}*x)`];
+      const expression = shapes[round % shapes.length] as string;
+      const node = parsePlotExpression(expression) as NonNullable<ReturnType<typeof parsePlotExpression>>;
+      const { curve, yRange } = getPlotCurve(expression, domain);
+      const isInView = Array.from({ length: 1001 }, (_, index) => evaluatePlotExpression(node, domain[0] + ((domain[1] - domain[0]) * index) / 1000)).every((y) => y >= yRange[0] && y <= yRange[1]);
+      if (isInView) expect(curve, expression).toHaveLength(1);
+    }
   });
 
   it('connects a cusp whose side is nearly vertical', () => {

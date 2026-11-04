@@ -12,6 +12,7 @@ pnpm --filter @astra/agent graph-proof --out /tmp/m3-4-proof
 pnpm --filter @astra/agent graph-proof --stored <a take from store-run.ts> --only stored,late-words,slider --out /tmp/m3-4-stored
 pnpm --filter @astra/agent proof --stored <a take from store-run.ts> --only graph-shot,graph-shot-every-third,graph-curves,graph-shot-every-third-phone --out /tmp/m3-4-timing
 pnpm --filter @astra/agent math-load --first plot --out /tmp/m3-4-load
+pnpm --filter @astra/agent graph-proof --only waves,extremes,keyboard,reuse,marks,labels,slider-name --out /tmp/m3-4-fix
 ```
 
 ## The data shape
@@ -24,7 +25,7 @@ A figure draws at its true size and never scales, so its text stays 12 px at any
 
 ## Results
 
-Numbers below are from the runs at `98a6408`, whose tree is the same as `26b92bf`. The one code commit after that changes how a missing part is reported and when a hoop goes, and "Final head" below has the rerun.
+The tables here are from the runs at `98a6408`, before the review. "After the review" below has the rerun at the end of the fix round.
 
 **Correct math.** Each of these reads the page, not the code that drew it. Zero comes from the axes, the scale from a tick, and the expected value from a formula worked in the proof.
 
@@ -120,7 +121,82 @@ A plot needs no font fetch, which is why it beats an equation on Slow 4G.
 | The hardest curve allowed with a fixed `yRange`, sampled from nothing | 1.9 and 8.1 | 2.8 and 12.5 |
 | A flight, after a drag of 6,000 samples | 0.2 and 0.5 | 0.7 and 2.4 |
 
-**Final head.** At `905631a`, the last commit that changes the board, on the stored take: 3 lesson runs with 4,217 frames, 56,768 labels, and 0 of everything above, with 0 of 4,217 live frames and 0 of 156 screenshots differing from the replay. The ball was at most 0.11 px off the worked arc, landed 1.99995 and 2.00000 times as far after the drag, and froze byte for byte on 2 of 2 boards, with 112 replay moments matching. 15 of 15 bad commands were refused again on 2 runs, with 0 frames of text on text.
+## After the review
+
+The review found five blockers and a list of smaller faults. This is the rerun after the fix round, on the same Mac at a load near 20, against a load near 8 above. `graph-proof` now holds the review's cases as lessons, so `--only waves,extremes,keyboard,reuse,marks,labels,slider-name` runs them again.
+
+**A wave stays whole.** Read off the real page. The slider was dragged with a real mouse, and each number is the same at laptop and phone width.
+
+| Curve | Before | After | Evaluations before and after |
+| --- | --- | --- | --- |
+| `sin(a*x)` on [-10, 10], a from 1 to 3 | 1 piece, 100% of the width | 1 piece, 100% | |
+| `sin(a*x)`, a = 4 | 26 pieces, 60% | 1 piece, 100% | 3,155 and 741 |
+| `sin(a*x)`, a = 10 | 64 pieces, 21% | 1 piece, 100% | 3,501 and 1,687 |
+| `sin(x)` on [-50, 50] | 32 pieces, 44% | 1 piece, 100% | 3,297 and 846 |
+| `sin(2*pi*x)` on [-10, 10] | 40 pieces, 33% | 1 piece, 100% | 3,441 and 1,033 |
+| `abs(sin(x))` on [-20, 20] | 26 pieces, 59% | 1 piece, 100% | 3,189 and 623 |
+| `sin(30*x)` on [-10, 10] | 192 pieces, 9% | 1 piece, 100% | 3,703 and 3,841 |
+
+A false line stays out. `1/x` is 2 pieces, `tan(x)` on [-5, 5] is 5, `tan(10*x)` is 65 for its 64 poles, a jump is 2, and `sqrt(x)` starts at zero, all with no line across a break. 3,000 random continuous curves gave 5 with a gap, all finer than a pixel, at more than 500 periods across the axes.
+
+**No number in a command can take the page down.** A slider narrower than 1e-6 is refused, on the page as well as in the parser. Every figure and slider kind then played at the edge of what the parser takes, on 7 turns at 2 widths, with 42 slider moves by key: 0 page errors, 0 console errors, 0 frames holding a number that is not finite, 0 frames of text on text, 0 of 2,741 live frames differing from the log, 0 of 368 replay moments differing, and 0 of 29 moments after the slider moves differing. 20,000 rounds of extreme numbers through every figure's marks gave nothing that is not finite, and 150 rounds through `BoardView`, live and from a stored row, gave the same.
+
+**A reused id takes its new content.** In the lesson from the review, the slider reused for the second curve reads min 10, max 20, value 15, and name `b`, its figure reads "second", and 5 key presses moved the curve. When its curve is replaced with one that has no such constant, the slider is disabled and says nothing.
+
+**A slider has a name.** The browser's tree reads role slider and name "Sideways speed". `aria-valuetext` is "4.2 m/s", and the board holds no live region.
+
+**A flight that never leaves the ground has axes.** So does `10^308*x`. Pictures from the lab are in the run's folder, with a ball on the ground at 0 m and 0 frames holding a number that is not finite.
+
+**A key press replays on its own millisecond.** 8 of 8 key presses log 0 ms from the board that used them, at both widths, and 0 of 36 held moments differ. Before, 8 of 8 were 1 ms early, and 7 of 12 moments differed.
+
+**Marks say what they could not draw.** A mark on a number line part, a value off a line, a mark on a part a curve lacks, and a value past its axes each report. A mark on a path draws. A mark on a point that was later hidden reports nothing, because it was drawn.
+
+**Wide text keeps clear.** A label of 3 `﷽`, of cuneiform, of emoji, of Burmese, of Arabic, and an 80 character word on one curve gave 0 frames of text on text at both widths. On the phone, 2 of them have no room and report it.
+
+**What held.** On the fake voice unless it says stored Chris.
+
+| What was checked | Result |
+| --- | --- |
+| Lesson runs, frames, and labels | 16, 16,835, and 177,966 |
+| Frames with text on text, text outside its figure, two elements overlapping, or an element off the board | 0, 0, 0, and 0 |
+| Live frames that differ from the log | 0 of 16,835 |
+| Replay screenshots that differ | 1 of 640, by 88 pixels with the board's description equal, on a run before a proof waited for its frame to paint. That lesson and width reran clean twice, and the old head shows the same kind of difference on it |
+| Writes and animations with nothing moving, after each lesson | 0 and 0, on all 16 |
+| Screenshots 3 s apart after a lesson that differ | 2 of 16, in a line's antialiasing with 0 writes. In 2 alternating reruns of 3 lessons, 1 of 6 at this head and 2 of 6 at the old head, so this is the page's rendering under load and not this PR |
+| Frame gap | p50 16.7 ms, p95 16.9 to 17.6 ms, worst 99.6 ms, and 6 frames over 34 ms |
+| Stored Chris | 3 lesson runs, 4,250 frames, 57,192 labels, and all of the above at 0, with 0 of 156 screenshots differing |
+| Word times landing one by one, stored Chris | 3 runs, 4,229 frames, 0 differing, 0 steps backward, and 0 of 156 screenshots differing |
+| Ball against the worked arc | at most 0.116 px off |
+| Landing after doubling the speed | 1.99995 and 2.00000 times as far, off by at most 0.27 mm |
+| Launch angle dragged to 30 degrees | 17.675 and 17.673 m against a worked 17.674 m, scale held |
+| Freeze | 2 of 2 byte for byte, 0 writes, a resume at 6.099 m, and 0 of 112 replay moments differing |
+| A real mouse drag, replayed | 8 of 8 moments at both widths, on both voices |
+| First write after a slider move | p50 1.9 to 2.6 ms and p95 2.4 to 6.2 ms in 8 runs, against p95 2.2 to 6.4 ms in 4 runs of the old head alternating with 4 of these, so no measurable difference, and the spread is too wide to rule out a small one |
+| A move landing on a move | at most 521 to 584 pixels in one 16 ms step, against 192 to 511 on a plain move |
+| Bad commands refused | 15 of 15 at both widths, with 0 frames of text on text |
+| Reduced motion | 2 runs, 2,867 frames, and the ball in 5 places |
+
+The review's own flight, with a slider, key presses, a stop, a drag while frozen, and a resize, gave 3 of 3 with the scale held and a frozen board still, 0 of 300 described moments differing, 0 of 60 screenshots differing, and 0 frames of text on text in 5,303 frames.
+
+**Load and cost.** At a load near 15, against 9 above.
+
+| | Before the review | Now |
+| --- | --- | --- |
+| Board script, gzipped | 120.7 KB | 122.1 KB |
+| Board script | 381.9 KB | 385.7 KB |
+| First plot, this Mac | 53 ms | 71 ms, from 59 to 82 ms |
+| First plot, Slow 4G with CPU slowed 4 times | 874 ms | 920 ms, from 907 to 957 ms |
+
+No figure code reaches the app's own bundle yet, because only the lab imports `BoardView`.
+
+| A frame's cost, on this Mac and with CPU slowed 4 times | Median ms | Worst ms |
+| --- | --- | --- |
+| Whole board and marks for a flight | 0.1 and 0.9 | 2 and 12.7 |
+| A curve at a new constant | 0.1 and 0.8 | 0.9 and 5.1 |
+| The hardest curve with a fixed `yRange`, sampled from nothing | 2.9 and 14.3 | 5 and 20.8 |
+| A 170 character curve with four constants, placed and drawn from nothing | 17.3 and 87.4 | 20.6 and 107.8 |
+
+The last row is the review's correction. The old row used a fixed `yRange`, which skips the fit that takes most of the time on placing, at 7,954 evaluations against at most 4,000 to draw. It is a long task on a slow phone, listed under Limits.
 
 ## Choices worth keeping
 
@@ -149,6 +225,7 @@ A plot needs no font fetch, which is why it beats an equation on Slow 4G.
 - A focus on a part draws the dot only on a ball. On a geometry point or a curve it shows nothing.
 - With reduced motion a stop can move the ball back, because the ball shows at the end of its motion and a stop holds where it really was.
 - A curve with features narrower than its sampling grid that never touch a sample cannot be seen by any sampler. A narrow pulse between two samples is missed, and a square wave faster than about 1 period for 2 samples loses some of its pulses.
-- Past the budget of 4,000 evaluations a curve is finer than the pixels that draw it, about 2 samples for each period of `sin(300*x)` on a width of 20. It draws as the solid band it looks like. Steps that are still tall and did not shrink stay gaps there, so `tan(100*x)` shows a band with holes and not every one of its 637 poles, and a false line can sit inside that band where it cannot be told from the curve.
+- Past the budget of 4,000 evaluations a curve is finer than the pixels that draw it, about 2 samples for each period of `sin(300*x)` on a width of 20. It draws as a band with thin stripes where samples happen to sit close together. Steps that are still tall and did not shrink stay gaps there, so `tan(100*x)` shows a band with holes and not every one of its 637 poles, and a false line can sit inside that band where it cannot be told from the curve.
 - A slider on a constant its curve does not have, or no longer has after the curve is replaced, is disabled and shows no value, and nothing reports it yet.
+- A very heavy curve stalls a slow device. Nine curves with four constants placed on one word, or three of them reshaping at once, take long tasks with the CPU slowed 4 times.
 - Touch was never driven, and Safari, Firefox, and real phones are untested. M3.6 and M3.10 own those. A real voice has not paced these lessons. The stored take has real word times over other words, and the late word proof stands in for real late alignment.
