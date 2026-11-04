@@ -548,6 +548,19 @@ export interface LegalDocument {
 // With lessons off, the legal pages stay exactly as they are without them.
 const inTestLessons = (...lines: string[]) => (hasScenes() ? lines : []);
 
+export const BOARD_PICTURE_CREDITS = [
+  { file: 'great-wave.jpg', work: 'Katsushika Hokusai, Under the Wave off Kanagawa, about 1830 to 1832' },
+  { file: 'school-of-athens.jpg', work: 'Raphael, The School of Athens, 1509 to 1511' },
+  { file: 'saturn.jpg', work: 'The Day the Earth Smiled, Cassini, 19 July 2013. Credit NASA/JPL-Caltech/SSI.' },
+  { file: 'storming-of-the-bastille.jpg', work: 'Charles Thévenin, The Storming of the Bastille on 14 July 1789, 1790' },
+  { file: 'death-of-socrates.jpg', work: 'Jacques Louis David, The Death of Socrates, 1787' },
+  { file: 'great-pyramid.jpg', work: 'Francis Frith, The Great Pyramid and The Great Sphinx, 1858' },
+  { file: 'melencolia.jpg', work: 'Albrecht Dürer, Melencolia I, 1514' },
+  { file: 'sunflowers.jpg', work: 'Vincent van Gogh, Sunflowers, 1887' },
+  { file: 'earthrise.jpg', work: 'Earth over the Moon, Apollo 8, 24 December 1968. Credit NASA.' },
+  { file: 'whole-earth.jpg', work: 'The whole Earth, Apollo 17, 7 December 1972. Credit NASA.' },
+];
+
 export const PICTURE_CREDITS = [
   { file: 'wave.jpg', work: 'Katsushika Hokusai, Under the Wave off Kanagawa, about 1830 to 1832' },
   { file: 'saturn.jpg', work: 'The Day the Earth Smiled, taken by the Cassini spacecraft on 19 July 2013. Credit NASA/JPL-Caltech/SSI.' },
@@ -741,7 +754,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy' | 'credits', LegalDocument>
       {
         heading: 'Pictures',
         today: [
-          ...PICTURE_CREDITS.map(({ work }) => work),
+          ...new Set([...PICTURE_CREDITS, ...BOARD_PICTURE_CREDITS].map(({ work }) => work)),
           `NASA did not make ${PRODUCT_NAME} and does not endorse it.`,
         ],
         planned: [],

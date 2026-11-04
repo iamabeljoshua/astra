@@ -94,7 +94,7 @@ async function main(): Promise<void> {
     await safety?.flush();
     const row = readReply({ ...wording, rep, spoken: ended.spokenText, traces, endedAs: ended.endedAs, refusal: ended.refusalCategory, firstTextMs: ended.firstTextMs === null ? null : Math.round(ended.firstTextMs), firstBeatMs: ended.firstBeatMs === null ? null : Math.round(ended.firstBeatMs), costUsd: ended.costUsd, flags, helpShown });
     rows.push(row);
-    const drawn = ended.beats.flatMap((beat) => beat.script).filter((part) => typeof part !== 'string').length;
+    const drawn = ended.beats.flatMap((beat) => beat.script).flatMap((part) => (typeof part === 'string' ? [] : [part.kind]));
     appendFileSync(path, `${JSON.stringify({ ...row, drawn })}\n`);
   };
   const work = async () => {
