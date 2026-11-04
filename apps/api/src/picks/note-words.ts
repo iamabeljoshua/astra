@@ -22,20 +22,32 @@ function getSubjectStems(text: string): string[] {
 
 export const namesSomethingToTeach = (noteTopic: string) => getSubjectStems(noteTopic).length > 0;
 
+interface TopicWords {
+  topic: LibraryTopic;
+  namingStems: Set<string>;
+  allStems: Set<string>;
+  otherNames: string[][];
+}
+
+function getTopicWords(topic: LibraryTopic): TopicWords {
+  const namingStems = toStems(`${topic.title} ${topic.interests.join(' ')}`);
+  const allStems = new Set([...namingStems, ...toStems(topic.openingLine)]);
+  return { topic, namingStems, allStems, otherNames: (topic.alsoCalled ?? []).map(getSubjectStems) };
+}
+
 // A lone word must be in the title or the interests, because one word in an opening line is often only an aside. "Light" should not bring a card on moving clocks.
-function isInTopicWords(subjectStems: string[], { title, interests, openingLine }: LibraryTopic): boolean {
-  const namingStems = toStems(`${title} ${interests.join(' ')}`);
-  const stemsToSearch = subjectStems.length > 1 ? new Set([...namingStems, ...toStems(openingLine)]) : namingStems;
-  return subjectStems.every((stem) => stemsToSearch.has(stem));
+function isNamedBy(subjectStems: string[], { namingStems, allStems, otherNames }: TopicWords): boolean {
+  const stemsToSearch = subjectStems.length > 1 ? allStems : namingStems;
+  return subjectStems.every((stem) => stemsToSearch.has(stem)) || otherNames.some((name) => name.every((stem) => subjectStems.includes(stem)));
 }
 
-function isCalledInLibrary(subjectStems: string[], { alsoCalled = [] }: LibraryTopic): boolean {
-  return alsoCalled.some((name) => getSubjectStems(name).every((stem) => subjectStems.includes(stem)));
-}
+export type TopicFinder = (noteTopic: string) => LibraryTopic[];
 
-const isNamedBy = (subjectStems: string[], topic: LibraryTopic) => subjectStems.length > 0 && (isInTopicWords(subjectStems, topic) || isCalledInLibrary(subjectStems, topic));
-
-export function findTopicsNamedBy(noteTopic: string, topics: LibraryTopic[]): LibraryTopic[] {
-  const subjectStems = getSubjectStems(noteTopic);
-  return topics.filter((topic) => isNamedBy(subjectStems, topic));
+/** Reads each topic's words once, so a student with many notes costs Home no more than a few set lookups a note. */
+export function createTopicFinder(topics: LibraryTopic[]): TopicFinder {
+  const topicWords = topics.map(getTopicWords);
+  return (noteTopic) => {
+    const subjectStems = getSubjectStems(noteTopic);
+    return subjectStems.length === 0 ? [] : topicWords.filter((words) => isNamedBy(subjectStems, words)).map(({ topic }) => topic);
+  };
 }
