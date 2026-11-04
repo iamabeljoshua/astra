@@ -105,7 +105,7 @@ describe('useLiveVoice', () => {
   });
 });
 
-const VENDOR_KEY_NAMES = /ELEVENLABS_API_KEY|META_API_KEY|LIVEKIT_API_KEY|LIVEKIT_API_SECRET|ANTHROPIC_API_KEY/;
+const VENDOR_KEY_NAMES = /ELEVENLABS_API_KEY|META_API_KEY|LIVEKIT_API_KEY|LIVEKIT_API_SECRET|ANTHROPIC_API_KEY|ASTRA_AGENT_KEY/;
 
 describe('vendor keys', () => {
   it('appear nowhere in the browser code, which only ever holds a room token from our API', () => {

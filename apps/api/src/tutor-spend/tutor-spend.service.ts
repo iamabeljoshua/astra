@@ -11,7 +11,7 @@ function getUtcDay(now: Date): string {
   return now.toISOString().slice(0, DATE_LENGTH);
 }
 
-// An unusable value falls back to the default, because the limit protects the money and no limit would not.
+// An unusable value falls back to the default, so a typo cannot lift the limit.
 function getDailyLimitMicroUsd({ ASTRA_DAILY_LIMIT_USD: configured }: NodeJS.ProcessEnv): number {
   const limitUsd = Number(configured || DEFAULT_DAILY_LIMIT_USD);
   return toMicroUsd(Number.isFinite(limitUsd) && limitUsd >= 0 ? limitUsd : DEFAULT_DAILY_LIMIT_USD);

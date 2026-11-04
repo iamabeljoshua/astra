@@ -262,7 +262,7 @@ export async function startLiveVoice({ access, getAccess, wantsGreeting = true, 
     else records.refused.push(parsed.problem);
   };
 
-  // LiveKit retries a short drop itself. Once it gives up, or leaves a channel that carries nothing, a new token and a new join bring the same session back. An answer with no access will not change on a retry, so it ends the wait, and a failed request does not. A closed tutor gets no rejoin, because a new join would call in and pay for another one.
+  // LiveKit retries a short drop itself. Once it gives up, or leaves a channel that carries nothing, a new token and a new join bring the same session back. An answer with no access ends the wait, because a retry would get the same answer, and a failed request does not. A closed tutor gets no rejoin, because a new join would call in and pay for another one.
   async function rejoin(): Promise<void> {
     if (isRejoining || view.closedBecause) return;
     isRejoining = true;
