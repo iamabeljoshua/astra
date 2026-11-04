@@ -762,9 +762,10 @@ describe('holding to talk', () => {
     harness.browser({ type: 'typed', ...STAMP, text: 'Why' });
     await delay(150);
     press(harness);
-    harness.ears({ type: 'words', text: 'i took some pills', isFinal: true });
     letGo(harness);
-    await delay(1800);
+    harness.ears({ type: 'words', text: 'i took some pills', isFinal: true });
+    harness.session.onEars({ type: 'lineFlushed' });
+    await delay(TURN_TIMINGS.transcriptGraceMs + 1500);
     expect(harness.brainRequests).toEqual(['Why']);
     const kinds = harness.traces.filter((trace) => trace.name === 'turnStarted').map((trace) => trace.fields.kind);
     expect(kinds.at(-1)).toBe('resume');
