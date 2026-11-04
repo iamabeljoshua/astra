@@ -83,3 +83,5 @@ case "${1:-}" in
   check-running-image) fail_unless_image_has_pinned_digest "$(docker inspect supabase_db_astra --format '{{.Image}}')" ;;
   *) echo "usage: postgres-image.sh key|start-docker|archive|prove|check-running-image" >&2; exit 2 ;;
 esac
+
+# TEMP verification comment, never merged.
