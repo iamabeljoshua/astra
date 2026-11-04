@@ -89,6 +89,7 @@ async function startFromCardRefreshAndSearch({ page, capture }) {
 
 async function replyOnReturningSession({ page, capture, viewportName }) {
   await page.goto('/sessions');
+  const roomAnswer = waitForRoomAnswer(page);
   await page.getByRole('table').getByRole('link', { name: RETURNING_SESSION_TITLE }).click();
   await page.getByRole('heading', { level: 1, name: RETURNING_SESSION_TITLE }).waitFor();
   await page.getByText(IDLE_WORDS).waitFor();
@@ -96,7 +97,6 @@ async function replyOnReturningSession({ page, capture, viewportName }) {
   await capture('returning');
 
   const reply = `Gravity, I think. ${viewportName} ${Date.now()}`;
-  const roomAnswer = waitForRoomAnswer(page);
   await page.getByRole('textbox', { name: 'Your reply' }).fill(reply);
   await page.getByRole('button', { name: 'Send reply' }).click();
   await assertTheRoomAnsweredAsExpected(page, roomAnswer);
