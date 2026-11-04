@@ -121,11 +121,13 @@ What the proofs gave at this code, on the fake voice:
 | Proof | Result |
 | --- | --- |
 | `math-proof` `marks-and-labels`, laptop and phone | 0 writes with no cause, against 97 before. 88 replay moments, 0 differ |
-| `math-proof` `reduced` | 0 moving frames under reduced motion, 0 unknown colors, 0 gradients, 0 rests that differ. 1 still board moved one pixel by one level with 0 writes |
-| `math-proof` `hostile` | Markup never ran. 144 replay moments, 0 differ |
-| `graph-proof` `reduced`, `hostile`, `marks` | Exit 0, on the fixes before this head's comment removal, one rename in the watch, and main's test-only merge, at a load average near 20. 0 of 5,711 live samples differ from their replay. 364 replay moments: 0 differ, 0 described differently, and 4 settled as raster, the largest 742 pixels by 40 levels with the same page and a clean second look. `hostile`: 0 and 0 writes with no cause, against 3,659 and 2,014 with one, at frames up to 80 ms. `reduced`: 0 unknown colors and 0 moving frames |
+| `math-proof` `reduced` | **This fails the run, which exits 1.** In `algebra-laptop-light-reduced`, a still board changed by up to 1 level with 0 writes and 0 animations, and its second look was not clean, so `still.imagesMatch` is false. The tool did not record where. 0 moving frames under reduced motion, 0 unknown colors, 0 gradients, 0 rests that differ. 72 replay moments, 0 differ |
+| `math-proof` `hostile` | Markup never ran. 144 replay moments, 0 differ, and 1 settled, 1 pixel by up to 3 levels. 0 and 0 writes with no cause |
+| `graph-proof` `hostile`, `reduced`, `marks` | **Exit 1, at a load average of 28 to 31, on 2 of 364 replay moments. Part of the cause is open.** `shot-laptop-light-reduced` at 9396 ms, 1 pixel by up to 36 levels. `graphs-phone-dark-reduced` at 16632 ms, 1 pixel by up to 60 levels. Each repeated on its second look with the same page, so the settle rule calls it real. See "The pixel that flips" below. 5 other moments settled: 4 of at most 7 pixels by 1 level, and 1 pixel by 60 levels. 0 described differently, and 0 of 5,782 live samples differ from their replay. `hostile`: 0 and 0 writes with no cause, against 3,639 and 2,011 with one, at frames up to 108 ms. `reduced`: 0 unknown colors and 0 moving frames |
+| `graph-proof` `reduced` alone | Exit 0, one run, at a load average of 14 to 31 with lint and typecheck beside it. 104 replay moments: 0 differ, and 1 settled, `shot-laptop-light-reduced` at 8600 ms, 1 pixel by up to 36 levels with a clean second look. 0 of 2,950 live samples differ. This proof can pass or fail on the same code, depending on where the flip lands |
+| `graph-proof` `hostile`, `reduced`, `marks`, before the merge with PR 112 | Exit 0, at a load average near 20. 0 of 5,711 live samples differ. 364 replay moments: 0 differ, and 4 settled, the largest 742 pixels by 40 levels with the same page and a clean second look |
 
-The `math-proof` rows are from before the merge with main and were not run again, though they share the frame watch that changed below.
+The `math-proof` rows and the first two `graph-proof` rows ran at `c841d6cb`. `math-proof` ran once with only those three sections, at a load average of 17 to 35, and its other sections did not run. The merge with `dffd5936` came after them. It changes `clearBoard` and `boardMode` in `board-state.ts` and the phone styles of `.board-visual`, and no proof ran again after it.
 
 **The clock of a replay.** After the merge, every moment read failed `replay.described`. A diff of every sample, not one example, found one path: `stage.sinceMs`, on all 5,586 differing live samples and all 364 moments, with replay minus live minus the clock shift exactly 0 each time. The samples that matched were those from before the stage existed. `describeBoard` now gives `{ mode, heldMs }`, so a replay on a shifted clock reads the same, and one that moved the board at another moment does not. The color failure was main's `--color-pen`, a real token the proof's list had missed.
 
@@ -134,6 +136,19 @@ The `math-proof` rows are from before the merge with main and were not run again
 **The settle rule.** A replay moment that differs settles when the board's HTML was identical during the look that differed, live and replay, and a second look at both is clean, whatever the levels. The painter's only output is the page, so a difference with the same page can only come from the browser's raster. The HTML is read while each shot is held, because a painter that lands wrong on one hold and converges by the next would pass a later read. `apps/agent/test/look-at-moment.test.ts` plants that: 742 pixels by 40 levels with a different page during the first look returns `different`. The same pixels with the same page and a clean second look return `settled`, and a difference that repeats returns `different`, with the same page or not.
 
 A still board settles the same way: 0 writes, 0 animations, and a clean second look.
+
+**The pixel that flips.** The proof overwrites its frames, so a scratch tool took the same looks on the two reduced lessons, kept each pair that differed, and looked 5 times at each such moment. It ran twice, over 208 moments. 3 moments differed, all in `graphs-phone-dark-reduced`, all at pixel (137, 117) of the board. That pixel lies on the bright stroke of `curve-inverse`, 2.25 px of ink, and it took only two values, 255/251/245 and 195/192/187. That is the 60 levels of the failing run. The failing run recorded no place, so that it was this pixel is inferred from its size and its lesson.
+
+The pixel flips against itself. At 19462 ms the live frame read 255, 195, 255, 195, 195 on its 5 looks while the replay frame held 195. At 16091 ms the replay frame flipped and the live frame held. Every look had the same page, 0 writes between the frames, and 0 animations running. So at this pixel nothing differs in what was drawn, and replay is not the cause. Crops at 3 times size read the same, one unbroken curve, and at 16 times the only change is that one pixel.
+
+Four things stay open:
+
+- Why the browser gives that pixel two values with nothing written is not explained.
+- Where the 36-level pixel in `shot-laptop-light-reduced` is. It showed in both `graph-proof` runs above, and the tool's 104 moments on that lesson did not catch it. Calling it the same kind of flip is a guess from its size.
+- What moved the still board in `math-proof` `reduced` is not known. It has the same shape, with no write and no animation, and the tool did not look at it.
+- Whether PR 112 brought this on. Its diff reaches the lab's board only through an added export and styles for other screens, and no run separates it from the load.
+
+The settle rule stays as it is. `graph-proof` can therefore exit 1 when a flip lands on both looks, as it did here. Before calling such an exit a defect or a flake, find the pixel.
 
 ## What the tutor hears
 
@@ -156,6 +171,6 @@ The check leaves `tooSmallToRead`, `labelWithoutRoom`, `imageMissing`, and `mark
 - A very wide table on a small phone can still break words, and a 40-line code block on a phone is too small to read. The page reports the second, and a live tutor can write code only after the wiring PR.
 - A handwritten label's words are checked through its name for a screen reader and the box its strokes make, not letter by letter.
 - A label naming the wrong part of a drawing, when the sheet itself holds the wrong spot, needs a person's eye. Every drawing was looked at full size for this round, and the check only proves that a leader starts beside its own label.
-- CI runs the sweep on two boards. The plants and the strobes take longer than its job allows, and `pnpm test:board` runs them.
+- CI runs the sweep on two boards. The plants and the strobes take longer than its job allows, and `pnpm test:board` runs them. CI also installs no fonts, because they came from an apt mirror that once outlasted the job's limit. A script with no font on the runner's image is measured on empty boxes, and the job prints how many fonts the image has for each script. Real widths for those scripts come from `pnpm test:board` on the Mac.
 - **This PR does not reach a live tutor yet.** Main's `DRAWN_KINDS` in `apps/agent/src/tutor/board-memory.ts` refuses `table`, `timeline`, `code`, `image`, and `drawing`, and the tutor's prompt does not name the new drawings, parts, and pictures. A wiring PR after this PR lands adds all of them to `DRAWN_KINDS` with prompt lines, forwards `curveTooFine` and `sliderOverlaps`, and reruns the crisis lane.
 - **The check reads `BoardView`, and the live board is `SharedBoard`.** Since PR 97 a student's board paints rows through `createBoardRowPainting`, and the deck never draws through it. Every figure above is true of `BoardView`, which the lab and replay use. The wiring PR must point the check at the rows before a live tutor draws these kinds, or the proof will not cover the board the student sees.
