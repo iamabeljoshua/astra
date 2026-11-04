@@ -403,6 +403,21 @@ describe('fitting y to a curve with a tall part', () => {
     expect(fitted('tan(10*x)', [-10, 10])).toEqual([-6, 6]);
   });
 
+  it('clips a pole just past the edge of the domain, because its whole height would flatten the curve', () => {
+    for (const [expression, domain] of [['tan(x)', [-1.57, 1.57]], ['1/x', [0.001, 5]], ['1/(x-5.003)', [-5, 5]], ['1/(x-5.003)^2', [-5, 5]]] as const) {
+      const [bottom, top] = fitted(expression, [domain[0], domain[1]]);
+      expect(top - bottom).toBeLessThan(40);
+    }
+  });
+
+  it('holds sensible axes when a constant can only carry a pole near the edge of the domain', () => {
+    const near = (name: string, a: number) => fitted(name, [-5, 5], [{ name: 'a', value: a, min: a - 1, max: a + 1 }]);
+    for (const [expression, a] of [['1/(x-a)', 4.753], ['1/(x-a)^2', 4.753], ['tan(x-a)', -3.43]] as const) {
+      const [bottom, top] = near(expression, a);
+      expect(top - bottom).toBeLessThan(40);
+    }
+  });
+
   it('measures a finite peak beside a pole, and still clips the pole', () => {
     const [, top] = fitted('1/(x-5)+10/(1+100*x*x)', [-10, 10]);
     expect(top).toBeGreaterThanOrEqual(10);
