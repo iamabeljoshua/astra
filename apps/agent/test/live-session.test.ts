@@ -206,6 +206,52 @@ describe('a student the tutor jumped in on', () => {
   });
 });
 
+describe('words a cut reply still owes, through the whole session', () => {
+  const COUNT_WORDS = LONG_LINE.split(' ').length;
+
+  it('does not repeat old words when a link cut left nothing to resume', { timeout: 8000 }, async () => {
+    const harness = start();
+    const pulse = (hearsAgent: boolean) => harness.browser({ type: 'pulse', ...STAMP, hearsAgent });
+    pulse(true);
+    await harness.say('Show me the ball.');
+    await delay(TURN_TIMINGS.reactionFloorMs + 700);
+    const turn = harness.getTurnsStarted().at(-1) as TurnId;
+    const words = harness.messages.findLast((message) => message.type === 'words');
+    expect(words?.type === 'words' && words.turnId).toBe(turn);
+    pulse(false);
+    await delay(50);
+    harness.browser({ type: 'played', turnId: turn, beatId: (words as { beatId: Beat['id'] }).beatId, ...STAMP, wordStartsMs: Array.from({ length: COUNT_WORDS }, (_, word) => word * 100), durationMs: COUNT_WORDS * 100, playedWords: COUNT_WORDS, firedCueMs: [0], ending: 'finished', frozen: [] });
+    pulse(true);
+    await delay(400);
+    expect(harness.traces.find((trace) => trace.name === 'resumeStarted')?.fields.beats).toBe(0);
+    await harness.say('And the moon?');
+    expect(harness.brainRequests.at(-1)).toBe('And the moon?');
+  });
+
+  it('keeps them through a filler and the prompt that follows it, because a stored line answers nothing', { timeout: TURN_TIMINGS.patienceMs + 5000 }, async () => {
+    const harness = start();
+    await harness.say('Why does it fall?');
+    await delay(30);
+    harness.ears({ type: 'voiceStarted' });
+    harness.ears({ type: 'words', text: 'Hmm, let me think', isFinal: true });
+    harness.ears({ type: 'voiceEnded' });
+    harness.ears({ type: 'turnDecided', text: 'Hmm, let me think' });
+    await delay(TURN_TIMINGS.patienceMs + 1500);
+    expect(harness.traces.filter((trace) => trace.name === 'turnStarted').map((trace) => trace.fields.kind)).toContain('prompt');
+    await harness.say('And the moon?');
+    expect(harness.brainRequests.at(-1)).toBe('Why does it fall? And the moon?');
+  });
+
+  it('clears them once a reply has played to its end', { timeout: 8000 }, async () => {
+    const harness = start();
+    await harness.say('Why does it fall?');
+    await delay(TURN_TIMINGS.reactionFloorMs + 300);
+    await delay(COUNT_WORDS * 300 + 1200);
+    await harness.say('And the moon?');
+    expect(harness.brainRequests.at(-1)).toBe('And the moon?');
+  });
+});
+
 describe('a failing voice', () => {
   class SilentVoice extends tts.TTS {
     label = 'silent';

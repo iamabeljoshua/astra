@@ -1,0 +1,33 @@
+name: Install
+description: Set up pnpm and the pinned Node, restore the nearest pnpm store, and install from the lockfile.
+outputs:
+  store-path:
+    value: ${{ steps.pnpm-store.outputs.path }}
+  store-key:
+    value: ${{ steps.pnpm-store.outputs.key }}
+  store-hit:
+    value: ${{ steps.restore-pnpm-store.outputs.cache-hit }}
+runs:
+  using: composite
+  steps:
+    - uses: pnpm/action-setup@v6
+    - uses: actions/setup-node@v7
+      with:
+        node-version-file: .nvmrc
+    - id: pnpm-store
+      shell: bash
+      run: |
+        echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+        echo "key=pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}" >> "$GITHUB_OUTPUT"
+    # setup-node's cache misses completely on a new lockfile and saves at the very end, which has cancelled a green job at the limit.
+    - id: restore-pnpm-store
+      uses: actions/cache/restore@v6
+      continue-on-error: true
+      env:
+        SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1
+      with:
+        path: ${{ steps.pnpm-store.outputs.path }}
+        key: ${{ steps.pnpm-store.outputs.key }}
+        restore-keys: pnpm-store-
+    - shell: bash
+      run: pnpm install --frozen-lockfile

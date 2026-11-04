@@ -15,7 +15,7 @@ const SAMPLES_PER_FRAME = (SAMPLE_RATE * FRAME_MS) / 1000;
 export interface MuseTimings {
   /** Muse gives no final with no frames, so silence is sent after this much quiet, for a line still waiting on its final. */
   padAfterMs: number;
-  /** With no frames for this long the microphone is off or the link is gone, so the session closes and costs nothing. It outlasts LiveKit's own retries of 3 to 5 s, and Muse's own close at about 16 s. */
+  /** With no frames for this long the microphone is off or the link is gone, so the session closes and costs nothing. It outlasts LiveKit's own retries of 3 to 5 s, and comes before Muse's own close at about 16 s, so the session ends on our word. */
   closeAfterQuietMs: number;
   /** Muse caps a session at 60 minutes and the plugin only reports the close, so a new session opens before that. */
   rotateAtPauseAfterMs: number;

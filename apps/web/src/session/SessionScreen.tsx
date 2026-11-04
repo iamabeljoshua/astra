@@ -237,10 +237,11 @@ function BoardPicture({ artwork }: { artwork: Artwork }) {
   return <img src={artwork.src} alt={artwork.description} className="block max-h-board-art max-w-full object-contain" />;
 }
 
-function getVoiceNote(status: LiveVoiceControls['status'], view: LiveVoiceView | null, isAnswerDue: boolean): string | null {
+function getVoiceNote({ status, waitSeconds, view }: LiveVoiceControls, isAnswerDue: boolean): string | null {
   if (view?.closedBecause) return VOICE_LABELS[view.closedBecause];
   if (status === 'overLimit') return VOICE_LABELS.dailyLimit;
   if (status === 'finished') return VOICE_LABELS.sessionFinished;
+  if (status === 'tooSoon') return VOICE_LABELS.tooSoon(waitSeconds);
   if (status === 'unavailable' || view?.phase === 'noTutor') return VOICE_LABELS.unavailable;
   if (view?.phase === 'reconnecting') return VOICE_LABELS.reconnecting;
   if (view?.phase === 'ended') return VOICE_LABELS.ended;
@@ -258,12 +259,12 @@ function getVoiceNote(status: LiveVoiceControls['status'], view: LiveVoiceView |
 function ReplyBox({ liveVoice, carryOnLine }: { liveVoice: LiveVoiceControls; carryOnLine: string }) {
   const { status, view, voice, isTalkOn, sendTyped, toggleTalk, openAgain } = liveVoice;
   const isFinished = status === 'finished';
-  const isOver = isFinished || (view !== null && isVoiceOver(view.phase));
+  const isOver = isFinished || status === 'tooSoon' || (view !== null && isVoiceOver(view.phase));
   // A tutor closed for spending is closed for this session too, and another room would only start it over.
   const canOpenAgain = isOver && !isFinished && status !== 'overLimit' && !view?.closedBecause;
   const [replyWithNoRoom, setReplyWithNoRoom] = useState<string | null>(null);
   const [draftEdits, setDraftEdits] = useState(0);
-  const voiceNote = getVoiceNote(status, view, useIsAnswerDue(view, draftEdits));
+  const voiceNote = getVoiceNote(liveVoice, useIsAnswerDue(view, draftEdits));
 
   async function send(text: string) {
     const wasSent = await sendTyped(text);

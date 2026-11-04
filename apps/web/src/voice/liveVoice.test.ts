@@ -293,8 +293,19 @@ describe('rejoining after a drop', () => {
     expect(voice.getView()).toMatchObject({ phase: 'live', startedFresh: true, isThinking: false });
   });
 
+  it('says nothing of the kind when the student never heard the first tutor', async () => {
+    const { room } = await openVoice(async () => ({ ...ROOM_ACCESS, roomName: 'session-a-session-new' }));
+
+    room.emit('Disconnected', DROPPED);
+    await vi.advanceTimersByTimeAsync(0);
+
+    fromAgent(room, { type: 'pulse' });
+    expect(voice.getView().startedFresh).toBe(false);
+  });
+
   it('drops that line once the student has gone on', async () => {
     const { room } = await openVoice(async () => ({ ...ROOM_ACCESS, roomName: 'session-a-session-new' }));
+    fromAgent(room, { type: 'pulse' });
     room.emit('Disconnected', DROPPED);
     await vi.advanceTimersByTimeAsync(0);
 

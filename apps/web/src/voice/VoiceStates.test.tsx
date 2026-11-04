@@ -77,6 +77,24 @@ describe('what the student sees of a room', () => {
     expect(voice.sendTyped).not.toHaveBeenCalled();
   });
 
+  it('at the limit on starting tutors says the real wait, keeps the reply box closed, and joins nothing when the student types', async () => {
+    const { voice, setView } = await openVoice();
+    act(() => setView({ phase: 'tutorLost' }));
+    startLiveVoice.mockImplementationOnce(async ({ getAccess }: { getAccess(): Promise<unknown> }) => {
+      if (!(await getAccess())) throw new Error('no room');
+      return voice;
+    });
+    const answerOtherRoutes = globalThis.fetch;
+    vi.stubGlobal('fetch', async (request: Request) => (request.url.endsWith('/live-room?startOver=yes') ? new Response(JSON.stringify({ statusCode: 429, message: 'Wait', retryAfterSeconds: 360 }), { status: 429 }) : answerOtherRoutes(request)));
+    fireEvent.click(screen.getByRole('button', { name: VOICE_LABELS.tryAgain }));
+    await waitFor(() => expect(screen.getByText(VOICE_LABELS.tooSoon(360))).toBeTruthy());
+    expect(getBox().readOnly).toBe(true);
+    expect(screen.getByRole('button', { name: VOICE_LABELS.tryAgain })).toBeTruthy();
+    expect(startLiveVoice).toHaveBeenCalledTimes(2);
+    fireEvent.keyDown(getBox(), { key: 'Enter' });
+    expect(startLiveVoice).toHaveBeenCalledTimes(2);
+  });
+
   it('opens a new room when the student asks for one, and leaves the old one', async () => {
     const { voice, setView } = await openVoice();
     act(() => setView({ phase: 'tutorLost' }));
@@ -189,6 +207,10 @@ describe('what the student sees of a room', () => {
       wait(9000);
       expect(screen.queryByText(VOICE_LABELS.answerPrompt)).toBeNull();
     });
+  });
+
+  it('tells the student a new tutor starts fresh, whichever way the room closed', () => {
+    for (const note of [VOICE_LABELS.tutorLost, VOICE_LABELS.closedForQuiet]) expect(note).toContain('start fresh, without what was said so far');
   });
 
   it('warns before a quiet room closes, and the student can keep it open', async () => {

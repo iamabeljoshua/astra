@@ -59,6 +59,8 @@ interface Speaking {
   reports: Map<BeatId, PlayReport>;
   hasSound: boolean;
   isDry: boolean;
+  /** Part of this reply reached the student already, in the turn this one resumes. */
+  continuesHeardReply: boolean;
   isOver: boolean;
 }
 
@@ -232,6 +234,8 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       } else {
         dropThought();
         sendClosedNote();
+        // Only a reply that played out has answered the student's words. A stored line, like the prompt after a filler, has not, and a resume with nothing left to say has, because its reply was already heard.
+        if (speaking.canResume && (speaking.hasSound || speaking.continuesHeardReply)) dispatch({ type: 'replyHeardOut' });
       }
     }
     if (reaction || reply) {
@@ -241,7 +245,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     dispatch({ type: 'tutorFinished' });
   };
 
-  function speak({ voiceToUse, beats, isReply, canResume, kind }: { voiceToUse: tts.TTS; beats: Iterable<Beat> | AsyncIterable<Beat>; isReply: boolean; canResume: boolean; kind: string }): Speaking {
+  function speak({ voiceToUse, beats, isReply, canResume, kind, continuesHeardReply = false }: { voiceToUse: tts.TTS; beats: Iterable<Beat> | AsyncIterable<Beat>; isReply: boolean; canResume: boolean; kind: string; continuesHeardReply?: boolean }): Speaking {
     turnCount += 1;
     noteSomethingHappened();
     const turnId = `turn-${jobTag}-${turnCount}` as TurnId;
@@ -257,6 +261,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       reports: new Map(),
       hasSound: false,
       isDry: false,
+      continuesHeardReply,
       isOver: false,
       spoken: speakTurn({
         voice: voiceToUse,
@@ -352,8 +357,9 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       breathTimer = setTimeout(() => speakNextStretch(waiting), BREATH_RECHECK_MS);
       return;
     }
+    const continuesHeardReply = stretchBeforeBreath ? stretchBeforeBreath.hasSound || stretchBeforeBreath.continuesHeardReply : false;
     stretchBeforeBreath = null;
-    reply = speak({ voiceToUse: voice, beats: readThought(waiting), isReply: true, canResume: true, kind: 'reply' });
+    reply = speak({ voiceToUse: voice, beats: readThought(waiting), isReply: true, canResume: true, kind: 'reply', continuesHeardReply });
   }
 
   // Aborting alone leaves a brain parked at its yield, and its turn would never finish, reach history, or be charged.
@@ -442,7 +448,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     const beats = [...getEndOfLastStretch(earlierStretch, resumeTag), ...getUnheardBeats(cutTurn, resumeTag)];
     trace('resumeStarted', { fromTurn: cutTurn.turnId, beats: beats.length, reported: hasEveryReport(cutTurn) });
     if (beats.length === 0 && !thought) return dispatch({ type: 'tutorFinished' });
-    reply = speak({ voiceToUse: voice, beats: getResumedThen(beats, thought), isReply: true, canResume: true, kind: 'resume' });
+    reply = speak({ voiceToUse: voice, beats: getResumedThen(beats, thought), isReply: true, canResume: true, kind: 'resume', continuesHeardReply: cutTurn.hasSound || cutTurn.continuesHeardReply });
   };
 
   const startNamedTimer = (name: TimerName, ms: number) => {

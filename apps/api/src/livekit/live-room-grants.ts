@@ -1,6 +1,6 @@
 import { AccessToken, RoomConfiguration, TrackSource, type VideoGrant } from 'livekit-server-sdk';
 
-/** Long enough to join. LiveKit refreshes the token of a student already in the room, and each rejoin asks for a new one, so an old token is useless soon after a session ends. */
+/** Long enough to join, and each rejoin asks for a new one. LiveKit takes a new join for about a minute past this, and ends no connection at expiry, so a client already in stays until it leaves or the room goes. */
 const TOKEN_LIFE = '2m';
 
 /** How long a room waits for its first student before closing, which is how long a warmed tutor waits too, how long it waits for a dropped student, and how many students it holds. */

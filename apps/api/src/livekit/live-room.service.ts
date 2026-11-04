@@ -25,7 +25,7 @@ export class LiveRoomService {
     const keys = getLiveRoomKeys(process.env);
     if (!keys) return { access: null, unavailableBecause: 'notSetUp' };
     if (await this.tutorSpend.isOverDailyLimit(studentId)) return { access: null, unavailableBecause: 'dailyLimit' };
-    const roomName = await (startOver ? this.liveRooms.startOver(keys, session.id, studentId) : this.liveRooms.open(keys, session.id));
+    const roomName = await (startOver ? this.liveRooms.startOver(keys, session.id, studentId) : this.liveRooms.open(keys, session.id, studentId));
     // The session can finish while the room opens, and that finish closed nothing, so this closes what it just opened.
     await this.requireUnfinishedSession(studentId, sessionId).catch(async (problem: unknown) => {
       await this.liveRooms.close(session.id);

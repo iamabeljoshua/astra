@@ -1,6 +1,6 @@
 import { act, render, renderHook, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { LEGAL_PAGES } from '../strings';
+import { LEGAL_PAGES, VOICE_LABELS } from '../strings';
 import { makeFakeVoice } from '../test/fakeVoice';
 import { stubSessionsApi } from '../test/sessionsApi';
 import { StudentCaption, TutorCaption } from './Captions';
@@ -146,6 +146,52 @@ describe('useLiveVoice', () => {
     expect(result.current.status).toBe('unavailable');
     await act(async () => void (await result.current.sendTyped('Why?')));
     expect(result.current.status).toBe('live');
+  });
+
+  describe('at the limit on starting tutors', () => {
+    const TOO_MANY = () => new Response(JSON.stringify({ statusCode: 429, message: 'This has been tried too many times.', retryAfterSeconds: 360 }), { status: 429 });
+    const OPEN = () => new Response(JSON.stringify(OPEN_ROOM), { status: 200 });
+
+    function stubRoomAnswers(...answers: (() => Response)[]) {
+      const asks: (string | null)[] = [];
+      vi.stubGlobal('fetch', vi.fn(async (request: Request) => {
+        asks.push(new URL(request.url).searchParams.get('startOver'));
+        return (answers.length > 1 ? (answers.shift() as () => Response) : (answers[0] as () => Response))();
+      }));
+      return asks;
+    }
+
+    it('says how long the wait truly is', async () => {
+      stubRoomAnswers(TOO_MANY);
+      const { result } = renderHook(() => useLiveVoice({ sessionId: 'a-session', start: startLikeThePage }));
+      await act(async () => void (await result.current.connect()));
+      expect(result.current.status).toBe('tooSoon');
+      expect(result.current.waitSeconds).toBe(360);
+      expect(VOICE_LABELS.tooSoon(360)).toContain('about 6 minutes');
+      expect(VOICE_LABELS.tooSoon(30)).toContain('about 1 minute.');
+    });
+
+    it('never joins the dead room again when a typed reply follows, and starts over once the wait has passed', async () => {
+      const asks = stubRoomAnswers(OPEN, TOO_MANY, TOO_MANY, OPEN);
+      const { result } = renderHook(() => useLiveVoice({ sessionId: 'a-session', start: startLikeThePage }));
+      await act(async () => void (await result.current.connect()));
+      await act(() => result.current.openAgain('I am back.'));
+      expect(result.current.status).toBe('tooSoon');
+      await act(async () => void (await result.current.sendTyped('Are you there?')));
+      expect(result.current.status).toBe('tooSoon');
+      await act(async () => void (await result.current.sendTyped('Are you there?')));
+      expect(result.current.status).toBe('live');
+      expect(asks).toEqual([null, 'yes', 'yes', 'yes']);
+    });
+
+    it('stops asking to start over once a room has answered', async () => {
+      const asks = stubRoomAnswers(OPEN);
+      const { result } = renderHook(() => useLiveVoice({ sessionId: 'a-session', start: startLikeThePage }));
+      await act(async () => void (await result.current.connect()));
+      await act(() => result.current.openAgain('I am back.'));
+      await act(() => result.current.openAgain('I am back.'));
+      expect(asks).toEqual([null, 'yes', 'yes']);
+    });
   });
 
   it('closes the room when the screen goes, so a closed session leaves nothing running', async () => {
