@@ -1,5 +1,5 @@
 import { cleanup, configure, getConfig } from '@testing-library/react';
-import { afterEach } from 'vitest';
+import { afterEach, vi } from 'vitest';
 import { FakeResizeObserver, fakeFonts } from './test/fakeLayout';
 
 globalThis.ResizeObserver = FakeResizeObserver;
@@ -23,6 +23,7 @@ configure({
 
 afterEach(() => {
   cleanup();
+  vi.unstubAllEnvs();
   window.history.replaceState(null, '', '/');
   localStorage.clear();
   for (const cookie of document.cookie.split('; ')) document.cookie = `${cookie.split('=')[0]}=; Max-Age=0; Path=/`;
