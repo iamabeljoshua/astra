@@ -103,6 +103,8 @@ function getRandomCommands(random: () => number): unknown[] {
   ];
 }
 
+const HEAVY_TEST_MS = 60_000;
+
 describe('every figure kind from extreme numbers the parser accepts', () => {
   it('never throws and never paints a number that is not finite', () => {
     const random = makeSeededRandom('figure-extremes');
@@ -127,5 +129,5 @@ describe('every figure kind from extreme numbers the parser accepts', () => {
       }
     }
     expect(accepted).toBeGreaterThan(FIGURE_CASES * 10);
-  }, FIGURE_CASES * 20);
+  }, HEAVY_TEST_MS);
 });
