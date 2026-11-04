@@ -35,8 +35,9 @@ export function makeTutorScenes({ caps, moveToNextStep, getLastFirstTextMs, ...h
   const limitUsd = Number(process.env.ASTRA_SCENE_SESSION_LIMIT_USD ?? DEFAULT_SCENE_LIMIT_USD);
   const sharedPlaysADay = Number(process.env.ASTRA_SHARED_PLAYS_A_DAY ?? DEFAULT_SHARED_PLAYS_A_DAY);
   if (!process.env.ASTRA_SPEND_FILE) process.stderr.write('ASTRA_SPEND_FILE is not set, so shared scenes have no project ceiling and no per-student cap past this session.\n');
+  const isClosed = () => caps.getSpendLimit() !== null || (hooks.isTutorClosed?.() ?? false);
   const assertRoom = () => {
-    if (caps.getSpendLimit() || caps.getSceneUsd() >= limitUsd) throw new Error('Stopped at the scene limit');
+    if (isClosed() || caps.getSceneUsd() >= limitUsd) throw new Error('Stopped at the scene limit');
   };
   const isFake = process.env.LESSON_FAKES === '1';
   const models: SceneModels = isFake ? makeFakeSceneModels() : makeAnthropicSceneModels({ apiKey: readKey('ANTHROPIC_API_KEY'), onUsage: ({ costUsd }) => caps.addScene(costUsd), assertRoom });
@@ -45,7 +46,7 @@ export function makeTutorScenes({ caps, moveToNextStep, getLastFirstTextMs, ...h
   let queue: SceneQueue | null = null;
   const scenes = createTutorScenes({
     ...hooks,
-    isClosed: () => caps.getSpendLimit() !== null || (hooks.isTutorClosed?.() ?? false),
+    isClosed,
     canPlayShared: (studentId) => caps.getSharedPlaysToday(studentId) < sharedPlaysADay,
     router: models.router,
     runs,
@@ -59,18 +60,17 @@ export function makeTutorScenes({ caps, moveToNextStep, getLastFirstTextMs, ...h
     onPageReady: () => queue?.onPageReady(),
   });
   if (hasScenesAhead()) {
-    const shelf = store.listShared().then((scenes) => scenes.map(toShelfScene)).catch(() => []);
     const reader = isFake ? null : makeAnthropicJsonReader({ apiKey: readKey('ANTHROPIC_API_KEY') });
     queue = createSceneQueue({
       scenes,
       async readLibrary(plan) {
         if (!reader || caps.getSpendLimit()) return [];
-        const { matches, costUsd } = await matchLibrary(reader, plan, await shelf);
+        const { matches, costUsd } = await matchLibrary(reader, plan, (await store.listShared()).map(toShelfScene));
         caps.addTurn({ usd: costUsd, voiceCharacters: 0 });
         hooks.trace('sceneLibraryRead', { costUsd, matches: matches.filter(Boolean).length, steps: plan.steps.length });
         return matches;
       },
-      getFacts: () => ({ writesStarted: 0, sceneUsd: caps.getSceneUsd(), sceneLimitUsd: limitUsd, leftTodayUsd: caps.getLeftTodayUsd(), isOverLimit: caps.getSpendLimit() !== null, loadPerCore: getLoadPerCore(), lastFirstTextMs: getLastFirstTextMs() }),
+      getFacts: () => ({ writesStarted: 0, sceneUsd: caps.getSceneUsd(), sceneLimitUsd: limitUsd, leftTodayUsd: caps.getLeftTodayUsd(), isOverLimit: isClosed(), loadPerCore: getLoadPerCore(), lastFirstTextMs: getLastFirstTextMs() }),
       canPlay: scenes.canPlay,
       moveToNextStep,
       trace: hooks.trace,

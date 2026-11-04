@@ -89,7 +89,7 @@ export function createSceneStore(root: string): SceneStore {
     },
     list: () => (existsSync(scenesRoot) ? readdirSync(scenesRoot).filter((id) => SERVER_MADE_ID.test(id) && !isFlaggedId(id)).flatMap((id) => readChecked(id) ?? []) : []),
     async listShared() {
-      const ids = existsSync(scenesRoot) ? (await readdir(scenesRoot)).filter((id) => SERVER_MADE_ID.test(id)) : [];
+      const ids = existsSync(scenesRoot) ? (await readdir(scenesRoot)).filter((id) => SERVER_MADE_ID.test(id) && !isFlaggedId(id)) : [];
       const scenes: StoredScene[] = [];
       for (const id of ids) {
         const scene = await readFile(join(scenesRoot, id, 'scene.json'), 'utf8').then((text) => JSON.parse(text) as StoredScene).catch(() => null);

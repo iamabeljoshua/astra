@@ -468,7 +468,7 @@ describe('a scene started ahead of its moment', () => {
     opened(scenes);
     scenes.ask(TOPIC);
     await flush();
-    scenes.stopForSafety();
+    scenes.stopForGood();
     expect(leave).toHaveBeenCalledOnce();
   });
 
@@ -478,7 +478,7 @@ describe('a scene started ahead of its moment', () => {
     opened(scenes);
     scenes.ask(TOPIC);
     await flush();
-    scenes.stopForSafety();
+    scenes.stopForGood();
     scenes.onPage({ type: 'sceneLoaded', sceneId: scene.id }, 'maya');
     scenes.notePause();
     expect(spoken).toEqual([]);
@@ -487,6 +487,135 @@ describe('a scene started ahead of its moment', () => {
     scenes.ask('the next idea');
     await flush();
     expect(sent).toEqual([]);
+  });
+});
+
+describe('a scene ready ahead meeting the session limits', () => {
+  const saveShared = (store: ReturnType<typeof setUp>['store'], topic = TOPIC) => {
+    const key = getSceneKey(topic);
+    const scene = { ...SCENE, id: key.id, topic, ownerId: null, status: 'checked' } as StoredScene;
+    return store.saveChecked(scene, [], []).then(() => scene);
+  };
+  const getEnding = (traces: ReturnType<typeof setUp>['traces']) => traces.find(({ name }) => name === 'sceneEnded')?.fields.how;
+  const askMany = async (scenes: ReturnType<typeof setUp>['scenes'], count: number) => {
+    for (let index = 0; index < count; index += 1) {
+      scenes.ask(`another idea ${index}`);
+      await flush();
+    }
+  };
+
+  it('does not land once a person flags it while it waits in the page, and takes no first frame', async () => {
+    const { scenes, sent, spoken, traces, store } = setUp();
+    const scene = await saveShared(store);
+    opened(scenes);
+    scenes.prepare(TOPIC);
+    await flush();
+    scenes.onPage({ type: 'scenePrepared', sceneId: scene.id }, 'maya');
+    vi.spyOn(store, 'isFlagged').mockReturnValue(true);
+    scenes.ask(TOPIC);
+    await flush();
+    expect(spoken).toEqual([]);
+    expect(sent.some((message) => message.type === 'loadScene')).toBe(false);
+    expect(getEnding(traces)).toBe('flagged');
+  });
+
+  it('does not play a shared scene readied before the student used their last play', async () => {
+    const plays = { left: true };
+    const { scenes, spoken, shown, traces, store } = setUp({ canPlayShared: () => plays.left });
+    await saveShared(store);
+    opened(scenes);
+    expect(scenes.prepare(TOPIC)).toBe(true);
+    await flush();
+    plays.left = false;
+    scenes.ask(TOPIC);
+    await flush();
+    expect(spoken).toEqual([]);
+    expect(shown).toEqual([]);
+    expect(getEnding(traces)).toBe('sharedPlaysUsed');
+  });
+
+  it('counts a shared scene the router named, which no card asked for', async () => {
+    const { scenes, spoken, traces, store } = setUp({ canPlayShared: () => false });
+    const scene = await saveShared(store);
+    opened(scenes);
+    scenes.ask(TOPIC);
+    await flush();
+    scenes.onPage({ type: 'sceneLoaded', sceneId: scene.id }, 'maya');
+    expect(spoken).toEqual([]);
+    expect(getEnding(traces)).toBe('sharedPlaysUsed');
+  });
+
+  it("still plays the student's own scene past their shared plays", async () => {
+    const { scenes, spoken } = setUp({ canPlayShared: () => false });
+    opened(scenes);
+    scenes.ask(TOPIC);
+    await flush();
+    scenes.onPage(LOADED, 'maya');
+    expect(spoken).toHaveLength(1);
+  });
+
+  it('readies nothing once the 6 asks are used, because it could never land', async () => {
+    const { scenes, store } = setUp();
+    await saveShared(store);
+    opened(scenes);
+    await askMany(scenes, 6);
+    expect(scenes.prepare(TOPIC)).toBe(false);
+  });
+
+  it('counts a next scene toward the 6 when it is asked for, and not before', async () => {
+    const { scenes, spoken, traces, store } = setUp();
+    const scene = await saveShared(store);
+    const getAsksStarted = () => traces.filter(({ name, fields }) => name === 'sceneAsked' && fields.isAhead === false).length;
+    opened(scenes);
+    scenes.prepare(TOPIC);
+    await flush();
+    await askMany(scenes, 5);
+    expect(getAsksStarted()).toBe(5);
+    scenes.ask(TOPIC);
+    await flush();
+    scenes.onPage({ type: 'sceneLoaded', sceneId: scene.id }, 'maya');
+    expect(spoken).toHaveLength(1);
+    scenes.ask('one idea too many');
+    await flush();
+    expect(getAsksStarted()).toBe(5);
+  });
+
+  it('lands a scene readied for the new lesson while the reply catches up with its title', async () => {
+    const { scenes, spoken, traces, store } = setUp();
+    const scene = await saveShared(store);
+    opened(scenes);
+    scenes.noteTopic('Newton and his apple');
+    scenes.prepare(TOPIC);
+    await flush();
+    scenes.ask(TOPIC);
+    await flush();
+    scenes.onPage({ type: 'sceneLoaded', sceneId: scene.id }, 'maya');
+    expect(traces.some(({ name }) => name === 'sceneOffTopic')).toBe(false);
+    expect(spoken).toHaveLength(1);
+  });
+
+  it('still refuses what the tutor asked for from the old lesson while its reply catches up', async () => {
+    const { scenes, joinRun, traces } = setUp();
+    opened(scenes);
+    scenes.noteTopic('Newton and his apple');
+    scenes.ask(TOPIC);
+    await flush();
+    expect(joinRun).not.toHaveBeenCalled();
+    expect(traces.some(({ name }) => name === 'sceneOffTopic')).toBe(true);
+  });
+
+  it('stops a write the tutor asked for when the safety reply already ended that ask', async () => {
+    const leave = vi.fn();
+    const { scenes, joinRun } = setUp({ getScene: () => new Promise(() => {}) });
+    joinRun.mockImplementation(() => ({ plan: Promise.resolve(PLAN), firstLine: Promise.resolve(null), getScene: () => new Promise(() => {}), leave }));
+    opened(scenes);
+    scenes.ask(TOPIC);
+    await flush();
+    scenes.noteSafetyReply();
+    expect(leave).not.toHaveBeenCalled();
+    scenes.stopForGood();
+    expect(leave).toHaveBeenCalled();
+    expect(scenes.prepare('anything else')).toBe(false);
   });
 });
 

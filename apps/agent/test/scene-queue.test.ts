@@ -26,7 +26,7 @@ const OPEN_AND_FINISH = (state: LessonState) => getStateAfterEvent(getStateAfter
 
 const ROOMY: AheadFacts = { writesStarted: 0, sceneUsd: 0, sceneLimitUsd: 0.8, leftTodayUsd: 3, isOverLimit: false, loadPerCore: 0.2, lastFirstTextMs: 900 };
 
-const makeScenes = () => ({ prepare: vi.fn<(request: string) => boolean>(() => true), ask: vi.fn<(request: string) => void>(), dropPrepared: vi.fn(), dropWaiting: vi.fn(), stopForSafety: vi.fn() });
+const makeScenes = () => ({ prepare: vi.fn<(request: string) => boolean>(() => true), ask: vi.fn<(request: string) => void>(), dropPrepared: vi.fn(), dropWaiting: vi.fn(), stopForGood: vi.fn() });
 
 function setUp({ library = {}, facts = ROOMY, canPlay = true }: { library?: Record<string, readonly (string | null)[]>; facts?: Partial<AheadFacts>; canPlay?: boolean } = {}) {
   const budget = { ...facts };
@@ -241,7 +241,7 @@ describe('the next scene queue', () => {
     expect(scenes.ask).not.toHaveBeenCalled();
     queue.noteTutorReply({ spokenText: 'That sounds serious. Please call your local emergency number.', refusalCategory: null });
     expect(scenes.ask).not.toHaveBeenCalled();
-    expect(scenes.stopForSafety).toHaveBeenCalledOnce();
+    expect(scenes.stopForGood).toHaveBeenCalledOnce();
   });
 
   it('asks for a due scene when an ordinary reply has been read', async () => {
@@ -351,7 +351,7 @@ describe('the next scene queue', () => {
     stopped.queue.onLesson(start(RINGS));
     await flush();
     stopped.queue.noteStudentWords('i want to kill myself');
-    expect(stopped.scenes.stopForSafety).toHaveBeenCalledOnce();
+    expect(stopped.scenes.stopForGood).toHaveBeenCalledOnce();
     stopped.scenes.prepare.mockClear();
     stopped.queue.onLesson(OPEN_AND_FINISH(start(RINGS)));
     expect(stopped.scenes.prepare).not.toHaveBeenCalled();
@@ -361,9 +361,24 @@ describe('the next scene queue', () => {
     held.queue.onLesson(start(RINGS));
     await flush();
     expect(held.scenes.prepare).not.toHaveBeenCalled();
-    expect(held.scenes.stopForSafety).not.toHaveBeenCalled();
+    expect(held.scenes.stopForGood).not.toHaveBeenCalled();
     held.queue.noteStudentWords('okay so it bounces');
     expect(prepared(held.scenes)).toEqual(["Saturn's rings: a moon too close breaks apart"]);
+  });
+
+  it('stops for good when a reply closes the tutor, so no write spends for a page with no tutor', async () => {
+    const { queue, scenes, budget } = setUp();
+    queue.onLesson(start(RINGS));
+    await flush();
+    expect(prepared(scenes)).toEqual(["Saturn's rings: a moon too close breaks apart"]);
+    budget.isOverLimit = true;
+    queue.noteTutorReply({ spokenText: 'That is all for today.', refusalCategory: null });
+    expect(scenes.stopForGood).toHaveBeenCalledOnce();
+    budget.isOverLimit = false;
+    scenes.prepare.mockClear();
+    queue.onLesson(OPEN_AND_FINISH(start(RINGS)));
+    await flush();
+    expect(scenes.prepare).not.toHaveBeenCalled();
   });
 
   it('stops for good after a safety reply from the tutor', async () => {
@@ -371,7 +386,7 @@ describe('the next scene queue', () => {
     queue.noteTutorReply({ spokenText: 'That sounds serious. Please call your local emergency number.', refusalCategory: null });
     queue.onLesson(start(RINGS));
     await flush();
-    expect(scenes.stopForSafety).toHaveBeenCalledOnce();
+    expect(scenes.stopForGood).toHaveBeenCalledOnce();
     expect(scenes.prepare).not.toHaveBeenCalled();
   });
 });

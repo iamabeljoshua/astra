@@ -22,7 +22,7 @@ export interface QueueScenes {
   ask(request: string): void;
   dropPrepared(request: string): void;
   dropWaiting(how: 'movedOn' | 'switched' | 'studentTurn'): void;
-  stopForSafety(): void;
+  stopForGood(): void;
 }
 
 export interface SceneQueueOptions {
@@ -176,7 +176,7 @@ export function createSceneQueue({ scenes, readLibrary, getFacts, canPlay, moveT
     if (isStopped) return;
     isStopped = true;
     entries = [];
-    scenes.stopForSafety();
+    scenes.stopForGood();
     trace('sceneAheadStopped');
   };
 
@@ -242,7 +242,7 @@ export function createSceneQueue({ scenes, readLibrary, getFacts, canPlay, moveT
     noteSafetyReply: () => stopForGood(),
     noteTutorReply({ spokenText, refusalCategory }) {
       isReplying = false;
-      if (SAFETY_REPLY.test(spokenText) || (refusalCategory !== null && !PLAIN_REFUSALS.has(refusalCategory))) return stopForGood();
+      if (getFacts().isOverLimit || SAFETY_REPLY.test(spokenText) || (refusalCategory !== null && !PLAIN_REFUSALS.has(refusalCategory))) return stopForGood();
       if (isStopped || isHeld) return;
       askDue();
       fillAhead();

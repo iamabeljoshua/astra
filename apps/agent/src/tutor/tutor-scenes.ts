@@ -46,7 +46,7 @@ export interface TutorScenes {
   prepare(request: string): boolean;
   dropPrepared(request: string): void;
   dropWaiting(how: 'movedOn' | 'switched' | 'studentTurn'): void;
-  stopForSafety(): void;
+  stopForGood(): void;
   canPlay(): boolean;
   onPage(message: SceneBrowserMessage, studentId: string): void;
   notePause(): void;
@@ -182,6 +182,7 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
     if (isClosed()) return end(ask, 'tutorClosed');
     // A person can flag a scene in the seconds between it being ready and the pause it lands at.
     if (store.isFlagged({ id: waiting.id, topic: waiting.topic, ownerId: waiting.ownerId })) return end(ask, 'flagged');
+    if (waiting.ownerId === null && !canPlayShared(studentId)) return end(ask, 'sharedPlaysUsed');
     if (ask.isOpening) {
       if (!settleOpening) return;
       const scene = ask.work.desk.takeAtOpening();
@@ -300,7 +301,7 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
   const ask = (topic: string) => {
     const key = toKey(topic);
     if (isStopped || device === 'cannotPlay' || isAfterSafetyReply || isClosed() || key === '' || topic.length > MOST_TOPIC_CHARACTERS || askedTopics.has(key) || asksMade >= MOST_ASKS_IN_A_SESSION) return;
-    if (isTitleUnheard && lessonTitle !== null && !isSameTopic(topic, lessonTitle)) return trace('sceneOffTopic', { text: topic });
+    if (isTitleUnheard && lessonTitle !== null && !prepared.has(key) && !isSameTopic(topic, lessonTitle)) return trace('sceneOffTopic', { text: topic });
     if (current) end(current, 'replaced');
     if (waitingForDevice !== null) askedTopics.delete(waitingForDevice.trim().toLowerCase());
     askedTopics.add(key);
@@ -324,7 +325,7 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
     ask,
     prepare(request) {
       const key = toKey(request);
-      if (isStopped || isClosed() || device !== 'canPlay' || !canPlayShared(studentId) || prepared.has(key) || askedTopics.has(key) || request.length > MOST_TOPIC_CHARACTERS) return false;
+      if (isStopped || isClosed() || device !== 'canPlay' || !canPlayShared(studentId) || prepared.has(key) || askedTopics.has(key) || request.length > MOST_TOPIC_CHARACTERS || asksMade >= MOST_ASKS_IN_A_SESSION) return false;
       const ahead = makeAsk(request, true);
       if (!ahead) return false;
       prepared.set(key, ahead);
@@ -344,12 +345,11 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
       }
       if (current) end(current, how);
     },
-    stopForSafety() {
+    stopForGood() {
       isStopped = true;
-      current?.work.leave();
-      if (current) end(current, 'safety');
+      if (current) end(current, 'stopped');
       if (opening.kind !== 'over') giveOpening(null);
-      for (const ahead of prepared.values()) ahead.work.leave();
+      for (const work of works) work.leave();
       prepared.clear();
     },
     canPlay: () => device === 'canPlay',
