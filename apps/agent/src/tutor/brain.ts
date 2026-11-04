@@ -362,7 +362,8 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
           if (command.kind === 'highlight' || command.kind === 'annotate') marksDrawn.set(command.id, { target: command.target, ...('tex' in command && command.tex !== undefined ? { tex: command.tex } : {}) });
         },
         onCommandDropped(command) {
-          boardOperations.splice(boardOperations.findIndex((operation) => operation.kind === 'command' && operation.command === command), 1);
+          const dropped = boardOperations.findIndex((operation) => operation.kind === 'command' && operation.command === command);
+          if (dropped !== -1) boardOperations.splice(dropped, 1);
           if ('id' in command && readerMemory.openTask?.id === command.id) readerMemory = { ...readerMemory, openTask: null };
         },
         onBadCommand(problem) {

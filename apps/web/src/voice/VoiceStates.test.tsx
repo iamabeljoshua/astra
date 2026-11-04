@@ -170,7 +170,7 @@ describe('what the student sees of a room', () => {
     const second = makeVoice();
     startLiveVoice.mockResolvedValueOnce(second.voice);
     fireEvent.click(screen.getByRole('button', { name: VOICE_LABELS.tryAgain }));
-    await waitFor(() => expect(second.voice.sendTyped).toHaveBeenCalledWith(SESSION_LABELS.carryOnWith('Physics of the impossible')));
+    await waitFor(() => expect(second.voice.sendOpening).toHaveBeenCalledWith(SESSION_LABELS.carryOnWith('Physics of the impossible')));
   });
 
   it("takes the card's picture away when the student moves to another topic, and leaves no empty box", async () => {
