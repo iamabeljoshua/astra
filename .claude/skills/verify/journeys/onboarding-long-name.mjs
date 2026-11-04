@@ -40,6 +40,8 @@ export default async function onboardingLongName({ page, capture, viewportName, 
   await signInAsNewStudent(page, signInWithCode, `m2-4-long-${viewportName}-${Date.now()}@astra.test`);
 
   await answerName(page, capture, LONG_NAME);
+  await page.getByRole('heading', { name: 'When were you born?' }).waitFor();
+  await assertNoSidewaysScroll(page, 'the date of birth question');
   await answerBirthDate(page, capture, { day: '1', month: '6', year: String(new Date().getFullYear() - 15) });
   await page.getByRole('heading', { name: 'Where are you in your learning?' }).waitFor();
   await assertNoSidewaysScroll(page, 'the level question');

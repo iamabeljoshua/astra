@@ -1,5 +1,4 @@
 import type { components } from '@astra/contracts';
-import type { TutorNotesSheet } from '../auth/OnboardingFrame';
 import { STUDENT_GOAL_LABELS, STUDENT_INTEREST_LABELS, STUDENT_LEVEL_LABELS } from '../strings';
 import type { Student } from './steps';
 
@@ -25,15 +24,6 @@ export function getInitialAnswers(student: Student | null): Answers {
     level: student?.profile?.level ?? null,
     interests: student?.profile?.interests ?? [],
     goal: student?.profile?.goal ?? null,
-  };
-}
-
-export function getSheet(answers: Answers): TutorNotesSheet {
-  return {
-    studentName: answers.name,
-    level: answers.level ? STUDENT_LEVEL_LABELS[answers.level] : '',
-    into: answers.interests.map((interest) => STUDENT_INTEREST_LABELS[interest]).join(', '),
-    goal: answers.goal ? STUDENT_GOAL_LABELS[answers.goal] : '',
   };
 }
 

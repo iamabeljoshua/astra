@@ -3,6 +3,7 @@ import { setTimeout as sleep } from 'node:timers/promises';
 
 const PACE_MS = Number(process.env.ONBOARDING_PACE_MS ?? 0);
 const TYPING_DELAY_MS = PACE_MS ? 90 : 0;
+const INTEREST_COUNT = 12;
 
 const pause = () => sleep(PACE_MS);
 
@@ -19,9 +20,9 @@ export async function signInAsNewStudent(page, signInWithCode, email) {
 }
 
 export async function answerName(page, capture, name) {
-  await page.getByRole('heading', { name: 'What should your tutor call you?' }).waitFor();
+  await page.getByRole('heading', { name: 'What should I call you?' }).waitFor();
   await typeInto(page.getByRole('textbox', { name: 'Your first name' }), name);
-  await page.getByRole('heading', { name: `Made for ${name}` }).waitFor();
+  await page.getByText(`A learning app, made for ${name}`).waitFor();
   await capture('name');
   await pause();
   await page.getByRole('button', { name: 'Continue' }).click();
@@ -46,6 +47,7 @@ export async function answerQuestionsToHome(page, capture, { name, level, intere
 
   await page.getByRole('heading', { name: 'What are you into?' }).waitFor();
   assert.equal(await page.getByRole('textbox').count(), 0, 'interests have no box to type in');
+  assert.equal(await page.getByRole('group', { name: 'What are you into?' }).locator('button svg[aria-hidden="true"]').count(), INTEREST_COUNT, 'every chip has a picture hidden from a screen reader');
   for (const interest of interests) await page.getByRole('button', { name: interest, exact: true }).click();
   await capture('interests');
   await pause();

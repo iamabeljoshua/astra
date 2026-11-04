@@ -1,14 +1,14 @@
 # Onboarding
 
-After signing in, a new student answers one question per screen while a sheet headed `Made for you` fills in beside them, then lands on Home. A student under 18 takes the same path as any other student. A student under 13 in every time zone stops at the closed page.
+After signing in, a new student answers one question per screen beside the star chart, which fills in as they answer, then lands on Home. A student under 18 takes the same path as any other student. A student under 13 in every time zone stops at the closed page.
 
 ## Sub-features
 
-- `onboarding-welcome` is the sign-in page, which says `A learning app, made for you` and that the tutor is an AI.
+- `onboarding-welcome` is the sign-in page, whose chart title says `A learning app, made for you` and whose tutor line says the tutor is an AI.
 - `onboarding-steps` runs name, date of birth, level, interests, goal, then Home. Picking a level or a goal moves on by itself. A name needs a visible character, by the same rule as the API, so a name of only a zero-width space stops at the name step.
-- `onboarding-interests` is a multi-select of chips with no text box. A student can choose none.
-- `onboarding-goals` offers `Improve my grades`, `Get ready for an exam`, and `Learn anything I'm curious about`. While the goal saves, the choices take no tap and Back is gone. A failed save stays here and says so, picking again retries, and Back clears the alert.
-- `onboarding-sheet` shows the name as it is typed, and each answer as it is given.
+- `onboarding-interests` is a multi-select of chips with no text box, each with a small drawing. A student can choose none.
+- `onboarding-goals` offers `Improve my grades`, `Get ready for an exam`, and `Learn anything I'm curious about`. While the goal saves, the choices and Back stay in the page and take no tap, and a screen reader hears `Saving your answers.`. A failed save stays here and says so, picking again retries, and Back clears the alert.
+- `onboarding-chart` forms the name in the planet's dots as it is typed, and titles the chart `A learning app, made for <name>`. The next line says `Welcome, <name>.`. The level step shows stairs, the goal step shows a rising curve, and the other steps hold the name. Each chip picked lights a labelled star with that interest's name.
 - `onboarding-home` shows `Welcome, <name>.` until the student starts a session, with cards whose reasons name only the chips they chose.
 - `onboarding-once` sends a student with a profile straight to Home. A student with a date of birth and no profile resumes at the first unanswered step.
 - `onboarding-notes` is `Your notes` in the sidebar, where the name, level, interests, and goal can change. A blank name is refused, and the problem clears at the next change.
@@ -31,7 +31,7 @@ Preconditions:
 - **Try a long name, as a 15-year-old.** Run `pnpm verify drive --journey onboarding-long-name`. It uses a 60-character name with no spaces and fails if a page scrolls sideways. It meets no parent step, and it proves a session starts with 201.
 - **Close an account under 13.** Run `pnpm verify drive --journey onboarding-under-13`. It stops at `We can't set up this account.`, and a reload stays there.
 - **See it in dark.** Put `ONBOARDING_THEME=dark` in front of any of these commands.
-- **Proof.** Open the `onboarding-*` images in `.verify/evidence/`.
+- **Proof.** Open the `onboarding-*` images in `.verify/evidence/`. The chart is a canvas, so the journeys can read its title but not its dots. Look at the images.
 
 ## Gotchas
 

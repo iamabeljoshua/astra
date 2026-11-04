@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react';
-import { StepHeading } from '../auth/StepHeading';
 import { ONBOARDING_LABELS, STUDENT_GOAL_LABELS, STUDENT_LEVEL_LABELS } from '../strings';
 import { type StudentGoal, type StudentLevel, STUDENT_GOALS, STUDENT_LEVELS } from './answers';
 import { OptionRows } from './OptionRows';
@@ -24,8 +23,7 @@ export function LevelStep({ flow }: StepProps) {
   const moveOnAfterPick = useMoveOnAfterPick();
 
   return (
-    <StepScreen flow={flow}>
-      <StepHeading>{ONBOARDING_LABELS.levelQuestion}</StepHeading>
+    <StepScreen flow={flow} line={ONBOARDING_LABELS.levelQuestion}>
       <OptionRows<StudentLevel>
         options={STUDENT_LEVELS}
         labels={STUDENT_LEVEL_LABELS}
@@ -43,8 +41,7 @@ export function GoalStep({ flow }: StepProps) {
   const moveOnAfterPick = useMoveOnAfterPick();
 
   return (
-    <StepScreen flow={flow}>
-      <StepHeading>{ONBOARDING_LABELS.goalQuestion}</StepHeading>
+    <StepScreen flow={flow} line={ONBOARDING_LABELS.goalQuestion}>
       <OptionRows<StudentGoal>
         options={STUDENT_GOALS}
         labels={STUDENT_GOAL_LABELS}
@@ -56,6 +53,7 @@ export function GoalStep({ flow }: StepProps) {
         }}
       />
       {flow.saveProblem && <p role="alert" className="stop-note">{flow.saveProblem}</p>}
+      <p role="status" className="sr-only">{flow.isSaving && ONBOARDING_LABELS.saving}</p>
     </StepScreen>
   );
 }
