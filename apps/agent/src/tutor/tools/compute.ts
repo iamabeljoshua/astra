@@ -1,6 +1,4 @@
-import { getNumberValue, type NumberValue, toFloatValue } from '../math/math-value.ts';
-import { getLetters, type MathExpression, parseMath } from '../math/parse-math.ts';
-import { describeRational, getExactPlaces, type Rational, readDecimal } from '../math/rational.ts';
+import { describeRational, getExactPlaces, getLetters, getNumberValue, type MathExpression, type NumberValue, parseMath, type Rational, readDecimal, toFloatValue } from '@astra/board/shared';
 
 export type ComputeAnswer = { ok: true; value: string; about?: string } | { ok: false; problem: string };
 

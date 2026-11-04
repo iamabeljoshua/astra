@@ -1,16 +1,19 @@
-import { lazy, type PropsWithChildren, type ReactNode, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, type PropsWithChildren, type ReactNode, type RefObject, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { ChatBox } from '../home/ChatBox';
 import { findArtwork, type Artwork } from '../home/artwork';
 import { API_ERROR_LABELS, MENU_LABELS, PRODUCT_NAME, REPLY_BOX_LABELS, SESSION_LABELS, SESSIONS_LABELS, VOICE_LABELS } from '../strings';
 import { ThemeToggle } from '../theme/ThemeToggle';
+import { type FilesComingSoon, useFilesComingSoon } from '../ui/useFilesComingSoon';
 import { formatSessionLength } from './formatSession';
 import { type Session, useSession } from './sessionQueries';
 import { isLessonEnabled } from './lessonFlag';
 import { useSessionRun } from './useSessionRun';
-import { StudentCaption, TutorCaption } from '../voice/Captions';
+import { StudentCaption } from '../voice/Captions';
+import { BoardCaption } from '../board/BoardCaption';
 import { LiveBoard } from '../voice/LiveBoard';
-import { isVoiceOver, type LiveVoice, type LiveVoiceView } from '../voice/liveVoice';
+import { isVoiceOver, type LiveVoiceView } from '../voice/liveVoice';
+import { ConnectingSaturn } from './ConnectingSaturn';
 import { type LiveVoiceControls, useLiveVoice } from '../voice/useLiveVoice';
 
 const NOT_FOUND_STATUS = 404;
@@ -84,52 +87,69 @@ function isTutorOnTheWay(status: LiveVoiceControls['status'], view: LiveVoiceVie
 
 /** Long enough for a student to think, so the prompt never hurries an answer on its way. */
 const ANSWER_PROMPT_AFTER_MS = 8000;
+const REPLY_BOX_BACK_AFTER_MS = 8000;
 
-// The tutor does not nag out loud. Once it has stopped and the student has done nothing for a while, the page says what they can do.
-function useIsAnswerDue(view: LiveVoiceView | null, draftEdits: number): boolean {
-  const isWaiting = view !== null && view.phase === 'live' && view.mic === 'off' && !view.closedBecause && !view.isTutorSpeaking && !view.isThinking && !view.isHeard && view.tutorHeard.length > 0;
-  const studentLines = view?.studentLines.length ?? 0;
-  const [isDue, setIsDue] = useState(false);
+// A change to startsOver begins the wait again.
+function useHasWaited(isWaiting: boolean, waitMs: number, startsOver = 0): boolean {
+  const [hasWaited, setHasWaited] = useState(false);
 
   useEffect(() => {
-    if (!isWaiting) return;
-    const prompting = setTimeout(() => setIsDue(true), ANSWER_PROMPT_AFTER_MS);
+    if (!isWaiting) return undefined;
+    const waiting = setTimeout(() => setHasWaited(true), waitMs);
     return () => {
-      clearTimeout(prompting);
-      setIsDue(false);
+      clearTimeout(waiting);
+      setHasWaited(false);
     };
-  }, [isWaiting, studentLines, draftEdits]);
+  }, [isWaiting, waitMs, startsOver]);
 
-  return isWaiting && isDue;
+  return isWaiting && hasWaited;
+}
+
+function useIsAnswerDue(view: LiveVoiceView | null, draftEdits: number): boolean {
+  const isWaiting = view !== null && view.phase === 'live' && view.mic === 'off' && !view.closedBecause && !view.isTutorSpeaking && !view.isThinking && !view.isHeard && view.tutorHeard.length > 0;
+  return useHasWaited(isWaiting, ANSWER_PROMPT_AFTER_MS, (view?.studentLines.length ?? 0) + draftEdits);
 }
 
 function RunningSession({ session }: { session: Session }) {
   const { seconds, endSession, isEnding, endProblem } = useSessionRun(session);
   const liveVoice = useLiveVoice({ sessionId: session.id });
   const { status, view, voice } = liveVoice;
+  const tutorStateLine = useRef<HTMLSpanElement>(null);
+  // This changes on every student action, so it is written straight to the page and the session does not render again for it.
+  const showTutorState = useCallback((state: string | null) => {
+    if (tutorStateLine.current) tutorStateLine.current.textContent = state;
+  }, []);
   useOpeningMessage(session, liveVoice.sendOpening);
+  const isConnecting = isTutorOnTheWay(status, view);
+  const filesComingSoon = useFilesComingSoon();
 
   // Finishing deletes the room, and a page still in it would ask for another. A student whose finish failed stays in the session, so the room opens again.
   async function endAndLeaveRoom() {
     if (!(await endSession(liveVoice.leave))) await liveVoice.connect({ wantsGreeting: false });
   }
 
+  const picture = <Board artwork={findArtwork(session.artwork)} note={SESSION_LABELS.boardStandIn} />;
   return (
-    <SessionFrame
-      facts={<SessionFacts subject={session.subject} seconds={seconds} />}
-      action={<EndButton isEnding={isEnding} onEnd={() => void endAndLeaveRoom()} />}
-      problem={endProblem}
-    >
-      <SessionPanels
-        session={session}
-        tutorWords={isTutorOnTheWay(status, view) ? VOICE_LABELS.connecting : null}
-        tutorCaption={view?.hasTutorStarted ? <TutorCaption heard={view.tutorHeard} coming={view.tutorComing} /> : null}
-        isDotLively={view !== null && !view.closedBecause && (view.isTutorSpeaking || view.isHeard || view.isThinking)}
-        boardNote={SESSION_LABELS.boardStandIn}
-        liveVoice={voice}
-      >
-        <ReplyBox liveVoice={liveVoice} carryOnLine={SESSION_LABELS.carryOnWith(session.title)} />
-      </SessionPanels>
+    <SessionFrame facts={<SessionFacts subject={session.subject} seconds={seconds} tutorStateLine={tutorStateLine} costUsd={view?.costUsd ?? null} />} action={<EndButton isEnding={isEnding} onEnd={() => void endAndLeaveRoom()} />} problem={endProblem} isFullHeight>
+      <div className="board-stage">
+        <div className="board-voice">
+          <SessionTitle title={session.title} isQuiet={Boolean(voice) || isConnecting} />
+          {!voice && !isConnecting && (
+            <div className="label flex items-center gap-2.5">
+              <i aria-hidden data-testid="tutor-dot" data-lively={false} className="tutor-dot" />
+              <span>{SESSION_LABELS.yourTutor}</span>
+            </div>
+          )}
+          {view?.hasTutorStarted ? (
+            <BoardCaption heard={view.tutorHeard} coming={view.tutorComing} firstWord={view.firstWord} />
+          ) : (
+            <div className="flex flex-1 flex-col justify-end font-voice text-voice">{isConnecting && <p role="status">{VOICE_LABELS.connecting}</p>}</div>
+          )}
+          <ReplyBox liveVoice={liveVoice} isConnecting={isConnecting} carryOnLine={SESSION_LABELS.carryOnWith(session.title)} filesComingSoon={filesComingSoon} />
+        </div>
+        <ConnectingSaturn isConnecting={isConnecting} />
+        {voice ? <LiveBoard voice={voice} isConnecting={isConnecting} onTutorState={showTutorState} visual={getSessionVisual(findArtwork(session.artwork))} onTalk={() => void liveVoice.toggleTalk()} isTalkOn={view?.mic === 'on'} canTalk={!view?.closedBecause} filesComingSoon={isConnecting ? undefined : filesComingSoon} /> : <div className="board-panel">{picture}</div>}
+      </div>
     </SessionFrame>
   );
 }
@@ -163,11 +183,20 @@ function FinishedSession({ session }: { session: Session }) {
   );
 }
 
-export function SessionFacts({ subject, seconds }: { subject: string; seconds: number }) {
+// A tester's flag, read at build time, so a build without it holds no cost line at all.
+const SessionCost = import.meta.env.VITE_SHOW_COST === '1' ? lazy(() => import('./SessionCost')) : null;
+
+export function SessionFacts({ subject, seconds, tutorStateLine, costUsd = null }: { subject: string; seconds: number; tutorStateLine?: RefObject<HTMLSpanElement | null>; costUsd?: number | null }) {
   return (
     <>
       <span className="label min-w-0 wrap-anywhere text-ink-2">{subject}</span>
       <span className="label text-ink-2">{formatSessionLength(seconds)}</span>
+      {tutorStateLine && <span ref={tutorStateLine} data-testid="tutor-state" className="label text-ink-2" />}
+      {SessionCost && costUsd !== null && (
+        <Suspense fallback={null}>
+          <SessionCost usd={costUsd} />
+        </Suspense>
+      )}
     </>
   );
 }
@@ -176,13 +205,14 @@ interface SessionFrameProps extends PropsWithChildren {
   facts?: ReactNode;
   action?: ReactNode;
   problem?: string | null;
+  isFullHeight?: boolean;
 }
 
-export function SessionFrame({ facts, action, problem, children }: SessionFrameProps) {
+export function SessionFrame({ facts, action, problem, isFullHeight = false, children }: SessionFrameProps) {
   return (
-    <div data-page className="flex min-h-dvh animate-arrive flex-col px-page-side">
+    <div data-page className={`flex animate-arrive flex-col ${isFullHeight ? 'board-session' : 'min-h-dvh px-page-side'}`}>
       <title>{PRODUCT_NAME}</title>
-      <header className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-line py-2.5 tabular-nums">
+      <header className={`flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-line py-2.5 tabular-nums ${isFullHeight ? 'px-6 max-md:px-4' : ''}`}>
         <span className="product-mark">{PRODUCT_NAME}</span>
         {facts}
         <div className="ml-auto flex items-center gap-x-5">
@@ -196,41 +226,35 @@ export function SessionFrame({ facts, action, problem, children }: SessionFrameP
   );
 }
 
-interface SessionPanelsProps extends PropsWithChildren {
+interface SessionPanelsProps {
   session: Session;
-  tutorWords: string | null;
-  tutorCaption?: ReactNode;
-  isDotLively?: boolean;
-  boardNote?: string;
-  liveVoice?: LiveVoice | null;
+  tutorWords: string;
 }
 
-function SessionPanels({ session, tutorWords, tutorCaption, isDotLively = false, boardNote, liveVoice, children }: SessionPanelsProps) {
-  const picture = <Board artwork={findArtwork(session.artwork)} note={boardNote} />;
+function SessionPanels({ session, tutorWords }: SessionPanelsProps) {
   return (
     <div className="grid flex-1 grid-cols-session gap-session py-4 max-md:grid-cols-1">
-      {liveVoice ? <LiveBoard voice={liveVoice} whileEmpty={picture} /> : picture}
+      <Board artwork={findArtwork(session.artwork)} />
       <div className="flex min-w-0 flex-col gap-3.5">
         <div className="label flex items-center gap-2.5">
-          <i aria-hidden data-testid="tutor-dot" data-lively={isDotLively} className={`tutor-dot ${isDotLively ? 'motion-safe:animate-speak' : ''}`} />
+          <i aria-hidden data-testid="tutor-dot" className="tutor-dot" />
           <span>{SESSION_LABELS.yourTutor}</span>
         </div>
         <SessionTitle title={session.title} />
-        {tutorCaption ?? (tutorWords && <p role="status" className="font-voice text-voice">{tutorWords}</p>)}
-        {children}
+        <p className="font-voice text-voice">{tutorWords}</p>
       </div>
     </div>
   );
 }
 
 // Focus was on what the student pressed, and that has gone, so it moves to the new screen's heading.
-export function SessionTitle({ title }: { title: string }) {
+export function SessionTitle({ title, isQuiet = false }: { title: string; isQuiet?: boolean }) {
   const heading = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => heading.current?.focus({ preventScroll: true }), []);
 
   return (
-    <h1 ref={heading} tabIndex={-1} className="font-medium wrap-anywhere text-ink-2 outline-none">
+    <h1 ref={heading} tabIndex={-1} className={`font-medium wrap-anywhere text-ink-2 outline-none ${isQuiet ? 'sr-only' : ''}`}>
       {title}
     </h1>
   );
@@ -238,11 +262,15 @@ export function SessionTitle({ title }: { title: string }) {
 
 function Board({ artwork, note }: { artwork: Artwork | null; note?: string }) {
   return (
-    <section className="fades-with-theme flex min-w-0 flex-col border border-line bg-panel md:min-h-75">
+    <section className="fades-with-theme flex min-w-0 flex-1 flex-col border border-line bg-panel md:min-h-75">
       <div className="flex min-h-50 flex-1 items-center justify-center p-4">{artwork && <BoardPicture artwork={artwork} />}</div>
       {note && <p className="label border-t border-line px-3 py-1.75 text-ink-2">{note}</p>}
     </section>
   );
+}
+
+function getSessionVisual(artwork: Artwork | null) {
+  return artwork && <BoardPicture artwork={artwork} />;
 }
 
 export function BoardPicture({ artwork }: { artwork: Artwork }) {
@@ -269,32 +297,47 @@ function getVoiceNote({ status, waitSeconds, view }: LiveVoiceControls, isAnswer
   return isAnswerDue ? VOICE_LABELS.answerPrompt : null;
 }
 
-function ReplyBox({ liveVoice, carryOnLine }: { liveVoice: LiveVoiceControls; carryOnLine: string }) {
+interface ReplyBoxProps {
+  liveVoice: LiveVoiceControls;
+  isConnecting: boolean;
+  carryOnLine: string;
+  filesComingSoon: FilesComingSoon;
+}
+
+// The board's tools sit behind the connecting picture, so until the tutor arrives a file's note opens this box and shows here.
+function ReplyBox({ liveVoice, isConnecting, carryOnLine, filesComingSoon }: ReplyBoxProps) {
   const { status, view, voice, isTalkOn, sendTyped, toggleTalk, openAgain } = liveVoice;
   const isFinished = status === 'finished';
   const isOver = isFinished || status === 'tooSoon' || (view !== null && isVoiceOver(view.phase));
   // A tutor closed for spending is closed for this session too, and another room would only start it over.
   const canOpenAgain = isOver && !isFinished && status !== 'overLimit' && !view?.closedBecause;
-  const [replyWithNoRoom, setReplyWithNoRoom] = useState<string | null>(null);
+  const [reply, setReply] = useState<{ text: string; didFail: boolean } | null>(null);
   const [draftEdits, setDraftEdits] = useState(0);
-  const voiceNote = getVoiceNote(liveVoice, useIsAnswerDue(view, draftEdits));
+  const [hasDraft, setHasDraft] = useState(false);
+  const isBackWhileConnecting = useHasWaited(isConnecting, REPLY_BOX_BACK_AFTER_MS);
+  const isBoxOpen = (!voice && status !== 'connecting') || isBackWhileConnecting || hasDraft || (isConnecting && filesComingSoon.noteKey !== null);
+  if (reply && view?.hasTutorStarted && (!reply.didFail || (!isOver && !view.closedBecause))) setReply(null);
+  if (reply && !reply.didFail && !view?.hasTutorStarted && isOver) setReply({ ...reply, didFail: true });
+  const voiceNote = getVoiceNote(liveVoice, useIsAnswerDue(view, draftEdits + (view?.typingNoteCount ?? 0)));
 
   async function send(text: string) {
+    setHasDraft(false);
+    setReply(isConnecting ? { text, didFail: false } : null);
     const wasSent = await sendTyped(text);
-    setReplyWithNoRoom(wasSent ? null : text);
+    if (!wasSent) setReply({ text, didFail: true });
   }
 
   return (
     <div className="mt-auto flex flex-col gap-3.5">
       <div role="status" className="flex flex-col gap-3.5">
-        {view && <StudentCaption lines={view.studentLines} />}
-        {replyWithNoRoom && (
+        {view?.mic === 'on' && <StudentCaption lines={view.studentLines} />}
+        {reply && (
           <>
             <p className="border-t border-line pt-3 text-sub wrap-anywhere">
               <span className="label block text-ink-2">{SESSION_LABELS.you}</span>
-              {replyWithNoRoom}
+              {reply.text}
             </p>
-            <p className="text-fine text-ink-2">{SESSION_LABELS.replyNotSent}</p>
+            <p className="text-fine text-ink-2">{reply.didFail ? SESSION_LABELS.replyNotSent : SESSION_LABELS.replyWaiting}</p>
           </>
         )}
         {voiceNote && <p className="text-fine text-ink-2">{voiceNote}</p>}
@@ -314,7 +357,23 @@ function ReplyBox({ liveVoice, carryOnLine }: { liveVoice: LiveVoiceControls; ca
           {VOICE_LABELS.tapToHear}
         </button>
       )}
-      <ChatBox labels={REPLY_BOX_LABELS} canAttach={false} clearsOnSend isSending={isOver} talk={{ isOn: isTalkOn, onToggle: () => void toggleTalk() }} onSend={(text) => void send(text)} onEdit={() => setDraftEdits((edits) => edits + 1)} />
+      {isBoxOpen && (
+        <div className={isBackWhileConnecting ? 'animate-arrive' : undefined}>
+          <ChatBox
+            labels={REPLY_BOX_LABELS}
+            filesComingSoon={!voice || isConnecting ? filesComingSoon : undefined}
+            clearsOnSend
+            isSending={isOver}
+            takesFocus={isBackWhileConnecting}
+            talk={{ isOn: isTalkOn, onToggle: () => void toggleTalk() }}
+            onSend={(text) => void send(text)}
+            onEdit={(draft) => {
+              setDraftEdits((edits) => edits + 1);
+              setHasDraft(draft.trim() !== '');
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }

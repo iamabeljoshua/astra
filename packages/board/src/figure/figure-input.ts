@@ -8,6 +8,7 @@ export interface FigureWords {
   metres: string;
   degrees: string;
   tooFine: string;
+  slope: string;
 }
 
 export interface FigureFrame {

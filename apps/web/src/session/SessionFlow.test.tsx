@@ -1,7 +1,8 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../App';
-import { API_ERROR_LABELS, CHAT_BOX_LABELS, HOME_LABELS, MENU_LABELS, REPLY_BOX_LABELS, SESSION_LABELS, SESSIONS_LABELS, SIDEBAR_LABELS, VOICE_LABELS } from '../strings';
+import './SessionScreen';
+import { API_ERROR_LABELS, ATTACH_LABELS, CHAT_BOX_LABELS, HOME_LABELS, MENU_LABELS, REPLY_BOX_LABELS, SESSION_LABELS, SESSIONS_LABELS, SIDEBAR_LABELS, VOICE_LABELS } from '../strings';
 import { EXAMPLE_HOME_SCREEN, EXAMPLE_STUDENT_NAME } from '../test/homeScreenApi';
 import { makeSession, stubSessionsApi } from '../test/sessionsApi';
 
@@ -247,6 +248,27 @@ describe('the session screen', () => {
     await waitFor(() => expect(document.activeElement).toBe(heading));
   });
 
+  it('says photos and PDFs are coming soon from Home, and sends nothing', async () => {
+    const { fetchStub } = await renderHome();
+    const callsBefore = fetchStub.mock.calls.length;
+
+    fireEvent.click(screen.getByRole('button', { name: ATTACH_LABELS.attach }));
+
+    screen.getByText(ATTACH_LABELS.comingSoon);
+    expect(fetchStub.mock.calls.length).toBe(callsBefore);
+  });
+
+  it('offers the photo or PDF control in the reply box when the tutor cannot connect, and it sends nothing', async () => {
+    const { fetchStub } = renderSessionAddress({ sessions: [makeSession()] }, 'a-session');
+    await screen.findByText(VOICE_LABELS.unavailable);
+    const callsBefore = fetchStub.mock.calls.length;
+
+    fireEvent.click(screen.getByRole('button', { name: ATTACH_LABELS.attach }));
+
+    screen.getByText(ATTACH_LABELS.comingSoon);
+    expect(fetchStub.mock.calls.length).toBe(callsBefore);
+  });
+
   it('keeps a reply on the screen and says it did not arrive, when the tutor cannot connect', async () => {
     renderSessionAddress({ sessions: [makeSession()] }, 'a-session');
     const replyBox = await screen.findByRole<HTMLTextAreaElement>('textbox', { name: REPLY_BOX_LABELS.label });
@@ -257,7 +279,7 @@ describe('the session screen', () => {
     await screen.findByText('Gravity, I think.');
     screen.getByText(SESSION_LABELS.replyNotSent);
     screen.getByText(VOICE_LABELS.unavailable);
-    expect(replyBox.value).toBe('');
+    expect(screen.getByRole<HTMLTextAreaElement>('textbox', { name: REPLY_BOX_LABELS.label }).value).toBe('');
   });
 
   it('says plainly that today\'s tutor time is spent, and keeps the reply on the screen', async () => {
@@ -277,7 +299,8 @@ describe('the session screen', () => {
     vi.stubGlobal('AudioContext', class {
       state = 'running';
       audioWorklet = { addModule: async () => {} };
-      createGain = () => ({ gain: { setValueAtTime: () => {} } });
+      createGain = () => ({ gain: { setValueAtTime: () => {} }, connect: () => {} });
+      createAnalyser = () => ({});
       resume = async () => {};
       close = async () => {};
     });

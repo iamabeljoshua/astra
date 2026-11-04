@@ -92,6 +92,7 @@ export type TurnEvent =
   /** A reply, not a stored line, played to its end, so the student has their answer. */
   | { type: 'replyHeardOut' }
   | { type: 'questionHeard' }
+  | { type: 'workLanded' }
   /** `wasPlayingAtPage`: the agent has finished speaking, and the page has not said it finished playing. */
   | { type: 'linkLost'; wasPlayingAtPage?: boolean }
   | { type: 'linkBack' };
@@ -308,6 +309,8 @@ export function getNextTurnState(state: TurnState, event: TurnEvent): TurnStep {
       return { state: { ...state, unanswered: '' }, actions: [] };
     case 'questionHeard':
       return onQuestionHeard(state);
+    case 'workLanded':
+      return { state: { ...state, tutor: 'silent', unanswered: '' }, actions: [] };
     case 'linkLost':
       return onLinkLost(state, event);
     case 'linkBack':

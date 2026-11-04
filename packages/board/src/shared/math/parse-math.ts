@@ -27,6 +27,13 @@ const WRITTEN_FUNCTION_NAMES: ReadonlySet<string> = new Set(['ln', 'lg']);
 
 const isNumberToken = (token: string | undefined) => token !== undefined && /^\d/.test(token);
 
+const isWholeNumber = (token: string | undefined) => token !== undefined && /^\d+$/.test(token);
+
+function isMixedNumberAt(tokens: readonly string[], index: number): boolean {
+  const [whole, fraction, open, top, close, reopen, bottom, end] = tokens.slice(index, index + 8);
+  return isWholeNumber(whole) && FRACTIONS.has(fraction ?? '') && open === '{' && isWholeNumber(top) && close === '}' && reopen === '{' && isWholeNumber(bottom) && end === '}';
+}
+
 // mass, sin, and ln written in plain letters read as products, so a word is never judged.
 function hasWordInLetters(tokens: readonly string[]): boolean {
   let run = '';
@@ -131,7 +138,10 @@ function createParser(tokens: readonly string[]) {
   function readNumber(token: string): MathExpression {
     const value = readDecimal(token);
     if (value === null) throw new CannotRead();
-    return { kind: 'number', value };
+    const whole: MathExpression = { kind: 'number', value };
+    if (!isMixedNumberAt(tokens, position - 1)) return whole;
+    next();
+    return { kind: 'sum', left: whole, right: { kind: 'quotient', left: readGroup(), right: readGroup() } };
   }
 
   function readAtom(): MathExpression {
@@ -159,12 +169,12 @@ function createParser(tokens: readonly string[]) {
   };
 }
 
-// 2\frac{1}{2} is two and a half to a student and two times a half to a parser, so it is not judged.
-const hasMixedNumber = (tokens: readonly string[]) => tokens.some((token, index) => isNumberToken(token) && FRACTIONS.has(tokens[index + 1] ?? ''));
+// 2\frac{x}{2} has two readings, so it is not judged. A whole number before a fraction of digits is a mixed number to any student.
+const hasUnclearFraction = (tokens: readonly string[]) => tokens.some((token, index) => isNumberToken(token) && FRACTIONS.has(tokens[index + 1] ?? '') && !isMixedNumberAt(tokens, index));
 
 export function parseMath(tex: string): MathExpression | null {
   const tokens = getTexTokens(tex).map((token: TexToken) => token.text).filter((text) => !SKIPPED.has(text));
-  if (tokens.length === 0 || hasMixedNumber(tokens) || hasWordInLetters(tokens)) return null;
+  if (tokens.length === 0 || hasUnclearFraction(tokens) || hasWordInLetters(tokens)) return null;
   try {
     return createParser(tokens).readWhole();
   } catch (error) {

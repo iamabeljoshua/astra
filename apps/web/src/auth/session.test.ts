@@ -355,6 +355,31 @@ describe('signOut', () => {
     expect(init?.keepalive).toBe(true);
   });
 
+  it('clears the board kept in this tab, so the next student on this machine finds nothing', async () => {
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(STORED_SESSION));
+    sessionStorage.setItem('astra.board.session-1', '[{"text":"2x = 14"}]');
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => undefined)));
+    stubLocation();
+    const { signOut } = await loadSession();
+
+    signOut();
+
+    expect(sessionStorage.getItem('astra.board.session-1')).toBeNull();
+  });
+
+  it('clears the board kept in this tab when another student takes over', async () => {
+    sessionStorage.setItem('astra.board.session-1', '[{"text":"2x = 14"}]');
+    const { forgetBoardsOfOtherStudents } = await loadSession();
+    const follow = forgetBoardsOfOtherStudents();
+
+    follow('student-a');
+    expect(sessionStorage.getItem('astra.board.session-1')).not.toBeNull();
+    follow('student-a');
+    expect(sessionStorage.getItem('astra.board.session-1')).not.toBeNull();
+    follow('student-b');
+    expect(sessionStorage.getItem('astra.board.session-1')).toBeNull();
+  });
+
   it('is signed out on this browser while Auth never answers', async () => {
     localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(STORED_SESSION));
     vi.stubGlobal('fetch', vi.fn(() => new Promise(() => undefined)));

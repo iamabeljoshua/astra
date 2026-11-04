@@ -5,6 +5,7 @@ import { ErrorBoundary } from '../ErrorBoundary';
 import type { ARRIVING_FROM_ENDED_SESSION } from '../session/sessionPath';
 import { useStartSession } from '../session/useStartSession';
 import { HOME_LABELS } from '../strings';
+import { useFilesComingSoon } from '../ui/useFilesComingSoon';
 import { ChatBox } from './ChatBox';
 import { ContinueCard } from './ContinueCard';
 import { PickCard } from './PickCard';
@@ -77,6 +78,7 @@ interface ChatDockProps {
 
 function ChatDock({ problem, isStarting, onSend, onEdit }: ChatDockProps) {
   const dock = useRef<HTMLDivElement>(null);
+  const filesComingSoon = useFilesComingSoon();
   usePublishDockHeight(dock);
 
   return (
@@ -91,7 +93,7 @@ function ChatDock({ problem, isStarting, onSend, onEdit }: ChatDockProps) {
         {problem && <span className="block pb-2">{problem}</span>}
         {isStarting && <SlowStartNotice />}
       </p>
-      <ChatBox isSending={isStarting} onSend={onSend} onEdit={onEdit} />
+      <ChatBox filesComingSoon={filesComingSoon} isSending={isStarting} onSend={onSend} onEdit={onEdit} />
     </div>
   );
 }

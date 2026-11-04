@@ -32,12 +32,15 @@ export interface ScenePlayer {
   /** Mutes and freezes as a stop would, for a browser that has lost the agent and cannot wait to be told. */
   freeze(): void;
   getBoard(atMs: number): BoardState;
+  addStudentOperations(operations: readonly BoardOperation[]): void;
   /** It fires what is due first, because the audio clock moves in steps and a cue due at this very reading would otherwise show one frame after a replay shows it. */
   advanceToNow(): { board: BoardState; atMs: number };
   getNowMs(): number;
   getOperations(): BoardOperation[];
   /** The words heard so far this turn, on the same clock as the board. */
   getCaption(): string;
+  /** The same words, with those already known and not yet heard, so a caption can follow each word as it plays. */
+  getCaptionWords(): { heard: string[]; coming: string[] };
   moveSlider(move: SliderMove): void;
   /** Sends what a drag has not reported yet, when the student lets go. */
   finishSliderDrag(): void;
@@ -322,6 +325,9 @@ export function createScenePlayer({ clock, clockId = 'page', send, setOutputLeve
       };
     },
     getBoard: (atMs) => getBoardAt(getOperations(), atMs, catalog),
+    addStudentOperations(operations) {
+      operationsOfOldTurns.push(...operations);
+    },
     advanceToNow() {
       tick();
       const atMs = clock.getNowMs();

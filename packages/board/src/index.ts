@@ -1,8 +1,9 @@
 export { type AudioClock, type ChoosingClock, type ClockReading, createChoosingClock, createSampleClock, createTimerClock, type ProbeEvent, type SampleClock, type TurnClock, TURN_SILENCE_MS } from './player/audio-clock.ts';
 export { type MathLine, type MathTerm, startMathLine, transformMathLine } from './math/math-line.ts';
 export type { BoardOperation } from './player/board-operations.ts';
-export { type BoardElement, type BoardState, describeBoard, getAttachedElementId, getBoardAt, getSceneFrame } from './player/board-state.ts';
+export { type BoardElement, type BoardStage, type BoardState, describeBoard, getAttachedElementId, getBoardAt, getSceneFrame } from './player/board-state.ts';
 export { getMotionValue } from './player/motion.ts';
+export type { StudentLineContent, TaskProgress } from './shared/student-work.ts';
 export { createPlayoutTracker, type PlayoutTracker } from './player/playout-tracker.ts';
 export type { ProjectileFrame } from './motion/projectile-scene.ts';
 export type { SliderMove } from './player/slider-log.ts';

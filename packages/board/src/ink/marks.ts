@@ -8,18 +8,20 @@ export interface MarkBox {
   height: number;
 }
 
-const RING = { steps: 26, paddingX: 7, paddingY: 4, wobble: 0.035, overlapRadians: 0.5, startRadians: -2.2 };
+const RING = { paddingX: 5, paddingY: 2, steps: 44, startRadians: -2.2, overlapRadians: 0.55, wobble: 0.035, wobbleRate: 0.7, wobblePhase: 0.6, growth: 0.05 };
 const UNDERLINE = { steps: 8, gap: 3, wobble: 1.1 };
 const TICK = { sizeEms: 0.7, gap: 8 };
 
+// A loose loop in one stroke, a little past where it began, so it reads as a pen and not a shape.
 function getRing(box: MarkBox, random: () => number): InkDrawing['strokes'] {
   const centerX = box.x + box.width / 2;
   const centerY = box.y + box.height / 2;
   const radiusX = box.width / 2 + RING.paddingX;
   const radiusY = box.height / 2 + RING.paddingY;
+  const phase = random() * RING.wobblePhase;
   const points: InkPosition[] = Array.from({ length: RING.steps + 1 }, (_, step) => {
     const angle = RING.startRadians + (step / RING.steps) * (2 * Math.PI + RING.overlapRadians);
-    const wander = 1 + getSpread(random, RING.wobble) + (step / RING.steps) * RING.wobble;
+    const wander = 1 + RING.wobble * Math.sin(step * RING.wobbleRate + phase) + (step / RING.steps) * RING.growth;
     return { x: centerX + Math.cos(angle) * radiusX * wander, y: centerY + Math.sin(angle) * radiusY * wander };
   });
   return [makeStroke(points)];

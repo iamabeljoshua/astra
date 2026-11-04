@@ -11,10 +11,11 @@ import { LEGAL_PATHS } from './legal/legalPaths';
 import { RootErrorBoundary } from './RootErrorBoundary';
 import { isLessonEnabled } from './session/lessonFlag';
 import { SESSION_ROUTE } from './session/sessionPath';
-import { SessionScreen } from './session/SessionScreen';
 import { AppShell } from './shell/AppShell';
 import { LEGAL_PAGES } from './strings';
 
+const loadSessionScreen = () => import('./session/SessionScreen');
+const SessionScreen = lazy(() => loadSessionScreen().then((loaded) => ({ default: loaded.SessionScreen })));
 const ScenePlayerLab = import.meta.env.DEV ? lazy(() => import('./lab/ScenePlayerLab')) : null;
 const VoiceTestPage = import.meta.env.DEV ? lazy(() => import('./lab/VoiceTestPage')) : null;
 
@@ -60,13 +61,22 @@ function AppRoutes() {
 }
 
 function SignedInRoutes() {
+  // Fetched once signed in, so opening a session does not wait on it. A failed fetch is left to the route, which tries again.
   useEffect(() => {
+    loadSessionScreen().catch(() => {});
     if (isLessonEnabled()) void import('./scenes/sceneEngine').then(({ fetchSceneEngineInBackground }) => fetchSceneEngineInBackground());
   }, []);
 
   return (
     <Routes>
-      <Route path={SESSION_ROUTE} element={<SessionScreen />} />
+      <Route
+        path={SESSION_ROUTE}
+        element={
+          <Suspense>
+            <SessionScreen />
+          </Suspense>
+        }
+      />
       <Route path="*" element={<AppShell />} />
     </Routes>
   );
