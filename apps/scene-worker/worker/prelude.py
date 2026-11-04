@@ -21,6 +21,9 @@ _TOKENS = {
 for _name, _color in _TOKENS[THEME].items():
     setattr(C, _name, m.ManimColor(_color))
 m.config.background_color = C.panel
+# The engine's default is white, which vanishes on the light theme's panel, and axis numbers and readouts use it unless told otherwise.
+for _kind in (m.Text, m.MathTex, m.DecimalNumber, m.Integer, m.Dot, m.Line):
+    _kind.set_default(color=C.ink)
 m.config.frame_rate = 60
 m.config.pixel_width, m.config.pixel_height = 1280, 720
 

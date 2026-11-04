@@ -19,8 +19,8 @@ import { createLessonVoice } from './voice-takes.ts';
 
 const DEV_KEY = 'devkey';
 const DEV_SECRET = 'secret';
-const SERVICE_PORT = Number(process.env.SCENE_LESSON_PORT ?? 7960);
-const LIVEKIT_PORT = Number(process.env.LESSON_LIVEKIT_PORT ?? 7950);
+const SERVICE_PORT = Number(process.env.SCENE_LESSON_PORT ?? 7975);
+const LIVEKIT_PORT = Number(process.env.LESSON_LIVEKIT_PORT ?? 7970);
 const LIVEKIT_URL = `ws://127.0.0.1:${LIVEKIT_PORT}`;
 const CHARACTER_LIMIT = Number(process.env.LESSON_VOICE_CHARACTER_LIMIT ?? 1500);
 const SERVER_CONFIG = `port: ${LIVEKIT_PORT}\nrtc:\n  udp_port: ${LIVEKIT_PORT + 2}\n  tcp_port: ${LIVEKIT_PORT + 1}\n  use_external_ip: false\nkeys:\n  ${DEV_KEY}: ${DEV_SECRET}\nlogging:\n  level: warn\n`;

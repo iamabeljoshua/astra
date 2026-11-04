@@ -49,3 +49,7 @@ We made these drawings for this product.
 
 - `apps/web/src/home/drawings.tsx` holds `arc`, `forces`, `growth`, and `helix`.
 - `apps/web/src/home/lineDrawings.tsx` holds `balance`, `bars`, `binary`, `braking`, `branches`, `circuit`, `clock`, `curve`, `frames`, `grid`, `lock`, `parabola`, `piston`, `pitch`, `prism`, `route`, `string`, `table`, `tangent`, `terrain`, `triangle`, and `waveform`.
+
+## Scene engine
+
+`apps/web/public/scene-engine/0.1.1/` holds the player from [ManimGX](https://github.com/academa-labs/manimgx) 0.1.1, under its MIT license, with the third-party notices in `NOTICES.txt`. `apps/scene-worker/` installs the same version on the server. Its Linux wheels include x264 and so are GPL-3.0-or-later as a whole, and the lawyer checks this before real students. `apps/scene-worker/fonts/` holds Barlow and Newsreader under the licenses above, and each take carries the glyphs it draws.

@@ -178,7 +178,10 @@ async function readProofs(open: Page) {
       const atMs = fromMs + ((toMs - fromMs) * index) / 39;
       return { atMs, live: getSeconds(lesson.describeReplay(atMs)), again: getSeconds(lesson.describeReplay(atMs)) };
     });
-    return { cueCount: fired.length, cueErrorP50Ms: errors[errors.length >> 1] ?? null, cueErrorP95Ms: errors[Math.floor(errors.length * 0.95)] ?? null, cueErrorWorstMs: errors.at(-1) ?? null, logEvents: events.length, sceneBeatInLog: scene !== undefined, replaySamples: comparisons.filter((row) => row.live !== null).length, replaySeconds: comparisons.map((row) => row.live), clockKind: lesson.records.clockKind, refused: lesson.records.refused };
+    const frameTimes = lesson.records.frames.map((frame) => frame.ms);
+    const gaps = frameTimes.slice(1).map((ms, index) => ms - (frameTimes[index] as number)).sort((first, second) => first - second);
+    const sceneLoads = performance.getEntriesByName('scene-load').map((entry) => Math.round(entry.duration));
+    return { framesPerSecond: gaps.length > 0 ? Math.round((1000 * gaps.length) / gaps.reduce((sum, gap) => sum + gap, 0)) : null, frameGapP95Ms: Math.round(gaps[Math.floor(gaps.length * 0.95)] ?? 0), sceneLoads, cueCount: fired.length, cueErrorP50Ms: errors[errors.length >> 1] ?? null, cueErrorP95Ms: errors[Math.floor(errors.length * 0.95)] ?? null, cueErrorWorstMs: errors.at(-1) ?? null, logEvents: events.length, sceneBeatInLog: scene !== undefined, replaySamples: comparisons.filter((row) => row.live !== null).length, replaySeconds: comparisons.map((row) => row.live), clockKind: lesson.records.clockKind, refused: lesson.records.refused };
   });
   const seek = await proveSeekExact(open);
   return { fromPage, seek };
@@ -219,7 +222,7 @@ interface ProofBoard {
 declare global {
   interface Window {
     sceneLesson?: {
-      records: { clockKind: string; refused: string[]; fired: { positionMs: number; wordStartMs: number }[]; log: { kind: string; atMs: number; durationMs?: number; beat?: { script: unknown[] } }[] };
+      records: { frames: { ms: number }[]; clockKind: string; refused: string[]; fired: { positionMs: number; wordStartMs: number }[]; log: { kind: string; atMs: number; durationMs?: number; beat?: { script: unknown[] } }[] };
       pcm: { take(point: 'output'): { firstFrame: number | null; base64: string } } | null;
       player: { getOperations(): { kind: string; atMs: number }[] };
       clockMap(): { epochAtGraphZeroMs: number };

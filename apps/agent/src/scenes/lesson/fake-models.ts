@@ -2,7 +2,7 @@ import type { SceneModels } from '../../providers/anthropic.scenes.ts';
 import { getPlanFromText } from './lesson-plan.ts';
 
 const FAKE_USAGE = { model: 'fake', ms: 1, costUsd: 0 };
-const WRITE_MS = 2000;
+const WRITE_MS = Number(process.env.LESSON_FAKE_WRITE_MS ?? 2000);
 
 const FAKE_PLAN = JSON.stringify({
   opening: [{ say: 'Think of a car, and the dial that tells you how fast it is going.', note: 'how fast, right now' }, { say: 'That dial reads a rate of change, at one moment.', tex: 'y = x^2' }],

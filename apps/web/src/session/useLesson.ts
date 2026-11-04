@@ -67,7 +67,9 @@ export function useLesson(session: Session): Lesson {
     const current = sessionRef.current;
     if (!parsed.ok || !current) return;
     const { sceneId, durationSeconds } = parsed.value;
+    const startedAtMs = performance.now();
     const isLoaded = (await stageRef.current?.load(sceneId, durationSeconds)) ?? false;
+    performance.measure('scene-load', { start: startedAtMs });
     current.sendScene({ type: isLoaded ? 'sceneLoaded' : 'sceneRefused', sceneId });
   }, []);
 
