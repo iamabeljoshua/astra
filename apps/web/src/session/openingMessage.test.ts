@@ -11,7 +11,7 @@ describe('what a new lesson opens with', () => {
     expect(getOpeningMessage({ title: 'Saturn’s rings', subject: 'Physics', durationSeconds: 0 })).toBe("I'd like to learn about Saturn’s rings.");
   });
 
-  it('asks nothing when a student comes back to a session', () => {
-    expect(getOpeningMessage({ title: 'Why is the sky blue?', subject: SESSION_LABELS.questionSubject, durationSeconds: 90 })).toBeNull();
+  it('picks the topic back up when a student comes back to a session, so the tutor speaks first there too', () => {
+    expect(getOpeningMessage({ title: 'Why is the sky blue?', subject: SESSION_LABELS.questionSubject, durationSeconds: 90 })).toBe("I'm back to carry on with this: Why is the sky blue?");
   });
 });

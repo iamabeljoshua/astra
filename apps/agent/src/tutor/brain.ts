@@ -168,6 +168,8 @@ export function cleanStudentText(text: string): string {
 
 const isPlainRefusal = ({ refusalCategory, studentText }: { refusalCategory: string | null; studentText: string }) => refusalCategory !== null && PLAIN_REFUSALS.has(refusalCategory) && !MAY_BE_ABOUT_SAFETY.test(studentText);
 
+const toSpacedWords = (text: string) => text.split(/\s+/).join(' ');
+
 const toComparableWords = (text: string) => text.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, '').split(/\s+/).filter(Boolean).join(' ');
 
 function getWrittenBeat(parts: WrittenBeatParts, id: string, refused: string[]): Beat | null {
@@ -694,8 +696,8 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
 
   return {
     async *reply({ text, carried = '' }, signal) {
-      // The last turn holds the carried words, or a safety check chose to drop them, so only what is new goes in. If that turn never began, nothing holds them, and they all go in.
-      const isCarriedHere = carried !== '' && carried === lastAskedText;
+      // The last turn holds the carried words, or a safety check chose to drop them, so only what is new goes in. If that turn never began, nothing holds them, and they all go in. The rule keeps only the newest words it owes, with their spacing evened out.
+      const isCarriedHere = carried !== '' && toSpacedWords(lastAskedText ?? '').endsWith(toSpacedWords(carried));
       lastAskedText = text;
       const studentText = cleanStudentText(isCarriedHere ? text.slice(carried.length) : text);
       if (studentText === '') {

@@ -64,7 +64,7 @@ async function typeReply(student: StudentPage, text: string): Promise<void> {
   await box.press('Enter');
 }
 
-const getView = (student: StudentPage) => student.page.evaluate(() => window.astraVoice?.getView() as unknown as { phase: string; mic: string; isQuietWarning: boolean });
+const getView = (student: StudentPage) => student.page.evaluate(() => window.astraVoice?.getView() as unknown as { phase: string; mic: string; isQuietWarning: boolean; tutorHeard: string[] });
 const getNotes = (student: StudentPage) => student.page.evaluate(() => [...document.querySelectorAll('[role="status"]')].map((element) => element.textContent).join(' | '));
 
 async function waitForPhase(student: StudentPage, phase: string, limitMs: number): Promise<number | null> {
@@ -103,6 +103,21 @@ async function withRealCapture<Result>(run: (open: (title: string) => Promise<St
 }
 
 const SCENARIOS: Record<string, Scenario> = {
+  // The page joins as the screen opens, and the tutor speaks, with nothing asked of the microphone until the press.
+  noPress: (stack) =>
+    withRealCapture(async (open) => {
+      const student = await open('No press');
+      await waitForRows(stack, student, 0, hasReplyFinished, 40_000);
+      const asks = () => student.page.evaluate(() => (window as unknown as { microphoneAsks: number }).microphoneAsks);
+      const tutorSpoke = (await getView(student)).tutorHeard.length;
+      const beforeThePress = { microphoneAsks: await asks(), ...(await student.getMicEvidence()), mic: (await getView(student)).mic, tutorSpoke };
+      await student.pressTalk();
+      await student.page.waitForFunction(() => window.astraVoice?.getView().mic === 'on');
+      const afterThePress = { microphoneAsks: await asks(), ...(await student.getMicEvidence()) };
+      await student.context.close();
+      return { beforeThePress, afterThePress };
+    }),
+
   // Double press, then every press pattern around starting, then one off press with the student still talking. Off must mean no live track and no bytes moving.
   mic: (stack) =>
     withRealCapture(async (open) => {
@@ -440,11 +455,11 @@ const SCENARIOS: Record<string, Scenario> = {
     return { timeline, lostAfterMs, asksBeforeGivingUp, asksAfterWaiting, micAfterLoss: evidence.tracks, notes, newJobs: rowsAfter.filter((row) => row.name === 'jobStarted').length, backAfterMs, heard };
   },
 
-  // A session opened and never spoken in: the warmed tutor hears nothing, leaves on its own, and a later press still gets one.
+  // A session started and its screen never opened: the warmed tutor hears nothing, leaves on its own, and opening the screen later still gets one.
   async warmUnused(stack) {
     const browser = await launchProofBrowser();
     const openedAtMs = Date.now();
-    const student = await openStudentPage(browser, { email: MAYA, title: 'Never spoken in' });
+    const student = await openStudentPage(browser, { email: MAYA, title: 'Never spoken in', opensScreen: false });
     const started = await waitForRows(stack, student, 0, (rows) => rows.some((row) => row.name === 'jobStarted'), 30_000);
     const closed = await waitForRows(stack, student, 0, (rows) => rows.some((row) => row.name === 'jobClosed'), 170_000);
     const room = getRoomName(student);
@@ -452,7 +467,7 @@ const SCENARIOS: Record<string, Scenario> = {
     const heardAnything = closed.some((row) => row.name === 'muse:opened' || row.name === 'words' || row.name === 'audioState');
     const roomStillListed = await hasRoom(room);
     const pressedAtMs = Date.now();
-    await student.pressTalk();
+    await student.page.goto(student.sessionUrl);
     await student.waitForLive();
     const backAfterMs = Date.now() - pressedAtMs;
     const jobs = readTrace(stack.traceFolder, room).filter((row) => row.name === 'jobStarted').length;

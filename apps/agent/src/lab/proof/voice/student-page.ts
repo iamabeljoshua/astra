@@ -44,6 +44,8 @@ export interface StudentPage {
   page: Page;
   sessionId: string;
   sessionUrl: string;
+  /** When the student opened the session screen, before the page loaded. */
+  screenOpenedEpochMs: number;
   /** Plays a clip into the fake microphone, and says when its first and last sound left. */
   say(clip: SpeechClip): Promise<{ firstSoundEpochMs: number; lastSoundEpochMs: number; endedEpochMs: number }>;
   setNoise(level: number): Promise<void>;
@@ -94,16 +96,19 @@ function blockTutorAudio(): void {
 }
 
 // Signs in as a seeded student through the real sign-in page, starts a real session, and opens its real screen.
-export async function openStudentPage(browser: Browser, { email, title, recordVideoDir, blocksAudio = false, usesRealCapture = false, viewport = { width: 1440, height: 900 } }: { email: string; title: string; recordVideoDir?: string; blocksAudio?: boolean; usesRealCapture?: boolean; viewport?: { width: number; height: number } }): Promise<StudentPage> {
+export async function openStudentPage(browser: Browser, { email, title, recordVideoDir, blocksAudio = false, usesRealCapture = false, opensScreen = true, viewport = { width: 1440, height: 900 } }: { email: string; title: string; opensScreen?: boolean; recordVideoDir?: string; blocksAudio?: boolean; usesRealCapture?: boolean; viewport?: { width: number; height: number } }): Promise<StudentPage> {
   const context = await browser.newContext({ baseURL: WEB_URL, viewport, recordVideo: recordVideoDir ? { dir: recordVideoDir, size: viewport } : undefined, permissions: ['microphone'] });
   const videoStartedEpochMs = Date.now();
   const page = await context.newPage();
   if (!usesRealCapture) await page.addInitScript(installSpeechInPage);
   await page.addInitScript(() => {
     const capturedTracks: MediaStreamTrack[] = [];
-    (window as unknown as { capturedTracks: MediaStreamTrack[] }).capturedTracks = capturedTracks;
+    const tracked = window as unknown as { capturedTracks: MediaStreamTrack[]; microphoneAsks: number };
+    tracked.capturedTracks = capturedTracks;
+    tracked.microphoneAsks = 0;
     const getUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
     navigator.mediaDevices.getUserMedia = async (constraints) => {
+      tracked.microphoneAsks += 1;
       const stream = await getUserMedia(constraints);
       capturedTracks.push(...stream.getAudioTracks());
       return stream;
@@ -134,14 +139,18 @@ export async function openStudentPage(browser: Browser, { email, title, recordVi
   if (!created.ok()) throw new Error(`could not start a session: ${created.status()} ${await created.text()}`);
   const { id: sessionId } = (await created.json()) as { id: string };
   const sessionUrl = `/sessions/${sessionId}`;
-  await page.goto(sessionUrl);
-  await page.getByRole('textbox', { name: 'Your reply' }).waitFor();
+  const screenOpenedEpochMs = Date.now();
+  if (opensScreen) {
+    await page.goto(sessionUrl);
+    await page.getByRole('textbox', { name: 'Your reply' }).waitFor();
+  }
   return {
     context,
     page,
     videoStartedEpochMs,
     sessionId,
     sessionUrl,
+    screenOpenedEpochMs,
     async say(clip) {
       const { startedEpochMs, endedEpochMs } = await page.evaluate(({ base64 }) => window.speechInPage.play(base64, 24000), { base64: clip.base64 });
       return { firstSoundEpochMs: startedEpochMs + clip.firstMs, lastSoundEpochMs: startedEpochMs + clip.lastMs, endedEpochMs };

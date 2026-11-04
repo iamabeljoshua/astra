@@ -20,7 +20,7 @@ const LINES: { id: string; use: TakeUse; phrase: string }[] = [
   { id: 'reaction-right', use: 'reaction', phrase: 'Right.' },
   { id: 'reaction-i-see', use: 'reaction', phrase: 'I see.' },
   { id: 'reaction-mm-okay', use: 'reaction', phrase: 'Mm, okay.' },
-  { id: 'reaction-good-question', use: 'reaction', phrase: 'Good question.' },
+  { id: 'reaction-good-question', use: 'goodQuestion', phrase: 'Good question.' },
   { id: 'working-1', use: 'working', phrase: 'Let me work that out.' },
   { id: 'working-2', use: 'working', phrase: 'Let me work that out.' },
   { id: 'working-3', use: 'working', phrase: 'Let me work that out.' },

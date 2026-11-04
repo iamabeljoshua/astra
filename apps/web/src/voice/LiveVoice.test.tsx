@@ -1,6 +1,6 @@
-import { act, render, renderHook, screen, waitFor } from '@testing-library/react';
+import { act, render, renderHook, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { LEGAL_PAGES } from '../strings';
+import { LEGAL_PAGES, VOICE_LABELS } from '../strings';
 import { makeFakeVoice } from '../test/fakeVoice';
 import { stubSessionsApi } from '../test/sessionsApi';
 import { StudentCaption, TutorCaption } from './Captions';
@@ -17,8 +17,6 @@ async function startLikeThePage({ getAccess }: LiveVoiceOptions): Promise<LiveVo
   if (!(await getAccess())) throw new Error('there is no room to join');
   return makeFakeVoice();
 }
-
-const LIVE_ROOM_PATH = '/api/sessions/a-session/live-room';
 
 describe('the captions', () => {
   it('highlights the word playing now, and shows what is coming apart from what was heard', () => {
@@ -133,7 +131,8 @@ describe('useLiveVoice', () => {
     const start = vi.fn<() => Promise<LiveVoice>>().mockResolvedValueOnce(first).mockResolvedValueOnce(second);
     const { result } = renderHook(() => useLiveVoice({ sessionId: 'a-session', start }));
     await act(async () => void (await result.current.connect()));
-    await act(() => result.current.openAgain());
+    await act(() => result.current.openAgain('I am back.'));
+    expect(second.sendTyped).toHaveBeenCalledWith('I am back.');
     expect(first.close).toHaveBeenCalled();
     expect(result.current.voice).toBe(second);
     expect(start).toHaveBeenCalledTimes(2);
@@ -149,46 +148,50 @@ describe('useLiveVoice', () => {
     expect(result.current.status).toBe('live');
   });
 
-  it('warms a room once, and the first press joins with that answer and no second call', async () => {
-    const { getRequests } = stubSessionsApi({ liveRoom: OPEN_ROOM });
-    let access: unknown;
-    const start = vi.fn(async ({ getAccess }: LiveVoiceOptions) => {
-      access = await getAccess();
-      return makeFakeVoice();
-    });
-    const { result } = renderHook(() => useLiveVoice({ sessionId: 'a-session', start }));
-    act(() => {
-      result.current.warm();
-      result.current.warm();
-    });
-    await waitFor(() => expect(getRequests('POST', LIVE_ROOM_PATH)).toHaveLength(1));
-    expect(start).not.toHaveBeenCalled();
-    await act(async () => void (await result.current.connect()));
-    expect(access).toEqual(ROOM_ACCESS);
-    expect(getRequests('POST', LIVE_ROOM_PATH)).toHaveLength(1);
-  });
+  describe('at the limit on starting tutors', () => {
+    const TOO_MANY = () => new Response(JSON.stringify({ statusCode: 429, message: 'This has been tried too many times.', retryAfterSeconds: 360 }), { status: 429 });
+    const OPEN = () => new Response(JSON.stringify(OPEN_ROOM), { status: 200 });
 
-  it('warms quietly with no keys, and says so only when the student presses', async () => {
-    const { getRequests } = stubSessionsApi();
-    const { result } = renderHook(() => useLiveVoice({ sessionId: 'a-session', start: startLikeThePage }));
-    act(() => result.current.warm());
-    await waitFor(() => expect(getRequests('POST', LIVE_ROOM_PATH)).toHaveLength(1));
-    expect(result.current.status).toBe('idle');
-    await act(async () => void (await result.current.connect()));
-    expect(result.current.status).toBe('unavailable');
-  });
+    function stubRoomAnswers(...answers: (() => Response)[]) {
+      const asks: (string | null)[] = [];
+      vi.stubGlobal('fetch', vi.fn(async (request: Request) => {
+        asks.push(new URL(request.url).searchParams.get('startOver'));
+        return (answers.length > 1 ? (answers.shift() as () => Response) : (answers[0] as () => Response))();
+      }));
+      return asks;
+    }
 
-  it('asks again when a warmed answer has outlived its room', async () => {
-    const realNow = Date.now();
-    const clock = vi.spyOn(Date, 'now').mockReturnValue(realNow);
-    const { getRequests } = stubSessionsApi({ liveRoom: OPEN_ROOM });
-    const { result } = renderHook(() => useLiveVoice({ sessionId: 'a-session', start: startLikeThePage }));
-    act(() => result.current.warm());
-    await waitFor(() => expect(getRequests('POST', LIVE_ROOM_PATH)).toHaveLength(1));
-    clock.mockReturnValue(realNow + 101_000);
-    await act(async () => void (await result.current.connect()));
-    expect(getRequests('POST', LIVE_ROOM_PATH)).toHaveLength(2);
-    clock.mockRestore();
+    it('says how long the wait truly is', async () => {
+      stubRoomAnswers(TOO_MANY);
+      const { result } = renderHook(() => useLiveVoice({ sessionId: 'a-session', start: startLikeThePage }));
+      await act(async () => void (await result.current.connect()));
+      expect(result.current.status).toBe('tooSoon');
+      expect(result.current.waitSeconds).toBe(360);
+      expect(VOICE_LABELS.tooSoon(360)).toContain('about 6 minutes');
+      expect(VOICE_LABELS.tooSoon(30)).toContain('about 1 minute.');
+    });
+
+    it('never joins the dead room again when a typed reply follows, and starts over once the wait has passed', async () => {
+      const asks = stubRoomAnswers(OPEN, TOO_MANY, TOO_MANY, OPEN);
+      const { result } = renderHook(() => useLiveVoice({ sessionId: 'a-session', start: startLikeThePage }));
+      await act(async () => void (await result.current.connect()));
+      await act(() => result.current.openAgain('I am back.'));
+      expect(result.current.status).toBe('tooSoon');
+      await act(async () => void (await result.current.sendTyped('Are you there?')));
+      expect(result.current.status).toBe('tooSoon');
+      await act(async () => void (await result.current.sendTyped('Are you there?')));
+      expect(result.current.status).toBe('live');
+      expect(asks).toEqual([null, 'yes', 'yes', 'yes']);
+    });
+
+    it('stops asking to start over once a room has answered', async () => {
+      const asks = stubRoomAnswers(OPEN);
+      const { result } = renderHook(() => useLiveVoice({ sessionId: 'a-session', start: startLikeThePage }));
+      await act(async () => void (await result.current.connect()));
+      await act(() => result.current.openAgain('I am back.'));
+      await act(() => result.current.openAgain('I am back.'));
+      expect(asks).toEqual([null, 'yes', 'yes']);
+    });
   });
 
   it('closes the room when the screen goes, so a closed session leaves nothing running', async () => {
@@ -231,6 +234,10 @@ describe('the Privacy Policy on voice', () => {
 
   it('says a total of what the tutor cost is stored per day, with no words in it', () => {
     expect(privacy).toContain('A running total of what the tutor cost for you each day');
+  });
+
+  it('says plainly that the IP address reaches LiveKit as soon as a session opens, before any press', () => {
+    expect(privacy).toContain('When a session opens, your browser joins LiveKit Cloud, even before you press Talk, so LiveKit receives your IP address');
   });
 
   it('says raw audio is not stored, and does not claim the microphone is unused', () => {

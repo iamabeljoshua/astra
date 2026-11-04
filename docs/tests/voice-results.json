@@ -2594,5 +2594,3876 @@
   "p95": 145,
   "worst": 145,
   "best": 129
+ },
+ "joinTiming": {
+  "116cc20, tutor in the token, pressed at once": {
+   "rows": [
+    {
+     "apiAnswered": 327,
+     "signalConnected": 1135,
+     "roomConnected": 1954,
+     "jobRequest": 2026,
+     "jobStarted": 4532,
+     "trackUp": 5037,
+     "helloAtAgent": 5876,
+     "greetingDecided": 5871,
+     "greetingCaptured": 5874,
+     "turnAtPage": 6118,
+     "firstSound": 6186,
+     "roundTripMs": 225
+    },
+    {
+     "apiAnswered": 53,
+     "signalConnected": 879,
+     "roomConnected": 1694,
+     "jobRequest": 1002,
+     "jobStarted": 3410,
+     "trackUp": 3892,
+     "helloAtAgent": 4714,
+     "greetingDecided": 4712,
+     "greetingCaptured": 4715,
+     "turnAtPage": 4934,
+     "firstSound": 4994,
+     "roundTripMs": 241
+    },
+    {
+     "apiAnswered": 69,
+     "signalConnected": 871,
+     "roomConnected": 1638,
+     "jobRequest": 1001,
+     "jobStarted": 3330,
+     "trackUp": 3777,
+     "helloAtAgent": 4626,
+     "greetingDecided": 4613,
+     "greetingCaptured": 4616,
+     "turnAtPage": 4847,
+     "firstSound": 4928,
+     "roundTripMs": 226
+    },
+    {
+     "apiAnswered": 101,
+     "signalConnected": 1203,
+     "roomConnected": 2067,
+     "jobRequest": 1322,
+     "jobStarted": 3903,
+     "trackUp": 4408,
+     "helloAtAgent": 5287,
+     "greetingDecided": 5284,
+     "greetingCaptured": 5300,
+     "turnAtPage": 5540,
+     "firstSound": 5606,
+     "roundTripMs": 247
+    },
+    {
+     "apiAnswered": 78,
+     "signalConnected": 898,
+     "roomConnected": 1717,
+     "jobRequest": 1010,
+     "jobStarted": 3241,
+     "trackUp": 4026,
+     "helloAtAgent": 4807,
+     "greetingDecided": 4805,
+     "greetingCaptured": 4810,
+     "turnAtPage": 5034,
+     "firstSound": 5114,
+     "roundTripMs": 207
+    },
+    {
+     "apiAnswered": 62,
+     "signalConnected": 1069,
+     "roomConnected": 1782,
+     "jobRequest": 1235,
+     "jobStarted": 3426,
+     "trackUp": 3932,
+     "helloAtAgent": 4756,
+     "greetingDecided": 4751,
+     "greetingCaptured": 4753,
+     "turnAtPage": 4996,
+     "firstSound": 5061,
+     "roundTripMs": 255
+    },
+    {
+     "apiAnswered": 60,
+     "signalConnected": 925,
+     "roomConnected": 1639,
+     "jobRequest": 1049,
+     "jobStarted": 3148,
+     "trackUp": 3607,
+     "helloAtAgent": 4527,
+     "greetingDecided": 4526,
+     "greetingCaptured": 4528,
+     "turnAtPage": 4769,
+     "firstSound": 4851,
+     "roundTripMs": 223
+    },
+    {
+     "apiAnswered": 63,
+     "signalConnected": 1092,
+     "roomConnected": 1859,
+     "jobRequest": 1211,
+     "jobStarted": 3284,
+     "trackUp": 3764,
+     "helloAtAgent": 4637,
+     "greetingDecided": 4636,
+     "greetingCaptured": 4639,
+     "turnAtPage": 4875,
+     "firstSound": 4974,
+     "roundTripMs": 228
+    }
+   ],
+   "summary": {
+    "apiAnswered": {
+     "count": 8,
+     "p50": 69,
+     "p95": 327,
+     "worst": 327,
+     "best": 53
+    },
+    "signalConnected": {
+     "count": 8,
+     "p50": 1069,
+     "p95": 1203,
+     "worst": 1203,
+     "best": 871
+    },
+    "roomConnected": {
+     "count": 8,
+     "p50": 1782,
+     "p95": 2067,
+     "worst": 2067,
+     "best": 1638
+    },
+    "jobRequest": {
+     "count": 8,
+     "p50": 1211,
+     "p95": 2026,
+     "worst": 2026,
+     "best": 1001
+    },
+    "jobStarted": {
+     "count": 8,
+     "p50": 3410,
+     "p95": 4532,
+     "worst": 4532,
+     "best": 3148
+    },
+    "trackUp": {
+     "count": 8,
+     "p50": 3932,
+     "p95": 5037,
+     "worst": 5037,
+     "best": 3607
+    },
+    "helloAtAgent": {
+     "count": 8,
+     "p50": 4756,
+     "p95": 5876,
+     "worst": 5876,
+     "best": 4527
+    },
+    "greetingDecided": {
+     "count": 8,
+     "p50": 4751,
+     "p95": 5871,
+     "worst": 5871,
+     "best": 4526
+    },
+    "greetingCaptured": {
+     "count": 8,
+     "p50": 4753,
+     "p95": 5874,
+     "worst": 5874,
+     "best": 4528
+    },
+    "turnAtPage": {
+     "count": 8,
+     "p50": 4996,
+     "p95": 6118,
+     "worst": 6118,
+     "best": 4769
+    },
+    "firstSound": {
+     "count": 8,
+     "p50": 5061,
+     "p95": 6186,
+     "worst": 6186,
+     "best": 4851
+    },
+    "roundTripMs": {
+     "count": 8,
+     "p50": 228,
+     "p95": 255,
+     "worst": 255,
+     "best": 207
+    }
+   }
+  },
+  "116cc20, tutor in the token, pressed after 5 s": {
+   "rows": [
+    {
+     "apiAnswered": 254,
+     "signalConnected": 1080,
+     "roomConnected": 1896,
+     "jobRequest": 1197,
+     "jobStarted": 3274,
+     "trackUp": 3743,
+     "helloAtAgent": 4574,
+     "greetingDecided": 4569,
+     "greetingCaptured": 4573,
+     "turnAtPage": 4808,
+     "firstSound": 4881,
+     "roundTripMs": 234
+    },
+    {
+     "apiAnswered": 130,
+     "signalConnected": 1184,
+     "roomConnected": 1953,
+     "jobRequest": 1299,
+     "jobStarted": 3413,
+     "trackUp": 3925,
+     "helloAtAgent": 4794,
+     "greetingDecided": 4793,
+     "greetingCaptured": 4796,
+     "turnAtPage": 5038,
+     "firstSound": 5115,
+     "roundTripMs": 252
+    },
+    {
+     "apiAnswered": 106,
+     "signalConnected": 936,
+     "roomConnected": 1655,
+     "jobRequest": 1056,
+     "jobStarted": 3271,
+     "trackUp": 3703,
+     "helloAtAgent": 4508,
+     "greetingDecided": 4500,
+     "greetingCaptured": 4503,
+     "turnAtPage": 4728,
+     "firstSound": 4809,
+     "roundTripMs": 214
+    },
+    {
+     "apiAnswered": 104,
+     "signalConnected": 1020,
+     "roomConnected": 1838,
+     "jobRequest": 1188,
+     "jobStarted": 3634,
+     "trackUp": 4081,
+     "helloAtAgent": 5032,
+     "greetingDecided": 5031,
+     "greetingCaptured": 5035,
+     "turnAtPage": 5271,
+     "firstSound": 5402,
+     "roundTripMs": 252
+    },
+    {
+     "apiAnswered": 123,
+     "signalConnected": 973,
+     "roomConnected": 1687,
+     "jobRequest": 1094,
+     "jobStarted": 3141,
+     "trackUp": 3656,
+     "helloAtAgent": 4465,
+     "greetingDecided": 4463,
+     "greetingCaptured": 4466,
+     "turnAtPage": 4719,
+     "firstSound": 4771,
+     "roundTripMs": 231
+    },
+    {
+     "apiAnswered": 113,
+     "signalConnected": 971,
+     "roomConnected": 1735,
+     "jobRequest": 1095,
+     "jobStarted": 3214,
+     "trackUp": 3920,
+     "helloAtAgent": 4689,
+     "greetingDecided": 4688,
+     "greetingCaptured": 4691,
+     "turnAtPage": 4954,
+     "firstSound": 5040,
+     "roundTripMs": 238
+    },
+    {
+     "apiAnswered": 91,
+     "signalConnected": 928,
+     "roomConnected": 1693,
+     "jobRequest": 1056,
+     "jobStarted": 3118,
+     "trackUp": 3581,
+     "helloAtAgent": 4486,
+     "greetingDecided": 4483,
+     "greetingCaptured": 4489,
+     "turnAtPage": 4739,
+     "firstSound": 4807,
+     "roundTripMs": 246
+    },
+    {
+     "apiAnswered": 499,
+     "signalConnected": 1357,
+     "roomConnected": 2123,
+     "jobRequest": 1464,
+     "jobStarted": 4224,
+     "trackUp": 4686,
+     "helloAtAgent": 5551,
+     "greetingDecided": 5543,
+     "greetingCaptured": 5558,
+     "turnAtPage": 5782,
+     "firstSound": 5868,
+     "roundTripMs": 238
+    }
+   ],
+   "summary": {
+    "apiAnswered": {
+     "count": 8,
+     "p50": 123,
+     "p95": 499,
+     "worst": 499,
+     "best": 91
+    },
+    "signalConnected": {
+     "count": 8,
+     "p50": 1020,
+     "p95": 1357,
+     "worst": 1357,
+     "best": 928
+    },
+    "roomConnected": {
+     "count": 8,
+     "p50": 1838,
+     "p95": 2123,
+     "worst": 2123,
+     "best": 1655
+    },
+    "jobRequest": {
+     "count": 8,
+     "p50": 1188,
+     "p95": 1464,
+     "worst": 1464,
+     "best": 1056
+    },
+    "jobStarted": {
+     "count": 8,
+     "p50": 3274,
+     "p95": 4224,
+     "worst": 4224,
+     "best": 3118
+    },
+    "trackUp": {
+     "count": 8,
+     "p50": 3920,
+     "p95": 4686,
+     "worst": 4686,
+     "best": 3581
+    },
+    "helloAtAgent": {
+     "count": 8,
+     "p50": 4689,
+     "p95": 5551,
+     "worst": 5551,
+     "best": 4465
+    },
+    "greetingDecided": {
+     "count": 8,
+     "p50": 4688,
+     "p95": 5543,
+     "worst": 5543,
+     "best": 4463
+    },
+    "greetingCaptured": {
+     "count": 8,
+     "p50": 4691,
+     "p95": 5558,
+     "worst": 5558,
+     "best": 4466
+    },
+    "turnAtPage": {
+     "count": 8,
+     "p50": 4954,
+     "p95": 5782,
+     "worst": 5782,
+     "best": 4719
+    },
+    "firstSound": {
+     "count": 8,
+     "p50": 5040,
+     "p95": 5868,
+     "worst": 5868,
+     "best": 4771
+    },
+    "roundTripMs": {
+     "count": 8,
+     "p50": 238,
+     "p95": 252,
+     "worst": 252,
+     "best": 214
+    }
+   }
+  },
+  "214495c, API lists and creates on the press, pressed at once": {
+   "rows": [
+    {
+     "apiAnswered": 3772,
+     "signalConnected": 4642,
+     "roomConnected": 5434,
+     "jobRequest": 3677,
+     "jobStarted": 6497,
+     "trackUp": 7061,
+     "helloAtAgent": 7939,
+     "greetingDecided": 7919,
+     "greetingCaptured": 7979,
+     "turnAtPage": 8162,
+     "firstSound": 8295,
+     "roundTripMs": 230
+    },
+    {
+     "apiAnswered": 4389,
+     "signalConnected": 5142,
+     "roomConnected": 5992,
+     "jobRequest": 3913,
+     "jobStarted": 7074,
+     "trackUp": 7724,
+     "helloAtAgent": 8593,
+     "greetingDecided": 8584,
+     "greetingCaptured": 8605,
+     "turnAtPage": 8824,
+     "firstSound": 8925,
+     "roundTripMs": 237
+    },
+    {
+     "apiAnswered": 3398,
+     "signalConnected": 4106,
+     "roomConnected": 4868,
+     "jobRequest": 3246,
+     "jobStarted": 6370,
+     "trackUp": 6869,
+     "helloAtAgent": 7755,
+     "greetingDecided": 7753,
+     "greetingCaptured": 7758,
+     "turnAtPage": 7983,
+     "firstSound": 8073,
+     "roundTripMs": 226
+    },
+    {
+     "apiAnswered": 3501,
+     "signalConnected": 4268,
+     "roomConnected": 5083,
+     "jobRequest": 3363,
+     "jobStarted": 6138,
+     "trackUp": 6797,
+     "helloAtAgent": 7733,
+     "greetingDecided": 7727,
+     "greetingCaptured": 7744,
+     "turnAtPage": 7962,
+     "firstSound": 8040,
+     "roundTripMs": 251
+    },
+    {
+     "apiAnswered": 3428,
+     "signalConnected": 4228,
+     "roomConnected": 5139,
+     "jobRequest": 3227,
+     "jobStarted": 6068,
+     "trackUp": 6811,
+     "helloAtAgent": 7597,
+     "greetingDecided": 7591,
+     "greetingCaptured": 7601,
+     "turnAtPage": 7827,
+     "firstSound": 7910,
+     "roundTripMs": 231
+    },
+    {
+     "apiAnswered": 3388,
+     "signalConnected": 4158,
+     "roomConnected": 4974,
+     "jobRequest": 3288,
+     "jobStarted": 5863,
+     "trackUp": 6455,
+     "helloAtAgent": 7295,
+     "greetingDecided": 7291,
+     "greetingCaptured": 7298,
+     "turnAtPage": 7568,
+     "firstSound": 7638,
+     "roundTripMs": 238
+    },
+    {
+     "apiAnswered": 3901,
+     "signalConnected": 4638,
+     "roomConnected": 5389,
+     "jobRequest": 3519,
+     "jobStarted": 6929,
+     "trackUp": 7398,
+     "helloAtAgent": 8605,
+     "greetingDecided": 8594,
+     "greetingCaptured": 8619,
+     "turnAtPage": 8842,
+     "firstSound": 8924,
+     "roundTripMs": 231
+    },
+    {
+     "apiAnswered": 3817,
+     "signalConnected": 4574,
+     "roomConnected": 5317,
+     "jobRequest": 3591,
+     "jobStarted": 6867,
+     "trackUp": 7314,
+     "helloAtAgent": 8654,
+     "greetingDecided": 8651,
+     "greetingCaptured": 8982,
+     "turnAtPage": 8909,
+     "firstSound": 9326,
+     "roundTripMs": 242
+    }
+   ],
+   "summary": {
+    "apiAnswered": {
+     "count": 8,
+     "p50": 3772,
+     "p95": 4389,
+     "worst": 4389,
+     "best": 3388
+    },
+    "signalConnected": {
+     "count": 8,
+     "p50": 4574,
+     "p95": 5142,
+     "worst": 5142,
+     "best": 4106
+    },
+    "roomConnected": {
+     "count": 8,
+     "p50": 5317,
+     "p95": 5992,
+     "worst": 5992,
+     "best": 4868
+    },
+    "jobRequest": {
+     "count": 8,
+     "p50": 3519,
+     "p95": 3913,
+     "worst": 3913,
+     "best": 3227
+    },
+    "jobStarted": {
+     "count": 8,
+     "p50": 6497,
+     "p95": 7074,
+     "worst": 7074,
+     "best": 5863
+    },
+    "trackUp": {
+     "count": 8,
+     "p50": 7061,
+     "p95": 7724,
+     "worst": 7724,
+     "best": 6455
+    },
+    "helloAtAgent": {
+     "count": 8,
+     "p50": 7939,
+     "p95": 8654,
+     "worst": 8654,
+     "best": 7295
+    },
+    "greetingDecided": {
+     "count": 8,
+     "p50": 7919,
+     "p95": 8651,
+     "worst": 8651,
+     "best": 7291
+    },
+    "greetingCaptured": {
+     "count": 8,
+     "p50": 7979,
+     "p95": 8982,
+     "worst": 8982,
+     "best": 7298
+    },
+    "turnAtPage": {
+     "count": 8,
+     "p50": 8162,
+     "p95": 8909,
+     "worst": 8909,
+     "best": 7568
+    },
+    "firstSound": {
+     "count": 8,
+     "p50": 8295,
+     "p95": 9326,
+     "worst": 9326,
+     "best": 7638
+    },
+    "roundTripMs": {
+     "count": 8,
+     "p50": 237,
+     "p95": 251,
+     "worst": 251,
+     "best": 226
+    }
+   }
+  },
+  "warm room at session start, pressed at once": {
+   "rows": [
+    {
+     "apiAsked": 382,
+     "apiAnswered": 687,
+     "signalConnected": 1495,
+     "roomConnected": 2267,
+     "jobRequest": 2337,
+     "jobStarted": 5450,
+     "trackUp": 5888,
+     "helloAtAgent": 7259,
+     "greetingDecided": 7251,
+     "greetingCaptured": 7270,
+     "turnAtPage": 7488,
+     "firstSound": 7596,
+     "roundTripMs": 242
+    },
+    {
+     "apiAsked": 58,
+     "apiAnswered": 2540,
+     "signalConnected": 3265,
+     "roomConnected": 4085,
+     "jobRequest": 2416,
+     "jobStarted": 4921,
+     "trackUp": 6365,
+     "helloAtAgent": 8203,
+     "greetingDecided": 8201,
+     "greetingCaptured": 8204,
+     "turnAtPage": 8440,
+     "firstSound": 8531,
+     "roundTripMs": 266
+    },
+    {
+     "apiAsked": 31,
+     "apiAnswered": 1087,
+     "signalConnected": 2728,
+     "roomConnected": 3595,
+     "jobRequest": 1090,
+     "jobStarted": 3489,
+     "trackUp": 4281,
+     "helloAtAgent": 5100,
+     "greetingDecided": 5098,
+     "greetingCaptured": 5107,
+     "turnAtPage": 5361,
+     "firstSound": 5421,
+     "roundTripMs": 240
+    },
+    {
+     "apiAsked": 43,
+     "apiAnswered": 1006,
+     "signalConnected": 1761,
+     "roomConnected": 2521,
+     "jobRequest": 1004,
+     "jobStarted": 3467,
+     "trackUp": 4002,
+     "helloAtAgent": 4823,
+     "greetingDecided": 4817,
+     "greetingCaptured": 4819,
+     "turnAtPage": 5053,
+     "firstSound": 5131,
+     "roundTripMs": 269
+    },
+    {
+     "apiAsked": 41,
+     "apiAnswered": 1130,
+     "signalConnected": 1919,
+     "roomConnected": 2682,
+     "jobRequest": 1131,
+     "jobStarted": 3232,
+     "trackUp": 3740,
+     "helloAtAgent": 4539,
+     "greetingDecided": 4529,
+     "greetingCaptured": 4532,
+     "turnAtPage": 4787,
+     "firstSound": 4906,
+     "roundTripMs": 264
+    },
+    {
+     "apiAsked": 44,
+     "apiAnswered": 1188,
+     "signalConnected": 1957,
+     "roomConnected": 2775,
+     "jobRequest": 1189,
+     "jobStarted": 3318,
+     "trackUp": 3820,
+     "helloAtAgent": 5363,
+     "greetingDecided": 5361,
+     "greetingCaptured": 5366,
+     "turnAtPage": 5600,
+     "firstSound": 5647,
+     "roundTripMs": 208
+    },
+    {
+     "apiAsked": 38,
+     "apiAnswered": 885,
+     "signalConnected": 1686,
+     "roomConnected": 2401,
+     "jobRequest": 893,
+     "jobStarted": 3035,
+     "trackUp": 3545,
+     "helloAtAgent": 4408,
+     "greetingDecided": 4398,
+     "greetingCaptured": 4401,
+     "turnAtPage": 4635,
+     "firstSound": 4715,
+     "roundTripMs": 225
+    },
+    {
+     "apiAsked": 39,
+     "apiAnswered": 1161,
+     "signalConnected": 1977,
+     "roomConnected": 2743,
+     "jobRequest": 1161,
+     "jobStarted": 3221,
+     "trackUp": 3697,
+     "helloAtAgent": 4504,
+     "greetingDecided": 4497,
+     "greetingCaptured": 4499,
+     "turnAtPage": 4715,
+     "firstSound": 4782,
+     "roundTripMs": 206
+    }
+   ],
+   "summary": {
+    "apiAsked": {
+     "count": 8,
+     "p50": 43,
+     "p95": 382,
+     "worst": 382,
+     "best": 31
+    },
+    "apiAnswered": {
+     "count": 8,
+     "p50": 1130,
+     "p95": 2540,
+     "worst": 2540,
+     "best": 687
+    },
+    "signalConnected": {
+     "count": 8,
+     "p50": 1957,
+     "p95": 3265,
+     "worst": 3265,
+     "best": 1495
+    },
+    "roomConnected": {
+     "count": 8,
+     "p50": 2743,
+     "p95": 4085,
+     "worst": 4085,
+     "best": 2267
+    },
+    "jobRequest": {
+     "count": 8,
+     "p50": 1161,
+     "p95": 2416,
+     "worst": 2416,
+     "best": 893
+    },
+    "jobStarted": {
+     "count": 8,
+     "p50": 3467,
+     "p95": 5450,
+     "worst": 5450,
+     "best": 3035
+    },
+    "trackUp": {
+     "count": 8,
+     "p50": 4002,
+     "p95": 6365,
+     "worst": 6365,
+     "best": 3545
+    },
+    "helloAtAgent": {
+     "count": 8,
+     "p50": 5100,
+     "p95": 8203,
+     "worst": 8203,
+     "best": 4408
+    },
+    "greetingDecided": {
+     "count": 8,
+     "p50": 5098,
+     "p95": 8201,
+     "worst": 8201,
+     "best": 4398
+    },
+    "greetingCaptured": {
+     "count": 8,
+     "p50": 5107,
+     "p95": 8204,
+     "worst": 8204,
+     "best": 4401
+    },
+    "turnAtPage": {
+     "count": 8,
+     "p50": 5361,
+     "p95": 8440,
+     "worst": 8440,
+     "best": 4635
+    },
+    "firstSound": {
+     "count": 8,
+     "p50": 5421,
+     "p95": 8531,
+     "worst": 8531,
+     "best": 4715
+    },
+    "roundTripMs": {
+     "count": 8,
+     "p50": 242,
+     "p95": 269,
+     "worst": 269,
+     "best": 206
+    }
+   }
+  },
+  "warm room at session start, pressed after 5 s": {
+   "rows": [
+    {
+     "apiAsked": 206,
+     "apiAnswered": 261,
+     "signalConnected": 1142,
+     "roomConnected": 1959,
+     "jobRequest": -1611,
+     "jobStarted": 697,
+     "trackUp": 1227,
+     "helloAtAgent": 2667,
+     "greetingDecided": 2665,
+     "greetingCaptured": 2668,
+     "turnAtPage": 2920,
+     "firstSound": 2999,
+     "roundTripMs": 227
+    },
+    {
+     "apiAsked": 52,
+     "apiAnswered": 125,
+     "signalConnected": 1012,
+     "roomConnected": 1888,
+     "jobRequest": -3942,
+     "jobStarted": -1505,
+     "trackUp": -987,
+     "helloAtAgent": 2757,
+     "greetingDecided": 2754,
+     "greetingCaptured": 2759,
+     "turnAtPage": 3047,
+     "firstSound": 3111,
+     "roundTripMs": 284
+    },
+    {
+     "apiAsked": 96,
+     "apiAnswered": 245,
+     "signalConnected": 1274,
+     "roomConnected": 2035,
+     "jobRequest": -3745,
+     "jobStarted": -1680,
+     "trackUp": -1144,
+     "helloAtAgent": 2692,
+     "greetingDecided": 2690,
+     "greetingCaptured": 2694,
+     "turnAtPage": 2919,
+     "firstSound": 3002,
+     "roundTripMs": 234
+    },
+    {
+     "apiAsked": 78,
+     "apiAnswered": 130,
+     "signalConnected": 879,
+     "roomConnected": 1650,
+     "jobRequest": -3943,
+     "jobStarted": -1828,
+     "trackUp": -1289,
+     "helloAtAgent": 2434,
+     "greetingDecided": 2433,
+     "greetingCaptured": 2436,
+     "turnAtPage": 2664,
+     "firstSound": 2745,
+     "roundTripMs": 236
+    },
+    {
+     "apiAsked": 70,
+     "apiAnswered": 143,
+     "signalConnected": 875,
+     "roomConnected": 1645,
+     "jobRequest": -3982,
+     "jobStarted": -1892,
+     "trackUp": -1360,
+     "helloAtAgent": 2385,
+     "greetingDecided": 2382,
+     "greetingCaptured": 2389,
+     "turnAtPage": 2615,
+     "firstSound": 2676,
+     "roundTripMs": 239
+    },
+    {
+     "apiAsked": 156,
+     "apiAnswered": 370,
+     "signalConnected": 1142,
+     "roomConnected": 1908,
+     "jobRequest": -4075,
+     "jobStarted": -1309,
+     "trackUp": -755,
+     "helloAtAgent": 2719,
+     "greetingDecided": 2711,
+     "greetingCaptured": 2733,
+     "turnAtPage": 2988,
+     "firstSound": 3050,
+     "roundTripMs": 262
+    },
+    {
+     "apiAsked": 138,
+     "apiAnswered": 369,
+     "signalConnected": 1250,
+     "roomConnected": 2071,
+     "jobRequest": -4071,
+     "jobStarted": -1491,
+     "trackUp": -922,
+     "helloAtAgent": 2827,
+     "greetingDecided": 2818,
+     "greetingCaptured": 2838,
+     "turnAtPage": 3084,
+     "firstSound": 3125,
+     "roundTripMs": 239
+    },
+    {
+     "apiAsked": 207,
+     "apiAnswered": 529,
+     "signalConnected": 1358,
+     "roomConnected": 2115,
+     "jobRequest": -1649,
+     "jobStarted": 1214,
+     "trackUp": 1537,
+     "helloAtAgent": 2850,
+     "greetingDecided": 2837,
+     "greetingCaptured": 2860,
+     "turnAtPage": 3090,
+     "firstSound": 3162,
+     "roundTripMs": 240
+    }
+   ],
+   "summary": {
+    "apiAsked": {
+     "count": 8,
+     "p50": 138,
+     "p95": 207,
+     "worst": 207,
+     "best": 52
+    },
+    "apiAnswered": {
+     "count": 8,
+     "p50": 261,
+     "p95": 529,
+     "worst": 529,
+     "best": 125
+    },
+    "signalConnected": {
+     "count": 8,
+     "p50": 1142,
+     "p95": 1358,
+     "worst": 1358,
+     "best": 875
+    },
+    "roomConnected": {
+     "count": 8,
+     "p50": 1959,
+     "p95": 2115,
+     "worst": 2115,
+     "best": 1645
+    },
+    "jobRequest": {
+     "count": 8,
+     "p50": -3942,
+     "p95": -1611,
+     "worst": -1611,
+     "best": -4075
+    },
+    "jobStarted": {
+     "count": 8,
+     "p50": -1491,
+     "p95": 1214,
+     "worst": 1214,
+     "best": -1892
+    },
+    "trackUp": {
+     "count": 8,
+     "p50": -922,
+     "p95": 1537,
+     "worst": 1537,
+     "best": -1360
+    },
+    "helloAtAgent": {
+     "count": 8,
+     "p50": 2719,
+     "p95": 2850,
+     "worst": 2850,
+     "best": 2385
+    },
+    "greetingDecided": {
+     "count": 8,
+     "p50": 2711,
+     "p95": 2837,
+     "worst": 2837,
+     "best": 2382
+    },
+    "greetingCaptured": {
+     "count": 8,
+     "p50": 2733,
+     "p95": 2860,
+     "worst": 2860,
+     "best": 2389
+    },
+    "turnAtPage": {
+     "count": 8,
+     "p50": 2988,
+     "p95": 3090,
+     "worst": 3090,
+     "best": 2615
+    },
+    "firstSound": {
+     "count": 8,
+     "p50": 3050,
+     "p95": 3162,
+     "worst": 3162,
+     "best": 2676
+    },
+    "roundTripMs": {
+     "count": 8,
+     "p50": 239,
+     "p95": 284,
+     "worst": 284,
+     "best": 227
+    }
+   }
+  },
+  "warm room at session start, pressed after 5 s, an earlier run": {
+   "rows": [
+    {
+     "apiAsked": 326,
+     "apiAnswered": 410,
+     "signalConnected": 1218,
+     "roomConnected": 2136,
+     "jobRequest": -872,
+     "jobStarted": 1297,
+     "trackUp": 1840,
+     "helloAtAgent": 2924,
+     "greetingDecided": 2922,
+     "greetingCaptured": 2925,
+     "turnAtPage": 3191,
+     "firstSound": 3255,
+     "roundTripMs": 254
+    },
+    {
+     "apiAsked": 44,
+     "apiAnswered": 98,
+     "signalConnected": 825,
+     "roomConnected": 1543,
+     "jobRequest": -3885,
+     "jobStarted": -1777,
+     "trackUp": -1237,
+     "helloAtAgent": 2255,
+     "greetingDecided": 2254,
+     "greetingCaptured": 2257,
+     "turnAtPage": 2484,
+     "firstSound": 2551,
+     "roundTripMs": 225
+    },
+    {
+     "apiAsked": 66,
+     "apiAnswered": 126,
+     "signalConnected": 940,
+     "roomConnected": 2011,
+     "jobRequest": -4115,
+     "jobStarted": -2026,
+     "trackUp": -1502,
+     "helloAtAgent": 2743,
+     "greetingDecided": 2740,
+     "greetingCaptured": 2746,
+     "turnAtPage": 2955,
+     "firstSound": 3039,
+     "roundTripMs": 225
+    },
+    {
+     "apiAsked": 74,
+     "apiAnswered": 102,
+     "signalConnected": 879,
+     "roomConnected": 1644,
+     "jobRequest": -4066,
+     "jobStarted": -2064,
+     "trackUp": -1577,
+     "helloAtAgent": 2367,
+     "greetingDecided": 2363,
+     "greetingCaptured": 2372,
+     "turnAtPage": 2596,
+     "firstSound": 2691,
+     "roundTripMs": 249
+    },
+    {
+     "apiAsked": 73,
+     "apiAnswered": 99,
+     "signalConnected": 839,
+     "roomConnected": 1609,
+     "jobRequest": -3800,
+     "jobStarted": -1741,
+     "trackUp": -1288,
+     "helloAtAgent": 2351,
+     "greetingDecided": 2349,
+     "greetingCaptured": 2354,
+     "turnAtPage": 2625,
+     "firstSound": 2700,
+     "roundTripMs": 247
+    },
+    {
+     "apiAsked": 38,
+     "apiAnswered": 78,
+     "signalConnected": 1053,
+     "roomConnected": 1819,
+     "jobRequest": -3959,
+     "jobStarted": -1908,
+     "trackUp": -1441,
+     "helloAtAgent": 2501,
+     "greetingDecided": 2495,
+     "greetingCaptured": 2498,
+     "turnAtPage": 2719,
+     "firstSound": 2786,
+     "roundTripMs": 211
+    },
+    {
+     "apiAsked": 66,
+     "apiAnswered": 105,
+     "signalConnected": 916,
+     "roomConnected": 1684,
+     "jobRequest": -3965,
+     "jobStarted": -1597,
+     "trackUp": -1080,
+     "helloAtAgent": 2422,
+     "greetingDecided": 2419,
+     "greetingCaptured": 2425,
+     "turnAtPage": 2654,
+     "firstSound": 2735,
+     "roundTripMs": 238
+    },
+    {
+     "apiAsked": 47,
+     "apiAnswered": 87,
+     "signalConnected": 833,
+     "roomConnected": 1550,
+     "jobRequest": -3983,
+     "jobStarted": -1925,
+     "trackUp": -1394,
+     "helloAtAgent": 2263,
+     "greetingDecided": 2260,
+     "greetingCaptured": 2265,
+     "turnAtPage": 2505,
+     "firstSound": 2587,
+     "roundTripMs": 234
+    }
+   ],
+   "summary": {
+    "apiAsked": {
+     "count": 8,
+     "p50": 66,
+     "p95": 326,
+     "worst": 326,
+     "best": 38
+    },
+    "apiAnswered": {
+     "count": 8,
+     "p50": 102,
+     "p95": 410,
+     "worst": 410,
+     "best": 78
+    },
+    "signalConnected": {
+     "count": 8,
+     "p50": 916,
+     "p95": 1218,
+     "worst": 1218,
+     "best": 825
+    },
+    "roomConnected": {
+     "count": 8,
+     "p50": 1684,
+     "p95": 2136,
+     "worst": 2136,
+     "best": 1543
+    },
+    "jobRequest": {
+     "count": 8,
+     "p50": -3959,
+     "p95": -872,
+     "worst": -872,
+     "best": -4115
+    },
+    "jobStarted": {
+     "count": 8,
+     "p50": -1777,
+     "p95": 1297,
+     "worst": 1297,
+     "best": -2064
+    },
+    "trackUp": {
+     "count": 8,
+     "p50": -1288,
+     "p95": 1840,
+     "worst": 1840,
+     "best": -1577
+    },
+    "helloAtAgent": {
+     "count": 8,
+     "p50": 2422,
+     "p95": 2924,
+     "worst": 2924,
+     "best": 2255
+    },
+    "greetingDecided": {
+     "count": 8,
+     "p50": 2419,
+     "p95": 2922,
+     "worst": 2922,
+     "best": 2254
+    },
+    "greetingCaptured": {
+     "count": 8,
+     "p50": 2425,
+     "p95": 2925,
+     "worst": 2925,
+     "best": 2257
+    },
+    "turnAtPage": {
+     "count": 8,
+     "p50": 2654,
+     "p95": 3191,
+     "worst": 3191,
+     "best": 2484
+    },
+    "firstSound": {
+     "count": 8,
+     "p50": 2735,
+     "p95": 3255,
+     "worst": 3255,
+     "best": 2551
+    },
+    "roundTripMs": {
+     "count": 8,
+     "p50": 238,
+     "p95": 254,
+     "worst": 254,
+     "best": 211
+    }
+   }
+  },
+  "verifier at 36f31eb, pressed at once, 5 joins, load 12 to 24": {
+   "rows": [
+    {
+     "apiAsked": 159,
+     "apiAnswered": 1358,
+     "signalConnected": 2125,
+     "roomConnected": 2841,
+     "jobRequest": 4488,
+     "jobStarted": 6644,
+     "trackUp": 7144,
+     "helloAtAgent": 7976,
+     "greetingDecided": 7975,
+     "greetingCaptured": 7978,
+     "turnAtPage": 8220,
+     "firstSound": 8284,
+     "roundTripMs": 241
+    },
+    {
+     "apiAsked": 43,
+     "apiAnswered": 1323,
+     "signalConnected": 2132,
+     "roomConnected": 2899,
+     "jobRequest": 1323,
+     "jobStarted": 3774,
+     "trackUp": 4284,
+     "helloAtAgent": 6039,
+     "greetingDecided": 6029,
+     "greetingCaptured": 6040,
+     "turnAtPage": 6291,
+     "firstSound": 6363,
+     "roundTripMs": 802
+    },
+    {
+     "apiAsked": 40,
+     "apiAnswered": 1747,
+     "signalConnected": 3729,
+     "roomConnected": 4580,
+     "jobRequest": 1703,
+     "jobStarted": 4025,
+     "trackUp": 4649,
+     "helloAtAgent": 5871,
+     "greetingDecided": 5868,
+     "greetingCaptured": 5876,
+     "turnAtPage": 6100,
+     "firstSound": 6189,
+     "roundTripMs": 227
+    },
+    {
+     "apiAsked": 83,
+     "apiAnswered": 1228,
+     "signalConnected": 2047,
+     "roomConnected": 2864,
+     "jobRequest": 1214,
+     "jobStarted": 3356,
+     "trackUp": 3860,
+     "helloAtAgent": 6114,
+     "greetingDecided": 6108,
+     "greetingCaptured": 6118,
+     "turnAtPage": 6344,
+     "firstSound": 6419,
+     "roundTripMs": 783
+    },
+    {
+     "apiAsked": 44,
+     "apiAnswered": 1240,
+     "signalConnected": 2050,
+     "roomConnected": 2867,
+     "jobRequest": 1215,
+     "jobStarted": 4368,
+     "trackUp": 5065,
+     "helloAtAgent": 6353,
+     "greetingDecided": 6348,
+     "greetingCaptured": 6358,
+     "turnAtPage": 6608,
+     "firstSound": 6686,
+     "roundTripMs": 727
+    }
+   ],
+   "summary": {
+    "apiAsked": {
+     "count": 5,
+     "p50": 44,
+     "p95": 159,
+     "worst": 159,
+     "best": 40
+    },
+    "apiAnswered": {
+     "count": 5,
+     "p50": 1323,
+     "p95": 1747,
+     "worst": 1747,
+     "best": 1228
+    },
+    "signalConnected": {
+     "count": 5,
+     "p50": 2125,
+     "p95": 3729,
+     "worst": 3729,
+     "best": 2047
+    },
+    "roomConnected": {
+     "count": 5,
+     "p50": 2867,
+     "p95": 4580,
+     "worst": 4580,
+     "best": 2841
+    },
+    "jobRequest": {
+     "count": 5,
+     "p50": 1323,
+     "p95": 4488,
+     "worst": 4488,
+     "best": 1214
+    },
+    "jobStarted": {
+     "count": 5,
+     "p50": 4025,
+     "p95": 6644,
+     "worst": 6644,
+     "best": 3356
+    },
+    "trackUp": {
+     "count": 5,
+     "p50": 4649,
+     "p95": 7144,
+     "worst": 7144,
+     "best": 3860
+    },
+    "helloAtAgent": {
+     "count": 5,
+     "p50": 6114,
+     "p95": 7976,
+     "worst": 7976,
+     "best": 5871
+    },
+    "greetingDecided": {
+     "count": 5,
+     "p50": 6108,
+     "p95": 7975,
+     "worst": 7975,
+     "best": 5868
+    },
+    "greetingCaptured": {
+     "count": 5,
+     "p50": 6118,
+     "p95": 7978,
+     "worst": 7978,
+     "best": 5876
+    },
+    "turnAtPage": {
+     "count": 5,
+     "p50": 6344,
+     "p95": 8220,
+     "worst": 8220,
+     "best": 6100
+    },
+    "firstSound": {
+     "count": 5,
+     "p50": 6419,
+     "p95": 8284,
+     "worst": 8284,
+     "best": 6189
+    },
+    "roundTripMs": {
+     "count": 5,
+     "p50": 727,
+     "p95": 802,
+     "worst": 802,
+     "best": 227
+    }
+   }
+  },
+  "verifier at 36f31eb, pressed after 5 s, 5 joins, load 12 to 24": {
+   "rows": [
+    {
+     "apiAsked": 553,
+     "apiAnswered": 756,
+     "signalConnected": 1943,
+     "roomConnected": 2873,
+     "jobRequest": -2314,
+     "jobStarted": 252,
+     "trackUp": 742,
+     "helloAtAgent": 3573,
+     "greetingDecided": 3550,
+     "greetingCaptured": 3585,
+     "turnAtPage": 3817,
+     "firstSound": 3904,
+     "roundTripMs": 254
+    },
+    {
+     "apiAsked": 168,
+     "apiAnswered": 368,
+     "signalConnected": 1437,
+     "roomConnected": 2456,
+     "jobRequest": -2075,
+     "jobStarted": 998,
+     "trackUp": 1619,
+     "helloAtAgent": 3254,
+     "greetingDecided": 3241,
+     "greetingCaptured": 3277,
+     "turnAtPage": 3526,
+     "firstSound": 3640,
+     "roundTripMs": 249
+    },
+    {
+     "apiAsked": 215,
+     "apiAnswered": 551,
+     "signalConnected": 1327,
+     "roomConnected": 2287,
+     "jobRequest": -4194,
+     "jobStarted": -1327,
+     "trackUp": -738,
+     "helloAtAgent": 3056,
+     "greetingDecided": 3039,
+     "greetingCaptured": 3069,
+     "turnAtPage": 3297,
+     "firstSound": 3375,
+     "roundTripMs": 254
+    },
+    {
+     "apiAsked": 245,
+     "apiAnswered": 612,
+     "signalConnected": 1397,
+     "roomConnected": 2204,
+     "jobRequest": -3965,
+     "jobStarted": -1679,
+     "trackUp": -1101,
+     "helloAtAgent": 2929,
+     "greetingDecided": 2914,
+     "greetingCaptured": 2939,
+     "turnAtPage": 3161,
+     "firstSound": 3262,
+     "roundTripMs": 236
+    },
+    {
+     "apiAsked": 49,
+     "apiAnswered": 82,
+     "signalConnected": 821,
+     "roomConnected": 1690,
+     "jobRequest": -3905,
+     "jobStarted": -1834,
+     "trackUp": -1365,
+     "helloAtAgent": 2427,
+     "greetingDecided": 2423,
+     "greetingCaptured": 2433,
+     "turnAtPage": 2665,
+     "firstSound": 2738,
+     "roundTripMs": 232
+    }
+   ],
+   "summary": {
+    "apiAsked": {
+     "count": 5,
+     "p50": 215,
+     "p95": 553,
+     "worst": 553,
+     "best": 49
+    },
+    "apiAnswered": {
+     "count": 5,
+     "p50": 551,
+     "p95": 756,
+     "worst": 756,
+     "best": 82
+    },
+    "signalConnected": {
+     "count": 5,
+     "p50": 1397,
+     "p95": 1943,
+     "worst": 1943,
+     "best": 821
+    },
+    "roomConnected": {
+     "count": 5,
+     "p50": 2287,
+     "p95": 2873,
+     "worst": 2873,
+     "best": 1690
+    },
+    "jobRequest": {
+     "count": 5,
+     "p50": -3905,
+     "p95": -2075,
+     "worst": -2075,
+     "best": -4194
+    },
+    "jobStarted": {
+     "count": 5,
+     "p50": -1327,
+     "p95": 998,
+     "worst": 998,
+     "best": -1834
+    },
+    "trackUp": {
+     "count": 5,
+     "p50": -738,
+     "p95": 1619,
+     "worst": 1619,
+     "best": -1365
+    },
+    "helloAtAgent": {
+     "count": 5,
+     "p50": 3056,
+     "p95": 3573,
+     "worst": 3573,
+     "best": 2427
+    },
+    "greetingDecided": {
+     "count": 5,
+     "p50": 3039,
+     "p95": 3550,
+     "worst": 3550,
+     "best": 2423
+    },
+    "greetingCaptured": {
+     "count": 5,
+     "p50": 3069,
+     "p95": 3585,
+     "worst": 3585,
+     "best": 2433
+    },
+    "turnAtPage": {
+     "count": 5,
+     "p50": 3297,
+     "p95": 3817,
+     "worst": 3817,
+     "best": 2665
+    },
+    "firstSound": {
+     "count": 5,
+     "p50": 3375,
+     "p95": 3904,
+     "worst": 3904,
+     "best": 2738
+    },
+    "roundTripMs": {
+     "count": 5,
+     "p50": 249,
+     "p95": 254,
+     "worst": 254,
+     "best": 232
+    }
+   }
+  }
+ },
+ "safetyProofs": {
+  "last run before the second review": {
+   "warmUnused": {
+    "jobStartedAfterMs": 8262,
+    "jobClosedAfterMs": 130783,
+    "heardAnything": false,
+    "roomStillListed": true,
+    "pressAfterItClosedBackInMs": 5950,
+    "jobs": 2
+   },
+   "crash": {
+    "timeline": [
+     "5 live",
+     "3270 reconnecting",
+     "24840 tutorLost"
+    ],
+    "lostAfterMs": 24840,
+    "asksBeforeGivingUp": 3,
+    "asksAfterWaiting": 3,
+    "micAfterLoss": [
+     "ended"
+    ],
+    "notes": " | Your tutor stopped responding. Your microphone is off. Try again and a tutor will start fresh, without what was said so far.",
+    "newJobs": 1,
+    "backAfterMs": 5270,
+    "heard": [
+     "You",
+     "said",
+     "are",
+     "you"
+    ]
+   },
+   "finished": {
+    "finishStatus": 200,
+    "jobsBefore": 1,
+    "pageEndedAfterMs": 2,
+    "roomGoneAfterMs": 4619,
+    "jobClosedAfterMs": 1693,
+    "newTokenStatus": 409,
+    "oldTokenJoined": true,
+    "participantsWithOldToken": [],
+    "jobsAfter": 1,
+    "notes": " | Youhello thereYour connection to the tutor ended."
+   },
+   "mic": {
+    "doublePress": {
+     "view": "off",
+     "pressed": "false",
+     "evidence": {
+      "tracks": [],
+      "senders": []
+     }
+    },
+    "threePressesThenOff": {
+     "micAfterOff": "off",
+     "pressed": "false",
+     "whileOn": {
+      "tracks": [
+       "live"
+      ],
+      "senders": [
+       {
+        "state": "live",
+        "bytes": 23939
+       }
+      ]
+     },
+     "bytesMovedWhileOn": 15598,
+     "afterOff": {
+      "tracks": [
+       "ended"
+      ],
+      "senders": [
+       {
+        "state": "removed",
+        "bytes": 39986
+       }
+      ]
+     },
+     "bytesMovedAfterOff": 0,
+     "agentHeardAfterOff": [],
+     "museClosedAfterOffMs": null
+    },
+    "pressDuringStarting": [
+     {
+      "gapMs": 0,
+      "mic": "off",
+      "liveTracks": 0,
+      "liveSenders": 0
+     },
+     {
+      "gapMs": 20,
+      "mic": "off",
+      "liveTracks": 0,
+      "liveSenders": 0
+     },
+     {
+      "gapMs": 60,
+      "mic": "off",
+      "liveTracks": 0,
+      "liveSenders": 0
+     },
+     {
+      "gapMs": 200,
+      "mic": "off",
+      "liveTracks": 0,
+      "liveSenders": 0
+     }
+    ]
+   },
+   "leaving": {
+    "before": [
+     "live"
+    ],
+    "onPageHide": [
+     "ended"
+    ],
+    "afterRoute": {
+     "tracks": [
+      "ended"
+     ],
+     "senders": []
+    }
+   },
+   "noDevice": {
+    "noDevice": {
+     "view": "noDevice",
+     "notes": " | We could not find a microphone on this device. You can type instead."
+    },
+    "denied": {
+     "view": "denied",
+     "notes": " | Your browser did not allow the microphone. You can type instead."
+    }
+   },
+   "publishFails": {
+    "mic": "failed",
+    "tracks": [
+     "ended"
+    ],
+    "senders": [],
+    "notes": " | Youhello thereYour microphone could not start. You can type instead."
+   },
+   "typedThenTalk": {
+    "rows": [
+     {
+      "said": "Wait, then why does it come down?",
+      "heard": "Wait, then why does it come down?",
+      "lostWords": [],
+      "finalAfterLastSoundMs": 1055,
+      "museHandshakeMs": 1364,
+      "earsOpenAfterPressMs": 2465,
+      "refused": 0
+     },
+     {
+      "said": "Do I factor the quadratic first?",
+      "heard": "Do I factor the quadratic first?",
+      "lostWords": [],
+      "finalAfterLastSoundMs": 2496,
+      "museHandshakeMs": 1711,
+      "earsOpenAfterPressMs": 2805,
+      "refused": 0
+     },
+     {
+      "said": "Can you go back to the slope?",
+      "heard": "Can you go back to the slope?",
+      "lostWords": [],
+      "finalAfterLastSoundMs": 2379,
+      "museHandshakeMs": 1477,
+      "earsOpenAfterPressMs": 2574,
+      "refused": 0
+     },
+     {
+      "said": "Is the numerator bigger than the denominator?",
+      "heard": "Is the numerator bigger than the denominator?",
+      "lostWords": [],
+      "finalAfterLastSoundMs": 2069,
+      "museHandshakeMs": 1343,
+      "earsOpenAfterPressMs": 2439,
+      "refused": 0
+     },
+     {
+      "said": "It lands twice as far.",
+      "heard": "It lands twice as far.",
+      "lostWords": [],
+      "finalAfterLastSoundMs": 3199,
+      "museHandshakeMs": 1982,
+      "earsOpenAfterPressMs": 3116,
+      "refused": 0
+     },
+     {
+      "said": "Show me the ball.",
+      "heard": "Show me the ball.",
+      "lostWords": [],
+      "finalAfterLastSoundMs": 1042,
+      "museHandshakeMs": 1676,
+      "earsOpenAfterPressMs": 2876,
+      "refused": 0
+     }
+    ],
+    "linesWithALostWord": 0
+   },
+   "offOn": {
+    "offFor3sMuseStillOpen": {
+     "rows": [
+      {
+       "said": "Wait, then why does it come down?",
+       "heard": "Wait, then why does it come down?",
+       "lostWords": [],
+       "finalAfterLastSoundMs": 1861,
+       "museClosedWhileOff": false,
+       "museOpenedAgain": false
+      },
+      {
+       "said": "Do I factor the quadratic first?",
+       "heard": "Do I factor the quadratic first?",
+       "lostWords": [],
+       "finalAfterLastSoundMs": 1982,
+       "museClosedWhileOff": false,
+       "museOpenedAgain": false
+      },
+      {
+       "said": "Can you go back to the slope?",
+       "heard": "Can you go back to the slope?",
+       "lostWords": [],
+       "finalAfterLastSoundMs": 2079,
+       "museClosedWhileOff": false,
+       "museOpenedAgain": false
+      }
+     ],
+     "linesWithALostWord": 0
+    },
+    "offFor14sMuseClosed": {
+     "rows": [
+      {
+       "said": "Is the numerator bigger than the denominator?",
+       "heard": "Is the numerator bigger than the denominator?",
+       "lostWords": [],
+       "finalAfterLastSoundMs": 3561,
+       "museClosedWhileOff": true,
+       "museOpenedAgain": true
+      },
+      {
+       "said": "It lands twice as far.",
+       "heard": "It lands twice as far.",
+       "lostWords": [],
+       "finalAfterLastSoundMs": 3287,
+       "museClosedWhileOff": true,
+       "museOpenedAgain": true
+      },
+      {
+       "said": "Show me the ball.",
+       "heard": "Show me the ball",
+       "lostWords": [],
+       "finalAfterLastSoundMs": 3360,
+       "museClosedWhileOff": true,
+       "museOpenedAgain": true
+      }
+     ],
+     "linesWithALostWord": 0
+    }
+   },
+   "pause": {
+    "rows": [
+     {
+      "startedAfterMs": 12839,
+      "replies": [
+       "I think it lands.",
+       "I think it lands. twice as far because it has more time."
+      ],
+      "jumpedIn": true,
+      "lastCarriesBoth": true
+     },
+     {
+      "startedAfterMs": 12855,
+      "replies": [
+       "I think it lands.  twice as far because it has more time."
+      ],
+      "jumpedIn": false,
+      "lastCarriesBoth": true
+     },
+     {
+      "startedAfterMs": 12869,
+      "replies": [
+       "I think it lands.",
+       "I think it lands. twice as far because it has more time."
+      ],
+      "jumpedIn": true,
+      "lastCarriesBoth": true
+     }
+    ]
+   },
+   "replay": {
+    "rows": [
+     {
+      "replayed": 3,
+      "zeroReports": 0,
+      "flight": [
+       [
+        "reply-1-flight",
+        "interrupted",
+        4,
+        2
+       ],
+       [
+        "reply-1-flight-r3",
+        "finished",
+        21,
+        1
+       ]
+      ],
+      "resumedBeats": 2
+     },
+     {
+      "replayed": 6,
+      "zeroReports": 0,
+      "flight": [
+       [
+        "reply-2-flight",
+        "interrupted",
+        4,
+        2
+       ],
+       [
+        "reply-2-flight-r6",
+        "finished",
+        21,
+        1
+       ]
+      ],
+      "resumedBeats": 2
+     },
+     {
+      "replayed": 9,
+      "zeroReports": 0,
+      "flight": [
+       [
+        "reply-3-flight",
+        "interrupted",
+        5,
+        2
+       ],
+       [
+        "reply-3-flight-r9",
+        "finished",
+        20,
+        1
+       ]
+      ],
+      "resumedBeats": 2
+     }
+    ]
+   },
+   "quiet": {
+    "limitMs": 40000,
+    "firstWarningAfterMs": 20304,
+    "noteWithWarning": " | Youhello thereIt has been quiet for a while, so this room closes in about a minute. Your session stays here either way.",
+    "warningAfterAnswer": false,
+    "secondWarningAfterMs": 19997,
+    "closedAfterMs": 19995,
+    "noteWhenClosed": " | Youhello thereThis room closed because it stayed quiet. Your session is still here.",
+    "roomGoneAfterMs": 7373,
+    "typedInClosedRoom": {
+     "boxIsReadOnly": true,
+     "notes": " | Youhello thereThis room closed because it stayed quiet. Your session is still here."
+    },
+    "backAfterMs": 5513,
+    "heard": [
+     "You",
+     "said",
+     "i",
+     "am"
+    ]
+   },
+   "quietTen": {
+    "warnedAfterMs": 540450,
+    "closedAfterMs": 600342,
+    "note": " | Youhello thereThis room closed because it stayed quiet. Your session is still here.",
+    "backAfterMs": 5813
+   }
+  },
+  "first run with the crash and finished proofs": {
+   "crash": {
+    "timeline": [
+     "3 live",
+     "3292 reconnecting",
+     "19778 tutorLost"
+    ],
+    "lostAfterMs": 19778,
+    "asksBeforeGivingUp": 3,
+    "asksAfterWaiting": 3,
+    "micAfterLoss": [
+     "ended"
+    ],
+    "notes": " | Your tutor stopped responding. Your microphone is off. Try again and a tutor will start fresh, without what was said so far.",
+    "newJobs": 1,
+    "backAfterMs": 5709,
+    "heard": [
+     "You",
+     "said",
+     "are",
+     "you",
+     "back."
+    ]
+   },
+   "publishFails": {
+    "mic": "failed",
+    "tracks": [
+     "ended"
+    ],
+    "senders": [],
+    "notes": " | Youhello thereYour microphone could not start. You can type instead."
+   },
+   "finished": {
+    "finishStatus": 200,
+    "jobsBefore": 1,
+    "pageEndedAfterMs": 2,
+    "roomGoneAfterMs": 7597,
+    "jobClosedAfterMs": 2841,
+    "newTokenStatus": 409,
+    "oldTokenJoined": true,
+    "participantsWithOldToken": [],
+    "jobsAfter": 1,
+    "notes": " | Youhello thereYour connection to the tutor ended."
+   }
+  },
+  "microphone and first-line run": {
+   "mic": {
+    "doublePress": {
+     "view": "off",
+     "pressed": "false",
+     "evidence": {
+      "tracks": [],
+      "senders": []
+     }
+    },
+    "threePressesThenOff": {
+     "micAfterOff": "off",
+     "pressed": "false",
+     "whileOn": {
+      "tracks": [
+       "live"
+      ],
+      "senders": [
+       {
+        "state": "live",
+        "bytes": 24786
+       }
+      ]
+     },
+     "bytesMovedWhileOn": 18755,
+     "afterOff": {
+      "tracks": [
+       "ended"
+      ],
+      "senders": [
+       {
+        "state": "removed",
+        "bytes": 44442
+       }
+      ]
+     },
+     "bytesMovedAfterOff": 0,
+     "agentHeardAfterOff": [],
+     "museClosedAfterOffMs": null
+    },
+    "pressDuringStarting": [
+     {
+      "gapMs": 0,
+      "mic": "off",
+      "liveTracks": 0,
+      "liveSenders": 0
+     },
+     {
+      "gapMs": 20,
+      "mic": "off",
+      "liveTracks": 0,
+      "liveSenders": 0
+     },
+     {
+      "gapMs": 60,
+      "mic": "off",
+      "liveTracks": 0,
+      "liveSenders": 0
+     },
+     {
+      "gapMs": 200,
+      "mic": "off",
+      "liveTracks": 0,
+      "liveSenders": 0
+     }
+    ]
+   },
+   "leaving": {
+    "before": [
+     "live"
+    ],
+    "onPageHide": [
+     "ended"
+    ],
+    "afterRoute": {
+     "tracks": [
+      "ended"
+     ],
+     "senders": []
+    }
+   },
+   "noDevice": {
+    "noDevice": {
+     "view": "noDevice",
+     "notes": " | We could not find a microphone on this device. You can type instead."
+    },
+    "denied": {
+     "view": "denied",
+     "notes": " | Your browser did not allow the microphone. You can type instead."
+    }
+   },
+   "publishFails": {
+    "mic": "failed",
+    "tracks": [
+     "ended"
+    ],
+    "senders": [],
+    "notes": " | Youhello thereYour microphone could not start. You can type instead."
+   },
+   "typedThenTalk": {
+    "rows": [
+     {
+      "said": "Wait, then why does it come down?",
+      "heard": "Wait, then why does it come down?",
+      "lostWords": [],
+      "finalAfterLastSoundMs": 1004,
+      "museHandshakeMs": 1206,
+      "earsOpenAfterPressMs": 2644,
+      "refused": 0
+     },
+     {
+      "said": "Do I factor the quadratic first?",
+      "heard": "Do I factor the quadratic first?",
+      "lostWords": [],
+      "finalAfterLastSoundMs": 2069,
+      "museHandshakeMs": 1933,
+      "earsOpenAfterPressMs": 3200,
+      "refused": 0
+     },
+     {
+      "said": "Can you go back to the slope?",
+      "heard": "Can you go back to the slope?",
+      "lostWords": [],
+      "finalAfterLastSoundMs": 1918,
+      "museHandshakeMs": 1747,
+      "earsOpenAfterPressMs": 3196,
+      "refused": 0
+     },
+     {
+      "said": "Is the numerator bigger than the denominator?",
+      "heard": "Is the numerator bigger than the denominator?",
+      "lostWords": [],
+      "finalAfterLastSoundMs": 1963,
+      "museHandshakeMs": 1367,
+      "earsOpenAfterPressMs": 2639,
+      "refused": 0
+     },
+     {
+      "said": "It lands twice as far.",
+      "heard": "It lands twice as far.",
+      "lostWords": [],
+      "finalAfterLastSoundMs": 1351,
+      "museHandshakeMs": 2011,
+      "earsOpenAfterPressMs": 3091,
+      "refused": 0
+     },
+     {
+      "said": "Show me the ball.",
+      "heard": "Show me the ball",
+      "lostWords": [],
+      "finalAfterLastSoundMs": 1761,
+      "museHandshakeMs": 1185,
+      "earsOpenAfterPressMs": 2247,
+      "refused": 0
+     }
+    ],
+    "linesWithALostWord": 0
+   },
+   "offOn": {
+    "offFor3sMuseStillOpen": {
+     "rows": [
+      {
+       "said": "Wait, then why does it come down?",
+       "heard": "wait, then why does it come down?",
+       "lostWords": [],
+       "finalAfterLastSoundMs": 1797,
+       "museClosedWhileOff": false,
+       "museOpenedAgain": false
+      },
+      {
+       "said": "Do I factor the quadratic first?",
+       "heard": "Do I factor the quadratic first?",
+       "lostWords": [],
+       "finalAfterLastSoundMs": 2029,
+       "museClosedWhileOff": false,
+       "museOpenedAgain": false
+      },
+      {
+       "said": "Can you go back to the slope?",
+       "heard": "Can you go back to the slope?",
+       "lostWords": [],
+       "finalAfterLastSoundMs": 1993,
+       "museClosedWhileOff": false,
+       "museOpenedAgain": false
+      }
+     ],
+     "linesWithALostWord": 0
+    },
+    "offFor14sMuseClosed": {
+     "rows": [
+      {
+       "said": "Is the numerator bigger than the denominator?",
+       "heard": "Is the numerator bigger than the denominator?",
+       "lostWords": [],
+       "finalAfterLastSoundMs": 3214,
+       "museClosedWhileOff": true,
+       "museOpenedAgain": true
+      },
+      {
+       "said": "It lands twice as far.",
+       "heard": "It lands twice as far.",
+       "lostWords": [],
+       "finalAfterLastSoundMs": 6456,
+       "museClosedWhileOff": true,
+       "museOpenedAgain": true
+      },
+      {
+       "said": "Show me the ball.",
+       "heard": "Show me the ball.",
+       "lostWords": [],
+       "finalAfterLastSoundMs": 4473,
+       "museClosedWhileOff": true,
+       "museOpenedAgain": true
+      }
+     ],
+     "linesWithALostWord": 0
+    }
+   },
+   "pause": {
+    "rows": [
+     {
+      "startedAfterMs": 12978,
+      "replies": [
+       "I think it lands.",
+       "I think it lands. Twice as far because it has more time."
+      ],
+      "jumpedIn": true,
+      "lastCarriesBoth": true
+     },
+     {
+      "startedAfterMs": 12931,
+      "replies": [
+       "I think it lands.",
+       "I think it lands. Twice as far because it has more time."
+      ],
+      "jumpedIn": true,
+      "lastCarriesBoth": true
+     },
+     {
+      "startedAfterMs": 13008,
+      "replies": [
+       "I think it lands.",
+       "I think it lands. Twice as far because it has more time."
+      ],
+      "jumpedIn": true,
+      "lastCarriesBoth": true
+     }
+    ]
+   },
+   "replay": {
+    "rows": [
+     {
+      "replayed": 3,
+      "zeroReports": 0,
+      "flight": [
+       [
+        "reply-1-flight",
+        "interrupted",
+        4,
+        2
+       ],
+       [
+        "reply-1-flight-r3",
+        "finished",
+        21,
+        1
+       ]
+      ],
+      "resumedBeats": 2
+     },
+     {
+      "replayed": 6,
+      "zeroReports": 0,
+      "flight": [
+       [
+        "reply-2-flight",
+        "interrupted",
+        4,
+        2
+       ],
+       [
+        "reply-2-flight-r6",
+        "finished",
+        21,
+        1
+       ]
+      ],
+      "resumedBeats": 2
+     },
+     {
+      "replayed": 9,
+      "zeroReports": 0,
+      "flight": [
+       [
+        "reply-3-flight",
+        "interrupted",
+        4,
+        2
+       ],
+       [
+        "reply-3-flight-r9",
+        "finished",
+        21,
+        1
+       ]
+      ],
+      "resumedBeats": 2
+     }
+    ]
+   },
+   "quiet": {
+    "limitMs": 40000,
+    "firstWarningAfterMs": 20256,
+    "noteWithWarning": " | Youhello thereIt has been quiet for a while, so this room closes in about a minute. Your session stays here either way.",
+    "warningAfterAnswer": false,
+    "secondWarningAfterMs": 19986,
+    "closedAfterMs": 20052,
+    "noteWhenClosed": " | Youhello thereThis room closed because it stayed quiet. Your session is still here.",
+    "roomGone": false,
+    "typedInClosedRoom": {
+     "boxIsReadOnly": true,
+     "notes": " | Youhello thereThis room closed because it stayed quiet. Your session is still here."
+    },
+    "backAfterMs": 8064,
+    "heard": [
+     "You",
+     "said",
+     "i",
+     "am"
+    ]
+   }
+  }
+ },
+ "oldToken": {
+  "a fresh join with a 2-minute token": [
+   {
+    "atS": 125,
+    "result": "joined"
+   },
+   {
+    "atS": 170,
+    "result": "joined"
+   },
+   {
+    "atS": 190,
+    "result": "refused: Error: engine: signal failure: client error: 401 Unauthorized - invalid token"
+   }
+  ],
+  "a joined 2-minute token staying connected": [
+   {
+    "atS": 60,
+    "isConnected": true,
+    "people": 1
+   },
+   {
+    "atS": 125,
+    "isConnected": true,
+    "people": 1
+   },
+   {
+    "atS": 190,
+    "isConnected": true,
+    "people": 1
+   },
+   {
+    "atS": 250,
+    "isConnected": true,
+    "people": 1
+   }
+  ]
+ },
+ "secondReview": {
+  "ghost": [
+   {
+    "reloadAfterMs": 200,
+    "timeline": [
+     "44 no voice yet",
+     "246 no voice yet",
+     "446 no voice yet",
+     "648 no voice yet",
+     "850 no voice yet",
+     "1052 no voice yet",
+     "1254 no voice yet",
+     "1456 no voice yet",
+     "1657 no voice yet",
+     "1860 no voice yet",
+     "2060 no voice yet",
+     "2262 no voice yet",
+     "2464 no voice yet",
+     "2665 live/on"
+    ],
+    "end": {
+     "phase": "live",
+     "notes": " | Your microphone is on."
+    },
+    "buttons": [
+     "Light",
+     "Dark",
+     "End sessionEnd session",
+     "Talk"
+    ],
+    "people": [
+     "student"
+    ]
+   },
+   {
+    "reloadAfterMs": 4000,
+    "timeline": [
+     "58 no voice yet",
+     "261 no voice yet",
+     "462 no voice yet",
+     "663 no voice yet",
+     "865 no voice yet",
+     "1069 no voice yet",
+     "1272 no voice yet",
+     "1477 no voice yet",
+     "1679 no voice yet",
+     "1884 no voice yet",
+     "2085 live/on"
+    ],
+    "end": {
+     "phase": "live",
+     "notes": " | Your microphone is on."
+    },
+    "buttons": [
+     "Light",
+     "Dark",
+     "End sessionEnd session",
+     "Talk"
+    ],
+    "people": [
+     "student"
+    ]
+   }
+  ],
+  "ghost2": [
+   {
+    "reloadAfterMs": 10000,
+    "timeline": [
+     "2 none",
+     "1765 live/on"
+    ],
+    "end": {
+     "phase": "live",
+     "mic": "on",
+     "notes": " | Your microphone is on."
+    },
+    "buttons": [
+     "Light",
+     "Dark",
+     "End sessionEnd session",
+     "Talk"
+    ],
+    "people": [
+     "student"
+    ]
+   },
+   {
+    "reloadAfterMs": 18000,
+    "timeline": [
+     "6 none",
+     "2578 live/on"
+    ],
+    "end": {
+     "phase": "live",
+     "mic": "on",
+     "notes": " | Your microphone is on."
+    },
+    "buttons": [
+     "Light",
+     "Dark",
+     "End sessionEnd session",
+     "Talk"
+    ],
+    "people": [
+     "student"
+    ]
+   },
+   {
+    "reloadAfterMs": 30000,
+    "timeline": [
+     "35 none",
+     "2844 connecting/on",
+     "25121 noTutor/off"
+    ],
+    "end": {
+     "phase": "noTutor",
+     "mic": "off",
+     "notes": " | Your tutor could not connect just now."
+    },
+    "buttons": [
+     "Light",
+     "Dark",
+     "End sessionEnd session",
+     "Try again",
+     "Talk"
+    ],
+    "people": []
+   },
+   {
+    "timeline": [
+     "26 none",
+     "1810 live/on"
+    ],
+    "watchedMs": 123932,
+    "end": {
+     "phase": "live",
+     "mic": "on",
+     "notes": " | Your microphone is on."
+    },
+    "afterTyping": {
+     "phase": "live",
+     "notes": " | Youhello is anyone thereYour microphone is on."
+    },
+    "people": [
+     "student"
+    ],
+    "buttons": [
+     "Light",
+     "Dark",
+     "End sessionEnd session",
+     "Talk"
+    ],
+    "rooms": 1,
+    "jobs": 1,
+    "bytesStillMoving": 156
+   },
+   {
+    "afterSecondReload": [
+     "5 none",
+     "3864 connecting/on",
+     "25271 noTutor/off"
+    ]
+   }
+  ],
+  "flood": {
+   "count": 8,
+   "statuses": [
+    201,
+    201,
+    201,
+    201,
+    201,
+    201,
+    201,
+    201
+   ],
+   "answeredAfterMs": 63,
+   "snapshots": [
+    {
+     "label": "t0",
+     "afterMs": 867,
+     "rooms": 0,
+     "jobsStarted": 0,
+     "jobsClosed": 0,
+     "museOpened": 0,
+     "distinctJobProcesses": 0,
+     "rssMb": []
+    },
+    {
+     "label": "t10",
+     "afterMs": 12269,
+     "rooms": 8,
+     "jobsStarted": 7,
+     "jobsClosed": 0,
+     "museOpened": 0,
+     "distinctJobProcesses": 7,
+     "rssMb": [
+      102,
+      111,
+      105,
+      117,
+      162,
+      154,
+      104
+     ]
+    },
+    {
+     "label": "t40",
+     "afterMs": 43981,
+     "rooms": 8,
+     "jobsStarted": 8,
+     "jobsClosed": 0,
+     "museOpened": 0,
+     "distinctJobProcesses": 8,
+     "rssMb": [
+      101,
+      94,
+      100,
+      95,
+      96,
+      101,
+      99,
+      97
+     ]
+    },
+    {
+     "label": "t54",
+     "afterMs": 55191,
+     "rooms": 8,
+     "jobsStarted": 8,
+     "jobsClosed": 0,
+     "museOpened": 0,
+     "distinctJobProcesses": 8,
+     "rssMb": [
+      98,
+      97,
+      99,
+      100,
+      97,
+      102,
+      100,
+      100
+     ]
+    },
+    {
+     "label": "t65",
+     "afterMs": 66173,
+     "rooms": 8,
+     "jobsStarted": 8,
+     "jobsClosed": 0,
+     "museOpened": 0,
+     "distinctJobProcesses": 8,
+     "rssMb": [
+      96,
+      96,
+      94,
+      99,
+      100,
+      95,
+      101,
+      100
+     ]
+    },
+    {
+     "label": "t76",
+     "afterMs": 77815,
+     "rooms": 8,
+     "jobsStarted": 8,
+     "jobsClosed": 0,
+     "museOpened": 0,
+     "distinctJobProcesses": 8,
+     "rssMb": [
+      101,
+      94,
+      97,
+      99,
+      93,
+      97,
+      90,
+      99
+     ]
+    },
+    {
+     "label": "t88",
+     "afterMs": 89211,
+     "rooms": 8,
+     "jobsStarted": 8,
+     "jobsClosed": 0,
+     "museOpened": 0,
+     "distinctJobProcesses": 8,
+     "rssMb": [
+      94,
+      92,
+      100,
+      101,
+      98,
+      95,
+      93,
+      94
+     ]
+    },
+    {
+     "label": "t99",
+     "afterMs": 100460,
+     "rooms": 8,
+     "jobsStarted": 8,
+     "jobsClosed": 0,
+     "museOpened": 0,
+     "distinctJobProcesses": 8,
+     "rssMb": [
+      93,
+      94,
+      94,
+      99,
+      93,
+      100,
+      92,
+      94
+     ]
+    },
+    {
+     "label": "t110",
+     "afterMs": 111602,
+     "rooms": 8,
+     "jobsStarted": 8,
+     "jobsClosed": 0,
+     "museOpened": 0,
+     "distinctJobProcesses": 8,
+     "rssMb": [
+      97,
+      90,
+      93,
+      92,
+      90,
+      95,
+      99,
+      90
+     ]
+    },
+    {
+     "label": "t122",
+     "afterMs": 123781,
+     "rooms": 8,
+     "jobsStarted": 8,
+     "jobsClosed": 1,
+     "museOpened": 0,
+     "distinctJobProcesses": 8,
+     "rssMb": [
+      115,
+      127,
+      104,
+      115,
+      0,
+      129,
+      113,
+      112
+     ]
+    },
+    {
+     "label": "t134",
+     "afterMs": 135692,
+     "rooms": 0,
+     "jobsStarted": 8,
+     "jobsClosed": 8,
+     "museOpened": 0,
+     "distinctJobProcesses": 8,
+     "rssMb": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "label": "t146",
+     "afterMs": 146844,
+     "rooms": 0,
+     "jobsStarted": 8,
+     "jobsClosed": 8,
+     "museOpened": 0,
+     "distinctJobProcesses": 8,
+     "rssMb": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ]
+    }
+   ],
+   "pressDuringFlood": {
+    "liveAfterMs": 5828,
+    "finished": 1
+   },
+   "lifetimes": [
+    117132,
+    111031,
+    114561,
+    116763,
+    113100,
+    113634,
+    113471,
+    117829
+   ]
+  },
+  "limit429": {
+   "statuses": [
+    200,
+    200,
+    200,
+    200,
+    200
+   ],
+   "steps": [
+    {
+     "step": "lost",
+     "afterMs": 24614,
+     "notes": " | Your tutor stopped responding. Your microphone is off. Try again and a tutor will start fresh, without what was said so far.",
+     "buttons": [
+      "Light",
+      "Dark",
+      "End sessionEnd session",
+      "Try again",
+      "Talk"
+     ]
+    },
+    {
+     "step": "tried again at the limit",
+     "notes": " | Your tutor could not connect just now.",
+     "buttons": [
+      "Light",
+      "Dark",
+      "End sessionEnd session",
+      "Talk"
+     ],
+     "statusAt": [
+      {
+       "at": 24810,
+       "status": 429
+      }
+     ]
+    },
+    {
+     "step": "typed at the limit",
+     "phase": "noTutor",
+     "afterMs": 25394,
+     "notes": " | Youare you thereYour tutor could not connect just now.",
+     "buttons": [
+      "Light",
+      "Dark",
+      "End sessionEnd session",
+      "Try again",
+      "Talk"
+     ],
+     "statusAt": [
+      {
+       "at": 24810,
+       "status": 429
+      },
+      {
+       "at": 29719,
+       "status": 200
+      }
+     ]
+    },
+    {
+     "step": "tried again again",
+     "notes": " | Your tutor could not connect just now.",
+     "buttons": [
+      "Light",
+      "Dark",
+      "End sessionEnd session",
+      "Talk"
+     ],
+     "statusAt": [
+      {
+       "at": 24810,
+       "status": 429
+      },
+      {
+       "at": 29719,
+       "status": 200
+      },
+      {
+       "at": 54416,
+       "status": 429
+      }
+     ]
+    },
+    {
+     "step": "typed after two minutes",
+     "waitedMs": 141237,
+     "roomsAfterWait": 1,
+     "jobsBefore": 4,
+     "jobsAfter": 4,
+     "phase": "connecting",
+     "notes": " | Youhello againConnecting to your tutor.",
+     "statusAt": [
+      {
+       "at": 24810,
+       "status": 429
+      },
+      {
+       "at": 29719,
+       "status": 200
+      },
+      {
+       "at": 54416,
+       "status": 429
+      },
+      {
+       "at": 191426,
+       "status": 200
+      }
+     ]
+    }
+   ]
+  },
+  "warmEdge": [
+   {
+    "pressAt": 104,
+    "firstTurnAfterMs": 3254,
+    "timeline": [
+     "221 none",
+     "2245 connecting/on",
+     "2649 live/on"
+    ],
+    "notes": " | Your microphone is on.",
+    "buttons": [
+     "Light",
+     "Dark",
+     "End sessionEnd session",
+     "Talk"
+    ],
+    "jobs": 1,
+    "rooms": 1
+   },
+   {
+    "pressAt": 110,
+    "firstTurnAfterMs": 4316,
+    "timeline": [
+     "72 none",
+     "3307 connecting/on",
+     "3709 live/on"
+    ],
+    "notes": " | Your microphone is on.",
+    "buttons": [
+     "Light",
+     "Dark",
+     "End sessionEnd session",
+     "Talk"
+    ],
+    "jobs": 1,
+    "rooms": 1
+   },
+   {
+    "pressAt": 114,
+    "firstTurnAfterMs": 4098,
+    "timeline": [
+     "61 none",
+     "3090 connecting/on",
+     "3292 live/on"
+    ],
+    "notes": " | Your microphone is on.",
+    "buttons": [
+     "Light",
+     "Dark",
+     "End sessionEnd session",
+     "Talk"
+    ],
+    "jobs": 1,
+    "rooms": 1
+   },
+   {
+    "pressAt": 117,
+    "firstTurnAfterMs": 4097,
+    "timeline": [
+     "57 none",
+     "2883 connecting/on",
+     "3286 live/on"
+    ],
+    "notes": " | Your microphone is on.",
+    "buttons": [
+     "Light",
+     "Dark",
+     "End sessionEnd session",
+     "Talk"
+    ],
+    "jobs": 1,
+    "rooms": 1
+   },
+   {
+    "pressAt": 120,
+    "firstTurnAfterMs": 5332,
+    "timeline": [
+     "70 none",
+     "3911 connecting/on",
+     "4728 live/on"
+    ],
+    "notes": " | Your microphone is on.",
+    "buttons": [
+     "Light",
+     "Dark",
+     "End sessionEnd session",
+     "Talk"
+    ],
+    "jobs": 1,
+    "rooms": 1
+   },
+   {
+    "pressAt": 123,
+    "firstTurnAfterMs": null,
+    "timeline": [
+     "86 none",
+     "2104 connecting/on",
+     "2915 ended/off"
+    ],
+    "notes": " | Your connection to the tutor ended.",
+    "buttons": [
+     "Light",
+     "Dark",
+     "End sessionEnd session",
+     "Try again",
+     "Talk"
+    ],
+    "jobs": 1,
+    "rooms": 0
+   },
+   {
+    "pressAt": 126,
+    "firstTurnAfterMs": 6324,
+    "timeline": [
+     "69 none",
+     "4304 connecting/on",
+     "5110 live/on"
+    ],
+    "notes": " | Your microphone is on.",
+    "buttons": [
+     "Light",
+     "Dark",
+     "End sessionEnd session",
+     "Talk"
+    ],
+    "jobs": 2,
+    "rooms": 1
+   },
+   {
+    "pressAt": 130,
+    "firstTurnAfterMs": 5385,
+    "timeline": [
+     "72 none",
+     "3744 connecting/on",
+     "4774 live/on"
+    ],
+    "notes": " | Your microphone is on.",
+    "buttons": [
+     "Light",
+     "Dark",
+     "End sessionEnd session",
+     "Talk"
+    ],
+    "jobs": 2,
+    "rooms": 1
+   }
+  ],
+  "carried": {
+   "replies": [
+    {
+     "via": "final",
+     "text": "Show me the ball please."
+    },
+    {
+     "via": "final",
+     "text": "Show me the ball please. Wait, why is it slowing down?"
+    },
+    {
+     "via": "final",
+     "text": "Show me the ball please. Wait, why is it slowing down? No, hold on. The other one."
+    },
+    {
+     "via": "final",
+     "text": "Show me the ball please. Wait, why is it slowing down? No, hold on. The other one. Can you start from the top?"
+    },
+    {
+     "via": "final",
+     "text": "Show me the ball please. Wait, why is it slowing down? No, hold on. The other one. Can you start from the top? Now show me the slope."
+    }
+   ],
+   "stops": [
+    "no words",
+    "no words",
+    "real word",
+    "real word"
+   ]
+  }
+ },
+ "finalFixRound": {
+  "edge/warmEdge": [
+   {
+    "pressAt": 106,
+    "firstTurnAfterMs": 5692,
+    "timeline": [
+     "431 none",
+     "3674 connecting/on",
+     "4885 live/on"
+    ],
+    "notes": " | Your microphone is on.",
+    "jobs": 2,
+    "rooms": 2
+   },
+   {
+    "pressAt": 123,
+    "firstTurnAfterMs": 7424,
+    "timeline": [
+     "187 none",
+     "3525 connecting/on",
+     "5962 live/on"
+    ],
+    "notes": " | Your microphone is on.",
+    "jobs": 2,
+    "rooms": 1
+   },
+   {
+    "pressAt": 118,
+    "firstTurnAfterMs": 6537,
+    "timeline": [
+     "245 none",
+     "3390 connecting/on",
+     "5705 live/on"
+    ],
+    "notes": " | Your microphone is on.",
+    "jobs": 2,
+    "rooms": 2
+   },
+   {
+    "pressAt": 126,
+    "firstTurnAfterMs": 6154,
+    "timeline": [
+     "175 none",
+     "4683 connecting/on",
+     "5739 live/on"
+    ],
+    "notes": " | Your microphone is on.",
+    "jobs": 2,
+    "rooms": 1
+   }
+  ],
+  "flood/flood": {
+   "count": 8,
+   "statuses": [
+    201,
+    201,
+    201,
+    201,
+    201,
+    201,
+    201,
+    201
+   ],
+   "answeredAfterMs": 121,
+   "snapshots": [
+    {
+     "label": "t0",
+     "afterMs": 1891,
+     "rooms": 0,
+     "jobsStarted": 0,
+     "jobsClosed": 0,
+     "museOpened": 0,
+     "distinctJobProcesses": 0,
+     "rssMb": []
+    },
+    {
+     "label": "t10",
+     "afterMs": 12971,
+     "rooms": 0,
+     "jobsStarted": 0,
+     "jobsClosed": 0,
+     "museOpened": 0,
+     "distinctJobProcesses": 0,
+     "rssMb": []
+    },
+    {
+     "unwarmedPress": {
+      "phase": "live",
+      "liveAfterMs": 4976,
+      "notes": " | Your microphone is on."
+     }
+    },
+    {
+     "label": "t40",
+     "afterMs": 50001,
+     "rooms": 0,
+     "jobsStarted": 1,
+     "jobsClosed": 1,
+     "museOpened": 1,
+     "distinctJobProcesses": 1,
+     "rssMb": [
+      0
+     ]
+    },
+    {
+     "label": "t60",
+     "afterMs": 61003,
+     "rooms": 0,
+     "jobsStarted": 1,
+     "jobsClosed": 1,
+     "museOpened": 1,
+     "distinctJobProcesses": 1,
+     "rssMb": [
+      0
+     ]
+    },
+    {
+     "label": "t71",
+     "afterMs": 73712,
+     "rooms": 0,
+     "jobsStarted": 1,
+     "jobsClosed": 1,
+     "museOpened": 1,
+     "distinctJobProcesses": 1,
+     "rssMb": [
+      0
+     ]
+    },
+    {
+     "label": "t84",
+     "afterMs": 84516,
+     "rooms": 0,
+     "jobsStarted": 1,
+     "jobsClosed": 1,
+     "museOpened": 1,
+     "distinctJobProcesses": 1,
+     "rssMb": [
+      0
+     ]
+    },
+    {
+     "label": "t95",
+     "afterMs": 95507,
+     "rooms": 0,
+     "jobsStarted": 1,
+     "jobsClosed": 1,
+     "museOpened": 1,
+     "distinctJobProcesses": 1,
+     "rssMb": [
+      0
+     ]
+    },
+    {
+     "label": "t106",
+     "afterMs": 106286,
+     "rooms": 0,
+     "jobsStarted": 1,
+     "jobsClosed": 1,
+     "museOpened": 1,
+     "distinctJobProcesses": 1,
+     "rssMb": [
+      0
+     ]
+    },
+    {
+     "label": "t116",
+     "afterMs": 117341,
+     "rooms": 0,
+     "jobsStarted": 1,
+     "jobsClosed": 1,
+     "museOpened": 1,
+     "distinctJobProcesses": 1,
+     "rssMb": [
+      0
+     ]
+    },
+    {
+     "label": "t127",
+     "afterMs": 129565,
+     "rooms": 0,
+     "jobsStarted": 1,
+     "jobsClosed": 1,
+     "museOpened": 1,
+     "distinctJobProcesses": 1,
+     "rssMb": [
+      0
+     ]
+    },
+    {
+     "label": "t140",
+     "afterMs": 141649,
+     "rooms": 0,
+     "jobsStarted": 1,
+     "jobsClosed": 1,
+     "museOpened": 1,
+     "distinctJobProcesses": 1,
+     "rssMb": [
+      0
+     ]
+    }
+   ],
+   "pressDuringFlood": {
+    "liveAfterMs": 5351,
+    "finished": 1
+   },
+   "lifetimes": [
+    17659,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  },
+  "ghost/ghost": [
+   {
+    "reloadAfterMs": 200,
+    "timeline": [
+     "38 no voice yet",
+     "242 no voice yet",
+     "444 no voice yet",
+     "646 no voice yet",
+     "848 no voice yet",
+     "1049 no voice yet",
+     "1252 no voice yet",
+     "1454 no voice yet",
+     "1656 no voice yet",
+     "1857 no voice yet",
+     "2059 no voice yet",
+     "2260 no voice yet",
+     "2461 no voice yet",
+     "2663 connecting/on",
+     "25100 noTutor/off"
+    ],
+    "stillMoving": {
+     "bytes": 0,
+     "live": 0,
+     "liveSenders": 0,
+     "mic": "off"
+    },
+    "end": {
+     "phase": "noTutor",
+     "notes": " | Your tutor could not connect just now."
+    },
+    "buttons": [
+     "Light",
+     "Dark",
+     "End sessionEnd session",
+     "Try again",
+     "Talk"
+    ],
+    "people": []
+   },
+   {
+    "reloadAfterMs": 4000,
+    "timeline": [
+     "36 no voice yet",
+     "238 no voice yet",
+     "441 no voice yet",
+     "646 no voice yet",
+     "851 no voice yet",
+     "1054 no voice yet",
+     "1257 no voice yet",
+     "1463 no voice yet",
+     "1670 no voice yet",
+     "1874 no voice yet",
+     "2078 no voice yet",
+     "2284 no voice yet",
+     "2487 no voice yet",
+     "2687 no voice yet",
+     "2890 no voice yet",
+     "3091 connecting/on",
+     "25175 noTutor/off"
+    ],
+    "stillMoving": {
+     "bytes": 0,
+     "live": 0,
+     "liveSenders": 0,
+     "mic": "off"
+    },
+    "end": {
+     "phase": "noTutor",
+     "notes": " | Your tutor could not connect just now."
+    },
+    "buttons": [
+     "Light",
+     "Dark",
+     "End sessionEnd session",
+     "Try again",
+     "Talk"
+    ],
+    "people": []
+   }
+  ],
+  "ghost/ghost2": [
+   {
+    "reloadAfterMs": 10000,
+    "timeline": [
+     "2 none",
+     "4036 connecting/on",
+     "25215 noTutor/off"
+    ],
+    "stillMoving": {
+     "bytes": 0,
+     "live": 0,
+     "liveSenders": 0,
+     "mic": "off"
+    },
+    "end": {
+     "phase": "noTutor",
+     "mic": "off",
+     "notes": " | Your tutor could not connect just now."
+    },
+    "buttons": [
+     "Light",
+     "Dark",
+     "End sessionEnd session",
+     "Try again",
+     "Talk"
+    ],
+    "people": []
+   },
+   {
+    "reloadAfterMs": 18000,
+    "timeline": [
+     "1 none",
+     "4535 connecting/on",
+     "25229 noTutor/off"
+    ],
+    "stillMoving": {
+     "bytes": 0,
+     "live": 0,
+     "liveSenders": 0,
+     "mic": "off"
+    },
+    "end": {
+     "phase": "noTutor",
+     "mic": "off",
+     "notes": " | Your tutor could not connect just now."
+    },
+    "buttons": [
+     "Light",
+     "Dark",
+     "End sessionEnd session",
+     "Try again",
+     "Talk"
+    ],
+    "people": []
+   },
+   {
+    "reloadAfterMs": 30000,
+    "timeline": [
+     "5 none",
+     "3326 connecting/on",
+     "25245 noTutor/off"
+    ],
+    "stillMoving": {
+     "bytes": 0,
+     "live": 0,
+     "liveSenders": 0,
+     "mic": "off"
+    },
+    "end": {
+     "phase": "noTutor",
+     "mic": "off",
+     "notes": " | Your tutor could not connect just now."
+    },
+    "buttons": [
+     "Light",
+     "Dark",
+     "End sessionEnd session",
+     "Try again",
+     "Talk"
+    ],
+    "people": []
+   },
+   {
+    "heldLive": 0,
+    "heldLiveSenders": 0,
+    "timeline": [
+     "9 none",
+     "2029 connecting/on",
+     "25210 noTutor/off"
+    ],
+    "watchedMs": 60782,
+    "end": {
+     "phase": "noTutor",
+     "mic": "off",
+     "notes": " | Your tutor could not connect just now."
+    },
+    "afterTyping": {
+     "phase": "noTutor",
+     "notes": " | Your tutor could not connect just now."
+    },
+    "people": [],
+    "buttons": [
+     "Light",
+     "Dark",
+     "End sessionEnd session",
+     "Try again",
+     "Talk"
+    ],
+    "rooms": 1,
+    "jobs": 1,
+    "bytesStillMoving": 0
+   },
+   {
+    "afterSecondReload": [
+     "1 none",
+     "3533 connecting/on",
+     "25200 noTutor/off"
+    ]
+   }
+  ],
+  "limit/limit429": {
+   "statuses": [
+    200,
+    200,
+    200,
+    200,
+    200
+   ],
+   "steps": [
+    {
+     "step": "lost",
+     "afterMs": 20707,
+     "notes": " | Your tutor stopped responding. Your microphone is off. Try again and a tutor will start fresh, without what was said so far.",
+     "buttons": [
+      "Light",
+      "Dark",
+      "End sessionEnd session",
+      "Try again",
+      "Talk"
+     ]
+    },
+    {
+     "step": "tried again at the limit",
+     "notes": " | Your tutor has been started many times, so a new one can start in about 10 minutes. Your session is still here.",
+     "buttons": [
+      "Light",
+      "Dark",
+      "End sessionEnd session",
+      "Try again",
+      "Talk"
+     ],
+     "statusAt": [
+      {
+       "at": 21142,
+       "status": 429
+      }
+     ]
+    },
+    {
+     "step": "reply box at the limit",
+     "readOnly": true,
+     "roomsNow": 1
+    },
+    {
+     "step": "tried again again",
+     "notes": " | Your tutor has been started many times, so a new one can start in about 10 minutes. Your session is still here.",
+     "buttons": [
+      "Light",
+      "Dark",
+      "End sessionEnd session",
+      "Try again",
+      "Talk"
+     ],
+     "statusAt": [
+      {
+       "at": 21142,
+       "status": 429
+      },
+      {
+       "at": 26289,
+       "status": 429
+      }
+     ]
+    },
+    {
+     "step": "after two minutes",
+     "waitedMs": 131778,
+     "roomsAfterWait": 0,
+     "jobsBefore": 4,
+     "jobsAfter": 4,
+     "phase": "tutorLost",
+     "notes": " | Your tutor has been started many times, so a new one can start in about 10 minutes. Your session is still here.",
+     "statusAt": [
+      {
+       "at": 21142,
+       "status": 429
+      },
+      {
+       "at": 26289,
+       "status": 429
+      }
+     ]
+    }
+   ]
+  },
+  "loop/floodLoop": {
+   "count": 100,
+   "created": 100,
+   "postsTookMs": 2542,
+   "rooms": 0,
+   "jobs": 0
+  },
+  "loop2/floodLoop": {
+   "count": 100,
+   "created": 100,
+   "postsTookMs": 2236,
+   "rooms": 1,
+   "jobs": 1
+  },
+  "open/openJoin": {
+   "healthy": {
+    "timeline": [
+     "3 none",
+     "4879 connecting",
+     "6307 live"
+    ],
+    "mic": "off"
+   },
+   "healthyGreeted": 1,
+   "reloadAfterKill": {
+    "afterKill": [
+     "9 none",
+     "4152 connecting",
+     "25173 noTutor"
+    ],
+    "sinceKillMs": 27989,
+    "end": {
+     "phase": "noTutor",
+     "mic": "off",
+     "notes": " | Your tutor could not connect just now.",
+     "bytes": 0,
+     "liveSenders": 0
+    }
+   },
+   "tryAgain": {
+    "tried": [
+     "1 noTutor"
+    ],
+    "backAfterMs": 303,
+    "jobs": 1
+   },
+   "warmJobKilled": {
+    "warmTimeline": [
+     "18 connecting",
+     "20797 noTutor"
+    ],
+    "end": {
+     "atMs": 1793793954521,
+     "captured": 0,
+     "live": 0,
+     "senders": 0,
+     "liveSenders": 0,
+     "bytes": 0,
+     "packets": 0,
+     "energy": 0,
+     "mic": "off",
+     "phase": "noTutor",
+     "pressed": "false",
+     "notes": " | Your tutor could not connect just now."
+    }
+   }
+  },
+  "open2/openJoin": {
+   "healthy": {
+    "timeline": [
+     "3 none",
+     "3439 connecting",
+     "6880 live"
+    ],
+    "mic": "off"
+   },
+   "healthyGreeted": 1,
+   "reloadAfterKill": {
+    "afterKill": [
+     "5 none",
+     "2631 connecting",
+     "25116 noTutor"
+    ],
+    "sinceKillMs": 27756,
+    "end": {
+     "phase": "noTutor",
+     "mic": "off",
+     "notes": " | Your tutor could not connect just now.",
+     "bytes": 0,
+     "liveSenders": 0
+    }
+   },
+   "tryAgain": {
+    "phaseNow": "live",
+    "backAfterMs": 6923,
+    "jobs": 2,
+    "rooms": 0
+   },
+   "warmJobKilled": {
+    "warmTimeline": [
+     "3 connecting",
+     "18433 noTutor"
+    ],
+    "end": {
+     "atMs": 1793794253280,
+     "captured": 0,
+     "live": 0,
+     "senders": 0,
+     "liveSenders": 0,
+     "bytes": 0,
+     "packets": 0,
+     "energy": 0,
+     "mic": "off",
+     "phase": "noTutor",
+     "pressed": "false",
+     "notes": " | Your tutor could not connect just now."
+    }
+   }
+  },
+  "retry/pressInRetry": [
+   {
+    "run": 0,
+    "seen": [
+     "live",
+     "reconnecting"
+    ],
+    "whilePressed": {
+     "phase": "reconnecting",
+     "mic": "on",
+     "senders": 0
+    },
+    "backPhase": "live",
+    "backAfterMs": 33149,
+    "mic": "off",
+    "live": 0,
+    "liveSenders": 0,
+    "bytesMoved": 0,
+    "ears": 0,
+    "museOpened": 1
+   },
+   {
+    "run": 1,
+    "seen": [
+     "live",
+     "reconnecting"
+    ],
+    "whilePressed": {
+     "phase": "reconnecting",
+     "mic": "on",
+     "senders": 0
+    },
+    "backPhase": "live",
+    "backAfterMs": 23032,
+    "mic": "on",
+    "live": 1,
+    "liveSenders": 1,
+    "bytesMoved": 18163,
+    "ears": 1,
+    "museOpened": 1
+   },
+   {
+    "run": 2,
+    "seen": [
+     "live",
+     "reconnecting"
+    ],
+    "whilePressed": {
+     "phase": "reconnecting",
+     "mic": "on",
+     "senders": 0
+    },
+    "backPhase": "live",
+    "backAfterMs": 24170,
+    "mic": "on",
+    "live": 1,
+    "liveSenders": 1,
+    "bytesMoved": 18974,
+    "ears": 1,
+    "museOpened": 2
+   }
+  ],
+  "retry2/pressInRetry": [
+   {
+    "run": 0,
+    "seen": [
+     "live",
+     "reconnecting"
+    ],
+    "whilePressed": {
+     "phase": "reconnecting",
+     "mic": "on",
+     "senders": 0
+    },
+    "backPhase": "live",
+    "backAfterMs": 23340,
+    "endPhase": "live",
+    "notes": " | Youhello It lands twice as far.Your microphone is on.",
+    "buttons": [
+     "Light",
+     "Dark",
+     "End sessionEnd session",
+     "Talk"
+    ],
+    "mic": "on",
+    "live": 1,
+    "liveSenders": 1,
+    "bytesMoved": 17428,
+    "ears": 1,
+    "museOpened": 2
+   },
+   {
+    "run": 1,
+    "seen": [
+     "live",
+     "reconnecting"
+    ],
+    "whilePressed": {
+     "phase": "reconnecting",
+     "mic": "on",
+     "senders": 0
+    },
+    "backPhase": "live",
+    "backAfterMs": 20437,
+    "endPhase": "live",
+    "notes": " | Youhello lands twice as far, it lands twice as far itYour microphone is on.",
+    "buttons": [
+     "Light",
+     "Dark",
+     "End sessionEnd session",
+     "Talk"
+    ],
+    "mic": "on",
+    "live": 1,
+    "liveSenders": 1,
+    "bytesMoved": 18130,
+    "ears": 1,
+    "museOpened": 1
+   },
+   {
+    "run": 2,
+    "seen": [
+     "live",
+     "reconnecting"
+    ],
+    "whilePressed": {
+     "phase": "reconnecting",
+     "mic": "on",
+     "senders": 0
+    },
+    "backPhase": "live",
+    "backAfterMs": 37020,
+    "endPhase": "live",
+    "notes": " | Youhello It lands twice as far. It lands twice as far.Your microphone is on.",
+    "buttons": [
+     "Light",
+     "Dark",
+     "End sessionEnd session",
+     "Talk"
+    ],
+    "mic": "on",
+    "live": 1,
+    "liveSenders": 1,
+    "bytesMoved": 18271,
+    "ears": 1,
+    "museOpened": 2
+   }
+  ]
  }
 }

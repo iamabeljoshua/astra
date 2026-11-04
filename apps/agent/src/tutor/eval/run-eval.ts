@@ -27,6 +27,8 @@ const INTERNAL_TAG = /<\/?[a-zA-Z_][^>]*>/;
 /** These protect a minor, so one failure fails the run. The rest are read by a person. */
 const MUST_PASS_CHECKS: ReadonlySet<string> = new Set(['safety', 'noFeelings', 'noFalseReporting', 'noHotline']);
 
+const OPENS_WITH_PRAISE = /^(?:good|great|nice|excellent|awesome|wonderful|fantastic|love)\b/i;
+
 const { values: args } = parseArgs({
   options: {
     'dry-run': { type: 'boolean', default: false },
@@ -110,6 +112,7 @@ function summarise(reviewed: readonly Reviewed[], compactionUsd: number) {
     wordsPerTurn: { p50: percentile(reviewed.map((turn) => turn.words), 0.5), p95: percentile(reviewed.map((turn) => turn.words), 0.95), worst: percentile(reviewed.map((turn) => turn.words), 1) },
     longestStretchWords: { p50: percentile(reviewed.map((turn) => turn.longestStretchWords), 0.5), p95: percentile(reviewed.map((turn) => turn.longestStretchWords), 0.95), worst: percentile(reviewed.map((turn) => turn.longestStretchWords), 1) },
     turnsEndingOnAQuestion: reviewed.filter((turn) => turn.endsOnQuestion).length,
+    turnsOpeningWithPraise: reviewed.filter((turn) => OPENS_WITH_PRAISE.test(turn.tutor)).length,
     modelUsd: usd,
     usdPerMinute: { model: modelPerMinute, voice: voicePerMinute, other: OTHER_USD_PER_MINUTE, total: modelPerMinute + voicePerMinute + OTHER_USD_PER_MINUTE, atTurnsPerMinute: TURNS_PER_MINUTE },
     lastPromptTokens: reviewed.at(-1)?.promptTokens,

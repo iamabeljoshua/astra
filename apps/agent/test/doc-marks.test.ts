@@ -21,4 +21,21 @@ describe('the docs', () => {
     expect(files.length).toBeGreaterThan(10);
     expect(marks).toEqual([]);
   });
+
+  describe('voice.md', () => {
+    const doc = readFileSync(join(REPO_ROOT, 'docs/tests/voice.md'), 'utf8');
+    const results = JSON.parse(readFileSync(join(REPO_ROOT, 'docs/tests/voice-results.json'), 'utf8')) as { joinTiming?: unknown; safetyProofs?: unknown };
+    const isIn = (raw: unknown, figure: string) => new RegExp(`(?<![\\d.])${figure}(?!\\d)`).test(JSON.stringify(raw) ?? '');
+
+    it('has the raw run behind every figure of the first word table in voice-results.json', () => {
+      const table = doc.slice(doc.indexOf('## How long the first word takes'), doc.indexOf('So a student who presses'));
+      const figures = table.split('\n').filter((line) => line.startsWith('|')).flatMap((line) => line.match(/(?<![\w.])\d{3,}(?![\w])/g) ?? []);
+      expect(figures.length).toBeGreaterThan(50);
+      expect(figures.filter((figure) => !isIn(results.joinTiming, figure))).toEqual([]);
+    });
+
+    it('has the raw run behind the proofs of a finish, a killed job, and a quiet room', () => {
+      expect(['1693', '2841', '19778', '24840', '5270', '5709', '540450', '600342', '5813'].filter((figure) => !isIn(results.safetyProofs, figure))).toEqual([]);
+    });
+  });
 });

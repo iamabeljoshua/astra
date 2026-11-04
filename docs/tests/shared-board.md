@@ -104,7 +104,7 @@ A typed line is hostile input. The reader builds math only from an allow list of
 
 ## While the tutor connects
 
-The right side shows the dots of a still grid drifting into the Saturn from sign-in, with its rings slowly turning: `ConnectingSaturn`, `ui/dots/gatherDots.ts`, and `ui/dots/gatherPainter.ts`. "Connecting your tutor" shows in the words column. The voice never waits for it. When the tutor is there, the dots go home over 500 ms, one dot shows for 280 ms in the middle of the side and flies to rest above the words, and the canvas stops. Reduced motion paints a still Saturn once. Abel chose this from five options.
+The right side shows the dots of a still grid drifting into the Saturn from sign-in, with its rings slowly turning: `ConnectingSaturn`, `ui/dots/gatherDots.ts`, and `ui/dots/gatherPainter.ts`. "Connecting your tutor" shows in the words column. The voice never waits for it. It runs until the tutor's first turn, from `isTutorOnTheWay`, the same test the room's joining at open uses. When the tutor is there, the dots go home over 500 ms, one dot shows for 280 ms in the middle of the side and flies to rest above the words, and the canvas stops. Reduced motion paints a still Saturn once. Abel chose this from five options.
 
 ## The cost line
 

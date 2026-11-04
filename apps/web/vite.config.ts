@@ -50,6 +50,8 @@ export default defineConfig(({ command, mode }) => {
       // Vitest empties any stylesheet not listed here, and a test reads the font rules in KaTeX's.
       css: { include: [/katex/] },
       setupFiles: ['./src/testSetup.ts'],
+      // This runs before each test. Files in one vmForks worker share process.env, so the afterEach in testSetup.ts stops the last test's stub reaching the next file.
+      unstubEnvs: true,
       env: {
         VITE_SUPABASE_URL: 'http://127.0.0.1:54421',
         VITE_SUPABASE_PUBLISHABLE_KEY: 'test-publishable-key',

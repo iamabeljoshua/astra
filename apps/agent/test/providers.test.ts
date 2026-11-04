@@ -3,7 +3,7 @@ import { AudioFrame } from '@livekit/rtc-node';
 import { afterEach, describe, expect, it } from 'vitest';
 import { makeTutorVoice, TUTOR_VOICE_ID } from '../src/providers/choose.ts';
 import { makeElevenLabsVoice } from '../src/providers/elevenlabs.ts';
-import { makeMuseTranscriber, MUSE_MODEL, type MuseTimings } from '../src/providers/meta.ts';
+import { makeMuseTranscriber, MUSE_MODEL, MUSE_TIMINGS, type MuseTimings } from '../src/providers/meta.ts';
 import { makeRenderedVoice } from '../src/providers/rendered-voice.ts';
 import { renderTone } from '../src/providers/fakes.ts';
 import { type FakeWire, startFakeElevenLabsWire } from './fake-elevenlabs-wire.ts';
@@ -188,6 +188,10 @@ describe('the Muse adapter', () => {
     expect(notes.filter((kind) => kind === 'hearing')).toHaveLength(2);
     stream.close();
     await transcriber.close();
+  });
+
+  it('ships a quiet close at 10 s, because a test with its own timings would hide a raised one and Muse is paid until it closes', () => {
+    expect(MUSE_TIMINGS.closeAfterQuietMs).toBe(10_000);
   });
 
   it('stops paying for Muse once frames have stayed away, and opens again at once on the next frame', async () => {

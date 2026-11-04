@@ -635,6 +635,13 @@ describe('the prompt names what math it may write', () => {
   });
 });
 
+describe('the tutor prompt', () => {
+  it('tells the model not to open with praise unless the student really asked something good', () => {
+    expect(TUTOR_SYSTEM).toMatch(/Do not open with praise/);
+    expect(TUTOR_SYSTEM).toMatch(/Good question/);
+  });
+});
+
 describe('words a cut reply carries into the next request', () => {
   const getUsers = (request: TutorModelRequest | undefined) => (request?.turns ?? []).flatMap((turn) => (turn.role === 'user' ? [turn.text] : []));
   const ask = async (brain: TutorBrain, text: string, carried?: string) => {
@@ -647,6 +654,15 @@ describe('words a cut reply carries into the next request', () => {
     await ask(brain, 'Why does it fall? And how fast?', 'Why does it fall?');
     await ask(brain, 'Why does it fall? And how fast? And the moon?', 'Why does it fall? And how fast?');
     expect(getUsers(model.requests.at(-1))).toEqual(['Why does it fall?', 'And how fast?', 'And the moon?']);
+  });
+
+  it('knows them when the rule kept only the newest of a long message, or evened out its spacing', async () => {
+    const { brain, model } = setup(() => reply('Okay, I will go on.'));
+    const longest = `Line one\nline two ${'word '.repeat(70).trim()}`;
+    await ask(brain, longest);
+    const newest = longest.split(/\s+/).slice(-60).join(' ');
+    await ask(brain, `${newest} the last words`, newest);
+    expect(getUsers(model.requests.at(-1))).toEqual([longest, 'the last words']);
   });
 
   it('sends them all when the turn that asked them never began, so no words are lost', async () => {

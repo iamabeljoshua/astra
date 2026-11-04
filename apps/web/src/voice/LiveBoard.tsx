@@ -182,6 +182,7 @@ export function LiveBoard({ voice, visual = null, onTalk, isTalkOn = false, canT
     setIsMathKeysOpen(false);
     setIsPenOpen(task.byHand === true);
   }, [task]);
+  const isTutorGone = isVoiceOver(view.phase) || view.closedBecause !== null;
   const tutorState = getTutorState(view, task !== null);
   useEffect(() => onTutorState?.(tutorState), [onTutorState, tutorState]);
   const getBand = () => {
@@ -207,7 +208,7 @@ export function LiveBoard({ voice, visual = null, onTalk, isTalkOn = false, canT
       <button
         type="button"
         className="board-tool"
-        disabled={isVoiceOver(view.phase)}
+        disabled={isTutorGone}
         data-testid="pen-tool"
         aria-pressed={isPenOpen}
         onClick={() => {
@@ -221,7 +222,7 @@ export function LiveBoard({ voice, visual = null, onTalk, isTalkOn = false, canT
       <button
         type="button"
         className="board-tool"
-        disabled={isVoiceOver(view.phase)}
+        disabled={isTutorGone}
         aria-pressed={isMathKeysOpen}
         onClick={() => {
           if (isVisualBig) bringBoard();
@@ -260,7 +261,7 @@ export function LiveBoard({ voice, visual = null, onTalk, isTalkOn = false, canT
             activity={activity}
             hasWrittenBefore={hasWrittenBefore}
             nextLineId={nextLineId}
-            isTutorGone={isVoiceOver(view.phase)}
+            isTutorGone={isTutorGone}
             band={getBand()}
           />
         }

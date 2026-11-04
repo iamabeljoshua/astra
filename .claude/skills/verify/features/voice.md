@@ -2,11 +2,11 @@
 
 A running session's screen connects to a real room. The student talks or types, and the tutor reacts first from code, answers aloud with captions, can be interrupted, and resumes after a dropped link. [The tutor's brain](./tutor.md) covers what it says.
 
-The page asks `POST /sessions/:id/live-room` first, and it starts no room and no audio until the answer holds access. That answer is always 200 for the student's own unfinished session.
+The page asks `POST /sessions/:id/live-room` as the session screen opens, beside setting up its audio, and it joins the room when the answer holds access. That answer is always 200 for the student's own unfinished session. The microphone stays off, and `getUserMedia` is not called, until the student presses **Talk**. Once the tutor has stopped and the student has done nothing for 8 s, the page says `Press Talk to answer, or type.`
 
 ## Sub-features
 
-- `voice-talk` presses **Talk**, opens the room, and hears a greeting in the tutor's voice.
+- `voice-talk` opens a session, hears the tutor's greeting and then the answer or topic with no press, and presses **Talk** to answer.
 - `voice-reaction` plays a stored reaction, with the dot pulsing first, before the reply.
 - `voice-stop` lowers the tutor on the student's first sound, cuts it on the first real word, and freezes the board.
 - `voice-backchannel` lowers the tutor on "Uh-huh" and does not stop it.

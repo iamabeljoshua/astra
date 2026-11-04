@@ -230,10 +230,15 @@ export const VOICE_LABELS = {
   micOn: 'Your microphone is on.',
   quietWarning: 'It has been quiet for a while, so this room closes in about a minute. Your session stays here either way.',
   stillHere: 'Keep the room open',
-  closedForQuiet: 'This room closed because it stayed quiet. Your session is still here.',
+  closedForQuiet: 'This room closed because it stayed quiet. Your session is still here. Open it again and a tutor will start fresh, without what was said so far.',
   openAgain: 'Open the room again',
   tryAgain: 'Try again',
-  turnOnSound: 'Turn on sound',
+  tapToHear: 'Tap to hear your tutor',
+  answerPrompt: 'Press Talk to answer, or type.',
+  tooSoon(waitSeconds: number | null) {
+    const minutes = Math.max(1, Math.ceil((waitSeconds ?? 60) / 60));
+    return `Your tutor has been started many times, so a new one can start in about ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}. Your session is still here.`;
+  },
 };
 
 export const BOARD_WORK_LABELS = {
@@ -309,11 +314,11 @@ export const SESSION_LABELS = {
   ending: 'Ending\u2026',
   close: 'Close',
   yourTutor: 'Your tutor',
-  idleWords: 'To carry on, type a reply or press Talk.',
   replyNotSent: 'This did not reach your tutor.',
   finishedWords: 'This session has finished.',
   boardStandIn: 'Your tutor will draw here as it speaks.',
   askAboutTopic: (title: string) => `I'd like to learn about ${title}.`,
+  carryOnWith: (title: string) => `I'm back to carry on with this: ${title}`,
   you: 'You',
   loading: 'Opening your session.',
   notFound: 'This session could not be found.',
@@ -511,7 +516,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
         heading: 'Who receives your data',
         today: [
           'Supabase runs our sign-in service and our database, so it holds everything we store on our servers, and it sends the sign-in email.',
-          'When you use a session, LiveKit Cloud carries your voice, the tutor\'s voice, and the messages between your browser and the tutor, including your words as text. It also receives your IP address and your student ID, a random code that does not include your name. We do not ask it to record any of this. We do not send LiveKit your name, your date of birth, your email address, your level, your interests, or your goal, though it carries anything you say or type yourself.',
+          'When a session opens, your browser joins LiveKit Cloud, even before you press Talk, so LiveKit receives your IP address and your student ID, a random code that does not include your name. During the session, LiveKit Cloud carries your voice, the tutor\'s voice, and the messages between your browser and the tutor, including your words as text. We do not ask it to record any of this. We do not send LiveKit your name, your date of birth, your email address, your level, your interests, or your goal, though it carries anything you say or type yourself.',
           "While your microphone is on, Meta's Muse Voice Transcribe receives your voice and turns it into text. Meta's terms let it keep what it receives for safety checks and human review.",
           "Anthropic, whose Claude model writes the tutor's replies, receives what you say and type in a session, including lines on the board, a line you paused on without sending, and a picture of anything you write with the pen, the tutor's earlier words, and your level, interests, and goal. We do not send it your name, your date of birth, your email address, or an account ID, though it receives anything you say or type yourself. Anthropic's terms say it does not train on this by default, and that it keeps it for a limited time.",
           "ElevenLabs receives the tutor's words and turns them into its voice. Those words can repeat what you said or typed.",

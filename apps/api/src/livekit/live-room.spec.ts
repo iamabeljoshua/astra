@@ -1,8 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { decodeJwt } from 'jose';
 import request from 'supertest';
+import { DataSource } from 'typeorm';
 import { createTestApp, createTestStudent, OLD_ENOUGH_BIRTH_DATE } from '../../test/test-database';
 import type { TestApp, TestStudent } from '../../test/test-database';
+import { SessionEntity } from '../infrastructure/orm/entities/session.entity';
+import { getLiveRoomKeys, LiveRooms, MOST_KNOWN_ROOMS } from './live-rooms';
 
 const LIVE_ROOM_KEYS = { LIVEKIT_URL: 'wss://astra-test.livekit.cloud', LIVEKIT_API_KEY: 'key-for-test', LIVEKIT_API_SECRET: 'secret-for-test-that-is-long-enough-to-sign', ASTRA_AGENT_NAME: 'tutor-for-test' };
 const VALID_SESSION = { title: 'Free-body diagrams', subject: 'Physics', language: 'en' };
@@ -175,11 +178,12 @@ describe('the live room route', () => {
   });
 
   it('calls the tutor in when a session starts, and the first press joins that room with no call to LiveKit', async () => {
-    const sessionId = await startSession();
+    const fresh = await createTestStudent(testApp);
+    const sessionId = await startSession(fresh);
     await waitUntil(() => liveKit.named('CreateRoom').length === 1);
     expect(liveKit.roomsOf(sessionId)).toHaveLength(1);
     const callsBefore = liveKit.calls.length;
-    const { body } = await post(`/sessions/${sessionId}/live-room`).expect(200);
+    const { body } = await post(`/sessions/${sessionId}/live-room`, fresh).expect(200);
     expect(getAccess(body).roomName).toBe(liveKit.roomsOf(sessionId)[0]);
     expect(liveKit.calls).toHaveLength(callsBefore);
   });
@@ -194,8 +198,10 @@ describe('the live room route', () => {
   });
 
   it('closes a warmed room when the session finishes before anyone joins', async () => {
-    const sessionId = await startSession();
-    await server().patch(`/sessions/${sessionId}`).set('Authorization', `Bearer ${student.token}`).send({ durationSeconds: 1, status: 'finished' }).expect(200);
+    const fresh = await createTestStudent(testApp);
+    const sessionId = await startSession(fresh);
+    await waitUntil(() => liveKit.roomsOf(sessionId).length === 1);
+    await server().patch(`/sessions/${sessionId}`).set('Authorization', `Bearer ${fresh.token}`).send({ durationSeconds: 1, status: 'finished' }).expect(200);
     expect(liveKit.roomsOf(sessionId)).toEqual([]);
   });
 
@@ -237,6 +243,109 @@ describe('the live room route', () => {
     await post(`/sessions/${sessionId}/live-room`, limited).expect(200);
     const untouched = await startSession(otherStudent);
     await post(`/sessions/${untouched}/live-room?startOver=yes`, otherStudent).expect(200);
+  });
+
+  it('warms at most two rooms for a student at once, and still creates every session', async () => {
+    const flooding = await createTestStudent(testApp);
+    const answers = await Promise.all(Array.from({ length: 8 }, () => post('/sessions', flooding).send(VALID_SESSION)));
+    expect(answers.map(({ status }) => status)).toEqual(Array.from({ length: 8 }, () => 201));
+    await waitUntil(() => liveKit.named('CreateRoom').length >= 2);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(liveKit.named('CreateRoom').length).toBeLessThanOrEqual(2);
+  });
+
+  it('warms again once the earlier rooms have had time to close, so a later lesson starts as fast', async () => {
+    const returning = await createTestStudent(testApp);
+    const earlier = await Promise.all([startSession(returning), startSession(returning), startSession(returning)]);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const createdBefore = liveKit.named('CreateRoom').length;
+    await testApp.app.get(DataSource).getRepository(SessionEntity).update(earlier, { startedAt: new Date(Date.now() - 121_000) });
+    const later = await startSession(returning);
+    await waitUntil(() => liveKit.roomsOf(later).length === 1);
+    expect(liveKit.named('CreateRoom')).toHaveLength(createdBefore + 1);
+  });
+
+  it('opens the room of a session it did not warm when the student joins, and tells no one to wait', async () => {
+    const reading = await createTestStudent(testApp);
+    const [first, second, third] = [await startSession(reading), await startSession(reading), await startSession(reading)];
+    await waitUntil(() => liveKit.named('CreateRoom').length === 2);
+    expect(liveKit.roomsOf(third)).toEqual([]);
+    for (const sessionId of [first, second, third]) await post(`/sessions/${sessionId}/live-room`, reading).expect(200);
+    expect(liveKit.roomsOf(third)).toHaveLength(1);
+    expect(liveKit.named('CreateRoom')).toHaveLength(3);
+  });
+
+  it('limits the rooms a student can open, because each one starts a job, says how long to wait, and leaves joining alone', async () => {
+    const opening = await createTestStudent(testApp);
+    const sessions: string[] = [];
+    for (let session = 0; session < 13; session += 1) sessions.push(await startSession(opening));
+    const allowed = sessions.slice(0, 12);
+    for (const sessionId of allowed) await post(`/sessions/${sessionId}/live-room`, opening).expect(200);
+    const { body } = await post(`/sessions/${sessions[12]}/live-room`, opening).expect(429);
+    expect((body as { retryAfterSeconds: number }).retryAfterSeconds).toBeGreaterThan(500);
+    expect((body as { retryAfterSeconds: number }).retryAfterSeconds).toBeLessThanOrEqual(600);
+    await post(`/sessions/${allowed[0]}/live-room`, opening).expect(200);
+    const untouched = await startSession(otherStudent);
+    await post(`/sessions/${untouched}/live-room`, otherStudent).expect(200);
+  });
+
+  it('counts no room LiveKit would not open, so an outage never ends in a false wait', async () => {
+    const unlucky = await createTestStudent(testApp);
+    const sessionId = await startSession(unlucky);
+    await waitUntil(() => liveKit.roomsOf(sessionId).length === 1);
+    liveKit.isDown = true;
+    for (let press = 0; press < 13; press += 1) await post(`/sessions/${sessionId}/live-room?startOver=yes`, unlucky).expect(503);
+    for (let press = 0; press < 13; press += 1) await post(`/sessions/${sessionId}/live-room`, unlucky).expect(503);
+    liveKit.isDown = false;
+    await post(`/sessions/${sessionId}/live-room?startOver=yes`, unlucky).expect(200);
+  });
+
+  it('says how long a student must wait to start over, from the start that lifts the limit', async () => {
+    const limited = await createTestStudent(testApp);
+    const sessionId = await startSession(limited);
+    const realNow = Date.now();
+    const clock = jest.spyOn(Date, 'now').mockReturnValue(realNow);
+    for (let startOver = 0; startOver < 5; startOver += 1) await post(`/sessions/${sessionId}/live-room?startOver=yes`, limited).expect(200);
+    clock.mockReturnValue(realNow + 240_000);
+    const { body } = await post(`/sessions/${sessionId}/live-room?startOver=yes`, limited).expect(429);
+    expect((body as { retryAfterSeconds: number }).retryAfterSeconds).toBe(360);
+    clock.mockReturnValue(realNow + 600_001);
+    await post(`/sessions/${sessionId}/live-room?startOver=yes`, limited).expect(200);
+  });
+
+  it('treats a warm room nobody joined as gone before it closes itself, so a late press never lands on a closing room', async () => {
+    const fresh = await createTestStudent(testApp);
+    const sessionId = await startSession(fresh);
+    await waitUntil(() => liveKit.roomsOf(sessionId).length === 1);
+    const [warmed] = liveKit.roomsOf(sessionId);
+    const later = Date.now() + 106_000;
+    jest.spyOn(Date, 'now').mockReturnValue(later);
+    const { body } = await post(`/sessions/${sessionId}/live-room`, fresh).expect(200);
+    expect((body as { roomName: string }).roomName).not.toBe(warmed);
+    expect(liveKit.named('ListRooms')).toHaveLength(0);
+  });
+
+  it('keeps joining a warm room a student has joined once, for as long as LiveKit says it is open', async () => {
+    const fresh = await createTestStudent(testApp);
+    const sessionId = await startSession(fresh);
+    await waitUntil(() => liveKit.roomsOf(sessionId).length === 1);
+    const { body: first } = await post(`/sessions/${sessionId}/live-room`, fresh).expect(200);
+    jest.spyOn(Date, 'now').mockReturnValue(Date.now() + 300_000);
+    const { body: second } = await post(`/sessions/${sessionId}/live-room`, fresh).expect(200);
+    expect((second as { roomName: string }).roomName).toBe((first as { roomName: string }).roomName);
+  });
+
+  it('forgets the names of the oldest rooms, and finds one again by asking LiveKit', async () => {
+    const rooms = testApp.app.get(LiveRooms);
+    const keys = getLiveRoomKeys(process.env);
+    if (!keys) throw new Error('the keys are set in beforeAll');
+    const oldest = randomUUID();
+    const name = await rooms.open(keys, oldest, randomUUID());
+    for (let session = 0; session < MOST_KNOWN_ROOMS; session += 1) rooms.warm(randomUUID(), randomUUID());
+    await waitUntil(() => liveKit.named('CreateRoom').length > MOST_KNOWN_ROOMS);
+    liveKit.calls.length = 0;
+    expect(await rooms.open(keys, oldest, randomUUID())).toBe(name);
+    expect(liveKit.named('ListRooms')).toEqual([{ method: 'ListRooms', body: {} }]);
   });
 
   it('answers 503 when LiveKit will not open the room, and gives no token', async () => {

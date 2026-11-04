@@ -216,6 +216,36 @@ describe('joining a room', () => {
   });
 });
 
+describe('a room that opens with no press', () => {
+  it('touches no microphone until the student presses Talk, while the tutor speaks', async () => {
+    const { getUserMedia } = stubMicrophone();
+    const { room } = await openVoice();
+
+    room.emit('TrackSubscribed', { kind: 'audio' });
+    fromAgent(room, { type: 'pulse' });
+    fromAgent(room, { type: 'turnStarted', turnId: 'turn-a-1' });
+    await vi.advanceTimersByTimeAsync(5000);
+
+    expect(getUserMedia).not.toHaveBeenCalled();
+    expect(room.localParticipant.publishTrack).not.toHaveBeenCalled();
+    expect(voice.getView().mic).toBe('off');
+
+    await voice.toggleMic();
+    expect(getUserMedia).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('a tutor that has not spoken yet', () => {
+  it('counts as started from its first turn, and stays started', async () => {
+    const { room } = await openVoice();
+    expect(voice.getView().hasTutorStarted).toBe(false);
+    fromAgent(room, { type: 'turnStarted', turnId: 'turn-a-1' });
+    expect(voice.getView().hasTutorStarted).toBe(true);
+    fromAgent(room, { type: 'stop', turnId: 'turn-a-1' });
+    expect(voice.getView().hasTutorStarted).toBe(true);
+  });
+});
+
 describe('the first pulses of a room', () => {
   const getPulses = (room: InstanceType<typeof FakeRoom>) => getSentMessages(room).filter((message) => message.type === 'pulse') as unknown as { hearsAgent: boolean }[];
 
@@ -264,8 +294,19 @@ describe('rejoining after a drop', () => {
     expect(voice.getView()).toMatchObject({ phase: 'live', startedFresh: true, isThinking: false });
   });
 
+  it('says nothing of the kind when the student never heard the first tutor', async () => {
+    const { room } = await openVoice(async () => ({ ...ROOM_ACCESS, roomName: 'session-a-session-new' }));
+
+    room.emit('Disconnected', DROPPED);
+    await vi.advanceTimersByTimeAsync(0);
+
+    fromAgent(room, { type: 'pulse' });
+    expect(voice.getView().startedFresh).toBe(false);
+  });
+
   it('drops that line once the student has gone on', async () => {
     const { room } = await openVoice(async () => ({ ...ROOM_ACCESS, roomName: 'session-a-session-new' }));
+    fromAgent(room, { type: 'pulse' });
     room.emit('Disconnected', DROPPED);
     await vi.advanceTimersByTimeAsync(0);
 
