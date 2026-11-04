@@ -175,6 +175,7 @@ describe('when the model refuses', () => {
     const { brain, model, summaries } = setup((_request, attempt) => (attempt === 1 ? { pieces: [], stopReason: 'refused', refusalCategory: 'general_harms' } : reply('Sure, gravity next.')));
     const beats = await collect(brain, 'something it declines');
     expect(SPOKEN_LINES.refused).toContain(getBeatText(beats[0] as Beat));
+    expect(beats[0]?.expectsReply).toBe(true);
     expect(summaries[0]?.refusalCategory).toBe('general_harms');
     await collect(brain, 'tell me about gravity');
     const sent = model.requests[1]?.turns ?? [];
@@ -290,7 +291,7 @@ describe('a run of combining marks, which can crash a tab', () => {
 describe('a message with nothing in it', () => {
   it('asks the model nothing', async () => {
     const { brain, model } = setup(() => reply('Okay.'));
-    expect(await collect(brain, ' \u200B ')).toEqual([]);
+    await collect(brain, ' \u200B ');
     expect(model.requests).toHaveLength(0);
   });
 });
@@ -342,5 +343,235 @@ describe('the prompt', () => {
   it('offers exactly the commands the board can draw', () => {
     const offered = new Set([...TUTOR_SYSTEM.matchAll(/^\{"kind":"(\w+)"/gm)].map((match) => match[1]));
     expect(offered).toEqual(new Set(DRAWN_KINDS));
+  });
+});
+
+const SAFETY_REPLY = "I'm really glad you told me. What he's doing is not okay, and it is not your fault. I can't keep it a secret, because you deserve to be safe.\n\nPlease tell a trusted adult today, like a relative, a teacher, or a school counselor. If you're in danger right now, call your local emergency number. In the US, you can also call or text the Childhelp hotline at 1-800-422-4453.\n\nAre you safe right now?";
+
+describe('a turn that runs long', () => {
+  it('never stops a safety reply in the middle of its sentence', async () => {
+    const { brain } = setup(() => reply(SAFETY_REPLY));
+    const said = say(await collect(brain, 'someone is hurting me'));
+    expect(said).toContain('call your local emergency number.');
+    expect(said).not.toMatch(/,$/);
+  });
+
+  it('ends on a sentence end wherever the commas fall', async () => {
+    const clauses = Array.from({ length: 30 }, (_, index) => `clause number ${index + 1},`).join(' ');
+    const { brain } = setup(() => reply(`${clauses} and that is the end of it. Then this is thrown away.`));
+    const said = say(await collect(brain, 'tell me'));
+    expect(said).toMatch(/and that is the end of it\.$|\?$/);
+  });
+
+  it('stops a sentence that never ends, and says it stopped, so the turn has an ending', async () => {
+    const endless = Array.from({ length: 200 }, (_, index) => `word${index}`).join(' ');
+    const { brain, summaries } = setup(() => reply(endless));
+    const beats = await collect(brain, 'tell me');
+    const words = say(beats).split(/\s+/).length;
+    expect(words).toBeLessThan(110);
+    expect(SPOKEN_LINES.cutShort).toContain(getBeatText(beats.at(-1) as Beat));
+    expect(beats.at(-1)?.expectsReply).toBe(true);
+    expect(summaries[0]?.endedAs).toBe('ended');
+  });
+
+  it('does not read a title like Mr. as the end of a sentence', async () => {
+    const lead = Array.from({ length: 52 }, (_, index) => `word${index}`).join(' ');
+    const { brain } = setup(() => reply(`${lead} and then Mr. Ade said it was fine. Next one.`));
+    expect(say(await collect(brain, 'tell me'))).toContain('Mr. Ade said it was fine.');
+  });
+});
+
+describe('a refused line', () => {
+  it.each([...SPOKEN_LINES.refused, ...SPOKEN_LINES.refusedAfterWords])('points to a trusted adult and emergency help in "%s"', (line) => {
+    expect(line).toMatch(/adult you trust/);
+    expect(line).toMatch(/local emergency number/);
+    expect(line).not.toMatch(/\byou (should not|shouldn't|must not|mustn't)\b|\binappropriate\b|\bnot allowed\b/i);
+  });
+
+  it('keeps every line the tutor can say speakable', () => {
+    for (const line of Object.values(SPOKEN_LINES).flat()) expect(parseBeat({ id: 't1-line0', script: [line], expectsReply: false }).ok).toBe(true);
+  });
+
+  it('tells the next request that something serious was said, without the words', async () => {
+    const { brain, model } = setup((_request, attempt) => (attempt === 1 ? { pieces: [], stopReason: 'refused', refusalCategory: 'general_harms' } : reply('Okay, are you safe?')));
+    await collect(brain, 'my stepdad comes into my room');
+    await collect(brain, 'can we do fractions');
+    const sent = model.requests[1];
+    expect(JSON.stringify(sent)).not.toContain('stepdad');
+    expect(lastSystemNote(sent)?.declined).toBeDefined();
+    await collect(brain, 'and decimals');
+    expect(JSON.stringify(model.requests[2])).toContain('declined');
+  });
+});
+
+describe('a refusal after words', () => {
+  const TRIGGER = 'TRIGGER';
+  const PARTIAL = 'Well, the first thing';
+  const refusesWhenItSees = (request: TutorModelRequest) => JSON.stringify(request.turns).includes(TRIGGER) || JSON.stringify(request.turns).includes(PARTIAL);
+
+  const expectEveryLaterTurnAnswered = async (brain: Pick<TutorBrain, 'reply'>, model: { requests: TutorModelRequest[] }) => {
+    for (const question of ['what is two plus two', 'tell me about planets', 'hello?']) {
+      expect(say(await collect(brain, question))).toBe('Okay, sure.');
+      const sent = JSON.stringify(model.requests.at(-1));
+      expect(sent).not.toContain(TRIGGER);
+      expect(sent).not.toContain(PARTIAL);
+    }
+  };
+
+  it('never sticks when it comes before any words', async () => {
+    const { brain, model } = setup((request) => (refusesWhenItSees(request) ? { pieces: [], stopReason: 'refused' } : reply('Okay, sure.')));
+    await collect(brain, TRIGGER);
+    await expectEveryLaterTurnAnswered(brain, model);
+  });
+
+  it('never sticks when it comes after some words', async () => {
+    const { brain, model } = setup((request) => (refusesWhenItSees(request) ? { pieces: [`${PARTIAL} is`], stopReason: 'refused' } : reply('Okay, sure.')));
+    const beats = await collect(brain, TRIGGER);
+    expect(say(beats)).not.toContain(PARTIAL);
+    await expectEveryLaterTurnAnswered(brain, model);
+  });
+
+  it('never sticks after words, a dropped stream, and a refusal on the retry', async () => {
+    const { brain, model } = setup((request, attempt) => {
+      if (attempt === 1) return { pieces: [`${PARTIAL}, `], failAfterPieces: 'connection lost' };
+      return refusesWhenItSees(request) ? { pieces: [], stopReason: 'refused' } : reply('Okay, sure.');
+    });
+    await collect(brain, TRIGGER);
+    await expectEveryLaterTurnAnswered(brain, model);
+  });
+
+  it('keeps words already heard out of the next note when the student cuts in', async () => {
+    const { brain, model } = setup((request) => (refusesWhenItSees(request) ? { pieces: ['Well, here is one clause. ', 'And another one then.'], stopReason: 'refused' } : reply('Okay, sure.')));
+    const beats = await collect(brain, TRIGGER);
+    brain.noteCut(new Map([[(beats[0] as Beat).id, 1]]));
+    await collect(brain, 'wait');
+    const sent = JSON.stringify(model.requests.at(-1));
+    expect(sent).not.toContain('one clause');
+    expect(sent).not.toContain('another one');
+  });
+});
+
+describe('a reply with nothing to say', () => {
+  it.each([
+    ['empty', []],
+    ['only spaces', ['   \n  ']],
+    ['only a command', ['{"kind":"writeMath","id":"a","tex":"x = 1"}']],
+    ['only private thinking', ['<thinking>I should not say anything</thinking>']],
+    ['a tag that never closes', ['<thinking>Let me think about this']],
+    ['only marks', ['*** ### $$$']],
+  ])('says it could not reply, and keeps nothing of it in history: %s', async (_name, pieces) => {
+    const { brain, model } = setup((_request, attempt) => (attempt === 1 ? { pieces } : reply('Okay, back.')));
+    const beats = await collect(brain, 'first');
+    expect(beats).toHaveLength(1);
+    expect(SPOKEN_LINES.couldNotReply).toContain(getBeatText(beats[0] as Beat));
+    await collect(brain, 'second');
+    expect(model.requests[1]?.turns.filter((turn) => turn.role === 'assistant')).toEqual([]);
+    expect(model.requests[1]?.turns.filter((turn) => turn.role === 'user')).toHaveLength(2);
+  });
+
+  it('answers a message with nothing in it without asking the model', async () => {
+    const { brain, model } = setup(() => reply('Okay.'));
+    const beats = await collect(brain, ' ​ ');
+    expect(SPOKEN_LINES.notHeard).toContain(getBeatText(beats[0] as Beat));
+    expect(model.requests).toHaveLength(0);
+  });
+});
+
+describe('a typed message that is too long', () => {
+  it('never sends half an emoji, and tells the model it has only part of the message', async () => {
+    const { brain, model } = setup(() => reply('Okay.'));
+    await collect(brain, `${'a'.repeat(1999)}😀😀`);
+    const user = model.requests[0]?.turns.find((turn) => turn.role === 'user');
+    expect(user && 'text' in user && user.text).toBe(`${'a'.repeat(1999)}😀`);
+    expect(lastSystemNote(model.requests[0])?.clipped).toBeDefined();
+  });
+});
+
+describe('a request the API rejects', () => {
+  it('does not repeat it, and drops the message so the next turn is clean', async () => {
+    const { brain, model, notes } = setup((request) => (JSON.stringify(request.turns).includes('POISON') ? { pieces: [], rejection: 'invalid request' } : reply('Okay, back.')));
+    const beats = await collect(brain, 'POISON');
+    expect(model.requests).toHaveLength(1);
+    expect(SPOKEN_LINES.couldNotReply).toContain(getBeatText(beats.at(-1) as Beat));
+    expect(notes).toContain('modelRejected');
+    expect(say(await collect(brain, 'hello'))).toBe('Okay, back.');
+    expect(JSON.stringify(model.requests.at(-1))).not.toContain('POISON');
+  });
+
+  it('starts from a clean history when a clean message is rejected too', async () => {
+    let isHistoryBad = false;
+    const { brain, model } = setup((request) => {
+      if (isHistoryBad && request.turns.filter((turn) => turn.role === 'assistant').length > 0) return { pieces: [], rejection: 'invalid request' };
+      return reply('Okay, carry on.');
+    });
+    await collect(brain, 'one');
+    isHistoryBad = true;
+    await collect(brain, 'two');
+    expect(say(await collect(brain, 'three'))).toBe('Okay, carry on.');
+    expect(model.requests.at(-1)?.turns.filter((turn) => turn.role === 'assistant')).toEqual([]);
+  });
+
+  it('says it has stopped when every request is rejected, and stops asking', async () => {
+    const { brain, model } = setup(() => ({ pieces: [], rejection: 'bad key' }));
+    await collect(brain, 'one');
+    const stopped = await collect(brain, 'two');
+    expect(SPOKEN_LINES.broken).toContain(getBeatText(stopped.at(-1) as Beat));
+    expect(brain.getClosedReason()).toBe('broken');
+    const requests = model.requests.length;
+    expect(await collect(brain, 'three')).toEqual([]);
+    expect(model.requests).toHaveLength(requests);
+  });
+});
+
+describe('when the money runs out', () => {
+  it('says so once, stops asking the model, and names why', async () => {
+    const fake = makeFakeTutorModel(() => reply('Okay.'));
+    let limit: 'sessionLimit' | 'dailyLimit' | null = null;
+    const brain = createTutorBrain({ model: fake, timeouts: QUICK, getSpendLimit: () => limit });
+    await collect(brain, 'one');
+    limit = 'sessionLimit';
+    const told = await collect(brain, 'two');
+    expect(SPOKEN_LINES.sessionLimit).toContain(getBeatText(told[0] as Beat));
+    expect(brain.getClosedReason()).toBe('sessionLimit');
+    expect(await collect(brain, 'three')).toEqual([]);
+    expect(fake.requests).toHaveLength(1);
+  });
+
+  it('charges a request cut before it reports any tokens, from the size of what it sent', async () => {
+    const { brain, summaries } = setup(() => ({ pieces: ['Too late.'], firstTextMs: 10_000, startsLate: true }));
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 10);
+    await collect(brain, 'first', controller.signal);
+    expect(summaries[0]?.usage?.inputTokens ?? 0).toBeGreaterThan(0);
+    expect(summaries[0]?.isUsageEstimated).toBe(true);
+  });
+
+  it('charges nothing for a request the API turned away', async () => {
+    const { brain, summaries } = setup(() => ({ pieces: [], failure: 'overloaded' }));
+    await collect(brain, 'first');
+    expect(summaries[0]?.usage).toBeNull();
+  });
+});
+
+describe('notes that arrive while a turn runs', () => {
+  it('keeps a note added after the turn began for the next request', async () => {
+    let compacted = false;
+    const fake = makeFakeTutorModel(() => ({ pieces: ['Okay, carry on.'], msPerPiece: 5 }));
+    const brain = createTutorBrain({
+      model: {
+        ...fake,
+        compact: async () => {
+          compacted = true;
+          return { summary: { type: 'compaction', content: 'Summary.' }, usage: { inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0 } };
+        },
+      },
+      timeouts: QUICK,
+      profile: PROFILE,
+      compactAtTokens: 50,
+    });
+    for (let turn = 0; compacted === false && turn < 12; turn += 1) await collect(brain, `message ${turn}`);
+    await collect(brain, 'during');
+    await collect(brain, 'after');
+    expect(JSON.stringify(fake.requests.at(-1)?.turns)).toContain('"level');
   });
 });

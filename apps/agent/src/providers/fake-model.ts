@@ -1,4 +1,4 @@
-import type { ModelEvent, ModelStopReason, ModelUsage, TutorModelAdapter, TutorModelRequest } from './types.ts';
+import { type ModelEvent, ModelRejectedError, type ModelStopReason, type ModelUsage, type TutorModelAdapter, type TutorModelRequest } from './types.ts';
 
 export interface FakeReply {
   pieces: readonly string[];
@@ -8,6 +8,10 @@ export interface FakeReply {
   stopReason?: ModelStopReason;
   refusalCategory?: string | null;
   failure?: string;
+  /** The API turned the request away for good, as a 400 does. */
+  rejection?: string;
+  /** The stream reports its tokens only once its first text arrives, as a request cut before its headers never does. */
+  startsLate?: boolean;
   failAfterPieces?: string;
   newBlocksAt?: readonly number[];
 }
@@ -40,9 +44,12 @@ export function makeFakeTutorModel(getReply: (request: TutorModelRequest, attemp
   async function* stream(request: TutorModelRequest, signal: AbortSignal): AsyncGenerator<ModelEvent> {
     requests.push(request);
     const reply = getReply(request, requests.length);
+    if (reply.rejection) throw new ModelRejectedError(reply.rejection);
     if (reply.failure) throw new Error(reply.failure);
-    yield { type: 'started', usage: FAKE_USAGE };
+    if (!reply.startsLate) yield { type: 'started', usage: FAKE_USAGE };
     await wait(reply.firstTextMs ?? 0, signal);
+    if (signal.aborted) return;
+    if (reply.startsLate) yield { type: 'started', usage: FAKE_USAGE };
     let written = 0;
     for (const [index, piece] of reply.pieces.entries()) {
       if (reply.stall?.beforePiece === index) await wait(reply.stall.ms, signal);
@@ -84,6 +91,8 @@ const RECORDED_REPLIES: readonly { heard: RegExp; reply: FakeReply }[] = [
   { heard: /invalid/i, reply: { pieces: ['Right, watch this. ', '{"kind":"laser","id":"zap"}', 'A command the board cannot draw is dropped, ', '{"kind":"writeMath","id":"ok","tex":"2 + 2 = 4"}', 'and the words still play. What do you notice?'], msPerPiece: 60 } },
   { heard: /stall/i, reply: { pieces: ['That took a while.'], firstTextMs: 10_000 } },
   { heard: /wrong math/i, reply: { pieces: ['So then, ', '{"kind":"writeMath","id":"bad","tex":"2 + 2 = 5"}', 'two plus two is five.'], msPerPiece: 40 } },
+  { heard: /refuse/i, reply: { pieces: ['Well, the first thing to know is '], msPerPiece: 40, stopReason: 'refused', refusalCategory: 'general_harms' } },
+  { heard: /silent/i, reply: { pieces: ['<thinking>nothing to say</thinking>'] } },
   { heard: /tag/i, reply: { pieces: ['<thinking>private working</thinking>Fine, ', 'no tag reached you. ', '{"kind":"text","id":"note","text":"No tags"}', 'What next?'], msPerPiece: 40 } },
 ];
 

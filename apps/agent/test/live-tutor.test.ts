@@ -7,7 +7,9 @@ import { createVoiceLine } from '../src/live/voice-line.ts';
 import { type FakeReply, makeFakeTutorModel } from '../src/providers/fake-model.ts';
 import { renderTone } from '../src/providers/fakes.ts';
 import { makeRenderedVoice } from '../src/providers/rendered-voice.ts';
-import { createTutorBrain, TUTOR_TIMEOUTS } from '../src/tutor/brain.ts';
+import type { TutorModelRequest } from '../src/providers/types.ts';
+import { createTutorBrain, TUTOR_TIMEOUTS, type TurnSummary } from '../src/tutor/brain.ts';
+import { TURN_TIMINGS } from '../src/live/turn-rule.ts';
 
 initializeLogger({ pretty: false, level: 'silent' });
 
@@ -16,7 +18,8 @@ const STAMP = { clockId: 'test', browserMs: 0, startedMsAgo: 0 };
 const typed = (text: string): BrowserMessage => ({ type: 'typed', text, ...STAMP });
 const QUICK = { ...TUTOR_TIMEOUTS, stillWorkingMs: 60, firstTextMs: 200, betweenTextMs: 200 };
 
-function setup(getReply: () => FakeReply, timeouts = QUICK) {
+function setup(getReply: (request: TutorModelRequest, attempt: number) => FakeReply, timeouts = QUICK) {
+  const summaries: TurnSummary[] = [];
   const notes: { name: string; fields: Record<string, unknown>; atMs: number }[] = [];
   const messages: AgentMessage[] = [];
   const model = makeFakeTutorModel(getReply);
@@ -26,14 +29,14 @@ function setup(getReply: () => FakeReply, timeouts = QUICK) {
     messenger: { send: (message) => messages.push(message), sendOnBothChannels: (message) => messages.push(message) },
     line: createVoiceLine({ sampleRate: 24000, captureFrame: async () => {}, clearQueue: () => {}, waitForPlayout: async () => {} }),
     voice: makeRenderedVoice({ name: 'fake', render: renderTone }).makeTts(),
-    tutor: createTutorBrain({ model, trace, timeouts }),
+    tutor: createTutorBrain({ model, trace, timeouts, onTurnEnd: (summary) => summaries.push(summary) }),
     takes: createTakePicker(allTakes),
     allTakes,
     setTurnCap: () => {},
     trace,
   });
   const find = (name: string, kind?: string) => notes.find((note) => note.name === name && (kind === undefined || note.fields.kind === kind));
-  return { session, notes, messages, model, find };
+  return { session, notes, messages, model, find, summaries };
 }
 
 describe('the brain in a live session', () => {
@@ -98,5 +101,76 @@ describe('the brain in a live session', () => {
     const last = model.requests.at(-1)?.turns.at(-1);
     expect(last && 'text' in last ? (JSON.parse(last.text) as { cut: { heard: string } }).cut.heard : null).toBe('Okay, one');
     await session.close();
+  });
+});
+
+const SLOW_THEN_QUICK = (_request: TutorModelRequest, attempt: number, firstAttempts = 1): FakeReply =>
+  attempt <= firstAttempts ? { pieces: Array.from({ length: 12 }, (_, index) => `Thought ${index} here. `), msPerPiece: 500 } : { pieces: ['Okay, sure thing. What next?'] };
+
+const getUsers = (request: TutorModelRequest | undefined) => (request?.turns ?? []).flatMap((turn) => (turn.role === 'user' ? [turn.text] : []));
+const getSystemNotes = (request: TutorModelRequest | undefined) => (request?.turns ?? []).flatMap((turn) => (turn.role === 'system' ? [turn.text] : []));
+
+const speakOverTheTutor = async (session: ReturnType<typeof setup>['session'], text: string) => {
+  session.onEars({ type: 'voiceStarted' });
+  await delay(TURN_TIMINGS.wordlessStopMs + 700);
+  session.onEars({ type: 'words', text, isFinal: true });
+  session.onEars({ type: 'voiceEnded' });
+  session.onEars({ type: 'turnDecided', text });
+  await delay(500);
+};
+
+describe('an interrupted request', () => {
+  const BETWEEN = { ...QUICK, betweenTextMs: 5000 };
+
+  it('stops when the student talks over the tutor while the model writes, and the next request keeps the question', async () => {
+    const { session, model, summaries } = setup((request, attempt) => SLOW_THEN_QUICK(request, attempt), BETWEEN);
+    session.onBrowser(typed('FIRST'));
+    await delay(400);
+    await speakOverTheTutor(session, 'SECOND wait a second please');
+    expect(model.aborted.streams).toBe(1);
+    expect(summaries.map((summary) => summary.studentText)).toEqual(['FIRST', 'SECOND wait a second please']);
+    expect(summaries[0]?.endedAs).toBe('aborted');
+    expect(getUsers(model.requests.at(-1))).toEqual(['FIRST', 'SECOND wait a second please']);
+    expect(getSystemNotes(model.requests.at(-1)).join()).toContain('"cut"');
+    await session.close();
+  });
+
+  it('does the same on a later turn, when no greeting holds the line', async () => {
+    const { session, model, summaries } = setup((request, attempt) => (attempt === 1 ? { pieces: ['Okay, sure thing. What next?'] } : SLOW_THEN_QUICK(request, attempt, 2)), BETWEEN);
+    session.onBrowser(typed('ZERO'));
+    await delay(1500);
+    session.onBrowser(typed('FIRST'));
+    await delay(400);
+    await speakOverTheTutor(session, 'SECOND wait a second please');
+    expect(model.aborted.streams).toBe(1);
+    expect(summaries.map((summary) => summary.studentText)).toEqual(['ZERO', 'FIRST', 'SECOND wait a second please']);
+    expect(getUsers(model.requests.at(-1))).toEqual(['ZERO', 'FIRST', 'SECOND wait a second please']);
+    await session.close();
+  });
+
+  it('stops when the link is lost mid reply and the student then types', async () => {
+    const { session, model, summaries } = setup((request, attempt) => SLOW_THEN_QUICK(request, attempt), BETWEEN);
+    session.onBrowser({ type: 'audioState', isRunning: true, ...STAMP });
+    session.onBrowser(typed('FIRST'));
+    await delay(400);
+    session.onBrowser({ type: 'audioState', isRunning: false, ...STAMP });
+    await delay(600);
+    session.onBrowser(typed('SECOND'));
+    await delay(500);
+    expect(model.aborted.streams).toBe(1);
+    expect(summaries[0]?.studentText).toBe('FIRST');
+    expect(getUsers(model.requests.at(-1))).toEqual(['FIRST', 'SECOND']);
+    expect(getSystemNotes(model.requests.at(-1)).join()).toContain('"cut"');
+    await session.close();
+  });
+
+  it('finishes and charges a turn when the room closes while the model writes', async () => {
+    const { session, model, summaries } = setup((request, attempt) => SLOW_THEN_QUICK(request, attempt), BETWEEN);
+    session.onBrowser(typed('FIRST'));
+    await delay(400);
+    await session.close();
+    await delay(50);
+    expect(model.aborted.streams).toBe(1);
+    expect(summaries).toHaveLength(1);
   });
 });

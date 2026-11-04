@@ -38,6 +38,9 @@ export interface CompactedHistory {
   usage: ModelUsage;
 }
 
+/** The API refused this request for good, so sending it again would fail the same way. */
+export class ModelRejectedError extends Error {}
+
 export interface TutorModelAdapter {
   name: string;
   stream(request: TutorModelRequest, signal: AbortSignal): AsyncIterable<ModelEvent>;
