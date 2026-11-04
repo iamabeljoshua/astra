@@ -468,8 +468,8 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
           'Supabase runs our sign-in service and our database, so it holds everything we store on our servers, and it sends the sign-in email.',
           'When you use a session, LiveKit Cloud carries your voice, the tutor\'s voice, and the messages between your browser and the tutor, including your words as text. We do not ask it to record any of this.',
           "While your microphone is on, Meta's Muse Voice Transcribe receives your voice and turns it into text. Meta's terms let it keep what it receives for safety checks and human review.",
-          "Anthropic, whose Claude model writes the tutor's replies, receives what you say and type in a session, the tutor's earlier words, and your level, interests, and goal. It does not receive your name, your date of birth, your email address, or an account ID. Anthropic's terms say it does not train on this by default, and that it keeps it for a limited time.",
-          "ElevenLabs receives the tutor's words and turns them into its voice. Those words can repeat what you said or typed. It does not receive your name.",
+          "Anthropic, whose Claude model writes the tutor's replies, receives what you say and type in a session, the tutor's earlier words, and your level, interests, and goal. We do not send it your name, your date of birth, your email address, or an account ID, though it receives anything you say or type yourself. Anthropic's terms say it does not train on this by default, and that it keeps it for a limited time.",
+          "ElevenLabs receives the tutor's words and turns them into its voice. Those words can repeat what you said or typed.",
           'No other outside service receives student data today. The app serves its own fonts and pictures.',
         ],
         planned: [

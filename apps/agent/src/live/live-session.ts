@@ -56,11 +56,18 @@ interface Speaking {
 interface Thought {
   controller: AbortController;
   iterator: AsyncIterator<Beat>;
+  /** Beats a stopped turn had taken and never spoke, kept for a resume. */
+  unspoken: Beat[];
 }
 
 async function* readThought(thought: Thought | null): AsyncGenerator<Beat> {
   if (!thought) return;
   for (;;) {
+    const unspoken = thought.unspoken.shift();
+    if (unspoken) {
+      yield unspoken;
+      continue;
+    }
     const { done, value } = await thought.iterator.next();
     if (done) return;
     yield value;
@@ -172,6 +179,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
         beats,
         getNowMs,
         // The voice cannot be late before it has words, so a slow model is never read as a failed voice.
+        onBeatUnspoken: (beat) => void thought?.unspoken.push(beat),
         onBeatStarted(beat) {
           speakingBeats.push(beat);
           if (isReply && speakingBeats.length === 1) setThinking(false);
@@ -253,7 +261,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     cut = null;
     dropThought();
     const controller = new AbortController();
-    const started: Thought = { controller, iterator: tutor.reply({ text }, controller.signal)[Symbol.asyncIterator]() };
+    const started: Thought = { controller, iterator: tutor.reply({ text }, controller.signal)[Symbol.asyncIterator](), unspoken: [] };
     thought = started;
     setThinking(true);
     reply = speak({ voiceToUse: voice, beats: readThought(started), isReply: true, canResume: true, kind: 'reply' });

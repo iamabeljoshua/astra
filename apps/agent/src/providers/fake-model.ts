@@ -11,6 +11,8 @@ export interface FakeReply {
   refusalCategory?: string | null;
   /** Throws at the start, as a broken connection or an overloaded model does. */
   failure?: string;
+  /** Throws after the pieces, as a connection that breaks mid reply does. */
+  failAfterPieces?: string;
   /** A new block starts at these pieces, as it does around a tool call. */
   newBlocksAt?: readonly number[];
 }
@@ -61,6 +63,7 @@ export function makeFakeTutorModel(getReply: (request: TutorModelRequest, attemp
       await wait(reply.msPerPiece ?? 0, signal);
     }
     if (signal.aborted) return;
+    if (reply.failAfterPieces) throw new Error(reply.failAfterPieces);
     yield { type: 'finished', stopReason: reply.stopReason ?? 'finished', refusalCategory: reply.refusalCategory ?? null, usage: { ...FAKE_USAGE, outputTokens: Math.ceil(written / CHARACTERS_PER_TOKEN) } };
   }
 

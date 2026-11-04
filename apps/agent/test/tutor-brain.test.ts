@@ -126,6 +126,13 @@ describe('when the model stalls', () => {
     expect(notes).toContain('modelFailed');
   });
 
+  it('carries on from what was said when a connection breaks mid reply, without repeating it', async () => {
+    const { brain, model } = setup((_request, attempt) => (attempt === 1 ? { pieces: ['So the ball slows down, '], failAfterPieces: 'connection lost' } : reply('It stops at the top.')));
+    const beats = await collect(brain, 'why?');
+    expect(say(beats)).toMatch(/^So the ball slows down, .+ It stops at the top\.$/);
+    expect(lastSystemNote(model.requests[1])?.correction?.already_said).toContain('So the ball slows down,');
+  });
+
   it('holds the real limits above what a healthy model takes', () => {
     expect(TUTOR_TIMEOUTS.stillWorkingMs).toBeLessThan(TUTOR_TIMEOUTS.firstTextMs);
     expect(TUTOR_TIMEOUTS.firstTextMs * 2).toBeLessThan(10_500);
@@ -247,6 +254,14 @@ describe('long sessions', () => {
     expect(roles[0]).toBe('summary');
     expect(roles[1]).toBe('user');
     expect(JSON.stringify(fake.requests.at(-1)?.turns.at(-1))).toContain('student');
+  });
+});
+
+describe('a message with nothing in it', () => {
+  it('asks the model nothing', async () => {
+    const { brain, model } = setup(() => reply('Okay.'));
+    expect(await collect(brain, ' \u200B ')).toEqual([]);
+    expect(model.requests).toHaveLength(0);
   });
 });
 

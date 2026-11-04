@@ -343,7 +343,7 @@ export function createTutorBrain({ model, profile = null, timeouts = TUTOR_TIMEO
     } catch (error) {
       if (turn.signal.aborted) return 'aborted';
       trace('modelFailed', { problem: error instanceof Error ? error.message : String(error) });
-      return 'failed';
+      return turn.hasAttemptText ? 'stalledInText' : 'failed';
     } finally {
       attempt.abort();
       pending.catch(() => {});
@@ -465,6 +465,7 @@ export function createTutorBrain({ model, profile = null, timeouts = TUTOR_TIMEO
 
   return {
     async *reply({ text }, signal) {
+      if (cleanStudentText(text) === '') return;
       await waitForLastTurn();
       isTurnRunning = true;
       const turn = startTurn(cleanStudentText(text), signal);

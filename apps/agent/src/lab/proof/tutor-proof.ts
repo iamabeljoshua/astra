@@ -72,13 +72,14 @@ async function main(): Promise<void> {
   mkdirSync(args.out, { recursive: true });
   const browser = await chromium.launch({ channel: 'chromium', args: ['--use-mock-keychain', '--mute-audio', '--use-fake-ui-for-media-stream'] });
   const viewport = { width: Number(args.width), height: Number(args.height) };
-  const context = await browser.newContext({ viewport, recordVideo: args.record ? { dir: args.out, size: viewport } : undefined, colorScheme: args.theme === 'dark' ? 'dark' : 'light' });
+  const context = await browser.newContext({ viewport, recordVideo: args.record ? { dir: args.out, size: viewport } : undefined });
   const videoStartedEpochMs = Date.now();
   const page = await context.newPage();
   const problems: string[] = [];
   page.on('pageerror', (error) => problems.push(error.message));
   await page.addInitScript(installSpeechInPage);
   await signIn(page);
+  if (args.theme === 'dark') await page.getByRole('button', { name: 'Dark' }).click();
   const sends: { text: string; sentEpochMs: number }[] = [{ text: args.question, sentEpochMs: await askOnHome(page, args.question) }];
   if (args.record) await startRecordingWhenThereIsSound(page);
   const answerMs = Number(args.answerMs);
