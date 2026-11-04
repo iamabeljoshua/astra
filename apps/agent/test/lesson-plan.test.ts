@@ -5,7 +5,7 @@ import { type LessonPlan, parsePlanMove, type PlanMove } from '../src/lesson-pla
 import { createLessonPlanner, type LessonPlannerOptions } from '../src/lesson-plan/lesson-planner.ts';
 import { getStateAfterEvent, getStateAfterMove, getStepNote, NO_LESSON } from '../src/lesson-plan/plan-progress.ts';
 import { makeFakeTutorModel } from '../src/providers/fake-model.ts';
-import { createTutorBrain } from '../src/tutor/brain.ts';
+import { createTutorBrain, type TurnSummary } from '../src/tutor/brain.ts';
 
 const SOLVING: LessonPlan = { topic: 'Solving 2x + 3 = 11', kind: 'handsOn', steps: [{ teach: null, exercise: 'Solve 2x + 3 = 11' }] };
 const FRACTIONS: LessonPlan = {
@@ -230,6 +230,32 @@ describe('the lesson planner', () => {
     planner.noteCommand({ kind: 'boardMode', mode: 'teach' });
 
     expect(planner.getStepNote()).toMatchObject({ step: '2 of 2' });
+  });
+});
+
+describe('a change of subject', () => {
+  it('can never send the student to a new session, whatever the model writes', async () => {
+    const replies = ["Sure, that's a big topic. You'd want to start a new session for that.", 'Sure, physics of the impossible. Force fields first.'];
+    let index = 0;
+    const model = makeFakeTutorModel(() => ({ pieces: [replies[Math.min(index++, 1)] as string] }));
+    const summaries: TurnSummary[] = [];
+    const brain = createTutorBrain({ model, timeouts: QUICK, onTurnEnd: (summary) => summaries.push(summary) });
+
+    for await (const beat of brain.reply({ text: 'teach me physics of the impossible' }, new AbortController().signal)) void beat;
+
+    expect(summaries[0]?.spokenText).not.toMatch(/new session/i);
+    expect(summaries[0]?.spokenText).toContain('Force fields');
+    expect(summaries[0]?.attempts).toBe(2);
+  });
+
+  it('leaves the real limit its own line, which does say so', async () => {
+    const model = makeFakeTutorModel(() => ({ pieces: ['Never heard.'] }));
+    const summaries: TurnSummary[] = [];
+    const brain = createTutorBrain({ model, timeouts: QUICK, getSpendLimit: () => 'sessionLimit', onTurnEnd: (summary) => summaries.push(summary) });
+
+    for await (const beat of brain.reply({ text: 'keep going' }, new AbortController().signal)) void beat;
+
+    expect(summaries[0]?.spokenText).toMatch(/new session/i);
   });
 });
 

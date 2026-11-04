@@ -21,6 +21,10 @@ export interface BoardMemory {
   isLatestWorkWrong: boolean;
 }
 
+/** A change of subject never needs another session, and the real limits have spoken lines of their own, which this does not read. */
+const SENDS_THEM_AWAY = /\b(?:new|fresh|another|separate)\s+(?:session|chat)\b/i;
+const STAY_IN_THIS_SESSION = 'Never send them to another session. Anything they ask for belongs in this one. Follow what they just asked, right here.';
+
 export const EMPTY_BOARD: BoardMemory = { kinds: new Map(), lines: new Map(), shownLines: new Set(), lastAssertedLine: null, verdicts: new Map(), openTask: null, doneTasks: new Set(), isLatestWorkWrong: false };
 
 export const DRAWN_KINDS: ReadonlySet<SceneCommand['kind']> = new Set(['writeMath', 'transformMath', 'plot', 'markValue', 'highlight', 'text', 'hide', 'clearBoard', 'focus', 'simulate', 'runSimulation', 'vector', 'annotate', 'diagram', 'note', 'tangent', 'task', 'boardMode']);
@@ -153,6 +157,7 @@ function getAnswerWords(tex: string): RegExp | null {
 }
 
 export function getWordsProblem(text: string, { isLatestWorkWrong, openTask }: BoardMemory, isFirstBeat: boolean): string | null {
+  if (SENDS_THEM_AWAY.test(text)) return STAY_IN_THIS_SESSION;
   if (isFirstBeat && isLatestWorkWrong && PRAISE.test(text)) return "Code says the student's last work is wrong, and your words sounded like praise. Do not praise it. Point at where it went wrong, in a few words.";
   if (!openTask?.problemTex || openTask.studentTurns >= FEWEST_TURNS_BEFORE_THE_ANSWER) return null;
   return getAnswerWords(openTask.problemTex)?.test(text) ? 'You gave the student the answer before they had a real try. Say nothing about what it comes to. Give one small pointer instead.' : null;
