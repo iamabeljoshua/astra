@@ -558,6 +558,24 @@ describe('getPicksForStudent', () => {
         });
       });
 
+      it('finds the lesson the library calls something else, on the real library', () => {
+        const [firstPick] = getPicksForStudent({ fit: FIT, history: [], continueCardSessionId: null, notes: [makeNote('struggled', 'free-body diagrams')], now: NOW }, LIBRARY);
+
+        expect(firstPick).toMatchObject({ id: 'slope-friction', title: 'What holds a block on a slope', reason: 'You got stuck on free-body diagrams', reasonDate: NOTED_AT });
+      });
+
+      it.each([
+        ['free fall', 'free-kick'],
+        ['wave functions', 'breaking-wave'],
+        ['positive numbers', 'positive-test'],
+        ['the speed of light', 'moving-clocks'],
+        ['light', 'moving-clocks'],
+      ])('does not pretend %s is the same as %s, on the real library', (topic, wrongTopicId) => {
+        const picks = getPicksForStudent({ fit: FIT, history: [], continueCardSessionId: null, notes: [makeNote('struggled', topic)], now: NOW }, LIBRARY);
+
+        expect(picks.find((pick) => pick.reason.includes(topic))?.id).not.toBe(wrongTopicId);
+      });
+
       it('offers a lesson on it when the library holds no topic for it, with a drawing and the session it came from', () => {
         const history = [makeSession({ id: 'typed', subject: 'Physics', artwork: 'forces' })];
 

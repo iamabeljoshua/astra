@@ -49,18 +49,19 @@ afterEach(() => {
 describe('what the tutor remembers, on the Your notes page', () => {
   it('refreshes Home in the background when a note goes, so its card goes at once', async () => {
     stubApi([SIGN_ERROR]);
-    const fetchNotes = globalThis.fetch;
-    const homeRequests: string[] = [];
-    vi.stubGlobal('fetch', (request: Request) => {
-      if (new URL(request.url).pathname.endsWith('/home')) homeRequests.push(request.url);
-      return fetchNotes(request);
-    });
     const { queryClient } = renderWithQueryClient(<RecordSection />);
-    queryClient.setQueryData(HOME_SCREEN_KEY, { picks: [] });
+    let homeLoads = 0;
+    await queryClient.prefetchQuery({
+      queryKey: HOME_SCREEN_KEY,
+      queryFn: () => {
+        homeLoads += 1;
+        return { picks: [] };
+      },
+    });
 
     fireEvent.click(await screen.findByRole('button', { name: RECORD_LABELS.removeNamed(SIGN_ERROR.topic) }));
 
-    await waitFor(() => expect(homeRequests).toHaveLength(1));
+    await waitFor(() => expect(homeLoads).toBe(2));
   });
 
   it('says so plainly when there is nothing yet', async () => {

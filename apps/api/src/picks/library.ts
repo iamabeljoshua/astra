@@ -12,6 +12,8 @@ export interface LibraryTopic {
   levels: StudentLevel[];
   goals: StudentGoal[];
   interests: StudentInterest[];
+  /** What a student or a teacher might call this, so a note can find the lesson when its words miss the title. */
+  alsoCalled?: string[];
 }
 
 export interface Library {

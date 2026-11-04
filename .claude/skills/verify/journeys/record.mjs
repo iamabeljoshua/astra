@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 
 const EMPTY_LINE = /Nothing yet/;
-const REMOVED_ON_LAPTOP = 'Free-body diagrams';
-const REMOVED_ON_PHONE = 'Why the sky is dark at night';
+const REMOVED_ON_LAPTOP = 'free-body diagrams';
+const REMOVED_ON_PHONE = 'why the sky is dark at night';
 
 // The seed holds three notes, so a laptop run removes one, and a phone run after it removes another and forgets the last. Seed again before running again.
 export default async function record({ page, capture, viewportName, signIn }) {

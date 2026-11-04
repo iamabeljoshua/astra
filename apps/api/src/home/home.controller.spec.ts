@@ -88,8 +88,10 @@ describe('GET /home', () => {
         'lengthMinutes',
         'openingLine',
         'reason',
+        'reasonDate',
         'subject',
         'title',
+        'topicId',
       ]);
     }
   });

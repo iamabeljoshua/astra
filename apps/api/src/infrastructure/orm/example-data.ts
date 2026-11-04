@@ -116,7 +116,7 @@ function getExampleNotes([freeBody, sky, quadratics]: SessionEntity[]): Partial<
     {
       ...forSession(freeBody),
       kind: 'struggled',
-      topic: 'Free-body diagrams',
+      topic: 'free-body diagrams',
       topicKey: 'free body diagrams',
       detail: 'Friction on a slope',
       evidence: [{ source: 'words', text: 'why does friction point up the slope, i thought it went down', check: null }],
@@ -124,7 +124,7 @@ function getExampleNotes([freeBody, sky, quadratics]: SessionEntity[]): Partial<
     {
       ...forSession(sky),
       kind: 'explored',
-      topic: 'Why the sky is dark at night',
+      topic: 'why the sky is dark at night',
       topicKey: 'why the sky is dark at night',
       detail: null,
       evidence: [{ source: 'words', text: 'why is the sky dark at night if there are so many stars', check: null }],
@@ -132,7 +132,7 @@ function getExampleNotes([freeBody, sky, quadratics]: SessionEntity[]): Partial<
     {
       ...forSession(quadratics),
       kind: 'showed',
-      topic: 'Solving quadratic equations',
+      topic: 'solving quadratic equations',
       topicKey: 'solving quadratic equations',
       detail: null,
       evidence: [{ source: 'board', text: 'x^2 - 5x + 6 = 0 becomes (x - 2)(x - 3) = 0', check: 'right' }],

@@ -23,11 +23,17 @@ function getSubjectStems(text: string): string[] {
 export const namesSomethingToTeach = (noteTopic: string) => getSubjectStems(noteTopic).length > 0;
 
 // A lone word must be in the title or the interests, because one word in an opening line is often only an aside. "Light" should not bring a card on moving clocks.
-function isNamedBy(subjectStems: string[], { title, interests, openingLine }: LibraryTopic): boolean {
+function isInTopicWords(subjectStems: string[], { title, interests, openingLine }: LibraryTopic): boolean {
   const namingStems = toStems(`${title} ${interests.join(' ')}`);
   const stemsToSearch = subjectStems.length > 1 ? new Set([...namingStems, ...toStems(openingLine)]) : namingStems;
-  return subjectStems.length > 0 && subjectStems.every((stem) => stemsToSearch.has(stem));
+  return subjectStems.every((stem) => stemsToSearch.has(stem));
 }
+
+function isCalledInLibrary(subjectStems: string[], { alsoCalled = [] }: LibraryTopic): boolean {
+  return alsoCalled.some((name) => getSubjectStems(name).every((stem) => subjectStems.includes(stem)));
+}
+
+const isNamedBy = (subjectStems: string[], topic: LibraryTopic) => subjectStems.length > 0 && (isInTopicWords(subjectStems, topic) || isCalledInLibrary(subjectStems, topic));
 
 export function findTopicsNamedBy(noteTopic: string, topics: LibraryTopic[]): LibraryTopic[] {
   const subjectStems = getSubjectStems(noteTopic);

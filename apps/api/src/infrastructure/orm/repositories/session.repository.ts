@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource, ILike, IsNull, MoreThan, Not } from 'typeorm';
+import { DataSource, ILike, MoreThan } from 'typeorm';
 import type { FindOptionsWhere, Repository } from 'typeorm';
 import { SessionEntity } from '../entities/session.entity';
 
