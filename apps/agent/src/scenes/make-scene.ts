@@ -104,7 +104,7 @@ async function writeUntilClean(maker: SceneMaker, { brief, plan, values, tally, 
     const code = await takeWritten(writer, tally, index === 0 && earlyWrite ? earlyWrite : writer.write(brief, repair, AbortSignal.any([AbortSignal.timeout(maker.writerLimitMs ?? WRITER_LIMIT_MS), signal])));
     if (code === null) continue;
     const contentProblems = getCodeProblems(code);
-    const render = contentProblems.length > 0 || signal.aborted ? null : await maker.worker({ code, moments: brief.moments, durationSeconds: brief.durationSeconds, themes: SCENE_THEMES, values, inspectSeconds: getInspectSeconds(brief) }, AbortSignal.any([AbortSignal.timeout(2 * WRITER_LIMIT_MS), signal]));
+    const render = contentProblems.length > 0 || signal.aborted ? null : await maker.worker({ code, moments: brief.moments, durationSeconds: brief.durationSeconds, themes: SCENE_THEMES, values, inspectSeconds: getInspectSeconds(brief) }, AbortSignal.any([AbortSignal.timeout(2 * (maker.writerLimitMs ?? WRITER_LIMIT_MS)), signal]));
     tally.renderMs += render?.ms ?? 0;
     const problems = render ? getRenderProblems(render, plan, brief, warn, isTyped || index === maker.writers.length - 1) : contentProblems;
     if (render?.isOk && problems.length === 0) return { code, render };
