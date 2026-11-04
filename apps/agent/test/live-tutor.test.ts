@@ -317,7 +317,7 @@ describe('a reply in short stretches', () => {
     await until(() => replyTurns(notes).length === 2 && spokenWords(messages).includes('leaf'));
     const turnId = (messages.findLast((message) => message.type === 'turnStarted') as { turnId: TurnId }).turnId;
     const beatId = (messages.findLast((message) => message.type === 'words') as unknown as { beatId: string }).beatId;
-    session.onBrowser({ type: 'played', turnId, beatId: beatId as never, wordStartsMs: [0], durationMs: 100, playedWords: 1, firedCueMs: [], ending: 'finished', frozen: [], ...STAMP });
+    session.onBrowser({ type: 'played', turnId, beatId: beatId as never, wordStartsMs: [0], durationMs: 100, playedWords: 1, firedCueMs: [], ending: 'interrupted', frozen: [], ...STAMP });
     expect(notes.filter((note) => note.name === 'reportRefused').map((note) => note.fields.problem)).toEqual([]);
     expect(session.getLog().some((event) => event.kind === 'beatPlayed' && event.beat.id === beatId)).toBe(true);
     await session.close();
