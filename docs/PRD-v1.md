@@ -1,6 +1,6 @@
 # PRD v1: a personal AI tutor that teaches out loud on a living board
 
-Status: approved by Abel on 2 November 2026, including the recommendations in section 15. Sections 6.1 and 6.2, the onboarding and home requirements, and P4 record what Abel added with that approval. B11 records the look Abel approved afterward, and then took the particle swarm out of the v1 plan. Abel later set the tagline, the home screen proportions, and normal images in place of dot pictures.
+Status: approved by Abel on 2 November 2026, including the recommendations in section 15. Sections 6.1 and 6.2, the onboarding and home requirements, and P4 record what Abel added with that approval. B11 records the look Abel approved afterward. Abel then took the particle swarm out of the v1 plan. Abel later set the tagline, the home screen proportions, and normal images in place of dot pictures.
 Date: 2 November 2026.
 Codename: Astra. The public name is still open (Q1).
 
