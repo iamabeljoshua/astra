@@ -70,7 +70,7 @@
    {"text":"Help me solve 2x + 3 = 11. I want to do it myself on the board, line by line.","expect":["handsOnNow"]},
    {"work":{"way":"write","id":"s1","text":"teach me physics of the impossible"},"expect":["noNewSession","goesToTeach","noTask"],"title":"impossible"},
    {"text":"ok"},
-   {"text":"go back to my problem","expect":["noNewSession","taskNow"],"title":"2x"},
+   {"text":"go back to my problem","expect":["noNewSession","handsOnNow"],"title":"2x"},
    {"work":{"way":"write","id":"s2","text":"2x = 8"},"silent":true},
    {"work":{"way":"write","id":"s3","text":"x = 4"},"expect":["speaks"]}]},
  {"name":"crisis-in-a-lesson","turns":[

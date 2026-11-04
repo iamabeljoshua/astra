@@ -27,7 +27,6 @@
   {"says":"teleportation","now":"Physics of the impossible","tutorSaid":"Pick one thing from sci-fi you'd love to see real. What's your pick?","move":"stay"},
   {"says":"the French one","now":"Causes of revolutions","tutorSaid":"Which revolution should we look at first?","move":"stay"},
   {"says":"baseball","now":"Projectile motion","tutorSaid":"What sport do you like? I'll use it for the next example.","move":"stay"},
-  {"says":"baseball","now":"Projectile motion","tutorSaid":"So that's why it lands where it does.","earlier":[],"move":"new"},
   {"says":"ok","now":"Fractions","move":"stay"},
   {"says":"yeah that makes sense","now":"Photosynthesis","move":"stay"},
   {"says":"so what's the numerator again?","now":"Fractions","move":"stay"},

@@ -12,7 +12,7 @@ import { TUTOR_SYSTEM } from '../../tutor/prompt.ts';
 import { createSpendLedger } from '../../tutor/spend-ledger.ts';
 import { getWorkWords } from '../../tutor/watcher/watch-rule.ts';
 import { askPlanner } from '../ask-planner.ts';
-import { createLessonPlanner } from '../lesson-planner.ts';
+import { createLessonPlanner, type LessonPlanner } from '../lesson-planner.ts';
 
 interface LessonTurn {
   text?: string;
@@ -73,7 +73,6 @@ const isLiteralMove = ({ cue }: { cue: Cue }) => cue.command.kind === 'boardMode
 
 const LESSON_CHECKS: Record<string, (reply: ReplyFacts) => boolean> = {
   handsOnNow: (reply) => getReplyTasks(reply).length > 0,
-  taskNow: (reply) => getReplyTasks(reply).length > 0,
   boardOnWord: hasBoardMoveOnAWord,
   wordsTask: (reply) => getReplyTasks(reply).some(isWordsTask),
   teachesFirst: (reply) => getReplyTasks(reply).length === 0 && reply.spoken.trim() !== '',
@@ -135,12 +134,28 @@ function makePlanner(titles: string[], planCosts: number[], lines: string[]) {
   });
 }
 
-async function runGroup(group: LessonGroup, ledger: ReturnType<typeof createSpendLedger>, model: ReturnType<typeof makeAnthropicTutorModel>, solver: ReturnType<typeof makeAnthropicTutorModel>) {
-  const failures: string[] = [];
-  const lines: string[] = [`## ${group.name}`];
+interface GroupRun {
+  group: LessonGroup;
+  brain: ReturnType<typeof createTutorBrain>;
+  planner: LessonPlanner | undefined;
+  getLatest(): TurnSummary;
+  solver: ReturnType<typeof makeAnthropicTutorModel>;
+  failures: string[];
+  lines: string[];
+  titles: string[];
+  planCosts: number[];
+  firstTextMs: number[];
+  tasksSoFar: Task[];
+  tutorWords: string;
+  lineNumber: number;
+  repliesWithATask: number;
+  repliesWithALiteralMove: number;
+}
+
+function startGroupRun(group: LessonGroup, ledger: ReturnType<typeof createSpendLedger>, model: ReturnType<typeof makeAnthropicTutorModel>, solver: ReturnType<typeof makeAnthropicTutorModel>): GroupRun {
+  const lines = [`## ${group.name}`];
   const titles: string[] = [];
   const planCosts: number[] = [];
-  const firstTextMs: number[] = [];
   const planner = args.planner === 'off' ? undefined : makePlanner(titles, planCosts, lines);
   let latest: TurnSummary | null = null;
   const brain = createTutorBrain({
@@ -153,46 +168,64 @@ async function runGroup(group: LessonGroup, ledger: ReturnType<typeof createSpen
     getSpendLimit: () => (ledger.isOverModelLimit() ? 'sessionLimit' : null),
     ...(planner ? { lessonPlanner: planner } : {}),
   });
-  const tasksSoFar: Task[] = [];
-  let lineNumber = 100;
-  let tutorWords = '';
-  let repliesWithATask = 0;
-  let repliesWithALiteralMove = 0;
-  for (const turn of group.turns) {
-    lineNumber += 1;
-    const said = turn.doTask === '@solve' ? await getSolvedLine(solver, tutorWords, brain) : turn.doTask;
-    const work = turn.work ? ({ ...turn.work, id: turn.work.id as ElementId, ...(brain.getBoard().openTask ? { task: brain.getBoard().openTask as ElementId } : {}) } satisfies StudentWork) : said ? getTaskWork(said, brain, lineNumber) : null;
-    if (turn.doTask && !work) failures.push(`${group.name}: doTask, but no task the runner can do is open`);
-    const checked = work ? brain.noteWork(work)?.checked : null;
-    if (work) lines.push(`S did: ${JSON.stringify(work)} code says ${checked?.verdict.status}${checked?.closesTask ? ', closes it' : ''}`);
-    if (turn.silent) continue;
-    const text = work ? getWorkWords(work) : (turn.text ?? said ?? '');
-    const beats: TutorBeat[] = [];
-    for await (const beat of brain.reply({ text }, new AbortController().signal)) beats.push(beat);
-    const summary = latest as unknown as TurnSummary;
-    if (summary.firstTextMs !== null) firstTextMs.push(Math.round(summary.firstTextMs));
-    const cues = beats.flatMap((beat) => getCues(beat).map((cue) => ({ cue, beatWords: getSpokenWords(getBeatText(beat)).length })));
-    tutorWords = summary.spokenText;
-    const reply: ReplyFacts = { spoken: summary.spokenText, cues, tasksSoFar };
-    tasksSoFar.push(...getReplyTasks(reply));
-    if (getReplyTasks(reply).length > 0) {
-      repliesWithATask += 1;
-      if (cues.some(isLiteralMove)) repliesWithALiteralMove += 1;
-    }
-    lines.push(`S: ${text}`, `T (${summary.endedAs}, a${summary.attempts}, first text ${Math.round(summary.firstTextMs ?? -1)} ms): ${summary.spokenText}`);
-    for (const { cue } of cues) lines.push(`   @${cue.atWord} ${JSON.stringify(cue.command)}`);
-    if (TALKS_OF_A_PLAN.test(summary.spokenText)) failures.push(`${group.name}: talked about a plan: ${summary.spokenText.slice(0, 100)}`);
-    for (const name of turn.expect ?? []) {
-      if (!runCheck(name, reply)) failures.push(`${group.name}: ${name}: ${text.slice(0, 50)}: ${summary.spokenText.slice(0, 100)}`);
-    }
-    if (planner && !turn.noWait) await planner.whenSettled();
-    if (turn.title && args.planner === 'real' && !titles.at(-1)?.toLowerCase().includes(turn.title.toLowerCase())) failures.push(`${group.name}: title holds no "${turn.title}", it is ${titles.at(-1) ?? 'unchanged'}`);
-    if (turn.noTitle && titles.length > 0) failures.push(`${group.name}: a title was made from this: ${titles.at(-1)}`);
-    const step = planner?.getStepNote();
-    if (step) lines.push(`   step: ${JSON.stringify(step)}`);
+  return { group, brain, planner, getLatest: () => latest as unknown as TurnSummary, solver, failures: [], lines, titles, planCosts, firstTextMs: [], tasksSoFar: [], tutorWords: '', lineNumber: 100, repliesWithATask: 0, repliesWithALiteralMove: 0 };
+}
+
+async function getTurnWork(turn: LessonTurn, run: GroupRun): Promise<{ work: StudentWork | null; said: string | undefined }> {
+  const openTask = run.brain.getBoard().openTask;
+  if (turn.work) return { work: { ...turn.work, id: turn.work.id as ElementId, ...(openTask ? { task: openTask } : {}) }, said: undefined };
+  if (!turn.doTask) return { work: null, said: undefined };
+  const said = turn.doTask === '@solve' ? await getSolvedLine(run.solver, run.tutorWords, run.brain) : turn.doTask;
+  const work = getTaskWork(said, run.brain, run.lineNumber);
+  if (!work) run.failures.push(`${run.group.name}: doTask, but no task the runner can do is open`);
+  return { work, said };
+}
+
+function readReply(turn: LessonTurn, text: string, beats: readonly TutorBeat[], run: GroupRun) {
+  const summary = run.getLatest();
+  if (summary.firstTextMs !== null) run.firstTextMs.push(Math.round(summary.firstTextMs));
+  const cues = beats.flatMap((beat) => getCues(beat).map((cue) => ({ cue, beatWords: getSpokenWords(getBeatText(beat)).length })));
+  const reply: ReplyFacts = { spoken: summary.spokenText, cues, tasksSoFar: run.tasksSoFar };
+  run.tutorWords = summary.spokenText;
+  run.tasksSoFar.push(...getReplyTasks(reply));
+  if (getReplyTasks(reply).length > 0) {
+    run.repliesWithATask += 1;
+    if (cues.some(isLiteralMove)) run.repliesWithALiteralMove += 1;
   }
-  await planner?.whenSettled();
-  return { failures, lines, planUsd: planCosts.reduce((sum, usd) => sum + usd, 0), firstTextMs, repliesWithATask, repliesWithALiteralMove };
+  run.lines.push(`S: ${text}`, `T (${summary.endedAs}, a${summary.attempts}, first text ${Math.round(summary.firstTextMs ?? -1)} ms): ${summary.spokenText}`);
+  for (const { cue } of cues) run.lines.push(`   @${cue.atWord} ${JSON.stringify(cue.command)}`);
+  if (TALKS_OF_A_PLAN.test(summary.spokenText)) run.failures.push(`${run.group.name}: talked about a plan: ${summary.spokenText.slice(0, 100)}`);
+  for (const name of turn.expect ?? []) {
+    if (!runCheck(name, reply)) run.failures.push(`${run.group.name}: ${name}: ${text.slice(0, 50)}: ${summary.spokenText.slice(0, 100)}`);
+  }
+}
+
+function checkTitle(turn: LessonTurn, { group, titles, failures }: GroupRun) {
+  if (turn.title && args.planner === 'real' && !titles.at(-1)?.toLowerCase().includes(turn.title.toLowerCase())) failures.push(`${group.name}: title holds no "${turn.title}", it is ${titles.at(-1) ?? 'unchanged'}`);
+  if (turn.noTitle && titles.length > 0) failures.push(`${group.name}: a title was made from this: ${titles.at(-1)}`);
+}
+
+async function playTurn(turn: LessonTurn, run: GroupRun) {
+  run.lineNumber += 1;
+  const { work, said } = await getTurnWork(turn, run);
+  const checked = work ? run.brain.noteWork(work)?.checked : null;
+  if (work) run.lines.push(`S did: ${JSON.stringify(work)} code says ${checked?.verdict.status}${checked?.closesTask ? ', closes it' : ''}`);
+  if (turn.silent) return;
+  const text = work ? getWorkWords(work) : (turn.text ?? said ?? '');
+  const beats: TutorBeat[] = [];
+  for await (const beat of run.brain.reply({ text }, new AbortController().signal)) beats.push(beat);
+  readReply(turn, text, beats, run);
+  if (run.planner && !turn.noWait) await run.planner.whenSettled();
+  checkTitle(turn, run);
+  const step = run.planner?.getStepNote();
+  if (step) run.lines.push(`   step: ${JSON.stringify(step)}`);
+}
+
+async function runGroup(group: LessonGroup, ledger: ReturnType<typeof createSpendLedger>, model: ReturnType<typeof makeAnthropicTutorModel>, solver: ReturnType<typeof makeAnthropicTutorModel>) {
+  const run = startGroupRun(group, ledger, model, solver);
+  for (const turn of group.turns) await playTurn(turn, run);
+  await run.planner?.whenSettled();
+  return { ...run, planUsd: run.planCosts.reduce((sum, usd) => sum + usd, 0) };
 }
 
 async function main() {
