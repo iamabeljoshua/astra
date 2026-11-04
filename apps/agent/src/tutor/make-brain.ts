@@ -1,4 +1,4 @@
-import { getBeatText, type InkPoint } from '@astra/contracts';
+import { getBeatText, type InkPoint, type SessionRecap } from '@astra/contracts';
 import { readKey } from '../keys.ts';
 import { askPlanner } from '../lesson-plan/ask-planner.ts';
 import { createLessonPlanner, type LessonPlanner } from '../lesson-plan/lesson-planner.ts';
@@ -8,6 +8,9 @@ import { createSessionDigest } from '../learner-record/session-digest.ts';
 import { writeRecordOfRoom } from '../learner-record/write-record.ts';
 import { makeRecordedTutorModel } from '../providers/fake-model.ts';
 import { createStandInTutor } from '../live/stand-in-tutor.ts';
+import type { RecapFacts } from '../recap/recap-facts.ts';
+import { getRecapLines } from '../recap/recap-rules.ts';
+import { writeLessonRecap } from '../recap/write-recap.ts';
 import { type ApiLink, createApiLink } from './api-link.ts';
 import { createTutorBrain, type SpendLimit, type TraceNote, type TurnSummary, type TutorBrain } from './brain.ts';
 import { PROMPT_VERSIONS, TUTOR_PROMPT, type TutorPrompt } from './prompt.ts';
@@ -45,7 +48,7 @@ function makeLedger() {
   return createSpendLedger(path, { limitUsd: Number(process.env.ASTRA_SPEND_LIMIT_USD ?? DEFAULT_LIMIT_USD), limitCredits: Number(process.env.ASTRA_SPEND_LIMIT_CREDITS ?? DEFAULT_LIMIT_CREDITS) });
 }
 
-function makeApiLink(roomName: string): ApiLink | null {
+export function makeApiLink(roomName: string): ApiLink | null {
   const { ASTRA_API_URL: apiUrl, ASTRA_AGENT_KEY: agentKey } = process.env;
   return apiUrl && agentKey ? createApiLink({ apiUrl, agentKey, roomName }) : null;
 }
@@ -115,9 +118,12 @@ export interface MadeBrain {
   readMeaning?(words: string): Promise<WordMeaning | null>;
   readStrokes?(strokes: readonly (readonly InkPoint[])[]): Promise<{ text: string; ink: { tex?: string; isUnsure: boolean } } | null>;
   readSpokenWords?(words: string, expects: SpokenExpected): Promise<SpokenReading>;
+  writeRecap?(facts: RecapFacts): Promise<SessionRecap | null>;
   getSpentUsd?(): number;
   /** Runs the after-session pass as the room closes. It cannot throw. */
   writeRecord?(): Promise<void>;
+  /** A gentle ending means no notes from this room, however the ending decided it. */
+  noteNeedsAPerson?(): void;
 }
 
 // A plan changes the session's title only when the student moves to another topic, and a failed save keeps the page's title and the session running.
@@ -157,7 +163,11 @@ export function makeTutorBrain({ roomName, jobId, trace, onSessionTitle = () => 
     trace('turnWritten', { firstTextMs, firstBeatMs, attempts, endedAs, costUsd, usage, refused, refusalCategory, isUsageEstimated, words: spokenText.split(/\s+/).length });
     caps.addTurn({ usd: costUsd, voiceCharacters: beats.map(getBeatText).join(' ').length });
   };
-  const lessonPlanner = name === RECORDED ? undefined : makeLessonPlanner({ link, caps, trace, onSessionTitle });
+  let movedTo: string | null = null;
+  const lessonPlanner = name === RECORDED ? undefined : makeLessonPlanner({ link, caps, trace, onSessionTitle(title) {
+    movedTo = title;
+    onSessionTitle(title);
+  } });
   const loadMemory = link ? async () => getMemoryNote(await link.fetchRecord(), new Date()) : undefined;
   const findSource = name === RECORDED || !isFindSourceOn() ? undefined : makeAnthropicSourceFinder({ apiKey: readKey('ANTHROPIC_API_KEY'), onFailed: (problem) => trace('sourceFailed', { problem }) });
   const brain = createTutorBrain({ model, prompt: getLivePrompt(), ...(findSource ? { findSource } : {}), loadProfile: link ? () => link.fetchProfile() : undefined, loadMemory, onWorkNoted: digest.addWork, trace, onTurnEnd, getSpendLimit: caps.getSpendLimit, ...(lessonPlanner ? { lessonPlanner } : {}) });
@@ -184,6 +194,12 @@ export function makeTutorBrain({ roomName, jobId, trace, onSessionTitle = () => 
     caps.addTurn({ usd: reading.costUsd, voiceCharacters: 0 });
     return reading;
   };
+  const writeRecap = async (facts: RecapFacts) => {
+    if (caps.getSpendLimit()) return null;
+    const { recap, costUsd } = await writeLessonRecap(wordsModel, { ...facts, movedTo });
+    caps.addTurn({ usd: costUsd, voiceCharacters: recap ? getRecapLines(recap).join(' ').length : 0 });
+    return recap;
+  };
   const writeRecord = link
     ? () =>
         writeRecordOfRoom({
@@ -196,5 +212,5 @@ export function makeTutorBrain({ roomName, jobId, trace, onSessionTitle = () => 
           trace,
         })
     : undefined;
-  return { brain, flushSpend: caps.flush, getSpentUsd: caps.getSpentUsd, readMeaning, readStrokes, readSpokenWords, ...(writeRecord ? { writeRecord } : {}) };
+  return { brain, flushSpend: caps.flush, getSpentUsd: caps.getSpentUsd, readMeaning, readStrokes, readSpokenWords, writeRecap, noteNeedsAPerson: digest.noteNeedsAPerson, ...(writeRecord ? { writeRecord } : {}) };
 }

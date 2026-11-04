@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { rethrowUnlessApiError } from '../api/apiError';
 import { API_ERROR_LABELS } from '../strings';
 import { ARRIVING_FROM_ENDED_SESSION } from './sessionPath';
-import { refreshSessionViews, type Session, useUpdateSession } from './sessionQueries';
+import { refreshOneSession, refreshSessionViews, type Session, useUpdateSession } from './sessionQueries';
 import { useLeavePage } from './useLeavePage';
 
 const TICK_MS = 1_000;
@@ -16,8 +16,17 @@ function createClock(startingSeconds: number) {
   return () => startingSeconds + Math.floor(Math.max(Date.now() - openedAtMs, 0) / MS_PER_SECOND);
 }
 
-// Stands in for the live session's clock until M3.10.
-export function useSessionRun(session: Session) {
+export interface SessionRoom {
+  canAskForRecap(): boolean;
+  askForRecap(): boolean;
+  leave(): Promise<void>;
+  rejoin(): Promise<unknown>;
+}
+
+const NO_ROOM: SessionRoom = { canAskForRecap: () => false, askForRecap: () => false, leave: async () => {}, rejoin: async () => {} };
+
+// Stands in for the live session's clock until M3.10. The session is finished the moment the student presses End, whatever becomes of the recap, and a tutor is told only once that has saved, so a failed end leaves it teaching.
+export function useSessionRun(session: Session, room: SessionRoom = NO_ROOM) {
   const queryClient = useQueryClient();
   const { fadeInto } = useLeavePage();
   const { mutate: saveLength } = useUpdateSession(session.id);
@@ -25,37 +34,47 @@ export function useSessionRun(session: Session) {
   const [readSeconds] = useState(() => createClock(session.durationSeconds));
   const [seconds, setSeconds] = useState(session.durationSeconds);
   const [isEnding, setIsEnding] = useState(false);
+  const [isRecapping, setIsRecapping] = useState(false);
 
   useEffect(() => {
+    if (isRecapping) return undefined;
     const clock = setInterval(() => setSeconds(readSeconds()), TICK_MS);
     const saving = setInterval(() => saveLength({ durationSeconds: readSeconds() }), SAVE_EVERY_MS);
     return () => {
       clearInterval(clock);
       clearInterval(saving);
     };
-  }, [readSeconds, saveLength]);
+  }, [readSeconds, saveLength, isRecapping]);
 
-  /** True once the session has finished. */
-  async function endSession(beforeFinishing: () => Promise<void> = async () => {}): Promise<boolean> {
-    if (isEnding) return true;
+  async function leave() {
+    void refreshOneSession(queryClient, session.id);
+    await refreshSessionViews(queryClient);
+    await fadeInto('/', { replace: true, state: ARRIVING_FROM_ENDED_SESSION });
+  }
+
+  // Finishing deletes a room that is not kept for a recap, and a page still in it would ask for another. A student whose finish failed stays in the session, so that room opens again.
+  async function endSession() {
+    if (isEnding) return;
     setIsEnding(true);
+    const canRecap = room.canAskForRecap();
     try {
-      await beforeFinishing();
-      await finish.mutateAsync({ durationSeconds: readSeconds(), status: 'finished' });
-      await refreshSessionViews(queryClient);
-      await fadeInto('/', { replace: true, state: ARRIVING_FROM_ENDED_SESSION });
-      return true;
+      if (!canRecap) await room.leave();
+      await finish.mutateAsync({ durationSeconds: readSeconds(), status: 'finished', ...(canRecap ? { keepsRoomForRecap: true } : {}) });
+      if (canRecap && room.askForRecap()) setIsRecapping(true);
+      else await leave();
     } catch (thrown) {
       setIsEnding(false);
+      if (!canRecap) await room.rejoin();
       rethrowUnlessApiError(thrown);
-      return false;
     }
   }
 
   return {
     seconds,
     endSession,
+    leave,
     isEnding,
+    isRecapping,
     endProblem: finish.error && API_ERROR_LABELS[finish.error.kind],
   };
 }
