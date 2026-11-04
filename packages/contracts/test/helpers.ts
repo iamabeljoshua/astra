@@ -6,6 +6,7 @@ export const ONE_OF_EACH_COMMAND: Record<SceneCommand['kind'], Record<string, un
   transformMath: { kind: 'transformMath', target: 'equation', tex: 'x^2 = -1' },
   highlight: { kind: 'highlight', id: 'term', target: 'equation', tex: 'x', occurrence: 1 },
   plot: { kind: 'plot', id: 'curve', expression: 'x^2', domain: [-2, 2], yRange: [0, 4], label: 'y = x squared', xLabel: 'time', yLabel: 'height', over: 'axes', startsEmpty: true },
+  shadeArea: { kind: 'shadeArea', id: 'area', target: 'curve', from: 0, to: 2, label: 'distance' },
   numberLine: { kind: 'numberLine', id: 'line', domain: [0, 10] },
   markValue: { kind: 'markValue', id: 'four', target: 'line', at: 4, label: 'four' },
   geometry: { kind: 'geometry', id: 'figure', xRange: [0, 5], yRange: [0, 5] },

@@ -12,7 +12,9 @@
     "start": "node src/live/worker.ts start",
     "proof": "node src/lab/proof/run-proof.ts",
     "voice-probe": "node src/lab/proof/voice-probe.ts",
-    "voice-proof": "node src/lab/proof/voice/run-voice-proof.ts"
+    "voice-proof": "node src/lab/proof/voice/run-voice-proof.ts",
+    "math-proof": "node src/lab/proof/math-proof.ts",
+    "math-load": "node src/lab/proof/math-load.ts"
   },
   "dependencies": {
     "@astra/board": "workspace:*",

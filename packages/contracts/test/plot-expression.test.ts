@@ -135,3 +135,25 @@ describe('deep or long plot expressions', () => {
     expect(evaluate(`${'1+'.repeat(99)}1`, 0)).toBe(100);
   });
 });
+
+describe('named constants', () => {
+  const names = new Set(['a', 'slope']);
+
+  it('reads a declared constant and evaluates it from the values given', () => {
+    const node = parsePlotExpression('a*x^2 + slope', names);
+    expect(node).not.toBeNull();
+    expect(evaluatePlotExpression(node as PlotNode, 2, new Map([['a', 3], ['slope', 1]]))).toBe(13);
+  });
+
+  it('gives NaN for a constant with no value, so a curve shows a gap and not a wrong number', () => {
+    expect(evaluatePlotExpression(parsePlotExpression('a*x', names) as PlotNode, 2)).toBeNaN();
+  });
+
+  it('refuses a name no one declared', () => {
+    expect(parsePlotExpression('b*x', names)).toBeNull();
+  });
+
+  it('keeps the x, functions, and fixed constants their meaning', () => {
+    expect(evaluatePlotExpression(parsePlotExpression('sin(pi*x)', new Set(['q'])) as PlotNode, 0.5)).toBeCloseTo(1);
+  });
+});

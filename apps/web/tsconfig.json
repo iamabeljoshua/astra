@@ -9,5 +9,5 @@
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true
   },
-  "include": ["src", "vite.config.ts", "build-guards.ts"]
+  "include": ["src", "math-load", "vite.config.ts", "build-guards.ts"]
 }

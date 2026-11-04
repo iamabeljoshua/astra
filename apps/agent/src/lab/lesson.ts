@@ -54,6 +54,200 @@ export const LESSON: readonly (readonly Beat[])[] = [
   ],
 ];
 
+const ALGEBRA_LESSON: readonly (readonly Beat[])[] = [
+  [
+    makeBeat('the-equation', [
+      { kind: 'text', id: 'goal', text: 'Find x', handwritten: true },
+      'We want x on its own. ',
+      { kind: 'writeMath', id: 'steps', tex: '2x + 3 = 11', overWords: 5 },
+      'Two x plus three equals eleven. ',
+    ]),
+    makeBeat('the-three', [
+      'What is in the way? ',
+      { kind: 'highlight', id: 'three-ring', target: 'steps', tex: '3' },
+      'The three, so it goes first. ',
+    ]),
+    makeBeat('over-the-equals', [
+      'Take three from both sides, ',
+      { kind: 'transformMath', target: 'steps', tex: '2x = 11 - 3', overWords: 6 },
+      'and it crosses over as minus three. ',
+      { kind: 'hide', target: 'three-ring' },
+      'Watch the sign change. ',
+    ]),
+    makeBeat('eight', [
+      'Eleven minus three ',
+      { kind: 'transformMath', target: 'steps', tex: '2x = 8' },
+      'is eight. ',
+    ]),
+    makeBeat('over-two', [
+      'Now two times x is eight, so ',
+      { kind: 'transformMath', target: 'steps', tex: String.raw`x = \frac{8}{2}`, overWords: 5 },
+      'the two moves under the eight. ',
+    ]),
+    makeBeat('the-answer', [
+      'Eight over two ',
+      { kind: 'transformMath', target: 'steps', tex: 'x = 4' },
+      'is four. ',
+      { kind: 'text', id: 'check', text: 'Check: 2(4) + 3 = 11', handwritten: true, overWords: 6 },
+      'Put it back in and it holds. ',
+    ]),
+  ],
+];
+
+const DENSE_LESSON: readonly (readonly Beat[])[] = [
+  [
+    makeBeat('the-formula', [
+      { kind: 'writeMath', id: 'quadratic', tex: String.raw`x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}`, overWords: 6 },
+      'The quadratic formula has a root inside a fraction. ',
+      { kind: 'highlight', id: 'discriminant', target: 'quadratic', tex: 'b^2 - 4ac' },
+      'This part decides how many answers there are. ',
+    ]),
+    makeBeat('the-matrix', [
+      { kind: 'writeMath', id: 'system', tex: String.raw`\begin{pmatrix} 2 & 1 \\ 1 & 3 \end{pmatrix} \begin{pmatrix} x \\ y \end{pmatrix} = \begin{pmatrix} 5 \\ 10 \end{pmatrix}`, overWords: 6 },
+      'Two equations become one line with matrices. ',
+      { kind: 'transformMath', target: 'system', tex: String.raw`\begin{pmatrix} x \\ y \end{pmatrix} = \frac{1}{5} \begin{pmatrix} 3 & -1 \\ -1 & 2 \end{pmatrix} \begin{pmatrix} 5 \\ 10 \end{pmatrix}`, overWords: 6 },
+      'The inverse moves across the equals sign. ',
+    ]),
+    makeBeat('the-powers', [
+      { kind: 'writeMath', id: 'powers', tex: String.raw`\sum_{k=1}^{n} k^2 = \frac{n(n+1)(2n+1)}{6}`, overWords: 5 },
+      'A sum, with powers and a long fraction. ',
+      { kind: 'writeMath', id: 'root', tex: String.raw`\sqrt[3]{x^2 + 1} = e^{\frac{1}{3}\ln(x^2 + 1)}`, overWords: 5 },
+      'A cube root equals a power of e. ',
+    ]),
+    makeBeat('the-long-line', [
+      { kind: 'writeMath', id: 'long-line', tex: String.raw`(x + 1)(x + 2)(x + 3) = x^3 + 6x^2 + 11x + 6 = (x^2 + 3x + 2)(x + 3)`, overWords: 6 },
+      'A long line wraps at its operators. ',
+      { kind: 'diagram', id: 'flow', nodes: [{ name: 'expand', label: 'Expand' }, { name: 'collect', label: 'Collect' }, { name: 'factor', label: 'Factor' }], edges: [{ from: 'expand', to: 'collect' }, { from: 'collect', to: 'factor' }], handwritten: true, startsEmpty: true },
+      { kind: 'reveal', target: 'flow', upTo: 3, overWords: 6 },
+      'Expand, then collect, then factor, drawn by hand. ',
+    ]),
+  ],
+];
+
+const EVERY_WORD_LESSON: readonly (readonly Beat[])[] = [
+  [
+    makeBeat('every-word', [
+      { kind: 'writeMath', id: 'line', tex: 'a + b = c' },
+      'First ',
+      { kind: 'highlight', id: 'ring-a', target: 'line', tex: 'a' },
+      'we ',
+      { kind: 'highlight', id: 'ring-b', target: 'line', tex: 'b' },
+      'mark ',
+      { kind: 'hide', target: 'ring-a' },
+      'both ',
+      { kind: 'hide', target: 'ring-b' },
+      'terms ',
+      { kind: 'transformMath', target: 'line', tex: 'a = c - b' },
+      'and ',
+      { kind: 'writeMath', id: 'second', tex: 'x^2 = 9' },
+      'then ',
+      { kind: 'transformMath', target: 'second', tex: String.raw`x = \pm 3` },
+      'keep ',
+      { kind: 'highlight', id: 'ring-c', target: 'line', tex: 'c' },
+      'going ',
+      { kind: 'text', id: 'note', text: 'every word', handwritten: true },
+      'on ',
+      { kind: 'hide', target: 'ring-c' },
+      'every ',
+      { kind: 'transformMath', target: 'line', tex: 'c = a + b' },
+      'word.',
+    ]),
+  ],
+];
+
+const HOSTILE_MARKUP = '<img src=x onerror="window.pwned=1"><script>window.pwned=1</script>';
+
+const HOSTILE_LESSON: readonly (readonly Beat[])[] = [
+  [
+    makeBeat('markup', [
+      { kind: 'text', id: 'plain-markup', text: HOSTILE_MARKUP },
+      'Markup as plain text ',
+      { kind: 'text', id: 'ink-markup', text: HOSTILE_MARKUP, handwritten: true },
+      'then markup by hand ',
+      { kind: 'writeMath', id: 'math-markup', tex: String.raw`\text{<script>window.pwned=1</script>}` },
+      'then markup in math. ',
+    ]),
+    makeBeat('sizes', [
+      { kind: 'clearBoard' },
+      { kind: 'writeMath', id: 'wide', tex: `x = ${Array.from({ length: 50 }, (_, index) => `a_{${index}}`).join(' + ')}` },
+      'A very wide line ',
+      { kind: 'writeMath', id: 'wide-fraction', tex: String.raw`\frac{${'a b c d e f g h i j '.repeat(8)}}{2}` },
+      'and a wide fraction ',
+      { kind: 'writeMath', id: 'tower', tex: `${String.raw`\frac{1}{`.repeat(10)}x${'}'.repeat(10)}` },
+      'and a tall tower ',
+      { kind: 'text', id: 'one-word', text: 'w'.repeat(400), handwritten: true },
+      'and one huge word. ',
+    ]),
+    makeBeat('bad-math', [
+      { kind: 'clearBoard' },
+      { kind: 'writeMath', id: 'good', tex: '2x = 8' },
+      'A good equation ',
+      { kind: 'transformMath', target: 'good', tex: 'x^2^3' },
+      'then a bad step ',
+      { kind: 'writeMath', id: 'bad', tex: String.raw`\frac{1}` },
+      'and a broken one ',
+      { kind: 'highlight', id: 'no-term', target: 'good', tex: 'y', occurrence: 99 },
+      'and a mark on nothing ',
+      { kind: 'annotate', id: 'no-part', target: 'good.t99', mark: 'cross' },
+      'and a mark on no term ',
+      { kind: 'diagram', id: 'labels', nodes: [{ name: 'a', label: HOSTILE_MARKUP.slice(0, 80) }, { name: 'b', label: 'B' }], edges: [{ from: 'a', to: 'b', label: '<b>x</b>' }], handwritten: true },
+      'and markup in a diagram. ',
+    ]),
+    makeBeat('still-works', [
+      { kind: 'clearBoard' },
+      { kind: 'writeMath', id: 'after', tex: String.raw`\frac{x}{2} = 3` },
+      'And the board still works ',
+      { kind: 'transformMath', target: 'after', tex: 'x = 6' },
+      'after all of that. ',
+    ]),
+  ],
+];
+
+const RARE_FONTS_LESSON: readonly (readonly Beat[])[] = [
+  [
+    makeBeat('rare-fonts', [
+      { kind: 'writeMath', id: 'rare', tex: String.raw`\mathcal{L} = \mathbb{R} + \mathfrak{g}` },
+      'A script letter, a blackboard letter, and a gothic letter. ',
+      { kind: 'transformMath', target: 'rare', tex: String.raw`\mathbb{R} = \mathcal{L} - \mathfrak{g}` },
+      'The same letters move across the equals sign. ',
+    ]),
+  ],
+];
+
+const MARKS_AND_LABELS_LESSON: readonly (readonly Beat[])[] = [
+  [
+    makeBeat('unbraced-parts', [
+      { kind: 'writeMath', id: 'power', tex: 'x^2 + 1' },
+      'Look at the power. ',
+      { kind: 'highlight', id: 'ring-power', target: 'power', tex: '2' },
+      'That two is the square. ',
+      { kind: 'writeMath', id: 'half-pi', tex: String.raw`\frac\pi2 = y` },
+      'Now a fraction. ',
+      { kind: 'highlight', id: 'ring-pi', target: 'half-pi', tex: String.raw`\pi` },
+      'Pi is on top. ',
+      { kind: 'writeMath', id: 'sum', tex: String.raw`\sum_i x_i = \hat x` },
+      'Now a sum. ',
+      { kind: 'highlight', id: 'ring-i', target: 'sum', tex: 'i' },
+      'It runs over i. ',
+      { kind: 'highlight', id: 'ring-hat', target: 'sum', tex: String.raw`\hat x` },
+      'And this has a hat. ',
+      { kind: 'highlight', id: 'ring-nothing', target: 'sum', tex: 'q' },
+      'And this points at nothing. ',
+    ]),
+    makeBeat('labels', [
+      { kind: 'clearBoard' },
+      { kind: 'diagram', id: 'cycle', nodes: [{ name: 'water', label: 'H\u2082O' }, { name: 'change', label: '\u0394v' }, { name: 'area', label: '\u03c0r\u00b2' }, { name: 'plain', label: 'Water' }], edges: [{ from: 'water', to: 'change', label: '\u2192 heat' }, { from: 'change', to: 'area' }, { from: 'area', to: 'plain', label: 'runs' }] },
+      'Labels the strokes cannot write stay readable. ',
+      { kind: 'text', id: 'note', text: 'Find \u0394v', handwritten: true },
+      'And so does a note. ',
+    ]),
+  ],
+];
+
+export const LESSONS = { 'jump-shot': LESSON, algebra: ALGEBRA_LESSON, dense: DENSE_LESSON, 'every-word': EVERY_WORD_LESSON, hostile: HOSTILE_LESSON, 'rare-fonts': RARE_FONTS_LESSON, 'marks-and-labels': MARKS_AND_LABELS_LESSON } as const satisfies Record<string, readonly (readonly Beat[])[]>;
+
+export type LessonName = keyof typeof LESSONS;
+
 const MOST_COMMANDS_IN_A_BEAT = 12;
 
 // Proof only. The script's own cues sit where a writer put them, so these show what a cue on any other word would do, as near every nth word as a beat's command limit allows.
@@ -81,5 +275,20 @@ export function getLessonTurn({ lessonTurn = 0, repeats = 1, cueEveryWords }: { 
 export const STOCK_PHRASE = 'Let me work that out.';
 
 export const STOCK_TURN: readonly Beat[] = [makeBeat('stock', [{ kind: 'text', id: 'working', text: 'Working it out' }, 'Let me ', { kind: 'focus', target: 'working' }, 'work that out.'])];
+
+export const STOCK_MATH_TURN: readonly Beat[] = [
+  makeBeat('stock-math', [
+    { kind: 'writeMath', id: 'stored-line', tex: '2x + 3 = 11' },
+    'Let ',
+    { kind: 'highlight', id: 'stored-ring', target: 'stored-line', tex: '3' },
+    'me ',
+    { kind: 'transformMath', target: 'stored-line', tex: '2x = 11 - 3' },
+    'work ',
+    { kind: 'hide', target: 'stored-ring' },
+    'that ',
+    { kind: 'transformMath', target: 'stored-line', tex: '2x = 8' },
+    'out.',
+  ]),
+];
 
 export const OVERLONG_LINE = 'Nine point eight metres per second squared.';

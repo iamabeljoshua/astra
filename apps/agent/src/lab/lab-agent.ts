@@ -7,7 +7,7 @@ import { createSessionLog } from '../live/session-log.ts';
 import { type SpokenTurn, speakTurn, type TextPace } from '../live/speak-turn.ts';
 import { createVoiceLine } from '../live/voice-line.ts';
 import { type LabRecorder } from './lab-recorder.ts';
-import { getLessonTurn, STOCK_TURN } from './lesson.ts';
+import { getLessonTurn, type LessonName, LESSONS, STOCK_MATH_TURN, STOCK_TURN } from './lesson.ts';
 
 export const LIVE_TOPIC = 'astra.live';
 export const LAB_TOPIC = 'astra.lab';
@@ -16,10 +16,11 @@ const AUDIO_QUEUE_MS = 200;
 const REPORT_WAIT_MS = 1000;
 
 export type LabCommand =
-  | { type: 'play'; lessonTurn?: number; repeats?: number; cueEveryWords?: number; isStockPhrase?: boolean; textPace?: TextPace; proofStalls?: { atAudioMs: number; ms: number }[]; wordsLateMs?: number }
+  | { type: 'play'; lesson?: LessonName; lessonTurn?: number; repeats?: number; cueEveryWords?: number; isStockPhrase?: boolean; isStockMath?: boolean; textPace?: TextPace; proofStalls?: { atAudioMs: number; ms: number }[]; wordsLateMs?: number }
   | { type: 'interrupt' }
   | { type: 'resume'; textPace?: TextPace }
   | { type: 'finish' }
+  | { type: 'sendRaw'; messages: unknown[] }
   /** The page has joined and hears the tutor's track, so the lesson can start without losing its first sound. */
   | { type: 'hello' };
 
@@ -118,10 +119,16 @@ export async function runLabAgent({ url, token, voice, sampleRate, recorder }: L
     startTurn(getResumeBeats({ beats: turn.beats, reports: turn.reports, wordsSent: turn.spoken.getWordsSent(), resumeTag: `r${turnCount}` }), { textPace });
   };
 
+  const getTurnBeats = (command: LabCommand & { type: 'play' }): readonly Beat[] => {
+    if (command.isStockMath) return STOCK_MATH_TURN;
+    if (command.isStockPhrase) return STOCK_TURN;
+    return command.lesson ? (LESSONS[command.lesson][command.lessonTurn ?? 0] ?? []) : getLessonTurn(command);
+  };
+
   const runCommand = (command: LabCommand) => {
     if (command.type === 'play') {
       wordsLateMs = command.wordsLateMs ?? 0;
-      startTurn(command.isStockPhrase ? STOCK_TURN : getLessonTurn(command), command);
+      startTurn(getTurnBeats(command), command);
     }
     if (command.type === 'interrupt') {
       recorder.noteStopDecided(active?.id);
@@ -129,6 +136,7 @@ export async function runLabAgent({ url, token, voice, sampleRate, recorder }: L
     }
     if (command.type === 'resume' && active) void resumeTurn(active, command.textPace);
     if (command.type === 'finish') finish();
+    if (command.type === 'sendRaw') for (const message of command.messages) void publish(LIVE_TOPIC, message as object);
     if (command.type === 'hello') void publish(LAB_TOPIC, { type: 'agentReady' });
   };
 
