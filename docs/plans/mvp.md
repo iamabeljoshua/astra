@@ -2372,7 +2372,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 These have no PR yet. Each one goes in the next free slot or with the PR named.
 
-- **Speed up the web tests in CI.** They are the next lever on CI's margin and on the standing order of under 3 minutes. They take 85 to 100 s of wall time on slow runs, with `environment` at 43 to 44% of Vitest's phase time. No fix has been measured. Do not raise the limit without Abel.
+- **Speed up the web tests in CI.** They are the next lever on CI's margin and on the standing order of under 3 minutes. They took 85 to 100 s of wall time on slow runs before onboarding merged, and 81 to 110 s across four runners after it, with `environment` at 40 to 44% of Vitest's phase time. No fix has been measured. Do not raise the limit without Abel.
 - **CI gates read `success`.** Every gate reads a job's conclusion as `success`, because a timeout concludes `cancelled` and `gh pr checks` can exit 0 on it. The root's merges already read it this way, so owners' and reviewers' gates follow.
 - **Compare CI runs fairly.** Divide by `api:types`, lint, and typecheck, because the same steps vary by about 50% between runners.
 - **README.** Step 16 of the hosted checklist must run after step 5, or `DROP SCHEMA "app"` fails loudly. `README.md:77` is loose about `auth`, and its run counts are low.
