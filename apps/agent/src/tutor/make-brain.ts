@@ -44,6 +44,8 @@ export interface SpendCaps {
   addTurn(summary: { usd: number; voiceCharacters: number }): void;
   /** A scene counts toward the student's day and the shared ledger. It stays out of this room's cap, so a picture can never close the tutor. */
   addScene(usd: number): void;
+  /** A shared scene's words are not this student's to pay for, so they count only toward the project's ceiling. */
+  addSharedVoice(characters: number): void;
   getSceneUsd(): number;
   getSpentUsd(): number;
   /** Sends what the API has not heard yet, so a room closing does not lose the last turn's charge. */
@@ -92,6 +94,9 @@ export function createSpendCaps({ link, ledger, trace, sessionLimitUsd, sessionV
       unreportedUsd += usd;
       ledger?.charge({ anthropicUsd: usd, voiceCharacters: 0 });
       report();
+    },
+    addSharedVoice(characters) {
+      ledger?.charge({ anthropicUsd: 0, voiceCharacters: characters });
     },
     getSceneUsd: () => sceneUsd,
     getSpentUsd: () => sessionUsd + sceneUsd + sessionCharacters * VOICE_USD_PER_CHARACTER,

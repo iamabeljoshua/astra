@@ -11,6 +11,7 @@ import { createLessonVoice } from '../src/scenes/lesson/voice-takes.ts';
 import { createSpendLedger } from '../src/scenes/spend-ledger.ts';
 
 const RATE = 24000;
+const OWN_SHELF = () => ({ kind: 'student', sceneId: 'scene-1' }) as const;
 const makeBeat = (text: string): Beat => {
   const parsed = parseBeat({ id: 'line', script: [text], expectsReply: false });
   if (!parsed.ok) throw new Error(parsed.problem);
@@ -72,17 +73,17 @@ describe('the voice cap', () => {
   it('is per student, so one student past it cannot turn another student\'s tutor into a tone', () => {
     const { voice, liveTts } = makeVoice({ studentLimit: 40 });
     const line = 'A line of well over twenty characters.';
-    expect(voice.forStudent('maya').forTurn([makeBeat(line)]).tts).toBe(liveTts);
-    expect(voice.forStudent('maya').forTurn([makeBeat(`${line} Again`)]).tts).not.toBe(liveTts);
-    expect(voice.forStudent('tola').forTurn([makeBeat(line)]).tts).toBe(liveTts);
+    expect(voice.forStudent('maya', OWN_SHELF).forTurn([makeBeat(line)]).tts).toBe(liveTts);
+    expect(voice.forStudent('maya', OWN_SHELF).forTurn([makeBeat(`${line} Again`)]).tts).not.toBe(liveTts);
+    expect(voice.forStudent('tola', OWN_SHELF).forTurn([makeBeat(line)]).tts).toBe(liveTts);
   });
 
   it('writes what it spends to the ledger, so a restart does not reset it', () => {
     const { root, voice, ledger } = makeVoice({ studentLimit: 40 });
-    voice.forStudent('maya').forTurn([makeBeat('A line of well over twenty characters.')]);
+    voice.forStudent('maya', OWN_SHELF).forTurn([makeBeat('A line of well over twenty characters.')]);
     expect(ledger.read('maya').voiceCharacters).toBeGreaterThan(20);
     const afterRestart = createLessonVoice({ root, voiceName: 'chris', makeLiveTts: () => makeRenderedVoice({ name: 'live', render: renderTone }).makeTts(), ledger });
-    expect(afterRestart.forStudent('maya').forTurn([makeBeat('A second line of well over twenty characters.')]).save).toBeUndefined();
+    expect(afterRestart.forStudent('maya', OWN_SHELF).forTurn([makeBeat('A second line of well over twenty characters.')]).save).toBeUndefined();
   });
 });
 
@@ -132,5 +133,41 @@ describe('where a spoken line is kept', () => {
     expect(listFiles(root)).toEqual([]);
     await say(voice, 'tola', () => ({ kind: 'shared' }));
     expect(voice.forStudent('maya', () => ({ kind: 'nowhere' })).forTurn([makeBeat('Three whole words')]).save).toBeUndefined();
+  });
+});
+
+describe('the first play of a shared line', () => {
+  const setUpShared = () => {
+    const root = mkdtempSync(join(tmpdir(), 'shared-voice-'));
+    const ledger = createSpendLedger(join(root, 'spend.jsonl'), { limitUsd: 20, studentLimitUsd: 2, voiceCharacterLimit: 100, studentVoiceCharacterLimit: 10 });
+    const voices = createLessonVoice({ root, voiceName: 'chris', makeLiveTts: () => makeRenderedVoice({ name: 'live', render: renderTone }).makeTts(), ledger });
+    return { ledger, voices };
+  };
+  const line = (text: string) => {
+    const parsed = parseBeat({ id: 'line', script: [text], expectsReply: false });
+    if (!parsed.ok) throw new Error(parsed.problem);
+    return [parsed.value];
+  };
+  const OVER_A_STUDENT = 'more than ten characters of a line';
+
+  it('never counts against the student who hears it first', () => {
+    const { ledger, voices } = setUpShared();
+    const heard = voices.forStudent('maya', () => ({ kind: 'shared' })).forTurn(line(OVER_A_STUDENT));
+    expect(heard.isAtLimit).toBeUndefined();
+    expect(ledger.read('maya').voiceCharacters).toBe(0);
+    expect(ledger.read().voiceCharacters).toBe(OVER_A_STUDENT.length);
+  });
+
+  it('still answers to the project ceiling', () => {
+    const { voices } = setUpShared();
+    const heard = voices.forStudent('maya', () => ({ kind: 'shared' })).forTurn(line('word '.repeat(30).trim()));
+    expect(heard.isAtLimit).toBe(true);
+  });
+
+  it('leaves a student\'s own typed lines on their own limit', () => {
+    const { ledger, voices } = setUpShared();
+    const heard = voices.forStudent('maya', () => ({ kind: 'student', sceneId: 'scene-1' })).forTurn(line(OVER_A_STUDENT));
+    expect(heard.isAtLimit).toBe(true);
+    expect(ledger.read('maya').voiceCharacters).toBe(0);
   });
 });

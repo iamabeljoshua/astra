@@ -25,7 +25,7 @@ export interface TutorScenesOptions {
   /** True only when the session took the beats, so a scene never talks over anyone. */
   speak(beats: readonly TutorBeat[]): boolean;
   canSpeak(): boolean;
-  onShown(shown: { topic: string; beats: readonly Beat[] }): void;
+  onShown(shown: { topic: string; beats: readonly Beat[]; isShared: boolean }): void;
   trace(name: string, fields?: Record<string, unknown>): void;
 }
 
@@ -96,7 +96,7 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
     const number = (scenesShown += 1);
     const beats = getTutorSceneBeats({ plan: scene.plan, scene, number });
     if (!speak(beats)) return end(ask, 'lostThePause');
-    onShown({ topic: ask.topic, beats });
+    onShown({ topic: ask.topic, beats, isShared: scene.ownerId === null });
     end(ask, 'landed');
   };
 

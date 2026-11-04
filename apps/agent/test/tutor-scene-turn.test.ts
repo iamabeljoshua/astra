@@ -137,6 +137,18 @@ describe('scene spending', () => {
     expect(caps.getSpentUsd()).toBe(0.15);
   });
 
+  it('charges a shared scene\'s words to the project ceiling, not to this student or this room', async () => {
+    const reportSpend = vi.fn(async () => ({ isOverDailyLimit: false }));
+    const charge = vi.fn();
+    const caps = createSpendCaps({ link: { reportSpend }, ledger: { charge, isOverModelLimit: () => false, isOverVoiceLimit: () => false } as never, trace: () => {}, sessionLimitUsd: 1, sessionVoiceLimitCharacters: 100 });
+    caps.addSharedVoice(300);
+    await caps.flush();
+    expect(charge).toHaveBeenCalledWith({ anthropicUsd: 0, voiceCharacters: 300 });
+    expect(reportSpend).not.toHaveBeenCalled();
+    expect(caps.getSpendLimit()).toBeNull();
+    expect(caps.getSpentUsd()).toBe(0);
+  });
+
   it('never closes the tutor for this room', () => {
     const { caps } = makeCaps();
     caps.addScene(5);

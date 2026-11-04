@@ -214,6 +214,26 @@ describe('who a scene belongs to', () => {
   });
 });
 
+describe('who pays for a scene\'s words', () => {
+  const land = async (scene: StoredScene) => {
+    const shown: { isShared: boolean }[] = [];
+    const scenes = createTutorScenes({ router: { route: async () => ({ engine: 'manimgx', kind: 'graph', topic: TOPIC, ...USAGE }) }, runs: { join: () => ({ plan: Promise.resolve(PLAN), firstLine: Promise.resolve(null), getScene: async () => ({ isOk: true, scene }), leave() {} }) } as never, store: createSceneStore(mkdtempSync(join(tmpdir(), 'tutor-scenes-'))), getCardTitle: () => null, getNowMs: () => 0, send: () => {}, canSpeak: () => true, speak: () => true, onShown: (one) => void shown.push(one), trace: () => {} });
+    scenes.onPage({ type: 'sceneDevice', canPlay: true }, 'maya');
+    scenes.ask(TOPIC);
+    await flush();
+    scenes.onPage(LOADED, 'maya');
+    return shown;
+  };
+
+  it('is the project for a shared scene', async () => {
+    expect(await land({ ...SCENE, ownerId: null })).toEqual([expect.objectContaining({ isShared: true })]);
+  });
+
+  it('is the student for their own typed scene', async () => {
+    expect(await land(SCENE)).toEqual([expect.objectContaining({ isShared: false })]);
+  });
+});
+
 describe('the words of a scene', () => {
   it('are only the words its review read, with the picture first and the question last', () => {
     const beats = getTutorSceneBeats({ plan: PLAN, scene: SCENE, number: 2 });

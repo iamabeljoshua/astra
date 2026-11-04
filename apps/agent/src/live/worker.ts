@@ -110,7 +110,9 @@ async function runSession(context: JobContext): Promise<void> {
       speak: session.speakScene,
       onShown(shown) {
         brain.noteSceneTurn?.(shown);
-        caps.addTurn({ usd: 0, voiceCharacters: getSpokenCharacters(shown.beats) });
+        const voiceCharacters = getSpokenCharacters(shown.beats);
+        if (shown.isShared) caps.addSharedVoice(voiceCharacters);
+        else caps.addTurn({ usd: 0, voiceCharacters });
       },
       trace,
     });
