@@ -389,6 +389,36 @@ export const LAB_LABELS = {
   logEvents: 'Events in the log:',
 };
 
+export const BOARD_LABELS = {
+  figures: {
+    metres: 'm',
+    degrees: '\u00b0',
+    readouts: {
+      time: { label: 'Time', unit: 's' },
+      height: { label: 'Height', unit: 'm' },
+      distance: { label: 'Distance', unit: 'm' },
+      speed: { label: 'Speed', unit: 'm/s' },
+      'velocity-x': { label: 'Sideways speed', unit: 'm/s' },
+      'velocity-y': { label: 'Upward speed', unit: 'm/s' },
+      'peak-height': { label: 'Highest point', unit: 'm' },
+      'landing-distance': { label: 'Lands at', unit: 'm' },
+    },
+    parameters: {
+      horizontalSpeed: { label: 'Sideways speed', unit: 'm/s' },
+      upwardSpeed: { label: 'Upward speed', unit: 'm/s' },
+      releaseHeight: { label: 'Release height', unit: 'm' },
+      gravity: { label: 'Gravity', unit: 'm/s\u00b2' },
+      launchAngle: { label: 'Launch angle', unit: '\u00b0' },
+      launchSpeed: { label: 'Launch speed', unit: 'm/s' },
+    },
+    tooFine: 'Too fine to draw here',
+  },
+  numberLine: 'Number line',
+  geometry: 'Geometry figure',
+  simulation: 'Moving ball, with its path',
+  graphOf: 'Graph of y =',
+};
+
 export const LEGAL_LABELS = {
   draftNotice: 'Draft of 4 November 2026. A lawyer has not yet reviewed this page.',
   planned: 'Planned',

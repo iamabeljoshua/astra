@@ -9,7 +9,7 @@ import { readKey } from '../keys.ts';
 import { getLabGrant } from './lab-grants.ts';
 import { runLabAgent } from './lab-agent.ts';
 import { createLabRecorder } from './lab-recorder.ts';
-import { LESSONS } from './lesson.ts';
+import { type LessonName, LESSONS } from './lesson.ts';
 import { makeSayRenderer } from './proof/say-voice.ts';
 import { tapVendorSocket, type VendorTap } from './proof/vendor-tap.ts';
 
@@ -21,6 +21,7 @@ const { values: args } = parseArgs({
   options: {
     fake: { type: 'boolean', default: false },
     say: { type: 'boolean', default: false },
+    sayLesson: { type: 'string' },
     stored: { type: 'string' },
     model: { type: 'string' },
     room: { type: 'string', default: `lab-${Date.now()}` },
@@ -59,7 +60,7 @@ function makeStoredRender(path: string): RenderSpeech {
 function pickVoice() {
   if (args.stored) return makeRenderedVoice({ name: 'stored', render: makeStoredRender(args.stored) });
   if (args.fake) return makeRenderedVoice({ name: 'fake', render: renderTone });
-  if (args.say) return makeRenderedVoice({ name: 'say', render: makeSayRenderer([...LESSONS.algebra.flat(), ...LESSONS.dense.flat()]) });
+  if (args.say) return makeRenderedVoice({ name: 'say', render: makeSayRenderer(args.sayLesson ? LESSONS[args.sayLesson as LessonName].flat() : [...LESSONS.algebra.flat(), ...LESSONS.dense.flat()]) });
   return makeTutorVoice({ model: args.model, apiKey: readKey('ELEVENLABS_API_KEY') });
 }
 

@@ -23,3 +23,14 @@ export function getMotionValue(motion: Motion, atMs: number): number {
 export function isMoving(motion: Motion, atMs: number): boolean {
   return getMotionValue(motion, atMs) !== motion.to;
 }
+
+export function getMotionEndMs(motion: Motion): number {
+  return motion.unitsPerMs === 0 ? motion.startedAtMs : motion.startedAtMs + Math.abs(motion.to - motion.from) / motion.unitsPerMs;
+}
+
+const SHORTEST_RETIME_MS = 80;
+
+export function retimeMotion(motion: Motion, atMs: number, landsAtMs: number): Motion {
+  if (!isMoving(motion, atMs)) return motion;
+  return moveOver({ from: getMotionValue(motion, atMs), to: motion.to, atMs, overMs: Math.max(landsAtMs - atMs, SHORTEST_RETIME_MS) });
+}

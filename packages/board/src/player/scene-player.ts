@@ -1,8 +1,9 @@
-import type { AgentMessage, BeatEnding, BeatId, BrowserMessage, Cue, FrozenFrame, TimedWord, TurnId } from '@astra/contracts';
+import type { AgentMessage, BeatEnding, BeatId, BrowserMessage, Cue, CueAim, FrozenFrame, TimedWord, TurnId } from '@astra/contracts';
 import type { AudioClock, ClockReading, TurnClock } from './audio-clock.ts';
-import { type BoardOperation, getBeatOperations, type PlayedBeatView } from './board-operations.ts';
+import { type BoardOperation, getBeatOperations, getCueAim, type PlayedBeatView, sortOperations } from './board-operations.ts';
 import { type BoardState, getBoardAt, getFrozenFrames } from './board-state.ts';
 import type { SceneCatalog } from './scene.ts';
+import { createSliderLog, type SliderMove } from './slider-log.ts';
 
 export type OutputLevel = 'full' | 'lowered' | 'silent';
 
@@ -31,10 +32,15 @@ export interface ScenePlayer {
   /** Mutes and freezes as a stop would, for a browser that has lost the agent and cannot wait to be told. */
   freeze(): void;
   getBoard(atMs: number): BoardState;
+  /** It fires what is due first, because the audio clock moves in steps and a cue due at this very reading would otherwise show one frame after a replay shows it. */
+  advanceToNow(): { board: BoardState; atMs: number };
   getNowMs(): number;
   getOperations(): BoardOperation[];
   /** The words heard so far this turn, on the same clock as the board. */
   getCaption(): string;
+  moveSlider(move: SliderMove): void;
+  /** Sends what a drag has not reported yet, when the student lets go. */
+  finishSliderDrag(): void;
   /** The same words, with those already known and not yet heard, so a caption can follow each word as it plays. */
   getCaptionWords(): { heard: string[]; coming: string[] };
 }
@@ -45,6 +51,7 @@ interface PlayingBeat {
   firedCueMs: number[];
   /** Word starts are on the turn's timeline. Holes wait for a late message. */
   words: TimedWord[];
+  cueAims: CueAim[];
   wordCount: number | null;
   expectsReply: boolean;
   playedWords: number;
@@ -68,13 +75,16 @@ interface PlayingTurn {
 
 /** A word this far past its time with no sound was heard or lost, so it stops waiting. */
 const SILENT_WORD_LIMIT_MS = 1000;
+const SMALLEST_REAIM_MS = 10;
+const MOST_CUE_PACES = 120;
+
+// Rounds up, so nothing is ever logged as happening before a frame the student saw without it.
+const getMsSince = (startedAtMs: number, nowMs: number) => Math.max(0, Math.ceil(nowMs - startedAtMs));
 
 const isStarted = (beat: PlayingBeat): beat is StartedBeat => beat.startedAtMs !== null;
 
-const sortByTime = (operations: BoardOperation[]) => operations.sort((first, second) => first.atMs - second.atMs);
-
 function createBeat(id: BeatId): PlayingBeat {
-  return { id, cues: [], firedCueMs: [], words: [], wordCount: null, expectsReply: false, playedWords: 0, startedAtMs: null, isQuestionHeard: false, ending: null, durationMs: 0, frozen: [] };
+  return { id, cues: [], firedCueMs: [], words: [], cueAims: [], wordCount: null, expectsReply: false, playedWords: 0, startedAtMs: null, isQuestionHeard: false, ending: null, durationMs: 0, frozen: [] };
 }
 
 // Plays what the agent sends against the audio the student hears, and reports what really happened, which becomes the log.
@@ -82,6 +92,7 @@ export function createScenePlayer({ clock, clockId = 'page', send, setOutputLeve
   let turn: PlayingTurn | null = null;
   let levelOnceOldAudioHasGone: OutputLevel | null = null;
   const operationsOfOldTurns: BoardOperation[] = [];
+  const sliderLog = createSliderLog({ clockId, getNowMs: () => clock.getNowMs(), send });
   const seenTurnIds = new Set<TurnId>();
 
   const openOutput = () => {
@@ -111,6 +122,7 @@ export function createScenePlayer({ clock, clockId = 'page', send, setOutputLeve
     cues: beat.cues,
     wordStartsMs: getBeatRelativeWordStarts(beat),
     firedCueMs: beat.firedCueMs,
+    cueAims: beat.cueAims,
     ending: beat.ending,
     durationMs: beat.durationMs,
     frozen: beat.frozen,
@@ -118,7 +130,7 @@ export function createScenePlayer({ clock, clockId = 'page', send, setOutputLeve
 
   const getTurnOperations = (playing: PlayingTurn): BoardOperation[] => playing.beats.filter(isStarted).flatMap((beat) => getBeatOperations(getBeatView(beat)));
 
-  const getOperations = () => sortByTime([...operationsOfOldTurns, ...(turn ? getTurnOperations(turn) : [])]);
+  const getOperations = () => sortOperations([...operationsOfOldTurns, ...(turn ? getTurnOperations(turn) : []), ...sliderLog.getOperations()]);
 
   const reportBeat = (playing: PlayingTurn, beat: PlayingBeat, ending: BeatEnding, durationMs: number) => {
     const browserMs = Math.round(clock.getNowMs());
@@ -136,6 +148,7 @@ export function createScenePlayer({ clock, clockId = 'page', send, setOutputLeve
       durationMs: beat.durationMs,
       playedWords: beat.playedWords,
       firedCueMs: beat.firedCueMs,
+      ...(beat.cueAims.length > 0 ? { cueAims: beat.cueAims } : {}),
       ending,
       frozen: beat.frozen,
     });
@@ -160,8 +173,24 @@ export function createScenePlayer({ clock, clockId = 'page', send, setOutputLeve
     for (let cue = beat.cues[beat.firedCueMs.length]; cue !== undefined; cue = beat.cues[beat.firedCueMs.length]) {
       const wordStartMs = beat.words[cue.atWord]?.startMs;
       if (wordStartMs === undefined || cue.atWord >= beat.playedWords || beat.startedAtMs === null) return;
-      beat.firedCueMs.push(Math.max(0, Math.round(nowMs - beat.startedAtMs)));
+      const firedMs = getMsSince(beat.startedAtMs, nowMs);
+      const aim = getCueAim(cue, getBeatRelativeWordStarts(beat));
+      if (aim && !aim.isKnown) beat.cueAims.push({ cue: beat.firedCueMs.length, afterMs: firedMs, landsAtMs: aim.landsAtMs });
+      beat.firedCueMs.push(firedMs);
       onCueFired?.({ turnId: playing.id, beatId: beat.id, atWord: cue.atWord, firedAtMs: nowMs, positionMs: reading.positionMs, wordStartMs });
+    }
+  };
+
+  // Each change goes in the report, so a replay moves as the student saw.
+  const reaimCues = (beat: PlayingBeat) => {
+    if (beat.startedAtMs === null || beat.ending !== null) return;
+    const wordStarts = getBeatRelativeWordStarts(beat);
+    const afterMs = getMsSince(beat.startedAtMs, clock.getNowMs());
+    const aimedCues = new Set(beat.cueAims.map((aim) => aim.cue));
+    for (const cue of aimedCues) {
+      const lastAim = beat.cueAims.filter((aim) => aim.cue === cue).at(-1) as CueAim;
+      const aim = getCueAim(beat.cues[cue] as Cue, wordStarts);
+      if (aim && Math.abs(aim.landsAtMs - lastAim.landsAtMs) >= SMALLEST_REAIM_MS && beat.cueAims.length < MOST_CUE_PACES) beat.cueAims.push({ cue, afterMs, landsAtMs: aim.landsAtMs });
     }
   };
 
@@ -193,7 +222,7 @@ export function createScenePlayer({ clock, clockId = 'page', send, setOutputLeve
   const cutTurn = (playing: PlayingTurn) => {
     tick();
     playing.phase = 'frozen';
-    const nowMs = Math.round(clock.getNowMs());
+    const nowMs = Math.ceil(clock.getNowMs());
     const frames = getFrozenFrames(getBoardAt(getOperations(), nowMs, catalog), nowMs);
     const openBeats = playing.beats.filter((beat) => beat.ending === null);
     const cutBeat = openBeats.filter(isStarted).at(-1);
@@ -254,6 +283,7 @@ export function createScenePlayer({ clock, clockId = 'page', send, setOutputLeve
           beat.words[message.firstWord + index] = word;
         });
         playing.clock.noteWordTimes(playing.beats[0]?.words[0]?.startMs ?? 0, beat.words.at(-1)?.startMs ?? 0);
+        reaimCues(beat);
         return;
       }
       case 'beatClosed': {
@@ -292,6 +322,13 @@ export function createScenePlayer({ clock, clockId = 'page', send, setOutputLeve
       };
     },
     getBoard: (atMs) => getBoardAt(getOperations(), atMs, catalog),
+    advanceToNow() {
+      tick();
+      const atMs = clock.getNowMs();
+      return { board: getBoardAt(getOperations(), atMs, catalog), atMs };
+    },
+    moveSlider: sliderLog.move,
+    finishSliderDrag: sliderLog.finish,
     receive(message) {
       // Reliable messages can reach the browser again across a rejoin, and a second start of a turn would report it as unheard and fire its cues again.
       if (message.type === 'turnStarted') {

@@ -161,10 +161,7 @@ export async function startLabSession({ url, token, shouldRecordPcm, onAgentRead
     clockMap: () => ({ epochAtGraphZeroMs: performance.timeOrigin + performance.now() - audioContext.currentTime * 1000 }),
     command: (command) => void publish(LAB_TOPIC, command),
     sendScene: (message) => void publish(SCENE_TOPIC, message),
-    getBoardNow() {
-      const atMs = clock.getNowMs();
-      return { board: player.getBoard(atMs), atMs };
-    },
+    getBoardNow: player.advanceToNow,
     getReplayBoard: (atMs) => rebuildBoard(records.log, atMs),
     describeLive: (atMs) => describeBoard(player.getBoard(atMs), atMs),
     describeReplay: (atMs) => describeBoard(rebuildBoard(records.log, atMs), atMs),

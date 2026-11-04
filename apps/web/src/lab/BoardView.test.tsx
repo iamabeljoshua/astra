@@ -1,6 +1,6 @@
 import { getBoardAt, type BoardOperation, rebuildBoard } from '@astra/board';
-import { getTexProblem, type SessionEvent } from '@astra/contracts';
-import { render, screen } from '@testing-library/react';
+import { getTexProblem, parseSceneCommand, parseSessionEvent, type SessionEvent } from '@astra/contracts';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BoardView } from './BoardView';
 
@@ -28,9 +28,9 @@ describe('BoardView', () => {
 
   it('draws a ball once a simulation is placed', () => {
     const { container, rerender } = render(<BoardView board={getBoardAt(OPERATIONS, 200)} atMs={200} />);
-    expect(container.querySelectorAll('[data-testid="scene"] circle')).toHaveLength(0);
+    expect(container.querySelectorAll('[data-mark="ball"]')).toHaveLength(0);
     rerender(<BoardView board={getBoardAt(OPERATIONS, 600)} atMs={600} />);
-    expect(container.querySelectorAll('[data-testid="scene"] circle')).toHaveLength(1);
+    expect(container.querySelectorAll('[data-mark="ball"]')).toHaveLength(1);
   });
 });
 
@@ -520,5 +520,270 @@ describe('BoardView, hostile content from a model', () => {
       { kind: 'command', atMs: 0, overMs: null, command: { kind: 'focus', target: 'gone' as never } },
     ];
     expect(() => render(<BoardView board={getBoardAt(operations, 3000)} atMs={3000} />)).not.toThrow();
+  });
+});
+
+describe('BoardView, figures', () => {
+  beforeEach(() => {
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(700);
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(600);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const place = (command: object, atMs = 0): BoardOperation => ({ kind: 'command', atMs, overMs: null, command: command as never });
+  const plot = place({ kind: 'plot', id: 'curve', expression: 'a*x', constants: [{ name: 'a', value: 1, min: 0, max: 4 }], domain: [0, 2], label: '<b>not markup</b>' });
+  const slider = place({ kind: 'slider', id: 'a-slider', target: 'curve', constant: 'a', min: 0, max: 4 });
+
+  it('draws a curve as a path, and its label as text and never as markup', () => {
+    const { container } = render(<BoardView board={getBoardAt([plot], 5000)} atMs={5000} />);
+    expect(container.querySelector('[data-mark="curve-curve"]')?.getAttribute('d')).toMatch(/^M/);
+    expect(container.querySelector('[data-mark="label-curve"]')?.textContent).toBe('<b>not markup</b>');
+    expect(container.querySelector('svg.board-figure b')).toBeNull();
+  });
+
+  it('writes nothing when nothing changed', async () => {
+    const { container, rerender } = render(<BoardView board={getBoardAt([plot], 5000)} atMs={5000} />);
+    const records: MutationRecord[] = [];
+    const observer = new MutationObserver((changes) => records.push(...changes));
+    observer.observe(container, { subtree: true, attributes: true, childList: true, characterData: true });
+    rerender(<BoardView board={getBoardAt([plot], 6000)} atMs={6000} />);
+    await Promise.resolve();
+    observer.disconnect();
+    expect(records).toEqual([]);
+  });
+
+  it('gives a slider the board value and sends a student move', () => {
+    const onSliderMove = vi.fn();
+    const onSliderRelease = vi.fn();
+    const { container } = render(<BoardView board={getBoardAt([plot, slider], 5000)} atMs={5000} canMoveSliders onSliderMove={onSliderMove} onSliderRelease={onSliderRelease} />);
+    const input = container.querySelector<HTMLInputElement>('.board-slider input') as HTMLInputElement;
+    expect(Number(input.value)).toBe(1);
+    expect(container.querySelector('.board-slider-value')?.textContent).toBe('1.00');
+    fireEvent.input(input, { target: { value: '2.5' } });
+    expect(onSliderMove).toHaveBeenCalledWith({ target: 'curve', value: 2.5, constant: 'a' });
+    fireEvent.change(input);
+    expect(onSliderRelease).toHaveBeenCalled();
+  });
+
+  it('follows the board and cannot be dragged in a replay', () => {
+    const moved: BoardOperation = { kind: 'parameterSample', atMs: 100, target: 'curve' as never, parameter: 'a', value: 3 };
+    const { container } = render(<BoardView board={getBoardAt([plot, slider, moved], 5000)} atMs={5000} />);
+    const input = container.querySelector<HTMLInputElement>('.board-slider input') as HTMLInputElement;
+    expect(Number(input.value)).toBe(3);
+    expect(input.disabled).toBe(true);
+  });
+
+  it('paints a slider on any range and any value without throwing, because a throw during paint takes the whole page', () => {
+    for (const [min, max] of [[0, 1e-110], [0, 1e-300], [-1e-99, 1e-99], [-1e6, 1e6], [999999.9999, 1e6], [1e-7, 2e-7]] as const) {
+      const operations = [place({ kind: 'plot', id: 'p', expression: 'a*x', constants: [{ name: 'a', value: min, min, max }], domain: [0, 1] }), place({ kind: 'slider', id: 's', target: 'p', constant: 'a', min, max })];
+      const { container, unmount } = render(<BoardView board={getBoardAt(operations, 5000)} atMs={5000} canMoveSliders />);
+      expect(container.querySelector('.board-slider input')).not.toBeNull();
+      unmount();
+    }
+  });
+
+  describe('extreme numbers the parser takes', () => {
+    const EXTREMES = [0, 1, -1, 1e-6, -1e-6, 1 / 3, 0.1, 100, -100, 150, 1e6, -1e6, 999999.999999, 1e-300];
+    const PARAMETERS = ['horizontalSpeed', 'upwardSpeed', 'releaseHeight', 'gravity', 'launchAngle', 'launchSpeed'];
+    const pickFrom = <Item,>(items: readonly Item[], random: () => number) => items[Math.floor(random() * items.length)] as Item;
+
+    function getRandomScript(random: () => number): unknown[] {
+      const pick = () => pickFrom(EXTREMES, random);
+      return [
+        { kind: 'plot', id: 'curve', expression: pickFrom(['a*x', 'sin(a*x)', '10^308*x', 'a/x', '10^300+a'], random), constants: [{ name: 'a', value: pick(), min: pick(), max: pick() }], domain: [pick(), pick()] },
+        { kind: 'slider', id: 'on-curve', target: 'curve', constant: 'a', min: pick(), max: pick() },
+        { kind: 'numberLine', id: 'line', domain: [pick(), pick()] },
+        { kind: 'markValue', id: 'on-line', target: 'line', at: pick(), label: 'mark' },
+        { kind: 'geometry', id: 'shape', xRange: [pick(), pick()], yRange: [pick(), pick()] },
+        { kind: 'construct', id: 'point', target: 'shape', step: { shape: 'point', name: 'A', x: pick(), y: pick() } },
+        { kind: 'simulate', id: 'flight', simulation: { model: 'projectile', parameters: { horizontalSpeed: pick(), upwardSpeed: pick(), releaseHeight: pick(), gravity: pick() } } },
+        { kind: 'slider', id: 'on-flight', target: 'flight', parameter: pickFrom(PARAMETERS, random), min: pick(), max: pick() },
+        { kind: 'readout', id: 'far', target: 'flight', quantity: 'landing-distance' },
+      ];
+    }
+
+    it('paints every figure and slider kind, live and from a stored row, with nothing not finite on the page', () => {
+      let seed = 7;
+      const random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+      let painted = 0;
+      for (let round = 0; round < 150; round += 1) {
+        const commands = getRandomScript(random).filter((command) => parseSceneCommand(command).ok);
+        const script = commands.flatMap((command) => [command, 'word ']);
+        const parsedRow = parseSessionEvent({ seq: 0, atMs: 0, kind: 'beatPlayed', beat: { id: 'extreme', expectsReply: false, script }, reportedBy: 'browser', turnId: 'turn-1', wordStartsMs: commands.map((_, index) => index * 10), durationMs: commands.length * 10, playedWords: commands.length, firedCueMs: commands.map((_, index) => index * 10), ending: 'finished', frozen: [] });
+        if (!parsedRow.ok) continue;
+        const operations = commands.flatMap((command, index) => { const parsed = parseSceneCommand(command); return parsed.ok ? [{ kind: 'command', atMs: index * 10, overMs: null, command: parsed.value } as BoardOperation] : []; });
+        painted += commands.length;
+        for (const board of [getBoardAt(operations, 5000), rebuildBoard([parsedRow.value], 5000)]) {
+          const { container, unmount } = render(<BoardView board={board} atMs={5000} canMoveSliders />);
+          expect(container.innerHTML).not.toMatch(/NaN|Infinity|undefined/);
+          unmount();
+        }
+      }
+      expect(painted).toBeGreaterThan(150);
+    });
+  });
+
+  describe('what the board tells the tutor about a figure', () => {
+    it('says once when a curve is too fine to draw, and notes it in the figure', () => {
+      const onBoardProblem = vi.fn();
+      const operations = [place({ kind: 'plot', id: 'fine', expression: 'tan(100*x)', domain: [-10, 10] })];
+      const { container, rerender } = render(<BoardView board={getBoardAt(operations, 5000)} atMs={5000} onBoardProblem={onBoardProblem} />);
+      rerender(<BoardView board={getBoardAt(operations, 5100)} atMs={5100} onBoardProblem={onBoardProblem} />);
+      expect(onBoardProblem.mock.calls).toEqual([[{ kind: 'curveTooFine', target: 'fine' }]]);
+      expect(container.querySelector('[data-mark="too-fine"]')?.textContent).toBe('Too fine to draw here');
+    });
+
+    it('says nothing about a curve it drew', () => {
+      const onBoardProblem = vi.fn();
+      const { container } = render(<BoardView board={getBoardAt([place({ kind: 'plot', id: 'wave', expression: 'sin(10*x)', domain: [-10, 10] })], 5000)} atMs={5000} onBoardProblem={onBoardProblem} />);
+      expect(onBoardProblem).not.toHaveBeenCalled();
+      expect(container.querySelector('[data-mark="too-fine"]')).toBeNull();
+    });
+
+    it('says once when a slider would say a speed another way than the one on the flight, and draws only the first', () => {
+      const onBoardProblem = vi.fn();
+      const flight = place({ kind: 'simulate', id: 'shot', simulation: { model: 'projectile', parameters: { horizontalSpeed: 10, upwardSpeed: 10, releaseHeight: 0, gravity: 9.8 } } });
+      const operations = [flight, place({ kind: 'slider', id: 'angle', target: 'shot', parameter: 'launchAngle', min: 10, max: 80 }), place({ kind: 'slider', id: 'sideways', target: 'shot', parameter: 'horizontalSpeed', min: 0, max: 20 }, 100)];
+      const { container, rerender } = render(<BoardView board={getBoardAt(operations, 5000)} atMs={5000} onBoardProblem={onBoardProblem} />);
+      rerender(<BoardView board={getBoardAt(operations, 5100)} atMs={5100} onBoardProblem={onBoardProblem} />);
+      expect(onBoardProblem.mock.calls).toEqual([[{ kind: 'sliderOverlaps', sliderId: 'sideways', target: 'shot' }]]);
+      expect(container.querySelectorAll('.board-slider input')).toHaveLength(1);
+    });
+  });
+
+  describe('an id placed again', () => {
+    const second = place({ kind: 'plot', id: 'curve-two', expression: 'b*x', constants: [{ name: 'b', value: 15, min: 10, max: 20 }], domain: [0, 5], label: 'second' }, 6000);
+    const reused = place({ kind: 'slider', id: 'a-slider', target: 'curve-two', constant: 'b', min: 10, max: 20 }, 6000);
+    const operations = [plot, slider, place({ kind: 'clearBoard' }, 6000), second, reused];
+
+    it('gives a reused slider its new range, name, value, and target', () => {
+      const onSliderMove = vi.fn();
+      const { container, rerender } = render(<BoardView board={getBoardAt(operations, 5000)} atMs={5000} canMoveSliders onSliderMove={onSliderMove} />);
+      rerender(<BoardView board={getBoardAt(operations, 8000)} atMs={8000} canMoveSliders onSliderMove={onSliderMove} />);
+      const input = container.querySelector<HTMLInputElement>('.board-slider input') as HTMLInputElement;
+      expect([input.min, input.max, input.value]).toEqual(['10', '20', '15']);
+      expect(screen.getByRole('slider', { name: 'b' })).toBe(input);
+      expect(input.getAttribute('aria-valuetext')).toBe('15.0');
+      fireEvent.input(input, { target: { value: '12' } });
+      expect(onSliderMove).toHaveBeenCalledWith({ target: 'curve-two', value: 12, constant: 'b' });
+    });
+
+    it('names a reused figure for what it now shows, on a wrapper that stayed', () => {
+      const first = place({ kind: 'plot', id: 'curve', expression: 'x', domain: [0, 1], label: 'first' });
+      const again = place({ kind: 'plot', id: 'curve', expression: 'x^2', domain: [0, 1], label: 'second' }, 6000);
+      const { container, rerender } = render(<BoardView board={getBoardAt([first, again], 5000)} atMs={5000} />);
+      rerender(<BoardView board={getBoardAt([first, again], 8000)} atMs={8000} />);
+      expect(container.querySelectorAll('svg.board-figure')).toHaveLength(1);
+      expect(container.querySelector('svg.board-figure')?.getAttribute('aria-label')).toBe('second');
+    });
+
+    it('writes reused handwriting and a reused diagram with the new words', () => {
+      const handwriting = [place({ kind: 'text', id: 'note', text: 'first', handwritten: true }), place({ kind: 'text', id: 'note', text: 'second', handwritten: true }, 6000)];
+      const diagram = (label: string, atMs: number) => place({ kind: 'diagram', id: 'map', nodes: [{ name: 'a', label }], edges: [] }, atMs);
+      const all = [...handwriting, diagram('old', 0), diagram('new', 6000)];
+      const { container, rerender } = render(<BoardView board={getBoardAt(all, 5000)} atMs={5000} />);
+      rerender(<BoardView board={getBoardAt(all, 8000)} atMs={8000} />);
+      expect(container.querySelector('[data-element="note"] svg')?.getAttribute('aria-label')).toBe('second');
+      expect(container.querySelector('[data-element="map"] svg')?.getAttribute('aria-label')).toBe('new');
+    });
+
+    it('keeps the math item through a rearrangement, so the move can run', () => {
+      const moved = [place({ kind: 'writeMath', id: 'eq', tex: '2x = 8' }), place({ kind: 'transformMath', target: 'eq', tex: 'x = 4' }, 6000)];
+      const { container, rerender } = render(<BoardView board={getBoardAt(moved, 5000)} atMs={5000} />);
+      const before = container.querySelector('[data-element="eq"]')?.firstElementChild;
+      rerender(<BoardView board={getBoardAt(moved, 6100)} atMs={6100} />);
+      expect(container.querySelector('[data-element="eq"]')?.firstElementChild).toBe(before);
+    });
+
+    it('keeps an item when the same command comes from a replay, so a frame held for comparing does not rebuild it', () => {
+      const { container, rerender } = render(<BoardView board={getBoardAt([plot, slider], 5000)} atMs={5000} />);
+      const before = container.querySelector('.board-slider input');
+      rerender(<BoardView board={getBoardAt(JSON.parse(JSON.stringify([plot, slider])) as BoardOperation[], 5000)} atMs={5000} />);
+      expect(container.querySelector('.board-slider input')).toBe(before);
+    });
+  });
+
+  describe('a slider for a screen reader', () => {
+    const onShot = [place({ kind: 'simulate', id: 'shot', simulation: { model: 'projectile', parameters: { horizontalSpeed: 4.2, upwardSpeed: 5.6, releaseHeight: 2.2, gravity: 9.8 } } }), place({ kind: 'slider', id: 'speed', target: 'shot', parameter: 'horizontalSpeed', min: 0, max: 10 })];
+
+    it('is named for what it changes, and says its value with its unit', () => {
+      render(<BoardView board={getBoardAt(onShot, 5000)} atMs={5000} canMoveSliders />);
+      const input = screen.getByRole('slider', { name: 'Sideways speed' });
+      expect(input.getAttribute('aria-valuetext')).toBe('4.2 m/s');
+    });
+
+    it('holds no live region, so a value moving while the tutor talks says nothing over the voice', () => {
+      const { container } = render(<BoardView board={getBoardAt(onShot, 5000)} atMs={5000} canMoveSliders />);
+      expect(container.querySelector('.board-slider output, .board-slider [aria-live], .board-slider [role="status"]')).toBeNull();
+      expect(container.querySelector('.board-slider')?.textContent).toContain('4.2');
+    });
+
+    it('moves nothing and says nothing on a curve without that constant', () => {
+      const onSliderMove = vi.fn();
+      const operations = [place({ kind: 'plot', id: 'curve', expression: 'x^2', domain: [0, 2] }), place({ kind: 'slider', id: 'a-slider', target: 'curve', constant: 'a', min: 0, max: 4 })];
+      const { container } = render(<BoardView board={getBoardAt(operations, 5000)} atMs={5000} canMoveSliders onSliderMove={onSliderMove} />);
+      const input = container.querySelector<HTMLInputElement>('.board-slider input') as HTMLInputElement;
+      expect(input.disabled).toBe(true);
+      expect(input.hasAttribute('aria-valuetext')).toBe(false);
+      expect(container.querySelector('.board-slider-value')?.textContent).toBe('');
+    });
+
+    it('goes when its curve is replaced, and an old mark goes with it', () => {
+      const operations = [plot, slider, place({ kind: 'markValue', id: 'lowest', target: 'curve', at: 0, label: 'minimum' }), place({ kind: 'plot', id: 'curve', expression: 'x^2', domain: [0, 2] }, 6000)];
+      const { container, rerender } = render(<BoardView board={getBoardAt(operations, 5000)} atMs={5000} canMoveSliders />);
+      expect(container.querySelector('.board-slider')).not.toBeNull();
+      expect(container.textContent).toContain('minimum');
+      rerender(<BoardView board={getBoardAt(operations, 8000)} atMs={8000} canMoveSliders />);
+      expect(container.querySelector('.board-slider')).toBeNull();
+      expect(container.textContent).not.toContain('minimum');
+    });
+  });
+
+  it('places a figure for each kind, and a curve drawn over another has no place of its own', () => {
+    const over = place({ kind: 'plot', id: 'second', over: 'curve', expression: 'x', domain: [0, 2] });
+    const { container } = render(<BoardView board={getBoardAt([plot, over, place({ kind: 'numberLine', id: 'line', domain: [0, 1] }), place({ kind: 'geometry', id: 'shape', xRange: [0, 1], yRange: [0, 1] })], 5000)} atMs={5000} />);
+    expect([...container.querySelectorAll<HTMLElement>('[data-element]')].map((element) => element.dataset.element)).toEqual(['curve', 'line', 'shape']);
+    const alone = render(<BoardView board={getBoardAt([plot, over], 5000)} atMs={5000} />);
+    expect(alone.container.querySelector('[data-mark="curve-second"]')).not.toBeNull();
+  });
+
+  it('writes a mark label under what it marks', () => {
+    const operations = [place({ kind: 'writeMath', id: 'eq', tex: '2x = 8' }), place({ kind: 'annotate', id: 'note', target: 'eq', mark: 'underline', label: 'both sides' }, 500)];
+    const { container } = render(<BoardView board={getBoardAt(operations, 5000)} atMs={5000} />);
+    expect(container.querySelector('.board-notes [data-mark="note-note"]')?.textContent).toBe('both sides');
+  });
+
+  it('reports a mark on a part a figure does not have, and never one it drew', () => {
+    const onBoardProblem = vi.fn();
+    const operations = [plot, place({ kind: 'plot', id: 'second', over: 'curve', expression: 'x', domain: [0, 2] }), place({ kind: 'annotate', id: 'on-second', target: 'second.curve', mark: 'circle' }), place({ kind: 'annotate', id: 'on-curve', target: 'curve.curve', mark: 'circle' }), place({ kind: 'annotate', id: 'on-nothing', target: 'curve.nope', mark: 'cross' })];
+    const { container } = render(<BoardView board={getBoardAt(operations, 5000)} atMs={5000} onBoardProblem={onBoardProblem} />);
+    expect(container.querySelector('[data-mark="note-on-curve"]')).not.toBeNull();
+    expect(onBoardProblem.mock.calls.map(([problem]) => problem.markId)).toEqual(['on-nothing']);
+  });
+
+  it('does not report a mark it drew when its point is hidden later, and does report one it never drew', () => {
+    const onBoardProblem = vi.fn();
+    const shape = place({ kind: 'geometry', id: 'shape', xRange: [0, 6], yRange: [0, 6] });
+    const point = place({ kind: 'construct', id: 'pa', target: 'shape', step: { shape: 'point', name: 'A', x: 2, y: 2 } });
+    const onPoint = place({ kind: 'annotate', id: 'on-a', target: 'shape.A', mark: 'circle' }, 10);
+    const operations = [shape, point, onPoint, place({ kind: 'hide', target: 'pa' }, 3000)];
+    const { rerender } = render(<BoardView board={getBoardAt(operations, 2000)} atMs={2000} onBoardProblem={onBoardProblem} />);
+    rerender(<BoardView board={getBoardAt(operations, 4000)} atMs={4000} onBoardProblem={onBoardProblem} />);
+    expect(onBoardProblem).not.toHaveBeenCalled();
+    const unseen = render(<BoardView board={getBoardAt([shape, place({ kind: 'markValue', id: 'off', target: 'line', at: 99 }), place({ kind: 'numberLine', id: 'line', domain: [0, 1] }), place({ kind: 'markValue', id: 'off', target: 'line', at: 99 }, 10)], 2000)} atMs={2000} onBoardProblem={onBoardProblem} />);
+    expect(unseen.container.querySelector('[data-mark="mark-off"]')).toBeNull();
+    expect(onBoardProblem.mock.calls.map(([problem]) => [problem.markId, problem.target])).toEqual([['off', 'line']]);
+  });
+
+  it('says so when a label has no room, once', () => {
+    const onBoardProblem = vi.fn();
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(60);
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(40);
+    const { rerender } = render(<BoardView board={getBoardAt([plot], 5000)} atMs={5000} onBoardProblem={onBoardProblem} />);
+    rerender(<BoardView board={getBoardAt([plot], 6000)} atMs={6000} onBoardProblem={onBoardProblem} />);
+    expect(onBoardProblem.mock.calls.map(([problem]) => problem)).toEqual([{ kind: 'labelWithoutRoom', text: '<b>not markup</b>' }]);
   });
 });

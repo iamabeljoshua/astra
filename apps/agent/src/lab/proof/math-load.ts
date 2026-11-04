@@ -10,11 +10,11 @@ import { REPO_ROOT } from './lab-stack.ts';
 
 declare global {
   interface Window {
-    mathLoad: { importMs: number; firstEquationMs: number; rendersMs: Record<string, number[]> } | null;
+    mathLoad: { importMs: number; firstEquationMs: number; rendersMs: Record<string, number[]>; figuresMs: Record<string, number[]> } | null;
   }
 }
 
-const { values: args } = parseArgs({ options: { out: { type: 'string', default: '/tmp/m3-3-load' }, runs: { type: 'string', default: '5' } } });
+const { values: args } = parseArgs({ options: { out: { type: 'string', default: '/tmp/m3-3-load' }, runs: { type: 'string', default: '5' }, first: { type: 'string', default: 'equation' } } });
 
 const SERVER_PORT = Number(process.env.MATH_LOAD_PORT ?? 6241);
 const TYPES: Record<string, string> = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf' };
@@ -65,7 +65,7 @@ async function measureOnce({ isSlow }: { isSlow: boolean }) {
     await cdp.send('Network.emulateNetworkConditions', SLOW_4G);
     await cdp.send('Emulation.setCPUThrottlingRate', { rate: PHONE_CPU_RATE });
   }
-  await page.goto(`http://127.0.0.1:${SERVER_PORT}/`);
+  await page.goto(`http://127.0.0.1:${SERVER_PORT}/?first=${args.first}`);
   await page.waitForFunction(() => window.mathLoad !== null, undefined, { timeout: 120_000 });
   const result = await page.evaluate(() => window.mathLoad);
   await context.close();
@@ -95,6 +95,7 @@ const lastFiles = fast.at(-1)?.files ?? [];
 const assetDir = join(outDir, 'assets');
 const emitted = readdirSync(assetDir).map((name) => ({ name, raw: statSync(join(assetDir, name)).size, gzip: COMPRESSED.has(extname(name)) ? gzipSync(readFileSync(join(assetDir, name))).length : statSync(join(assetDir, name)).size }));
 const renders = (result: typeof fast[number]['result']) => Object.fromEntries(Object.entries(result?.rendersMs ?? {}).map(([name, values]) => [name, { median: Number(getMedian(values).toFixed(2)), worst: Number(Math.max(...values).toFixed(2)) }]));
+const getFigureTimes = (result: typeof fast[number]['result']) => Object.fromEntries(Object.entries(result?.figuresMs ?? {}).map(([name, values]) => [name, { median: Number(getMedian(values).toFixed(2)), worst: Number(Math.max(...values).toFixed(2)) }]));
 const report = {
   runs,
   fast: summarise(fast),
@@ -102,6 +103,7 @@ const report = {
   fetched: lastFiles.map((file) => ({ file: getFileName(file.url), bytes: file.bytes })).filter((file) => file.file !== ''),
   emitted,
   rendersOnMainThreadMs: { fast: renders(fast.at(-1)?.result ?? null), slow: renders(slow.at(-1)?.result ?? null) },
+  figuresOnMainThreadMs: { fast: getFigureTimes(fast.at(-1)?.result ?? null), slow: getFigureTimes(slow.at(-1)?.result ?? null) },
   webRoot,
 };
 writeFileSync(join(args.out as string, 'load.json'), `${JSON.stringify(report, null, 1)}\n`);
