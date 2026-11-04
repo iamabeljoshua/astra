@@ -22,8 +22,9 @@ runs:
     # setup-node's cache misses completely on a new lockfile and saves at the very end, which has cancelled a green job at the limit.
     - id: restore-pnpm-store
       uses: actions/cache/restore@v6
-      timeout-minutes: 1
       continue-on-error: true
+      env:
+        SEGMENT_DOWNLOAD_TIMEOUT_MINS: 1
       with:
         path: ${{ steps.pnpm-store.outputs.path }}
         key: ${{ steps.pnpm-store.outputs.key }}
