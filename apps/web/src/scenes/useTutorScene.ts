@@ -2,7 +2,8 @@ import type { BoardState } from '@astra/board';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { LiveVoice } from '../voice/liveVoice';
 import { getCanPlayScenes } from './sceneEngine';
-import { createSceneStage, type SceneStage } from './sceneStage';
+import { createKitSceneStage } from './kitSceneStage';
+import type { SceneStage } from './sceneStage';
 
 const PARKED_WIDTH = 960;
 const PARKED_HEIGHT = 540;
@@ -18,6 +19,16 @@ function createHost(): HTMLElement {
   const host = document.createElement('div');
   Object.assign(host.style, { position: 'absolute', inset: '0', overflow: 'hidden' });
   return host;
+}
+
+/** Moving an iframe the plain way reloads it, so a frame prepared off screen keeps its scene only through an atomic move. */
+function moveInto(parent: HTMLElement, child: HTMLElement): void {
+  if (!('moveBefore' in parent)) return parent.append(child);
+  try {
+    (parent as HTMLElement & { moveBefore(node: Node, before: Node | null): void }).moveBefore(child, null);
+  } catch {
+    parent.append(child);
+  }
 }
 
 export interface TutorScene {
@@ -42,12 +53,12 @@ export function useTutorScene(voice: LiveVoice | null, isEnabled: boolean): Tuto
       parking.append(host);
       document.body.append(parking);
       parts.current = { parking, host };
-      const made = createSceneStage(host);
+      const made = createKitSceneStage(host);
       setStage(made);
       stopListening = voice.onSceneMessage((message) => {
         if (message.type !== 'loadScene') return;
-        const { sceneId, durationSeconds } = message;
-        void made.load(sceneId, durationSeconds).then((isLoaded) => {
+        const { sceneId, durationSeconds, engine } = message;
+        void made.load(sceneId, durationSeconds, engine).then((isLoaded) => {
           if (!isGone) voice.sendScene({ type: isLoaded ? 'sceneLoaded' : 'sceneRefused', sceneId });
         });
       });
@@ -73,7 +84,7 @@ export function useTutorScene(voice: LiveVoice | null, isEnabled: boolean): Tuto
 
   const onContainer = useCallback((container: HTMLElement | null) => {
     if (!parts.current) return;
-    (container ?? parts.current.parking).append(parts.current.host);
+    moveInto(container ?? parts.current.parking, parts.current.host);
   }, []);
 
   return { stage, onContainer };

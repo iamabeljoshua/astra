@@ -144,7 +144,9 @@ export function createKit({ canvas, overlay, timing, textures, quality = 'high',
     world() { object.updateWorldMatrix(true, false); return new THREE.Vector3().setFromMatrixPosition(object.matrixWorld); },
   });
 
+  let paintBackdrop = null;
   function stage(kind = 'space', o = {}) {
+    overlay.ownerDocument.documentElement.dataset.stage = kind;
     if (kind === 'space') {
       const skyTex = textures['2k_stars_milky_way'] ? tex('2k_stars_milky_way') : null;
       if (skyTex) {
@@ -192,6 +194,18 @@ export function createKit({ canvas, overlay, timing, textures, quality = 'high',
             float n=fbm(d*2.4+vec3(uT*.012,0.,uT*.008)); c+=uAcc*smoothstep(.42,.86,n)*.75; gl_FragColor=vec4(c*.62,1.); }`,
       }));
       m.scale.setScalar(5e4); m.renderOrder = -10; sky.add(m);
+      const scenePost = { threshold: bloomPass.threshold, vignette: grade.uniforms.uVignette.value };
+      const [darkTop, darkBottom, darkAccent] = [top.clone(), bottom.clone(), accent.clone()];
+      paintBackdrop = (name) => {
+        const isLight = name === 'light';
+        const uniforms = m.material.uniforms;
+        uniforms.uTop.value.copy(isLight ? new THREE.Color(2.9, 2.65, 2.2) : darkTop);
+        uniforms.uBot.value.copy(isLight ? new THREE.Color(2.3, 2.1, 1.75) : darkBottom);
+        uniforms.uAcc.value.copy(isLight ? new THREE.Color(0, 0, 0) : darkAccent);
+        bloomPass.threshold = isLight ? 4 : scenePost.threshold;
+        grade.uniforms.uVignette.value = isLight ? 0.08 : scenePost.vignette;
+      };
+      paintBackdrop(theme);
       buildEnv(o.env ?? 1);
       scene.environmentIntensity = o.envIntensity ?? 0.6;
       const key = new THREE.DirectionalLight(hexOf(o.key ?? '#fff1de'), o.keyPower ?? 2.2); key.position.set(5, 7, 6); scene.add(key);
@@ -928,7 +942,7 @@ export function createKit({ canvas, overlay, timing, textures, quality = 'high',
     renderer.forceContextLoss();
   };
   kit.__theme = (name) => {
-    studioPaint?.(name);
+    paintBackdrop?.(name);
   };
   kit.__resize = () => {
     renderer.setSize(W(), H(), false);

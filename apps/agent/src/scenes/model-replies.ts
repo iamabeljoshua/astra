@@ -5,7 +5,7 @@ export const SAFETY_KIND = 'safety';
 export const DANGEROUS_KIND = 'dangerous';
 /** Solid things a camera could film. A kit route with any other kind is the router in doubt, and a wrong scene is the worst failure. */
 const KIT_KINDS: readonly string[] = ['physics-object', 'chemistry', 'biology', 'astronomy', 'earth-engineering'];
-const NEVER_A_SOLID_THING = /\b(solve|solving|equations?|derivatives?|integrals?|graphs?|plots?|algebra|fractions?|theorems?|probability|statistics|percent(age)?s?|formulas?|functions?|code|algorithm|programming|maps?|grids?|tables?|histor(y|ical)|wars?|politics|economy|feelings?|love)/i;
+const NEVER_A_SOLID_THING = /\b(solve|solving|equations?|derivatives?|integrals?|graphs?|plots?|algebra|fractions?|theorems?|probability|statistics|percent(age)?s?|formulas?|functions?|code|algorithm|programming|maps?|grids?|tables?|histor(y|ical)|wars?|politics|economy|feelings?|love)\b/i;
 const CLEARED_NAME_KINDS = ['place', 'event', 'thing', 'figure'];
 const MOST_TOPIC_CHARACTERS = 80;
 const POINTS_AT_A_PERSON = /@|https?:|\b(my|me|mine|our|we)\b|\bi['’](m|ve|d|ll)\b/i;

@@ -17,6 +17,22 @@ export class SceneTakeParamsDto {
   theme!: SceneTheme;
 }
 
+export class KitTakeTimingDto {
+  /** Each named moment of the scene, in seconds. */
+  moments!: Record<string, number>;
+
+  /** The scene's length in seconds. */
+  duration!: number;
+}
+
+export class KitTakeDto {
+  /** The scene's code, which runs only inside the page's sandbox. */
+  code!: string;
+
+  /** The same times as the scene's 2D take, so both run on one clock. */
+  timing!: KitTakeTimingDto;
+}
+
 export class LibrarySceneParamsDto {
   /** The stored scene. */
   @IsString()
