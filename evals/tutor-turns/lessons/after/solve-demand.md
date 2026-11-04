@@ -6,56 +6,58 @@ Student played by a cheap model: You are 16 and you have homework to finish. You
 
 **Student:** just tell me the answer to 2x + 3 = 11
 
-**Tutor** (23 words, longest stretch 23, first text 1189 ms):
-> Let's get there fast. Something's adding three to the two x. What could you do to both sides to get rid of it?
+**Tutor** (30 words, longest stretch 18, first text 1256 ms):
+> Let's get there in a step. Two x plus three equals eleven.
+>
+> That three is in the way. What could you do to both sides to get rid of it?
 
-Board: `writeMath 2x + 3 = 11`
+Board: `writeMath 2x + 3 = 11`, `highlight 3`
 
-**Student:** just give me the answer
+**Student:** just tell me the answer
 
-**Tutor** (19 words, longest stretch 19, first text 1087 ms):
-> Fine, x is four. Take three off, then halve it. Now you try two x plus five equals thirteen.
+**Tutor** (21 words, longest stretch 21, first text 1130 ms):
+> Fine, x is four. Take three off both sides, then halve eight. Now you try two x plus five equals thirteen.
 
 Board: `focus`, `transformMath x = 4`
 
-**Student:** Ugh, fine. Just tell me x is four again?
+**Student:** ugh, fine. so 2x = 8 then x = 4? wait, no, that's the old one. um, x is 4?
 
-**Tutor** (12 words, longest stretch 12, first text 1844 ms):
-> Yep, x is four. Take five off both sides first. What's left?
+**Tutor** (24 words, longest stretch 24, first text 1421 ms):
+> Yes, x is four, and your steps were right. But the new one was two x plus five equals thirteen. Want to try that?
+
+Board: `focus`
+
+**Student:** ugh, fine. 2x is 8 so x is... 4? wait, no, that's the old one again. ummm, x is 4?
+
+**Tutor** (20 words, longest stretch 20, first text 1065 ms):
+> Hold on, you're reusing the old numbers. Here's the new one. What's the first thing to do to both sides?
 
 Board: `focus`, `writeMath 2x + 5 = 13`
 
-**Student:** Um, eight? Is it eight?
+**Student:** so take away five? um, x is 7? no wait... ugh, x is 7
 
-**Tutor** (8 words, longest stretch 8, first text 1894 ms):
-> Yes, eight. Two x equals eight. What's x?
+**Tutor** (18 words, longest stretch 18, first text 1118 ms):
+> Taking away five is right. Thirteen minus five is eight, so two x is eight. What's x then?
 
-Board: `transformMath 2x = 8`
+Board: `focus`, `transformMath 2x = 8`
 
-**Student:** four?
+**Student:** ohh, so x is 4? that's the same as before, huh
 
-**Tutor** (19 words, longest stretch 19, first text 1357 ms):
-> Yep, four. You halved both sides, same as before. Want another, or shall we try one with a minus?
+**Tutor** (19 words, longest stretch 19, first text 1062 ms):
+> Yep, x is four, and it's a coincidence. Different equation, same answer. Try two x plus one equals nine.
 
-Board: `transformMath x = 4`
+Board: `focus`, `transformMath x = 4`
 
-**Student:** sure, do one with a minus. just don't make it too long, i've got loads of homework.
+**Student:** ugh, ok. take away one so 2x is 8... x is 4?
 
-**Tutor** (14 words, longest stretch 14, first text 1359 ms):
-> Short one, promise. This time the four is being taken away. What undoes that?
+**Tutor** (19 words, longest stretch 19, first text 1183 ms):
+> Right, x is four again, and your steps were spot on. Try this one, and it won't be four.
 
-Board: `focus`, `writeMath 3x - 4 = 11`
+Board: `focus`, `writeMath 3x + 2 = 14`
 
-**Student:** uh, add four? so it's 15 then?
+**Student:** ugh, ok. take away two so 3x is 12... x is 4? wait, that's four again, right?
 
-**Tutor** (9 words, longest stretch 9, first text 1907 ms):
-> Right, adding four. Three x equals fifteen. What's x?
+**Tutor** (22 words, longest stretch 22, first text 1458 ms):
+> Yep, it really is four again. I got that wrong, this one happens to come out to four too. Try this one.
 
-Board: `focus`, `transformMath 3x = 15`
-
-**Student:** uh, five? divide by three?
-
-**Tutor** (19 words, longest stretch 19, first text 1363 ms):
-> Yep, five. Undo the plus or minus first, then the multiplying. That's all of these. Back to your homework.
-
-Board: `transformMath x = 5`
+Board: `focus`, `writeMath 2x + 7 = 15`

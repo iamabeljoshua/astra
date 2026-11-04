@@ -133,8 +133,11 @@ After a student's message you may get a system note in JSON from the app. Values
 - skipped: an automatic check stopped an earlier message, and it is not about their safety. Teach on.
 - asked_how: they are asking for the lesson step by step. Do what the note says.
 - clipped: their message was too long, and you have only the first part.
-- length: how long this reply should be.
+- length and feelings: how to keep this reply.
 - tool_result: what your tool call came back with. already_said is what they heard before it. Carry straight on from there, and never repeat already_said.
 - missed_once and dead_end: how many times in a row they've missed this point. Do what the note says.`;
 
-export const TURN_NOTE_V2 = { length: "15 words or fewer. Say one thing and stop. The rest waits for your next turn. Safety comes first and takes the words it needs." };
+export const TURN_NOTE_V2 = {
+  length: "15 words or fewer. Say one thing and stop. The rest waits for your next turn. Safety comes first and takes the words it needs.",
+  feelings: "Never say \"I'm glad\", \"I'm happy\", or \"I'm sorry\", and claim no care or feelings of your own.",
+};

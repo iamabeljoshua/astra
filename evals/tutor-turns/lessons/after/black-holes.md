@@ -6,42 +6,40 @@ Student played by a cheap model: You are 16. You know gravity pulls things toget
 
 **Student:** How do black holes form?
 
-**Tutor** (20 words, longest stretch 20, first text 1060 ms):
-> Most start with a really big star. Do you know what keeps a star from collapsing under its own weight?
+**Tutor** (19 words, longest stretch 19, first text 1315 ms):
+> Let me start with the stars. Do you know what keeps a star from collapsing under its own weight?
 
-**Student:** i don't really know. gravity pulls everything in, so why doesn't the star just squish down?
+**Student:** i don't know, i figured gravity just squishes everything together. what keeps it from doing that?
 
-**Tutor** (16 words, longest stretch 16, first text 985 ms):
-> Something pushes back. The star's core is crazy hot from fusion, and that heat pushes outward.
+**Tutor** (14 words, longest stretch 14, first text 1057 ms):
+> Gravity does squish it. Fusion in the core makes heat that pushes back outward.
 
-**Student:** wait, what's fusion? like the stuff in a bomb? and how does heat push outward, it's just heat right
+**Student:** wait, what's fusion? like, what does that mean?
 
-**Tutor** (28 words, longest stretch 28, first text 1072 ms):
-> Same idea as a hydrogen bomb, yes. Squeeze tiny atoms together hard enough and they join, releasing energy. Heat is atoms zooming around, and fast ones shove outward.
+**Tutor** (21 words, longest stretch 21, first text 1131 ms):
+> Fusion is tiny atoms squeezed together until they stick, making a bigger atom. That sticking releases a huge burst of heat.
 
-**Student:** ok so the atoms are zooming around and bumping into each other and that pushes outward? like a crowd getting bigger and shoving the walls?
+**Student:** ok so atoms stick together and make heat... but why does the heat push outward? like what's pushing?
 
-**Tutor** (25 words, longest stretch 25, first text 1341 ms):
-> Exactly, that crowd picture works. Gravity squeezes in, that shoving pushes out, and they balance. So what happens when the star runs out of fuel?
+**Tutor** (22 words, longest stretch 22, first text 1272 ms):
+> Hot gas particles zoom around faster and slam into each other. All those collisions shove outward, like air pushing on a balloon.
 
-**Student:** i'm not sure. does the fuel just run out and then the pushing stops? so gravity wins?
+**Student:** oh, so the hot stuff is like a balloon pushing back against gravity? and then what happens when the fuel runs out?
 
-**Tutor** (22 words, longest stretch 22, first text 985 ms):
-> Yes, that's it. Fusion stops, the shoving fades, and gravity crushes the core. In a really massive star, nothing stops that crush.
+**Tutor** (19 words, longest stretch 19, first text 1199 ms):
+> Exactly that. Fuel runs out, the heat stops, and gravity wins. What do you think happens to the balloon?
 
-**Student:** so the core just keeps getting crushed smaller and smaller? how small can it get before it stops?
+**Student:** i guess the balloon deflates and everything falls in? like it just keeps squishing until it's super tiny?
 
-**Tutor** (25 words, longest stretch 25, first text 1080 ms):
-> In a really massive star, it doesn't stop. It crushes down to a point so dense that even light can't escape. That's the black hole.
+**Tutor** (23 words, longest stretch 23, first text 1814 ms):
+> Yep, for a really big star, nothing stops the squishing. All that mass packs into a tiny point, and that's a black hole.
 
-**Student:** wait, even light can't get out? how is that even possible, light is like the fastest thing ever
+**Student:** wait, so it just keeps getting smaller forever? like how small can it get?
 
-**Tutor** (26 words, longest stretch 26, first text 990 ms):
-> Think of throwing a ball upward. The harder you throw, the higher it goes. What would you need to throw it so it never came back?
+**Tutor** (20 words, longest stretch 20, first text 1117 ms):
+> Honestly, I'm not sure. Our best physics breaks down at the very center, so nobody knows what really happens there.
 
-**Student:** i'd have to throw it super duper fast, like faster than anything? but light's already that fast so... i'm confused
+**Student:** oh, so even scientists don't know? that's kind of wild. so how do we even know black holes are real then?
 
-**Tutor** (39 words, longest stretch 31, first text 1346 ms):
-> You've got the ball part right. Earth's escape speed is about eleven kilometres a second. Squeeze the same mass smaller, and gravity at the surface gets stronger, so escape speed climbs.
->
-> In a black hole it passes light's speed.
+**Tutor** (27 words, longest stretch 27, first text 1002 ms):
+> Right, the center is a mystery, but we see what they do around them. Stars near the middle of our galaxy orbit something invisible and incredibly heavy.

@@ -6,40 +6,40 @@ Student played by a cheap model: You study physics at university. You know what 
 
 **Student:** Why is the sky blue?
 
-**Tutor** (20 words, longest stretch 20, first text 1085 ms):
-> Before I explain, how much of the physics of light have you done, wavelengths and scattering, that sort of thing?
+**Tutor** (20 words, longest stretch 20, first text 1042 ms):
+> Light scattering, but first: how much of the physics of light have you covered, wavelengths and that sort of thing?
 
-**Student:** i know what a wavelength is and roughly where visible light sits on the electromagnetic spectrum. i've heard of rayleigh scattering too, but i can't say why it depends on wavelength the way it does. i'd like the real reason, not a story.
+**Student:** i know wavelengths and the electromagnetic spectrum pretty well. i've heard of rayleigh scattering too, but i can't say why it depends on wavelength to the fourth power.
 
-**Tutor** (21 words, longest stretch 21, first text 1059 ms):
-> Fair. Scattered intensity goes as one over wavelength to the fourth. Do you know why a molecule scatters light at all?
+**Tutor** (29 words, longest stretch 29, first text 1506 ms):
+> Okay, start with the molecule. The light's field shakes an air molecule's charges, so it radiates like a tiny antenna. What do you think sets how much it radiates?
 
 Board: `writeMath I \propto \frac{1}{\lambda^4}`
 
-**Student:** i think it has something to do with the electric field pushing the electrons around, but i'm not sure how that makes it scatter. i don't really know why the wavelength dependence comes out as the fourth power.
+**Student:** i think it has something to do with how fast the charges shake, but i'm not sure how that turns into the lambda to the fourth.
 
-**Tutor** (19 words, longest stretch 19, first text 1863 ms):
-> You've got the start of it. The light's field shakes the electrons, so they oscillate and become tiny antennas.
+**Tutor** (27 words, longest stretch 27, first text 1503 ms):
+> You're right about the speed. A shaking charge radiates power proportional to its acceleration squared, and acceleration grows as omega squared. What's omega in terms of wavelength?
 
-Board: `focus`, `writeMath \ddot{p} \propto \omega^2 E_0`
+Board: `focus`, `writeMath P \propto a^2 \propto \omega^4`
 
-**Student:** so the electrons oscillate and radiate, like tiny dipoles. the acceleration is what matters, right? and i guess the field gets multiplied by omega squared, which is why higher frequency gets scattered more.
+**Student:** omega is 2 pi times frequency, right? and frequency is the speed of light over the wavelength, so omega goes like one over lambda.
 
-**Tutor** (23 words, longest stretch 23, first text 1384 ms):
-> Yes, acceleration is what radiates. That omega squared is in the field. Intensity goes as the field squared, so what power of omega?
+**Tutor** (22 words, longest stretch 22, first text 1631 ms):
+> That's right. Omega to the fourth is one over lambda to the fourth. So which ends up scattered more, blue or red?
 
-Board: `focus`, `highlight \omega^2`
+Board: `transformMath P \propto \omega^4 \propto \frac{1}{\lambda^4}`
 
-**Student:** intensity goes as the square of the field, so the field has omega squared and squaring it gives omega to the fourth. is that right? i think i'm just applying the rule, though. i still don't see why the field gets omega squared in the first place.
+**Student:** blue, since blue has the shorter wavelength, so one over lambda to the fourth is bigger for it.
 
-**Tutor** (16 words, longest stretch 16, first text 1347 ms):
-> Right, omega to the fourth. Differentiate twice and each derivative brings down a factor of omega.
+**Tutor** (31 words, longest stretch 31, first text 1343 ms):
+> Yes. Blue light is scattered all over the sky, and that's what you see looking away from the sun. Violet scatters even more, though. Any idea why the sky isn't violet?
 
-Board: `focus`, `transformMath p = p_0 \cos \omega t \Rightarrow \ddot{p} = -\omega^2 p`
+Board: `focus`
 
-**Student:** so for a sinusoid, each time you differentiate you get another omega, so two derivatives gives omega squared. that makes sense for the dipole. i still don't see why the frequency goes into the scattered field that way, though. and why is it one over lambda to the fourth rather than something else?
+**Student:** i don't really know. i'd guess the sun emits less violet, or our eyes are less sensitive to it, but i'm not sure which of those matters.
 
-**Tutor** (23 words, longest stretch 23, first text 1301 ms):
-> The radiated field is proportional to the dipole's acceleration, so it inherits that omega squared. And omega is two pi c over lambda.
+**Tutor** (38 words, longest stretch 38, first text 1428 ms):
+> Both matter, and both are right. The sun puts out less violet, the upper atmosphere absorbs some, and our eyes respond weakly to it. Which of the two would you expect to matter most for what we see?
 
-Board: `focus`, `transformMath I \propto \omega^4 \propto \frac{1}{\lambda^4}`
+Board: `focus`

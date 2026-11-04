@@ -3,25 +3,25 @@
  "summary": {
   "turns": 60,
   "firstTextMs": {
-   "p50": 1300,
-   "p95": 1894
+   "p50": 1256,
+   "p95": 1931
   },
   "wordsPerReply": {
-   "p50": 21,
+   "p50": 23,
    "p95": 34,
-   "worst": 39
+   "worst": 48
   },
   "longestStretch": {
-   "p50": 21,
-   "p95": 32,
-   "worst": 35
+   "p50": 22,
+   "p95": 31,
+   "worst": 38
   },
-  "repliesEndingOnAQuestion": 28,
-  "repliesOverTwentyFiveWords": 15,
-  "repliesOverFortyFiveWords": 0
+  "repliesEndingOnAQuestion": 26,
+  "repliesOverTwentyFiveWords": 19,
+  "repliesOverFortyFiveWords": 1
  },
  "spend": {
-  "anthropicUsd": 4.145114,
+  "anthropicUsd": 5.533769599999999,
   "voiceCharacters": 0,
   "credits": 0
  }
