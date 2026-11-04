@@ -561,7 +561,7 @@ describe('BoardView, figures', () => {
     const { container } = render(<BoardView board={getBoardAt([plot, slider], 5000)} atMs={5000} canMoveSliders onSliderMove={onSliderMove} onSliderRelease={onSliderRelease} />);
     const input = container.querySelector<HTMLInputElement>('.board-slider input') as HTMLInputElement;
     expect(Number(input.value)).toBe(1);
-    expect(container.querySelector('.board-slider output')?.textContent).toBe('1.00');
+    expect(container.querySelector('.board-slider-value')?.textContent).toBe('1.00');
     fireEvent.input(input, { target: { value: '2.5' } });
     expect(onSliderMove).toHaveBeenCalledWith({ target: 'curve', value: 2.5, constant: 'a' });
     fireEvent.change(input);
@@ -574,6 +574,91 @@ describe('BoardView, figures', () => {
     const input = container.querySelector<HTMLInputElement>('.board-slider input') as HTMLInputElement;
     expect(Number(input.value)).toBe(3);
     expect(input.disabled).toBe(true);
+  });
+
+  it('paints a slider on any range and any value without throwing, because a throw during paint takes the whole page', () => {
+    for (const [min, max] of [[0, 1e-110], [0, 1e-300], [-1e-99, 1e-99], [-1e6, 1e6], [999999.9999, 1e6], [1e-7, 2e-7]] as const) {
+      const operations = [place({ kind: 'plot', id: 'p', expression: 'a*x', constants: [{ name: 'a', value: min, min, max }], domain: [0, 1] }), place({ kind: 'slider', id: 's', target: 'p', constant: 'a', min, max })];
+      const { container, unmount } = render(<BoardView board={getBoardAt(operations, 5000)} atMs={5000} canMoveSliders />);
+      expect(container.querySelector('.board-slider input')).not.toBeNull();
+      unmount();
+    }
+  });
+
+  describe('an id placed again', () => {
+    const second = place({ kind: 'plot', id: 'curve-two', expression: 'b*x', constants: [{ name: 'b', value: 15, min: 10, max: 20 }], domain: [0, 5], label: 'second' }, 6000);
+    const reused = place({ kind: 'slider', id: 'a-slider', target: 'curve-two', constant: 'b', min: 10, max: 20 }, 6000);
+    const operations = [plot, slider, place({ kind: 'clearBoard' }, 6000), second, reused];
+
+    it('gives a reused slider its new range, name, value, and target', () => {
+      const onSliderMove = vi.fn();
+      const { container, rerender } = render(<BoardView board={getBoardAt(operations, 5000)} atMs={5000} canMoveSliders onSliderMove={onSliderMove} />);
+      rerender(<BoardView board={getBoardAt(operations, 8000)} atMs={8000} canMoveSliders onSliderMove={onSliderMove} />);
+      const input = container.querySelector<HTMLInputElement>('.board-slider input') as HTMLInputElement;
+      expect([input.min, input.max, input.value]).toEqual(['10', '20', '15']);
+      expect(screen.getByRole('slider', { name: 'b' })).toBe(input);
+      expect(input.getAttribute('aria-valuetext')).toBe('15.0');
+      fireEvent.input(input, { target: { value: '12' } });
+      expect(onSliderMove).toHaveBeenCalledWith({ target: 'curve-two', value: 12, constant: 'b' });
+    });
+
+    it('names a reused figure for what it now shows, on a wrapper that stayed', () => {
+      const first = place({ kind: 'plot', id: 'curve', expression: 'x', domain: [0, 1], label: 'first' });
+      const again = place({ kind: 'plot', id: 'curve', expression: 'x^2', domain: [0, 1], label: 'second' }, 6000);
+      const { container, rerender } = render(<BoardView board={getBoardAt([first, again], 5000)} atMs={5000} />);
+      rerender(<BoardView board={getBoardAt([first, again], 8000)} atMs={8000} />);
+      expect(container.querySelectorAll('svg.board-figure')).toHaveLength(1);
+      expect(container.querySelector('svg.board-figure')?.getAttribute('aria-label')).toBe('second');
+    });
+
+    it('writes reused handwriting and a reused diagram with the new words', () => {
+      const handwriting = [place({ kind: 'text', id: 'note', text: 'first', handwritten: true }), place({ kind: 'text', id: 'note', text: 'second', handwritten: true }, 6000)];
+      const diagram = (label: string, atMs: number) => place({ kind: 'diagram', id: 'map', nodes: [{ name: 'a', label }], edges: [] }, atMs);
+      const all = [...handwriting, diagram('old', 0), diagram('new', 6000)];
+      const { container, rerender } = render(<BoardView board={getBoardAt(all, 5000)} atMs={5000} />);
+      rerender(<BoardView board={getBoardAt(all, 8000)} atMs={8000} />);
+      expect(container.querySelector('[data-element="note"] svg')?.getAttribute('aria-label')).toBe('second');
+      expect(container.querySelector('[data-element="map"] svg')?.getAttribute('aria-label')).toBe('new');
+    });
+
+    it('keeps the math item through a rearrangement, so the move can run', () => {
+      const moved = [place({ kind: 'writeMath', id: 'eq', tex: '2x = 8' }), place({ kind: 'transformMath', target: 'eq', tex: 'x = 4' }, 6000)];
+      const { container, rerender } = render(<BoardView board={getBoardAt(moved, 5000)} atMs={5000} />);
+      const before = container.querySelector('[data-element="eq"]')?.firstElementChild;
+      rerender(<BoardView board={getBoardAt(moved, 6100)} atMs={6100} />);
+      expect(container.querySelector('[data-element="eq"]')?.firstElementChild).toBe(before);
+    });
+
+    it('keeps an item when the same command comes from a replay, so a frame held for comparing does not rebuild it', () => {
+      const { container, rerender } = render(<BoardView board={getBoardAt([plot, slider], 5000)} atMs={5000} />);
+      const before = container.querySelector('.board-slider input');
+      rerender(<BoardView board={getBoardAt(JSON.parse(JSON.stringify([plot, slider])) as BoardOperation[], 5000)} atMs={5000} />);
+      expect(container.querySelector('.board-slider input')).toBe(before);
+    });
+  });
+
+  describe('a slider for a screen reader', () => {
+    const onShot = [place({ kind: 'simulate', id: 'shot', simulation: { model: 'projectile', parameters: { horizontalSpeed: 4.2, upwardSpeed: 5.6, releaseHeight: 2.2, gravity: 9.8 } } }), place({ kind: 'slider', id: 'speed', target: 'shot', parameter: 'horizontalSpeed', min: 0, max: 10 })];
+
+    it('is named for what it changes, and says its value with its unit', () => {
+      render(<BoardView board={getBoardAt(onShot, 5000)} atMs={5000} canMoveSliders />);
+      const input = screen.getByRole('slider', { name: 'Sideways speed' });
+      expect(input.getAttribute('aria-valuetext')).toBe('4.2 m/s');
+    });
+
+    it('holds no live region, so a value moving while the tutor talks says nothing over the voice', () => {
+      const { container } = render(<BoardView board={getBoardAt(onShot, 5000)} atMs={5000} canMoveSliders />);
+      expect(container.querySelector('.board-slider output, .board-slider [aria-live], .board-slider [role="status"]')).toBeNull();
+      expect(container.querySelector('.board-slider')?.textContent).toContain('4.2');
+    });
+
+    it('moves nothing and says nothing when its curve no longer has that constant', () => {
+      const replaced = [plot, slider, place({ kind: 'plot', id: 'curve', expression: 'x', domain: [0, 2] }, 6000)];
+      const { container } = render(<BoardView board={getBoardAt(replaced, 8000)} atMs={8000} canMoveSliders />);
+      const input = container.querySelector<HTMLInputElement>('.board-slider input') as HTMLInputElement;
+      expect(input.disabled).toBe(true);
+      expect(input.getAttribute('aria-valuetext')).toBeNull();
+    });
   });
 
   it('places a figure for each kind, and a curve drawn over another has no place of its own', () => {

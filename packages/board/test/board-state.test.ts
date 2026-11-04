@@ -170,6 +170,17 @@ describe('a slider drag', () => {
     expect(samples).toEqual([{ atMs: 1001, value: 5 }, { atMs: 1121, value: 6 }, { atMs: 1241, value: 7 }, { atMs: 1361, value: 8 }]);
   });
 
+  it.each([1000.3, 1000.5, 1000.7, 1000])('logs a key press at %d on the moment the live board used', (nowMs) => {
+    const sent: BrowserMessage[] = [];
+    const player = createScenePlayer({ clock: createTimerClock({ getNowMs: () => nowMs }), send: (message) => sent.push(message), setOutputLevel: () => {} });
+    player.moveSlider({ target: 'shot' as never, parameter: 'horizontalSpeed', value: 5 });
+    player.finishSliderDrag();
+    const liveMs = player.getOperations().find((operation) => operation.kind === 'parameterSample')?.atMs;
+    const acted = sent.find((message): message is BrowserMessage & { type: 'acted' } => message.type === 'acted');
+    const samples = acted?.action.action === 'sliderDragged' ? acted.action.samples : [];
+    expect((acted?.browserMs as number) - (acted?.startedMsAgo as number) + (samples[0]?.afterMs as number)).toBe(liveMs);
+  });
+
   it('gives the replay the same board at every moment of the drag', () => {
     const { player, sent } = drag();
     const opening = { seq: 0, atMs: 0, kind: 'beatPlayed', reportedBy: 'browser', turnId: 't', beat: { id: 'b', expectsReply: false, script: [SHOT, 'One'] }, wordStartsMs: [0], durationMs: 100, playedWords: 1, firedCueMs: [0], ending: 'finished', frozen: [] };

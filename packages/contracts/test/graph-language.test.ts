@@ -28,6 +28,21 @@ describe('a label on a figure', () => {
   });
 });
 
+describe('how narrow a range can be', () => {
+  it.each([
+    ['a slider on a constant', { kind: 'slider', id: 's', target: 'curve', constant: 'a', min: 0, max: 1e-110 }],
+    ['a slider on a parameter', { kind: 'slider', id: 's', target: 'shot', parameter: 'horizontalSpeed', min: 0, max: 1e-110 }],
+    ['a slider just under the limit', { kind: 'slider', id: 's', target: 'curve', constant: 'a', min: 0, max: 9e-7 }],
+    ['a constant on a curve', { kind: 'plot', id: 'p', expression: 'a*x', domain: [0, 1], constants: [{ name: 'a', value: 0, min: 0, max: 1e-110 }] }],
+  ])('refuses %s, the same as a domain', (_, command) => {
+    expectRefused(parseSceneCommand(command), /apart/);
+  });
+
+  it('takes a slider at the limit', () => {
+    expect(commandOrThrow({ kind: 'slider', id: 's', target: 'curve', constant: 'a', min: 0, max: 1e-6 })).toMatchObject({ max: 1e-6 });
+  });
+});
+
 describe('a playback rate', () => {
   const play = { kind: 'runSimulation', target: 'shot', action: 'play' };
 
