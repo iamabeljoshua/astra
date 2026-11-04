@@ -40,8 +40,17 @@ const isStageWords = (words: string) => words.startsWith('(');
 const isLineOfWork = (words: string) => readLine(words).kind === 'math';
 
 const IS_ONLY_A_NOD = /^(?:ok(?:ay)?|k|yes|yeah|yep|yup|sure|cool|right|got it|mhm|mm+)[.!]*$/i;
-const DECLINES_EXERCISES = /\b(?:no|without|skip|stop)\s+(?:the\s+|more\s+|any\s+)?(?:exercises?|tasks?|problems?|practice|quiz(?:zes)?)\b|\bjust\s+(?:explain|teach|tell)\b|\bjust\s+(?:want\s+to\s+)?listen\b/i;
+const DECLINES_EXERCISES = /\bdon'?t want to try\b|\b(?:no|without|skip|stop)\s+(?:the\s+|more\s+|any\s+)?(?:exercises?|tasks?|problems?|practice|quiz(?:zes)?)\b|\bjust\s+(?:explain|teach|tell)\b|\bjust\s+(?:want\s+to\s+)?listen\b/i;
 const WANTS_AN_EXERCISE = /\b(?:let\s+me|can\s+i|i(?:'ll|\s+will|\s+want\s+to)|i\s+wanna)\s+try\b|\b(?:give|set)\s+me\s+(?:a|an|one|another)\b/i;
+
+const NAMES_A_PROBLEM = /\d\s*[-+*/×÷=^%]|=|->|_{2,}|\bm\/s\b|\b(?:solve|balance|simplify|calculate|work out|factori[sz]e|derivative of|integral of|slope of|which came first)\b/i;
+const ASKS_TO_BE_TAUGHT = /^\s*(?:please\s+)?(?:teach|explain|help me (?:understand|get)|i (?:want|wanna|would like|'d like) to (?:learn|understand))\b/i;
+
+/** Said beside their words, where it holds the model best, because the first reply cannot wait for a plan. Null when they asked to be taught or told. */
+export function getProblemNote(words: string): Record<string, string> | null {
+  if (!NAMES_A_PROBLEM.test(words) || ASKS_TO_BE_TAUGHT.test(words) || DECLINES_EXERCISES.test(words)) return null;
+  return { problem_now: 'They gave you something to work out. This reply puts it on the board and holds a task command.' };
+}
 
 const getWordsEvent = (words: string): LessonEvent | null => {
   if (WANTS_AN_EXERCISE.test(words)) return 'exerciseWanted';

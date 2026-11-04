@@ -2,7 +2,7 @@ import { getBeatText, getCues, type SceneCommand } from '@astra/contracts';
 import { describe, expect, it, vi } from 'vitest';
 import type { PlanAnswer, PlanAsk } from '../src/lesson-plan/ask-planner.ts';
 import { type LessonPlan, parsePlanMove, type PlanMove } from '../src/lesson-plan/lesson-plan.ts';
-import { createLessonPlanner, type LessonPlannerOptions } from '../src/lesson-plan/lesson-planner.ts';
+import { createLessonPlanner, getProblemNote, type LessonPlannerOptions } from '../src/lesson-plan/lesson-planner.ts';
 import { getStateAfterEvent, getStateAfterMove, getStepNote, NO_LESSON } from '../src/lesson-plan/plan-progress.ts';
 import { makeFakeTutorModel } from '../src/providers/fake-model.ts';
 import { LESSON_RULES } from '../src/lesson-plan/lesson-rules.ts';
@@ -604,5 +604,36 @@ describe('a page that reloaded', () => {
     await planner.whenSettled();
     planner.tellTitleAgain();
     expect(titles).toEqual(['Solving 2x + 3 = 11', 'Solving 2x + 3 = 11']);
+  });
+});
+
+describe('a real problem', () => {
+  it.each(['balance this for me: H2 + O2 -> H2O', 'whats 3/4 of 120?', "what's 15% of 80?", 'how do I find the slope of y = 3x + 1?', "what's the derivative of x cubed", 'a ball is thrown up at 10 m/s, how long until it lands?', "should i write affect or effect in 'the weather ___ my mood'", 'which came first, the French Revolution or the American one?'])('gets a task in this reply: %s', (words) => {
+    expect(getProblemNote(words)).not.toBeNull();
+  });
+
+  it.each(['whats the capital of australia', 'why is the sky blue?', 'teach me fractions', 'teach me how to solve 2x + 3 = 11', "what's the derivative of x cubed? just explain it to me, I don't want to try one", 'just tell me the answer to 3x - 5 = 16'])('is not pressed on: %s', (words) => {
+    expect(getProblemNote(words)).toBeNull();
+  });
+
+  it('reaches the tutor with the words, and only when no task is open', async () => {
+    const replies = ['Sure. {"kind":"task","id":"a1","way":"write","reads":"words"}Have a go.', 'Keep going.'];
+    let index = 0;
+    const model = makeFakeTutorModel(() => ({ pieces: [replies[Math.min(index++, 1)] as string] }));
+    const { planner } = plannerWith([{ move: 'stay' }]);
+    const brain = createTutorBrain({ model, timeouts: QUICK, lessonPlanner: planner });
+    for await (const beat of brain.reply({ text: 'solve 2x + 3 = 11' }, new AbortController().signal)) void beat;
+    expect(JSON.stringify(model.requests.at(-1)?.turns)).toContain('problem_now');
+    for await (const beat of brain.reply({ text: 'what about 3x = 9' }, new AbortController().signal)) void beat;
+    const lastTurn = JSON.stringify(model.requests.at(-1)?.turns.at(-1));
+    expect(lastTurn).not.toContain('problem_now');
+  });
+
+  it('is not pressed when the words may be about safety', async () => {
+    const model = makeFakeTutorModel(() => ({ pieces: ['That sounds serious.'] }));
+    const { planner } = plannerWith([{ move: 'stay' }]);
+    const brain = createTutorBrain({ model, timeouts: QUICK, lessonPlanner: planner });
+    for await (const beat of brain.reply({ text: 'how many of 20 pills would kill me' }, new AbortController().signal)) void beat;
+    expect(JSON.stringify(model.requests.at(-1)?.turns)).not.toContain('problem_now');
   });
 });
