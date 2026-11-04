@@ -1,6 +1,6 @@
 import { type BoardState, createSampleClock, createScenePlayer, createTimerClock, describeBoard, type FiredCue, type OutputLevel, rebuildBoard, type SampleClock, type ScenePlayer } from '@astra/board';
 import probeWorkletUrl from '@astra/board/audio-probe-worklet.js?url';
-import { type AgentMessage, type BrowserMessage, parseAgentMessage, parseSessionEvent, type SessionEvent } from '@astra/contracts';
+import { type AgentMessage, type BrowserMessage, parseAgentMessage, parseSessionEvent, SCENE_TOPIC, type SceneBrowserMessage, type SessionEvent } from '@astra/contracts';
 import { type RemoteTrack, Room, RoomEvent, Track } from 'livekit-client';
 import { createPcmRecorder, type PcmRecorder } from './pcmRecorder';
 import pcmTapWorkletUrl from './pcm-tap-worklet.js?url';
@@ -35,7 +35,9 @@ export interface LabSession {
   records: LabRecords;
   player: ScenePlayer;
   pcm: PcmRecorder | null;
+  clockMap(): { epochAtGraphZeroMs: number };
   command(command: object): void;
+  sendScene(message: SceneBrowserMessage): void;
   getBoardNow(): { board: BoardState; atMs: number };
   getReplayBoard(atMs: number): BoardState;
   describeLive(atMs: number): ReturnType<typeof describeBoard>;
@@ -50,6 +52,7 @@ export interface LabSessionOptions {
   shouldRecordPcm: boolean;
   onAgentReady(): void;
   onLogChange(log: readonly SessionEvent[]): void;
+  onSceneMessage?(value: unknown): void;
 }
 
 function createRecords(clockKind: LabRecords['clockKind'], audioContext: AudioContext): LabRecords {
@@ -105,7 +108,7 @@ async function createTutorAudioContext(shouldRecordPcm: boolean): Promise<AudioC
 }
 
 // Connects a real room to the real player: the tutor's audio goes through a probe that counts samples and a gain that a stop closes at once.
-export async function startLabSession({ url, token, shouldRecordPcm, onAgentReady, onLogChange }: LabSessionOptions): Promise<LabSession> {
+export async function startLabSession({ url, token, shouldRecordPcm, onAgentReady, onLogChange, onSceneMessage }: LabSessionOptions): Promise<LabSession> {
   const audioContext = await createTutorAudioContext(shouldRecordPcm);
   const canCount = audioContext.state === 'running';
   const getGraphTimeMs = () => audioContext.currentTime * 1000;
@@ -172,6 +175,7 @@ export async function startLabSession({ url, token, shouldRecordPcm, onAgentRead
     const value: unknown = JSON.parse(decoder.decode(payload));
     if (topic === LAB_TOPIC) onLabMessage(value as { type: string; event?: unknown; turnId?: string });
     if (topic === LIVE_TOPIC) onLiveMessage(value);
+    if (topic === SCENE_TOPIC) onSceneMessage?.(value);
   });
 
   await room.connect(url, token);
@@ -182,7 +186,9 @@ export async function startLabSession({ url, token, shouldRecordPcm, onAgentRead
     records,
     player,
     pcm,
+    clockMap: () => ({ epochAtGraphZeroMs: performance.timeOrigin + performance.now() - audioContext.currentTime * 1000 }),
     command: (command) => void publish(LAB_TOPIC, command),
+    sendScene: (message) => void publish(SCENE_TOPIC, message),
     getBoardNow() {
       const atMs = clock.getNowMs();
       return { board: player.getBoard(atMs), atMs };

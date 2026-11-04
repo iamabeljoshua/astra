@@ -3,7 +3,7 @@ export const SCENE_TOPIC = 'astra.scenes';
 
 export type SceneAgentMessage =
   /** Fetch this stored scene's take now, and say when the first frame could draw. */
-  { type: 'loadScene'; sceneId: string };
+  { type: 'loadScene'; sceneId: string; durationSeconds: number };
 
 export type SceneBrowserMessage =
   /** Sent on joining, so nothing is written for a student who could not see it. */

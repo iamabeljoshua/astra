@@ -2,15 +2,19 @@ import { type PropsWithChildren, type ReactNode, useEffect, useRef, useState } f
 import { Link, useParams } from 'react-router';
 import { ChatBox } from '../home/ChatBox';
 import { findArtwork, type Artwork } from '../home/artwork';
-import { API_ERROR_LABELS, MENU_LABELS, PRODUCT_NAME, REPLY_BOX_LABELS, SESSION_LABELS, SESSIONS_LABELS } from '../strings';
+import { API_ERROR_LABELS, MENU_LABELS, PRODUCT_NAME, REPLY_BOX_LABELS, SCENE_LABELS, SESSION_LABELS, SESSIONS_LABELS } from '../strings';
+import { BoardView } from '../lab/BoardView';
+import { SceneLayer } from '../scenes/SceneLayer';
 import { ThemeToggle } from '../theme/ThemeToggle';
 import { formatSessionLength } from './formatSession';
 import { type Session, useSession } from './sessionQueries';
+import { isLessonEnabled, type Lesson, useLesson } from './useLesson';
 import { useSessionRun } from './useSessionRun';
 
 const NOT_FOUND_STATUS = 404;
 const BAD_ID_STATUS = 400;
 const BAR_ACTION = 'button button-outline px-3 py-1.25';
+const EMPTY_BOARD = { elements: new Map(), focus: null };
 
 function isWrongAddress(status?: number | null) {
   return status === NOT_FOUND_STATUS || status === BAD_ID_STATUS;
@@ -41,7 +45,44 @@ export function SessionScreen() {
 // The view is chosen once, so ending the session does not swap the screen while it fades out.
 function OpenSession({ session }: { session: Session }) {
   const [wasFinishedOnOpening] = useState(session.status === 'finished');
-  return wasFinishedOnOpening ? <FinishedSession session={session} /> : <RunningSession session={session} />;
+  if (wasFinishedOnOpening) return <FinishedSession session={session} />;
+  return isLessonEnabled() ? <LessonSession session={session} /> : <RunningSession session={session} />;
+}
+
+function LessonSession({ session }: { session: Session }) {
+  const { seconds, endSession, isEnding, endProblem } = useSessionRun(session);
+  const lesson = useLesson(session);
+
+  return (
+    <SessionFrame
+      facts={<SessionFacts subject={session.subject} seconds={seconds} />}
+      action={<EndButton isEnding={isEnding} onEnd={() => void endSession()} />}
+      problem={endProblem}
+    >
+      <div className="grid flex-1 grid-cols-session gap-session py-4 max-md:grid-cols-1">
+        <LessonBoard session={session} lesson={lesson} />
+        <div className="flex min-w-0 flex-col gap-3.5">
+          <div className="label flex items-center gap-2.5">
+            <i aria-hidden className="tutor-dot" />
+            <span>{SESSION_LABELS.yourTutor}</span>
+          </div>
+          <SessionTitle title={session.title} />
+          <p data-testid="caption" className="font-voice text-voice">{lesson.frame?.caption}</p>
+          <ReplyBox answer={SCENE_LABELS.answerStandIn} onReply={lesson.interrupt} />
+        </div>
+      </div>
+    </SessionFrame>
+  );
+}
+
+function LessonBoard({ session, lesson: { frame, stage, onStageContainer } }: { session: Session; lesson: Lesson }) {
+  const artwork = findArtwork(session.artwork);
+  return (
+    <section className="fades-with-theme relative flex min-w-0 flex-col overflow-hidden border border-line bg-panel md:min-h-75">
+      {frame ? <BoardView board={frame.board} atMs={frame.atMs} /> : <div className="flex min-h-50 flex-1 items-center justify-center p-4">{artwork && <BoardPicture artwork={artwork} />}</div>}
+      <SceneLayer board={frame?.board ?? EMPTY_BOARD} atMs={frame?.atMs ?? 0} stage={stage} onContainer={onStageContainer} />
+    </section>
+  );
 }
 
 function RunningSession({ session }: { session: Session }) {
@@ -172,7 +213,7 @@ function BoardPicture({ artwork }: { artwork: Artwork }) {
   return <img src={artwork.src} alt={artwork.description} className="block max-h-board-art max-w-full object-contain" />;
 }
 
-function ReplyBox() {
+function ReplyBox({ answer = SESSION_LABELS.standInAnswer, onReply }: { answer?: string; onReply?: () => void }) {
   const [reply, setReply] = useState<string | null>(null);
 
   return (
@@ -184,11 +225,11 @@ function ReplyBox() {
               <span className="label block text-ink-2">{SESSION_LABELS.you}</span>
               {reply}
             </p>
-            <p className="font-voice text-lead">{SESSION_LABELS.standInAnswer}</p>
+            <p className="font-voice text-lead">{answer}</p>
           </>
         )}
       </div>
-      <ChatBox labels={REPLY_BOX_LABELS} canAttach={false} clearsOnSend onSend={setReply} onEdit={() => undefined} />
+      <ChatBox labels={REPLY_BOX_LABELS} canAttach={false} clearsOnSend onSend={(text) => { setReply(text); onReply?.(); }} onEdit={() => undefined} />
     </div>
   );
 }

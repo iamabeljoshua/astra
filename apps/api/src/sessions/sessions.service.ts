@@ -45,6 +45,11 @@ export class SessionsService {
     return toSessionResponse(requireSession(await this.sessions.findForStudent(studentId, sessionId)));
   }
 
+  async getLessonRequest(studentId: string, sessionId: string): Promise<{ title: string; status: string; isCard: boolean }> {
+    const { title, status, topicId } = requireSession(await this.sessions.findForStudent(studentId, sessionId));
+    return { title, status, isCard: topicId !== null };
+  }
+
   async updateSession(
     studentId: string,
     sessionId: string,

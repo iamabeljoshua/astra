@@ -247,6 +247,11 @@ export const SESSION_LABELS = {
   tryAgain: 'Try again',
 };
 
+export const SCENE_LABELS = {
+  notCheckedByPerson: 'Drawn for this lesson. Not yet checked by a person.',
+  answerStandIn: "I heard you. I can't answer questions yet, so I'll carry on.",
+};
+
 export const ARTWORK_LABELS = {
   alchemist: 'Pieter Bruegel\'s engraving of an alchemist at work in a cluttered room',
   arc: 'A ball leaving a hand and travelling in an arc to a hoop',

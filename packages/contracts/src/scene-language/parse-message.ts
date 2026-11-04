@@ -13,6 +13,7 @@ import {
   readBoolean,
   readFields,
   readList,
+  readNumberInRange,
   readString,
   readVariant,
   readWholeNumber,
@@ -153,7 +154,7 @@ export function parseBrowserMessage(value: unknown): ParseResult<BrowserMessage>
 const SCENE_AGENT_MESSAGES: VariantTable<SceneAgentMessage, 'type'> = {
   tag: 'type',
   variants: {
-    loadScene: { keys: ['sceneId'], read: (fields) => ({ type: 'loadScene', sceneId: readSceneId(fields.at('sceneId')) }) },
+    loadScene: { keys: ['sceneId', 'durationSeconds'], read: (fields) => ({ type: 'loadScene', sceneId: readSceneId(fields.at('sceneId')), durationSeconds: readNumberInRange(fields.at('durationSeconds'), { min: 0.1, max: 600 }) }) },
   },
 };
 

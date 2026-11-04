@@ -7,4 +7,5 @@ RUN useradd -m render
 USER render
 WORKDIR /tmp
 ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONPATH=/worker
 ENTRYPOINT ["python", "/worker/run_job.py"]
