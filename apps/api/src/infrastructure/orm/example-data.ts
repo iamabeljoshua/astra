@@ -2,7 +2,9 @@ import { In } from 'typeorm';
 import type { DataSource, DeepPartial } from 'typeorm';
 import type { SessionLanguage } from '../../sessions/session-options';
 import { LearnerNoteEntity } from './entities/learner-note.entity';
+import { SessionLogEventEntity } from './entities/session-log-event.entity';
 import { SessionEntity } from './entities/session.entity';
+import { EXAMPLE_RECAP, EXAMPLE_REPLAY_EVENTS, EXAMPLE_REPLAY_SESSION_TITLE } from './example-replay';
 import { StudentProfileEntity } from './entities/student-profile.entity';
 import { ClosedAccountEntity } from './entities/closed-account.entity';
 import { StudentDailySpendEntity } from './entities/student-daily-spend.entity';
@@ -161,8 +163,14 @@ export async function replaceExampleData(dataSource: DataSource): Promise<void> 
         ...session,
         studentId: EXAMPLE_STUDENT_ID,
         language: EXAMPLE_SESSION_LANGUAGE,
+        ...(session.title === EXAMPLE_REPLAY_SESSION_TITLE ? { recap: EXAMPLE_RECAP } : {}),
       })),
     );
+    const replayed = sessions.find(({ title }) => title === EXAMPLE_REPLAY_SESSION_TITLE);
+    if (replayed) {
+      const run = { sessionId: replayed.id, runId: '00000000-0000-4000-8000-0000000000b1', runStartedAt: atNoon('2026-10-28') };
+      await manager.insert(SessionLogEventEntity, EXAMPLE_REPLAY_EVENTS.map((event, seq) => ({ ...run, seq, event })));
+    }
     await manager.save(LearnerNoteEntity, getExampleNotes(sessions));
   });
 }

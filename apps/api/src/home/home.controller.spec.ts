@@ -75,6 +75,7 @@ describe('GET /home', () => {
     expect(Object.keys(body).sort()).toEqual(['continueSession', 'isNewStudent', 'picks', 'studentName']);
     expect(Object.keys(body.continueSession).sort()).toEqual([
       'artwork',
+      'canReplay',
       'detail',
       'durationSeconds',
       'id',

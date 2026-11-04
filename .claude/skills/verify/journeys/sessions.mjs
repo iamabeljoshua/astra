@@ -7,6 +7,7 @@ const STALE_LINE = 'Live lessons open soon';
 const NO_ROOM_NOTE = 'Your tutor could not connect just now.';
 const REPLY_NOT_SENT = 'This did not reach your tutor.';
 const LIVE_ROOM_ADDRESS = /\/api\/sessions\/[0-9a-f-]{36}\/live-room$/;
+const REPLAY_SESSION_TITLE = 'Solving quadratic equations';
 
 // `pnpm verify run` starts the app with this process's environment, so these three decide what the API answers.
 const hasRoomService = Boolean(process.env.LIVEKIT_URL && process.env.LIVEKIT_API_KEY && process.env.LIVEKIT_API_SECRET);
@@ -59,6 +60,40 @@ async function sendQuestionAndEnd({ page, capture, viewportName }) {
   await page.getByRole('heading', { name: GREETING }).waitFor();
 }
 
+async function seekTo(page, share) {
+  const timeline = page.getByRole('slider', { name: 'Lesson timeline' });
+  await timeline.evaluate((input, value) => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, String(Math.round(Number(input.max) * value)));
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  }, share);
+}
+
+async function replaySavedLesson({ page, capture }) {
+  await page.goto('/sessions');
+  const row = page.getByRole('row').filter({ hasText: REPLAY_SESSION_TITLE });
+  await row.getByText('Replay').waitFor();
+  await row.getByRole('link', { name: REPLAY_SESSION_TITLE }).click();
+  await page.getByText('What you got right').waitFor();
+  await page.getByText('You got x equals two and x equals three.').waitFor();
+  await capture('replay-recap');
+
+  await seekTo(page, 0.5);
+  await page.getByTestId('tutor-caption').getByText('Minus one and minus six').waitFor();
+  await page.getByTestId('replay-student-line').getByText('is it minus two and minus three').waitFor();
+  assert.equal(await page.locator('[data-row="s1"]').count(), 1, 'the student line from before this moment is on the board');
+  assert.equal(await page.locator('[data-row="s3"]').count(), 0, 'the student line from after this moment is not');
+  await capture('replay-middle');
+
+  await seekTo(page, 0.1);
+  assert.equal(await page.locator('[data-row="s1"]').count(), 0, 'seeking back takes the line away');
+  await page.getByRole('button', { name: 'Play', exact: true }).click();
+  await page.getByRole('button', { name: 'Pause' }).waitFor();
+  await page.getByRole('button', { name: 'Pause' }).click();
+  assert.equal(await page.getByRole('textbox').count(), 0, 'a replay takes no work');
+  await page.getByRole('link', { name: 'Close' }).click();
+  await page.getByRole('heading', { name: 'Sessions' }).waitFor();
+}
+
 async function putCardBackForNextViewport({ page }, sessionAddress) {
   await page.goto(sessionAddress);
   await page.getByRole('button', { name: 'End session' }).click();
@@ -108,5 +143,6 @@ export default async function sessions({ page, capture, viewportName, signIn }) 
   await sendQuestionAndEnd({ page, capture, viewportName });
   const sessionAddress = await startFromCardRefreshAndSearch({ page, capture });
   await replyOnReturningSession({ page, capture, viewportName });
+  await replaySavedLesson({ page, capture });
   await putCardBackForNextViewport({ page }, sessionAddress);
 }
