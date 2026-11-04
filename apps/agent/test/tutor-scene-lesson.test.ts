@@ -71,6 +71,7 @@ function makeScenes() {
 function makeLesson(replies: string[], moves: readonly PlanMove[] = [SLOPES]) {
   const { model, requests } = makeModel(...replies);
   const { scenes, ...sceneRecord } = makeScenes();
+  const titles: string[] = [];
   let moveIndex = 0;
   const planner = createLessonPlanner({
     ask: () => {
@@ -80,7 +81,10 @@ function makeLesson(replies: string[], moves: readonly PlanMove[] = [SLOPES]) {
     },
     canSpend: () => true,
     charge: () => {},
-    onTitleChange: (title) => scenes.noteTopic(title),
+    onTitleChange(title) {
+      titles.push(title);
+      scenes.noteTopic(title);
+    },
     trace: () => {},
   });
   const brain = createTutorBrain({ model, prompt: withScenes(TUTOR_PROMPT), lessonPlanner: planner, onAskScene: (topic) => scenes.ask(topic), onSafetyReply: () => scenes.noteSafetyReply() });
@@ -91,7 +95,7 @@ function makeLesson(replies: string[], moves: readonly PlanMove[] = [SLOPES]) {
     await planner.whenSettled();
     return said;
   };
-  return { brain, planner, scenes, requests, say, ...sceneRecord };
+  return { brain, planner, scenes, requests, say, titles, ...sceneRecord };
 }
 
 const getSystemNotes = (request: TutorModelRequest | undefined) => JSON.stringify((request?.turns ?? []).filter((turn) => 'text' in turn && turn.role === 'system'));
@@ -179,6 +183,22 @@ describe('a switch to a new topic', () => {
     scenes.notePause();
     expect(sent.filter((message) => message.type === 'loadScene')).toEqual([]);
     expect(spoken).toEqual([]);
+  });
+
+  it('renames the lesson when the student cuts a card\'s opening scene for a new topic, before the tutor heard the title', async () => {
+    const { brain, say, titles } = makeLesson(['Sure, black holes.'], [BLACK_HOLES]);
+    const beat = sceneBeat();
+    brain.noteSceneTurn?.({ topic: OLD_TOPIC, beats: [beat] });
+    brain.noteCut?.(new Map([[beat.id, 3]]));
+    await say('actually teach me black holes');
+    expect(titles).toEqual(['Black holes']);
+  });
+
+  it('never renames on the card\'s own title after its scene played whole', async () => {
+    const { brain, say, titles } = makeLesson(['A derivative measures change.'], [BLACK_HOLES]);
+    brain.noteSceneTurn?.({ topic: OLD_TOPIC, beats: [sceneBeat()] });
+    await say('I would like to learn about black holes');
+    expect(titles).toEqual([]);
   });
 
   it('stops a scene still being written for the old topic from loading once it is ready', async () => {

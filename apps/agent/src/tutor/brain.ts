@@ -920,7 +920,8 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
         return;
       }
       // Skipped on words this list knows. Vaguer words reach the planner, whose `stay` and `getTrustedMove` hold them.
-      if (!MAY_BE_ABOUT_SAFETY.test(studentText)) lessonPlanner?.noteStudentWords({ words: studentText, isOpening: turnCount === 0, tutorSaid: lastBeats.map(getBeatText).join(' ') });
+      // A student who cuts a card's opening scene speaks before the tutor has heard the card's title, so those are their own words.
+      if (!MAY_BE_ABOUT_SAFETY.test(studentText)) lessonPlanner?.noteStudentWords({ words: studentText, isOpening: turnCount === 0 && cutWordsSent === null, tutorSaid: lastBeats.map(getBeatText).join(' ') });
       await waitForLastTurn();
       if (profileLoading || memoryLoading) await Promise.race([Promise.all([profileLoading, memoryLoading]), delay(timeouts.profileWaitMs)]);
       isTurnRunning = true;
