@@ -1,5 +1,5 @@
 /** Why the tutor is speaking with nobody having asked. A short turn holds one thought, so depth has to come from many turns in a row. */
-export type LeadKind = 'next' | 'mustAsk' | 'noAnswer' | 'taskLeft';
+export type LeadKind = 'next' | 'noAnswer' | 'taskLeft' | 'checkIn';
 
 export const LEAD_TIMINGS = {
   /** The model starts as the last reply ends, because its own first beat takes about 1.8 s to reach the voice, so a student hears about 2 s of quiet and this only holds a quick model back. */
@@ -12,19 +12,19 @@ export const LEAD_TIMINGS = {
 
 export type LeadTimings = typeof LEAD_TIMINGS;
 
-/** A tutor and not a lecture. Past this a reply must ask something or set something. */
-export const MOST_REPLIES_IN_A_RUN = 3;
-/** About 8 minutes with no sign of anyone. A forgotten tab would otherwise keep paying for words nobody hears, up to the session's cap. */
-export const MOST_QUIET_LEADS = 24;
+/** Two asks in a row with no sign of anyone, and the third thing they hear is a gentle check, after which the tutor holds until they come back. A forgotten tab must not pay for a lesson nobody hears. */
+export const MOST_UNANSWERED_IN_A_ROW = 2;
+/** A backstop for a reply that never asks anything, so even then a run with no sign of anyone stops. */
+export const MOST_QUIET_LEADS = 30;
 
 /** Code's own words in the student's place. They stay in brackets, so the planner and the prompt can never read them as the student's. */
-export const LEAD_WORDS: Readonly<Record<LeadKind, string>> = { next: '(carry on)', mustAsk: '(carry on, then ask)', noAnswer: '(no answer)', taskLeft: '(did not try it)' };
+export const LEAD_WORDS: Readonly<Record<LeadKind, string>> = { next: '(carry on)', noAnswer: '(no answer)', taskLeft: '(did not try it)', checkIn: '(still quiet)' };
 
 export interface LeadFacts {
   isQuestionOpen: boolean;
   hasOpenTask: boolean;
-  /** Replies in a row since the student last did something or the tutor last asked something. */
-  repliesInARun: number;
+  /** Asks that went unanswered with no sign of the student since. */
+  unansweredInARow: number;
   quietLeads: number;
   mostQuietLeads: number;
 }
@@ -35,10 +35,11 @@ export interface Lead {
   firstWordAfterMs: number;
 }
 
-export function getLead({ isQuestionOpen, hasOpenTask, repliesInARun, quietLeads, mostQuietLeads }: LeadFacts, timings: LeadTimings = LEAD_TIMINGS): Lead | null {
+export function getLead({ isQuestionOpen, hasOpenTask, unansweredInARow, quietLeads, mostQuietLeads }: LeadFacts, timings: LeadTimings = LEAD_TIMINGS): Lead | null {
   if (quietLeads >= mostQuietLeads) return null;
-  if (hasOpenTask) return { kind: 'taskLeft', afterMs: timings.afterTaskMs, firstWordAfterMs: 0 };
-  if (isQuestionOpen) return { kind: 'noAnswer', afterMs: timings.afterQuestionMs, firstWordAfterMs: 0 };
-  const isLastOfARun = repliesInARun + 1 >= MOST_REPLIES_IN_A_RUN || quietLeads + 1 >= mostQuietLeads;
-  return { kind: isLastOfARun ? 'mustAsk' : 'next', afterMs: 0, firstWordAfterMs: timings.firstWordAfterMs };
+  const isAsked = hasOpenTask || isQuestionOpen;
+  if (!isAsked) return { kind: 'next', afterMs: 0, firstWordAfterMs: timings.firstWordAfterMs };
+  const afterMs = hasOpenTask ? timings.afterTaskMs : timings.afterQuestionMs;
+  if (unansweredInARow + 1 >= MOST_UNANSWERED_IN_A_ROW) return { kind: 'checkIn', afterMs, firstWordAfterMs: 0 };
+  return { kind: hasOpenTask ? 'taskLeft' : 'noAnswer', afterMs, firstWordAfterMs: 0 };
 }

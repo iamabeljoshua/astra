@@ -19,7 +19,6 @@ export const SPOKEN_LINES = {
   askedHowDeclined: ["Let's come at that a different way. Which part do you want to go through first?"],
   cutShort: ["That's a lot at once, so I'll stop there. What do you make of it so far?"],
   noToolAnswer: [`I couldn't work that out just now. ${IF_WORRIED} Could you ask me that another way?`],
-  askAfterARun: ['What do you make of that so far?', 'Which part of that would you push on?', 'What would you ask about that?'],
   notHeard: ["I didn't catch any words in that. Could you try again?"],
   safetyHelp: ['Please tell an adult you trust now, or call your local emergency number if you are in danger.'],
   sessionLimit: [`That's as far as I can go in this session. Please start a new session to carry on. ${IF_WORRIED}`],

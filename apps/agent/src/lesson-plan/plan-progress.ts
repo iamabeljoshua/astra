@@ -1,4 +1,4 @@
-import type { LessonKind, LessonPlan, PlanMove } from './lesson-plan.ts';
+import type { LessonKind, LessonPlan, LessonStep, PlanMove } from './lesson-plan.ts';
 
 interface ActivePlan {
   plan: LessonPlan;
@@ -52,7 +52,7 @@ const REPLIES_BEFORE_THE_EXERCISE: Record<LessonKind, number> = { handsOn: 1, te
 /** No exercise came of this idea, whatever the reason, and a lesson must not stay on one idea for good. */
 const MOST_REPLIES_ON_A_STEP = 8;
 /** A card's lines take longer to say than a planner's few words. */
-const REPLIES_ON_A_CARD_STEP = 3;
+const REPLIES_ON_A_CARD_STEP = 5;
 
 const getRepliesBeforeTheExercise = ({ plan, stepIndex }: ActivePlan) => (plan.steps[stepIndex]?.material ? REPLIES_ON_A_CARD_STEP : REPLIES_BEFORE_THE_EXERCISE[plan.kind]);
 
@@ -125,5 +125,17 @@ export function getStepNote(state: LessonState): StepNote | null {
   const isPictureComing = step.picture !== undefined && stepIndex > 0 && state.repliesEnded === active.stepStartReply;
   return { topic: plan.topic, kind: plan.kind, step: `${stepIndex + 1} of ${plan.steps.length}`, teach_first: step.teach, then_exercise: step.exercise, next_idea: plan.steps[stepIndex + 1]?.teach ?? null, ...(isDue ? { exercise_due: true as const } : {}), ...(step.material && !isDue ? { material: step.material } : {}), ...(isPictureComing ? { picture_coming: true as const } : {}) };
 }
+
+/** Appends more of the same lesson as it nears its end, so a lesson runs on and does not stop at what was planned first. */
+export function getStateWithMoreSteps(state: LessonState, topic: string, steps: readonly LessonStep[]): LessonState {
+  if (state.active?.plan.topic !== topic) return state;
+  return { ...state, active: { ...state.active, plan: { ...state.active.plan, steps: [...state.active.plan.steps, ...steps] } } };
+}
+
+export const getStepsTaught = ({ active }: LessonState) => active?.plan.steps.flatMap(({ teach }) => teach ?? []) ?? [];
+
+export const isNearTheEnd = ({ active }: LessonState) => active !== null && active.plan.kind === 'teachFirst' && active.stepIndex >= active.plan.steps.length - 1;
+
+export const getStepCount = ({ active }: LessonState) => active?.plan.steps.length ?? 0;
 
 export const getShelvedTopics = ({ shelved }: LessonState) => shelved.map(({ plan }) => plan.topic);

@@ -1,8 +1,8 @@
 import { type CheckedWork, readLine, wantsSomethingElse } from '@astra/board/shared';
 import type { SceneCommand, StudentWork } from '@astra/contracts';
-import type { PlanAnswer, PlanAsk, PlanWants } from './ask-planner.ts';
+import type { MoreAnswer, MoreAsk, PlanAnswer, PlanAsk, PlanWants } from './ask-planner.ts';
 import { getTrustedMove, isSensitive, type LessonPlan, type PlanMove } from './lesson-plan.ts';
-import { getShelvedTopics, getStateAfterEvent, getStateAfterMove, getStepNote, type LessonEvent, type LessonState, NO_LESSON, type StepNote } from './plan-progress.ts';
+import { getShelvedTopics, getStateAfterEvent, getStateAfterMove, getStateWithMoreSteps, getStepCount, getStepsTaught, getStepNote, isNearTheEnd, type LessonEvent, type LessonState, NO_LESSON, type StepNote } from './plan-progress.ts';
 
 export interface HeardWords {
   words: string;
@@ -29,6 +29,8 @@ export interface LessonPlanner {
 
 export interface LessonPlannerOptions {
   ask(request: PlanAsk): Promise<PlanAnswer>;
+  /** Writes the next ideas of a lesson that is about to run out. */
+  askMore?(request: MoreAsk): Promise<MoreAnswer>;
   canSpend(): boolean;
   charge(usd: number): void;
   /** The lesson changed to another topic in the same session. */
@@ -60,6 +62,8 @@ const WANTS_TEACHING = /\b(?:go on|keep going|keep teaching|carry on|go ahead|te
 export const asksToBeTaught = (words: string) => WANTS_TEACHING.test(words) || ASKS_TO_BE_TAUGHT.test(words);
 
 const FEWEST_STEPS_ON_A_CARD = 3;
+/** About 20 minutes at about 2 minutes an idea. Past this the lesson asks what they want next. */
+const MOST_STEPS_IN_A_LESSON = 12;
 
 const NAMES_A_PROBLEM = /\d\s*[-+*/×÷=^%]|=|->|_{2,}|\bm\/s\b|\b(?:solve|balance|simplify|calculate|work out|factori[sz]e|derivative of|integral of|slope of|which came first)\b/i;
 const ASKS_TO_BE_TAUGHT = /^\s*(?:please\s+)?(?:teach|explain|help me (?:understand|get)|give me a lesson|i(?:'d like| would like| want| wanna)(?: to)? (?:learn|understand))\b/i;
@@ -106,7 +110,7 @@ const getWorkEvent = ({ closesTask }: Pick<CheckedWork, 'closesTask'>, work: Stu
 };
 
 // Holds the lesson in code. One plan runs at a time and only the latest words wait, so a flood of lines costs one call at a time.
-export function createLessonPlanner({ ask, canSpend, charge, onTitleChange, onLessonChange, getPictureTopic, trace, getNowMs = () => performance.now() }: LessonPlannerOptions): LessonPlanner {
+export function createLessonPlanner({ ask, askMore, canSpend, charge, onTitleChange, onLessonChange, getPictureTopic, trace, getNowMs = () => performance.now() }: LessonPlannerOptions): LessonPlanner {
   let state: LessonState = NO_LESSON;
   let waiting: (HeardWords & { startReply: number }) | null = null;
   let asking: Promise<void> | null = null;
@@ -121,6 +125,7 @@ export function createLessonPlanner({ ask, canSpend, charge, onTitleChange, onLe
         const plan = { ...card, steps: [...card.steps, ...move.plan.steps.slice(1)] };
         state = { ...state, active: { ...state.active, plan } };
         onLessonChange?.(state, null);
+        askForMoreIfNear();
       }
       return;
     }
@@ -160,10 +165,30 @@ export function createLessonPlanner({ ask, canSpend, charge, onTitleChange, onLe
     asking = null;
   };
 
+  let isAskingMore = false;
+
+  const askForMoreIfNear = () => {
+    const topic = state.active?.plan.topic;
+    if (!askMore || !topic || isAskingMore || !isNearTheEnd(state) || getStepCount(state) >= MOST_STEPS_IN_A_LESSON || !canSpend()) return;
+    isAskingMore = true;
+    void askMore({ topic, taught: getStepsTaught(state), most: MOST_STEPS_IN_A_LESSON - getStepCount(state) })
+      .then(({ steps, costUsd }) => {
+        charge(costUsd);
+        trace('planExtended', { steps: steps.length, costUsd });
+        state = getStateWithMoreSteps(state, topic, steps);
+        onLessonChange?.(state, null);
+      })
+      .catch((error: unknown) => trace('planFailed', { problem: String(error) }))
+      .finally(() => {
+        isAskingMore = false;
+      });
+  };
+
   const noteEvent = (event: LessonEvent | null) => {
     if (!event) return;
     state = getStateAfterEvent(state, event);
     onLessonChange?.(state, event);
+    askForMoreIfNear();
   };
 
   return {

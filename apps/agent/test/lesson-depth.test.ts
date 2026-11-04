@@ -11,7 +11,7 @@ import { createVoiceLine, type VoiceOutput } from '../src/live/voice-line.ts';
 import { makeFakeTutorModel } from '../src/providers/fake-model.ts';
 import { renderTone } from '../src/providers/fakes.ts';
 import { makeRenderedVoice } from '../src/providers/rendered-voice.ts';
-import { createTutorBrain, type TurnSummary, type TutorBeat, type TutorBrain } from '../src/tutor/brain.ts';
+import { createTutorBrain, type TutorBeat, type TutorBrain } from '../src/tutor/brain.ts';
 
 initializeLogger({ pretty: false, level: 'silent' });
 
@@ -60,24 +60,24 @@ describe('a lesson from a card', () => {
   });
 
   it('teaches for longer on a card, then asks for the exercise, and stops repeating the lines once it is due', () => {
-    expect(getStepNote(afterReplies(2))).not.toHaveProperty('exercise_due');
-    const due = getStepNote(afterReplies(3));
+    expect(getStepNote(afterReplies(4))).not.toHaveProperty('exercise_due');
+    const due = getStepNote(afterReplies(5));
     expect(due).toMatchObject({ exercise_due: true });
     expect(due).not.toHaveProperty('material');
   });
 
   it('moves through every step for a student who said no exercises', () => {
     let state = getStateAfterEvent(atCard(), 'exerciseDeclined');
-    state = afterReplies(3, state);
+    state = afterReplies(5, state);
     expect(getStepNote(state)).toMatchObject({ step: '2 of 3' });
-    state = afterReplies(3, state);
+    state = afterReplies(5, state);
     expect(getStepNote(state)).toMatchObject({ step: '3 of 3' });
   });
 });
 
 describe('asking to be taught', () => {
   it('ends the exercise that was due, and moves on, because this step has been taught', () => {
-    const state = getStateAfterEvent(afterReplies(3), 'teachingWanted');
+    const state = getStateAfterEvent(afterReplies(5), 'teachingWanted');
     expect(getStepNote(state)).not.toHaveProperty('exercise_due');
     expect(getStepNote(state)).toMatchObject({ step: '2 of 3' });
   });
@@ -85,12 +85,12 @@ describe('asking to be taught', () => {
   it('starts the count over and stays when the step has barely begun', () => {
     const state = getStateAfterEvent(afterReplies(2), 'teachingWanted');
     expect(getStepNote(state)).toMatchObject({ step: '1 of 3' });
-    expect(getStepNote(afterReplies(2, state))).not.toHaveProperty('exercise_due');
-    expect(getStepNote(afterReplies(3, state))).toMatchObject({ exercise_due: true });
+    expect(getStepNote(afterReplies(4, state))).not.toHaveProperty('exercise_due');
+    expect(getStepNote(afterReplies(5, state))).toMatchObject({ exercise_due: true });
   });
 
   it('moves on after an exercise they left, which already taught this step', () => {
-    let state = getStateAfterEvent(afterReplies(3), 'exerciseSet');
+    let state = getStateAfterEvent(afterReplies(5), 'exerciseSet');
     state = getStateAfterEvent(state, 'exerciseLeft');
     expect(getStepNote(getStateAfterEvent(state, 'teachingWanted'))).toMatchObject({ step: '2 of 3' });
   });
@@ -98,7 +98,7 @@ describe('asking to be taught', () => {
   function plannerAtDue(wants: string | null = null) {
     const planner = createLessonPlanner({ ask: async () => ({ move: { move: 'stay' }, wants, costUsd: 0 }) as never, canSpend: () => true, charge: () => {}, onTitleChange: () => {}, trace: () => {} });
     planner.noteCardLesson(PLAN);
-    for (let reply = 0; reply < 3; reply += 1) planner.noteReplyEnded({ wasSafety: false });
+    for (let reply = 0; reply < 5; reply += 1) planner.noteReplyEnded({ wasSafety: false });
     expect(planner.getStepNote()).toMatchObject({ exercise_due: true });
     return planner;
   }
@@ -125,6 +125,30 @@ describe('asking to be taught', () => {
   it('holds this reply to teaching, with nothing set', () => {
     expect(getTeachFirstNote("So, what's next? Teach me more", false)).toMatchObject({ teach_first_now: expect.any(String) });
     expect(getTeachFirstNote('go on', false)).toMatchObject({ teach_first_now: expect.any(String) });
+  });
+});
+
+describe('a lesson that runs on', () => {
+  it('asks for the next ideas as it nears the end, and teaches them', async () => {
+    const askMore = vi.fn(async (_request: unknown) => ({ steps: [{ teach: 'Gravity assists', exercise: 'Pick one' }], costUsd: 0 }));
+    const planner = createLessonPlanner({ ask: async () => ({ move: { move: 'stay' }, costUsd: 0 }), askMore, canSpend: () => true, charge: () => {}, onTitleChange: () => {}, trace: () => {} });
+    planner.noteCardLesson(PLAN);
+    planner.noteCommand({ kind: 'task', id: 'a1', way: 'write', reads: 'words' } as never);
+    planner.noteCommand({ kind: 'boardMode', mode: 'teach' } as never);
+    expect(askMore).not.toHaveBeenCalled();
+    planner.noteCommand({ kind: 'task', id: 'a2', way: 'write', reads: 'words' } as never);
+    planner.noteCommand({ kind: 'boardMode', mode: 'teach' } as never);
+    await vi.waitFor(() => expect(askMore).toHaveBeenCalledOnce());
+    expect(askMore.mock.calls[0]?.[0]).toMatchObject({ topic: PLAN.topic, taught: PLAN.steps.map(({ teach }) => teach) });
+    await vi.waitFor(() => expect(planner.getStepNote()).toMatchObject({ step: '3 of 4', next_idea: 'Gravity assists' }));
+  });
+
+  it('spends nothing on more ideas past a limit', async () => {
+    const askMore = vi.fn(async () => ({ steps: [], costUsd: 0 }));
+    const planner = createLessonPlanner({ ask: async () => ({ move: { move: 'stay' }, costUsd: 0 }), askMore, canSpend: () => false, charge: () => {}, onTitleChange: () => {}, trace: () => {} });
+    planner.noteCardLesson({ ...PLAN, steps: PLAN.steps.slice(0, 1) });
+    planner.noteReplyEnded({ wasSafety: false });
+    expect(askMore).not.toHaveBeenCalled();
   });
 });
 
@@ -243,12 +267,25 @@ describe('the tutor leads', () => {
     expect(leads[0]).toBe('next');
   });
 
-  it('asks for a question at the end of a run, so it is a tutor and not a lecture', async () => {
-    const { asked, leads, type } = startLeading({ answers: (request, index) => (request === LEAD_WORDS.mustAsk ? [makeBeat(`r${index}`, 'Which way does it pull?', true)] : teaching(request, index)) });
+  it('keeps going through teaching for as long as it asks nothing', async () => {
+    const { asked, type } = startLeading({ answers: teaching });
     type('teach me rockets');
-    await vi.waitFor(() => expect(leads).toContain('mustAsk'), { timeout: 6000 });
-    expect(asked.slice(0, 3)).toEqual(['teach me rockets', LEAD_WORDS.next, LEAD_WORDS.mustAsk]);
-  });
+    await vi.waitFor(() => expect(asked.length).toBeGreaterThanOrEqual(5), { timeout: 12_000 });
+    expect(asked.slice(1, 5)).toEqual([LEAD_WORDS.next, LEAD_WORDS.next, LEAD_WORDS.next, LEAD_WORDS.next]);
+  }, 15_000);
+
+  it('checks once after two asks go unanswered, then holds until the student is back', async () => {
+    const { asked, leads, type, session } = startLeading({ answers: (_request, index) => [makeBeat(`q${index}`, 'Which way does it pull?', true)] });
+    type('teach me rockets');
+    await vi.waitFor(() => expect(leads).toEqual(['noAnswer', 'checkIn']), { timeout: 6000 });
+    await delay(2500);
+    const heldAt = asked.length;
+    await delay(900);
+    expect(asked.length).toBe(heldAt);
+    session.onBrowser({ type: 'typing', clockId: 'c', browserMs: 1, startedMsAgo: 0 } as never);
+    await vi.waitFor(() => expect(asked.length).toBeGreaterThan(heldAt), { timeout: 4000 });
+    expect(leads.at(-1)).toBe('next');
+  }, 15_000);
 
   it('waits on a question, then carries on past it when no answer comes', async () => {
     const { asked, leads, type } = startLeading({ answers: (request, index) => (index === 0 ? [makeBeat('q', 'Which way does it pull?', true)] : teaching(request, index)) });
@@ -328,15 +365,6 @@ describe('the brain in a lead', () => {
     const brain = createTutorBrain({ model: makeFakeTutorModel(() => ({ text: 'x' }) as never) as never, timeouts: QUICK, getSpendLimit: () => 'sessionLimit' });
     await run(brain, 'teach me gravity');
     expect(brain.canLead()).toBe(false);
-  });
-
-  it('adds a question when a reply at the end of a run still asks nothing, so it is never left with nothing open', async () => {
-    const scripted = { stream: async function* () { yield { type: 'text', text: 'Gravity pulls back.', isNewBlock: false }; yield { type: 'finished', stopReason: 'finished', usage: { inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0 } }; }, getCostUsd: () => 0, compact: async () => null, warm: async () => {} } as never;
-    const summaries: TurnSummary[] = [];
-    const brain = createTutorBrain({ model: scripted, timeouts: QUICK, onTurnEnd: (summary) => summaries.push(summary) });
-    brain.noteLead('mustAsk');
-    await run(brain, LEAD_WORDS.mustAsk);
-    expect(summaries[0]?.beats.at(-1)?.expectsReply).toBe(true);
   });
 
   it('opens a card by teaching, and is told not to ask what they know', async () => {

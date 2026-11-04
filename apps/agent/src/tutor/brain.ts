@@ -144,8 +144,6 @@ type AttemptEnd = 'ended' | 'noWords' | 'aborted' | 'stalledBeforeText' | 'stall
 
 interface TurnWork {
   sceneAside?: 'due' | 'moved';
-  /** A reply at the end of a run, which must leave the student something to answer. */
-  mustAsk: boolean;
   id: number;
   studentText: string;
   signal: AbortSignal;
@@ -399,10 +397,9 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     const levelLine = studentLevel === null ? undefined : prompt.levelLines?.[studentLevel];
     const lead = leadDue;
     leadDue = null;
-    const leadNote = lead ? { lead: LEAD_NOTES[isExerciseDueNow() && lead !== 'taskLeft' ? 'exercise' : lead] } : null;
+    const leadNote = lead ? { lead: LEAD_NOTES[lead === 'next' && isExerciseDueNow() ? 'exercise' : lead] } : null;
     const turnNotes = [attempts.startTurn(studentText), prompt.turnNote, levelLine ? { level: levelLine } : null, shapeNote, openingNote, leadNote, isOnACard && turnCount === 1 ? OPENING_A_CARD_NOTE : null].filter((note) => note !== null);
     const turn: TurnWork = {
-      mustAsk: lead === 'mustAsk',
       id: turnCount,
       studentText,
       signal,
@@ -729,18 +726,8 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     return 'over';
   };
 
-  // Never left with nothing open, whatever the model wrote.
-  const addQuestionIfDue = (turn: TurnWork) => {
-    if (!turn.mustAsk || turn.reader.isTurnOver || turn.reader.isSafetyReply || getOpenTaskOnBoard(getBoardNow())) return;
-    const question = ` ${pickLine('askAfterARun')}`;
-    trace('questionAdded');
-    turn.raw += question;
-    turn.reader.push(question);
-  };
-
   const finishAnswer = (turn: TurnWork, canRetry: boolean): TurnStep => {
     addHelpIfMissing(turn);
-    addQuestionIfDue(turn);
     turn.reader.finish();
     if (turn.wrongWords !== null) return handleWrongWords(turn, turn.attempts < MAX_ATTEMPTS);
     if (turn.isQuestionHeld) return handleHeldQuestion(turn, canRetry);

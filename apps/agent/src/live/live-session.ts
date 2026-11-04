@@ -236,7 +236,8 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
   let openingLine: string | null = null;
   let isEnding = false;
   let leadTimer: ReturnType<typeof setTimeout> | undefined;
-  let repliesInARun = 0;
+  let unansweredInARow = 0;
+  let isHolding = false;
   let quietLeads = 0;
   let isQuestionOpen = false;
   let lastSpokeAtMs = getNowMs();
@@ -337,7 +338,6 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       if (speaking.beats.at(-1)?.expectsReply) askedAtMs = getNowMs();
       if (speaking.canResume) {
         isQuestionOpen = speaking.beats.at(-1)?.expectsReply === true;
-        repliesInARun = isQuestionOpen || boardWork.hasOpenTask() ? 0 : repliesInARun + 1;
         lastStretch = speaking;
         lastStretchEndedAtMs = getNowMs();
       }
@@ -368,6 +368,12 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
   const noteStudentSign = () => {
     lastStudentSignAtMs = getNowMs();
     quietLeads = 0;
+    unansweredInARow = 0;
+    if (!isHolding) return;
+    // They came back, so the check is answered, whatever they did.
+    isHolding = false;
+    isQuestionOpen = false;
+    armLead(0);
   };
 
   function armLead(afterMs: number): void {
@@ -377,14 +383,16 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
 
   // Asks for a reply only with nothing else going on, and looks again whatever happened meanwhile, so no event has to remember to cancel it. A reply that starts takes its place, and that reply's end arms it again.
   function checkLead(): void {
-    if (isEnding || !tutor.canLead?.() || isTutorTalking() || thought || cut || heldReply) return;
+    if (isEnding || isHolding || !tutor.canLead?.() || isTutorTalking() || thought || cut || heldReply) return;
     if (isThinking || !audioRunning || state.phase !== 'clear' || state.tutor !== 'silent' || state.isVoiceOn || hasWords(state.partial)) return armLead(LEAD_RECHECK_MS);
-    const lead = getLead({ isQuestionOpen, hasOpenTask: boardWork.hasOpenTask(), repliesInARun, quietLeads, mostQuietLeads }, leadTimings);
+    const lead = getLead({ isQuestionOpen, hasOpenTask: boardWork.hasOpenTask(), unansweredInARow, quietLeads, mostQuietLeads }, leadTimings);
     if (!lead) return;
     const nowMs = getNowMs();
     const leftMs = Math.max(lastSpokeAtMs + lead.afterMs, lastStudentSignAtMs + Math.max(lead.afterMs, leadTimings.firstWordAfterMs)) - nowMs;
     if (leftMs > 0) return armLead(leftMs);
     quietLeads += 1;
+    if (lead.kind !== 'next') unansweredInARow += 1;
+    isHolding = lead.kind === 'checkIn';
     tutor.noteLead?.(lead.kind);
     if (lead.kind === 'taskLeft') boardWork.leaveOpenTask();
     firstWordAtMs = lastSpokeAtMs + lead.firstWordAfterMs;
@@ -737,7 +745,6 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       case 'reply':
         trace('replyDecided', { via: action.via, words: action.text.split(/\s+/).length, text: action.text });
         if (action.via === 'lead') return startReply({ text: action.text, carried: '' });
-        repliesInARun = 0;
         onStudentTurn?.();
         if (action.via === 'final' || action.via === 'partial') noteStudentSaid(action.text.slice(action.carried.length).trim());
         if ((action.via === 'final' || action.via === 'partial') && (boardWork.hasOpenTask() || wantsSomethingElse(action.text))) return void answerSpokenWords({ text: action.text, carried: action.carried });

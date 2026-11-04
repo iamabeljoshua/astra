@@ -36,7 +36,7 @@ export function toCleanLine(value: unknown, mostCharacters: number): string {
   return Array.from(value.replace(/[\p{Cc}\p{Cf}\p{Cs}￼]/gu, ' ').replace(/\s+/g, ' ').trim()).slice(0, mostCharacters).join('').trim();
 }
 
-function parseStep(value: unknown): LessonStep | null {
+export function parseStep(value: unknown): LessonStep | null {
   if (!isRecord(value)) return null;
   const exercise = toCleanLine(value.exercise, MOST_STEP_CHARACTERS);
   return exercise === '' ? null : { teach: toCleanLine(value.teach, MOST_STEP_CHARACTERS) || null, exercise };
