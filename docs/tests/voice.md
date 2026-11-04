@@ -443,7 +443,7 @@ So 0 false prompts on quiet clips, and every noise from 0.025 up is caught withi
 | The room refusing a publish | The page said so, 0 live tracks, and the next press worked |
 | Leaving the page, a route change, and leaving while opening or starting | 0 live tracks, 0 senders |
 | Signed out in another tab | The tracks ended in 30 ms, and the job closed |
-| The room deleted at LiveKit, during a hold of Space | The session did not end. The page stayed live for at least 20 s, still showing the microphone on, with 1 live track and 0 senders. Letting go turned it off, and a later press published again, with 1 live sender and 183 bytes moved |
+| The room deleted at LiveKit, during a hold of Space | The session did not end. The page stayed live for at least 20 s, still showing the microphone on, with 1 live track and 0 senders. Letting go turned it off, and a later press published again, with 1 live sender and 183 bytes moved. Whether a tutor heard that press was not checked |
 | A drop, with the microphone off, on, or turned off during it | Off stayed off, on stayed on, and on then off ended off with 0 senders |
 | A press during LiveKit's own retry, 3 runs | The press showed at once, and the track went out when the room came back, about 20 s after the cut |
 | 15 patterns of presses at the screen opening, from 0 to 3000 ms apart | Each ended where the count of presses says, and the next press turned it off |
@@ -507,12 +507,12 @@ Once the tutor is live, the reply box closes and the board's own **Talk** is the
 | Steady noise | The prompt came after 5.2 s with the microphone left on and nothing switched. 0 prompts from quiet, from speech, or from a second noise after **Dismiss** |
 | The invitation | In a first session, greeting, reply, then the invitation 1522 ms after the answer. Not after later answers, not after a reload, and not in a second session |
 | Hold **Talk** at 390 by 844, with touch emulated | Heard and answered. A tap stayed on, and a second tap went off. 0 characters selected, with `touch-action` and `user-select` both `none` |
-| Follow the prompt on a phone: at 390 by 844 with touch, tap **Talk** on, raise noise, then press and hold **Talk** | Noise stayed on at 0.02. The whole line was heard and answered on the first hold, `holdStarted` and `lineEnded` both ran, and the microphone was off at release with 0 live tracks and 0 bytes moved |
+| Follow the prompt on a phone: at 390 by 844 with touch, tap **Talk** on, raise noise, then press and hold **Talk** | Noise stayed on at 0.02. The line was heard and answered on the first hold, `holdStarted` and `lineEnded` both ran, and the microphone was off at release with 0 live tracks and 0 bytes moved |
 | Follow the prompt after a mouse tap, with focus on **Talk**: hold Space | The same, on the first hold |
-| Follow the prompt with focus on the page: hold Space | The same, on the first hold. Noise at 0.05 afterward moved 0 bytes |
+| Follow the prompt with focus on the page: hold Space | The same, on the first hold. Noise at 0.05 afterward moved 0 bytes. Over 3 runs of each of these three rows, Muse heard every word on 8 of 9 holds, and on one it heard "Two high" for "Do I" in the noise |
 | A short press with the microphone on | A 60 ms tap of **Talk** went off, and a 60 ms tap of Space on a focused **Talk** went off. A 60 ms tap of Space on the page stayed on. No hold began in the Space tap on the page |
-| Lift a second finger during a hold of **Talk**, at 390 by 844 | The microphone stayed on through the second finger's `pointerup`, and the first finger's ended the hold. With the old hook, the same second finger closed it. A line said with a second finger down was heard and answered whole |
-| Hold Space through a reload, so the page first sees a repeat | The repeat began the press, with the microphone on, `holdStarted` and `lineEnded` both traced, the line heard and answered, and the microphone off at release |
+| Lift a second finger during a hold of **Talk**, at 390 by 844 | The microphone stayed on through the second finger's `pointerup`, and the first finger's ended the hold. With the old hook, the same second finger closed it. A line said with a second finger down was heard, and a reply was decided |
+| Hold Space through a reload, so the page first sees a repeat | The repeat began the press, with the microphone on, `holdStarted` and `lineEnded` both traced, the line heard, a reply decided, and the microphone off at release |
 
 First word from the last sound, in ms, p50 (p95). The load average was about 25 in quiet and 18 to 25 in noise.
 
