@@ -8,6 +8,7 @@ const ROOM_PREFIX = 'session-';
 /** A room may carry a suffix after the session's uuid, so only this many characters name the session. */
 const SESSION_ID_LENGTH = 36;
 const REQUEST_TIMEOUT_MS = 3000;
+const NO_CONTENT_STATUS = 204;
 
 export interface ApiLinkOptions {
   apiUrl: string;
@@ -21,6 +22,8 @@ export interface ApiLink {
   reportSpend(usd: number): Promise<{ isOverDailyLimit: boolean }>;
   /** Adds to the queue a named person reviews. It holds a kind and a source, and never the student's words. */
   addFlag(flag: SafetyFlag): Promise<void>;
+  /** The session is about something else now. */
+  setTitle(title: string): Promise<void>;
   /** What the tutor remembers about this session's student, and only that student. */
   fetchRecord(): Promise<LearnerRecord>;
   /** Adds what one room's pass found. A repeat of the same key adds nothing. */
@@ -33,7 +36,7 @@ export function createApiLink({ apiUrl, agentKey, roomName }: ApiLinkOptions): A
   const call = async (path: string, init: RequestInit = {}): Promise<unknown> => {
     const response = await fetch(`${apiUrl}/agent/sessions/${sessionId}/${path}`, { ...init, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS), headers: { authorization: `Bearer ${agentKey}`, 'content-type': 'application/json' } });
     if (!response.ok) throw new Error(`The API answered ${response.status} to ${path}`);
-    return response.json();
+    return response.status === NO_CONTENT_STATUS ? null : response.json();
   };
   return {
     async fetchProfile() {
@@ -45,6 +48,9 @@ export function createApiLink({ apiUrl, agentKey, roomName }: ApiLinkOptions): A
     },
     async addFlag({ kind, source }) {
       await call('flags', { method: 'POST', body: JSON.stringify({ kind, source }) });
+    },
+    async setTitle(title) {
+      await call('title', { method: 'POST', body: JSON.stringify({ title }) });
     },
     async fetchRecord() {
       return (await call('record')) as LearnerRecord;

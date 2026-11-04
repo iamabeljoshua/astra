@@ -14,6 +14,7 @@ const MOST_WORDS_IN_A_STRETCH = 42;
 const FEWEST_WORDS_BEFORE_A_BREATH = 6;
 /** A sentence that never ends stops here, so a run-on cannot speak for a minute. */
 const TURN_WORDS_TO_CUT = 90;
+const WORDS_FOR_A_LATE_TASK = 'Over to you.';
 /** B2 gives a turn's first drawing 1 s from its first word, which is about three words. */
 const DRAWING_GUARD_WORD = 3;
 const FEWEST_WORDS_BEFORE_A_COMMA = 4;
@@ -56,6 +57,8 @@ export interface BeatTextReaderOptions {
   onBadCommand(problem: string): void;
   onWrongMath(problem: string): void;
   onCommandKept?(command: SceneCommand): void;
+  /** A command already kept never reached the student. */
+  onCommandDropped?(command: SceneCommand): void;
   /** The reply stops here, and carries on from the same words once the tool has answered. */
   onToolCall?(call: ToolCall): void;
   onAttemptReport?(report: AttemptReport): void;
@@ -160,8 +163,23 @@ export class BeatTextReader {
     if (this.#tag !== null) this.#releaseTag();
     this.#held = '';
     this.#endBeat();
-    this.#cuesAwaitingWord.forEach(() => this.#options.onBadCommand('no word followed the command'));
+    this.#landLateCommands();
+  }
+
+  // Beats end at a full stop, so a task written after the last sentence has no word left, and a few plain words carry it. Anything else late is dropped, and so is a task after help in a crisis, so the brain's board stays true.
+  #landLateCommands(): void {
+    const late = this.#cuesAwaitingWord;
+    if (late.length === 0) return;
+    if (late.some((command) => command.kind === 'task') && this.#wordsThisTurn > 0 && !this.#isSafetyReply) {
+      this.push(WORDS_FOR_A_LATE_TASK);
+      this.#endBeat();
+      return;
+    }
     this.#cuesAwaitingWord = [];
+    for (const command of late) {
+      this.#options.onCommandDropped?.(command);
+      this.#options.onBadCommand('no word followed the command');
+    }
   }
 
   /** A question was held back rather than spoken, so the turn it ended goes on. */

@@ -30,6 +30,10 @@ export interface BoardMemory {
   hasComeBack: boolean;
 }
 
+/** A change of subject never needs another session, and the real limits have spoken lines of their own, which this does not read. */
+const SENDS_THEM_AWAY = /\b(?:new|fresh|another|separate|different)\s+(?:session|chat|lesson|conversation)\b/i;
+const STAY_IN_THIS_SESSION = 'Never send them to another session. Anything they ask for belongs in this one. Follow what they just asked, right here.';
+
 export const EMPTY_BOARD: BoardMemory = { kinds: new Map(), lines: new Map(), shownLines: new Set(), lastAssertedLine: null, verdicts: new Map(), openTask: null, doneTasks: new Set(), isLatestWorkWrong: false, isLatestMathUnjudged: false, offProblemLines: new Set(), isLatestLineOffProblem: false, hasComeBack: false };
 
 export const DRAWN_KINDS: ReadonlySet<SceneCommand['kind']> = new Set(['writeMath', 'transformMath', 'plot', 'markValue', 'highlight', 'text', 'hide', 'clearBoard', 'focus', 'simulate', 'runSimulation', 'vector', 'annotate', 'diagram', 'note', 'tangent', 'task', 'boardMode']);
@@ -156,8 +160,13 @@ export function getMemoryOnComingBack(memory: BoardMemory): BoardMemory {
   return { ...memory, hasComeBack: true };
 }
 
-export function getMemoryOnNewTurn(memory: BoardMemory): BoardMemory {
-  return memory.openTask ? { ...memory, openTask: { ...memory.openTask, studentTurns: memory.openTask.studentTurns + 1 } } : memory;
+/** Their own words beat holding the answer back, so asking for it once is enough. */
+const ASKS_FOR_THE_ANSWER = /\b(?:just|please)\s+(?:tell|give|show)\s+me\b|\b(?:tell|give|show)\s+me\s+the\s+answer\b|\bwhat(?:'?s|\s+is)\s+the\s+answer\b|\bjust\s+the\s+answer\b/i;
+
+export function getMemoryOnNewTurn(memory: BoardMemory, studentText: string): BoardMemory {
+  if (!memory.openTask) return memory;
+  const studentTurns = ASKS_FOR_THE_ANSWER.test(studentText) ? FEWEST_TURNS_BEFORE_THE_ANSWER : memory.openTask.studentTurns + 1;
+  return { ...memory, openTask: { ...memory.openTask, studentTurns } };
 }
 
 export function getMemoryAfterAnswering(memory: BoardMemory): BoardMemory {
@@ -193,7 +202,16 @@ function getAnswerWords(tex: string): RegExp | null {
   return new RegExp(`\\b(?:${answer.letter}\\s+(?:is|equals|=|must be|has to be|comes to)|the answer is|answer's|it's|it is)\\s+${value}\\b`, 'i');
 }
 
+/** The prompt's own list of what the tutor may never claim, held here too, because the model still says "I'm glad you told me" to a student in crisis. */
+const CLAIMS_A_FEELING = /\bI(?:'m| am)\s+(?:(?:really|so|very|truly|just)\s+)?(?:glad|happy|sorry|worried|proud)\b|\bI\s+(?:really\s+|do\s+)?care\b|\bmatters?\s+to\s+me\b/i;
+const SAY_WHAT_IS_TRUE = 'You are an AI, so you were about to claim a feeling you do not have, and the student did not hear it. Say what is true instead, such as "that sounds serious" or "you did the right thing telling me". Keep everything else you were going to say.';
+
+export function getClaimProblem(text: string): string | null {
+  return CLAIMS_A_FEELING.test(text) ? SAY_WHAT_IS_TRUE : null;
+}
+
 export function getWordsProblem(text: string, { isLatestWorkWrong, isLatestMathUnjudged, isLatestLineOffProblem, openTask }: BoardMemory, isFirstBeat: boolean): string | null {
+  if (SENDS_THEM_AWAY.test(text)) return STAY_IN_THIS_SESSION;
   if (isFirstBeat && isLatestLineOffProblem && PRAISE.test(text)) return "Code says the student's last line does not follow from the problem on the board, and your words sounded like praise. Do not praise it. Ask whether it is a problem of their own, or point at where it went off.";
   if (isFirstBeat && isLatestMathUnjudged && CALLS_IT_WRONG.test(text)) return "Code cannot tell whether the student's last line is wrong, and your words called it wrong. It may be another base or a route of their own. Do not say it is right or wrong. Ask what they did.";
   if (isFirstBeat && isLatestWorkWrong && PRAISE.test(text)) return "Code says the student's last work is wrong, and your words sounded like praise. Do not praise it. Point at where it went wrong, in a few words.";

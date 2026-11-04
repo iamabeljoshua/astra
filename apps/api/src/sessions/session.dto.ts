@@ -8,7 +8,7 @@ import { ToStrictInteger } from '../to-strict-integer';
 import { SESSION_END_STATUS, SESSION_LANGUAGES, SESSION_STATUSES } from './session-options';
 import type { SessionLanguage, SessionStatus } from './session-options';
 
-const MAX_SESSION_TITLE_LENGTH = 200;
+export const MAX_SESSION_TITLE_LENGTH = 200;
 const MAX_SESSION_SUBJECT_LENGTH = 60;
 const MAX_SESSIONS_PER_LIST = 100;
 const MAX_SEARCH_LENGTH = 200;
