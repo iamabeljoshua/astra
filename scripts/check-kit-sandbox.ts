@@ -4,6 +4,7 @@ import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { join } from 'node:path';
 import { chromium, type Page } from 'playwright';
+import { getKitSourceHash, SOURCE_HASH_PATH } from '../apps/web/scripts/build-kit.ts';
 import { SCENE_ENGINE_VERSIONS } from '../packages/contracts/src/index.ts';
 import { buildKitFramePage } from '../packages/board/src/scene3d/index.ts';
 
@@ -22,6 +23,8 @@ const check = (isTrue: boolean, line: string) => {
   console.log(`${isTrue ? 'ok  ' : 'FAIL'} ${line}`);
   if (!isTrue) failures.push(line);
 };
+
+check(readFileSync(SOURCE_HASH_PATH, 'utf8').trim() === getKitSourceHash(), 'the committed kit is built from the source beside it. Run `node scripts/build-kit.ts` from apps/web if not');
 
 const hits: string[] = [];
 const server = createServer((request, response) => {

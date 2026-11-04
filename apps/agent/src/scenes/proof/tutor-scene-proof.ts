@@ -25,7 +25,7 @@ const { values: args } = parseArgs({
     reducedMotion: { type: 'boolean', default: false },
     kitFails: { type: 'boolean', default: false },
     kitSlowMs: { type: 'string' },
-    kitStallsAtS: { type: 'string' },
+    kitStallsAfterFrames: { type: 'string' },
     seekTimes: { type: 'string' },
     replay: { type: 'boolean', default: false },
   },
@@ -139,12 +139,12 @@ if (args.kitSlowMs) {
     await route.continue();
   });
 }
-if (args.kitStallsAtS) {
-  // No loop guard can stop a regular expression, so only the page's watch on the frame can.
+if (args.kitStallsAfterFrames) {
+  // No loop guard can stop a regular expression, so only the page's watch on the frame can. It counts frames, so the sandbox's own read of its pixels at load passes.
   await page.route('**/api/scene-takes/*/kit', async (route) => {
     const reply = await route.fetch();
     const take = (await reply.json()) as { code: string };
-    const spin = `if (t > ${Number(args.kitStallsAtS)}) /(a+)+$/.test('a'.repeat(40) + 'b');`;
+    const spin = `window.kitFrames = (window.kitFrames || 0) + 1; if (window.kitFrames > ${Number(args.kitStallsAfterFrames)}) /(a+)+$/.test('a'.repeat(40) + 'b');`;
     await route.fulfill({ response: reply, json: { ...take, code: take.code.replace(/render\(t\) \{/, `render(t) { ${spin}`) } });
   });
 }
@@ -232,7 +232,8 @@ async function readKitClock() {
   const engines = [...new Set(rows.map(([, , , , engine]) => engine))];
   const lags = rows.filter(([, seconds, drawn]) => drawn !== null && seconds > 0).map(([, seconds, drawn]) => Math.abs(seconds - (drawn as number)) * 1000).sort((first, second) => first - second);
   const isHeldAt = (moment: number) => rows.find(([, seconds]) => seconds >= moment - 0.001);
-  return { rows: rows.length, engines, drawnLagMsP50: Math.round(lags[Math.floor(lags.length * 0.5)] ?? -1), drawnLagMsP95: Math.round(lags[Math.floor(lags.length * 0.95)] ?? -1), firstAndLast: [rows[0]?.[1], rows.at(-1)?.[1]], getAt: Object.fromEntries((args.seekTimes as string | undefined)?.split(',').map((moment) => [moment, isHeldAt(Number(moment))?.[3]]) ?? []) };
+  const pageGapsMs = rows.slice(1).map(([atMs], index) => atMs - (rows[index]?.[0] ?? atMs));
+  return { rows: rows.length, largestPageGapMs: Math.round(Math.max(...pageGapsMs)), engines, drawnLagMsP50: Math.round(lags[Math.floor(lags.length * 0.5)] ?? -1), drawnLagMsP95: Math.round(lags[Math.floor(lags.length * 0.95)] ?? -1), firstAndLast: [rows[0]?.[1], rows.at(-1)?.[1]], getAt: Object.fromEntries((args.seekTimes as string | undefined)?.split(',').map((moment) => [moment, isHeldAt(Number(moment))?.[3]]) ?? []) };
 }
 
 const glide: { atS: number; rect: VisualRead['rect']; transform: string | null; boardOpacity: string | null; isMoving: boolean; isSmall: boolean }[] = [];

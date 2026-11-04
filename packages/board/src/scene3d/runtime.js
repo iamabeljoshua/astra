@@ -211,9 +211,9 @@ const COMMANDS = {
     catch (error) { tell({ type: 'audit', error: String(error.message), result }); }
     lastSeconds = null;
   },
-  flash({ times }) {
+  flash({ times, cols, rows }) {
     const result = [];
-    try { for (const time of times) { draw(time); const { mean, tiles } = kit.__tiles(); result.push({ t: time, mean, tiles }); } tell({ type: 'flash', result }); }
+    try { for (const time of times) { draw(time); const { mean, tiles } = kit.__tiles(cols, rows); result.push({ t: time, mean, tiles }); } tell({ type: 'flash', result }); }
     catch (error) { tell({ type: 'flash', error: String(error.message), result }); }
     lastSeconds = null;
   },

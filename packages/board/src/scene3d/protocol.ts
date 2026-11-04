@@ -6,11 +6,9 @@ export interface KitTake {
   timing: { moments: Record<string, number>; duration: number };
 }
 
-export type KitQuality = 'high' | 'med' | 'low';
-
 /** The page's only ways in. No student data goes through any of them. */
 export type KitFrameCommand =
-  | { type: 'load'; timing: KitTake['timing']; textures: Record<string, Blob>; quality?: KitQuality; theme: KitTheme }
+  | { type: 'load'; timing: KitTake['timing']; textures: Record<string, Blob>; quality?: 'high' | 'med' | 'low'; theme: KitTheme }
   | { type: 'render'; seconds: number }
   | { type: 'resize' }
   | { type: 'dispose' }
@@ -19,7 +17,7 @@ export type KitFrameCommand =
   | { type: 'gate'; times: number[] }
   | { type: 'snapshot'; times: number[] }
   | { type: 'audit'; times: number[] }
-  | { type: 'flash'; times: number[] }
+  | { type: 'flash'; times: number[]; cols: number; rows: number }
   | { type: 'picture'; seconds: number; id: number };
 
 export type KitFrameReply =

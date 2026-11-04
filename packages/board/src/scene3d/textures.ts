@@ -12,8 +12,6 @@ const PRESET_TEXTURES: Record<string, string[]> = {
 
 const SKY_TEXTURE = '2k_stars_milky_way';
 
-export const KIT_TEXTURE_NAMES = [SKY_TEXTURE, ...Object.values(PRESET_TEXTURES).flat()];
-
 /** A scene names a preset in its code, so only the maps it uses are sent. */
 export function getNeededTextures(code: string): string[] {
   const used = Object.entries(PRESET_TEXTURES).filter(([preset]) => new RegExp(`['"\`]${preset}['"\`]`).test(code));

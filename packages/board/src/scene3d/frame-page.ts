@@ -28,12 +28,8 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 /** Text inside a script tag cannot end the tag or open an HTML comment. */
 const toScriptText = (source: string) => source.replace(/<\/script/gi, '<\\/script').replace(/<!--/g, '<\\!--');
 
-function getGuardName(): string {
-  return `__guard${crypto.randomUUID().replaceAll('-', '')}`;
-}
-
 export interface KitFramePageInput {
-  /** The built kit, from `getKitBundlePath` in Node or `/scene-kit/<version>/kit.js` in a browser. */
+  /** The built kit, the text of `apps/web/public/scene-kit/<version>/kit.js`. */
   kitBundle: string;
   /** A scene's `scene.js`, which declares `function scene(kit)`. */
   code: string;
@@ -43,7 +39,7 @@ export interface KitFramePageInput {
 
 /** The whole sandboxed page for one scene, set as the `srcdoc` of an `<iframe sandbox="allow-scripts">`. A random name holds the guard, so a scene cannot shadow it. Throws on a syntax error. */
 export function buildKitFramePage({ kitBundle, code, fontCss = '' }: KitFramePageInput): string {
-  const guardName = getGuardName();
+  const guardName = `__guard${crypto.randomUUID().replaceAll('-', '')}`;
   const scene = `window.__scene=(function(${guardName}){${toScriptText(guardLoops(code, guardName))}\n;return typeof scene==='function'?scene:null;})(window.__guard);`;
   return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${KIT_FRAME_CSP}"><style>${fontCss}${FRAME_CSS}</style></head><body><canvas id="c"></canvas><div id="o"></div><script>${toScriptText(kitBundle)}</script><script>${scene}</script></body></html>`;
 }

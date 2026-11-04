@@ -5,16 +5,15 @@ import { parseArgs } from 'node:util';
 import { chromium, type Page } from 'playwright';
 import { buildKitFramePage, getNeededTextures, type KitTheme } from '../packages/board/src/scene3d/index.ts';
 import { SCENE_ENGINE_VERSIONS } from '../packages/contracts/src/index.ts';
-import { getMostFlashesInASecond, type LuminanceChange } from '../apps/web/src/lab/deck/flashes.ts';
+import { DARKER_SIDE_LIMIT, FLASH_AREA_PX, FLASH_LUMINANCE_CHANGE, getMostFlashesInASecond, type LuminanceChange } from '../apps/web/src/lab/deck/flashes.ts';
 
 const ROOT = join(import.meta.dirname, '..');
 const GPU_FLAGS = ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist', '--use-mock-keychain', '--mute-audio'];
 const MOST_FLASHES_IN_A_SECOND = 3;
 const FLASH_STEP_SECONDS = 0.05;
-const FLASH_LUMINANCE_CHANGE = 0.1;
-/** WCAG's limit is 25% of a 10 degree field. On a board 960 wide that is about a quarter of these 32 tiles at once, so a change across 8 tiles counts. */
-const FLASH_TILES = 8;
-const DARKER_SIDE_LIMIT = 0.8;
+const FRAME = { width: 960, height: 540 };
+const FLASH_GRID = { cols: 32, rows: 18 };
+const FLASH_TILES = Math.ceil(FLASH_AREA_PX / ((FRAME.width * FRAME.height) / (FLASH_GRID.cols * FLASH_GRID.rows)));
 const BLANK_LIT = 0.002;
 const BLANK_STD = 0.02;
 
@@ -104,7 +103,7 @@ else {
   if (gate.result && !gate.result.deterministic) failures.push(`not the same frame at ${gate.result.mismatches.join(', ')} s when drawn again`);
   console.log(JSON.stringify(gate.result?.samples));
   const flashTimes = Array.from({ length: Math.floor(timing.duration / FLASH_STEP_SECONDS) }, (_, index) => Number((index * FLASH_STEP_SECONDS).toFixed(3)));
-  const flash = await ask<{ result: { t: number; tiles: number[] }[]; error?: string }>(page, { type: 'flash', times: flashTimes }, 'flash');
+  const flash = await ask<{ result: { t: number; tiles: number[] }[]; error?: string }>(page, { type: 'flash', times: flashTimes, ...FLASH_GRID }, 'flash');
   const flashes = flash.error ? null : getFlashes(flash.result);
   console.log(`Most flashes in a second: ${flashes}, over ${flashTimes.length} frames. The limit is ${MOST_FLASHES_IN_A_SECOND}.`);
   if (flashes === null || flashes > MOST_FLASHES_IN_A_SECOND) failures.push(`it flashes ${flashes} times in a second, and the limit is ${MOST_FLASHES_IN_A_SECOND}`);
