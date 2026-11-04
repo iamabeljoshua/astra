@@ -13,7 +13,7 @@ M4.4. A session ends with a short, true recap, and a student can reopen a past l
 | The student's own answer to the thing to try | `sessions.recap_answer` | The page, through `PUT /sessions/:id/recap-answer` |
 | That the student deleted these | `sessions.replay_deleted_at` | `DELETE /sessions/:id/replay` |
 
-A beat's row grows as it plays, so saving a row again replaces it. Each job keeps its own clock and count, so a session the student came back to has one run per tutor. A replay plays the runs one after another, skips the time between them, and starts each on a clear board, because that tutor did.
+A beat's row grows as it plays, so saving a row again replaces it. Each job keeps its own clock and count, so a session the student came back to has one run per tutor. A replay plays the runs one after another, skips the time between them, and starts each on a clear board, because that tutor did. A page reloaded in the same tab can bring its board back from `keptBoard.ts`, which the log does not record, so a replay shows that run on a clear board too.
 
 `GET /sessions/:id/replay` names the student in its read, so another student's session answers 404 for a read and for a delete. The API does not read inside an event. The page parses each one with `parseSessionEvent`, and a row it refuses is left out, so one bad row cannot take a lesson with it.
 
