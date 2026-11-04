@@ -44,14 +44,6 @@ So on these vendors a first real word cannot beat about 1.5 s here with no model
 
 Starting the model early would not help on these numbers, because the final arrives after the detector's silence in every one of the 30 turns. The SDK's early start stays off, and M3.7 can start from the final or the partial itself.
 
-## The voice's settings
-
-Chris runs at stability 0.45, similarity boost 0.8, and speed 0.95, `TUTOR_VOICE_SETTINGS` in `providers/choose.ts`. Abel chose them by ear: the first two from the shared board prototype, and then a voice about 5% slower. Before that the session used the voice's defaults of 0.5 and 0.75 at full speed.
-
-Stability changed how often Eric ran long, so M3.2's overlong check ran again on the same worst line on Flash. At speed 0.95: **0 of 12 overlong**, with 0 flagged and 0 false alarms, a median of 1932 ms, and lengths of 1745 to 2026 ms. That is 12 requests because the check had 500 credits, and a first run at speed 1.0 had spent about 378 of them: 0 of 40 overlong, a median of 1870 ms, and lengths of 1777 to 2057 ms. Both match the 0 of 40 at the defaults. On its own, 0 of 12 leaves about a 22% upper bound at 95% confidence, on this one line, on Flash, so it is weaker than the earlier checks.
-
-The 30 real turns above ran at the defaults at full speed. So were the stored reactions and the greeting recorded, so those takes run about 5% faster than the live voice, and may differ slightly by ear.
-
 ## The rule's other limits
 
 | Target | Rule | Measured | Verdict |
@@ -200,7 +192,7 @@ So a student who presses 5 s after the screen opens hears the tutor in 3050 ms, 
 
 ## What it cost
 
-ElevenLabs: about 1,360 credits by the characters this lane sent, within the 2,000 limit. The account's own count rose more across the same hours, because M3.2's fix round spent on it at the same time, so the account alone cannot separate them. The stored takes were about 45 of those. Muse: under $0.30 by audio time, at $0.18 an hour, against the $5 limit. LiveKit Cloud: the free plan, with one room per run, each removed when its job closed. The fix round after the review spent about 492 credits by its characters, all on the overlong checks, and about $0.25 on Muse by the time its sessions stayed open, on the fake voice otherwise. The account's own count moved more across those hours, because other lanes spend on it too.
+ElevenLabs: about 1,360 credits by the characters this lane sent, within the 2,000 limit. The account's own count rose more across the same hours, because M3.2's fix round spent on it at the same time, so the account alone cannot separate them. The stored takes were about 45 of those. Muse: under $0.30 by audio time, at $0.18 an hour, against the $5 limit. LiveKit Cloud: the free plan, with one room per run, each removed when its job closed. The fix round after the review spent about 492 credits by its characters, all on overlong checks of voice settings Abel then set aside, and about $0.25 on Muse by the time its sessions stayed open, on the fake voice otherwise. The account's own count moved more across those hours, because other lanes spend on it too.
 
 ## What each browser and agent proof showed
 

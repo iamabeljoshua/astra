@@ -32,7 +32,7 @@ As of 4 November 2026, 22 of 39 PRs have merged. This section is the whole road,
 
 - **Speed, for this session.** Up to 6 PRs at once, dependent work waits for its parent to merge, and each PR gets one adversarial reviewer as soon as it is code-ready. `CLAUDE.md` stays as it is unless Abel says to make this permanent.
 - **Vendors.** ElevenLabs for the voice, Muse Voice Transcribe for transcription, and LiveKit Cloud with our own accounts, on a free project until real students. The age terms go to the lawyer before real students.
-- **Voice.** ElevenLabs voice Chris, on Flash, Abel's choice on 4 November in place of Casey, at stability 0.45, similarity boost 0.8, and speed 0.95, which Abel also chose by ear.
+- **Voice.** ElevenLabs voice Chris, on Flash, Abel's choice on 4 November in place of Casey.
 - **Tutor.** Sonnet 5.5, with code reacting first and a timeout for stalls. There is no talking router for now.
 - **Speed targets.** Two numbers replace PRD V1's rule. A first reaction under 200 ms from code, and a first real word as fast as the vendors allow.
 - **The shared board.** Student and tutor both work on the board, in M3.12, with ink and uploads narrowed to M3.11.
@@ -1304,7 +1304,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 **Build.**
 
 - [x] Build `providers/elevenlabs.ts` behind `VoiceAdapter` on `@livekit/agents-plugin-elevenlabs`. Abel approved the vendor, and the key is in the keys file as `ELEVENLABS_API_KEY`, so the adapter passes `apiKey` itself. Use test text only, with the training opt-out on.
-- [x] Use Chris, ElevenLabs voice id `iP95p4xoKVk53GoZ742B`, kept in one place in `providers/choose.ts`, with `TUTOR_VOICE_SETTINGS` beside it. Check that voice for overlong audio on a larger sample on the real path, because Casey's first 12 tries on the worst line had none and Eric's did.
+- [x] Use Chris, ElevenLabs voice id `iP95p4xoKVk53GoZ742B`, kept in one place in `providers/choose.ts`. Check that voice for overlong audio on a larger sample on the real path, because Casey's first 12 tries on the worst line had none and Eric's did.
 - [x] Start on Flash, measure Flash and Turbo the same way, and bring Abel the clips and numbers. Only the choice of model and the flush rule wait for Abel. Abel then kept Flash as the default. v4 Turbo is out, because it needs the dialogue socket, restarts its word times at 0 in each message, and 119 of 274 messages had none.
 - [x] Build `ScenePlayer` so board state comes from a log of the events that actually played, through one function, `rebuildBoard(log, atMs)`, which flattens events by time and not by sequence number.
 - [x] Let a scene be any deterministic function of the clock, with named parts and named moments, and do not bake in only the planned 2D kinds, because M3.14 plugs in here.
