@@ -60,7 +60,6 @@ export interface StudentProfile {
   level: string;
   interests: readonly string[];
   goal: string;
-  /** The library's title, when this session came from a card. */
   cardTitle?: string | null;
 }
 
@@ -129,7 +128,6 @@ type TurnStep = 'over' | 'retry';
 type AttemptEnd = 'ended' | 'noWords' | 'aborted' | 'stalledBeforeText' | 'stalledInText' | 'failed' | 'rejected' | 'wrongMath' | 'wrongWords' | 'refused' | 'toolCall' | 'heldQuestion';
 
 interface TurnWork {
-  /** This reply is about a child's safety with a scene up, so its next beat moves the picture aside. */
   movesSceneAside?: boolean;
   id: number;
   studentText: string;

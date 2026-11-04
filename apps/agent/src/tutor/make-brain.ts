@@ -134,7 +134,6 @@ export const hasTutorScenes = () => process.env.ASTRA_TUTOR_SCENES === '1';
 export interface MadeBrain {
   brain: TutorBrain;
   caps?: SpendCaps;
-  /** The library's title once the brief has come, when this session came from a card. */
   cardTitle?(): string | null;
   flushSpend(): Promise<void>;
   readMeaning?(words: string): Promise<WordMeaning | null>;
@@ -160,7 +159,7 @@ function makeLessonPlanner({ link, caps, trace, onSessionTitle }: { link: ApiLin
   });
 }
 
-export function makeTutorBrain({ roomName, jobId, trace, onSessionTitle = () => {}, onAskScene, onSafetyReply, onCardKnown }: { roomName: string; jobId: string; trace: TraceNote; onSessionTitle?(title: string): void; onAskScene?(topic: string): void; onSafetyReply?(): void; /** The brief has come, or will not, so a card's title is known or there is none. */ onCardKnown?(title: string | null): void }): MadeBrain {
+export function makeTutorBrain({ roomName, jobId, trace, onSessionTitle = () => {}, onAskScene, onSafetyReply, onCardKnown }: { roomName: string; jobId: string; trace: TraceNote; onSessionTitle?(title: string): void; onAskScene?(topic: string): void; onSafetyReply?(): void; onCardKnown?(title: string | null): void }): MadeBrain {
   const name = process.env.ASTRA_TUTOR_MODEL ?? DEFAULT_MODEL;
   if (name === STAND_IN) return { brain: createStandInTutor(), flushSpend: async () => {} };
   if (name !== RECORDED && !TUTOR_MODEL_NAMES.includes(name as TutorModelName)) throw new Error(`ASTRA_TUTOR_MODEL is ${name}. Choose ${[STAND_IN, RECORDED, ...TUTOR_MODEL_NAMES].join(', ')}`);

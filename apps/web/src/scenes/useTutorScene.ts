@@ -26,7 +26,6 @@ export interface TutorScene {
   onContainer(container: HTMLElement | null): void;
 }
 
-// Asks the page what it can play, and loads each take the tutor sends, so the words and the board never wait on either.
 export function useTutorScene(voice: LiveVoice | null, isEnabled: boolean): TutorScene {
   const [stage, setStage] = useState<SceneStage | null>(null);
   const parts = useRef<{ parking: HTMLElement; host: HTMLElement } | null>(null);

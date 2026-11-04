@@ -67,7 +67,6 @@ export interface BeatTextReaderOptions {
   onWrongWords?(problem: string): void;
   /** A retry that says these words again would repeat what the student heard, so they are dropped. */
   isAlreadySaid?(text: string): boolean;
-  /** The model asked for a picture. It is not a board command, and nothing waits on it. */
   onAskScene?(topic: string): void;
   /** These words are about a child's safety, so nothing about a picture may follow them. Fires before the beat that says them. */
   onSafetyReply?(): void;

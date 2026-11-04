@@ -53,7 +53,6 @@ export interface LiveSessionOptions {
   recordTurn?: RecordTurn;
   /** The tutor has stopped talking and has nothing more to say, so a scene may land. */
   onPause?(): void;
-  /** The student has said or typed something the tutor will answer, so a scene waiting for its moment has lost it. */
   onStudentTurn?(): void;
   /** Asked once, by the first reply. Beats mean this session opens on a scene, and the tutor's first line follows them. */
   getOpeningScene?(): Promise<readonly TutorBeat[] | null>;
@@ -67,7 +66,6 @@ export interface LiveSession {
   onBrowser(message: BrowserMessage): void;
   getLog(): readonly SessionEvent[];
   doesStudentHearAudio(): boolean;
-  /** Nobody is speaking or working, so a scene would interrupt no one. */
   isAtPause(): boolean;
   /** Says a scene's words as a turn of its own, stopped and resumed as any reply is. False, and nothing said, unless this is a pause. */
   speakScene(beats: readonly TutorBeat[]): boolean;
@@ -209,7 +207,6 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
   let lastStretchEndedAtMs = 0;
   let askedAtMs = Number.NEGATIVE_INFINITY;
   let canOpenOnScene = getOpeningScene !== undefined;
-  /** The request a scene opened on, which the tutor answers once the scene has had its say. */
   let heldReply: TutorRequest | null = null;
   let isPictureInDoubt = false;
 
@@ -485,7 +482,6 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     if (request) startReply(request);
   }
 
-  // The picture is not coming back, so its words stop here, and the tutor carries on without them.
   function giveUpOnScene(): void {
     trace('sceneWordsDropped');
     dropThought();

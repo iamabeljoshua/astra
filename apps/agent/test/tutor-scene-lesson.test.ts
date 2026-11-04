@@ -2,11 +2,10 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { type Beat, parseBeat, type SceneAgentMessage } from '@astra/contracts';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { PlanMove } from '../src/lesson-plan/lesson-plan.ts';
 import { createLessonPlanner } from '../src/lesson-plan/lesson-planner.ts';
 import type { ModelEvent, TutorModelAdapter, TutorModelRequest } from '../src/providers/types.ts';
-import { createTopicRuns } from '../src/scenes/lesson/topic-runs.ts';
 import { createSceneStore } from '../src/scenes/scene-store.ts';
 import type { LessonPlan, SceneRoute, StoredScene } from '../src/scenes/scene-types.ts';
 import { createTutorBrain, type TutorBeat } from '../src/tutor/brain.ts';
@@ -48,7 +47,7 @@ function makeScenes() {
   const ended: string[] = [];
   const scenes = createTutorScenes({
     router: { route: vi.fn(async () => ({ engine: 'manimgx', kind: 'graph', topic: OLD_TOPIC, ...ROUTE_USAGE }) as SceneRoute) },
-    runs: { join: vi.fn(() => ({ plan: Promise.resolve(SCENE_PLAN), firstLine: Promise.resolve(null), getScene: async () => ({ isOk: true as const, scene: SCENE }), leave: vi.fn() })) } as unknown as ReturnType<typeof createTopicRuns>,
+    runs: { join: vi.fn(() => ({ plan: Promise.resolve(SCENE_PLAN), firstLine: Promise.resolve(null), getScene: async () => ({ isOk: true as const, scene: SCENE }), leave: vi.fn() })) } as never,
     store: createSceneStore(mkdtempSync(join(tmpdir(), 'scene-lesson-'))),
     getCardTitle: () => null,
     getNowMs: () => performance.now(),
@@ -105,8 +104,6 @@ const sceneBeat = (): Beat => {
   if (!parsed.ok) throw new Error(parsed.problem);
   return parsed.value;
 };
-
-afterEach(() => vi.useRealTimers());
 
 describe('a safety reply in a lesson with scenes', () => {
   it('ends the ask made in that same reply, and restarts the count to the exercise', async () => {

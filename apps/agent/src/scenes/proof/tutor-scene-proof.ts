@@ -17,7 +17,6 @@ const { values: args } = parseArgs({
     damageTake: { type: 'boolean', default: false },
     phone: { type: 'boolean', default: false },
     dark: { type: 'boolean', default: false },
-    /** Types these words this many seconds after the first words. */
     say: { type: 'string' },
     sayAfterS: { type: 'string', default: '3' },
     reloadAfterS: { type: 'string' },

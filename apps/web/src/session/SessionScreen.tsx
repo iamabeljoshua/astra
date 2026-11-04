@@ -280,7 +280,6 @@ function getBarSubject({ artwork, title, subject }: Session) {
   return !artwork && subject !== SESSION_LABELS.questionSubject ? title : subject;
 }
 
-// A scene takes the place of the picture once its take can draw, and until then the student sees what they saw before.
 function getSessionVisual(artwork: Artwork | null, { board, atMs }: BoardFrame, { stage, onContainer }: TutorScene) {
   if (hasDrawableScene(board, stage)) return <SceneLayer board={board} atMs={atMs} stage={stage} onContainer={onContainer} />;
   return artwork && <BoardPicture artwork={artwork} />;

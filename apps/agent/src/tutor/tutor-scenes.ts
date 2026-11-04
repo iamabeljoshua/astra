@@ -13,7 +13,7 @@ const MOST_ASKS_IN_A_SESSION = 6;
 const MOST_TOPIC_CHARACTERS = 80;
 const BREATH_MS = 300;
 const RECHECK_PAUSE_MS = 500;
-/** A scene later than this has lost its moment, whatever the student or the tutor is doing. A saved scene lands well inside it, and a fresh one on a quiet machine takes 20 to 25 s. */
+/** A scene later than this has lost its moment, whatever the student or the tutor is doing. A saved scene lands well inside it, and a fresh one on a quiet machine should take 20 to 25 s. */
 export const ASK_LIMIT_MS = 35_000;
 /** The greeting takes about 3 s, so a card's first words wait this long at most for a page that is slow to take the scene, and a reply starts at once when no scene is saved. */
 const OPENING_WAIT_MS = 2500;
@@ -30,7 +30,6 @@ export interface TutorScenesOptions {
   speak(beats: readonly TutorBeat[]): boolean;
   canSpeak(): boolean;
   onShown(shown: { topic: string; beats: readonly Beat[]; isShared: boolean; studentId: string }): void;
-  /** A closed tutor says nothing more, and a scene counts. */
   isClosed?(): boolean;
   /** One student looping a shared card spends the project's credits, so past their cap the scene does not play. */
   canPlayShared?(studentId: string): boolean;
@@ -41,11 +40,8 @@ export interface TutorScenes {
   /** Never waits, and nothing a student could hear comes from it unless a scene lands. */
   ask(topic: string): void;
   onPage(message: SceneBrowserMessage, studentId: string): void;
-  /** The tutor has stopped talking, so the window opens, and a scene already loaded can land. */
   notePause(): void;
-  /** The brief has come. A card with a saved scene asks at once from its title. */
   noteCard(title: string | null): void;
-  /** The first reply's wait. Beats mean the session opens on the scene, and the tutor's first line follows them. */
   getOpeningScene(): Promise<readonly TutorBeat[] | null>;
   /** The student has moved on, so whatever was pending has lost its moment. A scene this turn wants comes from this turn's own ask. */
   noteStudentTurn(): void;
@@ -54,7 +50,6 @@ export interface TutorScenes {
   /** The lesson's title. A new one ends a picture of the old topic, and the same one told again to a reloaded page changes nothing. */
   noteTopic(title: string): void;
   notePageLink(isUp: boolean): void;
-  /** Words never play without their picture, so after a drop the page is asked again. False means the picture is not coming. */
   waitForPicture(): Promise<boolean>;
   close(): void;
 }
@@ -72,7 +67,6 @@ interface SceneAsk {
   windowLimit: ReturnType<typeof setTimeout> | null;
   recheck: ReturnType<typeof setTimeout> | null;
   page: PageState;
-  /** Asked from a card's title, so the first reply can open on it. */
   isOpening: boolean;
 }
 
@@ -201,12 +195,12 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
       return;
     }
     asksMade += 1;
-    const ask: SceneAsk = { topic, askedAtMs: getNowMs(), askLimit: setTimeout(() => end(ask, 'tooLate'), ASK_LIMIT_MS), windowLimit: null, recheck: null, page: { kind: 'notAsked' }, isOpening: isCard && opening.kind === 'possible', work: undefined as unknown as LessonWork };
-    ask.work = createLessonWork({ router, runs, store, request: isCard ? cardTitle : topic, isCard, studentId, getNowMs, isOnlyForScene: true, onChange: (state) => onDeskChange(ask, state) });
-    works.push(ask.work);
+    const work = createLessonWork({ router, runs, store, request: isCard ? cardTitle : topic, isCard, studentId, getNowMs, isOnlyForScene: true, onChange: (state) => onDeskChange(ask, state) });
+    const ask: SceneAsk = { topic, work, askedAtMs: getNowMs(), askLimit: setTimeout(() => end(ask, 'tooLate'), ASK_LIMIT_MS), windowLimit: null, recheck: null, page: { kind: 'notAsked' }, isOpening: isCard && opening.kind === 'possible' };
+    works.push(work);
     current = ask;
     trace('sceneAsked', { text: topic, isCard });
-    ask.work.desk.ask(ask.work.request);
+    work.desk.ask(work.request);
   };
 
   const ask = (topic: string) => {

@@ -15,7 +15,6 @@ const DEFAULT_SHARED_PLAYS_A_DAY = 5;
 
 type SessionHooks = Pick<TutorScenesOptions, 'getCardTitle' | 'send' | 'speak' | 'canSpeak' | 'onShown' | 'trace'>;
 
-// A scene's spending lands on the student's day through the same caps as the tutor's, and a scene past the limit is simply not written.
 export function makeTutorScenes({ caps, ...hooks }: SessionHooks & { isTutorClosed?(): boolean } & { caps: Pick<SpendCaps, 'addScene' | 'getSceneUsd' | 'getSpendLimit' | 'getSharedPlaysToday'> }): TutorScenes {
   const limitUsd = Number(process.env.ASTRA_SCENE_SESSION_LIMIT_USD ?? DEFAULT_SCENE_LIMIT_USD);
   const sharedPlaysADay = Number(process.env.ASTRA_SHARED_PLAYS_A_DAY ?? DEFAULT_SHARED_PLAYS_A_DAY);
