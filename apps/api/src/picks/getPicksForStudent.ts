@@ -94,7 +94,7 @@ function rankTopicsInProgress({ progressByTopic }: RankingSources, continueSessi
   );
 }
 
-function findTopicAfter(finishedTopic: LibraryTopic, { library, suitableTopics, progressByTopic }: RankingSources) {
+function findTopicAfter(finishedTopic: LibraryTopic, { library, suitableTopics, progressByTopic }: RankingSources): LibraryTopic | undefined {
   const order = library.topicOrder[finishedTopic.subject] ?? [];
   return order
     .slice(order.indexOf(finishedTopic.id) + 1)
@@ -134,8 +134,7 @@ function rankForStudent({ fit, history, continueSessionId }: StudentRecord, libr
   ]);
 }
 
-// Caps each subject first, then tops up from the overflow when the capped list cannot fill the screen.
-// History cards always keep their place, and they still count toward the cap for the cards after them.
+// Caps each subject, then tops up from the overflow to fill the screen. History cards pass the cap but still count toward it.
 function chooseAcrossSubjects(ranked: RankedTopic[], maxPerSubject: number): RankedTopic[] {
   const picksPerSubject = new Map<string, number>();
   const withinLimit = ranked.filter(({ topic, isFromHistory }) => {

@@ -74,10 +74,10 @@ describe('the sessions routes', () => {
   });
 
   it("never lets another student's sessions change a card", async () => {
-    const student = await createTestStudent(testApp);
+    const watchedStudent = await createTestStudent(testApp);
     const otherStudent = await createTestStudent(testApp);
     const getPicks = async (owner: TestStudent) => (await api(owner).get('/home').expect(200)).body.picks as unknown[];
-    const picksBefore = await getPicks(student);
+    const picksBefore = await getPicks(watchedStudent);
 
     const finished = await startSession(otherStudent, { topicId: 'jump-shot' });
     await api(otherStudent).patch(`${SESSIONS_PATH}/${finished.id}`).send({ durationSeconds: 720, status: 'finished' }).expect(200);
@@ -85,7 +85,7 @@ describe('the sessions routes', () => {
     await startSession(otherStudent, { topicId: 'game-worlds' });
 
     expect(await getPicks(otherStudent)).not.toEqual(picksBefore);
-    expect(await getPicks(student)).toEqual(picksBefore);
+    expect(await getPicks(watchedStudent)).toEqual(picksBefore);
   });
 
   it('sends no internal column of a session', async () => {

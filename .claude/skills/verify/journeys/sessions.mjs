@@ -30,7 +30,7 @@ async function sendQuestionAndEnd({ page, capture, viewportName }) {
   await page.getByRole('heading', { name: GREETING }).waitFor();
 }
 
-async function startFromCardRefreshAndSearch({ page, capture }) {
+async function startFromCardRefreshSearchAndEnd({ page, capture }) {
   await page.getByRole('button', { name: new RegExp(CARD_TITLE) }).click();
   await page.getByRole('heading', { level: 1, name: CARD_TITLE }).waitFor();
   const sessionAddress = page.url();
@@ -47,11 +47,16 @@ async function startFromCardRefreshAndSearch({ page, capture }) {
   await table.getByRole('link', { name: 'Free-body diagrams' }).waitFor({ state: 'detached' });
   await table.getByRole('link', { name: CARD_TITLE }).first().waitFor();
   await capture('search');
+
+  // An open session moves its card off Home, and ending it this soon puts the card back for the next viewport.
+  await page.goto(sessionAddress);
+  await page.getByRole('button', { name: 'End session' }).click();
+  await page.getByRole('heading', { name: GREETING }).waitFor();
 }
 
 export default async function sessions({ page, capture, viewportName, signIn }) {
   await signIn();
   await page.getByRole('heading', { name: GREETING }).waitFor();
   await sendQuestionAndEnd({ page, capture, viewportName });
-  await startFromCardRefreshAndSearch({ page, capture });
+  await startFromCardRefreshSearchAndEnd({ page, capture });
 }
