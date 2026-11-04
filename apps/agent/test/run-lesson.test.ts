@@ -1,9 +1,12 @@
+import { type Beat, getBeatText } from '@astra/contracts';
 import { initializeLogger } from '@livekit/agents';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { makeRenderedVoice } from '../src/providers/fakes.ts';
 import type { LessonWork } from '../src/scenes/lesson/lesson-work.ts';
 import { runLesson } from '../src/scenes/lesson/run-lesson.ts';
-import type { LessonPlan, StoredScene } from '../src/scenes/scene-types.ts';
+import { createSceneDesk } from '../src/scenes/scene-desk.ts';
+import type { MadeScene } from '../src/scenes/make-scene.ts';
+import type { LessonPlan, SceneRoute, StoredScene } from '../src/scenes/scene-types.ts';
 import { FakeRoom } from './fake-room.ts';
 
 vi.mock('@livekit/rtc-node', async (importOriginal) => {
@@ -32,7 +35,7 @@ function makeWork({ plan = PLAN, scene = null as StoredScene | null } = {}) {
   let toShow = scene;
   return {
     request: 'What a derivative really measures',
-    desk: { ask: vi.fn(), takeReady: () => { const taken = toShow; toShow = null; return taken; }, getState: () => ({ kind: 'idle' }), isMissed: () => false },
+    desk: { ask: vi.fn(), takeReady: () => { const taken = toShow; toShow = null; return taken; }, takeAtOpening: () => null, untilLastChance: async () => {}, getState: () => ({ kind: 'idle' }), isMissed: () => false },
     plan: Promise.resolve(plan),
     firstLine: Promise.resolve(plan.opening[0] ?? null),
     planWithoutScene: vi.fn(),
@@ -44,7 +47,7 @@ function makeVoice() {
   return { save, voice: { forTurn: () => ({ tts: makeRenderedVoice({ name: 'tone' }).makeTts(), save }), getLiveCharacters: () => 0, close: async () => {} } };
 }
 
-function start({ work = makeWork(), voice = makeVoice().voice, timings = FAST } = {}) {
+function start({ work = makeWork() as LessonWork, voice = makeVoice().voice, timings = FAST }: { work?: LessonWork; voice?: ReturnType<typeof makeVoice>['voice']; timings?: typeof FAST } = {}) {
   const events: string[] = [];
   const finished = runLesson({ url: 'ws://room', token: 'token', work, voice, onEvent: (name) => events.push(name), timings } as Parameters<typeof runLesson>[0]);
   return { work, events, finished };
@@ -265,3 +268,117 @@ describe('spending before a student is there', () => {
   });
 });
 
+
+function makeRealDeskWork({ plan = PLAN, getNowMs = () => Date.now() }: { plan?: LessonPlan; getNowMs?(): number } = {}) {
+  let finishMake: (made: MadeScene) => void = () => {};
+  const made = new Promise<MadeScene>((resolve) => {
+    finishMake = resolve;
+  });
+  const route = async (): Promise<SceneRoute> => ({ engine: 'manimgx', kind: 'graph', topic: 'slopes', model: 'fake', ms: 1, costUsd: 0 });
+  const desk = createSceneDesk({ route, make: () => made, getNowMs });
+  const work = { request: 'slopes', desk, plan: Promise.resolve(plan), firstLine: Promise.resolve(plan.opening[0] ?? null), planWithoutScene: vi.fn(), leave: vi.fn(), getVoiceShelf: () => ({ kind: 'shared' }) } as unknown as LessonWork;
+  return { work, finishMake };
+}
+
+describe('a scene that comes after the last line', () => {
+  it('still reaches a student on the page, once the close line has ended and inside the 20 s', async () => {
+    const { work, finishMake } = makeRealDeskWork();
+    const { finished, events } = start({ work, timings: { ...FAST, lingerMs: 400, loadLimitMs: 300 } });
+    const room = await untilConnected();
+    room.join('PA1');
+    room.send(SCENES, { type: 'sceneDevice', canPlay: true });
+    expect(await untilClosed(room, 'close')).toBe(true);
+    finishMake({ isOk: true, scene: SCENE });
+    await vi.waitFor(() => expect(room.sent.some(({ message }) => message.type === 'loadScene')).toBe(true), { timeout: 300 });
+    room.send(SCENES, { type: 'sceneLoaded', sceneId: SCENE.id });
+    expect(await untilClosed(room, 'scene-take')).toBe(true);
+    expect(events).toContain('sceneShown');
+    expect(await untilClosed(room, 'close-again')).toBe(true);
+    room.leave('PA1');
+    await finished;
+  });
+
+  it('does not wait past the window, and the lesson holds on the plain board when the scene fails', async () => {
+    const { work, finishMake } = makeRealDeskWork();
+    const { finished, events } = start({ work });
+    const room = await untilConnected();
+    room.join('PA1');
+    room.send(SCENES, { type: 'sceneDevice', canPlay: true });
+    expect(await untilClosed(room, 'close')).toBe(true);
+    finishMake({ isOk: false, reasons: ['refused'] });
+    await delay(20);
+    expect(room.sent.some(({ message }) => message.type === 'loadScene')).toBe(false);
+    expect(events).not.toContain('sceneShown');
+    room.leave('PA1');
+    await finished;
+  });
+});
+
+describe('a scene already saved when the lesson opens', () => {
+  it('opens on the scene, with its moments on its words, and no opening line comes first', async () => {
+    const { work, finishMake } = makeRealDeskWork();
+    finishMake({ isOk: true, scene: SCENE });
+    const { finished } = start({ work, timings: { ...FAST, loadLimitMs: 300 } });
+    const room = await untilConnected();
+    room.join('PA1');
+    room.send(SCENES, { type: 'sceneDevice', canPlay: true });
+    await vi.waitFor(() => expect(room.sent.some(({ message }) => message.type === 'loadScene')).toBe(true), { timeout: 2000 });
+    room.send(SCENES, { type: 'sceneLoaded', sceneId: SCENE.id });
+    expect(await untilClosed(room, 'scene-take')).toBe(true);
+    const order = room.getClosedBeats();
+    expect(order[0]).toBe('reaction');
+    expect(order[1]).toBe('scene-take');
+    expect(order).not.toContain('line-0');
+    expect(await untilClosed(room, 'close')).toBe(true);
+    room.leave('PA1');
+    await finished;
+  });
+
+  it('falls back to the words and the plain board when the browser refuses the saved scene', async () => {
+    const { work, finishMake } = makeRealDeskWork();
+    finishMake({ isOk: true, scene: SCENE });
+    const { finished } = start({ work });
+    const room = await untilConnected();
+    room.join('PA1');
+    room.send(SCENES, { type: 'sceneDevice', canPlay: true });
+    await vi.waitFor(() => expect(room.sent.some(({ message }) => message.type === 'loadScene')).toBe(true), { timeout: 2000 });
+    room.send(SCENES, { type: 'sceneRefused', sceneId: SCENE.id });
+    expect(await untilClosed(room, 'line-0')).toBe(true);
+    expect(await untilClosed(room, 'close')).toBe(true);
+    room.leave('PA1');
+    await finished;
+  });
+});
+
+describe('a request with no lesson behind it', () => {
+  it('tells the page, so it can offer a way back and no reply box that cannot answer', async () => {
+    const work = makeWork();
+    Object.assign(work, { plan: Promise.resolve('nothing'), firstLine: Promise.resolve(null) });
+    const { finished } = start({ work });
+    const room = await untilConnected();
+    room.join('PA1');
+    room.send(SCENES, { type: 'sceneDevice', canPlay: true });
+    expect(await untilClosed(room, 'no-lesson')).toBe(true);
+    expect(room.sent.some(({ topic, message }) => topic === SCENES && message.type === 'noLesson')).toBe(true);
+    room.leave('PA1');
+    await finished;
+  });
+
+  it('points a request about being unsafe to an adult they trust and local emergency help, and names no hotline', async () => {
+    const work = makeWork();
+    Object.assign(work, { plan: Promise.resolve('unsafe'), firstLine: Promise.resolve(null) });
+    const said: string[] = [];
+    const voice = { forTurn: (beats: readonly Beat[]) => { said.push(...beats.map(getBeatText)); return { tts: makeRenderedVoice({ name: 'tone' }).makeTts() }; } };
+    const { finished } = start({ work, voice: voice as never });
+    const room = await untilConnected();
+    room.join('PA1');
+    room.send(SCENES, { type: 'sceneDevice', canPlay: true });
+    expect(await untilClosed(room, 'unsafe-2')).toBe(true);
+    const spoken = said.join(' ');
+    expect(spoken).toMatch(/adult you trust/);
+    expect(spoken).toMatch(/emergency number/);
+    expect(spoken).not.toMatch(/\d{3}/);
+    room.leave('PA1');
+    await finished;
+  });
+});

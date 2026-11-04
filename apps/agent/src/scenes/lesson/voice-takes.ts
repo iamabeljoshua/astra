@@ -2,9 +2,9 @@ import type { tts } from '@livekit/agents';
 import type { AudioFrame } from '@livekit/rtc-node';
 import { type Beat, getBeatText, getSpokenWords } from '@astra/contracts';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync } from 'node:fs';
-import { rename, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
+import { mkdir, rename, writeFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
 import { findFirstLoudMs } from '../../lab/proof/analyse-run.ts';
 import { FAKE_SAMPLE_RATE, makeRenderedVoice, type RenderSpeech } from '../../providers/fakes.ts';
 import type { SpendLedger } from '../spend-ledger.ts';
@@ -29,19 +29,30 @@ export interface TurnVoice {
   onFrame?(frame: AudioFrame): void;
   onWords?(words: readonly TimedWord[]): void;
   save?(): void;
+  /** Past a voice limit, so this turn plays a tone and the page should say why. */
+  isAtLimit?: boolean;
 }
+
+/** Where a lesson's lines are kept. A library card's lines are shared. A typed lesson's stay under that student, beside the scene they belong to, and before it has a topic nothing is kept. */
+export type VoiceShelf = { kind: 'shared' } | { kind: 'student'; sceneId: string } | { kind: 'nowhere' };
 
 export interface LessonVoice {
   forTurn(beats: readonly Beat[]): TurnVoice;
 }
 
 export interface LessonVoices {
-  forStudent(studentId: string): LessonVoice;
+  forStudent(studentId: string, getShelf?: () => VoiceShelf): LessonVoice;
   close(): Promise<void>;
 }
 
 const getTurnText = (beats: readonly Beat[]) => beats.map(getBeatText).join('\n');
-const getTakePath = (root: string, voiceName: string, text: string) => join(root, 'voice', `${createHash('sha256').update(`${voiceName}|${text}`).digest('hex').slice(0, 24)}.json`);
+const getTakeName = (voiceName: string, text: string) => `${createHash('sha256').update(`${voiceName}|${text}`).digest('hex').slice(0, 24)}.json`;
+const getSharedFolder = (root: string) => join(root, 'voice');
+
+function getShelfFolder(root: string, studentId: string, shelf: VoiceShelf): string | null {
+  if (shelf.kind === 'shared') return getSharedFolder(root);
+  return shelf.kind === 'student' ? join(root, 'student-voice', studentId, shelf.sceneId) : null;
+}
 
 // A line cut mid-sentence can hold every word's time and stop before the last word plays, so a take proves it is whole by its length against its word times.
 function isWholeTake({ audioMs, words, text }: { audioMs: number; words: readonly TimedWord[]; text: string }): boolean {
@@ -79,27 +90,30 @@ async function saveWholeTake({ path, frames, words, text }: { path: string; fram
   const shifted = words.map((word) => ({ text: word.text, startMs: word.startMs + leadMs }));
   if (!isWholeTake({ audioMs: getAudioMs(bytes.length, FAKE_SAMPLE_RATE), words: shifted, text })) return;
   const take: StoredTake = { sampleRate: FAKE_SAMPLE_RATE, base64: bytes.toString('base64'), words: shifted };
+  await mkdir(dirname(path), { recursive: true });
   await writeFile(`${path}.part`, JSON.stringify(take));
   await rename(`${path}.part`, path);
 }
 
 export function createLessonVoice({ root, voiceName, makeLiveTts, ledger, isFree = false }: { root: string; voiceName: string; makeLiveTts: () => tts.TTS; ledger: SpendLedger; isFree?: boolean }): LessonVoices {
   let live: tts.TTS | null = null;
-  mkdirSync(join(root, 'voice'), { recursive: true });
-  const forTurn = (studentId: string, beats: readonly Beat[]): TurnVoice => {
+  const forTurn = (studentId: string, shelf: VoiceShelf, beats: readonly Beat[]): TurnVoice => {
     const text = getTurnText(beats);
-    const path = getTakePath(root, voiceName, text);
-    const stored = readWholeTake(path, text);
+    const name = getTakeName(voiceName, text);
+    const folder = getShelfFolder(root, studentId, shelf);
+    // Before a typed lesson has a topic it only says the app's own fixed lines, so it may read one a card kept, and it keeps nothing.
+    const stored = readWholeTake(join(folder ?? getSharedFolder(root), name), text);
     if (stored) return { tts: makeRenderedVoice({ name: 'kept', render: makeStoredRender(stored) }).makeTts() };
-    if (!isFree && ledger.isOverVoiceLimit(studentId, text.length)) return { tts: makeRenderedVoice({ name: 'tone' }).makeTts() };
+    if (!isFree && ledger.isOverVoiceLimit(studentId, text.length)) return { tts: makeRenderedVoice({ name: 'tone' }).makeTts(), isAtLimit: true };
     if (!isFree) ledger.charge({ studentId, voiceCharacters: text.length });
     live ??= makeLiveTts();
     const frames: AudioFrame[] = [];
     const words: TimedWord[] = [];
-    return { tts: live, onFrame: (frame) => frames.push(frame), onWords: (next) => words.push(...next), save: () => void saveWholeTake({ path, frames, words, text }).catch((error: unknown) => console.warn(`::warning title=Voice take::a line could not be kept: ${String(error)}`)) };
+    const save = folder ? () => void saveWholeTake({ path: join(folder, name), frames, words, text }).catch((error: unknown) => console.warn(`::warning title=Voice take::a line could not be kept: ${String(error)}`)) : () => {};
+    return { tts: live, onFrame: (frame) => frames.push(frame), onWords: (next) => words.push(...next), save };
   };
   return {
-    forStudent: (studentId) => ({ forTurn: (beats) => forTurn(studentId, beats) }),
+    forStudent: (studentId, getShelf = () => ({ kind: 'shared' })) => ({ forTurn: (beats) => forTurn(studentId, getShelf(), beats) }),
     close: async () => {
       await live?.close();
     },

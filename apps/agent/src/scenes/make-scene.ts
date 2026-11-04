@@ -5,7 +5,7 @@ import { getNominalTiming } from './narration.ts';
 import type { RenderResult, RenderWorker } from './render-worker.ts';
 import { getSceneCommand } from './scene-desk.ts';
 import { getSceneKey, type SceneStore } from './scene-store.ts';
-import { type LessonPlan, SCENE_THEMES, type SceneBrief, type SceneKey, type SceneOwner, type SceneRepair, type SceneReviewer, type SceneTrace, type SceneTrouble, type SceneVerdict, type SceneWriter, type StoredScene } from './scene-types.ts';
+import { type LessonPlan, SCENE_THEMES, type SceneBrief, type SceneKey, type SceneOwner, type SceneRepair, type SceneReviewer, type SceneTrace, type SceneTrouble, type SceneVerdict, type SceneWords, type SceneWriter, type StoredScene, type WrittenScene } from './scene-types.ts';
 import type { MadeTake } from './worker-records.ts';
 
 export const WRITER_LIMIT_MS = 45_000;
@@ -14,6 +14,7 @@ const SECONDS_AFTER_MOMENT = 1.3;
 const FIRST_FRAME_SECONDS = 1.2;
 const MOST_TROUBLED_TRIES = 3;
 const WAIT_AFTER_TROUBLE_MS = 5 * 60_000;
+const WAIT_AFTER_REFUSAL_MS = 60 * 60_000;
 const FORGET_TROUBLE_MS = 24 * 60 * 60_000;
 const CHECK_SCENE_ELEMENT = 'scene' as RichScene['id'];
 const THEMED_SOURCE = /scene-(light|dark)\.py/g;
@@ -33,6 +34,9 @@ export interface SceneRequest {
   ownerId?: SceneOwner;
   plan: LessonPlan;
   values?: Readonly<Record<string, number>>;
+  signal?: AbortSignal;
+  /** The first writer started from the streamed plan, on these same words. */
+  earlyWrite?: Promise<WrittenScene> | null;
 }
 
 export type MadeScene = { isOk: true; scene: StoredScene } | { isOk: false; reasons: readonly string[] };
@@ -72,15 +76,26 @@ function getRenderProblems(render: RenderResult, plan: LessonPlan, brief: SceneB
   return [...unseen.map((theme) => `the worker made no ${theme} pictures, so nobody can review that take`), ...new Set(partProblems), ...layoutProblems];
 }
 
-async function writeUntilClean(maker: SceneMaker, { brief, plan, values, tally, warn }: { brief: SceneBrief; plan: LessonPlan; values: Readonly<Record<string, number>>; tally: Tally; warn: (line: string) => void }): Promise<Attempt | null> {
+interface WriteRun {
+  brief: SceneBrief;
+  plan: LessonPlan;
+  values: Readonly<Record<string, number>>;
+  tally: Tally;
+  warn: (line: string) => void;
+  signal: AbortSignal;
+  earlyWrite: Promise<WrittenScene> | null;
+}
+
+async function writeUntilClean(maker: SceneMaker, { brief, plan, values, tally, warn, signal, earlyWrite }: WriteRun): Promise<Attempt | null> {
   let repair: SceneRepair | null = null;
-  for (const writer of maker.writers) {
+  for (const [index, writer] of maker.writers.entries()) {
+    if (signal.aborted) return null;
     tally.attempts += 1;
     tally.writer = writer.name;
-    const code = await writeWithLimit(writer, brief, repair, tally);
+    const code = await takeWritten(writer, tally, index === 0 && earlyWrite ? earlyWrite : writer.write(brief, repair, AbortSignal.any([AbortSignal.timeout(WRITER_LIMIT_MS), signal])));
     if (code === null) continue;
     const contentProblems = getCodeProblems(code);
-    const render = contentProblems.length > 0 ? null : await maker.worker({ code, moments: brief.moments, durationSeconds: brief.durationSeconds, themes: SCENE_THEMES, values, inspectSeconds: getInspectSeconds(brief) }, AbortSignal.timeout(2 * WRITER_LIMIT_MS));
+    const render = contentProblems.length > 0 || signal.aborted ? null : await maker.worker({ code, moments: brief.moments, durationSeconds: brief.durationSeconds, themes: SCENE_THEMES, values, inspectSeconds: getInspectSeconds(brief) }, AbortSignal.any([AbortSignal.timeout(2 * WRITER_LIMIT_MS), signal]));
     tally.renderMs += render?.ms ?? 0;
     const problems = render ? getRenderProblems(render, plan, brief, warn) : contentProblems;
     if (render?.isOk && problems.length === 0) return { code, render };
@@ -90,9 +105,9 @@ async function writeUntilClean(maker: SceneMaker, { brief, plan, values, tally, 
   return null;
 }
 
-async function writeWithLimit(writer: SceneWriter, brief: SceneBrief, repair: SceneRepair | null, tally: Tally): Promise<string | null> {
+async function takeWritten(writer: SceneWriter, tally: Tally, writing: Promise<WrittenScene>): Promise<string | null> {
   try {
-    const written = await writer.write(brief, repair, AbortSignal.timeout(WRITER_LIMIT_MS));
+    const written = await writing;
     tally.writeMs += written.ms;
     tally.costUsd += written.costUsd;
     return written.code;
@@ -105,7 +120,7 @@ async function writeWithLimit(writer: SceneWriter, brief: SceneBrief, repair: Sc
 
 const getTakeBytes = (takes: readonly MadeTake[]) => Object.fromEntries(takes.map(({ theme, bytes }) => [theme, bytes.length])) as StoredScene['takeBytes'];
 
-export function getBrief(topic: string, plan: LessonPlan): SceneBrief {
+export function getBrief(topic: string, plan: SceneWords): SceneBrief {
   return { topic, narration: plan.narration, plan: plan.plan, ...getNominalTiming(plan.narration) };
 }
 
@@ -113,12 +128,20 @@ const isTroubleForgotten = ({ lastAtMs }: SceneTrouble, nowMs: number) => nowMs 
 
 function getCanTry(trouble: SceneTrouble, nowMs: number): boolean {
   if (trouble.tries === 0 || isTroubleForgotten(trouble, nowMs)) return true;
-  return trouble.tries < MOST_TROUBLED_TRIES && nowMs - trouble.lastAtMs >= WAIT_AFTER_TROUBLE_MS;
+  return trouble.tries < MOST_TROUBLED_TRIES && nowMs - trouble.lastAtMs >= (trouble.wasRefused ? WAIT_AFTER_REFUSAL_MS : WAIT_AFTER_TROUBLE_MS);
 }
 
-function noteTrouble(store: SceneStore, key: SceneKey, nowMs: number): void {
+function noteTrouble(store: SceneStore, key: SceneKey, nowMs: number, wasRefused = false): void {
   const trouble = store.getTrouble(key);
-  store.saveTrouble(key, { tries: isTroubleForgotten(trouble, nowMs) ? 1 : trouble.tries + 1, lastAtMs: nowMs });
+  store.saveTrouble(key, { tries: isTroubleForgotten(trouble, nowMs) ? 1 : trouble.tries + 1, lastAtMs: nowMs, wasRefused });
+}
+
+/** A review can refuse a true scene, and on a card that would leave it with no scene for anyone, so a refusal may be written again after a wait, a few times a day. */
+export function canTryAfterRefusal(store: SceneStore, key: SceneKey, nowMs: number): boolean {
+  const refusal = store.findRefusal(key);
+  if (!refusal) return true;
+  const trouble = store.getTrouble(key);
+  return getCanTry(trouble.tries === 0 ? { tries: 1, lastAtMs: Date.parse(refusal.savedAt), wasRefused: true } : trouble, nowMs);
 }
 
 function toStoredScene({ key, plan, brief, attempt, verdict, trace, values }: { key: SceneKey; plan: LessonPlan; brief: SceneBrief; attempt: Attempt; verdict: SceneVerdict; trace: SceneTrace; values: Readonly<Record<string, number>> }): StoredScene {
@@ -146,7 +169,9 @@ function toStoredScene({ key, plan, brief, attempt, verdict, trace, values }: { 
   };
 }
 
-export async function makeScene(maker: SceneMaker, { topic, ownerId = null, plan, values = {} }: SceneRequest): Promise<MadeScene> {
+const NO_LONGER_WANTED: MadeScene = { isOk: false, reasons: ['no longer wanted'] };
+
+export async function makeScene(maker: SceneMaker, { topic, ownerId = null, plan, values = {}, signal = new AbortController().signal, earlyWrite = null }: SceneRequest): Promise<MadeScene> {
   const { store, reviewer, now = () => performance.now(), getWallMs = () => Date.now(), warn = console.warn } = maker;
   const startedAt = now();
   const key = getSceneKey(topic, { ownerId, values });
@@ -155,19 +180,22 @@ export async function makeScene(maker: SceneMaker, { topic, ownerId = null, plan
   if (!getCanTry(store.getTrouble(key), getWallMs())) return { isOk: false, reasons: ['this scene hit errors recently, so it waits before trying again'] };
   const brief = getBrief(topic, plan);
   const tally: Tally = { writer: '', attempts: 0, writeMs: 0, renderMs: 0, costUsd: 0, problems: [] };
-  const attempt = await writeUntilClean(maker, { brief, plan, values, tally, warn });
+  const attempt = await writeUntilClean(maker, { brief, plan, values, tally, warn, signal, earlyWrite });
+  if (signal.aborted) return NO_LONGER_WANTED;
   if (!attempt) {
     noteTrouble(store, key, getWallMs());
     return { isOk: false, reasons: tally.problems };
   }
   // An error is never a verdict, so it saves nothing that could block this topic.
-  const verdict = await reviewer.review({ brief, code: attempt.code, sheets: attempt.render.sheets, spokenLines: getSpokenLines(plan) }, AbortSignal.timeout(REVIEWER_LIMIT_MS)).catch((error: unknown) => {
-    noteTrouble(store, key, getWallMs());
+  const verdict = await reviewer.review({ brief, code: attempt.code, sheets: attempt.render.sheets, spokenLines: getSpokenLines(plan) }, AbortSignal.any([AbortSignal.timeout(REVIEWER_LIMIT_MS), signal])).catch((error: unknown) => {
+    if (!signal.aborted) noteTrouble(store, key, getWallMs());
     return String(error);
   });
+  if (signal.aborted) return NO_LONGER_WANTED;
   if (typeof verdict === 'string') return { isOk: false, reasons: [`the review could not finish: ${verdict}`] };
   if (!verdict.isPass) {
-    store.saveRefusal({ key, code: attempt.code, plan, review: verdict.errors, savedAt: new Date().toISOString() });
+    store.saveRefusal({ key, code: attempt.code, plan, review: verdict.errors, savedAt: new Date(getWallMs()).toISOString() });
+    noteTrouble(store, key, getWallMs(), true);
     return { isOk: false, reasons: verdict.errors.map(({ what }) => what) };
   }
   const trace: SceneTrace = { writer: tally.writer, attempts: tally.attempts, writeMs: tally.writeMs, renderMs: tally.renderMs, reviewMs: verdict.ms, totalMs: now() - startedAt, costUsd: tally.costUsd + verdict.costUsd, problems: tally.problems };

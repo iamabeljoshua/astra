@@ -1,7 +1,8 @@
 import { type Beat, getBeatText, getCues, parseBeat, type RichScene } from '@astra/contracts';
 import { describe, expect, it } from 'vitest';
-import { getNominalTiming, getSceneBeat, readMarks } from '../src/scenes/narration.ts';
+import { getNominalTiming, getTakeBeats, readMarks } from '../src/scenes/narration.ts';
 
+const takeBeatOf = (options: Parameters<typeof getTakeBeats>[0]): Beat => getTakeBeats(options)[0] as Beat;
 const MARKED = '[[curve]] Here is the curve. [[point]] Pick one point on it. [[tangent]] This line just touches it there.';
 const SCENE = { kind: 'richScene', id: 'slope', engine: 'manimgx', sceneId: 'slope-1a2b', moments: { curve: 0, point: 1.5, tangent: 3 }, parts: [], durationSeconds: 7 } as unknown as RichScene;
 
@@ -25,7 +26,7 @@ describe('marked narration', () => {
 
 describe('the beat a scene plays under', () => {
   it('places the scene on the first word and plays it to each next moment over the words between', () => {
-    const beat = getSceneBeat({ id: 'slope-take', marked: MARKED, scene: SCENE });
+    const beat = takeBeatOf({ id: 'slope-take', marked: MARKED, scene: SCENE });
     expect(getCues(beat)[0]).toEqual({ atWord: 0, command: SCENE });
     expect(getRuns(beat)).toEqual([
       { atWord: 0, until: 'point', overWords: 4 },
@@ -36,12 +37,12 @@ describe('the beat a scene plays under', () => {
   });
 
   it('runs the scene up to a first mark that sits later in the words', () => {
-    const beat = getSceneBeat({ id: 'later', marked: 'So here is [[curve]] the curve, and [[point]] one point on it.', scene: SCENE });
+    const beat = takeBeatOf({ id: 'later', marked: 'So here is [[curve]] the curve, and [[point]] one point on it.', scene: SCENE });
     expect(getRuns(beat)[0]).toEqual({ atWord: 0, until: 'curve', overWords: 3 });
   });
 
   it('is a beat the parser accepts', () => {
-    const beat = getSceneBeat({ id: 'slope-take', marked: MARKED, scene: SCENE });
+    const beat = takeBeatOf({ id: 'slope-take', marked: MARKED, scene: SCENE });
     expect(parseBeat(JSON.parse(JSON.stringify(beat))).ok).toBe(true);
   });
 });

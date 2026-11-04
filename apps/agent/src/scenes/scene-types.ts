@@ -82,9 +82,25 @@ export interface LessonPlan {
   close: string;
 }
 
-export interface LessonPlanner {
-  plan(topic: string, signal: AbortSignal, onFirstLine?: (line: OpeningLine) => void): Promise<LessonPlan & SceneUsage>;
+/** What the writer needs from a plan, which the planner streams before the plan is whole. */
+export type SceneWords = Pick<LessonPlan, 'narration' | 'plan'>;
+
+/** Why a lesson has no words of its own: nothing to teach, or something a tutor should not teach. */
+export type NoLesson = 'nothing' | 'unsafe';
+
+export interface PlanHooks {
+  onFirstLine?(line: OpeningLine): void;
+  onSceneWords?(words: SceneWords): void;
+  /** What was wrong with the last try, for a second one. */
+  note?: string;
 }
+
+export interface LessonPlanner {
+  plan(topic: string, signal: AbortSignal, hooks?: PlanHooks): Promise<LessonPlan & SceneUsage>;
+}
+
+/** The planner said this topic asks for something a tutor should not teach. */
+export class PlanRefused extends Error {}
 
 export interface DeclaredValue {
   name: string;
@@ -107,7 +123,7 @@ export interface SceneKey {
   ownerId: SceneOwner;
 }
 
-/** The store holds no run a review refused, only these words, so nobody pays to write it again and a person can read why. */
+/** The store holds no run a review refused, only these words, so nobody pays to write it again soon and a person can read why. */
 export interface SceneRefusal {
   key: SceneKey;
   code: string;
@@ -116,10 +132,11 @@ export interface SceneRefusal {
   savedAt: string;
 }
 
-/** Tries that ended in an error and no verdict. They allow a retry later, up to a bound. */
+/** Tries that ended in an error or a refusal. They allow a retry later, up to a bound, because a review can refuse a true scene. */
 export interface SceneTrouble {
   tries: number;
   lastAtMs: number;
+  wasRefused?: boolean;
 }
 
 export interface StoredScene {

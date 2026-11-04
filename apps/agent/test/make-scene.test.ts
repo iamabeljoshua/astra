@@ -2,7 +2,7 @@ import { existsSync, mkdtempSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { makeScene } from '../src/scenes/make-scene.ts';
+import { canTryAfterRefusal, makeScene } from '../src/scenes/make-scene.ts';
 import type { RenderResult, RenderWorker } from '../src/scenes/render-worker.ts';
 import { createSceneStore, getSceneKey } from '../src/scenes/scene-store.ts';
 import type { LessonPlan, SceneReviewer, SceneWriter } from '../src/scenes/scene-types.ts';
@@ -233,5 +233,40 @@ describe('making a scene', () => {
     const writer: SceneWriter = { name: 'first', write: async (brief) => { seenBrief = brief; return { code: 'class Lesson: pass', model: 'x', ms: 1, costUsd: 0 }; } };
     await makeScene({ writers: [writer], reviewer, worker, store }, { topic: 'Slope', plan: PLAN });
     expect(Object.keys(seenBrief as object).sort()).toEqual(['durationSeconds', 'moments', 'narration', 'plan', 'topic']);
+  });
+});
+
+describe('a scene the review refused', () => {
+  it('writes again only after the wait, a bounded number of times a day, so a false refusal does not take a card from everyone', async () => {
+    const { store, worker } = setUp();
+    let nowMs = 1_000_000;
+    let writes = 0;
+    const maker = { writers: [makeWriter('w', undefined, () => { writes += 1; })], reviewer: failing, worker, store, warn: () => {}, getWallMs: () => nowMs };
+    const key = getSceneKey('topic of slopes');
+    expect(canTryAfterRefusal(store, key, nowMs)).toBe(true);
+    await makeScene(maker, { topic: 'topic of slopes', plan: { ...PLAN, opening: [{ say: 'Topic of slopes first.' }] } });
+    expect(writes).toBe(1);
+    expect(canTryAfterRefusal(store, key, nowMs)).toBe(false);
+    nowMs += 61 * 60_000;
+    expect(canTryAfterRefusal(store, key, nowMs)).toBe(true);
+    await makeScene(maker, { topic: 'topic of slopes', plan: { ...PLAN, opening: [{ say: 'Topic of slopes first.' }] } });
+    nowMs += 61 * 60_000;
+    await makeScene(maker, { topic: 'topic of slopes', plan: { ...PLAN, opening: [{ say: 'Topic of slopes first.' }] } });
+    nowMs += 61 * 60_000;
+    expect(canTryAfterRefusal(store, key, nowMs)).toBe(false);
+    nowMs += 24 * 60 * 60_000;
+    expect(canTryAfterRefusal(store, key, nowMs)).toBe(true);
+  });
+});
+
+describe('a scene nobody wants any more', () => {
+  it('stops between steps, saves nothing, and notes no trouble', async () => {
+    const { store, worker } = setUp();
+    const stopper = new AbortController();
+    const writer: SceneWriter = { name: 'w', write: async () => { stopper.abort(); throw new Error('stopped'); } };
+    const second = { name: 'second', write: async () => { throw new Error('should not run'); } };
+    const made = await makeScene({ writers: [writer, second], reviewer: passing, worker, store, warn: () => {} }, { topic: 'topic of slopes', plan: { ...PLAN, opening: [{ say: 'Topic of slopes first.' }] }, signal: stopper.signal });
+    expect(made).toEqual({ isOk: false, reasons: ['no longer wanted'] });
+    expect(store.getTrouble(getSceneKey('topic of slopes')).tries).toBe(0);
   });
 });

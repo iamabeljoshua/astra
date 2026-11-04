@@ -155,6 +155,8 @@ const SCENE_AGENT_MESSAGES: VariantTable<SceneAgentMessage, 'type'> = {
   tag: 'type',
   variants: {
     loadScene: { keys: ['sceneId', 'durationSeconds'], read: (fields) => ({ type: 'loadScene', sceneId: readSceneId(fields.at('sceneId')), durationSeconds: readNumberInRange(fields.at('durationSeconds'), { min: 0.1, max: 600 }) }) },
+    noLesson: { keys: [], read: () => ({ type: 'noLesson' }) },
+    voiceAtLimit: { keys: [], read: () => ({ type: 'voiceAtLimit' }) },
   },
 };
 

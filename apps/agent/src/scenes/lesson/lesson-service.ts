@@ -75,11 +75,15 @@ const voices = makeVoices();
 const store = createSceneStore(storeRoot);
 const runs = createTopicRuns({ planner: models.planner, writers: [models.writer, models.fallbackWriter], reviewer: models.reviewer, worker: createContainerWorker(), store });
 
-const runOneLesson = ({ sessionId, studentId, request, isCard, onClosing }: LessonRequest & { onClosing(): void }) =>
+const runOneLesson = ({ sessionId, studentId, request, isCard, cardLine, onClosing, onPresence }: LessonRequest & { onClosing(): void; onPresence(isHere: boolean): void }) =>
   payingStudent.run(studentId, async () => {
     const startedAtMs = performance.now();
-    const work = createLessonWork({ router: models.router, runs, store, request, isCard, studentId, getNowMs: () => performance.now(), onChange: (state, atMs) => log('scene', { sessionId, state: state.kind, afterMs: Math.round(atMs - startedAtMs), ...(state.kind === 'failed' ? { reasons: state.reasons } : {}), ...(state.kind === 'ready' ? { trace: state.scene.trace } : {}) }) });
-    await runLesson({ url: LIVEKIT_URL, token: await makeToken({ room: `lesson-${sessionId}`, identity: 'agent-tutor', canPublish: true }), work, voice: voices.forStudent(studentId), onClosing, onEvent: (name, detail) => log(name, { sessionId, afterMs: Math.round(performance.now() - startedAtMs), ...detail }) });
+    const work = createLessonWork({ router: models.router, runs, store, request, isCard, studentId, cardLine, getNowMs: () => performance.now(), onChange: (state, atMs) => log('scene', { sessionId, state: state.kind, afterMs: Math.round(atMs - startedAtMs), ...(state.kind === 'failed' ? { reasons: state.reasons } : {}), ...(state.kind === 'ready' ? { trace: state.scene.trace } : {}) }) });
+    try {
+      await runLesson({ url: LIVEKIT_URL, token: await makeToken({ room: `lesson-${sessionId}`, identity: 'agent-tutor', canPublish: true }), work, voice: voices.forStudent(studentId, work.getVoiceShelf), onClosing, onPresence, onEvent: (name, detail) => log(name, { sessionId, afterMs: Math.round(performance.now() - startedAtMs), ...detail }) });
+    } finally {
+      work.leave();
+    }
   });
 
 const desk = createLessonDesk({ run: runOneLesson, makeToken: makeStudentToken, ledger, getNowMs: () => Date.now(), url: LIVEKIT_URL, onFailed: (sessionId, error) => log('lessonFailed', { sessionId, error: String(error) }) });

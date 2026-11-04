@@ -4,8 +4,9 @@ import { createSessionLog } from '../../live/session-log.ts';
 import { speakTurn } from '../../live/speak-turn.ts';
 import { createVoiceLine } from '../../live/voice-line.ts';
 import { getSceneCommand } from '../scene-desk.ts';
-import type { LessonPlan, OpeningLine, StoredScene } from '../scene-types.ts';
-import { getLineBeat, getSceneBeats, getSpokenBeat } from './lesson-beats.ts';
+import { getTakeBeats } from '../narration.ts';
+import type { LessonPlan, NoLesson, OpeningLine, StoredScene } from '../scene-types.ts';
+import { getLineBeats, getSceneBeats, getSpokenBeats } from './lesson-beats.ts';
 import { LAB_TOPIC, type LabMessage, LIVE_TOPIC, readLessonPacket } from './lesson-packets.ts';
 import type { LessonWork } from './lesson-work.ts';
 import { createStudentPresence, type PresenceChange } from './student-presence.ts';
@@ -15,7 +16,11 @@ const AUDIO_QUEUE_MS = 200;
 const SAMPLE_RATE = 24000;
 const STUDENT_IDENTITY_START = 'student-';
 const REACTION = "Let's take a look.";
-const NO_LESSON_LINE = 'Tell me what you would like to learn, and we can start there.';
+// The first two sentences are the tutor brain's own wording in `spoken-lines.ts` on M3.7's branch. They name no hotline, because the tutor does not know the student's country.
+const NO_LESSON_WORDS: Record<NoLesson, { id: string; words: string }> = {
+  nothing: { id: 'no-lesson', words: "I don't have a lesson for that one. Go back to Home and ask me something else, or pick a suggested lesson." },
+  unsafe: { id: 'unsafe', words: "I can't go into that here, and you haven't done anything wrong by asking. If anything is worrying you, or you don't feel safe, please tell an adult you trust, or call your local emergency number. You can go back to Home and pick something else to learn." },
+};
 const TROUBLE_LINE = "Something went wrong on my side, so let's carry on with what is on the board.";
 const SCENE_ELEMENT = 'scene' as ElementId;
 
@@ -30,6 +35,8 @@ export interface RunLessonOptions {
   onEvent?(name: string, detail?: object): void;
   /** Called once when this lesson starts to end, so a new page can wait for a new lesson and not land in an empty room. */
   onClosing?(): void;
+  /** Whether a page is on this lesson, so a student who has gone back does not count as still in it. */
+  onPresence?(isHere: boolean): void;
   timings?: Partial<LessonTimings>;
 }
 
@@ -69,7 +76,7 @@ function createWakes() {
 }
 
 // Stands in for M3.6's worker and M3.7's brain: it speaks a plan and takes a ready scene at each pause.
-export async function runLesson({ url, token, work, voice, onEvent, onClosing, timings }: RunLessonOptions): Promise<void> {
+export async function runLesson({ url, token, work, voice, onEvent, onClosing, onPresence: notePresence, timings }: RunLessonOptions): Promise<void> {
   const { joinLimitMs, rejoinLimitMs, deviceLimitMs, loadLimitMs, lingerMs } = { ...LESSON_TIMINGS, ...timings };
   const room = new Room();
   const encoder = new TextEncoder();
@@ -127,13 +134,18 @@ export async function runLesson({ url, token, work, voice, onEvent, onClosing, t
   };
 
   const onPresence = (change: PresenceChange) => {
-    if (change === 'joined') settleJoined(true);
+    if (change === 'joined') {
+      onEvent?.('joined');
+      settleJoined(true);
+    }
     if (change === 'away') {
       onEvent?.('studentAway');
+      notePresence?.(false);
       stopActive();
     }
     if (change === 'newPage') {
       onEvent?.('studentBack');
+      notePresence?.(true);
       stopActive();
       wakes.send('newPage');
     }
@@ -182,10 +194,15 @@ export async function runLesson({ url, token, work, voice, onEvent, onClosing, t
   await room.localParticipant?.publishTrack(LocalAudioTrack.createAudioTrack('tutor-voice', source), options);
   const line = createVoiceLine(source);
 
+  let hasToldVoiceLimit = false;
   const speakOnce = async (beats: readonly Beat[]): Promise<ActiveTurn> => {
     const id = `turn-${(turnCount += 1)}` as TurnId;
     beatsByTurn.set(id, beats);
     const turnVoice = voice.forTurn(beats);
+    if (turnVoice.isAtLimit && !hasToldVoiceLimit) {
+      hasToldVoiceLimit = true;
+      void publish(SCENE_TOPIC, { type: 'voiceAtLimit' } satisfies SceneAgentMessage);
+    }
     const spoken = speakTurn({
       voice: turnVoice.tts,
       line,
@@ -213,8 +230,13 @@ export async function runLesson({ url, token, work, voice, onEvent, onClosing, t
       return parsed.ok ? [parsed.value] : [];
     });
 
-  // A new page has none of the old page's board or words, so it gets each unfinished beat whole.
-  const getUnfinishedBeats = (turn: ActiveTurn): Beat[] => turn.beats.filter((beat) => turn.reports.get(beat.id)?.ending !== 'finished');
+  // A new page has none of the old page's board or words, so it gets each unfinished beat whole, and a take running over several lines starts again from the line that puts it on the board.
+  const getUnfinishedBeats = (turn: ActiveTurn): Beat[] => {
+    const firstUnfinished = turn.beats.findIndex((beat) => turn.reports.get(beat.id)?.ending !== 'finished');
+    if (firstUnfinished < 0) return [];
+    const sceneLine = turn.beats.findIndex((beat) => beat.script.some((item) => typeof item === 'object' && item.kind === 'richScene'));
+    return turn.beats.slice(sceneLine >= 0 && sceneLine < firstUnfinished ? sceneLine : firstUnfinished);
+  };
 
   const speak = async (beats: readonly Beat[], prepareNewPage?: () => Promise<boolean>): Promise<void> => {
     let remaining = beats;
@@ -241,11 +263,9 @@ export async function runLesson({ url, token, work, voice, onEvent, onClosing, t
       void publish(SCENE_TOPIC, { type: 'loadScene', sceneId: scene.id, durationSeconds: scene.durationSeconds } satisfies SceneAgentMessage);
     });
 
-  const showSceneIfReady = async (): Promise<boolean> => {
+  const showScene = async (scene: StoredScene, getBeats: () => readonly Beat[]): Promise<boolean> => {
     try {
-      const scene = work.desk.takeReady();
-      if (!scene) return false;
-      const beats = getSceneBeats({ setup: scene.plan.setup, narration: scene.narration, scene: getSceneCommand(scene, SCENE_ELEMENT) });
+      const beats = getBeats();
       if (!(await loadInBrowser(scene))) {
         onEvent?.('sceneRefused', { sceneId: scene.id });
         return false;
@@ -259,18 +279,49 @@ export async function runLesson({ url, token, work, voice, onEvent, onClosing, t
     }
   };
 
+  const showSceneIfReady = async (): Promise<boolean> => {
+    const scene = work.desk.takeReady();
+    return scene ? showScene(scene, () => getSceneBeats({ setup: scene.plan.setup, narration: scene.narration, scene: getSceneCommand(scene, SCENE_ELEMENT) })) : false;
+  };
+
+  // A saved scene settles in the same turn that routed it, and a fresh one is seconds away. The student has just heard "Let's take a look", so the take itself comes next.
+  const openOnSavedScene = async (): Promise<LessonPlan | null> => {
+    await new Promise((resolve) => setImmediate(resolve));
+    const scene = work.desk.takeAtOpening();
+    if (!scene) return null;
+    return (await showScene(scene, () => getTakeBeats({ id: 'scene-take', marked: scene.narration, scene: getSceneCommand(scene, SCENE_ELEMENT) }))) ? scene.plan : null;
+  };
+
   const speakLine = async (id: string, spokenLine: OpeningLine) => {
     try {
-      await speak([getLineBeat(id, spokenLine)]);
+      await speak(getLineBeats(id, spokenLine));
     } catch (error) {
       onEvent?.('lineFailed', { id, error: String(error) });
     }
   };
 
   let lastWords: readonly Beat[] = [];
-  const speakLast = async (beat: Beat) => {
-    lastWords = [beat];
+  const speakLast = async (beats: readonly Beat[]) => {
+    lastWords = beats;
     await speak(lastWords);
+  };
+
+  const speakMore = async (plan: LessonPlan, isShownAlready: boolean): Promise<boolean> => {
+    let isShown = isShownAlready;
+    for (const [index, more] of (plan.more ?? []).entries()) {
+      if (isOver) break;
+      await speakLine(`more-${index}`, more);
+      if (!isShown) isShown = await showSceneIfReady();
+      if (isShown && !isShownAlready) break;
+    }
+    return isShown;
+  };
+
+  // The close line is not the end of the 20 s, so a scene that lands after it still reaches a student on the page, and the question comes again after it.
+  const showSceneAtLastChance = async (plan: LessonPlan) => {
+    await untilOver(work.desk.untilLastChance());
+    while (presence.getState() === 'away' && !isOver) await wakes.wait();
+    if (!isOver && (await showSceneIfReady())) await speakLast(getSpokenBeats('close-again', plan.close, true));
   };
 
   const teach = async (plan: LessonPlan) => {
@@ -279,13 +330,22 @@ export async function runLesson({ url, token, work, voice, onEvent, onClosing, t
       await speakLine(`line-${index + 1}`, opening);
     }
     let isShown = await showSceneIfReady();
-    for (const [index, more] of (plan.more ?? []).entries()) {
-      if (isShown || isOver) break;
-      await speakLine(`more-${index}`, more);
-      isShown = await showSceneIfReady();
-    }
+    if (!isShown) isShown = await speakMore(plan, false);
     onEvent?.('lessonClosing', { isShown, sceneState: work.desk.getState().kind });
-    if (!isOver) await speakLast(getSpokenBeat('close', plan.close, true));
+    if (!isOver) await speakLast(getSpokenBeats('close', plan.close, true));
+    if (!isShown && !isOver) await showSceneAtLastChance(plan);
+  };
+
+  const teachAfterOpeningScene = async (plan: LessonPlan) => {
+    await speakMore(plan, true);
+    onEvent?.('lessonClosing', { isShown: true, sceneState: work.desk.getState().kind });
+    if (!isOver) await speakLast(getSpokenBeats('close', plan.close, true));
+  };
+
+  const speakNoLesson = async (why: NoLesson) => {
+    onEvent?.('noLesson', { why });
+    void publish(SCENE_TOPIC, { type: 'noLesson' } satisfies SceneAgentMessage);
+    await speakLast(getSpokenBeats(NO_LESSON_WORDS[why].id, NO_LESSON_WORDS[why].words));
   };
 
   const holdOpen = async () => {
@@ -305,21 +365,26 @@ export async function runLesson({ url, token, work, voice, onEvent, onClosing, t
     onEvent?.('device', { canPlay });
     if (canPlay) work.desk.ask(work.request);
     else work.planWithoutScene();
-    await speak([getSpokenBeat('reaction', REACTION)]);
+    await speak(getSpokenBeats('reaction', REACTION));
     const firstLine = await untilOver(work.firstLine);
     onEvent?.('firstLine', { hasLine: firstLine !== null });
+    const openedOn = firstLine && canPlay ? await openOnSavedScene() : null;
+    if (openedOn) {
+      await teachAfterOpeningScene(openedOn);
+      return;
+    }
     if (firstLine) await speakLine('line-0', firstLine);
     const plan = await untilOver(work.plan);
-    if (isOver) return;
-    onEvent?.('planned', { hasPlan: plan !== null });
-    await (plan ? teach(plan) : speakLast(getSpokenBeat('no-lesson', NO_LESSON_LINE)));
+    if (isOver || plan === null) return;
+    onEvent?.('planned', { hasPlan: typeof plan !== 'string' });
+    await (typeof plan === 'string' ? speakNoLesson(plan) : teach(plan));
   };
 
   try {
     if (await joined) await runScript();
   } catch (error) {
     onEvent?.('teachFailed', { error: String(error) });
-    if (!isOver) await speakLast(getSpokenBeat('trouble', TROUBLE_LINE)).catch(() => {});
+    if (!isOver) await speakLast(getSpokenBeats('trouble', TROUBLE_LINE)).catch(() => {});
   }
   try {
     if (!isOver) await holdOpen();

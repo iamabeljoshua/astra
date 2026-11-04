@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { getFirstLineFromPartialText, getPlanFromText } from '../src/scenes/lesson/lesson-plan.ts';
+import { getFirstLineFromPartialText, getPlanFromText, getSceneWordsFromPartialText } from '../src/scenes/lesson/lesson-plan.ts';
+import { PlanRefused } from '../src/scenes/scene-types.ts';
 import { getRouteFromText, getVerdictFromText } from '../src/scenes/model-replies.ts';
 
 const route = (fields: object) => getRouteFromText(JSON.stringify(fields));
@@ -87,7 +88,7 @@ describe('the lesson plan', () => {
   it('refuses narration with too few marks, a repeated mark, or too many words', () => {
     expect(() => parse({ narration: '[[curve]] Only one mark.' })).toThrow(/too few marks/);
     expect(() => parse({ narration: '[[curve]] One [[curve]] two.' })).toThrow(/repeats a mark/);
-    expect(() => parse({ narration: `[[a]] ${'word '.repeat(40)}[[b]] ${'word '.repeat(40)}` })).toThrow(/too long/);
+    expect(() => parse({ narration: `[[a]] ${'word '.repeat(60)}. [[b]] ${'word '.repeat(60)}.` })).toThrow(/too long/);
   });
 
   it('refuses a plan with no opening or no closing question', () => {
@@ -104,5 +105,57 @@ describe('the first line of a plan still being written', () => {
 
   it('reads it as soon as it closes, with math that holds braces', () => {
     expect(getFirstLineFromPartialText(String.raw`{"opening":[{"say":"Here it is.","tex":"x^{2}"},{"say":"And`)).toEqual({ say: 'Here it is.', tex: 'x^{2}' });
+  });
+});
+
+describe('a plan that runs long', () => {
+  const WHOLE = { opening: [{ say: 'A line.' }], setup: 'Look.', narration: '[[a]] One. [[b]] Two.', plan: 'a: x\nb: y', close: 'Why?' };
+  const parse = (fields: object) => getPlanFromText(JSON.stringify({ ...WHOLE, ...fields }));
+
+  it('keeps a long take to whole sentences rather than throwing, as Van Gogh and perspective did', () => {
+    const narration = `[[a]] ${'word '.repeat(40).trim()}. [[b]] ${'word '.repeat(40).trim()}. [[c]] ${'word '.repeat(40).trim()}.`;
+    const plan = parse({ narration, plan: 'a: one\nb: two\nc: three' });
+    expect(plan.narration).toContain('[[b]]');
+    expect(plan.narration).not.toContain('[[c]]');
+    expect(plan.plan).toBe('a: one\nb: two');
+  });
+
+  it('takes a line of any length, because the lesson splits it into breaths when it speaks', () => {
+    expect(parse({ opening: [{ say: 'word '.repeat(60).trim() }] }).opening).toHaveLength(1);
+  });
+
+  it('reads a planner that says a tutor should not teach this', () => {
+    expect(() => getPlanFromText('{"refused":true}')).toThrow(PlanRefused);
+  });
+
+  it('hands over the scene words as soon as they are whole, before the rest of the plan', () => {
+    expect(getSceneWordsFromPartialText('{"opening":[{"say":"Hi."}],"setup":"Look.","narration":"[[a]] One. [[b]] Two.","pl')).toBeNull();
+    expect(getSceneWordsFromPartialText('{"opening":[{"say":"Hi."}],"setup":"Look.","narration":"[[a]] One. [[b]] Two.","plan":"a: x\\nb: y","mo')).toEqual({ narration: '[[a]] One. [[b]] Two.', plan: 'a: x\nb: y' });
+  });
+
+  it('does not mistake quoted words in a line for the plan', () => {
+    expect(getSceneWordsFromPartialText('{"opening":[{"say":"The word \\"plan\\": see it."}],"narration":"[[a]] One. [[b]] Two."')).toBeNull();
+  });
+});
+
+describe('a review that cleared its own finding', () => {
+  it('passes when the only finding worked out to be fine, as "So the direction is correct" did on quadratics', () => {
+    expect(getVerdictFromText(JSON.stringify({ verdict: 'fail', errors: [{ moment: 'a', what: 'So the direction is correct.', truth: 'It is right.', confidence: 'medium', stillWrong: false }] })).isPass).toBe(true);
+  });
+
+  it('still fails on a finding that stands beside one that cleared itself', () => {
+    const verdict = getVerdictFromText(JSON.stringify({ verdict: 'fail', errors: [{ moment: 'a', what: 'Fine after all.', truth: '', confidence: 'medium', stillWrong: false }, { moment: 'b', what: 'The label says 3 and it is 2.', truth: '2', confidence: 'high', stillWrong: true }] }));
+    expect(verdict.isPass).toBe(false);
+    expect(verdict.errors.map(({ what }) => what)).toEqual(['The label says 3 and it is 2.']);
+  });
+
+  it('still fails a fail with no findings, because that verdict cannot be read as a pass', () => {
+    expect(getVerdictFromText(JSON.stringify({ verdict: 'fail', errors: [] })).isPass).toBe(false);
+  });
+});
+
+describe('a router reply about a request a tutor should not teach', () => {
+  it('reads the safety kind, with no engine and no topic, whatever else it holds', () => {
+    expect(getRouteFromText(JSON.stringify({ kind: 'safety', engine: 'manimgx', topic: 'pill doses' }))).toEqual({ engine: 'none', kind: 'safety', topic: '' });
   });
 });

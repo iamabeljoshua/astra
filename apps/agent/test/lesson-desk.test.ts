@@ -11,14 +11,16 @@ function setUp({ studentLimitUsd = 2 } = {}) {
   const ledger = createSpendLedger(join(mkdtempSync(join(tmpdir(), 'lesson-desk-')), 'spend.jsonl'), { limitUsd: 20, studentLimitUsd, voiceCharacterLimit: 1000, studentVoiceCharacterLimit: 100 });
   const finishers = new Map<string, (() => void)>();
   const closers = new Map<string, () => void>();
-  const run = vi.fn(({ sessionId, onClosing }: { sessionId: string; onClosing(): void }) => {
+  const presence = new Map<string, (isHere: boolean) => void>();
+  const run = vi.fn(({ sessionId, onClosing, onPresence }: { sessionId: string; onClosing(): void; onPresence?(isHere: boolean): void }) => {
     closers.set(sessionId, onClosing);
+    presence.set(sessionId, onPresence ?? (() => {}));
     return new Promise<void>((resolve) => finishers.set(sessionId, resolve));
   });
   const makeToken = vi.fn(async (_room: string, identity: string) => `token-for-${identity}`);
   let nowMs = 0;
   const desk = createLessonDesk({ run, makeToken, ledger, getNowMs: () => nowMs, url: 'ws://room' });
-  return { desk, run, ledger, finishers, closers, advance: (ms: number) => (nowMs += ms) };
+  return { desk, run, ledger, finishers, closers, presence, advance: (ms: number) => (nowMs += ms) };
 }
 
 describe('a student opening lessons', () => {
@@ -72,7 +74,7 @@ describe('a student opening lessons', () => {
   it('refuses a student whose dollars for the day are spent, and nobody else', async () => {
     const { desk, ledger } = setUp({ studentLimitUsd: 1 });
     ledger.charge({ studentId: 'maya', anthropicUsd: 1.5 });
-    expect(await desk.start(REQUEST)).toEqual({ refused: 'spent' });
+    expect(await desk.start(REQUEST)).toMatchObject({ refused: 'studentSpent' });
     expect('token' in (await desk.start({ ...REQUEST, studentId: 'tola', sessionId: 'other' }))).toBe(true);
   });
 
@@ -106,5 +108,42 @@ describe('the request a lesson starts from', () => {
 
   it.each(['not json', '[]', 'null', '{}', JSON.stringify({ ...REQUEST, isCard: 'yes' }), JSON.stringify({ ...REQUEST, studentId: 7 }), JSON.stringify({ ...REQUEST, request: 'x'.repeat(5000) })])('refuses %j', (body) => {
     expect(parseLessonRequest(body)).toBeNull();
+  });
+});
+
+describe('a normal student going back and forth', () => {
+  it('can open a third lesson as soon as the first two have nobody on them, and is not told to wait', async () => {
+    const { desk, presence } = setUp();
+    await desk.start({ ...REQUEST, sessionId: 'first' });
+    presence.get('first')?.(false);
+    await desk.start({ ...REQUEST, sessionId: 'second' });
+    presence.get('second')?.(false);
+    expect('token' in (await desk.start({ ...REQUEST, sessionId: 'third' }))).toBe(true);
+  });
+
+  it('still refuses a third lesson when two have a student on them, and says which limit it hit', async () => {
+    const { desk } = setUp();
+    await desk.start({ ...REQUEST, sessionId: 'first' });
+    await desk.start({ ...REQUEST, sessionId: 'second' });
+    expect(await desk.start({ ...REQUEST, sessionId: 'third' })).toEqual({ refused: 'twoOpen' });
+  });
+
+  it('states the real wait when the 10 minute limit stops a student', async () => {
+    const { desk, finishers, advance } = setUp();
+    for (let index = 0; index < 6; index += 1) {
+      await desk.start({ ...REQUEST, sessionId: `session-${index}` });
+      finishers.get(`session-${index}`)?.();
+      await new Promise((resolve) => setImmediate(resolve));
+      advance(60_000);
+    }
+    expect(await desk.start({ ...REQUEST, sessionId: 'seventh' })).toEqual({ refused: 'tooManyStarts', retryAfterSeconds: 240 });
+  });
+
+  it('says a spent day is a spent day, with the time to the next UTC day', async () => {
+    const { desk, ledger } = setUp({ studentLimitUsd: 1 });
+    ledger.charge({ studentId: 'maya', anthropicUsd: 1 });
+    expect(await desk.start(REQUEST)).toMatchObject({ refused: 'studentSpent', retryAfterSeconds: expect.any(Number) });
+    ledger.charge({ studentId: 'tola', anthropicUsd: 25 });
+    expect(await desk.start({ ...REQUEST, studentId: 'ada', sessionId: 'other' })).toMatchObject({ refused: 'everyoneSpent', retryAfterSeconds: expect.any(Number) });
   });
 });

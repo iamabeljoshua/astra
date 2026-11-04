@@ -2,12 +2,11 @@ import { canRenderTex } from '@astra/board/tex-check';
 import { getSpokenWords, parseSceneCommand } from '@astra/contracts';
 import { findFirstObject, readJsonObject } from '../model-replies.ts';
 import { readMarks } from '../narration.ts';
-import type { LessonPlan, OpeningLine } from '../scene-types.ts';
+import { type LessonPlan, type OpeningLine, PlanRefused, type SceneWords } from '../scene-types.ts';
 import { getPlanBeatProblems } from './lesson-beats.ts';
 
-const MOST_OPENING_LINES = 4;
-const MOST_LINE_WORDS = 30;
-const MOST_NARRATION_WORDS = 58;
+const MOST_LESSON_LINES = 8;
+const MOST_NARRATION_WORDS = 90;
 const FEWEST_MARKS = 2;
 const MOST_NOTE_CHARACTERS = 40;
 
@@ -22,19 +21,32 @@ const canBoardSetTex = (tex: string) => parseSceneCommand({ kind: 'writeMath', i
 function readLine(value: unknown): OpeningLine {
   const line = (value ?? {}) as Record<string, unknown>;
   const say = readText(line.say, 'opening line');
-  if (getSpokenWords(say).length > MOST_LINE_WORDS) throw new Error('an opening line is too long');
   const tex = typeof line.tex === 'string' && canBoardSetTex(line.tex) ? line.tex : undefined;
   const note = typeof line.note === 'string' && line.note.length <= MOST_NOTE_CHARACTERS ? line.note : undefined;
   return { say, ...(tex ? { tex } : note ? { note } : {}) };
 }
 
-function readNarration(value: unknown): string {
-  const narration = readText(value, 'narration');
-  const { text, marks } = readMarks(narration);
-  if (marks.length < FEWEST_MARKS) throw new Error('the narration has too few marks');
+const SENTENCE_START = /(?<=[.!?])\s+/;
+
+// A long take is cut at whole sentences and keeps only what its marks still need, because a plan that runs over is still a good plan.
+function trimSceneWords(narration: string, plan: string): SceneWords {
+  let kept = '';
+  for (const sentence of narration.split(SENTENCE_START)) {
+    const next = kept === '' ? sentence : `${kept} ${sentence}`;
+    if (getSpokenWords(readMarks(next).text).length > MOST_NARRATION_WORDS) break;
+    kept = next;
+  }
+  const keptMarks = new Set(readMarks(kept).marks.map((mark) => mark.id));
+  const droppedMarks = readMarks(narration).marks.map((mark) => mark.id).filter((id) => !keptMarks.has(id));
+  return { narration: kept, plan: plan.split('\n').filter((line) => !droppedMarks.some((id) => line.trimStart().startsWith(`${id}:`))).join('\n') };
+}
+
+function readSceneWords(narrationValue: unknown, planValue: unknown): SceneWords {
+  const words = trimSceneWords(readText(narrationValue, 'narration'), readText(planValue, 'plan'));
+  const { marks } = readMarks(words.narration);
+  if (marks.length < FEWEST_MARKS) throw new Error(`the narration has too few marks, or is too long to keep ${FEWEST_MARKS} of them`);
   if (new Set(marks.map((mark) => mark.id)).size !== marks.length) throw new Error('the narration repeats a mark');
-  if (getSpokenWords(text).length > MOST_NARRATION_WORDS) throw new Error('the narration is too long');
-  return narration;
+  return words;
 }
 
 const OPENING_LIST = /"opening"\s*:\s*\[/;
@@ -50,15 +62,36 @@ export function getFirstLineFromPartialText(text: string): OpeningLine | null {
   }
 }
 
+function readFinishedString(text: string, name: string): string | null {
+  const found = new RegExp(`"${name}"\\s*:\\s*"`).exec(text);
+  if (!found) return null;
+  const start = found.index + found[0].length;
+  for (let index = start; index < text.length; index += 1) {
+    if (text[index] === '\\') index += 1;
+    else if (text[index] === '"') return JSON.parse(text.slice(start - 1, index + 1)) as string;
+  }
+  return null;
+}
+
+export function getSceneWordsFromPartialText(text: string): SceneWords | null {
+  try {
+    const narration = readFinishedString(text, 'narration');
+    const plan = readFinishedString(text, 'plan');
+    return narration === null || plan === null ? null : readSceneWords(narration, plan);
+  } catch {
+    return null;
+  }
+}
+
 export function getPlanFromText(text: string): LessonPlan {
   const reply = readJsonObject(text);
+  if (reply.refused) throw new PlanRefused('the planner says a tutor should not teach this');
   if (!Array.isArray(reply.opening) || reply.opening.length === 0) throw new Error('the plan has no opening');
   const plan: LessonPlan = {
-    opening: reply.opening.slice(0, MOST_OPENING_LINES).map(readLine),
-    more: Array.isArray(reply.more) ? reply.more.slice(0, MOST_OPENING_LINES).map(readLine) : [],
+    opening: reply.opening.slice(0, MOST_LESSON_LINES).map(readLine),
+    more: Array.isArray(reply.more) ? reply.more.slice(0, MOST_LESSON_LINES).map(readLine) : [],
     setup: readText(reply.setup, 'setup'),
-    narration: readNarration(reply.narration),
-    plan: readText(reply.plan, 'plan'),
+    ...readSceneWords(reply.narration, reply.plan),
     close: readText(reply.close, 'closing question'),
   };
   const problems = getPlanBeatProblems(plan);

@@ -17,6 +17,21 @@ describe('the scene doc states what a student sees', () => {
     expect(doc).toMatch(/worst cue/);
   });
 
+  it('does not call the service\'s shown event the page, and names what the page measured', () => {
+    expect(doc).not.toMatch(/Reached the page at 43\.4 s/);
+    expect(doc).toMatch(/what the page first shows/i);
+  });
+
+  it('does not say cards open on the plain board, and says a scene saved already opens the lesson', () => {
+    expect(doc).toMatch(/opens on it/);
+    expect(doc).not.toMatch(/A saved scene waits/);
+  });
+
+  it('states the rule the code keeps: about 20 s after the opening, then dropped, with a last chance after the close', () => {
+    expect(doc).toMatch(/about 20 s after the opening/i);
+    expect(doc).toMatch(/after the close/);
+  });
+
   it('says review is a filter and not a truth gate', () => {
     expect(doc).toMatch(/strict filter and not a truth gate/);
     expect(doc).toMatch(/Not yet checked by a person/);

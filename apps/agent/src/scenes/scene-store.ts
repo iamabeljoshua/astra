@@ -50,8 +50,15 @@ function writeJsonFile(folder: string, name: string, value: object): void {
   renameSync(partPath, join(folder, name));
 }
 
+// A damaged record reads as no record, so one bad file costs a rewrite and not a lesson.
 function readJsonFile<Value>(path: string): Value | null {
-  return existsSync(path) ? (JSON.parse(readFileSync(path, 'utf8')) as Value) : null;
+  if (!existsSync(path)) return null;
+  try {
+    return JSON.parse(readFileSync(path, 'utf8')) as Value;
+  } catch {
+    console.warn(`::warning title=Scene store::could not read ${path}`);
+    return null;
+  }
 }
 
 export function createSceneStore(root: string): SceneStore {

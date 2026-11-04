@@ -1,6 +1,7 @@
 import type { FactError, RouteEngine, SceneRoute, SceneVerdict, SceneUsage } from './scene-types.ts';
 
 const ENGINES: readonly RouteEngine[] = ['manimgx', 'kit', 'none'];
+export const SAFETY_KIND = 'safety';
 const MOST_TOPIC_CHARACTERS = 80;
 const POINTS_AT_A_PERSON = /@|https?:|\b(my|me|mine|our|we)\b|\bi['’](m|ve|d|ll)\b/i;
 const THE_LETTER_I = /\bi\b/gi;
@@ -43,25 +44,35 @@ export function findFirstObject(text: string): string | null {
   return null;
 }
 
+/** A reply nobody can read. From the router this has been a model answering a child's dangerous question in prose, so a caller may treat it as one. */
+export class UnreadableReply extends Error {}
+
 export function readJsonObject(text: string): Record<string, unknown> {
   const found = findFirstObject(text);
-  if (!found) throw new Error('the model sent no JSON object');
-  return JSON.parse(found) as Record<string, unknown>;
+  if (!found) throw new UnreadableReply('the model sent no JSON object');
+  try {
+    return JSON.parse(found) as Record<string, unknown>;
+  } catch (error) {
+    throw new UnreadableReply(`the model sent JSON that does not parse: ${String(error)}`);
+  }
 }
 
 export function getRouteFromText(text: string): Omit<SceneRoute, keyof SceneUsage> {
   const reply = readJsonObject(text);
+  if (reply.kind === SAFETY_KIND) return { engine: 'none', kind: SAFETY_KIND, topic: '' };
   const engine = ENGINES.find((name) => name === reply.engine) ?? 'none';
   const topic = typeof reply.topic === 'string' ? reply.topic.trim().slice(0, MOST_TOPIC_CHARACTERS) : '';
   const isSafeTopic = topic !== '' && !pointsAtAPerson(topic);
   return { engine: engine !== 'none' && !isSafeTopic ? 'none' : engine, kind: typeof reply.kind === 'string' ? reply.kind : 'unknown', topic: isSafeTopic ? topic : '' };
 }
 
-const readErrors = (value: unknown): FactError[] => (Array.isArray(value) ? value.filter((entry): entry is FactError => typeof entry === 'object' && entry !== null && typeof (entry as FactError).what === 'string') : []);
+const readErrors = (value: unknown): (FactError & { stillWrong?: unknown })[] => (Array.isArray(value) ? value.filter((entry): entry is FactError => typeof entry === 'object' && entry !== null && typeof (entry as FactError).what === 'string') : []);
 
 export function getVerdictFromText(text: string): Omit<SceneVerdict, keyof SceneUsage> {
   const reply = readJsonObject(text);
   if (reply.verdict !== 'pass' && reply.verdict !== 'fail') throw new Error('the review gave no verdict it could read');
-  const errors = readErrors(reply.errors);
-  return { isPass: reply.verdict === 'pass' && errors.length === 0, errors };
+  const found = readErrors(reply.errors);
+  const errors = found.filter(({ stillWrong }) => stillWrong !== false);
+  // A reviewer can work a claim out and find it true while writing the finding, so a fail whose findings all cleared themselves is a pass.
+  return { isPass: errors.length === 0 && (reply.verdict === 'pass' || found.length > 0), errors };
 }

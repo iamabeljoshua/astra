@@ -1,14 +1,27 @@
 import { readMarks } from './narration.ts';
-import type { LessonPlan, OpeningLine } from './scene-types.ts';
+import type { LessonPlan, OpeningLine, SceneWords } from './scene-types.ts';
 
 const ADDRESS = /[\w.+-]+@[\w-]+\.\w|https?:|www\./i;
 const PHONE_NUMBER = /\b\d{7,}\b|\b\d{3}[ .-]\d{3}[ .-]\d{4}\b/;
 const INSULT = /\b(cheat|cheats|cheater|cheaters|cheating|liar|liars|idiot|idiots|moron|morons|stupid|dumb|loser|losers|ugly|slut|whore|bitch|bastard|retard|pervert|creep|scum|thief|fraud)\b/i;
 // Lessons are in English today. A word in another alphabet was how a title got an accusation past both reviews, so widen this when a language lands.
 const FOREIGN_LETTER = /[^\p{Script=Latin}\p{Script=Greek}\p{Script=Common}\p{Script=Inherited}]/u;
-const NAME_PAIR = /\b(\p{Lu}\p{Ll}+)\s+\p{Lu}\p{Ll}+\b/gu;
+// The second word is only looked at, so "Suppose Jane Doe" is read as two pairs and "Jane Doe" is not hidden by the word before it.
+const NAME_PAIR = /\b(\p{Lu}\p{Ll}+)\s+(?=(\p{Lu}\p{Ll}+)\b)/gu;
 const LINE_OPENERS = new Set('what why how when where who which that this these those the a an now then so but and or if here there watch think notice see look picture imagine take try let say pick at in on for from with by as its it each every both some most even only just because since while after before like unlike suppose consider remember'.split(' '));
 const PLAIN_TOPIC_WORDS = new Set('the and for are can how why who was were you our out get has had not but its one two what when where which while really means mean does about with from that this have your they them their would could should than then into over under very much many some most only just'.split(' '));
+// A model writes a real name with capitals, so a name in lowercase or capitals alone is someone working around that check. A list cannot hold every name, so the review still reads for one.
+const LISTED_FIRST_NAMES = 'aisha ada adam alex alice amara amir ana andrew anna ben carlos chen chloe chris daniel david diego dmitri elena eli emily emma ethan fatima grace hannah ivan jack jacob jade james jane jason jess jessica john jonas jordan jose juan julia kai kevin kim kofi lee leo liam lily lucas lucia maria marie marcus maya mei michael mike mohammed muhammad nadia nina noah olivia omar oscar priya rachel rahul rob robert ruth ryan sam samuel sara sarah sofia sophia tom tola tyler wei zara'.split(' ');
+const LISTED_LAST_NAMES = 'ali brown carter chen davis doe garcia gupta hill jones khan kim lee lopez martin miller moyo nguyen okafor patel ruiz singh smith stone taylor wang weber williams wilson'.split(' ');
+const LISTED_NAME_PAIR = new RegExp(`\\b(?:(?:${LISTED_FIRST_NAMES.join('|')})\\s+[\\p{L}'-]+|[\\p{L}'-]+\\s+(?:${LISTED_LAST_NAMES.join('|')}))\\b`, 'giu');
+const NOT_A_SURNAME = new Set('a an and are as at be but by can did do does for from had has have he her his in into is it its of on or she so that the their them then they this to took takes was were will with would you your'.split(' '));
+const DANGEROUS_SPECIFICS = [/\bbleach\b[^.]*\b(ammonia|acid|vinegar|rubbing alcohol)\b/i, /\b(ammonia|acid|vinegar)\b[^.]*\bbleach\b/i, /\b(lethal|deadly|fatal)\s+(dose|amount)\b/i, /\b(pills?|tablets?)\b[^.]*\b(lethal|deadly|fatal|overdose|die|kill)\b/i, /\b(make|making|build|building)\b[^.]*\b(bomb|explosive|poison|nerve gas|toxic gas|meth)\b/i, /\b(chlorine|phosgene|mustard|toxic|poison)\s+gas\b[^.]*\b(mix|mixing|make|makes|made|release|releases|from)\b/i, /\b(mix|mixing)\b[^.]*\b(chlorine|phosgene|toxic|poison)\s+gas\b/i];
+const ABOUT_BEING_UNSAFE = /\b(kill (myself|yourself|himself|herself|themselves)|suicid\w*|self[- ]?harm|overdos\w*|hurt(ing)? myself|end(ing)? my life|want to die|how many pills|pills? (it would take|to die))\b/i;
+const TEX_WORDS = /\\(?:text|mathrm|textbf|mathbf|operatorname)\s*\{([^{}]*)\}/g;
+const TEX_COMMAND = /\\[a-zA-Z]+|[{}^_\\]/g;
+export const IS_OFF_TOPIC = 'it is off the topic';
+export const IS_DANGEROUS = 'it gives specifics of something dangerous';
+export const NAMES_A_PERSON = 'it names a person';
 const SHORTEST_TOPIC_WORD = 3;
 const WORD_STEM_LETTERS = 4;
 
@@ -21,11 +34,30 @@ const getWords = (text: string) => text.toLowerCase().split(/[^\p{L}\p{N}]+/u);
 // A lesson can name the person its own topic names, as "What Dürer hid in a magic square" names Albrecht Dürer.
 function hasNamePair(topic: string, text: string): boolean {
   const topicWords = new Set(getWords(topic));
-  return [...text.matchAll(NAME_PAIR)].some((found) => !LINE_OPENERS.has((found[1] as string).toLowerCase()) && !getWords(found[0]).some((word) => topicWords.has(word)));
+  return [...text.matchAll(NAME_PAIR)].some((found) => !LINE_OPENERS.has((found[1] as string).toLowerCase()) && ![found[1] as string, found[2] as string].some((word) => getWords(word).some((part) => topicWords.has(part))));
 }
 
+function hasListedName(topic: string, text: string): boolean {
+  const topicWords = new Set(getWords(topic));
+  return [...text.matchAll(LISTED_NAME_PAIR)].some((found) => {
+    const [first, second] = found[0].toLowerCase().split(/\s+/) as [string, string];
+    return !NOT_A_SURNAME.has(second) && !NOT_A_SURNAME.has(first) && !topicWords.has(first) && !topicWords.has(second);
+  });
+}
+
+const hasDangerousSpecifics = (text: string) => DANGEROUS_SPECIFICS.some((pattern) => pattern.test(text));
+
 function getSpokenProblems(topic: string, text: string): string[] {
-  return [...getWordProblems(text), ...(PHONE_NUMBER.test(text) ? ['it holds a long number that could be a phone number'] : []), ...(hasNamePair(topic, text) ? ['it names a person'] : [])];
+  return [...getWordProblems(text), ...(PHONE_NUMBER.test(text) ? ['it holds a long number that could be a phone number'] : []), ...(hasNamePair(topic, text) || hasListedName(topic, text) ? [NAMES_A_PERSON] : []), ...(hasDangerousSpecifics(text) ? [IS_DANGEROUS] : [])];
+}
+
+// What LaTeX sets as words is read as words, and each piece stays separate, so \\frac{\\text{Area}}{\\text{Base}} is not read as a person called Area Base.
+const getTexWords = (tex: string) => [...tex.matchAll(TEX_WORDS)].map((found) => found[1] as string);
+const getTexPlainText = (tex: string) => tex.replace(TEX_COMMAND, ' ').replace(/\s+/g, ' ').trim();
+
+function getTexProblems(topic: string, tex: string): string[] {
+  const asWords = getTexWords(tex).flatMap((words) => getSpokenProblems(topic, words));
+  return [...asWords, ...getWordProblems(tex), ...(hasListedName(topic, getTexPlainText(tex)) ? [NAMES_A_PERSON] : [])];
 }
 
 const getLineTexts = ({ say, note }: OpeningLine) => [say, ...(note ? [note] : [])];
@@ -40,13 +72,21 @@ function isOffTopic(topic: string, text: string): boolean {
   return stems.length > 0 && !stems.some((stem) => lowered.includes(stem));
 }
 
-export const getLineProblems = (topic: string, line: OpeningLine): string[] => getLineTexts(line).flatMap((text) => getSpokenProblems(topic, text));
+export const getLineProblems = (topic: string, line: OpeningLine): string[] => [...getLineTexts(line).flatMap((text) => getSpokenProblems(topic, text)), ...(line.tex ? getTexProblems(topic, line.tex) : [])];
+
+/** The words a writer starts from, checked before a dollar goes on them. The whole plan gets every check once it is whole. */
+export const getSceneWordProblems = (topic: string, { narration, plan }: SceneWords): string[] => [...getSpokenProblems(topic, readMarks(narration).text), ...getWordProblems(plan), ...(hasDangerousSpecifics(plan) ? [IS_DANGEROUS] : [])];
+
+/** Runs before any model hears the request, so a child in danger gets the help line and nobody spends on it. */
+export const isAboutBeingUnsafe = (request: string): boolean => ABOUT_BEING_UNSAFE.test(request);
 
 // A first screen only: the review asks the same questions with judgment. This one runs before a word is spoken, costs nothing, and cannot be talked out of it.
 export function getPlanProblems(topic: string, plan: LessonPlan): string[] {
   const spoken = getSpokenTexts(plan);
-  const problems = [...spoken.flatMap((text) => getSpokenProblems(topic, text)), ...getWordProblems(plan.plan)];
-  return [...new Set([...problems, ...(isOffTopic(topic, [...spoken, plan.plan].join(' ')) ? ['it is off the topic'] : [])])];
+  const texProblems = [...plan.opening, ...(plan.more ?? [])].flatMap(({ tex }) => (tex ? getTexProblems(topic, tex) : []));
+  const problems = [...spoken.flatMap((text) => getSpokenProblems(topic, text)), ...texProblems, ...getWordProblems(plan.plan), ...(hasDangerousSpecifics(plan.plan) ? [IS_DANGEROUS] : [])];
+  return [...new Set([...problems, ...(isOffTopic(topic, [...spoken, plan.plan].join(' ')) ? [IS_OFF_TOPIC] : [])])];
 }
 
-export const getCodeProblems = (code: string): string[] => getWordProblems(code);
+// A label in title case is ordinary in a drawing, so only a listed name counts here, and the review reads the rest.
+export const getCodeProblems = (code: string): string[] => [...getWordProblems(code), ...(hasListedName('', code) ? [NAMES_A_PERSON] : [])];

@@ -54,8 +54,8 @@ describe('a lesson asking for its scene', () => {
 
   it('hands over the first line as soon as the planner has it', async () => {
     const { work, plan } = setUp();
-    plan.mockImplementation(((_topic: string, _signal: AbortSignal, onFirstLine?: (line: { say: string }) => void) => {
-      onFirstLine?.({ say: 'Streamed first.' });
+    plan.mockImplementation(((_topic: string, _signal: AbortSignal, hooks?: { onFirstLine?(line: { say: string }): void }) => {
+      hooks?.onFirstLine?.({ say: 'Streamed first.' });
       return new Promise(() => {});
     }) as unknown as typeof plan);
     work.desk.ask(work.request);
@@ -104,7 +104,7 @@ describe('a lesson asking for its scene', () => {
   it('settles with no plan when the request needs no drawing', async () => {
     const { work, plan } = setUp({ engine: 'none', topic: '' });
     work.desk.ask(work.request);
-    expect(await work.plan).toBeNull();
+    expect(await work.plan).toBe('nothing');
     expect(plan).not.toHaveBeenCalled();
   });
 
@@ -118,7 +118,7 @@ describe('a lesson asking for its scene', () => {
     const { work, route } = setUp();
     route.mockRejectedValue(new Error('down'));
     work.desk.ask(work.request);
-    expect(await work.plan).toBeNull();
+    expect(await work.plan).toBe('nothing');
   });
 
   it('gets words with no scene for a browser that cannot show one', async () => {

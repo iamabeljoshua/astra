@@ -45,3 +45,43 @@ describe('the code check on what a scene draws', () => {
     expect(getCodeProblems(code).length).toBeGreaterThan(0);
   });
 });
+
+describe('the code check on names and board math', () => {
+  it.each([
+    ['tex with a name and an insult', { opening: [{ say: 'Here is a derivative.', tex: '\\text{Jordan Lee is a loser}' }] }],
+    ['tex with a name alone', { opening: [{ say: 'Here is a derivative.', tex: '\\text{Jordan Lee}' }] }],
+    ['a name after a word that opens a line', { opening: [{ say: 'Suppose Jane Doe takes a derivative.' }] }],
+    ['a name all in lowercase', { opening: [{ say: 'suppose jane doe takes a derivative.' }] }],
+    ['a surname-first lowercase name in a note', { opening: [{ say: 'Here is a derivative.', note: 'emma smith' }] }],
+  ] as [string, Partial<LessonPlan>][])('refuses %s', (_name, fields) => {
+    expect(getPlanProblems(TOPIC, { ...PLAN, ...fields })).toContain('it names a person');
+  });
+
+  it.each([
+    ['Suppose x equals three, and take the derivative.', 'x = 3'],
+    ['Suppose a derivative of two, then mark it.', 'f(x) = x^2'],
+    ['Say Newton watched the derivative.', '\\frac{\\text{Area}}{\\text{Base}}'],
+    ['Take the Mean Value of a derivative.', '\\text{slope} = \\frac{\\text{rise}}{\\text{run}}'],
+  ])('passes good math: %s', (say, tex) => {
+    expect(getPlanProblems(TOPIC, { ...PLAN, opening: [{ say, tex }], ...(say.includes('Mean Value') ? { opening: [{ say: 'Take the mean value of a derivative.', tex }] } : {}) })).toEqual([]);
+  });
+
+  it('refuses a listed name in a scene\'s strings, and passes a label in title case', () => {
+    expect(getCodeProblems("ui('Jane Doe', 28)")).toContain('it names a person');
+    expect(getCodeProblems("ui('Common Denominator', 28)")).toEqual([]);
+  });
+});
+
+describe('the code check on making something dangerous', () => {
+  it.each([
+    ['bleach with ammonia', { opening: [{ say: 'Bleach mixed with ammonia makes a toxic gas.' }] }],
+    ['bleach with acid in the plan', { plan: 'a: bleach and acid in a bucket\nb: gas' }],
+    ['a dose of pills', { narration: '[[a]] Twenty pills is a lethal dose. [[b]] For a derivative.' }],
+  ] as [string, Partial<LessonPlan>][])('refuses %s, even framed as safety', (_name, fields) => {
+    expect(getPlanProblems(TOPIC, { ...PLAN, ...fields })).toContain('it gives specifics of something dangerous');
+  });
+
+  it('passes ordinary chemistry and medicine', () => {
+    expect(getPlanProblems('why chemical equations balance', { ...PLAN, opening: [{ say: 'An acid and a base make salt and water in a balanced equation.' }], narration: '[[a]] Count the atoms. [[b]] Each side balances.', plan: 'a: an equation\nb: atoms', close: 'What balances the equation?' })).toEqual([]);
+  });
+});
