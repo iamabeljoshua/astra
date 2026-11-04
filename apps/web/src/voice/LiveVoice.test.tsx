@@ -9,7 +9,7 @@ import { useLiveVoice } from './useLiveVoice';
 
 vi.mock('../auth/session', () => import('../test/signedInSession'));
 
-const ROOM_ACCESS = { url: 'wss://room.test', roomName: 'session-a-session', token: 'room-token' };
+const ROOM_ACCESS = { url: 'wss://room.test', roomName: 'session-a-session', isTutorThere: false, token: 'room-token' };
 const OPEN_ROOM = { access: ROOM_ACCESS, unavailableBecause: null };
 
 // The real start asks for the room beside its audio setup, and refuses to go on with no access.

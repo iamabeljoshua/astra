@@ -20,8 +20,8 @@ export class LiveRoomAccessDto {
   /** The name of this session's room. */
   roomName!: string;
 
-  /** LiveKit's ID for that room. A browser that finds another ID has joined an empty room of the same name, and should ask again. */
-  roomSid!: string;
+  /** A tutor was in the room just now. A browser that joins and finds nobody got there after it closed, and should ask again. */
+  isTutorThere!: boolean;
 }
 
 export class LiveRoomResponseDto {

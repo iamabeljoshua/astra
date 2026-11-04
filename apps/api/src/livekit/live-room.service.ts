@@ -31,6 +31,6 @@ export class LiveRoomService {
       await this.liveRooms.close(session.id);
       throw problem;
     });
-    return { access: { url: keys.url, roomName: room.name, roomSid: room.sid, token: await makeStudentToken({ keys, roomName: room.name, studentId }) }, unavailableBecause: null };
+    return { access: { url: keys.url, roomName: room.name, isTutorThere: room.isTutorThere, token: await makeStudentToken({ keys, roomName: room.name, studentId }) }, unavailableBecause: null };
   }
 }

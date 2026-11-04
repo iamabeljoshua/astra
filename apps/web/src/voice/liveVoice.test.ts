@@ -8,7 +8,6 @@ const { FakeRoom, rooms, makeFakeAudioContext } = vi.hoisted(() => {
   class FakeRoom {
     state = 'disconnected';
     remoteParticipants = new Map<string, object>();
-    getSid = async () => '';
     handlers = new Map<string, (...args: unknown[]) => void>();
     localParticipant = {
       publishData: vi.fn<(payload: Uint8Array, options: object) => Promise<void>>(async () => {}),
@@ -68,7 +67,7 @@ vi.mock('./tutorAudio', () => ({
   OUTPUT_GAINS: { full: 1, lowered: 0.25, silent: 0 },
 }));
 
-const ROOM_ACCESS = { url: 'wss://room.test', roomName: 'session-a-session', token: 'room-token' };
+const ROOM_ACCESS = { url: 'wss://room.test', roomName: 'session-a-session', isTutorThere: false, token: 'room-token' };
 const DROPPED = 99;
 const QUIET_LONG_ENOUGH_TO_REJOIN_MS = 4000;
 

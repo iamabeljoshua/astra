@@ -3,20 +3,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LIVE_TOPIC, type RoomAccess, startLiveVoice } from './liveVoice';
 
 const TUTOR_WAIT_MS = 25_000;
-const ACCESS: RoomAccess = { url: 'wss://room', token: 'token', roomName: 'session-a-1', roomSid: 'RM_first' };
-const NEW_ACCESS: RoomAccess = { url: 'wss://room', token: 'token', roomName: 'session-a-2', roomSid: 'RM_second' };
+const ACCESS: RoomAccess = { url: 'wss://room', token: 'token', roomName: 'session-a-1', isTutorThere: false };
+const NEW_ACCESS: RoomAccess = { url: 'wss://room', token: 'token', roomName: 'session-a-2', isTutorThere: false };
+const ACCESS_WITH_TUTOR: RoomAccess = { ...ACCESS, isTutorThere: true };
 
 const fake = vi.hoisted(() => {
   class FakeRoom {
     state = 'disconnected';
-    sid = 'RM_first';
     readonly remoteParticipants = new Map<string, object>();
-    readonly getSid = vi.fn(async () => this.sid);
     readonly handlers = new Map<string, ((...args: unknown[]) => void)[]>();
     readonly localParticipant = { publishData: vi.fn(async () => {}), publishTrack: vi.fn(async () => {}), unpublishTrack: vi.fn(async () => {}) };
     readonly connect = vi.fn(async () => {
       this.state = 'connected';
-      this.sid = fake.nextSid;
       this.remoteParticipants.clear();
       for (const [id, participant] of fake.nextParticipants) this.remoteParticipants.set(id, participant);
     });
@@ -34,7 +32,7 @@ const fake = vi.hoisted(() => {
       this.handlers.get(event)?.forEach((handler) => handler(...args));
     }
   }
-  return { FakeRoom, rooms: [] as FakeRoom[], nextSid: 'RM_first', nextParticipants: [] as [string, object][] };
+  return { FakeRoom, rooms: [] as FakeRoom[], nextParticipants: [] as [string, object][] };
 });
 
 vi.mock('livekit-client', async (importOriginal) => ({ ...(await importOriginal<typeof import('livekit-client')>()), Room: fake.FakeRoom }));
@@ -65,7 +63,6 @@ const typedLines = (room: InstanceType<typeof fake.FakeRoom>) =>
 
 beforeEach(() => {
   fake.rooms.length = 0;
-  fake.nextSid = 'RM_first';
   fake.nextParticipants = [];
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'performance', 'Date'] });
 });
@@ -161,7 +158,6 @@ describe('a room that closes under the page', () => {
     const getAccess = vi.fn<() => Promise<RoomAccess | null>>().mockResolvedValueOnce(ACCESS).mockResolvedValue(NEW_ACCESS);
     const { voice, room, hear } = await open({ getAccess });
     hear({ type: 'pulse' });
-    fake.nextSid = 'RM_second';
     room.state = 'disconnected';
     room.emit(RoomEvent.Disconnected, DisconnectReason.ROOM_DELETED);
     await vi.advanceTimersByTimeAsync(10);
@@ -188,7 +184,6 @@ describe('a room that closes under the page', () => {
     tutorTrackArrives();
     hear({ type: 'pulse' });
     voice.sendTyped('Why does it fall?');
-    fake.nextSid = 'RM_second';
     room.state = 'disconnected';
     room.emit(RoomEvent.Disconnected, DisconnectReason.ROOM_DELETED);
     await vi.advanceTimersByTimeAsync(10);
@@ -206,7 +201,6 @@ describe('a room that closes under the page', () => {
     hear({ type: 'pulse' });
     voice.sendTyped('Why does it fall?');
     hear({ type: 'heard' });
-    fake.nextSid = 'RM_second';
     room.state = 'disconnected';
     room.emit(RoomEvent.Disconnected, DisconnectReason.ROOM_DELETED);
     await vi.advanceTimersByTimeAsync(10);
@@ -218,28 +212,25 @@ describe('a room that closes under the page', () => {
   });
 });
 
-describe('a room LiveKit built again from the token, just after a job deleted the old one', () => {
+describe('a room whose job closed just after the API saw it', () => {
   it('asks again at once, and does not sit out the wait for a tutor who is not coming', async () => {
-    fake.nextSid = 'RM_rebuilt';
-    const getAccess = vi.fn<() => Promise<RoomAccess | null>>().mockResolvedValueOnce(ACCESS).mockResolvedValue(NEW_ACCESS);
+    const getAccess = vi.fn<() => Promise<RoomAccess | null>>().mockResolvedValueOnce(ACCESS_WITH_TUTOR).mockResolvedValue(NEW_ACCESS);
     const { voice } = await open({ getAccess });
-    fake.nextSid = 'RM_second';
     await vi.advanceTimersByTimeAsync(10);
     expect(getAccess).toHaveBeenCalledTimes(2);
     await voice.close();
   });
 
-  it('leaves a room with a tutor in it alone, whatever its id', async () => {
-    fake.nextSid = 'RM_rebuilt';
+  it('leaves a room with a job in it alone', async () => {
     fake.nextParticipants = [['agent', {}]];
-    const getAccess = vi.fn(async () => ACCESS as RoomAccess | null);
+    const getAccess = vi.fn(async () => ACCESS_WITH_TUTOR as RoomAccess | null);
     const { voice } = await open({ getAccess });
     await vi.advanceTimersByTimeAsync(10);
     expect(getAccess).toHaveBeenCalledTimes(1);
     await voice.close();
   });
 
-  it('leaves the room it asked for alone', async () => {
+  it('leaves a new room alone while its job is on the way', async () => {
     const getAccess = vi.fn(async () => ACCESS as RoomAccess | null);
     const { voice } = await open({ getAccess });
     await vi.advanceTimersByTimeAsync(10);
@@ -248,8 +239,7 @@ describe('a room LiveKit built again from the token, just after a job deleted th
   });
 
   it('stops asking after a few tries, and leaves it to the wait for a tutor', async () => {
-    fake.nextSid = 'RM_rebuilt';
-    const getAccess = vi.fn(async () => ACCESS as RoomAccess | null);
+    const getAccess = vi.fn(async () => ACCESS_WITH_TUTOR as RoomAccess | null);
     const { voice } = await open({ getAccess });
     await vi.advanceTimersByTimeAsync(10_000);
     expect(getAccess.mock.calls.length).toBeLessThanOrEqual(4);

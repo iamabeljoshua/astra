@@ -11,7 +11,7 @@ const LIVE_ROOM_KEYS = { LIVEKIT_URL: 'wss://astra-test.livekit.cloud', LIVEKIT_
 const VALID_SESSION = { title: 'Free-body diagrams', subject: 'Physics', language: 'en' };
 
 function getAccess(answer: unknown) {
-  return (answer as { access: { url: string; token: string; roomName: string; roomSid: string } }).access;
+  return (answer as { access: { url: string; token: string; roomName: string; isTutorThere: boolean } }).access;
 }
 
 interface RoomCall {
@@ -25,6 +25,7 @@ function stubLiveKit() {
   const calls: RoomCall[] = [];
   const rooms = new Map<string, { sid: string; name: string }>();
   const stub = {
+    roomsWithNoTutor: new Set<string>(),
     isDown: false,
     calls,
     rooms,
@@ -41,7 +42,8 @@ function stubLiveKit() {
     if (method === 'CreateRoom') rooms.set(String(body.name), { sid: `RM_${rooms.size}`, name: String(body.name) });
     if (method === 'DeleteRoom') rooms.delete(String(body.room));
     const listed = [...rooms.values()].filter((room) => !body.names?.length || body.names.includes(room.name));
-    const answers: Record<string, object> = { CreateRoom: rooms.get(String(body.name)) ?? {}, ListRooms: { rooms: listed }, DeleteRoom: {} };
+    const hasTutor = rooms.has(String(body.room)) && !stub.roomsWithNoTutor.has(String(body.room));
+    const answers: Record<string, object> = { CreateRoom: rooms.get(String(body.name)) ?? {}, ListRooms: { rooms: listed }, DeleteRoom: {}, ListParticipants: { participants: hasTutor ? [{ identity: 'agent-1' }, { identity: 'student-1' }] : [{ identity: 'student-1' }] } };
     return new Response(JSON.stringify(answers[method] ?? {}), { status: 200, headers: { 'content-type': 'application/json' } });
   });
   return stub;
@@ -188,25 +190,41 @@ describe('the live room route', () => {
     expect(liveKit.calls).toHaveLength(callsBefore);
   });
 
-  it('calls a new tutor when LiveKit built the room again from a token, because no tutor is coming to that one', async () => {
+  describe('a room that has been open a while', () => {
+    const openPastTheTutorsWait = async () => {
+      const rooms = testApp.app.get(LiveRooms);
+      const keys = getLiveRoomKeys(process.env);
+      if (!keys) throw new Error('the keys are set in beforeAll');
+      const [sessionId, studentId] = [randomUUID(), randomUUID()];
+      const first = await rooms.open(keys, sessionId, studentId);
+      const openedAtMs = Date.now();
+      jest.spyOn(Date, 'now').mockReturnValue(openedAtMs + 16_000);
+      return { first, reopen: () => rooms.open(keys, sessionId, studentId) };
+    };
+
+    afterEach(() => jest.spyOn(Date, 'now').mockRestore());
+
+    it('says the tutor is there when a job is in it, and gives the same room', async () => {
+      const { first, reopen } = await openPastTheTutorsWait();
+      expect(first.isTutorThere).toBe(false);
+      expect(await reopen()).toEqual({ name: first.name, isTutorThere: true });
+    });
+
+    it('calls a new tutor when only a student is in it, because LiveKit answers for a deleted room and a token can build it again', async () => {
+      const { first, reopen } = await openPastTheTutorsWait();
+      liveKit.roomsWithNoTutor.add(first.name);
+      expect((await reopen()).name).not.toBe(first.name);
+    });
+  });
+
+  it('leaves a new room to its job, so a quick reload does not start a second one', async () => {
     const rooms = testApp.app.get(LiveRooms);
     const keys = getLiveRoomKeys(process.env);
     if (!keys) throw new Error('the keys are set in beforeAll');
     const [sessionId, studentId] = [randomUUID(), randomUUID()];
     const first = await rooms.open(keys, sessionId, studentId);
-    expect(first.sid).toMatch(/^RM_/);
+    liveKit.roomsWithNoTutor.add(first.name);
     expect(await rooms.open(keys, sessionId, studentId)).toEqual(first);
-    liveKit.rooms.set(first.name, { sid: 'RM_rebuilt', name: first.name });
-    expect((await rooms.open(keys, sessionId, studentId)).name).not.toBe(first.name);
-  });
-
-  it('checks the room is still open after the first join, and calls a new tutor if it has gone', async () => {
-    const sessionId = await startSession();
-    const { body: first } = await post(`/sessions/${sessionId}/live-room`).expect(200);
-    liveKit.rooms.delete(getAccess(first).roomName);
-    const { body: second } = await post(`/sessions/${sessionId}/live-room`).expect(200);
-    expect(getAccess(second).roomName).not.toBe(getAccess(first).roomName);
-    expect(liveKit.named('CreateRoom')).toHaveLength(2);
   });
 
   it('closes a warmed room when the session finishes before anyone joins', async () => {
@@ -356,7 +374,7 @@ describe('the live room route', () => {
     for (let session = 0; session < MOST_KNOWN_ROOMS; session += 1) rooms.warm(randomUUID(), randomUUID());
     await waitUntil(() => liveKit.named('CreateRoom').length > MOST_KNOWN_ROOMS);
     liveKit.calls.length = 0;
-    expect(await rooms.open(keys, oldest, randomUUID())).toEqual(room);
+    expect((await rooms.open(keys, oldest, randomUUID())).name).toBe(room.name);
     expect(liveKit.named('ListRooms')).toEqual([{ method: 'ListRooms', body: {} }]);
   });
 
@@ -372,7 +390,7 @@ describe('the live room route', () => {
     const sessionId = await startSession();
     const { body, text } = await post(`/sessions/${sessionId}/live-room`).expect(200);
     expect(body).toMatchObject({ unavailableBecause: null });
-    expect(Object.keys(getAccess(body)).sort()).toEqual(['roomName', 'roomSid', 'token', 'url']);
+    expect(Object.keys(getAccess(body)).sort()).toEqual(['isTutorThere', 'roomName', 'token', 'url']);
     expect(text).not.toContain(LIVE_ROOM_KEYS.LIVEKIT_API_SECRET);
     expect(JSON.stringify(decodeJwt(getAccess(body).token))).not.toContain(LIVE_ROOM_KEYS.LIVEKIT_API_SECRET);
   });

@@ -138,7 +138,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
   let rejoinsSincePulse = 0;
   let hasSaidHello = false;
   let roomName: string | null = null;
-  let askedRoomSid = '';
+  let wasTutorThere = false;
   /** A line the tutor has not said it heard. If its room closes first, the next tutor gets it, or the student would wait on a tutor who never saw it. */
   let lineAwaitingTutor: string | null = null;
   let connectedAtEpochMs = getEpochMs();
@@ -321,20 +321,13 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     if (hasHeardTutor && isNewRoom) setView({ startedFresh: true, isThinking: false });
     if (isNewRoom && lineAwaitingTutor !== null && !outbox.some((message) => message.type === 'typed')) outbox.push({ type: 'typed', ...getStamp(), text: lineAwaitingTutor });
     roomName = access.roomName;
-    askedRoomSid = access.roomSid;
+    wasTutorThere = access.isTutorThere;
     return true;
   };
 
-  // A job's delete can land just after the API said its room was open. Joining then makes LiveKit build an empty room of that name, so this asks again rather than waiting on a tutor who is not coming.
-  const rejoinIfRoomWasRebuilt = () => {
-    const asked = askedRoomSid;
-    room
-      .getSid()
-      .then((sid) => {
-        const isRebuilt = sid !== '' && sid !== asked && asked === askedRoomSid && room.remoteParticipants.size === 0;
-        if (isRebuilt && rejoinsSincePulse < MOST_REJOINS_WITHOUT_TUTOR) void rejoin();
-      })
-      .catch(() => {});
+  // The job can close just after the API saw it, and LiveKit lets this page into the room it left. Asking again calls a new tutor, rather than waiting on one who is not coming.
+  const rejoinIfTutorHasGone = () => {
+    if (wasTutorThere && room.remoteParticipants.size === 0 && rejoinsSincePulse < MOST_REJOINS_WITHOUT_TUTOR) void rejoin();
   };
 
   const showReconnecting = () => {
@@ -399,7 +392,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
           if (published) await publishMic(published);
         }
         isRejoining = false;
-        rejoinIfRoomWasRebuilt();
+        rejoinIfTutorHasGone();
         return;
       } catch {
         await room.disconnect(false).catch(() => {});
@@ -451,7 +444,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     await audioContext.close();
     throw problem;
   }
-  rejoinIfRoomWasRebuilt();
+  rejoinIfTutorHasGone();
   const ticker = setInterval(() => {
     player.tick();
     readCaption();
