@@ -44,6 +44,10 @@ Ahead-of-time writes go through the same caps as any scene, so they count agains
 - **A student's turn.** Any student line ends what was waiting to land, because what they just said may change everything.
 - **A skip.** "Skip that", "can we skip this", or "let's move on" moves the step on at once, ahead of any plan, and code puts up no picture in its place. The tutor can still ask for the next one by name on a later turn. "How do you skip count by fives" moves nothing.
 - **Its moment passing.** When the lesson moves to another step, whatever was waiting to land goes, with no word said, so a late scene never interrupts a later concept. Past about 20 s from the first pause it goes too, and 35 s from the ask at the latest, which is the plug-in's own bound. A scene being written when its moment passes goes on and is saved, and no other write starts until it ends. One the lesson went past before it was due stops.
+- **A closed tutor.** A reply that closes the tutor stops the queue for good, and any write ahead with it. A scene's next model call also refuses once the tutor is closed.
+- **End.** An End press ends all of it before the recap. Nothing lands from then on, and the session is never at a pause again.
+- **A flag.** The list of saved titles leaves out a flagged scene and is read again for each plan. A scene flagged while it waits ready does not land and takes no first frame.
+- **The limits.** A shared scene counts when it would land, whoever asked for it, so one readied before a student's last play does not play past it. A student's own scene still plays. A next scene counts toward the 6 asks when it is asked for, and past 6 nothing is readied, because it could never land.
 - **A page that cannot play one.** Nothing is prepared, and nothing is written.
 - **No running lesson.** No plan means no queue. Nothing is prepared before a student arrives, and that is on purpose: no worker prepares scenes per student ahead of them. That is post-MVP.
 
@@ -79,6 +83,16 @@ Nothing the queue does sits on a turn's path: it only reads a regular expression
 | A switch to another topic with a write running | The write stopped about 2 s later, and the new lesson read its own library. That run was before the last change to what a switch ends |
 | A reload with a scene on screen and the next one ready | The scene came back and filled the board. The next take was fetched again, 35.9 s before its cue, and it landed |
 
+| A crisis with the next scene ready, after the recap and the plug-in landed | The tutor's crisis words, the queue stopped, and no scene in the 40 s watched after it |
+| End with the next scene ready, at the same head | The recap showed, and no new scene played in the 40 s watched after it. The scene already seen stayed in the corner |
+
+| First text at the same head, load 13 to 25 | p50 | Slowest | Turns |
+| --- | --- | --- | --- |
+| Off, `ASTRA_SCENES_AHEAD=0` | 1760 ms | 1970 ms | 5 |
+| On | 2135 ms | 3514 ms | 8 |
+
+That is too few turns on too loaded a machine to call equal or to call a cost. The turns on include replies after a scene, which carry a longer note, and the turns off do not, which may be part of the gap. That is an inference. The earlier table found no clear cost on 27 to 35 turns a set.
+
 Pictures: `next-scene-proof --out` saves `scene-N-landed.png`, `after-skip.png`, and `after-reload.png`.
 
 
@@ -92,7 +106,7 @@ pnpm --filter @astra/agent next-scene-proof --web <your stack> --out <folder> --
 pnpm --filter @astra/agent eval:library-match
 ```
 
-`ASTRA_SCENES_AHEAD=0` turns the queue off, so a session asks for what it asks for and nothing more. The proof takes `--event skip@1`, `reload@1`, or `switch@1:<words>`, and saves each landing as a picture.
+`ASTRA_SCENES_AHEAD=0` turns the queue off, so a session asks for what it asks for and nothing more. The proof takes `--event skip@1`, `reload@1`, `switch@1:<words>`, `crisisWhenReady`, or `endWhenReady`, and saves each landing as a picture.
 
 ## What this does not prove
 
