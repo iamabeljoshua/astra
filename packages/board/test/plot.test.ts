@@ -313,6 +313,18 @@ describe('past the budget', () => {
     });
   }
 
+  for (const a of [72, 100, 150, 200, 500]) {
+    for (const [name, expression, yRange, jump] of [['a slope', `x+abs(sin(${a}*x))/sin(${a}*x)`, [-15, 15], 2], ['a gentle slope', `x/5+0.2*abs(sin(${a}*x))/sin(${a}*x)`, [-3, 3], 0.4], ['a curve', `x*x/10+abs(sin(${a}*x))/sin(${a}*x)`, [-2, 12], 2], ['a wave', `sin(x)+0.5*abs(sin(${a}*x))/sin(${a}*x)`, [-1.5, 1.5], 1]] as const) {
+      it(`draws a square wave on ${name} at a = ${a} with no line up a jump`, () => {
+        const { branches, isTooFine } = drawCurve(expression, [-10, 10], yRange);
+        const tallEnough = jump * 0.8;
+        const tallSteps = branches.flatMap((branch) => branch.slice(1).filter((point, index) => Math.abs(point.y - (branch[index] as Point).y) >= tallEnough));
+        expect(tallSteps).toEqual([]);
+        expect(isTooFine).toBe(true);
+      });
+    }
+  }
+
   it('says when it could not finish, and draws only what it proved', () => {
     expect(drawCurve('abs(sin(100*x))/sin(100*x)', [-10, 10], [-1, 1]).isTooFine).toBe(true);
     expect(drawCurve('1/sin(100*x)', [-10, 10], [-8, 8]).isTooFine).toBe(true);

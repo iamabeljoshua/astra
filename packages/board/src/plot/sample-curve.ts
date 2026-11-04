@@ -20,6 +20,9 @@ const BASE_UNEVENNESS = 0.25;
 const UNSEEN_SHARE_OF_VIEW = 1 / 32;
 /** Enough samples that a wave's heights all show, at any speed past the budget, and few enough to stay near the step. */
 const SAMPLES_SEEN_TOGETHER = 1024;
+/** The tallest steps near a step, and how many of them must have shrunk when halved for those steps to be a wave. A jump found late never shrank. */
+const TALLEST_STEPS_SHARE = 1 / 2;
+const WAVE_SHRUNK_SHARE = 1 / 32;
 /** Up and down steps both this tall mean about 6 samples or fewer for each wave, so this is a band and no longer a wave. */
 const ZIGZAG_SHARE_OF_VIEW = 1 / 4;
 /** A few zigzags are a grid meeting a wave at an unlucky phase. This many are the whole curve. */
@@ -37,8 +40,8 @@ export interface CurveDrawing {
   isTooFine: boolean;
 }
 
-/** A continuous curve shrinks when halved and a jump or a pole does not, so `stuckHalvings` counts how many halvings in a row left the step ending here as tall as it was. */
-type Sample = Point & { stuckHalvings: number };
+/** A continuous curve shrinks when halved and a jump or a pole does not, so `stuckHalvings` counts how many halvings in a row left the step ending here as tall as it was, and `didShrink` says its last halving made it shorter, which a jump found late never shows. */
+type Sample = Point & { stuckHalvings: number; didShrink: boolean };
 
 const isAbove = (point: Point, yRange: AxisRange) => point.y > yRange[1];
 const isBelow = (point: Point, yRange: AxisRange) => point.y < yRange[0];
@@ -61,15 +64,32 @@ function isLeftUnsure(first: Sample, second: Sample, yRange: AxisRange): boolean
 
 type Height = readonly [low: number, high: number];
 
+interface NearbySamples {
+  unseen: readonly Height[];
+  tallestStep: number;
+  isWave: boolean;
+}
+
 function getUnseenHeights(samples: readonly Sample[], [viewLow, viewHigh]: AxisRange): Height[] {
   const heights = samples.filter(isReal).map(({ y }) => Math.min(viewHigh, Math.max(viewLow, y))).sort((first, second) => first - second);
   const tallestUnseen = (viewHigh - viewLow) * UNSEEN_SHARE_OF_VIEW;
   return heights.flatMap((height, index): Height[] => (index > 0 && height - (heights[index - 1] as number) > tallestUnseen ? [[heights[index - 1] as number, height]] : []));
 }
 
-function crossesUnseenHeight(first: Sample, second: Sample, unseen: readonly Height[]): boolean {
+const getHeightInView = (first: Point, second: Point, [low, high]: AxisRange) => Math.abs(Math.min(high, Math.max(low, second.y)) - Math.min(high, Math.max(low, first.y)));
+
+function getNearbySamples(samples: readonly Sample[], yRange: AxisRange): NearbySamples {
+  const steps = samples.slice(1).map((second, index) => ({ second, height: isOnTheLine(samples[index] as Sample, second, yRange) ? getHeightInView(samples[index] as Sample, second, yRange) : 0 }));
+  const tallestStep = Math.max(0, ...steps.map(({ height }) => height));
+  const tallest = steps.filter(({ height }) => height > tallestStep * TALLEST_STEPS_SHARE);
+  const shrunk = tallest.filter(({ second }) => second.didShrink).length;
+  return { unseen: getUnseenHeights(samples, yRange), tallestStep, isWave: shrunk >= tallest.length * WAVE_SHRUNK_SHARE };
+}
+
+function isUnproven(first: Sample, second: Sample, { unseen, tallestStep, isWave }: NearbySamples, yRange: AxisRange): boolean {
   const [low, high] = [Math.min(first.y, second.y), Math.max(first.y, second.y)];
-  return unseen.some(([from, to]) => low <= from && high >= to);
+  if (unseen.some(([from, to]) => low <= from && high >= to)) return true;
+  return !isWave && !second.didShrink && getHeightInView(first, second, yRange) > tallestStep * TALLEST_STEPS_SHARE;
 }
 
 function isZigzag(before: Sample, at: Sample, after: Sample, yRange: AxisRange): boolean {
@@ -116,7 +136,7 @@ function getUnevenBasePlace(index: number): number {
 function getBaseSamples({ evaluate, domain: [low, high] }: CurveRequest): Sample[] {
   return Array.from({ length: CURVE_LIMITS.baseIntervals + 1 }, (_, index) => {
     const x = low + (high - low) * getUnevenBasePlace(index);
-    return { x, y: evaluate(x), stuckHalvings: 0 };
+    return { x, y: evaluate(x), stuckHalvings: 0, didShrink: false };
   });
 }
 
@@ -128,7 +148,8 @@ function halve(first: Sample, second: Sample, { evaluate, yRange }: CurveRequest
   const before = Math.abs(y - first.y);
   const after = Math.abs(second.y - y);
   const stuck = whole > bendLimit && Math.max(before, after) >= whole * TALLER_HALF_STUCK_SHARE ? second.stuckHalvings + 1 : 0;
-  return [{ x, y, stuckHalvings: before >= after ? stuck : 0 }, { ...second, stuckHalvings: after > before ? stuck : 0 }];
+  const stillTall = whole * TALLER_HALF_STUCK_SHARE;
+  return [{ x, y, stuckHalvings: before >= after ? stuck : 0, didShrink: before < stillTall }, { ...second, stuckHalvings: after > before ? stuck : 0, didShrink: after < stillTall }];
 }
 
 function addDetail(samples: readonly Sample[], steps: ReadonlySet<number>, request: CurveRequest): Sample[] {
@@ -172,7 +193,7 @@ export function sampleCurve(request: CurveRequest): CurveDrawing {
   const { samples, isUnfinished } = getRefinedSamples(request);
   const branches: Point[][] = [];
   let current: Point[] = [];
-  let unseen: readonly Height[] = [];
+  let nearby: NearbySamples = { unseen: [], tallestStep: 0, isWave: true };
   let isTooFine = false;
   let zigzags = 0;
   const closeBranch = () => {
@@ -182,12 +203,12 @@ export function sampleCurve(request: CurveRequest): CurveDrawing {
   for (let index = 1; index < samples.length; index += 1) {
     const first = samples[index - 1] as Sample;
     const second = samples[index] as Sample;
-    if (isUnfinished && (index - 1) % SAMPLES_SEEN_TOGETHER === 0) unseen = getUnseenHeights(samples.slice(index - 1, index + SAMPLES_SEEN_TOGETHER), yRange);
+    if (isUnfinished && (index - 1) % SAMPLES_SEEN_TOGETHER === 0) nearby = getNearbySamples(samples.slice(index - 1, index + SAMPLES_SEEN_TOGETHER), yRange);
     if (!isOnTheLine(first, second, yRange)) {
       closeBranch();
       continue;
     }
-    if (isLeftUnsure(first, second, yRange) || (isUnfinished && crossesUnseenHeight(first, second, unseen))) {
+    if (isLeftUnsure(first, second, yRange) || (isUnfinished && isUnproven(first, second, nearby, yRange))) {
       if (second.stuckHalvings < HALVINGS_TO_SUSPECT_A_BREAK) isTooFine = true;
       closeBranch();
       continue;
