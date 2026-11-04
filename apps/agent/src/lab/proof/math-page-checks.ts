@@ -303,6 +303,17 @@ export async function countDifferentPixels([first, second, threshold]: [string, 
   return different;
 }
 
+/** The most that any one channel of any pixel differs, of 255. */
+export async function getLargestChannelDifference([first, second]: [string, string]): Promise<number> {
+  const [one, two] = await Promise.all([loadPixels(first), loadPixels(second)]);
+  if (one.width !== two.width || one.height !== two.height) return Number.POSITIVE_INFINITY;
+  let largest = 0;
+  for (let index = 0; index < one.data.length; index += 1) {
+    if (index % 4 !== 3) largest = Math.max(largest, Math.abs((one.data[index] as number) - (two.data[index] as number)));
+  }
+  return largest;
+}
+
 const COLOR_PROPERTIES = ['color', 'fill', 'stroke', 'backgroundColor', 'borderTopColor', 'borderBottomColor', 'borderLeftColor', 'borderRightColor'] as const;
 
 /** Every color the board really paints with, and any gradient, compared with the theme's tokens. */

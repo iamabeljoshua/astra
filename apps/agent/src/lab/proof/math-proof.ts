@@ -8,6 +8,7 @@ import { type Browser, chromium } from 'playwright';
 import { type LessonName, LESSONS } from '../lesson.ts';
 import { BOARD_SELECTOR, checkReplayPixels, checkStillness, getCommandTimes, HIDE_DEV_BUTTON, holdFrame, type LabPage, openLabPage, shoot, type Theme, type ViewportName, VIEWPORTS } from './lab-page.ts';
 import { delay, REPO_ROOT, startLabStack } from './lab-stack.ts';
+import { exitWithVerdict, getProofFailures } from './proof-verdict.ts';
 import type { FrameWatch } from './math-page-checks.ts';
 
 const { values: args } = parseArgs({
@@ -438,14 +439,16 @@ const PROOFS = {
 mkdirSync(args.out as string, { recursive: true });
 const stack = await startLabStack();
 const browser = await chromium.launch({ channel: 'chromium', args: ['--autoplay-policy=no-user-gesture-required', '--use-mock-keychain', '--mute-audio'] });
+const failures: string[] = [];
 try {
   for (const name of (args.only ?? Object.keys(PROOFS).join(',')).split(',')) {
     const results = await PROOFS[name as keyof typeof PROOFS](browser);
     writeFileSync(join(args.out as string, `${name}.json`), `${JSON.stringify(results, null, 1)}\n`);
+    failures.push(...getProofFailures(name, results));
     console.log(name, JSON.stringify(results).slice(0, 4000));
   }
 } finally {
   await browser.close();
   stack.stop();
 }
-process.exit(0);
+exitWithVerdict(failures);

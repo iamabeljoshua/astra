@@ -106,7 +106,17 @@ export async function getCommandTimes(lab: LabPage): Promise<number[]> {
   return lab.page.evaluate(() => window.sceneLab?.player.getOperations().filter((operation) => operation.kind === 'command').map((operation) => operation.atMs) ?? []);
 }
 
-export async function checkReplayPixels(lab: LabPage): Promise<{ moments: number; differing: number[]; settledOnSecondLook: number; describedDifferently: number }> {
+export interface ReplayPixels {
+  moments: number;
+  differing: number[];
+  settledOnSecondLook: number;
+  describedDifferently: number;
+}
+
+/** A browser's rasterizer moves a line's antialiasing by a level or two between identical paints. Anything larger is a real difference, on any look. */
+const LARGEST_SETTLING_LEVELS = 2;
+
+export async function checkReplayPixels(lab: LabPage): Promise<ReplayPixels> {
   const times = await getCommandTimes(lab);
   const { shiftMs, firstLive } = await lab.page.evaluate(() => {
     const operations = window.sceneLab?.player.getOperations() ?? [];
@@ -127,11 +137,14 @@ export async function checkReplayPixels(lab: LabPage): Promise<{ moments: number
   for (const atMs of moments) {
     const { live, replay } = await shootBoth(atMs);
     if (!live.equals(replay)) {
-      const pixels = await lab.page.evaluate((pair) => window.pageChecks.countDifferentPixels(pair), [live.toString('base64'), replay.toString('base64'), 0] as [string, string, number]);
+      const pair: [string, string] = [live.toString('base64'), replay.toString('base64')];
+      const pixels = await lab.page.evaluate(([first, second]) => window.pageChecks.countDifferentPixels([first, second, 0]), pair);
+      const levels = await lab.page.evaluate((images) => window.pageChecks.getLargestChannelDifference(images), pair);
       const again = await shootBoth(atMs);
-      if (again.live.equals(again.replay)) settledOnSecondLook += 1;
+      const isSettled = again.live.equals(again.replay) && levels <= LARGEST_SETTLING_LEVELS;
+      if (isSettled) settledOnSecondLook += 1;
       else differing.push(Math.round(atMs));
-      console.log(`${lab.folder} differs from its replay at ${Math.round(atMs)}: ${pixels} pixels, ${again.live.equals(again.replay) ? 'and not on a second look' : 'and again on a second look'}`);
+      console.log(`${lab.folder} differs from its replay at ${Math.round(atMs)}: ${pixels} pixels by up to ${levels} levels, ${isSettled ? 'settled on a second look' : 'a real difference'}`);
     }
     const isSame = await lab.page.evaluate(([liveMs, replayMs]) => JSON.stringify(window.sceneLab?.describeLive(liveMs as number)) === JSON.stringify(window.sceneLab?.describeReplay(replayMs as number)), [atMs, atMs + shiftMs]);
     if (!isSame) describedDifferently += 1;
@@ -139,6 +152,9 @@ export async function checkReplayPixels(lab: LabPage): Promise<{ moments: number
   await holdFrame(lab, null);
   return { moments: moments.length, differing, settledOnSecondLook, describedDifferently };
 }
+
+/** What every proof writes about a replay. */
+export const getReplaySummary = ({ moments, differing, settledOnSecondLook, describedDifferently }: ReplayPixels) => ({ moments, differing: differing.length, settledOnSecondLook, described: describedDifferently });
 
 export async function checkStillness(lab: LabPage): Promise<{ writes: number; animations: number; imagesMatch: boolean }> {
   await delay(600);

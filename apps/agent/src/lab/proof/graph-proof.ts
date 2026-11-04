@@ -4,8 +4,9 @@ import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { type Browser, chromium } from 'playwright';
 import { type LessonName, LESSONS } from '../lesson.ts';
-import { BOARD_SELECTOR, checkReplayPixels, checkStillness, HIDE_DEV_BUTTON, holdFrame, type LabPage, openLabPage, shoot, type Theme, type ViewportName, VIEWPORTS } from './lab-page.ts';
+import { BOARD_SELECTOR, checkReplayPixels, checkStillness, getReplaySummary, HIDE_DEV_BUTTON, holdFrame, type LabPage, openLabPage, shoot, type Theme, type ViewportName, VIEWPORTS } from './lab-page.ts';
 import { delay, REPO_ROOT, startLabStack } from './lab-stack.ts';
+import { exitWithVerdict, getProofFailures } from './proof-verdict.ts';
 
 const { values: args } = parseArgs({ options: { out: { type: 'string', default: '/tmp/m3-4-proof' }, only: { type: 'string' }, stored: { type: 'string' } } });
 
@@ -65,7 +66,7 @@ async function proveLesson(browser: Browser, run: LessonRun) {
   const refused = await lab.page.evaluate(() => window.sceneLab?.records.refused ?? []);
   const pwned = await lab.page.evaluate(() => 'pwned' in window);
   await lab.finish();
-  return { label: getLabel(run), ...watched, still, replay: { ...replay, differing: replay.differing.length }, colors, refused, pwned };
+  return { label: getLabel(run), ...watched, still, replay: getReplaySummary(replay), colors, refused, pwned };
 }
 
 async function dragSliderTo(lab: LabPage, { from, to, min, max }: { from: number; to: number; min: number; max: number }): Promise<void> {
@@ -185,7 +186,7 @@ async function proveFreeze(browser: Browser, run: LessonRun) {
   const resumed = await lab.page.evaluate(() => window.pageChecks.getBallMetres());
   const replay = await checkReplayPixels(lab);
   await lab.finish();
-  return { label: getLabel(run), frozen, identical: first.equals(later), ...writes, cut: report?.frozen ?? null, resumed, replay: { moments: replay.moments, differing: replay.differing.length, described: replay.describedDifferently } };
+  return { label: getLabel(run), frozen, identical: first.equals(later), ...writes, cut: report?.frozen ?? null, resumed, replay: getReplaySummary(replay) };
 }
 
 const REFUSED_COMMANDS: { name: string; command: unknown }[] = [
@@ -228,7 +229,7 @@ async function proveHostile(browser: Browser, run: LessonRun) {
   const summary = await lab.page.evaluate(() => ({ pwned: 'pwned' in window, scripts: document.querySelector('[data-testid="board"] script, [data-testid="board"] img') !== null, stillDrawing: document.querySelector('[data-mark^="point-"]') !== null }));
   const replay = await checkReplayPixels(lab);
   await lab.finish();
-  return { label: getLabel(run), sent: REFUSED_COMMANDS.length, refused: refused.length, frames, figures, summary, replay: { moments: replay.moments, differing: replay.differing.length } };
+  return { label: getLabel(run), sent: REFUSED_COMMANDS.length, refused: refused.length, frames, figures, summary, replay: getReplaySummary(replay) };
 }
 
 async function proveResize(browser: Browser, run: LessonRun) {
@@ -288,7 +289,7 @@ async function proveLateWords(browser: Browser, run: LessonRun) {
   const landing = await lab.page.evaluate(() => window.pageChecks.getLandingErrors());
   const replay = await checkReplayPixels(lab);
   await lab.finish();
-  return { label: getLabel(run), figures: { ...figures, ballPlaces: figures.ballPlaces.length }, landing, replay: { moments: replay.moments, differing: replay.differing.length, described: replay.describedDifferently } };
+  return { label: getLabel(run), figures: { ...figures, ballPlaces: figures.ballPlaces.length }, landing, replay: getReplaySummary(replay) };
 }
 
 const readCurve = (lab: LabPage) =>
@@ -359,13 +360,13 @@ async function proveReuse(browser: Browser, run: LessonRun) {
   await lab.command({ type: 'play', lesson: 'figure-reuse', lessonTurn: 2 });
   await lab.waitForPlayedBeats(3, 60_000);
   await delay(1100);
-  const lostItsConstant = await readSlider(lab);
+  const afterItsCurveWasReplaced = await readSlider(lab);
   await shoot(lab, 'reuse-2');
   await lab.page.evaluate(() => (window.sceneLab as unknown as LabLog).player.finishSliderDrag());
   await delay(300);
   const replay = await checkReplayPixels(lab);
   await lab.finish();
-  return { label: getLabel(run), turns, lostItsConstant, replay: { moments: replay.moments, differing: replay.differing.length, described: replay.describedDifferently } };
+  return { label: getLabel(run), turns, afterItsCurveWasReplaced, replay: getReplaySummary(replay) };
 }
 
 async function proveMarks(browser: Browser, run: LessonRun) {
@@ -377,7 +378,7 @@ async function proveMarks(browser: Browser, run: LessonRun) {
   const problems = await lab.page.evaluate(() => window.sceneLab?.records.boardProblems);
   const replay = await checkReplayPixels(lab);
   await lab.finish();
-  return { label: getLabel(run), problems, replay: { moments: replay.moments, differing: replay.differing.length } };
+  return { label: getLabel(run), problems, replay: getReplaySummary(replay) };
 }
 
 async function proveLabels(browser: Browser, run: LessonRun) {
@@ -431,7 +432,100 @@ async function proveExtremes(browser: Browser, run: LessonRun) {
   const replay = await checkReplayPixels(lab);
   const sliderReplay = await checkDragReplay(lab, 3);
   await lab.finish();
-  return { label: getLabel(run), turns, sliderMoves, errors: errors.slice(0, 5), errorCount: errors.length, stopped, refused: refused.length, frames: figures.frames, notFinite: figures.notFiniteFrames, overlap: figures.textOverlapFrames, outside: figures.textOutsideFrames, examples: [...new Set(figures.examples)].slice(0, 6), liveFramesDifferingFromLog: figures.liveSamplesDifferingFromReplay, replay: { moments: replay.moments, differing: replay.differing.length, described: replay.describedDifferently }, sliderReplay: { moments: sliderReplay.moments, differing: sliderReplay.differing.length } };
+  return { label: getLabel(run), turns, sliderMoves, errors: errors.slice(0, 5), errorCount: errors.length, stopped, refused: refused.length, frames: figures.frames, notFinite: figures.notFiniteFrames, overlap: figures.textOverlapFrames, outside: figures.textOutsideFrames, examples: [...new Set(figures.examples)].slice(0, 6), liveFramesDifferingFromLog: figures.liveSamplesDifferingFromReplay, replay: getReplaySummary(replay), sliderReplay: { moments: sliderReplay.moments, differing: sliderReplay.differing.length } };
+}
+
+const readFigureWords = (lab: LabPage) => lab.page.evaluate(() => [...document.querySelectorAll('svg.board-figure text')].map((text) => text.textContent ?? '').filter((text) => /[a-z]/i.test(text)));
+
+const OLD_WORDS = /minimum|bends up/;
+
+/** The review's lesson: marks on one curve, then a new curve under the same id. */
+async function proveReplaced(browser: Browser, run: LessonRun) {
+  const lab = await open(browser, run);
+  await lab.command({ type: 'play', lesson: 'figure-replaced', lessonTurn: 0 });
+  await lab.waitForPlayedBeats(1, 60_000);
+  await delay(800);
+  const before = await readFigureWords(lab);
+  await shoot(lab, 'marks-on-first-curve');
+  await lab.command({ type: 'play', lesson: 'figure-replaced', lessonTurn: 1 });
+  await lab.waitForPlayedBeats(2, 60_000);
+  await delay(1100);
+  const after = await readFigureWords(lab);
+  await shoot(lab, 'new-curve-no-old-marks');
+  const replay = await checkReplayPixels(lab);
+  await lab.finish();
+  const oldWordsSeen = before.filter((word) => OLD_WORDS.test(word));
+  return { label: getLabel(run), oldWordsSeen, oldWordsLeft: after.filter((word) => OLD_WORDS.test(word)), wordsAfter: after, replay: getReplaySummary(replay) };
+}
+
+const readSliders = (lab: LabPage) => lab.page.evaluate(() => [...document.querySelectorAll<HTMLInputElement>('.board-slider input')].map((input) => input.getAttribute('aria-valuetext') ?? ''));
+
+const OVERLAPPING_SLIDER = { kind: 'slider', id: 'also-angle', target: 'polar', parameter: 'launchAngle', min: 10, max: 80 };
+const GRAVITY_THROUGH_A_CONSTANT = { kind: 'slider', id: 'gravity-way', target: 'polar', constant: 'gravity', min: -5, max: 5 };
+const PAIR_STEPS = [['Home'], ['ArrowLeft', 'ArrowLeft', 'ArrowLeft'], ['ArrowRight']];
+
+/** One slider's key presses must leave the other slider's number exactly where the student left it. */
+async function provePair(browser: Browser, run: LessonRun) {
+  const lab = await open(browser, run);
+  await lab.page.evaluate(() => window.pageChecks.startFigureWatch());
+  const numbersMoved: string[] = [];
+  const steps = [];
+  for (const lessonTurn of [0, 1]) {
+    await lab.command({ type: 'play', lesson: 'figure-pair', lessonTurn });
+    await lab.waitForPlayedBeats(lessonTurn + 1, 60_000);
+    await delay(700);
+    const sliders = lab.page.locator('.board-slider input');
+    for (const [stepIndex, keys] of PAIR_STEPS.entries()) {
+      const moving = stepIndex % 2;
+      const before = await readSliders(lab);
+      await sliders.nth(moving).focus();
+      for (const key of keys) await lab.page.keyboard.press(key);
+      await delay(150);
+      const after = await readSliders(lab);
+      if (before[1 - moving] !== after[1 - moving]) numbersMoved.push(`turn ${lessonTurn} step ${stepIndex}: ${before.join(' ')} to ${after.join(' ')}`);
+      steps.push({ lessonTurn, stepIndex, before, after, words: await readFigureWords(lab) });
+    }
+    await shoot(lab, `pair-${lessonTurn}`);
+    await lab.page.evaluate(() => (window.sceneLab as unknown as LabLog).player.finishSliderDrag());
+  }
+  const turnId = await lab.page.evaluate(() => window.sceneLab?.records.fired.at(-1)?.turnId);
+  const refusedBefore = await lab.page.evaluate(() => window.sceneLab?.records.refused.length ?? 0);
+  await lab.command({ type: 'sendRaw', messages: [OVERLAPPING_SLIDER, GRAVITY_THROUGH_A_CONSTANT].map((command) => ({ type: 'cue', turnId, beatId: 'cartesian', atWord: 1, command })) });
+  await delay(600);
+  const figures = await lab.page.evaluate(() => window.pageChecks.stopFigureWatch());
+  const problems = (await lab.page.evaluate(() => window.sceneLab?.records.boardProblems ?? [])) as { kind: string }[];
+  const refusedByParser = (await lab.page.evaluate(() => window.sceneLab?.records.refused.length ?? 0)) - refusedBefore;
+  const sliderCount = await lab.page.locator('.board-slider input').count();
+  const dragReplay = await checkDragReplay(lab, 1);
+  const replay = await checkReplayPixels(lab);
+  await lab.finish();
+  const refusalsMissed = [...(problems.some(({ kind }) => kind === 'sliderOverlaps') ? [] : ['an overlapping slider']), ...(refusedByParser > 0 ? [] : ['gravity through a constant'])];
+  return { label: getLabel(run), numbersMoved, steps, sliderCount, refusalsMissed, refusedByParser, problems, frames: figures.frames, notFinite: figures.notFiniteFrames, overlap: figures.textOverlapFrames, dragReplay, replay: getReplaySummary(replay) };
+}
+
+const FINE_CURVES: Readonly<Record<string, boolean>> = { 'square-100': true, 'poles-100': true, 'tan-100': true, 'band-300': true, 'whole-150': false, bump: false, sinc: false };
+
+/** Each curve as a student sees it, and what the board told the tutor. */
+async function proveFine(browser: Browser, run: LessonRun) {
+  const lab = await open(browser, run);
+  await lab.page.evaluate(() => window.pageChecks.startFigureWatch());
+  await lab.command({ type: 'play', lesson: 'figure-fine' });
+  await lab.waitForPlayedBeats(beatsOf('figure-fine'), 120_000);
+  await delay(1200);
+  const figures = await lab.page.evaluate(() => window.pageChecks.stopFigureWatch());
+  const placed = await lab.page.evaluate(() => (window.sceneLab?.player.getOperations() as { atMs: number; command?: { kind: string; id?: string } }[]).filter((operation) => operation.command?.kind === 'plot').map(({ atMs, command }) => ({ atMs, id: command?.id as string })));
+  const told = ((await lab.page.evaluate(() => window.sceneLab?.records.boardProblems ?? [])) as { kind: string; target?: string }[]).filter(({ kind }) => kind === 'curveTooFine').map(({ target }) => target);
+  const curves = [];
+  for (const { atMs, id } of placed) {
+    await holdFrame(lab, { atMs: atMs + CURVE_DRAWN_MS, source: 'live' });
+    await shoot(lab, `fine-${id}`);
+    curves.push({ id, ...(await readCurve(lab)), note: await lab.page.evaluate(() => document.querySelector('[data-mark="too-fine"]')?.textContent ?? null), yTicks: await lab.page.evaluate(() => [...document.querySelectorAll('[data-mark^="tick-y-"]')].map((tick) => tick.textContent)) });
+  }
+  await holdFrame(lab, null);
+  const replay = await checkReplayPixels(lab);
+  await lab.finish();
+  const curvesMisjudged = curves.filter(({ id, note }) => (note !== null) !== FINE_CURVES[id] || told.includes(id) !== FINE_CURVES[id]).map(({ id }) => id);
+  return { label: getLabel(run), curves, told, curvesMisjudged, frames: figures.frames, notFinite: figures.notFiniteFrames, overlap: figures.textOverlapFrames, outside: figures.textOutsideFrames, replay: getReplaySummary(replay) };
 }
 
 const KEY_PRESSES = 8;
@@ -535,19 +629,24 @@ const PROOFS = {
   keyboard: async (browser: Browser) => [await proveKeyPressReplay(browser, { lesson: 'shot', viewport: 'laptop', theme: 'light' }), await proveKeyPressReplay(browser, { lesson: 'shot', viewport: 'phone', theme: 'dark' })],
   'slider-name': async (browser: Browser) => [await proveSliderName(browser, { lesson: 'shot', viewport: 'laptop', theme: 'light' })],
   resize: async (browser: Browser) => [await proveResize(browser, { lesson: 'launch', viewport: 'laptop', theme: 'light' }), await proveResize(browser, { lesson: 'free-body', viewport: 'laptop', theme: 'dark' })],
+  replaced: async (browser: Browser) => [await proveReplaced(browser, { lesson: 'figure-replaced', viewport: 'laptop', theme: 'light' }), await proveReplaced(browser, { lesson: 'figure-replaced', viewport: 'phone', theme: 'dark' })],
+  pair: async (browser: Browser) => [await provePair(browser, { lesson: 'figure-pair', viewport: 'laptop', theme: 'light' }), await provePair(browser, { lesson: 'figure-pair', viewport: 'phone', theme: 'dark' })],
+  fine: async (browser: Browser) => [await proveFine(browser, { lesson: 'figure-fine', viewport: 'laptop', theme: 'light' }), await proveFine(browser, { lesson: 'figure-fine', viewport: 'phone', theme: 'dark' })],
 } as const;
 
 mkdirSync(args.out as string, { recursive: true });
 const stack = await startLabStack();
 const browser = await chromium.launch({ channel: 'chromium', args: ['--autoplay-policy=no-user-gesture-required', '--use-mock-keychain', '--mute-audio'] });
+const failures: string[] = [];
 try {
   for (const name of (args.only ?? Object.keys(PROOFS).join(',')).split(',')) {
     const results = await PROOFS[name as keyof typeof PROOFS](browser);
     writeFileSync(join(args.out as string, `${name}.json`), `${JSON.stringify(results, null, 1)}\n`);
+    failures.push(...getProofFailures(name, results));
     console.log(name, 'done');
   }
 } finally {
   await browser.close();
   stack.stop();
 }
-process.exit(0);
+exitWithVerdict(failures);
