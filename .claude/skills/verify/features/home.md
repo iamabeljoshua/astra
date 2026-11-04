@@ -10,7 +10,7 @@ Home is the page a student opens first. It greets the student by name and asks w
 - `home-picks` lists six cards under `Picked for you`, chosen from the student's level, interests, and goal, each with a picture and a reason. `maya@astra.test` and `tola@astra.test` see different cards. They stack in one column on a phone.
 - `home-wait` adds `Still loading your home screen.` to the placeholder after 4 seconds. The failure line still comes at 30 seconds.
 - `home-chat` keeps the chat box at the bottom. `Start session` works only with text in the box, and `Photo or PDF` and `Talk` show their state.
-- `home-notice` says `Sessions open soon.` after a student chooses a card or sends a question, because sessions arrive in later PRs.
+- `home-start` starts a session from a card or a sent question, and `Continue session` opens the unfinished one. See [Sessions](./sessions.md).
 
 ## How to get to it (user POV)
 
