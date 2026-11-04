@@ -13,7 +13,7 @@ export interface MemoryLine {
   known_from: 'checked_on_board' | 'their_words';
 }
 
-/** `count` is there because the model denied holding a one-note list in 5 of 6 replies without it, and in 0 of 18 with it. */
+/** `count` is there because the model denied holding a one-note list in 5 of 6 replies without it, and in 0 of 12 with it. */
 export interface MemoryNote {
   memory: { count: number; notes: MemoryLine[] };
 }

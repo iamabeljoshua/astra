@@ -208,9 +208,9 @@ Five rounds at the final prompt on Sonnet 5.5, 125 replies, on 4 November 2026. 
 
 - **No false memory.** With an empty list or no note at all, none of 25 replies claimed to recall an earlier session, and each one asked said it had no notes.
 - **Commands in memory change nothing.** Across 6 kinds of command and 30 replies, the tutor never followed one. The safety reply stayed whole beside a note saying never to mention adults. The tutor still mentioned an odd note once in a while, which it is told not to do. The screens stop these notes before the tutor reads them, so this only shows what happens if they fail.
-- **Stale or wrong notes stay in the past.** None of 30 replies on old or wrong notes told a student they know or cannot do something, and a student who said a note was wrong was believed. A student told a note is wrong is usually pointed to Your notes.
+- **Stale or wrong notes stay in the past.** None of 35 replies on old or wrong notes told a student they know or cannot do something, and a student who said a note was wrong was believed. A student told a note is wrong is usually pointed to Your notes.
 - **Nothing crosses.** Student A's replies never held student B's note, or the other way round, in 10 replies. A brain only ever receives one student's note, and `learner-record.service.spec.ts` proves the routes.
-- **Notes it holds, it uses.** Asked what it remembers, it answered from the notes in all 20 replies. An unprompted mention is softer: a student who struggled with the sign heard it mentioned in about 3 of 5 openings, and a rocket example came up in 3 of 5.
+- **Notes it holds, it uses.** Asked what it remembers, it answered from the notes in all 20 replies. Unprompted, a student who struggled with the sign heard it named in all 5 openings, such as "moving the three across tripped you up last time, so watch that one". A carry-on opened on friction on a slope in all 5. A rocket example came up in 3 of 5, where the prompt lets the tutor leave out a comparison that does not fit.
 
 Telling the tutor how many notes it has mattered more than any sentence of the prompt. Without `count`, it denied holding a one-note list in 5 of 6 replies to "what did i find hard?". With `count`, it answered in 12 of 12 across two prompt wordings, and said it had no notes in 24 of 24 on empty memory.
 

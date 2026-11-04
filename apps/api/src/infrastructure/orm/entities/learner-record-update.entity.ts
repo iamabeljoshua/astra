@@ -11,7 +11,7 @@ export class LearnerRecordUpdateEntity {
   @JoinColumn({ name: 'session_id' })
   session?: SessionEntity;
 
-  /** The room's name, because one session can have several rooms and each writes once. */
+  /** The agent job's ID, because one session can have several rooms and each writes once. */
   @PrimaryColumn('text', { name: 'update_key' })
   updateKey!: string;
 
