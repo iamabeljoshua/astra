@@ -136,6 +136,11 @@ const LINEAR_STEPS: readonly Step[] = [
   ['4x = 6', 'x = 1.5'],
   ['4x = 6', 'x = \\frac{3}{2}'],
   ['0 = 2x - 8', '2x = 8'],
+  ['x + 1 = x + 2', '1 = 2'],
+  ['2x + 5 = 2x', '5 = 0'],
+  ['3(x + 1) = 3x + 4', '3 = 4'],
+  ['x + 1 = x + 2', 'x = x + 1'],
+  ['x + 2 = x + 2', '2 = 2'],
 ];
 
 const ONE_WAY_STEPS: readonly Step[] = [
