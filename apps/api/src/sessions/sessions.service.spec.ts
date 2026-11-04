@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { DataSource } from 'typeorm';
-import { createTestApp, OLD_ENOUGH_BIRTH_DATE } from '../../test/test-database';
+import { createTestApp, OLD_ENOUGH_BIRTH_DATE, signInAs } from '../../test/test-database';
 import type { TestApp } from '../../test/test-database';
 import { StudentsService } from '../students/students.service';
 import type { CreateSessionBodyDto } from './session.dto';
@@ -23,7 +23,7 @@ describe('SessionsService', () => {
   afterAll(() => testApp?.close());
 
   async function createStudentId() {
-    const { student } = await studentsService.answerBirthDate(randomUUID(), { birthDate: OLD_ENOUGH_BIRTH_DATE });
+    const { student } = await studentsService.answerBirthDate(signInAs(randomUUID()), { birthDate: OLD_ENOUGH_BIRTH_DATE });
     return student?.id as string;
   }
 

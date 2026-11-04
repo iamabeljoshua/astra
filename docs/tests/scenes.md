@@ -59,7 +59,7 @@ Past a voice limit that student's voice falls back to a tone and the page says w
 
 ## Removing one student's data
 
-The app has no delete button yet, so a person removes these by hand, with the student's ID:
+Delete my data, under Your notes, removes these through `DELETE /me`, along with the student's rows and Auth user. It runs in the API, in `apps/api/src/students/student-scene-files.ts`, so the API must see the same store as the agent. A lesson still running can write after it, so the student should end their lessons first. For a student who cannot sign in, a person removes these by hand, with the student's ID:
 
 - Each folder in `.scene-store/scenes` whose `scene.json` has that `ownerId`.
 - Each file in `.scene-store/refusals` and in `.scene-store/waiting-plans` whose `key.ownerId` is that ID.

@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { DataSource } from 'typeorm';
 import { createTestDatabase } from '../../../test/test-database';
 import type { TestDatabase } from '../../../test/test-database';
-import { replaceExampleData } from './example-data';
+import { EXAMPLE_STUDENT_ID, replaceExampleData } from './example-data';
 import { openMigratedDataSource } from './open-data-source';
 
 const GRANT_EVERY_RIGHT = `
@@ -18,7 +18,7 @@ const TABLES_WITH_FIRST_COLUMN_QUERY = `
   WHERE relation.relkind IN ('r', 'p') AND namespace.nspname = 'public'`;
 
 const ROW_SECURITY_REFUSAL = 'new row violates row-level security policy';
-const TABLES_WITH_EXAMPLE_ROWS = ['migrations', 'students', 'student_profiles', 'sessions', 'closed_accounts', 'student_daily_spend'];
+const TABLES_WITH_EXAMPLE_ROWS = ['migrations', 'students', 'student_profiles', 'sessions', 'closed_accounts', 'student_daily_spend', 'safety_flags', 'closed_address_hashes'];
 
 interface PublicTable {
   name: string;
@@ -35,6 +35,8 @@ describe.each(['anon', 'authenticated'])('the %s role on tables it has every rig
     dataSource = await openMigratedDataSource(testDatabase.databaseUrl);
     await replaceExampleData(dataSource);
     await dataSource.query('INSERT INTO "closed_accounts" ("auth_user_id") VALUES ($1)', [randomUUID()]);
+    await dataSource.query(`INSERT INTO "closed_address_hashes" ("address_hash") VALUES ('hash')`);
+    await dataSource.query(`INSERT INTO "safety_flags" ("student_id", "kind", "source") VALUES ($1, 'danger', 'tutor')`, [EXAMPLE_STUDENT_ID]);
     await dataSource.query(GRANT_EVERY_RIGHT);
     tables = await dataSource.query(TABLES_WITH_FIRST_COLUMN_QUERY);
   });

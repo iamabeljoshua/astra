@@ -420,7 +420,31 @@ export interface LegalDocument {
 // With lessons off, the legal pages stay exactly as they are without them.
 const inTestLessons = (...lines: string[]) => (isLessonEnabled() ? lines : []);
 
-export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
+export const PICTURE_CREDITS = [
+  { file: 'wave.jpg', work: 'Katsushika Hokusai, Under the Wave off Kanagawa, about 1830 to 1832' },
+  { file: 'saturn.jpg', work: 'The Day the Earth Smiled, taken by the Cassini spacecraft on 19 July 2013. Credit NASA/JPL-Caltech/SSI.' },
+  { file: 'athens.jpg', work: 'Raphael, The School of Athens, 1509 to 1511' },
+  { file: 'alchemist.jpg', work: 'Pieter Bruegel the Elder, The Alchemist, after 1558' },
+  { file: 'bastille.jpg', work: 'Charles Thévenin, The Storming of the Bastille on 14 July 1789, 1790' },
+  { file: 'cake.jpg', work: 'Raphaelle Peale, Still Life with Cake, 1818' },
+  { file: 'draughtsman.jpg', work: 'Albrecht Dürer, The Draughtsman of the Lute' },
+  { file: 'ham.jpg', work: 'Philippe Rousseau, Still Life with Ham, 1870s' },
+  { file: 'indigo.jpg', work: 'Piece, blue-resist textile, about 1725 to 1775' },
+  { file: 'loom.jpg', work: 'Didier, Petit et Cie, Joseph Marie Jacquard, woven silk, 1839' },
+  { file: 'lute.jpg', work: 'Johannes Vermeer, Young Woman with a Lute, about 1662 to 1663' },
+  { file: 'melencolia.jpg', work: 'Albrecht Dürer, Melencolia I, 1514' },
+  { file: 'pyramid.jpg', work: 'Francis Frith, The Great Pyramid and The Great Sphinx, 1858' },
+  { file: 'socrates.jpg', work: 'Jacques Louis David, The Death of Socrates, 1787' },
+  { file: 'sunflowers.jpg', work: 'Vincent van Gogh, Sunflowers, 1887' },
+  { file: 'wheat.jpg', work: 'Vincent van Gogh, Wheat Field with Cypresses, 1889' },
+  { file: 'blackhole.jpg', work: "Black Hole With Jet (Artist's Concept), 2017. Credit NASA/JPL-Caltech." },
+  { file: 'earth.jpg', work: 'The whole Earth, taken from Apollo 17 on 7 December 1972. Credit NASA.' },
+  { file: 'earthrise.jpg', work: 'Earth over the Moon, taken from Apollo 8 on 24 December 1968. Credit NASA.' },
+  { file: 'launch.jpg', work: 'The Saturn V launch of Apollo 11 on 16 July 1969. Credit NASA.' },
+  { file: 'nebula.jpg', work: 'The Eagle Nebula Observed by WISE, 2022. Credit NASA/JPL-Caltech.' },
+];
+
+export const LEGAL_PAGES: Record<'terms' | 'privacy' | 'credits', LegalDocument> = {
   terms: {
     title: 'Terms',
     intro: `These terms apply when you use ${PRODUCT_NAME}. A line marked planned describes something the app does not offer yet.`,
@@ -439,7 +463,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
         heading: `Who ${PRODUCT_NAME} is for`,
         today: [
           `${PRODUCT_NAME} is for students aged 13 and up. After you first sign in, we ask for your date of birth. Give your real date. The first date you confirm stands, and the app has no way to change it.`,
-          'If that date shows you are under 13 in every time zone, the account closes and stays closed on every later sign-in. The Privacy Policy says what we keep.',
+          'If that date shows you are under 13 in every time zone, the account closes and we delete its sign-in. That email address is refused from then on, even on a new sign-up or after someone changes their email to it. The Privacy Policy says what we keep.',
           'If you are under 18, these terms apply to you as they do to any other student. We do not ask a parent or guardian to approve your account.',
         ],
         planned: [],
@@ -449,6 +473,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
         today: [
           'You sign in with a code sent to your email address, and you do not set a password. Use an address that belongs to you.',
           "Do not try to reach another student's account or data, get around the date of birth question, or interfere with the service.",
+          'You can delete your data at any time with Delete my data, under Your notes. That also deletes your account and signs you out.',
         ],
         planned: ['Sign-in with Google.'],
       },
@@ -489,6 +514,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
           "The words you say or type in a session, and a question you type on Home to start one, go to our tutor service, which holds them in memory while the session runs and drops them when it ends. It passes them to Anthropic, as Who receives your data says. We do not store them yet.",
           'Words you type into the search box on the Sessions page go to our server, which uses them to find your sessions. We do not store them.',
           'A running total of what the tutor cost for you each day, with no words in it. We use it to stop tutor time for the day at a limit.',
+          "If what a student says or what the tutor replies looks like a safety concern, we record that a flag happened, with the account ID, session, kind, whether it came from the student's words or the tutor's, the time, and who reviewed it and when. A flag holds none of the words, and people named by us read the list. Nothing is sent to a parent.",
         ],
         planned: [
           "Each lesson's transcript and board drawings, kept while the account is active. Your voice itself stays unstored.",
@@ -506,12 +532,12 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
         heading: 'If you are under 13',
         today: [
           'If the date you confirm shows you are under 13 in every time zone, the account closes and we do not store that date or the name you gave.',
-          'We keep a record holding only the account ID and the time, so the account stays closed on every later sign-in.',
-          "Your email address is not deleted. It stays in Supabase Auth, in its user and identity records and in its logs, and nothing in the app removes it. We keep it for now because deleting it would let the same address sign up and answer again. The times you signed in, your IP address, and your browser's description of itself stay in Supabase Auth too.",
+          'We delete the account from Supabase Auth, our sign-in service, with its email address, identity record, sessions, and audit log rows.',
+          'We keep only a keyed hash of the address, a code made with a secret key that cannot be turned back into the address. It refuses that address from then on, on a new sign-up or when someone changes their email to it. If that address signs in again, Supabase Auth makes a new account for it, and we delete that one the same way.',
+          "If Supabase Auth cannot be reached when the account closes, we keep a record holding only the account ID and the time until the delete finishes on the account's next request.",
+          "Supabase's own service logs, which the app cannot reach, can hold the address, the IP address, and the browser's description of itself until Supabase removes them.",
         ],
-        planned: [
-          'Before any real student joins, deleting the address from Supabase Auth, including its logs, and refusing that address from then on by keeping only a keyed hash of it.',
-        ],
+        planned: [],
       },
       {
         heading: 'If you are under 18',
@@ -543,9 +569,12 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
       {
         heading: 'How long we keep it',
         today: [
-          'We have no retention schedule, and nothing deletes data on a timer. What we store stays until we remove it by hand, except that a change under Your notes replaces the answer it changes. The app has no delete button yet.',
+          'We have no retention schedule, and nothing deletes data on a timer. What we store stays until you delete it or we remove it by hand, except that a change under Your notes replaces the answer it changes.',
+          'Delete my data, under Your notes, removes your account, your notes, your sessions, your cost totals, and any flags about you from our database, and your email address, identity record, sessions, and audit log rows from Supabase Auth.',
+          ...inTestLessons('It also removes the drawings, recordings, and cost records a test lesson saved for you on our server.'),
+          "Supabase's own service logs, which the app cannot reach, can hold your address, your IP address, and your browser's description of itself until Supabase removes them.",
         ],
-        planned: ['A way for you to delete your data from the app.'],
+        planned: [],
       },
       {
         heading: 'What we do not do',
@@ -568,4 +597,54 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
       },
     ],
   },
+  credits: {
+    title: 'Credits',
+    intro: `Every picture in ${PRODUCT_NAME} is public domain or our own.`,
+    sections: [
+      {
+        heading: 'Pictures',
+        today: [
+          ...PICTURE_CREDITS.map(({ work }) => work),
+          `NASA did not make ${PRODUCT_NAME} and does not endorse it.`,
+        ],
+        planned: [],
+      },
+    ],
+  },
+};
+
+export const REVIEW_LABELS = {
+  pageTitle: 'Safety flags',
+  about: 'A flag holds no words. It records that a safety check fired, with the student ID, session, kind, source, and time. A person reads each flag within 24 hours.',
+  empty: 'No flags yet.',
+  failed: 'That did not work. Try again.',
+  kinds: {
+    self_harm: 'Self-harm',
+    abuse: 'Abuse',
+    danger: 'Danger',
+    grooming: 'Grooming',
+    tutor_slip: 'Tutor slip',
+  },
+  sources: {
+    student: 'The student',
+    tutor: 'The tutor',
+  },
+  from: 'From',
+  student: 'Student ID',
+  session: 'Session ID',
+  noSession: 'Session removed',
+  markReviewed: 'Mark reviewed',
+  reviewedAt: (time: string) => `Reviewed ${time}.`,
+  waitingInTime: (waitedHours: number, leftHours: number) => `Waiting ${waitedHours} h. ${leftHours} h left of the 24 hour promise.`,
+  waitingTooLong: (waitedHours: number, overHours: number) => `Waiting ${waitedHours} h. ${overHours} h past the 24 hour promise.`,
+};
+
+export const DELETE_DATA_LABELS = {
+  title: 'Delete my data',
+  about: 'This removes your account, your notes, your sessions, and your saved lessons.',
+  confirm: 'This cannot be undone. Your account, your notes, your sessions, and your saved lessons all go, and you will be signed out. Close any lesson you have open first.',
+  yes: 'Delete everything',
+  no: 'Keep my data',
+  deleting: 'Deleting.',
+  failed: 'That did not finish. Try again.',
 };

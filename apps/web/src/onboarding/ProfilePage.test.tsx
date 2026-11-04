@@ -1,13 +1,15 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { PROFILE_LABELS, STUDENT_GOAL_LABELS, STUDENT_INTEREST_LABELS, STUDENT_LEVEL_LABELS } from '../strings';
+import { DELETE_DATA_LABELS, PROFILE_LABELS, STUDENT_GOAL_LABELS, STUDENT_INTEREST_LABELS, STUDENT_LEVEL_LABELS } from '../strings';
 import { renderWithQueryClient } from '../test/renderWithQueryClient';
 import { ProfilePage } from './ProfilePage';
 
 const PROFILE = { interests: ['space', 'music'], level: 'university', goal: 'exam' };
 const ACCOUNT = { status: 'active', student: { id: 'student', name: 'Maya', profile: PROFILE } };
 
-vi.mock('../auth/session', () => ({ getAccessToken: async () => 'test-token', forgetSession: vi.fn(), renewSession: vi.fn() }));
+const { signOut } = vi.hoisted(() => ({ signOut: vi.fn() }));
+
+vi.mock('../auth/session', () => ({ getAccessToken: async () => 'test-token', forgetSession: vi.fn(), renewSession: vi.fn(), signOut }));
 
 function stubApi() {
   const saved: unknown[] = [];
@@ -102,5 +104,55 @@ describe('changing answers later', () => {
     fireEvent.change(name, { target: { value: 'Mai' } });
 
     expect(screen.queryByText(PROFILE_LABELS.missing)).toBeNull();
+  });
+});
+
+describe('deleting my data', () => {
+  function stubDeleteApi(deleteStatus = 200) {
+    const deletes: string[] = [];
+    vi.stubGlobal('fetch', async (request: Request) => {
+      if (request.method === 'DELETE') {
+        deletes.push(new URL(request.url).pathname);
+        return new Response(JSON.stringify({ deleted: true }), { status: deleteStatus });
+      }
+      return new Response(JSON.stringify(ACCOUNT));
+    });
+    return deletes;
+  }
+
+  it('asks first, and the first press deletes nothing', async () => {
+    const deletes = stubDeleteApi();
+    renderWithQueryClient(<ProfilePage />);
+
+    fireEvent.click(await screen.findByRole('button', { name: DELETE_DATA_LABELS.title }));
+
+    expect(screen.getByText(DELETE_DATA_LABELS.confirm)).toBeTruthy();
+    expect(deletes).toEqual([]);
+    fireEvent.click(screen.getByRole('button', { name: DELETE_DATA_LABELS.no }));
+    expect(screen.getByRole('button', { name: DELETE_DATA_LABELS.title })).toBeTruthy();
+  });
+
+  it('deletes on the confirm step, then signs out', async () => {
+    signOut.mockClear();
+    const deletes = stubDeleteApi();
+    renderWithQueryClient(<ProfilePage />);
+
+    fireEvent.click(await screen.findByRole('button', { name: DELETE_DATA_LABELS.title }));
+    fireEvent.click(screen.getByRole('button', { name: DELETE_DATA_LABELS.yes }));
+
+    await waitFor(() => expect(signOut).toHaveBeenCalledOnce());
+    expect(deletes).toEqual(['/api/me']);
+  });
+
+  it('stays signed in and says so when the delete fails', async () => {
+    signOut.mockClear();
+    stubDeleteApi(500);
+    renderWithQueryClient(<ProfilePage />);
+
+    fireEvent.click(await screen.findByRole('button', { name: DELETE_DATA_LABELS.title }));
+    fireEvent.click(screen.getByRole('button', { name: DELETE_DATA_LABELS.yes }));
+
+    await screen.findByRole('alert');
+    expect(signOut).not.toHaveBeenCalled();
   });
 });
