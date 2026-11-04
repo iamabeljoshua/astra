@@ -4,14 +4,12 @@ import type { BoardOperation } from '../src/player/board-operations.ts';
 export const SUBJECTS = ['math', 'physics', 'language', 'history', 'biology', 'code', 'music', 'mixed', 'hostile'] as const;
 export type Subject = (typeof SUBJECTS)[number];
 
-/** One scripted board. Commands stay raw, so each one has to get through the parser a tutor's command goes through. */
+/** One scripted board. Commands stay raw, so each one goes through the tutor's parser. */
 export interface DeckScene {
   name: string;
   subject: Subject;
   commands: readonly unknown[];
-  /** What the board must tell the tutor it could not do, in a scene that asks for too much. */
   expectedProblems?: readonly string[];
-  /** For a scene that tries to strobe. Most scenes keep a speaking pace. */
   msBetweenCommands?: number;
 }
 
@@ -41,7 +39,6 @@ export function getSceneOperations(scene: DeckScene): BoardOperation[] {
 
 export const getSceneRestMs = (scene: DeckScene) => (scene.commands.length - 1) * getSpacing(scene) + MS_TO_REST;
 
-/** Moments while each command lands, and the rest at the end. */
 export function getSceneMoments(scene: DeckScene): number[] {
   return [...scene.commands.flatMap((_, index) => MOMENTS_AFTER_EACH_COMMAND.map((after) => index * getSpacing(scene) + after)), getSceneRestMs(scene)];
 }

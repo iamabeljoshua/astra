@@ -20,7 +20,6 @@ export interface GraphRequest {
   maxWidth: number;
   nodeGap: number;
   smallestRankGap: number;
-  /** The clear space between a box and the arrow that points at it. */
   arrowGap: number;
 }
 
@@ -36,7 +35,6 @@ export interface GraphLayout {
 }
 
 interface Slot {
-  /** A slot with no node lets a long edge pass through a rank between two nodes. */
   name: string | null;
   width: number;
   height: number;
@@ -52,7 +50,6 @@ const LANE_WIDTH = 10;
 const LABEL_ROOM = 4;
 const MOST_LABEL_LANES = 2;
 
-/** How far a loop on one node stands off its box, and how wide it is. */
 const LOOP = { reach: 16, halfWidth: 12 };
 
 // An edge that would close a loop counts as going backward, so every rank sits after the ranks that feed it.
@@ -78,7 +75,7 @@ function getSpread(row: readonly GraphNode[], nodeGap: number): number {
   return row.reduce((sum, node) => sum + node.width, 0) + Math.max(0, row.length - 1) * nodeGap;
 }
 
-// Longest path from a source. A rank too wide for the board hands its last node on to the next, and what follows moves down with it.
+// Longest path from a source, where a rank too wide for the board hands its last node on to the next.
 function getRanks({ nodes, edges, maxWidth, nodeGap }: GraphRequest, forward: ReadonlySet<GraphEdge>, canWiden: boolean): Map<string, number> {
   const ranks = new Map<string, number>();
   const rows: GraphNode[][] = [];
@@ -126,7 +123,6 @@ function getRowSpread(row: readonly Slot[], axes: Axes, nodeGap: number): number
   return row.reduce((sum, slot) => sum + slot[axes.acrossSize], 0) + Math.max(0, row.length - 1) * nodeGap;
 }
 
-// Rows are centred on the widest, so a small rank sits under the middle of a large one.
 function placeAcross(rows: readonly Slot[][], axes: Axes, nodeGap: number): LaidSlot[][] {
   const widest = Math.max(0, ...rows.map((row) => getRowSpread(row, axes, nodeGap)));
   return rows.map((row) => {
@@ -189,7 +185,7 @@ function getLoopRoute(slot: LaidSlot, axes: Axes, arrowGap: number): InkPosition
   return [toPoint(axes, middle - LOOP.halfWidth, leaving), toPoint(axes, middle - LOOP.halfWidth, leaving + LOOP.reach), toPoint(axes, middle + LOOP.halfWidth, leaving + LOOP.reach), toPoint(axes, middle + LOOP.halfWidth, leaving)];
 }
 
-// A line changes direction only in the gaps between ranks. Inside a rank it runs straight, past its neighbours, so it never crosses a box.
+// A line turns only in the gaps between ranks, so it never crosses a box.
 function getRoute({ edge, ranks, rows, axes, arrowGap, usedLanes, backwardShift }: { edge: GraphEdge; ranks: ReadonlyMap<string, number>; rows: readonly LaidSlot[][]; axes: Axes; arrowGap: number; usedLanes: Set<LaidSlot>; backwardShift: number }): InkPosition[] {
   const { fromRank, toRank, isBackward } = getSpan(edge, ranks);
   const [topName, bottomName] = isBackward ? [edge.to, edge.from] : [edge.from, edge.to];
@@ -241,7 +237,7 @@ function getLayoutWidth({ boxes, routes }: GraphLayout, edges: readonly GraphEdg
   return Math.max(boxRight, ...lineSpots, ...labelRight) - Math.min(0, ...lineSpots, ...labelLeft);
 }
 
-/** Layered, so no arrow runs through a box. A chain that fits runs across the board and anything else runs down it, and a rank wider than the board hands nodes on to the next rank. */
+/** Layered, so no arrow runs through a box. A graph with arrows that fits runs across the board, and anything else runs down it. */
 export function layoutGraph(request: GraphRequest): GraphLayout {
   const forward = getForwardEdges(request.nodes, request.edges);
   if (request.edges.length > 0) {

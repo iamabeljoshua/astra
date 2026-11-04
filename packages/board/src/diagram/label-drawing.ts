@@ -67,7 +67,7 @@ function getGutter(labels: DrawingLabels, { maxWidth, fontSize, measureText }: D
   return Math.max(SMALLEST_GUTTER, Math.min(LARGEST_GUTTER, share));
 }
 
-/** One of our drawings, drawn first, with each label then arriving in a gutter beside it on a line to its part. A short board shrinks the whole, so nothing here depends on height. */
+/** One of our drawings, drawn first, with each label then arriving in a gutter beside it on a line to its part. */
 export function drawLabeledSheet({ name, labels = [] }: Pick<Drawing, 'name' | 'labels'>, request: DiagramRequest): LabeledDrawing | null {
   const sheet = DRAWING_SHEETS[name];
   if (!sheet) return null;

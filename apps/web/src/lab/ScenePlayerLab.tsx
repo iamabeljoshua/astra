@@ -38,7 +38,6 @@ export default function ScenePlayerLab() {
   const [params] = useSearchParams();
   const url = params.get('url');
   const token = params.get('token');
-  // A proof compares frames, so a tier that changed under load would read as a fault. Only a run that asks for it measures.
   const qualityTier = params.get('tier') === 'measured' ? undefined : 0;
   const [phase, setPhase] = useState<LabPhase>('waiting');
   const [frame, setFrame] = useState<BoardFrame | null>(null);

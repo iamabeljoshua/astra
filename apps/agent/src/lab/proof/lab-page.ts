@@ -116,7 +116,7 @@ export interface ReplayPixels {
   describedDifferently: number;
 }
 
-/** A repaint with no write to the page has moved 140 pixels by up to 36 levels, so a browser's raster alone can break this. The limit stays strict, and a larger difference fails until a person looks. */
+/** A repaint with no write to the page has moved 140 pixels by up to 36 levels, so raster alone can break this limit, and past it a person looks. */
 const LARGEST_SETTLING_LEVELS = 2;
 
 // Evidence for a settle rule on the page and not on the pixels, which the gate does not use yet.

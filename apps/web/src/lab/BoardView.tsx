@@ -14,7 +14,6 @@ interface BoardViewProps {
   onSliderMove?(move: SliderMove): void;
   onSliderRelease?(): void;
   onBoardProblem?(problem: BoardProblem): void;
-  /** Holds one tier. With none, the board sets its own from the frame rate it measures. */
   qualityTier?: QualityTier;
   onQualityTier?(tier: QualityTier): void;
 }

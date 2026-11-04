@@ -14,7 +14,6 @@ export interface ShownScene {
   board: BoardState;
   atMs: number;
   size: BoardSize;
-  /** Null lets the board set its own tier from the frame rate it measures. */
   tier: QualityTier | null;
 }
 
@@ -25,7 +24,6 @@ export interface PlayRequest {
   tier: QualityTier | null;
 }
 
-/** A scene played against the real clock. Each frame's time and each tier the board moved to, from the start of play. */
 export interface PlayResult {
   frameTimesMs: number[];
   tierChanges: { atMs: number; tier: QualityTier }[];

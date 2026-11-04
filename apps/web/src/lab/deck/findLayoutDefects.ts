@@ -6,15 +6,12 @@ export interface Defect {
   detail: string;
 }
 
-/** What the live board asked each placed element to say. */
 export interface ExpectedWords {
   elementId: string;
   words: readonly string[];
-  /** Handwriting is strokes, so only the name it gives a screen reader can stand in for its words. */
   isWrittenInStrokes: boolean;
 }
 
-/** What the board told the tutor it could not do, which turns a silent fault into a reported one. */
 export interface ReportedProblems {
   labelsWithoutRoom: ReadonlySet<string>;
   tooSmallElements: ReadonlySet<string>;
@@ -28,7 +25,6 @@ export interface DefectRequest {
   expected: readonly ExpectedWords[];
   reported: ReportedProblems;
   isAtRest: boolean;
-  /** An element still arriving can rise from below while the board makes room. */
   arriving: ReadonlySet<string>;
 }
 
@@ -75,7 +71,6 @@ const hasArea = (box: DOMRect) => box.width > 0 && box.height > 0;
 
 const describe = (box: Box) => `${Math.round(box.left)},${Math.round(box.top)} to ${Math.round(box.right)},${Math.round(box.bottom)}`;
 
-// Reads visibility and the product of the opacities up to the board, once per element.
 function createPaintReader(board: HTMLElement) {
   const opacities = new Map<Element, number>();
   const getOpacity = (element: Element): number => {
@@ -211,7 +206,7 @@ function getLinePoints(path: SVGPathElement): DOMPoint[] {
 
 const isInside = (point: DOMPoint, box: Box, room: number) => point.x > box.left + room && point.x < box.right - room && point.y > box.top + room && point.y < box.bottom - room;
 
-// Walks each arrow as it is really drawn, and reports the box or the words it runs through. A line that has not started yet still counts, because it will.
+// Reports any box or words an arrow runs through, even on a line that has not started drawing yet.
 function findLineDefects(board: HTMLElement): Defect[] {
   return [...board.querySelectorAll<SVGSVGElement>('[data-element] svg')].flatMap((svg) => {
     const lines = [...svg.querySelectorAll<SVGPathElement>('path[data-ink="line"]')].map(getLinePoints);

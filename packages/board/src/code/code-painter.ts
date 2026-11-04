@@ -14,14 +14,13 @@ function makeLine(source: string, number: number): HTMLElement {
   line.className = 'board-code-line';
   const shownNumber = makeSpan('board-code-number', String(number));
   shownNumber.setAttribute('aria-hidden', 'true');
-  // Code always reads left to right, and an empty line still takes a line's height.
+  // An empty line still takes a line's height.
   const text = makeSpan('board-code-source', source === '' ? ' ' : source);
   text.dir = 'ltr';
   line.append(shownNumber, text);
   return line;
 }
 
-/** Long lines wrap, because a board cannot scroll. Parts are line-1, line-2, and so on. */
 export function createCodePainter(root: HTMLElement, { language, source }: Pick<CodeBlock, 'language' | 'source'>): BlockPainter {
   const figure = document.createElement('figure');
   figure.className = 'board-code';

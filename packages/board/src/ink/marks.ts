@@ -57,7 +57,6 @@ function getCross(box: MarkBox): InkDrawing['strokes'] {
   return [makeStroke([{ x, y }, { x: x + size, y: y + size }]), makeStroke([{ x: x + size, y }, { x, y: y + size }])];
 }
 
-/** How far past each side of its box a mark can reach, so a caller can keep it on the board. */
 export function getMarkReach(mark: AnnotationMark, box: MarkBox): MarkReach {
   if (mark === 'circle') {
     const across = (box.width / 2) * (RING_LARGEST_WANDER - 1) + RING.paddingX * RING_LARGEST_WANDER;

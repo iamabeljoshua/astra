@@ -16,7 +16,6 @@ function makeHeader(columns: readonly string[]): HTMLTableSectionElement {
   return head;
 }
 
-/** Builds with text nodes only, so a cell has no way to become markup. Parts are row-2, column-1, and cell-2-1, counted from 1. */
 export function createTablePainter(root: HTMLElement, { columns, rows }: Pick<Table, 'columns' | 'rows'>): BlockPainter {
   const table = document.createElement('table');
   table.className = 'board-table';
@@ -40,7 +39,6 @@ export function createTablePainter(root: HTMLElement, { columns, rows }: Pick<Ta
   let fittedWidth = 0;
   return {
     stepCount: rows.length,
-    // Words stay whole while the table fits, and break only when they must.
     fitTo(maxWidth) {
       if (maxWidth === fittedWidth) return;
       fittedWidth = maxWidth;

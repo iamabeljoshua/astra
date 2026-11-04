@@ -107,7 +107,7 @@ function getUpwardShift({ before, after, gap }: { before: ReadonlyMap<string, Pl
   return arriving && leavingBottoms.length > 0 ? arriving.y - Math.max(...leavingBottoms) : 0;
 }
 
-// What leaves fades where it stands, and only then does the rest move up, so nothing slides under the board's top edge or across what is going.
+// What leaves fades where it stands before the rest moves up, so nothing slides across it or under the board's top edge.
 function interpolatePlacement({ before, after, progress, shift }: { before: Placement | undefined; after: Placement; progress: number; shift: number }): MovingPlacement {
   const moved = shift === 0 ? progress : Math.max(0, (progress - LEAVING_SHARE) / (1 - LEAVING_SHARE));
   if (!before?.isVisible) return { ...after, y: after.y - shift * (1 - moved), opacity: after.isVisible ? 1 : 0 };

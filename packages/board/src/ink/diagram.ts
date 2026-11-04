@@ -97,7 +97,7 @@ function getRoughBox(box: MarkBox, random: () => number): InkStroke {
   return { ...makeStroke(points), role: 'box' };
 }
 
-// The painter rounds a corner through the midpoints of its sides, so a point each side of a corner keeps the rounding short and the line where the route put it.
+// The painter rounds a corner through the midpoints of its sides, so a point each side of it keeps the line on its route.
 function holdCorners(points: readonly InkPosition[]): InkPosition[] {
   return points.flatMap((corner, index) => {
     const before = points[index - 1];

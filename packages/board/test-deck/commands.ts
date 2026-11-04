@@ -1,4 +1,3 @@
-/** Short forms for the commands a deck scene sends. The parser still reads every one. */
 export const say = (id: string, text: string, more: object = {}) => ({ kind: 'text', id, text, ...more });
 export const math = (id: string, tex: string) => ({ kind: 'writeMath', id, tex });
 export const morph = (target: string, tex: string) => ({ kind: 'transformMath', target, tex });

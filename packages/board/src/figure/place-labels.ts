@@ -103,7 +103,6 @@ interface Shape {
   lines: string[];
   width: number;
   height: number;
-  /** Clear space past the usual padding. */
   room: number;
 }
 

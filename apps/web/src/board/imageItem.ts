@@ -3,7 +3,7 @@ import type { Image, ImageAsset } from '@astra/contracts';
 import type { BoardItem, SliderHandlers } from './boardItems';
 
 const ART_FOLDER = '/board-art';
-/** The share of its entrance a picture waits unseen. A picture is the only thing on the board with the area to flash, and this keeps one cleared and placed again under 3 times a second. */
+/** A picture waits unseen this share of its entrance, which keeps one cleared and placed again under 3 flashes a second. */
 const UNSEEN_ENTRANCE_SHARE = 0.42;
 
 /** Each file's true size, so a picture holds its place before it has loaded. Credits are in docs/credits.md. */

@@ -24,7 +24,7 @@ Tables, timelines, code blocks, labelled drawings, layered diagrams, and picture
 - A code block holds at most 40 lines, and each long line wraps, because a board never scrolls.
 - Text and a picture's description refuse raw TeX, so math goes in `writeMath`.
 
-The deck in `packages/board/test-deck/` has SCENES scenes across math, physics, languages, history, biology, code, music, mixed lessons, and hostile input. Each command in it goes through the same parser and board check as a tutor's. The deck holds right-to-left text, Devanagari, Chinese, Korean, Thai, Burmese, Yoruba, and Igbo.
+The deck in `packages/board/test-deck/` has 118 scenes across math, physics, languages, history, biology, code, music, mixed lessons, and hostile input. Each command in it goes through the same parser and board check as a tutor's. The deck holds right-to-left text, Devanagari, Chinese, Korean, Thai, Burmese, Yoruba, and Igbo.
 
 ## The check
 
@@ -41,9 +41,9 @@ It reports these as defects:
 
 | Measure | Result |
 | --- | --- |
-| Full sweep | RENDERS renders, TEXTS text boxes, 0 defects, in SWEEP_S s |
-| Planted defects | PLANTS caught |
-| Flash check | FLASH |
+| Full sweep | 31,776 renders, 503,056 text boxes, 0 defects, in about a minute |
+| Planted defects | 36 of 36 caught: 21 in the page, 14 in the library, and 1 flash |
+| Flash check | 358 frames on the 3 strobe scenes in both themes, at most 0 flashes in any second. With the picture's hold planted out, 4 |
 
 A plant either breaks the page or rewrites one line of the library as it is served, and never touches the disk. Each must be caught by the kind of defect it plants.
 
@@ -88,7 +88,17 @@ The laptop figure is capped by the 60 Hz display. Runs happen on a development b
 
 `createTierWatch` in `packages/board/src/player/quality-tiers.ts` sets the tier from the frames it sees. Tier 1 paints moving things about 30 times a second, and tier 2 also lands each drawing at once. Below 50 fps for a second drops from the top, and below 28 fps drops again. Audio, captions, and the clock never pass through it. `ScenePlayerLab` now holds tier 0 unless a run asks for `?tier=measured`, so a replay proof cannot see a tier change under load. The student's board has no tier set, so it measures.
 
-TIER_PROOF
+A real room played `library`, a mixed lesson with a drawing, a diagram, a table, a timeline, a picture, code, and a curve, on a stored take of Chris, one run each at a load average of about 20 to 30. Drift is the cue against the word's sound in the recorded audio, in ms.
+
+| Run | Tier | Cue drift p50, p95, worst | Cues over 100 ms late | Words found in the audio | Replay samples that differ |
+| --- | --- | --- | --- | --- | --- |
+| Laptop, full speed | Held at 0 | 22, 65, 65 | 0 of 11 | 103 of 105 | 0 of 764 |
+| Phone width, CPU 12 times slower | Held at 0 | 64, 242, 242 | 4 of 11 | 104 of 105 | 0 of 780 |
+| Phone width, CPU 12 times slower | Measured: tier 1 at 12 s, tier 2 at 50 s | 26, 229, 229 | 1 of 12 | 105 of 105 | 0 of 763 |
+
+All 105 caption words showed in all three runs, and all 12 cues fired. The board dropped a tier by itself, and the words and the audio kept their place while it did. One run each shows the drop and no harm to the voice, and it is too few to claim the lower drift as a gain. The misses at 12 times slower are a main thread stalled for up to 1.9 s, far past a mid-range phone, and the 4 times runs in the table above hold 47 fps or better.
+
+On the deck alone, `mixed-phone-heavy` on a measured tier at 12 times slower dropped to tier 1 at 2.4 s and tier 2 at 3.4 s, at 18 fps over the run and 28 fps over its last half. `packages/board/test/quality-tiers.test.ts` covers the watch itself, including a hidden tab, a slow moment that is no drop, and the longer wait after a climb that did not hold.
 
 ## The proof gate
 

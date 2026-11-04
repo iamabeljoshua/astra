@@ -23,7 +23,6 @@ interface LabWindow {
   sceneLab?: { describeLive(atMs: number): { elements: { id: string; kind: string; tex?: string; drawn: number; morphFrom?: string; revealedUpTo?: number; sceneSeconds?: number }[] }; player: { getNowMs(): number; getOperations(): { kind: string; atMs: number }[] } };
   __frameWatch?: FrameWatch;
   __stopFrameWatch?: () => void;
-  /** The proof itself has moved the board to another moment, so what the board writes then has its cause. */
   __proofIsHolding?: boolean;
 }
 

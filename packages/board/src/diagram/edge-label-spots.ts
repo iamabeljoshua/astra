@@ -19,7 +19,6 @@ export interface LabelRect {
   bottom: number;
 }
 
-/** Where a gap between ranks starts, and the lanes a label can sit in. */
 export interface LabelGap {
   start: number;
   size: number;
@@ -47,7 +46,7 @@ const inflate = ({ left, top, right, bottom }: LabelRect, by: number): LabelRect
 
 const doRectsOverlap = (first: LabelRect, second: LabelRect) => first.left < second.right && second.left < first.right && first.top < second.bottom && second.top < first.bottom;
 
-// Clips the segment against each side of the box in turn. Anything left of it lies inside.
+// Clips the segment against each side of the box in turn, and what remains lies inside.
 function doesSegmentEnter(from: InkPosition, to: InkPosition, { left, top, right, bottom }: LabelRect): boolean {
   const moves = [[from.x - to.x, from.x - left], [to.x - from.x, right - from.x], [from.y - to.y, from.y - top], [to.y - from.y, bottom - from.y]] as const;
   let enter = 0;
@@ -86,7 +85,7 @@ function getLaneSpot(lane: number, { size, gap, axes }: Pick<LabelSearch, 'size'
   return gap.start + (gap.size - gap.lanes * gap.laneSize) / 2 + lane * gap.laneSize + (gap.laneSize - size[axes.alongSize]) / 2;
 }
 
-/** The nearest spot beside a label's own line that clears every line and every other label, stepping away from the line until one does. */
+/** The nearest spot beside a label's own line that clears every line and every other label. */
 export function findLabelSpot(search: LabelSearch): LabelRect {
   const { size, ownLine, gap, axes } = search;
   for (let step = 0; step < MOST_STEPS; step += 1) {

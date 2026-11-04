@@ -10,7 +10,6 @@ const FRAME_MS = 50;
 const SHOT_SCALE = 0.25;
 const SHOT_QUALITY = 60;
 const AFTER_LAST_COMMAND_MS = 900;
-/** The fastest a tutor can go, which is what a flash needs. */
 const STROBES = /strobe/;
 const MOST_CONTRAST = 'dark';
 const THEMES = [MOST_CONTRAST, 'light'] as const;
@@ -45,7 +44,7 @@ export async function getFlashesInScene(page: Page, shots: CDPSession, { scene, 
   return { flashes: getMostFlashesInASecond(samples, getSmallestFlashChange(SIZE.width * SIZE.height)), frames: samples.length };
 }
 
-/** Plays each scene frame by frame on the real pixels, and counts what WCAG calls a flash. A strobe scene runs in both themes, and the rest in the one with the most contrast. */
+/** Plays each scene frame by frame and counts what WCAG calls a flash, in both themes only for a strobe scene. */
 export async function runFlashCheck(page: Page, { isQuick }: { isQuick: boolean }, verdict: Verdict): Promise<void> {
   const startedAtMs = Date.now();
   await page.setViewportSize(VIEWPORT);
