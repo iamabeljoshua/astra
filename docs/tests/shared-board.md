@@ -47,7 +47,7 @@ It cost $0.007 for 72 reads, at 1.9 s a read.
 
 ## Dragging a point
 
-A `drag` task puts the student's point on the curve, near its start, with a ring until it is first moved. It moves in steps of about a fiftieth of the plot, and only from near the point. Letting go sends the whole path, and a press that moved nothing sends nothing. The check is never finer than the point can move, so a wide plot can always be landed. A wrong place waits, because the student may be trying places, and the tutor looks at a pause. The moves land in the log with the work, so a replay moves the point at the same moments.
+A `drag` task puts the student's point on the curve, near its start, with a ring until it is first moved. It moves in steps of about a fiftieth of the plot, and only from near the point. Letting go sends the whole path, and a press that moved nothing sends nothing. The check is never finer than the point can move, so a wide plot can always be landed. Only letting go counts, so a point still moving is not work. Each place it is let go gets the tutor's reply at once, right or wrong. A wrong place gets "Hm." first, and the prompt names the tangent as a good first hint, so the tangent arrives by the tutor's command, as it does on the prototype. The page never draws it alone. The moves land in the log with the work, so a replay moves the point at the same moments.
 
 A line the tutor rewrites with a change takes what hung on it, as PR 88 made it: the student's ring and any task on that line. It says something new, so the ring no longer points at anything, and the tutor sets a new task if it wants one.
 
@@ -165,6 +165,7 @@ Abel's rule: everything a student can see or do on the prototype exists on the r
 | Behavior | Real board | Proof |
 |---|---|---|
 | Terms clickable only during the task, dashed underline in the pen colour | Yes | `term-proof-1-open.png` |
+| The underline and the student's ring cover the signed term, such as `+3` or `-2x` | Yes. The sign and term are one part, and a tutor's answer of `3` still matches `+3`, or `-3` when the line has no bare `3` | `pick-parts.test.ts`, `PickTargets.test.tsx`, `renderMath.test.ts` |
 | Hover tints the term | Yes | `term-proof-2-hover.png` |
 | Hover starts a guessed reply after 160 ms | Not yet. See Head start | |
 | One click draws the student's ring in ink, others stop being clickable | Yes, ring and word in 39 ms on 5179 | `term-proof-3-clicked.png`, `term-demo` run |
@@ -224,10 +225,11 @@ Abel's rule: everything a student can see or do on the prototype exists on the r
 
 | Behavior | Real board | Proof |
 |---|---|---|
-| Plot drawn in the flow, with grid, ticks, and a true minus sign | Yes, by PR 88's figure painter. The grid follows its ticks, and the prototype has one line a unit | `drag-light-1366-*`, `figure.test.ts` |
-| Draggable point with a pulsing ring and its coordinates | Yes. Arrow keys and Enter also move and send it, which the prototype does not have | `drag-point.test.ts`, `DragSurface.test.tsx`, `drag-*-1-waiting` |
+| Plot drawn in the flow, with grid, ticks, and a true minus sign | Yes, by PR 88's figure painter, in the prototype's 620 by 340 shape. The grid follows its ticks, at least 24 px apart on a round step, so the lesson's curve has one line a unit as the prototype does. The prototype's range is padded, so it numbers up to 7 where ours stops at 6 | `drag-light-1366-*`, `figure.test.ts` |
+| Draggable point with a pulsing ring and its coordinates | Yes. It starts a sixth of the way along, which is x = 0 on the lesson's curve as on the prototype. Arrow keys and Enter also move and send it, which the prototype does not have | `drag-point.test.ts`, `DragSurface.test.tsx`, `drag-*-1-waiting` |
 | Tangent riding on the point, with its slope written | Yes | `drag-point.test.ts`, `m3-12-task-*` |
 | Code's check on release, with "Mm-hm." or "Hm." | Yes, 37 to 58 ms on the page, on the drags measured | `drag-proof.mjs`, `board-work.test.ts` |
+| A wrong place gets the tutor's reply at once, and its tangent command as a first hint, with no wait | Yes. The prompt asks for the tangent, so the model decides, as on the prototype | `watch-rule.test.ts`, `board-work.test.ts` |
 
 ### Layout
 

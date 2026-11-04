@@ -1,5 +1,6 @@
 import { evaluatePlotExpression, type ElementId, type LineReading, parsePlotExpression, type StudentWork, type Task, type WorkVerdict } from '@astra/contracts';
 import { checkStep, isFinishedAnswer } from './check-step.ts';
+import { getMathPickParts } from './pick-parts.ts';
 import { getLineTex, readLine } from './read-line.ts';
 
 export interface CheckedWork {
@@ -86,10 +87,18 @@ function checkWrite({ text, ink, heard, keyed }: StudentWork & { way: 'write' },
   return tex === null ? { reading, verdict: UNKNOWN, ...answersQuestion } : { reading, ...checkMathLineOfWork(tex, context), ...answersQuestion };
 }
 
-function checkPick(part: string, { task, pickedRight }: WorkContext): CheckedWork {
+// A tutor may name -3 as 3, so a bare answer means the signed term unless the line also holds it bare.
+function getAnswerKey(answer: string, partsOnLine: readonly string[]): string {
+  const key = toPartKey(answer);
+  return partsOnLine.includes(key) || !partsOnLine.includes(`-${key}`) ? key : `-${key}`;
+}
+
+function checkPick(part: string, { task, pickedRight, getLineTex: getTex }: WorkContext): CheckedWork {
   if (task?.way !== 'pick') return { verdict: UNKNOWN };
   if (!task.answer) return { verdict: UNKNOWN, ...closes(task, true) };
-  const answers = task.answer.map(toPartKey);
+  const tex = getTex(task.on);
+  const partsOnLine = tex === null ? [] : getMathPickParts(tex).map((pickPart) => toPartKey(pickPart.part));
+  const answers = task.answer.map((answer) => getAnswerKey(answer, partsOnLine));
   if (!answers.includes(toPartKey(part))) return { verdict: { status: 'wrong', why: `${part} is not the part the tutor asked for` }, ...closes(task, new Set(answers).size === 1) };
   const picked = new Set([...pickedRight.map(toPartKey), toPartKey(part)]);
   return { verdict: RIGHT, ...closes(task, answers.every((answer) => picked.has(answer))) };

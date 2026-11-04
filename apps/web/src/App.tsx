@@ -1,5 +1,5 @@
 import { QueryClientProvider } from '@tanstack/react-query';
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router';
 import { QueryDevtools } from './api/QueryDevtools';
 import { createQueryClient } from './api/queryClient';
@@ -10,10 +10,11 @@ import { LegalPage } from './legal/LegalPage';
 import { LEGAL_PATHS } from './legal/legalPaths';
 import { RootErrorBoundary } from './RootErrorBoundary';
 import { SESSION_ROUTE } from './session/sessionPath';
-import { SessionScreen } from './session/SessionScreen';
 import { AppShell } from './shell/AppShell';
 import { LEGAL_PAGES } from './strings';
 
+const loadSessionScreen = () => import('./session/SessionScreen');
+const SessionScreen = lazy(() => loadSessionScreen().then((loaded) => ({ default: loaded.SessionScreen })));
 const ScenePlayerLab = import.meta.env.DEV ? lazy(() => import('./lab/ScenePlayerLab')) : null;
 const VoiceTestPage = import.meta.env.DEV ? lazy(() => import('./lab/VoiceTestPage')) : null;
 
@@ -59,9 +60,21 @@ function AppRoutes() {
 }
 
 function SignedInRoutes() {
+  // Fetched once signed in, so opening a session does not wait on it. A failed fetch is left to the route, which tries again.
+  useEffect(() => {
+    loadSessionScreen().catch(() => {});
+  }, []);
+
   return (
     <Routes>
-      <Route path={SESSION_ROUTE} element={<SessionScreen />} />
+      <Route
+        path={SESSION_ROUTE}
+        element={
+          <Suspense>
+            <SessionScreen />
+          </Suspense>
+        }
+      />
       <Route path="*" element={<AppShell />} />
     </Routes>
   );
