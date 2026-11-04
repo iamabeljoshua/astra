@@ -7,7 +7,10 @@ import { MovingDot } from '../board/MovingDot';
 import { SharedBoard } from '../board/SharedBoard';
 import { getLatestRowId } from '../board/useDotTarget';
 import { findArtwork } from '../home/artwork';
+import { SceneLayer } from '../scenes/SceneLayer';
+import { hasDrawableScene, useReplayScene } from '../scenes/useTutorScene';
 import { getSessionVisual } from '../session/BoardPicture';
+import { isTutorSceneEnabled } from '../session/lessonFlag';
 import type { Session } from '../session/sessionQueries';
 import { BAR_ACTION, getBarSubject, SessionFacts, SessionFrame, SessionTitle } from '../session/SessionFrame';
 import { API_ERROR_LABELS, MENU_LABELS, REPLAY_LABELS, SESSION_LABELS, VOICE_LABELS } from '../strings';
@@ -90,6 +93,8 @@ function PlayingReplay({ session, saved: { lesson, recap, recapAnswer } }: { ses
   const caption = useMemo(() => getReplayCaption(lesson, atMs), [lesson, atMs]);
   const studentLine = getReplayStudentLine(lesson, atMs);
   const [peek, setPeek] = useState<VisualPeek | null>(null);
+  const { stage, onContainer } = useReplayScene(board, isTutorSceneEnabled());
+  const visual = hasDrawableScene(board, stage) ? <SceneLayer board={board} atMs={boardAtMs} stage={stage} onContainer={onContainer} /> : getSessionVisual(findArtwork(session.artwork));
   useSpaceToPlay(togglePlay);
   const isAtRest = !isPlaying && (!hasMoved || isAtEnd);
   usePlaceDotOnceMore(atMs, isPlaying);
@@ -110,9 +115,9 @@ function PlayingReplay({ session, saved: { lesson, recap, recapAnswer } }: { ses
           <DeleteReplay sessionId={session.id} />
         </div>
       </div>
-      <BoardStageView stage={board.stage} atMs={boardAtMs} visual={getSessionVisual(findArtwork(session.artwork))} ariaLabel={VOICE_LABELS.board} peek={peek} onPeek={setPeek} footer={<ReplayTransport lesson={lesson} player={player} onSeeked={() => setPeek(null)} />}>
+      <BoardStageView stage={board.stage} atMs={boardAtMs} visual={visual} ariaLabel={VOICE_LABELS.board} peek={peek} onPeek={setPeek} footer={<ReplayTransport lesson={lesson} player={player} onSeeked={() => setPeek(null)} />}>
         <MovingDot rowId={isAtRest ? null : getLatestRowId(board)} isWatching={false} isThinking={false} isLively={caption.isSpeaking} getLoudness={NO_LOUDNESS} />
-        <SharedBoard board={board} atMs={boardAtMs} />
+        <SharedBoard board={board} atMs={boardAtMs} emptyNote={REPLAY_LABELS.emptyBoard} />
       </BoardStageView>
     </div>
   );

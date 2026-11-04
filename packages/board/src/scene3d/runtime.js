@@ -12,6 +12,8 @@ const tell = (message) => real.post(message, '*');
 const LOAD_BUDGET_MS = 3000;
 const FRAME_BUDGET_MS = 250;
 const MOST_RENDER_ERRORS = 3;
+const BLANK_LIT = 0.002;
+const BLANK_STD = 0.02;
 
 let sceneSeconds = 0;
 let rand = mulberry(1234);
@@ -105,6 +107,16 @@ function noteMoments(momentsSeen) {
   kit.title = (text, options = {}) => { seen(options.show); return title(text, options); };
 }
 
+// A scene starts on a fade from black, so it is read later on, at two points, because one of them can fall in a real fade.
+function hasDrawnSomething({ moments, duration }) {
+  const firstBeat = Math.min(duration, 1 + Math.min(...Object.values(moments), duration));
+  return [duration / 2, firstBeat].some((seconds) => {
+    draw(seconds);
+    const { lit, std } = kit.__pixelStats();
+    return lit >= BLANK_LIT || std >= BLANK_STD;
+  });
+}
+
 async function load(command) {
   const startedAt = real.now();
   const textures = {};
@@ -121,6 +133,7 @@ async function load(command) {
     sceneObject = withBudget(LOAD_BUDGET_MS, () => window.__scene(kit)) || {};
     if (typeof sceneObject === 'function') sceneObject = { render: sceneObject };
     const buildMs = real.now() - buildStartedAt;
+    if (!hasDrawnSomething(command.timing)) throw new Error('the scene drew nothing');
     draw(wantSeconds ?? 0);
     const context = kit.renderer.getContext();
     tell({
@@ -215,6 +228,10 @@ window.addEventListener('message', (event) => {
   if (event.source !== window.parent) return;
   const command = event.data;
   if (typeof command?.type === 'string' && Object.hasOwn(COMMANDS, command.type)) COMMANDS[command.type](command);
+});
+
+document.getElementById('c').addEventListener('webglcontextlost', () => {
+  if (!isDisposed) tell({ type: 'error', phase: 'render', message: 'the graphics context was lost' });
 });
 
 lockDown();

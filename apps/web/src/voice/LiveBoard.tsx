@@ -248,6 +248,7 @@ export function LiveBoard({ voice, getVisual, onTalk, isTalkOn = false, canTalk 
         board={board}
         atMs={atMs}
         onBoardProblem={reportProblem}
+        {...(isConnecting ? {} : { emptyNote: VOICE_LABELS.emptyBoard })}
         {...(isLookingBack ? {} : { onWork: sendWork, onMovePoint: movePoint })}
         lineInTheBand={lineInTheBand}
         onFixReading={(text) => {

@@ -27,10 +27,11 @@ const { values: args } = parseArgs({
     kitSlowMs: { type: 'string' },
     kitStallsAtS: { type: 'string' },
     seekTimes: { type: 'string' },
+    replay: { type: 'boolean', default: false },
   },
 });
 
-const FLAGS = ['--enable-unsafe-webgpu', '--enable-features=Vulkan', '--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist', '--use-mock-keychain', '--autoplay-policy=no-user-gesture-required'];
+const FLAGS = ['--enable-unsafe-webgpu', '--enable-features=Vulkan', '--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist', '--use-mock-keychain', '--mute-audio', '--autoplay-policy=no-user-gesture-required'];
 const delay = (ms: number) => new Promise((done) => setTimeout(done, ms));
 const out = args.out as string;
 mkdirSync(out, { recursive: true });
@@ -297,9 +298,38 @@ if (sceneSeenAtS !== null && args.handsOn) {
   }
 }
 
+const sessionPath = new URL(page.url()).pathname;
 await page.getByRole('button', { name: 'End session' }).click();
 await delay(5000);
-summary.framesAfterEnd = await page.evaluate(() => document.querySelectorAll('iframe').length);
+summary.framesDuringRecap = await page.evaluate(() => document.querySelectorAll('iframe').length);
+await page.screenshot({ path: join(out, 'recap.png') });
+await page.goto('/sessions');
+await delay(1500);
+summary.framesAfterLeaving = await page.evaluate(() => document.querySelectorAll('iframe').length);
+
+async function watchReplay() {
+  await page.goto(sessionPath);
+  await page.locator('[data-testid="replay-transport"]').waitFor({ timeout: 45_000 });
+  const seek = page.getByRole('slider', { name: 'Lesson timeline' });
+  const durationMs = Number(await seek.getAttribute('max'));
+  const points: Record<string, unknown>[] = [];
+  for (const share of [1, 0.05, 0.25, 0.5, 0.75, 1]) {
+    await seek.fill(String(Math.round(durationMs * share)));
+    await delay(3500);
+    const shotName = `replay-${String(points.length)}-${Math.round(share * 100)}.png`;
+    await page.screenshot({ path: join(out, shotName) });
+    points.push({
+      share,
+      shotName,
+      ...(await page.evaluate(() => {
+        const layer = document.querySelector<HTMLElement>('[data-testid="scene-layer"]');
+        return { sceneSeconds: layer?.dataset.seconds ?? null, engine: document.querySelector<HTMLElement>('[data-engine]')?.dataset.engine ?? null, frames: document.querySelectorAll('iframe').length, emptyNote: document.querySelector('[data-testid="board-empty"]')?.textContent ?? null, hasPicture: Boolean(document.querySelector('[data-testid="board-visual"] img, [data-testid="board-visual"] svg')) };
+      })),
+    });
+  }
+  summary.replay = { durationMs, points };
+}
+if (args.replay) await watchReplay().catch((error: unknown) => problems.push(`replay: ${String(error).slice(0, 300)}`));
 await page.close();
 let trace = readTrace(args.trace);
 for (let tries = 0; tries < 60 && args.trace && !trace.some(({ name }) => name === 'jobClosed'); tries += 1) {

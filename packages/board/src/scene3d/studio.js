@@ -204,6 +204,28 @@ export function addStudio(kit, x) {
     }
   };
 
+  // Paints one half of a planet: a thin hemisphere shell on the part's spinner, centred on its local dir, so it turns with the body.
+  kit.paintCap = (o = {}) => {
+    const host = typeof o.on === 'string' ? x.parts[o.on] : o.on;
+    if (!host?.spinner) { issue(`paintCap: unknown planet ${o.on}`); return null; }
+    const r = (host.radius ?? 1) * 1.004;
+    const mat = new THREE.ShaderMaterial({
+      uniforms: { uC: { value: new THREE.Color(o.color ?? '#c8321e') }, uSun: kit.uSun, uO: { value: o.opacity ?? 0.72 } }, transparent: true, depthWrite: false,
+      vertexShader: 'varying vec3 vN; varying vec3 vW; void main(){ vN=normalize(mat3(modelMatrix)*normal); vec4 w=modelMatrix*vec4(position,1.); vW=w.xyz; gl_Position=projectionMatrix*viewMatrix*w; }',
+      // Same hard terminator as the airless planet shader under it, so the paint falls into night with the body.
+      fragmentShader: 'uniform vec3 uC,uSun; uniform float uO; varying vec3 vN; varying vec3 vW; void main(){ vec3 L=normalize(uSun-vW); float d=dot(normalize(vN),L); float w=smoothstep(-.012,.05,d); float l=max(d,0.)*.82+.18*w; gl_FragColor=vec4(uC*l*1.5*w,uO*(.25+.75*w)); }',
+    });
+    const geo = new THREE.SphereGeometry(r, 64, 32, 0, Math.PI * 2, 0, Math.PI / 2);
+    const m = new THREE.Mesh(geo, mat);
+    const d = o.dir ?? [1, 0, 0];
+    m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(d[0], d[1], d[2]).normalize());
+    host.spinner.add(m);
+    const part = basePart(m);
+    part.show = (v) => { m.visible = v > 0.001; mat.uniforms.uO.value = (o.opacity ?? 0.72) * v; return part; };
+    part.faceWorld = () => { m.updateWorldMatrix(true, false); return new THREE.Vector3(0, 1, 0).transformDirection(m.matrixWorld); };
+    return register(o.id, part);
+  };
+
   // A two-stage launcher built along +y with its origin at mid length. Its own flame is attached, so part.throttle(v) is all a scene needs.
   kit.rocket = (o = {}) => {
     const L = o.length ?? 1;
@@ -455,6 +477,221 @@ export function addStudio(kit, x) {
       show(n) { h.k = n; return part; },
     };
     return part;
+  };
+
+  const paletteFor = () => (kit.theme === 'light'
+    ? { zenith: '#6f9fd4', horizon: '#f2e6cf', sunGlow: '#fff2d8', sun: '#fff4e2', sunPower: 3.1, hemiTop: '#bcd4ee', hemiBot: '#b8a888', hemi: 1.15, fog: '#e9e0cd', exposure: 1 }
+    : { zenith: '#101b38', horizon: '#c98a5e', sunGlow: '#ffb67a', sun: '#ffd2a0', sunPower: 2.7, hemiTop: '#44597f', hemiBot: '#3a2d26', hemi: 0.75, fog: '#6a5560', exposure: 1 });
+
+  // Soft sun shadows for standard materials. Tight bounds keep the one extra pass cheap and the edges sharp enough to read.
+  const enableShadows = (light, o = {}) => {
+    x.renderer.shadowMap.enabled = true;
+    x.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    const size = o.size ?? 20, at = o.at ?? [0, 0, 0];
+    light.castShadow = true;
+    light.shadow.mapSize.set(o.map ?? 2048, o.map ?? 2048);
+    const c = light.shadow.camera;
+    c.left = -size; c.right = size; c.top = size; c.bottom = -size; c.near = 0.5; c.far = (o.far ?? size * 8);
+    light.shadow.bias = o.bias ?? -0.0004;
+    light.shadow.normalBias = o.normalBias ?? 0.02;
+    light.shadow.radius = o.softness ?? 4;
+    light.target.position.set(at[0], at[1], at[2]);
+    scene.add(light.target);
+    let done = false;
+    x.tickers.push(() => {
+      if (done) return;
+      done = true;
+      scene.traverse((m) => {
+        if (!m.isMesh || !m.material || m.userData.noShadow) return;
+        if (m.material.isMeshStandardMaterial) { m.castShadow = !m.material.transparent; m.receiveShadow = true; }
+      });
+    });
+  };
+  kit.shadows = (o = {}) => {
+    let lit = null;
+    scene.traverse((m) => { if (m.isDirectionalLight && !lit) lit = m; });
+    if (lit) enableShadows(lit, o);
+    return kit;
+  };
+
+  const GROUNDS = {
+    sand: { a: '#d9b98a', b: '#b4905f', scale: 0.09, detail: 2.6, ripple: 0.5 },
+    grass: { a: '#4f8a3c', b: '#3a7030', scale: 0.32, detail: 7, stripes: 11 },
+    dirt: { a: '#a58f6d', b: '#7f6c50', scale: 0.2, detail: 4 },
+  };
+  // A sky, a sun, a ground that fades into haze, and real shadows. Day in the light theme, dusk in the dark one.
+  kit.outdoor = (o = {}) => {
+    const pal = { ...paletteFor(), ...(o.palette ?? {}) };
+    document.documentElement.dataset.canvas = kit.theme === 'light' ? 'light' : 'dark';
+    const sunDir = new THREE.Vector3(...(o.sun ?? [-40, 34, 50])).normalize();
+    const skyMat = new THREE.ShaderMaterial({
+      side: THREE.BackSide, depthTest: false, depthWrite: false,
+      uniforms: { uZ: { value: new THREE.Color(pal.zenith) }, uH: { value: new THREE.Color(pal.horizon) }, uG: { value: new THREE.Color(pal.sunGlow) }, uS: { value: sunDir } },
+      vertexShader: 'varying vec3 vP; void main(){ vP=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }',
+      fragmentShader: 'uniform vec3 uZ,uH,uG,uS; varying vec3 vP; void main(){ vec3 d=normalize(vP); float h=clamp(d.y,0.,1.); vec3 c=mix(uH,uZ,pow(h,.55)); float s=max(dot(d,uS),0.); c+=uG*(pow(s,8.)*.22+pow(s,120.)*.9); if(d.y<0.) c=uH; gl_FragColor=vec4(c,1.); }',
+    });
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 24), skyMat);
+    dome.scale.setScalar(5e4); dome.renderOrder = -10;
+    x.sky.add(dome);
+    x.buildEnv(o.env ?? 0.6);
+    scene.environmentIntensity = o.envIntensity ?? 0.55;
+    scene.background = new THREE.Color(pal.horizon);
+    scene.fog = new THREE.Fog(new THREE.Color(pal.fog), o.fogNear ?? 90, o.fogFar ?? 420);
+    const hemi = new THREE.HemisphereLight(new THREE.Color(pal.hemiTop), new THREE.Color(pal.hemiBot), pal.hemi);
+    scene.add(hemi);
+    const sun = new THREE.DirectionalLight(new THREE.Color(pal.sun), o.sunPower ?? pal.sunPower);
+    sun.position.copy(sunDir).multiplyScalar(o.sunFar ?? 120);
+    scene.add(sun);
+    kit.sunLight = sun;
+    enableShadows(sun, o.shadow ?? { size: 26, far: 280 });
+    const g = typeof o.ground === 'string' && GROUNDS[o.ground] ? GROUNDS[o.ground] : { ...GROUNDS.sand, ...(o.ground ?? {}) };
+    const gm = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, metalness: 0, envMapIntensity: 0.35 });
+    const uA = { value: new THREE.Color(g.a) }, uB = { value: new THREE.Color(g.b) };
+    gm.onBeforeCompile = (s) => {
+      s.uniforms.uA = uA; s.uniforms.uB = uB;
+      s.vertexShader = s.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vG;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvG=position;');
+      s.fragmentShader = s.fragmentShader.replace('#include <common>', `#include <common>\nvarying vec3 vG; uniform vec3 uA,uB; ${NOISE}`)
+        .replace('#include <color_fragment>', `#include <color_fragment>
+          { vec2 p=vG.xz; float big=fb(vec3(p*${(g.scale * 0.35).toFixed(4)},1.)); float mid=fb(vec3(p*${g.scale.toFixed(4)},4.)); float fine=fb(vec3(p*${g.detail.toFixed(3)},9.));
+            float k=clamp(big*.9+mid*.5+fine*.35-.3,0.,1.);
+            ${g.ripple ? `k+=.1*sin((p.x*.8+p.y*.5)*${(g.ripple * 8).toFixed(2)}+big*9.);` : ''}
+            ${g.stripes ? `k+=.14*step(.5,fract(p.x/${(g.stripes * 0.5).toFixed(2)}));` : ''}
+            diffuseColor.rgb=mix(uB,uA,clamp(k,0.,1.)); }`);
+    };
+    const ground = new THREE.Mesh(new THREE.CircleGeometry(o.groundSize ?? 900, 96).rotateX(-Math.PI / 2), gm);
+    ground.position.y = o.groundY ?? 0;
+    ground.userData.isGround = true;
+    scene.add(ground);
+    ground.receiveShadow = true;
+    x.tickers.push(() => { ground.castShadow = false; });
+    kit.groundMesh = ground;
+    x.grade.uniforms.uExposure.value = pal.exposure;
+    x.grade.uniforms.uVignette.value = 0.22;
+    return kit;
+  };
+
+  // A soft faceless mannequin, built once and shared, so a wall of players costs one sculpt.
+  const POSES = {
+    stand: { lean: 0, armL: [0.34, 0.92, 0.04], armR: [-0.34, 0.92, 0.04], handL: [0.36, 0.68, 0.06], handR: [-0.36, 0.68, 0.06], footL: [0.12, 0, 0.02], footR: [-0.12, 0, 0.02], kneeL: [0.11, 0.48, 0.03], kneeR: [-0.11, 0.48, 0.03] },
+    wall: { lean: 0, armL: [0.26, 0.86, 0.14], armR: [-0.26, 0.86, 0.14], handL: [0.06, 0.62, 0.17], handR: [-0.06, 0.62, 0.17], footL: [0.1, 0, 0.02], footR: [-0.1, 0, 0.02], kneeL: [0.1, 0.48, 0.05], kneeR: [-0.1, 0.48, 0.05] },
+    shoot: { lean: 0.03, armL: [0.2, 1.16, 0.14], armR: [-0.12, 1.2, 0.2], handL: [0.1, 1.32, 0.24], handR: [-0.05, 1.42, 0.24], footL: [0.1, 0.1, 0.0], footR: [-0.1, 0.1, 0.0], kneeL: [0.1, 0.46, 0.08], kneeR: [-0.1, 0.46, 0.08] },
+    kick: { lean: -0.08, armL: [0.36, 0.9, -0.1], armR: [-0.3, 0.86, 0.2], handL: [0.46, 0.74, -0.18], handR: [-0.34, 0.68, 0.3], footL: [0.1, 0, -0.1], footR: [-0.1, 0.16, 0.42], kneeL: [0.1, 0.46, -0.03], kneeR: [-0.1, 0.46, 0.26] },
+  };
+  kit.figure = (o = {}) => {
+    const P = POSES[o.pose ?? 'stand'] ?? POSES.stand;
+    const shirt = o.shirt ?? '#d8d2c6', shorts = o.shorts ?? '#23262c', skin = o.skin ?? '#8d6a52', sock = o.sock ?? '#e6e0d4';
+    const h = o.height ?? 1.85, L = P.lean;
+    const hip = [0, 0.55, L * 0.5], chest = [0, 0.84, L * 1.5], neck = [0, 0.99, L * 2], head = [0, 1.08, L * 2.4];
+    const sh = (a) => a.map((v) => v);
+    const blobs = [
+      { p: hip, to: chest, r: 0.115, r2: 0.135, color: shirt },
+      { p: [0.12, 0.92, L * 1.7], to: [-0.12, 0.92, L * 1.7], r: 0.07, color: shirt },
+      { p: hip, to: [0, 0.5, L * 0.4], r: 0.115, color: shorts },
+      { p: neck, to: head, r: 0.05, r2: 0.076, color: skin },
+      { p: [0.17, 0.93, L * 1.7], to: sh(P.armL), r: 0.04, r2: 0.034, color: shirt },
+      { p: sh(P.armL), to: sh(P.handL), r: 0.032, r2: 0.03, color: skin },
+      { p: [-0.17, 0.93, L * 1.7], to: sh(P.armR), r: 0.04, r2: 0.034, color: shirt },
+      { p: sh(P.armR), to: sh(P.handR), r: 0.032, r2: 0.03, color: skin },
+      { p: [0.08, 0.52, L * 0.4], to: sh(P.kneeL), r: 0.06, r2: 0.045, color: shorts },
+      { p: sh(P.kneeL), to: sh(P.footL), r: 0.043, r2: 0.03, color: sock },
+      { p: [-0.08, 0.52, L * 0.4], to: sh(P.kneeR), r: 0.06, r2: 0.045, color: shorts },
+      { p: sh(P.kneeR), to: sh(P.footR), r: 0.043, r2: 0.03, color: sock },
+      { p: sh(P.footL), to: [P.footL[0], P.footL[1] + 0.004, P.footL[2] + 0.09], r: 0.032, color: '#1c1c20' },
+      { p: sh(P.footR), to: [P.footR[0], P.footR[1] + 0.004, P.footR[2] + 0.09], r: 0.032, color: '#1c1c20' },
+    ];
+    const part = kit.organic({ id: o.id, blobs, smooth: 0.035, res: o.res ?? 76, material: 'matte', roughness: 0.72, detail: { scale: 40, amount: 0.04 } });
+    part.object.scale.setScalar(h / 1.16);
+    if (o.at) part.place(o.at);
+    if (o.face !== undefined) part.object.rotation.y = o.face;
+    part.height = h;
+    // Copies share the sculpt, so a wall of players adds draw calls and no build time.
+    part.copy = (c = {}) => {
+      const m = part.object.clone();
+      scene.add(m);
+      const q = basePart(m);
+      q.show = (v) => { m.visible = v > 0.001; return q; };
+      if (c.at) q.place(c.at);
+      if (c.face !== undefined) m.rotation.y = c.face;
+      return register(c.id, q);
+    };
+    return part;
+  };
+
+  const texturedFloor = (o, draw, W2, H2) => {
+    const map = paint(o.tex ?? 2048, Math.round(((o.tex ?? 2048) * H2) / W2), draw);
+    map.wrapS = THREE.ClampToEdgeWrapping;
+    const mat = new THREE.MeshStandardMaterial({ map, roughness: o.roughness ?? 0.38, metalness: 0, envMapIntensity: o.env ?? 0.8 });
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(W2, H2).rotateX(-Math.PI / 2), mat);
+    scene.add(m);
+    m.receiveShadow = true;
+    m.userData.noShadow = true;
+    m.receiveShadow = true;
+    if (o.at) m.position.set(...o.at);
+    const part = basePart(m);
+    part.show = (v) => { m.visible = v > 0.001; return part; };
+    return register(o.id, part);
+  };
+  // A hardwood court, 28 m by 15 m, centred on the origin with the basket line at +x. Real markings at real sizes.
+  kit.court = (o = {}) => texturedFloor({ id: o.id ?? 'court', ...o }, (g, w, h) => {
+    const sx = w / 34, sz = h / 22, ox = w / 2, oz = h / 2;
+    const rng = kit.rng(5);
+    for (let i = 0; i < 90; i++) { for (let j = 0; j < 14; j++) {
+      const t = 150 + rng() * 34; g.fillStyle = `rgb(${t + 58},${t + 8},${t - 52})`;
+      g.fillRect((j / 14) * w, (i / 90) * h, w / 14 + 1, h / 90 + 1);
+    } }
+    g.strokeStyle = 'rgba(70,40,20,.22)'; g.lineWidth = 1;
+    for (let i = 0; i < 90; i++) { g.beginPath(); g.moveTo(0, (i / 90) * h); g.lineTo(w, (i / 90) * h); g.stroke(); }
+    const X = (v) => ox + v * sx, Z = (v) => oz + v * sz;
+    g.strokeStyle = '#f6f1e6'; g.lineWidth = sx * 0.05;
+    g.strokeRect(X(-14), Z(-7.5), 28 * sx, 15 * sz);
+    g.beginPath(); g.moveTo(X(0), Z(-7.5)); g.lineTo(X(0), Z(7.5)); g.stroke();
+    g.beginPath(); g.ellipse(X(0), Z(0), 1.8 * sx, 1.8 * sz, 0, 0, Math.PI * 2); g.stroke();
+    const hoopX = 14 - 1.575;
+    g.fillStyle = 'rgba(160,70,40,.34)'; g.fillRect(X(14 - 5.8), Z(-2.45), 5.8 * sx, 4.9 * sz);
+    g.strokeRect(X(14 - 5.8), Z(-2.45), 5.8 * sx, 4.9 * sz);
+    g.beginPath(); g.ellipse(X(14 - 5.8), Z(0), 1.8 * sx, 1.8 * sz, 0, Math.PI / 2, Math.PI * 1.5); g.stroke();
+    g.beginPath(); g.ellipse(X(hoopX), Z(0), 6.75 * sx, 6.75 * sz, 0, Math.PI * 0.62, Math.PI * 1.38); g.stroke();
+  }, 34, 22);
+
+  // A basket at x, facing -x: rim at 3.05 m, backboard, post and a net that swishes when told to.
+  kit.hoop = (o = {}) => {
+    const root = new THREE.Group();
+    const rimR = 0.2286, rimH = o.rimHeight ?? 3.05;
+    const rimMat = new THREE.MeshStandardMaterial({ color: new THREE.Color('#d9572a'), metalness: 0.6, roughness: 0.35 });
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(rimR, 0.012, 12, 48).rotateX(Math.PI / 2), rimMat);
+    rim.position.set(0, rimH, 0);
+    root.add(rim);
+    const boardMat = new THREE.MeshPhysicalMaterial({ color: new THREE.Color('#eef2f4'), roughness: 0.2, transparent: true, opacity: 0.55, envMapIntensity: 1.4, depthWrite: false });
+    const board = new THREE.Mesh(new THREE.BoxGeometry(0.03, 1.05, 1.8), boardMat);
+    board.position.set(rimR + 0.15, rimH + 0.3, 0);
+    root.add(board);
+    const frameMat = new THREE.MeshStandardMaterial({ color: new THREE.Color('#2a2c31'), metalness: 0.4, roughness: 0.5 });
+    const square = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.45, 0.59), new THREE.MeshBasicMaterial({ color: new THREE.Color('#2a2c31'), wireframe: true }));
+    square.position.set(rimR + 0.15, rimH + 0.27, 0);
+    root.add(square);
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.08, 0.08), frameMat);
+    arm.position.set(rimR + 0.6, rimH + 0.25, 0);
+    root.add(arm);
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, rimH + 0.3, 16), frameMat);
+    post.position.set(rimR + 1.05, (rimH + 0.3) / 2, 0);
+    root.add(post);
+    const netU = { uSwish: { value: 0 }, uC: { value: new THREE.Color(kit.theme === 'light' ? '#ffffff' : '#e8e4da') } };
+    const netMat = new THREE.ShaderMaterial({
+      uniforms: netU, transparent: true, depthWrite: false, side: THREE.DoubleSide,
+      vertexShader: 'uniform float uSwish; varying vec2 vUv; void main(){ vUv=uv; vec3 p=position; float k=1.-uv.y; p.xz*=1.+uSwish*.32*sin(3.14*k); p.y-=uSwish*.05*k; gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.); }',
+      fragmentShader: 'uniform vec3 uC; varying vec2 vUv; void main(){ float a=abs(fract(vUv.x*24.+vUv.y*5.)-.5); float b=abs(fract(vUv.x*24.-vUv.y*5.)-.5); float m=smoothstep(.1,.02,min(a,b)); if(m<.05) discard; gl_FragColor=vec4(uC*1.2,m*.9); }',
+    });
+    const net = new THREE.Mesh(new THREE.CylinderGeometry(rimR, rimR * 0.62, 0.42, 32, 6, true), netMat);
+    net.position.set(0, rimH - 0.21, 0);
+    root.add(net);
+    scene.add(root);
+    if (o.at) root.position.set(o.at[0], o.at[1] ?? 0, o.at[2] ?? 0);
+    const part = basePart(root);
+    part.radius = rimR;
+    part.swish = (v) => { netU.uSwish.value = v; return part; };
+    part.rimHeight = rimH;
+    part.show = (v) => { root.visible = v > 0.001; return part; };
+    return register(o.id, part);
   };
 
   void issue;

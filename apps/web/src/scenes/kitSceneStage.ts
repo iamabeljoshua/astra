@@ -41,7 +41,7 @@ async function getKitTake(sceneId: string): Promise<KitTake> {
 }
 
 /** A kit scene and its 2D take share one id and one clock, so the 2D take plays until the kit is ready, and stands in with no word whenever the kit cannot. */
-export function createKitSceneStage(container: HTMLElement): SceneStage {
+export function createKitSceneStage(container: HTMLElement, onChange: () => void = () => {}): SceneStage {
   const flatLayer = createLayer(container);
   const flat = createSceneStage(flatLayer);
   const entries = new Map<string, KitEntry>();
@@ -64,13 +64,24 @@ export function createKitSceneStage(container: HTMLElement): SceneStage {
   const openEntry = async (sceneId: string, layer: HTMLElement): Promise<boolean> => {
     try {
       const [{ openKitFrame }, take] = await Promise.all([import('./kitFrame'), getKitTake(sceneId)]);
-      const frame = await openKitFrame({ host: layer, take, theme: getAppliedTheme(), limitMs: KIT_LOAD_LIMIT_MS, onStall: () => drop(sceneId) });
+      const frame = await openKitFrame({
+        host: layer,
+        take,
+        theme: getAppliedTheme(),
+        limitMs: KIT_LOAD_LIMIT_MS,
+        onStall: () => {
+          drop(sceneId);
+          onChange();
+        },
+        onFirstDraw: onChange,
+      });
       const entry = entries.get(sceneId);
       if (!entry) {
         frame.dispose();
         return false;
       }
       entry.frame = frame;
+      onChange();
       return true;
     } catch (error) {
       // The student never hears of this, and a person reading the page can.
@@ -93,13 +104,14 @@ export function createKitSceneStage(container: HTMLElement): SceneStage {
     return entry.opening;
   };
 
-  const show = (sceneId: string, isKit: boolean) => {
+  // The kit's layer is in place but clear while it proves it can draw, so a frame that never does is never seen.
+  const show = (sceneId: string, isKitOn: boolean, isKitSeen: boolean) => {
     for (const [heldId, { layer }] of entries) {
-      const isShown = isKit && heldId === sceneId;
-      layer.style.visibility = isShown ? 'visible' : 'hidden';
-      layer.style.opacity = isShown ? '1' : '0';
+      const isThisScene = isKitOn && heldId === sceneId;
+      layer.style.visibility = isThisScene ? 'visible' : 'hidden';
+      layer.style.opacity = isThisScene && isKitSeen ? '1' : '0';
     }
-    container.dataset.engine = isKit ? 'kit' : 'flat';
+    container.dataset.engine = isKitSeen ? 'kit' : 'flat';
   };
 
   const observer = new ResizeObserver(() => {
@@ -109,19 +121,28 @@ export function createKitSceneStage(container: HTMLElement): SceneStage {
 
   return {
     async load(sceneId, durationSeconds, engine?: SceneEngine) {
-      if (engine !== 'kit' || !getCanPlayKit()) return flat.load(sceneId, durationSeconds);
+      if (engine !== 'kit' || !getCanPlayKit()) {
+        const isLoaded = await flat.load(sceneId, durationSeconds);
+        onChange();
+        return isLoaded;
+      }
       const kit = open(sceneId);
       // The words and the board never wait on the kit, so the 2D take alone can say the page is ready. A live scene has no 2D take.
-      return (await flat.load(sceneId, durationSeconds)) || kit;
+      const hasFlat = await flat.load(sceneId, durationSeconds);
+      onChange();
+      return hasFlat || kit;
     },
     draw(sceneId, seconds) {
       lastDrawnId = sceneId;
       const frame = entries.get(sceneId)?.frame;
-      show(sceneId, Boolean(frame));
       if (frame) {
         frame.setTheme(getAppliedTheme());
         frame.render(seconds);
-      } else flat.draw(sceneId, seconds);
+      }
+      const hasFlat = flat.canDraw(sceneId);
+      const isKitSeen = Boolean(frame && (frame.hasDrawn() || !hasFlat));
+      show(sceneId, Boolean(frame), isKitSeen);
+      if (!isKitSeen && hasFlat) flat.draw(sceneId, seconds);
     },
     canDraw: (sceneId) => Boolean(entries.get(sceneId)?.frame) || flat.canDraw(sceneId),
     free() {
