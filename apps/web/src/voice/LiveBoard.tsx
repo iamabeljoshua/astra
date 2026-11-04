@@ -30,6 +30,8 @@ function getLastWorkWords(board: BoardState): string {
 
 /** The newest row anything happened on, which the dot follows. */
 function getLatestRowId(board: BoardState): string | null {
+  const focused = board.focus?.split('.')[0];
+  if (focused && board.elements.has(focused as never)) return focused;
   const elements = [...board.elements.values()];
   for (const { id, content } of elements.reverse()) {
     if ('target' in content && typeof content.target === 'string') {

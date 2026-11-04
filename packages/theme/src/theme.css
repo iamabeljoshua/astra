@@ -883,6 +883,10 @@
     stroke-width: 2.6;
   }
 
+  .board-flow .board-dot {
+    display: none;
+  }
+
   .board-pick {
     border-bottom: 1px dashed var(--color-pen);
   }
