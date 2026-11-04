@@ -18,6 +18,8 @@ const DEFAULT_SESSION_LIMIT_USD = 1;
 const DEFAULT_SESSION_VOICE_LIMIT_CHARACTERS = 40_000;
 /** The listed Flash price, from `docs/architecture/live-session.md`. */
 const VOICE_USD_PER_CHARACTER = 40 / 1_000_000;
+/** The API refuses a larger report, and a long outage can leave more than this unsent. */
+const MOST_USD_A_REPORT = 10;
 
 function makeLedger() {
   const path = process.env.ASTRA_SPEND_FILE;
@@ -49,8 +51,8 @@ export function createSpendCaps({ link, ledger, trace, sessionLimitUsd, sessionV
     if (!link) return;
     reporting = reporting.then(async () => {
       if (unreportedUsd <= 0) return;
-      const usd = unreportedUsd;
-      unreportedUsd = 0;
+      const usd = Math.min(unreportedUsd, MOST_USD_A_REPORT);
+      unreportedUsd -= usd;
       try {
         ({ isOverDailyLimit } = await link.reportSpend(usd));
       } catch (error) {
