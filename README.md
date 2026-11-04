@@ -241,7 +241,7 @@ pnpm agent
 | `ELEVENLABS_API_KEY` | Agent | The tutor's voice. |
 | `ASTRA_VOICE=fake` | Agent | A tone instead of the real voice, to spend no credits. |
 | `ANTHROPIC_API_KEY` | Agent | The tutor's model, Sonnet 5.5. |
-| `ASTRA_TUTOR_MODEL` | Agent | A model by name from `providers/anthropic.ts`, `recorded` for canned replies that spend nothing and that a proof can stall or break by typing `stall`, `invalid`, `wrong math`, or `tag`, or `stand-in` for the simple lines M3.6's proofs use. |
+| `ASTRA_TUTOR_MODEL` | Agent | A model by name from `providers/anthropic.ts`, `recorded` for canned replies that spend nothing and that a proof can stall or break by typing `stall`, `invalid`, `wrong math`, `tag`, `refuse`, or `silent`, or `stand-in` for the simple lines M3.6's proofs use. |
 | `ASTRA_SPEND_FILE`, `ASTRA_SPEND_LIMIT_USD` | Agent | Adds each turn's real cost to a file, and past the limit, $8 by default, the tutor says it cannot reply. |
 | `ASTRA_VOICE_TRACE=<folder>` | Agent | Writes each session's timings there, with no words. `ASTRA_VOICE_TRACE_WORDS=1` adds the words, for test speech only. |
 

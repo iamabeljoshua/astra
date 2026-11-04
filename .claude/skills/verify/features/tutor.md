@@ -7,7 +7,7 @@ A running session's screen answers with the real model, by voice and on the boar
 - `tutor-answer` asks a question on Home. The tutor greets, then answers in short sentences, with math on its words.
 - `tutor-reaction` sends a reply in a session. A stored reaction plays before any model word.
 - `tutor-closed` is a tutor that has stopped for good in a room: past `ASTRA_SESSION_LIMIT_USD` or `ASTRA_SESSION_VOICE_LIMIT_CHARACTERS`, past `ASTRA_DAILY_LIMIT_USD`, or on a model that rejects every request. The screen keeps a note that says which, and to start a new session or come back tomorrow.
-- `tutor-recorded` runs with `ASTRA_TUTOR_MODEL=recorded` and `ASTRA_VOICE=fake`, which spends nothing. Type `invalid`, `stall`, `wrong math`, or `tag` to see each failure handled.
+- `tutor-recorded` runs with `ASTRA_TUTOR_MODEL=recorded` and `ASTRA_VOICE=fake`, which spends nothing. Type `invalid`, `stall`, `wrong math`, `tag`, `refuse`, or `silent` to see each failure handled.
 
 ## How to drive it
 
