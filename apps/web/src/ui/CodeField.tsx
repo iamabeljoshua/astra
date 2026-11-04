@@ -15,12 +15,12 @@ interface CodeFieldProps {
 
 const ARROW_STEPS: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1 };
 
-// A whole mail holds other numbers, so the first run of exactly the code's length wins, and one standing alone beats one touching a word.
+// A whole mail holds other numbers, so the first run of exactly the code's length wins, whole or split by spaces or hyphens, and one standing alone beats the rest.
 function toCodeDigits(text: string, length: number) {
   const latinText = toLatinDigits(text);
   const aloneRun = new RegExp(`\\b\\d{${length}}\\b`).exec(latinText)?.[0];
-  const exactRun = new RegExp(`(?<!\\d)\\d{${length}}(?!\\d)`).exec(latinText)?.[0];
-  return aloneRun ?? exactRun ?? latinText.replace(/\D/g, '').slice(0, length);
+  const exactRun = new RegExp(`(?<!\\d[ -]?)\\d(?:[ -]?\\d){${length - 1}}(?![ -]?\\d)`).exec(latinText)?.[0];
+  return aloneRun ?? (exactRun ?? latinText).replace(/\D/g, '').slice(0, length);
 }
 
 function hasNoDigit(text: string) {
