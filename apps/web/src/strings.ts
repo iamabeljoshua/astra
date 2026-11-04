@@ -515,7 +515,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
           'We also use the sessions you start from suggested lessons, and their length, status, and start time, to choose what your home screen suggests next. A question you leave open can take the continue card, so a lesson you left open can then appear among the suggestions. Only your own sessions do this, and the words of the questions you type play no part in it.',
           'Any file you attach stays in your browser. It is not sent or stored.',
           'Your microphone stays off until you press Talk in a session, and your browser asks first. While it is on, your voice goes live to the services named under Who receives your data. We do not store your voice or any recording of it.',
-          "The words you say or type in a session, and a question you type on Home to start one, go to our tutor service, which holds them in memory while the session runs and drops them when it ends. It passes them to Anthropic, as Who receives your data says. We do not store them yet.",
+          "The words you say or type in a session, and a question you type on Home to start one, go to our tutor service, which holds them in memory while the session runs and drops them when it ends. It passes them to Anthropic, as Who receives your data says. Apart from a question from Home, which stays as its session's title, we do not store them yet.",
           'Words you type into the search box on the Sessions page go to our server, which uses them to find your sessions. We do not store them.',
           'A running total of what the tutor cost for you each day, with no words in it. We use it to stop tutor time for the day at a limit.',
         ],
