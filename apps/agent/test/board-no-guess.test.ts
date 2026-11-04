@@ -88,3 +88,16 @@ describe('a board that came back with the page', () => {
     expect(checkAgainstBoard({ kind: 'highlight', id: id('r'), target: ref('s1'), tex: '14' }, back)).toEqual({ ok: true });
   });
 });
+
+describe('a tick on the tutor\'s own line', () => {
+  const tick: SceneCommand = { kind: 'annotate', id: id('yes'), target: ref('a'), mark: 'check' };
+  const written = (tex: string) => getMemoryAfter({ kind: 'writeMath', id: id('a'), tex, claim: 'new' }, EMPTY_BOARD);
+
+  it('is refused on a line that can never be true, which arithmetic alone cannot see', () => {
+    expect(checkAgainstBoard(tick, written('2(x+3) = 2x + 3'))).toMatchObject({ ok: false, isWrongMath: true });
+  });
+
+  it.each(['2(x+3) = 2x + 6', 'x = 4', '2x + 3 = 11', '2 + 2 = 4'])('stands on %s', (tex) => {
+    expect(checkAgainstBoard(tick, written(tex))).toEqual({ ok: true });
+  });
+});

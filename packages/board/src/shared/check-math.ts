@@ -261,6 +261,15 @@ function checkRewrite(before: Rewrite, after: Rewrite): MathVerdict {
   return before.kind === 'expression' ? checkExpressionRewrite(before, after) : checkEquationRewrite(before, after);
 }
 
+/** A tick says a line is right, so it is held to arithmetic and to one thing more: one letter whose sides can never meet, as 2(x + 3) = 2x + 3, is false whatever the letter is. */
+export function checkTickedLine(tex: string): MathVerdict {
+  const lineVerdict = checkMathLine(tex);
+  const rewrite = readRewrite(tex);
+  const [letter] = rewrite?.symbols ?? [];
+  if (lineVerdict.status !== 'unknown' || rewrite?.kind !== 'equation' || !rewrite.value || !isPolynomial(rewrite.value) || rewrite.symbols.size !== 1 || letter === undefined) return lineVerdict;
+  return getDegree(toOneLetter(rewrite.value.top, letter)) === 0 ? wrong(`${tex} is never true, whatever ${letter} is`) : lineVerdict;
+}
+
 /** The links of a chain of equals, or the line itself if it is not one, so 2x = 11 + 3 = 14 is 2x = 11 + 3 and 11 + 3 = 14. */
 export function getChainLinks(tex: string): readonly string[] {
   const { sides, relations } = readStatement(tex);

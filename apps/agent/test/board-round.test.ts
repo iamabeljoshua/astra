@@ -248,3 +248,41 @@ describe('the board checks against the problem', () => {
     expect(checkWorkOnBoard(line('s1', 'x = 7'), brain.getBoard().state).verdict).toEqual({ status: 'unknown', offProblem: '2x + 3 = 11' });
   });
 });
+
+describe('a page that reloaded with the board in its hands', () => {
+  const WRITE = 'Here. {"kind":"writeMath","id":"steps","tex":"2x + 3 = 11","claim":"new"}Go on.';
+
+  it('tells the tutor what is on the board, and refuses a clear on that one reply', async () => {
+    const { brain, requests, traces } = setup([WRITE, 'Okay. {"kind":"clearBoard"}Fresh start, here it is again.', 'Your line is still there.']);
+    await collect(brain, 'give me a problem');
+    brain.noteWork(line('s1', '2x = 14'));
+    brain.noteCameBack();
+    const beats = await collect(brain, "I'm back to carry on with this");
+    expect(commandsOf(beats).some((command) => command.kind === 'clearBoard')).toBe(false);
+    expect(traces).toContain('mathRefused');
+    expect(say(beats)).not.toMatch(/fresh start/i);
+    const told = JSON.stringify(requests.at(-1)?.turns);
+    expect(told).toContain('came_back');
+    expect(told).toMatch(/2x ?= ?14/);
+    expect(brain.getBoard().state.elements.has(id('s1'))).toBe(true);
+  });
+
+  it('refuses a hide of the cross on that reply too', async () => {
+    const { brain } = setup([WRITE, 'Not quite. {"kind":"annotate","id":"c1","target":"s1","mark":"cross"}Look again.', 'Welcome back. {"kind":"hide","target":"c1"}Your line.', 'Look at the fourteen.']);
+    await collect(brain, 'give me a problem');
+    brain.noteWork(line('s1', '2x = 14'));
+    await collect(brain, '2x = 14');
+    brain.noteCameBack();
+    const beats = await collect(brain, "I'm back to carry on with this");
+    expect(commandsOf(beats).some((command) => command.kind === 'hide')).toBe(false);
+  });
+
+  it('lets the next thing the student says clear the board', async () => {
+    const { brain } = setup([WRITE, 'Your line is still there.', 'Sure. {"kind":"clearBoard"}Physics.']);
+    await collect(brain, 'give me a problem');
+    brain.noteCameBack();
+    await collect(brain, "I'm back to carry on with this");
+    const beats = await collect(brain, 'teach me physics');
+    expect(commandsOf(beats).some((command) => command.kind === 'clearBoard')).toBe(true);
+  });
+});
