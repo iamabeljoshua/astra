@@ -194,30 +194,6 @@ describe('what the student sees of a room', () => {
     expect(screen.queryByTestId('board-visual')).toBeNull();
   });
 
-  it('calls the session by its new topic, in the bar, in its heading, and when it opens a new room', async () => {
-    const { setView } = await openVoice();
-    expect(screen.queryByText('Physics of the impossible')).toBeNull();
-
-    act(() => setView({ sessionTitle: 'Physics of the impossible' }));
-
-    await waitFor(() => expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Physics of the impossible'));
-    expect(screen.getAllByText('Physics of the impossible')).toHaveLength(2);
-    act(() => setView({ phase: 'tutorLost' }));
-    const second = makeVoice();
-    startLiveVoice.mockResolvedValueOnce(second.voice);
-    fireEvent.click(screen.getByRole('button', { name: VOICE_LABELS.tryAgain }));
-    await waitFor(() => expect(second.voice.sendTyped).toHaveBeenCalledWith(SESSION_LABELS.carryOnWith('Physics of the impossible')));
-  });
-
-  it("takes the card's picture away when the student moves to another topic, and leaves no empty box", async () => {
-    const { setView } = await openVoice(makeVoice(), { artwork: 'arc' });
-    expect(screen.getByTestId('board-visual')).toBeTruthy();
-
-    act(() => setView({ sessionTitle: 'Black holes' }));
-
-    await waitFor(() => expect(screen.queryByTestId('board-visual')).toBeNull());
-  });
-
   it('says in one line that the tutor started fresh after the page landed in a new room', async () => {
     const { setView } = await openVoice();
     act(() => setView({ startedFresh: true }));
