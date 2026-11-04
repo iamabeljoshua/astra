@@ -31,13 +31,15 @@ describe('renderTex', () => {
   it.each([
     [raw`\def\a{\a\a}\a`, 'a macro bomb'],
     [raw`\def\a{\a\a\a\a\a\a\a\a\a\a}\a`, 'a macro bomb'],
-    [raw`\href{javascript:alert(1)}{x}`, 'a link'],
+    [raw`\href{javascript:alert(1)}{x}`, 'a script link'],
+    [raw`\href{https://example.com}{x}`, 'a link'],
+    [raw`\htmlClass{hostile}{x}`, 'a class of its choosing'],
     [raw`\htmlData{onclick=alert(1)}{x}`, 'raw attributes'],
     [raw`\includegraphics{https://example.com/a.png}`, 'an image'],
   ])('stops %s even if a future parser let it through (%s)', (tex) => {
     const host = document.createElement('div');
     renderTex(tex, host);
-    expect(host.querySelector('a, img, [onclick], [data-onclick]')).toBeNull();
+    expect(host.querySelector('a, img, .hostile, [onclick], [data-onclick]')).toBeNull();
   });
 
   it('caps a huge size even if a future parser let it through', () => {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { drawDiagram } from '../src/ink/diagram.ts';
 import { canWriteByHand, writeByHand } from '../src/ink/handwriting.ts';
-import { getStrokePath, getStrokeProgress, makeStroke } from '../src/ink/ink-stroke.ts';
+import { getStrokePath, getStrokeProgress, makeSeededRandom, makeStroke } from '../src/ink/ink-stroke.ts';
 import { drawMark } from '../src/ink/marks.ts';
 
 const REQUEST = { fontSize: 20, maxWidth: 300, seed: 'note' };
@@ -52,6 +52,14 @@ describe('getStrokeProgress', () => {
     expect(getStrokeProgress(strokes, 1)).toEqual([1, 1]);
   });
 
+  it('finishes every stroke at the end, whatever the rounding, so nothing is left mid-stroke at rest', () => {
+    const random = makeSeededRandom('lengths');
+    for (let run = 0; run < 300; run += 1) {
+      const lengths = Array.from({ length: 2 + Math.floor(random() * 30) }, () => makeStroke([{ x: 0, y: 0 }, { x: random() * 40, y: random() * 40 }]));
+      expect(getStrokeProgress(lengths, 1).every((drawn) => drawn === 1)).toBe(true);
+    }
+  });
+
   it('holds its ends when asked for more than the whole', () => {
     expect(getStrokeProgress(strokes, 7)).toEqual([1, 1]);
     expect(getStrokeProgress(strokes, -1)).toEqual([0, 0]);
@@ -84,12 +92,15 @@ describe('drawDiagram', () => {
   const diagram = { nodes: [{ name: 'a', label: 'Rain' }, { name: 'b', label: 'River' }, { name: 'c', label: 'Sea' }], edges: [{ from: 'a', to: 'b', label: 'runs' }, { from: 'c', to: 'a' }] };
 
   it('draws one step per node, and an edge once both its ends are there', () => {
-    const drawn = drawDiagram(diagram, { fontSize: 18, maxWidth: 600, seed: 'd' });
-    const counts = drawn.steps.map((step) => step.strokes.length);
+    const request = { fontSize: 18, maxWidth: 600, seed: 'd' };
+    const getCounts = (edges: typeof diagram.edges) => drawDiagram({ ...diagram, edges }, request).steps.map((step) => step.strokes.length);
+    const [nodeA, nodeB, nodeC] = getCounts([]);
+    const [withA, withB, withC] = getCounts(diagram.edges);
     const arrow = 2;
-    expect(drawn.steps).toHaveLength(3);
-    expect(counts[1]).toBeGreaterThan(arrow + 1);
-    expect(drawn.width).toBeLessThanOrEqual(600);
+    expect(withA).toBe(nodeA);
+    expect(withB).toBeGreaterThan((nodeB ?? 0) + arrow);
+    expect(withC).toBe((nodeC ?? 0) + arrow);
+    expect(drawDiagram(diagram, request).width).toBeLessThanOrEqual(600);
   });
 
   it('wraps nodes to the width it is given, and stays inside it', () => {
