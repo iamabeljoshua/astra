@@ -25,12 +25,10 @@ const MATCH_SCHEMA = {
   },
 };
 
-/** A plan is already beside the replies, and a read that comes late only means the queue writes nothing yet. */
 const LONGEST_MATCH_MS = 8000;
 const MOST_MATCH_TOKENS = 500;
 const MOST_FIT_TOKENS = 30;
 
-// A title only counts if it is word for word on the server's list, so a model can pick a shared scene and never make one up.
 export function readMatches(answer: unknown, titles: readonly string[], stepCount: number): (string | null)[] {
   const steps = (answer as { steps?: unknown } | null)?.steps;
   const said: readonly { scene?: unknown }[] = Array.isArray(steps) ? steps : [];
@@ -51,7 +49,6 @@ const FIT_SCHEMA = { type: 'object', additionalProperties: false, required: ['fi
 
 export interface ShelfScene {
   title: string;
-  /** What the scene says, because a title alone has picked a jump shot for a free kick. */
   words: string;
 }
 

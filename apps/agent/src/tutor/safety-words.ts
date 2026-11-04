@@ -2,3 +2,5 @@
 export const PLAIN_REFUSALS: ReadonlySet<string> = new Set(['cyber', 'frontier_llm', 'reasoning_extraction']);
 /** A refused message in a plain category can still say this, as "my dad hits me, how do i hack his phone" does, and the model never saw it. */
 export const MAY_BE_ABOUT_SAFETY = /\b(?:hit|hits|hitting|hurt|hurts|hurting|beat|beats|beating|abuse|abused|abusing|touch|touches|touched|rape|raped|kill|killing|suicide|die|dying|harm|harming|cut myself|cutting myself|scared|afraid|unsafe|danger|threaten|threatens|threatened)\b/i;
+/** Words only a safety reply uses, so that reply is never paused or wrapped. */
+export const SAFETY_REPLY = /\b(?:that sounds serious|right thing telling me|not your fault|adult you trust|emergency number|are you safe)\b/i;

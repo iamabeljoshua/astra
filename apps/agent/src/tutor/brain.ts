@@ -111,7 +111,6 @@ export interface TutorBrainOptions {
   onAskScene?(topic: string): void;
   /** Prepares a lesson plan beside the replies, which a reply never waits for. */
   lessonPlanner?: LessonPlanner;
-  /** Hears every student line first, including the ones a plan never sees. */
   onStudentWords?(words: string): void;
 }
 

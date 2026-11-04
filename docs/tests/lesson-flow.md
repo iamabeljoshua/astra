@@ -4,7 +4,7 @@ M3.13. During a lesson, the next visual is already in the page when the tutor re
 
 ## What happens
 
-The plan from M3.9 says what is next: the concept after this one, or the exercise after it. `apps/agent/src/scene-queue/scene-queue.ts` holds that as data, one entry per scene, each `making`, `ready`, `due`, or `shown`.
+The plan from M3.9 says what is next: the concept after this one, or the exercise after it. `apps/agent/src/scene-queue/scene-queue.ts` holds that as data, one entry per scene, each `making`, `ready`, `due`, `asked`, or `shown`. Due means it waits for the reply being written, and asked means it is with the desk, waiting for the pause.
 
 1. A plan arrives. Haiku reads its steps against the titles the store holds, then each pick is read again against what that scene really says. A title that is not word for word on the list is thrown out.
 2. If a saved scene fits the step the lesson is on, it is due now, for free.
@@ -12,7 +12,7 @@ The plan from M3.9 says what is next: the concept after this one, or the exercis
 4. When the bytes are in the page, the next `lesson_plan` note names the scene as `picture_topic`. The tutor asks for it by that name as it goes on to that idea, and says nothing about it. Code stops any word about a picture that is not on screen, as it did before.
 5. The lesson also reaches a step on its own, when code sees an exercise end. Either way the scene becomes due. The desk is asked for it only once the reply to the student's last words has been read and is not a safety reply. It lands at the next pause, through `speakScene`, the same seam as any scene: the picture is on screen before the setup line's first word.
 
-The page holds the bytes and nothing more until the pause, because it has one player and the last scene may still be on screen. So only the first frame is left to do.
+The page holds the bytes and nothing more until the pause, because it has one player and the last scene may still be on screen. So only the first frame is left to do. The list of saved titles is read one file at a time, because a voice is playing while it runs.
 
 ## What it costs
 
@@ -20,7 +20,7 @@ A rule in `apps/agent/src/scene-queue/ahead-budget.ts`, in code, with no model a
 
 | Number | Value | Why |
 | --- | --- | --- |
-| Guide for one written scene | $0.265 | What M3.15 measured for a saved scene |
+| Guide for one written scene | $0.265 | The figure this work was given, from what a saved scene has cost the library's run |
 | Writes ahead in a session | 2 | About $0.53 |
 | A session's scene spending that can still start one | $0.285 | So the guide still fits under the $0.55 ceiling. The $0.80 a session's scenes may cost stays as the hard stop |
 | Left of the student's day below which nothing is prepared | $0.60 | About 80 spoken turns, so a student near their limit keeps their tutor rather than a picture |
@@ -33,7 +33,7 @@ Ahead-of-time writes go through the same caps as any scene, so they count agains
 
 ## What stops it
 
-- **Distress.** Words the scene check reads as a student in danger, and a tutor reply that says the crisis lines, stop the queue for the rest of the session. What was being written stops, and nothing more lands. A word that only might be about safety, such as "hits" in "the ball hits the rim", holds the queue until the student's next line, and drops whatever was waiting to land.
+- **Distress.** Words the scene check reads as a student in danger, and a tutor reply with the words only a safety reply uses, stop the queue for the rest of the session. What was being written stops, and nothing more lands. A word that only might be about safety, such as "hits" in "the ball hits the rim", holds the queue until the student's next line, and drops whatever was waiting to land.
 - **A switch.** A new topic stops the write ahead and drops what was waiting. A scene already saved stays with that student and costs nothing if they come back. A typed scene never goes to anyone else, and a shared scene comes only from the server's own list, so the queue can only read those.
 - **A student's turn.** Any student line ends what was waiting to land, because what they just said may change everything.
 - **A skip.** "Skip that", "can we skip this", or "let's move on" moves the step on at once, ahead of any plan, and code puts up no picture in its place. The tutor can still ask for the next one by name on a later turn. "How do you skip count by fives" moves nothing.

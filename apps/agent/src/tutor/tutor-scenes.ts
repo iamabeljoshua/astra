@@ -27,7 +27,6 @@ export interface TutorScenesOptions {
   speak(beats: readonly TutorBeat[]): boolean;
   canSpeak(): boolean;
   onShown(shown: { topic: string; beats: readonly Beat[]; isShared: boolean }): void;
-  /** A scene started ahead of its moment is in the page, or will never be. */
   onAhead?(request: string, news: AheadNews): void;
   onPageReady?(): void;
   trace(name: string, fields?: Record<string, unknown>): void;
@@ -38,12 +37,9 @@ export interface TutorScenes {
   ask(topic: string): void;
   /** Starts a scene before its moment. It lands only if it is asked for later. */
   prepare(request: string): boolean;
-  /** Nobody will ask for this now, so a write still running stops. */
   dropPrepared(request: string): void;
-  /** Its moment has passed, so whatever is waiting to land goes silently. */
-  dropWaiting(how: 'movedOn' | 'switched'): void;
-  /** Nothing more is prepared or lands in this session. */
-  stop(): void;
+  dropWaiting(how: 'movedOn' | 'switched' | 'studentTurn'): void;
+  stopForSafety(): void;
   canPlay(): boolean;
   onPage(message: SceneBrowserMessage, studentId: string): void;
   /** The tutor has stopped talking, so the window opens, and a scene already loaded can land. */
@@ -60,7 +56,6 @@ interface SceneAsk {
   windowLimit: ReturnType<typeof setTimeout> | null;
   recheck: ReturnType<typeof setTimeout> | null;
   page: PageState;
-  /** Started ahead of its moment, so its bytes are in the page and only its first frame is left to do. */
   isAhead: boolean;
 }
 
@@ -110,14 +105,14 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
     if (ask.page.kind === 'loading') clearTimeout(ask.page.limit);
     current = null;
     // What missed its moment is saved, so asking again is free.
-    if (how === 'tooLate' || how === 'movedOn' || how === 'switched') askedTopics.delete(toKey(ask.topic));
+    if (how === 'tooLate' || how === 'movedOn' || how === 'switched' || how === 'studentTurn') askedTopics.delete(toKey(ask.topic));
     if (ask.isAhead && how !== 'landed') onAhead?.(ask.topic, getNewsOfEnding(ask, how));
     trace('sceneEnded', { how, afterMs: Math.round(getNowMs() - ask.askedAtMs) });
   };
 
-  // A scene started ahead takes its first frame only at the pause, because the page holds one player and the last scene may still be on screen.
   const isAheadAndNotLoaded = (ask: SceneAsk) => ask.isAhead && ask.page.kind === 'notAsked' && ask.work.desk.getState().kind === 'ready';
 
+  // A scene started ahead takes its first frame only at the pause, because the page holds one player and the last scene may still be on screen.
   const land = (ask: SceneAsk) => {
     if (ask !== current || (ask.page.kind !== 'loaded' && !isAheadAndNotLoaded(ask))) return;
     if (ask.recheck) clearTimeout(ask.recheck);
@@ -248,8 +243,9 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
       end(ask, how);
       if (how === 'switched') ask.work.leave();
     },
-    stop() {
+    stopForSafety() {
       isStopped = true;
+      current?.work.leave();
       if (current) end(current, 'safety');
       for (const ask of prepared.values()) ask.work.leave();
       prepared.clear();

@@ -82,7 +82,7 @@ async function runSession(context: JobContext): Promise<void> {
     onAskScene: (topic: string) => scenes?.onTutorAsk(topic),
     onStudentWords: (words: string) => scenes?.queue?.noteStudentWords(words),
     onLessonChange: (state: LessonState, event: LessonEvent | null) => scenes?.queue?.onLesson(state, event),
-    getReadyPicture: () => scenes?.queue?.getReadyPicture() ?? null,
+    getPictureTopic: () => scenes?.queue?.getPictureTopic() ?? null,
     onTurnWritten(turn: { firstTextMs: number | null; spokenText: string; refusalCategory: string | null }) {
       lastFirstTextMs = turn.firstTextMs;
       scenes?.queue?.noteTutorReply(turn);

@@ -384,14 +384,14 @@ describe('a student who asks to skip', () => {
     expect(onLessonChange.mock.calls[0]?.[0]).toMatchObject({ active: { stepIndex: 1 } });
   });
 
-  it.each(['how do you skip count by fives', 'do the rings move on their own', 'the planets move on'])('stays for "%s"', async (words) => {
+  it.each(['how do you skip count by fives', 'do the rings move on their own', 'the planets move on', 'do not skip this', "please don't skip that", 'I never skip'])('stays for "%s"', async (words) => {
     const { planner, onLessonChange } = await makePlanner();
     planner.noteStudentWords({ words, isOpening: false, tutorSaid: '' });
     expect(onLessonChange.mock.calls.filter(([state]) => state.active?.stepIndex === 1)).toEqual([]);
   });
 
   it('names a picture the queue says can land, and only on a step still to teach', async () => {
-    const planner = createLessonPlanner({ ask: async () => ({ move: { move: 'new', plan: PLAN }, costUsd: 0 }), canSpend: () => true, charge: () => {}, onTitleChange: () => {}, getReadyPicture: () => 'Why gaps form', trace: () => {} });
+    const planner = createLessonPlanner({ ask: async () => ({ move: { move: 'new', plan: PLAN }, costUsd: 0 }), canSpend: () => true, charge: () => {}, onTitleChange: () => {}, getPictureTopic: () => 'Why gaps form', trace: () => {} });
     expect(planner.getStepNote()).toBeNull();
     planner.noteStudentWords({ words: 'teach me rings', isOpening: true, tutorSaid: '' });
     await planner.whenSettled();

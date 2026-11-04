@@ -11,7 +11,6 @@ const SAME_FRAME_SECONDS = 0.0005;
 
 export interface SceneStage {
   load(sceneId: string, durationSeconds: number): Promise<boolean>;
-  /** Holds a take's bytes for the scene after this one, and touches nothing on screen. */
   prepare(sceneId: string): Promise<boolean>;
   draw(sceneId: string, seconds: number): void;
   canDraw(sceneId: string): boolean;

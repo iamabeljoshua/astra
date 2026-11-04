@@ -12,7 +12,6 @@ const { values: args } = parseArgs({
     trace: { type: 'string' },
     ask: { type: 'string' },
     says: { type: 'string', default: "I think I follow.|Okay, makes sense. What's the next idea?|Got it, keep going with the next idea.|Okay. What comes after that?|Right. Next idea please." },
-    /** One event at a given landing or line: `reload@1`, `skip@1`, `switch@2:Teach me how logarithms work`. */
     event: { type: 'string' },
     seconds: { type: 'string', default: '180' },
     scenes: { type: 'string', default: '2' },

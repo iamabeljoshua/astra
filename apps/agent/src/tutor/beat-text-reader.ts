@@ -1,3 +1,4 @@
+import { SAFETY_REPLY } from './safety-words.ts';
 import { BEAT_LIMITS, type Beat, type BoardKinds, getBoardAfter, getBoardProblem, LIVE_MESSAGE_MAX_BYTES, MATH_CLAIMS, parseSceneCommand, type SceneCommand } from '@astra/contracts';
 
 /** A turn wraps up at the next sentence end past this, about 20 s with its pauses, because T4 gives a spoken turn 20 seconds. */
@@ -27,8 +28,6 @@ const ENDS_IN_SENTENCE = /[.!]["')]*\s*$/;
 const ENDS_IN_CLAUSE = /[,;:]\s*$/;
 const ENDS_IN_ABBREVIATION = /(?:^|[\s("'])(?:mr|mrs|ms|dr|prof|st|vs|(?:[a-z]\.)+[a-z])\.["')]*\s*$/i;
 const ENDS_IN_ELLIPSIS = /\.{2,}["')]*\s*$/;
-/** Words only a safety reply uses, so that reply is never paused or wrapped. */
-const SAFETY_REPLY = /\b(?:that sounds serious|right thing telling me|not your fault|adult you trust|emergency number|are you safe)\b/i;
 const STILL_A_TAG = /^<\/?(?:[A-Za-z_][\w:.-]*(?:\s[^<>\n]*)?)?$/;
 const TAG_NAME = /^<(\/?)([A-Za-z_][\w:.-]*)/;
 const PRIVATE_TAGS: ReadonlySet<string> = new Set(['thinking', 'think', 'reasoning', 'scratchpad', 'analysis', 'reflection', 'function_calls', 'invoke', 'parameter', 'system', 'system-reminder']);

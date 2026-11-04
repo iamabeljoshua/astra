@@ -26,7 +26,7 @@ const OPEN_AND_FINISH = (state: LessonState) => getStateAfterEvent(getStateAfter
 
 const ROOMY: AheadFacts = { writesStarted: 0, sceneUsd: 0, sceneLimitUsd: 0.8, leftTodayUsd: 3, isOverLimit: false, loadPerCore: 0.2, lastFirstTextMs: 900 };
 
-const makeScenes = () => ({ prepare: vi.fn<(request: string) => boolean>(() => true), ask: vi.fn<(request: string) => void>(), dropPrepared: vi.fn(), dropWaiting: vi.fn(), stop: vi.fn() });
+const makeScenes = () => ({ prepare: vi.fn<(request: string) => boolean>(() => true), ask: vi.fn<(request: string) => void>(), dropPrepared: vi.fn(), dropWaiting: vi.fn(), stopForSafety: vi.fn() });
 
 function setUp({ library = {}, facts = ROOMY, canPlay = true }: { library?: Record<string, readonly (string | null)[]>; facts?: Partial<AheadFacts>; canPlay?: boolean } = {}) {
   const budget = { ...facts };
@@ -141,7 +141,7 @@ describe('the next scene queue', () => {
     queue.onLesson(start(RINGS));
     await flush();
     queue.noteAhead('Why a moon that gets too close breaks apart', 'ready');
-    expect(queue.getReadyPicture()).toBe('Why a moon that gets too close breaks apart');
+    expect(queue.getPictureTopic()).toBe('Why a moon that gets too close breaks apart');
     queue.onTutorAsk('why a moon that gets too close breaks apart');
     expect(moveToNextStep).toHaveBeenCalledOnce();
   });
@@ -157,7 +157,7 @@ describe('the next scene queue', () => {
     const { queue } = setUp({ library: { [RINGS.topic]: [null, 'Why a moon that gets too close breaks apart', null] } });
     queue.onLesson(start(RINGS));
     await flush();
-    expect(queue.getReadyPicture()).toBeNull();
+    expect(queue.getPictureTopic()).toBeNull();
   });
 
   it('does not start a third write, whatever the plan wants', async () => {
@@ -195,9 +195,9 @@ describe('the next scene queue', () => {
     const second = OPEN_AND_FINISH(first);
     queue.onLesson(second);
     queue.noteAhead('How small moons carve gaps in the rings', 'ready');
-    expect(queue.getReadyPicture()).toBeNull();
+    expect(queue.getPictureTopic()).toBeNull();
     queue.noteAhead('Why a moon that gets too close breaks apart', 'shown');
-    expect(queue.getReadyPicture()).toBe('How small moons carve gaps in the rings');
+    expect(queue.getPictureTopic()).toBe('How small moons carve gaps in the rings');
   });
 
   it('counts no write the desk had no use for', async () => {
@@ -219,7 +219,7 @@ describe('the next scene queue', () => {
     expect(scenes.ask).not.toHaveBeenCalled();
     queue.noteTutorReply({ spokenText: 'That sounds serious. Please call your local emergency number.', refusalCategory: null });
     expect(scenes.ask).not.toHaveBeenCalled();
-    expect(scenes.stop).toHaveBeenCalledOnce();
+    expect(scenes.stopForSafety).toHaveBeenCalledOnce();
   });
 
   it('asks for a due scene when an ordinary reply has been read', async () => {
@@ -237,7 +237,7 @@ describe('the next scene queue', () => {
   it('any student turn ends what was waiting at the desk', async () => {
     const { queue, scenes } = setUp();
     queue.noteStudentWords('wait, why is that');
-    expect(scenes.dropWaiting).toHaveBeenCalledWith('movedOn');
+    expect(scenes.dropWaiting).toHaveBeenCalledWith('studentTurn');
   });
 
   it('lands nothing in place of a step the student skipped, and the tutor can still ask for the next by name', async () => {
@@ -252,6 +252,19 @@ describe('the next scene queue', () => {
     expect(scenes.ask).not.toHaveBeenCalled();
     expect(scenes.dropPrepared).toHaveBeenCalledWith('Why a moon that gets too close breaks apart');
     expect(prepared(scenes).at(-1)).toBe('How small moons carve gaps in the rings');
+  });
+
+  it('lands nothing after a skip even when a saved scene fits the step it skipped to, and nothing was ready', async () => {
+    const { queue, scenes } = setUp({ library: { [RINGS.topic]: [null, null, 'How small moons carve gaps in the rings'] } });
+    let state = start(RINGS);
+    queue.onLesson(state);
+    await flush();
+    state = getStateAfterEvent(state, 'skipped');
+    queue.onLesson(state, 'skipped');
+    state = getStateAfterEvent(state, 'skipped');
+    queue.onLesson(state, 'skipped');
+    queue.noteTutorReply({ spokenText: 'Sure.', refusalCategory: null });
+    expect(scenes.ask).not.toHaveBeenCalled();
   });
 
   it('after a switch, what waited is gone and nothing from the old lesson lands', async () => {
@@ -287,7 +300,7 @@ describe('the next scene queue', () => {
     await flush();
     queue.noteAhead("Saturn's rings: a moon too close breaks apart", 'failed');
     expect(queue.getEntries()).toEqual([]);
-    expect(queue.getReadyPicture()).toBeNull();
+    expect(queue.getPictureTopic()).toBeNull();
     queue.onLesson(OPEN_AND_FINISH(first));
     expect(prepared(scenes).at(-1)).toBe("Saturn's rings: moons carve gaps");
   });
@@ -316,7 +329,7 @@ describe('the next scene queue', () => {
     stopped.queue.onLesson(start(RINGS));
     await flush();
     stopped.queue.noteStudentWords('i want to kill myself');
-    expect(stopped.scenes.stop).toHaveBeenCalledOnce();
+    expect(stopped.scenes.stopForSafety).toHaveBeenCalledOnce();
     stopped.scenes.prepare.mockClear();
     stopped.queue.onLesson(OPEN_AND_FINISH(start(RINGS)));
     expect(stopped.scenes.prepare).not.toHaveBeenCalled();
@@ -326,7 +339,7 @@ describe('the next scene queue', () => {
     held.queue.onLesson(start(RINGS));
     await flush();
     expect(held.scenes.prepare).not.toHaveBeenCalled();
-    expect(held.scenes.stop).not.toHaveBeenCalled();
+    expect(held.scenes.stopForSafety).not.toHaveBeenCalled();
     held.queue.noteStudentWords('okay so it bounces');
     expect(prepared(held.scenes)).toEqual(["Saturn's rings: a moon too close breaks apart"]);
   });
@@ -336,7 +349,7 @@ describe('the next scene queue', () => {
     queue.noteTutorReply({ spokenText: 'That sounds serious. Please call your local emergency number.', refusalCategory: null });
     queue.onLesson(start(RINGS));
     await flush();
-    expect(scenes.stop).toHaveBeenCalledOnce();
+    expect(scenes.stopForSafety).toHaveBeenCalledOnce();
     expect(scenes.prepare).not.toHaveBeenCalled();
   });
 });

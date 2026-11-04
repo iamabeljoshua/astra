@@ -33,7 +33,6 @@ export interface SceneStore {
   findWaitingPlan(key: SceneKey): LessonPlan | null;
   saveWaitingPlan(key: SceneKey, plan: LessonPlan): void;
   list(): StoredScene[];
-  /** What every student may see, read a file at a time, because a voice is playing while this runs. */
   listShared(): Promise<StoredScene[]>;
 }
 

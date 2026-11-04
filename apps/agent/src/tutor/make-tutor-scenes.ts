@@ -18,7 +18,6 @@ const DEFAULT_SCENE_LIMIT_USD = 0.8;
 type SessionHooks = Pick<TutorScenesOptions, 'getCardTitle' | 'send' | 'speak' | 'canSpeak' | 'onShown' | 'trace'>;
 
 export interface SessionScenes extends TutorScenes {
-  /** Null when scenes ahead are off, so a session asks for what it asks for and nothing more. */
   queue: SceneQueue | null;
   onTutorAsk(topic: string): void;
 }

@@ -413,13 +413,24 @@ describe('a scene started ahead of its moment', () => {
     expect(sent).toEqual([{ type: 'prepareScene', sceneId: next.id }, { type: 'loadScene', sceneId: shownScene.id, durationSeconds: shownScene.durationSeconds }]);
   });
 
+  it('a safety stop ends a write that was on its way to landing', async () => {
+    const leave = vi.fn();
+    const { scenes, joinRun } = setUp();
+    joinRun.mockImplementation(() => ({ plan: Promise.resolve(PLAN), firstLine: Promise.resolve(null), getScene: () => new Promise(() => {}), leave }));
+    opened(scenes);
+    scenes.ask(TOPIC);
+    await flush();
+    scenes.stopForSafety();
+    expect(leave).toHaveBeenCalledOnce();
+  });
+
   it('after a stop, nothing is prepared, asked for, or landed', async () => {
     const { scenes, spoken, sent, store } = setUp();
     const scene = await saveShared(store);
     opened(scenes);
     scenes.ask(TOPIC);
     await flush();
-    scenes.stop();
+    scenes.stopForSafety();
     scenes.onPage({ type: 'sceneLoaded', sceneId: scene.id }, 'maya');
     scenes.notePause();
     expect(spoken).toEqual([]);

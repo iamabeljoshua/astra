@@ -21,7 +21,6 @@ const isOverDailyLimit = (dayTotalMicroUsd: bigint) => dayTotalMicroUsd >= getDa
 
 export interface SpendReply {
   isOverDailyLimit: boolean;
-  /** What the student has left today, so work ahead of a turn can stand down before the limit does it. */
   leftTodayUsd: number;
 }
 

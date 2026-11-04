@@ -51,7 +51,6 @@ export interface SpendCaps {
   addSharedVoice(characters: number): void;
   getSceneUsd(): number;
   getSpentUsd(): number;
-  /** Null until the API has answered once. */
   getLeftTodayUsd(): number | null;
   /** Sends what the API has not heard yet, so a room closing does not lose the last turn's charge. */
   flush(): Promise<void>;
@@ -136,16 +135,15 @@ export interface MadeBrain {
   getSpentUsd?(): number;
 }
 
-// A plan changes the session's title only when the student moves to another topic, and a failed save keeps the page's title and the session running.
-/** What the session's scenes want to hear from the tutor, so they can prepare beside it. */
 export interface SceneHooks {
   onAskScene(topic: string): void;
   onStudentWords?(words: string): void;
   onLessonChange?(state: LessonState, event: LessonEvent | null): void;
-  getReadyPicture?(): string | null;
+  getPictureTopic?(): string | null;
   onTurnWritten?(turn: { firstTextMs: number | null; spokenText: string; refusalCategory: string | null }): void;
 }
 
+// A plan changes the session's title only when the student moves to another topic, and a failed save keeps the page's title and the session running.
 function makeLessonPlanner({ link, caps, trace, onSessionTitle, sceneHooks }: { link: ApiLink | null; caps: SpendCaps; trace: TraceNote; onSessionTitle(title: string): void; sceneHooks?: SceneHooks }): LessonPlanner {
   const reader = makeAnthropicJsonReader({ apiKey: readKey('ANTHROPIC_API_KEY') });
   return createLessonPlanner({
@@ -157,7 +155,7 @@ function makeLessonPlanner({ link, caps, trace, onSessionTitle, sceneHooks }: { 
       link?.setTitle(title).catch((error: unknown) => trace('titleNotSaved', { problem: String(error) }));
     },
     ...(sceneHooks?.onLessonChange ? { onLessonChange: sceneHooks.onLessonChange } : {}),
-    ...(sceneHooks?.getReadyPicture ? { getReadyPicture: sceneHooks.getReadyPicture } : {}),
+    ...(sceneHooks?.getPictureTopic ? { getPictureTopic: sceneHooks.getPictureTopic } : {}),
     trace,
   });
 }

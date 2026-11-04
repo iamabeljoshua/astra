@@ -21,9 +21,7 @@ export type LessonEvent =
   | 'exerciseLeft'
   /** The tutor went back to teaching with an exercise open, which is how words with no answer key end. */
   | 'teachingAgain'
-  /** The tutor went on to the next idea, ahead of any exercise. */
   | 'movedOn'
-  /** The student asked to skip this step. */
   | 'skipped';
 
 /** The only part of a plan the tutor is told on a turn, because everything before it stays cached. */
