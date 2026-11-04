@@ -31,11 +31,6 @@
   --text-entry: 22px;
   --text-question: clamp(27px, 2.5vw, 36px);
   --text-question--line-height: 1.12;
-  --text-tagline: clamp(38px, 4.3vw, 62px);
-  --text-tagline--line-height: 0.98;
-  --text-sheet-name: 30px;
-  --text-sheet-name--line-height: 1.1;
-  --text-sheet-name-phone: 18px;
   --text-chart-title: 20px;
   --text-tutor-line: clamp(28px, 2.8vw, 36px);
   --text-tutor-line--line-height: 1.22;
@@ -58,7 +53,6 @@
   --spacing-sidebar: 216px;
   --spacing-page-side: clamp(16px, 3vw, 40px);
   --spacing-page-top: clamp(20px, 4.5vh, 44px);
-  --spacing-onboarding-side: clamp(16px, 4vw, 56px);
   --spacing-page-bottom: 28px;
   --spacing-stage-side: clamp(20px, 6vw, 84px);
   --spacing-stage-edge: clamp(20px, 5vw, 56px);
@@ -74,10 +68,7 @@
   --spacing-board-art: 66vh;
   --container-column: 1020px;
   --container-onboarding: 580px;
-  --container-sheet: 348px;
   --container-stage: 500px;
-  --grid-template-columns-onboarding: minmax(0, 1fr) clamp(360px, 31vw, 460px);
-  --grid-template-columns-sheet-row: 74px minmax(0, 1fr);
   --grid-template-columns-option-row: 16px minmax(0, 1fr);
 
   --grid-template-columns-continue: minmax(0, 1fr) 244px;
