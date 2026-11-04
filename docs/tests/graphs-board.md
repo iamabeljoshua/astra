@@ -120,7 +120,7 @@ A plot needs no font fetch, which is why it beats an equation on Slow 4G.
 | The hardest curve allowed, sampled from nothing | 1.9 and 8.1 | 2.8 and 12.5 |
 | A flight, after a drag of 6,000 samples | 0.2 and 0.5 | 0.7 and 2.4 |
 
-**Final head.** FINAL_HEAD_ROW
+**Final head.** At `905631a`, the last commit that changes the board, on the stored take: 3 lesson runs with 4,217 frames, 56,768 labels, and 0 of everything above, with 0 of 4,217 live frames and 0 of 156 screenshots differing from the replay. The ball was at most 0.11 px off the worked arc, landed 1.99995 and 2.00000 times as far after the drag, and froze byte for byte on 2 of 2 boards, with 112 replay moments matching. 15 of 15 bad commands were refused again on 2 runs, with 0 frames of text on text.
 
 ## Choices worth keeping
 

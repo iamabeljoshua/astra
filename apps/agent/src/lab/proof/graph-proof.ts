@@ -215,12 +215,15 @@ async function proveHostile(browser: Browser, run: LessonRun) {
   const turnId = await lab.page.evaluate(() => window.sceneLab?.records.fired[0]?.turnId);
   await lab.command({ type: 'sendRaw', messages: REFUSED_COMMANDS.map(({ command }) => ({ type: 'cue', turnId, beatId: 'crowded', atWord: 1, command })) });
   await lab.page.waitForFunction((count) => (window.sceneLab?.records.browserMessages.filter((message) => message.type === 'played').length ?? 0) >= count, 1, { timeout: 90_000 });
-  await shoot(lab, 'hostile-first');
   await lab.waitForPlayedBeats(beatsOf('figure-hostile'), 120_000);
   await delay(1500);
   const frames = await lab.page.evaluate(() => window.pageChecks.stopFrameWatch());
   const figures = await lab.page.evaluate(() => window.pageChecks.stopFigureWatch());
   await shoot(lab, 'hostile-final');
+  const firstClearAtMs = await lab.page.evaluate(() => (window.sceneLab?.player.getOperations() as { atMs: number; command?: { kind: string } }[]).find((operation) => operation.command?.kind === 'clearBoard')?.atMs ?? 0);
+  await holdFrame(lab, { atMs: firstClearAtMs - 30, source: 'live' });
+  await shoot(lab, 'hostile-crowded');
+  await holdFrame(lab, null);
   const refused = await lab.page.evaluate(() => window.sceneLab?.records.refused ?? []);
   const summary = await lab.page.evaluate(() => ({ pwned: 'pwned' in window, scripts: document.querySelector('[data-testid="board"] script, [data-testid="board"] img') !== null, stillDrawing: document.querySelector('[data-mark^="point-"]') !== null }));
   const replay = await checkReplayPixels(lab);
