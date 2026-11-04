@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../App';
+import './SessionScreen';
 import { BOARD_WORK_LABELS, SESSION_LABELS, VOICE_LABELS } from '../strings';
 import { makeFakeVoice } from '../test/fakeVoice';
 import { makeSession, stubSessionsApi } from '../test/sessionsApi';

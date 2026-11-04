@@ -73,11 +73,11 @@ describe('the tables, read through what a line claims', () => {
 });
 
 describe('checking a line of math', () => {
-  it.each([['2 + 2 = 4'], ['9.8 \\times 2 = 19.6'], ['\\frac{1}{3} = 0.33'], ['\\pi = 3.14'], ['\\sqrt{16} = 4'], ['2^{10} = 1024'], ['3(4 + 1) = 15'], ['\\frac{1}{2} \\cdot 8 = 4'], ['v = 4.2 + 3 = 7.2'], ['3 < 5']])('proves %s', (tex) => {
+  it.each([['2\\frac{1}{2} = 2.5'], ['2 + 2 = 4'], ['9.8 \\times 2 = 19.6'], ['\\frac{1}{3} = 0.33'], ['\\pi = 3.14'], ['\\sqrt{16} = 4'], ['2^{10} = 1024'], ['3(4 + 1) = 15'], ['\\frac{1}{2} \\cdot 8 = 4'], ['3 < 5']])('proves %s', (tex) => {
     expect(checkMathLine(tex).status).toBe('right');
   });
 
-  it.each([['2\\frac{1}{2} = 2.5'], ['\\sin 30 = 0.5'], ['\\cos 60 = 0.5'], ['2x + 3 = 11'], ['g = 9.8'], ['v = u + at'], ['x < 5'], ['\\int_0^1 x dx = \\frac{1}{2}'], ['\\text{speed} = 5'], ['\\frac{d}{dx} x^2 = 2x'], [''], ['7 \\approx 9'], ['\\sqrt{-4} = 2i'], ['0^0 = 1']])('leaves %s unknown', (tex) => {
+  it.each([['2\\frac{x}{2} = x'], ['v = 4.2 + 3 = 7.2'], ['\\sin 30 = 0.5'], ['\\cos 60 = 0.5'], ['2x + 3 = 11'], ['g = 9.8'], ['v = u + at'], ['x < 5'], ['\\int_0^1 x dx = \\frac{1}{2}'], ['\\text{speed} = 5'], ['\\frac{d}{dx} x^2 = 2x'], [''], ['7 \\approx 9'], ['\\sqrt{-4} = 2i'], ['0^0 = 1']])('leaves %s unknown', (tex) => {
     expect(checkMathLine(tex).status).toBe('unknown');
   });
 

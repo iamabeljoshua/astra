@@ -106,7 +106,7 @@ describe('the typed line', () => {
 
 describe('the place task', () => {
   const TASK: Task & { way: 'place' } = { kind: 'task', id: id('a1'), way: 'place', items: ['Bastille', 'Terror'], slots: ['First', 'Second'], answer: ['Bastille', 'Terror'] };
-  const open = { isOpen: true, verdict: null, lastLineTex: null, pickedRight: [], placed: [null, null], pointX: null };
+  const open = { isOpen: true, verdict: null, lastLineTex: null, pickedRight: [], placed: [null, null], pointX: null, hasLeft: false };
 
   it('never shows the items in the order of the answer', () => {
     render(<PlaceTask task={TASK} progress={open} onWork={vi.fn()} />);

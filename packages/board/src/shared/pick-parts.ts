@@ -1,4 +1,4 @@
-import { getMathParts } from '@astra/contracts';
+import { findMathSpans, getMathParts } from '@astra/contracts';
 import type { TermQuery } from '../math/math-painter.ts';
 import type { BoardElement } from '../player/board-state.ts';
 
@@ -7,14 +7,18 @@ export interface PickPart {
   query: TermQuery;
 }
 
-function getMathPickParts(tex: string): PickPart[] {
-  const seen = new Map<string, number>();
-  return getMathParts(tex).flatMap((mathPart) => {
+const SIGNS: ReadonlySet<string> = new Set(['+', '-']);
+
+// A term carries its sign, as the prototype's do, so `+3` is one thing to click and to ring.
+export function getMathPickParts(tex: string): PickPart[] {
+  const mathParts = getMathParts(tex);
+  return mathParts.flatMap((mathPart, index) => {
     if (mathPart.role !== 'term') return [];
-    const part = mathPart.tex.replace(/\s/g, '');
-    const occurrence = seen.get(part) ?? 0;
-    seen.set(part, occurrence + 1);
-    return [{ part, query: { tex: part, occurrence } }];
+    const before = mathParts[index - 1];
+    const start = before && SIGNS.has(before.tex) ? before.start : mathPart.start;
+    const source = tex.slice(start, mathPart.end);
+    const occurrence = findMathSpans(tex, source).findIndex((span) => span.start === start);
+    return [{ part: source.replace(/\s/g, ''), query: { tex: source, occurrence: Math.max(0, occurrence) } }];
   });
 }
 

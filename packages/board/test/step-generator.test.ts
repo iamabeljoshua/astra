@@ -25,10 +25,55 @@ function makeProblem(random: (below: number) => number) {
   const shift = 1 + random(9);
   return {
     problem: `${a}x + ${b} = ${c}`,
-    trueSteps: [`${a}x = ${c - b}`, `x = ${root}`, `${c} = ${a}x + ${b}`, `${a}x + ${b} ${signed(shift)} = ${c + shift}`, `${2 * a}x + ${2 * b} = ${2 * c}`, `${a}x ${signed(b - c)} = 0`],
-    falseSteps: [`${a}x = ${c + b}`, `x = ${root + shift}`, `${a}x + ${b} = ${c + shift}`, `${a}x = ${c}`, ...(root === 0 ? [] : [`x = ${c - b}`]), `${a}x + ${b} ${signed(shift)} = ${c - shift}`],
+    trueSteps: [`${a}x = ${c - b}`, `x = ${root}`, `${c} = ${a}x + ${b}`, `${a}x + ${b} ${signed(shift)} = ${c + shift}`, `${2 * a}x + ${2 * b} = ${2 * c}`, `${a}x ${signed(b - c)} = 0`, `${a}x = ${c} ${signed(-b)} = ${c - b}`, `x = ${root} = ${root}`, `x = ${root + shift} ${signed(-shift)} = ${root}`, `${a}x + ${b} = ${c} = ${c}`],
+    falseSteps: [
+      `${a}x = ${c + b}`,
+      `x = ${root + shift}`,
+      `${a}x + ${b} = ${c + shift}`,
+      `${a}x = ${c}`,
+      ...(root === 0 ? [] : [`x = ${c - b}`]),
+      `${a}x + ${b} ${signed(shift)} = ${c - shift}`,
+      `${a}x = ${c} ${signed(b)} = ${c + b}`,
+      `x = ${root + shift} = ${root + shift}`,
+      `x = ${root} ${signed(shift)} = ${root + shift}`,
+      `${a}x = ${c - b} = ${c - b + shift}`,
+      `x = ${root} = ${root + shift}`,
+      `${a}x + ${b} = ${c} = ${c + shift}`,
+    ],
   };
 }
+
+function getLineStatus(typed: string) {
+  return checkWork({ way: 'write', id: 's1' as ElementId, text: typed }, { task: null, getLineTex: () => null, getCurve: () => null, previousTex: null, pickedRight: [] }).verdict.status;
+}
+
+// The truth is whole number arithmetic on the fraction, so this cannot share a mistake with the checker.
+function makeRoundings(random: (below: number) => number) {
+  const bottom = 3 + random(15);
+  const top = 1 + random(40);
+  const places = 2 + random(2);
+  const scale = 10 ** places;
+  const nearestUp = Math.floor((top * scale * 2 + bottom) / (bottom * 2));
+  const write = (units: number) => `${top}/${bottom} = ${(units / scale).toFixed(places)}`;
+  const isExact = nearestUp * bottom === top * scale;
+  return { right: write(nearestUp), offByTwoUnits: [write(nearestUp + 2), write(nearestUp - 2)], offByOneUnit: isExact ? [] : [write(nearestUp + 1), write(nearestUp - 1)] };
+}
+
+describe('generated roundings', () => {
+  it('holds over 3000 fractions: the nearest rounding is ticked and no other is', () => {
+    const random = createRandom(29);
+    const seen: string[] = [];
+    let ticked = 0;
+    for (let index = 0; index < 3000; index += 1) {
+      const { right, offByOneUnit, offByTwoUnits } = makeRoundings(random);
+      if (getLineStatus(right) === 'right') ticked += 1;
+      else seen.push(`not ticked: ${right}`);
+      for (const typed of [...offByOneUnit, ...offByTwoUnits]) if (getLineStatus(typed) === 'right') seen.push(`ticked: ${typed}`);
+    }
+    expect(seen.slice(0, 12)).toEqual([]);
+    expect(ticked).toBe(3000);
+  }, 60_000);
+});
 
 describe('generated steps', () => {
   it('holds over 3000 problems: no true step is wrong, no false step is right', () => {
