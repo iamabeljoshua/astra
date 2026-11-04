@@ -49,7 +49,7 @@ Starting the model early would not help on these numbers, because the final arri
 | Target | Rule | Measured | Verdict |
 | --- | --- | --- | --- |
 | First sound to yield | 300 ms | 25 ms at p50 and 26 ms at p95, the browser's own detector. The agent's own `yield` follows at 483 and 510 ms | **Pass**, on injected audio with no microphone in the path |
-| Decision to stop to silence and a frozen board | 150 ms at p95 | 162 ms at p50, 171 ms at p95. The browser mutes on arrival, so this is delivery | **Miss by 21 ms on this path**. About 90 ms with one leg removed, inferred |
+| Decision to stop to silence and a frozen board | 150 ms at p95 | 162 ms at p50, 171 ms at p95 in the real voice. The browser mutes on arrival, so this is delivery, and it moved between rooms: 129 to 145 ms in one fake-voice room, and 279 to 297 ms in another, whose cause I did not find | **Miss on this path**. About 90 ms with one leg removed, inferred |
 | First sound to silence | 1.2 s at p95 | 1279 ms at p50, 1339 ms at p95 | **Miss on this path**. About 1.2 s with one leg removed, inferred |
 | Board freezes on a stop | | 6 of 6 and 8 of 8 froze, 0 cues fired after a stop | **Pass** |
 | "Uh-huh" does not stop the tutor | | 6 of 6 reaction clips left it running on the fake voice, with the voice back up in 956 to 1769 ms | **Pass** |
@@ -126,7 +126,7 @@ Run on the real app on this Mac. Scripts are in `apps/agent/src/lab/proof/voice/
 - The browser's own yield on a real microphone. Its 25 ms leaves out capture.
 - An agent beside the edge, so every "inferred" above.
 - 60 real minutes, and the rotation on the real socket.
-- On the worst link, M3.2's second review saw old audio reach the output for 5 to 65 ms after an unmute, and a word more than 110 ms after a stop start a turn's clock early on 1 of 20 aimed stops, by 218 ms. Cloud on this network showed neither in these runs, and they did not aim at it.
+- The worst link's limits after a stop, which "What remains after a stop" in `docs/architecture/live-session.md` measures. Cloud on this network showed no audio past the gain in these runs, and they did not aim at it. The stored takes all run at least 250 ms, so none is given up as old audio.
 - The board after a page reload. The log and resume are right and the turn resumes, and the board starts empty until M3.10 rebuilds it from the log.
 - What the tutor says when the model is real. This is a stand-in.
 
