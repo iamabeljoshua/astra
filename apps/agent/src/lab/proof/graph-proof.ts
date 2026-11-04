@@ -247,6 +247,35 @@ async function proveResize(browser: Browser, run: LessonRun) {
   return { label: getLabel(run), frames: { overlap: frames.overlapFrames, outside: frames.outsideBoardFrames, frames: frames.frames, examples: frames.examples.slice(0, 5) }, figures: { overlap: figures.textOverlapFrames, outside: figures.textOutsideFrames, examples: figures.examples.slice(0, 5) } };
 }
 
+const MOVE_STEP_MS = 16;
+const MOVE_STEPS = 28;
+const JUMP_THRESHOLD = 24;
+
+/** Frame by frame across every rearrangement, the most pixels that change in one 16 ms step. A jump shows as a spike over what a move changes anyway. */
+async function proveMoves(browser: Browser, run: LessonRun) {
+  const lab = await open(browser, run);
+  await lab.command({ type: 'play', lesson: run.lesson });
+  await lab.waitForPlayedBeats(beatsOf(run.lesson), 120_000);
+  await delay(1000);
+  const moves = await lab.page.evaluate(() => (window.sceneLab?.player.getOperations() as { atMs: number; overMs?: number | null; command?: { kind: string; target?: string } }[]).filter((operation) => operation.command?.kind === 'transformMath').map(({ atMs, overMs, command }) => ({ atMs, overMs: overMs ?? 800, target: command?.target })));
+  const worstByMove: { atMs: number; landedOnAnother: boolean; worstStepPixels: number }[] = [];
+  for (const [index, move] of moves.entries()) {
+    const previous = moves.slice(0, index).filter((other) => other.target === move.target).at(-1);
+    let last: string | null = null;
+    let worstStepPixels = 0;
+    for (let step = 0; step < MOVE_STEPS; step += 1) {
+      await holdFrame(lab, { atMs: move.atMs - MOVE_STEP_MS + step * MOVE_STEP_MS, source: 'live' });
+      const shot = (await shoot(lab, 'move-compare')).toString('base64');
+      if (last !== null) worstStepPixels = Math.max(worstStepPixels, await lab.page.evaluate((pair) => window.pageChecks.countDifferentPixels(pair), [last, shot, JUMP_THRESHOLD] as [string, string, number]));
+      last = shot;
+    }
+    worstByMove.push({ atMs: Math.round(move.atMs), landedOnAnother: previous !== undefined && previous.atMs + previous.overMs > move.atMs, worstStepPixels });
+  }
+  await holdFrame(lab, null);
+  await lab.finish();
+  return { label: getLabel(run), worstByMove };
+}
+
 const LESSON_PAIRS: LessonRun[] = (['shot', 'graphs', 'number-line', 'triangle', 'free-body', 'launch'] as const).flatMap((lesson) => [{ lesson, viewport: 'laptop', theme: 'light' }, { lesson, viewport: 'phone', theme: 'dark' }] as LessonRun[]);
 
 const PROOFS = {
@@ -264,6 +293,8 @@ const PROOFS = {
   arc: async (browser: Browser) => [await proveArc(browser, { lesson: 'shot', viewport: 'laptop', theme: 'light' }), await proveArc(browser, { lesson: 'shot', viewport: 'phone', theme: 'dark' })],
   freeze: async (browser: Browser) => [await proveFreeze(browser, { lesson: 'shot', viewport: 'laptop', theme: 'light' }), await proveFreeze(browser, { lesson: 'shot', viewport: 'phone', theme: 'dark' })],
   hostile: async (browser: Browser) => [await proveHostile(browser, { lesson: 'figure-hostile', viewport: 'laptop', theme: 'light' }), await proveHostile(browser, { lesson: 'figure-hostile', viewport: 'phone', theme: 'dark' })],
+  moves: async (browser: Browser) => [await proveMoves(browser, { lesson: 'every-word', viewport: 'laptop', theme: 'light' }), await proveMoves(browser, { lesson: 'algebra', viewport: 'laptop', theme: 'light' })],
+  stored: async (browser: Browser) => [await proveLesson(browser, { lesson: 'shot', viewport: 'laptop', theme: 'light', label: 'stored' }), await proveLesson(browser, { lesson: 'shot', viewport: 'phone', theme: 'dark', label: 'stored' }), await proveLesson(browser, { lesson: 'graphs', viewport: 'laptop', theme: 'dark', label: 'stored' }), await proveFreeze(browser, { lesson: 'shot', viewport: 'laptop', theme: 'light', label: 'stored-freeze' })],
   resize: async (browser: Browser) => [await proveResize(browser, { lesson: 'launch', viewport: 'laptop', theme: 'light' }), await proveResize(browser, { lesson: 'free-body', viewport: 'laptop', theme: 'dark' })],
 } as const;
 
