@@ -1,0 +1,31 @@
+/** What the tutor says from code, when the model cannot speak for itself. Each has versions, because a repeated phrase turns into a tic. */
+export const SPOKEN_LINES = {
+  stillWorking: ['Let me work that out.', 'Give me a second with this.', 'One moment, I want to get this right.'],
+  stillThere: ['Still with you, nearly there.', 'Bear with me a moment.', 'Sorry, this is taking a little longer.'],
+  couldNotReply: ["I can't reach my notes right now. Ask me again in a moment?", "Something's slow on my side. Could you ask that again?", "I lost my connection for a moment. Would you ask me again?"],
+  lostThread: ['Sorry, I lost my thread for a second.', 'Hold on, I lost my place.', 'Sorry, let me pick that back up.'],
+  checkingMath: ['Hold on, let me check that.', 'Wait, that step needs checking.', "One second, I don't trust that line."],
+  mathStillWrong: ["I can't back that step up yet, so I won't guess. What do you get if you try it?", "I'm not sure of that step, so let's not trust it. Can you work it through with me?"],
+  refused: ["I can't help with that one here. What else are you working on?", "That's not something I can go into. What would you like to look at instead?"],
+  refusedAfterWords: ["I'll stop there, because I can't go further on this. What else are you working on?"],
+} as const;
+
+export type SpokenLineUse = keyof typeof SPOKEN_LINES;
+
+const TURNS_BEFORE_A_REPEAT = 3;
+
+// Goes round each list in a fixed order, so the same run says the same things, and no phrase comes back within three uses.
+export function createLinePicker() {
+  const nextIndex = new Map<SpokenLineUse, number>();
+  const recent: string[] = [];
+  return (use: SpokenLineUse): string => {
+    const lines: readonly string[] = SPOKEN_LINES[use];
+    const start = nextIndex.get(use) ?? 0;
+    const ordered = lines.map((_, offset) => lines[(start + offset) % lines.length] as string);
+    const picked = ordered.find((line) => !recent.includes(line)) ?? (ordered[0] as string);
+    nextIndex.set(use, (lines.indexOf(picked) + 1) % lines.length);
+    recent.push(picked);
+    if (recent.length > TURNS_BEFORE_A_REPEAT - 1) recent.shift();
+    return picked;
+  };
+}
