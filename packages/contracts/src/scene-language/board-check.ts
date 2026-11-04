@@ -1,4 +1,4 @@
-import type { SceneCommand } from './scene-command.ts';
+import { type SceneCommand, SIMULATION_MOMENTS } from './scene-command.ts';
 import type { StudentAction } from './session-event.ts';
 
 export type BoardElementKind = SceneCommand['kind'] | 'ink';
@@ -11,7 +11,7 @@ const REQUIRED_KINDS: Partial<Record<SceneCommand['kind'], readonly BoardElement
   markValue: ['plot', 'numberLine'],
   shadeArea: ['plot'],
   construct: ['geometry'],
-  runSimulation: ['simulate'],
+  runSimulation: ['simulate', 'richScene'],
   setParameter: ['simulate'],
   trackVector: ['simulate'],
   ghostPath: ['simulate'],
@@ -36,6 +36,17 @@ function getRequiredKinds(command: SceneCommand): readonly BoardElementKind[] | 
   return REQUIRED_KINDS[command.kind];
 }
 
+function getNamedMoment(command: SceneCommand): string | null {
+  if (command.kind !== 'runSimulation') return null;
+  const point = command.action === 'play' ? command.until : command.action === 'seek' ? command.to : undefined;
+  return typeof point === 'string' ? point : null;
+}
+
+function isUnknownSimulationMoment(command: SceneCommand, elementKind: BoardElementKind): boolean {
+  const moment = getNamedMoment(command);
+  return moment !== null && elementKind === 'simulate' && !(SIMULATION_MOMENTS as readonly string[]).includes(moment);
+}
+
 export function getBoardProblem(command: SceneCommand, board: BoardKinds): string | null {
   const element = getReferencedElement(command);
   if (element === undefined) return null;
@@ -43,6 +54,7 @@ export function getBoardProblem(command: SceneCommand, board: BoardKinds): strin
   if (elementKind === undefined) return `${command.kind} names ${element}, which is not on the board`;
   const requiredKinds = getRequiredKinds(command);
   if (requiredKinds !== undefined && !requiredKinds.includes(elementKind)) return `${command.kind} needs ${requiredKinds.join(' or ')}, but ${element} is a ${elementKind}`;
+  if (isUnknownSimulationMoment(command, elementKind)) return `${element} is a simulation with the moments ${SIMULATION_MOMENTS.join(', ')}`;
   return isBadRevealCount(command, elementKind) ? `reveal needs a whole count on a ${elementKind}` : null;
 }
 

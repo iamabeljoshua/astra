@@ -5,11 +5,12 @@ import { HealthController } from './health/health.controller';
 import { HomeModule } from './home/home.module';
 import { LiveRoomModule } from './livekit/live-room.module';
 import { RequestValidationModule } from './request-validation.module';
+import { ScenesModule } from './scenes/scenes.module';
 import { SessionsModule } from './sessions/sessions.module';
 import { StudentsModule } from './students/students.module';
 
 @Module({
-  imports: [RequestValidationModule, DatabaseModule, AuthModule, StudentsModule, SessionsModule, HomeModule, LiveRoomModule],
+  imports: [RequestValidationModule, DatabaseModule, AuthModule, StudentsModule, SessionsModule, HomeModule, LiveRoomModule, ScenesModule],
   controllers: [HealthController],
 })
 export class AppModule {}

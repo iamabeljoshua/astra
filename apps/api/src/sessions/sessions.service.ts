@@ -3,6 +3,7 @@ import type { SessionEntity } from '../infrastructure/orm/entities/session.entit
 import { SessionRepository } from '../infrastructure/orm/repositories/session.repository';
 import { LiveRooms, MOST_WARM_ROOMS, WARM_ROOM_WINDOW_MS } from '../livekit/live-rooms';
 import type { SessionListOptions } from '../infrastructure/orm/repositories/session.repository';
+import { findLibraryTopic } from '../picks/library';
 import type { TopicSession } from '../picks/topic-progress';
 import type { CreateSessionBodyDto, SessionResponseDto, UpdateSessionBodyDto } from './session.dto';
 
@@ -33,7 +34,9 @@ export class SessionsService {
   ) {}
 
   async createSession(studentId: string, body: CreateSessionBodyDto): Promise<SessionResponseDto> {
-    const session = await this.sessions.createForStudent(studentId, body);
+    // A card's title comes from the library, so a browser cannot put a student's words under a shared topic.
+    const topic = findLibraryTopic(body.topicId);
+    const session = await this.sessions.createForStudent(studentId, topic ? { ...body, title: topic.title } : body);
     // Counted after the insert, in the table every API process shares, so however many sessions arrive at once only the first few can read a small count.
     const startedLately = await this.sessions.countStartedSince(studentId, new Date(Date.now() - WARM_ROOM_WINDOW_MS));
     if (startedLately <= MOST_WARM_ROOMS) this.liveRooms.warm(session.id, studentId);
@@ -51,6 +54,12 @@ export class SessionsService {
 
   async getSession(studentId: string, sessionId: string): Promise<SessionResponseDto> {
     return toSessionResponse(requireSession(await this.sessions.findForStudent(studentId, sessionId)));
+  }
+
+  async getLessonRequest(studentId: string, sessionId: string): Promise<{ title: string; status: string; isCard: boolean; cardLine?: string }> {
+    const { title, status, topicId } = requireSession(await this.sessions.findForStudent(studentId, sessionId));
+    const topic = findLibraryTopic(topicId);
+    return { title: topic?.title ?? title, status, isCard: topic !== undefined, ...(topic ? { cardLine: topic.openingLine } : {}) };
   }
 
   async updateSession(

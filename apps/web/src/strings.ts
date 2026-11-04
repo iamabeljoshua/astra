@@ -1,4 +1,5 @@
 import { CODE_LENGTH } from './auth/codeLength';
+import { isLessonEnabled } from './session/lessonFlag';
 
 export const PRODUCT_NAME = 'Astra';
 
@@ -291,6 +292,35 @@ export const SESSION_LABELS = {
   tryAgain: 'Try again',
 };
 
+const SECONDS_PER_MINUTE = 60;
+const MINUTES_PER_HOUR = 60;
+
+function getPlainWait(seconds: number): string {
+  const minutes = Math.max(1, Math.ceil(seconds / SECONDS_PER_MINUTE));
+  if (minutes < MINUTES_PER_HOUR) return `about ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`;
+  const hours = Math.round(minutes / MINUTES_PER_HOUR);
+  return `about ${hours} ${hours === 1 ? 'hour' : 'hours'}`;
+}
+
+export const SCENE_LABELS = {
+  notCheckedByPerson: 'Drawn for this lesson. Not yet checked by a person.',
+  wordsNotChecked: 'Written for this lesson. Not yet checked by a person.',
+  answerStandIn: "I heard you. I can't answer questions yet, so I'll carry on.",
+  lessonDown: "The lesson can't start right now. Your session is saved, so you can try again.",
+  tooManyLessons: "You've opened a lot of lessons. Try again in a little while.",
+  twoLessonsOpen: 'You have two lessons open. Close one, then try again.',
+  tooManyStarts: (seconds: number) => `You've opened a lot of lessons. Try again in ${getPlainWait(seconds)}.`,
+  studentSpent: (seconds: number) => `That's all your lesson time for today. More opens in ${getPlainWait(seconds)}.`,
+  everyoneSpent: (seconds: number) => `Lessons have reached today's limit for everyone, so this isn't anything you did. They open again in ${getPlainWait(seconds)}.`,
+  voiceAtLimit: "The tutor's voice has reached today's limit, so you'll hear a tone. The words stay on screen.",
+  backToHome: 'Back to Home',
+  lessonMoved: 'This lesson moved to another tab.',
+  lessonLost: 'The connection to your lesson dropped. Your session is saved.',
+  lessonEnded: 'This lesson has ended.',
+  lessonSilent: "The tutor hasn't started talking. Try opening the lesson again.",
+  tryAgain: 'Try again',
+};
+
 export const ARTWORK_LABELS = {
   alchemist: 'Pieter Bruegel\'s engraving of an alchemist at work in a cluttered room',
   arc: 'A ball leaving a hand and travelling in an arc to a hoop',
@@ -378,6 +408,9 @@ export interface LegalDocument {
   sections: LegalSection[];
 }
 
+// With lessons off, the legal pages stay exactly as they are without them.
+const inTestLessons = (...lines: string[]) => (isLessonEnabled() ? lines : []);
+
 export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
   terms: {
     title: 'Terms',
@@ -387,6 +420,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
         heading: `What ${PRODUCT_NAME} is`,
         today: [
           `${PRODUCT_NAME} is a learning app being built around an AI tutor. Today you can sign in, answer a few questions about yourself, open a home screen with suggested lessons, and start sessions that are saved to your account. In a session you can talk or type, and the tutor answers aloud with captions. For now it only repeats simple lines and does not teach yet.`,
+          ...inTestLessons('Spoken lessons with drawings are in testing and are not open to students yet.'),
         ],
         planned: [
           'Full spoken lessons, where the tutor explains and draws on a board as it talks. The tutor is an AI and it can be wrong, so check anything that matters.',
@@ -437,6 +471,9 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
           'Your date of birth, if you are old enough to continue. We keep it in our database with an account ID and the time the record was made.',
           'The name you give your tutor, your level, the interests you choose, and your goal. We keep these in our database, and you can change them under Your notes. We use your level, interests, and goal to choose the lessons suggested on your home screen.',
           "Each session's title, subject, language, picture, length, status, and start time, and the suggested lesson it came from, if any. A question you send from the home screen becomes its session's title, cut to 200 characters, so we store those words.",
+          ...inTestLessons('The drawings and words a tutor writes for a test lesson are saved on our server, with the code and pictures behind them. Those made for a suggested lesson come only from its title and can be shown to other students. Those made for a question you typed are saved with your account ID, and only you can see them, because they are written from a short topic a model takes from your words.'),
+          ...inTestLessons("A recording of what the tutor says in a test lesson is saved on our server too, as audio with the words and their timing. For a suggested lesson it can be played to other students. For a question you typed it is saved in a folder named with your account ID, it is played only in your own lessons, and we remove it with your other saved lesson data. Your own voice is never recorded, because test lessons do not use your microphone."),
+          ...inTestLessons('A record of what each test lesson cost, saved on our server with your account ID: which AI model was used, what it cost, how many characters of voice were made, and when. It holds none of your words.'),
           'We also use the sessions you start from suggested lessons, and their length, status, and start time, to choose what your home screen suggests next. A question you leave open can take the continue card, so a lesson you left open can then appear among the suggestions. Only your own sessions do this, and the words of the questions you type play no part in it.',
           'Any file you attach stays in your browser. It is not sent or stored.',
           'Your microphone stays off until you press Talk in a session, and your browser asks first. While it is on, your voice goes live to the services named under Who receives your data. We do not store your voice or any recording of it.',
@@ -477,10 +514,13 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
       {
         heading: 'Who receives your data',
         today: [
-          'Supabase runs our sign-in service and our database, so it holds everything we store on our servers, and it sends the sign-in email.',
+          isLessonEnabled()
+            ? 'Supabase runs our sign-in service and our database, so it holds your account, your notes, and your sessions, and it sends the sign-in email. What a test lesson saves, its drawings, recordings, and cost records, stays on our own server and does not go to Supabase.'
+            : 'Supabase runs our sign-in service and our database, so it holds everything we store on our servers, and it sends the sign-in email.',
           'When you use a session, LiveKit Cloud carries your voice, the tutor\'s voice, and the messages between your browser and the tutor, including your words as text. It also receives your IP address and your student ID, a random code that does not include your name. We do not ask it to record any of this.',
           "While your microphone is on, Meta's Muse Voice Transcribe receives your voice and turns it into text. Meta's terms let it keep what it receives for safety checks and human review.",
           "ElevenLabs receives the tutor's words and turns them into its voice. For now the tutor repeats what you say or type, so ElevenLabs receives your words too.",
+          ...inTestLessons("While spoken lessons are in testing, a test lesson sends Anthropic's Claude models the title of the suggested lesson, or the whole question you typed, whatever it says, which they use to choose and write a drawing and the tutor's words. A model then writes the drawing from a short topic it takes from your question, and it can get that wrong, so a personal detail in your question can reach those models and the words a tutor says to you. ElevenLabs receives the tutor's words and turns them into its voice, and the audio travels through a LiveKit server. Please leave your name, school, and other personal details out of your questions."),
           'No other outside service receives student data today. The app serves its own fonts and pictures.',
         ],
         planned: [
@@ -502,6 +542,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
           'The app shows no ads. We do not sell student data. We do not store raw audio.',
           'Meta and ElevenLabs run the AI models named above. We use the Muse model Meta lists as a Standard Model, and its terms say it does not train on content from those. ElevenLabs offers a setting that keeps its models from training on what it receives, and we have not yet confirmed that setting. A lawyer has not reviewed either.',
           'The app uses no camera, no voiceprints, and no emotion inference.',
+          ...inTestLessons('Anthropic runs the Claude models that test lessons use, and a lawyer has not reviewed that either.'),
         ],
         planned: [
           'Before real students use the app, confirming that no model trains on under-18 data, and adults opting in to any training use.',
