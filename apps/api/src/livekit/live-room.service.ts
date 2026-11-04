@@ -2,6 +2,7 @@ import { ConflictException, Injectable } from '@nestjs/common';
 import { StudentRepository } from '../infrastructure/orm/repositories/student.repository';
 import { SessionsService } from '../sessions/sessions.service';
 import { isStudentInterest } from '../students/students.service';
+import { TutorSpendService } from '../tutor-spend/tutor-spend.service';
 import { getRoomName, type LiveRoomKeys, makeStudentToken } from './live-room-grants';
 import type { LiveRoomResponseDto } from './live-room.dto';
 
@@ -17,6 +18,7 @@ export class LiveRoomService {
   constructor(
     private readonly sessionsService: SessionsService,
     private readonly students: StudentRepository,
+    private readonly tutorSpend: TutorSpendService,
   ) {}
 
   // The room belongs to the session, and the session lookup answers 404 for another student, so no student can get a token for another's room.
@@ -25,6 +27,7 @@ export class LiveRoomService {
     if (session.status === 'finished') throw new ConflictException('This session has finished.');
     const keys = getLiveRoomKeys(process.env);
     if (!keys) return { access: null, unavailableBecause: 'notSetUp' };
+    if (await this.tutorSpend.isOverDailyLimit(studentId)) return { access: null, unavailableBecause: 'dailyLimit' };
     const roomName = getRoomName(session.id);
     const token = await makeStudentToken({ keys, roomName, studentId, tutorBrief: await this.getTutorBrief(studentId) });
     return { access: { url: keys.url, roomName, token }, unavailableBecause: null };

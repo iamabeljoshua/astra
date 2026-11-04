@@ -215,6 +215,7 @@ function BoardPicture({ artwork }: { artwork: Artwork }) {
 }
 
 function getVoiceNote(status: LiveVoiceControls['status'], view: LiveVoiceView | null): string | null {
+  if (status === 'overLimit') return VOICE_LABELS.dailyLimit;
   if (status === 'connecting' || view?.phase === 'connecting') return VOICE_LABELS.connecting;
   if (status === 'unavailable' || view?.phase === 'noTutor') return VOICE_LABELS.unavailable;
   if (view?.phase === 'reconnecting') return VOICE_LABELS.reconnecting;

@@ -260,6 +260,19 @@ describe('the session screen', () => {
     expect(replyBox.value).toBe('');
   });
 
+  it('says plainly that today\'s tutor time is spent, and keeps the reply on the screen', async () => {
+    renderSessionAddress({ sessions: [makeSession({ durationSeconds: 65 })], liveRoom: { access: null, unavailableBecause: 'dailyLimit' } }, 'a-session');
+    const replyBox = await screen.findByRole<HTMLTextAreaElement>('textbox', { name: REPLY_BOX_LABELS.label });
+
+    fireEvent.change(replyBox, { target: { value: 'Gravity, I think.' } });
+    fireEvent.click(screen.getByRole('button', { name: REPLY_BOX_LABELS.send }));
+
+    await screen.findByText(VOICE_LABELS.dailyLimit);
+    screen.getByText('Gravity, I think.');
+    screen.getByText(SESSION_LABELS.replyNotSent);
+    expect(screen.queryByText(VOICE_LABELS.unavailable)).toBeNull();
+  });
+
   it('shows no words of its own while the room opens on a new question, so nothing stale sits there', async () => {
     const { fetchStub } = renderSessionAddress({ sessions: [makeSession({ durationSeconds: 0 })] }, 'a-session');
     const room = holdAnswers(fetchStub, isCallTo('/api/sessions/a-session/live-room'));

@@ -218,6 +218,7 @@ export const VOICE_LABELS = {
   unavailable: 'Your tutor could not connect just now.',
   reconnecting: 'Your connection dropped. Reconnecting.',
   ended: 'Your connection to the tutor ended.',
+  dailyLimit: 'That is all your tutor time for today. Come back tomorrow. Your sessions are kept.',
   micDenied: 'Your browser did not allow the microphone. You can type instead.',
   micOn: 'Your microphone is on.',
   turnOnSound: 'Turn on sound',
