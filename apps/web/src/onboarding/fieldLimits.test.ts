@@ -16,6 +16,10 @@ describe('the rule for a name', () => {
     ['a byte order mark', '﻿', false],
     ['a soft hyphen', '­', false],
     ['a combining mark alone', '́', false],
+    // Only one class in the rule refuses each of these three, so dropping that class fails its row.
+    ['a tab', '\t', false],
+    ['an Arabic number sign', '؀', false],
+    ['a Hangul filler', 'ㅤ', false],
     ['a name holding a null character', 'Maya\u0000', false],
     ['a name holding a lone surrogate', 'Maya\ud83d', false],
   ])('decides %s the same way on the web and at the API', (_caseName, name, isStorable) => {
