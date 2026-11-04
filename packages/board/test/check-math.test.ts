@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkMathLine, checkMathStep } from '../src/shared/check-math.ts';
+import { checkClaimedMath, checkMathLine, checkMathStep } from '../src/shared/check-math.ts';
 import { FALSE_LINES, FALSE_STEPS, REPORTED_FALSE_LINES, REPORTED_FALSE_STEPS, REPORTED_TRUE_LINES, REPORTED_TRUE_STEPS, TRUE_LINES, TRUE_STEPS } from './math-table.ts';
 
 const FEWEST_TRUE_STEPS = 500;
@@ -42,6 +42,33 @@ describe('the table of steps from school math', () => {
 
   it('calls every false line in it wrong', () => {
     expect(FALSE_LINES.filter((tex) => checkMathLine(tex).status !== 'wrong')).toEqual([]);
+  });
+});
+
+describe('the tables, read through what a line claims', () => {
+  it('still catches every false step that claims to be a step', () => {
+    expect(FALSE_STEPS.filter(([before, after]) => checkClaimedMath('step', before, after).status !== 'wrong').map(describeStep)).toEqual([]);
+    expect(REPORTED_FALSE_STEPS.filter(([before, after]) => checkClaimedMath('step', before, after).status !== 'wrong').map(describeStep)).toEqual([]);
+  });
+
+  it('still catches every false line written as true', () => {
+    expect(FALSE_LINES.filter((tex) => checkClaimedMath('new', undefined, tex).status !== 'wrong')).toEqual([]);
+    expect(FALSE_LINES.filter((tex) => checkClaimedMath('step', undefined, tex).status !== 'wrong')).toEqual([]);
+  });
+
+  it('never calls a true step or a true line wrong when it is claimed truthfully', () => {
+    expect(TRUE_STEPS.filter(([before, after]) => checkClaimedMath('step', before, after).status === 'wrong').map(describeStep)).toEqual([]);
+    expect(TRUE_LINES.filter((tex) => checkClaimedMath('new', undefined, tex).status === 'wrong')).toEqual([]);
+  });
+
+  it.each(['shown', 'relation', undefined] as const)('judges nothing claimed as %s, and that is what the design gives up', (claim) => {
+    expect(FALSE_STEPS.filter(([before, after]) => checkClaimedMath(claim, before, after).status === 'wrong')).toEqual([]);
+    expect(FALSE_LINES.filter((tex) => checkClaimedMath(claim, undefined, tex).status === 'wrong')).toEqual([]);
+  });
+
+  it('gives up a false step claimed as new unless it is plain arithmetic', () => {
+    const caught = FALSE_STEPS.filter(([before, after]) => checkClaimedMath('new', before, after).status === 'wrong');
+    expect(caught.every(([, after]) => checkMathLine(after).status === 'wrong')).toBe(true);
   });
 });
 

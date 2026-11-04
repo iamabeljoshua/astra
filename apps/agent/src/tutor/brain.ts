@@ -68,7 +68,7 @@ export type TraceNote = (name: string, fields?: Record<string, unknown>) => void
 export interface TurnSummary {
   studentText: string;
   spokenText: string;
-  beats: readonly Beat[];
+  beats: readonly TutorBeat[];
   refused: readonly string[];
   attempts: number;
   endedAs: AttemptEnd;
@@ -104,8 +104,8 @@ interface TurnWork {
   signal: AbortSignal;
   startedAtMs: number;
   reader: BeatTextReader;
-  beats: Beat[];
-  ready: Beat[];
+  beats: TutorBeat[];
+  ready: TutorBeat[];
   refused: string[];
   notes: string[];
   /** How many of the pending notes this turn took, so a note added while it runs stays for the next turn. */
@@ -149,18 +149,22 @@ const CHARACTERS_PER_TOKEN = 3.2;
 const DECLINED_NOTE = {
   declined: "A safety check stopped an earlier message of the student's, so you cannot see that one. It may have been serious. The message just above this note is newer, you can read it, and it comes first: if it says anyone is hurting them or that they are in danger, follow your safety rules for it. The app has already told them to tell an adult they trust or call their local emergency number. Otherwise, before you teach on, ask once, gently, whether they are safe and have an adult to talk to. Do not guess what the earlier message said, do not ask them to repeat it, and never say you cannot see a message.",
 };
-const SKIPPED_NOTE = { skipped: 'An automatic check stopped an earlier message of the student, and the app told them it could not go into that. It is not about their safety. Teach on, and do not ask them to repeat it.' };
-/** These cannot be about the student's own safety. The list of categories is open, so one it does not name counts as possibly serious. */
+const SKIPPED_NOTE = { skipped: "An automatic check stopped an earlier message of the student's, and the app told them it could not go into that. It is not about their safety. Teach on, and do not ask them to repeat it." };
+const CLIPPED_NOTE = { clipped: 'The student wrote more than you can see, and this is only the first part. Say so in a few words, and answer what you can.' };
+/** These categories cannot be about the student's own safety. The list of categories is open, so one it does not name counts as possibly serious. */
 const PLAIN_REFUSALS: ReadonlySet<string> = new Set(['cyber', 'frontier_llm', 'reasoning_extraction']);
 const ASKED_HOW_IT_WORKED = 'reasoning_extraction';
-/** Asking how a tutor worked something out is core teaching, and the check reads it as asking for hidden reasoning, so the retry asks for the lesson in words that say so. */
-const ASK_FOR_THE_LESSON = 'Please go through that again as a lesson, one step at a time.';
-const CLIPPED_NOTE = { clipped: 'The student wrote more than you can see, and this is only the first part. Say so in a few words, and answer what you can.' };
+/** A refused message in a plain category can still say this, as "my dad hits me, how do i hack his phone" does, and the model never saw it. */
+const MAY_BE_ABOUT_SAFETY = /\b(?:hit|hits|hitting|hurt|hurts|hurting|beat|beats|beating|abuse|abused|abusing|touch|touches|touched|rape|raped|kill|killing|suicide|die|dying|harm|harming|cut myself|cutting myself|scared|afraid|unsafe|danger|threaten|threatens|threatened)\b/i;
+/** Asking how a tutor worked something out is core teaching, and the check can read it as asking for hidden reasoning. The retry keeps the student's own words, because replacing them could hide a disclosure in the same message. Measured at 0 of 8 refused against 8 of 8 without. */
+const ASKED_HOW_NOTE = { asked_how: 'They are asking you to go through the subject step by step, as teaching. Their words may mention your reasoning. Answer anything else they said first.' };
 
 /** Strips control and invisible characters, which can hide text from a reader. */
 export function cleanStudentText(text: string): string {
   return clipTypedText(cleanLine(text));
 }
+
+const isPlainRefusal = ({ refusalCategory, studentText }: { refusalCategory: string | null; studentText: string }) => refusalCategory !== null && PLAIN_REFUSALS.has(refusalCategory) && !MAY_BE_ABOUT_SAFETY.test(studentText);
 
 const toComparableWords = (text: string) => text.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, '').split(/\s+/).filter(Boolean).join(' ');
 
@@ -365,8 +369,8 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
     const hardMs = attemptStartedAtMs + timeouts.firstTextMs;
     if (turn.hasSaidStillWorking) return hardMs;
     // A retry starts its own wait, or the time the first attempt took would fire a filler straight after its line.
-    const softMs = turn.isCheckingMath ? attemptStartedAtMs + timeouts.checkingMathMs : turn.attempts > 1 ? attemptStartedAtMs + timeouts.stillWorkingMs : turn.startedAtMs + timeouts.stillWorkingMs;
-    return Math.min(hardMs, softMs);
+    const softStartMs = turn.attempts > 1 ? attemptStartedAtMs : turn.startedAtMs;
+    return Math.min(hardMs, softStartMs + (turn.isCheckingMath ? timeouts.checkingMathMs : timeouts.stillWorkingMs));
   };
 
   const readEvent = (turn: TurnWork, event: ModelEvent): AttemptEnd | null => {
@@ -536,18 +540,17 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
 
   // Anthropic's page on refusals says to discard partial output, so what was not yet spoken goes unsaid, and none of it stays in history.
   const handleRefusal = (turn: TurnWork, canRetry: boolean): TurnStep => {
-    const isPlain = turn.refusalCategory !== null && PLAIN_REFUSALS.has(turn.refusalCategory);
     const wasAskedHow = turn.refusalCategory === ASKED_HOW_IT_WORKED;
     turn.reader.dropAttempt();
     turn.raw = '';
     if (wasAskedHow && canRetry) {
-      turn.studentText = ASK_FOR_THE_LESSON;
+      turn.notes.push(JSON.stringify(ASKED_HOW_NOTE));
       if (turn.hasModelWords) noteCorrection(turn, 'Carry on from where you stopped.');
       return 'retry';
     }
-    if (wasAskedHow) sayLine(turn, 'askedHowDeclined');
-    else if (isPlain) sayLine(turn, turn.hasModelWords ? 'refusedPlainAfterWords' : 'refusedPlain');
-    else sayLine(turn, turn.hasModelWords ? 'refusedAfterWords' : 'refused');
+    if (!isPlainRefusal(turn)) sayLine(turn, turn.hasModelWords ? 'refusedAfterWords' : 'refused');
+    else if (wasAskedHow) sayLine(turn, 'askedHowDeclined');
+    else sayLine(turn, turn.hasModelWords ? 'refusedPlainAfterWords' : 'refusedPlain');
     return 'over';
   };
 
@@ -644,7 +647,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
       turns.push({ role: 'user', text: turn.studentText });
     }
     if (wasRefused) {
-      const note = turn.refusalCategory !== null && PLAIN_REFUSALS.has(turn.refusalCategory) ? SKIPPED_NOTE : DECLINED_NOTE;
+      const note = isPlainRefusal(turn) ? SKIPPED_NOTE : DECLINED_NOTE;
       if (!pendingNotes.includes(note)) pendingNotes.push(note);
     }
     if (turn.endedAs === 'ended') rejectionsInARow = 0;

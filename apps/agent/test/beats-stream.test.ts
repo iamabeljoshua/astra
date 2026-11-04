@@ -30,9 +30,9 @@ const CASES: ReaderCase[] = [
   { name: 'a command before its word', text: `Your ${HIDE}hand.`, spoken: 'Your hand. ', cues: [1] },
   { name: 'a command right after a word, then a space', text: `Your hand,${HIDE} right up.`, spoken: 'Your hand, right up.', cues: [2] },
   { name: 'a command inside a word', text: `Watch this ar${HIDE}row now.`, spoken: 'Watch this arrow now.', cues: [2] },
-  { name: 'a command at the end of a beat', text: `Watch this.${HIDE}\nThen this.`, spoken: 'Watch this. Then this. ', cues: [1] },
+  { name: 'a command at the end of a beat', text: `Watch this.${HIDE}\nThen this.`, spoken: 'Watch this. Then this. ', cues: [2] },
   { name: 'a line with only a command waits for the next word', text: `${CLEAR}\nWatch this.`, spoken: 'Watch this.', cues: [0] },
-  { name: 'a command with no word after it at the end of the turn', text: `Watch this.\n${CLEAR}`, spoken: 'Watch this.', cues: [], bad: 1 },
+  { name: 'a command with no word after it at the end of the turn', text: `Watch this now.\n${CLEAR}`, spoken: 'Watch this now.', cues: [], bad: 1 },
   { name: 'keys in another order', text: 'Watch {"target":"a","kind":"hide"}this.', spoken: 'Watch this.', cues: [1] },
   { name: 'a space after the brace', text: 'Watch { "kind" : "hide", "target":"a" }this.', spoken: 'Watch this.', cues: [1] },
   { name: 'JSON with no kind is not spoken', text: 'Watch {"hello":"world"}this.', spoken: 'Watch this.', bad: 1 },
@@ -62,7 +62,7 @@ const CASES: ReaderCase[] = [
   { name: 'a command on an element of the wrong kind', text: 'Watch {"kind":"runSimulation","target":"p","action":"play"}this.', spoken: 'Watch this.', bad: 1 },
   { name: 'a pretty-printed command is a command', text: 'Watch {\n  "kind": "hide",\n  "target": "a"\n}this.', spoken: 'Watch this.', cues: [1] },
   { name: 'a newline in the middle of a command is a command', text: 'Watch {"kind":"hide",\n"target":"a"}this now.', spoken: 'Watch this now.', cues: [1] },
-  { name: 'a brace and a newline then speech', text: 'Watch {\nthis now.', spoken: 'Watch this now.', beats: 2 },
+  { name: 'a brace and a newline then speech', text: 'Watch {\nthis now.', spoken: 'Watch this now.', beats: 1 },
   { name: 'an oversized string speaks none of its tail', text: `Look ${LONG_STRING}here.`, spoken: 'Look here.', bad: 1 },
   { name: 'an oversized list speaks none of its tail', text: `Look ${LONG_LIST}here.`, spoken: 'Look here.', bad: 1 },
   { name: 'a broken command with a far closing brace keeps its words', text: 'Watch {"kind":"hide","target":"a" lets go now. And the set is 1} more.', spoken: 'Watch lets go now. And the set is 1 more.', bad: 1 },
@@ -72,7 +72,8 @@ const CASES: ReaderCase[] = [
   { name: 'a sentence ends its beat', text: 'Gravity pulls down. Speed drops.', spoken: 'Gravity pulls down. Speed drops.', beats: 2 },
   { name: 'a comma ends a beat once it has a few words', text: 'So the ball slows down, and then it stops.', spoken: 'So the ball slows down, and then it stops.', beats: 2 },
   { name: 'a comma after one word does not', text: 'Okay, the ball slows.', spoken: 'Okay, the ball slows.', beats: 1 },
-  { name: 'the first comma of a turn ends a beat sooner', text: 'Good question, the ball slows.', spoken: 'Good question, the ball slows.', beats: 2 },
+  { name: 'the first comma of a turn ends a beat sooner', text: 'A good question, the ball slows.', spoken: 'A good question, the ball slows.', beats: 2 },
+  { name: 'a piece of two words joins the words after it, so the voice never gets it alone', text: 'Good question. The ball slows.', spoken: 'Good question. The ball slows.', beats: 1 },
   { name: 'a later comma needs a few words', text: 'It stops. Up there, it stops.', spoken: 'It stops. Up there, it stops.', beats: 2 },
   { name: 'a decimal does not end a beat', text: 'It pulls at 9.8 metres.', spoken: 'It pulls at 9.8 metres.', beats: 1 },
   { name: 'a command waiting for its word holds the beat open', text: 'Watch the ball,{"kind":"hide","target":"a"} now.', spoken: 'Watch the ball, now.', beats: 1 },
@@ -152,8 +153,7 @@ describe('reading a model stream into beats', () => {
     reader.push('So then, {"kind":"writeMath","id":"bad","tex":"2 + 2 = 5"}two plus two is five.');
     reader.closeAttempt();
     expect(wrong).toEqual(['false']);
-    expect(beats[0]?.script).toEqual(['So then, ']);
-    expect(beats).toHaveLength(1);
+    expect(beats).toHaveLength(0);
   });
 
   it('never speaks a command, whatever a hostile model writes', () => {

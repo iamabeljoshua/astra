@@ -235,7 +235,7 @@ pnpm agent
 | `ASTRA_AGENT_NAME` | API and agent | Which agent a room calls in. Each lane sets its own, because a room goes to any agent of that name. |
 | `ASTRA_AGENT_KEY` | API and agent | The key the agent sends to the API's `/agent` routes. With none set, those routes answer 401. |
 | `ASTRA_API_URL` | Agent | The agent's address for the API, where it reads a student's level, interests, and goal and adds what each turn cost. |
-| `ASTRA_DAILY_LIMIT_USD` | API | What one student's tutor time may cost in a UTC day, $3 by default. At the limit the API opens no room, and the session screen says to come back tomorrow. |
+| `ASTRA_DAILY_LIMIT_USD` | API | What one student's tutor time may cost in a UTC day, $3 by default. At the limit the API opens no room, and the session screen says the time resets once a day and to try again later. |
 | `ASTRA_SESSION_LIMIT_USD`, `ASTRA_SESSION_VOICE_LIMIT_CHARACTERS` | Agent | What one session may cost, $1 by default, and how many characters of voice it may use, 40,000 by default. Past either one, the tutor closes for that session. |
 | `META_API_KEY` | Agent | Muse Voice Transcribe. A typed session never opens it. |
 | `ELEVENLABS_API_KEY` | Agent | The tutor's voice. |

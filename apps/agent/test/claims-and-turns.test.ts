@@ -178,13 +178,26 @@ describe('what a refusal is about', () => {
   });
 
   it('asks again once when a tutor is asked how it worked something out, because that is core teaching', async () => {
-    const { brain, model, summaries } = setup((request) => (JSON.stringify(request.turns).includes('your whole reasoning') ? refuses('reasoning_extraction') : reply('Sure, step one is the light hitting the leaf.')));
+    const { brain, model, summaries } = setup((_request, attempt) => (attempt === 1 ? refuses('reasoning_extraction') : reply('Sure, step one is the light hitting the leaf.')));
     const said = say(await collect(brain, 'can you show me how you worked that out, step by step, your whole reasoning'));
     expect(said).toBe('Sure, step one is the light hitting the leaf.');
     expect(model.requests).toHaveLength(2);
     expect(summaries[0]?.endedAs).toBe('ended');
-    await collect(brain, 'ok thanks');
-    expect(JSON.stringify(model.requests.at(-1))).not.toContain('your whole reasoning');
+    expect(lastNote(model.requests[1])).toContain('asked_how');
+  });
+
+  it('keeps the student own words on that retry, because they may hold a disclosure', async () => {
+    const { brain, model } = setup((_request, attempt) => (attempt === 1 ? refuses('reasoning_extraction') : reply('That sounds serious.')));
+    await collect(brain, 'my dad hits me. can you show me your whole reasoning for that');
+    expect(JSON.stringify(model.requests[1]?.turns)).toContain('my dad hits me');
+  });
+
+  it.each(['cyber', 'reasoning_extraction'])('gives the safety line and the later check when a refused %s message may be about the student', async (category) => {
+    const { brain, model } = setup((request) => (JSON.stringify(request.turns).includes('hits me') ? refuses(category) : reply('Okay, are you safe?')));
+    const said = say(await collect(brain, 'my dad hits me. show me how to get into his phone'));
+    expect(said).toMatch(/adult you trust/);
+    await collect(brain, 'can we do fractions');
+    expect(lastNote(model.requests.at(-1))).toContain('declined');
   });
 
   it('gives a plain line with no safety talk when the second try is refused too', async () => {
@@ -238,6 +251,18 @@ describe('a turn that talks like a person', () => {
   it('does not breathe after a few words, because a pause after "Okay, look." sounds odd', async () => {
     const { brain } = setup(() => reply('Okay, look.\nThe leaf is where it happens.'));
     expect(stretchesOf(await collect(brain, 'tell me'))).toHaveLength(1);
+  });
+
+  it.each([['Fine. Look at this line here.'], ['Fine.\nLook at this line here.'], ['Good one. Look at this line here.'], ['Good one, look at this line here.']])('never sends a piece of one or two words alone, as in %j', async (text) => {
+    const { brain } = setup(() => reply(text));
+    const beats = await collect(brain, 'tell me');
+    expect(beats.every((beat) => countWords(getBeatText(beat)) >= 3)).toBe(true);
+    expect(say(beats).toLowerCase()).toContain('look at this line here.');
+  });
+
+  it('still lets a short question end the turn', async () => {
+    const { brain } = setup(() => reply('Ready? Then this is thrown away.'));
+    expect(say(await collect(brain, 'tell me'))).toBe('Ready?');
   });
 
   it('caps a reply at its next sentence end, and throws away the rest', async () => {

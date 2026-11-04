@@ -11,7 +11,8 @@ const TURN_WORDS_TO_CUT = 90;
 /** B2 gives a turn's first drawing 1 s from its first word, which is about three words. */
 const DRAWING_GUARD_WORD = 3;
 const FEWEST_WORDS_BEFORE_A_COMMA = 4;
-const FEWEST_WORDS_BEFORE_THE_FIRST_COMMA = 2;
+/** A beat is what the voice receives and flushes at once. "Fine." flushed alone holds about twice the time before the next word that it does in a phrase, 574 ms against 272, so a shorter piece joins the words after it. */
+const FEWEST_WORDS_IN_A_BEAT = 3;
 const LONGEST_TAG_CHARACTERS = 200;
 /** A long run of combining marks can crash a Chrome tab when a caption draws it. */
 const MOST_MARKS_IN_A_ROW = 4;
@@ -275,6 +276,10 @@ export class BeatTextReader {
 
   // The model writes a line break between ideas, and one that falls mid sentence is only a new beat.
   #endLine(): void {
+    if (this.#wordCount > 0 && this.#wordCount < FEWEST_WORDS_IN_A_BEAT && !ENDS_IN_QUESTION.test(this.#text)) {
+      if (!this.#isAfterSpace) this.#speak(' ');
+      return;
+    }
     this.#endBeat();
     if (this.#didLastBeatEndSentence && this.#wordsThisStretch >= FEWEST_WORDS_BEFORE_A_BREATH && !this.#isSafetyReply) this.#isBreathDue = true;
   }
@@ -331,9 +336,11 @@ export class BeatTextReader {
   // Beats end at commas and sentence ends, because M3.2 measured mid-sentence flushes stretching the line.
   #isAtBeatBoundary(): boolean {
     if (this.#cuesAwaitingWord.length > 0) return false;
-    if (ENDS_IN_QUESTION.test(this.#text) || isSentenceEnd(this.#text)) return true;
+    if (ENDS_IN_QUESTION.test(this.#text)) return true;
+    if (this.#wordCount < FEWEST_WORDS_IN_A_BEAT) return false;
+    if (isSentenceEnd(this.#text)) return true;
     const isFirstBeat = this.#wordsThisTurn === this.#wordCount;
-    return ENDS_IN_CLAUSE.test(this.#text) && this.#wordCount >= (isFirstBeat ? FEWEST_WORDS_BEFORE_THE_FIRST_COMMA : FEWEST_WORDS_BEFORE_A_COMMA);
+    return ENDS_IN_CLAUSE.test(this.#text) && this.#wordCount >= (isFirstBeat ? FEWEST_WORDS_IN_A_BEAT : FEWEST_WORDS_BEFORE_A_COMMA);
   }
 
   #addToScript(text: string): void {
