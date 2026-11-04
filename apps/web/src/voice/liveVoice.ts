@@ -347,8 +347,6 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     stopListening();
     stopListening = listenToTutor(track, { audioContext, gain, clock, onProbe });
     clearTimeout(tutorWait);
-    // The agent listens before it publishes this track, so hello need not wait up to a pulse's 500 ms to say the student is here.
-    lastAgentPulseEpochMs ??= getEpochMs();
     // Only a pulse says the tutor came back after a drop, because a crashed job's track can outlive it.
     if (view.phase === 'connecting') setView({ phase: 'live' });
     send({ type: 'hello', ...getStamp(), wantsGreeting: wantsGreeting && !hasSaidHello });
