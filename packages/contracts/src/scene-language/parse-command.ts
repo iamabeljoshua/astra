@@ -23,6 +23,7 @@ import {
 } from './read.ts';
 import {
   ANNOTATION_MARKS,
+  BOARD_MODES,
   MATH_CLAIMS,
   type Diagram,
   DRAWINGS,
@@ -582,6 +583,10 @@ const COMMANDS: VariantTable<SceneCommand, 'kind'> = {
     task: {
       keys: ['id', 'way', 'on', 'reads', 'accepts', 'answer', 'items', 'slots', 'seek'],
       read: (fields) => readVariant<Task>(fields.place, TASKS),
+    },
+    boardMode: {
+      keys: ['mode'],
+      read: (fields) => ({ kind: 'boardMode', mode: readOneOf(fields.at('mode'), BOARD_MODES) }),
     },
     focus: {
       keys: ['target'],

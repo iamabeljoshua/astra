@@ -1,5 +1,4 @@
 import type { LineReading } from '@astra/contracts';
-import type { StudentLineContent } from '@astra/board';
 import { renderTex } from '@astra/board/drawing';
 import { useLayoutEffect, useRef } from 'react';
 import { BOARD_WORK_LABELS } from '../strings';
@@ -27,31 +26,17 @@ export function LineParts({ reading }: { reading: LineReading }) {
   );
 }
 
-export function ReadAs({ reading, typed, isUnderMath = false }: { reading: LineReading; typed?: string; isUnderMath?: boolean }) {
+export function ReadAs({ reading, typed }: { reading: LineReading; typed?: string }) {
   return (
-    <p data-line-caption data-testid="read-as" className={`m-0 text-fine whitespace-nowrap text-ink-2 ${isUnderMath ? 'absolute left-0' : ''}`}>
-      <span className="label">
+    <div data-testid="read-as" className="board-read-as">
+      <span className="board-read-as-label">
         {BOARD_WORK_LABELS.readAs} {BOARD_WORK_LABELS.kinds[reading.kind]}
       </span>
       {typed !== undefined && reading.kind === 'math' && (
-        <span className="ml-2">
+        <span>
           {BOARD_WORK_LABELS.youTyped} {typed}
         </span>
       )}
-    </p>
-  );
-}
-
-// A math line is painted by the board's math painter, which owns the wrapper's flow, so only its caption is here.
-export function StudentLine({ content }: { content: StudentLineContent }) {
-  const { reading, text } = content;
-  if (reading.kind === 'math') {
-    return <ReadAs reading={reading} typed={text} isUnderMath />;
-  }
-  return (
-    <div data-student-line className="max-w-full text-lead wrap-anywhere">
-      <LineParts reading={reading} />
-      <ReadAs reading={reading} />
     </div>
   );
 }

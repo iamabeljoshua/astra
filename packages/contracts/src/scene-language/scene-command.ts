@@ -327,6 +327,15 @@ export type Task = { kind: 'task'; id: ElementId } & (
   | { way: 'drag'; on: ElementId; seek?: DragSeek }
 );
 
+export const BOARD_MODES = ['teach', 'handsOn'] as const;
+export type BoardModeName = (typeof BOARD_MODES)[number];
+
+/** What the right side of the session is for. Teaching gives it to the visual, and hands-on gives it to the board, with the visual small in the corner. It lands on a word. */
+export interface BoardMode {
+  kind: 'boardMode';
+  mode: BoardModeName;
+}
+
 /** Moves the dot to the element under discussion. */
 export interface Focus {
   kind: 'focus';
@@ -371,6 +380,7 @@ export type SceneCommand =
   | Note
   | Tangent
   | Task
+  | BoardMode
   | Focus
   | Hide
   | ClearBoard;

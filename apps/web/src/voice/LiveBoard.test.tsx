@@ -20,7 +20,7 @@ function makeVoiceWithBoard(script: readonly unknown[]) {
   player.receive({ type: 'beatClosed', turnId: TURN, beatId: parsed.value.id, wordCount: 2, expectsReply: false });
   player.tick();
   const reportMarkNotDrawn = vi.fn();
-  const voice = { getBoardNow: () => ({ board: player.getBoard(nowMs), atMs: nowMs }), reportMarkNotDrawn } as unknown as LiveVoice;
+  const voice = { getBoardNow: () => ({ board: player.getBoard(nowMs), atMs: nowMs }), getView: () => ({ isTutorSpeaking: false, isThinking: false, isHeard: false, closedBecause: null }), getLoudness: () => 0, sendPause: () => {}, reportMarkNotDrawn } as unknown as LiveVoice;
   return { voice, reportMarkNotDrawn };
 }
 
@@ -28,7 +28,7 @@ describe('the live board', () => {
   it('tells the session when a ring has nothing to point at', async () => {
     const { voice, reportMarkNotDrawn } = makeVoiceWithBoard([{ kind: 'writeMath', id: 'eq', tex: '2x + 3 = 11' }, { kind: 'highlight', id: 'ring', target: 'eq', tex: 'q' }, 'Look here.']);
     await act(async () => {
-      render(<LiveBoard voice={voice} whileEmpty={null} />);
+      render(<LiveBoard voice={voice} />);
       await new Promise((resolve) => setTimeout(resolve, 50));
     });
     await waitFor(() => expect(reportMarkNotDrawn).toHaveBeenCalledWith('ring'));

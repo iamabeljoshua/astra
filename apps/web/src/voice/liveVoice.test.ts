@@ -39,7 +39,8 @@ const { FakeRoom, rooms, makeFakeAudioContext } = vi.hoisted(() => {
     currentTime: 0,
     outputLatency: 0,
     sampleRate: 48000,
-    createGain: () => ({ gain: { setValueAtTime: () => {} } }),
+    createGain: () => ({ gain: { setValueAtTime: () => {} }, connect: () => {} }),
+    createAnalyser: () => ({ fftSize: 0, getByteTimeDomainData: () => {} }),
     resume: async () => {},
     close: async () => {},
   });

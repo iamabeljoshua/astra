@@ -7,9 +7,10 @@ import { ThemeToggle } from '../theme/ThemeToggle';
 import { formatSessionLength } from './formatSession';
 import { type Session, useSession } from './sessionQueries';
 import { useSessionRun } from './useSessionRun';
-import { StudentCaption, TutorCaption } from '../voice/Captions';
+import { StudentCaption } from '../voice/Captions';
+import { BoardCaption } from '../board/BoardCaption';
 import { LiveBoard } from '../voice/LiveBoard';
-import type { LiveVoice, LiveVoiceView } from '../voice/liveVoice';
+import type { LiveVoiceView } from '../voice/liveVoice';
 import { type LiveVoiceControls, useLiveVoice } from '../voice/useLiveVoice';
 
 const NOT_FOUND_STATUS = 404;
@@ -78,22 +79,24 @@ function RunningSession({ session }: { session: Session }) {
   const opening = useOpeningMessage(session, liveVoice.sendTyped);
   const idleWords = liveVoice.status === 'idle' && !opening ? SESSION_LABELS.idleWords : null;
 
+  const picture = <Board artwork={findArtwork(session.artwork)} note={SESSION_LABELS.boardStandIn} />;
+  const isDotLively = view !== null && !view.closedBecause && (view.isTutorSpeaking || view.isHeard || view.isThinking);
   return (
-    <SessionFrame
-      facts={<SessionFacts subject={session.subject} seconds={seconds} />}
-      action={<EndButton isEnding={isEnding} onEnd={() => void endSession()} />}
-      problem={endProblem}
-    >
-      <SessionPanels
-        session={session}
-        tutorWords={idleWords}
-        tutorCaption={view && <TutorCaption heard={view.tutorHeard} coming={view.tutorComing} firstWord={view.firstWord} />}
-        isDotLively={view !== null && !view.closedBecause && (view.isTutorSpeaking || view.isHeard || view.isThinking)}
-        boardNote={SESSION_LABELS.boardStandIn}
-        liveVoice={voice}
-      >
-        <ReplyBox liveVoice={liveVoice} />
-      </SessionPanels>
+    <SessionFrame facts={<SessionFacts subject={session.subject} seconds={seconds} />} action={<EndButton isEnding={isEnding} onEnd={() => void endSession()} />} problem={endProblem} isFullHeight>
+      <div className="board-stage">
+        <div className="board-voice">
+          <SessionTitle title={session.title} isQuiet={Boolean(voice)} />
+          {!voice && (
+            <div className="label flex items-center gap-2.5">
+              <i aria-hidden data-testid="tutor-dot" data-lively={isDotLively} className="tutor-dot" />
+              <span>{SESSION_LABELS.yourTutor}</span>
+            </div>
+          )}
+          {view ? <BoardCaption heard={view.tutorHeard} coming={view.tutorComing} firstWord={view.firstWord} /> : <div className="flex flex-1 flex-col justify-end font-voice text-voice">{idleWords}</div>}
+          <ReplyBox liveVoice={liveVoice} />
+        </div>
+        {voice ? <LiveBoard voice={voice} visual={getSessionVisual(findArtwork(session.artwork))} onTalk={() => void liveVoice.toggleTalk()} isTalkOn={view?.mic === 'on'} canTalk={!view?.closedBecause} /> : <div className="board-panel">{picture}</div>}
+      </div>
     </SessionFrame>
   );
 }
@@ -140,13 +143,15 @@ interface SessionFrameProps extends PropsWithChildren {
   facts?: ReactNode;
   action?: ReactNode;
   problem?: string | null;
+  /** The running session fills the screen with its board, and the board scrolls by itself. */
+  isFullHeight?: boolean;
 }
 
-function SessionFrame({ facts, action, problem, children }: SessionFrameProps) {
+function SessionFrame({ facts, action, problem, isFullHeight = false, children }: SessionFrameProps) {
   return (
-    <div data-page className="flex min-h-dvh animate-arrive flex-col px-page-side">
+    <div data-page className={`flex animate-arrive flex-col ${isFullHeight ? 'board-session' : 'min-h-dvh px-page-side'}`}>
       <title>{PRODUCT_NAME}</title>
-      <header className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-line py-2.5 tabular-nums">
+      <header className={`flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-line py-2.5 tabular-nums ${isFullHeight ? 'px-6 max-md:px-4' : ''}`}>
         <span className="product-mark">{PRODUCT_NAME}</span>
         {facts}
         <div className="ml-auto flex items-center gap-x-5">
@@ -166,14 +171,13 @@ interface SessionPanelsProps extends PropsWithChildren {
   tutorCaption?: ReactNode;
   isDotLively?: boolean;
   boardNote?: string;
-  liveVoice?: LiveVoice | null;
 }
 
-function SessionPanels({ session, tutorWords, tutorCaption, isDotLively = false, boardNote, liveVoice, children }: SessionPanelsProps) {
+function SessionPanels({ session, tutorWords, tutorCaption, isDotLively = false, boardNote, children }: SessionPanelsProps) {
   const picture = <Board artwork={findArtwork(session.artwork)} note={boardNote} />;
   return (
     <div className="grid flex-1 grid-cols-session gap-session py-4 max-md:grid-cols-1">
-      {liveVoice ? <LiveBoard voice={liveVoice} whileEmpty={picture} /> : picture}
+      {picture}
       <div className="flex min-w-0 flex-col gap-3.5">
         <div className="label flex items-center gap-2.5">
           <i aria-hidden data-testid="tutor-dot" data-lively={isDotLively} className={`tutor-dot ${isDotLively ? 'motion-safe:animate-speak' : ''}`} />
@@ -188,13 +192,13 @@ function SessionPanels({ session, tutorWords, tutorCaption, isDotLively = false,
 }
 
 // Focus was on what the student pressed, and that has gone, so it moves to the new screen's heading.
-function SessionTitle({ title }: { title: string }) {
+function SessionTitle({ title, isQuiet = false }: { title: string; isQuiet?: boolean }) {
   const heading = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => heading.current?.focus({ preventScroll: true }), []);
 
   return (
-    <h1 ref={heading} tabIndex={-1} className="font-medium wrap-anywhere text-ink-2 outline-none">
+    <h1 ref={heading} tabIndex={-1} className={`font-medium wrap-anywhere text-ink-2 outline-none ${isQuiet ? 'sr-only' : ''}`}>
       {title}
     </h1>
   );
@@ -202,11 +206,15 @@ function SessionTitle({ title }: { title: string }) {
 
 function Board({ artwork, note }: { artwork: Artwork | null; note?: string }) {
   return (
-    <section className="fades-with-theme flex min-w-0 flex-col border border-line bg-panel md:min-h-75">
+    <section className="fades-with-theme flex min-w-0 flex-1 flex-col border border-line bg-panel md:min-h-75">
       <div className="flex min-h-50 flex-1 items-center justify-center p-4">{artwork && <BoardPicture artwork={artwork} />}</div>
       {note && <p className="label border-t border-line px-3 py-1.75 text-ink-2">{note}</p>}
     </section>
   );
+}
+
+function getSessionVisual(artwork: Artwork | null) {
+  return artwork && <BoardPicture artwork={artwork} />;
 }
 
 function BoardPicture({ artwork }: { artwork: Artwork }) {
@@ -239,7 +247,7 @@ function ReplyBox({ liveVoice }: { liveVoice: LiveVoiceControls }) {
   return (
     <div className="mt-auto flex flex-col gap-3.5">
       <div role="status" className="flex flex-col gap-3.5">
-        {view && <StudentCaption lines={view.studentLines} />}
+        {view?.mic === 'on' && <StudentCaption lines={view.studentLines} />}
         {replyWithNoRoom && (
           <>
             <p className="border-t border-line pt-3 text-sub wrap-anywhere">
@@ -256,7 +264,7 @@ function ReplyBox({ liveVoice }: { liveVoice: LiveVoiceControls }) {
           {VOICE_LABELS.turnOnSound}
         </button>
       )}
-      <ChatBox labels={REPLY_BOX_LABELS} canAttach={false} clearsOnSend talk={{ isOn: view?.mic === 'on', onToggle: () => void toggleTalk() }} onSend={(text) => void send(text)} onEdit={() => undefined} />
+      {!voice && <ChatBox labels={REPLY_BOX_LABELS} canAttach={false} clearsOnSend talk={{ isOn: view?.mic === 'on', onToggle: () => void toggleTalk() }} onSend={(text) => void send(text)} onEdit={() => undefined} />}
     </div>
   );
 }

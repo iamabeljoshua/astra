@@ -1,12 +1,8 @@
 import { type BoardElement, type BoardState, getMotionValue, getSceneFrame, type ProjectileFrame } from '@astra/board';
-import { canWriteByHand, preloadMathFonts, writeStyle } from '@astra/board/drawing';
-import type { StudentWork } from '@astra/contracts';
-import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
+import { canWriteByHand, preloadMathFonts } from '@astra/board/drawing';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { FIGURE_SIZE, hasOwnPlace } from '../board/boardItems';
 import { type BoardProblem, createBoardPainting } from '../board/boardPainting';
-import { type PickTarget, PickTargets } from '../board/PickTargets';
-import { PlaceTask } from '../board/PlaceTask';
-import { StudentLine } from '../board/StudentLine';
 import { useReducedMotion } from '../board/useReducedMotion';
 
 const WORLD = { left: -1, right: 9, top: 6, bottom: -0.5 };
@@ -24,8 +20,6 @@ interface BoardViewProps {
   onElementDrawn?(id: string): void;
   onMathRefused?(tex: string): void;
   onBoardProblem?(problem: BoardProblem): void;
-  /** Set on a live board, so the student can act on what is open. A replay shows the work and takes none. */
-  onWork?(work: StudentWork): void;
 }
 
 function getBallFrame(board: BoardState, atMs: number): ProjectileFrame | null {
@@ -81,37 +75,20 @@ function getWrapperKey(element: BoardElement): string {
   return `${element.id}:${element.content.kind}`;
 }
 
-function ElementContent({ element, board, atMs, onWork }: { element: BoardElement; board: BoardState; atMs: number; onWork?: (work: StudentWork) => void }) {
+function ElementContent({ element, board, atMs }: { element: BoardElement; board: BoardState; atMs: number }) {
   const { content } = element;
-  if (content.kind === 'studentLine') return <StudentLine content={content} />;
-  if (content.kind === 'task' && content.way === 'place') return <PlaceTask task={content} progress={element.progress} onWork={onWork} />;
   if (content.kind === 'simulate') return <SceneStage board={board} atMs={atMs} />;
   if (content.kind === 'text' && !(content.handwritten && canWriteByHand(content.text))) return <p className="wrap-anywhere text-lead">{content.text}</p>;
   return null;
 }
 
-export function BoardView({ board, atMs, onElementDrawn, onMathRefused, onBoardProblem, onWork }: BoardViewProps) {
+export function BoardView({ board, atMs, onElementDrawn, onMathRefused, onBoardProblem }: BoardViewProps) {
   const seen = useRef(new Set<string>());
   const boardRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<SVGSVGElement>(null);
   const wrappers = useRef(new Map<string, HTMLElement>());
   const painting = useRef<ReturnType<typeof createBoardPainting> | null>(null);
   const isReducedMotion = useReducedMotion();
-  const pickTargets = useRef(new Map<string, PickTarget>());
-  const setPickTarget = useCallback((part: string, target: PickTarget | null) => {
-    if (target) pickTargets.current.set(part, target);
-    else pickTargets.current.delete(part);
-  }, []);
-  const placePickTargets = () => {
-    for (const { button, query, on } of pickTargets.current.values()) {
-      const box = painting.current?.getPartBox(on, query);
-      writeStyle(button, 'display', box ? '' : 'none');
-      if (!box) continue;
-      writeStyle(button, 'transform', `translate(${Math.round(box.x)}px, ${Math.round(box.y)}px)`);
-      writeStyle(button, 'width', `${Math.ceil(box.width)}px`);
-      writeStyle(button, 'height', `${Math.ceil(box.height)}px`);
-    }
-  };
   const refusalListener = useRef(onMathRefused);
   const problemListener = useRef(onBoardProblem);
 
@@ -125,7 +102,6 @@ export function BoardView({ board, atMs, onElementDrawn, onMathRefused, onBoardP
     if (!boardRef.current || !overlayRef.current) return;
     painting.current ??= createBoardPainting({ boardElement: boardRef.current, overlay: overlayRef.current, getWrapper: (id) => wrappers.current.get(id), onMathRefused: (tex) => refusalListener.current?.(tex), onBoardProblem: (problem) => problemListener.current?.(problem) });
     painting.current.paint({ board, atMs, isReducedMotion });
-    placePickTargets();
     for (const id of board.elements.keys()) {
       if (!seen.current.has(id)) {
         seen.current.add(id);
@@ -141,17 +117,16 @@ export function BoardView({ board, atMs, onElementDrawn, onMathRefused, onBoardP
         <div
           key={getWrapperKey(element)}
           data-element={element.id}
-          className={`absolute top-0 left-0 w-max origin-top-left ${element.content.kind === 'writeMath' || element.content.kind === 'text' ? 'board-tutor-pen' : ''}`}
+          className="absolute top-0 left-0 w-max origin-top-left"
           ref={(wrapper) => {
             if (wrapper) wrappers.current.set(element.id, wrapper);
             else wrappers.current.delete(element.id);
           }}
         >
-          <ElementContent element={element} board={board} atMs={atMs} onWork={onWork} />
+          <ElementContent element={element} board={board} atMs={atMs} />
         </div>
       ))}
       <svg ref={overlayRef} aria-hidden="true" className="board-ink board-marks pointer-events-none absolute inset-0 h-full w-full" />
-      {onWork && <PickTargets board={board} onTarget={setPickTarget} onWork={onWork} />}
     </div>
   );
 }

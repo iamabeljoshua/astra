@@ -91,6 +91,8 @@ export type BrowserMessage = BrowserStamp &
     | { type: 'worked'; work: StudentWork }
     /** The student has not touched the board for this long. `draft` is what they have typed and not sent, and it leaves the page only at a pause. */
     | { type: 'paused'; seconds: number; draft?: string }
+    /** The student asked the tutor to stop talking. */
+    | { type: 'stopTutor' }
     /** The board could not draw this mark, so the tutor is pointing at something the student cannot see. */
     | { type: 'markNotDrawn'; markId: string }
     /** Sent every half second on the lossy channel. `hearsAgent` is false once the agent's own pulse has stopped arriving. */

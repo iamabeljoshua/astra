@@ -33,6 +33,7 @@ export const ONE_OF_EACH_COMMAND: Record<SceneCommand['kind'], Record<string, un
   note: { kind: 'note', id: 'beside', target: 'eq', text: 'both sides?' },
   tangent: { kind: 'tangent', id: 'slope', target: 'curve' },
   task: { kind: 'task', id: 'try', way: 'write', on: 'eq' },
+  boardMode: { kind: 'boardMode', mode: 'handsOn' },
 };
 
 export function makeBeat(overrides: Record<string, unknown> = {}): Record<string, unknown> {

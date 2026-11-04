@@ -228,6 +228,12 @@ export const VOICE_LABELS = {
 
 export const BOARD_WORK_LABELS = {
   entry: 'Write on the board',
+  talk: 'Talk',
+  type: 'Type',
+  visualLookAgain: 'Look at the picture again',
+  visualPutBack: 'Put the picture back in the corner. Your work is still there.',
+  mathKeys: 'Math keys',
+  hint: 'Just type, words or math. Esc stops the tutor.',
   placeholder: 'Type here. Words or math.',
   readAs: 'Read as',
   kinds: { math: 'math', words: 'words', mixed: 'words and math', code: 'code' },

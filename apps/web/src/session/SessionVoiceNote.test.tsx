@@ -33,7 +33,7 @@ async function sendReply(text: string) {
 }
 
 beforeEach(() => {
-  vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('reduced-motion') }));
+  vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('reduced-motion'), addEventListener: () => undefined, removeEventListener: () => undefined }));
 });
 
 afterEach(() => {

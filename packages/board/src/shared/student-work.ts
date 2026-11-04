@@ -5,6 +5,7 @@ import type { BoardElement } from '../player/board-state.ts';
 import { getLineTex } from './read-line.ts';
 
 const MARK_DRAWS_MS = 240;
+const LOOP_DRAWS_MS = 340;
 const LINE_LANDS_MS = 180;
 
 export interface StudentLineContent {
@@ -74,7 +75,7 @@ function placeStudentRing(elements: Elements, taskId: ElementId, part: string, a
   const id = `${taskId}-${elements.size}` as ElementId;
   const isOnMath = elements.get(on)?.math != null;
   const content: BoardElement['content'] = isOnMath ? { kind: 'highlight', id, target: on as string as ElementRef, tex: part } : { kind: 'annotate', id, target: `${on}.${part}` as ElementRef, mark: 'circle' };
-  elements.set(id, makeElement(id, content, { atMs, overMs: MARK_DRAWS_MS }));
+  elements.set(id, makeElement(id, content, { atMs, overMs: LOOP_DRAWS_MS }));
 }
 
 function applyWorkToTask(elements: Elements, work: Exclude<StudentWork, { way: 'write' }>, verdict: WorkVerdict, atMs: number): void {

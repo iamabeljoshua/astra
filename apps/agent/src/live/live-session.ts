@@ -475,6 +475,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
         questionHeardAtMs = getNowMs();
         dispatch({ type: 'questionHeard' });
       }
+      if (message.type === 'stopTutor') stopSpeech({ do: 'stop', reason: 'typed', keepsThought: false });
       if (message.type === 'worked') boardWork.onWorked(message);
       if (message.type === 'paused') void boardWork.onPaused(message);
       if (message.type === 'hello' && message.wantsGreeting) greet();

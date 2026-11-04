@@ -158,6 +158,10 @@ const BROWSER_MESSAGES: VariantTable<BrowserMessage, 'type'> = {
       keys: [...STAMP_KEYS, 'seconds', 'draft'],
       read: (fields) => ({ type: 'paused', ...readBrowserStamp(fields), seconds: readWholeNumber(fields.at('seconds')), ...fields.optional('draft', (place) => clipTypedText(readString(place, LIVE_MESSAGE_MAX_BYTES))) }),
     },
+    stopTutor: {
+      keys: STAMP_KEYS,
+      read: (fields) => ({ type: 'stopTutor', ...readBrowserStamp(fields) }),
+    },
     markNotDrawn: {
       keys: [...STAMP_KEYS, 'markId'],
       read: (fields) => ({ type: 'markNotDrawn', ...readBrowserStamp(fields), markId: readString(fields.at('markId'), MARK_ID_MAX_CHARACTERS) }),

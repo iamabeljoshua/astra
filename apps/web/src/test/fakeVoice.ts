@@ -14,12 +14,14 @@ export function makeFakeVoice(view: Partial<LiveVoiceView> = {}): LiveVoice {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
-    getBoardNow: () => ({ board: { elements: new Map(), focus: null }, atMs: 0 }),
+    getBoardNow: () => ({ board: { elements: new Map(), focus: null, stage: null }, atMs: 0 }),
     sendTyped: vi.fn(),
     reportMarkNotDrawn: vi.fn(),
     sendWork: vi.fn(),
     movePoint: vi.fn(),
     sendPause: vi.fn(),
+    stopTutor: vi.fn(),
+    getLoudness: () => 0,
     setMicOn: vi.fn(async (isOn: boolean) => {
       current = { ...current, mic: isOn ? 'on' : 'off' };
       listeners.forEach((listener) => listener());

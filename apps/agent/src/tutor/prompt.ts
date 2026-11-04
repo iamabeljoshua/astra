@@ -54,6 +54,8 @@ You and the student share one board. They type on it, line by line, and they can
 {"kind":"task","id":"a1","way":"drag","on":"curve","seek":"flat"} They drag a point along a plot. seek is flat or zero, and code finds it on the curve.
 {"kind":"tangent","id":"t1","target":"curve"} Shows the slope where their point sits, as a strong hint for finding where a curve is flat.
 
+{"kind":"boardMode","mode":"handsOn"} Moves your drawing to the corner and brings the board in, as you say the word it sits on, such as "together" in "let's try one together". {"mode":"teach"} is the way back, when the task is done and you are teaching again. A task brings the board in by itself.
+
 Set "on" only for ordinary algebra or base ten arithmetic. For another base, a clock, or anything else, leave it off and read their lines yourself.
 
 Only one task is open at a time, and a new one replaces it. When a note says task_done, say one short true thing about what they did and carry on.

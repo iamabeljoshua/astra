@@ -1,7 +1,7 @@
 import { checkWorkOnBoard, readLine } from '@astra/board/shared';
 import type { BoardState } from '@astra/board';
 import type { ElementId, StudentWork, Task } from '@astra/contracts';
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { BOARD_WORK_LABELS } from '../strings';
 import { LineParts, ReadAs } from './StudentLine';
 
@@ -10,14 +10,25 @@ const RIGHT_LINE_LANDS_AFTER_MS = 2200;
 const LOOKS_WITH_DRAFT_SECONDS = [3, 6, 10, 15, 25];
 const LOOKS_WITH_NO_DRAFT_SECONDS = [10, 20, 30, 45, 60, 90];
 
+export interface TypedLineHandle {
+  /** Puts a key's text where the caret is, for the math keys. */
+  insert(text: string): void;
+  /** Gets the line ready to type on, with the page left where it is. */
+  focus(): void;
+}
+
 interface TypedLineProps {
   /** The task open on the board now. */
   task: Task | null;
   getBoard(): BoardState;
   onWork(work: StudentWork): void;
   onPause(seconds: number, draft?: string): void;
+  /** The student pressed a key, so the dot can sit with them. */
+  onTyping?(): void;
   /** Bumped by the board when the student acts another way, so the pause clock starts again. */
   activity: number;
+  hasWrittenBefore: boolean;
+  handleRef?: React.Ref<TypedLineHandle>;
 }
 
 function useNextLineId(getBoard: () => BoardState) {
@@ -30,8 +41,8 @@ function useNextLineId(getBoard: () => BoardState) {
   }, [getBoard]);
 }
 
-// The plain keyboard entry on the board. It reads the line as it is typed, so the student sees what code will see, and it tells the agent only about a pause. The board draws every frame and this has no need to, so it is memoized.
-export const TypedLine = memo(function TypedLine({ task, getBoard, onWork, onPause, activity }: TypedLineProps) {
+// The board's next line. The student types straight onto it, and sees it read as they go, so they see what code will see. It tells the agent only about a pause. The board draws every frame and this has no need to, so it is memoized.
+export const TypedLine = memo(function TypedLine({ task, getBoard, onWork, onPause, onTyping, activity, hasWrittenBefore, handleRef }: TypedLineProps) {
   const [text, setText] = useState('');
   const [isRaw, setIsRaw] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
@@ -39,6 +50,19 @@ export const TypedLine = memo(function TypedLine({ task, getBoard, onWork, onPau
   const nextLineId = useNextLineId(getBoard);
   const reads = task?.way === 'write' ? task.reads : undefined;
   const reading = useMemo(() => (text.trim() === '' ? null : readLine(text, reads)), [text, reads]);
+
+  useImperativeHandle(handleRef, () => ({
+    insert(key) {
+      const field = input.current;
+      const start = field?.selectionStart ?? text.length;
+      const end = field?.selectionEnd ?? text.length;
+      setText(`${text.slice(0, start)}${key}${text.slice(end)}`);
+      field?.focus();
+    },
+    focus() {
+      input.current?.focus({ preventScroll: true });
+    },
+  }), [text]);
 
   const send = useCallback(
     (line: string) => {
@@ -52,8 +76,7 @@ export const TypedLine = memo(function TypedLine({ task, getBoard, onWork, onPau
 
   useEffect(() => {
     const trimmed = text.trim();
-    if (trimmed === '') return;
-    if (!task) return;
+    if (trimmed === '' || !task) return;
     const { verdict } = checkWorkOnBoard({ way: 'write', id: 'draft' as ElementId, text: trimmed, task: task.id }, getBoard());
     if (verdict.status !== 'right' || !reading || reading.isAsking || reading.kind !== 'math') return;
     const timer = setTimeout(() => send(trimmed), RIGHT_LINE_LANDS_AFTER_MS);
@@ -78,6 +101,10 @@ export const TypedLine = memo(function TypedLine({ task, getBoard, onWork, onPau
     return () => document.removeEventListener('keydown', focusOnTyping);
   }, []);
 
+  useEffect(() => {
+    if (task?.way === 'write') input.current?.focus({ preventScroll: true });
+  }, [task]);
+
   const syncRawMode = () => {
     const field = input.current;
     if (field) setIsRaw(field.selectionStart !== field.value.length || field.selectionEnd !== field.value.length);
@@ -86,41 +113,44 @@ export const TypedLine = memo(function TypedLine({ task, getBoard, onWork, onPau
   return (
     <form
       data-testid="typed-line"
+      data-row="live"
+      className="board-row board-live-row"
       onSubmit={(event) => {
         event.preventDefault();
         send(text);
       }}
-      className="border-t border-line bg-panel px-4 py-3 md:px-6"
     >
-      <div className={`relative flex min-h-12 items-center border-b ${isFocused ? 'border-ink' : 'border-line'}`}>
-        {!isRaw && (
-          <div aria-hidden data-testid="line-preview" className="pointer-events-none flex min-h-10 flex-wrap items-baseline gap-x-1 text-board text-ink">
-            {reading ? <LineParts reading={reading} /> : <span className="font-voice text-lead text-ink-2 italic">{BOARD_WORK_LABELS.placeholder}</span>}
-            {isFocused && <span className="board-caret" />}
+      <div className="board-row-content">
+        <div className="board-live-wrap" data-focused={isFocused} data-raw={isRaw} data-asked={task?.way === 'write' && !isFocused}>
+          {!reading && !hasWrittenBefore && <span className="board-live-placeholder">{BOARD_WORK_LABELS.placeholder}</span>}
+          <div aria-hidden data-testid="line-preview" className="board-live-shown" data-words={reading?.kind === 'words' || reading?.kind === 'code'} data-mixed={reading?.kind === 'mixed'}>
+            {reading && <LineParts reading={reading} />}
+            <span className="board-caret" />
           </div>
-        )}
-        <input
-          ref={input}
-          value={text}
-          aria-label={BOARD_WORK_LABELS.entry}
-          autoComplete="off"
-          autoCapitalize="off"
-          autoCorrect="off"
-          spellCheck={false}
-          enterKeyHint="send"
-          maxLength={2000}
-          onChange={(event) => {
-            setText(event.target.value);
-            syncRawMode();
-          }}
-          onKeyUp={syncRawMode}
-          onPointerDown={() => setIsRaw(true)}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
-          className={`absolute inset-0 h-full w-full bg-transparent text-lead outline-0 ${isRaw ? 'text-ink caret-ink' : 'text-transparent caret-transparent'}`}
-        />
+          <input
+            ref={input}
+            value={text}
+            aria-label={BOARD_WORK_LABELS.entry}
+            autoComplete="off"
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck={false}
+            enterKeyHint="send"
+            maxLength={2000}
+            onChange={(event) => {
+              setText(event.target.value);
+              syncRawMode();
+              onTyping?.();
+            }}
+            onKeyUp={syncRawMode}
+            onPointerDown={() => setIsRaw(true)}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
+            className="board-live-input"
+          />
+        </div>
       </div>
-      <div className="mt-1.5 min-h-4.5">{reading && <ReadAs reading={reading} />}</div>
+      <div className="board-row-gutter">{reading && <ReadAs reading={reading} />}</div>
     </form>
   );
 });

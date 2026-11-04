@@ -177,21 +177,9 @@ function createPlainItem(wrapper: HTMLElement): BoardItem {
   };
 }
 
+// A math line is the board's math painter. Words and code are ordinary text in the row.
 function createStudentLineItem(wrapper: HTMLElement, element: BoardElement): BoardItem {
-  const caption = () => wrapper.querySelector<HTMLElement>('[data-line-caption]');
-  if (!element.math) return createPlainItem(wrapper);
-  const math = createMathItem(wrapper);
-  return {
-    ...math,
-    // The caption sits under the math, and the math painter owns the wrapper's flow, so the caption is placed by hand.
-    prepare(context) {
-      const sizes = math.prepare(context);
-      const note = caption();
-      if (!sizes.size || !note) return sizes;
-      note.style.top = `${sizes.size.height}px`;
-      return { ...sizes, size: { width: Math.max(sizes.size.width, note.offsetWidth), height: sizes.size.height + note.offsetHeight } };
-    },
-  };
+  return element.math ? createMathItem(wrapper) : createPlainItem(wrapper);
 }
 
 function createFigureItem(): BoardItem {

@@ -15,6 +15,10 @@ const REJOIN_EVERY_MS = 2000;
 /** A room can say connected with a data channel that carries nothing after a drop, and only a new join clears that. */
 const REJOIN_AFTER_QUIET_MS = 3000;
 const TUTOR_ARRIVES_WITHIN_MS = 25_000;
+const LOUDNESS_WINDOW = 256;
+const MIDDLE_SAMPLE = 128;
+/** Speech rarely reaches full scale, so the dot reads this much as its loudest. */
+const LOUDEST_PEAK = 60;
 
 export type LivePhase = 'connecting' | 'live' | 'reconnecting' | 'noTutor' | 'ended';
 export type MicState = 'off' | 'starting' | 'on' | 'denied';
@@ -72,6 +76,10 @@ export interface LiveVoice {
   movePoint(task: ElementId, x: number): void;
   /** The student has not touched the board for this long. */
   sendPause(seconds: number, draft?: string): void;
+  /** The student pressed Esc. The tutor stops talking, and the board keeps what it has. */
+  stopTutor(): void;
+  /** How loud the tutor's voice is now, from 0 to 1. */
+  getLoudness(): number;
   setMicOn(isOn: boolean): Promise<void>;
   turnOnSound(): Promise<void>;
   mark(note: object): void;
@@ -107,6 +115,10 @@ export async function startLiveVoice({ access, getAccess, wantsGreeting = true, 
   const clockId = crypto.randomUUID();
   const records = createRecords();
   const gain = audioContext.createGain();
+  const analyser = audioContext.createAnalyser();
+  analyser.fftSize = LOUDNESS_WINDOW;
+  gain.connect(analyser);
+  const loudnessSamples = new Uint8Array(LOUDNESS_WINDOW);
   const room = new Room({ adaptiveStream: false, dynacast: false, disconnectOnPageLeave: true });
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
@@ -378,6 +390,15 @@ export async function startLiveVoice({ access, getAccess, wantsGreeting = true, 
     },
     movePoint(task, x) {
       player.addStudentOperations([{ kind: 'pointMoved', atMs: clock.getNowMs(), task, x }]);
+    },
+    getLoudness() {
+      analyser.getByteTimeDomainData(loudnessSamples);
+      const peak = loudnessSamples.reduce((largest, sample) => Math.max(largest, Math.abs(sample - MIDDLE_SAMPLE)), 0);
+      return Math.min(1, peak / LOUDEST_PEAK);
+    },
+    stopTutor() {
+      player.freeze();
+      send({ type: 'stopTutor', ...getStamp() });
     },
     sendPause(seconds, draft) {
       send({ type: 'paused', ...getStamp(), seconds, ...(draft ? { draft: clipTypedText(draft) } : {}) });

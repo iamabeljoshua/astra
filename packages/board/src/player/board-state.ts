@@ -1,4 +1,4 @@
-import type { ElementId, ElementRef, FrozenFrame, InkPoint, SceneCommand, SimulationPoint } from '@astra/contracts';
+import type { BoardModeName, ElementId, ElementRef, FrozenFrame, InkPoint, SceneCommand, SimulationPoint } from '@astra/contracts';
 import { type MathLine, startMathLine, transformMathLine } from '../math/math-line.ts';
 import { applyWorked, closeOpenTasks, moveTaskPoint, startProgress, type StudentLineContent, type TaskProgress } from '../shared/student-work.ts';
 import type { BoardOperation } from './board-operations.ts';
@@ -8,11 +8,15 @@ import type { Scene, SceneCatalog, SceneParameters } from './scene.ts';
 
 const ENTRANCE_MS = 400;
 const REARRANGE_MS = 800;
+/** A pen's loop or tick, drawn fast enough to land on its word. */
+const MARK_DRAWS_MS = 340;
 const WRITING_MS_PER_CHARACTER = 35;
 const LONGEST_WRITING_MS = 1600;
 const MS_PER_SECOND = 1000;
 
 type PlacingCommand = Extract<SceneCommand, { id: ElementId }>;
+
+const BRINGS_THE_BOARD: ReadonlySet<SceneCommand['kind']> = new Set(['writeMath', 'text', 'plot', 'numberLine', 'geometry', 'simulate', 'drawing', 'diagram', 'table', 'timeline', 'code', 'image', 'task']);
 
 export interface InkContent {
   kind: 'ink';
@@ -42,14 +46,23 @@ export interface BoardElement {
   isStudents?: boolean;
 }
 
+/** What the right side is for, and since when, so the move reads from the clock. */
+export interface BoardStage {
+  mode: BoardModeName;
+  sinceMs: number;
+}
+
 export interface BoardState {
   readonly elements: ReadonlyMap<ElementId, BoardElement>;
   readonly focus: ElementRef | null;
+  /** Null until the tutor first writes or names a mode. */
+  readonly stage: BoardStage | null;
 }
 
 interface BoardDraft {
   elements: Map<ElementId, BoardElement>;
   focus: ElementRef | null;
+  stage: BoardStage | null;
   isFrozen: boolean;
 }
 
@@ -122,6 +135,7 @@ function setSceneParameter(element: BoardElement, { parameter, value, atMs, keep
 }
 
 function getWritingMs(command: PlacingCommand): number {
+  if (command.kind === 'highlight' || command.kind === 'annotate') return MARK_DRAWS_MS;
   const written = command.kind === 'writeMath' ? command.tex.length : command.kind === 'text' && command.handwritten ? command.text.length : 0;
   return Math.min(LONGEST_WRITING_MS, Math.max(ENTRANCE_MS, written * WRITING_MS_PER_CHARACTER));
 }
@@ -129,6 +143,8 @@ function getWritingMs(command: PlacingCommand): number {
 function place(board: BoardDraft, command: PlacingCommand, { atMs, overMs, catalog }: { atMs: number; overMs: number | null; catalog: SceneCatalog }): void {
   const scene = catalog(command, {});
   if (command.kind === 'task') closeOpenTasks(board.elements);
+  // Anything new written or asked for needs the board, so it comes in, even if the tutor never said so.
+  if (BRINGS_THE_BOARD.has(command.kind) && board.stage?.mode !== 'handsOn') board.stage = { mode: 'handsOn', sinceMs: atMs };
   board.elements.set(command.id, {
     id: command.id,
     content: command,
@@ -160,6 +176,9 @@ function applyCommand(board: BoardDraft, command: SceneCommand, { atMs, overMs, 
       return;
     case 'focus':
       board.focus = command.target;
+      return;
+    case 'boardMode':
+      if (board.stage?.mode !== command.mode) board.stage = { mode: command.mode, sinceMs: atMs };
       return;
     case 'transformMath': {
       const element = board.elements.get(command.target);
@@ -222,6 +241,7 @@ function applyOperation(board: BoardDraft, operation: BoardOperation, { operatio
       if (board.elements.get(operation.target)?.content.kind === 'ink') board.elements.delete(operation.target);
       return;
     case 'worked':
+      board.stage ??= { mode: 'handsOn', sinceMs: atMs };
       applyWorked(board.elements, operation.action, atMs);
       return;
     case 'pointMoved':
@@ -231,13 +251,14 @@ function applyOperation(board: BoardDraft, operation: BoardOperation, { operatio
       const before = reduce(operations.filter((other) => other.atMs < operation.toMs), { operations, catalog }, operation.toMs);
       board.elements = before.elements;
       board.focus = before.focus;
+      board.stage = before.stage;
       freeze(board, [], operation.toMs);
     }
   }
 }
 
 function reduce(operations: readonly BoardOperation[], context: ReduceContext, atMs: number): BoardDraft {
-  const board: BoardDraft = { elements: new Map(), focus: null, isFrozen: false };
+  const board: BoardDraft = { elements: new Map(), focus: null, stage: null, isFrozen: false };
   for (const operation of operations) {
     if (operation.atMs > atMs) break;
     applyOperation(board, operation, context);
@@ -272,6 +293,7 @@ export function describeBoard(board: BoardState, atMs: number) {
   const round = (value: number) => Number(value.toFixed(DESCRIBED_DECIMALS));
   return {
     focus: board.focus,
+    stage: board.stage,
     elements: [...board.elements.values()].map((element) => ({
       id: element.id,
       kind: element.content.kind,
