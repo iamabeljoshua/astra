@@ -137,7 +137,7 @@ Abel's rule: everything a student can see or do on the prototype exists on the r
 | Hover starts a guessed reply after 160 ms | Not yet. See Head start | |
 | One click draws the student's ring in ink, others stop being clickable | Yes, ring and word in 39 ms on 5179 | `term-proof-3-clicked.png`, `term-demo` run |
 | "Mm-hm." or "Hm." at once by what code found, in the tutor's voice | Yes | `board-work.test.ts`, `term-demo` run |
-| A line typed during the pick is checked and ends it | Yes | `board-work.test.ts` |
+| A line typed during the pick is checked against that line, and the terms stay until a click or the finished answer | Yes | `board-work.test.ts`, Lane 1 |
 | The tutor opens an equation with this | Yes, in the prompt | `term-demo` run |
 
 ### Marks, notes, circles

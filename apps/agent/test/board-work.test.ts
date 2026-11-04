@@ -325,12 +325,23 @@ describe('the board work seam', () => {
     expect(wrong.brain.getBoard().openTask).toBeNull();
   });
 
-  it('checks a line typed during a pick against the line they were picking from, and ends the pick', async () => {
+  it('checks lines typed during a pick against the line they were picking from, and the finished answer ends it', async () => {
     const SET_PICK = '{"kind":"writeMath","id":"eq","tex":"2x+3=11","claim":"new"}{"kind":"task","id":"a1","way":"pick","on":"eq","answer":["+3"]}Which term first?';
     const { brain } = setupSeam([SET_PICK]);
     await collect(brain, 'help');
-    expect(brain.noteWork(line('s1', '2x = 14', 'a1'))?.checked).toMatchObject({ verdict: { status: 'wrong' }, closesTask: 'a1' });
+    expect(brain.noteWork(line('s1', '2x = 14', 'a1'))?.checked).toMatchObject({ verdict: { status: 'wrong' } });
+    expect(brain.noteWork(line('s2', '2x = 8', 'a1'))?.checked).toMatchObject({ verdict: { status: 'right' } });
+    expect(brain.getBoard().openTask).toBe('a1');
+    expect(brain.noteWork(line('s3', 'x = 4', 'a1'))?.checked).toMatchObject({ verdict: { status: 'right' }, closesTask: 'a1' });
     expect(brain.getBoard().openTask).toBeNull();
+  });
+
+  it('counts a term written with and without its sign as one answer, so one click answers it', async () => {
+    const SET_PICK = '{"kind":"writeMath","id":"eq","tex":"2x+3=11","claim":"new"}{"kind":"task","id":"a1","way":"pick","on":"eq","answer":["+3","3"]}Which term first?';
+    const wrong = setupSeam([SET_PICK]);
+    await collect(wrong.brain, 'help');
+    wrong.seam.onWorked(worked({ way: 'pick', task: id('a1'), part: '11' }));
+    expect(wrong.brain.getBoard().openTask).toBeNull();
   });
 
   it('leaves stock words out of a reply to work, because one could praise a wrong step', async () => {

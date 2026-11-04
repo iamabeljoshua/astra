@@ -48,7 +48,7 @@ function checkMathLineOfWork(tex: string, { task, getLineTex: getTex, previousTe
   const problemLine = getProblemLine(task);
   const problemTex = problemLine === undefined ? null : getTex(problemLine);
   const verdict = checkStep({ tex, problemTex, previousTex });
-  return { verdict, ...closes(task, task?.way === 'pick' || (verdict.status === 'right' && problemTex !== null && isFinishedAnswer(tex))) };
+  return { verdict, ...closes(task, verdict.status === 'right' && problemTex !== null && isFinishedAnswer(tex)) };
 }
 
 function getReaderLineReading(text: string, tex: string | undefined): LineReading {
@@ -73,7 +73,7 @@ function checkPick(part: string, { task, pickedRight }: WorkContext): CheckedWor
   if (task?.way !== 'pick') return { verdict: UNKNOWN };
   if (!task.answer) return { verdict: UNKNOWN, ...closes(task, true) };
   const answers = task.answer.map(toPartKey);
-  if (!answers.includes(toPartKey(part))) return { verdict: { status: 'wrong', why: `${part} is not the part the tutor asked for` }, ...closes(task, answers.length === 1) };
+  if (!answers.includes(toPartKey(part))) return { verdict: { status: 'wrong', why: `${part} is not the part the tutor asked for` }, ...closes(task, new Set(answers).size === 1) };
   const picked = new Set([...pickedRight.map(toPartKey), toPartKey(part)]);
   return { verdict: RIGHT, ...closes(task, answers.every((answer) => picked.has(answer))) };
 }
