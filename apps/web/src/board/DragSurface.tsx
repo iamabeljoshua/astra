@@ -102,6 +102,7 @@ export function DragSurface({ plot, task, atMs, isReducedMotion, onMovePoint, on
       onPointerUp={letGo}
       onPointerCancel={letGo}
       onKeyDown={onKeyDown}
+      onBlur={letGo}
     />
   );
 }

@@ -54,6 +54,13 @@ describe('moving the student\'s point', () => {
     expect(onWork).not.toHaveBeenCalled();
   });
 
+  it('sends a move made by keys when focus leaves, so the tutor never misses it', () => {
+    const { surface, onWork } = open();
+    fireEvent.keyDown(surface, { key: 'ArrowRight' });
+    fireEvent.blur(surface);
+    expect(onWork).toHaveBeenCalledOnce();
+  });
+
   it('moves by arrow keys and sends on Enter', () => {
     const { surface, onMovePoint, onWork } = open();
     fireEvent.keyDown(surface, { key: 'ArrowRight' });
