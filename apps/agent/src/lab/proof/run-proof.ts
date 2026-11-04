@@ -268,7 +268,8 @@ const SCENARIOS: Record<string, Scenario> = {
   'graph-shot-uneven': { drive: playMathLesson, lesson: 'shot', network: NETWORKS.uneven },
   'graph-shot-poor': { drive: playMathLesson, lesson: 'shot', network: NETWORKS.poor },
   'graph-curves': { drive: playMathLesson, lesson: 'graphs' },
-  'graph-drag': { drive: playShotAndDragSlider },
+  'graph-drag': { drive: playShotAndDragSlider, lesson: 'shot' },
+  'long-poor': { drive: playFirstTurn, repeats: 3, network: NETWORKS.poor },
   'clean-every-third': { drive: playWholeLesson, cueEveryWords: 3 },
   'uneven-every-third': { drive: playWholeLesson, cueEveryWords: 3, network: NETWORKS.uneven },
   'poor-every-third': { drive: playWholeLesson, cueEveryWords: 3, network: NETWORKS.poor },
@@ -303,10 +304,10 @@ function noteCredits(characters: number): void {
   if (credits > CREDIT_LIMIT) throw new Error(`Credit limit passed at about ${Math.round(credits)}`);
 }
 
-function getVoiceFlags(scenario: Pick<Scenario, 'usesStoredPhrase'>): string[] {
+function getVoiceFlags(scenario: Pick<Scenario, 'usesStoredPhrase' | 'lesson'>): string[] {
   if (args.stored) return ['--stored', args.stored];
   if (scenario.usesStoredPhrase) return ['--stored', join(args.out as string, 'stock-phrase.json')];
-  if (args.say) return ['--say'];
+  if (args.say) return ['--say', ...(scenario.lesson ? ['--sayLesson', scenario.lesson] : [])];
   return args.fake ? ['--fake'] : ['--model', args.model as string, '--tap'];
 }
 

@@ -14,6 +14,7 @@ export interface ItemContext {
   placedSize: { width: number; height: number } | null;
   canMoveSliders: boolean;
   onLabelWithoutRoom(text: string): void;
+  onMarkWithoutPart(mark: BoardElement): void;
   progress: number;
   maxWidth: number;
   fontSize: number;
@@ -35,7 +36,6 @@ export interface SliderHandlers {
 
 export interface BoardItem {
   ignoresPlacementScale?: boolean;
-  ownsPartMarks?: boolean;
   prepare(context: ItemContext): ItemSizes;
   paint(context: ItemContext): void;
   getEntranceOpacity?(context: ItemContext): number;
@@ -195,18 +195,17 @@ function createFigureItem(wrapper: HTMLElement, content: BoardElement['content']
   const painter = createFigurePainter(svg);
   return {
     ignoresPlacementScale: true,
-    ownsPartMarks: true,
     prepare({ element, maxWidth }) {
       const { fit, size } = getFigureFit(element, maxWidth);
       return { fit, size, fromSize: null };
     },
-    paint({ element, board, atMs, placedSize, isReducedMotion, onLabelWithoutRoom }) {
+    paint({ element, board, atMs, placedSize, isReducedMotion, onLabelWithoutRoom, onMarkWithoutPart }) {
       if (!placedSize) return;
       const width = String(Math.round(placedSize.width));
       const height = String(Math.round(placedSize.height));
       if (svg.getAttribute('width') !== width) svg.setAttribute('width', width);
       if (svg.getAttribute('height') !== height) svg.setAttribute('height', height);
-      painter.paint(getFigureMarks({ board, element, atMs, width: Math.round(placedSize.width), height: Math.round(placedSize.height), isReducedMotion, words: BOARD_LABELS.figures, onLabelWithoutRoom }));
+      painter.paint(getFigureMarks({ board, element, atMs, width: Math.round(placedSize.width), height: Math.round(placedSize.height), isReducedMotion, words: BOARD_LABELS.figures, onLabelWithoutRoom, onMarkWithoutPart }));
     },
     remove: () => svg.remove(),
   };
@@ -222,6 +221,11 @@ const ITEM_MAKERS: Partial<{ [Kind in BoardElement['content']['kind']]: (wrapper
   slider: (wrapper, content, handlers) => createSliderItem(wrapper, content, handlers),
   text: (wrapper, content) => (content.handwritten && canWriteByHand(content.text) ? createHandwrittenItem(wrapper, content.text) : createPlainItem(wrapper)),
 };
+
+/** A figure draws marks on its own parts, because they move with the part. */
+export function isFigure(content: BoardElement['content'] | undefined): boolean {
+  return content?.kind === 'plot' || content?.kind === 'numberLine' || content?.kind === 'geometry' || content?.kind === 'simulate';
+}
 
 export function hasOwnPlace(content: BoardElement['content']): boolean {
   if (content.kind === 'plot' && content.over !== undefined) return false;

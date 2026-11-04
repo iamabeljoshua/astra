@@ -1,5 +1,5 @@
 import type { MarkValue, Plot, ShadeArea } from '@astra/contracts';
-import { FIGURE_LIMITS, type FigureFrame, getAttachedElements, getDrawnShare, getShownValue, keepNewestOnFigure } from '../figure/figure-input.ts';
+import { FIGURE_LIMITS, type FigureFrame, getAttachedElements, getDrawnShare, getPartMark, getShownValue, keepNewestOnFigure } from '../figure/figure-input.ts';
 import { addArrow, addAxes, addLabel, addPartMark, addSoftLine, createFigureDraft, type FigureDraft, finishFigure, getFixedVectorTip, getWidestYTick } from '../figure/figure-draft.ts';
 import { type Branch, type FigureMark, interpolate, type Point } from '../figure/figure-marks.ts';
 import { createStretchedView, type FigureView, getPixelBranches } from '../figure/figure-view.ts';
@@ -105,7 +105,9 @@ function addAttachment(draft: FigureDraft, element: BoardElement, { root, frame,
   if (content.kind === 'shadeArea') addShade(draft, element as BoardElement & { content: ShadeArea }, { curve: (board.elements.get(content.target) as PlotElement | undefined) ?? root, frame, view });
   if (content.kind === 'markValue') addMark(draft, element as BoardElement & { content: MarkValue }, { curve: (board.elements.get(content.target) as PlotElement | undefined) ?? root, frame, view });
   if (content.kind === 'vector') addArrow(draft, { key: `vector-${element.id}`, from: center, to: getFixedVectorTip(center, content, frame), share: getDrawnShare(element, frame), tone: 'ink', label: content.label });
-  if ((content.kind === 'annotate' || content.kind === 'highlight') && content.target.includes('.')) addPartMark(draft, { key: `note-${element.id}`, at: getMiddleOfCurve(root, { frame, view }), mark: content.kind === 'annotate' ? content.mark : 'circle', share: getDrawnShare(element, frame), label: content.kind === 'annotate' ? content.label : undefined });
+  const partMark = getPartMark(element);
+  if (partMark && 'target' in content && content.target.split('.')[1] !== 'curve') frame.onMarkWithoutPart?.(element);
+  else if (partMark) addPartMark(draft, { key: `note-${element.id}`, at: getMiddleOfCurve(root, { frame, view }), share: getDrawnShare(element, frame), ...partMark });
 }
 
 export function getPlotMarks(frame: FigureFrame): FigureMark[] {

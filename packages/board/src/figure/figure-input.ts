@@ -1,4 +1,4 @@
-import type { ReadoutQuantity, SimulationParameter } from '@astra/contracts';
+import type { AnnotationMark, ReadoutQuantity, SimulationParameter } from '@astra/contracts';
 import { type BoardElement, type BoardState, getAttachedElementId } from '../player/board-state.ts';
 import { getMotionValue, type Motion } from '../player/motion.ts';
 
@@ -18,6 +18,14 @@ export interface FigureFrame {
   isReducedMotion: boolean;
   words: FigureWords;
   onLabelWithoutRoom?(text: string): void;
+  onMarkWithoutPart?(mark: BoardElement): void;
+}
+
+/** A mark's mark and label, whichever command made it, for a figure that draws marks on its parts. */
+export function getPartMark(element: BoardElement): { mark: AnnotationMark; label?: string } | null {
+  const { content } = element;
+  if (content.kind === 'annotate' && content.target.includes('.')) return { mark: content.mark, label: content.label };
+  return content.kind === 'highlight' && content.target.includes('.') ? { mark: 'circle' } : null;
 }
 
 export function getShownValue(motion: Motion, { atMs, isReducedMotion }: Pick<FigureFrame, 'atMs' | 'isReducedMotion'>): number {

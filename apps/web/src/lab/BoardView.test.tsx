@@ -537,4 +537,21 @@ describe('BoardView, figures', () => {
     const { container } = render(<BoardView board={getBoardAt(operations, 5000)} atMs={5000} />);
     expect(container.querySelector('.board-notes [data-mark="note-note"]')?.textContent).toBe('both sides');
   });
+
+  it('reports a mark on a part a figure does not have, and never one it drew', () => {
+    const onBoardProblem = vi.fn();
+    const operations = [plot, place({ kind: 'plot', id: 'second', over: 'curve', expression: 'x', domain: [0, 2] }), place({ kind: 'annotate', id: 'on-second', target: 'second.curve', mark: 'circle' }), place({ kind: 'annotate', id: 'on-curve', target: 'curve.curve', mark: 'circle' }), place({ kind: 'annotate', id: 'on-nothing', target: 'curve.nope', mark: 'cross' })];
+    const { container } = render(<BoardView board={getBoardAt(operations, 5000)} atMs={5000} onBoardProblem={onBoardProblem} />);
+    expect(container.querySelector('[data-mark="note-on-curve"]')).not.toBeNull();
+    expect(onBoardProblem.mock.calls.map(([problem]) => problem.markId)).toEqual(['on-nothing']);
+  });
+
+  it('says so when a label has no room, once', () => {
+    const onBoardProblem = vi.fn();
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(60);
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(40);
+    const { rerender } = render(<BoardView board={getBoardAt([plot], 5000)} atMs={5000} onBoardProblem={onBoardProblem} />);
+    rerender(<BoardView board={getBoardAt([plot], 6000)} atMs={6000} onBoardProblem={onBoardProblem} />);
+    expect(onBoardProblem.mock.calls.map(([problem]) => problem)).toEqual([{ kind: 'labelWithoutRoom', text: '<b>not markup</b>' }]);
+  });
 });

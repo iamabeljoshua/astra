@@ -1,5 +1,5 @@
 import type { Simulate, Slider, TrackVector } from '@astra/contracts';
-import { FIGURE_LIMITS, type FigureFrame, getAttachedElements, getDrawnShare, getShownValue, keepNewestOnFigure } from '../figure/figure-input.ts';
+import { FIGURE_LIMITS, type FigureFrame, getAttachedElements, getDrawnShare, getPartMark, getShownValue, keepNewestOnFigure } from '../figure/figure-input.ts';
 import { addArrow, addAxes, addLabel, addPartMark, addSoftLine, createFigureDraft, type FigureDraft, finishFigure, getFixedVectorTip } from '../figure/figure-draft.ts';
 import { type Branch, type FigureMark, interpolate, type Point } from '../figure/figure-marks.ts';
 import { createEqualView, type FigureView, getPixelBranches } from '../figure/figure-view.ts';
@@ -112,17 +112,17 @@ function getChangesNoSliderHolds(changes: SceneParameters, sliders: readonly Par
   return Object.fromEntries(Object.entries(changes).filter(([name]) => !sliders.some(({ parameter }) => parameter === name)));
 }
 
-function getStartingBounds(root: SimulationElement, { attached, baseScene, others }: { attached: readonly BoardElement[]; baseScene: Scene; others: SceneParameters }): WorldBounds {
+function getStartingBounds(root: SimulationElement, { attached, baseScene, others, frame }: { attached: readonly BoardElement[]; baseScene: Scene; others: SceneParameters; frame: FigureFrame }): WorldBounds {
   const held = Object.keys(others).length === 0 ? [] : [root.placedScene?.scene as Scene];
   const arcs = [baseScene, ...held, ...attached.flatMap((element) => element.ghostScene ?? [])].map(getArcBounds).reduce(joinBounds);
-  return root.content.over ? joinBounds(arcs, { left: 0, right: getPoleX(getHoopCenter(baseScene)), bottom: 0, top: RIM_HEIGHT + HOOP.boardAboveRim }) : arcs;
+  return root.content.over && frame.board.elements.has(root.content.over) ? joinBounds(arcs, { left: 0, right: getPoleX(getHoopCenter(baseScene)), bottom: 0, top: RIM_HEIGHT + HOOP.boardAboveRim }) : arcs;
 }
 
 function getWorldBounds(root: SimulationElement, attached: readonly BoardElement[], frame: FigureFrame, baseScene: Scene): WorldBounds {
   const sliders = attached.filter((element): element is BoardElement & { content: ParameterSlider } => element.content.kind === 'slider' && 'parameter' in element.content);
   const sliderCommands = sliders.map(({ content }) => content);
   const others = getChangesNoSliderHolds(root.placedScene?.parameterChanges ?? {}, sliderCommands);
-  const start = getStartingBounds(root, { attached, baseScene, others });
+  const start = getStartingBounds(root, { attached, baseScene, others, frame });
   const withSliders = sliders.reduce((bounds, slider, index) => blendBounds(bounds, joinBounds(bounds, getSliderReach(root.content, { sliders: sliderCommands.slice(0, index + 1), base: others, quantity: null })), easeInOut(getDrawnShare(slider, frame))), start);
   const tracked = attached.filter((element): element is BoardElement & { content: TrackVector } => element.content.kind === 'trackVector');
   const scene = root.placedScene?.scene as Scene;
@@ -160,7 +160,9 @@ function addOnBall(draft: FigureDraft, element: BoardElement, { ballAt, world, v
   const share = getDrawnShare(element, frame);
   if (content.kind === 'ghostPath' && element.ghostScene) draft.marks.unshift({ kind: 'path', key: `ghost-${element.id}`, tone: 'ink-2', weight: 'thin', branches: share >= 1 ? getPixelBranches(getScenePath(element.ghostScene), view) : [] });
   if (content.kind === 'vector') addArrow(draft, { key: `vector-${element.id}`, from: ballAt, to: getFixedVectorTip(ballAt, content, frame), share, tone: 'ink', label: content.label });
-  if ((content.kind === 'annotate' || content.kind === 'highlight') && content.target.includes('.')) addPartMark(draft, { key: `note-${element.id}`, at: view.toPixel(getFrameAt(scene, element.targetSecondsWhenPlaced ?? 0).ball), mark: content.kind === 'annotate' ? content.mark : 'circle', share, label: content.kind === 'annotate' ? content.label : undefined });
+  const partMark = getPartMark(element);
+  if (partMark && 'target' in content && content.target.split('.')[1] !== 'ball') frame.onMarkWithoutPart?.(element);
+  else if (partMark) addPartMark(draft, { key: `note-${element.id}`, at: view.toPixel(getFrameAt(scene, element.targetSecondsWhenPlaced ?? 0).ball), share, ...partMark });
   if (content.kind === 'trackVector') {
     const arrow = getQuantityArrow(world, content.quantity);
     const to = view.toPixel({ x: world.ball.x + arrow.x * ARROW_SECONDS, y: world.ball.y + arrow.y * ARROW_SECONDS });
@@ -243,7 +245,7 @@ export function getSimulationMarks(frame: FigureFrame): FigureMark[] {
   const view = getView(getWorldBounds(root, attached, frame, baseScene), frame, readoutsHeight);
   const share = getDrawnShare(root, frame);
   addAxes(draft, view, { share, hideTicksBelow: 0 });
-  if (root.content.over) draft.marks.push({ kind: 'path', key: 'hoop', tone: 'ink-2', weight: 'thin', branches: share >= 1 ? getHoopBranches(getHoopCenter(baseScene)).map((branch) => branch.map(view.toPixel)) : [] });
+  if (root.content.over && frame.board.elements.has(root.content.over)) draft.marks.push({ kind: 'path', key: 'hoop', tone: 'ink-2', weight: 'thin', branches: share >= 1 ? getHoopBranches(getHoopCenter(baseScene)).map((branch) => branch.map(view.toPixel)) : [] });
   const ballAt = addPath(draft, scene, { view, seconds });
   for (const element of attached) addOnBall(draft, element, { ballAt, world, view, frame, scene });
   addLandingNote(draft, { scene, view, seconds, hasSlider: attached.some((element) => element.content.kind === 'slider'), metres: frame.words.metres });

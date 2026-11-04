@@ -1,7 +1,7 @@
 import { type BoardElement, type BoardState, getMotionValue } from '@astra/board';
 import { createFigurePainter, createInkPainter, drawMark, type FigureMark, type InkPainter, type LabelRequest, type MarkBox, type MovingPlacement, placeLabels, type TermBoxes, type TermQuery, writeStyle } from '@astra/board/drawing';
 import type { AnnotationMark, ElementRef } from '@astra/contracts';
-import type { BoardItem } from './boardItems';
+import { type BoardItem, isFigure } from './boardItems';
 
 const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
 const FOCUS_DOT = { radius: 3.5, inset: 8 };
@@ -27,6 +27,7 @@ export interface MarksFrame {
   elements: readonly BoardElement[];
   focus: BoardState['focus'];
   placements: ReadonlyMap<string, MovingPlacement>;
+  board: ReadonlyMap<string, BoardElement>;
   getItem(id: string): BoardItem | undefined;
   atMs: number;
   isReducedMotion: boolean;
@@ -95,10 +96,9 @@ export function createBoardMarks(overlay: SVGSVGElement, onMarkWithoutTarget?: (
   overlay.append(noteGroup);
   const notePainter = createFigurePainter(noteGroup);
 
-  // A mark that once had a box and lost it went with its term through a rearrangement, which is no problem. A scene draws its own marks.
-  const reportIfNeverDrawn = (mark: BoardElement, content: MarkContent, frame: MarksFrame) => {
-    const isOnScene = frame.elements.find((element) => element.id === getTargetParts(content.target)[0])?.content.kind === 'simulate';
-    if (drawnOnce.has(mark.id) || reported.has(mark.id) || isOnScene) return;
+  // A mark that once had a box and lost it went with its term through a rearrangement, which is no problem.
+  const reportIfNeverDrawn = (mark: BoardElement, content: MarkContent) => {
+    if (drawnOnce.has(mark.id) || reported.has(mark.id)) return;
     reported.add(mark.id);
     const tex = content.kind === 'highlight' ? content.tex : undefined;
     onMarkWithoutTarget?.({ kind: 'markWithoutTarget', markId: mark.id, target: content.target, ...(tex === undefined ? {} : { tex }) });
@@ -127,7 +127,7 @@ export function createBoardMarks(overlay: SVGSVGElement, onMarkWithoutTarget?: (
     if (!placement || !boxes || !box) {
       const existing = marks.get(mark.id);
       if (existing) writeStyle(existing.group, 'visibility', 'hidden');
-      reportIfNeverDrawn(mark, content, frame);
+      reportIfNeverDrawn(mark, content);
       return null;
     }
     drawnOnce.add(mark.id);
@@ -152,28 +152,29 @@ export function createBoardMarks(overlay: SVGSVGElement, onMarkWithoutTarget?: (
     }
   };
 
-  const paintFocus = ({ focus, placements, getItem }: MarksFrame) => {
+  const paintFocus = ({ focus, placements, elements }: MarksFrame) => {
     const [targetId, part] = focus ? getTargetParts(focus) : ['', undefined];
     const placement = placements.get(targetId);
-    const isOnLine = placement?.isVisible === true && !(part !== undefined && getItem(targetId)?.ownsPartMarks);
+    const isOnLine = placement?.isVisible === true && !(part !== undefined && isFigure(elements.find((element) => element.id === targetId)?.content));
     writeStyle(focusDot, 'visibility', isOnLine ? '' : 'hidden');
     const dotY = isOnLine ? String(Math.round(placement.y + placement.height / 2)) : null;
     if (dotY !== null && dotY !== focusDot.getAttribute('cy')) focusDot.setAttribute('cy', dotY);
   };
 
   return {
+    reportMarkWithoutPart: (mark: BoardElement) => reportIfNeverDrawn(mark, mark.content as MarkContent),
     paint(frame: MarksFrame) {
       const allMarks = frame.elements.filter((element) => {
         if (!isMark(element.content)) return false;
         const [targetId, part] = getTargetParts(element.content.target);
-        return !(part !== undefined && frame.getItem(targetId)?.ownsPartMarks);
+        return !(part !== undefined && isFigure(frame.board.get(targetId as never)?.content));
       });
       const onMath = allMarks.filter((element) => frame.getItem(getTargetParts((element.content as MarkContent).target)[0]));
       removeGone(new Set(onMath.map((element) => element.id as string)));
       const notes: LabelRequest[] = [];
       for (const mark of allMarks) {
         if (!onMath.includes(mark)) {
-          reportIfNeverDrawn(mark, mark.content as MarkContent, frame);
+          reportIfNeverDrawn(mark, mark.content as MarkContent);
           continue;
         }
         const note = paintMark(mark, mark.content as MarkContent, frame);
