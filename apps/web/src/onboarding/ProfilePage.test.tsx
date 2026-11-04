@@ -48,6 +48,27 @@ describe('changing answers later', () => {
     expect(saved).toEqual([{ name: 'Mai', interests: ['space', 'art'], level: 'high_school', goal: 'curiosity' }]);
   });
 
+  it('shows the picture on each interest chip', async () => {
+    stubApi();
+    renderWithQueryClient(<ProfilePage />);
+    await screen.findByLabelText(PROFILE_LABELS.name);
+
+    for (const label of Object.values(STUDENT_INTEREST_LABELS)) {
+      expect(screen.getByRole('button', { name: label }).querySelector('svg[aria-hidden="true"]')).not.toBeNull();
+    }
+  });
+
+  it('tells a screen reader a slow save is on its way', async () => {
+    stubApi();
+    renderWithQueryClient(<ProfilePage />);
+    await screen.findByLabelText(PROFILE_LABELS.name);
+    vi.stubGlobal('fetch', () => new Promise(() => undefined));
+
+    fireEvent.click(screen.getByRole('button', { name: PROFILE_LABELS.save }));
+
+    await waitFor(() => expect(screen.getByRole('status').textContent).toBe(PROFILE_LABELS.saving));
+  });
+
   it('will not save a blank name', async () => {
     const saved = stubApi();
     renderWithQueryClient(<ProfilePage />);

@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AccountGate } from '../auth/AccountGate';
@@ -7,15 +7,19 @@ import { useSignInDraft } from '../auth/useSignInDraft';
 import {
   API_ERROR_LABELS,
   BIRTH_DATE_LABELS,
+  CHART_LABELS,
   ONBOARDING_LABELS,
+  SIGN_IN_LABELS,
   STUDENT_GOAL_LABELS,
   STUDENT_INTEREST_LABELS,
   STUDENT_LEVEL_LABELS,
-  TUTOR_NOTES_LABELS,
 } from '../strings';
+import { readDrawnLabels, stubCanvas } from '../test/fakeCanvas';
 import { renderWithQueryClient } from '../test/renderWithQueryClient';
 
 const HOME_TEXT = 'The app';
+const BIRTH_DATE_QUESTION = BIRTH_DATE_LABELS.questionFor('Maya');
+const ANY_BIRTH_DATE_QUESTION = /\bborn\b/;
 const NEEDS_BIRTH_DATE = { status: 'needs_birth_date', student: null };
 const STUDENT = { id: 'student', name: 'Maya', profile: null };
 const PROFILE = { interests: ['space'], level: 'university', goal: 'exam' };
@@ -66,16 +70,8 @@ function clickChoice(name: string) {
   fireEvent.click(screen.getByRole('button', { name: new RegExp(name) }));
 }
 
-function readSheetHeading() {
-  return screen.getByRole('heading', { level: 2 }).textContent;
-}
-
-function readSheetRow(label: string) {
-  return within(screen.getByText(label).parentElement as HTMLElement).getByRole('definition').textContent;
-}
-
 async function passBirthDate() {
-  await screen.findByRole('heading', { name: BIRTH_DATE_LABELS.question });
+  await screen.findByRole('heading', { name: BIRTH_DATE_QUESTION });
   fireEvent.change(screen.getByLabelText(BIRTH_DATE_LABELS.day), { target: { value: '14' } });
   fireEvent.change(screen.getByLabelText(BIRTH_DATE_LABELS.month), { target: { value: '3' } });
   fireEvent.change(screen.getByLabelText(BIRTH_DATE_LABELS.year), { target: { value: '2004' } });
@@ -89,6 +85,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 
@@ -127,7 +124,7 @@ async function reachGoalStep() {
 }
 
 describe('onboarding', () => {
-  it('asks one thing per screen, fills the sheet, and goes to Home after the goal', async () => {
+  it('asks one thing per screen, titles the chart with the name, and goes to Home after the goal', async () => {
     const sent = stubApi({
       'GET /api/me': () => NEEDS_BIRTH_DATE,
       'POST /api/me/birth-date': () => ({ status: 'active', student: STUDENT }),
@@ -137,30 +134,67 @@ describe('onboarding', () => {
 
     await screen.findByRole('heading', { name: ONBOARDING_LABELS.nameQuestion });
     expect(screen.queryByLabelText(BIRTH_DATE_LABELS.year)).toBeNull();
-    fireEvent.change(screen.getByLabelText(ONBOARDING_LABELS.namePlaceholder), { target: { value: 'Maya' } });
-    expect(readSheetHeading()).toBe(`${TUTOR_NOTES_LABELS.madeFor} Maya`);
+    fireEvent.change(screen.getByLabelText(ONBOARDING_LABELS.nameLabel), { target: { value: 'Maya' } });
+    screen.getByText(CHART_LABELS.titleFor('Maya'));
     clickContinue();
 
     await passBirthDate();
     await screen.findByRole('heading', { name: ONBOARDING_LABELS.levelQuestion });
     expect(sent.find(({ route }) => route === 'POST /api/me/birth-date')?.body).toEqual({ birthDate: '2004-03-14', name: 'Maya' });
     clickChoice(STUDENT_LEVEL_LABELS.university);
-    expect(readSheetRow(TUTOR_NOTES_LABELS.level)).toBe(STUDENT_LEVEL_LABELS.university);
 
     await screen.findByRole('heading', { name: ONBOARDING_LABELS.intoQuestion });
     fireEvent.click(screen.getByRole('button', { name: STUDENT_INTEREST_LABELS.space }));
     fireEvent.click(screen.getByRole('button', { name: STUDENT_INTEREST_LABELS.music }));
-    expect(readSheetRow(TUTOR_NOTES_LABELS.into)).toBe('Space, Music');
     clickContinue();
 
     await screen.findByRole('heading', { name: ONBOARDING_LABELS.goalQuestion });
     clickChoice(STUDENT_GOAL_LABELS.exam);
-    expect(readSheetRow(TUTOR_NOTES_LABELS.goal)).toBe(STUDENT_GOAL_LABELS.exam);
 
     await screen.findByText(`${HOME_TEXT} at /`);
     expect(sent.filter(({ route }) => route === 'PUT /api/me/profile').map(({ body }) => body)).toEqual([
       { name: 'Maya', interests: ['space', 'music'], level: 'university', goal: 'exam' },
     ]);
+  });
+
+  it('titles the chart made for you until a name is typed', async () => {
+    stubApi({ 'GET /api/me': () => NEEDS_BIRTH_DATE });
+    renderWithQueryClient(<Gate />);
+
+    await screen.findByRole('heading', { name: ONBOARDING_LABELS.nameQuestion });
+
+    screen.getByText(SIGN_IN_LABELS.tagline);
+  });
+
+  it('greets the student by the name they typed on the next line', async () => {
+    stubApi({ 'GET /api/me': () => NEEDS_BIRTH_DATE });
+    renderWithQueryClient(<Gate />);
+    fireEvent.change(await screen.findByLabelText(ONBOARDING_LABELS.nameLabel), { target: { value: ' Maya ' } });
+
+    clickContinue();
+
+    await screen.findByRole('heading', { name: BIRTH_DATE_QUESTION });
+  });
+
+  it('lights a labelled star on the chart for each chip picked, and takes it away when unpicked', async () => {
+    const contexts = stubCanvas();
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('reduce') }));
+    stubStudentWithNoProfile();
+    renderWithQueryClient(<Gate />);
+    await screen.findByRole('heading', { name: ONBOARDING_LABELS.levelQuestion });
+    clickChoice(STUDENT_LEVEL_LABELS.university);
+    await screen.findByRole('heading', { name: ONBOARDING_LABELS.intoQuestion });
+    const liveContext = contexts.at(-1) ?? contexts[0]!;
+    const readLabelsAfter = async (change: () => void) => {
+      vi.mocked(liveContext.fillText).mockClear();
+      change();
+      await act(async () => undefined);
+      return readDrawnLabels(liveContext);
+    };
+
+    expect(await readLabelsAfter(() => fireEvent.click(screen.getByRole('button', { name: STUDENT_INTEREST_LABELS.space })))).toContain('SPACE');
+    expect(await readLabelsAfter(() => fireEvent.click(screen.getByRole('button', { name: STUDENT_INTEREST_LABELS.space })))).not.toContain('SPACE');
+    vi.restoreAllMocks();
   });
 
   it('offers the three goals', async () => {
@@ -192,7 +226,7 @@ describe('onboarding', () => {
     fireEvent.click(space);
 
     expect(space.getAttribute('aria-pressed')).toBe('false');
-    expect(readSheetRow(TUTOR_NOTES_LABELS.into)).toBe(STUDENT_INTEREST_LABELS.music);
+    expect(music.getAttribute('aria-pressed')).toBe('true');
   });
 
   it('saves an empty interest list when the student chooses none', async () => {
@@ -240,7 +274,7 @@ describe('onboarding', () => {
     expect(sent.filter(({ route }) => route === 'PUT /api/me/profile')).toHaveLength(2);
   });
 
-  it('holds the goal it is saving, so the sheet never shows a goal that was not saved', async () => {
+  it('holds the goal it is saving, so the page never shows a goal that was not saved', async () => {
     const { sent, finishSave } = stubSlowSave();
     renderWithQueryClient(<Gate />);
     await reachGoalStep();
@@ -249,7 +283,7 @@ describe('onboarding', () => {
     await waitFor(() => expect(readSavedGoals(sent)).toEqual(['class']));
     clickChoice(STUDENT_GOAL_LABELS.exam);
 
-    expect(readSheetRow(TUTOR_NOTES_LABELS.goal)).toBe(STUDENT_GOAL_LABELS.class);
+    expect(screen.getByRole('button', { name: STUDENT_GOAL_LABELS.class }).getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByRole('button', { name: STUDENT_GOAL_LABELS.exam }).getAttribute('aria-pressed')).toBe('false');
 
     finishSave();
@@ -257,15 +291,36 @@ describe('onboarding', () => {
     expect(readSavedGoals(sent)).toEqual(['class']);
   });
 
-  it('takes Back away while the goal saves, so no answer can change behind the save', async () => {
+  it('keeps Back in the page and keeps focus on it while the goal saves, and Back does nothing until the save ends', async () => {
     const { sent, finishSave } = stubSlowSave();
     renderWithQueryClient(<Gate />);
     await reachGoalStep();
+    const back = screen.getByRole('button', { name: ONBOARDING_LABELS.back });
+    back.focus();
+
+    clickChoice(STUDENT_GOAL_LABELS.class);
+    await waitFor(() => expect(readSavedGoals(sent)).toEqual(['class']));
+    await act(async () => undefined);
+
+    expect(document.activeElement).toBe(back);
+    expect(back.getAttribute('aria-disabled')).toBe('true');
+    fireEvent.click(back);
+    screen.getByRole('heading', { name: ONBOARDING_LABELS.goalQuestion });
+
+    finishSave();
+    await screen.findByText(`${HOME_TEXT} at /`);
+  });
+
+  it('tells a screen reader a slow save is on its way, and says nothing before it starts', async () => {
+    const { sent, finishSave } = stubSlowSave();
+    renderWithQueryClient(<Gate />);
+    await reachGoalStep();
+    expect(screen.getByRole('status').textContent).toBe('');
 
     clickChoice(STUDENT_GOAL_LABELS.class);
     await waitFor(() => expect(readSavedGoals(sent)).toEqual(['class']));
 
-    await waitFor(() => expect(screen.queryByRole('button', { name: ONBOARDING_LABELS.back })).toBeNull());
+    await waitFor(() => expect(screen.getByRole('status').textContent).toBe(ONBOARDING_LABELS.saving));
 
     finishSave();
     await screen.findByText(`${HOME_TEXT} at /`);
@@ -310,7 +365,7 @@ describe('onboarding', () => {
 
     fireEvent.click(screen.getByRole('button', { name: ONBOARDING_LABELS.back }));
 
-    const input = await screen.findByLabelText<HTMLInputElement>(ONBOARDING_LABELS.namePlaceholder);
+    const input = await screen.findByLabelText<HTMLInputElement>(ONBOARDING_LABELS.nameLabel);
     expect(input.value).toBe('Maya');
   });
 
@@ -341,7 +396,7 @@ describe('onboarding', () => {
     clickContinue();
 
     screen.getByText(ONBOARDING_LABELS.nameMissing);
-    expect(screen.queryByRole('heading', { name: BIRTH_DATE_LABELS.question })).toBeNull();
+    expect(screen.queryByRole('heading', { name: ANY_BIRTH_DATE_QUESTION })).toBeNull();
   });
 
   it.each([
@@ -350,12 +405,12 @@ describe('onboarding', () => {
   ])('treats a name of only %s as no name, and asks for it here, not at the date', async (_caseName, name) => {
     const sent = stubApi({ 'GET /api/me': () => NEEDS_BIRTH_DATE });
     renderWithQueryClient(<Gate />);
-    fireEvent.change(await screen.findByLabelText(ONBOARDING_LABELS.namePlaceholder), { target: { value: name } });
+    fireEvent.change(await screen.findByLabelText(ONBOARDING_LABELS.nameLabel), { target: { value: name } });
 
     clickContinue();
 
     screen.getByText(ONBOARDING_LABELS.nameMissing);
-    expect(screen.queryByRole('heading', { name: BIRTH_DATE_LABELS.question })).toBeNull();
+    expect(screen.queryByRole('heading', { name: ANY_BIRTH_DATE_QUESTION })).toBeNull();
     expect(sent.filter(({ route }) => route !== 'GET /api/me')).toEqual([]);
   });
 
@@ -365,7 +420,7 @@ describe('onboarding', () => {
       'POST /api/me/birth-date': () => ({ status: 'closed', student: null }),
     });
     renderWithQueryClient(<Gate />);
-    fireEvent.change(await screen.findByLabelText(ONBOARDING_LABELS.namePlaceholder), { target: { value: 'Maya' } });
+    fireEvent.change(await screen.findByLabelText(ONBOARDING_LABELS.nameLabel), { target: { value: 'Maya' } });
     clickContinue();
 
     await passBirthDate();

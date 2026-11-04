@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { ACCOUNT_LABELS, API_ERROR_LABELS, PRODUCT_NAME } from '../strings';
 import type { ApiErrorKind } from '../api/apiError';
-import { OnboardingFrame } from './OnboardingFrame';
+import { ACCOUNT_LABELS, API_ERROR_LABELS, PRODUCT_NAME, SIGN_IN_LABELS } from '../strings';
+import { DotStage } from '../ui/dots/DotStage';
+import { TutorQuestion } from '../ui/TutorQuestion';
 import { SignOutButton } from './SignOutButton';
-import { StepHeading } from './StepHeading';
 
 const SLOW_LOAD_NOTICE_DELAY_MS = 3_000;
 
@@ -32,14 +32,24 @@ export function LoadingPage() {
   );
 }
 
+// Right after sign-in the chart stays up, so the student does not see a blank page between two dot pages.
+export function LoadingOnChartPage() {
+  return (
+    <DotStage chartTitle={SIGN_IN_LABELS.tagline}>
+      <SlowLoadNotice />
+    </DotStage>
+  );
+}
+
 export function AccountClosedPage() {
   return (
-    <OnboardingFrame>
-      <StepHeading>{ACCOUNT_LABELS.closed}</StepHeading>
-      <div>
-        <SignOutButton className="button button-outline" />
-      </div>
-    </OnboardingFrame>
+    <DotStage>
+      <TutorQuestion line={ACCOUNT_LABELS.closed}>
+        <div>
+          <SignOutButton className="button button-outline" />
+        </div>
+      </TutorQuestion>
+    </DotStage>
   );
 }
 
@@ -60,14 +70,15 @@ export function AccountErrorPage({ errorKind, onTryAgain }: AccountErrorPageProp
   }
 
   return (
-    <OnboardingFrame footer={<SignOutButton className="font-medium text-ink-2 hover:text-ink" />}>
-      <StepHeading key={failedTries}>{API_ERROR_LABELS[errorKind]}</StepHeading>
-      <div className="flex flex-col items-start gap-3">
-        <button type="button" aria-disabled={isTrying} className="button button-solid aria-disabled:opacity-35" onClick={() => void tryAgain()}>
-          {ACCOUNT_LABELS.tryAgain}
-        </button>
-        {isTrying && <SlowLoadNotice />}
-      </div>
-    </OnboardingFrame>
+    <DotStage headerAction={<SignOutButton className="text-fine font-medium text-ink-2 hover:text-ink" />}>
+      <TutorQuestion key={failedTries} line={API_ERROR_LABELS[errorKind]}>
+        <div className="flex flex-col items-start gap-3">
+          <button type="button" aria-disabled={isTrying} className="button button-solid aria-disabled:opacity-35" onClick={() => void tryAgain()}>
+            {ACCOUNT_LABELS.tryAgain}
+          </button>
+          {isTrying && <SlowLoadNotice />}
+        </div>
+      </TutorQuestion>
+    </DotStage>
   );
 }

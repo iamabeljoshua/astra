@@ -52,10 +52,6 @@ export function getFirstOpenStepFrom(chosenStep: StepId, student: Student | null
   return getNextStep(chosenStep, student) ?? chosenStep;
 }
 
-export function showsChangeLaterNote(stepId: StepId): boolean {
-  return ONBOARDING_STEPS[findStepIndex(stepId)]?.canChangeLater ?? false;
-}
-
 export function hasFinishedOnboarding(student: Student | null): boolean {
   return hasProfile(student);
 }

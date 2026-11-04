@@ -1,7 +1,7 @@
-import { type PropsWithChildren, useEffect, useRef } from 'react';
+import { type PropsWithChildren, useEffect, useRef, useState } from 'react';
 import { OnboardingFlow } from '../onboarding/OnboardingFlow';
 import { hasFinishedOnboarding } from '../onboarding/steps';
-import { AccountClosedPage, AccountErrorPage, LoadingPage } from './AccountNotices';
+import { AccountClosedPage, AccountErrorPage, LoadingOnChartPage, LoadingPage } from './AccountNotices';
 import { useAuth } from './AuthProvider';
 import { SignInPage } from './SignInPage';
 import { areNewSignUpsStopped, stopNewSignUpsForADay } from './signUpStop';
@@ -14,11 +14,13 @@ interface AccountGateProps extends PropsWithChildren {
 
 export function AccountGate({ signInDraft, children }: AccountGateProps) {
   const { signIn } = useAuth();
+  const [hasShownSignIn, setHasShownSignIn] = useState(false);
+  if (signIn.status === 'signedOut' && !hasShownSignIn) setHasShownSignIn(true);
 
   if (signIn.status === 'loading') return <LoadingPage />;
   if (signIn.status === 'signedOut') return <SignInPage draft={signInDraft} />;
   if (signIn.status === 'authUnreachable') return <AccountErrorPage errorKind="network" onTryAgain={reloadPage} />;
-  return <SignedInGate>{children}</SignedInGate>;
+  return <SignedInGate hasShownSignIn={hasShownSignIn}>{children}</SignedInGate>;
 }
 
 function reloadPage() {
@@ -34,7 +36,7 @@ function useFocusPageHeadingAfterGatePage(isOnGatePage: boolean) {
   }, [isOnGatePage]);
 }
 
-function SignedInGate({ children }: PropsWithChildren) {
+function SignedInGate({ hasShownSignIn, children }: PropsWithChildren<{ hasShownSignIn: boolean }>) {
   const { data: account, error, refetch } = useAccount();
   const isOnGatePage = account ? !hasFinishedOnboarding(account.student) : error !== null;
   const isClosed = account?.status === 'closed';
@@ -45,7 +47,7 @@ function SignedInGate({ children }: PropsWithChildren) {
   }, [isClosed]);
 
   if (!account) {
-    if (!error) return <LoadingPage />;
+    if (!error) return hasShownSignIn ? <LoadingOnChartPage /> : <LoadingPage />;
     return <AccountErrorPage errorKind={error.kind} onTryAgain={() => refetch({ cancelRefetch: false })} />;
   }
 

@@ -124,6 +124,18 @@ describe('the date of birth question', () => {
     expect(sentBodies).toEqual([]);
   });
 
+  it('tells a screen reader a slow confirm is on its way', async () => {
+    vi.stubGlobal('fetch', NOT_ANSWERED_YET);
+    renderWithQueryClient(<BirthDatePage {...STEP_PROPS} />);
+    enterDate('14', '3', '2004');
+    submitDate();
+    expect(screen.getByRole('status').textContent).toBe('');
+
+    confirmDate();
+
+    await vi.waitFor(() => expect(screen.getByRole('status').textContent).toBe(strings.BIRTH_DATE_LABELS.saving));
+  });
+
   it('clears the message when the student changes the date', async () => {
     renderWithQueryClient(<BirthDatePage {...STEP_PROPS} />);
 
@@ -227,7 +239,7 @@ describe('the date of birth question', () => {
 
   it('names the date fields as a group, and ties a rejected date to its message', () => {
     renderWithQueryClient(<BirthDatePage {...STEP_PROPS} />);
-    screen.getByRole('group', { name: strings.BIRTH_DATE_LABELS.question });
+    screen.getByRole('group', { name: strings.BIRTH_DATE_LABELS.questionFor(STUDENT_NAME) });
     const year = screen.getByLabelText(strings.BIRTH_DATE_LABELS.year);
     expect(year.getAttribute('aria-invalid')).toBe('false');
 
