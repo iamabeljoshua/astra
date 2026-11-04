@@ -6,7 +6,7 @@ import { StudentCaption, TutorCaption } from './Captions';
 import type { LiveVoice, LiveVoiceView } from './liveVoice';
 import { useLiveVoice } from './useLiveVoice';
 
-const api = vi.hoisted(() => ({ post: vi.fn() }));
+const api = vi.hoisted(() => ({ post: vi.fn<(route: string, options: { params: { query: object } }) => Promise<unknown>>() }));
 vi.mock('../api/client', () => ({ api }));
 
 const BASE_VIEW: LiveVoiceView = { phase: 'live', mic: 'off', isSoundBlocked: false, isQuietWarning: false, isHeard: false, isTutorSpeaking: false, studentLines: [], tutorHeard: [], tutorComing: [] };
@@ -131,7 +131,7 @@ describe('useLiveVoice', () => {
       if (!(await getAccess())) throw new Error('no room');
       return makeFakeVoice();
     }) as unknown as typeof import('./liveVoice').startLiveVoice;
-    const asks = () => api.post.mock.calls.map(([, options]: [string, { params: { query: object } }]) => options.params.query);
+    const asks = () => api.post.mock.calls.map(([, options]) => options.params.query);
 
     beforeEach(() => {
       api.post.mockReset();
