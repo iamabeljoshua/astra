@@ -16,7 +16,7 @@ export function findCheckedTake({ storeRoot, sceneId, theme, studentId }: { stor
   const folder = join(storeRoot, 'scenes', sceneId);
   const scenePath = join(folder, 'scene.json');
   const takePath = join(folder, `${theme}.take.br`);
-  if (!existsSync(scenePath) || !existsSync(takePath)) return null;
+  if (!existsSync(scenePath) || !existsSync(takePath) || existsSync(join(storeRoot, 'flags', `${sceneId}.json`))) return null;
   const record = readSceneRecord(scenePath);
   return record?.status === 'checked' && ((record.ownerId ?? null) === null || record.ownerId === studentId) ? takePath : null;
 }

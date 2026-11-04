@@ -85,7 +85,7 @@ async function runSession(context: JobContext): Promise<void> {
   }).makeStt();
   const allTakes = loadTakes();
   let ears: Ears | null = null;
-  const { brain, flushSpend, readMeaning, readStrokes, readSpokenWords, writeRecap, getSpentUsd } = makeTutorBrain({ roomName: room.name ?? '', trace });
+  const { brain, flushSpend, readMeaning, readStrokes, readSpokenWords, writeRecap, getSpentUsd, writeRecord, noteNeedsAPerson } = makeTutorBrain({ roomName: room.name ?? '', jobId: context.job.id, trace });
   const apiLink = makeApiLink(room.name ?? '');
   const logSaver = makeLogSaver(apiLink, trace);
   const session = createLiveSession({
@@ -110,7 +110,10 @@ async function runSession(context: JobContext): Promise<void> {
     ...(readSpokenWords ? { readSpokenWords } : {}),
     ...(writeRecap ? { writeRecap } : {}),
     ...(logSaver ? { onLogWritten: logSaver.note } : {}),
-    onRecap: (recap) => void apiLink?.saveRecap(recap).catch((problem: unknown) => trace('recapSaveFailed', { problem: String(problem) })),
+    onRecap(recap) {
+      if (recap.kind === 'gentle') noteNeedsAPerson?.();
+      void apiLink?.saveRecap(recap).catch((problem: unknown) => trace('recapSaveFailed', { problem: String(problem) }));
+    },
     onEndingOver: () => void setTimeout(() => context.shutdown('the recap is over'), SAY_WHY_BEFORE_CLOSING_MS),
     ...(process.env.ASTRA_SAVE_HEARD && process.env.NODE_ENV !== 'production' ? { recordTurn: createHeardRecorder(process.env.ASTRA_SAVE_HEARD, room.name ?? 'room') } : {}),
     ...(process.env.ASTRA_SHOW_COST === '1' ? { getCostSoFar: () => (getSpentUsd?.() ?? 0) + (hearingSinceMs === null ? 0 : ((Date.now() - hearingSinceMs) / MS_PER_MINUTE) * MUSE_USD_PER_MINUTE) } : {}),
@@ -161,11 +164,14 @@ async function runSession(context: JobContext): Promise<void> {
     await logSaver?.close();
     if (process.env.ASTRA_VOICE_TRACE_WORDS === '1') trace('sessionLog', { events: session.getLog() });
     await flushSpend();
+    const recordWriting = writeRecord?.();
     await ears?.close();
     await transcriber.close();
     await voice.close();
     await source.close();
     await context.deleteRoom().catch(() => {});
+    await recordWriting;
+    await flushSpend();
     trace('jobClosed');
   });
 }

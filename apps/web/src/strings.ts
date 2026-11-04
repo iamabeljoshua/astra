@@ -161,6 +161,23 @@ export const PROFILE_LABELS = {
   missing: 'Your name cannot be blank.',
 };
 
+export const RECORD_LABELS = {
+  title: 'What your tutor remembers',
+  about: 'Your tutor writes these after a session, from what happened on the board and what you said. Remove anything you like, and your tutor forgets it.',
+  empty: 'Nothing yet. After a session, what your tutor remembers appears here.',
+  kinds: { showed: 'You showed:', struggled: 'You found this hard:', cares_about: 'You like:', explored: 'You looked at:' },
+  fromYourWords: 'From what you said in this session.',
+  markedRight: (line: string) => `On the board: ${line}. Marked right.`,
+  markedWrong: (line: string) => `On the board: ${line}. Marked wrong.`,
+  fromSession: (title: string, date: string) => `From ${title}, ${date}`,
+  remove: 'Remove',
+  removeNamed: (topic: string) => `Remove ${topic}`,
+  forgetAll: 'Forget everything',
+  forgetAllCheck: 'Remove every note? This cannot be undone.',
+  forgetAllYes: 'Yes, forget everything',
+  forgetAllNo: 'Keep them',
+};
+
 export const DEV_SIGN_IN_LABELS = {
   title: 'Development sign-in',
   failed: 'Sign-in failed. Run pnpm db:up to create these accounts.',
@@ -393,6 +410,21 @@ export const SCENE_LABELS = {
   tryAgain: 'Try again',
 };
 
+export const SCENE_LIBRARY_LABELS = {
+  title: 'A sample of the scene library',
+  another: 'Show another sample',
+  opening: 'Opening scene.',
+  deeper: 'Deeper scene.',
+  notChecked: 'Not yet checked by a person.',
+  flag: 'Flag this scene',
+  flagged: 'Flagged. No student sees it until someone has looked at it.',
+  showAgain: 'I looked at it. Show it again',
+  notForYou: 'This page is for the people who check our scenes.',
+  backHome: 'Back to Home',
+  couldNotLoad: "The sample didn't load. Reload the page to try again.",
+  sheetAlt: (title: string) => `Frames from the scene ${title}`,
+};
+
 export const ARTWORK_LABELS = {
   alchemist: 'Pieter Bruegel\'s engraving of an alchemist at work in a cluttered room',
   arc: 'A ball leaving a hand and travelling in an arc to a hoop',
@@ -584,6 +616,9 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
           "That log also holds the tutor's words and when each one played, what the tutor drew, the lines you type on the board, what you pick, place, or drag there, and what our code made of each one.",
           "When you end a session, a small AI model at Anthropic reads the tutor's words, what you said and typed, and your work from that session, and writes a short recap. We store the recap with the session, along with your answer if you type one to the thing it asks you to try. The tutor's voice reads the recap through ElevenLabs. If a session may have been about your safety, you get a fixed message instead, written with no model.",
           "When you replay a lesson, we do not store the tutor's voice and we do not make it again. The tutor's words play as captions. If you press Sound, your own device reads them aloud, using only a voice on the device, and nothing leaves it for this.",
+          'When a session ends, a small AI model reads what happened and proposes a few notes about it, and code keeps only the ones it can match to your work or your own words. A note says what you showed on the board, what you found hard, what you said you like, or what you looked at, in a few words from a fixed list of school subjects and everyday interests. Every note holds the session it came from, and a note on your work can hold the line of math or the task our code checked. A note never holds anything else you said or typed. We keep your newest 200 notes in our database and use them so your tutor remembers you in later sessions.',
+          'That list can hold a name from a textbook, such as Newton. Otherwise it leaves out names, places, schools, faiths, health conditions, and feelings, so a note cannot use those words. Code can still get a note wrong, so please look under Your notes. If words about being hurt or unsafe come up, we write no notes from that session, and nothing about those words.',
+          'You can see every note under Your notes, and remove any of them, or all of them, at any time. A later session can add a new note from what happens in it. Your tutor stops reading a note after 120 days, and the note stays under Your notes until you or we remove it.',
           "A line you have typed on the board and not sent stays in your browser until you pause for a few seconds. Then it can go to our tutor service and to Anthropic, so the tutor can tell whether you need help. We do not store it.",
           "If you write with the pen, your strokes go to our tutor service, which stores them in that session's log so a replay can draw them again. It makes a picture of what you wrote and sends that picture to Anthropic to read it. We do not store the picture.",
           'Words you type into the search box on the Sessions page go to our server, which uses them to find your sessions. We do not store them.',
@@ -626,7 +661,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
             : 'Supabase runs our sign-in service and our database, so it holds everything we store on our servers, and it sends the sign-in email.',
           'When a session opens, your browser joins LiveKit Cloud, even before you press Talk, so LiveKit receives your IP address and your student ID, a random code that does not include your name. During the session, LiveKit Cloud carries your voice, the tutor\'s voice, and the messages between your browser and the tutor, including your words as text. We do not ask it to record any of this. We do not send LiveKit your name, your date of birth, your email address, your level, your interests, or your goal, though it carries anything you say or type yourself.',
           "While your microphone is on, Meta's Muse Voice Transcribe receives your voice and turns it into text. Meta's terms let it keep what it receives for safety checks and human review.",
-          "Anthropic, whose Claude model writes the tutor's replies, receives what you say and type in a session, including lines on the board, a line you paused on without sending, a picture of anything you write with the pen, and a question you type on Home to start one, the tutor's earlier words, and your level, interests, and goal. We do not send it your name, your date of birth, your email address, or an account ID, though it receives anything you say or type yourself. Anthropic's terms say it does not train on this by default, and that it keeps it for a limited time.",
+          "Anthropic, whose Claude model writes the tutor's replies, receives what you say and type in a session, including lines on the board, a line you paused on without sending, a picture of anything you write with the pen, and a question you type on Home to start one, the tutor's earlier words, your level, interests, and goal, and your tutor's notes from earlier sessions, without the lines of work behind them. When a session ends, it also receives that session's words and lines of work again, so it can propose notes, with lines a code check has set aside left out. We do not send it your name, your date of birth, your email address, or an account ID, though it receives anything you say or type yourself. Anthropic's terms say it does not train on this by default, and that it keeps it for a limited time.",
           "ElevenLabs receives the tutor's words and turns them into its voice. Those words can repeat what you said or typed.",
           ...inTestLessons("While spoken lessons are in testing, a test lesson sends Anthropic's Claude models the title of the suggested lesson, or the whole question you typed, whatever it says, which they use to choose and write a drawing and the tutor's words. A model then writes the drawing from a short topic it takes from your question, and it can get that wrong, so a personal detail in your question can reach those models and the words a tutor says to you. ElevenLabs receives the tutor's words and turns them into its voice, and the audio travels through a LiveKit server. Please leave your name, school, and other personal details out of your questions."),
           'No other outside service receives student data today. The app serves its own fonts and pictures.',
@@ -642,7 +677,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
         today: [
           "We have no retention schedule, and nothing deletes data on a timer. A session's log, recap, and your answer stay for as long as your account has that session, unless you delete them. Anyone signed in to your account can open them, and no other student can.",
           "To delete a session's log, recap, and answer, open the session from Sessions and choose Delete this replay. That removes them from our database at once. The session's title, subject, length, and date stay in your list.",
-          'What else we store stays until we remove it by hand, except that a change under Your notes replaces the answer it changes.',
+          'What else we store stays until we remove it by hand, except that a change under Your notes replaces the answer it changes, and a note you remove under Your notes is deleted from our database at once. The app has no button yet to delete your whole account. When we delete an account, its notes go with it.',
         ],
         planned: ['A way for you to delete the rest of your data from the app.'],
       },

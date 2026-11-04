@@ -86,7 +86,7 @@ The gentle line tells them to talk to an adult they trust or call their local em
 
 ## The seam for memory
 
-`onRecap` in `createLiveSession`, which `worker.ts` fills in. M4.1's notes do not take `recap.covered`, because a model's line about a lesson cannot pass the trust rules its notes keep to. The useful seam is `if (recap.kind === 'gentle') digest.noteNeedsAPerson()`, and nothing calls that yet.
+`onRecap` in `createLiveSession`, which `worker.ts` fills in. It does one thing for memory: `if (recap.kind === 'gentle') digest.noteNeedsAPerson()`, so a gentle ending writes no notes, even when only the recap's model read the distress. Memory does not take its notes from `recap.covered`, because a model's line about a lesson cannot pass the trust rules its notes keep to. Delete this replay removes the log, recap, and answer, and leaves notes, which hold no quotes and have their own remove under Your notes.
 
 ## What differs from the plan
 
