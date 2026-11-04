@@ -25,6 +25,8 @@ Abel chose the look of Prototype B, in `/Users/abel/startup/astra-tinker/board`,
 
 These differ from `docs/DESIGN.md` on the prototype's say: no outer border on the board, the prototype's type sizes, and the proposed `pen` token. These differ from the prototype: the app's own top bar, no Numbers panel, no intro page, "Read as" on every line, and a Talk button.
 
+A table, a timeline, code, a picture, a drawing, and a diagram each take a row, in the 21 px and the font of a row of words. They are in `ink`, as the prototype's curve is, and the tutor's marks on them are in `pen`. `docs/tests/board-library.md` has what the layout check found on them. The prototype has none of them, so that choice is the owner's and waits for Abel.
+
 ## Teaching and hands-on
 
 `boardMode` is a tutor command that lands on a word, so `{"kind":"boardMode","mode":"handsOn"}` before "together" in "let's try one together" moves the visual as that word plays. Anything new written or a task brings the board in by itself, so nothing lands hidden. `getVisualPlace` reads the move from the clock, 560 ms on `cubic-bezier(.2,.75,.2,1)`, to 30% in the top right corner, 12 px in, so a replay lands on the same frame and a frozen board stays frozen. The board keeps a column clear, so no line passes under the small visual. The student can click the small visual back up and put it back, which is the page's own and not in the log. Typing also brings the board in, because a student must always be able to answer. Reduced motion jumps. A phone stacks.

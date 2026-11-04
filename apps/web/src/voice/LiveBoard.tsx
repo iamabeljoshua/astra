@@ -1,4 +1,4 @@
-import type { BoardState } from '@astra/board';
+import type { BoardElement, BoardState } from '@astra/board';
 import { getOpenTaskOnBoard } from '@astra/board/shared';
 import type { BoardProblemReport, ElementId, StudentWork } from '@astra/contracts';
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
@@ -35,7 +35,10 @@ function getReport(problem: BoardProblem): BoardProblemReport | null {
     case 'labelWithoutRoom':
       return { problem: problem.kind, subject: problem.text };
     case 'sliderWithoutConstant':
+    case 'sliderOverlaps':
       return { problem: problem.kind, subject: problem.sliderId };
+    case 'curveTooFine':
+      return { problem: problem.kind, subject: problem.target };
     default:
       return null;
   }
@@ -48,6 +51,8 @@ function getLastWorkWords(board: BoardState): string {
   return line.verdict.status === 'right' ? `${read} ${BOARD_WORK_LABELS.checked}` : read;
 }
 
+const DOT_GOES_TO: ReadonlySet<BoardElement['content']['kind']> = new Set(['writeMath', 'studentLine', 'text', 'diagram', 'plot', 'task', 'table', 'timeline', 'code', 'image', 'drawing']);
+
 function getLatestRowId(board: BoardState): string | null {
   const focused = board.focus?.split('.')[0];
   if (focused && board.elements.has(focused as ElementId)) return focused;
@@ -58,7 +63,7 @@ function getLatestRowId(board: BoardState): string | null {
       const root = hangsOn.split('.')[0] as string;
       if (board.elements.has(root as ElementId)) return root;
     }
-    if (content.kind === 'writeMath' || content.kind === 'studentLine' || content.kind === 'text' || content.kind === 'diagram' || content.kind === 'plot' || content.kind === 'task') return id;
+    if (DOT_GOES_TO.has(content.kind)) return id;
   }
   return null;
 }

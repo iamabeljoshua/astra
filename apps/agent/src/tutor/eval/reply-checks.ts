@@ -37,6 +37,7 @@ export interface ReplyDetails {
 const NO_DETAILS: ReplyDetails = { drawn: [], toolCalls: [], terms: [], answer: null, longestStretchWords: 0 };
 
 export const REPLY_CHECKS: Record<string, { why: string; onlyOnWork?: boolean; isSoft?: boolean; passes(spoken: string, commands: readonly string[], details?: ReplyDetails): boolean }> = {
+  drawsACurveAgain: { why: 'told a curve did not draw, the tutor draws it again', passes: (_text, kinds) => kinds.includes('plot') },
   number: { why: 'A number derived in the reply is on the board, where code checks it', passes: (spoken, commands) => commands.some((kind) => kind === 'writeMath' || kind === 'transformMath') || !/\b(equals|is|makes)\b.*\b\d/.test(spoken) },
   draws: { why: 'Asked to show something, it drew', passes: (_spoken, commands) => commands.length > 0 },
   noAnswerYet: { why: 'It asked the student to try before answering', passes: (spoken) => /\?\s*$|\b(?:have a go|try it|try that|give it a)\b/i.test(spoken) },

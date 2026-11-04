@@ -298,9 +298,12 @@ function readDiagramNodes(fields: CheckedFields): Diagram['nodes'] {
   return nodes;
 }
 
+// A blank or null label on an arrow still says no label, and refusing it would lose the whole picture for a word nobody asked to show.
+const isNoLabel = (value: unknown) => value === null || (typeof value === 'string' && value.trim() === '');
+
 function readDiagramEdge(place: Place, nodeNames: ReadonlySet<string>): Diagram['edges'][number] {
   const fields = readFields(place, ['from', 'to', 'label']);
-  return { from: readEdgeEnd(fields.at('from'), nodeNames), to: readEdgeEnd(fields.at('to'), nodeNames), ...fields.optional('label', readLabel) };
+  return { from: readEdgeEnd(fields.at('from'), nodeNames), to: readEdgeEnd(fields.at('to'), nodeNames), ...(isNoLabel(fields.at('label').value) ? {} : fields.optional('label', readLabel)) };
 }
 
 function readTimelineEvent(place: Place): Timeline['events'][number] {

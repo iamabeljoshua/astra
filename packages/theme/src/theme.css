@@ -562,6 +562,12 @@
     stroke: var(--color-pen);
   }
 
+  .board-row-block .board-row-content {
+    font-family: var(--font-ui);
+    font-size: 21px;
+    line-height: 1.4;
+  }
+
   .board-row-words .board-row-content {
     color: var(--color-ink);
     font-family: var(--font-ui);

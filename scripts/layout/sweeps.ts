@@ -25,7 +25,10 @@ const QUICK_PLANS = [{ viewport: 'laptop', theme: 'light', boards: ['laptop'] },
 const REDUCED_MOTION_VIEWPORTS = ['laptop', 'phone'];
 const FAILURE_LINES_SHOWN = 40;
 
+export type DeckSurface = 'rows' | 'view';
+
 interface SweepOptions {
+  surface: DeckSurface;
   isQuick: boolean;
   scenes?: readonly string[];
   outFolder: string;
@@ -40,9 +43,12 @@ interface Verdict {
   lines: string[];
 }
 
-async function sweepAt(page: Page, plan: ViewportPlan, request: Omit<SweepRequest, 'sizes'> & { sizes?: SweepRequest['sizes'] }): Promise<SweepResult> {
+// A student's rows take their size from the screen, because the session's own grid sets the column.
+const getSizes = (plan: ViewportPlan, surface: DeckSurface) => (surface === 'rows' ? [{ name: plan.name, ...plan.viewport }] : plan.boards);
+
+async function sweepAt(page: Page, plan: ViewportPlan, request: Omit<SweepRequest, 'sizes'> & { sizes: SweepRequest['sizes'] }): Promise<SweepResult> {
   await page.setViewportSize(plan.viewport);
-  return page.evaluate((sweep) => (window.boardDeck as NonNullable<Window['boardDeck']>).sweep(sweep), { ...request, sizes: request.sizes ?? plan.boards });
+  return page.evaluate((sweep) => (window.boardDeck as NonNullable<Window['boardDeck']>).sweep(sweep), request);
 }
 
 function addResult(totals: Totals, name: string, result: SweepResult): void {
@@ -57,19 +63,19 @@ function addResult(totals: Totals, name: string, result: SweepResult): void {
 async function runQuickSweeps(page: Page, options: SweepOptions, totals: Totals): Promise<void> {
   for (const plan of QUICK_PLANS) {
     const viewport = VIEWPORTS.find(({ name }) => name === plan.viewport) as ViewportPlan;
-    const sizes = viewport.boards.filter(({ name }) => (plan.boards as readonly string[]).includes(name));
+    const sizes = options.surface === 'rows' ? getSizes(viewport, 'rows') : viewport.boards.filter(({ name }) => (plan.boards as readonly string[]).includes(name));
     addResult(totals, `${plan.viewport} ${plan.theme}`, await sweepAt(page, viewport, { sizes, theme: plan.theme, scenes: options.scenes }));
   }
 }
 
 async function runFullSweeps(page: Page, options: SweepOptions, totals: Totals): Promise<void> {
   for (const plan of VIEWPORTS) {
-    for (const theme of THEMES) addResult(totals, `${plan.name} ${theme}`, await sweepAt(page, plan, { theme, scenes: options.scenes }));
+    for (const theme of THEMES) addResult(totals, `${plan.name} ${theme}`, await sweepAt(page, plan, { sizes: getSizes(plan, options.surface), theme, scenes: options.scenes }));
   }
   await page.emulateMedia({ reducedMotion: 'reduce' });
   for (const name of REDUCED_MOTION_VIEWPORTS) {
     const plan = VIEWPORTS.find((candidate) => candidate.name === name) as ViewportPlan;
-    addResult(totals, `${name} reduced motion`, await sweepAt(page, plan, { theme: 'light', scenes: options.scenes }));
+    addResult(totals, `${name} reduced motion`, await sweepAt(page, plan, { sizes: getSizes(plan, options.surface), theme: 'light', scenes: options.scenes }));
   }
   await page.emulateMedia({ reducedMotion: 'no-preference' });
 }

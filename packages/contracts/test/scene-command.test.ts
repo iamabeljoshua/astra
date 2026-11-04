@@ -397,6 +397,11 @@ describe('a diagram edge', () => {
     expectAccepted({ kind: 'diagram', id: 'cycle', nodes, edges: [{ from: 'a', to: 'b' }] });
   });
 
+  it.each([['blank', '  '], ['empty', ''], ['null', null]])('takes a %s label on an arrow as no label', (_name, label) => {
+    const parsed = parseSceneCommand({ kind: 'diagram', id: 'cycle', nodes, edges: [{ from: 'a', to: 'b', label }] });
+    expect(parsed.ok && parsed.value.kind === 'diagram' && parsed.value.edges[0]).toEqual({ from: 'a', to: 'b' });
+  });
+
   it('cannot be aimed at a name two nodes share', () => {
     const twice = [{ name: 'a', label: 'Rain' }, { name: 'a', label: 'River' }];
     expectRefused(parseSceneCommand({ kind: 'diagram', id: 'cycle', nodes: twice, edges: [] }), /nodes: expected each node name once/);

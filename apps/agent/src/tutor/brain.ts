@@ -178,7 +178,7 @@ const MAX_ATTEMPTS = 2;
 /** Each one costs a new request, about 2 s of quiet, and a search 5.5 to 8.7 s, so more than this in one reply would sound like the tutor has wandered off. */
 const MOST_TOOL_CALLS_A_TURN = 3;
 /** Drawing these shows a student the step, and a ring or a pointer does not. */
-const SHOWING_KINDS: ReadonlySet<SceneCommand['kind']> = new Set(['writeMath', 'transformMath', 'text', 'simulate']);
+const SHOWING_KINDS: ReadonlySet<SceneCommand['kind']> = new Set(['writeMath', 'transformMath', 'text', 'simulate', 'table', 'timeline', 'code', 'image', 'drawing']);
 /** Varied, because a pause of one fixed length turns into a tic. The voice adds about 400 ms to each. */
 const BREATHS_MS = [300, 450, 350];
 /** A repeated opening of a few words is dropped only at the start of a retry, where it sounds like starting over, and a longer repeat anywhere. */

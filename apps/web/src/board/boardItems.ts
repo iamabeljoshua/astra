@@ -209,7 +209,6 @@ function createDrawingItem(wrapper: HTMLElement, content: Extract<BoardElement['
     getProgress: ({ progress }, groupCount) => Array.from({ length: groupCount }, (_, index) => Math.min(1, Math.max(0, progress * groupCount - index))),
     smallestTextShare: DIAGRAM_SCALE * DRAWING_LABEL_SCALE,
   });
-  if (content.name === SCENE_ONLY_DRAWING) return { ...item, prepare: () => ({ fit: 'line', size: null, fromSize: null }), paint: () => {} };
   return {
     ...item,
     getTermBoxes(query) {
@@ -304,6 +303,7 @@ export function isFigure(content: BoardElement['content'] | undefined): boolean 
 export function hasOwnPlace(content: BoardElement['content']): boolean {
   if (content.kind === 'task') return content.way === 'place';
   if (content.kind === 'plot' && content.over !== undefined) return false;
+  if (content.kind === 'drawing' && content.name === SCENE_ONLY_DRAWING) return false;
   return content.kind === 'studentLine' || Object.hasOwn(ITEM_MAKERS, content.kind);
 }
 

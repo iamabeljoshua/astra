@@ -84,6 +84,20 @@ const isOutside = (box: Box, bounds: Box, room: number) => box.left < bounds.lef
 
 const hasArea = (box: DOMRect) => box.width > 0 && box.height > 0;
 
+// A board of rows scrolls down and never across, so its bounds are its column, however far down that runs.
+function getScrollBounds(scroll: HTMLElement): Box {
+  const { left, top } = scroll.getBoundingClientRect();
+  const height = getComputedStyle(scroll).overflowY === 'hidden' ? scroll.clientHeight : scroll.scrollHeight;
+  return { left, right: left + scroll.clientWidth, top: top - scroll.scrollTop, bottom: top - scroll.scrollTop + height };
+}
+
+const SCROLLING_BOARD = '.board-scroll';
+
+const getBoardBounds = (board: HTMLElement): Box => {
+  const scroll = board.querySelector<HTMLElement>(SCROLLING_BOARD);
+  return scroll ? getScrollBounds(scroll) : board.getBoundingClientRect();
+};
+
 const describe = (box: Box) => `${Math.round(box.left)},${Math.round(box.top)} to ${Math.round(box.right)},${Math.round(box.bottom)}`;
 
 type Rgba = readonly [number, number, number, number];
@@ -228,7 +242,7 @@ function findLinesOnEachOther(texts: readonly PlacedText[]): Defect[] {
 }
 
 function findTextOffBoard(texts: readonly PlacedText[], { board }: Pick<DefectRequest, 'board'>): Defect[] {
-  const bounds = board.getBoundingClientRect();
+  const bounds = getBoardBounds(board);
   return texts.filter(({ box }) => isOutside(box, bounds, EDGE_ROOM_PX)).map(({ text, box }) => ({ kind: 'text-off-board', detail: `"${text.slice(0, 30)}" at ${describe(box)}, board ${describe(bounds)}` }));
 }
 
@@ -254,7 +268,7 @@ function getClippingAncestors(start: Element, board: HTMLElement): Element[] {
 
 // A font's box stands a little past its glyphs on an SVG label, with the ink inside, so a figure allows for that.
 const isCutBy = (box: Box, clipper: Element) => {
-  const bounds = clipper.getBoundingClientRect();
+  const bounds = clipper.matches(SCROLLING_BOARD) ? getScrollBounds(clipper as HTMLElement) : clipper.getBoundingClientRect();
   const room = clipper.tagName.toLowerCase() === 'svg' ? { x: 1, y: 2 } : { x: EDGE_ROOM_PX, y: EDGE_ROOM_PX };
   return box.left < bounds.left - room.x || box.right > bounds.right + room.x || box.top < bounds.top - room.y || box.bottom > bounds.bottom + room.y || isCutByRoundedCorner(box, clipper);
 };
@@ -297,7 +311,7 @@ function findOverflowingBoxes(board: HTMLElement, paint: PaintReader): Defect[] 
 }
 
 function findElementDefects({ board, arriving }: Pick<DefectRequest, 'board' | 'arriving'>, paint: PaintReader): Defect[] {
-  const bounds = board.getBoundingClientRect();
+  const bounds = getBoardBounds(board);
   const placed = [...board.querySelectorAll<HTMLElement>('[data-element]')].filter((element) => paint.getOpacity(element) > SETTLED_OPACITY && element.getBoundingClientRect().height > 0).map((element) => ({ id: element.dataset.element as string, box: element.getBoundingClientRect() }));
   return placed.flatMap(({ id, box }, index): Defect[] => [
     ...placed.slice(index + 1).filter((other) => doOverlap(box, other.box)).map((other): Defect => ({ kind: 'element-on-element', detail: `${id} on ${other.id}` })),
@@ -308,7 +322,7 @@ function findElementDefects({ board, arriving }: Pick<DefectRequest, 'board' | '
 const isStrokeSeen = (path: SVGPathElement) => !(path.style.strokeDashoffset !== '' && Number(path.style.strokeDashoffset) >= 1);
 
 function findInkDefects(board: HTMLElement, paint: PaintReader): Defect[] {
-  const bounds = board.getBoundingClientRect();
+  const bounds = getBoardBounds(board);
   const wrappers = [...board.querySelectorAll<HTMLElement>('[data-element]')].filter((element) => paint.isSeen(element));
   const inks = [...board.querySelectorAll<SVGPathElement>('svg.board-ink path')].filter((path) => paint.isSeen(path) && isStrokeSeen(path));
   return inks.flatMap((path): Defect[] => {

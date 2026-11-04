@@ -294,7 +294,7 @@ The pass costs what `recordPassDone` reports, $0.00005 to $0.0003 on real lesson
 ## For later owners
 
 - Prompt changes: add a new `prompts/v<n>.ts`, keep the old one, and run `eval:groups --file teaching`, `--file safety`, and `--file math` plus `eval:lessons` on it. Read the lessons and every crisis reply. `DRAWN_KINDS`, the prompt, and the test that holds them equal change together.
-- PR 88: its `curveTooFine` and `sliderOverlaps` reports and its coherent slider pairs are not on this base, so nothing here wires them. When plots reach `DRAWN_KINDS`, add to the prompt that a label or `yRange` added to a curve takes its marks, offer pairs a flight takes together, such as speed with angle, and say that a word like "minimum" must not stay on a curve a slider turned upside down.
+- Sliders are still not in `DRAWN_KINDS`. When they reach it, offer pairs a flight takes together, such as speed with angle, and say that a word like "minimum" must not stay on a curve a slider turned upside down. `sliderOverlaps` already reaches the tutor as a `board_problem` note.
 - M4.2: the level gauge here is the prompt reading the first few replies, and nothing is stored. `note_evidence` and `get_learner_record` can use the same reply-line channel as `{"attempt":"missed"}`.
 - M3.9: the current step goes in a note, not the system prompt.
 - M3.12 is built. `docs/tests/shared-board.md` holds what it found, and `check-math.ts` moved to `packages/board/src/shared/`, because the page checks a student's line before any message returns.
@@ -318,4 +318,4 @@ Known and left for later, none of which risks a student: a compaction summary ca
 - First word is measured over LiveKit Cloud from one Mac on one network. Sixteen turns is few.
 - Teaching quality rests on a person's read of `evals/tutor-turns/lessons/`, and on a second model's yes or no on the judged cases. A cheap model plays the student in those lessons, and it is more articulate than most students. No real student has used this.
 - The tutor's turns on a typed session have run with a real voice. A spoken session through Muse runs the same path and has not been run with the real model here.
-- The board draws plots and geometry since PR 88, and the prompt does not offer them, so the tutor says it cannot draw a graph. M3.12's branch adds `plot` to `DRAWN_KINDS` and to the prompt. Tables and diagrams wait for M3.5, which adds its kinds the same way.
+- The prompt offers plots, diagrams, tables, timelines, code, pictures, and drawings. It does not offer geometry, number lines, shading, or sliders. `docs/tests/board-library.md` holds what real Sonnet drew.

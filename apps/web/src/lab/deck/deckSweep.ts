@@ -84,6 +84,16 @@ async function waitForImages(board: HTMLElement): Promise<void> {
   await Promise.all([...board.querySelectorAll('img')].map((image) => image.decode().catch(() => {})));
 }
 
+// A row scrolls and never shrinks, so a table too big for a laptop's board is no problem on a row.
+const isOnRows = (board: HTMLElement) => board.querySelector('.board-scroll') !== null;
+
+// CSS entrances run on the wall clock and a sweep reads at once, so they are read as they end.
+function finishCssEntrances(board: HTMLElement): void {
+  for (const animation of board.getAnimations({ subtree: true })) {
+    if (animation instanceof CSSAnimation && animation.effect?.getComputedTiming().iterations !== Number.POSITIVE_INFINITY) animation.finish();
+  }
+}
+
 const nextFrame = () => new Promise((done) => requestAnimationFrame(done));
 
 // Draws scenes with a synchronous commit and reads layout right away, so one sweep can hold thousands of renders.
@@ -111,6 +121,7 @@ export function createBoardDeck({ present, getBoardElement }: { present(shown: S
     const { scene, operations } = getEntry(name);
     const board = getBoardAt(operations, atMs);
     const isAtRest = atMs >= getSceneRestMs(scene);
+    finishCssEntrances(getBoardElement());
     return findLayoutDefects({ board: getBoardElement(), expected: getExpected(board), reported: getReported(problems, refused), isAtRest, arriving: getArriving(board, atMs) });
   };
 
@@ -128,7 +139,7 @@ export function createBoardDeck({ present, getBoardElement }: { present(shown: S
         result.textsChecked += textsChecked;
         if ((defects.length > 0 || colors.length > 0) && result.failures.length < MOST_FAILURES_KEPT) result.failures.push({ scene: name, size: size.name, theme: request.theme, atMs, defects: [...defects, ...colors].slice(0, 6) });
       }
-      const silent = (scene.expectedProblems ?? []).filter((kind) => !problems.some((problem) => problem.kind === kind));
+      const silent = (scene.expectedProblems ?? []).filter((kind) => !problems.some((problem) => problem.kind === kind) && !(kind === 'tooSmallToRead' && isOnRows(getBoardElement())));
       if (silent.length > 0) result.failures.push({ scene: name, size: size.name, theme: request.theme, atMs: getSceneRestMs(scene), defects: silent.map((kind) => ({ kind: 'silent-problem', detail: `the board never reported ${kind}` })) });
       for (const problem of problems) {
         if (problem.kind === 'tooSmallToRead') result.tooSmallReported.push(`${name} at ${size.name}: ${problem.elementId}`);
@@ -159,6 +170,9 @@ export function createBoardDeck({ present, getBoardElement }: { present(shown: S
     checkWithColors: ({ scene }) => [...checkNow(scene, getSceneRestMs(getEntry(scene).scene)).defects, ...findColorDefects(getBoardElement())],
     async sweep(request) {
       document.documentElement.dataset.theme = request.theme;
+      // The rows take their color from the body, which fades between themes, so reading layout first starts that fade.
+      document.body.getBoundingClientRect();
+      await Promise.all(document.getAnimations().map((animation) => animation.finished.catch(() => {})));
       const result: SweepResult = { renders: 0, textsChecked: 0, failures: [], tooSmallReported: [], wordsReported: [] };
       for (const name of request.scenes ?? DECK.map((scene) => scene.name)) await sweepScene(name, request, result);
       return result;

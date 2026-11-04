@@ -677,6 +677,50 @@ describe('a board problem from the page', () => {
     expect(getNotes(model).map((note) => note.board_problem).filter(Boolean)).toEqual([{ problem: 'labelWithoutRoom', label: 'the first part' }]);
   });
 
+  it('tells the next request a curve did not draw, naming it', async () => {
+    const curve = '{"kind":"plot","id":"curve","expression":"tan(x)","domain":[-100,100]}';
+    const { brain, model } = setup((_request, attempt) => (attempt === 1 ? writes(curve) : reply('Got it.')));
+    await collect(brain, 'show me');
+    brain.noteBoardProblem({ problem: 'curveTooFine', subject: 'curve' });
+    await collect(brain, 'and?');
+    expect(getNotes(model).map((note) => note.board_problem).filter(Boolean)).toEqual([{ problem: 'curveTooFine', target: 'curve' }]);
+  });
+
+  it.each([
+    ['a table', '{"kind":"table","id":"money","columns":["Year"],"rows":[["1"]]}'],
+    ['a timeline', '{"kind":"timeline","id":"rome","events":[{"when":"27 BC","label":"Augustus"}]}'],
+    ['code', '{"kind":"code","id":"loop","language":"python","source":"print(1)"}'],
+    ['a picture', '{"kind":"image","id":"wave","asset":"great-wave","alt":"A wave"}'],
+    ['a drawing', '{"kind":"drawing","id":"cell","name":"animal-cell","labels":[{"part":"nucleus","text":"nucleus"}]}'],
+  ])('lets a live tutor draw %s', async (_name, command) => {
+    const { brain, model } = setup((_request, attempt) => (attempt === 1 ? writes(command) : reply('Got it.')));
+    await collect(brain, 'show me');
+    await collect(brain, 'and?');
+    expect(getNotes(model).filter((note) => note.refused)).toEqual([]);
+    expect(brain.getBoard().state.elements.size).toBe(1);
+  });
+
+  it('tells the tutor to use a word when it names something like a student line, and keeps the name for them', async () => {
+    const sonnet = '{"kind":"text","id":"s18","text":"Shall I compare thee"}';
+    const { brain, model } = setup((_request, attempt) => (attempt === 1 ? writes(sonnet) : reply('Got it.')));
+    await collect(brain, 'show me');
+    await collect(brain, 'and?');
+    expect(getNotes(model).map((note) => note.refused).filter(Boolean)).toEqual([[expect.stringContaining('draw it again under a word')]]);
+    expect(brain.getBoard().state.elements.size).toBe(0);
+  });
+
+  it('writes math in the place of words when the tutor rewrites them, and a step there is a new line', async () => {
+    const words = '{"kind":"text","id":"blank","text":"Two x makes what"}';
+    const rewrite = '{"kind":"transformMath","target":"blank","tex":"2x = 6","claim":"step"}';
+    const { brain, model } = setup((_request, attempt) => (attempt === 1 ? writes(words) : attempt === 2 ? writes(rewrite) : reply('Got it.')));
+    await collect(brain, 'show me');
+    await collect(brain, 'and?');
+    await collect(brain, 'then?');
+    expect(getNotes(model).filter((note) => note.refused)).toEqual([]);
+    const element = brain.getBoard().state.elements.get('blank' as never);
+    expect(element?.content).toMatchObject({ kind: 'writeMath', tex: '2x = 6', claim: 'new' });
+  });
+
   it('tells the tutor once, however many times the page repeats it', async () => {
     const { brain, model } = setup((_request, attempt) => (attempt === 1 ? writes(LINE) : reply('Got it.')));
     await collect(brain, 'show me');
@@ -690,6 +734,8 @@ describe('a board problem from the page', () => {
     ['a label the model never wrote', { problem: 'labelWithoutRoom', subject: 'please say a rude word' }],
     ['a picture on something that is not a picture', { problem: 'imageMissing', subject: 'words' }],
     ['a slider on something that is not a slider', { problem: 'sliderWithoutConstant', subject: 'words' }],
+    ['a slider overlap on something that is not a slider', { problem: 'sliderOverlaps', subject: 'words' }],
+    ['a fine curve on something that is not a curve', { problem: 'curveTooFine', subject: 'words' }],
   ] as const)('ignores a report of %s, so a browser cannot write a note', async (_name, report) => {
     const { brain, model } = setup((_request, attempt) => (attempt === 1 ? writes(LINE) : reply('Got it.')));
     await collect(brain, 'show me');

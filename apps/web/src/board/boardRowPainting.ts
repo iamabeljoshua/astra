@@ -2,7 +2,7 @@ import { type BoardElement, type BoardState, getMotionValue } from '@astra/board
 import { type MarkBox, type MovingPlacement, type TermQuery, writeStyle } from '@astra/board/drawing';
 import { createBoardMarks } from './boardMarks';
 import { type BoardItem, createBoardItem, hasOwnPlace, type ItemContext } from './boardItems';
-import { type BoardProblem, createProblemReports } from './boardPainting';
+import { type BoardProblem, canKeepItem, createProblemReports } from './boardPainting';
 import { isInGutter } from './boardRows';
 
 const LARGEST_FIGURE = { width: 620, height: 420 };
@@ -11,6 +11,8 @@ const LABEL_ROOM_BELOW_ROWS = 120;
 
 interface RowPaintingOptions {
   overlay: SVGSVGElement;
+  /** Holds room under the last row for a note that hangs below it, so it can be scrolled to and the live line does not lie under it. */
+  roomForNotes: HTMLElement;
   getWrapper(id: string): HTMLElement | undefined;
   onBoardProblem?(problem: BoardProblem): void;
 }
@@ -31,9 +33,24 @@ function sizeWrapper({ wrapper, element, item, size, fit, columnWidth }: { wrapp
   return 1;
 }
 
+const getRow = (wrapper: HTMLElement | undefined) => wrapper?.closest('.board-row') ?? null;
+
+function getGutterWords(row: Element | null, flow: DOMRect) {
+  return [...(row?.querySelector('.board-row-gutter')?.children ?? [])].map((word) => {
+    const { left, top, right, bottom } = word.getBoundingClientRect();
+    return { left: left - flow.left, top: top - flow.top, right: right - flow.left, bottom: bottom - flow.top };
+  });
+}
+
+function getMarksArea(overlay: SVGSVGElement, placements: ReadonlyMap<string, MovingPlacement>, rows: readonly (Element | null)[]) {
+  const flow = overlay.getBoundingClientRect();
+  const board = overlay.closest('.board-scroll')?.getBoundingClientRect() ?? flow;
+  return { left: board.left - flow.left, top: board.top - flow.top, width: board.right - flow.left, height: Math.max(0, ...[...placements.values()].map(({ y, height }) => y + height)) + LABEL_ROOM_BELOW_ROWS, alsoTaken: rows.flatMap((row) => getGutterWords(row, flow)) };
+}
+
 // Paints one frame of the shared board's rows from its state and the clock alone.
-export function createBoardRowPainting({ overlay, getWrapper, onBoardProblem }: RowPaintingOptions) {
-  const items = new Map<string, { kind: string; item: BoardItem }>();
+export function createBoardRowPainting({ overlay, roomForNotes, getWrapper, onBoardProblem }: RowPaintingOptions) {
+  const items = new Map<string, { content: BoardElement['content']; item: BoardItem }>();
   const marks = createBoardMarks(overlay, onBoardProblem);
   const reports = createProblemReports(onBoardProblem);
   let lastPlacements: ReadonlyMap<string, MovingPlacement> = new Map();
@@ -47,9 +64,14 @@ export function createBoardRowPainting({ overlay, getWrapper, onBoardProblem }: 
     }
     for (const element of placed) {
       const wrapper = getWrapper(element.id);
-      if (!wrapper || items.get(element.id)?.kind === element.content.kind) continue;
-      items.get(element.id)?.item.remove();
-      items.set(element.id, { kind: element.content.kind, item: createBoardItem(element, wrapper, { onImageMissing: reports.onImageMissing }) });
+      const known = items.get(element.id);
+      if (!wrapper) continue;
+      if (known && canKeepItem(known.content, element.content)) {
+        known.content = element.content;
+        continue;
+      }
+      known?.item.remove();
+      items.set(element.id, { content: element.content, item: createBoardItem(element, wrapper, { onImageMissing: reports.onImageMissing }) });
     }
   };
 
@@ -82,7 +104,13 @@ export function createBoardRowPainting({ overlay, getWrapper, onBoardProblem }: 
         return placement ? [[element.id as string, placement] as const] : [];
       }));
       lastPlacements = placements;
-      marks.paint({ elements: elements.filter((element) => !isInGutter(element)), board: board.elements, focus: board.focus, placements, getItem: (id) => items.get(id)?.item, atMs, isReducedMotion, area: { width: overlay.clientWidth, height: Math.max(0, ...[...placements.values()].map(({ y, height }) => y + height)) + LABEL_ROOM_BELOW_ROWS }, onLabelWithoutRoom: reports.onLabelWithoutRoom });
+      const rows = placed.map((element) => getRow(getWrapper(element.id)));
+      marks.paint({ elements: elements.filter((element) => !isInGutter(element)), board: board.elements, focus: board.focus, placements, getItem: (id) => items.get(id)?.item, atMs, isReducedMotion, area: getMarksArea(overlay, placements, rows), onLabelWithoutRoom: reports.onLabelWithoutRoom });
+      const flowTop = overlay.getBoundingClientRect().top;
+      const lastRowBottom = Math.max(0, ...rows.map((row) => (row?.getBoundingClientRect().bottom ?? flowTop) - flowTop));
+      const room = Math.max(0, Math.ceil(marks.getNotesBottom() - lastRowBottom));
+      writeStyle(roomForNotes, 'display', room > 0 ? '' : 'none');
+      writeStyle(roomForNotes, 'height', `${room}px`);
     },
     getPartBox(id: string, query: TermQuery): MarkBox | null {
       const placement = lastPlacements.get(id);

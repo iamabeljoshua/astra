@@ -1,9 +1,9 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { type ElementId, getBeatText, getCues, type SceneCommand, type StudentWork } from '@astra/contracts';
+import { type BoardProblemReport, type ElementId, getBeatText, getCues, type SceneCommand, type StudentWork } from '@astra/contracts';
 import { readKey } from '../../keys.ts';
 import { askPlanner } from '../../lesson-plan/ask-planner.ts';
 import { createLessonPlanner } from '../../lesson-plan/lesson-planner.ts';
@@ -25,6 +25,8 @@ interface GroupTurn {
   judge?: string;
   terms?: readonly string[];
   answer?: string;
+  /** Tells the tutor the page reported this about the first element of that kind on its board, before this turn. */
+  boardProblem?: { problem: BoardProblemReport['problem']; on: SceneCommand['kind'] };
 }
 
 function toStudentWork(work: GroupWork, brain: ReturnType<typeof createTutorBrain>): StudentWork {
@@ -93,6 +95,7 @@ const { values: args } = parseArgs({
     'min-share': { type: 'string', default: '1' },
     only: { type: 'string', default: '' },
     out: { type: 'string', default: '' },
+    transcript: { type: 'string', default: '' },
   },
 });
 
@@ -171,6 +174,12 @@ function recordCodeChecks(group: PromptGroup, turn: GroupTurn, summary: TurnSumm
   }
 }
 
+function noteBoardProblem(brain: ReturnType<typeof createTutorBrain>, { problem, on }: NonNullable<GroupTurn['boardProblem']>): void {
+  const element = [...brain.getBoard().state.elements.values()].find(({ content }) => content.kind === on);
+  if (!element) throw new Error(`the tutor drew no ${on}`);
+  brain.noteBoardProblem?.({ problem, subject: element.id });
+}
+
 interface RunContext {
   prompt: TutorPrompt;
   model: ReturnType<typeof makeAnthropicTutorModel>;
@@ -192,6 +201,7 @@ async function runGroup(group: PromptGroup, { prompt, model, askJudge }: RunCont
     if (work) console.log(`[${group.name}] ${JSON.stringify(work)} code says ${checked?.verdict.status}${checked?.closesTask ? ', done' : ''}`);
     if (turn.silent) continue;
     const text = work ? getWorkWords(work) : (turn.text as string);
+    if (turn.boardProblem) noteBoardProblem(brain, turn.boardProblem);
     for await (const beat of brain.reply({ text }, new AbortController().signal)) beats.push(beat);
     const summary = latest as unknown as TurnSummary;
     const commands = beats.flatMap((beat) => getCues(beat).map((cue) => cue.command));
@@ -201,6 +211,7 @@ async function runGroup(group: PromptGroup, { prompt, model, askJudge }: RunCont
     for (const call of summary.toolCalls) console.log(`     tool ${JSON.stringify(call)}`);
     if (traces.length > 0) console.log(`   traces: ${traces.join(' | ')}`);
     recordCodeChecks(group, turn, summary, commands);
+    if (args.transcript) appendFileSync(args.transcript, `${JSON.stringify({ group: group.name, text, spoken: summary.spokenText, commands, refused: traces.filter((trace) => trace.startsWith('commandRefused')) })}\n`);
     wordCounts.push(summary.spokenText.split(/\s+/).filter(Boolean).length);
     exchange.push(`Student: ${text}`, `Tutor: ${summary.spokenText}`);
     if (turn.judge) {

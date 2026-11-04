@@ -1,5 +1,6 @@
 /// <reference lib="dom" />
 import type { CDPSession, Page } from 'playwright';
+import type { DeckSurface } from './sweeps.ts';
 import { DARKER_SIDE_LIMIT, FLASH_AREA_PX, FLASH_LUMINANCE_CHANGE, getMostFlashesInASecond, type LuminanceChange } from '../../apps/web/src/lab/deck/flashes.ts';
 
 const SIZE = { width: 760, height: 752 };
@@ -43,7 +44,8 @@ interface ChangeLimits {
 
 // Decodes on the page, because that is the only image decoder the check has. Holds the last turning point there, and says when enough pixels have moved one way from it.
 async function readChange(page: Page, shots: CDPSession, limits: ChangeLimits): Promise<1 | -1 | 0> {
-  const { data: base64 } = await shots.send('Page.captureScreenshot', { format: 'jpeg', quality: SHOT_QUALITY, clip: { x: 0, y: 0, ...SIZE, scale: SHOT_SCALE } });
+  const box = await page.locator('[data-testid="board"]').boundingBox();
+  const { data: base64 } = await shots.send('Page.captureScreenshot', { format: 'jpeg', quality: SHOT_QUALITY, clip: { x: box?.x ?? 0, y: box?.y ?? 0, width: box?.width ?? SIZE.width, height: box?.height ?? SIZE.height, scale: SHOT_SCALE } });
   return page.evaluate(async ({ image, pixelsNeeded, depth, darkerSideLimit }) => {
     const bitmap = await createImageBitmap(await (await fetch(`data:image/jpeg;base64,${image}`)).blob());
     const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
@@ -72,7 +74,7 @@ async function readChange(page: Page, shots: CDPSession, limits: ChangeLimits): 
   }, { image: base64, ...limits });
 }
 
-export async function getFlashesInScene(page: Page, shots: CDPSession, { scene, lastCommandMs, frameMs = STROBE_FRAME_MS }: { scene: string; lastCommandMs: number; frameMs?: number }): Promise<{ flashes: number; frames: number }> {
+export async function getFlashesInScene(page: Page, shots: CDPSession, { scene, lastCommandMs, frameMs = STROBE_FRAME_MS, size = SIZE }: { scene: string; lastCommandMs: number; frameMs?: number; size?: { width: number; height: number } }): Promise<{ flashes: number; frames: number }> {
   const changes: LuminanceChange[] = [];
   const limits = { pixelsNeeded: Math.ceil(FLASH_AREA_PX * SHOT_SCALE * SHOT_SCALE), depth: FLASH_LUMINANCE_CHANGE, darkerSideLimit: DARKER_SIDE_LIMIT };
   let frames = 0;
@@ -81,7 +83,7 @@ export async function getFlashesInScene(page: Page, shots: CDPSession, { scene, 
   });
   for (let atMs = 0; atMs <= lastCommandMs + AFTER_LAST_COMMAND_MS; atMs += frameMs) {
     const moment = `${scene} ${atMs} ms`;
-    await withinLimit(page.evaluate((request) => window.boardDeck?.show(request), { scene, size: SIZE, atMs, mount: `flash|${scene}` }), moment);
+    await withinLimit(page.evaluate((request) => window.boardDeck?.show(request), { scene, size, atMs, mount: `flash|${scene}` }), moment);
     const direction = await withinLimit(readChange(page, shots, limits), moment);
     frames += 1;
     if (direction !== 0) changes.push({ atMs, direction });
@@ -90,7 +92,7 @@ export async function getFlashesInScene(page: Page, shots: CDPSession, { scene, 
 }
 
 /** Plays each scene frame by frame and counts what WCAG calls a flash, in both themes only for a strobe scene. */
-export async function runFlashCheck(page: Page, { isQuick }: { isQuick: boolean }, verdict: Verdict): Promise<void> {
+export async function runFlashCheck(page: Page, { isQuick, surface }: { isQuick: boolean; surface: DeckSurface }, verdict: Verdict): Promise<void> {
   const startedAtMs = Date.now();
   await page.setViewportSize(VIEWPORT);
   const shots = await page.context().newCDPSession(page);
@@ -103,7 +105,7 @@ export async function runFlashCheck(page: Page, { isQuick }: { isQuick: boolean 
     }, theme);
     for (const { name, moments } of scenes) {
       if (theme !== MOST_CONTRAST && !STROBES.test(name)) continue;
-      const seen = await getFlashesInScene(page, shots, { scene: name, lastCommandMs: Math.max(...moments.slice(0, -1)), frameMs: STROBES.test(name) ? STROBE_FRAME_MS : SPEAKING_PACE_FRAME_MS });
+      const seen = await getFlashesInScene(page, shots, { scene: name, lastCommandMs: Math.max(...moments.slice(0, -1)), frameMs: STROBES.test(name) ? STROBE_FRAME_MS : SPEAKING_PACE_FRAME_MS, size: surface === 'rows' ? VIEWPORT : SIZE });
       frames += seen.frames;
       if (seen.flashes > worst.flashes) worst = { flashes: seen.flashes, scene: name, theme };
       if (seen.flashes > MOST_FLASHES_IN_A_SECOND) verdict.failures.push(`${name} in ${theme} flashes ${seen.flashes} times in one second, and the limit is ${MOST_FLASHES_IN_A_SECOND}`);

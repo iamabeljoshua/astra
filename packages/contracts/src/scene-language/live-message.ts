@@ -90,12 +90,12 @@ export interface BrowserStamp {
   startedMsAgo: number;
 }
 
-/** What the page tells a live tutor about its board. The rest of the board's problems wait for the PR that lets a live tutor draw what causes them. */
-export const TOLD_BOARD_PROBLEMS = ['tooSmallToRead', 'labelWithoutRoom', 'imageMissing', 'sliderWithoutConstant'] as const;
+/** What the page tells a live tutor about its board, which the layout check leaves out of its defects because the tutor hears of it. A font that fell back has nothing a tutor can do about it, so it stays on the page. */
+export const TOLD_BOARD_PROBLEMS = ['tooSmallToRead', 'labelWithoutRoom', 'imageMissing', 'sliderWithoutConstant', 'sliderOverlaps', 'curveTooFine'] as const;
 
 export interface BoardProblemReport {
   problem: (typeof TOLD_BOARD_PROBLEMS)[number];
-  /** An element's id, a slider's id, or the words of a label with no room. */
+  /** An element's id, a curve's id, a slider's id, or the words of a label with no room. */
   subject: string;
 }
 

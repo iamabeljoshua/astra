@@ -34,7 +34,8 @@ export interface MarksFrame {
   getItem(id: string): BoardItem | undefined;
   atMs: number;
   isReducedMotion: boolean;
-  area: { width: number; height: number };
+  /** On rows, left and top reach past the column into the board's own padding, because a mark around a whole element needs that room. */
+  area: { left?: number; top?: number; width: number; height: number; alsoTaken?: readonly { left: number; top: number; right: number; bottom: number }[] };
   onLabelWithoutRoom(text: string): void;
 }
 
@@ -63,8 +64,8 @@ function keepMarkOnBoard(mark: AnnotationMark, box: MarkBox, placement: MovingPl
   if (placement.scale === 0) return box;
   const reach = getMarkReach(mark, box);
   const getOwnSpot = (onBoard: number, start: number) => (onBoard - start) / placement.scale;
-  const left = Math.max(box.x, getOwnSpot(BOARD_EDGE_ROOM, placement.x) + reach.left);
-  const top = Math.max(box.y, getOwnSpot(BOARD_EDGE_ROOM, placement.y) + reach.top);
+  const left = Math.max(box.x, getOwnSpot((area.left ?? 0) + BOARD_EDGE_ROOM, placement.x) + reach.left);
+  const top = Math.max(box.y, getOwnSpot((area.top ?? 0) + BOARD_EDGE_ROOM, placement.y) + reach.top);
   const right = Math.min(box.x + box.width, getOwnSpot(area.width - BOARD_EDGE_ROOM, placement.x) - reach.right);
   const bottom = Math.min(box.y + box.height, getOwnSpot(area.height - BOARD_EDGE_ROOM, placement.y) - reach.bottom);
   return { x: left, y: top, width: Math.max(0, right - left), height: Math.max(0, bottom - top) };
@@ -98,7 +99,7 @@ function getBoxOnBoard(box: MarkBox, { placement, move }: { placement: MovingPla
 }
 
 function getNoteMarks(requests: readonly LabelRequest[], frame: MarksFrame, linesToClear: readonly Branch[]): FigureMark[] {
-  const mustAvoid = [...frame.placements.values()].filter((placement) => placement.isVisible).map(({ x, y, width, height }) => ({ left: x, top: y, right: x + width, bottom: y + height }));
+  const mustAvoid = [...[...frame.placements.values()].filter((placement) => placement.isVisible).map(({ x, y, width, height }) => ({ left: x, top: y, right: x + width, bottom: y + height })), ...(frame.area.alsoTaken ?? [])];
   return placeLabels(requests, { bounds: { left: 0, top: 0, right: frame.area.width, bottom: frame.area.height }, mustAvoid, shouldAvoid: [], linesToClear, onNoRoom: frame.onLabelWithoutRoom });
 }
 
@@ -186,6 +187,10 @@ export function createBoardMarks(overlay: SVGSVGElement, onMarkWithoutTarget?: (
   };
 
   return {
+    getNotesBottom() {
+      const { bottom, height } = noteGroup.getBoundingClientRect();
+      return height > 0 ? bottom - overlay.getBoundingClientRect().top : 0;
+    },
     reportMarkWithoutPart: (mark: BoardElement) => reportIfNeverDrawn(mark, mark.content as ReportedContent),
     noteMarkDrawn: (mark: BoardElement) => drawnOnce.add(getPlacementKey(mark)),
     paint(frame: MarksFrame) {
