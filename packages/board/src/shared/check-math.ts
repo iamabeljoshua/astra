@@ -1,4 +1,4 @@
-import { getMathParts, getTexTokens, type WorkVerdict } from '@astra/contracts';
+import { getMathParts, getTexTokens, type MathClaim, type WorkVerdict } from '@astra/contracts';
 import { areSameFraction, type Fraction, getNumberValue, isPolynomial, type NumberValue, subtractFractions, toFloatValue, toFraction } from './math/math-value.ts';
 import { getLetters, type MathExpression, parseMath } from './math/parse-math.ts';
 import { areProportional, divides, getCoefficient, getCommonDivisor, getDegree, getLinearRoot, getWithSingleRoots, type OneLetterPolynomial, toOneLetter } from './math/polynomial.ts';
@@ -252,4 +252,10 @@ export function checkMathStep(beforeTex: string, afterTex: string): MathVerdict 
   if (lineVerdict.status === 'wrong') return lineVerdict;
   const rewriteVerdict = before && after ? checkRewrite(before, after) : UNKNOWN;
   return rewriteVerdict.status === 'unknown' ? lineVerdict : rewriteVerdict;
+}
+
+// A line that follows another need not follow from it, as a derivative, a new problem, and a student's wrong line all show, so code judges only what the line says it is. No claim means no check.
+export function checkClaimedMath(claim: MathClaim | undefined, before: string | undefined, tex: string): MathVerdict {
+  if (claim === 'step') return before === undefined ? checkMathLine(tex) : checkMathStep(before, tex);
+  return claim === 'new' ? checkMathLine(tex) : UNKNOWN;
 }

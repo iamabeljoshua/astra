@@ -143,25 +143,24 @@ describe('when the model stalls', () => {
 
 describe('when the math is wrong', () => {
   it('stops before the false words, corrects itself, and draws only what holds', async () => {
-    const { brain, model } = setup((_request, attempt) => (attempt === 1 ? reply('So then, ', '{"kind":"writeMath","id":"bad","tex":"2 + 2 = 5"}', 'two plus two is five.') : reply('That was wrong. ', '{"kind":"writeMath","id":"good","tex":"2 + 2 = 4"}', 'It makes four.')));
+    const { brain, model } = setup((_request, attempt) => (attempt === 1 ? reply('So then, ', '{"kind":"writeMath","id":"bad","tex":"2 + 2 = 5","claim":"new"}', 'two plus two is five.') : reply('That was wrong. ', '{"kind":"writeMath","id":"good","tex":"2 + 2 = 4","claim":"new"}', 'It makes four.')));
     const beats = await collect(brain, 'add them');
     expect(say(beats)).not.toContain('five');
-    expect(commandsOf(beats)).toEqual([{ kind: 'writeMath', id: 'good', tex: '2 + 2 = 4' }]);
-    expect(SPOKEN_LINES.checkingMath.some((line) => say(beats).includes(line))).toBe(true);
+    expect(commandsOf(beats)).toEqual([{ kind: 'writeMath', id: 'good', tex: '2 + 2 = 4', claim: 'new' }]);
     expect(JSON.stringify(lastSystemNote(model.requests[1])?.correction)).toContain('2 + 2 is 4, not 5');
   });
 
-  it('says it cannot back the step up when the second try is also false', async () => {
-    const { brain } = setup(() => reply('{"kind":"writeMath","id":"bad","tex":"2 + 2 = 5"}', 'Two plus two is five.'));
+  it('turns back to the student when the second try is also false', async () => {
+    const { brain } = setup(() => reply('{"kind":"writeMath","id":"bad","tex":"2 + 2 = 5","claim":"new"}', 'Two plus two is five.'));
     const beats = await collect(brain, 'add them');
     expect(say(beats)).not.toContain('five');
-    expect(SPOKEN_LINES.mathStillWrong).toContain(getBeatText(beats.at(-1) as Beat));
+    expect(SPOKEN_LINES.mathDropped).toContain(getBeatText(beats.at(-1) as Beat));
   });
 
   it('checks a rewrite against the line it replaces', async () => {
     const { brain, model } = setup((_request, attempt) => {
-      if (attempt === 1) return reply('Okay, ', '{"kind":"writeMath","id":"steps","tex":"2x + 3 = 11"}', 'here it is.');
-      return attempt === 2 ? reply('Then, ', '{"kind":"transformMath","target":"steps","tex":"2x = 14"}', 'two x is fourteen.') : reply('Sorry, two x is eight.');
+      if (attempt === 1) return reply('Okay, ', '{"kind":"writeMath","id":"steps","tex":"2x + 3 = 11","claim":"new"}', 'here it is.');
+      return attempt === 2 ? reply('Then, ', '{"kind":"transformMath","target":"steps","tex":"2x = 14","claim":"step"}', 'two x is fourteen.') : reply('Sorry, two x is eight.');
     });
     await collect(brain, 'one');
     const beats = await collect(brain, 'two');

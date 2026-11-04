@@ -1,7 +1,7 @@
 import { type BoardKinds, type ElementId, findMathSpans, getBoardAfter, isStudentLineId, type SceneCommand, type StudentWork, type WorkVerdict } from '@astra/contracts';
 import { canRenderTex } from '@astra/board/tex-check';
 import type { CommandVerdict } from './beat-text-reader.ts';
-import { type CheckedWork, checkMathLine, checkMathStep, checkStep, getLinearAnswer, getLineTex, isFinishedAnswer, type MathVerdict } from '@astra/board/shared';
+import { type CheckedWork, checkClaimedMath, checkStep, getLinearAnswer, getLineTex, isFinishedAnswer, type MathVerdict } from '@astra/board/shared';
 
 /** The problem the student is working on, and how many times they have come back since it was set. */
 export interface OpenTask {
@@ -13,6 +13,9 @@ export interface OpenTask {
 export interface BoardMemory {
   kinds: BoardKinds;
   lines: ReadonlyMap<string, string>;
+  /** Lines written only to look at, which no later line can follow from. */
+  shownLines: ReadonlySet<string>;
+  lastAssertedLine: string | null;
   /** What code said about each piece of the student's work, so a mark can never contradict it. */
   verdicts: ReadonlyMap<string, WorkVerdict['status']>;
   openTask: OpenTask | null;
@@ -22,7 +25,7 @@ export interface BoardMemory {
   isLatestWorkWrong: boolean;
 }
 
-export const EMPTY_BOARD: BoardMemory = { kinds: new Map(), lines: new Map(), verdicts: new Map(), openTask: null, doneTasks: new Set(), isLatestWorkWrong: false };
+export const EMPTY_BOARD: BoardMemory = { kinds: new Map(), lines: new Map(), shownLines: new Set(), lastAssertedLine: null, verdicts: new Map(), openTask: null, doneTasks: new Set(), isLatestWorkWrong: false };
 
 export const DRAWN_KINDS: ReadonlySet<SceneCommand['kind']> = new Set(['writeMath', 'transformMath', 'highlight', 'text', 'hide', 'clearBoard', 'focus', 'simulate', 'runSimulation', 'vector', 'annotate', 'note', 'tangent', 'task']);
 
@@ -63,6 +66,11 @@ function isAnswerTooEarly(tex: string, { openTask }: BoardMemory): boolean {
   return checkStep({ tex, problemTex: openTask.problemTex, previousTex: null }).status === 'right';
 }
 
+const getLineBefore = (command: SceneCommand & { kind: 'writeMath' | 'transformMath' }, { lines, shownLines, lastAssertedLine }: BoardMemory) => {
+  if (command.kind === 'writeMath') return lastAssertedLine === null ? undefined : lines.get(lastAssertedLine);
+  return shownLines.has(command.target) ? undefined : lines.get(command.target);
+};
+
 export function checkAgainstBoard(command: SceneCommand, memory: BoardMemory): CommandVerdict {
   const { lines } = memory;
   if (hasTooManyMarksInARow(JSON.stringify(command))) return refuse('too many combining marks in a row');
@@ -75,23 +83,13 @@ export function checkAgainstBoard(command: SceneCommand, memory: BoardMemory): C
   if (command.kind === 'writeMath' || command.kind === 'transformMath') {
     if (!canRenderTex(command.tex)) return refuse(`the math cannot be set: ${command.tex}`);
     if (isAnswerTooEarly(command.tex, memory)) return refuse('the student has not had a real try yet, so the answer stays theirs to write');
-    const before = command.kind === 'transformMath' ? lines.get(command.target) : undefined;
-    return toVerdict(before === undefined ? checkMathLine(command.tex) : checkMathStep(before, command.tex));
+    return toVerdict(checkClaimedMath(command.claim, getLineBefore(command, memory), command.tex));
   }
   if (command.kind === 'highlight' && command.tex !== undefined) {
     const line = lines.get(command.target);
     if (line !== undefined && findMathSpans(line, command.tex).length === 0) return refuse(`${command.tex} is not on line ${command.target}`);
   }
   return ok;
-}
-
-function getLinesAfter(command: SceneCommand, lines: ReadonlyMap<string, string>): ReadonlyMap<string, string> {
-  if (command.kind === 'clearBoard') return new Map();
-  const after = new Map(lines);
-  if (command.kind === 'hide') after.delete(command.target);
-  if (command.kind === 'writeMath') after.set(command.id, command.tex);
-  if (command.kind === 'transformMath') after.set(command.target, command.tex);
-  return after;
 }
 
 function getOpenTaskAfter(command: SceneCommand, { openTask, lines, doneTasks }: BoardMemory): OpenTask | null {
@@ -102,7 +100,26 @@ function getOpenTaskAfter(command: SceneCommand, { openTask, lines, doneTasks }:
 }
 
 export function getMemoryAfter(command: SceneCommand, memory: BoardMemory): BoardMemory {
-  return { ...memory, kinds: getBoardAfter(command, memory.kinds), lines: getLinesAfter(command, memory.lines), openTask: getOpenTaskAfter(command, memory), verdicts: command.kind === 'clearBoard' ? new Map() : memory.verdicts };
+  const kinds = getBoardAfter(command, memory.kinds);
+  if (command.kind === 'clearBoard') return { ...EMPTY_BOARD, kinds, doneTasks: memory.doneTasks };
+  const lines = new Map(memory.lines);
+  const shownLines = new Set(memory.shownLines);
+  let { lastAssertedLine } = memory;
+  if (command.kind === 'hide') {
+    lines.delete(command.target);
+    shownLines.delete(command.target);
+  }
+  if (command.kind === 'writeMath' || command.kind === 'transformMath') {
+    const lineId = command.kind === 'writeMath' ? command.id : command.target;
+    lines.set(lineId, command.tex);
+    if (command.claim === 'shown') {
+      shownLines.add(lineId);
+    } else {
+      shownLines.delete(lineId);
+      lastAssertedLine = lineId;
+    }
+  }
+  return { ...memory, kinds, lines, shownLines, lastAssertedLine, openTask: getOpenTaskAfter(command, memory) };
 }
 
 /** A new turn means the student came back, whether by typing, working, or speaking. */

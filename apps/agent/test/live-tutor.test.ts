@@ -279,3 +279,51 @@ describe('an interrupted request', () => {
     expect(summaries).toHaveLength(1);
   });
 });
+
+describe('a reply in short stretches', () => {
+  const FIRST = 'Okay, plants make food from light, water and air.';
+  const SECOND = 'The leaf is where all of it happens every day.';
+  const spokenWords = (messages: readonly AgentMessage[]) => messages.flatMap((message) => (message.type === 'words' ? message.words.map((word) => word.text) : [])).join(' ');
+  const replyTurns = (notes: ReturnType<typeof setup>['notes']) => notes.filter((note) => note.name === 'turnStarted' && note.fields.kind === 'reply');
+  const firstStretchDone = async (notes: ReturnType<typeof setup>['notes']) => {
+    for (let waited = 0; waited < 6000 && !notes.some((note) => note.name === 'turnFinished' && note.fields.kind === 'reply'); waited += 10) await delay(10);
+  };
+
+  it('speaks each stretch as its own turn, with a breath the line can show', async () => {
+    const { session, notes, messages } = setup(() => ({ pieces: [`${FIRST}\n${SECOND}`] }));
+    session.onBrowser(typed('what is photosynthesis'));
+    await firstStretchDone(notes);
+    const stretchEndedAtMs = performance.now();
+    for (let waited = 0; waited < 8000 && replyTurns(notes).length < 2; waited += 10) await delay(10);
+    expect(replyTurns(notes)).toHaveLength(2);
+    expect((replyTurns(notes)[1]?.atMs as number) - stretchEndedAtMs).toBeGreaterThanOrEqual(200);
+    await delay(2500);
+    expect(spokenWords(messages)).toContain('leaf');
+    await session.close();
+  });
+
+  it('lets a typed message in the breath replace the next stretch, which the next request knows was not heard', async () => {
+    const { session, notes, messages, model } = setup(() => ({ pieces: [`${FIRST}\n${SECOND}`] }));
+    session.onBrowser(typed('what is photosynthesis'));
+    await firstStretchDone(notes);
+    session.onBrowser(typed('wait, what about roots'));
+    await delay(1500);
+    expect(model.requests).toHaveLength(2);
+    expect(JSON.stringify(model.requests[1]?.turns.filter((turn) => turn.role === 'system'))).toMatch(/not_heard[^}]*leaf/);
+    expect(messages.filter((message) => message.type === 'words').length).toBeGreaterThan(0);
+    await session.close();
+  });
+
+  it('holds the next stretch while the student is talking, and carries on when it was only a noise', async () => {
+    const { session, notes } = setup(() => ({ pieces: [`${FIRST}\n${SECOND}`] }));
+    session.onBrowser(typed('what is photosynthesis'));
+    await firstStretchDone(notes);
+    session.onEars({ type: 'voiceStarted' });
+    await delay(700);
+    expect(replyTurns(notes)).toHaveLength(1);
+    session.onEars({ type: 'voiceEnded' });
+    for (let waited = 0; waited < 6000 && replyTurns(notes).length < 2; waited += 10) await delay(10);
+    expect(replyTurns(notes)).toHaveLength(2);
+    await session.close();
+  });
+});

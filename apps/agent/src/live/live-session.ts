@@ -8,7 +8,7 @@ import { createMessageGate } from './message-gate.ts';
 import { createSessionLog } from './session-log.ts';
 import { createTypedGate } from './typed-gate.ts';
 import { type SpokenTurn, speakTurn, type TurnMessenger } from './speak-turn.ts';
-import type { TutorBrain } from '../tutor/brain.ts';
+import type { TutorBeat, TutorBrain } from '../tutor/brain.ts';
 import { createBoardWork } from '../tutor/watcher/board-work.ts';
 import type { WordMeaning } from '../tutor/watcher/watch-rule.ts';
 import { getNextTurnState, INITIAL_TURN_STATE, type TimerName, type TurnAction, type TurnEvent, type TurnState } from './turn-rule.ts';
@@ -59,41 +59,49 @@ interface Speaking {
 
 interface Thought {
   controller: AbortController;
-  iterator: AsyncIterator<Beat>;
-  /** Beats a stopped turn had taken and never spoke, kept for a resume. */
-  unspoken: Beat[];
+  iterator: AsyncIterator<TutorBeat>;
+  /** Beats a stopped turn had taken and never spoke, kept for a resume, and the next stretch's first beat while the last one plays out. */
+  unspoken: TutorBeat[];
   /** The one read of the brain in progress. A resume takes it over, because a second read would queue behind it and let its beat go to a stopped turn. */
   reading: Promise<IteratorResult<Beat>> | null;
   latestReader: number;
 }
 
-async function* readThought(thought: Thought | null): AsyncGenerator<Beat> {
+// Stops at a beat that starts a new stretch, so each stretch is its own turn on the line, with a breath the student can speak into.
+async function* readThought(thought: Thought | null, hasStartedStretch = false): AsyncGenerator<TutorBeat> {
   if (!thought) return;
   const reader = (thought.latestReader += 1);
+  let isInStretch = hasStartedStretch;
   for (;;) {
-    const unspoken = thought.unspoken.shift();
-    if (unspoken) {
-      yield unspoken;
-      continue;
+    let beat = thought.unspoken.shift();
+    if (!beat) {
+      thought.reading ??= thought.iterator.next();
+      const { done, value } = await thought.reading;
+      if (reader !== thought.latestReader) return;
+      thought.reading = null;
+      if (done) return;
+      beat = value;
     }
-    thought.reading ??= thought.iterator.next();
-    const { done, value } = await thought.reading;
-    if (reader !== thought.latestReader) return;
-    thought.reading = null;
-    if (done) return;
-    yield value;
+    if (isInStretch && beat.pauseBeforeMs !== undefined) {
+      thought.unspoken.unshift(beat);
+      return;
+    }
+    isInStretch = true;
+    yield beat;
   }
 }
 
 async function* getResumedThen(resumed: readonly Beat[], thought: Thought | null): AsyncGenerator<Beat> {
   yield* resumed;
-  yield* readThought(thought);
+  yield* readThought(thought, resumed.length > 0);
 }
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** A real frozen tab comes back once, and a forged report would otherwise cut and resume the voice on every message. */
 const FEWEST_MS_BETWEEN_FREEZES = 5000;
+/** How often a breath checks whether a student who started talking has stopped. */
+const BREATH_RECHECK_MS = 150;
 
 // Wires what the student does to what the tutor says. The rule decides, this runs its actions, and the voice line keeps every turn apart.
 export function createLiveSession({ messenger, line, voice, tutor, takes, allTakes, setTurnCap, getNowMs = getSteadyNowMs, trace = () => {}, readMeaning = async () => null }: LiveSessionOptions): LiveSession {
@@ -121,6 +129,8 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
   let hasGreeted = false;
   let voiceStall: ReturnType<typeof setTimeout> | undefined;
   let questionHeardAtMs: number | null = null;
+  let breathTimer: ReturnType<typeof setTimeout> | undefined;
+  let stretchBeforeBreath: Speaking | null = null;
 
   let isThinking = false;
   const setThinking = (next: boolean) => {
@@ -177,8 +187,12 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     if (speaking === reply) {
       setThinking(false);
       reply = null;
-      dropThought();
-      sendClosedNote();
+      if (thought && thought.unspoken.length > 0) {
+        takeBreath(speaking, thought);
+      } else {
+        dropThought();
+        sendClosedNote();
+      }
     }
     if (reaction || reply) {
       if (reply && !reply.hasSound && !reaction) dispatch({ type: 'tutorThinking' });
@@ -211,7 +225,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
         beats,
         getNowMs,
         // The voice cannot be late before it has words, so a slow model is never read as a failed voice.
-        onBeatUnspoken: (beat) => void ownThought?.unspoken.push(beat),
+        onBeatUnspoken: (beat) => void ownThought?.unspoken.unshift(beat),
         onBeatStarted(beat) {
           speakingBeats.push(beat);
           if (isReply && speakingBeats.length === 1) setThinking(false);
@@ -283,8 +297,28 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     hasGreeted = true;
   };
 
+  function takeBreath(after: Speaking, waiting: Thought): void {
+    stretchBeforeBreath = after;
+    breathTimer = setTimeout(() => speakNextStretch(waiting), waiting.unspoken[0]?.pauseBeforeMs ?? 0);
+  }
+
+  // A student who has started talking holds the next idea, and if they say real words, their reply replaces it. A cough or an "mm" lets it carry on.
+  function speakNextStretch(waiting: Thought): void {
+    if (waiting !== thought) return;
+    if (state.phase !== 'clear' || state.isVoiceOn || state.partial !== '' || reply || reaction) {
+      breathTimer = setTimeout(() => speakNextStretch(waiting), BREATH_RECHECK_MS);
+      return;
+    }
+    stretchBeforeBreath = null;
+    reply = speak({ voiceToUse: voice, beats: readThought(waiting), isReply: true, canResume: true, kind: 'reply' });
+  }
+
   // Aborting alone leaves a brain parked at its yield, and its turn would never finish, reach history, or be charged.
   function dropThought(): void {
+    clearTimeout(breathTimer);
+    // Dropped during a breath, so the brain must not count the stretches still to come as heard.
+    if (stretchBeforeBreath) tutor.noteCut?.(stretchBeforeBreath.spoken.getWordsSent());
+    stretchBeforeBreath = null;
     if (!thought) return;
     thought.controller.abort();
     void thought.iterator.return?.(undefined).catch((error: unknown) => trace('thoughtFailed', { problem: String(error) }));

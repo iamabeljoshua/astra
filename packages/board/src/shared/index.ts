@@ -1,4 +1,4 @@
-export { checkMathLine, checkMathStep, type MathVerdict } from './check-math.ts';
+export { checkClaimedMath, checkMathLine, checkMathStep, type MathVerdict } from './check-math.ts';
 export { checkStep, getLinearAnswer, isFinishedAnswer, type StepInput } from './check-step.ts';
 export { checkWork, type CheckedWork, getCurveOf, getPointFacts, type PointFacts, type WorkContext } from './check-work.ts';
 export { cleanStudentText, getLineTex, plainToTex, readLine } from './read-line.ts';

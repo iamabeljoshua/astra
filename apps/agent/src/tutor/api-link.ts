@@ -1,6 +1,8 @@
 import type { StudentProfile } from './brain.ts';
 
 const ROOM_PREFIX = 'session-';
+/** A room may carry a suffix after the session's uuid, so only this many characters name the session. */
+const SESSION_ID_LENGTH = 36;
 const REQUEST_TIMEOUT_MS = 3000;
 
 export interface ApiLinkOptions {
@@ -17,7 +19,7 @@ export interface ApiLink {
 
 // The student's level, interests, and goal come straight from the API, so they never pass through the room service.
 export function createApiLink({ apiUrl, agentKey, roomName }: ApiLinkOptions): ApiLink {
-  const sessionId = roomName.slice(ROOM_PREFIX.length);
+  const sessionId = roomName.slice(ROOM_PREFIX.length, ROOM_PREFIX.length + SESSION_ID_LENGTH);
   const call = async (path: string, init: RequestInit = {}): Promise<unknown> => {
     const response = await fetch(`${apiUrl}/agent/sessions/${sessionId}/${path}`, { ...init, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS), headers: { authorization: `Bearer ${agentKey}`, 'content-type': 'application/json' } });
     if (!response.ok) throw new Error(`The API answered ${response.status} to ${path}`);

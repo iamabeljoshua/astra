@@ -3,17 +3,20 @@ export const SPOKEN_LINES = {
   stillThere: ['Still with you, nearly there.', 'Bear with me a moment.', 'Sorry, this is taking a little longer.'],
   couldNotReply: ["I can't reach my notes right now. Ask me again in a moment?", "Something's slow on my side. Could you ask that again?", "I lost my connection for a moment. Would you ask me again?"],
   lostThread: ['Sorry, I lost my thread for a second.', 'Hold on, I lost my place.', 'Sorry, let me pick that back up.'],
-  checkingMath: ['Hold on, let me check that.', 'Wait, that step needs checking.', "One second, I don't trust that line."],
-  mathStillWrong: ["I can't back that step up yet, so I won't guess. What do you get if you try it?", "I'm not sure of that step, so let's not trust it. Can you work it through with me?"],
+  checkingMath: ['Hold on, let me check that.'],
+  mathDropped: ["Let's work this next bit out together. What would you try first?", "Let's do this next part together. What do you think comes next?"],
   refused: [
     "I can't go into that here, and you haven't done anything wrong by asking. If anything is worrying you, or you don't feel safe, please tell an adult you trust, or call your local emergency number. What would you like to do next?",
     "That's one I can't talk about here, and that's down to me, not you. If anything is worrying you, or you don't feel safe, please tell an adult you trust, or call your local emergency number. What would you like to do next?",
   ],
   refusedAfterWords: ["I have to stop there, and that's down to me, not you. If anything is worrying you, or you don't feel safe, please tell an adult you trust, or call your local emergency number. What would you like to do next?"],
+  refusedPlain: ["I can't go into that one here, and you haven't done anything wrong by asking. What else are you working on?", "That one's not something I can help with here, and that's down to me, not you. What else are you working on?"],
+  refusedPlainAfterWords: ["I have to stop there on that one, and that's down to me, not you. What else are you working on?"],
+  askedHowDeclined: ["Let's come at that a different way. Which part do you want to go through first?"],
   cutShort: ["That's a lot at once, so I'll stop there. What do you make of it so far?"],
   notHeard: ["I didn't catch any words in that. Could you try again?"],
   sessionLimit: ["That's as far as I can go in this session. Please start a new session to carry on."],
-  dailyLimit: ["That's all the tutor time for today. Please come back tomorrow."],
+  dailyLimit: ["That's all the tutor time for now. It resets once a day, so please try again later."],
   broken: ["Something's gone wrong on my side, and I can't fix it from here. Please start a new session to carry on."],
 } as const;
 
