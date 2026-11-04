@@ -5,7 +5,6 @@ import { PublicRoute } from '../auth/route-access';
 import { AddSafetyFlagBodyDto } from './safety.dto';
 import { SafetyService } from './safety.service';
 
-// No browser calls this, so it stays out of the API document and the generated types.
 @PublicRoute()
 @ApiExcludeController()
 @UseGuards(AgentKeyGuard)

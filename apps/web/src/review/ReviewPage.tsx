@@ -8,11 +8,12 @@ const NOT_FOUND_STATUS = 404;
 
 const formatTime = (time: string) => new Date(time).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 
+const isHiddenFromThisUser = (error: unknown) => error instanceof ApiError && error.status === NOT_FOUND_STATUS;
+
 export function ReviewPage() {
   const { data: flags, error } = useReviewFlags();
 
-  // The API answers anyone not named as if the route did not exist, so the page does what any unknown path does.
-  if (error instanceof ApiError && error.status === NOT_FOUND_STATUS) return <Navigate to="/" replace />;
+  if (isHiddenFromThisUser(error)) return <Navigate to="/" replace />;
   if (error) return <p role="alert" className="stop-note">{error instanceof ApiError ? API_ERROR_LABELS[error.kind] : REVIEW_LABELS.failed}</p>;
   if (!flags) return null;
 

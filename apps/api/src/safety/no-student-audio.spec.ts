@@ -8,7 +8,6 @@ const WRITES_A_FILE = /\b(writeFile|writeFileSync|appendFile|appendFileSync|crea
 const READS_THE_MICROPHONE = /RemoteAudioTrack|RemoteTrack|AudioStream|inputAudio|\bstt\./;
 const STARTS_A_RECORDING = /EgressClient|startRoomCompositeEgress|startTrackEgress|startParticipantEgress/;
 
-// Every server file that writes to disk, and what it writes. The store keeps the tutor's audio on purpose, so this check is about students' audio only.
 const FILE_WRITERS: Record<string, string> = {
   'apps/agent/src/live/worker.ts': 'a timing trace, only when a test asks for one, no audio',
   'apps/agent/src/scenes/lesson/voice-takes.ts': "the tutor's voice from text to speech, never a student's",
@@ -30,7 +29,7 @@ function listServerSources(): string[] {
 
 const readSource = (path: string) => readFileSync(join(REPOSITORY_ROOT, path), 'utf8');
 
-describe("students' audio", () => {
+describe("students' audio, and not the tutor's, which the store keeps on purpose", () => {
   it('reaches no new file writer: each one that runs for a student is named, with what it writes', () => {
     const writers = listServerSources().filter((path) => WRITES_A_FILE.test(readSource(path)));
 

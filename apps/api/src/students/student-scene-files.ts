@@ -17,7 +17,11 @@ interface StudentSceneFiles extends SceneStorePaths {
   studentId: string;
 }
 
-// The same defaults the agent writes to, because the store is its files and the deleting is ours.
+interface StoredRecord {
+  ownerId?: string | null;
+  key?: { ownerId?: string | null };
+}
+
 export function getSceneStorePaths(env: NodeJS.ProcessEnv): SceneStorePaths {
   const storeRoot = env.SCENE_STORE_DIR ?? join(REPOSITORY_ROOT, '.scene-store');
   return { storeRoot, spendLedgerPath: env.LESSON_SPEND_FILE ?? join(storeRoot, SPEND_LEDGER_FILE) };
@@ -27,10 +31,12 @@ function listFolder(folder: string): string[] {
   return existsSync(folder) ? readdirSync(folder) : [];
 }
 
-// A damaged record cannot say who owns it, so it reads as nobody's.
-function readRecord(path: string): { ownerId?: string | null; key?: { ownerId?: string | null } } | null {
+// Damaged text cannot name an owner. A record that cannot be read at all fails the delete, so nothing claims it is gone.
+function readRecord(path: string): StoredRecord | null {
+  if (!existsSync(path)) return null;
+  const text = readFileSync(path, 'utf8');
   try {
-    return JSON.parse(readFileSync(path, 'utf8')) as { ownerId?: string | null };
+    return JSON.parse(text) as StoredRecord;
   } catch {
     return null;
   }
@@ -70,7 +76,6 @@ function removeLedgerLines(spendLedgerPath: string, studentId: string): void {
   renameSync(partPath, spendLedgerPath);
 }
 
-// What docs/tests/scenes.md lists for one student. The agent can still be writing, so a live lesson should end before this runs.
 export async function removeStudentSceneFiles({ storeRoot, spendLedgerPath, studentId }: StudentSceneFiles): Promise<void> {
   const owned = [
     ...findOwnedSceneFolders(storeRoot, studentId),

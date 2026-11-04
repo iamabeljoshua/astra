@@ -3,7 +3,6 @@ import { AuthTraceRepository } from '../infrastructure/orm/repositories/auth-tra
 import { AUTH_ADMIN } from './auth-admin';
 import type { AuthAdmin } from './auth-admin';
 
-// Safe to repeat: a user already gone counts as deleted, and traces already gone delete nothing.
 @Injectable()
 export class AuthAccountEraser {
   private readonly logger = new Logger(AuthAccountEraser.name);

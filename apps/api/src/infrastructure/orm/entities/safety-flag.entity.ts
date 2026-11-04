@@ -4,7 +4,6 @@ import type { SafetyFlagKind, SafetyFlagSource } from '../../../safety/safety-fl
 import { SessionEntity } from './session.entity';
 import { StudentEntity } from './student.entity';
 
-// A flag holds no words. The privacy page promises we do not store what a student says, so this table has no text a person could type into.
 @Entity('safety_flags')
 @Index(['createdAt'])
 export class SafetyFlagEntity {

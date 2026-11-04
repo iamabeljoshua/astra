@@ -100,12 +100,13 @@ export function signInAs(authUserId: string): SignIn {
 
 const SUPABASE_AUTH_SCHEMA = join(__dirname, 'fixtures/supabase-auth-schema.sql');
 
-// Gives a test database Auth's real tables and cascades, and makes the fake admin API delete from them as Auth does.
 export async function addSupabaseAuthTables({ app, supabaseAuth }: TestApp): Promise<DataSource> {
   const dataSource = app.get(DataSource);
   await dataSource.query(readFileSync(SUPABASE_AUTH_SCHEMA, 'utf8'));
   supabaseAuth.onDeleteUser = async (authUserId) => {
-    await dataSource.query('DELETE FROM auth.users WHERE id = $1', [authUserId]);
+    const [user] = await dataSource.query('DELETE FROM auth.users WHERE id = $1 RETURNING email', [authUserId]).then(([rows]) => rows as { email: string }[]);
+    const traits = { user_id: authUserId, user_email: user?.email, user_phone: '' };
+    await dataSource.query('INSERT INTO auth.audit_log_entries (id, payload) VALUES (gen_random_uuid(), $1)', [{ action: 'user_deleted', actor_username: 'service_role', log_type: 'team', traits }]);
   };
   return dataSource;
 }
@@ -121,7 +122,6 @@ export async function addAuthUser(dataSource: DataSource, { authUserId, email }:
   await dataSource.query(`INSERT INTO auth.flow_state (id, user_id, code_challenge_method, code_challenge, provider_type, authentication_method) VALUES (gen_random_uuid(), $1, 'plain', 'challenge', 'email', 'otp')`, [authUserId]);
 }
 
-// Reads every row of every Auth table as text, so a table Supabase adds later is still searched.
 export async function findAuthTablesHolding(dataSource: DataSource, text: string): Promise<string[]> {
   const tables: { table_name: string }[] = await dataSource.query(`SELECT table_name FROM information_schema.tables WHERE table_schema = 'auth' AND table_type = 'BASE TABLE'`);
   const holding: string[] = [];

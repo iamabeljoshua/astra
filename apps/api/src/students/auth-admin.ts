@@ -25,7 +25,6 @@ function createSupabaseAuthAdmin(supabaseUrl: string, secretKey: string): AuthAd
   };
 }
 
-// Production cannot run without the key, because a closed or deleted account would stay in Auth. A local stack can, and says so in its log.
 export function createAuthAdmin(env: NodeJS.ProcessEnv): AuthAdmin | null {
   if (env.SUPABASE_SECRET_KEY) return createSupabaseAuthAdmin(getSupabaseUrl(env), env.SUPABASE_SECRET_KEY);
   if (env.NODE_ENV === 'production') throw new Error('SUPABASE_SECRET_KEY is not set. The API needs it to delete accounts from Auth.');

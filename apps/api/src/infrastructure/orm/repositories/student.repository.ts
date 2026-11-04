@@ -71,7 +71,6 @@ export class StudentRepository {
     return this.dataSource.manager.existsBy(ClosedAddressHashEntity, { addressHash });
   }
 
-  // Once Auth has no trace of the account, the hash alone keeps the address out.
   async forgetClosedAccount(authUserId: string): Promise<void> {
     await this.dataSource.manager.delete(ClosedAccountEntity, { authUserId });
   }
@@ -85,7 +84,6 @@ export class StudentRepository {
     return student?.id ?? null;
   }
 
-  // Every table with a student_id cascades from students, and delete-student.spec.ts fails on one that does not.
   deleteStudent({ studentId, authUserId }: { studentId: string; authUserId: string }): Promise<void> {
     return this.dataSource.transaction(async (manager) => {
       await manager.update(SafetyFlagEntity, { reviewedBy: authUserId }, { reviewedBy: null });

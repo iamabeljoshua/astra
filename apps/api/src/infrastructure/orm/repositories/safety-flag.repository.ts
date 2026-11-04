@@ -28,7 +28,6 @@ export class SafetyFlagRepository {
       .getMany();
   }
 
-  // The first person to review a flag stays on the record, so a second click changes nothing.
   async markReviewed({ flagId, reviewerId }: { flagId: string; reviewerId: string }): Promise<SafetyFlagEntity | null> {
     await this.flags.update({ id: flagId, reviewedAt: IsNull() }, { reviewedAt: new Date(), reviewedBy: reviewerId });
     return this.flags.findOneBy({ id: flagId });

@@ -50,14 +50,14 @@ export class StudentsService {
   ) {}
 
   async getAccount(signIn: SignIn): Promise<AccountResponseDto> {
-    if (signIn.isAddressClosed) return this.refuseClosedAddress(signIn);
+    if (signIn.isAddressClosed) return this.refuseAndEraseNewSignUp(signIn);
     const account = await this.students.findAccount(signIn.authUserId);
     if (account.status === 'closed') await this.finishClosing(signIn);
     return toAccountResponse(account);
   }
 
   async answerBirthDate(signIn: SignIn, { birthDate, name }: AnswerBirthDateBodyDto): Promise<AccountResponseDto> {
-    if (signIn.isAddressClosed) return this.refuseClosedAddress(signIn);
+    if (signIn.isAddressClosed) return this.refuseAndEraseNewSignUp(signIn);
     const answer = {
       birthDate,
       isOldEnough: isOldEnough(birthDate, new Date()),
@@ -69,7 +69,6 @@ export class StudentsService {
     return toAccountResponse(account);
   }
 
-  // A later step that fails leaves what it needs, so the student can press delete again.
   async deleteAccount({ authUserId, email }: SignIn): Promise<DeletedAccountResponseDto> {
     const studentId = await this.students.findStudentIdOfUser(authUserId);
     if (studentId) {
@@ -84,8 +83,7 @@ export class StudentsService {
     return email !== null && this.students.isAddressClosed(getAddressHash(email));
   }
 
-  // A new sign-up on a closed address is erased again. A student who changed their email to one is refused and keeps their data.
-  private async refuseClosedAddress(signIn: SignIn): Promise<AccountResponseDto> {
+  private async refuseAndEraseNewSignUp(signIn: SignIn): Promise<AccountResponseDto> {
     if (!(await this.students.hasStudent(signIn.authUserId))) await this.finishClosing(signIn);
     return CLOSED_ACCOUNT;
   }

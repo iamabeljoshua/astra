@@ -13,6 +13,7 @@ import {
   getRouteAnswers,
   listRoutes,
 } from '../../test/route-table';
+import type { TableRoute } from '../../test/route-table';
 import { createSigningKey, signWithKey } from '../../test/test-auth';
 import type { TestSupabaseAuth } from '../../test/test-auth';
 import { createTestApp, createTestStudent, OLD_ENOUGH_BIRTH_DATE } from '../../test/test-database';
@@ -22,6 +23,7 @@ import { getAcceptedSignInMethods, isRefusedToken, TokenVerifier } from './token
 const PUBLIC_ROUTES: readonly string[] = ['get /health'];
 const SIGNED_IN_ROUTES: readonly string[] = ['get /me', 'post /me/birth-date', 'delete /me', 'get /review/flags', 'post /review/flags/:id/reviewed'];
 const AGENT_KEY_ROUTES: readonly string[] = ['get /agent/sessions/:id/brief', 'post /agent/sessions/:id/spend', 'post /agent/sessions/:id/flags'];
+const DELETE_MY_DATA_ROUTE = 'delete /me';
 const CLOSED_PORT_URL = 'http://127.0.0.1:1';
 const VALID_SESSION = { title: 'Free-body diagrams', subject: 'Physics', language: 'en' };
 const VALID_PROFILE = { name: 'Maya', interests: ['space'], level: 'university', goal: 'exam' };
@@ -30,6 +32,9 @@ const FUTURE_SECONDS = Math.floor(Date.now() / 1000) + 3600;
 const ONE_MINUTE_MS = 60_000;
 const UNDER_EIGHTEEN_BIRTH_DATE = `${new Date().getUTCFullYear() - 15}-06-01`;
 const JWKS_COOLDOWN_MS = 31_000;
+
+const isDeleteMyData = ({ name }: TableRoute) => name === DELETE_MY_DATA_ROUTE;
+const isNotDeleteMyData = (route: TableRoute) => !isDeleteMyData(route);
 
 function verifierFor(supabaseUrl: string) {
   return new TokenVerifier(supabaseUrl, getAcceptedSignInMethods(undefined));
@@ -280,15 +285,19 @@ describe('the API guard', () => {
 
     it('tells the browser to store no answer from any route but the public ones', async () => {
       const routes = listRoutes(testApp.app).filter((route) => !PUBLIC_ROUTES.includes(route.name));
+      const { token } = await createTestStudent(testApp);
 
-      expect(await findRoutesWithoutNoStore({ app: testApp.app, routes, token: student.token })).toEqual([]);
+      expect(await findRoutesWithoutNoStore({ app: testApp.app, routes: routes.filter(isNotDeleteMyData), token: student.token })).toEqual([]);
+      expect(await findRoutesWithoutNoStore({ app: testApp.app, routes: routes.filter(isDeleteMyData), token })).toEqual([]);
       expect(await findRoutesWithoutNoStore({ app: testApp.app, routes })).toEqual([]);
     });
 
     it('reads the identity from the token on every route but the public ones and the ones the agent calls with its key', async () => {
       const routes = listRoutes(testApp.app).filter((route) => !PUBLIC_ROUTES.includes(route.name) && !AGENT_KEY_ROUTES.includes(route.name));
+      const { token } = await createTestStudent(testApp);
 
-      expect(await findRoutesIgnoringIdentity({ app: testApp.app, routes, token: student.token })).toEqual([]);
+      expect(await findRoutesIgnoringIdentity({ app: testApp.app, routes: routes.filter(isNotDeleteMyData), token: student.token })).toEqual([]);
+      expect(await findRoutesIgnoringIdentity({ app: testApp.app, routes: routes.filter(isDeleteMyData), token })).toEqual([]);
     });
 
     it('gives each student only their own account', async () => {
