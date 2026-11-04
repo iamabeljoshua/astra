@@ -36,7 +36,7 @@ const getTargetParts = (target: ElementRef) => target.split('.') as [string, str
 const isMark = (content: BoardElement['content']): content is MarkContent => content.kind === 'highlight' || content.kind === 'annotate';
 
 const NOTE_FONT_SIZE = 18;
-const NOTE_GAP = 14;
+const NOTE_GAP = 44;
 
 const getMarkKind = (content: MarkContent): AnnotationMark => (content.kind === 'highlight' ? 'circle' : content.mark);
 
@@ -149,7 +149,7 @@ export function createBoardMarks(overlay: SVGSVGElement, onMarkWithoutTarget?: (
     const width = note.getComputedTextLength();
     const fitsBeside = placement.x + placement.width + NOTE_GAP + width <= boardWidth;
     note.setAttribute('x', String(Math.round(fitsBeside ? placement.x + placement.width + NOTE_GAP : placement.x)));
-    note.setAttribute('y', String(Math.round(fitsBeside ? placement.y + placement.height / 2 + NOTE_FONT_SIZE / 3 : placement.y + placement.height + NOTE_FONT_SIZE)));
+    note.setAttribute('y', String(Math.round(fitsBeside ? placement.y + NOTE_FONT_SIZE : placement.y + placement.height - NOTE_FONT_SIZE / 3)));
     writeStyle(note, 'opacity', frame.isReducedMotion ? '' : getMotionValue(element.entrance, frame.atMs).toFixed(3));
   };
 
