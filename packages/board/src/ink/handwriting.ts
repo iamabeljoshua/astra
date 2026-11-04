@@ -31,15 +31,18 @@ const getAdvance = (character: string, fontSize: number) => ((GLYPHS.get(charact
 const getSpaceWidth = (fontSize: number) => (STROKE_FONT_METRICS.spaceAdvance / STROKE_FONT_METRICS.unitsPerEm) * fontSize;
 const getWidth = (text: string, fontSize: number) => [...text].reduce((sum, character) => sum + (character === ' ' ? getSpaceWidth(fontSize) : getAdvance(character, fontSize)), 0);
 
+const GRAPHEMES = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+
+// By grapheme, because a break between a letter and its mark shows a stray mark on a dotted circle.
 function splitLongWord(word: string, { measure, maxWidth }: { measure(text: string): number; maxWidth: number }): string[] {
   const pieces: string[] = [];
   let piece = '';
-  for (const character of word) {
-    if (piece !== '' && measure(piece + character) > maxWidth) {
+  for (const { segment } of GRAPHEMES.segment(word)) {
+    if (piece !== '' && measure(piece + segment) > maxWidth) {
       pieces.push(piece);
       piece = '';
     }
-    piece += character;
+    piece += segment;
   }
   return [...pieces, piece];
 }

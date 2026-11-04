@@ -1,11 +1,17 @@
 import { type BoardElement, type BoardState, getMotionValue, type SliderMove } from '@astra/board';
 import { canWriteByHand, createFigurePainter, createInkPainter, createMathPainter, type DiagramTextLabel, drawDiagram, getFigureFit, getFigureMarks, type InkPainter, type LayoutBox, type MarkBox, type MathFontProblem, type MathPainter, type MeasureText, setLabelMeasure, type TermBoxes, type TermQuery, writeByHand, writeStyle } from '@astra/board/drawing';
 import { BOARD_LABELS } from '../strings';
+import { drawLabeledSheet, type LabeledDrawing } from '@astra/board/drawing';
+import { createCodeItem, createTableItem, createTimelineItem } from './blockItems';
+import { createImageItem } from './imageItem';
 import { createSliderItem } from './sliderItem';
 
 const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
 const HANDWRITING_SCALE = 1.3;
 const DIAGRAM_SCALE = 1.1;
+const DRAWING_LABEL_SCALE = 0.8;
+const EDGE_LABEL_SCALE = 0.75;
+const SCENE_ONLY_DRAWING = 'hoop-side';
 
 export interface ItemContext {
   element: BoardElement;
@@ -34,6 +40,7 @@ export interface ItemSizes {
 export interface SliderHandlers {
   onSliderMove?(move: SliderMove): void;
   onSliderRelease?(): void;
+  onImageMissing?(id: string): void;
 }
 
 export interface BoardItem {
@@ -41,6 +48,7 @@ export interface BoardItem {
   prepare(context: ItemContext): ItemSizes;
   paint(context: ItemContext): void;
   getEntranceOpacity?(context: ItemContext): number;
+  getTextPx?(): number;
   getTermBoxes?(query: TermQuery): TermBoxes;
   getRefusedTex?(): string | null;
   getFontProblems?(): readonly MathFontProblem[];
@@ -74,9 +82,10 @@ function createInkSvg({ width, height }: Size, label: string): SVGSVGElement {
 }
 
 // Text nodes only, so a label has no way to become markup.
-function createTextLabel(svg: SVGSVGElement, { lines, baselines, x, y, fontSize }: DiagramTextLabel): SVGTextElement {
+function createTextLabel(svg: SVGSVGElement, { lines, baselines, x, y, fontSize, role }: DiagramTextLabel): SVGTextElement {
   const text = document.createElementNS(SVG_NAMESPACE, 'text');
   text.classList.add('board-ink-text');
+  if (role) text.dataset.label = role;
   text.setAttribute('font-size', String(fontSize));
   lines.forEach((line, index) => {
     const span = document.createElementNS(SVG_NAMESPACE, 'tspan');
@@ -103,9 +112,11 @@ interface InkBuild {
   size: Size;
 }
 
-function createInkItem({ wrapper, label, draw, getProgress }: { wrapper: HTMLElement; label: string; draw(context: ItemContext): { strokeGroups: readonly Parameters<typeof createInkPainter>[1][]; textGroups?: readonly (readonly DiagramTextLabel[])[]; size: Size }; getProgress(context: ItemContext, groupCount: number): number[] }): BoardItem {
+function createInkItem({ wrapper, label, draw, getProgress, smallestTextShare = 1 }: { wrapper: HTMLElement; label: string; draw(context: ItemContext): { strokeGroups: readonly Parameters<typeof createInkPainter>[1][]; textGroups?: readonly (readonly DiagramTextLabel[])[]; size: Size }; getProgress(context: ItemContext, groupCount: number): number[]; smallestTextShare?: number }): BoardItem {
   let built: InkBuild | null = null;
+  let boardTextPx = 0;
   const build = (context: ItemContext): InkBuild => {
+    boardTextPx = context.fontSize;
     const key = `${context.maxWidth}|${context.fontSize}`;
     if (built?.key === key) return built;
     built?.svg.remove();
@@ -126,6 +137,7 @@ function createInkItem({ wrapper, label, draw, getProgress }: { wrapper: HTMLEle
       });
     },
     getEntranceOpacity: ({ isReducedMotion, progress, element }) => (isReducedMotion && !element.revealedUpTo ? progress : 1),
+    getTextPx: () => boardTextPx * smallestTextShare,
     remove: () => built?.svg.remove(),
   };
 }
@@ -139,6 +151,7 @@ function createHandwrittenItem(wrapper: HTMLElement, text: string): BoardItem {
       return { strokeGroups: [drawing?.strokes ?? []], size: { width: drawing?.width ?? 0, height: drawing?.height ?? 0 } };
     },
     getProgress: ({ progress }) => [progress],
+    smallestTextShare: HANDWRITING_SCALE,
   });
 }
 
@@ -158,7 +171,7 @@ function createDiagramItem(wrapper: HTMLElement, content: Extract<BoardElement['
   let drawing: { nodeBoxes: ReadonlyMap<string, MarkBox>; width: number; height: number } = { nodeBoxes: new Map(), width: 0, height: 0 };
   const item = createInkItem({
     wrapper,
-    label: content.nodes.map((node) => node.label).join(', '),
+    label: [...content.nodes.map((node) => node.label), ...content.edges.flatMap((edge) => (edge.label ? [edge.label] : []))].join(', '),
     draw({ element, maxWidth, fontSize }) {
       const drawn = drawDiagram(content, { fontSize: fontSize * DIAGRAM_SCALE, maxWidth, seed: element.id, ...getTextMeasure(wrapper) });
       drawing = drawn;
@@ -168,12 +181,38 @@ function createDiagramItem(wrapper: HTMLElement, content: Extract<BoardElement['
       const reached = element.revealedUpTo ? getMotionValue(element.revealedUpTo, atMs) : progress * groupCount;
       return Array.from({ length: groupCount }, (_, index) => Math.min(1, Math.max(0, reached - index)));
     },
+    smallestTextShare: DIAGRAM_SCALE * EDGE_LABEL_SCALE,
   });
   return {
     ...item,
     getTermBoxes(query) {
       const part = query && 'termId' in query ? drawing.nodeBoxes.get(query.termId) : undefined;
       const whole = { x: 0, y: 0, width: drawing.width, height: drawing.height };
+      return { from: null, to: query === null ? whole : (part ?? null), flightOffset: { x: 0, y: 0 } };
+    },
+  };
+}
+
+function createDrawingItem(wrapper: HTMLElement, content: Extract<BoardElement['content'], { kind: 'drawing' }>): BoardItem {
+  let parts: LabeledDrawing['partBoxes'] = new Map();
+  let whole = { x: 0, y: 0, width: 0, height: 0 };
+  const item = createInkItem({
+    wrapper,
+    label: (content.labels ?? []).map(({ text }) => text).join(', ') || content.name,
+    draw({ element, maxWidth, fontSize }) {
+      const drawn = drawLabeledSheet(content, { fontSize: fontSize * DIAGRAM_SCALE * DRAWING_LABEL_SCALE, maxWidth, seed: element.id, ...getTextMeasure(wrapper) });
+      parts = drawn?.partBoxes ?? new Map();
+      whole = { x: 0, y: 0, width: drawn?.width ?? 0, height: drawn?.height ?? 0 };
+      return { strokeGroups: drawn?.steps.map((step) => step.strokes) ?? [], textGroups: drawn?.steps.map((step) => step.textLabels) ?? [], size: { width: whole.width, height: whole.height } };
+    },
+    getProgress: ({ progress }, groupCount) => Array.from({ length: groupCount }, (_, index) => Math.min(1, Math.max(0, progress * groupCount - index))),
+    smallestTextShare: DIAGRAM_SCALE * DRAWING_LABEL_SCALE,
+  });
+  if (content.name === SCENE_ONLY_DRAWING) return { ...item, prepare: () => ({ fit: 'line', size: null, fromSize: null }), paint: () => {} };
+  return {
+    ...item,
+    getTermBoxes(query) {
+      const part = query && 'termId' in query ? parts.get(query.termId) : undefined;
       return { from: null, to: query === null ? whole : (part ?? null), flightOffset: { x: 0, y: 0 } };
     },
   };
@@ -242,6 +281,11 @@ function createFigureItem(wrapper: HTMLElement, content: BoardElement['content']
 const ITEM_MAKERS: Partial<{ [Kind in BoardElement['content']['kind']]: (wrapper: HTMLElement, content: Extract<BoardElement['content'], { kind: Kind }>, handlers: SliderHandlers) => BoardItem }> = {
   writeMath: (wrapper) => createMathItem(wrapper),
   diagram: (wrapper, content) => createDiagramItem(wrapper, content),
+  drawing: (wrapper, content) => createDrawingItem(wrapper, content),
+  table: (wrapper, content) => createTableItem(wrapper, content),
+  timeline: (wrapper, content) => createTimelineItem(wrapper, content),
+  code: (wrapper, content) => createCodeItem(wrapper, content),
+  image: (wrapper, content, handlers) => createImageItem(wrapper, content, handlers),
   plot: (wrapper, content) => createFigureItem(wrapper, content),
   numberLine: (wrapper, content) => createFigureItem(wrapper, content),
   geometry: (wrapper, content) => createFigureItem(wrapper, content),

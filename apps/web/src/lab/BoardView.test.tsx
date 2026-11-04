@@ -531,6 +531,33 @@ describe('BoardView, hostile content from a model', () => {
   });
 });
 
+describe('BoardView, quality tiers', () => {
+  function playAt(framesPerSecond: number, seconds: number, tier?: 0 | 1 | 2) {
+    const onQualityTier = vi.fn();
+    const operations = [write('eq', 'x = 1')];
+    let nowMs = 0;
+    const clock = vi.spyOn(performance, 'now').mockImplementation(() => nowMs);
+    try {
+      const { rerender } = render(<BoardView board={getBoardAt(operations, 0)} atMs={0} onQualityTier={onQualityTier} qualityTier={tier} />);
+      for (let frame = 0; frame < framesPerSecond * seconds; frame += 1) {
+        nowMs += 1000 / framesPerSecond;
+        rerender(<BoardView board={getBoardAt(operations, nowMs)} atMs={nowMs} onQualityTier={onQualityTier} qualityTier={tier} />);
+      }
+    } finally {
+      clock.mockRestore();
+    }
+    return onQualityTier;
+  }
+
+  it('sets its own tier from the frames it paints', () => {
+    expect(playAt(20, 3).mock.calls.map(([tier]) => tier)).toEqual([1, 2]);
+  });
+
+  it('holds a tier it was given however slow the frames, so a proof compares like with like', () => {
+    expect(playAt(20, 3, 0)).not.toHaveBeenCalled();
+  });
+});
+
 describe('BoardView, figures', () => {
   beforeEach(() => {
     vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(700);
@@ -729,14 +756,12 @@ describe('BoardView, figures', () => {
       expect(container.querySelector('.board-slider')?.textContent).toContain('4.2');
     });
 
-    it('moves nothing and says nothing on a curve without that constant', () => {
-      const onSliderMove = vi.fn();
+    it('draws no slider on a curve without that constant, and tells the tutor', () => {
+      const onBoardProblem = vi.fn();
       const operations = [place({ kind: 'plot', id: 'curve', expression: 'x^2', domain: [0, 2] }), place({ kind: 'slider', id: 'a-slider', target: 'curve', constant: 'a', min: 0, max: 4 })];
-      const { container } = render(<BoardView board={getBoardAt(operations, 5000)} atMs={5000} canMoveSliders onSliderMove={onSliderMove} />);
-      const input = container.querySelector<HTMLInputElement>('.board-slider input') as HTMLInputElement;
-      expect(input.disabled).toBe(true);
-      expect(input.hasAttribute('aria-valuetext')).toBe(false);
-      expect(container.querySelector('.board-slider-value')?.textContent).toBe('');
+      const { container } = render(<BoardView board={getBoardAt(operations, 5000)} atMs={5000} canMoveSliders onBoardProblem={onBoardProblem} />);
+      expect(container.querySelector('.board-slider')).toBeNull();
+      expect(onBoardProblem).toHaveBeenCalledWith({ kind: 'sliderWithoutConstant', sliderId: 'a-slider', target: 'curve', constant: 'a' });
     });
 
     it('goes when its curve is replaced, and an old mark goes with it', () => {

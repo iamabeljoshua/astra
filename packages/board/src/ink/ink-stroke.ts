@@ -7,6 +7,9 @@ export interface InkPosition {
 export interface InkStroke {
   points: readonly InkPosition[];
   length: number;
+  role?: 'box' | 'line' | 'leader';
+  /** Which label these strokes write, so a label in strokes can be read as one box. */
+  word?: string;
 }
 
 /** Strokes in the order a hand would draw them, with the room they take. */
@@ -35,6 +38,20 @@ export function getStrokePath({ points }: InkStroke): string {
   });
   const last = rest.at(-1) as InkPosition;
   return `M${toFixed(first.x)} ${toFixed(first.y)}${curves.join('')}L${toFixed(last.x)} ${toFixed(last.y)}`;
+}
+
+export function holdCorners(points: readonly InkPosition[], reach: number): InkPosition[] {
+  return points.flatMap((corner, index) => {
+    const before = points[index - 1];
+    const after = points[index + 1];
+    if (!before || !after) return [corner];
+    const pointToward = (other: InkPosition): InkPosition => {
+      const distance = Math.hypot(other.x - corner.x, other.y - corner.y);
+      const share = Math.min(reach, distance / 2) / (distance || 1);
+      return { x: corner.x + (other.x - corner.x) * share, y: corner.y + (other.y - corner.y) * share };
+    };
+    return [pointToward(before), corner, pointToward(after)];
+  });
 }
 
 /** How much of each stroke has drawn when `progress` of the whole has, so the pen keeps one speed across short and long strokes. */

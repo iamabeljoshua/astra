@@ -1,12 +1,12 @@
 import type { BoardState } from '@astra/board';
 import { getOpenTaskOnBoard } from '@astra/board/shared';
-import type { ElementId, StudentWork } from '@astra/contracts';
+import type { BoardProblemReport, ElementId, StudentWork } from '@astra/contracts';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { BoardProblem } from '../board/boardPainting';
 import { getVisualPlace, type VisualPeek } from '../board/boardStage';
 import { BoardStageView } from '../board/BoardStageView';
 import { getBoardRows } from '../board/boardRows';
 import { MathField } from '../board/MathField';
-import type { MarkWithoutTarget } from '../board/boardMarks';
 import { MovingDot } from '../board/MovingDot';
 import { useDotTarget } from '../board/useDotTarget';
 import { PenBand } from '../board/PenBand';
@@ -27,6 +27,20 @@ const LINES_BEFORE_THE_HINT_GOES = 2;
 export interface BoardFrame {
   board: BoardState;
   atMs: number;
+}
+
+function getReport(problem: BoardProblem): BoardProblemReport | null {
+  switch (problem.kind) {
+    case 'tooSmallToRead':
+    case 'imageMissing':
+      return { problem: problem.kind, subject: problem.elementId };
+    case 'labelWithoutRoom':
+      return { problem: problem.kind, subject: problem.text };
+    case 'sliderWithoutConstant':
+      return { problem: problem.kind, subject: problem.sliderId };
+    default:
+      return null;
+  }
 }
 
 function getLastWorkWords(board: BoardState): string {
@@ -114,7 +128,14 @@ export function LiveBoard({ voice, getVisual, onTalk, isTalkOn = false, canTalk 
     isVisualBigNow.current = isVisualBig;
   }, [isVisualBig]);
 
-  const reportProblem = useCallback((problem: MarkWithoutTarget) => voice.reportMarkNotDrawn(problem.markId), [voice]);
+  const reportProblem = useCallback(
+    (problem: BoardProblem) => {
+      if (problem.kind === 'markWithoutTarget') voice.reportMarkNotDrawn(problem.markId);
+      const report = getReport(problem);
+      if (report) voice.reportBoardProblem(report);
+    },
+    [voice],
+  );
   const getBoard = useCallback(() => voice.getBoardNow().board, [voice]);
   const nextLineId = useNextLineId(getBoard);
   const sendPause = useCallback((seconds: number, draft?: string) => voice.sendPause(seconds, draft), [voice]);
@@ -226,7 +247,7 @@ export function LiveBoard({ voice, getVisual, onTalk, isTalkOn = false, canTalk 
       <SharedBoard
         board={board}
         atMs={atMs}
-        onMarkProblem={reportProblem}
+        onBoardProblem={reportProblem}
         {...(isLookingBack ? {} : { onWork: sendWork, onMovePoint: movePoint })}
         lineInTheBand={lineInTheBand}
         onFixReading={(text) => {

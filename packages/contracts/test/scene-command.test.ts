@@ -336,7 +336,6 @@ describe('names a hostile model might write', () => {
     ['a circle center', (name) => ({ kind: 'construct', id: 'a', target: 'f', step: { shape: 'circle', center: name, through: 'B' } })],
     ['an angle corner', (name) => ({ kind: 'construct', id: 'a', target: 'f', step: { shape: 'angle', at: name, from: 'A', to: 'B' } })],
     ['a diagram node', (name) => ({ kind: 'diagram', id: 'a', nodes: [{ name, label: 'x' }], edges: [] })],
-    ['a drawing label part', (name) => ({ kind: 'drawing', id: 'a', name: 'hoop-side', labels: [{ part: name, text: 'x' }] })],
   ];
 
   describe.each(NAMED_PLACES)('in %s', (_place, makeCommand) => {
@@ -347,6 +346,19 @@ describe('names a hostile model might write', () => {
     it.each(['A', 'oxygen-atom', 'H2', 'x'.repeat(40)])('accepts %s', (name) => {
       expect(parseSceneCommand(makeCommand(name)).ok).toBe(true);
     });
+  });
+
+  it.each(['__proto__', 'constructor', 'toString', 'rim', 'mitochondria'])('refuses %s as a part of the animal cell, because each drawing names its own parts', (part) => {
+    expectRefused(parseSceneCommand({ kind: 'drawing', id: 'a', name: 'animal-cell', labels: [{ part, text: 'x' }] }), /\.part: expected one of membrane/);
+  });
+
+  it('accepts a part that only the drawing it is on has', () => {
+    expect(parseSceneCommand({ kind: 'drawing', id: 'a', name: 'lever', labels: [{ part: 'fulcrum', text: 'x' }] }).ok).toBe(true);
+    expectRefused(parseSceneCommand({ kind: 'drawing', id: 'a', name: 'flower', labels: [{ part: 'fulcrum', text: 'x' }] }), /\.part: expected one of petal/);
+  });
+
+  it('refuses a label on a drawing with no parts, and says why', () => {
+    expectRefused(parseSceneCommand({ kind: 'drawing', id: 'a', name: 'hoop-side', labels: [{ part: 'rim', text: 'x' }] }), /\.part: expected no label, because this drawing has no named parts/);
   });
 
   it.each(['__proto__', 'constructor', 'prototype'])('refuses %s as an element id', (name) => {
@@ -412,12 +424,14 @@ describe('free text', () => {
       expectRefused(parseSceneCommand(makeCommand(`a${character}b`)), new RegExp(`${place}: expected text with no control or bidi characters`));
     });
 
-    it.each(['\t', '\n'])('accepts %j', (character) => {
-      expect(parseSceneCommand(makeCommand(`a${character}b`)).ok).toBe(true);
-    });
-
     it('accepts the right-to-left text a student might read', () => {
       expect(parseSceneCommand(makeCommand('מים נוזל')).ok).toBe(true);
+    });
+  });
+
+  describe.each(TEXT_PLACES.filter(([place]) => place !== 'source'))('in %s', (place, makeCommand) => {
+    it.each(['\t', '\n'])('refuses %j, which is what JSON makes of a lone backslash', (character) => {
+      expectRefused(parseSceneCommand(makeCommand(`a${character}b`)), new RegExp(`${place}: expected text with no control or bidi characters, with math in writeMath`));
     });
   });
 
@@ -644,5 +658,82 @@ describe('a stored scene', () => {
     ['a length of zero', { ...SCENE, durationSeconds: 0 }, /durationSeconds: expected a number from 0.1 to 600/],
   ])('refuses %s', (_name, input, problem) => {
     expectRefused(parseSceneCommand(input), problem);
+  });
+});
+
+describe('words that would reach a student as raw source', () => {
+  const asText = (text: string) => ({ kind: 'text', id: 'words', text });
+  const asCell = (cell: string) => ({ kind: 'table', id: 'cells', columns: ['One'], rows: [[cell]] });
+  const asColumn = (column: string) => ({ kind: 'table', id: 'cells', columns: [column], rows: [['x']] });
+  const asEvent = (label: string) => ({ kind: 'timeline', id: 'dates', events: [{ when: '1900', label }] });
+  const asWhen = (when: string) => ({ kind: 'timeline', id: 'dates', events: [{ when, label: 'x' }] });
+  const asNode = (label: string) => ({ kind: 'diagram', id: 'map', nodes: [{ name: 'a', label }], edges: [] });
+  const asPart = (text: string) => ({ kind: 'drawing', id: 'lever', name: 'lever', labels: [{ part: 'load', text }] });
+  const asAlt = (alt: string) => ({ kind: 'image', id: 'pic', asset: 'saturn', alt });
+
+  it.each([
+    String.raw`\(x^2 + 1\) is a curve`,
+    String.raw`\[y = mx + c\]`,
+    String.raw`\frac{1}{2} of the pie`,
+    '$x$ is the unknown',
+    '$x^2$',
+    '$a$ and $b$',
+    '$x + y$',
+    '$$x$$',
+    'a_{1} + b^{2}',
+    'x^{2}',
+  ])('refuses %s, with math sent to writeMath', (text) => {
+    expectRefused(parseSceneCommand(asText(text)), /text: expected plain words, with math in writeMath/);
+  });
+
+  it.each([
+    ['a table cell', asCell(String.raw`\(a\)`), /rows\[0\]\[0\]: expected plain words/],
+    ['a table cell in dollars', asCell('$b$'), /rows\[0\]\[0\]: expected plain words/],
+    ['a column', asColumn('a_{1}'), /columns\[0\]: expected plain words/],
+    ['a timeline label', asEvent('$x$'), /label: expected plain words/],
+    ['a timeline date', asWhen(String.raw`\(t\)`), /when: expected plain words/],
+    ['a diagram node', asNode(String.raw`\[y\]`), /label: expected plain words/],
+    ['a label on a drawing part', asPart('$F$'), /text: expected plain words/],
+    ['the words for a picture', asAlt('b^{2}'), /alt: expected plain words/],
+  ])('refuses raw math in %s', (_name, command, problem) => {
+    expectRefused(parseSceneCommand(command), problem);
+  });
+
+  it.each([
+    ['theta', JSON.parse(String.raw`"\theta is the angle"`) as string],
+    ['nu', JSON.parse(String.raw`"\nu is the frequency"`) as string],
+    ['tau', JSON.parse(String.raw`"the \tau of it"`) as string],
+    ['neq', JSON.parse(String.raw`"a \neq b"`) as string],
+    ['frac', JSON.parse(String.raw`"\frac{1}{2}"`) as string],
+  ])('refuses %s written with one backslash, which JSON has already broken', (_name, text) => {
+    expectRefused(parseSceneCommand(asText(text)), /text: expected text with no control or bidi characters, with math in writeMath/);
+  });
+
+  it('refuses a broken backslash in a table cell too', () => {
+    expectRefused(parseSceneCommand(asCell(JSON.parse(String.raw`"\theta"`) as string)), /rows\[0\]\[0\]: expected text with no control or bidi characters, with math in writeMath/);
+  });
+
+  it.each([
+    '$5 grows to $25',
+    '$100 at 5%',
+    'It costs $5 and then $10',
+    'The set {$1, $2} has two prices',
+    'That ticket is $$$',
+    'Type $A$1 to keep the cell fixed',
+    '$5 grows to $5^2 = $25',
+    '$5-$10 a day',
+    '$1,$2,$3',
+    'In jQuery, $(this).html() and $.ajax({}) are common',
+    'Use $HOME and ${PATH} in bash',
+    'x^2 means x squared',
+    'total_cost is $5 and tip_cost is $2',
+    '__init__ runs first',
+    'Use \\n for a new line',
+  ])('keeps %s, because it is ordinary words', (text) => {
+    expect(parseSceneCommand(asText(text)).ok).toBe(true);
+  });
+
+  it('keeps a code block as typed, with its math, tabs, and lines', () => {
+    expect(parseSceneCommand({ kind: 'code', id: 'c', language: 'latex', source: '\\frac{1}{2} $x^2$\n\ta_{1}' }).ok).toBe(true);
   });
 });

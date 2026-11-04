@@ -1,4 +1,4 @@
-import { type Beat, type BeatId, clipTypedText, type ElementId, getBeatText, getCues, getPlayedCues, getSpokenWords, isStudentLineId, parseBeat, parseWrittenBeat, type SceneCommand, type StudentWork, type TutorClosedReason, TYPED_TEXT_MAX_CHARACTERS } from '@astra/contracts';
+import { type Beat, type BeatId, type BoardProblemReport, clipTypedText, type ElementId, getBeatText, getCues, getPlayedCues, getSpokenWords, isStudentLineId, parseBeat, parseWrittenBeat, type SceneCommand, type StudentWork, type TutorClosedReason, TYPED_TEXT_MAX_CHARACTERS } from '@astra/contracts';
 import { type BoardOperation, type BoardState, type CheckedWork, checkWorkOnBoard, cleanStudentText as cleanLine, getBoardAt, getNod, getOpenTaskOnBoard, getWorkContext } from '@astra/board/shared';
 import { type FindSource, type ModelEvent, ModelRejectedError, type ModelUsage, type TutorModelAdapter, type TutorModelRequest, type TutorTurn } from '../providers/types.ts';
 import { getProblemNote, getTeachFirstNote, type LessonPlanner } from '../lesson-plan/lesson-planner.ts';
@@ -10,6 +10,7 @@ import { TUTOR_PROMPT, type TutorPrompt } from './prompt.ts';
 import { createLinePicker, type SpokenLineUse } from './spoken-lines.ts';
 import { runTool, type ToolResult } from './tools/run-tool.ts';
 import type { ToolCall } from './tools/tool-call.ts';
+import { createBoardProblemNotes } from './board-problems.ts';
 import { getWorkNote } from './watcher/work-note.ts';
 
 export interface TutorRequest {
@@ -35,6 +36,7 @@ export interface TutorBrain {
   noteCut?(wordsSent: ReadonlyMap<BeatId, number>): void;
   /** The browser could not draw this mark, so the student never saw what the tutor pointed at. */
   noteMarkNotDrawn?(markId: string): void;
+  noteBoardProblem?(report: BoardProblemReport): void;
   /** Why the tutor will not answer again in this room, once it has said so. */
   getClosedReason?(): TutorClosedReason | null;
   /** A scene landed and its words are being said, so the next turn knows what is on screen and what was heard. */
@@ -290,6 +292,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
   let hasToldClosed = false;
   let rejectionsInARow = 0;
   const marksDrawn = new Map<string, { target: string; tex?: string }>();
+  const boardProblems = createBoardProblemNotes();
   let cutWordsSent: ReadonlyMap<BeatId, number> | null = null;
   let turnCount = 0;
   let promptTokens = 0;
@@ -383,6 +386,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
         },
         onCommandKept(command) {
           readerMemory = getMemoryAfter(command, readerMemory);
+          boardProblems.noteWritten(command);
           boardOperations.push({ kind: 'command', atMs: boardOperations.length, command, overMs: null });
           lessonPlanner?.noteCommand(command);
           if (SHOWING_KINDS.has(command.kind)) turn.hasShownAStep = true;
@@ -962,6 +966,10 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
       if (!mark) return;
       marksDrawn.delete(markId);
       pendingNotes.push({ mark_not_drawn: mark });
+    },
+    noteBoardProblem(report) {
+      const note = boardProblems.getNewNote(report);
+      if (note) pendingNotes.push({ board_problem: note });
     },
     getClosedReason: () => (hasToldClosed ? closedReason : null),
     noteSceneTurn({ topic, beats }) {
