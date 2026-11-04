@@ -1523,7 +1523,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 - [ ] Metric. Two numbers on every turn. First reaction from code, and first real word, with D, S, F, and the trip logged beside it. Also first sound to yield, first sound to silence, and the decision to stop to silence.
 - [ ] Probe. Log them on LiveKit Cloud from the agent's region over 30 turns, at trunk and head.
 - [ ] Baseline. Trunk has no voice. The speed test gave S at 698 and 880 ms and F at 253 and 319 ms on Flash, from Abel's Mac.
-- [ ] Rule. Fail if first reaction exceeds 200 ms at p95, if the decision to stop to silence exceeds 150 ms at p95, if first sound to yield exceeds 300 ms, or if first sound to silence exceeds 1.2 s at p95. First real word has no fixed limit, as Abel ruled, so report its p50, p95, and each step's share to him.
+- [ ] Rule. Fail if first reaction exceeds 200 ms at p95, if the decision to stop to silence exceeds 150 ms at p95, if first sound to yield exceeds 300 ms, or if first sound to silence exceeds 1.2 s at p95. First real word has no fixed limit, as Abel ruled, so report its p50, p95, and each step's share to Abel.
 
 **Review gate.** None. M3.6 is not review-gated, because `CLAUDE.md` lets the program merge without Abel's review.
 
