@@ -62,6 +62,7 @@
   --spacing-stage-shape-room: 158px;
   --spacing-tutor-indent: 30px;
   --spacing-thumb: 68px;
+  --spacing-chip-picture: 21px;
   --spacing-continue-art-height: 140px;
   --spacing-continue-placeholder: 170px;
   --spacing-pick-placeholder: 90px;
@@ -224,6 +225,7 @@
 @utility chip {
   display: inline-flex;
   align-items: center;
+  gap: 8px;
   min-height: 44px;
   border: 1px solid var(--color-line);
   padding: 11px 16px;
@@ -240,6 +242,16 @@
     border-color: var(--color-ink);
     background-color: var(--color-ink);
     color: var(--color-paper);
+  }
+
+  /* Forced colors drop the fill that marks a picked chip, so the system's own highlight takes its place. */
+  @media (forced-colors: active) {
+    &[aria-pressed='true'] {
+      forced-color-adjust: none;
+      border-color: Highlight;
+      background-color: Highlight;
+      color: HighlightText;
+    }
   }
 }
 
