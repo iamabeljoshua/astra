@@ -3,9 +3,10 @@ import { ApiError } from '../api/apiError';
 import { api } from '../api/client';
 import { type LiveVoice, type LiveVoiceView, startLiveVoice } from './liveVoice';
 
-export type LiveVoiceStatus = 'idle' | 'connecting' | 'live' | 'unavailable' | 'finished';
+export type LiveVoiceStatus = 'idle' | 'connecting' | 'live' | 'unavailable' | 'tooSoon' | 'finished';
 
 const SESSION_FINISHED_STATUS = 409;
+const TOO_MANY_STATUS = 429;
 
 const noSubscribe = () => () => {};
 const noView = () => null;
@@ -24,6 +25,8 @@ export interface UseLiveVoiceOptions {
 
 export interface LiveVoiceControls {
   status: LiveVoiceStatus;
+  /** With `tooSoon`, how long until the student can start another tutor. */
+  waitSeconds: number | null;
   view: LiveVoiceView | null;
   voice: LiveVoice | null;
   /** Follows the student's press at once, so a room still opening cannot look like a press that missed. */
@@ -38,24 +41,34 @@ export interface LiveVoiceControls {
 // One room for one session screen, opened by the student's own press, because audio needs a user gesture.
 export function useLiveVoice({ sessionId, usesSpeechCleanup = true, start = startLiveVoice }: UseLiveVoiceOptions): LiveVoiceControls {
   const [status, setStatus] = useState<LiveVoiceStatus>('idle');
+  const [waitSeconds, setWaitSeconds] = useState<number | null>(null);
   const [voice, setVoice] = useState<LiveVoice | null>(null);
   const opening = useRef<Promise<LiveVoice | null> | null>(null);
+  // The tutor is known to have gone, and a plain join would find its room and keep that room alive for 2 more minutes, so every ask starts over until one is answered.
+  const asksToStartOver = useRef(false);
   const isGone = useRef(false);
   const pressesWhileOpening = useRef(0);
   const [isTalkWaiting, setIsTalkWaiting] = useState(false);
   const view = useSyncExternalStore(voice?.subscribe ?? noSubscribe, voice?.getView ?? noView);
 
   const connect = useCallback(({ wantsGreeting, startsOver = false }: { wantsGreeting: boolean; startsOver?: boolean } = { wantsGreeting: true }) => {
+    if (startsOver) asksToStartOver.current = true;
     opening.current ??= (async () => {
       setStatus('connecting');
-      let nextAskStartsOver = startsOver;
       const getAccess = async () => {
-        const query = nextAskStartsOver ? { startOver: 'yes' as const } : {};
-        nextAskStartsOver = false;
+        const query = asksToStartOver.current ? { startOver: 'yes' as const } : {};
         try {
-          return await api.post('/sessions/{id}/live-room', { params: { path: { id: sessionId }, query } });
+          const access = await api.post('/sessions/{id}/live-room', { params: { path: { id: sessionId }, query } });
+          asksToStartOver.current = false;
+          return access;
         } catch (problem) {
-          if (!(problem instanceof ApiError && problem.status === SESSION_FINISHED_STATUS)) throw problem;
+          if (!(problem instanceof ApiError)) throw problem;
+          if (problem.status === TOO_MANY_STATUS) {
+            setWaitSeconds(problem.retryAfterSeconds);
+            setStatus('tooSoon');
+            return null;
+          }
+          if (problem.status !== SESSION_FINISHED_STATUS) throw problem;
           setStatus('finished');
           return null;
         }
@@ -72,7 +85,7 @@ export function useLiveVoice({ sessionId, usesSpeechCleanup = true, start = star
         return opened;
       } catch {
         opening.current = null;
-        setStatus((current) => (current === 'finished' ? current : 'unavailable'));
+        setStatus((current) => (current === 'finished' || current === 'tooSoon' ? current : 'unavailable'));
         return null;
       }
     })();
@@ -91,6 +104,7 @@ export function useLiveVoice({ sessionId, usesSpeechCleanup = true, start = star
 
   return {
     status,
+    waitSeconds,
     view,
     voice,
     isTalkOn,

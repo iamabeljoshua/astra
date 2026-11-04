@@ -131,7 +131,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Lets the signed-in student join their session's voice room. Another student's session answers 404, and a finished one 409. Starting over too often answers 429. */
+        /** Lets the signed-in student join their session's voice room. Another student's session answers 404, and a finished one 409. Opening too many rooms or starting over too often answers 429, with `retryAfterSeconds` for how long to wait. */
         post: operations["LiveRoomController_openLiveRoom"];
         delete?: never;
         options?: never;

@@ -157,11 +157,12 @@ describe('the live room route', () => {
   });
 
   it('calls the tutor in when a session starts, and the first press joins that room with no call to LiveKit', async () => {
-    const sessionId = await startSession();
+    const fresh = await createTestStudent(testApp);
+    const sessionId = await startSession(fresh);
     await waitUntil(() => liveKit.named('CreateRoom').length === 1);
     expect(liveKit.roomsOf(sessionId)).toHaveLength(1);
     const callsBefore = liveKit.calls.length;
-    const { body } = await post(`/sessions/${sessionId}/live-room`).expect(200);
+    const { body } = await post(`/sessions/${sessionId}/live-room`, fresh).expect(200);
     expect((body as { roomName: string }).roomName).toBe(liveKit.roomsOf(sessionId)[0]);
     expect(liveKit.calls).toHaveLength(callsBefore);
   });
@@ -176,8 +177,10 @@ describe('the live room route', () => {
   });
 
   it('closes a warmed room when the session finishes before anyone joins', async () => {
-    const sessionId = await startSession();
-    await server().patch(`/sessions/${sessionId}`).set('Authorization', `Bearer ${student.token}`).send({ durationSeconds: 1, status: 'finished' }).expect(200);
+    const fresh = await createTestStudent(testApp);
+    const sessionId = await startSession(fresh);
+    await waitUntil(() => liveKit.roomsOf(sessionId).length === 1);
+    await server().patch(`/sessions/${sessionId}`).set('Authorization', `Bearer ${fresh.token}`).send({ durationSeconds: 1, status: 'finished' }).expect(200);
     expect(liveKit.roomsOf(sessionId)).toEqual([]);
   });
 
@@ -242,7 +245,8 @@ describe('the live room route', () => {
 
   it('limits the rooms a student can open, because each one starts a job, says how long to wait, and leaves joining alone', async () => {
     const opening = await createTestStudent(testApp);
-    const sessions = await Promise.all(Array.from({ length: 13 }, () => startSession(opening)));
+    const sessions: string[] = [];
+    for (let session = 0; session < 13; session += 1) sessions.push(await startSession(opening));
     const allowed = sessions.slice(0, 12);
     for (const sessionId of allowed) await post(`/sessions/${sessionId}/live-room`, opening).expect(200);
     const { body } = await post(`/sessions/${sessions[12]}/live-room`, opening).expect(429);
@@ -267,22 +271,24 @@ describe('the live room route', () => {
   });
 
   it('treats a warm room nobody joined as gone before it closes itself, so a late press never lands on a closing room', async () => {
-    const sessionId = await startSession();
+    const fresh = await createTestStudent(testApp);
+    const sessionId = await startSession(fresh);
     await waitUntil(() => liveKit.roomsOf(sessionId).length === 1);
     const [warmed] = liveKit.roomsOf(sessionId);
     const later = Date.now() + 106_000;
     jest.spyOn(Date, 'now').mockReturnValue(later);
-    const { body } = await post(`/sessions/${sessionId}/live-room`).expect(200);
+    const { body } = await post(`/sessions/${sessionId}/live-room`, fresh).expect(200);
     expect((body as { roomName: string }).roomName).not.toBe(warmed);
     expect(liveKit.named('ListRooms')).toHaveLength(0);
   });
 
   it('keeps joining a warm room a student has joined once, for as long as LiveKit says it is open', async () => {
-    const sessionId = await startSession();
+    const fresh = await createTestStudent(testApp);
+    const sessionId = await startSession(fresh);
     await waitUntil(() => liveKit.roomsOf(sessionId).length === 1);
-    const { body: first } = await post(`/sessions/${sessionId}/live-room`).expect(200);
+    const { body: first } = await post(`/sessions/${sessionId}/live-room`, fresh).expect(200);
     jest.spyOn(Date, 'now').mockReturnValue(Date.now() + 300_000);
-    const { body: second } = await post(`/sessions/${sessionId}/live-room`).expect(200);
+    const { body: second } = await post(`/sessions/${sessionId}/live-room`, fresh).expect(200);
     expect((second as { roomName: string }).roomName).toBe((first as { roomName: string }).roomName);
   });
 

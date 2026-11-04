@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { SessionEntity } from '../infrastructure/orm/entities/session.entity';
 import { SessionRepository } from '../infrastructure/orm/repositories/session.repository';
-import { LiveRooms } from '../livekit/live-rooms';
+import { LiveRooms, MOST_WARM_ROOMS, WARM_ROOM_WINDOW_MS } from '../livekit/live-rooms';
 import type { SessionListOptions } from '../infrastructure/orm/repositories/session.repository';
 import type { TopicSession } from '../picks/topic-progress';
 import type { CreateSessionBodyDto, SessionResponseDto, UpdateSessionBodyDto } from './session.dto';
@@ -34,7 +34,9 @@ export class SessionsService {
 
   async createSession(studentId: string, body: CreateSessionBodyDto): Promise<SessionResponseDto> {
     const session = await this.sessions.createForStudent(studentId, body);
-    this.liveRooms.warm(session.id);
+    // Counted after the insert, in the table every API process shares, so however many sessions arrive at once only the first few can read a small count.
+    const startedLately = await this.sessions.countStartedSince(studentId, new Date(Date.now() - WARM_ROOM_WINDOW_MS));
+    if (startedLately <= MOST_WARM_ROOMS) this.liveRooms.warm(session.id, studentId);
     return toSessionResponse(session);
   }
 

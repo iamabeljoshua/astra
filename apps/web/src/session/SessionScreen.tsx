@@ -9,7 +9,7 @@ import { type Session, useSession } from './sessionQueries';
 import { useSessionRun } from './useSessionRun';
 import { StudentCaption, TutorCaption } from '../voice/Captions';
 import { LiveBoard } from '../voice/LiveBoard';
-import { isVoiceOver, type LiveVoice, type LiveVoiceView } from '../voice/liveVoice';
+import { isVoiceOver, type LiveVoice } from '../voice/liveVoice';
 import { type LiveVoiceControls, useLiveVoice } from '../voice/useLiveVoice';
 
 const NOT_FOUND_STATUS = 404;
@@ -189,8 +189,9 @@ function BoardPicture({ artwork }: { artwork: Artwork }) {
   return <img src={artwork.src} alt={artwork.description} className="block max-h-board-art max-w-full object-contain" />;
 }
 
-function getVoiceNote(status: LiveVoiceControls['status'], view: LiveVoiceView | null): string | null {
+function getVoiceNote({ status, waitSeconds, view }: LiveVoiceControls): string | null {
   if (status === 'finished') return VOICE_LABELS.sessionFinished;
+  if (status === 'tooSoon') return VOICE_LABELS.tooSoon(waitSeconds);
   if (status === 'connecting' || view?.phase === 'connecting') return VOICE_LABELS.connecting;
   if (status === 'unavailable' || view?.phase === 'noTutor') return VOICE_LABELS.unavailable;
   if (view?.phase === 'reconnecting') return VOICE_LABELS.reconnecting;
@@ -208,9 +209,9 @@ function getVoiceNote(status: LiveVoiceControls['status'], view: LiveVoiceView |
 function ReplyBox({ liveVoice }: { liveVoice: LiveVoiceControls }) {
   const { status, view, voice, isTalkOn, sendTyped, toggleTalk, openAgain } = liveVoice;
   const isFinished = status === 'finished';
-  const isOver = isFinished || (view !== null && isVoiceOver(view.phase));
+  const isOver = isFinished || status === 'tooSoon' || (view !== null && isVoiceOver(view.phase));
   const [replyWithNoRoom, setReplyWithNoRoom] = useState<string | null>(null);
-  const voiceNote = getVoiceNote(status, view);
+  const voiceNote = getVoiceNote(liveVoice);
 
   async function send(text: string) {
     const wasSent = await sendTyped(text);

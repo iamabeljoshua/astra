@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource, ILike, IsNull, Not } from 'typeorm';
+import { DataSource, ILike, IsNull, MoreThan, Not } from 'typeorm';
 import type { FindOptionsWhere, Repository } from 'typeorm';
 import { SessionEntity } from '../entities/session.entity';
 
@@ -46,6 +46,10 @@ export class SessionRepository {
       take: limit,
       skip: offset,
     });
+  }
+
+  countStartedSince(studentId: string, since: Date): Promise<number> {
+    return this.sessions.countBy({ studentId, startedAt: MoreThan(since) });
   }
 
   existsForStudent(studentId: string): Promise<boolean> {

@@ -15,6 +15,9 @@ export const TURN_TIMINGS = {
   patientTurnCapMs: 2000,
 } as const;
 
+/** A student cut off again and again would send a longer reply each time, 200 words after 40 cuts, so only this many of the newest stay owed. About 25 s of speech. */
+export const MOST_WORDS_OWED = 60;
+
 export type TimerName = 'wordlessStop' | 'transcriptGrace' | 'reactionFloor' | 'heldFinal' | 'patience';
 
 const TIMER_MS: Record<TimerName, number> = {
@@ -86,6 +89,8 @@ export type TurnEvent =
   | { type: 'tutorThinking' }
   | { type: 'tutorStarted'; isReply: boolean }
   | { type: 'tutorFinished' }
+  /** A reply, not a stored line, played to its end, so the student has their answer. */
+  | { type: 'replyHeardOut' }
   | { type: 'questionHeard' }
   | { type: 'linkLost' }
   | { type: 'linkBack' };
@@ -117,6 +122,7 @@ const RESUME: TurnAction = { do: 'resume' };
 const REACT: TurnAction = { do: 'react' };
 
 const joinWords = (...parts: string[]) => parts.filter(Boolean).join(' ');
+const getNewestWords = (text: string) => text.split(/\s+/).slice(-MOST_WORDS_OWED).join(' ');
 
 // A final reaction ends the yield, and the tutor carries on as if nothing had been said.
 function releaseReaction(state: TurnState): TurnStep {
@@ -197,7 +203,7 @@ function onEchoHeard(state: TurnState): TurnStep {
 function startReply(state: TurnState, { text, via, answeredPartial = null }: { text: string; via: ReplyVia; answeredPartial?: string | null }): TurnStep {
   const reactFirst = state.hasReacted ? [] : [REACT];
   const unyieldFirst = state.phase === 'yielding' ? [UNYIELD] : [];
-  const next: TurnState = { ...INITIAL_TURN_STATE, tutor: 'thinking', isVoiceOn: state.isVoiceOn, unanswered: text, hasReacted: true, answeredPartial, answering: state.isVoiceOn ? 'no' : 'replied' };
+  const next: TurnState = { ...INITIAL_TURN_STATE, tutor: 'thinking', isVoiceOn: state.isVoiceOn, unanswered: getNewestWords(text), hasReacted: true, answeredPartial, answering: state.isVoiceOn ? 'no' : 'replied' };
   return { state: next, actions: [...CANCEL_ALL, ...unyieldFirst, ...reactFirst, { do: 'setTurnCap', ms: TURN_TIMINGS.turnCapMs }, { do: 'reply', text, via }] };
 }
 
@@ -248,11 +254,9 @@ function onTutorStarted(state: TurnState, { isReply }: { isReply: boolean }): Tu
   return { state: { ...fresh, phase: 'yielding', heardReaction: false, isReactionFinal: false, startedOverTutor: true }, actions: [...CANCEL_FLOOR_TIMERS, { do: 'yield' }, startTimer('wordlessStop')] };
 }
 
-// A reply that played to its end has answered its words. A stop lands here in a stopped, held, or away phase, and those words are still owed.
 function onTutorFinished(state: TurnState): TurnStep {
-  const unanswered = state.tutor === 'speaking' && (state.phase === 'clear' || state.phase === 'yielding') ? '' : state.unanswered;
-  if (state.phase === 'yielding') return { state: { ...state, phase: 'clear', tutor: 'silent', heardReaction: false, isReactionFinal: false, unanswered }, actions: [...CANCEL_FLOOR_TIMERS, UNYIELD] };
-  return { state: { ...state, tutor: 'silent', unanswered }, actions: [] };
+  if (state.phase === 'yielding') return { state: { ...state, phase: 'clear', tutor: 'silent', heardReaction: false, isReactionFinal: false }, actions: [...CANCEL_FLOOR_TIMERS, UNYIELD] };
+  return { state: { ...state, tutor: 'silent' }, actions: [] };
 }
 
 function onQuestionHeard(state: TurnState): TurnStep {
@@ -296,6 +300,8 @@ export function getNextTurnState(state: TurnState, event: TurnEvent): TurnStep {
       return onTutorStarted(state, event);
     case 'tutorFinished':
       return onTutorFinished(state);
+    case 'replyHeardOut':
+      return { state: { ...state, unanswered: '' }, actions: [] };
     case 'questionHeard':
       return onQuestionHeard(state);
     case 'linkLost':

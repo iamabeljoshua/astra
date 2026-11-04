@@ -226,10 +226,14 @@ export const VOICE_LABELS = {
   micOn: 'Your microphone is on.',
   quietWarning: 'It has been quiet for a while, so this room closes in about a minute. Your session stays here either way.',
   stillHere: 'Keep the room open',
-  closedForQuiet: 'This room closed because it stayed quiet. Your session is still here.',
+  closedForQuiet: 'This room closed because it stayed quiet. Your session is still here. Open it again and a tutor will start fresh, without what was said so far.',
   openAgain: 'Open the room again',
   tryAgain: 'Try again',
   turnOnSound: 'Turn on sound',
+  tooSoon(waitSeconds: number | null) {
+    const minutes = Math.max(1, Math.ceil((waitSeconds ?? 60) / 60));
+    return `Your tutor has been started many times, so a new one can start in about ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}. Your session is still here.`;
+  },
 };
 
 export const VOICE_TEST_LABELS = {
