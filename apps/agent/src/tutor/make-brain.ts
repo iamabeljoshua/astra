@@ -16,6 +16,8 @@ const DEFAULT_LIMIT_CREDITS = 1500;
 const DEFAULT_SESSION_LIMIT_USD = 1;
 /** About an hour of speech and about $1.60 at the listed $40 a million characters. */
 const DEFAULT_SESSION_VOICE_LIMIT_CHARACTERS = 40_000;
+/** The listed Flash price, from `docs/architecture/live-session.md`. */
+const VOICE_USD_PER_CHARACTER = 40 / 1_000_000;
 
 function makeLedger() {
   const path = process.env.ASTRA_SPEND_FILE;
@@ -67,7 +69,7 @@ export function createSpendCaps({ link, ledger, trace, sessionLimitUsd, sessionV
     addTurn({ usd, voiceCharacters }) {
       sessionUsd += usd;
       sessionCharacters += voiceCharacters;
-      unreportedUsd += usd;
+      unreportedUsd += usd + voiceCharacters * VOICE_USD_PER_CHARACTER;
       ledger?.charge({ anthropicUsd: usd, voiceCharacters });
       report();
     },

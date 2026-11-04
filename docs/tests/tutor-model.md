@@ -140,7 +140,7 @@ The caps protect the money and never cut a student off mid-sentence, because eac
 | Typed messages, per session | A burst of 3, then one every 2 s | What comes too fast is held and sent together, so no words are lost |
 | The model, per session | $1, `ASTRA_SESSION_LIMIT_USD` | The tutor says so once and stops, and the page keeps saying why |
 | The voice, per session | 40,000 characters, about an hour, `ASTRA_SESSION_VOICE_LIMIT_CHARACTERS` | The same |
-| The student, per day | $3, `ASTRA_DAILY_LIMIT_USD`, checked in the API | The agent reports each turn's cost, the tutor stops when the API says so, and the API opens no new room until the next UTC day |
+| The student, per day | $3, `ASTRA_DAILY_LIMIT_USD`, checked in the API | The agent reports each turn's model cost and listed voice cost, the tutor stops when the API says so, and the API opens no new room until the next UTC day |
 | A shared file, for tests and demos | `ASTRA_SPEND_FILE`, both the model and voice limits | As per session |
 
 A turn cut before it reports its tokens is charged by estimate, because Anthropic may still bill it. A request the API turned away is charged nothing. A session's cap restarts in a new room, so the daily cap is the real ceiling.

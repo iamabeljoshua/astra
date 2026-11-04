@@ -31,6 +31,14 @@ describe('the caps on one room', () => {
     expect(caps.getSpendLimit()).toBe('dailyLimit');
   });
 
+  it('counts the voice in what it tells the API, because it is most of what a minute costs', async () => {
+    const sent: number[] = [];
+    const caps = createSpendCaps({ link: { reportSpend: async (usd) => (sent.push(usd), { isOverDailyLimit: false }) }, ledger: null, trace: () => {}, ...LIMITS });
+    caps.addTurn({ usd: 0.01, voiceCharacters: 1000 });
+    await caps.flush();
+    expect(sent[0]).toBeCloseTo(0.05);
+  });
+
   it('keeps a charge the API could not take, and sends it with the next one', async () => {
     const sent: number[] = [];
     let isDown = true;
