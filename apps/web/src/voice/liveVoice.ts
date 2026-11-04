@@ -123,6 +123,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
   let stopListening = () => {};
   let isRejoining = false;
   let hasLeftRoom = false;
+  let hasTutorTrack = false;
   let rejoinsSincePulse = 0;
   let hasSaidHello = false;
   let connectedAtEpochMs = getEpochMs();
@@ -134,9 +135,12 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
 
   const hearsAgent = () => lastAgentPulseEpochMs !== null && getEpochMs() - lastAgentPulseEpochMs <= LINK_QUIET_LIMIT_MS;
 
+  // Before the first pulse a tutor's track is what says the agent is listening. Pulses come on the lossy channel, and waiting for one held hello for up to 4.9 s.
+  const canReachAgent = () => hearsAgent() || (lastAgentPulseEpochMs === null && hasTutorTrack);
+
   // A report sent while the link is down would be lost, and the agent resumes from it, so it waits here until the agent can be heard again. A typed line waits here too if the agent has not joined yet.
   const send = (message: BrowserMessage) => {
-    if (room.state !== 'connected' || !hearsAgent()) {
+    if (room.state !== 'connected' || !canReachAgent()) {
       outbox.push(message);
       return;
     }
@@ -347,6 +351,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     stopListening();
     stopListening = listenToTutor(track, { audioContext, gain, clock, onProbe });
     clearTimeout(tutorWait);
+    hasTutorTrack = true;
     // Only a pulse says the tutor came back after a drop, because a crashed job's track can outlive it.
     if (view.phase === 'connecting') setView({ phase: 'live' });
     send({ type: 'hello', ...getStamp(), wantsGreeting: wantsGreeting && !hasSaidHello });

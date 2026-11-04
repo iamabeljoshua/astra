@@ -44,6 +44,7 @@ interface Harness {
 
 function makeOutput(frames: { atMs: number }[], failAfter = Infinity): VoiceOutput {
   let queuedUntilMs = 0;
+  let endPlayoutWait = () => {};
   return {
     sampleRate: 24000,
     async captureFrame(frame) {
@@ -53,9 +54,13 @@ function makeOutput(frames: { atMs: number }[], failAfter = Infinity): VoiceOutp
     },
     clearQueue() {
       queuedUntilMs = 0;
+      endPlayoutWait();
     },
     async waitForPlayout() {
-      await delay(Math.max(0, queuedUntilMs - performance.now()));
+      await new Promise<void>((resolve) => {
+        endPlayoutWait = resolve;
+        setTimeout(resolve, Math.max(0, queuedUntilMs - performance.now()));
+      });
     },
   };
 }
