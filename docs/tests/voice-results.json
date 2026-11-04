@@ -1,0 +1,2598 @@
+{
+ "turns": {
+  "roundTripMs": 135,
+  "voiceStartLagMs": {
+   "count": 30,
+   "p50": 298,
+   "p95": 342,
+   "worst": 355,
+   "best": 266
+  },
+  "voiceEndedMs": {
+   "count": 30,
+   "p50": 536,
+   "p95": 576,
+   "worst": 591,
+   "best": 507
+  },
+  "firstPartialFromFirstSoundMs": {
+   "count": 30,
+   "p50": 1119,
+   "p95": 1359,
+   "worst": 1440,
+   "best": 814
+  },
+  "finalMs": {
+   "count": 30,
+   "p50": 791,
+   "p95": 956,
+   "worst": 990,
+   "best": 662
+  },
+  "decidedMs": {
+   "count": 30,
+   "p50": 950,
+   "p95": 1303,
+   "worst": 1335,
+   "best": 696
+  },
+  "reactDecidedMs": {
+   "count": 30,
+   "p50": 832,
+   "p95": 876,
+   "worst": 891,
+   "best": 696
+  },
+  "reactionCapturedMs": {
+   "count": 30,
+   "p50": 835,
+   "p95": 880,
+   "worst": 892,
+   "best": 702
+  },
+  "reactionHeardMs": {
+   "count": 30,
+   "p50": 1074,
+   "p95": 1119,
+   "worst": 1137,
+   "best": 932
+  },
+  "dotHeardMs": {
+   "count": 30,
+   "p50": 970,
+   "p95": 1008,
+   "worst": 1023,
+   "best": 847
+  },
+  "replyDecidedMs": {
+   "count": 30,
+   "p50": 950,
+   "p95": 1304,
+   "worst": 1336,
+   "best": 697
+  },
+  "firstAudioReadMs": {
+   "count": 30,
+   "p50": 1229,
+   "p95": 1576,
+   "worst": 1603,
+   "best": 969
+  },
+  "replyCapturedMs": {
+   "count": 30,
+   "p50": 1544,
+   "p95": 1713,
+   "worst": 1739,
+   "best": 1168
+  },
+  "firstWordHeardMs": {
+   "count": 30,
+   "p50": 1848,
+   "p95": 2012,
+   "worst": 2027,
+   "best": 1455
+  },
+  "fromDecisionToReactionMs": {
+   "count": 30,
+   "p50": 243,
+   "p95": 271,
+   "worst": 282,
+   "best": 218
+  },
+  "voiceReadMs": {
+   "count": 30,
+   "p50": 271,
+   "p95": 306,
+   "worst": 458,
+   "best": 254
+  },
+  "tripMs": {
+   "count": 30,
+   "p50": 286,
+   "p95": 307,
+   "worst": 323,
+   "best": 241
+  }
+ },
+ "stops": {
+  "rows": [
+   {
+    "localYieldFromFirstSoundMs": 22,
+    "reactionAfterStopMs": 1738,
+    "reactionCapturedAfterDecisionMs": 3,
+    "reactionHeardAfterDecisionMs": 271,
+    "yieldFromFirstSoundMs": 457,
+    "stopDecidedFromFirstSoundMs": 1090,
+    "silenceFromFirstSoundMs": 1253,
+    "decisionToSilenceMs": 162,
+    "reason": "no words",
+    "heardAtCut": 13,
+    "firedAtStop": 1,
+    "firedAfterStop": 0,
+    "replyAfterStop": true,
+    "boardFrozen": true
+   },
+   {
+    "localYieldFromFirstSoundMs": 26,
+    "reactionAfterStopMs": 2111,
+    "reactionCapturedAfterDecisionMs": 1,
+    "reactionHeardAfterDecisionMs": 268,
+    "yieldFromFirstSoundMs": 447,
+    "stopDecidedFromFirstSoundMs": 975,
+    "silenceFromFirstSoundMs": 1137,
+    "decisionToSilenceMs": 162,
+    "reason": "real word",
+    "heardAtCut": 11,
+    "firedAtStop": 3,
+    "firedAfterStop": 0,
+    "replyAfterStop": true,
+    "boardFrozen": true
+   },
+   {
+    "localYieldFromFirstSoundMs": 22,
+    "reactionAfterStopMs": 1065,
+    "reactionCapturedAfterDecisionMs": 3,
+    "reactionHeardAfterDecisionMs": 272,
+    "yieldFromFirstSoundMs": 510,
+    "stopDecidedFromFirstSoundMs": 1134,
+    "silenceFromFirstSoundMs": 1305,
+    "decisionToSilenceMs": 170,
+    "reason": "no words",
+    "heardAtCut": 14,
+    "firedAtStop": 5,
+    "firedAfterStop": 0,
+    "replyAfterStop": true,
+    "boardFrozen": true
+   },
+   {
+    "localYieldFromFirstSoundMs": 25,
+    "reactionAfterStopMs": 1104,
+    "reactionCapturedAfterDecisionMs": 8,
+    "reactionHeardAfterDecisionMs": 280,
+    "yieldFromFirstSoundMs": 491,
+    "stopDecidedFromFirstSoundMs": 1169,
+    "silenceFromFirstSoundMs": 1339,
+    "decisionToSilenceMs": 171,
+    "reason": "real word",
+    "heardAtCut": 11,
+    "firedAtStop": 7,
+    "firedAfterStop": 0,
+    "replyAfterStop": true,
+    "boardFrozen": true
+   },
+   {
+    "localYieldFromFirstSoundMs": 26,
+    "reactionAfterStopMs": 1727,
+    "reactionCapturedAfterDecisionMs": 1,
+    "reactionHeardAfterDecisionMs": 260,
+    "yieldFromFirstSoundMs": 483,
+    "stopDecidedFromFirstSoundMs": 1121,
+    "silenceFromFirstSoundMs": 1279,
+    "decisionToSilenceMs": 157,
+    "reason": "no words",
+    "heardAtCut": 11,
+    "firedAtStop": 9,
+    "firedAfterStop": 0,
+    "replyAfterStop": true,
+    "boardFrozen": true
+   },
+   {
+    "localYieldFromFirstSoundMs": 25,
+    "reactionAfterStopMs": 2000,
+    "reactionCapturedAfterDecisionMs": 6,
+    "reactionHeardAfterDecisionMs": 269,
+    "yieldFromFirstSoundMs": 479,
+    "stopDecidedFromFirstSoundMs": 1126,
+    "silenceFromFirstSoundMs": 1279,
+    "decisionToSilenceMs": 153,
+    "reason": "no words",
+    "heardAtCut": 11,
+    "firedAtStop": 11,
+    "firedAfterStop": 0,
+    "replyAfterStop": true,
+    "boardFrozen": true
+   }
+  ],
+  "localYieldFromFirstSoundMs": {
+   "count": 6,
+   "p50": 25,
+   "p95": 26,
+   "worst": 26,
+   "best": 22
+  },
+  "reactionCapturedAfterDecisionMs": {
+   "count": 6,
+   "p50": 3,
+   "p95": 8,
+   "worst": 8,
+   "best": 1
+  },
+  "reactionHeardAfterDecisionMs": {
+   "count": 6,
+   "p50": 271,
+   "p95": 280,
+   "worst": 280,
+   "best": 260
+  },
+  "yieldFromFirstSoundMs": {
+   "count": 6,
+   "p50": 483,
+   "p95": 510,
+   "worst": 510,
+   "best": 447
+  },
+  "stopDecidedFromFirstSoundMs": {
+   "count": 6,
+   "p50": 1126,
+   "p95": 1169,
+   "worst": 1169,
+   "best": 975
+  },
+  "silenceFromFirstSoundMs": {
+   "count": 6,
+   "p50": 1279,
+   "p95": 1339,
+   "worst": 1339,
+   "best": 1137
+  },
+  "decisionToSilenceMs": {
+   "count": 6,
+   "p50": 162,
+   "p95": 171,
+   "worst": 171,
+   "best": 153
+  },
+  "repliedAfterStop": 6,
+  "frozen": 6,
+  "firedAfterStop": 0
+ },
+ "fakeVoice": {
+  "interrupt,backchannel": {
+   "interrupt": {
+    "rows": [
+     {
+      "yieldFromFirstSoundMs": 461,
+      "stopDecidedFromFirstSoundMs": 1113,
+      "silenceFromFirstSoundMs": 1261,
+      "decisionToSilenceMs": 147,
+      "reason": "no words",
+      "heardAtCut": 11,
+      "firedAtStop": 0,
+      "firedAfterStop": 0,
+      "replyAfterStop": true,
+      "boardFrozen": true
+     },
+     {
+      "yieldFromFirstSoundMs": 459,
+      "stopDecidedFromFirstSoundMs": 1038,
+      "silenceFromFirstSoundMs": 1203,
+      "decisionToSilenceMs": 165,
+      "reason": "real word",
+      "heardAtCut": 10,
+      "firedAtStop": 2,
+      "firedAfterStop": 0,
+      "replyAfterStop": true,
+      "boardFrozen": true
+     },
+     {
+      "yieldFromFirstSoundMs": 455,
+      "stopDecidedFromFirstSoundMs": 860,
+      "silenceFromFirstSoundMs": 1023,
+      "decisionToSilenceMs": 163,
+      "reason": "real word",
+      "heardAtCut": 10,
+      "firedAtStop": 4,
+      "firedAfterStop": 0,
+      "replyAfterStop": true,
+      "boardFrozen": true
+     },
+     {
+      "yieldFromFirstSoundMs": 468,
+      "stopDecidedFromFirstSoundMs": 1119,
+      "silenceFromFirstSoundMs": 1275,
+      "decisionToSilenceMs": 155,
+      "reason": "real word",
+      "heardAtCut": 11,
+      "firedAtStop": 6,
+      "firedAfterStop": 0,
+      "replyAfterStop": true,
+      "boardFrozen": true
+     },
+     {
+      "yieldFromFirstSoundMs": 485,
+      "stopDecidedFromFirstSoundMs": 1142,
+      "silenceFromFirstSoundMs": 1285,
+      "decisionToSilenceMs": 142,
+      "reason": "no words",
+      "heardAtCut": 11,
+      "firedAtStop": 8,
+      "firedAfterStop": 0,
+      "replyAfterStop": true,
+      "boardFrozen": true
+     },
+     {
+      "yieldFromFirstSoundMs": 473,
+      "stopDecidedFromFirstSoundMs": 1037,
+      "silenceFromFirstSoundMs": 1199,
+      "decisionToSilenceMs": 162,
+      "reason": "real word",
+      "heardAtCut": 10,
+      "firedAtStop": 10,
+      "firedAfterStop": 0,
+      "replyAfterStop": true,
+      "boardFrozen": true
+     },
+     {
+      "yieldFromFirstSoundMs": 472,
+      "stopDecidedFromFirstSoundMs": 1079,
+      "silenceFromFirstSoundMs": 1236,
+      "decisionToSilenceMs": 157,
+      "reason": "real word",
+      "heardAtCut": 10,
+      "firedAtStop": 12,
+      "firedAfterStop": 0,
+      "replyAfterStop": true,
+      "boardFrozen": true
+     },
+     {
+      "yieldFromFirstSoundMs": 457,
+      "stopDecidedFromFirstSoundMs": 1209,
+      "silenceFromFirstSoundMs": 1363,
+      "decisionToSilenceMs": 155,
+      "reason": "real word",
+      "heardAtCut": 11,
+      "firedAtStop": 14,
+      "firedAfterStop": 0,
+      "replyAfterStop": true,
+      "boardFrozen": true
+     }
+    ],
+    "yieldFromFirstSoundMs": {
+     "count": 8,
+     "p50": 468,
+     "p95": 485,
+     "worst": 485,
+     "best": 455
+    },
+    "stopDecidedFromFirstSoundMs": {
+     "count": 8,
+     "p50": 1113,
+     "p95": 1209,
+     "worst": 1209,
+     "best": 860
+    },
+    "silenceFromFirstSoundMs": {
+     "count": 8,
+     "p50": 1261,
+     "p95": 1363,
+     "worst": 1363,
+     "best": 1023
+    },
+    "decisionToSilenceMs": {
+     "count": 8,
+     "p50": 157,
+     "p95": 165,
+     "worst": 165,
+     "best": 142
+    },
+    "repliedAfterStop": 8,
+    "frozen": 8,
+    "firedAfterStop": 0
+   },
+   "backchannel": {
+    "rows": [
+     {
+      "clipId": "reaction-uh-huh",
+      "heardAs": [
+       null,
+       null
+      ],
+      "stopped": false,
+      "yieldMs": 442,
+      "loweredForMs": 1769
+     },
+     {
+      "clipId": "reaction-mm-hmm",
+      "heardAs": [
+       null,
+       null
+      ],
+      "stopped": false,
+      "yieldMs": 446,
+      "loweredForMs": 968
+     },
+     {
+      "clipId": "reaction-hmm",
+      "heardAs": [],
+      "stopped": false,
+      "yieldMs": 503,
+      "loweredForMs": 1370
+     },
+     {
+      "clipId": "reaction-yeah",
+      "heardAs": [
+       null,
+       null
+      ],
+      "stopped": false,
+      "yieldMs": 463,
+      "loweredForMs": 956
+     },
+     {
+      "clipId": "reaction-okay",
+      "heardAs": [
+       null,
+       null
+      ],
+      "stopped": false,
+      "yieldMs": 473,
+      "loweredForMs": 1054
+     },
+     {
+      "clipId": "reaction-right",
+      "heardAs": [
+       null,
+       null
+      ],
+      "stopped": false,
+      "yieldMs": 447,
+      "loweredForMs": 1110
+     }
+    ],
+    "stops": 0
+   }
+  },
+  "typed,second,tab,held,drop": {
+   "typed": {
+    "reactionCapturedAfterStopMs": 150,
+    "soundBlocked": false,
+    "clockKinds": [
+     "samples",
+     "samples",
+     "samples",
+     "samples",
+     "samples"
+    ],
+    "museOpened": false,
+    "firstReplyWords": [
+     "Welcome,",
+     "I",
+     "am",
+     "Astra,",
+     "your",
+     "personal",
+     "AI",
+     "tutor."
+    ],
+    "stoppedByTyping": true,
+    "lastWords": [
+     "You",
+     "said",
+     "wait,",
+     "why."
+    ],
+    "studentLines": [
+     {
+      "text": "why does it come down",
+      "isFinal": true
+     },
+     {
+      "text": "show me the ball",
+      "isFinal": true
+     },
+     {
+      "text": "wait, why",
+      "isFinal": true
+     }
+    ],
+    "rowsSeen": 1
+   },
+   "second": {
+    "roomsAreDifferent": true,
+    "bothListed": true,
+    "participants": [
+     [
+      "student",
+      "agent-AJ_Qsku7Xv497UL"
+     ],
+     [
+      "student",
+      "agent-AJ_8EZnD3v64UYB"
+     ]
+    ],
+    "tokenForOthersRoom": 404,
+    "mayaHeard": [
+     "Welcome,",
+     "I",
+     "am",
+     "Astra,",
+     "your",
+     "personal",
+     "AI",
+     "tutor."
+    ],
+    "tolaHeard": [
+     "Welcome,",
+     "I",
+     "am",
+     "Astra,",
+     "your",
+     "personal",
+     "AI",
+     "tutor."
+    ],
+    "mayaSawTolasWords": false,
+    "tolaSawMayasWords": false
+   },
+   "tab": {
+    "roomListedWhileOpen": true,
+    "leftOnPurpose": true,
+    "jobClosedAfterMs": 16794,
+    "roomGoneAfterMs": 20735,
+    "museClosed": true
+   },
+   "held": {
+    "rows": [
+     {
+      "line": "It lands twice as far.",
+      "transcript": "It lands twice as far.",
+      "finalMs": 4163,
+      "replyDecidedMs": 2242,
+      "via": "partial"
+     },
+     {
+      "line": "Wait, then why does it come down?",
+      "transcript": "Wait, then why does it come down?",
+      "finalMs": 728,
+      "replyDecidedMs": 730,
+      "via": "final"
+     },
+     {
+      "line": "The quadratic has two real roots.",
+      "transcript": "The quadratic has two real roots.",
+      "finalMs": 786,
+      "replyDecidedMs": 787,
+      "via": "final"
+     }
+    ],
+    "viaPartial": 1,
+    "noReply": 0,
+    "replyDecidedMs": {
+     "count": 3,
+     "p50": 787,
+     "p95": 2242,
+     "worst": 2242,
+     "best": 730
+    },
+    "finalMs": {
+     "count": 3,
+     "p50": 786,
+     "p95": 4163,
+     "worst": 4163,
+     "best": 728
+    }
+   },
+   "drop": {
+    "rows": [
+     {
+      "lostAfterCutMs": 1680,
+      "resumedAfterBackMs": null,
+      "reported": null,
+      "phaseDuringDrop": "live",
+      "heardAtDrop": [
+       "You",
+       "said",
+       "show",
+       "me",
+       "the",
+       "ball.",
+       "Watch",
+       "the",
+       "ball.",
+       "It",
+       "leaves",
+       "your",
+       "hand,",
+       "it",
+       "climbs",
+       "slower",
+       "and",
+       "slower,",
+       "it"
+      ],
+      "heardAfterResume": [
+       "You",
+       "said",
+       "show",
+       "me",
+       "the",
+       "ball.",
+       "Watch",
+       "the",
+       "ball.",
+       "It",
+       "leaves",
+       "your",
+       "hand,",
+       "it",
+       "climbs",
+       "slower",
+       "and",
+       "slower,",
+       "it",
+       "hangs",
+       "at",
+       "the",
+       "very",
+       "top,",
+       "and",
+       "then",
+       "it",
+       "falls",
+       "back",
+       "down.",
+       "Once"
+      ],
+      "firedPerTurn": 2
+     },
+     {
+      "lostAfterCutMs": null,
+      "resumedAfterBackMs": null,
+      "reported": null,
+      "phaseDuringDrop": "live",
+      "heardAtDrop": [
+       "You",
+       "said",
+       "show",
+       "me",
+       "the",
+       "ball.",
+       "Watch",
+       "the",
+       "ball.",
+       "It",
+       "leaves",
+       "your",
+       "hand,",
+       "it",
+       "climbs",
+       "slower",
+       "and",
+       "slower,",
+       "it",
+       "hangs",
+       "at",
+       "the",
+       "very",
+       "top,",
+       "and",
+       "then",
+       "it",
+       "falls",
+       "back",
+       "down.",
+       "Once"
+      ],
+      "heardAfterResume": [
+       "You",
+       "said",
+       "show",
+       "me",
+       "the",
+       "ball.",
+       "Watch",
+       "the",
+       "ball.",
+       "It",
+       "leaves",
+       "your",
+       "hand,",
+       "it",
+       "climbs",
+       "slower",
+       "and",
+       "slower,",
+       "it",
+       "hangs",
+       "at",
+       "the",
+       "very",
+       "top,",
+       "and",
+       "then",
+       "it",
+       "falls",
+       "back",
+       "down.",
+       "Once"
+      ],
+      "firedPerTurn": 2
+     },
+     {
+      "lostAfterCutMs": null,
+      "resumedAfterBackMs": null,
+      "reported": null,
+      "phaseDuringDrop": "live",
+      "heardAtDrop": [
+       "You",
+       "said",
+       "show",
+       "me",
+       "the",
+       "ball.",
+       "Watch",
+       "the",
+       "ball.",
+       "It",
+       "leaves",
+       "your",
+       "hand,",
+       "it",
+       "climbs",
+       "slower",
+       "and",
+       "slower,",
+       "it",
+       "hangs",
+       "at",
+       "the",
+       "very",
+       "top,",
+       "and",
+       "then",
+       "it",
+       "falls",
+       "back",
+       "down.",
+       "Once"
+      ],
+      "heardAfterResume": [
+       "You",
+       "said",
+       "show",
+       "me",
+       "the",
+       "ball.",
+       "Watch",
+       "the",
+       "ball.",
+       "It",
+       "leaves",
+       "your",
+       "hand,",
+       "it",
+       "climbs",
+       "slower",
+       "and",
+       "slower,",
+       "it",
+       "hangs",
+       "at",
+       "the",
+       "very",
+       "top,",
+       "and",
+       "then",
+       "it",
+       "falls",
+       "back",
+       "down.",
+       "Once"
+      ],
+      "firedPerTurn": 2
+     }
+    ]
+   }
+  },
+  "drop,typed": {
+   "drop": {
+    "rows": [
+     {
+      "lostAfterCutMs": 1751,
+      "resumedAfterBackMs": 8930,
+      "reported": {
+       "playedWords": 3,
+       "firedCues": 1
+      },
+      "reportedBeforeResume": true,
+      "phaseDuringDrop": "live",
+      "heardAtDrop": [
+       "You",
+       "said",
+       "show",
+       "me",
+       "the",
+       "ball.",
+       "Watch",
+       "the",
+       "ball."
+      ],
+      "heardAfterResume": [
+       "ball.",
+       "It",
+       "leaves",
+       "your",
+       "hand,",
+       "it",
+       "climbs",
+       "slower",
+       "and",
+       "slower,",
+       "it",
+       "hangs",
+       "at",
+       "the",
+       "very",
+       "top,",
+       "and",
+       "then",
+       "it",
+       "falls",
+       "back",
+       "down.",
+       "Once",
+       "it",
+       "leaves",
+       "your",
+       "hand,",
+       "what",
+       "still",
+       "pushes",
+       "it",
+       "sideways?"
+      ],
+      "firedPerTurn": 2
+     },
+     {
+      "lostAfterCutMs": 1659,
+      "resumedAfterBackMs": 9729,
+      "reported": {
+       "playedWords": 3,
+       "firedCues": 1
+      },
+      "reportedBeforeResume": true,
+      "phaseDuringDrop": "live",
+      "heardAtDrop": [
+       "You",
+       "said",
+       "show",
+       "me",
+       "the",
+       "ball.",
+       "Watch",
+       "the",
+       "ball."
+      ],
+      "heardAfterResume": [
+       "ball.",
+       "It",
+       "leaves",
+       "your",
+       "hand,",
+       "it",
+       "climbs",
+       "slower",
+       "and",
+       "slower,",
+       "it",
+       "hangs",
+       "at",
+       "the",
+       "very",
+       "top,",
+       "and",
+       "then",
+       "it",
+       "falls",
+       "back",
+       "down.",
+       "Once",
+       "it",
+       "leaves",
+       "your",
+       "hand,",
+       "what",
+       "still",
+       "pushes",
+       "it",
+       "sideways?"
+      ],
+      "firedPerTurn": 4
+     }
+    ]
+   },
+   "typed": {
+    "reactionCapturedAfterStopMs": 150,
+    "soundBlocked": true,
+    "clockKinds": [
+     "timer",
+     "timer",
+     "timer",
+     "timer",
+     "timer",
+     "timer"
+    ],
+    "museOpened": false,
+    "firstReplyWords": [
+     "You",
+     "said",
+     "why",
+     "does",
+     "it",
+     "come",
+     "down."
+    ],
+    "stoppedByTyping": true,
+    "lastWords": [
+     "You",
+     "said",
+     "wait,",
+     "why."
+    ],
+    "studentLines": [
+     {
+      "text": "why does it come down",
+      "isFinal": true
+     },
+     {
+      "text": "show me the ball",
+      "isFinal": true
+     },
+     {
+      "text": "wait, why",
+      "isFinal": true
+     }
+    ],
+    "rowsSeen": 2
+   }
+  },
+  "join,patience": {
+   "join": {
+    "rows": [
+     {
+      "connectedMs": 1374,
+      "jobStartedMs": 6410,
+      "trackUpMs": 6698,
+      "greetingHeardMs": 7469,
+      "museHandshakeMs": 1368,
+      "roundTripMs": 153
+     },
+     {
+      "connectedMs": 1192,
+      "jobStartedMs": 2298,
+      "trackUpMs": 2569,
+      "greetingHeardMs": 3379,
+      "museHandshakeMs": 1928,
+      "roundTripMs": 151
+     },
+     {
+      "connectedMs": 2063,
+      "jobStartedMs": 4230,
+      "trackUpMs": 4486,
+      "greetingHeardMs": 5484,
+      "museHandshakeMs": 1236,
+      "roundTripMs": 134
+     },
+     {
+      "connectedMs": 1273,
+      "jobStartedMs": 2625,
+      "trackUpMs": 2943,
+      "greetingHeardMs": 3788,
+      "museHandshakeMs": 1707,
+      "roundTripMs": 134
+     },
+     {
+      "connectedMs": 1041,
+      "jobStartedMs": 2270,
+      "trackUpMs": 2550,
+      "greetingHeardMs": 3339,
+      "museHandshakeMs": 1154,
+      "roundTripMs": 155
+     }
+    ],
+    "connected": {
+     "count": 5,
+     "p50": 1273,
+     "p95": 2063,
+     "worst": 2063,
+     "best": 1041
+    },
+    "greetingHeard": {
+     "count": 5,
+     "p50": 3788,
+     "p95": 7469,
+     "worst": 7469,
+     "best": 3339
+    },
+    "museHandshake": {
+     "count": 5,
+     "p50": 1368,
+     "p95": 1928,
+     "worst": 1928,
+     "best": 1154
+    },
+    "roundTrip": {
+     "count": 5,
+     "p50": 151,
+     "p95": 155,
+     "worst": 155,
+     "best": 134
+    }
+   },
+   "patience": {
+    "long": {
+     "decided": {
+      "count": 20,
+      "p50": 285,
+      "p95": 1757,
+      "worst": 1757,
+      "best": 72
+     },
+     "atTheCap": 4,
+     "of": 20,
+     "fromLastSound": {
+      "count": 20,
+      "p50": 862,
+      "p95": 2341,
+      "worst": 2341,
+      "best": 606
+     }
+    },
+    "short": {
+     "decided": {
+      "count": 12,
+      "p50": 452,
+      "p95": 744,
+      "worst": 744,
+      "best": 176
+     },
+     "atTheCap": 0,
+     "of": 12,
+     "fromLastSound": {
+      "count": 12,
+      "p50": 1008,
+      "p95": 1314,
+      "worst": 1314,
+      "best": 736
+     }
+    },
+    "fillers": [
+     {
+      "heard": "Let me think.",
+      "replied": false,
+      "promptAfterMs": 9328
+     },
+     {
+      "heard": "Let me think.",
+      "replied": false,
+      "promptAfterMs": 9359
+     },
+     {
+      "heard": "Let me think.",
+      "replied": false,
+      "promptAfterMs": 9317
+     }
+    ],
+    "pauses": [
+     {
+      "replies": [
+       "I think it lands"
+      ]
+     },
+     {
+      "replies": [
+       "I think it lands"
+      ]
+     },
+     {
+      "replies": [
+       "I think it lands"
+      ]
+     }
+    ]
+   }
+  }
+ },
+ "accents": [
+  {
+   "voice": "Samantha",
+   "accent": "American",
+   "wordErrors": 2,
+   "words": 67,
+   "noFinal": 1,
+   "finalMs": {
+    "count": 10,
+    "p50": 776,
+    "p95": 1199,
+    "worst": 1199,
+    "best": 533
+   },
+   "partialMs": {
+    "count": 10,
+    "p50": 853,
+    "p95": 1376,
+    "worst": 1376,
+    "best": 467
+   },
+   "rows": [
+    {
+     "kind": "speech",
+     "id": "x-squared",
+     "said": "x squared over two",
+     "heard": "x squared over two",
+     "wordErrors": 0,
+     "words": 4,
+     "partialFromFirstSoundMs": 1155,
+     "finalFromLastSoundMs": 837,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "minus-b",
+     "said": "negative b over two a",
+     "heard": "negative b over two a",
+     "wordErrors": 0,
+     "words": 5,
+     "partialFromFirstSoundMs": 1376,
+     "finalFromLastSoundMs": 707,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "twice",
+     "said": "It lands twice as far.",
+     "heard": "It lands twice as far",
+     "wordErrors": 0,
+     "words": 5,
+     "partialFromFirstSoundMs": 853,
+     "finalFromLastSoundMs": 739,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "why-down",
+     "said": "Wait, then why does it come down?",
+     "heard": "Wait, then why does it come down?",
+     "wordErrors": 0,
+     "words": 7,
+     "partialFromFirstSoundMs": 1149,
+     "finalFromLastSoundMs": 533,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "numerator",
+     "said": "Is the numerator bigger than the denominator?",
+     "heard": "Is the numerator bigger than the denominator?",
+     "wordErrors": 0,
+     "words": 7,
+     "partialFromFirstSoundMs": 562,
+     "finalFromLastSoundMs": 545,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "derivative",
+     "said": "The derivative of x squared is two x.",
+     "heard": "The derivative of x squared is 2x.",
+     "wordErrors": 0,
+     "words": 8,
+     "partialFromFirstSoundMs": 467,
+     "finalFromLastSoundMs": 1199,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "discriminant",
+     "said": "The discriminant is b squared minus four a c.",
+     "heard": "The discriminant is b squared minus 4 ac.",
+     "wordErrors": 2,
+     "words": 9,
+     "partialFromFirstSoundMs": 729,
+     "finalFromLastSoundMs": 719,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "root",
+     "said": "What's the square root of sixteen?",
+     "heard": "What's the square root of 16?",
+     "wordErrors": 0,
+     "words": 6,
+     "partialFromFirstSoundMs": 833,
+     "finalFromLastSoundMs": 834,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "line",
+     "said": "y equals two x plus three.",
+     "heard": "Y equals 2x plus 3",
+     "wordErrors": 0,
+     "words": 6,
+     "partialFromFirstSoundMs": 635,
+     "finalFromLastSoundMs": 836,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "sideways",
+     "said": "Sideways speed stays the same because no force pushes it.",
+     "heard": "sideways speed stays the same because no force pushes it.",
+     "wordErrors": 0,
+     "words": 10,
+     "partialFromFirstSoundMs": 993,
+     "finalFromLastSoundMs": 776,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "reaction",
+     "id": "uh-huh",
+     "said": "Uh-huh.",
+     "heard": "Aha!",
+     "wordErrors": 1,
+     "words": 1,
+     "partialFromFirstSoundMs": 911,
+     "finalFromLastSoundMs": 751,
+     "reactionRuleHolds": true
+    },
+    {
+     "kind": "reaction",
+     "id": "mm-hmm",
+     "said": "Mm-hmm.",
+     "heard": "mm",
+     "wordErrors": 1,
+     "words": 1,
+     "partialFromFirstSoundMs": 1060,
+     "finalFromLastSoundMs": 597,
+     "reactionRuleHolds": true
+    },
+    {
+     "kind": "reaction",
+     "id": "hmm",
+     "said": "Hmm.",
+     "heard": "",
+     "wordErrors": 1,
+     "words": 1,
+     "partialFromFirstSoundMs": null,
+     "finalFromLastSoundMs": null,
+     "reactionRuleHolds": false
+    },
+    {
+     "kind": "reaction",
+     "id": "aha",
+     "said": "Aha.",
+     "heard": "Aha",
+     "wordErrors": 0,
+     "words": 1,
+     "partialFromFirstSoundMs": 990,
+     "finalFromLastSoundMs": 496,
+     "reactionRuleHolds": true
+    },
+    {
+     "kind": "reaction",
+     "id": "mm-mm",
+     "said": "Mm-mm.",
+     "heard": "mmm",
+     "wordErrors": 0,
+     "words": 1,
+     "partialFromFirstSoundMs": 1146,
+     "finalFromLastSoundMs": 428,
+     "reactionRuleHolds": true
+    },
+    {
+     "kind": "reaction",
+     "id": "okay",
+     "said": "Okay.",
+     "heard": "Okay.",
+     "wordErrors": 0,
+     "words": 1,
+     "partialFromFirstSoundMs": 955,
+     "finalFromLastSoundMs": 713,
+     "reactionRuleHolds": true
+    },
+    {
+     "kind": "reaction",
+     "id": "yeah",
+     "said": "Yeah.",
+     "heard": "Yeah.",
+     "wordErrors": 0,
+     "words": 1,
+     "partialFromFirstSoundMs": 979,
+     "finalFromLastSoundMs": 568,
+     "reactionRuleHolds": true
+    },
+    {
+     "kind": "reaction",
+     "id": "wait",
+     "said": "Wait.",
+     "heard": "Wait.",
+     "wordErrors": 0,
+     "words": 1,
+     "partialFromFirstSoundMs": 1283,
+     "finalFromLastSoundMs": 897,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "reaction",
+     "id": "number",
+     "said": "42",
+     "heard": "Forty-two.",
+     "wordErrors": 0,
+     "words": 1,
+     "partialFromFirstSoundMs": 1601,
+     "finalFromLastSoundMs": 909,
+     "reactionRuleHolds": null
+    }
+   ]
+  },
+  {
+   "voice": "Daniel",
+   "accent": "British",
+   "wordErrors": 2,
+   "words": 67,
+   "noFinal": 0,
+   "finalMs": {
+    "count": 10,
+    "p50": 762,
+    "p95": 937,
+    "worst": 937,
+    "best": 464
+   },
+   "partialMs": {
+    "count": 10,
+    "p50": 850,
+    "p95": 1361,
+    "worst": 1361,
+    "best": 737
+   },
+   "rows": [
+    {
+     "kind": "speech",
+     "id": "x-squared",
+     "said": "x squared over two",
+     "heard": "X squared over two",
+     "wordErrors": 0,
+     "words": 4,
+     "partialFromFirstSoundMs": 753,
+     "finalFromLastSoundMs": 937,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "minus-b",
+     "said": "negative b over two a",
+     "heard": "negative B over two A",
+     "wordErrors": 0,
+     "words": 5,
+     "partialFromFirstSoundMs": 942,
+     "finalFromLastSoundMs": 774,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "twice",
+     "said": "It lands twice as far.",
+     "heard": " it lands twice as far",
+     "wordErrors": 0,
+     "words": 5,
+     "partialFromFirstSoundMs": 841,
+     "finalFromLastSoundMs": 762,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "why-down",
+     "said": "Wait, then why does it come down?",
+     "heard": "Wait, then why does it come down?",
+     "wordErrors": 0,
+     "words": 7,
+     "partialFromFirstSoundMs": 954,
+     "finalFromLastSoundMs": 464,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "numerator",
+     "said": "Is the numerator bigger than the denominator?",
+     "heard": "Is the numerator bigger than the denominator?",
+     "wordErrors": 0,
+     "words": 7,
+     "partialFromFirstSoundMs": 749,
+     "finalFromLastSoundMs": 765,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "derivative",
+     "said": "The derivative of x squared is two x.",
+     "heard": "The derivative of X squared is 2X.",
+     "wordErrors": 0,
+     "words": 8,
+     "partialFromFirstSoundMs": 737,
+     "finalFromLastSoundMs": 734,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "discriminant",
+     "said": "The discriminant is b squared minus four a c.",
+     "heard": "The discriminant is B squared minus 4 AC.",
+     "wordErrors": 2,
+     "words": 9,
+     "partialFromFirstSoundMs": 946,
+     "finalFromLastSoundMs": 695,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "root",
+     "said": "What's the square root of sixteen?",
+     "heard": "What's the square root of 16?",
+     "wordErrors": 0,
+     "words": 6,
+     "partialFromFirstSoundMs": 850,
+     "finalFromLastSoundMs": 567,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "line",
+     "said": "y equals two x plus three.",
+     "heard": "Y equals 2X plus 3",
+     "wordErrors": 0,
+     "words": 6,
+     "partialFromFirstSoundMs": 739,
+     "finalFromLastSoundMs": 776,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "sideways",
+     "said": "Sideways speed stays the same because no force pushes it.",
+     "heard": " Sideways speed stays the same because no force pushes it.",
+     "wordErrors": 0,
+     "words": 10,
+     "partialFromFirstSoundMs": 1361,
+     "finalFromLastSoundMs": 540,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "reaction",
+     "id": "uh-huh",
+     "said": "Uh-huh.",
+     "heard": "Aha,",
+     "wordErrors": 1,
+     "words": 1,
+     "partialFromFirstSoundMs": 982,
+     "finalFromLastSoundMs": 1509,
+     "reactionRuleHolds": true
+    },
+    {
+     "kind": "reaction",
+     "id": "mm-hmm",
+     "said": "Mm-hmm.",
+     "heard": "Mm mm hum",
+     "wordErrors": 2,
+     "words": 1,
+     "partialFromFirstSoundMs": 963,
+     "finalFromLastSoundMs": 502,
+     "reactionRuleHolds": false
+    },
+    {
+     "kind": "reaction",
+     "id": "hmm",
+     "said": "Hmm.",
+     "heard": " hum.",
+     "wordErrors": 1,
+     "words": 1,
+     "partialFromFirstSoundMs": 1154,
+     "finalFromLastSoundMs": 733,
+     "reactionRuleHolds": false
+    },
+    {
+     "kind": "reaction",
+     "id": "aha",
+     "said": "Aha.",
+     "heard": "Aha.",
+     "wordErrors": 0,
+     "words": 1,
+     "partialFromFirstSoundMs": 990,
+     "finalFromLastSoundMs": 595,
+     "reactionRuleHolds": true
+    },
+    {
+     "kind": "reaction",
+     "id": "mm-mm",
+     "said": "Mm-mm.",
+     "heard": "Mm mm mm.",
+     "wordErrors": 1,
+     "words": 1,
+     "partialFromFirstSoundMs": 779,
+     "finalFromLastSoundMs": 476,
+     "reactionRuleHolds": true
+    },
+    {
+     "kind": "reaction",
+     "id": "okay",
+     "said": "Okay.",
+     "heard": "okay",
+     "wordErrors": 0,
+     "words": 1,
+     "partialFromFirstSoundMs": 1056,
+     "finalFromLastSoundMs": 499,
+     "reactionRuleHolds": true
+    },
+    {
+     "kind": "reaction",
+     "id": "yeah",
+     "said": "Yeah.",
+     "heard": "yeah.",
+     "wordErrors": 0,
+     "words": 1,
+     "partialFromFirstSoundMs": 906,
+     "finalFromLastSoundMs": 561,
+     "reactionRuleHolds": true
+    },
+    {
+     "kind": "reaction",
+     "id": "wait",
+     "said": "Wait.",
+     "heard": "wait.",
+     "wordErrors": 0,
+     "words": 1,
+     "partialFromFirstSoundMs": 1182,
+     "finalFromLastSoundMs": 781,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "reaction",
+     "id": "number",
+     "said": "42",
+     "heard": "42.",
+     "wordErrors": 0,
+     "words": 1,
+     "partialFromFirstSoundMs": 1685,
+     "finalFromLastSoundMs": 924,
+     "reactionRuleHolds": null
+    }
+   ]
+  },
+  {
+   "voice": "Rishi",
+   "accent": "Indian",
+   "wordErrors": 2,
+   "words": 67,
+   "noFinal": 0,
+   "finalMs": {
+    "count": 10,
+    "p50": 774,
+    "p95": 1084,
+    "worst": 1084,
+    "best": 551
+   },
+   "partialMs": {
+    "count": 10,
+    "p50": 1121,
+    "p95": 1381,
+    "worst": 1381,
+    "best": 674
+   },
+   "rows": [
+    {
+     "kind": "speech",
+     "id": "x-squared",
+     "said": "x squared over two",
+     "heard": "x squared over 2",
+     "wordErrors": 0,
+     "words": 4,
+     "partialFromFirstSoundMs": 1198,
+     "finalFromLastSoundMs": 1084,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "minus-b",
+     "said": "negative b over two a",
+     "heard": "negative b over 2 a",
+     "wordErrors": 0,
+     "words": 5,
+     "partialFromFirstSoundMs": 1381,
+     "finalFromLastSoundMs": 906,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "twice",
+     "said": "It lands twice as far.",
+     "heard": "it lands twice as far.",
+     "wordErrors": 0,
+     "words": 5,
+     "partialFromFirstSoundMs": 793,
+     "finalFromLastSoundMs": 678,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "why-down",
+     "said": "Wait, then why does it come down?",
+     "heard": "wait, then why does it come down?",
+     "wordErrors": 0,
+     "words": 7,
+     "partialFromFirstSoundMs": 1213,
+     "finalFromLastSoundMs": 915,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "numerator",
+     "said": "Is the numerator bigger than the denominator?",
+     "heard": "Is the numerator bigger than the denominator?",
+     "wordErrors": 0,
+     "words": 7,
+     "partialFromFirstSoundMs": 674,
+     "finalFromLastSoundMs": 648,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "derivative",
+     "said": "The derivative of x squared is two x.",
+     "heard": "the derivative of x squared is 2x.",
+     "wordErrors": 0,
+     "words": 8,
+     "partialFromFirstSoundMs": 674,
+     "finalFromLastSoundMs": 838,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "discriminant",
+     "said": "The discriminant is b squared minus four a c.",
+     "heard": "The discriminant is b squared minus 4 ac.",
+     "wordErrors": 2,
+     "words": 9,
+     "partialFromFirstSoundMs": 763,
+     "finalFromLastSoundMs": 773,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "root",
+     "said": "What's the square root of sixteen?",
+     "heard": "What's the square root of 16?",
+     "wordErrors": 0,
+     "words": 6,
+     "partialFromFirstSoundMs": 980,
+     "finalFromLastSoundMs": 774,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "line",
+     "said": "y equals two x plus three.",
+     "heard": "Y equals 2x plus 3.",
+     "wordErrors": 0,
+     "words": 6,
+     "partialFromFirstSoundMs": 1121,
+     "finalFromLastSoundMs": 728,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "sideways",
+     "said": "Sideways speed stays the same because no force pushes it.",
+     "heard": " Sideways speed stays the same because no force pushes it.",
+     "wordErrors": 0,
+     "words": 10,
+     "partialFromFirstSoundMs": 1207,
+     "finalFromLastSoundMs": 551,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "reaction",
+     "id": "uh-huh",
+     "said": "Uh-huh.",
+     "heard": "Aha!",
+     "wordErrors": 1,
+     "words": 1,
+     "partialFromFirstSoundMs": 905,
+     "finalFromLastSoundMs": 645,
+     "reactionRuleHolds": true
+    },
+    {
+     "kind": "reaction",
+     "id": "mm-hmm",
+     "said": "Mm-hmm.",
+     "heard": "Mm hum.",
+     "wordErrors": 1,
+     "words": 1,
+     "partialFromFirstSoundMs": 1210,
+     "finalFromLastSoundMs": 750,
+     "reactionRuleHolds": false
+    },
+    {
+     "kind": "reaction",
+     "id": "hmm",
+     "said": "Hmm.",
+     "heard": " Hum.",
+     "wordErrors": 1,
+     "words": 1,
+     "partialFromFirstSoundMs": 1188,
+     "finalFromLastSoundMs": 982,
+     "reactionRuleHolds": false
+    },
+    {
+     "kind": "reaction",
+     "id": "aha",
+     "said": "Aha.",
+     "heard": "Aha.",
+     "wordErrors": 0,
+     "words": 1,
+     "partialFromFirstSoundMs": 840,
+     "finalFromLastSoundMs": 454,
+     "reactionRuleHolds": true
+    },
+    {
+     "kind": "reaction",
+     "id": "mm-mm",
+     "said": "Mm-mm.",
+     "heard": "Mm mm mm",
+     "wordErrors": 1,
+     "words": 1,
+     "partialFromFirstSoundMs": 994,
+     "finalFromLastSoundMs": 660,
+     "reactionRuleHolds": true
+    },
+    {
+     "kind": "reaction",
+     "id": "okay",
+     "said": "Okay.",
+     "heard": "Okay.",
+     "wordErrors": 0,
+     "words": 1,
+     "partialFromFirstSoundMs": 1012,
+     "finalFromLastSoundMs": 581,
+     "reactionRuleHolds": true
+    },
+    {
+     "kind": "reaction",
+     "id": "yeah",
+     "said": "Yeah.",
+     "heard": "Yeah.",
+     "wordErrors": 0,
+     "words": 1,
+     "partialFromFirstSoundMs": 805,
+     "finalFromLastSoundMs": 358,
+     "reactionRuleHolds": true
+    },
+    {
+     "kind": "reaction",
+     "id": "wait",
+     "said": "Wait.",
+     "heard": "wait.",
+     "wordErrors": 0,
+     "words": 1,
+     "partialFromFirstSoundMs": 983,
+     "finalFromLastSoundMs": 787,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "reaction",
+     "id": "number",
+     "said": "42",
+     "heard": "Forty two.",
+     "wordErrors": 0,
+     "words": 1,
+     "partialFromFirstSoundMs": 1696,
+     "finalFromLastSoundMs": 858,
+     "reactionRuleHolds": null
+    }
+   ]
+  },
+  {
+   "voice": "Karen",
+   "accent": "Australian",
+   "wordErrors": 5,
+   "words": 67,
+   "noFinal": 0,
+   "finalMs": {
+    "count": 10,
+    "p50": 752,
+    "p95": 1146,
+    "worst": 1146,
+    "best": 423
+   },
+   "partialMs": {
+    "count": 10,
+    "p50": 978,
+    "p95": 1491,
+    "worst": 1491,
+    "best": 622
+   },
+   "rows": [
+    {
+     "kind": "speech",
+     "id": "x-squared",
+     "said": "x squared over two",
+     "heard": "X squared over 2.",
+     "wordErrors": 0,
+     "words": 4,
+     "partialFromFirstSoundMs": 1385,
+     "finalFromLastSoundMs": 1146,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "minus-b",
+     "said": "negative b over two a",
+     "heard": "Negative B over 2 A.",
+     "wordErrors": 0,
+     "words": 5,
+     "partialFromFirstSoundMs": 1383,
+     "finalFromLastSoundMs": 1146,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "twice",
+     "said": "It lands twice as far.",
+     "heard": "It lands twice as far.",
+     "wordErrors": 0,
+     "words": 5,
+     "partialFromFirstSoundMs": 809,
+     "finalFromLastSoundMs": 718,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "why-down",
+     "said": "Wait, then why does it come down?",
+     "heard": "Wait, then why does it come down?",
+     "wordErrors": 0,
+     "words": 7,
+     "partialFromFirstSoundMs": 790,
+     "finalFromLastSoundMs": 423,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "numerator",
+     "said": "Is the numerator bigger than the denominator?",
+     "heard": "is the numerator bigger than the denominator?",
+     "wordErrors": 0,
+     "words": 7,
+     "partialFromFirstSoundMs": 792,
+     "finalFromLastSoundMs": 427,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "derivative",
+     "said": "The derivative of x squared is two x.",
+     "heard": "The derivative of x squared is 2 x",
+     "wordErrors": 1,
+     "words": 8,
+     "partialFromFirstSoundMs": 622,
+     "finalFromLastSoundMs": 872,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "discriminant",
+     "said": "The discriminant is b squared minus four a c.",
+     "heard": "The discriminant is b squared minus 4 ac.",
+     "wordErrors": 2,
+     "words": 9,
+     "partialFromFirstSoundMs": 975,
+     "finalFromLastSoundMs": 694,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "root",
+     "said": "What's the square root of sixteen?",
+     "heard": "What's the square root of 16?",
+     "wordErrors": 0,
+     "words": 6,
+     "partialFromFirstSoundMs": 984,
+     "finalFromLastSoundMs": 752,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "line",
+     "said": "y equals two x plus three.",
+     "heard": "Y equals 2 x plus 3",
+     "wordErrors": 2,
+     "words": 6,
+     "partialFromFirstSoundMs": 978,
+     "finalFromLastSoundMs": 805,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "sideways",
+     "said": "Sideways speed stays the same because no force pushes it.",
+     "heard": "Sideways speed stays the same because no force pushes it.",
+     "wordErrors": 0,
+     "words": 10,
+     "partialFromFirstSoundMs": 1491,
+     "finalFromLastSoundMs": 679,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "reaction",
+     "id": "uh-huh",
+     "said": "Uh-huh.",
+     "heard": "Aha",
+     "wordErrors": 1,
+     "words": 1,
+     "partialFromFirstSoundMs": 1015,
+     "finalFromLastSoundMs": 583,
+     "reactionRuleHolds": true
+    },
+    {
+     "kind": "reaction",
+     "id": "mm-hmm",
+     "said": "Mm-hmm.",
+     "heard": "Mm hum",
+     "wordErrors": 1,
+     "words": 1,
+     "partialFromFirstSoundMs": 1085,
+     "finalFromLastSoundMs": 826,
+     "reactionRuleHolds": false
+    },
+    {
+     "kind": "reaction",
+     "id": "hmm",
+     "said": "Hmm.",
+     "heard": "Hum.",
+     "wordErrors": 1,
+     "words": 1,
+     "partialFromFirstSoundMs": 974,
+     "finalFromLastSoundMs": 637,
+     "reactionRuleHolds": false
+    },
+    {
+     "kind": "reaction",
+     "id": "aha",
+     "said": "Aha.",
+     "heard": "Aha.",
+     "wordErrors": 0,
+     "words": 1,
+     "partialFromFirstSoundMs": 1031,
+     "finalFromLastSoundMs": 639,
+     "reactionRuleHolds": true
+    },
+    {
+     "kind": "reaction",
+     "id": "mm-mm",
+     "said": "Mm-mm.",
+     "heard": "Mm mm mm.",
+     "wordErrors": 1,
+     "words": 1,
+     "partialFromFirstSoundMs": 987,
+     "finalFromLastSoundMs": 486,
+     "reactionRuleHolds": true
+    },
+    {
+     "kind": "reaction",
+     "id": "okay",
+     "said": "Okay.",
+     "heard": "Okay.",
+     "wordErrors": 0,
+     "words": 1,
+     "partialFromFirstSoundMs": 1286,
+     "finalFromLastSoundMs": 748,
+     "reactionRuleHolds": true
+    },
+    {
+     "kind": "reaction",
+     "id": "yeah",
+     "said": "Yeah.",
+     "heard": "Yeah.",
+     "wordErrors": 0,
+     "words": 1,
+     "partialFromFirstSoundMs": 1108,
+     "finalFromLastSoundMs": 697,
+     "reactionRuleHolds": true
+    },
+    {
+     "kind": "reaction",
+     "id": "wait",
+     "said": "Wait.",
+     "heard": "Wait.",
+     "wordErrors": 0,
+     "words": 1,
+     "partialFromFirstSoundMs": 1099,
+     "finalFromLastSoundMs": 890,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "reaction",
+     "id": "number",
+     "said": "42",
+     "heard": " 42",
+     "wordErrors": 0,
+     "words": 1,
+     "partialFromFirstSoundMs": 1598,
+     "finalFromLastSoundMs": 866,
+     "reactionRuleHolds": null
+    }
+   ]
+  },
+  {
+   "voice": "Moira",
+   "accent": "Irish",
+   "wordErrors": 5,
+   "words": 67,
+   "noFinal": 1,
+   "finalMs": {
+    "count": 10,
+    "p50": 691,
+    "p95": 955,
+    "worst": 955,
+    "best": 562
+   },
+   "partialMs": {
+    "count": 10,
+    "p50": 991,
+    "p95": 1816,
+    "worst": 1816,
+    "best": 572
+   },
+   "rows": [
+    {
+     "kind": "speech",
+     "id": "x-squared",
+     "said": "x squared over two",
+     "heard": "X squinted over to",
+     "wordErrors": 2,
+     "words": 4,
+     "partialFromFirstSoundMs": 1816,
+     "finalFromLastSoundMs": 832,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "minus-b",
+     "said": "negative b over two a",
+     "heard": "negative B over 2 A",
+     "wordErrors": 0,
+     "words": 5,
+     "partialFromFirstSoundMs": 1078,
+     "finalFromLastSoundMs": 955,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "twice",
+     "said": "It lands twice as far.",
+     "heard": "It lands twice as far.",
+     "wordErrors": 0,
+     "words": 5,
+     "partialFromFirstSoundMs": 875,
+     "finalFromLastSoundMs": 566,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "why-down",
+     "said": "Wait, then why does it come down?",
+     "heard": "Wait, then why does it come down?",
+     "wordErrors": 0,
+     "words": 7,
+     "partialFromFirstSoundMs": 1174,
+     "finalFromLastSoundMs": 562,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "numerator",
+     "said": "Is the numerator bigger than the denominator?",
+     "heard": "is the numerator bigger than the denominator?",
+     "wordErrors": 0,
+     "words": 7,
+     "partialFromFirstSoundMs": 572,
+     "finalFromLastSoundMs": 580,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "derivative",
+     "said": "The derivative of x squared is two x.",
+     "heard": "The derivative of x squared is 2 x.",
+     "wordErrors": 1,
+     "words": 8,
+     "partialFromFirstSoundMs": 578,
+     "finalFromLastSoundMs": 815,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "discriminant",
+     "said": "The discriminant is b squared minus four a c.",
+     "heard": "The discriminant is b squared minus 4 a c.",
+     "wordErrors": 0,
+     "words": 9,
+     "partialFromFirstSoundMs": 697,
+     "finalFromLastSoundMs": 691,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "root",
+     "said": "What's the square root of sixteen?",
+     "heard": "What's the square root of 16?",
+     "wordErrors": 0,
+     "words": 6,
+     "partialFromFirstSoundMs": 984,
+     "finalFromLastSoundMs": 788,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "line",
+     "said": "y equals two x plus three.",
+     "heard": "Y equals 2 x plus 3.",
+     "wordErrors": 2,
+     "words": 6,
+     "partialFromFirstSoundMs": 991,
+     "finalFromLastSoundMs": 577,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "speech",
+     "id": "sideways",
+     "said": "Sideways speed stays the same because no force pushes it.",
+     "heard": "Sideways speed stays the same because no force pushes it.",
+     "wordErrors": 0,
+     "words": 10,
+     "partialFromFirstSoundMs": 1171,
+     "finalFromLastSoundMs": 593,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "reaction",
+     "id": "uh-huh",
+     "said": "Uh-huh.",
+     "heard": "Uh-huh.",
+     "wordErrors": 0,
+     "words": 1,
+     "partialFromFirstSoundMs": 1016,
+     "finalFromLastSoundMs": 1379,
+     "reactionRuleHolds": true
+    },
+    {
+     "kind": "reaction",
+     "id": "mm-hmm",
+     "said": "Mm-hmm.",
+     "heard": "Mm-mm.",
+     "wordErrors": 1,
+     "words": 1,
+     "partialFromFirstSoundMs": 1072,
+     "finalFromLastSoundMs": 475,
+     "reactionRuleHolds": true
+    },
+    {
+     "kind": "reaction",
+     "id": "hmm",
+     "said": "Hmm.",
+     "heard": "Come.",
+     "wordErrors": 1,
+     "words": 1,
+     "partialFromFirstSoundMs": 1017,
+     "finalFromLastSoundMs": 629,
+     "reactionRuleHolds": false
+    },
+    {
+     "kind": "reaction",
+     "id": "aha",
+     "said": "Aha.",
+     "heard": "",
+     "wordErrors": 1,
+     "words": 1,
+     "partialFromFirstSoundMs": null,
+     "finalFromLastSoundMs": null,
+     "reactionRuleHolds": false
+    },
+    {
+     "kind": "reaction",
+     "id": "mm-mm",
+     "said": "Mm-mm.",
+     "heard": "Mm mm mm.",
+     "wordErrors": 1,
+     "words": 1,
+     "partialFromFirstSoundMs": 928,
+     "finalFromLastSoundMs": 537,
+     "reactionRuleHolds": true
+    },
+    {
+     "kind": "reaction",
+     "id": "okay",
+     "said": "Okay.",
+     "heard": "Okay.",
+     "wordErrors": 0,
+     "words": 1,
+     "partialFromFirstSoundMs": 1173,
+     "finalFromLastSoundMs": 655,
+     "reactionRuleHolds": true
+    },
+    {
+     "kind": "reaction",
+     "id": "yeah",
+     "said": "Yeah.",
+     "heard": "Yeah.",
+     "wordErrors": 0,
+     "words": 1,
+     "partialFromFirstSoundMs": 910,
+     "finalFromLastSoundMs": 566,
+     "reactionRuleHolds": true
+    },
+    {
+     "kind": "reaction",
+     "id": "wait",
+     "said": "Wait.",
+     "heard": "Wait.",
+     "wordErrors": 0,
+     "words": 1,
+     "partialFromFirstSoundMs": 1089,
+     "finalFromLastSoundMs": 884,
+     "reactionRuleHolds": null
+    },
+    {
+     "kind": "reaction",
+     "id": "number",
+     "said": "42",
+     "heard": "Forty two.",
+     "wordErrors": 0,
+     "words": 1,
+     "partialFromFirstSoundMs": 1488,
+     "finalFromLastSoundMs": 729,
+     "reactionRuleHolds": null
+    }
+   ]
+  }
+ ],
+ "credits": [
+  {
+   "at": "2026-11-04T05:02:05.689Z",
+   "tier": "creator",
+   "used": 86808,
+   "limit": 121010,
+   "left": 34202
+  },
+  {
+   "at": "2026-11-04T05:06:18.088Z",
+   "tier": "creator",
+   "used": 87052,
+   "limit": 121010,
+   "left": 33958
+  },
+  {
+   "at": "2026-11-04T05:08:48.904Z",
+   "tier": "creator",
+   "used": 87514,
+   "limit": 121010,
+   "left": 33496
+  },
+  {
+   "at": "2026-11-04T05:23:48.587Z",
+   "tier": "creator",
+   "used": 88524,
+   "limit": 121010,
+   "left": 32486
+  },
+  {
+   "at": "2026-11-04T05:53:22.508Z",
+   "tier": "creator",
+   "used": 89391,
+   "limit": 121010,
+   "left": 31619
+  }
+ ],
+ "finalRun": {
+  "film": {
+   "saved": "m3-6-talk.mp4"
+  },
+  "filmDrop": {
+   "heardAtDrop": "You said show me the ball. Watch the ball. It",
+   "heardAfterResume": "It leaves your hand, it climbs slower and slower, it hangs at the very top, and then it falls back down. Once it leaves your hand, what still pushes it sideways?",
+   "resumed": true
+  },
+  "typed": {
+   "reactionCapturedAfterStopMs": 149,
+   "soundBlocked": true,
+   "clockKinds": [
+    "timer",
+    "timer",
+    "timer",
+    "timer",
+    "timer",
+    "timer"
+   ],
+   "museOpened": false,
+   "firstReplyWords": [
+    "You",
+    "said",
+    "why",
+    "does",
+    "it",
+    "come",
+    "down."
+   ],
+   "stoppedByTyping": true,
+   "lastWords": [
+    "You",
+    "said",
+    "wait,",
+    "why."
+   ],
+   "studentLines": [
+    {
+     "text": "why does it come down",
+     "isFinal": true
+    },
+    {
+     "text": "show me the ball",
+     "isFinal": true
+    },
+    {
+     "text": "wait, why",
+     "isFinal": true
+    }
+   ],
+   "rowsSeen": 2
+  },
+  "second": {
+   "roomsAreDifferent": true,
+   "bothListed": true,
+   "participants": [
+    [
+     "student",
+     "agent-AJ_2kb83xrWBXMV"
+    ],
+    [
+     "student",
+     "agent-AJ_QpvMmmRDaanS"
+    ]
+   ],
+   "tokenForOthersRoom": 404,
+   "mayaHeard": [
+    "You",
+    "said",
+    "gravity",
+    "pulls",
+    "it",
+    "down."
+   ],
+   "tolaHeard": [
+    "You",
+    "said",
+    "photosynthesis",
+    "makes",
+    "sugar."
+   ],
+   "mayaSawTolasWords": false,
+   "tolaSawMayasWords": false
+  },
+  "tab": {
+   "egressesOfRoom": 0,
+   "roomListedWhileOpen": true,
+   "leftOnPurpose": true,
+   "jobClosedAfterMs": 16647,
+   "roomGoneAfterMs": 20617,
+   "museClosed": true
+  },
+  "shots": {
+   "saved": true
+  }
+ },
+ "heldNoise003": {
+  "held": {
+   "rows": [
+    {
+     "line": "It lands twice as far.",
+     "transcript": "It lands twice as far.",
+     "finalMs": 784,
+     "replyDecidedMs": 789,
+     "via": "final"
+    },
+    {
+     "line": "Wait, then why does it come down?",
+     "transcript": "wait, then why does it come down?",
+     "finalMs": 782,
+     "replyDecidedMs": 783,
+     "via": "final"
+    },
+    {
+     "line": "The quadratic has two real roots.",
+     "transcript": "The quadratic has two real roots.",
+     "finalMs": 810,
+     "replyDecidedMs": 814,
+     "via": "final"
+    },
+    {
+     "line": "Is the numerator bigger than the denominator?",
+     "transcript": "Is the numerator bigger than the denominator?",
+     "finalMs": 712,
+     "replyDecidedMs": 719,
+     "via": "final"
+    },
+    {
+     "line": "x squared over two equals eight.",
+     "transcript": "X squared over two equals eight.",
+     "finalMs": 818,
+     "replyDecidedMs": 819,
+     "via": "final"
+    },
+    {
+     "line": "So the denominator is x squared plus one.",
+     "transcript": "So the denominator is x squared plus one.",
+     "finalMs": 788,
+     "replyDecidedMs": 790,
+     "via": "final"
+    },
+    {
+     "line": "It lands twice as far.",
+     "transcript": "It lands twice as far.",
+     "finalMs": 736,
+     "replyDecidedMs": 737,
+     "via": "final"
+    },
+    {
+     "line": "Wait, then why does it come down?",
+     "transcript": "wait, then why does it come down?",
+     "finalMs": 886,
+     "replyDecidedMs": 902,
+     "via": "final"
+    },
+    {
+     "line": "The quadratic has two real roots.",
+     "transcript": "The quadratic has two real roots.",
+     "finalMs": 813,
+     "replyDecidedMs": 1144,
+     "via": "final"
+    },
+    {
+     "line": "Is the numerator bigger than the denominator?",
+     "transcript": "is the numerator bigger than the denominator?",
+     "finalMs": 821,
+     "replyDecidedMs": 917,
+     "via": "final"
+    },
+    {
+     "line": "x squared over two equals eight.",
+     "transcript": "x squared over two equals eight.",
+     "finalMs": 747,
+     "replyDecidedMs": 754,
+     "via": "final"
+    },
+    {
+     "line": "So the denominator is x squared plus one.",
+     "transcript": "so the denominator is x squared plus one",
+     "finalMs": 885,
+     "replyDecidedMs": 886,
+     "via": "final"
+    }
+   ],
+   "viaPartial": 0,
+   "noReply": 0,
+   "replyDecidedMs": {
+    "count": 12,
+    "p50": 814,
+    "p95": 1144,
+    "worst": 1144,
+    "best": 719
+   },
+   "finalMs": {
+    "count": 12,
+    "p50": 810,
+    "p95": 886,
+    "worst": 886,
+    "best": 712
+   }
+  }
+ },
+ "lagStepOnsetGaps": [
+  {
+   "run": "943394",
+   "words": 236,
+   "meanGapMs": 280.16,
+   "shortestGapMs": 266,
+   "longestGapMs": 300,
+   "gapsOver340Ms": []
+  },
+  {
+   "run": "026156",
+   "words": 236,
+   "meanGapMs": 280.18,
+   "shortestGapMs": 280,
+   "longestGapMs": 322,
+   "gapsOver340Ms": []
+  },
+  {
+   "run": "114252",
+   "words": 236,
+   "meanGapMs": 280.22,
+   "shortestGapMs": 266,
+   "longestGapMs": 313,
+   "gapsOver340Ms": []
+  },
+  {
+   "run": "201044",
+   "words": 236,
+   "meanGapMs": 280.26,
+   "shortestGapMs": 266,
+   "longestGapMs": 297,
+   "gapsOver340Ms": []
+  },
+  {
+   "run": "286660",
+   "words": 236,
+   "meanGapMs": 280.17,
+   "shortestGapMs": 280,
+   "longestGapMs": 303,
+   "gapsOver340Ms": []
+  },
+  {
+   "run": "385766",
+   "words": 236,
+   "meanGapMs": 280.0,
+   "shortestGapMs": 280,
+   "longestGapMs": 280,
+   "gapsOver340Ms": []
+  },
+  {
+   "run": "474187",
+   "words": 236,
+   "meanGapMs": 280.18,
+   "shortestGapMs": 266,
+   "longestGapMs": 315,
+   "gapsOver340Ms": []
+  },
+  {
+   "run": "558711",
+   "words": 236,
+   "meanGapMs": 280.17,
+   "shortestGapMs": 260,
+   "longestGapMs": 316,
+   "gapsOver340Ms": []
+  }
+ ],
+ "afterM32Merge": {
+  "count": 6,
+  "p50": 289,
+  "p95": 297,
+  "worst": 297,
+  "best": 279
+ },
+ "afterM32Merge2": {
+  "count": 4,
+  "p50": 138,
+  "p95": 145,
+  "worst": 145,
+  "best": 129
+ }
+}

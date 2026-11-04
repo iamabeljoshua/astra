@@ -4,6 +4,7 @@ import type { SessionLanguage } from '../../sessions/session-options';
 import { SessionEntity } from './entities/session.entity';
 import { StudentProfileEntity } from './entities/student-profile.entity';
 import { ClosedAccountEntity } from './entities/closed-account.entity';
+import { StudentDailySpendEntity } from './entities/student-daily-spend.entity';
 import { StudentEntity } from './entities/student.entity';
 
 export const EXAMPLE_STUDENT_ID = '00000000-0000-4000-8000-000000000001';
@@ -43,6 +44,12 @@ const SECOND_PROFILE: Partial<StudentProfileEntity> = {
   interests: ['cooking', 'music'],
   level: 'high_school',
   goal: 'class',
+};
+
+const EXAMPLE_SPEND: Partial<StudentDailySpendEntity> = {
+  studentId: EXAMPLE_STUDENT_ID,
+  spentOn: '2026-10-31',
+  spentMicroUsd: '120000',
 };
 
 function atNoon(date: string): Date {
@@ -107,6 +114,7 @@ export async function replaceExampleData(dataSource: DataSource): Promise<void> 
     await manager.delete(ClosedAccountEntity, { authUserId: In(LOCAL_AUTH_USER_IDS) });
     await manager.save(StudentEntity, [EXAMPLE_STUDENT, SECOND_STUDENT]);
     await manager.save(StudentProfileEntity, [EXAMPLE_PROFILE, SECOND_PROFILE]);
+    await manager.save(StudentDailySpendEntity, EXAMPLE_SPEND);
     await manager.save(
       SessionEntity,
       EXAMPLE_SESSIONS.map((session) => ({

@@ -37,7 +37,7 @@ Each `run.mjs` command writes one folder in `runs/`, and `node summarize.mjs` tu
 | `stop-fixed.json` | `node stop-run.mjs` with `runs/stop` moved aside. Rename the new folder `runs/stop-fixed`, and run `node summarize.mjs stop-fixed` |
 | `node-numbers.json` | `node run.mjs --sdk node --label numbers --repeat 3 --only number_over_reply,number_words_over_reply,number_while_thinking,question_uhhuh,question_hmm,tiered_backchannel,gap_talkover`, then `node summarize.mjs node-numbers` |
 | `provider-suite.json` | With `node fake-providers.mjs` running, `node provider-suite.ts`. To swap a voice, change `ACTIVE` in `providers/choose.ts`, or set `ACTIVE_VOICE=inProcess` for one run |
-| `reader.json` | `node reader-check.mjs` |
+| `reader.json` | `node reader-check.mjs`, at commit `30a9094`. The reader and its check moved to `apps/agent/src/tutor/` and `apps/agent/test/beats-stream.test.ts` in M3.7 |
 | `turn-rule.json` | `node turn-rule-check.mjs` |
 | `replay.json` | `node replay-check.ts` |
 | `data-limit.json` | `node data-limit-check.mjs` |
@@ -76,7 +76,7 @@ Run one thing at a time, because an agent worker takes every new room on that se
 | `clock-speech.mjs` | The same clock offline on real speech with known word positions, natural pauses, stalls, and lost audio. The stalls are the script's own, so the gap list stands in for the agent's report |
 | `stop-run.mjs`, `stop-agent.mjs`, `stop-page.js` | The rule, reader, clock, and browser together in real Chromium: stop, mute, freeze, report, rebuild, a voice that stalls, reactions over a question, and a resume with a ball in the air. Its rebuild compares which drawings fired, not their motion |
 | `providers/`, `provider-suite.ts` | The provider boundary, its fakes, and the suite every adapter must pass |
-| `beat-text-reader.mjs`, `reader-check.mjs` | Reads the model's text as it streams, and tricky cases against `packages/contracts` |
+| `apps/agent/src/tutor/beat-text-reader.ts` | Moved in M3.7. `agent-node-beats.mjs` and `stop-agent.mjs` import the old copy, so to rerun them check out commit `30a9094` |
 | `replay-check.ts` | A true player against `rebuildBoard` built only from parsed log events. A verifier wrote the first version |
 | `data-limit-check.mjs` | Sizes of reliable data messages between two real participants |
 | `cost.mjs` | Every dollar figure in the design, with its arithmetic |

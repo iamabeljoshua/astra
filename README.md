@@ -51,6 +51,7 @@ The API stores its data in Postgres and connects through `DATABASE_URL`. If you 
 | `pnpm db:reset` | Drops the database in `DATABASE_URL` and builds it again from the migrations. It works only on an app database on the local stack, on port 54422. |
 | `pnpm exec supabase stop` | Stops the local stack for every worktree and every agent that shares it. The data stays in a Docker volume. Run it, then `pnpm db:up`, only if an interrupted start leaves Postgres running without the other services and nothing else is using the stack. |
 | `pnpm lab` | Plays a scripted lesson in the real voice through the board player, on a local LiveKit server. It needs `livekit-server` on the path and spends about 100 ElevenLabs credits a run. `pnpm lab --fake` plays a tone and spends nothing. Add `&lesson=algebra` to the address it prints for the math lesson, or `dense`, `every-word`, or `hostile`. See `docs/tests/scene-player.md` and `docs/tests/math-board.md`. |
+| `pnpm agent` | Starts the tutor's voice agent, which a session's room calls in. It needs the keys under [Talk with the tutor](#talk-with-the-tutor). `pnpm dev` does not start it, so lanes that do not need voice stay off LiveKit. |
 
 These commands and the API refuse a `DATABASE_URL` that sets `host` or `port` in its query string, because the driver would connect there and ignore the address before the database name.
 
@@ -194,7 +195,7 @@ A closed account also stops new sign-ups on that browser for a day, so a child w
 
 The server's clock and UTC+14 decide the student's age. UTC+14 is the first place on Earth to reach each date, so the API closes an account only when the student is under 13 in every time zone. A real 13-year-old is never locked out, and a student can get in up to 26 hours before the birthday where they live. A device's clock and time zone play no part. A birthday on 29 February falls on 1 March in other years. `apps/api/src/auth/age-gate.ts` holds the rule. No web code or screen states the age. Only the Terms and the Privacy Policy state it, because they must say what happens to an under-13 account.
 
-`students.auth_user_id` and `closed_accounts.auth_user_id` are plain uuids with no foreign key, because the local app databases have no `auth` schema. Deleting a user in Supabase therefore leaves that user's rows in place. No token can reach those rows once the user's last token expires. To remove a student, delete the row in `students`, which also removes the profile and sessions, before you delete the Supabase user. Deleting the Supabase user of a closed account lets the same address sign up as a new user and answer again, so keep that user until the deletion work in M4.5 settles how to prevent it.
+`students.auth_user_id` and `closed_accounts.auth_user_id` are plain uuids with no foreign key, because the local app databases have no `auth` schema. Deleting a user in Supabase therefore leaves that user's rows in place. No token can reach those rows once the user's last token expires. To remove a student, delete the row in `students`, which also removes the profile, the sessions, and the daily spend totals, before you delete the Supabase user. Deleting the Supabase user of a closed account lets the same address sign up as a new user and answer again, so keep that user until the deletion work in M4.5 settles how to prevent it.
 
 ### Onboarding
 
@@ -213,6 +214,40 @@ Goals are the codes `class`, `exam`, and `curiosity`, which `getPicksForStudent`
 - All of their text is in `LEGAL_PAGES` and `LEGAL_LABELS` in `apps/web/src/strings.ts`, so a lawyer's edits change one file.
 - Each section has `today` lines and `planned` lines, and the page labels every `planned` line. A `today` line must be true of the running app. When a PR changes what the app stores, who receives data, or what happens to an under-13 account, it moves or edits the line in the same PR.
 - The sign-in step, the typed address, and whether a send is on its way are held above the routes in `useSignInDraft`, so opening a page and coming back keeps them, and a press during a send does not send a second code, which would replace the first. A reload clears them, and only the code step comes back, from the record in the tab's session storage.
+
+## Talk with the tutor
+
+A session's screen has a **Talk** button and a reply box. A question or a card from Home opens the session's room at once. On a session you come back to, pressing **Talk** opens the room and asks for the microphone, and typing a reply opens it with the microphone off. A stored reaction from code plays first, and then the tutor answers with Sonnet 5.5 in short spoken sentences, with math on its words on the board.
+
+To run it, give the API and the agent the same LiveKit project, then start the agent beside `pnpm dev`.
+
+```sh
+set -a; . ~/.config/astra/keys.env; set +a
+export ASTRA_AGENT_NAME=astra-tutor-<your-lane> ASTRA_AGENT_PORT=<a free port>
+export ASTRA_AGENT_KEY=<a long random value> ASTRA_API_URL=http://127.0.0.1:<the API's port>
+pnpm dev
+pnpm agent
+```
+
+| Value | Who reads it | What it does |
+| --- | --- | --- |
+| `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` | API and agent | The LiveKit project. With no keys `POST /sessions/:id/live-room` answers `{ access: null, unavailableBecause: 'notSetUp' }`, the session screen says the tutor could not connect, and the rest of the app runs. |
+| `ASTRA_AGENT_NAME` | API and agent | Which agent a room calls in. Each lane sets its own, because a room goes to any agent of that name. |
+| `ASTRA_AGENT_KEY` | API and agent | The key the agent sends to the API's `/agent` routes. With none set, those routes answer 401. |
+| `ASTRA_API_URL` | Agent | The agent's address for the API, where it reads a student's level, interests, and goal and adds what each turn cost. |
+| `ASTRA_DAILY_LIMIT_USD` | API | What one student's tutor time may cost in a UTC day, $3 by default. At the limit the API opens no room, and the session screen says to come back tomorrow. |
+| `ASTRA_SESSION_LIMIT_USD`, `ASTRA_SESSION_VOICE_LIMIT_CHARACTERS` | Agent | What one session may cost, $1 by default, and how many characters of voice it may use, 40,000 by default. Past either one, the tutor closes for that session. |
+| `META_API_KEY` | Agent | Muse Voice Transcribe. A typed session never opens it. |
+| `ELEVENLABS_API_KEY` | Agent | The tutor's voice. |
+| `ASTRA_VOICE=fake` | Agent | A tone instead of the real voice, to spend no credits. |
+| `ANTHROPIC_API_KEY` | Agent | The tutor's model, Sonnet 5.5. |
+| `ASTRA_TUTOR_MODEL` | Agent | A model by name from `providers/anthropic.ts`, `recorded` for canned replies that spend nothing and that a proof can stall or break by typing `stall`, `invalid`, `wrong math`, `tag`, `refuse`, or `silent`, or `stand-in` for the simple lines M3.6's proofs use. |
+| `ASTRA_SPEND_FILE`, `ASTRA_SPEND_LIMIT_USD` | Agent | Adds each turn's real cost to a file, and past the limit, $8 by default, the tutor says it cannot reply. |
+| `ASTRA_VOICE_TRACE=<folder>` | Agent | Writes each session's timings there, with no words. `ASTRA_VOICE_TRACE_WORDS=1` adds the words, for test speech only. |
+
+The browser only ever receives a room token from `POST /sessions/:id/live-room`. It holds one room, the microphone, and the data channel, and it lasts 10 minutes. It names the agent to call and nothing about the student, so LiveKit never receives the level, interests, or goal. Vendor keys stay on the servers. `docs/tests/voice.md` holds what was measured.
+
+To change a vendor, see "Swapping a provider" in `docs/architecture/live-session.md`. `providers/choose.ts` is the one place that chooses.
 
 ## Connect a hosted project
 
