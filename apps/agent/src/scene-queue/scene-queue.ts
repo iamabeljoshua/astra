@@ -19,7 +19,7 @@ export interface QueueEntry {
 
 export interface QueueScenes {
   prepare(request: string): boolean;
-  ask(request: string): void;
+  ask(request: string): boolean;
   dropPrepared(request: string): void;
   dropWaiting(how: 'movedOn' | 'switched' | 'studentTurn'): void;
   stopForGood(): void;
@@ -47,13 +47,16 @@ export interface SceneQueue {
 }
 
 const MOST_REQUEST_CHARACTERS = 80;
+const PHRASE_ENDS = [', ', '; ', ': '];
 
 const sameWords = (first: string, second: string) => first.trim().toLowerCase() === second.trim().toLowerCase();
 
 function toRequest(lessonTopic: string, teach: string): string {
   const words = `${lessonTopic}: ${teach}`;
   if (words.length <= MOST_REQUEST_CHARACTERS) return words;
-  return words.slice(0, words.lastIndexOf(' ', MOST_REQUEST_CHARACTERS));
+  // A phrase's end reads as a whole title, but only past the lesson's own topic, which alone says nothing about this step.
+  const phraseEnd = Math.max(...PHRASE_ENDS.map((end) => words.lastIndexOf(end, MOST_REQUEST_CHARACTERS)));
+  return words.slice(0, phraseEnd > lessonTopic.length ? phraseEnd : words.lastIndexOf(' ', MOST_REQUEST_CHARACTERS));
 }
 
 function getWanted(lessonTopic: string, step: LessonStep | undefined, title: string | null | undefined): Pick<QueueEntry, 'request' | 'source'> | null {
@@ -116,6 +119,7 @@ export function createSceneQueue({ scenes, readLibrary, getFacts, canPlay, moveT
 
   const fillAhead = () => {
     if (!lesson) return;
+    startLibraryRead(lesson.plan);
     const nextIndex = lesson.stepIndex + 1;
     if (findEntry(nextIndex)) return;
     const title = getLibrary(lesson.plan.topic)?.[nextIndex];
@@ -127,7 +131,9 @@ export function createSceneQueue({ scenes, readLibrary, getFacts, canPlay, moveT
     for (const entry of entries) {
       if (entry.state !== 'due') continue;
       entry.state = 'asked';
-      scenes.ask(entry.request);
+      if (scenes.ask(entry.request)) continue;
+      trace('sceneAheadRefused', { refusal: 'askRefused', source: entry.source, stepIndex: entry.stepIndex });
+      remove(entry);
     }
   };
 
@@ -160,7 +166,7 @@ export function createSceneQueue({ scenes, readLibrary, getFacts, canPlay, moveT
   };
 
   const startLibraryRead = (plan: LessonPlan) => {
-    if (libraryByTopic.has(plan.topic)) return;
+    if (libraryByTopic.has(plan.topic) || !canPrepare()) return;
     libraryByTopic.set(plan.topic, 'reading');
     void readLibrary(plan)
       .catch(() => [])
@@ -192,7 +198,6 @@ export function createSceneQueue({ scenes, readLibrary, getFacts, canPlay, moveT
       const isTutorsOwnMove = event === 'teachingAgain' || event === 'movedOn';
       if (!isSwitch && !isTutorsOwnMove && wasStep !== active.stepIndex) scenes.dropWaiting('movedOn');
       dropPassed();
-      startLibraryRead(active.plan);
       if (event === 'skipped') dropStepSkippedTo(active.stepIndex);
       else if (isSwitch || wasStep !== active.stepIndex) reachStep();
       fillAhead();

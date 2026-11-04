@@ -40,8 +40,8 @@ export interface TutorScenesOptions {
 }
 
 export interface TutorScenes {
-  /** Never waits, and nothing a student could hear comes from it unless a scene lands. */
-  ask(topic: string): void;
+  /** Never waits, and nothing a student could hear comes from it unless a scene lands. False when the ask was refused. */
+  ask(topic: string): boolean;
   prepare(request: string): boolean;
   dropPrepared(request: string): void;
   dropWaiting(how: 'movedOn' | 'switched' | 'studentTurn'): void;
@@ -260,10 +260,11 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
 
   const start = (topic: string) => {
     const ask = makeAsk(topic, false);
-    if (!ask) return;
+    if (!ask) return false;
     startClock(ask);
     current = ask;
     ask.work.desk.ask(ask.work.request);
+    return true;
   };
 
   const startPrepared = (ask: SceneAsk) => {
@@ -296,8 +297,11 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
 
   const ask = (topic: string) => {
     const key = toKey(topic);
-    if (isStopped || device === 'cannotPlay' || isAfterSafetyReply || isClosed() || key === '' || topic.length > MOST_TOPIC_CHARACTERS || askedTopics.has(key) || asksMade >= MOST_ASKS_IN_A_SESSION) return;
-    if (isTitleUnheard && lessonTitle !== null && !prepared.has(key) && !isSameTopic(topic, lessonTitle)) return trace('sceneOffTopic', { text: topic });
+    if (isStopped || device === 'cannotPlay' || isAfterSafetyReply || isClosed() || key === '' || topic.length > MOST_TOPIC_CHARACTERS || askedTopics.has(key) || asksMade >= MOST_ASKS_IN_A_SESSION) return false;
+    if (isTitleUnheard && lessonTitle !== null && !prepared.has(key) && !isSameTopic(topic, lessonTitle)) {
+      trace('sceneOffTopic', { text: topic });
+      return false;
+    }
     if (current) end(current, 'replaced');
     if (waitingForDevice !== null) askedTopics.delete(waitingForDevice.trim().toLowerCase());
     askedTopics.add(key);
@@ -305,7 +309,8 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
     const ahead = prepared.get(key);
     if (ahead) startPrepared(ahead);
     else if (device === 'unknown') waitingForDevice = topic;
-    else start(topic);
+    else return start(topic);
+    return true;
   };
 
   const bringPictureBack = () => {
@@ -321,7 +326,8 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
     ask,
     prepare(request) {
       const key = toKey(request);
-      if (isStopped || isClosed() || device !== 'canPlay' || !canPlayShared(studentId) || prepared.has(key) || askedTopics.has(key) || request.length > MOST_TOPIC_CHARACTERS || asksMade >= MOST_ASKS_IN_A_SESSION) return false;
+      // The queue's titles were read once for the topic, so one can have been flagged since, and a flagged title has no saved scene and would pay for a new write.
+      if (isStopped || isClosed() || device !== 'canPlay' || !canPlayShared(studentId) || store.isFlagged(getSceneKey(request)) || prepared.has(key) || askedTopics.has(key) || request.length > MOST_TOPIC_CHARACTERS || asksMade >= MOST_ASKS_IN_A_SESSION) return false;
       const ahead = makeAsk(request, true);
       if (!ahead) return false;
       prepared.set(key, ahead);
@@ -343,12 +349,13 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
     },
     stopForGood() {
       isStopped = true;
+      waitingForDevice = null;
       if (current) end(current, 'stopped');
       if (opening.kind !== 'over') giveOpening(null);
       for (const work of works.splice(0)) work.leave();
       prepared.clear();
     },
-    canPlay: () => device === 'canPlay',
+    canPlay: () => !isStopped && device === 'canPlay',
     onPage(message, fromStudentId) {
       if (message.type === 'sceneDevice') {
         device = message.canPlay ? 'canPlay' : 'cannotPlay';
