@@ -20,6 +20,8 @@ export interface ApiLink {
   reportSpend(usd: number): Promise<{ isOverDailyLimit: boolean }>;
   /** What the tutor remembers about this session's student, and only that student. */
   fetchRecord(): Promise<LearnerRecord>;
+  /** Adds what one room's pass found. A repeat of the same key adds nothing. */
+  writeNotes(update: { updateKey: string; notes: readonly Pick<LearnerRecord['notes'][number], 'kind' | 'topic' | 'detail' | 'evidence'>[] }): Promise<{ wasApplied: boolean }>;
 }
 
 // The student's level, interests, and goal come straight from the API, so they never pass through the room service.
@@ -40,6 +42,9 @@ export function createApiLink({ apiUrl, agentKey, roomName }: ApiLinkOptions): A
     },
     async fetchRecord() {
       return (await call('record')) as LearnerRecord;
+    },
+    async writeNotes(update) {
+      return (await call('record', { method: 'POST', body: JSON.stringify(update) })) as { wasApplied: boolean };
     },
   };
 }

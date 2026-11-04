@@ -6,6 +6,7 @@ import { parseArgs } from 'node:util';
 import { type ElementId, getCues, type StudentWork } from '@astra/contracts';
 import { readKey } from '../../keys.ts';
 import { makeAnthropicTutorModel } from '../../providers/anthropic.ts';
+import type { MemoryLine } from '../../learner-record/memory-note.ts';
 import { createTutorBrain, type TurnSummary } from '../brain.ts';
 import { TUTOR_SYSTEM } from '../prompt.ts';
 import { createSpendLedger } from '../spend-ledger.ts';
@@ -40,6 +41,8 @@ interface PromptGroup {
   /** Checked on every turn in the group. */
   checks: readonly string[];
   turns: readonly GroupTurn[];
+  /** Given to the tutor as they stand, past the screens that normally read them. Left out, the tutor has no memory note at all. */
+  memory?: readonly MemoryLine[];
 }
 
 const EVAL_FOLDER = join(dirname(fileURLToPath(import.meta.url)), '../../../../../evals/tutor-turns');
@@ -70,6 +73,7 @@ async function runGroup(group: PromptGroup, ledger: ReturnType<typeof createSpen
   const brain = createTutorBrain({
     model,
     profile: PROFILE,
+    ...(group.memory ? { memory: { memory: { notes: [...group.memory] } } } : {}),
     trace: (name, fields) => traces.push(`${name}${fields?.problem ? `: ${String(fields.problem)}` : ''}`),
     onTurnEnd(summary) {
       latest = summary;

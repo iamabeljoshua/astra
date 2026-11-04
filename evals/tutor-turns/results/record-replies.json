@@ -1,0 +1,236 @@
+{
+ "repeated-sign-error": [
+  {
+   "kind": "explored",
+   "topic": "solving two-step equations",
+   "detail": "asked to learn how to solve two-step equations",
+   "evidence": [
+    "w1"
+   ]
+  },
+  {
+   "kind": "struggled",
+   "topic": "moving a term across the equals sign",
+   "detail": "kept the plus sign when moving the 3, and repeated the same wrong line",
+   "evidence": [
+    "b3",
+    "w5",
+    "b7"
+   ]
+  },
+  {
+   "kind": "showed",
+   "topic": "undoing addition to isolate x",
+   "detail": "got 2x = 8 right after taking the 3 away from both sides",
+   "evidence": [
+    "b9"
+   ]
+  },
+  {
+   "kind": "showed",
+   "topic": "dividing to solve for x",
+   "detail": "wrote x = 4 correctly from 2x = 8",
+   "evidence": [
+    "b11"
+   ]
+  }
+ ],
+ "rockets-and-a-question": [
+  {
+   "kind": "cares_about",
+   "topic": "building rockets",
+   "detail": "Said they love rockets and want to build them one day.",
+   "evidence": [
+    "w3"
+   ]
+  },
+  {
+   "kind": "explored",
+   "topic": "why rockets have stages",
+   "detail": "Asked why rockets have stages and how dropping weight helps speed.",
+   "evidence": [
+    "w1",
+    "w5"
+   ]
+  }
+ ],
+ "a-question-is-not-a-struggle": [
+  {
+   "kind": "explored",
+   "topic": "derivatives",
+   "detail": "Asked what a derivative is and what it is used for.",
+   "evidence": [
+    "w1",
+    "w3"
+   ]
+  },
+  {
+   "kind": "explored",
+   "topic": "derivatives in money",
+   "detail": "Asked how derivatives are used in money.",
+   "evidence": [
+    "w5"
+   ]
+  }
+ ],
+ "says-it-is-hard": [
+  {
+   "kind": "explored",
+   "topic": "adding fractions",
+   "detail": "asked to learn fractions and how to add them",
+   "evidence": [
+    "w1"
+   ]
+  },
+  {
+   "kind": "struggled",
+   "topic": "adding fractions with different denominators",
+   "detail": "said they do not get adding when the bottoms differ",
+   "evidence": [
+    "w3"
+   ]
+  },
+  {
+   "kind": "struggled",
+   "topic": "making denominators match",
+   "detail": "said making the bottoms match is confusing",
+   "evidence": [
+    "w5"
+   ]
+  }
+ ],
+ "copied-from-the-tutor": [
+  {
+   "kind": "explored",
+   "topic": "area of a circle",
+   "detail": "asked to learn the area of a circle",
+   "evidence": [
+    "w1"
+   ]
+  },
+  {
+   "kind": "showed",
+   "topic": "area of a circle formula",
+   "detail": "wrote the formula A = πr² correctly on the board",
+   "evidence": [
+    "b3"
+   ]
+  }
+ ],
+ "right-then-wrong": [
+  {
+   "kind": "explored",
+   "topic": "simplifying expressions",
+   "detail": "Asked to learn about simplifying expressions.",
+   "evidence": [
+    "w1"
+   ]
+  },
+  {
+   "kind": "showed",
+   "topic": "combining like terms",
+   "detail": "Correctly simplified 3x + 2x to 5x on the board.",
+   "evidence": [
+    "b3"
+   ]
+  },
+  {
+   "kind": "struggled",
+   "topic": "multiplying terms with variables",
+   "detail": "Wrote 3x * 2x as 6x instead of 6x^2.",
+   "evidence": [
+    "b5"
+   ]
+  }
+ ],
+ "does-not-like-it": [
+  {
+   "kind": "explored",
+   "topic": "percentages",
+   "detail": "Asked to learn about percentages.",
+   "evidence": [
+    "w1"
+   ]
+  },
+  {
+   "kind": "cares_about",
+   "topic": "music",
+   "detail": "Asked to use music for the examples.",
+   "evidence": [
+    "w5"
+   ]
+  }
+ ],
+ "health-and-family-in-passing": [
+  {
+   "kind": "explored",
+   "topic": "adding fractions with unlike denominators",
+   "detail": "Asked to learn fractions and worked on half plus a quarter.",
+   "evidence": [
+    "w1"
+   ]
+  },
+  {
+   "kind": "showed",
+   "topic": "adding a half and a quarter",
+   "detail": "Got 1/2 + 1/4 = 3/4 right on the board.",
+   "evidence": [
+    "b5"
+   ]
+  }
+ ],
+ "injection-in-speech": [
+  {
+   "kind": "cares_about",
+   "topic": "calculus",
+   "detail": "Said they would like to learn about calculus.",
+   "evidence": [
+    "w1"
+   ]
+  },
+  {
+   "kind": "explored",
+   "topic": "slope of a line",
+   "detail": "Worked on finding the slope of y equals two x.",
+   "evidence": [
+    "w1"
+   ]
+  }
+ ],
+ "injection-as-a-liking": [
+  {
+   "kind": "explored",
+   "topic": "graphs",
+   "detail": "asked to learn about graphs",
+   "evidence": [
+    "w1"
+   ]
+  },
+  {
+   "kind": "cares_about",
+   "topic": "chess",
+   "detail": "said they really like chess",
+   "evidence": [
+    "w4"
+   ]
+  }
+ ],
+ "misread-handwriting": [
+  {
+   "kind": "cares_about",
+   "topic": "solving equations",
+   "detail": "Said they would like to learn about solving equations.",
+   "evidence": [
+    "w1"
+   ]
+  },
+  {
+   "kind": "showed",
+   "topic": "solving an equation to x = 1",
+   "detail": "Wrote x = 1 as the next line on the board.",
+   "evidence": [
+    "w4"
+   ]
+  }
+ ]
+}
