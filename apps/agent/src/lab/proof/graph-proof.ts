@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { type Browser, chromium } from 'playwright';
 import { type LessonName, LESSONS } from '../lesson.ts';
-import { BOARD_SELECTOR, checkReplayPixels, checkStillness, getReplaySummary, HIDE_DEV_BUTTON, holdFrame, type LabPage, openLabPage, shoot, type Theme, type ViewportName, VIEWPORTS } from './lab-page.ts';
+import { BOARD_SELECTOR, checkReplayPixels, checkStillness, getReplaySummary, HIDE_DEV_BUTTON, holdFrame, type LabPage, lookAtMoment, openLabPage, shoot, type Theme, type ViewportName, VIEWPORTS } from './lab-page.ts';
 import { delay, REPO_ROOT, startLabStack } from './lab-stack.ts';
 import { exitWithVerdict, getProofFailures } from './proof-verdict.ts';
 
@@ -103,15 +103,14 @@ async function checkDragReplay(lab: LabPage, everySample = 4) {
   });
   const moments = [...times.filter((_, index) => index % everySample === 0).flatMap((atMs) => (everySample === 1 ? [atMs + 3, atMs + 37] : [atMs + 5])), (times.at(-1) ?? 0) + 300, (times.at(-1) ?? 0) + 900];
   const differing: number[] = [];
+  let settledOnSecondLook = 0;
   for (const atMs of moments) {
-    await holdFrame(lab, { atMs, source: 'live' });
-    const live = await shoot(lab, 'drag-compare');
-    await holdFrame(lab, { atMs: atMs + shiftMs, source: 'replay' });
-    const replay = await shoot(lab, 'drag-compare');
-    if (!live.equals(replay)) differing.push(Math.round(atMs));
+    const look = await lookAtMoment(lab, atMs, shiftMs);
+    if (look === 'settled') settledOnSecondLook += 1;
+    if (look === 'different') differing.push(Math.round(atMs));
   }
   await holdFrame(lab, null);
-  return { samples: times.length, moments: moments.length, differing };
+  return { samples: times.length, moments: moments.length, differing, settledOnSecondLook };
 }
 
 async function proveSlider(browser: Browser, run: LessonRun) {
@@ -432,7 +431,7 @@ async function proveExtremes(browser: Browser, run: LessonRun) {
   const replay = await checkReplayPixels(lab);
   const sliderReplay = await checkDragReplay(lab, 3);
   await lab.finish();
-  return { label: getLabel(run), turns, sliderMoves, errors: errors.slice(0, 5), errorCount: errors.length, stopped, refused: refused.length, frames: figures.frames, notFinite: figures.notFiniteFrames, overlap: figures.textOverlapFrames, outside: figures.textOutsideFrames, examples: [...new Set(figures.examples)].slice(0, 6), liveFramesDifferingFromLog: figures.liveSamplesDifferingFromReplay, replay: getReplaySummary(replay), sliderReplay: { moments: sliderReplay.moments, differing: sliderReplay.differing.length } };
+  return { label: getLabel(run), turns, sliderMoves, errors: errors.slice(0, 5), errorCount: errors.length, stopped, refused: refused.length, frames: figures.frames, notFinite: figures.notFiniteFrames, overlap: figures.textOverlapFrames, outside: figures.textOutsideFrames, examples: [...new Set(figures.examples)].slice(0, 6), liveFramesDifferingFromLog: figures.liveSamplesDifferingFromReplay, replay: getReplaySummary(replay), sliderReplay: { moments: sliderReplay.moments, differing: sliderReplay.differing.length, settledOnSecondLook: sliderReplay.settledOnSecondLook } };
 }
 
 const readFigureWords = (lab: LabPage) => lab.page.evaluate(() => [...document.querySelectorAll('svg.board-figure text')].map((text) => text.textContent ?? '').filter((text) => /[a-z]/i.test(text)));

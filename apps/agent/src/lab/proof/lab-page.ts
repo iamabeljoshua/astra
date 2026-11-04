@@ -116,6 +116,25 @@ export interface ReplayPixels {
 /** A browser repaint can shift a line's antialiasing by a level or two, so only a difference this small may settle. */
 const LARGEST_SETTLING_LEVELS = 2;
 
+/** Compares a live moment with its replay, and looks a second time at any difference before calling it real. */
+export async function lookAtMoment(lab: LabPage, atMs: number, shiftMs: number): Promise<'same' | 'settled' | 'different'> {
+  const shootBoth = async () => {
+    await holdFrame(lab, { atMs, source: 'live' });
+    const live = await shoot(lab, 'replay-compare');
+    await holdFrame(lab, { atMs: atMs + shiftMs, source: 'replay' });
+    return { live, replay: await shoot(lab, 'replay-compare') };
+  };
+  const { live, replay } = await shootBoth();
+  if (live.equals(replay)) return 'same';
+  const pair: [string, string] = [live.toString('base64'), replay.toString('base64')];
+  const pixels = await lab.page.evaluate(([first, second]) => window.pageChecks.countDifferentPixels([first, second, 0]), pair);
+  const levels = await lab.page.evaluate((images) => window.pageChecks.getLargestChannelDifference(images), pair);
+  const again = await shootBoth();
+  const isSettled = again.live.equals(again.replay) && levels <= LARGEST_SETTLING_LEVELS;
+  console.log(`${lab.folder} differs from its replay at ${Math.round(atMs)}: ${pixels} pixels by up to ${levels} levels, ${isSettled ? 'settled on a second look' : 'a real difference'}`);
+  return isSettled ? 'settled' : 'different';
+}
+
 export async function checkReplayPixels(lab: LabPage): Promise<ReplayPixels> {
   const times = await getCommandTimes(lab);
   const { shiftMs, firstLive } = await lab.page.evaluate(() => {
@@ -128,24 +147,10 @@ export async function checkReplayPixels(lab: LabPage): Promise<ReplayPixels> {
   const differing: number[] = [];
   let settledOnSecondLook = 0;
   let describedDifferently = 0;
-  const shootBoth = async (atMs: number) => {
-    await holdFrame(lab, { atMs, source: 'live' });
-    const live = await shoot(lab, 'replay-compare');
-    await holdFrame(lab, { atMs: atMs + shiftMs, source: 'replay' });
-    return { live, replay: await shoot(lab, 'replay-compare') };
-  };
   for (const atMs of moments) {
-    const { live, replay } = await shootBoth(atMs);
-    if (!live.equals(replay)) {
-      const pair: [string, string] = [live.toString('base64'), replay.toString('base64')];
-      const pixels = await lab.page.evaluate(([first, second]) => window.pageChecks.countDifferentPixels([first, second, 0]), pair);
-      const levels = await lab.page.evaluate((images) => window.pageChecks.getLargestChannelDifference(images), pair);
-      const again = await shootBoth(atMs);
-      const isSettled = again.live.equals(again.replay) && levels <= LARGEST_SETTLING_LEVELS;
-      if (isSettled) settledOnSecondLook += 1;
-      else differing.push(Math.round(atMs));
-      console.log(`${lab.folder} differs from its replay at ${Math.round(atMs)}: ${pixels} pixels by up to ${levels} levels, ${isSettled ? 'settled on a second look' : 'a real difference'}`);
-    }
+    const look = await lookAtMoment(lab, atMs, shiftMs);
+    if (look === 'settled') settledOnSecondLook += 1;
+    if (look === 'different') differing.push(Math.round(atMs));
     const isSame = await lab.page.evaluate(([liveMs, replayMs]) => JSON.stringify(window.sceneLab?.describeLive(liveMs as number)) === JSON.stringify(window.sceneLab?.describeReplay(replayMs as number)), [atMs, atMs + shiftMs]);
     if (!isSame) describedDifferently += 1;
   }
