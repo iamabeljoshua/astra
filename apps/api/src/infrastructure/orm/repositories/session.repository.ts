@@ -14,7 +14,7 @@ export interface SessionListOptions {
 }
 
 const LIKE_PATTERN_CHARACTERS = /[\\%_]/g;
-const MAX_TOPIC_HISTORY_SESSIONS = 1_000;
+const MAX_SESSIONS_READ_FOR_PICKS = 1_000;
 
 // Every branch names the student, because the branches of a filter are joined with OR.
 function getListFilter(studentId: string, search?: string): FindOptionsWhere<SessionEntity>[] {
@@ -75,12 +75,12 @@ export class SessionRepository {
     return this.findForStudent(studentId, sessionId);
   }
 
-  listNewestWithTopicForStudent(studentId: string): Promise<SessionEntity[]> {
+  listNewestForPicks(studentId: string): Promise<SessionEntity[]> {
     return this.sessions.find({
-      select: { id: true, topicId: true, status: true, durationSeconds: true },
-      where: { studentId, topicId: Not(IsNull()) },
+      select: { id: true, topicId: true, title: true, subject: true, artwork: true, status: true, durationSeconds: true, startedAt: true },
+      where: { studentId },
       order: { startedAt: 'DESC', id: 'DESC' },
-      take: MAX_TOPIC_HISTORY_SESSIONS,
+      take: MAX_SESSIONS_READ_FOR_PICKS,
     });
   }
 

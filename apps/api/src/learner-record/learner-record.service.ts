@@ -1,16 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { LearnerNoteEntity } from '../infrastructure/orm/entities/learner-note.entity';
 import { LearnerRecordRepository } from '../infrastructure/orm/repositories/learner-record.repository';
-import { isBackedByEvidence } from './learner-note-options';
+import { getTopicKey, isBackedByEvidence } from './learner-note-options';
 import type { LearnerRecordDto, LearnerNoteDto, NewLearnerNoteDto } from './learner-record.dto';
 
 const MOST_NOTES_READ = 200;
-const NOT_TOPIC_KEY_CHARACTERS = /[^\p{L}\p{N}]+/gu;
-
-function getTopicKey(topic: string): string {
-  return topic.toLowerCase().replace(NOT_TOPIC_KEY_CHARACTERS, ' ').trim();
-}
-
 function toNoteDto({ id, kind, topic, detail, evidence, sessionId, session, notedAt }: LearnerNoteEntity): LearnerNoteDto {
   return { id, kind, topic, detail, evidence, sessionId, sessionTitle: session?.title ?? '', notedAt };
 }

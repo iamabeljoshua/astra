@@ -146,6 +146,8 @@ describe('getPicksForStudent', () => {
       expect(getPicksWithNoHistory(FIT, library)).toEqual([
         {
           id: 'plain',
+          topicId: 'plain',
+          reasonDate: null,
           title: 'A title',
           subject: 'plain',
           lengthMinutes: 12,
@@ -363,7 +365,7 @@ describe('getPicksForStudent', () => {
       }
 
       function expectEveryReasonToBeTrue(fit: StudentFit | null, history: TopicSession[]) {
-        const picks = getPicksForStudent({ fit, history, continueCardSessionId: null }, LIBRARY);
+        const picks = getPicksForStudent({ fit, history, continueCardSessionId: null, notes: [], now: NOW }, LIBRARY);
         const finishedTopics = getFinishedTopics(history);
 
         expect(picks).toHaveLength(6);
@@ -633,7 +635,7 @@ describe('getPicksForStudent', () => {
       it('leaves once the student has gone back to it', () => {
         const history = [makeSession({ id: 'went-back', title: 'Free-body diagrams', startedAt: new Date('2026-11-04T12:00:00Z') })];
 
-        expect(getPicksFromNotes([makeNote('struggled', 'free-body diagrams')], { history })).toEqual(WITHOUT_NOTES.map((pick) => pick));
+        expect(getPicksFromNotes([makeNote('struggled', 'free-body diagrams')], { history })).toEqual(WITHOUT_NOTES);
       });
 
       it('leaves once the student has gone back to the library topic it pointed at', () => {
@@ -693,7 +695,7 @@ describe('getPicksForStudent', () => {
         const notes = [makeNote('cares_about', 'basketball'), makeNote('showed', 'quadratic equations'), makeNote('struggled', 'braking distance')];
         const history = [makeSession({ id: 'open', topicId: 'open', status: 'in_progress' }), makeSession({ id: 'finished', topicId: 'finished', durationSeconds: 600 })];
 
-        expect(getPicksFromNotes(notes, { history, library }).map((pick) => pick.id)).toEqual(['braking', 'quadratic', 'jump-shot', 'open', 'after-finished', 'plain']);
+        expect(getPicksFromNotes(notes, { history, library }).map((pick) => pick.id)).toEqual(['braking', 'quadratic', 'jump-shot', 'open', 'after-finished', 'pythagoras']);
       });
 
       it('keeps two topics in progress on the screen, however much the record holds', () => {

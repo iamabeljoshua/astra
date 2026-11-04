@@ -10,12 +10,24 @@ import {
   replaceExampleData,
 } from '../infrastructure/orm/example-data';
 import { SessionEntity } from '../infrastructure/orm/entities/session.entity';
+import { LearnerRecordService } from '../learner-record/learner-record.service';
 
 const SEEDED_UNFINISHED_TITLE = 'Free-body diagrams';
 
 interface PickCard {
   id: string;
+  title: string;
+  reason: string;
+  reasonDate: string | null;
+  topicId: string | null;
 }
+
+const FREE_BODY_STRUGGLE = {
+  kind: 'struggled' as const,
+  topic: 'free-body arrows',
+  detail: null,
+  evidence: [{ source: 'words' as const, text: 'i do not get which way the arrows go', check: null }],
+};
 
 describe('GET /home', () => {
   let testApp: TestApp;
@@ -254,6 +266,81 @@ describe('GET /home', () => {
 
       expect(homeAfter.continueSession.id).toBe(openQuestion.id);
       expect(getPick(homeAfter, 'saturn-rings')).toMatchObject({ reason: CARRY_ON_REASON, continueSessionId: openLesson.id });
+    });
+  });
+
+  describe('from the learner record', () => {
+    const REASON = 'You got stuck on free-body arrows';
+
+    function records() {
+      return testApp.app.get(LearnerRecordService);
+    }
+
+    async function noteStruggle(studentId: string, updateKey = 'first') {
+      const { id: sessionId } = await sessions().save({ studentId, title: 'A finished question', subject: 'Physics', language: 'en', status: 'finished' as const, startedAt: new Date(Date.now() - 60_000) });
+      await records().applyUpdate({ studentId, sessionId, updateKey, notes: [FREE_BODY_STRUGGLE] });
+    }
+
+    async function getPicks(token = mayaToken): Promise<PickCard[]> {
+      const { body } = await getHomeWithToken(token).expect(200);
+      return (body as { picks: PickCard[] }).picks;
+    }
+
+    it('opens the cards with a struggle, naming what happened and when', async () => {
+      await noteStruggle(EXAMPLE_STUDENT_ID);
+
+      const [firstPick] = await getPicks();
+
+      expect(firstPick).toMatchObject({ title: 'Free-body arrows', reason: REASON, topicId: null });
+      expect(Date.now() - new Date(firstPick?.reasonDate ?? 0).getTime()).toBeLessThan(60_000);
+    });
+
+    it('still offers six cards', async () => {
+      await noteStruggle(EXAMPLE_STUDENT_ID);
+
+      expect(await getPicks()).toHaveLength(6);
+    });
+
+    it('drops the card as soon as its note is deleted', async () => {
+      await noteStruggle(EXAMPLE_STUDENT_ID);
+      const { notes } = await records().getRecord(EXAMPLE_STUDENT_ID);
+      const noteId = notes.find(({ topic }) => topic === FREE_BODY_STRUGGLE.topic)?.id ?? '';
+
+      await request(testApp.app.getHttpServer()).delete(`/me/record/notes/${noteId}`).set('Authorization', `Bearer ${mayaToken}`).expect(204);
+
+      expect((await getPicks()).map((pick) => pick.reason)).not.toContain(REASON);
+    });
+
+    it('never lets another student\'s record change a card', async () => {
+      const otherToken = await testApp.supabaseAuth.signToken(SECOND_STUDENT_AUTH_USER_ID);
+      const otherPicksBefore = await getPicks(otherToken);
+      const mayaPicksBefore = await getPicks();
+
+      await noteStruggle(EXAMPLE_STUDENT_ID);
+
+      expect(await getPicks(otherToken)).toEqual(otherPicksBefore);
+      expect(await getPicks()).not.toEqual(mayaPicksBefore);
+    });
+
+    it('still gives a full Home when the record cannot be read', async () => {
+      const expected = await getPicks();
+      await noteStruggle(EXAMPLE_STUDENT_ID);
+      const failedRead = jest.spyOn(records(), 'getRecord').mockRejectedValue(new Error('no record'));
+
+      const picks = await getPicks();
+      failedRead.mockRestore();
+
+      expect(picks.map((pick) => pick.reason)).not.toContain(REASON);
+      expect(picks).toHaveLength(expected.length);
+    });
+
+    it('gives a brand new student six cards and no claim about a day', async () => {
+      const { token } = await createTestStudent(testApp);
+
+      const picks = await getPicks(token);
+
+      expect(picks).toHaveLength(6);
+      expect(picks.every((pick) => pick.reasonDate === null)).toBe(true);
     });
   });
 

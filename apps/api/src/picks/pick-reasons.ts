@@ -33,6 +33,13 @@ export const STARTER_REASON = 'A good place to start';
 
 export const CARRY_ON_REASON = 'Carry on where you left off';
 
+export const NOTE_LESSON_SUBJECT = 'Your question';
+
+// The page adds the day, in the student's own time zone. Gentle on purpose: a struggle is said once, plainly, and never as a verdict.
+export const getStruggleReason = (noteTopic: string) => `You got stuck on ${noteTopic}`;
+export const getShowedReason = (noteTopic: string) => `You got ${noteTopic} right`;
+export const getCaresAboutReason = (noteTopic: string) => `You said you're into ${noteTopic}`;
+
 export function getNextTopicReason(finishedTitle: string): string {
   return `You finished ${finishedTitle}`;
 }

@@ -11,8 +11,11 @@ import {
   STARTER_REASON,
 } from './pick-reasons';
 import type { Library, LibraryTopic } from './library';
+import { findTopicAfter } from './ranking';
+import type { RankedTopic, RankingSources } from './ranking';
+import { rankFromRecord } from './record-picks';
+import type { RecordToRank } from './record-picks';
 import { getTopicProgress } from './topic-progress';
-import type { TopicProgress, TopicSession } from './topic-progress';
 
 const PICK_COUNT = 6;
 const MAX_PICKS_PER_SUBJECT = 2;
@@ -21,23 +24,8 @@ const MAX_PICKS_PER_HISTORY_KIND = 2;
 
 export type StudentFit = Pick<StudentProfileResponseDto, 'interests' | 'level' | 'goal'>;
 
-export interface StudentRecord {
+export interface StudentRecord extends RecordToRank {
   fit: StudentFit | null;
-  history: TopicSession[];
-  continueCardSessionId: string | null;
-}
-
-interface RankedTopic {
-  topic: LibraryTopic;
-  reason: string;
-  continueSessionId?: string;
-  isFromHistory?: boolean;
-}
-
-interface RankingSources {
-  library: Library;
-  suitableTopics: LibraryTopic[];
-  progressByTopic: Map<LibraryTopic, TopicProgress>;
 }
 
 // Each interest gets a turn, so the first one a student chose cannot fill the screen.
@@ -51,7 +39,7 @@ function rankByInterestTurns(topics: LibraryTopic[], interests: StudentInterest[
     .sort((first, second) => first.turn - second.turn);
 }
 
-function rankByFit(fit: StudentFit | null, { suitableTopics }: RankingSources): RankedTopic[] {
+function rankByFit(fit: StudentFit | null, suitableTopics: LibraryTopic[]): RankedTopic[] {
   if (!fit) return suitableTopics.map((topic) => ({ topic, reason: STARTER_REASON }));
   const { level, goal } = fit;
   return [
@@ -66,24 +54,16 @@ function rankByFit(fit: StudentFit | null, { suitableTopics }: RankingSources): 
 function rankTopicsInProgress({ progressByTopic }: RankingSources, continueCardSessionId: string | null): RankedTopic[] {
   return [...progressByTopic].flatMap(([topic, progress]) =>
     progress.kind === 'in_progress' && progress.sessionId !== continueCardSessionId
-      ? [{ topic, reason: CARRY_ON_REASON, continueSessionId: progress.sessionId, isFromHistory: true }]
+      ? [{ topic, reason: CARRY_ON_REASON, continueSessionId: progress.sessionId, isPersonal: true }]
       : [],
   );
-}
-
-function findTopicAfter(finishedTopic: LibraryTopic, { library, suitableTopics, progressByTopic }: RankingSources): LibraryTopic | undefined {
-  const order = library.topicOrder[finishedTopic.subject] ?? [];
-  return order
-    .slice(order.indexOf(finishedTopic.id) + 1)
-    .flatMap((topicId) => suitableTopics.filter((topic) => topic.id === topicId))
-    .find((topic) => progressByTopic.get(topic)?.kind !== 'finished');
 }
 
 function rankNextTopics(sources: RankingSources): RankedTopic[] {
   return [...sources.progressByTopic].flatMap(([topic, progress]) => {
     const nextTopic = progress.kind === 'finished' && findTopicAfter(topic, sources);
     return nextTopic && !sources.progressByTopic.has(nextTopic)
-      ? [{ topic: nextTopic, reason: getNextTopicReason(topic.title), isFromHistory: true }]
+      ? [{ topic: nextTopic, reason: getNextTopicReason(topic.title), isPersonal: true }]
       : [];
   });
 }
@@ -97,35 +77,39 @@ function keepFirstOfEachTopic(ranked: RankedTopic[]): RankedTopic[] {
   });
 }
 
-function rankForStudent({ fit, history, continueCardSessionId }: StudentRecord, library: Library): RankedTopic[] {
+function rankForStudent(record: StudentRecord, library: Library): RankedTopic[] {
+  const { fit, history, continueCardSessionId } = record;
   const levelsToSuit = fit ? [fit.level] : STUDENT_LEVELS;
   const sources: RankingSources = {
     library,
     suitableTopics: library.topics.filter((topic) => levelsToSuit.every((level) => topic.levels.includes(level))),
     progressByTopic: getTopicProgress(history, library.topics),
   };
+  const unstartedTopics = sources.suitableTopics.filter((topic) => !sources.progressByTopic.has(topic));
   return keepFirstOfEachTopic([
+    ...rankFromRecord(record, sources),
     ...rankTopicsInProgress(sources, continueCardSessionId).slice(0, MAX_PICKS_PER_HISTORY_KIND),
     ...keepFirstOfEachTopic(rankNextTopics(sources)).slice(0, MAX_PICKS_PER_HISTORY_KIND),
-    ...rankByFit(fit, sources).filter(({ topic }) => !sources.progressByTopic.has(topic)),
+    ...rankByFit(fit, unstartedTopics),
   ]);
 }
 
-// Caps each subject, then tops up from the overflow to fill the screen. History cards pass the cap but still count toward it.
+// Caps each subject, then tops up from the overflow to fill the screen. Personal cards pass the cap but still count toward it.
 function chooseAcrossSubjects(ranked: RankedTopic[], maxPerSubject: number): RankedTopic[] {
   const picksPerSubject = new Map<string, number>();
-  const withinLimit = ranked.filter(({ topic, isFromHistory }) => {
+  const withinLimit = ranked.filter(({ topic, isPersonal }) => {
     const picksSoFar = picksPerSubject.get(topic.subject) ?? 0;
     picksPerSubject.set(topic.subject, picksSoFar + 1);
-    return isFromHistory || picksSoFar < maxPerSubject;
+    return isPersonal || picksSoFar < maxPerSubject;
   });
   const overLimit = ranked.filter((rankedTopic) => !withinLimit.includes(rankedTopic));
   return [...withinLimit, ...overLimit].slice(0, PICK_COUNT);
 }
 
-function toPickCard({ topic, reason, continueSessionId }: RankedTopic): PickCardResponseDto {
+function toPickCard({ topic, reason, reasonDate, continueSessionId }: RankedTopic): PickCardResponseDto {
   const { id, title, subject, lengthMinutes, openingLine, artwork } = topic;
-  return { id, title, subject, lengthMinutes, openingLine, reason, artwork, continueSessionId: continueSessionId ?? null };
+  const topicId = 'isNoteLesson' in topic ? null : id;
+  return { id, topicId, title, subject, lengthMinutes, openingLine, reason, reasonDate: reasonDate ?? null, artwork, continueSessionId: continueSessionId ?? null };
 }
 
 export function getPicksForStudent(record: StudentRecord, library: Library): PickCardResponseDto[] {
