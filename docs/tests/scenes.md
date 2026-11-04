@@ -52,8 +52,8 @@ What a real session measured on 4 November 2026, with real Sonnet 5.5, a real pa
 
 | Check | Result |
 | --- | --- |
-| A saved scene, from the tutor asking to the scene on screen | 11.6 to 18.9 s on 7 runs, because it lands at the first pause, after the tutor's first reply. Before the room to answer it took 11.6 to 16.8 s, and with it 18.9 s after a reply that ended on a question |
-| A saved scene, from pressing the card to the scene on screen | 22.4 to 27.8 s, with first words at 7.4 to 9.9 s |
+| A saved scene, from the tutor asking to the scene on screen | 11.6 to 20.9 s on 8 runs, because it lands at the first pause, after the tutor's first reply. Before the room to answer it took 11.6 to 16.8 s, and with it 18.9 and 20.9 s after a reply that ended on a question |
+| A saved scene, from pressing the card to the scene on screen | 22.4 to 31.5 s, with first words at 7.4 to 9.9 s |
 | A new scene | 0 of 3 landed. Each was dropped silently 32.3 to 35.8 s after the ask, with the voice and the board carrying on. They were ready at 56 s, at 94 s, and at about 135 s, the last after a failed first try |
 | Why a new scene missed | The container took 32 to 116 s here, against 6 to 8 s on two library scenes made in a quiet hour, which took 13.7 and 19.8 s whole. By that, a new scene on a quiet machine would be ready about 20 to 25 s after the ask and land. That is an inference, not a measurement |
 | Whether the voice waited | First sound after the student asked: median 2293 ms with a new scene being made, 2328 ms with scenes off, 3 runs each. Neither had an audio gap. Across 12 other sessions, 6 had gaps, 7 of 34 to 223 ms and 2 where the audio ran dry. 3 of those 6 never asked for a scene, so I read them as the Mac's load, and that is an inference |
