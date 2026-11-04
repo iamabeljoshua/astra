@@ -20,9 +20,9 @@ pnpm --filter @astra/agent proof --stored <a take from store-run.ts> --only libr
 Tables, timelines, code blocks, labelled drawings, layered diagrams, and pictures join the math, plots, geometry, and simulations from M3.3 and M3.4. All of them go through the scene language's parser and render as text nodes, never as HTML.
 
 - Eight drawings have named parts: `animal-cell`, `flower`, `water-cycle`, `atom`, `music-staff`, `piano-keys`, `globe`, and `lever`. A label names a part of its own drawing, and the parser refuses any other. `hoop-side` has no parts, because it is only ever drawn under a simulation.
-- Ten pictures are in `IMAGE_ASSETS`, and `docs/credits.md` credits each. A file the board cannot show becomes its description in words, and the tutor hears about it.
+- Ten pictures are in `IMAGE_ASSETS`, and `docs/credits.md` credits each. A file the board cannot show becomes its description in words, and the page reports `imageMissing`.
 - A code block holds at most 40 lines, and each long line wraps, because a board never scrolls.
-- Text and a picture's description refuse raw TeX, so math goes in `writeMath`.
+- Every word field refuses raw math, so math goes in `writeMath`: a TeX command, `\(` and `\[`, a braced power or subscript, and math between dollars. It also refuses the tab, newline, and other characters JSON makes of a lone backslash. Money such as `$5 grows to $25` stays words, and a code block keeps what it holds. A Windows path, or `\frac` in a lesson about LaTeX, belongs in a code block.
 
 The deck in `packages/board/test-deck/` has 118 scenes across math, physics, languages, history, biology, code, music, mixed lessons, and hostile input. Each command in it goes through the same parser and board check as a tutor's. The deck holds right-to-left text, Devanagari, Chinese, Korean, Thai, Burmese, Yoruba, and Igbo.
 
@@ -32,17 +32,20 @@ The deck in `packages/board/test-deck/` has 118 scenes across math, physics, lan
 
 It reports these as defects:
 
-- Text on text, text off the board, text off its own element, and text cut by a box.
+- Text on text, a label's own lines on each other, text off the board, text off its own element, text on a picture, and text cut by a box, a rounded corner, or a clip path.
 - An element on an element, and an element or a mark off the board or on a neighbour.
-- An arrow through a box, and an arrow through words.
+- Any stroke through words. Every stroke on the board is walked every 2 px through the letters of every text box, curves, axes, rings, leaders, and box edges alike, and a tick number is the only text exempt. Strokes that write a label count as that label's box.
+- An arrow through a box, a node's label outside its box, and a leader that does not start beside its label.
+- An element or a picture still unseen at rest, words too faint to read against what is behind them, a picture turned or cut to fit. An element counts as shown only by what is painted: `display: none`, `visibility: hidden`, `opacity: 0`, a clip path, or words in the board's own color all count as not shown. An element a full board moved off is the one exception, and the painter marks it.
 - Raw TeX, a KaTeX error, an element that is not on the list, a broken or stretched image, and a number that is not finite.
-- A color outside the tokens, a gradient, and text under 9 px that nothing told the tutor about.
-- A word left out, unless the board told the tutor.
+- A color outside the tokens, a gradient, and text under 9 px with no `tooSmallToRead` report.
+- A word left out, unless the board sent `labelWithoutRoom`, `imageMissing`, or `markWithoutTarget`.
 
 | Measure | Result |
 | --- | --- |
-| Full sweep | 31,776 renders, 503,056 text boxes, 0 defects, in about a minute |
-| Planted defects | 36 of 36 caught: 21 in the page, 14 in the library, and 1 flash |
+| Quick sweep, laptop in light and phone in dark | 2,648 renders, 40,244 text boxes, 0 defects, in 7 s |
+| Full sweep with the stroke walk | The last figure from before the walk was 31,776 renders and 0 defects. This head's figure is owed by the round's report, because its run outlasted the round at a load average near 30 |
+| Planted defects | 78 plants: 57 in the page, 20 in the library, and 1 flash. The last whole run caught 55, 19, and 1. The 3 misses were faults in the plants, each since repaired |
 | Flash check | 3,669 frames across all 118 scenes, with the 3 strobe scenes in both themes. At most 2 flashes in any second, in `hostile-many-at-once` in dark, and 0 in the strobe scenes. With the picture's hold planted out, 4 |
 
 A plant either breaks the page or rewrites one line of the library as it is served, and never touches the disk. Each must be caught by the kind of defect it plants.
@@ -53,6 +56,8 @@ A plant either breaks the page or rewrites one line of the library as it is serv
 - Edge labels sat on their own arrows, and two labels in a gap landed on each other.
 - A curve with no values to draw lost its name with no report, which only showed once the check stopped counting a screen reader's name as shown words.
 - A picture placed and cleared 4 times a second flashed 4 times a second.
+
+A second pass, after a review showed the check could not see hidden words or strokes through text, found 242 crossings on 98 of the 2,648 renders of the quick sweep. Curves, axes, and rings ran through labels in `history-school-of-athens`, `physics-wave-plot`, `biology-population-curve`, `music-sound-wave`, `mixed-marks-on-parts`, and `math-marked-parabola`, among others. A label now clears every line, stacks its words if it must, and tells the tutor when no spot is left. A ring squares up around a wide box so the box's corners stay inside it. On a phone, a dense wave leaves no room for `crest (0.25, 1)` in `physics-wave-plot` or `loudest push (0.0011, 1)` in `music-sound-wave`, so those two labels go to the tutor as `labelWithoutRoom`.
 
 ## Arrows
 
@@ -102,11 +107,11 @@ On the deck alone, `mixed-phone-heavy` on a measured tier at 12 times slower dro
 
 ## The proof gate
 
-`getProofFailures` now fails on `still.imagesMatch`, `summary.wasRun`, `summary.hasScript`, `colors.unknownColors`, `colors.gradients`, `rests.differingImages`, `rests.motionLeft`, and `frames.movingWithReducedMotion`. Before this each of those could report a fault and still exit 0.
+`getProofFailures` now fails on eight more keys: `still.imagesMatch`, `summary.wasRun`, `summary.hasScript`, `colors.unknownColors`, `colors.gradients`, `rests.differingImages`, `rests.motionLeft`, and `frames.movingWithReducedMotion`. Before this each of those could report a fault and still exit 0.
 
 `math-proof` no longer counts what the board writes while the proof itself holds it at another moment, which were the 97 writes with no cause in `marks-and-labels`. The page checks now allow `img.board-image`, and only that image.
 
-The repaint comment was wrong. With 0 writes to the page, a repaint has moved 140 pixels by up to 36 levels, so a browser's raster alone can break the limit of 2 levels.
+The repaint comment was wrong. With 0 writes to the page, a repaint has moved 140 pixels by up to 36 levels, so a browser's raster alone can pass any limit on levels, and levels cannot tell raster from a real change.
 
 What the proofs gave at this code, on the fake voice:
 
@@ -115,16 +120,22 @@ What the proofs gave at this code, on the fake voice:
 | `math-proof` `marks-and-labels`, laptop and phone | 0 writes with no cause, against 97 before. 88 replay moments, 0 differ |
 | `math-proof` `reduced` | 0 moving frames under reduced motion, 0 unknown colors, 0 gradients, 0 rests that differ. 1 still board moved one pixel by one level with 0 writes |
 | `math-proof` `hostile` | Markup never ran. 144 replay moments, 0 differ |
-| `graph-proof` `reduced`, `hostile`, `marks` | 2 of 364 replay moments differ: 1 pixel by 53 levels and 742 pixels by 40 levels. Both had the same page and a clean second look |
+| `graph-proof` `reduced`, `hostile`, `marks`, under the earlier limit of 2 levels | 2 of 364 replay moments differ: 1 pixel by 53 levels and 742 pixels by 40 levels. Both had the same page on a later read and a clean second look |
 
-A still board now takes the same second look as a replay moment, under the same limit of 2 levels, so one pixel of raster does not fail a proof and a real change does.
+**The settle rule.** A replay moment that differs settles when the board's HTML was identical during the look that differed, live and replay, and a second look at both is clean, whatever the levels. The painter's only output is the page, so a difference with the same page can only come from the browser's raster. The HTML is read while each shot is held, because a painter that lands wrong on one hold and converges by the next would pass a later read. `apps/agent/test/look-at-moment.test.ts` plants that: 742 pixels by 40 levels with a different page during the first look returns `different`. The same pixels with the same page and a clean second look return `settled`, and a difference that repeats returns `different`, with the same page or not.
 
-**A rule for countersign, not in the gate.** A difference settles when the page's HTML is identical at both moments and a second look at both is clean, whatever the levels. The painter's only output is the page, so a difference with the same page can only come from the browser's raster, and `writes` and `animations` already fail on anything still moving. Each of the 2 moments above would settle under it, and none that had a different page would. `lookAtMoment` logs the page comparison today, so every run adds evidence. The rule is one commit on `feat/m3-5-settle-rule`.
+A still board settles the same way: 0 writes, 0 animations, and a clean second look.
+
+## What the tutor hears
+
+The check leaves `tooSmallToRead`, `labelWithoutRoom`, `imageMissing`, and `markWithoutTarget` out of its defects only because a live tutor is told about them. `LiveBoard` sends a mark as `markNotDrawn`, and sends the others and `sliderWithoutConstant` as `boardProblem`. The agent adds a `board_problem` note to the tutor's next request, once for each problem. The note is built from what the model wrote, so a browser can name only an element or a label already on that tutor's board.
+
+`curveTooFine` and `sliderOverlaps` still stop at the page, and the wiring PR forwards them. The `board_problem` line in prompt v2 has had no eval run, because this round spends no model credits.
 
 ## Choices worth keeping
 
 - The check reads the page and not the layout code, so a browser's real line breaks and fallback fonts count.
-- A too-small element is reported to the tutor and left out of the defects, because the tutor asked for more than the board can hold. Outside the hostile scenes, that means `code-forty-lines` at 7 sizes and one diagram on the two smallest phones.
+- A too-small element goes to the tutor as a note and stays out of the defects, because the tutor asked for more than the board can hold. Outside the hostile scenes, that means `code-forty-lines` at 7 sizes and one diagram on the two smallest phones.
 - Table words stay whole while the table fits, and break only when it cannot fit any other way.
 - A note with no room beside its mark takes the free spot nearest the mark, not the first one it finds.
 
@@ -132,8 +143,9 @@ A still board now takes the same second look as a replay moment, under the same 
 
 - Real phones, Safari, and Firefox were not run. The phone figures are a laptop's Chromium at a phone's width with its CPU slowed.
 - `hide` and `clearBoard` still remove an element at once.
-- A very wide table on a small phone can still break words, and a 40-line code block on a phone is too small to read. The tutor hears about the second.
-- A handwritten label's words can only be checked through its name for a screen reader.
+- A very wide table on a small phone can still break words, and a 40-line code block on a phone is too small to read. The page reports the second, and a live tutor can write code only after the wiring PR.
+- A handwritten label's words are checked through its name for a screen reader and the box its strokes make, not letter by letter.
+- A label naming the wrong part of a drawing, when the sheet itself holds the wrong spot, needs a person's eye. Every drawing was looked at full size for this round, and the check only proves that a leader starts beside its own label.
 - CI runs the sweep on two boards. The plants and the strobes take longer than its job allows, and `pnpm test:board` runs them.
-- The tutor's prompt does not name the new drawings, parts, and pictures yet. That belongs to M3.7.
+- **This PR does not reach a live tutor yet.** Main's `DRAWN_KINDS` in `apps/agent/src/tutor/board-memory.ts` refuses `table`, `timeline`, `code`, `image`, `drawing`, `diagram`, and `plot`, and the tutor's prompt does not name the new drawings, parts, and pictures. M3.7 landed without them, and M3.12 adds `plot` and `diagram`. A wiring PR after PR 97 and this PR land adds all of them to `DRAWN_KINDS` with prompt lines, forwards `curveTooFine` and `sliderOverlaps`, and reruns the crisis lane.
 - PR 97 adds `--color-pen`. The check's token list holds `pen` already, so the two can land in either order.
