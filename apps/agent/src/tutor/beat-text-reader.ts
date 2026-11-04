@@ -2,12 +2,14 @@ import { BEAT_LIMITS, type Beat, type BoardKinds, getBoardAfter, getBoardProblem
 import { type AttemptReport, parseAttemptReport } from './attempts.ts';
 import { parseToolCall, type ToolCall } from './tools/tool-call.ts';
 
-/** A turn wraps up at the next sentence end past this, about 20 s with its pauses, because T4 gives a spoken turn 20 seconds. */
+/** A turn wraps up at the next sentence end past this, which is Abel's limit, and the prompt asks for far fewer. */
 export const TURN_WORDS_TO_WRAP = 45;
 /** A stretch of speech takes a breath at the next sentence end past this, because long stretches are what sound like a machine. */
 const STRETCH_WORDS_TO_BREATHE = 25;
 /** A stretch breathes at its next beat past this even with no sentence end in sight, because Abel's limit is 45 words and a long sentence must not pass it. */
 const STRETCH_WORDS_TO_BREATHE_AT_ANY_BEAT = 35;
+/** A stretch with no comma or sentence end still gets its breath here, so no words but a safety reply's pass the limit. */
+const MOST_WORDS_IN_A_STRETCH = 42;
 /** A line break after fewer words than this is only a new beat, because a pause after "Okay, look." sounds odd. */
 const FEWEST_WORDS_BEFORE_A_BREATH = 6;
 /** A sentence that never ends stops here, so a run-on cannot speak for a minute. */
@@ -290,7 +292,7 @@ export class BeatTextReader {
       if (isSpace) return;
       this.#endBeat();
     }
-    if (!isSpace && this.#isAfterSpace && (this.#wordCount === BEAT_LIMITS.words || this.#wordsThisTurn >= TURN_WORDS_TO_CUT)) this.#endBeat();
+    if (!isSpace && this.#isAfterSpace && (this.#wordCount === BEAT_LIMITS.words || this.#wordsThisTurn >= TURN_WORDS_TO_CUT || this.#isStretchFull())) this.#endBeat();
     if (this.#isTurnOver) {
       this.#textAfterTurn += character;
       return;
@@ -489,6 +491,10 @@ export class BeatTextReader {
     this.#options.onBadCommand(this.#isCommandTooLong ? 'the command is too long' : problem);
     this.#isCommandTooLong = false;
     this.#command = null;
+  }
+
+  #isStretchFull(): boolean {
+    return !this.#isSafetyReply && this.#wordsThisStretch >= MOST_WORDS_IN_A_STRETCH;
   }
 
   #isStretchLongEnough(endsSentence: boolean): boolean {

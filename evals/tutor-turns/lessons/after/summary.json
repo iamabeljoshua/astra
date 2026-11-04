@@ -1,0 +1,28 @@
+{
+ "prompt": "v2",
+ "summary": {
+  "turns": 60,
+  "firstTextMs": {
+   "p50": 1282,
+   "p95": 2080
+  },
+  "wordsPerReply": {
+   "p50": 20,
+   "p95": 29,
+   "worst": 39
+  },
+  "longestStretch": {
+   "p50": 20,
+   "p95": 29,
+   "worst": 33
+  },
+  "repliesEndingOnAQuestion": 24,
+  "repliesOverTwentyFiveWords": 12,
+  "repliesOverFortyFiveWords": 0
+ },
+ "spend": {
+  "anthropicUsd": 1.850328100000002,
+  "voiceCharacters": 0,
+  "credits": 0
+ }
+}

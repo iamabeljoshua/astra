@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import Anthropic from '@anthropic-ai/sdk';
-import { getCues, type SceneCommand } from '@astra/contracts';
+import { getBeatText, getCues, type SceneCommand } from '@astra/contracts';
 import { readKey } from '../../keys.ts';
 import { makeAnthropicTutorModel } from '../../providers/anthropic.ts';
 import { createTutorBrain, type StudentProfile, type TurnSummary } from '../brain.ts';
@@ -89,14 +89,25 @@ function loadGroups(name: string): PromptGroup[] {
 
 function makeJudge() {
   const client = new Anthropic({ apiKey: readKey('ANTHROPIC_API_KEY'), maxRetries: 2 });
-  return async (question: string, transcript: string): Promise<string> => {
-    const reply = await client.messages.create({ model: JUDGE_MODEL, max_tokens: JUDGE_MAX_TOKENS, system: 'You judge a spoken tutoring exchange. Answer exactly as asked, with YES or NO on the first line.', messages: [{ role: 'user', content: `${transcript}\n\nQuestion about the tutor's last reply: ${question}\nAnswer YES or NO on the first line, then one short reason.` }] });
+  return async (content: string): Promise<string> => {
+    const reply = await client.messages.create({ model: JUDGE_MODEL, max_tokens: JUDGE_MAX_TOKENS, system: 'You judge a spoken tutoring exchange. Answer exactly as asked.', messages: [{ role: 'user', content }] });
     ledger.charge({ anthropicUsd: (reply.usage.input_tokens * JUDGE_USD_PER_MILLION.input + reply.usage.output_tokens * JUDGE_USD_PER_MILLION.output) / 1_000_000 });
     return reply.content.flatMap((block) => (block.type === 'text' ? [block.text] : [])).join('\n').trim();
   };
 }
 
 type Judge = ReturnType<typeof makeJudge>;
+
+function getLongestStretchWords(beats: TurnSummary['beats']): number {
+  let longest = 0;
+  let stretch = 0;
+  for (const beat of beats) {
+    if (beat.pauseBeforeMs !== undefined) stretch = 0;
+    stretch += getBeatText(beat).split(/\s+/).filter(Boolean).length;
+    longest = Math.max(longest, stretch);
+  }
+  return longest;
+}
 
 function describeDrawn(command: SceneCommand): string {
   if ('tex' in command && command.tex) return command.tex;
@@ -119,7 +130,7 @@ function makeBrain(prompt: TutorPrompt, profile: StudentProfile, traces: string[
 }
 
 function recordCodeChecks(group: PromptGroup, turn: GroupTurn, summary: TurnSummary, commands: readonly SceneCommand[]) {
-  const details = { drawn: commands.map(describeDrawn), toolCalls: summary.toolCalls.map((call) => call.tool), terms: turn.terms ?? [], answer: turn.answer ? new RegExp(turn.answer, 'i') : null };
+  const details = { drawn: commands.map(describeDrawn), toolCalls: summary.toolCalls.map((call) => call.tool), terms: turn.terms ?? [], answer: turn.answer ? new RegExp(turn.answer, 'i') : null, longestStretchWords: getLongestStretchWords(summary.beats) };
   for (const check of [...(group.checks ?? []), ...(turn.check ? [turn.check] : [])]) {
     const passed = REPLY_CHECKS[check]?.passes(summary.spokenText, commands.map((command) => command.kind), details) ?? false;
     results.push({ group: group.name, check, passed, text: turn.text.slice(0, 60) });
@@ -155,7 +166,7 @@ async function runGroup(group: PromptGroup, { prompt, model, askJudge }: RunCont
     wordCounts.push(summary.spokenText.split(/\s+/).filter(Boolean).length);
     exchange.push(`Student: ${turn.text}`, `Tutor: ${summary.spokenText}`);
     if (turn.judge) {
-      const verdict = await askJudge(JUDGED_CHECKS[turn.judge] as string, exchange.join('\n'));
+      const verdict = await askJudge(`${exchange.join('\n')}\n\nQuestion about the tutor's last reply: ${JUDGED_CHECKS[turn.judge] as string}\nAnswer YES or NO on the first line, then one short reason.`);
       const passed = /^yes\b/i.test(verdict);
       results.push({ group: group.name, check: `judged:${turn.judge}`, passed, text: turn.text.slice(0, 60) });
       console.log(`   judged ${turn.judge}: ${verdict.replace(/\s+/g, ' ').slice(0, 160)}`);
@@ -181,9 +192,11 @@ async function runCompare(group: PromptGroup, compare: LevelCompare, context: Ru
   const namesPlain = !compare.plainTerms.some((term) => lower.toLowerCase().includes(term));
   const namesProper = compare.properTerms.some((term) => higher.toLowerCase().includes(term));
   results.push({ group: group.name, check: 'level:lowerIsPlain', passed: namesPlain, text: compare.text }, { group: group.name, check: 'level:higherIsProper', passed: namesProper, text: compare.text });
-  const verdict = await context.askJudge(LEVELS_QUESTION, `Question: ${compare.text}\n\nReply A: ${higher}\n\nReply B: ${lower}`);
-  const lines = verdict.split('\n').map((line) => line.trim());
-  const passed = /^yes\b/i.test(lines[0] ?? '') && /^A\b/.test(lines[1] ?? '');
+  // The order changes at random, so a judge's habit of picking one letter cannot pass.
+  const isHigherFirst = Math.random() < 0.5;
+  const [replyA, replyB] = isHigherFirst ? [higher, lower] : [lower, higher];
+  const verdict = await context.askJudge(`The question: ${compare.text}\n\nReply A: ${replyA}\n\nReply B: ${replyB}\n\n${LEVELS_QUESTION}`);
+  const passed = new RegExp(`^${isHigherFirst ? 'A' : 'B'}\\b`).test(verdict);
   results.push({ group: group.name, check: 'judged:differentByLevel', passed, text: compare.text });
   console.log(`   lower plain ${namesPlain}, higher proper ${namesProper}, judged: ${verdict.replace(/\s+/g, ' ').slice(0, 160)}`);
 }

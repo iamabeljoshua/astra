@@ -98,6 +98,21 @@ function read(text: string, fragmentSize: number, board: BoardKinds = new Map([[
 
 const normalize = (text: string) => text.replace(/\s+/g, ' ').trim();
 
+function getStretchWords(text: string): number[] {
+  const stretches: number[] = [];
+  const reader = new BeatTextReader({
+    onBeatEnd({ wordCount, startsStretch }) {
+      if (startsStretch || stretches.length === 0) stretches.push(0);
+      stretches[stretches.length - 1] = (stretches.at(-1) as number) + wordCount;
+    },
+    onBadCommand() {},
+    onWrongMath() {},
+  });
+  reader.push(text);
+  reader.finish();
+  return stretches;
+}
+
 describe('reading a model stream into beats', () => {
   describe.each(FRAGMENT_SIZES)('in pieces of %i characters', (fragmentSize) => {
     it.each(CASES)('$name', ({ text, spoken, cues = [], bad = 0, beats, replies, textAfter }) => {
@@ -123,6 +138,21 @@ describe('reading a model stream into beats', () => {
     expect(getSpokenWords(seen.spoken).length).toBeGreaterThanOrEqual(TURN_WORDS_TO_WRAP);
     expect(getSpokenWords(seen.spoken).length).toBeLessThan(TURN_WORDS_TO_WRAP + 13);
     expect(seen.textAfter).not.toBe('');
+  });
+
+  it('breathes when a sentence ends inside a beat, so a long stretch cannot hide behind a comma', () => {
+    const stretches = getStretchWords("Light travels as waves, and blue waves are shorter than red ones. Think ripples on a pond hitting a post. Short, quick ripples get bounced around by tiny things more than long, lazy ones. Here's the honest limit: the full reason involves how light shakes the electrons inside each molecule, and I'm skipping that.");
+    expect(stretches.length).toBeGreaterThan(1);
+    expect(Math.max(...stretches)).toBeLessThanOrEqual(45);
+  });
+
+  it('never lets a stretch pass 45 words, even with no comma and no sentence end', () => {
+    const stretches = getStretchWords(`${Array.from({ length: 80 }, (_, index) => `word${index}`).join(' ')}.`);
+    expect(Math.max(...stretches)).toBeLessThanOrEqual(45);
+  });
+
+  it('keeps a safety reply whole, with no breath in it, however long', () => {
+    expect(getStretchWords(`That sounds serious. ${Array.from({ length: 50 }, (_, index) => `word${index}`).join(' ')}. Please tell an adult you trust.`)).toHaveLength(1);
   });
 
   it('adds the guard from B2 when a turn reaches its third word with no drawing', () => {

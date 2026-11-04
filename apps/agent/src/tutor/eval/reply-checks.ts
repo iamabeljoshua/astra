@@ -4,7 +4,7 @@ const PHONE_OR_HOTLINE = /\b988\b|\b911\b|\b999\b|\b112\b|\b\d{3}[-\s]\d{3}[-\s]
 
 const MATH_APOLOGY = /let me check that|work this next bit out together|do this next part together|that (?:last )?(?:step|line|rewrite) was (?:wrong|off)|my (?:mistake|line)|I slipped/i;
 
-const TEST_WORDS = /quick check|pop quiz|\bquiz\b|test you|\bdefine\b|definition of|does that make sense|make sense\?|do you understand|is that clear|does that picture work/i;
+const TEST_WORDS = /quick check|pop quiz|\bquiz\b|test you|\bdefine\b|definition of|\bmakes? sense\b[^.!]*\?|do you understand|is that clear|does that picture work/i;
 const GREETING = /^(?:welcome back|hi\b|hello\b|hey\b)/i;
 
 const countWords = (text: string) => text.split(/\s+/).filter(Boolean).length;
@@ -16,9 +16,10 @@ export interface ReplyDetails {
   toolCalls: readonly string[];
   terms: readonly string[];
   answer: RegExp | null;
+  longestStretchWords: number;
 }
 
-const NO_DETAILS: ReplyDetails = { drawn: [], toolCalls: [], terms: [], answer: null };
+const NO_DETAILS: ReplyDetails = { drawn: [], toolCalls: [], terms: [], answer: null, longestStretchWords: 0 };
 
 export const REPLY_CHECKS: Record<string, { why: string; passes(spoken: string, commands: readonly string[], details?: ReplyDetails): boolean }> = {
   number: { why: 'A number derived in the reply is on the board, where code checks it', passes: (spoken, commands) => commands.some((kind) => kind === 'writeMath' || kind === 'transformMath') || !/\b(equals|is|makes)\b.*\b\d/.test(spoken) },
@@ -36,7 +37,7 @@ export const REPLY_CHECKS: Record<string, { why: string; passes(spoken: string, 
   namesNothingYet: { why: 'A plain idea comes before its name, so the first reply uses no term they have not met', passes: (spoken, _commands, details = NO_DETAILS) => !details.terms.some((term) => spoken.toLowerCase().includes(term)) },
   checksTheGround: { why: 'It finds out what they have before it explains, in a few words', passes: (spoken) => /\?\s*$/.test(spoken) && countWords(spoken) <= 30 },
   noTestFeel: { why: 'A check must not feel like a test', passes: (spoken) => !TEST_WORDS.test(spoken) },
-  fortyFiveAtMost: { why: 'Abel: never more than 45 words', passes: (spoken) => countWords(spoken) <= 45 },
+  fortyFiveAtMost: { why: 'Abel: never more than 45 words at a stretch, and each breath lets the student in', passes: (_spoken, _commands, details = NO_DETAILS) => details.longestStretchWords <= 45 },
   thirtyFiveAtMost: { why: 'Simpler means shorter too', passes: (spoken) => countWords(spoken) <= 35 },
   noWelcomeBack: { why: 'The app greets them, and "Welcome back." opened 13 of 14 such replies', passes: (spoken) => !GREETING.test(spoken.trim()) },
   numberIsChecked: { why: 'T6: a worked out number is on the board, where code checks it, or came from compute', passes: (_spoken, commands, details = NO_DETAILS) => details.toolCalls.includes('compute') || commands.includes('writeMath') || commands.includes('transformMath') },
@@ -63,4 +64,4 @@ export const JUDGED_CHECKS: Record<string, string> = {
   answersTheClarification: 'The student stopped to ask what the tutor meant. Does the tutor answer that exact thing first, plainly, with no repeating of its earlier explanation word for word?',
 };
 
-export const LEVELS_QUESTION = 'Two tutor replies answer the same question, for two different students. Are they visibly pitched at different levels, so that a reader could tell which student is more advanced? Answer YES or NO on the first line. On the second line, write A or B for the one pitched at the more advanced student.';
+export const LEVELS_QUESTION = 'Two tutor replies answer the same question, for two different students. Which reply is pitched at the more advanced student? Answer A or B on the first line, or SAME if a reader could not tell them apart by level. Then give one short reason.';
