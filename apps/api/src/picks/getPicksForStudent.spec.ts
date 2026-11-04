@@ -4,6 +4,7 @@ import { getPicksForStudent } from './getPicksForStudent';
 import type { StudentFit } from './getPicksForStudent';
 import { LIBRARY } from './library';
 import type { Library, LibraryTopic } from './library';
+import type { LearnerNoteDto } from '../learner-record/learner-record.dto';
 import type { TopicSession } from './topic-progress';
 
 const FIT: StudentFit = { interests: [], level: 'high_school', goal: 'class' };
@@ -27,8 +28,15 @@ function makeLibrary(topics: LibraryTopic[], topicOrder: Library['topicOrder'] =
   return { topics, topicOrder };
 }
 
+const NOW = new Date('2026-11-05T12:00:00Z');
+const LONG_AGO = new Date('2026-01-01T12:00:00Z');
+
+function makeSession(fields: Partial<TopicSession> & { id: string }): TopicSession {
+  return { topicId: null, title: fields.id, subject: 'Your question', artwork: null, status: 'finished', durationSeconds: 0, startedAt: LONG_AGO, ...fields };
+}
+
 function getPicksWithNoHistory(fit: StudentFit | null, library: Library) {
-  return getPicksForStudent({ fit, history: [], continueCardSessionId: null }, library);
+  return getPicksForStudent({ fit, history: [], continueCardSessionId: null, notes: [], now: NOW }, library);
 }
 
 function getPickIds(fit: StudentFit | null, library: Library) {
@@ -165,15 +173,15 @@ describe('getPicksForStudent', () => {
     );
 
     function finished(topicId: string, durationSeconds = TEN_MINUTES_IN_SECONDS): TopicSession {
-      return { id: `finished-${topicId}`, topicId, status: 'finished', durationSeconds };
+      return makeSession({ id: `finished-${topicId}`, topicId, durationSeconds });
     }
 
     function open(topicId: string, id = `open-${topicId}`): TopicSession {
-      return { id, topicId, status: 'in_progress', durationSeconds: 60 };
+      return makeSession({ id, topicId, status: 'in_progress', durationSeconds: 60 });
     }
 
     function getPicks(history: TopicSession[], continueCardSessionId: string | null = null, library = LIBRARY_LISTED_AGAINST_SUBJECT_ORDER) {
-      return getPicksForStudent({ fit: FIT, history, continueCardSessionId }, library);
+      return getPicksForStudent({ fit: FIT, history, continueCardSessionId, notes: [], now: NOW }, library);
     }
 
     function getCards(history: TopicSession[], continueCardSessionId: string | null = null, library = LIBRARY_LISTED_AGAINST_SUBJECT_ORDER) {
@@ -408,7 +416,7 @@ describe('getPicksForStudent', () => {
               .slice(order.indexOf(topic.id) + 1)
               .find((id) => TOPICS.find((candidate) => candidate.id === id)?.levels.includes(level));
 
-            const [firstPick] = getPicksForStudent({ fit, history: [finished(topic.id)], continueCardSessionId: null }, LIBRARY);
+            const [firstPick] = getPicksForStudent({ fit, history: [finished(topic.id)], continueCardSessionId: null, notes: [], now: NOW }, LIBRARY);
 
             if (expectedNextId) expect(firstPick).toMatchObject({ id: expectedNextId, reason: `You finished ${topic.title}` });
             else expect(firstPick?.reason).not.toMatch(/^You finished/);
@@ -510,6 +518,252 @@ describe('getPicksForStudent', () => {
       const highSchoolCooking = getPickIds({ interests: ['cooking', 'music'], level: 'high_school', goal: 'class' }, LIBRARY);
 
       expect(universityBasketball.filter((id) => highSchoolCooking.includes(id))).toEqual([]);
+    });
+  });
+
+  describe('from what the tutor has noted', () => {
+    const NOTED_AT = new Date('2026-11-03T12:00:00Z');
+    const BLOCK_ON_A_SLOPE = makeTopic('slope', { title: 'What holds a block on a slope', subject: 'Physics', openingLine: 'Which way does friction point on a slope?' });
+    const JUMP_SHOT = makeTopic('jump-shot', { title: 'How a jump shot flies', subject: 'Physics', interests: ['basketball'] });
+    const BRAKING = makeTopic('braking', { title: 'Why braking distance grows so fast', subject: 'Physics' });
+    const QUADRATIC = makeTopic('quadratic', { title: 'What a quadratic is really asking', subject: 'Math', openingLine: 'What is this equation really asking?' });
+    const PYTHAGORAS = makeTopic('pythagoras', { title: 'Why Pythagoras was right', subject: 'Math' });
+    const NOTE_LIBRARY = makeLibrary(
+      [BLOCK_ON_A_SLOPE, JUMP_SHOT, BRAKING, QUADRATIC, PYTHAGORAS, makeTopic('art'), makeTopic('music'), makeTopic('history'), makeTopic('code')],
+      { Physics: ['jump-shot', 'slope', 'braking'], Math: ['quadratic', 'pythagoras'] },
+    );
+
+    function makeNote(kind: LearnerNoteDto['kind'], topic: string, fields: Partial<LearnerNoteDto> = {}): LearnerNoteDto {
+      return { id: `note-${topic}`, kind, topic, detail: null, evidence: [{ source: 'words', text: topic, check: null }], sessionId: 'typed', sessionTitle: 'A question', notedAt: NOTED_AT, ...fields };
+    }
+
+    function getPicksFromNotes(notes: LearnerNoteDto[], { history = [], continueCardSessionId = null, library = NOTE_LIBRARY }: { history?: TopicSession[]; continueCardSessionId?: string | null; library?: Library } = {}) {
+      return getPicksForStudent({ fit: FIT, history, continueCardSessionId, notes, now: NOW }, library);
+    }
+
+    const getFirstCard = (notes: LearnerNoteDto[], options?: Parameters<typeof getPicksFromNotes>[1]) => getPicksFromNotes(notes, options)[0];
+
+    const WITHOUT_NOTES = getPicksFromNotes([]);
+
+    describe('a struggle', () => {
+      it('opens the cards with the library topic that names it, saying what happened and when', () => {
+        expect(getFirstCard([makeNote('struggled', 'braking distance')])).toMatchObject({
+          id: 'braking',
+          topicId: 'braking',
+          reason: 'You got stuck on braking distance',
+          reasonDate: NOTED_AT,
+          continueSessionId: null,
+        });
+      });
+
+      it('offers a lesson on it when the library holds no topic for it, with a drawing and the session it came from', () => {
+        const history = [makeSession({ id: 'typed', subject: 'Physics', artwork: 'forces' })];
+
+        expect(getFirstCard([makeNote('struggled', 'free-body diagrams', { id: 'noted-once' })], { history })).toEqual({
+          id: 'note-noted-once',
+          topicId: null,
+          title: 'Free-body diagrams',
+          subject: 'Physics',
+          lengthMinutes: 10,
+          openingLine: null,
+          reason: 'You got stuck on free-body diagrams',
+          reasonDate: NOTED_AT,
+          artwork: 'forces',
+          continueSessionId: null,
+        });
+      });
+
+      it('still has a picture when the session it came from has none', () => {
+        const history = [makeSession({ id: 'typed' })];
+
+        expect(getFirstCard([makeNote('struggled', 'free-body diagrams')], { history })?.artwork).toBeTruthy();
+      });
+
+      it('goes back to the library lesson it happened in, when its words name no topic', () => {
+        const history = [makeSession({ id: 'lesson', topicId: 'jump-shot', durationSeconds: 10 })];
+
+        expect(getFirstCard([makeNote('struggled', 'the second step', { sessionId: 'lesson' })], { history })).toMatchObject({
+          id: 'jump-shot',
+          reason: 'You got stuck on the second step',
+        });
+      });
+
+      it('reopens an open lesson it names, so the topic stays within reach', () => {
+        const history = [makeSession({ id: 'older-open', topicId: 'braking', status: 'in_progress' })];
+
+        expect(getFirstCard([makeNote('struggled', 'braking distance')], { history })).toMatchObject({ id: 'braking', continueSessionId: 'older-open', reason: 'You got stuck on braking distance' });
+      });
+
+      it('never brings back a finished topic that it names', () => {
+        const history = [makeSession({ id: 'done', topicId: 'braking', durationSeconds: 600 })];
+
+        expect(getPicksFromNotes([makeNote('struggled', 'braking distance')], { history }).map((pick) => pick.id)).not.toContain('braking');
+      });
+
+      it('after a finished library lesson, offers its own subject instead of the finished topic', () => {
+        const history = [makeSession({ id: 'done', topicId: 'jump-shot', title: 'How a jump shot flies', subject: 'Physics', artwork: 'arc', durationSeconds: 600 })];
+
+        expect(getFirstCard([makeNote('struggled', 'parabolas', { sessionId: 'done' })], { history })).toMatchObject({ title: 'Parabolas', topicId: null, subject: 'Physics', artwork: 'arc', reason: 'You got stuck on parabolas' });
+      });
+
+      it.each(['the second step', 'this problem', 'x', '2x + 3', 'getting the answer'])('offers nothing for %s, which is not something to teach on its own', (topic) => {
+        expect(getPicksFromNotes([makeNote('struggled', topic)])).toEqual(WITHOUT_NOTES);
+      });
+
+      it('waits while the session it came from is on the continue card', () => {
+        const history = [makeSession({ id: 'open', status: 'in_progress' })];
+
+        expect(getPicksFromNotes([makeNote('struggled', 'free-body diagrams', { sessionId: 'open' })], { history, continueCardSessionId: 'open' }).map((pick) => pick.reason)).not.toContain('You got stuck on free-body diagrams');
+      });
+
+      it('gives way to a later right answer on the same topic, however it was written', () => {
+        const struggle = makeNote('struggled', 'free-body diagrams');
+        const showed = makeNote('showed', 'Free body diagrams', { notedAt: new Date('2026-11-04T12:00:00Z') });
+
+        expect(getPicksFromNotes([showed, struggle]).map((pick) => pick.reason)).not.toContain('You got stuck on free-body diagrams');
+      });
+
+      it('comes back when a later struggle follows a right answer', () => {
+        const showed = makeNote('showed', 'free-body diagrams');
+        const struggle = makeNote('struggled', 'free-body diagrams', { notedAt: new Date('2026-11-04T12:00:00Z') });
+
+        expect(getFirstCard([struggle, showed])).toMatchObject({ title: 'Free-body diagrams', reasonDate: struggle.notedAt });
+      });
+
+      it('leaves once the student has gone back to it', () => {
+        const history = [makeSession({ id: 'went-back', title: 'Free-body diagrams', startedAt: new Date('2026-11-04T12:00:00Z') })];
+
+        expect(getPicksFromNotes([makeNote('struggled', 'free-body diagrams')], { history })).toEqual(WITHOUT_NOTES.map((pick) => pick));
+      });
+
+      it('leaves once the student has gone back to the library topic it pointed at', () => {
+        const history = [makeSession({ id: 'went-back', topicId: 'braking', durationSeconds: 10, startedAt: new Date('2026-11-04T12:00:00Z') })];
+
+        expect(getPicksFromNotes([makeNote('struggled', 'braking distance')], { history }).map((pick) => pick.reason)).not.toContain('You got stuck on braking distance');
+      });
+
+      it('shows two at most, newest first, so other cards keep their place', () => {
+        const notes = ['one', 'two', 'three'].map((word) => makeNote('struggled', `${word} body problems`));
+
+        expect(getPicksFromNotes(notes).filter((pick) => pick.reason.startsWith('You got stuck')).map((pick) => pick.title)).toEqual(['One body problems', 'Two body problems']);
+      });
+    });
+
+    describe('something shown', () => {
+      const RIGHT_LINE = [{ source: 'board' as const, text: 'x = 2', check: 'right' as const }];
+
+      it('offers the library topic it builds on when the student has not started that topic', () => {
+        expect(getFirstCard([makeNote('showed', 'solving quadratic equations', { evidence: RIGHT_LINE })])).toMatchObject({ id: 'quadratic', reason: 'You got solving quadratic equations right', reasonDate: NOTED_AT });
+      });
+
+      it('offers the next topic in the subject after a lesson they have done', () => {
+        const history = [makeSession({ id: 'lesson', topicId: 'quadratic', durationSeconds: 600 })];
+
+        expect(getFirstCard([makeNote('showed', 'completing the square', { sessionId: 'lesson', evidence: RIGHT_LINE })], { history })).toMatchObject({ id: 'pythagoras', reason: 'You got completing the square right' });
+      });
+
+      it('offers nothing when the library has nothing to build on', () => {
+        expect(getPicksFromNotes([makeNote('showed', 'free-body diagrams', { evidence: RIGHT_LINE })])).toEqual(WITHOUT_NOTES);
+      });
+    });
+
+    describe('something they care about', () => {
+      it('offers a topic that names it, or that the library lists under that interest', () => {
+        expect(getFirstCard([makeNote('cares_about', 'rainbows')], { library: makeLibrary([makeTopic('plain'), makeTopic('rainbow', { title: 'Why a rainbow is always round' })]) })).toMatchObject({ id: 'rainbow', reason: "You said you're into rainbows", reasonDate: NOTED_AT });
+        expect(getFirstCard([makeNote('cares_about', 'basketball')])).toMatchObject({ id: 'jump-shot', reason: "You said you're into basketball" });
+      });
+
+      it('offers nothing when the library has no such topic, because a liking is not a lesson', () => {
+        expect(getPicksFromNotes([makeNote('cares_about', 'minecraft')])).toEqual(WITHOUT_NOTES);
+      });
+
+      it('skips a topic they have already started', () => {
+        const history = [makeSession({ id: 'done', topicId: 'jump-shot', durationSeconds: 600 })];
+
+        expect(getPicksFromNotes([makeNote('cares_about', 'basketball')], { history }).map((pick) => pick.reason)).not.toContain("You said you're into basketball");
+      });
+    });
+
+    describe('the order of the cards', () => {
+      it('goes struggle, shown, cared about, carry on, next topic, then what fits', () => {
+        const library = makeLibrary(
+          [BLOCK_ON_A_SLOPE, JUMP_SHOT, BRAKING, QUADRATIC, PYTHAGORAS, makeTopic('open', { subject: 'Art' }), makeTopic('finished', { subject: 'Music' }), makeTopic('after-finished', { subject: 'Music' }), makeTopic('plain')],
+          { Physics: ['jump-shot', 'slope', 'braking'], Math: ['quadratic', 'pythagoras'], Music: ['finished', 'after-finished'] },
+        );
+        const notes = [makeNote('cares_about', 'basketball'), makeNote('showed', 'quadratic equations'), makeNote('struggled', 'braking distance')];
+        const history = [makeSession({ id: 'open', topicId: 'open', status: 'in_progress' }), makeSession({ id: 'finished', topicId: 'finished', durationSeconds: 600 })];
+
+        expect(getPicksFromNotes(notes, { history, library }).map((pick) => pick.id)).toEqual(['braking', 'quadratic', 'jump-shot', 'open', 'after-finished', 'plain']);
+      });
+
+      it('keeps two topics in progress on the screen, however much the record holds', () => {
+        const notes = [
+          makeNote('struggled', 'first body problems'),
+          makeNote('struggled', 'second body problems'),
+          makeNote('struggled', 'third body problems'),
+          makeNote('showed', 'quadratic equations'),
+          makeNote('cares_about', 'basketball'),
+        ];
+        const history = [makeSession({ id: 'open-art', topicId: 'art', status: 'in_progress' }), makeSession({ id: 'open-music', topicId: 'music', status: 'in_progress' })];
+
+        expect(getPicksFromNotes(notes, { history }).map((pick) => pick.continueSessionId).filter(Boolean)).toEqual(['open-art', 'open-music']);
+        expect(getPicksFromNotes(notes, { history })).toHaveLength(6);
+      });
+
+      it('passes the cap on a subject, like the rest of what is known about the student', () => {
+        const notes = [makeNote('struggled', 'braking distance'), makeNote('struggled', 'block slope'), makeNote('cares_about', 'basketball')];
+
+        expect(getPicksFromNotes(notes).slice(0, 3).map((pick) => pick.subject)).toEqual(['Physics', 'Physics', 'Physics']);
+      });
+    });
+
+    describe('what never counts', () => {
+      it('gives the same cards as no notes when a note is deleted, because only the notes given can count', () => {
+        const before = getPicksFromNotes([makeNote('struggled', 'braking distance')]);
+
+        expect(before).not.toEqual(WITHOUT_NOTES);
+        expect(getPicksFromNotes([])).toEqual(WITHOUT_NOTES);
+      });
+
+      it('leaves out a note the tutor has also stopped reading', () => {
+        const old = new Date(NOW.getTime() - 121 * 24 * 60 * 60 * 1000);
+
+        expect(getPicksFromNotes([makeNote('struggled', 'braking distance', { notedAt: old })])).toEqual(WITHOUT_NOTES);
+      });
+
+      it('ignores what they only looked at', () => {
+        expect(getPicksFromNotes([makeNote('explored', 'braking distance')])).toEqual(WITHOUT_NOTES);
+      });
+
+      it.each([
+        ['a topic', { topic: 'anxiety before exams' }],
+        ['a topic', { topic: 'depression' }],
+        ['a topic', { topic: 'eating disorders' }],
+        ['a topic', { topic: 'self-harm' }],
+        ['a topic', { topic: 'my diabetes' }],
+        ['a topic', { topic: 'mental health' }],
+        ['a detail', { detail: 'felt too anxious to go on' }],
+        ['the evidence', { evidence: [{ source: 'words' as const, text: 'braking makes me so stressed i want to die', check: null }] }],
+        ['the session title', { sessionTitle: 'why do i feel so hopeless' }],
+      ])('never makes a card from distress or health in %s', (_where, fields) => {
+        expect(getPicksFromNotes([makeNote('struggled', 'braking distance', fields)])).toEqual(WITHOUT_NOTES);
+      });
+
+      it('lets an unsafe newest note silence the older ones on its topic', () => {
+        const unsafe = makeNote('struggled', 'braking distance', { detail: 'it made me cry', notedAt: new Date('2026-11-04T12:00:00Z') });
+
+        expect(getPicksFromNotes([unsafe, makeNote('struggled', 'braking distance')])).toEqual(WITHOUT_NOTES);
+      });
+
+      it('claims no day on a card that does not come from a note', () => {
+        expect(WITHOUT_NOTES.every((pick) => pick.reasonDate === null)).toBe(true);
+      });
+
+      it('says only what a note says, and shames nobody', () => {
+        const reasons = getPicksFromNotes([makeNote('struggled', 'free-body diagrams')]).map((pick) => pick.reason).join(' ');
+
+        expect(reasons).not.toMatch(/\b(?:failed|wrong|bad at|weak|poor|mistake)\b/i);
+      });
     });
   });
 });
