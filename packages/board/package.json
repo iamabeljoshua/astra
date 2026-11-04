@@ -28,7 +28,8 @@
   },
   "scripts": {
     "typecheck": "tsc",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:steps": "STEP_PROBLEMS=3000 vitest run test/step-generator.test.ts"
   },
   "dependencies": {
     "@astra/contracts": "workspace:*",
