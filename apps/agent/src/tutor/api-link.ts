@@ -21,7 +21,7 @@ export interface ApiLinkOptions {
 export interface ApiLink {
   fetchProfile(): Promise<StudentProfile | null>;
   /** Adds to the student's total for today, and says whether that total is now over the daily limit. */
-  reportSpend(usd: number): Promise<{ isOverDailyLimit: boolean }>;
+  reportSpend(usd: number): Promise<{ isOverDailyLimit: boolean; leftTodayUsd: number }>;
   saveLog(run: { runId: string; runStartedAt: Date; events: readonly SessionEvent[] }): Promise<void>;
   saveRecap(recap: SessionRecap): Promise<void>;
   /** The session is about something else now. */
@@ -47,7 +47,7 @@ export function createApiLink({ apiUrl, agentKey, roomName }: ApiLinkOptions): A
       return typeof level === 'string' && typeof goal === 'string' && Array.isArray(interests) ? { level, goal, interests: interests as string[], cardTitle: typeof cardTitle === 'string' ? cardTitle : null } : null;
     },
     async reportSpend(usd) {
-      return (await call('spend', { method: 'POST', body: JSON.stringify({ usd }) })) as { isOverDailyLimit: boolean };
+      return (await call('spend', { method: 'POST', body: JSON.stringify({ usd }) })) as { isOverDailyLimit: boolean; leftTodayUsd: number };
     },
     async saveLog({ runId, runStartedAt, events }) {
       await call('log', { method: 'POST', body: JSON.stringify({ runId, runStartedAt, events: events.map((event) => ({ seq: event.seq, event })) }) });

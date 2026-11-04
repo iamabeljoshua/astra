@@ -5,6 +5,7 @@ import type { TopicRuns } from '../scenes/lesson/topic-runs.ts';
 import { getSceneCommand, SHOW_WINDOW_MS, type SceneState } from '../scenes/scene-desk.ts';
 import { getSceneKey, type SceneStore } from '../scenes/scene-store.ts';
 import type { LessonPlan, SceneRouter, StoredScene } from '../scenes/scene-types.ts';
+import type { AheadNews } from '../scene-queue/scene-queue.ts';
 import type { TutorBeat } from './brain.ts';
 
 /** A take in the browser took 96 ms with the engine fetched, so this only covers a slow line. */
@@ -33,12 +34,19 @@ export interface TutorScenesOptions {
   isClosed?(): boolean;
   /** One student looping a shared card spends the project's credits, so past their cap the scene does not play. */
   canPlayShared?(studentId: string): boolean;
+  onAhead?(request: string, news: AheadNews): void;
+  onPageReady?(): void;
   trace(name: string, fields?: Record<string, unknown>): void;
 }
 
 export interface TutorScenes {
-  /** Never waits, and nothing a student could hear comes from it unless a scene lands. */
-  ask(topic: string): void;
+  /** Never waits, and nothing a student could hear comes from it unless a scene lands. False when the ask was refused. */
+  ask(topic: string): boolean;
+  prepare(request: string): boolean;
+  dropPrepared(request: string): void;
+  dropWaiting(how: 'movedOn' | 'switched' | 'studentTurn'): void;
+  stopForGood(): void;
+  canPlay(): boolean;
   onPage(message: SceneBrowserMessage, studentId: string): void;
   notePause(): void;
   noteCard(title: string | null): void;
@@ -58,16 +66,17 @@ export interface TutorScenes {
 type PageState = { kind: 'notAsked' } | { kind: 'away'; scene: StoredScene } | { kind: 'loading'; scene: StoredScene; limit: ReturnType<typeof setTimeout> } | { kind: 'loaded'; scene: StoredScene };
 
 /** How an ask that lost its moment ended. What it made stays saved, so asking again is free. */
-const MISSED_ITS_MOMENT: ReadonlySet<string> = new Set(['tooLate', 'studentTurn', 'replaced', 'pageTooSlow', 'topicChanged']);
+const MISSED_ITS_MOMENT: ReadonlySet<string> = new Set(['tooLate', 'studentTurn', 'replaced', 'pageTooSlow', 'movedOn', 'topicChanged']);
 
 interface SceneAsk {
   topic: string;
   work: LessonWork;
   askedAtMs: number;
-  askLimit: ReturnType<typeof setTimeout>;
+  askLimit: ReturnType<typeof setTimeout> | null;
   windowLimit: ReturnType<typeof setTimeout> | null;
   recheck: ReturnType<typeof setTimeout> | null;
   page: PageState;
+  isAhead: boolean;
   isOpening: boolean;
 }
 
@@ -82,6 +91,7 @@ const getTopicWords = (topic: string) => (topic.toLowerCase().match(/\p{L}{4,}/g
 const isSameTopic = (asked: string, title: string) => getTopicWords(asked).some((word) => getTopicWords(title).includes(word));
 
 const getLoadMessage = ({ id, durationSeconds, engine }: StoredScene): SceneAgentMessage => ({ type: 'loadScene', sceneId: id, durationSeconds, ...(engine === 'kit' ? { engine } : {}) });
+const getPrepareMessage = ({ id, engine }: StoredScene): SceneAgentMessage => ({ type: 'prepareScene', sceneId: id, ...(engine === 'kit' ? { engine } : {}) });
 
 const getFirstMomentAfterStart = (moments: StoredScene['moments']) => Object.entries(moments).filter(([, seconds]) => seconds > 0).sort(([, first], [, second]) => first - second)[0]?.[0];
 
@@ -98,16 +108,16 @@ export function getTutorSceneBeats({ plan, scene, number, endsOnQuestion = true 
   return [opening, ...[...rest, ...(endsOnQuestion ? [close] : [])].map((beat) => ({ ...beat, pauseBeforeMs: BREATH_MS }))];
 }
 
-export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs, send, speak, canSpeak, onShown, isClosed = () => false, canPlayShared = () => true, trace }: TutorScenesOptions): TutorScenes {
+export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs, send, speak, canSpeak, onShown, onAhead, onPageReady, isClosed = () => false, canPlayShared = () => true, trace }: TutorScenesOptions): TutorScenes {
   let device: Device = 'unknown';
   let studentId = '';
   let current: SceneAsk | null = null;
   let waitingForDevice: string | null = null;
   let scenesShown = 0;
+  let isStopped = false;
   let asksMade = 0;
   let hasHadStudentTurn = false;
   let isAfterSafetyReply = false;
-  let isOver = false;
   let lessonTitle: string | null = null;
   // The planner answers beside the reply, so a reply already being written has not heard the new title.
   let isTitleUnheard = false;
@@ -116,7 +126,21 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
   let onScreen: StoredScene | null = null;
   const pictureWaits = new Set<(isBack: boolean) => void>();
   const askedTopics = new Set<string>();
+  const prepared = new Map<string, SceneAsk>();
+  const shownSceneIds = new Set<string>();
   const works: LessonWork[] = [];
+
+  const toKey = (topic: string) => topic.trim().toLowerCase();
+
+  const lateWrites = new Set<SceneAsk>();
+
+  const getNewsOfEnding = (ask: SceneAsk, how: string): AheadNews => {
+    if (how === 'declined' || how === 'failed') return how;
+    const { kind } = ask.work.desk.getState();
+    if (kind !== 'routing' && kind !== 'making') return 'missed';
+    lateWrites.add(ask);
+    return 'lateWrite';
+  };
 
   const giveOpening = (beats: readonly TutorBeat[] | null) => {
     opening = { kind: 'over' };
@@ -126,29 +150,40 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
 
   const end = (ask: SceneAsk, how: string) => {
     if (ask !== current) return;
-    clearTimeout(ask.askLimit);
+    if (ask.askLimit) clearTimeout(ask.askLimit);
     if (ask.windowLimit) clearTimeout(ask.windowLimit);
     if (ask.recheck) clearTimeout(ask.recheck);
     if (ask.page.kind === 'loading') clearTimeout(ask.page.limit);
     current = null;
-    if (MISSED_ITS_MOMENT.has(how)) askedTopics.delete(ask.topic.trim().toLowerCase());
+    if (MISSED_ITS_MOMENT.has(how)) askedTopics.delete(toKey(ask.topic));
     if (ask.isOpening) giveOpening(null);
+    if (ask.isAhead && how !== 'landed') {
+      const news = getNewsOfEnding(ask, how);
+      onAhead?.(ask.topic, news);
+    }
     trace('sceneEnded', { how, afterMs: Math.round(getNowMs() - ask.askedAtMs) });
   };
 
   const show = (ask: SceneAsk, scene: StoredScene, beats: readonly TutorBeat[]) => {
     onScreen = scene;
+    shownSceneIds.add(scene.id);
     onShown({ topic: ask.topic, beats, isShared: scene.ownerId === null, studentId });
     end(ask, 'landed');
   };
 
+  const getSceneWaiting = ({ isAhead, page, work }: SceneAsk): StoredScene | null => {
+    if (page.kind === 'loaded') return page.scene;
+    const state = work.desk.getState();
+    return isAhead && page.kind === 'notAsked' && state.kind === 'ready' ? state.scene : null;
+  };
+
   const land = (ask: SceneAsk) => {
-    if (ask !== current || ask.page.kind !== 'loaded') return;
+    const waiting = getSceneWaiting(ask);
+    if (ask !== current || !waiting) return;
     if (ask.recheck) clearTimeout(ask.recheck);
     if (isClosed()) return end(ask, 'tutorClosed');
-    const { scene: loaded } = ask.page;
-    // A person can flag a scene in the seconds between the page loading it and the pause it lands at.
-    if (store.isFlagged({ id: loaded.id, topic: loaded.topic, ownerId: loaded.ownerId })) return end(ask, 'flagged');
+    if (store.isFlagged({ id: waiting.id, topic: waiting.topic, ownerId: waiting.ownerId })) return end(ask, 'flagged');
+    if (waiting.ownerId === null && !canPlayShared(studentId)) return end(ask, 'sharedPlaysUsed');
     if (ask.isOpening) {
       if (!settleOpening) return;
       const scene = ask.work.desk.takeAtOpening();
@@ -166,8 +201,10 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
       ask.recheck = setTimeout(() => land(ask), RECHECK_PAUSE_MS);
       return;
     }
+    if (ask.page.kind === 'notAsked') return loadInPage(ask, waiting);
     const scene = ask.work.desk.takeReady();
     if (!scene) return end(ask, 'tooLate');
+    if (shownSceneIds.has(scene.id)) return end(ask, 'alreadyShown');
     const number = (scenesShown += 1);
     const beats = getTutorSceneBeats({ plan: scene.plan, scene, number });
     if (!speak(beats)) return end(ask, 'lostThePause');
@@ -182,41 +219,101 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
     send(getLoadMessage(scene));
   };
 
+  const forgetPrepared = (ask: SceneAsk, news: AheadNews) => {
+    prepared.delete(toKey(ask.topic));
+    onAhead?.(ask.topic, news);
+  };
+
   const onDeskChange = (ask: SceneAsk, state: SceneState) => {
     trace('sceneState', { state: state.kind, afterMs: Math.round(getNowMs() - ask.askedAtMs) });
+    if (prepared.get(toKey(ask.topic)) === ask) {
+      if (state.kind === 'ready' && shownSceneIds.has(state.scene.id)) forgetPrepared(ask, 'declined');
+      else if (state.kind === 'ready') send(getPrepareMessage(state.scene));
+      if (state.kind === 'declined' || state.kind === 'failed') forgetPrepared(ask, state.kind);
+      return;
+    }
     // A scene that comes after its window stays saved for the next ask, and this session has moved on.
-    if (ask !== current) return;
+    if (ask !== current) {
+      if (state.kind !== 'routing' && state.kind !== 'making' && lateWrites.delete(ask)) onAhead?.(ask.topic, 'settled');
+      return;
+    }
     if (state.kind === 'ready') loadInPage(ask, state.scene);
     if (state.kind === 'declined' || state.kind === 'failed') end(ask, state.kind);
   };
 
-  const start = (topic: string) => {
+  const makeAsk = (topic: string, isAhead: boolean): SceneAsk | null => {
     const cardTitle = getCardTitle();
     const isCard = cardTitle !== null && sameWords(cardTitle, topic);
     if (isCard && !canPlayShared(studentId)) {
       trace('sharedPlaysUsed');
       if (opening.kind === 'possible') giveOpening(null);
-      return;
+      return null;
     }
-    asksMade += 1;
     const work = createLessonWork({ router, runs, store, request: isCard ? cardTitle : topic, isCard, studentId, getNowMs, isOnlyForScene: true, onChange: (state) => onDeskChange(ask, state) });
-    const ask: SceneAsk = { topic, work, askedAtMs: getNowMs(), askLimit: setTimeout(() => end(ask, 'tooLate'), ASK_LIMIT_MS), windowLimit: null, recheck: null, page: { kind: 'notAsked' }, isOpening: isCard && opening.kind === 'possible' };
+    const ask: SceneAsk = { topic, work, askedAtMs: getNowMs(), askLimit: null, windowLimit: null, recheck: null, page: { kind: 'notAsked' }, isAhead, isOpening: isCard && !isAhead && opening.kind === 'possible' };
     works.push(work);
+    trace('sceneAsked', { text: topic, isCard, isAhead });
+    return ask;
+  };
+
+  const startClock = (ask: SceneAsk) => {
+    asksMade += 1;
+    ask.askLimit = setTimeout(() => end(ask, 'tooLate'), ASK_LIMIT_MS);
+  };
+
+  const start = (topic: string) => {
+    const ask = makeAsk(topic, false);
+    if (!ask) return false;
+    startClock(ask);
     current = ask;
-    trace('sceneAsked', { text: topic, isCard });
-    work.desk.ask(work.request);
+    ask.work.desk.ask(ask.work.request);
+    return true;
+  };
+
+  const startPrepared = (ask: SceneAsk) => {
+    prepared.delete(toKey(ask.topic));
+    current = ask;
+    ask.askedAtMs = getNowMs();
+    startClock(ask);
+    const { kind } = ask.work.desk.getState();
+    if (kind === 'ready') land(ask);
+    else if (kind === 'declined' || kind === 'failed') end(ask, kind);
+  };
+
+  const sendPreparedAgain = () => {
+    for (const ahead of prepared.values()) {
+      const state = ahead.work.desk.getState();
+      if (state.kind === 'ready') send(getPrepareMessage(state.scene));
+    }
+  };
+
+  const onPrepared = (message: Extract<SceneBrowserMessage, { type: 'scenePrepared' | 'sceneRefused' }>) => {
+    for (const ahead of prepared.values()) {
+      const state = ahead.work.desk.getState();
+      if (state.kind !== 'ready' || state.scene.id !== message.sceneId) continue;
+      if (message.type === 'sceneRefused') forgetPrepared(ahead, 'failed');
+      else onAhead?.(ahead.topic, 'ready');
+      return true;
+    }
+    return false;
   };
 
   const ask = (topic: string) => {
-    const key = topic.trim().toLowerCase();
-    if (isOver || device === 'cannotPlay' || isAfterSafetyReply || isClosed() || key === '' || topic.length > MOST_TOPIC_CHARACTERS || askedTopics.has(key) || asksMade >= MOST_ASKS_IN_A_SESSION) return;
-    if (isTitleUnheard && lessonTitle !== null && !isSameTopic(topic, lessonTitle)) return trace('sceneOffTopic', { text: topic });
+    const key = toKey(topic);
+    if (isStopped || device === 'cannotPlay' || isAfterSafetyReply || isClosed() || key === '' || topic.length > MOST_TOPIC_CHARACTERS || askedTopics.has(key) || asksMade >= MOST_ASKS_IN_A_SESSION) return false;
+    if (isTitleUnheard && lessonTitle !== null && !prepared.has(key) && !isSameTopic(topic, lessonTitle)) {
+      trace('sceneOffTopic', { text: topic });
+      return false;
+    }
     if (current) end(current, 'replaced');
     if (waitingForDevice !== null) askedTopics.delete(waitingForDevice.trim().toLowerCase());
     askedTopics.add(key);
     waitingForDevice = null;
-    if (device === 'unknown') waitingForDevice = topic;
-    else start(topic);
+    const ahead = prepared.get(key);
+    if (ahead) startPrepared(ahead);
+    else if (device === 'unknown') waitingForDevice = topic;
+    else return start(topic);
+    return true;
   };
 
   const bringPictureBack = () => {
@@ -230,6 +327,38 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
 
   return {
     ask,
+    prepare(request) {
+      const key = toKey(request);
+      // The queue's titles were read once for the topic, so one can have been flagged since, and a flagged title has no saved scene and would pay for a new write.
+      if (isStopped || isClosed() || device !== 'canPlay' || !canPlayShared(studentId) || store.isFlagged(getSceneKey(request)) || prepared.has(key) || askedTopics.has(key) || request.length > MOST_TOPIC_CHARACTERS || asksMade >= MOST_ASKS_IN_A_SESSION) return false;
+      const ahead = makeAsk(request, true);
+      if (!ahead) return false;
+      prepared.set(key, ahead);
+      ahead.work.desk.ask(ahead.work.request);
+      return true;
+    },
+    dropPrepared(request) {
+      const ahead = prepared.get(toKey(request));
+      if (!ahead) return;
+      prepared.delete(toKey(request));
+      ahead.work.leave();
+    },
+    dropWaiting(how) {
+      if (how === 'switched') {
+        for (const late of lateWrites) late.work.leave();
+        return;
+      }
+      if (current) end(current, how);
+    },
+    stopForGood() {
+      isStopped = true;
+      waitingForDevice = null;
+      if (current) end(current, 'stopped');
+      if (opening.kind !== 'over') giveOpening(null);
+      for (const work of works.splice(0)) work.leave();
+      prepared.clear();
+    },
+    canPlay: () => !isStopped && device === 'canPlay',
     onPage(message, fromStudentId) {
       if (message.type === 'sceneDevice') {
         device = message.canPlay ? 'canPlay' : 'cannotPlay';
@@ -244,8 +373,12 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
         if (waiting !== null) start(waiting);
         else if (current && current.page.kind !== 'notAsked') loadInPage(current, current.page.scene);
         bringPictureBack();
+        sendPreparedAgain();
+        onPageReady?.();
         return;
       }
+      if (message.type !== 'sceneLoaded' && onPrepared(message)) return;
+      if (message.type === 'scenePrepared') return;
       if (message.type === 'sceneRefused' && message.sceneId === onScreen?.id) settlePictureWaits(false);
       if (message.type === 'sceneLoaded' && message.sceneId === onScreen?.id) settlePictureWaits(true);
       const pending = current;
@@ -338,12 +471,13 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
       });
     },
     close() {
-      isOver = true;
+      isStopped = true;
       waitingForDevice = null;
       if (current) end(current, 'studentLeft');
       giveOpening(null);
       settlePictureWaits(false);
       for (const work of works.splice(0)) work.leave();
+      prepared.clear();
     },
   };
 }

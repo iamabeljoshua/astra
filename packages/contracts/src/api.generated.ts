@@ -157,23 +157,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/sessions/{id}/live-room": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Says whether the signed-in student can join their session's voice room, and gives the access if so. Another student's session answers 404, and a finished one 409. Opening too many rooms or starting over too often answers 429, with `retryAfterSeconds` for how long to wait. */
-        post: operations["LiveRoomController_openLiveRoom"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/me/record": {
         parameters: {
             query?: never;
@@ -202,8 +185,25 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Deletes one note. The tutor forgets it, and running that session's update again does not bring it back. */
+        /** Deletes one note. The tutor stops reading it from the next session, and running that session's update again does not bring it back. */
         delete: operations["LearnerRecordController_deleteNote"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sessions/{id}/live-room": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Says whether the signed-in student can join their session's voice room, and gives the access if so. Another student's session answers 404, and a finished one 409. Opening too many rooms or starting over too often answers 429, with `retryAfterSeconds` for how long to wait. */
+        post: operations["LiveRoomController_openLiveRoom"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -468,21 +468,28 @@ export interface components {
             keepsRoomForRecap?: boolean;
         };
         PickCardResponseDto: {
+            /** @description The card's own ID. */
+            id: string;
             /**
-             * @description The ID of the topic that the card offers.
-             * @enum {string}
+             * @description The library topic that the card starts, or null for a lesson on something from the student's notes that the library does not hold.
+             * @enum {string|null}
              */
-            id: "jump-shot" | "free-kick" | "breaking-wave" | "braking-distance" | "string-pitch" | "rainbow" | "slope-friction" | "rocket-escape" | "moving-clocks" | "circuit-current" | "savings-growth" | "free-throw-odds" | "expected-goals" | "pythagoras" | "quadratics" | "derivative" | "magic-square" | "perspective" | "sunflower-spirals" | "positive-test" | "balancing-equations" | "periodic-table" | "browned-food" | "cake-rise" | "indigo-dye" | "engine-burn" | "alchemists" | "game-worlds" | "fastest-route" | "binary-counting" | "recursion" | "sorting-speed" | "music-file" | "two-strangers" | "programmable-loom" | "saturn-rings" | "moon-face" | "seasons" | "black-hole-edge" | "star-atoms" | "dna-copying" | "still-frames" | "plato-aristotle" | "socrates-trial" | "bread-revolution" | "great-pyramid" | "minor-chord" | "van-gogh-motion";
+            topicId: "jump-shot" | "free-kick" | "breaking-wave" | "braking-distance" | "string-pitch" | "rainbow" | "slope-friction" | "rocket-escape" | "moving-clocks" | "circuit-current" | "savings-growth" | "free-throw-odds" | "expected-goals" | "pythagoras" | "quadratics" | "derivative" | "magic-square" | "perspective" | "sunflower-spirals" | "positive-test" | "balancing-equations" | "periodic-table" | "browned-food" | "cake-rise" | "indigo-dye" | "engine-burn" | "alchemists" | "game-worlds" | "fastest-route" | "binary-counting" | "recursion" | "sorting-speed" | "music-file" | "two-strangers" | "programmable-loom" | "saturn-rings" | "moon-face" | "seasons" | "black-hole-edge" | "star-atoms" | "dna-copying" | "still-frames" | "plato-aristotle" | "socrates-trial" | "bread-revolution" | "great-pyramid" | "minor-chord" | "van-gogh-motion" | null;
             /** @description The topic that the card offers. */
             title: string;
             /** @description The subject the topic belongs to. */
             subject: string;
             /** @description How long a session on this topic takes, in minutes. */
             lengthMinutes: number;
-            /** @description The first thing the tutor says when a session on this topic starts. */
-            openingLine: string;
-            /** @description Why the card suits this student. */
+            /** @description The first thing the tutor says when a session on this topic starts, or null when the tutor opens in its own words. */
+            openingLine: string | null;
+            /** @description Why the card suits this student. When `reasonDate` is set, `{day}` marks where the page puts the day. */
             reason: string;
+            /**
+             * Format: date-time
+             * @description The day the reason happened, for the page to word in the student's own time zone. Null when the reason names no day.
+             */
+            reasonDate: string | null;
             /**
              * @description The name of the picture that the web app shows on this card.
              * @enum {string}
@@ -500,25 +507,6 @@ export interface components {
             continueSession: components["schemas"]["SessionResponseDto"] | null;
             /** @description The cards offered to this student. */
             picks: components["schemas"]["PickCardResponseDto"][];
-        };
-        LiveRoomAccessDto: {
-            /** @description The LiveKit address that the browser connects to. */
-            url: string;
-            /** @description Lets this student join this session's room, for a short time, with their microphone and the data channel only. */
-            token: string;
-            /** @description The name of this session's room. */
-            roomName: string;
-            /** @description A tutor was in the room just now. A browser that joins and finds nobody got there after it closed, and should ask again. */
-            isTutorThere: boolean;
-        };
-        LiveRoomResponseDto: {
-            /** @description What the browser needs to join the room, or null when the student cannot join now. */
-            access: components["schemas"]["LiveRoomAccessDto"] | null;
-            /**
-             * @description Why there is no access: live voice has no keys here, or the student has spent today's tutor time. Null when there is access.
-             * @enum {string|null}
-             */
-            unavailableBecause: "notSetUp" | "dailyLimit" | null;
         };
         LearnerEvidenceDto: {
             /**
@@ -561,6 +549,25 @@ export interface components {
         LearnerRecordDto: {
             /** @description Everything the tutor remembers about this student, newest first. */
             notes: components["schemas"]["LearnerNoteDto"][];
+        };
+        LiveRoomAccessDto: {
+            /** @description The LiveKit address that the browser connects to. */
+            url: string;
+            /** @description Lets this student join this session's room, for a short time, with their microphone and the data channel only. */
+            token: string;
+            /** @description The name of this session's room. */
+            roomName: string;
+            /** @description A tutor was in the room just now. A browser that joins and finds nobody got there after it closed, and should ask again. */
+            isTutorThere: boolean;
+        };
+        LiveRoomResponseDto: {
+            /** @description What the browser needs to join the room, or null when the student cannot join now. */
+            access: components["schemas"]["LiveRoomAccessDto"] | null;
+            /**
+             * @description Why there is no access: live voice has no keys here, or the student has spent today's tutor time. Null when there is access.
+             * @enum {string|null}
+             */
+            unavailableBecause: "notSetUp" | "dailyLimit" | null;
         };
         KitTakeTimingDto: {
             /** @description Each named moment of the scene, in seconds. */
@@ -878,31 +885,6 @@ export interface operations {
             };
         };
     };
-    LiveRoomController_openLiveRoom: {
-        parameters: {
-            query?: {
-                /** @description Set to `yes` when the tutor has gone, to close this session's room and call a new tutor into a new one. Leave it out to join the room as it is. */
-                startOver?: "yes";
-            };
-            header?: never;
-            path: {
-                /** @description The ID of the session. */
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LiveRoomResponseDto"];
-                };
-            };
-        };
-    };
     LearnerRecordController_getRecord: {
         parameters: {
             query?: never;
@@ -956,6 +938,31 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    LiveRoomController_openLiveRoom: {
+        parameters: {
+            query?: {
+                /** @description Set to `yes` when the tutor has gone, to close this session's room and call a new tutor into a new one. Leave it out to join the room as it is. */
+                startOver?: "yes";
+            };
+            header?: never;
+            path: {
+                /** @description The ID of the session. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LiveRoomResponseDto"];
+                };
             };
         };
     };

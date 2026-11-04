@@ -126,6 +126,11 @@ export function createKitSceneStage(container: HTMLElement, onChange: () => void
       onChange();
       return hasFlat || kit;
     },
+    // The next scene waits off screen beside the one playing, up to the two frames a page may hold.
+    async prepare(sceneId, engine?: SceneEngine) {
+      const kit = engine === 'kit' && getCanPlayKit() ? open(sceneId) : Promise.resolve(false);
+      return (await flat.prepare(sceneId)) || kit;
+    },
     draw(sceneId, seconds) {
       lastDrawnId = sceneId;
       const frame = entries.get(sceneId)?.frame;

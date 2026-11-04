@@ -8,7 +8,7 @@ import type { SceneStage } from './sceneStage';
 const SCENE = { kind: 'richScene', id: 'slope' as ElementId, engine: 'manimgx', sceneId: 'slope-1a2b', moments: { secant: 4 }, parts: [], durationSeconds: 20 } satisfies RichScene;
 const BOARD = getBoardAt([{ kind: 'command', atMs: 0, command: SCENE, overMs: null }, { kind: 'command', atMs: 0, command: { kind: 'runSimulation', target: 'slope' as ElementId, action: 'play', until: 'secant' }, overMs: 2000 }], 1000);
 
-const makeStage = (canDraw: boolean): SceneStage => ({ load: vi.fn(), draw: vi.fn(), canDraw: () => canDraw, free: vi.fn() });
+const makeStage = (canDraw: boolean): SceneStage => ({ load: vi.fn(), prepare: vi.fn(), draw: vi.fn(), canDraw: () => canDraw, free: vi.fn() });
 const EMPTY = { elements: new Map(), focus: null, stage: null, refusedSliders: [] };
 
 describe('the scene layer', () => {

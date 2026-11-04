@@ -247,6 +247,8 @@ pnpm agent
 | `ASTRA_TUTOR_SCENES=1` | Agent | Lets the tutor ask for ManimGX scenes in a session. Needs `SCENE_STORE_DIR`, the same on the API, the scene worker's image, and `VITE_TUTOR_SCENES=1` on the web build. Off, a session never mentions a picture and fetches no engine. See `docs/tests/scenes.md`. |
 | `VITE_KIT_SCENES=1` | Web build | Plays a topic's stored 3D scene beside its 2D take. See `docs/tests/scenes.md`. Off, the 2D take plays. |
 | `ASTRA_SCENE_SESSION_LIMIT_USD` | Agent | What new scenes may cost in one session, $0.80 by default. Scene spending counts toward the student's day, and it never closes the tutor. |
+| `ASTRA_SCENES_AHEAD=0` | Agent | Stops the queue that gets the next idea's scene ready. It runs whenever `ASTRA_TUTOR_SCENES=1` is on, under the rule in `docs/tests/lesson-flow.md`. |
+| `ASTRA_SCENES_AHEAD_LOAD_PER_CORE` | Agent | The load per core above which the queue prepares nothing, 1.5 by default. |
 | `ASTRA_VOICE_TRACE=<folder>` | Agent | Writes each session's timings there, with no words. `ASTRA_VOICE_TRACE_WORDS=1` adds the words, for test speech only. |
 | `ASTRA_QUIET_LIMIT_MS=<ms>` | Agent | Replaces the 10 minutes a quiet room lasts, for a test. |
 

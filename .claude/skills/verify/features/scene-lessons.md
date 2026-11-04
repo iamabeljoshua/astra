@@ -9,6 +9,7 @@ A student opens a session and the tutor speaks. It starts on the plain board, an
 - `scene-saved`: a scene made once plays with no write on the next session for that card.
 - `scene-stop`: a typed reply freezes the scene on its second, and the tutor carries on from the cut word.
 - `scene-themes`: the take follows the light and dark themes.
+- `next-scene`: in a tutor session, the next idea's scene is held in the page before the tutor reaches it, and lands at the pause after the tutor goes on. `pnpm --filter @astra/agent next-scene-proof` drives it, and `docs/tests/lesson-flow.md` has the setup.
 - `plain-board-falls-back`: no WebGPU, a damaged take, or a kit-bound request stays on the plain board.
 
 ## How to get to it (user POV)

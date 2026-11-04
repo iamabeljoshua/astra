@@ -24,10 +24,10 @@ Preconditions:
 - `pnpm verify doctor` passes.
 
 - **Read, remove, and forget.** Run `pnpm db:seed && pnpm verify drive --journey record`. The `journey`, `identity`, `screenshot`, and `main region` checks print `PASS` for `laptop` and `phone`, and the command exits 0.
-- **Proof.** After a run that printed `PASSED`, open `.verify/evidence/record-laptop-notes.png` and `.verify/evidence/record-phone-empty.png`. The first shows three notes with their evidence, and the second shows "Nothing yet".
+- **Proof.** After a run that printed `PASSED`, open `.verify/evidence/record-laptop-notes.png` and `.verify/evidence/record-phone-empty.png`. The first shows four notes with their evidence, and the second shows "Nothing yet".
 
 ## Gotchas
 
 - The sidebar's recent sessions repeat session titles, so scope a note with `getByRole('region', { name: 'What your tutor remembers' })`.
-- The phone run expects the laptop run's removal, because the seed holds three notes. Running only the phone viewport still passes.
+- The phone run expects the laptop run's removal, because the seed holds four notes. Running only the phone viewport still passes.
 - `record-write` is not in this journey, because it needs the agent and a paid model. `pnpm --filter @astra/agent eval:record` runs it on recorded sessions for under a cent.

@@ -67,8 +67,8 @@ describe('the daily limit on tutor time', () => {
   it('stays closed over the limit, and tells a turn when it crossed', async () => {
     const student = await createTestStudent(testApp);
 
-    expect(await spend().addSpend(student.studentId, 0.5)).toEqual({ isOverDailyLimit: false });
-    expect(await spend().addSpend(student.studentId, 0.75)).toEqual({ isOverDailyLimit: true });
+    expect(await spend().addSpend(student.studentId, 0.5)).toEqual({ isOverDailyLimit: false, leftTodayUsd: 0.5 });
+    expect(await spend().addSpend(student.studentId, 0.75)).toEqual({ isOverDailyLimit: true, leftTodayUsd: 0 });
     expect(await openRoom(student)).toEqual(AT_THE_LIMIT);
   });
 

@@ -15,4 +15,8 @@ describe('a load message', () => {
   it('refuses an engine nobody knows', () => {
     expect(parseSceneAgentMessage({ ...load, engine: 'unity' })).not.toHaveProperty('value');
   });
+
+  it('reads the kit on a scene being held for later', () => {
+    expect(parseSceneAgentMessage({ type: 'prepareScene', sceneId: 'scene-abc', engine: 'kit' })).toMatchObject({ value: { type: 'prepareScene', sceneId: 'scene-abc', engine: 'kit' } });
+  });
 });

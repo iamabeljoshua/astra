@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource, ILike, IsNull, MoreThan, Not } from 'typeorm';
+import { DataSource, ILike, IsNull, MoreThan } from 'typeorm';
 import type { FindOptionsWhere, Repository } from 'typeorm';
 import { SessionEntity } from '../entities/session.entity';
 
@@ -14,7 +14,7 @@ export interface SessionListOptions {
 }
 
 const LIKE_PATTERN_CHARACTERS = /[\\%_]/g;
-const MAX_TOPIC_HISTORY_SESSIONS = 1_000;
+const MAX_SESSIONS_READ_FOR_PICKS = 1_000;
 
 // Every branch names the student, because the branches of a filter are joined with OR.
 function getListFilter(studentId: string, search?: string): FindOptionsWhere<SessionEntity>[] {
@@ -89,16 +89,16 @@ export class SessionRepository {
   }
 
   async renameUnfinishedForStudent(studentId: string, sessionId: string, title: string): Promise<void> {
-    // A card's picture belongs to the card's topic, so it goes with the title that named it.
-    await this.sessions.update({ id: sessionId, studentId, status: 'in_progress' }, { title, artwork: null });
+    // A card's topic, picture, and subject belong to the card, so they go with the title that named it, and nothing downstream can read a card the session left.
+    await this.sessions.update({ id: sessionId, studentId, status: 'in_progress' }, { title, subject: title, artwork: null, topicId: null });
   }
 
-  listNewestWithTopicForStudent(studentId: string): Promise<SessionEntity[]> {
+  listNewestForPicks(studentId: string): Promise<SessionEntity[]> {
     return this.sessions.find({
-      select: { id: true, topicId: true, status: true, durationSeconds: true },
-      where: { studentId, topicId: Not(IsNull()) },
+      select: { id: true, topicId: true, title: true, subject: true, artwork: true, status: true, durationSeconds: true, startedAt: true },
+      where: { studentId },
       order: { startedAt: 'DESC', id: 'DESC' },
-      take: MAX_TOPIC_HISTORY_SESSIONS,
+      take: MAX_SESSIONS_READ_FOR_PICKS,
     });
   }
 
