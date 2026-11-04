@@ -155,6 +155,7 @@ describe('when the model stalls', () => {
 const BAD_TABLE = '{"kind":"table","id":"cells","columns":[3],"rows":[["a"]]}';
 const GOOD_TABLE = '{"kind":"table","id":"cells","columns":["Part","Plant"],"rows":[["Wall","Yes"]]}';
 const NOT_DRAWN = /here you go|five rows|side by side/i;
+const TOOL_CALL = '{"tool":"compute","expression":"2 + 2"}';
 
 describe('when a drawing is refused', () => {
   it('plays no words that claim it, and draws it on the second try', async () => {
@@ -196,6 +197,11 @@ describe('when a drawing is refused', () => {
     const beats = await collect(brain, 'draw me a table');
     expect(say(beats)).toBe('Here you go. Have a look.');
     expect(beats.flatMap(getCues).map((cue) => [cue.command.kind, cue.atWord])).toEqual([['table', 3]]);
+  });
+
+  it('still says the words before a tool call, even when they sound like a claim', async () => {
+    const { brain } = setup((_request, attempt) => (attempt === 1 ? reply('Let me take a look. ', TOOL_CALL) : reply('It comes to four.')));
+    expect(say(await collect(brain, 'what is two plus two'))).toBe('Let me take a look. It comes to four.');
   });
 
   it('leaves a safety reply whole, whatever its drawing did', async () => {

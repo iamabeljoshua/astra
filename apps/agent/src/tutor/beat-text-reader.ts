@@ -223,7 +223,7 @@ export class BeatTextReader {
   /** Drops half-read commands and half a sentence, because the next request carries on from the words already said, and half a sentence is what a dropped stream must never speak. */
   closeAttempt(): void {
     this.#clearHalfRead();
-    if (!this.#isClaimHeldForItsDrawing() && (isSentenceEnd(this.#text) || ENDS_IN_QUESTION.test(this.#text))) this.#endBeat();
+    if (isSentenceEnd(this.#text) || ENDS_IN_QUESTION.test(this.#text)) this.#endBeat();
     else this.#dropWordsKeepingCommands();
   }
 
@@ -548,8 +548,13 @@ export class BeatTextReader {
   #refuse(written: string, problem: string): void {
     const kind = WRITTEN_KIND.exec(written)?.[1] ?? '';
     if (!this.#options.onDrawingRefused || !KINDS_A_STUDENT_LOOKS_FOR.has(kind) || this.isSafetyReply) return this.#options.onBadCommand(problem);
-    this.#isHalted = true;
+    this.#haltWithoutHeldClaim();
     this.#options.onDrawingRefused(problem);
+  }
+
+  #haltWithoutHeldClaim(): void {
+    if (this.#isClaimHeldForItsDrawing()) this.#dropWordsKeepingCommands();
+    this.#isHalted = true;
   }
 
   // These go to code and never to the board, so a tool or a report can draw nothing.
@@ -596,7 +601,7 @@ export class BeatTextReader {
     if (problem !== null) return this.#refuse(JSON.stringify(command), problem);
     const verdict = this.#options.checkCommand?.(command) ?? { ok: true };
     if (!verdict.ok && verdict.isWrongMath) {
-      this.#isHalted = true;
+      this.#haltWithoutHeldClaim();
       return this.#options.onWrongMath(verdict.problem);
     }
     if (!verdict.ok) return this.#refuse(JSON.stringify(command), verdict.problem);
