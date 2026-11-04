@@ -77,7 +77,7 @@ At 3 turns a minute, the PRD's pace, from real tokens:
 | 90 turns | $0.0065 | $0.0231 | $0.013 | **$0.043** |
 | 90 turns, compacting 4 times | $0.0096 | $0.0231 | $0.013 | **$0.046** |
 
-The rule is to tell Abel above $0.15. This is under a third of that. Voice and transport are listed prices from the design, and the model is measured. The design guessed $0.071 before its buffer, because it assumed a 15,000 token prompt growing 1,600 tokens a turn. The API reports the frozen prompt at about 3,710 tokens today, up from 2,890 before claims and short turns, and it grows about 135 a turn. M3.8's tools and M3.9's lesson plan will grow it, so this is a floor.
+The rule is to tell Abel above $0.15. This is under a third of that. Voice and transport are listed prices from the design, and the model is measured. The design guessed $0.071 before its buffer, because it assumed a 15,000 token prompt growing 1,600 tokens a turn. The API reported the frozen prompt at about 3,710 tokens, up from 2,890 before claims and short turns, and it grows about 135 a turn. M3.8's teaching rules took it to about 6,375 and its notes add about 60 a turn, and with no tools declared and shorter replies a 30 turn lesson cost the same on the model. M3.9's lesson plan will grow it, so this is a floor.
 
 Caching works: 97 to 98% of prompt tokens were read from the cache, at $0.10 a million, and a first turn read the whole prompt from what warming had written, measured once on the real page at 2.25 s after the job started. The frozen system prompt has its own breakpoint, and automatic caching carries the rest of the conversation. The `claude-api` skill says $0.20 for a cache read on Sonnet 5.5. Anthropic's pricing and prompt caching pages, read on 4 November 2026, both say $0.10, 0.05 times the input price, so `providers/anthropic.ts` uses $0.10. If the skill were right, the 90 turn run would cost $0.0024 more a minute, which changes no decision.
 
@@ -135,9 +135,30 @@ Abel on the tutor before this: it "introduced raylenght scattering or something 
 | The same question differs by level | Four levels with an example each, and in the first few replies their own words beat their profile | `level-*`, `gauge-*` |
 | Short human turns | Usually under 25 words, never more than 45 at a stretch, and a `length` note on every message | `short-*`, every `fortyFiveAtMost` |
 
-RESULTS_TABLE
+Eight whole lessons, 60 turns on each prompt, with the same students and the same opening questions. `evals/tutor-turns/lessons/before/` and `lessons/after/` hold every word:
 
-What moved the reply length was the `length` note, sent after every student message, because a rule far back in the prompt loses to the model's habit. Its name matters. The same words under the name `reply` gave 32 words p50 on 60 turns, and under `length` gave 21. An example lesson in the prompt moved the opening replies from explaining to asking.
+| Whole lessons on Sonnet 5.5 | Prompt before | Prompt now |
+| --- | --- | --- |
+| Words a reply, p50, p95, worst | 46, 57, 63 | 20, 30, 42 |
+| Longest stretch, p50, p95, worst | 24, 35, 39 | 20, 29, 30 |
+| Replies over 25 words | 53 of 60 | 11 of 60 |
+| Replies over 45 words | 35 of 60 | 0 of 60 |
+| First text, p50, p95 ms, runs at different times | 1324, 2086 | 1322, 1941 |
+
+The teaching cases, each run on real Sonnet: 144 of 198 checks passed on the old prompt at 2 runs a case, and 287 of 297 on the new one at 3 runs a case, with 29 and 3 of 69 cases below two runs in three. Results are in `evals/tutor-turns/results/`. Three cases still miss on the new prompt, and a person's read agrees that each is weak but not wrong. `check-seasons` often asks "what do you think causes them?", which hands the question back. `eli5-confused` makes a logarithm simpler with doubling, with no picture from everyday life. `check-then-build` teaches the tilt in one line and the judge splits on it. A later small prompt change, on handing questions back and on math pictures, did not move the first two in a rerun of those cases, at 73 of 78.
+
+What a turn costs in speed:
+
+| Measure | Prompt before | Prompt now |
+| --- | --- | --- |
+| The 30 turn lesson, same hour, load near 20: first text p50, p95 ms | 1080, 1432 | 1286, 3233 |
+| The same: first beat p50, p95 ms | 1388, 1730 | 2019, 3034 |
+| First turn only, 18 triples, first text p50, p95 ms | 1124, 1450 | 1437, 1947, or 1198, 2446 with no `length` note |
+| The same 30 turns: model, voice, total a minute | $0.0068, $0.0247, $0.0446 | $0.0068, $0.0115, $0.0312 |
+
+So the tutor is slower to start, and this is the cost of the change. The `length` note adds about 240 ms of first text on a first turn, and why is not known, as with the level word's effect. First beat rose more, because a short reply is one sentence with no early comma, so the first beat is the whole sentence. On the 30 turn lesson 5 of 30 first texts passed 3 s against 0 of 30, and "One moment." played. Whole lessons at another hour showed no rise in first text, so load is part of it and the two runs disagree. The next prompt round should try examples that open on three stand-alone words, which would start the voice sooner, and it must rerun crisis and safety.
+
+What moved the reply length was the `length` note, sent after every student message, because a rule far back in the prompt loses to the model's habit. Its name matters. The same words under the name `reply` gave 32 words p50 on 60 turns, and under `length` gave 21. A `feelings` note beside it stopped "I'm glad", which opened a crisis reply in 3 of 4 runs of one group with the rule only in the prompt, and in 0 of 80 replies across 5 runs with the note. An example lesson in the prompt moved the opening replies from explaining to asking.
 
 Lowering `TURN_WORDS_TO_WRAP` from 45 would hold whole replies shorter, and it is not done. In 160 crisis and safety replies, 19 said to find help only past word 30, so an earlier wrap would drop that help. The stretch is what code holds: a breath at the next sentence end past 25 words, at the next beat past 35, and at word 42 with no beat at all. A sentence that ended inside a beat used to escape this, and a stretch reached 54 words.
 
