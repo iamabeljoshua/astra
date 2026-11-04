@@ -15,8 +15,8 @@ const MATH_MAX_GROUP_DEPTH = 12;
 
 const MATH_MAX_MARK_RUN = 2;
 
-// KaTeX nests each combining mark as an accent with no brace to count, so a run of them builds a tree deep enough to crash the tab. A real word needs two.
-const TOO_LONG_MARK_RUN = new RegExp(`\\p{M}{${MATH_MAX_MARK_RUN + 1}}`, 'u');
+// KaTeX reads only U+0300 to U+036F as accents, and nests each one with no brace to count, so a run of them builds a tree deep enough to crash the tab. Marks from other blocks set as plain characters, and a Hindi word can hold three in a row.
+const TOO_LONG_MARK_RUN = new RegExp(`[\\u0300-\\u036f]{${MATH_MAX_MARK_RUN + 1}}`);
 
 const SYMBOL_COMMANDS = `alpha beta gamma delta epsilon varepsilon zeta eta theta vartheta iota kappa lambda mu nu xi pi varpi rho varrho sigma varsigma tau upsilon phi varphi chi psi omega
   Gamma Delta Theta Lambda Xi Pi Sigma Upsilon Phi Psi Omega
