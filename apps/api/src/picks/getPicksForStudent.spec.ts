@@ -549,6 +549,22 @@ describe('getPicksForStudent', () => {
     const WITHOUT_NOTES = getPicksFromNotes([]);
 
     describe('a struggle', () => {
+      it('is settled by a later right answer on the same subject words', () => {
+        const solvedLater = makeNote('showed', 'quadratic equations', { notedAt: new Date(NOTED_AT.getTime() + 60_000) });
+
+        const reasons = getPicksFromNotes([solvedLater, makeNote('struggled', 'solving quadratic equations')]).map(({ reason }) => reason);
+
+        expect(reasons.filter((reason) => reason.includes('stuck'))).toEqual([]);
+      });
+
+      it('is not settled by a right answer on a different law', () => {
+        const solvedLater = makeNote('showed', 'first law of motion', { notedAt: new Date(NOTED_AT.getTime() + 60_000) });
+
+        const reasons = getPicksFromNotes([solvedLater, makeNote('struggled', 'second law of motion')]).map(({ reason }) => reason);
+
+        expect(reasons).toContain(getStruggleReason('second law of motion'));
+      });
+
       it('opens the cards with the library topic that names it, saying what happened and when', () => {
         expect(getFirstCard([makeNote('struggled', 'braking distance')])).toMatchObject({
           id: 'braking',

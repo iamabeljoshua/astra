@@ -7,6 +7,17 @@
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./topic-words": {
+      "types": "./src/topic-words.ts",
+      "default": "./src/topic-words.ts"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "topic-words": [
+        "src/topic-words.ts"
+      ]
     }
   },
   "scripts": {

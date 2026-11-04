@@ -1,3 +1,4 @@
+import { getTopicKey } from '../learner-record/learner-note-options';
 import type { LibraryTopic } from './library';
 
 const SHORTEST_WORD_THAT_NAMES_A_SUBJECT = 3;
@@ -7,6 +8,8 @@ const WORDS_THAT_NAME_NO_SUBJECT = `the and but for with when while how why what
   struggled struggle found hard stuck confused mixed mix forgot forget dropped drop missed miss kept keep keeps repeat repeated repeatedly wrong right mistake mistakes error errors step steps line lines answer answers problem problems question questions work working worked got get gets asked ask said says wants want loves love likes like interested curious trouble difficult moving moved move changed change solved solve solving instead still wrote written write board making make made learn learning find finding undo undoing took take taking getting went going part parts`;
 
 const WORDS_TOO_PLAIN_FOR_A_LESSON = `word exam test homework revision method rule example value unknown understand explain remember study subject topic concept idea theory theories law principle model fact lesson`;
+
+const WORDS_THAT_TELL_TOPICS_APART = new Set(['one', 'two', 'first', 'second', 'third']);
 
 const toWords = (text: string) => text.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
 const toStem = (word: string) => (word.length < SHORTEST_WORD_TO_STEM ? word : word.replace(/(?:ing|ed|es|e|s)$/, ''));
@@ -20,6 +23,14 @@ function getSubjectStems(text: string): string[] {
     .filter((word) => word.length >= SHORTEST_WORD_THAT_NAMES_A_SUBJECT && /^\p{L}+$/u.test(word))
     .map(toStem)
     .filter((stem) => !STEMS_THAT_NAME_NO_SUBJECT.has(stem));
+}
+
+// "solving quadratic equations" and "quadratic equations" are one topic, because only their subject words count, but a first law and a second law are not.
+export function getSubjectKey(noteTopic: string): string {
+  const subjectStems = getSubjectStems(noteTopic);
+  if (subjectStems.length === 0) return getTopicKey(noteTopic);
+  const countingWords = toWords(noteTopic).filter((word) => WORDS_THAT_TELL_TOPICS_APART.has(word));
+  return [...new Set([...countingWords, ...subjectStems])].sort().join(' ');
 }
 
 export const namesSomethingToTeach = (noteTopic: string) => getSubjectStems(noteTopic).some((stem) => !STEMS_TOO_PLAIN_FOR_A_LESSON.has(stem));

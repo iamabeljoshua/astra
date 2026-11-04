@@ -5,7 +5,7 @@ import { hasDeeperScenes } from './library';
 import type { LibraryTopic } from './library';
 import { createTopicFinder, namesSomethingToTeach } from './note-words';
 import type { TopicFinder } from './note-words';
-import { getCaresAboutReason, getShowedReason, getStruggleReason, NOTE_LESSON_SUBJECT } from './pick-reasons';
+import { getCaresAboutReason, getShowedReason, getStruggleReason, QUESTION_SUBJECT } from './pick-reasons';
 import { findTopicAfter } from './ranking';
 import type { NoteLesson, RankedTopic, RankingSources } from './ranking';
 import type { TopicSession } from './topic-progress';
@@ -49,7 +49,7 @@ function toNoteLesson(note: LearnerNoteDto, session: TopicSession | undefined): 
     isNoteLesson: true,
     id: `note-${note.id}`,
     title: capitalizeFirstLetter(note.topic),
-    subject: session?.subject ?? NOTE_LESSON_SUBJECT,
+    subject: session?.subject ?? QUESTION_SUBJECT,
     lengthMinutes: NOTE_LESSON_MINUTES,
     openingLine: null,
     artwork: session?.artwork ?? NOTE_LESSON_ARTWORK,

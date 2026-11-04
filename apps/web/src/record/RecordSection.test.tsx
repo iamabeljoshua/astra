@@ -77,6 +77,14 @@ describe('what the tutor remembers, on the Your notes page', () => {
     expect(screen.getAllByText(new RegExp(SIGN_ERROR.sessionTitle))).toHaveLength(2);
   });
 
+  it('promises only what removing a note does, which is to change the next session', async () => {
+    stubApi([SIGN_ERROR]);
+    renderWithQueryClient(<RecordSection />);
+
+    await screen.findByText(/from your next session/);
+    expect(screen.queryByText(/forgets it/)).toBeNull();
+  });
+
   it('removes one note and leaves the others', async () => {
     const deleted = stubApi([SIGN_ERROR, ROCKETS]);
     renderWithQueryClient(<RecordSection />);

@@ -6,6 +6,7 @@ import { SessionEntity } from '../entities/session.entity';
 
 type NewSession = Pick<SessionEntity, 'title' | 'subject' | 'language'> & Partial<Pick<SessionEntity, 'artwork' | 'topicId'>>;
 type SessionChanges = Pick<SessionEntity, 'durationSeconds'> & Partial<Pick<SessionEntity, 'status'>>;
+type MovedSession = Pick<SessionEntity, 'title' | 'subject'>;
 
 export interface SessionListOptions {
   limit: number;
@@ -75,9 +76,9 @@ export class SessionRepository {
     return this.findForStudent(studentId, sessionId);
   }
 
-  async renameUnfinishedForStudent(studentId: string, sessionId: string, title: string): Promise<void> {
-    // A card's picture belongs to the card's topic, so it goes with the title that named it.
-    await this.sessions.update({ id: sessionId, studentId, status: 'in_progress' }, { title, artwork: null });
+  async renameUnfinishedForStudent(studentId: string, sessionId: string, { title, subject }: MovedSession): Promise<void> {
+    // A card's topic, picture, and subject belong to the card, so they go with the title that named it, and nothing downstream can read a card the session left.
+    await this.sessions.update({ id: sessionId, studentId, status: 'in_progress' }, { title, subject, artwork: null, topicId: null });
   }
 
   listNewestForPicks(studentId: string): Promise<SessionEntity[]> {

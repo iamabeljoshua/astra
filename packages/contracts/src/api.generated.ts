@@ -150,7 +150,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Deletes one note. The tutor forgets it, and running that session's update again does not bring it back. */
+        /** Deletes one note. The tutor stops reading it from the next session, and running that session's update again does not bring it back. */
         delete: operations["LearnerRecordController_deleteNote"];
         options?: never;
         head?: never;

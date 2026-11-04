@@ -9,16 +9,20 @@ import {
   SECOND_STUDENT_AUTH_USER_ID,
   replaceExampleData,
 } from '../infrastructure/orm/example-data';
+import { LearnerNoteEntity } from '../infrastructure/orm/entities/learner-note.entity';
 import { SessionEntity } from '../infrastructure/orm/entities/session.entity';
 import { LearnerRecordService } from '../learner-record/learner-record.service';
 import { getStruggleReason } from '../picks/pick-reasons';
+import { SessionsService } from '../sessions/sessions.service';
 
 const SEEDED_UNFINISHED_TITLE = 'Free-body diagrams';
 
 interface PickCard {
   id: string;
   title: string;
+  subject: string;
   reason: string;
+  continueSessionId: string | null;
   reasonDate: string | null;
   topicId: string | null;
 }
@@ -298,6 +302,60 @@ describe('GET /home', () => {
       expect(picks.indexOf(struggleCard as PickCard)).toBeLessThan(2);
       expect(struggleCard).toMatchObject({ title: 'Free-body forces', topicId: null });
       expect(Date.now() - new Date(struggleCard?.reasonDate ?? 0).getTime()).toBeLessThan(60_000);
+    });
+
+    describe('when a session moved away from its card', () => {
+      const LONG_DIVISION_STRUGGLE = { ...FREE_BODY_STRUGGLE, topic: 'long division' };
+
+      async function startOnCardThenMove(studentId: string, startedAt = new Date(Date.now() - 60_000)) {
+        const { id } = await sessions().save({ studentId, title: 'How a jump shot flies', subject: 'Physics', language: 'en', artwork: 'arc' as const, topicId: 'jump-shot', startedAt });
+        await testApp.app.get(SessionsService).renameUnfinished(studentId, id, 'Long division');
+        return id;
+      }
+
+      it('makes a card for the topic it moved to, and does not blame the card it left', async () => {
+        const student = await createTestStudent(testApp);
+        const sessionId = await startOnCardThenMove(student.studentId);
+        await records().applyUpdate({ studentId: student.studentId, sessionId, updateKey: 'moved', notes: [LONG_DIVISION_STRUGGLE] });
+        await sessions().update({ id: sessionId }, { status: 'finished' });
+
+        const picks = await getPicks(student.token);
+
+        expect(picks.find(({ reason }) => reason.includes('long division'))).toMatchObject({ title: 'Long division', subject: 'Your question', topicId: null });
+        expect(picks.find(({ id }) => id === 'jump-shot')?.reason ?? '').not.toContain('long division');
+      });
+
+      it('does not say the student finished the card it left, however long it ran', async () => {
+        const student = await createTestStudent(testApp);
+        const sessionId = await startOnCardThenMove(student.studentId);
+        await sessions().update({ id: sessionId }, { status: 'finished', durationSeconds: 900 });
+
+        const picks = await getPicks(student.token);
+
+        expect(picks.filter(({ reason }) => reason.startsWith('You finished'))).toEqual([]);
+      });
+
+      it('does not offer to carry on the card it left', async () => {
+        const student = await createTestStudent(testApp);
+        const movedId = await startOnCardThenMove(student.studentId, new Date(Date.now() - 120_000));
+        await saveUnfinishedSession(student.studentId, 'A newer question', new Date(Date.now() - 60_000).toISOString());
+
+        const picks = await getPicks(student.token);
+
+        expect(picks.filter(({ continueSessionId }) => continueSessionId === movedId)).toEqual([]);
+      });
+    });
+
+    describe('when a note holds words off the closed list', () => {
+      it.each(['self harm', 'my dads drinking', 'suicide', 'my depression', 'my dad hits me'])('never shows %j, whatever the table holds', async (topic) => {
+        const student = await createTestStudent(testApp);
+        const { id: sessionId } = await sessions().save({ studentId: student.studentId, title: 'A question', subject: 'Your question', language: 'en', status: 'finished' as const, startedAt: new Date(Date.now() - 60_000) });
+        await testApp.app.get(DataSource).getRepository(LearnerNoteEntity).save({ studentId: student.studentId, sessionId, kind: 'struggled' as const, topic, topicKey: topic, detail: null, evidence: [{ source: 'words' as const, text: '', check: null }] });
+
+        const { text } = await getHomeWithToken(student.token).expect(200);
+
+        expect(text).not.toContain(topic);
+      });
     });
 
     it('still offers six cards', async () => {

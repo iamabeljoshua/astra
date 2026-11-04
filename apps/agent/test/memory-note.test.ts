@@ -52,8 +52,18 @@ describe('the memory note the tutor reads', () => {
     expect(lines.map(({ kind }) => kind)).toEqual(['showed']);
   });
 
+  it('keeps a struggle when the student only looked at the topic later, as Home does', () => {
+    const lines = getLines([makeNote({ kind: 'explored', topic: 'fractions', daysAgo: 1 }), makeNote({ kind: 'struggled', topic: 'fractions', daysAgo: 9 })]);
+
+    expect(lines.map(({ kind }) => kind)).toEqual(['struggled', 'explored']);
+  });
+
   it('stops reading a note too old to trust', () => {
     expect(getLines([makeNote({ topic: 'fractions', daysAgo: 121 }), makeNote({ topic: 'decimals', daysAgo: 120 })]).map(({ about }) => about)).toEqual(['decimals']);
+  });
+
+  it('stops reading a note at the same moment Home does, part way through a day', () => {
+    expect(getLines([makeNote({ topic: 'fractions', daysAgo: 120.5 })])).toEqual([]);
   });
 
   it.each([
