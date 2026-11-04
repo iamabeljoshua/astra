@@ -7,6 +7,7 @@ import { ThemeToggle } from '../theme/ThemeToggle';
 import { type FilesComingSoon, useFilesComingSoon } from '../ui/useFilesComingSoon';
 import { formatSessionLength } from './formatSession';
 import { type Session, useSession } from './sessionQueries';
+import { isLessonEnabled } from './lessonFlag';
 import { useSessionRun } from './useSessionRun';
 import { StudentCaption } from '../voice/Captions';
 import { BoardCaption } from '../board/BoardCaption';
@@ -18,6 +19,7 @@ import { type LiveVoiceControls, useLiveVoice } from '../voice/useLiveVoice';
 const NOT_FOUND_STATUS = 404;
 const BAD_ID_STATUS = 400;
 const BAR_ACTION = 'button button-outline px-3 py-1.25';
+const LessonSession = lazy(() => import('./LessonSession'));
 
 function isWrongAddress(status?: number | null) {
   return status === NOT_FOUND_STATUS || status === BAD_ID_STATUS;
@@ -48,7 +50,13 @@ export function SessionScreen() {
 // The view is chosen once, so ending the session does not swap the screen while it fades out.
 function OpenSession({ session }: { session: Session }) {
   const [wasFinishedOnOpening] = useState(session.status === 'finished');
-  return wasFinishedOnOpening ? <FinishedSession session={session} /> : <RunningSession session={session} />;
+  if (wasFinishedOnOpening) return <FinishedSession session={session} />;
+  if (!isLessonEnabled()) return <RunningSession session={session} />;
+  return (
+    <Suspense>
+      <LessonSession session={session} />
+    </Suspense>
+  );
 }
 
 // Every session speaks first, so a student is never left waiting on a blank screen. Sending this opens the room.
@@ -58,7 +66,7 @@ export function getOpeningMessage({ title, subject, durationSeconds }: Pick<Sess
 }
 
 // React runs effects twice in development, and the room must open once, so this waits for the first run to settle.
-function useOpeningMessage(session: Session, sendTyped: (text: string) => Promise<boolean>) {
+function useOpeningMessage(session: Session, sendOpening: (text: string) => Promise<void>) {
   const [opening] = useState(() => getOpeningMessage(session));
   const hasSent = useRef(false);
 
@@ -66,10 +74,10 @@ function useOpeningMessage(session: Session, sendTyped: (text: string) => Promis
     const sending = setTimeout(() => {
       if (hasSent.current) return;
       hasSent.current = true;
-      void sendTyped(opening);
+      void sendOpening(opening);
     });
     return () => clearTimeout(sending);
-  }, [opening, sendTyped]);
+  }, [opening, sendOpening]);
 }
 
 function isTutorOnTheWay(status: LiveVoiceControls['status'], view: LiveVoiceView | null): boolean {
@@ -111,13 +119,18 @@ function RunningSession({ session }: { session: Session }) {
   const showTutorState = useCallback((state: string | null) => {
     if (tutorStateLine.current) tutorStateLine.current.textContent = state;
   }, []);
-  useOpeningMessage(session, liveVoice.sendTyped);
+  useOpeningMessage(session, liveVoice.sendOpening);
   const isConnecting = isTutorOnTheWay(status, view);
   const filesComingSoon = useFilesComingSoon();
 
+  // Finishing deletes the room, and a page still in it would ask for another. A student whose finish failed stays in the session, so the room opens again.
+  async function endAndLeaveRoom() {
+    if (!(await endSession(liveVoice.leave))) await liveVoice.connect({ wantsGreeting: false });
+  }
+
   const picture = <Board artwork={findArtwork(session.artwork)} note={SESSION_LABELS.boardStandIn} />;
   return (
-    <SessionFrame facts={<SessionFacts subject={session.subject} seconds={seconds} tutorStateLine={tutorStateLine} costUsd={view?.costUsd ?? null} />} action={<EndButton isEnding={isEnding} onEnd={() => void endSession()} />} problem={endProblem} isFullHeight>
+    <SessionFrame facts={<SessionFacts subject={session.subject} seconds={seconds} tutorStateLine={tutorStateLine} costUsd={view?.costUsd ?? null} />} action={<EndButton isEnding={isEnding} onEnd={() => void endAndLeaveRoom()} />} problem={endProblem} isFullHeight>
       <div className="board-stage">
         <div className="board-voice">
           <SessionTitle title={session.title} isQuiet={Boolean(voice) || isConnecting} />
@@ -142,7 +155,7 @@ function RunningSession({ session }: { session: Session }) {
 }
 
 // The hidden label holds the button's width, so the bar stays still when the label changes.
-function EndButton({ isEnding, onEnd }: { isEnding: boolean; onEnd: () => void }) {
+export function EndButton({ isEnding, onEnd }: { isEnding: boolean; onEnd: () => void }) {
   return (
     <>
       <p role="status" className="sr-only">{isEnding && SESSION_LABELS.ending}</p>
@@ -173,7 +186,7 @@ function FinishedSession({ session }: { session: Session }) {
 // A tester's flag, read at build time, so a build without it holds no cost line at all.
 const SessionCost = import.meta.env.VITE_SHOW_COST === '1' ? lazy(() => import('./SessionCost')) : null;
 
-function SessionFacts({ subject, seconds, tutorStateLine, costUsd = null }: { subject: string; seconds: number; tutorStateLine?: RefObject<HTMLSpanElement | null>; costUsd?: number | null }) {
+export function SessionFacts({ subject, seconds, tutorStateLine, costUsd = null }: { subject: string; seconds: number; tutorStateLine?: RefObject<HTMLSpanElement | null>; costUsd?: number | null }) {
   return (
     <>
       <span className="label min-w-0 wrap-anywhere text-ink-2">{subject}</span>
@@ -195,7 +208,7 @@ interface SessionFrameProps extends PropsWithChildren {
   isFullHeight?: boolean;
 }
 
-function SessionFrame({ facts, action, problem, isFullHeight = false, children }: SessionFrameProps) {
+export function SessionFrame({ facts, action, problem, isFullHeight = false, children }: SessionFrameProps) {
   return (
     <div data-page className={`flex animate-arrive flex-col ${isFullHeight ? 'board-session' : 'min-h-dvh px-page-side'}`}>
       <title>{PRODUCT_NAME}</title>
@@ -235,7 +248,7 @@ function SessionPanels({ session, tutorWords }: SessionPanelsProps) {
 }
 
 // Focus was on what the student pressed, and that has gone, so it moves to the new screen's heading.
-function SessionTitle({ title, isQuiet = false }: { title: string; isQuiet?: boolean }) {
+export function SessionTitle({ title, isQuiet = false }: { title: string; isQuiet?: boolean }) {
   const heading = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => heading.current?.focus({ preventScroll: true }), []);
@@ -260,7 +273,7 @@ function getSessionVisual(artwork: Artwork | null) {
   return artwork && <BoardPicture artwork={artwork} />;
 }
 
-function BoardPicture({ artwork }: { artwork: Artwork }) {
+export function BoardPicture({ artwork }: { artwork: Artwork }) {
   if (artwork.kind === 'drawing') return <artwork.Drawing className="block h-auto max-h-board-art w-full" />;
   return <img src={artwork.src} alt={artwork.description} className="block max-h-board-art max-w-full object-contain" />;
 }

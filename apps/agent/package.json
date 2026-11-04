@@ -21,7 +21,8 @@
     "eval:board": "node src/tutor/eval/run-groups.ts --file board",
     "eval:switch": "node src/tutor/eval/run-groups.ts --file switch",
     "eval:ink": "node src/tutor/eval/run-ink-table.ts",
-    "eval:spoken": "node src/tutor/eval/run-spoken-table.ts"
+    "eval:spoken": "node src/tutor/eval/run-spoken-table.ts",
+    "lesson": "node src/scenes/lesson/lesson-service.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "1.4.0",

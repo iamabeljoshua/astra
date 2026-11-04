@@ -1,0 +1,37 @@
+{
+ "topic": "Why Pythagoras was right",
+ "plan": {
+  "opening": [
+   {
+    "say": "Take any right triangle, the kind with one perfectly square corner, and call its two short sides a and b.",
+    "note": "right triangle"
+   },
+   {
+    "say": "The long side, sitting across from the square corner, we'll call c. It's always the longest one of the three.",
+    "tex": "a,\\ b,\\ c"
+   },
+   {
+    "say": "Pythagoras claimed these three lengths are locked together by one tidy rule, and the proof is really about area.",
+    "note": "think area"
+   }
+  ],
+  "more": [
+   {
+    "say": "Try a concrete one: legs of three and four. Guess how long the slanted side has to be."
+   },
+   {
+    "say": "Squares on those legs have areas nine and sixteen. Add them and you get twenty-five."
+   },
+   {
+    "say": "And twenty-five is exactly five squared, so the slanted side is five. That's no accident."
+   }
+  ],
+  "setup": "Watch what happens to the squares on each side.",
+  "narration": "[[square-big]]Here's a big square, side a plus b. [[four-triangles]]Tuck four copies of our triangle inside, one in each corner. [[tilted-square]]What's left is a tilted square with side c. [[rearrange]]Now slide the triangles into two corners instead. [[two-squares]]The leftover space becomes a squared plus b squared. Same area, so it equals c squared.",
+  "plan": "square-big: a large square with side a plus b appears, each side split into a segment of length a and a segment of length b.\nfour-triangles: four identical right triangles with legs a and b appear in the corners, hypotenuses facing inward.\ntilted-square: the middle gap highlights as a tilted square whose side is c, so its area is c squared.\nrearrange: the triangles slide so two rectangles of a by b form, leaving the same total uncovered area.\ntwo-squares: the leftover region shows a square of area a squared and a square of area b squared, labeled equal to c squared.",
+  "close": "Would the same trick work if the corner weren't square?",
+  "model": "claude-sonnet-5-5",
+  "ms": 7316.848417,
+  "costUsd": 0.0083225
+ }
+}

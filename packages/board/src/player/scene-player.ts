@@ -44,6 +44,8 @@ export interface ScenePlayer {
   moveSlider(move: SliderMove): void;
   /** Sends what a drag has not reported yet, when the student lets go. */
   finishSliderDrag(): void;
+  /** The same words, with those already known and not yet heard, so a caption can follow each word as it plays. */
+  getCaptionWords(): { heard: string[]; coming: string[] };
 }
 
 interface PlayingBeat {
@@ -93,8 +95,8 @@ export function createScenePlayer({ clock, clockId = 'page', send, setOutputLeve
   let turn: PlayingTurn | null = null;
   let levelOnceOldAudioHasGone: OutputLevel | null = null;
   const operationsOfOldTurns: BoardOperation[] = [];
+  const sliderLog = createSliderLog({ clockId, getNowMs: () => clock.getNowMs(), send });
   const seenTurnIds = new Set<TurnId>();
-  const sliderLog = createSliderLog({ getNowMs: () => clock.getNowMs(), clockId, send });
 
   const openOutput = () => {
     if (levelOnceOldAudioHasGone === null || turn?.clock.isOldAudioArriving()) return;

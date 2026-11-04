@@ -9,11 +9,11 @@ A student starts a session by sending a question or choosing a card, and the ses
 - `session-continue` opens the unfinished session from the continue card on Home, or from a card that says `Carry on where you left off`.
 - `session-screen` shows the board, the tutor's dot, the title, a clock, and a reply box. It joins the session's room as it opens, with no press, and says `Connecting to your tutor.` until the tutor speaks. [Live voice](./voice.md) covers that.
 - `session-coming-soon` shows the one `Photo or PDF` control on the screen: in the reply box while there is no room or the tutor is on the way, and in the board's tools once the tutor has arrived. A file dropped or pasted while the tutor is on the way opens the reply box with the note. Escape closes the note first, so it does not stop the tutor.
-- `session-returning` opens a running session with some length saved. It joins the room and sends `I'm back to carry on with this: <title>`, so the tutor speaks first there too.
-- `session-no-room` is the app with no LiveKit keys. The room route answers 200, the screen says `Your tutor could not connect just now.`, a reply stays on the screen with `This did not reach your tutor.`, and the browser logs no error.
-- `session-daily-limit` is a student whose tutor spend today has reached `ASTRA_DAILY_LIMIT_USD`. The room route answers 200 with no access, and the screen says `That is all your tutor time for today. Come back tomorrow. Your sessions are kept.`
+- `session-returning` opens a running session with some length saved. It joins the room and sends `I'm back to carry on with this: <title>`, so the tutor speaks first there too. That line goes to the tutor only, and the screen shows no `You` for it. Coming back within 15 s of leaving finds the same tutor, and later it finds a new one.
+- `session-no-room` is the app with no LiveKit keys. The room route answers 200, the screen says `Your tutor could not connect just now.` and names help, a reply stays on the screen with `This did not reach your tutor.`, and the browser logs no error.
+- `session-daily-limit` is a student whose tutor spend today has reached `ASTRA_DAILY_LIMIT_USD`. The room route answers 200 with no access, and the screen says `That is all your tutor time for now. It resets once a day, so please try again later. Your sessions are kept.`, and one sentence naming an adult they trust and their local emergency number.
 - `session-refresh` keeps the session on a refresh, because the record is saved before the page fades.
-- `session-end` marks the session finished with its length, reads `Ending…` until Home is ready, returns to Home, and moves focus to Home's heading.
+- `session-end` leaves the room, marks the session finished with its length, reads `Ending…` until Home is ready, returns to Home, and moves focus to Home's heading.
 - `session-leave` keeps the student where they went if they leave Home or the session screen while a start or an end is pending. The save still lands, and the dot and any fade go at once.
 - `session-finished` opens a finished session with no way to end it or reply.
 - `session-other-student` shows `This session could not be found.` with no `Try again` for an ID that belongs to another student, and for a malformed address.
@@ -48,8 +48,8 @@ Preconditions:
 | | No room service: any of the three keys missing | Room service on: all three set |
 | --- | --- | --- |
 | `POST /sessions/:id/live-room` | 200, `{ access: null, unavailableBecause: 'notSetUp' }` | 200, `access` holds a token, `unavailableBecause` is null |
-| The note under the reply box | `Your tutor could not connect just now.` | Never that note. No agent needs to be running, because the journey leaves before the 25 second wait for a tutor ends. |
-| A reply on a session the student came back to | Stays on the screen with `This did not reach your tutor.` | Stays on the screen as the student's words, with no such line |
+| The note under the reply box | `Your tutor could not connect just now.`, and one sentence naming help | Never that note, as long as the journey leaves before the 25 second wait for a tutor ends. No agent needs to be running. A slow machine can pass that wait, and the journey then fails on the note |
+| A reply on a session the student came back to | Stays on the screen with `This did not reach your tutor.` | Stays on the screen as the student's words, with no such line. The opening line is never shown as theirs, because the page wrote it |
 | The browser console | No error, which `verify` fails on by itself | No error, which `verify` fails on by itself |
 
 Either way, nothing on screen says `Live lessons open soon`. To run it with the room service on, load the keys and name an agent nobody runs, so no lane's tutor answers and spends anything:

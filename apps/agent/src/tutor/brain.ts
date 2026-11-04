@@ -61,8 +61,8 @@ export const TUTOR_TIMEOUTS = {
   /** Sonnet stalled for 9 to 10 s in the speed test, and a new request's first text is under 2 s at p95. */
   firstTextMs: 5000,
   betweenTextMs: 4000,
-  /** A model told to stop at a question usually ends at once, and this keeps its real token count. */
-  finishGraceMs: 300,
+  /** A model told to stop at a question usually ends at once. Its next text can come about 350 ms later, and that text may be the help a student in danger needs. */
+  finishGraceMs: 1000,
   /** A short wait for a cut turn's report, so a lost one cannot hold up the reply. */
   reportWaitMs: 150,
   /** Most sessions have the profile long before the first message, and a slow API must not hold up the reply. */
@@ -153,6 +153,7 @@ const FEWEST_WORDS_IN_A_REPEAT = 4;
 const COMPACT_AT_TOKENS = 60_000;
 const TURNS_KEPT_AFTER_COMPACTING = 8;
 const CHARACTERS_PER_TOKEN = 3.2;
+const NAMES_HELP = /\b(?:adult|emergency)\b/i;
 
 /** What the model is told after a safety check stops a student's message, built by code, so it holds none of what was refused. */
 const DECLINED_NOTE = {
@@ -551,7 +552,17 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
     return 'retry';
   };
 
+  // The model can stop at "are you thinking of hurting yourself?" with no help named, and the student may not answer, so code names it.
+  const addHelpIfMissing = (turn: TurnWork) => {
+    if (!turn.reader.isSafetyReply || NAMES_HELP.test(`${getWordsSaid(turn)} ${turn.raw}`)) return;
+    const help = ` ${pickLine('safetyHelp')}`;
+    trace('helpAdded');
+    turn.raw += help;
+    turn.reader.push(help);
+  };
+
   const finishAnswer = (turn: TurnWork): TurnStep => {
+    addHelpIfMissing(turn);
     turn.reader.finish();
     if (turn.wrongWords !== null) return handleWrongWords(turn, turn.attempts < MAX_ATTEMPTS);
     if (!turn.hasModelWords) {

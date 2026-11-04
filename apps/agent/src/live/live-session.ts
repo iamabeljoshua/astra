@@ -395,15 +395,14 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     return reason !== null;
   };
 
-  const react = ({ canPraise }: { canPraise: boolean }) => {
+  const react = () => {
     trace('reactDecided');
     if (sendClosedNote()) return;
     messenger.send({ type: 'heard' });
     // A session opened by a typed question has not yet said it is an AI, so its first reaction is the greeting (PRD S2).
     const nod = boardWork.takeNod();
-    const uses: TakeUse[] = !hasGreeted ? ['greeting'] : canPraise ? ['reaction', 'goodQuestion'] : ['reaction'];
     if (!reaction && nod) reaction = speakPhrase(nod);
-    else if (!reaction && boardWork.canSayStockWord()) reaction = speakTake(uses, { isReply: false });
+    else if (!reaction && boardWork.canSayStockWord()) reaction = speakTake([hasGreeted ? 'reaction' : 'greeting'], { isReply: false });
     hasGreeted = true;
   };
 
@@ -544,7 +543,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       case 'resume':
         return void resume();
       case 'react':
-        return react(action);
+        return react();
       case 'reply':
         trace('replyDecided', { via: action.via, words: action.text.split(/\s+/).length, text: action.text });
         if ((action.via === 'final' || action.via === 'partial') && boardWork.hasOpenTask()) return void answerSpokenWords({ text: action.text, carried: action.carried });
