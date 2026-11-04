@@ -27,8 +27,8 @@ const ENDS_IN_SENTENCE = /[.!]["')]*\s*$/;
 const ENDS_IN_CLAUSE = /[,;:]\s*$/;
 const ENDS_IN_ABBREVIATION = /(?:^|[\s("'])(?:mr|mrs|ms|dr|prof|st|vs|(?:[a-z]\.)+[a-z])\.["')]*\s*$/i;
 const ENDS_IN_ELLIPSIS = /\.{2,}["')]*\s*$/;
-/** Words only a safety reply uses, so that reply is never paused or wrapped. */
-const SAFETY_REPLY = /\b(?:that sounds serious|right thing telling me|not your fault|adult you trust|emergency number|are you safe)\b/i;
+/** Words only a safety reply uses, so that reply is never paused, wrapped, or ended at a question. Help must reach the student whole. */
+const SAFETY_REPLY = /\b(?:that sounds[^.?!]*serious|right thing telling me|not your fault|adult you trust|trusted adult|emergency number|emergency services|are you safe|feel safe|in danger|hurting yourself|hurt yourself|ending your life)\b/i;
 const STILL_A_TAG = /^<\/?(?:[A-Za-z_][\w:.-]*(?:\s[^<>\n]*)?)?$/;
 const TAG_NAME = /^<(\/?)([A-Za-z_][\w:.-]*)/;
 const PRIVATE_TAGS: ReadonlySet<string> = new Set(['thinking', 'think', 'reasoning', 'scratchpad', 'analysis', 'reflection', 'function_calls', 'invoke', 'parameter', 'system', 'system-reminder']);
@@ -124,6 +124,10 @@ export class BeatTextReader {
     return this.#wordsThisTurn;
   }
 
+  get isSafetyReply(): boolean {
+    return this.#isSafetyReply || SAFETY_REPLY.test(this.#text);
+  }
+
   push(fragment: string): void {
     for (const character of fragment) this.#step(character);
   }
@@ -189,12 +193,28 @@ export class BeatTextReader {
 
   #step(character: string): void {
     if (this.#isHalted) return;
-    if (this.#isTurnOver) this.#textAfterTurn += character;
+    if (this.#isTurnOver) this.#addAfterTurn(character);
     else if (this.#brokenTail !== null) this.#stepInBrokenTail(character);
     else if (this.#command !== null) this.#stepInCommand(character);
     else if (this.#tag !== null) this.#stepInTag(character);
     else if (this.#privateTag !== null) this.#stepInPrivateTag(character);
     else this.#stepInSpeech(character);
+  }
+
+  // A question or a word limit ended the turn, and help written after it must still be spoken.
+  #addAfterTurn(character: string): void {
+    this.#textAfterTurn += character;
+    if (!SAFETY_REPLY.test(this.#textAfterTurn)) return;
+    const held = this.#textAfterTurn;
+    this.#textAfterTurn = '';
+    this.#isTurnOver = false;
+    this.#wasCutShort = false;
+    this.#isSafetyReply = true;
+    this.push(held);
+  }
+
+  #isPastWordCut(): boolean {
+    return this.#wordsThisTurn >= TURN_WORDS_TO_CUT && !this.#isSafetyReply;
   }
 
   #isOneMarkTooMany(character: string): boolean {
@@ -260,7 +280,9 @@ export class BeatTextReader {
 
   // The model writes a line break between ideas, and one that falls mid sentence is only a new beat.
   #endLine(): void {
-    if (this.#wordCount > 0 && this.#wordCount < FEWEST_WORDS_IN_A_BEAT && !ENDS_IN_QUESTION.test(this.#text)) {
+    const isQuestion = ENDS_IN_QUESTION.test(this.#text);
+    const isTooShortForABeat = this.#wordCount < FEWEST_WORDS_IN_A_BEAT && !isQuestion;
+    if (this.#wordCount > 0 && (isTooShortForABeat || (isQuestion && this.isSafetyReply))) {
       if (!this.#isAfterSpace) this.#speak(' ');
       return;
     }
@@ -274,11 +296,8 @@ export class BeatTextReader {
       if (isSpace) return;
       this.#endBeat();
     }
-    if (!isSpace && this.#isAfterSpace && (this.#wordCount === BEAT_LIMITS.words || this.#wordsThisTurn >= TURN_WORDS_TO_CUT)) this.#endBeat();
-    if (this.#isTurnOver) {
-      this.#textAfterTurn += character;
-      return;
-    }
+    if (!isSpace && this.#isAfterSpace && (this.#wordCount === BEAT_LIMITS.words || this.#isPastWordCut())) this.#endBeat();
+    if (this.#isTurnOver) return this.#addAfterTurn(character);
     if (!isSpace) this.#startOrContinueWord();
     this.#isAfterSpace = isSpace;
     this.#text += character;
@@ -306,7 +325,8 @@ export class BeatTextReader {
   // Beats end at commas and sentence ends, because M3.2 measured mid-sentence flushes stretching the line.
   #isAtBeatBoundary(): boolean {
     if (this.#cuesAwaitingWord.length > 0) return false;
-    if (ENDS_IN_QUESTION.test(this.#text)) return true;
+    // In a safety reply a question stays in its beat until more words or the end of the reply, so a student's "yes" cannot cut off the help after it.
+    if (ENDS_IN_QUESTION.test(this.#text)) return !this.isSafetyReply;
     if (this.#wordCount < FEWEST_WORDS_IN_A_BEAT) return false;
     if (isSentenceEnd(this.#text)) return true;
     const isFirstBeat = this.#wordsThisTurn === this.#wordCount;
@@ -466,8 +486,8 @@ export class BeatTextReader {
     const script = this.#script.map((part) => (typeof part === 'string' ? part.normalize('NFC') : part));
     this.#isSafetyReply ||= SAFETY_REPLY.test(this.#text);
     this.#options.onBeatEnd({ script, wordCount: this.#wordCount, expectsReply, startsStretch: this.#startsStretch });
-    const isAtCut = this.#wordsThisTurn >= TURN_WORDS_TO_CUT;
-    this.#isTurnOver = expectsReply || (endsSentence && this.#wordsThisTurn >= TURN_WORDS_TO_WRAP && !this.#isSafetyReply) || isAtCut;
+    const isAtCut = this.#isPastWordCut();
+    this.#isTurnOver = (expectsReply && !this.#isSafetyReply) || (endsSentence && this.#wordsThisTurn >= TURN_WORDS_TO_WRAP && !this.#isSafetyReply) || isAtCut;
     this.#wasCutShort = isAtCut && !expectsReply && !endsSentence;
     this.#didLastBeatEndSentence = endsSentence || expectsReply;
     if (endsSentence && this.#wordsThisStretch >= STRETCH_WORDS_TO_BREATHE && !this.#isSafetyReply) this.#isBreathDue = true;

@@ -211,18 +211,20 @@ export const REPLY_BOX_LABELS = {
   send: 'Send reply',
 };
 
+const IF_WORRIED = 'If anything is worrying you, or you do not feel safe, please tell an adult you trust, or call your local emergency number.';
+
 export const VOICE_LABELS = {
   you: 'You',
   board: 'Board',
   connecting: 'Connecting to your tutor.',
-  unavailable: 'Your tutor could not connect just now.',
+  unavailable: `Your tutor could not connect just now. ${IF_WORRIED}`,
   reconnecting: 'Your connection dropped. Reconnecting.',
   ended: 'Your connection to the tutor ended.',
-  sessionLimit: 'This session has reached its limit. Start a new session to carry on.',
-  dailyLimit: 'That is all your tutor time for now. It resets once a day, so please try again later. Your sessions are kept.',
-  broken: 'Your tutor has stopped working in this session. Start a new one to carry on.',
+  sessionLimit: `This session has reached its limit. Start a new session to carry on. ${IF_WORRIED}`,
+  dailyLimit: `That is all your tutor time for now. It resets once a day, so please try again later. Your sessions are kept. ${IF_WORRIED}`,
+  broken: `Your tutor has stopped working in this session. Start a new one to carry on. ${IF_WORRIED}`,
   sessionFinished: 'This session has finished.',
-  tutorLost: 'Your tutor stopped responding. Your microphone is off. Try again and a tutor will start fresh, without what was said so far.',
+  tutorLost: `Your tutor stopped responding. Your microphone is off. Try again and a tutor will start fresh, without what was said so far. ${IF_WORRIED}`,
   startedFresh: 'Your tutor had to start fresh, without what was said so far.',
   micDenied: 'Your browser did not allow the microphone. You can type instead.',
   micNoDevice: 'We could not find a microphone on this device. You can type instead.',

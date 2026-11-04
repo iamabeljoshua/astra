@@ -420,22 +420,9 @@ describe('which reaction a turn may get', () => {
   };
   const typed = (text: string): TurnEvent => ({ type: 'typed', text });
 
-  it('never praises speech, because code reacts before it has read the words', () => {
-    expect(getReaction([ON, OFF, words('Why does it fall?'), timer('reactionFloor')])?.canPraise).toBe(false);
-    expect(getReaction([ON, words('Why does it fall?'), OFF, decided('Why does it fall?')])?.canPraise).toBe(false);
-    expect(getReaction([ON, words('Why does it', false), OFF, timer('heldFinal')])?.canPraise).toBe(false);
-  });
-
-  it('may praise a typed line that truly asks something', () => {
-    expect(getReaction([typed('Why does a ball slow down?')])?.canPraise).toBe(true);
-    expect(getReaction([typed('why not?')])?.canPraise).toBe(true);
-  });
-
-  it.each(['The ball slows down.', 'hello there', 'ok?', 'why?', 'x = 3?', '42?', '?'])('does not praise "%s", which asks nothing a tutor could admire', (text) => {
-    expect(getReaction([typed(text)])?.canPraise).toBe(false);
-  });
-
-  it('never praises an answer to what the tutor just asked, even one that ends in a question mark', () => {
-    expect(getReaction([SPEAKING, QUESTION_HEARD, FINISHED, typed('Is it five because of the slope?')])?.canPraise).toBe(false);
+  it('is the same for speech and for a typed line, and says nothing of what the words are', () => {
+    expect(getReaction([ON, OFF, words('Why does it fall?'), timer('reactionFloor')])).toEqual({ do: 'react' });
+    expect(getReaction([typed('Why does a ball slow down?')])).toEqual({ do: 'react' });
+    expect(getReaction([SPEAKING, QUESTION_HEARD, FINISHED, typed('Is it five because of the slope?')])).toEqual({ do: 'react' });
   });
 });

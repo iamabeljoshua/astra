@@ -57,6 +57,13 @@ async function openVoice(first = makeVoice()) {
   return first;
 }
 
+describe('what the page says when no tutor can answer', () => {
+  it.each(['unavailable', 'sessionLimit', 'dailyLimit', 'broken', 'tutorLost'] as const)('names help in %s, because a student in danger may read nothing else', (label) => {
+    expect(VOICE_LABELS[label]).toMatch(/adult you trust/);
+    expect(VOICE_LABELS[label]).toMatch(/your local emergency number/);
+  });
+});
+
 describe('what the student sees of a room', () => {
   beforeEach(() => startLiveVoice.mockReset());
   afterEach(() => vi.unstubAllGlobals());

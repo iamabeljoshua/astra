@@ -5,14 +5,6 @@ import { AUDIBLE_SAMPLE } from '../src/live/first-sound.ts';
 
 const makeTake = (id: string, phrase: string, use: StoredTake['use'] = 'reaction'): StoredTake => ({ id, use, phrase, sampleRate: 24000, words: [], base64: '' });
 
-describe('a turn that may be praised', () => {
-  it('goes round the neutral reactions and the praise together, so praise stays rare', () => {
-    const picker = createTakePicker([makeTake('good', 'Good question.', 'goodQuestion'), makeTake('hm', 'Hm.'), makeTake('okay', 'Okay.'), makeTake('right', 'Right.')]);
-    const picked = Array.from({ length: 8 }, () => picker.next('reaction', 'goodQuestion')?.phrase);
-    expect(picked.filter((phrase) => phrase === 'Good question.')).toHaveLength(2);
-  });
-});
-
 describe('the stored takes', () => {
   const takes = loadTakes();
 
@@ -38,12 +30,11 @@ describe('the stored takes', () => {
     for (const take of takes) expect((getTakeAudio(take).pcm.length / take.sampleRate) * 1000).toBeGreaterThanOrEqual(250);
   });
 
-  it('keep "Good question." out of the reactions an ordinary turn gets', () => {
+  it('never praise, because a reaction plays before the tutor has read a word', () => {
+    expect(takes.filter((take) => /good|great|nice|well done/i.test(take.phrase)).map((take) => take.phrase)).toEqual([]);
     const picker = createTakePicker(takes);
     const picked = Array.from({ length: 24 }, () => picker.next('reaction')?.phrase);
-    expect(picked).not.toContain('Good question.');
     expect(new Set(picked).size).toBeGreaterThanOrEqual(3);
-    expect(takes.filter((take) => take.use === 'goodQuestion').map((take) => take.phrase)).toEqual(['Good question.']);
   });
 
   it('include several short reactions, the working phrase, and the lines the session needs', () => {
