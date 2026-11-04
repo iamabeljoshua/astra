@@ -1,6 +1,7 @@
 import type { components } from '@astra/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
+import { HOME_SCREEN_KEY } from '../home/useHomeScreen';
 
 export type LearnerNote = components['schemas']['LearnerNoteDto'];
 
@@ -17,8 +18,12 @@ function useChangeRecord<Input>(change: (input: Input) => Promise<unknown>) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: change,
-    // After a failure too, because a note removed in another tab answers 404 here and should leave the list.
-    onSettled: () => queryClient.invalidateQueries({ queryKey: RECORD_KEY }),
+    // After a failure too, because a note removed in another tab answers 404 here and should leave the list. Home is not on screen here, and its cards read these notes, so it refetches now.
+    onSettled: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: RECORD_KEY }),
+        queryClient.invalidateQueries({ queryKey: HOME_SCREEN_KEY, refetchType: 'all' }),
+      ]),
   });
 }
 

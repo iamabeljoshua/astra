@@ -1,6 +1,7 @@
 import type { components } from '@astra/contracts';
 import { HOME_LABELS } from '../strings';
 import { findArtwork } from './artwork';
+import { getPickReason } from './getPickReason';
 
 type PickCardResponse = components['schemas']['PickCardResponseDto'];
 
@@ -22,7 +23,7 @@ export function PickCard({ pick, onChoose }: PickCardProps) {
       <span className="min-w-0">
         <span className="label text-ink-2">{HOME_LABELS.pickDetails(pick.subject, pick.lengthMinutes)}</span>
         <span className="mt-px block leading-tight font-medium">{pick.title}</span>
-        <span className="mt-0.5 block text-fine leading-fine text-ink-2">{pick.reason}</span>
+        <span className="mt-0.5 block text-fine leading-fine text-ink-2">{getPickReason(pick)}</span>
       </span>
     </button>
   );
