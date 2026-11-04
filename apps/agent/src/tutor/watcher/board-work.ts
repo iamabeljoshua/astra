@@ -1,6 +1,6 @@
 import { setTimeout as delay } from 'node:timers/promises';
 import type { AgentMessage, BrowserMessage, ElementId, InkPoint, ReadMath, StudentAction, StudentWork, Task } from '@astra/contracts';
-import { type CheckedWork, cleanStudentText, checkWorkOnBoard, getNod, getPickParts, type Nod, wantsSomethingElse } from '@astra/board/shared';
+import { type CheckedWork, cleanStudentText, checkWorkOnBoard, getLinearAnswer, getNod, getPickParts, type Nod, wantsSomethingElse } from '@astra/board/shared';
 import type { BoardElement } from '@astra/board';
 import type { SpokenReading } from './read-spoken.ts';
 import { decideSpoken, type SpokenDecision, type SpokenExpected, type SpokenPart } from './spoken-answer.ts';
@@ -50,6 +50,7 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
   let unanswered: Unanswered | null = null;
   let wrongKeys: readonly string[] = [];
   let hasLeanedIn = false;
+  const takenKeys = new Set<string>();
 
   const noteTyping = () => {
     typedAtMs = getNowMs();
@@ -78,13 +79,19 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
 
   const takeWork = (message: BrowserMessage & { type: 'worked' }, onTaken?: () => void) => {
     const noted = tutor.noteWork?.(message.work);
-    if (!noted) return trace('workRefused', { way: message.work.way });
+    const key = getWorkKey(message.work);
+    if (!noted) {
+      trace('workRefused', { way: message.work.way });
+      // A line code cannot place still reaches the tutor, and only a repeat of one already taken stays quiet.
+      if (message.work.way === 'write' && !takenKeys.has(`${message.work.id} ${key}`)) speakUp(getWorkWords(message.work));
+      return;
+    }
+    if (message.work.way === 'write') takenKeys.add(`${message.work.id} ${key}`);
     typedAtMs = null;
     onTaken?.();
     const { checked, hadTask } = noted;
     hasLeanedIn = false;
     writeLog(message, checked);
-    const key = getWorkKey(message.work);
     if (checked.verdict.status === 'wrong') wrongKeys = [...wrongKeys, key];
     const decision = decideOnWork(message.work, checked, hadTask);
     trace('workDecided', { way: message.work.way, status: checked.verdict.status, ...decision });
@@ -169,7 +176,7 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
       }
       return true;
     }
-    const decision = decideSpoken(text, open.task, getSpokenParts(open.task, open.board?.state));
+    const decision = decideSpoken(text, open.task, getSpokenParts(open.task, open.board?.state), getTaskLetter(open.task, open.board?.state));
     trace('spokenDecided', { ...decision });
     const work = await toSpokenWork(text, open.task, decision);
     const noted = work && tutor.noteWork?.(work);
@@ -222,6 +229,11 @@ function getSpokenParts(task: Task, board: { elements: ReadonlyMap<ElementId, Bo
   const element = board?.elements.get(task.on);
   const nodes = element?.content.kind === 'diagram' ? element.content.nodes : [];
   return getPickParts(element).map(({ part }) => ({ part, label: nodes.find(({ name }) => name === part)?.label ?? part }));
+}
+
+function getTaskLetter(task: Task, board: { elements: ReadonlyMap<ElementId, BoardElement> } | undefined): string | null {
+  const tex = task.way === 'write' && task.on !== undefined ? board?.elements.get(task.on)?.math?.tex : undefined;
+  return tex ? (getLinearAnswer(tex)?.letter ?? null) : null;
 }
 
 function getDraft(text: string, board: NonNullable<ReturnType<NonNullable<TutorBrain['getBoard']>>>): WatchSituation['draft'] {

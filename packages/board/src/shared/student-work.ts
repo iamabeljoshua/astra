@@ -2,6 +2,7 @@ import type { ElementId, ElementRef, LineReading, StudentAction, StudentWork, Ta
 import { startMathLine } from '../math/math-line.ts';
 import { moveOver } from '../player/motion.ts';
 import type { BoardElement } from '../player/board-state.ts';
+import { wantsSomethingElse } from './check-work.ts';
 import { getLineTex } from './read-line.ts';
 
 const MARK_DRAWS_MS = 240;
@@ -25,12 +26,14 @@ export interface TaskProgress {
   pickedRight: readonly string[];
   placed: readonly (string | null)[];
   pointX: number | null;
+  /** The student asked for something else, so the problem it was on no longer holds their lines. */
+  hasLeft: boolean;
 }
 
 type Elements = Map<ElementId, BoardElement>;
 
 export function startProgress(task: Task): TaskProgress {
-  return { isOpen: true, verdict: null, lastLineTex: null, pickedRight: [], placed: task.way === 'place' ? task.slots.map(() => null) : [], pointX: null };
+  return { isOpen: true, verdict: null, lastLineTex: null, pickedRight: [], placed: task.way === 'place' ? task.slots.map(() => null) : [], pointX: null, hasLeft: false };
 }
 
 function setProgress(elements: Elements, id: ElementId, changes: Partial<TaskProgress>): void {
@@ -97,5 +100,5 @@ export function applyWorked(elements: Elements, { work, reading, verdict, closes
   } else {
     applyWorkToTask(elements, work, verdict, atMs);
   }
-  if (closesTask !== undefined) setProgress(elements, closesTask, { isOpen: false });
+  if (closesTask !== undefined) setProgress(elements, closesTask, { isOpen: false, hasLeft: work.way === 'leave' || (work.way === 'write' && wantsSomethingElse(work.text)) });
 }

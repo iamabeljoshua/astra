@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { makeFakeTutorModel, type FakeReply } from '../src/providers/fake-model.ts';
 import type { TutorModelRequest } from '../src/providers/types.ts';
 import { createTutorBrain } from '../src/tutor/brain.ts';
+import { TUTOR_SYSTEM } from '../src/tutor/prompt.ts';
 import { createBoardWork } from '../src/tutor/watcher/board-work.ts';
 import type { SpokenReading } from '../src/tutor/watcher/read-spoken.ts';
 
@@ -56,7 +57,9 @@ describe('work on the shared board', () => {
   it('ignores a task name the tutor never set', async () => {
     const { brain } = setup([SET_PROBLEM]);
     await collect(brain, 'help me');
-    expect(brain.noteWork(line('s1', 'x = 7', 'forged'))?.checked.verdict.status).toBe('unknown');
+    const checked = brain.noteWork(line('s1', 'x = 7', 'forged'))?.checked;
+    expect(checked?.verdict.status).toBe('wrong');
+    expect(checked?.closesTask).toBeUndefined();
   });
 
   it('refuses a line id already used, or one that is not a student line', async () => {
@@ -310,6 +313,21 @@ describe('the board work seam', () => {
     seam.onWorked(worked(line('s1', '2x = 14', 'a1')));
     expect(seam.takeNod()).toBe('Hm.');
     expect(seam.takeNod()).toBeNull();
+  });
+
+  it('answers a point let go in the wrong place at once, with the nod, and the tutor\'s reply can draw the tangent', async () => {
+    const SET_DRAG = '{"kind":"plot","id":"curve","expression":"x^2-4*x+1","domain":[-1,5]}{"kind":"task","id":"a1","way":"drag","on":"curve","seek":"flat"}Drag the point.';
+    const HINT = 'Look at the slope. {"kind":"tangent","id":"t1","target":"curve"}Is it flat here?';
+    const { brain, seam, speakUp } = setupSeam([SET_DRAG, HINT]);
+    await collect(brain, 'help');
+    seam.onWorked(worked({ way: 'drag', task: id('a1'), x: 1, samples: [{ afterMs: 0, x: 0 }, { afterMs: 90, x: 1 }] }));
+    expect(speakUp).toHaveBeenCalledExactlyOnceWith('(moved the point to x = 1)');
+    expect(seam.takeNod()).toBe('Hm.');
+    expect(commandsOf(await collect(brain, '(moved the point to x = 1)')).map(({ kind }) => kind)).toContain('tangent');
+  });
+
+  it('tells the tutor the tangent is a good first hint when a point misses', () => {
+    expect(TUTOR_SYSTEM).toMatch(/"tangent".*wrong place.*good first hint/);
   });
 
   it('nods at a pick by what code found', async () => {

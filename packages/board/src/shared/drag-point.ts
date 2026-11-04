@@ -3,7 +3,7 @@ import type { BoardElement } from '../player/board-state.ts';
 type Domain = readonly [number, number];
 
 /** Where the point waits before it is first moved, as a share of the way along the plot. */
-const STARTS_AT_SHARE = 0.15;
+const STARTS_AT_SHARE = 1 / 6;
 const STEPS_ACROSS = 50;
 
 export const getDragStep = ([low, high]: Domain) => 10 ** Math.floor(Math.log10((high - low) / STEPS_ACROSS));

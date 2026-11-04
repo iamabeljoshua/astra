@@ -21,6 +21,16 @@ const WHOLE_EQUATION = /[^=]=[^=]/;
 const SAYS_EQUALS = /\b(equals?)\b|=/i;
 const SMALL_WORDS: ReadonlySet<string> = new Set(['the', 'a', 'an', 'of', 'in', 'on', 'to', 'and', 'then', 'first', 'next', 'last', 'after', 'that', 'is', 'it', 'its', 'goes', 'with']);
 
+const FILLER = /^\s*(?:um+|uh+|er+|erm|hm+|mm+|so|well|okay|ok)\b[\s,.]*/i;
+const ANSWER_LEAD = /^\s*(?:i think|i guess|i believe|maybe|probably|the answer is|the answer's|answer is|my answer is|i got|i get|i have|it'?s|it is|that'?s|that is)\b[\s,:]*/i;
+const BARE_NUMBER = /^-?\d+(?:\.\d+)?$/;
+
+function withoutOpening(text: string, opening: RegExp): string {
+  let rest = text;
+  while (opening.test(rest)) rest = rest.replace(opening, '');
+  return rest;
+}
+
 const toWords = (text: string) => text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
 
 const isAsking = (text: string) => /\?\s*$/.test(text) || TALK_OPENING.test(text);
@@ -83,22 +93,35 @@ function decidePlace(text: string, task: Task & { way: 'place' }): SpokenDecisio
   return { act: 'place', placed: items.slice(0, task.slots.length).map(({ name }) => name) };
 }
 
-function decideWrite(text: string, task: Task & { way: 'write' }): SpokenDecision {
+// Spoken answers come with words around them, and under a math task these count as typed: four is 4, and the answer is four claims x = 4.
+function decideMath(text: string, letter: string | null): SpokenDecision | null {
+  const rest = withoutOpening(text, ANSWER_LEAD);
+  const reading = readLine(rest);
+  const tex = getLineTex(reading);
+  const number = getSpokenCompact(rest);
+  if (BARE_NUMBER.test(number) && !reading.isAsking) return { act: 'line', tex: rest !== text && letter !== null ? `${letter}=${number}` : number };
+  return tex !== null && !reading.isAsking ? { act: 'line', tex } : null;
+}
+
+function decideWrite(text: string, task: Task & { way: 'write' }, letter: string | null): SpokenDecision {
   if (task.reads === 'code') return { act: 'talk', why: 'lines of code are typed' };
   if (task.reads === 'words') return { act: 'askModel', expects: 'words' };
   const reading = readLine(text);
   const tex = getLineTex(reading);
   if (tex !== null && !reading.isAsking) return { act: 'line', tex };
   if (task.accepts || !task.on) return { act: 'askModel', expects: 'words' };
+  const line = decideMath(text, letter);
+  if (line) return line;
   return HOLDS_MATH_WORDS.test(text) ? { act: 'askModel', expects: 'math' } : { act: 'talk', why: 'it holds no math and this task is math' };
 }
 
-export function decideSpoken(text: string, task: Task | null, parts: readonly SpokenPart[]): SpokenDecision {
+export function decideSpoken(saidText: string, task: Task | null, parts: readonly SpokenPart[], letter: string | null = null): SpokenDecision {
   if (!task) return { act: 'talk', why: 'no task is open' };
-  if (isAsking(text)) return { act: 'talk', why: 'it is a question or a word to the tutor' };
+  const text = withoutOpening(saidText, FILLER);
+  if (text === '' || isAsking(text)) return { act: 'talk', why: 'it is a question or a word to the tutor' };
   switch (task.way) {
     case 'write':
-      return decideWrite(text, task);
+      return decideWrite(text, task, letter);
     case 'pick':
       return decidePickOrLine(text, parts);
     case 'place':
