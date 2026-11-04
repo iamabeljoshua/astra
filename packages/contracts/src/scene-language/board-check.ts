@@ -9,11 +9,11 @@ export type BoardKinds = ReadonlyMap<string, BoardElementKind>;
 const REQUIRED_KINDS: Partial<Record<SceneCommand['kind'], readonly BoardElementKind[]>> = {
   transformMath: ['writeMath'],
   markValue: ['plot', 'numberLine'],
+  shadeArea: ['plot'],
   construct: ['geometry'],
   runSimulation: ['simulate'],
   setParameter: ['simulate'],
   trackVector: ['simulate'],
-  slider: ['simulate'],
   ghostPath: ['simulate'],
   reveal: ['plot', 'diagram', 'table', 'timeline', 'code'],
   plot: ['plot'],
@@ -30,12 +30,18 @@ function isBadRevealCount(command: SceneCommand, elementKind: BoardElementKind):
   return command.kind === 'reveal' && elementKind !== 'plot' && (!Number.isInteger(command.upTo) || command.upTo < 0);
 }
 
+function getRequiredKinds(command: SceneCommand): readonly BoardElementKind[] | undefined {
+  if (command.kind === 'slider') return 'constant' in command ? ['plot'] : ['simulate'];
+  if (command.kind === 'highlight' && command.tex !== undefined) return ['writeMath'];
+  return REQUIRED_KINDS[command.kind];
+}
+
 export function getBoardProblem(command: SceneCommand, board: BoardKinds): string | null {
   const element = getReferencedElement(command);
   if (element === undefined) return null;
   const elementKind = board.get(element);
   if (elementKind === undefined) return `${command.kind} names ${element}, which is not on the board`;
-  const requiredKinds = REQUIRED_KINDS[command.kind];
+  const requiredKinds = getRequiredKinds(command);
   if (requiredKinds !== undefined && !requiredKinds.includes(elementKind)) return `${command.kind} needs ${requiredKinds.join(' or ')}, but ${element} is a ${elementKind}`;
   return isBadRevealCount(command, elementKind) ? `reveal needs a whole count on a ${elementKind}` : null;
 }

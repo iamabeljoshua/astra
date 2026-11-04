@@ -2,7 +2,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { type Beat, type BeatId, getCues } from '@astra/contracts';
 import { AUDIBLE_SAMPLE } from '../../live/first-sound.ts';
-import { findAudibleStartMs, findFirstLoudMs, findFirstSoundAmongOnsets, findWordOnsetsAfterSilence, findWordPlaces, getPercentiles, getWordList } from './analyse-run.ts';
+import { FAKE_WORD_MS } from '../../providers/fakes.ts';
+import { findAudibleStartMs, findFirstLoudMs, findFirstSoundAmongOnsets, findToneBursts, findWordOnsetsAfterSilence, findWordPlaces, getPercentiles, getWordList } from './analyse-run.ts';
 import type { RawVoiceMessage, VendorTap } from './vendor-tap.ts';
 
 const GRAPH_RATE = 48000;
@@ -223,6 +224,20 @@ function getTurnWords({ turn, turnIndex, records, vendorWordStarts, folder, arri
   return { rows, firstLoudMs };
 }
 
+// On the fake voice the n-th loud burst of a turn is its n-th word.
+function getDriftOnFakeBursts({ records, arriving, tapRate, firstFrame, earMs }: { records: PageRecords; arriving: Int16Array; tapRate: number; firstFrame: number; earMs: number }): number[] {
+  const startMs = (firstFrame / GRAPH_RATE) * 1000;
+  const bursts = findToneBursts(arriving, tapRate).map((atMs) => startMs + atMs);
+  const turnStarts = records.agentMessages.filter((message) => message.type === 'turnStarted').map((message) => message.atMs);
+  const turnIds = [...new Set(records.fired.map((cue) => cue.turnId))];
+  return records.fired.flatMap((cue) => {
+    const turnIndex = turnIds.indexOf(cue.turnId);
+    const inTurn = bursts.filter((atMs) => atMs >= (turnStarts[turnIndex] ?? 0) - 300 && atMs < (turnStarts[turnIndex + 1] ?? Number.POSITIVE_INFINITY) - 300);
+    const wordAtMs = inTurn[Math.round(cue.wordStartMs / FAKE_WORD_MS)];
+    return wordAtMs === undefined ? [] : [cue.firedAtMs - (wordAtMs + earMs)];
+  });
+}
+
 // Compares what the browser did with where each word really landed in the audio it received.
 export function summariseRun(folder: string, settings: { name: string; network: object | null; throttle: number; phone: boolean; onlyStops: boolean }) {
   const page = JSON.parse(readFileSync(join(folder, 'page.json'), 'utf8')) as { records: PageRecords; replayCheck: { samples: ReplaySample[]; log: unknown[] } };
@@ -252,8 +267,9 @@ export function summariseRun(folder: string, settings: { name: string; network: 
   });
   const firedMs = cueErrors.map((row) => row.error);
   const leads = words.flatMap((word) => (word.heardAtMs !== null && word.arrivedAtMs !== null ? [word.heardAtMs - word.arrivedAtMs] : []));
-  const drawnErrors = records.drawn.flatMap((entry, index) => {
-    const row = cueErrors.find(({ cue }) => Math.abs(cue.firedAtMs - entry.drawnAtMs) < 200 && index >= 0);
+  const drawnErrors = records.drawn.flatMap((entry) => {
+    const nearestFirst = cueErrors.filter(({ cue }) => Math.abs(cue.firedAtMs - entry.drawnAtMs) < 200).sort((first, second) => Math.abs(first.cue.firedAtMs - entry.drawnAtMs) - Math.abs(second.cue.firedAtMs - entry.drawnAtMs));
+    const row = nearestFirst[0];
     return row && entry.paintedAtMs !== null ? [row.error + (entry.paintedAtMs - row.cue.firedAtMs)] : [];
   });
   const frameGaps = records.frames.slice(1).map((frame, index) => frame.ms - (records.frames[index]?.ms ?? frame.ms));
@@ -273,7 +289,9 @@ export function summariseRun(folder: string, settings: { name: string; network: 
   });
   const messagesAfterStop = getVendorMessagesAfterStop(agent);
   const expectedCues = agent.turns.reduce((sum, turn) => sum + turn.beats.flatMap((beat) => beat.script.filter((part) => typeof part !== 'string')).length, 0);
+  const driftOnFakeBursts = agent.voice === 'fake' ? getDriftOnFakeBursts({ records, arriving, tapRate: taps.rate, firstFrame: taps.arrivingFirstFrame, earMs }) : [];
   const brief = {
+    driftOnFakeBursts: { ...getPercentiles(driftOnFakeBursts.map(Math.abs)), signedWorst: driftOnFakeBursts.at(-1) === undefined ? null : Math.round(Math.min(...driftOnFakeBursts)) },
     voice: `${agent.voice} ${agent.model}`,
     cuesFired: records.fired.length,
     cuesPlanned: expectedCues,

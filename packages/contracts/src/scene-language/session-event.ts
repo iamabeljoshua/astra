@@ -22,7 +22,7 @@ export interface SliderSample {
 export type InkPoint = [x: number, y: number, afterMs: number];
 
 export type StudentAction =
-  | { action: 'sliderDragged'; target: ElementId; parameter: SimulationParameter; samples: SliderSample[] }
+  | ({ action: 'sliderDragged'; target: ElementId; samples: SliderSample[] } & ({ parameter: SimulationParameter } | { constant: string }))
   | { action: 'rewound'; turnId: TurnId; toBeat: Beat['id'] }
   /** A long stroke is sent as several actions with the same id. */
   | { action: 'inkStroke'; id: ElementId; points: InkPoint[] }

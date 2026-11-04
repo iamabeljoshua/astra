@@ -529,13 +529,67 @@ describe('tex', () => {
       expectRefused(parseSceneCommand(makeCommand(tex)), /tex: expected math with no links, images, or raw HTML/);
     });
 
-    it.each([String.raw`\urcorner`, String.raw`\hrule`, 'href', 'url'])('accepts %s, which only looks like one', (tex) => {
+    it.each([String.raw`\urcorner`, 'href', 'url'])('accepts %s, which only looks like one', (tex) => {
       expect(parseSceneCommand(makeCommand(tex)).ok).toBe(true);
     });
 
     it('refuses a bidi override', () => {
       expectRefused(parseSceneCommand(makeCommand('a\u202Eb')), /tex: expected text with no control or bidi characters/);
     });
+  });
+});
+
+describe('a named constant on a plot', () => {
+  const CONSTANT = { name: 'a', value: 1, min: -3, max: 3 };
+  const CURVE = { kind: 'plot', id: 'curve', expression: 'a*x^2', domain: [-2, 2] };
+
+  it('accepts a plot whose expression uses its own constants', () => {
+    expectAccepted({ ...CURVE, constants: [CONSTANT] });
+  });
+
+  it('refuses a plot using a constant it did not declare', () => {
+    expectRefused(parseSceneCommand(CURVE), /expression: expected an expression/);
+  });
+
+  it.each([
+    ['a name x already means', { ...CONSTANT, name: 'x' }, /name: expected a short lowercase name/],
+    ['a function name', { ...CONSTANT, name: 'sin' }, /name: expected a short lowercase name/],
+    ['a name from the prototype', { ...CONSTANT, name: '__proto__' }, /name: expected a short lowercase name/],
+    ['a value outside its range', { ...CONSTANT, value: 9 }, /value: expected a number from -3 to 3/],
+    ['a range with no width', { ...CONSTANT, min: 3, max: 3 }, /max: expected a number above min/],
+  ])('refuses %s', (_name, constant, problem) => {
+    expectRefused(parseSceneCommand({ ...CURVE, constants: [constant] }), problem);
+  });
+
+  it('refuses a name given twice', () => {
+    expectRefused(parseSceneCommand({ ...CURVE, constants: [CONSTANT, CONSTANT] }), /constants: expected each constant name once/);
+  });
+
+  it('accepts a slider on a constant, and refuses one that names both a constant and a parameter', () => {
+    const slider = { kind: 'slider', id: 'a-slider', target: 'curve', min: -3, max: 3 };
+    expectAccepted({ ...slider, constant: 'a' });
+    expectRefused(parseSceneCommand({ ...slider, constant: 'a', parameter: 'gravity' }), /expected either a parameter or a constant/);
+    expectRefused(parseSceneCommand(slider), /expected either a parameter or a constant/);
+  });
+});
+
+describe('shadeArea', () => {
+  it('refuses an area with no width', () => {
+    expectRefused(parseSceneCommand({ kind: 'shadeArea', id: 'area', target: 'curve', from: 2, to: 2 }), /to: expected a number above from/);
+  });
+});
+
+describe('overWords on math and text', () => {
+  it.each([
+    [{ kind: 'writeMath', id: 'eq', tex: 'x', overWords: 5 }],
+    [{ kind: 'transformMath', target: 'eq', tex: 'x', overWords: 5 }],
+    [{ kind: 'text', id: 'note', text: 'hello', overWords: 5 }],
+  ])('accepts %j', (command) => {
+    expectAccepted(command);
+  });
+
+  it('refuses a count no beat can hold', () => {
+    expectRefused(parseSceneCommand({ kind: 'writeMath', id: 'eq', tex: 'x', overWords: BEAT_LIMITS.words + 1 }), /overWords: expected a whole number/);
   });
 });
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { findAudibleStartMs, findFirstSoundAmongOnsets, findWordOnsetsAfterSilence, findWordPlaces, getPercentiles } from '../src/lab/proof/analyse-run.ts';
+import { FAKE_WORD_MS, renderTone } from '../src/providers/fakes.ts';
+import { findAudibleStartMs, findFirstSoundAmongOnsets, findToneBursts, findWordOnsetsAfterSilence, findWordPlaces, getPercentiles } from '../src/lab/proof/analyse-run.ts';
 
 const SENT_RATE = 22050;
 const HEARD_RATE = 24000;
@@ -68,5 +69,19 @@ describe('the proof tool', () => {
   it('takes percentiles of what it is given', () => {
     expect(getPercentiles([])).toMatchObject({ count: 0, p95: null });
     expect(getPercentiles(Array.from({ length: 100 }, (_, index) => index))).toMatchObject({ p50: 50, p95: 95, worst: 99, best: 0 });
+  });
+});
+
+const BURST_ACCURACY_MS = 6;
+
+describe('findToneBursts', () => {
+  it('finds each fake word by its loud start, including one placed late', () => {
+    const { pcm, sampleRate } = renderTone('one two three');
+    const lateByMs = 100;
+    const padded = new Int16Array(pcm.length + Math.round((lateByMs / 1000) * sampleRate));
+    padded.set(pcm, Math.round((lateByMs / 1000) * sampleRate));
+    const bursts = findToneBursts(padded, sampleRate);
+    expect(bursts).toHaveLength(3);
+    bursts.forEach((atMs, word) => expect(Math.abs(atMs - (lateByMs + word * FAKE_WORD_MS))).toBeLessThan(BURST_ACCURACY_MS));
   });
 });

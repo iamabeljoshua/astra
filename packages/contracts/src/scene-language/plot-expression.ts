@@ -21,10 +21,14 @@ const PLOT_OPERATIONS = {
   '^': Math.pow,
 } as const;
 
-const PLOT_CONSTANTS: ReadonlyMap<string, number> = new Map([
+const FIXED_CONSTANTS: ReadonlyMap<string, number> = new Map([
   ['pi', Math.PI],
   ['e', Math.E],
 ]);
+
+export function isReservedPlotName(name: string): boolean {
+  return name === 'x' || FIXED_CONSTANTS.has(name) || Object.hasOwn(PLOT_FUNCTIONS, name);
+}
 
 const TOKEN = /\d+(?:\.\d+)?|\.\d+|[a-z]+|[-+*/^()]/g;
 const NUMBER_TOKEN = /^[\d.]/;
@@ -35,6 +39,7 @@ type PlotOperator = keyof typeof PLOT_OPERATIONS;
 export type PlotNode =
   | { kind: 'number'; value: number }
   | { kind: 'x' }
+  | { kind: 'constant'; name: string }
   | { kind: 'negate'; operand: PlotNode }
   | { kind: 'operation'; operator: PlotOperator; left: PlotNode; right: PlotNode }
   | { kind: 'call'; name: PlotFunction; argument: PlotNode };
@@ -46,7 +51,7 @@ function isPlotFunction(token: string): token is PlotFunction {
 }
 
 function getNumberValue(token: string): number {
-  const value = PLOT_CONSTANTS.get(token) ?? (NUMBER_TOKEN.test(token) ? Number(token) : undefined);
+  const value = FIXED_CONSTANTS.get(token) ?? (NUMBER_TOKEN.test(token) ? Number(token) : undefined);
   if (value === undefined) throw new NotAnExpression();
   return value;
 }
@@ -59,11 +64,13 @@ function getTokens(text: string): string[] | null {
 /** Sum, then product, then unary minus, then power, so -x^2 is -(x^2) and 2^3^2 is 2^(3^2). */
 class PlotExpressionReader {
   private readonly tokens: readonly string[];
+  private readonly constantNames: ReadonlySet<string>;
   private position = 0;
   private depth = 0;
 
-  constructor(tokens: readonly string[]) {
+  constructor(tokens: readonly string[], constantNames: ReadonlySet<string>) {
     this.tokens = tokens;
+    this.constantNames = constantNames;
   }
 
   readWhole(): PlotNode {
@@ -114,6 +121,7 @@ class PlotExpressionReader {
     if (token === undefined) throw new NotAnExpression();
     if (token === '(') return this.readGrouped();
     if (token === 'x') return { kind: 'x' };
+    if (this.constantNames.has(token)) return { kind: 'constant', name: token };
     if (!isPlotFunction(token)) return { kind: 'number', value: getNumberValue(token) };
     if (this.tokens[this.position] !== '(') throw new NotAnExpression();
     this.position += 1;
@@ -128,11 +136,11 @@ class PlotExpressionReader {
   }
 }
 
-export function parsePlotExpression(text: string): PlotNode | null {
+export function parsePlotExpression(text: string, constantNames: ReadonlySet<string> = new Set()): PlotNode | null {
   const tokens = text.length > PLOT_EXPRESSION_MAX_CHARACTERS ? null : getTokens(text);
   if (tokens === null) return null;
   try {
-    return new PlotExpressionReader(tokens).readWhole();
+    return new PlotExpressionReader(tokens, constantNames).readWhole();
   } catch (error) {
     if (error instanceof NotAnExpression) return null;
     throw error;
@@ -140,17 +148,19 @@ export function parsePlotExpression(text: string): PlotNode | null {
 }
 
 /** Gives NaN or Infinity where the curve has no value, such as sqrt(x) at -1 or 1/x at 0. */
-export function evaluatePlotExpression(node: PlotNode, x: number): number {
+export function evaluatePlotExpression(node: PlotNode, x: number, constants: ReadonlyMap<string, number> = new Map()): number {
   switch (node.kind) {
     case 'number':
       return node.value;
     case 'x':
       return x;
+    case 'constant':
+      return constants.get(node.name) ?? Number.NaN;
     case 'negate':
-      return -evaluatePlotExpression(node.operand, x);
+      return -evaluatePlotExpression(node.operand, x, constants);
     case 'call':
-      return PLOT_FUNCTIONS[node.name](evaluatePlotExpression(node.argument, x));
+      return PLOT_FUNCTIONS[node.name](evaluatePlotExpression(node.argument, x, constants));
     case 'operation':
-      return PLOT_OPERATIONS[node.operator](evaluatePlotExpression(node.left, x), evaluatePlotExpression(node.right, x));
+      return PLOT_OPERATIONS[node.operator](evaluatePlotExpression(node.left, x, constants), evaluatePlotExpression(node.right, x, constants));
   }
 }

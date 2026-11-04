@@ -1,7 +1,8 @@
 import { BEAT_LIMITS } from './beat.ts';
 import { readElementId, readElementRef, readFileId, readPartName } from './ids.ts';
 import { COMMAND_MAX_BYTES } from './live-message.ts';
-import { parsePlotExpression, PLOT_EXPRESSION_MAX_CHARACTERS } from './plot-expression.ts';
+import { getTexProblem } from './math-tex.ts';
+import { isReservedPlotName, parsePlotExpression, PLOT_EXPRESSION_MAX_CHARACTERS } from './plot-expression.ts';
 import {
   checkJsonSize,
   fail,
@@ -27,6 +28,7 @@ import {
   type Drawing,
   type GeometryStep,
   IMAGE_ASSETS,
+  type PlotConstant,
   type SceneCommand,
   SIMULATION_MODELS,
   SIMULATION_MOMENTS,
@@ -55,6 +57,7 @@ const LIMITS = {
   events: 12,
   nodes: 12,
   edges: 20,
+  plotConstants: 4,
 } as const;
 
 const NUMBER_RANGES = {
@@ -67,7 +70,7 @@ const NUMBER_RANGES = {
 
 const CODE_LANGUAGE = /^[a-z0-9+#-]{1,20}$/;
 const CONTROL_CHARACTER = /\p{Cc}/u;
-const TEX_NEEDING_TRUST =/\\(?:href|url|includegraphics|html[A-Za-z]*)(?![A-Za-z])/;
+const PLOT_CONSTANT_NAME = /^[a-z]{1,8}$/;
 
 function readLabel(place: Place): string {
   return readString(place, LIMITS.label);
@@ -77,13 +80,14 @@ function readLabel(place: Place): string {
 function readTex(place: Place): string {
   if (typeof place.value === 'string' && CONTROL_CHARACTER.test(place.value)) fail(place, 'math with no control characters');
   const tex = readString(place, LIMITS.tex);
-  if (TEX_NEEDING_TRUST.test(tex)) fail(place, 'math with no links, images, or raw HTML');
+  const problem = getTexProblem(tex);
+  if (problem !== null) fail(place, problem);
   return tex;
 }
 
-function readExpression(place: Place): string {
+function readExpression(place: Place, constantNames: ReadonlySet<string>): string {
   const expression = readString(place, LIMITS.expression);
-  if (parsePlotExpression(expression) === null) fail(place, 'an expression in x with known functions and an explicit *');
+  if (parsePlotExpression(expression, constantNames) === null) fail(place, 'an expression in x with known functions and an explicit *');
   return expression;
 }
 
@@ -93,6 +97,33 @@ function readCoordinate(place: Place): number {
 
 function readAxisRange(place: Place): [number, number] {
   return readRange(place, NUMBER_RANGES.coordinate);
+}
+
+function readPlotConstantName(place: Place): string {
+  if (typeof place.value !== 'string' || !PLOT_CONSTANT_NAME.test(place.value) || isReservedPlotName(place.value)) fail(place, 'a short lowercase name for a constant');
+  return place.value;
+}
+
+function readPlotConstant(place: Place): PlotConstant {
+  const fields = readFields(place, ['name', 'value', 'min', 'max']);
+  const min = readCoordinate(fields.at('min'));
+  const max = readCoordinate(fields.at('max'));
+  if (min >= max) fail(fields.at('max'), 'a number above min');
+  return { name: readPlotConstantName(fields.at('name')), value: readNumberInRange(fields.at('value'), { min, max }), min, max };
+}
+
+function readPlotConstants(place: Place): PlotConstant[] {
+  const constants = readList(place, { maxLength: LIMITS.plotConstants, readItem: readPlotConstant });
+  if (new Set(constants.map(({ name }) => name)).size !== constants.length) fail(place, 'each constant name once');
+  return constants;
+}
+
+export function readConstantSliderTarget(fields: CheckedFields) {
+  return { constant: readPlotConstantName(fields.at('constant')) };
+}
+
+export function readConstantValue(place: Place): number {
+  return readCoordinate(place);
 }
 
 export function readRevealPoint(place: Place): number {
@@ -232,11 +263,19 @@ function readTableCells(fields: CheckedFields): { columns: string[]; rows: strin
   return { columns, rows };
 }
 
-function readSliderBounds(fields: CheckedFields, parameter: SimulationParameter): { min: number; max: number } {
-  const min = readParameterValue(fields.at('min'), parameter);
-  const max = readParameterValue(fields.at('max'), parameter);
+function readSliderBounds(fields: CheckedFields, readValue: (place: Place) => number): { min: number; max: number } {
+  const min = readValue(fields.at('min'));
+  const max = readValue(fields.at('max'));
   if (min >= max) fail(fields.at('max'), 'a number above min');
   return { min, max };
+}
+
+function readSliderTarget(fields: CheckedFields) {
+  const hasConstant = fields.at('constant').value !== undefined;
+  if (hasConstant === (fields.at('parameter').value !== undefined)) fail(fields.place, 'either a parameter or a constant');
+  if (hasConstant) return { constant: readPlotConstantName(fields.at('constant')), ...readSliderBounds(fields, readCoordinate) };
+  const parameter = readOneOf(fields.at('parameter'), SIMULATION_PARAMETERS);
+  return { parameter, ...readSliderBounds(fields, (place) => readParameterValue(place, parameter)) };
 }
 
 function readImageSource(fields: CheckedFields) {
@@ -249,12 +288,12 @@ const COMMANDS: VariantTable<SceneCommand, 'kind'> = {
   tag: 'kind',
   variants: {
     writeMath: {
-      keys: ['id', 'tex'],
-      read: (fields) => ({ kind: 'writeMath', id: readElementId(fields.at('id')), tex: readTex(fields.at('tex')) }),
+      keys: ['id', 'tex', 'overWords'],
+      read: (fields) => ({ kind: 'writeMath', id: readElementId(fields.at('id')), tex: readTex(fields.at('tex')), ...fields.optional('overWords', readOverWords) }),
     },
     transformMath: {
-      keys: ['target', 'tex'],
-      read: (fields) => ({ kind: 'transformMath', target: readElementId(fields.at('target')), tex: readTex(fields.at('tex')) }),
+      keys: ['target', 'tex', 'overWords'],
+      read: (fields) => ({ kind: 'transformMath', target: readElementId(fields.at('target')), tex: readTex(fields.at('tex')), ...fields.optional('overWords', readOverWords) }),
     },
     highlight: {
       keys: ['id', 'target', 'tex', 'occurrence'],
@@ -267,19 +306,32 @@ const COMMANDS: VariantTable<SceneCommand, 'kind'> = {
       }),
     },
     plot: {
-      keys: ['id', 'expression', 'domain', 'yRange', 'label', 'xLabel', 'yLabel', 'over', 'startsEmpty'],
-      read: (fields) => ({
-        kind: 'plot',
-        id: readElementId(fields.at('id')),
-        expression: readExpression(fields.at('expression')),
-        domain: readAxisRange(fields.at('domain')),
-        ...fields.optional('yRange', readAxisRange),
-        ...fields.optional('label', readLabel),
-        ...fields.optional('xLabel', readLabel),
-        ...fields.optional('yLabel', readLabel),
-        ...fields.optional('over', readElementId),
-        ...fields.optional('startsEmpty', readBoolean),
-      }),
+      keys: ['id', 'expression', 'constants', 'domain', 'yRange', 'label', 'xLabel', 'yLabel', 'over', 'startsEmpty'],
+      read: (fields) => {
+        const constants = fields.optional('constants', readPlotConstants);
+        return {
+          kind: 'plot',
+          id: readElementId(fields.at('id')),
+          expression: readExpression(fields.at('expression'), new Set(constants.constants?.map(({ name }) => name))),
+          ...constants,
+          domain: readAxisRange(fields.at('domain')),
+          ...fields.optional('yRange', readAxisRange),
+          ...fields.optional('label', readLabel),
+          ...fields.optional('xLabel', readLabel),
+          ...fields.optional('yLabel', readLabel),
+          ...fields.optional('over', readElementId),
+          ...fields.optional('startsEmpty', readBoolean),
+        };
+      },
+    },
+    shadeArea: {
+      keys: ['id', 'target', 'from', 'to', 'label'],
+      read: (fields) => {
+        const from = readCoordinate(fields.at('from'));
+        const to = readCoordinate(fields.at('to'));
+        if (from >= to) fail(fields.at('to'), 'a number above from');
+        return { kind: 'shadeArea', id: readElementId(fields.at('id')), target: readElementId(fields.at('target')), from, to, ...fields.optional('label', readLabel) };
+      },
     },
     numberLine: {
       keys: ['id', 'domain'],
@@ -359,11 +411,8 @@ const COMMANDS: VariantTable<SceneCommand, 'kind'> = {
       }),
     },
     slider: {
-      keys: ['id', 'target', 'parameter', 'min', 'max'],
-      read: (fields) => {
-        const parameter = readOneOf(fields.at('parameter'), SIMULATION_PARAMETERS);
-        return { kind: 'slider', id: readElementId(fields.at('id')), target: readElementId(fields.at('target')), parameter, ...readSliderBounds(fields, parameter) };
-      },
+      keys: ['id', 'target', 'parameter', 'constant', 'min', 'max'],
+      read: (fields) => ({ kind: 'slider', id: readElementId(fields.at('id')), target: readElementId(fields.at('target')), ...readSliderTarget(fields) }),
     },
     ghostPath: {
       keys: ['id', 'target'],
@@ -440,12 +489,13 @@ const COMMANDS: VariantTable<SceneCommand, 'kind'> = {
       }),
     },
     text: {
-      keys: ['id', 'text', 'handwritten'],
+      keys: ['id', 'text', 'handwritten', 'overWords'],
       read: (fields) => ({
         kind: 'text',
         id: readElementId(fields.at('id')),
         text: readString(fields.at('text'), LIMITS.text),
         ...fields.optional('handwritten', readBoolean),
+        ...fields.optional('overWords', readOverWords),
       }),
     },
     annotate: {

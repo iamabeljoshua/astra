@@ -1,5 +1,9 @@
 import { type BoardElement, type BoardState, getMotionValue, getSceneFrame, type ProjectileFrame } from '@astra/board';
-import { useLayoutEffect, useRef } from 'react';
+import { canWriteByHand, preloadMathFonts } from '@astra/board/drawing';
+import { useEffect, useLayoutEffect, useRef } from 'react';
+import { FIGURE_SIZE, hasOwnPlace } from '../board/boardItems';
+import { type BoardProblem, createBoardPainting } from '../board/boardPainting';
+import { useReducedMotion } from '../board/useReducedMotion';
 
 const WORLD = { left: -1, right: 9, top: 6, bottom: -0.5 };
 const PATH_STEPS = 40;
@@ -14,6 +18,8 @@ interface BoardViewProps {
   board: BoardState;
   atMs: number;
   onElementDrawn?(id: string): void;
+  onMathRefused?(tex: string): void;
+  onBoardProblem?(problem: BoardProblem): void;
 }
 
 function getBallFrame(board: BoardState, atMs: number): ProjectileFrame | null {
@@ -30,6 +36,8 @@ function ScenePath({ element }: { element: BoardElement }) {
   return <polyline points={points.map(({ x, y }) => `${toX(x)},${toY(y)}`).join(' ')} fill="none" stroke="var(--color-line)" strokeWidth={STROKE} />;
 }
 
+const isOnScene = (target: string) => target.endsWith('.ball');
+
 function WorldMarks({ board, atMs }: { board: BoardState; atMs: number }) {
   const ball = getBallFrame(board, atMs);
   if (!ball) return null;
@@ -45,7 +53,7 @@ function WorldMarks({ board, atMs }: { board: BoardState; atMs: number }) {
           const length = VECTOR_LENGTHS[content.length] * drawn;
           return <line key={element.id} x1={toX(x)} y1={toY(y)} x2={toX(x) + Math.cos(angle) * length} y2={toY(y) - Math.sin(angle) * length} stroke="var(--color-ink)" strokeWidth={STROKE} />;
         }
-        if (content.kind === 'annotate') return <circle key={element.id} cx={toX(x)} cy={toY(y)} r={BALL_RADIUS * 3 * drawn} fill="none" stroke="var(--color-ink)" strokeWidth={STROKE} />;
+        if (content.kind === 'annotate' && isOnScene(content.target)) return <circle key={element.id} cx={toX(x)} cy={toY(y)} r={BALL_RADIUS * 3 * drawn} fill="none" stroke="var(--color-ink)" strokeWidth={STROKE} />;
         return null;
       })}
       <circle cx={toX(x)} cy={toY(y)} r={BALL_RADIUS} fill="var(--color-ink)" />
@@ -54,19 +62,46 @@ function WorldMarks({ board, atMs }: { board: BoardState; atMs: number }) {
   );
 }
 
-const LINE_KINDS = new Set(['text', 'writeMath', 'highlight']);
-
-function getLineText(element: BoardElement): string {
-  const { content } = element;
-  if (content.kind === 'writeMath') return content.tex;
-  if (content.kind === 'text') return content.text;
-  if (content.kind === 'highlight') return content.tex ?? '';
-  return '';
+function SceneStage({ board, atMs }: { board: BoardState; atMs: number }) {
+  return (
+    <svg data-testid="scene" viewBox={`0 0 ${WORLD.right - WORLD.left} ${WORLD.top - WORLD.bottom}`} width={FIGURE_SIZE.width} height={FIGURE_SIZE.height}>
+      <line x1={0} y1={toY(0)} x2={WORLD.right - WORLD.left} y2={toY(0)} stroke="var(--color-line)" strokeWidth={STROKE} />
+      <WorldMarks board={board} atMs={atMs} />
+    </svg>
+  );
 }
 
-export function BoardView({ board, atMs, onElementDrawn }: BoardViewProps) {
+function getWrapperKey(element: BoardElement): string {
+  return `${element.id}:${element.content.kind}`;
+}
+
+function ElementContent({ element, board, atMs }: { element: BoardElement; board: BoardState; atMs: number }) {
+  const { content } = element;
+  if (content.kind === 'simulate') return <SceneStage board={board} atMs={atMs} />;
+  if (content.kind === 'text' && !(content.handwritten && canWriteByHand(content.text))) return <p className="wrap-anywhere text-lead">{content.text}</p>;
+  return null;
+}
+
+export function BoardView({ board, atMs, onElementDrawn, onMathRefused, onBoardProblem }: BoardViewProps) {
   const seen = useRef(new Set<string>());
+  const boardRef = useRef<HTMLDivElement>(null);
+  const overlayRef = useRef<SVGSVGElement>(null);
+  const wrappers = useRef(new Map<string, HTMLElement>());
+  const painting = useRef<ReturnType<typeof createBoardPainting> | null>(null);
+  const isReducedMotion = useReducedMotion();
+  const refusalListener = useRef(onMathRefused);
+  const problemListener = useRef(onBoardProblem);
+
+  useEffect(() => {
+    void preloadMathFonts();
+  }, []);
+
   useLayoutEffect(() => {
+    refusalListener.current = onMathRefused;
+    problemListener.current = onBoardProblem;
+    if (!boardRef.current || !overlayRef.current) return;
+    painting.current ??= createBoardPainting({ boardElement: boardRef.current, overlay: overlayRef.current, getWrapper: (id) => wrappers.current.get(id), onMathRefused: (tex) => refusalListener.current?.(tex), onBoardProblem: (problem) => problemListener.current?.(problem) });
+    painting.current.paint({ board, atMs, isReducedMotion });
     for (const id of board.elements.keys()) {
       if (!seen.current.has(id)) {
         seen.current.add(id);
@@ -74,20 +109,24 @@ export function BoardView({ board, atMs, onElementDrawn }: BoardViewProps) {
       }
     }
   });
-  const lines = [...board.elements.values()].filter((element) => LINE_KINDS.has(element.content.kind));
+
+  const placed = [...board.elements.values()].filter((element) => hasOwnPlace(element.content));
   return (
-    <div data-testid="board" className="relative h-full min-h-[320px] overflow-hidden rounded border border-line bg-panel">
-      <div className="absolute top-4 right-4 flex flex-col items-end gap-1 text-lead text-ink">
-        {lines.map((element) => (
-          <p key={element.id} data-element={element.id} style={{ opacity: getMotionValue(element.entrance, atMs) }} className={element.content.kind === 'writeMath' ? 'font-voice' : undefined}>
-            {getLineText(element)}
-          </p>
-        ))}
-      </div>
-      <svg data-testid="scene" viewBox={`0 0 ${WORLD.right - WORLD.left} ${WORLD.top - WORLD.bottom}`} className="absolute inset-0 h-full w-full">
-        <line x1={0} y1={toY(0)} x2={WORLD.right - WORLD.left} y2={toY(0)} stroke="var(--color-line)" strokeWidth={STROKE} />
-        <WorldMarks board={board} atMs={atMs} />
-      </svg>
+    <div ref={boardRef} data-testid="board" className="relative h-full min-h-[320px] overflow-hidden border border-line bg-panel text-board text-ink">
+      {placed.map((element) => (
+        <div
+          key={getWrapperKey(element)}
+          data-element={element.id}
+          className="absolute top-0 left-0 w-max origin-top-left"
+          ref={(wrapper) => {
+            if (wrapper) wrappers.current.set(element.id, wrapper);
+            else wrappers.current.delete(element.id);
+          }}
+        >
+          <ElementContent element={element} board={board} atMs={atMs} />
+        </div>
+      ))}
+      <svg ref={overlayRef} aria-hidden="true" className="board-ink board-marks pointer-events-none absolute inset-0 h-full w-full" />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { type BeatEnding, type Cue, type FrozenFrame, getCues, type InkPoint, type SceneCommand, type SessionEvent, type SimulationParameter, type ElementId } from '@astra/contracts';
+import { type BeatEnding, type Cue, type FrozenFrame, getCues, type InkPoint, type SceneCommand, type SessionEvent, type ElementId } from '@astra/contracts';
 
 /** Only for a cue whose later word times are unknown. A live frame drawn before they land can show this guess, and a replay reads the times the report settled on. */
 const ASSUMED_WORD_MS = 300;
@@ -8,7 +8,7 @@ export type BoardOperation =
   | { kind: 'beatStarted'; atMs: number }
   | { kind: 'command'; atMs: number; command: SceneCommand; overMs: number | null }
   | { kind: 'freeze'; atMs: number; frames: readonly FrozenFrame[] }
-  | { kind: 'parameterSample'; atMs: number; target: ElementId; parameter: SimulationParameter; value: number }
+  | { kind: 'parameterSample'; atMs: number; target: ElementId; parameter: string; value: number }
   | { kind: 'inkStroke'; atMs: number; id: ElementId; points: readonly InkPoint[] }
   | { kind: 'inkErased'; atMs: number; target: ElementId }
   | { kind: 'rewound'; atMs: number; toMs: number };
@@ -54,8 +54,10 @@ function getRewoundToMs(log: readonly SessionEvent[], event: SessionEvent & { ki
 function getActionOperations(log: readonly SessionEvent[], event: SessionEvent & { kind: 'studentActed' }): BoardOperation[] {
   const { action, atMs } = event;
   switch (action.action) {
-    case 'sliderDragged':
-      return action.samples.map(({ afterMs, value }) => ({ kind: 'parameterSample', atMs: atMs + afterMs, target: action.target, parameter: action.parameter, value }));
+    case 'sliderDragged': {
+      const parameter = 'constant' in action ? action.constant : action.parameter;
+      return action.samples.map(({ afterMs, value }) => ({ kind: 'parameterSample', atMs: atMs + afterMs, target: action.target, parameter, value }));
+    }
     case 'inkStroke':
       return [{ kind: 'inkStroke', atMs, id: action.id, points: action.points }];
     case 'inkErased':

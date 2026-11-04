@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { chromium, firefox, webkit, type Browser, type CDPSession, type Page } from 'playwright';
 import { type Beat, getBeatText } from '@astra/contracts';
-import { LESSON } from '../lesson.ts';
+import { LESSON, type LessonName, LESSONS } from '../lesson.ts';
 import { getPercentiles } from './analyse-run.ts';
 import { AGENT_ROOT, delay, LIVEKIT_UDP_PORT, LIVEKIT_URL, NETWORKS, type NetworkProfile, RELAY_PORT, routeThroughRelay, startLabStack, startRelay, WEB_URL } from './lab-stack.ts';
 import { type BoardDescription, type PageRecords, summariseRun } from './summarise-run.ts';
@@ -13,7 +13,7 @@ import { type BoardDescription, type PageRecords, summariseRun } from './summari
 declare global {
   interface Window {
     sceneLab?: {
-      records: PageRecords & { clockKind: string };
+      records: PageRecords & { clockKind: string; boardProblems: object[] };
       pcm: { take(point: 'arriving' | 'output'): { firstFrame: number; base64: string } } | null;
       player: { getCaption(): string; getNowMs(): number; getOperations(): { kind: string; atMs: number }[] };
       command(command: object): void;
@@ -24,6 +24,8 @@ declare global {
 }
 
 const TAP_RATE = 24000;
+const READY_LIMIT_MS = 30_000;
+const SAY_READY_LIMIT_MS = 180_000;
 const CREDITS_PER_CHARACTER = 0.22;
 const CREDIT_LIMIT = 6000;
 
@@ -33,10 +35,12 @@ const { values: args } = parseArgs({
     repeat: { type: 'string', default: '1' },
     out: { type: 'string', default: '/tmp/m3-2-proof' },
     fake: { type: 'boolean', default: false },
+    say: { type: 'boolean', default: false },
     model: { type: 'string', default: 'eleven_flash_v2_5' },
     stored: { type: 'string' },
     screencast: { type: 'boolean', default: false },
     browser: { type: 'string', default: 'chromium' },
+    theme: { type: 'string', default: 'light' },
   },
 });
 
@@ -51,6 +55,7 @@ interface Scenario {
   repeats?: number;
   resumeAfterMs?: number;
   usesStoredPhrase?: boolean;
+  lesson?: LessonName;
   /** Placing every word of many cut turns takes minutes, and these runs measure only their stops. */
   onlyStops?: boolean;
 }
@@ -73,6 +78,21 @@ async function playWholeLesson({ command, waitForPlayedBeats, scenario }: RunCon
   await command({ type: 'play', lessonTurn: 1, textPace, cueEveryWords });
   await waitForPlayedBeats(beatsOf(0) + beatsOf(1));
   await delay(600);
+}
+
+async function playMathLesson({ command, waitForPlayedBeats, scenario }: RunContext): Promise<void> {
+  const lesson = scenario.lesson as LessonName;
+  await command({ type: 'play', lesson });
+  await waitForPlayedBeats(LESSONS[lesson][0]?.length ?? 0);
+  await delay(1500);
+}
+
+async function playStoredMathThreeTimes({ command, waitForPlayedBeats }: RunContext): Promise<void> {
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    await command({ type: 'play', isStockMath: true });
+    await waitForPlayedBeats(attempt);
+    await delay(1600);
+  }
 }
 
 async function playFirstTurn({ command, waitForPlayedBeats, scenario: { cueEveryWords, repeats = 1 } }: RunContext): Promise<void> {
@@ -212,6 +232,15 @@ const SCENARIOS: Record<string, Scenario> = {
   model: { drive: playWholeLesson, textPace: { msPerWord: 120, flushBeforeCues: true } },
   'words-late-300': { drive: playWithWordsLate },
   stored: { drive: playStockPhraseThreeTimes, usesStoredPhrase: true },
+  'math-stored': { drive: playStoredMathThreeTimes, usesStoredPhrase: true },
+  'math-algebra': { drive: playMathLesson, lesson: 'algebra' },
+  'math-dense': { drive: playMathLesson, lesson: 'dense' },
+  'math-dense-phone': { drive: playMathLesson, lesson: 'dense', throttle: 4, phone: true },
+  'math-every-word': { drive: playMathLesson, lesson: 'every-word' },
+  'math-every-word-phone': { drive: playMathLesson, lesson: 'every-word', throttle: 4, phone: true },
+  'math-uneven': { drive: playMathLesson, lesson: 'algebra', network: NETWORKS.uneven },
+  'math-poor': { drive: playMathLesson, lesson: 'algebra', network: NETWORKS.poor },
+  'math-hostile': { drive: playMathLesson, lesson: 'hostile' },
   'clean-every-third': { drive: playWholeLesson, cueEveryWords: 3 },
   'uneven-every-third': { drive: playWholeLesson, cueEveryWords: 3, network: NETWORKS.uneven },
   'poor-every-third': { drive: playWholeLesson, cueEveryWords: 3, network: NETWORKS.poor },
@@ -249,6 +278,7 @@ function noteCredits(characters: number): void {
 function getVoiceFlags(scenario: Pick<Scenario, 'usesStoredPhrase'>): string[] {
   if (args.stored) return ['--stored', args.stored];
   if (scenario.usesStoredPhrase) return ['--stored', join(args.out as string, 'stock-phrase.json')];
+  if (args.say) return ['--say'];
   return args.fake ? ['--fake'] : ['--model', args.model as string, '--tap'];
 }
 
@@ -288,6 +318,7 @@ async function runScenario(name: string, scenario: Scenario, browser: Browser, r
   const relay = scenario.network ? startRelay(scenario.network) : null;
   const { child, openUrl } = await startAgent(room, folder, scenario);
   const context = await browser.newContext({ viewport: scenario.phone ? { width: 390, height: 844 } : { width: 1366, height: 800 } });
+  await context.addInitScript((theme) => localStorage.setItem('theme', theme), args.theme as string);
   const page = await context.newPage();
   page.on('pageerror', (error) => console.error('page error', error.message));
   if (scenario.network) await page.addInitScript(routeThroughRelay, { serverPort: LIVEKIT_UDP_PORT, relayPort: RELAY_PORT });
@@ -302,7 +333,8 @@ async function runScenario(name: string, scenario: Scenario, browser: Browser, r
   if (scenario.throttle) await cdp?.send('Emulation.setCPUThrottlingRate', { rate: scenario.throttle });
   await page.goto(`${openUrl}&record=1`);
   await page.getByRole('button', { name: 'Connect' }).click();
-  await page.getByRole('button', { name: 'Play the lesson' }).and(page.locator(':enabled')).waitFor({ timeout: 30_000 });
+  await page.getByRole('button', { name: 'Play the lesson' }).and(page.locator(':enabled')).waitFor({ timeout: args.say ? SAY_READY_LIMIT_MS : READY_LIMIT_MS });
+  await page.addStyleTag({ content: '.tsqd-parent-container { display: none !important; }' });
   if (args.screencast) await cdp?.send('Page.startScreencast', { format: 'jpeg', quality: 70, everyNthFrame: 1 });
   const run: RunContext = {
     page,
@@ -343,7 +375,7 @@ async function runScenario(name: string, scenario: Scenario, browser: Browser, r
   await new Promise((done) => child.once('exit', done));
   writeFileSync(join(folder, 'page.json'), JSON.stringify({ records, clockMap, replayCheck }));
   if (screencastFrames.length > 0) writeFileSync(join(folder, 'screencast.json'), JSON.stringify(screencastFrames));
-  if (!args.fake && !args.stored && !scenario.usesStoredPhrase) noteCredits(getCharactersSent(folder));
+  if (!args.fake && !args.say && !args.stored && !scenario.usesStoredPhrase) noteCredits(getCharactersSent(folder));
   await context.close();
   relay?.close();
   const summary = summariseRun(folder, { name, network: scenario.network ?? null, throttle: scenario.throttle ?? 1, phone: scenario.phone ?? false, onlyStops: scenario.onlyStops ?? false });
@@ -393,7 +425,7 @@ try {
     }
     const scenario = SCENARIOS[name];
     if (!scenario) throw new Error(`No scenario named ${name}`);
-    for (let index = 0; index < Number(args.repeat); index++) await runScenario(name, scenario, browser, `${name}-${args.browser === 'chromium' ? '' : `${args.browser}-`}${args.fake ? 'fake' : (args.model as string).replace('eleven_', '').replace('_v2_5', '')}-${Date.now()}`);
+    for (let index = 0; index < Number(args.repeat); index++) await runScenario(name, scenario, browser, `${name}-${args.browser === 'chromium' ? '' : `${args.browser}-`}${args.say ? 'say' : args.fake ? 'fake' : (args.model as string).replace('eleven_', '').replace('_v2_5', '')}-${Date.now()}`);
   }
 } finally {
   await browser.close();
