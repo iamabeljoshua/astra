@@ -615,7 +615,8 @@ describe('a ring the board could not draw', () => {
     await collect(brain, 'show me');
     brain.noteMarkNotDrawn('ring');
     await collect(brain, 'where?');
-    expect(lastSystemNote(model.requests[1])?.mark_not_drawn).toEqual({ target: 'steps', tex: 'a' });
+    const notes = (model.requests[1]?.turns ?? []).flatMap((turn) => (turn.role === 'system' ? [JSON.parse(turn.text) as Record<string, unknown>] : []));
+    expect(notes.map((note) => note.mark_not_drawn).filter(Boolean)).toEqual([{ target: 'steps', tex: 'a' }]);
   });
 
   it('ignores a report that names no mark the model wrote, so a browser cannot write a note', async () => {
