@@ -35,9 +35,11 @@ export interface LessonWorkOptions {
   getNowMs(): number;
   getWallMs?(): number;
   onChange?(state: SceneState, atMs: number): void;
+  /** A tutor in a live session has its own words, so nothing is paid for a plan unless a scene can come of it. */
+  isOnlyForScene?: boolean;
 }
 
-export function createLessonWork({ router, runs, store, request, isCard, studentId, cardLine, getNowMs, getWallMs = () => Date.now(), onChange }: LessonWorkOptions): LessonWork {
+export function createLessonWork({ router, runs, store, request, isCard, studentId, cardLine, getNowMs, getWallMs = () => Date.now(), onChange, isOnlyForScene = false }: LessonWorkOptions): LessonWork {
   // A card's title comes from the server's own list, so its scene is shared. A typed question stays with its student, because router-cleaned words are still a student's words shaped by a model.
   const ownerId = isCard ? null : studentId;
   let settlePlan: (plan: LessonPlan | NoLesson) => void = () => {};
@@ -67,11 +69,12 @@ export function createLessonWork({ router, runs, store, request, isCard, student
 
   const isScenePaused = (topic: string) => !canTryNow({ store, getWallMs }, getOwnKey(topic)) || !canTryAfterRefusal(store, getOwnKey(topic), getWallMs());
 
-  // A topic whose next try is not due can draw nothing today, so it says one plan's words on every open. A plan with no setup is a fallback, and is not worth keeping for an hour.
+  // A topic whose next try is not due can draw nothing today, so it says one plan's words on every open. Lines a model wrote are kept, even a plan's clean lines, and a fallback with no model behind it is not.
   const joinRun = (topic: string) => {
     keepVoiceWith(topic, null);
     const key = getOwnKey(topic);
     const isPaused = isScenePaused(topic);
+    if (isOnlyForScene && isPaused) return;
     const waiting = isPaused ? store.findWaitingPlan(key) : null;
     if (waiting) {
       settlePlan(waiting);
@@ -81,7 +84,7 @@ export function createLessonWork({ router, runs, store, request, isCard, student
     void run.firstLine.then(settleFirstLine);
     void run.plan.then((planned) => {
       settlePlan(planned);
-      if (isPaused && typeof planned !== 'string' && planned.setup !== '') store.saveWaitingPlan(key, planned);
+      if (isPaused && typeof planned !== 'string' && !planned.hasNoModel) store.saveWaitingPlan(key, planned);
     });
   };
 
@@ -121,7 +124,7 @@ export function createLessonWork({ router, runs, store, request, isCard, student
     }
     const savedByTopic = findSaved(topic);
     if (savedByTopic) useSaved(topic, savedByTopic);
-    else joinRun(topic);
+    else if (!isOnlyForScene || route.engine === 'manimgx') joinRun(topic);
     return { ...route, topic };
   };
 

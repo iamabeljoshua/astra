@@ -1,7 +1,7 @@
 import { type BoardState, createChoosingClock, createScenePlayer, type FiredCue, type OutputLevel, type ScenePlayer } from '@astra/board';
 import { checkWorkOnBoard, cleanTypedLine, getNod } from '@astra/board/shared';
 import { getKeptBoard, keepBoard } from './keptBoard.ts';
-import { type AgentMessage, type BrowserMessage, clipTypedText, type components, type ElementId, type InkPoint, LINK_QUIET_LIMIT_MS, parseAgentMessage, PULSE_EVERY_MS, type SessionRecap, type StudentWork, type TutorClosedReason } from '@astra/contracts';
+import { type AgentMessage, type BrowserMessage, clipTypedText, type components, type ElementId, type InkPoint, LINK_QUIET_LIMIT_MS, parseAgentMessage, parseSceneAgentMessage, PULSE_EVERY_MS, SCENE_TOPIC, type SceneAgentMessage, type SceneBrowserMessage, type SessionRecap, type StudentWork, type TutorClosedReason } from '@astra/contracts';
 import { DisconnectReason, type RemoteTrack, Room, RoomEvent, Track } from 'livekit-client';
 import heldMicWorkletUrl from './held-mic-worklet.js?url';
 import { createLocalYield } from './localYield';
@@ -116,6 +116,9 @@ export interface LiveVoice {
   /** Answers a quiet warning, so the room stays open. */
   sayStillHere(): void;
   turnOnSound(): Promise<void>;
+  /** Scenes travel on their own topic, so a slow or refused take never touches the words or the board's clock. */
+  sendScene(message: SceneBrowserMessage): void;
+  onSceneMessage(listener: (message: SceneAgentMessage) => void): () => void;
   mark(note: object): void;
   close(): Promise<void>;
   records: LiveVoiceRecords;
@@ -202,6 +205,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
 
   const flushOutbox = () => {
     for (const message of outbox.splice(0)) send(message);
+    for (const message of sceneOutbox.splice(0)) sendScene(message);
   };
 
   const getStamp = () => ({ clockId, browserMs: Math.round(clock.getNowMs()), startedMsAgo: 0 });
@@ -355,13 +359,32 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     void room.localParticipant.publishData(encoder.encode(JSON.stringify(message)), { reliable: false, topic: LIVE_TOPIC }).catch((error: unknown) => records.refused.push(`pulse not sent: ${String(error)}`));
   };
 
+  const sceneListeners = new Set<(message: SceneAgentMessage) => void>();
+  let sceneDevice: SceneBrowserMessage | null = null;
+  const sceneOutbox: SceneBrowserMessage[] = [];
+
+  const sendScene = (message: SceneBrowserMessage) => {
+    if (message.type === 'sceneDevice') sceneDevice = message;
+    if (room.state !== 'connected' || !canReachAgent()) {
+      sceneOutbox.push(message);
+      return;
+    }
+    void room.localParticipant.publishData(encoder.encode(JSON.stringify(message)), { reliable: true, topic: SCENE_TOPIC }).catch(() => sceneOutbox.push(message));
+  };
+
   const onDataReceived = (payload: Uint8Array, topic?: string) => {
-    if (topic !== LIVE_TOPIC) return;
+    if (topic !== LIVE_TOPIC && topic !== SCENE_TOPIC) return;
     let value: unknown;
     try {
       value = JSON.parse(decoder.decode(payload));
     } catch {
       records.refused.push('message: expected JSON');
+      return;
+    }
+    if (topic === SCENE_TOPIC) {
+      const scene = parseSceneAgentMessage(value);
+      if (scene.ok) for (const listener of sceneListeners) listener(scene.value);
+      else records.refused.push(scene.problem);
       return;
     }
     const parsed = parseAgentMessage(value);
@@ -482,6 +505,8 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     send({ type: 'hello', ...getStamp(), wantsGreeting: wantsGreeting && !hasSaidHello });
     hasSaidHello = true;
     sendAudioState();
+    // A new room holds a new job, which has not heard what this page can play.
+    if (sceneDevice && !sceneOutbox.includes(sceneDevice)) sceneOutbox.push(sceneDevice);
     flushOutbox();
     beat();
   });
@@ -536,6 +561,11 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     getBoardNow() {
       const atMs = clock.getNowMs();
       return { board: player.getBoard(atMs), atMs };
+    },
+    sendScene,
+    onSceneMessage(listener) {
+      sceneListeners.add(listener);
+      return () => sceneListeners.delete(listener);
     },
     sendTyped(text) {
       const clipped = clipTypedText(text);

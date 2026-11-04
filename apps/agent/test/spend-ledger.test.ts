@@ -22,4 +22,16 @@ describe('the spend ledger', () => {
     second.charge({ anthropicUsd: 0.5 });
     expect(first.isOverModelLimit()).toBe(true);
   });
+
+  it('starts each UTC day fresh, and counts one student\'s shared plays for that day', () => {
+    const limits = { limitUsd: 1, limitCredits: 100 };
+    const path = join(folder, 'spend.jsonl');
+    const monday = createSpendLedger(path, { ...limits, getDay: () => '2026-11-02' } as never);
+    monday.charge({ anthropicUsd: 2, sharedPlayBy: 'maya' } as never);
+    expect(monday.isOverModelLimit()).toBe(true);
+    expect((monday as never as { countSharedPlays(id: string): number }).countSharedPlays('maya')).toBe(1);
+    const tuesday = createSpendLedger(path, { ...limits, getDay: () => '2026-11-03' } as never);
+    expect(tuesday.isOverModelLimit()).toBe(false);
+    expect((tuesday as never as { countSharedPlays(id: string): number }).countSharedPlays('maya')).toBe(0);
+  });
 });

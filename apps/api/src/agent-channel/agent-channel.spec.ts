@@ -7,7 +7,7 @@ import type { TestApp, TestStudent } from '../../test/test-database';
 const AGENT_KEY = 'agent-key-for-test-that-is-long';
 const VALID_SESSION = { title: 'Free-body diagrams', subject: 'Physics', language: 'en' };
 const VALID_PROFILE = { name: 'Maya', interests: ['basketball', 'space'], level: 'university', goal: 'exam' };
-const EMPTY_BRIEF = { level: null, interests: [], goal: null };
+const EMPTY_BRIEF = { level: null, interests: [], goal: null, cardTitle: null };
 const JSON_CONTENT = 'application/json';
 
 describe('the agent channel', () => {
@@ -143,7 +143,7 @@ describe('the agent channel', () => {
     it('holds the level, interests, and goal of the session\'s student, and nothing else', async () => {
       const { body, text } = await getBrief(namedSessionId).expect(200);
 
-      expect(body).toEqual({ level: 'university', interests: ['basketball', 'space'], goal: 'exam' });
+      expect(body).toEqual({ level: 'university', interests: ['basketball', 'space'], goal: 'exam', cardTitle: null });
       expect(text).not.toContain('Maya');
       expect(text).not.toContain(OLD_ENOUGH_BIRTH_DATE);
       expect(text).not.toContain(namedStudent.studentId);

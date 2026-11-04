@@ -46,8 +46,8 @@ export function createApiLink({ apiUrl, agentKey, roomName }: ApiLinkOptions): A
   };
   return {
     async fetchProfile() {
-      const { level, interests, goal } = (await call('brief')) as { level: unknown; interests: unknown; goal: unknown };
-      return typeof level === 'string' && typeof goal === 'string' && Array.isArray(interests) ? { level, goal, interests: interests as string[] } : null;
+      const { level, interests, goal, cardTitle } = (await call('brief')) as { level: unknown; interests: unknown; goal: unknown; cardTitle?: unknown };
+      return typeof level === 'string' && typeof goal === 'string' && Array.isArray(interests) ? { level, goal, interests: interests as string[], cardTitle: typeof cardTitle === 'string' ? cardTitle : null } : null;
     },
     async reportSpend(usd) {
       return (await call('spend', { method: 'POST', body: JSON.stringify({ usd }) })) as { isOverDailyLimit: boolean };
