@@ -1,4 +1,4 @@
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { chromium, type Page } from 'playwright';
@@ -80,11 +80,14 @@ const readVisual = (page: Page): Promise<VisualRead> =>
     };
   });
 
+// A trace folder outlives a proof, and only this run's job belongs in its summary.
+const proofStartedAtWallMs = Date.now();
+
 function readTrace(folder: string | undefined) {
   if (!folder) return [];
   return readdirSync(folder)
     .map((name) => join(folder, name))
-    .filter((path) => path.endsWith('.jsonl'))
+    .filter((path) => path.endsWith('.jsonl') && statSync(path).mtimeMs >= proofStartedAtWallMs)
     .sort()
     .flatMap((path) => readFileSync(path, 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line) as { name: string; atMs: number } & Record<string, unknown>));
 }
@@ -106,7 +109,6 @@ await page.getByRole('button', { name: 'Development sign-in' }).click();
 await page.getByRole('button', { name: 'maya@astra.test' }).click();
 await page.getByRole('textbox', { name: 'What do you want to learn next' }).waitFor();
 await delay(1500);
-if (args.dark) await page.getByRole('button', { name: 'Dark' }).click();
 
 const startedAt = performance.now();
 const atS = () => Number(((performance.now() - startedAt) / 1000).toFixed(2));
@@ -117,6 +119,7 @@ if (args.card) {
   await page.getByRole('button', { name: 'Start session' }).click();
 }
 await page.waitForURL(/\/sessions\/[0-9a-f-]{36}$/);
+if (args.dark) await page.getByRole('button', { name: 'Dark' }).click();
 
 const timeline: (VisualRead & { atS: number })[] = [];
 let firstWordsAtS: number | null = null;
