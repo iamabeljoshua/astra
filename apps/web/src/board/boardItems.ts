@@ -141,13 +141,13 @@ function getTextMeasure(wrapper: HTMLElement): { measureText?: MeasureText } {
 }
 
 function createDiagramItem(wrapper: HTMLElement, content: Extract<BoardElement['content'], { kind: 'diagram' }>): BoardItem {
-  let nodeBoxes: ReadonlyMap<string, MarkBox> = new Map();
+  let drawing: { nodeBoxes: ReadonlyMap<string, MarkBox>; width: number; height: number } = { nodeBoxes: new Map(), width: 0, height: 0 };
   const item = createInkItem({
     wrapper,
     label: content.nodes.map((node) => node.label).join(', '),
     draw({ element, maxWidth, fontSize }) {
       const drawn = drawDiagram(content, { fontSize: fontSize * DIAGRAM_SCALE, maxWidth, seed: element.id, ...getTextMeasure(wrapper) });
-      nodeBoxes = drawn.nodeBoxes;
+      drawing = drawn;
       return { strokeGroups: drawn.steps.map((step) => step.strokes), textGroups: drawn.steps.map((step) => step.textLabels), size: { width: drawn.width, height: drawn.height } };
     },
     getProgress({ element, atMs, progress }, groupCount) {
@@ -158,8 +158,9 @@ function createDiagramItem(wrapper: HTMLElement, content: Extract<BoardElement['
   return {
     ...item,
     getTermBoxes(query) {
-      const box = query && 'termId' in query ? nodeBoxes.get(query.termId) : undefined;
-      return { from: null, to: box ?? null, flightOffset: { x: 0, y: 0 } };
+      const part = query && 'termId' in query ? drawing.nodeBoxes.get(query.termId) : undefined;
+      const whole = { x: 0, y: 0, width: drawing.width, height: drawing.height };
+      return { from: null, to: query === null ? whole : (part ?? null), flightOffset: { x: 0, y: 0 } };
     },
   };
 }

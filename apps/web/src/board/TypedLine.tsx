@@ -1,7 +1,7 @@
-import { getOpenTaskOnBoard, readLine, checkWorkOnBoard } from '@astra/board/shared';
+import { checkWorkOnBoard, readLine } from '@astra/board/shared';
 import type { BoardState } from '@astra/board';
-import type { ElementId, StudentWork } from '@astra/contracts';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { ElementId, StudentWork, Task } from '@astra/contracts';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BOARD_WORK_LABELS } from '../strings';
 import { LineParts, ReadAs } from './StudentLine';
 
@@ -11,6 +11,8 @@ const LOOKS_WITH_DRAFT_SECONDS = [3, 6, 10, 15, 25];
 const LOOKS_WITH_NO_DRAFT_SECONDS = [10, 20, 30, 45, 60, 90];
 
 interface TypedLineProps {
+  /** The task open on the board now. */
+  task: Task | null;
   getBoard(): BoardState;
   onWork(work: StudentWork): void;
   onPause(seconds: number, draft?: string): void;
@@ -28,39 +30,35 @@ function useNextLineId(getBoard: () => BoardState) {
   }, [getBoard]);
 }
 
-// The plain keyboard entry on the board. It reads the line as it is typed, so the student sees what code will see, and it tells the agent only about a pause.
-export function TypedLine({ getBoard, onWork, onPause, activity }: TypedLineProps) {
+// The plain keyboard entry on the board. It reads the line as it is typed, so the student sees what code will see, and it tells the agent only about a pause. The board draws every frame and this has no need to, so it is memoized.
+export const TypedLine = memo(function TypedLine({ task, getBoard, onWork, onPause, activity }: TypedLineProps) {
   const [text, setText] = useState('');
   const [isRaw, setIsRaw] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const nextLineId = useNextLineId(getBoard);
-  const task = getOpenTaskOnBoard(getBoard());
   const reads = task?.way === 'write' ? task.reads : undefined;
   const reading = useMemo(() => (text.trim() === '' ? null : readLine(text, reads)), [text, reads]);
 
   const send = useCallback(
     (line: string) => {
-      const trimmed = line.trim();
-      if (trimmed === '') return;
-      const open = getOpenTaskOnBoard(getBoard());
-      onWork({ way: 'write', id: nextLineId(), text: trimmed, ...(open ? { task: open.id } : {}) });
+      if (line.trim() === '') return;
+      onWork({ way: 'write', id: nextLineId(), text: line.trimEnd(), ...(task ? { task: task.id } : {}) });
       setText('');
       setIsRaw(false);
     },
-    [getBoard, nextLineId, onWork],
+    [task, nextLineId, onWork],
   );
 
   useEffect(() => {
     const trimmed = text.trim();
     if (trimmed === '') return;
-    const open = getOpenTaskOnBoard(getBoard());
-    if (!open) return;
-    const { verdict } = checkWorkOnBoard({ way: 'write', id: 'draft' as ElementId, text: trimmed, task: open.id }, getBoard());
+    if (!task) return;
+    const { verdict } = checkWorkOnBoard({ way: 'write', id: 'draft' as ElementId, text: trimmed, task: task.id }, getBoard());
     if (verdict.status !== 'right' || !reading || reading.isAsking || reading.kind !== 'math') return;
     const timer = setTimeout(() => send(trimmed), RIGHT_LINE_LANDS_AFTER_MS);
     return () => clearTimeout(timer);
-  }, [text, reading, getBoard, send]);
+  }, [text, reading, task, getBoard, send]);
 
   useEffect(() => {
     const hasDraft = text.trim() !== '';
@@ -125,4 +123,4 @@ export function TypedLine({ getBoard, onWork, onPause, activity }: TypedLineProp
       <div className="mt-1.5 min-h-4.5">{reading && <ReadAs reading={reading} />}</div>
     </form>
   );
-}
+});

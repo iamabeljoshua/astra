@@ -26,9 +26,13 @@ const LETTER_RUN = /[A-Za-z]+/g;
 const NOT_STUDENT_TEXT = /\p{Cf}|\p{Co}|\p{Cs}|\p{Variation_Selector}|[^\P{Cc}\n\t]/gu;
 const TOO_MANY_MARKS = /(\p{M}{4})\p{M}+/gu;
 
-/** Strips control and invisible characters, which can hide text from a reader, and long runs of combining marks, which can crash a tab. */
+/** Strips control and invisible characters, which can hide text from a reader, and long runs of combining marks, which can crash a tab. Keeps the indent, because it means something in a line of code. */
+export function cleanTypedLine(text: string): string {
+  return text.normalize('NFC').replace(NOT_STUDENT_TEXT, '').replace(TOO_MANY_MARKS, '$1').trimEnd();
+}
+
 export function cleanStudentText(text: string): string {
-  return text.normalize('NFC').replace(NOT_STUDENT_TEXT, '').replace(TOO_MANY_MARKS, '$1').trim();
+  return cleanTypedLine(text).trim();
 }
 
 function normalizeSymbols(text: string): string {
@@ -183,9 +187,10 @@ function toReading(text: string, parts: LinePart[], isAsking: boolean): LineRead
 
 /** One line of free typing is words, math, code, or a mix, and the student never has to say which. A task can say it is words or code, so a line of code is never read as an equation. */
 export function readLine(rawText: string, reads?: WriteReading): LineReading {
-  const text = cleanStudentText(rawText);
+  const line = cleanTypedLine(rawText);
+  const text = line.trim();
   const isAsking = /\?\s*$/.test(text);
-  if (reads !== undefined) return { kind: reads, parts: [{ type: 'words', text }], isAsking };
+  if (reads !== undefined) return { kind: reads, parts: [{ type: 'words', text: reads === 'code' ? line : text }], isAsking };
   return toReading(text, getParts(getTokens(text)), isAsking);
 }
 

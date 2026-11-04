@@ -1,4 +1,5 @@
 import type { BoardState } from '@astra/board';
+import { getOpenTaskOnBoard } from '@astra/board/shared';
 import type { StudentWork } from '@astra/contracts';
 import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import type { BoardProblem } from '../board/boardPainting';
@@ -45,7 +46,7 @@ export function LiveBoard({ voice, whileEmpty }: { voice: LiveVoice; whileEmpty:
       <div className="board-shared min-h-0 flex-1">
         <BoardView board={frame.board} atMs={frame.atMs} onBoardProblem={reportProblem} onWork={sendWork} />
       </div>
-      <TypedLine getBoard={getBoard} onWork={sendWork} onPause={sendPause} activity={activity} />
+      <TypedLine task={getOpenTaskOnBoard(frame.board)} getBoard={getBoard} onWork={sendWork} onPause={sendPause} activity={activity} />
     </section>
   );
 }

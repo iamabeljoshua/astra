@@ -162,7 +162,7 @@ A typed message over 2,000 characters is cut between whole characters and still 
 
 - M3.8: `TUTOR_SYSTEM` is frozen for the cache, and tools cost about 400 ms, as above. `DRAWN_KINDS`, the prompt, and the test that holds them equal change together.
 - M3.9: the current step goes in a note, not the system prompt.
-- M3.12: `BeatTextReader` and `checkAgainstBoard` take new kinds. `check-math.ts` reads the model's math, and a student's step can use `checkMathStep`.
+- M3.12 is built. `docs/tests/shared-board.md` holds what it found, and `check-math.ts` moved to `packages/board/src/shared/`, because the page checks a student's line before any message returns.
 - PR 87, scenes: the session is `createLiveSession` in `live/live-session.ts`. This branch's early `createTutorSession` is gone. Ask in `startReply`, take what is ready in `onSpeechFinished`, and speak through its `speak`.
 
 Known and left for later, none of which risks a student: a filler line can land after a retry's first words, a compaction summary can arrive mid turn and reach the next request only, `warm` is not awaited so a very fast first turn may miss the cache, a `cut` note falls back to words sent when a report is lost, and a trace keeps word counts for a turn that asks for words.
