@@ -57,6 +57,7 @@ export function makeFakeSceneModels(): SceneModels {
     kitWriter: { name: 'fake-kit-writer', write: async () => ({ code: FAKE_KIT_CODE, ...FAKE_USAGE }) },
     kitFallbackWriter: { name: 'fake-kit-fallback', write: async () => ({ code: FAKE_KIT_CODE, ...FAKE_USAGE }) },
     kitReviewer: { review: async () => ({ isPass: true, errors: [], ...FAKE_USAGE }) },
+    fitReader: { find: async () => null },
     router: { route: async (request) => ({ engine: 'manimgx', kind: 'graph', topic: request, ...FAKE_USAGE }) },
     nameReader: { clear: async () => new Set() },
     planner: { plan: async (topic, _signal, hooks) => { const plan = getPlanFromText(FAKE_PLAN); hooks?.onSceneWords?.({ narration: plan.narration, plan: plan.plan }); return { ...plan, opening: [...plan.opening, { say: `And that is what this lesson on ${topic} is about.` }], ...FAKE_USAGE }; } },

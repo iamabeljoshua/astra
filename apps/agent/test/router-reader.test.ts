@@ -107,3 +107,60 @@ describe('a kit route the router is in doubt about', () => {
     expect(await route('anything')).toMatchObject({ engine: 'manimgx' });
   });
 });
+
+describe('the fit reader', () => {
+  const TITLES = ['How DNA copies itself', 'Why Saturn has rings', 'What really causes the seasons', 'Why the Moon spins once per orbit', 'How the four strokes of an engine work'];
+  const find = (topic: string) => models.fitReader.find(topic, TITLES, new AbortController().signal);
+
+  it('names a listed title that holds most of the topic', async () => {
+    sent.replies.push({ text: JSON.stringify({ title: 'How DNA copies itself' }) });
+    expect(await find('how dna copies')).toBe('How DNA copies itself');
+  });
+
+  it.each([
+    ['why the moon has phases', 'Why the Moon spins once per orbit'],
+    ['how a jet engine works', 'How the four strokes of an engine work'],
+  ])('holds a reader that talked itself into one shared word: %s', async (topic, title) => {
+    sent.replies.push({ text: JSON.stringify({ title }) });
+    expect(await find(topic)).toBeNull();
+  });
+
+  it.each([
+    ['says none', ''],
+    ['names a title not on the list', 'How DNA copies itself quickly'],
+    ['names a title sharing no word with the topic', 'Why Saturn has rings'],
+  ])('finds nothing when it %s', async (_name, title) => {
+    sent.replies.push({ text: JSON.stringify({ title }) });
+    expect(await find('how dna replicates')).toBeNull();
+  });
+
+  it('finds nothing when its reply cannot be read, because a wrong scene is the worst failure', async () => {
+    sent.replies.push({ text: 'I think the first one.' });
+    expect(await find('how dna replicates')).toBeNull();
+  });
+});
+
+describe('a kit writer asked to fix what a review reported', () => {
+  const BRIEF = { topic: 'gears', narration: '[[a]] One two.', plan: 'a: x', moments: { a: 0 }, durationSeconds: 2 };
+  const REPAIR = { problems: ['the tutor says twenty teeth'], code: 'function scene(kit) {}', canChangeWords: true };
+  const write = () => models.kitFallbackWriter.write(BRIEF, REPAIR, new AbortController().signal);
+  const CODE = '```js\nfunction scene(kit) { return {}; }\n```';
+
+  it('is told it may change the words, and hands back the words it changed', async () => {
+    sent.replies.push({ text: `${CODE}\n\n\`\`\`json\n{"narration":"[[a]] Ten teeth.","close":"Why ten?"}\n\`\`\`` });
+    expect(await write()).toMatchObject({ code: 'function scene(kit) { return {}; }', words: { narration: '[[a]] Ten teeth.', close: 'Why ten?' } });
+    expect(JSON.stringify(sent.params[0]?.messages)).toMatch(/correct the words too/);
+  });
+
+  it('hands back the code alone when it changed no words', async () => {
+    sent.replies.push({ text: CODE });
+    const written = await write();
+    expect(written.code).toBe('function scene(kit) { return {}; }');
+    expect(written.words).toBeUndefined();
+  });
+
+  it.each(['{broken', '{"narration":7}', '["a"]'])('ignores words it cannot read: %s', async (block) => {
+    sent.replies.push({ text: `${CODE}\n\`\`\`json\n${block}\n\`\`\`` });
+    expect((await write()).words).toBeUndefined();
+  });
+});

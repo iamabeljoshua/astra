@@ -300,3 +300,52 @@ describe('a request the router sends to the kit, with live 3D on', () => {
     expect(store.find(getSceneKey('how a heart beats', { ownerId: 'ada' }))).toBeNull();
   });
 });
+
+describe('a saved scene that fits a typed question', () => {
+  function setUpFit(find: (topic: string, titles: readonly string[]) => Promise<string | null>) {
+    const store = createSceneStore(mkdtempSync(join(tmpdir(), 'lesson-work-fit-')));
+    const plan = vi.fn(async () => ({ ...PLAN, ...USAGE }));
+    const write = vi.fn(async () => ({ code: 'code', ...USAGE }));
+    const fitReader = { find: vi.fn(async (topic: string, titles: readonly string[]) => find(topic, titles)) };
+    const route = vi.fn(async () => ({ engine: 'kit' as const, kind: 'biology', topic: 'how a heart beats', ...USAGE }));
+    const runs = createTopicRuns({ planner: { plan }, writers: [{ name: 'writer', write }], reviewer: { review: async () => ({ isPass: true, errors: [], ...USAGE }) }, worker, store });
+    const makeWork = (isCard = false) => createLessonWork({ router: { route }, runs, kitRuns: runs, fitReader, store, request: 'how does a heart beat', isCard, studentId: 'ada', getNowMs: () => 0, isOnlyForScene: true });
+    return { store, plan, write, fitReader, makeWork };
+  }
+
+  it('lands the saved scene with no plan and no write', async () => {
+    const { store, plan, write, fitReader, makeWork } = setUpFit(async () => 'How the heart pumps blood');
+    await store.saveChecked(saved('How the heart pumps blood'), TAKES, []);
+    const work = makeWork();
+    work.desk.ask(work.request);
+    await vi.waitFor(() => expect(work.desk.getState().kind).toBe('ready'));
+    expect(fitReader.find.mock.calls[0]?.slice(0, 2)).toEqual(['how a heart beats', ['How the heart pumps blood']]);
+    expect(work.desk.getState()).toMatchObject({ scene: { topic: 'How the heart pumps blood', ownerId: null } });
+    expect(plan).not.toHaveBeenCalled();
+    expect(write).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['says none fits', async () => null],
+    ['fails', async () => { throw new Error('the reader is down'); }],
+    ['names a scene the store does not have', async () => 'How the heart pumps blood, again'],
+  ])('writes fresh when the reader %s', async (_name, find) => {
+    const { store, write, makeWork } = setUpFit(find);
+    await store.saveChecked(saved('How the heart pumps blood'), TAKES, []);
+    const work = makeWork();
+    work.desk.ask(work.request);
+    await vi.waitFor(() => expect(work.desk.getState().kind).toBe('ready'));
+    expect(write).toHaveBeenCalledOnce();
+    expect(work.desk.getState()).toMatchObject({ scene: { topic: 'how a heart beats', ownerId: 'ada' } });
+  });
+
+  it('never offers a student\'s own scene as a fit for anyone', async () => {
+    const { store, fitReader, makeWork } = setUpFit(async () => null);
+    await store.saveChecked({ ...saved('Why a student asked'), ...getSceneKey('Why a student asked', { ownerId: 'ben' }), ownerId: 'ben' } as StoredScene, TAKES, []);
+    await store.saveChecked(saved('How the heart pumps blood'), TAKES, []);
+    const work = makeWork();
+    work.desk.ask(work.request);
+    await vi.waitFor(() => expect(fitReader.find).toHaveBeenCalled());
+    expect(fitReader.find.mock.calls[0]?.[1]).toEqual(['How the heart pumps blood']);
+  });
+});

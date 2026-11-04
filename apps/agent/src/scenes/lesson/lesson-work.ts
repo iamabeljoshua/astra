@@ -3,11 +3,12 @@ import { canTryAfterRefusal, canTryNow } from '../make-scene.ts';
 import { DANGEROUS_KIND, SAFETY_KIND } from '../model-replies.ts';
 import { createSceneDesk, type SceneDesk, type SceneState } from '../scene-desk.ts';
 import { getSceneKey, type SceneStore } from '../scene-store.ts';
-import type { LessonPlan, NoLesson, OpeningLine, SceneRoute, SceneRouter, StoredScene } from '../scene-types.ts';
+import type { LessonPlan, NoLesson, OpeningLine, SceneFitReader, SceneRoute, SceneRouter, StoredScene } from '../scene-types.ts';
 import type { TopicRun, TopicRuns } from './topic-runs.ts';
 import type { VoiceShelf } from './voice-takes.ts';
 
 const ROUTER_LIMIT_MS = 10_000;
+const FIT_LIMIT_MS = 4000;
 const SAVED_ROUTE = { engine: 'manimgx', kind: 'saved', model: 'none', ms: 0, costUsd: 0 } as const;
 const NO_ROUTE = { engine: 'none', kind: 'none', topic: '', model: 'none', ms: 0, costUsd: 0 } as const;
 
@@ -28,6 +29,8 @@ export interface LessonWorkOptions {
   runs: TopicRuns;
   /** Writes 3D scenes live. Left out, a request the router sends to the kit gets no scene. */
   kitRuns?: TopicRuns;
+  /** Finds a saved scene that already answers a typed question, which lands in seconds and has a person's check behind it. */
+  fitReader?: SceneFitReader;
   store: SceneStore;
   request: string;
   isCard: boolean;
@@ -41,7 +44,7 @@ export interface LessonWorkOptions {
   isOnlyForScene?: boolean;
 }
 
-export function createLessonWork({ router, runs, kitRuns, store, request, isCard, studentId, cardLine, getNowMs, getWallMs = () => Date.now(), onChange, isOnlyForScene = false }: LessonWorkOptions): LessonWork {
+export function createLessonWork({ router, runs, kitRuns, fitReader, store, request, isCard, studentId, cardLine, getNowMs, getWallMs = () => Date.now(), onChange, isOnlyForScene = false }: LessonWorkOptions): LessonWork {
   // A card's title comes from the server's own list, so its scene is shared. A typed question stays with its student, because router-cleaned words are still a student's words shaped by a model.
   const ownerId = isCard ? null : studentId;
   // A card's scene reaches every student, so only the reviewed library may give one a 3D scene.
@@ -98,6 +101,15 @@ export function createLessonWork({ router, runs, kitRuns, store, request, isCard
     return isCard ? asked.catch(() => NO_ROUTE) : asked;
   };
 
+  // Null on any doubt or failure, because a reader that is down must cost a fresh scene and nothing else.
+  const findFit = async (topic: string): Promise<StoredScene | null> => {
+    if (!fitReader || isCard || !writesKit) return null;
+    const titles = store.list().filter((scene) => scene.ownerId === null).map((scene) => scene.topic);
+    if (titles.length === 0) return null;
+    const title = await fitReader.find(topic, titles, AbortSignal.timeout(FIT_LIMIT_MS)).catch(() => null);
+    return title ? findSaved(title) : null;
+  };
+
   const getRoute = async (): Promise<SceneRoute> => {
     if (!isCard && isAboutBeingUnsafe(request)) {
       settlePlan('unsafe');
@@ -123,6 +135,11 @@ export function createLessonWork({ router, runs, kitRuns, store, request, isCard
       return { ...route, engine: 'none', topic: '' };
     }
     const savedByTopic = findSaved(topic);
+    const fit = savedByTopic || route.engine === 'none' ? null : await findFit(topic);
+    if (fit) {
+      useSaved(fit.topic, fit);
+      return { ...SAVED_ROUTE, topic: fit.topic };
+    }
     if (savedByTopic) useSaved(topic, savedByTopic);
     else if (!isOnlyForScene || route.engine === 'manimgx' || (route.engine === 'kit' && writesKit)) joinRun(topic, route.engine);
     return { ...route, topic };

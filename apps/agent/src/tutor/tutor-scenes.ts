@@ -4,7 +4,7 @@ import { createLessonWork, type LessonWork } from '../scenes/lesson/lesson-work.
 import type { TopicRuns } from '../scenes/lesson/topic-runs.ts';
 import { getSceneCommand, KIT_ASK_LIMIT_MS, SHOW_WINDOW_MS, type SceneState } from '../scenes/scene-desk.ts';
 import { getSceneKey, type SceneStore } from '../scenes/scene-store.ts';
-import type { LessonPlan, SceneRouter, StoredScene } from '../scenes/scene-types.ts';
+import type { LessonPlan, SceneFitReader, SceneRouter, StoredScene } from '../scenes/scene-types.ts';
 import type { TutorBeat } from './brain.ts';
 
 /** A take in the browser took 96 ms with the engine fetched, so this only covers a slow line. */
@@ -26,6 +26,7 @@ export interface TutorScenesOptions {
   runs: TopicRuns;
   /** Writes 3D scenes live. Left out, a request the router sends to the kit gets no scene. */
   kitRuns?: TopicRuns;
+  fitReader?: SceneFitReader;
   store: SceneStore;
   /** The library's title when this session came from a card. Only that title may share a scene. */
   getCardTitle(): string | null;
@@ -105,7 +106,7 @@ export function getTutorSceneBeats({ plan, scene, number, endsOnQuestion = true 
   return [opening, ...[...rest, ...(endsOnQuestion ? [close] : [])].map((beat) => ({ ...beat, pauseBeforeMs: BREATH_MS }))];
 }
 
-export function createTutorScenes({ router, runs, kitRuns, store, getCardTitle, getNowMs, send, speak, canSpeak, onShown, isClosed = () => false, canPlayShared = () => true, trace }: TutorScenesOptions): TutorScenes {
+export function createTutorScenes({ router, runs, kitRuns, fitReader, store, getCardTitle, getNowMs, send, speak, canSpeak, onShown, isClosed = () => false, canPlayShared = () => true, trace }: TutorScenesOptions): TutorScenes {
   let device: Device = 'unknown';
   let studentId = '';
   let current: SceneAsk | null = null;
@@ -215,7 +216,7 @@ export function createTutorScenes({ router, runs, kitRuns, store, getCardTitle, 
       return;
     }
     asksMade += 1;
-    const work = createLessonWork({ router, runs, ...(kitRuns ? { kitRuns } : {}), store, request: isCard ? cardTitle : topic, isCard, studentId, getNowMs, isOnlyForScene: true, onChange: (state) => onDeskChange(ask, state) });
+    const work = createLessonWork({ router, runs, ...(kitRuns ? { kitRuns } : {}), ...(fitReader ? { fitReader } : {}), store, request: isCard ? cardTitle : topic, isCard, studentId, getNowMs, isOnlyForScene: true, onChange: (state) => onDeskChange(ask, state) });
     const ask: SceneAsk = { topic, work, askedAtMs: getNowMs(), askLimit: setTimeout(() => end(ask, 'tooLate'), ASK_LIMIT_MS), windowLimit: null, recheck: null, page: { kind: 'notAsked' }, isOpening: isCard && opening.kind === 'possible', isKit: false };
     works.push(work);
     current = ask;

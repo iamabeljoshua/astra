@@ -2,9 +2,9 @@ import Anthropic from '@anthropic-ai/sdk';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { showsDanger } from '../scenes/content-check.ts';
-import { getClearedNames, getRouteFromText, getVerdictFromText, SAFETY_KIND, UnreadableReply } from '../scenes/model-replies.ts';
+import { getClearedNames, getFitFromText, getFixedWordsFromText, getRouteFromText, getVerdictFromText, SAFETY_KIND, UnreadableReply } from '../scenes/model-replies.ts';
 import { getFirstLineFromPartialText, getPlanFromText, getSceneWordsFromPartialText } from '../scenes/lesson/lesson-plan.ts';
-import { type LessonPlanner, type NameReader, PlanRefused, type SceneBrief, type SceneRepair, type SceneReviewer, type SceneRoute, type SceneRouter, type SceneUsage, type SceneWriter, type UsageListener } from '../scenes/scene-types.ts';
+import { type LessonPlanner, type NameReader, PlanRefused, type SceneBrief, type SceneFitReader, type SceneRepair, type SceneReviewer, type SceneRoute, type SceneRouter, type SceneUsage, type SceneWriter, type UsageListener } from '../scenes/scene-types.ts';
 
 const PROMPTS = join(import.meta.dirname, '../scenes/prompts');
 const readPrompt = (name: string) => readFileSync(join(PROMPTS, name), 'utf8');
@@ -21,8 +21,11 @@ const ROUTER_TOKENS = 400;
 const NAME_READER_TOKENS = 600;
 const CODE_BLOCK = /```(?:python|py|javascript|js)?\s*\n([\s\S]*?)```/;
 const CHARACTERS_PER_TOKEN = 4;
+const FIT_TOKENS = 200;
+const WORDS_BLOCK = /```json\s*\n([\s\S]*?)```/;
 const ROUTER_TRIES = 2;
 const ROUTE_SCHEMA = { type: 'object', properties: { kind: { type: 'string' }, engine: { type: 'string', enum: ['manimgx', 'kit', 'none'] }, topic: { type: 'string' } }, required: ['kind', 'engine', 'topic'], additionalProperties: false };
+const FIT_SCHEMA = { type: 'object', properties: { title: { type: 'string' } }, required: ['title'], additionalProperties: false };
 const NAMES_SCHEMA = { type: 'object', properties: { names: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, kind: { type: 'string', enum: ['place', 'event', 'thing', 'figure', 'person', 'private'] } }, required: ['name', 'kind'], additionalProperties: false } } }, required: ['names'], additionalProperties: false };
 
 /** Dollars per million tokens, from the Claude API skill's table, read 4 November 2026. */
@@ -78,7 +81,8 @@ function getReplyText(message: Anthropic.Beta.Messages.BetaMessage): string {
 function toSceneMessage({ topic, narration, plan, moments, durationSeconds }: SceneBrief, repair: SceneRepair | null): string {
   const lines = Object.entries(moments).map(([id, seconds]) => `- ${id} at ${seconds.toFixed(2)}s`).join('\n');
   const base = `Topic: ${topic}\n\nThe tutor says this, with [[moment]] marks on the word each visual belongs to:\n${narration}\n\nWhat each moment should show:\n${plan}\n\nMoments, with their times for this take. Never hard-code these times, always refer to the moment by name:\n${lines}\nScene length: ${durationSeconds.toFixed(1)}s.`;
-  return repair ? `${base}\n\nA previous attempt was rejected. Fix these problems and return the whole scene again.\nProblems:\n${repair.problems.join('\n')}\n\nPrevious attempt:\n${repair.code}` : base;
+  const wordsNote = repair?.canChangeWords ? `\n\nA problem may be in the tutor's words and not the picture. If so, correct the words too: after the code add one fenced json block, {"narration":"...","setup":"...","close":"..."}, holding only the words you changed. Keep every [[mark]] in the narration, in the same order, on the word it belongs to, and keep it about as long. Every fact must be what a good textbook says.` : '';
+  return repair ? `${base}\n\nA previous attempt was rejected. Fix these problems and return the whole scene again.\nProblems:\n${repair.problems.join('\n')}${wordsNote}\n\nPrevious attempt:\n${repair.code}` : base;
 }
 
 export interface SceneModels {
@@ -88,6 +92,7 @@ export interface SceneModels {
   kitWriter: SceneWriter;
   kitFallbackWriter: SceneWriter;
   kitReviewer: SceneReviewer;
+  fitReader: SceneFitReader;
   router: SceneRouter;
   planner: LessonPlanner;
   nameReader: NameReader;
@@ -135,7 +140,9 @@ export function makeAnthropicSceneModels({ apiKey, onUsage, assertRoom, reviewPa
     name,
     async write(brief, repair, signal) {
       const reply = await call({ role: 'writer', setting, system, user: toSceneMessage(brief, repair), maxTokens: WRITER_TOKENS, signal });
-      return { code: (reply.text.match(CODE_BLOCK)?.[1] ?? reply.text).trim(), model: reply.model, ms: reply.ms, costUsd: reply.costUsd };
+      const wordsBlock = repair?.canChangeWords ? reply.text.match(WORDS_BLOCK)?.[1] : undefined;
+      const words = wordsBlock ? getFixedWordsFromText(wordsBlock) : undefined;
+      return { code: (reply.text.match(CODE_BLOCK)?.[1] ?? reply.text).trim(), ...(words ? { words } : {}), model: reply.model, ms: reply.ms, costUsd: reply.costUsd };
     },
   });
 
@@ -167,6 +174,12 @@ export function makeAnthropicSceneModels({ apiKey, onUsage, assertRoom, reviewPa
     kitWriter: makeWriter('kit-opus-5-5-low-fast', 'opusFast', kitWriterSystem),
     kitFallbackWriter: makeWriter('kit-sonnet-5-5-low', 'sonnetFast', kitWriterSystem),
     kitReviewer: makeReviewer(`${readPrompt('reviewer.md')}\n\n${readPrompt('kit-reviewer.md')}`),
+    fitReader: {
+      async find(topic, titles, signal) {
+        const reply = await call({ role: 'fit', setting: 'reviewQuick', system: readPrompt('fit.md'), user: `Topic: ${topic}\n\nTitles:\n${titles.join('\n')}`, maxTokens: FIT_TOKENS, signal, schema: FIT_SCHEMA });
+        return getFitFromText(topic, titles, reply.text);
+      },
+    },
     router: {
       async route(request, signal) {
         let unreadable: unknown;

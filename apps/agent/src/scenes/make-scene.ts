@@ -1,11 +1,11 @@
 import { type RichScene, SCENE_ENGINE_VERSIONS, type SceneEngine } from '@astra/contracts';
 import { type ClearedNames, getCodeProblems, getPlanProblems } from './content-check.ts';
 import { getPlanBeatProblems, getSceneBeatProblems, getSpokenLines } from './lesson/lesson-beats.ts';
-import { getNominalTiming } from './narration.ts';
+import { getNominalTiming, readMarks } from './narration.ts';
 import type { RenderResult, RenderWorker } from './render-worker.ts';
 import { getSceneCommand } from './scene-desk.ts';
 import { getSceneKey, type SceneStore } from './scene-store.ts';
-import { type LessonPlan, SCENE_THEMES, type SceneBrief, type SceneKey, type SceneOwner, type SceneRepair, type SceneReviewer, type SceneTheme, type SceneTrace, type SceneTrouble, type SceneVerdict, type SceneWords, type SceneWriter, type StoredScene, type WrittenScene } from './scene-types.ts';
+import { type FixedWords, type LessonPlan, SCENE_THEMES, type SceneBrief, type SceneKey, type SceneOwner, type SceneRepair, type SceneReviewer, type SceneTheme, type SceneTrace, type SceneTrouble, type SceneVerdict, type SceneWords, type SceneWriter, type StoredScene, type WrittenScene } from './scene-types.ts';
 import type { MadeTake } from './worker-records.ts';
 
 export const WRITER_LIMIT_MS = 45_000;
@@ -194,7 +194,42 @@ function toStoredScene({ engine, key, plan, brief, attempt, verdict, trace, valu
   };
 }
 
+const getMarkIds = (narration: string) => readMarks(narration).marks.map(({ id }) => id).join(' ');
+
+/** The code keeps its moments by name, so words that move a mark, or that any check refuses, stay out and the review still has the old words to refuse. */
+function getPlanWithWords(topic: string, plan: LessonPlan, words: FixedWords | undefined, cleared: ClearedNames | undefined): LessonPlan {
+  if (!words) return plan;
+  const changed = { ...plan, ...words };
+  const isSound = getMarkIds(changed.narration) === getMarkIds(plan.narration) && getPlanBeatProblems(changed).length === 0 && getPlanProblems(topic, changed, cleared).length === 0;
+  return isSound ? changed : plan;
+}
+
 const NO_LONGER_WANTED: MadeScene = { isOk: false, reasons: ['no longer wanted'] };
+
+interface Reviewed {
+  attempt: Attempt;
+  plan: LessonPlan;
+  brief: SceneBrief;
+}
+
+interface RewriteRequest {
+  run: Pick<WriteRun, 'values' | 'tally' | 'warn' | 'signal' | 'isTyped'>;
+  topic: string;
+  reviewed: Reviewed;
+  refused: SceneVerdict;
+  clearedNames: ClearedNames | undefined;
+}
+
+// The new words can move the moments, so the code goes through every check on the times those words give.
+async function rewriteAfterReview(maker: SceneMaker, writer: SceneWriter, { run, topic, reviewed, refused, clearedNames }: RewriteRequest): Promise<Reviewed | null> {
+  const repair = { problems: refused.errors.map(({ what, truth }) => `${what} What is true: ${truth}`), code: reviewed.attempt.code, canChangeWords: true };
+  const writing = writer.write(reviewed.brief, repair, AbortSignal.any([AbortSignal.timeout(maker.writerLimitMs ?? WRITER_LIMIT_MS), run.signal]));
+  const words = await writing.then(({ words: fixed }) => fixed, () => undefined);
+  const plan = getPlanWithWords(topic, reviewed.plan, words, clearedNames);
+  const brief = getBrief(topic, plan);
+  const attempt = await writeUntilClean(maker, { ...run, brief, plan, earlyWrite: writing, repair, writers: [writer] });
+  return attempt ? { attempt, plan, brief } : null;
+}
 
 export async function makeScene(maker: SceneMaker, { topic, ownerId = null, plan, clearedNames, values = {}, signal = new AbortController().signal, earlyWrite = null }: SceneRequest): Promise<MadeScene> {
   const { store, reviewer, now = () => performance.now(), getWallMs = () => Date.now(), warn = console.warn } = maker;
@@ -204,40 +239,39 @@ export async function makeScene(maker: SceneMaker, { topic, ownerId = null, plan
   if (planProblems.length > 0) return { isOk: false, reasons: planProblems };
   if (store.isFlagged(key)) return { isOk: false, reasons: ['a person flagged this scene, so it waits until someone has looked at it'] };
   if (!getCanTry(store.getTrouble(key), getWallMs())) return { isOk: false, reasons: ['this scene hit errors recently, so it waits before trying again'] };
-  const brief = getBrief(topic, plan);
+  const firstBrief = getBrief(topic, plan);
   const tally: Tally = { writer: '', attempts: 0, writeMs: 0, renderMs: 0, costUsd: 0, problems: [] };
-  const run = { brief, plan, values, tally, warn, signal, isTyped: ownerId !== null };
-  const firstAttempt = await writeUntilClean(maker, { ...run, earlyWrite });
+  const run = { values, tally, warn, signal, isTyped: ownerId !== null };
+  const firstAttempt = await writeUntilClean(maker, { ...run, brief: firstBrief, plan, earlyWrite });
   if (signal.aborted) return NO_LONGER_WANTED;
   if (!firstAttempt) {
     noteTrouble(store, key, getWallMs());
     return { isOk: false, reasons: tally.problems };
   }
   // An error is never a verdict, so it saves nothing that could block this topic.
-  const review = (attempt: Attempt) =>
-    reviewer.review({ brief, code: attempt.code, sheets: attempt.render.sheets, spokenLines: maker.getLinesToReview?.(plan) ?? getSpokenLines(plan) }, AbortSignal.any([AbortSignal.timeout(maker.reviewerLimitMs ?? REVIEWER_LIMIT_MS), signal])).catch((error: unknown) => {
+  const review = (reviewed: Reviewed) =>
+    reviewer.review({ brief: reviewed.brief, code: reviewed.attempt.code, sheets: reviewed.attempt.render.sheets, spokenLines: maker.getLinesToReview?.(reviewed.plan) ?? getSpokenLines(reviewed.plan) }, AbortSignal.any([AbortSignal.timeout(maker.reviewerLimitMs ?? REVIEWER_LIMIT_MS), signal])).catch((error: unknown) => {
       if (!signal.aborted) noteTrouble(store, key, getWallMs());
       return String(error);
     });
-  let attempt = firstAttempt;
-  let verdict = await review(attempt);
+  let reviewed: Reviewed = { attempt: firstAttempt, plan, brief: firstBrief };
+  let verdict = await review(reviewed);
   if (typeof verdict !== 'string' && !verdict.isPass && maker.repairWriter && !signal.aborted) {
-    const refused = verdict;
-    tally.problems.push(...refused.errors.map(({ what }) => `review: ${what}`));
-    const repaired = await writeUntilClean(maker, { ...run, earlyWrite: null, writers: [maker.repairWriter], repair: { problems: refused.errors.map(({ what, truth }) => `${what} What is true: ${truth}`), code: attempt.code } });
-    if (repaired) {
-      attempt = repaired;
-      verdict = await review(attempt);
+    tally.problems.push(...verdict.errors.map(({ what }) => `review: ${what}`));
+    const rewritten = await rewriteAfterReview(maker, maker.repairWriter, { run, topic, reviewed, refused: verdict, clearedNames });
+    if (rewritten) {
+      reviewed = rewritten;
+      verdict = await review(reviewed);
     }
   }
   if (signal.aborted) return NO_LONGER_WANTED;
   if (typeof verdict === 'string') return { isOk: false, reasons: [`the review could not finish: ${verdict}`] };
   if (!verdict.isPass) {
-    store.saveRefusal({ key, code: attempt.code, plan, review: verdict.errors, savedAt: new Date(getWallMs()).toISOString() });
+    store.saveRefusal({ key, code: reviewed.attempt.code, plan: reviewed.plan, review: verdict.errors, savedAt: new Date(getWallMs()).toISOString() });
     noteTrouble(store, key, getWallMs(), true);
     return { isOk: false, reasons: verdict.errors.map(({ what }) => what) };
   }
   const trace: SceneTrace = { writer: tally.writer, attempts: tally.attempts, writeMs: tally.writeMs, renderMs: tally.renderMs, reviewMs: verdict.ms, totalMs: now() - startedAt, costUsd: tally.costUsd + verdict.costUsd, problems: tally.problems };
-  const scene = await store.saveChecked(toStoredScene({ engine: maker.engine ?? 'manimgx', key, plan, brief, attempt, verdict, trace, values }), attempt.render.takes, attempt.render.sheets);
+  const scene = await store.saveChecked(toStoredScene({ engine: maker.engine ?? 'manimgx', key, plan: reviewed.plan, brief: reviewed.brief, attempt: reviewed.attempt, verdict, trace, values }), reviewed.attempt.render.takes, reviewed.attempt.render.sheets);
   return { isOk: true, scene };
 }

@@ -32,6 +32,7 @@ function setUp({ reviewer = PASSING, render = GOOD_RENDER }: { reviewer?: SceneR
     kitWriter: { name: 'unused', write: async () => { throw new Error('the library writes no live kit scene'); } },
     kitFallbackWriter: { name: 'unused', write: async () => { throw new Error('the library writes no live kit scene'); } },
     kitReviewer: reviewer,
+    fitReader: { find: async () => null },
     router: { route: async () => { throw new Error('the library does not route'); } },
   };
   const worker: RenderWorker = async () => render;

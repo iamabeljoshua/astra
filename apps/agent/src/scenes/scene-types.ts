@@ -20,10 +20,16 @@ export interface SceneBrief {
 export interface SceneRepair {
   problems: readonly string[];
   code: string;
+  /** A review reported a false fact, which can sit in the words as easily as in the picture. */
+  canChangeWords?: boolean;
 }
+
+/** The words a rewrite changed. A live scene's words have no stored voice, so changing them costs nothing. */
+export type FixedWords = Partial<Pick<LessonPlan, 'setup' | 'narration' | 'close'>>;
 
 export interface WrittenScene extends SceneUsage {
   code: string;
+  words?: FixedWords;
 }
 
 export interface SceneWriter {
@@ -65,6 +71,11 @@ export interface SceneRoute extends SceneUsage {
 
 export interface SceneRouter {
   route(request: string, signal: AbortSignal): Promise<SceneRoute>;
+}
+
+export interface SceneFitReader {
+  /** The saved title that teaches this topic, or null. Null is the safe answer, and it means a fresh scene is written. */
+  find(topic: string, titles: readonly string[], signal: AbortSignal): Promise<string | null>;
 }
 
 export interface OpeningLine {
@@ -191,4 +202,4 @@ export interface SceneTrace {
   problems: readonly string[];
 }
 
-export type UsageListener = (usage: SceneUsage & { role: 'writer' | 'reviewer' | 'router' | 'planner' | 'names' }) => void;
+export type UsageListener = (usage: SceneUsage & { role: 'writer' | 'reviewer' | 'router' | 'planner' | 'names' | 'fit' }) => void;

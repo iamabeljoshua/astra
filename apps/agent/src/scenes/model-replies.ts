@@ -1,4 +1,4 @@
-import type { FactError, RouteEngine, SceneRoute, SceneVerdict, SceneUsage } from './scene-types.ts';
+import type { FactError, FixedWords, RouteEngine, SceneRoute, SceneVerdict, SceneUsage } from './scene-types.ts';
 
 const ENGINES: readonly RouteEngine[] = ['manimgx', 'kit', 'none'];
 export const SAFETY_KIND = 'safety';
@@ -80,6 +80,25 @@ export function getRouteFromText(text: string): Omit<SceneRoute, keyof SceneUsag
   return { engine: (engine !== 'none' && !isSafeTopic) || isKitInDoubt ? 'none' : engine, kind, topic: isSafeTopic ? topic : '' };
 }
 
+const WORDS_NAMING_NO_IDEA = new Set('how why what when where which does do did is are was were has have had the and for from with that this into its their really work works working'.split(' '));
+const WORD_STEM_LETTERS = 4;
+const LEAST_SHARED_WORDS = 2;
+const getIdeaStems = (text: string) => (text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []).filter((word) => !WORDS_NAMING_NO_IDEA.has(word) && word.length >= 3).map((word) => word.slice(0, WORD_STEM_LETTERS));
+
+/** A title it read off the list that holds most of the topic's words, because a reader can talk itself into a match on one word, as the Moon's spin for its phases, and a wrong scene is the worst failure. */
+export function getFitFromText(topic: string, titles: readonly string[], text: string): string | null {
+  try {
+    const { title } = readJsonObject(text);
+    if (typeof title !== 'string' || !titles.includes(title)) return null;
+    const topicStems = [...new Set(getIdeaStems(topic))];
+    const titleStems = new Set(getIdeaStems(title));
+    const shared = topicStems.filter((stem) => titleStems.has(stem)).length;
+    return shared >= Math.max(LEAST_SHARED_WORDS, topicStems.length / 2) ? title : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Only a name it was asked about, of a kind a lesson may say, and a reply it cannot read clears nothing. */
 export function getClearedNames(names: readonly string[], text: string): ReadonlySet<string> {
   try {
@@ -88,6 +107,19 @@ export function getClearedNames(names: readonly string[], text: string): Readonl
     return new Set(names.filter((name) => entries.some((entry) => entry.name === name && typeof entry.kind === 'string' && CLEARED_NAME_KINDS.includes(entry.kind))));
   } catch {
     return new Set();
+  }
+}
+
+const WORD_FIELDS = ['setup', 'narration', 'close'] as const;
+
+/** Only the fields it may change, as text, and anything else reads as no change. */
+export function getFixedWordsFromText(text: string): FixedWords | undefined {
+  try {
+    const reply = readJsonObject(text);
+    const words = Object.fromEntries(WORD_FIELDS.flatMap((field) => (typeof reply[field] === 'string' ? [[field, reply[field]]] : [])));
+    return Object.keys(words).length > 0 ? words : undefined;
+  } catch {
+    return undefined;
   }
 }
 
