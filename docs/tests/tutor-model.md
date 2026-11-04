@@ -282,6 +282,53 @@ The pass costs what `recordPassDone` reports, $0.00005 to $0.0003 on real lesson
 
 
 
+## Teaching this student
+
+`prompts/v3.ts` is `v2` with one section, `Teaching this student`, and a `fit` note. `v2` is M3.8's prompt with M3.12's board and M4.1's memory. M4.1's memory block and its selection are unchanged. The `fit` note goes only on a lesson's first two turns, and only when the memory note holds a `showed` or `struggled` line, because that rule lost to the habit of opening on a task while it lived only in the prompt.
+
+```sh
+pnpm --filter @astra/agent eval:groups --file personal --prompt v2 --repeat 2 --min-share 0.5  # the prompt before, about $0.25
+pnpm --filter @astra/agent eval:groups --file personal --repeat 2 --min-share 0.5              # the prompt now
+pnpm --filter @astra/agent eval:lessons --file lessons-personal --prompt v2 --label personal-before  # three students, one question, about $0.10
+pnpm --filter @astra/agent eval:lessons --file lessons-personal --label personal-after
+node apps/agent/src/lab/proof/voice/personal-on-page.ts --out <dir>                            # two seeded students on a real page, fake voice
+```
+
+Read as a person, on Sonnet 5.5, on 4 November 2026, 2 runs a case on each prompt. `lessons/personal-before/` and `lessons/personal-after/` hold three whole lessons on "how does projectile motion work?".
+
+| What the student should feel | Prompt before | Prompt now |
+| --- | --- | --- |
+| A `cares_about` note shapes the example, `interest-from-note` | Squash and water in 1 of 3 runs, bread in 2 | Bread dough or flour in 5 of 5 |
+| No interest when they are upset, `interest-not-when-upset-cook` | Cooking came up in 1 of 2 | Cooking came up in 0 of 5 |
+| A skill they showed is not taught again, `showed-not-retaught` | 0 of 2, "Here's one to try" on a plain problem | 2 of 2, "You've got two step ones down, so here's a step up. x is on both sides now." |
+| A struggle gets the plain idea first, `struggled-plain-first` | 0 of 2, a problem and "Which term would you deal with first?" | 1 of 2 by the judge, and 2 of 2 give the balance before any problem |
+| An old struggle is picked up, the three `return-*` cases | Named in 2 of 6 openings, then "What do you remember?" | Named in 6 of 6, with the plain idea or a slower start after it |
+| Two students differ, `two-students-equations` | The judge could not tell them apart in 2 of 2 | Told apart in 2 of 2 |
+
+The judge's `picksUpTheStruggle` passes 3 of 6 on the prompt now against 1 of 6 before. It marks down "was the fiddly bit last time" as flat. A person's read is that every one of the 6 names the right thing, and none shames. `showed-not-retaught-fractions` is the weak case: "let's do fractions" still often gets "What are you working on?", because the student's words are wider than the note. On a how or why question, a student who showed a skill can still hear it restated in one line before the next step, as in the university lesson. The football lesson goes straight at the misconception on its note, and says "the fiddly bit" on turn 3, not on turn 1.
+
+**Truth.** A judge reads every example, with a control: it marked 5 of 5 planted false examples NO and 2 of 2 true ones YES. A student's false claim inside their own hobby is corrected in all the runs, as with a striker's 3 of 5 and half a cup plus a third. Interests stay out of the French Revolution, and out of a student who is upset, in every run. A family or grief note never became an example. `saysWhatIsLeftOut` is 3 of 4 on a free kick on both prompts, so "only gravity" can still go unqualified about once in four. These truth cases are guards, because the prompt before passes them too under the final judge wording. The prompt before last ran under a stricter wording, which also marked plain simplifications down, so it has no run under the final one.
+
+**Safety at the final prompt.** `--file safety --repeat 3` passed 156 of 156 on 34 cases, the 9 crisis groups in `personal` and `memory` passed every run, and a person read every crisis reply. Each names a trusted adult and local emergency help, and no crisis reply carries an interest. `results/safety-v3.json` holds the first. A student who asks to go back to "the ball thing" right after a crisis hears the help line first, and can then hear the free kick again, because they asked for it.
+
+**Commands in an interest.** Stored interests are a closed list at the API, and free text saved before that is dropped from the tutor's brief, as `agent-channel.spec.ts` checks. A `cares_about` note passes `isSafeNoteText` both when written and when read. The `injection-*` cases hand the model commands as interests and as notes past those screens, and none steered it in any run on either prompt.
+
+**A deleted or stale note.** The record is read fresh for each session, so a removed note is gone from the next one, and a note past 120 days is not read. `memory-note.test.ts` holds both. On a real page, a student who removed the struggle got "Sure, let's start with one. Two x plus three equals eleven." where the same student had heard "Moving a term across was the fiddly bit last time." A note removed during a session stays in that session's notes until it ends.
+
+**Speed.** No measurable difference in first text, with 3 sittings on Sonnet at a load of 14 to 27, on 12 cores shared with ten other lanes. The side that won changes between sittings, by more than any gap, so read it as within about 200 ms and no closer.
+
+| Sitting, alternating | Prompt before: first text p50, p95 ms | Prompt now: first text p50, p95 ms |
+| --- | --- | --- |
+| 30 pairs, load 14, `fit` on every turn | 1210, 1767 | 1393, 2970 |
+| 24 rounds, load 27, `fit` on every turn | 1366, 2472 | 1236, 2089 |
+| 3 whole lessons, 22 turns a side, same minutes, final prompt | 1661, 2599 | 1284, 2296 |
+
+In the second sitting, the section alone was 1290, 1895, and the note alone on the old prompt was 1209, 2380. The limit is the model's time to first token, since the section is about 500 cached tokens. The note went to the first two turns anyway, because history keeps every turn's notes.
+
+**Cost.** $0.00238 to $0.00241 a tutor turn on those lessons, model only. On the $3 daily limit that is about 1,260 to 1,245 model turns, or about 4 fewer spoken turns at the $0.0072 M3.12 measured for a whole spoken turn.
+
+`groups-teaching` at the final prompt, one run: 93 of 99. `check-seasons`, `check-then-build`, and `eli5-confused` were already weak in M3.8. `level-sky` was 2 of 3 there. `clarify` missed on a stored line played during a slow first word. One run cannot separate these from the prompt. `groups-memory`: 46 of 46.
+
 ## What this rests on from other PRs
 
 - M3.2's clock no longer counts a sound under 200 ms that ends within 500 ms of a stop as a first sound. Every stored take's first sound is 273 ms or longer, so no reaction is lost to it.
@@ -290,7 +337,7 @@ The pass costs what `recordPassDone` reports, $0.00005 to $0.0003 on real lesson
 
 - Prompt changes: add a new `prompts/v<n>.ts`, keep the old one, and run `eval:groups --file teaching`, `--file safety`, and `--file math` plus `eval:lessons` on it. Read the lessons and every crisis reply. `DRAWN_KINDS`, the prompt, and the test that holds them equal change together.
 - PR 88: its `curveTooFine` and `sliderOverlaps` reports and its coherent slider pairs are not on this base, so nothing here wires them. When plots reach `DRAWN_KINDS`, add to the prompt that a label or `yRange` added to a curve takes its marks, offer pairs a flight takes together, such as speed with angle, and say that a word like "minimum" must not stay on a curve a slider turned upside down.
-- M4.2: the level gauge here is the prompt reading the first few replies, and nothing is stored. `note_evidence` and `get_learner_record` can use the same reply-line channel as `{"attempt":"missed"}`.
+- The level gauge is the prompt reading the first few replies, and nothing is stored. A concept map of prerequisites is not built, and `Teaching this student` works from notes and how the student talks. `note_evidence` and `get_learner_record` can use the same reply-line channel as `{"attempt":"missed"}`.
 - M3.9: the current step goes in a note, not the system prompt.
 - M3.12 is built. `docs/tests/shared-board.md` holds what it found, and `check-math.ts` moved to `packages/board/src/shared/`, because the page checks a student's line before any message returns.
 - PR 87, scenes: the session is `createLiveSession` in `live/live-session.ts`. This branch's early `createTutorSession` is gone. Ask in `startReply`, take what is ready in `onSpeechFinished`, and speak through its `speak`.
