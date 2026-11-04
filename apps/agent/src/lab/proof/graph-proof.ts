@@ -15,6 +15,8 @@ const SHOT_LANDING_SECONDS = (SHOT.upwardSpeed + Math.sqrt(SHOT.upwardSpeed ** 2
 const STEPS_ACROSS_DRAG = 24;
 const THUMB_WIDTH = 10;
 const FREEZE_INTO_FLIGHT_MS = 700;
+/** Marks are written to 0.01 of a pixel, so a scale read back from them moves by this share with nothing having moved. */
+const SCALE_ROOM = 1e-3;
 
 interface LabLog {
   player: { finishSliderDrag(): void };
@@ -134,7 +136,7 @@ async function proveSlider(browser: Browser, run: LessonRun) {
   const dragReplay = await checkDragReplay(lab);
   await lab.finish();
   const expected = { before: SHOT.horizontalSpeed * SHOT_LANDING_SECONDS, after: speed * SHOT_LANDING_SECONDS };
-  return { label: getLabel(run), speed, expected, before, after, landedRatio: (after?.x ?? 0) / (before?.x ?? 1), errorMetres: Math.abs((after?.x ?? 0) - expected.after), scaleHeld: Math.abs((scaleBefore ?? 0) - (after?.metresPerPixel ?? 1)) < 1e-6, latency, figures, logged, dragReplay };
+  return { label: getLabel(run), speed, expected, before, after, landedRatio: (after?.x ?? 0) / (before?.x ?? 1), errorMetres: Math.abs((after?.x ?? 0) - expected.after), scaleHeld: Math.abs((scaleBefore ?? 0) - (after?.metresPerPixel ?? 1)) / (after?.metresPerPixel ?? 1) < SCALE_ROOM, latency, figures, logged, dragReplay };
 }
 
 const ARC_SHARES = [0, 0.1, 0.25, 0.39, 0.5, 0.75, 0.9, 1];
@@ -310,7 +312,7 @@ async function proveAngleSlider(browser: Browser, run: LessonRun) {
   const workedRange = (LAUNCH.speed ** 2 * Math.sin((2 * angle * Math.PI) / 180)) / LAUNCH.gravity;
   await shoot(lab, 'angle-slider');
   await lab.finish();
-  return { label: getLabel(run), angle, scales, scaleHeld: Math.max(...scales) - Math.min(...scales) < 1e-6, landedX: landed?.x, workedRange, errorMetres: Math.abs((landed?.x ?? 0) - workedRange) };
+  return { label: getLabel(run), angle, scales, scaleHeld: (Math.max(...scales) - Math.min(...scales)) / Math.max(...scales) < SCALE_ROOM, landedX: landed?.x, workedRange, errorMetres: Math.abs((landed?.x ?? 0) - workedRange) };
 }
 
 const LESSON_PAIRS: LessonRun[] = (['shot', 'graphs', 'number-line', 'triangle', 'free-body', 'launch'] as const).flatMap((lesson) => [{ lesson, viewport: 'laptop', theme: 'light' }, { lesson, viewport: 'phone', theme: 'dark' }] as LessonRun[]);

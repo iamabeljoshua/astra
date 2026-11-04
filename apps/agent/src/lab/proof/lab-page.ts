@@ -119,7 +119,11 @@ export async function checkReplayPixels(lab: LabPage): Promise<{ moments: number
     const live = await shoot(lab, 'replay-compare');
     await holdFrame(lab, { atMs: atMs + shiftMs, source: 'replay' });
     const replay = await shoot(lab, 'replay-compare');
-    if (!live.equals(replay)) differing.push(Math.round(atMs));
+    if (!live.equals(replay)) {
+      differing.push(Math.round(atMs));
+      const pixels = await lab.page.evaluate((pair) => window.pageChecks.countDifferentPixels(pair), [live.toString('base64'), replay.toString('base64'), 0] as [string, string, number]);
+      console.log(`${lab.folder} differs from its replay at ${Math.round(atMs)}: ${pixels} pixels`);
+    }
     const isSame = await lab.page.evaluate(([liveMs, replayMs]) => JSON.stringify(window.sceneLab?.describeLive(liveMs as number)) === JSON.stringify(window.sceneLab?.describeReplay(replayMs as number)), [atMs, atMs + shiftMs]);
     if (!isSame) describedDifferently += 1;
   }
