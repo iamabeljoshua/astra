@@ -88,7 +88,7 @@ function RunningSession({ session }: { session: Session }) {
         session={session}
         tutorWords={idleWords}
         tutorCaption={view && <TutorCaption heard={view.tutorHeard} coming={view.tutorComing} />}
-        isDotLively={view !== null && (view.isTutorSpeaking || view.isHeard || view.isThinking)}
+        isDotLively={view !== null && !view.closedBecause && (view.isTutorSpeaking || view.isHeard || view.isThinking)}
         boardNote={SESSION_LABELS.boardStandIn}
         liveVoice={voice}
       >
@@ -215,6 +215,7 @@ function BoardPicture({ artwork }: { artwork: Artwork }) {
 }
 
 function getVoiceNote(status: LiveVoiceControls['status'], view: LiveVoiceView | null): string | null {
+  if (view?.closedBecause) return VOICE_LABELS[view.closedBecause];
   if (status === 'overLimit') return VOICE_LABELS.dailyLimit;
   if (status === 'connecting' || view?.phase === 'connecting') return VOICE_LABELS.connecting;
   if (status === 'unavailable' || view?.phase === 'noTutor') return VOICE_LABELS.unavailable;

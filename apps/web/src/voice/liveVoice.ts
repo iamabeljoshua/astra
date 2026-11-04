@@ -1,5 +1,5 @@
 import { type BoardState, createChoosingClock, createScenePlayer, type FiredCue, type OutputLevel, type ScenePlayer } from '@astra/board';
-import { type AgentMessage, type BrowserMessage, type components, LINK_QUIET_LIMIT_MS, parseAgentMessage, PULSE_EVERY_MS } from '@astra/contracts';
+import { type AgentMessage, type BrowserMessage, clipTypedText, type components, LINK_QUIET_LIMIT_MS, parseAgentMessage, PULSE_EVERY_MS, type TutorClosedReason } from '@astra/contracts';
 import { createLocalAudioTrack, DisconnectReason, type LocalAudioTrack, type RemoteTrack, Room, RoomEvent, Track } from 'livekit-client';
 import { createLocalYield } from './localYield';
 import { createTutorAudioContext, listenToTutor, listenToStudent, OUTPUT_GAINS, type ProbeNote } from './tutorAudio';
@@ -31,6 +31,8 @@ export interface LiveVoiceView {
   /** The tutor has no words yet, and the dot says why it is quiet. */
   isThinking: boolean;
   isTutorSpeaking: boolean;
+  /** Why the tutor will not speak again in this room, or null while it can. */
+  closedBecause: TutorClosedReason | null;
   studentLines: readonly StudentLine[];
   /** Words the student has heard this turn, and the ones already known that are still to come. */
   tutorHeard: readonly string[];
@@ -98,7 +100,7 @@ export async function startLiveVoice({ access, getAccess, wantsGreeting = true, 
   const decoder = new TextDecoder();
   const listeners = new Set<() => void>();
   const outbox: BrowserMessage[] = [];
-  let view: LiveVoiceView = { phase: 'connecting', mic: 'off', isSoundBlocked: audioContext.state !== 'running', isThinking: false, isHeard: false, isTutorSpeaking: false, studentLines: [], tutorHeard: [], tutorComing: [] };
+  let view: LiveVoiceView = { phase: 'connecting', mic: 'off', isSoundBlocked: audioContext.state !== 'running', isThinking: false, isHeard: false, isTutorSpeaking: false, closedBecause: null, studentLines: [], tutorHeard: [], tutorComing: [] };
   let lastAgentPulseEpochMs: number | null = null;
   let isClosed = false;
   let hasHeardFirstOnset = false;
@@ -159,7 +161,34 @@ export async function startLiveVoice({ access, getAccess, wantsGreeting = true, 
     setView({ studentLines: [...lines, { text, isFinal }] });
   };
 
+  const setMicOn = async (isOn: boolean) => {
+    if (!isOn) {
+      stopWatchingMic();
+      if (micTrack) await room.localParticipant.unpublishTrack(micTrack);
+      micTrack?.stop();
+      micTrack = null;
+      return setView({ mic: 'off' });
+    }
+    if (view.closedBecause) return;
+    setView({ mic: 'starting' });
+    try {
+      micTrack = await createLocalAudioTrack({ echoCancellation: usesSpeechCleanup, noiseSuppression: usesSpeechCleanup, autoGainControl: usesSpeechCleanup });
+      await room.localParticipant.publishTrack(micTrack, MIC_PUBLISH_OPTIONS);
+      stopWatchingMic = listenToStudent(micTrack.mediaStreamTrack, { audioContext, onSound: localYield.onStudentSound });
+      setView({ mic: 'on' });
+    } catch {
+      setView({ mic: 'denied' });
+    }
+  };
+
+  // No tutor will answer again, so a microphone left on would send a student's voice to an empty room.
+  const closeTutor = (closedBecause: TutorClosedReason) => {
+    setView({ closedBecause, isThinking: false, isHeard: false });
+    void setMicOn(false).catch(() => {});
+  };
+
   const onAgentMessage = (message: AgentMessage) => {
+    if (message.type === 'tutorClosed') return closeTutor(message.reason);
     if (message.type === 'pulse') {
       lastAgentPulseEpochMs = getEpochMs();
       flushOutbox();
@@ -233,9 +262,9 @@ export async function startLiveVoice({ access, getAccess, wantsGreeting = true, 
     else records.refused.push(parsed.problem);
   };
 
-  // LiveKit retries a short drop itself. Once it gives up, or leaves a channel that carries nothing, a new token and a new join bring the same session back. An answer with no access will not change on a retry, so it ends the wait, and a failed request does not.
+  // LiveKit retries a short drop itself. Once it gives up, or leaves a channel that carries nothing, a new token and a new join bring the same session back. An answer with no access will not change on a retry, so it ends the wait, and a failed request does not. A closed tutor gets no rejoin, because a new join would call in and pay for another one.
   async function rejoin(): Promise<void> {
-    if (isRejoining) return;
+    if (isRejoining || view.closedBecause) return;
     isRejoining = true;
     player.freeze();
     setView({ phase: 'reconnecting' });
@@ -244,6 +273,7 @@ export async function startLiveVoice({ access, getAccess, wantsGreeting = true, 
     while (!isClosed && getEpochMs() < deadline) {
       try {
         const answer = await getAccess();
+        if (answer.unavailableBecause === 'dailyLimit') closeTutor('dailyLimit');
         if (!answer.access) break;
         await room.connect(answer.access.url, answer.access.token);
         if (micTrack) await room.localParticipant.publishTrack(micTrack, MIC_PUBLISH_OPTIONS);
@@ -284,7 +314,7 @@ export async function startLiveVoice({ access, getAccess, wantsGreeting = true, 
   room.on(RoomEvent.Disconnected, (reason) => {
     if (isRejoining) return;
     player.freeze();
-    const isFinal = isClosed || reason === DisconnectReason.CLIENT_INITIATED || reason === DisconnectReason.DUPLICATE_IDENTITY || reason === DisconnectReason.ROOM_DELETED;
+    const isFinal = isClosed || view.closedBecause !== null || reason === DisconnectReason.CLIENT_INITIATED || reason === DisconnectReason.DUPLICATE_IDENTITY || reason === DisconnectReason.ROOM_DELETED;
     setView({ phase: isFinal ? 'ended' : 'reconnecting' });
     if (!isFinal) void rejoin();
   });
@@ -316,28 +346,12 @@ export async function startLiveVoice({ access, getAccess, wantsGreeting = true, 
       return { board: player.getBoard(atMs), atMs };
     },
     sendTyped(text) {
+      const clipped = clipTypedText(text);
       showHeard();
-      addStudentWords({ text, isFinal: true });
-      send({ type: 'typed', ...getStamp(), text });
+      addStudentWords({ text: clipped, isFinal: true });
+      send({ type: 'typed', ...getStamp(), text: clipped });
     },
-    async setMicOn(isOn) {
-      if (!isOn) {
-        stopWatchingMic();
-        if (micTrack) await room.localParticipant.unpublishTrack(micTrack);
-        micTrack?.stop();
-        micTrack = null;
-        return setView({ mic: 'off' });
-      }
-      setView({ mic: 'starting' });
-      try {
-        micTrack = await createLocalAudioTrack({ echoCancellation: usesSpeechCleanup, noiseSuppression: usesSpeechCleanup, autoGainControl: usesSpeechCleanup });
-        await room.localParticipant.publishTrack(micTrack, MIC_PUBLISH_OPTIONS);
-        stopWatchingMic = listenToStudent(micTrack.mediaStreamTrack, { audioContext, onSound: localYield.onStudentSound });
-        setView({ mic: 'on' });
-      } catch {
-        setView({ mic: 'denied' });
-      }
-    },
+    setMicOn,
     async turnOnSound() {
       await audioContext.resume();
     },

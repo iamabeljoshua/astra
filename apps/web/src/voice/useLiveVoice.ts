@@ -76,8 +76,9 @@ export function useLiveVoice({ sessionId, usesSpeechCleanup = true, start = star
   const sendTyped = useCallback(
     async (text: string) => {
       const opened = await connect({ wantsGreeting: false });
-      opened?.sendTyped(text);
-      return opened !== null;
+      if (!opened || opened.getView().closedBecause) return false;
+      opened.sendTyped(text);
+      return true;
     },
     [connect],
   );

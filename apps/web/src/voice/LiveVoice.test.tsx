@@ -1,40 +1,16 @@
 import { act, render, renderHook, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LEGAL_PAGES } from '../strings';
+import { makeFakeVoice } from '../test/fakeVoice';
 import { stubSessionsApi } from '../test/sessionsApi';
 import { StudentCaption, TutorCaption } from './Captions';
-import type { LiveVoice, LiveVoiceView } from './liveVoice';
+import type { LiveVoice } from './liveVoice';
 import { useLiveVoice } from './useLiveVoice';
 
 vi.mock('../auth/session', () => import('../test/signedInSession'));
 
 const ROOM_ACCESS = { url: 'wss://room.test', roomName: 'session-a-session', token: 'room-token' };
 const OPEN_ROOM = { access: ROOM_ACCESS, unavailableBecause: null };
-const BASE_VIEW: LiveVoiceView = { phase: 'live', mic: 'off', isSoundBlocked: false, isHeard: false, isThinking: false, isTutorSpeaking: false, studentLines: [], tutorHeard: [], tutorComing: [] };
-
-function makeFakeVoice(view: Partial<LiveVoiceView> = {}): LiveVoice {
-  let current = { ...BASE_VIEW, ...view };
-  const listeners = new Set<() => void>();
-  return {
-    records: {} as LiveVoice['records'],
-    player: {} as LiveVoice['player'],
-    getView: () => current,
-    subscribe(listener) {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    },
-    getBoardNow: () => ({ board: { elements: new Map(), focus: null }, atMs: 0 }),
-    sendTyped: vi.fn(),
-    setMicOn: vi.fn(async (isOn: boolean) => {
-      current = { ...current, mic: isOn ? 'on' : 'off' };
-      listeners.forEach((listener) => listener());
-    }),
-    turnOnSound: vi.fn(),
-    mark: vi.fn(),
-    close: vi.fn(async () => {}),
-  };
-}
-
 describe('the captions', () => {
   it('highlights the word playing now, and shows what is coming apart from what was heard', () => {
     render(<TutorCaption heard={['The', 'ball', 'leaves']} coming={['your', 'hand.']} />);
