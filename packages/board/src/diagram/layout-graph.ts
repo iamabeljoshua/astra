@@ -143,12 +143,12 @@ const getRankThickness = (row: readonly LaidSlot[], axes: Axes) => Math.max(0, .
 
 const isLoopAtEnd = (edge: GraphEdge, ranks: ReadonlyMap<string, number>, rankCount: number) => edge.from === edge.to && ranks.get(edge.from) === rankCount - 1;
 
-// Lanes stack a crowded gap's labels along it, which only helps going down the board. Across a chain, a label sits above or below its line.
+// Lanes stack a crowded gap's labels along it, so a fan of arrows has room for a label where its lines have spread.
 function getGapPlans({ request, ranks, axes, rankCount }: { request: GraphRequest; ranks: ReadonlyMap<string, number>; axes: Axes; rankCount: number }): LabelGap[] {
   const hasRoomAtEnd = request.edges.some((edge) => isLoopAtEnd(edge, ranks, rankCount));
   return Array.from({ length: rankCount }, (_, rank) => {
     const inGap = request.edges.filter((edge) => edge.label && getSpan(edge, ranks).fromRank === rank);
-    const lanes = Math.min(inGap.length, axes === DOWN ? MOST_LABEL_LANES : 1);
+    const lanes = Math.min(inGap.length, MOST_LABEL_LANES);
     const laneSize = Math.max(0, ...inGap.map((edge) => (edge.label as NonNullable<GraphEdge['label']>)[axes.alongSize] + LABEL_ROOM));
     const size = rank === rankCount - 1 && !hasRoomAtEnd ? 0 : Math.max(request.smallestRankGap, lanes * laneSize + 2 * request.arrowGap);
     return { start: 0, size, lanes, laneSize };
