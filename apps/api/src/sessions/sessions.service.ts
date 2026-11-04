@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import type { SessionEntity } from '../infrastructure/orm/entities/session.entity';
 import { SessionRepository } from '../infrastructure/orm/repositories/session.repository';
 import type { SessionListOptions } from '../infrastructure/orm/repositories/session.repository';
+import type { TopicSession } from '../picks/topic-progress';
 import type { CreateSessionBodyDto, SessionResponseDto, UpdateSessionBodyDto } from './session.dto';
 
 function requireSession(session: SessionEntity | null): SessionEntity {
@@ -52,5 +53,10 @@ export class SessionsService {
   async getNewestUnfinishedSession(studentId: string): Promise<SessionResponseDto | null> {
     const session = await this.sessions.findNewestUnfinishedForStudent(studentId);
     return session && toSessionResponse(session);
+  }
+
+  async getTopicHistory(studentId: string): Promise<TopicSession[]> {
+    const sessions = await this.sessions.listNewestWithTopicForStudent(studentId);
+    return sessions.flatMap(({ id, topicId, status, durationSeconds }) => (topicId ? [{ id, topicId, status, durationSeconds }] : []));
   }
 }

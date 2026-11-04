@@ -212,6 +212,11 @@ export interface components {
              * @enum {string}
              */
             artwork?: "alchemist" | "arc" | "athens" | "balance" | "bars" | "bastille" | "binary" | "blackhole" | "braking" | "branches" | "cake" | "circuit" | "clock" | "curve" | "draughtsman" | "earth" | "earthrise" | "forces" | "frames" | "grid" | "growth" | "ham" | "helix" | "indigo" | "launch" | "lock" | "loom" | "lute" | "melencolia" | "nebula" | "parabola" | "piston" | "pitch" | "prism" | "pyramid" | "route" | "saturn" | "socrates" | "string" | "sunflowers" | "table" | "tangent" | "terrain" | "triangle" | "wave" | "waveform" | "wheat";
+            /**
+             * @description The ID of the topic, when a card started this session. Leave it out for a typed question.
+             * @enum {string}
+             */
+            topicId?: "jump-shot" | "free-kick" | "breaking-wave" | "braking-distance" | "string-pitch" | "rainbow" | "slope-friction" | "rocket-escape" | "moving-clocks" | "circuit-current" | "savings-growth" | "free-throw-odds" | "expected-goals" | "pythagoras" | "quadratics" | "derivative" | "magic-square" | "perspective" | "sunflower-spirals" | "positive-test" | "balancing-equations" | "periodic-table" | "browned-food" | "cake-rise" | "indigo-dye" | "engine-burn" | "alchemists" | "game-worlds" | "fastest-route" | "binary-counting" | "recursion" | "sorting-speed" | "music-file" | "two-strangers" | "programmable-loom" | "saturn-rings" | "moon-face" | "seasons" | "black-hole-edge" | "star-atoms" | "dna-copying" | "still-frames" | "plato-aristotle" | "socrates-trial" | "bread-revolution" | "great-pyramid" | "minor-chord" | "van-gogh-motion";
         };
         SessionResponseDto: {
             /** @description The ID of the session. */
@@ -255,8 +260,11 @@ export interface components {
             status?: "finished";
         };
         PickCardResponseDto: {
-            /** @description The ID of the card. */
-            id: string;
+            /**
+             * @description The ID of the topic that the card offers.
+             * @enum {string}
+             */
+            id: "jump-shot" | "free-kick" | "breaking-wave" | "braking-distance" | "string-pitch" | "rainbow" | "slope-friction" | "rocket-escape" | "moving-clocks" | "circuit-current" | "savings-growth" | "free-throw-odds" | "expected-goals" | "pythagoras" | "quadratics" | "derivative" | "magic-square" | "perspective" | "sunflower-spirals" | "positive-test" | "balancing-equations" | "periodic-table" | "browned-food" | "cake-rise" | "indigo-dye" | "engine-burn" | "alchemists" | "game-worlds" | "fastest-route" | "binary-counting" | "recursion" | "sorting-speed" | "music-file" | "two-strangers" | "programmable-loom" | "saturn-rings" | "moon-face" | "seasons" | "black-hole-edge" | "star-atoms" | "dna-copying" | "still-frames" | "plato-aristotle" | "socrates-trial" | "bread-revolution" | "great-pyramid" | "minor-chord" | "van-gogh-motion";
             /** @description The topic that the card offers. */
             title: string;
             /** @description The subject the topic belongs to. */
@@ -272,6 +280,8 @@ export interface components {
              * @enum {string}
              */
             artwork: "alchemist" | "arc" | "athens" | "balance" | "bars" | "bastille" | "binary" | "blackhole" | "braking" | "branches" | "cake" | "circuit" | "clock" | "curve" | "draughtsman" | "earth" | "earthrise" | "forces" | "frames" | "grid" | "growth" | "ham" | "helix" | "indigo" | "launch" | "lock" | "loom" | "lute" | "melencolia" | "nebula" | "parabola" | "piston" | "pitch" | "prism" | "pyramid" | "route" | "saturn" | "socrates" | "string" | "sunflowers" | "table" | "tangent" | "terrain" | "triangle" | "wave" | "waveform" | "wheat";
+            /** @description The unfinished session that this card opens again, or null if the card starts a new session. */
+            continueSessionId: string | null;
         };
         HomeScreenResponseDto: {
             /** @description The name the tutor calls the student, or null until onboarding saves one. */

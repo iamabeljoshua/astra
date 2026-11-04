@@ -58,6 +58,36 @@ describe('the sessions routes', () => {
     expect(created).toMatchObject(VALID_SESSION);
   });
 
+  it('stores the topic of a session started from a card, and keeps it out of the response', async () => {
+    const { id } = await startSession(student, { topicId: 'jump-shot' });
+
+    const stored = await testApp.app.get(DataSource).getRepository(SessionEntity).findOneByOrFail({ id });
+
+    expect(stored.topicId).toBe('jump-shot');
+    expect((await api().get(`${SESSIONS_PATH}/${id}`).expect(200)).body).not.toHaveProperty('topicId');
+  });
+
+  it('refuses a topic the library does not hold', async () => {
+    const response = await api().post(SESSIONS_PATH).send({ ...VALID_SESSION, topicId: 'not-a-topic' });
+
+    expectBadRequestNaming(response, 'topicId');
+  });
+
+  it("never lets another student's sessions change a card", async () => {
+    const student = await createTestStudent(testApp);
+    const otherStudent = await createTestStudent(testApp);
+    const getPicks = async (owner: TestStudent) => (await api(owner).get('/home').expect(200)).body.picks as unknown[];
+    const picksBefore = await getPicks(student);
+
+    const finished = await startSession(otherStudent, { topicId: 'jump-shot' });
+    await api(otherStudent).patch(`${SESSIONS_PATH}/${finished.id}`).send({ durationSeconds: 720, status: 'finished' }).expect(200);
+    await startSession(otherStudent, { topicId: 'saturn-rings' });
+    await startSession(otherStudent, { topicId: 'game-worlds' });
+
+    expect(await getPicks(otherStudent)).not.toEqual(picksBefore);
+    expect(await getPicks(student)).toEqual(picksBefore);
+  });
+
   it('sends no internal column of a session', async () => {
     const { body } = await api().post(SESSIONS_PATH).send(VALID_SESSION).expect(201);
 

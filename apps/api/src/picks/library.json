@@ -586,5 +586,17 @@
       "goals": ["curiosity"],
       "interests": ["art"]
     }
-  ]
+  ],
+  "topicOrder": {
+    "Physics": ["jump-shot", "slope-friction", "braking-distance", "free-kick", "rocket-escape", "circuit-current", "string-pitch", "breaking-wave", "rainbow", "moving-clocks"],
+    "Math": ["pythagoras", "perspective", "quadratics", "magic-square", "sunflower-spirals", "savings-growth", "derivative", "free-throw-odds", "expected-goals", "positive-test"],
+    "Chemistry": ["balancing-equations", "periodic-table", "cake-rise", "browned-food", "engine-burn", "indigo-dye", "alchemists"],
+    "Computer science": ["binary-counting", "programmable-loom", "game-worlds", "recursion", "sorting-speed", "fastest-route", "music-file", "two-strangers"],
+    "Astronomy": ["seasons", "moon-face", "saturn-rings", "star-atoms", "black-hole-edge"],
+    "Biology": ["dna-copying", "still-frames"],
+    "Philosophy": ["socrates-trial", "plato-aristotle"],
+    "History": ["great-pyramid", "bread-revolution"],
+    "Music": ["minor-chord"],
+    "Art": ["van-gogh-motion"]
+  }
 }

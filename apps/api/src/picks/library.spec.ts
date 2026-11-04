@@ -87,6 +87,17 @@ describe('the picks library', () => {
     }
   });
 
+  it('writes down the order of every subject, naming each of its topics once', () => {
+    const subjects = [...new Set(LIBRARY.topics.map((topic) => topic.subject))];
+
+    expect(Object.keys(LIBRARY.topicOrder).sort()).toEqual([...subjects].sort());
+    for (const subject of subjects) {
+      const idsInSubject = LIBRARY.topics.filter((topic) => topic.subject === subject).map((topic) => topic.id);
+
+      expect([...(LIBRARY.topicOrder[subject] ?? [])].sort()).toEqual(idsInSubject.sort());
+    }
+  });
+
   it('uses every picture file it ships', () => {
     const artworkInUse = new Set(LIBRARY.topics.map((topic) => topic.artwork as string));
 
@@ -95,7 +106,8 @@ describe('the picks library', () => {
 
   it.each(ONBOARDING_INTERESTS)('finds a card for the onboarding choice %s at every level', (interest) => {
     for (const level of STUDENT_LEVELS) {
-      const reasons = getPicksForStudent({ interests: [interest], level, goal: 'class' }, LIBRARY).map((pick) => pick.reason);
+      const fit = { interests: [interest], level, goal: 'class' as const };
+      const reasons = getPicksForStudent({ fit, history: [], continueSessionId: null }, LIBRARY).map((pick) => pick.reason);
 
       expect(reasons).toContain(`Because you're into ${interest.toLowerCase()}`);
     }

@@ -104,6 +104,7 @@ export const HOME_LABELS = {
   greetingWithoutName: 'Welcome.',
   question: 'What do you want to learn next?',
   continueLabel: 'Continue',
+  continueReason: (subject: string) => `${subject}. Carry on where you left off.`,
   continueButton: 'Continue session \u2192',
   picksLabel: 'Picked for you',
   pickDetails: (subject: string, lengthMinutes: number) => `${subject}, ${lengthMinutes} min`,
@@ -312,7 +313,8 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
         today: [
           "Your email address, the times you sign in, and a record of each sign-in. Supabase Auth, our sign-in service, keeps these. Its records include your IP address and your browser's description of itself.",
           'Your date of birth, if you are old enough to continue. We keep it in our database with an account ID and the time the record was made.',
-          "Each session's title, subject, language, picture, length, status, and start time. A question you send from the home screen becomes its session's title, cut to 200 characters, so we store those words.",
+          "Each session's title, subject, language, picture, length, status, and start time, and the suggested lesson it came from, if any. A question you send from the home screen becomes its session's title, cut to 200 characters, so we store those words.",
+          'We use the sessions you start from suggested lessons, their length, and their status to choose what your home screen suggests next. Only your own sessions do this, and the questions you type play no part in it.',
           "Any file you attach, and anything you type into a session's reply box, stay in your browser. They are not sent or stored. The app does not use your microphone.",
           'Words you type into the search box on the Sessions page go to our server, which uses them to find your sessions. We do not store them.',
         ],

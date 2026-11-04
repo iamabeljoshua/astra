@@ -17,7 +17,7 @@ export function ContinueCard({ session, onContinue }: ContinueCardProps) {
       <div className="flex min-w-0 flex-col items-start gap-0.75 px-5 py-4.5">
         <span className="label text-ink-2">{HOME_LABELS.continueLabel}</span>
         <h2 className="mt-0.5 text-heading font-semibold wrap-anywhere">{session.title}</h2>
-        <p className="mb-3 text-ink-2">{session.detail ?? session.subject}</p>
+        <p className="mb-3 text-ink-2">{session.detail ?? HOME_LABELS.continueReason(session.subject)}</p>
         <button type="button" onClick={() => onContinue(session)} className="button button-solid">
           {HOME_LABELS.continueButton}
         </button>

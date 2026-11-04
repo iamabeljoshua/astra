@@ -114,7 +114,7 @@ describe('HomeScreen', () => {
         continueSession: { ...UNFINISHED_SESSION!, detail: null },
       });
 
-      screen.getByText(UNFINISHED_SESSION!.subject);
+      screen.getByText(HOME_LABELS.continueReason(UNFINISHED_SESSION!.subject));
     });
 
     it.each([

@@ -22,7 +22,10 @@ export interface LibraryInterest {
 export interface Library {
   interests: LibraryInterest[];
   topics: LibraryTopic[];
+  topicOrder: Record<string, string[]>;
 }
 
 // library.spec.ts checks every level, goal, and artwork name, which a JSON import cannot type.
 export const LIBRARY = libraryData as Library;
+
+export const LIBRARY_TOPIC_IDS = LIBRARY.topics.map((topic) => topic.id);

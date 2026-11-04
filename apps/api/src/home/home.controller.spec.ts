@@ -13,6 +13,10 @@ import { SessionEntity } from '../infrastructure/orm/entities/session.entity';
 
 const SEEDED_UNFINISHED_TITLE = 'Free-body diagrams';
 
+interface PickCard {
+  id: string;
+}
+
 describe('GET /home', () => {
   let testApp: TestApp;
   let mayaToken: string;
@@ -67,6 +71,7 @@ describe('GET /home', () => {
     for (const pick of body.picks) {
       expect(Object.keys(pick).sort()).toEqual([
         'artwork',
+        'continueSessionId',
         'id',
         'lengthMinutes',
         'openingLine',
@@ -147,6 +152,69 @@ describe('GET /home', () => {
 
     expect(body.picks).toHaveLength(6);
     expect(new Set(body.picks.map((pick: { reason: string }) => pick.reason))).toEqual(new Set(['A good place to start']));
+  });
+
+  describe('after sessions on topics from the library', () => {
+    const CARRY_ON_REASON = 'Carry on where you left off';
+
+    function getPick(home: { picks: PickCard[] }, id: string) {
+      return home.picks.find((pick) => pick.id === id);
+    }
+
+    function saveTopicSession(studentId: string, session: { topicId: string; startedAt: string; durationSeconds?: number; status?: 'finished' }) {
+      return sessions().save({
+        studentId,
+        title: session.topicId,
+        subject: 'Physics',
+        language: 'en',
+        ...session,
+        startedAt: new Date(session.startedAt),
+      });
+    }
+
+    it('drops a finished topic, suggests the next one, and offers an older open topic that reopens its session', async () => {
+      const student = await createTestStudent(testApp);
+      await saveTopicSession(student.studentId, { topicId: 'jump-shot', startedAt: '2026-11-01T10:00:00Z', durationSeconds: 720, status: 'finished' });
+      const olderOpen = await saveTopicSession(student.studentId, { topicId: 'saturn-rings', startedAt: '2026-11-01T11:00:00Z' });
+      const newestOpen = await saveTopicSession(student.studentId, { topicId: 'game-worlds', startedAt: '2026-11-01T12:00:00Z' });
+
+      const { body } = await getHomeWithToken(student.token).expect(200);
+
+      expect(getPick(body, 'jump-shot')).toBeUndefined();
+      expect(body.continueSession.id).toBe(newestOpen.id);
+      expect(getPick(body, 'game-worlds')).toBeUndefined();
+      expect(getPick(body, 'saturn-rings')).toMatchObject({ reason: CARRY_ON_REASON, continueSessionId: olderOpen.id });
+      expect(body.picks).toHaveLength(6);
+    });
+
+    it('suggests the next topic with a reason that names the finished one', async () => {
+      const student = await createTestStudent(testApp);
+      await saveTopicSession(student.studentId, { topicId: 'seasons', startedAt: '2026-11-01T10:00:00Z', durationSeconds: 300, status: 'finished' });
+
+      const { body } = await getHomeWithToken(student.token).expect(200);
+
+      expect(body.picks[0]).toMatchObject({ id: 'saturn-rings', reason: 'You finished What really causes the seasons' });
+    });
+
+    it('leaves the cards alone for a session ended after a few seconds', async () => {
+      const student = await createTestStudent(testApp);
+      const { body: homeBefore } = await getHomeWithToken(student.token).expect(200);
+      await saveTopicSession(student.studentId, { topicId: 'jump-shot', startedAt: '2026-11-01T10:00:00Z', durationSeconds: 5, status: 'finished' });
+
+      const { body: homeAfter } = await getHomeWithToken(student.token).expect(200);
+
+      expect(homeAfter.picks).toEqual(homeBefore.picks);
+    });
+
+    it('takes no card from a typed question, even one worded like a topic', async () => {
+      const student = await createTestStudent(testApp);
+      const { body: homeBefore } = await getHomeWithToken(student.token).expect(200);
+      await sessions().save({ studentId: student.studentId, title: 'How a jump shot flies', subject: 'Your question', language: 'en', status: 'finished', durationSeconds: 720 });
+
+      const { body: homeAfter } = await getHomeWithToken(student.token).expect(200);
+
+      expect(homeAfter.picks).toEqual(homeBefore.picks);
+    });
   });
 
   it('refuses a request with no token', async () => {

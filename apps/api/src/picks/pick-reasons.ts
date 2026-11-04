@@ -31,6 +31,12 @@ const REASONS_BY_LEVEL: Record<StudentLevel, LevelReasons> = {
 
 export const STARTER_REASON = 'A good place to start';
 
+export const CARRY_ON_REASON = 'Carry on where you left off';
+
+export function getNextTopicReason(finishedTitle: string): string {
+  return `You finished ${finishedTitle}`;
+}
+
 export function getInterestReason(interestWord: string): string {
   return `Because you're into ${interestWord}`;
 }
