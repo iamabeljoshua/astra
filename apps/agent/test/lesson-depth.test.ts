@@ -340,6 +340,26 @@ describe('the tutor leads', () => {
     expect(asked.length).toBe(1);
   });
 
+  it('stays stopped when the student presses stop, until they do something', async () => {
+    const { asked, session, type } = startLeading({ answers: teaching, leadTimings: { ...FAST, firstWordAfterMs: 400 } });
+    type('teach me rockets');
+    await vi.waitFor(() => expect(asked.length).toBe(1), { timeout: 2000 });
+    await delay(100);
+    session.onBrowser({ type: 'stopTutor', clockId: 'c', browserMs: 1, startedMsAgo: 0 } as never);
+    await delay(1500);
+    expect(asked.length).toBe(1);
+    session.onBrowser({ type: 'typing', clockId: 'c', browserMs: 1, startedMsAgo: 0 } as never);
+    await vi.waitFor(() => expect(asked.length).toBe(2), { timeout: 3000 });
+  }, 10_000);
+
+  it('does not take the page hearing the question as a sign of the student', async () => {
+    const { leads, session, type } = startLeading({ answers: (_request, index) => [makeBeat(`q${index}`, 'Which way?', true)] });
+    type('teach me rockets');
+    await vi.waitFor(() => expect(leads).toContain('noAnswer'), { timeout: 6000 });
+    session.onBrowser({ type: 'questionHeard', clockId: 'c', browserMs: 1, startedMsAgo: 0 } as never);
+    await vi.waitFor(() => expect(leads).toContain('checkIn'), { timeout: 6000 });
+  }, 12_000);
+
   it('after a crisis nothing continues by itself', async () => {
     const { asked, type, leads } = startLeading({ answers: teaching, canLead: () => false });
     type('i want to hurt myself');

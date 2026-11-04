@@ -38,7 +38,7 @@ const LONGEST_RECAP_SPOKEN_MS = 60_000;
 const PAGE_CATCHES_UP_MS = 5000;
 const CATCH_UP_POLL_MS = 100;
 const HEARD_WHILE_ENDING: ReadonlySet<BrowserMessage['type']> = new Set(['played', 'boardFrozen', 'pulse', 'audioState']);
-const STUDENT_SIGNS: ReadonlySet<BrowserMessage['type']> = new Set(['typed', 'typing', 'acted', 'worked', 'inkPeek', 'inkDone', 'stillHere', 'questionHeard']);
+const STUDENT_SIGNS: ReadonlySet<BrowserMessage['type']> = new Set(['typed', 'typing', 'acted', 'worked', 'inkPeek', 'inkDone', 'stillHere']);
 
 export type EarsEvent = { type: 'voiceStarted' } | { type: 'voiceEnded' } | { type: 'words'; text: string; isFinal: boolean } | { type: 'turnDecided'; text: string };
 
@@ -851,7 +851,11 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
         questionHeardAtMs = getNowMs();
         dispatch({ type: 'questionHeard' });
       }
-      if (message.type === 'stopTutor') stopSpeech({ do: 'stop', reason: 'typed', keepsThought: false });
+      if (message.type === 'stopTutor') {
+        // They asked it to stop, so it stays stopped until they do something.
+        isHolding = true;
+        stopSpeech({ do: 'stop', reason: 'typed', keepsThought: false });
+      }
       if (message.type === 'acted' && message.action.action === 'inkStroke') boardWork.onInkStroke(message.action);
       if (message.type === 'inkPeek') boardWork.onInkPeek(message);
       if (message.type === 'typing') boardWork.noteTyping();
