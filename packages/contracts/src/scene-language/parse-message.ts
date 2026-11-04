@@ -95,6 +95,8 @@ const AGENT_MESSAGES: VariantTable<AgentMessage, 'type'> = {
     earsOpen: { keys: [], read: () => ({ type: 'earsOpen' }) },
     quietWarning: { keys: ['isOn'], read: (fields) => ({ type: 'quietWarning', isOn: readBoolean(fields.at('isOn')) }) },
     closingForQuiet: { keys: [], read: () => ({ type: 'closingForQuiet' }) },
+    keptBeingCut: { keys: [], read: () => ({ type: 'keptBeingCut' }) },
+    talkInvited: { keys: [], read: () => ({ type: 'talkInvited' }) },
   },
 };
 
@@ -142,8 +144,8 @@ const BROWSER_MESSAGES: VariantTable<BrowserMessage, 'type'> = {
       }),
     },
     hello: {
-      keys: [...STAMP_KEYS, 'wantsGreeting'],
-      read: (fields) => ({ type: 'hello', ...readBrowserStamp(fields), wantsGreeting: readBoolean(fields.at('wantsGreeting')) }),
+      keys: [...STAMP_KEYS, 'wantsGreeting', 'invitesTalk'],
+      read: (fields) => ({ type: 'hello', ...readBrowserStamp(fields), wantsGreeting: readBoolean(fields.at('wantsGreeting')), invitesTalk: readBoolean(fields.at('invitesTalk')) }),
     },
     typed: {
       keys: [...STAMP_KEYS, 'text'],
@@ -160,6 +162,18 @@ const BROWSER_MESSAGES: VariantTable<BrowserMessage, 'type'> = {
     stillHere: {
       keys: STAMP_KEYS,
       read: (fields) => ({ type: 'stillHere', ...readBrowserStamp(fields) }),
+    },
+    talkPressed: {
+      keys: STAMP_KEYS,
+      read: (fields) => ({ type: 'talkPressed', ...readBrowserStamp(fields) }),
+    },
+    holdStarted: {
+      keys: STAMP_KEYS,
+      read: (fields) => ({ type: 'holdStarted', ...readBrowserStamp(fields) }),
+    },
+    lineEnded: {
+      keys: STAMP_KEYS,
+      read: (fields) => ({ type: 'lineEnded', ...readBrowserStamp(fields) }),
     },
   },
 };

@@ -24,7 +24,7 @@ function makeTake(id: string, use: StoredTake['use'], phrase: string): StoredTak
   return { id, use, phrase, sampleRate: 24000, words, base64: Buffer.from(pcm.buffer, pcm.byteOffset, pcm.byteLength).toString('base64') };
 }
 
-const TAKES = [makeTake('hm', 'reaction', 'Hm.'), makeTake('okay', 'reaction', 'Okay.'), makeTake('right', 'reaction', 'Right.'), makeTake('hello', 'greeting', 'Hello there.'), makeTake('prompt', 'prompt', 'Take your time.'), makeTake('lost', 'voiceLost', 'Sorry about that.')];
+const TAKES = [makeTake('talk', 'talkInvitation', 'You can talk to me any time, just press Talk.'), makeTake('hm', 'reaction', 'Hm.'), makeTake('okay', 'reaction', 'Okay.'), makeTake('right', 'reaction', 'Right.'), makeTake('hello', 'greeting', 'Hello there.'), makeTake('prompt', 'prompt', 'Take your time.'), makeTake('lost', 'voiceLost', 'Sorry about that.')];
 
 const LONG_LINE = 'one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen';
 
@@ -65,7 +65,7 @@ function makeOutput(frames: { atMs: number }[], failAfter = Infinity): VoiceOutp
   };
 }
 
-function start({ voice = makeRenderedVoice({ name: 'fake', render: renderTone }).makeTts(), failAfter, quietLimitMs, onQuietLimit }: { voice?: tts.TTS; failAfter?: number; quietLimitMs?: number; onQuietLimit?(): void } = {}): Harness {
+function start({ voice = makeRenderedVoice({ name: 'fake', render: renderTone }).makeTts(), failAfter, quietLimitMs, onQuietLimit, endLine, replyLine = LONG_LINE }: { endLine?: () => void; replyLine?: string;  voice?: tts.TTS; failAfter?: number; quietLimitMs?: number; onQuietLimit?(): void } = {}): Harness {
   const messages: AgentMessage[] = [];
   const traces: Harness['traces'] = [];
   const frames: { atMs: number }[] = [];
@@ -79,7 +79,7 @@ function start({ voice = makeRenderedVoice({ name: 'fake', render: renderTone })
       signal.addEventListener('abort', () => {
         harness.aborted += 1;
       });
-      yield makeBeat(`reply-${replies}`, LONG_LINE);
+      yield makeBeat(`reply-${replies}`, replyLine);
     },
   };
   const send = (message: AgentMessage) => void messages.push(message);
@@ -91,6 +91,7 @@ function start({ voice = makeRenderedVoice({ name: 'fake', render: renderTone })
     takes: createTakePicker(TAKES),
     allTakes: TAKES,
     setTurnCap: () => {},
+    endLine,
     onQuietLimit,
     ...(quietLimitMs === undefined ? {} : { quietLimitMs }),
     trace: (name, fields = {}) => void traces.push({ name, fields }),
@@ -282,7 +283,7 @@ describe('a failing voice', () => {
 
   it('survives a capture failure, and reports the turn cut', async () => {
     const harness = start({ failAfter: 1 });
-    harness.browser({ type: 'hello', ...STAMP, wantsGreeting: true });
+    harness.browser({ type: 'hello', ...STAMP, wantsGreeting: true, invitesTalk: false });
     await delay(600);
     expect(harness.traces.some((trace) => trace.name === 'voiceFailed')).toBe(true);
     const turn = harness.getTurnsStarted()[0] as TurnId;
@@ -453,16 +454,230 @@ describe('what the agent never does', () => {
 describe('the greeting', () => {
   it('plays once, when the page says it wants one', async () => {
     const harness = start();
-    harness.browser({ type: 'hello', ...STAMP, wantsGreeting: true });
-    harness.browser({ type: 'hello', ...STAMP, wantsGreeting: true });
+    harness.browser({ type: 'hello', ...STAMP, wantsGreeting: true, invitesTalk: false });
+    harness.browser({ type: 'hello', ...STAMP, wantsGreeting: true, invitesTalk: false });
     await delay(50);
     expect(harness.traces.filter((trace) => trace.name === 'turnStarted').map((trace) => trace.fields.kind)).toEqual(['greeting']);
   });
 
   it('stays quiet for a student who opened the room by typing', async () => {
     const harness = start();
-    harness.browser({ type: 'hello', ...STAMP, wantsGreeting: false });
+    harness.browser({ type: 'hello', ...STAMP, wantsGreeting: false, invitesTalk: false });
     await delay(50);
     expect(harness.traces.filter((trace) => trace.name === 'turnStarted')).toEqual([]);
   });
 });
+
+describe('holding to talk', () => {
+  const press = (harness: Harness) => harness.browser({ type: 'holdStarted', ...STAMP });
+  const letGo = (harness: Harness) => harness.browser({ type: 'lineEnded', ...STAMP });
+
+  async function startTutorSpeaking() {
+    const harness = start();
+    await harness.say('Why does it fall');
+    await delay(TURN_TIMINGS.reactionFloorMs + 500);
+    const replyTurn = harness.getTurnsStarted().at(-1) as TurnId;
+    return { harness, replyTurn };
+  }
+
+  it('cuts the tutor on the press, with no sound and no words yet', async () => {
+    const { harness, replyTurn } = await startTutorSpeaking();
+    press(harness);
+    expect(harness.didStop(replyTurn)).toBe(true);
+  });
+
+  it('answers when the final lands after letting go, with no wait on the voice detector and no turn cap', async () => {
+    const ends: string[] = [];
+    const harness = start({ endLine: () => ends.push('ended') });
+    press(harness);
+    harness.ears({ type: 'voiceStarted' });
+    harness.ears({ type: 'words', text: 'It lands', isFinal: false });
+    letGo(harness);
+    expect(ends).toEqual(['ended']);
+    expect(harness.brainRequests).toEqual([]);
+    const startedAt = performance.now();
+    harness.ears({ type: 'words', text: 'It lands twice as far.', isFinal: true });
+    expect(harness.brainRequests).toEqual(['It lands twice as far.']);
+    expect(performance.now() - startedAt).toBeLessThan(20);
+  });
+
+  it('sends the dot and a reaction at once on letting go when words are in, without the 300 ms floor', async () => {
+    const harness = start();
+    press(harness);
+    harness.ears({ type: 'words', text: 'It lands', isFinal: false });
+    letGo(harness);
+    expect(harness.messages.some((message) => message.type === 'heard')).toBe(true);
+  });
+
+  it('gives one answer, and drops the SDK turn that follows for the same words', async () => {
+    const harness = start();
+    press(harness);
+    letGo(harness);
+    harness.ears({ type: 'words', text: 'It lands twice as far.', isFinal: true });
+    harness.ears({ type: 'turnDecided', text: 'It lands twice as far.' });
+    await delay(50);
+    expect(harness.brainRequests).toEqual(['It lands twice as far.']);
+  });
+
+  it('never ends the line on a pause while held, however long', async () => {
+    const harness = start();
+    press(harness);
+    harness.ears({ type: 'voiceStarted' });
+    harness.ears({ type: 'words', text: 'Part one.', isFinal: true });
+    harness.ears({ type: 'voiceEnded' });
+    harness.ears({ type: 'turnDecided', text: 'Part one.' });
+    await delay(TURN_TIMINGS.heldFinalMs + 200);
+    expect(harness.brainRequests).toEqual([]);
+    letGo(harness);
+    harness.ears({ type: 'words', text: 'Part two.', isFinal: true });
+    expect(harness.brainRequests).toEqual(['Part one. Part two.']);
+  });
+
+  it('carries the tutor on from the cut word when a hold had no words', async () => {
+    const { harness, replyTurn } = await startTutorSpeaking();
+    press(harness);
+    expect(harness.didStop(replyTurn)).toBe(true);
+    letGo(harness);
+    harness.session.onEars({ type: 'lineFlushed' });
+    await delay(TURN_TIMINGS.transcriptGraceMs + 1100);
+    const kinds = harness.traces.filter((trace) => trace.name === 'turnStarted').map((trace) => trace.fields.kind);
+    expect(kinds.at(-1)).toBe('resume');
+  });
+
+  it('cuts a reply that was thinking when the key went down, as soon as its sound starts', async () => {
+    const harness = start();
+    harness.browser({ type: 'typed', ...STAMP, text: 'Why' });
+    press(harness);
+    await delay(800);
+    expect(harness.traces.some((trace) => trace.name === 'stopDecided')).toBe(true);
+    const replyTurn = harness.traces.find((trace) => trace.name === 'turnStarted' && trace.fields.kind === 'reply')?.fields.turnId;
+    expect(harness.messages.some((message) => message.type === 'words' && message.turnId === replyTurn)).toBe(false);
+  });
+
+  it('answers from the partial if a final never comes, on the rule that holds for any held final', async () => {
+    const harness = start();
+    press(harness);
+    harness.ears({ type: 'words', text: 'It lands', isFinal: false });
+    letGo(harness);
+    await delay(TURN_TIMINGS.heldFinalMs + 100);
+    expect(harness.brainRequests).toEqual(['It lands']);
+  });
+
+  it('takes a page that came back with no key down as the line having ended', async () => {
+    const ends: string[] = [];
+    const harness = start({ endLine: () => ends.push('ended') });
+    press(harness);
+    harness.browser({ type: 'hello', ...STAMP, wantsGreeting: false, invitesTalk: false });
+    expect(ends).toEqual(['ended']);
+  });
+
+  it('counts a hold as the room not being quiet', async () => {
+    const harness = start({ quietLimitMs: 300 });
+    await delay(200);
+    press(harness);
+    await delay(200);
+    expect(harness.messages.some((message) => message.type === 'closingForQuiet')).toBe(false);
+  });
+});
+
+describe('a tutor kept being cut by sound with no words', () => {
+  async function cutWithNoWords(harness: Harness) {
+    harness.ears({ type: 'voiceStarted' });
+    await delay(TURN_TIMINGS.wordlessStopMs + 30);
+    harness.ears({ type: 'voiceEnded' });
+    await delay(TURN_TIMINGS.transcriptGraceMs + 30);
+  }
+
+  it('tells the page once, on the second such cut and not the first', async () => {
+    const harness = start();
+    const countNotes = () => harness.messages.filter((message) => message.type === 'keptBeingCut').length;
+    const speakThenCut = async () => {
+      await harness.say('Why does it fall');
+      await delay(TURN_TIMINGS.reactionFloorMs + 500);
+      await cutWithNoWords(harness);
+      await delay(1100);
+    };
+    await speakThenCut();
+    expect(countNotes()).toBe(0);
+    await speakThenCut();
+    expect(countNotes()).toBe(1);
+    await speakThenCut();
+    expect(countNotes()).toBe(1);
+  }, 20_000);
+
+  it('says nothing to a student who already holds to talk', async () => {
+    const harness = start();
+    harness.browser({ type: 'holdStarted', ...STAMP });
+    harness.browser({ type: 'lineEnded', ...STAMP });
+    harness.session.onEars({ type: 'lineFlushed' });
+    const speakThenCut = async () => {
+      await harness.say('Why does it fall');
+      await delay(TURN_TIMINGS.reactionFloorMs + 500);
+      await cutWithNoWords(harness);
+      await delay(1100);
+    };
+    await speakThenCut();
+    await speakThenCut();
+    expect(harness.messages.some((message) => message.type === 'keptBeingCut')).toBe(false);
+  }, 20_000);
+});
+
+describe('the spoken invitation', () => {
+  const kinds = (harness: Harness) => harness.traces.filter((trace) => trace.name === 'turnStarted').map((trace) => trace.fields.kind);
+  const hello = (harness: Harness, invitesTalk: boolean) => harness.browser({ type: 'hello', ...STAMP, wantsGreeting: false, invitesTalk });
+  const soundOn = (harness: Harness) => harness.browser({ type: 'audioState', ...STAMP, isRunning: true });
+  const answerTyped = async (harness: Harness) => {
+    harness.browser({ type: 'typed', ...STAMP, text: 'Why' });
+    await delay(1500);
+  };
+
+  it('comes once, after the first answer, and tells the page so it can be recorded', async () => {
+    const harness = start({ replyLine: 'one two' });
+    soundOn(harness);
+    hello(harness, true);
+    await answerTyped(harness);
+    await delay(1800);
+    expect(kinds(harness)).toContain('talkInvitation');
+    await delay(3000);
+    expect(harness.messages.filter((message) => message.type === 'talkInvited')).toHaveLength(1);
+    await answerTyped(harness);
+    await delay(1800);
+    expect(kinds(harness).filter((kind) => kind === 'talkInvitation')).toHaveLength(1);
+  }, 15_000);
+
+  it('does not come for a student the server says is not due one', async () => {
+    const harness = start({ replyLine: 'one two' });
+    soundOn(harness);
+    hello(harness, false);
+    await answerTyped(harness);
+    await delay(1800);
+    expect(kinds(harness)).not.toContain('talkInvitation');
+  }, 10_000);
+
+  it('does not come once the student has pressed Talk', async () => {
+    const harness = start({ replyLine: 'one two' });
+    soundOn(harness);
+    hello(harness, true);
+    harness.browser({ type: 'talkPressed', ...STAMP });
+    await answerTyped(harness);
+    await delay(1800);
+    expect(kinds(harness)).not.toContain('talkInvitation');
+  }, 10_000);
+
+  it('does not come to a student who cannot hear it', async () => {
+    const harness = start({ replyLine: 'one two' });
+    hello(harness, true);
+    await answerTyped(harness);
+    await delay(1800);
+    expect(kinds(harness)).not.toContain('talkInvitation');
+  }, 10_000);
+
+  it('never follows the greeting alone, which is not an answer', async () => {
+    const harness = start({ replyLine: 'one two' });
+    soundOn(harness);
+    harness.browser({ type: 'hello', ...STAMP, wantsGreeting: true, invitesTalk: true });
+    await delay(3500);
+    expect(kinds(harness)).toEqual(['greeting']);
+  }, 10_000);
+});
+

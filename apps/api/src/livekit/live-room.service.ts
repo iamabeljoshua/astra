@@ -1,5 +1,6 @@
 import { ConflictException, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { SessionsService } from '../sessions/sessions.service';
+import { StudentsService } from '../students/students.service';
 import { makeStudentToken } from './live-room-grants';
 import type { LiveRoomResponseDto } from './live-room.dto';
 import { getLiveRoomKeys, LiveRooms } from './live-rooms';
@@ -9,7 +10,13 @@ export class LiveRoomService {
   constructor(
     private readonly sessionsService: SessionsService,
     private readonly liveRooms: LiveRooms,
+    private readonly studentsService: StudentsService,
   ) {}
+
+  private async getInvitesTalk(studentId: string, sessionId: string): Promise<boolean> {
+    if (await this.studentsService.hasBeenInvitedToTalk(studentId)) return false;
+    return this.sessionsService.isFirstSession(studentId, sessionId);
+  }
 
   private async requireUnfinishedSession(studentId: string, sessionId: string) {
     const session = await this.sessionsService.getSession(studentId, sessionId);
@@ -28,6 +35,6 @@ export class LiveRoomService {
       await this.liveRooms.close(session.id);
       throw problem;
     });
-    return { url: keys.url, roomName, token: await makeStudentToken({ keys, roomName, studentId }) };
+    return { url: keys.url, roomName, token: await makeStudentToken({ keys, roomName, studentId }), invitesTalk: await this.getInvitesTalk(studentId, session.id) };
   }
 }

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource, ILike, IsNull, MoreThan, Not } from 'typeorm';
+import { DataSource, ILike, IsNull, LessThan, MoreThan, Not } from 'typeorm';
 import type { FindOptionsWhere, Repository } from 'typeorm';
 import { SessionEntity } from '../entities/session.entity';
 
@@ -50,6 +50,13 @@ export class SessionRepository {
 
   countStartedSince(studentId: string, since: Date): Promise<number> {
     return this.sessions.countBy({ studentId, startedAt: MoreThan(since) });
+  }
+
+  /** True when no session of this student started before this one. */
+  async isFirstForStudent(studentId: string, sessionId: string): Promise<boolean> {
+    const session = await this.sessions.findOneBy({ id: sessionId, studentId });
+    if (!session) return false;
+    return !(await this.sessions.existsBy({ studentId, startedAt: LessThan(session.startedAt) }));
   }
 
   existsForStudent(studentId: string): Promise<boolean> {

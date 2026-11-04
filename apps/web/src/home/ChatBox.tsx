@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent, type KeyboardEvent, type RefObject } from 'react';
+import { useRef, useState, type ComponentProps, type FormEvent, type KeyboardEvent, type RefObject } from 'react';
 import { CHAT_BOX_LABELS } from '../strings';
 import { useHeightThatFitsText } from './useHeightThatFitsText';
 
@@ -15,7 +15,7 @@ interface ChatBoxProps {
   clearsOnSend?: boolean;
   isSending?: boolean;
   /** A session's live voice owns this. Without it the button only changes the placeholder. */
-  talk?: { isOn: boolean; onToggle: () => void };
+  talk?: { isOn: boolean; onToggle: () => void; buttonProps?: ComponentProps<'button'> };
   onSend: (text: string, textBox: HTMLTextAreaElement) => void;
   onEdit: () => void;
 }
@@ -65,7 +65,7 @@ export function ChatBox({ labels = CHAT_BOX_LABELS, canAttach = true, clearsOnSe
       />
       <div className="flex items-center gap-1.5 pt-1.5 pr-2 pb-2 pl-2.5">
         {canAttach && <AttachButton button={attachButton} onChoose={setAttachment} />}
-        <TalkButton isOn={isTalkOn} onToggle={talk?.onToggle ?? (() => setIsLocalTalkOn(!isLocalTalkOn))} />
+        <TalkButton isOn={isTalkOn} onToggle={talk?.onToggle ?? (() => setIsLocalTalkOn(!isLocalTalkOn))} buttonProps={talk?.buttonProps} />
         <SendButton label={labels.send} isEnabled={hasQuestion && !isSending} />
       </div>
     </form>
@@ -160,9 +160,9 @@ function AttachButton({ button, onChoose }: AttachButtonProps) {
   );
 }
 
-function TalkButton({ isOn, onToggle }: { isOn: boolean; onToggle: () => void }) {
+function TalkButton({ isOn, onToggle, buttonProps }: { isOn: boolean; onToggle: () => void; buttonProps?: ComponentProps<'button'> }) {
   return (
-    <button type="button" aria-pressed={isOn} onClick={onToggle} className={TOOL_BUTTON}>
+    <button type="button" aria-pressed={isOn} onClick={onToggle} className={TOOL_BUTTON} {...buttonProps}>
       <TalkIcon />
       <span>{CHAT_BOX_LABELS.talk}</span>
     </button>

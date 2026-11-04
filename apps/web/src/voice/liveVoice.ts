@@ -34,6 +34,8 @@ export interface StudentLine {
 export interface LiveVoiceView {
   phase: LivePhase;
   mic: MicState;
+  /** Code heard steady noise, or the tutor keeps getting cut off by sound with no words. */
+  isRoomNoisy: boolean;
   isSoundBlocked: boolean;
   /** The room has been quiet for most of its limit and closes soon unless something happens. */
   isQuietWarning: boolean;
@@ -49,6 +51,8 @@ export interface LiveVoiceView {
 export interface RoomAccess {
   url: string;
   token: string;
+  /** This student's first session, and they have not been told yet that they can talk. */
+  invitesTalk?: boolean;
 }
 
 export interface LiveVoiceRecords {
@@ -66,7 +70,17 @@ export interface LiveVoiceRecords {
   clockKinds: string[];
 }
 
-export interface LiveVoice {
+/** What a press on Talk or Space drives, ready before the room is, so a hold before it loses no words. */
+export interface MicControls {
+  isMicOn(): boolean;
+  setMic(isOn: boolean): Promise<void>;
+  /** The student let go: capture ends now, and only what it already holds still goes. */
+  endLine(): void;
+  lowerTutor(): void;
+  tellHoldStarted(): void;
+}
+
+export interface LiveVoice extends MicControls {
   getView(): LiveVoiceView;
   subscribe(listener: () => void): () => void;
   getBoardNow(): { board: BoardState; atMs: number };
@@ -88,6 +102,9 @@ export interface LiveVoiceOptions {
   wantsGreeting?: boolean;
   /** The browser's own speech cleanup. Only a microphone test turns it off. */
   usesSpeechCleanup?: boolean;
+  onMicReady?(controls: MicControls): void;
+  /** The tutor told this student they can talk. */
+  onTalkInvited?(): void;
 }
 
 const getEpochMs = () => performance.timeOrigin + performance.now();
@@ -100,7 +117,7 @@ function createRecords(): LiveVoiceRecords {
 }
 
 // Connects the session to its room, plays what the agent sends against what the student hears, and sends back what played. It knows nothing of React.
-export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpeechCleanup = true }: LiveVoiceOptions): Promise<LiveVoice> {
+export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpeechCleanup = true, onMicReady, onTalkInvited }: LiveVoiceOptions): Promise<LiveVoice> {
   // Setting up the audio took 90 to 480 ms under load, and the room's answer does not depend on it, so neither waits for the other.
   const firstAccess = getAccess();
   firstAccess.catch(() => {});
@@ -114,7 +131,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
   const decoder = new TextDecoder();
   const listeners = new Set<() => void>();
   const outbox: BrowserMessage[] = [];
-  let view: LiveVoiceView = { phase: 'connecting', mic: 'off', isSoundBlocked: audioContext.state !== 'running', isQuietWarning: false, isHeard: false, isTutorSpeaking: false, studentLines: [], tutorHeard: [], tutorComing: [] };
+  let view: LiveVoiceView = { phase: 'connecting', mic: 'off', isRoomNoisy: false, isSoundBlocked: audioContext.state !== 'running', isQuietWarning: false, isHeard: false, isTutorSpeaking: false, studentLines: [], tutorHeard: [], tutorComing: [] };
   let lastAgentPulseEpochMs: number | null = null;
   let isClosed = false;
   let hasHeardFirstOnset = false;
@@ -128,6 +145,8 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
   let isPublishOwed = false;
   let rejoinsSincePulse = 0;
   let hasSaidHello = false;
+  let invitesTalk = false;
+  let hasPressedTalk = false;
   let connectedAtEpochMs = getEpochMs();
 
   const setView = (changes: Partial<LiveVoiceView>) => {
@@ -200,6 +219,8 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     }
     if (message.type === 'quietWarning') return setView({ isQuietWarning: message.isOn });
     if (message.type === 'closingForQuiet') return leaveRoom('closedForQuiet');
+    if (message.type === 'keptBeingCut') return setView({ isRoomNoisy: true });
+    if (message.type === 'talkInvited') return onTalkInvited?.();
     if (message.type === 'heard') return showHeard();
     if (message.type === 'studentWords') return addStudentWords(message);
     if (message.type === 'turnStarted' && message.turnId in records.turnStartedEpochMs) {
@@ -283,6 +304,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
   const connectRoom = async (asked = getAccess()): Promise<boolean> => {
     const access = await asked;
     if (!access) return false;
+    invitesTalk = access.invitesTalk ?? false;
     if (!hasLeftRoom) await room.connect(access.url, access.token);
     return true;
   };
@@ -293,16 +315,29 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
 
   const publishMic = (line: MicLine) => room.localParticipant.publishTrack(line.track, MIC_PUBLISH_OPTIONS);
 
+  const publishMicIfOwed = () => {
+    const line = isPublishOwed ? mic.getLine() : null;
+    isPublishOwed = false;
+    if (line) publishMic(line).catch(() => mic.setOn(false));
+  };
+
   const mic = createMicrophone<MicLine>({
     async capture() {
       await resumeAudio(audioContext);
       const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: usesSpeechCleanup, noiseSuppression: usesSpeechCleanup, autoGainControl: usesSpeechCleanup } });
       const [captured] = stream.getAudioTracks();
       if (!captured) throw new DOMException('the browser gave no track', 'NotFoundError');
-      const line = openMicLine(captured, audioContext);
+      const line = openMicLine(captured, audioContext, {
+        onSteadyNoise: () => setView({ isRoomNoisy: true }),
+        onFinished: () => send({ type: 'lineEnded', ...getStamp() }),
+      });
       const stopWatching = listenToStudent(captured, { audioContext, onSound: localYield.onStudentSound });
       return {
         ...line,
+        finish() {
+          stopWatching();
+          return line.finish();
+        },
         stop() {
           stopWatching();
           line.stop();
@@ -317,10 +352,32 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     async unpublish(line) {
       if (room.state === 'connected') await room.localParticipant.unpublishTrack(line.track);
     },
-    onState: (state) => setView({ mic: state }),
+    onState(state) {
+      setView({ mic: state });
+      if (state !== 'on' && state !== 'starting') return;
+      if (!hasPressedTalk) send({ type: 'talkPressed', ...getStamp() });
+      hasPressedTalk = true;
+    },
   });
   const onPageHide = () => mic.stopAtOnce();
   window.addEventListener('pagehide', onPageHide);
+
+  const micControls: MicControls = {
+    isMicOn: () => mic.getState() === 'on' || mic.getState() === 'starting',
+    async setMic(isOn) {
+      if (!hasLeftRoom) await mic.setOn(isOn);
+    },
+    endLine() {
+      const hasLine = mic.getState() === 'on';
+      if (hasLine) showHeard();
+      void mic.finishLine();
+      // A capture that never landed sent nothing, and the agent still waits to hear the line ended.
+      if (!hasLine) send({ type: 'lineEnded', ...getStamp() });
+    },
+    lowerTutor: localYield.onStudentSound,
+    tellHoldStarted: () => send({ type: 'holdStarted', ...getStamp() }),
+  };
+  onMicReady?.(micControls);
 
   // LiveKit retries a short drop itself. Once it gives up, or leaves a channel that carries nothing, a new token and a new join bring the same session back.
   async function rejoin(): Promise<void> {
@@ -364,7 +421,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     stopListening();
     stopListening = listenToTutor(track, { audioContext, gain, clock, onProbe });
     hasTutorTrack = true;
-    send({ type: 'hello', ...getStamp(), wantsGreeting: wantsGreeting && !hasSaidHello });
+    send({ type: 'hello', ...getStamp(), wantsGreeting: wantsGreeting && !hasSaidHello, invitesTalk: invitesTalk && !hasPressedTalk });
     hasSaidHello = true;
     sendAudioState();
     flushOutbox();
@@ -377,9 +434,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
   });
   room.on(RoomEvent.Reconnected, () => {
     connectedAtEpochMs = getEpochMs();
-    const line = isPublishOwed ? mic.getLine() : null;
-    isPublishOwed = false;
-    if (line) publishMic(line).catch(() => mic.setOn(false));
+    publishMicIfOwed();
   });
   room.on(RoomEvent.Disconnected, (reason) => {
     if (isRejoining || hasLeftRoom) return;
@@ -398,9 +453,11 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
   } catch (problem) {
     clearTimeout(tutorWait);
     window.removeEventListener('pagehide', onPageHide);
+    await mic.close();
     await audioContext.close();
     throw problem;
   }
+  publishMicIfOwed();
   const ticker = setInterval(() => {
     player.tick();
     readCaption();
@@ -408,6 +465,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
   const pulses = setInterval(beat, PULSE_EVERY_MS);
 
   return {
+    ...micControls,
     records,
     player,
     getView: () => view,

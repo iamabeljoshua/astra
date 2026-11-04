@@ -52,7 +52,11 @@ export type AgentMessage =
   /** The room has been quiet for most of its limit. A later message with `isOn` false takes the warning down. */
   | { type: 'quietWarning'; isOn: boolean }
   /** The room stayed quiet to its limit and closes now. */
-  | { type: 'closingForQuiet' };
+  | { type: 'closingForQuiet' }
+  /** The tutor keeps getting cut off by sound with no words, so the page may suggest holding to talk. */
+  | { type: 'keptBeingCut' }
+  /** The tutor told this student they can talk, so the page records that and it is not said again. */
+  | { type: 'talkInvited' };
 
 /**
  * `browserMs` says when this was sent, on the browser's audio clock, and `startedMsAgo` how long before that it really happened.
@@ -72,8 +76,8 @@ export type BrowserMessage = BrowserStamp &
     | { type: 'boardFrozen'; turnId: TurnId; frozen: FrozenFrame[] }
     /** The last word of an `expectsReply` beat started playing, so "yes" now counts as an answer and the 8 second timer starts. */
     | { type: 'questionHeard'; turnId: TurnId; beatId: BeatId }
-    /** The page has joined and hears the tutor's track. `wantsGreeting` is false when the student opened the room by typing, or came back after a drop. */
-    | { type: 'hello'; wantsGreeting: boolean }
+    /** The page has joined and hears the tutor's track. `wantsGreeting` is false when the student opened the room by typing, or came back after a drop. `invitesTalk` is true when the tutor should tell this student they can talk. */
+    | { type: 'hello'; wantsGreeting: boolean; invitesTalk: boolean }
     /** The student typed instead of speaking. */
     | { type: 'typed'; text: string }
     /** Sent every half second on the lossy channel. `hearsAgent` is false once the agent's own pulse has stopped arriving. */
@@ -82,4 +86,10 @@ export type BrowserMessage = BrowserStamp &
     | { type: 'audioState'; isRunning: boolean }
     /** The student answered a quiet warning, so the room stays open. */
     | { type: 'stillHere' }
+    /** The student turned the microphone on, so they know they can talk. */
+    | { type: 'talkPressed' }
+    /** The student is holding to talk. The tutor stops, and only `lineEnded` ends what they are saying. */
+    | { type: 'holdStarted' }
+    /** The student let go and all they said has left the page, so nothing waits for the voice detector. */
+    | { type: 'lineEnded' }
   );

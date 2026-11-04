@@ -11,7 +11,7 @@ vi.mock('../auth/useAccount', () => import('../test/activeAccount'));
 const startLiveVoice = vi.hoisted(() => vi.fn());
 vi.mock('./liveVoice', async (importOriginal) => ({ ...(await importOriginal<typeof import('./liveVoice')>()), startLiveVoice }));
 
-const BASE_VIEW: LiveVoiceView = { phase: 'live', mic: 'off', isSoundBlocked: false, isQuietWarning: false, isHeard: false, isTutorSpeaking: false, studentLines: [], tutorHeard: [], tutorComing: [] };
+const BASE_VIEW: LiveVoiceView = { phase: 'live', mic: 'off', isRoomNoisy: false, isSoundBlocked: false, isQuietWarning: false, isHeard: false, isTutorSpeaking: false, studentLines: [], tutorHeard: [], tutorComing: [] };
 
 function makeVoice() {
   let view = BASE_VIEW;
@@ -27,6 +27,11 @@ function makeVoice() {
     getBoardNow: () => ({ board: { elements: new Map(), focus: null }, atMs: 0 }),
     sendTyped: vi.fn(),
     toggleMic: vi.fn(async () => {}),
+    isMicOn: () => false,
+    setMic: vi.fn(async () => {}),
+    endLine: vi.fn(),
+    lowerTutor: vi.fn(),
+    tellHoldStarted: vi.fn(),
     sayStillHere: vi.fn(),
     turnOnSound: vi.fn(),
     mark: vi.fn(),

@@ -9,7 +9,7 @@ import { useLiveVoice } from './useLiveVoice';
 const api = vi.hoisted(() => ({ post: vi.fn<(route: string, options: { params: { query: object } }) => Promise<unknown>>() }));
 vi.mock('../api/client', () => ({ api }));
 
-const BASE_VIEW: LiveVoiceView = { phase: 'live', mic: 'off', isSoundBlocked: false, isQuietWarning: false, isHeard: false, isTutorSpeaking: false, studentLines: [], tutorHeard: [], tutorComing: [] };
+const BASE_VIEW: LiveVoiceView = { phase: 'live', mic: 'off', isRoomNoisy: false, isSoundBlocked: false, isQuietWarning: false, isHeard: false, isTutorSpeaking: false, studentLines: [], tutorHeard: [], tutorComing: [] };
 
 function makeFakeVoice(view: Partial<LiveVoiceView> = {}): LiveVoice {
   let current = { ...BASE_VIEW, ...view };
@@ -29,6 +29,11 @@ function makeFakeVoice(view: Partial<LiveVoiceView> = {}): LiveVoice {
     getBoardNow: () => ({ board: { elements: new Map(), focus: null }, atMs: 0 }),
     sendTyped: vi.fn(),
     toggleMic: vi.fn(async () => setMic(current.mic !== 'on')),
+    isMicOn: () => current.mic === 'on',
+    setMic: vi.fn(async (isOn: boolean) => setMic(isOn)),
+    endLine: vi.fn(() => setMic(false)),
+    lowerTutor: vi.fn(),
+    tellHoldStarted: vi.fn(),
     sayStillHere: vi.fn(),
     turnOnSound: vi.fn(),
     mark: vi.fn(),
@@ -84,6 +89,7 @@ describe('useLiveVoice', () => {
     });
     expect(voice.getView().mic).toBe('off');
     expect(voice.toggleMic).not.toHaveBeenCalled();
+    expect(voice.setMic).not.toHaveBeenCalled();
   });
 
   it('shows the press at once while the room opens, so it cannot look like a press that missed', async () => {

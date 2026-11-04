@@ -16,4 +16,7 @@ export class LiveRoomResponseDto {
 
   /** The name of this session's room. */
   roomName!: string;
+
+  /** True in a student's first session until the tutor has told them they can talk. */
+  invitesTalk!: boolean;
 }

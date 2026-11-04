@@ -72,3 +72,108 @@ describe('a held microphone', () => {
     expect(held.queue).toEqual([]);
   });
 });
+
+describe('a line whose capture has ended', () => {
+  const runEnded = (held: HeldAudio, blocks: number) =>
+    Array.from({ length: blocks }, () => {
+      const output = new Float32Array(BLOCK);
+      held.process(undefined, output);
+      return Math.round(Math.abs(output[0] ?? 0) * 100) / 100;
+    });
+
+  it('plays out what it held, first to last, and says when it has nothing left', () => {
+    const held = new HeldAudio();
+    run(held, [voice(0.1), voice(0.2)]);
+    held.release();
+    held.endInput();
+    expect(held.isDrained()).toBe(false);
+    expect(runEnded(held, 2)).toEqual([0.1, 0.2]);
+    expect(held.isDrained()).toBe(true);
+  });
+
+  it('sends nothing beyond what was captured, however long it keeps running', () => {
+    const held = new HeldAudio();
+    run(held, [voice(0.5)]);
+    held.release();
+    held.endInput();
+    expect(runEnded(held, 50)).toEqual([0.5, ...Array.from({ length: 49 }, () => 0)]);
+  });
+
+  it('keeps holding until the ears open, so a hold let go before the room is ready loses no word', () => {
+    const held = new HeldAudio();
+    run(held, [voice(0.3), voice(0.4)]);
+    held.endInput();
+    expect(runEnded(held, 5)).toEqual([0, 0, 0, 0, 0]);
+    expect(held.isDrained()).toBe(false);
+    held.release();
+    expect(runEnded(held, 2)).toEqual([0.3, 0.4]);
+    expect(held.isDrained()).toBe(true);
+  });
+
+  it('reports drained at once when the line had caught up', () => {
+    const held = new HeldAudio();
+    held.release();
+    run(held, [voice(0.2)]);
+    held.endInput();
+    expect(held.isDrained()).toBe(true);
+  });
+
+  it('is drained with nothing after a drop, so an off press never plays out', () => {
+    const held = new HeldAudio();
+    run(held, [voice(0.2)]);
+    held.endInput();
+    held.drop();
+    expect(held.isDrained()).toBe(true);
+  });
+});
+
+describe('steady noise', () => {
+  const BLOCKS_A_SECOND = 375;
+  const noise = (rms: number) => Float32Array.from({ length: BLOCK }, (_, sample) => (sample % 2 === 0 ? rms : -rms));
+
+  it('is reported once a room stays over the quiet rule for 3 s, and only once', () => {
+    const held = new HeldAudio();
+    held.release();
+    const heard = Array.from({ length: BLOCKS_A_SECOND * 6 }, () => {
+      held.process(noise(0.03), new Float32Array(BLOCK));
+      return held.takeSteadyNoise();
+    });
+    expect(heard.filter(Boolean)).toHaveLength(1);
+    expect(heard.indexOf(true)).toBeGreaterThan(BLOCKS_A_SECOND * 2.5);
+    expect(heard.indexOf(true)).toBeLessThan(BLOCKS_A_SECOND * 4.5);
+  });
+
+  it('is not reported for a voice with gaps, however loud', () => {
+    const held = new HeldAudio();
+    held.release();
+    let heard = false;
+    for (let block = 0; block < BLOCKS_A_SECOND * 30; block += 1) {
+      const isGap = block % 200 < 20;
+      held.process(isGap ? quiet() : noise(0.2), new Float32Array(BLOCK));
+      heard ||= held.takeSteadyNoise();
+    }
+    expect(heard).toBe(false);
+  });
+
+  it('is not reported in a room under the rule', () => {
+    const held = new HeldAudio();
+    held.release();
+    let heard = false;
+    for (let block = 0; block < BLOCKS_A_SECOND * 30; block += 1) {
+      held.process(noise(0.01), new Float32Array(BLOCK));
+      heard ||= held.takeSteadyNoise();
+    }
+    expect(heard).toBe(false);
+  });
+
+  it('is heard while holding too, before any sound has gone out', () => {
+    const held = new HeldAudio();
+    let heard = false;
+    for (let block = 0; block < BLOCKS_A_SECOND * 5; block += 1) {
+      held.process(noise(0.03), new Float32Array(BLOCK));
+      heard ||= held.takeSteadyNoise();
+    }
+    expect(heard).toBe(true);
+  });
+});
+

@@ -2,7 +2,9 @@ import type { tts } from '@livekit/agents';
 import { randomUUID } from 'node:crypto';
 import { type AgentMessage, type Beat, type BeatId, type BrowserMessage, type PlayReport, type SessionEvent, type TurnId } from '@astra/contracts';
 import { createEchoFilter } from './echo-filter.ts';
+import { createHoldGate } from './hold-gate.ts';
 import { createLinkWatch, type LinkWatch } from './link-watch.ts';
+import { createNoiseWatch } from './noise-watch.ts';
 import { getTakeBeat, makeTakeVoice, type StoredTake, type TakePicker, type TakeUse } from './reactions.ts';
 import { getResumeBeats } from './resume-plan.ts';
 import { createSessionLog, isFurtherReport } from './session-log.ts';
@@ -20,8 +22,14 @@ export const VOICE_STALL_MS = 3000;
 export const QUIET_ROOM_LIMIT_MS = 10 * 60_000;
 /** A student reading the board quietly gets this long to say so before the room closes. */
 const QUIET_WARNING_LEAD_MS = 60_000;
+/** The page's hold limit, and a margin for a page that vanished with a key down. */
+const HOLD_GIVE_UP_MS = 75_000;
+/** Muse answers an ended line in about 350 ms, so past this it is not going to. */
+const LINE_FLUSH_GIVE_UP_MS = 3000;
+/** Long enough to read as a new thought, not as more of the answer. */
+const INVITE_AFTER_ANSWER_MS = 1500;
 
-export type EarsEvent = { type: 'voiceStarted' } | { type: 'voiceEnded' } | { type: 'words'; text: string; isFinal: boolean } | { type: 'turnDecided'; text: string };
+export type EarsEvent = { type: 'voiceStarted' } | { type: 'voiceEnded' } | { type: 'words'; text: string; isFinal: boolean } | { type: 'turnDecided'; text: string } | { type: 'lineFlushed' };
 
 export type TraceNote = (name: string, fields?: Record<string, unknown>) => void;
 
@@ -33,6 +41,8 @@ export interface LiveSessionOptions {
   takes: TakePicker;
   allTakes: readonly StoredTake[];
   setTurnCap(ms: number): void;
+  /** Tells the transcriber the student's line has ended, so its final does not wait to hear silence. */
+  endLine?(): void;
   /** The room stayed quiet to its limit, and the session has told the browser. */
   onQuietLimit?(): void;
   quietLimitMs?: number;
@@ -83,7 +93,7 @@ async function* getResumedThen(resumed: readonly Beat[], thought: Thought | null
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Wires what the student does to what the tutor says. The rule decides, this runs its actions, and the voice line keeps every turn apart.
-export function createLiveSession({ messenger, line, voice, tutor, takes, allTakes, setTurnCap, onQuietLimit = () => {}, quietLimitMs = QUIET_ROOM_LIMIT_MS, getNowMs = getSteadyNowMs, trace = () => {} }: LiveSessionOptions): LiveSession {
+export function createLiveSession({ messenger, line, voice, tutor, takes, allTakes, setTurnCap, endLine = () => {}, onQuietLimit = () => {}, quietLimitMs = QUIET_ROOM_LIMIT_MS, getNowMs = getSteadyNowMs, trace = () => {} }: LiveSessionOptions): LiveSession {
   const startedAtMs = getNowMs();
   // A new job in the same room restarts this count, and a page ignores a turn it has seen, so each job's turns carry their own name.
   const jobTag = randomUUID().slice(0, 8);
@@ -108,6 +118,14 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
   let quietWarning: ReturnType<typeof setTimeout> | undefined;
   let quietLimit: ReturnType<typeof setTimeout> | undefined;
   let hasWarnedOfQuiet = false;
+  const holdGate = createHoldGate();
+  const noiseWatch = createNoiseWatch();
+  let hasEverHeld = false;
+  let wasLastCutWordless = false;
+  let holdGiveUp: ReturnType<typeof setTimeout> | undefined;
+  let flushGiveUp: ReturnType<typeof setTimeout> | undefined;
+  let inviteTimer: ReturnType<typeof setTimeout> | undefined;
+  let wantsTalkInvitation = false;
 
   const noteSomethingHappened = () => {
     clearTimeout(quietWarning);
@@ -156,6 +174,8 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
   const onSpeechStarted = (speaking: Speaking) => {
     speaking.hasSound = true;
     dispatch({ type: 'tutorStarted', isReply: speaking.isReply });
+    // A reply that was thinking when the key went down starts over a student who has the floor.
+    if (holdGate.isHolding()) dispatch({ type: 'timer', name: 'wordlessStop' });
     if (state.phase === 'yielding') messenger.sendOnBothChannels({ type: 'yield', turnId: speaking.turnId, isYielding: true });
   };
 
@@ -166,7 +186,10 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       reply = null;
       thought = null;
       // Only a reply that played out has answered the student's words. A stored line, like the prompt after a filler, has not, and a resume with nothing left to say has, because its reply was already heard.
-      if (speaking.canResume && (speaking.hasSound || speaking.continuesHeardReply)) dispatch({ type: 'replyHeardOut' });
+      if (speaking.canResume && (speaking.hasSound || speaking.continuesHeardReply)) {
+        dispatch({ type: 'replyHeardOut' });
+        if (wantsTalkInvitation) inviteTimer = setTimeout(inviteToTalk, INVITE_AFTER_ANSWER_MS);
+      }
     }
     if (reaction || reply) {
       if (reply && !reply.hasSound && !reaction) dispatch({ type: 'tutorThinking' });
@@ -256,6 +279,14 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     if (!reaction) reaction = speakTake('reaction', { isReply: false });
   };
 
+  // One line, once, to a student who has only typed. A student busy talking or typing keeps the floor, and it waits for the next answer.
+  function inviteToTalk(): void {
+    if (!wantsTalkInvitation || reply || reaction || thought || !audioRunning || state.isVoiceOn || holdGate.isHolding()) return;
+    wantsTalkInvitation = false;
+    reaction = speakTake('talkInvitation', { isReply: false });
+    void reaction?.spoken.finished.then(() => messenger.send({ type: 'talkInvited' }));
+  }
+
   function dropThought(): void {
     thought?.controller.abort();
     thought = null;
@@ -274,6 +305,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
 
   const stopSpeech = (action: TurnAction & { do: 'stop' }) => {
     trace('stopDecided', { reason: action.reason, turnId: getAudibleTurn() });
+    wasLastCutWordless = action.reason === 'no words';
     clearTimeout(voiceStall);
     resumeTicket += 1;
     reaction?.spoken.stop();
@@ -318,6 +350,8 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       case 'stop':
         return stopSpeech(action);
       case 'resume':
+        if (wasLastCutWordless && !hasEverHeld && noiseWatch.noteWordlessCut(getNowMs())) messenger.send({ type: 'keptBeingCut' });
+        wasLastCutWordless = false;
         return void resume();
       case 'react':
         return react();
@@ -370,6 +404,39 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     reply = speakTake('greeting', { isReply: true });
   };
 
+  const dispatchAll = (events: TurnEvent[]) => events.forEach(dispatch);
+
+  const onHoldStarted = () => {
+    hasEverHeld = true;
+    noteSomethingHappened();
+    clearTimeout(flushGiveUp);
+    clearTimeout(holdGiveUp);
+    holdGiveUp = setTimeout(onLineEnded, HOLD_GIVE_UP_MS);
+    trace('holdStarted');
+    dispatchAll(holdGate.onHoldStarted());
+  };
+
+  const onLineFlushed = () => {
+    clearTimeout(flushGiveUp);
+    dispatchAll(holdGate.onLineFlushed());
+  };
+
+  function onLineEnded(): void {
+    clearTimeout(holdGiveUp);
+    noteSomethingHappened();
+    trace('lineEnded');
+    dispatchAll(holdGate.onLineEnded());
+    endLine();
+    flushGiveUp = setTimeout(onLineFlushed, LINE_FLUSH_GIVE_UP_MS);
+  }
+
+  const onHello = (message: BrowserMessage & { type: 'hello' }) => {
+    if (message.wantsGreeting) greet();
+    // A page back from a drop with no key down has nothing more to say about its old hold.
+    if (holdGate.isHolding()) onLineEnded();
+    if (message.invitesTalk) wantsTalkInvitation = true;
+  };
+
   const onAudioState = (isRunning: boolean) => {
     const wasRunning = audioRunning;
     audioRunning = isRunning;
@@ -380,6 +447,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
 
   return {
     onEars(event) {
+      if (event.type === 'lineFlushed') return onLineFlushed();
       trace(event.type, event.type === 'words' ? { isFinal: event.isFinal, words: event.text.split(/\s+/).length, text: event.text } : {});
       if (event.type === 'words' && state.tutor === 'speaking' && echo.isEcho(event.text, getNowMs())) {
         trace('echoHeard');
@@ -387,7 +455,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       }
       if (event.type === 'words') messenger.send({ type: 'studentWords', text: event.text, isFinal: event.isFinal } satisfies AgentMessage);
       if (event.type === 'words' && hasWords(event.text)) noteSomethingHappened();
-      dispatch(event);
+      dispatchAll(holdGate.onEars(event));
     },
     onBrowser(message) {
       if (message.type === 'played') return onReport(message);
@@ -395,7 +463,10 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       if (message.type === 'typed' || message.type === 'acted' || message.type === 'stillHere') noteSomethingHappened();
       if (message.type === 'questionHeard') dispatch({ type: 'questionHeard' });
       if (message.type === 'typed') dispatch({ type: 'typed', text: message.text });
-      if (message.type === 'hello' && message.wantsGreeting) greet();
+      if (message.type === 'hello') onHello(message);
+      if (message.type === 'holdStarted') onHoldStarted();
+      if (message.type === 'lineEnded') onLineEnded();
+      if (message.type === 'talkPressed') wantsTalkInvitation = false;
       if (message.type === 'pulse') link.notePulse(message.hearsAgent, getNowMs());
       if (message.type === 'audioState') onAudioState(message.isRunning);
     },
@@ -406,6 +477,9 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       clearTimeout(voiceStall);
       clearTimeout(quietWarning);
       clearTimeout(quietLimit);
+      clearTimeout(holdGiveUp);
+      clearTimeout(flushGiveUp);
+      clearTimeout(inviteTimer);
       timers.forEach((timer) => clearTimeout(timer));
       reaction?.spoken.stop();
       reply?.spoken.stop();

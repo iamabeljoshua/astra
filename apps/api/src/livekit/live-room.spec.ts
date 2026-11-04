@@ -86,6 +86,43 @@ describe('the live room route', () => {
     await testApp.close();
   });
 
+
+  describe('telling a student they can talk', () => {
+    const startSession = async (who: TestStudent) => (await post('/sessions', who).send(VALID_SESSION).expect(201)).body.id as string;
+    const openRoom = async (sessionId: string, who: TestStudent) => (await post(`/sessions/${sessionId}/live-room`, who).expect(200)).body as { invitesTalk: boolean };
+    const noteInvited = (who: TestStudent) => server().put('/me/talk-invitation').set('Authorization', `Bearer ${who.token}`);
+
+    it('asks for it in a student\'s first session, and not in a later one', async () => {
+      const newStudent = await createTestStudent(testApp);
+      const first = await startSession(newStudent);
+      const second = await startSession(newStudent);
+      expect((await openRoom(first, newStudent)).invitesTalk).toBe(true);
+      expect((await openRoom(second, newStudent)).invitesTalk).toBe(false);
+    });
+
+    it('stops asking once it is recorded, and a second record changes nothing', async () => {
+      const newStudent = await createTestStudent(testApp);
+      const first = await startSession(newStudent);
+      await noteInvited(newStudent).send({ heard: true }).expect(204);
+      await noteInvited(newStudent).send({ heard: true }).expect(204);
+      expect((await openRoom(first, newStudent)).invitesTalk).toBe(false);
+    });
+
+    it('records it for the signed-in student only', async () => {
+      const [one, two] = [await createTestStudent(testApp), await createTestStudent(testApp)];
+      const session = await startSession(two);
+      await noteInvited(one).send({ heard: true }).expect(204);
+      expect((await openRoom(session, two)).invitesTalk).toBe(true);
+    });
+
+    it('refuses anything but heard true, and no sign-in', async () => {
+      const newStudent = await createTestStudent(testApp);
+      await noteInvited(newStudent).send({ heard: false }).expect(400);
+      await noteInvited(newStudent).send({}).expect(400);
+      await server().put('/me/talk-invitation').send({ heard: true }).expect(401);
+    });
+  });
+
   it('gives a token for this session room with the least it needs', async () => {
     const sessionId = await startSession();
     const { body } = await post(`/sessions/${sessionId}/live-room`).expect(200);

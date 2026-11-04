@@ -10,7 +10,9 @@ import { useSessionRun } from './useSessionRun';
 import { StudentCaption, TutorCaption } from '../voice/Captions';
 import { LiveBoard } from '../voice/LiveBoard';
 import { isVoiceOver, type LiveVoice } from '../voice/liveVoice';
+import { NoisePrompt } from '../voice/NoisePrompt';
 import { type LiveVoiceControls, useLiveVoice } from '../voice/useLiveVoice';
+import { useHoldToTalk } from '../voice/useHoldToTalk';
 
 const NOT_FOUND_STATUS = 404;
 const BAD_ID_STATUS = 400;
@@ -67,7 +69,7 @@ function RunningSession({ session }: { session: Session }) {
         boardNote={SESSION_LABELS.boardStandIn}
         liveVoice={voice}
       >
-        <ReplyBox liveVoice={liveVoice} />
+        <ReplyBox sessionId={session.id} liveVoice={liveVoice} />
       </SessionPanels>
     </SessionFrame>
   );
@@ -206,10 +208,11 @@ function getVoiceNote({ status, waitSeconds, view }: LiveVoiceControls): string 
   return null;
 }
 
-function ReplyBox({ liveVoice }: { liveVoice: LiveVoiceControls }) {
-  const { status, view, voice, isTalkOn, sendTyped, toggleTalk, openAgain } = liveVoice;
+function ReplyBox({ sessionId, liveVoice }: { sessionId: string; liveVoice: LiveVoiceControls }) {
+  const { status, view, voice, isTalkOn, sendTyped, toggleTalk, heldMic, openAgain } = liveVoice;
   const isFinished = status === 'finished';
   const isOver = isFinished || status === 'tooSoon' || (view !== null && isVoiceOver(view.phase));
+  const hold = useHoldToTalk({ heldMic, isTalkOn, toggleTalk, isEnabled: !isOver });
   const [replyWithNoRoom, setReplyWithNoRoom] = useState<string | null>(null);
   const voiceNote = getVoiceNote(liveVoice);
 
@@ -232,6 +235,8 @@ function ReplyBox({ liveVoice }: { liveVoice: LiveVoiceControls }) {
           </>
         )}
         {voiceNote && <p className="text-fine text-ink-2">{voiceNote}</p>}
+        {hold.hasHitLimit && <p className="text-fine text-ink-2">{VOICE_LABELS.holdLimit}</p>}
+        {!isOver && <NoisePrompt sessionId={sessionId} isRoomNoisy={view?.isRoomNoisy ?? false} isHolding={hold.isHolding} />}
       </div>
       {isOver && !isFinished && (
         <button type="button" onClick={() => void openAgain()} className="button button-outline self-start">
@@ -248,7 +253,7 @@ function ReplyBox({ liveVoice }: { liveVoice: LiveVoiceControls }) {
           {VOICE_LABELS.turnOnSound}
         </button>
       )}
-      <ChatBox labels={REPLY_BOX_LABELS} canAttach={false} clearsOnSend isSending={isOver} talk={{ isOn: isTalkOn, onToggle: () => void toggleTalk() }} onSend={(text) => void send(text)} onEdit={() => undefined} />
+      <ChatBox labels={REPLY_BOX_LABELS} canAttach={false} clearsOnSend isSending={isOver} talk={{ isOn: isTalkOn, onToggle: () => void toggleTalk(), buttonProps: hold.buttonProps }} onSend={(text) => void send(text)} onEdit={() => undefined} />
     </div>
   );
 }

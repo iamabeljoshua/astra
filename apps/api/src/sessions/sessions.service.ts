@@ -45,6 +45,10 @@ export class SessionsService {
     return sessions.map(toSessionResponse);
   }
 
+  isFirstSession(studentId: string, sessionId: string): Promise<boolean> {
+    return this.sessions.isFirstForStudent(studentId, sessionId);
+  }
+
   hasStartedASession(studentId: string): Promise<boolean> {
     return this.sessions.existsForStudent(studentId);
   }
