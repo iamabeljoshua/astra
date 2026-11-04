@@ -685,7 +685,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy' | 'credits', LegalDocument>
           'If the date you confirm shows you are under 13 in every time zone, the account closes and we do not store that date or the name you gave.',
           'We delete the account from Supabase Auth, our sign-in service, with its email address, identity record, sessions, and audit log rows.',
           'We keep only a keyed hash of the address, a code made with a secret key that cannot be turned back into the address. It refuses that address from then on, on a new sign-up or when someone changes their email to it. If that address signs in again, Supabase Auth makes a new account for it, and we delete that one the same way.',
-          'If Supabase Auth cannot be reached when the account closes, the account still closes and the address is still refused. We keep a record holding only the account ID and the time until the delete finishes, the next time the app opens that account. Until then, Supabase Auth still holds the account.',
+          'If Supabase Auth cannot be reached when the account closes, we keep a record holding only the account ID and the time until the delete finishes, the next time the app opens that account. Until then, Supabase Auth still holds the account.',
           "Supabase's own service logs, which the app cannot reach, can hold the address, the IP address, and the browser's description of itself until Supabase removes them.",
         ],
         planned: [],
