@@ -1,0 +1,169 @@
+import { SCENE_ENGINE_VERSIONS } from '@astra/contracts';
+import { buildKitFramePage, getNeededTextures, type KitFrameCommand, type KitFrameReply, type KitTake, type KitTheme } from '@astra/board/scene3d';
+import { fetchAppFile } from '../api/fetchAppFile';
+
+const KIT_BASE = `/scene-kit/${SCENE_ENGINE_VERSIONS.kit}`;
+const FONT_WEIGHTS = [400, 500, 600];
+const PING_EVERY_MS = 500;
+const MOST_MISSED_PINGS = 4;
+/** A silently dropped part or moment means the picture is not what was reviewed. */
+const BROKEN_SCENE = /unknown|failed|bad expression|needs points|not loaded|duplicate part/i;
+
+export interface KitFrame {
+  render(seconds: number): void;
+  setTheme(theme: KitTheme): void;
+  resize(): void;
+  dispose(): void;
+}
+
+let sharedFiles: Promise<{ kitBundle: string; fontCss: string }> | null = null;
+const textureFiles = new Map<string, Promise<Blob>>();
+
+async function getFontCss(): Promise<string> {
+  const faces = await Promise.all(
+    FONT_WEIGHTS.map(async (weight) => {
+      const bytes = new Uint8Array(await fetchAppFile(`/fonts/barlow-latin-${weight}-normal.woff2`));
+      return `@font-face{font-family:Barlow;font-weight:${weight};font-display:block;src:url(data:font/woff2;base64,${btoa(String.fromCharCode(...bytes))}) format('woff2');}`;
+    }),
+  );
+  return faces.join('');
+}
+
+async function readSharedFiles(): Promise<{ kitBundle: string; fontCss: string }> {
+  const [kit, fontCss] = await Promise.all([fetchAppFile(`${KIT_BASE}/kit.js`), getFontCss()]);
+  return { kitBundle: new TextDecoder().decode(kit), fontCss };
+}
+
+function getSharedFiles() {
+  sharedFiles ??= readSharedFiles().catch((error: unknown) => {
+    sharedFiles = null;
+    throw error;
+  });
+  return sharedFiles;
+}
+
+function getTexture(name: string): Promise<Blob> {
+  const kept = textureFiles.get(name);
+  if (kept) return kept;
+  const file = `/scene-kit/textures/${name}.${name.endsWith('alpha') ? 'png' : 'jpg'}`;
+  const made = fetchAppFile(file).then((bytes) => new Blob([bytes]));
+  textureFiles.set(name, made);
+  void made.catch(() => textureFiles.delete(name));
+  return made;
+}
+
+async function getTextures(code: string): Promise<Record<string, Blob>> {
+  const names = getNeededTextures(code);
+  return Object.fromEntries(await Promise.all(names.map(async (name) => [name, await getTexture(name)] as const)));
+}
+
+function createFrameElement(page: string): HTMLIFrameElement {
+  const iframe = document.createElement('iframe');
+  iframe.setAttribute('sandbox', 'allow-scripts');
+  iframe.setAttribute('title', 'Scene');
+  iframe.setAttribute('aria-hidden', 'true');
+  iframe.tabIndex = -1;
+  Object.assign(iframe.style, { position: 'absolute', inset: '0', width: '100%', height: '100%', border: '0', display: 'block', pointerEvents: 'none' });
+  iframe.srcdoc = page;
+  return iframe;
+}
+
+export interface OpenKitFrameInput {
+  host: HTMLElement;
+  take: KitTake;
+  theme: KitTheme;
+  limitMs: number;
+  /** The frame stopped answering or threw after it was ready. It is already gone. */
+  onStall(): void;
+}
+
+export async function openKitFrame({ host, take, theme, limitMs, onStall }: OpenKitFrameInput): Promise<KitFrame> {
+  const [{ kitBundle, fontCss }, textures] = await Promise.all([getSharedFiles(), getTextures(take.code)]);
+  const iframe = createFrameElement(buildKitFramePage({ kitBundle, fontCss, code: take.code }));
+  let currentTheme = theme;
+  let wantSeconds = 0;
+  let missedPings = 0;
+  let pingId = 0;
+  let isGone = false;
+  let pinging: ReturnType<typeof setInterval> | undefined;
+  let settleOpen: { resolve(frame: KitFrame): void; reject(error: Error): void } | null = null;
+
+  const tell = (command: KitFrameCommand) => iframe.contentWindow?.postMessage(command, '*');
+
+  const dispose = () => {
+    if (isGone) return;
+    isGone = true;
+    clearInterval(pinging);
+    window.removeEventListener('message', onMessage);
+    tell({ type: 'dispose' });
+    iframe.remove();
+  };
+
+  const fail = (reason: string) => {
+    const opening = settleOpen;
+    settleOpen = null;
+    dispose();
+    if (opening) opening.reject(new Error(reason));
+    else onStall();
+  };
+
+  const startPinging = () => {
+    clearInterval(pinging);
+    missedPings = 0;
+    pinging = setInterval(() => {
+      missedPings += 1;
+      if (missedPings > MOST_MISSED_PINGS) fail('the scene stopped answering');
+      else tell({ type: 'ping', id: (pingId += 1) });
+    }, PING_EVERY_MS);
+  };
+
+  const frame: KitFrame = {
+    render(seconds) {
+      wantSeconds = seconds;
+      tell({ type: 'render', seconds });
+    },
+    setTheme(next) {
+      if (next === currentTheme) return;
+      currentTheme = next;
+      tell({ type: 'theme', theme: next });
+    },
+    resize: () => tell({ type: 'resize' }),
+    dispose,
+  };
+
+  const onReply: { [Type in KitFrameReply['type']]?: (reply: Extract<KitFrameReply, { type: Type }>) => void } = {
+    // A browser with no atomic move reloads a moved frame, and the page only has to send it the scene again.
+    loaded: () => tell({ type: 'load', timing: take.timing, textures, theme: currentTheme }),
+    ready({ issues }) {
+      const broken = issues.find((issue) => BROKEN_SCENE.test(issue));
+      if (broken) return fail(broken);
+      tell({ type: 'render', seconds: wantSeconds });
+      startPinging();
+      settleOpen?.resolve(frame);
+      settleOpen = null;
+    },
+    pong() {
+      missedPings = 0;
+    },
+    error: ({ message }) => fail(message),
+  };
+
+  function onMessage(event: MessageEvent) {
+    if (event.source !== iframe.contentWindow) return;
+    const reply = event.data as KitFrameReply | null;
+    const handler = onReply[reply?.type as KitFrameReply['type']] as ((message: KitFrameReply) => void) | undefined;
+    if (reply && handler) handler(reply);
+  }
+
+  window.addEventListener('message', onMessage);
+  return new Promise<KitFrame>((resolve, reject) => {
+    settleOpen = { resolve, reject };
+    const limit = setTimeout(() => settleOpen && fail('the scene took too long to start'), limitMs);
+    void Promise.resolve().then(() => host.append(iframe));
+    const settledResolve = resolve;
+    settleOpen.resolve = (made) => {
+      clearTimeout(limit);
+      settledResolve(made);
+    };
+  });
+}

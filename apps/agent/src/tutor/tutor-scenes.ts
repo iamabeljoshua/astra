@@ -81,6 +81,8 @@ const WORDS_NAMING_NO_TOPIC = new Set(['what', 'when', 'where', 'which', 'with',
 const getTopicWords = (topic: string) => (topic.toLowerCase().match(/\p{L}{4,}/gu) ?? []).map((word) => word.replace(/s$/, '')).filter((word) => !WORDS_NAMING_NO_TOPIC.has(word));
 const isSameTopic = (asked: string, title: string) => getTopicWords(asked).some((word) => getTopicWords(title).includes(word));
 
+const getLoadMessage = ({ id, durationSeconds, engine }: StoredScene): SceneAgentMessage => ({ type: 'loadScene', sceneId: id, durationSeconds, ...(engine === 'kit' ? { engine } : {}) });
+
 const getFirstMomentAfterStart = (moments: StoredScene['moments']) => Object.entries(moments).filter(([, seconds]) => seconds > 0).sort(([, first], [, second]) => first - second)[0]?.[0];
 
 // The picture fades in on the setup's first word, and a take opens on an empty frame, so the setup line plays it on to its first later moment and the box is never blank under those words. A scene that opens a card ends on its narration, because the tutor's own first line follows it and asks.
@@ -177,7 +179,7 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
     if (ask.page.kind === 'loading') clearTimeout(ask.page.limit);
     const limit = setTimeout(() => end(ask, 'pageTooSlow'), PAGE_LOAD_LIMIT_MS);
     ask.page = { kind: 'loading', scene, limit };
-    send({ type: 'loadScene', sceneId: scene.id, durationSeconds: scene.durationSeconds });
+    send(getLoadMessage(scene));
   };
 
   const onDeskChange = (ask: SceneAsk, state: SceneState) => {
@@ -218,7 +220,7 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
   };
 
   const bringPictureBack = () => {
-    if (onScreen) send({ type: 'loadScene', sceneId: onScreen.id, durationSeconds: onScreen.durationSeconds });
+    if (onScreen) send(getLoadMessage(onScreen));
   };
 
   const settlePictureWaits = (isBack: boolean) => {

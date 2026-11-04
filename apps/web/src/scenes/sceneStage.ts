@@ -1,3 +1,4 @@
+import type { SceneEngine } from '@astra/contracts';
 import { api } from '../api/client';
 import { getAppliedTheme, type Theme } from '../theme/theme';
 import { bootSceneEngine, type EnginePlayer } from './sceneEngine';
@@ -10,7 +11,7 @@ const MOST_KEPT_TAKES = 4;
 const SAME_FRAME_SECONDS = 0.0005;
 
 export interface SceneStage {
-  load(sceneId: string, durationSeconds: number): Promise<boolean>;
+  load(sceneId: string, durationSeconds: number, engine?: SceneEngine): Promise<boolean>;
   draw(sceneId: string, seconds: number): void;
   canDraw(sceneId: string): boolean;
   free(): void;
