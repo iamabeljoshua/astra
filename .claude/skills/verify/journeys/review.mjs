@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 // The API must run with SAFETY_REVIEWER_IDS naming Maya and ASTRA_AGENT_KEY set to any value, because the journey flags a session as the agent does.
 const NOT_A_REVIEWER = 'tola@astra.test';
 
+// The API answers a non-reviewer as if the route did not exist, on purpose, and the browser logs that 404 even though the page handles it.
+export const expectedConsoleErrors = [/status of 404 .*\/api\/review\/flags/];
+
 async function flagFirstSession(page) {
   const sessions = await page.waitForResponse((response) => new URL(response.url()).pathname === '/api/sessions');
   const [firstSession] = await sessions.json();

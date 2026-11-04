@@ -26,9 +26,9 @@ function getJourneyName(journeyPath) {
 }
 
 async function loadJourney(journeyPath) {
-  const { default: drive, deadlineMs = TIMEOUTS_MS.journey } = await import(pathToFileURL(journeyPath));
+  const { default: drive, deadlineMs = TIMEOUTS_MS.journey, expectedConsoleErrors = [] } = await import(pathToFileURL(journeyPath));
   if (typeof drive !== 'function') throw new Error(`${journeyPath} needs a default export that is a function.`);
-  return { name: getJourneyName(journeyPath), drive, deadlineMs };
+  return { name: getJourneyName(journeyPath), drive, deadlineMs, expectedConsoleErrors };
 }
 
 function assertViewportsAreKnown(viewportNames) {
@@ -109,7 +109,7 @@ async function getFinalPage(options) {
 async function driveViewport({ browser, baseURL, journey, viewportName, evidenceDir, productName }) {
   const context = await browser.newContext({ ...VIEWPORTS[viewportName], baseURL });
   context.setDefaultTimeout(TIMEOUTS_MS.pageAction);
-  const contextFailures = watchContextFailures(context);
+  const contextFailures = watchContextFailures(context, journey.expectedConsoleErrors);
   const page = await context.newPage();
   const fileStem = `${journey.name}-${viewportName}`;
   const capture = async (label) => {
