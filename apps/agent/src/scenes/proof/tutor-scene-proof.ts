@@ -148,7 +148,7 @@ while (atS() < waitLimitS) {
     await page.screenshot({ path: join(out, 'scene-landed.png') });
   }
   quietSinceS = read.isSpeaking || read.isThinking ? null : (quietSinceS ?? atS());
-  if (sceneSeenAtS !== null && quietSinceS !== null && atS() > quietSinceS + 2.5) break;
+  if (sceneSeenAtS !== null && quietSinceS !== null && atS() > quietSinceS + 2.5 && (reloadedAtS === null || atS() > reloadedAtS + 15)) break;
   await delay(100);
 }
 await page.screenshot({ path: join(out, sceneSeenAtS === null ? 'no-scene.png' : 'scene-played.png') });
@@ -184,7 +184,7 @@ if (sceneSeenAtS !== null && args.handsOn) {
         const { x, y, width, height } = element.getBoundingClientRect();
         const hit = document.elementFromPoint(x + width / 2, y + height / 2);
         const corner = hit?.closest('[data-testid="board-visual"]');
-        return { tag: element.tagName, name: element.getAttribute('aria-label') ?? element.className.slice(0, 40), box: [Math.round(x), Math.round(y), Math.round(width), Math.round(height)], isUnderScene: Boolean(corner) };
+        return { tag: element.tagName, name: element.getAttribute('aria-label') ?? String(element.className).slice(0, 40), box: [Math.round(x), Math.round(y), Math.round(width), Math.round(height)], isUnderScene: Boolean(corner) };
       }),
     );
     const line = page.locator('[data-testid="board-right"] input, [data-testid="board-right"] textarea, [data-testid="board-right"] [contenteditable="true"]').first();
@@ -223,7 +223,7 @@ summary.boardMoves = logged.flatMap(({ kind, atMs, beat }) => (kind === 'beatPla
 const sceneBeatTexts = new Set(logged.flatMap(({ kind, beat }) => (kind === 'beatPlayed' && beat?.id.startsWith('n') ? [beat.script.filter((part): part is string => typeof part === 'string').join('').trim()] : [])));
 summary.sceneWordsWithoutPicture = timeline.filter(({ caption, sceneId, opacity }) => [...sceneBeatTexts].some((text) => text !== '' && caption.includes(text)) && (!sceneId || opacity === 0)).length;
 summary.sceneBeatsPlayed = [...sceneBeatTexts];
-summary.turns = trace.filter(({ name }) => ['turnStarted', 'sceneAsked', 'sceneEnded', 'sceneWordsDropped'].includes(name)).map((row) => ({ name: row.name, ...row }));
+summary.turns = trace.filter(({ name }) => ['turnStarted', 'sceneAsked', 'sceneEnded', 'sceneWordsDropped'].includes(name));
 summary.problems = problems;
 writeFileSync(join(out, 'summary.json'), JSON.stringify(summary, null, 2));
 writeFileSync(join(out, 'timeline.json'), JSON.stringify(timeline));

@@ -1,6 +1,6 @@
 import type { BoardStage } from '@astra/board';
 import { writeStyle } from '@astra/board/drawing';
-import { type PropsWithChildren, type ReactNode, useEffect, useLayoutEffect, useRef } from 'react';
+import { type PropsWithChildren, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { BOARD_WORK_LABELS } from '../strings';
 import { getKeptClearWidth, getPhoneKeptClearHeight, getVisualPlace, getVisualTransform, type VisualPeek } from './boardStage';
 import { useReducedMotion } from './useReducedMotion';
@@ -27,10 +27,7 @@ export function BoardStageView({ stage, atMs, visual, ariaLabel, peek, onPeek, f
   const { smallShare, isMoving } = getVisualPlace({ stage, peek, atMs, isReducedMotion });
   const isSmall = smallShare === 1;
   const isBigOverBoard = peek?.isBig === true;
-  const tipsShown = useRef(0);
-  const wasBigOverBoard = useRef(false);
-  if (isBigOverBoard && !wasBigOverBoard.current) tipsShown.current += 1;
-  wasBigOverBoard.current = isBigOverBoard;
+  const [peeksTaken, setPeeksTaken] = useState(0);
 
   useEffect(() => {
     if (!isBigOverBoard) return;
@@ -60,6 +57,7 @@ export function BoardStageView({ stage, atMs, visual, ariaLabel, peek, onPeek, f
 
   const togglePeek = () => {
     if (smallShare === 0 && !peek?.isBig) return;
+    if (!peek?.isBig) setPeeksTaken((taken) => taken + 1);
     onPeek({ isBig: !(peek?.isBig ?? false), atMs });
   };
 
@@ -82,7 +80,7 @@ export function BoardStageView({ stage, atMs, visual, ariaLabel, peek, onPeek, f
         >
           {visual}
           {isBigOverBoard && (
-            <span className="board-visual-tip label" data-first-time={tipsShown.current === 1}>
+            <span className="board-visual-tip label" data-first-time={peeksTaken === 1}>
               {BOARD_WORK_LABELS.visualPutBackTip}
             </span>
           )}

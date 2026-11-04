@@ -65,7 +65,6 @@ function start({ reply, cardTitle = null as string | null, isPageThere = true }:
   const sceneSent: SceneAgentMessage[] = [];
   const store = createSceneStore(mkdtempSync(join(tmpdir(), 'scene-session-')));
   if (cardTitle) vi.spyOn(store, 'find').mockImplementation(() => SCENE);
-  let scenes: ReturnType<typeof createTutorScenes>;
   const tutor: TutorBrain = {
     async *reply({ text }) {
       note(`student: ${text}`);
@@ -93,7 +92,7 @@ function start({ reply, cardTitle = null as string | null, isPageThere = true }:
     onLinkChange: (isUp: boolean) => scenes.notePageLink(isUp),
   } as Parameters<typeof createLiveSession>[0]);
   sessions.push(session);
-  scenes = createTutorScenes({
+  const scenes = createTutorScenes({
     router: { route: vi.fn(async () => ({ engine: 'manimgx', kind: 'graph', topic: TOPIC, ...USAGE }) as SceneRoute) },
     runs: { join: vi.fn(() => ({ plan: Promise.resolve(PLAN), firstLine: Promise.resolve(null), getScene: async () => ({ isOk: true as const, scene: SCENE }), leave: vi.fn() })) } as never,
     store,
