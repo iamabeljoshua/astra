@@ -11,6 +11,7 @@ interface PlanRow {
   says: string;
   now: string | null;
   earlier?: string[];
+  tutorSaid?: string;
   move: 'stay' | 'new' | 'back';
   kind?: 'handsOn' | 'teachFirst';
   topic?: string;
@@ -32,7 +33,7 @@ function getPercentile(sorted: readonly number[], share: number): number {
 
 async function runRow(reader: JsonReader, row: PlanRow) {
   const startedAtMs = performance.now();
-  const ask: PlanAsk = { now: row.now, earlier: row.earlier ?? [], said: row.says };
+  const ask: PlanAsk = { now: row.now, earlier: row.earlier ?? [], said: row.says, tutorSaid: row.tutorSaid ?? '' };
   const { move, costUsd } = await askPlanner(reader, ask);
   const problems: string[] = [];
   if (move?.move !== row.move) problems.push(`move ${move?.move ?? 'none'}, wanted ${row.move}`);
@@ -63,7 +64,7 @@ async function runSession(reader: JsonReader, name: string) {
     },
   });
   for (const [index, text] of messages.entries()) {
-    planner.noteStudentWords(text, index === 0);
+    planner.noteStudentWords({ words: text, isOpening: index === 0, tutorSaid: '' });
     await planner.whenSettled();
   }
   durations.sort((first, second) => first - second);

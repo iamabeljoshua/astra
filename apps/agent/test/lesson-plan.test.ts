@@ -17,6 +17,7 @@ const FRACTIONS: LessonPlan = {
   ],
 };
 const newPlan = (plan: LessonPlan): PlanMove => ({ move: 'new', plan });
+const heard = (words: string, isOpening = false) => ({ words, isOpening, tutorSaid: 'Have a go.' });
 const TASK = { kind: 'task', id: 'a1', way: 'write', reads: 'words' } as unknown as SceneCommand;
 const QUICK = { stillWorkingMs: 40, firstTextMs: 120, betweenTextMs: 80, finishGraceMs: 20, reportWaitMs: 5 };
 
@@ -138,18 +139,18 @@ describe('the lesson planner', () => {
     const { planner, asks } = plannerWith([newPlan(FRACTIONS), newPlan(SOLVING), { move: 'stay' }]);
 
     for (const [index, words] of ['teach me fractions', 'solve 2x + 3 = 11 now please', 'why'].entries()) {
-      planner.noteStudentWords(words, index === 0);
+      planner.noteStudentWords(heard(words, index === 0));
       await planner.whenSettled();
     }
 
-    expect(asks.at(-1)).toEqual({ now: SOLVING.topic, earlier: ['Fractions'], said: 'why' });
+    expect(asks.at(-1)).toEqual({ now: SOLVING.topic, earlier: ['Fractions'], said: 'why', tutorSaid: 'Have a go.' });
   });
 
   it('keeps the first title, and changes it on a switch and on the way back', async () => {
     const { planner, titles } = plannerWith([newPlan(SOLVING), newPlan(FRACTIONS), { move: 'stay' }, { move: 'back', topic: SOLVING.topic }]);
 
     for (const [index, words] of ['solve it', 'teach me fractions', 'ok then', 'go back to my problem'].entries()) {
-      planner.noteStudentWords(words, index === 0);
+      planner.noteStudentWords(heard(words, index === 0));
       await planner.whenSettled();
     }
 
@@ -160,9 +161,9 @@ describe('the lesson planner', () => {
     const asks = [() => Promise.reject(new Error('no plan today')), () => Promise.resolve({ move: newPlan(FRACTIONS), costUsd: 0 })];
     const { planner, titles } = plannerWith([], { ask: () => (asks.shift() as () => Promise<PlanAnswer>)() });
 
-    planner.noteStudentWords('solve 2x + 3 = 11', true);
+    planner.noteStudentWords(heard('solve 2x + 3 = 11', true));
     await planner.whenSettled();
-    planner.noteStudentWords('teach me fractions', false);
+    planner.noteStudentWords(heard('teach me fractions'));
     await planner.whenSettled();
 
     expect(titles).toEqual(['Fractions']);
@@ -171,7 +172,7 @@ describe('the lesson planner', () => {
   it.each(['(picked 3)', '(has paused)', '(wants something else)', '2x = 8', 'x = 4'])('does not plan on %s', async (words) => {
     const { planner, asks } = plannerWith([{ move: 'stay' }]);
 
-    planner.noteStudentWords(words, false);
+    planner.noteStudentWords(heard(words));
     await planner.whenSettled();
 
     expect(asks).toEqual([]);
@@ -180,7 +181,7 @@ describe('the lesson planner', () => {
   it('plans on one question in a word, because it may start a lesson', async () => {
     const { planner, asks } = plannerWith([{ move: 'stay' }]);
 
-    planner.noteStudentWords('photosynthesis', true);
+    planner.noteStudentWords(heard('photosynthesis', true));
     await planner.whenSettled();
 
     expect(asks).toHaveLength(1);
@@ -189,7 +190,7 @@ describe('the lesson planner', () => {
   it('asks once at a time, and only the latest words wait, so a flood cannot pile up', async () => {
     const { planner, asks } = plannerWith([{ move: 'stay' }]);
 
-    for (const words of ['one thing', 'two things', 'three things', 'four things']) planner.noteStudentWords(words, false);
+    for (const words of ['one thing', 'two things', 'three things', 'four things']) planner.noteStudentWords(heard(words));
     await planner.whenSettled();
 
     expect(asks.map(({ said }) => said)).toEqual(['one thing', 'four things']);
@@ -198,9 +199,9 @@ describe('the lesson planner', () => {
   it('keeps the lesson it has when a plan fails or says nothing usable', async () => {
     const trace = vi.fn();
     const { planner } = plannerWith([newPlan(FRACTIONS), null], { trace });
-    planner.noteStudentWords('teach me fractions', true);
+    planner.noteStudentWords(heard('teach me fractions', true));
     await planner.whenSettled();
-    planner.noteStudentWords('something odd', false);
+    planner.noteStudentWords(heard('something odd'));
     await planner.whenSettled();
 
     expect(planner.getStepNote()).toMatchObject({ topic: 'Fractions' });
@@ -209,20 +210,20 @@ describe('the lesson planner', () => {
   it('spends nothing past a limit, and charges what each plan cost', async () => {
     const charge = vi.fn();
     const closed = plannerWith([newPlan(FRACTIONS)], { canSpend: () => false, charge });
-    closed.planner.noteStudentWords('teach me fractions', true);
+    closed.planner.noteStudentWords(heard('teach me fractions', true));
     await closed.planner.whenSettled();
     expect(closed.asks).toEqual([]);
     expect(charge).not.toHaveBeenCalled();
 
     const open = plannerWith([newPlan(FRACTIONS)], { charge });
-    open.planner.noteStudentWords('teach me fractions', true);
+    open.planner.noteStudentWords(heard('teach me fractions', true));
     await open.planner.whenSettled();
     expect(charge).toHaveBeenCalledWith(0.0001);
   });
 
   it('follows the tutor from a task to teaching again', async () => {
     const { planner } = plannerWith([newPlan(FRACTIONS)]);
-    planner.noteStudentWords('teach me fractions', true);
+    planner.noteStudentWords(heard('teach me fractions', true));
     await planner.whenSettled();
 
     planner.noteCommand(TASK);
@@ -276,6 +277,17 @@ describe('the tutor with a lesson planner', () => {
     await answer(brain, 'go on');
 
     expect(getPlanNotes(model).at(-1)).toBe(2);
+  });
+
+  it('tells the planner what the student is answering', async () => {
+    const ask = vi.fn(() => Promise.resolve({ move: { move: 'stay' } as PlanMove, costUsd: 0 }));
+    const { brain, planner } = brainWith(ask, ['Which sport do you like?']);
+
+    await answer(brain, 'teach me projectiles');
+    await planner.whenSettled();
+    await answer(brain, 'baseball');
+
+    expect(ask).toHaveBeenLastCalledWith({ now: null, earlier: [], said: 'baseball', tutorSaid: 'Which sport do you like?' });
   });
 
   it('never plans on words that may be about safety, so they cannot become a title', async () => {

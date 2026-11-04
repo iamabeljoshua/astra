@@ -81,11 +81,10 @@ async function waitForQuiet(page: Page): Promise<string> {
 
 const readBoard = (page: Page) =>
   page.evaluate((): BoardFacts => {
-    const voice = (window as unknown as { astraVoice: { getBoardNow(): { board: { stage?: { mode: string; sinceMs: number } | null; elements: Map<string, { content: Record<string, unknown>; isClosed?: boolean }>; openTask?: unknown }; atMs: number }; records: { fired: { atWord: number; positionMs: number; wordStartMs: number }[] } } }).astraVoice;
+    const voice = (window as unknown as { astraVoice: { getBoardNow(): { board: { stage?: { mode: string; sinceMs: number } | null; elements: Map<string, { content: Record<string, unknown>; progress?: { isOpen?: boolean } }> } }; records: { fired: BoardFacts['fired'] } } }).astraVoice;
     const { board } = voice.getBoardNow();
-    const tasks = [...board.elements.values()].filter(({ content }) => content.kind === 'task').map(({ content }) => content);
-    const open = [...document.querySelectorAll('[data-testid="place-task"], [data-pick-open], [data-task-open]')].length > 0 || tasks.length > 0;
-    return { mode: board.stage?.mode ?? null, stageSinceMs: board.stage?.sinceMs ?? null, openTask: open ? ((tasks.at(-1) as unknown as BoardFacts['openTask']) ?? null) : null, elements: board.elements.size, fired: voice.records.fired.slice(-6).map(({ atWord, positionMs, wordStartMs }) => ({ atWord, positionMs, wordStartMs })) };
+    const open = [...board.elements.values()].filter(({ content, progress }) => content.kind === 'task' && progress?.isOpen).at(-1);
+    return { mode: board.stage?.mode ?? null, stageSinceMs: board.stage?.sinceMs ?? null, openTask: (open?.content as unknown as BoardFacts['openTask']) ?? null, elements: board.elements.size, fired: voice.records.fired.slice(-6).map(({ atWord, positionMs, wordStartMs }) => ({ atWord, positionMs, wordStartMs })) };
   });
 
 const getHeaderTitle = (page: Page) => page.locator('header .label').first().innerText();

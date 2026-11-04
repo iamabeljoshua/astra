@@ -5,9 +5,16 @@ import type { PlanAnswer, PlanAsk } from './ask-planner.ts';
 import type { PlanMove } from './lesson-plan.ts';
 import { getShelvedTopics, getStateAfterEvent, getStateAfterMove, getStepNote, type LessonEvent, type LessonState, NO_LESSON, type StepNote } from './plan-progress.ts';
 
+export interface HeardWords {
+  words: string;
+  /** The first words of a room come from the session's own title, so they name its topic and never rename it. */
+  isOpening: boolean;
+  tutorSaid: string;
+}
+
 export interface LessonPlanner {
-  /** Starts planning beside the reply and returns at once, so a plan never holds a word. The first words of a room come from the session's own title, so they name its topic and never rename it. */
-  noteStudentWords(words: string, isOpening: boolean): void;
+  /** Starts planning beside the reply and returns at once, so a plan never holds a word. */
+  noteStudentWords(heard: HeardWords): void;
   noteCommand(command: SceneCommand): void;
   noteWorkChecked(checked: Pick<CheckedWork, 'verdict' | 'closesTask'>): void;
   getStepNote(): StepNote | null;
@@ -43,7 +50,7 @@ const getWorkEvent = ({ verdict, closesTask }: Pick<CheckedWork, 'verdict' | 'cl
 // Holds the lesson in code. One plan runs at a time and only the latest words wait, so a flood of lines costs one call at a time.
 export function createLessonPlanner({ ask, canSpend, charge, onTitleChange, trace, getNowMs = () => performance.now() }: LessonPlannerOptions): LessonPlanner {
   let state: LessonState = NO_LESSON;
-  let waiting: { words: string; isOpening: boolean } | null = null;
+  let waiting: HeardWords | null = null;
   let asking: Promise<void> | null = null;
 
   const adopt = (move: PlanMove, isOpening: boolean) => {
@@ -53,11 +60,11 @@ export function createLessonPlanner({ ask, canSpend, charge, onTitleChange, trac
     if (!isOpening && topic !== null && topic !== hadTopic) onTitleChange(topic);
   };
 
-  const askOnce = async ({ words: said, isOpening }: { words: string; isOpening: boolean }) => {
+  const askOnce = async ({ words: said, isOpening, tutorSaid }: HeardWords) => {
     if (!canSpend()) return;
     const startedAtMs = getNowMs();
     try {
-      const { move, costUsd } = await ask({ now: state.active?.plan.topic ?? null, earlier: getShelvedTopics(state), said });
+      const { move, costUsd } = await ask({ now: state.active?.plan.topic ?? null, earlier: getShelvedTopics(state), said, tutorSaid });
       charge(costUsd);
       trace('planAnswered', { move: move?.move ?? null, ms: Math.round(getNowMs() - startedAtMs), costUsd });
       if (move) adopt(move, isOpening);
@@ -80,9 +87,9 @@ export function createLessonPlanner({ ask, canSpend, charge, onTitleChange, trac
   };
 
   return {
-    noteStudentWords(words, isOpening) {
-      if (isStageWords(words) || isLineOfWork(words)) return;
-      waiting = { words, isOpening };
+    noteStudentWords(heard) {
+      if (isStageWords(heard.words) || isLineOfWork(heard.words)) return;
+      waiting = heard;
       asking ??= askWhileWaiting();
     },
     noteCommand: (command) => noteEvent(toEvent(command)),
