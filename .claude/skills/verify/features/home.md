@@ -30,7 +30,7 @@ Preconditions:
 ## Gotchas
 
 - The heading says `Welcome.` with no name until `GET /home` answers. `Picked for you` also shows in the loading placeholder. So wait for the name and the `Continue session` button, as the journey does.
-- With no seed, `maya@astra.test` has no student, so sign-in lands on `What should your tutor call you?` and the journey times out on the greeting. Run `pnpm db:seed`.
+- With no seed, `maya@astra.test` has no student, so sign-in lands on `You're in. What should I call you?` and the journey times out on the greeting. Run `pnpm db:seed`.
 - `home-greeting` shows `Welcome, <name>.` until the student starts a session. See [onboarding](./onboarding.md).
 - With the API already stopped, `drive` refuses before it opens a page.
 - In a phone image the chat box sits part way down, across the cards. The image is the full page and the chat box sticks to the bottom of the window, so this is not a layout bug.

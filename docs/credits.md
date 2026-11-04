@@ -46,4 +46,6 @@ The prototype's wave is a different image, a Commons scan of a reprint made betw
 We made these drawings for this product.
 
 - `apps/web/src/home/drawings.tsx` holds `arc`, `forces`, `growth`, and `helix`.
+- `apps/web/src/home/interestDrawings.tsx` holds a drawing for each of the 12 interest chips: `basketball`, `football`, `movies`, `gaming`, `music`, `art`, `space`, `cars`, `cooking`, `fashion`, `coding`, and `history`. No team, brand, or game appears in them.
+- `apps/web/src/ui/dots/planetDots.ts` and `apps/web/src/ui/dots/chartBackdrop.ts` draw the planet and the star chart on sign-in and onboarding.
 - `apps/web/src/home/lineDrawings.tsx` holds `balance`, `bars`, `binary`, `braking`, `branches`, `circuit`, `clock`, `curve`, `frames`, `grid`, `lock`, `parabola`, `piston`, `pitch`, `prism`, `route`, `string`, `table`, `tangent`, `terrain`, `triangle`, and `waveform`.
