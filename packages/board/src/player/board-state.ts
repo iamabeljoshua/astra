@@ -27,6 +27,8 @@ export interface PlacedScene {
 
 export interface BoardElement {
   id: ElementId;
+  /** When this use of the id began. A freeze leaves it alone, and the same id placed again gets a new one. */
+  placedAtMs: number;
   content: PlacingCommand | InkContent;
   /** From 0 to 1, how much of its entrance or its latest rearrangement has drawn. */
   entrance: Motion;
@@ -127,6 +129,7 @@ function place(board: BoardDraft, command: PlacingCommand, { atMs, overMs, catal
   const scene = catalog(command, {});
   board.elements.set(command.id, {
     id: command.id,
+    placedAtMs: atMs,
     content: command,
     entrance: moveOver({ from: 0, to: 1, atMs, overMs: overMs ?? getWritingMs(command) }),
     placedScene: scene && { scene, parameterChanges: {}, playhead: holdMotion(0, atMs) },
@@ -185,7 +188,7 @@ function addInk(board: BoardDraft, operation: BoardOperation & { kind: 'inkStrok
   const existing = board.elements.get(operation.id);
   if (existing && existing.content.kind !== 'ink') return;
   const points = existing?.content.kind === 'ink' ? [...existing.content.points, ...operation.points] : operation.points;
-  board.elements.set(operation.id, { id: operation.id, content: { kind: 'ink', points }, entrance: holdMotion(1, operation.atMs), placedScene: null, revealedUpTo: null, math: null, morphFrom: null });
+  board.elements.set(operation.id, { id: operation.id, placedAtMs: existing?.placedAtMs ?? operation.atMs, content: { kind: 'ink', points }, entrance: holdMotion(1, operation.atMs), placedScene: null, revealedUpTo: null, math: null, morphFrom: null });
 }
 
 interface ReduceContext {
