@@ -15,7 +15,7 @@ permissions:
 jobs:
   # Each job has its own 2 threads and its own limit, and they run at once, so an answer still comes within the limit of its start.
   typecheck-and-web:
-    runs-on: [self-hosted, no-such-runner-label]
+    runs-on: ubuntu-latest
     timeout-minutes: 4
     steps:
       - uses: actions/checkout@v7
@@ -31,7 +31,6 @@ jobs:
         wait-all:
 
   api-and-agent:
-    if: false
     runs-on: ubuntu-latest
     timeout-minutes: 4
     env:
