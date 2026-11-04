@@ -1,9 +1,15 @@
 import { BEAT_LIMITS, type Beat, type BoardKinds, getBoardAfter, getBoardProblem, LIVE_MESSAGE_MAX_BYTES, MATH_CLAIMS, parseSceneCommand, type SceneCommand } from '@astra/contracts';
+import { type AttemptReport, parseAttemptReport } from './attempts.ts';
+import { parseToolCall, type ToolCall } from './tools/tool-call.ts';
 
-/** A turn wraps up at the next sentence end past this, about 20 s with its pauses, because T4 gives a spoken turn 20 seconds. */
+/** A turn wraps up at the next sentence end past this, which is Abel's limit, and the prompt asks for far fewer. */
 export const TURN_WORDS_TO_WRAP = 45;
 /** A stretch of speech takes a breath at the next sentence end past this, because long stretches are what sound like a machine. */
 const STRETCH_WORDS_TO_BREATHE = 25;
+/** A stretch breathes at its next beat past this even with no sentence end in sight, because Abel's limit is 45 words and a long sentence must not pass it. */
+const STRETCH_WORDS_TO_BREATHE_AT_ANY_BEAT = 35;
+/** A stretch with no comma or sentence end still gets its breath here, so no words but a safety reply's pass the limit. */
+const MOST_WORDS_IN_A_STRETCH = 42;
 /** A line break after fewer words than this is only a new beat, because a pause after "Okay, look." sounds odd. */
 const FEWEST_WORDS_BEFORE_A_BREATH = 6;
 /** A sentence that never ends stops here, so a run-on cannot speak for a minute. */
@@ -27,6 +33,8 @@ const ENDS_IN_SENTENCE = /[.!]["')]*\s*$/;
 const ENDS_IN_CLAUSE = /[,;:]\s*$/;
 const ENDS_IN_ABBREVIATION = /(?:^|[\s("'])(?:mr|mrs|ms|dr|prof|st|vs|(?:[a-z]\.)+[a-z])\.["')]*\s*$/i;
 const ENDS_IN_ELLIPSIS = /\.{2,}["')]*\s*$/;
+/** A sentence can end inside a beat, when the words after a comma were too few to stand alone. */
+const HOLDS_SENTENCE_END = /[a-z][.!]["')]*\s+\S/i;
 /** Words only a safety reply uses, so that reply is never paused, wrapped, or ended at a question. Help must reach the student whole. A lesson can say the second group too, so those count only inside a question. */
 const SAFETY_REPLY = /\b(?:that sounds[^.?!]*serious|right thing telling me|adult you trust|trusted adult|(?:your|local) emergency (?:number|services)|are you safe)\b|\b(?:feel safe|in danger|hurting yourself|hurt yourself|ending your life|not your fault)\b[^.?!]*\?/i;
 const STILL_A_TAG = /^<\/?(?:[A-Za-z_][\w:.-]*(?:\s[^<>\n]*)?)?$/;
@@ -48,7 +56,12 @@ export interface BeatTextReaderOptions {
   onBadCommand(problem: string): void;
   onWrongMath(problem: string): void;
   onCommandKept?(command: SceneCommand): void;
+  /** The reply stops here, and carries on from the same words once the tool has answered. */
+  onToolCall?(call: ToolCall): void;
+  onAttemptReport?(report: AttemptReport): void;
   checkCommand?(command: SceneCommand): CommandVerdict;
+  checkWords?(text: string): string | null;
+  onWrongWords?(problem: string): void;
   /** A retry that says these words again would repeat what the student heard, so they are dropped. */
   isAlreadySaid?(text: string): boolean;
   board?: BoardKinds;
@@ -91,6 +104,8 @@ export class BeatTextReader {
   #hasCommandThisTurn = false;
   #isHalted = false;
   #isTurnOver = false;
+  #isQuestionHeld = false;
+  #keptAfterQuestion: string[] = [];
   #wasCutShort = false;
   #textAfterTurn = '';
   #script: Beat['script'] = [];
@@ -108,7 +123,7 @@ export class BeatTextReader {
   }
 
   get isTurnOver(): boolean {
-    return this.#isTurnOver;
+    return this.#isTurnOver || this.#isQuestionHeld;
   }
 
   /** The turn stopped at the word limit with a sentence still open, so the student has heard no ending. */
@@ -118,6 +133,13 @@ export class BeatTextReader {
 
   get textAfterTurn(): string {
     return this.#textAfterTurn;
+  }
+
+  /** The model's text as the student got it, without the words dropped after its question. */
+  getKeptText(raw: string): string {
+    if (this.#textAfterTurn === '') return raw;
+    const questionEnd = Math.max(0, raw.length - this.#textAfterTurn.length - this.#keptAfterQuestion.join('').length);
+    return [raw.slice(0, questionEnd), ...this.#keptAfterQuestion].join(' ');
   }
 
   get wordsThisTurn(): number {
@@ -142,6 +164,12 @@ export class BeatTextReader {
     this.#cuesAwaitingWord = [];
   }
 
+  /** A question was held back rather than spoken, so the turn it ended goes on. */
+  reopenTurn(): void {
+    this.#isTurnOver = false;
+    this.#textAfterTurn = '';
+  }
+
   /** Drops half-read commands and half a sentence, because the next request carries on from the words already said, and half a sentence is what a dropped stream must never speak. */
   closeAttempt(): void {
     this.#clearHalfRead();
@@ -153,6 +181,7 @@ export class BeatTextReader {
   markSafetyReply(): void {
     this.#isSafetyReply = true;
     this.#isTurnOver = false;
+    this.#isQuestionHeld = false;
     this.#wasCutShort = false;
     this.#textAfterTurn = '';
   }
@@ -228,6 +257,17 @@ export class BeatTextReader {
     this.push(held);
   }
 
+  // Help written after a held question must be spoken too, so it lets the question go.
+  #addAfterHeldQuestion(character: string): void {
+    this.#textAfterTurn += character;
+    if (!SAFETY_REPLY.test(this.#textAfterTurn)) return;
+    const held = this.#textAfterTurn;
+    this.#textAfterTurn = '';
+    this.#isQuestionHeld = false;
+    this.#isSafetyReply = true;
+    this.push(held);
+  }
+
   #isPastWordCut(): boolean {
     return this.#wordsThisTurn >= TURN_WORDS_TO_CUT && !this.#isSafetyReply;
   }
@@ -241,7 +281,8 @@ export class BeatTextReader {
     if (this.#held !== '') this.#stepAfterOpenBrace(character);
     else if (character === '{') this.#held = character;
     else if (character === '<') this.#tag = character;
-    else if (character === '\n') this.#endLine();
+    else if (character === '\n' && this.#isQuestionHeld) this.#addAfterHeldQuestion(character);
+    else if (character === '\n') this.#endLineOrHoldQuestion();
     else if (character !== '}' && !UNSPEAKABLE.test(character) && !this.#isOneMarkTooMany(character)) this.#speak(character);
   }
 
@@ -307,18 +348,29 @@ export class BeatTextReader {
 
   #speak(character: string): void {
     const isSpace = /\s/.test(character);
+    if (this.#isQuestionHeld) return this.#addAfterHeldQuestion(character);
     if (this.#characterCount === BEAT_LIMITS.characters) {
       if (isSpace) return;
       this.#endBeat();
     }
-    if (!isSpace && this.#isAfterSpace && (this.#wordCount === BEAT_LIMITS.words || this.#isPastWordCut())) this.#endBeat();
+    if (!isSpace && this.#isAfterSpace && (this.#wordCount === BEAT_LIMITS.words || this.#isPastWordCut() || this.#isStretchFull())) this.#endBeat();
     if (this.#isTurnOver) return this.#addAfterTurn(character);
     if (!isSpace) this.#startOrContinueWord();
     this.#isAfterSpace = isSpace;
     this.#text += character;
     this.#characterCount += 1;
     this.#addToScript(character);
-    if (isSpace && this.#isAtBeatBoundary()) this.#endBeat();
+    if (isSpace && this.#isAtBeatBoundary()) this.#endBeatOrHoldQuestion();
+  }
+
+  #endBeatOrHoldQuestion(): void {
+    if (this.#wordCount > 0 && ENDS_IN_QUESTION.test(this.#text) && !this.isSafetyReply) this.#isQuestionHeld = true;
+    else this.#endBeat();
+  }
+
+  #endLineOrHoldQuestion(): void {
+    if (this.#wordCount > 0 && ENDS_IN_QUESTION.test(this.#text) && !this.isSafetyReply) this.#isQuestionHeld = true;
+    else this.#endLine();
   }
 
   #startOrContinueWord(): void {
@@ -439,6 +491,7 @@ export class BeatTextReader {
   #finishCommand(): void {
     // NFD Vietnamese, Yoruba, and Igbo are refused by the math parser, and the same words in NFC set, and a stream can split a letter from its mark.
     const text = (this.#command as string).normalize('NFC');
+    if (this.#isQuestionHeld) this.#keptAfterQuestion.push(text);
     this.#command = null;
     if (this.#isCommandTooLong) {
       this.#isCommandTooLong = false;
@@ -446,10 +499,28 @@ export class BeatTextReader {
       return;
     }
     const value = this.#readJson(text);
-    if (value === undefined) return;
+    if (value === undefined || this.#takeTutorCall(value)) return;
     const parsed = parseSceneCommand(withKnownClaim(value));
     if (parsed.ok) this.#keepCommand(parsed.value);
     else this.#options.onBadCommand(parsed.problem);
+  }
+
+  // These go to code and never to the board, so a tool or a report can draw nothing.
+  #takeTutorCall(value: unknown): boolean {
+    const report = parseAttemptReport(value);
+    if (report !== null) {
+      this.#options.onAttemptReport?.(report);
+      return true;
+    }
+    const parsedCall = parseToolCall(value);
+    if (parsedCall === null) return false;
+    if (!parsedCall.ok) {
+      this.#options.onBadCommand(parsedCall.problem);
+      return true;
+    }
+    this.#isHalted = true;
+    this.#options.onToolCall?.(parsedCall.call);
+    return true;
   }
 
   #readJson(text: string): unknown {
@@ -492,10 +563,26 @@ export class BeatTextReader {
     this.#command = null;
   }
 
+  #isStretchFull(): boolean {
+    return !this.#isSafetyReply && this.#wordsThisStretch >= MOST_WORDS_IN_A_STRETCH;
+  }
+
+  #isStretchLongEnough(endsSentence: boolean): boolean {
+    if (this.#wordsThisStretch >= STRETCH_WORDS_TO_BREATHE_AT_ANY_BEAT) return true;
+    return this.#wordsThisStretch >= STRETCH_WORDS_TO_BREATHE && (endsSentence || HOLDS_SENTENCE_END.test(this.#text));
+  }
+
   #endBeat(): void {
     if (this.#wordCount === 0) return;
     if (this.#options.isAlreadySaid?.(this.#text)) return this.#dropWordsKeepingCommands();
     this.#clearCuesAwaitingWord();
+    this.#isQuestionHeld = false;
+    const wordsProblem = this.#options.checkWords?.(this.#text) ?? null;
+    if (wordsProblem !== null) {
+      this.#isHalted = true;
+      this.#startBeat();
+      return this.#options.onWrongWords?.(wordsProblem);
+    }
     const expectsReply = ENDS_IN_QUESTION.test(this.#text);
     const endsSentence = isSentenceEnd(this.#text);
     const script = this.#script.map((part) => (typeof part === 'string' ? part.normalize('NFC') : part));
@@ -505,7 +592,7 @@ export class BeatTextReader {
     this.#isTurnOver = (expectsReply && !this.#isSafetyReply) || (endsSentence && this.#wordsThisTurn >= TURN_WORDS_TO_WRAP && !this.#isSafetyReply) || isAtCut;
     this.#wasCutShort = isAtCut && !expectsReply && !endsSentence;
     this.#didLastBeatEndSentence = endsSentence || expectsReply;
-    if (endsSentence && this.#wordsThisStretch >= STRETCH_WORDS_TO_BREATHE && !this.#isSafetyReply) this.#isBreathDue = true;
+    if (this.#isStretchLongEnough(endsSentence) && !this.#isSafetyReply) this.#isBreathDue = true;
     this.#startBeat();
   }
 }

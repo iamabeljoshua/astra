@@ -188,7 +188,7 @@ describe('a long sitting hears about a break', () => {
     let nowMs = 0;
     const model = makeFakeTutorModel(() => REPLY);
     const brain = createTutorBrain({ model, timeouts: QUICK, getNowMs: () => nowMs });
-    const notesSent = () => model.requests.map((request) => JSON.stringify(request.turns.at(-1)).includes('break_due'));
+    const notesSent = () => model.requests.map((request) => JSON.stringify(request.turns.slice(request.turns.findLastIndex((turn) => turn.role === 'user'))).includes('break_due'));
     for await (const beat of brain.reply({ text: 'next' }, new AbortController().signal)) void beat;
     nowMs = 45 * 60 * 1000;
     for await (const beat of brain.reply({ text: 'next' }, new AbortController().signal)) void beat;

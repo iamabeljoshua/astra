@@ -1,13 +1,13 @@
-import { getMathParts, getTexTokens, type MathClaim } from '@astra/contracts';
+import { getMathParts, getTexTokens, type MathClaim, type WorkVerdict } from '@astra/contracts';
 import { areSameFraction, type Fraction, getNumberValue, isPolynomial, type NumberValue, subtractFractions, toFloatValue, toFraction } from './math/math-value.ts';
 import { getLetters, type MathExpression, parseMath } from './math/parse-math.ts';
 import { areProportional, divides, getCoefficient, getCommonDivisor, getDegree, getLinearRoot, getWithSingleRoots, type OneLetterPolynomial, toOneLetter } from './math/polynomial.ts';
-import { compareRationals, describeRational, divideRationals, getAbsolute, getExactPlaces, isSameRational, makeRational, multiplyRationals, type Rational, readDecimal, subtractRationals } from './math/rational.ts';
+import { compareRationals, describeRational, divideRationals, getAbsolute, getExactPlaces, isSameRational, makeRational, multiplyRationals, type Rational, readDecimal, subtractRationals, toFloat } from './math/rational.ts';
 
 /**
  * What code knows about a line of math. `wrong` means code is certain the line is false, and only `wrong` stops the tutor. `right` means code proved it. `unknown` is everything else, and it is never treated as doubt.
  */
-export type MathVerdict = { status: 'right' } | { status: 'wrong'; why: string } | { status: 'unknown' };
+export type MathVerdict = WorkVerdict;
 
 const RIGHT: MathVerdict = { status: 'right' };
 const UNKNOWN: MathVerdict = { status: 'unknown' };
@@ -15,11 +15,15 @@ const wrong = (why: string): MathVerdict => ({ status: 'wrong', why });
 
 const SAME_FLOAT = 1e-9;
 const BARE_DECIMAL = /^-?\s*\d+\.(\d+)$/;
+/** log may mean base 10 or base e, so a value that looks off may still be right. */
+const MAY_BE_ANOTHER_BASE = /\\log/;
 /** A rounded answer whose exact form also ends is only trusted when it is this close. 1/8 = 0.13 is, and 0.5 x 0.1 = 0.1 is not. */
 const LARGEST_ROUNDING_SHARE = makeRational(1n, 20n);
 /** Numbers this far apart in size are never a rounding of each other, whatever the rounding. */
 const ABSURD_RATIO = 10;
 const HALF = makeRational(1n, 2n);
+/** Rounding to one place is a real rounding and often only a rough one, as 1/6 = 0.2 is, so it gets neither a tick nor a cross. */
+const FEWEST_PLACES_TO_PROVE = 2;
 
 const INEQUALITIES: Readonly<Record<string, (order: number) => boolean>> = {
   '<': (order) => order < 0,
@@ -60,7 +64,7 @@ const getBareDecimalPlaces = (tex: string) => BARE_DECIMAL.exec(tex.trim())?.[1]
 
 const getOneUnitInPlace = (places: number) => makeRational(1n, 10n ** BigInt(places));
 
-// 1/3 can only be written rounded, so its last digit may be off by one. A number whose decimals end has a right answer, so only a true rounding that stays close is let through.
+// A student's rounding is right only within half a unit in its last place, and a tie rounds up, as school teaches, so 1/8 is 0.13 and not 0.12. A number whose decimals end has a right answer, so its rounding must also stay close.
 function isPossibleRounding(exact: Rational, written: Rational, places: number): boolean {
   if (places === 0) return false;
   const writtenPlaces = getExactPlaces(written);
@@ -68,9 +72,9 @@ function isPossibleRounding(exact: Rational, written: Rational, places: number):
   const exactPlaces = getExactPlaces(exact);
   if (exactPlaces !== null && exactPlaces <= places) return false;
   const gap = getAbsolute(subtractRationals(exact, written));
-  const unit = getOneUnitInPlace(places);
-  if (exactPlaces === null) return compareRationals(gap, unit) <= 0;
-  return compareRationals(gap, multiplyRationals(unit, HALF)) <= 0 && compareRationals(gap, multiplyRationals(getAbsolute(exact), LARGEST_ROUNDING_SHARE)) <= 0;
+  const order = compareRationals(gap, multiplyRationals(getOneUnitInPlace(places), HALF));
+  if (order > 0 || (order === 0 && compareRationals(getAbsolute(written), getAbsolute(exact)) < 0)) return false;
+  return exactPlaces === null || compareRationals(gap, multiplyRationals(getAbsolute(exact), LARGEST_ROUNDING_SHARE)) <= 0;
 }
 
 function isAbsurdlyFar(left: number, right: number): boolean {
@@ -87,14 +91,20 @@ function describeValue(value: NumberValue & { kind: 'exact' | 'real' }): string 
 
 function checkExactEquals(left: MathSide, right: MathSide, a: Rational, b: Rational): MathVerdict {
   if (isSameRational(a, b)) return RIGHT;
-  const isRounded = isPossibleRounding(a, b, getBareDecimalPlaces(right.tex)) || isPossibleRounding(b, a, getBareDecimalPlaces(left.tex));
-  return isRounded ? RIGHT : wrong(`${left.tex} is ${describeRational(a)}, not ${describeRational(b)}`);
+  const [leftPlaces, rightPlaces] = [getBareDecimalPlaces(left.tex), getBareDecimalPlaces(right.tex)];
+  const isRounded = isPossibleRounding(a, b, rightPlaces) || isPossibleRounding(b, a, leftPlaces);
+  if (!isRounded) return wrong(`${left.tex} is ${describeRational(a)}, not ${describeRational(b)}`);
+  return Math.max(leftPlaces, rightPlaces) >= FEWEST_PLACES_TO_PROVE ? RIGHT : UNKNOWN;
 }
 
 function checkFloatEquals(left: MathSide, right: MathSide, a: number, b: number): MathVerdict {
   const places = Math.max(getBareDecimalPlaces(left.tex), getBareDecimalPlaces(right.tex));
-  if (Math.abs(a - b) <= Math.max(SAME_FLOAT, places === 0 ? 0 : 10 ** -places)) return RIGHT;
-  return isAbsurdlyFar(a, b) ? wrong(`${left.tex} is ${describeFloat(a)}, not ${describeFloat(b)}`) : UNKNOWN;
+  const gap = Math.abs(a - b);
+  // Digits written past what the float can tell still have to be true, so pi = 3.1415926530 gets no tick.
+  if (gap <= (places > 0 ? Math.min(SAME_FLOAT, 10 ** -places / 2) : SAME_FLOAT)) return RIGHT;
+  if (places > 0 && gap <= 10 ** -places / 2) return places >= FEWEST_PLACES_TO_PROVE ? RIGHT : UNKNOWN;
+  const isClaimedRounding = places > 0 && !MAY_BE_ANOTHER_BASE.test(left.tex + right.tex);
+  return isClaimedRounding || isAbsurdlyFar(a, b) ? wrong(`${left.tex} is ${describeFloat(a)}, not ${describeFloat(b)}`) : UNKNOWN;
 }
 
 type DefinedValue = NumberValue & { kind: 'exact' | 'real' };
@@ -132,7 +142,14 @@ function checkNumbers(relation: string, left: MathSide, right: MathSide): MathVe
 export function checkMathLine(tex: string): MathVerdict {
   const { sides, relations } = readStatement(tex);
   const verdicts = relations.map((relation, index) => checkNumbers(relation, sides[index] as MathSide, sides[index + 1] as MathSide));
-  return verdicts.find((verdict) => verdict.status === 'wrong') ?? (verdicts.some((verdict) => verdict.status === 'right') ? RIGHT : UNKNOWN);
+  return combineVerdicts(verdicts);
+}
+
+// A line is proved only when every relation in it is, so one true link never covers one code cannot read.
+function combineVerdicts(verdicts: readonly MathVerdict[]): MathVerdict {
+  const firstWrong = verdicts.find((verdict) => verdict.status === 'wrong');
+  if (firstWrong) return firstWrong;
+  return verdicts.length > 0 && verdicts.every((verdict) => verdict.status === 'right') ? RIGHT : UNKNOWN;
 }
 
 interface Rewrite {
@@ -244,14 +261,63 @@ function checkRewrite(before: Rewrite, after: Rewrite): MathVerdict {
   return before.kind === 'expression' ? checkExpressionRewrite(before, after) : checkEquationRewrite(before, after);
 }
 
+/** A tick says a line is right, so it is held to arithmetic and to one thing more: one letter whose sides can never meet, as 2(x + 3) = 2x + 3, is false whatever the letter is. */
+export function checkTickedLine(tex: string): MathVerdict {
+  const lineVerdict = checkMathLine(tex);
+  const rewrite = readRewrite(tex);
+  const [letter] = rewrite?.symbols ?? [];
+  if (lineVerdict.status !== 'unknown' || rewrite?.kind !== 'equation' || !rewrite.value || !isPolynomial(rewrite.value) || rewrite.symbols.size !== 1 || letter === undefined) return lineVerdict;
+  return getDegree(toOneLetter(rewrite.value.top, letter)) === 0 ? wrong(`${tex} is never true, whatever ${letter} is`) : lineVerdict;
+}
+
+/** The links of a chain of equals, or the line itself if it is not one, so 2x = 11 + 3 = 14 is 2x = 11 + 3 and 11 + 3 = 14. */
+export function getChainLinks(tex: string): readonly string[] {
+  const { sides, relations } = readStatement(tex);
+  if (relations.length < 2 || relations.some((relation) => relation !== '=')) return [tex];
+  return relations.map((_, index) => `${(sides[index] as MathSide).tex} = ${(sides[index + 1] as MathSide).tex}`);
+}
+
+const isIdentity = (rewrite: Rewrite | null) => rewrite?.kind === 'equation' && rewrite.letters.size > 0 && rewrite.value !== null && isPolynomial(rewrite.value) && rewrite.value.top.size === 0;
+
 // x + 1 = x + 2 to 1 = 2 is how a lesson shows there is no solution, so the same equation wins over a false-looking line.
-export function checkMathStep(beforeTex: string, afterTex: string): MathVerdict {
+function checkOneStep(beforeTex: string, afterTex: string): MathVerdict {
   const [before, after] = [readRewrite(beforeTex), readRewrite(afterTex)];
+  if (isIdentity(after)) return RIGHT;
   if (before && after && isSameEquation(before, after)) return RIGHT;
   const lineVerdict = checkMathLine(afterTex);
   if (lineVerdict.status === 'wrong') return lineVerdict;
   const rewriteVerdict = before && after ? checkRewrite(before, after) : UNKNOWN;
   return rewriteVerdict.status === 'unknown' ? lineVerdict : rewriteVerdict;
+}
+
+export function checkMathStep(beforeTex: string, afterTex: string): MathVerdict {
+  return combineVerdicts(getChainLinks(afterTex).map((link) => checkOneStep(beforeTex, link)));
+}
+
+const isWithinLastDigit = (gap: number, places: number) => places > 0 && Math.abs(gap) <= 10 ** -places + SAME_FLOAT;
+
+// A whole number may be a rounding, up or down, and a question decides which: 100 students need 4 buses of 30.
+const isWholeRounding = (exact: number, written: number) => Number.isInteger(written) && !Number.isInteger(exact) && Math.abs(exact - written) < 1;
+
+function getRootOf({ value, symbols }: Rewrite): number | null {
+  const [letter] = symbols;
+  if (!value || !isPolynomial(value) || symbols.size !== 1 || letter === undefined) return null;
+  const gap = toOneLetter(value.top, letter);
+  return getDegree(gap) === 1 ? toFloat(getLinearRoot(gap)) : null;
+}
+
+/** A last digit off by one may be cut short and not rounded, as 0.66 for 2/3 is, and a whole number may be rounded either way. A student is not crossed for it, and the tutor is held to the rounding. */
+export function isLastDigitSlip(beforeTex: string, tex: string): boolean {
+  const [before, after] = [readRewrite(beforeTex), readRewrite(tex)];
+  if (!after || after.kind !== 'equation') return false;
+  if (after.letters.size === 0) {
+    const [left, right] = readStatement(tex).sides.map(({ expression }) => (expression ? getNumberValue(expression) : null));
+    if (!left || !right || !isDefined(left) || !isDefined(right)) return false;
+    const [a, b] = [toFloatValue(left), toFloatValue(right)];
+    return isWithinLastDigit(a - b, after.places) || isWholeRounding(a, b) || isWholeRounding(b, a);
+  }
+  const [was, now] = [before && getRootOf(before), getRootOf(after)];
+  return was !== null && now !== null && (isWithinLastDigit(was - now, after.places) || isWholeRounding(was, now));
 }
 
 // A line that follows another need not follow from it, as a derivative, a new problem, and a student's wrong line all show, so code judges only what the line says it is. No claim means no check.

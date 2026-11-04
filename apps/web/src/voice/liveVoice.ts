@@ -1,5 +1,7 @@
 import { type BoardState, createChoosingClock, createScenePlayer, type FiredCue, type OutputLevel, type ScenePlayer } from '@astra/board';
-import { type AgentMessage, type BrowserMessage, clipTypedText, type components, LINK_QUIET_LIMIT_MS, parseAgentMessage, PULSE_EVERY_MS, type TutorClosedReason } from '@astra/contracts';
+import { checkWorkOnBoard, cleanTypedLine, getNod } from '@astra/board/shared';
+import { getKeptBoard, keepBoard } from './keptBoard.ts';
+import { type AgentMessage, type BrowserMessage, clipTypedText, type components, type ElementId, type InkPoint, LINK_QUIET_LIMIT_MS, parseAgentMessage, PULSE_EVERY_MS, type StudentWork, type TutorClosedReason } from '@astra/contracts';
 import { DisconnectReason, type RemoteTrack, Room, RoomEvent, Track } from 'livekit-client';
 import heldMicWorkletUrl from './held-mic-worklet.js?url';
 import { createLocalYield } from './localYield';
@@ -18,6 +20,11 @@ const REJOIN_EVERY_MS = 2000;
 /** A room can say connected with a data channel that carries nothing after a drop, and only a new join clears that. */
 const REJOIN_AFTER_QUIET_MS = 3000;
 const TUTOR_ARRIVES_WITHIN_MS = 25_000;
+const INK_POINTS_IN_A_MESSAGE = 300;
+const TYPING_NOTED_EVERY_MS = 400;
+const LOUDNESS_WINDOW = 256;
+const MIDDLE_SAMPLE = 128;
+const LOUDEST_PEAK = 60;
 /** A crashed job never comes back, and each join mints a token and keeps the room alive, so a page stops trying after this many with no pulse. */
 const MOST_REJOINS_WITHOUT_TUTOR = 3;
 /** A room deleted under a join leaves the join hanging for this long, and LiveKit's own 15 s is most of the wait a student gets. Joins here took at worst about 5 s. */
@@ -48,6 +55,10 @@ export interface LiveVoiceView {
   closedBecause: TutorClosedReason | null;
   /** This session's words may be about the student's safety, so the page keeps the help on screen, in case the voice fails. */
   showsSafetyHelp: boolean;
+  firstWord: string | null;
+  isStopped: boolean;
+  typingNoteCount: number;
+  costUsd: number | null;
   /** This page's room closed and it joined a new one, so the tutor now holds nothing of what was said. */
   startedFresh: boolean;
   /** The tutor has begun its first turn in this page, so the wait for it is over. */
@@ -84,6 +95,15 @@ export interface LiveVoice {
   sendOpening(text: string): void;
   /** The board could not draw this mark, so the agent can tell the tutor the student did not see it. */
   reportMarkNotDrawn(markId: string): void;
+  sendWork(work: StudentWork, startedMsAgo?: number): void;
+  sendInkStroke(id: ElementId, points: readonly InkPoint[]): void;
+  sendInkPeek(strokes: readonly ElementId[]): void;
+  sendInkDone(id: ElementId, strokes: readonly ElementId[], task: ElementId | null): void;
+  noteTyping(): void;
+  movePoint(task: ElementId, x: number): void;
+  sendPause(seconds: number, draft?: string): void;
+  stopTutor(): void;
+  getLoudness(): number;
   toggleMic(): Promise<void>;
   /** Answers a quiet warning, so the room stays open. */
   sayStillHere(): void;
@@ -122,12 +142,17 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
   const clockId = crypto.randomUUID();
   const records = createRecords();
   const gain = audioContext.createGain();
+  const analyser = audioContext.createAnalyser();
+  analyser.fftSize = LOUDNESS_WINDOW;
+  gain.connect(analyser);
+  const loudnessSamples = new Uint8Array(LOUDNESS_WINDOW);
   const room = new Room({ adaptiveStream: false, dynacast: false, disconnectOnPageLeave: true });
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
   const listeners = new Set<() => void>();
   const outbox: BrowserMessage[] = [];
-  let view: LiveVoiceView = { phase: 'connecting', mic: 'off', showsSafetyHelp: false, isSoundBlocked: audioContext.state !== 'running', isQuietWarning: false, isThinking: false, isHeard: false, isTutorSpeaking: false, closedBecause: null, startedFresh: false, hasTutorStarted: false, studentLines: [], tutorHeard: [], tutorComing: [] };
+  let typingNotedAtMs = -Infinity;
+  let view: LiveVoiceView = { phase: 'connecting', mic: 'off', showsSafetyHelp: false, isSoundBlocked: audioContext.state !== 'running', isQuietWarning: false, isThinking: false, isHeard: false, isTutorSpeaking: false, closedBecause: null, firstWord: null, isStopped: false, typingNoteCount: 0, costUsd: null, startedFresh: false, hasTutorStarted: false, studentLines: [], tutorHeard: [], tutorComing: [] };
   let lastAgentPulseEpochMs: number | null = null;
   let isClosed = false;
   let hasHeardFirstOnset = false;
@@ -205,6 +230,13 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     void mic.setOn(false);
   };
 
+  const onWorkRead = (work: StudentWork) => {
+    const nowMs = clock.getNowMs();
+    const checked = checkWorkOnBoard(work, player.getBoard(nowMs));
+    player.addStudentOperations([{ kind: 'worked', atMs: nowMs, action: { action: 'worked', work, ...checked } }]);
+    setView({ firstWord: getNod(work, checked) });
+  };
+
   const onAgentMessage = (message: AgentMessage) => {
     // Only the job's own words say a tutor is here, because a crashed job's track outlives it.
     hasHeardTutor = true;
@@ -212,6 +244,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     if (view.phase === 'connecting') setView({ phase: 'live' });
     if (message.type === 'tutorClosed') return closeTutor(message.reason);
     if (message.type === 'safetyHelp') return setView({ showsSafetyHelp: true });
+    if (message.type === 'workRead') return onWorkRead(message.work);
     if (message.type === 'pulse') {
       lastAgentPulseEpochMs = getEpochMs();
       rejoinsSincePulse = 0;
@@ -231,10 +264,12 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
       return showHeard();
     }
     if (message.type === 'thinking') return setView({ isThinking: message.isThinking });
+    if (message.type === 'costSoFar') return setView({ costUsd: message.usd });
     if (message.type === 'studentWords') return addStudentWords(message);
     if (message.type === 'turnStarted' && message.turnId in records.turnStartedEpochMs) {
       records.replayedTurns.push(message.turnId);
     } else if (message.type === 'turnStarted') {
+      setView({ firstWord: null, isStopped: false });
       records.turnStartedEpochMs[message.turnId] = getEpochMs();
       if (!view.hasTutorStarted) setView({ hasTutorStarted: true });
       records.clockKinds.push(clock.getKind());
@@ -334,6 +369,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     if (hasHeardTutor && isNewRoom) setView({ startedFresh: true, isThinking: false });
     if (isNewRoom && lineAwaitingTutor !== null && !outbox.some((message) => message.type === 'typed')) outbox.push({ type: 'typed', ...getStamp(), text: lineAwaitingTutor });
     if (isNewRoom && !hasHeardTutor) startTutorWait();
+    if (roomName === null) player.addStudentOperations(getKeptBoard(access.roomName));
     roomName = access.roomName;
     wasTutorThere = access.isTutorThere;
   };
@@ -382,7 +418,10 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     },
     onState: (state) => setView({ mic: state }),
   });
-  const onPageHide = () => mic.stopAtOnce();
+  const onPageHide = () => {
+    mic.stopAtOnce();
+    if (roomName !== null) keepBoard(roomName, player.getOperations());
+  };
   window.addEventListener('pagehide', onPageHide);
 
   // LiveKit retries a short drop itself. Once it gives up, or leaves a channel that carries nothing, a new token and a new join bring the same session back. A closed tutor gets no rejoin, because a new join would open a room and pay for another one.
@@ -498,6 +537,50 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     },
     reportMarkNotDrawn(markId) {
       send({ type: 'markNotDrawn', ...getStamp(), markId });
+    },
+    sendWork(given, startedMsAgo = 0) {
+      const work = given.way === 'write' ? { ...given, text: clipTypedText(cleanTypedLine(given.text)) } : given;
+      const nowMs = clock.getNowMs();
+      const checked = checkWorkOnBoard(work, player.getBoard(nowMs));
+      player.addStudentOperations([{ kind: 'worked', atMs: nowMs, action: { action: 'worked', work, ...checked } }]);
+      showHeard();
+      setView({ firstWord: getNod(work, checked) });
+      send({ type: 'worked', ...getStamp(), startedMsAgo, work });
+    },
+    sendInkStroke(id, points) {
+      const atMs = clock.getNowMs();
+      player.addStudentOperations([{ kind: 'inkStroke', atMs, id, points }]);
+      for (let start = 0; start < points.length; start += INK_POINTS_IN_A_MESSAGE) send({ type: 'acted', ...getStamp(), action: { action: 'inkStroke', id, points: points.slice(start, start + INK_POINTS_IN_A_MESSAGE) } });
+    },
+    sendInkPeek(strokes) {
+      send({ type: 'inkPeek', ...getStamp(), strokes: [...strokes] });
+    },
+    noteTyping() {
+      const nowMs = clock.getNowMs();
+      if (nowMs - typingNotedAtMs < TYPING_NOTED_EVERY_MS) return;
+      typingNotedAtMs = nowMs;
+      setView({ typingNoteCount: view.typingNoteCount + 1 });
+      send({ type: 'typing', ...getStamp() });
+    },
+    sendInkDone(id, strokes, task) {
+      showHeard();
+      send({ type: 'inkDone', ...getStamp(), id, strokes: [...strokes], ...(task ? { task } : {}) });
+    },
+    movePoint(task, x) {
+      player.addStudentOperations([{ kind: 'pointMoved', atMs: clock.getNowMs(), task, x }]);
+    },
+    getLoudness() {
+      analyser.getByteTimeDomainData(loudnessSamples);
+      const peak = loudnessSamples.reduce((largest, sample) => Math.max(largest, Math.abs(sample - MIDDLE_SAMPLE)), 0);
+      return Math.min(1, peak / LOUDEST_PEAK);
+    },
+    stopTutor() {
+      setView({ isStopped: true });
+      player.freeze();
+      send({ type: 'stopTutor', ...getStamp() });
+    },
+    sendPause(seconds, draft) {
+      send({ type: 'paused', ...getStamp(), seconds, ...(draft ? { draft: clipTypedText(draft) } : {}) });
     },
     async toggleMic() {
       if (!hasLeftRoom && !view.closedBecause) await mic.toggle();

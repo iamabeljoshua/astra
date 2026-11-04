@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { type CompactedHistory, type ModelEvent, ModelRejectedError, type ModelStopReason, type ModelUsage, type TutorModelAdapter, type TutorModelRequest, type TutorTurn } from './types.ts';
+import { type CompactedHistory, type FindSource, type ModelEvent, ModelRejectedError, type ModelStopReason, type ModelUsage, type TutorModelAdapter, type TutorModelRequest, type TutorTurn } from './types.ts';
 
 interface ModelSettings {
   id: 'claude-sonnet-5-5' | 'claude-opus-5-5' | 'claude-haiku-5-5';
@@ -63,8 +63,9 @@ function getIsAbort(signal: AbortSignal, error: unknown): boolean {
   return signal.aborted || error instanceof Anthropic.APIUserAbortError;
 }
 
-export function makeAnthropicTutorModel({ name = 'sonnet-5-5', apiKey }: { name?: TutorModelName; apiKey: string }): TutorModelAdapter {
-  const settings: ModelSettings = MODEL_SETTINGS[name];
+export function makeAnthropicTutorModel({ name = 'sonnet-5-5', apiKey, thinking }: { name?: TutorModelName; apiKey: string; thinking?: 'adaptive' }): TutorModelAdapter {
+  const chosen: ModelSettings = MODEL_SETTINGS[name];
+  const settings: ModelSettings = thinking ? { ...chosen, request: { ...chosen.request, thinking: { type: thinking } } } : chosen;
   const client = new Anthropic({ apiKey, maxRetries: 0 });
   const { fallbacks, ...thinkingAndEffort } = settings.request;
   // A request that sends a compaction block back needs its beta.
@@ -136,5 +137,89 @@ export function makeAnthropicOneWordReader({ apiKey, onCost }: { apiKey: string;
     } catch {
       return null;
     }
+  };
+}
+
+export interface PictureReader {
+  read(request: { png: Buffer; prompt: string; schema: Record<string, unknown>; timeoutMs: number }): Promise<{ answer: unknown; costUsd: number }>;
+}
+
+const PICTURE_MODEL = MODEL_SETTINGS['haiku-5-5'];
+const PICTURE_MOST_TOKENS = 400;
+const TOKENS_PER_PRICE = 1_000_000;
+
+export function makeAnthropicPictureReader({ apiKey }: { apiKey: string }): PictureReader {
+  const client = new Anthropic({ apiKey, maxRetries: 0 });
+  return {
+    async read({ png, prompt, schema, timeoutMs }) {
+      const message = await client.beta.messages.create(
+        {
+          model: PICTURE_MODEL.id,
+          max_tokens: PICTURE_MOST_TOKENS,
+          thinking: { type: 'disabled' },
+          output_config: { effort: 'low', format: { type: 'json_schema', schema } },
+          messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: png.toString('base64') } }, { type: 'text', text: prompt }] }],
+        },
+        { timeout: timeoutMs },
+      );
+      const text = message.content.find((block) => block.type === 'text')?.text ?? '{}';
+      const { input, output } = PICTURE_MODEL.prices;
+      return { answer: JSON.parse(text) as unknown, costUsd: (message.usage.input_tokens * input + message.usage.output_tokens * output) / TOKENS_PER_PRICE };
+    },
+  };
+}
+
+/** Reference and science sites a school would point a student at. The API refuses a request naming a site its crawler cannot read, so a new site needs one real call. */
+const TRUSTED_SITES = ['nasa.gov', 'noaa.gov', 'nih.gov', 'cdc.gov', 'who.int', 'britannica.com', 'khanacademy.org', 'openstax.org', 'nationalgeographic.com', 'si.edu', 'nature.com', 'wikipedia.org'];
+const SEARCH_TOOL = 'web_search_20250305';
+const SEARCH_MAX_TOKENS = 600;
+const SEARCH_TIMEOUT_MS = 6000;
+const LONGEST_SOURCE_TITLE = 100;
+/** The listed price, $10 for a thousand searches. */
+const USD_PER_SEARCH = 0.01;
+const NOT_IN_A_TITLE = /\p{Cc}|\p{Cf}|[<>{}]/gu;
+
+const toMessageCost = ({ input_tokens: input, output_tokens: output }: { input_tokens: number; output_tokens: number }, prices: ModelSettings['prices']) => (input * prices.input + output * prices.output) / TOKENS_PER_MILLION;
+
+function readFirstHit(content: readonly Anthropic.ContentBlock[]): { title: string; url: string } | null {
+  for (const block of content) {
+    if (block.type !== 'web_search_tool_result' || !Array.isArray(block.content)) continue;
+    const [hit] = block.content;
+    if (hit) return { title: hit.title, url: hit.url };
+  }
+  return null;
+}
+
+export function makeAnthropicSourceFinder({ apiKey, onFailed }: { apiKey: string; onFailed?(problem: string): void }): FindSource {
+  const client = new Anthropic({ apiKey, maxRetries: 0, timeout: SEARCH_TIMEOUT_MS });
+  const { id, prices } = MODEL_SETTINGS['haiku-5-5'];
+  return async (claim, signal) => {
+    try {
+      const response = await client.messages.create(
+        { model: id, max_tokens: SEARCH_MAX_TOKENS, thinking: { type: 'disabled' }, tools: [{ type: SEARCH_TOOL, name: 'web_search', max_uses: 1, allowed_domains: TRUSTED_SITES }], messages: [{ role: 'user', content: `Search once for a page that supports this claim, then stop: ${claim}` }] },
+        { signal },
+      );
+      const costUsd = USD_PER_SEARCH + toMessageCost(response.usage, prices);
+      const hit = readFirstHit(response.content);
+      return hit ? { found: true, title: hit.title.replace(NOT_IN_A_TITLE, '').slice(0, LONGEST_SOURCE_TITLE), site: new URL(hit.url).hostname.replace(/^www\./, ''), url: hit.url, costUsd } : { found: false, costUsd };
+    } catch (error) {
+      onFailed?.(String(error));
+      return { found: false, costUsd: 0 };
+    }
+  };
+}
+
+export interface PlainAnswer {
+  text: string;
+  costUsd: number;
+}
+
+/** One plain request with no streaming, for a program that judges or plays a part in an evaluation. */
+export function makeAnthropicAsker({ name, apiKey }: { name: TutorModelName; apiKey: string }) {
+  const client = new Anthropic({ apiKey, maxRetries: 2 });
+  const { id, prices } = MODEL_SETTINGS[name];
+  return async ({ system, messages, maxTokens }: { system: string; messages: Anthropic.MessageParam[]; maxTokens: number }): Promise<PlainAnswer> => {
+    const reply = await client.messages.create({ model: id, max_tokens: maxTokens, system, messages });
+    return { text: reply.content.flatMap((block) => (block.type === 'text' ? [block.text] : [])).join('\n').trim(), costUsd: toMessageCost(reply.usage, prices) };
   };
 }

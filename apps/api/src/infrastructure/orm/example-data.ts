@@ -1,6 +1,7 @@
 import { In } from 'typeorm';
 import type { DataSource, DeepPartial } from 'typeorm';
 import type { SessionLanguage } from '../../sessions/session-options';
+import { LearnerNoteEntity } from './entities/learner-note.entity';
 import { SessionEntity } from './entities/session.entity';
 import { StudentProfileEntity } from './entities/student-profile.entity';
 import { ClosedAccountEntity } from './entities/closed-account.entity';
@@ -109,6 +110,37 @@ const EXAMPLE_SESSIONS: DeepPartial<SessionEntity>[] = [
   },
 ];
 
+// Two kinds of evidence on real example sessions, so Home and the tutor have something to read after a seed.
+function getExampleNotes([freeBody, sky, quadratics]: SessionEntity[]): Partial<LearnerNoteEntity>[] {
+  const forSession = (session: SessionEntity | undefined) => ({ studentId: EXAMPLE_STUDENT_ID, sessionId: session?.id, notedAt: session?.startedAt });
+  return [
+    {
+      ...forSession(freeBody),
+      kind: 'struggled',
+      topic: 'Free-body diagrams',
+      topicKey: 'free body diagrams',
+      detail: 'Friction on a slope',
+      evidence: [{ source: 'words', text: '', check: null }],
+    },
+    {
+      ...forSession(sky),
+      kind: 'explored',
+      topic: 'Why the sky is dark at night',
+      topicKey: 'why the sky is dark at night',
+      detail: null,
+      evidence: [{ source: 'words', text: '', check: null }],
+    },
+    {
+      ...forSession(quadratics),
+      kind: 'showed',
+      topic: 'Solving quadratic equations',
+      topicKey: 'solving quadratic equations',
+      detail: null,
+      evidence: [{ source: 'board', text: 'x^2 - 5x + 6 = 0 becomes (x - 2)(x - 3) = 0', check: 'right' }],
+    },
+  ];
+}
+
 export async function replaceExampleData(dataSource: DataSource): Promise<void> {
   await dataSource.transaction(async (manager) => {
     await manager.delete(StudentEntity, { authUserId: In(LOCAL_AUTH_USER_IDS) });
@@ -117,7 +149,7 @@ export async function replaceExampleData(dataSource: DataSource): Promise<void> 
     await manager.save(StudentEntity, [EXAMPLE_STUDENT, SECOND_STUDENT]);
     await manager.save(StudentProfileEntity, [EXAMPLE_PROFILE, SECOND_PROFILE]);
     await manager.save(StudentDailySpendEntity, EXAMPLE_SPEND);
-    await manager.save(
+    const sessions = await manager.save(
       SessionEntity,
       EXAMPLE_SESSIONS.map((session) => ({
         ...session,
@@ -125,5 +157,6 @@ export async function replaceExampleData(dataSource: DataSource): Promise<void> 
         language: EXAMPLE_SESSION_LANGUAGE,
       })),
     );
+    await manager.save(LearnerNoteEntity, getExampleNotes(sessions));
   });
 }

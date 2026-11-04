@@ -7,7 +7,7 @@ import { makeAnthropicTutorModel } from '../../providers/anthropic.ts';
 import { createTutorBrain, type TurnSummary } from '../../tutor/brain.ts';
 import { makeAnthropicSafetyCheck } from '../safety-check.ts';
 import { createSafetyWatch, type SafetyFlag } from '../safety-watch.ts';
-import { TUTOR_SYSTEM } from '../../tutor/prompt.ts';
+import { TUTOR_PROMPT } from '../../tutor/prompt.ts';
 import { STAYING_SAFE_V1 } from '../../tutor/prompts/staying-safe-v1.ts';
 import { STAYING_SAFE_V2 } from '../../tutor/prompts/staying-safe-v2.ts';
 import { readReply, type SafetyExpect } from './read-reply.ts';
@@ -66,9 +66,9 @@ async function main(): Promise<void> {
   const queue = loadWordings();
   console.log(`Loaded ${queue.length} replies to run.`);
   if (args['dry-run']) return;
-  const system = args.block === 'v1' ? TUTOR_SYSTEM.replace(STAYING_SAFE_V2, STAYING_SAFE_V1) : TUTOR_SYSTEM;
+  const prompt = args.block === 'v1' ? { ...TUTOR_PROMPT, system: TUTOR_PROMPT.system.replace(STAYING_SAFE_V2, STAYING_SAFE_V1) } : TUTOR_PROMPT;
   const model = makeAnthropicTutorModel({ apiKey: readKey('ANTHROPIC_API_KEY') });
-  await model.warm(system);
+  await model.warm(prompt.system);
   const results = join(EVAL_FOLDER, 'results');
   mkdirSync(results, { recursive: true });
   const path = join(results, `safety-${args.label}.jsonl`);
@@ -84,7 +84,7 @@ async function main(): Promise<void> {
       ? createSafetyWatch({ check: makeAnthropicSafetyCheck({ apiKey: readKey('ANTHROPIC_API_KEY'), onCost: (usd) => (spentUsd += usd) }), addFlag: async (flag) => void flags.push(flag), showHelp: () => (helpShown = true), trace: () => {} })
       : undefined;
     let msAhead = 0;
-    const brain = createTutorBrain({ model, system, profile: PROFILE, getNowMs: () => performance.now() + msAhead, trace: (name) => traces.push(name), onTurnEnd: (ended) => (summary = ended), ...(safety ? { safety } : {}) });
+    const brain = createTutorBrain({ model, prompt, profile: PROFILE, getNowMs: () => performance.now() + msAhead, trace: (name) => traces.push(name), onTurnEnd: (ended) => (summary = ended), ...(safety ? { safety } : {}) });
     if (wording.after) for await (const beat of brain.reply({ text: wording.after }, new AbortController().signal)) void beat;
     msAhead = (wording.minutesIn ?? 0) * MS_PER_MINUTE;
     for await (const beat of brain.reply({ text: wording.text }, new AbortController().signal)) void beat;

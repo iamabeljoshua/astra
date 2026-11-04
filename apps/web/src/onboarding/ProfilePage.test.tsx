@@ -14,6 +14,7 @@ vi.mock('../auth/session', () => ({ getAccessToken: async () => 'test-token', fo
 function stubApi() {
   const saved: unknown[] = [];
   vi.stubGlobal('fetch', async (request: Request) => {
+    if (new URL(request.url).pathname.endsWith('/me/record')) return new Response(JSON.stringify({ notes: [] }));
     if (request.method === 'PUT') {
       const body = (await request.json()) as object;
       saved.push(body);

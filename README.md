@@ -234,12 +234,13 @@ pnpm agent
 | `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` | API and agent | The LiveKit project. With no keys `POST /sessions/:id/live-room` answers `{ access: null, unavailableBecause: 'notSetUp' }`, the session screen says the tutor could not connect, and the rest of the app runs. |
 | `ASTRA_AGENT_NAME` | API and agent | Which agent a room calls in. Each lane sets its own, because a room goes to any agent of that name. |
 | `ASTRA_AGENT_KEY` | API and agent | The key the agent sends to the API's `/agent` routes. With none set, those routes answer 401. |
-| `ASTRA_API_URL` | Agent | The agent's address for the API, where it reads a student's level, interests, and goal and adds what each turn cost. |
+| `ASTRA_API_URL` | Agent | The agent's address for the API, where it reads a student's level, interests, goal, and notes, adds what each turn cost, and writes a closed room's notes. |
 | `ASTRA_DAILY_LIMIT_USD` | API | What one student's tutor time may cost in a UTC day, $3 by default. At the limit the API opens no room, and the session screen says the time resets once a day and to try again later. |
 | `SAFETY_REVIEWER_IDS` | API | Auth user IDs, comma-separated, who can read the safety flag queue at `/review`. Empty means nobody. A signed-in user the list does not name gets a 404. |
 | `SUPABASE_SECRET_KEY` | API | Supabase's secret key, which deletes an account from Auth when a student deletes their data or an account closes under 13. Production will not start without it. On a local stack without it, the account stays in Auth and the log says so. With it, `DATABASE_URL` must be the database that holds the `auth` schema, because the API also deletes that account's audit rows. |
 | `CLOSED_ADDRESS_HASH_KEY` | API | The secret for the keyed hash that keeps a closed address out. Production will not start without it. Changing it forgets every closed address. |
 | `ASTRA_SESSION_LIMIT_USD`, `ASTRA_SESSION_VOICE_LIMIT_CHARACTERS` | Agent | What one session may cost, $1 by default, and how many characters of voice it may use, 40,000 by default. Past either one, the tutor closes for that session. |
+| `ASTRA_FIND_SOURCE=on` | Agent | Tells the tutor about `findSource` and lets it run Anthropic's web search. Off by default, and Abel decides on switching it on. `docs/tests/tutor-model.md` says what changes with it. |
 | `META_API_KEY` | Agent | Muse Voice Transcribe. A typed session never opens it. |
 | `ELEVENLABS_API_KEY` | Agent | The tutor's voice. |
 | `ASTRA_VOICE=fake` | Agent | A tone instead of the real voice, to spend no credits. |

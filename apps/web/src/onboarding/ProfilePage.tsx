@@ -1,5 +1,6 @@
 import { type FormEvent, type PropsWithChildren, useState } from 'react';
 import { useAccount, useSaveProfile } from '../auth/useAccount';
+import { RecordSection } from '../record/RecordSection';
 import { API_ERROR_LABELS, PROFILE_LABELS, STUDENT_GOAL_LABELS, STUDENT_LEVEL_LABELS, TUTOR_NOTES_LABELS } from '../strings';
 import { type Answers, getInitialAnswers, type StudentGoal, type StudentLevel, STUDENT_GOALS, STUDENT_LEVELS, toProfileBody } from './answers';
 import { DeleteMyData } from './DeleteMyData';
@@ -12,10 +13,11 @@ export function ProfilePage() {
   const { data: account } = useAccount();
   if (!account?.student) return null;
   return (
-    <>
+    <div className="flex flex-col gap-5.5">
       <ProfileForm student={account.student} />
+      <RecordSection />
       <DeleteMyData />
-    </>
+    </div>
   );
 }
 

@@ -130,6 +130,14 @@ describe('what the legal pages say', () => {
     expect(stored).not.toContain('question box');
   });
 
+  it('names no web search among who receives data, because the tutor runs none unless it is switched on', () => {
+    const receivers = LEGAL_PAGES.privacy.sections.find(({ heading }) => heading === 'Who receives your data')?.today.join(' ');
+
+    expect(receivers).not.toMatch(/\bsearch\b/i);
+    expect(receivers).not.toContain('none of your details');
+    expect(receivers).toContain('No other outside service receives student data today.');
+  });
+
   it('tells a student under 18 that no parent or guardian is asked', () => {
     const underEighteen = LEGAL_PAGES.privacy.sections.find(({ heading }) => heading === 'If you are under 18');
 
@@ -142,6 +150,7 @@ describe('what the legal pages say', () => {
     ['a parent who accepts or receives anything', /parent's|for parents|or a parent|they accept/i],
     ['a choice of voice', /tutor voice|voice samples/i],
     ['a first answer to the tutor', /first answer|first hello|first question/i],
+    ['a file a student attaches, because uploads come after the MVP', /file you attach|upload/i],
   ])('claims nothing about %s, which the app no longer has', (_caseName, wording) => {
     expect(JSON.stringify(LEGAL_PAGES)).not.toMatch(wording);
   });

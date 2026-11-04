@@ -22,7 +22,7 @@ import { getAcceptedSignInMethods, isRefusedToken, TokenVerifier } from './token
 
 const PUBLIC_ROUTES: readonly string[] = ['get /health'];
 const SIGNED_IN_ROUTES: readonly string[] = ['get /me', 'post /me/birth-date', 'delete /me', 'get /review/flags', 'post /review/flags/:id/reviewed'];
-const AGENT_KEY_ROUTES: readonly string[] = ['get /agent/sessions/:id/brief', 'post /agent/sessions/:id/spend', 'post /agent/sessions/:id/flags'];
+const AGENT_KEY_ROUTES: readonly string[] = ['get /agent/sessions/:id/brief', 'post /agent/sessions/:id/spend', 'get /agent/sessions/:id/record', 'post /agent/sessions/:id/record', 'post /agent/sessions/:id/flags'];
 const DELETE_MY_DATA_ROUTE = 'delete /me';
 const CLOSED_PORT_URL = 'http://127.0.0.1:1';
 const VALID_SESSION = { title: 'Free-body diagrams', subject: 'Physics', language: 'en' };
@@ -263,8 +263,9 @@ describe('the API guard', () => {
     it('refuses no student route, because they are treated like any other student', async () => {
       const token = await testApp.supabaseAuth.signToken(randomUUID());
       await api().post('/me/birth-date').set('Authorization', `Bearer ${token}`).send({ birthDate: UNDER_EIGHTEEN_BIRTH_DATE, name: 'Tolu' }).expect(200);
+      // The scene library's reviewer routes refuse every student who is not a named reviewer, whatever their age, and scene-library.routes.spec.ts proves that.
       const routes = listRoutes(testApp.app).filter(
-        (route) => !PUBLIC_ROUTES.includes(route.name) && !SIGNED_IN_ROUTES.includes(route.name),
+        (route) => !PUBLIC_ROUTES.includes(route.name) && !SIGNED_IN_ROUTES.includes(route.name) && !route.name.includes('/scene-library/'),
       );
 
       const answers = await getRouteAnswers({ app: testApp.app, routes, token });
