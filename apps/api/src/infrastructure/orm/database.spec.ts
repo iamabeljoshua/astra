@@ -63,7 +63,7 @@ describe('a database built from migrations', () => {
 
     expect(relations.filter((relation) => relation.schema !== 'public')).toEqual([]);
     expect(relations.map((relation) => relation.name)).toEqual(
-      expect.arrayContaining(['migrations', 'students', 'student_profiles', 'sessions', 'closed_accounts']),
+      expect.arrayContaining(['migrations', 'students', 'student_profiles', 'sessions', 'closed_accounts', 'student_daily_spend']),
     );
   });
 

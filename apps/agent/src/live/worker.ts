@@ -1,0 +1,151 @@
+import { appendFileSync, mkdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { AutoSubscribe, cli, defineAgent, inference, initializeLogger, type JobContext, type JobProcess, ServerOptions } from '@livekit/agents';
+import { AudioSource, DisconnectReason, LocalAudioTrack, type RemoteParticipant, RoomEvent, TrackPublishOptions, TrackSource } from '@livekit/rtc-node';
+import { type AgentMessage, parseBrowserMessage, PULSE_EVERY_MS } from '@astra/contracts';
+import { readKey } from '../keys.ts';
+import { renderTone } from '../providers/fakes.ts';
+import { makeTutorTranscriber, makeTutorVoice } from '../providers/choose.ts';
+import { makeRenderedVoice, RENDERED_SAMPLE_RATE } from '../providers/rendered-voice.ts';
+import { type Ears, startEars, VAD_SETTINGS } from './ears.ts';
+import { createLiveSession } from './live-session.ts';
+import { createTakePicker, loadTakes } from './reactions.ts';
+import { readDataMessage } from './read-data-message.ts';
+import { makeTutorBrain } from '../tutor/make-brain.ts';
+import { getSteadyNowMs, createVoiceLine } from './voice-line.ts';
+
+const LIVE_TOPIC = 'astra.live';
+const LAB_TOPIC = 'astra.lab';
+const AUDIO_QUEUE_MS = 200;
+/** A tab closed on purpose can still be a reload, so the room waits this long. */
+const LEFT_ON_PURPOSE_MS = 15_000;
+/** A dropped link can come back, so the room waits this long before it closes. */
+const LINK_DROPPED_MS = 120_000;
+const STUDENT_IDENTITY_PREFIX = 'student-';
+const LOAD_LIMIT = 0.98;
+
+const encoder = new TextEncoder();
+
+// Timings only, and only when asked for. Words stay out unless a test on test speech asks for them too, because a transcript must not reach a file by accident.
+function makeTraceFile(roomName: string) {
+  const folder = process.env.ASTRA_VOICE_TRACE;
+  if (!folder) return () => {};
+  const keepsWords = process.env.ASTRA_VOICE_TRACE_WORDS === '1';
+  mkdirSync(folder, { recursive: true });
+  const path = join(folder, `${roomName}.jsonl`);
+  return (name: string, { text, ...fields }: Record<string, unknown> = {}) => appendFileSync(path, `${JSON.stringify({ name, atMs: getSteadyNowMs(), ...fields, ...(keepsWords && text !== undefined ? { text } : {}) })}\n`);
+}
+
+function makeVoice() {
+  if (process.env.ASTRA_VOICE === 'fake') return makeRenderedVoice({ name: 'fake', render: renderTone }).makeTts();
+  return makeTutorVoice({ apiKey: readKey('ELEVENLABS_API_KEY') }).makeTts();
+}
+
+async function runSession(context: JobContext): Promise<void> {
+  const { room } = context;
+  const trace = makeTraceFile(room.name ?? 'room');
+  trace('jobStarted');
+  // Publishing fails once the room has gone, and a stray rejection would end the whole process.
+  const publish = (message: AgentMessage, isReliable = true) => void room.localParticipant?.publishData(encoder.encode(JSON.stringify(message)), { reliable: isReliable, topic: LIVE_TOPIC }).catch((error: unknown) => trace('publishFailed', { problem: String(error) }));
+  const source = new AudioSource(RENDERED_SAMPLE_RATE, 1, AUDIO_QUEUE_MS);
+
+  const voice = makeVoice();
+  voice.on('error', (error) => trace('voiceError', { problem: String(error.error) }));
+  voice.prewarm();
+  const transcriber = makeTutorTranscriber({ apiKey: readKey('META_API_KEY'), onNote: (note) => trace(`muse:${note.kind}`, note) }).makeStt();
+  const allTakes = loadTakes();
+  let ears: Ears | null = null;
+  const { brain, flushSpend } = makeTutorBrain({ roomName: room.name ?? '', trace });
+  const session = createLiveSession({
+    messenger: {
+      send: (message) => publish(message),
+      sendOnBothChannels(message) {
+        publish(message);
+        publish(message, false);
+      },
+    },
+    line: createVoiceLine(source),
+    voice,
+    tutor: brain,
+    takes: createTakePicker(allTakes),
+    allTakes,
+    setTurnCap: (ms) => ears?.setTurnCap(ms),
+    trace,
+  });
+  ears = await startEars({ room, transcriber, vad: context.proc.userData.vad as inference.VAD, onEvent: session.onEars });
+
+  let closing: ReturnType<typeof setTimeout> | undefined;
+  const pulse = setInterval(() => publish({ type: 'pulse' }, false), PULSE_EVERY_MS);
+  const finish = () => context.shutdown('the student left');
+
+  // A microphone test labels each line in the trace, and without a trace this does nothing.
+  const noteMark = (payload: Uint8Array) => {
+    const read = readDataMessage(payload);
+    if (read.ok) trace('mark', { mark: read.value });
+  };
+
+  room.on(RoomEvent.DataReceived, (payload, participant, _kind, topic) => {
+    if (!participant?.identity.startsWith(STUDENT_IDENTITY_PREFIX)) return;
+    if (topic === LAB_TOPIC) return noteMark(payload);
+    if (topic !== LIVE_TOPIC) return;
+    const read = readDataMessage(payload);
+    const parsed = read.ok ? parseBrowserMessage(read.value) : read;
+    if (!parsed.ok) return trace('messageRefused', { problem: parsed.problem });
+    clearTimeout(closing);
+    session.onBrowser(parsed.value);
+  });
+  room.on(RoomEvent.ParticipantDisconnected, (participant: RemoteParticipant) => {
+    if (!participant.identity.startsWith(STUDENT_IDENTITY_PREFIX)) return;
+    const leftOnPurpose = participant.disconnectReason === DisconnectReason.CLIENT_INITIATED;
+    trace('studentLeft', { leftOnPurpose });
+    clearTimeout(closing);
+    closing = setTimeout(finish, leftOnPurpose ? LEFT_ON_PURPOSE_MS : LINK_DROPPED_MS);
+  });
+  const publishOptions = new TrackPublishOptions();
+  publishOptions.source = TrackSource.SOURCE_MICROPHONE;
+  await room.localParticipant?.publishTrack(LocalAudioTrack.createAudioTrack('tutor-voice', source), publishOptions);
+  trace('voiceTrackUp');
+  publish({ type: 'pulse' }, false);
+
+  context.addShutdownCallback(async () => {
+    trace('jobClosing');
+    clearTimeout(closing);
+    clearInterval(pulse);
+    await session.close();
+    await flushSpend();
+    await ears?.close();
+    await transcriber.close();
+    await voice.close();
+    await source.close();
+    await context.deleteRoom().catch(() => {});
+    trace('jobClosed');
+  });
+}
+
+export default defineAgent({
+  prewarm: (process_: JobProcess) => {
+    process_.userData.vad = new inference.VAD(VAD_SETTINGS);
+  },
+  entry: async (context: JobContext) => {
+    await context.connect(undefined, AutoSubscribe.AUDIO_ONLY);
+    await runSession(context);
+  },
+});
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  initializeLogger({ pretty: false, level: 'warn' });
+  cli.runApp(
+    new ServerOptions({
+      agent: fileURLToPath(import.meta.url),
+      agentName: process.env.ASTRA_AGENT_NAME ?? 'astra-tutor',
+      numIdleProcesses: 1,
+      // The SDK's 70% refuses students on a busy laptop. Hosting sets its own limit when it exists.
+      loadThreshold: LOAD_LIMIT,
+      port: Number(process.env.ASTRA_AGENT_PORT ?? 8081),
+      wsURL: readKey('LIVEKIT_URL'),
+      apiKey: readKey('LIVEKIT_API_KEY'),
+      apiSecret: readKey('LIVEKIT_API_SECRET'),
+    }),
+  );
+}

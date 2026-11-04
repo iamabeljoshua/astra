@@ -45,6 +45,10 @@ export class SessionsService {
     return toSessionResponse(requireSession(await this.sessions.findForStudent(studentId, sessionId)));
   }
 
+  findStudentIdOfSession(sessionId: string): Promise<string | null> {
+    return this.sessions.findStudentIdOfSession(sessionId);
+  }
+
   async updateSession(
     studentId: string,
     sessionId: string,

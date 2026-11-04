@@ -14,7 +14,7 @@ import { RequestValidationModule } from './request-validation.module';
 
 const HTTP_METHODS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'] as const;
 const WRITE_METHODS: readonly string[] = ['post', 'put', 'patch'];
-const WRITE_ROUTES_WITHOUT_BODY: readonly string[] = [];
+const WRITE_ROUTES_WITHOUT_BODY: readonly string[] = ['post /sessions/{id}/live-room'];
 const STUDENT_ID_NAME = /student.?id|auth.?user/i;
 const SCHEMA_REF_PREFIX = '#/components/schemas/';
 const JSON_CONTENT = 'application/json';
@@ -276,6 +276,10 @@ describe('the OpenAPI document', () => {
 
     it('sends no entity from any route', () => {
       expect(findEntitySchemas(document)).toEqual([]);
+    });
+
+    it('keeps the agent channel out, because no browser ever calls it', () => {
+      expect(Object.keys(document.paths).filter((path) => path.startsWith('/agent'))).toEqual([]);
     });
 
     it('takes no student ID from any path, query, or body', () => {

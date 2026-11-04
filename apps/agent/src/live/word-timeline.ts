@@ -10,17 +10,19 @@ interface ExpectedWord {
   beatId: BeatId;
   wordInBeat: number;
   text: string;
+  startMs: number | null;
 }
 
-function getExpectedWords(beats: readonly Beat[]): ExpectedWord[] {
-  return beats.flatMap((beat) => getSpokenWords(getBeatText(beat)).map((text, wordInBeat) => ({ beatId: beat.id, wordInBeat, text })));
-}
-
-// A voice names words its own way, so its words are matched to ours by position and `atWord` always counts ours.
-export function createWordTimeline(beats: readonly Beat[]) {
-  const expected = getExpectedWords(beats);
+// A voice names words its own way, so its words are matched to ours by position and `atWord` always counts ours. Beats arrive as the brain writes them.
+export function createWordTimeline(beats: readonly Beat[] = []) {
+  const expected: ExpectedWord[] = [];
   let nextWord = 0;
   const mismatches: { ours: string; theirs: string }[] = [];
+
+  const addBeat = (beat: Beat) => {
+    getSpokenWords(getBeatText(beat)).forEach((text, wordInBeat) => expected.push({ beatId: beat.id, wordInBeat, text, startMs: null }));
+  };
+  beats.forEach(addBeat);
 
   const toBeatWords = (voiceWords: readonly TimedWord[]): BeatWords[] => {
     const batches = new Map<BeatId, BeatWords>();
@@ -28,6 +30,7 @@ export function createWordTimeline(beats: readonly Beat[]) {
       const ours = expected[nextWord];
       if (!ours) return [...batches.values()];
       nextWord += 1;
+      ours.startMs = voiceWord.startMs;
       if (ours.text !== voiceWord.text.trim()) mismatches.push({ ours: ours.text, theirs: voiceWord.text.trim() });
       const batch = batches.get(ours.beatId) ?? { beatId: ours.beatId, firstWord: ours.wordInBeat, words: [] };
       batch.words.push({ text: ours.text, startMs: voiceWord.startMs });
@@ -36,5 +39,13 @@ export function createWordTimeline(beats: readonly Beat[]) {
     return [...batches.values()];
   };
 
-  return { toBeatWords, getMismatches: () => mismatches, isComplete: () => nextWord === expected.length };
+  const getWordsSent = (positionMs: number): Map<BeatId, number> => {
+    const sent = new Map<BeatId, number>();
+    for (const word of expected) {
+      if (word.startMs !== null && word.startMs <= positionMs) sent.set(word.beatId, word.wordInBeat + 1);
+    }
+    return sent;
+  };
+
+  return { addBeat, toBeatWords, getWordsSent, getMismatches: () => mismatches, isComplete: () => nextWord === expected.length };
 }

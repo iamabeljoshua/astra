@@ -146,6 +146,48 @@ export function createSampleClock({ getGraphTimeMs, getOutputLatencyMs }: Sample
   };
 }
 
+export interface ChoosingClock extends SampleClock {
+  getKind(): 'samples' | 'timer';
+}
+
+interface ChoosingClockOptions extends SampleClockOptions {
+  getIsAudioRunning(): boolean;
+  getWallMs(): number;
+}
+
+// Chooses per turn, because audio can start after a page connects, and a choice made once would keep the timer for the whole session. One timeline runs across the change, so no report lands before the one before it.
+export function createChoosingClock({ getIsAudioRunning, getGraphTimeMs, getOutputLatencyMs, getWallMs }: ChoosingClockOptions): ChoosingClock {
+  const samples = createSampleClock({ getGraphTimeMs, getOutputLatencyMs });
+  let hasGraphMoved = getIsAudioRunning();
+  let graphToTimelineMs = 0;
+  let wallToTimelineMs = 0;
+  let lastNowMs = 0;
+
+  const getNowMs = () => {
+    const isRunning = getIsAudioRunning();
+    if (isRunning !== hasGraphMoved) {
+      hasGraphMoved = isRunning;
+      graphToTimelineMs = lastNowMs - getGraphTimeMs();
+      wallToTimelineMs = lastNowMs - getWallMs();
+    }
+    lastNowMs = isRunning ? getGraphTimeMs() + graphToTimelineMs : getWallMs() + wallToTimelineMs;
+    return lastNowMs;
+  };
+  const timer = createTimerClock({ getNowMs });
+  const getKind = () => (getIsAudioRunning() ? 'samples' : 'timer');
+  wallToTimelineMs = hasGraphMoved ? 0 : -getWallMs();
+
+  return {
+    getKind,
+    getNowMs,
+    markTurnAudioOver: () => samples.markTurnAudioOver(),
+    markTurnStopped: () => samples.markTurnStopped(),
+    onAudioEnded: (listener) => samples.onAudioEnded(listener),
+    onProbeEvent: (event) => samples.onProbeEvent(event),
+    startTurn: () => (getKind() === 'samples' ? samples.startTurn() : timer.startTurn()),
+  };
+}
+
 const TAIL_OF_LAST_WORD_MS = 600;
 
 interface TimerClockOptions {

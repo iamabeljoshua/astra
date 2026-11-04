@@ -21,6 +21,7 @@ import { getAcceptedSignInMethods, isRefusedToken, TokenVerifier } from './token
 
 const PUBLIC_ROUTES: readonly string[] = ['get /health'];
 const SIGNED_IN_ROUTES: readonly string[] = ['get /me', 'post /me/birth-date'];
+const AGENT_KEY_ROUTES: readonly string[] = ['get /agent/sessions/:id/brief', 'post /agent/sessions/:id/spend'];
 const CLOSED_PORT_URL = 'http://127.0.0.1:1';
 const VALID_SESSION = { title: 'Free-body diagrams', subject: 'Physics', language: 'en' };
 const VALID_PROFILE = { name: 'Maya', interests: ['space'], level: 'university', goal: 'exam' };
@@ -117,7 +118,7 @@ describe('the API guard', () => {
     it('refuses every route in the Express route table but the public ones, including routes added later', async () => {
       const routes = listRoutes(testApp.app).filter((route) => !PUBLIC_ROUTES.includes(route.name));
       expect(routes.map((route) => route.name)).toEqual(
-        expect.arrayContaining(['get /sessions', 'put /me/profile', 'get /home']),
+        expect.arrayContaining(['get /sessions', 'put /me/profile', 'get /home', ...AGENT_KEY_ROUTES]),
       );
 
       const answers = await getRouteAnswers({ app: testApp.app, routes });
@@ -238,7 +239,7 @@ describe('the API guard', () => {
     it('refuses every route that holds student data', async () => {
       const token = await testApp.supabaseAuth.signToken(randomUUID());
       const routes = listRoutes(testApp.app).filter(
-        (route) => !PUBLIC_ROUTES.includes(route.name) && !SIGNED_IN_ROUTES.includes(route.name),
+        (route) => !PUBLIC_ROUTES.includes(route.name) && !SIGNED_IN_ROUTES.includes(route.name) && !AGENT_KEY_ROUTES.includes(route.name),
       );
 
       const answers = await getRouteAnswers({ app: testApp.app, routes, token });
@@ -284,8 +285,8 @@ describe('the API guard', () => {
       expect(await findRoutesWithoutNoStore({ app: testApp.app, routes })).toEqual([]);
     });
 
-    it('reads the identity from the token on every route but the public ones', async () => {
-      const routes = listRoutes(testApp.app).filter((route) => !PUBLIC_ROUTES.includes(route.name));
+    it('reads the identity from the token on every route but the public ones and the ones the agent calls with its key', async () => {
+      const routes = listRoutes(testApp.app).filter((route) => !PUBLIC_ROUTES.includes(route.name) && !AGENT_KEY_ROUTES.includes(route.name));
 
       expect(await findRoutesIgnoringIdentity({ app: testApp.app, routes, token: student.token })).toEqual([]);
     });
