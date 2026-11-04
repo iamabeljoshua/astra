@@ -207,7 +207,7 @@ export async function startLiveVoice({ access, getAccess, wantsGreeting = true, 
     void setMicOn(false).catch(() => {});
   };
 
-  const onInkRead = (work: StudentWork) => {
+  const onWorkRead = (work: StudentWork) => {
     const nowMs = clock.getNowMs();
     const checked = checkWorkOnBoard(work, player.getBoard(nowMs));
     player.addStudentOperations([{ kind: 'worked', atMs: nowMs, action: { action: 'worked', work, ...checked } }]);
@@ -216,7 +216,7 @@ export async function startLiveVoice({ access, getAccess, wantsGreeting = true, 
 
   const onAgentMessage = (message: AgentMessage) => {
     if (message.type === 'tutorClosed') return closeTutor(message.reason);
-    if (message.type === 'inkRead') return onInkRead(message.work);
+    if (message.type === 'workRead') return onWorkRead(message.work);
     if (message.type === 'pulse') {
       lastAgentPulseEpochMs = getEpochMs();
       flushOutbox();

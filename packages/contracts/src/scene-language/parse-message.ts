@@ -87,9 +87,9 @@ const AGENT_MESSAGES: VariantTable<AgentMessage, 'type'> = {
         ...fields.optional('ms', readAudioGapMs),
       }),
     },
-    inkRead: {
+    workRead: {
       keys: ['work'],
-      read: (fields) => ({ type: 'inkRead', work: readStudentWork(fields.at('work')) }),
+      read: (fields) => ({ type: 'workRead', work: readStudentWork(fields.at('work')) }),
     },
     studentWords: {
       keys: ['text', 'isFinal'],

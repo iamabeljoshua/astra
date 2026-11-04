@@ -52,7 +52,7 @@ function RowGutter({ row, atMs, isReducedMotion, onFixReading }: { row: BoardRow
       {marks.map((mark) => <GutterMark key={mark.id} element={mark} atMs={atMs} isReducedMotion={isReducedMotion} />)}
       {notes.map((note) => note.content.kind === 'note' && <span key={note.id} data-testid="board-note" className="board-row-note">{note.content.text}</span>)}
       {isBeingRead && <span data-testid="ink-reading" className="board-read-as-label board-read-as">{BOARD_WORK_LABELS.reading}</span>}
-      {line && <ReadAs reading={line.reading} typed={line.isInk ? undefined : line.text} showsParts={line.isInk} onFix={line.isInk && onFixReading ? () => onFixReading(line.text) : undefined} />}
+      {line && <ReadAs reading={line.reading} typed={line.isInk ? undefined : line.text} showsParts={line.isInk} isHeard={line.isHeard} onFix={(line.isInk || line.isHeard) && onFixReading ? () => onFixReading(line.text) : undefined} />}
     </div>
   );
 }

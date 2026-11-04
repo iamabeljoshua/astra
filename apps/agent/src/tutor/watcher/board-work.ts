@@ -1,5 +1,8 @@
-import type { AgentMessage, BrowserMessage, ElementId, InkPoint, StudentAction, StudentWork } from '@astra/contracts';
-import { type CheckedWork, cleanStudentText, checkWorkOnBoard } from '@astra/board/shared';
+import type { AgentMessage, BrowserMessage, ElementId, InkPoint, InkReading, StudentAction, StudentWork, Task } from '@astra/contracts';
+import { type CheckedWork, cleanStudentText, checkWorkOnBoard, getPickParts } from '@astra/board/shared';
+import type { BoardElement } from '@astra/board';
+import type { SpokenReading } from './read-spoken.ts';
+import { decideSpoken, type SpokenDecision, type SpokenPart } from './spoken-answer.ts';
 import type { TutorBrain } from '../brain.ts';
 import { decideOnReading, decideOnWork, decideWatch, getGate, getWorkWords, type WatchDecision, type WatchSituation, type WordMeaning } from './watch-rule.ts';
 
@@ -11,6 +14,10 @@ export interface BoardWorkOptions {
   getSecondsSinceQuestion(): number | null;
   readMeaning(words: string): Promise<WordMeaning | null>;
   readStrokes(strokes: readonly (readonly InkPoint[])[]): Promise<{ text: string; ink: { tex?: string; isUnsure: boolean } } | null>;
+  /** What spoken words mean, read by a cheap model. */
+  readSpokenWords(words: string): Promise<SpokenReading>;
+  /** Writes work the agent read itself, with no page behind it to stamp the time. */
+  writeHeardLog(work: StudentWork, checked: CheckedWork): void;
   send(message: AgentMessage): void;
   getNowMs(): number;
   trace(name: string, fields?: Record<string, unknown>): void;
@@ -22,12 +29,15 @@ interface Unanswered {
 }
 
 const MOST_STROKES_HELD = 400;
+/** A spoken line takes an id the page's own count will not reach, because the page and the agent both name lines. */
+const FIRST_SPOKEN_LINE = 1000;
 const NOT_READ = '(handwriting that could not be read)';
 
 const getWorkKey = (work: StudentWork) => JSON.stringify(work.way === 'write' ? cleanStudentText(work.text) : work);
 
 // What the student does on the board: code checks it, notes it, logs it, and decides whether the tutor answers.
-export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getSecondsSinceQuestion, readMeaning, readStrokes, send, getNowMs, trace }: BoardWorkOptions) {
+export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getSecondsSinceQuestion, readMeaning, readStrokes, readSpokenWords, writeHeardLog, send, getNowMs, trace }: BoardWorkOptions) {
+  let spokenLines = 0;
   const inkStrokes = new Map<string, InkPoint[]>();
   let spokeUpAtMs: number | null = null;
   let unanswered: Unanswered | null = null;
@@ -76,7 +86,52 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
       return null;
     });
     const work: StudentWork = { way: 'write', id, text: read?.text || NOT_READ, ...(task ? { task } : {}), ink: read?.ink ?? { isUnsure: true } };
-    takeWork({ type: 'worked', clockId, browserMs, startedMsAgo, work }, () => send({ type: 'inkRead', work }));
+    takeWork({ type: 'worked', clockId, browserMs, startedMsAgo, work }, () => send({ type: 'workRead', work }));
+  };
+
+  const getHeardWork = (text: string, heard: InkReading, task: ElementId): StudentWork => {
+    spokenLines += 1;
+    return { way: 'write', id: `s${FIRST_SPOKEN_LINE + spokenLines}` as ElementId, text, task, heard };
+  };
+
+  const toSpokenWork = async (text: string, task: Task, decision: SpokenDecision): Promise<StudentWork | null> => {
+    switch (decision.act) {
+      case 'talk':
+        return null;
+      case 'line':
+        return getHeardWork(text, { tex: decision.tex, isUnsure: false }, task.id);
+      case 'pick':
+        return { way: 'pick', task: task.id, part: decision.part };
+      case 'place':
+        return { way: 'place', task: task.id, placed: decision.placed };
+      case 'read': {
+        const reading = await readSpokenWords(text);
+        return reading.kind === 'line' ? getHeardWork(text, reading.heard, task.id) : null;
+      }
+    }
+  };
+
+  const getOpenTask = () => {
+    const board = tutor.getBoard?.();
+    const element = board?.openTask ? board.state.elements.get(board.openTask) : undefined;
+    return element?.content.kind === 'task' ? { task: element.content, board } : null;
+  };
+
+  // Whether the tutor should answer what was said. A spoken answer takes the same road as a typed or written one, and anything else stays conversation.
+  const onSpoken = async (rawText: string): Promise<boolean> => {
+    const open = getOpenTask();
+    if (!open) return true;
+    const text = cleanStudentText(rawText);
+    const decision = decideSpoken(text, open.task, getSpokenParts(open.task, open.board?.state));
+    trace('spokenDecided', { ...decision });
+    const work = await toSpokenWork(text, open.task, decision);
+    const noted = work && tutor.noteWork?.(work);
+    if (!work || !noted) return true;
+    writeHeardLog(work, noted.checked);
+    send({ type: 'workRead', work });
+    hasLeanedIn = false;
+    // Someone who has spoken is waiting, so what code cannot judge gets the tutor's question now, where a typed line would wait for a pause.
+    return noted.checked.verdict.status === 'unknown' || decideOnWork(work, noted.checked, noted.hadTask).act === 'reply';
   };
 
   const getSituation = (seconds: number, draftText: string | undefined): WatchSituation => {
@@ -112,7 +167,14 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
     if (decision.act === 'speak' && getGate(getSituation(seconds, draft)) === null) speakAtPause(decision, seconds, draft);
   };
 
-  return { onWorked, onPaused, onInkStroke, onInkDone, noteAnswered };
+  return { onWorked, onPaused, onInkStroke, onInkDone, onSpoken, hasOpenTask: () => getOpenTask() !== null, noteAnswered };
+}
+
+function getSpokenParts(task: Task, board: { elements: ReadonlyMap<ElementId, BoardElement> } | undefined): SpokenPart[] {
+  if (task.way !== 'pick') return [];
+  const element = board?.elements.get(task.on);
+  const nodes = element?.content.kind === 'diagram' ? element.content.nodes : [];
+  return getPickParts(element).map(({ part }) => ({ part, label: nodes.find(({ name }) => name === part)?.label ?? part }));
 }
 
 function getDraft(text: string, board: NonNullable<ReturnType<NonNullable<TutorBrain['getBoard']>>>): WatchSituation['draft'] {

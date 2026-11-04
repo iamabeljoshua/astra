@@ -11,6 +11,8 @@ export interface SessionLog {
   write(message: BrowserMessage): SessionEvent | null;
   /** Writes work on the board with what code made of it, because a browser's own word for it is not evidence. */
   writeWorked(message: BrowserMessage & { type: 'worked' }, checked: { reading?: unknown; verdict: WorkVerdict; closesTask?: string }): SessionEvent | null;
+  /** Writes work the agent heard, on the session's own clock, because no page sent it. */
+  writeHeard(work: StudentWork, checked: { reading?: unknown; verdict: WorkVerdict; closesTask?: string }): SessionEvent | null;
   getEvents(): readonly SessionEvent[];
 }
 
@@ -57,6 +59,17 @@ export function createSessionLog({ getNowMs, getBeat, onWritten, onRefused }: Se
 
   return {
     getEvents: () => events,
+    writeHeard(work, checked) {
+      if (events.length >= MOST_EVENTS) return null;
+      const parsed = parseSessionEvent({ seq: events.length, atMs: Math.max(0, Math.round(getNowMs())), kind: 'studentActed', action: { action: 'worked', work, ...checked } });
+      if (!parsed.ok) {
+        onRefused?.(parsed.problem);
+        return null;
+      }
+      events.push(parsed.value);
+      onWritten?.(parsed.value);
+      return parsed.value;
+    },
     write: (message) => writeBody(message, getBody(message)),
     writeWorked: (message, checked) => writeBody(message, { kind: 'studentActed', action: { action: 'worked', work: message.work satisfies StudentWork, ...checked } }),
   };

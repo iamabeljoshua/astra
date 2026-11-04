@@ -4,6 +4,7 @@ import { makeFakeTutorModel, type FakeReply } from '../src/providers/fake-model.
 import type { TutorModelRequest } from '../src/providers/types.ts';
 import { createTutorBrain } from '../src/tutor/brain.ts';
 import { createBoardWork } from '../src/tutor/watcher/board-work.ts';
+import type { SpokenReading } from '../src/tutor/watcher/read-spoken.ts';
 
 const QUICK = { stillWorkingMs: 40, firstTextMs: 120, betweenTextMs: 80, finishGraceMs: 20, reportWaitMs: 5 };
 const reply = (...pieces: string[]): FakeReply => ({ pieces });
@@ -199,8 +200,10 @@ describe('the board work seam', () => {
     const writeLog = vi.fn();
     const readMeaning = vi.fn(async () => 'isThinking' as const);
     const send = vi.fn();
-    const seam = createBoardWork({ tutor: brain, writeLog, speakUp, isTutorTalking: () => overrides.isTutorTalking ?? false, getSecondsSinceQuestion: () => null, readMeaning, readStrokes: async () => ({ text: 'x = 4', ink: { tex: 'x=4', isUnsure: false } }), send, getNowMs: () => NOW.value, trace: () => {} });
-    return { brain, seam, speakUp, writeLog, readMeaning, send };
+    const writeHeardLog = vi.fn();
+    const readSpokenWords = vi.fn(async (): Promise<SpokenReading> => ({ kind: 'talk', costUsd: 0 }));
+    const seam = createBoardWork({ tutor: brain, writeLog, speakUp, isTutorTalking: () => overrides.isTutorTalking ?? false, getSecondsSinceQuestion: () => null, readMeaning, readStrokes: async () => ({ text: 'x = 4', ink: { tex: 'x=4', isUnsure: false } }), readSpokenWords, writeHeardLog, send, getNowMs: () => NOW.value, trace: () => {} });
+    return { brain, seam, speakUp, writeLog, readMeaning, send, writeHeardLog, readSpokenWords };
   }
   const worked = (work: StudentWork): BrowserMessage & { type: 'worked' } => ({ type: 'worked', clockId: 'c', browserMs: 1, startedMsAgo: 0, work });
   const paused = (seconds: number, draft?: string): BrowserMessage & { type: 'paused' } => ({ type: 'paused', clockId: 'c', browserMs: 1, startedMsAgo: 0, seconds, ...(draft ? { draft } : {}) });
@@ -215,12 +218,45 @@ describe('the board work seam', () => {
     expect(writeLog).toHaveBeenCalledTimes(2);
   });
 
+  it('lands a spoken math line, with what code read, and asks the tutor nothing on a right step', async () => {
+    const { brain, seam, send, writeHeardLog, readSpokenWords } = setupSeam([SET_PROBLEM]);
+    await collect(brain, 'help');
+    await expect(seam.onSpoken('Two x equals eight.')).resolves.toBe(false);
+    expect(readSpokenWords).not.toHaveBeenCalled();
+    expect(send).toHaveBeenCalledWith({ type: 'workRead', work: expect.objectContaining({ text: 'Two x equals eight.', heard: { tex: '2x=8', isUnsure: false } }) });
+    expect(writeHeardLog.mock.calls[0]?.[1]).toMatchObject({ verdict: { status: 'right' } });
+  });
+
+  it('lands a wrong spoken line and has the tutor answer it, never fixed', async () => {
+    const { brain, seam, send, writeHeardLog } = setupSeam([SET_PROBLEM]);
+    await collect(brain, 'help');
+    await expect(seam.onSpoken('two x equals fourteen')).resolves.toBe(true);
+    expect(send).toHaveBeenCalledWith({ type: 'workRead', work: expect.objectContaining({ heard: { tex: '2x=14', isUnsure: false } }) });
+    expect(writeHeardLog.mock.calls[0]?.[1]).toMatchObject({ verdict: { status: 'wrong' } });
+  });
+
+  it('keeps a question as conversation, so no line lands', async () => {
+    const { brain, seam, send, readSpokenWords } = setupSeam([SET_PROBLEM]);
+    await collect(brain, 'help');
+    await expect(seam.onSpoken('wait, why that step?')).resolves.toBe(true);
+    expect(send).not.toHaveBeenCalled();
+    expect(readSpokenWords).not.toHaveBeenCalled();
+  });
+
+  it('judges nothing the reader doubted', async () => {
+    const { brain, seam, writeHeardLog, readSpokenWords } = setupSeam([SET_PROBLEM]);
+    await collect(brain, 'help');
+    readSpokenWords.mockResolvedValueOnce({ kind: 'line', heard: { tex: 'x=7', isUnsure: true }, costUsd: 0 });
+    await expect(seam.onSpoken('ex equals seven i think')).resolves.toBe(true);
+    expect(writeHeardLog.mock.calls[0]?.[1]).toMatchObject({ verdict: { status: 'unknown' } });
+  });
+
   it('reads a handwritten line, shows how it was read, and checks it like a typed one', async () => {
     const { brain, seam, speakUp, send, writeLog } = setupSeam([SET_PROBLEM]);
     await collect(brain, 'help');
     seam.onInkStroke({ action: 'inkStroke', id: id('s1-ink-0'), points: [[0.1, 0.1, 0]] });
     await seam.onInkDone({ type: 'inkDone', clockId: 'c', browserMs: 1, startedMsAgo: 0, id: id('s1'), strokes: [id('s1-ink-0')], task: id('a1') });
-    expect(send).toHaveBeenCalledWith({ type: 'inkRead', work: { way: 'write', id: 's1', text: 'x = 4', task: 'a1', ink: { tex: 'x=4', isUnsure: false } } });
+    expect(send).toHaveBeenCalledWith({ type: 'workRead', work: { way: 'write', id: 's1', text: 'x = 4', task: 'a1', ink: { tex: 'x=4', isUnsure: false } } });
     expect(writeLog.mock.calls[0]?.[1]).toMatchObject({ verdict: { status: 'right' }, closesTask: 'a1' });
     expect(speakUp).toHaveBeenCalledWith('x = 4');
   });

@@ -9,6 +9,7 @@ import { TUTOR_SYSTEM } from './prompt.ts';
 import { createSpendLedger } from './spend-ledger.ts';
 import { readInk } from './ink/read-ink.ts';
 import { rasterizeInk } from './ink/rasterize-ink.ts';
+import { readSpoken, type SpokenReading } from './watcher/read-spoken.ts';
 import { readWords } from './watcher/read-words.ts';
 import type { WordMeaning } from './watcher/watch-rule.ts';
 
@@ -99,6 +100,7 @@ export interface MadeBrain {
   flushSpend(): Promise<void>;
   readMeaning?(words: string): Promise<WordMeaning | null>;
   readStrokes?(strokes: readonly (readonly InkPoint[])[]): Promise<{ text: string; ink: { tex?: string; isUnsure: boolean } } | null>;
+  readSpokenWords?(words: string): Promise<SpokenReading>;
 }
 
 export function makeTutorBrain({ roomName, trace }: { roomName: string; trace: TraceNote }): MadeBrain {
@@ -135,5 +137,11 @@ export function makeTutorBrain({ roomName, trace }: { roomName: string; trace: T
     caps.addTurn({ usd: costUsd, voiceCharacters: 0 });
     return read;
   };
-  return { brain, flushSpend: caps.flush, readMeaning, readStrokes };
+  const readSpokenWords = async (words: string) => {
+    if (caps.getSpendLimit()) return { kind: 'talk' as const, costUsd: 0 };
+    const reading = await readSpoken(wordsModel, words);
+    caps.addTurn({ usd: reading.costUsd, voiceCharacters: 0 });
+    return reading;
+  };
+  return { brain, flushSpend: caps.flush, readMeaning, readStrokes, readSpokenWords };
 }

@@ -44,15 +44,16 @@ function checkMathLineOfWork(tex: string, { task, getLineTex: getTex, previousTe
   return { verdict, ...closes(task, verdict.status === 'right' && problemTex !== null && isFinishedAnswer(tex)) };
 }
 
-function getInkLineReading(text: string, tex: string | undefined): LineReading {
+function getReaderLineReading(text: string, tex: string | undefined): LineReading {
   return tex === undefined ? { kind: 'words', parts: [{ type: 'words', text }], isAsking: /\?\s*$/.test(text) } : { kind: 'math', parts: [{ type: 'math', text, tex }], isAsking: false };
 }
 
-function checkWrite({ text, ink }: StudentWork & { way: 'write' }, context: WorkContext): CheckedWork {
+function checkWrite({ text, ink, heard }: StudentWork & { way: 'write' }, context: WorkContext): CheckedWork {
+  const read = ink ?? heard;
   const { task } = context;
   const writeTask = task?.way === 'write' ? task : null;
-  const reading = ink ? getInkLineReading(text, ink.tex) : readLine(text, writeTask?.reads);
-  if (ink?.isUnsure) return { reading, verdict: UNKNOWN };
+  const reading = read ? getReaderLineReading(text, read.tex) : readLine(text, writeTask?.reads);
+  if (read?.isUnsure) return { reading, verdict: UNKNOWN };
   const accepted = writeTask?.accepts ? checkAccepted(text, writeTask.accepts) : null;
   if (reading.isAsking) return { reading, verdict: UNKNOWN };
   if (accepted) return { reading, verdict: accepted, ...closes(task, accepted.status === 'right') };

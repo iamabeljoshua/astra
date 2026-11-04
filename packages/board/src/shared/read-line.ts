@@ -12,8 +12,9 @@ interface Token {
 
 const FUNCTIONS: ReadonlySet<string> = new Set(['sqrt', 'sin', 'cos', 'tan', 'log', 'ln', 'abs']);
 const SUPERSCRIPTS: Readonly<Record<string, string>> = { '⁰': '0', '¹': '1', '²': '2', '³': '3', '⁴': '4', '⁵': '5', '⁶': '6', '⁷': '7', '⁸': '8', '⁹': '9', '⁻': '-' };
-const NUMBER_WORDS: Readonly<Record<string, string>> = { zero: '0', one: '1', two: '2', three: '3', four: '4', five: '5', six: '6', seven: '7', eight: '8', nine: '9', ten: '10', eleven: '11', twelve: '12' };
-const SPOKEN_OPERATORS: Readonly<Record<string, string>> = { equals: '=', plus: '+', minus: '-', times: '*', over: '/' };
+const NUMBER_WORDS: Readonly<Record<string, number>> = { zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19 };
+const TENS_WORDS: Readonly<Record<string, number>> = { twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90 };
+const SPOKEN_OPERATORS: Readonly<Record<string, string>> = { equals: '=', equal: '=', plus: '+', minus: '-', negative: '-', times: '*', over: '/' };
 const SPOKEN_POWERS: Readonly<Record<string, string>> = { squared: '^2', cubed: '^3' };
 const CLAIM_WORDS: ReadonlySet<string> = new Set(['so', 'then', 'thus', 'hence', 'therefore', 'answer', 'answer:', 'i', 'get', 'got', 'gives', 'is', 'that', 'it', "it's", 'which', 'means', 'and', 'now', 'ok', 'okay']);
 const MANY_LETTERS = /^[xyzabcnt]+$/;
@@ -102,19 +103,48 @@ function classifySymbol(symbol: string): TokenKind {
   return FUNCTIONS.has(compact) ? 'hard' : 'word';
 }
 
-function readSpokenToken(raw: string, index: number, raws: readonly string[]): string {
-  const lower = raw.toLowerCase();
-  if (lower === 'divided' && raws[index + 1]?.toLowerCase() === 'by') return '/';
-  if (lower === 'by' && raws[index - 1]?.toLowerCase() === 'divided') return '';
-  return SPOKEN_OPERATORS[lower] ?? SPOKEN_POWERS[lower] ?? NUMBER_WORDS[lower] ?? (/^[XYZ]$/.test(raw) || /^\d+[XYZ]$/.test(raw) ? raw.toLowerCase() : raw);
+const toWord = (raw: string) => raw.toLowerCase().replace(TRAILING_PUNCTUATION, '');
+
+function readSpokenNumber(raws: readonly string[], index: number): { symbol: string; used: number } | null {
+  const [word, next, after] = [raws[index], raws[index + 1], raws[index + 2]].map((raw) => (raw === undefined ? '' : toWord(raw))) as [string, string, string];
+  const hyphen = /^([a-z]+)-([a-z]+)$/.exec(word);
+  if (hyphen && TENS_WORDS[hyphen[1] as string] !== undefined && NUMBER_WORDS[hyphen[2] as string] !== undefined) return { symbol: String((TENS_WORDS[hyphen[1] as string] as number) + (NUMBER_WORDS[hyphen[2] as string] as number)), used: 1 };
+  const whole = TENS_WORDS[word] ?? NUMBER_WORDS[word];
+  if (whole === undefined) return null;
+  const ones = NUMBER_WORDS[next];
+  if (TENS_WORDS[word] !== undefined && ones !== undefined && ones > 0 && ones < 10) return { symbol: String(whole + ones), used: 2 };
+  if (next === 'point' && NUMBER_WORDS[after] !== undefined) return { symbol: `${whole}.${NUMBER_WORDS[after]}`, used: 3 };
+  return { symbol: String(whole), used: 1 };
+}
+
+/** The first of a run of spoken words, what it says as a symbol, and how many words it took. */
+function readSpokenWords(raws: readonly string[], index: number): { symbol: string; used: number } {
+  const raw = raws[index] as string;
+  const word = toWord(raw);
+  const [next, after] = [raws[index + 1], raws[index + 2]].map((other) => (other === undefined ? '' : toWord(other)));
+  const number = readSpokenNumber(raws, index);
+  if (number) return number;
+  if (word === 'divided' && next === 'by') return { symbol: '/', used: 2 };
+  if (word === 'square' && next === 'root' && after === 'of' && raws[index + 3] !== undefined) return { symbol: `sqrt(${readSpokenWords(raws, index + 3).symbol.replace(TRAILING_PUNCTUATION, '')})`, used: 3 + readSpokenWords(raws, index + 3).used };
+  if (word === 'equal' && next === 'to') return { symbol: '=', used: 2 };
+  if (word === 'is' && next === 'equal' && after === 'to') return { symbol: '=', used: 3 };
+  if (word === 'is' && LONE_LETTER.test(toWord(raws[index - 1] ?? '')) && raws[index + 1] !== undefined && /^(-?\d|negative$|minus$)/.test(readSpokenWords(raws, index + 1).symbol + (next === 'negative' || next === 'minus' ? '' : ''))) return { symbol: '=', used: 1 };
+  const spoken = SPOKEN_OPERATORS[word] ?? SPOKEN_POWERS[word];
+  if (spoken) return { symbol: spoken, used: 1 };
+  return { symbol: /^[XYZ]$/.test(raw.replace(TRAILING_PUNCTUATION, '')) || /^\d+[XYZ]$/.test(raw.replace(TRAILING_PUNCTUATION, '')) ? raw.toLowerCase() : raw, used: 1 };
 }
 
 function getTokens(text: string): Token[] {
   const raws = text.split(/\s+/).filter((raw) => raw !== '');
-  const tokens = raws.map((raw, index): Token => {
-    const symbol = normalizeSymbols(readSpokenToken(raw, index, raws));
-    return { raw, symbol, kind: symbol === '' ? 'op' : classifySymbol(symbol) };
-  });
+  const tokens: Token[] = [];
+  for (let index = 0; index < raws.length; ) {
+    const { symbol: spoken, used } = readSpokenWords(raws, index);
+    const raw = raws.slice(index, index + used).join(' ');
+    const ending = used > 1 || spoken !== raws[index] ? (TRAILING_PUNCTUATION.exec(raw)?.[0] ?? '') : '';
+    const symbol = normalizeSymbols(`${spoken}${ending}`);
+    tokens.push({ raw, symbol, kind: classifySymbol(symbol) });
+    index += used;
+  }
   return tokens;
 }
 

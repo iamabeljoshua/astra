@@ -15,6 +15,8 @@ export interface StudentLineContent {
   reading: LineReading;
   verdict: WorkVerdict;
   isInk: boolean;
+  /** Said aloud, so the words beside it are what was heard. */
+  isHeard: boolean;
 }
 
 export interface TaskProgress {
@@ -55,7 +57,7 @@ function placeStudentLine(elements: Elements, work: StudentWork & { way: 'write'
   if (elements.has(work.id)) return;
   const tex = getLineTex(reading);
   const isInk = work.ink !== undefined;
-  elements.set(work.id, makeElement(work.id, { kind: 'studentLine', id: work.id, text: work.text, reading, verdict, isInk }, { atMs, overMs: LINE_LANDS_MS, math: tex === null || isInk ? null : startMathLine(tex) }));
+  elements.set(work.id, makeElement(work.id, { kind: 'studentLine', id: work.id, text: work.text, reading, verdict, isInk, isHeard: work.heard !== undefined }, { atMs, overMs: LINE_LANDS_MS, math: tex === null || isInk ? null : startMathLine(tex) }));
   if (work.task !== undefined && tex !== null) setProgress(elements, work.task, { lastLineTex: tex });
 }
 

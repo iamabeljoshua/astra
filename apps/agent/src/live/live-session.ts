@@ -10,6 +10,7 @@ import { createTypedGate } from './typed-gate.ts';
 import { type SpokenTurn, speakTurn, type TurnMessenger } from './speak-turn.ts';
 import type { TutorBeat, TutorBrain } from '../tutor/brain.ts';
 import { createBoardWork } from '../tutor/watcher/board-work.ts';
+import type { SpokenReading } from '../tutor/watcher/read-spoken.ts';
 import type { WordMeaning } from '../tutor/watcher/watch-rule.ts';
 import { getNextTurnState, INITIAL_TURN_STATE, type TimerName, type TurnAction, type TurnEvent, type TurnState } from './turn-rule.ts';
 import { getSteadyNowMs, type VoiceLine } from './voice-line.ts';
@@ -37,6 +38,8 @@ export interface LiveSessionOptions {
   readMeaning?(words: string): Promise<WordMeaning | null>;
   /** Reads a handwritten line's strokes with a small model. */
   readStrokes?(strokes: readonly (readonly InkPoint[])[]): Promise<{ text: string; ink: { tex?: string; isUnsure: boolean } } | null>;
+  /** What spoken words mean, read by a cheap model. */
+  readSpokenWords?(words: string): Promise<SpokenReading>;
 }
 
 export interface LiveSession {
@@ -106,7 +109,7 @@ const FEWEST_MS_BETWEEN_FREEZES = 5000;
 const BREATH_RECHECK_MS = 150;
 
 // Wires what the student does to what the tutor says. The rule decides, this runs its actions, and the voice line keeps every turn apart.
-export function createLiveSession({ messenger, line, voice, tutor, takes, allTakes, setTurnCap, getNowMs = getSteadyNowMs, trace = () => {}, readMeaning = async () => null, readStrokes = async () => null }: LiveSessionOptions): LiveSession {
+export function createLiveSession({ messenger, line, voice, tutor, takes, allTakes, setTurnCap, getNowMs = getSteadyNowMs, trace = () => {}, readMeaning = async () => null, readStrokes = async () => null, readSpokenWords = async () => ({ kind: 'talk', costUsd: 0 }) }: LiveSessionOptions): LiveSession {
   const startedAtMs = getNowMs();
   const echo = createEchoFilter();
   const takeVoices = new Map(allTakes.map((take) => [take.id, makeTakeVoice(take).makeTts()]));
@@ -131,6 +134,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
   let hasGreeted = false;
   let voiceStall: ReturnType<typeof setTimeout> | undefined;
   let questionHeardAtMs: number | null = null;
+  let spokenTicket = 0;
   let breathTimer: ReturnType<typeof setTimeout> | undefined;
   let stretchBeforeBreath: Speaking | null = null;
 
@@ -154,6 +158,8 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     getSecondsSinceQuestion: () => (questionHeardAtMs === null ? null : (getNowMs() - questionHeardAtMs) / 1000),
     readMeaning,
     readStrokes,
+    readSpokenWords,
+    writeHeardLog: (work, checked) => void log.writeHeard(work, checked),
     send: (message) => messenger.send(message),
     getNowMs,
     trace,
@@ -333,7 +339,19 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     if (speaking) tutor.noteCut?.(speaking.spoken.getWordsSent());
   };
 
+  // A spoken answer to an open task lands on the board first, and the watch rule says whether the tutor answers it.
+  const answerSpokenWords = async (text: string) => {
+    const ticket = (spokenTicket += 1);
+    setThinking(true);
+    const wantsReply = await boardWork.onSpoken(text);
+    if (ticket !== spokenTicket) return;
+    if (wantsReply) return startReply(text);
+    setThinking(false);
+    dispatch({ type: 'tutorFinished' });
+  };
+
   const startReply = (text: string) => {
+    spokenTicket += 1;
     boardWork.noteAnswered();
     resumeTicket += 1;
     noteCutForBrain(reply && !reply.isOver ? reply : cut);
@@ -348,6 +366,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
   };
 
   const stopSpeech = (action: TurnAction & { do: 'stop' }) => {
+    spokenTicket += 1;
     trace('stopDecided', { reason: action.reason, turnId: getAudibleTurn() });
     clearTimeout(voiceStall);
     resumeTicket += 1;
@@ -399,6 +418,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
         return react();
       case 'reply':
         trace('replyDecided', { via: action.via, words: action.text.split(/\s+/).length, text: action.text });
+        if ((action.via === 'final' || action.via === 'partial') && boardWork.hasOpenTask()) return void answerSpokenWords(action.text);
         return startReply(action.text);
       case 'startTimer':
         return startNamedTimer(action.name, action.ms);
