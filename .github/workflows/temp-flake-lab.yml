@@ -1,0 +1,31 @@
+name: TEMP flake lab
+on: pull_request
+permissions:
+  contents: read
+jobs:
+  agent-on-2-threads:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: 1384e8af726500261058f99f4cfe9d6b4b8df49d
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22.23.4
+      - run: pnpm install --frozen-lockfile
+      - name: Agent tests with 3 workers, solo once, then 3 times beside 2 CPU hogs
+        working-directory: apps/agent
+        run: |
+          lscpu | grep 'Model name'; nproc
+          once() {
+            s=$(date +%s); pnpm exec vitest run --maxWorkers=3 > "/tmp/$1.log" 2>&1; c=$?; e=$(date +%s)
+            echo "LAB $1 exit=$c secs=$((e-s)) $(grep -E 'Tests  ' "/tmp/$1.log" | tail -1)"
+            [ "$c" = 0 ] || sed 's/\x1b\[[0-9;]*m//g' "/tmp/$1.log" | grep -E 'FAIL|AssertionError|Error:' | head -30
+          }
+          once solo
+          node -e 'for(;;){}' & hog1=$!
+          node -e 'for(;;){}' & hog2=$!
+          for i in 1 2 3; do once "hogs-$i"; done
+          kill "$hog1" "$hog2"
