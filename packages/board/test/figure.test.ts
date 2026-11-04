@@ -522,6 +522,15 @@ describe('axes that hold still', () => {
     }
   });
 
+  it('holds the axes on a slider\'s first move after the tutor set the speed the other way', () => {
+    const slider = place({ kind: 'slider', id: 'sideways', target: 'shot', parameter: 'horizontalSpeed', min: 0, max: 15 });
+    const tutor = place({ kind: 'setParameter', target: 'shot', parameter: 'launchAngle', value: 30 }, 1000);
+    const getAxes = (operations: BoardOperation[]) => (getMarks(operations, 'shot').find((mark) => mark.key === 'axes') as FigureMark & { kind: 'path' }).branches;
+    const before = getAxes([shot, slider, tutor]);
+    const after = getAxes([shot, slider, tutor, { kind: 'parameterSample', atMs: 2000, target: 'shot' as never, parameter: 'horizontalSpeed', value: 9 }]);
+    expect(after).toEqual(before);
+  });
+
   it('keeps every arc a slider reaches on the figure', () => {
     const angle = place({ kind: 'slider', id: 'angle', target: 'shot', parameter: 'launchAngle', min: 10, max: 80 });
     const size = SIZES[0] as { width: number; height: number };
@@ -594,6 +603,14 @@ describe('a curve too fine to draw', () => {
       expect(tooFine).toEqual([]);
     });
   }
+
+  it('keeps the note clear of a y axis at the right edge, and says it once for two fine curves', () => {
+    const size = SIZES[0] as { width: number; height: number };
+    const marks = getMarks([place({ kind: 'plot', id: 'c', expression: 'tan(100*x)', domain: [-10, 0], yLabel: 'y', xLabel: 'x' }), place({ kind: 'plot', id: 'over', over: 'c', expression: 'sin(300*x)', domain: [-10, 0] })], 'c', size);
+    expect(getText(marks).filter((mark) => mark.key === 'too-fine')).toHaveLength(1);
+    expect(getOverlappingText(marks)).toEqual([]);
+    expect(getTextOutside(marks, size)).toEqual([]);
+  });
 
   it('keeps the note clear of a phone-width figure', () => {
     const operations = [place({ kind: 'plot', id: 'c', expression: 'tan(100*x)', domain: [-10, 10], label: 'y = tan(100 x)', xLabel: 'x', yLabel: 'y' })];
