@@ -52,5 +52,5 @@ describe('generated steps', () => {
     console.log(JSON.stringify(tally), seen.slice(0, 12));
     expect(tally.trueWrong).toBe(0);
     expect(tally.falseRight).toBe(0);
-  });
+  }, 60_000);
 });

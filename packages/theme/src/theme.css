@@ -512,6 +512,13 @@
     transform-origin: top left;
   }
 
+  .board-read-as-math {
+    position: relative;
+    display: block;
+    color: var(--color-ink);
+    font-size: 22px;
+  }
+
   .board-row-ink .board-row-wrapper {
     width: 100%;
   }

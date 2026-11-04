@@ -1,6 +1,6 @@
 import type { LineReading } from '@astra/contracts';
 import { renderTex } from '@astra/board/drawing';
-import { useLayoutEffect, useRef } from 'react';
+import { type ReactNode, useLayoutEffect, useRef } from 'react';
 import { BOARD_WORK_LABELS } from '../strings';
 
 export function MathPart({ tex }: { tex: string }) {
@@ -25,13 +25,14 @@ export function LineParts({ reading }: { reading: LineReading }) {
   );
 }
 
-export function ReadAs({ reading, typed, showsParts = false, isHeard = false, onFix }: { reading: LineReading; typed?: string; showsParts?: boolean; isHeard?: boolean; onFix?: () => void }) {
+export function ReadAs({ reading, typed, showsParts = false, isHeard = false, mathHolder = null, onFix }: { reading: LineReading; typed?: string; showsParts?: boolean; isHeard?: boolean; mathHolder?: ReactNode; onFix?: () => void }) {
   return (
     <div data-testid="read-as" className="board-read-as">
       <span className="board-read-as-label">
         {BOARD_WORK_LABELS.readAs} {BOARD_WORK_LABELS.kinds[reading.kind]}
       </span>
-      {showsParts && (
+      {mathHolder}
+      {showsParts && !mathHolder && (
         <span className="board-read-as-parts">
           <LineParts reading={reading} />
         </span>

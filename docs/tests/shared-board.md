@@ -45,6 +45,27 @@ Each stroke lands as it is drawn and goes through `inkStroke`, so it is in the l
 
 It cost $0.007 for 72 reads, at 1.53 s a read.
 
+## Answering aloud
+
+Any exercise can be answered by voice, as well as by typing or the pen. The microphone stays off until Talk.
+
+- Muse's final goes down the same road as a typed or written line. It lands on the board, and `Read as` shows how it was heard, with "Not what you said? Type it."
+- `decideSpoken` in `apps/agent/src/tutor/watcher/spoken-answer.ts` decides with code first. With no open task, or for a question, a word to the tutor, or a task of code, it stays conversation and no line lands.
+- Spoken math reads through `readLine`: "two x equals eight" is `2x = 8`, never fixed and never solved. Muse writes words, so number words run to ninety-nine.
+- A cheap model reads only what code cannot: a line that might be misheard math, or an answer in words. It is told what the student was asked for. A doubt means code judges nothing and the tutor asks.
+- A pick needs one part named. A place needs every item named, or pairs of slot and item.
+- `pnpm --filter @astra/agent eval:spoken` runs the table in `evals/tutor-turns/spoken-lines.json`, which holds Muse's real finals on clips in two Mac voices. Wrong lines read as right must stay at zero.
+
+From the end of speech to the line on the page, on 4 November, was 2.5 s at p50 and 4.1 s at most, over 6 lines. About 1.1 s of that is the audio path, 0.2 s the voice detector, 0.6 to 0.9 s Muse's final, under 20 ms code, and 0.3 s back to the page. The agent ran on the same Mac as the browser, with LiveKit's cloud between them, so the path should be shorter in production. Landing on a complete partial could save a further 0.1 to 0.7 s, and is not built.
+
+## Changing the subject
+
+The student can leave at any moment, and the tutor follows with no fuss.
+
+- A new topic or a wish to stop, typed or said, closes the open task: `wantsSomethingElse` in `check-work.ts`. Said aloud, it is `{ way: 'leave' }` and no line lands.
+- `boardMode` teach and `clearBoard` close it too, so a task never holds a later line.
+- `pnpm --filter @astra/agent eval:switch` runs these turns on the real model, including back to an old problem and a question about an old lesson. "New session" must never appear unless a real limit is reached.
+
 ## What a verdict means
 
 `checkWork` is one pure function, on the page and on the agent, so the page reacts before any message returns and the agent does not take the page's word for it. It returns `right`, `wrong`, or `unknown`.
@@ -81,9 +102,115 @@ Work reaches the log as `worked`, written by the agent with its own reading and 
 
 A typed line is hostile input. The reader builds math only from an allow list of characters, so a backslash can never reach KaTeX, and every word on the page is a text node. A line longer than 200 characters is words. `read-line.test.ts` runs 34 hostile lines and holds each under 150 ms. The worst line it found on the real page took 47 ms to land. A flood is bounded too: 20 held notes of work, 2,000 pieces of work in a session, and a fixed amount of ink drawn into one picture.
 
+## Parity with the prototype
+
+Abel's rule: everything a student can see or do on the prototype exists on the real board. Walked from `astra-tinker/board/public/app.js`, `plain.js`, `index.html`, and `style.css`. Proofs are tests, or page runs with screenshots in the coordinator's `board-compare` folder.
+
+### Typing
+
+| Behavior | Real board | Proof |
+|---|---|---|
+| Live math as typed, words and math mixed in one line | Yes | `TypedLine.test.tsx`, `read-line.test.ts` |
+| Caret, and raw text when clicking in or arrowing back | Yes | `TypedLine.test.tsx` |
+| Placeholder gone after the first lines | Yes. Words changed by Abel's voice slice | `TypedLine.test.tsx` |
+| Any key typed anywhere goes to the line | Yes | `TypedLine.test.tsx` |
+| Enter sends, and the line lands with its tick | Yes, 37 to 61 ms | perf probe, `term-demo` run |
+| A right finished line lands by itself after 2.2 s | Yes | `TypedLine.test.tsx` |
+| Underline in the pen colour when asked | Yes | `side-by-side-*` |
+| A task focuses the line and closes pen and keys | Yes | `LiveBoard`, `pen-freehand` run |
+| Read as beside the line | Yes, on every line, by the brief. The prototype shows it only for the pen | `side-by-side-*` |
+
+### Clicking a term
+
+| Behavior | Real board | Proof |
+|---|---|---|
+| Terms clickable only during the task, dashed underline in the pen colour | Yes | `term-proof-1-open.png` |
+| Hover tints the term | Yes | `term-proof-2-hover.png` |
+| Hover starts a guessed reply after 160 ms | Not yet. See Head start | |
+| One click draws the student's ring in ink, others stop being clickable | Yes, ring and word in 39 ms on 5179 | `term-proof-3-clicked.png`, `term-demo` run |
+| "Mm-hm." or "Hm." at once by what code found, in the tutor's voice | Yes | `board-work.test.ts`, `term-demo` run |
+| A line typed during the pick is checked and ends it | Yes | `board-work.test.ts` |
+| The tutor opens an equation with this | Yes, in the prompt | `term-demo` run |
+
+### Marks, notes, circles
+
+| Behavior | Real board | Proof |
+|---|---|---|
+| Check and cross drawn by hand in the gutter | Yes | `side-by-side-*`, `GutterMark` |
+| Notes in the pen, in the gutter, fading up | Yes | `side-by-side-*` |
+| Loose loop around a term in 340 ms, in the pen | Yes | `side-by-side-*-3-wrong-line` |
+| Ring on a term of a handwritten line, in its Read as | Yes | `ink-ring.png` |
+| Earlier crossed lines struck when a right step comes | Yes | `boardRows.test.ts` |
+| Code refuses a mark that contradicts it | Yes | `eval:board`, `board-work.test.ts` |
+| Tutor's line writes itself in | Yes, by the board's stroke painter. The prototype uses a wipe | `side-by-side-*-1-tutor-writes` |
+
+### The pen
+
+| Behavior | Real board | Proof |
+|---|---|---|
+| Band with a dashed guide, opened by Pen or by a task | Yes | `pen-freehand-1-writing-light.png`, `byHand` run |
+| Strokes that vary in width | Yes, `perfect-freehand` 1.2.3, MIT, about 2 KB gzipped in the main bundle | `pen-freehand-1-writing-light.png` |
+| Done appears after the first stroke | Yes | `pen-freehand-1-writing-light.png` |
+| Reading starts as the pen rests, 650 ms | Yes | trace `inkReadStarted` 1.4 s ahead of `inkDone`, `board-work.test.ts` |
+| A 2 s pause sends the line | Yes | `PenBand` |
+| The strokes stay on the board at their size | Yes | `ink-ring.png` |
+| Read as, with "Not what you wrote? Type it." | Yes | `ink-ring.png` |
+
+### Math keys
+
+| Behavior | Real board | Proof |
+|---|---|---|
+| MathLive field and its keyboard | Yes, `mathlive` 0.111.4, MIT. Its own chunk, 804 KB, 219 KB gzipped, loaded only on opening. No fonts or sounds of its own | `math-keys-2-typed-dark.png`, `MathField.test.tsx` |
+| Enter sends the math as set | Yes, checked by what it holds | `board-work.test.ts`, `math-keys-3-sent-*` |
+| The menu toggle hidden | Yes | `math-keys-*` |
+| The keyboard in the theme, with room kept for the words and tools | Added. On the prototype it covers them | `math-keys-2-typed-dark.png` |
+
+### The tutor beside you
+
+| Behavior | Real board | Proof |
+|---|---|---|
+| The dot: rests above the words, flies to lines, dims watching, breathes thinking, pulses with loudness | Yes | `MovingDot`, `stage-*` |
+| Words lit as spoken, earlier lines faint above | Yes | `BoardCaption.test.tsx` |
+| State line: Talking, Reading your work, Waiting for you, Watching, Stopped | Yes | `tutorState.test.ts`, `math-keys-*` |
+| Esc stops the tutor and the dot goes home | Yes | `keys-pen` run |
+| Sending anything cuts the tutor off | Yes | `turn-rule` tests |
+| A reply holds its first word while the hands are moving | Yes, with an 8 s limit the prototype does not have, so a long typist still gets the reply | `board-work.test.ts` |
+| Looks while typing at 3, 6, 10, 15, 25 s, and idle at 10 to 90 s | Yes | `TypedLine.test.tsx` |
+| The watcher: quiet while talking, 8 s after a question, after speaking up, and when the rule sees no reason | Yes | `watch-rule.test.ts` |
+| A cheap model reads only what unsent words mean | Yes | `watch-rule.test.ts`, `eval:board` |
+| The tutor is told what the student already heard | Yes, `already_reacted` | `work-note.ts`, `eval:board` |
+
+### Graphs
+
+| Behavior | Real board | Proof |
+|---|---|---|
+| Plot drawn in the flow, with grid, ticks, and a true minus sign | Waits for PR 88 | |
+| Draggable point with a pulsing ring and its coordinates | Waits for PR 88 | |
+| Tangent riding on the point, with its slope written | Waits for PR 88 | |
+| Code's check on release, with "Mm-hm." or "Hm." | Check and nods are in, `check-work.ts`. The page waits for PR 88 | |
+
+### Layout
+
+| Behavior | Real board | Proof |
+|---|---|---|
+| Words left, board right, at the prototype's widths | Yes | `side-by-side-*` |
+| Light and dark, with the pen colour in each | Yes | `side-by-side-*`, `tokens.test.ts` |
+| Phone stacks, hint hidden, gutter under the line | Yes | `real-light-phone.png` |
+| Reduced motion | Yes | `boardStage.test.ts` |
+
+### Left out
+
+| Behavior | Why |
+|---|---|
+| Numbers panel, the cost line, the switches | Test tools, by Abel's rule |
+| The intro screen and "Start at" | Abel's choice. The real home and session start replace them |
+| The fixed three-part lesson | Abel's choice. Lesson shape belongs to M3.9 |
+| Head start: a guessed reply while typing, hovering, dragging, or writing | Abel's choice to build it last, after everything else. The hover tint stays until then |
+
 ## For later owners
 
 - M3.9: a direct question goes hands-on. A topic teaches first and then picks an exercise. Set a task, wait for `task_done`, and go on teaching. Nothing else is needed.
 - M3.10: the session log stays in memory until you store it, and the privacy page's planned list says it will hold this work.
 - M3.11: handwriting is here. Uploads, photos, and PDFs are yours.
+- PR 87's scene: the seam is the `visual` prop of `BoardStageView`.
 - The tutor's pen colour is a proposal, in `docs/DESIGN.md`, waiting for Abel.

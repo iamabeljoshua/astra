@@ -34,6 +34,9 @@ function getRowClass({ element, isStruck, inks }: BoardRow): string {
   return `board-row ${owner} ${inks.length > 0 ? 'board-row-ink' : ''} ${isStruck ? 'board-row-struck' : ''}`;
 }
 
+/** A handwritten line's math lives in its Read as, the only place it is set, so that is where a ring or a click finds a term. */
+const isReadMath = ({ inks, element }: BoardRow) => inks.length > 0 && element.math !== null;
+
 function RowContent({ row, onWork }: { row: BoardRow; onWork?: (work: StudentWork) => void }) {
   const { element, inks } = row;
   const { content } = element;
@@ -44,7 +47,7 @@ function RowContent({ row, onWork }: { row: BoardRow; onWork?: (work: StudentWor
   return null;
 }
 
-function RowGutter({ row, atMs, isReducedMotion, onFixReading }: { row: BoardRow; atMs: number; isReducedMotion: boolean; onFixReading?: (text: string) => void }) {
+function RowGutter({ row, atMs, isReducedMotion, onFixReading, setWrapper }: { row: BoardRow; atMs: number; isReducedMotion: boolean; onFixReading?: (text: string) => void; setWrapper: (wrapper: HTMLElement | null) => void }) {
   const { element, marks, notes, isBeingRead } = row;
   const line = element.content.kind === 'studentLine' ? (element.content as StudentLineContent) : null;
   return (
@@ -52,7 +55,7 @@ function RowGutter({ row, atMs, isReducedMotion, onFixReading }: { row: BoardRow
       {marks.map((mark) => <GutterMark key={mark.id} element={mark} atMs={atMs} isReducedMotion={isReducedMotion} />)}
       {notes.map((note) => note.content.kind === 'note' && <span key={note.id} data-testid="board-note" className="board-row-note">{note.content.text}</span>)}
       {isBeingRead && <span data-testid="ink-reading" className="board-read-as-label board-read-as">{BOARD_WORK_LABELS.reading}</span>}
-      {line && <ReadAs reading={line.reading} typed={line.isInk ? undefined : line.text} showsParts={line.isInk} isHeard={line.isHeard} onFix={(line.isInk || line.isHeard) && onFixReading ? () => onFixReading(line.text) : undefined} />}
+      {line && <ReadAs reading={line.reading} typed={line.isInk ? undefined : line.text} showsParts={line.isInk} isHeard={line.isHeard} mathHolder={isReadMath(row) ? <span data-element={element.id} ref={setWrapper} className="board-read-as-math" /> : null} onFix={(line.isInk || line.isHeard) && onFixReading ? () => onFixReading(line.text) : undefined} />}
     </div>
   );
 }
@@ -68,6 +71,11 @@ export function SharedBoard({ board, atMs, onWork, onMarkProblem, liveRow, lineI
   const isReducedMotion = useReducedMotion();
   const rows = getBoardRows(board).filter(({ element, isBeingRead }) => !(isBeingRead && getInkLineId(element.id) === lineInTheBand));
   const rowCount = rows.length;
+
+  const setWrapper = useCallback((id: string, wrapper: HTMLElement | null) => {
+    if (wrapper) wrappers.current.set(id, wrapper);
+    else wrappers.current.delete(id);
+  }, []);
 
   const setPickTarget = useCallback((part: string, target: PickTarget | null) => {
     if (target) pickTargets.current.set(part, target);
@@ -106,17 +114,14 @@ export function SharedBoard({ board, atMs, onWork, onMarkProblem, liveRow, lineI
             <div key={getRowKey(row)} data-row={getRowId(row)} className={getRowClass(row)}>
               <div className="board-row-content">
                 <div
-                  data-element={row.element.id}
+                  {...(isReadMath(row) ? {} : { 'data-element': row.element.id })}
                   className="board-row-wrapper"
-                  ref={(wrapper) => {
-                    if (wrapper) wrappers.current.set(row.element.id, wrapper);
-                    else wrappers.current.delete(row.element.id);
-                  }}
+                  ref={isReadMath(row) ? undefined : (wrapper) => setWrapper(row.element.id, wrapper)}
                 >
                   <RowContent row={row} onWork={onWork} />
                 </div>
               </div>
-              <RowGutter row={row} atMs={atMs} isReducedMotion={isReducedMotion} onFixReading={onFixReading} />
+              <RowGutter row={row} atMs={atMs} isReducedMotion={isReducedMotion} onFixReading={onFixReading} setWrapper={(wrapper) => setWrapper(row.element.id, wrapper)} />
             </div>
           ))}
           {liveRow}

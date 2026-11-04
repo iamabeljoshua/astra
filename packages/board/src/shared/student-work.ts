@@ -57,7 +57,7 @@ function placeStudentLine(elements: Elements, work: StudentWork & { way: 'write'
   if (elements.has(work.id)) return;
   const tex = getLineTex(reading);
   const isInk = work.ink !== undefined;
-  elements.set(work.id, makeElement(work.id, { kind: 'studentLine', id: work.id, text: work.text, reading, verdict, isInk, isHeard: work.heard !== undefined }, { atMs, overMs: LINE_LANDS_MS, math: tex === null || isInk ? null : startMathLine(tex) }));
+  elements.set(work.id, makeElement(work.id, { kind: 'studentLine', id: work.id, text: work.text, reading, verdict, isInk, isHeard: work.heard !== undefined }, { atMs, overMs: LINE_LANDS_MS, math: tex === null ? null : startMathLine(tex) }));
   if (work.task !== undefined && tex !== null) setProgress(elements, work.task, { lastLineTex: tex });
 }
 
