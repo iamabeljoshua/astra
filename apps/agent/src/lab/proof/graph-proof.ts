@@ -92,7 +92,7 @@ async function nudgeSliderTo(lab: LabPage, value: number): Promise<void> {
   }
 }
 
-async function checkDragReplay(lab: LabPage) {
+async function checkDragReplay(lab: LabPage, everySample = 4) {
   const { times, shiftMs } = await lab.page.evaluate(() => {
     const operations = window.sceneLab?.player.getOperations() ?? [];
     const samples = operations.filter((operation) => operation.kind === 'parameterSample').map((operation) => operation.atMs);
@@ -100,7 +100,7 @@ async function checkDragReplay(lab: LabPage) {
     const logStart = (window.sceneLab?.records.log[0] as { atMs: number } | undefined)?.atMs ?? 0;
     return { times: samples, shiftMs: logStart - liveStart };
   });
-  const moments = [...times.filter((_, index) => index % 4 === 0).map((atMs) => atMs + 5), (times.at(-1) ?? 0) + 300, (times.at(-1) ?? 0) + 900];
+  const moments = [...times.filter((_, index) => index % everySample === 0).flatMap((atMs) => (everySample === 1 ? [atMs + 3, atMs + 37] : [atMs + 5])), (times.at(-1) ?? 0) + 300, (times.at(-1) ?? 0) + 900];
   const differing: number[] = [];
   for (const atMs of moments) {
     await holdFrame(lab, { atMs, source: 'live' });
@@ -291,6 +291,193 @@ async function proveLateWords(browser: Browser, run: LessonRun) {
   return { label: getLabel(run), figures: { ...figures, ballPlaces: figures.ballPlaces.length }, landing, replay: { moments: replay.moments, differing: replay.differing.length, described: replay.describedDifferently } };
 }
 
+/** Reads a curve off the page: how many separate lines it is drawn in, and how much of the axes' width they cover. */
+const readCurve = (lab: LabPage) =>
+  lab.page.evaluate(() => {
+    const curve = document.querySelector('[data-mark^="curve-"]')?.getAttribute('d') ?? '';
+    const axes = (document.querySelector('[data-mark="axes"]')?.getAttribute('d') ?? '').match(/-?\d+(\.\d+)?/g)?.map(Number) ?? [];
+    const pieces = curve.split('M').filter((piece) => piece !== '').map((piece) => piece.match(/-?\d+(\.\d+)?/g)?.map(Number) ?? []);
+    const covered = pieces.reduce((sum, numbers) => sum + (numbers.at(-2) as number) - (numbers[0] as number), 0);
+    return { pieces: pieces.length, coveredShare: Number((covered / ((axes[2] as number) - (axes[0] as number))).toFixed(4)), bytes: curve.length, value: document.querySelector('.board-slider-value')?.textContent ?? null };
+  });
+
+const SLIDER_WAVES = [1, 2, 3, 4, 5, 7, 10];
+
+async function proveWaves(browser: Browser, run: LessonRun) {
+  const lab = await open(browser, run);
+  await lab.page.evaluate(() => window.pageChecks.startFigureWatch());
+  await lab.command({ type: 'play', lesson: 'figure-waves', lessonTurn: 0 });
+  await lab.waitForPlayedBeats(1, 60_000);
+  await delay(600);
+  const dragged = [];
+  for (const [index, a] of SLIDER_WAVES.entries()) {
+    await dragSliderTo(lab, { from: SLIDER_WAVES[Math.max(0, index - 1)] as number, to: a, min: 1, max: 10 });
+    await nudgeSliderTo(lab, a);
+    await delay(120);
+    await shoot(lab, `wave-a-${a}`);
+    dragged.push({ a, ...(await readCurve(lab)) });
+  }
+  await lab.page.evaluate(() => (window.sceneLab as unknown as LabLog).player.finishSliderDrag());
+  const beats = LESSONS['figure-waves'][1] ?? [];
+  const named = [];
+  await lab.command({ type: 'play', lesson: 'figure-waves', lessonTurn: 1 });
+  for (const [index, beat] of beats.entries()) {
+    await lab.waitForPlayedBeats(index + 2, 60_000);
+    await shoot(lab, `curve-${beat.id}`);
+    named.push({ id: beat.id, ...(await readCurve(lab)) });
+  }
+  const figures = await lab.page.evaluate(() => window.pageChecks.stopFigureWatch());
+  await lab.finish();
+  return { label: getLabel(run), dragged, named, figures: { frames: figures.frames, notFinite: figures.notFiniteFrames, overlap: figures.textOverlapFrames, gapP95: figures.frameGapP95 } };
+}
+
+const readSlider = (lab: LabPage) =>
+  lab.page.evaluate(() => {
+    const input = document.querySelector<HTMLInputElement>('.board-slider input');
+    return input && { min: input.min, max: input.max, value: input.value, name: input.labels?.[0]?.textContent, text: input.getAttribute('aria-valuetext'), disabled: input.disabled, figure: document.querySelector('svg.board-figure')?.getAttribute('aria-label') };
+  });
+
+async function proveReuse(browser: Browser, run: LessonRun) {
+  const lab = await open(browser, run);
+  const turns = [];
+  for (const lessonTurn of [0, 1]) {
+    await lab.command({ type: 'play', lesson: 'figure-reuse', lessonTurn });
+    await lab.waitForPlayedBeats(lessonTurn + 1, 60_000);
+    await delay(500);
+    const before = await lab.page.evaluate(() => document.querySelector('[data-mark^="curve-"]')?.getAttribute('d'));
+    const shown = await readSlider(lab);
+    await lab.page.locator('.board-slider input').first().focus();
+    for (let press = 0; press < 5; press += 1) await lab.page.keyboard.press('ArrowRight');
+    await delay(300);
+    const after = await lab.page.evaluate(() => document.querySelector('[data-mark^="curve-"]')?.getAttribute('d'));
+    await shoot(lab, `reuse-${lessonTurn}`);
+    turns.push({ shown, afterKeys: await readSlider(lab), curveMoved: before !== after });
+  }
+  await lab.command({ type: 'play', lesson: 'figure-reuse', lessonTurn: 2 });
+  await lab.waitForPlayedBeats(3, 60_000);
+  await delay(1100);
+  const lostItsConstant = await readSlider(lab);
+  await shoot(lab, 'reuse-2');
+  await lab.page.evaluate(() => (window.sceneLab as unknown as LabLog).player.finishSliderDrag());
+  await delay(300);
+  const replay = await checkReplayPixels(lab);
+  await lab.finish();
+  return { label: getLabel(run), turns, lostItsConstant, replay: { moments: replay.moments, differing: replay.differing.length, described: replay.describedDifferently } };
+}
+
+async function proveMarks(browser: Browser, run: LessonRun) {
+  const lab = await open(browser, run);
+  await lab.command({ type: 'play', lesson: 'figure-marks' });
+  await lab.waitForPlayedBeats(beatsOf('figure-marks'), 60_000);
+  await delay(600);
+  await shoot(lab, 'marks');
+  const problems = await lab.page.evaluate(() => window.sceneLab?.records.boardProblems);
+  const replay = await checkReplayPixels(lab);
+  await lab.finish();
+  return { label: getLabel(run), problems, replay: { moments: replay.moments, differing: replay.differing.length } };
+}
+
+async function proveLabels(browser: Browser, run: LessonRun) {
+  const lab = await open(browser, run);
+  await lab.page.evaluate(() => window.pageChecks.startFigureWatch());
+  await lab.command({ type: 'play', lesson: 'figure-labels' });
+  await lab.waitForPlayedBeats(beatsOf('figure-labels'), 60_000);
+  await delay(1200);
+  const figures = await lab.page.evaluate(() => window.pageChecks.stopFigureWatch());
+  await shoot(lab, 'labels');
+  const problems = await lab.page.evaluate(() => window.sceneLab?.records.boardProblems);
+  await lab.finish();
+  return { label: getLabel(run), frames: figures.frames, overlap: figures.textOverlapFrames, outside: figures.textOutsideFrames, examples: [...new Set(figures.examples)].slice(0, 6), problems };
+}
+
+const TOO_NARROW_SLIDERS = [{ kind: 'slider', id: 'tiny', target: 'small', constant: 'a', min: 0, max: 1e-110 }, { kind: 'slider', id: 'tiny-speed', target: 'small', parameter: 'horizontalSpeed', min: 0, max: 1e-110 }];
+
+/** Every figure and slider kind at the edge of what the parser takes, moved by keys, and then played back from the log. */
+async function proveExtremes(browser: Browser, run: LessonRun) {
+  const lab = await open(browser, run);
+  const errors: string[] = [];
+  lab.page.on('pageerror', (error) => errors.push(error.message));
+  lab.page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(message.text());
+  });
+  await lab.page.evaluate(() => window.pageChecks.startFigureWatch());
+  const turns = LESSONS['figure-extremes'].length;
+  let sliderMoves = 0;
+  for (let lessonTurn = 0; lessonTurn < turns; lessonTurn += 1) {
+    await lab.command({ type: 'play', lesson: 'figure-extremes', lessonTurn });
+    await lab.waitForPlayedBeats(lessonTurn + 1, 60_000);
+    await delay(500);
+    await shoot(lab, `extreme-${lessonTurn}`);
+    const sliders = lab.page.locator('.board-slider input');
+    for (let index = 0; index < (await sliders.count()); index += 1) {
+      await sliders.nth(index).focus();
+      for (const key of ['End', 'Home', 'ArrowRight', 'ArrowRight', 'PageUp', 'End']) {
+        await lab.page.keyboard.press(key);
+        sliderMoves += 1;
+      }
+    }
+    await delay(150);
+    await shoot(lab, `extreme-${lessonTurn}-moved`);
+  }
+  await lab.page.evaluate(() => (window.sceneLab as unknown as LabLog).player.finishSliderDrag());
+  const turnId = await lab.page.evaluate(() => window.sceneLab?.records.fired.at(-1)?.turnId);
+  await lab.command({ type: 'sendRaw', messages: TOO_NARROW_SLIDERS.map((command) => ({ type: 'cue', turnId, beatId: 'backward-flight', atWord: 1, command })) });
+  await delay(600);
+  const figures = await lab.page.evaluate(() => window.pageChecks.stopFigureWatch());
+  const refused = await lab.page.evaluate(() => window.sceneLab?.records.refused ?? []);
+  const stopped = await lab.page.getByText('This page stopped working').count();
+  const replay = await checkReplayPixels(lab);
+  const replayErrors = errors.length;
+  await lab.finish();
+  return { label: getLabel(run), turns, sliderMoves, errors: errors.slice(0, 5), errorCount: errors.length, replayErrors, stopped, refused: refused.length, frames: figures.frames, notFinite: figures.notFiniteFrames, overlap: figures.textOverlapFrames, outside: figures.textOutsideFrames, examples: [...new Set(figures.examples)].slice(0, 6), replay: { moments: replay.moments, differing: replay.differing.length, described: replay.describedDifferently } };
+}
+
+const KEY_PRESSES = 8;
+
+/** A key press sends its drag in the same millisecond, which is where a live board and the log can disagree. */
+async function proveKeyboard(browser: Browser, run: LessonRun) {
+  const lab = await open(browser, run);
+  await lab.command({ type: 'play', lesson: 'shot' });
+  await lab.waitForPlayedBeats(beatsOf('shot'), 120_000);
+  await delay(1200);
+  await lab.page.locator('.board-slider input').first().focus();
+  for (let press = 0; press < KEY_PRESSES; press += 1) {
+    await lab.page.keyboard.press(press % 3 === 2 ? 'ArrowLeft' : 'ArrowRight');
+    await delay(137 + press * 37);
+  }
+  await delay(300);
+  await lab.page.evaluate(() => (window.sceneLab as unknown as LabLog).player.finishSliderDrag());
+  await lab.page.waitForFunction((count) => ((window.sceneLab as unknown as { records: { log: { kind: string }[] } }).records.log.filter((event) => event.kind === 'studentActed').length) >= count, KEY_PRESSES, { timeout: 10_000 });
+  const deltas = await lab.page.evaluate(() => {
+    const operations = window.sceneLab?.player.getOperations() ?? [];
+    const liveStart = operations.find((operation) => operation.kind === 'beatStarted')?.atMs ?? 0;
+    const logStart = (window.sceneLab?.records.log[0] as { atMs: number } | undefined)?.atMs ?? 0;
+    const live = operations.filter((operation) => operation.kind === 'parameterSample').map((operation) => operation.atMs + logStart - liveStart);
+    const logged = (window.sceneLab?.records.log as unknown as { kind: string; atMs: number; action?: { samples?: { afterMs: number }[] } }[]).filter((event) => event.kind === 'studentActed').flatMap((event) => event.action?.samples?.map(({ afterMs }) => event.atMs + afterMs) ?? []);
+    return live.map((atMs, index) => Math.round((logged[index] ?? Number.NaN) - atMs));
+  });
+  const moments = await checkDragReplay(lab, 1);
+  await lab.finish();
+  return { label: getLabel(run), presses: KEY_PRESSES, deltas, ...moments };
+}
+
+/** What a screen reader is given, from the browser's own accessibility tree. */
+async function proveSliderName(browser: Browser, run: LessonRun) {
+  const lab = await open(browser, run);
+  await lab.command({ type: 'play', lesson: 'shot' });
+  await lab.waitForPlayedBeats(beatsOf('shot'), 120_000);
+  await delay(800);
+  const session = await lab.page.context().newCDPSession(lab.page);
+  await session.send('Accessibility.enable');
+  const { nodes } = await session.send('Accessibility.getFullAXTree');
+  const slider = nodes.filter((node) => node.role?.value === 'slider').map((node) => ({ name: node.name?.value, value: node.value?.value, valueText: node.properties?.find((property) => property.name === 'valuetext')?.value?.value, live: node.properties?.find((property) => property.name === 'live')?.value?.value, attribute: null as string | null }));
+  for (const entry of slider) entry.attribute = await lab.page.locator('.board-slider input').first().getAttribute('aria-valuetext');
+  const liveRegions = nodes.filter((node) => !node.ignored && ['status', 'log', 'alert'].includes(node.role?.value as string)).length;
+  const boardLive = await lab.page.evaluate(() => document.querySelectorAll('[data-testid="board"] output, [data-testid="board"] [aria-live], [data-testid="board"] [role="status"]').length);
+  await lab.finish();
+  return { label: getLabel(run), slider, liveRegions, boardLive };
+}
+
 const ANGLE_SLIDER = { min: 10, max: 80 };
 const LAUNCH = { speed: Math.hypot(10, 10), gravity: 9.8 };
 
@@ -339,6 +526,13 @@ const PROOFS = {
   'angle-slider': async (browser: Browser) => [await proveAngleSlider(browser, { lesson: 'launch', viewport: 'laptop', theme: 'light' }), await proveAngleSlider(browser, { lesson: 'launch', viewport: 'phone', theme: 'dark' })],
   moves: async (browser: Browser) => [await proveMoves(browser, { lesson: 'rapid-moves', viewport: 'laptop', theme: 'light' }), await proveMoves(browser, { lesson: 'algebra', viewport: 'laptop', theme: 'light' })],
   stored: async (browser: Browser) => [await proveLesson(browser, { lesson: 'shot', viewport: 'laptop', theme: 'light', label: 'stored' }), await proveLesson(browser, { lesson: 'shot', viewport: 'phone', theme: 'dark', label: 'stored' }), await proveLesson(browser, { lesson: 'graphs', viewport: 'laptop', theme: 'dark', label: 'stored' }), await proveFreeze(browser, { lesson: 'shot', viewport: 'laptop', theme: 'light', label: 'stored-freeze' })],
+  waves: async (browser: Browser) => [await proveWaves(browser, { lesson: 'figure-waves', viewport: 'laptop', theme: 'light' }), await proveWaves(browser, { lesson: 'figure-waves', viewport: 'phone', theme: 'dark' })],
+  reuse: async (browser: Browser) => [await proveReuse(browser, { lesson: 'figure-reuse', viewport: 'laptop', theme: 'light' })],
+  marks: async (browser: Browser) => [await proveMarks(browser, { lesson: 'figure-marks', viewport: 'laptop', theme: 'light' })],
+  labels: async (browser: Browser) => [await proveLabels(browser, { lesson: 'figure-labels', viewport: 'laptop', theme: 'light' }), await proveLabels(browser, { lesson: 'figure-labels', viewport: 'phone', theme: 'dark' })],
+  extremes: async (browser: Browser) => [await proveExtremes(browser, { lesson: 'figure-extremes', viewport: 'laptop', theme: 'light' }), await proveExtremes(browser, { lesson: 'figure-extremes', viewport: 'phone', theme: 'dark' })],
+  keyboard: async (browser: Browser) => [await proveKeyboard(browser, { lesson: 'shot', viewport: 'laptop', theme: 'light' }), await proveKeyboard(browser, { lesson: 'shot', viewport: 'phone', theme: 'dark' })],
+  'slider-name': async (browser: Browser) => [await proveSliderName(browser, { lesson: 'shot', viewport: 'laptop', theme: 'light' })],
   resize: async (browser: Browser) => [await proveResize(browser, { lesson: 'launch', viewport: 'laptop', theme: 'light' }), await proveResize(browser, { lesson: 'free-body', viewport: 'laptop', theme: 'dark' })],
 } as const;
 

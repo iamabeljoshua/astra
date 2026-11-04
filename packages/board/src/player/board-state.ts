@@ -129,8 +129,8 @@ function runScene(element: BoardElement, command: SceneCommand & { kind: 'runSim
 function setSceneParameter(element: BoardElement, { parameter, value, atMs, keepsMoving, catalog }: { parameter: string; value: number; atMs: number; keepsMoving: boolean; catalog: SceneCatalog }): void {
   const placed = element.placedScene;
   if (!placed || element.content.kind === 'ink') return;
-  const { [parameter]: _replaced, ...otherChanges } = placed.parameterChanges;
-  const parameterChanges = { ...otherChanges, [parameter]: value };
+  // Moved to the end, because two controls that share a speed apply in the order they were set.
+  const parameterChanges = Object.fromEntries([...Object.entries(placed.parameterChanges).filter(([name]) => name !== parameter), [parameter, value]]);
   const scene = catalog(element.content, parameterChanges) ?? placed.scene;
   const playhead = keepsMoving ? moveOver({ from: 0, to: scene.durationSeconds, atMs, overMs: scene.durationSeconds * MS_PER_SECOND }) : holdMotion(0, atMs);
   element.placedScene = { scene, parameterChanges, playhead, reshapingFrom: null };

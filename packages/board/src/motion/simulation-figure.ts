@@ -69,8 +69,9 @@ function getSliderValues(sliders: readonly ParameterSlider[], base: SceneParamet
   const kept = sliders.slice(-MOST_SLIDERS_FITTED);
   const levels = SLIDER_LEVELS_BY_COUNT[kept.length] ?? 1;
   const moved = kept.reduce<SceneParameters[]>((sets, { parameter, min, max }) => sets.flatMap((set) => Array.from({ length: levels }, (_, level) => ({ ...set, [parameter]: min + ((max - min) * level) / (levels - 1) }))), [{}]);
-  // The slider moved last wins where two share a speed, so either could be last.
-  return moved.flatMap((set) => [{ ...base, ...set }, { ...base, ...Object.fromEntries(Object.entries(set).reverse()) }]);
+  // The slider moved last wins where two share a speed, so fit either one being last.
+  const orders = kept.length > 1 ? moved.flatMap((set) => [set, Object.fromEntries(Object.entries(set).reverse())]) : moved;
+  return orders.map((set) => ({ ...base, ...set }));
 }
 
 const sliderReachByCommand = new WeakMap<Simulate, Map<string, WorldBounds>>();
@@ -95,8 +96,8 @@ function getReach(scene: Scene, quantity: string): WorldBounds {
 }
 
 function getHoopCenter(baseScene: Scene): number {
-  const atRimHeight = (getScenePath(baseScene)[0] as Branch).filter((point) => point.y >= RIM_HEIGHT).at(-1);
-  return atRimHeight?.x ?? getArcBounds(baseScene).right * HOOP.shareOfRangeWhenShort;
+  const path = getScenePath(baseScene)[0] as Branch;
+  return path.filter((point) => point.y >= RIM_HEIGHT).at(-1)?.x ?? (path.at(-1) as Point).x * HOOP.shareOfRangeWhenShort;
 }
 
 /** The board and pole stand behind the rim as the ball flies, so `direction` is 1 for a ball going right and -1 for one going left. */

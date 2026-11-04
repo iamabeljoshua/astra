@@ -20,7 +20,7 @@ describe('the lab lessons', () => {
     const early = beats.flatMap((beat) => {
       const cues = getCues(beat);
       return cues.flatMap(({ atWord, command }) => {
-        if (command.kind !== 'runSimulation' || command.overWords === undefined) return [];
+        if (command.kind !== 'runSimulation' || !('overWords' in command) || command.overWords === undefined) return [];
         const landsOn = atWord + command.overWords;
         return cues.filter((cue) => (cue.command.kind === 'annotate' || cue.command.kind === 'highlight') && cue.command.target === `${command.target}.ball` && cue.atWord >= atWord && cue.atWord < landsOn).map(() => beat.id);
       });

@@ -225,4 +225,63 @@ const FIGURE_HOSTILE_LESSON: readonly (readonly Beat[])[] = [
   ],
 ];
 
-export const GRAPH_LESSONS = { shot: SHOT_LESSON, graphs: GRAPH_LESSON, 'number-line': NUMBER_LINE_LESSON, triangle: TRIANGLE_LESSON, 'free-body': FREE_BODY_LESSON, launch: LAUNCH_LESSON, 'figure-hostile': FIGURE_HOSTILE_LESSON } as const satisfies Record<string, readonly (readonly Beat[])[]>;
+const WORDS = 'Here is a thing to look at. ';
+
+const wave = (id: string, expression: string, domain: [number, number]) => makeBeat(id, [{ kind: 'clearBoard' }, { kind: 'plot', id, expression, domain, label: `y = ${expression}`, xLabel: 'x', yLabel: 'y' }, WORDS]);
+
+const FIGURE_WAVES_LESSON: readonly (readonly Beat[])[] = [
+  [makeBeat('slider-wave', [{ kind: 'plot', id: 'wave', expression: 'sin(a*x)', constants: [{ name: 'a', value: 1, min: 1, max: 10 }], domain: [-10, 10], label: 'y = sin(a x)', xLabel: 'x', yLabel: 'y' }, 'Here is a wave. ', { kind: 'slider', id: 'a-slider', target: 'wave', constant: 'a', min: 1, max: 10 }, 'Drag this to change how fast it wiggles. '])],
+  [wave('slow', 'sin(x)', [-50, 50]), wave('two-pi', 'sin(2*pi*x)', [-10, 10]), wave('folded', 'abs(sin(x))', [-20, 20]), wave('fast', 'sin(30*x)', [-10, 10]), wave('band', 'sin(1000*x)', [-10, 10]), wave('poles', 'tan(10*x)', [-10, 10]), wave('inverse', '1/x', [-5, 5]), wave('tangent', 'tan(x)', [-5, 5]), wave('jump', 'abs(x-1)/(x-1)', [-3, 3]), wave('root', 'sqrt(x)', [-2, 9])],
+];
+
+const FIGURE_REUSE_LESSON: readonly (readonly Beat[])[] = [
+  [
+    makeBeat('first', [{ kind: 'plot', id: 'c1', expression: 'a*x', constants: [{ name: 'a', value: 1, min: 0, max: 2 }], domain: [0, 5], label: 'first' }, { kind: 'slider', id: 's', target: 'c1', constant: 'a', min: 0, max: 2 }, 'Here is the first one, with a slider. ']),
+  ],
+  [
+    makeBeat('second', [{ kind: 'clearBoard' }, { kind: 'plot', id: 'c2', expression: 'b*x', constants: [{ name: 'b', value: 15, min: 10, max: 20 }], domain: [0, 5], label: 'second' }, { kind: 'slider', id: 's', target: 'c2', constant: 'b', min: 10, max: 20 }, 'Now the second, with its own slider. ']),
+  ],
+  [
+    makeBeat('third', [{ kind: 'plot', id: 'c2', expression: 'x^2', domain: [-3, 3], label: 'a new curve in the same place' }, 'And a new curve in the same place. ']),
+  ],
+];
+
+const FIGURE_MARKS_LESSON: readonly (readonly Beat[])[] = [
+  [
+    makeBeat('on-a-line', [{ kind: 'numberLine', id: 'line', domain: [0, 10] }, { kind: 'markValue', id: 'start', target: 'line', at: 3, label: 'start' }, { kind: 'markValue', id: 'off', target: 'line', at: 99 }, { kind: 'annotate', id: 'on-line', target: 'line.start', mark: 'circle', label: 'circled' }, WORDS]),
+    makeBeat('on-a-curve', [{ kind: 'clearBoard' }, { kind: 'plot', id: 'c', expression: 'x^2', domain: [-2, 2] }, { kind: 'annotate', id: 'on-curve', target: 'c.curve', mark: 'circle', label: 'bend' }, { kind: 'annotate', id: 'on-bad', target: 'c.peak', mark: 'circle', label: 'peak' }, { kind: 'markValue', id: 'too-far', target: 'c', at: 9 }, WORDS]),
+    makeBeat('on-a-point', [{ kind: 'clearBoard' }, { kind: 'geometry', id: 'g', xRange: [0, 6], yRange: [0, 6] }, { kind: 'construct', id: 'pa', target: 'g', step: { shape: 'point', name: 'A', x: 2, y: 2 } }, { kind: 'annotate', id: 'on-a', target: 'g.A', mark: 'circle', label: 'A is here' }, { kind: 'annotate', id: 'on-z', target: 'g.Z', mark: 'circle', label: 'Z is nowhere' }, WORDS, { kind: 'hide', target: 'pa' }, WORDS]),
+    makeBeat('on-a-flight', [{ kind: 'clearBoard' }, { kind: 'simulate', id: 's', simulation: { model: 'projectile', parameters: { horizontalSpeed: 4, upwardSpeed: 4, releaseHeight: 1, gravity: 9.8 } } }, { kind: 'annotate', id: 'on-path', target: 's.path', mark: 'circle', label: 'the path' }, { kind: 'annotate', id: 'on-ball', target: 's.ball', mark: 'check', label: 'the ball' }, WORDS]),
+  ],
+];
+
+const FIGURE_LABELS_LESSON: readonly (readonly Beat[])[] = [
+  [
+    makeBeat('wide-letters', [
+      { kind: 'plot', id: 'p', expression: 'x^2', domain: [-3, 3], label: '\u0645\u0646\u062D\u0646\u0649 \u0627\u0644\u0642\u0637\u0639 \u0627\u0644\u0645\u0643\u0627\u0641\u0626', xLabel: '\u0633', yLabel: '\u0635' },
+      { kind: 'markValue', id: 'm1', target: 'p', at: 1, label: '\u0627\u0644\u0646\u0642\u0637\u0629' },
+      { kind: 'markValue', id: 'm2', target: 'p', at: 2, label: '\u05E0\u05E7\u05D5\u05D3\u05D4' },
+      { kind: 'markValue', id: 'm3', target: 'p', at: -1, label: '\u653E\u7269\u7DDA\u306E\u9802\u70B9\u306F\u3053\u3053\u3067\u3059' },
+      { kind: 'markValue', id: 'm4', target: 'p', at: -2, label: '\u{1F600}'.repeat(10) },
+      { kind: 'markValue', id: 'm5', target: 'p', at: 0, label: '\uFDFD\uFDFD\uFDFD' },
+      { kind: 'markValue', id: 'm6', target: 'p', at: 2.5, label: `${'Supercalifragilisticexpialidocious_'.repeat(2)}Supercali` },
+      { kind: 'markValue', id: 'm7', target: 'p', at: -2.5, label: '\u102A\u102A\u102A\u102A' },
+      { kind: 'markValue', id: 'm8', target: 'p', at: 1.5, label: '\u{1242B}\u{1242B}\u{1242B}' },
+      WORDS,
+    ]),
+  ],
+];
+
+const flight = (id: string, parameters: object) => ({ kind: 'simulate', id, simulation: { model: 'projectile', parameters } });
+
+const FIGURE_EXTREMES_LESSON: readonly (readonly Beat[])[] = [
+  [makeBeat('narrowest', [{ kind: 'plot', id: 'small', expression: 'a*x', constants: [{ name: 'a', value: 0, min: 0, max: 1e-6 }], domain: [0, 1e-6], label: 'small' }, { kind: 'slider', id: 'on-small', target: 'small', constant: 'a', min: 0, max: 1e-6 }, { kind: 'numberLine', id: 'tiny-line', domain: [-1e-6, 0] }, { kind: 'markValue', id: 'on-tiny', target: 'tiny-line', at: -5e-7 }, WORDS])],
+  [makeBeat('ground', [{ kind: 'clearBoard' }, flight('flat', { horizontalSpeed: 5, upwardSpeed: 0, releaseHeight: 0, gravity: 9.8 }), { kind: 'readout', id: 'flat-far', target: 'flat', quantity: 'landing-distance' }, { kind: 'trackVector', id: 'flat-speed', target: 'flat', quantity: 'velocity', label: 'speed' }, { kind: 'runSimulation', target: 'flat', action: 'play' }, { kind: 'slider', id: 'on-flat', target: 'flat', parameter: 'upwardSpeed', min: 0, max: 1e-6 }, WORDS])],
+  [makeBeat('overflow', [{ kind: 'clearBoard' }, { kind: 'plot', id: 'huge', expression: '10^308*x', domain: [-1, 1], label: 'very big' }, { kind: 'plot', id: 'huge-over', over: 'huge', expression: '0-10^308*x', domain: [-1, 1] }, { kind: 'markValue', id: 'on-huge', target: 'huge', at: 0 }, { kind: 'shadeArea', id: 'under-huge', target: 'huge', from: -1, to: 1 }, WORDS])],
+  [makeBeat('widest', [{ kind: 'clearBoard' }, { kind: 'plot', id: 'wide', expression: 'a*x+10^16', constants: [{ name: 'a', value: 1e6, min: -1e6, max: 1e6 }], domain: [-1e6, 1e6], label: 'wide' }, { kind: 'slider', id: 'on-wide', target: 'wide', constant: 'a', min: -1e6, max: 1e6 }, { kind: 'numberLine', id: 'wide-line', domain: [-1e6, 1e6] }, { kind: 'markValue', id: 'on-wide-line', target: 'wide-line', at: 999999.999999 }, WORDS])],
+  [makeBeat('far-points', [{ kind: 'clearBoard' }, { kind: 'geometry', id: 'far', xRange: [0, 1e-6], yRange: [0, 1e-6] }, { kind: 'construct', id: 'pa', target: 'far', step: { shape: 'point', name: 'A', x: 1e6, y: -1e6 } }, { kind: 'construct', id: 'pb', target: 'far', step: { shape: 'point', name: 'B', x: 5e-7, y: 5e-7 } }, { kind: 'construct', id: 'pc', target: 'far', step: { shape: 'point', name: 'C', x: 1e-300, y: 0 } }, { kind: 'construct', id: 'ab', target: 'far', step: { shape: 'segment', from: 'A', to: 'B' } }, { kind: 'construct', id: 'round', target: 'far', step: { shape: 'circle', center: 'B', through: 'A' } }, { kind: 'construct', id: 'at-b', target: 'far', step: { shape: 'angle', at: 'B', from: 'A', to: 'C' } }, { kind: 'vector', id: 'push', on: 'far.A', angleDegrees: 360, length: 'long', label: 'force' }, { kind: 'annotate', id: 'on-a', target: 'far.A', mark: 'circle', label: 'far away' }, WORDS])],
+  [makeBeat('far-flight', [{ kind: 'clearBoard' }, flight('long', { horizontalSpeed: 100, upwardSpeed: 100, releaseHeight: 1000, gravity: 0.1 }), { kind: 'readout', id: 'long-far', target: 'long', quantity: 'landing-distance' }, { kind: 'readout', id: 'long-high', target: 'long', quantity: 'peak-height' }, { kind: 'trackVector', id: 'long-speed', target: 'long', quantity: 'velocity', label: 'speed' }, { kind: 'runSimulation', target: 'long', action: 'seek', to: 3600 }, { kind: 'slider', id: 'on-speed', target: 'long', parameter: 'launchSpeed', min: 0, max: 150 }, { kind: 'slider', id: 'on-angle', target: 'long', parameter: 'launchAngle', min: -90, max: 90 }, { kind: 'slider', id: 'on-side', target: 'long', parameter: 'horizontalSpeed', min: -100, max: 100 }, WORDS])],
+  [makeBeat('backward-flight', [{ kind: 'clearBoard' }, { kind: 'drawing', id: 'court', name: 'hoop-side' }, flight('back', { horizontalSpeed: -4.2, upwardSpeed: 5.6, releaseHeight: 2.2, gravity: 9.8 }), { kind: 'annotate', id: 'on-path', target: 'back.path', mark: 'circle', label: 'the path' }, { kind: 'ghostPath', id: 'back-ghost', target: 'back' }, { kind: 'runSimulation', target: 'back', action: 'play', rate: 4 }, { kind: 'slider', id: 'on-gravity', target: 'back', parameter: 'gravity', min: 0.1, max: 100 }, WORDS])],
+];
+
+export const GRAPH_LESSONS = { shot: SHOT_LESSON, graphs: GRAPH_LESSON, 'number-line': NUMBER_LINE_LESSON, triangle: TRIANGLE_LESSON, 'free-body': FREE_BODY_LESSON, launch: LAUNCH_LESSON, 'figure-hostile': FIGURE_HOSTILE_LESSON, 'figure-waves': FIGURE_WAVES_LESSON, 'figure-reuse': FIGURE_REUSE_LESSON, 'figure-marks': FIGURE_MARKS_LESSON, 'figure-labels': FIGURE_LABELS_LESSON, 'figure-extremes': FIGURE_EXTREMES_LESSON } as const satisfies Record<string, readonly (readonly Beat[])[]>;

@@ -507,6 +507,20 @@ describe('axes that hold still', () => {
     for (const value of [10, 30, 60, 80]) expect(tickAt(value)).toBe(atRest);
   });
 
+  it('keeps every arc on the figure with an angle and a sideways speed on sliders, whichever moved last', () => {
+    const sliders = [place({ kind: 'slider', id: 'angle', target: 'shot', parameter: 'launchAngle', min: 10, max: 80 }), place({ kind: 'slider', id: 'sideways', target: 'shot', parameter: 'horizontalSpeed', min: 0, max: 15 })];
+    const size = SIZES[0] as { width: number; height: number };
+    const sample = (atMs: number, parameter: string, value: number): BoardOperation => ({ kind: 'parameterSample', atMs, target: 'shot' as never, parameter, value });
+    for (const moves of [[sample(2000, 'launchAngle', 80), sample(2100, 'horizontalSpeed', 15)], [sample(2000, 'horizontalSpeed', 15), sample(2100, 'launchAngle', 80)], [sample(2000, 'horizontalSpeed', 15), sample(2100, 'launchAngle', 10)]]) {
+      const marks = getMarks([shot, ...sliders, ...moves], 'shot', size);
+      const path = marks.find((mark) => mark.key === 'path') as FigureMark & { kind: 'path' };
+      for (const { x, y } of path.branches.flat()) {
+        expect(x).toBeLessThanOrEqual(size.width);
+        expect(y).toBeGreaterThanOrEqual(0);
+      }
+    }
+  });
+
   it('keeps every arc a slider reaches on the figure', () => {
     const angle = place({ kind: 'slider', id: 'angle', target: 'shot', parameter: 'launchAngle', min: 10, max: 80 });
     const size = SIZES[0] as { width: number; height: number };

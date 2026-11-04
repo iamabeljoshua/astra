@@ -24,7 +24,7 @@ export interface CurveRequest {
   yRange: AxisRange;
 }
 
-/** `stuckHalvings` counts how many halvings in a row left the step ending here as tall as it was. */
+/** `stuckHalvings` counts how many halvings in a row left the step ending here as tall as it was. A continuous curve shrinks when halved and a jump or a pole does not, so this decides every gap between two real values. */
 type Sample = Point & { stuckHalvings: number };
 
 const isAbove = (point: Point, yRange: AxisRange) => point.y > yRange[1];
@@ -41,11 +41,9 @@ const isTall = (first: Point, second: Point, yRange: AxisRange) => getHeight(fir
 
 const leavesView = (first: Point, second: Point, yRange: AxisRange) => isAbove(first, yRange) || isBelow(first, yRange) || isAbove(second, yRange) || isBelow(second, yRange);
 
-// A continuous curve shrinks when halved and a jump or a pole does not, so this is the only thing that leaves a gap between two real values. If the budget ran out first, a step that is still tall and did not shrink stays a gap.
-function isBreak(first: Sample, second: Sample, yRange: AxisRange): boolean {
-  if (second.stuckHalvings >= HALVINGS_TO_PROVE_A_BREAK) return true;
-  if (!isTall(first, second, yRange)) return false;
-  return second.stuckHalvings >= (leavesView(first, second, yRange) ? 1 : HALVINGS_TO_SUSPECT_A_BREAK);
+// A step that stays stuck long enough is a real break and leaves the line. One still tall when the budget ran out stays a gap if it did not shrink, because a line through a pole is worse than a hole in a curve too fine to see.
+function isLeftUnsure(first: Sample, second: Sample, yRange: AxisRange): boolean {
+  return isTall(first, second, yRange) && second.stuckHalvings >= (leavesView(first, second, yRange) ? 1 : HALVINGS_TO_SUSPECT_A_BREAK);
 }
 
 function isOnTheLine(first: Sample, second: Sample, yRange: AxisRange): boolean {
@@ -70,9 +68,10 @@ function getStepsToHalve(samples: readonly Sample[], { yRange }: CurveRequest): 
   for (let index = 1; index < samples.length; index += 1) {
     if (needsLookInside(samples[index - 1] as Sample, samples[index] as Sample, yRange)) steps.add(index);
     if (index + 1 === samples.length || !isSmoothStep(index) || !isSmoothStep(index + 1)) continue;
-    if (getBend(samples[index - 1] as Sample, samples[index] as Sample, samples[index + 1] as Sample) <= bendLimit) continue;
-    steps.add(index);
-    steps.add(index + 1);
+    if (getBend(samples[index - 1] as Sample, samples[index] as Sample, samples[index + 1] as Sample) > bendLimit) {
+      steps.add(index);
+      steps.add(index + 1);
+    }
   }
   return steps;
 }
@@ -141,7 +140,7 @@ export function sampleCurve(request: CurveRequest): Branch[] {
   for (let index = 1; index < samples.length; index += 1) {
     const first = samples[index - 1] as Sample;
     const second = samples[index] as Sample;
-    if (!isOnTheLine(first, second, yRange) || isBreak(first, second, yRange)) {
+    if (!isOnTheLine(first, second, yRange) || isLeftUnsure(first, second, yRange)) {
       closeBranch();
       continue;
     }
