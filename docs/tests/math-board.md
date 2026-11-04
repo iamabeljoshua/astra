@@ -25,6 +25,14 @@ A rearrangement uses the player's `entrance` motion, so a stop, a freeze frame, 
 
 @@RESULTS@@
 
+## Choices worth keeping
+
+- The newest element always stays on the board, and the oldest leaves whole. The tutor is talking about what it just wrote, and a line cut in half reads as a bug.
+- Math KaTeX refuses never reaches the student. The last good equation stays, and the refusal goes to `onMathRefused`.
+- A rewrite with more than six loose glyphs fades instead of flying. A student can follow a few pieces moving, and a crowd crossing each other reads as noise, which the matrix step showed when it flew.
+- The `say` voice exists only so a person can follow the recording. Its word times are each word's share of the phrase, so no timing proof uses it.
+- A full board makes room in the first third of a new element's entrance, and the writing starts once it has, so no ink is drawn below the edge.
+
 ## Why KaTeX
 
 The plan and the approved design name KaTeX. I measured the alternatives before keeping it, on this Mac on 4 November 2026.
@@ -45,5 +53,5 @@ Math rendering stays out of Home. The lab is development only, so `katex` is in 
 - `hide` and `clearBoard` remove an element at once, so lines below a hidden one jump up. `docs/DESIGN.md` allows a quiet fade here, and M3.5 can add it.
 - A `transformMath` that lands while another is still running starts from the plain tree of the one before. A tutor who rearranges on every word gets correct equations and a small jump, and the stored line and the every-word lesson show this.
 - `annotate.label` is not drawn on math yet. M3.12 owns notes beside a line.
-- No real voice has spoken these lessons. The stored line is the only real speech here, 5 words with a cue on each. M3.7 is the first real model writing math, and it should check `canRenderTex` before a command reaches a student.
+- No real voice has spoken these lessons. The stored line is the only real speech here, 5 words with a cue on each. M3.7 is the first real model writing math, and it should check `canRenderTex` from `@astra/board/tex-check`, which plain Node can import, before a command reaches a student.
 - Safari, Firefox, and real phones are untested. M3.6 and M3.10 own those.

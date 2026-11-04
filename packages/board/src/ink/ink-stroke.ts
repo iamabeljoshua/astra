@@ -49,7 +49,6 @@ export function getStrokeProgress(strokes: readonly InkStroke[], progress: numbe
   });
 }
 
-/** A seeded generator, so the same words wobble the same way in a replay. */
 export function makeSeededRandom(seedText: string): () => number {
   let state = 2166136261;
   for (const character of seedText) state = Math.imul(state ^ (character.codePointAt(0) ?? 0), 16777619);

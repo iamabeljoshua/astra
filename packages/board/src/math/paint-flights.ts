@@ -5,11 +5,9 @@ export interface PaintBox {
   height: number;
 }
 
-/** One thing KaTeX painted: a glyph, or a shape such as a fraction bar. */
 export interface PaintInfo {
-  /** The term it belongs to, when the source could be mapped. */
   termId: string | null;
-  /** The characters, or null for a shape. */
+  /** Null for a shape such as a fraction bar. */
   glyph: string | null;
   box: PaintBox;
   fontSize: number;
@@ -18,7 +16,6 @@ export interface PaintInfo {
 export interface Flight {
   fromIndex: number;
   toIndex: number;
-  /** Crosses other terms on its way, so it lifts clear of them rather than passing through. */
   isCrossing: boolean;
 }
 
@@ -45,7 +42,6 @@ function pairKeptTerms(from: readonly PaintInfo[], to: readonly PaintInfo[], mov
   });
 }
 
-/** A student can follow a few pieces moving. A crowd crossing each other reads as noise, so a rewrite that big fades instead. */
 const MOST_LOOSE_FLIGHTS = 6;
 
 // A glyph whose term changed still travels, so the 2 in "2x = 8" becomes the 2 under the 8 in "x = 8/2".
@@ -63,7 +59,6 @@ function pairLooseGlyphs(from: readonly PaintInfo[], to: readonly PaintInfo[], k
   return flights.length > MOST_LOOSE_FLIGHTS ? [] : flights;
 }
 
-/** Decides what travels, what fades out, and what fades in when an equation rearranges. */
 export function planPaints({ from, to, movedTermIds }: { from: readonly PaintInfo[]; to: readonly PaintInfo[]; movedTermIds: ReadonlySet<string> }): PaintPlan {
   const kept = pairKeptTerms(from, to, movedTermIds);
   const flights = [...kept, ...pairLooseGlyphs(from, to, kept)];
@@ -93,15 +88,14 @@ function getFlightPosition({ from, to, isCrossing }: FlightEnds, progress: numbe
 
 const toPixels = (value: number) => (Math.abs(value) < 0.005 ? '0.00' : value.toFixed(2));
 
-/** Where a flying paint is, from 0 at its old place to 1 at its new one. It depends on nothing but `progress`, so a frozen frame stays exactly there. */
+/** Where a flying paint is, from 0 at its old place to 1 at its new one. */
 export function getFlightTransform(ends: FlightEnds, progress: number): string {
   const { x, y } = getFlightPosition(ends, progress);
   const scale = 1 + (ends.to.fontSize / ends.from.fontSize - 1) * progress;
   return `translate(${toPixels(x)}px, ${toPixels(y)}px) scale(${scale.toFixed(4)})`;
 }
 
-/** How far a flying paint still is from where it will land. */
-export function getFlightOffset(ends: FlightEnds, progress: number): { x: number; y: number } {
+export function getOffsetFromLanding(ends: FlightEnds, progress: number): { x: number; y: number } {
   const { x, y } = getFlightPosition(ends, progress);
   return { x: ends.from.box.x + x - ends.to.box.x, y: ends.from.box.y + y - ends.to.box.y };
 }

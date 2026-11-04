@@ -2,12 +2,7 @@
 /// <reference lib="dom.iterable" />
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
-
-// `trust: false` closes links and raw HTML, the two limits close macro bombs and huge sizes, and `throwOnError` keeps a red error message off the board.
-const KATEX_OPTIONS = { displayMode: false, output: 'htmlAndMathml', throwOnError: true, trust: false, strict: 'ignore', maxExpand: 500, maxSize: 4 } as const;
-
-// Inline mode is what lets a long equation wrap at its operators, and this keeps fractions at full size.
-const DISPLAY_STYLE = '\\displaystyle ';
+import { DISPLAY_STYLE, KATEX_OPTIONS } from './tex-check.ts';
 
 /** Builds real DOM nodes and text nodes, with no HTML string anywhere, so math text has no way to become markup. */
 export function renderTex(tex: string, into: HTMLElement): boolean {
@@ -16,16 +11,6 @@ export function renderTex(tex: string, into: HTMLElement): boolean {
     return true;
   } catch {
     into.replaceChildren();
-    return false;
-  }
-}
-
-/** Whether KaTeX can set this math at all. It needs no DOM, so an agent can ask before a model's words reach a student. */
-export function canRenderTex(tex: string): boolean {
-  try {
-    katex.renderToString(DISPLAY_STYLE + tex, KATEX_OPTIONS);
-    return true;
-  } catch {
     return false;
   }
 }
@@ -93,7 +78,7 @@ function wrapSpans(tex: string, spans: readonly TexSpan[]): string {
   return wrapped + tex.slice(position);
 }
 
-// KaTeX keeps no ids under `trust: false`, but a color passes through to every span it sets. So a hidden copy with a marker color around each span shows which ink each span made, and the visible tree stays plain KaTeX.
+// KaTeX keeps no ids under `trust: false`, but a color passes through to every span it sets, so marker colors in a hidden copy show which ink each span made.
 export function getPaintsOfSpans(tex: string, spans: readonly TexSpan[], visible: readonly MathPaintElement[]): (number | null)[] | null {
   const hidden = document.createElement('div');
   if (!renderTex(wrapSpans(tex, spans), hidden)) return null;
@@ -105,7 +90,6 @@ export function getPaintsOfSpans(tex: string, spans: readonly TexSpan[], visible
   });
 }
 
-/** The fonts this ink needs that have not arrived. Drawing before they do would show wrong glyphs at wrong widths. */
 export function getMissingFonts(paints: readonly MathPaintElement[]): string[] {
   const fonts = new Set(paints.flatMap(({ element, glyph }) => {
     if (glyph === null) return [];
@@ -117,7 +101,6 @@ export function getMissingFonts(paints: readonly MathPaintElement[]): string[] {
 
 const MATH_FONTS = ['16px KaTeX_Main', 'italic 16px KaTeX_Math', 'bold 16px KaTeX_Main', 'italic 16px KaTeX_Main', '16px KaTeX_Size1', '16px KaTeX_Size2', '16px KaTeX_Size3', '16px KaTeX_Size4', '16px KaTeX_AMS'];
 
-/** Fetches the fonts common math needs, so a first equation does not wait on them. */
 export function preloadMathFonts(): Promise<unknown> {
   return Promise.allSettled(MATH_FONTS.map((font) => document.fonts.load(font)));
 }

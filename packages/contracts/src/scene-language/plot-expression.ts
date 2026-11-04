@@ -26,7 +26,6 @@ const FIXED_CONSTANTS: ReadonlyMap<string, number> = new Map([
   ['e', Math.E],
 ]);
 
-/** Names a plot's own constant cannot take, because the expression already means something by them. */
 export function isReservedPlotName(name: string): boolean {
   return name === 'x' || FIXED_CONSTANTS.has(name) || Object.hasOwn(PLOT_FUNCTIONS, name);
 }

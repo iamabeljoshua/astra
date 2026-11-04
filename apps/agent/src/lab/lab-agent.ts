@@ -15,7 +15,6 @@ export type LabCommand =
   | { type: 'interrupt' }
   | { type: 'resume'; textPace?: TextPace }
   | { type: 'finish' }
-  /** Sends messages as they are, with no parsing here, as a broken or hostile agent would. */
   | { type: 'sendRaw'; messages: unknown[] }
   /** The page has joined and hears the tutor's track, so the lesson can start without losing its first sound. */
   | { type: 'hello' };

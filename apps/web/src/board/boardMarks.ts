@@ -56,7 +56,7 @@ function createFocusDot(overlay: SVGSVGElement): SVGCircleElement {
   return dot;
 }
 
-// Marks follow the term they name through a rearrangement, and fade if it goes. They live on their own layer, so they never change where anything is placed.
+// Marks follow the term they name through a rearrangement, and fade if it goes.
 export function createBoardMarks(overlay: SVGSVGElement) {
   const marks = new Map<string, PaintedMark>();
   const focusDot = createFocusDot(overlay);

@@ -5,7 +5,6 @@ export interface MathTerm extends MathPart {
   id: string;
 }
 
-/** An equation as the board holds it. */
 export interface MathLine {
   tex: string;
   terms: readonly MathTerm[];

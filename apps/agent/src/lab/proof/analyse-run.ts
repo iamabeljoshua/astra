@@ -28,7 +28,7 @@ const BURST_LEVEL = 8000;
 const BURST_WINDOW_MS = 5;
 const BURST_SPACING_MS = 150;
 
-/** Where each fake word's loud start really arrived. Every fake word is the same tone, so matching words by shape would find the wrong one, and counting bursts cannot. */
+/** Where each fake word's loud start really arrived. */
 export function findToneBursts(heard: Int16Array, rate: number): number[] {
   const windowSamples = Math.max(1, Math.round((BURST_WINDOW_MS / 1000) * rate));
   const bursts: number[] = [];

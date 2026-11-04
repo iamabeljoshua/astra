@@ -2,7 +2,7 @@
 import { findMathSpans } from '@astra/contracts';
 import { writeStyle } from '../style-writer.ts';
 import { getMovedTermIds, type MathLine } from './math-line.ts';
-import { easeInOut, getBoxUnion, getFlightOffset, getFlightTransform, type PaintBox, type PaintInfo, type PaintPlan, planPaints } from './paint-flights.ts';
+import { easeInOut, getBoxUnion, getOffsetFromLanding, getFlightTransform, type PaintBox, type PaintInfo, type PaintPlan, planPaints } from './paint-flights.ts';
 import { collectMathPaints, getMissingFonts, getPaintsOfSpans, type MathPaintElement, renderTex, type TexSpan } from './render-math.ts';
 
 export interface MathSize {
@@ -15,11 +15,9 @@ interface RenderedLine {
   host: HTMLElement;
   paints: readonly MathPaintElement[];
   infos: PaintInfo[];
-  /** Paint indexes in the order a hand would write them. */
   writingOrder: readonly number[];
   size: MathSize;
-  /** Which paints belong to each asked-for span, so the same mark is not worked out twice. */
-  spanPaints: Map<string, readonly number[]>;
+  paintsBySpanQuery: Map<string, readonly number[]>;
 }
 
 export interface MathFrame {
@@ -99,7 +97,7 @@ function setWritten({ paints }: RenderedLine, index: number, reveal: number): vo
   writeStyle(element, 'clipPath', reveal > 0 && reveal < 1 ? `inset(-30% ${((1 - reveal) * 100).toFixed(1)}% -30% -30%)` : '');
 }
 
-// One element's equation. The tree at rest is exactly what KaTeX built. Motion happens only on the pieces of ink, only while the clock says so, and each piece is reset when it lands.
+// One element's equation, which at rest is exactly the tree KaTeX built.
 export function createMathPainter(root: HTMLElement): MathPainter {
   let to: RenderedLine | null = null;
   let from: RenderedLine | null = null;
@@ -116,7 +114,7 @@ export function createMathPainter(root: HTMLElement): MathPainter {
   const render = (line: MathLine, maxWidth: number): RenderedLine | null => {
     const host = document.createElement('div');
     host.dataset.tex = line.tex;
-    // Each tree sits alone at the corner, so measuring one never depends on another still being there.
+    // Absolute, so measuring one tree never depends on another still being there.
     Object.assign(host.style, { position: 'absolute', left: '0', top: '0', width: 'max-content', maxWidth: `${Math.max(0, maxWidth)}px` });
     if (!renderTex(line.tex, host)) return null;
     root.append(host);
@@ -125,7 +123,7 @@ export function createMathPainter(root: HTMLElement): MathPainter {
     measured.infos.forEach((info, index) => {
       if (info.termId !== null) (paints[index] as MathPaintElement).element.dataset.term = info.termId;
     });
-    return { line, host, paints, ...measured, spanPaints: new Map() };
+    return { line, host, paints, ...measured, paintsBySpanQuery: new Map() };
   };
 
   const settleTree = (rendered: RenderedLine) => {
@@ -137,12 +135,11 @@ export function createMathPainter(root: HTMLElement): MathPainter {
     const previous = [to, from];
     const reuse = (wanted: MathLine) => (renderedWidth === maxWidth ? previous.find((rendered) => rendered?.line.tex === wanted.tex) : undefined) ?? render(wanted, maxWidth);
     const nextTo = reuse(line);
-    // Math that KaTeX refuses never reaches the student, and the last good equation stays on the board.
     refusedTex = nextTo ? null : line.tex;
-    const kept = nextTo ?? (to && reuse(to.line));
+    const newOrLastGood = nextTo ?? (to && reuse(to.line));
     const nextFrom = nextTo && fromLine ? reuse(fromLine) : null;
-    for (const rendered of previous) if (rendered && rendered !== kept && rendered !== nextFrom) rendered.host.remove();
-    to = kept;
+    for (const rendered of previous) if (rendered && rendered !== newOrLastGood && rendered !== nextFrom) rendered.host.remove();
+    to = newOrLastGood;
     from = nextFrom;
     if (to) settleTree(to);
     if (from) settleTree(from);
@@ -210,13 +207,13 @@ export function createMathPainter(root: HTMLElement): MathPainter {
       return indexes.length > 0 ? indexes : null;
     }
     const key = `${query.tex}|${query.occurrence ?? 0}`;
-    const known = rendered.spanPaints.get(key);
+    const known = rendered.paintsBySpanQuery.get(key);
     if (known) return known;
     const span: TexSpan | undefined = findMathSpans(rendered.line.tex, query.tex)[query.occurrence ?? 0];
     if (!span) return null;
     const owners = getPaintsOfSpans(rendered.line.tex, [span], rendered.paints);
     const indexes = owners?.flatMap((owner, index) => (owner === 0 ? [index] : [])) ?? [];
-    rendered.spanPaints.set(key, indexes);
+    rendered.paintsBySpanQuery.set(key, indexes);
     return indexes;
   };
 
@@ -232,7 +229,7 @@ export function createMathPainter(root: HTMLElement): MathPainter {
     const indexes = new Set(getSpanIndexes(to, query) ?? []);
     const flight = plan.flights.find((candidate) => indexes.has(candidate.toIndex));
     if (!flight) return none;
-    return getFlightOffset({ from: from.infos[flight.fromIndex] as PaintInfo, to: to.infos[flight.toIndex] as PaintInfo, isCrossing: flight.isCrossing }, easedNow);
+    return getOffsetFromLanding({ from: from.infos[flight.fromIndex] as PaintInfo, to: to.infos[flight.toIndex] as PaintInfo, isCrossing: flight.isCrossing }, easedNow);
   };
 
   return {

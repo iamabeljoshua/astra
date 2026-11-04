@@ -9,7 +9,6 @@ export const FIGURE_SIZE = { width: 1000, height: 650 };
 export interface ItemContext {
   element: BoardElement;
   atMs: number;
-  /** From 0 to 1, how far its entrance or latest rearrangement has run. */
   progress: number;
   maxWidth: number;
   fontSize: number;
@@ -20,18 +19,14 @@ type Size = { width: number; height: number };
 
 export interface ItemSizes {
   fit: LayoutBox['fit'];
-  /** Null while it has nothing to show, so it takes no room. */
   size: Size | null;
-  /** The size it is moving from, when it is rearranging. */
   fromSize: Size | null;
 }
 
-/** One element of the board that takes a place of its own. */
 export interface BoardItem {
   prepare(context: ItemContext): ItemSizes;
   paint(context: ItemContext): void;
-  /** How see-through the whole element is, when only its opacity carries its entrance. */
-  getOpacity?(context: ItemContext): number;
+  getEntranceOpacity?(context: ItemContext): number;
   getTermBoxes?(query: TermQuery): TermBoxes;
   getRefusedTex?(): string | null;
   remove(): void;
@@ -52,7 +47,6 @@ function createMathItem(wrapper: HTMLElement): BoardItem {
   };
 }
 
-// Strokes hold no text, so the words go in a label for a screen reader. An attribute cannot run.
 function createInkSvg({ width, height }: Size, label: string): SVGSVGElement {
   const svg = document.createElementNS(SVG_NAMESPACE, 'svg');
   svg.setAttribute('width', String(width));
@@ -70,7 +64,6 @@ interface InkBuild {
   size: Size;
 }
 
-// Ink depends on the width it may fill, so it is drawn again only when the board changes size.
 function createInkItem({ wrapper, label, draw, getProgress }: { wrapper: HTMLElement; label: string; draw(context: ItemContext): { strokeGroups: readonly Parameters<typeof createInkPainter>[1][]; size: Size }; getProgress(context: ItemContext, groupCount: number): number[] }): BoardItem {
   let built: InkBuild | null = null;
   const build = (context: ItemContext): InkBuild => {
@@ -89,7 +82,7 @@ function createInkItem({ wrapper, label, draw, getProgress }: { wrapper: HTMLEle
       const { painters } = build(context);
       getProgress(context, painters.length).forEach((progress, index) => painters[index]?.paint(context.isReducedMotion && progress > 0 ? 1 : progress));
     },
-    getOpacity: ({ isReducedMotion, progress, element }) => (isReducedMotion && !element.revealedUpTo ? progress : 1),
+    getEntranceOpacity: ({ isReducedMotion, progress, element }) => (isReducedMotion && !element.revealedUpTo ? progress : 1),
     remove: () => built?.svg.remove(),
   };
 }
@@ -128,7 +121,7 @@ function createPlainItem(wrapper: HTMLElement): BoardItem {
       return { fit: 'line', size: { width: wrapper.offsetWidth, height: wrapper.offsetHeight }, fromSize: null };
     },
     paint: () => {},
-    getOpacity: ({ progress }) => progress,
+    getEntranceOpacity: ({ progress }) => progress,
     remove: () => {},
   };
 }
@@ -137,7 +130,6 @@ function createFigureItem(): BoardItem {
   return { prepare: () => ({ fit: 'figure', size: FIGURE_SIZE, fromSize: null }), paint: () => {}, remove: () => {} };
 }
 
-/** The elements that take a place of their own, in a table so a new kind adds one line. */
 const ITEM_MAKERS: Partial<{ [Kind in BoardElement['content']['kind']]: (wrapper: HTMLElement, content: Extract<BoardElement['content'], { kind: Kind }>) => BoardItem }> = {
   writeMath: (wrapper) => createMathItem(wrapper),
   diagram: (wrapper, content) => createDiagramItem(wrapper, content),

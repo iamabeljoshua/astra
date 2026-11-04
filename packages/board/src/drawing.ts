@@ -6,5 +6,5 @@ export { drawMark, type MarkBox } from './ink/marks.ts';
 export { placeMovingElements, type LayoutArea, type LayoutBox, type MovingBox, type MovingPlacement, placeElements, type Placement } from './layout/place-elements.ts';
 export { createMathPainter, type MathFrame, type MathPainter, type MathSize, type TermBoxes, type TermQuery } from './math/math-painter.ts';
 export { easeInOut } from './math/paint-flights.ts';
-export { canRenderTex, collectMathPaints, getPaintsOfSpans, preloadMathFonts, renderTex } from './math/render-math.ts';
+export { collectMathPaints, getPaintsOfSpans, preloadMathFonts, renderTex } from './math/render-math.ts';
 export { writeStyle } from './style-writer.ts';

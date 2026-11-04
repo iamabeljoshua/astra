@@ -5,8 +5,7 @@ import { type BoardItem, createBoardItem, hasOwnPlace, type ItemContext, type It
 
 const PHONE_BOARD_WIDTH = 500;
 const SPACING = { laptop: { padding: 24, gap: 20 }, phone: { padding: 16, gap: 16 } };
-/** A full board makes room in the first part of a new element's entrance, and the writing starts once it has. */
-const ROOM_SHARE = 1 / 3;
+const ENTRANCE_SHARE_MAKING_ROOM = 1 / 3;
 
 export interface BoardFrame {
   board: BoardState;
@@ -34,7 +33,7 @@ function getMovingBox(context: ItemContext, sizes: ItemSizes & { size: NonNullab
 }
 
 function getProgressAfterRoom({ element, progress }: ItemContext): number {
-  return element.morphFrom === null ? Math.max(0, (progress - ROOM_SHARE) / (1 - ROOM_SHARE)) : progress;
+  return element.morphFrom === null ? Math.max(0, (progress - ENTRANCE_SHARE_MAKING_ROOM) / (1 - ENTRANCE_SHARE_MAKING_ROOM)) : progress;
 }
 
 function applyPlacement(wrapper: HTMLElement, placement: MovingPlacement, itemOpacity: number): void {
@@ -74,7 +73,7 @@ export function createBoardPainting({ boardElement, overlay, getWrapper, onMathR
 
   const getSharedProgress = (contexts: readonly ItemContext[], isReducedMotion: boolean) => {
     const moving = contexts.filter(({ progress }) => progress < 1).map(({ progress }) => progress);
-    return moving.length === 0 || isReducedMotion ? 1 : easeInOut(Math.min(1, Math.min(...moving) / ROOM_SHARE));
+    return moving.length === 0 || isReducedMotion ? 1 : easeInOut(Math.min(1, Math.min(...moving) / ENTRANCE_SHARE_MAKING_ROOM));
   };
 
   const prepareBoxes = (contexts: readonly ItemContext[]): MovingBox[] =>
@@ -91,7 +90,7 @@ export function createBoardPainting({ boardElement, overlay, getWrapper, onMathR
     const entry = items.get(id);
     const wrapper = getWrapper(id);
     if (!entry || !wrapper) return;
-    if (placement) applyPlacement(wrapper, placement, entry.item.getOpacity?.(context) ?? 1);
+    if (placement) applyPlacement(wrapper, placement, entry.item.getEntranceOpacity?.(context) ?? 1);
     else writeStyle(wrapper, 'visibility', 'hidden');
     entry.item.paint(isMakingRoom && !context.isReducedMotion ? { ...context, progress: getProgressAfterRoom(context) } : context);
   };

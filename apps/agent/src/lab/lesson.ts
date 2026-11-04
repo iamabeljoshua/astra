@@ -54,7 +54,6 @@ export const LESSON: readonly (readonly Beat[])[] = [
   ],
 ];
 
-/** A student's first equation, solved one rearrangement at a time. */
 const ALGEBRA_LESSON: readonly (readonly Beat[])[] = [
   [
     makeBeat('the-equation', [
@@ -95,7 +94,6 @@ const ALGEBRA_LESSON: readonly (readonly Beat[])[] = [
   ],
 ];
 
-/** Everything hard to set at once, for the phone width. */
 const DENSE_LESSON: readonly (readonly Beat[])[] = [
   [
     makeBeat('the-formula', [
@@ -126,7 +124,6 @@ const DENSE_LESSON: readonly (readonly Beat[])[] = [
   ],
 ];
 
-/** A drawing on every word, in the middle of speech with no pause to land in. */
 const EVERY_WORD_LESSON: readonly (readonly Beat[])[] = [
   [
     makeBeat('every-word', [
@@ -160,7 +157,6 @@ const EVERY_WORD_LESSON: readonly (readonly Beat[])[] = [
 
 const HOSTILE_MARKUP = '<img src=x onerror="window.pwned=1"><script>window.pwned=1</script>';
 
-/** Things a careless or hostile model could write that the parser lets through, which the board must survive. */
 const HOSTILE_LESSON: readonly (readonly Beat[])[] = [
   [
     makeBeat('markup', [
@@ -207,7 +203,6 @@ const HOSTILE_LESSON: readonly (readonly Beat[])[] = [
   ],
 ];
 
-/** Uses fonts no board preloads, so a late font can be seen to hold the math back. */
 const RARE_FONTS_LESSON: readonly (readonly Beat[])[] = [
   [
     makeBeat('rare-fonts', [
@@ -227,7 +222,6 @@ export const STOCK_PHRASE = 'Let me work that out.';
 
 export const STOCK_TURN: readonly Beat[] = [makeBeat('stock', [{ kind: 'text', id: 'working', text: 'Working it out' }, 'Let me ', { kind: 'focus', target: 'working' }, 'work that out.'])];
 
-/** The stored line in Casey's real voice, with math on each of its words. */
 export const STOCK_MATH_TURN: readonly Beat[] = [
   makeBeat('stock-math', [
     { kind: 'writeMath', id: 'stored-line', tex: '2x + 3 = 11' },

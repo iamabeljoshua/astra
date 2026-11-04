@@ -45,7 +45,7 @@ function getCross(box: MarkBox): InkDrawing['strokes'] {
   return [makeStroke([{ x, y }, { x: x + size, y: y + size }]), makeStroke([{ x: x + size, y }, { x, y: y + size }])];
 }
 
-/** Draws a teacher's mark around a box. Marks sit in the gap the layout leaves between lines, and the seed keeps a replay identical. */
+/** Draws a teacher's mark around a box, and the seed keeps a replay identical. */
 export function drawMark({ mark, box, seed }: { mark: AnnotationMark; box: MarkBox; seed: string }): InkDrawing['strokes'] {
   const random = makeSeededRandom(seed);
   switch (mark) {

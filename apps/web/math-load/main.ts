@@ -1,4 +1,3 @@
-// The real board loaded the way a session screen will load it, so bytes and time are what a student pays on top of Home.
 declare global {
   interface Window {
     mathLoad: { importMs: number; firstEquationMs: number; rendersMs: Record<string, number[]> } | null;

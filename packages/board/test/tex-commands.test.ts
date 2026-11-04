@@ -1,8 +1,6 @@
 import { ALLOWED_TEX_COMMANDS } from '@astra/contracts';
-import katex from 'katex';
 import { describe, expect, it } from 'vitest';
-
-const OPTIONS = { throwOnError: true, trust: false, strict: 'ignore', maxExpand: 500, maxSize: 4 } as const;
+import { canRenderTex } from '../src/math/tex-check.ts';
 
 const NEEDS_ITS_OWN_SHAPE: Readonly<Record<string, string>> = {
   '\\left': String.raw`\left( x \right)`,
@@ -33,6 +31,6 @@ function getSample(command: string): string {
 
 describe('the commands the scene language lets through', () => {
   it.each([...ALLOWED_TEX_COMMANDS])('%s is one KaTeX can set, so a dead name cannot reach a student as a refusal', (command) => {
-    expect(() => katex.renderToString(getSample(command), OPTIONS)).not.toThrow();
+    expect(canRenderTex(getSample(command))).toBe(true);
   });
 });

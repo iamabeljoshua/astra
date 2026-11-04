@@ -131,7 +131,7 @@ async function checkRestsAgainstPlainKatex(lab: LabPage): Promise<{ rests: numbe
     for (const shot of shots) {
       result.equations += 1;
       result.glyphsChecked += shot.glyphs.length;
-      result.worstOffset = Math.max(result.worstOffset, shot.worstGlyphOffset);
+      result.worstOffset = Math.max(result.worstOffset, shot.worstGlyphOffsetPixels);
       if (shot.hasMotionLeft) result.motionLeft += 1;
       const key = `${shot.id}|${shot.tex}`;
       if (seen.has(key)) continue;
@@ -214,7 +214,6 @@ function getLabel({ lesson, viewport, theme, isReducedMotion }: LessonRun): stri
   return `${lesson}-${viewport}-${theme}${isReducedMotion ? '-reduced' : ''}`;
 }
 
-// Plays a whole lesson on the real page and checks every frame of it, then its rests, its replay, and its stillness.
 async function proveLesson(browser: Browser, run: LessonRun) {
   const label = getLabel(run);
   const lab = await openLab({ browser, name: label, ...run });
@@ -236,7 +235,6 @@ async function proveLesson(browser: Browser, run: LessonRun) {
   return { label, frames, still, rests, replay, edges, refused, summary, colors };
 }
 
-// Cuts the tutor off in the middle of a move and proves the frame holds, then resumes and proves the lesson ends where it should.
 async function proveFreeze(browser: Browser, run: LessonRun) {
   const label = `${getLabel(run)}-freeze`;
   const lab = await openLab({ browser, name: label, ...run });
@@ -266,7 +264,6 @@ async function proveFreeze(browser: Browser, run: LessonRun) {
   return { label, frozenAt, framesIdentical: first.equals(later), ...writes, finalEquation, cutReport: log.find((event) => event.ending === 'interrupted') };
 }
 
-// A window resized at rest is the student's own action, so the board may jump, and it must still fit and stay correct.
 async function proveResize(browser: Browser, run: LessonRun) {
   const label = `${getLabel(run)}-resize`;
   const lab = await openLab({ browser, name: label, ...run });
@@ -289,7 +286,6 @@ async function proveResize(browser: Browser, run: LessonRun) {
 const STEP_FRAMES = 8;
 const STEP_SHEET_COLUMNS = 8;
 
-/** Frames of each rearrangement, tiled so a person can read one at a glance. */
 async function makeStepSheet(lab: LabPage, run: LessonRun): Promise<string> {
   const moves = await lab.page.evaluate(() => (window.sceneLab?.player.getOperations() as { kind: string; atMs: number; overMs?: number | null; command?: { kind: string } }[]).filter((operation) => operation.command?.kind === 'transformMath').map(({ atMs, overMs }) => ({ atMs, overMs: overMs ?? 800 })));
   const folder = join(lab.folder, 'steps');
@@ -326,7 +322,6 @@ async function proveSteps(browser: Browser, run: LessonRun) {
 
 const FONT_DELAY_MS = 2500;
 
-// Holds every math font back and starts at once, so a frame with a wrong glyph would have nowhere to hide.
 async function proveLateFonts(browser: Browser, run: LessonRun) {
   const label = `${getLabel(run)}-late-fonts`;
   const lab = await openLab({
@@ -368,7 +363,6 @@ const REFUSED_COMMANDS: { name: string; command: unknown }[] = [
   { name: 'text with a bidi override', command: { kind: 'text', id: 'bidi', text: 'a‮b' } },
 ];
 
-// Sends what a bad model could write through the real channel, then plays what the parser lets through.
 async function proveHostile(browser: Browser, run: LessonRun) {
   const label = `${getLabel(run)}-hostile`;
   const lab = await openLab({ browser, name: label, ...run, lesson: 'hostile' });

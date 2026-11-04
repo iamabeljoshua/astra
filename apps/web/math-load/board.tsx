@@ -27,7 +27,6 @@ export function showFirstEquation(root: HTMLElement): Promise<void> {
   });
 }
 
-// Each run sets a new tree and measures it, which is what one cue costs on the main thread.
 export async function measureRenders(): Promise<Record<string, number[]>> {
   const results: Record<string, number[]> = {};
   const holder = document.createElement('div');

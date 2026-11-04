@@ -6,7 +6,6 @@ interface StrokeGlyph {
   strokes: readonly (readonly number[])[];
 }
 
-/** A Map, so a character can never reach Object.prototype. */
 const GLYPHS: ReadonlyMap<string, StrokeGlyph> = new Map(STROKE_FONT_GLYPHS.map(([character, advance, strokes]) => [character, { advance, strokes }]));
 
 const LINE_HEIGHT_EMS = 1.25;
@@ -32,7 +31,6 @@ const getAdvance = (character: string, fontSize: number) => ((GLYPHS.get(charact
 const getWidth = (text: string, fontSize: number) => [...text].reduce((sum, character) => sum + getAdvance(character, fontSize), 0);
 const getSpaceWidth = (fontSize: number) => (STROKE_FONT_METRICS.spaceAdvance / STROKE_FONT_METRICS.unitsPerEm) * fontSize;
 
-// A word wider than the board breaks by character, so a long string can never leave it.
 function splitLongWord(word: string, { fontSize, maxWidth }: Pick<HandwritingRequest, 'fontSize' | 'maxWidth'>): string[] {
   const pieces: string[] = [];
   let piece = '';

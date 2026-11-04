@@ -25,7 +25,6 @@ interface HeldFrame {
 declare global {
   interface Window {
     sceneLab?: LabSession;
-    /** Pins the board to one moment, so a proof can compare a live frame with its replay pixel by pixel. */
     holdBoardFrame?(frame: HeldFrame | null): void;
   }
 }

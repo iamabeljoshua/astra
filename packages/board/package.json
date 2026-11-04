@@ -12,6 +12,10 @@
     "./drawing": {
       "types": "./src/drawing.ts",
       "default": "./src/drawing.ts"
+    },
+    "./tex-check": {
+      "types": "./src/math/tex-check.ts",
+      "default": "./src/math/tex-check.ts"
     }
   },
   "scripts": {

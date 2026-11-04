@@ -22,7 +22,7 @@ function speak(text: string, folder: string): Int16Array {
   return readWavSamples(path);
 }
 
-// A free local voice for a recording a person can follow. Word times are each word's share of the phrase, so they are close and not exact, and no timing proof uses this voice.
+// Word times are each word's share of the phrase, so they are close and not exact.
 function renderPhrase(text: string, folder: string): SpokenAudio {
   const words = getSpokenWords(text);
   const pcm = speak(text, folder);

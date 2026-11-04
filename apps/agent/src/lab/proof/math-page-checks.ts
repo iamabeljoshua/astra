@@ -1,8 +1,6 @@
 /// <reference lib="dom" />
 /// <reference lib="dom.iterable" />
 
-// These run inside the page, so they read what the student's browser really has on screen.
-
 export interface FrameWatch {
   frames: number;
   rawSourceFrames: number;
@@ -29,6 +27,9 @@ interface LabWindow {
 
 const FORBIDDEN = 'script, img, iframe, object, embed, a, link, style, form, input';
 const PAINT_SHRINK = 0.2;
+const BOARD_EDGE_ROOM = 0.5;
+/** A frame painted just before this read can lag by one, so only this many in a row count. */
+const WRONG_FRAMES_IN_A_ROW = 2;
 
 function getBoard(): HTMLElement {
   return document.querySelector('[data-testid="board"]') as HTMLElement;
@@ -43,6 +44,10 @@ interface Box {
 
 function doOverlap(first: Box, second: Box): boolean {
   return first.left < second.right && second.left < first.right && first.top < second.bottom && second.top < first.bottom;
+}
+
+function isOutside(box: Box, boardBox: Box): boolean {
+  return box.left < boardBox.left - BOARD_EDGE_ROOM || box.top < boardBox.top - BOARD_EDGE_ROOM || box.right > boardBox.right + BOARD_EDGE_ROOM || box.bottom > boardBox.bottom + BOARD_EDGE_ROOM;
 }
 
 function isShown(element: Element): boolean {
@@ -69,7 +74,7 @@ function checkPlacement(board: HTMLElement, watch: FrameWatch, arriving: Readonl
   const placed = getPlacedBoxes(board);
   const boardBox = board.getBoundingClientRect();
   let hasOverlap = false;
-  let isOutside = false;
+  let isAnyOutside = false;
   let isOverNeighbour = false;
   placed.forEach(({ box, id }, index) => {
     for (const other of placed.slice(index + 1)) {
@@ -78,10 +83,9 @@ function checkPlacement(board: HTMLElement, watch: FrameWatch, arriving: Readonl
         watch.examples.push(`overlap ${id} ${other.id}`);
       }
     }
-    // An element still arriving can rise from below as the board makes room. Its ink, checked next, is what the student sees.
-    const isBoxOut = box.left < boardBox.left - 0.5 || box.top < boardBox.top - 0.5 || box.right > boardBox.right + 0.5 || box.bottom > boardBox.bottom + 0.5;
-    if (isBoxOut && !arriving.has(id)) {
-      isOutside = true;
+    // An element still arriving can rise from below as the board makes room, and its ink is checked next.
+    if (isOutside(box, boardBox) && !arriving.has(id)) {
+      isAnyOutside = true;
       watch.examples.push(`outside ${id}`);
     }
   });
@@ -90,8 +94,8 @@ function checkPlacement(board: HTMLElement, watch: FrameWatch, arriving: Readonl
       if (!isShown(paint)) continue;
       const rect = paint.getBoundingClientRect();
       if (rect.width === 0 || rect.height === 0) continue;
-      if (rect.left < boardBox.left - 0.5 || rect.right > boardBox.right + 0.5 || rect.top < boardBox.top - 0.5 || rect.bottom > boardBox.bottom + 0.5) {
-        isOutside = true;
+      if (isOutside(rect, boardBox)) {
+        isAnyOutside = true;
         watch.examples.push(`ink outside ${id} ${paint.getAttribute('class')} ${paint.textContent} ${Math.round(rect.left)} ${Math.round(rect.right)} ${Math.round(rect.top)} ${Math.round(rect.bottom)} board ${Math.round(boardBox.left)} ${Math.round(boardBox.right)} ${Math.round(boardBox.top)} ${Math.round(boardBox.bottom)}`);
       }
       const inner = { left: rect.left, right: rect.right, top: rect.top + rect.height * PAINT_SHRINK, bottom: rect.bottom - rect.height * PAINT_SHRINK };
@@ -104,7 +108,7 @@ function checkPlacement(board: HTMLElement, watch: FrameWatch, arriving: Readonl
     }
   }
   if (hasOverlap) watch.overlapFrames += 1;
-  if (isOutside) watch.outsideBoardFrames += 1;
+  if (isAnyOutside) watch.outsideBoardFrames += 1;
   if (isOverNeighbour) watch.inkOverNeighbourFrames += 1;
 }
 
@@ -122,7 +126,7 @@ function checkContent(board: HTMLElement, watch: FrameWatch): void {
   if (isDrawnEarly) watch.fontsNotReadyFrames += 1;
 }
 
-function checkEquations(board: HTMLElement, watch: FrameWatch, refused: ReadonlySet<string>, lab: NonNullable<LabWindow['sceneLab']>, wrong: { count: number }): void {
+function isShowingWrongEquation(board: HTMLElement, watch: FrameWatch, refused: ReadonlySet<string>, lab: NonNullable<LabWindow['sceneLab']>): boolean {
   let isWrong = false;
   for (const element of lab.describeLive(lab.player.getNowMs()).elements) {
     if (element.kind !== 'writeMath' || element.tex === undefined || refused.has(element.tex)) continue;
@@ -132,9 +136,7 @@ function checkEquations(board: HTMLElement, watch: FrameWatch, refused: Readonly
       watch.examples.push(`board shows ${hosts.join(' and ')} for ${element.tex}`);
     }
   }
-  // A frame painted just before this read can be one frame behind, so only two in a row count.
-  wrong.count = isWrong ? wrong.count + 1 : 0;
-  if (wrong.count >= 2) watch.wrongEquationFrames += 1;
+  return isWrong;
 }
 
 function checkReducedMotion(board: HTMLElement, watch: FrameWatch): void {
@@ -149,7 +151,7 @@ export function startFrameWatch({ isReducedMotion, refusedTex }: { isReducedMoti
   const lab = page.sceneLab as NonNullable<LabWindow['sceneLab']>;
   const board = getBoard();
   const refused = new Set(refusedTex);
-  const wrong = { count: 0 };
+  let wrongInARow = 0;
   const watch: FrameWatch = { frames: 0, rawSourceFrames: 0, errorMarkFrames: 0, forbiddenElementFrames: 0, overlapFrames: 0, outsideBoardFrames: 0, inkOverNeighbourFrames: 0, wrongEquationFrames: 0, movingWithReducedMotion: 0, fontsNotReadyFrames: 0, mutationsWithNoCause: 0, mutationsWithCause: 0, mostTreesAtOnce: 0, worstFrameGapMs: 0, examples: [] };
   page.__frameWatch = watch;
   let lastFrameMs = performance.now();
@@ -177,7 +179,8 @@ export function startFrameWatch({ isReducedMotion, refusedTex }: { isReducedMoti
     watch.frames += 1;
     checkContent(board, watch);
     checkPlacement(board, watch, new Set(lab.describeLive(lab.player.getNowMs()).elements.filter((element) => element.drawn < 1).map((element) => element.id)));
-    checkEquations(board, watch, refused, lab, wrong);
+    wrongInARow = isShowingWrongEquation(board, watch, refused, lab) ? wrongInARow + 1 : 0;
+    if (wrongInARow >= WRONG_FRAMES_IN_A_ROW) watch.wrongEquationFrames += 1;
     if (isReducedMotion) checkReducedMotion(board, watch);
     watch.examples = watch.examples.slice(0, 40);
     requestAnimationFrame(check);
@@ -195,7 +198,6 @@ export function stopFrameWatch(): FrameWatch {
   return page.__frameWatch as FrameWatch;
 }
 
-/** Counts every write to the board and every running animation over a quiet stretch. */
 export async function countWritesOver(durationMs: number): Promise<{ writes: number; animations: number }> {
   const board = getBoard();
   let writes = 0;
@@ -214,8 +216,7 @@ export interface HostShot {
   scale: number;
   clip: { x: number; y: number; width: number; height: number };
   glyphs: string[];
-  /** How far each glyph sits from the same glyph in a fresh render of the same math, in pixels. */
-  worstGlyphOffset: number;
+  worstGlyphOffsetPixels: number;
   hasMotionLeft: boolean;
 }
 
@@ -253,13 +254,12 @@ export async function compareEquationsWithPlainKatex(drawingPath: string, atMs: 
       scale: rect.width / (host.offsetWidth || 1),
       clip: { x: Math.max(boardRect.left, Math.floor(rect.left) - CLIP_ROOM), y: Math.max(boardRect.top, Math.floor(rect.top) - CLIP_ROOM), width: Math.ceil(rect.width) + 2 * CLIP_ROOM, height: Math.ceil(rect.height) + 2 * CLIP_ROOM },
       glyphs: paints.flatMap((paint) => (paint.glyph ? [paint.glyph] : [])),
-      worstGlyphOffset: worst,
+      worstGlyphOffsetPixels: worst,
       hasMotionLeft: paints.some(({ element }) => element.style.transform !== '' || element.style.clipPath !== '' || element.style.visibility !== '' || element.style.opacity !== ''),
     };
   });
 }
 
-/** Swaps one equation for a fresh KaTeX render in the same spot, or back, so two screenshots of one clip can be compared byte for byte. */
 export async function swapInPlainKatex(drawingPath: string, id: string, isSwapped: boolean): Promise<void> {
   const { renderTex } = (await import(/* @vite-ignore */ drawingPath)) as { renderTex(tex: string, into: HTMLElement): boolean };
   const wrapper = getBoard().querySelector(`[data-element="${id}"]`) as HTMLElement;
@@ -290,7 +290,7 @@ async function loadPixels(base64: string): Promise<ImageData> {
   return context.getImageData(0, 0, image.width, image.height);
 }
 
-/** How many pixels differ by more than `threshold` of 255 on any channel, so a tiny fade does not count as a jump. */
+/** How many pixels differ by more than `threshold` of 255 on any channel. */
 export async function countDifferentPixels([first, second, threshold]: [string, string, number]): Promise<number> {
   const [one, two] = await Promise.all([loadPixels(first), loadPixels(second)]);
   if (one.width !== two.width || one.height !== two.height) return Number.POSITIVE_INFINITY;

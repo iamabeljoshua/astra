@@ -173,7 +173,7 @@ function getTurnWords({ turn, turnIndex, records, vendorWordStarts, folder, arri
   return { rows, firstLoudMs };
 }
 
-// On the fake voice the n-th loud burst of a turn is its n-th word, which is the one way to place a word in a tone.
+// On the fake voice the n-th loud burst of a turn is its n-th word.
 function getDriftOnFakeBursts({ records, arriving, tapRate, firstFrame, earMs }: { records: PageRecords; arriving: Int16Array; tapRate: number; firstFrame: number; earMs: number }): number[] {
   const startMs = (firstFrame / GRAPH_RATE) * 1000;
   const bursts = findToneBursts(arriving, tapRate).map((atMs) => startMs + atMs);

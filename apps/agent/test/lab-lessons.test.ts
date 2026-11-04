@@ -1,4 +1,4 @@
-import { canRenderTex } from '@astra/board/drawing';
+import { canRenderTex } from '@astra/board/tex-check';
 import { type Beat, getCues } from '@astra/contracts';
 import { describe, expect, it } from 'vitest';
 import { LESSONS, type LessonName, STOCK_MATH_TURN } from '../src/lab/lesson.ts';

@@ -46,7 +46,6 @@ function getSmallestHeight(box: LayoutBox, area: LayoutArea): number {
   return Math.min(getFullFigureHeight(box, area), getInnerHeight(area) * SMALLEST_FIGURE_SHARE);
 }
 
-// Walks back from the newest, which always stays, because the tutor is talking about what it just wrote.
 function getFirstVisibleIndex(boxes: readonly LayoutBox[], area: LayoutArea): number {
   const newest = boxes.length - 1;
   let used = newest < 0 ? 0 : getSmallestHeight(boxes[newest] as LayoutBox, area);
@@ -109,7 +108,7 @@ function interpolatePlacement({ before, after, progress, shift }: { before: Plac
   return { id: after.id, x: after.x, y: interpolate(before.y, after.y, progress), width: interpolate(before.width, after.width, progress), height: interpolate(before.height, after.height, progress), scale: interpolate(before.scale, after.scale, progress), isVisible: true, opacity: 1 };
 }
 
-/** Pure in the sizes and the progress, so a frozen or replayed board lands in the same place with no state of its own. Everything shifts together, so nothing overlaps at any point. */
+/** Pure in the sizes and the progress, so a frozen or replayed board lands in the same place. */
 export function placeMovingElements(boxes: readonly MovingBox[], area: LayoutArea, progress: number): { placements: MovingPlacement[]; isMakingRoom: boolean } {
   const after = placeElements(boxes.map((box) => box.to), area);
   const before = new Map(placeElements(boxes.flatMap((box) => (box.from ? [box.from] : [])), area).map((placement) => [placement.id, placement]));

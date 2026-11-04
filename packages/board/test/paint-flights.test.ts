@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { easeInOut, getBoxUnion, getFlightOffset, getFlightTransform, type PaintInfo, planPaints } from '../src/math/paint-flights.ts';
+import { easeInOut, getBoxUnion, getOffsetFromLanding, getFlightTransform, type PaintInfo, planPaints } from '../src/math/paint-flights.ts';
 
 const FONT = 24;
 
@@ -74,7 +74,7 @@ describe('a flight', () => {
   it('starts exactly at its old place and ends exactly at its new one, so the first and last frames are the plain equation', () => {
     expect(getFlightTransform(ends, 0)).toBe('translate(0.00px, 0.00px) scale(1.0000)');
     expect(getFlightTransform(ends, 1)).toBe('translate(100.00px, 0.00px) scale(1.0000)');
-    expect(getFlightOffset(ends, 1)).toEqual({ x: 0, y: expect.closeTo(0) });
+    expect(getOffsetFromLanding(ends, 1)).toEqual({ x: 0, y: expect.closeTo(0) });
   });
 
   it('lifts clear halfway when it crosses other terms, and stays level when it does not', () => {
@@ -84,7 +84,7 @@ describe('a flight', () => {
 
   it('passes under when it lands lower, so it does not cross the equation twice', () => {
     const falling = { ...ends, to: paint('t', '3', 140, 30) };
-    expect(getFlightOffset(falling, 0.5).y).toBeGreaterThan(-15);
+    expect(getOffsetFromLanding(falling, 0.5).y).toBeGreaterThan(-15);
   });
 
   it('changes size as it goes when it lands in an exponent', () => {

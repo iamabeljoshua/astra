@@ -70,7 +70,6 @@ export function getTexProblem(tex: string): string | null {
 
 export type MathPartRole = 'term' | 'operator' | 'relation';
 
-/** One top-level piece of an equation, with where it sits in the source. */
 export interface MathPart {
   tex: string;
   role: MathPartRole;
@@ -86,7 +85,7 @@ const TOGGLING_TOKENS: ReadonlySet<string> = new Set(['|', '\\|', '\\vert', '\\V
 const SCRIPT_TOKENS: ReadonlySet<string> = new Set(['^', '_']);
 const WHOLE_LINE_TOKENS: ReadonlySet<string> = new Set(['\\\\', '&']);
 
-/** Splits at the top level only. Grouping too much is always safe, because KaTeX still sets the whole thing correctly. */
+/** Splits at the top level only. */
 export function getMathParts(tex: string): MathPart[] {
   const tokens = getTexTokens(tex);
   const parts: MathPart[] = [];

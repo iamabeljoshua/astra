@@ -21,7 +21,6 @@ function getProblems(placements: readonly Placement[], area: typeof LAPTOP): str
   return problems;
 }
 
-// A small seeded generator, so a failure names a board that can be run again.
 function makeRandom(seed: number) {
   let state = seed;
   return () => {

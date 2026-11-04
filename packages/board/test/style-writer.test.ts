@@ -4,7 +4,6 @@ import { writeStyle } from '../src/style-writer.ts';
 function makeElement() {
   const writes: string[] = [];
   const style = new Proxy({} as Record<string, string>, {
-    // A browser reads back its own spelling, so comparing with what it holds would write on every frame.
     get: (_target, name) => `read back ${String(name)}`,
     set(_target, name, value: string) {
       writes.push(`${String(name)}=${value}`);
