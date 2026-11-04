@@ -91,7 +91,7 @@ function reviewTurn(turn: EvalTurn, summary: TurnSummary) {
     hasSpokenMathMark: SPOKEN_MATH_MARK.test(summary.spokenText),
     hasTag: INTERNAL_TAG.test(summary.spokenText),
     isOverOneSecondWithNoDrawing: words >= 3 && commands.length === 0,
-    allBeatsParse: summary.beats.every(({ pauseBeforeMs: _pause, ...beat }) => parseBeat(beat).ok),
+    allBeatsParse: summary.beats.every(({ id, script, expectsReply }) => parseBeat({ id, script, expectsReply }).ok),
   };
 }
 
