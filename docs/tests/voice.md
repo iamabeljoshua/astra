@@ -176,7 +176,54 @@ So a student who presses 5 s after the screen opens hears the tutor in 3050 ms, 
 - Joining alongside creating the room. On a press the instant the screen opens, the student is in the room at about 2500 ms and the job at about 3600 ms, so the student's join is not what the first word waits for. A join that beat the create would also leave a room with no tutor.
 - Holding the connection to LiveKit open. It would save about 500 ms of a create, which only matters for a press within about 2 s of the screen opening. Node's `fetch` drops an idle connection after 4 s, so holding one takes a new dependency or a ping.
 
-**What is left, for M3.10.** The press now spends about 880 ms on the signal connection, 820 ms joining, 760 ms subscribing to the track and saying hello, and 330 ms on the greeting's way back. All of it is the network, at this round trip. A session continued from Home gets no warm room yet, and pays the job again: warming there needs a call from the page, and with no keys that call's 503 would fail the journeys until M3.7's route answers 200. The largest lever left is joining the room when the screen opens, which should take off about 2 s by inference from these steps, and would send a student's IP address to LiveKit before they press anything, so that is Abel's call.
+**What is left, for M3.10.** The press now spends about 880 ms on the signal connection, 820 ms joining, 760 ms subscribing to the track and saying hello, and 330 ms on the greeting's way back. All of it is the network, at this round trip. Abel made the call on the largest lever left, joining when the screen opens. "Joining as the screen opens" holds the result.
+
+## Joining as the screen opens
+
+Abel: "can connect even if student hasn't pressed talk, or atleast prompt them to press talk ok? so they are not there stuck and waiting". So the page joins the room as the session screen opens, on a new session or one continued from Home, and it sends a first line that opens the turn: the question, `I'd like to learn about <title>.`, or `I'm back to carry on with this: <title>`. The tutor greets from a stored take and then answers. Nothing else needed a press.
+
+| From the screen opening to the first sound, fake voice, this Mac | p50 ms | Best to worst |
+| --- | --- | --- |
+| Now, a new session, warmed as it starts, with the stand-in tutor, 8 joins | 6722 | 4576 to 14275 |
+| The same with Sonnet in the job, 7 joins with a reading | 7239 | 4317 to 11574 |
+| Now, a session continued from Home with no room yet, Sonnet in the job, 8 joins | 7852 | 6656 to 12240 |
+| Before, from pressing **Talk** at once on a new session | 5421 | 4715 to 8531 |
+| Before, from pressing **Talk** 5 s after the screen opened | 3050 | 2676 to 3162 |
+
+So the student no longer has to press anything, and the first sound comes about 6.7 s after the screen opens. It misses PRD section 6.3's 3 s. The clock now starts at the screen opening, and the last row's clock started 5 s later, with the job already in the room. What limits it is the job: on the new-session rows the page is in the room at about 3000 ms, and the job at about 5270 ms, because creating the room took about 1100 to 1450 ms and the job then took 2000 to 4400 ms to start. These ran at a machine load of 6 to 10, with other lanes on this Mac, and the best joins were 4317 and 4576 ms. A continued session also lists every room first, about 1700 ms, because the API has lost its name.
+
+`getUserMedia` is not called until the student presses **Talk**. `run-safety-proof.ts --only noPress` proved that on real Chromium: with the tutor having said 32 words, there were 0 microphone asks, 0 tracks captured, and 0 audio senders. After the press there was 1 ask, 1 live track, and 1 live sender.
+
+| What the student sees | When |
+| --- | --- |
+| `Connecting to your tutor.` where the tutor's words go | Until the tutor's first turn in this page |
+| **Tap to hear your tutor** | The browser still blocks sound. Pressing Start on Home unlocks it, and 3 runs from a real click showed no prompt. Headless Chromium never blocks, so a script locked the audio graph until a click: the button showed, the captions ran on the timer, and one tap turned sound on and took the button away. Not run on a headed browser or Safari |
+| `Press Talk to answer, or type.` near the controls | 8 s after the tutor stopped, with the microphone off and nothing done. Writing a reply starts the wait over |
+
+The tutor no longer says "Take your time." after asking a question. It says that only after a filler such as "hmm, let me think", which the student said out loud. A student who is only listening is not counted as gone: tutor speech, a breath between stretches, and a reply longer than the limit all keep the quiet room's count from running out.
+
+| Kept working, proved live | Result |
+| --- | --- |
+| A second tab | The new tab takes over. The first says `Your connection to the tutor ended.`, with the microphone off, and asked for a room 1 time in the next 15 s, so the tabs do not fight. One student in the room |
+| Leaving the screen | The job closed 19.6 s after the student left the screen, which holds the 15 s that lets a reload come back, and no one was left in the room |
+| The daily limit | The route answered `dailyLimit` as the screen opened, no job started, the screen said so, and there was no **Try again** |
+| A warmed room no page joins | With the screen never opened, the job started at 5611 ms, heard nothing, and closed itself at 127 s. Opening the screen later called a new tutor, in 10876 ms |
+
+## With the tutor brain
+
+PR 85's rooms and PR 86's brain were merged and measured together. `docs/tests/tutor-model.md` holds what the model does.
+
+**A cut reply's words.** The turn rule says which words of `text` it carries from a cut reply, as `carried`. The brain sends only what is new when the last turn holds those words, or when a safety check dropped them, so one refusal cannot become two. If the last turn never began, nothing holds them, and they all go. So a long first message cannot crowd out what came after it.
+
+**A student jumping in.** In the first stretch, in a later stretch, and in a breath, the next request holds the question once and the jump-in once, and the note says what was heard and what was not. `live-tutor.test.ts` runs all three through the real brain and a fake model.
+
+**A drop while the page still plays.** The agent finishes a stretch while the page is still playing it. In 2 of 3 real drops on Sonnet a drop in that gap left the end of a stretch unheard, because a resume replayed only the turn it cut. A resume now also replays what the page reports it could not play, and a drop in the breath counts as a cut. Three more real drops on Sonnet then spoke every beat. A beat the page has not reported never played there, so it now replays whole, where it used to replay only its last word.
+
+**A room that closed while the page was away.** A rejoin that lands in a new room has a new job with no history, so the page says `Your tutor had to start fresh, without what was said so far.` until the student next says or types something. With a drop of 50 s and the room deleted during it, the page joined a new room, showed the line, the new tutor answered, and the line went when the student typed. If LiveKit is still closing the room, a rejoin finds the room with no tutor, gives up after 3 tries, and says the tutor stopped responding. A reload or a session continued from Home starts a new job too, and it has no line of its own. It says so if asked, as the tutor's words show.
+
+**A first pulse.** A page used to say it could not hear the agent before the agent had ever sent it a pulse. In 1 of 8 real sessions that cut the first reaction 200 ms in. A link can now only be lost once it has been heard.
+
+**The log.** It refused the row of every beat that starts a stretch, because the breath's length is not part of a beat. Those rows are now kept.
 
 ## LiveKit Cloud
 
@@ -218,7 +265,6 @@ Run on the real app on this Mac. Scripts are in `apps/agent/src/lab/proof/voice/
 - 60 real minutes, and the rotation on the real socket.
 - The worst link's limits after a stop, which "What remains after a stop" in `docs/architecture/live-session.md` measures. Cloud on this network showed no audio past the gain in these runs, and they did not aim at it. The stored takes all run at least 250 ms, so none is given up as old audio.
 - The board after a page reload. The log and resume are right and the turn resumes, and the board starts empty until M3.10 rebuilds it from the log.
-- What the tutor says when the model is real. This is a stand-in.
 - The held microphone on a real microphone in a real room. Its quiet rule met clean synthetic speech and unit tests with steady noise.
 
 ## What Abel can do

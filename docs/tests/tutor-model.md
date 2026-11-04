@@ -34,7 +34,7 @@ So the first reaction from code is under 200 ms at p95, as the rule asks. It rea
 
 These p95s leave out each session's first turn, because the first turn waits on the page and the room. With the first turn counted, first real word heard is 6695 ms at p95.
 
-The first sound of a session is slower, about 4.4 s from pressing send on Home. The agent reacts within 8 ms of hearing the question, and the wait is the page opening and the room starting the agent. M3.10 owns that, against PRD section 6.3's 3 s.
+The first sound of a session was slower, about 4.4 s from pressing send on Home, before the page joined as its screen opens. "Joining as the screen opens" in `docs/tests/voice.md` holds the numbers since. The agent reacts within 8 ms of hearing the question, and the wait is the page opening and the room starting the agent, against PRD section 6.3's 3 s.
 
 ## The model's share
 
@@ -145,6 +145,10 @@ A piece of one or two words never goes to the voice alone, because of what happe
 
 The word itself does not get longer. The time it holds doubles, because a piece flushed alone comes back with about 300 ms of silence after it. So a beat holds at least 3 words unless it is a question or ends the reply. That costs first beat p95: 1886 to 2092 ms and 1940 to 2527 ms on about 30 turns each, with p50 at 1454 to 1511 ms and 1478 to 1469 ms. The reaction from code still comes first.
 
+## Praise
+
+Abel: "it usually says good question when i didn't ask a question". Two things said it. The stored reaction had no way to know, because code reacts before it has read a spoken turn, so "Good question." now has its own use. Speech never gets it, and neither does a line that asks nothing or an answer to what the tutor just asked. A typed line that truly asks can get it, in turn with the neutral reactions. The model said it too, opening 4 and 5 of 30 turns with praise such as "Good one" and "Nice" on the 30 turn lesson. One line in the prompt took that to 0 and 1 of 30, and `turnsOpeningWithPraise` in the evaluation's summary counts it. The longest stretch stayed at a p50 of 18 and 20 words, against 19 and 17 before it.
+
 ## Stalls and refusals
 
 | What happens | What the student hears | Proof |
@@ -193,6 +197,8 @@ A browser can forge data messages as fast as it can send. PR 85's review sent 15
 ## Long messages
 
 A typed message over 2,000 characters is cut between whole characters and still answered, with a note telling the model it has only the first part. Half an emoji once made every request a 400, so text is cut by character and never by code unit.
+
+When a student cuts a reply before it has played to its end, the turn rule marks the earlier words it carries. The brain sends only what is new when its last turn holds those words, so the model never reads the same question twice, and a refused message does not go back to it with the words that cut it. A student can jump in during a stretch or a breath, and the note says what was heard and what was not. `live-tutor.test.ts` runs all three.
 
 ## What this rests on from other PRs
 
