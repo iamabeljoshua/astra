@@ -30,16 +30,17 @@ function getOwnText(element: Element): string {
 function collectFrom(element: Element, paints: MathPaintElement[]): void {
   if (element.matches(NOT_PAINT)) return;
   const text = getOwnText(element);
+  const paint = { element: element as HTMLElement, glyph: text === '' ? null : text };
   // KaTeX sets the `g` of `\gcd` as a span and `cd` as bare text after it, and a marked copy reads g, c, d, so the text keeps its place in reading order.
-  const isTextAfterChild = element.firstChild?.nodeType === Node.ELEMENT_NODE;
-  if (text !== '' && !isTextAfterChild) paints.push({ element: element as HTMLElement, glyph: text });
-  else if (text === '' && element.matches(SHAPE)) paints.push({ element: element as HTMLElement, glyph: null });
+  const isTextAfterChild = text !== '' && element.firstChild?.nodeType === Node.ELEMENT_NODE;
+  if (text !== '' && !isTextAfterChild) paints.push(paint);
+  else if (text === '' && element.matches(SHAPE)) paints.push(paint);
   else if (text === '' && element.querySelector(':scope > svg')) {
-    paints.push({ element: element as HTMLElement, glyph: null });
+    paints.push(paint);
     return;
   }
   for (const child of element.children) collectFrom(child, paints);
-  if (text !== '' && isTextAfterChild) paints.push({ element: element as HTMLElement, glyph: text });
+  if (isTextAfterChild) paints.push(paint);
 }
 
 /** Every piece of ink in KaTeX's output, in its own order, which is the same for the same source. */

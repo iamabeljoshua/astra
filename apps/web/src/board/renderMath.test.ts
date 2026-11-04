@@ -195,7 +195,7 @@ describe('which ink belongs to which term', () => {
     [raw`\liminf\nolimits_n x`, raw`\liminf`, ['inf', 'lim']],
     [raw`\begin{pmatrix} 2 & 1 \\ 1 & 3 \end{pmatrix} = A`, raw`\begin{pmatrix} 2 & 1 \\ 1 & 3 \end{pmatrix}`, ['(', ')', '1', '1', '2', '3']],
     [raw`A = \begin{cases} x & y \end{cases}`, raw`\begin{cases} x & y \end{cases}`, ['x', 'y', '{']],
-  ])('finds in %s the ink of %s, written without braces', (tex, query, glyphs) => {
+  ])('finds in %s the ink of %s', (tex, query, glyphs) => {
     const paints = collectMathPaints(render(tex));
     const [span] = findMathSpans(tex, query);
     const owners = getPaintsOfSpans(tex, [span as { start: number; end: number }], paints) ?? [];

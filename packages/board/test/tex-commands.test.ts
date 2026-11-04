@@ -71,7 +71,7 @@ describe('combining marks', () => {
     expect(wronglyJudged).toEqual([]);
   });
 
-  it.each([24, 50, 100, 120, 135, 200, 300, 400, 495])('refuses at both layers the run of %i marks the tab crash work tried', (count) => {
+  it.each([24, 50, 100, 120, 135, 200, 300, 400, 495])('refuses a run of %i marks at both layers, as the runs that crashed a tab must be', (count) => {
     const tex = `x${'\u0301'.repeat(count)}`;
     expect(getTexProblem(tex)).toMatch(/at most 2 accent marks/);
     expect(canRenderTex(tex)).toBe(false);
