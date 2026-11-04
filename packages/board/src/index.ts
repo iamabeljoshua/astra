@@ -5,6 +5,7 @@ export { type BoardElement, type BoardStage, type BoardState, describeBoard, get
 export { getMotionValue } from './player/motion.ts';
 export type { StudentLineContent, TaskProgress } from './shared/student-work.ts';
 export { createPlayoutTracker, type PlayoutTracker } from './player/playout-tracker.ts';
+export { canPaintAt, createTierWatch, landsDrawingsAtOnce, type QualityTier, type TierWatch } from './player/quality-tiers.ts';
 export type { ProjectileFrame } from './motion/projectile-scene.ts';
 export type { SliderMove } from './player/slider-log.ts';
 export { rebuildBoard } from './player/rebuild-board.ts';

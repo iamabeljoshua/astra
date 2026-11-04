@@ -1,0 +1,14 @@
+import { diagram, drawing, markAt, note, plot, reveal, say, table, timeline } from '../commands.ts';
+import type { DeckScene } from '../deck-scene.ts';
+
+export const MUSIC_SCENES: readonly DeckScene[] = [
+  { name: 'music-staff-labelled', subject: 'music', commands: [say('title', 'Reading a line of music'), drawing('line', 'music-staff', [['clef', 'Treble clef'], ['staff', 'Five lines make a staff'], ['note', 'A note'], ['stem', 'Stem'], ['bar-line', 'Bar line']])] },
+  { name: 'music-piano-labelled', subject: 'music', commands: [drawing('keys', 'piano-keys', [['c', 'Middle C'], ['e', 'E'], ['g', 'G'], ['black-key', 'C sharp']]), say('chord', 'C, E, and G make a C major chord.'), note('root', 'keys.c', 'circle')] },
+  { name: 'music-scale-table', subject: 'music', commands: [table('scale', ['Degree', 'C major', 'A minor', 'Solfège'], [['1', 'C', 'A', 'Do'], ['2', 'D', 'B', 'Ré'], ['3', 'E', 'C', 'Mi'], ['4', 'F', 'D', 'Fa'], ['5', 'G', 'E', 'Sol'], ['6', 'A', 'F', 'La'], ['7', 'B', 'G', 'Si']])] },
+  { name: 'music-composers-timeline', subject: 'music', commands: [timeline('composers', [['1685', 'Bach is born in Eisenach'], ['1756', 'Mozart is born in Salzburg'], ['1824', 'Beethoven finishes his Ninth Symphony'], ['1913', 'The Rite of Spring causes a riot in Paris'], ['1959', 'Miles Davis records Kind of Blue']])] },
+  { name: 'music-fifths-diagram', subject: 'music', commands: [diagram('fifths', [['c', 'C'], ['g', 'G'], ['d', 'D'], ['a', 'A'], ['e', 'E'], ['b', 'B']], [['c', 'g', 'up a fifth'], ['g', 'd', 'up a fifth'], ['d', 'a', 'up a fifth'], ['a', 'e', 'up a fifth'], ['e', 'b', 'up a fifth']], { handwritten: true })] },
+  { name: 'music-sound-wave', subject: 'music', commands: [plot('tone', 'sin(2*pi*f*x)', [0, 0.02], { constants: [{ name: 'f', value: 220, min: 110, max: 880 }], label: 'air pressure', xLabel: 'time (s)', yLabel: 'pressure' }), { kind: 'slider', id: 'pitch', target: 'tone', constant: 'f', min: 110, max: 880 }, markAt('peak', 'tone', 0.00114, 'loudest push')] },
+  { name: 'music-intervals-words', subject: 'music', commands: [say('title', 'Intervals by ear'), table('intervals', ['Interval', 'Steps', 'A song that starts with it'], [['Minor second', '1', 'Jaws'], ['Major third', '4', 'When the Saints Go Marching In'], ['Perfect fifth', '7', 'Twinkle Twinkle, Little Star'], ['Octave', '12', 'Somewhere Over the Rainbow']])] },
+  { name: 'music-chords-in-steps', subject: 'music', commands: [table('chords', ['Chord', 'Notes'], [['C major', 'C E G'], ['F major', 'F A C'], ['G major', 'G B D']], { startsEmpty: true }), reveal('chords', 1), reveal('chords', 3), say('song', 'These three carry thousands of songs.')] },
+  { name: 'music-staff-and-picture', subject: 'music', commands: [drawing('line', 'music-staff'), { kind: 'image', id: 'melancholy', asset: 'melencolia', alt: 'Melencolia I, an engraving by Albrecht Dürer, with a magic square on the wall' }] },
+];

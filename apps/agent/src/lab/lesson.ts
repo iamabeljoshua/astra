@@ -257,7 +257,41 @@ const MARKS_AND_LABELS_LESSON: readonly (readonly Beat[])[] = [
   ],
 ];
 
-export const LESSONS = { 'jump-shot': LESSON, algebra: ALGEBRA_LESSON, dense: DENSE_LESSON, 'every-word': EVERY_WORD_LESSON, hostile: HOSTILE_LESSON, 'rare-fonts': RARE_FONTS_LESSON, 'rapid-moves': RAPID_MOVES_LESSON, 'marks-and-labels': MARKS_AND_LABELS_LESSON, ...GRAPH_LESSONS } as const satisfies Record<string, readonly (readonly Beat[])[]>;
+const LIBRARY_LESSON: readonly (readonly Beat[])[] = [
+  [
+    makeBeat('library-cell', [
+      { kind: 'text', id: 'library-title', text: 'What a cell is made of' },
+      'Start with a cell, the small room every living thing is built from. ',
+      { kind: 'drawing', id: 'library-cell', name: 'animal-cell', labels: [{ part: 'nucleus', text: 'Nucleus' }, { part: 'mitochondrion', text: 'Mitochondrion' }, { part: 'membrane', text: 'Cell membrane' }] },
+      'The nucleus holds the plans, and the mitochondrion makes the energy. ',
+      { kind: 'annotate', id: 'library-ring', target: 'library-cell.mitochondrion', mark: 'circle', label: 'makes the energy' },
+    ]),
+    makeBeat('library-chain', [
+      { kind: 'clearBoard' },
+      'Energy moves along a chain, from the sun to the grass and on to whatever eats it. ',
+      { kind: 'diagram', id: 'library-chain', nodes: [{ name: 'sun', label: 'Sun' }, { name: 'grass', label: 'Grass' }, { name: 'rabbit', label: 'Rabbit' }, { name: 'fox', label: 'Fox' }], edges: [{ from: 'sun', to: 'grass', label: 'light' }, { from: 'grass', to: 'rabbit', label: 'eaten' }, { from: 'rabbit', to: 'fox', label: 'eaten' }, { from: 'sun', to: 'fox', label: 'warms' }], handwritten: false },
+      'Each step keeps only a little of what the one before it had. ',
+      { kind: 'table', id: 'library-table', columns: ['Step', 'Energy kept'], rows: [['Grass', '100'], ['Rabbit', '10'], ['Fox', '1']] },
+      'So a fox stands on a great deal of grass. ',
+    ]),
+    makeBeat('library-history', [
+      { kind: 'clearBoard' },
+      'People worked this out slowly, over two hundred years. ',
+      { kind: 'timeline', id: 'library-dates', events: [{ when: '1665', label: 'Hooke sees cells' }, { when: '1839', label: 'All life is cells' }, { when: '1942', label: 'Food chains are measured' }] },
+      'And we can picture the whole thing at once, on one small world. ',
+      { kind: 'image', id: 'library-earth', asset: 'whole-earth', alt: 'The whole Earth, seen from Apollo 17' },
+    ]),
+    makeBeat('library-code', [
+      { kind: 'clearBoard' },
+      'Here is the same idea in a few lines of code. ',
+      { kind: 'code', id: 'library-code', language: 'python', source: 'energy = 100\nfor step in ["rabbit", "fox"]:\n    energy = energy / 10\nprint(energy)' },
+      'And the curve it draws falls away fast. ',
+      { kind: 'plot', id: 'library-curve', expression: '100*0.1^x', domain: [0, 3], label: 'energy kept', xLabel: 'steps', yLabel: 'energy' },
+    ]),
+  ],
+];
+
+export const LESSONS = { 'jump-shot': LESSON, algebra: ALGEBRA_LESSON, dense: DENSE_LESSON, 'every-word': EVERY_WORD_LESSON, hostile: HOSTILE_LESSON, 'rare-fonts': RARE_FONTS_LESSON, 'rapid-moves': RAPID_MOVES_LESSON, 'marks-and-labels': MARKS_AND_LABELS_LESSON, library: LIBRARY_LESSON, ...GRAPH_LESSONS } as const satisfies Record<string, readonly (readonly Beat[])[]>;
 
 export type LessonName = keyof typeof LESSONS;
 

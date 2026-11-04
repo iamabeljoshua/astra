@@ -780,6 +780,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       log.write(message);
       if (message.type === 'acted') noteSomethingHappened();
       if (message.type === 'markNotDrawn') tutor.noteMarkNotDrawn?.(message.markId);
+      if (message.type === 'boardProblem') tutor.noteBoardProblem?.(message);
       if (message.type === 'questionHeard') {
         questionHeardAtMs = getNowMs();
         dispatch({ type: 'questionHeard' });

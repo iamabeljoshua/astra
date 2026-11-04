@@ -21,6 +21,10 @@
       "types": "./src/math/tex-check.ts",
       "default": "./src/math/tex-check.ts"
     },
+    "./test-deck": {
+      "types": "./test-deck/index.ts",
+      "default": "./test-deck/index.ts"
+    },
     "./tex-fuzz": {
       "types": "./src/math/tex-fuzz.ts",
       "default": "./src/math/tex-fuzz.ts"

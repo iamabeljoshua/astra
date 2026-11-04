@@ -15,6 +15,7 @@ import { SESSION_ROUTE } from './session/sessionPath';
 import { AppShell } from './shell/AppShell';
 import { LEGAL_PAGES } from './strings';
 
+const BoardDeckLab = import.meta.env.DEV ? lazy(() => import('./lab/BoardDeckLab')) : null;
 const loadSessionScreen = () => import('./session/SessionScreen');
 const SessionScreen = lazy(() => loadSessionScreen().then((loaded) => ({ default: loaded.SessionScreen })));
 const ScenePlayerLab = import.meta.env.DEV ? lazy(() => import('./lab/ScenePlayerLab')) : null;
@@ -43,6 +44,16 @@ function AppRoutes() {
           element={
             <Suspense>
               <ScenePlayerLab />
+            </Suspense>
+          }
+        />
+      ) : null}
+      {BoardDeckLab ? (
+        <Route
+          path="/lab/board-deck"
+          element={
+            <Suspense>
+              <BoardDeckLab />
             </Suspense>
           }
         />

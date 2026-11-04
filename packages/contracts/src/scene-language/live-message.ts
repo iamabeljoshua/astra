@@ -95,6 +95,15 @@ export interface BrowserStamp {
   startedMsAgo: number;
 }
 
+/** What the page tells a live tutor about its board. */
+export const TOLD_BOARD_PROBLEMS = ['tooSmallToRead', 'labelWithoutRoom', 'imageMissing', 'sliderWithoutConstant'] as const;
+
+export interface BoardProblemReport {
+  problem: (typeof TOLD_BOARD_PROBLEMS)[number];
+  /** An element's id, a slider's id, or the words of a label with no room. */
+  subject: string;
+}
+
 export type BrowserMessage = BrowserStamp &
   (
     | ({ type: 'played'; turnId: TurnId; beatId: BeatId } & PlayReport)
@@ -120,6 +129,8 @@ export type BrowserMessage = BrowserStamp &
     | { type: 'stopTutor' }
     /** The board could not draw this mark, so the tutor is pointing at something the student cannot see. */
     | { type: 'markNotDrawn'; markId: string }
+    /** The board drew what it could, and this did not show as the tutor asked. */
+    | ({ type: 'boardProblem' } & BoardProblemReport)
     /** Sent every half second on the lossy channel. `hearsAgent` is false once the agent's own pulse has stopped arriving. */
     | { type: 'pulse'; hearsAgent: boolean }
     /** Whether audio can play. A student who cannot hear the tutor reads the captions, and the note must not say "heard". */

@@ -21,6 +21,8 @@ export function createInkPainter(parent: SVGElement, strokes: readonly InkStroke
     const path = document.createElementNS(SVG_NAMESPACE, 'path');
     path.setAttribute('d', getStrokePath(stroke));
     path.setAttribute('pathLength', '1');
+    if (stroke.role) path.dataset.ink = stroke.role;
+    if (stroke.word) path.dataset.word = stroke.word;
     setDrawn(path, 0);
     parent.append(path);
     return path;

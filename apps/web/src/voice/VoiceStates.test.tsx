@@ -39,6 +39,7 @@ function makeVoice() {
     askForRecap: vi.fn(() => true),
     sendOpening: vi.fn(),
     reportMarkNotDrawn: vi.fn(),
+    reportBoardProblem: vi.fn(),
     toggleMic: vi.fn(async () => {}),
     sayStillHere: vi.fn(),
     turnOnSound: vi.fn(),

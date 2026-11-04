@@ -1,12 +1,16 @@
 import type { Diagram } from '@astra/contracts';
+import { layoutGraph, type GraphRoute } from '../diagram/layout-graph.ts';
 import { BASELINE_EMS, DESCENT_EMS, LINE_HEIGHT_EMS, wrapText, writeByHand } from './handwriting.ts';
-import { type InkDrawing, type InkPosition, type InkStroke, getSpread, makeSeededRandom, makeStroke } from './ink-stroke.ts';
+import { type InkDrawing, type InkPosition, type InkStroke, getSpread, holdCorners, makeSeededRandom, makeStroke } from './ink-stroke.ts';
 import type { MarkBox } from './marks.ts';
 
 const BOX = { paddingX: 12, paddingY: 7, wobble: 1.2, sides: 4, stepsPerSide: 4 };
-const ARROW = { gap: 6, headLength: 9, headAngle: 0.5, smallestSpan: 34, labelScale: 0.75 };
-const ROW_GAP_EMS = 1.6;
+const ARROW = { gap: 6, headLength: 9, headAngle: 0.5, smallestSpan: 34, labelScale: 0.75, cornerReach: 8 };
+const NODE_GAP_EMS = 1;
+const LARGEST_EDGE_LABEL_EMS = 10;
 const AVERAGE_CHARACTER_EMS = 0.6;
+/** A font's box starts above its baseline's ascent, so a label at the top needs a little room. */
+export const FONT_BOX_ROOM_EMS = 0.2;
 
 /** A label the strokes cannot write, set as plain text. Each baseline is measured from the top of the label. */
 export interface DiagramTextLabel {
@@ -17,6 +21,7 @@ export interface DiagramTextLabel {
   width: number;
   height: number;
   fontSize: number;
+  role?: 'node' | 'edge' | 'part';
 }
 
 /** One node and the edges that arrive with it, so `reveal` can draw a diagram one node at a time. */
@@ -38,7 +43,7 @@ export interface DiagramRequest {
 type DrawableDiagram = Pick<Diagram, 'nodes' | 'edges' | 'handwritten'>;
 
 /** A label either way it can be drawn, at the top left of its own room. */
-interface LabelDrawing {
+export interface LabelDrawing {
   strokes: readonly InkStroke[];
   text: DiagramTextLabel | null;
   width: number;
@@ -60,7 +65,7 @@ interface PlacedNode {
 
 const measureByAverage: MeasureText = (text, fontSize) => [...text].length * fontSize * AVERAGE_CHARACTER_EMS;
 
-function setPlainLabel(text: string, { fontSize, maxWidth, measureText = measureByAverage }: Pick<DiagramRequest, 'fontSize' | 'maxWidth' | 'measureText'>): LabelDrawing {
+export function setPlainLabel(text: string, { fontSize, maxWidth, measureText = measureByAverage }: Pick<DiagramRequest, 'fontSize' | 'maxWidth' | 'measureText'>): LabelDrawing {
   const measure = (part: string) => measureText(part, fontSize);
   const lines = wrapText({ text, maxWidth, measure });
   const width = Math.max(0, ...lines.map(measure));
@@ -73,10 +78,12 @@ function drawLabel(text: string, isHandwritten: boolean, request: DiagramRequest
   return written ? { strokes: written.strokes, text: null, width: written.width, height: written.height } : setPlainLabel(text, request);
 }
 
+const nameLabel = (label: LabelDrawing, word: string, role: DiagramTextLabel['role']): LabelDrawing => ({ ...label, strokes: label.strokes.map((stroke) => ({ ...stroke, word })), text: label.text && { ...label.text, role } });
+
 const moveTextLabel = (label: DiagramTextLabel, by: InkPosition): DiagramTextLabel => ({ ...label, x: label.x + by.x, y: label.y + by.y });
 
 function moveStroke(stroke: InkStroke, by: InkPosition): InkStroke {
-  return makeStroke(stroke.points.map((point) => ({ x: point.x + by.x, y: point.y + by.y })));
+  return { ...stroke, ...makeStroke(stroke.points.map((point) => ({ x: point.x + by.x, y: point.y + by.y }))) };
 }
 
 function getRoughBox(box: MarkBox, random: () => number): InkStroke {
@@ -91,72 +98,37 @@ function getRoughBox(box: MarkBox, random: () => number): InkStroke {
     }
   }
   points.push({ x: box.x + getSpread(random, BOX.wobble), y: box.y + getSpread(random, BOX.wobble) });
-  return makeStroke(points);
+  return { ...makeStroke(points), role: 'box' };
 }
 
-function getEdgeEnds(from: MarkBox, to: MarkBox): [InkPosition, InkPosition] {
-  const isSameRow = from.y === to.y;
-  if (isSameRow) {
-    const goesRight = to.x >= from.x;
-    return [
-      { x: goesRight ? from.x + from.width + ARROW.gap : from.x - ARROW.gap, y: from.y + from.height / 2 },
-      { x: goesRight ? to.x - ARROW.gap : to.x + to.width + ARROW.gap, y: to.y + to.height / 2 },
-    ];
-  }
-  const goesDown = to.y > from.y;
-  return [
-    { x: from.x + from.width / 2, y: goesDown ? from.y + from.height + ARROW.gap : from.y - ARROW.gap },
-    { x: to.x + to.width / 2, y: goesDown ? to.y - ARROW.gap : to.y + to.height + ARROW.gap },
-  ];
-}
-
-function getArrow(start: InkPosition, end: InkPosition): InkStroke[] {
-  const angle = Math.atan2(end.y - start.y, end.x - start.x);
+function getArrow(points: readonly InkPosition[]): InkStroke[] {
+  const end = points.at(-1) as InkPosition;
+  const before = points.at(-2) as InkPosition;
+  const angle = Math.atan2(end.y - before.y, end.x - before.x);
   const headPoint = (side: number): InkPosition => ({ x: end.x - Math.cos(angle + side * ARROW.headAngle) * ARROW.headLength, y: end.y - Math.sin(angle + side * ARROW.headAngle) * ARROW.headLength });
-  return [makeStroke([start, end]), makeStroke([headPoint(1), end, headPoint(-1)])];
+  return [{ ...makeStroke(holdCorners(points, ARROW.cornerReach)), role: 'line' }, { ...makeStroke([headPoint(1), end, headPoint(-1)]), role: 'line' }];
 }
 
-function getColumnGap(diagram: DrawableDiagram, request: DiagramRequest): number {
-  const { fontSize, maxWidth } = request;
-  const widest = diagram.edges.reduce((width, edge) => Math.max(width, edge.label ? drawLabel(edge.label, diagram.handwritten !== false, { ...request, fontSize: fontSize * ARROW.labelScale }).width : 0), 0);
-  return Math.max(ARROW.smallestSpan, Math.min(widest + 2 * ARROW.gap, maxWidth / 3));
+function drawEdgeLabel(edge: Diagram['edges'][number], isHandwritten: boolean, request: DiagramRequest): LabelDrawing | null {
+  if (!edge.label) return null;
+  const smaller = request.fontSize * ARROW.labelScale;
+  return nameLabel(drawLabel(edge.label, isHandwritten, { ...request, fontSize: smaller, maxWidth: Math.max(smaller * 4, Math.min(request.maxWidth / 2, smaller * LARGEST_EDGE_LABEL_EMS)), seed: `${request.seed}.${edge.from}.${edge.to}` }), `edge-${edge.from}-${edge.to}`, 'edge');
 }
 
-function placeNodes(diagram: DrawableDiagram, request: DiagramRequest): PlacedNode[] {
-  const { fontSize, maxWidth, seed } = request;
-  const columnGap = getColumnGap(diagram, request);
-  const rowGap = fontSize * ROW_GAP_EMS;
-  let x = 0;
-  let y = 0;
-  let rowHeight = 0;
+function drawNodes(diagram: DrawableDiagram, request: DiagramRequest): (PlacedNode & { size: { width: number; height: number } })[] {
   return diagram.nodes.map((node) => {
-    const label = drawLabel(node.label, diagram.handwritten !== false, { ...request, maxWidth: maxWidth - 2 * BOX.paddingX, seed: `${seed}.${node.name}` });
-    const width = label.width + 2 * BOX.paddingX;
-    const height = label.height + 2 * BOX.paddingY;
-    if (x > 0 && x + width > maxWidth) {
-      x = 0;
-      y += rowHeight + rowGap;
-      rowHeight = 0;
-    }
-    const box = { x, y, width, height };
-    x += width + columnGap;
-    rowHeight = Math.max(rowHeight, height);
-    return { name: node.name, box, label };
+    const label = nameLabel(drawLabel(node.label, diagram.handwritten !== false, { ...request, maxWidth: request.maxWidth - 2 * BOX.paddingX, seed: `${request.seed}.${node.name}` }), `node-${node.name}`, 'node');
+    return { name: node.name, label, box: { x: 0, y: 0, width: 0, height: 0 }, size: { width: label.width + 2 * BOX.paddingX, height: label.height + 2 * BOX.paddingY } };
   });
 }
 
-function getEdgeDrawing(edge: Diagram['edges'][number], { from, to, isHandwritten, request }: { from: MarkBox; to: MarkBox; isHandwritten: boolean; request: DiagramRequest }): Pick<DiagramStep, 'strokes' | 'textLabels'> {
-  const [start, end] = getEdgeEnds(from, to);
-  const { fontSize } = request;
-  const label = edge.label ? drawLabel(edge.label, isHandwritten, { ...request, fontSize: fontSize * ARROW.labelScale, maxWidth: Math.max(Math.abs(end.x - start.x), fontSize * 4) }) : null;
-  // Between two rows there is no room above the arrow, only a box.
-  const labelY = from.y === to.y ? Math.min(start.y, end.y) - (label?.height ?? 0) : (start.y + end.y) / 2 - (label?.height ?? 0) / 2;
-  const labelAt = { x: (start.x + end.x) / 2 - (label?.width ?? 0) / 2, y: labelY };
-  return { strokes: [...getArrow(start, end), ...(label?.strokes.map((stroke) => moveStroke(stroke, labelAt)) ?? [])], textLabels: label?.text ? [moveTextLabel(label.text, labelAt)] : [] };
+function getEdgeDrawing(route: GraphRoute, label: LabelDrawing | null): Pick<DiagramStep, 'strokes' | 'textLabels'> {
+  const labelAt = route.labelAt ?? { x: 0, y: 0 };
+  return { strokes: [...getArrow(route.points), ...(label?.strokes.map((stroke) => moveStroke(stroke, labelAt)) ?? [])], textLabels: label?.text ? [moveTextLabel(label.text, labelAt)] : [] };
 }
 
 function getBounds(nodes: readonly PlacedNode[], steps: readonly DiagramStep[]) {
-  const labelCorners = steps.flatMap((step) => step.textLabels.flatMap(({ x, y, width, height }) => [{ x, y }, { x: x + width, y: y + height }]));
+  const labelCorners = steps.flatMap((step) => step.textLabels.flatMap(({ x, y, width, height, fontSize }) => [{ x, y: y - fontSize * FONT_BOX_ROOM_EMS }, { x: x + width, y: y + height }]));
   const points = [...steps.flatMap((step) => step.strokes.flatMap((stroke) => stroke.points)), ...labelCorners];
   const left = Math.min(0, ...points.map((point) => point.x));
   const top = Math.min(0, ...points.map((point) => point.y));
@@ -167,16 +139,18 @@ function getBounds(nodes: readonly PlacedNode[], steps: readonly DiagramStep[]) 
 
 /** Draws a diagram by hand, a node at a time. An edge arrives once both of its ends are on the board. A label the strokes cannot write, or any label when `handwritten` is false, is set as plain text. */
 export function drawDiagram(diagram: DrawableDiagram, request: DiagramRequest): DrawnDiagram {
-  const { seed } = request;
+  const { seed, fontSize, maxWidth } = request;
   const random = makeSeededRandom(seed);
-  const placed = placeNodes(diagram, request);
-  const boxes = new Map(placed.map((node) => [node.name, node.box]));
-  const orderOf = new Map(placed.map((node, index) => [node.name, index]));
   const isHandwritten = diagram.handwritten !== false;
+  const drawnNodes = drawNodes(diagram, request);
+  const edgeLabels = diagram.edges.map((edge) => drawEdgeLabel(edge, isHandwritten, request));
+  const { boxes, routes } = layoutGraph({ nodes: drawnNodes.map(({ name, size }) => ({ name, ...size })), edges: diagram.edges.map(({ from, to }, index) => ({ from, to, ...(edgeLabels[index] ? { label: { width: (edgeLabels[index] as LabelDrawing).width, height: (edgeLabels[index] as LabelDrawing).height } } : {}) })), maxWidth, nodeGap: fontSize * NODE_GAP_EMS, smallestRankGap: ARROW.smallestSpan, arrowGap: ARROW.gap });
+  const placed: PlacedNode[] = drawnNodes.map(({ name, label }) => ({ name, label, box: boxes.get(name) as MarkBox }));
+  const orderOf = new Map(placed.map((node, index) => [node.name, index]));
   const rawSteps = placed.map((node, index): DiagramStep => {
     const labelAt = { x: node.box.x + BOX.paddingX, y: node.box.y + BOX.paddingY };
-    const arriving = diagram.edges.filter((edge) => Math.max(orderOf.get(edge.from) ?? 0, orderOf.get(edge.to) ?? 0) === index);
-    const edges = arriving.map((edge) => getEdgeDrawing(edge, { from: boxes.get(edge.from) as MarkBox, to: boxes.get(edge.to) as MarkBox, isHandwritten, request: { ...request, seed: `${seed}.${edge.from}.${edge.to}` } }));
+    const arriving = diagram.edges.flatMap((edge, edgeIndex) => (Math.max(orderOf.get(edge.from) ?? 0, orderOf.get(edge.to) ?? 0) === index ? [edgeIndex] : []));
+    const edges = arriving.map((edgeIndex) => getEdgeDrawing(routes[edgeIndex] as GraphRoute, edgeLabels[edgeIndex] as LabelDrawing | null));
     return {
       strokes: [getRoughBox(node.box, random), ...node.label.strokes.map((stroke) => moveStroke(stroke, labelAt)), ...edges.flatMap((edge) => edge.strokes)],
       textLabels: [...(node.label.text ? [moveTextLabel(node.label.text, labelAt)] : []), ...edges.flatMap((edge) => edge.textLabels)],
