@@ -15,11 +15,12 @@ interface CodeFieldProps {
 
 const ARROW_STEPS: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1 };
 
-// A whole mail holds other numbers, so a run of exactly the code's length wins before loose digits are joined.
+// A whole mail holds other numbers. The first run of exactly the code's length wins, standing alone before touching a word, and only then are loose digits joined.
 function toCodeDigits(text: string, length: number) {
   const latinText = toLatinDigits(text);
-  const wholeCode = new RegExp(`\\b\\d{${length}}\\b`).exec(latinText)?.[0];
-  return wholeCode ?? latinText.replace(/\D/g, '').slice(0, length);
+  const aloneRun = new RegExp(`\\b\\d{${length}}\\b`).exec(latinText)?.[0];
+  const exactRun = new RegExp(`(?<!\\d)\\d{${length}}(?!\\d)`).exec(latinText)?.[0];
+  return aloneRun ?? exactRun ?? latinText.replace(/\D/g, '').slice(0, length);
 }
 
 function hasNoDigit(text: string) {
