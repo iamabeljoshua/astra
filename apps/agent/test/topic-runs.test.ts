@@ -188,6 +188,7 @@ describe('a plan that goes wrong', () => {
     expect(await runs.join(getSceneKey(TOPIC)).plan).toMatchObject({ setup: PLAN.setup });
     expect(plan).toHaveBeenCalledTimes(2);
     expect(JSON.stringify(plan.mock.calls[1])).toMatch(/off the topic/);
+    expect(JSON.stringify(plan.mock.calls[1])).toContain(`first or second line: ${TOPIC}`);
   });
 
   it('keeps a first line already said when it asks again', async () => {

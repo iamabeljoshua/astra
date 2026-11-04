@@ -52,7 +52,7 @@ function getTopicOnlyPlan(topic: string, plainLine: OpeningLine): LessonPlan | '
   return getLineProblems(topic, topicLine).length === 0 ? toPlainPlan([topicLine, plainLine], [], NOTES_NOT_LOADING) : 'nothing';
 }
 
-const getRefusalNote = (problems: readonly string[], names: readonly string[]) => `A check refused it because ${problems.join('; ')}.${names.length > 0 ? ` Do not use these words at all: ${names.join(', ')}.` : ''}`;
+const getRefusalNote = (topic: string, problems: readonly string[], names: readonly string[]) => `A check refused it because ${problems.join('; ')}.${names.length > 0 ? ` Do not use these words at all: ${names.join(', ')}.` : ''}${problems.includes(IS_OFF_TOPIC) ? ` Say these words in the first or second line: ${topic}.` : ''}`;
 
 // A place comes up on most lessons and in many lines, and only a real answer is kept, so a reader that failed asks again next time.
 function createNameClearance(reader: NameReader | undefined, warn: (line: string) => void) {
@@ -153,7 +153,7 @@ export function createTopicRuns({ planner, nameReader, ...maker }: SceneMaker & 
           const problems = getPlanProblems(key.topic, written, cleared);
           if (problems.length === 0) return spokenFirstLine ? { ...written, opening: [spokenFirstLine, ...written.opening.slice(1)] } : written;
           refused = { plan: written, problems };
-          note = getNote(getRefusalNote(problems, getRefusedNames(key.topic, written, cleared)));
+          note = getNote(getRefusalNote(key.topic, problems, getRefusedNames(key.topic, written, cleared)));
           warn(`::warning title=Lesson plan::a plan was refused before it was spoken: ${problems.join('; ')}`);
           const cleanLines = canTeachCleanLines(refused) ? getCleanLinesPlan(key.topic, plainLine, refused, cleared) : null;
           if (cleanLines) settleWords(keepFirstLine(cleanLines));

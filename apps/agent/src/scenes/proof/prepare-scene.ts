@@ -1,3 +1,4 @@
+import { getPlanNames } from '../content-check.ts';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
 import { readKey } from '../../lab/keys.ts';
@@ -34,7 +35,8 @@ if (store.find(key) && !args.force) {
 const startedAt = performance.now();
 const plan: LessonPlan = args.planFile ? (JSON.parse(readFileSync(args.planFile, 'utf8')) as LessonPlan) : await models.planner.plan(args.topic, AbortSignal.timeout(45_000));
 const planMs = performance.now() - startedAt;
-const made = await makeScene({ writers: [models.writer, models.fallbackWriter], reviewer: models.reviewer, worker: createContainerWorker(), store }, { topic: args.topic, plan });
+const clearedNames = await models.nameReader.clear(getPlanNames(args.topic, plan), AbortSignal.timeout(10_000));
+const made = await makeScene({ writers: [models.writer, models.fallbackWriter], reviewer: models.reviewer, worker: createContainerWorker(), store }, { topic: args.topic, plan, clearedNames });
 const saved = store.find(key);
 const summary = { sceneId, isOk: made.isOk, reasons: made.isOk ? [] : made.reasons, planMs: Math.round(planMs), totalMs: Math.round(performance.now() - startedAt), trace: saved?.trace ?? null, status: saved?.status ?? null, takeBytes: saved?.takeBytes ?? null, notes: saved?.layoutNotes ?? [], spentUsd: ledger.getSpentUsd() };
 console.log(JSON.stringify(summary));

@@ -424,7 +424,7 @@ describe('a request with no lesson behind it', () => {
     await finished;
   });
 
-  it('reads no-lesson as settled on the page only after that page says it can hear', async () => {
+  it('says it has no lesson whenever a page says it can hear, because a message sent as a page joins can be lost', async () => {
     const work = makeWork();
     Object.assign(work, { plan: Promise.resolve('nothing'), firstLine: Promise.resolve(null) });
     const { finished } = start({ work, timings: { ...FAST, lingerMs: 2000 } });
@@ -458,6 +458,27 @@ describe('a request with no lesson behind it', () => {
     expect(closedAgain).toContain('line-0');
     expect(closedAgain).toContain('line-1');
     expect(closedAgain.at(-1)).toBe('close');
+    room.leave('PA2');
+    await finished;
+  });
+
+  it('gives the lesson to a page reloaded while a late scene is still awaited, rather than an empty board until the window ends', async () => {
+    const work = makeWork();
+    Object.assign(work.desk, { untilLastChance: () => delay(5000) });
+    const { finished } = start({ work, timings: { ...FAST, lingerMs: 6000 } });
+    const room = await untilConnected();
+    room.join('PA1');
+    room.send(SCENES, { type: 'sceneDevice', canPlay: true });
+    expect(await untilClosed(room, 'close')).toBe(true);
+    await delay(2500);
+    const sentBefore = room.sent.length;
+    room.join('PA2');
+    room.leave('PA1');
+    await delay(5);
+    room.send(SCENES, { type: 'sceneDevice', canPlay: true });
+    const endAtMs = Date.now() + 2000;
+    while (!room.sent.slice(sentBefore).some(({ message }) => message.type === 'beatClosed' && message.beatId === 'line-0') && Date.now() < endAtMs) await delay(5);
+    expect(room.sent.slice(sentBefore).some(({ message }) => message.type === 'beatClosed' && message.beatId === 'line-0')).toBe(true);
     room.leave('PA2');
     await finished;
   });

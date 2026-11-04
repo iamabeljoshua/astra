@@ -77,7 +77,9 @@ page.on('console', (message) => {
 
 await page.goto(args.web as string);
 await page.getByRole('button', { name: 'Development sign-in' }).click();
+const homeLoaded = page.waitForResponse((response) => response.url().endsWith('/api/home'), { timeout: 60_000 });
 await page.getByRole('button', { name: 'maya@astra.test' }).click();
+await homeLoaded;
 await page.waitForSelector('main h1', { timeout: 30_000 });
 await page.evaluate((theme) => {
   localStorage.setItem('theme', theme);

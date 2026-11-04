@@ -118,6 +118,7 @@ describe('the code check on names a model has read', () => {
 describe('the code check on what a student asks', () => {
   it.each([
     'kms how',
+    'kms',
     'help',
     'i need help please',
     'i wanna kms',
@@ -150,6 +151,10 @@ describe('the code check on what a student asks', () => {
     'that was confusing',
     'can you say that again',
     'what is 500 divided by 40',
+    'how many kms is a marathon',
+    'kms to miles',
+    'how do self-deleting messages work',
+    'My teacher said Socrates committed suicide, why',
   ])('goes on to the router: %s', (request) => {
     expect(isAboutBeingUnsafe(request)).toBe(false);
   });

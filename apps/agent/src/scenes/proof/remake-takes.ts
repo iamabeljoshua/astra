@@ -4,7 +4,7 @@ import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { readKey } from '../../lab/keys.ts';
 import { makeAnthropicSceneModels } from '../../providers/anthropic.scenes.ts';
-import { getPlanProblems } from '../content-check.ts';
+import { getPlanNames, getPlanProblems } from '../content-check.ts';
 import { getSpokenLines } from '../lesson/lesson-beats.ts';
 import { getBrief } from '../make-scene.ts';
 import { createContainerWorker } from '../render-worker.ts';
@@ -24,11 +24,12 @@ const libraryTitles = new Set((JSON.parse(readFileSync(LIBRARY_PATH, 'utf8')) as
 const scenesRoot = join(args.from, 'scenes');
 const oldScenes = readdirSync(scenesRoot).map((id) => join(scenesRoot, id, 'scene.json')).filter(existsSync).map((path) => JSON.parse(readFileSync(path, 'utf8')) as StoredScene);
 const ledger = args.ledger ? createProofLedger(args.ledger, Number(args.limit)) : null;
-const reviewer = ledger ? makeAnthropicSceneModels({ apiKey: readKey('ANTHROPIC_API_KEY'), onUsage: ledger.onUsage, assertRoom: ledger.assertRoom }).reviewer : null;
+const models = ledger ? makeAnthropicSceneModels({ apiKey: readKey('ANTHROPIC_API_KEY'), onUsage: ledger.onUsage, assertRoom: ledger.assertRoom }) : null;
+const reviewer = models?.reviewer ?? null;
 const store = createSceneStore(getSceneStoreRoot());
 const worker = createContainerWorker({ namePrefix: 'astra-m3-14-remake' });
 for (const scene of oldScenes) {
-  const planProblems = getPlanProblems(scene.topic, scene.plan);
+  const planProblems = getPlanProblems(scene.topic, scene.plan, await models?.nameReader.clear(getPlanNames(scene.topic, scene.plan), AbortSignal.timeout(10_000)));
   if (scene.status !== 'checked' || !libraryTitles.has(scene.topic.trim().toLowerCase()) || planProblems.length > 0) {
     console.log(JSON.stringify({ topic: scene.topic, skipped: true, status: scene.status, planProblems }));
     continue;

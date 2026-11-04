@@ -385,7 +385,11 @@ export async function runLesson({ url, token, work, voice, onEvent, onClosing, o
   // The close line is not the end of the 20 s, so a scene that lands after it still reaches a student on the page, and the question comes again after it.
   const showSceneAtLastChance = async (plan: LessonPlan) => {
     const lastChance = untilOver(work.desk.untilLastChance()).then(() => 'lastChance' as const);
-    for (let woke = await Promise.race([lastChance, untilNewPage()]); woke === 'newPage' && !isOver; woke = await Promise.race([lastChance, untilNewPage()])) await speakLessonToNewPage();
+    let woke: 'lastChance' | 'newPage';
+    do {
+      woke = await Promise.race([lastChance, untilNewPage()]);
+      if (woke === 'newPage' && !isOver) await speakLessonToNewPage();
+    } while (woke === 'newPage' && !isOver);
     while (presence.getState() === 'away' && !isOver) await wakes.wait();
     if (!isOver && (await showSceneIfReady())) await speakLast(getSpokenBeats('close-again', plan.close, true));
   };
