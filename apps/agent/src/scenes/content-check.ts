@@ -19,7 +19,8 @@ const LISTED_NAME_PAIR = new RegExp(`\\b(${LISTED_FIRST_NAMES.join('|')})\\s+(${
 const COUNT_WORD = '\\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred';
 const PILL = '(pills?|tablets?|capsules?)';
 const BODY_OR_DRUG_AMOUNT = '(milligrams?|mg|kilograms?|kilos?|kg)';
-const CUTTING = '(cut|cuts|cutting|slit|slits|slice|sliced|slash\\w*|blade|razor|knife)';
+const BLADE = '(?<!(?:shoulder|fan|rotor|turbine|propeller|helicopter|wind|saw|ceiling|grass)\\s)blade';
+const CUTTING = `(cut|cuts|cutting|slit|slits|slice|sliced|slash\\w*|${BLADE}|razor|knife)`;
 const CUT_PLACE = '(wrists?|arter(y|ies)|veins?)';
 const DANGEROUS_SPECIFICS = [
   /\bbleach\b[^.]*\b(ammonia|acid|vinegar|rubbing alcohol)\b/i,
@@ -33,23 +34,27 @@ const DANGEROUS_SPECIFICS = [
   new RegExp(`\\b${PILL}\\b[^.]*\\b${BODY_OR_DRUG_AMOUNT}\\b`, 'i'),
   new RegExp(`\\b${BODY_OR_DRUG_AMOUNT}\\b[^.]*\\b${PILL}\\b`, 'i'),
   /\b(doses?)\b[^.]*\b(milligrams?|mg)\b/i,
-  /\b(milligrams?|mg)\b[^.]*\b(per|a|for each|for every)\s+(kilogram|kilo|kg)\b/i,
+  // A bare mg is mass times gravity in physics, so only an amount of it counts.
+  /\b(\d[\d,.]*\s*mg|milligrams?)\b[^.]*\b(per|a|for each|for every)\s+(kilogram|kilo|kg)\b/i,
   new RegExp(`\\b${CUT_PLACE}\\b[^.]*\\b${CUTTING}\\b`, 'i'),
   new RegExp(`\\b${CUTTING}\\b[^.]*\\b${CUT_PLACE}\\b`, 'i'),
 ];
 const LOOKS_LIKE_LETTERS: Record<string, string> = { '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', $: 's', '@': 'a' };
 // "kms" is also kilometres, so it counts only standing alone or after a word that wants it.
 const KMS = /^\W*kms\W*(how|now|tonight|today|pls|please|lol|fr|rn)?\W*$|\b(wanna|gonna|gotta|going to|want to|should|might|will|ima|i'?ll)\s+kms\b/;
-const SELF_HARM = /\b(kill(ing)? (myself|yourself|himself|herself|themselves)|unalive|sewer[\s-]?slide|self[\s-]?harm\w*|self[\s-]?delete|hurt(ing)? myself|cut(ting)? myself|off(ing)? myself|end(ing)? my (own )?life|end it all|want(ed)? to die|wanna die|don'?t want to (live|be alive|be here)|how many pills|pills? (it would take|to die))\b/;
+const SELF_HARM = /\b(kill(ing)? (myself|yourself)|unalive|sewer[\s-]?slide|self[\s-]?harm\w*|self[\s-]?delete|hurt(ing)? myself|cut(ting)? myself|off(ing)? myself|end(ing)? my (own )?life|end it all|want(ed)? to die|wanna die|don'?t want to (live|be alive|be here)|how many pills|pills? (it would take|to die))\b/;
+// "Why did Romeo kill himself" is a book report, so someone else counts here only when the student knows them, and the router reads the rest.
+const SOMEONE_THEY_KNOW = /\b(my|our|friends?|brother|sister|mum|mom|dad|father|mother|cousin|classmate|roommate|boyfriend|girlfriend|wife|husband|son|daughter|aunt|uncle|grandma|grandpa)\b[^.]*\bkill(ing|s)? (himself|herself|themselves)\b/;
 // "Suicide" alone is often history, as "Why did Socrates commit suicide" is, so only a person asking for themselves or asking how counts here, and the router reads the rest.
 const SUICIDE_FOR_SOMEONE = /\b(i|i'm|im|i've|myself|how (to|do|can|could)|ways? to|best way|easiest|painless)\b[^.]*\bsuicid\w*|\bsuicid\w*[^.]*\b(i|i'm|im|myself|how to|painless)\b/;
 // The router reads a bare "help" as chatter, and a child who types only that must not hear there is no lesson.
 const ONLY_ASKS_FOR_HELP = /^\W*(please\s+)?(i\s+need\s+|can\s+(you|someone)\s+|someone\s+)?help(\s+me)?(\s+please)?\W*$/;
 const DRUG_AMOUNT = /\b\d[\d,.]*\s*(mg|milligrams?|mcg|micrograms?)\b|\b(mg|milligrams?)\s*(\/|per)\s*(kg|kilo\w*)\b/i;
 const BODY_OR_PILL = /\b(kg|kilos?|kilograms?|pounds?|lbs?|pills?|tablets?|capsules?|doses?)\b/i;
+const UNIT_CONVERSION = /\b(mg|milligrams?)\s+(to|into|in)\s+(kg|kilo\w*)\b|\b(kg|kilo\w*)\s+(is|are|in)\s+\d[\d,.]*\s*(mg|milligrams?)\b/gi;
 const CLOSE_TO_THE_SKIN = '(how deep|depth|closest|close to the skin|under the skin|near the skin)';
 const VESSEL = '(arter(y|ies)|veins?)';
-const CUT_ANATOMY = [new RegExp(`\\b${VESSEL}\\b.*\\b${CLOSE_TO_THE_SKIN}\\b`, 'i'), new RegExp(`\\b${CLOSE_TO_THE_SKIN}\\b.*\\b${VESSEL}\\b`, 'i'), /\b(blade|knife|razor)\b.*\b(heart|arter(y|ies)|veins?|wrists?|neck|throat)\b/i];
+const CUT_ANATOMY = [new RegExp(`\\b${VESSEL}\\b.*\\b${CLOSE_TO_THE_SKIN}\\b`, 'i'), new RegExp(`\\b${CLOSE_TO_THE_SKIN}\\b.*\\b${VESSEL}\\b`, 'i'), new RegExp(`\\b(${BLADE}|knife|razor)\\b.*\\b(heart|arter(y|ies)|veins?|wrists?|neck|throat)\\b`, 'i')];
 const SHOWS_DANGER = /\b(suicid\w*|die|dying|dead|death|kill\w*|hurt\w*|harm\w*|cut|cutting|bleed\w*|overdos\w*|pills?|tablets?|tylenol|poison\w*|hang\w*|abus\w*|rape\w*|touch(es|ed|ing)?|hit|hits|hitting|bully\w*|bullied|bomb\w*|gun\w*|weapon\w*|explosive\w*|unsafe|scared|afraid|hopeless)\b/i;
 const TEX_WORDS = /\\(?:text|mathrm|textbf|mathbf|operatorname)\s*\{([^{}]*)\}/g;
 const TEX_COMMAND = /\\[a-zA-Z]+|[{}^_\\]/g;
@@ -125,7 +130,8 @@ const asPlainLetters = (request: string) => request.toLowerCase().replace(/[0134
 /** Runs before any model hears the request, so a child in danger gets the help line and nobody spends on it. It knows only the wordings it lists, and the router's safety kind covers the rest. */
 export function isAboutBeingUnsafe(request: string): boolean {
   const lowered = asPlainLetters(request);
-  return KMS.test(lowered) || SELF_HARM.test(lowered) || SUICIDE_FOR_SOMEONE.test(lowered) || ONLY_ASKS_FOR_HELP.test(lowered) || (DRUG_AMOUNT.test(request) && BODY_OR_PILL.test(request)) || CUT_ANATOMY.some((pattern) => pattern.test(request));
+  const withoutConversion = request.replace(UNIT_CONVERSION, '');
+  return KMS.test(lowered) || SELF_HARM.test(lowered) || SOMEONE_THEY_KNOW.test(lowered) || SUICIDE_FOR_SOMEONE.test(lowered) || ONLY_ASKS_FOR_HELP.test(lowered) || (DRUG_AMOUNT.test(withoutConversion) && BODY_OR_PILL.test(withoutConversion)) || CUT_ANATOMY.some((pattern) => pattern.test(request));
 }
 
 /** For a request no router could read. It is broad on purpose, because the cost of a wrong yes here is a help line and the cost of a wrong no is a child told there is no lesson. */

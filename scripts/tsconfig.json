@@ -1,0 +1,17 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "jsx": "react-jsx",
+    "types": ["node"],
+    "typeRoots": ["../apps/web/node_modules/@types"],
+    "paths": { "vite": ["../apps/web/node_modules/vite/dist/node/index.d.ts"], "@astra/board/test-deck": ["../packages/board/test-deck/index.ts"], "@astra/board/drawing": ["../packages/board/src/drawing.ts"], "@astra/board": ["../packages/board/src/index.ts"], "@astra/contracts": ["../packages/contracts/src/index.ts"] }
+  },
+  "include": ["."]
+}

@@ -49,6 +49,8 @@ export function createSpendLedger(path: string, limits: SpendLimits, { getNowMs 
     getModelLimitReached,
     isOverModelLimit,
     getSecondsToNextDay: () => Math.ceil(((getDay(getNowMs()) + 1) * DAY_MS - getNowMs()) / MS_PER_SECOND),
+    /** A shared line is kept for every later student, so its first play answers only to the project's ceiling. */
+    isOverSharedVoiceLimit: (moreCharacters = 0) => read().voiceCharacters + moreCharacters > limits.voiceCharacterLimit,
     isOverVoiceLimit: (studentId: string, moreCharacters = 0) => read().voiceCharacters + moreCharacters > limits.voiceCharacterLimit || read(studentId).voiceCharacters + moreCharacters > limits.studentVoiceCharacterLimit,
     assertRoom(studentId: string) {
       if (isOverModelLimit(studentId)) throw new Error(`Stopped at the dollar limit for ${studentId}`);

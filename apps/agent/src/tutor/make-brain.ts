@@ -13,7 +13,7 @@ import { getRecapLines } from '../recap/recap-rules.ts';
 import { writeLessonRecap } from '../recap/write-recap.ts';
 import { type ApiLink, createApiLink } from './api-link.ts';
 import { createTutorBrain, type SpendLimit, type TraceNote, type TurnSummary, type TutorBrain } from './brain.ts';
-import { PROMPT_VERSIONS, TUTOR_PROMPT, type TutorPrompt } from './prompt.ts';
+import { PROMPT_VERSIONS, TUTOR_PROMPT, type TutorPrompt, withScenes } from './prompt.ts';
 import { createSpendLedger } from './spend-ledger.ts';
 import { readInk } from './ink/read-ink.ts';
 import { rasterizeInk } from './ink/rasterize-ink.ts';
@@ -40,7 +40,7 @@ const MOST_USD_A_REPORT = 10;
 /** Off by default, because a search claim can carry a child's details to a web search whose sub-processors Abel has not approved. Abel decides on switching it on. */
 const isFindSourceOn = () => process.env.ASTRA_FIND_SOURCE === FIND_SOURCE_ON;
 
-const getLivePrompt = (): TutorPrompt => (isFindSourceOn() ? PROMPT_VERSIONS.v2FindSource : TUTOR_PROMPT);
+const getLivePrompt = (): TutorPrompt => (isFindSourceOn() ? PROMPT_VERSIONS.v3FindSource : TUTOR_PROMPT);
 
 function makeLedger() {
   const path = process.env.ASTRA_SPEND_FILE;
@@ -56,6 +56,12 @@ export function makeApiLink(roomName: string): ApiLink | null {
 export interface SpendCaps {
   getSpendLimit(): SpendLimit | null;
   addTurn(summary: { usd: number; voiceCharacters: number }): void;
+  /** A scene counts toward the student's day and the shared ledger. It stays out of this room's cap, so a picture can never close the tutor. */
+  addScene(usd: number): void;
+  /** A shared scene's words are not this student's to pay for, so they count only toward the project's ceiling and their count of plays today. */
+  addSharedVoice(characters: number, studentId: string): void;
+  getSharedPlaysToday(studentId: string): number;
+  getSceneUsd(): number;
   getSpentUsd(): number;
   /** Sends what the API has not heard yet, so a room closing does not lose the last turn's charge. */
   flush(): Promise<void>;
@@ -64,7 +70,9 @@ export interface SpendCaps {
 // Tracks one room's spending against its own caps, the shared ledger, and the student's total for today in the API.
 export function createSpendCaps({ link, ledger, trace, sessionLimitUsd, sessionVoiceLimitCharacters }: { link: Pick<ApiLink, 'reportSpend'> | null; ledger: ReturnType<typeof makeLedger>; trace: TraceNote; sessionLimitUsd: number; sessionVoiceLimitCharacters: number }): SpendCaps {
   let sessionUsd = 0;
+  let sceneUsd = 0;
   let sessionCharacters = 0;
+  let sessionSharedPlays = 0;
   let unreportedUsd = 0;
   let isOverDailyLimit = false;
   let reporting: Promise<void> = Promise.resolve();
@@ -97,7 +105,19 @@ export function createSpendCaps({ link, ledger, trace, sessionLimitUsd, sessionV
       ledger?.charge({ anthropicUsd: usd, voiceCharacters });
       report();
     },
-    getSpentUsd: () => sessionUsd + sessionCharacters * VOICE_USD_PER_CHARACTER,
+    addScene(usd) {
+      sceneUsd += usd;
+      unreportedUsd += usd;
+      ledger?.charge({ anthropicUsd: usd, voiceCharacters: 0 });
+      report();
+    },
+    addSharedVoice(characters, studentId) {
+      sessionSharedPlays += 1;
+      ledger?.charge({ anthropicUsd: 0, voiceCharacters: characters, sharedPlayBy: studentId });
+    },
+    getSharedPlaysToday: (studentId) => Math.max(sessionSharedPlays, ledger?.countSharedPlays(studentId) ?? 0),
+    getSceneUsd: () => sceneUsd,
+    getSpentUsd: () => sessionUsd + sceneUsd + sessionCharacters * VOICE_USD_PER_CHARACTER,
     async flush() {
       report();
       await reporting;
@@ -109,11 +129,15 @@ export function createSpendCaps({ link, ledger, trace, sessionLimitUsd, sessionV
 export function warmTutorModel(): void {
   const name = process.env.ASTRA_TUTOR_MODEL ?? DEFAULT_MODEL;
   if (!TUTOR_MODEL_NAMES.includes(name as TutorModelName)) return;
-  void makeAnthropicTutorModel({ name: name as TutorModelName, apiKey: readKey('ANTHROPIC_API_KEY') }).warm(getLivePrompt().system).catch(() => {});
+  void makeAnthropicTutorModel({ name: name as TutorModelName, apiKey: readKey('ANTHROPIC_API_KEY') }).warm((hasTutorScenes() ? withScenes(getLivePrompt()) : getLivePrompt()).system).catch(() => {});
 }
+
+export const hasTutorScenes = () => process.env.ASTRA_TUTOR_SCENES === '1';
 
 export interface MadeBrain {
   brain: TutorBrain;
+  caps?: SpendCaps;
+  cardTitle?(): string | null;
   flushSpend(): Promise<void>;
   readMeaning?(words: string): Promise<WordMeaning | null>;
   readStrokes?(strokes: readonly (readonly InkPoint[])[]): Promise<{ text: string; ink: { tex?: string; isUnsure: boolean } } | null>;
@@ -141,7 +165,7 @@ function makeLessonPlanner({ link, caps, trace, onSessionTitle }: { link: ApiLin
   });
 }
 
-export function makeTutorBrain({ roomName, jobId, trace, onSessionTitle = () => {} }: { roomName: string; jobId: string; trace: TraceNote; onSessionTitle?(title: string): void }): MadeBrain {
+export function makeTutorBrain({ roomName, jobId, trace, onSessionTitle = () => {}, onAskScene, onSafetyReply, onCardKnown }: { roomName: string; jobId: string; trace: TraceNote; onSessionTitle?(title: string): void; onAskScene?(topic: string): void; onSafetyReply?(): void; onCardKnown?(title: string | null): void }): MadeBrain {
   const name = process.env.ASTRA_TUTOR_MODEL ?? DEFAULT_MODEL;
   if (name === STAND_IN) return { brain: createStandInTutor(), flushSpend: async () => {} };
   if (name !== RECORDED && !TUTOR_MODEL_NAMES.includes(name as TutorModelName)) throw new Error(`ASTRA_TUTOR_MODEL is ${name}. Choose ${[STAND_IN, RECORDED, ...TUTOR_MODEL_NAMES].join(', ')}`);
@@ -170,8 +194,21 @@ export function makeTutorBrain({ roomName, jobId, trace, onSessionTitle = () => 
   } });
   const loadMemory = link ? async () => getMemoryNote(await link.fetchRecord(), new Date()) : undefined;
   const findSource = name === RECORDED || !isFindSourceOn() ? undefined : makeAnthropicSourceFinder({ apiKey: readKey('ANTHROPIC_API_KEY'), onFailed: (problem) => trace('sourceFailed', { problem }) });
-  const brain = createTutorBrain({ model, prompt: getLivePrompt(), ...(findSource ? { findSource } : {}), loadProfile: link ? () => link.fetchProfile() : undefined, loadMemory, onWorkNoted: digest.addWork, trace, onTurnEnd, getSpendLimit: caps.getSpendLimit, ...(lessonPlanner ? { lessonPlanner } : {}) });
-  if (name === RECORDED) return { brain, flushSpend: caps.flush };
+  let cardTitle: string | null = null;
+  const loadProfile = link
+    ? async () => {
+        const profile = await link.fetchProfile().catch((error: unknown) => {
+          onCardKnown?.(null);
+          throw error;
+        });
+        cardTitle = profile?.cardTitle ?? null;
+        onCardKnown?.(cardTitle);
+        return profile;
+      }
+    : undefined;
+  if (!loadProfile) queueMicrotask(() => onCardKnown?.(null));
+  const brain = createTutorBrain({ model, prompt: onAskScene ? withScenes(getLivePrompt()) : getLivePrompt(), ...(findSource ? { findSource } : {}), loadProfile, loadMemory, onWorkNoted: digest.addWork, trace, onTurnEnd, getSpendLimit: caps.getSpendLimit, ...(lessonPlanner ? { lessonPlanner } : {}), ...(onAskScene ? { onAskScene } : {}), ...(onSafetyReply ? { onSafetyReply } : {}) });
+  if (name === RECORDED) return { brain, caps, cardTitle: () => cardTitle, flushSpend: caps.flush };
   const wordsModel = makeAnthropicTutorModel({ name: WORDS_MODEL, apiKey: readKey('ANTHROPIC_API_KEY') });
   const readMeaning = async (words: string) => {
     if (caps.getSpendLimit()) return null;
@@ -212,5 +249,5 @@ export function makeTutorBrain({ roomName, jobId, trace, onSessionTitle = () => 
           trace,
         })
     : undefined;
-  return { brain, flushSpend: caps.flush, getSpentUsd: caps.getSpentUsd, readMeaning, readStrokes, readSpokenWords, writeRecap, noteNeedsAPerson: digest.noteNeedsAPerson, ...(writeRecord ? { writeRecord } : {}) };
+  return { brain, caps, cardTitle: () => cardTitle, flushSpend: caps.flush, getSpentUsd: caps.getSpentUsd, readMeaning, readStrokes, readSpokenWords, writeRecap, noteNeedsAPerson: digest.noteNeedsAPerson, ...(writeRecord ? { writeRecord } : {}) };
 }

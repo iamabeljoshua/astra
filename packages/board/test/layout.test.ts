@@ -118,14 +118,17 @@ describe('placeMovingElements', () => {
     expect(isMakingRoom).toBe(false);
   });
 
-  it('slides an element leaving because the board filled up with the others, fading as it goes', () => {
+  it('fades an element leaving because the board filled up where it stands, and only then moves the others up', () => {
     const lines = Array.from({ length: 6 }, (_, index) => line(`line-${index}`, 200, 60));
     const arriving = line('new', 200, 60);
     const boxes = [...lines.map((box) => ({ to: box, from: box })), { to: arriving, from: null }];
-    const halfway = placeMovingElements(boxes, PHONE, 0.5);
-    expect(halfway.isMakingRoom).toBe(true);
-    expect(halfway.placements[0]).toMatchObject({ isVisible: true, opacity: 0.5, y: 12 - 36 });
-    expect(halfway.placements[1]?.y).toBeCloseTo(12 + 72 - 36);
+    const fading = placeMovingElements(boxes, PHONE, 0.25);
+    expect(fading.isMakingRoom).toBe(true);
+    expect(fading.placements[0]).toMatchObject({ isVisible: true, opacity: 0.5, y: 12 });
+    expect(fading.placements[1]?.y).toBeCloseTo(12 + 72);
+    const rising = placeMovingElements(boxes, PHONE, 0.75);
+    expect(rising.placements[0]?.isVisible).toBe(false);
+    expect(rising.placements[1]?.y).toBeCloseTo(12 + 72 - 36);
     const done = placeMovingElements(boxes, PHONE, 1);
     expect(done.placements[0]?.isVisible).toBe(false);
     expect(getProblems(done.placements, PHONE)).toEqual([]);

@@ -1,0 +1,120 @@
+@layer components {
+  .board-table {
+    border-collapse: collapse;
+    font-size: 0.85em;
+    line-height: 1.3;
+    max-width: 100%;
+  }
+
+  .board-table-cell {
+    border-bottom: 1px solid var(--color-line);
+    overflow-wrap: break-word;
+    padding: 0.35em 0.7em 0.35em 0;
+    text-align: start;
+    vertical-align: top;
+  }
+
+  .board-table-breaks-words .board-table-cell {
+    overflow-wrap: anywhere;
+  }
+
+  th.board-table-cell {
+    border-bottom-color: var(--color-ink);
+    font-weight: 600;
+  }
+
+  .board-timeline {
+    display: grid;
+    font-size: 0.9em;
+    gap: 0.55em;
+    line-height: 1.3;
+    list-style: none;
+    margin: 0;
+    max-width: 100%;
+    padding: 0;
+  }
+
+  .board-timeline-event {
+    display: grid;
+    gap: 1em;
+    grid-template-columns: minmax(3.5em, 30%) minmax(0, 1fr);
+  }
+
+  .board-timeline-when {
+    color: var(--color-ink-2);
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
+
+  .board-timeline-label {
+    border-inline-start: 1px solid var(--color-line);
+    overflow-wrap: anywhere;
+    padding-inline-start: 1em;
+    position: relative;
+  }
+
+  .board-timeline-label::before {
+    background: var(--color-ink);
+    border-radius: 50%;
+    content: '';
+    height: 7px;
+    inset-block-start: 0.45em;
+    inset-inline-start: -4px;
+    position: absolute;
+    width: 7px;
+  }
+
+  .board-code {
+    border: 1px solid var(--color-line);
+    font-size: 0.78em;
+    margin: 0;
+    max-width: 100%;
+  }
+
+  .board-code figcaption {
+    border-bottom: 1px solid var(--color-line);
+    color: var(--color-ink-2);
+    font-size: 0.85em;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    padding: 4px 10px;
+    text-transform: uppercase;
+  }
+
+  .board-code-body {
+    font-family: ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+    line-height: 1.45;
+    padding: 8px 10px;
+  }
+
+  .board-code-line {
+    display: grid;
+    gap: 0.9em;
+    grid-template-columns: 2ch minmax(0, 1fr);
+  }
+
+  .board-code-number {
+    color: var(--color-ink-2);
+    font-variant-numeric: tabular-nums;
+    text-align: end;
+  }
+
+  .board-code-source {
+    overflow-wrap: anywhere;
+    tab-size: 2;
+    white-space: break-spaces;
+  }
+
+  .board-image {
+    display: block;
+  }
+
+  .board-image-missing {
+    border: 1px solid var(--color-line);
+    color: var(--color-ink-2);
+    font-size: 0.85em;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+    padding: 1em;
+  }
+}

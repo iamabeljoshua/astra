@@ -1,6 +1,6 @@
 import type { components } from '@astra/contracts';
 import { isSafeNoteText } from './screens.ts';
-import { isDetailOnTheList, isTopicOnTheList, WORKING_WORDS } from './topic-words.ts';
+import { isDetailOnTheList, isTopicOnTheList, WORKING_WORDS } from '@astra/contracts/topic-words';
 import type { BoardEvent, DigestEvent, WordsEvent } from './session-digest.ts';
 
 type LearnerNote = components['schemas']['LearnerNoteDto'];

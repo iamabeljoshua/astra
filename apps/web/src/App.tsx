@@ -10,11 +10,12 @@ import { LegalPage } from './legal/LegalPage';
 import { LEGAL_PATHS } from './legal/legalPaths';
 import { RootErrorBoundary } from './RootErrorBoundary';
 import { SCENE_LIBRARY_PATH, SceneLibraryPage } from './scenes/SceneLibraryPage';
-import { isLessonEnabled } from './session/lessonFlag';
+import { hasScenes } from './session/lessonFlag';
 import { SESSION_ROUTE } from './session/sessionPath';
 import { AppShell } from './shell/AppShell';
 import { LEGAL_PAGES } from './strings';
 
+const BoardDeckLab = import.meta.env.DEV ? lazy(() => import('./lab/BoardDeckLab')) : null;
 const loadSessionScreen = () => import('./session/SessionScreen');
 const SessionScreen = lazy(() => loadSessionScreen().then((loaded) => ({ default: loaded.SessionScreen })));
 const ScenePlayerLab = import.meta.env.DEV ? lazy(() => import('./lab/ScenePlayerLab')) : null;
@@ -47,6 +48,16 @@ function AppRoutes() {
           }
         />
       ) : null}
+      {BoardDeckLab ? (
+        <Route
+          path="/lab/board-deck"
+          element={
+            <Suspense>
+              <BoardDeckLab />
+            </Suspense>
+          }
+        />
+      ) : null}
       <Route path={LEGAL_PATHS.terms} element={<LegalPage legalDocument={LEGAL_PAGES.terms} />} />
       <Route path={LEGAL_PATHS.privacy} element={<LegalPage legalDocument={LEGAL_PAGES.privacy} />} />
       <Route
@@ -65,7 +76,7 @@ function SignedInRoutes() {
   // Fetched once signed in, so opening a session does not wait on it. A failed fetch is left to the route, which tries again.
   useEffect(() => {
     loadSessionScreen().catch(() => {});
-    if (isLessonEnabled()) void import('./scenes/sceneEngine').then(({ fetchSceneEngineInBackground }) => fetchSceneEngineInBackground());
+    if (hasScenes()) void import('./scenes/sceneEngine').then(({ fetchSceneEngineInBackground }) => fetchSceneEngineInBackground());
   }, []);
 
   return (

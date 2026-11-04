@@ -1,12 +1,12 @@
 import type { BoardState } from '@astra/board';
 import { getOpenTaskOnBoard } from '@astra/board/shared';
-import type { ElementId, StudentWork } from '@astra/contracts';
+import type { BoardProblemReport, ElementId, StudentWork } from '@astra/contracts';
 import { type ComponentProps, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { BoardProblem } from '../board/boardPainting';
 import { getVisualPlace, type VisualPeek } from '../board/boardStage';
 import { BoardStageView } from '../board/BoardStageView';
 import { getBoardRows } from '../board/boardRows';
 import { MathField } from '../board/MathField';
-import type { MarkWithoutTarget } from '../board/boardMarks';
 import { MovingDot } from '../board/MovingDot';
 import { useDotTarget } from '../board/useDotTarget';
 import { PenBand } from '../board/PenBand';
@@ -24,9 +24,23 @@ const DOT_SHOWS_MS = 280;
 
 const LINES_BEFORE_THE_HINT_GOES = 2;
 
-interface BoardFrame {
+export interface BoardFrame {
   board: BoardState;
   atMs: number;
+}
+
+function getReport(problem: BoardProblem): BoardProblemReport | null {
+  switch (problem.kind) {
+    case 'tooSmallToRead':
+    case 'imageMissing':
+      return { problem: problem.kind, subject: problem.elementId };
+    case 'labelWithoutRoom':
+      return { problem: problem.kind, subject: problem.text };
+    case 'sliderWithoutConstant':
+      return { problem: problem.kind, subject: problem.sliderId };
+    default:
+      return null;
+  }
 }
 
 function getLastWorkWords(board: BoardState): string {
@@ -38,7 +52,8 @@ function getLastWorkWords(board: BoardState): string {
 
 interface LiveBoardProps {
   voice: LiveVoice;
-  visual?: ReactNode;
+  /** What the session's right side shows while teaching, read every frame, because a scene plays on the board's clock. */
+  getVisual?(frame: BoardFrame): ReactNode;
   isConnecting?: boolean;
   onTutorState?(state: string | null): void;
   talkButtonProps?: ComponentProps<'button'>;
@@ -63,7 +78,7 @@ function useDotInTheMiddle(isConnecting: boolean): boolean {
 }
 
 // The board is a pure reading of the clock, so one read per frame is all it needs.
-export function LiveBoard({ voice, visual = null, talkButtonProps, isTalkOn = false, canTalk = true, isConnecting = false, onTutorState, isLookingBack = false, filesComingSoon }: LiveBoardProps) {
+export function LiveBoard({ voice, getVisual, talkButtonProps, isTalkOn = false, canTalk = true, isConnecting = false, onTutorState, isLookingBack = false, filesComingSoon }: LiveBoardProps) {
   const isDotInTheMiddle = useDotInTheMiddle(isConnecting);
   const [frame, setFrame] = useState<BoardFrame>(() => voice.getBoardNow());
   const [activity, setActivity] = useState(0);
@@ -75,6 +90,7 @@ export function LiveBoard({ voice, visual = null, talkButtonProps, isTalkOn = fa
   const typedLine = useRef<TypedLineHandle>(null);
   const isVisualBigNow = useRef(false);
   const { board, atMs } = frame;
+  const visual = getVisual?.(frame) ?? null;
   const view = voice.getView();
   const { target: dotTarget, watchLiveLine, watchRow, goToRest } = useDotTarget(board, view.isTutorSpeaking);
 
@@ -112,7 +128,14 @@ export function LiveBoard({ voice, visual = null, talkButtonProps, isTalkOn = fa
     isVisualBigNow.current = isVisualBig;
   }, [isVisualBig]);
 
-  const reportProblem = useCallback((problem: MarkWithoutTarget) => voice.reportMarkNotDrawn(problem.markId), [voice]);
+  const reportProblem = useCallback(
+    (problem: BoardProblem) => {
+      if (problem.kind === 'markWithoutTarget') voice.reportMarkNotDrawn(problem.markId);
+      const report = getReport(problem);
+      if (report) voice.reportBoardProblem(report);
+    },
+    [voice],
+  );
   const getBoard = useCallback(() => voice.getBoardNow().board, [voice]);
   const nextLineId = useNextLineId(getBoard);
   const sendPause = useCallback((seconds: number, draft?: string) => voice.sendPause(seconds, draft), [voice]);
@@ -224,7 +247,7 @@ export function LiveBoard({ voice, visual = null, talkButtonProps, isTalkOn = fa
       <SharedBoard
         board={board}
         atMs={atMs}
-        onMarkProblem={reportProblem}
+        onBoardProblem={reportProblem}
         {...(isLookingBack ? {} : { onWork: sendWork, onMovePoint: movePoint })}
         lineInTheBand={lineInTheBand}
         onFixReading={(text) => {

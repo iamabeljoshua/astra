@@ -1,6 +1,6 @@
-const MUST_BE_NONE = new Set(['differing', 'described', 'describedDifferently', 'overlap', 'overlapFrames', 'textOverlapFrames', 'textOutsideFrames', 'outside', 'outsideBoardFrames', 'outsideBoard', 'inkOverNeighbourFrames', 'notFinite', 'notFiniteFrames', 'rawSourceFrames', 'errorMarkFrames', 'forbiddenElementFrames', 'wrongEquationFrames', 'liveSamplesDifferingFromReplay', 'liveFramesDifferingFromLog', 'errorCount', 'stopped', 'writes', 'animations', 'mutationsWithNoCause', 'differentTwice', 'oldWordsLeft', 'numbersMoved', 'curvesMisjudged', 'refusalsMissed']);
-const MUST_BE_TRUE = new Set(['scaleHeld', 'identical', 'logged', 'framesIdentical', 'frozenStill']);
-const MUST_BE_FALSE = new Set(['pwned', 'crashed']);
+const MUST_BE_NONE = new Set(['differing', 'described', 'describedDifferently', 'overlap', 'overlapFrames', 'textOverlapFrames', 'textOutsideFrames', 'outside', 'outsideBoardFrames', 'outsideBoard', 'inkOverNeighbourFrames', 'notFinite', 'notFiniteFrames', 'rawSourceFrames', 'errorMarkFrames', 'forbiddenElementFrames', 'wrongEquationFrames', 'liveSamplesDifferingFromReplay', 'liveFramesDifferingFromLog', 'errorCount', 'stopped', 'writes', 'animations', 'mutationsWithNoCause', 'differentTwice', 'oldWordsLeft', 'numbersMoved', 'curvesMisjudged', 'refusalsMissed', 'unknownColors', 'gradients', 'differingImages', 'motionLeft', 'movingWithReducedMotion']);
+const MUST_BE_TRUE = new Set(['scaleHeld', 'identical', 'logged', 'framesIdentical', 'frozenStill', 'imagesMatch']);
+const MUST_BE_FALSE = new Set(['pwned', 'crashed', 'wasRun', 'hasScript']);
 
 /** A resize lays the board out again between frames, so the resize proof alone may report these. */
 const EXPECTED_WHILE_RESIZING = new Set(['outside', 'outsideBoardFrames', 'outsideBoard', 'inkOverNeighbourFrames', 'mutationsWithNoCause']);

@@ -530,6 +530,19 @@ describe('the messages a held microphone and a quiet room add', () => {
     expect(parseAgentMessage({ type: 'quietWarning' }).ok).toBe(false);
   });
 
+  it.each(['tooSmallToRead', 'labelWithoutRoom', 'imageMissing', 'sliderWithoutConstant'])('reads a board problem of %s', (problem) => {
+    const message = { type: 'boardProblem', problem, subject: 'words', clockId: 'c', browserMs: 1, startedMsAgo: 0 };
+    expect(parseBrowserMessage(message)).toEqual({ ok: true, value: message });
+  });
+
+  it.each([
+    ['a problem that does not exist', { problem: 'somethingElse', subject: 'words' }, /problem: expected one of/],
+    ['a subject past the limit', { problem: 'labelWithoutRoom', subject: 'x'.repeat(121) }, /subject: expected at most 120 characters/],
+    ['no subject', { problem: 'tooSmallToRead' }, /subject/],
+  ])('refuses a board problem with %s', (_name, fields, expected) => {
+    expectRefused(parseBrowserMessage({ type: 'boardProblem', clockId: 'c', browserMs: 1, startedMsAgo: 0, ...fields }), expected);
+  });
+
   it('reads a student answering the warning, with the stamp every browser message has', () => {
     const stamp = { clockId: 'page-1', browserMs: 5000, startedMsAgo: 0 };
     expect(parseBrowserMessage({ type: 'stillHere', ...stamp })).toEqual({ ok: true, value: { type: 'stillHere', ...stamp } });

@@ -75,6 +75,10 @@ export class SessionsService {
     return this.sessions.findStudentIdOfSession(sessionId);
   }
 
+  async getCardTitle(sessionId: string): Promise<string | null> {
+    return findLibraryTopic(await this.sessions.findTopicIdOfSession(sessionId))?.title ?? null;
+  }
+
   async getLessonRequest(studentId: string, sessionId: string): Promise<{ title: string; status: string; isCard: boolean; cardLine?: string }> {
     const { title, status, topicId } = requireSession(await this.sessions.findForStudent(studentId, sessionId));
     const topic = findLibraryTopic(topicId);
@@ -127,8 +131,8 @@ export class SessionsService {
     return session && toSessionResponse(session);
   }
 
-  async getTopicHistory(studentId: string): Promise<TopicSession[]> {
-    const sessions = await this.sessions.listNewestWithTopicForStudent(studentId);
-    return sessions.flatMap(({ id, topicId, status, durationSeconds }) => (topicId ? [{ id, topicId, status, durationSeconds }] : []));
+  async getHistoryForPicks(studentId: string): Promise<TopicSession[]> {
+    const sessions = await this.sessions.listNewestForPicks(studentId);
+    return sessions.map(({ id, topicId, title, subject, artwork, status, durationSeconds, startedAt }) => ({ id, topicId, title, subject, artwork, status, durationSeconds, startedAt }));
   }
 }

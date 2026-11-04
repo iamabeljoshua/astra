@@ -244,6 +244,8 @@ pnpm agent
 | `ANTHROPIC_API_KEY` | Agent | The tutor's model, Sonnet 5.5. |
 | `ASTRA_TUTOR_MODEL` | Agent | A model by name from `providers/anthropic.ts`, `recorded` for canned replies that spend nothing and that a proof can stall or break by typing `stall`, `invalid`, `wrong math`, `tag`, `refuse`, or `silent`, or `stand-in` for the simple lines M3.6's proofs use. |
 | `ASTRA_SPEND_FILE`, `ASTRA_SPEND_LIMIT_USD` | Agent | Adds each turn's real cost to a file, and past the limit, $8 by default, the tutor says it cannot reply. |
+| `ASTRA_TUTOR_SCENES=1` | Agent | Lets the tutor ask for ManimGX scenes in a session. Needs `SCENE_STORE_DIR`, the same on the API, the scene worker's image, and `VITE_TUTOR_SCENES=1` on the web build. Off, a session never mentions a picture and fetches no engine. See `docs/tests/scenes.md`. |
+| `ASTRA_SCENE_SESSION_LIMIT_USD` | Agent | What new scenes may cost in one session, $0.80 by default. Scene spending counts toward the student's day, and it never closes the tutor. |
 | `ASTRA_VOICE_TRACE=<folder>` | Agent | Writes each session's timings there, with no words. `ASTRA_VOICE_TRACE_WORDS=1` adds the words, for test speech only. |
 | `ASTRA_QUIET_LIMIT_MS=<ms>` | Agent | Replaces the 10 minutes a quiet room lasts, for a test. |
 

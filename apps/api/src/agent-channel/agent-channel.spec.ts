@@ -3,11 +3,12 @@ import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { createTestApp, createTestStudent, OLD_ENOUGH_BIRTH_DATE } from '../../test/test-database';
 import type { TestApp, TestStudent } from '../../test/test-database';
+import { SessionsService } from '../sessions/sessions.service';
 
 const AGENT_KEY = 'agent-key-for-test-that-is-long';
 const VALID_SESSION = { title: 'Free-body diagrams', subject: 'Physics', language: 'en' };
 const VALID_PROFILE = { name: 'Maya', interests: ['basketball', 'space'], level: 'university', goal: 'exam' };
-const EMPTY_BRIEF = { level: null, interests: [], goal: null };
+const EMPTY_BRIEF = { level: null, interests: [], goal: null, cardTitle: null };
 const JSON_CONTENT = 'application/json';
 
 describe('the agent channel', () => {
@@ -61,6 +62,17 @@ describe('the agent channel', () => {
 
       const { body } = await asStudent(server().get(`/sessions/${running}`)).expect(200);
       expect((body as { artwork: unknown }).artwork).toBeNull();
+    });
+
+    it('stops being the card\'s lesson, so nothing downstream can read the card it left', async () => {
+      const { body: started } = await asStudent(server().post('/sessions')).send({ ...VALID_SESSION, topicId: 'jump-shot' }).expect(201);
+      const { id: running } = started as { id: string };
+
+      await setTitle(running, { title: 'Long division' }).expect(204);
+
+      const { body } = await asStudent(server().get(`/sessions/${running}`)).expect(200);
+      expect((body as { subject: string }).subject).toBe('Long division');
+      expect(await testApp.app.get(SessionsService).getLessonRequest(student.studentId, running)).toEqual({ title: 'Long division', status: 'in_progress', isCard: false });
     });
 
     it('leaves a finished session as it was', async () => {
@@ -143,7 +155,7 @@ describe('the agent channel', () => {
     it('holds the level, interests, and goal of the session\'s student, and nothing else', async () => {
       const { body, text } = await getBrief(namedSessionId).expect(200);
 
-      expect(body).toEqual({ level: 'university', interests: ['basketball', 'space'], goal: 'exam' });
+      expect(body).toEqual({ level: 'university', interests: ['basketball', 'space'], goal: 'exam', cardTitle: null });
       expect(text).not.toContain('Maya');
       expect(text).not.toContain(OLD_ENOUGH_BIRTH_DATE);
       expect(text).not.toContain(namedStudent.studentId);

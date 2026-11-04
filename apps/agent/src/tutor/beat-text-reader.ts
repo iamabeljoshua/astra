@@ -37,7 +37,7 @@ const ENDS_IN_ELLIPSIS = /\.{2,}["')]*\s*$/;
 /** A sentence can end inside a beat, when the words after a comma were too few to stand alone. */
 const HOLDS_SENTENCE_END = /[a-z][.!]["')]*\s+\S/i;
 /** Words only a safety reply uses, so that reply is never paused, wrapped, or ended at a question. Help must reach the student whole. A lesson can say the second group too, so those count only inside a question. */
-const SAFETY_REPLY = /\b(?:that sounds[^.?!]*serious|right thing telling me|adult you trust|trusted adult|(?:your|local) emergency (?:number|services)|are you safe)\b|\b(?:feel safe|in danger|hurting yourself|hurt yourself|ending your life|not your fault)\b[^.?!]*\?/i;
+const SAFETY_REPLY = /\bare you (?:okay|ok)\s*\?|\b(?:that sounds[^.?!]*serious|right thing telling me|adult you trust|trusted adult|(?:your|local) emergency (?:number|services)|are you safe)\b|\b(?:feel safe|in danger|hurting yourself|hurt yourself|ending your life|not your fault)\b[^.?!]*\?/i;
 export const NAMES_HELP = /\b(?:adult|emergency)\b/i;
 
 /** A false match costs only a line of chat, so this leans toward counting a lesson that says "adult". */
@@ -71,6 +71,9 @@ export interface BeatTextReaderOptions {
   onWrongWords?(problem: string): void;
   /** A retry that says these words again would repeat what the student heard, so they are dropped. */
   isAlreadySaid?(text: string): boolean;
+  onAskScene?(topic: string): void;
+  /** These words are about a child's safety, so nothing about a picture may follow them. Fires before the beat that says them. */
+  onSafetyReply?(): void;
   board?: BoardKinds;
 }
 
@@ -85,6 +88,8 @@ function withKnownClaim(value: unknown): unknown {
   if (command.kind !== 'writeMath' && command.kind !== 'transformMath') return command;
   return { ...command, claim: MATH_CLAIMS.includes(claim as (typeof MATH_CLAIMS)[number]) ? claim : 'relation' };
 }
+
+const isSceneAsk = (value: unknown): value is { kind: 'askScene'; topic: string } => typeof value === 'object' && value !== null && (value as { kind?: unknown }).kind === 'askScene' && typeof (value as { topic?: unknown }).topic === 'string';
 
 const isPrivateTag = (name: string) => PRIVATE_TAGS.has(name.toLowerCase()) || name.toLowerCase().startsWith('antml:');
 
@@ -108,6 +113,7 @@ export class BeatTextReader {
   #startsStretch = false;
   #didLastBeatEndSentence = false;
   #isSafetyReply = false;
+  #hasToldSafety = false;
   #hasCommandThisTurn = false;
   #isHalted = false;
   #isTurnOver = false;
@@ -513,6 +519,10 @@ export class BeatTextReader {
 
   // These go to code and never to the board, so a tool or a report can draw nothing.
   #takeTutorCall(value: unknown): boolean {
+    if (this.#options.onAskScene && isSceneAsk(value)) {
+      this.#options.onAskScene(value.topic);
+      return true;
+    }
     const report = parseAttemptReport(value);
     if (report !== null) {
       this.#options.onAttemptReport?.(report);
@@ -533,7 +543,7 @@ export class BeatTextReader {
     try {
       return JSON.parse(text);
     } catch (error) {
-      this.#options.onBadCommand((error as Error).message);
+      this.#options.onBadCommand(`the command is not valid JSON, so write each backslash twice: ${(error as Error).message}`);
       return undefined;
     }
   }
@@ -593,6 +603,10 @@ export class BeatTextReader {
     const endsSentence = isSentenceEnd(this.#text);
     const script = this.#script.map((part) => (typeof part === 'string' ? part.normalize('NFC') : part));
     this.#isSafetyReply ||= SAFETY_REPLY.test(this.#text);
+    if (this.#isSafetyReply && !this.#hasToldSafety) {
+      this.#hasToldSafety = true;
+      this.#options.onSafetyReply?.();
+    }
     this.#options.onBeatEnd({ script, wordCount: this.#wordCount, expectsReply, startsStretch: this.#startsStretch });
     const isAtCut = this.#isPastWordCut();
     this.#isTurnOver = (expectsReply && !this.#isSafetyReply) || (endsSentence && this.#wordsThisTurn >= TURN_WORDS_TO_WRAP && !this.#isSafetyReply) || isAtCut;

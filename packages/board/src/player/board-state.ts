@@ -78,6 +78,8 @@ interface BoardDraft {
   isFrozen: boolean;
   pendingMoves: Map<ElementId, PendingMove>;
   refusedSliders: Slider[];
+  /** The board was cleared with this scene on it, so it stays in the corner and only a click brings it back. */
+  isSceneBehind: boolean;
 }
 
 function holdAll(board: BoardDraft, atMs: number): void {
@@ -199,6 +201,7 @@ const isSameCommand = (first: BoardElement['content'], second: PlacingCommand) =
 
 function place(board: BoardDraft, command: PlacingCommand, { atMs, overMs, catalog }: { atMs: number; overMs: number | null; catalog: SceneCatalog }): void {
   const scene = catalog(command, {});
+  if (command.kind === 'richScene') board.isSceneBehind = false;
   if (command.kind === 'task') closeOpenTasks(board.elements);
   if (BRINGS_THE_BOARD.has(command.kind) && board.stage?.mode !== 'handsOn') board.stage = { mode: 'handsOn', sinceMs: atMs };
   board.pendingMoves.delete(command.id);
@@ -274,14 +277,28 @@ function getLiveSliders(board: BoardDraft): Slider[] {
   return [...board.elements.values()].flatMap(({ content }) => (content.kind === 'slider' ? [content] : []));
 }
 
+function isConstantInCurve(board: BoardDraft, slider: Slider): boolean {
+  const curve = board.elements.get(slider.target)?.content;
+  if (!('constant' in slider) || curve?.kind !== 'plot') return true;
+  const isDeclared = curve.constants?.some(({ name }) => name === slider.constant) === true;
+  return isDeclared && new RegExp(`\\b${slider.constant}\\b`).test(curve.expression);
+}
+
 function applyCommand(board: BoardDraft, command: SceneCommand, { atMs, overMs, catalog }: { atMs: number; overMs: number | null; catalog: SceneCatalog }): void {
   switch (command.kind) {
-    case 'clearBoard':
+    case 'clearBoard': {
+      const scene = [...board.elements.values()].filter(({ content }) => content.kind === 'richScene').at(-1);
       board.elements.clear();
       board.pendingMoves.clear();
       board.focus = null;
       board.refusedSliders = [];
+      if (scene) {
+        board.elements.set(scene.id, scene);
+        board.isSceneBehind = true;
+        if (board.stage?.mode !== 'handsOn') board.stage = { mode: 'handsOn', sinceMs: atMs };
+      }
       return;
+    }
     case 'hide':
       removeWithAttached(board, command.target);
       return;
@@ -289,7 +306,8 @@ function applyCommand(board: BoardDraft, command: SceneCommand, { atMs, overMs, 
       board.focus = command.target;
       return;
     case 'boardMode':
-      if (board.stage?.mode !== command.mode) board.stage = { mode: command.mode, sinceMs: atMs };
+      // A board with no stage is already teaching, and a stage would glide the picture in from the corner.
+      if ((board.stage?.mode ?? 'teach') !== command.mode && !(command.mode === 'teach' && board.isSceneBehind)) board.stage = { mode: command.mode, sinceMs: atMs };
       if (command.mode === 'teach') closeOpenTasks(board.elements);
       return;
     case 'transformMath': {
@@ -318,7 +336,7 @@ function applyCommand(board: BoardDraft, command: SceneCommand, { atMs, overMs, 
       return;
     }
     case 'slider':
-      if (getOverlappingSlider(command, getLiveSliders(board))) board.refusedSliders.push(command);
+      if (getOverlappingSlider(command, getLiveSliders(board)) || !isConstantInCurve(board, command)) board.refusedSliders.push(command);
       else place(board, command, { atMs, overMs, catalog });
       return;
     default:
@@ -403,7 +421,7 @@ function isReplacedByNext(operation: BoardOperation, next: BoardOperation | unde
 }
 
 function reduce(operations: readonly BoardOperation[], context: ReduceContext, atMs: number): BoardDraft {
-  const board: BoardDraft = { elements: new Map(), focus: null, stage: null, isFrozen: false, pendingMoves: new Map(), refusedSliders: [] };
+  const board: BoardDraft = { isSceneBehind: false, elements: new Map(), focus: null, stage: null, isFrozen: false, pendingMoves: new Map(), refusedSliders: [] };
   for (const [index, operation] of operations.entries()) {
     if (operation.atMs > atMs) break;
     if (!isReplacedByNext(operation, operations[index + 1], atMs)) applyOperation(board, operation, context);
@@ -439,7 +457,7 @@ export function describeBoard(board: BoardState, atMs: number) {
   const round = (value: number) => Number(value.toFixed(DESCRIBED_DECIMALS));
   return {
     focus: board.focus,
-    stage: board.stage,
+    stage: board.stage && { mode: board.stage.mode, heldMs: round(atMs - board.stage.sinceMs) },
     elements: [...board.elements.values()].map((element) => ({
       id: element.id,
       kind: element.content.kind,

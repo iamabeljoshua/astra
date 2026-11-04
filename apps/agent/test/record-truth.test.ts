@@ -1,12 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { type CheckedWork } from '@astra/board/shared';
 import { parseBeat, type ElementId } from '@astra/contracts';
+import { isTopicOnTheList, toListWords } from '@astra/contracts/topic-words';
 import { describe, expect, it } from 'vitest';
 import { playSession, type RecordStep } from '../src/learner-record/eval-sessions.ts';
 import { getMemoryNote } from '../src/learner-record/memory-note.ts';
 import { isCrisis, isPersonal } from '../src/learner-record/screens.ts';
 import { createSessionDigest, type DigestEvent } from '../src/learner-record/session-digest.ts';
-import { isTopicOnTheList, toListWords } from '../src/learner-record/topic-words.ts';
 import { getTrustedNotes } from '../src/learner-record/trust-notes.ts';
 
 const OPEN: RecordStep = { student: 'help me solve 2x + 3 = 11', tutor: 'What would you do first?', tutorWrites: '2x + 3 = 11' };
