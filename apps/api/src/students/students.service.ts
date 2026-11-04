@@ -80,8 +80,8 @@ export class StudentsService {
     return { deleted: true };
   }
 
-  isAddressClosed(email: string | null): Promise<boolean> {
-    return email ? this.students.isAddressClosed(getAddressHash(email)) : Promise.resolve(false);
+  async isAddressClosed(email: string | null): Promise<boolean> {
+    return email !== null && this.students.isAddressClosed(getAddressHash(email));
   }
 
   // A new sign-up on a closed address is erased again. A student who changed their email to one is refused and keeps their data.

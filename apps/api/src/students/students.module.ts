@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import type { OnModuleInit } from '@nestjs/common';
 import { RepositoryModule } from '../infrastructure/orm/repositories/repository.module';
 import { AUTH_ADMIN, createAuthAdmin } from './auth-admin';
 import { AuthAccountEraser } from './auth-account-eraser';
@@ -12,14 +13,12 @@ import { StudentsService } from './students.service';
   providers: [
     StudentsService,
     AuthAccountEraser,
-    {
-      provide: AUTH_ADMIN,
-      useFactory: () => {
-        requireAddressHashKey(process.env);
-        return createAuthAdmin(process.env);
-      },
-    },
+    { provide: AUTH_ADMIN, useFactory: () => createAuthAdmin(process.env) },
   ],
   exports: [StudentsService],
 })
-export class StudentsModule {}
+export class StudentsModule implements OnModuleInit {
+  onModuleInit(): void {
+    requireAddressHashKey(process.env);
+  }
+}
