@@ -325,6 +325,12 @@ describe('past the budget', () => {
     }
   }
 
+  it('keeps a slow part whole beside a part past the budget, because a step never halved is no jump', () => {
+    const { branches } = drawCurve('(abs(x)-x)*sin(1000*x)/20+x/10', [-10, 10], [-2, 2]);
+    expect(branches.filter((branch) => (branch[0] as Point).x > 0.1)).toHaveLength(0);
+    expect(branches.some((branch) => crossesX(branch, 0.2) && crossesX(branch, 9.9))).toBe(true);
+  });
+
   it('says when it could not finish, and draws only what it proved', () => {
     expect(drawCurve('abs(sin(100*x))/sin(100*x)', [-10, 10], [-1, 1]).isTooFine).toBe(true);
     expect(drawCurve('1/sin(100*x)', [-10, 10], [-8, 8]).isTooFine).toBe(true);

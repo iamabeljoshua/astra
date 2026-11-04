@@ -40,8 +40,8 @@ export interface CurveDrawing {
   isTooFine: boolean;
 }
 
-/** A continuous curve shrinks when halved and a jump or a pole does not, so `stuckHalvings` counts how many halvings in a row left the step ending here as tall as it was, and `didShrink` says its last halving made it shorter, which a jump found late never shows. */
-type Sample = Point & { stuckHalvings: number; didShrink: boolean };
+/** A continuous curve shrinks when halved and a jump or a pole does not, so `stuckHalvings` counts how many halvings in a row left the step ending here as tall as it was, and `stayedTall` says its last halving did not make it shorter, which is all a jump found late can show. */
+type Sample = Point & { stuckHalvings: number; stayedTall: boolean };
 
 const isAbove = (point: Point, yRange: AxisRange) => point.y > yRange[1];
 const isBelow = (point: Point, yRange: AxisRange) => point.y < yRange[0];
@@ -82,14 +82,14 @@ function getNearbySamples(samples: readonly Sample[], yRange: AxisRange): Nearby
   const steps = samples.slice(1).map((second, index) => ({ second, height: isOnTheLine(samples[index] as Sample, second, yRange) ? getHeightInView(samples[index] as Sample, second, yRange) : 0 }));
   const tallestStep = Math.max(0, ...steps.map(({ height }) => height));
   const tallest = steps.filter(({ height }) => height > tallestStep * TALLEST_STEPS_SHARE);
-  const shrunk = tallest.filter(({ second }) => second.didShrink).length;
+  const shrunk = tallest.filter(({ second }) => !second.stayedTall).length;
   return { unseen: getUnseenHeights(samples, yRange), tallestStep, isWave: shrunk >= tallest.length * WAVE_SHRUNK_SHARE };
 }
 
 function isUnproven(first: Sample, second: Sample, { unseen, tallestStep, isWave }: NearbySamples, yRange: AxisRange): boolean {
   const [low, high] = [Math.min(first.y, second.y), Math.max(first.y, second.y)];
   if (unseen.some(([from, to]) => low <= from && high >= to)) return true;
-  return !isWave && !second.didShrink && getHeightInView(first, second, yRange) > tallestStep * TALLEST_STEPS_SHARE;
+  return !isWave && second.stayedTall && getHeightInView(first, second, yRange) > tallestStep * TALLEST_STEPS_SHARE;
 }
 
 function isZigzag(before: Sample, at: Sample, after: Sample, yRange: AxisRange): boolean {
@@ -136,7 +136,7 @@ function getUnevenBasePlace(index: number): number {
 function getBaseSamples({ evaluate, domain: [low, high] }: CurveRequest): Sample[] {
   return Array.from({ length: CURVE_LIMITS.baseIntervals + 1 }, (_, index) => {
     const x = low + (high - low) * getUnevenBasePlace(index);
-    return { x, y: evaluate(x), stuckHalvings: 0, didShrink: false };
+    return { x, y: evaluate(x), stuckHalvings: 0, stayedTall: false };
   });
 }
 
@@ -149,7 +149,7 @@ function halve(first: Sample, second: Sample, { evaluate, yRange }: CurveRequest
   const after = Math.abs(second.y - y);
   const stuck = whole > bendLimit && Math.max(before, after) >= whole * TALLER_HALF_STUCK_SHARE ? second.stuckHalvings + 1 : 0;
   const stillTall = whole * TALLER_HALF_STUCK_SHARE;
-  return [{ x, y, stuckHalvings: before >= after ? stuck : 0, didShrink: before < stillTall }, { ...second, stuckHalvings: after > before ? stuck : 0, didShrink: after < stillTall }];
+  return [{ x, y, stuckHalvings: before >= after ? stuck : 0, stayedTall: before >= stillTall }, { ...second, stuckHalvings: after > before ? stuck : 0, stayedTall: after >= stillTall }];
 }
 
 function addDetail(samples: readonly Sample[], steps: ReadonlySet<number>, request: CurveRequest): Sample[] {
