@@ -7,7 +7,7 @@ import type { TestApp, TestStudent } from '../../test/test-database';
 const AGENT_KEY = 'agent-key-for-test-that-is-long';
 const VALID_SESSION = { title: 'Free-body diagrams', subject: 'Physics', language: 'en' };
 const VALID_PROFILE = { name: 'Maya', interests: ['basketball', 'space'], level: 'university', goal: 'exam' };
-const EMPTY_BRIEF = { level: null, interests: [], goal: null };
+const EMPTY_BRIEF = { level: null, interests: [], goal: null, cardTitle: null };
 const JSON_CONTENT = 'application/json';
 
 describe('the agent channel', () => {

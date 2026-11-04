@@ -12,7 +12,6 @@ const PAGE_LOAD_LIMIT_MS = 6000;
 const MOST_ASKS_IN_A_SESSION = 6;
 const MOST_TOPIC_CHARACTERS = 80;
 const BREATH_MS = 300;
-const STUDENT_NOT_KNOWN = 'no-student';
 
 export interface TutorScenesOptions {
   router: SceneRouter;
@@ -65,7 +64,7 @@ export function getTutorSceneBeats({ plan, scene, number }: { plan: LessonPlan; 
 
 export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs, send, speak, canSpeak, onShown, trace }: TutorScenesOptions): TutorScenes {
   let device: Device = 'unknown';
-  let studentId = STUDENT_NOT_KNOWN;
+  let studentId = '';
   let current: SceneAsk | null = null;
   let waitingForDevice: string | null = null;
   let scenesShown = 0;
@@ -77,6 +76,8 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
     if (ask.windowLimit) clearTimeout(ask.windowLimit);
     if (ask.page.kind === 'loading') clearTimeout(ask.page.limit);
     current = null;
+    // What missed its moment is saved, so asking again is free.
+    if (how === 'tooLate') askedTopics.delete(ask.topic.trim().toLowerCase());
     trace('sceneEnded', { how, afterMs: Math.round(getNowMs() - ask.askedAtMs) });
   };
 
@@ -98,9 +99,9 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
   };
 
   const onDeskChange = (ask: SceneAsk, state: SceneState) => {
+    trace('sceneState', { state: state.kind, afterMs: Math.round(getNowMs() - ask.askedAtMs) });
     // A scene that comes after its window stays saved for the next ask, and this session has moved on.
     if (ask !== current) return;
-    trace('sceneState', { state: state.kind, afterMs: Math.round(getNowMs() - ask.askedAtMs) });
     if (state.kind === 'ready') loadInPage(ask, state.scene);
     if (state.kind === 'declined' || state.kind === 'failed') end(ask, state.kind);
   };

@@ -33,4 +33,20 @@ describe('the live board', () => {
     });
     await waitFor(() => expect(reportMarkNotDrawn).toHaveBeenCalledWith('ring'));
   });
+
+  it('reads the visual every frame, and with none the board is in view', async () => {
+    const { voice } = makeVoiceWithBoard([{ kind: 'writeMath', id: 'eq', tex: '2x + 3 = 11' }, 'Look here.']);
+    const getVisual = vi.fn(() => null);
+    const { queryByTestId } = render(<LiveBoard voice={voice} getVisual={getVisual} />);
+    await waitFor(() => expect(getVisual.mock.calls.length).toBeGreaterThan(1));
+    expect(getVisual).toHaveBeenCalledWith(expect.objectContaining({ atMs: 2000 }));
+    expect(queryByTestId('board-visual')).toBeNull();
+  });
+
+  it('puts a visual in the right side when there is one', async () => {
+    const { voice } = makeVoiceWithBoard(['Look here.']);
+    const { findByTestId, getByText } = render(<LiveBoard voice={voice} getVisual={() => <span>The scene</span>} />);
+    expect((await findByTestId('board-visual')).dataset.big).toBe('true');
+    getByText('The scene');
+  });
 });
