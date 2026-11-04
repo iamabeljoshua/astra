@@ -112,6 +112,18 @@ describe('the date of birth question', () => {
     await vi.waitFor(() => expect(sentBodies).toEqual([{ birthDate: expected, name: STUDENT_NAME }]));
   });
 
+  it.each(['0000', '0001'])('refuses year %s in the field, before there is anything to confirm', async (year) => {
+    const sentBodies = stubApiAnswer(200, { status: 'active', student: null });
+    renderWithQueryClient(<BirthDatePage {...STEP_PROPS} />);
+
+    enterDate('14', '3', year);
+    submitDate();
+
+    screen.getByText(strings.BIRTH_DATE_LABELS.rejected);
+    expect(screen.queryByRole('button', { name: strings.BIRTH_DATE_LABELS.confirm })).toBeNull();
+    expect(sentBodies).toEqual([]);
+  });
+
   it('clears the message when the student changes the date', async () => {
     renderWithQueryClient(<BirthDatePage {...STEP_PROPS} />);
 
