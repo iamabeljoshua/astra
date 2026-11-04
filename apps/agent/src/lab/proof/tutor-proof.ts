@@ -49,6 +49,17 @@ async function askInLesson(page: Page, text: string): Promise<number> {
   return getEpochMs();
 }
 
+async function startRecordingWhenThereIsSound(page: Page): Promise<void> {
+  await page.waitForFunction(() => {
+    try {
+      window.speechInPage.startRecording();
+      return true;
+    } catch {
+      return false;
+    }
+  }, undefined, { polling: 50, timeout: 30_000 });
+}
+
 interface PageRecords {
   firstAudioEpochMs: Record<string, number>;
   heardEpochMs: number[];
@@ -69,7 +80,7 @@ async function main(): Promise<void> {
   await page.addInitScript(installSpeechInPage);
   await signIn(page);
   const sends: { text: string; sentEpochMs: number }[] = [{ text: args.question, sentEpochMs: await askOnHome(page, args.question) }];
-  if (args.record) await page.waitForFunction(() => window.speechInPage !== undefined).then(() => page.evaluate(() => window.speechInPage.startRecording()));
+  if (args.record) await startRecordingWhenThereIsSound(page);
   const answerMs = Number(args.answerMs);
   await delay(answerMs);
   await page.screenshot({ path: join(args.out, 'lesson-0.png') });

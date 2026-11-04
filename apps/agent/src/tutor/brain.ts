@@ -115,7 +115,7 @@ const COMPACT_AT_TOKENS = 60_000;
 const TURNS_KEPT_AFTER_COMPACTING = 8;
 const CHARACTERS_PER_TOKEN = 3.2;
 const LONGEST_STUDENT_TEXT = 2000;
-const NOT_STUDENT_TEXT = /[\u0000-\u0008\u000B-\u001F\u007F​-‏‪-‮⁠-⁩﻿]/gu;
+const NOT_STUDENT_TEXT = /\p{Cf}|[^\P{Cc}\n\t]/gu;
 
 /** Strips what a person cannot have meant, so nothing hidden reaches the model or the log. */
 export function cleanStudentText(text: string): string {

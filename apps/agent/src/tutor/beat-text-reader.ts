@@ -9,7 +9,7 @@ const FEWEST_WORDS_BEFORE_A_COMMA = 4;
 const FEWEST_WORDS_BEFORE_THE_FIRST_COMMA = 2;
 const LONGEST_TAG_CHARACTERS = 200;
 
-const UNSPEAKABLE = /[\u0000*_`~#[\]$\\^️​-‏‪-‮⁠-⁩﻿\uD800-\uDFFF]|\p{Extended_Pictographic}/u;
+const UNSPEAKABLE = /[*_`~#[\]$\\^]|\p{Cc}|\p{Cf}|\p{Cs}|️|\p{Extended_Pictographic}/u;
 const JSON_SYMBOL = /[\s{}[\]:,\d.+-]/;
 const JSON_WORDS = ['true', 'false', 'null'];
 const LETTER = /[a-zA-Z]/;
@@ -100,7 +100,7 @@ export class BeatTextReader {
     if (this.#tag !== null) this.#releaseTag();
     this.#held = '';
     this.#endBeat();
-    for (const _ of this.#waitingCues) this.#options.onBadCommand('no word followed the command');
+    this.#waitingCues.forEach(() => this.#options.onBadCommand('no word followed the command'));
     this.#waitingCues = [];
   }
 

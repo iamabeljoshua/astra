@@ -1,5 +1,4 @@
 import { initializeLogger } from '@livekit/agents';
-import type { AudioFrame } from '@livekit/rtc-node';
 import type { AgentMessage, BrowserMessage, TurnId } from '@astra/contracts';
 import { describe, expect, it } from 'vitest';
 import { createLiveSession } from '../src/live/live-session.ts';
@@ -25,7 +24,7 @@ function setup(getReply: () => FakeReply) {
   const trace = (name: string, fields: Record<string, unknown> = {}) => notes.push({ name, fields, atMs: performance.now() });
   const session = createLiveSession({
     messenger: { send: (message) => messages.push(message), sendOnBothChannels: (message) => messages.push(message) },
-    line: createVoiceLine({ sampleRate: 24000, captureFrame: async (_frame: AudioFrame) => {}, clearQueue: () => {}, waitForPlayout: async () => {} }),
+    line: createVoiceLine({ sampleRate: 24000, captureFrame: async () => {}, clearQueue: () => {}, waitForPlayout: async () => {} }),
     voice: makeRenderedVoice({ name: 'fake', render: renderTone }).makeTts(),
     tutor: createTutorBrain({ model, trace, timeouts: QUICK }),
     takes: createTakePicker(allTakes),

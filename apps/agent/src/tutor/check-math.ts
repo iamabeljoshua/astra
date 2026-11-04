@@ -21,7 +21,7 @@ const FUNCTIONS: ReadonlyMap<string, (value: number) => number> = new Map([
   ['\\exp', Math.exp],
 ]);
 const GREEK_VARIABLE = /^\\(alpha|beta|gamma|delta|theta|lambda|mu|omega|phi|rho|sigma|tau)$/;
-const SKIPPED = new Set(['\\left', '\\right', '\\,', '\;', '\\:', '\\!', '\\ ', '\\displaystyle', '\\quad', '\\qquad']);
+const SKIPPED = new Set(['\\left', '\\right', '\\,', '\\;', '\\:', '\\!', '\\ ', '\\displaystyle', '\\quad', '\\qquad']);
 const TIMES = new Set(['*', '\\times', '\\cdot']);
 const DIVIDE = new Set(['/', '\\div']);
 const OPENING: ReadonlyMap<string, string> = new Map([['(', ')'], ['[', ']'], ['{', '}']]);
