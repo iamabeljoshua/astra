@@ -56,7 +56,7 @@ Any exercise can be answered by voice, as well as by typing or the pen. The micr
 - A pick needs one part named. A place needs every item named, or pairs of slot and item.
 - `pnpm --filter @astra/agent eval:spoken` runs the table in `evals/tutor-turns/spoken-lines.json`, which holds Muse's real finals on clips in two Mac voices. Wrong lines read as right must stay at zero.
 
-From the end of speech to the line on the page, on 4 November, was 2.5 s at p50 and 4.1 s at most, over 6 lines. About 1.1 s of that is the audio path, 0.2 s the voice detector, 0.6 to 0.9 s Muse's final, under 20 ms code, and 0.3 s back to the page. The agent ran on the same Mac as the browser, with LiveKit's cloud between them, so the path should be shorter in production. Landing on a complete partial could save a further 0.1 to 0.7 s, and is not built.
+From the end of speech to the line on the page, on 4 November, was 2.5 s at p50 and 4.1 s at most, over 6 lines. About 1.1 s of that is the audio path, 0.2 s the voice detector, 0.6 to 0.9 s Muse's final, under 20 ms code, and 0.3 s back to the page. The agent ran on the same Mac as the browser, with LiveKit's cloud between them, so the path should be shorter in production. Landing on Muse's last partial is not built, and would save little. Over the 64 clips the last partial always matched the final, and the whole line usually arrived with the final itself, at most 1.5 s before it.
 
 ## Changing the subject
 
@@ -195,7 +195,7 @@ Abel's rule: everything a student can see or do on the prototype exists on the r
 | Plot drawn in the flow, with grid, ticks, and a true minus sign | Waits for PR 88 | |
 | Draggable point with a pulsing ring and its coordinates | Waits for PR 88 | |
 | Tangent riding on the point, with its slope written | Waits for PR 88 | |
-| Code's check on release, with "Mm-hm." or "Hm." | Check and nods are in, `check-work.ts`. The page waits for PR 88 | |
+| Code's check on release, with "Mm-hm." or "Hm." | Check and nods are in, `check-work.ts`. The page waits for PR 88 | `step-generator.test.ts`, `board-work.test.ts` |
 
 ### Layout
 
