@@ -72,6 +72,57 @@ describe('CodeField', () => {
     expect(onComplete).toHaveBeenCalledTimes(1);
   });
 
+  it.each([
+    ['the minutes before the code', 'Type this code on the Astra sign-in page. It works for 10 minutes.\n123456\nOnly your newest code works.'],
+    ['the minutes after the code', 'Your code is 123456. It works for 10 minutes.'],
+    ['Arabic digits', 'يعمل لمدة ١٠ دقائق ١٢٣٤٥٦'],
+  ])('finds the code in a whole pasted mail, with %s', (_caseName, pasted) => {
+    const onComplete = vi.fn();
+    render(<ControlledCodeField onComplete={onComplete} />);
+
+    fireEvent.input(getField(), { target: { value: pasted }, data: pasted, inputType: 'insertFromPaste' });
+
+    expect(getField().value).toBe('123456');
+    expect(onComplete).toHaveBeenCalledWith('123456');
+  });
+
+  it('reads a code split by a space even when the mail holds a shorter number after it', () => {
+    const onComplete = vi.fn();
+    render(<ControlledCodeField onComplete={onComplete} />);
+
+    fireEvent.change(getField(), { target: { value: 'Your code is 123 456. It works for 10 minutes.' } });
+
+    expect(onComplete).toHaveBeenCalledWith('123456');
+  });
+
+  it.each([
+    ['a letter', 'x'],
+    ['a space', ' '],
+    ['a pasted word', 'code'],
+  ])('ignores %s typed over a marked digit, and keeps the mark', (_caseName, stray) => {
+    const { container } = render(<ControlledCodeField onComplete={vi.fn()} initialValue="124" />);
+    getField().focus();
+    getField().setSelectionRange(1, 1);
+    fireEvent.select(getField());
+
+    fireEvent.input(getField(), { target: { value: `1${stray}4` }, data: stray, inputType: 'insertText' });
+
+    expect(getField().value).toBe('124');
+    expect(getMarkedBoxes(container)).toEqual([1]);
+  });
+
+  it('still lets a digit typed over a marked digit replace it', () => {
+    const { container } = render(<ControlledCodeField onComplete={vi.fn()} initialValue="124" />);
+    getField().focus();
+    getField().setSelectionRange(1, 1);
+    fireEvent.select(getField());
+
+    fireEvent.input(getField(), { target: { value: '194' }, data: '9', inputType: 'insertText' });
+
+    expect(getField().value).toBe('194');
+    expect(getBoxes(container).map((box) => box.textContent).join('')).toBe('194');
+  });
+
   it('marks the box the caret is on, and no box without focus', () => {
     const { container } = render(<ControlledCodeField onComplete={vi.fn()} initialValue="123" />);
     const activeBoxes = () => getBoxes(container).flatMap((box, index) => (box.getAttribute('data-active') === 'true' ? [index] : []));
