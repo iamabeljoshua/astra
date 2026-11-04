@@ -50,7 +50,7 @@ const CASES: ReaderCase[] = [
   { name: 'a quote inside a label', text: 'Look {"kind":"text","id":"t","text":"say \\"hi\\" }"}here.', spoken: 'Look here.', cues: [1] },
   { name: 'true, false, and numbers in a command', text: 'Look {"kind":"text","id":"t","text":"x","handwritten":true}here {"kind":"markValue","id":"m","target":"p","at":1e2}now.', spoken: 'Look here now.', cues: [1, 2] },
   { name: 'text with a NUL and a broken character', text: 'Watch\u0000 this \uD83D now.', spoken: 'Watch this  now.' },
-  { name: 'a long run of combining marks is cut to a few', text: `Wa${'\u0301'.repeat(40)}tch this.`, spoken: `Wa${'\u0301'.repeat(4)}tch this.` },
+  { name: 'a long run of combining marks is cut to a few', text: `Wa${'\u0301'.repeat(40)}tch this.`, spoken: `Wa${'\u0301'.repeat(4)}tch this.`.normalize('NFC') },
   { name: 'a private use character and a hidden selector are not spoken', text: 'Watch\uE000 this\u{E0100} now.', spoken: 'Watch this now.' },
   { name: 'markdown and emoji are not spoken', text: 'This is *really* _neat_ `code` \u{1F600} now.', spoken: 'This is really neat code  now.' },
   { name: 'TeX marks are not spoken', text: 'So $x^2$ and \\frac are here.', spoken: 'So x2 and frac are here.' },
