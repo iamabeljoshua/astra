@@ -2,6 +2,7 @@ import type { FrozenFrame } from './beat.ts';
 import type { BeatId, ElementId, TurnId } from './ids.ts';
 import type { SceneCommand } from './scene-command.ts';
 import type { PlayReport, StudentAction } from './session-event.ts';
+import type { SessionRecap } from './session-recap.ts';
 import type { StudentWork } from './work.ts';
 
 /** Each side of a session sends a pulse this often, on the lossy channel. */
@@ -15,9 +16,9 @@ export const TYPED_TEXT_MAX_CHARACTERS = 2000;
 
 const LONE_SURROGATE = /\p{Cs}/gu;
 
-/** Cuts between whole characters, because half an emoji makes the JSON the model's API reads invalid. */
+/** Cuts between whole characters, because half an emoji makes the JSON the model's API reads invalid. A null character goes too, because Postgres cannot store it and a pasted one should not cost the student their line. */
 export function clipTypedText(text: string): string {
-  return Array.from(text.replace(LONE_SURROGATE, '')).slice(0, TYPED_TEXT_MAX_CHARACTERS).join('');
+  return Array.from(text.replace(LONE_SURROGATE, '').replaceAll('\u0000', '')).slice(0, TYPED_TEXT_MAX_CHARACTERS).join('');
 }
 
 /** The longest caption line of the student's words, in characters. */
@@ -82,7 +83,9 @@ export type AgentMessage =
   /** The tutor keeps getting cut off by sound with at most one word in it, so the page may suggest holding to talk. */
   | { type: 'keptBeingCut' }
   /** The tutor told this student they can talk, so the page records that and it is not said again. */
-  | { type: 'talkInvited' };
+  | { type: 'talkInvited' }
+  /** What this session's end says, to show as it is spoken, or null when it has nothing to say. */
+  | { type: 'recap'; recap: SessionRecap | null };
 
 /**
  * `browserMs` says when this was sent, on the browser's audio clock, and `startedMsAgo` how long before that it really happened.
@@ -104,8 +107,8 @@ export type BrowserMessage = BrowserStamp &
     | { type: 'questionHeard'; turnId: TurnId; beatId: BeatId }
     /** The page has joined and hears the tutor's track. `wantsGreeting` is false when the student opened the room by typing, or came back after a drop. `invitesTalk` is true when the tutor should tell this student they can talk. */
     | { type: 'hello'; wantsGreeting: boolean; invitesTalk: boolean }
-    /** The student typed instead of speaking. */
-    | { type: 'typed'; text: string }
+    /** The student typed instead of speaking. `isOpening` marks a line the page sends to start the tutor, which the student did not type. */
+    | { type: 'typed'; text: string; isOpening?: boolean }
     /** The student did something on the shared board. The agent works out what it means, because a browser's own word for it is not evidence. */
     | { type: 'worked'; work: StudentWork }
     /** The student has not touched the board for this long. `draft` is what they have typed and not sent, and it leaves the page only at a pause. */
@@ -131,4 +134,6 @@ export type BrowserMessage = BrowserStamp &
     | { type: 'holdStarted' }
     /** The student let go and all they said has left the page, so nothing waits for the voice detector. */
     | { type: 'lineEnded' }
+    /** The student pressed End, so the tutor stops and gives its recap. */
+    | { type: 'endingSession' }
   );

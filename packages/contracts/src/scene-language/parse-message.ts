@@ -3,6 +3,7 @@ import { readBeatId, readElementId, readSceneId, readTurnId } from './ids.ts';
 import { type AgentMessage, type BrowserMessage, type BrowserStamp, clipTypedText, LIVE_MESSAGE_MAX_BYTES, SESSION_TITLE_MAX_CHARACTERS, STUDENT_WORDS_MAX_CHARACTERS, type TimedWord, TUTOR_CLOSED_REASONS } from './live-message.ts';
 import { readSceneCommand } from './parse-command.ts';
 import { PLAY_REPORT_KEYS, readFrozenFrames, readPlayReport, readStudentAction, readStudentWork } from './parse-event.ts';
+import { readSessionRecap } from './parse-recap.ts';
 import type { SceneAgentMessage, SceneBrowserMessage } from './scene-message.ts';
 import {
   type CheckedFields,
@@ -109,6 +110,13 @@ const AGENT_MESSAGES: VariantTable<AgentMessage, 'type'> = {
     closingForQuiet: { keys: [], read: () => ({ type: 'closingForQuiet' }) },
     keptBeingCut: { keys: [], read: () => ({ type: 'keptBeingCut' }) },
     talkInvited: { keys: [], read: () => ({ type: 'talkInvited' }) },
+    recap: {
+      keys: ['recap'],
+      read: (fields) => {
+        const recap = fields.at('recap');
+        return { type: 'recap', recap: recap.value === null ? null : readSessionRecap(recap) };
+      },
+    },
   },
 };
 
@@ -162,8 +170,8 @@ const BROWSER_MESSAGES: VariantTable<BrowserMessage, 'type'> = {
       read: (fields) => ({ type: 'hello', ...readBrowserStamp(fields), wantsGreeting: readBoolean(fields.at('wantsGreeting')), invitesTalk: readBoolean(fields.at('invitesTalk')) }),
     },
     typed: {
-      keys: [...STAMP_KEYS, 'text'],
-      read: (fields) => ({ type: 'typed', ...readBrowserStamp(fields), text: clipTypedText(readString(fields.at('text'), LIVE_MESSAGE_MAX_BYTES)) }),
+      keys: [...STAMP_KEYS, 'text', 'isOpening'],
+      read: (fields) => ({ type: 'typed', ...readBrowserStamp(fields), text: clipTypedText(readString(fields.at('text'), LIVE_MESSAGE_MAX_BYTES)), ...fields.optional('isOpening', readBoolean) }),
     },
     worked: {
       keys: [...STAMP_KEYS, 'work'],
@@ -216,6 +224,10 @@ const BROWSER_MESSAGES: VariantTable<BrowserMessage, 'type'> = {
     lineEnded: {
       keys: STAMP_KEYS,
       read: (fields) => ({ type: 'lineEnded', ...readBrowserStamp(fields) }),
+    },
+    endingSession: {
+      keys: STAMP_KEYS,
+      read: (fields) => ({ type: 'endingSession', ...readBrowserStamp(fields) }),
     },
   },
 };

@@ -11,6 +11,7 @@ import {
   parseBrowserMessage,
   parseSceneCommand,
   parseSessionEvent,
+  parseSessionRecap,
   parseWrittenBeat,
 } from '../src/index.ts';
 import { expectRefused, getJsonBytes, makeBeat, withCommand, withoutField } from './helpers.ts';
@@ -503,6 +504,7 @@ describe('a typed message that is too long', () => {
 
   it('never holds half an emoji', () => {
     expect(clipTypedText('😀😀'.slice(0, 3))).toBe('😀');
+    expect(clipTypedText('a\u0000b')).toBe('ab');
   });
 });
 
@@ -543,5 +545,36 @@ describe('the messages a held microphone and a quiet room add', () => {
     for (const type of ['keptBeingCut', 'talkInvited']) expect(parseAgentMessage({ type })).toEqual({ ok: true, value: { type } });
     expect(parseBrowserMessage({ type: 'hello', ...stamp, wantsGreeting: true, invitesTalk: true }).ok).toBe(true);
     expect(parseBrowserMessage({ type: 'hello', ...stamp, wantsGreeting: true }).ok).toBe(false);
+  });
+});
+
+describe('a session recap', () => {
+  const LESSON = { kind: 'lesson', covered: 'We took three off.', gotRight: null, tryNext: 'Try one more.' };
+
+  it('reads a recap of either kind, and one with no right work', () => {
+    expect(parseSessionRecap(LESSON)).toEqual({ ok: true, value: LESSON });
+    expect(parseSessionRecap({ ...LESSON, gotRight: 'You got x equals 4 right.' }).ok).toBe(true);
+    expect(parseSessionRecap({ kind: 'gentle', line: 'Thanks for talking.' }).ok).toBe(true);
+  });
+
+  it('refuses a recap with a field it does not know, a gentle one that talks of the work, and a line that is too long', () => {
+    expectRefused(parseSessionRecap({ ...LESSON, grade: 'A' }), /grade/);
+    expectRefused(parseSessionRecap({ kind: 'gentle', line: 'Thanks.', gotRight: 'You got it.' }), /gotRight/);
+    expectRefused(parseSessionRecap({ ...LESSON, covered: 'x'.repeat(301) }), /covered/);
+    expect(parseSessionRecap(null).ok).toBe(false);
+  });
+
+  it('carries over the data channel, with no recap as a real answer', () => {
+    expect(parseAgentMessage({ type: 'recap', recap: LESSON }).ok).toBe(true);
+    expect(parseAgentMessage({ type: 'recap', recap: null })).toEqual({ ok: true, value: { type: 'recap', recap: null } });
+    expect(parseAgentMessage({ type: 'recap' }).ok).toBe(false);
+  });
+
+  it('takes the press of End and marks the line the page opens with', () => {
+    const stamp = { clockId: 'page-1', browserMs: 5000, startedMsAgo: 0 };
+    expect(parseBrowserMessage({ type: 'endingSession', ...stamp }).ok).toBe(true);
+    expect(parseBrowserMessage({ type: 'typed', ...stamp, text: 'Teach me', isOpening: true })).toMatchObject({ ok: true, value: { isOpening: true } });
+    expect(parseBrowserMessage({ type: 'typed', ...stamp, text: 'Teach me' })).not.toHaveProperty('value.isOpening');
+    expectRefused(parseBrowserMessage({ type: 'typed', ...stamp, text: 'Teach me', isOpening: 'yes' }), /isOpening/);
   });
 });

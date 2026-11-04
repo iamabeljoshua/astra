@@ -305,9 +305,13 @@ describe('the Privacy Policy on voice', () => {
     expect(privacy).toContain('We do not send LiveKit your name, your date of birth, your email address, your level, your interests, or your goal');
   });
 
-  it("says a question from Home stays as its session's title, and that the other words are not stored", () => {
-    expect(privacy).toContain("Apart from a question from Home, which stays as its session's title, we do not store them yet.");
-    expect(privacy).not.toContain('We do not store them yet.');
+  it("says the words are stored as text in the session's log, and the sound is not", () => {
+    expect(privacy).toContain("We store them as text in that session's log, so you can replay the lesson. Words you say are stored as the text our transcriber heard. We do not store the sound.");
+    expect(privacy).not.toContain('we do not store them yet');
+  });
+
+  it("says a question from Home stays as its session's title, even after the replay is deleted", () => {
+    expect(privacy).toContain("A question you type on Home stays as that session's title, even after you delete the replay, unless you move to another topic in that session.");
   });
 
   it('says a total of what the tutor cost is stored per day, with no words in it', () => {

@@ -370,7 +370,7 @@ The whole sample session from PRD section 6.4 parses with these types, including
 | M3.14 | One scene command that renders from the time alone, with moments as word cues. |
 | After the MVP | A region of a photo, with uploads. Abel moved uploads on 4 November 2026. |
 | M3.12 | One mark on a group of strokes, a tutor stroke, and ink when the layout differs between sizes, which came with the pen. A sign-error test passes only if the sign is one stroke the model can name. |
-| M4.4 | "The board replays its key moments" (PRD section 6.6). |
+| M4.4 | Done, with no new command. Code picks the moments from the log, the work it called right and otherwise what the tutor drew, and the page shows each in turn as the recap plays. `docs/tests/recap-replay.md` has the rest. |
 | Later | CJK and Thai count as one word, so every cue would fire at word 0. PRD Q12 says English first, so this waits. |
 
 **Safety.** The parser checks shape and not meaning, and free text can hold anything that is printable. So M3.3 to M3.5 render text as text and never as HTML, call KaTeX with `trust: false`, and keep names in Maps. The parser refuses `__proto__`, `constructor`, names no reference can reach, control characters, bidi overrides, and every TeX command outside a named list. That list has no macro definitions, sizes, colors, links, or images, so `\def`, `\rule`, `\textcolor`, and `\href` never reach KaTeX. KaTeX then runs with `maxExpand` and `maxSize` as a second wall, and math it still refuses leaves the last good equation on the board. So a model that writes `"\frac{1}{2}"`, which JSON turns into a form feed, gets a refusal and not a wrong equation. `docs/tests/math-board.md` records the hostile run. The agent strips bidi characters from student text before it stores it.
@@ -436,7 +436,7 @@ These were all the changes this design made to the approved plan. They went into
 | M3.9 | `system` and `tools` stay frozen for prompt caching, so the current step goes in as an appended message. |
 | M3.10 | Its perf rule measures first real word, not first audio. |
 | M3.11 | Only says that photos and PDFs are coming soon. Uploads moved past the MVP on 4 November 2026, and the pen moved to M3.12, with handwriting through a small reader call and then the code check. |
-| M4.4 | Adds the key-moments command. |
+| M4.4 | Adds no key-moments command. Code picks the moments from the log, as `docs/tests/recap-replay.md` says. |
 | M4.5 | Anthropic's zero-retention agreement, Meta's and ElevenLabs' age rules, and a full read of their terms go into the legal review. |
 | PRD section 10 | The cost table is superseded by the table above. |
 | PRD Q8, plan section on live tutor facts | ElevenLabs and Chris replace Cartesia. Muse replaces Deepgram. You chose Chris by ear, so a blind test of voices runs only if you still want one. |

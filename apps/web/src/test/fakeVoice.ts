@@ -1,7 +1,7 @@
 import { vi } from 'vitest';
 import type { LiveVoice, LiveVoiceView } from '../voice/liveVoice';
 
-const BASE_VIEW: LiveVoiceView = { phase: 'live', mic: 'off', isRoomNoisy: false, isSoundBlocked: false, isQuietWarning: false, isHeard: false, isThinking: false, isTutorSpeaking: false, closedBecause: null, firstWord: null, isStopped: false, typingNoteCount: 0, costUsd: null, sessionTitle: null, startedFresh: false, hasTutorStarted: false, studentLines: [], tutorHeard: [], tutorComing: [] };
+const BASE_VIEW: LiveVoiceView = { phase: 'live', mic: 'off', isRoomNoisy: false, isSoundBlocked: false, isQuietWarning: false, isHeard: false, isThinking: false, isTutorSpeaking: false, closedBecause: null, firstWord: null, isStopped: false, typingNoteCount: 0, costUsd: null, sessionTitle: null, startedFresh: false, hasTutorStarted: false, studentLines: [], tutorHeard: [], tutorComing: [], recap: null, isRecapDecided: false };
 
 export function makeFakeVoice(view: Partial<LiveVoiceView> = {}): LiveVoice {
   let current = { ...BASE_VIEW, ...view };
@@ -11,6 +11,8 @@ export function makeFakeVoice(view: Partial<LiveVoiceView> = {}): LiveVoice {
     listeners.forEach((listener) => listener());
   };
   return {
+    canAskForRecap: vi.fn(() => false),
+    askForRecap: vi.fn(() => false),
     records: {} as LiveVoice['records'],
     player: {} as LiveVoice['player'],
     getView: () => current,
