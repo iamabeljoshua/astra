@@ -1,7 +1,11 @@
-import { BEAT_LIMITS, type Beat, type BoardKinds, getBoardAfter, getBoardProblem, LIVE_MESSAGE_MAX_BYTES, parseSceneCommand, type SceneCommand } from '@astra/contracts';
+import { BEAT_LIMITS, type Beat, type BoardKinds, getBoardAfter, getBoardProblem, LIVE_MESSAGE_MAX_BYTES, MATH_CLAIMS, parseSceneCommand, type SceneCommand } from '@astra/contracts';
 
-/** A turn wraps up at the next sentence end past this, because T4 gives a spoken turn 20 seconds. */
-export const TURN_WORDS_TO_WRAP = 50;
+/** A turn wraps up at the next sentence end past this, about 20 s with its pauses, because T4 gives a spoken turn 20 seconds. */
+export const TURN_WORDS_TO_WRAP = 45;
+/** A stretch of speech takes a breath at the next sentence end past this, because long stretches are what sound like a machine. */
+const STRETCH_WORDS_TO_BREATHE = 25;
+/** A line break after fewer words than this is only a new beat, because a pause after "Okay, look." sounds odd. */
+const FEWEST_WORDS_BEFORE_A_BREATH = 6;
 /** A sentence that never ends stops here, so a run-on cannot speak for a minute. */
 const TURN_WORDS_TO_CUT = 90;
 /** B2 gives a turn's first drawing 1 s from its first word, which is about three words. */
@@ -20,7 +24,10 @@ const JSON_MARKS = /[":]/;
 const ENDS_IN_QUESTION = /\?["')]*\s*$/;
 const ENDS_IN_SENTENCE = /[.!]["')]*\s*$/;
 const ENDS_IN_CLAUSE = /[,;:]\s*$/;
-const ENDS_IN_ABBREVIATION = /(?:^|[\s("'])(?:mr|mrs|ms|dr|prof|st|vs|e\.g|i\.e)\.["')]*\s*$/i;
+const ENDS_IN_ABBREVIATION = /(?:^|[\s("'])(?:mr|mrs|ms|dr|prof|st|vs|(?:[a-z]\.)+[a-z])\.["')]*\s*$/i;
+const ENDS_IN_ELLIPSIS = /\.{2,}["')]*\s*$/;
+/** Words only a safety reply uses, so that reply is never paused or wrapped. */
+const SAFETY_REPLY = /\b(?:that sounds serious|right thing telling me|not your fault|adult you trust|emergency number|are you safe)\b/i;
 const STILL_A_TAG = /^<\/?(?:[A-Za-z_][\w:.-]*(?:\s[^<>\n]*)?)?$/;
 const TAG_NAME = /^<(\/?)([A-Za-z_][\w:.-]*)/;
 const PRIVATE_TAGS: ReadonlySet<string> = new Set(['thinking', 'think', 'reasoning', 'scratchpad', 'analysis', 'reflection', 'function_calls', 'invoke', 'parameter', 'system', 'system-reminder']);
@@ -29,6 +36,8 @@ export interface WrittenBeatParts {
   script: Beat['script'];
   wordCount: number;
   expectsReply: boolean;
+  /** This beat starts a new stretch of speech, so the student hears a breath before it. */
+  startsStretch: boolean;
 }
 
 export type CommandVerdict = { ok: true } | { ok: false; problem: string; isWrongMath: boolean };
@@ -39,10 +48,22 @@ export interface BeatTextReaderOptions {
   onWrongMath(problem: string): void;
   onCommandKept?(command: SceneCommand): void;
   checkCommand?(command: SceneCommand): CommandVerdict;
+  /** A retry that says these words again would repeat what the student heard, so they are dropped. */
+  isAlreadySaid?(text: string): boolean;
   board?: BoardKinds;
 }
 
 const looksLikeSpeech = (tail: string) => /\s\S/.test(tail.trim()) && !JSON_MARKS.test(tail);
+
+const isSentenceEnd = (text: string) => ENDS_IN_SENTENCE.test(text) && !ENDS_IN_ABBREVIATION.test(text) && !ENDS_IN_ELLIPSIS.test(text);
+
+// A model can invent a word for what a line is. It is still some other relation, which code does not judge, and losing the line would be worse.
+function withKnownClaim(value: unknown): unknown {
+  if (typeof value !== 'object' || value === null || !('claim' in value)) return value;
+  const { claim, ...command } = value as { claim: unknown; kind?: unknown };
+  if (command.kind !== 'writeMath' && command.kind !== 'transformMath') return command;
+  return { ...command, claim: MATH_CLAIMS.includes(claim as (typeof MATH_CLAIMS)[number]) ? claim : 'relation' };
+}
 
 const isPrivateTag = (name: string) => PRIVATE_TAGS.has(name.toLowerCase()) || name.toLowerCase().startsWith('antml:');
 
@@ -61,6 +82,11 @@ export class BeatTextReader {
   #isCommandTooLong = false;
   #marksInARow = 0;
   #wordsThisTurn = 0;
+  #wordsThisStretch = 0;
+  #isBreathDue = false;
+  #startsStretch = false;
+  #didLastBeatEndSentence = false;
+  #isSafetyReply = false;
   #hasCommandThisTurn = false;
   #isHalted = false;
   #isTurnOver = false;
@@ -111,10 +137,11 @@ export class BeatTextReader {
     this.#cuesAwaitingWord = [];
   }
 
-  /** Drops half-read commands, because the next request carries on from the words already said. */
+  /** Drops half-read commands and half a sentence, because the next request carries on from the words already said, and half a sentence is what a dropped stream must never speak. */
   closeAttempt(): void {
     this.#clearHalfRead();
-    this.#endBeat();
+    if (isSentenceEnd(this.#text) || ENDS_IN_QUESTION.test(this.#text)) this.#endBeat();
+    else this.#dropWordsKeepingCommands();
   }
 
   /** Throws away what has not been spoken yet, because a refused reply's partial output must not be used. */
@@ -132,7 +159,23 @@ export class BeatTextReader {
     this.#isHalted = false;
   }
 
+  #dropWordsKeepingCommands(): void {
+    const commands = this.#script.filter((part) => typeof part !== 'string');
+    const createdIds = this.#createdIds;
+    const commandCount = this.#commandCount;
+    const startsStretch = this.#startsStretch;
+    this.#wordsThisTurn -= this.#wordCount;
+    this.#wordsThisStretch -= this.#wordCount;
+    this.#startBeat();
+    this.#script = commands;
+    this.#cuesAwaitingWord = [...commands] as SceneCommand[];
+    this.#createdIds = createdIds;
+    this.#commandCount = commandCount;
+    this.#startsStretch = startsStretch;
+  }
+
   #startBeat(): void {
+    this.#startsStretch = false;
     this.#script = [];
     this.#cuesAwaitingWord = [];
     this.#createdIds = new Set();
@@ -162,7 +205,7 @@ export class BeatTextReader {
     if (this.#held !== '') this.#stepAfterOpenBrace(character);
     else if (character === '{') this.#held = character;
     else if (character === '<') this.#tag = character;
-    else if (character === '\n') this.#endBeat();
+    else if (character === '\n') this.#endLine();
     else if (character !== '}' && !UNSPEAKABLE.test(character) && !this.#isOneMarkTooMany(character)) this.#speak(character);
   }
 
@@ -214,6 +257,12 @@ export class BeatTextReader {
     }
   }
 
+  // The model writes a line break between ideas, and one that falls mid sentence is only a new beat.
+  #endLine(): void {
+    this.#endBeat();
+    if (this.#didLastBeatEndSentence && this.#wordsThisStretch >= FEWEST_WORDS_BEFORE_A_BREATH && !this.#isSafetyReply) this.#isBreathDue = true;
+  }
+
   #speak(character: string): void {
     const isSpace = /\s/.test(character);
     if (this.#characterCount === BEAT_LIMITS.characters) {
@@ -238,15 +287,21 @@ export class BeatTextReader {
     if (startsWord && this.#wordsThisTurn + 1 === DRAWING_GUARD_WORD && !this.#hasCommandThisTurn) this.#addDrawingGuard();
     this.#clearCuesAwaitingWord();
     if (startsWord) {
+      if (this.#isBreathDue) {
+        this.#isBreathDue = false;
+        this.#startsStretch = true;
+        this.#wordsThisStretch = 0;
+      }
       this.#wordCount += 1;
       this.#wordsThisTurn += 1;
+      this.#wordsThisStretch += 1;
     }
   }
 
   // Beats end at commas and sentence ends, because M3.2 measured mid-sentence flushes stretching the line.
   #isAtBeatBoundary(): boolean {
     if (this.#cuesAwaitingWord.length > 0) return false;
-    if (ENDS_IN_QUESTION.test(this.#text) || ENDS_IN_SENTENCE.test(this.#text)) return true;
+    if (ENDS_IN_QUESTION.test(this.#text) || isSentenceEnd(this.#text)) return true;
     const isFirstBeat = this.#wordsThisTurn === this.#wordCount;
     return ENDS_IN_CLAUSE.test(this.#text) && this.#wordCount >= (isFirstBeat ? FEWEST_WORDS_BEFORE_THE_FIRST_COMMA : FEWEST_WORDS_BEFORE_A_COMMA);
   }
@@ -350,7 +405,7 @@ export class BeatTextReader {
     }
     const value = this.#readJson(text);
     if (value === undefined) return;
-    const parsed = parseSceneCommand(value);
+    const parsed = parseSceneCommand(withKnownClaim(value));
     if (parsed.ok) this.#keepCommand(parsed.value);
     else this.#options.onBadCommand(parsed.problem);
   }
@@ -397,14 +452,18 @@ export class BeatTextReader {
 
   #endBeat(): void {
     if (this.#wordCount === 0) return;
+    if (this.#options.isAlreadySaid?.(this.#text)) return this.#dropWordsKeepingCommands();
     this.#clearCuesAwaitingWord();
     const expectsReply = ENDS_IN_QUESTION.test(this.#text);
-    const endsSentence = ENDS_IN_SENTENCE.test(this.#text) && !ENDS_IN_ABBREVIATION.test(this.#text);
+    const endsSentence = isSentenceEnd(this.#text);
     const script = this.#script.map((part) => (typeof part === 'string' ? part.normalize('NFC') : part));
-    this.#options.onBeatEnd({ script, wordCount: this.#wordCount, expectsReply });
+    this.#isSafetyReply ||= SAFETY_REPLY.test(this.#text);
+    this.#options.onBeatEnd({ script, wordCount: this.#wordCount, expectsReply, startsStretch: this.#startsStretch });
     const isAtCut = this.#wordsThisTurn >= TURN_WORDS_TO_CUT;
-    this.#isTurnOver = expectsReply || (endsSentence && this.#wordsThisTurn >= TURN_WORDS_TO_WRAP) || isAtCut;
+    this.#isTurnOver = expectsReply || (endsSentence && this.#wordsThisTurn >= TURN_WORDS_TO_WRAP && !this.#isSafetyReply) || isAtCut;
     this.#wasCutShort = isAtCut && !expectsReply && !endsSentence;
+    this.#didLastBeatEndSentence = endsSentence || expectsReply;
+    if (endsSentence && this.#wordsThisStretch >= STRETCH_WORDS_TO_BREATHE && !this.#isSafetyReply) this.#isBreathDue = true;
     this.#startBeat();
   }
 }

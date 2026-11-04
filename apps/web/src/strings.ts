@@ -219,7 +219,7 @@ export const VOICE_LABELS = {
   reconnecting: 'Your connection dropped. Reconnecting.',
   ended: 'Your connection to the tutor ended.',
   sessionLimit: 'This session has reached its limit. Start a new session to carry on.',
-  dailyLimit: 'That is all your tutor time for today. Come back tomorrow. Your sessions are kept.',
+  dailyLimit: 'That is all your tutor time for now. It resets once a day, so please try again later. Your sessions are kept.',
   broken: 'Your tutor has stopped working in this session. Start a new one to carry on.',
   micDenied: 'Your browser did not allow the microphone. You can type instead.',
   micOn: 'Your microphone is on.',

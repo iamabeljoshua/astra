@@ -42,6 +42,9 @@ export const VECTOR_LENGTHS = ['short', 'medium', 'long'] as const;
 export type VectorLength = (typeof VECTOR_LENGTHS)[number];
 
 export const ANNOTATION_MARKS = ['underline', 'circle', 'check', 'cross'] as const;
+/** What the writer says a line of math is, because a line that follows another need not follow from it. `step` follows and is equal, `new` has no tie to the line before, `shown` is there to look at and is not asserted, and `relation` is tied some other way, as a derivative or a rounding is. */
+export const MATH_CLAIMS = ['step', 'new', 'shown', 'relation'] as const;
+export type MathClaim = (typeof MATH_CLAIMS)[number];
 export type AnnotationMark = (typeof ANNOTATION_MARKS)[number];
 
 export const SIMULATION_MOMENTS = ['release', 'peak', 'landing'] as const;
@@ -75,6 +78,7 @@ export interface WriteMath {
   tex: string;
   /** Writes it as that many words pass, so the tutor says it as it forms. */
   overWords?: number;
+  claim?: MathClaim;
 }
 
 /** Rearranges an equation in place, so matching terms move and keep their identity. */
@@ -83,6 +87,7 @@ export interface TransformMath {
   target: ElementId;
   tex: string;
   overWords?: number;
+  claim?: MathClaim;
 }
 
 /** Marks an element, or one term of an equation when `tex` names the term. */
