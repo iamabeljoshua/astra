@@ -4,13 +4,14 @@ import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { createLessonWork } from '../src/scenes/lesson/lesson-work.ts';
 import type { RenderWorker } from '../src/scenes/render-worker.ts';
-import { createSceneStore, getSceneId } from '../src/scenes/scene-store.ts';
+import { createSceneStore, getSceneKey } from '../src/scenes/scene-store.ts';
+import { createTopicRuns } from '../src/scenes/lesson/topic-runs.ts';
 import type { LessonPlan, RouteEngine, SceneBrief, StoredScene } from '../src/scenes/scene-types.ts';
 
-const PLAN: LessonPlan = { opening: [{ say: 'Words first.' }], setup: 'Watch.', narration: '[[a]] One two. [[b]] Three four.', plan: 'a: x\nb: y', close: 'Why?' };
+const PLAN: LessonPlan = { opening: [{ say: 'Words first about a slope, and what a heart or a derivative would do.' }], setup: 'Watch.', narration: '[[a]] One two. [[b]] Three four.', plan: 'a: x\nb: y', close: 'Why?' };
 const USAGE = { model: 'fake', ms: 1, costUsd: 0 };
 const flush = () => new Promise((resolve) => setTimeout(resolve));
-const worker: RenderWorker = async () => ({ isOk: true, takes: [{ theme: 'light', bytes: Buffer.from('t'), makeMs: 1, seconds: 1, parts: [] }], sheets: [Buffer.from('p')], layoutProblems: [], layoutNotes: [], declared: {}, ms: 1 });
+const worker: RenderWorker = async () => ({ isOk: true, takes: [{ theme: 'light', bytes: Buffer.from('t'), makeMs: 1, seconds: 1, parts: [] }, { theme: 'dark', bytes: Buffer.from('t'), makeMs: 1, seconds: 1, parts: [] }], sheets: [{ theme: 'light', bytes: Buffer.from('p') }, { theme: 'dark', bytes: Buffer.from('p') }], layoutProblems: [], layoutNotes: [], declared: {}, ms: 1 });
 
 function setUp({ engine = 'manimgx', topic = 'what a slope measures', isCard = false, request = 'hi, my name is Ada and I am stuck on slopes' }: { engine?: RouteEngine; topic?: string; isCard?: boolean; request?: string } = {}) {
   const store = createSceneStore(mkdtempSync(join(tmpdir(), 'lesson-work-')));
@@ -21,11 +22,13 @@ function setUp({ engine = 'manimgx', topic = 'what a slope measures', isCard = f
     briefs.push(brief);
     return { code: 'class Lesson: pass', ...USAGE };
   };
-  const work = createLessonWork({ router: { route }, planner: { plan }, writers: [{ name: 'writer', write }], reviewer: { review: async () => ({ isPass: true, errors: [], ...USAGE }) }, worker, store, request, isCard, getNowMs: () => 0 });
+  const runs = createTopicRuns({ planner: { plan }, writers: [{ name: 'writer', write }], reviewer: { review: async () => ({ isPass: true, errors: [], ...USAGE }) }, worker, store });
+  const work = createLessonWork({ router: { route }, runs, store, request, isCard, studentId: 'ada', getNowMs: () => 0 });
   return { work, store, route, plan, briefs };
 }
 
-const saved = (topic: string, status: StoredScene['status']): StoredScene => ({ id: getSceneId(topic), topic, status, plan: PLAN, review: [{ moment: 'a', what: 'wrong', truth: '', confidence: 'high' }] }) as unknown as StoredScene;
+const TAKES = [{ theme: 'light', bytes: Buffer.from('t') }, { theme: 'dark', bytes: Buffer.from('t') }] as const;
+const saved = (topic: string): StoredScene => ({ ...getSceneKey(topic), status: 'checked', plan: PLAN }) as unknown as StoredScene;
 
 describe('a lesson asking for its scene', () => {
   it('gives the writer the router\'s topic and never the student\'s words', async () => {
@@ -39,7 +42,7 @@ describe('a lesson asking for its scene', () => {
 
   it('reuses a saved scene for a card with no model call, so the next student gets it free', async () => {
     const { work, store, route, plan, briefs } = setUp({ isCard: true, request: 'What a derivative really measures' });
-    store.save(saved('What a derivative really measures', 'checked'), [], []);
+    await store.saveChecked(saved('What a derivative really measures'), TAKES, []);
     work.desk.ask(work.request);
     await flush();
     expect(work.desk.getState().kind).toBe('ready');
@@ -61,7 +64,7 @@ describe('a lesson asking for its scene', () => {
 
   it('finds a saved scene for a question typed exactly as its topic, with no model call', async () => {
     const { work, store, route } = setUp({ request: 'Why Pythagoras was right' });
-    store.save(saved('Why Pythagoras was right', 'checked'), [], []);
+    await store.saveChecked(saved('Why Pythagoras was right'), TAKES, []);
     work.desk.ask(work.request);
     await flush();
     expect(work.desk.getState().kind).toBe('ready');
@@ -70,7 +73,7 @@ describe('a lesson asking for its scene', () => {
 
   it('reuses a scene saved under the same topic for a typed question', async () => {
     const { work, store, briefs } = setUp();
-    store.save(saved('what a slope measures', 'checked'), [], []);
+    await store.saveChecked(saved('what a slope measures'), TAKES, []);
     work.desk.ask(work.request);
     await flush();
     await flush();
@@ -80,7 +83,7 @@ describe('a lesson asking for its scene', () => {
 
   it('does not pay again for a scene the review failed, and does not show it', async () => {
     const { work, store, briefs } = setUp();
-    store.save(saved('what a slope measures', 'rejected'), [], []);
+    store.saveRefusal({ key: getSceneKey('what a slope measures', { ownerId: 'ada' }), code: 'c', plan: PLAN, review: [{ moment: 'a', what: 'wrong', truth: '', confidence: 'high' }], savedAt: 'now' });
     work.desk.ask(work.request);
     await flush();
     await flush();

@@ -1,10 +1,9 @@
-import { makeScene, type SceneMaker } from '../make-scene.ts';
 import { createSceneDesk, type SceneDesk, type SceneState } from '../scene-desk.ts';
-import { getSceneId } from '../scene-store.ts';
-import type { LessonPlan, LessonPlanner, OpeningLine, SceneRoute, SceneRouter, StoredScene } from '../scene-types.ts';
+import { getSceneKey, type SceneStore } from '../scene-store.ts';
+import type { LessonPlan, OpeningLine, SceneRoute, SceneRouter, StoredScene } from '../scene-types.ts';
+import type { TopicRun, TopicRuns } from './topic-runs.ts';
 
 const ROUTER_LIMIT_MS = 10_000;
-const PLANNER_LIMIT_MS = 30_000;
 const SAVED_ROUTE = { engine: 'manimgx', kind: 'saved', model: 'none', ms: 0, costUsd: 0 } as const;
 
 export interface LessonWork {
@@ -15,16 +14,20 @@ export interface LessonWork {
   planWithoutScene(): void;
 }
 
-export interface LessonWorkOptions extends SceneMaker {
+export interface LessonWorkOptions {
   router: SceneRouter;
-  planner: LessonPlanner;
+  runs: TopicRuns;
+  store: SceneStore;
   request: string;
   isCard: boolean;
+  studentId: string;
   getNowMs(): number;
   onChange?(state: SceneState, atMs: number): void;
 }
 
-export function createLessonWork({ router, planner, request, isCard, getNowMs, onChange, ...maker }: LessonWorkOptions): LessonWork {
+export function createLessonWork({ router, runs, store, request, isCard, studentId, getNowMs, onChange }: LessonWorkOptions): LessonWork {
+  // A card's title comes from the server's own list, so its scene is shared. A typed question stays with its student, because router-cleaned words are still a student's words shaped by a model.
+  const ownerId = isCard ? null : studentId;
   let settlePlan: (plan: LessonPlan | null) => void = () => {};
   const plan = new Promise<LessonPlan | null>((resolve) => {
     settlePlan = resolve;
@@ -34,11 +37,20 @@ export function createLessonWork({ router, planner, request, isCard, getNowMs, o
     settleFirstLine = resolve;
   });
   void plan.then((settled) => settleFirstLine(settled?.opening[0] ?? null));
-  const findSaved = (topic: string): StoredScene | null => maker.store.find(getSceneId(topic));
+  let run: TopicRun | null = null;
+
+  const getOwnKey = (topic: string) => getSceneKey(topic, { ownerId });
+  const findSaved = (topic: string): StoredScene | null => store.find(getSceneKey(topic)) ?? (ownerId === null ? null : store.find(getOwnKey(topic)));
+
+  const joinRun = (topic: string) => {
+    run = runs.join(getOwnKey(topic));
+    void run.firstLine.then(settleFirstLine);
+    void run.plan.then(settlePlan);
+  };
 
   const getRoute = async (): Promise<SceneRoute> => {
     const saved = findSaved(request);
-    if (saved?.status === 'checked') {
+    if (saved) {
       settlePlan(saved.plan);
       return { ...SAVED_ROUTE, topic: request };
     }
@@ -49,7 +61,8 @@ export function createLessonWork({ router, planner, request, isCard, getNowMs, o
       return { ...route, engine: 'none', topic: '' };
     }
     const savedByTopic = findSaved(topic);
-    settlePlan(savedByTopic?.plan ?? (await planner.plan(topic, AbortSignal.timeout(PLANNER_LIMIT_MS), settleFirstLine)));
+    if (savedByTopic) settlePlan(savedByTopic.plan);
+    else joinRun(topic);
     return { ...route, topic };
   };
 
@@ -63,11 +76,10 @@ export function createLessonWork({ router, planner, request, isCard, getNowMs, o
       }),
     async make({ topic }) {
       const saved = findSaved(topic);
-      if (saved?.status === 'checked') return { isOk: true, scene: saved };
-      if (saved?.status === 'rejected') return { isOk: false, reasons: saved.review.map(({ what }) => what) };
-      const lessonPlan = await plan;
-      if (!lessonPlan) return { isOk: false, reasons: ['no plan'] };
-      return makeScene(maker, { topic, plan: lessonPlan });
+      if (saved) return { isOk: true, scene: saved };
+      const refusal = store.findRefusal(getOwnKey(topic));
+      if (refusal) return { isOk: false, reasons: refusal.review.map(({ what }) => what) };
+      return run ? run.getScene() : { isOk: false, reasons: ['no plan'] };
     },
   });
 

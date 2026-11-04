@@ -1,13 +1,21 @@
-import { SCENE_ENGINE_VERSIONS } from '@astra/contracts';
+import { type RichScene, SCENE_ENGINE_VERSIONS } from '@astra/contracts';
+import { getCodeProblems, getPlanProblems } from './content-check.ts';
+import { getPlanBeatProblems, getSceneBeatProblems, getSpokenLines } from './lesson/lesson-beats.ts';
 import { getNominalTiming } from './narration.ts';
-import type { MadeTake, RenderResult, RenderWorker } from './render-worker.ts';
-import { getSceneId, type SceneStore } from './scene-store.ts';
-import { type LessonPlan, SCENE_THEMES, type SceneBrief, type SceneRepair, type SceneReviewer, type SceneTrace, type SceneWriter, type StoredScene } from './scene-types.ts';
+import type { RenderResult, RenderWorker } from './render-worker.ts';
+import { getSceneCommand } from './scene-desk.ts';
+import { getSceneKey, type SceneStore } from './scene-store.ts';
+import { type LessonPlan, SCENE_THEMES, type SceneBrief, type SceneKey, type SceneOwner, type SceneRepair, type SceneReviewer, type SceneTrace, type SceneTrouble, type SceneVerdict, type SceneWriter, type StoredScene } from './scene-types.ts';
+import type { MadeTake } from './worker-records.ts';
 
 export const WRITER_LIMIT_MS = 45_000;
 const REVIEWER_LIMIT_MS = 60_000;
 const SECONDS_AFTER_MOMENT = 1.3;
 const FIRST_FRAME_SECONDS = 1.2;
+const MOST_TROUBLED_TRIES = 3;
+const WAIT_AFTER_TROUBLE_MS = 5 * 60_000;
+const FORGET_TROUBLE_MS = 24 * 60 * 60_000;
+const CHECK_SCENE_ELEMENT = 'scene' as RichScene['id'];
 
 export interface SceneMaker {
   writers: readonly SceneWriter[];
@@ -15,10 +23,13 @@ export interface SceneMaker {
   worker: RenderWorker;
   store: SceneStore;
   now?(): number;
+  getWallMs?(): number;
+  warn?(line: string): void;
 }
 
 export interface SceneRequest {
   topic: string;
+  ownerId?: SceneOwner;
   plan: LessonPlan;
   values?: Readonly<Record<string, number>>;
 }
@@ -46,23 +57,31 @@ function getInspectSeconds({ moments, durationSeconds }: Pick<SceneBrief, 'momen
   return [...new Set([Math.min(FIRST_FRAME_SECONDS, durationSeconds), ...afterMoments])].sort((first, second) => first - second);
 }
 
-function getRenderProblems(render: RenderResult): readonly string[] {
-  if (!render.isOk) return render.reasons;
-  if (render.sheets.length === 0) return ['the worker made no pictures, so nobody can review this scene'];
-  return render.layoutProblems.map((problem) => `layout: ${problem}`);
+function getUnseenThemes(render: GoodRender): readonly string[] {
+  return SCENE_THEMES.filter((theme) => !render.sheets.some((sheet) => sheet.theme === theme));
 }
 
-async function writeUntilClean(maker: SceneMaker, brief: SceneBrief, values: Readonly<Record<string, number>>, tally: Tally): Promise<Attempt | null> {
+function getRenderProblems(render: RenderResult, plan: LessonPlan, brief: SceneBrief, warn: (line: string) => void): readonly string[] {
+  if (!render.isOk) return render.reasons;
+  if (render.sheets.length === 0) return ['the worker made no pictures, so nobody can review this scene'];
+  const unseen = getUnseenThemes(render);
+  if (unseen.length > 0) warn(`::warning title=Scene review::the review would see no ${unseen.join(' or ')} pictures, so the scene stops here`);
+  const partProblems = render.takes.flatMap(({ parts }) => getSceneBeatProblems({ setup: plan.setup, narration: plan.narration, scene: getSceneCommand({ engine: 'manimgx', id: 'scene-check', moments: brief.moments, parts, durationSeconds: brief.durationSeconds }, CHECK_SCENE_ELEMENT) }));
+  return [...unseen.map((theme) => `the worker made no ${theme} pictures, so nobody can review that take`), ...new Set(partProblems), ...render.layoutProblems.map((problem) => `layout: ${problem}`)];
+}
+
+async function writeUntilClean(maker: SceneMaker, { brief, plan, values, tally, warn }: { brief: SceneBrief; plan: LessonPlan; values: Readonly<Record<string, number>>; tally: Tally; warn: (line: string) => void }): Promise<Attempt | null> {
   let repair: SceneRepair | null = null;
   for (const writer of maker.writers) {
     tally.attempts += 1;
     tally.writer = writer.name;
     const code = await writeWithLimit(writer, brief, repair, tally);
     if (code === null) continue;
-    const render = await maker.worker({ code, moments: brief.moments, durationSeconds: brief.durationSeconds, themes: SCENE_THEMES, values, inspectSeconds: getInspectSeconds(brief) }, AbortSignal.timeout(2 * WRITER_LIMIT_MS));
-    tally.renderMs += render.ms;
-    const problems = getRenderProblems(render);
-    if (render.isOk && problems.length === 0) return { code, render };
+    const contentProblems = getCodeProblems(code);
+    const render = contentProblems.length > 0 ? null : await maker.worker({ code, moments: brief.moments, durationSeconds: brief.durationSeconds, themes: SCENE_THEMES, values, inspectSeconds: getInspectSeconds(brief) }, AbortSignal.timeout(2 * WRITER_LIMIT_MS));
+    tally.renderMs += render?.ms ?? 0;
+    const problems = render ? getRenderProblems(render, plan, brief, warn) : contentProblems;
+    if (render?.isOk && problems.length === 0) return { code, render };
     tally.problems.push(...problems);
     repair = { problems, code };
   }
@@ -88,19 +107,24 @@ export function getBrief(topic: string, plan: LessonPlan): SceneBrief {
   return { topic, narration: plan.narration, plan: plan.plan, ...getNominalTiming(plan.narration) };
 }
 
-export async function makeScene(maker: SceneMaker, { topic, plan, values = {} }: SceneRequest): Promise<MadeScene> {
-  const now = maker.now ?? (() => performance.now());
-  const startedAt = now();
-  const brief = getBrief(topic, plan);
-  const tally: Tally = { writer: '', attempts: 0, writeMs: 0, renderMs: 0, costUsd: 0, problems: [] };
-  const attempt = await writeUntilClean(maker, brief, values, tally);
-  if (!attempt) return { isOk: false, reasons: tally.problems };
-  const verdict = await maker.reviewer.review({ brief, code: attempt.code, sheets: attempt.render.sheets }, AbortSignal.timeout(REVIEWER_LIMIT_MS)).catch((error: unknown) => ({ isPass: false, errors: [{ moment: 'review', what: String(error), truth: '', confidence: 'high' }], ms: 0, costUsd: 0, model: '' }));
-  const trace: SceneTrace = { writer: tally.writer, attempts: tally.attempts, writeMs: tally.writeMs, renderMs: tally.renderMs, reviewMs: verdict.ms, totalMs: now() - startedAt, costUsd: tally.costUsd + verdict.costUsd, problems: tally.problems };
-  const scene: StoredScene = {
-    id: getSceneId(topic, values),
-    topic,
-    status: verdict.isPass ? 'checked' : 'rejected',
+const isTroubleForgotten = ({ lastAtMs }: SceneTrouble, nowMs: number) => nowMs - lastAtMs >= FORGET_TROUBLE_MS;
+
+function getCanTry(trouble: SceneTrouble, nowMs: number): boolean {
+  if (trouble.tries === 0 || isTroubleForgotten(trouble, nowMs)) return true;
+  return trouble.tries < MOST_TROUBLED_TRIES && nowMs - trouble.lastAtMs >= WAIT_AFTER_TROUBLE_MS;
+}
+
+function noteTrouble(store: SceneStore, key: SceneKey, nowMs: number): void {
+  const trouble = store.getTrouble(key);
+  store.saveTrouble(key, { tries: isTroubleForgotten(trouble, nowMs) ? 1 : trouble.tries + 1, lastAtMs: nowMs });
+}
+
+function toStoredScene({ key, plan, brief, attempt, verdict, trace, values }: { key: SceneKey; plan: LessonPlan; brief: SceneBrief; attempt: Attempt; verdict: SceneVerdict; trace: SceneTrace; values: Readonly<Record<string, number>> }): StoredScene {
+  return {
+    id: key.id,
+    topic: key.topic,
+    ownerId: key.ownerId,
+    status: 'checked',
     engine: 'manimgx',
     engineVersion: SCENE_ENGINE_VERSIONS.manimgx,
     code: attempt.code,
@@ -118,6 +142,33 @@ export async function makeScene(maker: SceneMaker, { topic, plan, values = {} }:
     trace,
     savedAt: new Date().toISOString(),
   };
-  maker.store.save(scene, attempt.render.takes, attempt.render.sheets);
-  return verdict.isPass ? { isOk: true, scene } : { isOk: false, reasons: verdict.errors.map(({ what }) => what) };
+}
+
+export async function makeScene(maker: SceneMaker, { topic, ownerId = null, plan, values = {} }: SceneRequest): Promise<MadeScene> {
+  const { store, reviewer, now = () => performance.now(), getWallMs = () => Date.now(), warn = console.warn } = maker;
+  const startedAt = now();
+  const key = getSceneKey(topic, { ownerId, values });
+  const planProblems = [...getPlanBeatProblems(plan), ...getPlanProblems(topic, plan)];
+  if (planProblems.length > 0) return { isOk: false, reasons: planProblems };
+  if (!getCanTry(store.getTrouble(key), getWallMs())) return { isOk: false, reasons: ['this scene hit errors recently, so it waits before trying again'] };
+  const brief = getBrief(topic, plan);
+  const tally: Tally = { writer: '', attempts: 0, writeMs: 0, renderMs: 0, costUsd: 0, problems: [] };
+  const attempt = await writeUntilClean(maker, { brief, plan, values, tally, warn });
+  if (!attempt) {
+    noteTrouble(store, key, getWallMs());
+    return { isOk: false, reasons: tally.problems };
+  }
+  // An error is never a verdict, so it saves nothing that could block this topic.
+  const verdict = await reviewer.review({ brief, code: attempt.code, sheets: attempt.render.sheets, spokenLines: getSpokenLines(plan) }, AbortSignal.timeout(REVIEWER_LIMIT_MS)).catch((error: unknown) => {
+    noteTrouble(store, key, getWallMs());
+    return String(error);
+  });
+  if (typeof verdict === 'string') return { isOk: false, reasons: [`the review could not finish: ${verdict}`] };
+  if (!verdict.isPass) {
+    store.saveRefusal({ key, code: attempt.code, plan, review: verdict.errors, savedAt: new Date().toISOString() });
+    return { isOk: false, reasons: verdict.errors.map(({ what }) => what) };
+  }
+  const trace: SceneTrace = { writer: tally.writer, attempts: tally.attempts, writeMs: tally.writeMs, renderMs: tally.renderMs, reviewMs: verdict.ms, totalMs: now() - startedAt, costUsd: tally.costUsd + verdict.costUsd, problems: tally.problems };
+  const scene = await store.saveChecked(toStoredScene({ key, plan, brief, attempt, verdict, trace, values }), attempt.render.takes, attempt.render.sheets);
+  return { isOk: true, scene };
 }

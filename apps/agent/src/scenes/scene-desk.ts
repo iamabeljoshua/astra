@@ -67,6 +67,6 @@ export function createSceneDesk({ route, make, getNowMs, onChange }: SceneDeskOp
   };
 }
 
-export function getSceneCommand(scene: StoredScene, id: RichScene['id']): RichScene {
+export function getSceneCommand(scene: Pick<StoredScene, 'engine' | 'id' | 'moments' | 'parts' | 'durationSeconds'>, id: RichScene['id']): RichScene {
   return { kind: 'richScene', id, engine: scene.engine, sceneId: scene.id, moments: { ...scene.moments }, parts: [...scene.parts], durationSeconds: scene.durationSeconds };
 }

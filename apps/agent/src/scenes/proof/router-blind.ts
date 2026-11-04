@@ -2,12 +2,12 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
 import { readKey } from '../../lab/keys.ts';
 import { makeAnthropicSceneModels } from '../../providers/anthropic.scenes.ts';
-import { createSpendLedger } from './spend-ledger.ts';
+import { createProofLedger } from './proof-ledger.ts';
 
 const { values: args } = parseArgs({ options: { labels: { type: 'string' }, ledger: { type: 'string' }, out: { type: 'string' }, limit: { type: 'string', default: '5.5' } } });
 if (!args.labels || !args.ledger || !args.out) throw new Error('Name --labels, --ledger, and --out');
 
-const ledger = createSpendLedger({ path: args.ledger, limitUsd: Number(args.limit), note: 'router blind set' });
+const ledger = createProofLedger(args.ledger, Number(args.limit));
 const { router } = makeAnthropicSceneModels({ apiKey: readKey('ANTHROPIC_API_KEY'), onUsage: ledger.onUsage });
 const { requests } = JSON.parse(readFileSync(args.labels, 'utf8')) as { requests: { id: number; text: string; engine: string }[] };
 const rows = [];

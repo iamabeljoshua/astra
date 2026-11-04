@@ -43,8 +43,16 @@ export interface SceneVerdict extends SceneUsage {
   errors: readonly FactError[];
 }
 
+export interface ReviewRequest {
+  brief: SceneBrief;
+  code: string;
+  sheets: readonly { theme: SceneTheme; bytes: Buffer }[];
+  /** Every line the tutor could say, because the opening, more, and closing lines are not in the narration. */
+  spokenLines: readonly string[];
+}
+
 export interface SceneReviewer {
-  review(request: { brief: SceneBrief; code: string; sheets: readonly Buffer[] }, signal: AbortSignal): Promise<SceneVerdict>;
+  review(request: ReviewRequest, signal: AbortSignal): Promise<SceneVerdict>;
 }
 
 export type RouteEngine = SceneEngine | 'kit' | 'none';
@@ -85,12 +93,40 @@ export interface DeclaredValue {
   hi: number;
 }
 
-export type SceneStatus = 'checked' | 'rejected';
+/** Null for a scene any student may see, which only a library card's title can make. Otherwise the one student who may see it. */
+export type SceneOwner = string | null;
+
+export interface SceneScope {
+  ownerId?: SceneOwner;
+  values?: Readonly<Record<string, number>>;
+}
+
+export interface SceneKey {
+  id: string;
+  topic: string;
+  ownerId: SceneOwner;
+}
+
+/** The store holds no run a review refused, only these words, so nobody pays to write it again and a person can read why. */
+export interface SceneRefusal {
+  key: SceneKey;
+  code: string;
+  plan: LessonPlan;
+  review: readonly FactError[];
+  savedAt: string;
+}
+
+/** Tries that ended in an error and no verdict. They allow a retry later, up to a bound. */
+export interface SceneTrouble {
+  tries: number;
+  lastAtMs: number;
+}
 
 export interface StoredScene {
   id: string;
   topic: string;
-  status: SceneStatus;
+  ownerId: SceneOwner;
+  status: 'checked';
   engine: SceneEngine;
   engineVersion: string;
   code: string;

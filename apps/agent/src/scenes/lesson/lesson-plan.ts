@@ -1,7 +1,9 @@
-import { getSpokenWords, getTexProblem } from '@astra/contracts';
+import { canRenderTex } from '@astra/board/tex-check';
+import { getSpokenWords, parseSceneCommand } from '@astra/contracts';
 import { findFirstObject, readJsonObject } from '../model-replies.ts';
 import { readMarks } from '../narration.ts';
 import type { LessonPlan, OpeningLine } from '../scene-types.ts';
+import { getPlanBeatProblems } from './lesson-beats.ts';
 
 const MOST_OPENING_LINES = 4;
 const MOST_LINE_WORDS = 30;
@@ -14,11 +16,14 @@ const readText = (value: unknown, name: string): string => {
   return value.trim();
 };
 
+// The parser is the safety check. KaTeX then says whether the board can set what got past it, as x^2^3 and \\frac{1} would not.
+const canBoardSetTex = (tex: string) => parseSceneCommand({ kind: 'writeMath', id: 'line-math', tex, overWords: 1 }).ok && canRenderTex(tex);
+
 function readLine(value: unknown): OpeningLine {
   const line = (value ?? {}) as Record<string, unknown>;
   const say = readText(line.say, 'opening line');
   if (getSpokenWords(say).length > MOST_LINE_WORDS) throw new Error('an opening line is too long');
-  const tex = typeof line.tex === 'string' && getTexProblem(line.tex) === null ? line.tex : undefined;
+  const tex = typeof line.tex === 'string' && canBoardSetTex(line.tex) ? line.tex : undefined;
   const note = typeof line.note === 'string' && line.note.length <= MOST_NOTE_CHARACTERS ? line.note : undefined;
   return { say, ...(tex ? { tex } : note ? { note } : {}) };
 }
@@ -48,7 +53,7 @@ export function getFirstLineFromPartialText(text: string): OpeningLine | null {
 export function getPlanFromText(text: string): LessonPlan {
   const reply = readJsonObject(text);
   if (!Array.isArray(reply.opening) || reply.opening.length === 0) throw new Error('the plan has no opening');
-  return {
+  const plan: LessonPlan = {
     opening: reply.opening.slice(0, MOST_OPENING_LINES).map(readLine),
     more: Array.isArray(reply.more) ? reply.more.slice(0, MOST_OPENING_LINES).map(readLine) : [],
     setup: readText(reply.setup, 'setup'),
@@ -56,4 +61,7 @@ export function getPlanFromText(text: string): LessonPlan {
     plan: readText(reply.plan, 'plan'),
     close: readText(reply.close, 'closing question'),
   };
+  const problems = getPlanBeatProblems(plan);
+  if (problems.length > 0) throw new Error(`the plan holds a line the board would refuse: ${problems.join('; ')}`);
+  return plan;
 }

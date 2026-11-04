@@ -3,7 +3,7 @@ import { parseArgs } from 'node:util';
 import { readKey } from '../../lab/keys.ts';
 import { makeAnthropicSceneModels, type ReviewPass } from '../../providers/anthropic.scenes.ts';
 import type { SceneBrief } from '../scene-types.ts';
-import { createSpendLedger } from './spend-ledger.ts';
+import { createProofLedger } from './proof-ledger.ts';
 
 const { values: args } = parseArgs({ options: { cases: { type: 'string' }, effort: { type: 'string', default: 'both' }, ledger: { type: 'string' }, out: { type: 'string' }, limit: { type: 'string', default: '5.5' } } });
 if (!args.cases || !args.ledger || !args.out) throw new Error('Name --cases, --ledger, and --out');
@@ -17,12 +17,12 @@ interface ReviewCase {
 }
 
 const REVIEW_PASSES: Record<string, ReviewPass[]> = { low: ['reviewQuick'], high: ['reviewCareful'], both: ['reviewQuick', 'reviewCareful'] };
-const ledger = createSpendLedger({ path: args.ledger, limitUsd: Number(args.limit), note: `review ${args.effort}` });
+const ledger = createProofLedger(args.ledger, Number(args.limit));
 const { reviewer } = makeAnthropicSceneModels({ apiKey: readKey('ANTHROPIC_API_KEY'), onUsage: ledger.onUsage, reviewPasses: REVIEW_PASSES[args.effort as string] });
 const cases = JSON.parse(readFileSync(args.cases, 'utf8')) as ReviewCase[];
 const rows = [];
 for (const { id, want, brief, code, sheets } of cases) {
-  const verdict = await reviewer.review({ brief, code, sheets: sheets.map((path) => readFileSync(path)) }, AbortSignal.timeout(120_000)).catch((error: unknown) => ({ isPass: false, errors: [{ what: `no verdict: ${String(error)}` }], ms: 0, costUsd: 0 }));
+  const verdict = await reviewer.review({ brief, code, sheets: sheets.map((path) => ({ theme: 'light' as const, bytes: readFileSync(path) })), spokenLines: [brief.narration] }, AbortSignal.timeout(120_000)).catch((error: unknown) => ({ isPass: false, errors: [{ what: `no verdict: ${String(error)}` }], ms: 0, costUsd: 0 }));
   rows.push({ id, want, got: verdict.isPass ? 'pass' : 'fail', ms: Math.round(verdict.ms), costUsd: verdict.costUsd, errors: verdict.errors.map(({ what }) => what.slice(0, 200)) });
   console.log(JSON.stringify(rows.at(-1)).slice(0, 300));
 }
