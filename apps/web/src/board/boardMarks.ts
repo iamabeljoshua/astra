@@ -1,10 +1,11 @@
 import { type BoardElement, type BoardState, getMotionValue } from '@astra/board';
-import { createInkPainter, drawMark, type InkPainter, type MarkBox, type MovingPlacement, type TermBoxes, type TermQuery, writeStyle } from '@astra/board/drawing';
+import { createFigurePainter, createInkPainter, drawMark, type FigureMark, type InkPainter, type LabelRequest, type MarkBox, type MovingPlacement, placeLabels, type TermBoxes, type TermQuery, writeStyle } from '@astra/board/drawing';
 import type { AnnotationMark, ElementRef } from '@astra/contracts';
 import type { BoardItem } from './boardItems';
 
 const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
 const FOCUS_DOT = { radius: 3.5, inset: 8 };
+const NOTE_GAP = 3;
 
 type MarkContent = Extract<BoardElement['content'], { kind: 'highlight' | 'annotate' }>;
 
@@ -21,6 +22,7 @@ export interface MarksFrame {
   getItem(id: string): BoardItem | undefined;
   atMs: number;
   isReducedMotion: boolean;
+  area: { width: number; height: number };
 }
 
 const getTargetParts = (target: ElementRef) => target.split('.') as [string, string | undefined];
@@ -56,17 +58,30 @@ function createFocusDot(overlay: SVGSVGElement): SVGCircleElement {
   return dot;
 }
 
+function getBoxOnBoard(box: MarkBox, { placement, move }: { placement: MovingPlacement; move: TermBoxes['flightOffset'] }): MarkBox {
+  return { x: placement.x + (box.x + move.x) * placement.scale, y: placement.y + (box.y + move.y) * placement.scale, width: box.width * placement.scale, height: box.height * placement.scale };
+}
+
+function getNoteMarks(requests: readonly LabelRequest[], frame: MarksFrame): FigureMark[] {
+  const solid = [...frame.placements.values()].filter((placement) => placement.isVisible).map(({ x, y, width, height }) => ({ left: x, top: y, right: x + width, bottom: y + height }));
+  return placeLabels(requests, { bounds: { left: 0, top: 0, right: frame.area.width, bottom: frame.area.height }, solid, soft: [] });
+}
+
 // Marks follow the term they name through a rearrangement, and fade if it goes.
 export function createBoardMarks(overlay: SVGSVGElement) {
   const marks = new Map<string, PaintedMark>();
   const focusDot = createFocusDot(overlay);
+  const noteGroup = document.createElementNS(SVG_NAMESPACE, 'g');
+  noteGroup.classList.add('board-notes');
+  overlay.append(noteGroup);
+  const notePainter = createFigurePainter(noteGroup);
 
   const getPaintedMark = ({ id, kind, box, existing }: { id: string; kind: AnnotationMark; box: MarkBox; existing: PaintedMark | undefined }): PaintedMark => {
     const key = `${kind}|${box.x.toFixed(1)}|${box.y.toFixed(1)}|${box.width.toFixed(1)}|${box.height.toFixed(1)}`;
     if (existing?.key === key) return existing;
     existing?.painter.remove();
     const group = existing?.group ?? document.createElementNS(SVG_NAMESPACE, 'g');
-    if (!existing) overlay.append(group);
+    if (!existing) noteGroup.before(group);
     const painted = { group, key, painter: createInkPainter(group, drawMark({ mark: kind, box, seed: id })) };
     marks.set(id, painted);
     return painted;
@@ -81,7 +96,7 @@ export function createBoardMarks(overlay: SVGSVGElement) {
     if (!placement || !boxes || !box) {
       const existing = marks.get(mark.id);
       if (existing) writeStyle(existing.group, 'visibility', 'hidden');
-      return;
+      return null;
     }
     const painted = getPaintedMark({ id: mark.id, kind: getMarkKind(content), box, existing: marks.get(mark.id) });
     const target = frame.elements.find((element) => element.id === targetId);
@@ -93,6 +108,9 @@ export function createBoardMarks(overlay: SVGSVGElement) {
     const opacity = getMarkOpacity({ boxes, drawn, rearranged, isReducedMotion: frame.isReducedMotion });
     writeStyle(painted.group, 'opacity', opacity < 1 ? opacity.toFixed(3) : '');
     painted.painter.paint(frame.isReducedMotion && drawn > 0 ? 1 : drawn);
+    if (content.kind !== 'annotate' || !content.label || drawn < 1 || !placement.isVisible) return null;
+    const onBoard = getBoxOnBoard(box, { placement, move });
+    return { key: `note-${mark.id}`, text: content.label, anchor: { x: onBoard.x + onBoard.width / 2, y: onBoard.y + onBoard.height }, gap: NOTE_GAP, sides: ['below', 'below-right', 'below-left'], tone: 'ink' } satisfies LabelRequest;
   };
 
   const removeGone = (live: ReadonlySet<string>) => {
@@ -103,11 +121,10 @@ export function createBoardMarks(overlay: SVGSVGElement) {
     }
   };
 
-  const paintFocus = ({ focus, placements, elements }: MarksFrame) => {
-    const targetId = focus ? getTargetParts(focus)[0] : '';
+  const paintFocus = ({ focus, placements, getItem }: MarksFrame) => {
+    const [targetId, part] = focus ? getTargetParts(focus) : ['', undefined];
     const placement = placements.get(targetId);
-    const target = elements.find((element) => element.id === targetId);
-    const isOnLine = placement?.isVisible === true && target?.content.kind !== 'simulate';
+    const isOnLine = placement?.isVisible === true && !(part !== undefined && getItem(targetId)?.ownsPartMarks);
     writeStyle(focusDot, 'visibility', isOnLine ? '' : 'hidden');
     const dotY = isOnLine ? String(Math.round(placement.y + placement.height / 2)) : null;
     if (dotY !== null && dotY !== focusDot.getAttribute('cy')) focusDot.setAttribute('cy', dotY);
@@ -115,9 +132,15 @@ export function createBoardMarks(overlay: SVGSVGElement) {
 
   return {
     paint(frame: MarksFrame) {
-      const onMath = frame.elements.filter((element) => isMark(element.content) && frame.getItem(getTargetParts((element.content as MarkContent).target)[0]));
+      const onMath = frame.elements.filter((element) => {
+        if (!isMark(element.content)) return false;
+        const [targetId, part] = getTargetParts(element.content.target);
+        const item = frame.getItem(targetId);
+        return item !== undefined && !(part !== undefined && item.ownsPartMarks);
+      });
       removeGone(new Set(onMath.map((element) => element.id as string)));
-      for (const mark of onMath) paintMark(mark, mark.content as MarkContent, frame);
+      const notes = onMath.flatMap((mark) => paintMark(mark, mark.content as MarkContent, frame) ?? []);
+      notePainter.paint(getNoteMarks(notes, frame));
       paintFocus(frame);
     },
   };

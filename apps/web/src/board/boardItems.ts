@@ -1,14 +1,18 @@
-import { type BoardElement, getMotionValue } from '@astra/board';
-import { canWriteByHand, createInkPainter, createMathPainter, drawDiagram, type InkPainter, type LayoutBox, type MathPainter, type TermBoxes, type TermQuery, writeByHand, writeStyle } from '@astra/board/drawing';
+import { type BoardElement, type BoardState, getMotionValue, type SliderMove } from '@astra/board';
+import { canWriteByHand, createFigurePainter, createInkPainter, createMathPainter, drawDiagram, getFigureFit, getFigureMarks, type InkPainter, type LayoutBox, type MathPainter, type TermBoxes, type TermQuery, writeByHand, writeStyle } from '@astra/board/drawing';
+import { BOARD_LABELS } from '../strings';
+import { createSliderItem } from './sliderItem';
 
 const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
 const HANDWRITING_SCALE = 1.3;
 const DIAGRAM_SCALE = 1.1;
-export const FIGURE_SIZE = { width: 1000, height: 650 };
 
 export interface ItemContext {
   element: BoardElement;
+  board: BoardState;
   atMs: number;
+  /** The element's size on the board, once it has a place. */
+  placedSize: { width: number; height: number } | null;
   progress: number;
   maxWidth: number;
   fontSize: number;
@@ -23,7 +27,16 @@ export interface ItemSizes {
   fromSize: Size | null;
 }
 
+export interface SliderHandlers {
+  onSliderMove?(move: SliderMove): void;
+  onSliderRelease?(): void;
+}
+
 export interface BoardItem {
+  /** It draws itself at its true size, so its text stays readable however small the board makes it. */
+  drawsToSize?: boolean;
+  /** It marks its own parts, so a mark can move with the part. */
+  ownsPartMarks?: boolean;
   prepare(context: ItemContext): ItemSizes;
   paint(context: ItemContext): void;
   getEntranceOpacity?(context: ItemContext): number;
@@ -126,22 +139,56 @@ function createPlainItem(wrapper: HTMLElement): BoardItem {
   };
 }
 
-function createFigureItem(): BoardItem {
-  return { prepare: () => ({ fit: 'figure', size: FIGURE_SIZE, fromSize: null }), paint: () => {}, remove: () => {} };
+function getFigureDescription(content: BoardElement['content']): string {
+  if (content.kind === 'plot') return content.label ?? `${BOARD_LABELS.graphOf} ${content.expression}`;
+  if (content.kind === 'numberLine') return BOARD_LABELS.numberLine;
+  return content.kind === 'geometry' ? BOARD_LABELS.geometry : BOARD_LABELS.simulation;
 }
 
-const ITEM_MAKERS: Partial<{ [Kind in BoardElement['content']['kind']]: (wrapper: HTMLElement, content: Extract<BoardElement['content'], { kind: Kind }>) => BoardItem }> = {
+function createFigureItem(wrapper: HTMLElement, content: BoardElement['content']): BoardItem {
+  const svg = document.createElementNS(SVG_NAMESPACE, 'svg');
+  svg.setAttribute('role', 'img');
+  svg.setAttribute('aria-label', getFigureDescription(content));
+  svg.setAttribute('data-testid', 'figure');
+  svg.classList.add('board-figure');
+  wrapper.append(svg);
+  const painter = createFigurePainter(svg);
+  return {
+    drawsToSize: true,
+    ownsPartMarks: true,
+    prepare({ element, maxWidth }) {
+      const { fit, size } = getFigureFit(element, maxWidth);
+      return { fit, size, fromSize: null };
+    },
+    paint({ element, board, atMs, placedSize, isReducedMotion }) {
+      if (!placedSize) return;
+      const width = String(Math.round(placedSize.width));
+      const height = String(Math.round(placedSize.height));
+      if (svg.getAttribute('width') !== width) svg.setAttribute('width', width);
+      if (svg.getAttribute('height') !== height) svg.setAttribute('height', height);
+      painter.paint(getFigureMarks({ board, element, atMs, width: Math.round(placedSize.width), height: Math.round(placedSize.height), isReducedMotion, words: BOARD_LABELS.figures }));
+    },
+    remove: () => svg.remove(),
+  };
+}
+
+const ITEM_MAKERS: Partial<{ [Kind in BoardElement['content']['kind']]: (wrapper: HTMLElement, content: Extract<BoardElement['content'], { kind: Kind }>, handlers: SliderHandlers) => BoardItem }> = {
   writeMath: (wrapper) => createMathItem(wrapper),
   diagram: (wrapper, content) => createDiagramItem(wrapper, content),
-  simulate: () => createFigureItem(),
+  plot: (wrapper, content) => createFigureItem(wrapper, content),
+  numberLine: (wrapper, content) => createFigureItem(wrapper, content),
+  geometry: (wrapper, content) => createFigureItem(wrapper, content),
+  simulate: (wrapper, content) => createFigureItem(wrapper, content),
+  slider: (wrapper, content, handlers) => createSliderItem(wrapper, content, handlers),
   text: (wrapper, content) => (content.handwritten && canWriteByHand(content.text) ? createHandwrittenItem(wrapper, content.text) : createPlainItem(wrapper)),
 };
 
 export function hasOwnPlace(content: BoardElement['content']): boolean {
+  if (content.kind === 'plot' && content.over !== undefined) return false;
   return Object.hasOwn(ITEM_MAKERS, content.kind);
 }
 
-export function createBoardItem(element: BoardElement, wrapper: HTMLElement): BoardItem {
-  const make = ITEM_MAKERS[element.content.kind] as (wrapper: HTMLElement, content: BoardElement['content']) => BoardItem;
-  return make(wrapper, element.content);
+export function createBoardItem(element: BoardElement, wrapper: HTMLElement, handlers: SliderHandlers): BoardItem {
+  const make = ITEM_MAKERS[element.content.kind] as (wrapper: HTMLElement, content: BoardElement['content'], handlers: SliderHandlers) => BoardItem;
+  return make(wrapper, element.content, handlers);
 }

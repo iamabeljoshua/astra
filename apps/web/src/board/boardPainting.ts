@@ -1,7 +1,7 @@
 import { type BoardElement, type BoardState, getMotionValue } from '@astra/board';
 import { easeInOut, type LayoutArea, type MovingBox, type MovingPlacement, placeMovingElements, writeStyle } from '@astra/board/drawing';
 import { createBoardMarks } from './boardMarks';
-import { type BoardItem, createBoardItem, hasOwnPlace, type ItemContext, type ItemSizes } from './boardItems';
+import { type BoardItem, createBoardItem, hasOwnPlace, type ItemContext, type ItemSizes, type SliderHandlers } from './boardItems';
 
 const PHONE_BOARD_WIDTH = 500;
 const SPACING = { laptop: { padding: 24, gap: 20 }, phone: { padding: 16, gap: 16 } };
@@ -13,7 +13,7 @@ export interface BoardFrame {
   isReducedMotion: boolean;
 }
 
-export interface BoardPaintingOptions {
+export interface BoardPaintingOptions extends SliderHandlers {
   boardElement: HTMLElement;
   overlay: SVGSVGElement;
   getWrapper(id: string): HTMLElement | undefined;
@@ -28,7 +28,7 @@ function getArea(boardElement: HTMLElement): LayoutArea {
 
 function getMovingBox(context: ItemContext, sizes: ItemSizes & { size: NonNullable<ItemSizes['size']> }): MovingBox {
   const to = { id: context.element.id, fit: sizes.fit, ...sizes.size };
-  const isArriving = context.progress < 1 && context.element.morphFrom === null;
+  const isArriving = context.progress < 1 && context.element.morphFrom === null && !context.element.placedScene?.reshapingFrom;
   return { to, from: isArriving ? null : sizes.fromSize ? { ...to, ...sizes.fromSize } : to };
 }
 
@@ -36,15 +36,24 @@ function getProgressAfterRoom({ element, progress }: ItemContext): number {
   return element.morphFrom === null ? Math.max(0, (progress - ENTRANCE_SHARE_MAKING_ROOM) / (1 - ENTRANCE_SHARE_MAKING_ROOM)) : progress;
 }
 
-function applyPlacement(wrapper: HTMLElement, placement: MovingPlacement, itemOpacity: number): void {
+function applyPlacement(wrapper: HTMLElement, placement: MovingPlacement, { itemOpacity, scale }: { itemOpacity: number; scale: number }): void {
   const opacity = Math.min(placement.opacity, itemOpacity);
-  writeStyle(wrapper, 'transform', `translate(${Math.round(placement.x)}px, ${Math.round(placement.y)}px) scale(${placement.scale.toFixed(4)})`);
+  writeStyle(wrapper, 'transform', `translate(${Math.round(placement.x)}px, ${Math.round(placement.y)}px) scale(${scale.toFixed(4)})`);
   writeStyle(wrapper, 'visibility', placement.isVisible ? '' : 'hidden');
   writeStyle(wrapper, 'opacity', opacity < 1 ? String(Number(opacity.toFixed(3))) : '');
 }
 
+// A slider sits under what it changes, wherever it arrived in the lesson.
+function getPlacingOrder(placed: readonly BoardElement[]): BoardElement[] {
+  const sliders = placed.filter((element) => element.content.kind === 'slider');
+  const getSlidersOn = (id: string) => sliders.filter(({ content }) => 'target' in content && content.target === id);
+  const others = placed.filter((element) => element.content.kind !== 'slider');
+  const homeless = sliders.filter(({ content }) => !others.some((element) => 'target' in content && element.id === content.target));
+  return [...others.flatMap((element) => [element, ...getSlidersOn(element.id)]), ...homeless];
+}
+
 // Paints one frame from the board's state and the clock alone, so a frozen board writes nothing and a replay lands on the same pixels.
-export function createBoardPainting({ boardElement, overlay, getWrapper, onMathRefused }: BoardPaintingOptions) {
+export function createBoardPainting({ boardElement, overlay, getWrapper, onMathRefused, onSliderMove, onSliderRelease }: BoardPaintingOptions) {
   const items = new Map<string, { kind: string; item: BoardItem }>();
   const marks = createBoardMarks(overlay);
   const reportedRefusals = new Set<string>();
@@ -60,7 +69,7 @@ export function createBoardPainting({ boardElement, overlay, getWrapper, onMathR
       const wrapper = getWrapper(element.id);
       if (!wrapper || items.get(element.id)?.kind === element.content.kind) continue;
       items.get(element.id)?.item.remove();
-      items.set(element.id, { kind: element.content.kind, item: createBoardItem(element, wrapper) });
+      items.set(element.id, { kind: element.content.kind, item: createBoardItem(element, wrapper, { onSliderMove, onSliderRelease }) });
     }
   };
 
@@ -90,24 +99,25 @@ export function createBoardPainting({ boardElement, overlay, getWrapper, onMathR
     const entry = items.get(id);
     const wrapper = getWrapper(id);
     if (!entry || !wrapper) return;
-    if (placement) applyPlacement(wrapper, placement, entry.item.getEntranceOpacity?.(context) ?? 1);
+    if (placement) applyPlacement(wrapper, placement, { itemOpacity: entry.item.getEntranceOpacity?.(context) ?? 1, scale: entry.item.drawsToSize ? 1 : placement.scale });
     else writeStyle(wrapper, 'visibility', 'hidden');
-    entry.item.paint(isMakingRoom && !context.isReducedMotion ? { ...context, progress: getProgressAfterRoom(context) } : context);
+    const placedContext = { ...context, placedSize: placement ? { width: placement.width, height: placement.height } : null };
+    entry.item.paint(isMakingRoom && !context.isReducedMotion ? { ...placedContext, progress: getProgressAfterRoom(context) } : placedContext);
   };
 
   return {
     paint({ board, atMs, isReducedMotion }: BoardFrame) {
       const elements = [...board.elements.values()];
-      const placed = elements.filter((element) => hasOwnPlace(element.content) && getWrapper(element.id));
+      const placed = getPlacingOrder(elements.filter((element) => hasOwnPlace(element.content) && getWrapper(element.id)));
       syncItems(placed);
       const area = getArea(boardElement);
       const fontSize = Number.parseFloat(getComputedStyle(boardElement).fontSize) || 16;
       const maxWidth = Math.max(0, area.width - 2 * area.padding);
-      const contexts = placed.map((element): ItemContext => ({ element, atMs, progress: getMotionValue(element.entrance, atMs), maxWidth, fontSize, isReducedMotion }));
+      const contexts = placed.map((element): ItemContext => ({ element, board, atMs, placedSize: null, progress: getMotionValue(element.entrance, atMs), maxWidth, fontSize, isReducedMotion }));
       const { placements, isMakingRoom } = placeMovingElements(prepareBoxes(contexts), area, getSharedProgress(contexts, isReducedMotion));
       const placementsById = new Map(placements.map((placement) => [placement.id, placement]));
       for (const context of contexts) paintItem(context, placementsById.get(context.element.id), isMakingRoom);
-      marks.paint({ elements, focus: board.focus, placements: placementsById, getItem: (id) => items.get(id)?.item, atMs, isReducedMotion });
+      marks.paint({ elements, focus: board.focus, placements: placementsById, getItem: (id) => items.get(id)?.item, atMs, isReducedMotion, area });
     },
   };
 }

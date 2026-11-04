@@ -27,9 +27,9 @@ describe('BoardView', () => {
 
   it('draws a ball once a simulation is placed', () => {
     const { container, rerender } = render(<BoardView board={getBoardAt(OPERATIONS, 200)} atMs={200} />);
-    expect(container.querySelectorAll('[data-testid="scene"] circle')).toHaveLength(0);
+    expect(container.querySelectorAll('[data-mark="ball"]')).toHaveLength(0);
     rerender(<BoardView board={getBoardAt(OPERATIONS, 600)} atMs={600} />);
-    expect(container.querySelectorAll('[data-testid="scene"] circle')).toHaveLength(1);
+    expect(container.querySelectorAll('[data-mark="ball"]')).toHaveLength(1);
   });
 });
 
