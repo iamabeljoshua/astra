@@ -190,7 +190,7 @@ Abel's rule: everything a student can see or do on the prototype exists on the r
 | Behavior | Real board | Proof |
 |---|---|---|
 | Band with a dashed guide, opened by Pen or by a task | Yes | `pen-freehand-1-writing-light.png`, `byHand` run |
-| Strokes that vary in width | Yes, `perfect-freehand` 1.2.3, MIT, about 2 KB gzipped in the main bundle | `pen-freehand-1-writing-light.png` |
+| Strokes that vary in width | Yes, `perfect-freehand` 1.2.3, MIT, about 2 KB gzipped in the session's own chunk | `pen-freehand-1-writing-light.png` |
 | Done appears after the first stroke | Yes | `pen-freehand-1-writing-light.png` |
 | Reading starts as the pen rests, 650 ms | Yes | trace `inkReadStarted` 1.4 s ahead of `inkDone`, `board-work.test.ts` |
 | A 2 s pause sends the line | Yes | `PenBand` |
@@ -228,7 +228,7 @@ Abel's rule: everything a student can see or do on the prototype exists on the r
 | Plot drawn in the flow, with grid, ticks, and a true minus sign | Yes, by PR 88's figure painter, in the prototype's 620 by 340 shape. The grid follows its ticks, at least 24 px apart on a round step, so the lesson's curve has one line a unit as the prototype does. The prototype's range is padded, so it numbers up to 7 where ours stops at 6 | `drag-light-1366-*`, `figure.test.ts` |
 | Draggable point with a pulsing ring and its coordinates | Yes. It starts a sixth of the way along, which is x = 0 on the lesson's curve as on the prototype. Arrow keys and Enter also move and send it, which the prototype does not have | `drag-point.test.ts`, `DragSurface.test.tsx`, `drag-*-1-waiting` |
 | Tangent riding on the point, with its slope written | Yes | `drag-point.test.ts`, `m3-12-task-*` |
-| Code's check on release, with "Mm-hm." or "Hm." | Yes, 37 to 58 ms on the page, on the drags measured | `drag-proof.mjs`, `board-work.test.ts` |
+| Code's check on release, with "Mm-hm." or "Hm." | Yes, 40 to 69 ms on the page, on the drags measured | `drag-proof.mjs`, `board-work.test.ts` |
 | A wrong place gets the tutor's reply at once, and its tangent command as a first hint, with no wait | Yes. The prompt asks for the tangent, so the model decides, as on the prototype | `watch-rule.test.ts`, `board-work.test.ts` |
 
 ### Layout
