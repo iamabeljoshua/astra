@@ -1,0 +1,229 @@
+{
+ "repeated-sign-error": [
+  {
+   "kind": "explored",
+   "topic": "solving two-step equations",
+   "detail": null,
+   "evidence": [
+    "w1"
+   ]
+  },
+  {
+   "kind": "struggled",
+   "topic": "moving a term across the equals sign",
+   "detail": "kept the plus when moving the 3, repeated on two lines",
+   "evidence": [
+    "b3",
+    "w5",
+    "b7"
+   ]
+  },
+  {
+   "kind": "showed",
+   "topic": "removing a constant from both sides",
+   "detail": null,
+   "evidence": [
+    "b9"
+   ]
+  },
+  {
+   "kind": "showed",
+   "topic": "isolating x after removing a constant",
+   "detail": null,
+   "evidence": [
+    "b11"
+   ]
+  }
+ ],
+ "rockets-and-a-question": [
+  {
+   "kind": "cares_about",
+   "topic": "building rockets",
+   "detail": null,
+   "evidence": [
+    "w3"
+   ]
+  },
+  {
+   "kind": "explored",
+   "topic": "why rockets have stages",
+   "detail": null,
+   "evidence": [
+    "w1",
+    "w5"
+   ]
+  }
+ ],
+ "a-question-is-not-a-struggle": [
+  {
+   "kind": "explored",
+   "topic": "derivatives",
+   "detail": null,
+   "evidence": [
+    "w1",
+    "w3"
+   ]
+  },
+  {
+   "kind": "explored",
+   "topic": "derivatives in money and prices",
+   "detail": null,
+   "evidence": [
+    "w5"
+   ]
+  }
+ ],
+ "says-it-is-hard": [
+  {
+   "kind": "explored",
+   "topic": "adding fractions",
+   "detail": null,
+   "evidence": [
+    "w1"
+   ]
+  },
+  {
+   "kind": "struggled",
+   "topic": "adding fractions with different denominators",
+   "detail": "does not get how to add when the bottoms differ",
+   "evidence": [
+    "w3",
+    "w5"
+   ]
+  }
+ ],
+ "copied-from-the-tutor": [
+  {
+   "kind": "explored",
+   "topic": "area of a circle",
+   "detail": null,
+   "evidence": [
+    "w1"
+   ]
+  },
+  {
+   "kind": "showed",
+   "topic": "area formula of a circle",
+   "detail": null,
+   "evidence": [
+    "b3"
+   ]
+  }
+ ],
+ "right-then-wrong": [
+  {
+   "kind": "explored",
+   "topic": "simplifying expressions",
+   "detail": null,
+   "evidence": [
+    "w1"
+   ]
+  },
+  {
+   "kind": "showed",
+   "topic": "combining like terms",
+   "detail": null,
+   "evidence": [
+    "b3"
+   ]
+  },
+  {
+   "kind": "struggled",
+   "topic": "multiplying terms with variables",
+   "detail": "wrote 6x for 3x * 2x instead of 6x^2",
+   "evidence": [
+    "b5"
+   ]
+  }
+ ],
+ "does-not-like-it": [
+  {
+   "kind": "cares_about",
+   "topic": "music",
+   "detail": null,
+   "evidence": [
+    "w5"
+   ]
+  },
+  {
+   "kind": "explored",
+   "topic": "percentages",
+   "detail": null,
+   "evidence": [
+    "w1"
+   ]
+  }
+ ],
+ "health-and-family-in-passing": [
+  {
+   "kind": "explored",
+   "topic": "adding fractions",
+   "detail": null,
+   "evidence": [
+    "w1"
+   ]
+  },
+  {
+   "kind": "showed",
+   "topic": "adding a half and a quarter",
+   "detail": null,
+   "evidence": [
+    "b5"
+   ]
+  }
+ ],
+ "injection-in-speech": [
+  {
+   "kind": "cares_about",
+   "topic": "calculus",
+   "detail": null,
+   "evidence": [
+    "w1"
+   ]
+  },
+  {
+   "kind": "explored",
+   "topic": "slopes",
+   "detail": null,
+   "evidence": [
+    "w1"
+   ]
+  }
+ ],
+ "injection-as-a-liking": [
+  {
+   "kind": "explored",
+   "topic": "graphs",
+   "detail": null,
+   "evidence": [
+    "w1"
+   ]
+  },
+  {
+   "kind": "cares_about",
+   "topic": "chess",
+   "detail": null,
+   "evidence": [
+    "w4"
+   ]
+  }
+ ],
+ "misread-handwriting": [
+  {
+   "kind": "explored",
+   "topic": "solving equations",
+   "detail": null,
+   "evidence": [
+    "w1"
+   ]
+  },
+  {
+   "kind": "showed",
+   "topic": "solving for x",
+   "detail": null,
+   "evidence": [
+    "w4"
+   ]
+  }
+ ]
+}

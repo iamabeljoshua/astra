@@ -204,7 +204,7 @@ describe('marks and words code will not allow', () => {
   it.each(['So x is four.', 'x equals 4 here.', 'The answer is four.'])('will not let "%s" be said before the student has really tried', async (reveal) => {
     const { brain, traces } = setup([SET_PROBLEM, reveal, 'What could you take away first?']);
     await collect(brain, 'help me');
-    const beats = await collect(brain, 'just tell me');
+    const beats = await collect(brain, 'hmm not sure');
     expect(traces).toContain('wordsRefused');
     expect(beats.map(getBeatText).join(' ')).not.toMatch(/four|4/);
   });
@@ -212,14 +212,14 @@ describe('marks and words code will not allow', () => {
   it('will not write the answer on the board early', async () => {
     const { brain } = setup([SET_PROBLEM, 'Look. {"kind":"writeMath","id":"final","tex":"x = 4"}Here it is.']);
     await collect(brain, 'help me');
-    expect(commandsOf(await collect(brain, 'just tell me')).filter((command) => command.kind === 'writeMath')).toEqual([]);
+    expect(commandsOf(await collect(brain, 'hmm not sure')).filter((command) => command.kind === 'writeMath')).toEqual([]);
   });
 
   it('lets the tutor give the answer once the student has had two real tries', async () => {
     const { brain, traces } = setup([SET_PROBLEM, 'Not yet.', 'Fine, so x is four.']);
     await collect(brain, 'help me');
-    await collect(brain, 'just tell me');
-    await collect(brain, 'just tell me, please');
+    await collect(brain, 'hmm not sure');
+    await collect(brain, 'still stuck');
     expect(traces).not.toContain('wordsRefused');
   });
 

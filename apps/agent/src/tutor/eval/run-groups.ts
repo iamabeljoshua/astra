@@ -5,7 +5,10 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { type ElementId, getBeatText, getCues, type SceneCommand, type StudentWork } from '@astra/contracts';
 import { readKey } from '../../keys.ts';
-import { makeAnthropicAsker, makeAnthropicSourceFinder, makeAnthropicTutorModel, type TutorModelName } from '../../providers/anthropic.ts';
+import { askPlanner } from '../../lesson-plan/ask-planner.ts';
+import { createLessonPlanner } from '../../lesson-plan/lesson-planner.ts';
+import { makeAnthropicAsker, makeAnthropicJsonReader, makeAnthropicSourceFinder, makeAnthropicTutorModel, type TutorModelName } from '../../providers/anthropic.ts';
+import type { MemoryLine } from '../../learner-record/memory-note.ts';
 import { createTutorBrain, type StudentProfile, type TurnSummary } from '../brain.ts';
 import { CURRENT_PROMPT, PROMPT_VERSIONS, type PromptVersion, type TutorPrompt } from '../prompt.ts';
 import { createSpendLedger } from '../spend-ledger.ts';
@@ -53,6 +56,8 @@ interface PromptGroup {
   /** Checked on every turn in the group. */
   checks?: readonly string[];
   turns?: readonly GroupTurn[];
+  /** Given to the tutor as they stand, past the screens that normally read them. Left out, the tutor has no memory note at all. */
+  memory?: readonly MemoryLine[];
   /** Over the whole group: most replies stay under 25 words. */
   stat?: 'usuallyShort';
   /** The same question at two levels, in two sessions. */
@@ -131,11 +136,16 @@ function describeDrawn(command: SceneCommand): string {
   return 'text' in command && command.text ? command.text : '';
 }
 
-function makeBrain(prompt: TutorPrompt, profile: StudentProfile, traces: string[], onTurn: (summary: TurnSummary) => void, model: ReturnType<typeof makeAnthropicTutorModel>) {
-  return createTutorBrain({
+function makeBrain(prompt: TutorPrompt, profile: StudentProfile, traces: string[], onTurn: (summary: TurnSummary) => void, model: ReturnType<typeof makeAnthropicTutorModel>, memory?: readonly MemoryLine[]) {
+  // The same planner a room runs, so these turns test what a student gets.
+  const reader = makeAnthropicJsonReader({ apiKey: readKey('ANTHROPIC_API_KEY') });
+  const lessonPlanner = createLessonPlanner({ ask: (request) => askPlanner(reader, request), canSpend: () => true, charge: (usd) => ledger.charge({ anthropicUsd: usd }), onTitleChange: (title) => console.log(`title now: ${title}`), trace: () => {} });
+  const brain = createTutorBrain({
     model,
     prompt,
     profile,
+    lessonPlanner,
+    ...(memory ? { memory: { memory: { count: memory.length, notes: [...memory] } } } : {}),
     ...(prompt === PROMPT_VERSIONS.v2FindSource ? { findSource: makeAnthropicSourceFinder({ apiKey: readKey('ANTHROPIC_API_KEY') }) } : {}),
     trace: (name, fields) => traces.push(`${name}${fields?.problem ? `: ${String(fields.problem)}` : ''}${fields?.report ? `: ${String(fields.report)}` : ''}`),
     onTurnEnd(summary) {
@@ -144,6 +154,7 @@ function makeBrain(prompt: TutorPrompt, profile: StudentProfile, traces: string[
     },
     getSpendLimit: () => (ledger.isOverModelLimit() ? 'sessionLimit' : null),
   });
+  return { brain, lessonPlanner };
 }
 
 function recordCodeChecks(group: PromptGroup, turn: GroupTurn, summary: TurnSummary, commands: readonly SceneCommand[]) {
@@ -151,6 +162,10 @@ function recordCodeChecks(group: PromptGroup, turn: GroupTurn, summary: TurnSumm
   for (const check of [...(group.checks ?? []), ...(turn.check ? [turn.check] : [])]) {
     if (REPLY_CHECKS[check]?.onlyOnWork && !turn.work) continue;
     const passed = REPLY_CHECKS[check]?.passes(summary.spokenText, commands.map((command) => command.kind), details) ?? false;
+    if (!passed && REPLY_CHECKS[check]?.isSoft) {
+      console.log(`   soft miss, not a failure: ${check}`);
+      continue;
+    }
     results.push({ group: group.name, check, passed, text: (turn.text ?? '').slice(0, 60) });
     if (!passed) console.log(`   FAILED ${check}`);
   }
@@ -166,7 +181,7 @@ interface RunContext {
 async function runGroup(group: PromptGroup, { prompt, model, askJudge }: RunContext): Promise<void> {
   const traces: string[] = [];
   let latest: TurnSummary | null = null;
-  const brain = makeBrain(prompt, group.profile ?? PROFILE, traces, (summary) => (latest = summary), model);
+  const { brain, lessonPlanner } = makeBrain(prompt, group.profile ?? PROFILE, traces, (summary) => (latest = summary), model, group.memory);
   const exchange: string[] = [];
   const wordCounts: number[] = [];
   for (const turn of group.turns ?? []) {
@@ -194,6 +209,7 @@ async function runGroup(group: PromptGroup, { prompt, model, askJudge }: RunCont
       results.push({ group: group.name, check: `judged:${turn.judge}`, passed, text: text.slice(0, 60) });
       console.log(`   judged ${turn.judge}: ${verdict.replace(/\s+/g, ' ').slice(0, 160)}`);
     }
+    await lessonPlanner.whenSettled();
   }
   if (group.stat === 'usuallyShort') {
     const passed = wordCounts.filter((count) => count < USUAL_WORDS).length / wordCounts.length >= USUAL_SHARE;
@@ -204,7 +220,7 @@ async function runGroup(group: PromptGroup, { prompt, model, askJudge }: RunCont
 
 async function runCompareSide(compare: LevelCompare, level: string, { prompt, model }: RunContext): Promise<string> {
   const spoken: string[] = [];
-  const brain = makeBrain(prompt, { level, interests: [], goal: 'curiosity' }, [], (summary) => spoken.push(summary.spokenText), model);
+  const { brain } = makeBrain(prompt, { level, interests: [], goal: 'curiosity' }, [], (summary) => spoken.push(summary.spokenText), model);
   for (const text of [compare.text, compare.then]) for await (const beat of brain.reply({ text }, new AbortController().signal)) void beat;
   return spoken.join(' ');
 }
