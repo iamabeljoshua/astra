@@ -41,7 +41,7 @@ export const TURN_SILENCE_MS = 150;
 /** The next turn's sound cannot come sooner after a stop than the agent's silence, less what a late stop message takes from it. */
 const OLD_AUDIO_AFTER_STOP_MS = TURN_SILENCE_MS - 40;
 
-/** The last of the old audio arrived up to 309 ms after a stop on the worst link, and its `end` takes 107 ms more. The gain never stays shut past this, so old and new audio merging with no `end` cannot leave a turn mute. */
+/** The last of the old audio arrived up to 323 ms after a stop on the worst link, and its `end` takes 107 ms more. The gain never stays shut past this, so old and new audio merging with no `end` cannot leave a turn mute. */
 const OLD_AUDIO_LIMIT_MS = 500;
 
 /** A first sound this long after a turn's first word times was lost, or has no silence before it, and the turn must not wait for it for ever. */
