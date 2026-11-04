@@ -151,9 +151,9 @@ function RunningSession({ session }: { session: Session }) {
   const filesComingSoon = useFilesComingSoon();
   const hold = useHoldToTalk({ heldMic: liveVoice.heldMic, isTalkOn: liveVoice.isTalkOn, toggleTalk: liveVoice.toggleTalk, isEnabled: canTalkNow(liveVoice) && !isEnding && !isRecapping });
 
-  const picture = <Board artwork={findArtwork(session.artwork)} note={SESSION_LABELS.boardStandIn} />;
   // The card's picture belongs to the card's topic, so it goes when the student moves off it.
   const artwork = view?.sessionTitle ? null : findArtwork(session.artwork);
+  const picture = <Board artwork={findArtwork(session.artwork)} note={SESSION_LABELS.boardStandIn} />;
   return (
     <SessionFrame facts={<SessionFacts subject={view?.sessionTitle ?? getBarSubject(session)} seconds={seconds} tutorStateLine={tutorStateLine} costUsd={view?.costUsd ?? null} />} action={isRecapping ? <button type="button" onClick={() => void leave()} className={BAR_ACTION}>{SESSION_LABELS.close}</button> : <EndButton isEnding={isEnding} onEnd={() => void endSession()} />} problem={endProblem} isFullHeight>
       <div className="board-stage">

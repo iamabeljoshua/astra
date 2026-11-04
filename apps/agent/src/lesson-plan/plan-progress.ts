@@ -30,10 +30,12 @@ export type LessonEvent =
   /** Help in a crisis is not teaching, so the step's count starts over. */
   | 'safetyReplyEnded'
   | 'exerciseDeclined'
-  | 'exerciseWanted';
+  | 'exerciseWanted'
+  | 'movedOn'
+  | 'skipped';
 
 /** The only part of a plan the tutor is told on a turn, because everything before it stays cached. */
-export type StepNote = { topic: string; kind: LessonKind; is_finished: true } | { topic: string; kind: LessonKind; step: string; teach_first: string | null; then_exercise: string; next_idea: string | null; exercise_due?: true };
+export type StepNote = { topic: string; kind: LessonKind; is_finished: true } | { topic: string; kind: LessonKind; step: string; teach_first: string | null; then_exercise: string; next_idea: string | null; exercise_due?: true; picture_topic?: string };
 
 export const NO_LESSON: LessonState = { active: null, shelved: [], repliesEnded: 0, isExerciseDeclined: false };
 
@@ -72,6 +74,9 @@ function getActiveAfterEvent(active: ActivePlan, event: LessonEvent, repliesEnde
       return nextStep;
     case 'teachingAgain':
       return active.isExerciseOpen ? nextStep : active;
+    case 'movedOn':
+    case 'skipped':
+      return nextStep;
     case 'safetyReplyEnded':
       return { ...active, stepStartReply: repliesEnded };
     case 'replyEnded':

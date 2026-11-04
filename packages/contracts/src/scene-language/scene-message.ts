@@ -4,6 +4,8 @@ export const SCENE_TOPIC = 'astra.scenes';
 export type SceneAgentMessage =
   /** Fetch this stored scene's take now, and say when the first frame could draw. */
   | { type: 'loadScene'; sceneId: string; durationSeconds: number }
+  /** Fetch this take's bytes and do nothing else, so what is on screen stays and the next scene needs only its first frame. */
+  | { type: 'prepareScene'; sceneId: string }
   /** This lesson has no words of its own, so a reply box here could never be answered. */
   | { type: 'noLesson' }
   /** Past a voice limit a student hears a tone, so the page says why. */
@@ -13,5 +15,6 @@ export type SceneBrowserMessage =
   /** Sent on joining, so nothing is written for a student who could not see it. */
   | { type: 'sceneDevice'; canPlay: boolean }
   | { type: 'sceneLoaded'; sceneId: string }
+  | { type: 'scenePrepared'; sceneId: string }
   /** A take is untrusted data, so a damaged one is refused and the lesson stays on the plain board. */
   | { type: 'sceneRefused'; sceneId: string };
