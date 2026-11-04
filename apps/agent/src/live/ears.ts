@@ -6,7 +6,6 @@ import type { EarsEvent } from './live-session.ts';
 /** The SDK drops a turn while a reply is active unless it has this many words. The SDK never speaks here, so this is a guard and nothing depends on it. */
 const MORE_WORDS_THAN_ANY_TURN = 9999;
 
-/** The settings the design's proofs rest on. Exported so a test holds them. */
 export const EARS_SETTINGS = {
   ttsTextTransforms: null,
   aecWarmupDuration: null,

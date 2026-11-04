@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AutoSubscribe, cli, defineAgent, inference, initializeLogger, type JobContext, type JobProcess, ServerOptions } from '@livekit/agents';
 import { AudioSource, DisconnectReason, LocalAudioTrack, type RemoteParticipant, RoomEvent, TrackPublishOptions, TrackSource } from '@livekit/rtc-node';
-import { type AgentMessage, parseBrowserMessage } from '@astra/contracts';
+import { type AgentMessage, parseBrowserMessage, PULSE_EVERY_MS } from '@astra/contracts';
 import { readKey } from '../keys.ts';
 import { renderTone } from '../providers/fakes.ts';
 import { makeTutorTranscriber, makeTutorVoice } from '../providers/choose.ts';
@@ -18,7 +18,6 @@ import { getSteadyNowMs, createVoiceLine } from './voice-line.ts';
 const LIVE_TOPIC = 'astra.live';
 const LAB_TOPIC = 'astra.lab';
 const AUDIO_QUEUE_MS = 200;
-const PULSE_EVERY_MS = 500;
 /** A tab closed on purpose can still be a reload, so the room waits this long. */
 const LEFT_ON_PURPOSE_MS = 15_000;
 /** A dropped link can come back, so the room waits this long before it closes. */
@@ -102,11 +101,11 @@ async function runSession(context: JobContext): Promise<void> {
     clearTimeout(closing);
     closing = setTimeout(finish, leftOnPurpose ? LEFT_ON_PURPOSE_MS : LINK_DROPPED_MS);
   });
-  // The track goes up last, so a page that hears it knows everything here is ready to hear the page.
   const publishOptions = new TrackPublishOptions();
   publishOptions.source = TrackSource.SOURCE_MICROPHONE;
   await room.localParticipant?.publishTrack(LocalAudioTrack.createAudioTrack('tutor-voice', source), publishOptions);
   trace('voiceTrackUp');
+  publish({ type: 'pulse' }, false);
 
   context.addShutdownCallback(async () => {
     trace('jobClosing');

@@ -20,7 +20,6 @@ export interface StoredTake {
   base64: string;
 }
 
-// A take must be at a rate LiveKit frames in whole samples, or the voice line refuses it and the browser's clock drifts.
 export function readTake(json: string, path = 'take'): StoredTake {
   const take = JSON.parse(json) as StoredTake;
   if (take.sampleRate !== RENDERED_SAMPLE_RATE) throw new Error(`${path} is at ${take.sampleRate} Hz, and a stored take must be at ${RENDERED_SAMPLE_RATE} Hz`);
@@ -50,7 +49,6 @@ export function getTakeBeat(take: StoredTake, beatId: string): Beat {
   return parsed.value;
 }
 
-/** Decision 5: a repeated phrase turns into a tic, so none plays twice in three turns. */
 const TURNS_BEFORE_A_REPEAT = 3;
 
 export interface TakePicker {

@@ -3,6 +3,12 @@ import type { BeatId, TurnId } from './ids.ts';
 import type { SceneCommand } from './scene-command.ts';
 import type { PlayReport, StudentAction } from './session-event.ts';
 
+/** Each side of a session sends a pulse this often, on the lossy channel. */
+export const PULSE_EVERY_MS = 500;
+
+/** Three missed pulses is a drop and not a late packet. */
+export const LINK_QUIET_LIMIT_MS = 3 * PULSE_EVERY_MS;
+
 /** The longest typed reply, in characters. */
 export const TYPED_TEXT_MAX_CHARACTERS = 2000;
 

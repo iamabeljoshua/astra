@@ -10,11 +10,8 @@ export const TURN_TIMINGS = {
   reactionFloorMs: 300,
   /** Muse can hold a final for seconds in noise, so after this much silence the tutor answers the partial. */
   heldFinalMs: 1100,
-  /** T5: the tutor waits this long after a question or a filler. */
   patienceMs: 8000,
-  /** Decision 4: the longest wait after real words. */
   turnCapMs: 1000,
-  /** Decision 4: the longest wait when the tutor just asked a question or was just interrupted. */
   patientTurnCapMs: 2000,
 } as const;
 
