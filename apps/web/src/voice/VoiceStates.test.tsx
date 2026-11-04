@@ -83,7 +83,8 @@ describe('what the student sees of a room', () => {
       if (!(await getAccess())) throw new Error('no room');
       return voice;
     });
-    stubSessionsApi({ sessions: [makeSession()], liveRoom: { status: 429, body: { statusCode: 429, message: 'Wait', retryAfterSeconds: 360 } } });
+    const answerOtherRoutes = globalThis.fetch;
+    vi.stubGlobal('fetch', async (request: Request) => (request.url.endsWith('/live-room?startOver=yes') ? new Response(JSON.stringify({ statusCode: 429, message: 'Wait', retryAfterSeconds: 360 }), { status: 429 }) : answerOtherRoutes(request)));
     fireEvent.click(screen.getByRole('button', { name: VOICE_LABELS.tryAgain }));
     await waitFor(() => expect(screen.getByText(VOICE_LABELS.tooSoon(360))).toBeTruthy());
     expect(getBox().readOnly).toBe(true);

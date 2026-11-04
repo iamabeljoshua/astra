@@ -182,7 +182,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
   };
 
   const onAgentMessage = (message: AgentMessage) => {
-    // Only the job's own words say a tutor is here, because a crashed job's track outlives it by up to 2 minutes.
+    // Only the job's own words say a tutor is here, because a crashed job's track outlives it.
     hasHeardTutor = true;
     clearTimeout(tutorWait);
     if (view.phase === 'connecting') setView({ phase: 'live' });

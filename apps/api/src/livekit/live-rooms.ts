@@ -46,6 +46,11 @@ class StartLimit {
       this.starts.delete(student);
     }
   }
+
+  /** A start that failed started nothing, and a student must not be told to wait for it. */
+  takeBack(studentId: string): void {
+    this.starts.get(studentId)?.pop();
+  }
 }
 
 function refuseIfAtLimit(studentId: string, ...limits: StartLimit[]): void {
@@ -97,6 +102,7 @@ export class LiveRooms {
     const name = getClient(keys)
       .createRoom({ name: roomName, ...ROOM_SETTINGS, agents: [new RoomAgentDispatch({ agentName: keys.agentName, restartPolicy: JobRestartPolicy.JRP_NEVER })] })
       .then(() => roomName);
+    name.catch(() => this.roomsOpened.takeBack(studentId));
     this.remember(sessionId, { name, isSureUntilMs });
     return name;
   }
@@ -148,6 +154,7 @@ export class LiveRooms {
       await this.closeAll(keys, sessionId);
       return await this.openNew(keys, sessionId, studentId);
     } catch {
+      this.startsOver.takeBack(studentId);
       throw new ServiceUnavailableException('Live voice could not open a room.');
     }
   }

@@ -257,6 +257,17 @@ describe('the live room route', () => {
     await post(`/sessions/${untouched}/live-room`, otherStudent).expect(200);
   });
 
+  it('counts no room LiveKit would not open, so an outage never ends in a false wait', async () => {
+    const unlucky = await createTestStudent(testApp);
+    const sessionId = await startSession(unlucky);
+    await waitUntil(() => liveKit.roomsOf(sessionId).length === 1);
+    liveKit.isDown = true;
+    for (let press = 0; press < 13; press += 1) await post(`/sessions/${sessionId}/live-room?startOver=yes`, unlucky).expect(503);
+    for (let press = 0; press < 13; press += 1) await post(`/sessions/${sessionId}/live-room`, unlucky).expect(503);
+    liveKit.isDown = false;
+    await post(`/sessions/${sessionId}/live-room?startOver=yes`, unlucky).expect(200);
+  });
+
   it('says how long a student must wait to start over, from the start that lifts the limit', async () => {
     const limited = await createTestStudent(testApp);
     const sessionId = await startSession(limited);

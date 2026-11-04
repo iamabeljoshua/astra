@@ -36,10 +36,9 @@ function listSessions(sessions: Session[], url: URL) {
 interface FakeApi {
   homeScreen?: HomeScreenResponse;
   sessions?: Session[];
-  liveRoom?: { status: number; body: object };
 }
 
-export function stubSessionsApi({ homeScreen = EXAMPLE_HOME_SCREEN, sessions = [], liveRoom }: FakeApi = {}) {
+export function stubSessionsApi({ homeScreen = EXAMPLE_HOME_SCREEN, sessions = [] }: FakeApi = {}) {
   const storedSessions = sessions.map((session) => ({ ...session }));
   let nextId = 1;
 
@@ -52,7 +51,6 @@ export function stubSessionsApi({ homeScreen = EXAMPLE_HOME_SCREEN, sessions = [
 
   const fetchStub = vi.fn(async (request: Request) => {
     const url = new URL(request.url);
-    if (liveRoom && url.pathname.endsWith('/live-room')) return json(liveRoom.body, liveRoom.status);
     const sessionId = SESSION_PATH.exec(url.pathname)?.[1];
     if (sessionId) return answerOneSession(request, sessionId);
     if (url.pathname === '/api/home') return json({ ...homeScreen, continueSession: storedSessions.find(({ status }) => status === 'in_progress') ?? null });
