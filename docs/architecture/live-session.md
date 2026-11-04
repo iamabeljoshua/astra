@@ -368,7 +368,7 @@ The whole sample session from PRD section 6.4 parses with these types, including
 | M3.12 | Tasks, notes, and tangent, and a wider `studentActed`. |
 | M3.14 | One scene command that renders from the time alone, with moments as word cues. |
 | M3.11 | One mark on a group of strokes, a region of a photo, a tutor stroke, and ink when the layout differs between sizes. Its sign-error test passes only if the sign is one stroke the model can name. |
-| M4.4 | "The board replays its key moments" (PRD section 6.6). |
+| M4.4 | Done, with no new command. Code picks the moments from the log, the work it called right and otherwise what the tutor drew, and the page shows each in turn as the recap plays. `docs/tests/recap-replay.md` has the rest. |
 | Later | CJK and Thai count as one word, so every cue would fire at word 0. PRD Q12 says English first, so this waits. |
 
 **Safety.** The parser checks shape and not meaning, and free text can hold anything that is printable. So M3.3 to M3.5 render text as text and never as HTML, call KaTeX with `trust: false`, and keep names in Maps. The parser refuses `__proto__`, `constructor`, names no reference can reach, control characters, bidi overrides, and every TeX command outside a named list. That list has no macro definitions, sizes, colors, links, or images, so `\def`, `\rule`, `\textcolor`, and `\href` never reach KaTeX. KaTeX then runs with `maxExpand` and `maxSize` as a second wall, and math it still refuses leaves the last good equation on the board. So a model that writes `"\frac{1}{2}"`, which JSON turns into a form feed, gets a refusal and not a wrong equation. `docs/tests/math-board.md` records the hostile run. The agent strips bidi characters from student text before it stores it.

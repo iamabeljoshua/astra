@@ -76,9 +76,7 @@ export type AgentMessage =
   /** The room stayed quiet to its limit and closes now. */
   | { type: 'closingForQuiet' }
   /** What this session's end says, to show as it is spoken, or null when it has nothing to say. */
-  | { type: 'recap'; recap: SessionRecap | null }
-  /** The recap has been spoken, and the tutor leaves the room. */
-  | { type: 'recapOver' };
+  | { type: 'recap'; recap: SessionRecap | null };
 
 /**
  * `browserMs` says when this was sent, on the browser's audio clock, and `startedMsAgo` how long before that it really happened.

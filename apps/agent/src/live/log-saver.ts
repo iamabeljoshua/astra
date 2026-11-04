@@ -24,7 +24,7 @@ export function createLogSaver({ save, onFailed = () => {} }: LogSaverOptions): 
     const taken: SessionEvent[] = [];
     let bytes = 0;
     for (const [seq, event] of unsaved) {
-      bytes += JSON.stringify(event).length;
+      bytes += Buffer.byteLength(JSON.stringify(event));
       if (taken.length > 0 && (bytes > MOST_BYTES_IN_A_SAVE || taken.length >= MOST_EVENTS_IN_A_SAVE)) break;
       taken.push(event);
       unsaved.delete(seq);
@@ -49,6 +49,7 @@ export function createLogSaver({ save, onFailed = () => {} }: LogSaverOptions): 
     return saving;
   };
   const timer = setInterval(() => void flush(), SAVE_EVERY_MS);
+  timer.unref();
 
   return {
     note: (event) => void unsaved.set(event.seq, event),

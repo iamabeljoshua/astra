@@ -15,6 +15,7 @@ const MAX_SESSIONS_PER_LIST = 100;
 const MAX_SEARCH_LENGTH = 200;
 const LARGEST_DATABASE_INTEGER = 2_147_483_647;
 const MAX_SESSION_SECONDS = 24 * 60 * 60;
+const MAX_RECAP_ANSWER_LENGTH = 2000;
 
 export class CreateSessionBodyDto {
   /** What the session is about. */
@@ -129,6 +130,14 @@ export class SessionResponseDto {
   canReplay!: boolean;
 }
 
+export class SaveRecapAnswerBodyDto {
+  /** The student's own answer to the thing the recap asked them to try. */
+  @IsString()
+  @MaxLength(MAX_RECAP_ANSWER_LENGTH)
+  @IsStorableText()
+  answer!: string;
+}
+
 export class SessionReplayRunDto {
   /** When this stretch of the session started. A session the student came back to has one stretch per tutor. */
   startedAt!: Date;
@@ -142,6 +151,9 @@ export class SessionReplayResponseDto {
   /** What the session's end said, or null if it said nothing. Read this with `parseSessionRecap`. */
   @ApiProperty({ type: 'object', additionalProperties: true, nullable: true })
   recap!: object | null;
+
+  /** What the student answered to the recap's thing to try, or null. */
+  recapAnswer!: string | null;
 
   /** Each stretch of the session, oldest first. */
   runs!: SessionReplayRunDto[];

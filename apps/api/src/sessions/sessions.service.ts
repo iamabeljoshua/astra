@@ -81,7 +81,14 @@ export class SessionsService {
 
   async getReplay(studentId: string, sessionId: string): Promise<SessionReplayResponseDto> {
     const session = requireSession(await this.sessions.findForStudent(studentId, sessionId));
-    return { recap: session.recap, runs: await this.sessionLogs.listRuns(session.id) };
+    return { recap: session.recap, recapAnswer: session.recapAnswer, runs: await this.sessionLogs.listRuns(session.id) };
+  }
+
+  // M4.1 reads this as the student's own record of what they tried, once memory exists.
+  async saveRecapAnswer(studentId: string, sessionId: string, answer: string): Promise<void> {
+    const session = requireSession(await this.sessions.findForStudent(studentId, sessionId));
+    if (!session.recap) throw new NotFoundException('That session has no recap.');
+    await this.sessions.saveRecapAnswerForStudent(studentId, session.id, answer);
   }
 
   async deleteReplay(studentId: string, sessionId: string): Promise<void> {

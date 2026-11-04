@@ -105,7 +105,7 @@ describe('the key moments', () => {
 
   it('are the work code called right, and otherwise what the tutor drew', () => {
     expect(getKeyMoments(operations)).toEqual([2600, 3600]);
-    expect(getKeyMoments(operations.filter((operation) => operation.kind === 'command'))).toEqual([700, 700]);
+    expect(getKeyMoments(operations.filter((operation) => operation.kind === 'command'))).toEqual([700]);
     expect(getKeyMoments([])).toEqual([]);
   });
 

@@ -16,7 +16,7 @@ const NEEDS_CARE = /\b(?:suicid\w*|sewerslide|kms|kill(?:ing)? myself|end(?:ing)
 const PRAISE = /\b(?:great|amazing|awesome|excellent|fantastic|wonderful|perfect(?:ly)?|brilliant|superb|incredible|impressive|outstanding|proud|genius|smart|well done|good job|nice (?:job|work)|nailed|crushed|keep it up|way to go)\b/i;
 
 /** Saying the student did something is what `gotRight` is for, and only code's own verdicts back it. */
-const CLAIMS_SUCCESS = /\b(?:you (?:got|solved|figured|mastered|understood|learned|learnt|answered|worked out|managed|finished|completed|found|can now)|correct(?:ly)?)\b/i;
+const CLAIMS_SUCCESS = /\b(?:you (?:got|solved|figured|mastered|understood|learned|learnt|answered|worked out|managed|finished|completed|found|can now)|we (?:solved|cracked|got|finished|mastered|nailed)|correct(?:ly)?)\b/i;
 
 const NUMBER_WORDS = new Map(['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'].map((word, value) => [word, value]));
 const TENS_WORDS = new Map(['twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'].map((word, index) => [word, (index + 2) * 10]));

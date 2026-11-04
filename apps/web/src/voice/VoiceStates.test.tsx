@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../App';
-import { BOARD_WORK_LABELS, CHAT_BOX_LABELS, REPLY_BOX_LABELS, SESSION_LABELS, VOICE_LABELS } from '../strings';
+import { BOARD_WORK_LABELS, RECAP_LABELS, CHAT_BOX_LABELS, REPLY_BOX_LABELS, SESSION_LABELS, VOICE_LABELS } from '../strings';
 import { makeSession, stubSessionsApi } from '../test/sessionsApi';
 import type { LiveVoice, LiveVoiceView } from './liveVoice';
 
@@ -11,14 +11,14 @@ vi.mock('../auth/useAccount', () => import('../test/activeAccount'));
 const startLiveVoice = vi.hoisted(() => vi.fn());
 vi.mock('./liveVoice', async (importOriginal) => ({ ...(await importOriginal<typeof import('./liveVoice')>()), startLiveVoice }));
 
-const BASE_VIEW: LiveVoiceView = { phase: 'live', mic: 'off', isSoundBlocked: false, isQuietWarning: false, isHeard: false, isThinking: false, isTutorSpeaking: false, closedBecause: null, firstWord: null, isStopped: false, typingNoteCount: 0, costUsd: null, startedFresh: false, hasTutorStarted: false, studentLines: [], tutorHeard: [], tutorComing: [], recap: null, isRecapDecided: false, isRecapOver: false };
+const BASE_VIEW: LiveVoiceView = { phase: 'live', mic: 'off', isSoundBlocked: false, isQuietWarning: false, isHeard: false, isThinking: false, isTutorSpeaking: false, closedBecause: null, firstWord: null, isStopped: false, typingNoteCount: 0, costUsd: null, startedFresh: false, hasTutorStarted: false, studentLines: [], tutorHeard: [], tutorComing: [], recap: null, isRecapDecided: false };
 
 function makeVoice() {
   let view = BASE_VIEW;
   const listeners = new Set<() => void>();
   const voice = {
     records: {},
-    player: {},
+    player: { getOperations: () => [], getBoard: () => ({ elements: new Map(), focus: null, stage: null }) },
     getView: () => view,
     subscribe(listener: () => void) {
       listeners.add(listener);
@@ -34,6 +34,7 @@ function makeVoice() {
     sendWork: vi.fn(),
     stopTutor: () => {},
     sendTyped: vi.fn(),
+    askForRecap: vi.fn(() => true),
     reportMarkNotDrawn: vi.fn(),
     toggleMic: vi.fn(async () => {}),
     sayStillHere: vi.fn(),
@@ -110,7 +111,7 @@ describe('what the student sees of a room', () => {
     await waitFor(() => expect(startLiveVoice).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(voice.close).toHaveBeenCalled());
     await waitFor(() => expect(getBox().disabled).toBe(false));
-    await waitFor(() => expect(second.voice.sendTyped).toHaveBeenCalledWith(SESSION_LABELS.carryOnWith(makeSession().title)));
+    await waitFor(() => expect(second.voice.sendTyped).toHaveBeenCalledWith(SESSION_LABELS.carryOnWith(makeSession().title), true));
   });
 
   it('says in one line that the tutor started fresh after the page landed in a new room', async () => {
@@ -351,5 +352,92 @@ describe('what the student sees of a room', () => {
     const { setView } = await openVoice();
     act(() => setView({ mic }));
     expect(screen.getByText(note)).toBeTruthy();
+  });
+  describe('the end of a session', () => {
+    const RECAP = { kind: 'lesson', covered: 'We worked on getting x alone.', gotRight: 'You got x equals 4 right.', tryNext: 'Try one more on your own.' } as const;
+    const GENTLE = { kind: 'gentle', line: 'Thanks for talking with me today.' } as const;
+    const pressEnd = () => fireEvent.click(screen.getByRole('button', { name: SESSION_LABELS.endSession }));
+
+    async function openAndWatchRequests() {
+      const opened = await openVoice();
+      const answer = globalThis.fetch;
+      const calls: { method: string; body: unknown }[] = [];
+      vi.stubGlobal('fetch', async (request: Request) => {
+        if (request.method === 'PATCH') calls.push({ method: request.method, body: await request.clone().json() });
+        return answer(request);
+      });
+      return { ...opened, calls };
+    }
+
+    it('finishes the session at once, keeps the room for the recap, and asks for it', async () => {
+      const { voice, calls } = await openAndWatchRequests();
+      pressEnd();
+      expect(voice.askForRecap).toHaveBeenCalledOnce();
+      await waitFor(() => expect(calls).toContainEqual({ method: 'PATCH', body: expect.objectContaining({ status: 'finished', keepsRoomForRecap: true }) }));
+      expect(await screen.findByText(RECAP_LABELS.writing)).toBeTruthy();
+      expect(screen.queryByRole('button', { name: BOARD_WORK_LABELS.pen })).toBeNull();
+      expect(screen.queryByRole('textbox', { name: BOARD_WORK_LABELS.entry })).toBeNull();
+    });
+
+    it('shows the recap under its three names, then leaves on Close', async () => {
+      const { setView } = await openAndWatchRequests();
+      pressEnd();
+      await screen.findByText(RECAP_LABELS.writing);
+      act(() => setView({ recap: RECAP, isRecapDecided: true }));
+      expect(screen.getByText(RECAP_LABELS.covered)).toBeTruthy();
+      expect(screen.getByText(RECAP.gotRight)).toBeTruthy();
+      expect(screen.getByText(RECAP_LABELS.tryNext)).toBeTruthy();
+      expect(window.location.pathname).toMatch(/^\/sessions\//);
+      fireEvent.click(screen.getByRole('button', { name: SESSION_LABELS.close }));
+      await waitFor(() => expect(window.location.pathname).toBe('/'));
+    });
+
+    it('leaves out what you got right when there was none', async () => {
+      const { setView } = await openAndWatchRequests();
+      pressEnd();
+      await screen.findByText(RECAP_LABELS.writing);
+      act(() => setView({ recap: { ...RECAP, gotRight: null }, isRecapDecided: true }));
+      expect(screen.getByText(RECAP.covered)).toBeTruthy();
+      expect(screen.queryByText(RECAP_LABELS.gotRight)).toBeNull();
+    });
+
+    it('never speaks of the work on a gentle ending', async () => {
+      const { setView } = await openAndWatchRequests();
+      pressEnd();
+      await screen.findByText(RECAP_LABELS.writing);
+      act(() => setView({ recap: GENTLE, isRecapDecided: true }));
+      expect(screen.getByText(GENTLE.line)).toBeTruthy();
+      expect(screen.queryByText(RECAP_LABELS.gotRight)).toBeNull();
+      expect(screen.queryByText(RECAP_LABELS.covered)).toBeNull();
+    });
+
+    it('leaves straight away when there is nothing to say', async () => {
+      const { setView } = await openAndWatchRequests();
+      pressEnd();
+      await screen.findByText(RECAP_LABELS.writing);
+      act(() => setView({ recap: null, isRecapDecided: true }));
+      await waitFor(() => expect(window.location.pathname).toBe('/'));
+    });
+
+    it('leaves anyway when a tutor never answers, so a failed recap cannot hold the end', async () => {
+      await openAndWatchRequests();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        pressEnd();
+        await vi.waitFor(() => expect(screen.getByText(RECAP_LABELS.writing)).toBeTruthy());
+        await act(() => vi.advanceTimersByTimeAsync(8100));
+        await vi.waitFor(() => expect(window.location.pathname).toBe('/'), { timeout: 3000 });
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('ends with no recap and no held room when the tutor cannot be reached', async () => {
+      const { voice, calls } = await openAndWatchRequests();
+      voice.askForRecap.mockReturnValue(false);
+      pressEnd();
+      await waitFor(() => expect(window.location.pathname).toBe('/'));
+      expect(calls.at(-1)?.body).not.toHaveProperty('keepsRoomForRecap');
+    });
   });
 });

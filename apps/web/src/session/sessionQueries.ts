@@ -24,6 +24,11 @@ export function refreshSessionViews(queryClient: QueryClient) {
   ]);
 }
 
+// What it can replay is known only once the tutor has saved its log, which can land after the session ends.
+export function refreshOneSession(queryClient: QueryClient, sessionId: string) {
+  return queryClient.invalidateQueries({ queryKey: getSessionKey(sessionId) });
+}
+
 export function useSession(sessionId: string) {
   return useQuery({
     queryKey: getSessionKey(sessionId),

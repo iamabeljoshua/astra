@@ -5,13 +5,18 @@ import { getSpokenBeatAt, type ReplayLesson } from './replayLesson';
 
 /** A step between frames longer than this is a seek, and not the clock moving on. */
 const LONGEST_FRAME_MS = 500;
+/** A browser lists its voices some time after the page opens, so until then it is not known whether it has any. */
+const VOICES_LISTED_WITHIN_MS = 2500;
 
 export interface ReplayPlayer {
   atMs: number;
   isPlaying: boolean;
   speed: ReplaySpeed;
   isSoundOn: boolean;
-  canSpeak: boolean;
+  /** Nothing has moved yet, so the screen can open on how the lesson ended. */
+  hasMoved: boolean;
+  /** Null until the browser has had time to list its voices. */
+  canSpeak: boolean | null;
   togglePlay(): void;
   seek(atMs: number): void;
   setSpeed(speed: ReplaySpeed): void;
@@ -19,13 +24,17 @@ export interface ReplayPlayer {
 }
 
 function useCanSpeak(voice: ReturnType<typeof createDeviceVoice>) {
-  const [canSpeak, setCanSpeak] = useState(() => voice.canSpeak());
+  const speech = window.speechSynthesis as SpeechSynthesis | undefined;
+  const [canSpeak, setCanSpeak] = useState<boolean | null>(() => (!speech ? false : voice.canSpeak() || null));
   useEffect(() => {
-    const speech = window.speechSynthesis as SpeechSynthesis | undefined;
     const check = () => setCanSpeak(voice.canSpeak());
+    const giveUp = setTimeout(check, VOICES_LISTED_WITHIN_MS);
     speech?.addEventListener('voiceschanged', check);
-    return () => speech?.removeEventListener('voiceschanged', check);
-  }, [voice]);
+    return () => {
+      clearTimeout(giveUp);
+      speech?.removeEventListener('voiceschanged', check);
+    };
+  }, [voice, speech]);
   return canSpeak;
 }
 
@@ -38,6 +47,7 @@ export function useReplayPlayer(lesson: ReplayLesson): ReplayPlayer {
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeedState] = useState<ReplaySpeed>(1);
   const [isSoundOn, setIsSoundOn] = useState(true);
+  const [hasMoved, setHasMoved] = useState(false);
   const lastAtMs = useRef(0);
 
   useEffect(() => {
@@ -53,8 +63,9 @@ export function useReplayPlayer(lesson: ReplayLesson): ReplayPlayer {
   useEffect(() => {
     const wasJump = Math.abs(atMs - lastAtMs.current) > LONGEST_FRAME_MS * clock.getSpeed();
     lastAtMs.current = atMs;
-    const spoken = isPlaying && isSoundOn ? getSpokenBeatAt(lesson, atMs) : null;
-    voice.follow(spoken && { ...spoken, endMs: spoken.beat.endMs, speed: clock.getSpeed(), wasJump });
+    const spoken = getSpokenBeatAt(lesson, atMs);
+    if (!isPlaying || !isSoundOn || (wasJump && !spoken)) voice.stop();
+    else if (spoken) voice.follow({ ...spoken, speed: clock.getSpeed(), wasJump });
   }, [atMs, isPlaying, isSoundOn, lesson, voice, clock]);
 
   useEffect(() => () => voice.stop(), [voice]);
@@ -62,6 +73,7 @@ export function useReplayPlayer(lesson: ReplayLesson): ReplayPlayer {
   const togglePlay = useCallback(() => {
     if (clock.isPlaying()) clock.pause();
     else clock.play();
+    setHasMoved(true);
     setAtMs(clock.getAtMs());
     setIsPlaying(clock.isPlaying());
   }, [clock]);
@@ -69,6 +81,7 @@ export function useReplayPlayer(lesson: ReplayLesson): ReplayPlayer {
   const seek = useCallback(
     (next: number) => {
       clock.seek(next);
+      setHasMoved(true);
       setAtMs(clock.getAtMs());
     },
     [clock],
@@ -82,5 +95,5 @@ export function useReplayPlayer(lesson: ReplayLesson): ReplayPlayer {
     [clock],
   );
 
-  return { atMs, isPlaying, speed, isSoundOn, canSpeak, togglePlay, seek, setSpeed, toggleSound: () => setIsSoundOn((isOn) => !isOn) };
+  return { atMs, isPlaying, speed, isSoundOn, hasMoved, canSpeak, togglePlay, seek, setSpeed, toggleSound: () => setIsSoundOn((isOn) => !isOn) };
 }

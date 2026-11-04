@@ -6,6 +6,7 @@ import type { TestApp, TestStudent } from '../../test/test-database';
 import { SessionLogEventEntity } from '../infrastructure/orm/entities/session-log-event.entity';
 import type { SessionLogRun } from '../infrastructure/orm/repositories/session-log.repository';
 import { SessionEntity } from '../infrastructure/orm/entities/session.entity';
+import { LiveRooms } from '../livekit/live-rooms';
 import { SessionsService } from './sessions.service';
 
 const SESSIONS_PATH = '/sessions';
@@ -22,6 +23,7 @@ describe('the sessions routes', () => {
       post: (url: string) => server.post(url).set('Authorization', `Bearer ${token}`),
       patch: (url: string) => server.patch(url).set('Authorization', `Bearer ${token}`),
       delete: (url: string) => server.delete(url).set('Authorization', `Bearer ${token}`),
+      put: (url: string) => server.put(url).set('Authorization', `Bearer ${token}`),
     };
   }
 
@@ -354,12 +356,27 @@ describe('the sessions routes', () => {
       return id;
     }
 
+    it('closes the room at once when a session ends with no recap coming, and only later when one is', async () => {
+      const liveRooms = testApp.app.get(LiveRooms);
+      const close = jest.spyOn(liveRooms, 'close');
+      const closeAfter = jest.spyOn(liveRooms, 'closeAfter').mockImplementation(() => {});
+      const withRecap = await startSession(student);
+      const withNone = await startSession(student);
+
+      await api().patch(`${SESSIONS_PATH}/${withRecap.id}`).send({ durationSeconds: 5, status: 'finished', keepsRoomForRecap: true }).expect(200);
+      expect(close).not.toHaveBeenCalled();
+      expect(closeAfter).toHaveBeenCalledWith(withRecap.id, expect.any(Number));
+      await api().patch(`${SESSIONS_PATH}/${withNone.id}`).send({ durationSeconds: 5, status: 'finished' }).expect(200);
+      expect(close).toHaveBeenCalledWith(withNone.id);
+      jest.restoreAllMocks();
+    });
+
     it('gives a session with no log nothing to replay', async () => {
       const { id } = await startSession(student);
 
       const { body } = await api().get(`${SESSIONS_PATH}/${id}`).expect(200);
       expect(body).toMatchObject({ canReplay: false });
-      await api().get(`${SESSIONS_PATH}/${id}/replay`).expect(200, { recap: null, runs: [] });
+      await api().get(`${SESSIONS_PATH}/${id}/replay`).expect(200, { recap: null, recapAnswer: null, runs: [] });
     });
 
     it('gives the student their own session back, run by run, and the list says it can replay', async () => {
@@ -393,6 +410,23 @@ describe('the sessions routes', () => {
       expect((body as { runs: unknown[] }).runs).toHaveLength(1);
     });
 
+    it('keeps the student\'s answer to the recap for them alone, and only where a recap exists', async () => {
+      const id = await startSessionWithLog(student);
+      const other = await createTestStudent(testApp);
+      await api().put(`${SESSIONS_PATH}/${id}/recap-answer`).send({ answer: '3x = 15' }).expect(404);
+      await testApp.app.get(SessionsService).saveRecap(id, { kind: 'lesson', covered: 'a', gotRight: null, tryNext: 'b' });
+
+      await api(other).put(`${SESSIONS_PATH}/${id}/recap-answer`).send({ answer: 'not theirs' }).expect(404);
+      await api().put(`${SESSIONS_PATH}/${id}/recap-answer`).send({ answer: '' }).expect(400);
+      await api().put(`${SESSIONS_PATH}/${id}/recap-answer`).send({ answer: '3x = 15' }).expect(204);
+
+      const { body } = await api().get(`${SESSIONS_PATH}/${id}/replay`).expect(200);
+      expect(body).toMatchObject({ recapAnswer: '3x = 15' });
+      await api().delete(`${SESSIONS_PATH}/${id}/replay`).expect(204);
+      const after = await api().get(`${SESSIONS_PATH}/${id}/replay`).expect(200);
+      expect(after.body).toEqual({ recap: null, recapAnswer: null, runs: [] });
+    });
+
     it('deletes the log and the recap for good, and a tutor still closing cannot save them back', async () => {
       const id = await startSessionWithLog(student);
       await testApp.app.get(SessionsService).saveRecap(id, { kind: 'gentle', line: 'Thanks.' });
@@ -401,7 +435,7 @@ describe('the sessions routes', () => {
 
       await saveRun(id);
       await testApp.app.get(SessionsService).saveRecap(id, { kind: 'gentle', line: 'Thanks.' });
-      await api().get(`${SESSIONS_PATH}/${id}/replay`).expect(200, { recap: null, runs: [] });
+      await api().get(`${SESSIONS_PATH}/${id}/replay`).expect(200, { recap: null, recapAnswer: null, runs: [] });
       const { body } = await api().get(`${SESSIONS_PATH}/${id}`).expect(200);
       expect(body).toMatchObject({ canReplay: false, title: VALID_SESSION.title });
     });

@@ -10,7 +10,7 @@ const worked = (seq: number, line: string, status: 'right' | 'wrong' | 'unknown'
 const said = (seq: number, text: string) => ({ seq, atMs: seq * 1000, kind: 'studentSpoke', text, source: 'typed', isReaction: false, durationMs: 0 }) as unknown as SessionEvent;
 
 const factsWith = (work: RecapFacts['work'] = []): RecapFacts => ({ opening: null, tutorWords: TEACHING.split(' '), studentLines: [], work });
-const GOOD_DRAFT = { covered: 'We got x alone by taking three from both sides.', gotRight: null, tryNext: 'Try one more equation on your own.' };
+const GOOD_DRAFT = { covered: 'We worked on getting x alone by taking three from both sides.', gotRight: null, tryNext: 'Try one more equation on your own.' };
 
 function fakeModel(replies: string[], stopReason: 'finished' | 'refused' = 'finished') {
   const stream = vi.fn(async function* () {
@@ -90,11 +90,12 @@ describe('the checks on what the model wrote', () => {
   });
 
   it.each([
-    ['praise in covered', { ...GOOD_DRAFT, covered: 'We did great work getting x alone.' }, 'praises'],
+    ['praise in covered', { ...GOOD_DRAFT, covered: 'We did great work on getting x alone.' }, 'praises'],
     ['praise in tryNext', { ...GOOD_DRAFT, tryNext: 'Try one more, you are brilliant at this.' }, 'praises'],
     ['a claim about the student in covered', { ...GOOD_DRAFT, covered: 'We saw you solved the equation for x.' }, 'says what the student did'],
+    ['a claim that it was solved', { ...GOOD_DRAFT, covered: 'We solved the equation by taking three from both sides.' }, 'says what the student did'],
     ['a claim about the student in tryNext', { ...GOOD_DRAFT, tryNext: 'Next, since you mastered this, try harder ones.' }, 'says what the student did'],
-    ['a made up number', { ...GOOD_DRAFT, covered: 'We got x alone in 47 equations together.' }, 'numbers nobody said'],
+    ['a made up number', { ...GOOD_DRAFT, covered: 'We worked on getting x alone in 47 equations together.' }, 'numbers nobody said'],
     ['a topic nobody spoke of', { ...GOOD_DRAFT, covered: 'We studied Roman emperors.' }, 'nothing that was said'],
     ['a question to try', { ...GOOD_DRAFT, tryNext: 'Try this, what is x when 2x is 10?' }, 'asks a question'],
     ['too long', { ...GOOD_DRAFT, covered: `We ${'equation '.repeat(25)}` }, 'runs past'],
@@ -105,7 +106,7 @@ describe('the checks on what the model wrote', () => {
   });
 
   it('takes out dashes and exclamation marks', () => {
-    expect(checkRecapDraft({ ...GOOD_DRAFT, covered: 'We got x alone — three off both sides!' }, factsWith())).toMatchObject({ recap: { covered: 'We got x alone, three off both sides.' } });
+    expect(checkRecapDraft({ ...GOOD_DRAFT, covered: 'We worked on getting x alone \u2014 three off both sides!' }, factsWith())).toMatchObject({ recap: { covered: 'We worked on getting x alone, three off both sides.' } });
   });
 
   it('speaks each line as its own beat', () => {

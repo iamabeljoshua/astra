@@ -2,7 +2,7 @@ import type { BoardState } from '@astra/board';
 import type { ElementId } from '@astra/contracts';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-function getLatestRowId(board: BoardState): string | null {
+export function getLatestRowId(board: BoardState): string | null {
   const focused = board.focus?.split('.')[0];
   if (focused && board.elements.has(focused as ElementId)) return focused;
   const elements = [...board.elements.values()];

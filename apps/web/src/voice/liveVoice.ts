@@ -66,7 +66,6 @@ export interface LiveVoiceView {
   recap: SessionRecap | null;
   /** The tutor has said whether there is a recap. */
   isRecapDecided: boolean;
-  isRecapOver: boolean;
 }
 
 export type RoomAccess = NonNullable<components['schemas']['LiveRoomResponseDto']['access']>;
@@ -153,7 +152,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
   const listeners = new Set<() => void>();
   const outbox: BrowserMessage[] = [];
   let typingNotedAtMs = -Infinity;
-  let view: LiveVoiceView = { phase: 'connecting', mic: 'off', isSoundBlocked: audioContext.state !== 'running', isQuietWarning: false, isThinking: false, isHeard: false, isTutorSpeaking: false, closedBecause: null, firstWord: null, isStopped: false, typingNoteCount: 0, costUsd: null, startedFresh: false, hasTutorStarted: false, studentLines: [], tutorHeard: [], tutorComing: [], recap: null, isRecapDecided: false, isRecapOver: false };
+  let view: LiveVoiceView = { phase: 'connecting', mic: 'off', isSoundBlocked: audioContext.state !== 'running', isQuietWarning: false, isThinking: false, isHeard: false, isTutorSpeaking: false, closedBecause: null, firstWord: null, isStopped: false, typingNoteCount: 0, costUsd: null, startedFresh: false, hasTutorStarted: false, studentLines: [], tutorHeard: [], tutorComing: [], recap: null, isRecapDecided: false };
   let lastAgentPulseEpochMs: number | null = null;
   let isClosed = false;
   let hasHeardFirstOnset = false;
@@ -255,8 +254,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     }
     if (message.type === 'quietWarning') return setView({ isQuietWarning: message.isOn });
     if (message.type === 'closingForQuiet') return leaveRoom('closedForQuiet');
-    if (message.type === 'recap') return setView({ recap: message.recap, isRecapDecided: true, isThinking: false, isRecapOver: message.recap === null });
-    if (message.type === 'recapOver') return setView({ isRecapOver: true });
+    if (message.type === 'recap') return setView({ recap: message.recap, isRecapDecided: true, isThinking: false });
     if (message.type === 'heard') return showHeard();
     if (message.type === 'thinking') return setView({ isThinking: message.isThinking });
     if (message.type === 'costSoFar') return setView({ costUsd: message.usd });

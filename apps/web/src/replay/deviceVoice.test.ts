@@ -10,7 +10,7 @@ function makeSpeech(voices: Partial<SpeechSynthesisVoice>[]) {
 
 const makeUtterance = (text: string) => ({ text }) as SpeechSynthesisUtterance;
 const LOCAL_VOICE = { localService: true, default: true, lang: 'en-US' };
-const follow = (word = 0, wasJump = false) => ({ beat, word, endMs: beat.endMs, speed: 1 as const, wasJump });
+const follow = (word = 0, wasJump = false) => ({ beat, word, speed: 1 as const, wasJump });
 
 describe('the device voice', () => {
   it('never uses a voice that sends the words away', () => {
@@ -54,12 +54,14 @@ describe('the device voice', () => {
     expect((faster.speak.mock.lastCall?.[0] as SpeechSynthesisUtterance).rate).toBeGreaterThan(normal);
   });
 
-  it('stops when told to follow nothing', () => {
+  it('stops when told to, and only then says the same beat again', () => {
     const speech = makeSpeech([LOCAL_VOICE]);
     const voice = createDeviceVoice(speech, makeUtterance);
     voice.follow(follow());
     speech.cancel.mockClear();
-    voice.follow(null);
+    voice.stop();
     expect(speech.cancel).toHaveBeenCalledOnce();
+    voice.follow(follow(1));
+    expect(speech.speak).toHaveBeenCalledTimes(2);
   });
 });

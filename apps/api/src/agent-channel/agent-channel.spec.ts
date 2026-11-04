@@ -221,7 +221,7 @@ describe('the agent channel', () => {
       await saveRecap(id, { recap: { kind: 'gentle', line: 'Thanks for talking.' } }).expect(204);
 
       const { body } = await asStudent(server().get(`/sessions/${id}/replay`)).expect(200);
-      expect(body).toEqual({ recap: { kind: 'gentle', line: 'Thanks for talking.' }, runs: [{ startedAt: RUN.runStartedAt, events: [RUN.events[0]?.event] }] });
+      expect(body).toEqual({ recap: { kind: 'gentle', line: 'Thanks for talking.' }, recapAnswer: null, runs: [{ startedAt: RUN.runStartedAt, events: [RUN.events[0]?.event] }] });
     });
 
     it('refuses a wrong key, an unknown session, and a body that is not a log', async () => {

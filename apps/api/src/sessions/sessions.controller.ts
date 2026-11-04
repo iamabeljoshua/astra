@@ -1,8 +1,9 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, Query } from '@nestjs/common';
 import { CurrentStudentId } from '../auth/route-access';
 import {
   CreateSessionBodyDto,
   ListSessionsQueryDto,
+  SaveRecapAnswerBodyDto,
   SessionParamsDto,
   SessionReplayResponseDto,
   SessionResponseDto,
@@ -51,6 +52,17 @@ export class SessionsController {
     @Param() { id }: SessionParamsDto,
   ): Promise<SessionReplayResponseDto> {
     return this.sessionsService.getReplay(studentId, id);
+  }
+
+  /** Saves the student's own answer to the thing the recap asked them to try. A session with no recap, or another student's, answers 404. */
+  @Put(':id/recap-answer')
+  @HttpCode(NO_CONTENT_STATUS)
+  saveRecapAnswer(
+    @CurrentStudentId() studentId: string,
+    @Param() { id }: SessionParamsDto,
+    @Body() { answer }: SaveRecapAnswerBodyDto,
+  ): Promise<void> {
+    return this.sessionsService.saveRecapAnswer(studentId, id, answer);
   }
 
   /** Deletes what a session kept to replay, leaving its title and length in the list. Another student's session answers 404. */

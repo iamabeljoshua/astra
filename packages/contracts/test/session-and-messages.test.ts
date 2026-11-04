@@ -551,7 +551,6 @@ describe('a session recap', () => {
   it('carries over the data channel, with no recap as a real answer', () => {
     expect(parseAgentMessage({ type: 'recap', recap: LESSON }).ok).toBe(true);
     expect(parseAgentMessage({ type: 'recap', recap: null })).toEqual({ ok: true, value: { type: 'recap', recap: null } });
-    expect(parseAgentMessage({ type: 'recapOver' }).ok).toBe(true);
     expect(parseAgentMessage({ type: 'recap' }).ok).toBe(false);
   });
 

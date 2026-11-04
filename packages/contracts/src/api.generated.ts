@@ -123,6 +123,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/sessions/{id}/recap-answer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Saves the student's own answer to the thing the recap asked them to try. A session with no recap, or another student's, answers 404. */
+        put: operations["SessionsController_saveRecapAnswer"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/home": {
         parameters: {
             query?: never;
@@ -292,8 +309,14 @@ export interface components {
             recap: {
                 [key: string]: unknown;
             } | null;
+            /** @description What the student answered to the recap's thing to try, or null. */
+            recapAnswer: string | null;
             /** @description Each stretch of the session, oldest first. */
             runs: components["schemas"]["SessionReplayRunDto"][];
+        };
+        SaveRecapAnswerBodyDto: {
+            /** @description The student's own answer to the thing the recap asked them to try. */
+            answer: string;
         };
         UpdateSessionBodyDto: {
             /** @description How long the session has run in total, in seconds. A longer length is saved as 24 hours, so ending a session always works. */
@@ -580,6 +603,30 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SessionsController_saveRecapAnswer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The ID of the session. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveRecapAnswerBodyDto"];
+            };
+        };
         responses: {
             204: {
                 headers: {

@@ -3,7 +3,7 @@ import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { makeSession } from '../test/sessionsApi';
 import { renderWithQueryClient } from '../test/renderWithQueryClient';
-import { REPLAY_LABELS } from '../strings';
+import { RECAP_LABELS, REPLAY_LABELS } from '../strings';
 import { ReplayScreen } from './ReplayScreen';
 
 const LESSON_LOG = [
@@ -17,7 +17,7 @@ function stubReplay(answers: { replay?: object | null; deleteStatus?: number }) 
   const calls: string[] = [];
   vi.stubGlobal('fetch', vi.fn(async (request: Request) => {
     calls.push(`${request.method} ${new URL(request.url).pathname}`);
-    if (request.method === 'DELETE') return new Response(null, { status: answers.deleteStatus ?? 204 });
+    if (request.method === 'DELETE' || request.method === 'PUT') return new Response(null, { status: answers.deleteStatus ?? 204 });
     if (new URL(request.url).pathname.endsWith('/replay')) return answers.replay === null ? new Response('{}', { status: 500 }) : new Response(JSON.stringify(answers.replay), { status: 200 });
     return new Response('[]', { status: 200 });
   }));
@@ -75,6 +75,7 @@ describe('the replay screen', () => {
     stubReplay({ replay: { recap: null, runs: [{ startedAt: 'x', events: LESSON_LOG }] } });
     open();
     await screen.findByRole('slider', { name: REPLAY_LABELS.timeline });
+    seekTo(100);
     expect(screen.queryByRole('textbox')).toBeNull();
   });
 
@@ -95,6 +96,21 @@ describe('the replay screen', () => {
     fireEvent.click(screen.getByRole('button', { name: REPLAY_LABELS.keep }));
     await waitFor(() => expect(screen.getByRole('button', { name: REPLAY_LABELS.deleteReplay })).toBeTruthy());
     expect(calls.some((call) => call.startsWith('DELETE'))).toBe(false);
+  });
+
+  it('saves the student\'s own answer to the thing to try', async () => {
+    const calls = stubReplay({ replay: { recap: RECAP, recapAnswer: null, runs: [{ startedAt: 'x', events: LESSON_LOG }] } });
+    open();
+    fireEvent.change(await screen.findByRole('textbox', { name: RECAP_LABELS.yourAnswer }), { target: { value: '3x = 15' } });
+    fireEvent.click(screen.getByRole('button', { name: RECAP_LABELS.save }));
+    await screen.findByRole('button', { name: RECAP_LABELS.saved });
+    expect(calls).toContain('PUT /api/sessions/done/recap-answer');
+  });
+
+  it('shows an answer saved before', async () => {
+    stubReplay({ replay: { recap: RECAP, recapAnswer: '3x = 15', runs: [{ startedAt: 'x', events: LESSON_LOG }] } });
+    open();
+    expect((await screen.findByRole<HTMLInputElement>('textbox', { name: RECAP_LABELS.yourAnswer })).value).toBe('3x = 15');
   });
 
   it('says so when a log holds nothing it can play', async () => {

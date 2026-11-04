@@ -1043,6 +1043,15 @@
       max-height: 34dvh;
     }
 
+    .board-voice-reading {
+      max-height: 64dvh;
+      overflow-y: auto;
+    }
+
+    .board-hidden-on-phone {
+      display: none;
+    }
+
     .board-tools {
       min-height: 52px;
       padding: 8px 16px;

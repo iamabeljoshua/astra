@@ -5,7 +5,7 @@ import type { VisualPeek } from '../board/boardStage';
 import { BoardStageView } from '../board/BoardStageView';
 import { MovingDot } from '../board/MovingDot';
 import { SharedBoard } from '../board/SharedBoard';
-import { useDotTarget } from '../board/useDotTarget';
+import { getLatestRowId } from '../board/useDotTarget';
 import { findArtwork } from '../home/artwork';
 import { getSessionVisual } from '../session/BoardPicture';
 import type { Session } from '../session/sessionQueries';
@@ -24,6 +24,12 @@ const NO_LOUDNESS = () => 0;
 const getPercent = (atMs: number, durationMs: number) => `${durationMs > 0 ? (atMs / durationMs) * 100 : 0}%`;
 
 const toSeconds = (ms: number) => Math.floor(ms / MS_PER_SECOND);
+
+function getSoundNote({ canSpeak, isSoundOn }: ReplayPlayer): string | null {
+  if (canSpeak === null) return null;
+  if (!canSpeak) return REPLAY_LABELS.noSoundNote;
+  return isSoundOn ? REPLAY_LABELS.soundNote : REPLAY_LABELS.soundOffNote;
+}
 
 export function ReplayScreen({ session }: { session: Session }) {
   const replay = useReplay(session.id);
@@ -65,33 +71,36 @@ function useSpaceToPlay(togglePlay: () => void) {
   }, [togglePlay]);
 }
 
-function PlayingReplay({ session, saved: { lesson, recap } }: { session: Session; saved: SavedReplay }) {
+function PlayingReplay({ session, saved: { lesson, recap, recapAnswer } }: { session: Session; saved: SavedReplay }) {
   const player = useReplayPlayer(lesson);
-  const { atMs, isPlaying, togglePlay } = player;
-  const { board, atMs: boardAtMs } = useMemo(() => getReplayBoard(lesson, atMs), [lesson, atMs]);
+  const { atMs, isPlaying, hasMoved, togglePlay } = player;
+  const isAtEnd = atMs >= lesson.durationMs;
+  // It opens on how the lesson ended, beside the recap, and the first press starts it from the top.
+  const { board, atMs: boardAtMs } = useMemo(() => getReplayBoard(lesson, hasMoved ? atMs : lesson.durationMs), [lesson, atMs, hasMoved]);
   const caption = useMemo(() => getReplayCaption(lesson, atMs), [lesson, atMs]);
   const studentLine = getReplayStudentLine(lesson, atMs);
-  const { target } = useDotTarget(board, caption.isSpeaking);
   const [peek, setPeek] = useState<VisualPeek | null>(null);
   useSpaceToPlay(togglePlay);
-  const isAtRest = !isPlaying && (atMs === 0 || atMs >= lesson.durationMs);
+  const isAtRest = !isPlaying && (!hasMoved || isAtEnd);
 
   return (
     <div className="board-stage">
-      <div className="board-voice">
+      <div className={`board-voice ${isAtRest ? 'board-voice-reading' : ''}`}>
         <SessionTitle title={session.title} />
-        {isAtRest && recap ? <div className="flex flex-1 flex-col justify-end"><RecapLines recap={recap} /></div> : <CaptionLines past={caption.past} heard={caption.heard} coming={caption.coming} />}
+        {isAtRest && recap ? <div className="flex flex-1 flex-col justify-end"><RecapLines recap={recap} sessionId={session.id} answer={recapAnswer} /></div> : <CaptionLines past={caption.past} heard={caption.heard} coming={caption.coming} />}
         {studentLine && !isAtRest && (
           <p data-testid="replay-student-line" className="border-t border-line pt-3 text-sub wrap-anywhere">
             <span className="label block text-ink-2">{REPLAY_LABELS.you}</span>
             {studentLine}
           </p>
         )}
-        <p data-testid="replay-sound-note" className="text-fine text-ink-2">{!player.canSpeak ? REPLAY_LABELS.noSoundNote : player.isSoundOn ? REPLAY_LABELS.soundNote : REPLAY_LABELS.soundOffNote}</p>
-        <DeleteReplay sessionId={session.id} />
+        <div className={`flex flex-col gap-3.5 ${isAtRest ? '' : 'board-hidden-on-phone'}`}>
+          <p data-testid="replay-sound-note" className="min-h-9.5 text-fine text-ink-2">{getSoundNote(player)}</p>
+          <DeleteReplay sessionId={session.id} />
+        </div>
       </div>
       <BoardStageView stage={board.stage} atMs={boardAtMs} visual={getSessionVisual(findArtwork(session.artwork))} ariaLabel={VOICE_LABELS.board} peek={peek} onPeek={setPeek} footer={<ReplayTransport lesson={lesson} player={player} onSeeked={() => setPeek(null)} />}>
-        <MovingDot rowId={target.rowId} isWatching={target.isWatching} isThinking={false} isLively={caption.isSpeaking} getLoudness={NO_LOUDNESS} />
+        <MovingDot rowId={getLatestRowId(board)} isWatching={false} isThinking={false} isLively={caption.isSpeaking} getLoudness={NO_LOUDNESS} />
         <SharedBoard board={board} atMs={boardAtMs} />
       </BoardStageView>
     </div>

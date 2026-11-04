@@ -80,7 +80,11 @@ export class SessionRepository {
   }
 
   async markReplayDeletedForStudent(studentId: string, sessionId: string): Promise<void> {
-    await this.sessions.update({ id: sessionId, studentId }, { recap: null, replayDeletedAt: new Date() });
+    await this.sessions.update({ id: sessionId, studentId }, { recap: null, recapAnswer: null, replayDeletedAt: new Date() });
+  }
+
+  async saveRecapAnswerForStudent(studentId: string, sessionId: string, recapAnswer: string): Promise<void> {
+    await this.sessions.update({ id: sessionId, studentId }, { recapAnswer });
   }
 
   isReplayDeleted(sessionId: string): Promise<boolean> {

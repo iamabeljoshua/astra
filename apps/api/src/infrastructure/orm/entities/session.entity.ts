@@ -63,6 +63,10 @@ export class SessionEntity {
   @Column('jsonb', { nullable: true })
   recap!: object | null;
 
+  /** The student's own answer to the recap's thing to try, as they wrote it. Code does not judge it. */
+  @Column('text', { name: 'recap_answer', nullable: true })
+  recapAnswer!: string | null;
+
   /** Set when the student deletes the replay, so a tutor still closing cannot save it back. */
   @Column('timestamptz', { name: 'replay_deleted_at', nullable: true })
   replayDeletedAt!: Date | null;

@@ -697,8 +697,9 @@ describe('ending a session with a recap', () => {
       const recapTurn = harness.getTurnsStarted().at(-1) as TurnId;
       expect(harness.messages.flatMap((message) => (message.type === 'beatClosed' && message.turnId === recapTurn ? [message.beatId] : []))).toEqual(['recap-0', 'recap-1']);
     }, { timeout: 3000 });
+    const recapTurn = harness.getTurnsStarted().at(-1) as TurnId;
+    for (const beatId of ['recap-0', 'recap-1']) harness.browser({ type: 'played', turnId: recapTurn, beatId: beatId as Beat['id'], ...STAMP_END, wordStartsMs: [0], durationMs: 100, playedWords: 1, firedCueMs: [], ending: 'finished', frozen: [] });
     await vi.waitFor(() => expect(isOver).toBe(true), { timeout: 8000 });
-    expect(harness.messages.some((message) => message.type === 'recapOver')).toBe(true);
   }, 12_000);
 
   it('hears nothing more from the student once ending, so no reply can start over the recap', async () => {

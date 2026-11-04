@@ -135,7 +135,7 @@ function RunningSession({ session }: { session: Session }) {
   return (
     <SessionFrame facts={<SessionFacts subject={session.subject} seconds={seconds} tutorStateLine={tutorStateLine} costUsd={view?.costUsd ?? null} />} action={isRecapping ? <button type="button" onClick={() => void leave()} className={BAR_ACTION}>{SESSION_LABELS.close}</button> : <EndButton isEnding={isEnding} onEnd={() => void endSession()} />} problem={endProblem} isFullHeight>
       <div className="board-stage">
-        <div className="board-voice">
+        <div className={`board-voice ${isRecapping ? 'board-voice-reading' : ''}`}>
           <SessionTitle title={session.title} isQuiet={Boolean(voice) || isConnecting} />
           {!voice && !isConnecting && (
             <div className="label flex items-center gap-2.5">
@@ -145,7 +145,7 @@ function RunningSession({ session }: { session: Session }) {
           )}
           {isRecapping ? (
             <div className="flex flex-1 flex-col justify-end">
-              {view?.recap ? <RecapLines recap={view.recap} /> : <p role="status" data-utterance-now className="font-voice text-voice">{RECAP_LABELS.writing}</p>}
+              {view?.recap ? <RecapLines recap={view.recap} sessionId={session.id} /> : <p role="status" data-utterance-now className="font-voice text-voice">{RECAP_LABELS.writing}</p>}
             </div>
           ) : (
             <>

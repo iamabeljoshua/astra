@@ -113,7 +113,6 @@ const AGENT_MESSAGES: VariantTable<AgentMessage, 'type'> = {
         return { type: 'recap', recap: recap.value === null ? null : readSessionRecap(recap) };
       },
     },
-    recapOver: { keys: [], read: () => ({ type: 'recapOver' }) },
   },
 };
 

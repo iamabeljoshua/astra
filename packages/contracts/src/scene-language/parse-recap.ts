@@ -1,4 +1,4 @@
-import { type ParseResult, type Place, readFields, readString, readVariant, toParseResult, type VariantTable } from './read.ts';
+import { type ParseResult, type Place, readString, readVariant, toParseResult, type VariantTable } from './read.ts';
 import { RECAP_LINE_MAX_CHARACTERS, type SessionRecap } from './session-recap.ts';
 
 const readLine = (place: Place) => readString(place, RECAP_LINE_MAX_CHARACTERS);

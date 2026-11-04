@@ -9,8 +9,8 @@ const MS_PER_SECOND = 1000;
 
 export interface DeviceVoice {
   canSpeak(): boolean;
-  /** Says this beat from this word, unless it is saying it already. Null is silence. */
-  follow(spoken: { beat: SpokenBeat; word: number; endMs: number; speed: ReplaySpeed; wasJump: boolean } | null): void;
+  /** Says this beat from this word, unless it is saying it already. A beat that ends is left to finish its last word. */
+  follow(spoken: { beat: SpokenBeat; word: number; speed: ReplaySpeed; wasJump: boolean }): void;
   stop(): void;
 }
 
@@ -31,9 +31,7 @@ export function createDeviceVoice(speech: SpeechSynthesis | undefined, makeUtter
   return {
     canSpeak: () => getLocalVoice() !== null,
     stop,
-    follow(spoken) {
-      if (!spoken) return stop();
-      const { beat, word, endMs, speed, wasJump } = spoken;
+    follow({ beat, word, speed, wasJump }) {
       if (saying === beat.key && !wasJump) return;
       const voice = getLocalVoice();
       if (!speech || !voice) return;
@@ -41,7 +39,7 @@ export function createDeviceVoice(speech: SpeechSynthesis | undefined, makeUtter
       const text = beat.words.slice(word).map(({ text: spokenWord }) => spokenWord).join(' ');
       const utterance = makeUtterance(text);
       utterance.voice = voice;
-      const remainingSeconds = Math.max(0.2, (endMs - (beat.words[word]?.atMs ?? beat.atMs)) / MS_PER_SECOND / speed);
+      const remainingSeconds = Math.max(0.2, (beat.endMs - (beat.words[word]?.atMs ?? beat.atMs)) / MS_PER_SECOND / speed);
       utterance.rate = Math.min(FASTEST_RATE, Math.max(SLOWEST_RATE, text.length / CHARACTERS_PER_SECOND / remainingSeconds));
       speech.speak(utterance);
       saying = beat.key;

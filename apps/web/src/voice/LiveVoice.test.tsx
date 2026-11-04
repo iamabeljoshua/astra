@@ -132,7 +132,7 @@ describe('useLiveVoice', () => {
     const { result } = renderHook(() => useLiveVoice({ sessionId: 'a-session', start }));
     await act(async () => void (await result.current.connect()));
     await act(() => result.current.openAgain('I am back.'));
-    expect(second.sendTyped).toHaveBeenCalledWith('I am back.');
+    expect(second.sendTyped).toHaveBeenCalledWith('I am back.', true);
     expect(first.close).toHaveBeenCalled();
     expect(result.current.voice).toBe(second);
     expect(start).toHaveBeenCalledTimes(2);

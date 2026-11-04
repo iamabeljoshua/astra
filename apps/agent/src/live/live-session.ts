@@ -574,7 +574,6 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     await Promise.race([speaking.spoken.finished, delay(LONGEST_RECAP_SPOKEN_MS)]);
     const deadline = getNowMs() + PAGE_CATCHES_UP_MS;
     while (!hasEveryReport(speaking) && getNowMs() < deadline) await delay(CATCH_UP_POLL_MS);
-    messenger.send({ type: 'recapOver' });
     onEndingOver();
   };
 

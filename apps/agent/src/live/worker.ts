@@ -13,6 +13,7 @@ import { type Ears, startEars, VAD_SETTINGS } from './ears.ts';
 import { createLiveSession } from './live-session.ts';
 import { createTakePicker, loadTakes } from './reactions.ts';
 import { readDataMessage } from './read-data-message.ts';
+import type { ApiLink } from '../tutor/api-link.ts';
 import { makeApiLink, makeTutorBrain, warmTutorModel } from '../tutor/make-brain.ts';
 import { createHeardRecorder } from './heard-recorder.ts';
 import { createLogSaver, type LogSaver } from './log-saver.ts';
@@ -52,8 +53,7 @@ function makeVoice() {
 }
 
 // A session the student comes back to gets a new job with its own clock and count, so each job saves its own run of the log.
-function makeLogSaver(roomName: string, trace: (name: string, fields?: Record<string, unknown>) => void): LogSaver | null {
-  const link = makeApiLink(roomName);
+function makeLogSaver(link: ApiLink | null, trace: (name: string, fields?: Record<string, unknown>) => void): LogSaver | null {
   if (!link) return null;
   const runId = randomUUID();
   const runStartedAt = new Date();
@@ -85,7 +85,8 @@ async function runSession(context: JobContext): Promise<void> {
   const allTakes = loadTakes();
   let ears: Ears | null = null;
   const { brain, flushSpend, readMeaning, readStrokes, readSpokenWords, writeRecap, getSpentUsd } = makeTutorBrain({ roomName: room.name ?? '', trace });
-  const logSaver = makeLogSaver(room.name ?? '', trace);
+  const apiLink = makeApiLink(room.name ?? '');
+  const logSaver = makeLogSaver(apiLink, trace);
   const session = createLiveSession({
     messenger: {
       send: (message) => publish(message),
@@ -108,7 +109,7 @@ async function runSession(context: JobContext): Promise<void> {
     ...(readSpokenWords ? { readSpokenWords } : {}),
     ...(writeRecap ? { writeRecap } : {}),
     ...(logSaver ? { onLogWritten: logSaver.note } : {}),
-    onRecap: (recap) => void makeApiLink(room.name ?? '')?.saveRecap(recap).catch((problem: unknown) => trace('recapSaveFailed', { problem: String(problem) })),
+    onRecap: (recap) => void apiLink?.saveRecap(recap).catch((problem: unknown) => trace('recapSaveFailed', { problem: String(problem) })),
     onEndingOver: () => void setTimeout(() => context.shutdown('the recap is over'), SAY_WHY_BEFORE_CLOSING_MS),
     ...(process.env.ASTRA_SAVE_HEARD && process.env.NODE_ENV !== 'production' ? { recordTurn: createHeardRecorder(process.env.ASTRA_SAVE_HEARD, room.name ?? 'room') } : {}),
     ...(process.env.ASTRA_SHOW_COST === '1' ? { getCostSoFar: () => (getSpentUsd?.() ?? 0) + (hearingSinceMs === null ? 0 : ((Date.now() - hearingSinceMs) / MS_PER_MINUTE) * MUSE_USD_PER_MINUTE) } : {}),

@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { rethrowUnlessApiError } from '../api/apiError';
 import { API_ERROR_LABELS } from '../strings';
 import { ARRIVING_FROM_ENDED_SESSION } from './sessionPath';
-import { refreshSessionViews, type Session, useUpdateSession } from './sessionQueries';
+import { refreshOneSession, refreshSessionViews, type Session, useUpdateSession } from './sessionQueries';
 import { useLeavePage } from './useLeavePage';
 
 const TICK_MS = 1_000;
@@ -38,6 +38,7 @@ export function useSessionRun(session: Session, askForRecap: () => boolean) {
   }, [readSeconds, saveLength, isRecapping]);
 
   async function leave() {
+    void refreshOneSession(queryClient, session.id);
     await refreshSessionViews(queryClient);
     await fadeInto('/', { replace: true, state: ARRIVING_FROM_ENDED_SESSION });
   }
