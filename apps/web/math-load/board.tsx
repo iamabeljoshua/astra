@@ -69,6 +69,7 @@ export function measureFigures(): Record<string, number[]> {
     curveAtNewConstant: time((run) => getMarks([...FIRST_PLOT, { kind: 'parameterSample', atMs: 1, target: 'first' as never, parameter: 'a', value: 0.5 + run * 0.05 }], 'first', 9000)),
     curveAtRest: time(() => getMarks(FIRST_PLOT, 'first', 9000)),
     hardestCurve: time(() => sampleWorstCurve()),
+    hardestCurvePlaced: time(() => placeHardestCurve()),
     flightFrameAfterLongDrag: time((run) => getMarks(LONG_DRAG, 'shot', 200_000 + run * 20)),
   };
 }
@@ -78,6 +79,16 @@ function sampleWorstCurve(): void {
   const operations: BoardOperation[] = [{ kind: 'command', atMs: 0, overMs: null, command: { kind: 'plot', id: 'worst' as never, expression, domain: [-1000, 1000], yRange: [-1, 1] } }];
   const board = getBoardAt(operations, 9000);
   getFigureMarks({ board, element: board.elements.get('worst' as never) as BoardElement, atMs: 9000, width: FIGURE_WIDTH, height: FIGURE_HEIGHT, isReducedMotion: false, words: BOARD_LABELS.figures });
+}
+
+const HARDEST_EXPRESSION = `${'x+'.repeat(30)}sin(a*x)+cos(b*x)+tan(c*x)+sqrt(abs(d*x))+sin(a*x)+cos(b*x)+tan(c*x)+sqrt(abs(d*x))+sin(a*x)+cos(b*x)+tan(c*x)`;
+
+// A new command each time, because placing one is what fits its y range through every value its constants can reach.
+function placeHardestCurve(): void {
+  const constants = ['a', 'b', 'c', 'd'].map((name) => ({ name, value: 1, min: 1, max: 2 }));
+  const operations: BoardOperation[] = [{ kind: 'command', atMs: 0, overMs: null, command: { kind: 'plot', id: 'placed' as never, expression: HARDEST_EXPRESSION, constants, domain: [-50, 50] } }];
+  const board = getBoardAt(operations, 9000);
+  getFigureMarks({ board, element: board.elements.get('placed' as never) as BoardElement, atMs: 9000, width: FIGURE_WIDTH, height: FIGURE_HEIGHT, isReducedMotion: false, words: BOARD_LABELS.figures });
 }
 
 export async function measureRenders(): Promise<Record<string, number[]>> {
