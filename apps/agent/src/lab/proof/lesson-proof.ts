@@ -27,7 +27,7 @@ mkdirSync(OUT, { recursive: true });
 interface BoardFacts {
   mode: string | null;
   stageSinceMs: number | null;
-  openTask: { id: string; way: string; items?: string[]; slots?: string[]; answer?: string[]; on?: string; reads?: string } | null;
+  openTask: { id: string; way: string; items?: string[]; answer?: string[]; on?: string; reads?: string } | null;
   elements: number;
   fired: { atWord: number; positionMs: number; wordStartMs: number }[];
 }
@@ -111,15 +111,12 @@ async function waitForTitle(page: Page, words: RegExp): Promise<string> {
 
 const shoot = (page: Page, name: string) => page.screenshot({ path: join(OUT, `${name}.png`) });
 
-async function doPlaceTask(page: Page, { items, slots, answer }: NonNullable<BoardFacts['openTask']>): Promise<void> {
-  const right = answer ?? items ?? [];
-  for (const [index, item] of right.entries()) {
+async function doPlaceTask(page: Page, { items, answer }: NonNullable<BoardFacts['openTask']>): Promise<void> {
+  for (const item of answer ?? items ?? []) {
     await page.locator('[data-testid="place-item"]', { hasText: item }).first().click();
-    await page.getByRole('button', { name: new RegExp(`${slots?.[index] ?? ''}`) }).first().click();
+    await page.locator('[data-testid="place-slot"]').first().click();
     await delay(150);
   }
-  const done = page.getByRole('button', { name: /^(Done|Check|Send)/ });
-  if (await done.count()) await done.first().click();
 }
 
 const getLoggedMoves = (page: Page) =>

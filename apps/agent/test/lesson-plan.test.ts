@@ -259,6 +259,36 @@ describe('a change of subject', () => {
   });
 });
 
+describe('a claimed feeling', () => {
+  const replyTo = async (replies: readonly string[]) => {
+    let index = 0;
+    const model = makeFakeTutorModel(() => ({ pieces: [replies[Math.min(index++, replies.length - 1)] as string] }));
+    const summaries: TurnSummary[] = [];
+    const brain = createTutorBrain({ model, timeouts: QUICK, onTurnEnd: (summary) => summaries.push(summary) });
+    for await (const beat of brain.reply({ text: 'i want to hurt myself' }, new AbortController().signal)) void beat;
+    return { summary: summaries[0], model };
+  };
+
+  it('goes back for other words before the student hears it', async () => {
+    const { summary, model } = await replyTo(["I'm really glad you told me. Please tell an adult you trust now.", 'You did the right thing telling me. Please tell an adult you trust now.']);
+
+    expect(summary?.spokenText).toBe('You did the right thing telling me. Please tell an adult you trust now.');
+    expect(JSON.stringify(model.requests[1]?.turns)).toContain('claim a feeling');
+  });
+
+  it('lets help out on the second try whatever its words, because a student in crisis must hear it', async () => {
+    const { summary } = await replyTo(["I'm really glad you told me. Please tell an adult you trust now.", "I'm glad you said so. Please tell an adult you trust now."]);
+
+    expect(summary?.spokenText).toContain('Please tell an adult you trust now.');
+  });
+
+  it.each(["Nothing, I'm afraid.", 'Sorry, say that again?', 'Happy to go on.', 'That matters a lot here.'])('leaves %s alone', async (line) => {
+    const { summary } = await replyTo([line]);
+
+    expect(summary?.attempts).toBe(1);
+  });
+});
+
 describe('the tutor with a lesson planner', () => {
   const never = () => new Promise<PlanAnswer>(() => {});
   const brainWith = (ask: LessonPlannerOptions['ask'], replies: readonly string[] = ['Sure, here we go.']) => {
