@@ -6,6 +6,7 @@ interface ApiErrorDetails {
   kind: ApiErrorKind;
   status?: number;
   fieldMessages?: FieldMessages;
+  responseBody?: unknown;
   cause?: unknown;
 }
 
@@ -18,13 +19,15 @@ export class ApiError extends Error {
   readonly kind: ApiErrorKind;
   readonly status: number | null;
   readonly fieldMessages: FieldMessages;
+  readonly responseBody: unknown;
 
-  constructor({ kind, status, fieldMessages = {}, cause }: ApiErrorDetails) {
+  constructor({ kind, status, fieldMessages = {}, responseBody, cause }: ApiErrorDetails) {
     super(`The API request failed: ${kind}${status === undefined ? '' : ` ${status}`}.`, { cause });
     this.name = 'ApiError';
     this.kind = kind;
     this.status = status ?? null;
     this.fieldMessages = fieldMessages;
+    this.responseBody = responseBody;
   }
 }
 
@@ -37,7 +40,7 @@ function getFieldMessages(responseBody: unknown) {
 export function getApiErrorFromResponse(status: number, responseBody: unknown) {
   const fieldMessages = status === VALIDATION_STATUS ? getFieldMessages(responseBody) : null;
   if (fieldMessages) return new ApiError({ kind: 'validation', status, fieldMessages });
-  return new ApiError({ kind: status >= FIRST_SERVER_STATUS ? 'server' : 'rejected', status });
+  return new ApiError({ kind: status >= FIRST_SERVER_STATUS ? 'server' : 'rejected', status, responseBody });
 }
 
 function getThrownKind(signal: AbortSignal): ApiErrorKind {

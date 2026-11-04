@@ -13,8 +13,10 @@ const RECORD_KEY = 'astra.lesson.record';
 const WORDS_LIMIT_MS = 15_000;
 const TOO_MANY_LESSONS_STATUS = 429;
 
-/** Why a student has no tutor right now. Each one gets its own message, so a session is never blank with a ticking clock. */
-export type LessonProblem = LessonClosed | 'down' | 'tooMany' | 'silent';
+const WAITING_REASONS = ['tooManyStarts', 'studentSpent', 'everyoneSpent'] as const;
+
+/** Why a student has no tutor right now. Each one gets its own message, so a session is never blank with a ticking clock, and a wait is stated only when the server gave one. */
+export type LessonProblem = { kind: LessonClosed | 'down' | 'tooMany' | 'twoOpen' | 'silent' } | { kind: (typeof WAITING_REASONS)[number]; retryAfterSeconds: number };
 
 export interface LessonFrame {
   board: BoardState;
@@ -33,6 +35,9 @@ export interface Lesson {
   onStageContainer(container: HTMLElement | null): void;
   interrupt(): void;
   problem: LessonProblem | null;
+  /** This lesson has no words of its own, so the page offers a way back and no reply box. */
+  hasNoLesson: boolean;
+  isVoiceAtLimit: boolean;
   tryAgain(): void;
 }
 
@@ -44,7 +49,13 @@ declare global {
   }
 }
 
-const getOpenProblem = (error: unknown): LessonProblem => (error instanceof ApiError && error.status === TOO_MANY_LESSONS_STATUS ? 'tooMany' : 'down');
+function getOpenProblem(error: unknown): LessonProblem {
+  if (!(error instanceof ApiError) || error.status !== TOO_MANY_LESSONS_STATUS) return { kind: 'down' };
+  const { refused, retryAfterSeconds } = (error.responseBody ?? {}) as { refused?: unknown; retryAfterSeconds?: unknown };
+  if (refused === 'twoOpen') return { kind: 'twoOpen' };
+  const reason = WAITING_REASONS.find((known) => known === refused);
+  return reason && typeof retryAfterSeconds === 'number' ? { kind: reason, retryAfterSeconds } : { kind: 'tooMany' };
+}
 
 function getShouldRecord(): boolean {
   try {
@@ -62,6 +73,8 @@ export function useLesson(session: Session): Lesson {
   const stageRef = useRef<SceneStage | null>(null);
   const heldRef = useRef<HeldFrame | null>(null);
   const [problem, setProblem] = useState<LessonProblem | null>(null);
+  const [hasNoLesson, setHasNoLesson] = useState(false);
+  const [isVoiceAtLimit, setIsVoiceAtLimit] = useState(false);
   const [attempt, setAttempt] = useState(0);
 
   const onStageContainer = useCallback((container: HTMLElement | null) => {
@@ -75,6 +88,9 @@ export function useLesson(session: Session): Lesson {
     const parsed = parseSceneAgentMessage(value);
     const current = sessionRef.current;
     if (!parsed.ok || !current) return;
+    if (parsed.value.type === 'noLesson') setHasNoLesson(true);
+    if (parsed.value.type === 'voiceAtLimit') setIsVoiceAtLimit(true);
+    if (parsed.value.type !== 'loadScene') return;
     const { sceneId, durationSeconds } = parsed.value;
     const startedAtMs = performance.now();
     const isLoaded = (await stageRef.current?.load(sceneId, durationSeconds)) ?? false;
@@ -118,7 +134,7 @@ export function useLesson(session: Session): Lesson {
           onAgentReady: () => void getCanPlayScenes().then((canPlay) => sessionRef.current?.sendScene({ type: 'sceneDevice', canPlay })),
           onLogChange: () => {},
           onSceneMessage: (value) => void loadScene(value),
-          onClosed: showProblem,
+          onClosed: (closed) => showProblem({ kind: closed }),
         });
         if (isLeaving) {
           void started.close();
@@ -127,7 +143,7 @@ export function useLesson(session: Session): Lesson {
         sessionRef.current = started;
         if (import.meta.env.DEV) window.sceneLesson = started;
         wordsLimit = setTimeout(() => {
-          if (started.records.agentMessages.length === 0) showProblem('silent');
+          if (started.records.agentMessages.length === 0) showProblem({ kind: 'silent' });
         }, WORDS_LIMIT_MS);
         animationFrame = requestAnimationFrame(draw);
       }).catch((error: unknown) => showProblem(getOpenProblem(error)));
@@ -152,5 +168,5 @@ export function useLesson(session: Session): Lesson {
     setAttempt((count) => count + 1);
   }, []);
 
-  return { frame, stage, onStageContainer, interrupt, problem, tryAgain };
+  return { frame, stage, onStageContainer, interrupt, problem, hasNoLesson, isVoiceAtLimit, tryAgain };
 }

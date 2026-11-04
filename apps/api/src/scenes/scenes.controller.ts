@@ -27,7 +27,7 @@ export class ScenesController {
     return new StreamableFile(createReadStream(path));
   }
 
-  /** Opens the stand-in lesson for the signed-in student's own session, until the live room and the tutor's brain take over. Another student's session answers 404, a finished one 409, and a student who has opened too many lessons or spent their limit for the day 429. */
+  /** Opens the stand-in lesson for the signed-in student's own session, until the live room and the tutor's brain take over. Another student's session answers 404, a finished one 409, and a student past a lesson limit 429, with the reason and the real wait in its body. */
   @Post('sessions/:id/scene-lesson')
   @HttpCode(OK_STATUS)
   openSceneLesson(@CurrentStudentId() studentId: string, @Param() { id }: SessionParamsDto): Promise<SceneLessonResponseDto> {

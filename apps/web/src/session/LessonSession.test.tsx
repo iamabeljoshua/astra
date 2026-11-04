@@ -52,6 +52,44 @@ describe('a lesson that cannot reach a student', () => {
     expect(await screen.findByText(SCENE_LABELS.tooManyLessons)).toBeTruthy();
   });
 
+  it.each([
+    [{ refused: 'twoOpen' }, SCENE_LABELS.twoLessonsOpen],
+    [{ refused: 'tooManyStarts', retryAfterSeconds: 240 }, SCENE_LABELS.tooManyStarts(240)],
+    [{ refused: 'studentSpent', retryAfterSeconds: 7200 }, SCENE_LABELS.studentSpent(7200)],
+    [{ refused: 'everyoneSpent', retryAfterSeconds: 7200 }, SCENE_LABELS.everyoneSpent(7200)],
+  ])('tells a student the limit they hit and the real wait: %j', async (responseBody, label) => {
+    post.mockRejectedValueOnce(new ApiError({ kind: 'rejected', status: 429, responseBody }));
+    open();
+    expect(await screen.findByText(label)).toBeTruthy();
+  });
+
+  it('states a wait in plain time, and no wait where there is none', () => {
+    expect(SCENE_LABELS.tooManyStarts(240)).toMatch(/about 4 minutes/);
+    expect(SCENE_LABELS.tooManyStarts(30)).toMatch(/about 1 minute\b/);
+    expect(SCENE_LABELS.studentSpent(7200)).toMatch(/about 2 hours/);
+    expect(SCENE_LABELS.everyoneSpent(1800)).toMatch(/about 30 minutes/);
+    expect(SCENE_LABELS.twoLessonsOpen).not.toMatch(/wait/i);
+  });
+
+  it('offers a way back and no reply box when the lesson has no words of its own', async () => {
+    open();
+    await untilStarted();
+    const { onSceneMessage } = startSession.mock.calls.at(-1)?.[0] as LabSessionOptions;
+    await vi.waitFor(() => expect(screen.getAllByRole('textbox').length).toBeGreaterThan(0));
+    act(() => onSceneMessage?.({ type: 'noLesson' }));
+    expect(await screen.findByRole('link', { name: SCENE_LABELS.backToHome })).toBeTruthy();
+    expect(screen.queryByRole('textbox')).toBeNull();
+  });
+
+  it('says why a student is hearing a tone past the voice limit', async () => {
+    open();
+    await untilStarted();
+    const { onSceneMessage } = startSession.mock.calls.at(-1)?.[0] as LabSessionOptions;
+    await vi.waitFor(() => expect(screen.getAllByRole('textbox').length).toBeGreaterThan(0));
+    act(() => onSceneMessage?.({ type: 'voiceAtLimit' }));
+    expect(await screen.findByText(SCENE_LABELS.voiceAtLimit)).toBeTruthy();
+  });
+
   it('tells the old tab where the lesson went when a second tab takes it', async () => {
     open();
     await untilStarted();

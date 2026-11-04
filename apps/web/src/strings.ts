@@ -252,12 +252,28 @@ export const SESSION_LABELS = {
   tryAgain: 'Try again',
 };
 
+const SECONDS_PER_MINUTE = 60;
+const MINUTES_PER_HOUR = 60;
+
+function getPlainWait(seconds: number): string {
+  const minutes = Math.max(1, Math.ceil(seconds / SECONDS_PER_MINUTE));
+  if (minutes < MINUTES_PER_HOUR) return `about ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`;
+  const hours = Math.round(minutes / MINUTES_PER_HOUR);
+  return `about ${hours} ${hours === 1 ? 'hour' : 'hours'}`;
+}
+
 export const SCENE_LABELS = {
   notCheckedByPerson: 'Drawn for this lesson. Not yet checked by a person.',
   wordsNotChecked: 'Written for this lesson. Not yet checked by a person.',
   answerStandIn: "I heard you. I can't answer questions yet, so I'll carry on.",
   lessonDown: "The lesson can't start right now. Your session is saved, so you can try again.",
-  tooManyLessons: "You've opened a lot of lessons. Wait a few minutes, then try again.",
+  tooManyLessons: "You've opened a lot of lessons. Try again in a little while.",
+  twoLessonsOpen: 'You have two lessons open. Close one, then try again.',
+  tooManyStarts: (seconds: number) => `You've opened a lot of lessons. Try again in ${getPlainWait(seconds)}.`,
+  studentSpent: (seconds: number) => `That's all your lesson time for today. More opens in ${getPlainWait(seconds)}.`,
+  everyoneSpent: (seconds: number) => `Lessons have reached today's limit for everyone, so this isn't anything you did. They open again in ${getPlainWait(seconds)}.`,
+  voiceAtLimit: "The tutor's voice has reached today's limit, so you'll hear a tone. The words stay on screen.",
+  backToHome: 'Back to Home',
   lessonMoved: 'This lesson moved to another tab.',
   lessonLost: 'The connection to your lesson dropped. Your session is saved.',
   lessonEnded: 'This lesson has ended.',
@@ -412,6 +428,8 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
           'The name you give your tutor, your level, the interests you choose, and your goal. We keep these in our database, and you can change them under Your notes. We use your level, interests, and goal to choose the lessons suggested on your home screen.',
           "Each session's title, subject, language, picture, length, status, and start time, and the suggested lesson it came from, if any. A question you send from the home screen becomes its session's title, cut to 200 characters, so we store those words.",
           'The drawings and words a tutor writes for a test lesson are saved on our server, with the code and pictures behind them. Those made for a suggested lesson come only from its title and can be shown to other students. Those made for a question you typed are saved with your account ID, and only you can see them, because they are written from a short topic a model takes from your words.',
+          "A recording of what the tutor says in a test lesson is saved on our server too, as audio with the words and their timing. For a suggested lesson it can be played to other students. For a question you typed it is saved in a folder named with your account ID, it is played only in your own lessons, and we remove it with your other saved lesson data. Your own voice is never recorded, because test lessons do not use your microphone.",
+          'A record of what each test lesson cost, saved on our server with your account ID: which AI model was used, what it cost, how many characters of voice were made, and when. It holds none of your words.',
           'We also use the sessions you start from suggested lessons, and their length, status, and start time, to choose what your home screen suggests next. A question you leave open can take the continue card, so a lesson you left open can then appear among the suggestions. Only your own sessions do this, and the words of the questions you type play no part in it.',
           "Any file you attach, and anything you type into a session's reply box, stay in your browser. They are not sent or stored. The app does not use your microphone.",
           'Words you type into the search box on the Sessions page go to our server, which uses them to find your sessions. We do not store them.',

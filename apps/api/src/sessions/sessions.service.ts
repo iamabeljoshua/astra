@@ -48,10 +48,10 @@ export class SessionsService {
     return toSessionResponse(requireSession(await this.sessions.findForStudent(studentId, sessionId)));
   }
 
-  async getLessonRequest(studentId: string, sessionId: string): Promise<{ title: string; status: string; isCard: boolean }> {
+  async getLessonRequest(studentId: string, sessionId: string): Promise<{ title: string; status: string; isCard: boolean; cardLine?: string }> {
     const { title, status, topicId } = requireSession(await this.sessions.findForStudent(studentId, sessionId));
     const topic = findLibraryTopic(topicId);
-    return { title: topic?.title ?? title, status, isCard: topic !== undefined };
+    return { title: topic?.title ?? title, status, isCard: topic !== undefined, ...(topic ? { cardLine: topic.openingLine } : {}) };
   }
 
   async updateSession(

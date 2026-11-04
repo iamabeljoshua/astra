@@ -1,3 +1,4 @@
+import { Link } from 'react-router';
 import { findArtwork } from '../home/artwork';
 import { BoardView } from '../lab/BoardView';
 import { SceneLayer } from '../scenes/SceneLayer';
@@ -8,14 +9,20 @@ import { type Lesson, type LessonProblem, useLesson } from './useLesson';
 import { useSessionRun } from './useSessionRun';
 
 const EMPTY_BOARD = { elements: new Map(), focus: null };
-const PROBLEM_LABELS: Record<LessonProblem, string> = {
-  down: SCENE_LABELS.lessonDown,
-  tooMany: SCENE_LABELS.tooManyLessons,
-  moved: SCENE_LABELS.lessonMoved,
-  lost: SCENE_LABELS.lessonLost,
-  ended: SCENE_LABELS.lessonEnded,
-  silent: SCENE_LABELS.lessonSilent,
-};
+function getProblemLabel(problem: LessonProblem): string {
+  switch (problem.kind) {
+    case 'down': return SCENE_LABELS.lessonDown;
+    case 'tooMany': return SCENE_LABELS.tooManyLessons;
+    case 'twoOpen': return SCENE_LABELS.twoLessonsOpen;
+    case 'tooManyStarts': return SCENE_LABELS.tooManyStarts(problem.retryAfterSeconds);
+    case 'studentSpent': return SCENE_LABELS.studentSpent(problem.retryAfterSeconds);
+    case 'everyoneSpent': return SCENE_LABELS.everyoneSpent(problem.retryAfterSeconds);
+    case 'moved': return SCENE_LABELS.lessonMoved;
+    case 'lost': return SCENE_LABELS.lessonLost;
+    case 'ended': return SCENE_LABELS.lessonEnded;
+    case 'silent': return SCENE_LABELS.lessonSilent;
+  }
+}
 
 function LessonBoard({ session, lesson: { frame, stage, onStageContainer } }: { session: Session; lesson: Lesson }) {
   const artwork = findArtwork(session.artwork);
@@ -30,7 +37,7 @@ function LessonBoard({ session, lesson: { frame, stage, onStageContainer } }: { 
 function LessonNotice({ problem, onTryAgain }: { problem: LessonProblem; onTryAgain: () => void }) {
   return (
     <div role="alert" className="flex flex-col items-start gap-2">
-      <p className="font-voice text-lead">{PROBLEM_LABELS[problem]}</p>
+      <p className="font-voice text-lead">{getProblemLabel(problem)}</p>
       <button type="button" className="button button-outline px-3 py-1.25" onClick={onTryAgain}>{SCENE_LABELS.tryAgain}</button>
     </div>
   );
@@ -53,7 +60,8 @@ export default function LessonSession({ session }: { session: Session }) {
           <p data-testid="caption" className="font-voice text-voice">{lesson.frame?.caption}</p>
           {lesson.problem && <LessonNotice problem={lesson.problem} onTryAgain={lesson.tryAgain} />}
           {lesson.frame?.caption && <p className="label text-ink-2">{SCENE_LABELS.wordsNotChecked}</p>}
-          <ReplyBox answer={SCENE_LABELS.answerStandIn} onReply={lesson.interrupt} />
+          {lesson.isVoiceAtLimit && <p role="status" className="label text-ink-2">{SCENE_LABELS.voiceAtLimit}</p>}
+          {lesson.hasNoLesson ? <Link to="/" className="button button-outline self-start px-3 py-1.25">{SCENE_LABELS.backToHome}</Link> : <ReplyBox answer={SCENE_LABELS.answerStandIn} onReply={lesson.interrupt} />}
         </div>
       </div>
     </SessionFrame>

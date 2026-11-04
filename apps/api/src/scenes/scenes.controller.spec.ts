@@ -73,6 +73,12 @@ describe('the scene routes', () => {
     await getTake('/scene-takes/no-such-scene/light').expect(404);
   });
 
+  it('answers 404 and not a server error when a scene record is damaged, because it cannot prove who may see the take', async () => {
+    saveScene('damaged-9a8b', 'checked');
+    writeFileSync(join(storeRoot, 'scenes', 'damaged-9a8b', 'scene.json'), '{"status":"che');
+    await getTake('/scene-takes/damaged-9a8b/light').expect(404);
+  });
+
   it('refuses a scene id that is a path, and a theme it does not know', async () => {
     await getTake('/scene-takes/..%2F..%2Fsecret/light').expect(400);
     await getTake('/scene-takes/slope-1a2b/sepia').expect(400);
@@ -86,6 +92,7 @@ describe('the scene routes', () => {
     let lessonService: Server;
     let heard: { sessionId: string; studentId: string; request: string; isCard: boolean }[];
     let replyStatus = 200;
+    let replyBody: object | null = null;
 
     const post = (path: string, { token }: TestStudent = student) => request(testApp.app.getHttpServer()).post(path).set('Authorization', `Bearer ${token}`);
 
@@ -96,7 +103,7 @@ describe('the scene routes', () => {
         incoming.on('data', (chunk: Buffer) => (body += chunk.toString()));
         incoming.on('end', () => {
           heard.push(JSON.parse(body) as (typeof heard)[number]);
-          outgoing.writeHead(replyStatus, { 'Content-Type': 'application/json' }).end(JSON.stringify({ url: 'ws://room', token: 'room-token' }));
+          outgoing.writeHead(replyStatus, { 'Content-Type': 'application/json' }).end(JSON.stringify(replyBody ?? { url: 'ws://room', token: 'room-token' }));
         });
       });
       await new Promise<void>((resolve) => lessonService.listen(0, '127.0.0.1', resolve));
@@ -147,6 +154,16 @@ describe('the scene routes', () => {
       replyStatus = 429;
       await post(`/sessions/${id}/scene-lesson`).expect(429);
       replyStatus = 200;
+    });
+
+    it('passes on which limit a student hit and the real wait, so the page can tell them', async () => {
+      const id = await startSession(student);
+      replyStatus = 429;
+      replyBody = { refused: 'tooManyStarts', retryAfterSeconds: 240 };
+      const { body } = await post(`/sessions/${id}/scene-lesson`).expect(429);
+      expect(body).toMatchObject({ refused: 'tooManyStarts', retryAfterSeconds: 240 });
+      replyStatus = 200;
+      replyBody = null;
     });
 
     it("answers 404 for another student's session", async () => {
