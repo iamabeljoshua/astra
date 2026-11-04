@@ -18,7 +18,6 @@ function createFakeContext() {
   }) as unknown as CanvasRenderingContext2D;
 }
 
-// Every canvas gets a context that records its calls, in the order the page asked for them.
 export function stubCanvas() {
   const contexts: CanvasRenderingContext2D[] = [];
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => {

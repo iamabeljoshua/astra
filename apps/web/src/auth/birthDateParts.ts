@@ -3,7 +3,6 @@ import { toLatinDigits } from '../ui/toLatinDigits';
 
 const DAY_OR_MONTH = /^\d{1,2}$/;
 const YEAR = /^\d{4}$/;
-// The API refuses anything older, so a date before it should not reach the confirm step.
 const OLDEST_BIRTH_DATE = '1900-01-01';
 
 function isRealCalendarDate(birthDate: string): boolean {

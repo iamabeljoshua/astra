@@ -20,14 +20,13 @@ type ChartSpot = readonly [x: number, y: number];
 
 const FULL_TURN = Math.PI * 2;
 
-interface SubjectStar {
+export interface SubjectStar {
   spot: ChartSpot;
   labelSide: 'left' | 'right';
   labelPlace: 'above' | 'level' | 'below';
 }
 
-// Each label sits on the side its path legs leave free.
-const SUBJECT_STARS: readonly SubjectStar[] = [
+export const SUBJECT_STARS: readonly SubjectStar[] = [
   { spot: [-0.86, 0.52], labelSide: 'right', labelPlace: 'below' },
   { spot: [-0.66, -0.16], labelSide: 'right', labelPlace: 'below' },
   { spot: [-0.3, -0.52], labelSide: 'right', labelPlace: 'below' },
@@ -38,7 +37,7 @@ const SUBJECT_STARS: readonly SubjectStar[] = [
   { spot: [0.16, 0.62], labelSide: 'left', labelPlace: 'above' },
 ];
 
-// One spot for each interest, clear of the path, the labels, the middle shape, and each other. A script found these, and chartStars.test.ts holds them to it.
+// One spot for each interest. chartStars.test.ts keeps each clear of the path, the subject stars, and the other labels.
 export const LIT_STAR_SPOTS: { wide: readonly ChartSpot[]; band: readonly ChartSpot[] } = {
   wide: [
     [0.028, -0.332],

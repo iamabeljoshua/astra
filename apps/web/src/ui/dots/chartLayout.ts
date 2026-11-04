@@ -15,7 +15,6 @@ export interface ChartLayout {
   dotRadius: number;
 }
 
-// The same width as the lg breakpoint in theme.css, where the page's own layout changes.
 export const WIDE_LAYOUT_FROM = 1021;
 
 const PHONE_WIDTH_LIMIT = 640;

@@ -22,7 +22,7 @@ describe('the rule for a name', () => {
     ['a tab', '\t', false],
     ['an Arabic number sign', '؀', false],
     ['a Hangul filler', 'ㅤ', false],
-    // Unicode gives these three no ink, and each is a symbol the classes above let through.
+    // Symbols that the rule's classes would let through, and that draw blank in some fonts.
     ['a blank Braille pattern', '\u2800', false],
     ['a null notehead', '\u{1D159}', false],
     ['an object replacement character', '\uFFFC', false],

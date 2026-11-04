@@ -33,12 +33,15 @@ export function CodeField({ label, value, length, isBusy = false, isInvalid = fa
   // Emptying the boxes from outside moves the real caret with no select event, and a caret cannot sit past the digits.
   const markedBox = caret === null ? null : Math.min(caret, value.length, length - 1);
 
+  function undoStrayText(input: HTMLInputElement) {
+    input.value = value;
+    moveCaret(input, markedBox ?? value.length);
+  }
+
   function change(event: ChangeEvent<HTMLInputElement>) {
     const typed = (event.nativeEvent as InputEvent).data ?? '';
-    // Text with no digit would replace the marked digit, so the field goes back to how it was.
     if (typed && hasNoDigit(typed)) {
-      event.target.value = value;
-      moveCaret(event.target, markedBox ?? value.length);
+      undoStrayText(event.target);
       return;
     }
     // A paste lands at the caret, so a whole code that arrives at once replaces the digits instead of mixing with them.

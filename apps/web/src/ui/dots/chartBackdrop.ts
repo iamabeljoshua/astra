@@ -89,7 +89,6 @@ function paintScatteredStars(context: CanvasRenderingContext2D, layout: ChartLay
   }
 }
 
-// Drawn once for a size and theme, so nothing here moves.
 export function paintBackdrop(context: CanvasRenderingContext2D, layout: ChartLayout, { ink, isDark }: { ink: string; isDark: boolean }) {
   context.clearRect(0, 0, layout.width, layout.height);
   context.fillStyle = ink;

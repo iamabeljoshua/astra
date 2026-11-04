@@ -85,7 +85,7 @@ export const SIGN_IN_LABELS = {
 };
 
 export const BIRTH_DATE_LABELS = {
-  questionFor: (name: string) => `Welcome, ${name}. When\u00a0were\u00a0you\u00a0born?`,
+  questionFor: (name: string) => `Welcome, ${name}.\nWhen were you born?`,
   about: 'We ask everyone this before an account opens.',
   day: 'Day',
   dayPlaceholder: 'DD',
@@ -111,7 +111,7 @@ export const ONBOARDING_LABELS = {
   back: '\u2190 Back',
   next: 'Continue \u2192',
   progress: (stepNumber: number, stepCount: number) => `${stepNumber} of ${stepCount}`,
-  nameQuestion: "You're in. What should I call you?",
+  nameQuestion: "You're in.\nWhat should I call you?",
   nameLabel: 'Your first name',
   nameMissing: 'Tell me what to call you.',
   intoQuestion: 'What are you into?',

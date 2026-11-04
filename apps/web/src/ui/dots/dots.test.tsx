@@ -1,4 +1,6 @@
 import { act, render, screen } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readDrawnLabels, stubCanvas } from '../../test/fakeCanvas';
 import { notifyResizeObservers } from '../../test/fakeLayout';
@@ -64,6 +66,12 @@ describe('getChartLayout', () => {
     expect(center.y + 0.62 * starSpread.y).toBeLessThanOrEqual(276);
     expect(center.x - 0.86 * starSpread.x).toBeGreaterThanOrEqual(0);
     expect(center.x + 0.9 * starSpread.x).toBeLessThanOrEqual(width);
+  });
+
+  it('changes layout at the breakpoint the page itself uses', () => {
+    const themeCss = readFileSync(join(import.meta.dirname, '../../../../../packages/theme/src/theme.css'), 'utf8');
+
+    expect(themeCss).toContain(`--breakpoint-lg: ${WIDE_LAYOUT_FROM}px;`);
   });
 
   it('draws smaller dots on a phone', () => {

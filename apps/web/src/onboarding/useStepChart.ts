@@ -12,7 +12,6 @@ const STEP_SHAPES: Partial<Record<StepId, readonly DotPoint[]>> = {
   goal: DOT_DRAWINGS.rise,
 };
 
-// A step with no shape of its own shows the student's name, or the planet until there is a name to show.
 export function useStepChart({ answers, currentStep }: Pick<OnboardingState, 'answers' | 'currentStep'>) {
   const name = answers.name.trim();
   const nameDots = useMemo(() => textToDots(name), [name]);

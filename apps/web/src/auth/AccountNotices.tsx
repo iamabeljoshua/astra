@@ -32,7 +32,6 @@ export function LoadingPage() {
   );
 }
 
-// Right after sign-in the chart stays up, so the student does not see a blank page between two dot pages.
 export function LoadingOnChartPage() {
   return (
     <DotStage chartTitle={SIGN_IN_LABELS.tagline}>

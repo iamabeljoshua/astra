@@ -21,7 +21,7 @@ export function TutorQuestion({ id, line, describedBy, fieldToFocus, children }:
         <span className="flex h-[1.22em] flex-none items-center" aria-hidden="true">
           <span className={`block size-3 rounded-full bg-ink forced-color-adjust-none forced-colors:bg-[CanvasText] ${isTyping ? 'animate-speak' : ''}`} />
         </span>
-        <h1 ref={heading} id={id} aria-describedby={describedBy} tabIndex={-1} className="min-w-0 font-normal text-balance wrap-anywhere outline-none">
+        <h1 ref={heading} id={id} aria-describedby={describedBy} tabIndex={-1} className="min-w-0 font-normal text-balance wrap-anywhere whitespace-pre-line outline-none">
           <span className="sr-only">{line}</span>
           <span aria-hidden="true">
             {line.slice(0, typedLength)}

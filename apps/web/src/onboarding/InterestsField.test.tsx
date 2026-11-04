@@ -6,6 +6,22 @@ import type { StudentInterest } from './answers';
 import { InterestsField } from './InterestsField';
 
 const INTEREST_LABELS = Object.values(STUDENT_INTEREST_LABELS);
+const PATH_STEP = /([MLHV])\s*(-?[\d.]+)(?:\s+(-?[\d.]+))?|[a-zA-Z][^a-zA-Z]*/g;
+
+// Follows the absolute moves in a path, and gives the fixed coordinate of each straight stroke.
+function getStraightStrokeCoordinates(path: string) {
+  let [x, y] = [Number.NaN, Number.NaN];
+  const fixedCoordinates: number[] = [];
+  for (const [, command, first, second] of path.matchAll(PATH_STEP)) {
+    if (command === 'H') fixedCoordinates.push(y);
+    if (command === 'V') fixedCoordinates.push(x);
+    if (command === 'H' || command === 'M' || command === 'L') x = Number(first);
+    if (command === 'V') y = Number(first);
+    if (command === 'M' || command === 'L') y = Number(second);
+    if (!command) [x, y] = [Number.NaN, Number.NaN];
+  }
+  return fixedCoordinates.filter((coordinate) => !Number.isNaN(coordinate));
+}
 
 function Field() {
   const [selected, setSelected] = useState<StudentInterest[]>([]);
@@ -42,6 +58,15 @@ describe('the interest chips', () => {
       expect(stroke.getAttribute('fill')).toBe('none');
     }
     expect(getPicture(label).getAttribute('class')).toContain('thumb-strokes');
+  });
+
+  it.each(INTEREST_LABELS)('keeps the straight strokes of %s on half pixels, so they stay sharp', (label) => {
+    render(<Field />);
+
+    const paths = [...getPicture(label).querySelectorAll('path')].map((stroke) => stroke.getAttribute('d') ?? '');
+    for (const coordinate of paths.flatMap(getStraightStrokeCoordinates)) {
+      expect(coordinate % 1).toBe(0.5);
+    }
   });
 
   it('draws a different picture for each interest', () => {
