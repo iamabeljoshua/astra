@@ -35,7 +35,8 @@ As of 4 November 2026, 22 of 39 PRs have merged. This section is the whole road,
 - **Voice.** ElevenLabs voice Chris, on Flash, Abel's choice on 4 November in place of Casey.
 - **Tutor.** Sonnet 5.5, with code reacting first and a timeout for stalls. There is no talking router for now.
 - **Speed targets.** Two numbers replace PRD V1's rule. A first reaction under 200 ms from code, and a first real word as fast as the vendors allow.
-- **The shared board.** Student and tutor both work on the board, in M3.12, with ink and uploads narrowed to M3.11.
+- **The shared board.** Student and tutor both work on the board, in M3.12, which also took the pen.
+- **Uploads.** Photo and PDF uploads are post-MVP, on Abel's word of 4 November 2026. M3.11 only says they are coming soon, and Appendix E keeps the work.
 - **Lessons.** A student follows a plan of concepts. Inside a running lesson, a queue writes the next scenes, in M3.13.
 - **Best-effort 3D.** Voice and the 2D board never wait for a scene. A scene shows only when it is ready and checked. On a new question the tutor starts with words and simple 2D, setting up what the scene will show, then brings in 3D at a pause. Cards and planned scenes open on 3D where one is ready. A scene not ready after about 20 s is dropped from that lesson and saved. There is no spinner. M3.10 does not block on 3D, and 3D is built alongside it.
 - **Laptop first.** Rich scenes target laptops and may require a laptop browser, and phones must not block them. Existing pages keep working at phone width, and a mobile app may come later.
@@ -61,9 +62,9 @@ As of 4 November 2026, 22 of 39 PRs have merged. This section is the whole road,
 | 3 | M3.8 | Teach instead of tell, with tools the tutor calls when needed | #17 | M3.7 |
 | 4 | M3.15 | Write the approved library of 133 scenes | #91 | M3.14 |
 | 4 | M3.9 | Prepare a lesson plan for every session | #18 | M3.8 |
+| 4 | M3.11 | Say that photos and PDFs are coming soon | #20 | M3.12 |
 | 5 | M3.13 | Keep the next scenes ready as the lesson flows | #71 | M3.5, M3.9 |
 | 5 | M3.10 | Run the first full session end to end | #19 | M3.5, M3.9, M3.12 |
-| 6 | M3.11 | Let students draw on the board and upload their work | #20 | M3.10, M3.12 |
 | 6 | M4.1 | Give the tutor a memory of each student | #21 | M3.10 |
 | 6 | M4.5 | Make it safe for students 13 and up | #25 | M3.10 |
 | 7 | M4.2 | Make the teaching personal | #22 | M4.1 |
@@ -165,7 +166,7 @@ As of 4 November 2026, 22 of 39 PRs have merged. This section is the whole road,
   - [ ] M3.9 after M3.8 and M2.5.
   - [ ] M3.13 after M3.5 and M3.9.
   - [ ] M3.10 after M3.5 and M3.9 and M3.12.
-  - [ ] M3.11 after M3.10 and M3.12.
+  - [ ] M3.11 after M3.12.
   - [ ] M4.1 after M3.10.
   - [ ] M4.2 after M4.1.
   - [ ] M4.3 after M4.1 and M2.2 and M2.12.
@@ -2069,45 +2070,47 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 - [ ] Every box in **You see.** is checked with evidence on the issue, and no stop-list decision is open on it.
 - [ ] The root merges with `gh pr merge <pr> --repo iamabeljoshua/astra --squash --match-head-commit <verified-head>`, then reads the PR back to confirm the merge.
 
-## Let students draw on the board and upload their work (M3.11)
+## Say that photos and PDFs are coming soon (M3.11)
 
 **Status.** Not merged.
 
-**Depends on.** M3.10, M3.12.
+**Depends on.** M3.12.
+
+**Scope.** Abel moved uploads past the MVP on 4 November 2026. In his words, "cut photo and pdf upload for now and just mark it as coming soon when a user clicks on it for now, so it's a post-mvp thingy". This PR ships no upload route, no stored file, and no tutor reading of a file, and Appendix E keeps that work. The pen and its reader moved to M3.12, in PR 97.
 
 **Files.**
 
-- [ ] Create `packages/board/src/student-ink/`.
-- [ ] Create `apps/api/src/uploads/`.
-- [ ] Add `read_board` to `apps/agent/src/tutor/tools/`.
-- [ ] Edit `apps/web/src/home/` so an attached file is sent, and `LEGAL_PAGES` in `apps/web/src/strings.ts`.
+- [ ] Create `apps/web/src/ui/AttachControl.tsx` and `apps/web/src/ui/useFilesComingSoon.ts`.
+- [ ] Edit `apps/web/src/home/ChatBox.tsx` to remove the file input and the attachment chip, and `apps/web/src/home/HomeScreen.tsx`, `apps/web/src/session/SessionScreen.tsx`, and `apps/web/src/voice/LiveBoard.tsx` to show the control.
+- [ ] Edit `ATTACH_LABELS` and `LEGAL_PAGES` in `apps/web/src/strings.ts`.
+- [ ] Add `.claude/skills/verify/journeys/coming-soon.mjs`.
 
 **Build.**
 
-- [ ] Add a student ink layer that records strokes in the session log, using the shapes in `packages/contracts`.
-- [ ] Send structured board state on every turn and a snapshot only when there is handwriting to read.
-- [ ] Store uploads with ownership checks, and stop dropping files attached on Home.
-- [ ] Measure handwriting on real hands, because Prototype B's 800 reads were on synthetic hands, which is likely optimistic.
+- [ ] Show one control at a time on each screen. It sits in the chat box on Home, in the reply box while a session has no board or the tutor is on the way, and in the board's tools once the tutor has arrived.
+- [ ] Refuse a dropped or pasted file ahead of every other listener on the page, so no field reads its name and the browser neither writes the name nor opens the file. Leave pasted and dragged text alone, including text from Word and Excel, which carry a picture of themselves.
+- [ ] Remove the Privacy Policy line about attached files, and say that a file a student tries to add is not sent or stored.
 - [ ] Settle M3.11's row under "Open, with an owner" in `docs/architecture/live-session.md`.
 
 **You see.**
 
-- [ ] A student can draw and write on the board with a mouse, a finger, or a stylus.
-- [ ] Handwriting goes to a small reader call and then M3.12's code check, and "Read as" always shows how it was read.
-- [ ] The tutor can respond to what the student wrote, including spotting a sign error in worked math, and it never calls a wrong line right.
-- [ ] A student can attach a photo or PDF from Home or during a session, and the tutor can talk about it.
-- [ ] Uploaded files stay private to that student and can be deleted.
+- [ ] Pressing `Photo or PDF` on Home, in a session's reply box, or on the shared board shows "Photos and PDFs are coming soon." just above the control, and no file picker opens.
+- [ ] The note goes by itself after 5 seconds, on Escape, or when the student types, and a screen reader says it. Escape closes the note before it can stop the tutor.
+- [ ] A file dropped or pasted on those screens shows the same note, the page stays where it is, and its name does not land in any field.
+- [ ] Neither the file nor its name reaches our server, the tutor service, or a model.
+- [ ] Pasted text still pastes.
+- [ ] The Privacy Policy promises no uploads.
 - [ ] The product never uses the camera for video or for reading faces (PRD Q17).
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] `student-ink.test.ts` asserts that strokes replay.
-- [ ] `uploads.spec.ts` asserts type limits, ownership, and deletion. Run `pnpm test`.
+- [ ] `AttachControl.test.tsx` asserts the note, its live region, both ways it closes, and which drops and pastes are refused.
+- [ ] `SessionVoiceNote.test.tsx` asserts one control and one note on a session's screen, before and after the tutor arrives. Run `pnpm test`.
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Two lanes on the configured `swarm workers` model at the PR head, per the boot recipe and the review rule under **Verdict and merge**.
 
-- [ ] Lane 1. Regression lane against trunk. Trunk ignores student drawing, so record that and gate the end state. Write a worked equation with a sign error on the board. Save `m3-11-ink.png`. Pass when "Read as" shows the line, and the tutor finds the sign error and points to it.
-- [ ] Lane 2. Attach a worksheet photo from Home, start the session, and then delete the file. Save `m3-11-upload.png`. Pass when the tutor discusses the worksheet and the deleted file can no longer be read.
+- [ ] Lane 1. Regression lane against trunk. Trunk opens a file picker on Home and offers no control in a session, so record that and gate the end state. Run `pnpm verify run --journey coming-soon` with no room service. Save `m3-11-home.png`. Pass when the note shows on Home and in the reply box at both widths and both themes, and the journey's network log holds the typed words and not the file's name or bytes.
+- [ ] Lane 2. Run the same journey with a local `livekit-server`, `ASTRA_TUTOR_MODEL=recorded`, and `ASTRA_VOICE=fake`, which spends nothing. Save `m3-11-board.png`. Pass when the note shows on the board, Escape leaves the tutor speaking, and the log of data channel sends holds a typed line and not the file's name or bytes.
 
 **Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
@@ -2467,4 +2470,6 @@ These have no PR yet. Each one goes in the next free slot or with the PR named.
 - **For M3.14, from M3.2's and M3.6's reviews.** Add a guard and a cache at the scene catalog boundary, because the catalog rebuilds per frame and `Scene.parts` is unread. Handle a throwing catalog during a stop and NaN durations, and use async `getFrame` for a sandbox. `run-lesson.ts:119` passes no `onFailure`, so a failure hides. Make `onFailure` required and guard a listener that throws. Fix the same faults M3.6 fixed in `run-lesson`, namely the `getRestOfTurn` double-fire, unguarded `JSON.parse` in `DataReceived`, and wide grants in `lesson-service.ts`.
 - **From M3.6's review.** M3.6's fix round moves to one mic state machine, the highest report per beat, audio buffered over Muse's handshake, a 10 minute idle cap with a warning, closing rooms when sessions finish, and region recorded beside stops. M3.7 needs per-session limits on data messages, because 150 forged `typed` lines in 143 ms started 150 replies, and it must handle a beat in flight lost on a cut that keeps the thought. A hosted agent is needed to judge voice reaction, stop, first sound to silence, first word, and join time. LiveKit can split a room across regions, which a hosted agent will not fix.
 - **A worker that prepares scenes ahead, after the MVP.** Abel's idea for later is a worker that plans and pre-generates lessons for recommended sections, so speed improves the more students use it. For the MVP, Abel ruled it out, to keep cost down. It stays separate from M3.15's one-time library and from writing next scenes inside a running lesson.
+- **Uploads, after the MVP.** Abel moved these past the MVP on 4 November 2026. A student attaches a photo or PDF from Home or during a session, and the tutor can talk about it. Files stay private to that student and can be deleted. This needs `apps/api/src/uploads/` with type limits, ownership checks, and `uploads.spec.ts`, a `read_board` tool in `apps/agent/src/tutor/tools/`, `image`'s `fileId` on the board, and new lines in `LEGAL_PAGES`. A file from a child is minors' data, so it needs Abel and the legal review first. Revisit `multer` 2.4.0, pinned by `@nestjs/platform-express` with a high-severity DoS advisory, before this ships.
+- **Handwriting on real hands, from the old M3.11.** The pen moved to M3.12. Prototype B's 800 reads were on synthetic hands, which is likely optimistic, so measure real ones before relying on the reader's numbers.
 - **Cleanup.** Remove test databases `astra_m2_2`, `astra_m2_8`, `astra_v_m28`, `astra_ci_speed`, and `astra_abel_onboarding`, and test users `m2-4-*`, `m2-8-*`, and `v28-*`. The remote branch `wip/m3-1-fix2` is a leftover, and its deletion was refused, so it stays until Abel removes it.
