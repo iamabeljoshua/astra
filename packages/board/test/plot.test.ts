@@ -459,7 +459,7 @@ describe('fitting y to a curve with a tall part', () => {
   });
 
   it('does not take a pole for a finite top when a climb happens to stop gaining near it', () => {
-    for (const [expression, domain] of [['1/(x-8.0136)', [-10, 10]], ['tan(x-3.7842)', [-5, 5]], ['x/(x-8.0136)', [-10, 10]], ['tan(x-0.8162)', [-5, 5]], ['1/(x*x-2.6712)', [-5, 5]], ['1/sin(x-0.2226)', [-5, 5]]] as const) {
+    for (const [expression, domain] of [['1/(x-8.0136)', [-10, 10]], ['tan(x-3.7842)', [-5, 5]], ['x/(x-8.0136)', [-10, 10]], ['tan(x-0.8162)', [-5, 5]], ['1/(x*x-2.6712)', [-5, 5]], ['1/sin(x-0.2226)', [-5, 5]], ['ln(x+1)', [-2, 2]], ['log(x+1)', [-20, 20]], ['1/x', [0.01, 10]], ['tan(x-3.4503)', [-5, 5]]] as const) {
       const [bottom, top] = fitted(expression, [domain[0], domain[1]]);
       expect(top - bottom).toBeLessThan(40);
     }
