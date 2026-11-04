@@ -22,7 +22,7 @@ const ROCKETS = {
   kind: 'cares_about',
   topic: 'Rockets',
   detail: null,
-  evidence: [{ source: 'words', text: 'i want to build rockets', check: null }],
+  evidence: [{ source: 'words', text: '', check: null }],
   sessionId: 'session-1',
   sessionTitle: 'Solving equations',
   notedAt: '2026-11-03T12:00:00Z',
@@ -73,7 +73,7 @@ describe('what the tutor remembers, on the Your notes page', () => {
     await screen.findByText(SIGN_ERROR.topic);
     screen.getByText(SIGN_ERROR.detail);
     screen.getByText(RECORD_LABELS.markedWrong('2x = 14'));
-    screen.getByText(RECORD_LABELS.saidThis('i want to build rockets'));
+    screen.getByText(RECORD_LABELS.fromYourWords);
     expect(screen.getAllByText(new RegExp(SIGN_ERROR.sessionTitle))).toHaveLength(2);
   });
 

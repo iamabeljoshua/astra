@@ -14,7 +14,7 @@ const HALVINGS_TO_SUSPECT_A_BREAK = Math.floor(Math.log2(CURVE_LIMITS.evaluation
 const HALVINGS_TO_SUSPECT_A_POLE = 1;
 /** A step stuck this long is probably a break, so a corner beside it is not a reason to spend samples there. */
 const HALVINGS_TO_STOP_SMOOTHING = 2;
-const GOLDEN_RATIO = 0.618033988749895;
+export const GOLDEN_RATIO = 0.618033988749895;
 const BASE_UNEVENNESS = 0.25;
 /** Past the budget a line may not cross a height this tall that no nearby sample reached, because a wave visits its heights and a jump does not. */
 const UNSEEN_SHARE_OF_VIEW = 1 / 32;

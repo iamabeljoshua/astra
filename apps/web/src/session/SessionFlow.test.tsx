@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../App';
 import './SessionScreen';
-import { API_ERROR_LABELS, CHAT_BOX_LABELS, HOME_LABELS, MENU_LABELS, REPLY_BOX_LABELS, SESSION_LABELS, SESSIONS_LABELS, SIDEBAR_LABELS, VOICE_LABELS } from '../strings';
+import { API_ERROR_LABELS, ATTACH_LABELS, CHAT_BOX_LABELS, HOME_LABELS, MENU_LABELS, REPLY_BOX_LABELS, SESSION_LABELS, SESSIONS_LABELS, SIDEBAR_LABELS, VOICE_LABELS } from '../strings';
 import { EXAMPLE_HOME_SCREEN, EXAMPLE_STUDENT_NAME } from '../test/homeScreenApi';
 import { makeSession, stubSessionsApi } from '../test/sessionsApi';
 
@@ -261,6 +261,27 @@ describe('the session screen', () => {
 
     const heading = await getSessionHeading('Free-body diagrams');
     await waitFor(() => expect(document.activeElement).toBe(heading));
+  });
+
+  it('says photos and PDFs are coming soon from Home, and sends nothing', async () => {
+    const { fetchStub } = await renderHome();
+    const callsBefore = fetchStub.mock.calls.length;
+
+    fireEvent.click(screen.getByRole('button', { name: ATTACH_LABELS.attach }));
+
+    screen.getByText(ATTACH_LABELS.comingSoon);
+    expect(fetchStub.mock.calls.length).toBe(callsBefore);
+  });
+
+  it('offers the photo or PDF control in the reply box when the tutor cannot connect, and it sends nothing', async () => {
+    const { fetchStub } = renderSessionAddress({ sessions: [makeSession()] }, 'a-session');
+    await screen.findByText(VOICE_LABELS.unavailable);
+    const callsBefore = fetchStub.mock.calls.length;
+
+    fireEvent.click(screen.getByRole('button', { name: ATTACH_LABELS.attach }));
+
+    screen.getByText(ATTACH_LABELS.comingSoon);
+    expect(fetchStub.mock.calls.length).toBe(callsBefore);
   });
 
   it('keeps a reply on the screen and says it did not arrive, when the tutor cannot connect', async () => {

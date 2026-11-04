@@ -1,0 +1,37 @@
+{
+ "topic": "What a quadratic is really asking",
+ "plan": {
+  "opening": [
+   {
+    "say": "A quadratic equation looks like a puzzle about letters, but at heart it's asking one plain question about a curve.",
+    "tex": "x^2 - 2x - 3 = 0"
+   },
+   {
+    "say": "Think of the left side as a machine. You feed it a number, and it hands you back another number.",
+    "tex": "f(x) = x^2 - 2x - 3"
+   },
+   {
+    "say": "So when the equation sets that machine's output equal to zero, it's hunting for something very specific about the inputs.",
+    "note": "which inputs?"
+   }
+  ],
+  "more": [
+   {
+    "say": "Try feeding it a few numbers. Put in zero and it gives back negative three. Put in one and you get negative four."
+   },
+   {
+    "say": "Put in four and out comes five. So the outputs swing from negative to positive, and somewhere along the way they must pass through zero."
+   },
+   {
+    "say": "That crossing moment is exactly what the equation is chasing. Not a trick with letters, just a spot where the output lands on nothing."
+   }
+  ],
+  "setup": "Watch the point as it slides along.",
+  "narration": "[[curve-appears]]Here's the whole machine drawn at once. [[point-slides]]Slide an input along, and the output rises and falls. [[zero-line]]We want the moments the height is exactly zero. [[roots-marked]]Those are the two spots where the curve crosses the flat line. [[answer-read]]So solving is just reading off where it crosses.",
+  "plan": "curve-appears: the graph of f(x) = x^2 - 2x - 3 draws as an upward parabola with its vertex at x equals one, y equals negative four.\npoint-slides: a dot moves along the curve with a vertical segment showing its height, which is f(x) at that input.\nzero-line: the horizontal x-axis highlights as the line where f(x) equals zero.\nroots-marked: the curve meets that line at x equals negative one and x equals three, and both points flash.\nanswer-read: labels negative one and three appear under those points as the two solutions.",
+  "close": "What would the curve look like if it never touched the flat line?",
+  "model": "claude-sonnet-5-5",
+  "ms": 7568.563167,
+  "costUsd": 0.0069198
+ }
+}

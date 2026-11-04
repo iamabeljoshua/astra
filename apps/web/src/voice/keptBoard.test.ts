@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { ElementId } from '@astra/contracts';
 import { type BoardOperation, describeBoard, getBoardAt } from '@astra/board';
 import { checkWorkOnBoard, getWorkContext } from '@astra/board/shared';
-import { getKeptBoard, keepBoard } from './keptBoard.ts';
+import { forgetKeptBoards, getKeptBoard, keepBoard } from './keptBoard.ts';
 
 const problem: BoardOperation = { kind: 'command', atMs: 90_000, command: { kind: 'writeMath', id: 'steps' as ElementId, tex: '2x + 3 = 11', claim: 'new' }, overMs: null };
 const work = { way: 'write', id: 's1' as ElementId, text: '2x = 8' } as const;
@@ -46,5 +46,21 @@ describe('a board kept across a reload', () => {
     const points = Array.from({ length: 200_000 }, (_, index): [number, number, number] => [index, index, index]);
     keepBoard('room-e', [...getPageBefore(), { kind: 'inkStroke', atMs: 96_000, id: 'k1' as ElementId, points }]);
     expect(getKeptBoard('room-e').map(({ kind }) => kind)).toEqual(['command', 'worked']);
+  });
+
+  it('is forgotten, for every room, so the next student on this machine finds nothing', () => {
+    keepBoard('room-f', getPageBefore());
+    keepBoard('room-g', getPageBefore());
+    sessionStorage.setItem('astra-last-code', 'kept');
+    forgetKeptBoards();
+    expect(getKeptBoard('room-f')).toEqual([]);
+    expect(getKeptBoard('room-g')).toEqual([]);
+    expect(sessionStorage.getItem('astra-last-code')).toBe('kept');
+  });
+
+  it('stays forgotten when the page goes after a sign-out, because leaving is what keeps a board', () => {
+    forgetKeptBoards({ isSigningOut: true });
+    keepBoard('room-h', getPageBefore());
+    expect(sessionStorage.getItem('astra.board.room-h')).toBeNull();
   });
 });

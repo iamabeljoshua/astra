@@ -1,3 +1,4 @@
+import { wantsSomethingElse } from '@astra/board/shared';
 import type { tts } from '@livekit/agents';
 import { randomUUID } from 'node:crypto';
 import { type AgentMessage, type Beat, type BeatId, type BrowserMessage, type InkPoint, type PlayReport, type SessionEvent, type TurnId } from '@astra/contracts';
@@ -176,6 +177,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
   let thought: Thought | null = null;
   let resumeTicket = 0;
   let hasGreeted = false;
+  let pageClockId: string | null = null;
   let voiceStall: ReturnType<typeof setTimeout> | undefined;
   let questionHeardAtMs: number | null = null;
   let spokenTicket = 0;
@@ -395,15 +397,14 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     return reason !== null;
   };
 
-  const react = ({ canPraise }: { canPraise: boolean }) => {
+  const react = () => {
     trace('reactDecided');
     if (sendClosedNote()) return;
     messenger.send({ type: 'heard' });
     // A session opened by a typed question has not yet said it is an AI, so its first reaction is the greeting (PRD S2).
     const nod = boardWork.takeNod();
-    const uses: TakeUse[] = !hasGreeted ? ['greeting'] : canPraise ? ['reaction', 'goodQuestion'] : ['reaction'];
     if (!reaction && nod) reaction = speakPhrase(nod);
-    else if (!reaction && boardWork.canSayStockWord()) reaction = speakTake(uses, { isReply: false });
+    else if (!reaction && boardWork.canSayStockWord()) reaction = speakTake([hasGreeted ? 'reaction' : 'greeting'], { isReply: false });
     hasGreeted = true;
   };
 
@@ -544,10 +545,10 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       case 'resume':
         return void resume();
       case 'react':
-        return react(action);
+        return react();
       case 'reply':
         trace('replyDecided', { via: action.via, words: action.text.split(/\s+/).length, text: action.text });
-        if ((action.via === 'final' || action.via === 'partial') && boardWork.hasOpenTask()) return void answerSpokenWords({ text: action.text, carried: action.carried });
+        if ((action.via === 'final' || action.via === 'partial') && (boardWork.hasOpenTask() || wantsSomethingElse(action.text))) return void answerSpokenWords({ text: action.text, carried: action.carried });
         return startReply({ text: action.text, carried: action.carried });
       case 'startTimer':
         return startNamedTimer(action.name, action.ms);
@@ -646,6 +647,11 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       if (message.type === 'worked') boardWork.onWorked(message);
       const isStudentQuiet = !state.isVoiceOn;
       if (message.type === 'paused' && isStudentQuiet) void boardWork.onPaused(message);
+      if (message.type === 'hello') {
+        // Each page load has its own clock, so a new one on a running session is a reload, and the board came back with it.
+        if (pageClockId !== null && pageClockId !== message.clockId) tutor.noteCameBack?.();
+        pageClockId = message.clockId;
+      }
       if (message.type === 'hello' && message.wantsGreeting) greet();
       if (message.type === 'audioState') onAudioState(message.isRunning);
     },

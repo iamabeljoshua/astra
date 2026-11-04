@@ -1,0 +1,35 @@
+{
+ "topic": "Why chemical equations balance",
+ "plan": {
+  "opening": [
+   {
+    "say": "Here's a puzzle. When wood burns, the ashes weigh far less than the log, so where did the rest go?",
+    "note": "where did it go?"
+   },
+   {
+    "say": "Chemists found that nothing actually vanishes. Atoms just trade partners, and every single atom that starts the reaction has to finish it.",
+    "note": "atoms trade partners"
+   },
+   {
+    "say": "So let's write down hydrogen burning in oxygen, and count atoms on both sides of the arrow like an honest bookkeeper.",
+    "tex": "H_2 + O_2 \\to H_2O"
+   }
+  ],
+  "more": [
+   {
+    "say": "Look at the oxygen first. The left side has two oxygen atoms, but the right side shows only one. That can't be right."
+   },
+   {
+    "say": "We can't change the little numbers inside a formula, because that would make a different substance. We can only change how many copies we use."
+   },
+   {
+    "say": "Using two water molecules fixes oxygen, but now hydrogen is short. So we adjust again, and keep adjusting until the counts agree.",
+    "tex": "2H_2 + O_2 \\to 2H_2O"
+   }
+  ],
+  "setup": "Watch the atoms on each side of the arrow.",
+  "narration": "[[atoms-left]]Two hydrogen molecules and one oxygen molecule go in. [[bonds-break]]Their bonds break, and the atoms come loose. [[atoms-regroup]]They regroup into two water molecules. [[count-h]]Count hydrogen: four before, four after. [[count-o]]Oxygen: two before, two after. Same atoms, new partners.",
+  "plan": "atoms-left: Left of an arrow, show four H atoms as two H2 pairs and two O atoms as one O2 pair, each type in its own color.\nbonds-break: The pairs split apart and the six atoms float loose in the middle.\natoms-regroup: Atoms snap into two water molecules, each one O bonded to two H, on the right of the arrow.\ncount-h: A tally beside each side highlights the four H atoms on the left and the four on the right, equal.\ncount-o: Same tally for the two O atoms on each side, with a balanced scale appearing between the sides.",
+  "close": "If we wrote H2 plus O2 making H2O with no twos, what goes wrong?"
+ }
+}

@@ -16,6 +16,7 @@ export function makeFakeVoice(view: Partial<LiveVoiceView> = {}): LiveVoice {
     },
     getBoardNow: () => ({ board: { elements: new Map(), focus: null, stage: null, refusedSliders: [] }, atMs: 0 }),
     sendTyped: vi.fn(),
+    sendOpening: vi.fn(),
     reportMarkNotDrawn: vi.fn(),
     sendWork: vi.fn(),
     movePoint: vi.fn(),

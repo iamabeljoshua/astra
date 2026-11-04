@@ -1,0 +1,34 @@
+{
+ "topic": "How a music file drops sound",
+ "plan": {
+  "opening": [
+   {
+    "say": "Sound is a wave, a pressure wiggle in the air that your ear reads as pitch and loudness.",
+    "note": "sound = wave"
+   },
+   {
+    "say": "To store it, a computer measures that wave thousands of times each second and writes the numbers down.",
+    "tex": "44100 \\text{ samples per second}"
+   },
+   {
+    "say": "Raw numbers like that take huge space, so a music file has to decide what it can safely leave out.",
+    "note": "what to drop?"
+   }
+  ],
+  "more": [
+   {
+    "say": "Think of a loud trumpet playing right beside a very quiet flute note, both at nearly the same pitch."
+   },
+   {
+    "say": "Your ear actually can't hear the flute then, because the loud sound covers it up, like shouting over a whisper."
+   },
+   {
+    "say": "So storing that hidden flute detail is wasted space, and a smart file can simply skip it without you noticing."
+   }
+  ],
+  "setup": "Watch which parts of the sound fade away.",
+  "narration": "[[wave-appears]]Here's the full sound wave. [[bands-split]]The file splits it into pitch bands. [[loud-masks]]A loud band hides a quiet neighbor, so [[quiet-dropped]]that quiet one gets dropped. [[high-cut]]Very high pitches, past what ears hear, go too. [[smaller-wave]]What's left is much smaller, yet sounds almost the same.",
+  "plan": "wave-appears: a smooth sound wave, drawn left to right, labeled as full sound.\nbands-split: the wave divides into stacked horizontal pitch bands, low at bottom, high at top.\nloud-masks: one tall bar in a band glows, shading its short neighbor band beside it.\nquiet-dropped: the shaded short bar fades out and vanishes, with a small note saying masked.\nhigh-cut: bars above a marked line near twenty thousand hertz are erased.\nsmaller-wave: the remaining bars merge into a wave that looks nearly like the first, with a much smaller file size tag.",
+  "close": "Why might dropping a quiet sound next to a loud one go unnoticed?"
+ }
+}

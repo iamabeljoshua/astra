@@ -1,0 +1,39 @@
+{
+ "topic": "What free throw odds really mean",
+ "plan": {
+  "opening": [
+   {
+    "say": "A player who makes eighty percent of her free throws steps up to the line, and everyone says she's likely to score.",
+    "note": "80% shooter"
+   },
+   {
+    "say": "But that number doesn't promise anything about one shot. It describes what happens across lots and lots of shots, not this one.",
+    "tex": "p = 0.8"
+   },
+   {
+    "say": "So here's the real question: what does eighty percent actually tell us, and what does it quietly leave out?",
+    "note": "what's promised?"
+   }
+  ],
+  "more": [
+   {
+    "say": "Imagine she shoots ten free throws tonight. You'd expect about eight to go in, but eight exactly isn't guaranteed at all."
+   },
+   {
+    "say": "She might sink nine, or only six, and neither result means her skill changed. Ordinary shot-to-shot luck explains it fine.",
+    "note": "luck, not skill"
+   },
+   {
+    "say": "Now picture a thousand shots. The wobble from luck shrinks, and her makes crowd very close to eight hundred.",
+    "tex": "\\frac{\\text{makes}}{\\text{shots}} \\to 0.8"
+   }
+  ],
+  "setup": "Watch her shot count grow, one throw at a time.",
+  "narration": "[[shots-begin]]Each shot is its own coin flip, weighted toward a make. [[early-wobble]]Early on, her percentage bounces around wildly. [[settling-down]]Keep shooting, and it settles. [[target-line]]It homes in on eighty percent. [[streak-box]]Even so, a miss streak can still happen. [[next-shot]]And the next shot? Still eighty percent, no matter what came before.",
+  "plan": "shots-begin: a row of shot dots appears, green for makes, red for misses, each with eighty percent chance.\nearly-wobble: a running percentage graph jumps between about sixty and one hundred over the first few shots.\nsettling-down: the graph's swings shrink as shots pile up toward a few hundred.\ntarget-line: a dashed horizontal line at eighty percent; the graph hugs it. That's the long-run make rate.\nstreak-box: a box highlights three red dots in a row, rare but possible.\nnext-shot: a fresh dot appears, labeled eighty percent, unaffected by the earlier misses.",
+  "close": "If she just missed three in a row, what's her chance on the next shot?",
+  "model": "claude-sonnet-5-5",
+  "ms": 8667.367167,
+  "costUsd": 0.007864
+ }
+}

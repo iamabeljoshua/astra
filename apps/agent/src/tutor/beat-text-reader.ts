@@ -1,9 +1,15 @@
 import { BEAT_LIMITS, type Beat, type BoardKinds, getBoardAfter, getBoardProblem, LIVE_MESSAGE_MAX_BYTES, MATH_CLAIMS, parseSceneCommand, type SceneCommand } from '@astra/contracts';
+import { type AttemptReport, parseAttemptReport } from './attempts.ts';
+import { parseToolCall, type ToolCall } from './tools/tool-call.ts';
 
-/** A turn wraps up at the next sentence end past this, about 20 s with its pauses, because T4 gives a spoken turn 20 seconds. */
+/** A turn wraps up at the next sentence end past this, which is Abel's limit, and the prompt asks for far fewer. */
 export const TURN_WORDS_TO_WRAP = 45;
 /** A stretch of speech takes a breath at the next sentence end past this, because long stretches are what sound like a machine. */
 const STRETCH_WORDS_TO_BREATHE = 25;
+/** A stretch breathes at its next beat past this even with no sentence end in sight, because Abel's limit is 45 words and a long sentence must not pass it. */
+const STRETCH_WORDS_TO_BREATHE_AT_ANY_BEAT = 35;
+/** A stretch with no comma or sentence end still gets its breath here, so no words but a safety reply's pass the limit. */
+const MOST_WORDS_IN_A_STRETCH = 42;
 /** A line break after fewer words than this is only a new beat, because a pause after "Okay, look." sounds odd. */
 const FEWEST_WORDS_BEFORE_A_BREATH = 6;
 /** A sentence that never ends stops here, so a run-on cannot speak for a minute. */
@@ -27,8 +33,10 @@ const ENDS_IN_SENTENCE = /[.!]["')]*\s*$/;
 const ENDS_IN_CLAUSE = /[,;:]\s*$/;
 const ENDS_IN_ABBREVIATION = /(?:^|[\s("'])(?:mr|mrs|ms|dr|prof|st|vs|(?:[a-z]\.)+[a-z])\.["')]*\s*$/i;
 const ENDS_IN_ELLIPSIS = /\.{2,}["')]*\s*$/;
-/** Words only a safety reply uses, so that reply is never paused or wrapped. */
-const SAFETY_REPLY = /\b(?:that sounds serious|right thing telling me|not your fault|adult you trust|emergency number|are you safe)\b/i;
+/** A sentence can end inside a beat, when the words after a comma were too few to stand alone. */
+const HOLDS_SENTENCE_END = /[a-z][.!]["')]*\s+\S/i;
+/** Words only a safety reply uses, so that reply is never paused, wrapped, or ended at a question. Help must reach the student whole. A lesson can say the second group too, so those count only inside a question. */
+const SAFETY_REPLY = /\b(?:that sounds[^.?!]*serious|right thing telling me|adult you trust|trusted adult|(?:your|local) emergency (?:number|services)|are you safe)\b|\b(?:feel safe|in danger|hurting yourself|hurt yourself|ending your life|not your fault)\b[^.?!]*\?/i;
 const STILL_A_TAG = /^<\/?(?:[A-Za-z_][\w:.-]*(?:\s[^<>\n]*)?)?$/;
 const TAG_NAME = /^<(\/?)([A-Za-z_][\w:.-]*)/;
 const PRIVATE_TAGS: ReadonlySet<string> = new Set(['thinking', 'think', 'reasoning', 'scratchpad', 'analysis', 'reflection', 'function_calls', 'invoke', 'parameter', 'system', 'system-reminder']);
@@ -48,6 +56,9 @@ export interface BeatTextReaderOptions {
   onBadCommand(problem: string): void;
   onWrongMath(problem: string): void;
   onCommandKept?(command: SceneCommand): void;
+  /** The reply stops here, and carries on from the same words once the tool has answered. */
+  onToolCall?(call: ToolCall): void;
+  onAttemptReport?(report: AttemptReport): void;
   checkCommand?(command: SceneCommand): CommandVerdict;
   checkWords?(text: string): string | null;
   onWrongWords?(problem: string): void;
@@ -135,6 +146,10 @@ export class BeatTextReader {
     return this.#wordsThisTurn;
   }
 
+  get isSafetyReply(): boolean {
+    return this.#isSafetyReply || SAFETY_REPLY.test(this.#text);
+  }
+
   push(fragment: string): void {
     for (const character of fragment) this.#step(character);
   }
@@ -147,6 +162,12 @@ export class BeatTextReader {
     this.#endBeat();
     this.#cuesAwaitingWord.forEach(() => this.#options.onBadCommand('no word followed the command'));
     this.#cuesAwaitingWord = [];
+  }
+
+  /** A question was held back rather than spoken, so the turn it ended goes on. */
+  reopenTurn(): void {
+    this.#isTurnOver = false;
+    this.#textAfterTurn = '';
   }
 
   /** Drops half-read commands and half a sentence, because the next request carries on from the words already said, and half a sentence is what a dropped stream must never speak. */
@@ -200,12 +221,39 @@ export class BeatTextReader {
 
   #step(character: string): void {
     if (this.#isHalted) return;
-    if (this.#isTurnOver) this.#textAfterTurn += character;
+    if (this.#isTurnOver) this.#addAfterTurn(character);
     else if (this.#brokenTail !== null) this.#stepInBrokenTail(character);
     else if (this.#command !== null) this.#stepInCommand(character);
     else if (this.#tag !== null) this.#stepInTag(character);
     else if (this.#privateTag !== null) this.#stepInPrivateTag(character);
     else this.#stepInSpeech(character);
+  }
+
+  // A question or a word limit ended the turn, and help written after it must still be spoken.
+  #addAfterTurn(character: string): void {
+    this.#textAfterTurn += character;
+    if (!SAFETY_REPLY.test(this.#textAfterTurn)) return;
+    const held = this.#textAfterTurn;
+    this.#textAfterTurn = '';
+    this.#isTurnOver = false;
+    this.#wasCutShort = false;
+    this.#isSafetyReply = true;
+    this.push(held);
+  }
+
+  // Help written after a held question must be spoken too, so it lets the question go.
+  #addAfterHeldQuestion(character: string): void {
+    this.#textAfterTurn += character;
+    if (!SAFETY_REPLY.test(this.#textAfterTurn)) return;
+    const held = this.#textAfterTurn;
+    this.#textAfterTurn = '';
+    this.#isQuestionHeld = false;
+    this.#isSafetyReply = true;
+    this.push(held);
+  }
+
+  #isPastWordCut(): boolean {
+    return this.#wordsThisTurn >= TURN_WORDS_TO_CUT && !this.#isSafetyReply;
   }
 
   #isOneMarkTooMany(character: string): boolean {
@@ -217,7 +265,7 @@ export class BeatTextReader {
     if (this.#held !== '') this.#stepAfterOpenBrace(character);
     else if (character === '{') this.#held = character;
     else if (character === '<') this.#tag = character;
-    else if (character === '\n' && this.#isQuestionHeld) this.#textAfterTurn += character;
+    else if (character === '\n' && this.#isQuestionHeld) this.#addAfterHeldQuestion(character);
     else if (character === '\n') this.#endLineOrHoldQuestion();
     else if (character !== '}' && !UNSPEAKABLE.test(character) && !this.#isOneMarkTooMany(character)) this.#speak(character);
   }
@@ -272,7 +320,9 @@ export class BeatTextReader {
 
   // The model writes a line break between ideas, and one that falls mid sentence is only a new beat.
   #endLine(): void {
-    if (this.#wordCount > 0 && this.#wordCount < FEWEST_WORDS_IN_A_BEAT && !ENDS_IN_QUESTION.test(this.#text)) {
+    const isQuestion = ENDS_IN_QUESTION.test(this.#text);
+    const isTooShortForABeat = this.#wordCount < FEWEST_WORDS_IN_A_BEAT && !isQuestion;
+    if (this.#wordCount > 0 && (isTooShortForABeat || (isQuestion && this.isSafetyReply))) {
       if (!this.#isAfterSpace) this.#speak(' ');
       return;
     }
@@ -282,19 +332,13 @@ export class BeatTextReader {
 
   #speak(character: string): void {
     const isSpace = /\s/.test(character);
-    if (this.#isQuestionHeld) {
-      this.#textAfterTurn += character;
-      return;
-    }
+    if (this.#isQuestionHeld) return this.#addAfterHeldQuestion(character);
     if (this.#characterCount === BEAT_LIMITS.characters) {
       if (isSpace) return;
       this.#endBeat();
     }
-    if (!isSpace && this.#isAfterSpace && (this.#wordCount === BEAT_LIMITS.words || this.#wordsThisTurn >= TURN_WORDS_TO_CUT)) this.#endBeat();
-    if (this.#isTurnOver) {
-      this.#textAfterTurn += character;
-      return;
-    }
+    if (!isSpace && this.#isAfterSpace && (this.#wordCount === BEAT_LIMITS.words || this.#isPastWordCut() || this.#isStretchFull())) this.#endBeat();
+    if (this.#isTurnOver) return this.#addAfterTurn(character);
     if (!isSpace) this.#startOrContinueWord();
     this.#isAfterSpace = isSpace;
     this.#text += character;
@@ -304,12 +348,12 @@ export class BeatTextReader {
   }
 
   #endBeatOrHoldQuestion(): void {
-    if (this.#wordCount > 0 && ENDS_IN_QUESTION.test(this.#text)) this.#isQuestionHeld = true;
+    if (this.#wordCount > 0 && ENDS_IN_QUESTION.test(this.#text) && !this.isSafetyReply) this.#isQuestionHeld = true;
     else this.#endBeat();
   }
 
   #endLineOrHoldQuestion(): void {
-    if (this.#wordCount > 0 && ENDS_IN_QUESTION.test(this.#text)) this.#isQuestionHeld = true;
+    if (this.#wordCount > 0 && ENDS_IN_QUESTION.test(this.#text) && !this.isSafetyReply) this.#isQuestionHeld = true;
     else this.#endLine();
   }
 
@@ -332,7 +376,8 @@ export class BeatTextReader {
   // Beats end at commas and sentence ends, because M3.2 measured mid-sentence flushes stretching the line.
   #isAtBeatBoundary(): boolean {
     if (this.#cuesAwaitingWord.length > 0) return false;
-    if (ENDS_IN_QUESTION.test(this.#text)) return true;
+    // In a safety reply a question stays in its beat until more words or the end of the reply, so a student's "yes" cannot cut off the help after it.
+    if (ENDS_IN_QUESTION.test(this.#text)) return !this.isSafetyReply;
     if (this.#wordCount < FEWEST_WORDS_IN_A_BEAT) return false;
     if (isSentenceEnd(this.#text)) return true;
     const isFirstBeat = this.#wordsThisTurn === this.#wordCount;
@@ -438,10 +483,28 @@ export class BeatTextReader {
       return;
     }
     const value = this.#readJson(text);
-    if (value === undefined) return;
+    if (value === undefined || this.#takeTutorCall(value)) return;
     const parsed = parseSceneCommand(withKnownClaim(value));
     if (parsed.ok) this.#keepCommand(parsed.value);
     else this.#options.onBadCommand(parsed.problem);
+  }
+
+  // These go to code and never to the board, so a tool or a report can draw nothing.
+  #takeTutorCall(value: unknown): boolean {
+    const report = parseAttemptReport(value);
+    if (report !== null) {
+      this.#options.onAttemptReport?.(report);
+      return true;
+    }
+    const parsedCall = parseToolCall(value);
+    if (parsedCall === null) return false;
+    if (!parsedCall.ok) {
+      this.#options.onBadCommand(parsedCall.problem);
+      return true;
+    }
+    this.#isHalted = true;
+    this.#options.onToolCall?.(parsedCall.call);
+    return true;
   }
 
   #readJson(text: string): unknown {
@@ -484,6 +547,15 @@ export class BeatTextReader {
     this.#command = null;
   }
 
+  #isStretchFull(): boolean {
+    return !this.#isSafetyReply && this.#wordsThisStretch >= MOST_WORDS_IN_A_STRETCH;
+  }
+
+  #isStretchLongEnough(endsSentence: boolean): boolean {
+    if (this.#wordsThisStretch >= STRETCH_WORDS_TO_BREATHE_AT_ANY_BEAT) return true;
+    return this.#wordsThisStretch >= STRETCH_WORDS_TO_BREATHE && (endsSentence || HOLDS_SENTENCE_END.test(this.#text));
+  }
+
   #endBeat(): void {
     if (this.#wordCount === 0) return;
     if (this.#options.isAlreadySaid?.(this.#text)) return this.#dropWordsKeepingCommands();
@@ -500,11 +572,11 @@ export class BeatTextReader {
     const script = this.#script.map((part) => (typeof part === 'string' ? part.normalize('NFC') : part));
     this.#isSafetyReply ||= SAFETY_REPLY.test(this.#text);
     this.#options.onBeatEnd({ script, wordCount: this.#wordCount, expectsReply, startsStretch: this.#startsStretch });
-    const isAtCut = this.#wordsThisTurn >= TURN_WORDS_TO_CUT;
-    this.#isTurnOver = expectsReply || (endsSentence && this.#wordsThisTurn >= TURN_WORDS_TO_WRAP && !this.#isSafetyReply) || isAtCut;
+    const isAtCut = this.#isPastWordCut();
+    this.#isTurnOver = (expectsReply && !this.#isSafetyReply) || (endsSentence && this.#wordsThisTurn >= TURN_WORDS_TO_WRAP && !this.#isSafetyReply) || isAtCut;
     this.#wasCutShort = isAtCut && !expectsReply && !endsSentence;
     this.#didLastBeatEndSentence = endsSentence || expectsReply;
-    if (endsSentence && this.#wordsThisStretch >= STRETCH_WORDS_TO_BREATHE && !this.#isSafetyReply) this.#isBreathDue = true;
+    if (this.#isStretchLongEnough(endsSentence) && !this.#isSafetyReply) this.#isBreathDue = true;
     this.#startBeat();
   }
 }

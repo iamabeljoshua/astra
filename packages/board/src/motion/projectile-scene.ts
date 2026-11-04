@@ -13,8 +13,9 @@ type ProjectileParameters = ProjectileSimulation['parameters'];
 const PROJECTILE_PARTS = ['ball', 'path'] as const;
 const DEGREES_PER_RADIAN = 180 / Math.PI;
 
+// A downward speed too small to square leaves the root at zero and the landing just below it, which the scene catalog refuses.
 function getLandingSeconds({ upwardSpeed, releaseHeight, gravity }: ProjectileParameters): number {
-  return (upwardSpeed + Math.sqrt(upwardSpeed * upwardSpeed + 2 * gravity * releaseHeight)) / gravity;
+  return Math.max(0, (upwardSpeed + Math.sqrt(upwardSpeed * upwardSpeed + 2 * gravity * releaseHeight)) / gravity);
 }
 
 const isFlightValue = (name: string): name is SimulationParameter => Object.hasOwn(SIMULATION_PARAMETER_RULES, name);

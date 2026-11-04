@@ -14,7 +14,7 @@ export default async function record({ page, capture, viewportName, signIn }) {
   const topic = viewportName === 'phone' ? REMOVED_ON_PHONE : REMOVED_ON_LAPTOP;
   await notes.getByText(topic, { exact: true }).waitFor();
   await notes.getByText(/On the board: .*Marked right\./).waitFor();
-  await notes.getByText(/You said: /).first().waitFor();
+  await notes.getByText(/From what you said/).first().waitFor();
   await capture('notes');
 
   await notes.getByRole('button', { name: `Remove ${topic}` }).click();

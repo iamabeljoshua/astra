@@ -4,7 +4,7 @@ import { API_ERROR_LABELS, RECORD_LABELS } from '../strings';
 import { type LearnerNote, useDeleteNote, useDeleteRecord, useLearnerRecord } from './useLearnerRecord';
 
 function getEvidenceLine({ source, text, check }: LearnerNote['evidence'][number]): string {
-  if (source === 'words') return RECORD_LABELS.saidThis(text);
+  if (source === 'words') return RECORD_LABELS.fromYourWords;
   return check === 'right' ? RECORD_LABELS.markedRight(text) : RECORD_LABELS.markedWrong(text);
 }
 

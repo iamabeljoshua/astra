@@ -1,0 +1,37 @@
+{
+ "topic": "why the sine graph repeats",
+ "plan": {
+  "opening": [
+   {
+    "say": "Picture a point walking around a circle at a steady speed, never speeding up, never slowing down, round and round.",
+    "note": "walking in a circle"
+   },
+   {
+    "say": "Now ask how high that point is above the middle of the circle at each moment as it goes.",
+    "tex": "y = \\sin\\theta"
+   },
+   {
+    "say": "Hold that height in your head, because the sine graph is just that height written down against the angle.",
+    "note": "height vs angle"
+   }
+  ],
+  "more": [
+   {
+    "say": "Say the circle has radius one. Then the point starts at the right, level with the center, so its height is zero."
+   },
+   {
+    "say": "As it climbs, the height grows until the point sits at the very top, where the height is exactly one."
+   },
+   {
+    "say": "Then it comes back down through zero, dips to the bottom at negative one, and rises again toward where it began."
+   }
+  ],
+  "setup": "Watch the height as the point goes around.",
+  "narration": "[[circle-appears]]Here's the circle, and the point starts at the right. [[point-climbs]]As it climbs, its height rises and falls. [[full-turn]]After one full turn, it's back exactly where it began. [[graph-repeats]]Same place, same height, so the graph must start over. That's why sine repeats every two pi.",
+  "plan": "circle-appears: a unit circle with a point at angle zero on the right, a thin horizontal line marking its height y, which equals sine of theta.\npoint-climbs: the point moves counterclockwise and a dot traces y = sin theta on a graph beside the circle, rising to one, falling through zero.\nfull-turn: the point completes angle two pi and lands back at the start, the circle highlighted once around.\ngraph-repeats: the traced curve y = sin theta draws a second identical wave, with one period marked as two pi.",
+  "close": "If the point kept going, what would the height be after three full turns?",
+  "model": "claude-sonnet-5-5",
+  "ms": 6293.009375,
+  "costUsd": 0.0061978
+ }
+}

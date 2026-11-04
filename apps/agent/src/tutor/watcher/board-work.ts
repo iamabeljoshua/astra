@@ -1,6 +1,6 @@
 import { setTimeout as delay } from 'node:timers/promises';
 import type { AgentMessage, BrowserMessage, ElementId, InkPoint, ReadMath, StudentAction, StudentWork, Task } from '@astra/contracts';
-import { type CheckedWork, cleanStudentText, checkWorkOnBoard, getLinearAnswer, getNod, getPickParts, type Nod, wantsSomethingElse } from '@astra/board/shared';
+import { type CheckedWork, cleanStudentText, checkWorkOnBoard, getLinearAnswer, getNod, getPickParts, type Nod, NODS, wantsSomethingElse } from '@astra/board/shared';
 import type { BoardElement } from '@astra/board';
 import type { SpokenReading } from './read-spoken.ts';
 import { decideSpoken, type SpokenDecision, type SpokenExpected, type SpokenPart } from './spoken-answer.ts';
@@ -98,7 +98,8 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
     if (decision.act === 'reply') {
       noteAnswered();
       isAnsweringJudgedWork = checked.verdict.status !== 'unknown';
-      nodDue = getNod(message.work, checked);
+      // "Hm." in front of a line that turns out right sounds like doubt, so a line code cannot judge gets a sound that says nothing.
+      nodDue = getNod(message.work, checked) ?? (checked.verdict.status === 'unknown' && checked.reading?.kind === 'math' ? NODS.neutral : null);
       speakUp(getWorkWords(message.work));
     } else {
       unanswered = { checked, keys: wrongKeys };
@@ -140,12 +141,20 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
     return { way: 'write', id: `s${FIRST_SPOKEN_LINE + spokenLines}` as ElementId, text, task, heard };
   };
 
+  // "I got eight" may answer anything the tutor just asked, so it claims the letter only when that is proved, and otherwise it is the number they said.
+  const getProvedSpokenTex = (text: string, tex: string, bareTex: string | undefined, task: Task) => {
+    const board = tutor.getBoard?.();
+    if (bareTex === undefined || !board) return tex;
+    const { verdict } = checkWorkOnBoard({ way: 'write', id: 'spoken' as ElementId, text, task: task.id, heard: { tex, isUnsure: false } }, board.state);
+    return verdict.status === 'right' ? tex : bareTex;
+  };
+
   const toSpokenWork = async (text: string, task: Task, decision: SpokenDecision): Promise<StudentWork | null> => {
     switch (decision.act) {
       case 'talk':
         return null;
       case 'line':
-        return getHeardWork(text, { tex: decision.tex, isUnsure: false }, task.id);
+        return getHeardWork(text, { tex: getProvedSpokenTex(text, decision.tex, decision.bareTex, task), isUnsure: false }, task.id);
       case 'pick':
         return { way: 'pick', task: task.id, part: decision.part };
       case 'place':
@@ -165,10 +174,10 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
 
   const onSpoken = async (rawText: string): Promise<boolean> => {
     const open = getOpenTask();
-    if (!open) return true;
     const text = cleanStudentText(rawText);
+    if (!open && !wantsSomethingElse(text)) return true;
     if (wantsSomethingElse(text)) {
-      const leaving: StudentWork = { way: 'leave', task: open.task.id };
+      const leaving: StudentWork = open ? { way: 'leave', task: open.task.id } : { way: 'leave' };
       const left = tutor.noteWork?.(leaving);
       if (left) {
         writeHeardLog(leaving, left.checked);
@@ -176,6 +185,7 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
       }
       return true;
     }
+    if (!open) return true;
     const decision = decideSpoken(text, open.task, getSpokenParts(open.task, open.board?.state), getTaskLetter(open.task, open.board?.state));
     trace('spokenDecided', { ...decision });
     const work = await toSpokenWork(text, open.task, decision);

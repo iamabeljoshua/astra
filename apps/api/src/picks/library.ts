@@ -25,3 +25,5 @@ export interface Library {
 export const LIBRARY = libraryData as Library;
 
 export const LIBRARY_TOPIC_IDS = LIBRARY.topics.map((topic) => topic.id);
+
+export const findLibraryTopic = (topicId: string | null | undefined): LibraryTopic | undefined => LIBRARY.topics.find((topic) => topic.id === topicId);

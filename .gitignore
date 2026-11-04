@@ -12,3 +12,6 @@ dist/
 .env
 .env.*
 !.env.example
+.scene-store/
+__pycache__/
+apps/agent/.eval-spend/

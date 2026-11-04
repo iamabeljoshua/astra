@@ -40,7 +40,7 @@
       { "student": "i dont get how to add fractions when the bottoms are different", "tutor": "Let's make the bottoms match first." },
       { "student": "yeah that part confuses me", "tutor": "Picture a pizza cut into four. A half is two of those slices." }
     ],
-    "expect": { "kinds": ["struggled"], "mustCite": ["i dont get how to add fractions"], "mustNotKinds": ["showed"] }
+    "expect": { "kinds": ["struggled"], "mustCite": [], "mustNotKinds": ["showed"] }
   },
   {
     "name": "copied-from-the-tutor",

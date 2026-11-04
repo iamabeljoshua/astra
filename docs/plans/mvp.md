@@ -35,7 +35,8 @@ As of 4 November 2026, 22 of 39 PRs have merged. This section is the whole road,
 - **Voice.** ElevenLabs voice Chris, on Flash, Abel's choice on 4 November in place of Casey.
 - **Tutor.** Sonnet 5.5, with code reacting first and a timeout for stalls. There is no talking router for now.
 - **Speed targets.** Two numbers replace PRD V1's rule. A first reaction under 200 ms from code, and a first real word as fast as the vendors allow.
-- **The shared board.** Student and tutor both work on the board, in M3.12, with ink and uploads narrowed to M3.11.
+- **The shared board.** Student and tutor both work on the board, in M3.12, which also took the pen.
+- **Uploads.** Photo and PDF uploads are post-MVP, on Abel's word of 4 November 2026. M3.11 only says they are coming soon, and Appendix E keeps the work.
 - **Lessons.** A student follows a plan of concepts. Inside a running lesson, a queue writes the next scenes, in M3.13.
 - **Best-effort 3D.** Voice and the 2D board never wait for a scene. A scene shows only when it is ready and checked. On a new question the tutor starts with words and simple 2D, setting up what the scene will show, then brings in 3D at a pause. Cards and planned scenes open on 3D where one is ready. A scene not ready after about 20 s is dropped from that lesson and saved. There is no spinner. M3.10 does not block on 3D, and 3D is built alongside it.
 - **Laptop first.** Rich scenes target laptops and may require a laptop browser, and phones must not block them. Existing pages keep working at phone width, and a mobile app may come later.
@@ -61,21 +62,20 @@ As of 4 November 2026, 22 of 39 PRs have merged. This section is the whole road,
 | 3 | M3.8 | Teach instead of tell, with tools the tutor calls when needed | #17 | M3.7 |
 | 4 | M3.15 | Write the approved library of 133 scenes | #91 | M3.14 |
 | 4 | M3.9 | Prepare a lesson plan for every session | #18 | M3.8 |
+| 4 | M3.11 | Say that photos and PDFs are coming soon | #20 | M3.12 |
 | 5 | M3.13 | Keep the next scenes ready as the lesson flows | #71 | M3.5, M3.9 |
 | 5 | M3.10 | Run the first full session end to end | #19 | M3.5, M3.9, M3.12 |
-| 6 | M3.11 | Let students draw on the board and upload their work | #20 | M3.10, M3.12 |
 | 6 | M4.1 | Give the tutor a memory of each student | #21 | M3.10 |
 | 6 | M4.5 | Make it safe for students 13 and up | #25 | M3.10 |
 | 7 | M4.2 | Make the teaching personal | #22 | M4.1 |
 | 7 | M4.3 | Recommend picks from performance and weaknesses | #23 | M4.1 |
 | 7 | M4.4 | End sessions with a recap, and let students replay them | #24 | M3.10, M4.1 |
 
-**What the tests settled for M3.13 and M3.14.** The scene test and the ManimGX test have both reported, and ManimGX passed the bar stated to Abel, so it is in. Which models write and review scenes stays open with Abel on `scene-models`. Until Abel answers, scenes run on Anthropic models behind a switchable interface.
+**What the tests settled for M3.13 and M3.14.** The scene test and the ManimGX test have both reported, and ManimGX passed the bar stated to Abel, so it is in. Abel chose Anthropic models to write and review scenes and the library, with no OpenAI. The writer stays behind one small interface, so a later model is a one-line change.
 
 **Still waiting on Abel.**
 
 - Whether a mid-sentence flush sounds natural on Chris, which settles the flush rule.
-- `scene-models`, for which models write and review scenes, and OpenAI, including its terms for minors and an OpenAI account of Abel's own.
 - The eight-digit code question in Appendix E.
 - The tutor's pen colour, which M3.12 proposes.
 - Confirming ElevenLabs' training opt-out on `elevenlabs-balance`.
@@ -165,7 +165,7 @@ As of 4 November 2026, 22 of 39 PRs have merged. This section is the whole road,
   - [ ] M3.9 after M3.8 and M2.5.
   - [ ] M3.13 after M3.5 and M3.9.
   - [ ] M3.10 after M3.5 and M3.9 and M3.12.
-  - [ ] M3.11 after M3.10 and M3.12.
+  - [ ] M3.11 after M3.12.
   - [ ] M4.1 after M3.10.
   - [ ] M4.2 after M4.1.
   - [ ] M4.3 after M4.1 and M2.2 and M2.12.
@@ -1713,7 +1713,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 ## Show best-effort 3D scenes from ManimGX and our kit (M3.14)
 
-**Status.** Not merged. Issue #72 keeps its older wording, and this section leads.
+**Status.** First slice in review as PR 87, not merged: the ManimGX path, its router, the locked worker, and stored takes, behind `VITE_SCENE_LESSONS=1`. The kit path, the fit router's library match, and declared values in a live lesson are still to come, so this section stays open. Issue #72 keeps its older wording, and this section leads.
 
 **Depends on.** M3.5, M3.7.
 
@@ -1728,11 +1728,11 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 - [ ] Land this in slices, each saying `Part of #72` until the last. The ManimGX path and the router's decision come first, then the kit path, the fit router's library match, and declared values in a live lesson.
 - [ ] Start from the results in `/Users/abel/startup/astra-tinker/manimgx` and `/Users/abel/startup/astra-tinker/scenes-race`, and the kit in `/Users/abel/startup/astra-tinker/scenes`. Delegate by the ManimGX test's table.
-- [ ] Keep the router, writer, and reviewer behind small switchable interfaces, on Anthropic models until Abel answers `scene-models`. Which models write and review, and any use of OpenAI, wait for that answer.
+- [ ] Keep the router, writer, and reviewer behind small switchable interfaces, on Anthropic models, as Abel chose.
 - [ ] Run the router beside the voice, so it never delays a word. Later slices add a fit router that chooses between a library match, a library scene with changed values only where it declares them, a new scene, or no scene.
 - [ ] Take truth from the kit, with domain functions and checks written once by a person, because the test found 14 of 14 clean with them on the Moon and seasons, and 1 of 10 without. Add a right-handed helix, exact polygons, number formatting, and more domains.
 - [ ] Inject loop guards in the kit's sandbox, because removing an iframe does not stop a spinning script. A scene can navigate its own frame with data in the URL, so keep student data out of it.
-- [ ] Save a late scene, and a failed one marked as failed, so nobody pays to write it twice, and send only checked scenes to a browser.
+- [ ] Save a late scene, and a refused one marked as refused, so nobody pays to write it again soon, and send only checked scenes to a browser. A refusal can be written again after an hour, at most 3 tries a day, because the review can refuse a true scene. A typed question's write stops once its student has gone. A card's keeps going.
 - [ ] Run the path once on a real laptop with Intel or AMD graphics, because everything so far ran on one Mac.
 - [ ] Record that B4's 100-scene deck does not hold for generated scenes, and state what replaces it.
 - [ ] Keep textures licensed, with CC BY 4.0 credits, and test licensed 3D models with named parts for anatomy and molecules, which are untested.
@@ -1742,7 +1742,8 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 - [ ] Voice and the 2D board never wait for a scene. A scene shows only when it is ready and checked, and there is no spinner.
 - [ ] On a new question the tutor starts with words and simple 2D, setting up what the scene will show, then brings in 3D at a pause. Cards and planned scenes open on 3D where one is ready.
-- [ ] A scene not ready after about 20 s is dropped from that lesson and saved, so a later lesson that may use it plays it at once.
+- [ ] A scene not ready about 20 s after the opening is dropped from that lesson and saved, so a later lesson that may use it plays it at once. It can still land after the closing question, inside that time, and the question comes again after it.
+- [ ] Every spoken line is short, as a person talks: usually under 25 words and never more than 45. A long line splits into more lines rather than running on.
 - [ ] One scene command, with an engine, plugs into M3.2's clock. A scene plays by seconds on the board's clock, with named parts and moments as word cues, so a stop, seek, rewind, and exact replay work.
 - [ ] A router chooses the engine. ManimGX takes symbols, plots, grids, flat maps, and code, and our kit takes solid things a camera could film. A wrong scene is the worst failure, so a doubtful request gets no scene, and false matches are measured and reported.
 - [ ] Python runs only on a server in a locked container, with no network, and the browser plays a stored take. Kit scene code runs in a sandbox with injected loop guards and no network.
@@ -1796,7 +1797,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 **Build.**
 
 - [ ] Put the list on the server's own topic list, reading Home's topics from `apps/api/src/picks/library.json`, because only those scenes may be shared across students.
-- [ ] Let M3.14's router pick each scene's engine, and use the writers Abel's answer on `scene-models` sets.
+- [ ] Let M3.14's router pick each scene's engine, and write with M3.14's Anthropic writers, behind the same interface.
 - [ ] Track spend as the run writes. M3.14's first path measured about $0.10 to $0.21 a scene with both reviews, which is above what the estimate assumes. If the run is on course to pass about $10, stop and bring Abel the number before going on.
 - [ ] Make the run safe to stop and restart, so a scene already written is never paid for twice.
 - [ ] Keep the sample page away from students, with the API refusing anyone but a named reviewer.
@@ -1852,7 +1853,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 **Build.**
 
 - [ ] Write the teaching rules as a versioned prompt.
-- [ ] Add tools the model calls when needed, namely `compute`, `plot_values`, and `find_source`, with `read_board`, `get_learner_record`, and `note_evidence` following in later PRs.
+- [ ] Add tools the model calls when needed, namely `compute`, `plotValues`, and `findSource`, with `read_board`, `get_learner_record`, and `note_evidence` following in later PRs. They are written in the reply's own text, because declaring tools to the API costs about 400 ms on every turn.
 - [ ] Track failed attempts in code so the dead-end rule does not depend on the model's memory.
 - [ ] Decide what the tutor says when the 8 s timer ends.
 - [ ] Add evaluation cases for answer leaks, dead ends, turn length, silence, mode choice, wrong math, a student's clarification from Abel's Aristotle note, and no internal tag or spoken math mark reaching the voice. Add T6's gap from the speed test, where replies said "twelve" with no compute call.
@@ -1865,7 +1866,8 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 - [ ] After two failed attempts on one point, the tutor shows the next step on the board. A student never hears a third question in a row on the same point.
 - [ ] A question such as "How do black holes form?" gets short explanations with regular checks, because the tutor picks the right mode by itself.
 - [ ] When a student interrupts to ask for clarification, the tutor answers it, then goes back to the point without repeating itself.
-- [ ] Spoken turns stay under 20 seconds, and the tutor waits at least 8 seconds after a question without prompting.
+- [ ] Spoken turns are usually under 25 words and never more than 45, by Abel's word, and the tutor waits at least 8 seconds after a question without prompting.
+- [ ] A plain idea comes before its name, a light check of the fundamental comes before building on it, the tutor goes simpler on request or on confusion and then climbs back, and the same question sounds different by level.
 - [ ] All math and plotted values come from a calculation tool, and factual claims can show a source on request.
 - [ ] The tutor writes for the ear, with short sentences and math said the way a person says it.
 - [ ] An evaluation suite measures all of this, and every prompt change must pass it.
@@ -2069,45 +2071,47 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 - [ ] Every box in **You see.** is checked with evidence on the issue, and no stop-list decision is open on it.
 - [ ] The root merges with `gh pr merge <pr> --repo iamabeljoshua/astra --squash --match-head-commit <verified-head>`, then reads the PR back to confirm the merge.
 
-## Let students draw on the board and upload their work (M3.11)
+## Say that photos and PDFs are coming soon (M3.11)
 
 **Status.** Not merged.
 
-**Depends on.** M3.10, M3.12.
+**Depends on.** M3.12.
+
+**Scope.** Abel moved uploads past the MVP on 4 November 2026. In his words, "cut photo and pdf upload for now and just mark it as coming soon when a user clicks on it for now, so it's a post-mvp thingy". This PR ships no upload route, no stored file, and no tutor reading of a file, and Appendix E keeps that work. The pen and its reader moved to M3.12, in PR 97.
 
 **Files.**
 
-- [ ] Create `packages/board/src/student-ink/`.
-- [ ] Create `apps/api/src/uploads/`.
-- [ ] Add `read_board` to `apps/agent/src/tutor/tools/`.
-- [ ] Edit `apps/web/src/home/` so an attached file is sent, and `LEGAL_PAGES` in `apps/web/src/strings.ts`.
+- [ ] Create `apps/web/src/ui/AttachControl.tsx` and `apps/web/src/ui/useFilesComingSoon.ts`.
+- [ ] Edit `apps/web/src/home/ChatBox.tsx` to remove the file input and the attachment chip, and `apps/web/src/home/HomeScreen.tsx`, `apps/web/src/session/SessionScreen.tsx`, and `apps/web/src/voice/LiveBoard.tsx` to show the control.
+- [ ] Edit `ATTACH_LABELS` and `LEGAL_PAGES` in `apps/web/src/strings.ts`.
+- [ ] Add `.claude/skills/verify/journeys/coming-soon.mjs`.
 
 **Build.**
 
-- [ ] Add a student ink layer that records strokes in the session log, using the shapes in `packages/contracts`.
-- [ ] Send structured board state on every turn and a snapshot only when there is handwriting to read.
-- [ ] Store uploads with ownership checks, and stop dropping files attached on Home.
-- [ ] Measure handwriting on real hands, because Prototype B's 800 reads were on synthetic hands, which is likely optimistic.
+- [ ] Show one control at a time on each screen. It sits in the chat box on Home, in the reply box while a session has no board or the tutor is on the way, and in the board's tools once the tutor has arrived.
+- [ ] Refuse a dropped or pasted file ahead of every other listener on the page, so no field reads its name and the browser neither writes the name nor opens the file. Leave pasted and dragged text alone, including text from Word and Excel, which carry a picture of themselves.
+- [ ] Remove the Privacy Policy line about attached files, and say that a file a student tries to add is not sent or stored.
 - [ ] Settle M3.11's row under "Open, with an owner" in `docs/architecture/live-session.md`.
 
 **You see.**
 
-- [ ] A student can draw and write on the board with a mouse, a finger, or a stylus.
-- [ ] Handwriting goes to a small reader call and then M3.12's code check, and "Read as" always shows how it was read.
-- [ ] The tutor can respond to what the student wrote, including spotting a sign error in worked math, and it never calls a wrong line right.
-- [ ] A student can attach a photo or PDF from Home or during a session, and the tutor can talk about it.
-- [ ] Uploaded files stay private to that student and can be deleted.
+- [ ] Pressing `Photo or PDF` on Home, in a session's reply box, or on the shared board shows "Photos and PDFs are coming soon." just above the control, and no file picker opens.
+- [ ] The note goes by itself after 5 seconds, on Escape, or when the student types, and a screen reader says it. Escape closes the note before it can stop the tutor.
+- [ ] A file dropped or pasted on those screens shows the same note, the page stays where it is, and its name does not land in any field.
+- [ ] Neither the file nor its name reaches our server, the tutor service, or a model.
+- [ ] Pasted text still pastes.
+- [ ] The Privacy Policy promises no uploads.
 - [ ] The product never uses the camera for video or for reading faces (PRD Q17).
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] `student-ink.test.ts` asserts that strokes replay.
-- [ ] `uploads.spec.ts` asserts type limits, ownership, and deletion. Run `pnpm test`.
+- [ ] `AttachControl.test.tsx` asserts the note, its live region, both ways it closes, and which drops and pastes are refused.
+- [ ] `SessionVoiceNote.test.tsx` asserts one control and one note on a session's screen, before and after the tutor arrives. Run `pnpm test`.
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Two lanes on the configured `swarm workers` model at the PR head, per the boot recipe and the review rule under **Verdict and merge**.
 
-- [ ] Lane 1. Regression lane against trunk. Trunk ignores student drawing, so record that and gate the end state. Write a worked equation with a sign error on the board. Save `m3-11-ink.png`. Pass when "Read as" shows the line, and the tutor finds the sign error and points to it.
-- [ ] Lane 2. Attach a worksheet photo from Home, start the session, and then delete the file. Save `m3-11-upload.png`. Pass when the tutor discusses the worksheet and the deleted file can no longer be read.
+- [ ] Lane 1. Regression lane against trunk. Trunk opens a file picker on Home and offers no control in a session, so record that and gate the end state. Run `pnpm verify run --journey coming-soon` with no room service. Save `m3-11-home.png`. Pass when the note shows on Home and in the reply box at both widths and both themes, and the journey's network log holds the typed words and not the file's name or bytes.
+- [ ] Lane 2. Run the same journey with a local `livekit-server`, `ASTRA_TUTOR_MODEL=recorded`, and `ASTRA_VOICE=fake`, which spends nothing. Save `m3-11-board.png`. Pass when the note shows on the board, Escape leaves the tutor speaking, and the log of data channel sends holds a typed line and not the file's name or bytes.
 
 **Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
@@ -2354,7 +2358,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 - [ ] Run the safety check beside each turn, without slowing the first reaction or the first real word.
 - [ ] Add a flag queue and a review page limited to named reviewers. Nothing contacts a parent, as Abel ruled, and this overrides PRD Q4, Q5, S3, and S5's parent lines.
-- [ ] Add data deletion across every table, and an automated check that no audio files are written.
+- [ ] Add data deletion across every table, and an automated check that no audio files are written. Both must take in M3.14's scene store, which is not a table: typed scenes and refusals in `.scene-store`, a typed lesson's tutor audio in `student-voice/<student id>`, and student IDs in `lesson-spend.jsonl`. The store keeps tutor audio on purpose, so either the check names students' audio only, or this PR removes those files. `docs/tests/scenes.md` says what to remove for one student today.
 - [ ] Add a credit surface, because `docs/credits.md` alone leaves 5 NASA pictures without a visible credit.
 - [ ] Put Anthropic's zero-retention agreement, Meta's and ElevenLabs' age rules, and a full read of their terms into the legal review, with the M4.5 row under "For later owners" in `docs/architecture/live-session.md`.
 - [ ] Stop and tell Abel that the lawyer's review is still needed before any real student is invited, recorded on `lawyer-view` (PRD section 11).
@@ -2459,7 +2463,7 @@ These have no PR yet. Each one goes in the next free slot or with the PR named.
 - **Data layer.** An old checkout on an upgraded database locks out head with `relation "migrations" already exists`, so rebase lanes and delete the startup `ALTER`. `row-security.spec.ts` reads `attnum = 1` without filtering dropped columns, a false failure. Close the lint gaps for dynamic and required TypeORM imports, and for entities importing from feature folders. A hand-written `SECURITY DEFINER` function is not covered.
 - **Picks.** The library is thin at some levels, with 5 or 6 of 6 cards shared in 110 of 792 pairs. Goal reasons have no source behind them. The `bastille` label says engraving and the Met says etching. The `draughtsman` crop cuts off the wall pin its line asks about, so M3.10 fixes that line before it reads `openingLine`.
 - **Web app.** Returning to a tab after a failure still hides Try again. No App-level test says a signed-out student on a student route sees sign-in. A session start that times out and retries can save a second session.
-- **Look polish, from PR 83's review.** `textToDots` trusts the canvas read, so noise in privacy-hardened Firefox forms a dotted rectangle, and a throwing `getImageData` gives the error page, because the call runs in render. Add try/catch and a solid-pixel sanity check. A long name's title wraps and overprints the `HISTORY` label from 33 characters at 1021. After a reload the name's dots use a fallback serif until the name changes, because `useStepChart` memoizes before Newsreader loads. The whole-mail code search takes the first exact run, which matters if the mail gains another number. On `·Dark`, a grid dot shows through the unpressed toggle. At 390, `Sign out` and `Back` are under 24 px tall. The theme tokens `--text-sheet-name*`, `--container-sheet`, `--grid-template-columns-onboarding`, `--grid-template-columns-sheet-row`, and `--spacing-onboarding-side` are unused.
+- **Look polish, from PR 83's review.** `textToDots` trusts the canvas read, so noise in privacy-hardened Firefox forms a dotted rectangle, and a throwing `getImageData` gives the error page, because the call runs in render. Add try/catch, and refuse a read with ink in both of the paper's side bands, because noise reaches both sides and an overhanging letter reaches one. A long name's title wraps and overprints the `HISTORY` label from 33 characters at 1021. After a reload the name's dots use a fallback serif until the name changes, because `useStepChart` memoizes before Newsreader loads. The whole-mail code search takes the first exact run, which matters if the mail gains another number. On `·Dark`, a grid dot shows through the unpressed toggle. At 390, `Sign out` and `Back` are under 24 px tall. The theme tokens `--text-sheet-name*`, `--container-sheet`, `--grid-template-columns-onboarding`, `--grid-template-columns-sheet-row`, and `--spacing-onboarding-side` are unused.
 - **The eight-digit code.** Abel chose 6 digits. `README.md` works out that an attacker who asks for a new code every 10 minutes has about 33% in the first hour from 1,000 sources, and about 0.4% with 8 digits. With a real 612 s wait, expiry is true. `CODE_LENGTH` lives in `apps/web/src/auth/codeLength.ts`, so the change is small if Abel wants it.
 - **M3.2 polish.** Pin the 200 ms rule with a test, since 150 passes all 73 board tests, and raw shows 150 let a 182 ms word run a turn 328 ms early. Add tests for removing `hasTurnWordTimes = false` and the `hasSentSound` check. Decide a rewind pressed just before a cut, which shows 3.01 and not 1.
 - **For M3.4, from M3.2's review.** M3.4 owns the `overWords` row.
@@ -2467,4 +2471,6 @@ These have no PR yet. Each one goes in the next free slot or with the PR named.
 - **For M3.14, from M3.2's and M3.6's reviews.** Add a guard and a cache at the scene catalog boundary, because the catalog rebuilds per frame and `Scene.parts` is unread. Handle a throwing catalog during a stop and NaN durations, and use async `getFrame` for a sandbox. `run-lesson.ts:119` passes no `onFailure`, so a failure hides. Make `onFailure` required and guard a listener that throws. Fix the same faults M3.6 fixed in `run-lesson`, namely the `getRestOfTurn` double-fire, unguarded `JSON.parse` in `DataReceived`, and wide grants in `lesson-service.ts`.
 - **From M3.6's review.** M3.6's fix round moves to one mic state machine, the highest report per beat, audio buffered over Muse's handshake, a 10 minute idle cap with a warning, closing rooms when sessions finish, and region recorded beside stops. M3.7 needs per-session limits on data messages, because 150 forged `typed` lines in 143 ms started 150 replies, and it must handle a beat in flight lost on a cut that keeps the thought. A hosted agent is needed to judge voice reaction, stop, first sound to silence, first word, and join time. LiveKit can split a room across regions, which a hosted agent will not fix.
 - **A worker that prepares scenes ahead, after the MVP.** Abel's idea for later is a worker that plans and pre-generates lessons for recommended sections, so speed improves the more students use it. For the MVP, Abel ruled it out, to keep cost down. It stays separate from M3.15's one-time library and from writing next scenes inside a running lesson.
+- **Uploads, after the MVP.** Abel moved these past the MVP on 4 November 2026. A student attaches a photo or PDF from Home or during a session, and the tutor can talk about it. Files stay private to that student and can be deleted. This needs `apps/api/src/uploads/` with type limits, ownership checks, and `uploads.spec.ts`, a `read_board` tool in `apps/agent/src/tutor/tools/`, `image`'s `fileId` on the board, and new lines in `LEGAL_PAGES`. A file from a child is minors' data, so it needs Abel and the legal review first. Revisit `multer` 2.4.0, pinned by `@nestjs/platform-express` with a high-severity DoS advisory, before this ships.
+- **Handwriting on real hands, from the old M3.11.** The pen moved to M3.12. Prototype B's 800 reads were on synthetic hands, which is likely optimistic, so measure real ones before relying on the reader's numbers.
 - **Cleanup.** Remove test databases `astra_m2_2`, `astra_m2_8`, `astra_v_m28`, `astra_ci_speed`, and `astra_abel_onboarding`, and test users `m2-4-*`, `m2-8-*`, and `v28-*`. The remote branch `wip/m3-1-fix2` is a leftover, and its deletion was refused, so it stays until Abel removes it.
