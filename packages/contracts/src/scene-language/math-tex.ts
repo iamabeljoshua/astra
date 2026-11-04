@@ -133,24 +133,27 @@ const isBalanced = (tokens: readonly TexToken[]) => {
   return depth === 0;
 };
 
-// The letters of `\begin{matrix}` are a name, with no ink a tutor could mean.
-function dropEnvironmentNames(tokens: readonly TexToken[]): TexToken[] {
-  const kept: TexToken[] = [];
+// The letters of `\begin{matrix}` are a name, with no ink a tutor could mean, so the name stays part of its one token.
+function joinEnvironmentNames(tokens: readonly TexToken[]): TexToken[] {
+  const joined: TexToken[] = [];
   let isInName = false;
   for (const [index, token] of tokens.entries()) {
     const previous = tokens[index - 1]?.text;
     if (token.text === '{' && (previous === '\\begin' || previous === '\\end')) isInName = true;
-    if (!isInName) kept.push(token);
+    const opening = joined.at(-1);
+    if (isInName && opening) joined.splice(-1, 1, { text: `${opening.text}${token.text}`, start: opening.start, end: token.end });
+    else joined.push(token);
     if (token.text === '}') isInName = false;
   }
-  return kept;
+  return joined;
 }
 
 /** Every place in the source that spells `query`, counted from the left, as `highlight.occurrence` counts. */
 export function findMathSpans(tex: string, query: string): { start: number; end: number }[] {
-  const tokens = dropEnvironmentNames(getTexTokens(tex));
-  const wanted = getTexTokens(query);
-  if (wanted.length === 0 || !isBalanced(wanted)) return [];
+  const queryTokens = getTexTokens(query);
+  if (queryTokens.length === 0 || !isBalanced(queryTokens)) return [];
+  const tokens = joinEnvironmentNames(getTexTokens(tex));
+  const wanted = joinEnvironmentNames(queryTokens);
   const spans: { start: number; end: number }[] = [];
   for (let first = 0; first + wanted.length <= tokens.length; first += 1) {
     const candidate = tokens.slice(first, first + wanted.length);

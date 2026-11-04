@@ -30,13 +30,16 @@ function getOwnText(element: Element): string {
 function collectFrom(element: Element, paints: MathPaintElement[]): void {
   if (element.matches(NOT_PAINT)) return;
   const text = getOwnText(element);
-  if (text !== '') paints.push({ element: element as HTMLElement, glyph: text });
-  else if (element.matches(SHAPE)) paints.push({ element: element as HTMLElement, glyph: null });
-  else if (element.querySelector(':scope > svg')) {
+  // KaTeX sets the `g` of `\gcd` as a span and `cd` as bare text after it, and a marked copy reads g, c, d, so the text keeps its place in reading order.
+  const isTextAfterChild = element.firstChild?.nodeType === Node.ELEMENT_NODE;
+  if (text !== '' && !isTextAfterChild) paints.push({ element: element as HTMLElement, glyph: text });
+  else if (text === '' && element.matches(SHAPE)) paints.push({ element: element as HTMLElement, glyph: null });
+  else if (text === '' && element.querySelector(':scope > svg')) {
     paints.push({ element: element as HTMLElement, glyph: null });
     return;
   }
   for (const child of element.children) collectFrom(child, paints);
+  if (text !== '' && isTextAfterChild) paints.push({ element: element as HTMLElement, glyph: text });
 }
 
 /** Every piece of ink in KaTeX's output, in its own order, which is the same for the same source. */
@@ -64,8 +67,8 @@ function readSentinelNumber(element: HTMLElement): number | null {
   return null;
 }
 
-// The outer group is what lets a marked part stand as a script or an argument, as in `x^2`, `\hat x`, and `\frac\pi2`. The second form is for a big operator, whose limits sit above and below only while it stays an operator.
-const MARKERS: readonly ((color: string, source: string) => string)[] = [(color, source) => `{\\textcolor{${color}}{${source}}}`, (color, source) => `\\mathop{\\textcolor{${color}}{${source}}}\\limits`];
+// The outer group is what lets a marked part stand as a script or an argument, as in `x^2`, `\hat x`, and `\frac\pi2`. The second form is for a big operator, whose limits sit above and below only while it stays an operator. The third is for `\limsup\nolimits`, where KaTeX keeps the limits below in display style.
+const MARKERS: readonly ((color: string, source: string) => string)[] = [(color, source) => `{\\textcolor{${color}}{${source}}}`, (color, source) => `\\mathop{\\textcolor{${color}}{${source}}}\\limits`, (color, source) => `\\operatorname*{\\textcolor{${color}}{${source}}}`];
 
 function wrapSpans(tex: string, spans: readonly TexSpan[], marker: (typeof MARKERS)[number]): string {
   let wrapped = '';
