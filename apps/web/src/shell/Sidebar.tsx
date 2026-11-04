@@ -5,6 +5,7 @@ import { RecentSessions } from '../sessions/RecentSessions';
 import { ACCOUNT_LABELS, PRODUCT_NAME, SIDEBAR_LABELS } from '../strings';
 import { ThemeToggle } from '../theme/ThemeToggle';
 import { MENU } from './menu';
+import { PROFILE_PATH } from './profilePath';
 
 interface SidebarProps {
   id: string;
@@ -32,19 +33,22 @@ export function Sidebar({ id, isOpenOnPhone, onChoosePage }: SidebarProps) {
         ))}
       </nav>
       <RecentSessions />
-      <AccountRow />
+      <AccountRow onChoosePage={onChoosePage} />
     </aside>
   );
 }
 
-function AccountRow() {
+function AccountRow({ onChoosePage }: { onChoosePage: () => void }) {
   const { data: account } = useAccount();
 
   return (
     <div className="flex items-center justify-between gap-2 border-t border-line px-2 pt-2.5">
       <div className="min-w-0">
         <div className="leading-tight font-medium">{account?.student?.name ?? ACCOUNT_LABELS.unnamedStudent}</div>
-        <SignOutButton className="text-fine text-ink-2 hover:text-ink" />
+        <NavLink to={PROFILE_PATH} onClick={onChoosePage} className="block text-fine whitespace-nowrap text-ink-2 hover:text-ink">
+          {ACCOUNT_LABELS.profile}
+        </NavLink>
+        <SignOutButton className="block text-fine whitespace-nowrap text-ink-2 hover:text-ink" />
       </div>
       <ThemeToggle />
     </div>

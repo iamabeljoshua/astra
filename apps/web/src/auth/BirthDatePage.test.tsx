@@ -37,6 +37,8 @@ function stubApiAnswer(status: number, body: object) {
   return sentBodies;
 }
 
+const STUDENT_NAME = 'Maya';
+const STEP_PROPS = { studentName: STUDENT_NAME, progress: '2 of 5', onBack: () => undefined };
 const NOT_ANSWERED_YET = () => new Promise<Response>(() => undefined);
 const LONGER_THAN_A_SEND_TAKES_MS = 50;
 
@@ -54,21 +56,21 @@ afterEach(() => {
 
 describe('the date of birth question', () => {
   it('gives no hint of an age limit in its words', () => {
-    const { container } = renderWithQueryClient(<BirthDatePage />);
+    const { container } = renderWithQueryClient(<BirthDatePage {...STEP_PROPS} />);
 
     const placeholders = [...container.querySelectorAll('input')].map((input) => input.placeholder).join(' ');
     expect(`${container.textContent} ${placeholders}`).not.toMatch(AGE_LIMIT_WORDS);
   });
 
   it('shows no example date that a student could copy', () => {
-    const { container } = renderWithQueryClient(<BirthDatePage />);
+    const { container } = renderWithQueryClient(<BirthDatePage {...STEP_PROPS} />);
 
     const placeholders = [...container.querySelectorAll('input')].map((input) => input.placeholder);
     expect(placeholders.join('')).not.toMatch(/\d/);
   });
 
   it('sets no limit on the dates a student can type', () => {
-    renderWithQueryClient(<BirthDatePage />);
+    renderWithQueryClient(<BirthDatePage {...STEP_PROPS} />);
 
     const year = screen.getByLabelText('Year');
     for (const attribute of ['min', 'max', 'pattern', 'list']) {
@@ -85,13 +87,13 @@ describe('the date of birth question', () => {
 
   it.each(['2026', '2025', '1950'])('sends a date in %s to the server without judging the age itself', async (year) => {
     const sentBodies = stubApiAnswer(200, { status: 'active', student: null });
-    renderWithQueryClient(<BirthDatePage />);
+    renderWithQueryClient(<BirthDatePage {...STEP_PROPS} />);
 
     enterDate('14', '3', year);
     submitDate();
     confirmDate();
 
-    await vi.waitFor(() => expect(sentBodies).toEqual([{ birthDate: `${year}-03-14` }]));
+    await vi.waitFor(() => expect(sentBodies).toEqual([{ birthDate: `${year}-03-14`, name: STUDENT_NAME }]));
   });
 
   it.each([
@@ -101,17 +103,17 @@ describe('the date of birth question', () => {
     ['Bengali', '৩', '৪', '২০০৪', '2004-04-03'],
   ])('reads %s digits', async (_script, day, month, year, expected) => {
     const sentBodies = stubApiAnswer(200, { status: 'active', student: null });
-    renderWithQueryClient(<BirthDatePage />);
+    renderWithQueryClient(<BirthDatePage {...STEP_PROPS} />);
 
     enterDate(day, month, year);
     submitDate();
     confirmDate();
 
-    await vi.waitFor(() => expect(sentBodies).toEqual([{ birthDate: expected }]));
+    await vi.waitFor(() => expect(sentBodies).toEqual([{ birthDate: expected, name: STUDENT_NAME }]));
   });
 
   it('clears the message when the student changes the date', async () => {
-    renderWithQueryClient(<BirthDatePage />);
+    renderWithQueryClient(<BirthDatePage {...STEP_PROPS} />);
 
     enterDate('', '3', '2004');
     submitDate();
@@ -124,7 +126,7 @@ describe('the date of birth question', () => {
 
   it('goes back to the date with a message when the server rejects it, and clears the message on a change', async () => {
     stubApiAnswer(400, { message: ['birthDate is wrong'], fieldMessages: { birthDate: ['birthDate is wrong'] } });
-    renderWithQueryClient(<BirthDatePage />);
+    renderWithQueryClient(<BirthDatePage {...STEP_PROPS} />);
     enterDate('1', '1', '2999');
     submitDate();
     confirmDate();
@@ -144,7 +146,7 @@ describe('the date of birth question', () => {
       ['a date around the age limit', '3', '11', '2013'],
     ])('asks about %s in the same words, and sends nothing until the student confirms', async (_caseName, day, month, year) => {
       const sentBodies = stubApiAnswer(200, { status: 'active', student: null });
-      const { container } = renderWithQueryClient(<BirthDatePage />);
+      const { container } = renderWithQueryClient(<BirthDatePage {...STEP_PROPS} />);
       enterDate(day, month, year);
 
       submitDate();
@@ -163,7 +165,7 @@ describe('the date of birth question', () => {
 
     it('goes back with the typed date kept when the student changes it, having sent nothing', async () => {
       const sentBodies = stubApiAnswer(200, { status: 'active', student: null });
-      renderWithQueryClient(<BirthDatePage />);
+      renderWithQueryClient(<BirthDatePage {...STEP_PROPS} />);
       enterDate('14', '3', '2004');
       submitDate();
 
@@ -176,7 +178,7 @@ describe('the date of birth question', () => {
     });
 
     it('refuses a date that does not exist before the student has to confirm it', () => {
-      renderWithQueryClient(<BirthDatePage />);
+      renderWithQueryClient(<BirthDatePage {...STEP_PROPS} />);
       enterDate('31', '2', '2004');
 
       submitDate();
@@ -186,7 +188,7 @@ describe('the date of birth question', () => {
     });
 
     it('moves focus to the question, and ties the date to the question and the button', () => {
-      renderWithQueryClient(<BirthDatePage />);
+      renderWithQueryClient(<BirthDatePage {...STEP_PROPS} />);
       enterDate('14', '3', '2004');
 
       submitDate();
@@ -200,7 +202,7 @@ describe('the date of birth question', () => {
 
     it('stays here and says what went wrong when saving fails, so the student can confirm again', async () => {
       stubApiAnswer(500, {});
-      renderWithQueryClient(<BirthDatePage />);
+      renderWithQueryClient(<BirthDatePage {...STEP_PROPS} />);
       enterDate('14', '3', '2004');
       submitDate();
 
@@ -212,7 +214,7 @@ describe('the date of birth question', () => {
   });
 
   it('names the date fields as a group, and ties a rejected date to its message', () => {
-    renderWithQueryClient(<BirthDatePage />);
+    renderWithQueryClient(<BirthDatePage {...STEP_PROPS} />);
     screen.getByRole('group', { name: strings.BIRTH_DATE_LABELS.question });
     const year = screen.getByLabelText(strings.BIRTH_DATE_LABELS.year);
     expect(year.getAttribute('aria-invalid')).toBe('false');
@@ -228,7 +230,7 @@ describe('the date of birth question', () => {
   it('keeps focus on the button and sends once while the answer is on its way', async () => {
     const fetchStub = vi.fn(NOT_ANSWERED_YET);
     vi.stubGlobal('fetch', fetchStub);
-    renderWithQueryClient(<BirthDatePage />);
+    renderWithQueryClient(<BirthDatePage {...STEP_PROPS} />);
     enterDate('14', '3', '2004');
     submitDate();
     const button = screen.getByRole<HTMLButtonElement>('button', { name: strings.BIRTH_DATE_LABELS.confirm });
@@ -248,7 +250,7 @@ describe('the date of birth question', () => {
   it('can send a corrected date after the student changes it while the first is on its way', async () => {
     const fetchStub = vi.fn(NOT_ANSWERED_YET);
     vi.stubGlobal('fetch', fetchStub);
-    renderWithQueryClient(<BirthDatePage />);
+    renderWithQueryClient(<BirthDatePage {...STEP_PROPS} />);
     enterDate('14', '3', '2004');
     submitDate();
     confirmDate();
@@ -264,7 +266,7 @@ describe('the date of birth question', () => {
 
   it('can send again after a failed send', async () => {
     const sentBodies = stubApiAnswer(500, {});
-    renderWithQueryClient(<BirthDatePage />);
+    renderWithQueryClient(<BirthDatePage {...STEP_PROPS} />);
     enterDate('14', '3', '2004');
     submitDate();
     confirmDate();
@@ -281,7 +283,7 @@ describe('the date of birth question', () => {
   ])('moves focus into the step on %s', (_caseName, isWide, getExpected) => {
     vi.stubGlobal('matchMedia', () => ({ matches: isWide }));
 
-    renderWithQueryClient(<BirthDatePage />);
+    renderWithQueryClient(<BirthDatePage {...STEP_PROPS} />);
 
     expect(document.activeElement).toBe(getExpected());
   });

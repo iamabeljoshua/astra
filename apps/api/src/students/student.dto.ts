@@ -1,14 +1,22 @@
-import { IsIn, IsString } from 'class-validator';
+import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsStorableText } from '../is-storable-text';
 import { ACCOUNT_STATUSES } from './account-options';
 import type { AccountStatus } from './account-options';
 import { IsBirthDate } from './is-birth-date';
-import { StudentProfileResponseDto } from './student-profile.dto';
+import { MAX_STUDENT_NAME_LENGTH, StudentProfileResponseDto } from './student-profile.dto';
 
 export class AnswerBirthDateBodyDto {
   /** The student's date of birth, written as YYYY-MM-DD. */
   @IsString()
   @IsBirthDate()
   birthDate!: string;
+
+  /** The name the tutor calls the student. It is stored only if the account opens. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(MAX_STUDENT_NAME_LENGTH)
+  @IsStorableText()
+  name?: string | null;
 }
 
 export class StudentResponseDto {
@@ -20,9 +28,6 @@ export class StudentResponseDto {
 
   /** The student's profile, or null until onboarding saves one. */
   profile!: StudentProfileResponseDto | null;
-
-  /** When a parent or guardian gave consent, or null if no one has. */
-  parentConsentAt!: Date | null;
 }
 
 export class AccountResponseDto {
