@@ -89,11 +89,8 @@ function getTryNextProblem(tryNext: string): string | null {
   return tryNext.includes('?') ? 'tryNext asks a question' : null;
 }
 
-// A student answers this line, so every number in it must be whole and come from the lesson, or code's own line stands in.
-function getCheckedTryNext(tryNext: string, facts: RecapFacts): string {
-  const known = getAllNumbers(getEverySaidLine(facts));
-  return !BROKEN_NUMBER.test(tryNext) && getNumbers(tryNext).every((number) => known.has(number)) ? tryNext : TRY_NEXT_FROM_CODE;
-}
+// A student answers this line, so a broken number never reaches them, and code's own line stands in rather than losing the whole recap.
+const getCheckedTryNext = (tryNext: string) => (BROKEN_NUMBER.test(tryNext) ? TRY_NEXT_FROM_CODE : tryNext);
 
 // Code writes this line alone, because a model's line can claim more than code found right with no number in it to catch.
 function getGotRight(rightLines: readonly string[]): string | null {
@@ -114,7 +111,7 @@ export function checkRecapDraft({ covered, tryNext }: RecapDraft, facts: RecapFa
   const problem = getCoveredProblem(cleanCovered, facts) ?? getTryNextProblem(cleanTryNext);
   if (problem) return { problem };
   const checkedRight = getGotRight(getRightLines(facts));
-  const checkedTryNext = getCheckedTryNext(cleanTryNext, facts);
+  const checkedTryNext = getCheckedTryNext(cleanTryNext);
   const words = [cleanCovered, checkedRight ?? '', checkedTryNext].flatMap(getSpokenWords).length;
   if (words > MOST_WORDS_IN_A_RECAP) return { problem: `the recap runs past ${MOST_WORDS_IN_A_RECAP} words` };
   return { recap: { kind: 'lesson', covered: cleanCovered, gotRight: checkedRight, tryNext: checkedTryNext } };

@@ -83,12 +83,14 @@ describe('the checks on what the model wrote', () => {
   });
 
   it('drops any line about right work when code found none', () => {
-    const check = checkRecapDraft({ ...GOOD_DRAFT, gotRight: 'You got every line right.' }, factsWith([{ line: '2x = 14', status: 'wrong' }]));
+    const draft = { ...GOOD_DRAFT, gotRight: 'You got every line right.' };
+    const check = checkRecapDraft(draft, factsWith([{ line: '2x = 14', status: 'wrong' }]));
     expect(check).toMatchObject({ recap: { gotRight: null } });
   });
 
   it.each(['You got every single question right.', 'You got photosynthesis right.', 'You got x equals five.', 'You got x equals four on your own.'])('says only what code found right, whatever the draft says: "%s"', (gotRight) => {
-    const check = checkRecapDraft({ ...GOOD_DRAFT, gotRight }, factsWith([{ line: 'x = 4', status: 'right' }, { line: '2x = 14', status: 'wrong' }]));
+    const draft = { ...GOOD_DRAFT, gotRight };
+    const check = checkRecapDraft(draft, factsWith([{ line: 'x = 4', status: 'right' }, { line: '2x = 14', status: 'wrong' }]));
     expect(check).toMatchObject({ recap: { gotRight: 'You got x equals 4 right.' } });
   });
 
@@ -102,9 +104,8 @@ describe('the checks on what the model wrote', () => {
     expect(check).toMatchObject({ recap: { tryNext: TRY_NEXT_FROM_CODE } });
   });
 
-  it('asks the student to answer only numbers the lesson held', () => {
-    expect(checkRecapDraft({ ...GOOD_DRAFT, tryNext: 'Try solving 4x + 9 = 33.' }, factsWith())).toMatchObject({ recap: { tryNext: TRY_NEXT_FROM_CODE } });
-    expect(checkRecapDraft({ ...GOOD_DRAFT, tryNext: 'Try taking three from both sides of two x.' }, factsWith())).toMatchObject({ recap: { tryNext: 'Try taking three from both sides of two x.' } });
+  it('keeps a new problem whose numbers are whole, because a fresh problem is the point of the line', () => {
+    expect(checkRecapDraft({ ...GOOD_DRAFT, tryNext: 'Try solving two x plus seven equals fifteen.' }, factsWith())).toMatchObject({ recap: { tryNext: 'Try solving two x plus seven equals fifteen.' } });
   });
 
   it('takes a tens word joined to a unit', () => {

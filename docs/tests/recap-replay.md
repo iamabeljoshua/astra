@@ -47,7 +47,7 @@ What code holds the model to, in `recap-rules.ts`:
 
 - `gotRight` is code's line, and the model does not write it. It exists only if code itself called some work right, and it names the last such line, such as "You got x equals 4 right." A line too long to say is left out.
 - `covered` and `tryNext` may not praise and may not say what the student did. `covered` may not name a number nobody said, a topic with no word in what was said, or a tens word joined to anything but a unit, such as "twenty-du".
-- Every number in `tryNext` must be one the lesson held, and whole, because the student is asked to answer it. If not, code's own line takes its place: "Try saying the main idea in one line, in your own words."
+- A broken number in `tryNext` never reaches the student, who is asked to answer it. Code's own line takes its place: "Try saying the main idea in one line, in your own words." A new problem with whole numbers stays, because a fresh problem is the point of the line. Holding its numbers to the lesson's was tried on 4 November and replaced 24 of 24 lines on an equation lesson, since Haiku writes a new problem however it is asked, so it did not ship.
 - At most 22 words a line and 60 in all, which is about 25 s.
 - A model that reads possible distress, or refuses to read at all, makes the ending gentle.
 - Past a spending limit, a timeout of 6 s, or two failed drafts, there is no recap and the session ends as it would have.
