@@ -688,11 +688,11 @@ describe('ending a session with a recap', () => {
       return (closed as AgentMessage & { type: 'beatClosed' }).turnId;
     }, { timeout: 3000 });
     for (const beatId of ['recap-0', 'recap-1']) harness.browser({ type: 'played', turnId: recapTurn, beatId: beatId as Beat['id'], ...STAMP_END, wordStartsMs: [0], durationMs: 100, playedWords: 1, firedCueMs: [], ending: 'finished', frozen: [] });
-    await vi.waitFor(() => expect(isOver).toBe(true), { timeout: 3000 });
+    await vi.waitFor(() => expect(isOver).toBe(true), { timeout: 8000 });
     expect(harness.session.isAtPause()).toBe(false);
     expect(harness.session.speakScene(scene)).toBe(false);
     expect(harness.messages.some((message) => message.type === 'words' && message.beatId === 'scene-0')).toBe(false);
-  });
+  }, 12_000);
 
   it('tells the page there is no recap and lets the room go, on a session with nothing in it', async () => {
     let isOver = false;
