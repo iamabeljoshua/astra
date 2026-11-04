@@ -137,7 +137,7 @@ export function BoardView({ board, atMs, onElementDrawn, onMathRefused, onBoardP
         <div
           key={getWrapperKey(element)}
           data-element={element.id}
-          className={`absolute top-0 left-0 w-max origin-top-left ${element.content.kind === 'writeMath' ? 'text-pen' : ''}`}
+          className={`absolute top-0 left-0 w-max origin-top-left ${element.content.kind === 'writeMath' || element.content.kind === 'text' ? 'board-tutor-pen' : ''}`}
           ref={(wrapper) => {
             if (wrapper) wrappers.current.set(element.id, wrapper);
             else wrappers.current.delete(element.id);

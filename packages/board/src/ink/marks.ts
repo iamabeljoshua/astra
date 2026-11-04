@@ -10,7 +10,7 @@ export interface MarkBox {
 
 const RING = { steps: 26, paddingX: 7, paddingY: 4, wobble: 0.035, overlapRadians: 0.5, startRadians: -2.2 };
 const UNDERLINE = { steps: 8, gap: 3, wobble: 1.1 };
-const TICK = { sizeEms: 0.7, gap: 8 };
+const TICK = { sizeEms: 0.7, gap: 8 , largest: 30 };
 
 function getRing(box: MarkBox, random: () => number): InkDrawing['strokes'] {
   const centerX = box.x + box.width / 2;
@@ -31,15 +31,18 @@ function getUnderline(box: MarkBox, random: () => number): InkDrawing['strokes']
   return [makeStroke(points)];
 }
 
+// A tick is the size of a line of writing, even on something tall, such as a list of slots.
+const getTickSize = (box: MarkBox) => Math.min(box.height * TICK.sizeEms, TICK.largest);
+
 function getCheck(box: MarkBox): InkDrawing['strokes'] {
-  const size = box.height * TICK.sizeEms;
+  const size = getTickSize(box);
   const x = box.x + box.width + TICK.gap;
   const y = box.y + box.height / 2;
   return [makeStroke([{ x, y }, { x: x + size * 0.35, y: y + size * 0.4 }, { x: x + size, y: y - size * 0.55 }])];
 }
 
 function getCross(box: MarkBox): InkDrawing['strokes'] {
-  const size = box.height * TICK.sizeEms;
+  const size = getTickSize(box);
   const x = box.x + box.width + TICK.gap;
   const y = box.y + box.height / 2 - size / 2;
   return [makeStroke([{ x, y }, { x: x + size, y: y + size }]), makeStroke([{ x: x + size, y }, { x, y: y + size }])];
