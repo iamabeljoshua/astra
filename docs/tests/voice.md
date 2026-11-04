@@ -44,6 +44,10 @@ So on these vendors a first real word cannot beat about 1.5 s here with no model
 
 Starting the model early would not help on these numbers, because the final arrives after the detector's silence in every one of the 30 turns. The SDK's early start stays off, and M3.7 can start from the final or the partial itself.
 
+## The voice's settings
+
+Chris runs at stability 0.45, similarity boost 0.8, and speed 1.0, `TUTOR_VOICE_SETTINGS` in `providers/choose.ts`, which Abel chose by ear on the shared board prototype. Before that the session used the voice's defaults of 0.5 and 0.75. Stability changed how often Eric ran long, so M3.2's overlong check ran again, the same 40 requests of the same worst line on Flash: **0 of 40 overlong**, against 0 of 40 at the defaults, with 0 flagged and 0 false alarms. The median stayed 1870 ms, and the lengths ran 1777 to 2057 ms. That leaves about a 7% upper bound at 95% confidence, on this one line, on Flash. The 30 real turns above ran at the defaults, and so were the stored reactions recorded, so those takes may differ slightly from the live voice by ear.
+
 ## The rule's other limits
 
 | Target | Rule | Measured | Verdict |
@@ -70,7 +74,7 @@ The first run of this PR measured a final at 3.4 s at p50. The cause: the plugin
 | `clearUserTurn` on each reaction | Gone. A reaction's words become a turn the rule drops, so Muse stays open. Each session opened Muse once |
 | A new Muse session | 1154 to 1928 ms to answer the handshake, over 5 joins, and 985 to 2209 ms over 6 more. It opens on the first frame of the microphone. A greeting does not cover it, because a session opened by typing has none, so the browser holds the sound instead |
 | Turn patience's 38 of 120 | 4 of 20 long answers reached the cap, and 0 of 12 short ones. The turn was decided 285 ms after the voice ended at p50 on long answers, and 862 ms and 2341 ms from the last sound |
-| Decision 4's pause | **Differs from the design.** The tutor jumped in on a 1.5 s pause after a question, 3 of 3, on a synthetic voice. This row first blamed punctuation in real finals, which was wrong, because `inference.TurnDetector({version:'v1-mini'})` predicts from audio and takes no text. A reviewer ran 3 rounds each. The stock clip with real punctuation jumped 3 of 3, at 1220 to 1341 ms. The same audio with punctuation stripped jumped 3 of 3, at 925 to 1161 ms, scoring 0.38 to 0.52 against a threshold of 0.36. The same opening words cut from inside a longer sentence jumped 0 of 3, scoring 0.09 and 0.11, and waited on the 2 s cap. So the clip's finished-sounding tone caused it. The tutor stops on the student's next word. Its second reply carried only the 8 new words, 6 of 6, so a reply cut before it finished now still owes its words, and the rerun carried both halves 3 of 3 on the fake voice. Left for Abel, with the reviewer's judgment and the coordinator's: do not raise the floor on this evidence. If a real voice still gets cut, raise the wait only after a question, which costs other turns nothing. The microphone test has a line for it |
+| Decision 4's pause | **Differs from the design.** The tutor jumped in on a 1.5 s pause after a question, 3 of 3, on a synthetic voice. This row first blamed punctuation in real finals, which was wrong, because `inference.TurnDetector({version:'v1-mini'})` predicts from audio and takes no text. A reviewer ran 3 rounds each. The stock clip with real punctuation jumped 3 of 3, at 1220 to 1341 ms. The same audio with punctuation stripped jumped 3 of 3, at 925 to 1161 ms, scoring 0.38 to 0.52 against a threshold of 0.36. The same opening words cut from inside a longer sentence jumped 0 of 3, scoring 0.09 and 0.11, and waited on the 2 s cap. So the clip's finished-sounding tone caused it. The tutor stops on the student's next word. Its second reply carried only the 8 new words, 6 of 6, so a reply cut before it finished now still owes its words, and over three reruns on the fake voice the tutor jumped in 8 of 9 and the last reply carried both halves 9 of 9. Left for Abel, with the reviewer's judgment and the coordinator's: do not raise the floor on this evidence. If a real voice still gets cut, raise the wait only after a question, which costs other turns nothing. The microphone test has a line for it |
 | "Hmm, let me think" | Heard as "Let me think." 3 of 3, no reply, and the tutor prompted at 9.3 s from the last sound |
 | Keywords | Off, as the plan says |
 | 60 minute cap | A new session opens at 50 minutes at a pause, or at 55 with none, and the old one hears audio until the new one answers. Tested on a fake of the wire with short timers, and never for 60 real minutes |
@@ -100,9 +104,9 @@ Every line was a Mac voice through the real room and real Muse, with the fake vo
 
 | Case | Before | Now, every word heard | The final, from the last sound |
 | --- | --- | --- | --- |
-| Type, wait for the answer, press Talk, speak 300 ms later, into a Muse that has never opened | Lost the start of the line | 12 of 12, over two runs. On the last run Muse answered in 1185 to 2011 ms, and the browser heard `earsOpen` 2247 to 3200 ms after the press | 1004 to 2069 ms on the last run. 1195 to 2953 ms on the first, and 4499 ms once, when Muse held its final and the tutor answered from the partial 1431 ms after the voice ended |
-| Off for 3 s and on, speak at once, Muse still open | Lost the first word 1 of 3 | 6 of 6, over two runs | 1797 to 2029 ms on the last run, 1603 to 1910 ms on the first |
-| Off for 14 s and on, speak at once, Muse closed and opening again | Not measured, because Muse stayed open and paid | 6 of 6, over two runs | 3214 to 6456 ms on the last run, 2847 to 3635 ms on the first |
+| Type, wait for the answer, press Talk, speak 300 ms later, into a Muse that has never opened | Lost the start of the line | 18 of 18, over three runs. On the last, Muse answered in 1343 to 1982 ms, and the browser heard `earsOpen` 2439 to 3116 ms after the press | 1004 to 3199 ms, and 4499 ms once, when Muse held its final and the tutor answered from the partial 1431 ms after the voice ended |
+| Off for 3 s and on, speak at once, Muse still open | Lost the first word 1 of 3 | 9 of 9, over three runs | 1603 to 2079 ms |
+| Off for 14 s and on, speak at once, Muse closed and opening again | Not measured, because Muse stayed open and paid | 9 of 9, over three runs | 2847 to 6456 ms |
 
 So a line spoken into the wait is answered later, by about what the wait took, and only that once. The usual final stays at about 791 ms at p50, because the line has caught up by then. A loud room is the open risk: nothing above an RMS of 0.015 counts as quiet, because losing a soft word is worse than running late, so a room louder than that catches up only in its quiet moments.
 
@@ -115,7 +119,7 @@ Real `getUserMedia` reading a fake capture file, on real WebRTC, with the bytes 
 | Case | First run of this PR | Now |
 | --- | --- | --- |
 | Talk twice, 200 ms apart | 2 live tracks and 2 senders | The second press means off. The microphone is off, with 0 tracks captured and 0 senders |
-| Then one off press, still talking | `mic` off and `aria-pressed` false, with tracks `live` and `ended`, sender bytes rising from 36404 to 49705 in 3 s, and Muse finals and turns still firing | Three presses gave 1 track and 1 sender, moving 18755 bytes in 3 s. One off press: track `ended`, sender removed, 0 bytes moved in 3 s, and nothing heard by the agent from 2.5 s after the press |
+| Then one off press, still talking | `mic` off and `aria-pressed` false, with tracks `live` and `ended`, sender bytes rising from 36404 to 49705 in 3 s, and Muse finals and turns still firing | Three presses gave 1 track and 1 sender, moving 15598 bytes in 3 s. One off press: track `ended`, sender removed, 0 bytes moved in 3 s, and nothing heard by the agent from 2.5 s after the press |
 | A press 0, 20, 60, and 200 ms after pressing on | Not run | Each ended off, with 0 live tracks and 0 live senders |
 | The room refuses the track | Track left captured, and the page said the browser refused | The track is `ended`, with 0 senders, and the page says the microphone could not start |
 | The page leaves | Not run | `pagehide` ended the track before anything could wait, and leaving the session screen inside the app ended it too |
@@ -125,31 +129,74 @@ One loop moves the microphone toward what the student last asked for, so a press
 
 ## Rooms, tokens, and a tutor that has gone
 
-**Only the API calls the tutor in.** A token cannot be taken back, and one that named the agent could start a job for a finished session, so tokens no longer name it and last 2 minutes rather than 10. The API opens the room and calls the tutor in, for a session that has not finished. `run-safety-proof.ts --only finished` ended a session from outside its open page. The page said the connection had ended 2 ms after the finish answered, the job closed in 2841 ms, and a new token answered 409. The old token could still join for its last moments, into an empty room, and started no job, 1 job before and 1 after. That join reaches LiveKit and nothing else, and it ends when the token does.
+**Only the API calls the tutor in.** A token cannot be taken back, and one that named the agent could start a job for a finished session, so tokens no longer name it and last 2 minutes rather than 10. The API opens the room and calls the tutor in, for a session that has not finished. `run-safety-proof.ts --only finished` ended a session from outside its open page. The page said the connection had ended 2 ms after the finish answered, the job closed in 1693 to 2841 ms over two runs, and a new token answered 409. The old token could still join for its last moments, into an empty room, and started no job, 1 job before and 1 after. That join reaches LiveKit and nothing else, and it ends when the token does.
 
 **Each room gets a new name.** On LiveKit Cloud, for at least 12 s after a delete, a create of the same name answered with the old room and called no one: at 1, 3, 6, and 12 s it did, and at 25 and 50 s it did not. So `session-<id>-<8 hex>` is new each time. The API keeps the names it has given, because every call to LiveKit from this Mac is slow, as "How long the first word takes" shows. It checks a known name before reusing it, and it lists every room in the project only for a name this process has lost, such as after a restart. So more than one API process would each make that slow list, and a deploy with several should store the name on the session.
 
-**A job that dies.** It used to leave the page flipping between live and reconnecting, each rejoin minting a token and keeping the room alive. A killed job now ends in a clear message: the page said `reconnecting` from 3292 ms and gave up at 19778 ms, after 3 tokens and none in the next 8 s, with the microphone off. **Try again** closes that room and opens a new one, and the tutor was back in 5709 ms and answered. It starts fresh, without what was said so far, and the message says so. LiveKit would restart a crashed job by itself after about 25 s, measured once, and a tutor who has forgotten the lesson with no word why is worse than saying so, so the room asks it not to.
+**A job that dies.** It used to leave the page flipping between live and reconnecting, each rejoin minting a token and keeping the room alive. A killed job now ends in a clear message: the page said `reconnecting` from about 3300 ms and gave up at 19778 and 24840 ms on two runs, after 3 tokens and none in the next 8 s, with the microphone off. **Try again** closes that room and opens a new one, and the tutor was back in 5270 to 5709 ms and answered. It starts fresh, without what was said so far, and the message says so. LiveKit would restart a crashed job by itself after about 25 s, measured once, and a tutor who has forgotten the lesson with no word why is worse than saying so, so the room asks it not to.
 
-**A quiet room.** `QUIET_ROOM_LIMIT_MS` in `live-session.ts` is 10 minutes with no student speech or typing, no board action, and no tutor speech. A minute before, the page says so and offers **Keep the room open**. At the limit the page says why, the job ends, and **Open the room again** brings a new tutor. `run-safety-proof.ts --only quiet` ran a 40 s limit standing in for it, with the warning half way. The warning showed at 20.3 s, **Keep the room open** took it down, and the next warning came 20.0 s later. Pressing nothing then, the room closed 20.1 s after that, the page said why, the reply box stayed read-only, and **Open the room again** brought a new tutor in 8.1 s, who answered. @@QUIET_TEN@@
+**A quiet room.** `QUIET_ROOM_LIMIT_MS` in `live-session.ts` is 10 minutes with no student speech or typing, no board action, and no tutor speech. A minute before, the page says so and offers **Keep the room open**. At the limit the page says why, the job ends, and **Open the room again** brings a new tutor. `run-safety-proof.ts --only quiet` ran a 40 s limit standing in for it, with the warning half way. The warning showed at 20.3 s, **Keep the room open** took it down, and the next warning came 20.0 s later. Pressing nothing then, the room closed 20.0 s after that, the page said why, the reply box stayed read-only, the room left LiveKit's list within 7.4 s, and **Open the room again** brought a new tutor in 5.5 s, who answered. Then `--only quietTen` ran the real limit on the real clock with nothing pressed: the warning at 540.5 s, the room closed at 600.3 s, and a new tutor 5.8 s after **Open the room again**.
+
+## How long the first word takes
+
+From pressing **Talk** on a new session to the tutor's first sound in the browser's audio graph. PRD section 6.3 asks for 3 s at p50. `run-join-timing.ts` splits it at every step a clock can see, and the same script ran on each commit: 8 joins, on the fake voice, on this Mac within 25 minutes at a load of 12 to 18, with a round trip near 235 ms because LiveKit placed these rooms in `ochicago1a`. Figures are p50 in ms from the press, and a negative one happened before the press.
+
+| Step | Tutor in the token, `116cc20`, pressed at once | The same, pressed after 5 s | API lists and creates on the press, `214495c`, pressed at once | Now, pressed at once | Now, pressed after 5 s |
+| --- | --- | --- | --- | --- | --- |
+| The API answered | 69 | 123 | 3772 | 1130 | 261 |
+| Signal connected | 1069 | 1020 | 4574 | 1957 | 1142 |
+| Student in the room | 1782 | 1838 | 5317 | 2743 | 1959 |
+| Job requested | 1211 | 1188 | 3519 | 1161 | -3942 |
+| Job in the room | 3410 | 3274 | 6497 | 3467 | -1491 |
+| Tutor's track up | 3932 | 3920 | 7061 | 4002 | -922 |
+| The agent hears hello | 4756 | 4689 | 7939 | 5100 | 2719 |
+| The greeting's turn reaches the page | 4996 | 4954 | 8162 | 5361 | 2988 |
+| **First sound** | 5061 | 5040 | 8295 | 5421 | 3050 |
+| First sound, best to worst | 4851 to 6186 | 4771 to 5868 | 7638 to 9326 | 4715 to 8531 | 2676 to 3162 |
+| Round trip to the edge | 228 | 238 | 237 | 242 | 239 |
+
+So a student who presses 5 s after the screen opens hears the tutor in 3050 ms, against 5040 ms on the commit that named the tutor in its token. An earlier run of 8 on the same path gave 2735 ms, so this sits about on the PRD's 3 s, at this round trip. A press the instant the screen opens, about 200 ms after the session exists, gets no lead on the job, so it waits on the same job start and stays near the old figure, at 5421 ms with a worst of 8531 ms. No human presses that fast, and the lead grows with every second before the press.
+
+**Where the difference came from.** An earlier comparison read 3788 ms over 5 joins with the tutor in the token, against 5383 ms over 8 once the API opened rooms, a gap of 1595 ms. It mixed two things. Run together, the old commit gives 5061 ms today, so about 1270 ms of the old figure was this network and this load, at a round trip of 228 ms against 134 to 155 ms. And that first change was worse than it looked. On the same method it gave 8295 ms, 3234 ms over the old commit, and all of it was one step: the API answered in 3772 ms rather than 69 ms, and asked for the job only at the end of that, because it listed every room in the project and then created one.
+
+| One call to LiveKit from this Mac, 5 or 6 samples | Median ms | Range |
+| --- | --- | --- |
+| List every room | 1717 | 273 to 2112 |
+| List one room by name, while it is open | 833 | 736 to 856 |
+| List a name that has gone | 274 | 266 to 294 |
+| Create a room, on a connection in use | 592 | 494 to 665 |
+| Create a room, after 6 s idle | 1105 | 1022 to 1412 |
+| A dispatch, on a connection in use | 505 | 498 to 545 |
+
+**What came out.**
+
+- The job. A new session opens its room as it starts, so the tutor is in the room about 3 s after that, usually before a student has pressed anything. The press makes no call to LiveKit, and the API answers in about 40 ms. The tutor hears nothing until the student joins, and the student connects only on a press or a typed reply. A session opened and never spoken in cost one job for about 122 s. The room closed itself on the `emptyTimeout`, nothing reached Muse, and a press after that brought a new tutor in 5950 ms.
+- The list. The API keeps the names it has given, checks a known name before reusing it, and lists every room only for a name it has lost.
+- The audio setup. Building the audio graph took 90 to 480 ms under load, and the page waited for it before asking for the room, so the two now run together.
+- The wait for a pulse. The page held `hello` until the agent's first pulse, which comes on the lossy channel. In a run of 8 with that wait, the agent heard `hello` 1004 to 1457 ms after the student joined, and 4931 ms once. Without it, 682 to 788 ms, because a tutor's track already says the agent is listening.
+
+**What did not help, so it stayed out.**
+
+- Joining alongside creating the room. On a press the instant the screen opens, the student is in the room at about 2500 ms and the job at about 3600 ms, so the student's join is not what the first word waits for. A join that beat the create would also leave a room with no tutor.
+- Holding the connection to LiveKit open. It would save about 500 ms of a create, which only matters for a press within about 2 s of the screen opening. Node's `fetch` drops an idle connection after 4 s, so holding one takes a new dependency or a ping.
+
+**What is left, for M3.10.** The press now spends about 880 ms on the signal connection, 820 ms joining, 760 ms subscribing to the track and saying hello, and 330 ms on the greeting's way back. All of it is the network, at this round trip. A session continued from Home gets no warm room yet, and pays the job again: warming there needs a call from the page, and with no keys that call's 503 would fail the journeys until M3.7's route answers 200. The largest lever left is joining the room when the screen opens, which should take off about 2 s by inference from these steps, and would send a student's IP address to LiveKit before they press anything, so that is Abel's call.
 
 ## LiveKit Cloud
 
 | Row | Measured | Local server's figure |
 | --- | --- | --- |
-| Room connected, from pressing Talk | 1273 ms at p50, 2063 ms worst, 5 joins | 401 to 641 ms |
-| The tutor's first sound, from pressing Talk | 3788 ms at p50, 7469 ms worst, over 5 joins with the tutor named in the token. **5383 ms at p50, 5810 ms worst, over 8 joins since the API opens the room**, on the fake voice both times | none |
+| Room connected, from pressing Talk | 1959 ms at p50, 8 joins, on a warmed room | 401 to 641 ms |
+| The tutor's first sound, from pressing Talk | 3050 ms at p50, 8 joins, 5 s after the screen opens, as "How long the first word takes" says | none |
 | Delivery of a stop | 162 ms at p50, 171 ms at p95. 273 to 305 ms over 8 stops in a room that split the student in `ochicago1a` and the agent in `ojohannesburg1a` | 3 ms |
 | Trip for a data message | 143 ms at p50 | about 60 ms |
 | Trip for audio, first frame to first sample | 286 ms at p50 | none |
-
-So a session's first word misses PRD section 6.3's 3 s at p50 from pressing Talk. A worker with an idle process takes about 2.3 s to start a job, and 6.4 s on one join. Since the API opens the room, a first word takes about 1.5 s longer, because creating a room took 1286 ms on Cloud, and that wait now comes before the job is called, where before it ran beside it. That is the cost of a tutor no token can call in, and safety comes first here. M3.10 owns this number, and opening the room when the session screen loads is its first lever.
 
 **The lag step.** It did not appear on Cloud. M3.2's reviewer saw one step of about 320 ms with no report, on a simulated link with 1% loss, in 1 run of 11. Here 8 runs of 66 s of a test tone over LiveKit Cloud and the real network gave 1880 gaps between words of 280 ms, with none over 322 ms and 0 `audioGap` reports. Single gaps grew by 16 to 42 ms as the browser's jitter buffer moved, which adds up to about 40 ms over a 66 s turn. That is 8.8 minutes on one network on one night, so it says the step is not common here, and no more. The tone's words all sound alike, so `analyse-run.ts` matches them a whole word off, and these runs read the tone's own rhythm instead.
 
 ## What it cost
 
-ElevenLabs: about 1,360 credits by the characters this lane sent, within the 2,000 limit. The account's own count rose more across the same hours, because M3.2's fix round spent on it at the same time, so the account alone cannot separate them. The stored takes were about 45 of those. Muse: under $0.30 by audio time, at $0.18 an hour, against the $5 limit. LiveKit Cloud: the free plan, with one room per run, each removed when its job closed.
+ElevenLabs: about 1,360 credits by the characters this lane sent, within the 2,000 limit. The account's own count rose more across the same hours, because M3.2's fix round spent on it at the same time, so the account alone cannot separate them. The stored takes were about 45 of those. Muse: under $0.30 by audio time, at $0.18 an hour, against the $5 limit. LiveKit Cloud: the free plan, with one room per run, each removed when its job closed. The fix round after the review spent 382 credits by the account's own count, all on the overlong check, and about $0.25 on Muse by the time its sessions stayed open, on the fake voice otherwise.
 
 ## What each browser and agent proof showed
 
@@ -176,7 +223,6 @@ Run on the real app on this Mac. Scripts are in `apps/agent/src/lab/proof/voice/
 - The worst link's limits after a stop, which "What remains after a stop" in `docs/architecture/live-session.md` measures. Cloud on this network showed no audio past the gain in these runs, and they did not aim at it. The stored takes all run at least 250 ms, so none is given up as old audio.
 - The board after a page reload. The log and resume are right and the turn resumes, and the board starts empty until M3.10 rebuilds it from the log.
 - What the tutor says when the model is real. This is a stand-in.
-- Ten real quiet minutes. A short limit stood in for them.
 - The held microphone on a real microphone in a real room. Its quiet rule met clean synthetic speech and unit tests with steady noise.
 
 ## What Abel can do

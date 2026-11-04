@@ -238,7 +238,7 @@ pnpm agent
 | `ASTRA_VOICE_TRACE=<folder>` | Agent | Writes each session's timings there, with no words. `ASTRA_VOICE_TRACE_WORDS=1` adds the words, for test speech only. |
 | `ASTRA_QUIET_LIMIT_MS=<ms>` | Agent | Replaces the 10 minutes a quiet room lasts, for a test. |
 
-The browser only ever receives a room token from `POST /sessions/:id/live-room`. It holds one room, the microphone, and the data channel, it lasts 2 minutes, and it cannot call the tutor in. Only the API does that, for a session that has not finished, and the API closes the room when the session finishes. Vendor keys stay on the servers. `docs/tests/voice.md` holds what was measured.
+The browser only ever receives a room token from `POST /sessions/:id/live-room`. It holds one room, the microphone, and the data channel, it lasts 2 minutes, and it cannot call the tutor in. Only the API does that, for a session that has not finished, and the API closes the room when the session finishes. A new session calls its tutor in as it starts, so the first press does not wait for a job, and that tutor leaves if no student joins within 2 minutes. Starting a room over is limited to 5 per student per 10 minutes. Vendor keys stay on the servers. `docs/tests/voice.md` holds what was measured.
 
 To change a vendor, see "Swapping a provider" in `docs/architecture/live-session.md`. `providers/choose.ts` is the one place that chooses.
 
