@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 jobs:
-  # Each job has its own 2 threads and its own limit, and they run at once, so an answer still comes within the limit of its start.
+  # Each job has its own 2 threads and its own limit, and they run at once. A job stopped at its limit can take over a minute to end, and that answer came at 324 s.
   typecheck-and-web:
     runs-on: ubuntu-latest
     timeout-minutes: 4
@@ -83,7 +83,7 @@ jobs:
             exit 1
           }
       - run: pnpm lint
-      # Lint uses both threads, so it finishes first, and these tests with real timers see no extra load.
+      # Lint uses both threads, so these tests with real timers wait for it, and the API tests then run beside them.
       - name: Run the agent tests
         background: true
         run: pnpm --filter @astra/agent test
@@ -91,10 +91,9 @@ jobs:
         wait: postgres
       - name: Fail if the running Postgres image does not have the pinned digest
         run: .github/scripts/postgres-image.sh check-running-image
-      # pnpm db:migrate and pnpm db:seed would each rebuild what pnpm api:types just built, and pnpm verify start still runs pnpm db:migrate.
+      # pnpm db:migrate would rebuild what pnpm api:types just built, and pnpm verify start still runs it. Only this line runs the root db:seed script, so its 6 s rebuild stays.
       - name: Build a fresh database from the migrations and seed it
-        working-directory: apps/api
-        run: node dist/infrastructure/orm/cli.js migrate && node dist/infrastructure/orm/cli.js seed
+        run: node apps/api/dist/infrastructure/orm/cli.js migrate && pnpm db:seed
       - name: Run the API tests
         run: pnpm --filter @astra/api test
       - name: Build the web app, which fails if a development account reaches any file in the output
@@ -106,12 +105,18 @@ jobs:
       - name: Fail if the agent tests failed
         wait-all:
 
-  # Merges read this one status. A job that was cancelled at its limit is not a success, so this fails too.
+  # Merges read this one status. needs.*.result reads only the jobs in needs, so the first step fails on a job left out, and the second fails on a job cancelled at its limit.
   checks:
     needs: [typecheck-and-web, api-and-agent]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 1
     steps:
-      - name: Fail unless every job succeeded
-        run: test "${{ needs.typecheck-and-web.result }}" = success && test "${{ needs.api-and-agent.result }}" = success
+      - uses: actions/checkout@v7
+      - name: Fail if needs leaves out a job in this file
+        run: yq -o=json .github/workflows/ci.yml | jq -e '(.jobs | del(.checks) | keys) - .jobs.checks.needs | debug | length == 0'
+      - name: Fail unless every job in needs succeeded
+        if: ${{ !cancelled() }}
+        env:
+          RESULTS: ${{ toJSON(needs.*.result) }}
+        run: jq -e 'length > 0 and all(. == "success")' <<< "$RESULTS"
