@@ -1,6 +1,8 @@
 import type { components } from '@astra/contracts';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { getMemoryNote } from '../src/learner-record/memory-note.ts';
+import { isDetailOnTheList, isTopicOnTheList } from '../src/learner-record/topic-words.ts';
 
 type LearnerNote = components['schemas']['LearnerNoteDto'];
 
@@ -61,6 +63,14 @@ describe('the memory note the tutor reads', () => {
 
   it('does not let a stale struggle or a stale skill reach the tutor', () => {
     expect(getMemoryNote({ notes: [makeNote({ kind: 'struggled', topic: 'fractions', daysAgo: 200 }), makeNote({ kind: 'showed', topic: 'algebra', daysAgo: 200 })] }, NOW).memory.count).toBe(0);
+  });
+
+  it('tests personal teaching only on notes that could really reach the tutor', () => {
+    const HOSTILE_GROUPS = ['no-family-example-note', 'injection-cares-about-example'];
+    const readCases = (file: string) => JSON.parse(readFileSync(new URL(`../../../evals/tutor-turns/${file}`, import.meta.url), 'utf8')) as { name: string; memory?: { kind: LearnerNote['kind']; about: string; detail?: string }[] }[];
+    const cases = [...readCases('groups-personal.json'), ...readCases('lessons-personal.json')].filter(({ name }) => !HOSTILE_GROUPS.includes(name));
+    const offTheList = cases.flatMap(({ memory = [] }) => memory).filter(({ kind, about, detail }) => !isTopicOnTheList(kind, about) || (detail !== undefined && !isDetailOnTheList(detail)));
+    expect(offTheList).toEqual([]);
   });
 
   it('stops reading a note too old to trust', () => {
