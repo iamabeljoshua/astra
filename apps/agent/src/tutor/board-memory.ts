@@ -127,6 +127,11 @@ export function getMemoryOnNewTurn(memory: BoardMemory): BoardMemory {
   return memory.openTask ? { ...memory, openTask: { ...memory.openTask, studentTurns: memory.openTask.studentTurns + 1 } } : memory;
 }
 
+/** The tutor has answered the wrong work, so its next "right, so" is not praise of it. */
+export function getMemoryAfterAnswering(memory: BoardMemory): BoardMemory {
+  return { ...memory, isLatestWorkWrong: false };
+}
+
 export function getMemoryAfterWork(work: StudentWork, { reading, verdict, closesTask }: CheckedWork, memory: BoardMemory): BoardMemory {
   const id = work.way === 'write' ? work.id : work.task;
   const tex = reading ? getLineTex(reading) : null;

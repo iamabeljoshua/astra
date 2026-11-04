@@ -3,7 +3,7 @@ import type { ElementId, StudentWork } from '@astra/contracts';
 import { decideOnReading, decideOnWork, decideWatch, WATCH_SECONDS, type WatchSituation, WORD_MEANINGS } from '../src/tutor/watcher/watch-rule.ts';
 import { readLine } from '@astra/board/shared';
 
-const QUIET: WatchSituation = { secondsPaused: 0, isTutorTalking: false, secondsSinceQuestion: null, secondsSinceSpokeUp: null, draft: null, unanswered: null };
+const QUIET: WatchSituation = { secondsPaused: 0, isTutorTalking: false, secondsSinceQuestion: null, secondsSinceSpokeUp: null, draft: null, unanswered: null, hasOpenTask: true, hasLeanedInOnThisSilence: false };
 const wrongLine = { status: 'wrong', why: 'false' } as const;
 const asDraft = (text: string, verdict: NonNullable<WatchSituation['draft']>['verdict'] = { status: 'unknown' }) => ({ text, reading: readLine(text), verdict });
 const line = (text: string): StudentWork => ({ way: 'write', id: 's1' as ElementId, text });
@@ -19,6 +19,8 @@ describe('the watch rule decides timing, with no model', () => {
     ['the tutor talking, however long the pause', { secondsPaused: 90, isTutorTalking: true, draft: asDraft('help me') }],
     ['a question still being answered', { secondsPaused: 90, secondsSinceQuestion: WATCH_SECONDS.afterQuestion - 1, draft: asDraft('help me') }],
     ['just after speaking up', { secondsPaused: 90, secondsSinceSpokeUp: WATCH_SECONDS.afterSpeakingUp - 1, draft: asDraft('help me') }],
+    ['a long silence with no task, when the student may be listening', { secondsPaused: 90, hasOpenTask: false }],
+    ['a long silence the tutor has already leaned in on', { secondsPaused: 90, hasLeanedInOnThisSilence: true }],
   ])('stays quiet: %s', (_, situation) => {
     expect(decideWatch({ ...QUIET, ...situation }).act).toBe('stay');
   });

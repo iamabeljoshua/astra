@@ -19,6 +19,9 @@ const SPOKEN_POWERS: Readonly<Record<string, string>> = { squared: '^2', cubed: 
 const CLAIM_WORDS: ReadonlySet<string> = new Set(['so', 'then', 'thus', 'hence', 'therefore', 'answer', 'answer:', 'i', 'get', 'got', 'gives', 'is', 'that', 'it', "it's", 'which', 'means', 'and', 'now', 'ok', 'okay']);
 const MANY_LETTERS = /^[xyzabcnt]+$/;
 const LONE_LETTER = /^[A-Za-z]$/;
+/** What the log can hold of one line. A line past these is simply words. */
+const MOST_PARTS = 40;
+const LONGEST_TEX = 400;
 const TRAILING_PUNCTUATION = /[?!,;:.]+$/;
 const ENDS_A_CHUNK = /[,:;]$/;
 const ALLOWED_IN_MATH = /^[0-9A-Za-zπ().^+\-*/=±<>≥≤|]+$/;
@@ -136,7 +139,7 @@ function getMathTex(run: readonly Token[]): string | null {
   if (body.length > MATH_LINE_MAX_CHARACTERS) return null;
   const tex = plainToTex(body);
   if (!isComplete && !canReadEverySide(tex)) return null;
-  return getTexProblem(tex) === null && canRenderTex(tex) ? tex : null;
+  return tex.length <= LONGEST_TEX && getTexProblem(tex) === null && canRenderTex(tex) ? tex : null;
 }
 
 function getParts(tokens: readonly Token[]): LinePart[] {
@@ -191,7 +194,8 @@ export function readLine(rawText: string, reads?: WriteReading): LineReading {
   const text = line.trim();
   const isAsking = /\?\s*$/.test(text);
   if (reads !== undefined) return { kind: reads, parts: [{ type: 'words', text: reads === 'code' ? line : text }], isAsking };
-  return toReading(text, getParts(getTokens(text)), isAsking);
+  const parts = getParts(getTokens(text));
+  return parts.length > MOST_PARTS ? { kind: 'words', parts: [{ type: 'words', text }], isAsking } : toReading(text, parts, isAsking);
 }
 
 /** The math the line claims, if it holds exactly one piece. */

@@ -88,6 +88,21 @@ describe('work on the shared board', () => {
   });
 });
 
+describe('a page that floods the board', () => {
+  it('holds a bounded number of notes, so the next request stays small', async () => {
+    const { brain, requests } = setup(['Okay, go on.']);
+    for (let index = 1; index <= 60; index += 1) brain.noteWork(line(`s${index}`, 'hmm'));
+    await collect(brain, 'hi');
+    expect(getNotes(requests[0]).filter((note) => note.student_work)).toHaveLength(20);
+  });
+
+  it('stops taking work after a session limit', () => {
+    const { brain } = setup(['Okay.']);
+    for (let index = 1; index <= 2000; index += 1) expect(brain.noteWork(line(`s${index}`, 'hmm'))).not.toBeNull();
+    expect(brain.noteWork(line('s2001', 'hmm'))).toBeNull();
+  });
+});
+
 describe('marks and words code will not allow', () => {
   const MARK = (mark: string, target = 's1') => `{"kind":"annotate","id":"m1","target":"${target}","mark":"${mark}"}`;
 
@@ -120,6 +135,15 @@ describe('marks and words code will not allow', () => {
     expect(traces).toContain('wordsRefused');
     expect(beats.map(getBeatText).join(' ')).toBe('Look at the eleven again.');
     expect(getNotes(requests[2]).some((note) => note.correction)).toBe(true);
+  });
+
+  it('lets the tutor say "right, so" once it has answered the wrong line', async () => {
+    const { brain, traces } = setup([SET_PROBLEM, 'Not quite, look at the eleven.', 'Right, so what next?']);
+    await collect(brain, 'help me');
+    brain.noteWork(line('s1', '2x = 14', 'a1'));
+    await collect(brain, '2x = 14');
+    await collect(brain, 'oh i see');
+    expect(traces).not.toContain('wordsRefused');
   });
 
   it('lets the same words stand on a right line', async () => {

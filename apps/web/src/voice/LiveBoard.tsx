@@ -5,12 +5,19 @@ import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import type { BoardProblem } from '../board/boardPainting';
 import { TypedLine } from '../board/TypedLine';
 import { BoardView } from '../lab/BoardView';
-import { VOICE_LABELS } from '../strings';
+import { BOARD_WORK_LABELS, VOICE_LABELS } from '../strings';
 import type { LiveVoice } from './liveVoice';
 
 interface BoardFrame {
   board: BoardState;
   atMs: number;
+}
+
+function getLastWorkWords(board: BoardState): string {
+  const line = [...board.elements.values()].reverse().find((element) => element.content.kind === 'studentLine')?.content;
+  if (line?.kind !== 'studentLine') return '';
+  const read = `${BOARD_WORK_LABELS.readAs} ${BOARD_WORK_LABELS.kinds[line.reading.kind]}.`;
+  return line.verdict.status === 'right' ? `${read} ${BOARD_WORK_LABELS.checked}` : read;
 }
 
 // The board is a pure reading of the clock, so one read per frame is all it needs.
@@ -46,6 +53,7 @@ export function LiveBoard({ voice, whileEmpty }: { voice: LiveVoice; whileEmpty:
       <div className="board-shared min-h-0 flex-1">
         <BoardView board={frame.board} atMs={frame.atMs} onBoardProblem={reportProblem} onWork={sendWork} />
       </div>
+      <p role="status" className="sr-only">{getLastWorkWords(frame.board)}</p>
       <TypedLine task={getOpenTaskOnBoard(frame.board)} getBoard={getBoard} onWork={sendWork} onPause={sendPause} activity={activity} />
     </section>
   );

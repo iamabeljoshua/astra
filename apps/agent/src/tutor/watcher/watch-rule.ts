@@ -13,6 +13,10 @@ export interface WatchSituation {
   draft: { text: string; reading: LineReading; verdict: WorkVerdict } | null;
   /** The student's latest sent work that the tutor has not yet replied to. */
   unanswered: { verdict: WorkVerdict; isSameWrongLineTwice: boolean } | null;
+  /** A task is open, so a long silence may mean the student is stuck. With none, they may just be listening. */
+  hasOpenTask: boolean;
+  /** The tutor has already leaned in on this silence, and asking again would nag. */
+  hasLeanedInOnThisSilence: boolean;
 }
 
 export type WatchDecision = { act: 'stay'; why: string } | { act: 'speak'; why: string } | { act: 'readWords' };
@@ -41,11 +45,11 @@ function decideOnDraft({ draft, secondsPaused }: WatchSituation & { draft: NonNu
   return isWords && HOLDS_WORDS.test(draft.text) && secondsPaused >= WATCH_SECONDS.wordsToRead ? { act: 'readWords' } : stay('the student is working');
 }
 
-function decideOnQuiet({ unanswered, secondsPaused }: WatchSituation): WatchDecision {
+function decideOnQuiet({ unanswered, secondsPaused, hasOpenTask, hasLeanedInOnThisSilence }: WatchSituation): WatchDecision {
   if (unanswered?.isSameWrongLineTwice && secondsPaused >= WATCH_SECONDS.sameWrongLineTwice) return speak('the same wrong line twice');
   if (unanswered?.verdict.status === 'wrong' && secondsPaused >= WATCH_SECONDS.wrongLineSat) return speak('sent wrong work nobody answered');
   if (unanswered?.verdict.status === 'unknown' && secondsPaused >= WATCH_SECONDS.unjudgedWorkSat) return speak('work code cannot judge has sat');
-  return secondsPaused >= WATCH_SECONDS.nothingChanged ? speak('nothing has changed for a long time') : stay('the student is thinking');
+  return hasOpenTask && !hasLeanedInOnThisSilence && secondsPaused >= WATCH_SECONDS.nothingChanged ? speak('nothing has changed for a long time') : stay('the student is thinking');
 }
 
 /** When to lean in is timing and facts, so code decides it. A model is asked only what typed words mean, and only when this says so. */

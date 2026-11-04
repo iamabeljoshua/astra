@@ -2,7 +2,7 @@ import { type Beat, type BeatId, type ElementId, clipTypedText, getBeatText, get
 import { type BoardOperation, type BoardState, type CheckedWork, checkWorkOnBoard, cleanStudentText as cleanLine, getBoardAt, getOpenTaskOnBoard, getWorkContext } from '@astra/board/shared';
 import { type ModelEvent, ModelRejectedError, type ModelUsage, type TutorModelAdapter, type TutorModelRequest, type TutorTurn } from '../providers/types.ts';
 import { BeatTextReader, type WrittenBeatParts } from './beat-text-reader.ts';
-import { type BoardMemory, checkAgainstBoard, EMPTY_BOARD, getMemoryAfter, getMemoryAfterWork, getMemoryOnNewTurn, getWordsProblem } from './board-memory.ts';
+import { type BoardMemory, checkAgainstBoard, EMPTY_BOARD, getMemoryAfter, getMemoryAfterAnswering, getMemoryAfterWork, getMemoryOnNewTurn, getWordsProblem } from './board-memory.ts';
 import { TUTOR_SYSTEM } from './prompt.ts';
 import { createLinePicker, type SpokenLineUse } from './spoken-lines.ts';
 import { getWorkNote } from './watcher/work-note.ts';
@@ -132,6 +132,9 @@ interface TurnWork {
 }
 
 const RESUMED_BEAT = /^(.+?)(?:-r\d+(?:-rest)?)+$/;
+/** A page could flood the board with work that gets no reply, and each piece would be paid for in the next request. */
+const MOST_NOTES_OF_WORK_HELD = 20;
+const MOST_WORK_IN_A_SESSION = 2000;
 const WAIT_STEP_MS = 5;
 const MAX_ATTEMPTS = 2;
 /** Varied, because a pause of one fixed length turns into a tic. The voice adds about 400 ms to each. */
@@ -208,6 +211,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
   let turns: TutorTurn[] = [];
   let memory: BoardMemory = EMPTY_BOARD;
   const boardOperations: BoardOperation[] = [];
+  let workCount = 0;
   const getBoardNow = () => getBoardAt(boardOperations, Number.POSITIVE_INFINITY);
   let toldBoard = '{}';
   let pendingNotes: Record<string, unknown>[] = profileNote ? [profileNote] : [];
@@ -285,7 +289,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
           turn.wrongMath = problem;
           trace('mathRefused', { problem });
         },
-        checkWords: (text) => getWordsProblem(text, memory, turn.beats.length === 0),
+        checkWords: (text) => getWordsProblem(text, readerMemory, turn.beats.length === 0),
         onWrongWords(problem) {
           turn.wrongWords = problem;
           trace('wordsRefused', { problem });
@@ -629,6 +633,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
   };
 
   const finishTurn = (turn: TurnWork) => {
+    memory = getMemoryAfterAnswering(memory);
     turn.costUsd = turn.usage ? model.getCostUsd(turn.usage) : 0;
     const wasRefused = turn.endedAs === 'refused';
     const text = getAcceptedRaw(turn);
@@ -732,12 +737,16 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
     getClosedReason: () => (hasToldClosed ? closedReason : null),
     noteWork(work) {
       if (work.way === 'write' && (!isStudentLineId(work.id) || memory.kinds.has(work.id))) return null;
+      if (workCount >= MOST_WORK_IN_A_SESSION) return null;
+      workCount += 1;
       const board = getBoardNow();
       const taskId = work.task;
       const hadTask = getWorkContext(board, taskId).task !== null;
       const checked = checkWorkOnBoard(work, board);
       boardOperations.push({ kind: 'worked', atMs: boardOperations.length, action: { action: 'worked', work, ...checked } });
       memory = getMemoryAfterWork(work, checked, memory);
+      const heldNotesOfWork = pendingNotes.filter((note) => 'student_work' in note);
+      if (heldNotesOfWork.length >= MOST_NOTES_OF_WORK_HELD) pendingNotes = pendingNotes.filter((note) => note !== heldNotesOfWork[0]);
       pendingNotes.push({ student_work: getWorkNote(work, checked, getWorkContext(board, taskId)) });
       return { checked, hadTask };
     },

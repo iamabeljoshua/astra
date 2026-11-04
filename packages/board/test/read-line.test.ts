@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { type ElementId, getTexProblem } from '@astra/contracts';
+import { clipTypedText, type ElementId, getTexProblem, parseSessionEvent } from '@astra/contracts';
 import { canRenderTex } from '../src/math/tex-check.ts';
 import { checkWork, getLineTex, readLine } from '../src/shared/index.ts';
 
@@ -109,6 +109,14 @@ describe('a typed line is hostile input', () => {
 
   it('takes invisible and direction characters out before anything reads the line', () => {
     expect(getLineTex(readLine('\u202Ex\u200B =\u2066 4\u202C'))).toBe('x=4');
+  });
+
+  it('never makes a reading the log could not hold', () => {
+    for (const line of ['a=1 word '.repeat(220), `${'1*'.repeat(99)}1 = 1`, 'x = 1, '.repeat(280)]) {
+      const reading = readLine(line);
+      const parsed = parseSessionEvent({ seq: 0, atMs: 0, kind: 'studentActed', action: { action: 'worked', work: { way: 'write', id: 's1', text: clipTypedText(line) }, reading, verdict: { status: 'unknown' } } });
+      expect(parsed.ok, line.slice(0, 20)).toBe(true);
+    }
   });
 
   it('takes no command a student typed into the math', () => {

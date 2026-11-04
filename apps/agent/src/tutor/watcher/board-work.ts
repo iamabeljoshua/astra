@@ -28,6 +28,7 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
   let spokeUpAtMs: number | null = null;
   let unanswered: Unanswered | null = null;
   let wrongKeys: readonly string[] = [];
+  let hasLeanedIn = false;
 
   const noteAnswered = () => {
     unanswered = null;
@@ -37,6 +38,7 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
     const noted = tutor.noteWork?.(message.work);
     if (!noted) return trace('workRefused', { way: message.work.way });
     const { checked, hadTask } = noted;
+    hasLeanedIn = false;
     writeLog(message, checked);
     const key = getWorkKey(message.work);
     if (checked.verdict.status === 'wrong') wrongKeys = [...wrongKeys, key];
@@ -61,11 +63,14 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
       secondsSinceSpokeUp: spokeUpAtMs === null ? null : (nowMs - spokeUpAtMs) / 1000,
       draft,
       unanswered: unanswered && { verdict: unanswered.checked.verdict, isSameWrongLineTwice: new Set(unanswered.keys).size < unanswered.keys.length },
+      hasOpenTask: board?.openTask != null,
+      hasLeanedInOnThisSilence: hasLeanedIn,
     };
   };
 
   const speakAtPause = (decision: WatchDecision & { act: 'speak' }, seconds: number, draftText: string | undefined) => {
     spokeUpAtMs = getNowMs();
+    hasLeanedIn = true;
     noteAnswered();
     tutor.noteWatcher?.({ why: decision.why, seconds_paused: seconds, ...(draftText ? { unsent_draft: cleanStudentText(draftText) } : {}) });
     trace('watcherSpoke', { why: decision.why, seconds });
