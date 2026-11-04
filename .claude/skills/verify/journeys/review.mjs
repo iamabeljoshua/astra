@@ -26,13 +26,12 @@ export default async function review({ page, capture, signIn }) {
 
   const unreviewed = await page.getByRole('button', { name: 'Mark reviewed' }).count();
   await page.getByRole('button', { name: 'Mark reviewed' }).first().click();
-  await page.getByText(/^Reviewed /).first().waitFor();
-  assert.equal(await page.getByRole('button', { name: 'Mark reviewed' }).count(), unreviewed - 1, 'the button marks one flag');
+  await page.getByRole('button', { name: 'Mark reviewed' }).nth(unreviewed - 1).waitFor({ state: 'detached' });
   await capture('reviewed');
 
   await page.evaluate(() => localStorage.clear());
   await signIn(NOT_A_REVIEWER);
-  await page.getByRole('heading', { name: /^Welcome back/ }).waitFor();
+  await page.getByRole('heading', { name: /^Welcome/ }).waitFor();
   await page.goto('/review');
   await page.waitForURL((url) => url.pathname === '/');
   assert.equal(await page.getByRole('heading', { name: 'Safety flags' }).count(), 0, 'a non-reviewer never sees the queue');

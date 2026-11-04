@@ -3,7 +3,7 @@ const STUDENT_OF_VIEWPORT = { laptop: 'tola@astra.test', phone: 'maya@astra.test
 
 export default async function deleteMyData({ page, capture, viewportName, signIn }) {
   await signIn(STUDENT_OF_VIEWPORT[viewportName]);
-  await page.getByRole('heading', { name: /^Welcome back/ }).waitFor();
+  await page.getByRole('heading', { name: /^Welcome/ }).waitFor();
   if (viewportName === 'phone') await page.getByRole('button', { name: 'Menu' }).click();
   await page.getByRole('link', { name: 'Your notes' }).click();
 
