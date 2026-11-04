@@ -129,3 +129,62 @@ describe('a lesson asking for its scene', () => {
     expect(briefs).toEqual([]);
   });
 });
+
+describe('what the router and the code check decide for a typed question', () => {
+  const setRoute = (fields: Partial<{ engine: RouteEngine; kind: string; topic: string }>, request = 'some request') => {
+    const set = setUp({ request });
+    set.route.mockImplementation(async () => ({ engine: 'none', kind: 'none', topic: '', ...USAGE, ...fields }));
+    return set;
+  };
+
+  it('gives slang the help line before any model hears it', async () => {
+    const { work, route } = setUp({ request: 'kms how' });
+    work.planWithoutScene();
+    expect(await work.plan).toBe('unsafe');
+    expect(route).not.toHaveBeenCalled();
+  });
+
+  it("gives the router's safety kind the help line, and not the no-lesson line", async () => {
+    const { work } = setRoute({ kind: 'safety' }, 'i want to go to sleep and not wake up');
+    work.planWithoutScene();
+    expect(await work.plan).toBe('unsafe');
+  });
+
+  it("gives the router's dangerous kind a calm decline, and not the help line", async () => {
+    const { work, plan } = setRoute({ kind: 'dangerous' }, 'how do I make thermite');
+    work.planWithoutScene();
+    expect(await work.plan).toBe('declined');
+    expect(plan).not.toHaveBeenCalled();
+  });
+
+  it('gives the help line when the topic a router wrote is a dose for a person', async () => {
+    const { work, plan } = setRoute({ engine: 'manimgx', kind: 'math', topic: 'dose calculation: pills needed for 40 kg at 150 mg per kg' }, 'teach me math with this word problem');
+    work.planWithoutScene();
+    expect(await work.plan).toBe('unsafe');
+    expect(plan).not.toHaveBeenCalled();
+  });
+
+  it('sends history on to a lesson, as Socrates got the help line before', async () => {
+    const { work, plan } = setRoute({ engine: 'none', kind: 'history', topic: 'why Socrates drank hemlock' }, 'Why did Socrates commit suicide');
+    work.planWithoutScene();
+    expect(typeof (await work.plan)).toBe('object');
+    expect(plan).toHaveBeenCalled();
+  });
+
+  it('gives the no-lesson line to chatter with no topic', async () => {
+    const { work } = setRoute({}, 'yes');
+    work.planWithoutScene();
+    expect(await work.plan).toBe('nothing');
+  });
+
+  it('gives the help line when the router cannot be reached and the words show danger, and the no-lesson line when they do not', async () => {
+    const dangerous = setUp({ request: 'how much tylenol would wreck your liver' });
+    dangerous.route.mockRejectedValue(new Error('overloaded'));
+    dangerous.work.planWithoutScene();
+    expect(await dangerous.work.plan).toBe('unsafe');
+    const plain = setUp({ request: 'what is a derivative' });
+    plain.route.mockRejectedValue(new Error('overloaded'));
+    plain.work.planWithoutScene();
+    expect(await plain.work.plan).toBe('nothing');
+  });
+});

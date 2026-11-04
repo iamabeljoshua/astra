@@ -6,7 +6,7 @@ import { createTopicRuns } from '../src/scenes/lesson/topic-runs.ts';
 import { createLessonWork } from '../src/scenes/lesson/lesson-work.ts';
 import type { RenderWorker } from '../src/scenes/render-worker.ts';
 import { createSceneStore, getSceneKey } from '../src/scenes/scene-store.ts';
-import type { LessonPlan, OpeningLine, SceneRoute, StoredScene } from '../src/scenes/scene-types.ts';
+import { type LessonPlan, type OpeningLine, PlanRefused, type SceneRoute, type StoredScene } from '../src/scenes/scene-types.ts';
 
 const PLAN: LessonPlan = { opening: [{ say: 'What a slope measures is how steep a line is.' }], setup: 'Watch the slope.', narration: '[[a]] One two slope. [[b]] Three four.', plan: 'a: x\nb: y', close: 'Why does the slope change?' };
 const USAGE = { model: 'fake', ms: 1, costUsd: 0 };
@@ -127,13 +127,15 @@ describe('words that should never be said', () => {
     expect(shared.getWrites()).toBe(0);
   });
 
-  it('leave a typed question with no lesson, and no first line', async () => {
+  it('leave a typed question a lesson on the plain board, with none of those words, and no scene', async () => {
     const shared = makeShared({ plan: POISON });
     const work = shared.open({ request: TOPIC, isCard: false, studentId: 'maya' });
     work.desk.ask(work.request);
     await untilSettled(work);
-    expect(await work.plan).toBe('nothing');
-    expect(await work.firstLine).toBeNull();
+    const plan = await work.plan;
+    expect(typeof plan).toBe('object');
+    expect(JSON.stringify(plan)).not.toMatch(/Jane Doe/);
+    expect(JSON.stringify(await work.firstLine)).not.toMatch(/Jane Doe/);
     expect(shared.getWrites()).toBe(0);
   });
 });
@@ -207,7 +209,7 @@ describe('a plan that goes wrong', () => {
     const offTopic = { opening: [{ say: 'Soup needs salt.' }], more: [{ say: 'Jane Doe stirs the pot.' }], setup: 'Stir it.', narration: '[[a]] Add water. [[b]] Add salt.', plan: 'a: pot\nb: spoon', close: 'Is it hot?', ...USAGE };
     const plan = vi.fn().mockResolvedValue(offTopic);
     const { runs, write } = makeRuns(plan);
-    const run = runs.join(getSceneKey(TOPIC), { cardFallback: { say: 'Once a line tilts, what does its slope tell you?' } });
+    const run = runs.join(getSceneKey(TOPIC), { plainLine: { say: 'Once a line tilts, what does its slope tell you?' } });
     const settled = (await run.plan) as LessonPlan;
     expect(settled.opening.length).toBeGreaterThan(0);
     expect(JSON.stringify(settled)).not.toMatch(/Jane Doe/);
@@ -218,15 +220,32 @@ describe('a plan that goes wrong', () => {
   it('gives a card its library line and says why when no model will answer at all', async () => {
     const plan = vi.fn().mockRejectedValue(new Error('overloaded'));
     const { runs } = makeRuns(plan);
-    const settled = (await runs.join(getSceneKey(TOPIC), { cardFallback: { say: 'Once a line tilts, what does its slope tell you?' } }).plan) as LessonPlan;
+    const settled = (await runs.join(getSceneKey(TOPIC), { plainLine: { say: 'Once a line tilts, what does its slope tell you?' } }).plan) as LessonPlan;
     expect(JSON.stringify(settled)).toContain('Once a line tilts');
     expect(plan).toHaveBeenCalledTimes(2);
   });
 
-  it('has no plan for a typed question when both tries fail, and says it is not a danger refusal', async () => {
+  it('gives a typed question words on the plain board when both tries fail, and says why', async () => {
     const plan = vi.fn().mockRejectedValue(new Error('overloaded'));
     const { runs } = makeRuns(plan);
-    expect(await runs.join(getSceneKey(TOPIC, { ownerId: 'maya' })).plan).toBe('nothing');
+    const settled = (await runs.join(getSceneKey(TOPIC, { ownerId: 'maya' })).plan) as LessonPlan;
+    expect(JSON.stringify(settled)).toContain(TOPIC);
+    expect(settled.close).toMatch(/notes for this lesson/);
+  });
+
+  it('declines calmly, with no crisis wording, when both plans give dangerous specifics', async () => {
+    const dangerous = { ...PLAN, opening: [{ say: 'What a slope measures, with bleach and ammonia in a bucket.' }], ...USAGE };
+    const plan = vi.fn().mockResolvedValue(dangerous);
+    const { runs } = makeRuns(plan);
+    expect(await runs.join(getSceneKey(TOPIC, { ownerId: 'maya' })).plan).toBe('declined');
+    expect(plan).toHaveBeenCalledTimes(2);
+  });
+
+  it('declines when the planner says it should not teach this, and gives the help line when it says a student is being hurt', async () => {
+    const { runs } = makeRuns(vi.fn().mockRejectedValue(new PlanRefused('a recipe')));
+    expect(await runs.join(getSceneKey(TOPIC, { ownerId: 'maya' })).plan).toBe('declined');
+    const helped = makeRuns(vi.fn().mockRejectedValue(new PlanRefused('being hurt', true)));
+    expect(await helped.runs.join(getSceneKey(TOPIC, { ownerId: 'tola' })).plan).toBe('unsafe');
   });
 });
 
@@ -337,5 +356,119 @@ describe('a writer that starts from the streamed plan', () => {
     release();
     expect((await scene).isOk).toBe(true);
     expect(write).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('a capitalised name in a plan', () => {
+  const OCEAN: LessonPlan = { ...PLAN, opening: [{ say: 'What a slope measures is how the Pacific Ocean floor falls.' }, { say: 'A second clean line about a slope.' }] };
+  const PLANTED: LessonPlan = { ...PLAN, opening: [{ say: 'What a slope measures is how steep a line is.' }, { say: 'Sam Okoro says a slope is a line.' }, { say: 'A third clean line about a slope.' }] };
+
+  function makeNamedRuns({ plan, clear = async (names: readonly string[]) => new Set(names) }: { plan: ReturnType<typeof vi.fn>; clear?: (names: readonly string[], signal: AbortSignal) => Promise<ReadonlySet<string>> }) {
+    const store = createSceneStore(mkdtempSync(join(tmpdir(), 'plan-names-')));
+    const write = vi.fn(async () => ({ code: 'class Lesson: pass', ...USAGE }));
+    const nameReader = { clear: vi.fn(clear) };
+    return { store, write, nameReader, runs: createTopicRuns({ planner: { plan: plan as never }, nameReader, writers: [{ name: 'writer', write }], reviewer: { review: async () => ({ isPass: true, errors: [], ...USAGE }) }, worker, store, warn: () => {} }) };
+  }
+
+  it('asks a model about the flagged name alone, and teaches the plan with its scene on the first try', async () => {
+    const plan = vi.fn().mockResolvedValue({ ...OCEAN, ...USAGE });
+    const { runs, nameReader, write } = makeNamedRuns({ plan });
+    const run = runs.join(getSceneKey(TOPIC, { ownerId: 'maya' }));
+    expect(await run.plan).toMatchObject({ opening: OCEAN.opening, narration: OCEAN.narration });
+    expect(plan).toHaveBeenCalledOnce();
+    expect(nameReader.clear.mock.calls[0]?.[0]).toEqual(['Pacific Ocean']);
+    expect((await run.getScene()).isOk).toBe(true);
+    expect(write).toHaveBeenCalled();
+  });
+
+  it('asks about a name once a run, because the same place comes up in every line', async () => {
+    const plan = vi.fn().mockResolvedValue({ ...OCEAN, more: [{ say: 'The Pacific Ocean again, on a slope.' }], ...USAGE });
+    const { runs, nameReader } = makeNamedRuns({ plan });
+    await runs.join(getSceneKey(TOPIC, { ownerId: 'maya' })).plan;
+    await runs.join(getSceneKey(TOPIC, { ownerId: 'tola' })).plan;
+    expect(nameReader.clear).toHaveBeenCalledOnce();
+  });
+
+  it('does not pay to read a listed first and last name, which no reader can clear', async () => {
+    const plan = vi.fn().mockResolvedValue({ ...PLAN, opening: [{ say: 'What a slope measures, said Jane Doe.' }], ...USAGE });
+    const { runs, nameReader } = makeNamedRuns({ plan });
+    await runs.join(getSceneKey(TOPIC, { ownerId: 'maya' })).plan;
+    expect(nameReader.clear).not.toHaveBeenCalled();
+  });
+
+  it('names the offending words in the retry, so the model does not repeat them', async () => {
+    const plan = vi.fn().mockResolvedValueOnce({ ...PLANTED, ...USAGE }).mockResolvedValueOnce({ ...PLAN, ...USAGE });
+    const { runs } = makeNamedRuns({ plan, clear: async () => new Set() });
+    await runs.join(getSceneKey(TOPIC, { ownerId: 'maya' })).getScene();
+    expect(plan.mock.calls[1]?.[2]?.note).toContain('Sam Okoro');
+  });
+
+  it('starts the lesson from the clean lines at once and does not wait on the retry, which left 12 s of silence', async () => {
+    const plan = vi.fn().mockResolvedValueOnce({ ...PLANTED, ...USAGE }).mockImplementationOnce(() => new Promise(() => {}));
+    const { runs } = makeNamedRuns({ plan, clear: async () => new Set() });
+    const run = runs.join(getSceneKey(TOPIC, { ownerId: 'maya' }));
+    const settled = await Promise.race([run.plan, new Promise((resolve) => setTimeout(() => resolve('still silent'), 200))]);
+    expect(settled).toMatchObject({ opening: [PLANTED.opening[0], PLANTED.opening[2]] });
+    expect(JSON.stringify(settled)).not.toMatch(/Sam Okoro/);
+    expect(JSON.stringify(await run.firstLine)).not.toMatch(/Sam Okoro/);
+  });
+
+  it('draws its scene from the retry, whose words are clean', async () => {
+    const plan = vi.fn().mockResolvedValueOnce({ ...PLANTED, ...USAGE }).mockResolvedValueOnce({ ...PLAN, narration: '[[a]] A slope again. [[b]] Clean words.', ...USAGE });
+    const { runs } = makeNamedRuns({ plan, clear: async () => new Set() });
+    const made = await runs.join(getSceneKey(TOPIC, { ownerId: 'maya' })).getScene();
+    expect(made.isOk && made.scene.narration).toBe('[[a]] A slope again. [[b]] Clean words.');
+  });
+
+  it('teaches on the plain board with no flagged words when both plans name someone', async () => {
+    const plan = vi.fn().mockResolvedValue({ ...PLANTED, ...USAGE });
+    const { runs, write } = makeNamedRuns({ plan, clear: async () => new Set() });
+    const run = runs.join(getSceneKey(TOPIC, { ownerId: 'maya' }));
+    expect(JSON.stringify(await run.plan)).not.toMatch(/Sam Okoro/);
+    expect((await run.getScene()).isOk).toBe(false);
+    expect(write).not.toHaveBeenCalled();
+  });
+
+  it('still teaches when every line names someone, from the topic and a plain question', async () => {
+    const plan = vi.fn().mockResolvedValue({ ...PLAN, opening: [{ say: 'What a slope measures, said Sam Okoro.' }], close: 'What did Sam Okoro mean by a slope?', ...USAGE });
+    const { runs } = makeNamedRuns({ plan, clear: async () => new Set() });
+    const settled = (await runs.join(getSceneKey(TOPIC, { ownerId: 'maya' }), { plainLine: { say: 'What do you already know about this one?' } }).plan) as LessonPlan;
+    expect(JSON.stringify(settled)).not.toMatch(/Sam Okoro/);
+    expect(settled.opening.map(({ say }) => say).join(' ')).toContain(TOPIC);
+  });
+
+  it('stops the name and still teaches when the reader fails', async () => {
+    const plan = vi.fn().mockResolvedValue({ ...OCEAN, ...USAGE });
+    const { runs } = makeNamedRuns({ plan, clear: async () => { throw new Error('overloaded'); } });
+    const settled = await runs.join(getSceneKey(TOPIC, { ownerId: 'maya' })).plan;
+    expect(typeof settled).toBe('object');
+    expect(JSON.stringify(settled)).not.toMatch(/Pacific Ocean/);
+  });
+
+  it('holds a streamed first line until its name is cleared, and speaks it then', async () => {
+    let clearName: (names: ReadonlySet<string>) => void = () => {};
+    const plan = vi.fn(async (_topic: string, _signal: AbortSignal, hooks: { onFirstLine?(line: OpeningLine): void }) => {
+      hooks.onFirstLine?.(OCEAN.opening[0] as OpeningLine);
+      return new Promise(() => {});
+    });
+    const { runs } = makeNamedRuns({ plan: plan as never, clear: () => new Promise((resolve) => (clearName = resolve)) });
+    const run = runs.join(getSceneKey(TOPIC, { ownerId: 'maya' }));
+    let said: OpeningLine | null = null;
+    void run.firstLine.then((line) => (said = line));
+    await flush();
+    expect(said).toBeNull();
+    clearName(new Set(['Pacific Ocean']));
+    await flush();
+    expect(said).toEqual(OCEAN.opening[0]);
+  });
+
+  it('keeps a first line with a name nobody cleared from ever being said', async () => {
+    const plan = vi.fn(async (_topic: string, _signal: AbortSignal, hooks: { onFirstLine?(line: OpeningLine): void }) => {
+      hooks.onFirstLine?.({ say: 'What a slope measures, said Sam Okoro.' });
+      return { ...PLANTED, ...USAGE };
+    });
+    const { runs } = makeNamedRuns({ plan: plan as never, clear: async () => new Set() });
+    const run = runs.join(getSceneKey(TOPIC, { ownerId: 'maya' }));
+    expect(JSON.stringify(await run.firstLine)).not.toMatch(/Sam Okoro/);
   });
 });

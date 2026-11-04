@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { getFirstLineFromPartialText, getPlanFromText, getSceneWordsFromPartialText } from '../src/scenes/lesson/lesson-plan.ts';
 import { PlanRefused } from '../src/scenes/scene-types.ts';
-import { getRouteFromText, getVerdictFromText } from '../src/scenes/model-replies.ts';
+import { getClearedNames, getRouteFromText, getVerdictFromText } from '../src/scenes/model-replies.ts';
 
 const route = (fields: object) => getRouteFromText(JSON.stringify(fields));
 
@@ -126,6 +126,8 @@ describe('a plan that runs long', () => {
 
   it('reads a planner that says a tutor should not teach this', () => {
     expect(() => getPlanFromText('{"refused":true}')).toThrow(PlanRefused);
+    expect(() => getPlanFromText('{"refused":"dangerous"}')).toThrow(expect.objectContaining({ wantsHelp: false }));
+    expect(() => getPlanFromText('{"refused":"help"}')).toThrow(expect.objectContaining({ wantsHelp: true }));
   });
 
   it('reads a first line that comes before the scene words, and joins it to the rest of the opening', () => {
@@ -160,7 +162,27 @@ describe('a review that cleared its own finding', () => {
   });
 });
 
+describe('a reader reply about names', () => {
+  it('clears places, events, things, and figures, and nothing else', () => {
+    const names = ['Pacific Ocean', 'Cold War', 'Great Wall', 'Marie Curie', 'Sam Okoro', 'Lincoln High'];
+    const kinds = ['place', 'event', 'thing', 'figure', 'person', 'private'];
+    expect([...getClearedNames(names, JSON.stringify({ names: names.map((name, index) => ({ name, kind: kinds[index] })) }))]).toEqual(['Pacific Ocean', 'Cold War', 'Great Wall', 'Marie Curie']);
+  });
+
+  it('clears no name it was not asked about', () => {
+    expect([...getClearedNames(['Sam Okoro'], JSON.stringify({ names: [{ name: 'Sam Okoro Junior', kind: 'place' }] }))]).toEqual([]);
+  });
+
+  it('reads a reply it cannot parse as clearing nothing', () => {
+    expect([...getClearedNames(['Pacific Ocean'], 'sure, that is an ocean')]).toEqual([]);
+  });
+});
+
 describe('a router reply about a request a tutor should not teach', () => {
+  it('reads the dangerous kind, with no engine and no topic, whatever else it holds', () => {
+    expect(getRouteFromText(JSON.stringify({ kind: 'dangerous', engine: 'manimgx', topic: 'making thermite' }))).toEqual({ engine: 'none', kind: 'dangerous', topic: '' });
+  });
+
   it('reads the safety kind, with no engine and no topic, whatever else it holds', () => {
     expect(getRouteFromText(JSON.stringify({ kind: 'safety', engine: 'manimgx', topic: 'pill doses' }))).toEqual({ engine: 'none', kind: 'safety', topic: '' });
   });
