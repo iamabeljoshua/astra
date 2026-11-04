@@ -83,7 +83,10 @@ Compaction under decision 11 works, and a real request that sent its block back 
 
 ## What the model cannot break
 
-- A command is parsed against the scene language, checked against the board, checked against what the board can draw today, and dropped if any of that fails. Its words still play, and the next note says what was dropped.
+- A command is parsed against the scene language first, then checked against the board, against what the board can draw today, and against whether KaTeX can set it, and dropped if any of that fails. The order matters, because `canRenderTex` is not a safety check and says yes to `\href`, and only the parser refuses it. Its words still play, and the next note says what was dropped.
+- Model text is normalised to NFC before it is parsed or spoken, because Vietnamese, Yoruba, and Igbo in NFD are refused by the math parser while the same words in NFC set. A stream can split a letter from its mark, so this happens on a whole command and a whole beat.
+- The prompt names the math the board takes, because `\xrightarrow` and `\'` are refused by design, and asks for `\frac{1}{2}`, because the `1` in `\frac12` is one token with the `2` and cannot be ringed.
+- Finding a part in a line does not prove a ring draws, as with `a` in `\text{area}`. The page reports a ring it could not draw, and the next request says so in a `mark_not_drawn` note. The note is built from the command the model wrote, so a forged report can name only a mark that already exists, and cannot write to the model.
 - `check-math.ts` gives every line of math the model draws one verdict: `right`, `wrong`, or `unknown`. Only `wrong` stops the tutor, and `wrong` means code is certain, because a tutor wrongly doubting itself is worse than a missed slip. A `wrong` line stops the reply before its words, the tutor says "Hold on, let me check that.", and a second request carries the correction. If that is false too, the tutor says it cannot back the step up and asks the student to work it through. What code is certain of, all in exact fractions and never in floats:
   - Plain arithmetic. `9.8 \times 2 = 19.7` and `0.5 \times 0.1 = 0.1` are wrong. A claim about something undefined is wrong too, as `\frac{1}{0} = 5` and `\sqrt{-4} = 2` are. Comparisons of numbers count, as `3 > 5` does.
   - A linear equation in one letter, where a rewrite must keep the same solution. `5x = 500` to `x = 200` and `x + 100 = 300` to `x = 900` are wrong.
@@ -94,7 +97,7 @@ Compaction under decision 11 works, and a real request that sent its block back 
   - Not checked at all: what the tutor says aloud, and math inside a `text` command, which the board draws as handwriting with no check. A new problem written on an old line's id reads as a rewrite of that line, which is why the prompt asks for a new id.
   - `apps/agent/test/math-table.ts` holds 1,253 true steps from school math up to the end of high school, and 563 true lines, none of which may be `wrong`, and 82 false ones that must be. On a line-by-line replay of real Sonnet on 8 math prompts after this change, it never apologised for a right step, including a right triangle with legs three and four.
 - Internal tags never reach the voice, and what is inside `<thinking>` is dropped with them. Markdown, TeX marks, and control characters are not spoken.
-- A long run of combining marks can crash a Chrome tab, and it passes the parser and KaTeX. A command holding one is dropped, and speech and typed text keep at most 4 in a row. M3.3 fixes the parser too.
+- A long run of combining marks can crash a Chrome tab. M3.3's parser refuses more than 2 in a row in math. `hasTooManyMarksInARow` in `board-memory.ts` overlaps it there, and stays because the parser does not look at a `text` command or a label. Speech and typed text keep at most 4 in a row.
 - A question ends the turn, so the tutor cannot answer itself. A turn wraps at its next sentence end past 50 words, about 20 s, and never at a comma. A sentence with no end stops at 90 words, and the tutor says it stopped there and asks what the student makes of it, so a turn always has an ending.
 - A forged note cannot come from a student. What a student types goes in a user message, and notes are built by code from what the browser reported. Forty seeded streams of hostile text ran through the reader and the real player with nothing thrown.
 
@@ -123,7 +126,7 @@ Abel cares about accuracy most, so here is what stands behind what the tutor say
 
 ## Interrupting
 
-A new message stops the voice, aborts the model's request, and stops spending on it. That holds when the brain is parked at a beat the voice has not taken, because the session ends its reader as well as aborting, so the stream closes, the turn reaches history, and the ledger charges it. The next request says what was heard and what was not, from the browser's report, or from the words sent if the report is lost. The board's memory is rebuilt from the cues that really fired. In the recorded lesson a student cut in 2.2 s into a reply, and the tutor answered the new question and did not repeat itself. An aborted stream never reports its output tokens, so those are estimated from the text that arrived, and a request cut before it reports anything is estimated from what it sent.
+A new message stops the voice, aborts the model's request, and stops spending on it. That holds when the brain is parked at a beat the voice has not taken, because the session ends its reader as well as aborting, so the stream closes, the turn reaches history, and the ledger charges it. A cut that keeps the thought loses nothing: when the tutor carries on, a resume takes over the read already waiting on the brain, so a beat still on its way is spoken rather than handed to the stopped turn. The next request says what was heard and what was not, from the browser's report, or from the words sent if the report is lost. The board's memory is rebuilt from the cues that really fired. In the recorded lesson a student cut in 2.2 s into a reply, and the tutor answered the new question and did not repeat itself. An aborted stream never reports its output tokens, so those are estimated from the text that arrived, and a request cut before it reports anything is estimated from what it sent.
 
 ## Safety
 
@@ -145,13 +148,14 @@ The caps protect the money and never cut a student off mid-sentence, because eac
 
 A turn cut before it reports its tokens is charged by estimate, because Anthropic may still bill it. A request the API turned away is charged nothing. A session's cap restarts in a new room, so the daily cap is the real ceiling.
 
+A browser can forge data messages as fast as it can send. PR 85's review sent 150 typed lines in 143 ms and got 150 replies. The typed cap above turns that into 3 replies and one held message. Every other message but the pulse shares a limit of a burst of 200 and 50 a second, and past it they are dropped with one trace. A report that says a tab froze cuts and resumes the voice at most once every 5 s, because a forged loop of them would spend the voice on each one. The session log holds at most 50,000 rows and 16 page clocks.
+
 ## Long messages
 
 A typed message over 2,000 characters is cut between whole characters and still answered, with a note telling the model it has only the first part. Half an emoji once made every request a 400, so text is cut by character and never by code unit.
 
 ## What this rests on from other PRs
 
-- M3.3 draws no ring on a part written without braces, like `x^2`, and its fix round is open, so until it lands the tutor can point at nothing there.
 - M3.2's clock no longer counts a sound under 200 ms that ends within 500 ms of a stop as a first sound. Every stored take's first sound is 273 ms or longer, so no reaction is lost to it.
 
 ## For later owners
