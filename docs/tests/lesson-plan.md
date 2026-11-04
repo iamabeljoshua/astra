@@ -57,8 +57,8 @@ Haiku 5.5 at $0.10 and $0.50 a million tokens. `pnpm --filter @astra/agent eval:
 | --- | --- |
 | Plan calls in a 30 message session | 28, because 2 lines are math and need none |
 | Cost of those calls | $0.0045, which is 0.15% of the $3 daily limit |
-| Time for a plan, one at a time | 1.7 s at p50, 2.1 s at p95 |
-| Time for a plan, 47 at once | 2.4 s at p50, 3.4 s at p95, 3.8 s at most |
+| Time for a plan, one at a time | 1.7 s at p50, 2.4 s at p95 |
+| Time for a plan, 47 at once | 1.7 s at p50, 3.3 s at p95, 3.5 s at most |
 | A plan's limit | 5 s, then the tutor teaches on |
 
 The rules add about 3,200 characters to the cached prompt, so about $0.0001 a turn on a cache read and about $0.002 on each cache write (computed from the price list, not measured). A spoken turn averages $0.0072, so a chatty student's 417 turns a day on the $3 limit become about 400.
@@ -68,7 +68,7 @@ The rules add about 3,200 characters to the cached prompt, so about $0.0001 a tu
 | Promise | Proof |
 | --- | --- |
 | A direct question goes hands-on, a topic teaches first, no working means words, and their words overrule | `eval:lessons`, 25 groups on the real tutor and the real planner |
-| A plan never holds a word, and a failed one changes nothing | `eval:lessons --planner fail`, and `lesson-plan.test.ts` with a planner that never answers |
+| A plan never holds a word, and a failed one means the tutor just teaches | `eval:lessons --planner fail`, and `lesson-plan.test.ts` with a planner that never answers |
 | A plan is right about what the student wants | `eval:plans`, including every crisis message in `groups-safety.json` |
 | No model line can say "new session" | `getWordsProblem`, with `lesson-plan.test.ts` |
 | No first attempt can claim a feeling | `getClaimProblem`, with `lesson-plan.test.ts` and `eval:groups` |
@@ -77,7 +77,7 @@ The rules add about 3,200 characters to the cached prompt, so about $0.0001 a tu
 
 ## Where the rules sit
 
-They come last in the prompt, after Staying safe, and that was measured. With the same words placed before Being right, crisis replies said "I'm glad" about 1.5 times in 16 turns. Placed last it was 0.5, and the prompt with no rules at all, with the planner on, was 0.25 over the same turns. The base, with neither, was 0 in 64 turns. The cause is not known.
+They come last in the prompt, after Staying safe, and that was measured. With the same words placed before Being right, crisis replies said "I'm glad" about 1.5 times in 16 turns. Placed last it was 0.5, and the prompt with no rules at all, with the planner on, was 0.25 over the same turns. The base, with neither, was 0 in 64 turns. The cause is not known, so this is a measure and not an explanation.
 
 So `getClaimProblem` holds the prompt's own list in code. A reply that claims a feeling goes back for other words before the student hears it, on a first attempt only, because help for a student in crisis must get out even in imperfect words. Anyone moving this block must still rerun `eval:groups` a few times and read the replies.
 
