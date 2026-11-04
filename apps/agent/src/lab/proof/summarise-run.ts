@@ -117,7 +117,7 @@ function getStopRows({ folder, turns, records, arriving, output, tapRate, firstF
   const toFrame = (ms: number) => (ms / 1000) * GRAPH_RATE;
   return records.stops.map((stop) => {
     const turn = turns.find((candidate) => candidate.turnId === stop.turnId);
-    const nextStarted = records.agentMessages.find((message) => message.type === 'turnStarted' && message.atMs > stop.receivedAtMs && message.turnId !== stop.turnId);
+    const nextStarted = records.agentMessages.find((message) => message.type === 'turnStarted' && message.atMs >= stop.receivedAtMs && message.turnId !== stop.turnId);
     const nextTurn = turns.find((candidate) => candidate.turnId === nextStarted?.turnId && candidate.firstFrameAtMs !== null);
     const onsets = records.probe.filter((event) => event.where === 'arriving' && event.kind === 'onset' && event.atMs > stop.receivedAtMs && event.atMs < (nextStarted?.atMs ?? stop.receivedAtMs) + AFTER_NEXT_TURN_MS).map((event) => event.atMs);
     const nextSoundAtMs = nextTurn

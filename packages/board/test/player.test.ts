@@ -315,7 +315,7 @@ describe('a new turn', () => {
       const audio = stopThenStartNext();
       audio.advance(160);
       const firstSoundAtMs = audio.getNowMs();
-      playSound(audio, 200);
+      playSound(audio, 260);
       audio.advance(40);
       audio.startSound();
       audio.advance(400);

@@ -47,8 +47,8 @@ const OLD_AUDIO_LIMIT_MS = 500;
 /** A first sound this long after a turn's first word times was lost, or has no silence before it, and the turn must not wait for it for ever. */
 const FIRST_SOUND_LIMIT_MS = 1000;
 
-/** A word of old audio that starts past the 110 ms is cut off by the stop, so it is short, at most 104 ms on the worst link. A turn's first word with a pause after it runs longer. */
-const SHORTEST_FIRST_SOUND_MS = 150;
+/** A word of old audio that starts past the 110 ms is cut off by the stop, so it is short, at most 182 ms on the worst link. No phrase of 48 in 9 real takes ran under 250 ms. */
+const SHORTEST_FIRST_SOUND_MS = 200;
 
 const RECENT_SOUND_MS = 300;
 
