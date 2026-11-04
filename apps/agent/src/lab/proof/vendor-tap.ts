@@ -11,11 +11,10 @@ export interface RawVoiceMessage {
 
 export interface VendorTap {
   messages: RawVoiceMessage[];
-  /** Whatever the socket said on opening, including `character-cost` if the vendor sends it. */
   upgradeHeaders: Record<string, string | string[] | undefined>[];
 }
 
-// Proof runs only. Reads what the vendor really sent beneath the plugin, because the plugin rewrites word times and hides the first word's offset.
+// Proof runs only. Reads what the vendor sent beneath the plugin, which rewrites word times and hides the first word's offset.
 export function tapVendorSocket(): VendorTap {
   const tap: VendorTap = { messages: [], upgradeHeaders: [] };
   const emit = WebSocket.prototype.emit;

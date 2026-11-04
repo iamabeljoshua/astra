@@ -1,7 +1,7 @@
 const POST_EVERY_BLOCKS = 64;
 const KEEP_EVERY_SAMPLES = 2;
 
-// Proof runs only. Keeps a copy of what passes this point, tagged with its frame, so a run can compare what was heard with what was sent.
+// Proof runs only. Keeps a frame-tagged copy of what passes this point, to compare what was heard with what was sent.
 class PcmTap extends AudioWorkletProcessor {
   buffer = [];
   blocks = 0;

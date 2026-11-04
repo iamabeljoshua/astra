@@ -44,7 +44,7 @@ interface Scenario {
   throttle?: number;
   phone?: boolean;
   drive(run: RunContext): Promise<void>;
-  stalls?: { atAudioMs: number; ms: number }[];
+  proofStalls?: { atAudioMs: number; ms: number }[];
   textPace?: { msPerWord: number; flushBeforeCues: boolean };
   usesStoredPhrase?: boolean;
 }
@@ -60,7 +60,7 @@ interface RunContext {
 const beatsOf = (lessonTurn: number) => LESSON[lessonTurn]?.length ?? 0;
 
 async function playWholeLesson({ command, waitForPlayedBeats, scenario }: RunContext): Promise<void> {
-  await command({ type: 'play', lessonTurn: 0, textPace: scenario.textPace, stalls: scenario.stalls });
+  await command({ type: 'play', lessonTurn: 0, textPace: scenario.textPace, proofStalls: scenario.proofStalls });
   await waitForPlayedBeats(beatsOf(0));
   await delay(1500);
   await command({ type: 'play', lessonTurn: 1, textPace: scenario.textPace });
@@ -107,6 +107,14 @@ async function waitForFirstSoundOfNewTurn(page: Page): Promise<void> {
   }, undefined, { timeout: 15_000 });
 }
 
+// On a poor link the agent's copy of the log lands after the browser's last report, and replay reads that copy.
+async function waitForLogToCatchUp(page: Page): Promise<void> {
+  await page.waitForFunction(() => {
+    const records = window.sceneLab?.records;
+    return records !== undefined && records.log.length >= records.browserMessages.filter((message) => message.type === 'played' || message.type === 'boardFrozen').length;
+  }, undefined, { timeout: 15_000 });
+}
+
 async function waitForAudioSent(page: Page, turnCount: number): Promise<void> {
   await page.waitForFunction((count) => (window.sceneLab?.records.turnsSent.length ?? 0) >= count, turnCount, { timeout: 60_000 });
 }
@@ -118,8 +126,8 @@ const SCENARIOS: Record<string, Scenario> = {
   uneven: { drive: playWholeLesson, network: NETWORKS.uneven },
   poor: { drive: playWholeLesson, network: NETWORKS.poor },
   phone: { drive: playWholeLesson, throttle: 4, phone: true },
-  'stall-500': { drive: playWholeLesson, stalls: [{ atAudioMs: 2000, ms: 500 }, { atAudioMs: 7000, ms: 500 }] },
-  'stall-90': { drive: playWholeLesson, stalls: [{ atAudioMs: 2000, ms: 90 + 200 }, { atAudioMs: 7000, ms: 90 + 200 }] },
+  'stall-500': { drive: playWholeLesson, proofStalls: [{ atAudioMs: 2000, ms: 500 }, { atAudioMs: 7000, ms: 500 }] },
+  'stall-90': { drive: playWholeLesson, proofStalls: [{ atAudioMs: 2000, ms: 90 + 200 }, { atAudioMs: 7000, ms: 90 + 200 }] },
   model: { drive: playWholeLesson, textPace: { msPerWord: 120, flushBeforeCues: true } },
   'words-late-300': { drive: playWithWordsLate },
   stored: { drive: playStockPhraseThreeTimes, usesStoredPhrase: true },
@@ -209,11 +217,7 @@ async function runScenario(name: string, scenario: Scenario, browser: Browser, r
     },
   };
   await scenario.drive(run);
-  // On a poor link the agent's copy of the log lands after the browser's last report, and replay reads that copy.
-  await page.waitForFunction(() => {
-    const records = window.sceneLab?.records;
-    return records !== undefined && records.log.length >= records.browserMessages.filter((message) => message.type === 'played' || message.type === 'boardFrozen').length;
-  }, undefined, { timeout: 15_000 });
+  await waitForLogToCatchUp(page);
   if (args.screencast) await cdp?.send('Page.stopScreencast');
   await page.screenshot({ path: join(folder, 'final.png') });
   const records = await page.evaluate(() => {
@@ -251,7 +255,7 @@ async function runScenario(name: string, scenario: Scenario, browser: Browser, r
   return summary;
 }
 
-// Proves the one exception to "never from timers": with no user gesture the audio stays suspended, so a timer started by the word times drives the board.
+// With no user gesture the audio stays suspended, so this proves a timer started by the word times drives the board.
 async function runBlockedAudioProof(): Promise<void> {
   const folder = join(args.out as string, `blocked-audio-${Date.now()}`);
   mkdirSync(folder, { recursive: true });

@@ -321,7 +321,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
           'LiveKit Cloud, which will carry lesson audio between you and the tutor.',
           "Meta's Muse Voice Transcribe, which will receive your voice and turn it into text.",
           "Anthropic, whose Claude models will receive the lesson conversation and write the tutor's replies.",
-          "ElevenLabs, which will receive the tutor's words and turn them into its voice.",
+          "ElevenLabs, which will receive the tutor's words, which can include your name, and turn them into its voice.",
           'Google, if we turn on sign-in with Google, which will handle that sign-in and pass your account details to Supabase Auth.',
           'An email delivery service and a hosting provider, not yet chosen. We will name them here before real students join.',
         ],

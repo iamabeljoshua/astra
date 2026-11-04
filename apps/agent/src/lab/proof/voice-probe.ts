@@ -13,7 +13,6 @@ import { tapVendorSocket } from './vendor-tap.ts';
 const CREDITS_PER_CHARACTER = 0.22;
 const SAMPLE_RATE = 22050;
 const MS_PER_SECOND = 1000;
-/** Twice the median of the same line is far past anything a pause explains. */
 const OVERLONG_RATIO = 2;
 
 const { values: args } = parseArgs({
@@ -96,7 +95,7 @@ function saveResult(name: string, result: object): void {
   console.log(name, JSON.stringify(result).slice(0, 1500));
 }
 
-// Runs one line again and again on the real path, as a run would meet it, and asks whether the live watch would have caught the ones that ran long.
+// Repeats one line on the real path and asks whether the live watch would have caught the takes that ran long.
 async function checkOverlong(): Promise<void> {
   const count = Number(args.count);
   const text = args.text ?? OVERLONG_LINE;
@@ -122,7 +121,6 @@ async function checkOverlong(): Promise<void> {
     flagged: flagged.length,
     caught: overlong.filter((row) => row.overlongAtAudioMs !== null).length,
     falseAlarms: flagged.filter((row) => row.audioMs < medianMs * OVERLONG_RATIO).length,
-    /** Audio already out when the watch tripped, and how long after the text it knew. */
     trippedAt: overlong.map((row) => ({ audioMs: row.audioMs, wordsEndMs: row.wordsEndMs, overlongAtAudioMs: row.overlongAtAudioMs, overlongAtMs: row.overlongAtMs })),
     rows,
   });
@@ -187,7 +185,6 @@ async function speakPieces(voice: tts.TTS, pieces: readonly string[]): Promise<H
   return line;
 }
 
-// Makes the clips Abel judges by ear, and the numbers behind what a mid-sentence flush does to the sound.
 async function makeClips(): Promise<void> {
   const voice = makeVoice();
   voice.prewarm();
@@ -200,7 +197,7 @@ async function makeClips(): Promise<void> {
   saveResult(`clips-${name}`, { model, wholeMs: Math.round(whole.audioMs), flushedMs: Math.round(flushed.audioMs), stretch: Number((flushed.audioMs / whole.audioMs).toFixed(2)), wholeWords: whole.words, flushedWords: flushed.words, credits: Math.round(WHOLE_SENTENCE.length * 2 * CREDITS_PER_CHARACTER) });
 }
 
-// Stock phrases are stored once and replayed, so this saves one and reports how much the same phrase's times vary between requests.
+// Saves one take and reports how much the same phrase's word times vary between requests.
 async function storeStockPhrase(): Promise<void> {
   const voice = makeVoice();
   voice.prewarm();
@@ -216,7 +213,7 @@ async function storeStockPhrase(): Promise<void> {
 
 const LONG_TEXT = 'Gravity pulls the ball down the whole way, even at the very top of the climb, and sideways nothing pushes it at all. '.repeat(2);
 
-// `close_context` does not cancel, so a stop must drop what the vendor keeps sending. This stops a long line just after its first audio, and counts both sides.
+// `close_context` does not cancel, so this stops a long line after its first audio and counts what the vendor still sends.
 async function stopEarly(): Promise<void> {
   const tap = tapVendorSocket();
   const voice = makeVoice();

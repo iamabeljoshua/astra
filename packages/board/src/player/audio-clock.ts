@@ -9,10 +9,8 @@ export interface ClockReading {
   isGateOpen: boolean;
 }
 
-/** One turn's place in its audio. */
 export interface TurnClock {
   addGap(gap: ReportedGap): void;
-  /** Tells the clock the first word's time and the last word's time known so far. */
   noteWordTimes(firstWordStartMs: number, lastWordStartMs: number): void;
   /** Null until the turn's first sound. */
   read(): ClockReading | null;
@@ -20,7 +18,7 @@ export interface TurnClock {
   isSounding(): boolean;
 }
 
-/** The one source of time for the board. Audio, a timer, and a test's fake all sit behind this. */
+/** The board's one source of time: audio, a timer, or a test's fake. */
 export interface AudioClock {
   getNowMs(): number;
   startTurn(): TurnClock;
@@ -35,7 +33,6 @@ const RECENT_SOUND_MS = 300;
 
 interface SampleClockOptions {
   getGraphTimeMs(): number;
-  /** How far behind the graph the student's ear is, which only the device knows. */
   getOutputLatencyMs(): number;
 }
 
@@ -71,7 +68,7 @@ export function createSampleClock({ getGraphTimeMs, getOutputLatencyMs }: Sample
     startTurn() {
       const wordClock = createWordClock();
       let firstWordStartMs = 0;
-      // On a poor link the audio can arrive first, so the turn starts at the earliest sound since the last turn ended, not the latest.
+      // On a poor link the audio can arrive first, so the turn starts at the earliest sound since the last turn ended.
       const heardAlready = isSoundRecent() ? onsets[0] : undefined;
       if (heardAlready !== undefined) wordClock.onFirstSound(heardAlready);
       onOnset = (atMs) => wordClock.onFirstSound(atMs);

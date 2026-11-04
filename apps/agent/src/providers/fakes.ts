@@ -23,7 +23,6 @@ export interface SpokenAudio {
   words: { text: string; startMs: number }[];
 }
 
-/** What a stored phrase is: audio and word times read back with no vendor call. A fake voice renders a tone for each word. */
 export type RenderSpeech = (text: string) => SpokenAudio;
 
 export const renderTone: RenderSpeech = (text) => {
@@ -88,7 +87,6 @@ class RenderedTts extends tts.TTS {
   }
 }
 
-/** A voice with no vendor: a tone per word, or a stored phrase. It passes the same suite as a real one. */
 export function makeRenderedVoice({ name, render = renderTone }: { name: string; render?: RenderSpeech }): VoiceAdapter {
   return { name, makeTts: () => new RenderedTts(render) };
 }

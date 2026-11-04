@@ -21,7 +21,7 @@ async function hearVoice(stream: tts.SynthesizeStream): Promise<VoiceOutput> {
   return output;
 }
 
-/** What every voice must give, or the clock does not fit. The same suite runs a fake and the real adapter. */
+/** What every voice must give, or the clock does not fit. */
 export async function getVoiceProblems(adapter: VoiceAdapter): Promise<string[]> {
   const problems: string[] = [];
   const voice = adapter.makeTts();

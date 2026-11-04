@@ -90,8 +90,11 @@ Use Flash. It is what the adapter defaults to.
 | Mid-sentence flushes stretched a line of about 4.5 s by, on one take each | 10% | 29% |
 | Overlong on the worst line | 0 of 60 | 0 of 40 |
 | Drift, clean | p95 31 ms | p95 29 to 31 ms |
+| Mean level of a whole line, one take each | -19.8 dB | -19.5 dB |
+| Length of a 15-word line, one take each | 4606 ms | 4297 ms |
+| Length of the worst line, median | 2475 ms | 2578 ms |
 
-The clips for Abel's ear are `casey-flash-whole`, `casey-flash-flushed`, `casey-turbo-whole`, and `casey-turbo-flushed` on the `evidence` branch under `m3-2/`. Abel heard Casey on Turbo, so what remains open is whether Flash sounds as good. The measured choice rests on speed and flushes, and on nothing about the sound.
+Casey measures about the same on both when the line goes whole, in level and in pace. They part on flushes: by the end of the flushed line Turbo's words ran 1196 ms behind its whole take, against 430 ms on Flash, on one take each. The clips for Abel's ear are `casey-flash-whole`, `casey-flash-flushed`, `casey-turbo-whole`, and `casey-turbo-flushed` on the `evidence` branch under `m3-2/`. Abel heard Casey on Turbo, so what remains open is whether Flash sounds as good. The measured choice rests on speed and flushes, and on nothing about the sound.
 
 ## Overlong lines
 

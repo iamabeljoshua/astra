@@ -1,4 +1,4 @@
-/** A value moving from `from` toward `to` as session time passes. Everything on the board that moves is one of these, so a freeze and a replay treat it all alike. */
+/** A value moving from `from` toward `to` over session time, so a freeze and a replay treat everything on the board alike. */
 export interface Motion {
   startedAtMs: number;
   from: number;

@@ -12,7 +12,7 @@ The lab is a development page that plays a scripted lesson in a real voice throu
 ## How to get to it (user POV)
 
 - Run `pnpm lab` from the repo root, then open the address it prints. `pnpm lab --fake` uses a tone in place of the voice, which costs nothing.
-- `pnpm lab` needs `livekit-server` on the path, and `ELEVENLABS_API_KEY` in `~/.config/astra/keys.env` unless you pass `--fake`.
+- `pnpm lab` needs `livekit-server` on the path, `pnpm db:up` run once in this checkout, because the web app reads its Auth settings at start, and `ELEVENLABS_API_KEY` in `~/.config/astra/keys.env` unless you pass `--fake`. It uses port 6130 for the web app unless `WEB_PORT` says otherwise, and 7930 to 7933 for LiveKit.
 
 ## Driving it with pnpm verify
 

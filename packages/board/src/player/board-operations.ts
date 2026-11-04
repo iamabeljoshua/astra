@@ -1,9 +1,9 @@
 import { type BeatEnding, type Cue, type FrozenFrame, getCues, type InkPoint, type SceneCommand, type SessionEvent, type SimulationParameter, type ElementId } from '@astra/contracts';
 
-/** Only for a cue whose later word times are unknown: the live board and a replay read the same word times, so both land on the same guess. */
+/** Only for a cue whose later word times are unknown. Live and replay read the same times, so both land on the same guess. */
 const ASSUMED_WORD_MS = 300;
 
-/** Every change to the board, in session ms. The live board and a replay both reduce a list of these, so they cannot drift apart in how they apply it. */
+/** Every change to the board, in session ms. Live and replay reduce the same list, so they cannot drift apart. */
 export type BoardOperation =
   | { kind: 'beatStarted'; atMs: number }
   | { kind: 'command'; atMs: number; command: SceneCommand; overMs: number | null }
@@ -13,13 +13,11 @@ export type BoardOperation =
   | { kind: 'inkErased'; atMs: number; target: ElementId }
   | { kind: 'rewound'; atMs: number; toMs: number };
 
-/** What the board needs from one beat, whether it is still playing or already in the log. */
 export interface PlayedBeatView {
   atMs: number;
   cues: readonly Cue[];
   wordStartsMs: readonly number[];
   firedCueMs: readonly number[];
-  /** Null while the beat is still playing. */
   ending: BeatEnding | null;
   durationMs: number;
   frozen: readonly FrozenFrame[];
@@ -72,8 +70,7 @@ function getActionOperations(log: readonly SessionEvent[], event: SessionEvent &
 function getEventOperations(log: readonly SessionEvent[], event: SessionEvent): BoardOperation[] {
   switch (event.kind) {
     case 'beatPlayed':
-      // A beat nobody heard changed nothing, and the live board never saw it start.
-      return event.playedWords === 0 && event.firedCueMs.length === 0 ? [] : getBeatOperations({ ...event, cues: getCues(event.beat) });
+      return getBeatOperations({ ...event, cues: getCues(event.beat) });
     case 'boardFrozen':
       return [{ kind: 'freeze', atMs: event.atMs, frames: event.frozen }];
     case 'studentActed':
@@ -84,7 +81,7 @@ function getEventOperations(log: readonly SessionEvent[], event: SessionEvent): 
   }
 }
 
-/** Flattens by time and not by sequence number, because a beat is written when it ends, so a cue inside it sorts against a drag inside it. */
+/** Sorts by time, not sequence, because a beat is written when it ends and a cue inside it must sort against a drag inside it. */
 export function getLogOperations(log: readonly SessionEvent[]): BoardOperation[] {
   return log.flatMap((event) => getEventOperations(log, event)).sort((first, second) => first.atMs - second.atMs);
 }

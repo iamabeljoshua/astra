@@ -25,7 +25,7 @@ describe('the proof tool', () => {
     const shifted = new Int16Array(Math.round(((1500 + lagMs) / 1000) * SENT_RATE));
     shifted.set(sentPcm, Math.round((lagMs / 1000) * SENT_RATE));
     const heardPcm = resampleNearest(shifted, SENT_RATE, HEARD_RATE);
-    const [first, second] = findWordPlaces({ sentPcm, sentRate: SENT_RATE, heardPcm, heardRate: HEARD_RATE, heardStartMs: 1000, firstSoundAtMs: 1000 + lagMs }, [100, 800]);
+    const [first, second] = findWordPlaces({ sentPcm, sentRate: SENT_RATE, heardPcm, heardRate: HEARD_RATE, heardStartGraphMs: 1000, firstSoundGraphMs: 1000 + lagMs }, [100, 800]);
     expect(Math.abs((first?.heardAtMs as number) - (1000 + lagMs + 100))).toBeLessThanOrEqual(1);
     expect(Math.abs((second?.heardAtMs as number) - (1000 + lagMs + 800))).toBeLessThanOrEqual(1);
   });
@@ -33,15 +33,15 @@ describe('the proof tool', () => {
   it('leaves out a word whose audio never arrived, rather than guessing', () => {
     const sentPcm = makeSpeechLike(1500, SENT_RATE, 7);
     const heardPcm = new Int16Array(Math.round(1.5 * HEARD_RATE));
-    const [place] = findWordPlaces({ sentPcm, sentRate: SENT_RATE, heardPcm, heardRate: HEARD_RATE, heardStartMs: 0, firstSoundAtMs: 0 }, [100]);
+    const [place] = findWordPlaces({ sentPcm, sentRate: SENT_RATE, heardPcm, heardRate: HEARD_RATE, heardStartGraphMs: 0, firstSoundGraphMs: 0 }, [100]);
     expect(place?.heardAtMs).toBeNull();
   });
 
   it('reads a word placed in a silence as starting at the next sound', () => {
     const heardPcm = new Int16Array(Math.round(HEARD_RATE));
     heardPcm.fill(LOUD, Math.round(0.4 * HEARD_RATE));
-    expect(findAudibleStartMs({ heardPcm, heardRate: HEARD_RATE, heardStartMs: 1000, placedAtMs: 1300 })).toBeCloseTo(1400, -1);
-    expect(findAudibleStartMs({ heardPcm, heardRate: HEARD_RATE, heardStartMs: 1000, placedAtMs: 1500 })).toBe(1500);
+    expect(findAudibleStartMs({ heardPcm, heardRate: HEARD_RATE, heardStartGraphMs: 1000, placedAtMs: 1300 })).toBeCloseTo(1400, -1);
+    expect(findAudibleStartMs({ heardPcm, heardRate: HEARD_RATE, heardStartGraphMs: 1000, placedAtMs: 1500 })).toBe(1500);
   });
 
   it('finds the sound that follows a silence, and the word nearest it', () => {

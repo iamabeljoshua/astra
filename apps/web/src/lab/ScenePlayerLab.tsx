@@ -2,7 +2,7 @@ import { type BoardState } from '@astra/board';
 import { type SessionEvent } from '@astra/contracts';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { LAB_LABELS } from '../strings';
+import { LAB_LABELS, PRODUCT_NAME } from '../strings';
 import { BoardView } from './BoardView';
 import { type LabSession, startLabSession } from './labSession';
 
@@ -27,7 +27,7 @@ function getReplayEndMs(log: readonly SessionEvent[]): number {
   return log.reduce((endMs, event) => Math.max(endMs, event.atMs + ('durationMs' in event ? event.durationMs : 0)), 0);
 }
 
-// Development only. A test bench for the player: it shows a real voice driving a real board, and exposes what a proof run needs on window.sceneLab.
+// Development-only bench for the player, exposing what a proof run needs on window.sceneLab.
 export default function ScenePlayerLab() {
   const [params] = useSearchParams();
   const url = params.get('url');
@@ -73,7 +73,7 @@ export default function ScenePlayerLab() {
     window.sceneLab = session;
   }, [params, token, url]);
 
-  // Only a proof of the blocked-audio fallback connects with no click, because that is what leaves the audio suspended.
+  // Only the blocked-audio proof connects with no click, because that is what leaves the audio suspended.
   useEffect(() => {
     if (params.get('autoconnect') === '1') void connect();
   }, [connect, params]);
@@ -101,6 +101,7 @@ export default function ScenePlayerLab() {
 
   return (
     <main className="grid min-h-svh grid-cols-1 gap-6 bg-paper p-4 text-ink md:grid-cols-12 md:p-6">
+      <title>{PRODUCT_NAME}</title>
       <section aria-label={LAB_LABELS.board} className="h-[60svh] md:col-span-7 md:h-auto">
         {frame ? <BoardView board={frame.board} atMs={frame.atMs} onElementDrawn={phase === 'replaying' ? undefined : (id) => sessionRef.current?.noteDrawn(id)} /> : <BoardView board={{ elements: new Map(), focus: null }} atMs={0} />}
       </section>

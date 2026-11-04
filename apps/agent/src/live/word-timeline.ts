@@ -16,7 +16,7 @@ function getExpectedWords(beats: readonly Beat[]): ExpectedWord[] {
   return beats.flatMap((beat) => getSpokenWords(getBeatText(beat)).map((text, wordInBeat) => ({ beatId: beat.id, wordInBeat, text })));
 }
 
-// A voice names words its own way, so its next word is matched to our list by position and `atWord` always counts our words.
+// A voice names words its own way, so its words are matched to ours by position and `atWord` always counts ours.
 export function createWordTimeline(beats: readonly Beat[]) {
   const expected = getExpectedWords(beats);
   let nextWord = 0;

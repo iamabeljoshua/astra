@@ -1,9 +1,7 @@
-/** Short lines vary most, and a breath alone can double a three-word line. */
 const SMALLEST_OVERRUN_MS = 800;
 const OVERLONG_RATIO = 2;
 
 export interface OverlongWatch {
-  /** Feed the audio read so far and the characters its word times have covered. True from the moment the line is running far past its expected length. */
   isOverlong(audioMs: number, charactersAligned: number): boolean;
 }
 

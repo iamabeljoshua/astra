@@ -37,7 +37,6 @@ export interface LabStack {
   stop(): void;
 }
 
-// A free local LiveKit server and the web app's dev server, on ports of their own.
 export async function startLabStack(): Promise<LabStack> {
   const processes: ChildProcess[] = [];
   processes.push(spawn('livekit-server', ['--config-body', SERVER_CONFIG, '--bind', '127.0.0.1'], { stdio: 'ignore' }));
@@ -65,9 +64,7 @@ export interface NetworkProfile {
 }
 
 export const NETWORKS = {
-  /** A good home connection. */
   uneven: { delayMs: 40, jitterMs: 30, lossPercent: 1 },
-  /** The design's worst link. */
   poor: { delayMs: 100, jitterMs: 70, lossPercent: 4 },
 } as const satisfies Record<string, NetworkProfile>;
 

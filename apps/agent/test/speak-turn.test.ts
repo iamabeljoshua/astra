@@ -130,7 +130,7 @@ describe('speakTurn', () => {
   });
 
   it('reports a stall on the word timeline, past any leading silence, opening and closing it on both channels', async () => {
-    const run = speak({ render: withLeadingSilence, stalls: [{ atAudioMs: 200, ms: 400 }] });
+    const run = speak({ render: withLeadingSilence, proofStalls: [{ atAudioMs: 200, ms: 400 }] });
     await run.spoken.finished;
     const gaps = run.sent.filter(({ message }) => message.type === 'audioGap');
     expect(gaps.every(({ isUrgent }) => isUrgent)).toBe(true);

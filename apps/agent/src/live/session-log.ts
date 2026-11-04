@@ -11,7 +11,7 @@ export interface SessionLog {
   getEvents(): readonly SessionEvent[];
 }
 
-// The agent is the only writer, and it writes what the browser says played. M3.10 moves this into the database.
+// Writes what the browser says played, on one clock offset so a slow message cannot move a beat against its neighbours.
 export function createSessionLog({ getNowMs, getBeat, onWritten }: SessionLogOptions): SessionLog {
   const events: SessionEvent[] = [];
   let browserToSessionMs: number | null = null;
@@ -30,7 +30,6 @@ export function createSessionLog({ getNowMs, getBeat, onWritten }: SessionLogOpt
   return {
     getEvents: () => events,
     write(message) {
-      // One offset for the whole session, so a slow message cannot move a beat against the ones around it.
       browserToSessionMs ??= Math.round(getNowMs()) - message.browserMs;
       const body = getBody(message);
       if (!body) return null;

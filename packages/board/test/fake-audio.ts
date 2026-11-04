@@ -14,11 +14,9 @@ export interface FakeAudio {
   fired: FiredCue[];
   levels: OutputLevel[];
   getNowMs(): number;
-  /** Moves time forward in 4 ms steps, ticking the player as the page's timer does. */
   advance(ms: number): void;
   sound(): void;
   quiet(): void;
-  /** First audible sample of an utterance: an onset, then an audible block. */
   startSound(): void;
   endSound(): void;
   receive(...messages: AgentMessage[]): void;

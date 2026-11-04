@@ -7,7 +7,6 @@ import { createFrameQueue, type FrameQueue } from './frame-queue.ts';
 import { createWordTimeline } from './word-timeline.ts';
 
 const MS_PER_SECOND = 1000;
-/** Audio handed over is still on its way to the student for about this long. */
 const STILL_ARRIVING_MS = 300;
 
 export interface VoiceOutput {
@@ -18,11 +17,9 @@ export interface VoiceOutput {
 
 export interface TurnMessenger {
   send(message: AgentMessage): void;
-  /** For what must get there even if a packet is lost: `stop`, `yield`, and `audioGap`. */
   sendOnBothChannels(message: AgentMessage): void;
 }
 
-/** Writes text as a model would, for the runs that measure real stalls. With none, a beat goes to the voice whole. */
 export interface TextPace {
   msPerWord: number;
   flushBeforeCues: boolean;
@@ -40,8 +37,7 @@ export interface SpeakTurnOptions {
   turnId: TurnId;
   beats: readonly Beat[];
   textPace?: TextPace;
-  /** For proof runs: holds the audio back once it reaches `atAudioMs`, as a voice falling behind does. */
-  stalls?: readonly { atAudioMs: number; ms: number }[];
+  proofStalls?: readonly { atAudioMs: number; ms: number }[];
   onFrameCaptured?(note: FrameNote): void;
   onWords?(words: { atMs: number; words: TimedWord[] }): void;
   onGap?(gap: { atMs: number; ms?: number; reportedAtMs: number }): void;
@@ -116,8 +112,8 @@ async function readVoice(work: TurnWork): Promise<void> {
 }
 
 async function pumpAudio({ options, frames, firstSound, tracker, isStopped }: TurnWork): Promise<void> {
-  const { output, messenger, turnId, stalls = [], onFrameCaptured, onGap, getNowMs = Date.now } = options;
-  const pendingStalls = [...stalls];
+  const { output, messenger, turnId, proofStalls = [], onFrameCaptured, onGap, getNowMs = Date.now } = options;
+  const pendingStalls = [...proofStalls];
   let audioMs = 0;
   for (let frame = await frames.next(); frame && !isStopped(); frame = await frames.next()) {
     const stall = pendingStalls[0];
@@ -138,7 +134,7 @@ async function pumpAudio({ options, frames, firstSound, tracker, isStopped }: Tu
   }
 }
 
-// A voice that ends early would leave the browser waiting for words that never come, so it is cut like any other turn and the log says what was heard.
+// A voice that ends early would leave the browser waiting for words, so the turn is cut like any other and the log says what was heard.
 async function cutIfVoiceEndedEarly({ options: { output, messenger, turnId }, timeline, isStopped }: TurnWork): Promise<void> {
   if (isStopped() || timeline.isComplete()) return;
   await output.waitForPlayout();
@@ -146,7 +142,7 @@ async function cutIfVoiceEndedEarly({ options: { output, messenger, turnId }, ti
   if (!isStopped()) messenger.sendOnBothChannels({ type: 'stop', turnId });
 }
 
-// Word times and audio arrive in one message on Flash and Turbo, so words go out the moment they are read and the audio waits its turn behind them.
+// Flash and Turbo send word times and audio in one message, so words go out as soon as they are read and the audio queues behind them.
 export function speakTurn(options: SpeakTurnOptions): SpokenTurn {
   const { voice, output, messenger, turnId, beats, onGap, getNowMs = Date.now } = options;
   const firstSound = createFirstSound();

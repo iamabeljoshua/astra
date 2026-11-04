@@ -11,14 +11,12 @@ const AMPLITUDE = 12000;
 const TONE_HZ = 700;
 
 export interface FakeWireOptions {
-  /** Silent audio ahead of the first word, which real Flash and Turbo send for 0 to 75 ms. */
   leadingSilenceMs?: number;
 }
 
 export interface FakeWire {
   baseURL: string;
   getConnectionCount(): number;
-  /** Messages it kept sending for a context after that context was closed. */
   getMessagesAfterClose(): number;
   close(): Promise<void>;
 }

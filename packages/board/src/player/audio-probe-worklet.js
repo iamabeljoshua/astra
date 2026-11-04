@@ -28,7 +28,6 @@ class AudioProbe extends AudioWorkletProcessor {
         this.isSounding = false;
       }
     }
-    // Sent after `onset`, so a cue cannot fire on the first sound before the page has handled the silence.
     if (isAudible !== this.isBlockAudible) {
       this.isBlockAudible = isAudible;
       this.port.postMessage({ kind: isAudible ? 'sound' : 'quiet', frame: currentFrame });

@@ -2,10 +2,7 @@ import type { SceneCommand } from '@astra/contracts';
 
 export type SceneParameters = Readonly<Record<string, number>>;
 
-/**
- * Anything the board can run: a 2D simulation today, a generated 3D scene if Abel chooses one.
- * It must be a pure function of its own seconds, because rewind, replay, and a camera all depend on asking for any moment in any order.
- */
+/** Anything the board can run. It must be a pure function of its own seconds, because rewind and replay ask for any moment in any order. */
 export interface Scene<Frame = unknown> {
   /** What a command can point at, as "element.part". */
   readonly parts: readonly string[];

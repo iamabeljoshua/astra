@@ -1,11 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Beat, BeatId } from '@astra/contracts';
+import { AUDIBLE_SAMPLE } from '../../live/first-sound.ts';
 import { findAudibleStartMs, findFirstLoudMs, findWordOnsetsAfterSilence, findWordPlaces, getPercentiles, getWordList } from './analyse-run.ts';
 import type { RawVoiceMessage, VendorTap } from './vendor-tap.ts';
 
 const GRAPH_RATE = 48000;
-const AUDIBLE = 328;
 
 export interface PageRecords {
   sampleRate: number;
@@ -78,7 +78,7 @@ function getLastAudibleAfter(pcm: Int16Array, { rate, firstFrame, frame, turnEnd
   const from = toSample(frame);
   const to = Math.min(pcm.length, toSample(turnEndFrame));
   let last = -1;
-  for (let index = from; index < to; index++) if (Math.abs(pcm[index] as number) >= AUDIBLE) last = index;
+  for (let index = from; index < to; index++) if (Math.abs(pcm[index] as number) >= AUDIBLE_SAMPLE) last = index;
   return last < 0 ? 0 : ((last - from) / rate) * 1000;
 }
 
@@ -99,7 +99,7 @@ function getStopRows({ turns, records, arriving, output, tapRate, firstFrames }:
   });
 }
 
-// `close_context` does not cancel, so this counts what the vendor still sent for a turn after its stop, none of which may reach the student.
+// `close_context` does not cancel, so this counts what the vendor still sent for a turn after its stop.
 function getVendorMessagesAfterStop(agent: { turns: AgentTurn[]; tap: VendorTap | null }) {
   if (!agent.tap) return [];
   const contexts = [...new Set(agent.tap.messages.flatMap((message) => (message.contextId ? [message.contextId] : [])))];
@@ -126,7 +126,7 @@ function compareReplay(samples: ReplaySample[]) {
   return { samples: samples.length, differingSamples, differentTwice, elementsAtEnd: samples.at(-1)?.live.elements.map((element) => element.id) ?? [] };
 }
 
-// A real stall moves every later word in the received audio by its length, so this checks each report against the sound and not against the agent.
+// A real stall moves every later word by its length, so this checks each report against the sound and not the agent.
 function checkGapReports(turn: AgentTurn, rows: readonly WordRow[]) {
   const closed = turn.gaps.filter((gap) => gap.ms !== undefined);
   return closed.flatMap((gap) => {
@@ -158,21 +158,21 @@ function getTurnWords({ turn, turnIndex, records, vendorWordStarts, folder, arri
   const planMs = voiceWords.map((word) => word.startMs);
   const vendorStarts = vendorWordStarts[turnIndex];
   const turnStarted = records.agentMessages.filter((message) => message.type === 'turnStarted')[turnIndex];
-  const firstSoundAtMs = records.probe.find((event) => event.where === 'arriving' && event.kind === 'onset' && event.atMs >= (turnStarted?.atMs ?? 0) - 300)?.atMs ?? 0;
-  const heardStartMs = (firstFrame / GRAPH_RATE) * 1000;
-  const places = findWordPlaces({ sentPcm, sentRate: turn.sampleRate, heardPcm: arriving, heardRate: tapRate, heardStartMs, firstSoundAtMs }, planMs.map((ms, index) => vendorStarts?.[index] ?? ms + firstLoudMs));
+  const firstSoundGraphMs = records.probe.find((event) => event.where === 'arriving' && event.kind === 'onset' && event.atMs >= (turnStarted?.atMs ?? 0) - 300)?.atMs ?? 0;
+  const heardStartGraphMs = (firstFrame / GRAPH_RATE) * 1000;
+  const places = findWordPlaces({ sentPcm, sentRate: turn.sampleRate, heardPcm: arriving, heardRate: tapRate, heardStartGraphMs, firstSoundGraphMs }, planMs.map((ms, index) => vendorStarts?.[index] ?? ms + firstLoudMs));
   const wordMessages = records.agentMessages.filter((message) => message.type === 'words');
   const rows = planMs.map((ms, index) => {
     const word = list[index];
     const message = wordMessages.find((candidate) => candidate.beatId === word?.beatId && (candidate.firstWord ?? 0) <= (word?.wordInBeat ?? 0) && (candidate.firstWord ?? 0) + (candidate.count ?? 0) > (word?.wordInBeat ?? 0) && candidate.atMs >= (turnStarted?.atMs ?? 0));
     const heardAtMs = places[index]?.heardAtMs ?? null;
-    const audibleAtMs = heardAtMs === null ? null : findAudibleStartMs({ heardPcm: arriving, heardRate: tapRate, heardStartMs, placedAtMs: heardAtMs });
+    const audibleAtMs = heardAtMs === null ? null : findAudibleStartMs({ heardPcm: arriving, heardRate: tapRate, heardStartGraphMs, placedAtMs: heardAtMs });
     return { turnId: turn.turnId, beatId: word?.beatId as BeatId, wordInBeat: word?.wordInBeat ?? -1, text: word?.text ?? '', planMs: ms, heardAtMs, audibleAtMs, arrivedAtMs: message?.atMs ?? null };
   });
   return { rows, firstLoudMs };
 }
 
-// Compares what the browser did with where each word really landed in the audio it received. No number here comes from the clock under test.
+// Compares what the browser did with where each word really landed in the audio it received.
 export function summariseRun(folder: string, settings: { name: string; network: object | null; throttle: number; phone: boolean }) {
   const page = JSON.parse(readFileSync(join(folder, 'page.json'), 'utf8')) as { records: PageRecords; replayCheck: { samples: ReplaySample[]; log: unknown[] } };
   const agent = JSON.parse(readFileSync(join(folder, 'agent.json'), 'utf8')) as { turns: AgentTurn[]; tap: VendorTap | null; voice: string; model: string; refused: string[] };

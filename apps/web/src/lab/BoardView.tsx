@@ -7,7 +7,6 @@ const VECTOR_LENGTHS = { short: 0.8, medium: 1.3, long: 1.9 };
 const STROKE = 0.04;
 const BALL_RADIUS = 0.14;
 
-/** Metres, up from the ground, to the drawing's own units. A camera would make this a function of the clock. */
 const toX = (metres: number) => metres - WORLD.left;
 const toY = (metres: number) => WORLD.top - metres;
 
@@ -65,7 +64,6 @@ function getLineText(element: BoardElement): string {
   return '';
 }
 
-// A plain stand-in for the renderers M3.3 to M3.5 own. Every value it draws is read from the board at this moment, so it holds no state of its own.
 export function BoardView({ board, atMs, onElementDrawn }: BoardViewProps) {
   const seen = useRef(new Set<string>());
   useLayoutEffect(() => {

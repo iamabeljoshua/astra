@@ -4,7 +4,6 @@ import { join } from 'node:path';
 
 const KEYS_FILE = join(homedir(), '.config', 'astra', 'keys.env');
 
-// Reads one named value and never prints the file. The account is shared, so nothing here logs a key.
 export function readKey(name: string): string {
   const line = readFileSync(KEYS_FILE, 'utf8')
     .split('\n')

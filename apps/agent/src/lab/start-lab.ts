@@ -9,7 +9,6 @@ import { runLabAgent } from './lab-agent.ts';
 import { createLabRecorder } from './lab-recorder.ts';
 import { tapVendorSocket, type VendorTap } from './proof/vendor-tap.ts';
 
-const SOURCE_RATE = 22050;
 /** The local server's own development pair, which `livekit-server --dev` prints. */
 const DEV_KEY = 'devkey';
 const DEV_SECRET = 'secret';
@@ -49,6 +48,7 @@ const recorder = createLabRecorder(args.out ?? null);
 const tap: VendorTap | null = args.tap ? tapVendorSocket() : null;
 const studentToken = await makeToken('student-browser');
 console.log(`OPEN ${args.webUrl}/lab/scene-player?url=${encodeURIComponent(args.url)}&token=${studentToken}`);
-await runLabAgent({ url: args.url, token: await makeToken('agent-tutor'), voice: pickVoice().makeTts(), sampleRate: SOURCE_RATE, recorder });
+const voice = pickVoice().makeTts();
+await runLabAgent({ url: args.url, token: await makeToken('agent-tutor'), voice, sampleRate: voice.sampleRate, recorder });
 recorder.save({ voice: args.fake ? 'fake' : args.stored ? 'stored casey' : 'casey', model: args.model ?? 'eleven_flash_v2_5', tap });
 process.exit(0);

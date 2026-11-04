@@ -1,4 +1,5 @@
 import { type Beat, getBeatText, getSpokenWords, getCues } from '@astra/contracts';
+import { AUDIBLE_SAMPLE } from '../../live/first-sound.ts';
 
 const ANALYSIS_RATE = 8000;
 const WINDOW_BEFORE_MS = 40;
@@ -6,7 +7,6 @@ const WINDOW_AFTER_MS = 300;
 const NEAR_SEARCH_MS = 200;
 const FAR_SEARCH_MS = 1800;
 const GOOD_MATCH = 0.55;
-const AUDIBLE = 328;
 const QUIET_RUN_MS = 40;
 
 export interface Percentiles {
@@ -59,7 +59,7 @@ interface Lag {
 const toSamples = (ms: number) => Math.round((ms / 1000) * ANALYSIS_RATE);
 const toMs = (samples: number) => (samples / ANALYSIS_RATE) * 1000;
 
-// Finds where a stretch of the audio we sent landed in the audio the browser heard, so "where the word really was" does not depend on the clock under test.
+// Finds where a stretch of sent audio landed in the heard audio, so a word's true place does not depend on the clock under test.
 function findLag({ sent, heard, atSentMs, aroundLagMs, searchMs }: { sent: Float32Array; heard: Float32Array; atSentMs: number; aroundLagMs: number; searchMs: number }): Lag {
   const sentStart = Math.max(0, toSamples(atSentMs - WINDOW_BEFORE_MS));
   const length = toSamples(WINDOW_BEFORE_MS + WINDOW_AFTER_MS);
@@ -73,15 +73,12 @@ function findLag({ sent, heard, atSentMs, aroundLagMs, searchMs }: { sent: Float
 }
 
 export interface TurnAudio {
-  /** The PCM we handed to LiveKit, at its own rate. */
   sentPcm: Int16Array;
   sentRate: number;
-  /** Heard PCM at the tap's rate, and the graph ms of its first sample. */
   heardPcm: Int16Array;
   heardRate: number;
-  heardStartMs: number;
-  /** Graph ms of this turn's first sound. */
-  firstSoundAtMs: number;
+  heardStartGraphMs: number;
+  firstSoundGraphMs: number;
 }
 
 export interface WordPlace {
@@ -90,12 +87,12 @@ export interface WordPlace {
   match: number;
 }
 
-// One lag per word, on real speech. A word it cannot match, as in lost audio or past a cut, is left out rather than guessed.
-export function findWordPlaces({ sentPcm, sentRate, heardPcm, heardRate, heardStartMs, firstSoundAtMs }: TurnAudio, wordSentMs: readonly number[]): WordPlace[] {
+// Finds one lag per word on real speech, and a word it cannot match stays null rather than guessed.
+export function findWordPlaces({ sentPcm, sentRate, heardPcm, heardRate, heardStartGraphMs, firstSoundGraphMs }: TurnAudio, wordSentMs: readonly number[]): WordPlace[] {
   const sent = resample(sentPcm, sentRate, ANALYSIS_RATE);
   const heard = resample(heardPcm, heardRate, ANALYSIS_RATE);
   const firstSent = findFirstLoudMs(sentPcm, sentRate);
-  let lagMs = firstSoundAtMs - heardStartMs - firstSent;
+  let lagMs = firstSoundGraphMs - heardStartGraphMs - firstSent;
   let isLocked = false;
   return wordSentMs.map((sentMs) => {
     const near = findLag({ sent, heard, atSentMs: sentMs, aroundLagMs: lagMs, searchMs: isLocked ? NEAR_SEARCH_MS : FAR_SEARCH_MS });
@@ -103,28 +100,28 @@ export function findWordPlaces({ sentPcm, sentRate, heardPcm, heardRate, heardSt
     if (found.match < GOOD_MATCH) return { sentMs, heardAtMs: null, match: found.match };
     lagMs = found.lagMs;
     isLocked = true;
-    return { sentMs, heardAtMs: heardStartMs + sentMs + found.lagMs, match: found.match };
+    return { sentMs, heardAtMs: heardStartGraphMs + sentMs + found.lagMs, match: found.match };
   });
 }
 
 const LOUD_SEARCH_MS = 500;
 const LOUD_BLOCK_MS = 3;
 
-/** The word's audio start as a listener gets it: the first audible sound at or after where the voice placed the word. */
-export function findAudibleStartMs({ heardPcm, heardRate, heardStartMs, placedAtMs }: { heardPcm: Int16Array; heardRate: number; heardStartMs: number; placedAtMs: number }): number {
+/** The first audible sound at or after where the voice placed the word. */
+export function findAudibleStartMs({ heardPcm, heardRate, heardStartGraphMs, placedAtMs }: { heardPcm: Int16Array; heardRate: number; heardStartGraphMs: number; placedAtMs: number }): number {
   const blockSamples = Math.round((LOUD_BLOCK_MS / 1000) * heardRate);
-  const start = Math.round(((placedAtMs - heardStartMs) / 1000) * heardRate);
+  const start = Math.round(((placedAtMs - heardStartGraphMs) / 1000) * heardRate);
   const limit = start + Math.round((LOUD_SEARCH_MS / 1000) * heardRate);
   for (let block = start; block < limit; block += blockSamples) {
     for (let index = block; index < block + blockSamples; index++) {
-      if (Math.abs(heardPcm[index] ?? 0) >= AUDIBLE) return heardStartMs + (block / heardRate) * 1000;
+      if (Math.abs(heardPcm[index] ?? 0) >= AUDIBLE_SAMPLE) return heardStartGraphMs + (block / heardRate) * 1000;
     }
   }
   return placedAtMs;
 }
 
 export function findFirstLoudMs(pcm: Int16Array, rate: number): number {
-  const index = pcm.findIndex((sample) => Math.abs(sample) >= AUDIBLE);
+  const index = pcm.findIndex((sample) => Math.abs(sample) >= AUDIBLE_SAMPLE);
   return index < 0 ? 0 : (index / rate) * 1000;
 }
 
@@ -134,14 +131,14 @@ export function getWordList(beats: readonly Beat[]) {
 
 export const getCueCount = (beats: readonly Beat[]) => beats.flatMap((beat) => getCues(beat)).length;
 
-/** A word that follows a run of silence has an onset in the sound itself, which needs no vendor's word times. */
+/** A word after a run of silence has an onset in the sound itself, which needs no vendor's word times. */
 export function findWordOnsetsAfterSilence(pcm: Int16Array, rate: number, wordStartsMs: readonly number[]): { wordIndex: number; onsetMs: number; silenceMs: number }[] {
   const blockSamples = Math.round(rate * 0.005);
   const loud: boolean[] = [];
   for (let start = 0; start < pcm.length; start += blockSamples) {
     let peak = 0;
     for (let index = start; index < Math.min(pcm.length, start + blockSamples); index++) peak = Math.max(peak, Math.abs(pcm[index] as number));
-    loud.push(peak >= AUDIBLE);
+    loud.push(peak >= AUDIBLE_SAMPLE);
   }
   const onsets: { onsetMs: number; silenceMs: number }[] = [];
   let quietBlocks = 0;

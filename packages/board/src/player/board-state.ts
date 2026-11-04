@@ -4,7 +4,6 @@ import { getMotionValue, holdMotion, isMoving, type Motion, moveOver } from './m
 import { PLANNED_SCENES } from './projectile-scene.ts';
 import type { Scene, SceneCatalog, SceneParameters } from './scene.ts';
 
-/** A starting value. M3.3 can set one per kind when it draws them for real. */
 const ENTRANCE_MS = 400;
 const MS_PER_SECOND = 1000;
 
@@ -36,7 +35,6 @@ export interface BoardState {
   readonly focus: ElementRef | null;
 }
 
-/** The reducer's working copy, which never leaves this file. */
 interface BoardDraft {
   elements: Map<ElementId, BoardElement>;
   focus: ElementRef | null;
@@ -212,7 +210,7 @@ function reduce(operations: readonly BoardOperation[], context: ReduceContext, a
   return board;
 }
 
-/** The one way to read the board. It takes operations in time order, and a live board and a replay differ only in where those came from. */
+/** Takes operations in time order. A live board and a replay differ only in where those came from. */
 export function getBoardAt(operations: readonly BoardOperation[], atMs: number, catalog: SceneCatalog = PLANNED_SCENES): BoardState {
   return reduce(operations, { operations, catalog }, atMs);
 }

@@ -8,7 +8,6 @@ function makeBeat(id: string, script: unknown[], expectsReply = false): Beat {
   return parsed.value;
 }
 
-/** Test text only. It holds no student data, and its numbers check that the voice's words stay ours. */
 export const LESSON: readonly (readonly Beat[])[] = [
   [
     makeBeat('jump-shot', [
@@ -57,8 +56,6 @@ export const LESSON: readonly (readonly Beat[])[] = [
 
 export const STOCK_PHRASE = 'Let me work that out.';
 
-/** A stock phrase is a normal beat with stored word times, so it gets the same clock and the same proof. */
 export const STOCK_TURN: readonly Beat[] = [makeBeat('stock', [{ kind: 'text', id: 'working', text: 'Working it out' }, 'Let me ', { kind: 'focus', target: 'working' }, 'work that out.'])];
 
-/** The line that ran longest on the voice test. */
 export const OVERLONG_LINE = 'Nine point eight metres per second squared.';

@@ -2,14 +2,12 @@ import type { AudioFrame } from '@livekit/rtc-node';
 
 export interface FrameQueue {
   push(frame: AudioFrame): void;
-  /** No more frames are coming. */
   finish(): void;
-  /** Drops what is waiting and ends the queue. */
   discard(): void;
   next(): Promise<AudioFrame | null>;
 }
 
-// Words go out the moment the voice gives them, so reading from the voice never waits for the slow side that plays the audio.
+// Lets the voice reader send words at once, without waiting on the slower side that plays the audio.
 export function createFrameQueue(): FrameQueue {
   const frames: AudioFrame[] = [];
   let isFinished = false;

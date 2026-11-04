@@ -32,7 +32,6 @@ interface TurnRecord {
   mismatches: { ours: string; theirs: string }[];
 }
 
-// Writes what the agent sent and when, so a proof run can compare it with what the browser heard. Holds test text only.
 export function createLabRecorder(outFolder: string | null): LabRecorder {
   const turns = new Map<TurnId, TurnRecord>();
   const browserMessages: (BrowserMessage & { receivedAtMs: number })[] = [];

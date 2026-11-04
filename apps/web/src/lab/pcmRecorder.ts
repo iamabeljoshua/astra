@@ -19,7 +19,6 @@ function toBase64(chunks: Float32Array[]): string {
   return btoa(binary);
 }
 
-// Proof runs only, and nothing it holds leaves this tab except to the proof script that asked.
 export function createPcmRecorder(audioContext: AudioContext): PcmRecorder {
   const tapped = new Map<TapPoint, { firstFrame: number | null; chunks: Float32Array[] }>();
   return {

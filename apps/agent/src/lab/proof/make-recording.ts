@@ -19,7 +19,7 @@ function readInputs(folder: string): RecordingInputs {
   return { screencast: JSON.parse(readFileSync(join(folder, 'screencast.json'), 'utf8')), epochAtGraphZeroMs: page.clockMap.epochAtGraphZeroMs, rate: taps.rate, outputFirstFrame: taps.outputFirstFrame };
 }
 
-// Builds a video with the sound the page really played, placing each screen frame at the moment the browser painted it, so a person can judge the sync by eye and ear.
+// Joins the sound the page played with each screen frame at its paint time, so a person can judge the sync.
 export function makeRecording(folder: string, outputPath: string): void {
   const { screencast, epochAtGraphZeroMs, rate, outputFirstFrame } = readInputs(folder);
   const work = mkdtempSync(join(tmpdir(), 'm3-2-recording-'));

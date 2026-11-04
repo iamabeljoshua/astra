@@ -1,6 +1,6 @@
 const HELD_SHORT_MS = 1;
 
-/** A starting guess: a closing report later than this counts as lost. */
+/** A closing report later than this counts as lost. */
 export const LONGEST_HOLD_MS = 3000;
 
 export interface ReportedGap {

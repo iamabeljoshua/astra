@@ -11,7 +11,7 @@ export const LAB_TOPIC = 'astra.lab';
 const AUDIO_QUEUE_MS = 200;
 
 export type LabCommand =
-  | { type: 'play'; lessonTurn?: number; isStockPhrase?: boolean; textPace?: TextPace; stalls?: { atAudioMs: number; ms: number }[]; wordsLateMs?: number }
+  | { type: 'play'; lessonTurn?: number; isStockPhrase?: boolean; textPace?: TextPace; proofStalls?: { atAudioMs: number; ms: number }[]; wordsLateMs?: number }
   | { type: 'interrupt' }
   | { type: 'resume'; textPace?: TextPace }
   | { type: 'finish' }
@@ -33,7 +33,7 @@ interface ActiveTurn {
   reports: Map<BeatId, PlayReport>;
 }
 
-// The agent's stand-in for this PR: it speaks a scripted lesson, reports gaps as the real agent will, and writes the log from what the browser says played.
+// Stand-in for the real agent: speaks a scripted lesson, reports gaps, and logs what the browser says played.
 export async function runLabAgent({ url, token, voice, sampleRate, recorder }: LabAgentOptions): Promise<void> {
   const room = new Room();
   const encoder = new TextEncoder();
@@ -76,7 +76,7 @@ export async function runLabAgent({ url, token, voice, sampleRate, recorder }: L
   voice.on('error', (error) => recorder.noteRefused(`voice error: ${String(error.error)}`));
   voice.prewarm();
 
-  const startTurn = (beats: readonly Beat[], { textPace, stalls }: Pick<LabCommand & { type: 'play' }, 'textPace' | 'stalls'> = {}) => {
+  const startTurn = (beats: readonly Beat[], { textPace, proofStalls }: Pick<LabCommand & { type: 'play' }, 'textPace' | 'proofStalls'> = {}) => {
     const id = `turn-${(turnCount += 1)}` as TurnId;
     beatsByTurn.set(id, beats);
     recorder.startTurn(id, beats);
@@ -87,7 +87,7 @@ export async function runLabAgent({ url, token, voice, sampleRate, recorder }: L
       turnId: id,
       beats,
       textPace,
-      stalls,
+      proofStalls,
       onFrameCaptured: (note) => recorder.noteFrame(id, note),
       onWords: (words) => recorder.noteWords(id, words),
       onGap: (gap) => recorder.noteGap(id, gap),

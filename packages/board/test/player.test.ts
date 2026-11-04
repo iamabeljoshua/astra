@@ -1,7 +1,7 @@
 import { type AgentMessage, type BrowserMessage, parseSessionEvent, type SceneCommand, type SessionEvent } from '@astra/contracts';
 import { describe, expect, it } from 'vitest';
 import { createTimerClock } from '../src/player/audio-clock.ts';
-import { describeBoard } from '../src/player/board-state.ts';
+import { type BoardElement, describeBoard, getSceneFrame } from '../src/player/board-state.ts';
 import { createProjectileScene } from '../src/player/projectile-scene.ts';
 import { rebuildBoard } from '../src/player/rebuild-board.ts';
 import { createScenePlayer } from '../src/player/scene-player.ts';
@@ -244,7 +244,7 @@ function runInterruptedLesson(audio: FakeAudio) {
   audio.advance(200);
 }
 
-// The agent's half of the wire, kept here only to prove a report round-trips into a log the parser accepts.
+// The agent's half of the wire, to prove a report round-trips into a log the parser accepts.
 function writeLog(audio: FakeAudio, getBeat: (beat: string) => unknown): SessionEvent[] {
   return played(audio).map((report, seq) => {
     const { turnId: reportedTurn, beatId: reportedBeat, browserMs, startedMsAgo, wordStartsMs, durationMs, playedWords, firedCueMs, ending, frozen } = report;
@@ -311,6 +311,31 @@ describe('a scene', () => {
     expect(backward).toEqual(forward);
     expect(scene.getFrame(scene.moments.peak as number).velocity.y).toBeCloseTo(0);
     expect(scene.getFrame(scene.durationSeconds).ball.y).toBeCloseTo(0);
+  });
+
+  it('gives a test scene computed only from time the same frame at any seek point, and through a rewind and a replay', () => {
+    const scene = { parts: ['moon'], moments: { eclipse: 2 }, durationSeconds: 8, getFrame: (seconds: number) => ({ moonAngle: seconds * 45 }) };
+    const catalog = (command: SceneCommand) => (command.kind === 'simulate' ? scene : null);
+    const orbit = { kind: 'simulate', id: 'orbit', simulation: { model: 'projectile', parameters: { horizontalSpeed: 1, upwardSpeed: 1, releaseHeight: 1, gravity: 9.8 } } };
+    const parseFor = (body: Record<string, unknown>) => {
+      const parsed = parseSessionEvent(body);
+      if (!parsed.ok) throw new Error(parsed.problem);
+      return parsed.value;
+    };
+    const beat = (id: string, script: unknown[]) => ({ kind: 'beatPlayed', reportedBy: 'browser', turnId: 't1', beat: { id, script, expectsReply: false }, wordStartsMs: [0, 200], durationMs: 400, playedWords: 2, ending: 'finished', frozen: [] });
+    const log = [
+      parseFor({ ...beat('place', [orbit, 'One two']), seq: 0, atMs: 0, firedCueMs: [0] }),
+      parseFor({ ...beat('run', [{ kind: 'runSimulation', target: 'orbit', action: 'play' }, 'One ', { kind: 'runSimulation', target: 'orbit', action: 'seek', to: 3 }, 'two']), seq: 1, atMs: 1000, firedCueMs: [0, 200] }),
+      parseFor({ seq: 2, atMs: 2000, kind: 'studentActed', action: { action: 'rewound', turnId: 't1', toBeat: 'run' } }),
+      parseFor({ ...beat('again', [{ kind: 'runSimulation', target: 'orbit', action: 'play' }, 'One two']), seq: 3, atMs: 3000, firedCueMs: [0] }),
+    ];
+    const getFrameAt = (atMs: number) => getSceneFrame(rebuildBoard(log, atMs, catalog).elements.get(elementId('orbit')) as BoardElement, atMs);
+    const moments = [1100, 1200, 2500, 3500, 3700];
+    const forward = moments.map(getFrameAt);
+    const backward = [...moments].reverse().map(getFrameAt).reverse();
+    expect(backward).toEqual(forward);
+    const getAngle = (frame: unknown) => Number((frame as { moonAngle: number }).moonAngle.toFixed(6));
+    expect(forward.map(getAngle)).toEqual([0.1, 3, 0, 0.5, 0.7].map((seconds) => getAngle(scene.getFrame(seconds))));
   });
 
   it('can be anything with parts and moments, and the player needs no change for it', () => {

@@ -6,7 +6,6 @@ import type { SceneCatalog } from './scene.ts';
 
 export type OutputLevel = 'full' | 'lowered' | 'silent';
 
-/** What a cue really did, for the probe and the lab's measurements. */
 export interface FiredCue {
   turnId: TurnId;
   beatId: BeatId;
@@ -61,7 +60,7 @@ interface PlayingTurn {
   beats: PlayingBeat[];
 }
 
-/** A word whose time passed this long ago with no sound was heard or lost, and the audio may be over, so it stops waiting. */
+/** A word this far past its time with no sound was heard or lost, so it stops waiting. */
 const SILENT_WORD_LIMIT_MS = 1000;
 
 const isStarted = (beat: PlayingBeat): beat is StartedBeat => beat.startedAtMs !== null;
@@ -235,7 +234,6 @@ export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueF
     getBoard: (atMs) => getBoardAt(getOperations(), atMs, catalog),
     receive(message) {
       if (message.type === 'turnStarted') return startTurn(message.turnId);
-      // Everything sent for an old turn is ignored, and a frozen turn ignores what was already on its way.
       if (turn?.phase === 'playing' && message.turnId === turn.id) receiveForTurn(turn, message);
     },
   };
