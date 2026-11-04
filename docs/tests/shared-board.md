@@ -47,7 +47,7 @@ It cost $0.007 for 72 reads, at 1.9 s a read.
 
 ## Dragging a point
 
-A `drag` task puts the student's point on the curve, near its start, with a ring until it is first moved. It moves in steps of about a fiftieth of the plot, and only from near the point. Letting go sends the whole path, and a press that moved nothing sends nothing. The check is never finer than the point can move, so a wide plot can always be landed. A wrong place waits, because the student may be trying places, and the tutor looks at a pause. The moves land in the log with the work, so a replay moves the point at the same moments.
+A `drag` task puts the student's point on the curve, near its start, with a ring until it is first moved. It moves in steps of about a fiftieth of the plot, and only from near the point. Letting go sends the whole path, and a press that moved nothing sends nothing. The check is never finer than the point can move, so a wide plot can always be landed. Only letting go counts, so a point still moving is not work. Each place it is let go gets the tutor's reply at once, right or wrong. A wrong place gets "Hm." first, and the prompt names the tangent as a good first hint, so the tangent arrives by the tutor's command, as it does on the prototype. The page never draws it alone. The moves land in the log with the work, so a replay moves the point at the same moments.
 
 A line the tutor rewrites with a change takes what hung on it, as PR 88 made it: the student's ring and any task on that line. It says something new, so the ring no longer points at anything, and the tutor sets a new task if it wants one.
 
@@ -208,6 +208,7 @@ Abel's rule: everything a student can see or do on the prototype exists on the r
 | Draggable point with a pulsing ring and its coordinates | Yes. Arrow keys and Enter also move and send it, which the prototype does not have | `drag-point.test.ts`, `DragSurface.test.tsx`, `drag-*-1-waiting` |
 | Tangent riding on the point, with its slope written | Yes | `drag-point.test.ts`, `m3-12-task-*` |
 | Code's check on release, with "Mm-hm." or "Hm." | Yes, 37 to 58 ms on the page, on the drags measured | `drag-proof.mjs`, `board-work.test.ts` |
+| A wrong place gets the tutor's reply at once, and its tangent command as a first hint, with no wait | Yes. The prompt asks for the tangent, so the model decides, as on the prototype | `watch-rule.test.ts`, `board-work.test.ts` |
 
 ### Layout
 

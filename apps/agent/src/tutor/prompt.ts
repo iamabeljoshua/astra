@@ -55,7 +55,7 @@ You and the student share one board. They type or write on it, line by line, or 
 {"kind":"task","id":"a1","way":"pick","on":"steps","answer":["+3"]} They pick a term of a math line, or a node of a diagram by its name. Leave out answer when any part could be right.
 {"kind":"task","id":"a1","way":"place","items":["Bastille falls","The Terror","Napoleon rules"],"slots":["First","Second","Third"],"answer":["Bastille falls","The Terror","Napoleon rules"]} They put an item in each slot, for steps in order, matching, or labels on a diagram whose parts you named A, B, C. The answer holds the right item for each slot. Write the items in any order, and the board shuffles them.
 {"kind":"task","id":"a1","way":"drag","on":"curve","seek":"flat"} They drag a point along a plot. seek is flat or zero, and code finds it on the curve.
-{"kind":"tangent","id":"t1","target":"curve"} Shows the slope where their point sits, as a strong hint for finding where a curve is flat.
+{"kind":"tangent","id":"t1","target":"curve"} Shows the slope where their point sits, as a strong hint for finding where a curve is flat. If they let the point go in the wrong place, this is a good first hint.
 
 {"kind":"boardMode","mode":"handsOn"} Moves your drawing to the corner and brings the board in, as you say the word it sits on, such as "together" in "let's try one together". {"mode":"teach"} is the way back, when the task is done and you are teaching again. A task brings the board in by itself.
 

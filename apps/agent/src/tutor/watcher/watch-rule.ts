@@ -92,7 +92,7 @@ export function decideOnWork(work: StudentWork, checked: CheckedWork, hasTask: b
     case 'place':
       return work.placed.includes(null) ? wait('some slots are still empty') : reply('every slot is filled');
     case 'drag':
-      return checked.verdict.status === 'right' ? reply('the point is there') : wait('the student may be trying places');
+      return reply('the student let go of the point');
   }
 }
 
