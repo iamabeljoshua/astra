@@ -1,4 +1,4 @@
-import type { BrowserMessage, StudentWork } from '@astra/contracts';
+import type { AgentMessage, BrowserMessage, ElementId, InkPoint, StudentAction, StudentWork } from '@astra/contracts';
 import { type CheckedWork, cleanStudentText, checkWorkOnBoard } from '@astra/board/shared';
 import type { TutorBrain } from '../brain.ts';
 import { decideOnReading, decideOnWork, decideWatch, getWorkWords, type WatchDecision, type WatchSituation, type WordMeaning } from './watch-rule.ts';
@@ -12,6 +12,9 @@ export interface BoardWorkOptions {
   isTutorTalking(): boolean;
   getSecondsSinceQuestion(): number | null;
   readMeaning(words: string): Promise<WordMeaning | null>;
+  /** Reads a handwritten line's strokes, or null if it could not. */
+  readStrokes(strokes: readonly (readonly InkPoint[])[]): Promise<{ text: string; ink: { tex?: string; isUnsure: boolean } } | null>;
+  send(message: AgentMessage): void;
   getNowMs(): number;
   trace(name: string, fields?: Record<string, unknown>): void;
 }
@@ -21,10 +24,14 @@ interface Unanswered {
   keys: readonly string[];
 }
 
+const MOST_STROKES_HELD = 400;
+const NOT_READ = '(handwriting that could not be read)';
+
 const getWorkKey = (work: StudentWork) => JSON.stringify(work.way === 'write' ? cleanStudentText(work.text) : work);
 
 // What the student does on the board. Code checks it, notes it for the tutor, writes it to the log, and decides whether the tutor answers now, all before any model.
-export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getSecondsSinceQuestion, readMeaning, getNowMs, trace }: BoardWorkOptions) {
+export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getSecondsSinceQuestion, readMeaning, readStrokes, send, getNowMs, trace }: BoardWorkOptions) {
+  const inkStrokes = new Map<string, InkPoint[]>();
   let spokeUpAtMs: number | null = null;
   let unanswered: Unanswered | null = null;
   let wrongKeys: readonly string[] = [];
@@ -35,6 +42,12 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
   };
 
   const onWorked = (message: BrowserMessage & { type: 'worked' }) => {
+    // Only the agent has read a page's handwriting, so a page's own word for it is not taken.
+    if (message.work.way === 'write' && message.work.ink) return trace('workRefused', { way: 'ink' });
+    takeWork(message);
+  };
+
+  const takeWork = (message: BrowserMessage & { type: 'worked' }) => {
     const noted = tutor.noteWork?.(message.work);
     if (!noted) return trace('workRefused', { way: message.work.way });
     const { checked, hadTask } = noted;
@@ -50,6 +63,24 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
     } else {
       unanswered = { checked, keys: wrongKeys };
     }
+  };
+
+  const onInkStroke = (action: StudentAction & { action: 'inkStroke' }) => {
+    if (inkStrokes.size >= MOST_STROKES_HELD && !inkStrokes.has(action.id)) return;
+    inkStrokes.set(action.id, [...(inkStrokes.get(action.id) ?? []), ...action.points]);
+  };
+
+  // Words may have come while this was being read, so the line lands in the order it was finished, and a failed read still reaches the tutor as a line it must ask about.
+  const onInkDone = async ({ id, strokes, task, clockId, browserMs, startedMsAgo }: BrowserMessage & { type: 'inkDone' }) => {
+    const points = strokes.map((strokeId: ElementId) => inkStrokes.get(strokeId) ?? []);
+    strokes.forEach((strokeId) => inkStrokes.delete(strokeId));
+    const read = await readStrokes(points).catch((error: unknown) => {
+      trace('inkReadFailed', { problem: String(error) });
+      return null;
+    });
+    const work: StudentWork = { way: 'write', id, text: read?.text || NOT_READ, ...(task ? { task } : {}), ink: read?.ink ?? { isUnsure: true } };
+    send({ type: 'inkRead', work });
+    takeWork({ type: 'worked', clockId, browserMs, startedMsAgo, work });
   };
 
   const getSituation = (seconds: number, draftText: string | undefined): WatchSituation => {
@@ -86,7 +117,7 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
     if (decision.act === 'speak' && !isTutorTalking()) speakAtPause(decision, seconds, draft);
   };
 
-  return { onWorked, onPaused, noteAnswered };
+  return { onWorked, onPaused, onInkStroke, onInkDone, noteAnswered };
 }
 
 function getDraft(text: string, board: NonNullable<ReturnType<NonNullable<TutorBrain['getBoard']>>>): WatchSituation['draft'] {

@@ -123,7 +123,7 @@ describe('the Privacy Policy on voice', () => {
     expect(privacy).toContain('LiveKit Cloud carries your voice');
     expect(privacy).toContain("Meta's Muse Voice Transcribe receives your voice");
     expect(privacy).toContain("ElevenLabs receives the tutor's words");
-    expect(privacy).toContain('receives what you say and type in a session, including lines on the board and a line you paused on without sending, the tutor\'s earlier words, and your level, interests, and goal');
+    expect(privacy).toContain('receives what you say and type in a session, including lines on the board, a line you paused on without sending, and a picture of anything you write with the pen, the tutor\'s earlier words, and your level, interests, and goal');
     expect(privacy).toContain('We do not send it your name, your date of birth, your email address, or an account ID');
   });
 

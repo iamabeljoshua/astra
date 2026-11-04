@@ -19,6 +19,8 @@ export function makeFakeVoice(view: Partial<LiveVoiceView> = {}): LiveVoice {
     reportMarkNotDrawn: vi.fn(),
     sendWork: vi.fn(),
     movePoint: vi.fn(),
+    sendInkStroke: vi.fn(),
+    sendInkDone: vi.fn(),
     sendPause: vi.fn(),
     stopTutor: vi.fn(),
     getLoudness: () => 0,

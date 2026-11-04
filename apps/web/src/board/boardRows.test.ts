@@ -14,6 +14,21 @@ describe('the rows of the shared board', () => {
     expect(row?.notes.map((note) => note.id)).toEqual(['n1']);
   });
 
+  it('shows one check when code and the tutor both gave one', () => {
+    const board = getBoardAt([line('s1', 'right', 1), command({ kind: 'annotate', id: 'x1', target: 's1', mark: 'check' }, 2)], 10);
+    expect(getBoardRows(board)[0]?.marks.map((mark) => mark.id)).toEqual(['s1-checked']);
+  });
+
+  it('gives handwriting a row while it is read, and keeps its strokes with the line it becomes', () => {
+    const strokes = { kind: 'inkStroke', atMs: 1, id: 's1-ink-0', points: [[0.1, 0.1, 0]] } as unknown as BoardOperation;
+    const waiting = getBoardRows(getBoardAt([strokes], 10));
+    expect(waiting[0]).toMatchObject({ isBeingRead: true });
+    const read = getBoardRows(getBoardAt([strokes, line('s1', 'right', 2)], 10));
+    expect(read).toHaveLength(1);
+    expect(read[0]?.inks).toHaveLength(1);
+    expect(read[0]?.isBeingRead).toBe(false);
+  });
+
   it('strikes a crossed line only once a later line is right', () => {
     const crossed = [line('s1', 'wrong', 1), command({ kind: 'annotate', id: 'x1', target: 's1', mark: 'cross' }, 2)];
     expect(getBoardRows(getBoardAt(crossed, 10))[0]?.isStruck).toBe(false);

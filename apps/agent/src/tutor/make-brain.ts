@@ -1,4 +1,4 @@
-import { getBeatText } from '@astra/contracts';
+import { getBeatText, type InkPoint } from '@astra/contracts';
 import { readKey } from '../keys.ts';
 import { makeAnthropicTutorModel, TUTOR_MODEL_NAMES, type TutorModelName } from '../providers/anthropic.ts';
 import { makeRecordedTutorModel } from '../providers/fake-model.ts';
@@ -7,6 +7,8 @@ import { type ApiLink, createApiLink } from './api-link.ts';
 import { createTutorBrain, type SpendLimit, type TraceNote, type TurnSummary, type TutorBrain } from './brain.ts';
 import { TUTOR_SYSTEM } from './prompt.ts';
 import { createSpendLedger } from './spend-ledger.ts';
+import { makeInkClient, readInk } from './ink/read-ink.ts';
+import { rasterizeInk } from './ink/rasterize-ink.ts';
 import { readWords } from './watcher/read-words.ts';
 import type { WordMeaning } from './watcher/watch-rule.ts';
 
@@ -89,6 +91,7 @@ export interface MadeBrain {
   brain: TutorBrain;
   flushSpend(): Promise<void>;
   readMeaning?(words: string): Promise<WordMeaning | null>;
+  readStrokes?(strokes: readonly (readonly InkPoint[])[]): Promise<{ text: string; ink: { tex?: string; isUnsure: boolean } } | null>;
 }
 
 export function makeTutorBrain({ roomName, trace }: { roomName: string; trace: TraceNote }): MadeBrain {
@@ -118,5 +121,13 @@ export function makeTutorBrain({ roomName, trace }: { roomName: string; trace: T
     caps.addTurn({ usd: costUsd, voiceCharacters: 0 });
     return meaning;
   };
-  return { brain, flushSpend: caps.flush, readMeaning };
+  const inkClient = makeInkClient(readKey('ANTHROPIC_API_KEY'));
+  const readStrokes = async (strokes: readonly (readonly InkPoint[])[]) => {
+    const png = rasterizeInk(strokes);
+    if (!png || caps.getSpendLimit()) return null;
+    const { costUsd, ...read } = await readInk(inkClient, png);
+    caps.addTurn({ usd: costUsd, voiceCharacters: 0 });
+    return read;
+  };
+  return { brain, flushSpend: caps.flush, readMeaning, readStrokes };
 }

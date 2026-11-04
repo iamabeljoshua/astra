@@ -1,5 +1,5 @@
 import { BEAT_LIMITS } from './beat.ts';
-import { readBeatId, readTurnId } from './ids.ts';
+import { readBeatId, readElementId, readTurnId } from './ids.ts';
 import { type AgentMessage, type BrowserMessage, type BrowserStamp, clipTypedText, LIVE_MESSAGE_MAX_BYTES, STUDENT_WORDS_MAX_CHARACTERS, type TimedWord, TUTOR_CLOSED_REASONS } from './live-message.ts';
 import { readSceneCommand } from './parse-command.ts';
 import { PLAY_REPORT_KEYS, readFrozenFrames, readPlayReport, readStudentAction, readStudentWork } from './parse-event.ts';
@@ -87,6 +87,10 @@ const AGENT_MESSAGES: VariantTable<AgentMessage, 'type'> = {
         ...fields.optional('ms', readAudioGapMs),
       }),
     },
+    inkRead: {
+      keys: ['work'],
+      read: (fields) => ({ type: 'inkRead', work: readStudentWork(fields.at('work')) }),
+    },
     studentWords: {
       keys: ['text', 'isFinal'],
       read: (fields) => ({ type: 'studentWords', text: readString(fields.at('text'), STUDENT_WORDS_MAX_CHARACTERS), isFinal: readBoolean(fields.at('isFinal')) }),
@@ -102,6 +106,7 @@ const CLOCK_ID_MAX_CHARACTERS = 64;
 const MARK_ID_MAX_CHARACTERS = 64;
 
 const STAMP_KEYS = ['clockId', 'browserMs', 'startedMsAgo'];
+const MOST_STROKES_IN_A_LINE = 200;
 
 function readBrowserStamp(fields: CheckedFields): BrowserStamp {
   return { clockId: readString(fields.at('clockId'), CLOCK_ID_MAX_CHARACTERS), browserMs: readWholeNumber(fields.at('browserMs')), startedMsAgo: readWholeNumber(fields.at('startedMsAgo')) };
@@ -157,6 +162,10 @@ const BROWSER_MESSAGES: VariantTable<BrowserMessage, 'type'> = {
     paused: {
       keys: [...STAMP_KEYS, 'seconds', 'draft'],
       read: (fields) => ({ type: 'paused', ...readBrowserStamp(fields), seconds: readWholeNumber(fields.at('seconds')), ...fields.optional('draft', (place) => clipTypedText(readString(place, LIVE_MESSAGE_MAX_BYTES))) }),
+    },
+    inkDone: {
+      keys: [...STAMP_KEYS, 'id', 'strokes', 'task'],
+      read: (fields) => ({ type: 'inkDone', ...readBrowserStamp(fields), id: readElementId(fields.at('id')), strokes: readList(fields.at('strokes'), { maxLength: MOST_STROKES_IN_A_LINE, readItem: readElementId }), ...fields.optional('task', readElementId) }),
     },
     stopTutor: {
       keys: STAMP_KEYS,

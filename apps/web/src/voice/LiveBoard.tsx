@@ -1,6 +1,6 @@
 import type { BoardState } from '@astra/board';
 import { getOpenTaskOnBoard } from '@astra/board/shared';
-import type { StudentWork } from '@astra/contracts';
+import type { ElementId, StudentWork } from '@astra/contracts';
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { getVisualPlace, type VisualPeek } from '../board/boardStage';
 import { BoardStageView } from '../board/BoardStageView';
@@ -8,8 +8,9 @@ import { getBoardRows } from '../board/boardRows';
 import { MathKeys } from '../board/MathKeys';
 import type { MarkWithoutTarget } from '../board/boardMarks';
 import { MovingDot } from '../board/MovingDot';
+import { PenBand } from '../board/PenBand';
 import { SharedBoard } from '../board/SharedBoard';
-import { TypedLine, type TypedLineHandle } from '../board/TypedLine';
+import { TypedLine, type TypedLineHandle, useNextLineId } from '../board/TypedLine';
 import { BOARD_WORK_LABELS, VOICE_LABELS } from '../strings';
 import type { LiveVoice } from './liveVoice';
 
@@ -78,6 +79,9 @@ export function LiveBoard({ voice, visual = null, onTalk, isTalkOn = false, canT
   const watchLiveLine = useRef(() => {});
   const isVisualBigNow = useRef(false);
   const [isMathKeysOpen, setIsMathKeysOpen] = useState(false);
+  const [isPenOpen, setIsPenOpen] = useState(false);
+  const [lineInTheBand, setLineInTheBand] = useState<ElementId | null>(null);
+  const penDone = useRef<(() => void) | null>(null);
   const typedLine = useRef<TypedLineHandle>(null);
   useEffect(() => {
     let animationFrame = requestAnimationFrame(function draw() {
@@ -97,6 +101,7 @@ export function LiveBoard({ voice, visual = null, onTalk, isTalkOn = false, canT
   }, [voice]);
   const reportProblem = useCallback((problem: MarkWithoutTarget) => voice.reportMarkNotDrawn(problem.markId), [voice]);
   const getBoard = useCallback(() => voice.getBoardNow().board, [voice]);
+  const nextLineId = useNextLineId(getBoard);
   const sendWork = useCallback(
     (work: StudentWork) => {
       voice.sendWork(work);
@@ -107,6 +112,7 @@ export function LiveBoard({ voice, visual = null, onTalk, isTalkOn = false, canT
   );
   const sendPause = useCallback((seconds: number, draft?: string) => voice.sendPause(seconds, draft), [voice]);
   const { board, atMs } = frame;
+  const task = getOpenTaskOnBoard(board);
   const hasRows = getBoardRows(board).length > 0;
   const [peek, setPeek] = useState<VisualPeek | null>(null);
   const isVisualBig = Boolean(visual) && getVisualPlace({ stage: board.stage, peek, atMs, isReducedMotion: false }).smallShare === 0;
@@ -126,6 +132,11 @@ export function LiveBoard({ voice, visual = null, onTalk, isTalkOn = false, canT
     watchLiveLine.current = dot.watchLiveLine;
   }, [dot.goToRest, dot.watchLiveLine]);
   const { watchLiveLine: watchLine } = dot;
+  const closePen = useCallback(() => setIsPenOpen(false), []);
+  const onPenWorking = useCallback(() => {
+    watchLine();
+    setActivity((count) => count + 1);
+  }, [watchLine]);
   const onTyping = useCallback(() => {
     watchLine();
     if (isVisualBigNow.current) bringBoard();
@@ -147,19 +158,46 @@ export function LiveBoard({ voice, visual = null, onTalk, isTalkOn = false, canT
         <div className="board-tools" data-testid="board-tools">
           {canTalk && <button type="button" className="board-tool" aria-pressed={isTalkOn} onClick={onTalk}>{BOARD_WORK_LABELS.talk}</button>}
           {isVisualBig && <button type="button" className="board-tool" onClick={() => { bringBoard(); typedLine.current?.focus(); }}>{BOARD_WORK_LABELS.type}</button>}
-          <button type="button" className="board-tool" aria-pressed={isMathKeysOpen} onClick={() => setIsMathKeysOpen((isOpen) => !isOpen)}>{BOARD_WORK_LABELS.mathKeys}</button>
+          <button type="button" className="board-tool" data-testid="pen-tool" aria-pressed={isPenOpen} onClick={() => {
+            if (isVisualBig) bringBoard();
+            setIsMathKeysOpen(false);
+            setIsPenOpen((isOpen) => !isOpen);
+          }}>{BOARD_WORK_LABELS.pen}</button>
+          <button type="button" className="board-tool" aria-pressed={isMathKeysOpen} onClick={() => {
+            setIsPenOpen(false);
+            setIsMathKeysOpen((isOpen) => !isOpen);
+          }}>{BOARD_WORK_LABELS.mathKeys}</button>
           {isMathKeysOpen ? <MathKeys onKey={(key) => typedLine.current?.insert(key)} /> : <span className="board-hint">{BOARD_WORK_LABELS.hint}</span>}
+          {lineInTheBand && <button type="button" className="board-tool-main ml-auto" data-testid="pen-done" onClick={() => penDone.current?.()}>{BOARD_WORK_LABELS.done}</button>}
         </div>
       }
     >
       <p role="status" className="sr-only">{getLastWorkWords(board)}</p>
-      <MovingDot rowId={dot.target.rowId} isWatching={dot.target.isWatching} isThinking={view.isThinking && !view.closedBecause} isLively={!view.closedBecause && (view.isTutorSpeaking || view.isHeard || view.isThinking)} getLoudness={voice.getLoudness} />
+      <MovingDot rowId={dot.target.rowId} isWatching={dot.target.isWatching} isThinking={(view.isThinking || getBoardRows(board).some(({ isBeingRead }) => isBeingRead)) && !view.closedBecause} isLively={!view.closedBecause && (view.isTutorSpeaking || view.isHeard || view.isThinking)} getLoudness={voice.getLoudness} />
       <SharedBoard
         board={board}
         atMs={atMs}
         onMarkProblem={reportProblem}
         onWork={sendWork}
-        liveRow={<TypedLine handleRef={typedLine} task={getOpenTaskOnBoard(board)} getBoard={getBoard} onWork={sendWork} onPause={sendPause} onTyping={onTyping} activity={activity} hasWrittenBefore={hasWrittenBefore} />}
+        lineInTheBand={lineInTheBand}
+        onFixReading={(text) => {
+          setIsPenOpen(false);
+          typedLine.current?.setLine(text);
+        }}
+        liveRow={
+          <TypedLine
+            handleRef={typedLine}
+            task={task}
+            getBoard={getBoard}
+            onWork={sendWork}
+            onPause={sendPause}
+            onTyping={onTyping}
+            activity={activity}
+            hasWrittenBefore={hasWrittenBefore}
+            nextLineId={nextLineId}
+            band={isPenOpen ? <PenBand task={task} voice={voice} nextLineId={nextLineId} onLineChange={setLineInTheBand} doneRef={penDone} onWorking={onPenWorking} onFinished={closePen} /> : null}
+          />
+        }
       />
     </BoardStageView>
   );

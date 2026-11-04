@@ -1,7 +1,7 @@
 import { checkWorkOnBoard, readLine } from '@astra/board/shared';
 import type { BoardState } from '@astra/board';
 import type { ElementId, StudentWork, Task } from '@astra/contracts';
-import { memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { memo, type ReactNode, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { BOARD_WORK_LABELS } from '../strings';
 import { LineParts, ReadAs } from './StudentLine';
 
@@ -13,6 +13,8 @@ const LOOKS_WITH_NO_DRAFT_SECONDS = [10, 20, 30, 45, 60, 90];
 export interface TypedLineHandle {
   /** Puts a key's text where the caret is, for the math keys. */
   insert(text: string): void;
+  /** Puts a line in to edit, for one the pen's reader got wrong. */
+  setLine(line: string): void;
   /** Gets the line ready to type on, with the page left where it is. */
   focus(): void;
 }
@@ -29,9 +31,12 @@ interface TypedLineProps {
   activity: number;
   hasWrittenBefore: boolean;
   handleRef?: React.Ref<TypedLineHandle>;
+  nextLineId(): ElementId;
+  /** The line is the pen's band for now, so the typing part steps aside and keeps what it holds. */
+  band?: ReactNode;
 }
 
-function useNextLineId(getBoard: () => BoardState) {
+export function useNextLineId(getBoard: () => BoardState) {
   const count = useRef(0);
   return useCallback(() => {
     const { elements } = getBoard();
@@ -42,12 +47,11 @@ function useNextLineId(getBoard: () => BoardState) {
 }
 
 // The board's next line. The student types straight onto it, and sees it read as they go, so they see what code will see. It tells the agent only about a pause. The board draws every frame and this has no need to, so it is memoized.
-export const TypedLine = memo(function TypedLine({ task, getBoard, onWork, onPause, onTyping, activity, hasWrittenBefore, handleRef }: TypedLineProps) {
+export const TypedLine = memo(function TypedLine({ task, getBoard, onWork, onPause, onTyping, activity, hasWrittenBefore, handleRef, nextLineId, band = null }: TypedLineProps) {
   const [text, setText] = useState('');
   const [isRaw, setIsRaw] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const input = useRef<HTMLInputElement>(null);
-  const nextLineId = useNextLineId(getBoard);
   const reads = task?.way === 'write' ? task.reads : undefined;
   const reading = useMemo(() => (text.trim() === '' ? null : readLine(text, reads)), [text, reads]);
 
@@ -58,6 +62,10 @@ export const TypedLine = memo(function TypedLine({ task, getBoard, onWork, onPau
       const end = field?.selectionEnd ?? text.length;
       setText(`${text.slice(0, start)}${key}${text.slice(end)}`);
       field?.focus();
+    },
+    setLine(line) {
+      setText(line);
+      input.current?.focus();
     },
     focus() {
       input.current?.focus({ preventScroll: true });
@@ -121,7 +129,8 @@ export const TypedLine = memo(function TypedLine({ task, getBoard, onWork, onPau
       }}
     >
       <div className="board-row-content">
-        <div className="board-live-wrap" data-focused={isFocused} data-raw={isRaw} data-asked={task?.way === 'write'}>
+        {band}
+        <div hidden={band !== null} className="board-live-wrap" data-focused={isFocused} data-raw={isRaw} data-asked={task?.way === 'write'}>
           {!reading && !hasWrittenBefore && <span className="board-live-placeholder">{BOARD_WORK_LABELS.placeholder}</span>}
           <div aria-hidden data-testid="line-preview" className="board-live-shown" data-words={reading?.kind === 'words' || reading?.kind === 'code'} data-mixed={reading?.kind === 'mixed'}>
             {reading && <LineParts reading={reading} />}
@@ -150,7 +159,7 @@ export const TypedLine = memo(function TypedLine({ task, getBoard, onWork, onPau
           />
         </div>
       </div>
-      <div className="board-row-gutter">{reading && <ReadAs reading={reading} />}</div>
+      <div className="board-row-gutter">{reading && !band && <ReadAs reading={reading} />}</div>
     </form>
   );
 });

@@ -50,10 +50,16 @@ function checkMathLineOfWork(tex: string, { task, getLineTex: getTex, previousTe
   return { verdict, ...closes(task, verdict.status === 'right' && problemTex !== null && isFinishedAnswer(tex)) };
 }
 
-function checkWrite(text: string, context: WorkContext): CheckedWork {
+function getInkLineReading(text: string, tex: string | undefined): LineReading {
+  return tex === undefined ? { kind: 'words', parts: [{ type: 'words', text }], isAsking: /\?\s*$/.test(text) } : { kind: 'math', parts: [{ type: 'math', text, tex }], isAsking: false };
+}
+
+function checkWrite({ text, ink }: StudentWork & { way: 'write' }, context: WorkContext): CheckedWork {
   const { task } = context;
   const writeTask = task?.way === 'write' ? task : null;
-  const reading = readLine(text, writeTask?.reads);
+  const reading = ink ? getInkLineReading(text, ink.tex) : readLine(text, writeTask?.reads);
+  // A reader that doubted a symbol has not read the student's line, so code judges nothing on it.
+  if (ink?.isUnsure) return { reading, verdict: UNKNOWN };
   const accepted = writeTask?.accepts ? checkAccepted(text, writeTask.accepts) : null;
   if (reading.isAsking) return { reading, verdict: UNKNOWN };
   if (accepted) return { reading, verdict: accepted, ...closes(task, accepted.status === 'right') };
@@ -119,7 +125,7 @@ export function getCurveOf(expression: string, constants: ReadonlyMap<string, nu
 export function checkWork(work: StudentWork, context: WorkContext): CheckedWork {
   switch (work.way) {
     case 'write':
-      return checkWrite(work.text, context);
+      return checkWrite(work, context);
     case 'pick':
       return checkPick(work.part, context);
     case 'place':

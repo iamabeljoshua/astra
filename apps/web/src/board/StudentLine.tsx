@@ -26,16 +26,26 @@ export function LineParts({ reading }: { reading: LineReading }) {
   );
 }
 
-export function ReadAs({ reading, typed }: { reading: LineReading; typed?: string }) {
+export function ReadAs({ reading, typed, showsParts = false, onFix }: { reading: LineReading; typed?: string; showsParts?: boolean; onFix?: () => void }) {
   return (
     <div data-testid="read-as" className="board-read-as">
       <span className="board-read-as-label">
         {BOARD_WORK_LABELS.readAs} {BOARD_WORK_LABELS.kinds[reading.kind]}
       </span>
+      {showsParts && (
+        <span className="board-read-as-parts">
+          <LineParts reading={reading} />
+        </span>
+      )}
       {typed !== undefined && reading.kind === 'math' && (
         <span>
           {BOARD_WORK_LABELS.youTyped} {typed}
         </span>
+      )}
+      {onFix && (
+        <button type="button" onClick={onFix} className="board-read-as-fix">
+          {BOARD_WORK_LABELS.notWhatYouWrote}
+        </button>
       )}
     </div>
   );

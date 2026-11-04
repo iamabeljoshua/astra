@@ -1,5 +1,5 @@
 import type { tts } from '@livekit/agents';
-import { type AgentMessage, type Beat, type BeatId, type BrowserMessage, type PlayReport, type SessionEvent, type TurnId } from '@astra/contracts';
+import { type AgentMessage, type Beat, type BeatId, type BrowserMessage, type InkPoint, type PlayReport, type SessionEvent, type TurnId } from '@astra/contracts';
 import { createEchoFilter } from './echo-filter.ts';
 import { createLinkWatch, type LinkWatch } from './link-watch.ts';
 import { getTakeBeat, makeTakeVoice, type StoredTake, type TakePicker, type TakeUse } from './reactions.ts';
@@ -35,6 +35,8 @@ export interface LiveSessionOptions {
   trace?: TraceNote;
   /** What a student's unsent words mean, read by a cheap model. */
   readMeaning?(words: string): Promise<WordMeaning | null>;
+  /** Reads a handwritten line's strokes with a small model. */
+  readStrokes?(strokes: readonly (readonly InkPoint[])[]): Promise<{ text: string; ink: { tex?: string; isUnsure: boolean } } | null>;
 }
 
 export interface LiveSession {
@@ -104,7 +106,7 @@ const FEWEST_MS_BETWEEN_FREEZES = 5000;
 const BREATH_RECHECK_MS = 150;
 
 // Wires what the student does to what the tutor says. The rule decides, this runs its actions, and the voice line keeps every turn apart.
-export function createLiveSession({ messenger, line, voice, tutor, takes, allTakes, setTurnCap, getNowMs = getSteadyNowMs, trace = () => {}, readMeaning = async () => null }: LiveSessionOptions): LiveSession {
+export function createLiveSession({ messenger, line, voice, tutor, takes, allTakes, setTurnCap, getNowMs = getSteadyNowMs, trace = () => {}, readMeaning = async () => null, readStrokes = async () => null }: LiveSessionOptions): LiveSession {
   const startedAtMs = getNowMs();
   const echo = createEchoFilter();
   const takeVoices = new Map(allTakes.map((take) => [take.id, makeTakeVoice(take).makeTts()]));
@@ -151,6 +153,8 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     isTutorTalking: () => reply !== null || reaction !== null,
     getSecondsSinceQuestion: () => (questionHeardAtMs === null ? null : (getNowMs() - questionHeardAtMs) / 1000),
     readMeaning,
+    readStrokes,
+    send: (message) => messenger.send(message),
     getNowMs,
     trace,
   });
@@ -476,6 +480,8 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
         dispatch({ type: 'questionHeard' });
       }
       if (message.type === 'stopTutor') stopSpeech({ do: 'stop', reason: 'typed', keepsThought: false });
+      if (message.type === 'acted' && message.action.action === 'inkStroke') boardWork.onInkStroke(message.action);
+      if (message.type === 'inkDone') void boardWork.onInkDone(message);
       if (message.type === 'worked') boardWork.onWorked(message);
       if (message.type === 'paused') void boardWork.onPaused(message);
       if (message.type === 'hello' && message.wantsGreeting) greet();

@@ -1,11 +1,13 @@
 import type { BoardElement, BoardState, StudentLineContent } from '@astra/board';
 import { canWriteByHand, preloadMathFonts, writeStyle } from '@astra/board/drawing';
-import type { StudentWork } from '@astra/contracts';
+import { getInkLineId, type StudentWork } from '@astra/contracts';
 import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import type { MarkWithoutTarget } from './boardMarks';
 import { createBoardRowPainting } from './boardRowPainting';
 import { type BoardRow, getBoardRows } from './boardRows';
+import { BOARD_WORK_LABELS } from '../strings';
 import { GutterMark } from './GutterMark';
+import { InkLine } from './InkLine';
 import { type PickTarget, PickTargets } from './PickTargets';
 import { PlaceTask } from './PlaceTask';
 import { LineParts, ReadAs } from './StudentLine';
@@ -19,8 +21,17 @@ interface SharedBoardProps {
   onMarkProblem?: (problem: MarkWithoutTarget) => void;
   /** The line being typed, as the board's next row. */
   liveRow?: ReactNode;
+  /** The line the pen is still on, whose strokes the band is showing. */
+  lineInTheBand?: string | null;
+  /** A handwritten line was misread, and the student wants to type it. */
+  onFixReading?: (text: string) => void;
   flowRef?: (flow: HTMLDivElement | null) => void;
 }
+
+const getRowId = ({ element }: BoardRow) => getInkLineId(element.id) ?? (element.id as string);
+
+// A handwritten line keeps its row from the moment it stops being written, so the strokes do not flicker when the reading lands.
+const getRowKey = (row: BoardRow) => (row.inks.length > 0 ? `ink:${getRowId(row)}` : `${row.element.id}:${row.element.content.kind}`);
 
 function getRowClass({ element, isStruck }: BoardRow): string {
   const { content } = element;
@@ -28,28 +39,31 @@ function getRowClass({ element, isStruck }: BoardRow): string {
   return `board-row ${owner} ${isStruck ? 'board-row-struck' : ''}`;
 }
 
-function RowContent({ element, onWork }: { element: BoardElement; onWork?: (work: StudentWork) => void }) {
+function RowContent({ row, onWork }: { row: BoardRow; onWork?: (work: StudentWork) => void }) {
+  const { element, inks } = row;
   const { content } = element;
+  if (inks.length > 0) return <InkLine strokes={inks.flatMap(({ content: ink }) => (ink.kind === 'ink' ? [ink.points] : []))} />;
   if (content.kind === 'studentLine') return content.reading.kind === 'math' ? null : <LineParts reading={content.reading} />;
   if (content.kind === 'task' && content.way === 'place') return <PlaceTask task={content} progress={element.progress} onWork={onWork} />;
   if (content.kind === 'text' && !(content.handwritten && canWriteByHand(content.text))) return <p className="m-0 wrap-anywhere">{content.text}</p>;
   return null;
 }
 
-function RowGutter({ row, atMs, isReducedMotion }: { row: BoardRow; atMs: number; isReducedMotion: boolean }) {
-  const { element, marks, notes } = row;
+function RowGutter({ row, atMs, isReducedMotion, onFixReading }: { row: BoardRow; atMs: number; isReducedMotion: boolean; onFixReading?: (text: string) => void }) {
+  const { element, marks, notes, isBeingRead } = row;
   const line = element.content.kind === 'studentLine' ? (element.content as StudentLineContent) : null;
   return (
     <div className="board-row-gutter">
       {marks.map((mark) => <GutterMark key={mark.id} element={mark} atMs={atMs} isReducedMotion={isReducedMotion} />)}
       {notes.map((note) => note.content.kind === 'note' && <span key={note.id} data-testid="board-note" className="board-row-note">{note.content.text}</span>)}
-      {line && <ReadAs reading={line.reading} typed={line.text} />}
+      {isBeingRead && <span data-testid="ink-reading" className="board-read-as-label board-read-as">{BOARD_WORK_LABELS.reading}</span>}
+      {line && <ReadAs reading={line.reading} typed={line.isInk ? undefined : line.text} showsParts={line.isInk} onFix={line.isInk && onFixReading ? () => onFixReading(line.text) : undefined} />}
     </div>
   );
 }
 
 // The board as lines on a page: a row for each thing written, with its marks and notes in a gutter beside it, and the line being typed as the next row.
-export function SharedBoard({ board, atMs, onWork, onMarkProblem, liveRow, flowRef }: SharedBoardProps) {
+export function SharedBoard({ board, atMs, onWork, onMarkProblem, liveRow, lineInTheBand = null, onFixReading, flowRef }: SharedBoardProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<SVGSVGElement>(null);
   const wrappers = useRef(new Map<string, HTMLElement>());
@@ -57,7 +71,7 @@ export function SharedBoard({ board, atMs, onWork, onMarkProblem, liveRow, flowR
   const problemListener = useRef(onMarkProblem);
   const pickTargets = useRef(new Map<string, PickTarget>());
   const isReducedMotion = useReducedMotion();
-  const rows = getBoardRows(board);
+  const rows = getBoardRows(board).filter(({ element, isBeingRead }) => !(isBeingRead && getInkLineId(element.id) === lineInTheBand));
   const rowCount = rows.length;
 
   const setPickTarget = useCallback((part: string, target: PickTarget | null) => {
@@ -94,7 +108,7 @@ export function SharedBoard({ board, atMs, onWork, onMarkProblem, liveRow, flowR
       <div ref={scrollRef} className="board-scroll">
         <div ref={flowRef} className="board-flow">
           {rows.map((row) => (
-            <div key={`${row.element.id}:${row.element.content.kind}`} data-row={row.element.id} className={getRowClass(row)}>
+            <div key={getRowKey(row)} data-row={getRowId(row)} className={getRowClass(row)}>
               <div className="board-row-content">
                 <div
                   data-element={row.element.id}
@@ -104,10 +118,10 @@ export function SharedBoard({ board, atMs, onWork, onMarkProblem, liveRow, flowR
                     else wrappers.current.delete(row.element.id);
                   }}
                 >
-                  <RowContent element={row.element} onWork={onWork} />
+                  <RowContent row={row} onWork={onWork} />
                 </div>
               </div>
-              <RowGutter row={row} atMs={atMs} isReducedMotion={isReducedMotion} />
+              <RowGutter row={row} atMs={atMs} isReducedMotion={isReducedMotion} onFixReading={onFixReading} />
             </div>
           ))}
           {liveRow}

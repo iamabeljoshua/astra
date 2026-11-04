@@ -23,9 +23,17 @@ export interface PointSample {
 }
 
 /** What the student did on the board. One way for each way a task can ask. */
+/** What a reader made of handwriting. Only the agent writes this, because it is the one that read it. */
+export interface InkReading {
+  /** The math, if it read math. With none, `text` holds the words. */
+  tex?: string;
+  /** The reader doubted a symbol, so nothing may be judged on it. */
+  isUnsure: boolean;
+}
+
 export type StudentWork =
   /** `task` names the task this line answers, if one is open on the student's board. */
-  | { way: 'write'; id: ElementId; text: string; task?: ElementId }
+  | { way: 'write'; id: ElementId; text: string; task?: ElementId; ink?: InkReading }
   | { way: 'pick'; task: ElementId; part: string }
   /** Holds the item in each slot, or null for an empty slot, in the task's slot order. */
   | { way: 'place'; task: ElementId; placed: (string | null)[] }
@@ -38,3 +46,10 @@ export const MATH_LINE_MAX_CHARACTERS = 200;
 const STUDENT_LINE_ID = /^s\d+$/;
 
 export const isStudentLineId = (id: string) => STUDENT_LINE_ID.test(id);
+
+const INK_SUFFIX = '-ink-';
+
+/** The strokes of a handwritten line take ids from the line they will become. */
+export const getInkStrokeId = (lineId: ElementId, index: number) => `${lineId}${INK_SUFFIX}${index}` as ElementId;
+
+export const getInkLineId = (strokeId: string) => (strokeId.includes(INK_SUFFIX) ? (strokeId.split(INK_SUFFIX)[0] as ElementId) : null);

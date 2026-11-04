@@ -8,3 +8,4 @@ export type { BoardOperation } from '../player/board-operations.ts';
 export { type BoardState, getBoardAt } from '../player/board-state.ts';
 export { getItemsToShow } from './place-items.ts';
 export { getPickParts, type PickPart } from './pick-parts.ts';
+export { writeByHand } from '../ink/handwriting.ts';

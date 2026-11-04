@@ -1,6 +1,6 @@
 import { type BoardState, createChoosingClock, createScenePlayer, type FiredCue, type OutputLevel, type ScenePlayer } from '@astra/board';
 import { checkWorkOnBoard, cleanTypedLine } from '@astra/board/shared';
-import { type AgentMessage, type BrowserMessage, clipTypedText, type components, type ElementId, LINK_QUIET_LIMIT_MS, parseAgentMessage, PULSE_EVERY_MS, type StudentWork, type TutorClosedReason } from '@astra/contracts';
+import { type AgentMessage, type BrowserMessage, clipTypedText, type components, type ElementId, type InkPoint, LINK_QUIET_LIMIT_MS, parseAgentMessage, PULSE_EVERY_MS, type StudentWork, type TutorClosedReason } from '@astra/contracts';
 import { createLocalAudioTrack, DisconnectReason, type LocalAudioTrack, type RemoteTrack, Room, RoomEvent, Track } from 'livekit-client';
 import { BOARD_WORK_LABELS } from '../strings';
 import { createLocalYield } from './localYield';
@@ -15,6 +15,7 @@ const REJOIN_EVERY_MS = 2000;
 /** A room can say connected with a data channel that carries nothing after a drop, and only a new join clears that. */
 const REJOIN_AFTER_QUIET_MS = 3000;
 const TUTOR_ARRIVES_WITHIN_MS = 25_000;
+const INK_POINTS_IN_A_MESSAGE = 300;
 const LOUDNESS_WINDOW = 256;
 const MIDDLE_SAMPLE = 128;
 /** Speech rarely reaches full scale, so the dot reads this much as its loudest. */
@@ -72,6 +73,10 @@ export interface LiveVoice {
   reportMarkNotDrawn(markId: string): void;
   /** Puts the student's work on the board at once, with code's reading of it, and sends it for the agent to check for itself. `startedMsAgo` is how long a drag took. */
   sendWork(work: StudentWork, startedMsAgo?: number): void;
+  /** Puts a stroke on the board at once and sends it for the log, in pieces a message can hold. */
+  sendInkStroke(id: ElementId, points: readonly InkPoint[]): void;
+  /** The student has finished a handwritten line, so the agent can read it. */
+  sendInkDone(id: ElementId, strokes: readonly ElementId[], task: ElementId | null): void;
   /** Moves the student's point while they drag it. */
   movePoint(task: ElementId, x: number): void;
   /** The student has not touched the board for this long. */
@@ -211,8 +216,16 @@ export async function startLiveVoice({ access, getAccess, wantsGreeting = true, 
     void setMicOn(false).catch(() => {});
   };
 
+  const onInkRead = (work: StudentWork) => {
+    const nowMs = clock.getNowMs();
+    const checked = checkWorkOnBoard(work, player.getBoard(nowMs));
+    player.addStudentOperations([{ kind: 'worked', atMs: nowMs, action: { action: 'worked', work, ...checked } }]);
+    setView({ firstWord: checked.verdict.status === 'wrong' ? BOARD_WORK_LABELS.hm : null });
+  };
+
   const onAgentMessage = (message: AgentMessage) => {
     if (message.type === 'tutorClosed') return closeTutor(message.reason);
+    if (message.type === 'inkRead') return onInkRead(message.work);
     if (message.type === 'pulse') {
       lastAgentPulseEpochMs = getEpochMs();
       flushOutbox();
@@ -387,6 +400,15 @@ export async function startLiveVoice({ access, getAccess, wantsGreeting = true, 
       showHeard();
       setView({ firstWord: checked.verdict.status === 'wrong' ? BOARD_WORK_LABELS.hm : null });
       send({ type: 'worked', ...getStamp(), startedMsAgo, work });
+    },
+    sendInkStroke(id, points) {
+      const atMs = clock.getNowMs();
+      player.addStudentOperations([{ kind: 'inkStroke', atMs, id, points }]);
+      for (let start = 0; start < points.length; start += INK_POINTS_IN_A_MESSAGE) send({ type: 'acted', ...getStamp(), action: { action: 'inkStroke', id, points: points.slice(start, start + INK_POINTS_IN_A_MESSAGE) } });
+    },
+    sendInkDone(id, strokes, task) {
+      showHeard();
+      send({ type: 'inkDone', ...getStamp(), id, strokes: [...strokes], ...(task ? { task } : {}) });
     },
     movePoint(task, x) {
       player.addStudentOperations([{ kind: 'pointMoved', atMs: clock.getNowMs(), task, x }]);

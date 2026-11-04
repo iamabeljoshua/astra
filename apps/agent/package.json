@@ -17,7 +17,8 @@
     "math-load": "node src/lab/proof/math-load.ts",
     "eval:tutor": "node src/tutor/eval/run-eval.ts",
     "eval:groups": "node src/tutor/eval/run-groups.ts",
-    "eval:board": "node src/tutor/eval/run-groups.ts --file board"
+    "eval:board": "node src/tutor/eval/run-groups.ts --file board",
+    "eval:ink": "node src/tutor/eval/run-ink-table.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "1.4.0",

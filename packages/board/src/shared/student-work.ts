@@ -14,6 +14,8 @@ export interface StudentLineContent {
   text: string;
   reading: LineReading;
   verdict: WorkVerdict;
+  /** Written with the pen, so the strokes are the line and the reading sits beside it. */
+  isInk: boolean;
 }
 
 /** What the student has done on a task so far. */
@@ -58,7 +60,8 @@ function makeElement(id: ElementId, content: BoardElement['content'], { atMs, ov
 function placeStudentLine(elements: Elements, work: StudentWork & { way: 'write' }, reading: LineReading, verdict: WorkVerdict, atMs: number): void {
   if (elements.has(work.id)) return;
   const tex = getLineTex(reading);
-  elements.set(work.id, makeElement(work.id, { kind: 'studentLine', id: work.id, text: work.text, reading, verdict }, { atMs, overMs: LINE_LANDS_MS, math: tex === null ? null : startMathLine(tex) }));
+  const isInk = work.ink !== undefined;
+  elements.set(work.id, makeElement(work.id, { kind: 'studentLine', id: work.id, text: work.text, reading, verdict, isInk }, { atMs, overMs: LINE_LANDS_MS, math: tex === null || isInk ? null : startMathLine(tex) }));
   if (work.task !== undefined && tex !== null) setProgress(elements, work.task, { lastLineTex: tex });
 }
 

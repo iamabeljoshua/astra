@@ -597,8 +597,51 @@
     text-transform: uppercase;
   }
 
+  .board-read-as-parts {
+    color: var(--color-ink);
+    font-size: 22px;
+  }
+
+  .board-read-as-fix {
+    padding: 0;
+    color: var(--color-ink-2);
+    font-size: 12.5px;
+    text-align: left;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
   .board-live-row {
     min-height: 64px;
+  }
+
+  .board-band {
+    position: relative;
+    height: 150px;
+    flex: 1;
+    border-bottom: 1px solid var(--color-pen);
+    cursor: crosshair;
+    touch-action: none;
+  }
+
+  .board-band::before {
+    position: absolute;
+    right: 0;
+    bottom: 34px;
+    left: 0;
+    border-top: 1px dashed var(--color-line);
+    content: '';
+  }
+
+  .board-ink-line {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+    fill: none;
+    stroke: var(--color-ink);
+    stroke-linecap: round;
+    stroke-linejoin: round;
   }
 
   .board-live-wrap {

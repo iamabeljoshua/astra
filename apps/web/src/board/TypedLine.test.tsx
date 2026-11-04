@@ -17,9 +17,11 @@ function makeBoard(commands: readonly unknown[] = []): BoardState {
 const PROBLEM = [{ kind: 'writeMath', id: 'steps', tex: '2x+3=11' }, { kind: 'task', id: 'a1', way: 'write', on: 'steps' }];
 
 function setup(board: BoardState = makeBoard()) {
+  let lines = 0;
+  const nextLineId = () => id(`s${(lines += 1)}`);
   const onWork = vi.fn<(work: StudentWork) => void>();
   const onPause = vi.fn<(seconds: number, draft?: string) => void>();
-  render(<TypedLine task={getOpenTaskOnBoard(board)} getBoard={() => board} onWork={onWork} onPause={onPause} activity={0} hasWrittenBefore={false} />);
+  render(<TypedLine task={getOpenTaskOnBoard(board)} getBoard={() => board} onWork={onWork} onPause={onPause} activity={0} hasWrittenBefore={false} nextLineId={nextLineId} />);
   const input = screen.getByRole<HTMLInputElement>('textbox', { name: BOARD_WORK_LABELS.entry });
   return { onWork, onPause, input };
 }

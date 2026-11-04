@@ -19,7 +19,7 @@ export interface SliderSample {
   value: number;
 }
 
-/** x and y are fractions of the board panel from its top left, each 0 to 1. `afterMs` counts from the event's `atMs`. */
+/** x and y are fractions of the writing band's width from its top left, each 0 to 1, so writing keeps its shape at any width. `afterMs` counts from the event's `atMs`. */
 export type InkPoint = [x: number, y: number, afterMs: number];
 
 export type StudentAction =

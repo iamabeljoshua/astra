@@ -34,7 +34,7 @@ import {
   type StudentAction,
 } from './session-event.ts';
 import { clipTypedText } from './live-message.ts';
-import { LINE_KINDS, type LinePart, type LineReading, type PointSample, type StudentWork, type WorkVerdict } from './work.ts';
+import { type InkReading, LINE_KINDS, type LinePart, type LineReading, type PointSample, type StudentWork, type WorkVerdict } from './work.ts';
 
 const LIMITS = { text: 2000, name: 200, frozen: 32, strokePoints: 300, sliderSamples: 300, tex: 500, lineParts: 64, why: 600, slots: 12 } as const;
 const COORDINATE = { min: -1e6, max: 1e6 } as const;
@@ -112,12 +112,22 @@ function readPlacedSlot(place: Place): string | null {
   return place.value === null ? null : readString(place, LIMITS.name);
 }
 
+function readInkReading(place: Place): InkReading {
+  const fields = readFields(place, ['tex', 'isUnsure']);
+  const tex = fields.optional('tex', (texPlace) => {
+    const value = readString(texPlace, LIMITS.tex);
+    if (getTexProblem(value) !== null) fail(texPlace, 'math the board can set');
+    return value;
+  });
+  return { ...tex, isUnsure: readBoolean(fields.at('isUnsure')) };
+}
+
 const STUDENT_WORK: VariantTable<StudentWork, 'way'> = {
   tag: 'way',
   variants: {
     write: {
-      keys: ['id', 'text', 'task'],
-      read: (fields) => ({ way: 'write', id: readElementId(fields.at('id')), text: clipTypedText(readString(fields.at('text'), LIMITS.text)), ...fields.optional('task', readElementId) }),
+      keys: ['id', 'text', 'task', 'ink'],
+      read: (fields) => ({ way: 'write', id: readElementId(fields.at('id')), text: clipTypedText(readString(fields.at('text'), LIMITS.text)), ...fields.optional('task', readElementId), ...fields.optional('ink', readInkReading) }),
     },
     pick: {
       keys: ['task', 'part'],

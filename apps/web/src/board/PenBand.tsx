@@ -1,0 +1,92 @@
+import { type ElementId, getInkStrokeId, type InkPoint, type Task } from '@astra/contracts';
+import { type RefObject, useCallback, useEffect, useRef, useState } from 'react';
+import type { LiveVoice } from '../voice/liveVoice';
+import { BOARD_WORK_LABELS } from '../strings';
+import { InkLine } from './InkLine';
+
+/** How long the pen rests before the line is read. */
+const PEN_COMMIT_MS = 2000;
+
+interface PenBandProps {
+  task: Task | null;
+  voice: Pick<LiveVoice, 'sendInkStroke' | 'sendInkDone'>;
+  nextLineId(): ElementId;
+  onLineChange(lineId: ElementId | null): void;
+  /** Done in the tools bar calls this. */
+  doneRef: RefObject<(() => void) | null>;
+  onWorking(): void;
+  onFinished(): void;
+}
+
+// A band to write on. Each stroke lands on the board the moment it ends, and a pause sends the line to be read, so the page has reacted long before any reader answers.
+export function PenBand({ task, voice, nextLineId, onLineChange, doneRef, onWorking, onFinished }: PenBandProps) {
+  const band = useRef<HTMLDivElement>(null);
+  const [strokes, setStrokes] = useState<readonly (readonly InkPoint[])[]>([]);
+  const [drawing, setDrawing] = useState<readonly InkPoint[] | null>(null);
+  const lineId = useRef<ElementId | null>(null);
+  const strokeStartedAt = useRef(0);
+  const strokeCount = useRef(0);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  const getPoint = (event: React.PointerEvent): InkPoint => {
+    const box = (band.current as HTMLDivElement).getBoundingClientRect();
+    const toFraction = (value: number) => Number(Math.min(1, Math.max(0, value / box.width)).toFixed(4));
+    return [toFraction(event.clientX - box.left), toFraction(event.clientY - box.top), Math.round(performance.now() - strokeStartedAt.current)];
+  };
+
+  const finish = useCallback(() => {
+    clearTimeout(timer.current);
+    const id = lineId.current;
+    if (!id) return;
+    voice.sendInkDone(id, Array.from({ length: strokeCount.current }, (_, index) => getInkStrokeId(id, index)), task?.id ?? null);
+    lineId.current = null;
+    strokeCount.current = 0;
+    setStrokes([]);
+    onLineChange(null);
+    onFinished();
+  }, [voice, task, onLineChange, onFinished]);
+
+  // A pause that was running finishes the line it was timing, whatever changed on the page since.
+  const latestFinish = useRef(finish);
+  useEffect(() => {
+    latestFinish.current = finish;
+    doneRef.current = finish;
+  }, [doneRef, finish]);
+
+  useEffect(() => () => clearTimeout(timer.current), []);
+
+  const start = (event: React.PointerEvent) => {
+    event.preventDefault();
+    clearTimeout(timer.current);
+    band.current?.setPointerCapture(event.pointerId);
+    if (!lineId.current) {
+      lineId.current = nextLineId();
+      onLineChange(lineId.current);
+    }
+    strokeStartedAt.current = performance.now();
+    setDrawing([getPoint(event)]);
+    onWorking();
+  };
+
+  const move = (event: React.PointerEvent) => {
+    if (!drawing) return;
+    setDrawing([...drawing, getPoint(event)]);
+    onWorking();
+  };
+
+  const end = () => {
+    const id = lineId.current;
+    if (!drawing || !id) return;
+    voice.sendInkStroke(getInkStrokeId(id, strokeCount.current), drawing);
+    strokeCount.current += 1;
+    setStrokes([...strokes, drawing]);
+    setDrawing(null);
+    timer.current = setTimeout(() => latestFinish.current(), PEN_COMMIT_MS);
+  };
+
+  return (
+    <div ref={band} role="img" aria-label={BOARD_WORK_LABELS.band} data-testid="pen-band" className="board-band" onPointerDown={start} onPointerMove={move} onPointerUp={end} onPointerCancel={end}>
+      <InkLine strokes={drawing ? [...strokes, drawing] : strokes} testId="pen-strokes" />
+    </div>
+  );
+}

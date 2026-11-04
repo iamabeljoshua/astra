@@ -6,7 +6,8 @@ function getLineFacts(work: StudentWork & { way: 'write' }, { reading }: Checked
   const math = reading?.parts.flatMap((part) => (part.type === 'math' ? [part.tex] : [])) ?? [];
   const [first] = reading?.parts ?? [];
   const code = reading?.kind === 'code' && first?.type === 'words' ? { code: first.text } : {};
-  return { line: work.id, kind: reading?.kind, ...(math.length > 0 ? { read_as: math } : {}), ...code, ...(reading?.isAsking ? { is_asking: true } : {}) };
+  const hand = work.ink ? { written_by_hand: true, reader_said: work.text, ...(work.ink.isUnsure ? { reader_is_unsure: true } : {}) } : {};
+  return { line: work.id, kind: reading?.kind, ...(math.length > 0 ? { read_as: math } : {}), ...code, ...hand, ...(reading?.isAsking ? { is_asking: true } : {}) };
 }
 
 function getWayFacts(work: StudentWork, checked: CheckedWork, context: WorkContext): Record<string, unknown> {

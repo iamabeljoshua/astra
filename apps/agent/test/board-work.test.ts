@@ -198,8 +198,9 @@ describe('the board work seam', () => {
     const speakUp = vi.fn();
     const writeLog = vi.fn();
     const readMeaning = vi.fn(async () => 'isThinking' as const);
-    const seam = createBoardWork({ tutor: brain, writeLog, speakUp, isTutorTalking: () => overrides.isTutorTalking ?? false, getSecondsSinceQuestion: () => null, readMeaning, getNowMs: () => NOW.value, trace: () => {} });
-    return { brain, seam, speakUp, writeLog, readMeaning };
+    const send = vi.fn();
+    const seam = createBoardWork({ tutor: brain, writeLog, speakUp, isTutorTalking: () => overrides.isTutorTalking ?? false, getSecondsSinceQuestion: () => null, readMeaning, readStrokes: async () => ({ text: 'x = 4', ink: { tex: 'x=4', isUnsure: false } }), send, getNowMs: () => NOW.value, trace: () => {} });
+    return { brain, seam, speakUp, writeLog, readMeaning, send };
   }
   const worked = (work: StudentWork): BrowserMessage & { type: 'worked' } => ({ type: 'worked', clockId: 'c', browserMs: 1, startedMsAgo: 0, work });
   const paused = (seconds: number, draft?: string): BrowserMessage & { type: 'paused' } => ({ type: 'paused', clockId: 'c', browserMs: 1, startedMsAgo: 0, seconds, ...(draft ? { draft } : {}) });
@@ -212,6 +213,28 @@ describe('the board work seam', () => {
     seam.onWorked(worked(line('s2', '2x = 14', 'a1')));
     expect(speakUp).toHaveBeenCalledExactlyOnceWith('2x = 14');
     expect(writeLog).toHaveBeenCalledTimes(2);
+  });
+
+  it('reads a handwritten line, shows how it was read, and checks it like a typed one', async () => {
+    const { brain, seam, speakUp, send, writeLog } = setupSeam([SET_PROBLEM]);
+    await collect(brain, 'help');
+    seam.onInkStroke({ action: 'inkStroke', id: id('s1-ink-0'), points: [[0.1, 0.1, 0]] });
+    await seam.onInkDone({ type: 'inkDone', clockId: 'c', browserMs: 1, startedMsAgo: 0, id: id('s1'), strokes: [id('s1-ink-0')], task: id('a1') });
+    expect(send).toHaveBeenCalledWith({ type: 'inkRead', work: { way: 'write', id: 's1', text: 'x = 4', task: 'a1', ink: { tex: 'x=4', isUnsure: false } } });
+    expect(writeLog.mock.calls[0]?.[1]).toMatchObject({ verdict: { status: 'right' }, closesTask: 'a1' });
+    expect(speakUp).toHaveBeenCalledWith('x = 4');
+  });
+
+  it('never judges a line the reader doubted, and asks the tutor to ask', async () => {
+    const { brain } = setupSeam([SET_PROBLEM]);
+    await collect(brain, 'help');
+    expect(brain.noteWork({ way: 'write', id: id('s1'), text: 'x = 7', task: id('a1'), ink: { tex: 'x=7', isUnsure: true } })?.checked.verdict.status).toBe('unknown');
+  });
+
+  it('refuses a page that says it read its own handwriting', () => {
+    const { seam, writeLog } = setupSeam([SET_PROBLEM]);
+    seam.onWorked(worked({ way: 'write', id: id('s1'), text: 'x = 4', ink: { tex: 'x=4', isUnsure: false } }));
+    expect(writeLog).not.toHaveBeenCalled();
   });
 
   it('holds off for 8 seconds mid-work with no model', async () => {
