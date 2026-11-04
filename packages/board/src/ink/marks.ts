@@ -22,7 +22,6 @@ export interface MarkReach {
 
 const getTickSize = (box: MarkBox) => Math.min(box.height * TICK.sizeEms, TICK.largestSize);
 
-// An ellipse leaves a wide box's corners outside it, so the ring squares up until the whole box is inside, even at its smallest wander.
 function getRingRoundness(box: MarkBox, wander: { x: number; y: number }): number {
   const across = box.width / 2 / (box.width / 2 + RING.paddingX - wander.x);
   const down = box.height / 2 / (box.height / 2 + RING.paddingY - wander.y);

@@ -1,12 +1,12 @@
 # The board library: what was measured
 
-This is the record for M3.5. A tutor can put anything the plan names on the 2D board, for any subject, and a tool proves that no text overlaps, clips, or leaves the board. Every figure here comes from the real page on Abel's Mac under load from other agents, and each section gives its load average. Nothing here spent voice credits, and one safety round of the tutor eval spent $0.03.
+This is the record for M3.5. A tutor can put anything the plan names on the 2D board, for any subject, and a tool proves that no text overlaps, clips, or leaves the board. Every figure here comes from the real page on Abel's Mac under load from other agents, and each section gives its load average. Nothing here spent voice credits, and two safety rounds of the tutor eval spent $0.03 and $0.06.
 
 To run it all again, with `livekit-server` on the path:
 
 ```sh
 pnpm test:board                                        # board tests, every plant, a quick sweep, and the strobes
-node scripts/check-layout.ts --flash                   # every plant, the full sweep, and the flash check on every scene
+node scripts/check-layout.ts --flash                   # every plant, the full sweep, and the flash check on every scene in both themes
 node scripts/check-layout.ts --sheets .layout-check/sheets   # m3-5-deck.png and a sheet for each subject
 node scripts/check-layout.ts --rates .layout-check/rates     # frame rates, and m3-5-tier.png
 export WEB_PORT=7021 LAB_LIVEKIT_PORT=7022 LAB_LIVEKIT_UDP_PORT=7024 LAB_RELAY_PORT=7025 VITE_SUPABASE_URL=http://127.0.0.1:54421 VITE_SUPABASE_PUBLISHABLE_KEY=lab-proof
@@ -24,7 +24,7 @@ Tables, timelines, code blocks, labelled drawings, layered diagrams, and picture
 - A code block holds at most 40 lines, and each long line wraps, because a board never scrolls.
 - Every word field refuses raw math, so math goes in `writeMath`: a TeX command, `\(` and `\[`, a braced power or subscript, and math between dollars. It also refuses the tab, newline, and other characters JSON makes of a lone backslash. Money such as `$5 grows to $25` stays words, and a code block keeps what it holds. A Windows path, or `\frac` in a lesson about LaTeX, belongs in a code block.
 
-The deck in `packages/board/test-deck/` has 118 scenes across math, physics, languages, history, biology, code, music, mixed lessons, and hostile input. Each command in it goes through the same parser and board check as a tutor's. The deck holds right-to-left text, Devanagari, Chinese, Korean, Thai, Burmese, Yoruba, and Igbo.
+The deck in `packages/board/test-deck/` has 119 scenes across math, physics, languages, history, biology, code, music, mixed lessons, and hostile input. Each command in it goes through the same parser and board check as a tutor's. The deck holds right-to-left text, Devanagari, Chinese, Korean, Thai, Burmese, Yoruba, and Igbo.
 
 ## The check
 
@@ -34,7 +34,7 @@ It reports these as defects:
 
 - Text on text, a label's own lines on each other, text off the board, text off its own element, text on a picture, and text cut by a box, a rounded corner, or a clip path.
 - An element on an element, and an element or a mark off the board or on a neighbour.
-- Any stroke through words. Every stroke on the board is walked every 2 px through the letters of every text box, curves, axes, rings, leaders, and box edges alike, and a tick number is the only text exempt. A plot's grid is the only stroke exempt, because it lies under each word's 3 px halo in the board's own color, so a label does not move for it either. Strokes that write a label count as that label's box.
+- Any stroke through words. Every stroke on the board is walked every 2 px through the letters of every text box, curves, axes, rings, leaders, and box edges alike, and a tick number is the only text exempt. A plot's grid is the only stroke exempt, because it lies under each word's 3 px halo in the board's own color, so a label does not move for it either. See "The grid under words" below. Strokes that write a label count as that label's box.
 - An arrow through a box, a node's label outside its box, and a leader that does not start beside its label.
 - An element or a picture still unseen at rest, words too faint to read against what is behind them, a picture turned or cut to fit. An element counts as shown only by what is painted: `display: none`, `visibility: hidden`, `opacity: 0`, a clip path, or words in the board's own color all count as not shown. An element a full board moved off is the one exception, and the painter marks it.
 - Raw TeX, a KaTeX error, an element that is not on the list, a broken or stretched image, and a number that is not finite.
@@ -43,11 +43,9 @@ It reports these as defects:
 
 | Measure | Result |
 | --- | --- |
-| Full sweep with the stroke walk, at this head | 31,776 renders, 512,400 text boxes, in 97 s at a load average near 14, with 4 renders with a defect: a wide fallback glyph in `hostile-wide-scripts` over the top of a plot on the small phone and the fold. After the fix, that scene at every size gave 600 renders, 4,705 text boxes, and 0 defects. The full sweep was not run again after that fix |
-| Full sweep one head earlier, before this round's fix | 31,776 renders, 505,346 text boxes, 12 renders with a defect: a leader through `Treble clef` in `music-staff-labelled` on the small phone and the fold, and through `Evaporation` in `biology-water-cycle` on the fold |
-| Planted defects | 78 plants: 57 in the page, 20 in the library, and 1 flash. This head caught 57, 19, and 1, which is 77 of 78. The miss is `a note ignores the ring it names`: with main's smoother ring, no scene with a ring shows a crossing at laptop or phone width with the plant in. It is a plant with nothing to catch and needs a new scene, and until then `pnpm test:board` exits 1 on it |
-| Flash check, at this head | The 3 strobe scenes in both themes, 358 frames in 24 s: 0 flashes in any second. With the picture's hold planted out, 4. The other 115 scenes were not run at this head. One `--flash` run stalled in this step for 15 minutes at no CPU, and a frame now names itself and ends the run after 60 s |
-| Flash check on all 118 scenes, before the merge with main | 3,669 frames across all 118 scenes, with the 3 strobe scenes in both themes. At most 2 flashes in any second, in `hostile-many-at-once` in dark, and 0 in the strobe scenes. With the picture's hold planted out, 4 |
+| Full sweep with the stroke walk, at this head | 32,088 renders, 513,217 text boxes, in 89 s at a load average of 14 to 30, with 0 renders with a defect. 128 elements too small to read and 105 labels with no room went to the tutor and stay out of the defects |
+| Planted defects | 78 plants: 57 in the page, 20 in the library, and 1 flash, all caught, and `pnpm test:board` exits 0. `a note ignores the ring it names` now plants at phone width in `mixed-note-beside-its-ring`, whose note has no room below its ring and lands across it with the plant in, and clears it without. The first `pnpm test:board` at this head stopped on 3 time limits in the board's tests at a load average of 30, with other gates beside it: `figure-fuzz` at 5 s, and `read-line` at 189 and 196 ms against 150 ms. All 1,778 passed when run again, and with 2 workers |
+| Flash check, at this head | All 119 scenes in both themes, 7,050 frames in 356 s at the same load: at most 2 flashes in any second, in `hostile-many-at-once` in dark, and the limit is 3. With the picture's hold planted out, 4 |
 
 A plant either breaks the page or rewrites one line of the library as it is served, and never touches the disk. Each must be caught by the kind of defect it plants.
 
@@ -58,9 +56,11 @@ A plant either breaks the page or rewrites one line of the library as it is serv
 - A curve with no values to draw lost its name with no report, which only showed once the check stopped counting a screen reader's name as shown words.
 - A picture placed and cleared 4 times a second flashed 4 times a second.
 
-A third pass, on the full sweep with the stroke walk, found a leader running through a longer label beside it on the two smallest boards. The left labels now end level, so each leader leaves the column at once.
+A third pass, on the full sweep with the stroke walk, found a leader running through a longer label beside it on the two smallest boards. The left labels now end level, so each leader leaves the column at once. The same pass found a wide fallback glyph in `hostile-wide-scripts` over the top of a plot on the small phone and the fold, which now has room for that font.
 
 A second pass, after a review showed the check could not see hidden words or strokes through text, found 242 crossings on 98 of the 2,648 renders of the quick sweep. Curves, axes, and rings ran through labels in `history-school-of-athens`, `physics-wave-plot`, `biology-population-curve`, `music-sound-wave`, `mixed-marks-on-parts`, and `math-marked-parabola`, among others. A label now clears every line, stacks its words if it must, and tells the tutor when no spot is left. A ring squares up around a wide box so the box's corners stay inside it. On a phone, a dense wave leaves no room for `crest (0.25, 1)` in `physics-wave-plot` or `loudest push (0.0011, 1)` in `music-sound-wave`, so those two labels go to the tutor as `labelWithoutRoom`.
+
+**The grid under words.** The grid does cross words: 89 of the 169 words on 66 plots at the laptop, phone, and fold sizes. The exemption hides no defect a student would meet. The grid is a 1 px line at a contrast of 1.39 in light and 1.32 in dark, against 14.5 and 18.84 for ink and 5.83 and 7.42 for second ink, and the halo cuts it around each letter. Crops at 3 times size of `y = x squared minus 2x minus 3`, a word crossed twice, read clean in both themes, so the line shows only as a faint mark between letters. The check does not read the halo itself. Without the halo, ink over the line still has a contrast of 10.44 in light and 14.24 in dark.
 
 ## Arrows
 
@@ -72,7 +72,7 @@ A layered diagram now changes direction only in the gaps between ranks. Inside a
 
 The board's only motion is drawing and fading, so a normal lesson cannot flash. What can flash is a tutor sending commands faster than speech, so the deck has three strobe scenes, with a picture or a full table placed and cleared 3 to 6 times a second.
 
-`scripts/layout/flash-check.ts` steps each strobe scene 20 times a simulated second and every other scene 10 times, reads the pixels, and counts WCAG's general flash: a pair of opposing changes of 10% luminance, with the darker side under 80%, over 25% of a 10 degree field, which is 21,824 pixels. It counts pixels on the whole board and does not ask that they touch. It does not check saturated red.
+`scripts/layout/flash-check.ts` steps each strobe scene 20 times a simulated second and every other scene 10 times, in both themes, reads the pixels, and counts WCAG's general flash: a pair of opposing changes of 10% luminance, with the darker side under 80%, over 25% of a 10 degree field, which is 21,824 pixels. It counts pixels on the whole board and does not ask that they touch, which is stricter than WCAG for change that is scattered. It reads a shot at a quarter of each side, so a thin line can average out below the luminance change, and text and ink are only counted as far as that blur leaves them. WCAG's Understanding page gives a larger area, 87,296 CSS pixels, and this uses the smaller figure from its definition. It does not check saturated red.
 
 A picture now waits unseen for 42% of its entrance, which is 168 ms. A picture cleared and placed again faster than that never shows, and one cleared more slowly cannot pass 3 flashes a second. Text and ink have too little area to count.
 
@@ -123,9 +123,13 @@ What the proofs gave at this code, on the fake voice:
 | `math-proof` `marks-and-labels`, laptop and phone | 0 writes with no cause, against 97 before. 88 replay moments, 0 differ |
 | `math-proof` `reduced` | 0 moving frames under reduced motion, 0 unknown colors, 0 gradients, 0 rests that differ. 1 still board moved one pixel by one level with 0 writes |
 | `math-proof` `hostile` | Markup never ran. 144 replay moments, 0 differ |
-| `graph-proof` `reduced`, `hostile`, `marks`, at this head | Exit 1. `hostile`: writes with no cause 1 and 0, 0 of 92 replay pixels differ on either width. All three proofs fail `replay.described` on every moment, because main's `stage.sinceMs` is on the live clock and the replay's clock is shifted, as in 731 against 5062. `reduced` also fails on the color of `g.board-notes`, because the proof's list has no `--color-pen`. Both are the proof's reading of what main added, and neither is fixed here |
+| `graph-proof` `reduced`, `hostile`, `marks` | Exit 0, on the fixes before this head's comment removal, one rename in the watch, and main's test-only merge, at a load average near 20. 0 of 5,711 live samples differ from their replay. 364 replay moments: 0 differ, 0 described differently, and 4 settled as raster, the largest 742 pixels by 40 levels with the same page and a clean second look. `hostile`: 0 and 0 writes with no cause, against 3,659 and 2,014 with one, at frames up to 80 ms. `reduced`: 0 unknown colors and 0 moving frames |
 
-**Writes with no cause.** The last run at the head before the merge counted 90 and 51 writes with no cause on `figure-hostile`, on a curve's `d` and a dot's `r`. This head counts 1 and 0 at a load average near 20 to 29, so the 90 did not come back and its cause is inferred. The 1 is `d` on `busy` at 2651 ms. That path carries 53 KB of data, and the frames around it took up to 83 ms, so the likely cause is a drawing's last step landing past the watch's 40 ms allowance. A look-back of one measured frame rescued 0 writes in a test run, so it was taken out and the watch is unchanged. A board at rest is held to 0 writes by `checkStillness`, and no write here came from rest as far as this run shows
+The `math-proof` rows are from before the merge with main and were not run again, though they share the frame watch that changed below.
+
+**The clock of a replay.** After the merge, every moment read failed `replay.described`. A diff of every sample, not one example, found one path: `stage.sinceMs`, on all 5,586 differing live samples and all 364 moments, with replay minus live minus the clock shift exactly 0 each time. The samples that matched were those from before the stage existed. `describeBoard` now gives `{ mode, heldMs }`, so a replay on a shifted clock reads the same, and one that moved the board at another moment does not. The color failure was main's `--color-pen`, a real token the proof's list had missed.
+
+**Writes with no cause.** These were the watch's own misreading. A write belongs to the frame the lab drew, and the watch asked what was moving 40 ms before the clock when the write was seen. A heavy paint finishes long after its frame's clock, so a curve's last steps looked causeless. Under a CPU slowed 4 times, 54 writes with no cause came in 6 batches, and the first 8 of each batch were read. They were a `d` on `curve-busy`, an `r` on `mark-m1` to `mark-m5`, and the ticks a curve brings when it lands. In all 6 batches the thing written had landed 56 to 396 ms before the write was seen, and was still moving at the frame of the write before. For example `d` went from 31,419 to 48,128 characters for the frame at 1520 ms, and was seen at 1739 ms, with the curve landing at 1575 ms. Its next write took it to 53,305 characters, the 53 KB path of the 1 write at the last head. That 1 write, and the 6 of a later run at full speed on `d` and `r`, were not traced one by one, so they are inferred to be the same from their marks and sizes. A look-back of one measured frame rescued nothing in the earlier test because it measured the gap between frames and not the paint's lag. `createWriteJudge` now asks whether anything moved since the frame of the write before, and `apps/agent/test/write-judge.test.ts` checks that a write after the landing is written still has no cause. The old watch counted 12 and 42 under that throttle, and this head counts 0 and 0 under it, with frames up to 360 ms, and 0 and 0 at full speed. Taking the look-back out of the judge fails its test. The test holds the case of a write at rest, and no plant does it on the real page, where `checkStillness` holds a board at rest to 0 writes.
 
 **The settle rule.** A replay moment that differs settles when the board's HTML was identical during the look that differed, live and replay, and a second look at both is clean, whatever the levels. The painter's only output is the page, so a difference with the same page can only come from the browser's raster. The HTML is read while each shot is held, because a painter that lands wrong on one hold and converges by the next would pass a later read. `apps/agent/test/look-at-moment.test.ts` plants that: 742 pixels by 40 levels with a different page during the first look returns `different`. The same pixels with the same page and a clean second look return `settled`, and a difference that repeats returns `different`, with the same page or not.
 
@@ -196,6 +200,7 @@ The 3 refusals are all one mistake, a `highlight` with `tex` on something that i
 
 ## Limits
 
+- `createTierWatch` throws away any gap over a second as a hidden tab, so a real stall that long does not count toward dropping a tier.
 - Real phones, Safari, and Firefox were not run. The phone figures are a laptop's Chromium at a phone's width with its CPU slowed.
 - `hide` and `clearBoard` still remove an element at once.
 - A very wide table on a small phone can still break words.

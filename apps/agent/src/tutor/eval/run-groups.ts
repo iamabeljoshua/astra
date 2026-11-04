@@ -25,7 +25,6 @@ interface GroupTurn {
   judge?: string;
   terms?: readonly string[];
   answer?: string;
-  /** Tells the tutor the page reported this about the first element of that kind on its board, before this turn. */
   boardProblem?: { problem: BoardProblemReport['problem']; on: SceneCommand['kind'] };
 }
 

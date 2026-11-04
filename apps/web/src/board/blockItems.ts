@@ -15,7 +15,6 @@ function createBlockItem(wrapper: HTMLElement, painter: BlockPainter): BoardItem
       return { fit: 'line', size: { width: wrapper.offsetWidth, height: wrapper.offsetHeight }, fromSize: null };
     },
     paint: (context) => painter.paint(getReachedStep(context, painter.stepCount), context.isReducedMotion),
-    // A header or frame stays unseen until its entrance starts, so it cannot rise from below the board.
     getEntranceOpacity: ({ progress }) => (progress > 0 ? 1 : 0),
     getTermBoxes: (query) => painter.getTermBoxes(query),
     getTextPx: () => painter.getTextPx(),

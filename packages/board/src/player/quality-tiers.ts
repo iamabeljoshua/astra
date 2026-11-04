@@ -38,7 +38,6 @@ function moveToTier(state: WatchState, tier: QualityTier, onChange?: (tier: Qual
   onChange?.(tier);
 }
 
-// A tier that fell again after a climb waits twice as long before its next try, so a board on the edge does not keep changing.
 function judgeWindow(state: WatchState, framesPerSecond: number, onChange?: (tier: QualityTier) => void): void {
   const isSlow = framesPerSecond < LOWEST_RATES[state.tier];
   state.slowWindows = isSlow ? state.slowWindows + 1 : 0;
@@ -53,7 +52,6 @@ function judgeWindow(state: WatchState, framesPerSecond: number, onChange?: (tie
   }
 }
 
-/** A gap over a second is a hidden tab and not a slow device, so it counts for nothing. */
 export function createTierWatch(onChange?: (tier: QualityTier) => void): TierWatch {
   const state: WatchState = { tier: 0, windowStartMs: null, framesInWindow: 0, lastFrameMs: null, slowWindows: 0, fastWindows: 0, windowsToClimb: FIRST_WINDOWS_TO_CLIMB, hasClimbed: false };
   return {

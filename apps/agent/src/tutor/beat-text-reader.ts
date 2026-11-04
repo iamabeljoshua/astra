@@ -82,8 +82,7 @@ function withKnownClaim(value: unknown): unknown {
   return { ...command, claim: MATH_CLAIMS.includes(claim as (typeof MATH_CLAIMS)[number]) ? claim : 'relation' };
 }
 
-// Words on the board have no terms to move, so rewriting them as math writes the math in their place, and with no line before it a step is a new line.
-function getWithWordsReplaced(command: SceneCommand, board: BoardKinds): SceneCommand {
+function getWithTransformOfWordsAsNewLine(command: SceneCommand, board: BoardKinds): SceneCommand {
   if (command.kind !== 'transformMath' || board.get(command.target) !== 'text') return command;
   const { target, tex, overWords, claim } = command;
   return { kind: 'writeMath', id: target, tex, ...(overWords === undefined ? {} : { overWords }), ...(claim === undefined ? {} : { claim: claim === 'step' ? 'new' : claim }) };
@@ -549,7 +548,7 @@ export class BeatTextReader {
   }
 
   #keepCommand(written: SceneCommand): void {
-    const command = getWithWordsReplaced(written, this.#board);
+    const command = getWithTransformOfWordsAsNewLine(written, this.#board);
     const problem = this.#getCommandProblem(command);
     if (problem !== null) return this.#options.onBadCommand(problem);
     const verdict = this.#options.checkCommand?.(command) ?? { ok: true };

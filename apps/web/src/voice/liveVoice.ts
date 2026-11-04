@@ -95,7 +95,6 @@ export interface LiveVoice {
   sendOpening(text: string): void;
   /** The board could not draw this mark, so the agent can tell the tutor the student did not see it. */
   reportMarkNotDrawn(markId: string): void;
-  /** Something on the board did not show as asked, so the agent can tell the tutor. */
   reportBoardProblem(report: BoardProblemReport): void;
   sendWork(work: StudentWork, startedMsAgo?: number): void;
   sendInkStroke(id: ElementId, points: readonly InkPoint[]): void;

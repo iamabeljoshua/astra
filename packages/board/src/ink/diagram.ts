@@ -164,7 +164,7 @@ function drawDiagramOnce(diagram: DrawableDiagram, request: DiagramRequest): Dra
   return { steps, width, height, nodeBoxes };
 }
 
-/** Draws a diagram by hand, a node at a time. An edge arrives once both of its ends are on the board. A label the strokes cannot write, or any label when `handwritten` is false, is set as plain text. Lanes and edge labels stand beside the boxes, so a diagram too wide for its room lays itself out again for less, which stacks and wraps it, and text stays its size. */
+/** Draws a diagram by hand, a node at a time. An edge arrives once both of its ends are on the board. A label the strokes cannot write, or any label when `handwritten` is false, is set as plain text. A diagram too wide for its room lays itself out again for less, and text stays its size. */
 export function drawDiagram(diagram: DrawableDiagram, request: DiagramRequest): DrawnDiagram {
   const { fontSize, maxWidth } = request;
   let drawn = drawDiagramOnce(diagram, request);

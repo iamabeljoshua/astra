@@ -44,7 +44,7 @@ async function runDeckChecks(page: Page, server: DeckServer, browser: DeckBrowse
   }
   if (flags['plants-only']) return;
   await runSweeps(page, { surface, isQuick: flags.quick, scenes: flags.scene, outFolder: flags.out }, verdict);
-  if (!flags['no-flash']) await runFlashCheck(page, { isQuick: !flags.flash, surface }, verdict);
+  if (!flags['no-flash']) await runFlashCheck(page, { isQuick: !flags.flash, surface, only: flags.scene }, verdict);
 }
 
 async function main(): Promise<void> {

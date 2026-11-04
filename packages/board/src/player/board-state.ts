@@ -274,7 +274,6 @@ function getLiveSliders(board: BoardDraft): Slider[] {
   return [...board.elements.values()].flatMap(({ content }) => (content.kind === 'slider' ? [content] : []));
 }
 
-// A slider on a constant its curve does not use is refused too, and the page tells the tutor with sliderWithoutConstant.
 function isConstantInCurve(board: BoardDraft, slider: Slider): boolean {
   const curve = board.elements.get(slider.target)?.content;
   if (!('constant' in slider) || curve?.kind !== 'plot') return true;
@@ -447,7 +446,7 @@ export function describeBoard(board: BoardState, atMs: number) {
   const round = (value: number) => Number(value.toFixed(DESCRIBED_DECIMALS));
   return {
     focus: board.focus,
-    stage: board.stage,
+    stage: board.stage && { mode: board.stage.mode, heldMs: round(atMs - board.stage.sinceMs) },
     elements: [...board.elements.values()].map((element) => ({
       id: element.id,
       kind: element.content.kind,

@@ -17,13 +17,10 @@ const LIMIT_MS = 6000;
 /** A 60 Hz display reports 59 and a little, so this is what "60 fps" reads as. */
 const LAPTOP_FLOOR_FPS = 58;
 const PHONE_FLOOR_FPS = 30;
-/** M3.2's own board content, the scene its frame rate came from. */
 const BASELINE_SCENE = 'physics-jump-shot';
 const HEAVY_SCENES = ['mixed-every-kind', 'mixed-phone-heavy', 'hostile-many-at-once', 'hostile-widest-table', 'code-forty-lines', 'hostile-handwritten-diagram'];
-/** Far past any phone, so the watch has something to answer however quiet the laptop is. */
 const SLOWEST_THROTTLE = 12;
 const LAST_SECONDS_SHARE = 0.5;
-/** A loaded machine blurs the ratio, so a task taking half as long again counts as throttled. */
 const THROTTLE_SEEN_SHARE = 0.5;
 
 interface Verdict {
@@ -89,7 +86,6 @@ async function runInterleaved(page: Page, throttle: CDPSession, scenes: readonly
 
 const describeRuns = (rates: readonly number[]) => `${Math.min(...rates)} to ${Math.max(...rates)} fps`;
 
-// Other work on this machine can only slow a run, so a scene is judged on its best run.
 function judgeRows(rows: readonly RateRow[], verdict: Verdict): void {
   for (const scene of new Set(rows.map((row) => row.scene))) {
     const laptop = rows.filter((row) => row.scene === scene && row.board === 'laptop').map((row) => row.fps);
@@ -114,7 +110,6 @@ async function proveTierDrop(page: Page, throttle: CDPSession, outFolder: string
   return proof;
 }
 
-/** Each scene's phone run comes right after its laptop run, so load on this machine falls on both. */
 export async function runFrameRates(browser: DeckBrowser, url: string, { outFolder, scenes }: { outFolder: string; scenes?: readonly string[] }, verdict: Verdict): Promise<void> {
   mkdirSync(outFolder, { recursive: true });
   const page = await browser.openDeck(url);

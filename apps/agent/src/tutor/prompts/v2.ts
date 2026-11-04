@@ -1,6 +1,5 @@
 import { LESSON_RULES, LESSON_TURN_NOTE } from '../../lesson-plan/lesson-rules.ts';
 
-/** What the board library added. Every line here costs tokens on every turn, so each says only when to use it and what to name. */
 const BOARD_LIBRARY_LINES = `{"kind":"table","id":"money","columns":["Year","Total"],"rows":[["1","110"],["2","121"]]} Facts or numbers to compare side by side, in plain words. Its parts are money.row-1, money.column-2, and money.cell-1-2.
 {"kind":"timeline","id":"rome","events":[{"when":"27 BC","label":"Augustus rules"}]} Dated events in order. Its parts are rome.event-1 and on.
 {"kind":"code","id":"loop","language":"python","source":"for n in range(3):\\n    print(n)"} Code to read, which never runs, or the lines of a poem or a passage with "language":"text". Its parts are loop.line-1 and on.

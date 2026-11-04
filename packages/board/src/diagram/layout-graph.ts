@@ -30,7 +30,6 @@ export interface GraphRoute {
 
 export interface GraphLayout {
   boxes: ReadonlyMap<string, MarkBox>;
-  /** One per edge, in the order given, running from `from` to `to`. */
   routes: readonly GraphRoute[];
 }
 
@@ -52,7 +51,6 @@ const MOST_LABEL_LANES = 2;
 
 const LOOP = { reach: 16, halfWidth: 12 };
 
-// An edge that would close a loop counts as going backward, so every rank sits after the ranks that feed it.
 function getForwardEdges(nodes: readonly GraphNode[], edges: readonly GraphEdge[]): Set<GraphEdge> {
   const onPath = new Set<string>();
   const done = new Set<string>();
@@ -75,7 +73,6 @@ function getSpread(row: readonly GraphNode[], nodeGap: number): number {
   return row.reduce((sum, node) => sum + node.width, 0) + Math.max(0, row.length - 1) * nodeGap;
 }
 
-// Longest path from a source, where a rank too wide for the board hands its last node on to the next.
 function getRanks({ nodes, edges, maxWidth, nodeGap }: GraphRequest, forward: ReadonlySet<GraphEdge>, canWiden: boolean): Map<string, number> {
   const ranks = new Map<string, number>();
   const rows: GraphNode[][] = [];
@@ -139,7 +136,6 @@ const getRankThickness = (row: readonly LaidSlot[], axes: Axes) => Math.max(0, .
 
 const isLoopAtEnd = (edge: GraphEdge, ranks: ReadonlyMap<string, number>, rankCount: number) => edge.from === edge.to && ranks.get(edge.from) === rankCount - 1;
 
-// Lanes stack a crowded gap's labels along it, so a fan of arrows has room for a label where its lines have spread.
 function getGapPlans({ request, ranks, axes, rankCount }: { request: GraphRequest; ranks: ReadonlyMap<string, number>; axes: Axes; rankCount: number }): LabelGap[] {
   const hasRoomAtEnd = request.edges.some((edge) => isLoopAtEnd(edge, ranks, rankCount));
   return Array.from({ length: rankCount }, (_, rank) => {
@@ -185,7 +181,6 @@ function getLoopRoute(slot: LaidSlot, axes: Axes, arrowGap: number): InkPosition
   return [toPoint(axes, middle - LOOP.halfWidth, leaving), toPoint(axes, middle - LOOP.halfWidth, leaving + LOOP.reach), toPoint(axes, middle + LOOP.halfWidth, leaving + LOOP.reach), toPoint(axes, middle + LOOP.halfWidth, leaving)];
 }
 
-// A line turns only in the gaps between ranks, so it never crosses a box.
 function getRoute({ edge, ranks, rows, axes, arrowGap, usedLanes, backwardShift }: { edge: GraphEdge; ranks: ReadonlyMap<string, number>; rows: readonly LaidSlot[][]; axes: Axes; arrowGap: number; usedLanes: Set<LaidSlot>; backwardShift: number }): InkPosition[] {
   const { fromRank, toRank, isBackward } = getSpan(edge, ranks);
   const [topName, bottomName] = isBackward ? [edge.to, edge.from] : [edge.from, edge.to];
@@ -237,7 +232,6 @@ function getLayoutWidth({ boxes, routes }: GraphLayout, edges: readonly GraphEdg
   return Math.max(boxRight, ...lineSpots, ...labelRight) - Math.min(0, ...lineSpots, ...labelLeft);
 }
 
-/** Layered, so no arrow runs through a box. A graph with arrows that fits runs across the board, and anything else runs down it. */
 export function layoutGraph(request: GraphRequest): GraphLayout {
   const forward = getForwardEdges(request.nodes, request.edges);
   if (request.edges.length > 0) {

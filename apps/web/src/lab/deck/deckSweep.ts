@@ -76,7 +76,7 @@ const isWrittenInStrokes = (content: BoardElement['content']) => (content.kind =
 
 const getHostId = (content: BoardElement['content']) => ('target' in content && typeof content.target === 'string' ? (content.target.split('.')[0] ?? null) : content.kind === 'plot' && content.over !== undefined ? content.over : null);
 
-const getExpected = (board: BoardState): ExpectedWords[] => [...board.elements.values()].map(({ id, content, revealedUpTo }: BoardElement) => ({ elementId: id, words: getShownWords(content, revealedUpTo !== null), isWrittenInStrokes: isWrittenInStrokes(content), isRevealedInSteps: revealedUpTo !== null, hostId: getHostId(content) }));
+const getExpected = (board: BoardState, isRows: boolean): ExpectedWords[] => [...board.elements.values()].map(({ id, content, revealedUpTo }: BoardElement) => ({ elementId: id, words: content.kind === 'note' && !isRows ? [] : getShownWords(content, revealedUpTo !== null), isWrittenInStrokes: isWrittenInStrokes(content), isRevealedInSteps: revealedUpTo !== null, hostId: getHostId(content) }));
 
 const getArriving = (board: BoardState, atMs: number) => new Set([...board.elements.values()].filter(({ entrance }) => getMotionValue(entrance, atMs) < 1).map(({ id }) => id as string));
 
@@ -84,7 +84,6 @@ async function waitForImages(board: HTMLElement): Promise<void> {
   await Promise.all([...board.querySelectorAll('img')].map((image) => image.decode().catch(() => {})));
 }
 
-// A row scrolls and never shrinks, so a table too big for a laptop's board is no problem on a row.
 const isOnRows = (board: HTMLElement) => board.querySelector('.board-scroll') !== null;
 
 // CSS entrances run on the wall clock and a sweep reads at once, so they are read as they end.
@@ -96,7 +95,6 @@ function finishCssEntrances(board: HTMLElement): void {
 
 const nextFrame = () => new Promise((done) => requestAnimationFrame(done));
 
-// Draws scenes with a synchronous commit and reads layout right away, so one sweep can hold thousands of renders.
 export function createBoardDeck({ present, getBoardElement }: { present(shown: ShownScene): void; getBoardElement(): HTMLElement }) {
   const scenes = new Map(DECK.map((scene) => [scene.name, { scene, operations: getSceneOperations(scene) }]));
   let problems: BoardProblem[] = [];
@@ -122,7 +120,7 @@ export function createBoardDeck({ present, getBoardElement }: { present(shown: S
     const board = getBoardAt(operations, atMs);
     const isAtRest = atMs >= getSceneRestMs(scene);
     finishCssEntrances(getBoardElement());
-    return findLayoutDefects({ board: getBoardElement(), expected: getExpected(board), reported: getReported(problems, refused), isAtRest, arriving: getArriving(board, atMs) });
+    return findLayoutDefects({ board: getBoardElement(), expected: getExpected(board, isOnRows(getBoardElement())), reported: getReported(problems, refused), isAtRest, arriving: getArriving(board, atMs) });
   };
 
   const sweepScene = async (name: string, request: SweepRequest, result: SweepResult) => {
@@ -170,8 +168,6 @@ export function createBoardDeck({ present, getBoardElement }: { present(shown: S
     checkWithColors: ({ scene }) => [...checkNow(scene, getSceneRestMs(getEntry(scene).scene)).defects, ...findColorDefects(getBoardElement())],
     async sweep(request) {
       document.documentElement.dataset.theme = request.theme;
-      // The rows take their color from the body, which fades between themes, so reading layout first starts that fade.
-      document.body.getBoundingClientRect();
       await Promise.all(document.getAnimations().map((animation) => animation.finished.catch(() => {})));
       const result: SweepResult = { renders: 0, textsChecked: 0, failures: [], tooSmallReported: [], wordsReported: [] };
       for (const name of request.scenes ?? DECK.map((scene) => scene.name)) await sweepScene(name, request, result);

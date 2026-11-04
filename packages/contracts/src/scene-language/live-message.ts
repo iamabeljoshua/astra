@@ -90,7 +90,7 @@ export interface BrowserStamp {
   startedMsAgo: number;
 }
 
-/** What the page tells a live tutor about its board, which the layout check leaves out of its defects because the tutor hears of it. A font that fell back has nothing a tutor can do about it, so it stays on the page. */
+/** What the page tells a live tutor about its board. */
 export const TOLD_BOARD_PROBLEMS = ['tooSmallToRead', 'labelWithoutRoom', 'imageMissing', 'sliderWithoutConstant', 'sliderOverlaps', 'curveTooFine'] as const;
 
 export interface BoardProblemReport {

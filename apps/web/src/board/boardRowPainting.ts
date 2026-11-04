@@ -11,7 +11,6 @@ const LABEL_ROOM_BELOW_ROWS = 120;
 
 interface RowPaintingOptions {
   overlay: SVGSVGElement;
-  /** Holds room under the last row for a note that hangs below it, so it can be scrolled to and the live line does not lie under it. */
   roomForNotes: HTMLElement;
   getWrapper(id: string): HTMLElement | undefined;
   onBoardProblem?(problem: BoardProblem): void;

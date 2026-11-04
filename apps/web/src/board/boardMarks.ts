@@ -34,7 +34,6 @@ export interface MarksFrame {
   getItem(id: string): BoardItem | undefined;
   atMs: number;
   isReducedMotion: boolean;
-  /** On rows, left and top reach past the column into the board's own padding, because a mark around a whole element needs that room. */
   area: { left?: number; top?: number; width: number; height: number; alsoTaken?: readonly { left: number; top: number; right: number; bottom: number }[] };
   onLabelWithoutRoom(text: string): void;
 }
@@ -59,7 +58,6 @@ function getMarkBoxes(content: MarkContent, placement: MovingPlacement, item: Bo
   return { from: null, to: isWholeElement || content.kind === 'highlight' ? { x: 0, y: 0, width: placement.width / placement.scale, height: placement.height / placement.scale } : null, flightOffset: { x: 0, y: 0 } };
 }
 
-// Shrinks a box as big as the board by what its mark reaches past it, so the mark stays on the board.
 function keepMarkOnBoard(mark: AnnotationMark, box: MarkBox, placement: MovingPlacement, area: MarksFrame['area']): MarkBox {
   if (placement.scale === 0) return box;
   const reach = getMarkReach(mark, box);

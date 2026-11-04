@@ -48,7 +48,6 @@ export interface BoardItem {
   prepare(context: ItemContext): ItemSizes;
   paint(context: ItemContext): void;
   getEntranceOpacity?(context: ItemContext): number;
-  /** The size of its text before any placement scale, when that is not the board's own. */
   getTextPx?(): number;
   getTermBoxes?(query: TermQuery): TermBoxes;
   getRefusedTex?(): string | null;

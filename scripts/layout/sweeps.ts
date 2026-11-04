@@ -43,7 +43,6 @@ interface Verdict {
   lines: string[];
 }
 
-// A student's rows take their size from the screen, because the session's own grid sets the column.
 const getSizes = (plan: ViewportPlan, surface: DeckSurface) => (surface === 'rows' ? [{ name: plan.name, ...plan.viewport }] : plan.boards);
 
 async function sweepAt(page: Page, plan: ViewportPlan, request: Omit<SweepRequest, 'sizes'> & { sizes: SweepRequest['sizes'] }): Promise<SweepResult> {

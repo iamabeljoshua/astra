@@ -36,7 +36,6 @@ export interface TutorBrain {
   noteCut?(wordsSent: ReadonlyMap<BeatId, number>): void;
   /** The browser could not draw this mark, so the student never saw what the tutor pointed at. */
   noteMarkNotDrawn?(markId: string): void;
-  /** Something the tutor put on the board did not show as it asked. */
   noteBoardProblem?(report: BoardProblemReport): void;
   /** Why the tutor will not answer again in this room, once it has said so. */
   getClosedReason?(): TutorClosedReason | null;

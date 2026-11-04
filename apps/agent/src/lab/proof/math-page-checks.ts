@@ -19,8 +19,14 @@ export interface FrameWatch {
   examples: string[];
 }
 
+interface SceneLab {
+  describeLive(atMs: number): { elements: { id: string; kind: string; tex?: string; drawn: number; morphFrom?: string; revealedUpTo?: number; sceneSeconds?: number }[] };
+  player: { getNowMs(): number; getOperations(): { kind: string; atMs: number }[] };
+  records: { frames: { atMs: number }[] };
+}
+
 interface LabWindow {
-  sceneLab?: { describeLive(atMs: number): { elements: { id: string; kind: string; tex?: string; drawn: number; morphFrom?: string; revealedUpTo?: number; sceneSeconds?: number }[] }; player: { getNowMs(): number; getOperations(): { kind: string; atMs: number }[] } };
+  sceneLab?: SceneLab;
   __frameWatch?: FrameWatch;
   __stopFrameWatch?: () => void;
   __proofIsHolding?: boolean;
@@ -146,6 +152,29 @@ function checkReducedMotion(board: HTMLElement, watch: FrameWatch): void {
   if (isMoving || isStroking) watch.movingWithReducedMotion += 1;
 }
 
+const WATCH_LOOK_BACK_MS = 40;
+const COMMAND_ROOM_MS = 80;
+
+export function createWriteJudge(lab: SceneLab) {
+  let lastWriteFrameMs: number | null = null;
+  return {
+    hasMovedSinceLastWrite(): boolean {
+      const nowMs = lab.player.getNowMs();
+      const earlierMs = Math.min(nowMs - WATCH_LOOK_BACK_MS, lastWriteFrameMs ?? Number.POSITIVE_INFINITY);
+      const firedLately = lab.player.getOperations().some((operation) => operation.kind === 'command' && operation.atMs > Math.min(nowMs - COMMAND_ROOM_MS, earlierMs) && operation.atMs <= nowMs + COMMAND_ROOM_MS);
+      if (firedLately) return true;
+      const before = lab.describeLive(earlierMs).elements;
+      const after = lab.describeLive(nowMs).elements;
+      const isSceneMoving = after.some((element) => element.sceneSeconds !== undefined && element.sceneSeconds !== before.find((other) => other.id === element.id)?.sceneSeconds);
+      if (isSceneMoving) return true;
+      return after.some((element) => element.drawn < 1) || before.some((element) => element.drawn < 1) || after.some((element) => element.revealedUpTo !== undefined && element.revealedUpTo !== before.find((other) => other.id === element.id)?.revealedUpTo);
+    },
+    noteWrite() {
+      lastWriteFrameMs = lab.records.frames.at(-1)?.atMs ?? null;
+    },
+  };
+}
+
 /** Watches every frame until told to stop, and every write to the board, against the clock that caused it. */
 export function startFrameWatch({ isReducedMotion, refusedTex }: { isReducedMotion: boolean; refusedTex: string[] }): void {
   const page = window as unknown as LabWindow;
@@ -157,21 +186,15 @@ export function startFrameWatch({ isReducedMotion, refusedTex }: { isReducedMoti
   page.__frameWatch = watch;
   let lastFrameMs = performance.now();
   let isRunning = true;
-  const isCaused = () => {
-    const nowMs = lab.player.getNowMs();
-    const firedLately = lab.player.getOperations().some((operation) => operation.kind === 'command' && nowMs - operation.atMs < 80 && nowMs >= operation.atMs - 80);
-    if (firedLately) return true;
-    const isSceneMoving = lab.describeLive(nowMs).elements.some((element) => element.sceneSeconds !== undefined && element.sceneSeconds !== lab.describeLive(nowMs - 40).elements.find((other) => other.id === element.id)?.sceneSeconds);
-    if (isSceneMoving) return true;
-    return lab.describeLive(nowMs).elements.some((element) => element.drawn < 1) || lab.describeLive(nowMs - 40).elements.some((element) => element.drawn < 1) || lab.describeLive(nowMs).elements.some((element) => element.revealedUpTo !== undefined && element.revealedUpTo !== lab.describeLive(nowMs - 40).elements.find((other) => other.id === element.id)?.revealedUpTo);
-  };
+  const writes = createWriteJudge(lab);
   const observer = new MutationObserver((records) => {
-    if (page.__proofIsHolding || isCaused()) watch.mutationsWithCause += records.length;
+    if (page.__proofIsHolding || writes.hasMovedSinceLastWrite()) watch.mutationsWithCause += records.length;
     else {
       watch.mutationsWithNoCause += records.length;
       const target = records[0]?.target as HTMLElement | undefined;
       watch.examples.push(`write with no cause at ${Math.round(lab.player.getNowMs())}: ${records[0]?.attributeName} on ${target?.dataset?.element ?? target?.tagName} = ${target?.getAttribute?.(records[0]?.attributeName ?? '')?.slice(0, 80)}`);
     }
+    writes.noteWrite();
   });
   observer.observe(board, { subtree: true, attributes: true, childList: true, characterData: true });
   const check = () => {
@@ -322,7 +345,7 @@ export function getColorsOnBoard(): { unknownColors: string[]; gradients: number
   const root = getComputedStyle(document.documentElement);
   const probe = document.createElement('span');
   document.body.append(probe);
-  const tokens = ['paper', 'panel', 'ink', 'ink-2', 'line', 'accent'].map((name) => {
+  const tokens = ['paper', 'panel', 'ink', 'ink-2', 'line', 'accent', 'pen'].map((name) => {
     probe.style.color = root.getPropertyValue(`--color-${name}`);
     return getComputedStyle(probe).color;
   });

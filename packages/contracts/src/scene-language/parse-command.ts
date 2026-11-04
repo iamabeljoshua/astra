@@ -88,9 +88,8 @@ const NUMBER_RANGES = {
 const CODE_LANGUAGE = /^[a-z0-9+#-]{1,20}$/;
 const CONTROL_CHARACTER = /\p{Cc}/u;
 const PLOT_CONSTANT_NAME = /^[a-z]{1,8}$/;
-/** What JSON makes of a lone backslash, as in beta, frac, nu, rho, and theta. No real board words on main hold one, and only code keeps its lines and tabs. */
+/** What JSON makes of a lone backslash, as in beta, frac, nu, rho, and theta. */
 const BROKEN_BACKSLASH = /[\b\f\n\r\t]/;
-/** A TeX command or bracket, a braced power or subscript, or math between dollars, which would reach a student as raw source. A dollar pair counts only when it hugs what it holds and holds more than a number, so money stays words. */
 export const RAW_MATH = /\\[a-zA-Z]{2,}|\\[()[\]]|[_^]\{|(?<!\$)\$\$[^$\s]|(?<![\w$])\$(?![\d.,]+\$)[^$\s](?:[^$]*[^$\s])?\$(?![\w$])/;
 
 function readWords(place: Place, maxLength: number): string {
@@ -298,12 +297,11 @@ function readDiagramNodes(fields: CheckedFields): Diagram['nodes'] {
   return nodes;
 }
 
-// A blank or null label on an arrow still says no label, and refusing it would lose the whole picture for a word nobody asked to show.
-const isNoLabel = (value: unknown) => value === null || (typeof value === 'string' && value.trim() === '');
+const isBlankOrNullLabel = (value: unknown) => value === null || (typeof value === 'string' && value.trim() === '');
 
 function readDiagramEdge(place: Place, nodeNames: ReadonlySet<string>): Diagram['edges'][number] {
   const fields = readFields(place, ['from', 'to', 'label']);
-  return { from: readEdgeEnd(fields.at('from'), nodeNames), to: readEdgeEnd(fields.at('to'), nodeNames), ...(isNoLabel(fields.at('label').value) ? {} : fields.optional('label', readLabel)) };
+  return { from: readEdgeEnd(fields.at('from'), nodeNames), to: readEdgeEnd(fields.at('to'), nodeNames), ...(isBlankOrNullLabel(fields.at('label').value) ? {} : fields.optional('label', readLabel)) };
 }
 
 function readTimelineEvent(place: Place): Timeline['events'][number] {

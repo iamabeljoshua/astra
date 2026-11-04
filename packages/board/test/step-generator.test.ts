@@ -10,8 +10,7 @@ function createRandom(seed: number) {
   };
 }
 
-function getStatus(problem: string, typed: string) {
-  const problemTex = getLineTex(readLine(problem));
+function getStatus(problemTex: string | null, typed: string) {
   return checkWork({ way: 'write', id: 's1' as ElementId, text: typed }, { task: { kind: 'task', id: 'a1' as ElementId, way: 'write', on: 'problem' as ElementId }, getLineTex: () => problemTex, getCurve: () => null, previousTex: null, pickedRight: [] }).verdict.status;
 }
 
@@ -40,6 +39,21 @@ function makeProblem(random: (below: number) => number) {
       `x = ${root} = ${root + shift}`,
       `${a}x + ${b} = ${c} = ${c + shift}`,
     ],
+  };
+}
+
+// The truth is whole number arithmetic here too, and a whole joined to its top, as 31/2 for 3 1/2, is one of the false steps.
+function makeMixedNumber(random: (below: number) => number) {
+  const bottom = 2 + random(8);
+  const top = 1 + random(bottom - 1);
+  const whole = 1 + random(9);
+  const [sign, otherSign] = random(2) === 0 ? ['', '-'] : ['-', ''];
+  const total = whole * bottom + top;
+  const written = `${whole} ${top}/${bottom}`;
+  return {
+    problem: `${bottom}x = ${sign}${total}`,
+    trueSteps: [`x = ${sign}${written}`, `${sign}${written} = x`, `x = ${sign}${total}/${bottom} = ${sign}${written}`],
+    falseSteps: [`x = ${sign}${whole + 1} ${top}/${bottom}`, `x = ${otherSign}${written}`, `x = ${sign}${whole}${top}/${bottom}`, `x = ${sign}${total}/${bottom} = ${sign}${whole + 1} ${top}/${bottom}`],
   };
 }
 
@@ -75,26 +89,41 @@ describe('generated roundings', () => {
   }, 60_000);
 });
 
-describe('generated steps', () => {
-  it('holds over 3000 problems: no true step is wrong, no false step is right', () => {
-    const random = createRandom(71);
-    const tally = { trueRight: 0, trueUnknown: 0, trueWrong: 0, falseWrong: 0, falseUnknown: 0, falseRight: 0 };
-    const seen: string[] = [];
-    for (let index = 0; index < 3000; index += 1) {
-      const { problem, trueSteps, falseSteps } = makeProblem(random);
-      for (const typed of trueSteps) {
-        const status = getStatus(problem, typed);
-        tally[status === 'right' ? 'trueRight' : status === 'wrong' ? 'trueWrong' : 'trueUnknown'] += 1;
-        if (status === 'wrong') seen.push(`${problem} -> ${typed}`);
-      }
-      for (const typed of falseSteps) {
-        const status = getStatus(problem, typed);
-        tally[status === 'right' ? 'falseRight' : status === 'wrong' ? 'falseWrong' : 'falseUnknown'] += 1;
-        if (status === 'right') seen.push(`${problem} -> ${typed}`);
-      }
+// CI proves this fixed seeded sample, and `pnpm --filter @astra/board test:steps` proves all 3,000 problems, for a nightly or local run.
+const STEP_PROBLEMS = Number(process.env.STEP_PROBLEMS ?? 300);
+const STEP_LIMIT_MS = Math.max(60_000, STEP_PROBLEMS * 100);
+
+function holdSteps(seed: number, make: (random: (below: number) => number) => { problem: string; trueSteps: string[]; falseSteps: string[] }) {
+  const random = createRandom(seed);
+  const tally = { trueRight: 0, trueUnknown: 0, trueWrong: 0, falseWrong: 0, falseUnknown: 0, falseRight: 0 };
+  const seen: string[] = [];
+  for (let index = 0; index < STEP_PROBLEMS; index += 1) {
+    const { problem, trueSteps, falseSteps } = make(random);
+    const problemTex = getLineTex(readLine(problem));
+    for (const typed of trueSteps) {
+      const status = getStatus(problemTex, typed);
+      tally[status === 'right' ? 'trueRight' : status === 'wrong' ? 'trueWrong' : 'trueUnknown'] += 1;
+      if (status === 'wrong') seen.push(`${problem} -> ${typed}`);
     }
-    console.log(JSON.stringify(tally), seen.slice(0, 12));
-    expect(tally.trueWrong).toBe(0);
-    expect(tally.falseRight).toBe(0);
-  }, 60_000);
+    for (const typed of falseSteps) {
+      const status = getStatus(problemTex, typed);
+      tally[status === 'right' ? 'falseRight' : status === 'wrong' ? 'falseWrong' : 'falseUnknown'] += 1;
+      if (status === 'right') seen.push(`${problem} -> ${typed}`);
+    }
+  }
+  console.log(JSON.stringify(tally), seen.slice(0, 12));
+  expect(tally.trueWrong).toBe(0);
+  expect(tally.falseRight).toBe(0);
+  return tally;
+}
+
+describe('generated steps', () => {
+  it(`holds over ${STEP_PROBLEMS} problems: no true step is wrong, no false step is right`, () => {
+    holdSteps(71, makeProblem);
+  }, STEP_LIMIT_MS);
+
+  it(`holds over ${STEP_PROBLEMS} mixed numbers: each true step is right, no false step is right`, () => {
+    const { trueUnknown } = holdSteps(73, makeMixedNumber);
+    expect(trueUnknown).toBe(0);
+  }, STEP_LIMIT_MS);
 });

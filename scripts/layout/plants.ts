@@ -12,7 +12,6 @@ interface BoardSize {
 
 const LAPTOP_BOARD = { width: 760, height: 752 };
 const PHONE_BOARD = { width: 358, height: 506 };
-/** A student's rows take their size from the screen, so each board above stands for the screen it sits on. */
 const ROW_SCREENS = new Map([[LAPTOP_BOARD, { width: 1366, height: 800 }], [PHONE_BOARD, { width: 390, height: 844 }]]);
 const SMALL_PHONE_SCREEN = { width: 320, height: 568 };
 const PHONE_LANDSCAPE_SCREEN = { width: 844, height: 390 };
@@ -269,7 +268,6 @@ const PAGE_PLANTS: readonly PagePlant[] = [
 const paragraph = `document.querySelector('${BOARD} p')`;
 const rawWords = (words: string) => `${paragraph}.textContent = ${JSON.stringify(words)};`;
 
-/** Defects found by hand in review, with the page broken the way a student would see it. */
 const SEEN_PLANTS: readonly ScriptPlant[] = [
   { name: 'a rounded corner cuts the words', scene: 'mixed-lesson-opening', size: LAPTOP_BOARD, expects: 'text-clipped', script: `const p = ${paragraph}; p.style.borderRadius = '50%'; p.style.overflow = 'hidden'; p.style.background = 'var(--color-panel)';` },
   { name: 'a clip-path cuts half the words', scene: 'mixed-lesson-opening', size: LAPTOP_BOARD, expects: 'text-clipped', script: `${paragraph}.style.clipPath = 'inset(0 50% 0 0)';` },
@@ -311,7 +309,6 @@ const SEEN_PLANTS: readonly ScriptPlant[] = [
 
 const row = (index: number) => `document.querySelectorAll('${BOARD} .board-row')[${index}]`;
 
-/** Overlap, clipping, and leaving, on what only a student's rows have: a column, a gutter, a board that scrolls, and marks over all of it. */
 const ROW_PLANTS: readonly ScriptPlant[] = [
   { name: 'a row pulled up onto the row above', scene: 'mixed-lesson-opening', size: LAPTOP_BOARD, expects: 'element-on-element', script: `${row(1)}.style.marginTop = '-120px';` },
   { name: 'a row of words pulled onto the row above', scene: 'language-verb-table', size: PHONE_BOARD, expects: 'text-on-text', script: `${row(1)}.style.marginTop = '-120px';` },
@@ -348,7 +345,6 @@ async function checkPlant(page: Page, plant: PagePlant | ScriptPlant, mount: str
   return found.map(({ kind }) => kind);
 }
 
-/** A wrapper's own transform places it on `BoardView` and on a row nothing does, and a row wraps huge words and grows. */
 const ONLY_ON_THE_VIEW: ReadonlySet<string> = new Set(['one element laid over another', 'an element pushed past the right edge', 'text pushed past the bottom edge', 'an element shrunk past reading, with no report', 'huge words']);
 
 export async function runPagePlants(page: Page, surface: DeckSurface, verdict: Verdict): Promise<void> {
@@ -366,7 +362,6 @@ interface LibraryPlant extends SourcePlant {
   scene: string;
   size: { width: number; height: number };
   expects: DefectKind;
-  /** The defect needs earlier moments on the same board, as a replaced element does. */
   playsThrough?: boolean;
 }
 
@@ -387,13 +382,12 @@ const LIBRARY_PLANTS: readonly LibraryPlant[] = [
   { name: 'a table never fades in', file: 'apps/web/src/board/boardItems.ts', find: 'getEntranceOpacity: ({ progress }) => progress,', replace: 'getEntranceOpacity: () => 0,', scene: 'language-verb-table', size: LAPTOP_BOARD, expects: 'unseen-element' },
   { name: 'a diagram label stays hidden', file: 'apps/web/src/board/boardItems.ts', find: "writeStyle(text, 'visibility', drawn === 0 ? 'hidden' : '');", replace: "writeStyle(text, 'visibility', 'hidden');", scene: 'biology-food-chain', size: LAPTOP_BOARD, expects: 'dropped-words' },
   { name: 'a plot label ignores the curve', file: 'packages/board/src/figure/place-labels.ts', find: 'const lines = request.isOptional ? [] : (room.linesToClear ?? []);', replace: 'const lines: readonly Branch[] = [];', scene: 'physics-wave-plot', size: PHONE_BOARD, expects: 'line-on-text' },
-  { name: 'a note ignores the ring it names', file: 'apps/web/src/board/boardMarks.ts', find: 'shouldAvoid: [], linesToClear, onNoRoom', replace: 'shouldAvoid: [], onNoRoom', scene: 'history-school-of-athens', size: LAPTOP_BOARD, expects: 'line-on-text' },
+  { name: 'a note ignores the ring it names', file: 'apps/web/src/board/boardMarks.ts', find: 'shouldAvoid: [], linesToClear, onNoRoom', replace: 'shouldAvoid: [], onNoRoom', scene: 'mixed-note-beside-its-ring', size: PHONE_BOARD, expects: 'line-on-text' },
   { name: 'a ring goes back to an ellipse', file: 'packages/board/src/ink/marks.ts', find: 'const power = 2 / getRingRoundness(box, wander);', replace: 'const power = 1;', scene: 'hostile-marks-on-wide-things', size: LAPTOP_BOARD, expects: 'line-on-text' },
   { name: 'a long arrow runs straight through the rank between', file: 'packages/board/src/diagram/layout-graph.ts', find: 'points.push(toPoint(axes, centre(lane), band.start - arrowGap), toPoint(axes, centre(lane), band.end + arrowGap));', replace: '', scene: 'mixed-arrow-past-a-wide-node', size: LAPTOP_BOARD, expects: 'line-on-box' },
   { name: 'an arrow loses its straight run past a taller neighbour', file: 'packages/board/src/ink/diagram.ts', find: 'return [{ ...makeStroke(holdCorners(points, ARROW.cornerReach)), role: \'line\' }', replace: 'return [{ ...makeStroke([points[0] as InkPosition, { x: (points.at(-1) as InkPosition).x, y: (points[0] as InkPosition).y + 400 }, points.at(-1) as InkPosition]), role: \'line\' }', scene: 'mixed-arrow-past-a-wide-node', size: LAPTOP_BOARD, expects: 'line-on-box' },
 ];
 
-/** What a student's rows would do wrong that no other board can. */
 const ROW_LIBRARY_PLANTS: readonly LibraryPlant[] = [
   { name: 'a row keeps its old table when the tutor replaces it', file: 'apps/web/src/board/boardRowPainting.ts', find: 'if (known && canKeepItem(known.content, element.content)) {', replace: 'if (known) {', scene: 'mixed-hide-and-replace', size: LAPTOP_BOARD, expects: 'dropped-words', playsThrough: true },
   { name: 'a ring stays inside the column and runs through the words', file: 'apps/web/src/board/boardRowPainting.ts', find: 'left: board.left - flow.left, top: board.top - flow.top, width: board.right - flow.left,', replace: 'left: 0, top: 0, width: flow.width,', scene: 'mixed-marks-on-parts', size: LAPTOP_BOARD, expects: 'line-on-text' },
@@ -404,7 +398,6 @@ const ROW_LIBRARY_PLANTS: readonly LibraryPlant[] = [
   { name: 'a row of tutor text is set as markup', file: 'apps/web/src/board/SharedBoard.tsx', find: '>{content.text}</p>', replace: ' dangerouslySetInnerHTML={{ __html: content.text }} />', scene: 'hostile-markup-everywhere', size: LAPTOP_BOARD, expects: 'forbidden-element' },
 ];
 
-/** These break the fit a row never asks for, or a file only `BoardView` reads. The ring's note has nothing to catch on either board until a scene crosses it. */
 const LIBRARY_PLANTS_ONLY_ON_THE_VIEW: ReadonlySet<string> = new Set(['placement forgets the height of what is above', 'placement stops shrinking a wide line', 'text is set as markup', 'a note ignores the ring it names']);
 
 async function checkLibraryPlant(page: Page, server: DeckServer, plant: LibraryPlant, surface: DeckSurface): Promise<DefectKind[]> {

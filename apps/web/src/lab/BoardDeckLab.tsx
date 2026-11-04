@@ -12,7 +12,6 @@ declare global {
   }
 }
 
-// The session's own grid, so a row gets the column, the gutter, and the type a student's board gives it at this screen size.
 function StudentBoard({ shown, onBoardProblem }: { shown: ShownScene; onBoardProblem(problem: BoardProblem): void }) {
   return (
     <div className="board-session flex flex-col">
@@ -26,7 +25,6 @@ function StudentBoard({ shown, onBoardProblem }: { shown: ShownScene; onBoardPro
   );
 }
 
-// Development-only page that draws one deck scene at one size and moment, for scripts/check-layout.ts. `?surface=view` draws through the lab's BoardView, and otherwise it is the student's rows.
 export default function BoardDeckLab() {
   const [shown, setShown] = useState<ShownScene | null>(null);
   const stage = useRef<HTMLDivElement>(null);

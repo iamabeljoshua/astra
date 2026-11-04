@@ -37,7 +37,6 @@ export interface LabelSearch {
 
 const SEARCH_STEP = 6;
 const MOST_STEPS = 500;
-/** The clear space a label keeps from a line, which also clears the widest part of an arrow's head. */
 const LINE_ROOM = 5;
 const LABEL_ROOM = 4;
 const SIDES = [1, -1];
@@ -46,7 +45,6 @@ const inflate = ({ left, top, right, bottom }: LabelRect, by: number): LabelRect
 
 const doRectsOverlap = (first: LabelRect, second: LabelRect) => first.left < second.right && second.left < first.right && first.top < second.bottom && second.top < first.bottom;
 
-// Clips the segment against each side of the box in turn, and what remains lies inside.
 function doesSegmentEnter(from: InkPosition, to: InkPosition, { left, top, right, bottom }: LabelRect): boolean {
   const moves = [[from.x - to.x, from.x - left], [to.x - from.x, right - from.x], [from.y - to.y, from.y - top], [to.y - from.y, bottom - from.y]] as const;
   let enter = 0;
@@ -61,7 +59,6 @@ function doesSegmentEnter(from: InkPosition, to: InkPosition, { left, top, right
 
 const doesLineEnter = (line: readonly InkPosition[], rect: LabelRect) => line.slice(1).some((point, index) => doesSegmentEnter(line[index] as InkPosition, point, rect));
 
-// Where a line passes this far along. One that never gets there, like a loop, counts from its middle.
 function getCrossing(line: readonly InkPosition[], along: number, { across, along: alongKey }: Axes): number {
   for (let index = 1; index < line.length; index += 1) {
     const from = line[index - 1] as InkPosition;
@@ -85,7 +82,6 @@ function getLaneSpot(lane: number, { size, gap, axes }: Pick<LabelSearch, 'size'
   return gap.start + (gap.size - gap.lanes * gap.laneSize) / 2 + lane * gap.laneSize + (gap.laneSize - size[axes.alongSize]) / 2;
 }
 
-/** The nearest spot beside a label's own line that clears every line and every other label. */
 export function findLabelSpot(search: LabelSearch): LabelRect {
   const { size, ownLine, gap, axes } = search;
   for (let step = 0; step < MOST_STEPS; step += 1) {

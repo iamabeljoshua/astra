@@ -14,7 +14,6 @@ function makeLine(source: string, number: number): HTMLElement {
   line.className = 'board-code-line';
   const shownNumber = makeSpan('board-code-number', String(number));
   shownNumber.setAttribute('aria-hidden', 'true');
-  // An empty line still takes a line's height.
   const text = makeSpan('board-code-source', source === '' ? ' ' : source);
   text.dir = 'ltr';
   line.append(shownNumber, text);

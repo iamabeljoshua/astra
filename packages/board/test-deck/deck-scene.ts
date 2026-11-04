@@ -4,7 +4,6 @@ import type { BoardOperation } from '../src/player/board-operations.ts';
 export const SUBJECTS = ['math', 'physics', 'language', 'history', 'biology', 'code', 'music', 'mixed', 'hostile'] as const;
 export type Subject = (typeof SUBJECTS)[number];
 
-/** One scripted board. Commands stay raw, so each one goes through the tutor's parser. */
 export interface DeckScene {
   name: string;
   subject: Subject;

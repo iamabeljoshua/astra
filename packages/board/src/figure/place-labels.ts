@@ -15,7 +15,6 @@ const CHARACTER_WIDTHS = [
 const OTHER_CHARACTER_EMS = 1.05;
 const NOT_THE_KNOWN_LETTERS = /[^\s!-\u024F\u2212\u00B0]/;
 const MEASURED_ROOM = 1.05;
-/** A font a device falls back to can stand far taller than ours, and only its width gets measured. */
 const FALLBACK_FONT_ROOM = 8;
 const MOST_MEASURES_KEPT = 4000;
 
@@ -97,7 +96,6 @@ export interface LabelRoom {
   bounds: Box;
   mustAvoid: readonly Box[];
   shouldAvoid: readonly Box[];
-  /** Lines a label may not touch. A tick number sits on its axis and is the only text that skips this. */
   linesToClear?: readonly Branch[];
   onNoRoom?(text: string): void;
 }
@@ -116,7 +114,6 @@ function getTextShape(text: string, maxWidth: number): Shape {
 
 const withoutSpaces = (text: string) => text.replace(/\s+/g, '');
 
-// A label too long for the free room can stack its words, as long as every word still fits.
 function getShapesToTry(request: LabelRequest, maxWidth: number): Shape[] {
   const whole = getTextShape(request.text, maxWidth);
   if (request.isOptional || request.isFixed) return [whole];
@@ -144,7 +141,6 @@ const LINE_CELL = 3;
 const CELL_ROW = 65536;
 const cellsByLine = new WeakMap<Branch, ReadonlySet<number>>();
 
-// A resting curve keeps its array, so its cells cost nothing after the first frame.
 function getLineCells(line: Branch): ReadonlySet<number> {
   const known = cellsByLine.get(line);
   if (known) return known;
@@ -184,7 +180,6 @@ function findPlace(shape: Shape, request: LabelRequest, room: LabelRoom, taken: 
   return null;
 }
 
-// The free spot nearest the point the label names, so one with no room beside its mark still reads as belonging to it.
 function findAnyPlace({ width, height, room: extraRoom }: Shape, { anchor, room, taken }: { anchor: Point; room: LabelRoom; taken: readonly Box[] }): Box | null {
   const others = [...room.mustAvoid, ...taken];
   const lines = room.linesToClear ?? [];

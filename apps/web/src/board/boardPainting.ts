@@ -67,7 +67,6 @@ export function canKeepItem(first: BoardElement['content'], second: BoardElement
   return first.kind === 'writeMath' || JSON.stringify(first) === JSON.stringify(second);
 }
 
-// Says each problem once, because the painter meets it on every frame and a tutor should hear of it once.
 export function createProblemReports(onBoardProblem?: (problem: BoardProblem) => void) {
   const reportedLabels = new Set<string>();
   const reportedCurves = new Set<string>();
@@ -203,7 +202,6 @@ export function createBoardPainting({ boardElement, overlay, getWrapper, onMathR
     paintNow({ ...frame, isReducedMotion: frame.isReducedMotion || landsDrawingsAtOnce(tier) });
   };
 
-  // A frame skipped to save work is still painted on the next animation frame, in case the board stops asking.
   const paintWhenDue = () => {
     if (waitingFrame) paintWithTier(waitingFrame.frame, waitingFrame.tier);
   };
