@@ -136,7 +136,8 @@ describe('clearing the board with a scene on it', () => {
   it('sends the working away and keeps the scene, in the corner', () => {
     const board = getBoardAt([place(0), command(100, NOTE), command(200, CLEAR)], 300);
     expect([...board.elements.keys()]).toEqual([elementId('slope')]);
-    expect(board.stage).toEqual({ mode: 'handsOn', sinceMs: 200 });
+    expect(board.stage).toEqual({ mode: 'handsOn', sinceMs: 100 });
+    expect(getBoardAt([place(0), command(200, CLEAR)], 300).stage).toEqual({ mode: 'handsOn', sinceMs: 200 });
   });
 
   it('never brings that scene back big, because the tutor may have moved to another topic', () => {
