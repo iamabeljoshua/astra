@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { type Box, doBoxesOverlap, type FigureMark, getLeadingShare, clipBranch } from '../src/figure/figure-marks.ts';
 import { createEqualView, createStretchedView } from '../src/figure/figure-view.ts';
 import type { FigureFrame, FigureWords } from '../src/figure/figure-input.ts';
-import { getFigureMarks } from '../src/figure/get-figure-marks.ts';
+import { getFigureFit, getFigureMarks } from '../src/figure/get-figure-marks.ts';
 import { estimateTextWidth, LABEL_FONT, placeLabels, setLabelMeasure, wrapLabel } from '../src/figure/place-labels.ts';
 import { getBoardAt } from '../src/player/board-state.ts';
 import type { BoardOperation } from '../src/player/board-operations.ts';
@@ -651,5 +651,53 @@ describe('every way a number reaches a flight', () => {
       expectHonest(operations);
       expect(getBoardAt(operations, LATE_MS).elements.get('shot' as never)?.placedScene?.scene.values?.[parameter]).toBe(lowest);
     }
+  });
+});
+
+describe('a plot at the prototype\'s size', () => {
+  const PROTOTYPE_SIZE = { width: 620, height: 340 };
+  const getYTicks = (expression: string, domain: [number, number], size = PROTOTYPE_SIZE) => getText(getMarks([place({ kind: 'plot', id: 'p', expression, domain })], 'p', size))
+    .filter((mark) => mark.key.startsWith('tick-y'))
+    .map((mark) => Number((mark.lines[0] as string).replace('−', '-')));
+  // The tick at zero is drawn by the axes, so it is added back before measuring the gaps.
+  const getSteps = (ticks: readonly number[]) => {
+    const sorted = [...new Set([...ticks, 0])].sort((low, high) => low - high);
+    return new Set(sorted.slice(1).map((tick, index) => Number((tick - (sorted[index] as number)).toFixed(6))));
+  };
+
+  it('takes the prototype\'s shape whatever the curve, and leaves other figures theirs', () => {
+    const operations = [place({ kind: 'plot', id: 'p', expression: 'x^2-4*x+1', domain: [-1, 5] }), place({ kind: 'plot', id: 'wave', expression: '5*sin(x)', domain: [0, 10] }), place({ kind: 'simulate', id: 'shot', simulation: { model: 'projectile', parameters: { horizontalSpeed: 4, upwardSpeed: 6, releaseHeight: 2, gravity: 9.8 } } })];
+    const board = getBoardAt(operations, LATE_MS);
+    const fitOf = (id: string) => getFigureFit(board.elements.get(id as never) as FigureFrame['element'], 620).size;
+    expect(fitOf('p').height).toBeCloseTo(PROTOTYPE_SIZE.height, 6);
+    expect(fitOf('wave').height).toBeCloseTo(PROTOTYPE_SIZE.height, 6);
+    expect(fitOf('shot').height).toBeCloseTo(620 * 0.72, 6);
+  });
+
+  it('numbers y every 1 on the lesson\'s curve, as the prototype does', () => {
+    expect(getSteps(getYTicks('x^2-4*x+1', [-1, 5]))).toEqual(new Set([1]));
+  });
+
+  it.each([
+    ['x^2', [-10, 10], 10],
+    ['sin(x)', [0, 6], 0.2],
+    ['x^3', [-3, 3], 5],
+  ] as const)('keeps %s on round steps a reader can follow', (expression, domain, step) => {
+    const ticks = getYTicks(expression, [...domain]);
+    expect(getSteps(ticks)).toEqual(new Set([step]));
+    expect(ticks.length).toBeLessThanOrEqual(13);
+  });
+
+  it('keeps numbers from landing on each other, even on a short figure', () => {
+    for (const size of [PROTOTYPE_SIZE, { width: 326, height: 179 }]) {
+      const marks = getMarks([place({ kind: 'plot', id: 'p', expression: 'x^2-4*x+1', domain: [-1, 5] })], 'p', size);
+      expect(getOverlappingText(marks)).toEqual([]);
+    }
+  });
+
+  it('leaves a simulation\'s scale as it was', () => {
+    const shot = place({ kind: 'simulate', id: 'shot', simulation: { model: 'projectile', parameters: { horizontalSpeed: 4, upwardSpeed: 6, releaseHeight: 2, gravity: 9.8 } } });
+    const ticks = getText(getMarks([shot], 'shot', { width: 620, height: 446 })).filter((mark) => mark.key.startsWith('tick-y'));
+    expect(ticks.length).toBeLessThanOrEqual(8);
   });
 });

@@ -1,5 +1,5 @@
 import { getMathParts, getTexTokens, type WorkVerdict } from '@astra/contracts';
-import { checkMathLine, checkMathStep } from './check-math.ts';
+import { checkMathLine, checkMathStep, getChainLinks, isLastDigitSlip } from './check-math.ts';
 import { isPolynomial, subtractFractions, toFraction } from './math/math-value.ts';
 import { getLetters, parseMath } from './math/parse-math.ts';
 import { getDegree, getLinearRoot, toOneLetter } from './math/polynomial.ts';
@@ -15,7 +15,7 @@ const RIGHT: WorkVerdict = { status: 'right' };
 const UNKNOWN: WorkVerdict = { status: 'unknown' };
 
 const CANNOT_TELL_WHICH_FRACTION = /\/\s*\d*\s*[a-zA-Z(\\]/;
-const BARE_ANSWER = /^(?:-?\s*(?:\d+(?:\.\d+)?|\\frac\{\d+\}\{\d+\}))$/;
+const BARE_ANSWER = /^(?:-?\s*(?:\d+(?:\.\d+)?|\d*\\frac\{\d+\}\{\d+\}))$/;
 
 type Sides = readonly (readonly string[])[];
 
@@ -39,7 +39,7 @@ const hasLetterTerm = (terms: readonly string[]) => terms.some((term) => getTexT
 
 const isSubset = (small: readonly string[], large: readonly string[]) => small.length > 0 && small.every((term) => large.includes(term));
 
-function isSingleLetterEquation(tex: string): boolean {
+export function isSingleLetterEquation(tex: string): boolean {
   const sides = getSides(tex);
   return sides.length === 2 && new Set(sides.flat().flatMap((term) => [...getLettersIn(term)])).size === 1;
 }
@@ -55,6 +55,8 @@ function isAnswerClaim(tex: string): boolean {
 
 /** A step carries a whole side with its letter over from the line before, or claims the answer. */
 function isShownStep(beforeTex: string, afterTex: string): boolean {
+  const links = getChainLinks(afterTex);
+  if (links.length > 1) return links.some((link) => isShownStep(beforeTex, link));
   const [before, after] = [getSides(beforeTex), getSides(afterTex)];
   if (!isSingleLetterEquation(beforeTex) || after.length !== 2) return false;
   if (isAnswerClaim(afterTex)) return true;
@@ -65,6 +67,8 @@ function getWrongStep(problemTex: string, previousTex: string | null, tex: strin
   const isFromProblem = isShownStep(problemTex, tex);
   const isFromLastLine = previousTex !== null && isShownStep(previousTex, tex);
   if (!isFromProblem && !isFromLastLine) return UNKNOWN;
+  const isOnlySlips = getChainLinks(tex).every((link) => checkMathStep(problemTex, link).status !== 'wrong' || isLastDigitSlip(problemTex, link));
+  if (isOnlySlips) return UNKNOWN;
   const isBuiltOnWrongLine = previousTex !== null && checkMathStep(previousTex, tex).status === 'right';
   return { status: 'wrong', why, ...(isBuiltOnWrongLine ? { isBuiltOnWrongLine } : {}) };
 }
@@ -81,8 +85,8 @@ export function checkStep({ tex, problemTex, previousTex }: StepInput): WorkVerd
 
 export function isFinishedAnswer(tex: string): boolean {
   const sides = tex.split('=').map(compact);
-  if (sides.length !== 2) return false;
-  const [left, right] = sides as [string, string];
+  if (sides.length < 2) return false;
+  const [left, right] = [sides[0] as string, sides.at(-1) as string];
   return (/^[A-Za-z]$/.test(left) && BARE_ANSWER.test(right)) || (/^[A-Za-z]$/.test(right) && BARE_ANSWER.test(left));
 }
 
