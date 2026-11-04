@@ -18,26 +18,27 @@ jobs:
     timeout-minutes: 4
     env:
       POSTGRES_TAG: 17.6.1.075
+      POSTGRES_DIGEST: sha256:82a04ba6c05f60950a74ae46be3726abb18d06ee44da936276fd782e72e36855
     steps:
       - uses: actions/checkout@v7
-      # Unpacking this image takes half the time in memory, and starting now overlaps it with the steps below.
-      # ghcr.io serves the same digest as the CLI's default registry, which has rate limited runners.
-      # The CLI still picks the image that runs. A different tag adds a second image to this 6 GB disk, which may fill it, so a later step fails on a mismatch.
-      - name: Start pulling the Postgres image
-        run: |
-          sudo systemctl stop docker docker.socket
-          sudo mkdir -p /etc/docker /dockerdata
-          sudo mount -t tmpfs -o size=6g tmpfs /dockerdata
-          echo '{"data-root":"/dockerdata"}' | sudo tee /etc/docker/daemon.json > /dev/null
-          sudo systemctl start docker
-          nohup docker pull -q "ghcr.io/supabase/postgres:$POSTGRES_TAG" > /dev/null 2>&1 &
+      - id: postgres-image
+        run: .github/scripts/postgres-image.sh key >> "$GITHUB_OUTPUT"
+      # The action allows 10 minutes per download segment, so a stalled download would use up the job's limit.
+      - uses: actions/cache/restore@v6
+        timeout-minutes: 1
+        continue-on-error: true
+        with:
+          path: /tmp/postgres-image.tar.zst
+          key: ${{ steps.postgres-image.outputs.key }}
+      - name: Start Docker with the cached Postgres image, or start pulling it
+        run: .github/scripts/postgres-image.sh start-docker
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Fail if the early pull is not the image that the Supabase CLI uses
+      - name: Fail if POSTGRES_TAG is not the tag that the Supabase CLI uses
         run: |
           cli_tag=$(pnpm exec supabase services | awk '$1 == "supabase/postgres" { print $3 }')
           if [ "$cli_tag" != "$POSTGRES_TAG" ]; then
@@ -61,6 +62,8 @@ jobs:
         env:
           SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
         run: pnpm exec supabase db start
+      - name: Fail if the running Postgres image does not have the pinned digest
+        run: .github/scripts/postgres-image.sh check-running-image
       - name: Build a fresh database from the migrations and seed it
         run: pnpm db:migrate && pnpm db:seed
       - name: Run the API tests
