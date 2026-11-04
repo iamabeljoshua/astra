@@ -1,5 +1,5 @@
 import { collectMathPaints, getPaintsOfSpans, renderTex } from '@astra/board/drawing';
-import { findMathSpans, getMathParts, getTexProblem } from '@astra/contracts';
+import { ALLOWED_TEX_COMMANDS, findMathSpans, getMathParts, getTexProblem } from '@astra/contracts';
 import { makeTexFuzzSources } from '@astra/board/tex-fuzz';
 import { beforeEach, describe, expect, it } from 'vitest';
 
@@ -143,6 +143,24 @@ describe('collectMathPaints', () => {
     const paints = collectMathPaints(render(raw`\frac{a}{b} + \sqrt{c}`));
     expect(paints.map((paint) => paint.glyph).filter(Boolean).sort()).toEqual(['+', 'a', 'b', 'c']);
     expect(paints.filter((paint) => paint.glyph === null).map((paint) => paint.element.className)).toEqual(expect.arrayContaining(['frac-line', 'hide-tail']));
+  });
+});
+
+describe('pieces of ink', () => {
+  function getInkInsideInk(tex: string): string[] {
+    const host = document.createElement('div');
+    if (!renderTex(tex, host)) return [];
+    const paints = collectMathPaints(host);
+    const ink = new Set(paints.map((paint) => paint.element));
+    const isInsideInk = (element: HTMLElement) => {
+      for (let parent = element.parentElement; parent; parent = parent.parentElement) if (ink.has(parent)) return true;
+      return false;
+    };
+    return paints.filter((paint) => isInsideInk(paint.element)).map((paint) => paint.glyph ?? 'a shape');
+  }
+
+  it.each([...ALLOWED_TEX_COMMANDS])('never sit inside each other for %s, so a move carries a letter once', (command) => {
+    expect([...getInkInsideInk(`${command} x`), ...getInkInsideInk(`${command}{a}{b}`)]).toEqual([]);
   });
 });
 
