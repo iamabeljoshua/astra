@@ -437,6 +437,12 @@ describe('a capitalised name in a plan', () => {
     expect(settled.opening.map(({ say }) => say).join(' ')).toContain(TOPIC);
   });
 
+  it('does not say a topic the check refuses, as a question in another alphabet would have been read out', async () => {
+    const plan = vi.fn().mockRejectedValue(new Error('overloaded'));
+    const { runs } = makeNamedRuns({ plan });
+    expect(await runs.join(getSceneKey('что такое дробь', { ownerId: 'maya' })).plan).toBe('nothing');
+  });
+
   it('stops the name and still teaches when the reader fails', async () => {
     const plan = vi.fn().mockResolvedValue({ ...OCEAN, ...USAGE });
     const { runs } = makeNamedRuns({ plan, clear: async () => { throw new Error('overloaded'); } });

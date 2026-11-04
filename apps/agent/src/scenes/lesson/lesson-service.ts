@@ -73,7 +73,7 @@ const log = (name: string, detail: object = {}) => console.log(JSON.stringify({ 
 const models = makeModels();
 const voices = makeVoices();
 const store = createSceneStore(storeRoot);
-const runs = createTopicRuns({ planner: models.planner, writers: [models.writer, models.fallbackWriter], reviewer: models.reviewer, worker: createContainerWorker(), store });
+const runs = createTopicRuns({ planner: models.planner, nameReader: models.nameReader, writers: [models.writer, models.fallbackWriter], reviewer: models.reviewer, worker: createContainerWorker(), store });
 
 const runOneLesson = ({ sessionId, studentId, request, isCard, cardLine, onClosing, onPresence }: LessonRequest & { onClosing(): void; onPresence(isHere: boolean): void }) =>
   payingStudent.run(studentId, async () => {

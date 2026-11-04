@@ -85,8 +85,8 @@ export interface LessonPlan {
 /** What the writer needs from a plan, which the planner streams before the plan is whole. */
 export type SceneWords = Pick<LessonPlan, 'narration' | 'plan'>;
 
-/** Why a lesson has no words of its own: nothing to teach, or something a tutor should not teach. */
-export type NoLesson = 'nothing' | 'unsafe';
+/** Why a lesson has no words of its own: nothing to teach, a student who may be hurt and needs the help line, or a dangerous question that gets a calm decline. */
+export type NoLesson = 'nothing' | 'unsafe' | 'declined';
 
 export interface PlanHooks {
   onFirstLine?(line: OpeningLine): void;
@@ -100,7 +100,20 @@ export interface LessonPlanner {
 }
 
 /** The planner said this topic asks for something a tutor should not teach. */
-export class PlanRefused extends Error {}
+export class PlanRefused extends Error {
+  /** The topic is about a student hurting themselves or being hurt, and not only about something dangerous. */
+  wantsHelp: boolean;
+
+  constructor(message: string, wantsHelp = false) {
+    super(message);
+    this.wantsHelp = wantsHelp;
+  }
+}
+
+export interface NameReader {
+  /** Which of these capitalised words a lesson may say. Anything it cannot vouch for is left out. */
+  clear(names: readonly string[], signal: AbortSignal): Promise<ReadonlySet<string>>;
+}
 
 export interface DeclaredValue {
   name: string;
@@ -173,4 +186,4 @@ export interface SceneTrace {
   problems: readonly string[];
 }
 
-export type UsageListener = (usage: SceneUsage & { role: 'writer' | 'reviewer' | 'router' | 'planner' }) => void;
+export type UsageListener = (usage: SceneUsage & { role: 'writer' | 'reviewer' | 'router' | 'planner' | 'names' }) => void;

@@ -1,6 +1,6 @@
-import { isAboutBeingUnsafe } from '../content-check.ts';
+import { isAboutBeingUnsafe, showsDanger } from '../content-check.ts';
 import { canTryAfterRefusal } from '../make-scene.ts';
-import { SAFETY_KIND } from '../model-replies.ts';
+import { DANGEROUS_KIND, SAFETY_KIND } from '../model-replies.ts';
 import { createSceneDesk, type SceneDesk, type SceneState } from '../scene-desk.ts';
 import { getSceneKey, type SceneStore } from '../scene-store.ts';
 import type { LessonPlan, NoLesson, OpeningLine, SceneRoute, SceneRouter, StoredScene } from '../scene-types.ts';
@@ -67,7 +67,7 @@ export function createLessonWork({ router, runs, store, request, isCard, student
 
   const joinRun = (topic: string) => {
     keepVoiceWith(topic, null);
-    run = runs.join(getOwnKey(topic), isCard ? { cardFallback: { say: cardLine ?? 'What do you already know about this one?' } } : {});
+    run = runs.join(getOwnKey(topic), cardLine ? { plainLine: { say: cardLine } } : {});
     void run.firstLine.then(settleFirstLine);
     void run.plan.then(settlePlan);
   };
@@ -89,8 +89,12 @@ export function createLessonWork({ router, runs, store, request, isCard, student
       return { ...SAVED_ROUTE, topic: request };
     }
     const route = await askRouter();
-    if (route.kind === SAFETY_KIND && !isCard) {
+    if (!isCard && (route.kind === SAFETY_KIND || isAboutBeingUnsafe(route.topic))) {
       settlePlan('unsafe');
+      return { ...route, engine: 'none', topic: '' };
+    }
+    if (!isCard && route.kind === DANGEROUS_KIND) {
+      settlePlan('declined');
       return route;
     }
     const topic = isCard ? request : route.topic;
@@ -104,12 +108,15 @@ export function createLessonWork({ router, runs, store, request, isCard, student
     return { ...route, topic };
   };
 
+  // No router means no reading of the words but ours, and a child must not fall to the no-lesson line.
+  const settleWithNoRoute = () => settlePlan(!isCard && showsDanger(request) ? 'unsafe' : 'nothing');
+
   const desk = createSceneDesk({
     getNowMs,
     onChange,
     route: () =>
       getRoute().catch((error: unknown) => {
-        settlePlan('nothing');
+        settleWithNoRoute();
         throw error;
       }),
     async make({ topic }) {
@@ -127,7 +134,7 @@ export function createLessonWork({ router, runs, store, request, isCard, student
     desk,
     plan,
     firstLine,
-    planWithoutScene: () => void getRoute().catch(() => settlePlan('nothing')),
+    planWithoutScene: () => void getRoute().catch(settleWithNoRoute),
     getVoiceShelf: () => voiceShelf,
     leave: () => run?.leave(),
   };

@@ -118,6 +118,8 @@ describe('the code check on names a model has read', () => {
 describe('the code check on what a student asks', () => {
   it.each([
     'kms how',
+    'help',
+    'i need help please',
     'i wanna kms',
     'i wanna sewerslide',
     'how to unalive myself',

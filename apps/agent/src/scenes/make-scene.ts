@@ -1,5 +1,5 @@
 import { type RichScene, SCENE_ENGINE_VERSIONS } from '@astra/contracts';
-import { getCodeProblems, getPlanProblems } from './content-check.ts';
+import { type ClearedNames, getCodeProblems, getPlanProblems } from './content-check.ts';
 import { getPlanBeatProblems, getSceneBeatProblems, getSpokenLines } from './lesson/lesson-beats.ts';
 import { getNominalTiming } from './narration.ts';
 import type { RenderResult, RenderWorker } from './render-worker.ts';
@@ -35,6 +35,8 @@ export interface SceneRequest {
   topic: string;
   ownerId?: SceneOwner;
   plan: LessonPlan;
+  /** Names a reader has cleared for this plan, which a topic run has asked about already. */
+  clearedNames?: ClearedNames;
   values?: Readonly<Record<string, number>>;
   signal?: AbortSignal;
   /** The first writer started from the streamed plan, on these same words. */
@@ -178,11 +180,11 @@ function toStoredScene({ key, plan, brief, attempt, verdict, trace, values }: { 
 
 const NO_LONGER_WANTED: MadeScene = { isOk: false, reasons: ['no longer wanted'] };
 
-export async function makeScene(maker: SceneMaker, { topic, ownerId = null, plan, values = {}, signal = new AbortController().signal, earlyWrite = null }: SceneRequest): Promise<MadeScene> {
+export async function makeScene(maker: SceneMaker, { topic, ownerId = null, plan, clearedNames, values = {}, signal = new AbortController().signal, earlyWrite = null }: SceneRequest): Promise<MadeScene> {
   const { store, reviewer, now = () => performance.now(), getWallMs = () => Date.now(), warn = console.warn } = maker;
   const startedAt = now();
   const key = getSceneKey(topic, { ownerId, values });
-  const planProblems = [...getPlanBeatProblems(plan), ...getPlanProblems(topic, plan)];
+  const planProblems = [...getPlanBeatProblems(plan), ...getPlanProblems(topic, plan, clearedNames)];
   if (planProblems.length > 0) return { isOk: false, reasons: planProblems };
   if (!getCanTry(store.getTrouble(key), getWallMs())) return { isOk: false, reasons: ['this scene hit errors recently, so it waits before trying again'] };
   const brief = getBrief(topic, plan);

@@ -48,6 +48,7 @@ export function makeFakeSceneModels(): SceneModels {
     fallbackWriter: makeWriter('fake-fallback'),
     reviewer: { review: async () => ({ isPass: true, errors: [], ...FAKE_USAGE }) },
     router: { route: async (request) => ({ engine: 'manimgx', kind: 'graph', topic: request, ...FAKE_USAGE }) },
+    nameReader: { clear: async () => new Set() },
     planner: { plan: async (topic, _signal, hooks) => { const plan = getPlanFromText(FAKE_PLAN); hooks?.onSceneWords?.({ narration: plan.narration, plan: plan.plan }); return { ...plan, opening: [...plan.opening, { say: `And that is what this lesson on ${topic} is about.` }], ...FAKE_USAGE }; } },
   };
 }

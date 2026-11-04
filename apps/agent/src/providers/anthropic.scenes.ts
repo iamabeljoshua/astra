@@ -1,9 +1,10 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { getRouteFromText, getVerdictFromText, SAFETY_KIND, UnreadableReply } from '../scenes/model-replies.ts';
+import { showsDanger } from '../scenes/content-check.ts';
+import { getClearedNames, getRouteFromText, getVerdictFromText, SAFETY_KIND, UnreadableReply } from '../scenes/model-replies.ts';
 import { getFirstLineFromPartialText, getPlanFromText, getSceneWordsFromPartialText } from '../scenes/lesson/lesson-plan.ts';
-import { type LessonPlanner, PlanRefused, type SceneBrief, type SceneRepair, type SceneReviewer, type SceneRoute, type SceneRouter, type SceneUsage, type SceneWriter, type UsageListener } from '../scenes/scene-types.ts';
+import { type LessonPlanner, type NameReader, PlanRefused, type SceneBrief, type SceneRepair, type SceneReviewer, type SceneRoute, type SceneRouter, type SceneUsage, type SceneWriter, type UsageListener } from '../scenes/scene-types.ts';
 
 const PROMPTS = join(import.meta.dirname, '../scenes/prompts');
 const readPrompt = (name: string) => readFileSync(join(PROMPTS, name), 'utf8');
@@ -15,9 +16,12 @@ const WRITER_TOKENS = 20_000;
 const REVIEWER_TOKENS = 4000;
 const PLANNER_TOKENS = 1500;
 const ROUTER_TOKENS = 400;
+const NAME_READER_TOKENS = 600;
 const CODE_BLOCK = /```(?:python|py)?\s*\n([\s\S]*?)```/;
 const CHARACTERS_PER_TOKEN = 4;
 const ROUTER_TRIES = 2;
+const ROUTE_SCHEMA = { type: 'object', properties: { kind: { type: 'string' }, engine: { type: 'string', enum: ['manimgx', 'kit', 'none'] }, topic: { type: 'string' } }, required: ['kind', 'engine', 'topic'], additionalProperties: false };
+const NAMES_SCHEMA = { type: 'object', properties: { names: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, kind: { type: 'string', enum: ['place', 'event', 'thing', 'figure', 'person', 'private'] } }, required: ['name', 'kind'], additionalProperties: false } } }, required: ['names'], additionalProperties: false };
 
 /** Dollars per million tokens, from the Claude API skill's table, read 4 November 2026. */
 const SETTINGS = {
@@ -44,6 +48,8 @@ interface ModelCall {
   maxTokens: number;
   signal: AbortSignal;
   onText?(snapshot: string): void;
+  /** A reply held to this shape has no prose to send. */
+  schema?: object;
 }
 
 function getCostUsd(setting: SettingName, usage: Anthropic.Beta.Messages.BetaUsage): number {
@@ -54,6 +60,11 @@ function getCostUsd(setting: SettingName, usage: Anthropic.Beta.Messages.BetaUsa
 
 /** The API's own safety layer stopped the reply. */
 class ModelRefusal extends UnreadableReply {}
+
+/** With a schema a model does not write prose, so this is rare: the API stopped it, or something broke. Only the API's own stop or the student's words can mean danger. */
+function getRouteFromUnreadable(request: string, error: unknown): SceneRoute {
+  return { engine: 'none', kind: error instanceof ModelRefusal || showsDanger(request) ? SAFETY_KIND : 'none', topic: '', model: SETTINGS.haiku.model, ms: 0, costUsd: 0 };
+}
 
 function getReplyText(message: Anthropic.Beta.Messages.BetaMessage): string {
   if (message.stop_reason === 'refusal') throw new ModelRefusal(`the model refused: ${message.stop_details?.category ?? 'no category'}`);
@@ -73,6 +84,7 @@ export interface SceneModels {
   reviewer: SceneReviewer;
   router: SceneRouter;
   planner: LessonPlanner;
+  nameReader: NameReader;
 }
 
 // A stopped stream has no final usage, and Anthropic still bills what it sent, so the ledger counts its input and an estimate of its output.
@@ -86,11 +98,12 @@ export function makeAnthropicSceneModels({ apiKey, onUsage, assertRoom, reviewPa
   const client = new Anthropic({ apiKey, maxRetries: 1 });
   const writerSystem = `${readPrompt('writer.md')}\n\n${readPrompt('truth-kit.md')}`;
 
-  const call = async ({ role, setting, system, user, maxTokens, signal, onText }: ModelCall): Promise<{ text: string } & SceneUsage> => {
+  const call = async ({ role, setting, system, user, maxTokens, signal, onText, schema }: ModelCall): Promise<{ text: string } & SceneUsage> => {
     assertRoom?.();
     const { model, request, betas } = SETTINGS[setting];
     const startedAt = performance.now();
-    const params = { model, max_tokens: maxTokens, system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }], messages: [{ role: 'user', content: user }], betas, ...request } as unknown as Anthropic.Beta.Messages.MessageCreateParamsStreaming;
+    const shaped = schema ? { ...request, output_config: { ...request.output_config, format: { type: 'json_schema', schema } } } : request;
+    const params = { model, max_tokens: maxTokens, system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }], messages: [{ role: 'user', content: user }], betas, ...shaped } as unknown as Anthropic.Beta.Messages.MessageCreateParamsStreaming;
     const stream = client.beta.messages.stream(params, { signal });
     if (onText) stream.on('text', (_delta, snapshot) => onText(snapshot));
     const message = await stream.finalMessage().catch((error: unknown) => {
@@ -103,7 +116,7 @@ export function makeAnthropicSceneModels({ apiKey, onUsage, assertRoom, reviewPa
   };
 
   const routeOnce = async (request: string, signal: AbortSignal): Promise<SceneRoute> => {
-    const reply = await call({ role: 'router', setting: 'haiku', system: readPrompt('router.md'), user: request, maxTokens: ROUTER_TOKENS, signal });
+    const reply = await call({ role: 'router', setting: 'haiku', system: readPrompt('router.md'), user: request, maxTokens: ROUTER_TOKENS, signal, schema: ROUTE_SCHEMA });
     return { ...getRouteFromText(reply.text), model: reply.model, ms: reply.ms, costUsd: reply.costUsd };
   };
 
@@ -132,16 +145,23 @@ export function makeAnthropicSceneModels({ apiKey, onUsage, assertRoom, reviewPa
       },
     },
     router: {
-      // A model that answers in prose has been a model refusing a child's dangerous question, so after a second try the lesson gives the help line rather than nothing.
       async route(request, signal) {
+        let unreadable: unknown;
         for (let tryIndex = 0; tryIndex < ROUTER_TRIES; tryIndex += 1) {
           try {
             return await routeOnce(request, signal);
           } catch (error) {
             if (!(error instanceof UnreadableReply)) throw error;
+            unreadable = error;
           }
         }
-        return { engine: 'none', kind: SAFETY_KIND, topic: '', model: SETTINGS.haiku.model, ms: 0, costUsd: 0 };
+        return getRouteFromUnreadable(request, unreadable);
+      },
+    },
+    nameReader: {
+      async clear(names, signal) {
+        const reply = await call({ role: 'names', setting: 'haiku', system: readPrompt('names.md'), user: JSON.stringify(names), maxTokens: NAME_READER_TOKENS, signal, schema: NAMES_SCHEMA });
+        return getClearedNames(names, reply.text);
       },
     },
     planner: {

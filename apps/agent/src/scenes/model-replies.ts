@@ -2,6 +2,8 @@ import type { FactError, RouteEngine, SceneRoute, SceneVerdict, SceneUsage } fro
 
 const ENGINES: readonly RouteEngine[] = ['manimgx', 'kit', 'none'];
 export const SAFETY_KIND = 'safety';
+export const DANGEROUS_KIND = 'dangerous';
+const CLEARED_NAME_KINDS = ['place', 'event', 'thing', 'figure'];
 const MOST_TOPIC_CHARACTERS = 80;
 const POINTS_AT_A_PERSON = /@|https?:|\b(my|me|mine|our|we)\b|\bi['’](m|ve|d|ll)\b/i;
 const THE_LETTER_I = /\bi\b/gi;
@@ -44,7 +46,7 @@ export function findFirstObject(text: string): string | null {
   return null;
 }
 
-/** A reply nobody can read. From the router this has been a model answering a child's dangerous question in prose, so a caller may treat it as one. */
+/** A reply nobody can read. The caller decides what that means, because a plain "yes" drew prose as often as a dangerous question did. */
 export class UnreadableReply extends Error {}
 
 export function readJsonObject(text: string): Record<string, unknown> {
@@ -59,11 +61,22 @@ export function readJsonObject(text: string): Record<string, unknown> {
 
 export function getRouteFromText(text: string): Omit<SceneRoute, keyof SceneUsage> {
   const reply = readJsonObject(text);
-  if (reply.kind === SAFETY_KIND) return { engine: 'none', kind: SAFETY_KIND, topic: '' };
+  if (reply.kind === SAFETY_KIND || reply.kind === DANGEROUS_KIND) return { engine: 'none', kind: reply.kind, topic: '' };
   const engine = ENGINES.find((name) => name === reply.engine) ?? 'none';
   const topic = typeof reply.topic === 'string' ? reply.topic.trim().slice(0, MOST_TOPIC_CHARACTERS) : '';
   const isSafeTopic = topic !== '' && !pointsAtAPerson(topic);
   return { engine: engine !== 'none' && !isSafeTopic ? 'none' : engine, kind: typeof reply.kind === 'string' ? reply.kind : 'unknown', topic: isSafeTopic ? topic : '' };
+}
+
+/** Only a name it was asked about, of a kind a lesson may say, and a reply it cannot read clears nothing. */
+export function getClearedNames(names: readonly string[], text: string): ReadonlySet<string> {
+  try {
+    const { names: read } = readJsonObject(text);
+    const entries = Array.isArray(read) ? (read as { name?: unknown; kind?: unknown }[]) : [];
+    return new Set(names.filter((name) => entries.some((entry) => entry.name === name && typeof entry.kind === 'string' && CLEARED_NAME_KINDS.includes(entry.kind))));
+  } catch {
+    return new Set();
+  }
 }
 
 const readErrors = (value: unknown): (FactError & { stillWrong?: unknown })[] => (Array.isArray(value) ? value.filter((entry): entry is FactError => typeof entry === 'object' && entry !== null && typeof (entry as FactError).what === 'string') : []);
