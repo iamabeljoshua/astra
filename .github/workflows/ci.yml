@@ -60,12 +60,9 @@ jobs:
             echo "::error file=packages/contracts/src/api.generated.ts::The generated API types are out of date. Run pnpm api:types and commit the result."
             exit 1
           }
-      - name: Run pnpm lint
-        background: true
-        run: pnpm lint
-      - name: Run pnpm typecheck
-        background: true
-        run: pnpm typecheck
+      # These two use both threads alone, so they run before the tests, and the tests with real timers see no extra load.
+      - run: pnpm lint
+      - run: pnpm typecheck
       # A pnpm filter brings the root back in, and its test script would rerun every package.
       - name: Run the tests that need no database
         background: true
@@ -86,5 +83,5 @@ jobs:
           VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_example
         run: pnpm --filter @astra/web build
       - run: pnpm verify start && pnpm verify stop
-      - name: Fail if lint, typecheck, or the tests that need no database failed
+      - name: Fail if the tests that need no database failed
         wait-all:
