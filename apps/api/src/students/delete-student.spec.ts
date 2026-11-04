@@ -11,11 +11,14 @@ import type { TestApp } from '../../test/test-database';
 const AGENT_KEY = 'agent-key-for-test-that-is-long';
 const VALID_SESSION = { title: 'Free-body diagrams', subject: 'Physics', language: 'en' };
 const VALID_PROFILE = { name: 'Maya', interests: ['space'], level: 'university', goal: 'exam' };
+const LOG_EVENT = { seq: 0, event: { seq: 0, atMs: 0, kind: 'studentSpoke', text: 'i already picked the day', source: 'typed', isReaction: false, durationMs: 0 } };
+const LESSON_RECAP = { kind: 'lesson', covered: 'We worked on atoms.', gotRight: null, tryNext: 'Try saying what an atom is.' };
 const RECORD_UPDATE = { updateKey: 'room-one', notes: [{ kind: 'explored', topic: 'gravity', detail: null, evidence: [{ source: 'board', text: 'x = 3' }] }] };
 const TABLES_WITH_STUDENT_ID = ['learner_notes', 'safety_flags', 'sessions', 'student_daily_spend', 'student_profiles'];
 const TABLES_WITH_AUTH_USER_ID = ['closed_accounts', 'students'];
+const DELETE_RACE_TRIES = 12;
 const STUDENT_COLUMN_NAMES = ['student_id', 'auth_user_id', 'session_id'];
-/** Every table a student's rows live in. `session_log_events` lands soon, and it is here so its own PR proves it cascades. */
+/** Every table a student's rows live in. */
 const TABLES_GONE_WITH_A_STUDENT = ['learner_notes', 'learner_record_updates', 'safety_flags', 'session_log_events', 'sessions', 'student_daily_spend', 'student_profiles'];
 const TABLES_WITH_NO_STUDENT_ROWS = ['closed_accounts', 'closed_address_hashes', 'migrations', 'students'];
 
@@ -93,6 +96,10 @@ describe('deleting a student', () => {
     const sessionId = (session as { id: string }).id;
     await agentCall(server().post(`/agent/sessions/${sessionId}/spend`)).send({ usd: 0.01 }).expect(200);
     await agentCall(server().post(`/agent/sessions/${sessionId}/flags`)).send({ kind: 'danger', source: 'tutor' }).expect(200);
+    await agentCall(server().post(`/agent/sessions/${sessionId}/flags`)).send({ kind: 'vague', source: 'student' }).expect(200);
+    await agentCall(server().post(`/agent/sessions/${sessionId}/log`)).send({ runId: randomUUID(), runStartedAt: new Date().toISOString(), events: [LOG_EVENT] }).expect(200);
+    await agentCall(server().post(`/agent/sessions/${sessionId}/recap`)).send({ recap: LESSON_RECAP }).expect(200);
+    await asToken(server().put(`/sessions/${sessionId}/recap-answer`), token).send({ answer: 'An atom is the smallest piece.' }).expect(200);
     await agentCall(server().post(`/agent/sessions/${sessionId}/record`)).send(RECORD_UPDATE).expect(200);
     return { authUserId, email, token, studentId, sessionId };
   }
@@ -131,9 +138,38 @@ describe('deleting a student', () => {
 
     await asToken(server().delete('/me'), student.token).expect(200, { deleted: true });
 
-    expect(rowsBefore).toMatchObject({ 'students.auth_user_id': 1, 'student_profiles.student_id': 1, 'sessions.student_id': 1, 'student_daily_spend.student_id': 1, 'safety_flags.student_id': 1, 'learner_notes.student_id': 1, 'learner_notes.session_id': 1, 'learner_record_updates.session_id': 1 });
+    expect(rowsBefore).toMatchObject({ 'students.auth_user_id': 1, 'student_profiles.student_id': 1, 'sessions.student_id': 1, 'student_daily_spend.student_id': 1, 'safety_flags.student_id': 2, 'session_log_events.session_id': 1, 'learner_notes.student_id': 1, 'learner_notes.session_id': 1, 'learner_record_updates.session_id': 1 });
     expect(Object.values(await countRowsFor(student)).every((total) => total === 0)).toBe(true);
     expect(await countRowsFor(otherStudent)).toEqual(otherRowsBefore);
+  });
+
+  it('removes the replay log, the recap, the answer, and every flag, and the student can no longer open them', async () => {
+    const student = await createFullStudent();
+    const [before] = await dataSource.query('SELECT recap, recap_answer FROM sessions WHERE id = $1', [student.sessionId]);
+    expect(before).toMatchObject({ recap: LESSON_RECAP, recap_answer: 'An atom is the smallest piece.' });
+    await asToken(server().get(`/sessions/${student.sessionId}/replay`), student.token).expect(200);
+
+    await asToken(server().delete('/me'), student.token).expect(200);
+
+    const rows = await countRowsFor(student);
+    expect({ log: rows['session_log_events.session_id'], flags: rows['safety_flags.student_id'], sessions: rows['sessions.student_id'] }).toEqual({ log: 0, flags: 0, sessions: 0 });
+    await asToken(server().get(`/sessions/${student.sessionId}/replay`), student.token).expect(401);
+  });
+
+  it('leaves no row behind when a room keeps saving as the student deletes, over many tries', async () => {
+    for (let attempt = 0; attempt < DELETE_RACE_TRIES; attempt += 1) {
+      const student = await createFullStudent();
+      const save = (path: string, body: object) => agentCall(server().post(`/agent/sessions/${student.sessionId}/${path}`)).send(body).then((response) => response.status);
+      const saves = Array.from({ length: 3 }, () => [
+        save('log', { runId: randomUUID(), runStartedAt: new Date().toISOString(), events: [LOG_EVENT] }),
+        save('recap', { recap: LESSON_RECAP }),
+        save('flags', { kind: 'self_harm', source: 'student' }),
+      ]).flat();
+      await Promise.all([...saves, asToken(server().delete('/me'), student.token).expect(200)]);
+      await Promise.all(saves);
+
+      expect(Object.values(await countRowsFor(student)).every((total) => total === 0)).toBe(true);
+    }
   });
 
   it('removes them from every Auth table, including the audit log, and keeps another user', async () => {

@@ -86,7 +86,7 @@ async function runSession(context: JobContext): Promise<void> {
   }).makeStt();
   const allTakes = loadTakes();
   let ears: Ears | null = null;
-  const { brain, flushSpend, readMeaning, readStrokes, readSpokenWords, writeRecap, getSpentUsd, writeRecord, noteNeedsAPerson } = makeTutorBrain({ roomName: room.name ?? '', jobId: context.job.id, trace, showSafetyHelp: () => publish({ type: 'safetyHelp' }), onSessionTitle: (title) => publish({ type: 'sessionTitle', title }) });
+  const { brain, flushSpend, readMeaning, readStrokes, readSpokenWords, writeRecap, readSafety, getSpentUsd, writeRecord, noteNeedsAPerson } = makeTutorBrain({ roomName: room.name ?? '', jobId: context.job.id, trace, showSafetyHelp: () => publish({ type: 'safetyHelp' }), onSessionTitle: (title) => publish({ type: 'sessionTitle', title }) });
   const apiLink = makeApiLink(room.name ?? '');
   const logSaver = makeLogSaver(apiLink, trace);
   const session = createLiveSession({
@@ -110,6 +110,7 @@ async function runSession(context: JobContext): Promise<void> {
     ...(readStrokes ? { readStrokes } : {}),
     ...(readSpokenWords ? { readSpokenWords } : {}),
     ...(writeRecap ? { writeRecap } : {}),
+    ...(readSafety ? { readSafety } : {}),
     ...(logSaver ? { onLogWritten: logSaver.note } : {}),
     onRecap(recap) {
       if (recap.kind === 'gentle') noteNeedsAPerson?.();

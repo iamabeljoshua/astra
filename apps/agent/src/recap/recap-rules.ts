@@ -1,4 +1,5 @@
 import { type Beat, getSpokenWords, parseBeat, type SessionRecap } from '@astra/contracts';
+import { soundsLikeCrisisReply } from '../safety/help-words.ts';
 import type { RecapFacts } from './recap-facts.ts';
 
 export const GENTLE_LINE = "Thanks for talking with me today. You don't have to carry this alone. Please tell an adult you trust, or call your local emergency number. I'm here whenever you want to come back.";
@@ -14,12 +15,9 @@ const SHORTEST_TOPIC_LETTERS = 4;
 const COVERED_START = /^we (?:worked on|covered)\b/i;
 
 /** A student's own words that mean this ending must be gentle, whatever else the session held. A wrong match costs one gentle ending, and a miss costs praise after a disclosure, though the model reads what these miss. */
-const NEEDS_CARE = /\b(?:suicid\w*|sewerslide|kms|kill(?:ing)? myself|end(?:ing)? (?:my life|it all)|(?<!\b(?:he|she|they|who|anyone|someone|people|characters?|does|did)\s(?:(?!i\s)\w+\s){0,2})(?:want to|wanna) die|don'?t want to (?:be here|live|be alive)|hurt(?:ing)? myself|cut(?:ting)? myself|harm(?:ing)? myself|self[- ]harm|(?:i|i'?m|i'?ve|gonna|going to|wanna|want to|took an?)\s(?:\w+\s)?overdos\w*|(?:hurts?|touche[sd]|touch|rapes?|raped|abuses?|abused) me|i'?m not safe|not safe at home|have a plan for how to do it)\b/i;
+const NEEDS_CARE = /\b(?:suicid\w*|sewerslide|kms|kill(?:ing)? myself|end(?:ing)? (?:my life|it all)|(?<!\b(?:he|she|they|who|anyone|someone|people|characters?|does|did)\s(?:(?!i\s)\w+\s){0,2})(?:want to|wanna) die|don'?t want to (?:be here|live|be alive)|hurt(?:ing)? myself|cut(?:ting)? myself|harm(?:ing)? myself|self[- ]harm|(?:i|i'?m|i'?ve|gonna|going to|wanna|want to|took an?)\s(?:\w+\s)?overdos\w*|(?:hurts?|touche[sd]|touch|rapes?|raped|abuses?|abused) me|i'?m not safe|not safe at home)\b/i;
 /** "Beats me" and "hit me with another one" are how students talk, so these two need someone doing it. */
 const SOMEONE_HITS_ME = /\b(?:he|she|they|someone|somebody|people|kids|my \w+(?:'s \w+)?|(?:step)?(?:mom|mum|mam|dad|father|mother|brother|sister)|uncle|aunt(?:ie)?|grandpa|grandma|cousin|teacher|coach|boyfriend|girlfriend)(?:'s|'re)?(?: \w+){0,3}? (?:beats?|beating|hits?|hitting) me\b/i;
-/** The parts of the tutor's safety reply that only it says. A tutor can tell a student a mistake is not their fault in any lesson. */
-const TUTOR_GAVE_SAFETY_REPLY = /\b(?:that sounds[^.?!]*serious|right thing telling me|adult you trust|trusted adult|(?:your|local) emergency (?:number|services)|are you safe)\b/i;
-
 const PRAISE = /\b(?:great|amazing|awesome|excellent|fantastic|wonderful|perfect(?:ly)?|brilliant|superb|incredible|impressive|outstanding|proud|genius|smart|well done|good job|nice (?:job|work)|nailed|crushed|keep it up|way to go)\b/i;
 
 /** Saying the student did something is what `gotRight` is for, and only code's own verdicts back it. */
@@ -56,7 +54,7 @@ const getEverySaidLine = (facts: RecapFacts) => [...(facts.opening ? [facts.open
 const getStudentsOwnWords = ({ opening, studentLines, work }: RecapFacts) => [...(opening ? [opening] : []), ...studentLines, ...work.map(({ line }) => line)];
 
 export function getEndingKind(facts: RecapFacts): 'gentle' | 'nothing' | 'lesson' {
-  if (TUTOR_GAVE_SAFETY_REPLY.test(facts.tutorWords.join(' ')) || getStudentsOwnWords(facts).some((line) => NEEDS_CARE.test(line) || SOMEONE_HITS_ME.test(line))) return 'gentle';
+  if (soundsLikeCrisisReply(facts.tutorWords.join(' ')) || getStudentsOwnWords(facts).some((line) => NEEDS_CARE.test(line) || SOMEONE_HITS_ME.test(line))) return 'gentle';
   return facts.tutorWords.length >= FEWEST_TUTOR_WORDS_TO_RECAP || facts.work.length > 0 ? 'lesson' : 'nothing';
 }
 

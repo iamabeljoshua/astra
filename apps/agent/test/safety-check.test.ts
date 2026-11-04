@@ -322,6 +322,36 @@ describe('a long sitting hears about a break', () => {
   });
 });
 
+describe('what the room read, for the ending and the notes', () => {
+  it('is danger after a clear read, and waits for a read still running', async () => {
+    const { safety, brain } = setup({ readAfterMs: 30, getReply: () => ({ pieces: ['Okay.'] }) });
+    const turn = say(brain);
+    await delay(5);
+    await expect(safety.readSession()).resolves.toBe('danger');
+    await turn;
+  });
+
+  it('is danger when the reply itself was a crisis reply and the check saw nothing', async () => {
+    const { safety, brain } = setup({ reading: 'none', getReply: () => ({ pieces: ['That sounds really serious. Are you safe right now? Please tell an adult you trust.'] }) });
+    await say(brain);
+    await expect(safety.readSession()).resolves.toBe('danger');
+  });
+
+  it('is vague after a vague read with nothing around it, and stays vague through a school reply', async () => {
+    const { safety, brain } = setup({ reading: ['vague', 'school'], getReply: () => ({ pieces: ['What do you mean? If anything is worrying you, tell an adult you trust.'] }) });
+    await say(brain, 'i already picked the day');
+    await say(brain, 'for my history talk');
+    await expect(safety.readSession()).resolves.toBe('vague');
+  });
+
+  it('is none after vague words in a school talk, and after a tutor slip, because neither means the student needs a person', async () => {
+    const { safety, brain } = setup({ reading: ['school', 'vague'], tutorReading: 'tutor_slip', getReply: () => ({ pieces: ['Sure, what is the plan?'] }) });
+    await say(brain, 'can you help me with my history presentation');
+    await say(brain, 'i have a plan for how to do it');
+    await expect(safety.readSession()).resolves.toBe('none');
+  });
+});
+
 describe('flags hold no words and reach no parent', () => {
   it('sends only a kind and a source, and traces none of the words', async () => {
     const { brain, flags, traced } = setup({ getReply: () => ({ pieces: ['That sounds serious. Please tell an adult you trust now.'] }) });

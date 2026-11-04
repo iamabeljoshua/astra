@@ -6,6 +6,8 @@ type TraceNote = (name: string, fields?: Record<string, unknown>) => void;
 
 export type FlagSource = 'student' | 'tutor';
 export type FlagKind = SafetyKind | 'vague' | 'tutor_slip';
+/** The most worrying thing raised in this room. `danger` means a person is needed, and `vague` that nothing plain was read. */
+export type SessionReading = 'danger' | 'vague' | 'none';
 
 /** What goes to the review queue. It has no field that could hold a word of what was said. */
 export interface SafetyFlag {
@@ -18,6 +20,8 @@ export interface SafetyWatch {
   readStudent(text: string, tutorSaid: string): Promise<StudentReading>;
   noteTurnEnd(turn: { spoken: string; safetyRead: Promise<void>; getKind(): SafetyKind | null }): void;
   showHelp(): void;
+  /** Waits for the reads still running, because the student can press End right after saying it. */
+  readSession(): Promise<SessionReading>;
   /** Sends what the API has not heard yet, so a room closing does not lose a flag. */
   flush(): Promise<void>;
 }
@@ -44,6 +48,7 @@ export function createSafetyWatch({ check, addFlag, showHelp, trace, flagRetryWa
   let reading: Promise<unknown> = Promise.resolve();
   let studentSaid = '';
   let isInSchoolTalk = false;
+  let sessionReading: SessionReading = 'none';
 
   const send = () => {
     sending = sending.then(async () => {
@@ -60,6 +65,8 @@ export function createSafetyWatch({ check, addFlag, showHelp, trace, flagRetryWa
 
   const raise = (flag: SafetyFlag) => {
     trace('safetyFlag', { kind: flag.kind, source: flag.source });
+    if (isSafetyKind(flag.kind)) sessionReading = 'danger';
+    else if (flag.kind === 'vague' && sessionReading === 'none') sessionReading = 'vague';
     if (raised.has(getFlagKey(flag))) return;
     raised.add(getFlagKey(flag));
     unsent.push(flag);
@@ -100,16 +107,20 @@ export function createSafetyWatch({ check, addFlag, showHelp, trace, flagRetryWa
     },
     noteTurnEnd({ spoken, safetyRead, getKind }) {
       if (spoken === '') return;
-      void safetyRead.then(() => {
-        if (!getKind() && soundsLikeCrisisReply(spoken)) raise({ kind: 'danger', source: 'tutor' });
-      });
       reading = Promise.all([
         reading,
+        safetyRead.then(() => {
+          if (!getKind() && soundsLikeCrisisReply(spoken)) raise({ kind: 'danger', source: 'tutor' });
+        }),
         check.readTutor(spoken).then((tutorReading) => {
           trace('safetyRead', { reading: tutorReading, of: 'tutor' });
           if (tutorReading === 'tutor_slip') raise({ kind: tutorReading, source: 'tutor' });
         }),
       ]);
+    },
+    async readSession() {
+      await reading;
+      return sessionReading;
     },
     // A student who says something serious and closes the tab must still reach the queue, so this waits for reads still running.
     async flush() {

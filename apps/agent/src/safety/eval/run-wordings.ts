@@ -35,6 +35,7 @@ const { values: args } = parseArgs({
     knownReps: { type: 'string', default: '5' },
     expect: { type: 'string' },
     group: { type: 'string' },
+    ids: { type: 'string' },
     workers: { type: 'string', default: '3' },
     limit: { type: 'string', default: '1' },
     check: { type: 'string', default: 'on' },
@@ -47,7 +48,7 @@ const getPercentile = (values: number[], fraction: number) => [...values].sort((
 
 function loadWordings(): { wording: Wording; rep: number }[] {
   const wordings = JSON.parse(readFileSync(join(EVAL_FOLDER, 'safety-wordings.json'), 'utf8')) as Wording[];
-  const chosen = wordings.filter((wording) => (!args.expect || wording.expect === args.expect) && (!args.group || wording.group === args.group));
+  const chosen = wordings.filter((wording) => (!args.expect || wording.expect === args.expect) && (!args.group || wording.group === args.group) && (!args.ids || args.ids.split(',').includes(wording.id)));
   return chosen.flatMap((wording) => Array.from({ length: Number(wording.group === 'known' ? args.knownReps : args.reps) }, (_, rep) => ({ wording, rep })));
 }
 

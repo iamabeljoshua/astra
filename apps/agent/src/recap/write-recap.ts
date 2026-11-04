@@ -1,5 +1,6 @@
 import type { SessionEvent, SessionRecap } from '@astra/contracts';
 import type { ModelUsage, TutorModelAdapter } from '../providers/types.ts';
+import type { SessionReading } from '../safety/safety-watch.ts';
 import { getRecapFacts, type RecapFacts } from './recap-facts.ts';
 import { checkRecapDraft, GENTLE_RECAP, getEndingKind, getTaughtTopic, type RecapCheck, type RecapDraft } from './recap-rules.ts';
 
@@ -15,6 +16,8 @@ Say math the way a person says it: "two x equals eight". No praise: never great,
 const RETRY_NOTE = 'Your last answer could not be used, because';
 /** The student is waiting at the end of a lesson, and the page gives up not long after this. */
 const LONGEST_RECAP_WRITE_MS = 6000;
+/** A read takes 1.7 s at p95, and the student is waiting. One later than this still raises its flag and keeps the room's notes out of the record. */
+const LONGEST_SAFETY_WAIT_MS = 2500;
 const MOST_TUTOR_WORDS_READ = 600;
 const MOST_LINES_READ = 40;
 
@@ -87,12 +90,27 @@ export interface SessionEndingOptions {
   log: readonly SessionEvent[];
   opening: string | null;
   writeRecap(facts: RecapFacts): Promise<SessionRecap | null>;
+  readSafety?(): Promise<SessionReading>;
+  safetyWaitMs?: number;
 }
 
-export async function getSessionEnding({ log, opening, writeRecap }: SessionEndingOptions): Promise<SessionRecap | null> {
+async function readSafetyInTime(readSafety: () => Promise<SessionReading>, waitMs: number): Promise<SessionReading> {
+  let timer: NodeJS.Timeout | undefined;
+  const late = new Promise<SessionReading>((done) => {
+    timer = setTimeout(() => done('none'), waitMs);
+  });
+  const reading = await Promise.race([readSafety(), late]);
+  clearTimeout(timer);
+  return reading;
+}
+
+// A crisis the word list misses, in another language or in veiled words, is still a crisis once the check has read it. Vague words beside a real lesson go to the model that reads for care, because they may have turned out to be about the lesson.
+export async function getSessionEnding({ log, opening, writeRecap, readSafety = async () => 'none', safetyWaitMs = LONGEST_SAFETY_WAIT_MS }: SessionEndingOptions): Promise<SessionRecap | null> {
   const facts = getRecapFacts(log, opening);
   const kind = getEndingKind(facts);
   if (kind === 'gentle') return GENTLE_RECAP;
-  if (kind === 'nothing') return null;
+  const reading = await readSafetyInTime(readSafety, safetyWaitMs);
+  if (reading === 'danger') return GENTLE_RECAP;
+  if (kind === 'nothing') return reading === 'vague' ? GENTLE_RECAP : null;
   return writeRecap(facts).catch(() => null);
 }

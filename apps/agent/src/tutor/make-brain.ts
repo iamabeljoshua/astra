@@ -9,7 +9,7 @@ import { writeRecordOfRoom } from '../learner-record/write-record.ts';
 import { makeRecordedTutorModel } from '../providers/fake-model.ts';
 import { createStandInTutor } from '../live/stand-in-tutor.ts';
 import { makeAnthropicSafetyCheck } from '../safety/safety-check.ts';
-import { createSafetyWatch } from '../safety/safety-watch.ts';
+import { createSafetyWatch, type SessionReading } from '../safety/safety-watch.ts';
 import type { RecapFacts } from '../recap/recap-facts.ts';
 import { getRecapLines } from '../recap/recap-rules.ts';
 import { writeLessonRecap } from '../recap/write-recap.ts';
@@ -121,6 +121,8 @@ export interface MadeBrain {
   readStrokes?(strokes: readonly (readonly InkPoint[])[]): Promise<{ text: string; ink: { tex?: string; isUnsure: boolean } } | null>;
   readSpokenWords?(words: string, expects: SpokenExpected): Promise<SpokenReading>;
   writeRecap?(facts: RecapFacts): Promise<SessionRecap | null>;
+  /** Only a real model has a check, so a recorded one reads nothing. */
+  readSafety?(): Promise<SessionReading>;
   getSpentUsd?(): number;
   /** Runs the after-session pass as the room closes. It cannot throw. */
   writeRecord?(): Promise<void>;
@@ -214,9 +216,11 @@ export function makeTutorBrain({ roomName, jobId, trace, showSafetyHelp, onSessi
     caps.addTurn({ usd: costUsd, voiceCharacters: recap ? getRecapLines(recap).join(' ').length : 0 });
     return recap;
   };
+  // A student who closes the tab gets no recap to carry this, and a read of danger still means no notes from this room.
   const writeRecord = link
-    ? () =>
-        writeRecordOfRoom({
+    ? async () => {
+        if ((await safety?.readSession()) === 'danger') digest.noteNeedsAPerson();
+        await writeRecordOfRoom({
           digest,
           model: wordsModel,
           writeNotes: link.writeNotes,
@@ -224,7 +228,8 @@ export function makeTutorBrain({ roomName, jobId, trace, showSafetyHelp, onSessi
           isOverDailyLimit: () => caps.getSpendLimit() === 'dailyLimit',
           addCost: (usd) => caps.addTurn({ usd, voiceCharacters: 0 }),
           trace,
-        })
+        });
+      }
     : undefined;
-  return { brain, flushSpend, getSpentUsd: caps.getSpentUsd, readMeaning, readStrokes, readSpokenWords, writeRecap, noteNeedsAPerson: digest.noteNeedsAPerson, ...(writeRecord ? { writeRecord } : {}) };
+  return { brain, flushSpend, getSpentUsd: caps.getSpentUsd, readMeaning, readStrokes, readSpokenWords, writeRecap, noteNeedsAPerson: digest.noteNeedsAPerson, ...(safety ? { readSafety: safety.readSession } : {}), ...(writeRecord ? { writeRecord } : {}) };
 }
