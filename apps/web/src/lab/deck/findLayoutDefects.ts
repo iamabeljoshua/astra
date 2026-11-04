@@ -1,4 +1,4 @@
-export const DEFECT_KINDS = ['text-on-text', 'text-off-board', 'text-off-its-element', 'text-clipped', 'element-on-element', 'element-off-board', 'ink-off-board', 'ink-on-neighbour', 'raw-source', 'error-mark', 'forbidden-element', 'broken-image', 'stretched-image', 'not-finite', 'unknown-color', 'gradient', 'too-small', 'dropped-words', 'silent-problem'] as const;
+export const DEFECT_KINDS = ['text-on-text', 'text-off-board', 'text-off-its-element', 'text-clipped', 'element-on-element', 'element-off-board', 'ink-off-board', 'ink-on-neighbour', 'line-on-box', 'line-on-text', 'raw-source', 'error-mark', 'forbidden-element', 'broken-image', 'stretched-image', 'not-finite', 'unknown-color', 'gradient', 'too-small', 'dropped-words', 'silent-problem'] as const;
 export type DefectKind = (typeof DEFECT_KINDS)[number];
 
 export interface Defect {
@@ -10,6 +10,8 @@ export interface Defect {
 export interface ExpectedWords {
   elementId: string;
   words: readonly string[];
+  /** Handwriting is strokes, so only the name it gives a screen reader can stand in for its words. */
+  isWrittenInStrokes: boolean;
 }
 
 /** What the board told the tutor it could not do, which turns a silent fault into a reported one. */
@@ -51,6 +53,9 @@ const SMALLEST_READABLE_PX = 9;
 const EDGE_ROOM_PX = 0.5;
 const HOME_ROOM_PX = 1.5;
 const TEXT_ROOM_PX = 1;
+const LINE_STEP_PX = 4;
+/** A hand-drawn box wobbles past its true edge, so a line must get this far in before it counts as on the box. */
+const BOX_WOBBLE_PX = 2.5;
 const MATH_LINE_BOX_SHRINK = 0.2;
 const UNSEEN_OPACITY = 0.02;
 const SETTLED_OPACITY = 0.98;
@@ -59,8 +64,8 @@ const NOT_FINITE = /NaN|Infinity|undefined/;
 const WORD_ATTRIBUTES = new Set(['alt', 'aria-label', 'data-tex', 'data-mark', 'data-term']);
 const ALLOWED_TAGS = new Set(['div', 'span', 'p', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'ol', 'li', 'figure', 'figcaption', 'img', 'label', 'input', 'svg', 'g', 'path', 'circle', 'text', 'tspan', 'rect', 'line', 'polygon', 'polyline', 'ellipse', 'math', 'semantics', 'mrow', 'mi', 'mo', 'mn', 'msup', 'msub', 'msubsup', 'mfrac', 'msqrt', 'mroot', 'mtext', 'mspace', 'mover', 'munder', 'munderover', 'mtable', 'mtr', 'mtd', 'mstyle', 'mpadded', 'mphantom', 'menclose', 'annotation', 'merror']);
 const COLOR_PROPERTIES = ['color', 'fill', 'stroke', 'backgroundColor', 'borderTopColor', 'borderBottomColor', 'borderLeftColor', 'borderRightColor'] as const;
-const TOKEN_NAMES = ['paper', 'panel', 'ink', 'ink-2', 'line', 'accent'];
-const NO_COLORS = ['rgba(0, 0, 0, 0)', 'none', 'transparent'];
+const TOKEN_NAMES = ['paper', 'panel', 'ink', 'ink-2', 'line', 'accent', 'pen'];
+const NO_COLORS = ['none', 'transparent'];
 
 const doOverlap = (first: Box, second: Box, room = 0) => first.left + room < second.right - room && second.left + room < first.right - room && first.top + room < second.bottom - room && second.top + room < first.bottom - room;
 
@@ -110,7 +115,7 @@ function collectTexts(board: HTMLElement, paint: PaintReader): PlacedText[] {
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
     const parent = node.parentElement;
     const text = node.textContent ?? '';
-    if (!parent || text.replace(/[\s​]/g, '') === '' || parent.closest('.katex-mathml, title') || !paint.isSeen(parent)) continue;
+    if (!parent || text.replace(/[\s\u200b]/g, '') === '' || parent.closest('.katex-mathml, title') || !paint.isSeen(parent)) continue;
     const { owner, isMath } = getOwner(parent);
     if (!keys.has(owner)) keys.set(owner, String(keys.size));
     for (const box of getTextBoxes(node as Text, parent, isMath)) placed.push({ owner, ownerKey: keys.get(owner) as string, box, text, wrapper: parent.closest<HTMLElement>('[data-element]'), isMath });
@@ -197,6 +202,28 @@ function findInkDefects(board: HTMLElement, paint: PaintReader): Defect[] {
   });
 }
 
+function getLinePoints(path: SVGPathElement): DOMPoint[] {
+  const toPage = path.getScreenCTM();
+  if (!toPage) return [];
+  const length = path.getTotalLength();
+  return Array.from({ length: Math.ceil(length / LINE_STEP_PX) + 1 }, (_, step) => path.getPointAtLength(Math.min(length, step * LINE_STEP_PX)).matrixTransform(toPage));
+}
+
+const isInside = (point: DOMPoint, box: Box, room: number) => point.x > box.left + room && point.x < box.right - room && point.y > box.top + room && point.y < box.bottom - room;
+
+// Walks each arrow as it is really drawn, and reports the box or the words it runs through. A line that has not started yet still counts, because it will.
+function findLineDefects(board: HTMLElement): Defect[] {
+  return [...board.querySelectorAll<SVGSVGElement>('[data-element] svg')].flatMap((svg) => {
+    const lines = [...svg.querySelectorAll<SVGPathElement>('path[data-ink="line"]')].map(getLinePoints);
+    const id = svg.closest<HTMLElement>('[data-element]')?.dataset.element;
+    const boxes = [...svg.querySelectorAll('path[data-ink="box"]')].map((box) => box.getBoundingClientRect());
+    const labels = [...svg.querySelectorAll('text')].map((label) => ({ words: label.textContent ?? '', box: label.getBoundingClientRect() }));
+    const onBoxes = boxes.filter((box) => lines.some((line) => line.some((point) => isInside(point, box, BOX_WOBBLE_PX)))).map((box): Defect => ({ kind: 'line-on-box', detail: `${id}: an arrow crosses the box at ${describe(box)}` }));
+    const onWords = labels.filter(({ box }) => lines.some((line) => line.some((point) => isInside(point, box, TEXT_ROOM_PX)))).map(({ words, box }): Defect => ({ kind: 'line-on-text', detail: `${id}: an arrow crosses "${words.slice(0, 30)}" at ${describe(box)}` }));
+    return [...onBoxes, ...onWords];
+  });
+}
+
 function findRawSource(texts: readonly PlacedText[]): Defect[] {
   return texts.filter(({ owner, isMath, text }) => !isMath && !owner.closest('.board-code') && RAW_SOURCE.test(text)).map(({ text }) => ({ kind: 'raw-source', detail: `"${text.slice(0, 40)}"` }));
 }
@@ -245,15 +272,15 @@ function findTooSmallText(texts: readonly PlacedText[], reported: ReportedProble
 
 const withoutSpaces = (text: string) => text.replace(/\s+/g, '');
 
-function getWordsIn(place: HTMLElement): string {
-  const named = [...place.querySelectorAll('[aria-label], img[alt]')].map((element) => element.getAttribute('aria-label') ?? element.getAttribute('alt') ?? '');
+function getWordsIn(place: HTMLElement, isWrittenInStrokes: boolean): string {
+  const named = [...place.querySelectorAll(isWrittenInStrokes ? '[aria-label], img[alt]' : 'img[alt]')].map((element) => element.getAttribute('aria-label') ?? element.getAttribute('alt') ?? '');
   return withoutSpaces([place.textContent ?? '', ...named].join(' '));
 }
 
 // Looks inside an element's own place first, so the same words elsewhere on the board cannot stand in for them.
 function findDroppedWords({ board, expected, reported }: DefectRequest): Defect[] {
-  return expected.filter(({ elementId }) => !reported.marksWithoutTarget.has(elementId)).flatMap(({ elementId, words }) => {
-    const shown = getWordsIn(board.querySelector<HTMLElement>(`[data-element="${elementId}"]`) ?? board);
+  return expected.filter(({ elementId }) => !reported.marksWithoutTarget.has(elementId)).flatMap(({ elementId, words, isWrittenInStrokes }) => {
+    const shown = getWordsIn(board.querySelector<HTMLElement>(`[data-element="${elementId}"]`) ?? board, isWrittenInStrokes);
     const isReported = (word: string) => [...reported.labelsWithoutRoom].some((label) => label.includes(word));
     return words.filter((word) => !shown.includes(withoutSpaces(word)) && !isReported(word)).map((word): Defect => ({ kind: 'dropped-words', detail: `${elementId} never showed "${word.slice(0, 40)}", and nothing reported it` }));
   });
@@ -263,12 +290,13 @@ function getTokenColors(): Set<string> {
   const root = getComputedStyle(document.documentElement);
   const probe = document.createElement('span');
   document.body.append(probe);
-  const tokens = TOKEN_NAMES.map((name) => {
-    probe.style.color = root.getPropertyValue(`--color-${name}`);
+  const readColor = (color: string) => {
+    probe.style.color = color;
     return getComputedStyle(probe).color;
-  });
+  };
+  const known = [...TOKEN_NAMES.map((name) => readColor(root.getPropertyValue(`--color-${name}`))), readColor('transparent')];
   probe.remove();
-  return new Set([...tokens, ...NO_COLORS]);
+  return new Set([...known, ...NO_COLORS]);
 }
 
 export function findColorDefects(board: HTMLElement): Defect[] {
@@ -286,7 +314,7 @@ export function findLayoutDefects(request: DefectRequest): { defects: Defect[]; 
   const { board, reported, isAtRest } = request;
   const paint = createPaintReader(board);
   const texts = collectTexts(board, paint);
-  const whenMoving = [...findTextOnText(texts), ...findTextOffBoard(texts, request), ...findElementDefects(request, paint), ...findInkDefects(board, paint), ...findRawSource(texts), ...findMarkupDefects(board)];
+  const whenMoving = [...findTextOnText(texts), ...findTextOffBoard(texts, request), ...findElementDefects(request, paint), ...findInkDefects(board, paint), ...findLineDefects(board), ...findRawSource(texts), ...findMarkupDefects(board)];
   const defects = isAtRest ? [...whenMoving, ...findTextOffItsElement(texts), ...findClippedText(texts, board), ...findOverflowingBoxes(board, paint), ...findImageDefects(board), ...findTooSmallText(texts, reported), ...findDroppedWords(request)] : whenMoving;
   return { defects, textsChecked: texts.length };
 }

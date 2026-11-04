@@ -1,4 +1,4 @@
-import { clear, code, diagram, drawing, flight, focus, hide, markAt, math, note, picture, plot, reveal, ring, say, SHOT, table, timeline } from '../commands.ts';
+import { clear, code, diagram, drawing, flight, focus, hide, markAt, math, note, picture, plot, ring, say, SHOT, table, timeline } from '../commands.ts';
 import type { DeckScene } from '../deck-scene.ts';
 
 export const MIXED_SCENES: readonly DeckScene[] = [
@@ -14,4 +14,7 @@ export const MIXED_SCENES: readonly DeckScene[] = [
   { name: 'mixed-board-fills-and-moves-on', subject: 'mixed', commands: [table('t1', ['One'], [['1'], ['2'], ['3']]), table('t2', ['Two'], [['1'], ['2'], ['3']]), timeline('t3', [['A', 'First'], ['B', 'Second'], ['C', 'Third']]), code('t4', 'text', 'a\nb\nc\nd\ne'), table('t5', ['Five'], [['1'], ['2'], ['3']]), picture('t6', 'sunflowers', 'Sunflowers by van Gogh'), say('t7', 'The oldest things leave as new ones arrive.'), table('t8', ['Eight'], [['1'], ['2']])] },
   { name: 'mixed-flight-with-notes', subject: 'mixed', commands: [say('title', 'A ball and a timeline'), flight('ball', SHOT), timeline('moments', [['0 s', 'Release'], ['0.57 s', 'Top of the arc'], ['1.5 s', 'Landing']]), { kind: 'runSimulation', target: 'ball', action: 'seek', to: 'peak' }] },
   { name: 'mixed-phone-heavy', subject: 'mixed', commands: [say('title', 'A lot for a small screen, and a sentence long enough to wrap a few times on a phone.'), table('wide', ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'], [['Maths', 'French', 'History', 'Biology', 'Music', 'Rest', 'Rest'], ['Physics', 'Code', 'Art', 'Geography', 'Sport', 'Rest', 'Rest']]), plot('curve', 'sin(x)', [-6, 6], { label: 'one wave' }), markAt('here', 'curve', 1.57, 'top')] },
+  { name: 'mixed-arrow-past-a-wide-node', subject: 'mixed', commands: [diagram('path', [['start', 'Start'], ['wide', 'A wide step in the middle that stands right in the way of the long arrow'], ['end', 'End']], [['start', 'wide'], ['wide', 'end'], ['start', 'end', 'skips the middle'], ['end', 'start', 'and back again']])] },
+  { name: 'mixed-node-points-at-itself', subject: 'mixed', commands: [diagram('states', [['wait', 'Waiting'], ['run', 'Running'], ['done', 'Done']], [['wait', 'wait', 'nothing yet'], ['wait', 'run', 'a job comes'], ['run', 'run', 'still going'], ['run', 'done', 'finished']])] },
+  { name: 'mixed-long-plot-label', subject: 'mixed', commands: [plot('visitors', 'x', [0, 10], { label: 'people who came back the following year, counted at the door each morning' })] },
 ];

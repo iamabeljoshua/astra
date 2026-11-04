@@ -19,7 +19,6 @@ export interface ShownScene {
 export interface SweepRequest {
   sizes: readonly (BoardSize & { name: string })[];
   theme: 'light' | 'dark';
-  isRestOnly: boolean;
   scenes?: readonly string[];
 }
 
@@ -59,7 +58,9 @@ function getReported(problems: readonly BoardProblem[], refused: ReadonlySet<str
   return { labelsWithoutRoom: new Set(labels), tooSmallElements: new Set(small), missingImages: new Set(missing), marksWithoutTarget: new Set(marks), refusedMath: refused };
 }
 
-const getExpected = (board: BoardState): ExpectedWords[] => [...board.elements.values()].map(({ id, content, revealedUpTo }: BoardElement) => ({ elementId: id, words: getShownWords(content, revealedUpTo !== null) }));
+const isWrittenInStrokes = (content: BoardElement['content']) => (content.kind === 'text' && content.handwritten === true) || (content.kind === 'diagram' && content.handwritten !== false);
+
+const getExpected = (board: BoardState): ExpectedWords[] => [...board.elements.values()].map(({ id, content, revealedUpTo }: BoardElement) => ({ elementId: id, words: getShownWords(content, revealedUpTo !== null), isWrittenInStrokes: isWrittenInStrokes(content) }));
 
 const getArriving = (board: BoardState, atMs: number) => new Set([...board.elements.values()].filter(({ entrance }) => getMotionValue(entrance, atMs) < 1).map(({ id }) => id as string));
 
@@ -101,8 +102,7 @@ export function createBoardDeck({ present, getBoardElement }: { present(shown: S
     for (const size of request.sizes) {
       problems = [];
       refused.clear();
-      const moments = request.isRestOnly ? [getSceneRestMs(scene)] : getSceneMoments(scene);
-      for (const atMs of moments) {
+      for (const atMs of getSceneMoments(scene)) {
         showNow({ scene: name, size, atMs, mount: `${name}|${size.name}|${request.theme}` });
         await waitForImages(getBoardElement());
         const { defects, textsChecked } = checkNow(name, atMs);
@@ -112,7 +112,7 @@ export function createBoardDeck({ present, getBoardElement }: { present(shown: S
         if ((defects.length > 0 || colors.length > 0) && result.failures.length < MOST_FAILURES_KEPT) result.failures.push({ scene: name, size: size.name, theme: request.theme, atMs, defects: [...defects, ...colors].slice(0, 6) });
       }
       const silent = (scene.expectedProblems ?? []).filter((kind) => !problems.some((problem) => problem.kind === kind));
-      if (silent.length > 0 && !request.isRestOnly) result.failures.push({ scene: name, size: size.name, theme: request.theme, atMs: getSceneRestMs(scene), defects: silent.map((kind) => ({ kind: 'silent-problem', detail: `the board never reported ${kind}` })) });
+      if (silent.length > 0) result.failures.push({ scene: name, size: size.name, theme: request.theme, atMs: getSceneRestMs(scene), defects: silent.map((kind) => ({ kind: 'silent-problem', detail: `the board never reported ${kind}` })) });
       for (const problem of problems) {
         if (problem.kind === 'tooSmallToRead') result.tooSmallReported.push(`${name} at ${size.name}: ${problem.elementId}`);
         if (problem.kind === 'labelWithoutRoom') result.wordsReported.push(`${name} at ${size.name}: ${problem.text.slice(0, 30)}`);

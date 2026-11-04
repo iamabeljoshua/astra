@@ -335,7 +335,6 @@ describe('names a hostile model might write', () => {
     ['a circle center', (name) => ({ kind: 'construct', id: 'a', target: 'f', step: { shape: 'circle', center: name, through: 'B' } })],
     ['an angle corner', (name) => ({ kind: 'construct', id: 'a', target: 'f', step: { shape: 'angle', at: name, from: 'A', to: 'B' } })],
     ['a diagram node', (name) => ({ kind: 'diagram', id: 'a', nodes: [{ name, label: 'x' }], edges: [] })],
-    ['a drawing label part', (name) => ({ kind: 'drawing', id: 'a', name: 'hoop-side', labels: [{ part: name, text: 'x' }] })],
   ];
 
   describe.each(NAMED_PLACES)('in %s', (_place, makeCommand) => {
@@ -346,6 +345,19 @@ describe('names a hostile model might write', () => {
     it.each(['A', 'oxygen-atom', 'H2', 'x'.repeat(40)])('accepts %s', (name) => {
       expect(parseSceneCommand(makeCommand(name)).ok).toBe(true);
     });
+  });
+
+  it.each(['__proto__', 'constructor', 'toString', 'rim', 'mitochondria'])('refuses %s as a part of the animal cell, because each drawing names its own parts', (part) => {
+    expectRefused(parseSceneCommand({ kind: 'drawing', id: 'a', name: 'animal-cell', labels: [{ part, text: 'x' }] }), /\.part: expected one of membrane/);
+  });
+
+  it('accepts a part that only the drawing it is on has', () => {
+    expect(parseSceneCommand({ kind: 'drawing', id: 'a', name: 'lever', labels: [{ part: 'fulcrum', text: 'x' }] }).ok).toBe(true);
+    expectRefused(parseSceneCommand({ kind: 'drawing', id: 'a', name: 'flower', labels: [{ part: 'fulcrum', text: 'x' }] }), /\.part: expected one of petal/);
+  });
+
+  it('refuses a label on a drawing with no parts, and says why', () => {
+    expectRefused(parseSceneCommand({ kind: 'drawing', id: 'a', name: 'hoop-side', labels: [{ part: 'rim', text: 'x' }] }), /\.part: expected no label, because this drawing has no named parts/);
   });
 
   it.each(['__proto__', 'constructor', 'prototype'])('refuses %s as an element id', (name) => {

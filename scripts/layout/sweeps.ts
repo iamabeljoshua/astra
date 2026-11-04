@@ -58,18 +58,18 @@ async function runQuickSweeps(page: Page, options: SweepOptions, totals: Totals)
   for (const plan of QUICK_PLANS) {
     const viewport = VIEWPORTS.find(({ name }) => name === plan.viewport) as ViewportPlan;
     const sizes = viewport.boards.filter(({ name }) => (plan.boards as readonly string[]).includes(name));
-    addResult(totals, `${plan.viewport} ${plan.theme}`, await sweepAt(page, viewport, { sizes, theme: plan.theme, isRestOnly: false, scenes: options.scenes }));
+    addResult(totals, `${plan.viewport} ${plan.theme}`, await sweepAt(page, viewport, { sizes, theme: plan.theme, scenes: options.scenes }));
   }
 }
 
 async function runFullSweeps(page: Page, options: SweepOptions, totals: Totals): Promise<void> {
   for (const plan of VIEWPORTS) {
-    for (const theme of THEMES) addResult(totals, `${plan.name} ${theme}`, await sweepAt(page, plan, { theme, isRestOnly: theme === 'dark', scenes: options.scenes }));
+    for (const theme of THEMES) addResult(totals, `${plan.name} ${theme}`, await sweepAt(page, plan, { theme, scenes: options.scenes }));
   }
   await page.emulateMedia({ reducedMotion: 'reduce' });
   for (const name of REDUCED_MOTION_VIEWPORTS) {
     const plan = VIEWPORTS.find((candidate) => candidate.name === name) as ViewportPlan;
-    addResult(totals, `${name} reduced motion`, await sweepAt(page, plan, { theme: 'light', isRestOnly: false, scenes: options.scenes }));
+    addResult(totals, `${name} reduced motion`, await sweepAt(page, plan, { theme: 'light', scenes: options.scenes }));
   }
   await page.emulateMedia({ reducedMotion: 'no-preference' });
 }

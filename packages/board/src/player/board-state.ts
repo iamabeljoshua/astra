@@ -50,7 +50,7 @@ export interface BoardElement {
 export interface BoardState {
   readonly elements: ReadonlyMap<ElementId, BoardElement>;
   readonly focus: ElementRef | null;
-  /** Sliders refused because they set a speed in the other pair from a live slider on the same flight, or name a constant their curve does not use. */
+  /** Sliders refused because they set a speed in the other pair from a live slider on the same flight. */
   readonly refusedSliders: readonly Slider[];
 }
 
@@ -255,6 +255,7 @@ function getLiveSliders(board: BoardDraft): Slider[] {
   return [...board.elements.values()].flatMap(({ content }) => (content.kind === 'slider' ? [content] : []));
 }
 
+// A slider on a constant its curve does not use is refused too, and joins `refusedSliders`, so the tutor hears about it.
 function isConstantInCurve(board: BoardDraft, slider: Slider): boolean {
   const curve = board.elements.get(slider.target)?.content;
   if (!('constant' in slider) || curve?.kind !== 'plot') return true;

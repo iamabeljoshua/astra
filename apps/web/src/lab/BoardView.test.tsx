@@ -721,14 +721,12 @@ describe('BoardView, figures', () => {
       expect(container.querySelector('.board-slider')?.textContent).toContain('4.2');
     });
 
-    it('moves nothing and says nothing on a curve without that constant', () => {
-      const onSliderMove = vi.fn();
+    it('draws no slider on a curve without that constant, and tells the tutor', () => {
+      const onBoardProblem = vi.fn();
       const operations = [place({ kind: 'plot', id: 'curve', expression: 'x^2', domain: [0, 2] }), place({ kind: 'slider', id: 'a-slider', target: 'curve', constant: 'a', min: 0, max: 4 })];
-      const { container } = render(<BoardView board={getBoardAt(operations, 5000)} atMs={5000} canMoveSliders onSliderMove={onSliderMove} />);
-      const input = container.querySelector<HTMLInputElement>('.board-slider input') as HTMLInputElement;
-      expect(input.disabled).toBe(true);
-      expect(input.hasAttribute('aria-valuetext')).toBe(false);
-      expect(container.querySelector('.board-slider-value')?.textContent).toBe('');
+      const { container } = render(<BoardView board={getBoardAt(operations, 5000)} atMs={5000} canMoveSliders onBoardProblem={onBoardProblem} />);
+      expect(container.querySelector('.board-slider')).toBeNull();
+      expect(onBoardProblem).toHaveBeenCalledWith({ kind: 'sliderWithoutConstant', sliderId: 'a-slider', target: 'curve', constant: 'a' });
     });
 
     it('goes when its curve is replaced, and an old mark goes with it', () => {

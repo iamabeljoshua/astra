@@ -12,6 +12,16 @@ const RING = { steps: 26, paddingX: 7, paddingY: 4, wobble: 0.035, overlapRadian
 const UNDERLINE = { steps: 8, gap: 3, wobble: 1.1 };
 const TICK = { sizeEms: 0.7, largestSize: 26, gap: 8 };
 
+/** A ring's wobble and its drift stay under this share of its size. */
+const RING_LARGEST_WANDER = 1.1;
+
+export interface MarkReach {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
 const getTickSize = (box: MarkBox) => Math.min(box.height * TICK.sizeEms, TICK.largestSize);
 
 function getRing(box: MarkBox, random: () => number): InkDrawing['strokes'] {
@@ -47,12 +57,19 @@ function getCross(box: MarkBox): InkDrawing['strokes'] {
   return [makeStroke([{ x, y }, { x: x + size, y: y + size }]), makeStroke([{ x: x + size, y }, { x, y: y + size }])];
 }
 
-/** The room a mark needs past the right of its box. */
-export function getMarkRoomOnRight(mark: AnnotationMark, box: MarkBox): number {
-  return mark === 'check' || mark === 'cross' ? TICK.gap + getTickSize(box) : 0;
+/** How far past each side of its box a mark can reach, so a caller can keep it on the board. */
+export function getMarkReach(mark: AnnotationMark, box: MarkBox): MarkReach {
+  if (mark === 'circle') {
+    const across = (box.width / 2) * (RING_LARGEST_WANDER - 1) + RING.paddingX * RING_LARGEST_WANDER;
+    const down = (box.height / 2) * (RING_LARGEST_WANDER - 1) + RING.paddingY * RING_LARGEST_WANDER;
+    return { left: across, top: down, right: across, bottom: down };
+  }
+  if (mark === 'underline') return { left: 0, top: 0, right: 0, bottom: UNDERLINE.gap + UNDERLINE.wobble };
+  return { left: 0, top: 0, right: TICK.gap + getTickSize(box), bottom: 0 };
 }
 
-function getMarkStrokes(mark: AnnotationMark, box: MarkBox, seed: string): InkDrawing['strokes'] {
+/** Draws a teacher's mark around a box, and the seed keeps a replay identical. */
+export function drawMark({ mark, box, seed }: { mark: AnnotationMark; box: MarkBox; seed: string }): InkDrawing['strokes'] {
   const random = makeSeededRandom(seed);
   switch (mark) {
     case 'circle':
@@ -64,11 +81,4 @@ function getMarkStrokes(mark: AnnotationMark, box: MarkBox, seed: string): InkDr
     case 'cross':
       return getCross(box);
   }
-}
-
-/** Draws a teacher's mark around a box, and the seed keeps a replay identical. A hand's wobble on something as big as the board stops at `within`, so a ring cannot leave it. */
-export function drawMark({ mark, box, seed, within }: { mark: AnnotationMark; box: MarkBox; seed: string; within?: MarkBox }): InkDrawing['strokes'] {
-  const strokes = getMarkStrokes(mark, box, seed);
-  if (!within) return strokes;
-  return strokes.map(({ points }) => makeStroke(points.map(({ x, y }) => ({ x: Math.min(within.x + within.width, Math.max(within.x, x)), y: Math.min(within.y + within.height, Math.max(within.y, y)) }))));
 }

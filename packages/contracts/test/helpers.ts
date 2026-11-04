@@ -19,7 +19,7 @@ export const ONE_OF_EACH_COMMAND: Record<SceneCommand['kind'], Record<string, un
   readout: { kind: 'readout', id: 'how-far', target: 'shot', quantity: 'distance', label: 'distance' },
   slider: { kind: 'slider', id: 'speed', target: 'shot', parameter: 'horizontalSpeed', min: 0, max: 12 },
   ghostPath: { kind: 'ghostPath', id: 'first-arc', target: 'shot' },
-  drawing: { kind: 'drawing', id: 'court', name: 'hoop-side', labels: [{ part: 'rim', text: 'the rim' }] },
+  drawing: { kind: 'drawing', id: 'court', name: 'animal-cell', labels: [{ part: 'nucleus', text: 'the nucleus' }] },
   diagram: { kind: 'diagram', id: 'cycle', nodes: [{ name: 'a', label: 'Rain' }, { name: 'b', label: 'River' }], edges: [{ from: 'a', to: 'b', label: 'runs into' }], handwritten: true, startsEmpty: true },
   table: { kind: 'table', id: 'values', columns: ['x', 'y'], rows: [['1', '2']], startsEmpty: true },
   timeline: { kind: 'timeline', id: 'dates', events: [{ when: '1687', label: 'Principia' }], startsEmpty: true },

@@ -14,8 +14,8 @@ import { SessionScreen } from './session/SessionScreen';
 import { AppShell } from './shell/AppShell';
 import { LEGAL_PAGES } from './strings';
 
-const ScenePlayerLab = import.meta.env.DEV ? lazy(() => import('./lab/ScenePlayerLab')) : null;
 const BoardDeckLab = import.meta.env.DEV ? lazy(() => import('./lab/BoardDeckLab')) : null;
+const ScenePlayerLab = import.meta.env.DEV ? lazy(() => import('./lab/ScenePlayerLab')) : null;
 
 function AppRoutes() {
   const signInDraft = useSignInDraft();

@@ -253,6 +253,7 @@ function readFilledList<Item>(fields: CheckedFields, { name, maxLength, readItem
 function readDrawingLabel(place: Place, name: DrawingName): NonNullable<Drawing['labels']>[number] {
   const fields = readFields(place, ['part', 'text']);
   const parts: readonly string[] = DRAWING_PARTS[name];
+  if (parts.length === 0) fail(fields.at('part'), 'no label, because this drawing has no named parts');
   return { part: readOneOf(fields.at('part'), parts), text: readLabel(fields.at('text')) };
 }
 

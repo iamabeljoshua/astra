@@ -3,8 +3,8 @@ export { type MathLine, type MathTerm, startMathLine, transformMathLine } from '
 export type { BoardOperation } from './player/board-operations.ts';
 export { type BoardElement, type BoardState, describeBoard, getAttachedElementId, getBoardAt, getSceneFrame } from './player/board-state.ts';
 export { getMotionValue } from './player/motion.ts';
-export { canPaintAt, createTierWatch, landsDrawingsAtOnce, type QualityTier, type TierWatch } from './player/quality-tiers.ts';
 export { createPlayoutTracker, type PlayoutTracker } from './player/playout-tracker.ts';
+export { canPaintAt, createTierWatch, landsDrawingsAtOnce, type QualityTier, type TierWatch } from './player/quality-tiers.ts';
 export type { ProjectileFrame } from './motion/projectile-scene.ts';
 export type { SliderMove } from './player/slider-log.ts';
 export { rebuildBoard } from './player/rebuild-board.ts';

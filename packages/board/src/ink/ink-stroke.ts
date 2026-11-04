@@ -3,10 +3,11 @@ export interface InkPosition {
   y: number;
 }
 
-/** One touch of the pen, in board pixels. */
+/** One touch of the pen, in board pixels. A diagram names its box outlines and its arrows, so the page says which is which. */
 export interface InkStroke {
   points: readonly InkPosition[];
   length: number;
+  role?: 'box' | 'line';
 }
 
 /** Strokes in the order a hand would draw them, with the room they take. */

@@ -1,5 +1,5 @@
 import { type BoardElement, type BoardState, getMotionValue } from '@astra/board';
-import { createFigurePainter, createInkPainter, drawMark, type FigureMark, getMarkRoomOnRight, type InkPainter, type LabelRequest, type MarkBox, type MovingPlacement, placeLabels, type TermBoxes, type TermQuery, writeStyle } from '@astra/board/drawing';
+import { createFigurePainter, createInkPainter, drawMark, type FigureMark, getMarkReach, type InkPainter, type LabelRequest, type MarkBox, type MovingPlacement, placeLabels, type TermBoxes, type TermQuery, writeStyle } from '@astra/board/drawing';
 import type { AnnotationMark, ElementRef } from '@astra/contracts';
 import { type BoardItem, isFigure } from './boardItems';
 
@@ -57,16 +57,16 @@ function getMarkBoxes(content: MarkContent, placement: MovingPlacement, item: Bo
   return { from: null, to: isWholeElement || content.kind === 'highlight' ? { x: 0, y: 0, width: placement.width / placement.scale, height: placement.height / placement.scale } : null, flightOffset: { x: 0, y: 0 } };
 }
 
-// A tick beside something as wide as the board moves in over its right end, so it stays on the board.
-function keepMarkOnBoard(mark: AnnotationMark, box: MarkBox, placement: MovingPlacement, boardWidth: number): MarkBox {
-  const room = getMarkRoomOnRight(mark, box);
-  const roomLeft = (boardWidth - BOARD_EDGE_ROOM - placement.x) / placement.scale - box.x;
-  return room === 0 || box.width + room <= roomLeft ? box : { ...box, width: Math.max(0, roomLeft - room) };
-}
-
-function getBoardInside(placement: MovingPlacement, area: MarksFrame['area']): MarkBox {
-  const toElement = (onBoard: number, start: number) => (onBoard - start) / placement.scale;
-  return { x: toElement(BOARD_EDGE_ROOM, placement.x), y: toElement(BOARD_EDGE_ROOM, placement.y), width: (area.width - 2 * BOARD_EDGE_ROOM) / placement.scale, height: (area.height - 2 * BOARD_EDGE_ROOM) / placement.scale };
+// What a mark reaches past something as big as the board comes off the box it is drawn around, so the mark stays on the board.
+function keepMarkOnBoard(mark: AnnotationMark, box: MarkBox, placement: MovingPlacement, area: MarksFrame['area']): MarkBox {
+  if (placement.scale === 0) return box;
+  const reach = getMarkReach(mark, box);
+  const getOwnSpot = (onBoard: number, start: number) => (onBoard - start) / placement.scale;
+  const left = Math.max(box.x, getOwnSpot(BOARD_EDGE_ROOM, placement.x) + reach.left);
+  const top = Math.max(box.y, getOwnSpot(BOARD_EDGE_ROOM, placement.y) + reach.top);
+  const right = Math.min(box.x + box.width, getOwnSpot(area.width - BOARD_EDGE_ROOM, placement.x) - reach.right);
+  const bottom = Math.min(box.y + box.height, getOwnSpot(area.height - BOARD_EDGE_ROOM, placement.y) - reach.bottom);
+  return { x: left, y: top, width: Math.max(0, right - left), height: Math.max(0, bottom - top) };
 }
 
 const isCrossFading = (boxes: TermBoxes, isReducedMotion: boolean) => isReducedMotion && boxes.from !== null && boxes.to !== null;
@@ -121,13 +121,13 @@ export function createBoardMarks(overlay: SVGSVGElement, onMarkWithoutTarget?: (
     onMarkWithoutTarget?.({ kind: 'markWithoutTarget', markId: mark.id, target: content.target, ...(tex === undefined ? {} : { tex }) });
   };
 
-  const getPaintedMark = ({ id, kind, box, within, existing }: { id: string; kind: AnnotationMark; box: MarkBox; within: MarkBox; existing: PaintedMark | undefined }): PaintedMark => {
-    const key = `${kind}|${box.x.toFixed(1)}|${box.y.toFixed(1)}|${box.width.toFixed(1)}|${box.height.toFixed(1)}|${within.y.toFixed(0)}`;
+  const getPaintedMark = ({ id, kind, box, existing }: { id: string; kind: AnnotationMark; box: MarkBox; existing: PaintedMark | undefined }): PaintedMark => {
+    const key = `${kind}|${box.x.toFixed(1)}|${box.y.toFixed(1)}|${box.width.toFixed(1)}|${box.height.toFixed(1)}`;
     if (existing?.key === key) return existing;
     existing?.painter.remove();
     const group = existing?.group ?? document.createElementNS(SVG_NAMESPACE, 'g');
     if (!existing) noteGroup.before(group);
-    const painted = { group, key, painter: createInkPainter(group, drawMark({ mark: kind, box, seed: id, within })) };
+    const painted = { group, key, painter: createInkPainter(group, drawMark({ mark: kind, box, seed: id })) };
     marks.set(id, painted);
     return painted;
   };
@@ -140,7 +140,8 @@ export function createBoardMarks(overlay: SVGSVGElement, onMarkWithoutTarget?: (
     const target = frame.elements.find((element) => element.id === targetId);
     const isRearranging = Boolean(target?.morphFrom) && !item?.getRefusedTex?.();
     const rearranged = isRearranging && target ? getMotionValue(target.entrance, frame.atMs) : 1;
-    const box = boxes && getMarkBox(boxes, rearranged, frame.isReducedMotion);
+    const found = boxes && getMarkBox(boxes, rearranged, frame.isReducedMotion);
+    const box = found && placement && keepMarkOnBoard(getMarkKind(content), found, placement, frame.area);
     if (!placement || !boxes || !box) {
       const existing = marks.get(mark.id);
       if (existing) writeStyle(existing.group, 'visibility', 'hidden');
@@ -148,7 +149,7 @@ export function createBoardMarks(overlay: SVGSVGElement, onMarkWithoutTarget?: (
       return null;
     }
     drawnOnce.add(getPlacementKey(mark));
-    const painted = getPaintedMark({ id: mark.id, kind: getMarkKind(content), box: keepMarkOnBoard(getMarkKind(content), box, placement, frame.area.width), within: getBoardInside(placement, frame.area), existing: marks.get(mark.id) });
+    const painted = getPaintedMark({ id: mark.id, kind: getMarkKind(content), box, existing: marks.get(mark.id) });
     const drawn = getMotionValue(mark.entrance, frame.atMs);
     const move = boxes.flightOffset;
     writeStyle(painted.group, 'visibility', placement.isVisible ? '' : 'hidden');

@@ -5,10 +5,12 @@ import { type InkDrawing, type InkPosition, type InkStroke, getSpread, makeSeede
 import type { MarkBox } from './marks.ts';
 
 const BOX = { paddingX: 12, paddingY: 7, wobble: 1.2, sides: 4, stepsPerSide: 4 };
-const ARROW = { gap: 6, headLength: 9, headAngle: 0.5, smallestSpan: 34, labelScale: 0.75 };
+const ARROW = { gap: 6, headLength: 9, headAngle: 0.5, smallestSpan: 34, labelScale: 0.75, cornerReach: 8 };
 const NODE_GAP_EMS = 1;
 const LARGEST_EDGE_LABEL_EMS = 10;
 const AVERAGE_CHARACTER_EMS = 0.6;
+/** A font's box starts above its baseline's ascent, so a label at the top needs a little room. */
+const FONT_BOX_ROOM_EMS = 0.2;
 
 /** A label the strokes cannot write, set as plain text. Each baseline is measured from the top of the label. */
 export interface DiagramTextLabel {
@@ -77,7 +79,7 @@ function drawLabel(text: string, isHandwritten: boolean, request: DiagramRequest
 const moveTextLabel = (label: DiagramTextLabel, by: InkPosition): DiagramTextLabel => ({ ...label, x: label.x + by.x, y: label.y + by.y });
 
 function moveStroke(stroke: InkStroke, by: InkPosition): InkStroke {
-  return makeStroke(stroke.points.map((point) => ({ x: point.x + by.x, y: point.y + by.y })));
+  return { ...stroke, ...makeStroke(stroke.points.map((point) => ({ x: point.x + by.x, y: point.y + by.y }))) };
 }
 
 function getRoughBox(box: MarkBox, random: () => number): InkStroke {
@@ -92,7 +94,22 @@ function getRoughBox(box: MarkBox, random: () => number): InkStroke {
     }
   }
   points.push({ x: box.x + getSpread(random, BOX.wobble), y: box.y + getSpread(random, BOX.wobble) });
-  return makeStroke(points);
+  return { ...makeStroke(points), role: 'box' };
+}
+
+// The painter rounds a corner through the midpoints of its sides, so a point each side of a corner keeps the rounding short and the line where the route put it.
+function holdCorners(points: readonly InkPosition[]): InkPosition[] {
+  return points.flatMap((corner, index) => {
+    const before = points[index - 1];
+    const after = points[index + 1];
+    if (!before || !after) return [corner];
+    const pointToward = (other: InkPosition): InkPosition => {
+      const distance = Math.hypot(other.x - corner.x, other.y - corner.y);
+      const share = Math.min(ARROW.cornerReach, distance / 2) / (distance || 1);
+      return { x: corner.x + (other.x - corner.x) * share, y: corner.y + (other.y - corner.y) * share };
+    };
+    return [pointToward(before), corner, pointToward(after)];
+  });
 }
 
 function getArrow(points: readonly InkPosition[]): InkStroke[] {
@@ -100,7 +117,7 @@ function getArrow(points: readonly InkPosition[]): InkStroke[] {
   const before = points.at(-2) as InkPosition;
   const angle = Math.atan2(end.y - before.y, end.x - before.x);
   const headPoint = (side: number): InkPosition => ({ x: end.x - Math.cos(angle + side * ARROW.headAngle) * ARROW.headLength, y: end.y - Math.sin(angle + side * ARROW.headAngle) * ARROW.headLength });
-  return [makeStroke(points), makeStroke([headPoint(1), end, headPoint(-1)])];
+  return [{ ...makeStroke(holdCorners(points)), role: 'line' }, { ...makeStroke([headPoint(1), end, headPoint(-1)]), role: 'line' }];
 }
 
 function drawEdgeLabel(edge: Diagram['edges'][number], isHandwritten: boolean, request: DiagramRequest): LabelDrawing | null {
@@ -122,7 +139,7 @@ function getEdgeDrawing(route: GraphRoute, label: LabelDrawing | null): Pick<Dia
 }
 
 function getBounds(nodes: readonly PlacedNode[], steps: readonly DiagramStep[]) {
-  const labelCorners = steps.flatMap((step) => step.textLabels.flatMap(({ x, y, width, height }) => [{ x, y }, { x: x + width, y: y + height }]));
+  const labelCorners = steps.flatMap((step) => step.textLabels.flatMap(({ x, y, width, height, fontSize }) => [{ x, y: y - fontSize * FONT_BOX_ROOM_EMS }, { x: x + width, y: y + height }]));
   const points = [...steps.flatMap((step) => step.strokes.flatMap((stroke) => stroke.points)), ...labelCorners];
   const left = Math.min(0, ...points.map((point) => point.x));
   const top = Math.min(0, ...points.map((point) => point.y));

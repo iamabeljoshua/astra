@@ -212,6 +212,26 @@ const PAGE_PLANTS: readonly PagePlant[] = [
     },
   },
   {
+    name: 'an arrow drawn through a box',
+    scene: 'mixed-arrow-past-a-wide-node',
+    size: LAPTOP_BOARD,
+    expects: 'line-on-box',
+    plant(board) {
+      const box = (document.querySelector(`${board} path[data-ink="box"]`) as SVGPathElement).getBBox();
+      document.querySelector(`${board} path[data-ink="line"]`)?.setAttribute('d', `M${box.x - 5} ${box.y + box.height / 2}L${box.x + box.width + 5} ${box.y + box.height / 2}`);
+    },
+  },
+  {
+    name: 'an arrow drawn through the words on another box',
+    scene: 'mixed-arrow-past-a-wide-node',
+    size: LAPTOP_BOARD,
+    expects: 'line-on-text',
+    plant(board) {
+      const words = (document.querySelector(`${board} svg text`) as SVGTextElement).getBBox();
+      document.querySelector(`${board} path[data-ink="line"]`)?.setAttribute('d', `M${words.x - 5} ${words.y + words.height / 2}L${words.x + words.width + 5} ${words.y + words.height / 2}`);
+    },
+  },
+  {
     name: 'a word quietly left off',
     scene: 'language-verb-table',
     size: LAPTOP_BOARD,
@@ -249,6 +269,7 @@ interface LibraryPlant extends SourcePlant {
 }
 
 const LIBRARY_PLANTS: readonly LibraryPlant[] = [
+  { name: 'an empty curve loses its name', file: 'packages/board/src/plot/plot-figure.ts', find: "(isWhole ? { x: (view.rect.left + view.rect.right) / 2, y: (view.rect.top + view.rect.bottom) / 2 } : null)", replace: 'null', scene: 'hostile-curve-with-no-values', size: LAPTOP_BOARD, expects: 'dropped-words' },
   { name: 'placement forgets the height of what is above', file: 'packages/board/src/layout/place-elements.ts', find: 'y += placement.height + area.gap;', replace: 'y += area.gap;', scene: 'mixed-lesson-opening', size: LAPTOP_BOARD, expects: 'element-on-element' },
   { name: 'placement stops shrinking a wide line', file: 'packages/board/src/layout/place-elements.ts', find: 'return Math.min(1, widthScale, heightScale);', replace: 'return 1;', scene: 'hostile-widest-table', size: PHONE_BOARD, expects: 'element-off-board' },
   { name: 'a table cell no longer breaks a long word', file: 'packages/board/src/table/table-painter.ts', find: "const cell = makeTextElement('td', 'board-table-cell', text);", replace: "const cell = makeTextElement('td', 'board-table-cell', text); cell.style.overflowWrap = 'normal'; cell.style.whiteSpace = 'nowrap';", scene: 'language-long-words-table', size: PHONE_BOARD, expects: 'text-off-board' },
@@ -258,7 +279,10 @@ const LIBRARY_PLANTS: readonly LibraryPlant[] = [
   { name: 'a drawing label leaves its gutter', file: 'packages/board/src/diagram/label-drawing.ts', find: 'getLabelStep(label, { x: 0, isLeft: true, bodyAt, scale })', replace: 'getLabelStep(label, { x: -400, isLeft: true, bodyAt, scale })', scene: 'biology-cell-labelled', size: PHONE_BOARD, expects: 'text-off-board' },
   { name: 'an image ignores its shape', file: 'apps/web/src/board/imageItem.ts', find: "if (image.getAttribute('height') !== height) image.setAttribute('height', height);", replace: "image.style.height = '40px';", scene: 'history-great-wave', size: LAPTOP_BOARD, expects: 'stretched-image' },
   { name: 'text is set as markup', file: 'apps/web/src/lab/BoardView.tsx', find: '>{content.text}</p>', replace: ' dangerouslySetInnerHTML={{ __html: content.text }} />', scene: 'hostile-markup-everywhere', size: LAPTOP_BOARD, expects: 'forbidden-element' },
-  { name: 'a long label is cut to fit', file: 'packages/board/src/figure/place-labels.ts', find: 'return [...lines, line].slice(0, MOST_LINES);', replace: 'return [...lines, line].slice(0, 1);', scene: 'hostile-eighty-wide-letters', size: PHONE_BOARD, expects: 'dropped-words' },
+  { name: 'a long label is cut to fit', file: 'packages/board/src/figure/place-labels.ts', find: 'return [...lines, line].slice(0, MOST_LINES);', replace: 'return [...lines, line].slice(0, 1);', scene: 'mixed-long-plot-label', size: PHONE_BOARD, expects: 'dropped-words' },
+  { name: 'a diagram leaves a plain label off', file: 'packages/board/src/ink/diagram.ts', find: 'textLabels: [...(node.label.text ? [moveTextLabel(node.label.text, labelAt)] : []), ...edges.flatMap((edge) => edge.textLabels)],', replace: 'textLabels: edges.flatMap((edge) => edge.textLabels),', scene: 'biology-food-chain', size: LAPTOP_BOARD, expects: 'dropped-words' },
+  { name: 'a long arrow runs straight through the rank between', file: 'packages/board/src/diagram/layout-graph.ts', find: 'points.push(toPoint(axes, centre(lane), band.start - arrowGap), toPoint(axes, centre(lane), band.end + arrowGap));', replace: '', scene: 'mixed-arrow-past-a-wide-node', size: LAPTOP_BOARD, expects: 'line-on-box' },
+  { name: 'an arrow loses its straight run past a taller neighbour', file: 'packages/board/src/ink/diagram.ts', find: 'return [{ ...makeStroke(holdCorners(points)), role: \'line\' }', replace: 'return [{ ...makeStroke([points[0] as InkPosition, { x: (points.at(-1) as InkPosition).x, y: (points[0] as InkPosition).y + 400 }, points.at(-1) as InkPosition]), role: \'line\' }', scene: 'mixed-arrow-past-a-wide-node', size: LAPTOP_BOARD, expects: 'line-on-box' },
 ];
 
 async function checkLibraryPlant(page: Page, server: DeckServer, plant: LibraryPlant): Promise<DefectKind[]> {
