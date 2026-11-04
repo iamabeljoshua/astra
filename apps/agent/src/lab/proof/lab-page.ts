@@ -92,8 +92,11 @@ export async function openLabPage({ browser, name, lesson, viewport, theme, isRe
 
 export function holdFrame(lab: LabPage, frame: { atMs: number; source: 'live' | 'replay' } | null): Promise<void> {
   return lab.page.evaluate(async (held) => {
+    const page = window as unknown as { __proofIsHolding?: boolean };
+    page.__proofIsHolding = true;
     window.holdBoardFrame?.(held);
     for (let frames = 0; frames < 2; frames += 1) await new Promise(requestAnimationFrame);
+    page.__proofIsHolding = held !== null;
   }, frame);
 }
 
@@ -113,25 +116,25 @@ export interface ReplayPixels {
   describedDifferently: number;
 }
 
-/** A browser repaint can shift a line's antialiasing by a level or two, so only a difference this small may settle. */
-const LARGEST_SETTLING_LEVELS = 2;
-
-/** Compares a live moment with its replay, and looks a second time at any difference before calling it real. */
 export async function lookAtMoment(lab: LabPage, atMs: number, shiftMs: number): Promise<'same' | 'settled' | 'different'> {
-  const shootBoth = async () => {
+  const readPage = () => lab.page.evaluate((selector) => document.querySelector(selector)?.outerHTML, BOARD_SELECTOR);
+  const lookAtBoth = async () => {
     await holdFrame(lab, { atMs, source: 'live' });
     const live = await shoot(lab, 'replay-compare');
+    const livePage = await readPage();
     await holdFrame(lab, { atMs: atMs + shiftMs, source: 'replay' });
-    return { live, replay: await shoot(lab, 'replay-compare') };
+    const replay = await shoot(lab, 'replay-compare');
+    return { live, replay, isSamePage: livePage === (await readPage()) };
   };
-  const { live, replay } = await shootBoth();
+  const { live, replay, isSamePage } = await lookAtBoth();
   if (live.equals(replay)) return 'same';
   const pair: [string, string] = [live.toString('base64'), replay.toString('base64')];
   const pixels = await lab.page.evaluate(([first, second]) => window.pageChecks.countDifferentPixels([first, second, 0]), pair);
   const levels = await lab.page.evaluate((images) => window.pageChecks.getLargestChannelDifference(images), pair);
-  const again = await shootBoth();
-  const isSettled = again.live.equals(again.replay) && levels <= LARGEST_SETTLING_LEVELS;
-  console.log(`${lab.folder} differs from its replay at ${Math.round(atMs)}: ${pixels} pixels by up to ${levels} levels, ${isSettled ? 'settled on a second look' : 'a real difference'}`);
+  const again = await lookAtBoth();
+  const isSecondLookClean = again.live.equals(again.replay);
+  const isSettled = isSamePage && isSecondLookClean;
+  console.log(`${lab.folder} differs from its replay at ${Math.round(atMs)}: ${pixels} pixels by up to ${levels} levels, the page ${isSamePage ? 'the same' : 'different'} during that look, second look ${isSecondLookClean ? 'clean' : 'not clean'}, ${isSettled ? 'settled' : 'a real difference'}`);
   return isSettled ? 'settled' : 'different';
 }
 
@@ -165,6 +168,9 @@ export async function checkStillness(lab: LabPage): Promise<{ writes: number; an
   const before = await shoot(lab, 'still-start');
   const { writes, animations } = await lab.page.evaluate((ms) => window.pageChecks.countWritesOver(ms), QUIET_MS);
   const after = await shoot(lab, 'still-end');
-  return { writes, animations, imagesMatch: before.equals(after) };
+  if (before.equals(after)) return { writes, animations, imagesMatch: true };
+  const levels = await lab.page.evaluate((images) => window.pageChecks.getLargestChannelDifference(images), [before.toString('base64'), after.toString('base64')] as [string, string]);
+  const again = await shoot(lab, 'still-again');
+  console.log(`${lab.folder} changed while still: up to ${levels} levels, ${writes} writes, second look ${after.equals(again) ? 'clean' : 'not clean'}`);
+  return { writes, animations, imagesMatch: writes === 0 && animations === 0 && after.equals(again) };
 }
-

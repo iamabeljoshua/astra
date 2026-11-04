@@ -3,7 +3,7 @@ import { canWriteByHand, preloadMathFonts, writeStyle } from '@astra/board/drawi
 import { getOpenDragOn } from '@astra/board/shared';
 import { type ElementId, getInkLineId, type StudentWork } from '@astra/contracts';
 import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
-import type { MarkWithoutTarget } from './boardMarks';
+import type { BoardProblem } from './boardPainting';
 import { createBoardRowPainting } from './boardRowPainting';
 import { type BoardRow, getBoardRows } from './boardRows';
 import { BOARD_WORK_LABELS } from '../strings';
@@ -20,7 +20,7 @@ interface SharedBoardProps {
   atMs: number;
   onWork?: (work: StudentWork, startedMsAgo?: number) => void;
   onMovePoint?: (task: ElementId, x: number) => void;
-  onMarkProblem?: (problem: MarkWithoutTarget) => void;
+  onBoardProblem?: (problem: BoardProblem) => void;
   liveRow?: ReactNode;
   lineInTheBand?: string | null;
   onFixReading?: (text: string) => void;
@@ -63,12 +63,12 @@ function RowGutter({ row, atMs, isReducedMotion, onFixReading, setWrapper }: { r
 }
 
 // The board as lines on a page, with each row's marks and notes in a gutter beside it.
-export function SharedBoard({ board, atMs, onWork, onMovePoint, onMarkProblem, liveRow, lineInTheBand = null, onFixReading }: SharedBoardProps) {
+export function SharedBoard({ board, atMs, onWork, onMovePoint, onBoardProblem, liveRow, lineInTheBand = null, onFixReading }: SharedBoardProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<SVGSVGElement>(null);
   const wrappers = useRef(new Map<string, HTMLElement>());
   const painting = useRef<ReturnType<typeof createBoardRowPainting> | null>(null);
-  const problemListener = useRef(onMarkProblem);
+  const problemListener = useRef(onBoardProblem);
   const pickTargets = useRef(new Map<string, PickTarget>());
   const isReducedMotion = useReducedMotion();
   const rows = getBoardRows(board).filter(({ element, isBeingRead }) => !(isBeingRead && getInkLineId(element.id) === lineInTheBand));
@@ -89,9 +89,9 @@ export function SharedBoard({ board, atMs, onWork, onMovePoint, onMarkProblem, l
   }, []);
 
   useLayoutEffect(() => {
-    problemListener.current = onMarkProblem;
+    problemListener.current = onBoardProblem;
     if (!overlayRef.current) return;
-    painting.current ??= createBoardRowPainting({ overlay: overlayRef.current, getWrapper: (id) => wrappers.current.get(id), onMarkProblem: (problem) => problemListener.current?.(problem) });
+    painting.current ??= createBoardRowPainting({ overlay: overlayRef.current, getWrapper: (id) => wrappers.current.get(id), onBoardProblem: (problem) => problemListener.current?.(problem) });
     painting.current.paint({ board, atMs, isReducedMotion });
     for (const { button, query, on } of pickTargets.current.values()) {
       const box = painting.current.getPartBox(on, query);

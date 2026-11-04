@@ -277,6 +277,13 @@ function getLiveSliders(board: BoardDraft): Slider[] {
   return [...board.elements.values()].flatMap(({ content }) => (content.kind === 'slider' ? [content] : []));
 }
 
+function isConstantInCurve(board: BoardDraft, slider: Slider): boolean {
+  const curve = board.elements.get(slider.target)?.content;
+  if (!('constant' in slider) || curve?.kind !== 'plot') return true;
+  const isDeclared = curve.constants?.some(({ name }) => name === slider.constant) === true;
+  return isDeclared && new RegExp(`\\b${slider.constant}\\b`).test(curve.expression);
+}
+
 function applyCommand(board: BoardDraft, command: SceneCommand, { atMs, overMs, catalog }: { atMs: number; overMs: number | null; catalog: SceneCatalog }): void {
   switch (command.kind) {
     case 'clearBoard': {
@@ -329,7 +336,7 @@ function applyCommand(board: BoardDraft, command: SceneCommand, { atMs, overMs, 
       return;
     }
     case 'slider':
-      if (getOverlappingSlider(command, getLiveSliders(board))) board.refusedSliders.push(command);
+      if (getOverlappingSlider(command, getLiveSliders(board)) || !isConstantInCurve(board, command)) board.refusedSliders.push(command);
       else place(board, command, { atMs, overMs, catalog });
       return;
     default:
@@ -450,7 +457,7 @@ export function describeBoard(board: BoardState, atMs: number) {
   const round = (value: number) => Number(value.toFixed(DESCRIBED_DECIMALS));
   return {
     focus: board.focus,
-    stage: board.stage,
+    stage: board.stage && { mode: board.stage.mode, heldMs: round(atMs - board.stage.sinceMs) },
     elements: [...board.elements.values()].map((element) => ({
       id: element.id,
       kind: element.content.kind,

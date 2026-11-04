@@ -19,8 +19,20 @@ describe('a proof\'s verdict', () => {
     ['markup that ran', { pwned: true }],
     ['a write with no cause', { still: { writes: 1 } }],
     ['an old word on a new curve', { oldWordsLeft: ['minimum'] }],
+    ['a still board whose pictures differ', { still: { imagesMatch: false } }],
+    ['markup that ran, as the board summary says it', { summary: { wasRun: true } }],
+    ['a forbidden element, as the board summary says it', { summary: { hasScript: true } }],
+    ['a color outside the tokens', { colors: { unknownColors: ['rgb(255, 0, 0)'] } }],
+    ['a gradient', { colors: { gradients: 1 } }],
+    ['a rest that differs from plain KaTeX', { rests: { differingImages: ['x^2'] } }],
+    ['motion left at a rest', { rests: { motionLeft: 1 } }],
+    ['motion under reduced motion', { frames: { movingWithReducedMotion: 1 } }],
   ])('fails on %s', (_name, result) => {
     expect(getProofFailures('marks', [result])).toHaveLength(1);
+  });
+
+  it('passes the same keys at their good values', () => {
+    expect(getProofFailures('lessons', [{ still: { imagesMatch: true, writes: 0, animations: 0 }, summary: { wasRun: false, hasScript: false }, colors: { unknownColors: [], gradients: 0 }, rests: { differingImages: [], motionLeft: 0 }, frames: { movingWithReducedMotion: 0 } }])).toEqual([]);
   });
 
   it('says where the failure sits', () => {

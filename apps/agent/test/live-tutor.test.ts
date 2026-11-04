@@ -138,6 +138,20 @@ describe('a ring the board could not draw', () => {
   });
 });
 
+describe('a board problem', () => {
+  it('reaches the next request as a note', async () => {
+    const { session, model, summaries } = setup((_request, attempt) => (attempt === 1 ? { pieces: ['Okay, ', '{"kind":"text","id":"words","text":"Too much to read"}', 'see this letter here.'] } : { pieces: ['Got it.'] }));
+    session.onBrowser(typed('show me'));
+    await until(() => summaries.length === 1);
+    session.onBrowser({ type: 'boardProblem', problem: 'tooSmallToRead', subject: 'words', ...STAMP });
+    await delay(10);
+    session.onBrowser(typed('where?'));
+    await until(() => model.requests.length === 2);
+    expect(getSystemNotes(model.requests.at(-1)).join()).toContain('board_problem');
+    await session.close();
+  });
+});
+
 describe('hostile data messages', () => {
   const PLAYED = { wordStartsMs: [0], durationMs: 100, playedWords: 1, firedCueMs: [], ending: 'interrupted' as const, frozen: [], ...STAMP };
 
