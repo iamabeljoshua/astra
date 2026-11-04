@@ -24,6 +24,8 @@ declare global {
 }
 
 const TAP_RATE = 24000;
+const READY_LIMIT_MS = 30_000;
+const SAY_READY_LIMIT_MS = 180_000;
 const CREDITS_PER_CHARACTER = 0.22;
 const CREDIT_LIMIT = 6000;
 
@@ -288,7 +290,7 @@ async function runScenario(name: string, scenario: Scenario, browser: Browser, r
   if (scenario.throttle) await cdp?.send('Emulation.setCPUThrottlingRate', { rate: scenario.throttle });
   await page.goto(`${openUrl}&record=1`);
   await page.getByRole('button', { name: 'Connect' }).click();
-  await page.getByRole('button', { name: 'Play the lesson' }).and(page.locator(':enabled')).waitFor({ timeout: 30_000 });
+  await page.getByRole('button', { name: 'Play the lesson' }).and(page.locator(':enabled')).waitFor({ timeout: args.say ? SAY_READY_LIMIT_MS : READY_LIMIT_MS });
   await page.addStyleTag({ content: '.tsqd-parent-container { display: none !important; }' });
   if (args.screencast) await cdp?.send('Page.startScreencast', { format: 'jpeg', quality: 70, everyNthFrame: 1 });
   const run: RunContext = {

@@ -216,8 +216,9 @@ export function summariseRun(folder: string, settings: { name: string; network: 
   });
   const firedMs = cueErrors.map((row) => row.error);
   const leads = words.flatMap((word) => (word.heardAtMs !== null && word.arrivedAtMs !== null ? [word.heardAtMs - word.arrivedAtMs] : []));
-  const drawnErrors = records.drawn.flatMap((entry, index) => {
-    const row = cueErrors.find(({ cue }) => Math.abs(cue.firedAtMs - entry.drawnAtMs) < 200 && index >= 0);
+  const drawnErrors = records.drawn.flatMap((entry) => {
+    const nearestFirst = cueErrors.filter(({ cue }) => Math.abs(cue.firedAtMs - entry.drawnAtMs) < 200).sort((first, second) => Math.abs(first.cue.firedAtMs - entry.drawnAtMs) - Math.abs(second.cue.firedAtMs - entry.drawnAtMs));
+    const row = nearestFirst[0];
     return row && entry.paintedAtMs !== null ? [row.error + (entry.paintedAtMs - row.cue.firedAtMs)] : [];
   });
   const frameGaps = records.frames.slice(1).map((frame, index) => frame.ms - (records.frames[index]?.ms ?? frame.ms));

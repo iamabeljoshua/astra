@@ -2,7 +2,7 @@
 
 This is the record for M3.3. A student hears the tutor explain algebra and sees correct equations form in step with the words. Every figure here comes from the real lab page, on the real player, on Abel's Mac under load from other agents, at a load average of 6 to 25. All text is test text.
 
-No figure here spends voice credits. The voice is the fake tone, which fires a word every 280 ms, or the stored line of Casey saying "Let me work that out." The recording uses the Mac's free `say` voice, so a person can follow it, and no timing proof uses that voice.
+No figure here spends voice credits. The voice is the fake tone, with a word every 280 ms, or a stored real take of Chris from M3.2, played with `--stored`. A take's words do not match a math lesson's script, and that is the point: its word times are real speech with no pause arranged around a cue, so math lands in the middle of speech. The recording uses the Mac's free `say` voice, so a person can follow it, and no timing proof uses that voice.
 
 To run it all again, with `livekit-server` on the path and a free web port:
 
@@ -10,6 +10,7 @@ To run it all again, with `livekit-server` on the path and a free web port:
 export WEB_PORT=6240 LAB_LIVEKIT_PORT=7940 LAB_LIVEKIT_UDP_PORT=7942 LAB_RELAY_PORT=7943
 pnpm --filter @astra/agent math-proof --out /tmp/m3-3-proof
 pnpm --filter @astra/agent proof --fake --only math-algebra,math-every-word,math-dense-phone,math-hostile --out /tmp/m3-3-timing
+pnpm --filter @astra/agent proof --stored <a take from store-run.ts> --only math-every-word,math-algebra,math-stored --out /tmp/m3-3-timing
 pnpm --filter @astra/agent math-load --out /tmp/m3-3-load
 ```
 
@@ -47,11 +48,18 @@ KaTeX is what makes the term by term move possible. Each glyph is an element wit
 
 Math rendering stays out of Home. The lab is development only, so `katex` is in no production chunk today, and M3.10 should load the board as a route chunk, the way `math-load` does.
 
+## Differences from the plan
+
+- Files beyond the plan's list: the React side is in `apps/web/src/board/`, because `packages/board` stays free of React. `apps/web/math-load/` is the load measure's page. `packages/board/src/drawing.ts` and `packages/board/src/math/tex-check.ts` are entries that keep KaTeX and its stylesheet out of the package's main entry, which the agent imports in plain Node. `packages/board/scripts/` builds the stroke data, and `getMathParts` and the command list are in `packages/contracts`, so the agent can read terms.
+- `writeMath`, `transformMath`, and `text` gained `overWords`. The plan says the player gains it, and the language had it only on `runSimulation` and `reveal`.
+- Plots stay with M3.4, which draws them. This PR settles `plot.constants`, `shadeArea`, and `slider.constant`, and `evaluatePlotExpression` takes constants. No plot is drawn here.
+- The plan marks perf as not applicable. The brief for this PR asked for load time and bundle size, so they are measured below.
+
 ## Limits
 
 - Handwriting is the EMS Tech stroke set, which covers Latin letters. A line with any other character shows as plain text. Math is set with KaTeX's own fonts, and it is written glyph by glyph rather than stroke by stroke, because a font glyph has no strokes to follow.
 - `hide` and `clearBoard` remove an element at once, so lines below a hidden one jump up. `docs/DESIGN.md` allows a quiet fade here, and M3.5 can add it.
 - A `transformMath` that lands while another is still running starts from the plain tree of the one before. A tutor who rearranges on every word gets correct equations and a small jump, and the stored line and the every-word lesson show this.
 - `annotate.label` is not drawn on math yet. M3.12 owns notes beside a line.
-- No real voice has spoken these lessons. The stored line is the only real speech here, 5 words with a cue on each. M3.7 is the first real model writing math, and it should check `canRenderTex` from `@astra/board/tex-check`, which plain Node can import, before a command reaches a student.
+- No real voice has spoken these scripts. The real speech here is a stored take of other words, so cue timing is real and the sense is not. M3.7 is the first real model writing math, and it should check `canRenderTex` from `@astra/board/tex-check`, which plain Node can import, before a command reaches a student.
 - Safari, Firefox, and real phones are untested. M3.6 and M3.10 own those.

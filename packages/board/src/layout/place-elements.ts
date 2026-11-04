@@ -97,9 +97,13 @@ export interface MovingPlacement extends Placement {
 
 const interpolate = (from: number, to: number, progress: number) => from + (to - from) * progress;
 
-function getUpwardShift(before: ReadonlyMap<string, Placement>, after: readonly Placement[]): number {
+// When nothing stays, the new element is as if it had been below the last of the old ones.
+function getUpwardShift({ before, after, gap }: { before: ReadonlyMap<string, Placement>; after: readonly Placement[]; gap: number }): number {
   const stays = after.find((placement) => placement.isVisible && before.get(placement.id)?.isVisible);
-  return stays ? stays.y - (before.get(stays.id) as Placement).y : 0;
+  if (stays) return stays.y - (before.get(stays.id) as Placement).y;
+  const leavingBottoms = [...before.values()].filter((placement) => placement.isVisible).map((placement) => placement.y + placement.height + gap);
+  const arriving = after.find((placement) => placement.isVisible);
+  return arriving && leavingBottoms.length > 0 ? arriving.y - Math.max(...leavingBottoms) : 0;
 }
 
 function interpolatePlacement({ before, after, progress, shift }: { before: Placement | undefined; after: Placement; progress: number; shift: number }): MovingPlacement {
@@ -112,6 +116,6 @@ function interpolatePlacement({ before, after, progress, shift }: { before: Plac
 export function placeMovingElements(boxes: readonly MovingBox[], area: LayoutArea, progress: number): { placements: MovingPlacement[]; isMakingRoom: boolean } {
   const after = placeElements(boxes.map((box) => box.to), area);
   const before = new Map(placeElements(boxes.flatMap((box) => (box.from ? [box.from] : [])), area).map((placement) => [placement.id, placement]));
-  const shift = getUpwardShift(before, after);
+  const shift = getUpwardShift({ before, after, gap: area.gap });
   return { placements: after.map((placement) => interpolatePlacement({ before: before.get(placement.id), after: placement, progress, shift })), isMakingRoom: shift !== 0 };
 }

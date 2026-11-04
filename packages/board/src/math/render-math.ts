@@ -99,7 +99,7 @@ export function getMissingFonts(paints: readonly MathPaintElement[]): string[] {
   return [...fonts].filter((font) => !document.fonts.check(font));
 }
 
-const MATH_FONTS = ['16px KaTeX_Main', 'italic 16px KaTeX_Math', 'bold 16px KaTeX_Main', 'italic 16px KaTeX_Main', '16px KaTeX_Size1', '16px KaTeX_Size2', '16px KaTeX_Size3', '16px KaTeX_Size4', '16px KaTeX_AMS'];
+const MATH_FONTS = ['16px KaTeX_Main', 'italic 16px KaTeX_Math', '16px KaTeX_Size1', '16px KaTeX_Size2'];
 
 export function preloadMathFonts(): Promise<unknown> {
   return Promise.allSettled(MATH_FONTS.map((font) => document.fonts.load(font)));

@@ -1,6 +1,6 @@
 import { type BoardOperation, getBoardAt, startMathLine } from '@astra/board';
 import { createMathPainter } from '@astra/board/drawing';
-import { createRoot } from 'react-dom/client';
+import type { Root } from 'react-dom/client';
 import { BoardView } from '../src/lab/BoardView';
 
 const raw = String.raw;
@@ -13,13 +13,12 @@ const RENDERS = {
 };
 const RENDER_RUNS = 40;
 
-export function showFirstEquation(root: HTMLElement): Promise<void> {
+export function showFirstEquation(root: Root): Promise<void> {
   const operations: BoardOperation[] = [{ kind: 'command', atMs: 0, overMs: null, command: { kind: 'writeMath', id: 'first' as never, tex: FIRST_EQUATION } }];
-  root.style.height = '600px';
-  createRoot(root).render(<BoardView board={getBoardAt(operations, 9000)} atMs={9000} />);
+  root.render(<div style={{ height: 600 }}><BoardView board={getBoardAt(operations, 9000)} atMs={9000} /></div>);
   return new Promise((done) => {
     const check = () => {
-      const hasInk = root.querySelector('.katex-html') !== null && document.fonts.status === 'loaded';
+      const hasInk = document.querySelector('.katex-html') !== null && document.fonts.status === 'loaded';
       if (hasInk) requestAnimationFrame(() => done());
       else requestAnimationFrame(check);
     };

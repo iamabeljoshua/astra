@@ -28,8 +28,8 @@ interface LabWindow {
 const FORBIDDEN = 'script, img, iframe, object, embed, a, link, style, form, input';
 const PAINT_SHRINK = 0.2;
 const BOARD_EDGE_ROOM = 0.5;
-/** A frame painted just before this read can lag by one, so only this many in a row count. */
-const WRONG_FRAMES_IN_A_ROW = 2;
+/** React commits after the frame that read the clock, so a board can show the last equation this long. */
+const COMMIT_LAG_MS = 80;
 
 function getBoard(): HTMLElement {
   return document.querySelector('[data-testid="board"]') as HTMLElement;
@@ -151,7 +151,7 @@ export function startFrameWatch({ isReducedMotion, refusedTex }: { isReducedMoti
   const lab = page.sceneLab as NonNullable<LabWindow['sceneLab']>;
   const board = getBoard();
   const refused = new Set(refusedTex);
-  let wrongInARow = 0;
+  let wrongSinceMs: number | null = null;
   const watch: FrameWatch = { frames: 0, rawSourceFrames: 0, errorMarkFrames: 0, forbiddenElementFrames: 0, overlapFrames: 0, outsideBoardFrames: 0, inkOverNeighbourFrames: 0, wrongEquationFrames: 0, movingWithReducedMotion: 0, fontsNotReadyFrames: 0, mutationsWithNoCause: 0, mutationsWithCause: 0, mostTreesAtOnce: 0, worstFrameGapMs: 0, examples: [] };
   page.__frameWatch = watch;
   let lastFrameMs = performance.now();
@@ -179,8 +179,8 @@ export function startFrameWatch({ isReducedMotion, refusedTex }: { isReducedMoti
     watch.frames += 1;
     checkContent(board, watch);
     checkPlacement(board, watch, new Set(lab.describeLive(lab.player.getNowMs()).elements.filter((element) => element.drawn < 1).map((element) => element.id)));
-    wrongInARow = isShowingWrongEquation(board, watch, refused, lab) ? wrongInARow + 1 : 0;
-    if (wrongInARow >= WRONG_FRAMES_IN_A_ROW) watch.wrongEquationFrames += 1;
+    wrongSinceMs = isShowingWrongEquation(board, watch, refused, lab) ? (wrongSinceMs ?? nowMs) : null;
+    if (wrongSinceMs !== null && nowMs - wrongSinceMs > COMMIT_LAG_MS) watch.wrongEquationFrames += 1;
     if (isReducedMotion) checkReducedMotion(board, watch);
     watch.examples = watch.examples.slice(0, 40);
     requestAnimationFrame(check);

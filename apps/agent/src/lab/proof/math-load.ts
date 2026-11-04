@@ -1,6 +1,6 @@
 /// <reference lib="dom" />
 import { execFileSync } from 'node:child_process';
-import { createReadStream, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { createReadStream, existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { extname, join } from 'node:path';
 import { parseArgs } from 'node:util';
@@ -26,6 +26,11 @@ function startServer(root: string) {
   return createServer((request, response) => {
     const path = join(root, (request.url ?? '/').split('?')[0] === '/' ? 'index.html' : (request.url ?? '/').split('?')[0] as string);
     const extension = extname(path);
+    if (!existsSync(path)) {
+      response.statusCode = 404;
+      response.end();
+      return;
+    }
     response.setHeader('Content-Type', TYPES[extension] ?? 'application/octet-stream');
     response.setHeader('Cache-Control', 'no-store');
     if (COMPRESSED.has(extension)) {

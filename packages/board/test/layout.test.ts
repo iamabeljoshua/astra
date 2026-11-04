@@ -136,6 +136,19 @@ describe('placeMovingElements', () => {
     for (let step = 0; step <= 20; step += 1) expect(getProblems(placeMovingElements(boxes, LAPTOP, step / 20).placements, LAPTOP)).toEqual([]);
   });
 
+  it('never writes a board-filling element over the old ones leaving', () => {
+    const boxes = [{ to: a, from: a }, { to: c, from: c }, { to: line('huge', 200, 5000), from: null }];
+    const start = placeMovingElements(boxes, PHONE, 0);
+    expect(start.isMakingRoom).toBe(true);
+    for (let step = 0; step <= 20; step += 1) {
+      const { placements } = placeMovingElements(boxes, PHONE, step / 20);
+      const leavingBottom = Math.max(...placements.filter((placement) => placement.id !== 'huge' && placement.isVisible).map((placement) => placement.y + placement.height));
+      const huge = placements.find((placement) => placement.id === 'huge');
+      if (step < 20) expect(huge?.y).toBeGreaterThanOrEqual(leavingBottom);
+    }
+    expect(placeMovingElements(boxes, PHONE, 1).placements.find((placement) => placement.id === 'huge')?.y).toBe(PHONE.padding);
+  });
+
   it('brings a new element up with the rest when it makes room, so they never overlap on the way', () => {
     const lines = Array.from({ length: 6 }, (_, index) => line(`line-${index}`, 200, 60));
     const boxes = [...lines.map((box) => ({ to: box, from: box })), { to: line('new', 200, 60), from: null }];
