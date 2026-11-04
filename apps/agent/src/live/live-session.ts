@@ -1,6 +1,7 @@
+import { wantsSomethingElse } from '@astra/board/shared';
 import type { tts } from '@livekit/agents';
 import { randomUUID } from 'node:crypto';
-import { type AgentMessage, type Beat, type BeatId, type BrowserMessage, type PlayReport, type SessionEvent, type TurnId } from '@astra/contracts';
+import { type AgentMessage, type Beat, type BeatId, type BrowserMessage, type InkPoint, type PlayReport, type SessionEvent, type TurnId } from '@astra/contracts';
 import { createEchoFilter } from './echo-filter.ts';
 import { createLinkWatch, type LinkWatch } from './link-watch.ts';
 import { getTakeBeat, makeTakeVoice, type StoredTake, type TakePicker, type TakeUse } from './reactions.ts';
@@ -10,6 +11,11 @@ import { createSessionLog, isFurtherReport } from './session-log.ts';
 import { createTypedGate } from './typed-gate.ts';
 import { type SpokenTurn, speakTurn, type TurnMessenger } from './speak-turn.ts';
 import type { TutorBeat, TutorBrain, TutorRequest } from '../tutor/brain.ts';
+import { createBoardWork } from '../tutor/watcher/board-work.ts';
+import type { HeardTurn, RecordTurn } from './heard-recorder.ts';
+import type { SpokenReading } from '../tutor/watcher/read-spoken.ts';
+import type { SpokenExpected } from '../tutor/watcher/spoken-answer.ts';
+import type { WordMeaning } from '../tutor/watcher/watch-rule.ts';
 import { getNextTurnState, INITIAL_TURN_STATE, type TimerName, type TurnAction, type TurnEvent, type TurnState } from './turn-rule.ts';
 import { hasWords } from './turn-words.ts';
 import { getSteadyNowMs, type VoiceLine } from './voice-line.ts';
@@ -40,6 +46,11 @@ export interface LiveSessionOptions {
   quietLimitMs?: number;
   getNowMs?(): number;
   trace?: TraceNote;
+  readMeaning?(words: string): Promise<WordMeaning | null>;
+  readStrokes?(strokes: readonly (readonly InkPoint[])[]): Promise<{ text: string; ink: { tex?: string; isUnsure: boolean } } | null>;
+  readSpokenWords?(words: string, expects: SpokenExpected): Promise<SpokenReading>;
+  getCostSoFar?(): number;
+  recordTurn?: RecordTurn;
 }
 
 export interface LiveSession {
@@ -120,7 +131,28 @@ function toLoggedBeat(beat: TutorBeat): Beat {
 }
 
 // Wires what the student does to what the tutor says. The rule decides, this runs its actions, and the voice line keeps every turn apart.
-export function createLiveSession({ messenger, line, voice, tutor, takes, allTakes, setTurnCap, onQuietLimit = () => {}, quietLimitMs = QUIET_ROOM_LIMIT_MS, getNowMs = getSteadyNowMs, trace = () => {} }: LiveSessionOptions): LiveSession {
+async function* afterTypingStops(beats: AsyncGenerator<TutorBeat>, waitWhileTyping: () => Promise<void>): AsyncGenerator<TutorBeat> {
+  const first = await beats.next();
+  if (first.done) return;
+  await waitWhileTyping();
+  yield first.value;
+  yield* beats;
+}
+
+function recordingTo(heard: HeardTurn, messenger: TurnMessenger): TurnMessenger {
+  return {
+    send(message) {
+      heard.addMessage(message);
+      messenger.send(message);
+    },
+    sendOnBothChannels(message) {
+      heard.addMessage(message);
+      messenger.sendOnBothChannels(message);
+    },
+  };
+}
+
+export function createLiveSession({ messenger, line, voice, tutor, takes, allTakes, setTurnCap, onQuietLimit = () => {}, quietLimitMs = QUIET_ROOM_LIMIT_MS, getNowMs = getSteadyNowMs, trace = () => {} , readMeaning = async () => null, readStrokes = async () => null, readSpokenWords = async () => ({ kind: 'talk', costUsd: 0 }), getCostSoFar, recordTurn }: LiveSessionOptions): LiveSession {
   const startedAtMs = getNowMs();
   // A new job in the same room restarts this count, and a page ignores a turn it has seen, so each job's turns carry their own name.
   const jobTag = randomUUID().slice(0, 8);
@@ -145,7 +177,10 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
   let thought: Thought | null = null;
   let resumeTicket = 0;
   let hasGreeted = false;
+  let pageClockId: string | null = null;
   let voiceStall: ReturnType<typeof setTimeout> | undefined;
+  let questionHeardAtMs: number | null = null;
+  let spokenTicket = 0;
   let breathTimer: ReturnType<typeof setTimeout> | undefined;
   let stretchBeforeBreath: Speaking | null = null;
   let lastStretch: Speaking | null = null;
@@ -191,6 +226,21 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       return found && toLoggedBeat(found);
     },
     onRefused: (problem) => trace('reportRefused', { problem }),
+  });
+
+  const boardWork = createBoardWork({
+    tutor,
+    writeLog: (message, checked) => void log.writeWorked(message, checked),
+    speakUp: (words) => typedGate.offer(words),
+    isTutorTalking: () => reply !== null || reaction !== null,
+    getSecondsSinceQuestion: () => (questionHeardAtMs === null ? null : (getNowMs() - questionHeardAtMs) / 1000),
+    readMeaning,
+    readStrokes,
+    readSpokenWords,
+    writeHeardLog: (work, checked) => void log.writeHeard(work, checked),
+    send: (message) => messenger.send(message),
+    getNowMs,
+    trace,
   });
 
   const dispatch = (event: TurnEvent) => {
@@ -251,6 +301,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     const turnId = `turn-${jobTag}-${turnCount}` as TurnId;
     const ownThought = canResume ? thought : null;
     const speakingBeats: Beat[] = [];
+    const heard = recordTurn?.({ turnId, kind });
     beatsByTurn.set(turnId, speakingBeats);
     trace('turnStarted', { turnId, kind });
     const speaking: Speaking = {
@@ -266,13 +317,14 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       spoken: speakTurn({
         voice: voiceToUse,
         line,
-        messenger,
+        messenger: heard ? recordingTo(heard, messenger) : messenger,
         turnId,
         beats,
         getNowMs,
         // The voice cannot be late before it has words, so a slow model is never read as a failed voice.
         onBeatUnspoken: (beat) => void ownThought?.unspoken.unshift(beat),
         onBeatStarted(beat) {
+          heard?.addBeat(beat);
           speakingBeats.push(beat);
           if (isReply && speakingBeats.length === 1) setThinking(false);
           if (canResume && (speakingBeats.length === 1 || speaking.isDry)) watchVoice(speaking);
@@ -281,7 +333,8 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
           if (canResume) clearTimeout(voiceStall);
           trace('firstAudioRead', { turnId, kind, atMs });
         },
-        onFrameCaptured: ({ capturedAtMs }) => {
+        onFrameCaptured: ({ frame, capturedAtMs }) => {
+          heard?.addFrame(frame);
           if (speaking.hasSound) return;
           trace('firstFrameCaptured', { turnId, kind, atMs: capturedAtMs });
           onSpeechStarted(speaking);
@@ -301,6 +354,8 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     speakingByTurn.set(turnId, speaking);
     void speaking.spoken.finished.then(() => {
       trace('turnFinished', { turnId, kind });
+      heard?.finish(speaking.spoken.getWordMismatches());
+      if (getCostSoFar && isReply) messenger.send({ type: 'costSoFar', usd: getCostSoFar() });
       noteSomethingHappened();
       onSpeechFinished(speaking);
     });
@@ -329,6 +384,13 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     return speak({ voiceToUse, beats: [getTakeBeat(take, `${take.id}-${turnCount + 1}`)], isReply, canResume: false, kind: take.use });
   }
 
+  function speakPhrase(phrase: string): Speaking | null {
+    const take = allTakes.find((stored) => stored.phrase === phrase);
+    const voiceToUse = take && takeVoices.get(take.id);
+    if (!take || !voiceToUse) return null;
+    return speak({ voiceToUse, beats: [getTakeBeat(take, `${take.id}-${turnCount + 1}`)], isReply: false, canResume: false, kind: take.use });
+  }
+
   const sendClosedNote = () => {
     const reason = tutor.getClosedReason?.() ?? null;
     if (reason) messenger.send({ type: 'tutorClosed', reason });
@@ -340,7 +402,9 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     if (sendClosedNote()) return;
     messenger.send({ type: 'heard' });
     // A session opened by a typed question has not yet said it is an AI, so its first reaction is the greeting (PRD S2).
-    if (!reaction) reaction = speakTake([hasGreeted ? 'reaction' : 'greeting'], { isReply: false });
+    const nod = boardWork.takeNod();
+    if (!reaction && nod) reaction = speakPhrase(nod);
+    else if (!reaction && boardWork.canSayStockWord()) reaction = speakTake([hasGreeted ? 'reaction' : 'greeting'], { isReply: false });
     hasGreeted = true;
   };
 
@@ -358,7 +422,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     }
     const continuesHeardReply = stretchBeforeBreath ? stretchBeforeBreath.hasSound || stretchBeforeBreath.continuesHeardReply : false;
     stretchBeforeBreath = null;
-    reply = speak({ voiceToUse: voice, beats: readThought(waiting), isReply: true, canResume: true, kind: 'reply', continuesHeardReply });
+    reply = speak({ voiceToUse: voice, beats: afterTypingStops(readThought(waiting), boardWork.waitWhileTyping), isReply: true, canResume: true, kind: 'reply', continuesHeardReply });
   }
 
   // Aborting alone leaves a brain parked at its yield, and its turn would never finish, reach history, or be charged.
@@ -377,7 +441,21 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     if (speaking) tutor.noteCut?.(speaking.spoken.getWordsSent());
   };
 
+  const answerSpokenWords = async (request: TutorRequest) => {
+    const ticket = (spokenTicket += 1);
+    setThinking(true);
+    const wantsReply = await boardWork.onSpoken(request.text.slice(request.carried?.length ?? 0).trim());
+    if (ticket !== spokenTicket) return;
+    const nod = boardWork.takeNod();
+    if (nod && !reaction) reaction = speakPhrase(nod);
+    if (wantsReply) return startReply(request);
+    setThinking(false);
+    dispatch({ type: 'workLanded' });
+  };
+
   const startReply = (request: TutorRequest) => {
+    spokenTicket += 1;
+    boardWork.noteAnswered();
     resumeTicket += 1;
     noteCutForBrain(reply && !reply.isOver ? reply : cut);
     reply?.spoken.stop();
@@ -388,10 +466,11 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     const started: Thought = { controller, iterator: tutor.reply(request, controller.signal)[Symbol.asyncIterator](), unspoken: [], reading: null, latestReader: 0 };
     thought = started;
     setThinking(true);
-    reply = speak({ voiceToUse: voice, beats: readThought(started), isReply: true, canResume: true, kind: 'reply' });
+    reply = speak({ voiceToUse: voice, beats: afterTypingStops(readThought(started), boardWork.waitWhileTyping), isReply: true, canResume: true, kind: 'reply' });
   };
 
   const stopSpeech = (action: TurnAction & { do: 'stop' }) => {
+    spokenTicket += 1;
     trace('stopDecided', { reason: action.reason, turnId: getAudibleTurn() });
     clearTimeout(voiceStall);
     resumeTicket += 1;
@@ -469,6 +548,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
         return react();
       case 'reply':
         trace('replyDecided', { via: action.via, words: action.text.split(/\s+/).length, text: action.text });
+        if ((action.via === 'final' || action.via === 'partial') && (boardWork.hasOpenTask() || wantsSomethingElse(action.text))) return void answerSpokenWords({ text: action.text, carried: action.carried });
         return startReply({ text: action.text, carried: action.carried });
       case 'startTimer':
         return startNamedTimer(action.name, action.ms);
@@ -555,7 +635,23 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       log.write(message);
       if (message.type === 'acted') noteSomethingHappened();
       if (message.type === 'markNotDrawn') tutor.noteMarkNotDrawn?.(message.markId);
-      if (message.type === 'questionHeard') dispatch({ type: 'questionHeard' });
+      if (message.type === 'questionHeard') {
+        questionHeardAtMs = getNowMs();
+        dispatch({ type: 'questionHeard' });
+      }
+      if (message.type === 'stopTutor') stopSpeech({ do: 'stop', reason: 'typed', keepsThought: false });
+      if (message.type === 'acted' && message.action.action === 'inkStroke') boardWork.onInkStroke(message.action);
+      if (message.type === 'inkPeek') boardWork.onInkPeek(message);
+      if (message.type === 'typing') boardWork.noteTyping();
+      if (message.type === 'inkDone') void boardWork.onInkDone(message);
+      if (message.type === 'worked') boardWork.onWorked(message);
+      const isStudentQuiet = !state.isVoiceOn;
+      if (message.type === 'paused' && isStudentQuiet) void boardWork.onPaused(message);
+      if (message.type === 'hello') {
+        // Each page load has its own clock, so a new one on a running session is a reload, and the board came back with it.
+        if (pageClockId !== null && pageClockId !== message.clockId) tutor.noteCameBack?.();
+        pageClockId = message.clockId;
+      }
       if (message.type === 'hello' && message.wantsGreeting) greet();
       if (message.type === 'audioState') onAudioState(message.isRunning);
     },

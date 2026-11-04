@@ -194,15 +194,17 @@ export const HOME_LABELS = {
   stillStarting: 'Still starting your session. This can take a moment.',
 };
 
+export const ATTACH_LABELS = {
+  attach: 'Photo or PDF',
+  comingSoon: 'Photos and PDFs are coming soon.',
+};
+
 export const CHAT_BOX_LABELS = {
   label: 'What do you want to learn next',
   placeholder: 'Ask anything. A topic, a question, a problem.',
   placeholderWhileTalkIsOn: 'Talking opens soon. Type for now.',
-  attach: 'Photo or PDF',
   talk: 'Talk',
   send: 'Start session',
-  removeAttachment: (fileName: string) => `Remove ${fileName}`,
-  removeAttachmentMark: '\u00D7',
 };
 
 export const REPLY_BOX_LABELS = {
@@ -217,7 +219,7 @@ const IF_WORRIED = 'If anything is worrying you, or you do not feel safe, please
 export const VOICE_LABELS = {
   you: 'You',
   board: 'Board',
-  connecting: 'Connecting to your tutor.',
+  connecting: 'Connecting your tutor',
   unavailable: `Your tutor could not connect just now. ${IF_WORRIED}`,
   reconnecting: 'Your connection dropped. Reconnecting.',
   ended: 'Your connection to the tutor ended.',
@@ -242,6 +244,35 @@ export const VOICE_LABELS = {
     const minutes = Math.max(1, Math.ceil((waitSeconds ?? 60) / 60));
     return `Your tutor has been started many times, so a new one can start in about ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}. Your session is still here.`;
   },
+};
+
+export const BOARD_WORK_LABELS = {
+  movePoint: 'Move the point along the curve',
+  entry: 'Write on the board',
+  pen: 'Pen',
+  done: 'Done',
+  band: 'Write here with your finger, a pen, or the mouse',
+  reading: 'Reading your writing',
+  notWhatYouWrote: 'Not what you wrote? Type it.',
+  talk: 'Talk',
+  type: 'Type',
+  visualLookAgain: 'Look at the picture again',
+  visualPutBack: 'Put the picture back in the corner. Your work is still there.',
+  mathKeys: 'Math keys',
+  hint: 'Type, write, or talk, words or math. Esc stops the tutor.',
+  tutorState: { ready: 'Ready', talking: 'Talking', reading: 'Reading your work', waiting: 'Waiting for you', watching: 'Watching', stopped: 'Stopped' },
+  placeholder: 'Type or say it. Words or math.',
+  readAs: 'Read as',
+  kinds: { math: 'math', words: 'words', mixed: 'words and math', code: 'code' },
+  youTyped: 'You typed',
+  youSaid: 'You said',
+  notWhatYouSaid: 'Not what you said? Type it.',
+  checked: 'Code checked this. It holds.',
+  items: 'To place',
+  emptySlot: 'Empty',
+  clearSlot: (item: string, slot: string) => `Take ${item} out of ${slot}`,
+  placeInSlot: (slot: string) => `Place in ${slot}`,
+  pickPart: (part: string) => `Pick ${part}`,
 };
 
 export const VOICE_TEST_LABELS = {
@@ -290,6 +321,7 @@ export const SESSION_LABELS = {
   close: 'Close',
   yourTutor: 'Your tutor',
   replyNotSent: 'This did not reach your tutor.',
+  replyWaiting: 'Your tutor will read this as soon as it connects.',
   finishedWords: 'This session has finished.',
   boardStandIn: 'Your tutor will draw here as it speaks.',
   askAboutTopic: (title: string) => `I'd like to learn about ${title}.`,
@@ -414,6 +446,7 @@ export const LAB_LABELS = {
 
 export const BOARD_LABELS = {
   figures: {
+    slope: 'slope',
     metres: 'm',
     degrees: '\u00b0',
     readouts: {
@@ -528,14 +561,17 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
           ...inTestLessons("A recording of what the tutor says in a test lesson is saved on our server too, as audio with the words and their timing. For a suggested lesson it can be played to other students. For a question you typed it is saved in a folder named with your account ID, it is played only in your own lessons, and we remove it with your other saved lesson data. Your own voice is never recorded, because test lessons do not use your microphone."),
           ...inTestLessons('A record of what each test lesson cost, saved on our server with your account ID: which AI model was used, what it cost, how many characters of voice were made, and when. It holds none of your words.'),
           'We also use the sessions you start from suggested lessons, and their length, status, and start time, to choose what your home screen suggests next. A question you leave open can take the continue card, so a lesson you left open can then appear among the suggestions. Only your own sessions do this, and the words of the questions you type play no part in it.',
-          'Any file you attach stays in your browser. It is not sent or stored.',
+          'You cannot add a photo or PDF yet. If you try, the file stays on your device, and neither it nor its name is sent or stored.',
           'Your microphone stays off until you press Talk in a session, and your browser asks first. While it is on, your voice goes live to the services named under Who receives your data. We do not store your voice or any recording of it.',
           "The words you say or type in a session, and a question you type on Home to start one, go to our tutor service, which holds them in memory while the session runs and drops them when it ends. It passes them to Anthropic, as Who receives your data says. Apart from a question from Home, which stays as its session's title, we do not store them yet.",
+          "So do the lines you type on the board, what you pick, place, or drag there, and what our code made of each one. We do not store them yet either.",
+          "A line you have typed on the board and not sent stays in your browser until you pause for a few seconds. Then it can go to our tutor service and to Anthropic, so the tutor can tell whether you need help. We do not store it.",
+          "If you write with the pen, your strokes go to our tutor service, which holds them in memory while the session runs. It makes a picture of what you wrote and sends that picture to Anthropic to read it. We do not store the strokes or the picture yet.",
           'Words you type into the search box on the Sessions page go to our server, which uses them to find your sessions. We do not store them.',
           'A running total of what the tutor cost for you each day, with no words in it. We use it to stop tutor time for the day at a limit.',
         ],
         planned: [
-          "Each lesson's transcript and board drawings, kept while the account is active. Your voice itself stays unstored.",
+          "Each lesson's transcript and board drawings, with what you typed, wrote, picked, placed, or dragged on the board, kept while the account is active. Your voice itself stays unstored.",
         ],
       },
       {
@@ -573,7 +609,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
             : 'Supabase runs our sign-in service and our database, so it holds everything we store on our servers, and it sends the sign-in email.',
           'When a session opens, your browser joins LiveKit Cloud, even before you press Talk, so LiveKit receives your IP address and your student ID, a random code that does not include your name. During the session, LiveKit Cloud carries your voice, the tutor\'s voice, and the messages between your browser and the tutor, including your words as text. We do not ask it to record any of this. We do not send LiveKit your name, your date of birth, your email address, your level, your interests, or your goal, though it carries anything you say or type yourself.',
           "While your microphone is on, Meta's Muse Voice Transcribe receives your voice and turns it into text. Meta's terms let it keep what it receives for safety checks and human review.",
-          "Anthropic, whose Claude model writes the tutor's replies, receives what you say and type in a session, a question you type on Home to start one, the tutor's earlier words, and your level, interests, and goal. We do not send it your name, your date of birth, your email address, or an account ID, though it receives anything you say or type yourself. Anthropic's terms say it does not train on this by default, and that it keeps it for a limited time.",
+          "Anthropic, whose Claude model writes the tutor's replies, receives what you say and type in a session, including lines on the board, a line you paused on without sending, a picture of anything you write with the pen, and a question you type on Home to start one, the tutor's earlier words, and your level, interests, and goal. We do not send it your name, your date of birth, your email address, or an account ID, though it receives anything you say or type yourself. Anthropic's terms say it does not train on this by default, and that it keeps it for a limited time.",
           "ElevenLabs receives the tutor's words and turns them into its voice. Those words can repeat what you said or typed.",
           ...inTestLessons("While spoken lessons are in testing, a test lesson sends Anthropic's Claude models the title of the suggested lesson, or the whole question you typed, whatever it says, which they use to choose and write a drawing and the tutor's words. A model then writes the drawing from a short topic it takes from your question, and it can get that wrong, so a personal detail in your question can reach those models and the words a tutor says to you. ElevenLabs receives the tutor's words and turns them into its voice, and the audio travels through a LiveKit server. Please leave your name, school, and other personal details out of your questions."),
           'No other outside service receives student data today. The app serves its own fonts and pictures.',

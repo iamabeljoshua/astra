@@ -1,0 +1,24 @@
+[
+ {"name":"new-topic-typed-mid-task","checks":["noNewSession","notCalledWrong"],"turns":[
+   {"text":"Help me solve 2x + 3 = 11. I want to do it myself on the board, line by line.","check":"setsTask"},
+   {"work":{"way":"write","id":"s1","text":"teach me physics of the impossible"},"check":"goesToTeach"},
+   {"work":{"way":"write","id":"s2","text":"ok give me a problem on that"},"check":"setsTask"},
+   {"text":"can we go back to the old problem, 2x + 3 = 11?","check":"setsTask"},
+   {"work":{"way":"write","id":"s3","text":"2x = 8"},"silent":true},
+   {"work":{"way":"write","id":"s4","text":"x = 4"},"check":"speaks"}]},
+ {"name":"new-topic-with-no-telling-words","checks":["noNewSession"],"turns":[
+   {"text":"Help me solve 5x - 2 = 13. I want to do it myself on the board, line by line.","check":"setsTask"},
+   {"text":"never mind this, what about black holes?","check":"goesToTeach"},
+   {"text":"how does that relate to the equation I was doing earlier?","check":"speaks"}]},
+ {"name":"teaching-into-a-problem-and-out","checks":["noNewSession"],"turns":[
+   {"text":"Teach me what a derivative is in one sentence.","check":"speaks"},
+   {"text":"ok give me a problem","check":"setsTask"},
+   {"work":{"way":"write","id":"s1","text":"actually teach me about black holes"},"check":"goesToTeach"},
+   {"text":"what was that derivative thing again, in one sentence?","check":"speaks"}]},
+ {"name":"left-the-task-aloud","checks":["noNewSession"],"turns":[
+   {"text":"Help me solve 3x = 12. I want to do it myself on the board, line by line.","check":"setsTask"},
+   {"work":{"way":"leave"},"check":"followsAway"}]},
+ {"name":"lets-stop-this","checks":["noNewSession"],"turns":[
+   {"text":"Help me solve 3x = 12. I want to do it myself on the board, line by line.","check":"setsTask"},
+   {"work":{"way":"write","id":"s1","text":"let's stop this"},"check":"followsAway"}]}
+]

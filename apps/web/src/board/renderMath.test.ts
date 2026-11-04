@@ -212,6 +212,9 @@ describe('which ink belongs to which term', () => {
     [raw`\liminf\nolimits_n x`, raw`\liminf`, ['inf', 'lim']],
     [raw`\begin{pmatrix} 2 & 1 \\ 1 & 3 \end{pmatrix} = A`, raw`\begin{pmatrix} 2 & 1 \\ 1 & 3 \end{pmatrix}`, ['(', ')', '1', '1', '2', '3']],
     [raw`A = \begin{cases} x & y \end{cases}`, raw`\begin{cases} x & y \end{cases}`, ['x', 'y', '{']],
+    ['2x+3=11', '+3', ['+', '3']],
+    ['x-3=5', '-3', ['−', '3']],
+    ['-2x+6=10', '-2x', ['−', '2', 'x']],
   ])('finds in %s the ink of %s', (tex, query, glyphs) => {
     const paints = collectMathPaints(render(tex));
     const [span] = findMathSpans(tex, query);

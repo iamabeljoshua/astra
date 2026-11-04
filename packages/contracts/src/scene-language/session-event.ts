@@ -1,6 +1,7 @@
 import type { Beat, FrozenFrame } from './beat.ts';
 import type { ElementId, FileId, TurnId } from './ids.ts';
 import type { SimulationParameter } from './scene-command.ts';
+import type { LineReading, StudentWork, WorkVerdict } from './work.ts';
 
 export const SPEECH_SOURCES = ['voice', 'typed'] as const;
 export type SpeechSource = (typeof SPEECH_SOURCES)[number];
@@ -18,7 +19,7 @@ export interface SliderSample {
   value: number;
 }
 
-/** x and y are fractions of the board panel from its top left, each 0 to 1. `afterMs` counts from the event's `atMs`. */
+/** x and y are fractions of the writing band's width from its top left, each 0 to 1, so writing keeps its shape at any width. `afterMs` counts from the event's `atMs`. */
 export type InkPoint = [x: number, y: number, afterMs: number];
 
 export type StudentAction =
@@ -27,7 +28,18 @@ export type StudentAction =
   /** A long stroke is sent as several actions with the same id. */
   | { action: 'inkStroke'; id: ElementId; points: InkPoint[] }
   | { action: 'inkErased'; target: ElementId }
-  | { action: 'fileShared'; fileId: FileId; name: string };
+  | { action: 'fileShared'; fileId: FileId; name: string }
+  /** Work on the shared board, with what code made of it, so a replay shows what the student saw whatever later code would say. */
+  | { action: 'worked'; work: StudentWork; reading?: LineReading; verdict: WorkVerdict; closesTask?: ElementId };
+
+/** Where one `overWords` cue was aimed. All times are in ms after the beat's `atMs`. */
+export interface CueAim {
+  /** The fired cue, counting from 0 in script order. */
+  cue: number;
+  /** When the browser chose this aim. */
+  afterMs: number;
+  landsAtMs: number;
+}
 
 /** Where one `overWords` cue was aimed. All times are in ms after the beat's `atMs`. */
 export interface CueAim {

@@ -1,0 +1,514 @@
+[
+ {
+  "problem": "2x + 3 = 11",
+  "said": "two x equals fourteen",
+  "line": "2x = 14",
+  "truth": "wrong",
+  "voice": "Samantha",
+  "final": "two x equals 14"
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "x equals seven",
+  "line": "x = 7",
+  "truth": "wrong",
+  "voice": "Samantha",
+  "final": "X equals 7  7"
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "x equals eight",
+  "line": "x = 8",
+  "truth": "wrong",
+  "voice": "Samantha",
+  "final": "X equals 8"
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "two x plus three equals eight",
+  "line": "2x + 3 = 8",
+  "truth": "wrong",
+  "voice": "Samantha",
+  "final": "2x plus 3 equals 8"
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "two x equals eleven",
+  "line": "2x = 11",
+  "truth": "wrong",
+  "voice": "Samantha",
+  "final": "2x equals 11."
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "x equals five",
+  "line": "x = 5",
+  "truth": "wrong",
+  "voice": "Samantha",
+  "final": "X equals 5"
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "two x equals nine",
+  "line": "2x = 9",
+  "truth": "wrong",
+  "voice": "Samantha",
+  "final": "2x equals 9."
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "x equals three",
+  "line": "x = 3",
+  "truth": "wrong",
+  "voice": "Samantha",
+  "final": "X equals three."
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "x equals forty four",
+  "line": "x = 44",
+  "truth": "wrong",
+  "voice": "Samantha",
+  "final": "X equals 44"
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "four x equals eight",
+  "line": "4x = 8",
+  "truth": "wrong",
+  "voice": "Samantha",
+  "final": "4x equals 8."
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "two x equals eighteen",
+  "line": "2x = 18",
+  "truth": "wrong",
+  "voice": "Samantha",
+  "final": "2x equals 18."
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "x equals nine",
+  "line": "x = 9",
+  "truth": "wrong",
+  "voice": "Samantha",
+  "final": "X equals 9"
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "two x equals eighty",
+  "line": "2x = 80",
+  "truth": "wrong",
+  "voice": "Samantha",
+  "final": "2x equals 80"
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "x equals fourteen",
+  "line": "x = 14",
+  "truth": "wrong",
+  "voice": "Samantha",
+  "final": "X equals 14."
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "x equals forty",
+  "line": "x = 40",
+  "truth": "wrong",
+  "voice": "Samantha",
+  "final": "X equals 40"
+ },
+ {
+  "problem": "-2x + 6 = 10",
+  "said": "negative two x equals sixteen",
+  "line": "-2x = 16",
+  "truth": "wrong",
+  "voice": "Samantha",
+  "final": "Negative 2x equals 16"
+ },
+ {
+  "problem": "-2x + 6 = 10",
+  "said": "x equals two",
+  "line": "x = 2",
+  "truth": "wrong",
+  "voice": "Samantha",
+  "final": "X equals 2"
+ },
+ {
+  "problem": "-2x + 6 = 10",
+  "said": "negative two x equals fourteen",
+  "line": "-2x = 14",
+  "truth": "wrong",
+  "voice": "Samantha",
+  "final": "Negative 2x equals 14"
+ },
+ {
+  "problem": "-2x + 6 = 10",
+  "said": "x equals negative eight",
+  "line": "x = -8",
+  "truth": "wrong",
+  "voice": "Samantha",
+  "final": "X equals negative eight."
+ },
+ {
+  "problem": "-2x + 6 = 10",
+  "said": "x equals eight",
+  "line": "x = 8",
+  "truth": "wrong",
+  "voice": "Samantha",
+  "final": "X equals 8"
+ },
+ {
+  "problem": "-2x + 6 = 10",
+  "said": "two x equals four",
+  "line": "2x = 4",
+  "truth": "wrong",
+  "voice": "Samantha",
+  "final": "2x equals 4."
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "two x equals eight",
+  "line": "2x = 8",
+  "truth": "right",
+  "voice": "Samantha",
+  "final": "2x equals 8"
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "x equals four",
+  "line": "x = 4",
+  "truth": "right",
+  "voice": "Samantha",
+  "final": "X E equals four."
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "eleven equals two x plus three",
+  "line": "11 = 2x + 3",
+  "truth": "right",
+  "voice": "Samantha",
+  "final": "eleven equals two x plus three"
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "x is four",
+  "line": "x = 4",
+  "truth": "right",
+  "voice": "Samantha",
+  "final": "X is 4."
+ },
+ {
+  "problem": "-2x + 6 = 10",
+  "said": "negative two x equals four",
+  "line": "-2x = 4",
+  "truth": "right",
+  "voice": "Samantha",
+  "final": "Negative 2x equals 4."
+ },
+ {
+  "problem": "-2x + 6 = 10",
+  "said": "x equals negative two",
+  "line": "x = -2",
+  "truth": "right",
+  "voice": "Samantha",
+  "final": "X equals negative 2"
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "wait, why that step?",
+  "line": null,
+  "truth": "talk",
+  "voice": "Samantha",
+  "final": "wait why that step?"
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "can you say that again?",
+  "line": null,
+  "truth": "talk",
+  "voice": "Samantha",
+  "final": "Can you say that again?"
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "I am not sure what to do next",
+  "line": null,
+  "truth": "talk",
+  "voice": "Samantha",
+  "final": "I am not sure what to do next."
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "hold on a second",
+  "line": null,
+  "truth": "talk",
+  "voice": "Samantha",
+  "final": "hold on a second"
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "what does the three do?",
+  "line": null,
+  "truth": "talk",
+  "voice": "Samantha",
+  "final": "What does the three do?"
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "two x equals fourteen",
+  "line": "2x = 14",
+  "truth": "wrong",
+  "voice": "Daniel",
+  "final": "2x equals 14"
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "x equals seven",
+  "line": "x = 7",
+  "truth": "wrong",
+  "voice": "Daniel",
+  "final": "X equals 7"
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "x equals eight",
+  "line": "x = 8",
+  "truth": "wrong",
+  "voice": "Daniel",
+  "final": "X equals 8"
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "two x plus three equals eight",
+  "line": "2x + 3 = 8",
+  "truth": "wrong",
+  "voice": "Daniel",
+  "final": "2x plus 3 equals 8"
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "two x equals eleven",
+  "line": "2x = 11",
+  "truth": "wrong",
+  "voice": "Daniel",
+  "final": "2x equals 11."
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "x equals five",
+  "line": "x = 5",
+  "truth": "wrong",
+  "voice": "Daniel",
+  "final": "x equals five."
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "two x equals nine",
+  "line": "2x = 9",
+  "truth": "wrong",
+  "voice": "Daniel",
+  "final": "2x equals 9."
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "x equals three",
+  "line": "x = 3",
+  "truth": "wrong",
+  "voice": "Daniel",
+  "final": "x equals three."
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "x equals forty four",
+  "line": "x = 44",
+  "truth": "wrong",
+  "voice": "Daniel",
+  "final": "X equals 44"
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "four x equals eight",
+  "line": "4x = 8",
+  "truth": "wrong",
+  "voice": "Daniel",
+  "final": "4x equals 8"
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "two x equals eighteen",
+  "line": "2x = 18",
+  "truth": "wrong",
+  "voice": "Daniel",
+  "final": "2x equals 18"
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "x equals nine",
+  "line": "x = 9",
+  "truth": "wrong",
+  "voice": "Daniel",
+  "final": "X equals nine."
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "two x equals eighty",
+  "line": "2x = 80",
+  "truth": "wrong",
+  "voice": "Daniel",
+  "final": "2x equals 80"
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "x equals fourteen",
+  "line": "x = 14",
+  "truth": "wrong",
+  "voice": "Daniel",
+  "final": "X equals 14."
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "x equals forty",
+  "line": "x = 40",
+  "truth": "wrong",
+  "voice": "Daniel",
+  "final": "X equals 40"
+ },
+ {
+  "problem": "-2x + 6 = 10",
+  "said": "negative two x equals sixteen",
+  "line": "-2x = 16",
+  "truth": "wrong",
+  "voice": "Daniel",
+  "final": "negative 2x equals 16"
+ },
+ {
+  "problem": "-2x + 6 = 10",
+  "said": "x equals two",
+  "line": "x = 2",
+  "truth": "wrong",
+  "voice": "Daniel",
+  "final": "x equals 2."
+ },
+ {
+  "problem": "-2x + 6 = 10",
+  "said": "negative two x equals fourteen",
+  "line": "-2x = 14",
+  "truth": "wrong",
+  "voice": "Daniel",
+  "final": "negative two x equals 14"
+ },
+ {
+  "problem": "-2x + 6 = 10",
+  "said": "x equals negative eight",
+  "line": "x = -8",
+  "truth": "wrong",
+  "voice": "Daniel",
+  "final": "X equals negative 8"
+ },
+ {
+  "problem": "-2x + 6 = 10",
+  "said": "x equals eight",
+  "line": "x = 8",
+  "truth": "wrong",
+  "voice": "Daniel",
+  "final": "X equals 8"
+ },
+ {
+  "problem": "-2x + 6 = 10",
+  "said": "two x equals four",
+  "line": "2x = 4",
+  "truth": "wrong",
+  "voice": "Daniel",
+  "final": "2x equals 4."
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "two x equals eight",
+  "line": "2x = 8",
+  "truth": "right",
+  "voice": "Daniel",
+  "final": "2x equals 8."
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "x equals four",
+  "line": "x = 4",
+  "truth": "right",
+  "voice": "Daniel",
+  "final": "x equals four."
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "eleven equals two x plus three",
+  "line": "11 = 2x + 3",
+  "truth": "right",
+  "voice": "Daniel",
+  "final": "eleven equals two x plus three."
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "x is four",
+  "line": "x = 4",
+  "truth": "right",
+  "voice": "Daniel",
+  "final": "X is 4."
+ },
+ {
+  "problem": "-2x + 6 = 10",
+  "said": "negative two x equals four",
+  "line": "-2x = 4",
+  "truth": "right",
+  "voice": "Daniel",
+  "final": "negative 2x equals 4"
+ },
+ {
+  "problem": "-2x + 6 = 10",
+  "said": "x equals negative two",
+  "line": "x = -2",
+  "truth": "right",
+  "voice": "Daniel",
+  "final": "x equals negative two."
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "wait, why that step?",
+  "line": null,
+  "truth": "talk",
+  "voice": "Daniel",
+  "final": "Wait, why that step?"
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "can you say that again?",
+  "line": null,
+  "truth": "talk",
+  "voice": "Daniel",
+  "final": "Can you say that again?"
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "I am not sure what to do next",
+  "line": null,
+  "truth": "talk",
+  "voice": "Daniel",
+  "final": "I am not sure what to do next"
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "hold on a second",
+  "line": null,
+  "truth": "talk",
+  "voice": "Daniel",
+  "final": "Hold on a second."
+ },
+ {
+  "problem": "2x + 3 = 11",
+  "said": "what does the three do?",
+  "line": null,
+  "truth": "talk",
+  "voice": "Daniel",
+  "final": "What does the three do?"
+ }
+]

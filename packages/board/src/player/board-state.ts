@@ -1,6 +1,7 @@
-import { type ElementId, type ElementRef, type FrozenFrame, getOverlappingSlider, type InkPoint, type SceneCommand, type SimulationPoint, type Slider } from '@astra/contracts';
+import { type BoardModeName, type ElementId, type ElementRef, type FrozenFrame, getOverlappingSlider, type InkPoint, type SceneCommand, type SimulationPoint, type Slider } from '@astra/contracts';
 import { type MathLine, startMathLine, transformMathLine } from '../math/math-line.ts';
 import { getChangesInPairOf } from '../motion/projectile-scene.ts';
+import { applyWorked, closeOpenTasks, moveTaskPoint, startProgress, type StudentLineContent, type TaskProgress } from '../shared/student-work.ts';
 import type { BoardOperation } from './board-operations.ts';
 import { getMotionEndMs, getMotionValue, holdMotion, isMoving, type Motion, moveOver, retimeMotion } from './motion.ts';
 import { PLANNED_SCENES } from './planned-scenes.ts';
@@ -8,6 +9,7 @@ import type { Scene, SceneCatalog, SceneParameters } from './scene.ts';
 
 const ENTRANCE_MS = 400;
 const REARRANGE_MS = 800;
+const MARK_DRAWS_MS = 340;
 const RESHAPE_MS = 600;
 const CURVE_DRAWING_MS = 900;
 const HANDOVER_MS = 120;
@@ -16,6 +18,8 @@ const LONGEST_WRITING_MS = 1600;
 const MS_PER_SECOND = 1000;
 
 type PlacingCommand = Extract<SceneCommand, { id: ElementId }>;
+
+const BRINGS_THE_BOARD: ReadonlySet<SceneCommand['kind']> = new Set(['writeMath', 'text', 'plot', 'numberLine', 'geometry', 'simulate', 'drawing', 'diagram', 'table', 'timeline', 'code', 'image', 'task']);
 
 export interface InkContent {
   kind: 'ink';
@@ -35,7 +39,7 @@ export interface BoardElement {
   id: ElementId;
   /** When this use of the id began. A freeze leaves it alone, and the same id placed again gets a new one. */
   placedAtMs: number;
-  content: PlacingCommand | InkContent;
+  content: PlacingCommand | InkContent | StudentLineContent;
   /** From 0 to 1, how much of its entrance or its latest rearrangement has drawn. */
   entrance: Motion;
   placedScene: PlacedScene | null;
@@ -45,11 +49,19 @@ export interface BoardElement {
   morphFrom: MathLine | null;
   ghostScene: Scene | null;
   targetSecondsWhenPlaced: number | null;
+  progress?: TaskProgress;
+  isStudentMark?: boolean;
+}
+
+export interface BoardStage {
+  mode: BoardModeName;
+  sinceMs: number;
 }
 
 export interface BoardState {
   readonly elements: ReadonlyMap<ElementId, BoardElement>;
   readonly focus: ElementRef | null;
+  readonly stage: BoardStage | null;
   /** Sliders refused because they set a speed in the other pair from a live slider on the same flight. */
   readonly refusedSliders: readonly Slider[];
 }
@@ -62,6 +74,7 @@ interface PendingMove {
 interface BoardDraft {
   elements: Map<ElementId, BoardElement>;
   focus: ElementRef | null;
+  stage: BoardStage | null;
   isFrozen: boolean;
   pendingMoves: Map<ElementId, PendingMove>;
   refusedSliders: Slider[];
@@ -134,7 +147,7 @@ function runScene(element: BoardElement, command: SceneCommand & { kind: 'runSim
 
 function setSceneParameter(element: BoardElement, { parameter, value, atMs, keepsMoving, catalog }: { parameter: string; value: number; atMs: number; keepsMoving: boolean; catalog: SceneCatalog }): void {
   const placed = element.placedScene;
-  if (!placed || element.content.kind === 'ink') return;
+  if (!placed || element.content.kind === 'ink' || element.content.kind === 'studentLine') return;
   // Keep speed changes in one pair, so an older change cannot replay against this one and move a number nobody touched.
   const parameterChanges = { ...getChangesInPairOf(parameter, placed.parameterChanges, placed.scene.values), [parameter]: value };
   const scene = catalog(element.content, parameterChanges) ?? placed.scene;
@@ -162,6 +175,7 @@ function reshapeCurve(element: BoardElement, { constant, value, atMs, overMs, ca
 }
 
 function getWritingMs(command: PlacingCommand): number {
+  if (command.kind === 'highlight' || command.kind === 'annotate') return MARK_DRAWS_MS;
   if (command.kind === 'plot') return CURVE_DRAWING_MS;
   const written = command.kind === 'writeMath' ? command.tex.length : command.kind === 'text' && command.handwritten ? command.text.length : 0;
   return Math.min(LONGEST_WRITING_MS, Math.max(ENTRANCE_MS, written * WRITING_MS_PER_CHARACTER));
@@ -185,6 +199,8 @@ const isSameCommand = (first: BoardElement['content'], second: PlacingCommand) =
 
 function place(board: BoardDraft, command: PlacingCommand, { atMs, overMs, catalog }: { atMs: number; overMs: number | null; catalog: SceneCatalog }): void {
   const scene = catalog(command, {});
+  if (command.kind === 'task') closeOpenTasks(board.elements);
+  if (BRINGS_THE_BOARD.has(command.kind) && board.stage?.mode !== 'handsOn') board.stage = { mode: 'handsOn', sinceMs: atMs };
   board.pendingMoves.delete(command.id);
   const placedBefore = board.elements.get(command.id);
   if (placedBefore && !isSameCommand(placedBefore.content, command)) removeAttached(board, command.id);
@@ -197,6 +213,7 @@ function place(board: BoardDraft, command: PlacingCommand, { atMs, overMs, catal
     revealedUpTo: 'startsEmpty' in command && command.startsEmpty ? holdMotion(getRevealStart(command), atMs) : null,
     math: command.kind === 'writeMath' ? startMathLine(command.tex) : null,
     morphFrom: null,
+    ...(command.kind === 'task' ? { progress: startProgress(command) } : {}),
     ghostScene: getGhostScene(board, command),
     targetSecondsWhenPlaced: getTargetSecondsNow(board, command, atMs),
   });
@@ -233,7 +250,7 @@ function startPendingMoves(board: BoardDraft, upToMs: number): void {
 
 function getAttachedTarget(content: BoardElement['content']): string | null {
   if ('target' in content) return content.target.split('.')[0] as string;
-  if ('on' in content) return content.on.split('.')[0] as string;
+  if ('on' in content && content.on !== undefined) return content.on.split('.')[0] as string;
   return 'over' in content && content.over !== undefined && content.kind === 'plot' ? content.over : null;
 }
 
@@ -270,6 +287,10 @@ function applyCommand(board: BoardDraft, command: SceneCommand, { atMs, overMs, 
       return;
     case 'focus':
       board.focus = command.target;
+      return;
+    case 'boardMode':
+      if (board.stage?.mode !== command.mode) board.stage = { mode: command.mode, sinceMs: atMs };
+      if (command.mode === 'teach') closeOpenTasks(board.elements);
       return;
     case 'transformMath': {
       const element = board.elements.get(command.target);
@@ -358,10 +379,18 @@ function applyOperation(board: BoardDraft, operation: BoardOperation, { operatio
     case 'inkErased':
       if (board.elements.get(operation.target)?.content.kind === 'ink') board.elements.delete(operation.target);
       return;
+    case 'worked':
+      board.stage ??= { mode: 'handsOn', sinceMs: atMs };
+      applyWorked(board.elements, operation.action, atMs);
+      return;
+    case 'pointMoved':
+      moveTaskPoint(board.elements, operation.task, operation.x);
+      return;
     case 'rewound': {
       const before = reduce(operations.filter((other) => other.atMs < operation.toMs), { operations, catalog }, operation.toMs);
       board.elements = before.elements;
       board.focus = before.focus;
+      board.stage = before.stage;
       board.pendingMoves = before.pendingMoves;
       board.refusedSliders = before.refusedSliders;
       freeze(board, [], operation.toMs);
@@ -374,7 +403,7 @@ function isReplacedByNext(operation: BoardOperation, next: BoardOperation | unde
 }
 
 function reduce(operations: readonly BoardOperation[], context: ReduceContext, atMs: number): BoardDraft {
-  const board: BoardDraft = { elements: new Map(), focus: null, isFrozen: false, pendingMoves: new Map(), refusedSliders: [] };
+  const board: BoardDraft = { elements: new Map(), focus: null, stage: null, isFrozen: false, pendingMoves: new Map(), refusedSliders: [] };
   for (const [index, operation] of operations.entries()) {
     if (operation.atMs > atMs) break;
     if (!isReplacedByNext(operation, operations[index + 1], atMs)) applyOperation(board, operation, context);
@@ -410,6 +439,7 @@ export function describeBoard(board: BoardState, atMs: number) {
   const round = (value: number) => Number(value.toFixed(DESCRIBED_DECIMALS));
   return {
     focus: board.focus,
+    stage: board.stage,
     elements: [...board.elements.values()].map((element) => ({
       id: element.id,
       kind: element.content.kind,
@@ -420,6 +450,8 @@ export function describeBoard(board: BoardState, atMs: number) {
       sceneSeconds: element.placedScene ? round(getMotionValue(element.placedScene.playhead, atMs)) : undefined,
       sceneValues: element.placedScene?.parameterChanges,
       revealedUpTo: element.revealedUpTo ? round(getMotionValue(element.revealedUpTo, atMs)) : undefined,
+      verdict: element.content.kind === 'studentLine' ? element.content.verdict.status : undefined,
+      progress: element.progress,
     })),
   };
 }

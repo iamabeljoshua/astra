@@ -10,7 +10,7 @@ export interface Box {
   bottom: number;
 }
 
-export type MarkTone = 'ink' | 'ink-2' | 'line';
+export type MarkTone = 'ink' | 'ink-2' | 'line' | 'pen';
 export type MarkWeight = 'hair' | 'thin' | 'bold';
 export type TextAnchor = 'start' | 'middle';
 export type Branch = readonly Point[];

@@ -51,23 +51,35 @@ function getEdgeDots(): DotPoint[] {
   });
 }
 
+export interface RingDot {
+  radius: number;
+  angle: number;
+}
+
 // The far half of each ring is smaller and stops at the planet's edge, so the rings read as passing behind it.
-function getRingDots({ radius, dotCount }: (typeof RINGS)[number], random: Random): DotPoint[] {
-  const dots: DotPoint[] = [];
+export function getRingDotSpot({ radius, angle }: RingDot): DotPoint | null {
   const [tiltCos, tiltSin] = [Math.cos(RING_TILT), Math.sin(RING_TILT)];
-  for (let index = 0; index < dotCount; index += 1) {
-    const angle = (index / dotCount) * FULL_TURN + random() * RING_ANGLE_JITTER;
-    const x = Math.cos(angle) * radius;
-    const y = Math.sin(angle) * radius * RING_FLATTEN;
-    const isFar = Math.sin(angle) < 0;
-    if (isFar && x * x + y * y < PLANET_RADIUS * PLANET_RADIUS * FAR_RING_CLEARANCE) continue;
-    dots.push([x * tiltCos - y * tiltSin, x * tiltSin + y * tiltCos, isFar ? FAR_RING_SIZE : NEAR_RING_SIZE]);
-  }
-  return dots;
+  const x = Math.cos(angle) * radius;
+  const y = Math.sin(angle) * radius * RING_FLATTEN;
+  const isFar = Math.sin(angle) < 0;
+  if (isFar && x * x + y * y < PLANET_RADIUS * PLANET_RADIUS * FAR_RING_CLEARANCE) return null;
+  return [x * tiltCos - y * tiltSin, x * tiltSin + y * tiltCos, isFar ? FAR_RING_SIZE : NEAR_RING_SIZE];
+}
+
+function getRingDots({ radius, dotCount }: (typeof RINGS)[number], random: Random): RingDot[] {
+  return Array.from({ length: dotCount }, (_unused, index) => ({ radius, angle: (index / dotCount) * FULL_TURN + random() * RING_ANGLE_JITTER }));
+}
+
+export function getPlanetParts(): { body: DotPoint[]; rings: RingDot[] } {
+  const random = createSeededRandom(PLANET_SEED);
+  const sphere = getSphereDots(random);
+  return { body: [...sphere, ...getEdgeDots()], rings: RINGS.flatMap((ring) => getRingDots(ring, random)) };
 }
 
 export function getPlanetDots(): DotPoint[] {
-  const random = createSeededRandom(PLANET_SEED);
-  const sphere = getSphereDots(random);
-  return [...sphere, ...getEdgeDots(), ...RINGS.flatMap((ring) => getRingDots(ring, random))];
+  const { body, rings } = getPlanetParts();
+  return [...body, ...rings.flatMap((ring) => {
+    const spot = getRingDotSpot(ring);
+    return spot ? [spot] : [];
+  })];
 }
