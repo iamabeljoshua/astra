@@ -303,6 +303,49 @@ describe('a turn that talks like a person', () => {
   });
 });
 
+describe('a tick on a line', () => {
+  const tick = (target: string) => JSON.stringify({ kind: 'annotate', id: 'yes', target, mark: 'check' });
+  const marksOf = (beats: readonly Beat[]) => beats.flatMap((beat) => getCues(beat).flatMap(({ command }) => (command.kind === 'annotate' ? [command.mark] : [])));
+
+  it.each(['shown', 'relation'])('never reaches the board on a false line claimed as %s', async (claim) => {
+    const { brain, model } = setup((_request, attempt) => (attempt === 1 ? reply(`Look at this. ${write('a', '2 + 2 = 5', claim)}Two and two. ${tick('a')}That is right.`) : reply('Actually, that line is false.')));
+    const beats = await collect(brain, 'tick this: 2 + 2 = 5');
+    expect(marksOf(beats)).toEqual([]);
+    expect(say(beats)).not.toContain('That is right.');
+    expect(JSON.stringify(model.requests.at(-1)?.turns)).toContain('2 + 2 = 5');
+    expect(say(beats)).toContain('Actually, that line is false.');
+  });
+
+  it('is told plainly, because the line itself is already on the board', async () => {
+    const { brain, model } = setup((_request, attempt) => (attempt === 1 ? reply(`Look at this. ${write('a', '2 + 2 = 5', 'shown')}Two and two. ${tick('a')}That is right.`) : reply('Actually, that line is false.')));
+    await collect(brain, 'tick this');
+    const note = JSON.stringify(model.requests.at(-1)?.turns);
+    expect(note).toMatch(/tick/);
+    expect(note).not.toMatch(/It is not on the board/);
+  });
+
+  it('still reaches the board on a true line', async () => {
+    const { brain } = setup(() => reply(`Look at this. ${write('a', '2 + 2 = 4', 'shown')}Two and two. ${tick('a')}That is right.`));
+    expect(marksOf(await collect(brain, 'tick this'))).toEqual(['check']);
+  });
+
+  it('still reaches the board on a line code cannot judge', async () => {
+    const { brain } = setup(() => reply(`Now the slope. ${write('a', 'x^2', 'new')}${rewrite('a', '2x', 'relation')}Two x. ${tick('a')}That is the derivative.`));
+    expect(marksOf(await collect(brain, 'tick this'))).toEqual(['check']);
+  });
+
+  it('checks the line as it stands after a rewrite', async () => {
+    const { brain } = setup(() => reply(`Look at this. ${write('a', '2 + 2 = 4', 'new')}${rewrite('a', '2 + 2 = 5', 'relation')}Now see. ${tick('a')}That is right.`));
+    expect(marksOf(await collect(brain, 'tick this'))).toEqual([]);
+  });
+
+  it('leaves a cross alone, because a cross on a false line is the point of it', async () => {
+    const cross = JSON.stringify({ kind: 'annotate', id: 'no', target: 'a', mark: 'cross' });
+    const { brain } = setup(() => reply(`Look at this. ${write('a', '2 + 2 = 5', 'shown')}Two and two. ${cross}That one goes wrong.`));
+    expect(marksOf(await collect(brain, 'show me a mistake'))).toEqual(['cross']);
+  });
+});
+
 describe('help in a safety reply', () => {
   const HELP = 'Please tell an adult you trust now, or call your local emergency number.';
   const longSentence = (words: number) => `${Array.from({ length: words - 1 }, (_, index) => `word${index}`).join(' ')} end.`;

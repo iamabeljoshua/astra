@@ -477,7 +477,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
     }
     // The student never saw the false line or heard its words, so nothing needs correcting aloud, and a quiet retry keeps the exchange from sounding confused.
     turn.isCheckingMath = true;
-    noteCorrection(turn, `The line of math you were about to write is false: ${problem}. It is not on the board and the student did not hear it. Write the right line and carry straight on. If you did not mean it as an equal step, write it with the claim that says what it is instead.`);
+    noteCorrection(turn, `What you were about to put on the board is false: ${problem}. Code stopped it, and the student did not hear the words after it. Write what is true and carry straight on, and never tick a false line. If you did not mean a line as an equal step, write it with the claim that says what it is instead.`);
     return 'retry';
   };
 
