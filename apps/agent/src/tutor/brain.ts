@@ -128,7 +128,7 @@ type TurnStep = 'over' | 'retry';
 type AttemptEnd = 'ended' | 'noWords' | 'aborted' | 'stalledBeforeText' | 'stalledInText' | 'failed' | 'rejected' | 'wrongMath' | 'wrongWords' | 'refused' | 'toolCall' | 'heldQuestion';
 
 interface TurnWork {
-  movesSceneAside?: boolean;
+  sceneAside?: 'due' | 'moved';
   id: number;
   studentText: string;
   signal: AbortSignal;
@@ -344,12 +344,12 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
 
   const noteSafetyReply = (turn: TurnWork, board: { kinds: ReadonlyMap<string, string> }) => {
     onSafetyReply?.();
-    if ([...board.kinds.values()].includes('richScene')) turn.movesSceneAside = true;
+    if ([...board.kinds.values()].includes('richScene')) turn.sceneAside = 'due';
   };
 
   const takesSceneAside = (turn: TurnWork) => {
-    const moves = turn.movesSceneAside === true;
-    turn.movesSceneAside = false;
+    const moves = turn.sceneAside === 'due';
+    if (moves) turn.sceneAside = 'moved';
     return moves;
   };
 
@@ -417,7 +417,9 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
           return isLongRepeat || isOpeningRepeat;
         },
         onBeatEnd(written) {
-          const parts = takesSceneAside(turn) ? { ...written, script: [SCENE_ASIDE, ...written.script] } : written;
+          // The lesson rules teach the model to write a teach command, and one beside the help would bring the picture back over it.
+          const kept = turn.sceneAside ? { ...written, script: written.script.filter((part) => typeof part === 'string' || part.kind !== 'boardMode' || part.mode !== 'teach') } : written;
+          const parts = takesSceneAside(turn) ? { ...kept, script: [SCENE_ASIDE, ...kept.script] } : kept;
           // A gentle "do you have someone with you?" has no safety words, and it must still reach a student who may be in danger.
           if (parts.expectsReply && !turn.reader.isSafetyReply && !MAY_BE_ABOUT_SAFETY.test(studentText) && !turn.hasShownAStep && attempts.isAtDeadEnd()) {
             turn.isQuestionHeld = true;

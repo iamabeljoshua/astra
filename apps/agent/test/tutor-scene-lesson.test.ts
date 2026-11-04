@@ -127,6 +127,17 @@ describe('a safety reply in a lesson with scenes', () => {
     expect(sent.filter((message) => message.type === 'loadScene')).toEqual([]);
   });
 
+  it('keeps the picture aside for the whole reply, even when the model writes a teach command beside the help', async () => {
+    const { brain, say } = makeLesson([`{"kind":"boardMode","mode":"teach"}${CRISIS} {"kind":"boardMode","mode":"teach"}Are you safe right now?`]);
+    const parsed = parseBeat({ id: 'n1-scene-setup', script: [{ kind: 'richScene', id: 'scene-1', engine: 'manimgx', sceneId: 'slope-1a2b3c4d', moments: { a: 1 }, parts: [], durationSeconds: 5 }, 'Watch the line tilt.'], expectsReply: false });
+    if (!parsed.ok) throw new Error(parsed.problem);
+    brain.noteSceneTurn?.({ topic: OLD_TOPIC, beats: [parsed.value] });
+    brain.notePlayed?.({ beatId: parsed.value.id, playedWords: 4, firedCues: 1 });
+    const said = await say('i keep thinking about it');
+    const modes = said.flatMap((beat) => beat.script.flatMap((part) => (typeof part !== 'string' && part.kind === 'boardMode' ? [part.mode] : [])));
+    expect(modes).toEqual(['handsOn']);
+  });
+
   it('never carries a plan step from a scene turn into words that may be serious', async () => {
     const { brain, requests, say } = makeLesson(['Slope is steepness.', CRISIS]);
     await say('teach me slopes');
