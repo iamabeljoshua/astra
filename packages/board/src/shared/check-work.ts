@@ -28,8 +28,8 @@ const toKey = (text: string) => text.toLowerCase().replace(/\s+/g, '').replace(/
 const toPartKey = (part: string) => part.replace(/\s/g, '').replace(/^\+/, '');
 
 const BARE_NUMBER = /^-?\d*\.?\d+$/;
-const PLEASANTRY = String.raw`(?:(?:ok|okay|so|actually|um|please|can we|could we|can you|could you|let'?s|lets|i want to|i'?d like to|i wanna)[,\s]+)*`;
-const WANTS_SOMETHING_ELSE = new RegExp(String.raw`^\s*${PLEASANTRY}(?:teach me|learn(?: about)?|talk about|switch to|move on to|go back to|do something else|change (?:the )?(?:topic|subject)|new topic|another topic|different topic|something else|forget (?:this|that|it))\b(?!\s+(?:this|that|it|how to (?:do|solve) (?:this|that|it))\b)`, 'i');
+const PLEASANTRY = String.raw`(?:(?:ok|okay|so|actually|um|please|can we|could we|can you|could you|let'?s|lets|i want to|i'?d rather|i'?d like to|i wanna)[,\s]+)*`;
+const WANTS_SOMETHING_ELSE = new RegExp(String.raw`^\s*${PLEASANTRY}(?:teach me|learn(?: about)?|talk about|switch to|move on to|go back to|do something else|change (?:the )?(?:topic|subject)|new topic|another topic|different topic|something else|forget (?:this|that|it)|stop(?: here| now| this| that| it)|quit(?: this| that| it)?|move on|done with (?:this|that|it))\b(?!\s+(?:this|that|it|how to (?:do|solve) (?:this|that|it))\b)`, 'i');
 
 /** The student has asked for something else, which takes them off the task, so no later line is held to it. */
 export const wantsSomethingElse = (text: string) => WANTS_SOMETHING_ELSE.test(text);

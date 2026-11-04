@@ -382,6 +382,17 @@ describe('a quiet room', () => {
     expect(closed).toBe(1);
   }, 20_000);
 
+  it('logs a beat that starts a new stretch, because a replay needs every word that played', async () => {
+    const secondStretch = { ...makeBeat('second', 'And the next idea.'), pauseBeforeMs: 0 };
+    const { session, say, traces } = start({ tutorBeats: [makeBeat('first', 'one two three'), secondStretch] });
+    await say('Show me a long answer');
+    await until(() => traces.filter(({ name, fields }) => name === 'turnStarted' && fields.kind === 'reply').length === 2);
+    const turnId = traces.filter(({ name, fields }) => name === 'turnStarted' && fields.kind === 'reply').at(-1)?.fields.turnId as never;
+    session.onBrowser({ type: 'played', turnId, beatId: 'second' as never, wordStartsMs: [0, 100, 200, 300], durationMs: 400, playedWords: 4, firedCueMs: [], ending: 'finished', frozen: [], clockId: 'c', browserMs: 10, startedMsAgo: 0 });
+    expect(traces.filter(({ name }) => name === 'reportRefused')).toEqual([]);
+    expect(session.getLog().some((event) => event.kind === 'beatPlayed' && event.beat.id === 'second')).toBe(true);
+  });
+
   it('leaves no quiet count running once the session has closed, even with a turn ending as it closes', async () => {
     let closed = 0;
     const { session, say, traces } = start({ quietLimitMs: 100, onQuietLimit: () => (closed += 1), tutorBeats: [makeBeat('short', 'one two three four five six')] });

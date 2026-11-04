@@ -119,6 +119,13 @@ const FEWEST_MS_BETWEEN_FREEZES = 5000;
 const BREATH_RECHECK_MS = 150;
 
 // Wires what the student does to what the tutor says. The rule decides, this runs its actions, and the voice line keeps every turn apart.
+/** A breath is the agent's own timing, and the log holds only what played. */
+function toLoggedBeat(beat: TutorBeat): Beat {
+  const logged = { ...beat };
+  delete logged.pauseBeforeMs;
+  return logged;
+}
+
 export function createLiveSession({ messenger, line, voice, tutor, takes, allTakes, setTurnCap, onQuietLimit = () => {}, quietLimitMs = QUIET_ROOM_LIMIT_MS, getNowMs = getSteadyNowMs, trace = () => {} , readMeaning = async () => null, readStrokes = async () => null, readSpokenWords = async () => ({ kind: 'talk', costUsd: 0 }) }: LiveSessionOptions): LiveSession {
   const startedAtMs = getNowMs();
   // A new job in the same room restarts this count, and a page ignores a turn it has seen, so each job's turns carry their own name.
@@ -185,7 +192,10 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
 
   const log = createSessionLog({
     getNowMs: () => getNowMs() - startedAtMs,
-    getBeat: (turnId, beatId) => beatsByTurn.get(turnId)?.find((beat) => beat.id === beatId),
+    getBeat: (turnId, beatId) => {
+      const found = beatsByTurn.get(turnId)?.find((beat) => beat.id === beatId);
+      return found && toLoggedBeat(found);
+    },
     onRefused: (problem) => trace('reportRefused', { problem }),
   });
 
@@ -385,11 +395,11 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
   const answerSpokenWords = async (request: TutorRequest) => {
     const ticket = (spokenTicket += 1);
     setThinking(true);
-    const wantsReply = await boardWork.onSpoken(request.text);
+    const wantsReply = await boardWork.onSpoken(request.text.slice(request.carried?.length ?? 0).trim());
     if (ticket !== spokenTicket) return;
     if (wantsReply) return startReply(request);
     setThinking(false);
-    dispatch({ type: 'tutorFinished' });
+    dispatch({ type: 'workLanded' });
   };
 
   const startReply = (request: TutorRequest) => {

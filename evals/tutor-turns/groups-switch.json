@@ -17,5 +17,8 @@
    {"text":"what was that derivative thing again, in one sentence?","check":"speaks"}]},
  {"name":"left-the-task-aloud","checks":["noNewSession"],"turns":[
    {"text":"Help me solve 3x = 12. I want to do it myself on the board, line by line.","check":"setsTask"},
-   {"work":{"way":"leave"},"check":"speaks"}]}
+   {"work":{"way":"leave"},"check":"followsAway"}]},
+ {"name":"lets-stop-this","checks":["noNewSession"],"turns":[
+   {"text":"Help me solve 3x = 12. I want to do it myself on the board, line by line.","check":"setsTask"},
+   {"work":{"way":"write","id":"s1","text":"let's stop this"},"check":"followsAway"}]}
 ]

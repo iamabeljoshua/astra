@@ -100,10 +100,17 @@ describe('changing the subject', () => {
     expect(brain.noteWork(line('s2', 'x = 7', 'a1'))?.checked.verdict.status).toBe('unknown');
   });
 
+  it.each(["let's stop this", 'stop here', 'I want to move on', 'okay quit this', 'something else please'])('closes the task on "%s"', async (text) => {
+    const { brain } = setup([SET_PROBLEM]);
+    await collect(brain, 'help me');
+    expect(brain.noteWork(line('s1', text, 'a1'))?.checked.closesTask).toBe('a1');
+    expect(brain.getBoard().openTask).toBeNull();
+  });
+
   it('keeps the task on a request for help with it', async () => {
     const { brain } = setup([SET_PROBLEM]);
     await collect(brain, 'help me');
-    for (const [index, text] of ['teach me how to do this', 'teach me this', 'explain that step', 'can you help'].entries()) {
+    for (const [index, text] of ['teach me how to do this', 'teach me this', 'explain that step', 'can you help', 'stop'].entries()) {
       expect(brain.noteWork(line(`s${index + 1}`, text, 'a1'))?.checked.closesTask).toBeUndefined();
     }
   });

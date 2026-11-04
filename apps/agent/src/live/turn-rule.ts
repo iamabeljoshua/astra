@@ -87,6 +87,8 @@ export type TurnEvent =
   | { type: 'tutorStarted'; isReply: boolean }
   | { type: 'tutorFinished' }
   | { type: 'questionHeard' }
+  /** Something said landed on the board and asks nothing of the tutor, so it is answered, and the next words stand alone. */
+  | { type: 'workLanded' }
   | { type: 'linkLost' }
   | { type: 'linkBack' };
 
@@ -300,6 +302,8 @@ export function getNextTurnState(state: TurnState, event: TurnEvent): TurnStep {
       return onTutorFinished(state);
     case 'questionHeard':
       return onQuestionHeard(state);
+    case 'workLanded':
+      return { state: { ...state, tutor: 'silent', unanswered: '' }, actions: [] };
     case 'linkLost':
       return onLinkLost(state);
     case 'linkBack':
