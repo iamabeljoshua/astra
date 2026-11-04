@@ -414,7 +414,7 @@
       "levels": ["middle_school", "high_school", "university", "out_of_school"],
       "goals": ["curiosity"],
       "interests": ["fashion", "coding", "history"],
-      "alsoCalled": ["jacquard", "punch cards", "punched cards"]
+      "alsoCalled": ["jacquard", "punched cards", "punched cards"]
     },
     {
       "id": "saturn-rings",
