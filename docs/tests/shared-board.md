@@ -145,6 +145,7 @@ Abel's rule: everything a student can see or do on the prototype exists on the r
 | Behavior | Real board | Proof |
 |---|---|---|
 | Terms clickable only during the task, dashed underline in the pen colour | Yes | `term-proof-1-open.png` |
+| The underline and the student's ring cover the signed term, such as `+3` or `-2x` | Yes. The sign and term are one part, and a tutor's answer of `3` still matches `+3`, or `-3` when the line has no bare `3` | `pick-parts.test.ts`, `PickTargets.test.tsx`, `renderMath.test.ts` |
 | Hover tints the term | Yes | `term-proof-2-hover.png` |
 | Hover starts a guessed reply after 160 ms | Not yet. See Head start | |
 | One click draws the student's ring in ink, others stop being clickable | Yes, ring and word in 39 ms on 5179 | `term-proof-3-clicked.png`, `term-demo` run |
