@@ -27,4 +27,10 @@ describe('ChipGroup', () => {
     fireEvent.click(space);
     expect([space.getAttribute('aria-pressed'), music.getAttribute('aria-pressed')]).toEqual(['false', 'true']);
   });
+
+  it('puts a picture on a chip and keeps the chip named by its label', () => {
+    render(<ChipGroup label="Interests" options={[{ value: 'space', label: 'Space', picture: <svg aria-hidden="true" /> }]} selected={[]} onChange={() => undefined} />);
+
+    expect(screen.getByRole('button', { name: 'Space' }).querySelector('svg')).not.toBeNull();
+  });
 });

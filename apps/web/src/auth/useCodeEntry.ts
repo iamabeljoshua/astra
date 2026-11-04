@@ -26,8 +26,7 @@ function useResendWait(codeSentAt: number) {
   return Math.ceil(secondsLeft);
 }
 
-export function useCodeEntry({ email, codeSentAt, isSending, setIsSending, showCodeStep }: SignInDraft) {
-  const [code, setCode] = useState('');
+export function useCodeEntry({ email, codeSentAt, code, setCode, isSending, setIsSending, showCodeStep }: SignInDraft) {
   const [problem, setProblem] = useState<string | null>(null);
   const [isChecking, setIsChecking] = useState(false);
   const [hasSentNewCode, setHasSentNewCode] = useState(false);

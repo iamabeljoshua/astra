@@ -1,16 +1,22 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { readDrawnLabels, stubCanvas } from '../../test/fakeCanvas';
 import { notifyResizeObservers } from '../../test/fakeLayout';
-import { DOT_DRAWINGS, type DotPoint } from './dotDrawings';
-import { getDotLayout, getShapeBoxSize } from './dotLayout';
+import { getChartLayout, WIDE_LAYOUT_FROM } from './chartLayout';
+import { LIT_STAR_SPOTS, PATH_LEG_COUNT } from './chartStars';
+import { DOT_DRAWINGS } from './dotDrawings';
+import type { DotPoint } from './dotPoint';
 import { DotStage } from './DotStage';
-import { createDotSwarm, getDotPosition, isSwarmSettled, placeDots, sendDots } from './dotSwarm';
+import { createDotSwarm, getDotPosition, isSwarmSettled, placeDots, scatterDots, sendDots } from './dotSwarm';
 import { textToDots } from './textToDots';
 
 const LEFT_POINTS: DotPoint[] = [[-0.5, 0]];
 const RIGHT_POINTS: DotPoint[] = [[0.5, 0]];
 const POSITION_TOLERANCE = 0.02;
 const DOTS_SURELY_ARRIVED_MS = 60_000;
+const SPACE_STAR = [{ label: 'Space', spot: 6 }];
 
 describe('the drawings', () => {
   it.each(Object.entries(DOT_DRAWINGS))('%s stays inside the shape box', (_name, points) => {
@@ -20,23 +26,56 @@ describe('the drawings', () => {
       expect(Math.abs(y)).toBeLessThanOrEqual(1);
     }
   });
-});
 
-describe('getDotLayout', () => {
-  it.each([[761], [900], [1280], [1920]])('keeps the shape clear of the question at %i wide', (width) => {
-    const { shape } = getDotLayout(width, 800);
-    expect(shape.centerX - shape.scale).toBeGreaterThanOrEqual(560);
-    expect(shape.centerX + shape.scale).toBeLessThanOrEqual(width);
+  it('draws the planet with near dots larger than far ones', () => {
+    const sizes = DOT_DRAWINGS.planet.map(([, , size]) => size ?? 1);
+
+    expect(Math.max(...sizes)).toBeGreaterThan(1);
+    expect(Math.min(...sizes)).toBeLessThan(0.7);
   });
 
-  it('draws fewer, smaller dots on a phone, above the question and inside the page', () => {
-    const phone = getDotLayout(390, 844);
-    const laptop = getDotLayout(1280, 800);
+  it('shades the planet by how many dots land on it, more on the lit side', () => {
+    const sphere = DOT_DRAWINGS.planet.filter(([x, y]) => Math.hypot(x, y) < 0.42);
+    const [litSide, darkSide] = [sphere.filter(([x, y]) => x + y < 0), sphere.filter(([x, y]) => x + y > 0)];
 
-    expect(phone.shape.dotCount).toBeLessThan(laptop.shape.dotCount);
-    expect(phone.shape.dotRadius).toBeLessThan(laptop.shape.dotRadius);
-    expect(phone.shape.centerX).toBe(195);
-    expect(getShapeBoxSize(phone)).toBeLessThan(390);
+    expect(litSide.length).toBeGreaterThan(darkSide.length * 2);
+  });
+
+  it('keeps every far ring dot clear of the planet, so the rings pass behind it', () => {
+    const farDots = DOT_DRAWINGS.planet.filter(([, , size]) => size === 0.72);
+
+    expect(farDots.length).toBeGreaterThan(0);
+    for (const [x, y] of farDots) expect(Math.hypot(x, y)).toBeGreaterThan(0.44);
+  });
+});
+
+describe('getChartLayout', () => {
+  it.each([[1021], [1280], [1440], [1920]])('keeps the first star clear of the question at %i wide', (width) => {
+    const { center, starSpread } = getChartLayout(width, 800);
+
+    expect(center.x + LIT_STAR_SPOTS.wide[5]![0] * starSpread.x).toBeGreaterThan(width * 0.42);
+    expect(center.x - 0.86 * starSpread.x).toBeGreaterThanOrEqual(width * 0.42);
+    expect(center.x + 0.9 * starSpread.x).toBeLessThanOrEqual(width);
+  });
+
+  it.each([[320], [390], [760], [WIDE_LAYOUT_FROM - 1]])('keeps a band across the top at %i wide, below the header', (width) => {
+    const { isWide, center, starSpread } = getChartLayout(width, 844);
+
+    expect(isWide).toBe(false);
+    expect(center.y - 0.66 * starSpread.y).toBeGreaterThanOrEqual(62);
+    expect(center.y + 0.62 * starSpread.y).toBeLessThanOrEqual(276);
+    expect(center.x - 0.86 * starSpread.x).toBeGreaterThanOrEqual(0);
+    expect(center.x + 0.9 * starSpread.x).toBeLessThanOrEqual(width);
+  });
+
+  it('changes layout at the breakpoint the page itself uses', () => {
+    const themeCss = readFileSync(join(import.meta.dirname, '../../../../../packages/theme/src/theme.css'), 'utf8');
+
+    expect(themeCss).toContain(`--breakpoint-lg: ${WIDE_LAYOUT_FROM}px;`);
+  });
+
+  it('draws smaller dots on a phone', () => {
+    expect(getChartLayout(390, 844).dotRadius).toBeLessThan(getChartLayout(1280, 800).dotRadius);
   });
 });
 
@@ -46,7 +85,7 @@ describe('the swarm', () => {
     placeDots(swarm, LEFT_POINTS);
 
     expect(getDotPosition(swarm, 0, 500)[0]).toBeCloseTo(-0.5, 1);
-    expect(isSwarmSettled(swarm, 5000)).toBe(true);
+    expect(isSwarmSettled(swarm, 0)).toBe(true);
   });
 
   it('moves by the clock and arrives, then says it has settled', () => {
@@ -72,19 +111,32 @@ describe('the swarm', () => {
 
     expect(getDotPosition(swarm, 0, 10_500)[0]).toBeCloseTo(midway, 5);
   });
+
+  it('carries a dot from its size to the size of its new place', () => {
+    const swarm = createDotSwarm(1);
+    placeDots(swarm, [[0, 0, 0.5]]);
+    const startedAt = 10_000;
+
+    sendDots(swarm, [[0, 0, 1.5]], startedAt);
+
+    expect(getDotPosition(swarm, 0, startedAt)[2]).toBeCloseTo(0.5, 5);
+    expect(getDotPosition(swarm, 0, startedAt + 3000)[2]).toBeCloseTo(1.5, 1);
+  });
+
+  it('starts scattered when asked, so the dots can gather', () => {
+    const swarm = createDotSwarm(40);
+    scatterDots(swarm);
+
+    const positions = Array.from({ length: 40 }, (_unused, dot) => getDotPosition(swarm, dot, 0)[0]);
+
+    expect(new Set(positions).size).toBeGreaterThan(30);
+  });
 });
 
-function createFakeContext() {
-  return new Proxy(
-    { fill: vi.fn(), clearRect: vi.fn() } as Record<string | symbol, unknown>,
-    {
-      get: (target, key) => (target[key] ??= vi.fn()),
-      set: (target, key, value) => {
-        target[key] = value;
-        return true;
-      },
-    },
-  ) as unknown as CanvasRenderingContext2D;
+function countPaintedArcs(context: CanvasRenderingContext2D, paint: () => void) {
+  vi.mocked(context.arc).mockClear();
+  paint();
+  return vi.mocked(context.arc).mock.calls.length;
 }
 
 describe('DotStage', () => {
@@ -93,11 +145,12 @@ describe('DotStage', () => {
     vi.unstubAllGlobals();
   });
 
-  it('gives a browser with no canvas a working page', () => {
-    render(<DotStage shape={LEFT_POINTS}><p>The question</p></DotStage>);
+  it('gives a browser with no canvas a working page, with the chart title', () => {
+    render(<DotStage shape={LEFT_POINTS} chartTitle="The title"><p>The question</p></DotStage>);
 
     screen.getByRole('main');
     screen.getByText('The question');
+    screen.getByText('The title');
   });
 
   it('gives a browser that throws when asked for a canvas a working page', () => {
@@ -115,13 +168,22 @@ describe('DotStage', () => {
     let requestFrame: ReturnType<typeof vi.fn>;
     let contexts: CanvasRenderingContext2D[];
 
+    function getLiveContext() {
+      return contexts[1]!;
+    }
+
+    function runFrameAfterEverythingArrived() {
+      const paintFrame = requestFrame.mock.calls.at(-1)![0] as FrameRequestCallback;
+      vi.spyOn(performance, 'now').mockReturnValue(performance.now() + DOTS_SURELY_ARRIVED_MS);
+      paintFrame(0);
+    }
+
+    function stubReducedMotion() {
+      vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('reduce') }));
+    }
+
     beforeEach(() => {
-      contexts = [];
-      vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => {
-        const context = createFakeContext();
-        contexts.push(context);
-        return context as never;
-      });
+      contexts = stubCanvas();
       requestFrame = vi.fn(() => 1);
       vi.stubGlobal('requestAnimationFrame', requestFrame);
       vi.stubGlobal('cancelAnimationFrame', vi.fn());
@@ -131,6 +193,12 @@ describe('DotStage', () => {
       render(<DotStage shape={LEFT_POINTS} />);
 
       expect(requestFrame).not.toHaveBeenCalled();
+    });
+
+    it('labels all eight subject stars', () => {
+      render(<DotStage shape={LEFT_POINTS} />);
+
+      expect(readDrawnLabels(getLiveContext()).slice(0, 8)).toEqual(['MOTION', 'LIGHT', 'WAVES', 'MUSIC', 'CELLS', 'CODE', 'STARS', 'HISTORY']);
     });
 
     it('asks for frames when the shape changes, and only then', () => {
@@ -146,10 +214,8 @@ describe('DotStage', () => {
     it('stops asking for frames once the dots have arrived', () => {
       const { rerender } = render(<DotStage shape={LEFT_POINTS} />);
       rerender(<DotStage shape={RIGHT_POINTS} />);
-      const paintFrame = requestFrame.mock.calls[0]![0] as FrameRequestCallback;
 
-      vi.spyOn(performance, 'now').mockReturnValue(performance.now() + DOTS_SURELY_ARRIVED_MS);
-      paintFrame(0);
+      runFrameAfterEverythingArrived();
 
       expect(requestFrame).toHaveBeenCalledTimes(1);
     });
@@ -164,11 +230,20 @@ describe('DotStage', () => {
       expect(requestFrame).toHaveBeenCalledTimes(2);
     });
 
-    it('places a new shape at once under reduced motion', () => {
-      vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('reduce') }));
-      const { rerender } = render(<DotStage shape={LEFT_POINTS} />);
+    it('gathers the dots on arrival when the page asks, and still settles', () => {
+      render(<DotStage shape={LEFT_POINTS} legsDrawn={1} formsOnArrival />);
+      expect(requestFrame).toHaveBeenCalledTimes(1);
 
-      rerender(<DotStage shape={RIGHT_POINTS} />);
+      runFrameAfterEverythingArrived();
+
+      expect(requestFrame).toHaveBeenCalledTimes(1);
+    });
+
+    it('places everything at once under reduced motion, on arrival and on a change', () => {
+      stubReducedMotion();
+      const { rerender } = render(<DotStage shape={LEFT_POINTS} legsDrawn={1} formsOnArrival />);
+
+      rerender(<DotStage shape={RIGHT_POINTS} legsDrawn={2} litStars={SPACE_STAR} />);
 
       expect(requestFrame).not.toHaveBeenCalled();
     });
@@ -181,21 +256,65 @@ describe('DotStage', () => {
       expect(requestFrame).not.toHaveBeenCalled();
     });
 
-    it('repaints the grid on a resize without asking for frames', () => {
+    it('draws more of the path for each leg, up to a finished path', () => {
+      stubReducedMotion();
+      const { rerender } = render(<DotStage shape={LEFT_POINTS} legsDrawn={1} />);
+
+      const dotCounts = [2, 3, 4, 5, 6, PATH_LEG_COUNT].map((legsDrawn) => countPaintedArcs(getLiveContext(), () => rerender(<DotStage shape={LEFT_POINTS} legsDrawn={legsDrawn} />)));
+
+      expect(dotCounts).toEqual([...dotCounts].sort((first, second) => first - second));
+      expect(new Set(dotCounts).size).toBe(dotCounts.length);
+    });
+
+    it('glides to the next leg on the frames it asks for', () => {
+      const { rerender } = render(<DotStage shape={LEFT_POINTS} legsDrawn={1} />);
+
+      rerender(<DotStage shape={LEFT_POINTS} legsDrawn={2} />);
+      expect(requestFrame).toHaveBeenCalledTimes(1);
+
+      runFrameAfterEverythingArrived();
+      expect(requestFrame).toHaveBeenCalledTimes(1);
+    });
+
+    it('lights a labelled star when one is added, and takes it away again', () => {
+      const { rerender } = render(<DotStage shape={LEFT_POINTS} />);
+
+      rerender(<DotStage shape={LEFT_POINTS} litStars={SPACE_STAR} />);
+      expect(readDrawnLabels(getLiveContext())).toContain('SPACE');
+      expect(requestFrame).toHaveBeenCalledTimes(1);
+
+      vi.mocked(getLiveContext().fillText).mockClear();
+      rerender(<DotStage shape={LEFT_POINTS} litStars={[]} />);
+      expect(readDrawnLabels(getLiveContext())).not.toContain('SPACE');
+    });
+
+    it('stops asking for frames once a star has lit', () => {
+      const { rerender } = render(<DotStage shape={LEFT_POINTS} />);
+      rerender(<DotStage shape={LEFT_POINTS} litStars={SPACE_STAR} />);
+
+      runFrameAfterEverythingArrived();
+
+      expect(requestFrame).toHaveBeenCalledTimes(1);
+    });
+
+    it('repaints on a resize without asking for frames', () => {
       render(<DotStage shape={LEFT_POINTS} />);
+      const clears = vi.mocked(getLiveContext().clearRect);
+      clears.mockClear();
 
       notifyResizeObservers();
 
+      expect(clears).toHaveBeenCalled();
       expect(requestFrame).not.toHaveBeenCalled();
     });
 
     it('repaints in the other theme without asking for frames', async () => {
       render(<DotStage shape={LEFT_POINTS} />);
-      const clears = vi.mocked(contexts[1]!.clearRect);
+      const clears = vi.mocked(getLiveContext().clearRect);
       clears.mockClear();
 
       document.documentElement.dataset.theme = 'dark';
-      await new Promise(setImmediate);
+      await act(() => new Promise(setImmediate));
 
       expect(clears).toHaveBeenCalled();
       expect(requestFrame).not.toHaveBeenCalled();
@@ -204,6 +323,10 @@ describe('DotStage', () => {
 });
 
 describe('textToDots', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('gives no points in a browser with no canvas', () => {
     expect(textToDots('Maya')).toEqual([]);
   });
@@ -214,19 +337,17 @@ describe('textToDots', () => {
     });
 
     expect(textToDots('Maya')).toEqual([]);
-    vi.restoreAllMocks();
   });
 
   it('turns the ink on a hidden canvas into points in the shape space', () => {
-    const PAPER_WIDTH = 480;
-    const data = new Uint8ClampedArray(PAPER_WIDTH * 240 * 4);
-    const inkedPixel = (120 * PAPER_WIDTH + 240) * 4;
+    const [paperWidth, paperHeight] = [960, 420];
+    const data = new Uint8ClampedArray(paperWidth * paperHeight * 4);
+    const inkedPixel = ((paperHeight / 2) * paperWidth + paperWidth / 2) * 4;
     data[inkedPixel + 3] = 255;
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(
       () => ({ font: '', measureText: () => ({ width: 100 }), fillText: vi.fn(), getImageData: () => ({ data }) }) as never,
     );
 
-    expect(textToDots('Maya')).toEqual([[0, 0]]);
-    vi.restoreAllMocks();
+    expect(textToDots('Maya')).toEqual([[0, 0, 1.05]]);
   });
 });
