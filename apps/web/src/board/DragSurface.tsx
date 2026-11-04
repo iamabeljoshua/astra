@@ -27,8 +27,14 @@ export function DragSurface({ plot, task, atMs, isReducedMotion, onMovePoint, on
   const domain = getDomain(plot);
   const pointX = getPointX(task, domain);
 
+  // The figure can be narrower than its row, and the point is drawn on the figure.
+  const getFigureBox = () => {
+    const own = surface.current as HTMLDivElement;
+    return (own.parentElement?.querySelector('[data-testid="figure"]') ?? own).getBoundingClientRect();
+  };
+
   const getXAt = (event: PointerEvent) => {
-    const box = (surface.current as HTMLDivElement).getBoundingClientRect();
+    const box = getFigureBox();
     return getDragXAtPixel({ element: plot, atMs, isReducedMotion, width: box.width, height: box.height }, event.clientX - box.left);
   };
 
@@ -55,7 +61,7 @@ export function DragSurface({ plot, task, atMs, isReducedMotion, onMovePoint, on
 
   const isNearPoint = (event: PointerEvent) => {
     const span = domain[1] - domain[0];
-    const { width } = (surface.current as HTMLDivElement).getBoundingClientRect();
+    const { width } = getFigureBox();
     return Math.abs(getXAt(event) - pointX) <= Math.max(span * GRAB_WITHIN_SHARE, (GRAB_WITHIN_PIXELS / width) * span);
   };
 
