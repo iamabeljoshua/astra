@@ -354,6 +354,17 @@ describe('axes that hold still', () => {
     for (const value of [10, 20, 33, 44, 46, 60, 80]) expect(tickAt(value)).toBe(atRest);
   });
 
+  it('does not move for the arrows on the ball either, which grow with the speed', () => {
+    const speed = place({ kind: 'slider', id: 'speed', target: 'shot', parameter: 'launchAngle', min: 10, max: 80 });
+    const arrows = [place({ kind: 'trackVector', id: 'v', target: 'shot', quantity: 'velocity' }), place({ kind: 'trackVector', id: 'g', target: 'shot', quantity: 'acceleration' })];
+    const tickAt = (value: number) => {
+      const drag: BoardOperation = { kind: 'parameterSample', atMs: 2000, target: 'shot' as never, parameter: 'launchAngle', value };
+      return getText(getMarks([shot, ...arrows, speed, drag], 'shot')).find((mark) => mark.key === 'tick-x-10')?.at.x;
+    };
+    const atRest = tickAt(45);
+    for (const value of [10, 30, 60, 80]) expect(tickAt(value)).toBe(atRest);
+  });
+
   it('keeps every arc a slider reaches on the figure', () => {
     const angle = place({ kind: 'slider', id: 'angle', target: 'shot', parameter: 'launchAngle', min: 10, max: 80 });
     const size = SIZES[0] as { width: number; height: number };

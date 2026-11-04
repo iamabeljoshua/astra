@@ -71,11 +71,12 @@ function getSliderValues(sliders: readonly ParameterSlider[], base: SceneParamet
 
 const sliderReachByCommand = new WeakMap<Simulate, Map<string, WorldBounds>>();
 
-function getSliderReach(command: Simulate, { sliders, base }: { sliders: readonly ParameterSlider[]; base: SceneParameters }): WorldBounds {
+function getSliderReach(command: Simulate, { sliders, base, quantity }: { sliders: readonly ParameterSlider[]; base: SceneParameters; quantity: string | null }): WorldBounds {
   const known = sliderReachByCommand.get(command) ?? new Map<string, WorldBounds>();
   sliderReachByCommand.set(command, known);
-  const key = JSON.stringify([sliders.map(({ parameter, min, max }) => [parameter, min, max]), base]);
-  const reach = known.get(key) ?? getSliderValues(sliders, base).map((values) => getArcBounds(PLANNED_SCENES(command, values) as Scene)).reduce(joinBounds);
+  const key = JSON.stringify([sliders.map(({ parameter, min, max }) => [parameter, min, max]), base, quantity]);
+  const getBounds = (scene: Scene) => (quantity === null ? getArcBounds(scene) : getReach(scene, quantity));
+  const reach = known.get(key) ?? getSliderValues(sliders, base).map((values) => getBounds(PLANNED_SCENES(command, values) as Scene)).reduce(joinBounds);
   known.set(key, reach);
   return reach;
 }
@@ -122,10 +123,11 @@ function getWorldBounds(root: SimulationElement, attached: readonly BoardElement
   const sliderCommands = sliders.map(({ content }) => content);
   const others = getChangesNoSliderHolds(root.placedScene?.parameterChanges ?? {}, sliderCommands);
   const start = getStartingBounds(root, { attached, baseScene, others });
-  const withSliders = sliders.reduce((bounds, slider, index) => blendBounds(bounds, joinBounds(bounds, getSliderReach(root.content, { sliders: sliderCommands.slice(0, index + 1), base: others })), easeInOut(getDrawnShare(slider, frame))), start);
+  const withSliders = sliders.reduce((bounds, slider, index) => blendBounds(bounds, joinBounds(bounds, getSliderReach(root.content, { sliders: sliderCommands.slice(0, index + 1), base: others, quantity: null })), easeInOut(getDrawnShare(slider, frame))), start);
   const tracked = attached.filter((element): element is BoardElement & { content: TrackVector } => element.content.kind === 'trackVector');
   const scene = root.placedScene?.scene as Scene;
-  return tracked.reduce((bounds, element) => blendBounds(bounds, joinBounds(bounds, getReach(scene, element.content.quantity)), easeInOut(getDrawnShare(element, frame))), withSliders);
+  const getArrowReach = (quantity: string) => (sliderCommands.length > 0 ? getSliderReach(root.content, { sliders: sliderCommands, base: others, quantity }) : getReach(scene, quantity));
+  return tracked.reduce((bounds, element) => blendBounds(bounds, joinBounds(bounds, getArrowReach(element.content.quantity)), easeInOut(getDrawnShare(element, frame))), withSliders);
 }
 
 function getView(bounds: WorldBounds, frame: FigureFrame, readoutsHeight: number): FigureView {
