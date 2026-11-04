@@ -1,7 +1,8 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../App';
-import { REPLY_BOX_LABELS, SESSION_LABELS, VOICE_LABELS } from '../strings';
+import '../session/SessionScreen';
+import { BOARD_WORK_LABELS, CHAT_BOX_LABELS, REPLY_BOX_LABELS, SESSION_LABELS, VOICE_LABELS } from '../strings';
 import { makeSession, stubSessionsApi } from '../test/sessionsApi';
 import type { LiveVoice, LiveVoiceView } from './liveVoice';
 
@@ -11,7 +12,7 @@ vi.mock('../auth/useAccount', () => import('../test/activeAccount'));
 const startLiveVoice = vi.hoisted(() => vi.fn());
 vi.mock('./liveVoice', async (importOriginal) => ({ ...(await importOriginal<typeof import('./liveVoice')>()), startLiveVoice }));
 
-const BASE_VIEW: LiveVoiceView = { phase: 'live', mic: 'off', isRoomNoisy: false, isSoundBlocked: false, isQuietWarning: false, isHeard: false, isThinking: false, isTutorSpeaking: false, closedBecause: null, startedFresh: false, hasTutorStarted: false, studentLines: [], tutorHeard: [], tutorComing: [] };
+const BASE_VIEW: LiveVoiceView = { phase: 'live', mic: 'off', isRoomNoisy: false, isSoundBlocked: false, isQuietWarning: false, isHeard: false, isThinking: false, isTutorSpeaking: false, closedBecause: null, firstWord: null, isStopped: false, typingNoteCount: 0, costUsd: null, sessionTitle: null, startedFresh: false, hasTutorStarted: false, studentLines: [], tutorHeard: [], tutorComing: [] };
 
 function makeVoice() {
   let view = BASE_VIEW;
@@ -24,7 +25,15 @@ function makeVoice() {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
-    getBoardNow: () => ({ board: { elements: new Map(), focus: null, refusedSliders: [] }, atMs: 0 }),
+    getBoardNow: () => ({ board: { elements: new Map(), focus: null, stage: null, refusedSliders: [] }, atMs: 0 }),
+    getLoudness: () => 0,
+    sendPause: () => {},
+    noteTyping() {
+      view = { ...view, typingNoteCount: view.typingNoteCount + 1 };
+      listeners.forEach((listener) => listener());
+    },
+    sendWork: vi.fn(),
+    stopTutor: () => {},
     sendTyped: vi.fn(),
     sendOpening: vi.fn(),
     reportMarkNotDrawn: vi.fn(),
@@ -48,18 +57,16 @@ function makeVoice() {
   };
 }
 
-const getBox = () => screen.getByRole<HTMLTextAreaElement>('textbox', { name: REPLY_BOX_LABELS.label });
+const getChatBox = () => screen.getByRole<HTMLTextAreaElement>('textbox', { name: REPLY_BOX_LABELS.label });
+const getBox = () => screen.getByRole<HTMLInputElement>('textbox', { name: BOARD_WORK_LABELS.entry });
 
-async function openVoice(first = makeVoice()) {
+async function openVoice(first = makeVoice(), fields: Partial<ReturnType<typeof makeSession>> = {}) {
   startLiveVoice.mockResolvedValueOnce(first.voice);
-  const session = makeSession();
+  const session = makeSession(fields);
   window.history.replaceState(null, '', `/sessions/${session.id}`);
   stubSessionsApi({ sessions: [session] });
   render(<App />);
   await waitFor(() => getBox());
-  fireEvent.change(getBox(), { target: { value: 'Hello' } });
-  fireEvent.keyDown(getBox(), { key: 'Enter' });
-  await waitFor(() => expect(first.voice.sendTyped).toHaveBeenCalledWith('Hello'));
   return first;
 }
 
@@ -84,10 +91,10 @@ describe('what the student sees of a room', () => {
     act(() => setView({ phase }));
     expect(screen.getByText(note)).toBeTruthy();
     expect(screen.getByRole('button', { name: action })).toBeTruthy();
-    expect(getBox().readOnly).toBe(true);
-    voice.sendTyped.mockClear();
-    fireEvent.keyDown(getBox(), { key: 'Enter' });
-    expect(voice.sendTyped).not.toHaveBeenCalled();
+    expect(getBox().disabled).toBe(true);
+    fireEvent.change(getBox(), { target: { value: 'Hello' } });
+    fireEvent.submit(getBox());
+    expect(voice.sendWork).not.toHaveBeenCalled();
   });
 
   it('at the limit on starting tutors says the real wait, keeps the reply box closed, and joins nothing when the student types', async () => {
@@ -101,10 +108,10 @@ describe('what the student sees of a room', () => {
     vi.stubGlobal('fetch', async (request: Request) => (request.url.endsWith('/live-room?startOver=yes') ? new Response(JSON.stringify({ statusCode: 429, message: 'Wait', retryAfterSeconds: 360 }), { status: 429 }) : answerOtherRoutes(request)));
     fireEvent.click(screen.getByRole('button', { name: VOICE_LABELS.tryAgain }));
     await waitFor(() => expect(screen.getByText(VOICE_LABELS.tooSoon(360))).toBeTruthy());
-    expect(getBox().readOnly).toBe(true);
+    expect(getChatBox().readOnly).toBe(true);
     expect(screen.getByRole('button', { name: VOICE_LABELS.tryAgain })).toBeTruthy();
     expect(startLiveVoice).toHaveBeenCalledTimes(2);
-    fireEvent.keyDown(getBox(), { key: 'Enter' });
+    fireEvent.keyDown(getChatBox(), { key: 'Enter' });
     expect(startLiveVoice).toHaveBeenCalledTimes(2);
   });
 
@@ -156,6 +163,38 @@ describe('what the student sees of a room', () => {
     await waitFor(() => expect(second.voice.sendOpening).toHaveBeenCalledWith(SESSION_LABELS.carryOnWith(makeSession().title)));
   });
 
+  it('calls the session by its new topic, in the bar, in its heading, and when it opens a new room', async () => {
+    const { setView } = await openVoice();
+    expect(screen.queryByText('Physics of the impossible')).toBeNull();
+
+    act(() => setView({ sessionTitle: 'Physics of the impossible' }));
+
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Physics of the impossible'));
+    expect(screen.getAllByText('Physics of the impossible')).toHaveLength(2);
+    act(() => setView({ phase: 'tutorLost' }));
+    const second = makeVoice();
+    startLiveVoice.mockResolvedValueOnce(second.voice);
+    fireEvent.click(screen.getByRole('button', { name: VOICE_LABELS.tryAgain }));
+    await waitFor(() => expect(second.voice.sendOpening).toHaveBeenCalledWith(SESSION_LABELS.carryOnWith('Physics of the impossible')));
+  });
+
+  it("takes the card's picture away when the student moves to another topic, and leaves no empty box", async () => {
+    const { setView } = await openVoice(makeVoice(), { artwork: 'arc' });
+    expect(screen.getByTestId('board-visual')).toBeTruthy();
+
+    act(() => setView({ sessionTitle: 'Black holes' }));
+
+    await waitFor(() => expect(screen.queryByTestId('board-visual')).toBeNull());
+  });
+
+  it('keeps the new topic in the bar after a reload, and no picture, once a card has moved off its own topic', async () => {
+    await openVoice(makeVoice(), { artwork: null, subject: 'Astronomy', title: 'A black hole' });
+
+    expect(screen.getAllByText('A black hole')).toHaveLength(2);
+    expect(screen.queryByText('Astronomy')).toBeNull();
+    expect(screen.queryByTestId('board-visual')).toBeNull();
+  });
+
   it('says in one line that the tutor started fresh after the page landed in a new room', async () => {
     const { setView } = await openVoice();
     act(() => setView({ startedFresh: true }));
@@ -195,6 +234,122 @@ describe('what the student sees of a room', () => {
     act(() => setView({ hasTutorStarted: true, tutorHeard: ['Hello.'] }));
     act(() => setView({ tutorHeard: [], tutorComing: [], isThinking: true }));
     expect(screen.queryByText(VOICE_LABELS.connecting)).toBeNull();
+  });
+
+  describe('a connection that is slow', () => {
+    const wait = (ms: number) => act(() => vi.advanceTimersByTime(ms));
+    const queryChatBox = () => screen.queryByRole('textbox', { name: REPLY_BOX_LABELS.label });
+    const pressTalkInTheBox = () => fireEvent.click(within(getChatBox().closest('form')!).getByRole('button', { name: CHAT_BOX_LABELS.talk }));
+    const sendFromTheBox = (text: string) => {
+      fireEvent.change(getChatBox(), { target: { value: text } });
+      fireEvent.submit(getChatBox());
+    };
+    const openWithNoTutorYet = async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'], shouldAdvanceTime: true });
+      const opened = makeVoice();
+      await openVoice(opened);
+      return opened;
+    };
+    const openWithTheRoomHeld = async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'], shouldAdvanceTime: true });
+      const opened = makeVoice();
+      let openRoom = () => {};
+      startLiveVoice.mockReturnValueOnce(new Promise((resolve) => (openRoom = () => resolve(opened.voice))));
+      const session = makeSession();
+      window.history.replaceState(null, '', `/sessions/${session.id}`);
+      stubSessionsApi({ sessions: [session] });
+      render(<App />);
+      await waitFor(() => screen.getByText(VOICE_LABELS.connecting));
+      return { ...opened, openRoom: () => act(async () => openRoom()) };
+    };
+    afterEach(() => vi.useRealTimers());
+
+    it('stays out of the way of a normal connection, however close it runs', async () => {
+      const { setView } = await openWithNoTutorYet();
+      wait(7000);
+      expect(queryChatBox()).toBeNull();
+      act(() => setView({ hasTutorStarted: true }));
+      wait(9000);
+      expect(queryChatBox()).toBeNull();
+    });
+
+    it('brings the box and Talk back at about 8 s, ready for typing, while it still says it is connecting', async () => {
+      const { voice } = await openWithNoTutorYet();
+      wait(8100);
+      expect(document.activeElement).toBe(getChatBox());
+      expect(screen.getByText(VOICE_LABELS.connecting)).toBeTruthy();
+      pressTalkInTheBox();
+      expect(voice.toggleMic).toHaveBeenCalledOnce();
+    });
+
+    it('leaves a touch screen\'s keyboard closed', async () => {
+      vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('coarse'), addEventListener: () => undefined, removeEventListener: () => undefined }));
+      await openWithNoTutorYet();
+      wait(8100);
+      expect(document.activeElement).not.toBe(getChatBox());
+    });
+
+    it('sends a reply into the room, shows it waiting, and takes it all away when the tutor comes', async () => {
+      const { voice, setView } = await openWithNoTutorYet();
+      wait(8100);
+      sendFromTheBox('Is it four?');
+      await vi.waitFor(() => expect(voice.sendTyped).toHaveBeenCalledWith('Is it four?'));
+      expect(screen.getByText('Is it four?')).toBeTruthy();
+      expect(screen.getByText(SESSION_LABELS.replyWaiting)).toBeTruthy();
+      act(() => setView({ hasTutorStarted: true }));
+      expect(screen.queryByText('Is it four?')).toBeNull();
+      expect(queryChatBox()).toBeNull();
+    });
+
+    it('keeps a half typed draft when the tutor comes, until it is sent', async () => {
+      const { voice, setView } = await openWithNoTutorYet();
+      wait(8100);
+      fireEvent.change(getChatBox(), { target: { value: 'Is it' } });
+      act(() => setView({ hasTutorStarted: true }));
+      expect(getChatBox().value).toBe('Is it');
+      sendFromTheBox('Is it four?');
+      await vi.waitFor(() => expect(voice.sendTyped).toHaveBeenCalledWith('Is it four?'));
+      expect(queryChatBox()).toBeNull();
+    });
+
+    it('says a waiting reply did not reach the tutor when the room closes with no tutor', async () => {
+      const { voice, setView } = await openWithNoTutorYet();
+      wait(8100);
+      sendFromTheBox('Is it four?');
+      await vi.waitFor(() => expect(voice.sendTyped).toHaveBeenCalled());
+      act(() => setView({ phase: 'noTutor' }));
+      expect(screen.getByText('Is it four?')).toBeTruthy();
+      expect(screen.getByText(SESSION_LABELS.replyNotSent)).toBeTruthy();
+      expect(screen.queryByText(SESSION_LABELS.replyWaiting)).toBeNull();
+    });
+
+    it('drops that note once a new room has its tutor', async () => {
+      const { voice, setView } = await openWithNoTutorYet();
+      wait(8100);
+      sendFromTheBox('Is it four?');
+      await vi.waitFor(() => expect(voice.sendTyped).toHaveBeenCalled());
+      act(() => setView({ phase: 'noTutor' }));
+      const next = makeVoice();
+      startLiveVoice.mockResolvedValueOnce(next.voice);
+      fireEvent.click(screen.getByRole('button', { name: VOICE_LABELS.tryAgain }));
+      await vi.waitFor(() => expect(next.voice.sendOpening).toHaveBeenCalled());
+      expect(screen.getByText(SESSION_LABELS.replyNotSent)).toBeTruthy();
+      act(() => next.setView({ hasTutorStarted: true }));
+      expect(screen.queryByText(SESSION_LABELS.replyNotSent)).toBeNull();
+      expect(screen.queryByText('Is it four?')).toBeNull();
+    });
+
+    it('holds a reply and a press of Talk for a room that has not opened, and hands both over when it does', async () => {
+      const { voice, openRoom } = await openWithTheRoomHeld();
+      wait(8100);
+      sendFromTheBox('Is it four?');
+      pressTalkInTheBox();
+      expect(screen.getByText(SESSION_LABELS.replyWaiting)).toBeTruthy();
+      expect(voice.sendTyped).not.toHaveBeenCalledWith('Is it four?');
+      await openRoom();
+      await vi.waitFor(() => expect(voice.sendTyped).toHaveBeenCalledWith('Is it four?'));
+      await vi.waitFor(() => expect(voice.toggleMic).toHaveBeenCalledOnce());
+    });
   });
 
   describe('once the tutor has finished and the student has not acted', () => {

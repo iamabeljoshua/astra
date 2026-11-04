@@ -1,8 +1,8 @@
 import { BEAT_LIMITS } from './beat.ts';
-import { readBeatId, readSceneId, readTurnId } from './ids.ts';
-import { type AgentMessage, type BrowserMessage, type BrowserStamp, clipTypedText, LIVE_MESSAGE_MAX_BYTES, STUDENT_WORDS_MAX_CHARACTERS, type TimedWord, TUTOR_CLOSED_REASONS } from './live-message.ts';
+import { readBeatId, readElementId, readSceneId, readTurnId } from './ids.ts';
+import { type AgentMessage, type BrowserMessage, type BrowserStamp, clipTypedText, LIVE_MESSAGE_MAX_BYTES, SESSION_TITLE_MAX_CHARACTERS, STUDENT_WORDS_MAX_CHARACTERS, type TimedWord, TUTOR_CLOSED_REASONS } from './live-message.ts';
 import { readSceneCommand } from './parse-command.ts';
-import { PLAY_REPORT_KEYS, readFrozenFrames, readPlayReport, readStudentAction } from './parse-event.ts';
+import { PLAY_REPORT_KEYS, readFrozenFrames, readPlayReport, readStudentAction, readStudentWork } from './parse-event.ts';
 import type { SceneAgentMessage, SceneBrowserMessage } from './scene-message.ts';
 import {
   type CheckedFields,
@@ -22,6 +22,7 @@ import {
   type VariantTable,
 } from './read.ts';
 
+const MOST_COST_USD = 1_000_000;
 const SHORTEST_AUDIO_GAP_MS = 1;
 
 function readAudioGapMs(place: Place): number {
@@ -89,12 +90,18 @@ const AGENT_MESSAGES: VariantTable<AgentMessage, 'type'> = {
         ...fields.optional('ms', readAudioGapMs),
       }),
     },
+    workRead: {
+      keys: ['work'],
+      read: (fields) => ({ type: 'workRead', work: readStudentWork(fields.at('work')) }),
+    },
     studentWords: {
       keys: ['text', 'isFinal'],
       read: (fields) => ({ type: 'studentWords', text: readString(fields.at('text'), STUDENT_WORDS_MAX_CHARACTERS), isFinal: readBoolean(fields.at('isFinal')) }),
     },
     heard: { keys: [], read: () => ({ type: 'heard' }) },
     thinking: { keys: ['isThinking'], read: (fields) => ({ type: 'thinking', isThinking: readBoolean(fields.at('isThinking')) }) },
+    costSoFar: { keys: ['usd'], read: (fields) => ({ type: 'costSoFar', usd: readNumberInRange(fields.at('usd'), { min: 0, max: MOST_COST_USD }) }) },
+    sessionTitle: { keys: ['title'], read: (fields) => ({ type: 'sessionTitle', title: readString(fields.at('title'), SESSION_TITLE_MAX_CHARACTERS) }) },
     tutorClosed: { keys: ['reason'], read: (fields) => ({ type: 'tutorClosed', reason: readOneOf(fields.at('reason'), TUTOR_CLOSED_REASONS) }) },
     pulse: { keys: [], read: () => ({ type: 'pulse' }) },
     earsOpen: { keys: [], read: () => ({ type: 'earsOpen' }) },
@@ -109,6 +116,7 @@ const CLOCK_ID_MAX_CHARACTERS = 64;
 const MARK_ID_MAX_CHARACTERS = 64;
 
 const STAMP_KEYS = ['clockId', 'browserMs', 'startedMsAgo'];
+const MOST_STROKES_IN_A_LINE = 200;
 
 function readBrowserStamp(fields: CheckedFields): BrowserStamp {
   return { clockId: readString(fields.at('clockId'), CLOCK_ID_MAX_CHARACTERS), browserMs: readWholeNumber(fields.at('browserMs')), startedMsAgo: readWholeNumber(fields.at('startedMsAgo')) };
@@ -156,6 +164,30 @@ const BROWSER_MESSAGES: VariantTable<BrowserMessage, 'type'> = {
     typed: {
       keys: [...STAMP_KEYS, 'text'],
       read: (fields) => ({ type: 'typed', ...readBrowserStamp(fields), text: clipTypedText(readString(fields.at('text'), LIVE_MESSAGE_MAX_BYTES)) }),
+    },
+    worked: {
+      keys: [...STAMP_KEYS, 'work'],
+      read: (fields) => ({ type: 'worked', ...readBrowserStamp(fields), work: readStudentWork(fields.at('work')) }),
+    },
+    paused: {
+      keys: [...STAMP_KEYS, 'seconds', 'draft'],
+      read: (fields) => ({ type: 'paused', ...readBrowserStamp(fields), seconds: readWholeNumber(fields.at('seconds')), ...fields.optional('draft', (place) => clipTypedText(readString(place, LIVE_MESSAGE_MAX_BYTES))) }),
+    },
+    inkDone: {
+      keys: [...STAMP_KEYS, 'id', 'strokes', 'task'],
+      read: (fields) => ({ type: 'inkDone', ...readBrowserStamp(fields), id: readElementId(fields.at('id')), strokes: readList(fields.at('strokes'), { maxLength: MOST_STROKES_IN_A_LINE, readItem: readElementId }), ...fields.optional('task', readElementId) }),
+    },
+    inkPeek: {
+      keys: [...STAMP_KEYS, 'strokes'],
+      read: (fields) => ({ type: 'inkPeek', ...readBrowserStamp(fields), strokes: readList(fields.at('strokes'), { maxLength: MOST_STROKES_IN_A_LINE, readItem: readElementId }) }),
+    },
+    typing: {
+      keys: STAMP_KEYS,
+      read: (fields) => ({ type: 'typing', ...readBrowserStamp(fields) }),
+    },
+    stopTutor: {
+      keys: STAMP_KEYS,
+      read: (fields) => ({ type: 'stopTutor', ...readBrowserStamp(fields) }),
     },
     markNotDrawn: {
       keys: [...STAMP_KEYS, 'markId'],

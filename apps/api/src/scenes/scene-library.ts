@@ -1,0 +1,78 @@
+import { createHash } from 'node:crypto';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import deeperScenes from '../picks/deeper-scenes.json';
+import { LIBRARY } from '../picks/library';
+import type { LibrarySceneDto } from './scene.dto';
+
+const SAMPLE_OPENINGS = 18;
+const SAMPLE_DEEPER = 6;
+const SCENE_FOLDER = /^scene-[0-9a-f]{40}$/;
+const THE_LIGHT_SHEET = 'sheet-0.png';
+
+interface ListedTitle {
+  kind: 'opening' | 'deeper';
+  subject: string;
+}
+
+const normalizeTitle = (title: string) => title.normalize('NFC').toLowerCase().trim();
+
+function getListedTitles(): ReadonlyMap<string, ListedTitle> {
+  const openings = LIBRARY.topics.map(({ title, subject }): [string, ListedTitle] => [normalizeTitle(title), { kind: 'opening', subject }]);
+  const deeper = deeperScenes.deeper.flatMap(({ topicId, titles }) => titles.map((title): [string, ListedTitle] => [normalizeTitle(title), { kind: 'deeper', subject: LIBRARY.topics.find(({ id }) => id === topicId)?.subject ?? '' }]));
+  return new Map([...openings, ...deeper]);
+}
+
+const getFlagPath = (storeRoot: string, sceneId: string) => join(storeRoot, 'flags', `${sceneId}.json`);
+
+interface SceneRecord {
+  status?: string;
+  ownerId?: string | null;
+  topic?: string;
+  narration?: string;
+  plan?: { close?: string };
+}
+
+// A damaged record cannot prove what it is, so the page leaves it out.
+function readSceneRecord(path: string): SceneRecord | null {
+  try {
+    return JSON.parse(readFileSync(path, 'utf8')) as SceneRecord;
+  } catch {
+    return null;
+  }
+}
+
+/** Every saved scene that is on the server's own list. A student's typed scene has an owner, so it never comes here. */
+export function getLibraryScenes(storeRoot: string): LibrarySceneDto[] {
+  const scenesRoot = join(storeRoot, 'scenes');
+  if (!existsSync(scenesRoot)) return [];
+  const listed = getListedTitles();
+  return readdirSync(scenesRoot).filter((sceneId) => SCENE_FOLDER.test(sceneId)).flatMap((sceneId) => {
+    const record = readSceneRecord(join(scenesRoot, sceneId, 'scene.json'));
+    const found = record?.topic ? listed.get(normalizeTitle(record.topic)) : undefined;
+    if (!record?.topic || !found || record.status !== 'checked' || (record.ownerId ?? null) !== null) return [];
+    return [{ sceneId, title: record.topic, kind: found.kind, subject: found.subject, narration: record.narration ?? '', close: record.plan?.close ?? '', isFlagged: existsSync(getFlagPath(storeRoot, sceneId)), isCheckedByPerson: false }];
+  });
+}
+
+const getShuffleKey = (seed: number, sceneId: string) => createHash('sha256').update(`${seed}:${sceneId}`).digest('hex');
+
+/** The same seed draws the same scenes, so a flag is still in view after a reload. Openings outnumber the rest because more students see them. */
+export function getWeightedSample(scenes: readonly LibrarySceneDto[], seed: number): LibrarySceneDto[] {
+  const shuffled = [...scenes].sort((first, second) => getShuffleKey(seed, first.sceneId).localeCompare(getShuffleKey(seed, second.sceneId)));
+  return [...shuffled.filter(({ kind }) => kind === 'opening').slice(0, SAMPLE_OPENINGS), ...shuffled.filter(({ kind }) => kind === 'deeper').slice(0, SAMPLE_DEEPER)];
+}
+
+export function setSceneFlag({ storeRoot, sceneId, flaggedBy, isFlagged }: { storeRoot: string; sceneId: string; flaggedBy: string; isFlagged: boolean }): void {
+  const path = getFlagPath(storeRoot, sceneId);
+  if (!isFlagged) {
+    rmSync(path, { force: true });
+    return;
+  }
+  mkdirSync(join(storeRoot, 'flags'), { recursive: true });
+  writeFileSync(path, JSON.stringify({ flaggedBy, flaggedAt: new Date().toISOString() }));
+}
+
+export const getLightSheetPath = (storeRoot: string, sceneId: string) => join(storeRoot, 'scenes', sceneId, THE_LIGHT_SHEET);
+
+export const isNamedReviewer = (studentId: string) => (process.env.SCENE_REVIEWER_IDS ?? '').split(',').map((id) => id.trim()).includes(studentId);

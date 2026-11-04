@@ -145,7 +145,7 @@ export async function openStudentPage(browser: Browser, { email, title, subject 
   const screenOpenedEpochMs = Date.now();
   if (opensScreen) {
     await page.goto(sessionUrl);
-    await page.getByRole('textbox', { name: 'Your reply' }).waitFor();
+    await page.locator('[data-page]').waitFor();
   }
   return {
     context,
@@ -159,7 +159,7 @@ export async function openStudentPage(browser: Browser, { email, title, subject 
       return { firstSoundEpochMs: startedEpochMs + clip.firstMs, lastSoundEpochMs: startedEpochMs + clip.lastMs, endedEpochMs };
     },
     setNoise: (level) => page.evaluate((value) => window.speechInPage.setNoise(value), level),
-    pressTalk: () => page.getByRole('button', { name: 'Talk' }).click(),
+    pressTalk: () => page.locator('[data-talk-button]:visible').first().click(),
     async waitForLive() {
       await page.waitForFunction(() => window.astraVoice?.getView().phase === 'live', undefined, { timeout: 30_000 });
     },

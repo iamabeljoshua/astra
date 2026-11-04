@@ -26,6 +26,7 @@ const { values: args } = parseArgs({
 const out = args.out as string;
 const delay = (ms: number) => new Promise((done) => setTimeout(done, ms));
 const MAYA = args.email as string;
+const INVITED_STUDENT = 'tola@astra.test';
 const VOICE = 'say-samantha';
 const CLIP_IDS = ['quadratic-roots', 'denominator-x', 'x-squared-over', 'why-down', 'twice', 'numerator', 'parabola', 'gravity', 'factor', 'slope', 'hypotenuse', 'momentum'];
 const HOLD_LINE = { id: 'factor', text: 'Do I factor the quadratic first?' };
@@ -86,7 +87,9 @@ async function waitForRows(stack: VoiceStack, student: StudentPage, afterMs: num
 
 const getPhase = (student: StudentPage) => student.page.evaluate(() => window.astraVoice?.getView().phase ?? 'stillOpening');
 const getMic = (student: StudentPage) => student.page.evaluate(() => window.astraVoice?.getView().mic ?? 'noVoice');
-const getPressed = (student: StudentPage) => student.page.getByRole('button', { name: 'Talk' }).getAttribute('aria-pressed');
+const getTalk = (student: StudentPage) => student.page.locator('[data-talk-button]:visible').first();
+const getPressed = (student: StudentPage) => getTalk(student).getAttribute('aria-pressed');
+const sendTyped = (student: StudentPage, text: string) => student.page.evaluate((words) => (window.astraVoice as unknown as { sendTyped(line: string): void }).sendTyped(words), text);
 const getEpoch = (student: StudentPage) => student.page.evaluate(() => performance.timeOrigin + performance.now());
 
 async function readMicNow(student: StudentPage) {
@@ -123,7 +126,7 @@ async function waitForMicUp(student: StudentPage): Promise<void> {
 }
 
 async function getTalkCenter(student: StudentPage) {
-  const box = await student.page.getByRole('button', { name: 'Talk' }).boundingBox();
+  const box = await getTalk(student).boundingBox();
   if (!box) throw new Error('no Talk button');
   return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 }
@@ -140,10 +143,10 @@ const tapTalk = async (student: StudentPage, holdMs = 40) => {
   await student.page.mouse.up();
 };
 
-async function withStudent<Result>(title: string, run: (student: StudentPage) => Promise<Result>, { proxy, usesFullChromium, opensScreen = true, subject }: { proxy?: string; usesFullChromium?: boolean; opensScreen?: boolean; subject?: string } = {}): Promise<Result> {
+async function withStudent<Result>(title: string, run: (student: StudentPage) => Promise<Result>, { proxy, usesFullChromium, opensScreen = true, subject, email = MAYA, viewport }: { proxy?: string; usesFullChromium?: boolean; opensScreen?: boolean; subject?: string; email?: string; viewport?: { width: number; height: number } } = {}): Promise<Result> {
   const browser = await launchProofBrowser({ proxy, usesFullChromium });
   try {
-    const student = await openStudentPage(browser, { email: MAYA, title, opensScreen, ...(subject ? { subject } : {}), ...(args.noCatchUp ? { beforeOpen: turnOffCatchUp } : {}) });
+    const student = await openStudentPage(browser, { email, title, opensScreen, ...(viewport ? { viewport } : {}), ...(subject ? { subject } : {}), ...(args.noCatchUp ? { beforeOpen: turnOffCatchUp } : {}) });
     return await run(student);
   } finally {
     await browser.close();
@@ -465,14 +468,14 @@ const SCENARIOS: Record<string, (stack: VoiceStack) => Promise<unknown>> = {
       await tapTalk(student);
       results.tripleTapOff = await readClosed(student);
 
-      await page.getByRole('button', { name: 'Talk' }).focus();
+      await getTalk(student).focus();
       await page.keyboard.press('Enter');
       await waitForMicUp(student);
       results.enterOn = await readOpen(student);
       await page.keyboard.press('Enter');
       results.enterOff = await readClosed(student);
 
-      await page.getByRole('button', { name: 'Talk' }).focus();
+      await getTalk(student).focus();
       await page.keyboard.press('Space');
       await waitForMicUp(student);
       results.spaceTapOnFocusedTalkOn = await readOpen(student);
@@ -696,15 +699,181 @@ const SCENARIOS: Record<string, (stack: VoiceStack) => Promise<unknown>> = {
       return { open, closedAfterMs, closed, note, repeatAfterLimit };
     }),
 
+  land: (stack) =>
+    withStudent('Why does a ball fall?', async (student) => {
+      const page = student.page;
+      const results: Record<string, unknown> = {};
+      const countAsks = () => page.evaluate(() => (window as unknown as { microphoneAsks: number }).microphoneAsks);
+      const speakWhile = async (press: () => Promise<void>, release: () => Promise<void>, clipId: string) => {
+        const startedAtMs = await getEpoch(student);
+        await press();
+        await delay(500);
+        await student.say(getClip(clipId));
+        await release();
+        const rows = await waitForRows(stack, student, startedAtMs, (found) => found.some((row) => row.name === 'turnFinished' && row.kind === 'reply'), 15_000);
+        return { heard: rows.find((row) => row.name === 'words' && row.isFinal)?.text ?? null, replied: rows.some((row) => row.name === 'replyDecided'), focus: await page.evaluate(() => document.activeElement?.tagName ?? null), closed: await readClosed(student) };
+      };
+      await goLive(student);
+      results.talkButtonsShown = await page.locator('[data-talk-button]:visible').count();
+      await page.screenshot({ path: join(out, 'land-laptop.png') });
+
+      const pressSpace = () => page.keyboard.down('Space');
+      const letGoOfSpace = () => page.keyboard.up('Space');
+      results.spaceHolds = [await speakWhile(pressSpace, letGoOfSpace, 'factor'), await speakWhile(pressSpace, letGoOfSpace, 'slope')];
+      results.talkHold = await speakWhile(() => pointerDownOnTalk(student), () => page.mouse.up(), 'gravity');
+
+      await tapTalk(student);
+      await waitForMicUp(student);
+      const pressOnceOpen = await readOpen(student);
+      await delay(1500);
+      const pressOnceStartedAtMs = await getEpoch(student);
+      await student.say(getClip('momentum'));
+      const pressOnceRows = await waitForRows(stack, student, pressOnceStartedAtMs, (found) => found.some((row) => row.name === 'turnFinished' && row.kind === 'reply'), 15_000);
+      const stayedOn = await getMic(student);
+      await tapTalk(student);
+      results.pressOnce = { open: pressOnceOpen, replied: pressOnceRows.some((row) => row.name === 'replyDecided'), stayedOn, closed: await readClosed(student) };
+
+      const overTutorStartedAtMs = await getEpoch(student);
+      await sendTyped(student, 'Show me the ball.');
+      await waitForRows(stack, student, overTutorStartedAtMs, (found) => found.some((row) => row.name === 'turnStarted' && row.kind === 'reply'), 15_000);
+      await delay(1500);
+      await clearFocus(student);
+      const pressedAtMs = await getEpoch(student);
+      await pressSpace();
+      await delay(500);
+      await student.say(getClip('why-down'));
+      await letGoOfSpace();
+      const overTutorRows = await waitForRows(stack, student, pressedAtMs, (found) => found.some((row) => row.name === 'replyDecided'), 12_000);
+      results.overTutor = { stops: overTutorRows.filter((row) => row.name === 'stopDecided').map((row) => row.reason), stopAfterPressMs: Math.round((overTutorRows.find((row) => row.name === 'stopDecided')?.atMs ?? pressedAtMs) - pressedAtMs), replied: overTutorRows.filter((row) => row.name === 'replyDecided').map((row) => row.text), closed: await readClosed(student) };
+      await waitForRows(stack, student, pressedAtMs, (found) => found.some((row) => row.name === 'turnFinished' && row.kind === 'reply'), 15_000);
+
+      const asksBeforeTyping = await countAsks();
+      const line = page.getByRole('textbox', { name: 'Write on the board' });
+      await line.click();
+      await page.keyboard.type('x y');
+      await page.keyboard.down('Space');
+      await delay(500);
+      await page.keyboard.down('Space');
+      await page.keyboard.up('Space');
+      results.boardLine = { value: await line.inputValue(), asksAdded: (await countAsks()) - asksBeforeTyping, mic: await getMic(student) };
+      await line.fill('');
+
+      await page.getByRole('button', { name: 'Math keys' }).click();
+      const mathField = page.locator('math-field');
+      await mathField.waitFor();
+      await mathField.click();
+      await page.keyboard.type('x');
+      await page.keyboard.down('Space');
+      await delay(500);
+      await page.keyboard.up('Space');
+      results.mathKeys = { value: await mathField.evaluate((field) => (field as unknown as { value: string }).value), asksAdded: (await countAsks()) - asksBeforeTyping, mic: await getMic(student) };
+      await page.getByRole('button', { name: 'Math keys' }).click();
+
+      const talk = page.locator('[data-talk-button]:visible').first();
+      await clearFocus(student);
+      await page.evaluate(() => document.body.focus());
+      let tabsToTalk = 0;
+      for (; tabsToTalk < 40; tabsToTalk += 1) {
+        await page.keyboard.press('Tab');
+        if (await talk.evaluate((button) => button === document.activeElement)) break;
+      }
+      results.tabsToTalk = tabsToTalk + 1;
+      await talk.focus();
+      await page.keyboard.press('Enter');
+      await waitForMicUp(student);
+      const enterOn = await readOpen(student);
+      await page.keyboard.press('Enter');
+      results.enter = { on: enterOn, off: await readClosed(student) };
+      await talk.evaluate((button) => (button as HTMLElement).click());
+      await waitForMicUp(student);
+      const screenReaderOn = await readOpen(student);
+      await talk.evaluate((button) => (button as HTMLElement).click());
+      results.screenReaderClick = { on: screenReaderOn, off: await readClosed(student) };
+      results.talkForAssistiveTech = await talk.evaluate((button) => ({ tag: button.tagName, words: button.textContent, pressed: button.getAttribute('aria-pressed'), keyShortcuts: button.getAttribute('aria-keyshortcuts'), title: button.getAttribute('title'), tabIndex: (button as HTMLElement).tabIndex }));
+      return results;
+    }),
+
+  landReplyBox: async () => {
+    const browser = await launchProofBrowser();
+    try {
+      const student = await openStudentPage(browser, { email: MAYA, title: 'No room today', beforeOpen: async (page) => {
+          await page.route('**/live-room', (route) => route.abort());
+        } });
+      const box = student.page.getByRole('textbox', { name: 'Your reply' });
+      await box.waitFor();
+      await box.click();
+      await student.page.keyboard.type('a b');
+      await student.page.keyboard.down('Space');
+      await delay(500);
+      await student.page.keyboard.up('Space');
+      return { value: await box.inputValue(), microphoneAsks: await student.page.evaluate(() => (window as unknown as { microphoneAsks: number }).microphoneAsks) };
+    } finally {
+      await browser.close();
+    }
+  },
+
+  landPhone: (stack) =>
+    withStudent(
+      'Why does a ball fall on a phone?',
+      async (student) => {
+        const page = student.page;
+        await goLive(student);
+        const touch = await student.context.newCDPSession(page);
+        await touch.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
+        await page.evaluate(() => {
+          const menus: boolean[] = [];
+          (window as unknown as { menus: boolean[] }).menus = menus;
+          window.addEventListener('contextmenu', (event) => menus.push(event.defaultPrevented));
+        });
+        const talk = page.locator('[data-talk-button]:visible').first();
+        const center = await getTalkCenter(student);
+        const box = await talk.boundingBox();
+        const startedAtMs = await getEpoch(student);
+        await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [center] });
+        await waitForMicUp(student);
+        await delay(1000);
+        await page.screenshot({ path: join(out, 'land-phone-held.png') });
+        const open = await readOpen(student);
+        await student.say(getClip('factor'));
+        await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+        const rows = await waitForRows(stack, student, startedAtMs, (found) => found.some((row) => row.name === 'turnFinished' && row.kind === 'reply'), 15_000);
+        const closed = await readClosed(student);
+        await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [center] });
+        await delay(40);
+        await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+        await waitForMicUp(student);
+        const tapOpen = await readOpen(student);
+        await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [center] });
+        await delay(40);
+        await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+        return {
+          talkBox: box,
+          viewport: page.viewportSize(),
+          open,
+          heard: rows.find((row) => row.name === 'words' && row.isFinal)?.text ?? null,
+          replied: rows.some((row) => row.name === 'replyDecided'),
+          closed,
+          tapOpen,
+          tapClosed: await readClosed(student),
+          selectedText: await page.evaluate(() => window.getSelection()?.toString() ?? ''),
+          menusAllowed: await page.evaluate(() => (window as unknown as { menus: boolean[] }).menus.filter((wasStopped) => !wasStopped).length),
+          menusStopped: await page.evaluate(() => (window as unknown as { menus: boolean[] }).menus.filter(Boolean).length),
+          style: await talk.evaluate((button) => {
+            const { touchAction, userSelect } = getComputedStyle(button);
+            return { touchAction, userSelect };
+          }),
+        };
+      },
+      { viewport: { width: 390, height: 844 } },
+    ),
+
   interrupt: (stack) =>
     withStudent('Hold over the tutor', async (student) => {
       await goLive(student);
       const rounds: unknown[] = [];
       for (let round = 0; round < 4; round += 1) {
         const startedAtMs = await getEpoch(student);
-        const box = student.page.getByRole('textbox', { name: 'Your reply' });
-        await box.fill('Show me the ball.');
-        await box.press('Enter');
+        await sendTyped(student, 'Show me the ball.');
         await waitForRows(stack, student, startedAtMs, (found) => found.some((row) => row.name === 'turnStarted' && row.kind === 'reply'), 15_000);
         await delay(2500);
         await clearFocus(student);
@@ -781,9 +950,7 @@ const SCENARIOS: Record<string, (stack: VoiceStack) => Promise<unknown>> = {
       await goLiveByTap(student);
       await delay(3000);
       const startedAtMs = await getEpoch(student);
-      const box = student.page.getByRole('textbox', { name: 'Your reply' });
-      await box.fill('Show me the ball.');
-      await box.press('Enter');
+      await sendTyped(student, 'Show me the ball.');
       await waitForRows(stack, student, startedAtMs, (found) => found.some((row) => row.name === 'turnStarted' && row.kind === 'reply'), 15_000);
       for (let burst = 0; burst < 5; burst += 1) {
         await delay(2500);
@@ -857,7 +1024,6 @@ const SCENARIOS: Record<string, (stack: VoiceStack) => Promise<unknown>> = {
     withStudent('First session', async (student) => {
       const results: Record<string, unknown> = {};
       const page = student.page;
-      const box = page.getByRole('textbox', { name: 'Your reply' });
       const PROMPT = 'Press Talk to answer, or type.';
       const recorded: number[] = [];
       page.on('response', (response) => {
@@ -877,8 +1043,7 @@ const SCENARIOS: Record<string, (stack: VoiceStack) => Promise<unknown>> = {
       const getPromptTimes = () => page.evaluate(() => (window as unknown as { promptSeen: { atMs: number[] } }).promptSeen.atMs);
       const typeAndHear = async (text: string) => {
         const startedAtMs = await getEpoch(student);
-        await box.fill(text);
-        await box.press('Enter');
+        await sendTyped(student, text);
         await waitForRows(stack, student, startedAtMs, (found) => found.some((row) => row.name === 'turnFinished' && row.kind === 'reply'), 20_000);
         await delay(5000);
         return rowsSince(stack, student, startedAtMs).filter((row) => row.name === 'turnStarted').map((row) => row.kind);
@@ -899,12 +1064,17 @@ const SCENARIOS: Record<string, (stack: VoiceStack) => Promise<unknown>> = {
       results.recordedStatuses = recorded;
       results.secondAnswer = await typeAndHear('And then what?');
       await page.reload();
-      await box.waitFor();
       await student.waitForLive();
       results.afterReload = await typeAndHear('Tell me more.');
       results.closed = await readClosed(student);
+      const browser = student.context.browser();
+      if (!browser) throw new Error('no browser');
+      const nextSession = await openStudentPage(browser, { email: INVITED_STUDENT, title: 'Second session' });
+      await goLive(nextSession);
+      await delay(5000);
+      results.secondSessionTurns = rowsSince(stack, nextSession, 0).filter((row) => row.name === 'turnStarted').map((row) => row.kind);
       return results;
-    }),
+    }, { email: INVITED_STUDENT }),
 };
 
 interface MeasuredLine {

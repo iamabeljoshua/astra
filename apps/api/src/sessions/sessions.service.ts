@@ -84,6 +84,10 @@ export class SessionsService {
     return toSessionResponse(session);
   }
 
+  renameUnfinished(studentId: string, sessionId: string, title: string): Promise<void> {
+    return this.sessions.renameUnfinishedForStudent(studentId, sessionId, title);
+  }
+
   async getNewestUnfinishedSession(studentId: string): Promise<SessionResponseDto | null> {
     const session = await this.sessions.findNewestUnfinishedForStudent(studentId);
     return session && toSessionResponse(session);

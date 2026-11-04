@@ -3,20 +3,42 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { getBeatText, getCues, type SceneCommand } from '@astra/contracts';
+import { type ElementId, getBeatText, getCues, type SceneCommand, type StudentWork } from '@astra/contracts';
 import { readKey } from '../../keys.ts';
-import { makeAnthropicAsker, makeAnthropicSourceFinder, makeAnthropicTutorModel, type TutorModelName } from '../../providers/anthropic.ts';
+import { askPlanner } from '../../lesson-plan/ask-planner.ts';
+import { createLessonPlanner } from '../../lesson-plan/lesson-planner.ts';
+import { makeAnthropicAsker, makeAnthropicJsonReader, makeAnthropicSourceFinder, makeAnthropicTutorModel, type TutorModelName } from '../../providers/anthropic.ts';
+import type { MemoryLine } from '../../learner-record/memory-note.ts';
 import { createTutorBrain, type StudentProfile, type TurnSummary } from '../brain.ts';
 import { CURRENT_PROMPT, PROMPT_VERSIONS, type PromptVersion, type TutorPrompt } from '../prompt.ts';
 import { createSpendLedger } from '../spend-ledger.ts';
+import { getWorkWords } from '../watcher/watch-rule.ts';
 import { JUDGED_CHECKS, LEVELS_QUESTION, REPLY_CHECKS } from './reply-checks.ts';
 
+type GroupWork = { way: 'write'; id: string; text: string } | { way: 'leave' } | { way: 'pick'; part: string } | { way: 'place'; placed: 'rightOrder' | 'wrongOrder' } | { way: 'drag'; x: number };
+
 interface GroupTurn {
-  text: string;
+  text?: string;
+  work?: GroupWork;
   check?: string;
+  silent?: boolean;
   judge?: string;
   terms?: readonly string[];
   answer?: string;
+}
+
+function toStudentWork(work: GroupWork, brain: ReturnType<typeof createTutorBrain>): StudentWork {
+  const { state, openTask } = brain.getBoard();
+  const element = openTask === null ? undefined : state.elements.get(openTask);
+  const task = element?.content.kind === 'task' ? element.content : null;
+  if (work.way === 'write') return { way: 'write', id: work.id as ElementId, text: work.text, ...(openTask ? { task: openTask } : {}) };
+  if (!openTask || !task) throw new Error('the tutor set no task');
+  if (work.way === 'leave') return { way: 'leave', task: openTask };
+  if (work.way === 'pick') return { way: 'pick', task: openTask, part: work.part };
+  if (work.way === 'drag') return { way: 'drag', task: openTask, x: work.x, samples: [{ afterMs: 0, x: work.x }] };
+  if (task.way !== 'place') throw new Error('the tutor set no place task');
+  const right = task.answer ?? task.items.slice(0, task.slots.length);
+  return { way: 'place', task: openTask, placed: work.placed === 'rightOrder' ? right : [...right].reverse() };
 }
 
 interface LevelCompare {
@@ -34,6 +56,8 @@ interface PromptGroup {
   /** Checked on every turn in the group. */
   checks?: readonly string[];
   turns?: readonly GroupTurn[];
+  /** Given to the tutor as they stand, past the screens that normally read them. Left out, the tutor has no memory note at all. */
+  memory?: readonly MemoryLine[];
   /** Over the whole group: most replies stay under 25 words. */
   stat?: 'usuallyShort';
   /** The same question at two levels, in two sessions. */
@@ -112,11 +136,16 @@ function describeDrawn(command: SceneCommand): string {
   return 'text' in command && command.text ? command.text : '';
 }
 
-function makeBrain(prompt: TutorPrompt, profile: StudentProfile, traces: string[], onTurn: (summary: TurnSummary) => void, model: ReturnType<typeof makeAnthropicTutorModel>) {
-  return createTutorBrain({
+function makeBrain(prompt: TutorPrompt, profile: StudentProfile, traces: string[], onTurn: (summary: TurnSummary) => void, model: ReturnType<typeof makeAnthropicTutorModel>, memory?: readonly MemoryLine[]) {
+  // The same planner a room runs, so these turns test what a student gets.
+  const reader = makeAnthropicJsonReader({ apiKey: readKey('ANTHROPIC_API_KEY') });
+  const lessonPlanner = createLessonPlanner({ ask: (request) => askPlanner(reader, request), canSpend: () => true, charge: (usd) => ledger.charge({ anthropicUsd: usd }), onTitleChange: (title) => console.log(`title now: ${title}`), trace: () => {} });
+  const brain = createTutorBrain({
     model,
     prompt,
     profile,
+    lessonPlanner,
+    ...(memory ? { memory: { memory: { count: memory.length, notes: [...memory] } } } : {}),
     ...(prompt === PROMPT_VERSIONS.v2FindSource ? { findSource: makeAnthropicSourceFinder({ apiKey: readKey('ANTHROPIC_API_KEY') }) } : {}),
     trace: (name, fields) => traces.push(`${name}${fields?.problem ? `: ${String(fields.problem)}` : ''}${fields?.report ? `: ${String(fields.report)}` : ''}`),
     onTurnEnd(summary) {
@@ -125,13 +154,19 @@ function makeBrain(prompt: TutorPrompt, profile: StudentProfile, traces: string[
     },
     getSpendLimit: () => (ledger.isOverModelLimit() ? 'sessionLimit' : null),
   });
+  return { brain, lessonPlanner };
 }
 
 function recordCodeChecks(group: PromptGroup, turn: GroupTurn, summary: TurnSummary, commands: readonly SceneCommand[]) {
   const details = { drawn: commands.map(describeDrawn), toolCalls: summary.toolCalls.map((call) => call.tool), terms: turn.terms ?? [], answer: turn.answer ? new RegExp(turn.answer, 'i') : null, longestStretchWords: getLongestStretchWords(summary.beats) };
   for (const check of [...(group.checks ?? []), ...(turn.check ? [turn.check] : [])]) {
+    if (REPLY_CHECKS[check]?.onlyOnWork && !turn.work) continue;
     const passed = REPLY_CHECKS[check]?.passes(summary.spokenText, commands.map((command) => command.kind), details) ?? false;
-    results.push({ group: group.name, check, passed, text: turn.text.slice(0, 60) });
+    if (!passed && REPLY_CHECKS[check]?.isSoft) {
+      console.log(`   soft miss, not a failure: ${check}`);
+      continue;
+    }
+    results.push({ group: group.name, check, passed, text: (turn.text ?? '').slice(0, 60) });
     if (!passed) console.log(`   FAILED ${check}`);
   }
 }
@@ -146,29 +181,35 @@ interface RunContext {
 async function runGroup(group: PromptGroup, { prompt, model, askJudge }: RunContext): Promise<void> {
   const traces: string[] = [];
   let latest: TurnSummary | null = null;
-  const brain = makeBrain(prompt, group.profile ?? PROFILE, traces, (summary) => (latest = summary), model);
+  const { brain, lessonPlanner } = makeBrain(prompt, group.profile ?? PROFILE, traces, (summary) => (latest = summary), model, group.memory);
   const exchange: string[] = [];
   const wordCounts: number[] = [];
   for (const turn of group.turns ?? []) {
     traces.length = 0;
     const beats = [];
-    for await (const beat of brain.reply({ text: turn.text }, new AbortController().signal)) beats.push(beat);
+    const work = turn.work ? toStudentWork(turn.work, brain) : null;
+    const checked = work ? brain.noteWork(work)?.checked : null;
+    if (work) console.log(`[${group.name}] ${JSON.stringify(work)} code says ${checked?.verdict.status}${checked?.closesTask ? ', done' : ''}`);
+    if (turn.silent) continue;
+    const text = work ? getWorkWords(work) : (turn.text as string);
+    for await (const beat of brain.reply({ text }, new AbortController().signal)) beats.push(beat);
     const summary = latest as unknown as TurnSummary;
     const commands = beats.flatMap((beat) => getCues(beat).map((cue) => cue.command));
-    console.log(`[${group.name}] S: ${turn.text}`);
+    console.log(`[${group.name}] S: ${text}`);
     console.log(`   T(${summary.endedAs},a${summary.attempts}${summary.refusalCategory ? `,${summary.refusalCategory}` : ''}): ${summary.spokenText}`);
     for (const command of commands) console.log(`     cmd ${JSON.stringify(command)}`);
     for (const call of summary.toolCalls) console.log(`     tool ${JSON.stringify(call)}`);
     if (traces.length > 0) console.log(`   traces: ${traces.join(' | ')}`);
     recordCodeChecks(group, turn, summary, commands);
     wordCounts.push(summary.spokenText.split(/\s+/).filter(Boolean).length);
-    exchange.push(`Student: ${turn.text}`, `Tutor: ${summary.spokenText}`);
+    exchange.push(`Student: ${text}`, `Tutor: ${summary.spokenText}`);
     if (turn.judge) {
       const verdict = await askJudge(`${exchange.join('\n')}\n\nQuestion about the tutor's last reply: ${JUDGED_CHECKS[turn.judge] as string}\nAnswer YES or NO on the first line, then one short reason.`);
       const passed = /^yes\b/i.test(verdict);
-      results.push({ group: group.name, check: `judged:${turn.judge}`, passed, text: turn.text.slice(0, 60) });
+      results.push({ group: group.name, check: `judged:${turn.judge}`, passed, text: text.slice(0, 60) });
       console.log(`   judged ${turn.judge}: ${verdict.replace(/\s+/g, ' ').slice(0, 160)}`);
     }
+    await lessonPlanner.whenSettled();
   }
   if (group.stat === 'usuallyShort') {
     const passed = wordCounts.filter((count) => count < USUAL_WORDS).length / wordCounts.length >= USUAL_SHARE;
@@ -179,7 +220,7 @@ async function runGroup(group: PromptGroup, { prompt, model, askJudge }: RunCont
 
 async function runCompareSide(compare: LevelCompare, level: string, { prompt, model }: RunContext): Promise<string> {
   const spoken: string[] = [];
-  const brain = makeBrain(prompt, { level, interests: [], goal: 'curiosity' }, [], (summary) => spoken.push(summary.spokenText), model);
+  const { brain } = makeBrain(prompt, { level, interests: [], goal: 'curiosity' }, [], (summary) => spoken.push(summary.spokenText), model);
   for (const text of [compare.text, compare.then]) for await (const beat of brain.reply({ text }, new AbortController().signal)) void beat;
   return spoken.join(' ');
 }

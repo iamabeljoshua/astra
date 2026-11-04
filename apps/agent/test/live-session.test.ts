@@ -41,6 +41,7 @@ interface Harness {
   didStop(turnId: TurnId): boolean;
   brainRequests: string[];
   aborted: number;
+  cameBack: number;
 }
 
 function makeOutput(frames: { atMs: number }[], failAfter = Infinity): VoiceOutput {
@@ -66,14 +67,17 @@ function makeOutput(frames: { atMs: number }[], failAfter = Infinity): VoiceOutp
   };
 }
 
-function start({ voice = makeRenderedVoice({ name: 'fake', render: renderTone }).makeTts(), failAfter, quietLimitMs, onQuietLimit, tutorBeats, endLine, replyLine = LONG_LINE, replyLines = [], closedReason = null }: { endLine?: () => void; replyLine?: string; replyLines?: readonly string[]; closedReason?: TutorClosedReason | null;  voice?: tts.TTS; failAfter?: number; quietLimitMs?: number; onQuietLimit?(): void; tutorBeats?: readonly TutorBeat[] } = {}): Harness {
+function start({ voice = makeRenderedVoice({ name: 'fake', render: renderTone }).makeTts(), failAfter, quietLimitMs, onQuietLimit, tutorBeats, endLine, replyLine = LONG_LINE, replyLines = [], closedReason = null, getCostSoFar }: { getCostSoFar?(): number; endLine?: () => void; replyLine?: string; replyLines?: readonly string[]; closedReason?: TutorClosedReason | null;  voice?: tts.TTS; failAfter?: number; quietLimitMs?: number; onQuietLimit?(): void; tutorBeats?: readonly TutorBeat[] } = {}): Harness {
   const messages: AgentMessage[] = [];
   const traces: Harness['traces'] = [];
   const frames: { atMs: number }[] = [];
   const brainRequests: string[] = [];
   let replies = 0;
-  const harness = { aborted: 0 } as Harness;
+  const harness = { aborted: 0, cameBack: 0 } as Harness;
   const tutor: TutorBrain = {
+    noteCameBack() {
+      harness.cameBack += 1;
+    },
     async *reply({ text }, signal) {
       brainRequests.push(text);
       replies += 1;
@@ -87,6 +91,7 @@ function start({ voice = makeRenderedVoice({ name: 'fake', render: renderTone })
   };
   const send = (message: AgentMessage) => void messages.push(message);
   const session = createLiveSession({
+    ...(getCostSoFar ? { getCostSoFar } : {}),
     messenger: { send, sendOnBothChannels: send },
     line: createVoiceLine(makeOutput(frames, failAfter)),
     voice,
@@ -462,6 +467,28 @@ describe('a quiet room', () => {
     expect(closed).toBe(1);
   }, 20_000);
 
+  it('tells the page about cost only when a tester asked, and once a reply', async () => {
+    const asked = start({ getCostSoFar: () => 0.04, tutorBeats: [makeBeat('short', 'one two three')] });
+    await asked.say('Show me a long answer');
+    await until(() => asked.traces.some(({ name, fields }) => name === 'turnFinished' && fields.kind === 'reply'));
+    expect(asked.messages.filter(({ type }) => type === 'costSoFar')).toEqual([{ type: 'costSoFar', usd: 0.04 }]);
+    const silent = start({ tutorBeats: [makeBeat('short', 'one two three')] });
+    await silent.say('Show me a long answer');
+    await until(() => silent.traces.some(({ name, fields }) => name === 'turnFinished' && fields.kind === 'reply'));
+    expect(silent.messages.filter(({ type }) => type === 'costSoFar')).toEqual([]);
+  });
+
+  it('logs a beat that starts a new stretch, because a replay needs every word that played', async () => {
+    const secondStretch = { ...makeBeat('second', 'And the next idea.'), pauseBeforeMs: 0 };
+    const { session, say, traces } = start({ tutorBeats: [makeBeat('first', 'one two three'), secondStretch] });
+    await say('Show me a long answer');
+    await until(() => traces.filter(({ name, fields }) => name === 'turnStarted' && fields.kind === 'reply').length === 2);
+    const turnId = traces.filter(({ name, fields }) => name === 'turnStarted' && fields.kind === 'reply').at(-1)?.fields.turnId as never;
+    session.onBrowser({ type: 'played', turnId, beatId: 'second' as never, wordStartsMs: [0, 100, 200, 300], durationMs: 400, playedWords: 4, firedCueMs: [], ending: 'finished', frozen: [], clockId: 'c', browserMs: 10, startedMsAgo: 0 });
+    expect(traces.filter(({ name }) => name === 'reportRefused')).toEqual([]);
+    expect(session.getLog().some((event) => event.kind === 'beatPlayed' && event.beat.id === 'second')).toBe(true);
+  });
+
   it('leaves no quiet count running once the session has closed, even with a turn ending as it closes', async () => {
     let closed = 0;
     const { session, say, traces } = start({ quietLimitMs: 100, onQuietLimit: () => (closed += 1), tutorBeats: [makeBeat('short', 'one two three four five six')] });
@@ -641,6 +668,15 @@ describe('the greeting', () => {
     harness.browser({ type: 'hello', ...STAMP, wantsGreeting: true, invitesTalk: false });
     await delay(50);
     expect(harness.traces.filter((trace) => trace.name === 'turnStarted').map((trace) => trace.fields.kind)).toEqual(['greeting']);
+  });
+
+  it('tells the tutor when a new page clock says hello, because that is a reload with the board in its hands', async () => {
+    const harness = start();
+    harness.browser({ type: 'hello', ...STAMP, wantsGreeting: true, invitesTalk: false });
+    harness.browser({ type: 'hello', ...STAMP, wantsGreeting: false, invitesTalk: false });
+    expect(harness.cameBack).toBe(0);
+    harness.browser({ type: 'hello', ...STAMP, clockId: 'next-page', wantsGreeting: true, invitesTalk: false });
+    expect(harness.cameBack).toBe(1);
   });
 
   it('stays quiet for a student who opened the room by typing', async () => {

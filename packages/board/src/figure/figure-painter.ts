@@ -3,7 +3,7 @@ import type { Branch, FigureMark, MarkTone, MarkWeight } from './figure-marks.ts
 import { LABEL_FONT } from './place-labels.ts';
 
 const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
-const TONES: Record<MarkTone, string> = { ink: 'var(--color-ink)', 'ink-2': 'var(--color-ink-2)', line: 'var(--color-line)' };
+const TONES: Record<MarkTone, string> = { ink: 'var(--color-ink)', 'ink-2': 'var(--color-ink-2)', line: 'var(--color-line)', pen: 'var(--color-pen)' };
 const WEIGHT_CLASSES: Record<MarkWeight, string> = { hair: 'figure-hair', thin: 'figure-thin', bold: 'figure-bold' };
 const TAG_OF_MARK: Record<FigureMark['kind'], string> = { path: 'path', area: 'path', dot: 'circle', text: 'text' };
 

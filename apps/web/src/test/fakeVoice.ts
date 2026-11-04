@@ -1,7 +1,7 @@
 import { vi } from 'vitest';
 import type { LiveVoice, LiveVoiceView } from '../voice/liveVoice';
 
-const BASE_VIEW: LiveVoiceView = { phase: 'live', mic: 'off', isRoomNoisy: false, isSoundBlocked: false, isQuietWarning: false, isHeard: false, isThinking: false, isTutorSpeaking: false, closedBecause: null, startedFresh: false, hasTutorStarted: false, studentLines: [], tutorHeard: [], tutorComing: [] };
+const BASE_VIEW: LiveVoiceView = { phase: 'live', mic: 'off', isRoomNoisy: false, isSoundBlocked: false, isQuietWarning: false, isHeard: false, isThinking: false, isTutorSpeaking: false, closedBecause: null, firstWord: null, isStopped: false, typingNoteCount: 0, costUsd: null, sessionTitle: null, startedFresh: false, hasTutorStarted: false, studentLines: [], tutorHeard: [], tutorComing: [] };
 
 export function makeFakeVoice(view: Partial<LiveVoiceView> = {}): LiveVoice {
   let current = { ...BASE_VIEW, ...view };
@@ -18,10 +18,19 @@ export function makeFakeVoice(view: Partial<LiveVoiceView> = {}): LiveVoice {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
-    getBoardNow: () => ({ board: { elements: new Map(), focus: null, refusedSliders: [] }, atMs: 0 }),
+    getBoardNow: () => ({ board: { elements: new Map(), focus: null, stage: null, refusedSliders: [] }, atMs: 0 }),
     sendTyped: vi.fn(),
     sendOpening: vi.fn(),
     reportMarkNotDrawn: vi.fn(),
+    sendWork: vi.fn(),
+    movePoint: vi.fn(),
+    sendInkStroke: vi.fn(),
+    sendInkPeek: vi.fn(),
+    sendInkDone: vi.fn(),
+    noteTyping: vi.fn(),
+    sendPause: vi.fn(),
+    stopTutor: vi.fn(),
+    getLoudness: () => 0,
     toggleMic: vi.fn(async () => setMic(current.mic !== 'on')),
     isMicOn: () => current.mic === 'on',
     setMic: vi.fn(async (isOn: boolean) => setMic(isOn)),

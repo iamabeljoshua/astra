@@ -93,6 +93,8 @@ const ANSWER = [
 ];
 
 const RECORDED_REPLIES: readonly { heard: RegExp; reply: FakeReply }[] = [
+  { heard: /like to learn about/i, reply: { pieces: ['Okay, here is the idea. ', 'Once it leaves your hand, ', 'only gravity is pulling on it. ', 'So its path is a smooth arc.'], msPerPiece: 40 } },
+  { heard: /try one/i, reply: { pieces: ['Right, ', "let's try one ", '{"kind":"boardMode","mode":"handsOn"}', 'together. ', '{"kind":"writeMath","id":"p1","tex":"2x = 8","claim":"new"}', 'Have a go at the next line. ', '{"kind":"task","id":"a1","way":"write","on":"p1"}', 'What is x?'], msPerPiece: 40 } },
   { heard: /invalid/i, reply: { pieces: ['Right, watch this. ', '{"kind":"laser","id":"zap"}', 'A command the board cannot draw is dropped, ', '{"kind":"writeMath","id":"ok","tex":"2 + 2 = 4"}', 'and the words still play. What do you notice?'], msPerPiece: 60 } },
   { heard: /stall/i, reply: { pieces: ['That took a while.'], firstTextMs: 10_000 } },
   { heard: /wrong math/i, reply: { pieces: ['So then, ', '{"kind":"writeMath","id":"bad","tex":"2 + 2 = 5"}', 'two plus two is five.'], msPerPiece: 40 } },

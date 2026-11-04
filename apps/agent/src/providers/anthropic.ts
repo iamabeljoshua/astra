@@ -120,6 +120,62 @@ export function makeAnthropicTutorModel({ name = 'sonnet-5-5', apiKey, thinking 
   };
 }
 
+export interface PictureReader {
+  read(request: { png: Buffer; prompt: string; schema: Record<string, unknown>; timeoutMs: number }): Promise<{ answer: unknown; costUsd: number }>;
+}
+
+const PICTURE_MODEL = MODEL_SETTINGS['haiku-5-5'];
+const PICTURE_MOST_TOKENS = 400;
+const TOKENS_PER_PRICE = 1_000_000;
+
+export interface JsonReader {
+  read(request: { system: string; text: string; schema: Record<string, unknown>; timeoutMs: number; mostTokens: number }): Promise<{ answer: unknown; costUsd: number }>;
+}
+
+// Quick structured answers from words, on the cheap model, away from the live turn's stream. A refusal has no text, so it reads as nothing usable.
+export function makeAnthropicJsonReader({ apiKey }: { apiKey: string }): JsonReader {
+  const client = new Anthropic({ apiKey, maxRetries: 0 });
+  return {
+    async read({ system, text, schema, timeoutMs, mostTokens }) {
+      const message = await client.beta.messages.create(
+        {
+          model: PICTURE_MODEL.id,
+          max_tokens: mostTokens,
+          thinking: { type: 'disabled' },
+          system,
+          output_config: { effort: 'low', format: { type: 'json_schema', schema } },
+          messages: [{ role: 'user', content: text }],
+        },
+        { timeout: timeoutMs },
+      );
+      const written = message.content.find((block) => block.type === 'text')?.text ?? '{}';
+      const { input, output } = PICTURE_MODEL.prices;
+      return { answer: JSON.parse(written) as unknown, costUsd: (message.usage.input_tokens * input + message.usage.output_tokens * output) / TOKENS_PER_PRICE };
+    },
+  };
+}
+
+export function makeAnthropicPictureReader({ apiKey }: { apiKey: string }): PictureReader {
+  const client = new Anthropic({ apiKey, maxRetries: 0 });
+  return {
+    async read({ png, prompt, schema, timeoutMs }) {
+      const message = await client.beta.messages.create(
+        {
+          model: PICTURE_MODEL.id,
+          max_tokens: PICTURE_MOST_TOKENS,
+          thinking: { type: 'disabled' },
+          output_config: { effort: 'low', format: { type: 'json_schema', schema } },
+          messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: png.toString('base64') } }, { type: 'text', text: prompt }] }],
+        },
+        { timeout: timeoutMs },
+      );
+      const text = message.content.find((block) => block.type === 'text')?.text ?? '{}';
+      const { input, output } = PICTURE_MODEL.prices;
+      return { answer: JSON.parse(text) as unknown, costUsd: (message.usage.input_tokens * input + message.usage.output_tokens * output) / TOKENS_PER_PRICE };
+    },
+  };
+}
+
 /** Reference and science sites a school would point a student at. The API refuses a request naming a site its crawler cannot read, so a new site needs one real call. */
 const TRUSTED_SITES = ['nasa.gov', 'noaa.gov', 'nih.gov', 'cdc.gov', 'who.int', 'britannica.com', 'khanacademy.org', 'openstax.org', 'nationalgeographic.com', 'si.edu', 'nature.com', 'wikipedia.org'];
 const SEARCH_TOOL = 'web_search_20250305';

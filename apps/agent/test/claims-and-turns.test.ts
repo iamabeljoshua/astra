@@ -2,7 +2,7 @@ import { type Beat, getBeatText, getCues } from '@astra/contracts';
 import { describe, expect, it } from 'vitest';
 import { type FakeReply, makeFakeTutorModel } from '../src/providers/fake-model.ts';
 import type { TutorModelRequest } from '../src/providers/types.ts';
-import { checkClaimedMath } from '../src/tutor/check-math.ts';
+import { checkClaimedMath } from '@astra/board/shared';
 import { createTutorBrain, type TurnSummary, type TutorBeat } from '../src/tutor/brain.ts';
 import { TUTOR_SYSTEM } from '../src/tutor/prompt.ts';
 import { SPOKEN_LINES } from '../src/tutor/spoken-lines.ts';

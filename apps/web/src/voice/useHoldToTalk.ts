@@ -98,11 +98,13 @@ export function useHoldToTalk({ heldMic, isTalkOn, toggleTalk, isEnabled }: Hold
         return holdRef.current?.loseFinger();
       }
       if (event.code !== 'Space' || hasOtherKeys(event)) return;
+      // A new task can take focus during a hold, and the key's repeats must not land in its line.
+      if (spaceSource.current) return event.preventDefault();
       const target = getRealTarget(event);
       const isOnTalk = isTalkButton(target);
       if (!isOnTalk && !isOpenToSpace(target)) return;
       event.preventDefault();
-      if (event.repeat || spaceSource.current) return;
+      if (event.repeat) return;
       setHasHitLimit(false);
       spaceSource.current = isOnTalk ? 'talkButton' : 'space';
       holdRef.current?.press(spaceSource.current);

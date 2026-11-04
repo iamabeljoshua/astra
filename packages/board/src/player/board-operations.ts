@@ -1,4 +1,4 @@
-import { type BeatEnding, type Cue, type CueAim, type FrozenFrame, getCues, type InkPoint, type SceneCommand, type SessionEvent, type ElementId } from '@astra/contracts';
+import { type BeatEnding, type Cue, type CueAim, type FrozenFrame, getCues, type InkPoint, type SceneCommand, type SessionEvent, type ElementId, type StudentAction } from '@astra/contracts';
 
 const ASSUMED_WORD_MS = 300;
 
@@ -11,7 +11,9 @@ export type BoardOperation =
   | { kind: 'parameterSample'; atMs: number; target: ElementId; parameter: string; value: number }
   | { kind: 'inkStroke'; atMs: number; id: ElementId; points: readonly InkPoint[] }
   | { kind: 'inkErased'; atMs: number; target: ElementId }
-  | { kind: 'rewound'; atMs: number; toMs: number };
+  | { kind: 'rewound'; atMs: number; toMs: number }
+  | { kind: 'worked'; atMs: number; action: Extract<StudentAction, { action: 'worked' }> }
+  | { kind: 'pointMoved'; atMs: number; task: ElementId; x: number };
 
 export interface PlayedBeatView {
   atMs: number;
@@ -71,6 +73,13 @@ function getRewoundToMs(log: readonly SessionEvent[], event: SessionEvent & { ki
   return rewoundBeat?.atMs ?? event.atMs;
 }
 
+function getWorkedOperations(action: Extract<StudentAction, { action: 'worked' }>, atMs: number): BoardOperation[] {
+  const { work } = action;
+  if (work.way !== 'drag') return [{ kind: 'worked', atMs, action }];
+  const moves = work.samples.map(({ afterMs, x }): BoardOperation => ({ kind: 'pointMoved', atMs: atMs + afterMs, task: work.task, x }));
+  return [...moves, { kind: 'worked', atMs: atMs + (work.samples.at(-1)?.afterMs ?? 0), action }];
+}
+
 function getActionOperations(log: readonly SessionEvent[], event: SessionEvent & { kind: 'studentActed' }): BoardOperation[] {
   const { action, atMs } = event;
   switch (action.action) {
@@ -86,6 +95,8 @@ function getActionOperations(log: readonly SessionEvent[], event: SessionEvent &
       return [{ kind: 'rewound', atMs, toMs: getRewoundToMs(log, event) }];
     case 'fileShared':
       return [];
+    case 'worked':
+      return getWorkedOperations(action, atMs);
   }
 }
 
