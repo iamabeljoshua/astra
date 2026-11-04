@@ -46,6 +46,8 @@ export default defineConfig(({ command, mode }) => {
     },
     test: {
       environment: 'jsdom',
+      // Vitest empties any stylesheet not listed here, and a test reads the font rules in KaTeX's.
+      css: { include: [/katex/] },
       setupFiles: ['./src/testSetup.ts'],
       // This runs before each test. Files in one vmForks worker share process.env, so the afterEach in testSetup.ts stops the last test's stub reaching the next file.
       unstubEnvs: true,
