@@ -63,7 +63,7 @@ describe('Sidebar', () => {
     const sidebar = screen.getByRole('complementary');
     within(sidebar).getByText(PRODUCT_NAME);
     within(sidebar).getByText(SIDEBAR_LABELS.recent);
-    within(sidebar).getByText(SIDEBAR_LABELS.noSessions);
+    await within(sidebar).findByText(SIDEBAR_LABELS.noSessions);
     within(sidebar).getByText('Maya');
     within(sidebar).getByRole('button', { name: ACCOUNT_LABELS.signOut });
     within(sidebar).getByRole('button', { name: THEME_LABELS.dark });

@@ -9,8 +9,8 @@ function isTokenRefusal(thrown: unknown) {
   return thrown instanceof ApiError && thrown.status === TOKEN_REFUSED_STATUS;
 }
 
-// Each function is a state of one read. No path leads back, so a read renews at most once.
-export async function readWithRenewal<Answer>(askApi: AskApi<Answer>): Promise<Answer> {
+// Each function is a state of one call. No path leads back, so a call renews at most once.
+export async function callWithRenewal<Answer>(askApi: AskApi<Answer>): Promise<Answer> {
   try {
     return await askApi();
   } catch (thrown) {

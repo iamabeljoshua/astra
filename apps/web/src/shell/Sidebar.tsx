@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router';
 import { SignOutButton } from '../auth/SignOutButton';
 import { useAccount } from '../auth/useAccount';
+import { RecentSessions } from '../sessions/RecentSessions';
 import { ACCOUNT_LABELS, PRODUCT_NAME, SIDEBAR_LABELS } from '../strings';
 import { ThemeToggle } from '../theme/ThemeToggle';
 import { MENU } from './menu';
@@ -33,15 +34,6 @@ export function Sidebar({ id, isOpenOnPhone, onChoosePage }: SidebarProps) {
       <RecentSessions />
       <AccountRow />
     </aside>
-  );
-}
-
-function RecentSessions() {
-  return (
-    <div className="flex flex-1 flex-col gap-1 px-2">
-      <div className="label text-ink-2">{SIDEBAR_LABELS.recent}</div>
-      <p className="text-fine text-ink-2">{SIDEBAR_LABELS.noSessions}</p>
-    </div>
   );
 }
 
