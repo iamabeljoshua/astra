@@ -39,6 +39,9 @@ export interface BeatTextReaderOptions {
   onWrongMath(problem: string): void;
   onCommandKept?(command: SceneCommand): void;
   checkCommand?(command: SceneCommand): CommandVerdict;
+  /** Says what is wrong with a whole beat's words before anyone hears them, or null. */
+  checkWords?(text: string): string | null;
+  onWrongWords?(problem: string): void;
   board?: BoardKinds;
 }
 
@@ -64,6 +67,9 @@ export class BeatTextReader {
   #hasCommandThisTurn = false;
   #isHalted = false;
   #isTurnOver = false;
+  /** The turn's question has closed, and its beat waits for what follows, because words after it are dropped and commands are kept. */
+  #isQuestionHeld = false;
+  #keptAfterQuestion: string[] = [];
   #wasCutShort = false;
   #textAfterTurn = '';
   #script: Beat['script'] = [];
@@ -81,7 +87,7 @@ export class BeatTextReader {
   }
 
   get isTurnOver(): boolean {
-    return this.#isTurnOver;
+    return this.#isTurnOver || this.#isQuestionHeld;
   }
 
   /** The turn stopped at the word limit with a sentence still open, so the student has heard no ending. */
@@ -91,6 +97,15 @@ export class BeatTextReader {
 
   get textAfterTurn(): string {
     return this.#textAfterTurn;
+  }
+
+  /** The model's text as the student got it, because a command kept after its question can sit among words that were dropped. */
+  getKeptText(raw: string): string {
+    return this.#textAfterTurn === '' ? raw : this.#keptAfterQuestion.reduce((kept, command) => `${kept} ${command}`, raw.slice(0, this.#keptBeforeQuestionEnd(raw)));
+  }
+
+  #keptBeforeQuestionEnd(raw: string): number {
+    return Math.max(0, raw.length - this.#textAfterTurn.length - this.#keptAfterQuestion.join('').length);
   }
 
   get wordsThisTurn(): number {
@@ -162,7 +177,8 @@ export class BeatTextReader {
     if (this.#held !== '') this.#stepAfterOpenBrace(character);
     else if (character === '{') this.#held = character;
     else if (character === '<') this.#tag = character;
-    else if (character === '\n') this.#endBeat();
+    else if (character === '\n' && this.#isQuestionHeld) this.#textAfterTurn += character;
+    else if (character === '\n') this.#endBeatOrHoldQuestion();
     else if (character !== '}' && !UNSPEAKABLE.test(character) && !this.#isOneMarkTooMany(character)) this.#speak(character);
   }
 
@@ -216,6 +232,10 @@ export class BeatTextReader {
 
   #speak(character: string): void {
     const isSpace = /\s/.test(character);
+    if (this.#isQuestionHeld) {
+      this.#textAfterTurn += character;
+      return;
+    }
     if (this.#characterCount === BEAT_LIMITS.characters) {
       if (isSpace) return;
       this.#endBeat();
@@ -230,7 +250,12 @@ export class BeatTextReader {
     this.#text += character;
     this.#characterCount += 1;
     this.#addToScript(character);
-    if (isSpace && this.#isAtBeatBoundary()) this.#endBeat();
+    if (isSpace && this.#isAtBeatBoundary()) this.#endBeatOrHoldQuestion();
+  }
+
+  #endBeatOrHoldQuestion(): void {
+    if (this.#wordCount > 0 && ENDS_IN_QUESTION.test(this.#text)) this.#isQuestionHeld = true;
+    else this.#endBeat();
   }
 
   #startOrContinueWord(): void {
@@ -342,6 +367,7 @@ export class BeatTextReader {
   #finishCommand(): void {
     // NFD Vietnamese, Yoruba, and Igbo are refused by the math parser, and the same words in NFC set, and a stream can split a letter from its mark.
     const text = (this.#command as string).normalize('NFC');
+    if (this.#isQuestionHeld) this.#keptAfterQuestion.push(text);
     this.#command = null;
     if (this.#isCommandTooLong) {
       this.#isCommandTooLong = false;
@@ -398,6 +424,13 @@ export class BeatTextReader {
   #endBeat(): void {
     if (this.#wordCount === 0) return;
     this.#clearCuesAwaitingWord();
+    this.#isQuestionHeld = false;
+    const wordsProblem = this.#options.checkWords?.(this.#text) ?? null;
+    if (wordsProblem !== null) {
+      this.#isHalted = true;
+      this.#startBeat();
+      return this.#options.onWrongWords?.(wordsProblem);
+    }
     const expectsReply = ENDS_IN_QUESTION.test(this.#text);
     const endsSentence = ENDS_IN_SENTENCE.test(this.#text) && !ENDS_IN_ABBREVIATION.test(this.#text);
     const script = this.#script.map((part) => (typeof part === 'string' ? part.normalize('NFC') : part));

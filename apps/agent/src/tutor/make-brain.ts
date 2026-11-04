@@ -7,10 +7,13 @@ import { type ApiLink, createApiLink } from './api-link.ts';
 import { createTutorBrain, type SpendLimit, type TraceNote, type TurnSummary, type TutorBrain } from './brain.ts';
 import { TUTOR_SYSTEM } from './prompt.ts';
 import { createSpendLedger } from './spend-ledger.ts';
+import { readWords } from './watcher/read-words.ts';
+import type { WordMeaning } from './watcher/watch-rule.ts';
 
 const STAND_IN = 'stand-in';
 const RECORDED = 'recorded';
 const DEFAULT_MODEL: TutorModelName = 'sonnet-5-5';
+const WORDS_MODEL: TutorModelName = 'haiku-5-5';
 const DEFAULT_LIMIT_USD = 8;
 const DEFAULT_LIMIT_CREDITS = 1500;
 const DEFAULT_SESSION_LIMIT_USD = 1;
@@ -85,6 +88,7 @@ export function createSpendCaps({ link, ledger, trace, sessionLimitUsd, sessionV
 export interface MadeBrain {
   brain: TutorBrain;
   flushSpend(): Promise<void>;
+  readMeaning?(words: string): Promise<WordMeaning | null>;
 }
 
 export function makeTutorBrain({ roomName, trace }: { roomName: string; trace: TraceNote }): MadeBrain {
@@ -105,5 +109,14 @@ export function makeTutorBrain({ roomName, trace }: { roomName: string; trace: T
     trace('turnWritten', { firstTextMs, firstBeatMs, attempts, endedAs, costUsd, usage, refused, refusalCategory, isUsageEstimated, words: spokenText.split(/\s+/).length });
     caps.addTurn({ usd: costUsd, voiceCharacters: beats.map(getBeatText).join(' ').length });
   };
-  return { brain: createTutorBrain({ model, loadProfile: link ? () => link.fetchProfile() : undefined, trace, onTurnEnd, getSpendLimit: caps.getSpendLimit }), flushSpend: caps.flush };
+  const brain = createTutorBrain({ model, loadProfile: link ? () => link.fetchProfile() : undefined, trace, onTurnEnd, getSpendLimit: caps.getSpendLimit });
+  if (name === RECORDED) return { brain, flushSpend: caps.flush };
+  const wordsModel = makeAnthropicTutorModel({ name: WORDS_MODEL, apiKey: readKey('ANTHROPIC_API_KEY') });
+  const readMeaning = async (words: string) => {
+    if (caps.getSpendLimit()) return null;
+    const { meaning, costUsd } = await readWords(wordsModel, words);
+    caps.addTurn({ usd: costUsd, voiceCharacters: 0 });
+    return meaning;
+  };
+  return { brain, flushSpend: caps.flush, readMeaning };
 }

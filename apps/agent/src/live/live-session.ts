@@ -9,6 +9,8 @@ import { createSessionLog } from './session-log.ts';
 import { createTypedGate } from './typed-gate.ts';
 import { type SpokenTurn, speakTurn, type TurnMessenger } from './speak-turn.ts';
 import type { TutorBrain } from '../tutor/brain.ts';
+import { createBoardWork } from '../tutor/watcher/board-work.ts';
+import type { WordMeaning } from '../tutor/watcher/watch-rule.ts';
 import { getNextTurnState, INITIAL_TURN_STATE, type TimerName, type TurnAction, type TurnEvent, type TurnState } from './turn-rule.ts';
 import { getSteadyNowMs, type VoiceLine } from './voice-line.ts';
 
@@ -31,6 +33,8 @@ export interface LiveSessionOptions {
   setTurnCap(ms: number): void;
   getNowMs?(): number;
   trace?: TraceNote;
+  /** What a student's unsent words mean, read by a cheap model. */
+  readMeaning?(words: string): Promise<WordMeaning | null>;
 }
 
 export interface LiveSession {
@@ -92,7 +96,7 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const FEWEST_MS_BETWEEN_FREEZES = 5000;
 
 // Wires what the student does to what the tutor says. The rule decides, this runs its actions, and the voice line keeps every turn apart.
-export function createLiveSession({ messenger, line, voice, tutor, takes, allTakes, setTurnCap, getNowMs = getSteadyNowMs, trace = () => {} }: LiveSessionOptions): LiveSession {
+export function createLiveSession({ messenger, line, voice, tutor, takes, allTakes, setTurnCap, getNowMs = getSteadyNowMs, trace = () => {}, readMeaning = async () => null }: LiveSessionOptions): LiveSession {
   const startedAtMs = getNowMs();
   const echo = createEchoFilter();
   const takeVoices = new Map(allTakes.map((take) => [take.id, makeTakeVoice(take).makeTts()]));
@@ -116,6 +120,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
   let resumeTicket = 0;
   let hasGreeted = false;
   let voiceStall: ReturnType<typeof setTimeout> | undefined;
+  let questionHeardAtMs: number | null = null;
 
   let isThinking = false;
   const setThinking = (next: boolean) => {
@@ -127,6 +132,17 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     getNowMs: () => getNowMs() - startedAtMs,
     getBeat: (turnId, beatId) => beatsByTurn.get(turnId)?.find((beat) => beat.id === beatId),
     onRefused: (problem) => trace('reportRefused', { problem }),
+  });
+
+  const boardWork = createBoardWork({
+    tutor,
+    writeLog: (message, checked) => void log.writeWorked(message, checked),
+    speakUp: (words) => typedGate.offer(words),
+    isTutorTalking: () => reply !== null || reaction !== null,
+    getSecondsSinceQuestion: () => (questionHeardAtMs === null ? null : (getNowMs() - questionHeardAtMs) / 1000),
+    readMeaning,
+    getNowMs,
+    trace,
   });
 
   const dispatch = (event: TurnEvent) => {
@@ -280,6 +296,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
   };
 
   const startReply = (text: string) => {
+    boardWork.noteAnswered();
     resumeTicket += 1;
     noteCutForBrain(reply && !reply.isOver ? reply : cut);
     reply?.spoken.stop();
@@ -420,7 +437,12 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       log.write(message);
       if (message.type === 'markNotDrawn') tutor.noteMarkNotDrawn?.(message.markId);
       if (message.type === 'played') onReport(message);
-      if (message.type === 'questionHeard') dispatch({ type: 'questionHeard' });
+      if (message.type === 'questionHeard') {
+        questionHeardAtMs = getNowMs();
+        dispatch({ type: 'questionHeard' });
+      }
+      if (message.type === 'worked') boardWork.onWorked(message);
+      if (message.type === 'paused') void boardWork.onPaused(message);
       if (message.type === 'hello' && message.wantsGreeting) greet();
       if (message.type === 'audioState') onAudioState(message.isRunning);
     },

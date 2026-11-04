@@ -1,6 +1,9 @@
 import { getMathParts, getTexTokens, type WorkVerdict } from '@astra/contracts';
 import { checkMathLine, checkMathStep } from './check-math.ts';
+import { isPolynomial, subtractFractions, toFraction } from './math/math-value.ts';
 import { getLetters, parseMath } from './math/parse-math.ts';
+import { getDegree, getLinearRoot, toOneLetter } from './math/polynomial.ts';
+import { toFloat } from './math/rational.ts';
 
 export interface StepInput {
   tex: string;
@@ -90,4 +93,20 @@ export function isFinishedAnswer(tex: string): boolean {
   if (sides.length !== 2) return false;
   const [left, right] = sides as [string, string];
   return (/^[A-Za-z]$/.test(left) && BARE_ANSWER.test(right)) || (/^[A-Za-z]$/.test(right) && BARE_ANSWER.test(left));
+}
+
+/** The answer to a one-letter linear equation, or null for anything else. */
+export function getLinearAnswer(tex: string): { letter: string; value: number } | null {
+  const sides = tex.split('=');
+  if (sides.length !== 2) return null;
+  const [left, right] = sides.map((side) => parseMath(side));
+  if (!left || !right) return null;
+  const letters = new Set([...getLetters(left), ...getLetters(right)]);
+  const [letter] = letters;
+  const [leftValue, rightValue] = [toFraction(left), toFraction(right)];
+  if (letters.size !== 1 || letter === undefined || !leftValue || !rightValue) return null;
+  const gap = subtractFractions(leftValue, rightValue);
+  if (!isPolynomial(gap)) return null;
+  const polynomial = toOneLetter(gap.top, letter);
+  return getDegree(polynomial) === 1 ? { letter, value: toFloat(getLinearRoot(polynomial)) } : null;
 }
