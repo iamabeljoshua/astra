@@ -10,6 +10,7 @@ import { FAKE_SAMPLE_RATE, renderTone } from '../../providers/fakes.ts';
 import { makeRenderedVoice, type RenderSpeech } from '../../providers/rendered-voice.ts';
 import type { SpendLedger } from '../spend-ledger.ts';
 
+const SHARED_LINES_PAYER = 'shared-lines';
 const SHORTEST_LAST_WORD_MS = 100;
 const BYTES_PER_SAMPLE = 2;
 const MS_PER_SECOND = 1000;
@@ -105,8 +106,10 @@ export function createLessonVoice({ root, voiceName, makeLiveTts, ledger, isFree
     // Before a typed lesson has a topic it only says the app's own fixed lines, so it may read one a card kept, and it keeps nothing.
     const stored = readWholeTake(join(folder ?? getSharedFolder(root), name), text);
     if (stored) return { tts: makeRenderedVoice({ name: 'kept', render: makeStoredRender(stored) }).makeTts() };
-    if (!isFree && ledger.isOverVoiceLimit(studentId, text.length)) return { tts: makeRenderedVoice({ name: 'tone', render: renderTone }).makeTts(), isAtLimit: true };
-    if (!isFree) ledger.charge({ studentId, voiceCharacters: text.length });
+    const isShared = shelf.kind === 'shared';
+    const isAtLimit = isShared ? ledger.isOverSharedVoiceLimit(text.length) : ledger.isOverVoiceLimit(studentId, text.length);
+    if (!isFree && isAtLimit) return { tts: makeRenderedVoice({ name: 'tone', render: renderTone }).makeTts(), isAtLimit: true };
+    if (!isFree) ledger.charge({ studentId: isShared ? SHARED_LINES_PAYER : studentId, voiceCharacters: text.length });
     live ??= makeLiveTts();
     const frames: AudioFrame[] = [];
     const words: TimedWord[] = [];

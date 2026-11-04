@@ -71,6 +71,10 @@ export class SessionsService {
     return this.sessions.findStudentIdOfSession(sessionId);
   }
 
+  async getCardTitle(sessionId: string): Promise<string | null> {
+    return findLibraryTopic(await this.sessions.findTopicIdOfSession(sessionId))?.title ?? null;
+  }
+
   async getLessonRequest(studentId: string, sessionId: string): Promise<{ title: string; status: string; isCard: boolean; cardLine?: string }> {
     const { title, status, topicId } = requireSession(await this.sessions.findForStudent(studentId, sessionId));
     const topic = findLibraryTopic(topicId);

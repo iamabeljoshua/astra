@@ -9,18 +9,25 @@ const POINTS_AT_A_PERSON = /@|https?:|\b(my|me|mine|our|we)\b|\bi['’](m|ve|d|l
 const THE_LETTER_I = /\bi\b/gi;
 const AFTER_MATH_I = /^\s*(squared|cubed|pi|theta|times|plus|minus|over|equals?|to the|\^|\d)/i;
 const BEFORE_LAST_MATH_I = /\b(is|unit|letter|number|one|of|times|plus|minus|by|over|to|equals?),?\s*$/i;
+const NUMBERED_WORD = /\b(Type|Class|Phase|Part|Act|Chapter|Stage|Grade|Level|Title|Book|Volume|War)\s+$/;
+const NAME_BEFORE = /\b\p{Lu}[\p{L}'’-]*\s+$/u;
+const LEADS_INTO_THE_PRONOUN = /\b(how|why|what|when|where|who|whom|which|can|could|should|would|will|shall|may|might|must|do|did|does|am|if|that|so|and|but|because|as|while|after|before|than|since|have|has|had|then|now|here|there|hi|hello|yes|no|please|thanks|sorry)\s+$/i;
+const AFTER_A_RULER = /^(\s*$|['’]s\b|[,.;:?!)]|\s+(was|were|is|and|or|of|in|to|at|on|by|for|from|began|ended|started|ruled|died)\b)/;
 const LONG_NUMBER = /\b\d{5,}\b/g;
 const ROUND_NUMBER = /^[1-9]\d?0{3,}$/;
 const MATH_WORD = /\b(power|powers|root|square|squared|cube|prime|factor|divisible|sum|product|times|plus|minus|divided)\b/i;
 const LONGEST_MATH_NUMBER_DIGITS = 6;
 
-// A lone i is the pronoun unless the words around it make it the imaginary unit, so a use nobody listed stays personal.
+// "World War I" and "Henry I" name a thing. The words after a ruler must read like a sentence about the ruler, because "Fractions I find hard" has the same capitals.
+const isRomanOne = (letter: string, before: string, after: string) => letter === 'I' && (NUMBERED_WORD.test(before) || (NAME_BEFORE.test(before) && !LEADS_INTO_THE_PRONOUN.test(before) && AFTER_A_RULER.test(after)));
+
+// A lone i is the pronoun unless the words around it make it the imaginary unit or a roman numeral, so a use nobody listed stays personal.
 function hasPersonalI(topic: string): boolean {
-  return [...topic.matchAll(THE_LETTER_I)].some(({ index }) => {
+  return [...topic.matchAll(THE_LETTER_I)].some(({ 0: letter, index }) => {
     const before = topic.slice(0, index);
     const after = topic.slice(index + 1);
     const isLast = after.replace(/[?.!]/g, '').trim() === '';
-    return !AFTER_MATH_I.test(after) && !(isLast && BEFORE_LAST_MATH_I.test(before));
+    return !AFTER_MATH_I.test(after) && !(isLast && BEFORE_LAST_MATH_I.test(before)) && !isRomanOne(letter, before, after);
   });
 }
 

@@ -1,0 +1,241 @@
+import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { parseArgs } from 'node:util';
+import { chromium, type Page } from 'playwright';
+
+const { values: args } = parseArgs({
+  options: {
+    web: { type: 'string', default: 'http://127.0.0.1:7060' },
+    ask: { type: 'string', default: 'What does the slope of a line tell you?' },
+    card: { type: 'string' },
+    out: { type: 'string', default: '/tmp/tutor-scene-proof' },
+    trace: { type: 'string' },
+    handsOn: { type: 'string', default: "Okay, let me try one myself. Give me an equation of a line to work on." },
+    waitS: { type: 'string', default: '70' },
+    headed: { type: 'boolean', default: false },
+    noGpu: { type: 'boolean', default: false },
+    damageTake: { type: 'boolean', default: false },
+    phone: { type: 'boolean', default: false },
+    dark: { type: 'boolean', default: false },
+    say: { type: 'string' },
+    sayAfterS: { type: 'string', default: '3' },
+    reloadAfterS: { type: 'string' },
+  },
+});
+
+const FLAGS = ['--enable-unsafe-webgpu', '--enable-features=Vulkan', '--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist', '--use-mock-keychain', '--autoplay-policy=no-user-gesture-required'];
+const delay = (ms: number) => new Promise((done) => setTimeout(done, ms));
+const out = args.out as string;
+mkdirSync(out, { recursive: true });
+
+interface VisualRead {
+  caption: string;
+  hasVisual: boolean;
+  sceneId: string | null;
+  sceneSeconds: number | null;
+  opacity: number;
+  isBig: boolean;
+  isSmall: boolean;
+  isMoving: boolean;
+  isBigOverBoard: boolean;
+  rect: { x: number; y: number; width: number; height: number } | null;
+  rightRect: { x: number; y: number; width: number; height: number } | null;
+  transform: string | null;
+  boardOpacity: string | null;
+  isSpeaking: boolean;
+  isThinking: boolean;
+  canvasPixels: number;
+}
+
+const readVisual = (page: Page): Promise<VisualRead> =>
+  page.evaluate(() => {
+    const box = document.querySelector<HTMLElement>('[data-testid="board-visual"]');
+    const layer = box?.querySelector<HTMLElement>('[data-testid="scene-layer"]') ?? null;
+    const right = document.querySelector<HTMLElement>('[data-testid="board-right"]');
+    const toRect = (element: Element | null | undefined) => {
+      if (!element) return null;
+      const { x, y, width, height } = element.getBoundingClientRect();
+      return { x, y, width, height };
+    };
+    const canvas = layer?.querySelector('canvas');
+    const view = (window as unknown as { astraVoice?: { getView(): { isTutorSpeaking: boolean; isThinking: boolean } } }).astraVoice?.getView();
+    return {
+      caption: document.querySelector('[data-testid="tutor-caption"]')?.textContent?.trim() ?? '',
+      hasVisual: Boolean(box),
+      sceneId: layer?.dataset.scene ?? null,
+      sceneSeconds: layer?.dataset.seconds ? Number(layer.dataset.seconds) : null,
+      opacity: layer ? Number(layer.style.opacity || 0) : 0,
+      isBig: box?.dataset.big === 'true',
+      isSmall: box?.dataset.small === 'true',
+      isMoving: box?.dataset.moving === 'true',
+      isBigOverBoard: box?.dataset.bigOverBoard === 'true',
+      rect: toRect(box),
+      rightRect: toRect(right),
+      transform: box?.style.transform ?? null,
+      boardOpacity: box?.nextElementSibling instanceof HTMLElement ? box.nextElementSibling.style.opacity : null,
+      isSpeaking: view?.isTutorSpeaking ?? false,
+      isThinking: view?.isThinking ?? false,
+      canvasPixels: canvas ? canvas.width * canvas.height : 0,
+    };
+  });
+
+// A trace folder outlives a proof, and only this run's job belongs in its summary.
+const proofStartedAtWallMs = Date.now();
+
+function readTrace(folder: string | undefined) {
+  if (!folder) return [];
+  return readdirSync(folder)
+    .map((name) => join(folder, name))
+    .filter((path) => path.endsWith('.jsonl') && statSync(path).mtimeMs >= proofStartedAtWallMs)
+    .sort()
+    .flatMap((path) => readFileSync(path, 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line) as { name: string; atMs: number } & Record<string, unknown>));
+}
+
+const browser = await chromium.launch({ headless: !args.headed, args: FLAGS });
+const context = await browser.newContext({ viewport: args.phone ? { width: 390, height: 844 } : { width: 1440, height: 900 }, colorScheme: 'light', baseURL: args.web as string });
+const page = await context.newPage();
+const problems: string[] = [];
+page.on('pageerror', (error) => problems.push(`pageerror: ${error.message}`));
+// LiveKit logs its own closing channels as errors when the proof leaves the room.
+page.on('console', (message) => {
+  if (message.type() === 'error' && !/data channel|DataChannel/.test(message.text())) problems.push(`console: ${message.text().slice(0, 300)}`);
+});
+if (args.noGpu) await page.addInitScript(() => Object.defineProperty(Navigator.prototype, 'gpu', { get: () => undefined }));
+if (args.damageTake) await page.route('**/api/scene-takes/**', (route) => route.fulfill({ status: 200, contentType: 'application/octet-stream', body: Buffer.from(Array.from({ length: 4096 }, (_, index) => (index * 37) % 256)) }));
+
+await page.goto('/');
+await page.getByRole('button', { name: 'Development sign-in' }).click();
+await page.getByRole('button', { name: 'maya@astra.test' }).click();
+await page.getByRole('textbox', { name: 'What do you want to learn next' }).waitFor();
+await delay(1500);
+
+const startedAt = performance.now();
+const atS = () => Number(((performance.now() - startedAt) / 1000).toFixed(2));
+if (args.card) {
+  await page.getByRole('button', { name: new RegExp(args.card) }).first().click();
+} else {
+  await page.getByRole('textbox', { name: 'What do you want to learn next' }).fill(args.ask as string);
+  await page.getByRole('button', { name: 'Start session' }).click();
+}
+await page.waitForURL(/\/sessions\/[0-9a-f-]{36}$/);
+if (args.dark) await page.getByRole('button', { name: 'Dark' }).click();
+
+const timeline: (VisualRead & { atS: number })[] = [];
+let firstWordsAtS: number | null = null;
+let sceneSeenAtS: number | null = null;
+let sceneAtStart: VisualRead | null = null;
+let quietSinceS: number | null = null;
+let hasSaid = false;
+let hasShotDrawing = false;
+let saidAtS: number | null = null;
+let hasReloaded = false;
+let reloadedAtS: number | null = null;
+const waitLimitS = Number(args.waitS);
+while (atS() < waitLimitS) {
+  const read = await readVisual(page);
+  timeline.push({ ...read, atS: atS() });
+  if (firstWordsAtS === null && read.caption !== '') firstWordsAtS = atS();
+  if (firstWordsAtS !== null && !hasSaid && args.say && atS() >= firstWordsAtS + Number(args.sayAfterS)) {
+    hasSaid = true;
+    saidAtS = atS();
+    await page.evaluate((words) => (window as unknown as { astraVoice: { sendTyped(text: string): void } }).astraVoice.sendTyped(words), args.say);
+  }
+  if (firstWordsAtS !== null && !hasReloaded && args.reloadAfterS && atS() >= firstWordsAtS + Number(args.reloadAfterS)) {
+    hasReloaded = true;
+    reloadedAtS = atS();
+    await page.reload();
+  }
+  if (sceneSeenAtS === null && read.sceneId && read.opacity > 0) {
+    sceneSeenAtS = atS();
+    sceneAtStart = read;
+    await page.screenshot({ path: join(out, 'scene-landed.png') });
+  }
+  if (sceneSeenAtS !== null && !hasShotDrawing && atS() >= sceneSeenAtS + 1.2) {
+    hasShotDrawing = true;
+    await page.screenshot({ path: join(out, 'scene-after-1s.png') });
+  }
+  quietSinceS = read.isSpeaking || read.isThinking ? null : (quietSinceS ?? atS());
+  if (sceneSeenAtS !== null && quietSinceS !== null && atS() > quietSinceS + 2.5 && (reloadedAtS === null || atS() > reloadedAtS + 15)) break;
+  await delay(100);
+}
+await page.screenshot({ path: join(out, sceneSeenAtS === null ? 'no-scene.png' : 'scene-played.png') });
+
+const glide: { atS: number; rect: VisualRead['rect']; transform: string | null; boardOpacity: string | null; isMoving: boolean; isSmall: boolean }[] = [];
+const summary: Record<string, unknown> = { ask: args.card ?? args.ask, firstWordsAtS, sceneSeenAtS, sceneId: sceneAtStart?.sceneId ?? null, canvasPixels: sceneAtStart?.canvasPixels ?? 0, secondsAtEnd: timeline.at(-1)?.sceneSeconds ?? null, wordsHeard: timeline.at(-1)?.caption ?? '' };
+
+if (sceneSeenAtS !== null && args.handsOn) {
+  await page.evaluate((words) => (window as unknown as { astraVoice: { sendTyped(text: string): void } }).astraVoice.sendTyped(words), args.handsOn);
+  const sentAtS = atS();
+  let smallAtS: number | null = null;
+  let movedAtS: number | null = null;
+  while (atS() < sentAtS + 25) {
+    const read = await readVisual(page);
+    glide.push({ atS: atS(), rect: read.rect, transform: read.transform, boardOpacity: read.boardOpacity, isMoving: read.isMoving, isSmall: read.isSmall });
+    if (movedAtS === null && read.isMoving) {
+      movedAtS = atS();
+      await page.screenshot({ path: join(out, 'glide-midway.png') });
+    }
+    if (read.isSmall) {
+      smallAtS = atS();
+      break;
+    }
+    await delay(16);
+  }
+  summary.handsOn = { sentAtS, movedAtS, smallAtS };
+  if (smallAtS !== null) {
+    await delay(300);
+    const small = await readVisual(page);
+    await page.screenshot({ path: join(out, 'hands-on.png') });
+    summary.whatAPressHits = await page.evaluate(() =>
+      [...document.querySelectorAll<HTMLElement>('main input, main textarea, [data-testid="board-right"] .board-row, [data-testid="board-right"] .board-flow > *')].slice(0, 12).map((element) => {
+        const { x, y, width, height } = element.getBoundingClientRect();
+        const hit = document.elementFromPoint(x + width / 2, y + height / 2);
+        const corner = hit?.closest('[data-testid="board-visual"]');
+        return { tag: element.tagName, name: element.getAttribute('aria-label') ?? String(element.className).slice(0, 40), box: [Math.round(x), Math.round(y), Math.round(width), Math.round(height)], isUnderScene: Boolean(corner) };
+      }),
+    );
+    const line = page.locator('[data-testid="board-right"] input, [data-testid="board-right"] textarea, [data-testid="board-right"] [contenteditable="true"]').first();
+    if ((await line.count()) > 0 && (await line.isVisible())) {
+      await line.click({ timeout: 2000 }).then(() => page.keyboard.type('y = 2x', { delay: 20 })).catch((error: unknown) => problems.push(`typing a line: ${String(error).slice(0, 200)}`));
+      summary.typedALine = await line.inputValue().catch(() => line.textContent());
+      await page.screenshot({ path: join(out, 'typed-line.png') });
+    }
+    const share = small.rect && small.rightRect ? small.rect.width / small.rightRect.width : null;
+    const insets = small.rect && small.rightRect ? { right: small.rightRect.x + small.rightRect.width - (small.rect.x + small.rect.width), top: small.rect.y - small.rightRect.y } : null;
+    summary.smallPlace = { share, insets, boardOpacity: small.boardOpacity, sceneId: small.sceneId, sceneSeconds: small.sceneSeconds };
+    await page.locator('[data-testid="board-visual"]').click();
+    await delay(800);
+    const big = await readVisual(page);
+    await page.screenshot({ path: join(out, 'clicked-back.png') });
+    summary.clickedBack = { isBig: big.isBig, isBigOverBoard: big.isBigOverBoard, width: big.rect?.width, rightWidth: big.rightRect?.width };
+    await page.locator('[data-testid="board-visual"]').click();
+    await delay(800);
+    const again = await readVisual(page);
+    summary.clickedAgain = { isSmall: again.isSmall };
+    await page.screenshot({ path: join(out, 'back-in-corner.png') });
+  }
+}
+
+await page.getByRole('button', { name: 'End session' }).click();
+await page.close();
+let trace = readTrace(args.trace);
+for (let tries = 0; tries < 60 && args.trace && !trace.some(({ name }) => name === 'jobClosed'); tries += 1) {
+  await delay(500);
+  trace = readTrace(args.trace);
+}
+summary.saidAtS = saidAtS;
+summary.reloadedAtS = reloadedAtS;
+const logged = (trace.find(({ name }) => name === 'sessionLog')?.events ?? []) as { kind: string; atMs: number; beat?: { id: string; script: (string | { kind: string })[] } }[];
+summary.boardMoves = logged.flatMap(({ kind, atMs, beat }) => (kind === 'beatPlayed' && beat ? beat.script.flatMap((part, index) => (typeof part === 'object' && ['boardMode', 'task', 'clearBoard', 'richScene', 'writeMath'].includes(part.kind) ? [{ atS: Number((atMs / 1000).toFixed(1)), beat: beat.id, kind: part.kind, ...(part.kind === 'boardMode' ? { mode: (part as unknown as { mode: string }).mode } : {}), onWord: beat.script.slice(index + 1).find((next) => typeof next === 'string') }] : [])) : []));
+const sceneBeatTexts = new Set(logged.flatMap(({ kind, beat }) => (kind === 'beatPlayed' && beat?.id.startsWith('n') ? [beat.script.filter((part): part is string => typeof part === 'string').join('').trim()] : [])));
+summary.sceneWordsWithoutPicture = timeline.filter(({ caption, sceneId, opacity }) => [...sceneBeatTexts].some((text) => text !== '' && caption.includes(text)) && (!sceneId || opacity === 0)).length;
+summary.sceneBeatsPlayed = [...sceneBeatTexts];
+summary.turns = trace.filter(({ name }) => ['turnStarted', 'sceneAsked', 'sceneEnded', 'sceneWordsDropped'].includes(name));
+summary.problems = problems;
+writeFileSync(join(out, 'summary.json'), JSON.stringify(summary, null, 2));
+writeFileSync(join(out, 'timeline.json'), JSON.stringify(timeline));
+writeFileSync(join(out, 'glide.json'), JSON.stringify(glide));
+writeFileSync(join(out, 'trace.json'), JSON.stringify(trace));
+console.log(JSON.stringify(summary));
+await browser.close();
+process.exit(0);

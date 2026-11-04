@@ -1,5 +1,5 @@
 import { CODE_LENGTH } from './auth/codeLength';
-import { isLessonEnabled } from './session/lessonFlag';
+import { hasScenes } from './session/lessonFlag';
 
 export const PRODUCT_NAME = 'Astra';
 
@@ -278,6 +278,7 @@ export const BOARD_WORK_LABELS = {
   type: 'Type',
   visualLookAgain: 'Look at the picture again',
   visualPutBack: 'Put the picture back in the corner. Your work is still there.',
+  visualPutBackTip: 'Click to put it back. Your work is still there.',
   mathKeys: 'Math keys',
   hint: 'Type, write, or talk, words or math. Esc stops the tutor.',
   tutorState: { ready: 'Ready', talking: 'Talking', reading: 'Reading your work', waiting: 'Waiting for you', watching: 'Watching', stopped: 'Stopped' },
@@ -547,7 +548,7 @@ export interface LegalDocument {
 }
 
 // With lessons off, the legal pages stay exactly as they are without them.
-const inTestLessons = (...lines: string[]) => (isLessonEnabled() ? lines : []);
+const inTestLessons = (...lines: string[]) => (hasScenes() ? lines : []);
 
 export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
   terms: {
@@ -660,7 +661,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
       {
         heading: 'Who receives your data',
         today: [
-          isLessonEnabled()
+          hasScenes()
             ? 'Supabase runs our sign-in service and our database, so it holds your account, your notes, and your sessions, and it sends the sign-in email. What a test lesson saves, its drawings, recordings, and cost records, stays on our own server and does not go to Supabase.'
             : 'Supabase runs our sign-in service and our database, so it holds everything we store on our servers, and it sends the sign-in email.',
           'When a session opens, your browser joins LiveKit Cloud, even before you press Talk, so LiveKit receives your IP address and your student ID, a random code that does not include your name. During the session, LiveKit Cloud carries your voice, the tutor\'s voice, and the messages between your browser and the tutor, including your words as text. We do not ask it to record any of this. We do not send LiveKit your name, your date of birth, your email address, your level, your interests, or your goal, though it carries anything you say or type yourself.',
