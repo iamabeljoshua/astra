@@ -5,7 +5,7 @@ import { FakeResizeObserver, fakeFonts } from './test/fakeLayout';
 globalThis.ResizeObserver = FakeResizeObserver;
 Object.defineProperty(document, 'fonts', { value: fakeFonts });
 window.scrollTo = () => undefined;
-window.matchMedia = (() => ({ matches: false })) as unknown as typeof window.matchMedia;
+window.matchMedia = (() => ({ matches: false, addEventListener: () => undefined, removeEventListener: () => undefined })) as unknown as typeof window.matchMedia;
 
 const { asyncWrapper } = getConfig();
 const nextTask = setImmediate;

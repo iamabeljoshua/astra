@@ -8,14 +8,19 @@
       "types": "./src/index.ts",
       "default": "./src/index.ts"
     },
-    "./audio-probe-worklet.js": "./src/player/audio-probe-worklet.js"
+    "./audio-probe-worklet.js": "./src/player/audio-probe-worklet.js",
+    "./drawing": {
+      "types": "./src/drawing.ts",
+      "default": "./src/drawing.ts"
+    }
   },
   "scripts": {
     "typecheck": "tsc",
     "test": "vitest run"
   },
   "dependencies": {
-    "@astra/contracts": "workspace:*"
+    "@astra/contracts": "workspace:*",
+    "katex": "0.19.1"
   },
   "devDependencies": {
     "typescript": "catalog:",

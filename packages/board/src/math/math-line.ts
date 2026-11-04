@@ -79,3 +79,13 @@ export function transformMathLine(before: MathLine, tex: string): MathLine {
   });
   return { tex, terms, nextTermNumber };
 }
+
+/** Terms that left their order, which are the ones that must travel past others. */
+export function getMovedTermIds(before: MathLine, after: MathLine): ReadonlySet<string> {
+  const afterIds = new Set(after.terms.map((term) => term.id));
+  const beforeIds = before.terms.map((term) => term.id).filter((id) => afterIds.has(id));
+  const beforeSet = new Set(beforeIds);
+  const stayingAfter = after.terms.map((term) => term.id).filter((id) => beforeSet.has(id));
+  const inOrder = new Set(matchInOrder(beforeIds, stayingAfter).keys());
+  return new Set(stayingAfter.filter((_, column) => !inOrder.has(column)));
+}

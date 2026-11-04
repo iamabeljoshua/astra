@@ -1,0 +1,263 @@
+/// <reference lib="dom" />
+import { findMathSpans } from '@astra/contracts';
+import { getMovedTermIds, type MathLine } from './math-line.ts';
+import { easeInOut, getBoxUnion, getFlightOffset, getFlightTransform, type PaintBox, type PaintInfo, type PaintPlan, planPaints } from './paint-flights.ts';
+import { collectMathPaints, getPaintsOfSpans, type MathPaintElement, renderTex, type TexSpan } from './render-math.ts';
+import { writeStyle } from '../style-writer.ts';
+
+export interface MathSize {
+  width: number;
+  height: number;
+}
+
+interface RenderedLine {
+  line: MathLine;
+  host: HTMLElement;
+  paints: readonly MathPaintElement[];
+  infos: PaintInfo[];
+  /** Paint indexes in the order a hand would write them. */
+  writingOrder: readonly number[];
+  size: MathSize;
+  /** Which paints belong to each asked-for span, so the same mark is not worked out twice. */
+  spanPaints: Map<string, readonly number[]>;
+}
+
+export interface MathFrame {
+  line: MathLine;
+  morphFrom: MathLine | null;
+  /** From 0 to 1, how far the entrance or the rearrangement has run, on the board's clock. */
+  progress: number;
+  maxWidth: number;
+  isReducedMotion: boolean;
+}
+
+export interface MathPainter {
+  /** Builds what this frame needs, then says the sizes the layout should use. The size is null while there is nothing it can show. */
+  prepare(frame: MathFrame): { size: MathSize | null; fromSize: MathSize | null };
+  /** Puts every piece of ink where the clock says. Writes nothing when nothing changed. */
+  paint(frame: MathFrame): void;
+  /** The box of a term by its id or by its source, on the element's own scale, or null if it is not there now. */
+  getTermBox(query: TermQuery): TermBoxes;
+  /** The source the tutor asked for could not be set, so the board kept what it had. */
+  getRefusedTex(): string | null;
+  remove(): void;
+}
+
+export type TermQuery = { termId: string } | { tex: string; occurrence?: number } | null;
+
+export interface TermBoxes {
+  from: PaintBox | null;
+  to: PaintBox | null;
+  /** How far the term still is from `to` this frame, so a mark on it flies with it. */
+  flightOffset: { x: number; y: number };
+}
+
+function clearPaint(element: HTMLElement): void {
+  for (const name of ['visibility', 'clipPath', 'opacity', 'transform', 'display', 'transformOrigin'] as const) writeStyle(element, name, '');
+}
+
+// KaTeX breaks a long line into runs, in order. A run that starts left of the one before it starts a new row.
+function getRowOfPaint({ host, paints }: { host: HTMLElement; paints: readonly MathPaintElement[] }): number[] {
+  const rowOfRun = new Map<Element, number>();
+  let row = 0;
+  let previousLeft = Number.NEGATIVE_INFINITY;
+  for (const run of host.querySelectorAll('.katex-html > .katex-base')) {
+    const { left } = run.getBoundingClientRect();
+    if (left < previousLeft) row += 1;
+    previousLeft = left;
+    rowOfRun.set(run, row);
+  }
+  return paints.map(({ element }) => rowOfRun.get(element.closest('.katex-base') as Element) ?? 0);
+}
+
+function getWritingOrder(infos: readonly PaintInfo[], rows: readonly number[]): number[] {
+  const by = (index: number) => ({ row: rows[index] as number, ...(infos[index] as PaintInfo).box });
+  return infos.map((_, index) => index).sort((first, second) => by(first).row - by(second).row || by(first).x - by(second).x || by(first).y - by(second).y);
+}
+
+// An element with a transform reports scaled rectangles, so each measure takes it off for the moment it reads them.
+function measureLine({ host, paints, line, root }: { host: HTMLElement; paints: readonly MathPaintElement[]; line: MathLine; root: HTMLElement }) {
+  const transform = root.style.transform;
+  root.style.transform = 'none';
+  const origin = root.getBoundingClientRect();
+  const spans = getPaintsOfSpans(line.tex, line.terms, paints);
+  const infos = paints.map(({ element, glyph }, index): PaintInfo => {
+    const rect = element.getBoundingClientRect();
+    const termIndex = spans?.[index];
+    return { termId: termIndex === null || termIndex === undefined ? null : (line.terms[termIndex]?.id ?? null), glyph, box: { x: rect.left - origin.left, y: rect.top - origin.top, width: rect.width, height: rect.height }, fontSize: Number.parseFloat(getComputedStyle(element).fontSize) || 1 };
+  });
+  const inked = getBoxUnion(infos.map((info) => info.box));
+  // A wide matrix overflows its box, and the layout must know its true width to shrink it.
+  const size = { width: Math.ceil(Math.max(host.offsetWidth, inked ? inked.x + inked.width : 0)), height: Math.ceil(Math.max(host.offsetHeight, inked ? inked.y + inked.height : 0)) };
+  const writingOrder = getWritingOrder(infos, getRowOfPaint({ host, paints }));
+  root.style.transform = transform;
+  return { size, infos, writingOrder };
+}
+
+function setWritten({ paints }: RenderedLine, index: number, reveal: number): void {
+  const element = (paints[index] as MathPaintElement).element;
+  writeStyle(element, 'visibility', reveal <= 0 ? 'hidden' : '');
+  writeStyle(element, 'display', reveal > 0 && reveal < 1 ? 'inline-block' : '');
+  writeStyle(element, 'clipPath', reveal > 0 && reveal < 1 ? `inset(-30% ${((1 - reveal) * 100).toFixed(1)}% -30% -30%)` : '');
+}
+
+// One element's equation. The tree at rest is exactly what KaTeX built. Motion happens only on the pieces of ink, only while the clock says so, and each piece is reset when it lands.
+export function createMathPainter(root: HTMLElement): MathPainter {
+  let to: RenderedLine | null = null;
+  let from: RenderedLine | null = null;
+  let plan: PaintPlan | null = null;
+  let renderedWidth = 0;
+  let refusedTex: string | null = null;
+  let isWaitingForFonts = false;
+  let lastPaintKey = '';
+  let builtKey = '';
+  let easedNow = 1;
+
+  const areFontsLoading = () => document.fonts.status === 'loading';
+
+  const render = (line: MathLine, maxWidth: number): RenderedLine | null => {
+    const host = document.createElement('div');
+    host.dataset.tex = line.tex;
+    // Each tree sits alone at the corner, so measuring one never depends on another still being there.
+    Object.assign(host.style, { position: 'absolute', left: '0', top: '0', width: 'max-content', maxWidth: `${Math.max(0, maxWidth)}px` });
+    if (!renderTex(line.tex, host)) return null;
+    root.append(host);
+    const paints = collectMathPaints(host);
+    const measured = measureLine({ host, paints, line, root });
+    measured.infos.forEach((info, index) => {
+      if (info.termId !== null) (paints[index] as MathPaintElement).element.dataset.term = info.termId;
+    });
+    return { line, host, paints, ...measured, spanPaints: new Map() };
+  };
+
+  const settleTree = (rendered: RenderedLine) => {
+    for (const { element } of rendered.paints) clearPaint(element);
+    writeStyle(rendered.host, 'opacity', '');
+  };
+
+  const rebuild = (line: MathLine, fromLine: MathLine | null, maxWidth: number) => {
+    const previous = [to, from];
+    const reuse = (wanted: MathLine) => (renderedWidth === maxWidth ? previous.find((rendered) => rendered?.line.tex === wanted.tex) : undefined) ?? render(wanted, maxWidth);
+    const nextTo = reuse(line);
+    // Math that KaTeX refuses never reaches the student, and the last good equation stays on the board.
+    refusedTex = nextTo ? null : line.tex;
+    const kept = nextTo ?? (renderedWidth === maxWidth ? to : null);
+    const nextFrom = nextTo && fromLine ? reuse(fromLine) : null;
+    for (const rendered of previous) if (rendered && rendered !== kept && rendered !== nextFrom) rendered.host.remove();
+    to = kept;
+    from = nextFrom;
+    if (to) settleTree(to);
+    if (from) settleTree(from);
+    plan = from && to ? planPaints({ from: from.infos, to: to.infos, movedTermIds: getMovedTermIds(from.line, to.line) }) : null;
+    renderedWidth = maxWidth;
+    lastPaintKey = '';
+    isWaitingForFonts = areFontsLoading();
+  };
+
+  const prepareTrees = ({ line, morphFrom, progress, maxWidth }: MathFrame) => {
+    const fromLine = morphFrom !== null && progress < 1 && morphFrom.tex !== line.tex ? morphFrom : null;
+    const key = `${maxWidth}|${fromLine?.tex ?? ''}|${line.tex}`;
+    if (key === builtKey) return;
+    builtKey = key;
+    rebuild(line, fromLine, maxWidth);
+  };
+
+  const refreshAfterFonts = () => {
+    if (!isWaitingForFonts || areFontsLoading()) return;
+    isWaitingForFonts = false;
+    for (const rendered of [to, from]) {
+      if (!rendered) continue;
+      Object.assign(rendered, measureLine({ host: rendered.host, paints: rendered.paints, line: rendered.line, root }));
+    }
+    if (from && to) plan = planPaints({ from: from.infos, to: to.infos, movedTermIds: getMovedTermIds(from.line, to.line) });
+    lastPaintKey = '';
+  };
+
+  const paintWriting = (rendered: RenderedLine, progress: number, isReducedMotion: boolean) => {
+    if (isReducedMotion) {
+      writeStyle(rendered.host, 'opacity', progress >= 1 ? '' : progress.toFixed(3));
+      return;
+    }
+    const count = rendered.writingOrder.length;
+    rendered.writingOrder.forEach((paintIndex, position) => setWritten(rendered, paintIndex, Math.min(1, Math.max(0, progress * count - position))));
+  };
+
+  const paintMorph = (fromLine: RenderedLine, toLine: RenderedLine, activePlan: PaintPlan, progress: number, isReducedMotion: boolean) => {
+    if (isReducedMotion) {
+      writeStyle(fromLine.host, 'opacity', (1 - progress).toFixed(3));
+      writeStyle(toLine.host, 'opacity', progress.toFixed(3));
+      return;
+    }
+    const eased = easeInOut(progress);
+    easedNow = eased;
+    for (const { fromIndex, toIndex, isCrossing } of activePlan.flights) {
+      const element = (fromLine.paints[fromIndex] as MathPaintElement).element;
+      writeStyle(element, 'display', 'inline-block');
+      writeStyle(element, 'transformOrigin', '0 0');
+      writeStyle(element, 'transform', getFlightTransform({ from: fromLine.infos[fromIndex] as PaintInfo, to: toLine.infos[toIndex] as PaintInfo, isCrossing }, eased));
+      writeStyle((toLine.paints[toIndex] as MathPaintElement).element, 'visibility', 'hidden');
+    }
+    const leaving = Math.max(0, 1 - progress * 2);
+    const arriving = Math.max(0, progress * 2 - 1);
+    for (const index of activePlan.leaving) writeStyle((fromLine.paints[index] as MathPaintElement).element, 'opacity', leaving.toFixed(3));
+    for (const index of activePlan.arriving) writeStyle((toLine.paints[index] as MathPaintElement).element, 'opacity', arriving.toFixed(3));
+  };
+
+  const getSpanIndexes = (rendered: RenderedLine, query: TermQuery): readonly number[] | null => {
+    if (query === null) return rendered.infos.map((_, index) => index);
+    if ('termId' in query) {
+      const indexes = rendered.infos.flatMap((info, index) => (info.termId === query.termId ? [index] : []));
+      return indexes.length > 0 ? indexes : null;
+    }
+    const key = `${query.tex}|${query.occurrence ?? 0}`;
+    const known = rendered.spanPaints.get(key);
+    if (known) return known;
+    const span: TexSpan | undefined = findMathSpans(rendered.line.tex, query.tex)[query.occurrence ?? 0];
+    if (!span) return null;
+    const owners = getPaintsOfSpans(rendered.line.tex, [span], rendered.paints);
+    const indexes = owners?.flatMap((owner, index) => (owner === 0 ? [index] : [])) ?? [];
+    rendered.spanPaints.set(key, indexes);
+    return indexes;
+  };
+
+  const getBoxOfSpan = (rendered: RenderedLine | null, query: TermQuery): PaintBox | null => {
+    if (!rendered) return null;
+    const indexes = getSpanIndexes(rendered, query);
+    return indexes ? getBoxUnion(indexes.map((index) => (rendered.infos[index] as PaintInfo).box)) : null;
+  };
+
+  const getLiveOffset = (query: TermQuery): { x: number; y: number } => {
+    const none = { x: 0, y: 0 };
+    if (!from || !to || !plan) return none;
+    const indexes = new Set(getSpanIndexes(to, query) ?? []);
+    const flight = plan.flights.find((candidate) => indexes.has(candidate.toIndex));
+    if (!flight) return none;
+    return getFlightOffset({ from: from.infos[flight.fromIndex] as PaintInfo, to: to.infos[flight.toIndex] as PaintInfo, isCrossing: flight.isCrossing }, easedNow);
+  };
+
+  return {
+    prepare(frame) {
+      prepareTrees(frame);
+      refreshAfterFonts();
+      return { size: to?.size ?? null, fromSize: from?.size ?? null };
+    },
+    paint(frame) {
+      writeStyle(root, 'visibility', isWaitingForFonts ? 'hidden' : '');
+      const key = `${frame.progress}|${frame.isReducedMotion}|${to?.line.tex}|${from?.line.tex}`;
+      if (key === lastPaintKey || !to) return;
+      lastPaintKey = key;
+      if (from && plan) paintMorph(from, to, plan, frame.progress, frame.isReducedMotion);
+      else if (frame.morphFrom === null) paintWriting(to, frame.progress, frame.isReducedMotion);
+      if (!from && frame.progress >= 1) {
+        for (const { element } of to.paints) clearPaint(element);
+        writeStyle(to.host, 'opacity', '');
+      }
+    },
+    getTermBox: (query) => ({ from: getBoxOfSpan(from, query), to: getBoxOfSpan(to, query), flightOffset: getLiveOffset(query) }),
+    getRefusedTex: () => refusedTex,
+    remove() {
+      to?.host.remove();
+      from?.host.remove();
+    },
+  };
+}

@@ -32,3 +32,146 @@ describe('BoardView', () => {
     expect(container.querySelectorAll('[data-testid="scene"] circle')).toHaveLength(1);
   });
 });
+
+const raw = String.raw;
+
+function write(id: string, tex: string, atMs = 0): BoardOperation {
+  return { kind: 'command', atMs, overMs: null, command: { kind: 'writeMath', id: id as never, tex } };
+}
+
+function rearrange(target: string, tex: string, atMs: number): BoardOperation {
+  return { kind: 'command', atMs, overMs: null, command: { kind: 'transformMath', target: target as never, tex } };
+}
+
+describe('BoardView, math', () => {
+  const getMathText = (container: HTMLElement, id: string) => container.querySelector(`[data-element="${id}"] .katex-html`)?.textContent;
+
+  it('sets an equation with KaTeX and never shows its source', () => {
+    const { container } = render(<BoardView board={getBoardAt([write('eq', raw`\frac{1}{2} = x`)], 2000)} atMs={2000} />);
+    expect(container.querySelector('[data-element="eq"] .mfrac')).not.toBeNull();
+    expect(container.querySelector('.katex-html')?.textContent).not.toContain('\\');
+  });
+
+  it('marks every term so a later command or a click can name it', () => {
+    const { container } = render(<BoardView board={getBoardAt([write('eq', '2x + 3 = 11')], 2000)} atMs={2000} />);
+    const terms = [...container.querySelectorAll<HTMLElement>('[data-element="eq"] [data-term]')].map((element) => [element.textContent, element.dataset.term]);
+    expect(terms).toEqual([['2', 't1'], ['x', 't1'], ['+', 't2'], ['3', 't3'], ['=', 't4'], ['11', 't5']]);
+  });
+
+  it('keeps a term id through a rearrangement', () => {
+    const operations = [write('eq', '2x + 3 = 11'), rearrange('eq', '2x = 11 - 3', 2000)];
+    const { container } = render(<BoardView board={getBoardAt(operations, 4000)} atMs={4000} />);
+    const three = [...container.querySelectorAll<HTMLElement>('[data-term]')].find((element) => element.textContent === '3');
+    expect(three?.dataset.term).toBe('t3');
+    expect(getMathText(container, 'eq')).toContain('11');
+  });
+
+  it('holds both equations while one rearranges into the other, and leaves one when done', () => {
+    const operations = [write('eq', '2x + 3 = 11'), rearrange('eq', '2x = 8', 2000)];
+    const midway = render(<BoardView board={getBoardAt(operations, 2400)} atMs={2400} />);
+    expect(midway.container.querySelectorAll('[data-element="eq"] [data-tex]')).toHaveLength(2);
+    midway.rerender(<BoardView board={getBoardAt(operations, 2900)} atMs={2900} />);
+    expect([...midway.container.querySelectorAll<HTMLElement>('[data-element="eq"] [data-tex]')].map((host) => host.dataset.tex)).toEqual(['2x = 8']);
+  });
+
+  it('writes the same picture for the same moment, so a replay and a live board cannot differ', () => {
+    const operations = [write('eq', '2x + 3 = 11'), rearrange('eq', '2x = 11 - 3', 2000)];
+    const first = render(<BoardView board={getBoardAt(operations, 2300)} atMs={2300} />);
+    const second = render(<BoardView board={getBoardAt(operations, 2300)} atMs={2300} />);
+    expect(first.container.innerHTML).toBe(second.container.innerHTML);
+  });
+
+  it('leaves the plain KaTeX tree at rest, with no motion left on any piece of ink', () => {
+    const { container } = render(<BoardView board={getBoardAt([write('eq', raw`\frac{1}{2}`)], 5000)} atMs={5000} />);
+    for (const element of container.querySelectorAll<HTMLElement>('[data-element="eq"] .katex-html *')) {
+      expect(element.style.visibility).toBe('');
+      expect(element.style.transform).toBe('');
+      expect(element.style.clipPath).toBe('');
+    }
+  });
+
+  it('writes nothing to the page on a frame where nothing changed', async () => {
+    const operations = [write('eq', '2x + 3 = 11')];
+    const { container, rerender } = render(<BoardView board={getBoardAt(operations, 5000)} atMs={5000} />);
+    const changes: MutationRecord[] = [];
+    const observer = new MutationObserver((records) => changes.push(...records));
+    observer.observe(container, { attributes: true, childList: true, subtree: true, characterData: true });
+    for (const atMs of [5016, 5033, 5050]) rerender(<BoardView board={getBoardAt(operations, atMs)} atMs={atMs} />);
+    await Promise.resolve();
+    observer.disconnect();
+    expect(changes).toEqual([]);
+  });
+
+  it('draws nothing from reduced motion that moves, and lands the rearrangement on its word', () => {
+    window.matchMedia = (() => ({ matches: true, addEventListener: () => undefined, removeEventListener: () => undefined })) as unknown as typeof window.matchMedia;
+    try {
+      const operations = [write('eq', '2x + 3 = 11'), rearrange('eq', '2x = 11 - 3', 2000)];
+      const { container } = render(<BoardView board={getBoardAt(operations, 2400)} atMs={2400} />);
+      for (const element of container.querySelectorAll<HTMLElement>('[data-element="eq"] .katex-html *')) {
+        expect(element.style.transform).toBe('');
+        expect(element.style.clipPath).toBe('');
+      }
+      const hosts = [...container.querySelectorAll<HTMLElement>('[data-tex]')].map((host) => [host.dataset.tex, host.style.opacity]);
+      expect(hosts).toEqual(expect.arrayContaining([['2x + 3 = 11', '0.5'], ['2x = 11 - 3', '0.5']]));
+    } finally {
+      window.matchMedia = (() => ({ matches: false, addEventListener: () => undefined, removeEventListener: () => undefined })) as unknown as typeof window.matchMedia;
+    }
+  });
+});
+
+describe('BoardView, hostile content from a model', () => {
+  const HOSTILE_TEXT = '<img src=x onerror="window.pwned=1"><script>window.pwned=1</script>';
+
+  it('shows plain text as text and never as HTML', () => {
+    const text: BoardOperation = { kind: 'command', atMs: 0, overMs: null, command: { kind: 'text', id: 'note' as never, text: HOSTILE_TEXT } };
+    const { container } = render(<BoardView board={getBoardAt([text], 2000)} atMs={2000} />);
+    expect(container.querySelector('img, script')).toBeNull();
+    expect(container.textContent).toContain('<img src=x');
+  });
+
+  it('draws handwritten text as strokes, with no text in the page to run', () => {
+    const text: BoardOperation = { kind: 'command', atMs: 0, overMs: null, command: { kind: 'text', id: 'note' as never, text: HOSTILE_TEXT, handwritten: true } };
+    const { container } = render(<BoardView board={getBoardAt([text], 9000)} atMs={9000} />);
+    expect(container.querySelector('img, script')).toBeNull();
+    expect(container.querySelector('[data-element="note"]')?.textContent).toBe('');
+    expect(container.querySelectorAll('[data-element="note"] path').length).toBeGreaterThan(0);
+  });
+
+  it('falls back to plain text for a character the strokes lack', () => {
+    const text: BoardOperation = { kind: 'command', atMs: 0, overMs: null, command: { kind: 'text', id: 'note' as never, text: 'Ṣade', handwritten: true } };
+    const { container } = render(<BoardView board={getBoardAt([text], 2000)} atMs={2000} />);
+    expect(screen.getByText('Ṣade')).toBeTruthy();
+    expect(container.querySelector('svg[class*="ink"] path')).toBeNull();
+  });
+
+  it('refuses math KaTeX cannot set, reports it, and draws nothing in its place', () => {
+    const onMathRefused = vi.fn();
+    const { container } = render(<BoardView board={getBoardAt([write('eq', 'x^2^3')], 2000)} atMs={2000} onMathRefused={onMathRefused} />);
+    expect(onMathRefused).toHaveBeenCalledWith('x^2^3');
+    expect(container.querySelector('[data-element="eq"]')?.textContent).toBe('');
+    expect(container.querySelector('.katex-error')).toBeNull();
+  });
+
+  it('keeps the last good equation when a rearrangement cannot be set', () => {
+    const onMathRefused = vi.fn();
+    const operations = [write('eq', '2x = 8'), rearrange('eq', 'x^2^3', 2000)];
+    const early = render(<BoardView board={getBoardAt(operations, 1000)} atMs={1000} onMathRefused={onMathRefused} />);
+    early.rerender(<BoardView board={getBoardAt(operations, 2400)} atMs={2400} onMathRefused={onMathRefused} />);
+    expect(onMathRefused).toHaveBeenCalledWith('x^2^3');
+    expect(early.container.querySelector('[data-element="eq"] .katex-html')?.textContent).toContain('8');
+  });
+
+  it('draws no mark for a term that is not in the equation', () => {
+    const operations = [write('eq', '2x = 8'), { kind: 'command', atMs: 500, overMs: null, command: { kind: 'highlight', id: 'ring', target: 'eq', tex: 'y' } } as BoardOperation];
+    const { container } = render(<BoardView board={getBoardAt(operations, 3000)} atMs={3000} />);
+    expect(container.querySelectorAll('svg g path')).toHaveLength(0);
+  });
+
+  it('survives a mark and a focus on something not on the board', () => {
+    const operations: BoardOperation[] = [
+      { kind: 'command', atMs: 0, overMs: null, command: { kind: 'highlight', id: 'ring', target: 'gone' as never } as never },
+      { kind: 'command', atMs: 0, overMs: null, command: { kind: 'focus', target: 'gone' as never } },
+    ];
+    expect(() => render(<BoardView board={getBoardAt(operations, 3000)} atMs={3000} />)).not.toThrow();
+  });
+});

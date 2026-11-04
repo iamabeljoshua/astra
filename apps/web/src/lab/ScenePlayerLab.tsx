@@ -17,9 +17,16 @@ const LESSON_TURNS = 2;
 
 const BUTTON = 'rounded border border-line px-3 py-1.5 text-control text-ink disabled:opacity-40';
 
+interface HeldFrame {
+  atMs: number;
+  source: 'live' | 'replay';
+}
+
 declare global {
   interface Window {
     sceneLab?: LabSession;
+    /** Pins the board to one moment, so a proof can compare a live frame with its replay pixel by pixel. */
+    holdBoardFrame?(frame: HeldFrame | null): void;
   }
 }
 
@@ -39,12 +46,21 @@ export default function ScenePlayerLab() {
   const [nextLessonTurn, setNextLessonTurn] = useState(0);
   const sessionRef = useRef<LabSession | null>(null);
   const replayRef = useRef<{ startedAtMs: number; fromMs: number; endMs: number } | null>(null);
+  const heldRef = useRef<HeldFrame | null>(null);
 
   useEffect(() => {
+    window.holdBoardFrame = (held) => {
+      heldRef.current = held;
+    };
     let animationFrame = requestAnimationFrame(function draw() {
       animationFrame = requestAnimationFrame(draw);
       const session = sessionRef.current;
       if (!session) return;
+      const held = heldRef.current;
+      if (held) {
+        setFrame({ board: held.source === 'replay' ? session.getReplayBoard(held.atMs) : session.player.getBoard(held.atMs), atMs: held.atMs });
+        return;
+      }
       const replay = replayRef.current;
       if (replay) {
         const atMs = Math.min(replay.fromMs + performance.now() - replay.startedAtMs, replay.endMs);
@@ -103,7 +119,7 @@ export default function ScenePlayerLab() {
     <main className="grid min-h-svh grid-cols-1 gap-6 bg-paper p-4 text-ink md:grid-cols-12 md:p-6">
       <title>{PRODUCT_NAME}</title>
       <section aria-label={LAB_LABELS.board} className="h-[60svh] md:col-span-7 md:h-auto">
-        {frame ? <BoardView board={frame.board} atMs={frame.atMs} onElementDrawn={phase === 'replaying' ? undefined : (id) => sessionRef.current?.noteDrawn(id)} /> : <BoardView board={{ elements: new Map(), focus: null }} atMs={0} />}
+        {frame ? <BoardView board={frame.board} atMs={frame.atMs} onElementDrawn={phase === 'replaying' ? undefined : (id) => sessionRef.current?.noteDrawn(id)} onMathRefused={(tex) => sessionRef.current?.records.refused.push(`math: ${tex}`)} /> : <BoardView board={{ elements: new Map(), focus: null }} atMs={0} />}
       </section>
       <section aria-label={LAB_LABELS.controls} className="flex flex-col gap-4 md:col-span-5">
         <h1 className="text-heading">{LAB_LABELS.title}</h1>
@@ -117,7 +133,7 @@ export default function ScenePlayerLab() {
             className={BUTTON}
             disabled={!isReady}
             onClick={() => {
-              send({ type: 'play', lessonTurn: nextLessonTurn });
+              send({ type: 'play', lesson: params.get('lesson') ?? undefined, lessonTurn: nextLessonTurn });
               setNextLessonTurn((turn) => (turn + 1) % LESSON_TURNS);
             }}
           >

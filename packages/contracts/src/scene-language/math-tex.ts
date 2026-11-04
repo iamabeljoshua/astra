@@ -21,13 +21,13 @@ const SYMBOL_COMMANDS = `alpha beta gamma delta epsilon varepsilon zeta eta thet
   langle rangle lfloor rfloor lceil rceil vert Vert lvert rvert lVert rVert ulcorner urcorner llcorner lrcorner
   quad qquad`;
 
-const FUNCTION_COMMANDS = 'sin cos tan cot sec csc arcsin arccos arctan sinh cosh tanh log ln lg exp lim limsup liminf max min sup inf det gcd lcm deg arg dim hom ker Pr bmod pmod mod sum prod int iint iiint oint bigcup bigcap coprod';
+const FUNCTION_COMMANDS = 'sin cos tan cot sec csc arcsin arccos arctan sinh cosh tanh log ln lg exp lim limsup liminf max min sup inf det gcd deg arg dim hom ker Pr bmod pmod mod sum prod int iint iiint oint bigcup bigcap coprod';
 
 const STRUCTURE_COMMANDS = `frac dfrac tfrac cfrac sqrt binom dbinom tbinom overline underline hat widehat bar vec dot ddot tilde widetilde overrightarrow overleftarrow overbrace underbrace cancel
   left right big Big bigg Bigg bigl bigr Bigl Bigr biggl biggr Biggl Biggr
   text textbf textit mathrm mathbf mathit mathbb mathcal mathsf mathfrak operatorname overset underset stackrel substack limits nolimits begin end`;
 
-const ALLOWED_COMMANDS: ReadonlySet<string> = new Set(`${SYMBOL_COMMANDS} ${FUNCTION_COMMANDS} ${STRUCTURE_COMMANDS}`.split(/\s+/).map((name) => `\\${name}`));
+export const ALLOWED_TEX_COMMANDS: ReadonlySet<string> = new Set(`${SYMBOL_COMMANDS} ${FUNCTION_COMMANDS} ${STRUCTURE_COMMANDS}`.split(/\s+/).map((name) => `\\${name}`));
 
 const ALLOWED_ESCAPES: ReadonlySet<string> = new Set(['\\,', '\\;', '\\:', '\\!', '\\ ', '\\{', '\\}', '\\%', '\\$', '\\&', '\\_', '\\|', '\\\\']);
 
@@ -63,7 +63,7 @@ export function getTexProblem(tex: string): string | null {
   for (const { text } of tokens) {
     if (NEEDS_TRUST.test(text)) return 'math with no links, images, or raw HTML';
     if (REFUSED_CHARACTERS.has(text)) return 'math with no comments or dollar signs';
-    if (text.startsWith('\\') && !ALLOWED_COMMANDS.has(text) && !ALLOWED_ESCAPES.has(text)) return `math with known commands only, not ${text}`;
+    if (text.startsWith('\\') && !ALLOWED_TEX_COMMANDS.has(text) && !ALLOWED_ESCAPES.has(text)) return `math with known commands only, not ${text}`;
   }
   return getGroupProblem(tex, tokens);
 }

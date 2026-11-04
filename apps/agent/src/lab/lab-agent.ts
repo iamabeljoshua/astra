@@ -4,17 +4,19 @@ import type { tts } from '@livekit/agents';
 import { createSessionLog } from '../live/session-log.ts';
 import { type SpokenTurn, speakTurn, type TextPace } from '../live/speak-turn.ts';
 import { type LabRecorder } from './lab-recorder.ts';
-import { LESSON, STOCK_TURN } from './lesson.ts';
+import { type LessonName, LESSONS, STOCK_TURN } from './lesson.ts';
 
 export const LIVE_TOPIC = 'astra.live';
 export const LAB_TOPIC = 'astra.lab';
 const AUDIO_QUEUE_MS = 200;
 
 export type LabCommand =
-  | { type: 'play'; lessonTurn?: number; isStockPhrase?: boolean; textPace?: TextPace; proofStalls?: { atAudioMs: number; ms: number }[]; wordsLateMs?: number }
+  | { type: 'play'; lesson?: LessonName; lessonTurn?: number; isStockPhrase?: boolean; textPace?: TextPace; proofStalls?: { atAudioMs: number; ms: number }[]; wordsLateMs?: number }
   | { type: 'interrupt' }
   | { type: 'resume'; textPace?: TextPace }
   | { type: 'finish' }
+  /** Sends messages as they are, with no parsing here, as a broken or hostile agent would. */
+  | { type: 'sendRaw'; messages: unknown[] }
   /** The page has joined and hears the tutor's track, so the lesson can start without losing its first sound. */
   | { type: 'hello' };
 
@@ -113,7 +115,7 @@ export async function runLabAgent({ url, token, voice, sampleRate, recorder }: L
   const runCommand = (command: LabCommand) => {
     if (command.type === 'play') {
       wordsLateMs = command.wordsLateMs ?? 0;
-      startTurn(command.isStockPhrase ? STOCK_TURN : (LESSON[command.lessonTurn ?? 0] ?? []), command);
+      startTurn(command.isStockPhrase ? STOCK_TURN : (LESSONS[command.lesson ?? 'jump-shot'][command.lessonTurn ?? 0] ?? []), command);
     }
     if (command.type === 'interrupt') {
       recorder.noteStopDecided(active?.id);
@@ -121,6 +123,7 @@ export async function runLabAgent({ url, token, voice, sampleRate, recorder }: L
     }
     if (command.type === 'resume' && active) startTurn(getResumeBeats(active), command);
     if (command.type === 'finish') finish();
+    if (command.type === 'sendRaw') for (const message of command.messages) void publish(LIVE_TOPIC, message as object);
     if (command.type === 'hello') void publish(LAB_TOPIC, { type: 'agentReady' });
   };
 

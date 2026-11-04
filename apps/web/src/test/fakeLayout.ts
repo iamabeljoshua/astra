@@ -26,7 +26,7 @@ export function notifyResizeObservers() {
   act(() => activeObservers.forEach((observer) => observer.notify()));
 }
 
-export const fakeFonts = { status: 'loaded', ready: Promise.resolve() };
+export const fakeFonts = { status: 'loaded', ready: Promise.resolve(), load: () => Promise.resolve([]) };
 
 export function startLoadingFont() {
   let finishLoading!: () => void;
