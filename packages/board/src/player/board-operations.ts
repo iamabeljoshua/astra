@@ -1,6 +1,6 @@
 import { type BeatEnding, type Cue, type FrozenFrame, getCues, type InkPoint, type SceneCommand, type SessionEvent, type SimulationParameter, type ElementId } from '@astra/contracts';
 
-/** Only for a cue whose later word times are unknown. Live and replay read the same times, so both land on the same guess. */
+/** Only for a cue whose later word times are unknown. A live frame drawn before they land can show this guess, and a replay reads the times the report settled on. */
 const ASSUMED_WORD_MS = 300;
 
 /** Every change to the board, in session ms. Live and replay reduce the same list, so they cannot drift apart. */
