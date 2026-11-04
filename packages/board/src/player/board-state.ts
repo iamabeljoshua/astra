@@ -299,7 +299,8 @@ function applyCommand(board: BoardDraft, command: SceneCommand, { atMs, overMs, 
       board.focus = command.target;
       return;
     case 'boardMode':
-      if (board.stage?.mode !== command.mode && !(command.mode === 'teach' && board.isSceneBehind)) board.stage = { mode: command.mode, sinceMs: atMs };
+      // A board with no stage is already teaching, and a stage would glide the picture in from the corner.
+      if ((board.stage?.mode ?? 'teach') !== command.mode && !(command.mode === 'teach' && board.isSceneBehind)) board.stage = { mode: command.mode, sinceMs: atMs };
       if (command.mode === 'teach') closeOpenTasks(board.elements);
       return;
     case 'transformMath': {

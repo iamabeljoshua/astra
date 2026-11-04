@@ -77,7 +77,10 @@ async function runSession(context: JobContext): Promise<void> {
   const allTakes = loadTakes();
   let ears: Ears | null = null;
   let scenes: TutorScenes | null = null;
-  const { brain, caps, cardTitle, flushSpend, readMeaning, readStrokes, readSpokenWords, getSpentUsd, writeRecord } = makeTutorBrain({ roomName: room.name ?? '', jobId: context.job.id, trace, ...(hasTutorScenes() ? { onAskScene: (topic: string) => scenes?.ask(topic), onSafetyReply: () => scenes?.noteSafetyReply(), onCardKnown: (title: string | null) => scenes?.noteCard(title) } : {}) });
+  const { brain, caps, cardTitle, flushSpend, readMeaning, readStrokes, readSpokenWords, getSpentUsd, writeRecord } = makeTutorBrain({ roomName: room.name ?? '', jobId: context.job.id, trace, onSessionTitle(title) {
+      publish({ type: 'sessionTitle', title });
+      scenes?.noteTopic(title);
+    }, ...(hasTutorScenes() ? { onAskScene: (topic: string) => scenes?.ask(topic), onSafetyReply: () => scenes?.noteSafetyReply(), onCardKnown: (title: string | null) => scenes?.noteCard(title) } : {}) });
   const session = createLiveSession({
     messenger: {
       send: (message) => publish(message),

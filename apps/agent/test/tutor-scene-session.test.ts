@@ -56,7 +56,7 @@ afterEach(async () => {
   await Promise.all(sessions.splice(0).map((session) => session.close()));
 });
 
-function start({ reply, cardTitle = null as string | null, isPageThere = true }: { reply: (text: string) => TutorBeat[]; cardTitle?: string | null; isPageThere?: boolean }) {
+function start({ reply, cardTitle = null as string | null, isPageThere = true, getBoard }: { reply: (text: string) => TutorBeat[]; cardTitle?: string | null; isPageThere?: boolean; getBoard?: TutorBrain['getBoard'] }) {
   const timeline: { atMs: number; what: string }[] = [];
   const startedAt = performance.now();
   const note = (what: string) => timeline.push({ atMs: Math.round(performance.now() - startedAt), what });
@@ -72,6 +72,7 @@ function start({ reply, cardTitle = null as string | null, isPageThere = true }:
     },
     getClosedReason: () => (closed.isClosed ? ('dailyLimit' as never) : null),
     noteSceneTurn: () => note('noteSceneTurn'),
+    ...(getBoard ? { getBoard } : {}),
   };
   const send = (message: AgentMessage) => {
     if (message.type === 'words') note(`words ${message.beatId as string}: ${message.words.map(({ text }) => text).join(' ')}`);
@@ -120,6 +121,21 @@ const until = async (read: () => boolean, ms: number) => {
   while (!read() && performance.now() < end) await delay(20);
 };
 const type = (session: LiveSession, text: string) => session.onBrowser({ type: 'typed', text } as never);
+
+describe('a reply that asks for a scene and sets a task', () => {
+  it('holds the scene back while the student works, so nothing covers the task', async () => {
+    const parsed = parseBeat({ id: 't1', script: [{ kind: 'writeMath', id: 'p1', tex: '15 + 27', claim: 'new' }, 'Fifteen plus twenty-seven. ', { kind: 'task', id: 'a1', way: 'write', on: 'p1' }, 'Have a go at the first line.'], expectsReply: true });
+    if (!parsed.ok) throw new Error(parsed.problem);
+    const board = { openTask: 'a1', state: { elements: new Map([['a1', { content: { kind: 'task', way: 'write', on: 'p1' } }]]) } };
+    const context = start({ reply: () => (context.scenes.ask(TOPIC), [parsed.value]), getBoard: () => board as never });
+    type(context.session, 'why does slope matter');
+    await until(() => context.timeline.some(({ what }) => what.startsWith('words t1')), 3000);
+    await delay(8000);
+    expect(context.sceneSent.some(({ type: sent }) => sent === 'loadScene')).toBe(true);
+    expect(context.session.isAtPause()).toBe(false);
+    expect(heardScene(context.timeline)).toEqual([]);
+  }, 20000);
+});
 
 describe('a student turn while a scene is pending', () => {
   it('ends it when they say they are in danger, so no scene words reach them after the help line', async () => {

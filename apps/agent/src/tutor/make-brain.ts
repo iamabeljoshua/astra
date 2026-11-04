@@ -1,6 +1,8 @@
 import { getBeatText, type InkPoint } from '@astra/contracts';
 import { readKey } from '../keys.ts';
-import { makeAnthropicPictureReader, makeAnthropicSourceFinder, makeAnthropicTutorModel, TUTOR_MODEL_NAMES, type TutorModelName } from '../providers/anthropic.ts';
+import { askPlanner } from '../lesson-plan/ask-planner.ts';
+import { createLessonPlanner, type LessonPlanner } from '../lesson-plan/lesson-planner.ts';
+import { makeAnthropicJsonReader, makeAnthropicPictureReader, makeAnthropicSourceFinder, makeAnthropicTutorModel, TUTOR_MODEL_NAMES, type TutorModelName } from '../providers/anthropic.ts';
 import { getMemoryNote } from '../learner-record/memory-note.ts';
 import { createSessionDigest } from '../learner-record/session-digest.ts';
 import { writeRecordOfRoom } from '../learner-record/write-record.ts';
@@ -143,7 +145,22 @@ export interface MadeBrain {
   writeRecord?(): Promise<void>;
 }
 
-export function makeTutorBrain({ roomName, jobId, trace, onAskScene, onSafetyReply, onCardKnown }: { roomName: string; jobId: string; trace: TraceNote; onAskScene?(topic: string): void; onSafetyReply?(): void; /** The brief has come, or will not, so a card's title is known or there is none. */ onCardKnown?(title: string | null): void }): MadeBrain {
+// A plan changes the session's title only when the student moves to another topic, and a failed save keeps the page's title and the session running.
+function makeLessonPlanner({ link, caps, trace, onSessionTitle }: { link: ApiLink | null; caps: SpendCaps; trace: TraceNote; onSessionTitle(title: string): void }): LessonPlanner {
+  const reader = makeAnthropicJsonReader({ apiKey: readKey('ANTHROPIC_API_KEY') });
+  return createLessonPlanner({
+    ask: (request) => askPlanner(reader, request),
+    canSpend: () => caps.getSpendLimit() === null,
+    charge: (usd) => caps.addTurn({ usd, voiceCharacters: 0 }),
+    onTitleChange(title) {
+      onSessionTitle(title);
+      link?.setTitle(title).catch((error: unknown) => trace('titleNotSaved', { problem: String(error) }));
+    },
+    trace,
+  });
+}
+
+export function makeTutorBrain({ roomName, jobId, trace, onSessionTitle = () => {}, onAskScene, onSafetyReply, onCardKnown }: { roomName: string; jobId: string; trace: TraceNote; onSessionTitle?(title: string): void; onAskScene?(topic: string): void; onSafetyReply?(): void; /** The brief has come, or will not, so a card's title is known or there is none. */ onCardKnown?(title: string | null): void }): MadeBrain {
   const name = process.env.ASTRA_TUTOR_MODEL ?? DEFAULT_MODEL;
   if (name === STAND_IN) return { brain: createStandInTutor(), flushSpend: async () => {} };
   if (name !== RECORDED && !TUTOR_MODEL_NAMES.includes(name as TutorModelName)) throw new Error(`ASTRA_TUTOR_MODEL is ${name}. Choose ${[STAND_IN, RECORDED, ...TUTOR_MODEL_NAMES].join(', ')}`);
@@ -165,6 +182,7 @@ export function makeTutorBrain({ roomName, jobId, trace, onAskScene, onSafetyRep
     trace('turnWritten', { firstTextMs, firstBeatMs, attempts, endedAs, costUsd, usage, refused, refusalCategory, isUsageEstimated, words: spokenText.split(/\s+/).length });
     caps.addTurn({ usd: costUsd, voiceCharacters: beats.map(getBeatText).join(' ').length });
   };
+  const lessonPlanner = name === RECORDED ? undefined : makeLessonPlanner({ link, caps, trace, onSessionTitle });
   const loadMemory = link ? async () => getMemoryNote(await link.fetchRecord(), new Date()) : undefined;
   const findSource = name === RECORDED || !isFindSourceOn() ? undefined : makeAnthropicSourceFinder({ apiKey: readKey('ANTHROPIC_API_KEY'), onFailed: (problem) => trace('sourceFailed', { problem }) });
   let cardTitle: string | null = null;
@@ -180,7 +198,7 @@ export function makeTutorBrain({ roomName, jobId, trace, onAskScene, onSafetyRep
       }
     : undefined;
   if (!loadProfile) queueMicrotask(() => onCardKnown?.(null));
-  const brain = createTutorBrain({ model, prompt: onAskScene ? withScenes(getLivePrompt()) : getLivePrompt(), ...(findSource ? { findSource } : {}), loadProfile, loadMemory, onWorkNoted: digest.addWork, trace, onTurnEnd, getSpendLimit: caps.getSpendLimit , ...(onAskScene ? { onAskScene } : {}), ...(onSafetyReply ? { onSafetyReply } : {}) });
+  const brain = createTutorBrain({ model, prompt: onAskScene ? withScenes(getLivePrompt()) : getLivePrompt(), ...(findSource ? { findSource } : {}), loadProfile, loadMemory, onWorkNoted: digest.addWork, trace, onTurnEnd, getSpendLimit: caps.getSpendLimit, ...(lessonPlanner ? { lessonPlanner } : {}), ...(onAskScene ? { onAskScene } : {}), ...(onSafetyReply ? { onSafetyReply } : {}) });
   if (name === RECORDED) return { brain, caps, cardTitle: () => cardTitle, flushSpend: caps.flush };
   const wordsModel = makeAnthropicTutorModel({ name: WORDS_MODEL, apiKey: readKey('ANTHROPIC_API_KEY') });
   const readMeaning = async (words: string) => {

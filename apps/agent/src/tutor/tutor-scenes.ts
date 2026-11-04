@@ -51,6 +51,8 @@ export interface TutorScenes {
   noteStudentTurn(): void;
   /** A reply about a child's safety, so no scene talks after it until the student speaks again. */
   noteSafetyReply(): void;
+  /** The lesson's title. A new one ends a picture of the old topic, and the same one told again to a reloaded page changes nothing. */
+  noteTopic(title: string): void;
   notePageLink(isUp: boolean): void;
   /** Words never play without their picture, so after a drop the page is asked again. False means the picture is not coming. */
   waitForPicture(): Promise<boolean>;
@@ -60,7 +62,7 @@ export interface TutorScenes {
 type PageState = { kind: 'notAsked' } | { kind: 'away'; scene: StoredScene } | { kind: 'loading'; scene: StoredScene; limit: ReturnType<typeof setTimeout> } | { kind: 'loaded'; scene: StoredScene };
 
 /** How an ask that lost its moment ended. What it made stays saved, so asking again is free. */
-const MISSED_ITS_MOMENT: ReadonlySet<string> = new Set(['tooLate', 'studentTurn', 'replaced', 'pageTooSlow']);
+const MISSED_ITS_MOMENT: ReadonlySet<string> = new Set(['tooLate', 'studentTurn', 'replaced', 'pageTooSlow', 'topicChanged']);
 
 interface SceneAsk {
   topic: string;
@@ -79,6 +81,10 @@ type Device = 'unknown' | 'canPlay' | 'cannotPlay';
 type Opening = { kind: 'briefToCome' } | { kind: 'possible' } | { kind: 'over' };
 
 const sameWords = (first: string, second: string) => first.trim().toLowerCase() === second.trim().toLowerCase();
+
+const WORDS_NAMING_NO_TOPIC = new Set(['what', 'when', 'where', 'which', 'with', 'that', 'this', 'from', 'does', 'work', 'tell', 'your', 'about', 'really']);
+const getTopicWords = (topic: string) => (topic.toLowerCase().match(/\p{L}{4,}/gu) ?? []).map((word) => word.replace(/s$/, '')).filter((word) => !WORDS_NAMING_NO_TOPIC.has(word));
+const isSameTopic = (asked: string, title: string) => getTopicWords(asked).some((word) => getTopicWords(title).includes(word));
 
 const getFirstMomentAfterStart = (moments: StoredScene['moments']) => Object.entries(moments).filter(([, seconds]) => seconds > 0).sort(([, first], [, second]) => first - second)[0]?.[0];
 
@@ -104,6 +110,9 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
   let asksMade = 0;
   let hasHadStudentTurn = false;
   let isAfterSafetyReply = false;
+  let lessonTitle: string | null = null;
+  // The planner answers beside the reply, so a reply already being written has not heard the new title.
+  let isTitleUnheard = false;
   let opening: Opening = { kind: 'briefToCome' };
   let settleOpening: ((beats: readonly TutorBeat[] | null) => void) | null = null;
   let onScreen: StoredScene | null = null;
@@ -203,6 +212,7 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
   const ask = (topic: string) => {
     const key = topic.trim().toLowerCase();
     if (device === 'cannotPlay' || isAfterSafetyReply || isClosed() || key === '' || topic.length > MOST_TOPIC_CHARACTERS || askedTopics.has(key) || asksMade >= MOST_ASKS_IN_A_SESSION) return;
+    if (isTitleUnheard && lessonTitle !== null && !isSameTopic(topic, lessonTitle)) return trace('sceneOffTopic', { text: topic });
     if (current) end(current, 'replaced');
     if (waitingForDevice !== null) askedTopics.delete(waitingForDevice.trim().toLowerCase());
     askedTopics.add(key);
@@ -282,6 +292,7 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
       const isFirstTurn = !hasHadStudentTurn;
       hasHadStudentTurn = true;
       isAfterSafetyReply = false;
+      isTitleUnheard = false;
       // A card's title reaches the tutor as the first turn, and that turn is what asked.
       if (isFirstTurn && (current?.isOpening || opening.kind !== 'over')) return;
       if (waitingForDevice !== null) askedTopics.delete(waitingForDevice.trim().toLowerCase());
@@ -293,6 +304,16 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
       waitingForDevice = null;
       if (current) end(current, 'safetyReply');
       if (opening.kind !== 'over') giveOpening(null);
+    },
+    noteTopic(title) {
+      if (lessonTitle !== null && sameWords(lessonTitle, title)) return;
+      lessonTitle = title;
+      isTitleUnheard = true;
+      if (waitingForDevice !== null && !isSameTopic(waitingForDevice, title)) {
+        askedTopics.delete(waitingForDevice.trim().toLowerCase());
+        waitingForDevice = null;
+      }
+      if (current && !isSameTopic(current.topic, title)) end(current, 'topicChanged');
     },
     notePageLink(isUp) {
       const pending = current;

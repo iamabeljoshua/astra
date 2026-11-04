@@ -153,6 +153,11 @@ describe('clearing the board with a scene on it', () => {
   const TEACH = { kind: 'boardMode', mode: 'teach' } as SceneCommand;
   const NOTE = { kind: 'text', id: elementId('note'), text: 'n' } as SceneCommand;
 
+  it('does not move a scene that opens a lesson, because a board with no stage is already teaching', () => {
+    expect(getBoardAt([place(0), command(0, TEACH)], 100).stage).toBeNull();
+    expect(getBoardAt([place(0), command(100, { kind: 'boardMode', mode: 'handsOn' } as SceneCommand), command(900, TEACH)], 1000).stage).toEqual({ mode: 'teach', sinceMs: 900 });
+  });
+
   it('sends the working away and keeps the scene, in the corner', () => {
     const board = getBoardAt([place(0), command(100, NOTE), command(200, CLEAR)], 300);
     expect([...board.elements.keys()]).toEqual([elementId('slope')]);

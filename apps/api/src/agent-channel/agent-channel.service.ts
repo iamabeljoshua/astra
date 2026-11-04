@@ -26,6 +26,10 @@ export class AgentChannelService {
     return this.tutorSpend.addSpend(await this.getStudentId(sessionId), usd);
   }
 
+  async setTitle(sessionId: string, title: string): Promise<void> {
+    await this.sessions.renameUnfinished(await this.getStudentId(sessionId), sessionId, title);
+  }
+
   async getRecord(sessionId: string): Promise<LearnerRecordDto> {
     return this.learnerRecord.getRecord(await this.getStudentId(sessionId));
   }
