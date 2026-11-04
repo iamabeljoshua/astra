@@ -1,6 +1,6 @@
 # What the tutor remembers
 
-A student sees everything the tutor remembers about them on `Your notes`, under "What your tutor remembers". Each note says what they showed, found hard, like, or looked at, with the line of work or the words behind it and the session it came from. They can remove any note, or all of them. A session's notes appear about 20 seconds after it ends, once its room closes.
+A student sees everything the tutor remembers about them on `Your notes`, under "What your tutor remembers". Each note says what they showed, found hard, like, or looked at, with the checked line of work behind it, or a line saying it came from what they said, and the session it came from. No note holds a student's words. They can remove any note, or all of them. A session's notes appear about 20 seconds after it ends, once its room closes.
 
 ## Sub-features
 

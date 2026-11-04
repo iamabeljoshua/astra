@@ -16,7 +16,7 @@ explored: a subject they asked about or worked on. Cite a line where it comes up
 
 Rules:
 Write at most 4 notes, one for each idea, and only what the lines show. Never write two notes from the same lines. No notes is a good answer.
-topic is 2 to 6 plain words, the thing itself. On struggled only, detail is at most 12 plain words saying what went wrong, such as "kept the plus when moving the 3", or null. Every other kind has detail null. Never copy a line's label such as "board right" into a note.
+topic is 1 to 6 plain words naming the school subject or concept itself, such as "fractions" or "moving a term across the equals sign". For cares_about it is that subject or an everyday interest, such as "football" or "engineer". Never a person, a place, a school, faith, health, or a substance: such a topic is thrown away. On struggled only, detail is at most 12 plain words saying what went wrong, such as "kept the plus when moving the 3", or null. Every other kind has detail null. Never copy a line's label such as "board right" into a note.
 Use words from the lines. Never guess what they know, how they feel, or why. Never say they are good or bad at anything.
 Cite only ids that start with w or b, never t. The tutor's words are context and prove nothing about the student.
 Say "keeps", "again", or "repeated" only when you cite two or more wrong lines.

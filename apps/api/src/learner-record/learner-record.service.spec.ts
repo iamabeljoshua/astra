@@ -21,7 +21,7 @@ const ROCKETS: NewLearnerNoteDto = {
   kind: 'cares_about',
   topic: 'Rockets',
   detail: null,
-  evidence: [{ source: 'words', text: 'i want to build rockets one day', check: null }],
+  evidence: [{ source: 'words', text: '', check: null }],
 };
 
 describe('the learner record', () => {
@@ -93,6 +93,8 @@ describe('the learner record', () => {
     ['showed with a wrong line beside a right one', { ...ROCKETS, kind: 'showed', evidence: [{ source: 'board', text: 'x = 4', check: 'right' }, ...SIGN_ERROR.evidence] }],
     ['struggled on a line code marked right', { ...SIGN_ERROR, evidence: [{ source: 'board', text: 'x = 4', check: 'right' }] }],
     ['cares about with only a board line', { ...ROCKETS, evidence: SIGN_ERROR.evidence }],
+    ["a student's own words kept as a quote", { ...ROCKETS, evidence: [{ source: 'words', text: 'i have asthma so i like lungs', check: null }] }],
+    ['a board line with nothing on it', { ...SIGN_ERROR, evidence: [{ source: 'board', text: '', check: 'wrong' }] }],
   ])('refuses %s', async (_description, note) => {
     const owner = await getNewStudent();
 

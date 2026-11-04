@@ -1,4 +1,4 @@
-// Code's own reading of words before anything is remembered. These lean toward refusing, because a lost note costs little and a stored disclosure about a minor costs a lot.
+// Code's own reading of a line before the model sees it. These are word lists and they miss wordings, so they do not decide what is kept: no free words are stored, and a topic must be on the lists in `topic-words.ts`.
 
 /** Any of these in a room means nothing from that room is remembered. */
 const CRISIS_WORDS = [
@@ -31,10 +31,16 @@ const INSTRUCTION_WORDS = [
 
 const NOT_PLAIN_WORDS = /[{}<>[\]`\\|#~]/;
 
-const matchesAny = (patterns: readonly RegExp[], text: string) => patterns.some((pattern) => pattern.test(text));
+/** Full-width letters, hidden characters, accents, and curly apostrophes must not get a word past a list. */
+const toPlainText = (text: string) => text.normalize('NFKD').replace(/\p{Cf}|\p{M}/gu, '').replace(/[\u2018\u2019]/g, "'");
+
+const matchesAny = (patterns: readonly RegExp[], text: string) => {
+  const plain = toPlainText(text);
+  return patterns.some((pattern) => pattern.test(plain));
+};
 
 export const isCrisis = (studentText: string) => matchesAny(CRISIS_WORDS, studentText);
-export const isTutorSafetyLine = (spokenText: string) => TUTOR_SAFETY_WORDS.test(spokenText);
+export const isTutorSafetyLine = (spokenText: string) => matchesAny([TUTOR_SAFETY_WORDS], spokenText);
 export const isPersonal = (text: string) => matchesAny(PERSONAL_WORDS, text);
 export const isInstruction = (text: string) => matchesAny(INSTRUCTION_WORDS, text);
 

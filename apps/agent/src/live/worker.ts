@@ -137,9 +137,9 @@ async function runSession(context: JobContext): Promise<void> {
     clearTimeout(closing);
     clearInterval(pulse);
     await session.close();
-    const recordWriting = writeRecord?.();
     if (process.env.ASTRA_VOICE_TRACE_WORDS === '1') trace('sessionLog', { events: session.getLog() });
     await flushSpend();
+    const recordWriting = writeRecord?.();
     await ears?.close();
     await transcriber.close();
     await voice.close();

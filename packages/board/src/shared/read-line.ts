@@ -173,6 +173,11 @@ function getMathTex(run: readonly Token[]): string | null {
   return tex.length <= LONGEST_TEX && getTexProblem(tex) === null && canRenderTex(tex) ? tex : null;
 }
 
+/** Every symbol in spoken words, so "the answer is four." holds `4`. */
+export function getSpokenSymbols(text: string): string[] {
+  return getTokens(text).map(({ symbol }) => symbol.replace(TRAILING_PUNCTUATION, ''));
+}
+
 function getParts(tokens: readonly Token[]): LinePart[] {
   const parts: LinePart[] = [];
   const addWords = (text: string) => {
