@@ -1,8 +1,11 @@
+import { initializeLogger } from '@livekit/agents';
 import { afterEach, describe, expect, it } from 'vitest';
 import { makeElevenLabsVoice } from '../src/providers/elevenlabs.ts';
 import { makeRenderedVoice } from '../src/providers/fakes.ts';
 import { type FakeWire, startFakeElevenLabsWire } from './fake-elevenlabs-wire.ts';
 import { getVoiceProblems, hearVoice } from './provider-suite.ts';
+
+initializeLogger({ pretty: false, level: 'silent' });
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 let wire: FakeWire | null = null;

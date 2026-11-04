@@ -1,10 +1,13 @@
 import type { AudioFrame } from '@livekit/rtc-node';
 import { type AgentMessage, type Beat, parseBeat, type TurnId } from '@astra/contracts';
+import { initializeLogger } from '@livekit/agents';
 import { afterEach, describe, expect, it } from 'vitest';
 import { speakTurn, type SpeakTurnOptions } from '../src/live/speak-turn.ts';
 import { makeElevenLabsVoice } from '../src/providers/elevenlabs.ts';
 import { FAKE_SAMPLE_RATE, makeRenderedVoice, type RenderSpeech, renderTone } from '../src/providers/fakes.ts';
 import { type FakeWire, startFakeElevenLabsWire } from './fake-elevenlabs-wire.ts';
+
+initializeLogger({ pretty: false, level: 'silent' });
 
 const TURN = 'turn-1' as TurnId;
 const LEADING_SILENCE_MS = 60;
