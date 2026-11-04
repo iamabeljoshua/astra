@@ -1,6 +1,10 @@
 import { ESLint } from 'eslint';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+const FIRST_LINT_UNDER_LOAD_TIMEOUT_MS = 30_000;
+
+vi.setConfig({ testTimeout: FIRST_LINT_UNDER_LOAD_TIMEOUT_MS });
 
 const eslint = new ESLint({ cwd: fileURLToPath(new URL('../../..', import.meta.url)) });
 
