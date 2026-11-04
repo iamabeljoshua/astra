@@ -123,10 +123,7 @@ export function createSampleClock({ getGraphTimeMs, getOutputLatencyMs }: Sample
       const heardAlready = isSoundRecent() ? onsets[0] : undefined;
       if (heardAlready !== undefined) wordClock.onFirstSound(heardAlready);
       onOnset = (atMs) => wordClock.onFirstSound(atMs);
-      onFalseStart = () => {
-        wordClock.forgetFirstSound();
-        firstAudibleOfTurnAtMs = null;
-      };
+      onFalseStart = () => wordClock.forgetFirstSound();
       return {
         addGap: (gap) => wordClock.addGap(gap),
         noteWordTimes(firstStartMs) {
