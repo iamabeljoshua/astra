@@ -571,7 +571,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     dispatch({ type: 'workLanded' });
   };
 
-  const isAtPause = () => !isEnding && !isTutorTalking() && !thought && !cut && !isThinking && state.phase === 'clear' && !state.isVoiceOn && state.partial === '' && !boardWork.hasOpenTask() && getNowMs() - askedAtMs >= ROOM_TO_ANSWER_MS;
+  const isAtPause = () => !isEnding && !isTutorTalking() && !thought && !cut && !isThinking && state.phase === 'clear' && !state.isVoiceOn && !holdGate.isWaitingForLine() && state.partial === '' && !boardWork.hasOpenTask() && getNowMs() - askedAtMs >= ROOM_TO_ANSWER_MS;
 
   // The scene's beats are this thought's first beats, so a stop, a resume, and a breath treat them as any reply's.
   async function* openOnScene(request: TutorRequest, signal: AbortSignal, thoughtOf: () => Thought, getScene: () => Promise<readonly TutorBeat[] | null>): AsyncGenerator<TutorBeat> {

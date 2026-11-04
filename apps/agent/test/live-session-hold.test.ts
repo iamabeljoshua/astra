@@ -203,6 +203,14 @@ describe('holding to talk', () => {
     await delay(200);
     expect(harness.messages.some((message) => message.type === 'closingForQuiet')).toBe(false);
   });
+
+  it('takes no scene while the words of a released hold are still on their way', () => {
+    const harness = start();
+    expect(harness.session.isAtPause()).toBe(true);
+    harness.browser({ type: 'holdStarted', ...STAMP });
+    harness.browser({ type: 'lineEnded', ...STAMP });
+    expect(harness.session.speakScene([makeBeat('scene-0', 'Watch this line tilt.')])).toBe(false);
+  });
 });
 
 describe('a tutor kept being cut by sound with no words', () => {
