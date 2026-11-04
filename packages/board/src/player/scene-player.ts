@@ -1,8 +1,9 @@
-import type { AgentMessage, BeatEnding, BeatId, BrowserMessage, Cue, FrozenFrame, TimedWord, TurnId } from '@astra/contracts';
+import type { AgentMessage, BeatEnding, BeatId, BrowserMessage, Cue, CuePace, FrozenFrame, TimedWord, TurnId } from '@astra/contracts';
 import type { AudioClock, ClockReading, TurnClock } from './audio-clock.ts';
-import { type BoardOperation, getBeatOperations, type PlayedBeatView } from './board-operations.ts';
+import { type BoardOperation, getBeatOperations, getCueAim, type PlayedBeatView, sortOperations } from './board-operations.ts';
 import { type BoardState, getBoardAt, getFrozenFrames } from './board-state.ts';
 import type { SceneCatalog } from './scene.ts';
+import { createSliderLog, type SliderMove } from './slider-log.ts';
 
 export type OutputLevel = 'full' | 'lowered' | 'silent';
 
@@ -31,6 +32,10 @@ export interface ScenePlayer {
   getOperations(): BoardOperation[];
   /** The words heard so far this turn, on the same clock as the board. */
   getCaption(): string;
+  /** The student moved a slider. The board answers on the next frame, and the log gets the same sample. */
+  moveSlider(move: SliderMove): void;
+  /** Sends what a drag has not reported yet, when the student lets go. */
+  finishSliderDrag(): void;
 }
 
 interface PlayingBeat {
@@ -39,6 +44,7 @@ interface PlayingBeat {
   firedCueMs: number[];
   /** Word starts are on the turn's timeline. Holes wait for a late message. */
   words: TimedWord[];
+  cuePaces: CuePace[];
   wordCount: number | null;
   expectsReply: boolean;
   playedWords: number;
@@ -62,19 +68,21 @@ interface PlayingTurn {
 
 /** A word this far past its time with no sound was heard or lost, so it stops waiting. */
 const SILENT_WORD_LIMIT_MS = 1000;
+/** A smaller change of aim would not show, and would only lengthen the report. */
+const SMALLEST_REAIM_MS = 10;
+const MOST_CUE_PACES = 120;
 
 const isStarted = (beat: PlayingBeat): beat is StartedBeat => beat.startedAtMs !== null;
 
-const sortByTime = (operations: BoardOperation[]) => operations.sort((first, second) => first.atMs - second.atMs);
-
 function createBeat(id: BeatId): PlayingBeat {
-  return { id, cues: [], firedCueMs: [], words: [], wordCount: null, expectsReply: false, playedWords: 0, startedAtMs: null, isQuestionHeard: false, ending: null, durationMs: 0, frozen: [] };
+  return { id, cues: [], firedCueMs: [], words: [], cuePaces: [], wordCount: null, expectsReply: false, playedWords: 0, startedAtMs: null, isQuestionHeard: false, ending: null, durationMs: 0, frozen: [] };
 }
 
 // Plays what the agent sends against the audio the student hears, and reports what really happened, which becomes the log.
 export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueFired }: ScenePlayerOptions): ScenePlayer {
   let turn: PlayingTurn | null = null;
   const operationsOfOldTurns: BoardOperation[] = [];
+  const sliderLog = createSliderLog({ getNowMs: () => clock.getNowMs(), send });
 
   const getBeatRelativeWordStarts = (beat: PlayingBeat): number[] => {
     const firstWordMs = beat.words[0]?.startMs ?? 0;
@@ -86,6 +94,7 @@ export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueF
     cues: beat.cues,
     wordStartsMs: getBeatRelativeWordStarts(beat),
     firedCueMs: beat.firedCueMs,
+    cuePaces: beat.cuePaces,
     ending: beat.ending,
     durationMs: beat.durationMs,
     frozen: beat.frozen,
@@ -93,7 +102,7 @@ export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueF
 
   const getTurnOperations = (playing: PlayingTurn): BoardOperation[] => playing.beats.filter(isStarted).flatMap((beat) => getBeatOperations(getBeatView(beat)));
 
-  const getOperations = () => sortByTime([...operationsOfOldTurns, ...(turn ? getTurnOperations(turn) : [])]);
+  const getOperations = () => sortOperations([...operationsOfOldTurns, ...(turn ? getTurnOperations(turn) : []), ...sliderLog.getOperations()]);
 
   const reportBeat = (playing: PlayingTurn, beat: PlayingBeat, ending: BeatEnding, durationMs: number) => {
     const browserMs = Math.round(clock.getNowMs());
@@ -110,6 +119,7 @@ export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueF
       durationMs: beat.durationMs,
       playedWords: beat.playedWords,
       firedCueMs: beat.firedCueMs,
+      ...(beat.cuePaces.length > 0 ? { cuePaces: beat.cuePaces } : {}),
       ending,
       frozen: beat.frozen,
     });
@@ -134,8 +144,24 @@ export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueF
     for (let cue = beat.cues[beat.firedCueMs.length]; cue !== undefined; cue = beat.cues[beat.firedCueMs.length]) {
       const wordStartMs = beat.words[cue.atWord]?.startMs;
       if (wordStartMs === undefined || cue.atWord >= beat.playedWords || beat.startedAtMs === null) return;
-      beat.firedCueMs.push(Math.max(0, Math.round(nowMs - beat.startedAtMs)));
+      const firedMs = Math.max(0, Math.round(nowMs - beat.startedAtMs));
+      const aim = getCueAim(cue, getBeatRelativeWordStarts(beat));
+      if (aim && !aim.isKnown) beat.cuePaces.push({ cue: beat.firedCueMs.length, afterMs: firedMs, landsAtMs: aim.landsAtMs });
+      beat.firedCueMs.push(firedMs);
       onCueFired?.({ turnId: playing.id, beatId: beat.id, atWord: cue.atWord, firedAtMs: nowMs, positionMs: reading.positionMs, wordStartMs });
+    }
+  };
+
+  // New word times can move where a running cue should land. Each change goes in the report, so a replay moves as the student saw.
+  const reaimCues = (beat: PlayingBeat) => {
+    if (beat.startedAtMs === null || beat.ending !== null) return;
+    const wordStarts = getBeatRelativeWordStarts(beat);
+    const afterMs = Math.max(0, Math.round(clock.getNowMs() - beat.startedAtMs));
+    const aimedCues = new Set(beat.cuePaces.map((pace) => pace.cue));
+    for (const cue of aimedCues) {
+      const lastAim = beat.cuePaces.filter((pace) => pace.cue === cue).at(-1) as CuePace;
+      const aim = getCueAim(beat.cues[cue] as Cue, wordStarts);
+      if (aim && Math.abs(aim.landsAtMs - lastAim.landsAtMs) >= SMALLEST_REAIM_MS && beat.cuePaces.length < MOST_CUE_PACES) beat.cuePaces.push({ cue, afterMs, landsAtMs: aim.landsAtMs });
     }
   };
 
@@ -226,6 +252,7 @@ export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueF
           beat.words[message.firstWord + index] = word;
         });
         playing.clock.noteWordTimes(playing.beats[0]?.words[0]?.startMs ?? 0, beat.words.at(-1)?.startMs ?? 0);
+        reaimCues(beat);
         return;
       }
       case 'beatClosed': {
@@ -251,6 +278,8 @@ export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueF
     getOperations,
     getCaption: () => (turn ? turn.beats.flatMap((beat) => beat.words.slice(0, beat.playedWords).map((word) => word.text)).join(' ') : ''),
     getBoard: (atMs) => getBoardAt(getOperations(), atMs, catalog),
+    moveSlider: sliderLog.move,
+    finishSliderDrag: sliderLog.finish,
     receive(message) {
       if (message.type === 'turnStarted') return startTurn(message.turnId);
       if (turn?.phase === 'playing' && message.turnId === turn.id) receiveForTurn(turn, message);

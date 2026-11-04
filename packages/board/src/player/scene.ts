@@ -9,6 +9,8 @@ export interface Scene<Frame = unknown> {
   /** Named points on the scene's own timeline, in seconds, which a cue can play to or jump to. */
   readonly moments: Readonly<Record<string, number>>;
   readonly durationSeconds: number;
+  /** The values this scene runs on, which is what a slider shows. */
+  readonly values?: SceneParameters;
   getFrame(seconds: number): Frame;
 }
 

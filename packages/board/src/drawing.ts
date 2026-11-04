@@ -1,4 +1,8 @@
 export { drawDiagram, type DrawnDiagram } from './ink/diagram.ts';
+export { createFigurePainter } from './figure/figure-painter.ts';
+export type { FigureMark } from './figure/figure-marks.ts';
+export { getFigureFit, getFigureMarks } from './figure/get-figure-marks.ts';
+export { type LabelRequest, placeLabels } from './figure/place-labels.ts';
 export { canWriteByHand, writeByHand } from './ink/handwriting.ts';
 export { createInkPainter, type InkPainter } from './ink/ink-painter.ts';
 export type { InkDrawing, InkStroke } from './ink/ink-stroke.ts';
