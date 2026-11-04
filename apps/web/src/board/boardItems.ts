@@ -81,11 +81,6 @@ function paintTextLabel(text: SVGTextElement, drawn: number): void {
   writeStyle(text, 'opacity', drawn > 0 && drawn < 1 ? drawn.toFixed(3) : '');
 }
 
-interface InkGroup {
-  strokes: Parameters<typeof createInkPainter>[1];
-  textLabels: readonly DiagramTextLabel[];
-}
-
 interface InkBuild {
   key: string;
   svg: SVGSVGElement;
@@ -94,16 +89,16 @@ interface InkBuild {
   size: Size;
 }
 
-function createInkItem({ wrapper, label, draw, getProgress }: { wrapper: HTMLElement; label: string; draw(context: ItemContext): { groups: readonly InkGroup[]; size: Size }; getProgress(context: ItemContext, groupCount: number): number[] }): BoardItem {
+function createInkItem({ wrapper, label, draw, getProgress }: { wrapper: HTMLElement; label: string; draw(context: ItemContext): { strokeGroups: readonly Parameters<typeof createInkPainter>[1][]; textGroups?: readonly (readonly DiagramTextLabel[])[]; size: Size }; getProgress(context: ItemContext, groupCount: number): number[] }): BoardItem {
   let built: InkBuild | null = null;
   const build = (context: ItemContext): InkBuild => {
     const key = `${context.maxWidth}|${context.fontSize}`;
     if (built?.key === key) return built;
     built?.svg.remove();
-    const { groups, size } = draw(context);
+    const { strokeGroups, textGroups = [], size } = draw(context);
     const svg = createInkSvg(size, label);
     wrapper.append(svg);
-    built = { key, svg, painters: groups.map(({ strokes }) => createInkPainter(svg, strokes)), texts: groups.map(({ textLabels }) => textLabels.map((textLabel) => createTextLabel(svg, textLabel))), size };
+    built = { key, svg, painters: strokeGroups.map((strokes) => createInkPainter(svg, strokes)), texts: textGroups.map((labels) => labels.map((textLabel) => createTextLabel(svg, textLabel))), size };
     return built;
   };
   return {
@@ -127,7 +122,7 @@ function createHandwrittenItem(wrapper: HTMLElement, text: string): BoardItem {
     label: text,
     draw({ element, maxWidth, fontSize }) {
       const drawing = writeByHand({ text, fontSize: fontSize * HANDWRITING_SCALE, maxWidth, seed: element.id });
-      return { groups: [{ strokes: drawing?.strokes ?? [], textLabels: [] }], size: { width: drawing?.width ?? 0, height: drawing?.height ?? 0 } };
+      return { strokeGroups: [drawing?.strokes ?? []], size: { width: drawing?.width ?? 0, height: drawing?.height ?? 0 } };
     },
     getProgress: ({ progress }) => [progress],
   });
@@ -151,7 +146,7 @@ function createDiagramItem(wrapper: HTMLElement, content: Extract<BoardElement['
     label: content.nodes.map((node) => node.label).join(', '),
     draw({ element, maxWidth, fontSize }) {
       const drawn = drawDiagram(content, { fontSize: fontSize * DIAGRAM_SCALE, maxWidth, seed: element.id, ...getTextMeasure(wrapper) });
-      return { groups: drawn.steps, size: { width: drawn.width, height: drawn.height } };
+      return { strokeGroups: drawn.steps.map((step) => step.strokes), textGroups: drawn.steps.map((step) => step.textLabels), size: { width: drawn.width, height: drawn.height } };
     },
     getProgress({ element, atMs, progress }, groupCount) {
       const reached = element.revealedUpTo ? getMotionValue(element.revealedUpTo, atMs) : progress * groupCount;
