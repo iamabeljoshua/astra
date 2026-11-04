@@ -50,6 +50,12 @@ describe('canRenderTex', () => {
     expect(canRenderTex(`\\begin{matrix}${'&'.repeat(470)}\\end{matrix}`)).toBe(false);
   });
 
+  it('sets a line of 110 subscripted terms and refuses 111, where the node limit falls', () => {
+    const getLine = (terms: number) => Array.from({ length: terms }, () => 'a_1').join('+');
+    expect(canRenderTex(getLine(110))).toBe(true);
+    expect(canRenderTex(getLine(111))).toBe(false);
+  });
+
   it('still takes the deepest nesting the parser lets through', () => {
     expect(canRenderTex(`${String.raw`\overset{a}{`.repeat(12)}x${'}'.repeat(12)}`)).toBe(true);
   });

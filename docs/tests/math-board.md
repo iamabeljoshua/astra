@@ -93,13 +93,13 @@ The fix round that bounded the tree and changed how fonts wait ran the core scen
 | Fuzz of 640 sources built from the allowed commands, on the real board, past the parser on purpose | Laptop | Phone |
 | --- | --- | --- |
 | Tab crashes | 0 | 0 |
-| Sources the parser would have taken | 392 | 376 |
+| Sources the parser would have taken | 401 | 393 |
 | Sources the board set | 369 | 357 |
 | Deepest the board's tree went, in levels | 119 | 116 |
 | Most nodes on the board | 2996 | 3011 |
 | Sources set outside the board | 0 | 0 |
 | Frames showing raw source | 0 | 0 |
-| Slowest source, from write to two frames later | 64 ms | 48 ms |
+| Slowest source, from write to two frames later | 61 ms | 84 ms |
 
 The fuzz nests each structure up to 14 levels, chains each one to 500 characters, fills matrices, and puts runs of up to 495 marks on a character. A smaller one, across 800 sources in `renderMath.test.ts`, runs in CI on the real DOM nodes. A row of the real log rewritten to hold 300 marks, as a log kept from before this limit could, was refused by `parseSessionEvent`. Rebuilt anyway, as a log that skipped that check would be, the board refused it through `onMathRefused`, kept `x = 4`, and its tree stayed at 10 levels and 60 nodes.
 
