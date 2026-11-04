@@ -139,4 +139,26 @@ describe('two misses on one point', () => {
     expect(say(third)).toContain('Are you safe?');
     expect(model.requests).toHaveLength(3);
   });
+
+  it('lets a gentle question through when the message may be about safety, even with no safety words in it', async () => {
+    const replies: FakeReply[] = [
+      { pieces: ['Have a go at it. What first?'] },
+      { pieces: ['Not quite. ', MISSED, 'What undoes the plus?'] },
+      { pieces: ['That sounds hard. ', MISSED, 'Do you have someone with you right now?'] },
+    ];
+    const { brain, model } = setup(() => replies.shift() as FakeReply);
+    await collect(brain, 'solve it');
+    await collect(brain, 'add 3?');
+    const third = await collect(brain, 'i dont know if i want to be alive anymore');
+    expect(say(third)).toContain('Do you have someone with you right now?');
+    expect(say(third)).not.toContain(SPOKEN_LINES.stuckHandBack[0]);
+    expect(model.requests).toHaveLength(3);
+  });
+
+  it('hears a student who is stuck, whichever apostrophe their keyboard types', async () => {
+    const { brain, model } = setup((_request, attempt) => (attempt === 1 ? { pieces: ['Have a go at it. What first?'] } : { pieces: ['Here it is. ', SHOW_STEP, 'Two x is eight.'] }));
+    await collect(brain, 'solve it');
+    await collect(brain, 'I don\u2019t know');
+    expect(lastRequestHasNote(model, 'missed_once')).toBe(true);
+  });
 });

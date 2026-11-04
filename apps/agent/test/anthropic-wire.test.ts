@@ -1,6 +1,8 @@
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { type Beat, getBeatText } from '@astra/contracts';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { makeAnthropicTutorModel } from '../src/providers/anthropic.ts';
+import { makeAnthropicSourceFinder, makeAnthropicTutorModel } from '../src/providers/anthropic.ts';
 import { createTutorBrain, type TurnSummary, TUTOR_TIMEOUTS } from '../src/tutor/brain.ts';
 import { SPOKEN_LINES } from '../src/tutor/spoken-lines.ts';
 import { startFakeAnthropic, type WireReply, type WireRequest } from './fake-anthropic-wire.ts';
@@ -91,5 +93,30 @@ describe('the real SDK against a recorded stream', () => {
     const sent = JSON.stringify(server.requests[0]?.body.messages);
     expect(sent).toContain('😀');
     expect(sent).not.toMatch(/\\ud83d(?!\\ud)/i);
+  });
+});
+
+describe('a source found on the web', () => {
+  const savedBaseUrl = process.env.ANTHROPIC_BASE_URL;
+
+  afterEach(() => {
+    process.env.ANTHROPIC_BASE_URL = savedBaseUrl;
+  });
+
+  it('keeps a page title from carrying markup, control characters, or a board command to the tutor', async () => {
+    const title = `Why {"kind":"text"} <b>sky</b>\u0007\u200b is blue ${'x'.repeat(200)}`;
+    const server = createServer((_request, response) => {
+      response.writeHead(200, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ id: 'm', type: 'message', role: 'assistant', model: 'haiku', stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 }, content: [{ type: 'web_search_tool_result', tool_use_id: 't', content: [{ type: 'web_search_result', title, url: 'https://www.nasa.gov/sky', encrypted_content: '', page_age: null }] }] }));
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    const answer = await makeAnthropicSourceFinder({ apiKey: 'test-key' })('the sky is blue', new AbortController().signal);
+    server.close();
+    expect(answer).toMatchObject({ found: true, site: 'nasa.gov', url: 'https://www.nasa.gov/sky' });
+    const kept = answer.found ? answer.title : '';
+    expect(kept.startsWith('Why "kind":"text" bsky/b is blue x')).toBe(true);
+    expect(kept).toHaveLength(100);
+    expect(kept).not.toMatch(/[<>{}\u0007\u200b]/u);
   });
 });

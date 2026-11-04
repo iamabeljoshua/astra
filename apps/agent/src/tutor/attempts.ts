@@ -11,7 +11,7 @@ export interface AttemptTracker {
 /** Two misses on one point is a dead end, so the next thing the student hears shows the step, and no third question comes first. */
 const MISSES_FOR_A_DEAD_END = 2;
 
-const SOUNDS_STUCK = /\b(?:i\s*(?:do\s*n[o']?t|dont)\s*(?:know|get\s+it|understand)|idk|dunno|no\s*(?:idea|clue)|not\s+sure|i'?m\s+(?:lost|stuck)|i\s+give\s+up|i\s+can'?t\s+do\s+(?:it|this))\b/i;
+const SOUNDS_STUCK = /\b(?:i\s*(?:do\s*n[o'’]?t|dont)\s*(?:know|get\s+it|understand)|idk|dunno|no\s*(?:idea|clue)|not\s+sure|i['’]?m\s+(?:lost|stuck)|i\s+give\s+up|i\s+can['’]?t\s+do\s+(?:it|this))\b/i;
 
 export function parseAttemptReport(value: unknown): AttemptReport | null {
   if (typeof value !== 'object' || value === null || !('attempt' in value)) return null;

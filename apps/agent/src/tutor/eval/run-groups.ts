@@ -117,7 +117,7 @@ function makeBrain(prompt: TutorPrompt, profile: StudentProfile, traces: string[
     model,
     prompt,
     profile,
-    findSource: makeAnthropicSourceFinder({ apiKey: readKey('ANTHROPIC_API_KEY') }),
+    ...(prompt === PROMPT_VERSIONS.v2FindSource ? { findSource: makeAnthropicSourceFinder({ apiKey: readKey('ANTHROPIC_API_KEY') }) } : {}),
     trace: (name, fields) => traces.push(`${name}${fields?.problem ? `: ${String(fields.problem)}` : ''}${fields?.report ? `: ${String(fields.report)}` : ''}`),
     onTurnEnd(summary) {
       onTurn(summary);

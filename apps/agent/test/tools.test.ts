@@ -4,7 +4,6 @@ import { type FakeReply, makeFakeTutorModel } from '../src/providers/fake-model.
 import type { FindSource, TutorModelRequest } from '../src/providers/types.ts';
 import { createTutorBrain, type TurnSummary } from '../src/tutor/brain.ts';
 import { TUTOR_PROMPT } from '../src/tutor/prompt.ts';
-import { SPOKEN_LINES } from '../src/tutor/spoken-lines.ts';
 
 const QUICK = { stillWorkingMs: 400, firstTextMs: 1200, betweenTextMs: 800, finishGraceMs: 20, reportWaitMs: 30 };
 const COMPUTE_CALL = '{"tool":"compute","expression":"47 \\\\times 52"}';
@@ -30,7 +29,7 @@ describe('a tool the tutor calls when it needs one', () => {
     const beats = await collect(brain, 'what is 47 times 52?');
     expect(beats.map(getBeatText).join(' ')).toBe('Let me work that out. That comes to two thousand four hundred and forty four.');
     expect(model.requests).toHaveLength(2);
-    expect(getNotes(model.requests[1])).toContainEqual({ tool_result: { tool: 'compute', expression: '47 \\times 52', ok: true, value: '2444' }, already_said: 'Let me work that out.' });
+    expect(getNotes(model.requests[1])).toContainEqual({ tool_result: { tool: 'compute', expression: '47 \\times 52', ok: true, value: '2444' }, already_said: 'Let me work that out.', next: 'You have the result now. Say it in plain words in this reply, and do not make this call again.' });
     expect(summaries[0]?.toolCalls).toEqual([{ tool: 'compute', expression: '47 \\times 52', values: {} }]);
     expect(summaries[0]?.endedAs).toBe('ended');
   });
@@ -42,7 +41,7 @@ describe('a tool the tutor calls when it needs one', () => {
   });
 
   it('stops answering tools after three in a turn, so a reply cannot loop', async () => {
-    const { brain, model } = setup((_request, attempt) => (attempt <= 4 ? { pieces: [`Step ${attempt} now. `, COMPUTE_CALL] } : { pieces: ['So that is it.'] }));
+    const { brain, model } = setup((_request, attempt) => (attempt <= 4 ? { pieces: [`Step ${attempt} now. `, `{"tool":"compute","expression":"${attempt} + 1"}`] } : { pieces: ['So that is it.'] }));
     await collect(brain, 'keep computing');
     const lastNotes = getNotes(model.requests[4]);
     expect(JSON.stringify(lastNotes.at(-1))).toContain('No more tools');
@@ -50,10 +49,10 @@ describe('a tool the tutor calls when it needs one', () => {
   });
 
   it('ends the turn when a model keeps calling after it was told to stop, so spending has a ceiling', async () => {
-    const { brain, model, summaries } = setup(() => ({ pieces: ['One more now. ', COMPUTE_CALL] }));
+    const { brain, model, summaries } = setup((_request, attempt) => ({ pieces: ['One more now. ', `{"tool":"compute","expression":"${attempt} + 1"}`] }));
     const beats = await collect(brain, 'keep computing forever');
-    expect(model.requests.length).toBeLessThanOrEqual(5);
-    expect(beats.map(getBeatText).join(' ')).toContain(SPOKEN_LINES.cutShort[0]);
+    expect(model.requests).toHaveLength(5);
+    expect(beats.map(getBeatText).join(' ')).toContain('It comes to four.');
     expect(summaries[0]?.endedAs).toBe('ended');
   });
 

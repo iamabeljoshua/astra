@@ -1,0 +1,3 @@
+[
+ {"name":"tool-source","profile":{"level":"high_school","interests":["space"],"goal":"curiosity"},"checks":[],"turns":[{"text":"why is the sky blue? just tell me quickly"},{"text":"ok where can i read about that? is there a proper source for it","check":"calledFindSource"}]}
+]
