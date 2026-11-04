@@ -55,7 +55,7 @@ describe('GET /home', () => {
   it('sends the screen in the documented shape', async () => {
     const { body } = await getHome().expect(200);
 
-    expect(Object.keys(body).sort()).toEqual(['continueSession', 'picks', 'studentName']);
+    expect(Object.keys(body).sort()).toEqual(['continueSession', 'isNewStudent', 'picks', 'studentName']);
     expect(Object.keys(body.continueSession).sort()).toEqual([
       'artwork',
       'detail',
@@ -86,6 +86,30 @@ describe('GET /home', () => {
     const { body } = await getHome().expect(200);
 
     expect(body.studentName).toBe('Maya');
+  });
+
+  it('calls a student with sessions a returning one', async () => {
+    const { body } = await getHome().expect(200);
+
+    expect(body.isNewStudent).toBe(false);
+  });
+
+  it('picks from what a new student chose, and calls them new until they start a session', async () => {
+    const student = await createTestStudent(testApp);
+    const profile = { name: 'Tolu', interests: ['space'], level: 'university', goal: 'class' };
+    await request(testApp.app.getHttpServer()).put('/me/profile').set('Authorization', `Bearer ${student.token}`).send(profile).expect(200);
+
+    const { body: firstVisit } = await getHomeWithToken(student.token).expect(200);
+    const firstReasons = firstVisit.picks.map((pick: { reason: string }) => pick.reason);
+    expect(firstVisit).toMatchObject({ studentName: 'Tolu', isNewStudent: true });
+    expect(firstVisit.picks).toHaveLength(6);
+    expect(firstReasons).toContain("Because you're into space");
+    expect(firstReasons).not.toContain('A good place to start');
+
+    await saveUnfinishedSession(student.studentId, 'Why is the sky blue?', '2026-11-01T12:00:00Z');
+
+    const { body: afterASession } = await getHomeWithToken(student.token).expect(200);
+    expect(afterASession.isNewStudent).toBe(false);
   });
 
   it('offers the unfinished session with a drawing to show', async () => {
@@ -150,6 +174,7 @@ describe('GET /home', () => {
 
     const { body } = await getHomeWithToken(newStudent.token).expect(200);
 
+    expect(body.isNewStudent).toBe(true);
     expect(body.picks).toHaveLength(6);
     expect(new Set(body.picks.map((pick: { reason: string }) => pick.reason))).toEqual(new Set(['A good place to start']));
   });

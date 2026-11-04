@@ -1,14 +1,16 @@
 import { randomUUID } from 'node:crypto';
 import request from 'supertest';
+import { DataSource } from 'typeorm';
 import { createTestApp, createTestStudent, OLD_ENOUGH_BIRTH_DATE } from '../../test/test-database';
 import type { TestApp, TestStudent } from '../../test/test-database';
+import { StudentProfileEntity } from '../infrastructure/orm/entities/student-profile.entity';
 
-const VALID_PROFILE = {
-  interests: ['Basketball', 'Space'],
+const SAVED_PROFILE = {
+  interests: ['basketball', 'space'],
   level: 'university',
   goal: 'exam',
-  voice: 'ada',
 };
+const VALID_PROFILE = { ...SAVED_PROFILE, name: 'Maya' };
 const MILLISECONDS_PER_DAY = 86_400_000;
 const CLOSED_ACCOUNT = { status: 'closed', student: null };
 const ANSWERS_AT_ONCE = 20;
@@ -26,7 +28,7 @@ describe('the account routes', () => {
     const bearer = `Bearer ${token}`;
     return {
       getAccount: () => server.get('/me').set('Authorization', bearer),
-      answer: (birthDate: unknown) => server.post('/me/birth-date').set('Authorization', bearer).send({ birthDate }),
+      answer: (birthDate: unknown, name?: string) => server.post('/me/birth-date').set('Authorization', bearer).send({ birthDate, name }),
       saveProfile: (body: object) => server.put('/me/profile').set('Authorization', bearer).send(body),
     };
   }
@@ -57,7 +59,7 @@ describe('the account routes', () => {
 
       expect(body).toEqual({
         status: 'active',
-        student: { id: expect.any(String), name: null, profile: null, parentConsentAt: null },
+        student: { id: expect.any(String), name: null, profile: null },
       });
       await api(token).getAccount().expect(200, body);
     });
@@ -164,12 +166,57 @@ describe('the account routes', () => {
     });
   });
 
-  it('saves a valid profile and reads the same profile back', async () => {
-    await api(student.token).saveProfile(VALID_PROFILE).expect(200, VALID_PROFILE);
+  it('saves a valid profile and reads the same profile and name back', async () => {
+    const { body: saved } = await api(student.token).saveProfile(VALID_PROFILE).expect(200);
 
     const { body } = await api(student.token).getAccount().expect(200);
 
-    expect(body.student.profile).toEqual(VALID_PROFILE);
+    expect(body).toEqual(saved);
+    expect(body.student.name).toBe(VALID_PROFILE.name);
+    expect(body.student.profile).toEqual(SAVED_PROFILE);
+  });
+
+  it('accepts a profile with no interest chosen', async () => {
+    const newStudent = await createTestStudent(testApp);
+
+    const { body } = await api(newStudent.token).saveProfile({ ...VALID_PROFILE, interests: [] }).expect(200);
+
+    expect(body.student.profile.interests).toEqual([]);
+  });
+
+  it('opens every student route to a student under 18 once they answer', async () => {
+    const token = await createNewAccountToken();
+    const fifteenYearsAgo = `${new Date().getUTCFullYear() - 15}-06-01`;
+
+    const { body } = await api(token).answer(fifteenYearsAgo, 'Tolu').expect(200);
+    expect(body).toEqual({ status: 'active', student: { id: expect.any(String), name: 'Tolu', profile: null } });
+
+    await api(token).saveProfile(VALID_PROFILE).expect(200);
+  });
+
+  it('stores the name given with the date of birth', async () => {
+    const token = await createNewAccountToken();
+
+    const { body } = await api(token).answer(OLD_ENOUGH_BIRTH_DATE, 'Maya').expect(200);
+
+    expect(body.student.name).toBe('Maya');
+  });
+
+  it('stores no name for a closed account', async () => {
+    const token = await createNewAccountToken();
+
+    await api(token).answer(getYoungBirthDate(), 'Maya').expect(200, CLOSED_ACCOUNT);
+  });
+
+  it.each([
+    ['a blank name', '  '],
+    ['a name that is too long', 'N'.repeat(61)],
+  ])('rejects %s with the date of birth', async (_caseName, name) => {
+    const token = await createNewAccountToken();
+
+    expectBadRequestNaming(await api(token).answer(OLD_ENOUGH_BIRTH_DATE, name), 'name');
+
+    await api(token).getAccount().expect(200, { status: 'needs_birth_date', student: null });
   });
 
   it('sends no internal column of a student or a profile', async () => {
@@ -177,23 +224,47 @@ describe('the account routes', () => {
 
     const { body } = await api(student.token).getAccount().expect(200);
 
-    expect(Object.keys(body.student).sort()).toEqual(['id', 'name', 'parentConsentAt', 'profile']);
-    expect(Object.keys(body.student.profile).sort()).toEqual(['goal', 'interests', 'level', 'voice']);
+    expect(Object.keys(body.student).sort()).toEqual(['id', 'name', 'profile']);
+    expect(Object.keys(body.student.profile).sort()).toEqual(['goal', 'interests', 'level']);
   });
 
   it.each([
     ['a missing interest list', { interests: undefined }, 'interests'],
-    ['interests that are not a list', { interests: 'Space' }, 'interests'],
-    ['a list inside the interest list', { interests: [['Space']] }, 'interests'],
+    ['interests that are not a list', { interests: 'space' }, 'interests'],
+    ['a list inside the interest list', { interests: [['space']] }, 'interests'],
     ['an interest that is not text', { interests: [42] }, 'interests'],
-    ['a blank interest', { interests: ['  '] }, 'interests'],
-    ['an interest with a null character', { interests: ['Sp\u0000ce'] }, 'interests'],
-    ['an interest that is too long', { interests: ['S'.repeat(61)] }, 'interests'],
-    ['too many interests', { interests: Array(21).fill('Space') }, 'interests'],
+    ['free text as an interest', { interests: ['Arsenal'] }, 'interests'],
+    ['an interest in the wrong case', { interests: ['Space'] }, 'interests'],
+    ['the same interest twice', { interests: ['space', 'space'] }, 'interests'],
     ['a level that is not on the list', { level: 'wizard' }, 'level'],
     ['a goal that is not on the list', { goal: 'fame' }, 'goal'],
-    ['a voice that is not on the list', { voice: 'hal' }, 'voice'],
+    ['a missing name', { name: undefined }, 'name'],
+    ['a blank name', { name: '  ' }, 'name'],
+    ['a name that is too long', { name: 'N'.repeat(61) }, 'name'],
   ])('rejects %s when saving a profile', async (_caseName, change, fieldName) => {
     expectBadRequestNaming(await api(student.token).saveProfile({ ...VALID_PROFILE, ...change }), fieldName);
+  });
+
+  it.each([['voice', 'ada'], ['firstQuestion', 'Why is the sky blue?'], ['parentEmail', 'parent@astra.test']])(
+    'refuses %s, which the flow no longer asks',
+    async (fieldName, value) => {
+      const response = await api(student.token).saveProfile({ ...VALID_PROFILE, [fieldName]: value });
+
+      expectBadRequestNaming(response, fieldName);
+    },
+  );
+
+  it('drops free text saved before interests became a list, so saving the same profile back works', async () => {
+    const newStudent = await createTestStudent(testApp);
+    await api(newStudent.token).saveProfile(VALID_PROFILE).expect(200);
+    await testApp.app.get(DataSource).getRepository(StudentProfileEntity).update(
+      { studentId: newStudent.studentId },
+      { interests: ['Arsenal', 'space'] },
+    );
+
+    const { body } = await api(newStudent.token).getAccount().expect(200);
+    expect(body.student.profile.interests).toEqual(['space']);
+
+    await api(newStudent.token).saveProfile({ name: 'Maya', ...body.student.profile }).expect(200);
   });
 });

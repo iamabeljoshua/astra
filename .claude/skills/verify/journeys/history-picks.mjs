@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 
 export const deadlineMs = 120_000;
 
-const GREETING = 'Welcome back, Tola.';
+const GREETING = /^Welcome( back)?, Tola\.$/;
 const CARRY_ON = 'Carry on where you left off';
 const FINISHED_TOPIC = 'What makes a cake rise';
 const NEXT_TOPIC = 'Why browned food tastes so good';

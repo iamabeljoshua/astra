@@ -1,5 +1,5 @@
 import type { ArtworkName } from '../artwork';
-import type { StudentGoal, StudentLevel } from '../students/student-profile-options';
+import type { StudentGoal, StudentInterest, StudentLevel } from '../students/student-profile-options';
 import libraryData from './library.json';
 
 export interface LibraryTopic {
@@ -11,21 +11,15 @@ export interface LibraryTopic {
   artwork: ArtworkName;
   levels: StudentLevel[];
   goals: StudentGoal[];
-  interests: string[];
-}
-
-export interface LibraryInterest {
-  name: string;
-  words: string[];
+  interests: StudentInterest[];
 }
 
 export interface Library {
-  interests: LibraryInterest[];
   topics: LibraryTopic[];
   topicOrder: Record<string, string[]>;
 }
 
-// library.spec.ts checks every level, goal, and artwork name, which a JSON import cannot type.
+// library.spec.ts checks every level, goal, interest, and artwork name, which a JSON import cannot type.
 export const LIBRARY = libraryData as Library;
 
 export const LIBRARY_TOPIC_IDS = LIBRARY.topics.map((topic) => topic.id);

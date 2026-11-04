@@ -1,62 +1,4 @@
 {
-  "interests": [
-    {
-      "name": "basketball",
-      "words": ["basketball", "NBA", "WNBA", "LeBron", "Lakers"]
-    },
-    {
-      "name": "football",
-      "words": ["football", "soccer", "Arsenal", "Chelsea", "Liverpool", "Barcelona", "Real Madrid", "Manchester United", "Messi", "Ronaldo"]
-    },
-    {
-      "name": "movies",
-      "words": ["movies", "films", "film", "cinema", "animation", "Marvel"]
-    },
-    {
-      "name": "gaming",
-      "words": ["gaming", "video games", "games", "Minecraft", "Fortnite", "Roblox", "FIFA", "Pokemon"]
-    },
-    {
-      "name": "music",
-      "words": ["music", "guitar", "piano", "singing", "drums", "violin", "hip hop", "rap", "Afrobeats", "jazz"]
-    },
-    {
-      "name": "art",
-      "words": ["art", "painting", "drawing", "sketching", "museums"]
-    },
-    {
-      "name": "space",
-      "words": ["space", "astronomy", "NASA", "planets", "stars", "rockets", "astronauts", "black holes"]
-    },
-    {
-      "name": "cars",
-      "words": ["cars", "Formula 1", "F1", "racing", "motorsport", "Tesla"]
-    },
-    {
-      "name": "cooking",
-      "words": ["cooking", "baking", "food", "recipes"]
-    },
-    {
-      "name": "fashion",
-      "words": ["fashion", "clothes", "sneakers", "streetwear"]
-    },
-    {
-      "name": "coding",
-      "words": ["coding", "programming", "software", "computers", "Python", "JavaScript", "robotics"]
-    },
-    {
-      "name": "history",
-      "words": ["history", "ancient Rome", "ancient Egypt", "ancient Greece", "World War II", "Vikings"]
-    },
-    {
-      "name": "sea",
-      "words": ["surfing", "sailing", "swimming"]
-    },
-    {
-      "name": "money",
-      "words": ["money", "investing", "stocks", "business", "finance"]
-    }
-  ],
   "topics": [
     {
       "id": "jump-shot",
@@ -89,7 +31,7 @@
       "artwork": "wave",
       "levels": ["middle_school", "high_school", "out_of_school"],
       "goals": ["curiosity"],
-      "interests": ["sea"]
+      "interests": []
     },
     {
       "id": "braking-distance",
@@ -177,7 +119,7 @@
       "artwork": "growth",
       "levels": ["high_school", "university", "out_of_school"],
       "goals": ["class", "curiosity"],
-      "interests": ["money"]
+      "interests": []
     },
     {
       "id": "free-throw-odds",
@@ -261,7 +203,7 @@
       "title": "Why sunflower seeds form spirals",
       "subject": "Math",
       "lengthMinutes": 10,
-      "openingLine": "Count the spirals in a sunflower head and you almost always land on a number like 34 or 55. What do you think the plant is doing with its seeds?",
+      "openingLine": "Count the spirals in a sunflower head and you usually land on a number like 34 or 55. What do you think the plant is doing with its seeds?",
       "artwork": "sunflowers",
       "levels": ["middle_school", "high_school", "university", "out_of_school"],
       "goals": ["curiosity"],
@@ -434,7 +376,7 @@
     },
     {
       "id": "programmable-loom",
-      "title": "How a loom ran the first programs",
+      "title": "How a loom ran on punched cards",
       "subject": "Computer science",
       "lengthMinutes": 12,
       "openingLine": "This portrait is not an engraving. It was woven in silk from about 24,000 punched cards. What do you think each hole told the loom?",
@@ -558,7 +500,7 @@
       "title": "How the pyramids were squared",
       "subject": "History",
       "lengthMinutes": 12,
-      "openingLine": "The Great Pyramid's base is square to within a few centimeters, with no modern tools. How would you do it with rope and the stars?",
+      "openingLine": "The Great Pyramid's base is square to within several centimeters, with no modern tools. How would you do it with rope and the stars?",
       "artwork": "pyramid",
       "levels": ["middle_school", "high_school", "out_of_school"],
       "goals": ["curiosity"],

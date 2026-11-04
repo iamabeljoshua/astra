@@ -16,6 +16,7 @@ export class HomeService {
     const continueSession = await this.sessionsService.getNewestUnfinishedSession(studentId);
     return {
       studentName: await this.studentsService.getStudentName(studentId),
+      isNewStudent: !(await this.sessionsService.hasStartedASession(studentId)),
       continueSession,
       picks: getPicksForStudent(
         {

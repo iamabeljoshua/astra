@@ -23,7 +23,7 @@ describe('SessionsService', () => {
   afterAll(() => testApp?.close());
 
   async function createStudentId() {
-    const { student } = await studentsService.answerBirthDate(randomUUID(), OLD_ENOUGH_BIRTH_DATE);
+    const { student } = await studentsService.answerBirthDate(randomUUID(), { birthDate: OLD_ENOUGH_BIRTH_DATE });
     return student?.id as string;
   }
 

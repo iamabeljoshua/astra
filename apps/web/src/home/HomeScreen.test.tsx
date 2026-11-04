@@ -73,6 +73,31 @@ afterEach(() => {
 });
 
 describe('HomeScreen', () => {
+  describe('for a new student', () => {
+    const NEW_STUDENT_HOME = {
+      ...EXAMPLE_HOME_SCREEN,
+      isNewStudent: true,
+      continueSession: null,
+    };
+
+    it('says welcome, not welcome back', async () => {
+      stubFetchWithHomeScreen(NEW_STUDENT_HOME);
+
+      renderWithQueryClient(HOME_SCREEN);
+
+      await screen.findByRole('heading', { level: 1, name: HOME_LABELS.newStudentGreeting(EXAMPLE_STUDENT_NAME) });
+    });
+
+    it('never calls the student a returning one while the screen loads', () => {
+      vi.stubGlobal('fetch', () => new Promise<Response>(() => undefined));
+
+      renderWithQueryClient(HOME_SCREEN);
+
+      screen.getByRole('heading', { level: 1, name: HOME_LABELS.greetingWithoutName });
+      expect(HOME_LABELS.greetingWithoutName).not.toMatch(/back/);
+    });
+  });
+
   describe('with data', () => {
     it('greets the student by name and asks what they want to learn next', async () => {
       await renderLoadedHome();

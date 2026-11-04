@@ -48,6 +48,10 @@ export class SessionRepository {
     });
   }
 
+  existsForStudent(studentId: string): Promise<boolean> {
+    return this.sessions.existsBy({ studentId });
+  }
+
   findForStudent(studentId: string, sessionId: string): Promise<SessionEntity | null> {
     return this.sessions.findOneBy({ id: sessionId, studentId });
   }

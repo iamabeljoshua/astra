@@ -19,7 +19,6 @@ const LEGAL_PAGE_CASES = [
   { path: LEGAL_PATHS.privacy, legalDocument: LEGAL_PAGES.privacy },
 ];
 const TYPED_EMAIL = 'maya@astra.test';
-const STORED_DATA_HEADING = 'What we store';
 
 function openAt(path: string) {
   window.history.replaceState(null, '', path);
@@ -104,13 +103,14 @@ describe.each(LEGAL_PAGE_CASES)('$path', ({ path, legalDocument }) => {
 });
 
 describe('the Privacy Policy', () => {
-  it('says Supabase holds everything under What we store, so a row added there stays covered', async () => {
+  it('says Supabase holds what we store on our servers, with no list to go stale and no claim on what stays in the browser', async () => {
     openAt(LEGAL_PATHS.privacy);
 
-    await screen.findByRole('heading', { level: 2, name: STORED_DATA_HEADING });
-    const recipients = screen.getByRole('heading', { level: 2, name: 'Who receives your data' }).parentElement!;
+    const recipients = (await screen.findByRole('heading', { level: 2, name: 'Who receives your data' })).parentElement!;
 
-    expect(within(recipients).getByText(/^Supabase /).textContent).toContain(`holds everything listed under ${STORED_DATA_HEADING}`);
+    expect(within(recipients).getByText(/^Supabase /).textContent).toBe(
+      'Supabase runs our sign-in service and our database, so it holds everything we store on our servers, and it sends the sign-in email.',
+    );
   });
 });
 
@@ -123,5 +123,31 @@ describe('returning to the welcome step', () => {
     clickBackLink();
 
     expect(document.activeElement).toBe(await screen.findByRole('heading', { level: 1, name: SIGN_IN_LABELS.tagline }));
+  });
+});
+
+describe('what the legal pages say', () => {
+  it('says a student\'s name, level, interests, and goal and a question sent from Home are stored', () => {
+    const stored = LEGAL_PAGES.privacy.sections.find(({ heading }) => heading === 'What we store')?.today.join(' ');
+
+    expect(stored).toContain('The name you give your tutor, your level, the interests you choose, and your goal. We keep these in our database');
+    expect(stored).toContain("A question you send from the home screen becomes its session's title, cut to 200 characters, so we store those words.");
+    expect(stored).not.toContain('question box');
+  });
+
+  it('tells a student under 18 that no parent or guardian is asked', () => {
+    const underEighteen = LEGAL_PAGES.privacy.sections.find(({ heading }) => heading === 'If you are under 18');
+
+    expect(underEighteen?.today.join(' ')).toContain('We do not ask a parent or guardian to approve your account.');
+    expect(underEighteen?.planned).toEqual([]);
+  });
+
+  it.each([
+    ['parent consent', /consent/i],
+    ['a parent who accepts or receives anything', /parent's|for parents|or a parent|they accept/i],
+    ['a choice of voice', /tutor voice|voice samples/i],
+    ['a first answer to the tutor', /first answer|first hello|first question/i],
+  ])('claims nothing about %s, which the app no longer has', (_caseName, wording) => {
+    expect(JSON.stringify(LEGAL_PAGES)).not.toMatch(wording);
   });
 });

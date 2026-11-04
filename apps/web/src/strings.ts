@@ -37,6 +37,7 @@ export const THEME_LABELS = {
 
 export const ACCOUNT_LABELS = {
   unnamedStudent: 'Student',
+  profile: 'Your notes',
   signOut: 'Sign out',
   closed: "We can't set up this account.",
   tryAgain: 'Try again',
@@ -45,7 +46,7 @@ export const ACCOUNT_LABELS = {
 
 export const SIGN_IN_LABELS = {
   tagline: 'A learning app, made for you',
-  about: "Your tutor talks with you and draws as it explains. It's an AI, and setup takes under two minutes.",
+  about: "Your tutor talks with you and draws as it explains. It's an AI, and setup takes under a minute.",
   google: 'Continue with Google',
   email: 'Continue with email',
   agreementStart: 'By continuing you agree to the ',
@@ -69,7 +70,7 @@ export const SIGN_IN_LABELS = {
 
 export const BIRTH_DATE_LABELS = {
   question: 'When were you born?',
-  about: 'We use this to keep the product safe for your age.',
+  about: 'We ask everyone this before an account opens.',
   day: 'Day',
   dayPlaceholder: 'DD',
   month: 'Month',
@@ -90,8 +91,57 @@ export const TUTOR_NOTES_LABELS = {
   into: 'Into',
   level: 'Level',
   goal: 'Here for',
-  voice: 'Voice',
   footer: 'You can change any of this later.',
+};
+
+export const ONBOARDING_LABELS = {
+  back: '\u2190 Back',
+  next: 'Continue \u2192',
+  progress: (stepNumber: number, stepCount: number) => `${stepNumber} of ${stepCount}`,
+  nameQuestion: 'What should your tutor call you?',
+  namePlaceholder: 'Your first name',
+  nameMissing: 'Tell your tutor what to call you.',
+  intoQuestion: 'What are you into?',
+  intoAbout: 'Pick as many as you like. Your tutor uses them to choose examples you care about.',
+  levelQuestion: 'Where are you in your learning?',
+  goalQuestion: 'What brings you here?',
+};
+
+export const STUDENT_LEVEL_LABELS = {
+  middle_school: 'Middle school',
+  high_school: 'High school',
+  university: 'University',
+  out_of_school: 'Out of school',
+};
+
+export const STUDENT_GOAL_LABELS = {
+  class: 'Improve my grades',
+  exam: 'Get ready for an exam',
+  curiosity: "Learn anything I'm curious about",
+};
+
+export const STUDENT_INTEREST_LABELS = {
+  basketball: 'Basketball',
+  football: 'Football',
+  movies: 'Movies',
+  gaming: 'Gaming',
+  music: 'Music',
+  art: 'Art',
+  space: 'Space',
+  cars: 'Cars',
+  cooking: 'Cooking',
+  fashion: 'Fashion',
+  coding: 'Coding',
+  history: 'History',
+};
+
+export const PROFILE_LABELS = {
+  title: "Your tutor's notes",
+  about: 'Your tutor teaches from these. Change anything here.',
+  name: 'Name',
+  save: 'Save changes',
+  saved: 'Saved.',
+  missing: 'Your name cannot be blank.',
 };
 
 export const DEV_SIGN_IN_LABELS = {
@@ -101,6 +151,7 @@ export const DEV_SIGN_IN_LABELS = {
 
 export const HOME_LABELS = {
   greeting: (studentName: string) => `Welcome back, ${studentName}.`,
+  newStudentGreeting: (studentName: string) => `Welcome, ${studentName}.`,
   greetingWithoutName: 'Welcome.',
   question: 'What do you want to learn next?',
   continueLabel: 'Continue',
@@ -239,7 +290,7 @@ export const ARTWORK_LABELS = {
 };
 
 export const LEGAL_LABELS = {
-  draftNotice: 'Draft of 3 November 2026. A lawyer has not yet reviewed this page.',
+  draftNotice: 'Draft of 4 November 2026. A lawyer has not yet reviewed this page.',
   planned: 'Planned',
   back: `Back to ${PRODUCT_NAME}`,
   pageTitle: (documentTitle: string) => `${documentTitle} | ${PRODUCT_NAME}`,
@@ -265,7 +316,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
       {
         heading: `What ${PRODUCT_NAME} is`,
         today: [
-          `${PRODUCT_NAME} is a learning app being built around an AI tutor. Today you can sign in, confirm your date of birth, open a home screen with suggested lessons, and start sessions that are saved to your account. Live lessons do not open yet.`,
+          `${PRODUCT_NAME} is a learning app being built around an AI tutor. Today you can sign in, answer a few questions about yourself, open a home screen with suggested lessons, and start sessions that are saved to your account. Live lessons do not open yet.`,
         ],
         planned: [
           'Spoken lessons, where the tutor talks with you and draws on a board as it explains. The tutor is an AI and it can be wrong, so check anything that matters.',
@@ -276,8 +327,9 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
         today: [
           `${PRODUCT_NAME} is for students aged 13 and up. After you first sign in, we ask for your date of birth. Give your real date. The first date you confirm stands, and the app has no way to change it.`,
           'If that date shows you are under 13 in every time zone, the account closes and stays closed on every later sign-in. The Privacy Policy says what we keep.',
+          'If you are under 18, these terms apply to you as they do to any other student. We do not ask a parent or guardian to approve your account.',
         ],
-        planned: ["A parent's consent by email for every student under 18. The app does not ask for it yet."],
+        planned: [],
       },
       {
         heading: 'Your account',
@@ -313,13 +365,13 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
         today: [
           "Your email address, the times you sign in, and a record of each sign-in. Supabase Auth, our sign-in service, keeps these. Its records include your IP address and your browser's description of itself.",
           'Your date of birth, if you are old enough to continue. We keep it in our database with an account ID and the time the record was made.',
+          'The name you give your tutor, your level, the interests you choose, and your goal. We keep these in our database, and you can change them under Your notes. We use your level, interests, and goal to choose the lessons suggested on your home screen.',
           "Each session's title, subject, language, picture, length, status, and start time, and the suggested lesson it came from, if any. A question you send from the home screen becomes its session's title, cut to 200 characters, so we store those words.",
-          'We use the sessions you start from suggested lessons, their length, and their status to choose what your home screen suggests next. Only your own sessions do this, and the questions you type play no part in it.',
+          'We also use the sessions you start from suggested lessons, their length, and their status to choose what your home screen suggests next. Only your own sessions do this, and the questions you type play no part in it.',
           "Any file you attach, and anything you type into a session's reply box, stay in your browser. They are not sent or stored. The app does not use your microphone.",
           'Words you type into the search box on the Sessions page go to our server, which uses them to find your sessions. We do not store them.',
         ],
         planned: [
-          'Your name, interests, level, goal, and choice of tutor voice, which setup will ask for. We will use your interests, level, and goal to choose the lessons suggested on your home screen.',
           "Each lesson's transcript and board drawings, kept while the account is active.",
         ],
       },
@@ -334,7 +386,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
       {
         heading: 'If you are under 13',
         today: [
-          'If the date you confirm shows you are under 13 in every time zone, the account closes and we do not store that date.',
+          'If the date you confirm shows you are under 13 in every time zone, the account closes and we do not store that date or the name you gave.',
           'We keep a record holding only the account ID and the time, so the account stays closed on every later sign-in.',
           "Your email address is not deleted. It stays in Supabase Auth, in its user and identity records and in its logs, and nothing in the app removes it. We keep it for now because deleting it would let the same address sign up and answer again. The times you signed in, your IP address, and your browser's description of itself stay in Supabase Auth too.",
         ],
@@ -344,16 +396,16 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
       },
       {
         heading: 'If you are under 18',
-        today: ['The app does not ask a parent for consent yet, so a student aged 13 to 17 can sign in without it.'],
-        planned: [
-          "Consent from a parent by email, for every student under 18, which means storing that parent's address.",
-          'A short summary for parents after each session, with no transcript.',
+        today: [
+          'We store the same things about you as about any other student, as listed under What we store, and we use them the same way.',
+          'We do not ask a parent or guardian to approve your account. We do not ask for their email address, and we do not contact them.',
         ],
+        planned: [],
       },
       {
         heading: 'Who receives your data',
         today: [
-          'Supabase runs our sign-in service and our database, so it holds everything listed under What we store, and it sends the sign-in email.',
+          'Supabase runs our sign-in service and our database, so it holds everything we store on our servers, and it sends the sign-in email.',
           'No other outside service receives student data today. The app serves its own fonts and pictures.',
         ],
         planned: [
@@ -368,9 +420,9 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
       {
         heading: 'How long we keep it',
         today: [
-          'We have no retention schedule, and nothing deletes data on a timer. What we store stays until we remove it by hand. The app has no delete button yet.',
+          'We have no retention schedule, and nothing deletes data on a timer. What we store stays until we remove it by hand, except that a change under Your notes replaces the answer it changes. The app has no delete button yet.',
         ],
-        planned: ['A way for you or a parent to delete your data from the app.'],
+        planned: ['A way for you to delete your data from the app.'],
       },
       {
         heading: 'What we do not do',

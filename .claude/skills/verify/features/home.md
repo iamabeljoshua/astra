@@ -32,8 +32,8 @@ Preconditions:
 ## Gotchas
 
 - The heading says `Welcome.` with no name until `GET /home` answers. `Picked for you` also shows in the loading placeholder. So wait for the name and the `Continue session` button, as the journey does.
-- With no seed, `maya@astra.test` has no student, so sign-in lands on `When were you born?` and the journey times out on the greeting. Run `pnpm db:seed`.
-- `home-greeting` shows `Welcome.` with no name for a new student, until M2.4 asks for the name.
+- With no seed, `maya@astra.test` has no student, so sign-in lands on `What should your tutor call you?` and the journey times out on the greeting. Run `pnpm db:seed`.
+- `home-greeting` shows `Welcome, <name>.` until the student starts a session. See [onboarding](./onboarding.md).
 - The `history-picks` journey jumps the browser clock past half the topic's length, so it needs no real wait. To finish a topic by hand, stay on its session for half the minutes its card shows, which is at least 5 minutes.
 - With the API already stopped, `drive` refuses before it opens a page.
 - In a phone image the chat box sits part way down, across the cards. The image is the full page and the chat box sticks to the bottom of the window, so this is not a layout bug.

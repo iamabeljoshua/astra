@@ -1,4 +1,4 @@
-import type { StudentGoal, StudentLevel } from '../students/student-profile-options';
+import type { StudentGoal, StudentInterest, StudentLevel } from '../students/student-profile-options';
 
 interface LevelReasons {
   class: string;
@@ -37,8 +37,8 @@ export function getNextTopicReason(finishedTitle: string): string {
   return `You finished ${finishedTitle}`;
 }
 
-export function getInterestReason(interestWord: string): string {
-  return `Because you're into ${interestWord}`;
+export function getInterestReason(interest: StudentInterest): string {
+  return `Because you're into ${interest}`;
 }
 
 export function getGoalReason(goal: StudentGoal, level: StudentLevel): string {

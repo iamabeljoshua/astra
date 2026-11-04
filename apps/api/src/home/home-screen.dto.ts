@@ -36,6 +36,9 @@ export class HomeScreenResponseDto {
   /** The name the tutor calls the student, or null until onboarding saves one. */
   studentName!: string | null;
 
+  /** True until the student has started a session. */
+  isNewStudent!: boolean;
+
   /** The student's newest unfinished session, or null if there is none. */
   continueSession!: SessionResponseDto | null;
 

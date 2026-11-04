@@ -16,9 +16,13 @@ export type StudentAccount =
 interface BirthDateAnswer {
   birthDate: string;
   isOldEnough: boolean;
+  name: string | null;
 }
 
-type ProfileFields = Pick<StudentProfileEntity, 'interests' | 'level' | 'goal' | 'voice'>;
+type ProfileFields = Pick<StudentProfileEntity, 'level' | 'goal'> & {
+  name: string;
+  interests: string[];
+};
 
 async function readAccount(manager: EntityManager, authUserId: string): Promise<StudentAccount> {
   if (await manager.existsBy(ClosedAccountEntity, { authUserId })) return { status: 'closed' };
@@ -43,13 +47,13 @@ export class StudentRepository {
   }
 
   // Two tabs can answer at once, so the lock makes the first answer stand and a closed account stay closed.
-  saveBirthDateAnswer(authUserId: string, { birthDate, isOldEnough }: BirthDateAnswer): Promise<StudentAccount> {
+  saveBirthDateAnswer(authUserId: string, { birthDate, isOldEnough, name }: BirthDateAnswer): Promise<StudentAccount> {
     return this.dataSource.transaction(async (manager) => {
       await manager.query(HOLD_ACCOUNT_UNTIL_COMMIT, [authUserId]);
       const account = await readAccount(manager, authUserId);
       if (account.status !== 'needs_birth_date') return account;
 
-      if (isOldEnough) await manager.insert(StudentEntity, { authUserId, birthDate });
+      if (isOldEnough) await manager.insert(StudentEntity, { authUserId, birthDate, name });
       else await manager.insert(ClosedAccountEntity, { authUserId });
       return readAccount(manager, authUserId);
     });
@@ -75,8 +79,12 @@ export class StudentRepository {
     return this.profiles.findOneBy({ studentId });
   }
 
-  async saveProfile(studentId: string, fields: ProfileFields): Promise<StudentProfileEntity> {
-    await this.profiles.upsert({ ...fields, studentId }, ['studentId']);
-    return this.profiles.findOneByOrFail({ studentId });
+  saveProfile(studentId: string, { name, ...profileFields }: ProfileFields): Promise<StudentAccount> {
+    return this.dataSource.transaction(async (manager) => {
+      await manager.update(StudentEntity, { id: studentId }, { name });
+      await manager.upsert(StudentProfileEntity, { ...profileFields, studentId }, ['studentId']);
+      const { authUserId } = await manager.findOneByOrFail(StudentEntity, { id: studentId });
+      return readAccount(manager, authUserId);
+    });
   }
 }
