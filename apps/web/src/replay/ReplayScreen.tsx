@@ -9,7 +9,7 @@ import { getLatestRowId } from '../board/useDotTarget';
 import { findArtwork } from '../home/artwork';
 import { getSessionVisual } from '../session/BoardPicture';
 import type { Session } from '../session/sessionQueries';
-import { BAR_ACTION, SessionFacts, SessionFrame, SessionTitle } from '../session/SessionFrame';
+import { BAR_ACTION, getBarSubject, SessionFacts, SessionFrame, SessionTitle } from '../session/SessionFrame';
 import { API_ERROR_LABELS, MENU_LABELS, REPLAY_LABELS, SESSION_LABELS, VOICE_LABELS } from '../strings';
 import { formatSessionLength } from '../session/formatSession';
 import { RecapLines } from './RecapLines';
@@ -36,7 +36,7 @@ export function ReplayScreen({ session }: { session: Session }) {
   const action = <Link to="/sessions" className={BAR_ACTION}>{SESSION_LABELS.close}</Link>;
   const facts = (
     <>
-      <SessionFacts subject={session.subject} seconds={session.durationSeconds} />
+      <SessionFacts subject={getBarSubject(session)} seconds={session.durationSeconds} />
       <span className="label text-ink-2">{REPLAY_LABELS.status}</span>
     </>
   );

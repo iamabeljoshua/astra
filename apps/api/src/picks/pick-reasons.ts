@@ -33,7 +33,7 @@ export const STARTER_REASON = 'A good place to start';
 
 export const CARRY_ON_REASON = 'Carry on where you left off';
 
-export const QUESTION_SUBJECT = 'Your question';
+export const NOTE_LESSON_SUBJECT = 'Your question';
 
 const DAY_SLOT = '{day}';
 export const getStruggleReason = (noteTopic: string) => `You got stuck on ${noteTopic} ${DAY_SLOT}`;

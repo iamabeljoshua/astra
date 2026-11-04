@@ -3,7 +3,7 @@ import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { makeSession } from '../test/sessionsApi';
 import { renderWithQueryClient } from '../test/renderWithQueryClient';
-import { RECAP_LABELS, REPLAY_LABELS, SESSION_LABELS } from '../strings';
+import { RECAP_LABELS, REPLAY_LABELS } from '../strings';
 import { ReplayScreen } from './ReplayScreen';
 
 const LESSON_LOG = [
@@ -43,10 +43,10 @@ describe('the replay screen', () => {
 
   it('calls a session that moved to another topic by that topic, with no picture from the card it left', async () => {
     stubReplay({ replay: { recap: RECAP, runs: [{ startedAt: 'x', events: LESSON_LOG }] } });
-    open({ ...session, artwork: null, subject: SESSION_LABELS.questionSubject, title: 'Black holes' });
+    open({ ...session, artwork: null, subject: 'Astronomy', title: 'Black holes' });
     await screen.findByRole('slider', { name: REPLAY_LABELS.timeline });
-    screen.getByText('Black holes');
-    expect(screen.queryByText(session.subject)).toBeNull();
+    expect(screen.getAllByText('Black holes')).toHaveLength(2);
+    expect(screen.queryByText('Astronomy')).toBeNull();
     expect(screen.queryByTestId('board-visual')).toBeNull();
   });
 

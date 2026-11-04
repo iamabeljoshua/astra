@@ -6,7 +6,6 @@ import { LiveRooms, MOST_WARM_ROOMS, WARM_ROOM_WINDOW_MS } from '../livekit/live
 import type { SessionLogRun } from '../infrastructure/orm/repositories/session-log.repository';
 import type { SessionListOptions } from '../infrastructure/orm/repositories/session.repository';
 import { findLibraryTopic } from '../picks/library';
-import { QUESTION_SUBJECT } from '../picks/pick-reasons';
 import type { TopicSession } from '../picks/topic-progress';
 import { TutorSpendService } from '../tutor-spend/tutor-spend.service';
 import type { CreateSessionBodyDto, SessionReplayResponseDto, SessionResponseDto, UpdateSessionBodyDto } from './session.dto';
@@ -116,7 +115,7 @@ export class SessionsService {
   }
 
   renameUnfinished(studentId: string, sessionId: string, title: string): Promise<void> {
-    return this.sessions.renameUnfinishedForStudent(studentId, sessionId, { title, subject: QUESTION_SUBJECT });
+    return this.sessions.renameUnfinishedForStudent(studentId, sessionId, title);
   }
 
   async getNewestUnfinishedSession(studentId: string): Promise<SessionResponseDto | null> {

@@ -8,7 +8,7 @@ import { API_ERROR_LABELS, MENU_LABELS, RECAP_LABELS, REPLY_BOX_LABELS, SESSION_
 import { type FilesComingSoon, useFilesComingSoon } from '../ui/useFilesComingSoon';
 import { BoardPicture, getSessionVisual } from './BoardPicture';
 import { type Session, useKeepSessionTitle, useSession } from './sessionQueries';
-import { BAR_ACTION, SessionFacts, SessionFrame, SessionTitle } from './SessionFrame';
+import { BAR_ACTION, getBarSubject, SessionFacts, SessionFrame, SessionTitle } from './SessionFrame';
 import { isLessonEnabled } from './lessonFlag';
 import { useSessionRun } from './useSessionRun';
 import { StudentCaption } from '../voice/Captions';
@@ -149,7 +149,7 @@ function RunningSession({ session }: { session: Session }) {
   // The card's picture belongs to the card's topic, so it goes when the student moves off it, and the seam for a scene stays empty.
   const visual = view?.sessionTitle ? null : getSessionVisual(findArtwork(session.artwork));
   return (
-    <SessionFrame facts={<SessionFacts subject={view?.sessionTitle ?? session.subject} seconds={seconds} tutorStateLine={tutorStateLine} costUsd={view?.costUsd ?? null} />} action={isRecapping ? <button type="button" onClick={() => void leave()} className={BAR_ACTION}>{SESSION_LABELS.close}</button> : <EndButton isEnding={isEnding} onEnd={() => void endSession()} />} problem={endProblem} isFullHeight>
+    <SessionFrame facts={<SessionFacts subject={view?.sessionTitle ?? getBarSubject(session)} seconds={seconds} tutorStateLine={tutorStateLine} costUsd={view?.costUsd ?? null} />} action={isRecapping ? <button type="button" onClick={() => void leave()} className={BAR_ACTION}>{SESSION_LABELS.close}</button> : <EndButton isEnding={isEnding} onEnd={() => void endSession()} />} problem={endProblem} isFullHeight>
       <div className="board-stage">
         <div className={`board-voice ${isRecapping ? 'board-voice-reading' : ''}`}>
           <SessionTitle title={session.title} isQuiet={Boolean(voice) || isConnecting} />
@@ -199,7 +199,7 @@ function FinishedSession({ session }: { session: Session }) {
     <SessionFrame
       facts={
         <>
-          <SessionFacts subject={session.subject} seconds={session.durationSeconds} />
+          <SessionFacts subject={getBarSubject(session)} seconds={session.durationSeconds} />
           <span className="label text-ink-2">{SESSIONS_LABELS.statuses.finished}</span>
         </>
       }

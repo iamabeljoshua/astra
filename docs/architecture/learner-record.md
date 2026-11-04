@@ -65,7 +65,7 @@ A library topic can list other names in `alsoCalled` in `library.json`, because 
 
 `usable-notes.ts` keeps the newest note on each topic and drops any past 120 days. It runs the closed list again as it reads and drops anything off it, so a row that reached the table some other way never shows. A card shows only the topic, not the detail, the evidence, or the session's title. Two topics with the same subject words are one topic, so "quadratic equations" settles "solving quadratic equations".
 
-A rename means the student moved. It clears the session's topic and picture and sets its subject to `Your question`, in one place, so a session that left a card counts neither as finishing it nor as an open lesson on it, and a struggle there makes a card of what the student moved to.
+A rename means the student moved. It clears the session's topic and picture and sets its subject to the new title, in one place, so a session that left a card counts neither as finishing it nor as an open lesson on it, and a struggle there makes a card of what the student moved to.
 
 A topic with deeper scenes comes from `deeper-scenes.json`, the server's own list, so Home's load never reads the scene store. A flagged or missing scene does not change the card, because only the store knows about those.
 

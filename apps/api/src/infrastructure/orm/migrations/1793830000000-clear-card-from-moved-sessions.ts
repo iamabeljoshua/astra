@@ -5,7 +5,7 @@ export class ClearCardFromMovedSessions1793830000000 implements MigrationInterfa
   name = 'ClearCardFromMovedSessions1793830000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`UPDATE "sessions" SET "topic_id" = NULL, "subject" = 'Your question' WHERE "topic_id" IS NOT NULL AND "artwork" IS NULL`);
+    await queryRunner.query(`UPDATE "sessions" SET "topic_id" = NULL, "subject" = "title" WHERE "topic_id" IS NOT NULL AND "artwork" IS NULL`);
   }
 
   public async down(): Promise<void> {

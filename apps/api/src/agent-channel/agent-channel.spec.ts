@@ -71,7 +71,7 @@ describe('the agent channel', () => {
       await setTitle(running, { title: 'Long division' }).expect(204);
 
       const { body } = await asStudent(server().get(`/sessions/${running}`)).expect(200);
-      expect((body as { subject: string }).subject).toBe('Your question');
+      expect((body as { subject: string }).subject).toBe('Long division');
       expect(await testApp.app.get(SessionsService).getLessonRequest(student.studentId, running)).toEqual({ title: 'Long division', status: 'in_progress', isCard: false });
     });
 
