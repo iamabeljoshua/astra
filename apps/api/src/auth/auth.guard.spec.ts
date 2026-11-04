@@ -21,6 +21,8 @@ import { getAcceptedSignInMethods, isRefusedToken, TokenVerifier } from './token
 
 const PUBLIC_ROUTES: readonly string[] = ['get /health'];
 const SIGNED_IN_ROUTES: readonly string[] = ['get /me', 'post /me/birth-date'];
+// The guard still asks for a signed-in student, and a take is shared truth, so its answer is the same for all of them.
+const SAME_ANSWER_FOR_EVERY_STUDENT: readonly string[] = ['get /scene-takes/:sceneId/:theme'];
 const CLOSED_PORT_URL = 'http://127.0.0.1:1';
 const VALID_SESSION = { title: 'Free-body diagrams', subject: 'Physics', language: 'en' };
 const VALID_PROFILE = { name: 'Maya', interests: ['space'], level: 'university', goal: 'exam' };
@@ -285,7 +287,7 @@ describe('the API guard', () => {
     });
 
     it('reads the identity from the token on every route but the public ones', async () => {
-      const routes = listRoutes(testApp.app).filter((route) => !PUBLIC_ROUTES.includes(route.name));
+      const routes = listRoutes(testApp.app).filter((route) => !PUBLIC_ROUTES.includes(route.name) && !SAME_ANSWER_FOR_EVERY_STUDENT.includes(route.name));
 
       expect(await findRoutesIgnoringIdentity({ app: testApp.app, routes, token: student.token })).toEqual([]);
     });
