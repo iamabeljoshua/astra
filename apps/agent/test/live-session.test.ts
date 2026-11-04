@@ -66,7 +66,7 @@ function makeOutput(frames: { atMs: number }[], failAfter = Infinity): VoiceOutp
   };
 }
 
-function start({ voice = makeRenderedVoice({ name: 'fake', render: renderTone }).makeTts(), failAfter, quietLimitMs, onQuietLimit, tutorBeats, endLine, replyLine = LONG_LINE, closedReason = null }: { endLine?: () => void; replyLine?: string; closedReason?: TutorClosedReason | null;  voice?: tts.TTS; failAfter?: number; quietLimitMs?: number; onQuietLimit?(): void; tutorBeats?: readonly TutorBeat[] } = {}): Harness {
+function start({ voice = makeRenderedVoice({ name: 'fake', render: renderTone }).makeTts(), failAfter, quietLimitMs, onQuietLimit, tutorBeats, endLine, replyLine = LONG_LINE, replyLines = [], closedReason = null }: { endLine?: () => void; replyLine?: string; replyLines?: readonly string[]; closedReason?: TutorClosedReason | null;  voice?: tts.TTS; failAfter?: number; quietLimitMs?: number; onQuietLimit?(): void; tutorBeats?: readonly TutorBeat[] } = {}): Harness {
   const messages: AgentMessage[] = [];
   const traces: Harness['traces'] = [];
   const frames: { atMs: number }[] = [];
@@ -81,7 +81,7 @@ function start({ voice = makeRenderedVoice({ name: 'fake', render: renderTone })
         harness.aborted += 1;
       });
       if (tutorBeats) yield* tutorBeats;
-      else yield makeBeat(`reply-${replies}`, replyLine);
+      else yield makeBeat(`reply-${replies}`, replyLines[replies - 1] ?? replyLine);
     },
     getClosedReason: () => closedReason,
   };
@@ -966,6 +966,32 @@ describe('the spoken invitation', () => {
     await delay(3000);
     expect(kinds(harness)).not.toContain('talkInvitation');
   }, 10_000);
+
+  it('does not follow a crisis reply, or the lesson the student goes back to after one', async () => {
+    const harness = start({ replyLines: ['That sounds serious. Please tell an adult you trust.', 'one two'] });
+    soundOn(harness);
+    hello(harness, true);
+    await answerTyped(harness);
+    await delay(1800);
+    expect(kinds(harness)).not.toContain('talkInvitation');
+    harness.browser({ type: 'typed', ...STAMP, text: 'Can we carry on' });
+    await delay(3300);
+    expect(kinds(harness).filter((kind) => kind === 'reply')).toHaveLength(2);
+    expect(kinds(harness)).not.toContain('talkInvitation');
+    expect(harness.messages.filter((message) => message.type === 'talkInvited')).toHaveLength(0);
+  }, 15_000);
+
+  it('does not follow a lesson the student goes to after cutting a crisis reply short', async () => {
+    const harness = start({ replyLines: [`Are you safe right now? ${LONG_LINE} ${LONG_LINE}`, 'one two'] });
+    soundOn(harness);
+    hello(harness, true);
+    harness.browser({ type: 'typed', ...STAMP, text: 'Why' });
+    await delay(900);
+    harness.browser({ type: 'typed', ...STAMP, text: 'Can we carry on' });
+    await delay(3500);
+    expect(kinds(harness)).toContain('reply');
+    expect(kinds(harness)).not.toContain('talkInvitation');
+  }, 15_000);
 
   it('never follows the greeting alone, which is not an answer', async () => {
     const harness = start({ replyLine: 'one two' });

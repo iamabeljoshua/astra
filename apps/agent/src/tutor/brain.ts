@@ -1,7 +1,7 @@
 import { type Beat, type BeatId, clipTypedText, getBeatText, getCues, getPlayedCues, getSpokenWords, parseBeat, parseWrittenBeat, type SceneCommand, TYPED_TEXT_MAX_CHARACTERS, type TutorClosedReason } from '@astra/contracts';
 import { type FindSource, type ModelEvent, ModelRejectedError, type ModelUsage, type TutorModelAdapter, type TutorModelRequest, type TutorTurn } from '../providers/types.ts';
 import { createAttemptTracker } from './attempts.ts';
-import { BeatTextReader, type WrittenBeatParts } from './beat-text-reader.ts';
+import { BeatTextReader, NAMES_HELP, type WrittenBeatParts } from './beat-text-reader.ts';
 import { type BoardMemory, checkAgainstBoard, EMPTY_BOARD, getMemoryAfter } from './board-memory.ts';
 import { TUTOR_PROMPT, type TutorPrompt } from './prompt.ts';
 import { createLinePicker, type SpokenLineUse } from './spoken-lines.ts';
@@ -157,7 +157,6 @@ const COMPACT_AT_TOKENS = 60_000;
 const TURNS_KEPT_AFTER_COMPACTING = 8;
 const CHARACTERS_PER_TOKEN = 3.2;
 const TOO_MANY_MARKS = /(\p{M}{4})\p{M}+/gu;
-const NAMES_HELP = /\b(?:adult|emergency)\b/i;
 const NOT_STUDENT_TEXT = /\p{Cf}|\p{Co}|\p{Cs}|\p{Variation_Selector}|[^\P{Cc}\n\t]/gu;
 
 /** What the model is told after a safety check stops a student's message, built by code, so it holds none of what was refused. */

@@ -1,6 +1,6 @@
 import type { tts } from '@livekit/agents';
 import { randomUUID } from 'node:crypto';
-import { type AgentMessage, type Beat, type BeatId, type BrowserMessage, type PlayReport, type SessionEvent, type TurnId } from '@astra/contracts';
+import { type AgentMessage, type Beat, type BeatId, type BrowserMessage, getScriptText, type PlayReport, type SessionEvent, type TurnId } from '@astra/contracts';
 import { createEchoFilter } from './echo-filter.ts';
 import { createHoldGate } from './hold-gate.ts';
 import { createLinkWatch, type LinkWatch } from './link-watch.ts';
@@ -11,6 +11,7 @@ import { createMessageGate } from './message-gate.ts';
 import { createSessionLog, isFurtherReport } from './session-log.ts';
 import { createTypedGate } from './typed-gate.ts';
 import { type SpokenTurn, speakTurn, type TurnMessenger } from './speak-turn.ts';
+import { isAboutSafety } from '../tutor/beat-text-reader.ts';
 import type { TutorBeat, TutorBrain, TutorRequest } from '../tutor/brain.ts';
 import { getNextTurnState, INITIAL_TURN_STATE, type TimerName, type TurnAction, type TurnEvent, type TurnState } from './turn-rule.ts';
 import { getWords, hasWords } from './turn-words.ts';
@@ -306,6 +307,8 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
         onBeatUnspoken: (beat) => void ownThought?.unspoken.unshift(beat),
         onBeatStarted(beat) {
           speakingBeats.push(beat);
+          // "You can talk to me any time" must not follow a crisis reply, or the lesson after one, because this tutor cannot get help.
+          if (isAboutSafety(getScriptText(beat.script))) talkInvitation = 'settled';
           if (isReply && speakingBeats.length === 1) setThinking(false);
           if (canResume && (speakingBeats.length === 1 || speaking.isDry)) watchVoice(speaking);
         },
