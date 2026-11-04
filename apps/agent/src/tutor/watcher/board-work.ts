@@ -47,9 +47,10 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
     takeWork(message);
   };
 
-  const takeWork = (message: BrowserMessage & { type: 'worked' }) => {
+  const takeWork = (message: BrowserMessage & { type: 'worked' }, onTaken?: () => void) => {
     const noted = tutor.noteWork?.(message.work);
     if (!noted) return trace('workRefused', { way: message.work.way });
+    onTaken?.();
     const { checked, hadTask } = noted;
     hasLeanedIn = false;
     writeLog(message, checked);
@@ -79,8 +80,7 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
       return null;
     });
     const work: StudentWork = { way: 'write', id, text: read?.text || NOT_READ, ...(task ? { task } : {}), ink: read?.ink ?? { isUnsure: true } };
-    send({ type: 'inkRead', work });
-    takeWork({ type: 'worked', clockId, browserMs, startedMsAgo, work });
+    takeWork({ type: 'worked', clockId, browserMs, startedMsAgo, work }, () => send({ type: 'inkRead', work }));
   };
 
   const getSituation = (seconds: number, draftText: string | undefined): WatchSituation => {

@@ -39,7 +39,7 @@ export function MovingDot({ rowId, isWatching, isThinking, isLively, getLoudness
 
   useLayoutEffect(() => {
     if (!dot.current) return;
-    const row = rowId === null ? null : document.querySelector(`[data-row="${CSS.escape(rowId)}"]`);
+    const row = rowId === null ? null : document.querySelector(`[data-row="${rowId}"]`);
     const spot = row ? getRowSpot(row) : getRestingSpot();
     if (spot) writeStyle(dot.current, 'transform', `translate(${Math.round(spot.x)}px, ${Math.round(spot.y)}px)`);
     if (body.current) writeStyle(body.current, 'transform', isReducedMotion ? '' : `scale(${(1 + getLoudness() * LARGEST_PULSE).toFixed(3)})`);

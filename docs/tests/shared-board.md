@@ -13,11 +13,37 @@ A `task` has one general shape, set on a word of the tutor's, at any moment in a
 | `write` with `reads` `words` or `code` | Types thoughts, answers, or code | Nothing. No line of code ever runs |
 | `pick` | Picks a term of a math line or a node of a diagram | Against `answer`, if the tutor gave one |
 | `place` | Puts an item in each slot, for steps in order, matching, and labels | Against `answer`, if the tutor gave one |
-| `drag` | Moves a point along a plot's curve | `flat` and `zero`, read from the curve itself |
+| `drag` | Moves a point along a plot's curve, which needs M3.4's plots on the page | `flat` and `zero`, read from the curve itself |
 
 An answer key comes from the tutor, so code is certain only against that key. `drag` is the one way where code needs no key.
 
 Lesson kinds are M3.9's. This board only has to let the tutor set any of these mid-lesson, and it does.
+
+## The look
+
+Abel chose the look of Prototype B, in `/Users/abel/startup/astra-tinker/board`, so a running session follows it and not `grid-cols-session`. The tutor's words stay on the left at `minmax(300px, 400px)`, and the right side holds the visual or the board. `SharedBoard` lays out rows in normal flow, each with a 240 px gutter for marks, notes, and "Read as", and the line being typed is the next row. The student writes in `ink` and the tutor in `pen`. `MovingDot` is the one dot: it rests over the tutor's words, flies to the line on a mark or a written line, dims on the live line, breathes while thinking, and grows with the voice's loudness.
+
+These differ from `docs/DESIGN.md` on the prototype's say: no outer border on the board, the prototype's type sizes, and the proposed `pen` token. These differ from the prototype: the app's own top bar, no Numbers panel, no intro page, "Read as" on every line, a Talk button, Math keys as a row of keys for the plain line with no MathLive, and plain rounded pen strokes with no dependency for varying width.
+
+## Teaching and hands-on
+
+`boardMode` is a tutor command that lands on a word, so `{"kind":"boardMode","mode":"handsOn"}` before "together" in "let's try one together" moves the visual as that word plays. Anything new written or a task brings the board in by itself, so nothing lands hidden. `getVisualPlace` reads the move from the clock, 560 ms on `cubic-bezier(.2,.75,.2,1)`, to 30% in the top right corner, 12 px in, so a replay lands on the same frame and a frozen board stays frozen. The board keeps a column clear, so no line passes under the small visual. The student can click the small visual back up and put it back, which is the page's own and not in the log. Typing also brings the board in, because a student must always be able to answer. Reduced motion jumps. A phone stacks.
+
+The seam for a scene is the `visual` prop of `BoardStageView`, through `LiveBoard`. What goes there is drawn once at full size and moved by a transform.
+
+## Writing with the pen
+
+Each stroke lands as it is drawn and goes through `inkStroke`, so it is in the log and a replay draws it. After a 2 s rest, or on Done, the row shows "Reading your writing" and the agent draws the strokes to a plain PNG itself, in `rasterize-ink.ts`, so what the model reads is exactly what the log holds and no picture crosses the data channel. Haiku 5.5 reads it, and reads words and labels as well as math, fixing nothing. Math it wrote still has to pass as math the board can set. A confidence under 0.7, or any symbol it names as doubtful, means code judges nothing and the tutor asks.
+
+`pnpm --filter @astra/agent eval:ink` writes each line with the board's stroke font and reads it back. These are synthetic hands, so this is likely optimistic, and Abel's own hand is the real measure.
+
+| Lines | Read exactly | Code said | Worst case |
+| --- | --- | --- | --- |
+| 44 wrong math lines | 44 | 37 wrong, 7 unsure | 0 read as right |
+| 12 right math lines | 12 | 9 right, 3 unsure | 0 called wrong |
+| 16 lines of words, one misspelled on purpose | 16 | Not judged | 0 fixed |
+
+It cost $0.007 for 72 reads, at 1.53 s a read.
 
 ## What a verdict means
 
@@ -53,11 +79,11 @@ Work reaches the log as `worked`, written by the agent with its own reading and 
 
 ## Safety
 
-A typed line is hostile input. The reader builds math only from an allow list of characters, so a backslash can never reach KaTeX, and every word on the page is a text node. A line longer than 200 characters is words. `read-line.test.ts` runs 34 hostile lines and holds each under 150 ms. The worst line it found on the real page took 47 ms to land.
+A typed line is hostile input. The reader builds math only from an allow list of characters, so a backslash can never reach KaTeX, and every word on the page is a text node. A line longer than 200 characters is words. `read-line.test.ts` runs 34 hostile lines and holds each under 150 ms. The worst line it found on the real page took 47 ms to land. A flood is bounded too: 20 held notes of work, 2,000 pieces of work in a session, and a fixed amount of ink drawn into one picture.
 
 ## For later owners
 
 - M3.9: a direct question goes hands-on. A topic teaches first and then picks an exercise. Set a task, wait for `task_done`, and go on teaching. Nothing else is needed.
 - M3.10: the session log stays in memory until you store it, and the privacy page's planned list says it will hold this work.
-- M3.11: handwriting goes to a small reader call, then `checkWork`, with "Read as" shown as it is here.
+- M3.11: handwriting is here. Uploads, photos, and PDFs are yours.
 - The tutor's pen colour is a proposal, in `docs/DESIGN.md`, waiting for Abel.

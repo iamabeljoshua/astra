@@ -196,7 +196,7 @@ export function LiveBoard({ voice, visual = null, onTalk, isTalkOn = false, canT
     </div>
   );
   return (
-    <BoardStageView stage={board.stage} hasWriting={rows.length > 0} atMs={atMs} visual={visual} ariaLabel={VOICE_LABELS.board} peek={peek} onPeek={setPeek} footer={tools}>
+    <BoardStageView stage={board.stage} atMs={atMs} visual={visual} ariaLabel={VOICE_LABELS.board} peek={peek} onPeek={setPeek} footer={tools}>
       <p role="status" className="sr-only">{getLastWorkWords(board)}</p>
       <MovingDot rowId={dotTarget.rowId} isWatching={dotTarget.isWatching} isThinking={isThinking} isLively={!view.closedBecause && (view.isTutorSpeaking || view.isHeard || view.isThinking)} getLoudness={voice.getLoudness} />
       <SharedBoard

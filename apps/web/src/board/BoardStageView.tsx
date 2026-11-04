@@ -9,7 +9,6 @@ const PHONE_WIDTH = 860;
 
 interface BoardStageViewProps extends PropsWithChildren {
   stage: BoardStage | null;
-  hasWriting: boolean;
   atMs: number;
   /** The seam for what fills the right side while teaching, today a session's picture and later a scene. It is drawn once at full size and only moved. */
   visual: ReactNode;
@@ -22,7 +21,7 @@ interface BoardStageViewProps extends PropsWithChildren {
 }
 
 // The right side of the session. While teaching it holds the visual. For hands-on the visual glides to the corner and the board fades in under it, all read from the clock, so a replay lands on the same frame.
-export function BoardStageView({ stage, hasWriting, atMs, visual, ariaLabel, peek, onPeek, footer, children }: BoardStageViewProps) {
+export function BoardStageView({ stage, atMs, visual, ariaLabel, peek, onPeek, footer, children }: BoardStageViewProps) {
   const right = useRef<HTMLDivElement>(null);
   const visualBox = useRef<HTMLButtonElement>(null);
   const boardBox = useRef<HTMLDivElement>(null);
@@ -30,7 +29,7 @@ export function BoardStageView({ stage, hasWriting, atMs, visual, ariaLabel, pee
   const hasVisual = visual !== null && visual !== undefined;
   const { smallShare, isMoving } = getVisualPlace({ stage, peek, atMs, isReducedMotion });
   const isSmall = smallShare === 1;
-  const isBigOverBoard = hasWriting && peek?.isBig === true;
+  const isBigOverBoard = peek?.isBig === true;
 
   useEffect(() => {
     if (!isBigOverBoard) return;
@@ -75,6 +74,7 @@ export function BoardStageView({ stage, hasWriting, atMs, visual, ariaLabel, pee
           data-moving={isMoving}
           data-big-over-board={isBigOverBoard}
           aria-label={isBigOverBoard ? BOARD_WORK_LABELS.visualPutBack : BOARD_WORK_LABELS.visualLookAgain}
+          tabIndex={isSmall || isBigOverBoard ? 0 : -1}
           onClick={togglePeek}
           className="board-visual"
         >
