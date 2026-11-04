@@ -36,8 +36,25 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
-          cache: pnpm
+      - id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+      # setup-node's cache misses completely on a new lockfile and saves at the very end, which has cancelled a green job at the limit.
+      - id: restore-pnpm-store
+        uses: actions/cache/restore@v6
+        timeout-minutes: 1
+        continue-on-error: true
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-
       - run: pnpm install --frozen-lockfile
+      - if: steps.restore-pnpm-store.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        background: true
+        continue-on-error: true
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
       - name: Fail if POSTGRES_TAG is not the tag that the Supabase CLI uses
         run: |
           cli_tag=$(pnpm exec supabase services | awk '$1 == "supabase/postgres" { print $3 }')
