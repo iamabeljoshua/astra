@@ -1,6 +1,8 @@
+import type { ReactNode } from 'react';
+
 interface ChipGroupProps<Value extends string> {
   label: string;
-  options: readonly { value: Value; label: string }[];
+  options: readonly { value: Value; label: string; picture?: ReactNode }[];
   selected: readonly Value[];
   onChange: (selected: Value[]) => void;
 }
@@ -14,6 +16,7 @@ export function ChipGroup<Value extends string>({ label, options, selected, onCh
     <div role="group" aria-label={label} className="flex flex-wrap gap-2.5">
       {options.map((option) => (
         <button key={option.value} type="button" className="chip" aria-pressed={selected.includes(option.value)} onClick={() => toggle(option.value)}>
+          {option.picture}
           {option.label}
         </button>
       ))}

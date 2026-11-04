@@ -292,8 +292,12 @@ describe('BoardView, figures', () => {
   });
 
   it('writes a mark label under what it marks', () => {
+    const width = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(700);
+    const height = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(600);
     const operations = [place({ kind: 'writeMath', id: 'eq', tex: '2x = 8' }), place({ kind: 'annotate', id: 'note', target: 'eq', mark: 'underline', label: 'both sides' }, 500)];
     const { container } = render(<BoardView board={getBoardAt(operations, 5000)} atMs={5000} />);
     expect(container.querySelector('.board-notes [data-mark="note-note"]')?.textContent).toBe('both sides');
+    width.mockRestore();
+    height.mockRestore();
   });
 });

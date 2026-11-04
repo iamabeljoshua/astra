@@ -15,6 +15,7 @@ interface KnownGap {
 
 export interface WordClock {
   onFirstSound(atMs: number): void;
+  forgetFirstSound(): void;
   addGap(gap: ReportedGap): void;
   getPositionMs(atMs: number, firstWordStartMs?: number): number | null;
 }
@@ -26,6 +27,9 @@ export function createWordClock(): WordClock {
   return {
     onFirstSound(atMs) {
       firstSoundAtMs ??= atMs;
+    },
+    forgetFirstSound() {
+      firstSoundAtMs = null;
     },
     addGap({ atMs, ms = null }) {
       const known = gaps.find((gap) => gap.atMs === atMs);

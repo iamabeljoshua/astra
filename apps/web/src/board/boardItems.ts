@@ -13,6 +13,7 @@ export interface ItemContext {
   atMs: number;
   /** The element's size on the board, once it has a place. */
   placedSize: { width: number; height: number } | null;
+  canMoveSliders: boolean;
   progress: number;
   maxWidth: number;
   fontSize: number;

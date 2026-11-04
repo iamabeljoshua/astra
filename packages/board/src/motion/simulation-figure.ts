@@ -1,5 +1,5 @@
 import type { Simulate, Slider, TrackVector } from '@astra/contracts';
-import { type FigureFrame, getAttachedElements, getDrawnShare, getShownValue } from '../figure/figure-input.ts';
+import { FIGURE_LIMITS, type FigureFrame, getAttachedElements, getDrawnShare, getShownValue, keepNewestOnFigure } from '../figure/figure-input.ts';
 import { addArrow, addAxes, addLabel, addPartMark, addSoftLine, createFigureDraft, type FigureDraft, finishFigure, getFixedVectorTip } from '../figure/figure-draft.ts';
 import { type Branch, type FigureMark, interpolate, type Point } from '../figure/figure-marks.ts';
 import { createEqualView, type FigureView, getPixelBranches } from '../figure/figure-view.ts';
@@ -33,6 +33,11 @@ interface WorldBounds {
 type SimulationElement = BoardElement & { content: Simulate };
 type ProjectileScene = Scene<ProjectileFrame>;
 type ParameterSlider = Slider & { parameter: string };
+
+interface ReadoutRow {
+  key: string;
+  lines: string[];
+}
 
 const getFrameAt = (scene: Scene, seconds: number) => scene.getFrame(seconds) as ProjectileFrame;
 
@@ -132,7 +137,7 @@ function addOnBall(draft: FigureDraft, element: BoardElement, { ballAt, world, v
   const share = getDrawnShare(element, frame);
   if (content.kind === 'ghostPath' && element.capturedScene) draft.marks.unshift({ kind: 'path', key: `ghost-${element.id}`, tone: 'ink-2', weight: 'thin', branches: share >= 1 ? getPixelBranches(getScenePath(element.capturedScene), view) : [] });
   if (content.kind === 'vector') addArrow(draft, { key: `vector-${element.id}`, from: ballAt, to: getFixedVectorTip(ballAt, content, frame), share, tone: 'ink', label: content.label });
-  if (content.kind === 'annotate' && content.target.includes('.')) addPartMark(draft, { key: `note-${element.id}`, at: view.toPixel(getFrameAt(scene, element.capturedSeconds ?? 0).ball), mark: content.mark, share, label: content.label });
+  if ((content.kind === 'annotate' || content.kind === 'highlight') && content.target.includes('.')) addPartMark(draft, { key: `note-${element.id}`, at: view.toPixel(getFrameAt(scene, element.capturedSeconds ?? 0).ball), mark: content.kind === 'annotate' ? content.mark : 'circle', share, label: content.kind === 'annotate' ? content.label : undefined });
   if (content.kind === 'trackVector') {
     const arrow = getQuantityArrow(world, content.quantity);
     const to = view.toPixel({ x: world.ball.x + arrow.x * ARROW_SECONDS, y: world.ball.y + arrow.y * ARROW_SECONDS });
@@ -161,18 +166,31 @@ function getReadoutValue(quantity: string, { scene, world, seconds }: { scene: S
   }
 }
 
-function getReadoutLines(attached: readonly BoardElement[], { frame, scene, world, seconds }: { frame: FigureFrame; scene: Scene; world: ProjectileFrame; seconds: number }): { key: string; lines: string[] }[] {
+function getReadoutLines(attached: readonly BoardElement[], { frame, scene, world, seconds }: { frame: FigureFrame; scene: Scene; world: ProjectileFrame; seconds: number }): ReadoutRow[] {
   const maxWidth = frame.width - MARGIN.left - MARGIN.right;
-  return attached.flatMap((element) => {
+  const rows = attached.flatMap((element) => {
     const { content } = element;
     if (content.kind !== 'readout' || getDrawnShare(element, frame) <= 0) return [];
     const { label, unit } = frame.words.readouts[content.quantity];
     const value = formatNumber(getReadoutValue(content.quantity, { scene, world, seconds }), 3);
     return [{ key: `readout-${element.id}`, lines: wrapLabel(`${content.label ?? label} ${value} ${unit}`.trim(), maxWidth) }];
   });
+  return keepReadoutsThatFit(rows, frame.height * FIGURE_LIMITS.readoutShareOfHeight);
 }
 
-function addReadouts(draft: FigureDraft, rows: readonly { key: string; lines: string[] }[]): void {
+// The newest stay, so numbers can never push the motion off its own figure.
+function keepReadoutsThatFit(rows: readonly ReadoutRow[], maxHeight: number): ReadoutRow[] {
+  const kept: ReadoutRow[] = [];
+  let height = 0;
+  for (const row of [...rows].reverse()) {
+    height += row.lines.length * LABEL_FONT.lineHeight;
+    if (height > maxHeight) break;
+    kept.unshift(row);
+  }
+  return kept;
+}
+
+function addReadouts(draft: FigureDraft, rows: readonly ReadoutRow[]): void {
   let top = MARGIN.top;
   for (const { key, lines } of rows) {
     draft.marks.push({ kind: 'text', key, at: { x: MARGIN.left, y: top + LABEL_FONT.ascent }, lines, anchor: 'start', tone: 'ink' });
@@ -197,7 +215,7 @@ export function getSimulationMarks(frame: FigureFrame): FigureMark[] {
   const baseScene = PLANNED_SCENES(root.content, {}) as Scene;
   const seconds = getShownValue(placed.playhead, frame);
   const world = getFrameAt(scene, seconds);
-  const attached = getAttachedElements(frame.board, root.id);
+  const attached = keepNewestOnFigure(getAttachedElements(frame.board, root.id));
   const rows = getReadoutLines(attached, { frame, scene, world, seconds });
   addReadouts(draft, rows);
   const readoutsHeight = rows.reduce((sum, { lines }) => sum + lines.length * LABEL_FONT.lineHeight, 0);

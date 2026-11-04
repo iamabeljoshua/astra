@@ -30,6 +30,13 @@ export function getDrawnShare(element: BoardElement, frame: Pick<FigureFrame, 'a
   return frame.isReducedMotion && drawn > 0 ? 1 : drawn;
 }
 
+/** The same kind of bound as math has on depth and size. Text on a figure is plain, at one size, and capped at 80 characters and 4 lines by the time it gets here. What still grows across beats is how many things are on one figure. */
+export const FIGURE_LIMITS = { attachments: 64, curves: 8, readoutShareOfHeight: 0.3 };
+
+export function keepNewestOnFigure<Item>(attached: readonly Item[]): readonly Item[] {
+  return attached.slice(-FIGURE_LIMITS.attachments);
+}
+
 /** Everything drawn on a figure, in the order it arrived, including what hangs on those. */
 export function getAttachedElements(board: BoardState, rootId: string): BoardElement[] {
   const family = new Set([rootId]);

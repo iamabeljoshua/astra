@@ -3,6 +3,7 @@ import { toLatinDigits } from '../ui/toLatinDigits';
 
 const DAY_OR_MONTH = /^\d{1,2}$/;
 const YEAR = /^\d{4}$/;
+const OLDEST_BIRTH_DATE = '1900-01-01';
 
 function isRealCalendarDate(birthDate: string): boolean {
   const date = new Date(`${birthDate}T00:00:00Z`);
@@ -13,7 +14,7 @@ export function toBirthDate(dateParts: DateParts): string | null {
   const [day, month, year] = [dateParts.day, dateParts.month, dateParts.year].map((part) => toLatinDigits(part.trim())) as [string, string, string];
   if (!DAY_OR_MONTH.test(day) || !DAY_OR_MONTH.test(month) || !YEAR.test(year)) return null;
   const birthDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-  return isRealCalendarDate(birthDate) ? birthDate : null;
+  return isRealCalendarDate(birthDate) && birthDate >= OLDEST_BIRTH_DATE ? birthDate : null;
 }
 
 export function formatBirthDate(birthDate: string): string {

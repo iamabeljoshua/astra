@@ -25,7 +25,7 @@ interface LabWindow {
   __stopFrameWatch?: () => void;
 }
 
-const FORBIDDEN = 'script, img, iframe, object, embed, a, link, style, form, input';
+const FORBIDDEN = 'script, img, iframe, object, embed, a, link, style, form, input:not(.board-slider input)';
 const PAINT_SHRINK = 0.2;
 const BOARD_EDGE_ROOM = 0.5;
 /** React commits after the frame that read the clock, so a board can show the last equation this long. */
@@ -160,6 +160,8 @@ export function startFrameWatch({ isReducedMotion, refusedTex }: { isReducedMoti
     const nowMs = lab.player.getNowMs();
     const firedLately = lab.player.getOperations().some((operation) => operation.kind === 'command' && nowMs - operation.atMs < 80 && nowMs >= operation.atMs - 80);
     if (firedLately) return true;
+    const isSceneMoving = lab.describeLive(nowMs).elements.some((element) => element.sceneSeconds !== undefined && element.sceneSeconds !== lab.describeLive(nowMs - 40).elements.find((other) => other.id === element.id)?.sceneSeconds);
+    if (isSceneMoving) return true;
     return lab.describeLive(nowMs).elements.some((element) => element.drawn < 1) || lab.describeLive(nowMs - 40).elements.some((element) => element.drawn < 1) || lab.describeLive(nowMs).elements.some((element) => element.revealedUpTo !== undefined && element.revealedUpTo !== lab.describeLive(nowMs - 40).elements.find((other) => other.id === element.id)?.revealedUpTo);
   };
   const observer = new MutationObserver((records) => {

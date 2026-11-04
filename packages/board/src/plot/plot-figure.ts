@@ -1,5 +1,5 @@
 import type { MarkValue, Plot, ShadeArea } from '@astra/contracts';
-import { type FigureFrame, getAttachedElements, getDrawnShare, getShownValue } from '../figure/figure-input.ts';
+import { FIGURE_LIMITS, type FigureFrame, getAttachedElements, getDrawnShare, getShownValue, keepNewestOnFigure } from '../figure/figure-input.ts';
 import { addArrow, addAxes, addLabel, addPartMark, addSoftLine, createFigureDraft, type FigureDraft, finishFigure, getFixedVectorTip } from '../figure/figure-draft.ts';
 import { type Branch, type FigureMark, interpolate, type Point } from '../figure/figure-marks.ts';
 import { createFreeView, type FigureView, getPixelBranches } from '../figure/figure-view.ts';
@@ -89,6 +89,12 @@ function addMark(draft: FigureDraft, element: BoardElement & { content: MarkValu
   if (share >= 1) addLabel(draft, { key: `label-${element.id}`, text: label ? `${label} ${computed}` : computed, anchor: point, gap: 8 });
 }
 
+function getMiddleOfCurve(root: PlotElement, { frame, view }: { frame: FigureFrame; view: FigureView }): Point {
+  const longest = getCurvePoints(root, frame, view.yRange).reduce<Branch>((best, branch) => (branch.length > best.length ? branch : best), []);
+  const middle = longest[Math.floor(longest.length / 2)];
+  return middle ? view.toPixel(middle) : { x: (view.rect.left + view.rect.right) / 2, y: (view.rect.top + view.rect.bottom) / 2 };
+}
+
 function addAttachment(draft: FigureDraft, element: BoardElement, { root, frame, view }: { root: PlotElement; frame: FigureFrame; view: FigureView }): void {
   const { board } = frame;
   const { content } = element;
@@ -97,7 +103,7 @@ function addAttachment(draft: FigureDraft, element: BoardElement, { root, frame,
   if (content.kind === 'shadeArea') addShade(draft, element as BoardElement & { content: ShadeArea }, { curve: (board.elements.get(content.target) as PlotElement | undefined) ?? root, frame, view });
   if (content.kind === 'markValue') addMark(draft, element as BoardElement & { content: MarkValue }, { curve: (board.elements.get(content.target) as PlotElement | undefined) ?? root, frame, view });
   if (content.kind === 'vector') addArrow(draft, { key: `vector-${element.id}`, from: center, to: getFixedVectorTip(center, content, frame), share: getDrawnShare(element, frame), tone: 'ink', label: content.label });
-  if (content.kind === 'annotate' && content.target.includes('.')) addPartMark(draft, { key: `note-${element.id}`, at: center, mark: content.mark, share: getDrawnShare(element, frame), label: content.label });
+  if ((content.kind === 'annotate' || content.kind === 'highlight') && content.target.includes('.')) addPartMark(draft, { key: `note-${element.id}`, at: getMiddleOfCurve(root, { frame, view }), mark: content.kind === 'annotate' ? content.mark : 'circle', share: getDrawnShare(element, frame), label: content.kind === 'annotate' ? content.label : undefined });
 }
 
 /** Axes, then curves with what hangs on them. Every number here is computed from the expression. */
@@ -110,6 +116,9 @@ export function getPlotMarks(frame: FigureFrame): FigureMark[] {
   const draft = createFigureDraft(frame.width, frame.height);
   addAxes(draft, view, { share: getAxesShare(root, frame), xLabel, yLabel });
   addCurve(draft, root, { frame, view, isFirst: true });
-  for (const element of getAttachedElements(frame.board, root.id)) addAttachment(draft, element, { root, frame, view });
+  const attached = keepNewestOnFigure(getAttachedElements(frame.board, root.id));
+  const curves = attached.filter(({ content }) => content.kind === 'plot');
+  const curvesLeftOut = new Set(curves.slice(0, -FIGURE_LIMITS.curves));
+  for (const element of attached) if (!curvesLeftOut.has(element)) addAttachment(draft, element, { root, frame, view });
   return finishFigure(draft);
 }

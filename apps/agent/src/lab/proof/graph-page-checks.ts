@@ -122,8 +122,9 @@ export function stopFigureWatch() {
   const logStart = getLab().records.log[0]?.atMs ?? 0;
   const shiftMs = logStart - liveStart;
   const differing = watch.samples.filter(({ atMs, board }) => JSON.stringify(getLab().describeReplay(atMs + shiftMs)) !== board);
-  const { samples: _samples, frameGapsMs, ...summary } = watch;
-  return { ...summary, frameGapP50: getPercentile(frameGapsMs, 0.5), frameGapP95: getPercentile(frameGapsMs, 0.95), frameGapWorst: Math.max(...frameGapsMs), framesOverBudget: frameGapsMs.filter((gap) => gap > 34).length, liveSamples: watch.samples.length, liveSamplesDifferingFromReplay: differing.length };
+  const differingExamples = differing.slice(0, 2).map(({ atMs, board }) => ({ atMs, live: board.slice(0, 600), replay: JSON.stringify(getLab().describeReplay(atMs + shiftMs)).slice(0, 600) }));
+  const { frameGapsMs, textChecks, textOverlapFrames, textOutsideFrames, notFiniteFrames, frames, ballPlaces, curveDrawings, examples } = watch;
+  return { frames, textChecks, textOverlapFrames, textOutsideFrames, notFiniteFrames, ballPlaces, curveDrawings, examples, differingExamples, frameGapP50: getPercentile(frameGapsMs, 0.5), frameGapP95: getPercentile(frameGapsMs, 0.95), frameGapWorst: Math.max(...frameGapsMs), framesOverBudget: frameGapsMs.filter((gap) => gap > 34).length, liveSamples: watch.samples.length, liveSamplesDifferingFromReplay: differing.length };
 }
 
 function getPathNumbers(data: string | null): number[] {

@@ -56,6 +56,8 @@ interface Scenario {
   resumeAfterMs?: number;
   usesStoredPhrase?: boolean;
   lesson?: LessonName;
+  /** Placing every word of many cut turns takes minutes, and these runs measure only their stops. */
+  onlyStops?: boolean;
 }
 
 interface RunContext {
@@ -202,6 +204,42 @@ async function waitForAudioSent(page: Page, turnCount: number): Promise<void> {
   await page.waitForFunction((count) => (window.sceneLab?.records.turnsSent.length ?? 0) >= count, turnCount, { timeout: 60_000 });
 }
 
+// The steps that once opened a third turn over the first and killed the agent, because stopping the queued turn freed the line.
+async function stopQueuedTurn({ page, command }: RunContext): Promise<void> {
+  await command({ type: 'play', lessonTurn: 0 });
+  await waitForFirstSoundOfNewTurn(page);
+  await delay(800);
+  await command({ type: 'play', isStockPhrase: true });
+  await delay(200);
+  await command({ type: 'interrupt' });
+  await delay(50);
+  await command({ type: 'play', isStockPhrase: true });
+  await waitForAudioSent(page, 3);
+  await delay(1500);
+}
+
+/** Aimed around a phrase start in Chris's stored take, where a word in the old audio is likeliest to arrive after its stop. */
+const AIMED_STOPS_MS = [650, 700, 750, 800, 850, 900, 950, 1000, 1050, 1100, 650, 700, 750, 800, 850, 900, 950, 1000, 1050, 1100];
+
+async function stopNearPhraseStarts({ page, command }: RunContext): Promise<void> {
+  await command({ type: 'play', lessonTurn: 0 });
+  for (const afterMs of AIMED_STOPS_MS) {
+    await page.waitForFunction(() => {
+      const records = window.sceneLab?.records;
+      const lastTurn = records?.agentMessages.filter((message) => message.type === 'turnStarted').at(-1);
+      return lastTurn !== undefined && records?.probe.some((event) => event.where === 'arriving' && event.kind === 'onset' && event.atMs >= lastTurn.atMs);
+    }, undefined, { timeout: 15_000 });
+    await delay(afterMs);
+    await command({ type: 'interrupt' });
+    await delay(30);
+    await command({ type: 'play', lessonTurn: 0 });
+    await delay(1000);
+  }
+  await delay(1500);
+  await command({ type: 'interrupt' });
+  await delay(1200);
+}
+
 const WORDS_LATE_MS = 300;
 
 const SCENARIOS: Record<string, Scenario> = {
@@ -239,6 +277,11 @@ const SCENARIOS: Record<string, Scenario> = {
   'next-on-finished-poor': { drive: playNextTurnOnFinished, network: NETWORKS.poor },
   'after-stop': { drive: resumeRightAfterStop },
   'after-stop-poor': { drive: resumeRightAfterStop, network: NETWORKS.poor },
+  'stop-queued': { drive: stopQueuedTurn },
+  'stop-queued-poor': { drive: stopQueuedTurn, network: NETWORKS.poor },
+  'stop-near-phrase': { drive: stopNearPhraseStarts, onlyStops: true },
+  'stop-near-phrase-uneven': { drive: stopNearPhraseStarts, network: NETWORKS.uneven, onlyStops: true },
+  'stop-near-phrase-poor': { drive: stopNearPhraseStarts, network: NETWORKS.poor, onlyStops: true },
   'interrupt-stock': { drive: interruptStockPhrase },
   interrupt: { drive: interruptFiveTimes },
   'interrupt-tight': { drive: interruptFiveTimes, resumeAfterMs: 30 },
@@ -346,7 +389,7 @@ async function runScenario(name: string, scenario: Scenario, browser: Browser, r
     const log = lab.records.log;
     const operations = lab.player.getOperations();
     const liveStart = operations.find((operation) => operation.kind === 'beatStarted')?.atMs ?? 0;
-    const logStart = (log[0] as { atMs: number } | undefined)?.atMs ?? 0;
+    const logStart = (log.find((event) => (event as { playedWords?: number }).playedWords) as { atMs: number } | undefined)?.atMs ?? 0;
     const shiftMs = logStart - liveStart;
     const liveEnd = operations.at(-1)?.atMs ?? liveStart;
     const samples = [];
@@ -363,7 +406,7 @@ async function runScenario(name: string, scenario: Scenario, browser: Browser, r
   if (!args.fake && !args.say && !args.stored && !scenario.usesStoredPhrase) noteCredits(getCharactersSent(folder));
   await context.close();
   relay?.close();
-  const summary = summariseRun(folder, { name, network: scenario.network ?? null, throttle: scenario.throttle ?? 1, phone: scenario.phone ?? false });
+  const summary = summariseRun(folder, { name, network: scenario.network ?? null, throttle: scenario.throttle ?? 1, phone: scenario.phone ?? false, onlyStops: scenario.onlyStops ?? false });
   writeFileSync(join(folder, 'summary.json'), `${JSON.stringify(summary, null, 1)}\n`);
   console.log(JSON.stringify({ run: runLabel, ...summary.brief }));
   return summary;

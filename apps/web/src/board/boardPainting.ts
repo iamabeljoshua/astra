@@ -11,6 +11,7 @@ export interface BoardFrame {
   board: BoardState;
   atMs: number;
   isReducedMotion: boolean;
+  canMoveSliders: boolean;
 }
 
 export interface BoardPaintingOptions extends SliderHandlers {
@@ -101,19 +102,19 @@ export function createBoardPainting({ boardElement, overlay, getWrapper, onMathR
     if (!entry || !wrapper) return;
     if (placement) applyPlacement(wrapper, placement, { itemOpacity: entry.item.getEntranceOpacity?.(context) ?? 1, scale: entry.item.drawsToSize ? 1 : placement.scale });
     else writeStyle(wrapper, 'visibility', 'hidden');
-    const placedContext = { ...context, placedSize: placement ? { width: placement.width, height: placement.height } : null };
+    const placedContext = { ...context, placedSize: placement?.isVisible ? { width: placement.width, height: placement.height } : null };
     entry.item.paint(isMakingRoom && !context.isReducedMotion ? { ...placedContext, progress: getProgressAfterRoom(context) } : placedContext);
   };
 
   return {
-    paint({ board, atMs, isReducedMotion }: BoardFrame) {
+    paint({ board, atMs, isReducedMotion, canMoveSliders }: BoardFrame) {
       const elements = [...board.elements.values()];
       const placed = getPlacingOrder(elements.filter((element) => hasOwnPlace(element.content) && getWrapper(element.id)));
       syncItems(placed);
       const area = getArea(boardElement);
       const fontSize = Number.parseFloat(getComputedStyle(boardElement).fontSize) || 16;
       const maxWidth = Math.max(0, area.width - 2 * area.padding);
-      const contexts = placed.map((element): ItemContext => ({ element, board, atMs, placedSize: null, progress: getMotionValue(element.entrance, atMs), maxWidth, fontSize, isReducedMotion }));
+      const contexts = placed.map((element): ItemContext => ({ element, board, atMs, placedSize: null, canMoveSliders, progress: getMotionValue(element.entrance, atMs), maxWidth, fontSize, isReducedMotion }));
       const { placements, isMakingRoom } = placeMovingElements(prepareBoxes(contexts), area, getSharedProgress(contexts, isReducedMotion));
       const placementsById = new Map(placements.map((placement) => [placement.id, placement]));
       for (const context of contexts) paintItem(context, placementsById.get(context.element.id), isMakingRoom);

@@ -4,7 +4,7 @@ import type { PropsWithChildren } from 'react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createQueryClient } from '../api/queryClient';
-import { ACCOUNT_LABELS, API_ERROR_LABELS, BIRTH_DATE_LABELS, ONBOARDING_LABELS, PRODUCT_NAME, SIGN_IN_LABELS, TUTOR_NOTES_LABELS } from '../strings';
+import { ACCOUNT_LABELS, API_ERROR_LABELS, BIRTH_DATE_LABELS, ONBOARDING_LABELS, PRODUCT_NAME, SIGN_IN_LABELS } from '../strings';
 import { renderWithQueryClient } from '../test/renderWithQueryClient';
 import { AccountGate } from './AccountGate';
 import { useAuth } from './AuthProvider';
@@ -37,9 +37,9 @@ vi.mock('./session', () => ({
 }));
 
 async function reachBirthDateQuestion() {
-  fireEvent.change(await screen.findByLabelText(ONBOARDING_LABELS.namePlaceholder), { target: { value: 'Maya' } });
+  fireEvent.change(await screen.findByLabelText(ONBOARDING_LABELS.nameLabel), { target: { value: 'Maya' } });
   fireEvent.click(screen.getByRole('button', { name: ONBOARDING_LABELS.next }));
-  await screen.findByRole('heading', { name: BIRTH_DATE_LABELS.question });
+  await screen.findByRole('heading', { name: BIRTH_DATE_LABELS.questionFor('Maya') });
 }
 
 function setSignIn(status: 'loading' | 'signedOut' | 'signedIn' | 'authUnreachable') {
@@ -139,6 +139,28 @@ describe('AccountGate', () => {
 
     expect(container.textContent).toBe(PRODUCT_NAME);
     expect(fetchStub).not.toHaveBeenCalled();
+  });
+
+  it('keeps the chart up while the account loads right after sign-in, with no blank page between dot pages', () => {
+    setSignIn('signedOut');
+    vi.stubGlobal('fetch', () => new Promise(() => undefined));
+    const { rerender } = renderWithQueryClient(<GateWithDraft />);
+    screen.getByText(SIGN_IN_LABELS.tagline);
+
+    setSignIn('signedIn');
+    rerender(<GateWithDraft />);
+
+    screen.getByText(SIGN_IN_LABELS.tagline);
+    expect(screen.queryByRole('button', { name: SIGN_IN_LABELS.sendCode })).toBeNull();
+  });
+
+  it('shows only the product name while the account loads on a reload, so Home does not flash a chart', () => {
+    setSignIn('signedIn');
+    vi.stubGlobal('fetch', () => new Promise(() => undefined));
+
+    const { container } = renderGate();
+
+    expect(container.textContent).toBe(PRODUCT_NAME);
   });
 
   it('shows the sign-in page, and calls no API, when nobody is signed in', () => {
@@ -766,7 +788,7 @@ describe('AccountGate', () => {
 
     await reachBirthDateQuestion();
 
-    expect(screen.queryByText(TUTOR_NOTES_LABELS.footer)).toBeNull();
+    expect(screen.queryByText(ONBOARDING_LABELS.changeLater)).toBeNull();
   });
 
   it('says everyone is asked the date of birth, and claims no use of it after the gate', async () => {
@@ -787,7 +809,7 @@ describe('AccountGate', () => {
 
     await screen.findByRole('heading', { level: 1 });
 
-    expect(screen.queryByText(TUTOR_NOTES_LABELS.footer)).toBeNull();
+    expect(screen.queryByText(ONBOARDING_LABELS.changeLater)).toBeNull();
   });
 
   it('shows a returning student the error page, not the new-student welcome, when Auth cannot renew their session', () => {

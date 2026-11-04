@@ -46,7 +46,7 @@ export function BoardView({ board, atMs, onElementDrawn, onMathRefused, onSlider
     sliderReleaseListener.current = onSliderRelease;
     if (!boardRef.current || !overlayRef.current) return;
     painting.current ??= createBoardPainting({ boardElement: boardRef.current, overlay: overlayRef.current, getWrapper: (id) => wrappers.current.get(id), onMathRefused: (tex) => refusalListener.current?.(tex), onSliderMove: (move) => sliderMoveListener.current?.(move), onSliderRelease: () => sliderReleaseListener.current?.() });
-    painting.current.paint({ board, atMs, isReducedMotion });
+    painting.current.paint({ board, atMs, isReducedMotion, canMoveSliders: onSliderMove !== undefined });
     for (const id of board.elements.keys()) {
       if (!seen.current.has(id)) {
         seen.current.add(id);

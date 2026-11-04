@@ -1,5 +1,5 @@
 import type { Construct, Geometry, GeometryStep } from '@astra/contracts';
-import { type FigureFrame, getAttachedElements, getDrawnShare } from '../figure/figure-input.ts';
+import { type FigureFrame, getAttachedElements, getDrawnShare, keepNewestOnFigure } from '../figure/figure-input.ts';
 import { addArrow, addLabel, addPartMark, addSoftLine, clipToRect, createFigureDraft, type FigureDraft, finishFigure, getFixedVectorTip } from '../figure/figure-draft.ts';
 import { type Branch, type FigureMark, getDistance, getLeadingShare, type Point } from '../figure/figure-marks.ts';
 import { createEqualView, type FigureView } from '../figure/figure-view.ts';
@@ -80,9 +80,9 @@ function addOnFigure(draft: FigureDraft, element: BoardElement, { points, view, 
     const from = getPartPixel(content.on, { points, view });
     if (from) addArrow(draft, { key: `vector-${element.id}`, from, to: getFixedVectorTip(from, content, frame), share, tone: 'ink', label: content.label });
   }
-  if (content.kind === 'annotate' && content.target.includes('.')) {
+  if ((content.kind === 'annotate' || content.kind === 'highlight') && content.target.includes('.')) {
     const at = getPartPixel(content.target, { points, view });
-    if (at) addPartMark(draft, { key: `note-${element.id}`, at, mark: content.mark, share, label: content.label });
+    if (at) addPartMark(draft, { key: `note-${element.id}`, at, mark: content.kind === 'annotate' ? content.mark : 'circle', share, label: content.kind === 'annotate' ? content.label : undefined });
   }
 }
 
@@ -95,7 +95,7 @@ export function getGeometryMarks(frame: FigureFrame): FigureMark[] {
   const attached = getAttachedElements(board, element.id);
   const steps = attached.filter((attachment): attachment is StepElement => attachment.content.kind === 'construct');
   const points = getPointsBefore(steps);
-  for (const step of steps) addStep(draft, step, { points, view, frame });
-  for (const attachment of attached) addOnFigure(draft, attachment, { points, view, frame });
+  for (const step of keepNewestOnFigure(steps)) addStep(draft, step, { points, view, frame });
+  for (const attachment of keepNewestOnFigure(attached)) addOnFigure(draft, attachment, { points, view, frame });
   return finishFigure(draft);
 }

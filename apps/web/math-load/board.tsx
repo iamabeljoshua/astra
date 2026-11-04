@@ -48,6 +48,8 @@ const FLIGHT: BoardOperation[] = [
   { kind: 'command', atMs: 0, overMs: null, command: { kind: 'slider', id: 'speed' as never, target: 'shot' as never, parameter: 'horizontalSpeed', min: 0, max: 10 } },
   { kind: 'command', atMs: 500, overMs: null, command: { kind: 'runSimulation', target: 'shot' as never, action: 'play' } },
 ];
+const DRAG_SAMPLES = 6000;
+const LONG_DRAG: BoardOperation[] = [...FLIGHT, ...Array.from({ length: DRAG_SAMPLES }, (_, index): BoardOperation => ({ kind: 'parameterSample', atMs: 1000 + index * 16, target: 'shot' as never, parameter: 'horizontalSpeed', value: 1 + (index % 800) / 100 }))];
 const FIGURE_WIDTH = 712;
 const FIGURE_HEIGHT = 512;
 
@@ -67,6 +69,7 @@ export function measureFigures(): Record<string, number[]> {
     curveAtNewConstant: time((run) => getMarks([...FIRST_PLOT, { kind: 'parameterSample', atMs: 1, target: 'first' as never, parameter: 'a', value: 0.5 + run * 0.05 }], 'first', 9000)),
     curveAtRest: time(() => getMarks(FIRST_PLOT, 'first', 9000)),
     hardestCurve: time(() => sampleWorstCurve()),
+    flightFrameAfterLongDrag: time((run) => getMarks(LONG_DRAG, 'shot', 200_000 + run * 20)),
   };
 }
 

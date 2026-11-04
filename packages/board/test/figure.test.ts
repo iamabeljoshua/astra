@@ -300,3 +300,42 @@ describe('a simulation on the board', () => {
     expect(text).toBe('Height 2 m');
   });
 });
+
+describe('how much a model can put on one figure', () => {
+  const countOf = (marks: readonly FigureMark[]) => marks.length;
+
+  it('keeps the newest marks when a plot is given far too many, and stays clear', () => {
+    const many = Array.from({ length: 400 }, (_, index) => place({ kind: 'markValue', id: `m${index}`, target: 'busy', at: (index % 100) / 10 - 5, label: `mark ${index}` }));
+    const marks = getMarks([place(BUSY_PLOT), ...many], 'busy');
+    expect(marks.find((mark) => mark.key === 'mark-m399')).toBeDefined();
+    expect(marks.find((mark) => mark.key === 'mark-m0')).toBeUndefined();
+    expect(countOf(marks)).toBeLessThan(220);
+    expect(getOverlappingText(marks)).toEqual([]);
+  });
+
+  it('draws at most eight curves on one set of axes, the newest', () => {
+    const curves = Array.from({ length: 30 }, (_, index) => place({ kind: 'plot', id: `c${index}`, over: 'first', expression: 'x', domain: [0, 1] }));
+    const marks = getMarks([place({ kind: 'plot', id: 'first', expression: 'x', domain: [0, 1] }), ...curves], 'first');
+    expect(marks.filter((mark) => mark.key.startsWith('curve-')).length).toBe(9);
+    expect(marks.find((mark) => mark.key === 'curve-c29')).toBeDefined();
+  });
+
+  it('still finds points a geometry step names, past the bound on what it draws', () => {
+    const points = Array.from({ length: 200 }, (_, index) => place({ kind: 'construct', id: `p${index}`, target: 'g', step: { shape: 'point', name: `n${index}`, x: 1, y: 1 } }));
+    const marks = getMarks([place({ kind: 'geometry', id: 'g', xRange: [0, 4], yRange: [0, 4] }), ...points, place({ kind: 'construct', id: 's', target: 'g', step: { shape: 'segment', from: 'n0', to: 'n199' } })], 'g');
+    expect(marks.find((mark) => mark.key === 'segment-s')).toBeDefined();
+  });
+
+  it('never lets readouts push the motion off its figure', () => {
+    const readouts = Array.from({ length: 60 }, (_, index) => place({ kind: 'readout', id: `r${index}`, target: 'shot', quantity: 'height', label: 'x'.repeat(80) }));
+    const shot = place({ kind: 'simulate', id: 'shot', simulation: { model: 'projectile', parameters: { horizontalSpeed: 4, upwardSpeed: 6, releaseHeight: 2, gravity: 9.8 } } });
+    for (const size of SIZES) {
+      const marks = getMarks([shot, ...readouts], 'shot', size);
+      const ball = marks.find((mark) => mark.key === 'ball') as FigureMark & { kind: 'dot' };
+      expect(ball.at.y).toBeGreaterThan(0);
+      expect(ball.at.y).toBeLessThan(size.height);
+      expect(JSON.stringify(marks)).not.toMatch(/null|NaN|Infinity/);
+      expect(getText(marks).find((mark) => mark.key === 'readout-r59')).toBeDefined();
+    }
+  });
+});

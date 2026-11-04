@@ -18,7 +18,7 @@ const FREEZE_INTO_FLIGHT_MS = 700;
 
 interface LabLog {
   player: { finishSliderDrag(): void };
-  records: { log: { kind: string; frozen?: unknown[] }[] };
+  records: { log: { kind: string; ending?: string; frozen?: unknown[] }[] };
 }
 
 
@@ -176,7 +176,8 @@ async function proveFreeze(browser: Browser, run: LessonRun) {
   const first = await shoot(lab, 'frozen-first');
   const writes = await lab.page.evaluate((ms) => window.pageChecks.countWritesOver(ms), 1500);
   const later = await shoot(lab, 'frozen-later');
-  const report = await lab.page.evaluate(() => (window.sceneLab as unknown as LabLog).records.log.filter((event) => event.kind === 'beatPlayed').at(-1));
+  await lab.page.waitForFunction(() => (window.sceneLab as unknown as LabLog).records.log.some((event) => event.ending === 'interrupted'), undefined, { timeout: 10_000 });
+  const report = await lab.page.evaluate(() => (window.sceneLab as unknown as LabLog).records.log.find((event) => event.ending === 'interrupted'));
   await lab.command({ type: 'resume' });
   await lab.page.waitForFunction(() => (window.sceneLab?.records.turnsSent.length ?? 0) >= 2, undefined, { timeout: 60_000 });
   await delay(1500);

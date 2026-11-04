@@ -48,7 +48,7 @@ export function createSliderItem(wrapper: HTMLElement, content: Slider, { onSlid
     },
     paint(context) {
       const value = getValue(content, context);
-      input.disabled = onSliderMove === undefined;
+      input.disabled = !context.canMoveSliders;
       if (value === undefined) return;
       const shown = `${value.toFixed(getDecimals(step))}${/^[a-z]/i.test(words.unit) ? ' ' : ''}${words.unit}`;
       if (output.textContent !== shown) output.textContent = shown;

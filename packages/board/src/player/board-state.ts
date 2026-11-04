@@ -170,7 +170,7 @@ function getCapturedScene(board: BoardDraft, command: PlacingCommand): Scene | n
 }
 
 function getCapturedSeconds(board: BoardDraft, command: PlacingCommand, atMs: number): number | null {
-  if (command.kind !== 'annotate') return null;
+  if (command.kind !== 'annotate' && command.kind !== 'highlight') return null;
   const playhead = board.elements.get(command.target.split('.')[0] as ElementId)?.placedScene?.playhead;
   return playhead ? getMotionValue(playhead, atMs) : null;
 }
@@ -345,11 +345,16 @@ function applyOperation(board: BoardDraft, operation: BoardOperation, { operatio
   }
 }
 
+// A drag leaves hundreds of samples, and each only matters until the next, so a frame after a long drag costs no more than one before it.
+function isReplacedByNext(operation: BoardOperation, next: BoardOperation | undefined, atMs: number): boolean {
+  return operation.kind === 'parameterSample' && next?.kind === 'parameterSample' && next.atMs <= atMs && next.target === operation.target && next.parameter === operation.parameter;
+}
+
 function reduce(operations: readonly BoardOperation[], context: ReduceContext, atMs: number): BoardDraft {
   const board: BoardDraft = { elements: new Map(), focus: null, isFrozen: false, pendingMoves: new Map() };
-  for (const operation of operations) {
+  for (const [index, operation] of operations.entries()) {
     if (operation.atMs > atMs) break;
-    applyOperation(board, operation, context);
+    if (!isReplacedByNext(operation, operations[index + 1], atMs)) applyOperation(board, operation, context);
   }
   startPendingMoves(board, atMs);
   return board;

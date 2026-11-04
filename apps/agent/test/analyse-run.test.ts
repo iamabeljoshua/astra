@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FAKE_WORD_MS, renderTone } from '../src/providers/fakes.ts';
-import { findAudibleStartMs, findToneBursts, findWordOnsetsAfterSilence, findWordPlaces, getPercentiles } from '../src/lab/proof/analyse-run.ts';
+import { findAudibleStartMs, findFirstSoundAmongOnsets, findToneBursts, findWordOnsetsAfterSilence, findWordPlaces, getPercentiles } from '../src/lab/proof/analyse-run.ts';
 
 const SENT_RATE = 22050;
 const HEARD_RATE = 24000;
@@ -29,6 +29,17 @@ describe('the proof tool', () => {
     const [first, second] = findWordPlaces({ sentPcm, sentRate: SENT_RATE, heardPcm, heardRate: HEARD_RATE, heardStartGraphMs: 1000, firstSoundGraphMs: 1000 + lagMs }, [100, 800]);
     expect(Math.abs((first?.heardAtMs as number) - (1000 + lagMs + 100))).toBeLessThanOrEqual(1);
     expect(Math.abs((second?.heardAtMs as number) - (1000 + lagMs + 800))).toBeLessThanOrEqual(1);
+  });
+
+  it('tells a turn\'s first sound from a word of old audio before it, so a stop row does not take the clock\'s word for it', () => {
+    const toSample = (ms: number) => Math.round((ms / 1000) * SENT_RATE);
+    const sentPcm = makeSpeechLike(400, SENT_RATE, 7);
+    const shifted = new Int16Array(toSample(1000));
+    shifted.set(makeSpeechLike(60, SENT_RATE, 99), toSample(100));
+    shifted.set(sentPcm, toSample(400));
+    const turnAudio = { sentPcm, sentRate: SENT_RATE, heardPcm: resampleNearest(shifted, SENT_RATE, HEARD_RATE), heardRate: HEARD_RATE, heardStartGraphMs: 1000 };
+    expect(findFirstSoundAmongOnsets(turnAudio, [1100, 1400])).toBe(1400);
+    expect(findFirstSoundAmongOnsets(turnAudio, [1100])).toBeNull();
   });
 
   it('leaves out a word whose audio never arrived, rather than guessing', () => {

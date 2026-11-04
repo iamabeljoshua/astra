@@ -6,6 +6,7 @@ import { getBoardAt, describeBoard, getReshapedValues, getSceneFrame, type Board
 import { createScenePlayer } from '../src/player/scene-player.ts';
 import { rebuildBoard } from '../src/player/rebuild-board.ts';
 import { parseSessionEvent } from '@astra/contracts';
+import { createProjectileScene } from '../src/motion/projectile-scene.ts';
 
 const place = (command: object, atMs = 0, overMs: number | null = null): BoardOperation => ({ kind: 'command', atMs, overMs, command: command as never });
 
@@ -184,4 +185,19 @@ describe('a slider drag', () => {
   function createLiveWithShot(player: ReturnType<typeof createScenePlayer>) {
     return (atMs: number) => getBoardAt([place(SHOT), ...player.getOperations()], atMs);
   }
+});
+
+describe('a long drag', () => {
+  it('gives the same board as applying every sample, and asks for the scene only for what counts', () => {
+    const samples = Array.from({ length: 500 }, (_, index): BoardOperation => ({ kind: 'parameterSample', atMs: 1000 + index * 16, target: 'shot' as never, parameter: 'horizontalSpeed', value: 1 + index / 100 }));
+    let scenes = 0;
+    const catalog = (command: { kind: string }, changes: Record<string, number>) => {
+      scenes += 1;
+      return command.kind === 'simulate' ? createProjectileScene({ horizontalSpeed: 4, upwardSpeed: 6, releaseHeight: 2, gravity: 9.8, ...changes }) : null;
+    };
+    const atMs = 1000 + 250 * 16 + 5;
+    const board = getBoardAt([place(SHOT), ...samples], atMs, catalog as never);
+    expect((board.elements.get('shot' as never) as BoardElement).placedScene?.scene.values?.horizontalSpeed).toBeCloseTo(1 + 250 / 100, 9);
+    expect(scenes).toBeLessThan(5);
+  });
 });

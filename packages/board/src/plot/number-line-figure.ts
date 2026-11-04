@@ -1,5 +1,5 @@
 import type { MarkValue, NumberLine } from '@astra/contracts';
-import { type FigureFrame, getAttachedElements, getDrawnShare } from '../figure/figure-input.ts';
+import { type FigureFrame, getAttachedElements, getDrawnShare, keepNewestOnFigure } from '../figure/figure-input.ts';
 import { addLabel, createFigureDraft, type FigureDraft, finishFigure } from '../figure/figure-draft.ts';
 import { type FigureMark, getLeadingShare, type Point } from '../figure/figure-marks.ts';
 import type { BoardElement } from '../player/board-state.ts';
@@ -32,7 +32,7 @@ export function getNumberLineMarks(frame: FigureFrame): FigureMark[] {
   draft.marks.push({ kind: 'path', key: 'x-ticks', tone: 'ink-2', weight: 'hair', branches: share < 1 ? [] : ticks.map((value) => [{ x: toX(value), y: LINE.y - LINE.tickLength }, { x: toX(value), y: LINE.y + LINE.tickLength }]) });
   if (share >= 1) for (const value of ticks) draft.ticks.push({ key: `tick-x-${value}`, text: formatTick(value, domain, tickCount), anchor: { x: toX(value), y: LINE.y + LINE.tickLength }, gap: 2, sides: ['below'], tone: 'ink-2', isOptional: true, isFixed: true });
   const toPoint = (at: number) => ({ x: toX(at), y: LINE.y });
-  for (const mark of getAttachedElements(frame.board, element.id)) {
+  for (const mark of keepNewestOnFigure(getAttachedElements(frame.board, element.id))) {
     if (mark.content.kind === 'markValue' && mark.content.at >= domain[0] && mark.content.at <= domain[1]) addValueMark(draft, mark as BoardElement & { content: MarkValue }, { at: toPoint(mark.content.at), frame });
   }
   return finishFigure(draft);

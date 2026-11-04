@@ -9,7 +9,7 @@ import { getBoardAt } from '../src/player/board-state.ts';
 const WORD = { label: 'Q', unit: 'u' };
 const WORDS = { metres: 'm', degrees: 'd', readouts: new Proxy({}, { get: () => WORD }), parameters: new Proxy({}, { get: () => WORD }) } as FigureWords;
 const TOKENS = ['x', 'x', '1', '2', '0', '0.5', '999', 'pi', 'e', '+', '-', '*', '/', '^', '(', ')', 'sin(', 'cos(', 'tan(', 'exp(', 'ln(', 'log(', 'sqrt(', 'abs('];
-const CASES = 400;
+const CASES = 2000;
 const SIZES = [{ width: 712, height: 512 }, { width: 200, height: 144 }];
 
 function getRandomExpression(random: () => number): string {
@@ -52,6 +52,6 @@ describe('plots from random input', () => {
         expect(JSON.stringify(marks), parsed.value.kind === 'plot' ? parsed.value.expression : '').not.toMatch(/null|NaN|Infinity/);
       }
     }
-    expect(drawn).toBeGreaterThan(50);
+    expect(drawn).toBeGreaterThan(100);
   });
 });

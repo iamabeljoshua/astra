@@ -199,6 +199,146 @@ describe('a new turn', () => {
     expect(Math.round(firedForNext(audio)[0]?.positionMs as number)).toBeLessThan(10);
   });
 
+  it('takes no word in the old audio as a first sound, even when turnStarted beat that word to the browser', () => {
+    const audio = createFakeAudio();
+    audio.receive(started, cue(0), words(), beatClosed());
+    audio.startSound();
+    audio.advance(300);
+    audio.endSound();
+    audio.advance(50);
+    audio.receive(stop);
+    audio.advance(20);
+    startNext(audio, 0);
+    audio.advance(40);
+    audio.startSound();
+    audio.advance(20);
+    expect(firedForNext(audio)).toEqual([]);
+    audio.quiet();
+    audio.advance(107);
+    audio.clock.onProbeEvent({ kind: 'end', atMs: audio.getNowMs() });
+    audio.advance(150);
+    audio.startSound();
+    audio.advance(8);
+    expect(Math.round(firedForNext(audio)[0]?.positionMs as number)).toBeLessThan(10);
+  });
+
+  it('counts a first sound right after a turn that never sounded, because no old audio can be on its way', () => {
+    const audio = createFakeAudio();
+    audio.receive(started, beatClosed());
+    audio.advance(400);
+    audio.receive(stop);
+    startNext(audio, 0);
+    audio.advance(30);
+    audio.startSound();
+    audio.advance(8);
+    expect(Math.round(firedForNext(audio)[0]?.positionMs as number)).toBeLessThan(10);
+  });
+
+  it('keeps the guard for a turn stopped on its first frames, when word times say its sound is on the way', () => {
+    const audio = createFakeAudio();
+    audio.receive(started, words(), beatClosed());
+    audio.advance(10);
+    audio.receive(stop);
+    audio.advance(30);
+    audio.startSound();
+    startNext(audio, 0);
+    audio.advance(20);
+    audio.endSound();
+    audio.advance(150);
+    expect(firedForNext(audio)).toEqual([]);
+    audio.startSound();
+    audio.advance(8);
+    expect(Math.round(firedForNext(audio)[0]?.positionMs as number)).toBeLessThan(10);
+  });
+
+  describe('a short word of old audio past the 110 ms', () => {
+    const LEEWAY_MS = 6;
+    const stopThenStartNext = () => {
+      const audio = createFakeAudio();
+      audio.receive(started, cue(0), words(), beatClosed());
+      audio.startSound();
+      audio.advance(300);
+      audio.endSound();
+      audio.advance(50);
+      audio.receive(stop);
+      startNext(audio, 2);
+      return audio;
+    };
+    const playSound = (audio: FakeAudio, ms: number) => {
+      audio.startSound();
+      audio.advance(ms);
+      audio.quiet();
+      const lastAudibleAtMs = audio.getNowMs();
+      audio.advance(107);
+      audio.clock.onProbeEvent({ kind: 'end', atMs: lastAudibleAtMs });
+    };
+
+    it('stops counting as the first sound once it ends, so the turn runs from its real one', () => {
+      const audio = stopThenStartNext();
+      audio.advance(160);
+      playSound(audio, 90);
+      audio.advance(40);
+      audio.startSound();
+      const firstSoundAtMs = audio.getNowMs();
+      audio.advance(600);
+      expect(Math.abs((firedForNext(audio)[0]?.firedAtMs as number) - firstSoundAtMs - 500)).toBeLessThan(LEEWAY_MS);
+    });
+
+    it('is not taken as the first sound either when both arrive before the turn\'s message', () => {
+      const audio = createFakeAudio();
+      audio.receive(started, cue(0), words(), beatClosed());
+      audio.startSound();
+      audio.advance(300);
+      audio.endSound();
+      audio.advance(50);
+      audio.receive(stop);
+      audio.advance(160);
+      playSound(audio, 90);
+      audio.advance(40);
+      audio.startSound();
+      const firstSoundAtMs = audio.getNowMs();
+      audio.advance(30);
+      startNext(audio, 2);
+      audio.advance(570);
+      expect(Math.abs((firedForNext(audio)[0]?.firedAtMs as number) - firstSoundAtMs - 500)).toBeLessThan(LEEWAY_MS);
+    });
+
+    it('still lets a turn with no other sound start by the limit, so it cannot leave the turn deaf', () => {
+      const audio = stopThenStartNext();
+      audio.advance(160);
+      playSound(audio, 90);
+      audio.advance(3000);
+      expect(firedForNext(audio)).toHaveLength(1);
+    });
+
+    it('keeps a first sound long enough to be a word, with a pause after it', () => {
+      const audio = stopThenStartNext();
+      audio.advance(160);
+      const firstSoundAtMs = audio.getNowMs();
+      playSound(audio, 260);
+      audio.advance(40);
+      audio.startSound();
+      audio.advance(400);
+      expect(Math.abs((firedForNext(audio)[0]?.firedAtMs as number) - firstSoundAtMs - 500)).toBeLessThan(LEEWAY_MS);
+    });
+
+    it('keeps a short first sound when no stop came before it', () => {
+      const audio = createFakeAudio();
+      audio.receive(started, words(), beatClosed());
+      audio.startSound();
+      audio.advance(600);
+      audio.endSound();
+      audio.advance(150);
+      startNext(audio, 2);
+      const firstSoundAtMs = audio.getNowMs();
+      playSound(audio, 90);
+      audio.advance(40);
+      audio.startSound();
+      audio.advance(400);
+      expect(Math.abs((firedForNext(audio)[0]?.firedAtMs as number) - firstSoundAtMs - 500)).toBeLessThan(LEEWAY_MS);
+    });
+  });
+
   it('does not count from the last turn\'s first sound when it starts right after that turn ended', () => {
     const audio = createFakeAudio();
     audio.receive(started, cue(0), words(), beatClosed());
@@ -322,6 +462,80 @@ describe('a stop', () => {
     expect(audio.levels.at(-1)).toBe('silent');
     audio.receive({ type: 'turnStarted', turnId: turnId('turn-2') });
     expect(audio.levels.at(-1)).toBe('full');
+  });
+
+  describe('the unmute after it', () => {
+    const NEXT: AgentMessage = { type: 'turnStarted', turnId: turnId('turn-2') };
+    const stopWhileSounding = () => {
+      const audio = createFakeAudio();
+      audio.receive(started, words(), beatClosed());
+      audio.startSound();
+      audio.advance(100);
+      audio.receive(stop);
+      return audio;
+    };
+
+    it('waits for the old audio to end when turnStarted lands while it still sounds', () => {
+      const audio = stopWhileSounding();
+      audio.advance(160);
+      audio.receive(NEXT);
+      audio.advance(40);
+      expect(audio.levels.at(-1)).toBe('silent');
+      audio.quiet();
+      audio.advance(107);
+      audio.clock.onProbeEvent({ kind: 'end', atMs: audio.getNowMs() });
+      audio.advance(4);
+      expect(audio.levels.at(-1)).toBe('full');
+    });
+
+    it('waits out the window when turnStarted beats the old audio, and holds on for a word that starts inside it', () => {
+      const audio = stopWhileSounding();
+      audio.endSound();
+      audio.advance(40);
+      audio.receive(NEXT);
+      audio.advance(40);
+      expect(audio.levels.at(-1)).toBe('silent');
+      audio.startSound();
+      audio.advance(60);
+      expect(audio.levels.at(-1)).toBe('silent');
+      audio.endSound();
+      audio.advance(4);
+      expect(audio.levels.at(-1)).toBe('full');
+    });
+
+    it('opens at once on a sound the clock took as the new turn, which is not old audio', () => {
+      const audio = stopWhileSounding();
+      audio.endSound();
+      audio.advance(200);
+      audio.startSound();
+      audio.advance(50);
+      audio.receive(NEXT);
+      expect(audio.levels.at(-1)).toBe('full');
+    });
+
+    it('opens within the limit when old and new audio merge with no end, so a turn is never left mute', () => {
+      const audio = stopWhileSounding();
+      audio.advance(160);
+      audio.receive(NEXT);
+      audio.advance(600);
+      expect(audio.levels.at(-1)).toBe('full');
+    });
+
+    it('stays shut if the new turn is stopped too, and a yield while it waits takes effect when it opens', () => {
+      const audio = stopWhileSounding();
+      audio.advance(160);
+      audio.receive(NEXT, { type: 'yield', turnId: turnId('turn-2'), isYielding: true });
+      audio.endSound();
+      audio.advance(4);
+      expect(audio.levels.at(-1)).toBe('lowered');
+
+      const stoppedAgain = stopWhileSounding();
+      stoppedAgain.advance(160);
+      stoppedAgain.receive(NEXT, { type: 'stop', turnId: turnId('turn-2') });
+      stoppedAgain.endSound();
+      stoppedAgain.advance(600);
+      expect(stoppedAgain.levels.at(-1)).toBe('silent');
+    });
   });
 
   it('counts only words heard, so a stop during a stall reports no word past the stall', () => {

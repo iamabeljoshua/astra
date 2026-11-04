@@ -53,7 +53,7 @@ function ProfileForm({ student }: { student: Student }) {
       {problem && <p role="alert" className="stop-note">{problem}</p>}
       <div className="flex items-center gap-3">
         <button type="submit" aria-disabled={saveProfile.isPending} className="button button-solid">{PROFILE_LABELS.save}</button>
-        <p role="status" className="text-fine text-ink-2">{saveProfile.isSuccess && PROFILE_LABELS.saved}</p>
+        <p role="status" className="text-fine text-ink-2">{saveProfile.isPending && PROFILE_LABELS.saving}{saveProfile.isSuccess && PROFILE_LABELS.saved}</p>
       </div>
     </form>
   );

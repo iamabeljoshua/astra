@@ -72,6 +72,9 @@ const SILENT_WORD_LIMIT_MS = 1000;
 const SMALLEST_REAIM_MS = 10;
 const MOST_CUE_PACES = 120;
 
+// Rounds up, so nothing is ever logged as happening before a frame the student saw without it.
+const getMsSince = (startedAtMs: number, nowMs: number) => Math.max(0, Math.ceil(nowMs - startedAtMs));
+
 const isStarted = (beat: PlayingBeat): beat is StartedBeat => beat.startedAtMs !== null;
 
 function createBeat(id: BeatId): PlayingBeat {
@@ -81,8 +84,21 @@ function createBeat(id: BeatId): PlayingBeat {
 // Plays what the agent sends against the audio the student hears, and reports what really happened, which becomes the log.
 export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueFired }: ScenePlayerOptions): ScenePlayer {
   let turn: PlayingTurn | null = null;
+  let levelOnceOldAudioHasGone: OutputLevel | null = null;
   const operationsOfOldTurns: BoardOperation[] = [];
   const sliderLog = createSliderLog({ getNowMs: () => clock.getNowMs(), send });
+
+  const openOutput = () => {
+    if (levelOnceOldAudioHasGone === null || turn?.clock.isOldAudioArriving()) return;
+    setOutputLevel(levelOnceOldAudioHasGone);
+    levelOnceOldAudioHasGone = null;
+  };
+
+  // A turn's message can land while the last turn's cut audio is still arriving, and the gain is all that keeps that audio from the student.
+  const setTurnLevel = (level: OutputLevel) => {
+    levelOnceOldAudioHasGone = level;
+    openOutput();
+  };
 
   const getBeatRelativeWordStarts = (beat: PlayingBeat): number[] => {
     const firstWordMs = beat.words[0]?.startMs ?? 0;
@@ -144,7 +160,7 @@ export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueF
     for (let cue = beat.cues[beat.firedCueMs.length]; cue !== undefined; cue = beat.cues[beat.firedCueMs.length]) {
       const wordStartMs = beat.words[cue.atWord]?.startMs;
       if (wordStartMs === undefined || cue.atWord >= beat.playedWords || beat.startedAtMs === null) return;
-      const firedMs = Math.max(0, Math.round(nowMs - beat.startedAtMs));
+      const firedMs = getMsSince(beat.startedAtMs, nowMs);
       const aim = getCueAim(cue, getBeatRelativeWordStarts(beat));
       if (aim && !aim.isKnown) beat.cuePaces.push({ cue: beat.firedCueMs.length, afterMs: firedMs, landsAtMs: aim.landsAtMs });
       beat.firedCueMs.push(firedMs);
@@ -156,7 +172,7 @@ export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueF
   const reaimCues = (beat: PlayingBeat) => {
     if (beat.startedAtMs === null || beat.ending !== null) return;
     const wordStarts = getBeatRelativeWordStarts(beat);
-    const afterMs = Math.max(0, Math.round(clock.getNowMs() - beat.startedAtMs));
+    const afterMs = getMsSince(beat.startedAtMs, clock.getNowMs());
     const aimedCues = new Set(beat.cuePaces.map((pace) => pace.cue));
     for (const cue of aimedCues) {
       const lastAim = beat.cuePaces.filter((pace) => pace.cue === cue).at(-1) as CuePace;
@@ -179,6 +195,7 @@ export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueF
   };
 
   const tick = () => {
+    openOutput();
     if (turn?.phase !== 'playing') return;
     const reading = turn.clock.read();
     if (reading === null) return;
@@ -192,7 +209,7 @@ export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueF
   const cutTurn = (playing: PlayingTurn) => {
     tick();
     playing.phase = 'frozen';
-    const nowMs = Math.round(clock.getNowMs());
+    const nowMs = Math.ceil(clock.getNowMs());
     const frames = getFrozenFrames(getBoardAt(getOperations(), nowMs, catalog), nowMs);
     const openBeats = playing.beats.filter((beat) => beat.ending === null);
     const cutBeat = openBeats.filter(isStarted).at(-1);
@@ -208,6 +225,7 @@ export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueF
   };
 
   const stop = (playing: PlayingTurn) => {
+    levelOnceOldAudioHasGone = null;
     setOutputLevel('silent');
     cutTurn(playing);
     clock.markTurnStopped();
@@ -228,7 +246,7 @@ export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueF
       operationsOfOldTurns.push(...getTurnOperations(turn));
     }
     turn = { id: turnId, phase: 'playing', clock: clock.startTurn(), beats: [] };
-    setOutputLevel('full');
+    setTurnLevel('full');
   };
 
   clock.onAudioEnded(tick);
@@ -262,7 +280,7 @@ export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueF
         return;
       }
       case 'yield':
-        setOutputLevel(message.isYielding ? 'lowered' : 'full');
+        setTurnLevel(message.isYielding ? 'lowered' : 'full');
         return;
       case 'audioGap':
         playing.clock.addGap(message);

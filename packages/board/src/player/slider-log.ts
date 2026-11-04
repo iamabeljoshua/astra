@@ -32,7 +32,7 @@ export function createSliderLog({ getNowMs, send }: { getNowMs(): number; send(m
     getOperations: () => operations,
     finish,
     move(move: SliderMove) {
-      const atMs = Math.round(getNowMs());
+      const atMs = Math.ceil(getNowMs());
       if (open && (!isSameSlider(open.move, move) || atMs - open.startedAtMs >= SEND_EVERY_MS || open.samples.length >= MOST_SAMPLES)) finish();
       open ??= { move, startedAtMs: atMs, samples: [] };
       open.samples.push({ afterMs: atMs - open.startedAtMs, value: move.value });

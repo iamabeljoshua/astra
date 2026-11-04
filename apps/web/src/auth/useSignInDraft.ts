@@ -8,6 +8,8 @@ export interface SignInDraft {
   email: string;
   isSending: boolean;
   codeSentAt: number;
+  code: string;
+  setCode: (code: string) => void;
   showCodeStep: (sentAt: number) => void;
   showEmailStep: () => void;
   setEmail: (email: string) => void;
@@ -26,11 +28,17 @@ export function useSignInDraft(): SignInDraft {
   const [email, setEmail] = useState(liveRequest?.email ?? '');
   const [isSending, setIsSending] = useState(false);
   const [codeSentAt, setCodeSentAt] = useState(liveRequest?.sentAt ?? 0);
+  const [code, setCode] = useState('');
 
   function showCodeStep(sentAt: number) {
     setCodeSentAt(sentAt);
     setStep('code');
   }
 
-  return { step, email, isSending, codeSentAt, showCodeStep, showEmailStep: () => setStep('email'), setEmail, setIsSending };
+  function showEmailStep() {
+    setCode('');
+    setStep('email');
+  }
+
+  return { step, email, isSending, codeSentAt, code, setCode, showCodeStep, showEmailStep, setEmail, setIsSending };
 }
