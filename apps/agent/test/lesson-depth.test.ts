@@ -139,13 +139,14 @@ describe('a lesson that runs on', () => {
     const askMore = vi.fn<(request: unknown) => Promise<{ steps: { teach: string; exercise: string }[]; costUsd: number }>>(async () => ({ steps: [{ teach: 'Gravity assists', exercise: 'Pick one' }], costUsd: 0 }));
     const planner = createLessonPlanner({ ask: async () => ({ move: { move: 'stay' }, costUsd: 0 }), askMore, canSpend: () => true, charge: () => {}, onTitleChange: () => {}, trace: () => {} });
     planner.noteCardLesson(PLAN);
-    planner.noteCommand({ kind: 'task', id: 'a1', way: 'write', reads: 'words' } as never);
-    planner.noteCommand({ kind: 'boardMode', mode: 'teach' } as never);
     expect(askMore).not.toHaveBeenCalled();
-    planner.noteCommand({ kind: 'task', id: 'a2', way: 'write', reads: 'words' } as never);
+    planner.noteCommand({ kind: 'task', id: 'a1', way: 'write', reads: 'words' } as never);
     planner.noteCommand({ kind: 'boardMode', mode: 'teach' } as never);
     await vi.waitFor(() => expect(askMore).toHaveBeenCalledOnce());
     expect(askMore.mock.calls[0]?.[0]).toMatchObject({ topic: PLAN.topic, taught: PLAN.steps.map(({ teach }) => teach) });
+    await vi.waitFor(() => expect(planner.getStepNote()).toMatchObject({ step: '2 of 4' }));
+    planner.noteCommand({ kind: 'task', id: 'a2', way: 'write', reads: 'words' } as never);
+    planner.noteCommand({ kind: 'boardMode', mode: 'teach' } as never);
     await vi.waitFor(() => expect(planner.getStepNote()).toMatchObject({ step: '3 of 4', next_idea: 'Gravity assists' }));
   });
 

@@ -85,7 +85,6 @@ export type TurnEvent =
   | { type: 'echoHeard' }
   | { type: 'turnDecided'; text: string }
   | { type: 'typed'; text: string }
-  /** The tutor goes on by itself. It holds no one's words, so it has no reaction, and nothing owes it a carry. */
   | { type: 'leadDue'; text: string }
   | { type: 'timer'; name: TimerName }
   | { type: 'tutorThinking' }

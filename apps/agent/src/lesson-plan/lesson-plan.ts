@@ -9,9 +9,7 @@ export interface LessonStep {
   teach: string | null;
   /** One short thing to do together on the board. */
   exercise: string;
-  /** A card's own lines on this idea, for the tutor to say in its own words. */
   material?: readonly string[];
-  /** The title of a saved scene of this idea. */
   picture?: string;
 }
 

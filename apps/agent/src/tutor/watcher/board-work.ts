@@ -78,7 +78,6 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
     takeWork(message);
   };
 
-  // Noted as the tutor answers, so work it stays quiet on, like a right line on the way, does not end the exercise.
   const noteTried = ({ verdict }: CheckedWork) => {
     triedTask = verdict.status === 'wrong' ? null : (getOpenTask()?.task.id ?? null);
   };

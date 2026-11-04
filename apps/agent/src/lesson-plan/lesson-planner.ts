@@ -17,7 +17,6 @@ export interface LessonPlanner {
   noteCommand(command: SceneCommand): void;
   noteWorkChecked(checked: Pick<CheckedWork, 'closesTask'>, work: StudentWork): void;
   noteReplyEnded(reply: { wasSafety: boolean; wasLead?: boolean }): void;
-  /** A card's lesson comes from the server's list, so no planner guesses at it. */
   noteCardLesson(plan: LessonPlan): void;
   /** A page that reloaded lost the title it was told. */
   tellTitleAgain(): void;
@@ -29,7 +28,6 @@ export interface LessonPlanner {
 
 export interface LessonPlannerOptions {
   ask(request: PlanAsk): Promise<PlanAnswer>;
-  /** Writes the next ideas of a lesson that is about to run out. */
   askMore?(request: MoreAsk): Promise<MoreAnswer>;
   canSpend(): boolean;
   charge(usd: number): void;
@@ -55,14 +53,11 @@ const IS_ONLY_A_NOD = /^(?:ok(?:ay)?|k|yes|yeah|yep|yup|sure|cool|right|got it|m
 const DECLINES_EXERCISES = /\bdon'?t want to try\b|\b(?:no|without|skip|stop)\s+(?:the\s+|more\s+|any\s+)?(?:exercises?|tasks?|problems?|practice|quiz(?:zes)?)\b|\bjust\s+(?:explain|teach|tell)\b|\bjust\s+(?:want\s+to\s+)?listen\b/i;
 const WANTS_AN_EXERCISE = /\b(?:let\s+me|can\s+i|i(?:'ll|\s+will|\s+want\s+to)|i\s+wanna)\s+try\b|\b(?:give|set)\s+me\s+(?:a|an|one|another)\b(?!\s+lesson)/i;
 
-/** Read beside the reply, so English needs no wait. Any other language reaches the same event through the planner's `wants`, one turn later, and the tutor reads it for itself straight away. */
 const WANTS_TEACHING = /\b(?:go on|keep going|keep teaching|carry on|go ahead|tell me more|teach me more|show me more|explain more|more please|what(?:'?s| is) next\b(?! to)|what else|and then what|then what|move on|next (?:one|idea|bit|part|thing))\b(?! (?:a|an|the|my|with) )|^\s*(?:next|more|continue)[.!]*\s*$/i;
 
-/** They asked to be taught, in the words this list knows. */
 export const asksToBeTaught = (words: string) => WANTS_TEACHING.test(words) || ASKS_TO_BE_TAUGHT.test(words);
 
 const FEWEST_STEPS_ON_A_CARD = 3;
-/** About 20 minutes at about 2 minutes an idea. Past this the lesson asks what they want next. */
 const MOST_STEPS_IN_A_LESSON = 12;
 
 const NAMES_A_PROBLEM = /\d\s*[-+*/×÷=^%]|=|->|_{2,}|\bm\/s\b|\b(?:solve|balance|simplify|calculate|work out|factori[sz]e|derivative of|integral of|slope of|which came first)\b/i;
@@ -120,7 +115,6 @@ export function createLessonPlanner({ ask, askMore, canSpend, charge, onTitleCha
 
   const adopt = (move: PlanMove, { words, isOpening, startReply }: { words: string; isOpening: boolean; startReply: number }) => {
     if (card && isOpening) {
-      // Most cards have no deeper ideas on the list, so the planner's later steps carry on from the card's own first one.
       if (move.move === 'new' && state.active?.plan === card) {
         const plan = { ...card, steps: [...card.steps, ...move.plan.steps.slice(1)] };
         state = { ...state, active: { ...state.active, plan } };
@@ -144,12 +138,10 @@ export function createLessonPlanner({ ask, askMore, canSpend, charge, onTitleCha
     if (!canSpend()) return;
     const startedAtMs = getNowMs();
     try {
-      // A short card is on its first step already, and the planner would call its title staying on that topic.
       const { move, wants = null, costUsd } = await ask({ now: heard.isOpening && card ? null : (state.active?.plan.topic ?? null), earlier: getShelvedTopics(state), said, tutorSaid });
       charge(costUsd);
       trace('planAnswered', { move: move?.move ?? null, ms: Math.round(getNowMs() - startedAtMs), costUsd });
       if (move) adopt(move, heard);
-      // Words the list already caught have had their event, and a second one would skip a step.
       if (wants && !getMoveEvent(said) && !getWordsEvent(said)) noteEvent(WANTS_EVENTS[wants]);
     } catch (error) {
       trace('planFailed', { problem: String(error), ms: Math.round(getNowMs() - startedAtMs) });
@@ -194,7 +186,6 @@ export function createLessonPlanner({ ask, askMore, canSpend, charge, onTitleCha
   return {
     noteStudentWords(heard) {
       if (isStageWords(heard.words) || isLineOfWork(heard.words) || IS_ONLY_A_NOD.test(heard.words.trim())) return;
-      // One event for one line, because a second would skip a step.
       noteEvent(getMoveEvent(heard.words) ?? getWordsEvent(heard.words));
       if (heard.isOpening && card && card.steps.length >= FEWEST_STEPS_ON_A_CARD) return;
       waiting = { ...heard, startReply: state.repliesEnded };

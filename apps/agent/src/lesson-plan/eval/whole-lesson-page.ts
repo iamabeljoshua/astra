@@ -12,7 +12,6 @@ const { values: args } = parseArgs({
     title: { type: 'string', default: 'How a rocket escapes Earth' },
     topic: { type: 'string', default: 'rocket-escape' },
     subject: { type: 'string', default: 'Physics' },
-    /** What the student types, and after how many replies, as "4:teach me more|7:go on". */
     says: { type: 'string', default: '' },
     replies: { type: 'string', default: '8' },
     seconds: { type: 'string', default: '420' },
@@ -55,7 +54,6 @@ const box = page.getByRole('textbox', { name: 'What do you want to learn next' }
 await box.waitFor({ timeout: 60_000 });
 await delay(1500);
 
-// Home only shows a student's own picks, and this card may not be among them, so the press is made as the card's request. Everything from the server on is real.
 await page.route('**/api/sessions', async (route) => {
   if (route.request().method() !== 'POST') return route.continue();
   await route.continue({ postData: JSON.stringify({ title: args.title, subject: args.subject, language: 'en', topicId: args.topic }) });

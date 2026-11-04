@@ -1,6 +1,5 @@
 import { type LessonPlan, type LessonStep, toCleanLine } from './lesson-plan.ts';
 
-/** One idea on the server's list for a card: its title, the lines written for it, and whether a checked scene is saved under that title. */
 export interface CardIdea {
   title: string;
   lines: readonly string[];
@@ -16,7 +15,6 @@ const MOST_IDEAS = 6;
 const MOST_LINES_AN_IDEA = 10;
 const MOST_LINE_CHARACTERS = 160;
 const MOST_TITLE_CHARACTERS = 80;
-/** No card names its own exercises, so the tutor writes one from what it just taught, by the lesson rules. */
 const AN_EXERCISE_ON_THIS_IDEA = 'One short problem on this idea, with its numbers on the board if it has any.';
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
@@ -39,7 +37,6 @@ const toStep = ({ title, lines, hasScene }: CardIdea): LessonStep => ({ teach: t
 
 export const toCardPlan = ({ title, ideas }: CardMaterial): LessonPlan => ({ topic: title, kind: 'teachFirst', steps: ideas.map(toStep) });
 
-/** The queue's answer for a card, with no model asked: its own pictures, as long as each is still on the shelf. Null when this plan is not a card's. */
 export function getCardPictures({ steps }: LessonPlan, shelfTitles: readonly string[]): (string | null)[] | null {
   if (!steps.some(({ picture }) => picture)) return null;
   return steps.map(({ picture }) => (picture && shelfTitles.includes(picture) ? picture : null));

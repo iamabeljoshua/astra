@@ -150,9 +150,8 @@ async function* getResumedThen(resumed: readonly Beat[], thought: Thought | null
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** A student asked something gets as long as the tutor itself would wait, because a scene talking over the question takes it from them. Just short of that wait, so a scene that is ready goes before the tutor does. */
-const ROOM_TO_ANSWER_MS = LEAD_TIMINGS.afterQuestionMs - 1000;
-/** How often a lead that had to hold looks again. */
+const SCENE_GOES_FIRST_BY_MS = 1000;
+const ROOM_TO_ANSWER_MS = LEAD_TIMINGS.afterQuestionMs - SCENE_GOES_FIRST_BY_MS;
 const LEAD_RECHECK_MS = 250;
 
 async function* toBeatStream(beats: readonly TutorBeat[]): AsyncGenerator<TutorBeat> {
@@ -370,7 +369,6 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     quietLeads = 0;
     unansweredInARow = 0;
     if (!isHolding) return;
-    // They came back, so the check is answered, whatever they did.
     isHolding = false;
     isQuestionOpen = false;
     armLead(0);
@@ -381,7 +379,6 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     leadTimer = setTimeout(checkLead, afterMs);
   }
 
-  // Asks for a reply only with nothing else going on, and looks again whatever happened meanwhile, so no event has to remember to cancel it. A reply that starts takes its place, and that reply's end arms it again.
   function checkLead(): void {
     if (isEnding || isHolding || !tutor.canLead?.() || isTutorTalking() || thought || cut || heldReply) return;
     if (isThinking || !audioRunning || state.phase !== 'clear' || state.tutor !== 'silent' || state.isVoiceOn || hasWords(state.partial)) return armLead(LEAD_RECHECK_MS);
@@ -628,7 +625,6 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     trace('stopDecided', { reason: action.reason, turnId: getAudibleTurn() });
     clearTimeout(voiceStall);
     clearTimeout(leadTimer);
-    // A stop button means stop, and sent words get their own reply. What cut the tutor may yet come to nothing, like a stray "well", and that must not leave it silent.
     if (action.reason !== 'typed') armLead(LEAD_RECHECK_MS);
     resumeTicket += 1;
     reaction?.spoken.stop();
@@ -852,7 +848,6 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
         dispatch({ type: 'questionHeard' });
       }
       if (message.type === 'stopTutor') {
-        // They asked it to stop, so it stays stopped until they do something.
         isHolding = true;
         stopSpeech({ do: 'stop', reason: 'typed', keepsThought: false });
       }

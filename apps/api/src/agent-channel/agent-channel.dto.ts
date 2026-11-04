@@ -67,6 +67,5 @@ export interface TutorBrief {
   goal: StudentGoal | null;
   /** The library's title when a card started this session, and null for a typed question. */
   cardTitle: string | null;
-  /** What that card's lesson teaches, so the tutor needs nothing from disk during a turn. */
   cardMaterial?: CardMaterial;
 }

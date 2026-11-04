@@ -187,7 +187,6 @@ export function createSceneQueue({ scenes, readLibrary, getFacts, canPlay, moveT
       const wasStep = lesson?.stepIndex ?? null;
       lesson = { plan: active.plan, stepIndex: active.stepIndex };
       if (isStopped) return;
-      // The tutor answers finished work next, and that turn would end whatever was asked for now, so the picture of the next idea waits for it.
       if (event === 'exerciseDone') isReplying = true;
       const isSwitch = wasTopic !== active.plan.topic;
       if (isSwitch && wasTopic !== null) scenes.dropWaiting('switched');

@@ -56,7 +56,6 @@ const API_FOLDER = join(dirname(fileURLToPath(import.meta.url)), '../../../../ap
 const PROFILE = { level: 'high_school', interests: ['space', 'basketball'], goal: 'curiosity' };
 const STAMP = { clockId: 'eval', browserMs: 1000, startedMsAgo: 0 };
 const OWN_WORDS = /\bown words\b|\bin your words\b|\bexplain (?:it )?back\b/i;
-/** Long enough that a tutor which has really stopped shows as stopped, and short enough to end a run on the old code. */
 const GIVE_UP_AFTER_SILENCE_MS = 75_000;
 const NUDGE_AFTER_IDLE_MS = 3000;
 const NUDGE_WITH_NOTHING_OPEN_MS = 6000;
@@ -120,7 +119,6 @@ const describeTask = (task: Task, spoken: string): string => {
   return task.way;
 };
 
-// A harness copy of what the server's list gives a card, because a run here has no API behind it.
 function readCardMaterial(title: string): CardMaterial {
   const store = createSceneStore(getSceneStoreRoot());
   const library = JSON.parse(readFileSync(join(API_FOLDER, 'library.json'), 'utf8')) as { topics: { id: string; title: string }[] };
@@ -137,7 +135,6 @@ function readCardMaterial(title: string): CardMaterial {
   };
 }
 
-// A word for word stretch said before, which is what repeating sounds like. An idea said again in new words needs reading.
 function getRepeats(replies: readonly { spoken: string }[]): string[] {
   const seen = new Set<string>();
   return replies.flatMap(({ spoken }) => {

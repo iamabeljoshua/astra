@@ -26,7 +26,6 @@ export function getPrepareRefusal(facts: AheadFacts): PrepareRefusal | null {
   return isUnderPressure(facts) ? 'pressure' : null;
 }
 
-/** A saved scene takes no model and no worker, and its bytes reach the page in about 1 s, so only a day that is known to be nearly spent stops one. */
 export function getSavedRefusal({ isOverLimit, leftTodayUsd }: AheadFacts): PrepareRefusal | null {
   if (isOverLimit) return 'overLimit';
   return leftTodayUsd !== null && leftTodayUsd < DAY_RESERVE_USD ? 'nearDayLimit' : null;

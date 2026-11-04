@@ -51,9 +51,7 @@ export interface TutorBrain {
   noteCameBack?(): void;
   noteWatcher?(note: WatcherNote): void;
   getBoard?(): { state: BoardState; openTask: ElementId | null };
-  /** False after help in a crisis, once the tutor has closed, and when it just failed, so nothing goes on by itself. */
   canLead?(): boolean;
-  /** The next reply is the tutor going on by itself, and why. */
   noteLead?(kind: LeadKind): void;
 }
 
@@ -137,14 +135,12 @@ export interface TutorBrainOptions {
 
 type TurnStep = 'over' | 'retry';
 
-/** The tutor could not say anything real, and going on by itself would only say so again. */
 const ENDS_THAT_STOP_A_LEAD: ReadonlySet<string> = new Set(['noWords', 'stalledBeforeText', 'stalledInText', 'failed', 'rejected', 'refused']);
 
 type AttemptEnd = 'ended' | 'noWords' | 'aborted' | 'stalledBeforeText' | 'stalledInText' | 'failed' | 'rejected' | 'wrongMath' | 'wrongWords' | 'refused' | 'toolCall' | 'heldQuestion';
 
 interface TurnWork {
   sceneAside?: 'due' | 'moved';
-  /** Nobody is waiting on this reply, so a slow start needs no filler. */
   isLead: boolean;
   id: number;
   studentText: string;
@@ -379,7 +375,6 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     return moves;
   };
 
-  // A lead has nobody's words to read, so the plan's exercise holds it where a note beside other notes did not.
   const isExerciseDueNow = () => {
     const step = lessonPlanner?.getStepNote();
     return Boolean(step && 'exercise_due' in step);
@@ -901,11 +896,9 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     lastBeats = turn.beats;
     lastRefused = wasRefused ? [] : turn.refused;
     hidesLastWords = wasRefused;
-    // A lead the student cut before a word of it was not a reply, so it does not bring the exercise closer.
     if (turn.beats.length > 0) lessonPlanner?.noteReplyEnded({ wasSafety: turn.reader.isSafetyReply, wasLead: turn.isLead });
     const wasSafetyReply = turn.reader.isSafetyReply || (wasRefused && !isPlainRefusal(turn));
     isAfterSafetyReply = wasSafetyReply || (isAfterSafetyReply && !turn.hasModelWords);
-    // After a crisis only the student's own wish to be taught starts it again.
     if (wasSafetyReply || MAY_BE_ABOUT_SAFETY.test(turn.studentText)) isLeadStopped = true;
     else if (asksToBeTaught(turn.studentText)) isLeadStopped = false;
     canLeadAfterLastTurn = !ENDS_THAT_STOP_A_LEAD.has(turn.endedAs);
@@ -969,7 +962,6 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
         if (said.ok) yield said.value;
         return;
       }
-      // A lead holds nobody's words, so what is waiting to land at this pause still lands.
       if (leadDue === null) onStudentWords?.(studentText);
       // Skipped on words this list knows. Vaguer words reach the planner, whose `stay` and `getTrustedMove` hold them.
       // A student who cuts a card's opening scene speaks before the tutor has heard the card's title, so those are their own words.
@@ -1056,7 +1048,6 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
       if (note.why.includes('needsAPerson')) isLeadStopped = true;
       pendingNotes.push({ watcher: note });
     },
-    // A limit reached leaves this true, so the next lead says so in the closing line, costing nothing, and the student is not left in silence.
     canLead: () => canLeadAfterLastTurn && !isLeadStopped && closedReason === null,
     noteLead(kind) {
       leadDue = kind;

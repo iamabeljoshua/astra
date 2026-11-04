@@ -6,11 +6,8 @@ interface ActivePlan {
   isExerciseOpen: boolean;
   /** How many replies had ended when this step began. */
   stepStartReply: number;
-  /** An exercise was set on this step, so its idea has been taught even if they left it. */
   hasHadExercise?: boolean;
-  /** Replies on this step the tutor went on with by itself. */
   leadsOnStep?: number;
-  /** When they last asked to be taught, which holds the exercise off. It does not hold the next idea off, or a student who keeps asking would hear this idea for good. */
   teachingAskedAtReply?: number;
 }
 
@@ -33,13 +30,11 @@ export type LessonEvent =
   /** The tutor went back to teaching with an exercise open, which is how words with no answer key end. */
   | 'teachingAgain'
   | 'replyEnded'
-  /** A reply nobody asked for, because the tutor went on by itself. */
   | 'leadEnded'
   /** Help in a crisis is not teaching, so the step's count starts over. */
   | 'safetyReplyEnded'
   | 'exerciseDeclined'
   | 'exerciseWanted'
-  /** They asked to go on, in whatever words. Their own words beat the count. */
   | 'teachingWanted'
   | 'movedOn'
   | 'skipped';
@@ -53,11 +48,8 @@ const MOST_SHELVED = 8;
 
 /** Short turns take a reply or two to teach one idea, and a direct question has none to teach. */
 const REPLIES_BEFORE_THE_EXERCISE: Record<LessonKind, number> = { handsOn: 1, teachFirst: 2 };
-/** No exercise came of this idea, whatever the reason, and a lesson must not stay on one idea for good. */
 const MOST_REPLIES_ON_A_STEP = 12;
-/** A card's lines take longer to say than a planner's few words. */
 const REPLIES_ON_A_CARD_STEP = 3;
-/** A student only listening hears more of an idea before the exercise, because that is what fills a 20 minute lesson with 6 to 10 ideas. A student talking gets there sooner, in fewer and longer exchanges. */
 const REPLIES_WHILE_LISTENING: Record<LessonKind, number> = { handsOn: 1, teachFirst: 6 };
 const REPLIES_WHILE_LISTENING_ON_A_CARD = 7;
 
@@ -120,7 +112,6 @@ export function getStateAfterEvent(state: LessonState, event: LessonEvent): Less
   const repliesEnded = state.repliesEnded + (event === 'replyEnded' || event === 'leadEnded' || event === 'safetyReplyEnded' ? 1 : 0);
   const isExerciseDeclined = event === 'exerciseDeclined' ? true : event === 'exerciseWanted' ? false : state.isExerciseDeclined;
   const active = state.active && getActiveAfterEvent(state.active, event, repliesEnded);
-  // A student who said no exercises would otherwise stay on this step for good, because finishing one is what moves a lesson on.
   const isPastThisStep = active !== null && (event === 'replyEnded' || event === 'leadEnded') && !active.isExerciseOpen && active.plan.kind === 'teachFirst' && (repliesEnded - active.stepStartReply >= MOST_REPLIES_ON_A_STEP || (isExerciseDeclined && hasTaughtThisStep(active, repliesEnded)));
   return { ...state, repliesEnded, isExerciseDeclined, active: isPastThisStep ? getActiveAfterEvent(active, 'movedOn', repliesEnded) : active };
 }
@@ -134,12 +125,10 @@ export function getStepNote(state: LessonState): StepNote | null {
   const step = plan.steps[stepIndex];
   if (!step) return { topic: plan.topic, kind: plan.kind, is_finished: true };
   const isDue = isExerciseDue(state);
-  // The lines are for teaching, and each note costs tokens, so one that only says the exercise is due leaves them out.
   const isPictureComing = step.picture !== undefined && stepIndex > 0 && state.repliesEnded === active.stepStartReply;
   return { topic: plan.topic, kind: plan.kind, step: `${stepIndex + 1} of ${plan.steps.length}`, teach_first: step.teach, then_exercise: step.exercise, next_idea: plan.steps[stepIndex + 1]?.teach ?? null, ...(isDue ? { exercise_due: true as const } : {}), ...(step.material && !isDue ? { material: step.material } : {}), ...(isPictureComing ? { picture_coming: true as const } : {}) };
 }
 
-/** Appends more of the same lesson as it nears its end, so a lesson runs on and does not stop at what was planned first. */
 export function getStateWithMoreSteps(state: LessonState, topic: string, steps: readonly LessonStep[]): LessonState {
   if (state.active?.plan.topic !== topic) return state;
   return { ...state, active: { ...state.active, plan: { ...state.active.plan, steps: [...state.active.plan.steps, ...steps] } } };
@@ -147,7 +136,7 @@ export function getStateWithMoreSteps(state: LessonState, topic: string, steps: 
 
 export const getStepsTaught = ({ active }: LessonState) => active?.plan.steps.flatMap(({ teach }) => teach ?? []) ?? [];
 
-export const isNearTheEnd = ({ active }: LessonState) => active !== null && active.plan.kind === 'teachFirst' && active.stepIndex >= active.plan.steps.length - 1;
+export const isNearTheEnd = ({ active }: LessonState) => active !== null && active.plan.kind === 'teachFirst' && active.stepIndex >= active.plan.steps.length - 2;
 
 export const getStepCount = ({ active }: LessonState) => active?.plan.steps.length ?? 0;
 

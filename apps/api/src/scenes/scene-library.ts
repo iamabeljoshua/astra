@@ -33,7 +33,6 @@ interface SceneRecord {
   plan?: { close?: string; opening?: readonly { say?: unknown }[]; more?: readonly { say?: unknown }[] };
 }
 
-/** A card's lesson: its own idea, then the deeper ones, each with the lines written for it and whether a saved scene may play. */
 export interface CardMaterial {
   title: string;
   ideas: { title: string; lines: string[]; hasScene: boolean }[];
@@ -66,7 +65,6 @@ export function getLibraryScenes(storeRoot: string): LibrarySceneDto[] {
 
 const toLines = (lines: readonly { say?: unknown }[] = []) => lines.flatMap(({ say }) => (typeof say === 'string' ? [say] : []));
 
-// Every session on a card reads this at its start, so the files are read once and kept a while. A flag is looked at fresh each time.
 function getShelf(storeRoot: string, nowMs: number) {
   if (shelf?.storeRoot === storeRoot && nowMs - shelf.readAtMs < SHELF_KEPT_MS) return shelf.scenes;
   const scenesRoot = join(storeRoot, 'scenes');
@@ -82,7 +80,6 @@ function getShelf(storeRoot: string, nowMs: number) {
   return scenes;
 }
 
-/** What a card's lesson teaches, from the server's own list. Null for a title that is not on it. With no store, the ideas still stand, with no lines and no scenes. */
 export function getCardMaterial(storeRoot: string | undefined, title: string, nowMs = Date.now()): CardMaterial | null {
   const topic = LIBRARY.topics.find((one) => normalizeTitle(one.title) === normalizeTitle(title));
   if (!topic) return null;
