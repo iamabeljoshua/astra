@@ -41,6 +41,7 @@ interface Harness {
   didStop(turnId: TurnId): boolean;
   brainRequests: string[];
   aborted: number;
+  cameBack: number;
 }
 
 function makeOutput(frames: { atMs: number }[], failAfter = Infinity): VoiceOutput {
@@ -72,8 +73,11 @@ function start({ voice = makeRenderedVoice({ name: 'fake', render: renderTone })
   const frames: { atMs: number }[] = [];
   const brainRequests: string[] = [];
   let replies = 0;
-  const harness = { aborted: 0 } as Harness;
+  const harness = { aborted: 0, cameBack: 0 } as Harness;
   const tutor: TutorBrain = {
+    noteCameBack() {
+      harness.cameBack += 1;
+    },
     async *reply({ text }, signal) {
       brainRequests.push(text);
       replies += 1;
@@ -630,6 +634,15 @@ describe('the greeting', () => {
     harness.browser({ type: 'hello', ...STAMP, wantsGreeting: true });
     await delay(50);
     expect(harness.traces.filter((trace) => trace.name === 'turnStarted').map((trace) => trace.fields.kind)).toEqual(['greeting']);
+  });
+
+  it('tells the tutor when a new page clock says hello, because that is a reload with the board in its hands', async () => {
+    const harness = start();
+    harness.browser({ type: 'hello', ...STAMP, wantsGreeting: true });
+    harness.browser({ type: 'hello', ...STAMP, wantsGreeting: false });
+    expect(harness.cameBack).toBe(0);
+    harness.browser({ type: 'hello', ...STAMP, clockId: 'next-page', wantsGreeting: true });
+    expect(harness.cameBack).toBe(1);
   });
 
   it('stays quiet for a student who opened the room by typing', async () => {

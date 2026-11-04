@@ -1,7 +1,7 @@
 import { type BoardKinds, type ElementId, findMathSpans, getBoardAfter, isStudentLineId, type SceneCommand, type StudentWork, type Task, type WorkVerdict } from '@astra/contracts';
 import { canRenderTex } from '@astra/board/tex-check';
 import type { CommandVerdict } from './beat-text-reader.ts';
-import { type CheckedWork, checkClaimedMath, checkStep, getLinearAnswer, getLineTex, isFinishedAnswer, type MathVerdict } from '@astra/board/shared';
+import { type CheckedWork, checkClaimedMath, checkStep, checkTickedLine, getLinearAnswer, getLineTex, isFinishedAnswer, type MathVerdict } from '@astra/board/shared';
 
 export interface OpenTask {
   id: ElementId;
@@ -112,7 +112,7 @@ export function checkAgainstBoard(command: SceneCommand, memory: BoardMemory): C
   if (command.kind === 'annotate' && command.mark === 'check') {
     const line = lines.get(command.target);
     if (memory.shownLines.has(command.target)) return { ok: false, problem: `a tick on ${line}, a line you wrote only to look at. If it is true, write it again with the claim new and tick that. If it is not, leave the tick off`, isWrongMath: true };
-    const verdict = line === undefined ? null : checkClaimedMath('new', undefined, line);
+    const verdict = line === undefined ? null : checkTickedLine(line);
     if (verdict?.status === 'wrong') return { ok: false, problem: `a tick on ${line}, which is false: ${verdict.why}`, isWrongMath: true };
   }
   if (command.kind === 'highlight' && command.tex !== undefined) {
