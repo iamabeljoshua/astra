@@ -1,5 +1,5 @@
 import { QueryClientProvider } from '@tanstack/react-query';
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router';
 import { QueryDevtools } from './api/QueryDevtools';
 import { createQueryClient } from './api/queryClient';
@@ -14,11 +14,23 @@ import { SessionScreen } from './session/SessionScreen';
 import { AppShell } from './shell/AppShell';
 import { LEGAL_PAGES } from './strings';
 
+const ScenePlayerLab = import.meta.env.DEV ? lazy(() => import('./lab/ScenePlayerLab')) : null;
+
 function AppRoutes() {
   const signInDraft = useSignInDraft();
 
   return (
     <Routes>
+      {ScenePlayerLab ? (
+        <Route
+          path="/lab/scene-player"
+          element={
+            <Suspense>
+              <ScenePlayerLab />
+            </Suspense>
+          }
+        />
+      ) : null}
       <Route path={LEGAL_PATHS.terms} element={<LegalPage legalDocument={LEGAL_PAGES.terms} />} />
       <Route path={LEGAL_PATHS.privacy} element={<LegalPage legalDocument={LEGAL_PAGES.privacy} />} />
       <Route

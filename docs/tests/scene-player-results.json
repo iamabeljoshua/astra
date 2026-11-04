@@ -1,0 +1,4885 @@
+{
+ "measuredOn": "this Mac, under load from other agents, over a West African network to ElevenLabs europe-west4, local LiveKit server",
+ "rows": [
+  {
+   "scenario": "clean-flash",
+   "voice": "casey eleven_flash_v2_5",
+   "runs": 5,
+   "cuesFired": 71,
+   "cuesMeasured": 69,
+   "driftToSoundAbs": {
+    "count": 69,
+    "p50": 26,
+    "p95": 30,
+    "worst": 42,
+    "best": 1
+   },
+   "driftToSoundSigned": {
+    "count": 69,
+    "p50": -26,
+    "p95": 4,
+    "worst": 22,
+    "best": -42
+   },
+   "driftToVendorWordTimeSigned": {
+    "count": 69,
+    "p50": 3,
+    "p95": 30,
+    "worst": 42,
+    "best": -42
+   },
+   "over100": 0,
+   "earlyOver40": 1,
+   "stopFrozen": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "stopAudioAfterGain": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "stopStillArriving": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "stopsCount": 0,
+   "framesAfterStop": 0,
+   "cuesAfterStop": 0,
+   "replaySamples": 3428,
+   "replayDiffering": 0,
+   "realGapsMs": [
+    104,
+    214,
+    298,
+    71,
+    77,
+    140,
+    194
+   ],
+   "gapReportError": {
+    "count": 6,
+    "p50": 71,
+    "p95": 115,
+    "worst": 115,
+    "best": 25
+   },
+   "gapChecks": [
+    {
+     "atMs": 9947,
+     "reportedMs": 104,
+     "heardShiftMs": 1
+    },
+    {
+     "atMs": 72,
+     "reportedMs": 214,
+     "heardShiftMs": 329
+    },
+    {
+     "atMs": 372,
+     "reportedMs": 298,
+     "heardShiftMs": 329
+    },
+    {
+     "atMs": 446,
+     "reportedMs": 71,
+     "heardShiftMs": 0
+    },
+    {
+     "atMs": 8384,
+     "reportedMs": 77,
+     "heardShiftMs": 112
+    },
+    {
+     "atMs": 72,
+     "reportedMs": 194,
+     "heardShiftMs": 219
+    }
+   ],
+   "vendorWordTimeBeforeSound": {
+    "count": 206,
+    "p50": 33,
+    "p95": 189,
+    "worst": 301,
+    "best": -318
+   },
+   "vendorWordTimeAbsolute": {
+    "count": 206,
+    "p50": 50,
+    "p95": 247,
+    "worst": 318,
+    "best": 0
+   },
+   "vendorAudioAfterStopMs": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "wordsLate": 0,
+   "worstWordLead": 63,
+   "firstFrameFromText": {
+    "count": 5,
+    "p50": 785,
+    "p95": 1341,
+    "worst": 1341,
+    "best": 555
+   },
+   "frameP95": 18,
+   "frameWorst": 179,
+   "leadingSilenceMs": {
+    "count": 10,
+    "p50": 51,
+    "p95": 63,
+    "worst": 63,
+    "best": 14
+   },
+   "wordMismatches": 0,
+   "refused": 0
+  },
+  {
+   "scenario": "clean-turbo",
+   "voice": "casey eleven_turbo_v2_5",
+   "runs": 1,
+   "cuesFired": 14,
+   "cuesMeasured": 14,
+   "driftToSoundAbs": {
+    "count": 14,
+    "p50": 29,
+    "p95": 31,
+    "worst": 31,
+    "best": 5
+   },
+   "driftToSoundSigned": {
+    "count": 14,
+    "p50": -28,
+    "p95": 13,
+    "worst": 13,
+    "best": -31
+   },
+   "driftToVendorWordTimeSigned": {
+    "count": 14,
+    "p50": 10,
+    "p95": 65,
+    "worst": 65,
+    "best": -20
+   },
+   "over100": 0,
+   "earlyOver40": 0,
+   "stopFrozen": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "stopAudioAfterGain": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "stopStillArriving": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "stopsCount": 0,
+   "framesAfterStop": 0,
+   "cuesAfterStop": 0,
+   "replaySamples": 684,
+   "replayDiffering": 0,
+   "realGapsMs": [],
+   "gapReportError": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "gapChecks": [],
+   "vendorWordTimeBeforeSound": {
+    "count": 44,
+    "p50": 37,
+    "p95": 206,
+    "worst": 313,
+    "best": -314
+   },
+   "vendorWordTimeAbsolute": {
+    "count": 44,
+    "p50": 49,
+    "p95": 246,
+    "worst": 314,
+    "best": 10
+   },
+   "vendorAudioAfterStopMs": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "wordsLate": 0,
+   "worstWordLead": 78,
+   "firstFrameFromText": {
+    "count": 1,
+    "p50": 550,
+    "p95": 550,
+    "worst": 550,
+    "best": 550
+   },
+   "frameP95": 18,
+   "frameWorst": 20,
+   "leadingSilenceMs": {
+    "count": 2,
+    "p50": 86,
+    "p95": 86,
+    "worst": 86,
+    "best": 49
+   },
+   "wordMismatches": 0,
+   "refused": 0
+  },
+  {
+   "scenario": "interrupt-fake",
+   "voice": "fake eleven_flash_v2_5",
+   "runs": 2,
+   "cuesFired": 22,
+   "cuesMeasured": 22,
+   "driftToSoundAbs": {
+    "count": 22,
+    "p50": 1562,
+    "p95": 4307,
+    "worst": 4335,
+    "best": 270
+   },
+   "driftToSoundSigned": {
+    "count": 22,
+    "p50": 1562,
+    "p95": 4307,
+    "worst": 4335,
+    "best": -1390
+   },
+   "driftToVendorWordTimeSigned": {
+    "count": 22,
+    "p50": 1562,
+    "p95": 4307,
+    "worst": 4335,
+    "best": -1390
+   },
+   "over100": 22,
+   "earlyOver40": 4,
+   "stopFrozen": {
+    "count": 10,
+    "p50": 1,
+    "p95": 3,
+    "worst": 3,
+    "best": 1
+   },
+   "stopAudioAfterGain": {
+    "count": 10,
+    "p50": 0,
+    "p95": 0,
+    "worst": 0,
+    "best": 0
+   },
+   "stopStillArriving": {
+    "count": 10,
+    "p50": 65,
+    "p95": 77,
+    "worst": 77,
+    "best": 56
+   },
+   "stopsCount": 10,
+   "framesAfterStop": 0,
+   "cuesAfterStop": 0,
+   "replaySamples": 980,
+   "replayDiffering": 0,
+   "realGapsMs": [],
+   "gapReportError": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "gapChecks": [],
+   "vendorWordTimeBeforeSound": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "vendorWordTimeAbsolute": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "vendorAudioAfterStopMs": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "wordsLate": 82,
+   "worstWordLead": -1524,
+   "firstFrameFromText": {
+    "count": 2,
+    "p50": 6,
+    "p95": 6,
+    "worst": 6,
+    "best": 5
+   },
+   "frameP95": 18,
+   "frameWorst": 37,
+   "leadingSilenceMs": {
+    "count": 12,
+    "p50": 0,
+    "p95": 0,
+    "worst": 0,
+    "best": 0
+   },
+   "wordMismatches": 0,
+   "refused": 0
+  },
+  {
+   "scenario": "interrupt-firefox-fake",
+   "voice": "fake eleven_flash_v2_5",
+   "runs": 1,
+   "cuesFired": 11,
+   "cuesMeasured": 11,
+   "driftToSoundAbs": {
+    "count": 11,
+    "p50": 307,
+    "p95": 4298,
+    "worst": 4298,
+    "best": 3
+   },
+   "driftToSoundSigned": {
+    "count": 11,
+    "p50": 300,
+    "p95": 4298,
+    "worst": 4298,
+    "best": -594
+   },
+   "driftToVendorWordTimeSigned": {
+    "count": 11,
+    "p50": 300,
+    "p95": 4298,
+    "worst": 4298,
+    "best": -594
+   },
+   "over100": 10,
+   "earlyOver40": 1,
+   "stopFrozen": {
+    "count": 5,
+    "p50": 2,
+    "p95": 2,
+    "worst": 2,
+    "best": 1
+   },
+   "stopAudioAfterGain": {
+    "count": 5,
+    "p50": 0,
+    "p95": 5,
+    "worst": 5,
+    "best": 0
+   },
+   "stopStillArriving": {
+    "count": 5,
+    "p50": 65,
+    "p95": 97,
+    "worst": 97,
+    "best": 60
+   },
+   "stopsCount": 5,
+   "framesAfterStop": 0,
+   "cuesAfterStop": 0,
+   "replaySamples": 486,
+   "replayDiffering": 0,
+   "realGapsMs": [],
+   "gapReportError": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "gapChecks": [],
+   "vendorWordTimeBeforeSound": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "vendorWordTimeAbsolute": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "vendorAudioAfterStopMs": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "wordsLate": 24,
+   "worstWordLead": -1482,
+   "firstFrameFromText": {
+    "count": 1,
+    "p50": 4,
+    "p95": 4,
+    "worst": 4,
+    "best": 4
+   },
+   "frameP95": 10,
+   "frameWorst": 49,
+   "leadingSilenceMs": {
+    "count": 6,
+    "p50": 0,
+    "p95": 0,
+    "worst": 0,
+    "best": 0
+   },
+   "wordMismatches": 0,
+   "refused": 0
+  },
+  {
+   "scenario": "interrupt-flash",
+   "voice": "casey eleven_flash_v2_5",
+   "runs": 2,
+   "cuesFired": 22,
+   "cuesMeasured": 21,
+   "driftToSoundAbs": {
+    "count": 21,
+    "p50": 25,
+    "p95": 30,
+    "worst": 31,
+    "best": 0
+   },
+   "driftToSoundSigned": {
+    "count": 21,
+    "p50": -25,
+    "p95": 1,
+    "worst": 4,
+    "best": -31
+   },
+   "driftToVendorWordTimeSigned": {
+    "count": 21,
+    "p50": 2,
+    "p95": 35,
+    "worst": 39,
+    "best": -18
+   },
+   "over100": 0,
+   "earlyOver40": 0,
+   "stopFrozen": {
+    "count": 10,
+    "p50": 2,
+    "p95": 4,
+    "worst": 4,
+    "best": 1
+   },
+   "stopAudioAfterGain": {
+    "count": 10,
+    "p50": 0,
+    "p95": 0,
+    "worst": 0,
+    "best": 0
+   },
+   "stopStillArriving": {
+    "count": 10,
+    "p50": 73,
+    "p95": 89,
+    "worst": 89,
+    "best": 0
+   },
+   "stopsCount": 10,
+   "framesAfterStop": 0,
+   "cuesAfterStop": 0,
+   "replaySamples": 1241,
+   "replayDiffering": 0,
+   "realGapsMs": [
+    81
+   ],
+   "gapReportError": {
+    "count": 1,
+    "p50": 3,
+    "p95": 3,
+    "worst": 3,
+    "best": 3
+   },
+   "gapChecks": [
+    {
+     "atMs": 762,
+     "reportedMs": 81,
+     "heardShiftMs": 84
+    }
+   ],
+   "vendorWordTimeBeforeSound": {
+    "count": 71,
+    "p50": 22,
+    "p95": 309,
+    "worst": 375,
+    "best": -240
+   },
+   "vendorWordTimeAbsolute": {
+    "count": 71,
+    "p50": 39,
+    "p95": 309,
+    "worst": 375,
+    "best": 3
+   },
+   "vendorAudioAfterStopMs": {
+    "count": 10,
+    "p50": 0,
+    "p95": 0,
+    "worst": 0,
+    "best": 0
+   },
+   "wordsLate": 3,
+   "worstWordLead": -119,
+   "firstFrameFromText": {
+    "count": 2,
+    "p50": 314,
+    "p95": 314,
+    "worst": 314,
+    "best": 274
+   },
+   "frameP95": 18,
+   "frameWorst": 22,
+   "leadingSilenceMs": {
+    "count": 12,
+    "p50": 37,
+    "p95": 53,
+    "worst": 53,
+    "best": 0
+   },
+   "wordMismatches": 0,
+   "refused": 0
+  },
+  {
+   "scenario": "interrupt-phone-flash",
+   "voice": "casey eleven_flash_v2_5",
+   "runs": 1,
+   "cuesFired": 11,
+   "cuesMeasured": 10,
+   "driftToSoundAbs": {
+    "count": 10,
+    "p50": 22,
+    "p95": 31,
+    "worst": 31,
+    "best": 2
+   },
+   "driftToSoundSigned": {
+    "count": 10,
+    "p50": -22,
+    "p95": 7,
+    "worst": 7,
+    "best": -31
+   },
+   "driftToVendorWordTimeSigned": {
+    "count": 10,
+    "p50": 0,
+    "p95": 46,
+    "worst": 46,
+    "best": -22
+   },
+   "over100": 0,
+   "earlyOver40": 0,
+   "stopFrozen": {
+    "count": 5,
+    "p50": 3,
+    "p95": 4,
+    "worst": 4,
+    "best": 2
+   },
+   "stopAudioAfterGain": {
+    "count": 5,
+    "p50": 0,
+    "p95": 0,
+    "worst": 0,
+    "best": 0
+   },
+   "stopStillArriving": {
+    "count": 5,
+    "p50": 60,
+    "p95": 77,
+    "worst": 77,
+    "best": 22
+   },
+   "stopsCount": 5,
+   "framesAfterStop": 0,
+   "cuesAfterStop": 0,
+   "replaySamples": 586,
+   "replayDiffering": 0,
+   "realGapsMs": [],
+   "gapReportError": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "gapChecks": [],
+   "vendorWordTimeBeforeSound": {
+    "count": 35,
+    "p50": 15,
+    "p95": 184,
+    "worst": 405,
+    "best": -271
+   },
+   "vendorWordTimeAbsolute": {
+    "count": 35,
+    "p50": 36,
+    "p95": 271,
+    "worst": 405,
+    "best": 2
+   },
+   "vendorAudioAfterStopMs": {
+    "count": 5,
+    "p50": 0,
+    "p95": 0,
+    "worst": 0,
+    "best": 0
+   },
+   "wordsLate": 1,
+   "worstWordLead": -41,
+   "firstFrameFromText": {
+    "count": 1,
+    "p50": 269,
+    "p95": 269,
+    "worst": 269,
+    "best": 269
+   },
+   "frameP95": 18,
+   "frameWorst": 33,
+   "leadingSilenceMs": {
+    "count": 6,
+    "p50": 48,
+    "p95": 70,
+    "worst": 70,
+    "best": 0
+   },
+   "wordMismatches": 0,
+   "refused": 0
+  },
+  {
+   "scenario": "interrupt-poor-flash",
+   "voice": "casey eleven_flash_v2_5",
+   "runs": 1,
+   "cuesFired": 11,
+   "cuesMeasured": 10,
+   "driftToSoundAbs": {
+    "count": 10,
+    "p50": 27,
+    "p95": 30,
+    "worst": 30,
+    "best": 0
+   },
+   "driftToSoundSigned": {
+    "count": 10,
+    "p50": -27,
+    "p95": 6,
+    "worst": 6,
+    "best": -30
+   },
+   "driftToVendorWordTimeSigned": {
+    "count": 10,
+    "p50": 2,
+    "p95": 44,
+    "worst": 44,
+    "best": -19
+   },
+   "over100": 0,
+   "earlyOver40": 0,
+   "stopFrozen": {
+    "count": 5,
+    "p50": 107,
+    "p95": 195,
+    "worst": 195,
+    "best": 93
+   },
+   "stopAudioAfterGain": {
+    "count": 5,
+    "p50": 0,
+    "p95": 0,
+    "worst": 0,
+    "best": 0
+   },
+   "stopStillArriving": {
+    "count": 5,
+    "p50": 174,
+    "p95": 195,
+    "worst": 195,
+    "best": 30
+   },
+   "stopsCount": 5,
+   "framesAfterStop": 0,
+   "cuesAfterStop": 0,
+   "replaySamples": 636,
+   "replayDiffering": 0,
+   "realGapsMs": [],
+   "gapReportError": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "gapChecks": [],
+   "vendorWordTimeBeforeSound": {
+    "count": 36,
+    "p50": 29,
+    "p95": 355,
+    "worst": 365,
+    "best": -249
+   },
+   "vendorWordTimeAbsolute": {
+    "count": 36,
+    "p50": 37,
+    "p95": 355,
+    "worst": 365,
+    "best": 3
+   },
+   "vendorAudioAfterStopMs": {
+    "count": 5,
+    "p50": 0,
+    "p95": 0,
+    "worst": 0,
+    "best": 0
+   },
+   "wordsLate": 2,
+   "worstWordLead": -202,
+   "firstFrameFromText": {
+    "count": 1,
+    "p50": 308,
+    "p95": 308,
+    "worst": 308,
+    "best": 308
+   },
+   "frameP95": 18,
+   "frameWorst": 18,
+   "leadingSilenceMs": {
+    "count": 6,
+    "p50": 28,
+    "p95": 53,
+    "worst": 53,
+    "best": 0
+   },
+   "wordMismatches": 0,
+   "refused": 0
+  },
+  {
+   "scenario": "interrupt-turbo",
+   "voice": "casey eleven_turbo_v2_5",
+   "runs": 1,
+   "cuesFired": 11,
+   "cuesMeasured": 11,
+   "driftToSoundAbs": {
+    "count": 11,
+    "p50": 26,
+    "p95": 29,
+    "worst": 29,
+    "best": 1
+   },
+   "driftToSoundSigned": {
+    "count": 11,
+    "p50": -26,
+    "p95": 18,
+    "worst": 18,
+    "best": -29
+   },
+   "driftToVendorWordTimeSigned": {
+    "count": 11,
+    "p50": 4,
+    "p95": 53,
+    "worst": 53,
+    "best": -19
+   },
+   "over100": 0,
+   "earlyOver40": 0,
+   "stopFrozen": {
+    "count": 5,
+    "p50": 2,
+    "p95": 2,
+    "worst": 2,
+    "best": 1
+   },
+   "stopAudioAfterGain": {
+    "count": 5,
+    "p50": 0,
+    "p95": 0,
+    "worst": 0,
+    "best": 0
+   },
+   "stopStillArriving": {
+    "count": 5,
+    "p50": 58,
+    "p95": 64,
+    "worst": 64,
+    "best": 0
+   },
+   "stopsCount": 5,
+   "framesAfterStop": 0,
+   "cuesAfterStop": 0,
+   "replaySamples": 653,
+   "replayDiffering": 0,
+   "realGapsMs": [],
+   "gapReportError": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "gapChecks": [],
+   "vendorWordTimeBeforeSound": {
+    "count": 37,
+    "p50": 27,
+    "p95": 410,
+    "worst": 420,
+    "best": -334
+   },
+   "vendorWordTimeAbsolute": {
+    "count": 37,
+    "p50": 58,
+    "p95": 410,
+    "worst": 420,
+    "best": 1
+   },
+   "vendorAudioAfterStopMs": {
+    "count": 5,
+    "p50": 0,
+    "p95": 15676,
+    "worst": 15676,
+    "best": 0
+   },
+   "wordsLate": 0,
+   "worstWordLead": 54,
+   "firstFrameFromText": {
+    "count": 1,
+    "p50": 739,
+    "p95": 739,
+    "worst": 739,
+    "best": 739
+   },
+   "frameP95": 18,
+   "frameWorst": 18,
+   "leadingSilenceMs": {
+    "count": 6,
+    "p50": 41,
+    "p95": 98,
+    "worst": 98,
+    "best": 13
+   },
+   "wordMismatches": 0,
+   "refused": 0
+  },
+  {
+   "scenario": "interrupt-webkit-fake",
+   "voice": "fake eleven_flash_v2_5",
+   "runs": 1,
+   "cuesFired": 11,
+   "cuesMeasured": 11,
+   "driftToSoundAbs": {
+    "count": 11,
+    "p50": 1525,
+    "p95": 4321,
+    "worst": 4321,
+    "best": 298
+   },
+   "driftToSoundSigned": {
+    "count": 11,
+    "p50": 1525,
+    "p95": 4321,
+    "worst": 4321,
+    "best": -592
+   },
+   "driftToVendorWordTimeSigned": {
+    "count": 11,
+    "p50": 1525,
+    "p95": 4320,
+    "worst": 4320,
+    "best": -592
+   },
+   "over100": 11,
+   "earlyOver40": 1,
+   "stopFrozen": {
+    "count": 5,
+    "p50": 1,
+    "p95": 1,
+    "worst": 1,
+    "best": 0
+   },
+   "stopAudioAfterGain": {
+    "count": 5,
+    "p50": 0,
+    "p95": 0,
+    "worst": 0,
+    "best": 0
+   },
+   "stopStillArriving": {
+    "count": 5,
+    "p50": 96,
+    "p95": 98,
+    "worst": 98,
+    "best": 90
+   },
+   "stopsCount": 5,
+   "framesAfterStop": 0,
+   "cuesAfterStop": 0,
+   "replaySamples": 490,
+   "replayDiffering": 0,
+   "realGapsMs": [],
+   "gapReportError": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "gapChecks": [],
+   "vendorWordTimeBeforeSound": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "vendorWordTimeAbsolute": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "vendorAudioAfterStopMs": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "wordsLate": 41,
+   "worstWordLead": -1507,
+   "firstFrameFromText": {
+    "count": 1,
+    "p50": 3,
+    "p95": 3,
+    "worst": 3,
+    "best": 3
+   },
+   "frameP95": 19,
+   "frameWorst": 40,
+   "leadingSilenceMs": {
+    "count": 6,
+    "p50": 0,
+    "p95": 0,
+    "worst": 0,
+    "best": 0
+   },
+   "wordMismatches": 0,
+   "refused": 0
+  },
+  {
+   "scenario": "model-flash",
+   "voice": "casey eleven_flash_v2_5",
+   "runs": 1,
+   "cuesFired": 14,
+   "cuesMeasured": 14,
+   "driftToSoundAbs": {
+    "count": 14,
+    "p50": 28,
+    "p95": 30,
+    "worst": 30,
+    "best": 12
+   },
+   "driftToSoundSigned": {
+    "count": 14,
+    "p50": -27,
+    "p95": -12,
+    "worst": -12,
+    "best": -30
+   },
+   "driftToVendorWordTimeSigned": {
+    "count": 14,
+    "p50": 8,
+    "p95": 41,
+    "worst": 41,
+    "best": -20
+   },
+   "over100": 0,
+   "earlyOver40": 0,
+   "stopFrozen": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "stopAudioAfterGain": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "stopStillArriving": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "stopsCount": 0,
+   "framesAfterStop": 0,
+   "cuesAfterStop": 0,
+   "replaySamples": 682,
+   "replayDiffering": 0,
+   "realGapsMs": [
+    297
+   ],
+   "gapReportError": {
+    "count": 1,
+    "p50": 8,
+    "p95": 8,
+    "worst": 8,
+    "best": 8
+   },
+   "gapChecks": [
+    {
+     "atMs": 790,
+     "reportedMs": 297,
+     "heardShiftMs": 305
+    }
+   ],
+   "vendorWordTimeBeforeSound": {
+    "count": 47,
+    "p50": 33,
+    "p95": 182,
+    "worst": 290,
+    "best": -278
+   },
+   "vendorWordTimeAbsolute": {
+    "count": 47,
+    "p50": 49,
+    "p95": 239,
+    "worst": 290,
+    "best": 0
+   },
+   "vendorAudioAfterStopMs": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "wordsLate": 2,
+   "worstWordLead": -595,
+   "firstFrameFromText": {
+    "count": 1,
+    "p50": 503,
+    "p95": 503,
+    "worst": 503,
+    "best": 503
+   },
+   "frameP95": 18,
+   "frameWorst": 18,
+   "leadingSilenceMs": {
+    "count": 2,
+    "p50": 67,
+    "p95": 67,
+    "worst": 67,
+    "best": 10
+   },
+   "wordMismatches": 0,
+   "refused": 0
+  },
+  {
+   "scenario": "phone-flash",
+   "voice": "casey eleven_flash_v2_5",
+   "runs": 2,
+   "cuesFired": 28,
+   "cuesMeasured": 27,
+   "driftToSoundAbs": {
+    "count": 27,
+    "p50": 25,
+    "p95": 35,
+    "worst": 37,
+    "best": 1
+   },
+   "driftToSoundSigned": {
+    "count": 27,
+    "p50": -25,
+    "p95": 18,
+    "worst": 35,
+    "best": -37
+   },
+   "driftToVendorWordTimeSigned": {
+    "count": 27,
+    "p50": 2,
+    "p95": 33,
+    "worst": 35,
+    "best": -37
+   },
+   "over100": 0,
+   "earlyOver40": 0,
+   "stopFrozen": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "stopAudioAfterGain": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "stopStillArriving": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "stopsCount": 0,
+   "framesAfterStop": 0,
+   "cuesAfterStop": 0,
+   "replaySamples": 1371,
+   "replayDiffering": 0,
+   "realGapsMs": [
+    216
+   ],
+   "gapReportError": {
+    "count": 1,
+    "p50": 23,
+    "p95": 23,
+    "worst": 23,
+    "best": 23
+   },
+   "gapChecks": [
+    {
+     "atMs": 769,
+     "reportedMs": 216,
+     "heardShiftMs": 193
+    }
+   ],
+   "vendorWordTimeBeforeSound": {
+    "count": 86,
+    "p50": 24,
+    "p95": 179,
+    "worst": 321,
+    "best": -306
+   },
+   "vendorWordTimeAbsolute": {
+    "count": 86,
+    "p50": 45,
+    "p95": 268,
+    "worst": 321,
+    "best": 3
+   },
+   "vendorAudioAfterStopMs": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "wordsLate": 1,
+   "worstWordLead": -468,
+   "firstFrameFromText": {
+    "count": 2,
+    "p50": 633,
+    "p95": 633,
+    "worst": 633,
+    "best": 554
+   },
+   "frameP95": 18,
+   "frameWorst": 83,
+   "leadingSilenceMs": {
+    "count": 4,
+    "p50": 41,
+    "p95": 43,
+    "worst": 43,
+    "best": 27
+   },
+   "wordMismatches": 0,
+   "refused": 0
+  },
+  {
+   "scenario": "poor-flash",
+   "voice": "casey eleven_flash_v2_5",
+   "runs": 3,
+   "cuesFired": 42,
+   "cuesMeasured": 39,
+   "driftToSoundAbs": {
+    "count": 39,
+    "p50": 29,
+    "p95": 99,
+    "worst": 128,
+    "best": 4
+   },
+   "driftToSoundSigned": {
+    "count": 39,
+    "p50": -29,
+    "p95": -5,
+    "worst": -4,
+    "best": -128
+   },
+   "driftToVendorWordTimeSigned": {
+    "count": 39,
+    "p50": 1,
+    "p95": 38,
+    "worst": 38,
+    "best": -128
+   },
+   "over100": 1,
+   "earlyOver40": 8,
+   "stopFrozen": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "stopAudioAfterGain": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "stopStillArriving": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "stopsCount": 0,
+   "framesAfterStop": 0,
+   "cuesAfterStop": 0,
+   "replaySamples": 2057,
+   "replayDiffering": 185,
+   "realGapsMs": [],
+   "gapReportError": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "gapChecks": [],
+   "vendorWordTimeBeforeSound": {
+    "count": 120,
+    "p50": 36,
+    "p95": 232,
+    "worst": 306,
+    "best": -258
+   },
+   "vendorWordTimeAbsolute": {
+    "count": 120,
+    "p50": 51,
+    "p95": 241,
+    "worst": 306,
+    "best": 2
+   },
+   "vendorAudioAfterStopMs": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "wordsLate": 1,
+   "worstWordLead": -57,
+   "firstFrameFromText": {
+    "count": 3,
+    "p50": 560,
+    "p95": 564,
+    "worst": 564,
+    "best": 529
+   },
+   "frameP95": 18,
+   "frameWorst": 34,
+   "leadingSilenceMs": {
+    "count": 6,
+    "p50": 50,
+    "p95": 53,
+    "worst": 53,
+    "best": 1
+   },
+   "wordMismatches": 0,
+   "refused": 0
+  },
+  {
+   "scenario": "stall-500-flash",
+   "voice": "casey eleven_flash_v2_5",
+   "runs": 1,
+   "cuesFired": 14,
+   "cuesMeasured": 13,
+   "driftToSoundAbs": {
+    "count": 13,
+    "p50": 26,
+    "p95": 31,
+    "worst": 31,
+    "best": 0
+   },
+   "driftToSoundSigned": {
+    "count": 13,
+    "p50": -26,
+    "p95": 0,
+    "worst": 0,
+    "best": -31
+   },
+   "driftToVendorWordTimeSigned": {
+    "count": 13,
+    "p50": 0,
+    "p95": 28,
+    "worst": 28,
+    "best": -14
+   },
+   "over100": 0,
+   "earlyOver40": 0,
+   "stopFrozen": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "stopAudioAfterGain": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "stopStillArriving": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "stopsCount": 0,
+   "framesAfterStop": 0,
+   "cuesAfterStop": 0,
+   "replaySamples": 680,
+   "replayDiffering": 0,
+   "realGapsMs": [
+    310,
+    321
+   ],
+   "gapReportError": {
+    "count": 2,
+    "p50": 9,
+    "p95": 9,
+    "worst": 9,
+    "best": 2
+   },
+   "gapChecks": [
+    {
+     "atMs": 1947,
+     "reportedMs": 310,
+     "heardShiftMs": 308
+    },
+    {
+     "atMs": 6947,
+     "reportedMs": 321,
+     "heardShiftMs": 312
+    }
+   ],
+   "vendorWordTimeBeforeSound": {
+    "count": 43,
+    "p50": 30,
+    "p95": 188,
+    "worst": 214,
+    "best": -321
+   },
+   "vendorWordTimeAbsolute": {
+    "count": 43,
+    "p50": 49,
+    "p95": 214,
+    "worst": 321,
+    "best": 4
+   },
+   "vendorAudioAfterStopMs": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "wordsLate": 0,
+   "worstWordLead": 55,
+   "firstFrameFromText": {
+    "count": 1,
+    "p50": 629,
+    "p95": 629,
+    "worst": 629,
+    "best": 629
+   },
+   "frameP95": 18,
+   "frameWorst": 33,
+   "leadingSilenceMs": {
+    "count": 2,
+    "p50": 53,
+    "p95": 53,
+    "worst": 53,
+    "best": 32
+   },
+   "wordMismatches": 0,
+   "refused": 0
+  },
+  {
+   "scenario": "stall-90-flash",
+   "voice": "casey eleven_flash_v2_5",
+   "runs": 1,
+   "cuesFired": 14,
+   "cuesMeasured": 13,
+   "driftToSoundAbs": {
+    "count": 13,
+    "p50": 28,
+    "p95": 31,
+    "worst": 31,
+    "best": 0
+   },
+   "driftToSoundSigned": {
+    "count": 13,
+    "p50": -28,
+    "p95": 1,
+    "worst": 1,
+    "best": -31
+   },
+   "driftToVendorWordTimeSigned": {
+    "count": 13,
+    "p50": 1,
+    "p95": 33,
+    "worst": 33,
+    "best": -19
+   },
+   "over100": 0,
+   "earlyOver40": 0,
+   "stopFrozen": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "stopAudioAfterGain": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "stopStillArriving": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "stopsCount": 0,
+   "framesAfterStop": 0,
+   "cuesAfterStop": 0,
+   "replaySamples": 679,
+   "replayDiffering": 0,
+   "realGapsMs": [
+    94,
+    109
+   ],
+   "gapReportError": {
+    "count": 2,
+    "p50": 7,
+    "p95": 7,
+    "worst": 7,
+    "best": 6
+   },
+   "gapChecks": [
+    {
+     "atMs": 1954,
+     "reportedMs": 94,
+     "heardShiftMs": 100
+    },
+    {
+     "atMs": 6954,
+     "reportedMs": 109,
+     "heardShiftMs": 102
+    }
+   ],
+   "vendorWordTimeBeforeSound": {
+    "count": 38,
+    "p50": 41,
+    "p95": 214,
+    "worst": 254,
+    "best": -329
+   },
+   "vendorWordTimeAbsolute": {
+    "count": 38,
+    "p50": 52,
+    "p95": 264,
+    "worst": 329,
+    "best": 1
+   },
+   "vendorAudioAfterStopMs": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "wordsLate": 0,
+   "worstWordLead": 83,
+   "firstFrameFromText": {
+    "count": 1,
+    "p50": 548,
+    "p95": 548,
+    "worst": 548,
+    "best": 548
+   },
+   "frameP95": 18,
+   "frameWorst": 22,
+   "leadingSilenceMs": {
+    "count": 2,
+    "p50": 46,
+    "p95": 46,
+    "worst": 46,
+    "best": 31
+   },
+   "wordMismatches": 0,
+   "refused": 0
+  },
+  {
+   "scenario": "stored-firefox-flash",
+   "voice": "stored casey eleven_flash_v2_5",
+   "runs": 1,
+   "cuesFired": 6,
+   "cuesMeasured": 6,
+   "driftToSoundAbs": {
+    "count": 6,
+    "p50": 2,
+    "p95": 30,
+    "worst": 30,
+    "best": 1
+   },
+   "driftToSoundSigned": {
+    "count": 6,
+    "p50": 1,
+    "p95": 2,
+    "worst": 2,
+    "best": -30
+   },
+   "driftToVendorWordTimeSigned": {
+    "count": 6,
+    "p50": 1,
+    "p95": 2,
+    "worst": 2,
+    "best": -30
+   },
+   "over100": 0,
+   "earlyOver40": 0,
+   "stopFrozen": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "stopAudioAfterGain": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "stopStillArriving": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "stopsCount": 0,
+   "framesAfterStop": 0,
+   "cuesAfterStop": 0,
+   "replaySamples": 125,
+   "replayDiffering": 0,
+   "realGapsMs": [],
+   "gapReportError": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "gapChecks": [],
+   "vendorWordTimeBeforeSound": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "vendorWordTimeAbsolute": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "vendorAudioAfterStopMs": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "wordsLate": 0,
+   "worstWordLead": 86,
+   "firstFrameFromText": {
+    "count": 1,
+    "p50": 3,
+    "p95": 3,
+    "worst": 3,
+    "best": 3
+   },
+   "frameP95": 10,
+   "frameWorst": 18,
+   "leadingSilenceMs": {
+    "count": 3,
+    "p50": 26,
+    "p95": 26,
+    "worst": 26,
+    "best": 26
+   },
+   "wordMismatches": 0,
+   "refused": 0
+  },
+  {
+   "scenario": "stored-flash",
+   "voice": "stored casey eleven_flash_v2_5",
+   "runs": 2,
+   "cuesFired": 12,
+   "cuesMeasured": 12,
+   "driftToSoundAbs": {
+    "count": 12,
+    "p50": 4,
+    "p95": 40,
+    "worst": 40,
+    "best": 3
+   },
+   "driftToSoundSigned": {
+    "count": 12,
+    "p50": 4,
+    "p95": 5,
+    "worst": 5,
+    "best": -40
+   },
+   "driftToVendorWordTimeSigned": {
+    "count": 12,
+    "p50": 4,
+    "p95": 5,
+    "worst": 5,
+    "best": -40
+   },
+   "over100": 0,
+   "earlyOver40": 0,
+   "stopFrozen": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "stopAudioAfterGain": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "stopStillArriving": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "stopsCount": 0,
+   "framesAfterStop": 0,
+   "cuesAfterStop": 0,
+   "replaySamples": 262,
+   "replayDiffering": 0,
+   "realGapsMs": [],
+   "gapReportError": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "gapChecks": [],
+   "vendorWordTimeBeforeSound": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "vendorWordTimeAbsolute": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "vendorAudioAfterStopMs": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "wordsLate": 0,
+   "worstWordLead": 83,
+   "firstFrameFromText": {
+    "count": 2,
+    "p50": 10,
+    "p95": 10,
+    "worst": 10,
+    "best": 2
+   },
+   "frameP95": 18,
+   "frameWorst": 26,
+   "leadingSilenceMs": {
+    "count": 6,
+    "p50": 26,
+    "p95": 26,
+    "worst": 26,
+    "best": 26
+   },
+   "wordMismatches": 0,
+   "refused": 0
+  },
+  {
+   "scenario": "stored-webkit-flash",
+   "voice": "stored casey eleven_flash_v2_5",
+   "runs": 1,
+   "cuesFired": 6,
+   "cuesMeasured": 6,
+   "driftToSoundAbs": {
+    "count": 6,
+    "p50": 6,
+    "p95": 26,
+    "worst": 26,
+    "best": 0
+   },
+   "driftToSoundSigned": {
+    "count": 6,
+    "p50": 4,
+    "p95": 8,
+    "worst": 8,
+    "best": -26
+   },
+   "driftToVendorWordTimeSigned": {
+    "count": 6,
+    "p50": 4,
+    "p95": 8,
+    "worst": 8,
+    "best": -26
+   },
+   "over100": 0,
+   "earlyOver40": 0,
+   "stopFrozen": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "stopAudioAfterGain": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "stopStillArriving": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "stopsCount": 0,
+   "framesAfterStop": 0,
+   "cuesAfterStop": 0,
+   "replaySamples": 134,
+   "replayDiffering": 0,
+   "realGapsMs": [],
+   "gapReportError": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "gapChecks": [],
+   "vendorWordTimeBeforeSound": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "vendorWordTimeAbsolute": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "vendorAudioAfterStopMs": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "wordsLate": 0,
+   "worstWordLead": 133,
+   "firstFrameFromText": {
+    "count": 1,
+    "p50": 21,
+    "p95": 21,
+    "worst": 21,
+    "best": 21
+   },
+   "frameP95": 19,
+   "frameWorst": 97,
+   "leadingSilenceMs": {
+    "count": 3,
+    "p50": 26,
+    "p95": 26,
+    "worst": 26,
+    "best": 26
+   },
+   "wordMismatches": 0,
+   "refused": 0
+  },
+  {
+   "scenario": "uneven-flash",
+   "voice": "casey eleven_flash_v2_5",
+   "runs": 3,
+   "cuesFired": 43,
+   "cuesMeasured": 40,
+   "driftToSoundAbs": {
+    "count": 40,
+    "p50": 28,
+    "p95": 45,
+    "worst": 50,
+    "best": 4
+   },
+   "driftToSoundSigned": {
+    "count": 40,
+    "p50": -28,
+    "p95": -15,
+    "worst": 4,
+    "best": -50
+   },
+   "driftToVendorWordTimeSigned": {
+    "count": 40,
+    "p50": -1,
+    "p95": 36,
+    "worst": 49,
+    "best": -50
+   },
+   "over100": 0,
+   "earlyOver40": 5,
+   "stopFrozen": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "stopAudioAfterGain": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "stopStillArriving": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "stopsCount": 0,
+   "framesAfterStop": 0,
+   "cuesAfterStop": 0,
+   "replaySamples": 2075,
+   "replayDiffering": 0,
+   "realGapsMs": [
+    192
+   ],
+   "gapReportError": {
+    "count": 1,
+    "p50": 11,
+    "p95": 11,
+    "worst": 11,
+    "best": 11
+   },
+   "gapChecks": [
+    {
+     "atMs": 13064,
+     "reportedMs": 192,
+     "heardShiftMs": 181
+    }
+   ],
+   "vendorWordTimeBeforeSound": {
+    "count": 129,
+    "p50": 35,
+    "p95": 212,
+    "worst": 323,
+    "best": -313
+   },
+   "vendorWordTimeAbsolute": {
+    "count": 129,
+    "p50": 47,
+    "p95": 266,
+    "worst": 323,
+    "best": 0
+   },
+   "vendorAudioAfterStopMs": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "wordsLate": 0,
+   "worstWordLead": 19,
+   "firstFrameFromText": {
+    "count": 3,
+    "p50": 577,
+    "p95": 681,
+    "worst": 681,
+    "best": 548
+   },
+   "frameP95": 18,
+   "frameWorst": 25,
+   "leadingSilenceMs": {
+    "count": 6,
+    "p50": 46,
+    "p95": 49,
+    "worst": 49,
+    "best": 5
+   },
+   "wordMismatches": 0,
+   "refused": 0
+  },
+  {
+   "scenario": "uneven-turbo",
+   "voice": "casey eleven_turbo_v2_5",
+   "runs": 1,
+   "cuesFired": 15,
+   "cuesMeasured": 15,
+   "driftToSoundAbs": {
+    "count": 15,
+    "p50": 28,
+    "p95": 50,
+    "worst": 50,
+    "best": 6
+   },
+   "driftToSoundSigned": {
+    "count": 15,
+    "p50": -28,
+    "p95": 6,
+    "worst": 6,
+    "best": -50
+   },
+   "driftToVendorWordTimeSigned": {
+    "count": 15,
+    "p50": 6,
+    "p95": 80,
+    "worst": 80,
+    "best": -50
+   },
+   "over100": 0,
+   "earlyOver40": 4,
+   "stopFrozen": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "stopAudioAfterGain": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "stopStillArriving": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "stopsCount": 0,
+   "framesAfterStop": 0,
+   "cuesAfterStop": 0,
+   "replaySamples": 702,
+   "replayDiffering": 0,
+   "realGapsMs": [],
+   "gapReportError": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "gapChecks": [],
+   "vendorWordTimeBeforeSound": {
+    "count": 40,
+    "p50": 36,
+    "p95": 225,
+    "worst": 334,
+    "best": -332
+   },
+   "vendorWordTimeAbsolute": {
+    "count": 40,
+    "p50": 56,
+    "p95": 332,
+    "worst": 334,
+    "best": 2
+   },
+   "vendorAudioAfterStopMs": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "wordsLate": 0,
+   "worstWordLead": 14,
+   "firstFrameFromText": {
+    "count": 1,
+    "p50": 1033,
+    "p95": 1033,
+    "worst": 1033,
+    "best": 1033
+   },
+   "frameP95": 18,
+   "frameWorst": 28,
+   "leadingSilenceMs": {
+    "count": 2,
+    "p50": 92,
+    "p95": 92,
+    "worst": 92,
+    "best": 47
+   },
+   "wordMismatches": 0,
+   "refused": 0
+  },
+  {
+   "scenario": "words-late-300-flash",
+   "voice": "casey eleven_flash_v2_5",
+   "runs": 1,
+   "cuesFired": 10,
+   "cuesMeasured": 9,
+   "driftToSoundAbs": {
+    "count": 9,
+    "p50": 25,
+    "p95": 31,
+    "worst": 31,
+    "best": 1
+   },
+   "driftToSoundSigned": {
+    "count": 9,
+    "p50": -25,
+    "p95": -1,
+    "worst": -1,
+    "best": -31
+   },
+   "driftToVendorWordTimeSigned": {
+    "count": 9,
+    "p50": -1,
+    "p95": 38,
+    "worst": 38,
+    "best": -16
+   },
+   "over100": 0,
+   "earlyOver40": 0,
+   "stopFrozen": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "stopAudioAfterGain": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "stopStillArriving": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "stopsCount": 0,
+   "framesAfterStop": 0,
+   "cuesAfterStop": 0,
+   "replaySamples": 386,
+   "replayDiffering": 0,
+   "realGapsMs": [],
+   "gapReportError": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "gapChecks": [],
+   "vendorWordTimeBeforeSound": {
+    "count": 31,
+    "p50": 35,
+    "p95": 210,
+    "worst": 306,
+    "best": -263
+   },
+   "vendorWordTimeAbsolute": {
+    "count": 31,
+    "p50": 46,
+    "p95": 263,
+    "worst": 306,
+    "best": 2
+   },
+   "vendorAudioAfterStopMs": {
+    "count": 0,
+    "p50": null,
+    "p95": null,
+    "worst": null,
+    "best": null
+   },
+   "wordsLate": 1,
+   "worstWordLead": -223,
+   "firstFrameFromText": {
+    "count": 1,
+    "p50": 614,
+    "p95": 614,
+    "worst": 614,
+    "best": 614
+   },
+   "frameP95": 18,
+   "frameWorst": 19,
+   "leadingSilenceMs": {
+    "count": 1,
+    "p50": 47,
+    "p95": 47,
+    "worst": 47,
+    "best": 47
+   },
+   "wordMismatches": 0,
+   "refused": 0
+  }
+ ],
+ "fixRound": {
+  "measuredOn": "this Mac, under load, at 24 kHz. Chris rows are the voice Abel chose. Casey rows and rows named stored play a real take",
+  "reviewerRunsAt22kHz": {
+   "lagSlopeMsPerSecond": [
+    1.31,
+    1.64
+   ],
+   "p95": [
+    76,
+    103
+   ],
+   "worst": [
+    94,
+    109
+   ]
+  },
+  "rows": [
+   {
+    "scenario": "long-every-third-flash",
+    "voice": "stored chris eleven_flash_v2_5",
+    "runs": 2,
+    "cuesFired": 240,
+    "cuesMeasured": 238,
+    "driftToSoundAbs": {
+     "count": 238,
+     "p50": 20,
+     "p95": 30,
+     "worst": 31,
+     "best": 0
+    },
+    "driftToSoundSigned": {
+     "count": 238,
+     "p50": -19,
+     "p95": 20,
+     "worst": 24,
+     "best": -31
+    },
+    "driftOfScriptCues": {
+     "count": 78,
+     "p50": 22,
+     "p95": 31,
+     "worst": 31,
+     "best": 0
+    },
+    "driftEveryThirdWord": {
+     "count": 160,
+     "p50": 20,
+     "p95": 29,
+     "worst": 31,
+     "best": 6
+    },
+    "cuesDecidedByTheGate": 72,
+    "silenceBeforeTurnsMs": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "driftToVendorWordTimeSigned": {
+     "count": 238,
+     "p50": 15,
+     "p95": 21,
+     "worst": 30,
+     "best": -23
+    },
+    "over100": 0,
+    "earlyOver40": 0,
+    "stopFrozen": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "stopAudioAfterGain": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "stopStillArriving": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "stopsCount": 0,
+    "framesAfterStop": 0,
+    "cuesAfterStop": 0,
+    "replaySamples": 2604,
+    "replayDiffering": 0,
+    "gapReportError": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorWordTimeBeforeSound": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorWordTimeAbsolute": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorAudioAfterStopMs": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "wordsLate": 0,
+    "worstWordLead": 87,
+    "firstFrameFromText": {
+     "count": 2,
+     "p50": 27,
+     "p95": 27,
+     "worst": 27,
+     "best": 9
+    },
+    "frameP95": 17,
+    "frameWorst": 33,
+    "leadingSilenceMs": {
+     "count": 2,
+     "p50": 56,
+     "p95": 56,
+     "worst": 56,
+     "best": 56
+    },
+    "wordMismatches": 0,
+    "refused": 0,
+    "lagSlopeMsPerSecond": [
+     0.02,
+     -0.07
+    ]
+   },
+   {
+    "scenario": "after-stop-flash",
+    "voice": "chris eleven_flash_v2_5",
+    "runs": 1,
+    "cuesFired": 10,
+    "cuesMeasured": 10,
+    "driftToSoundAbs": {
+     "count": 10,
+     "p50": 25,
+     "p95": 28,
+     "worst": 28,
+     "best": 0
+    },
+    "driftToSoundSigned": {
+     "count": 10,
+     "p50": 0,
+     "p95": 4,
+     "worst": 4,
+     "best": -28
+    },
+    "driftOfScriptCues": {
+     "count": 10,
+     "p50": 25,
+     "p95": 28,
+     "worst": 28,
+     "best": 0
+    },
+    "driftEveryThirdWord": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "cuesDecidedByTheGate": 5,
+    "silenceBeforeTurnsMs": {
+     "count": 1,
+     "p50": 374,
+     "p95": 374,
+     "worst": 374,
+     "best": 374
+    },
+    "driftToVendorWordTimeSigned": {
+     "count": 10,
+     "p50": 4,
+     "p95": 22,
+     "worst": 22,
+     "best": -16
+    },
+    "over100": 0,
+    "earlyOver40": 0,
+    "stopFrozen": {
+     "count": 1,
+     "p50": 3,
+     "p95": 3,
+     "worst": 3,
+     "best": 3
+    },
+    "stopAudioAfterGain": {
+     "count": 1,
+     "p50": 0,
+     "p95": 0,
+     "worst": 0,
+     "best": 0
+    },
+    "stopStillArriving": {
+     "count": 1,
+     "p50": 74,
+     "p95": 74,
+     "worst": 74,
+     "best": 74
+    },
+    "stopsCount": 1,
+    "framesAfterStop": 0,
+    "cuesAfterStop": 0,
+    "replaySamples": 317,
+    "replayDiffering": 0,
+    "gapReportError": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorWordTimeBeforeSound": {
+     "count": 15,
+     "p50": 37,
+     "p95": 267,
+     "worst": 267,
+     "best": -326
+    },
+    "vendorWordTimeAbsolute": {
+     "count": 15,
+     "p50": 37,
+     "p95": 326,
+     "worst": 326,
+     "best": 1
+    },
+    "vendorAudioAfterStopMs": {
+     "count": 1,
+     "p50": 0,
+     "p95": 0,
+     "worst": 0,
+     "best": 0
+    },
+    "wordsLate": 0,
+    "worstWordLead": 70,
+    "firstFrameFromText": {
+     "count": 1,
+     "p50": 637,
+     "p95": 637,
+     "worst": 637,
+     "best": 637
+    },
+    "frameP95": 17,
+    "frameWorst": 23,
+    "leadingSilenceMs": {
+     "count": 2,
+     "p50": 60,
+     "p95": 60,
+     "worst": 60,
+     "best": 34
+    },
+    "wordMismatches": 0,
+    "refused": 0
+   },
+   {
+    "scenario": "interrupt-flash",
+    "voice": "chris eleven_flash_v2_5",
+    "runs": 1,
+    "cuesFired": 10,
+    "cuesMeasured": 10,
+    "driftToSoundAbs": {
+     "count": 10,
+     "p50": 21,
+     "p95": 30,
+     "worst": 30,
+     "best": 4
+    },
+    "driftToSoundSigned": {
+     "count": 10,
+     "p50": -20,
+     "p95": 5,
+     "worst": 5,
+     "best": -30
+    },
+    "driftOfScriptCues": {
+     "count": 10,
+     "p50": 21,
+     "p95": 30,
+     "worst": 30,
+     "best": 4
+    },
+    "driftEveryThirdWord": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "cuesDecidedByTheGate": 6,
+    "silenceBeforeTurnsMs": {
+     "count": 5,
+     "p50": 1725,
+     "p95": 1779,
+     "worst": 1779,
+     "best": 1710
+    },
+    "driftToVendorWordTimeSigned": {
+     "count": 10,
+     "p50": 12,
+     "p95": 42,
+     "worst": 42,
+     "best": -7
+    },
+    "over100": 0,
+    "earlyOver40": 0,
+    "stopFrozen": {
+     "count": 5,
+     "p50": 0,
+     "p95": 1,
+     "worst": 1,
+     "best": -1
+    },
+    "stopAudioAfterGain": {
+     "count": 5,
+     "p50": 0,
+     "p95": 0,
+     "worst": 0,
+     "best": 0
+    },
+    "stopStillArriving": {
+     "count": 5,
+     "p50": 66,
+     "p95": 70,
+     "worst": 70,
+     "best": 3
+    },
+    "stopsCount": 5,
+    "framesAfterStop": 0,
+    "cuesAfterStop": 0,
+    "replaySamples": 503,
+    "replayDiffering": 0,
+    "gapReportError": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorWordTimeBeforeSound": {
+     "count": 21,
+     "p50": 47,
+     "p95": 217,
+     "worst": 345,
+     "best": -223
+    },
+    "vendorWordTimeAbsolute": {
+     "count": 21,
+     "p50": 50,
+     "p95": 223,
+     "worst": 345,
+     "best": 1
+    },
+    "vendorAudioAfterStopMs": {
+     "count": 5,
+     "p50": 0,
+     "p95": 0,
+     "worst": 0,
+     "best": 0
+    },
+    "wordsLate": 0,
+    "worstWordLead": 55,
+    "firstFrameFromText": {
+     "count": 1,
+     "p50": 265,
+     "p95": 265,
+     "worst": 265,
+     "best": 265
+    },
+    "frameP95": 18,
+    "frameWorst": 18,
+    "leadingSilenceMs": {
+     "count": 6,
+     "p50": 51,
+     "p95": 57,
+     "worst": 57,
+     "best": 12
+    },
+    "wordMismatches": 0,
+    "refused": 0
+   },
+   {
+    "scenario": "next-on-finished-flash",
+    "voice": "chris eleven_flash_v2_5",
+    "runs": 1,
+    "cuesFired": 4,
+    "cuesMeasured": 3,
+    "driftToSoundAbs": {
+     "count": 3,
+     "p50": 5,
+     "p95": 16,
+     "worst": 16,
+     "best": 3
+    },
+    "driftToSoundSigned": {
+     "count": 3,
+     "p50": 3,
+     "p95": 5,
+     "worst": 5,
+     "best": -16
+    },
+    "driftOfScriptCues": {
+     "count": 3,
+     "p50": 5,
+     "p95": 16,
+     "worst": 16,
+     "best": 3
+    },
+    "driftEveryThirdWord": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "cuesDecidedByTheGate": 1,
+    "silenceBeforeTurnsMs": {
+     "count": 1,
+     "p50": 682,
+     "p95": 682,
+     "worst": 682,
+     "best": 682
+    },
+    "driftToVendorWordTimeSigned": {
+     "count": 3,
+     "p50": 3,
+     "p95": 62,
+     "worst": 62,
+     "best": -16
+    },
+    "over100": 0,
+    "earlyOver40": 0,
+    "stopFrozen": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "stopAudioAfterGain": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "stopStillArriving": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "stopsCount": 0,
+    "framesAfterStop": 0,
+    "cuesAfterStop": 0,
+    "replaySamples": 73,
+    "replayDiffering": 0,
+    "gapReportError": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorWordTimeBeforeSound": {
+     "count": 5,
+     "p50": 40,
+     "p95": 190,
+     "worst": 190,
+     "best": -18
+    },
+    "vendorWordTimeAbsolute": {
+     "count": 5,
+     "p50": 40,
+     "p95": 190,
+     "worst": 190,
+     "best": 8
+    },
+    "vendorAudioAfterStopMs": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "wordsLate": 0,
+    "worstWordLead": 87,
+    "firstFrameFromText": {
+     "count": 1,
+     "p50": 491,
+     "p95": 491,
+     "worst": 491,
+     "best": 491
+    },
+    "frameP95": 18,
+    "frameWorst": 33,
+    "leadingSilenceMs": {
+     "count": 2,
+     "p50": 59,
+     "p95": 59,
+     "worst": 59,
+     "best": 43
+    },
+    "wordMismatches": 0,
+    "refused": 0
+   },
+   {
+    "scenario": "poor-every-third-flash",
+    "voice": "stored chris eleven_flash_v2_5",
+    "runs": 6,
+    "cuesFired": 252,
+    "cuesMeasured": 248,
+    "driftToSoundAbs": {
+     "count": 248,
+     "p50": 26,
+     "p95": 69,
+     "worst": 87,
+     "best": 0
+    },
+    "driftToSoundSigned": {
+     "count": 248,
+     "p50": -26,
+     "p95": 5,
+     "worst": 14,
+     "best": -87
+    },
+    "driftOfScriptCues": {
+     "count": 89,
+     "p50": 27,
+     "p95": 51,
+     "worst": 71,
+     "best": 1
+    },
+    "driftEveryThirdWord": {
+     "count": 159,
+     "p50": 19,
+     "p95": 71,
+     "worst": 87,
+     "best": 0
+    },
+    "cuesDecidedByTheGate": 72,
+    "silenceBeforeTurnsMs": {
+     "count": 6,
+     "p50": 2072,
+     "p95": 2211,
+     "worst": 2211,
+     "best": 1926
+    },
+    "driftToVendorWordTimeSigned": {
+     "count": 248,
+     "p50": -3,
+     "p95": 18,
+     "worst": 21,
+     "best": -87
+    },
+    "over100": 0,
+    "earlyOver40": 58,
+    "stopFrozen": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "stopAudioAfterGain": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "stopStillArriving": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "stopsCount": 0,
+    "framesAfterStop": 0,
+    "cuesAfterStop": 0,
+    "replaySamples": 3223,
+    "replayDiffering": 0,
+    "gapReportError": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorWordTimeBeforeSound": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorWordTimeAbsolute": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorAudioAfterStopMs": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "wordsLate": 4,
+    "worstWordLead": -38,
+    "firstFrameFromText": {
+     "count": 6,
+     "p50": 11,
+     "p95": 105,
+     "worst": 105,
+     "best": 5
+    },
+    "frameP95": 18,
+    "frameWorst": 49,
+    "leadingSilenceMs": {
+     "count": 12,
+     "p50": 56,
+     "p95": 56,
+     "worst": 56,
+     "best": 0
+    },
+    "wordMismatches": 0,
+    "refused": 0,
+    "lagSlopeMsPerSecond": [
+     1.55,
+     1.63,
+     -0.29,
+     1.84,
+     5.28,
+     3.67
+    ]
+   },
+   {
+    "scenario": "uneven-every-third-flash",
+    "voice": "stored chris eleven_flash_v2_5",
+    "runs": 3,
+    "cuesFired": 126,
+    "cuesMeasured": 125,
+    "driftToSoundAbs": {
+     "count": 125,
+     "p50": 28,
+     "p95": 57,
+     "worst": 61,
+     "best": 0
+    },
+    "driftToSoundSigned": {
+     "count": 125,
+     "p50": -28,
+     "p95": 4,
+     "worst": 10,
+     "best": -61
+    },
+    "driftOfScriptCues": {
+     "count": 45,
+     "p50": 28,
+     "p95": 47,
+     "worst": 53,
+     "best": 0
+    },
+    "driftEveryThirdWord": {
+     "count": 80,
+     "p50": 35,
+     "p95": 59,
+     "worst": 61,
+     "best": 1
+    },
+    "cuesDecidedByTheGate": 36,
+    "silenceBeforeTurnsMs": {
+     "count": 3,
+     "p50": 1856,
+     "p95": 1897,
+     "worst": 1897,
+     "best": 1792
+    },
+    "driftToVendorWordTimeSigned": {
+     "count": 125,
+     "p50": -6,
+     "p95": 16,
+     "worst": 20,
+     "best": -61
+    },
+    "over100": 0,
+    "earlyOver40": 40,
+    "stopFrozen": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "stopAudioAfterGain": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "stopStillArriving": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "stopsCount": 0,
+    "framesAfterStop": 0,
+    "cuesAfterStop": 0,
+    "replaySamples": 1598,
+    "replayDiffering": 0,
+    "gapReportError": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorWordTimeBeforeSound": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorWordTimeAbsolute": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorAudioAfterStopMs": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "wordsLate": 0,
+    "worstWordLead": 52,
+    "firstFrameFromText": {
+     "count": 3,
+     "p50": 8,
+     "p95": 11,
+     "worst": 11,
+     "best": 6
+    },
+    "frameP95": 18,
+    "frameWorst": 19,
+    "leadingSilenceMs": {
+     "count": 6,
+     "p50": 56,
+     "p95": 56,
+     "worst": 56,
+     "best": 0
+    },
+    "wordMismatches": 0,
+    "refused": 0,
+    "lagSlopeMsPerSecond": [
+     1.24,
+     2.21,
+     2.45
+    ]
+   },
+   {
+    "scenario": "clean-every-third-flash",
+    "voice": "chris eleven_flash_v2_5",
+    "runs": 2,
+    "cuesFired": 84,
+    "cuesMeasured": 82,
+    "driftToSoundAbs": {
+     "count": 82,
+     "p50": 12,
+     "p95": 28,
+     "worst": 30,
+     "best": 0
+    },
+    "driftToSoundSigned": {
+     "count": 82,
+     "p50": 5,
+     "p95": 20,
+     "worst": 20,
+     "best": -30
+    },
+    "driftOfScriptCues": {
+     "count": 28,
+     "p50": 20,
+     "p95": 29,
+     "worst": 30,
+     "best": 1
+    },
+    "driftEveryThirdWord": {
+     "count": 54,
+     "p50": 9,
+     "p95": 27,
+     "worst": 30,
+     "best": 0
+    },
+    "cuesDecidedByTheGate": 32,
+    "silenceBeforeTurnsMs": {
+     "count": 2,
+     "p50": 2047,
+     "p95": 2047,
+     "worst": 2047,
+     "best": 2021
+    },
+    "driftToVendorWordTimeSigned": {
+     "count": 82,
+     "p50": 14,
+     "p95": 38,
+     "worst": 67,
+     "best": 0
+    },
+    "over100": 0,
+    "earlyOver40": 0,
+    "stopFrozen": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "stopAudioAfterGain": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "stopStillArriving": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "stopsCount": 0,
+    "framesAfterStop": 0,
+    "cuesAfterStop": 0,
+    "replaySamples": 1070,
+    "replayDiffering": 0,
+    "gapReportError": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorWordTimeBeforeSound": {
+     "count": 38,
+     "p50": 38,
+     "p95": 226,
+     "worst": 276,
+     "best": -323
+    },
+    "vendorWordTimeAbsolute": {
+     "count": 38,
+     "p50": 40,
+     "p95": 276,
+     "worst": 323,
+     "best": 1
+    },
+    "vendorAudioAfterStopMs": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "wordsLate": 0,
+    "worstWordLead": 74,
+    "firstFrameFromText": {
+     "count": 2,
+     "p50": 529,
+     "p95": 529,
+     "worst": 529,
+     "best": 502
+    },
+    "frameP95": 17,
+    "frameWorst": 21,
+    "leadingSilenceMs": {
+     "count": 4,
+     "p50": 56,
+     "p95": 70,
+     "worst": 70,
+     "best": 35
+    },
+    "wordMismatches": 0,
+    "refused": 0,
+    "lagSlopeMsPerSecond": [
+     -0.01,
+     -0.01
+    ]
+   },
+   {
+    "scenario": "interrupt-stock-flash",
+    "voice": "casey eleven_flash_v2_5",
+    "runs": 1,
+    "cuesFired": 4,
+    "cuesMeasured": 2,
+    "driftToSoundAbs": {
+     "count": 2,
+     "p50": 23,
+     "p95": 23,
+     "worst": 23,
+     "best": 21
+    },
+    "driftToSoundSigned": {
+     "count": 2,
+     "p50": 23,
+     "p95": 23,
+     "worst": 23,
+     "best": -21
+    },
+    "driftOfScriptCues": {
+     "count": 2,
+     "p50": 23,
+     "p95": 23,
+     "worst": 23,
+     "best": 21
+    },
+    "driftEveryThirdWord": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "cuesDecidedByTheGate": 0,
+    "silenceBeforeTurnsMs": {
+     "count": 1,
+     "p50": 1741,
+     "p95": 1741,
+     "worst": 1741,
+     "best": 1741
+    },
+    "driftToVendorWordTimeSigned": {
+     "count": 2,
+     "p50": 23,
+     "p95": 23,
+     "worst": 23,
+     "best": -21
+    },
+    "over100": 0,
+    "earlyOver40": 0,
+    "stopFrozen": {
+     "count": 2,
+     "p50": 2,
+     "p95": 2,
+     "worst": 2,
+     "best": 1
+    },
+    "stopAudioAfterGain": {
+     "count": 2,
+     "p50": 0,
+     "p95": 0,
+     "worst": 0,
+     "best": 0
+    },
+    "stopStillArriving": {
+     "count": 2,
+     "p50": 93,
+     "p95": 93,
+     "worst": 93,
+     "best": 53
+    },
+    "stopsCount": 2,
+    "framesAfterStop": 0,
+    "cuesAfterStop": 0,
+    "replaySamples": 97,
+    "replayDiffering": 0,
+    "gapReportError": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorWordTimeBeforeSound": {
+     "count": 1,
+     "p50": -84,
+     "p95": -84,
+     "worst": -84,
+     "best": -84
+    },
+    "vendorWordTimeAbsolute": {
+     "count": 1,
+     "p50": 84,
+     "p95": 84,
+     "worst": 84,
+     "best": 84
+    },
+    "vendorAudioAfterStopMs": {
+     "count": 2,
+     "p50": 0,
+     "p95": 0,
+     "worst": 0,
+     "best": 0
+    },
+    "wordsLate": 0,
+    "worstWordLead": 294,
+    "firstFrameFromText": {
+     "count": 1,
+     "p50": 555,
+     "p95": 555,
+     "worst": 555,
+     "best": 555
+    },
+    "frameP95": 17,
+    "frameWorst": 17,
+    "leadingSilenceMs": {
+     "count": 2,
+     "p50": 19,
+     "p95": 19,
+     "worst": 19,
+     "best": 16
+    },
+    "wordMismatches": 0,
+    "refused": 0
+   },
+   {
+    "scenario": "clean-every-third-flash",
+    "voice": "casey eleven_flash_v2_5",
+    "runs": 1,
+    "cuesFired": 30,
+    "cuesMeasured": 30,
+    "driftToSoundAbs": {
+     "count": 30,
+     "p50": 5,
+     "p95": 29,
+     "worst": 29,
+     "best": 0
+    },
+    "driftToSoundSigned": {
+     "count": 30,
+     "p50": 4,
+     "p95": 5,
+     "worst": 5,
+     "best": -29
+    },
+    "driftOfScriptCues": {
+     "count": 10,
+     "p50": 9,
+     "p95": 29,
+     "worst": 29,
+     "best": 0
+    },
+    "driftEveryThirdWord": {
+     "count": 20,
+     "p50": 4,
+     "p95": 29,
+     "worst": 29,
+     "best": 1
+    },
+    "cuesDecidedByTheGate": 9,
+    "silenceBeforeTurnsMs": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "driftToVendorWordTimeSigned": {
+     "count": 30,
+     "p50": 4,
+     "p95": 44,
+     "worst": 52,
+     "best": 0
+    },
+    "over100": 0,
+    "earlyOver40": 0,
+    "stopFrozen": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "stopAudioAfterGain": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "stopStillArriving": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "stopsCount": 0,
+    "framesAfterStop": 0,
+    "cuesAfterStop": 0,
+    "replaySamples": 429,
+    "replayDiffering": 0,
+    "gapReportError": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorWordTimeBeforeSound": {
+     "count": 26,
+     "p50": 13,
+     "p95": 156,
+     "worst": 193,
+     "best": -308
+    },
+    "vendorWordTimeAbsolute": {
+     "count": 26,
+     "p50": 34,
+     "p95": 252,
+     "worst": 308,
+     "best": 0
+    },
+    "vendorAudioAfterStopMs": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "wordsLate": 0,
+    "worstWordLead": 71,
+    "firstFrameFromText": {
+     "count": 1,
+     "p50": 613,
+     "p95": 613,
+     "worst": 613,
+     "best": 613
+    },
+    "frameP95": 17,
+    "frameWorst": 19,
+    "leadingSilenceMs": {
+     "count": 1,
+     "p50": 51,
+     "p95": 51,
+     "worst": 51,
+     "best": 51
+    },
+    "wordMismatches": 0,
+    "refused": 0,
+    "lagSlopeMsPerSecond": [
+     -0.01
+    ]
+   },
+   {
+    "scenario": "long-every-third-flash",
+    "voice": "stored casey eleven_flash_v2_5",
+    "runs": 2,
+    "cuesFired": 180,
+    "cuesMeasured": 179,
+    "driftToSoundAbs": {
+     "count": 179,
+     "p50": 19,
+     "p95": 30,
+     "worst": 31,
+     "best": 0
+    },
+    "driftToSoundSigned": {
+     "count": 179,
+     "p50": -16,
+     "p95": 22,
+     "worst": 23,
+     "best": -31
+    },
+    "driftOfScriptCues": {
+     "count": 59,
+     "p50": 19,
+     "p95": 30,
+     "worst": 31,
+     "best": 6
+    },
+    "driftEveryThirdWord": {
+     "count": 120,
+     "p50": 19,
+     "p95": 29,
+     "worst": 31,
+     "best": 0
+    },
+    "cuesDecidedByTheGate": 48,
+    "silenceBeforeTurnsMs": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "driftToVendorWordTimeSigned": {
+     "count": 179,
+     "p50": 18,
+     "p95": 24,
+     "worst": 45,
+     "best": -29
+    },
+    "over100": 0,
+    "earlyOver40": 0,
+    "stopFrozen": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "stopAudioAfterGain": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "stopStillArriving": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "stopsCount": 0,
+    "framesAfterStop": 0,
+    "cuesAfterStop": 0,
+    "replaySamples": 2524,
+    "replayDiffering": 0,
+    "gapReportError": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorWordTimeBeforeSound": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorWordTimeAbsolute": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorAudioAfterStopMs": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "wordsLate": 0,
+    "worstWordLead": 53,
+    "firstFrameFromText": {
+     "count": 2,
+     "p50": 22,
+     "p95": 22,
+     "worst": 22,
+     "best": 13
+    },
+    "frameP95": 18,
+    "frameWorst": 33,
+    "leadingSilenceMs": {
+     "count": 2,
+     "p50": 51,
+     "p95": 51,
+     "worst": 51,
+     "best": 51
+    },
+    "wordMismatches": 0,
+    "refused": 0,
+    "lagSlopeMsPerSecond": [
+     0.19,
+     -0.03
+    ]
+   },
+   {
+    "scenario": "interrupt-fake",
+    "voice": "fake eleven_flash_v2_5",
+    "runs": 1,
+    "cuesFired": 11,
+    "cuesMeasured": 11,
+    "driftToSoundAbs": {
+     "count": 11,
+     "p50": 277,
+     "p95": 1119,
+     "worst": 1119,
+     "best": 0
+    },
+    "driftToSoundSigned": {
+     "count": 11,
+     "p50": -277,
+     "p95": 0,
+     "worst": 0,
+     "best": -1119
+    },
+    "driftOfScriptCues": {
+     "count": 11,
+     "p50": 277,
+     "p95": 1119,
+     "worst": 1119,
+     "best": 0
+    },
+    "driftEveryThirdWord": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "cuesDecidedByTheGate": 0,
+    "silenceBeforeTurnsMs": {
+     "count": 5,
+     "p50": 1444,
+     "p95": 1548,
+     "worst": 1548,
+     "best": 1414
+    },
+    "driftToVendorWordTimeSigned": {
+     "count": 11,
+     "p50": -277,
+     "p95": 0,
+     "worst": 0,
+     "best": -1119
+    },
+    "over100": 7,
+    "earlyOver40": 7,
+    "stopFrozen": {
+     "count": 5,
+     "p50": 3,
+     "p95": 5,
+     "worst": 5,
+     "best": 1
+    },
+    "stopAudioAfterGain": {
+     "count": 5,
+     "p50": 0,
+     "p95": 0,
+     "worst": 0,
+     "best": 0
+    },
+    "stopStillArriving": {
+     "count": 5,
+     "p50": 71,
+     "p95": 78,
+     "worst": 78,
+     "best": 67
+    },
+    "stopsCount": 5,
+    "framesAfterStop": 0,
+    "cuesAfterStop": 0,
+    "replaySamples": 488,
+    "replayDiffering": 0,
+    "gapReportError": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorWordTimeBeforeSound": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorWordTimeAbsolute": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorAudioAfterStopMs": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "wordsLate": 0,
+    "worstWordLead": 55,
+    "firstFrameFromText": {
+     "count": 1,
+     "p50": 8,
+     "p95": 8,
+     "worst": 8,
+     "best": 8
+    },
+    "frameP95": 17,
+    "frameWorst": 53,
+    "leadingSilenceMs": {
+     "count": 6,
+     "p50": 0,
+     "p95": 0,
+     "worst": 0,
+     "best": 0
+    },
+    "wordMismatches": 0,
+    "refused": 0
+   },
+   {
+    "scenario": "interrupt-tight-flash",
+    "voice": "stored casey eleven_flash_v2_5",
+    "runs": 1,
+    "cuesFired": 11,
+    "cuesMeasured": 9,
+    "driftToSoundAbs": {
+     "count": 9,
+     "p50": 7,
+     "p95": 1830,
+     "worst": 1830,
+     "best": 1
+    },
+    "driftToSoundSigned": {
+     "count": 9,
+     "p50": 3,
+     "p95": 1830,
+     "worst": 1830,
+     "best": -1735
+    },
+    "driftOfScriptCues": {
+     "count": 9,
+     "p50": 7,
+     "p95": 1830,
+     "worst": 1830,
+     "best": 1
+    },
+    "driftEveryThirdWord": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "cuesDecidedByTheGate": 0,
+    "silenceBeforeTurnsMs": {
+     "count": 5,
+     "p50": 197,
+     "p95": 463,
+     "worst": 463,
+     "best": 136
+    },
+    "driftToVendorWordTimeSigned": {
+     "count": 9,
+     "p50": 3,
+     "p95": 1830,
+     "worst": 1830,
+     "best": -1735
+    },
+    "over100": 3,
+    "earlyOver40": 2,
+    "stopFrozen": {
+     "count": 5,
+     "p50": 2,
+     "p95": 3,
+     "worst": 3,
+     "best": 1
+    },
+    "stopAudioAfterGain": {
+     "count": 5,
+     "p50": 0,
+     "p95": 0,
+     "worst": 0,
+     "best": 0
+    },
+    "stopStillArriving": {
+     "count": 5,
+     "p50": 63,
+     "p95": 90,
+     "worst": 90,
+     "best": 0
+    },
+    "stopsCount": 5,
+    "framesAfterStop": 0,
+    "cuesAfterStop": 0,
+    "replaySamples": 396,
+    "replayDiffering": 0,
+    "gapReportError": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorWordTimeBeforeSound": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorWordTimeAbsolute": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorAudioAfterStopMs": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "wordsLate": 4,
+    "worstWordLead": -1718,
+    "firstFrameFromText": {
+     "count": 1,
+     "p50": 119,
+     "p95": 119,
+     "worst": 119,
+     "best": 119
+    },
+    "frameP95": 17,
+    "frameWorst": 22,
+    "leadingSilenceMs": {
+     "count": 6,
+     "p50": 51,
+     "p95": 51,
+     "worst": 51,
+     "best": 0
+    },
+    "wordMismatches": 214,
+    "refused": 0
+   },
+   {
+    "scenario": "clean-every-third-flash",
+    "voice": "stored casey eleven_flash_v2_5",
+    "runs": 2,
+    "cuesFired": 60,
+    "cuesMeasured": 59,
+    "driftToSoundAbs": {
+     "count": 59,
+     "p50": 11,
+     "p95": 31,
+     "worst": 31,
+     "best": 0
+    },
+    "driftToSoundSigned": {
+     "count": 59,
+     "p50": -11,
+     "p95": 0,
+     "worst": 1,
+     "best": -31
+    },
+    "driftOfScriptCues": {
+     "count": 19,
+     "p50": 21,
+     "p95": 31,
+     "worst": 31,
+     "best": 6
+    },
+    "driftEveryThirdWord": {
+     "count": 40,
+     "p50": 9,
+     "p95": 31,
+     "worst": 31,
+     "best": 0
+    },
+    "cuesDecidedByTheGate": 16,
+    "silenceBeforeTurnsMs": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "driftToVendorWordTimeSigned": {
+     "count": 59,
+     "p50": -8,
+     "p95": 21,
+     "worst": 43,
+     "best": -17
+    },
+    "over100": 0,
+    "earlyOver40": 0,
+    "stopFrozen": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "stopAudioAfterGain": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "stopStillArriving": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "stopsCount": 0,
+    "framesAfterStop": 0,
+    "cuesAfterStop": 0,
+    "replaySamples": 859,
+    "replayDiffering": 0,
+    "gapReportError": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorWordTimeBeforeSound": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorWordTimeAbsolute": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorAudioAfterStopMs": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "wordsLate": 0,
+    "worstWordLead": 91,
+    "firstFrameFromText": {
+     "count": 2,
+     "p50": 16,
+     "p95": 16,
+     "worst": 16,
+     "best": 12
+    },
+    "frameP95": 18,
+    "frameWorst": 19,
+    "leadingSilenceMs": {
+     "count": 2,
+     "p50": 51,
+     "p95": 51,
+     "worst": 51,
+     "best": 51
+    },
+    "wordMismatches": 0,
+    "refused": 0,
+    "lagSlopeMsPerSecond": [
+     0.31,
+     -0.01
+    ]
+   },
+   {
+    "scenario": "poor-every-third-flash",
+    "voice": "stored casey eleven_flash_v2_5",
+    "runs": 6,
+    "cuesFired": 180,
+    "cuesMeasured": 178,
+    "driftToSoundAbs": {
+     "count": 178,
+     "p50": 29,
+     "p95": 117,
+     "worst": 177,
+     "best": 0
+    },
+    "driftToSoundSigned": {
+     "count": 178,
+     "p50": -29,
+     "p95": 3,
+     "worst": 177,
+     "best": -133
+    },
+    "driftOfScriptCues": {
+     "count": 59,
+     "p50": 28,
+     "p95": 108,
+     "worst": 122,
+     "best": 0
+    },
+    "driftEveryThirdWord": {
+     "count": 119,
+     "p50": 30,
+     "p95": 118,
+     "worst": 177,
+     "best": 0
+    },
+    "cuesDecidedByTheGate": 49,
+    "silenceBeforeTurnsMs": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "driftToVendorWordTimeSigned": {
+     "count": 178,
+     "p50": -24,
+     "p95": 24,
+     "worst": 179,
+     "best": -133
+    },
+    "over100": 16,
+    "earlyOver40": 55,
+    "stopFrozen": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "stopAudioAfterGain": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "stopStillArriving": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "stopsCount": 0,
+    "framesAfterStop": 0,
+    "cuesAfterStop": 0,
+    "replaySamples": 2577,
+    "replayDiffering": 0,
+    "gapReportError": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorWordTimeBeforeSound": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorWordTimeAbsolute": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorAudioAfterStopMs": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "wordsLate": 4,
+    "worstWordLead": -211,
+    "firstFrameFromText": {
+     "count": 6,
+     "p50": 10,
+     "p95": 30,
+     "worst": 30,
+     "best": 6
+    },
+    "frameP95": 18,
+    "frameWorst": 27,
+    "leadingSilenceMs": {
+     "count": 6,
+     "p50": 51,
+     "p95": 51,
+     "worst": 51,
+     "best": 51
+    },
+    "wordMismatches": 0,
+    "refused": 0,
+    "lagSlopeMsPerSecond": [
+     1.98,
+     2.46,
+     0.92,
+     0.48,
+     -0.88,
+     1.34
+    ]
+   },
+   {
+    "scenario": "uneven-every-third-flash",
+    "voice": "stored casey eleven_flash_v2_5",
+    "runs": 6,
+    "cuesFired": 180,
+    "cuesMeasured": 178,
+    "driftToSoundAbs": {
+     "count": 178,
+     "p50": 26,
+     "p95": 58,
+     "worst": 60,
+     "best": 0
+    },
+    "driftToSoundSigned": {
+     "count": 178,
+     "p50": -26,
+     "p95": 5,
+     "worst": 5,
+     "best": -60
+    },
+    "driftOfScriptCues": {
+     "count": 58,
+     "p50": 27,
+     "p95": 34,
+     "worst": 60,
+     "best": 1
+    },
+    "driftEveryThirdWord": {
+     "count": 120,
+     "p50": 24,
+     "p95": 58,
+     "worst": 60,
+     "best": 0
+    },
+    "cuesDecidedByTheGate": 48,
+    "silenceBeforeTurnsMs": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "driftToVendorWordTimeSigned": {
+     "count": 178,
+     "p50": -15,
+     "p95": 24,
+     "worst": 45,
+     "best": -60
+    },
+    "over100": 0,
+    "earlyOver40": 27,
+    "stopFrozen": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "stopAudioAfterGain": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "stopStillArriving": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "stopsCount": 0,
+    "framesAfterStop": 0,
+    "cuesAfterStop": 0,
+    "replaySamples": 2577,
+    "replayDiffering": 0,
+    "gapReportError": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorWordTimeBeforeSound": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorWordTimeAbsolute": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorAudioAfterStopMs": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "wordsLate": 0,
+    "worstWordLead": 32,
+    "firstFrameFromText": {
+     "count": 6,
+     "p50": 7,
+     "p95": 10,
+     "worst": 10,
+     "best": 5
+    },
+    "frameP95": 18,
+    "frameWorst": 116,
+    "leadingSilenceMs": {
+     "count": 6,
+     "p50": 51,
+     "p95": 51,
+     "worst": 51,
+     "best": 51
+    },
+    "wordMismatches": 0,
+    "refused": 0,
+    "lagSlopeMsPerSecond": [
+     -0.47,
+     0.01,
+     2.43,
+     0.41,
+     1.17,
+     1.28
+    ]
+   },
+   {
+    "scenario": "after-stop-fake",
+    "voice": "fake eleven_flash_v2_5",
+    "runs": 2,
+    "cuesFired": 20,
+    "cuesMeasured": 20,
+    "driftToSoundAbs": {
+     "count": 20,
+     "p50": 844,
+     "p95": 913,
+     "worst": 913,
+     "best": 275
+    },
+    "driftToSoundSigned": {
+     "count": 20,
+     "p50": -275,
+     "p95": 913,
+     "worst": 913,
+     "best": -907
+    },
+    "driftOfScriptCues": {
+     "count": 20,
+     "p50": 844,
+     "p95": 913,
+     "worst": 913,
+     "best": 275
+    },
+    "driftEveryThirdWord": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "cuesDecidedByTheGate": 0,
+    "silenceBeforeTurnsMs": {
+     "count": 2,
+     "p50": 149,
+     "p95": 149,
+     "worst": 149,
+     "best": 149
+    },
+    "driftToVendorWordTimeSigned": {
+     "count": 20,
+     "p50": -275,
+     "p95": 913,
+     "worst": 913,
+     "best": -907
+    },
+    "over100": 20,
+    "earlyOver40": 12,
+    "stopFrozen": {
+     "count": 2,
+     "p50": 3,
+     "p95": 3,
+     "worst": 3,
+     "best": 2
+    },
+    "stopAudioAfterGain": {
+     "count": 2,
+     "p50": 0,
+     "p95": 0,
+     "worst": 0,
+     "best": 0
+    },
+    "stopStillArriving": {
+     "count": 2,
+     "p50": 77,
+     "p95": 77,
+     "worst": 77,
+     "best": 74
+    },
+    "stopsCount": 2,
+    "framesAfterStop": 0,
+    "cuesAfterStop": 0,
+    "replaySamples": 644,
+    "replayDiffering": 0,
+    "gapReportError": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorWordTimeBeforeSound": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorWordTimeAbsolute": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorAudioAfterStopMs": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "wordsLate": 3,
+    "worstWordLead": -838,
+    "firstFrameFromText": {
+     "count": 2,
+     "p50": 120,
+     "p95": 120,
+     "worst": 120,
+     "best": 120
+    },
+    "frameP95": 18,
+    "frameWorst": 19,
+    "leadingSilenceMs": {
+     "count": 4,
+     "p50": 0,
+     "p95": 0,
+     "worst": 0,
+     "best": 0
+    },
+    "wordMismatches": 0,
+    "refused": 0
+   },
+   {
+    "scenario": "after-stop-poor-fake",
+    "voice": "fake eleven_flash_v2_5",
+    "runs": 2,
+    "cuesFired": 24,
+    "cuesMeasured": 24,
+    "driftToSoundAbs": {
+     "count": 24,
+     "p50": 1680,
+     "p95": 1698,
+     "worst": 1724,
+     "best": 292
+    },
+    "driftToSoundSigned": {
+     "count": 24,
+     "p50": -349,
+     "p95": 1684,
+     "worst": 1724,
+     "best": -1698
+    },
+    "driftOfScriptCues": {
+     "count": 24,
+     "p50": 1680,
+     "p95": 1698,
+     "worst": 1724,
+     "best": 292
+    },
+    "driftEveryThirdWord": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "cuesDecidedByTheGate": 0,
+    "silenceBeforeTurnsMs": {
+     "count": 2,
+     "p50": 195,
+     "p95": 195,
+     "worst": 195,
+     "best": 149
+    },
+    "driftToVendorWordTimeSigned": {
+     "count": 24,
+     "p50": -349,
+     "p95": 1684,
+     "worst": 1724,
+     "best": -1698
+    },
+    "over100": 24,
+    "earlyOver40": 14,
+    "stopFrozen": {
+     "count": 2,
+     "p50": 83,
+     "p95": 83,
+     "worst": 83,
+     "best": 80
+    },
+    "stopAudioAfterGain": {
+     "count": 2,
+     "p50": 0,
+     "p95": 0,
+     "worst": 0,
+     "best": 0
+    },
+    "stopStillArriving": {
+     "count": 2,
+     "p50": 218,
+     "p95": 218,
+     "worst": 218,
+     "best": 196
+    },
+    "stopsCount": 2,
+    "framesAfterStop": 0,
+    "cuesAfterStop": 0,
+    "replaySamples": 710,
+    "replayDiffering": 0,
+    "gapReportError": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorWordTimeBeforeSound": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorWordTimeAbsolute": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorAudioAfterStopMs": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "wordsLate": 6,
+    "worstWordLead": -1710,
+    "firstFrameFromText": {
+     "count": 2,
+     "p50": 100,
+     "p95": 100,
+     "worst": 100,
+     "best": 10
+    },
+    "frameP95": 18,
+    "frameWorst": 33,
+    "leadingSilenceMs": {
+     "count": 4,
+     "p50": 0,
+     "p95": 0,
+     "worst": 0,
+     "best": 0
+    },
+    "wordMismatches": 0,
+    "refused": 0
+   },
+   {
+    "scenario": "next-on-finished-fake",
+    "voice": "fake eleven_flash_v2_5",
+    "runs": 3,
+    "cuesFired": 12,
+    "cuesMeasured": 12,
+    "driftToSoundAbs": {
+     "count": 12,
+     "p50": 839,
+     "p95": 1599,
+     "worst": 1599,
+     "best": 317
+    },
+    "driftToSoundSigned": {
+     "count": 12,
+     "p50": -320,
+     "p95": 1245,
+     "worst": 1245,
+     "best": -1599
+    },
+    "driftOfScriptCues": {
+     "count": 12,
+     "p50": 839,
+     "p95": 1599,
+     "worst": 1599,
+     "best": 317
+    },
+    "driftEveryThirdWord": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "cuesDecidedByTheGate": 0,
+    "silenceBeforeTurnsMs": {
+     "count": 3,
+     "p50": 148,
+     "p95": 148,
+     "worst": 148,
+     "best": 147
+    },
+    "driftToVendorWordTimeSigned": {
+     "count": 12,
+     "p50": -320,
+     "p95": 1245,
+     "worst": 1245,
+     "best": -1599
+    },
+    "over100": 12,
+    "earlyOver40": 8,
+    "stopFrozen": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "stopAudioAfterGain": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "stopStillArriving": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "stopsCount": 0,
+    "framesAfterStop": 0,
+    "cuesAfterStop": 0,
+    "replaySamples": 250,
+    "replayDiffering": 0,
+    "gapReportError": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorWordTimeBeforeSound": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorWordTimeAbsolute": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorAudioAfterStopMs": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "wordsLate": 6,
+    "worstWordLead": -1178,
+    "firstFrameFromText": {
+     "count": 3,
+     "p50": 130,
+     "p95": 138,
+     "worst": 138,
+     "best": 122
+    },
+    "frameP95": 17,
+    "frameWorst": 33,
+    "leadingSilenceMs": {
+     "count": 6,
+     "p50": 0,
+     "p95": 0,
+     "worst": 0,
+     "best": 0
+    },
+    "wordMismatches": 0,
+    "refused": 0
+   },
+   {
+    "scenario": "next-on-finished-poor-fake",
+    "voice": "fake eleven_flash_v2_5",
+    "runs": 3,
+    "cuesFired": 12,
+    "cuesMeasured": 12,
+    "driftToSoundAbs": {
+     "count": 12,
+     "p50": 815,
+     "p95": 1594,
+     "worst": 1594,
+     "best": 1
+    },
+    "driftToSoundSigned": {
+     "count": 12,
+     "p50": -1,
+     "p95": 1594,
+     "worst": 1594,
+     "best": -929
+    },
+    "driftOfScriptCues": {
+     "count": 12,
+     "p50": 815,
+     "p95": 1594,
+     "worst": 1594,
+     "best": 1
+    },
+    "driftEveryThirdWord": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "cuesDecidedByTheGate": 0,
+    "silenceBeforeTurnsMs": {
+     "count": 3,
+     "p50": 248,
+     "p95": 318,
+     "worst": 318,
+     "best": 171
+    },
+    "driftToVendorWordTimeSigned": {
+     "count": 12,
+     "p50": -1,
+     "p95": 1594,
+     "worst": 1594,
+     "best": -929
+    },
+    "over100": 10,
+    "earlyOver40": 6,
+    "stopFrozen": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "stopAudioAfterGain": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "stopStillArriving": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "stopsCount": 0,
+    "framesAfterStop": 0,
+    "cuesAfterStop": 0,
+    "replaySamples": 259,
+    "replayDiffering": 0,
+    "gapReportError": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorWordTimeBeforeSound": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorWordTimeAbsolute": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "vendorAudioAfterStopMs": {
+     "count": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null,
+     "best": null
+    },
+    "wordsLate": 9,
+    "worstWordLead": -1530,
+    "firstFrameFromText": {
+     "count": 3,
+     "p50": 8,
+     "p95": 55,
+     "worst": 55,
+     "best": 6
+    },
+    "frameP95": 18,
+    "frameWorst": 21,
+    "leadingSilenceMs": {
+     "count": 6,
+     "p50": 0,
+     "p95": 0,
+     "worst": 0,
+     "best": 0
+    },
+    "wordMismatches": 0,
+    "refused": 0
+   }
+  ],
+  "chrisOverlongOnTheWorstLine": {
+   "text": "Nine point eight metres per second squared.",
+   "model": "eleven_flash_v2_5",
+   "requests": 40,
+   "credits": 378,
+   "medianMs": 1870,
+   "overlong": 0,
+   "flagged": 0,
+   "caught": 0,
+   "falseAlarms": 0,
+   "trippedAt": [],
+   "lengthsMs": [
+    1932,
+    1932,
+    1932,
+    1932,
+    1964,
+    1964,
+    1870,
+    1777,
+    1964,
+    1932,
+    1777,
+    1964,
+    1870,
+    1932,
+    1964,
+    1777,
+    1870,
+    1839,
+    1839,
+    1932,
+    1932,
+    1839,
+    1964,
+    1777,
+    1777,
+    1745,
+    1839,
+    1839,
+    1870,
+    1870,
+    1777,
+    1839,
+    1964,
+    1839,
+    1870,
+    1870,
+    1870,
+    1964,
+    1839,
+    1870
+   ]
+  },
+  "chrisFirstAudio": {
+   "model": "eleven_flash_v2_5",
+   "text": "Watch it climb, slower and slower.",
+   "credits": 112,
+   "coldSocket": {
+    "count": 5,
+    "p50": 860,
+    "p95": 917,
+    "worst": 917,
+    "best": 846
+   },
+   "warmSocket": {
+    "count": 10,
+    "p50": 270,
+    "p95": 455,
+    "worst": 455,
+    "best": 252
+   },
+   "warmFirstRequestMs": 455,
+   "warmRest": {
+    "count": 9,
+    "p50": 270,
+    "p95": 292,
+    "worst": 292,
+    "best": 252
+   }
+  },
+  "lagSlopeMeaning": "ms a second, fitted against word time in each run's first turn, on cues the gate did not decide. Positive means the words fall behind the clock as the turn goes on.",
+  "stopsAimedAtPhraseStarts": {
+   "aimedAt": "phrase starts in stored Chris, 650 to 1100 ms into a take, twice over",
+   "rows": [
+    {
+     "link": "clean",
+     "runs": 2,
+     "stops": 42,
+     "nextTurnsPlaced": 40,
+     "oldWordsPastWindow": [],
+     "audioPastGainMs": [],
+     "audioStillArrivingP95": 85,
+     "audioStillArrivingWorst": 91,
+     "nextSoundSoonestAfterStop": 204,
+     "silenceBeforeNextSoundLowest": 128,
+     "messagesLaterThanSound": [],
+     "clockErrorOfLastCueOverFive": [],
+     "frozenP95": 2,
+     "framesAfterStop": 0,
+     "cuesAfterStop": 0,
+     "replaySamples": 1671,
+     "replayDiffering": 0
+    },
+    {
+     "link": "40 ms delay, 30 ms jitter, 1% loss",
+     "runs": 2,
+     "stops": 42,
+     "nextTurnsPlaced": 40,
+     "oldWordsPastWindow": [],
+     "audioPastGainMs": [],
+     "audioStillArrivingP95": 168,
+     "audioStillArrivingWorst": 184,
+     "nextSoundSoonestAfterStop": 238,
+     "silenceBeforeNextSoundLowest": 131,
+     "messagesLaterThanSound": [],
+     "clockErrorOfLastCueOverFive": [],
+     "frozenP95": 66,
+     "framesAfterStop": 0,
+     "cuesAfterStop": 0,
+     "replaySamples": 1680,
+     "replayDiffering": 0
+    },
+    {
+     "link": "100 ms delay, 70 ms jitter, 4% loss",
+     "runs": 6,
+     "stops": 126,
+     "nextTurnsPlaced": 119,
+     "oldWordsPastWindow": [
+      113,
+      163,
+      210,
+      227,
+      152,
+      134
+     ],
+     "audioPastGainMs": [
+      12,
+      74
+     ],
+     "audioStillArrivingP95": 289,
+     "audioStillArrivingWorst": 323,
+     "nextSoundSoonestAfterStop": 168,
+     "silenceBeforeNextSoundLowest": 130,
+     "messagesLaterThanSound": [
+      502,
+      22,
+      3,
+      22
+     ],
+     "clockErrorOfLastCueOverFive": [
+      168
+     ],
+     "frozenP95": 161,
+     "framesAfterStop": 0,
+     "cuesAfterStop": 0,
+     "replaySamples": 5084,
+     "replayDiffering": 0
+    }
+   ]
+  },
+  "reviewerStopsAimedAtPhraseStartsBeforeTheFix": {
+   "stops": 20,
+   "oldAudioPastGainAfterUnmute": {
+    "stops": 6,
+    "ms": [
+     5,
+     24,
+     15,
+     20,
+     32,
+     65
+    ]
+   },
+   "turnStartedInside110Ms": 4,
+   "oldWordBecameClockZero": [
+    {
+     "msAfterStop": 88,
+     "turnEarlyMs": 158
+    },
+    {
+     "msAfterStop": 163,
+     "turnEarlyMs": 218
+    }
+   ]
+  },
+  "queuedStopThenNewTurn": {
+   "voice": "fake",
+   "runs": 2,
+   "turn3FirstFrameAfterTurn1AudioMs": [
+    153,
+    159
+   ],
+   "silenceReceivedMs": [
+    149,
+    158
+   ],
+   "refused": 0,
+   "agentExit": 0
+  }
+ }
+}

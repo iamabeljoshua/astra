@@ -1,9 +1,10 @@
 import { BEAT_LIMITS } from './beat.ts';
 import { readBeatId, readTurnId } from './ids.ts';
-import { type AgentMessage, type BrowserMessage, LIVE_MESSAGE_MAX_BYTES, type TimedWord } from './live-message.ts';
+import { type AgentMessage, type BrowserMessage, type BrowserStamp, LIVE_MESSAGE_MAX_BYTES, type TimedWord } from './live-message.ts';
 import { readSceneCommand } from './parse-command.ts';
 import { PLAY_REPORT_KEYS, readFrozenFrames, readPlayReport, readStudentAction } from './parse-event.ts';
 import {
+  type CheckedFields,
   checkJsonSize,
   fail,
   type ParseResult,
@@ -88,39 +89,45 @@ const AGENT_MESSAGES: VariantTable<AgentMessage, 'type'> = {
   },
 };
 
+const STAMP_KEYS = ['browserMs', 'startedMsAgo'];
+
+function readBrowserStamp(fields: CheckedFields): BrowserStamp {
+  return { browserMs: readWholeNumber(fields.at('browserMs')), startedMsAgo: readWholeNumber(fields.at('startedMsAgo')) };
+}
+
 const BROWSER_MESSAGES: VariantTable<BrowserMessage, 'type'> = {
   tag: 'type',
   variants: {
     played: {
-      keys: ['turnId', 'beatId', 'startedMsAgo', ...PLAY_REPORT_KEYS],
+      keys: ['turnId', 'beatId', ...STAMP_KEYS, ...PLAY_REPORT_KEYS],
       read: (fields) => ({
         type: 'played',
         turnId: readTurnId(fields.at('turnId')),
         beatId: readBeatId(fields.at('beatId')),
-        startedMsAgo: readWholeNumber(fields.at('startedMsAgo')),
+        ...readBrowserStamp(fields),
         ...readPlayReport(fields),
       }),
     },
     acted: {
-      keys: ['startedMsAgo', 'action'],
-      read: (fields) => ({ type: 'acted', startedMsAgo: readWholeNumber(fields.at('startedMsAgo')), action: readStudentAction(fields.at('action')) }),
+      keys: [...STAMP_KEYS, 'action'],
+      read: (fields) => ({ type: 'acted', ...readBrowserStamp(fields), action: readStudentAction(fields.at('action')) }),
     },
     boardFrozen: {
-      keys: ['turnId', 'startedMsAgo', 'frozen'],
+      keys: ['turnId', ...STAMP_KEYS, 'frozen'],
       read: (fields) => ({
         type: 'boardFrozen',
         turnId: readTurnId(fields.at('turnId')),
-        startedMsAgo: readWholeNumber(fields.at('startedMsAgo')),
+        ...readBrowserStamp(fields),
         frozen: readFrozenFrames(fields.at('frozen')),
       }),
     },
     questionHeard: {
-      keys: ['turnId', 'beatId', 'startedMsAgo'],
+      keys: ['turnId', 'beatId', ...STAMP_KEYS],
       read: (fields) => ({
         type: 'questionHeard',
         turnId: readTurnId(fields.at('turnId')),
         beatId: readBeatId(fields.at('beatId')),
-        startedMsAgo: readWholeNumber(fields.at('startedMsAgo')),
+        ...readBrowserStamp(fields),
       }),
     },
   },

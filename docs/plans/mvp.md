@@ -32,7 +32,7 @@ As of 4 November 2026, 15 of 38 PRs have merged. This section is the whole road,
 
 - **Speed, for this session.** Up to 6 PRs at once, dependent work waits for its parent to merge, and each PR gets one adversarial reviewer as soon as it is code-ready. `CLAUDE.md` stays as it is unless Abel says to make this permanent.
 - **Vendors.** ElevenLabs for the voice, Muse Voice Transcribe for transcription, and LiveKit Cloud with our own accounts, on a free project until real students. The age terms go to the lawyer before real students.
-- **Voice.** Casey, with the model between Flash and Turbo decided in M3.2.
+- **Voice.** Chris, Abel's choice on 4 November in place of Casey, on Flash unless Abel says otherwise.
 - **Tutor.** Sonnet 5.5, with code reacting first and a timeout for stalls. There is no talking router for now.
 - **Speed targets.** Two numbers replace PRD V1's rule. A first reaction under 200 ms from code, and a first real word as fast as the vendors allow.
 - **The shared board.** Student and tutor both work on the board, in M3.12, with ink and uploads narrowed to M3.11.
@@ -1292,7 +1292,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 **Build.**
 
 - [ ] Build `providers/elevenlabs.ts` behind `VoiceAdapter` on `@livekit/agents-plugin-elevenlabs`. Abel approved the vendor, and the key is in the keys file as `ELEVENLABS_API_KEY`, so the adapter passes `apiKey` itself. Use test text only, with the training opt-out on.
-- [ ] Use Casey, ElevenLabs voice id `WzsP0bfiCpSDfNgLrUuN`, kept in one place in `providers/choose.ts`, because a library voice's owner can withdraw it after a notice. Her listed notice is 730 days. Check her for overlong audio on a larger sample on the real path, because her first 12 tries on the worst line had none and Eric's did.
+- [ ] Use Chris, ElevenLabs voice id `iP95p4xoKVk53GoZ742B`, kept in one place in `providers/choose.ts`. Check him for overlong audio on a larger sample on the real path, because Casey's first 12 tries on the worst line had none and Eric's did.
 - [ ] Start on Flash, measure Flash and Turbo the same way, and bring Abel the clips and numbers. Only the choice of model and the flush rule wait for Abel. v4 Turbo is out, because it needs the dialogue socket, restarts its word times at 0 in each message, and 119 of 274 messages had none.
 - [ ] Build `ScenePlayer` so board state comes from a log of the events that actually played, through one function, `rebuildBoard(log, atMs)`, which flattens events by time and not by sequence number.
 - [ ] Let a scene be any deterministic function of the clock, with named parts and named moments, and do not bake in only the planned 2D kinds, because M3.14 plugs in here.
@@ -1305,12 +1305,12 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 **You see.**
 
-- [ ] A scripted lesson plays in the browser in Casey's voice on ElevenLabs, over real WebRTC through a local LiveKit server, and drawings appear as the matching words are spoken.
+- [ ] A scripted lesson plays in the browser in Chris's voice on ElevenLabs, over real WebRTC through a local LiveKit server, and drawings appear as the matching words are spoken.
 - [ ] Each drawing starts within 100 ms of its word, and a turn's first drawing appears within one second of its first word.
 - [ ] From the agent's decision to stop, the audio is silent and the board frozen within 150 ms, as decision 3 in `docs/architecture/live-session.md` reads V2, and resuming continues with the board still correct.
 - [ ] The same lesson replays exactly from its saved log, with no stored video.
 - [ ] A scene can be any deterministic function of the clock. A test scene computed only from time seeks, rewinds, and replays exactly.
-- [ ] Abel hears Casey on Flash and on Turbo as clips, and chooses the model from them and the measured numbers.
+- [ ] Abel hears the voice on Flash and on Turbo as clips, and chooses the model from them and the measured numbers.
 - [ ] Each measure below is recorded in `docs/tests/scene-player.md`.
 - [ ] If any target is missed, the PR stops and reports the measured numbers to Abel before more board work starts.
 
@@ -1322,7 +1322,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Two lanes on the configured `swarm workers` model at the PR head, per the boot recipe and the review rule under **Verdict and merge**.
 
-- [ ] Lane 1. Regression lane against trunk. Trunk has no player, so record that and gate the end state. Play the scripted lesson on the lab page in Casey's voice, on Flash and on Turbo, on a real network profile, and record it. Save `m3-2-lesson.png`. Pass when every drawing appears on its word in the recording, on both models.
+- [ ] Lane 1. Regression lane against trunk. Trunk has no player, so record that and gate the end state. Play the scripted lesson on the lab page in the chosen voice, on Flash and on Turbo, on a real network profile, and record it. Save `m3-2-lesson.png`. Pass when every drawing appears on its word in the recording, on both models.
 - [ ] Lane 2. Interrupt the lesson at five different points and resume each time, then replay the log and compare. Save `m3-2-interrupt.png`. Pass when audio and board stop together each time, the board stays correct after resuming, and the replay matches what played.
 
 **Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
@@ -1482,7 +1482,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 **You see.**
 
-- [ ] A student can hold a spoken conversation in the browser on Muse and Casey through LiveKit Cloud, on a free project until real students.
+- [ ] A student can hold a spoken conversation in the browser on Muse and Chris through LiveKit Cloud, on a free project until real students.
 - [ ] A first reaction from code reaches the student in under 200 ms, with no model in its path.
 - [ ] First real word is as fast as these vendors allow, with each step's share measured and written down.
 - [ ] When the student speaks, the tutor lowers its voice within about 300 ms, and it cuts off on the first real word. Saying "uh-huh" lowers the voice and does not stop it, even over a question.
@@ -2356,7 +2356,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 - **The cost per minute is above budget.** It lands in M3.7 and M3.10, which measure it and report to Abel.
 - **Generated scenes state wrong facts.** They land in M3.14, with a fact review, and a scene is marked unverified until a person checks it. Numbers on labels and curve formulas come from the model, which breaks T6 as written, and B4 does not hold for generated scenes.
 - **Legal review for minors.** It lands in M4.5 and stays open until a lawyer reviews it, and that happens before real students. It covers having no parent consent, Meta's and ElevenLabs' under-18 rules, and vendor retention.
-- **A vendor changes the ground.** Casey is a library voice whose owner can withdraw it after a notice of 730 days. Meta may change Muse's Standard designation. LiveKit's Ship plan caps at 20 concurrent agent sessions, and the next plan is Scale at $500.
+- **A vendor changes the ground.** Chris is one of ElevenLabs' own voices, so ElevenLabs alone decides how long it stays. Meta may change Muse's Standard designation. LiveKit's Ship plan caps at 20 concurrent agent sessions, and the next plan is Scale at $500.
 - **CI's margin.** On an EPYC 7763 it is 41 s on `main` and 26 s with PR 76, from one run each, under a 4 minute limit, and M3.5's deck adds to it. Appendix E holds the next step.
 - **Public name.** PRD Q1 stays open, and M1.3 keeps the name in one module.
 - **Scope cuts for the MVP.** M2.2 shipped 48 topics against the PRD's estimate of 60, and M4.2 ships at least 100 concepts against its estimate of 300. Both grow before the beta.
@@ -2365,7 +2365,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 - Read `docs/PRD-v1.md`, including "Changes since approval", and `docs/DESIGN.md` before editing anything. Read `docs/architecture/live-session.md` before any M3 PR, and `~/startup/agentic-tutor/docs/NORTH_STAR_PLAN.md` for background.
 - M3.1 uses `skills/architect/SKILL.md`, and M2.3 and M4.5 use `skills/interrogate/SKILL.md`. Keep the trail per `skills/show-me-your-work/SKILL.md`.
-- After the MVP and before the beta, the PRD still needs invitations, usage caps and a spend alert (Q14), the seven-day check and beta metrics (section 12), the static-board comparison, the payment link (Q21), hosting, and the lawyer's review. Abel chose Casey by ear, so the TTS blind test runs only if Abel still wants it.
+- After the MVP and before the beta, the PRD still needs invitations, usage caps and a spend alert (Q14), the seven-day check and beta metrics (section 12), the static-board comparison, the payment link (Q21), hosting, and the lawyer's review. Abel chose Chris by ear, so the TTS blind test runs only if Abel still wants it.
 - The PR that sets up hosting or email names the provider in `LEGAL_PAGES`, adds a rewrite for `/terms` and `/privacy`, and rechecks "nothing deletes on a timer". A hosted project keeps its own email template and needs the shorter code expiry M2.10 recommends.
 
 ## Appendix E. Follow-ups

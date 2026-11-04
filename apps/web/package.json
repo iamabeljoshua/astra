@@ -11,12 +11,14 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",
     "@tanstack/react-query": "^5.105.3",
+    "livekit-client": "2.23.0",
     "openapi-fetch": "^0.17.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-router": "^8.5.1"
   },
   "devDependencies": {
+    "@astra/board": "workspace:*",
     "@astra/contracts": "workspace:*",
     "@astra/theme": "workspace:*",
     "@tailwindcss/vite": "^4.3.4",

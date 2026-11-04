@@ -17,9 +17,9 @@ import { SAMPLE_SESSION_EVENTS } from './sample-session.ts';
 
 const INTERRUPTED = SAMPLE_SESSION_EVENTS.find((event) => (event as { ending?: string }).ending === 'interrupted') as Record<string, unknown>;
 const FROZEN_SHOT = { target: 'shot', simulationSeconds: 0.71 };
-const PLAYED = { type: 'played', turnId: 't3', beatId: 'b6', startedMsAgo: 710, wordStartsMs: [0, 320, 560], durationMs: 710, playedWords: 3, firedCueMs: [0, 320], ending: 'interrupted', frozen: [FROZEN_SHOT] };
-const BOARD_FROZEN = { type: 'boardFrozen', turnId: 't3', startedMsAgo: 40, frozen: [FROZEN_SHOT] };
-const QUESTION_HEARD = { type: 'questionHeard', turnId: 't3', beatId: 'b6', startedMsAgo: 12 };
+const PLAYED = { type: 'played', turnId: 't3', beatId: 'b6', browserMs: 5000, startedMsAgo: 710, wordStartsMs: [0, 320, 560], durationMs: 710, playedWords: 3, firedCueMs: [0, 320], ending: 'interrupted', frozen: [FROZEN_SHOT] };
+const BOARD_FROZEN = { type: 'boardFrozen', turnId: 't3', browserMs: 5000, startedMsAgo: 40, frozen: [FROZEN_SHOT] };
+const QUESTION_HEARD = { type: 'questionHeard', turnId: 't3', beatId: 'b6', browserMs: 5000, startedMsAgo: 12 };
 const AUDIO_GAP = { type: 'audioGap', turnId: 't3', atMs: 1420, ms: 180 };
 const STORED_BOARD_FROZEN = { seq: 3, atMs: 900, kind: 'boardFrozen', turnId: 't3', frozen: [FROZEN_SHOT] };
 const LONGEST_NUMBER = 0.12345678901234568;
@@ -40,7 +40,7 @@ describe('parseSessionEvent', () => {
     ['more words played than it has word times', { ...INTERRUPTED, playedWords: 4 }, /playedWords: expected no more words/],
     ['more word times than the beat has words', { ...INTERRUPTED, wordStartsMs: [0, 100, 200, 300] }, /wordStartsMs: expected no more than the beat's 3 words/],
     ['word times out of order', { ...INTERRUPTED, wordStartsMs: [0, 560, 320] }, /wordStartsMs: expected times in order/],
-    ['audio that stops before the last word', { ...INTERRUPTED, durationMs: 100 }, /durationMs: expected the audio to reach/],
+    ['audio that stops before the last word played', { ...INTERRUPTED, durationMs: 100 }, /durationMs: expected the audio to reach/],
     ['a finished beat that did not play every word', { ...INTERRUPTED, ending: 'finished', wordStartsMs: [0, 320], playedWords: 2 }, /playedWords: expected all 3 words/],
     ['a sequence number too big to be exact', { seq: 1e308, atMs: 0, kind: 'connectionGap', durationMs: 900 }, /seq: expected a whole number/],
     ['a NUL in what the student said', { seq: 1, atMs: 0, kind: 'studentSpoke', text: 'a\u0000', source: 'voice', isReaction: false, durationMs: 1 }, /text: expected text with no NUL/],
@@ -49,6 +49,10 @@ describe('parseSessionEvent', () => {
   ])('rejects %s', (_name, input, reason) => {
     expectRefused(parseSessionEvent(input), reason);
   });
+});
+
+it('accepts word times past a cut, so a replay runs motion at the speed the student saw', () => {
+  expect(parseSessionEvent({ ...INTERRUPTED, playedWords: 1, durationMs: 100 }).ok).toBe(true);
 });
 
 describe('firedCueMs', () => {
@@ -155,7 +159,7 @@ describe('frozen frames', () => {
 describe('when the browser says a thing really happened', () => {
   const STAMPED: [string, Record<string, unknown>][] = [
     ['played', PLAYED],
-    ['acted', { type: 'acted', startedMsAgo: 71, action: { action: 'inkErased', target: 'ink-1' } }],
+    ['acted', { type: 'acted', browserMs: 5000, startedMsAgo: 71, action: { action: 'inkErased', target: 'ink-1' } }],
     ['boardFrozen', BOARD_FROZEN],
     ['questionHeard', QUESTION_HEARD],
   ];
@@ -171,6 +175,10 @@ describe('when the browser says a thing really happened', () => {
       ['a time in the future', { ...message, startedMsAgo: -1 }],
     ])('refuses %s', (_name, input) => {
       expectRefused(parseBrowserMessage(input), /startedMsAgo: expected a whole number/);
+    });
+
+    it('refuses a message with no browser clock, because the log keeps its gaps from it', () => {
+      expectRefused(parseBrowserMessage(withoutField(message, 'browserMs')), /browserMs: expected a whole number/);
     });
   });
 });
@@ -246,7 +254,7 @@ describe('what a student drags', () => {
     ['releaseHeight', -1, /samples\[0\]\.value: expected a number from 0 to 1000/],
   ])('keeps a drag of %s inside its range: %d', (parameter, value, reason) => {
     expectRefused(parseSessionEvent(makeStudentActed(makeDrag(parameter, value))), reason);
-    expectRefused(parseBrowserMessage({ type: 'acted', startedMsAgo: 0, action: makeDrag(parameter, value) }), reason);
+    expectRefused(parseBrowserMessage({ type: 'acted', browserMs: 5000, startedMsAgo: 0, action: makeDrag(parameter, value) }), reason);
   });
 
   it('accepts a drag inside the range', () => {
@@ -281,7 +289,7 @@ describe('boardFrozen', () => {
 
   it.each<[string, unknown, RegExp]>([
     ['no turn', { type: 'boardFrozen', frozen: [] }, /turnId: expected a turn id/],
-    ['no frozen list', { type: 'boardFrozen', turnId: 't3', startedMsAgo: 40 }, /frozen: expected a list/],
+    ['no frozen list', { type: 'boardFrozen', turnId: 't3', browserMs: 5000, startedMsAgo: 40 }, /frozen: expected a list/],
     ['a bad frozen entry', { ...BOARD_FROZEN, frozen: [{ target: 'shot' }] }, /frozen\[0\]: expected exactly one of/],
     ['a stray field', { ...BOARD_FROZEN, beat: {} }, /beat: unknown field/],
   ])('refuses a message with %s', (_name, message, reason) => {
@@ -309,7 +317,7 @@ describe('student work', () => {
   it('accepts ink in fractions of the board, erased ink, and a shared file', () => {
     for (const action of [STROKE, { action: 'inkErased', target: 'ink-1' }, { action: 'fileShared', fileId: 'file-1', name: 'worksheet.pdf' }]) {
       expect(parseSessionEvent(makeStudentActed(action))).toEqual({ ok: true, value: makeStudentActed(action) });
-      const acted = { type: 'acted', startedMsAgo: 71, action };
+      const acted = { type: 'acted', browserMs: 5000, startedMsAgo: 71, action };
       expect(parseBrowserMessage(acted)).toEqual({ ok: true, value: acted });
     }
   });
@@ -359,14 +367,14 @@ describe('the messages between the agent and the browser', () => {
 
   it('accepts what the browser reports', () => {
     expect(parseBrowserMessage(PLAYED)).toEqual({ ok: true, value: PLAYED });
-    const acted = { type: 'acted', startedMsAgo: 71, action: { action: 'rewound', turnId: 't3', toBeat: 'b5' } };
+    const acted = { type: 'acted', browserMs: 5000, startedMsAgo: 71, action: { action: 'rewound', turnId: 't3', toBeat: 'b5' } };
     expect(parseBrowserMessage(acted)).toEqual({ ok: true, value: acted });
   });
 
   it.each<[string, unknown, RegExp]>([
     ['more words played than timed', { ...PLAYED, playedWords: 4 }, /playedWords: expected no more words/],
     ['an agent-only field', { ...PLAYED, reportedBy: 'browser' }, /reportedBy: unknown field/],
-    ['an unknown action', { type: 'acted', startedMsAgo: 0, action: { action: 'dance' } }, /action: expected one of/],
+    ['an unknown action', { type: 'acted', browserMs: 5000, startedMsAgo: 0, action: { action: 'dance' } }, /action: expected one of/],
   ])('rejects a browser message with %s', (_name, message, reason) => {
     expectRefused(parseBrowserMessage(message), reason);
   });
@@ -439,8 +447,8 @@ describe('the size limits on the wire', () => {
   it('lets the largest normal student actions through at full number precision', () => {
     const points = Array.from({ length: 300 }, () => [LONGEST_NUMBER, LONGEST_NUMBER, 1_234_567]);
     const samples = Array.from({ length: 300 }, () => ({ afterMs: 1_234_567, value: LONGEST_NUMBER }));
-    expect(parseBrowserMessage({ type: 'acted', startedMsAgo: 1_234_567, action: { action: 'inkStroke', id: 'ink-1', points } }).ok).toBe(true);
-    expect(parseBrowserMessage({ type: 'acted', startedMsAgo: 1_234_567, action: { action: 'sliderDragged', target: 'shot', parameter: 'gravity', samples } }).ok).toBe(true);
+    expect(parseBrowserMessage({ type: 'acted', browserMs: 5000, startedMsAgo: 1_234_567, action: { action: 'inkStroke', id: 'ink-1', points } }).ok).toBe(true);
+    expect(parseBrowserMessage({ type: 'acted', browserMs: 5000, startedMsAgo: 1_234_567, action: { action: 'sliderDragged', target: 'shot', parameter: 'gravity', samples } }).ok).toBe(true);
   });
 
   it('keeps room for the cue wrapper around the largest command', () => {

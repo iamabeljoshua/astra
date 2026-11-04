@@ -305,6 +305,21 @@ export const ARTWORK_LABELS = {
   wheat: 'Vincent van Gogh\'s painting of a wheat field and cypress trees under a swirling sky',
 };
 
+export const LAB_LABELS = {
+  title: 'Scene player lab',
+  intro: 'A development bench for the board clock. It plays test text only.',
+  noRoom: 'Start the lab with pnpm lab, then open the address it prints.',
+  board: 'Board',
+  controls: 'Controls',
+  connect: 'Connect',
+  play: 'Play the lesson',
+  interrupt: 'Interrupt',
+  resume: 'Resume',
+  replay: 'Replay from the log',
+  backToLive: 'Back to live',
+  logEvents: 'Events in the log:',
+};
+
 export const LEGAL_LABELS = {
   draftNotice: 'Draft of 4 November 2026. A lawyer has not yet reviewed this page.',
   planned: 'Planned',
@@ -428,7 +443,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
           'LiveKit Cloud, which will carry lesson audio between you and the tutor.',
           "Meta's Muse Voice Transcribe, which will receive your voice and turn it into text.",
           "Anthropic, whose Claude models will receive the lesson conversation and write the tutor's replies.",
-          "ElevenLabs, which will receive the tutor's words and turn them into its voice.",
+          "ElevenLabs, which will receive the tutor's words, which can include your name, and turn them into its voice.",
           'Google, if we turn on sign-in with Google, which will handle that sign-in and pass your account details to Supabase Auth.',
           'An email delivery service and a hosting provider, not yet chosen. We will name them here before real students join.',
         ],

@@ -1,6 +1,6 @@
 {
- "checks": 9,
- "passed": 9,
+ "checks": 10,
+ "passed": 10,
  "rows": [
   {
    "check": "a voice at 91% speed reports all its lateness, though no frame is 20 ms late",
@@ -28,6 +28,13 @@
    "passed": true,
    "seen": {
     "jitteryMs": 0
+   }
+  },
+  {
+   "check": "a burst banks no credit, so a stall after it is still reported in full",
+   "passed": true,
+   "seen": {
+    "burstThenStallMs": 60
    }
   },
   {

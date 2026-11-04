@@ -9,10 +9,16 @@ catalog:
 overrides:
   supabase>tar: ^7.5.22
 
+# Plugin 1.9.5 takes a line's second character as its first word offset, which moves every word time early.
+patchedDependencies:
+  '@livekit/agents-plugin-elevenlabs@1.9.5': patches/@livekit__agents-plugin-elevenlabs@1.9.5.patch
+
 onlyBuiltDependencies:
   - supabase
 
 ignoredBuiltDependencies:
+  - '@livekit/blingfire'
+  - '@livekit/local-inference'
   - '@parcel/watcher'
   - '@scarf/scarf'
 
