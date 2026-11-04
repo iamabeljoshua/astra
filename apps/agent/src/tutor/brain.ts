@@ -1,6 +1,6 @@
 import { type Beat, type BeatId, clipTypedText, getBeatText, getCues, getPlayedCues, getSpokenWords, parseBeat, parseWrittenBeat, TYPED_TEXT_MAX_CHARACTERS, type TutorClosedReason } from '@astra/contracts';
 import { type ModelEvent, ModelRejectedError, type ModelUsage, type TutorModelAdapter, type TutorModelRequest, type TutorTurn } from '../providers/types.ts';
-import { namesHelp, promisesEmergencyHelp } from '../safety/help-words.ts';
+import { namesHelp, promisesEmergencyHelp, readsAsEnglish } from '../safety/help-words.ts';
 import type { SafetyKind, StudentReading } from '../safety/safety-check.ts';
 import type { SafetyWatch } from '../safety/safety-watch.ts';
 import { BeatTextReader, type WrittenBeatParts } from './beat-text-reader.ts';
@@ -94,6 +94,8 @@ export interface TutorBrainOptions {
   getNowMs?(): number;
   /** Reads each turn beside the reply. With none, the prompt and the reader are the only safeguards. */
   safety?: SafetyWatch;
+  /** Another prompt, for a run that compares it with the current one. */
+  system?: string;
 }
 
 type TurnStep = 'over' | 'retry';
@@ -133,9 +135,14 @@ interface TurnWork {
   /** What the safety check found. `unread` means nothing is known, because there is no check or it failed. */
   safetyReading: StudentReading | 'pending';
   safetyRead: Promise<void>;
+  /** Settles only when the check reads a danger, so a slow model cannot keep the student waiting for help. */
+  safetyFound: Promise<typeof SAFETY_FOUND>;
   hasStoppedForSafety: boolean;
 }
 
+const SAFETY_FOUND = 'safetyFound';
+/** One per turn, because a promise that never settles keeps every reaction raced against it. */
+const createNever = () => new Promise<never>(() => {});
 const RESUMED_BEAT = /^(.+?)(?:-r\d+(?:-rest)?)+$/;
 const WAIT_STEP_MS = 5;
 const MAX_ATTEMPTS = 2;
@@ -154,7 +161,7 @@ const DECLINED_NOTE = {
   declined: "A safety check stopped an earlier message of the student's, so you cannot see that one. It may have been serious. The message just above this note is newer, you can read it, and it comes first: if it says anyone is hurting them or that they are in danger, follow your safety rules for it. The app has already told them to tell an adult they trust or call their local emergency number. Otherwise, before you teach on, ask once, gently, whether they are safe and have an adult to talk to. Do not guess what the earlier message said, do not ask them to repeat it, and never say you cannot see a message.",
 };
 const SKIPPED_NOTE = { skipped: "An automatic check stopped an earlier message of the student's, and the app told them it could not go into that. It is not about their safety. Teach on, and do not ask them to repeat it." };
-const SAFETY_STOP_PROBLEM = "A safety check read the student's words as possibly about their safety. Stop teaching. Follow your safety rules now, in the student's language, naming an adult they trust and their local emergency number. If you asked them something, do not wait for the answer, because help comes first.";
+const SAFETY_STOP_PROBLEM = "The student's words may be about their safety, and your reply named no help. Follow your safety rules now, in their language, naming an adult they trust and their local emergency number. Help comes first, and never mention this note.";
 const BREAK_NOTE = { break_due: 'They have been learning for a while. In one short sentence, suggest a short break, then carry on if they want to.' };
 /** PRD S4 asks the tutor to nudge minors to take breaks. A 30 minute lesson hears none, and a long sitting hears one every 45 minutes. */
 const BREAK_EVERY_MS = 45 * 60 * 1000;
@@ -219,7 +226,7 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const toProfileNote = ({ level, interests, goal }: StudentProfile) => ({ student: { level, interests, goal } });
 
-export function createTutorBrain({ model, profile = null, loadProfile, timeouts: chosenTimeouts, trace = () => {}, onTurnEnd, onCompacted, compactAtTokens = COMPACT_AT_TOKENS, getSpendLimit = () => null, getNowMs = () => performance.now(), safety }: TutorBrainOptions): Required<TutorBrain> {
+export function createTutorBrain({ model, profile = null, loadProfile, timeouts: chosenTimeouts, trace = () => {}, onTurnEnd, onCompacted, compactAtTokens = COMPACT_AT_TOKENS, getSpendLimit = () => null, getNowMs = () => performance.now(), safety, system = TUTOR_SYSTEM }: TutorBrainOptions): Required<TutorBrain> {
   const timeouts: TutorTimeouts = { ...TUTOR_TIMEOUTS, ...chosenTimeouts };
   const pickLine = createLinePicker();
   let breathsTaken = 0;
@@ -351,12 +358,16 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
       endedAs: 'aborted',
       safetyReading: 'unread',
       safetyRead: Promise.resolve(),
+      safetyFound: createNever(),
       hasStoppedForSafety: false,
     };
     if (safety) {
       turn.safetyReading = 'pending';
-      turn.safetyRead = safety.readStudent(studentText, lastSpokenText).then((reading) => {
-        turn.safetyReading = reading;
+      turn.safetyFound = new Promise((resolve) => {
+        turn.safetyRead = safety.readStudent(studentText, lastSpokenText).then((reading) => {
+          turn.safetyReading = reading;
+          if (isSafetyKind(reading)) resolve(SAFETY_FOUND);
+        });
       });
     }
     return turn;
@@ -378,7 +389,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
   };
 
   const getRequest = (turn: TurnWork): TutorModelRequest => ({
-    system: TUTOR_SYSTEM,
+    system,
     turns: [...turns, { role: 'user', text: turn.studentText }, ...turn.notes.map((text) => ({ role: 'system' as const, text }))],
   });
 
@@ -435,20 +446,26 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
     let pending = events.next();
     try {
       for (;;) {
-        const result = await waitUntil(pending, getDeadlineMs(turn, attemptStartedAtMs, lastEventAtMs), turn.signal, getNowMs);
+        const result = await waitUntil(Promise.race([pending, turn.safetyFound]), getDeadlineMs(turn, attemptStartedAtMs, lastEventAtMs), turn.signal, getNowMs);
         if (result === 'aborted') return endAs('aborted');
+        if (result === SAFETY_FOUND) {
+          turn.safetyFound = createNever();
+          if (isHelpDueInCode(turn)) return endAs('stoppedForSafety');
+          continue;
+        }
         if (result === 'deadline') {
+          if (isSafetyKind(turn.safetyReading) && !turn.isCheckingMath && !turn.hasStoppedForSafety) return endAs('stoppedForSafety');
           if (turn.reader.isTurnOver) return endAs('ended');
           if (turn.hasAttemptText) return endAs('stalledInText');
           if (turn.hasSaidStillWorking || getNowMs() - attemptStartedAtMs >= timeouts.firstTextMs) return endAs('stalledBeforeText');
           turn.hasSaidStillWorking = true;
-          sayLine(turn, getWaitLine(turn));
+          sayLine(turn, turn.isCheckingMath ? 'checkingMath' : 'stillWorking');
           yield* takeReady(turn);
           continue;
         }
         if (result.done) return endAs('ended');
         const eventEnd = readEvent(turn, result.value);
-        if (isTeachingPastASignal(turn)) return endAs('stoppedForSafety');
+        if (isHelpDueInCode(turn)) return endAs('stoppedForSafety');
         yield* takeReady(turn);
         // Taken after the yield, because the session holds a next idea here until the last one has been spoken, and that wait is not a stalled model.
         lastEventAtMs = getNowMs();
@@ -481,7 +498,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
 
   // A stream cut short never reports its output, and one cut before its headers reports nothing, so those are estimated. A request the API turned away costs nothing.
   const addAttemptUsage = (turn: TurnWork, end: AttemptEnd) => {
-    const wasCutBeforeReport = !turn.attemptUsage && (end === 'aborted' || end === 'stalledBeforeText');
+    const wasCutBeforeReport = !turn.attemptUsage && (end === 'aborted' || end === 'stalledBeforeText' || end === 'stoppedForSafety');
     if (!turn.attemptUsage && !wasCutBeforeReport) return;
     const reported = turn.attemptUsage ?? getEstimatedRequestUsage(turn);
     const part = turn.isAttemptUsageFinal ? reported : { ...reported, outputTokens: Math.ceil(turn.raw.length / CHARACTERS_PER_TOKEN) };
@@ -541,25 +558,34 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
     turn.reader.push(help);
   };
 
-  // Heard before the model's first words are ready, so this one reply opens with help and never with a filler or a question.
-  const getWaitLine = (turn: TurnWork): SpokenLineUse => {
-    if (turn.isCheckingMath) return 'checkingMath';
-    return isSafetyKind(turn.safetyReading) ? 'safetyHelpFirst' : 'stillWorking';
-  };
+  const replyLacksHelp = (turn: TurnWork) => isSafetyKind(turn.safetyReading) && !turn.hasStoppedForSafety && !turn.reader.isSafetyReply && !namesHelp(`${getWordsSaid(turn)} ${turn.raw}`);
 
-  const isTeachingPastASignal = (turn: TurnWork) => isSafetyKind(turn.safetyReading) && !turn.hasStoppedForSafety && turn.ready.length > 0 && !turn.reader.isSafetyReply && !namesHelp(`${getWordsSaid(turn)} ${turn.raw}`);
+  // In English the check's answer usually beats the model's first words, and code's line is what the model says anyway, so the student hears it sooner. A reply in another language gets to finish, because it usually names help in that language.
+  const isHelpDueInCode = (turn: TurnWork) => replyLacksHelp(turn) && readsAsEnglish(turn.studentText);
 
-  // The student's words read as danger and the reply so far names no help, so what is unsaid goes, and the same model writes the help in the student's language.
-  const stopForSafety = (turn: TurnWork): TurnStep => {
+  // What is unsaid goes, because help must not wait behind a question or a lesson, and the words said so far stay in history with it.
+  const sayHelpInCode = (turn: TurnWork): TurnStep => {
     turn.hasStoppedForSafety = true;
     trace('stoppedForSafety');
     turn.beats.splice(turn.beats.length - turn.ready.length);
     turn.ready = [];
     turn.reader.dropAttempt();
     turn.reader.markSafetyReply();
+    const line = pickLine(turn.safetyReading === 'abuse' || turn.safetyReading === 'grooming' ? 'safetyStopHurt' : 'safetyStop');
+    turn.raw = `${getWordsSaid(turn)} ${line}`.trim();
+    turn.reader.push(line);
+    turn.reader.finish();
+    return 'over';
+  };
+
+  // The model finished in another language with no help the code can see, so it gets one more go, and code names help in English if that fails too.
+  const askAgainForHelp = (turn: TurnWork): TurnStep => {
+    turn.hasStoppedForSafety = true;
+    trace('askedAgainForHelp');
+    turn.reader.dropAttempt();
+    turn.reader.markSafetyReply();
     noteCorrection(turn, SAFETY_STOP_PROBLEM);
-    if (turn.attempts < MAX_ATTEMPTS) return 'retry';
-    return finishAnswer(turn);
+    return turn.attempts < MAX_ATTEMPTS ? 'retry' : finishAnswer(turn);
   };
 
   const finishAnswer = (turn: TurnWork): TurnStep => {
@@ -627,10 +653,10 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
       case 'noWords':
         return 'over';
       case 'stoppedForSafety':
-        return stopForSafety(turn);
+        return sayHelpInCode(turn);
       case 'ended':
-        if (isSafetyKind(turn.safetyReading) && !turn.hasStoppedForSafety && !turn.reader.isSafetyReply && !namesHelp(`${getWordsSaid(turn)} ${turn.raw}`)) return stopForSafety(turn);
-        return finishAnswer(turn);
+        if (isHelpDueInCode(turn)) return sayHelpInCode(turn);
+        return replyLacksHelp(turn) ? askAgainForHelp(turn) : finishAnswer(turn);
       case 'refused':
         return handleRefusal(turn, canRetry);
       case 'rejected':
@@ -660,7 +686,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
     const turnsBefore = turns.length;
     trace('compactionStarted', { promptTokens, turns: compacted.length });
     void model
-      .compact({ system: TUTOR_SYSTEM, turns: compacted }, new AbortController().signal)
+      .compact({ system, turns: compacted }, new AbortController().signal)
       .then((result) => {
         if (!result) return trace('compactionEmpty');
         turns = [{ role: 'summary', summary: result.summary }, ...turns.slice(keptFrom)];

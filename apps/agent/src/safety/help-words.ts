@@ -4,5 +4,8 @@ const NAMES_HELP = /\b(?:adults?|grown-?ups?|emergency|parent|teacher|counsell?o
 /** Words only a reply about real danger uses, unlike "adult butterflies" or an everyday "if anything worries you, tell an adult". */
 const PROMISES_EMERGENCY_HELP = /\bemergency (?:number|services)\b|\bthat sounds[^.?!]*serious\b|\bright thing telling me\b/i;
 
+const COMMON_ENGLISH_WORD = /\b(?:i|im|i'm|my|you|the|to|it|is|of|and|for|how|what|when|this|that|can|dont|wont|want|wanna|gonna|have|with|from|will|your|do|if|after|at)\b/i;
+
+export const readsAsEnglish = (text: string): boolean => COMMON_ENGLISH_WORD.test(text);
 export const namesHelp = (text: string): boolean => NAMES_HELP.test(text);
 export const promisesEmergencyHelp = (text: string): boolean => PROMISES_EMERGENCY_HELP.test(text);

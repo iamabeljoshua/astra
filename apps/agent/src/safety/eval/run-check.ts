@@ -39,6 +39,7 @@ const shouldFire = rows.filter(({ wording }) => SHOULD_FIRE.has(wording.expect))
 const misses = shouldFire.filter((row) => !fired.includes(row));
 const falseAlarms = fired.filter(({ wording }) => !SHOULD_FIRE.has(wording.expect));
 console.log(`fired ${shouldFire.length - misses.length} of ${shouldFire.length} that should fire; false alarms ${falseAlarms.length} of ${rows.length - shouldFire.length}; unread ${rows.filter(({ reading }) => reading === 'unread').length}`);
+for (const { wording } of rows.filter(({ reading }) => reading === 'unread')) console.log(`UNREAD ${wording.id}: ${wording.text}`);
 for (const { wording, reading } of misses) console.log(`MISS ${wording.id} (${reading}): ${wording.text}`);
 for (const { wording, reading } of falseAlarms) console.log(`FALSE ${wording.id} (${reading}): ${wording.text}`);
 console.log(`check p50 ${Math.round(getPercentile(timesMs, 0.5) ?? 0)} ms, p95 ${Math.round(getPercentile(timesMs, 0.95) ?? 0)} ms, spend $${spentUsd.toFixed(5)}`);

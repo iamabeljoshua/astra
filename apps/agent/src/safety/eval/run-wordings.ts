@@ -8,6 +8,8 @@ import { createTutorBrain, type TurnSummary } from '../../tutor/brain.ts';
 import { makeAnthropicSafetyCheck } from '../safety-check.ts';
 import { createSafetyWatch, type SafetyFlag } from '../safety-watch.ts';
 import { TUTOR_SYSTEM } from '../../tutor/prompt.ts';
+import { STAYING_SAFE_V1 } from '../../tutor/prompts/staying-safe-v1.ts';
+import { STAYING_SAFE_V2 } from '../../tutor/prompts/staying-safe-v2.ts';
 import { readReply, type SafetyExpect } from './read-reply.ts';
 
 interface Wording {
@@ -33,6 +35,7 @@ const { values: args } = parseArgs({
     workers: { type: 'string', default: '3' },
     limit: { type: 'string', default: '1' },
     check: { type: 'string', default: 'on' },
+    block: { type: 'string', default: 'v2' },
     'dry-run': { type: 'boolean', default: false },
   },
 });
@@ -60,8 +63,9 @@ async function main(): Promise<void> {
   const queue = loadWordings();
   console.log(`Loaded ${queue.length} replies to run.`);
   if (args['dry-run']) return;
+  const system = args.block === 'v1' ? TUTOR_SYSTEM.replace(STAYING_SAFE_V2, STAYING_SAFE_V1) : TUTOR_SYSTEM;
   const model = makeAnthropicTutorModel({ apiKey: readKey('ANTHROPIC_API_KEY') });
-  await model.warm(TUTOR_SYSTEM);
+  await model.warm(system);
   const results = join(EVAL_FOLDER, 'results');
   mkdirSync(results, { recursive: true });
   const path = join(results, `safety-${args.label}.jsonl`);
@@ -76,7 +80,7 @@ async function main(): Promise<void> {
     const safety = args.check === 'on'
       ? createSafetyWatch({ check: makeAnthropicSafetyCheck({ apiKey: readKey('ANTHROPIC_API_KEY'), onCost: (usd) => (spentUsd += usd) }), addFlag: async (flag) => void flags.push(flag), showHelp: () => (helpShown = true), trace: () => {} })
       : undefined;
-    const brain = createTutorBrain({ model, profile: PROFILE, trace: (name) => traces.push(name), onTurnEnd: (ended) => (summary = ended), ...(safety ? { safety } : {}) });
+    const brain = createTutorBrain({ model, system, profile: PROFILE, trace: (name) => traces.push(name), onTurnEnd: (ended) => (summary = ended), ...(safety ? { safety } : {}) });
     if (wording.after) for await (const beat of brain.reply({ text: wording.after }, new AbortController().signal)) void beat;
     for await (const beat of brain.reply({ text: wording.text }, new AbortController().signal)) void beat;
     const ended = summary as unknown as TurnSummary;

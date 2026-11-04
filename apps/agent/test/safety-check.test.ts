@@ -33,8 +33,9 @@ function setup({ reading = 'self_harm', readAfterMs = 0, tutorReading = 'none', 
   };
   const trace = (name: string, fields?: Record<string, unknown>) => traced.push(`${name} ${JSON.stringify(fields ?? {})}`);
   const safety = createSafetyWatch({ check, addFlag: addFlag ?? (async (flag) => void flags.push(flag)), showHelp: () => shown.push(1), trace });
-  const brain = createTutorBrain({ model: makeFakeTutorModel(getReply), timeouts: QUICK, safety, trace, onTurnEnd: (summary) => summaries.push(summary) });
-  return { brain, safety, flags, traced, shown, summaries };
+  const model = makeFakeTutorModel(getReply);
+  const brain = createTutorBrain({ model, timeouts: QUICK, safety, trace, onTurnEnd: (summary) => summaries.push(summary) });
+  return { brain, model, safety, flags, traced, shown, summaries };
 }
 
 async function say(brain: ReturnType<typeof setup>['brain'], text = STUDENT_WORDS): Promise<string> {
@@ -44,74 +45,66 @@ async function say(brain: ReturnType<typeof setup>['brain'], text = STUDENT_WORD
 }
 
 describe('a signal stops the teaching, shows help, and raises a flag', () => {
-  it('turns a reply that only asks a question into help, in the same turn', async () => {
-    const { brain, flags, shown } = setup({
-      getReply: (_request, attempt) => ({ pieces: attempt === 1 ? ['Hmm, cut what exactly?'] : ['That sounds serious. Please tell an adult you trust now, or call your local emergency number if you are in danger. Are you safe right now?'] }),
-    });
+  it('says help in place of a reply that only asks a question', async () => {
+    const { brain, flags, shown } = setup({ getReply: () => ({ pieces: ['Hmm, cut what exactly?'] }) });
     const spoken = await say(brain);
-    expect(spoken).toMatch(/adult you trust/);
-    expect(spoken).toMatch(/emergency number/);
-    expect(spoken).not.toMatch(/cut what exactly/);
+    expect(spoken).toBe(SPOKEN_LINES.safetyStop[0]);
     expect(flags).toEqual([{ kind: 'self_harm', source: 'student' }]);
     expect(shown).toHaveLength(1);
   });
 
-  it('keeps a reply the check agrees with, and does not ask twice', async () => {
-    const asked: number[] = [];
-    const { brain } = setup({
-      getReply: (_request, attempt) => {
-        asked.push(attempt);
-        return { pieces: ['That sounds serious. Please tell an adult you trust now. Are you safe right now?'] };
-      },
-    });
-    expect(await say(brain)).toMatch(/adult you trust/);
-    expect(asked).toEqual([1]);
+  it('says it is not their fault only when someone is hurting them', async () => {
+    const hurt = setup({ reading: 'abuse', getReply: () => ({ pieces: ['Tell me more about that.'] }) });
+    expect(await say(hurt.brain, 'my uncle touches me')).toMatch(/not your fault/);
+    const alone = setup({ reading: 'self_harm', getReply: () => ({ pieces: ['Tell me more about that.'] }) });
+    expect(await say(alone.brain, 'i want to die')).not.toMatch(/fault/);
   });
 
-  it('keeps a reply in the student\'s own language that names help', async () => {
-    const asked: number[] = [];
-    const { brain } = setup({
-      getReply: (_request, attempt) => {
-        asked.push(attempt);
-        return { pieces: ['Eso suena serio. Cuéntaselo ahora mismo a un adulto de confianza, o llama a tu número local de emergencias. ¿Estás a salvo?'] };
-      },
-    });
+  it('says help as soon as the check reads danger, with no wait on a slow model', async () => {
+    const { brain } = setup({ readAfterMs: 10, getReply: () => ({ firstTextMs: 250, pieces: ['That sounds serious.'] }) });
+    const startedAt = performance.now();
+    expect(await say(brain)).toBe(SPOKEN_LINES.safetyStop[0]);
+    expect(performance.now() - startedAt).toBeLessThan(150);
+  });
+
+  it('keeps a reply the check agrees with, and asks the model only once', async () => {
+    const { brain, model } = setup({ getReply: () => ({ pieces: ['That sounds serious. Please tell an adult you trust now. Are you safe right now?'] }) });
+    expect(await say(brain)).toBe('That sounds serious. Please tell an adult you trust now. Are you safe right now?');
+    expect(model.requests).toHaveLength(1);
+  });
+
+  it('lets a reply in the student\'s own language finish when it names help', async () => {
+    const { brain, model } = setup({ getReply: () => ({ pieces: ['Eso suena serio. ', 'Cuéntaselo ahora mismo a un adulto de confianza. ¿Estás a salvo?'], msPerPiece: 5 }) });
     expect(await say(brain, 'quiero matarme')).toMatch(/adulto de confianza/);
-    expect(asked).toEqual([1]);
+    expect(model.requests).toHaveLength(1);
   });
 
-  it('names help in code when the retry still names none', async () => {
-    const { brain } = setup({ getReply: () => ({ pieces: ['Cut what exactly?'] }) });
-    expect(await say(brain)).toContain(SPOKEN_LINES.safetyHelp[0]);
+  it('asks again in the student\'s language when that reply names no help, then names it in code', async () => {
+    const { brain, model } = setup({ getReply: () => ({ pieces: ['Hola, cuéntame más.'] }) });
+    const spoken = await say(brain, 'quiero matarme');
+    expect(model.requests).toHaveLength(2);
+    expect(spoken).toContain(SPOKEN_LINES.safetyHelp[0]);
   });
 
   it('stops teaching at the next beat when the signal comes after the first words', async () => {
-    const { brain } = setup({
-      readAfterMs: 30,
-      getReply: (_request, attempt) =>
-        attempt === 1
-          ? { pieces: ['Nothing moves instantly, not even light. ', 'It takes time to cross any distance, so a train cannot do it.'], msPerPiece: 80 }
-          : { pieces: ['That sounds serious. Please tell an adult you trust now.'] },
-    });
+    const { brain } = setup({ readAfterMs: 30, getReply: () => ({ pieces: ['Nothing moves instantly, not even light. ', 'It takes time to cross any distance, so a train cannot do it.'], msPerPiece: 80 }) });
     const spoken = await say(brain);
-    expect(spoken).toMatch(/adult you trust/);
+    expect(spoken).toMatch(/^Nothing moves instantly/);
+    expect(spoken).toContain(SPOKEN_LINES.safetyStop[0]);
     expect(spoken).not.toMatch(/cross any distance/);
   });
 
-  it('waits for a slow read when the reply ended first, so help still comes', async () => {
-    const { brain } = setup({
-      readAfterMs: 60,
-      getReply: (_request, attempt) => ({ pieces: attempt === 1 ? ['Quicker for what, though?'] : ['That sounds serious. Please tell an adult you trust now.'] }),
-    });
-    expect(await say(brain)).toMatch(/adult you trust/);
+  it('waits for a slow read when the reply ended first, so help still comes after the question', async () => {
+    const { brain } = setup({ readAfterMs: 60, getReply: () => ({ pieces: ['Quicker for what, though?'] }) });
+    const spoken = await say(brain);
+    expect(spoken).toMatch(/^Quicker for what/);
+    expect(spoken).toContain(SPOKEN_LINES.safetyStop[0]);
   });
 
-  it('says help and no filler when the model is slow on a read danger', async () => {
-    const { brain } = setup({
-      getReply: () => ({ firstTextMs: 100, pieces: ['That sounds serious. Please tell an adult you trust now.'] }),
-    });
-    const spoken = await say(brain);
-    expect(spoken).toContain(SPOKEN_LINES.safetyHelpFirst[0]);
+  it('plays no filler before help on a slow model in another language', async () => {
+    const { brain } = setup({ getReply: () => ({ firstTextMs: 200, pieces: ['Eso suena serio.'] }) });
+    const spoken = await say(brain, 'quiero matarme');
+    expect(spoken).toContain(SPOKEN_LINES.safetyStop[0]);
     for (const filler of SPOKEN_LINES.stillWorking) expect(spoken).not.toContain(filler);
   });
 
