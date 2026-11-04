@@ -257,7 +257,6 @@ const PAGE_PLANTS: readonly PagePlant[] = [
 const paragraph = `document.querySelector('${BOARD} p')`;
 const rawWords = (words: string) => `${paragraph}.textContent = ${JSON.stringify(words)};`;
 
-/** Defects found by hand in review, with the page broken the way a student would see it. */
 const SEEN_PLANTS: readonly ScriptPlant[] = [
   { name: 'a rounded corner cuts the words', scene: 'mixed-lesson-opening', size: LAPTOP_BOARD, expects: 'text-clipped', script: `const p = ${paragraph}; p.style.borderRadius = '50%'; p.style.overflow = 'hidden'; p.style.background = 'var(--color-panel)';` },
   { name: 'a clip-path cuts half the words', scene: 'mixed-lesson-opening', size: LAPTOP_BOARD, expects: 'text-clipped', script: `${paragraph}.style.clipPath = 'inset(0 50% 0 0)';` },
@@ -340,7 +339,7 @@ const LIBRARY_PLANTS: readonly LibraryPlant[] = [
   { name: 'a table never fades in', file: 'apps/web/src/board/boardItems.ts', find: 'getEntranceOpacity: ({ progress }) => progress,', replace: 'getEntranceOpacity: () => 0,', scene: 'language-verb-table', size: LAPTOP_BOARD, expects: 'unseen-element' },
   { name: 'a diagram label stays hidden', file: 'apps/web/src/board/boardItems.ts', find: "writeStyle(text, 'visibility', drawn === 0 ? 'hidden' : '');", replace: "writeStyle(text, 'visibility', 'hidden');", scene: 'biology-food-chain', size: LAPTOP_BOARD, expects: 'dropped-words' },
   { name: 'a plot label ignores the curve', file: 'packages/board/src/figure/place-labels.ts', find: 'const lines = request.isOptional ? [] : (room.linesToClear ?? []);', replace: 'const lines: readonly Branch[] = [];', scene: 'physics-wave-plot', size: PHONE_BOARD, expects: 'line-on-text' },
-  { name: 'a note ignores the ring it names', file: 'apps/web/src/board/boardMarks.ts', find: 'shouldAvoid: [], linesToClear, onNoRoom', replace: 'shouldAvoid: [], onNoRoom', scene: 'history-school-of-athens', size: LAPTOP_BOARD, expects: 'line-on-text' },
+  { name: 'a note ignores the ring it names', file: 'apps/web/src/board/boardMarks.ts', find: 'shouldAvoid: [], linesToClear, onNoRoom', replace: 'shouldAvoid: [], onNoRoom', scene: 'mixed-note-beside-its-ring', size: PHONE_BOARD, expects: 'line-on-text' },
   { name: 'a ring goes back to an ellipse', file: 'packages/board/src/ink/marks.ts', find: 'const power = 2 / getRingRoundness(box, wander);', replace: 'const power = 1;', scene: 'hostile-marks-on-wide-things', size: LAPTOP_BOARD, expects: 'line-on-text' },
   { name: 'a long arrow runs straight through the rank between', file: 'packages/board/src/diagram/layout-graph.ts', find: 'points.push(toPoint(axes, centre(lane), band.start - arrowGap), toPoint(axes, centre(lane), band.end + arrowGap));', replace: '', scene: 'mixed-arrow-past-a-wide-node', size: LAPTOP_BOARD, expects: 'line-on-box' },
   { name: 'an arrow loses its straight run past a taller neighbour', file: 'packages/board/src/ink/diagram.ts', find: 'return [{ ...makeStroke(holdCorners(points, ARROW.cornerReach)), role: \'line\' }', replace: 'return [{ ...makeStroke([points[0] as InkPosition, { x: (points.at(-1) as InkPosition).x, y: (points[0] as InkPosition).y + 400 }, points.at(-1) as InkPosition]), role: \'line\' }', scene: 'mixed-arrow-past-a-wide-node', size: LAPTOP_BOARD, expects: 'line-on-box' },

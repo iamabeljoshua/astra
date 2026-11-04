@@ -8,13 +8,11 @@ const MOST_FLASHES_IN_A_SECOND = 3;
 const STROBE_FRAME_MS = 50;
 /** A scene at a speaking pace needs a turn every 167 ms to pass 3 flashes a second, and this sees that. */
 const SPEAKING_PACE_FRAME_MS = 100;
-/** A quarter of each side takes a tenth of the time, and a thin line of ink blends away, which WCAG's contiguous area asks for. */
 const SHOT_SCALE = 0.25;
 const SHOT_QUALITY = 60;
 const AFTER_LAST_COMMAND_MS = 900;
 const STROBES = /strobe/;
-const MOST_CONTRAST = 'dark';
-const THEMES = [MOST_CONTRAST, 'light'] as const;
+const THEMES = ['dark', 'light'] as const;
 /** A stalled browser never answers, so a frame this late names itself and ends the run. */
 const FRAME_LIMIT_MS = 60_000;
 
@@ -41,7 +39,6 @@ interface ChangeLimits {
   darkerSideLimit: number;
 }
 
-// Decodes on the page, because that is the only image decoder the check has. Holds the last turning point there, and says when enough pixels have moved one way from it.
 async function readChange(page: Page, shots: CDPSession, limits: ChangeLimits): Promise<1 | -1 | 0> {
   const { data: base64 } = await shots.send('Page.captureScreenshot', { format: 'jpeg', quality: SHOT_QUALITY, clip: { x: 0, y: 0, ...SIZE, scale: SHOT_SCALE } });
   return page.evaluate(async ({ image, pixelsNeeded, depth, darkerSideLimit }) => {
@@ -89,7 +86,6 @@ export async function getFlashesInScene(page: Page, shots: CDPSession, { scene, 
   return { flashes: getMostFlashesInASecond(changes), frames };
 }
 
-/** Plays each scene frame by frame and counts what WCAG calls a flash, in both themes only for a strobe scene. */
 export async function runFlashCheck(page: Page, { isQuick }: { isQuick: boolean }, verdict: Verdict): Promise<void> {
   const startedAtMs = Date.now();
   await page.setViewportSize(VIEWPORT);
@@ -102,7 +98,6 @@ export async function runFlashCheck(page: Page, { isQuick }: { isQuick: boolean 
       document.documentElement.dataset.theme = chosen;
     }, theme);
     for (const { name, moments } of scenes) {
-      if (theme !== MOST_CONTRAST && !STROBES.test(name)) continue;
       const seen = await getFlashesInScene(page, shots, { scene: name, lastCommandMs: Math.max(...moments.slice(0, -1)), frameMs: STROBES.test(name) ? STROBE_FRAME_MS : SPEAKING_PACE_FRAME_MS });
       frames += seen.frames;
       if (seen.flashes > worst.flashes) worst = { flashes: seen.flashes, scene: name, theme };
@@ -110,5 +105,5 @@ export async function runFlashCheck(page: Page, { isQuick }: { isQuick: boolean 
     }
   }
   await shots.detach();
-  verdict.lines.push(`Flash check: ${frames} frames across ${scenes.length} scenes in ${Math.round((Date.now() - startedAtMs) / 1000)} s. Most flashes in a second: ${worst.flashes}, in ${worst.scene} ${worst.theme}`);
+  verdict.lines.push(`Flash check: ${frames} frames across ${scenes.length} scenes in both themes in ${Math.round((Date.now() - startedAtMs) / 1000)} s. Most flashes in a second: ${worst.flashes}, in ${worst.scene} ${worst.theme}`);
 }
