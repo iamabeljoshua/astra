@@ -88,6 +88,10 @@ export async function runLesson({ url, token, work, voice, onEvent, onClosing, o
   let turnCount = 0;
   let active: ActiveTurn | null = null;
   let isOver = false;
+  let hasNoLesson = false;
+  let wakeOnNewPage: (() => void) | null = null;
+  let isPageReady = false;
+  let wakeOnPageReady: (() => void) | null = null;
   let settleJoined: (hasJoined: boolean) => void = () => {};
   const joined = new Promise<boolean>((resolve) => {
     settleJoined = resolve;
@@ -147,7 +151,9 @@ export async function runLesson({ url, token, work, voice, onEvent, onClosing, o
     if (change === 'newPage') {
       onEvent?.('studentBack');
       notePresence?.(true);
+      isPageReady = false;
       stopActive();
+      wakeOnNewPage?.();
       wakes.send('newPage');
     }
     if (change === 'gone') {
@@ -166,11 +172,21 @@ export async function runLesson({ url, token, work, voice, onEvent, onClosing, o
     if (type === 'resume') wakes.send('resume');
   };
 
+  const sendNoLesson = () => void publish(SCENE_TOPIC, { type: 'noLesson' } satisfies SceneAgentMessage);
+
+  // A page says what it can play once it can hear, so this is when a reloaded page can be told anything.
+  const onPageReady = (canPlay: boolean) => {
+    settleDevice(canPlay);
+    if (hasNoLesson) sendNoLesson();
+    isPageReady = true;
+    wakeOnPageReady?.();
+  };
+
   room.on(RoomEvent.DataReceived, (payload, _participant, _kind, topic) => {
     const packet = readLessonPacket(payload, topic);
     if (packet?.topic === 'lab') onLabMessage(packet.message);
     if (packet?.topic === 'scene') {
-      if (packet.message.type === 'sceneDevice') settleDevice(packet.message.canPlay);
+      if (packet.message.type === 'sceneDevice') onPageReady(packet.message.canPlay);
       else loads.get(packet.message.sceneId)?.(packet.message.type === 'sceneLoaded');
     }
     if (packet?.topic === 'live') {
@@ -239,13 +255,14 @@ export async function runLesson({ url, token, work, voice, onEvent, onClosing, o
   };
 
   // Each line is its own turn, because a person breathes between lines, and a scene holds at its moment over the gap.
-  const speak = async (beats: readonly Beat[], prepareNewPage?: () => Promise<boolean>): Promise<void> => {
+  const speak = async (beats: readonly Beat[], { prepareNewPage, endsOnNewPage = false }: { prepareNewPage?: () => Promise<boolean>; endsOnNewPage?: boolean } = {}): Promise<'spoken' | 'newPage'> => {
     let remaining = beats;
     wakes.clear();
     while (!isOver && remaining.length > 0) {
       if (presence.getState() === 'away') {
         const reason = await wakes.wait();
-        if (reason === 'newPage' && prepareNewPage && !(await prepareNewPage())) return;
+        if (reason === 'newPage' && endsOnNewPage) return 'newPage';
+        if (reason === 'newPage' && prepareNewPage && !(await prepareNewPage())) return 'spoken';
         if (reason === 'newPage') remaining = getBeatsForNewPage(beats, remaining);
         continue;
       }
@@ -256,10 +273,12 @@ export async function runLesson({ url, token, work, voice, onEvent, onClosing, o
         continue;
       }
       const reason = await wakes.wait();
-      if (reason === 'over') return;
-      if (reason === 'newPage' && prepareNewPage && !(await prepareNewPage())) return;
+      if (reason === 'over') return 'spoken';
+      if (reason === 'newPage' && endsOnNewPage) return 'newPage';
+      if (reason === 'newPage' && prepareNewPage && !(await prepareNewPage())) return 'spoken';
       remaining = reason === 'newPage' ? getBeatsForNewPage(beats, remaining) : [...getRestOfTurn(turn), ...later];
     }
+    return 'spoken';
   };
 
   const loadInBrowser = (scene: StoredScene): Promise<boolean> =>
@@ -269,6 +288,9 @@ export async function runLesson({ url, token, work, voice, onEvent, onClosing, o
       void publish(SCENE_TOPIC, { type: 'loadScene', sceneId: scene.id, durationSeconds: scene.durationSeconds } satisfies SceneAgentMessage);
     });
 
+  let taughtPlan: LessonPlan | null = null;
+  let shownScene: StoredScene | null = null;
+
   const showScene = async (scene: StoredScene, getBeats: () => readonly Beat[]): Promise<boolean> => {
     try {
       const beats = getBeats();
@@ -277,7 +299,8 @@ export async function runLesson({ url, token, work, voice, onEvent, onClosing, o
         return false;
       }
       onEvent?.('sceneShown', { sceneId: scene.id });
-      await speak(beats, () => loadInBrowser(scene));
+      shownScene = scene;
+      await speak(beats, { prepareNewPage: () => loadInBrowser(scene) });
       return true;
     } catch (error) {
       onEvent?.('sceneFailed', { error: String(error) });
@@ -307,9 +330,37 @@ export async function runLesson({ url, token, work, voice, onEvent, onClosing, o
   };
 
   let lastWords: readonly Beat[] = [];
+
+  const untilPageReady = () =>
+    isPageReady
+      ? Promise.resolve(null)
+      : untilOver(
+          new Promise<null>((resolve) => {
+            const limit = setTimeout(() => resolve(null), deviceLimitMs);
+            wakeOnPageReady = () => {
+              clearTimeout(limit);
+              wakeOnPageReady = null;
+              resolve(null);
+            };
+          }),
+        );
+
+  const getPlainLines = (plan: LessonPlan | null): Beat[] => (plan ? [...plan.opening.flatMap((line, index) => getLineBeats(`line-${index}`, line)), ...(plan.more ?? []).flatMap((line, index) => getLineBeats(`more-${index}`, line))] : []);
+
+  // A new page has an empty board, so the question alone would mean nothing to it. It gets the scene that was shown, or the plain board's lines, and then the same last words.
+  const speakLessonToNewPage = async () => {
+    let cutBy: 'spoken' | 'newPage' = 'newPage';
+    while (cutBy === 'newPage' && !isOver) {
+      await untilPageReady();
+      const scene = shownScene;
+      const lesson = scene && (await loadInBrowser(scene)) ? getTakeBeats({ id: 'scene-take', marked: scene.narration, scene: getSceneCommand(scene, SCENE_ELEMENT) }) : getPlainLines(taughtPlan);
+      cutBy = await speak([...lesson, ...lastWords], { endsOnNewPage: true });
+    }
+  };
+
   const speakLast = async (beats: readonly Beat[]) => {
     lastWords = beats;
-    await speak(lastWords);
+    if ((await speak(lastWords, { endsOnNewPage: true })) === 'newPage') await speakLessonToNewPage();
   };
 
   const speakMore = async (plan: LessonPlan, isShownAlready: boolean): Promise<boolean> => {
@@ -323,14 +374,24 @@ export async function runLesson({ url, token, work, voice, onEvent, onClosing, o
     return isShown;
   };
 
+  const untilNewPage = () =>
+    new Promise<'newPage'>((resolve) => {
+      wakeOnNewPage = () => {
+        wakeOnNewPage = null;
+        resolve('newPage');
+      };
+    });
+
   // The close line is not the end of the 20 s, so a scene that lands after it still reaches a student on the page, and the question comes again after it.
   const showSceneAtLastChance = async (plan: LessonPlan) => {
-    await untilOver(work.desk.untilLastChance());
+    const lastChance = untilOver(work.desk.untilLastChance()).then(() => 'lastChance' as const);
+    for (let woke = await Promise.race([lastChance, untilNewPage()]); woke === 'newPage' && !isOver; woke = await Promise.race([lastChance, untilNewPage()])) await speakLessonToNewPage();
     while (presence.getState() === 'away' && !isOver) await wakes.wait();
     if (!isOver && (await showSceneIfReady())) await speakLast(getSpokenBeats('close-again', plan.close, true));
   };
 
   const teach = async (plan: LessonPlan) => {
+    taughtPlan = plan;
     for (const [index, opening] of plan.opening.slice(1).entries()) {
       if (isOver) return;
       await speakLine(`line-${index + 1}`, opening);
@@ -343,6 +404,7 @@ export async function runLesson({ url, token, work, voice, onEvent, onClosing, o
   };
 
   const teachAfterOpeningScene = async (plan: LessonPlan) => {
+    taughtPlan = plan;
     await speakMore(plan, true);
     onEvent?.('lessonClosing', { isShown: true, sceneState: work.desk.getState().kind });
     if (!isOver) await speakLast(getSpokenBeats('close', plan.close, true));
@@ -350,15 +412,20 @@ export async function runLesson({ url, token, work, voice, onEvent, onClosing, o
 
   const speakNoLesson = async (why: NoLesson) => {
     onEvent?.('noLesson', { why });
-    void publish(SCENE_TOPIC, { type: 'noLesson' } satisfies SceneAgentMessage);
+    hasNoLesson = true;
+    sendNoLesson();
     await speakLast(getSpokenBeats(NO_LESSON_WORDS[why].id, NO_LESSON_WORDS[why].words));
   };
 
   const holdOpen = async () => {
-    const linger = setTimeout(endLesson, lingerMs);
+    let linger = setTimeout(endLesson, lingerMs);
     while (!isOver) {
       const reason = await wakes.wait();
-      if (reason === 'newPage') await speak(lastWords);
+      if (reason === 'newPage') {
+        clearTimeout(linger);
+        await speakLessonToNewPage();
+        if (!isOver) linger = setTimeout(endLesson, lingerMs);
+      }
     }
     clearTimeout(linger);
   };

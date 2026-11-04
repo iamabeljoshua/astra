@@ -440,13 +440,13 @@ describe('a request with no lesson behind it', () => {
     await finished;
   });
 
-  it('gives a page reloaded after the close the lesson again, and not only the question on an empty board', async () => {
-    const { finished } = start({ timings: { ...FAST, lingerMs: 3000 } });
+  it.each([['as it is said', 40], ['after it is said', 2500]])('gives a page reloaded %s the lesson again, and not only the question on an empty board', async (_when, waitMs) => {
+    const { finished } = start({ timings: { ...FAST, lingerMs: 6000 } });
     const room = await untilConnected();
     room.join('PA1');
     room.send(SCENES, { type: 'sceneDevice', canPlay: true });
     expect(await untilClosed(room, 'close')).toBe(true);
-    await delay(40);
+    await delay(waitMs);
     const sentBefore = room.sent.length;
     room.join('PA2');
     room.leave('PA1');
