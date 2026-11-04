@@ -73,7 +73,7 @@ async function runSession(context: JobContext): Promise<void> {
   }).makeStt();
   const allTakes = loadTakes();
   let ears: Ears | null = null;
-  const { brain, flushSpend, readMeaning, readStrokes, readSpokenWords, getSpentUsd } = makeTutorBrain({ roomName: room.name ?? '', trace });
+  const { brain, flushSpend, readMeaning, readStrokes, readSpokenWords, getSpentUsd } = makeTutorBrain({ roomName: room.name ?? '', trace, onSessionTitle: (title) => publish({ type: 'sessionTitle', title }) });
   const session = createLiveSession({
     messenger: {
       send: (message) => publish(message),

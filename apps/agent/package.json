@@ -20,6 +20,8 @@
     "eval:groups": "node src/tutor/eval/run-groups.ts",
     "eval:board": "node src/tutor/eval/run-groups.ts --file board",
     "eval:switch": "node src/tutor/eval/run-groups.ts --file switch",
+    "eval:plans": "node src/lesson-plan/eval/run-plan-table.ts",
+    "eval:lessons": "node src/lesson-plan/eval/run-lesson-groups.ts",
     "eval:ink": "node src/tutor/eval/run-ink-table.ts",
     "eval:spoken": "node src/tutor/eval/run-spoken-table.ts"
   },

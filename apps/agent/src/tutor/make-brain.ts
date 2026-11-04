@@ -1,6 +1,8 @@
 import { getBeatText, type InkPoint } from '@astra/contracts';
 import { readKey } from '../keys.ts';
-import { makeAnthropicPictureReader, makeAnthropicTutorModel, TUTOR_MODEL_NAMES, type TutorModelName } from '../providers/anthropic.ts';
+import { askPlanner } from '../lesson-plan/ask-planner.ts';
+import { createLessonPlanner, type LessonPlanner } from '../lesson-plan/lesson-planner.ts';
+import { makeAnthropicJsonReader, makeAnthropicPictureReader, makeAnthropicTutorModel, TUTOR_MODEL_NAMES, type TutorModelName } from '../providers/anthropic.ts';
 import { makeRecordedTutorModel } from '../providers/fake-model.ts';
 import { createStandInTutor } from '../live/stand-in-tutor.ts';
 import { type ApiLink, createApiLink } from './api-link.ts';
@@ -107,7 +109,22 @@ export interface MadeBrain {
   getSpentUsd?(): number;
 }
 
-export function makeTutorBrain({ roomName, trace }: { roomName: string; trace: TraceNote }): MadeBrain {
+// A plan changes the session's title only when the student moves to another topic, and a failed save keeps the page's title and the session running.
+function makeLessonPlanner({ link, caps, trace, onSessionTitle }: { link: ApiLink | null; caps: SpendCaps; trace: TraceNote; onSessionTitle(title: string): void }): LessonPlanner {
+  const reader = makeAnthropicJsonReader({ apiKey: readKey('ANTHROPIC_API_KEY') });
+  return createLessonPlanner({
+    ask: (request) => askPlanner(reader, request),
+    canSpend: () => caps.getSpendLimit() === null,
+    charge: (usd) => caps.addTurn({ usd, voiceCharacters: 0 }),
+    onTitleChange(title) {
+      onSessionTitle(title);
+      link?.setTitle(title).catch((error: unknown) => trace('titleNotSaved', { problem: String(error) }));
+    },
+    trace,
+  });
+}
+
+export function makeTutorBrain({ roomName, trace, onSessionTitle = () => {} }: { roomName: string; trace: TraceNote; onSessionTitle?(title: string): void }): MadeBrain {
   const name = process.env.ASTRA_TUTOR_MODEL ?? DEFAULT_MODEL;
   if (name === STAND_IN) return { brain: createStandInTutor(), flushSpend: async () => {} };
   if (name !== RECORDED && !TUTOR_MODEL_NAMES.includes(name as TutorModelName)) throw new Error(`ASTRA_TUTOR_MODEL is ${name}. Choose ${[STAND_IN, RECORDED, ...TUTOR_MODEL_NAMES].join(', ')}`);
@@ -124,7 +141,8 @@ export function makeTutorBrain({ roomName, trace }: { roomName: string; trace: T
     trace('turnWritten', { firstTextMs, firstBeatMs, attempts, endedAs, costUsd, usage, refused, refusalCategory, isUsageEstimated, words: spokenText.split(/\s+/).length });
     caps.addTurn({ usd: costUsd, voiceCharacters: beats.map(getBeatText).join(' ').length });
   };
-  const brain = createTutorBrain({ model, loadProfile: link ? () => link.fetchProfile() : undefined, trace, onTurnEnd, getSpendLimit: caps.getSpendLimit });
+  const lessonPlanner = name === RECORDED ? undefined : makeLessonPlanner({ link, caps, trace, onSessionTitle });
+  const brain = createTutorBrain({ model, loadProfile: link ? () => link.fetchProfile() : undefined, trace, onTurnEnd, getSpendLimit: caps.getSpendLimit, ...(lessonPlanner ? { lessonPlanner } : {}) });
   if (name === RECORDED) return { brain, flushSpend: caps.flush };
   const wordsModel = makeAnthropicTutorModel({ name: WORDS_MODEL, apiKey: readKey('ANTHROPIC_API_KEY') });
   const readMeaning = async (words: string) => {

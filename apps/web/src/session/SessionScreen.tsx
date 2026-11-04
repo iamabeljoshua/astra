@@ -114,11 +114,12 @@ function RunningSession({ session }: { session: Session }) {
   const isConnecting = isTutorOnTheWay(status, view);
 
   const picture = <Board artwork={findArtwork(session.artwork)} note={SESSION_LABELS.boardStandIn} />;
+  const title = view?.sessionTitle ?? session.title;
   return (
-    <SessionFrame facts={<SessionFacts subject={session.subject} seconds={seconds} tutorStateLine={tutorStateLine} costUsd={view?.costUsd ?? null} />} action={<EndButton isEnding={isEnding} onEnd={() => void endSession()} />} problem={endProblem} isFullHeight>
+    <SessionFrame facts={<SessionFacts subject={view?.sessionTitle ?? session.subject} seconds={seconds} tutorStateLine={tutorStateLine} costUsd={view?.costUsd ?? null} />} action={<EndButton isEnding={isEnding} onEnd={() => void endSession()} />} problem={endProblem} isFullHeight>
       <div className="board-stage">
         <div className="board-voice">
-          <SessionTitle title={session.title} isQuiet={Boolean(voice) || isConnecting} />
+          <SessionTitle title={title} isQuiet={Boolean(voice) || isConnecting} />
           {!voice && !isConnecting && (
             <div className="label flex items-center gap-2.5">
               <i aria-hidden data-testid="tutor-dot" data-lively={false} className="tutor-dot" />
@@ -130,7 +131,7 @@ function RunningSession({ session }: { session: Session }) {
           ) : (
             <div className="flex flex-1 flex-col justify-end font-voice text-voice">{isConnecting && <p role="status">{VOICE_LABELS.connecting}</p>}</div>
           )}
-          <ReplyBox liveVoice={liveVoice} isConnecting={isConnecting} carryOnLine={SESSION_LABELS.carryOnWith(session.title)} />
+          <ReplyBox liveVoice={liveVoice} isConnecting={isConnecting} carryOnLine={SESSION_LABELS.carryOnWith(title)} />
         </div>
         <ConnectingSaturn isConnecting={isConnecting} />
         {voice ? <LiveBoard voice={voice} isConnecting={isConnecting} onTutorState={showTutorState} visual={getSessionVisual(findArtwork(session.artwork))} onTalk={() => void liveVoice.toggleTalk()} isTalkOn={view?.mic === 'on'} canTalk={!view?.closedBecause} /> : <div className="board-panel">{picture}</div>}

@@ -1,6 +1,6 @@
 import { BEAT_LIMITS } from './beat.ts';
 import { readBeatId, readElementId, readTurnId } from './ids.ts';
-import { type AgentMessage, type BrowserMessage, type BrowserStamp, clipTypedText, LIVE_MESSAGE_MAX_BYTES, STUDENT_WORDS_MAX_CHARACTERS, type TimedWord, TUTOR_CLOSED_REASONS } from './live-message.ts';
+import { type AgentMessage, type BrowserMessage, type BrowserStamp, clipTypedText, LIVE_MESSAGE_MAX_BYTES, SESSION_TITLE_MAX_CHARACTERS, STUDENT_WORDS_MAX_CHARACTERS, type TimedWord, TUTOR_CLOSED_REASONS } from './live-message.ts';
 import { readSceneCommand } from './parse-command.ts';
 import { PLAY_REPORT_KEYS, readFrozenFrames, readPlayReport, readStudentAction, readStudentWork } from './parse-event.ts';
 import {
@@ -100,6 +100,7 @@ const AGENT_MESSAGES: VariantTable<AgentMessage, 'type'> = {
     heard: { keys: [], read: () => ({ type: 'heard' }) },
     thinking: { keys: ['isThinking'], read: (fields) => ({ type: 'thinking', isThinking: readBoolean(fields.at('isThinking')) }) },
     costSoFar: { keys: ['usd'], read: (fields) => ({ type: 'costSoFar', usd: readNumberInRange(fields.at('usd'), { min: 0, max: MOST_COST_USD }) }) },
+    sessionTitle: { keys: ['title'], read: (fields) => ({ type: 'sessionTitle', title: readString(fields.at('title'), SESSION_TITLE_MAX_CHARACTERS) }) },
     tutorClosed: { keys: ['reason'], read: (fields) => ({ type: 'tutorClosed', reason: readOneOf(fields.at('reason'), TUTOR_CLOSED_REASONS) }) },
     pulse: { keys: [], read: () => ({ type: 'pulse' }) },
     earsOpen: { keys: [], read: () => ({ type: 'earsOpen' }) },
