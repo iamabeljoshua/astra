@@ -278,6 +278,29 @@ export async function swapInPlainKatex(drawingPath: string, id: string, isSwappe
   host.style.visibility = 'hidden';
 }
 
+async function loadPixels(base64: string): Promise<ImageData> {
+  const image = new Image();
+  image.src = `data:image/png;base64,${base64}`;
+  await image.decode();
+  const canvas = document.createElement('canvas');
+  canvas.width = image.width;
+  canvas.height = image.height;
+  const context = canvas.getContext('2d') as CanvasRenderingContext2D;
+  context.drawImage(image, 0, 0);
+  return context.getImageData(0, 0, image.width, image.height);
+}
+
+/** How many pixels differ by more than `threshold` of 255 on any channel, so a tiny fade does not count as a jump. */
+export async function countDifferentPixels([first, second, threshold]: [string, string, number]): Promise<number> {
+  const [one, two] = await Promise.all([loadPixels(first), loadPixels(second)]);
+  if (one.width !== two.width || one.height !== two.height) return Number.POSITIVE_INFINITY;
+  let different = 0;
+  for (let index = 0; index < one.data.length; index += 4) {
+    if (Math.abs((one.data[index] as number) - (two.data[index] as number)) > threshold || Math.abs((one.data[index + 1] as number) - (two.data[index + 1] as number)) > threshold || Math.abs((one.data[index + 2] as number) - (two.data[index + 2] as number)) > threshold) different += 1;
+  }
+  return different;
+}
+
 const COLOR_PROPERTIES = ['color', 'fill', 'stroke', 'backgroundColor', 'borderTopColor', 'borderBottomColor', 'borderLeftColor', 'borderRightColor'] as const;
 
 /** Every color the board really paints with, and any gradient, compared with the theme's tokens. */

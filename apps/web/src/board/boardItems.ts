@@ -52,10 +52,13 @@ function createMathItem(wrapper: HTMLElement): BoardItem {
   };
 }
 
-export function createInkSvg({ width, height }: Size): SVGSVGElement {
+// Strokes hold no text, so the words go in a label for a screen reader. An attribute cannot run.
+function createInkSvg({ width, height }: Size, label: string): SVGSVGElement {
   const svg = document.createElementNS(SVG_NAMESPACE, 'svg');
   svg.setAttribute('width', String(width));
   svg.setAttribute('height', String(height));
+  svg.setAttribute('role', 'img');
+  svg.setAttribute('aria-label', label);
   svg.classList.add('board-ink');
   return svg;
 }
@@ -68,14 +71,14 @@ interface InkBuild {
 }
 
 // Ink depends on the width it may fill, so it is drawn again only when the board changes size.
-function createInkItem({ wrapper, draw, getProgress }: { wrapper: HTMLElement; draw(context: ItemContext): { strokeGroups: readonly Parameters<typeof createInkPainter>[1][]; size: Size }; getProgress(context: ItemContext, groupCount: number): number[] }): BoardItem {
+function createInkItem({ wrapper, label, draw, getProgress }: { wrapper: HTMLElement; label: string; draw(context: ItemContext): { strokeGroups: readonly Parameters<typeof createInkPainter>[1][]; size: Size }; getProgress(context: ItemContext, groupCount: number): number[] }): BoardItem {
   let built: InkBuild | null = null;
   const build = (context: ItemContext): InkBuild => {
     const key = `${context.maxWidth}|${context.fontSize}`;
     if (built?.key === key) return built;
     built?.svg.remove();
     const { strokeGroups, size } = draw(context);
-    const svg = createInkSvg(size);
+    const svg = createInkSvg(size, label);
     wrapper.append(svg);
     built = { key, svg, painters: strokeGroups.map((strokes) => createInkPainter(svg, strokes)), size };
     return built;
@@ -94,6 +97,7 @@ function createInkItem({ wrapper, draw, getProgress }: { wrapper: HTMLElement; d
 function createHandwrittenItem(wrapper: HTMLElement, text: string): BoardItem {
   return createInkItem({
     wrapper,
+    label: text,
     draw({ element, maxWidth, fontSize }) {
       const drawing = writeByHand({ text, fontSize: fontSize * HANDWRITING_SCALE, maxWidth, seed: element.id });
       return { strokeGroups: [drawing?.strokes ?? []], size: { width: drawing?.width ?? 0, height: drawing?.height ?? 0 } };
@@ -105,6 +109,7 @@ function createHandwrittenItem(wrapper: HTMLElement, text: string): BoardItem {
 function createDiagramItem(wrapper: HTMLElement, content: Extract<BoardElement['content'], { kind: 'diagram' }>): BoardItem {
   return createInkItem({
     wrapper,
+    label: content.nodes.map((node) => node.label).join(', '),
     draw({ element, maxWidth, fontSize }) {
       const drawn = drawDiagram(content, { fontSize: fontSize * DIAGRAM_SCALE, maxWidth, seed: element.id });
       return { strokeGroups: drawn.steps.map((step) => step.strokes), size: { width: drawn.width, height: drawn.height } };

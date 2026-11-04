@@ -119,6 +119,63 @@ describe('BoardView, math', () => {
   });
 });
 
+describe('BoardView, marks', () => {
+  function mark(command: object, atMs: number): BoardOperation {
+    return { kind: 'command', atMs, overMs: null, command: command as never };
+  }
+
+  const getStrokes = (container: HTMLElement) => container.querySelectorAll('.board-marks g path');
+
+  it('rings the term a highlight names', () => {
+    const operations = [write('eq', '2x + 3 = 11'), mark({ kind: 'highlight', id: 'ring', target: 'eq', tex: '3' }, 500)];
+    const { container } = render(<BoardView board={getBoardAt(operations, 3000)} atMs={3000} />);
+    expect(getStrokes(container)).toHaveLength(1);
+  });
+
+  it('marks a term by its id, as a later command or a click will', () => {
+    const operations = [write('eq', '2x + 3 = 11'), mark({ kind: 'annotate', id: 'cross', target: 'eq.t3', mark: 'cross' }, 500)];
+    const { container } = render(<BoardView board={getBoardAt(operations, 3000)} atMs={3000} />);
+    expect(getStrokes(container)).toHaveLength(2);
+  });
+
+  it('removes a mark with hide, and when its equation goes', () => {
+    const operations = [write('eq', '2x = 8'), mark({ kind: 'highlight', id: 'ring', target: 'eq', tex: '8' }, 500)];
+    const { container, rerender } = render(<BoardView board={getBoardAt(operations, 3000)} atMs={3000} />);
+    const hidden = [...operations, mark({ kind: 'hide', target: 'ring' }, 3100)];
+    rerender(<BoardView board={getBoardAt(hidden, 3200)} atMs={3200} />);
+    expect(getStrokes(container)).toHaveLength(0);
+  });
+
+  it('follows a term through a rearrangement, and lets go of one that is gone', () => {
+    const operations = [write('eq', '2x + 3 = 11'), mark({ kind: 'highlight', id: 'ring', target: 'eq', tex: '3' }, 500), rearrange('eq', '2x = 11 - 3', 2000)];
+    const { container, rerender } = render(<BoardView board={getBoardAt(operations, 4000)} atMs={4000} />);
+    expect(getStrokes(container)).toHaveLength(1);
+    const gone = [...operations, rearrange('eq', '2x = 8', 5000)];
+    rerender(<BoardView board={getBoardAt(gone, 7000)} atMs={7000} />);
+    expect(container.querySelector<SVGGElement>('.board-marks g')?.style.visibility).toBe('hidden');
+  });
+
+  it('puts the dot beside the element under discussion', () => {
+    const operations = [write('eq', '2x = 8'), mark({ kind: 'focus', target: 'eq' }, 500)];
+    const { container } = render(<BoardView board={getBoardAt(operations, 3000)} atMs={3000} />);
+    expect(container.querySelector<SVGCircleElement>('.board-dot')?.style.visibility).toBe('');
+  });
+});
+
+describe('BoardView, what a screen reader gets', () => {
+  it('names handwriting, because its strokes hold no text', () => {
+    const text: BoardOperation = { kind: 'command', atMs: 0, overMs: null, command: { kind: 'text', id: 'note' as never, text: 'Find x', handwritten: true } };
+    render(<BoardView board={getBoardAt([text], 3000)} atMs={3000} />);
+    expect(screen.getByRole('img', { name: 'Find x' })).toBeTruthy();
+  });
+
+  it('names a hand drawn diagram by its nodes', () => {
+    const diagram: BoardOperation = { kind: 'command', atMs: 0, overMs: null, command: { kind: 'diagram', id: 'flow' as never, nodes: [{ name: 'a', label: 'Rain' }, { name: 'b', label: 'River' }], edges: [{ from: 'a', to: 'b' }], handwritten: true } };
+    render(<BoardView board={getBoardAt([diagram], 3000)} atMs={3000} />);
+    expect(screen.getByRole('img', { name: 'Rain, River' })).toBeTruthy();
+  });
+});
+
 describe('BoardView, hostile content from a model', () => {
   const HOSTILE_TEXT = '<img src=x onerror="window.pwned=1"><script>window.pwned=1</script>';
 

@@ -1,5 +1,5 @@
 /// <reference lib="dom" />
-import { type ChildProcess, spawn } from 'node:child_process';
+import { type ChildProcess, execFileSync, spawn } from 'node:child_process';
 import { mkdirSync, openSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
@@ -174,6 +174,27 @@ async function checkReplayPixels(lab: LabPage): Promise<{ moments: number; diffe
   return { moments: moments.length, differing, describedDifferently };
 }
 
+const JUMP_THRESHOLD = 24;
+const EDGE_MS = 1;
+
+/** A rearrangement must start from what was there and end on what stays, or the student sees a jump. */
+async function checkMoveEdges(lab: LabPage): Promise<{ moves: number; pixelsJumpingAtStart: number[]; pixelsJumpingAtEnd: number[] }> {
+  const moves = await lab.page.evaluate(() => (window.sceneLab?.player.getOperations() as { atMs: number; overMs?: number | null; command?: { kind: string } }[]).filter((operation) => operation.command?.kind === 'transformMath').map(({ atMs, overMs }) => ({ atMs, overMs: overMs ?? 800 })));
+  const shotAt = async (atMs: number) => {
+    await holdFrame(lab, { atMs, source: 'live' });
+    return (await shoot(lab, 'edge-compare')).toString('base64');
+  };
+  const compare = async (first: number, second: number) => lab.page.evaluate((pair) => window.mathChecks.countDifferentPixels(pair), [await shotAt(first), await shotAt(second), JUMP_THRESHOLD] as [string, string, number]);
+  const pixelsJumpingAtStart: number[] = [];
+  const pixelsJumpingAtEnd: number[] = [];
+  for (const { atMs, overMs } of moves) {
+    pixelsJumpingAtStart.push(await compare(atMs - EDGE_MS, atMs + EDGE_MS));
+    pixelsJumpingAtEnd.push(await compare(atMs + overMs - EDGE_MS, atMs + overMs + EDGE_MS));
+  }
+  await holdFrame(lab, null);
+  return { moves: moves.length, pixelsJumpingAtStart, pixelsJumpingAtEnd };
+}
+
 async function checkStillness(lab: LabPage): Promise<{ writes: number; animations: number; imagesMatch: boolean }> {
   await delay(600);
   const before = await shoot(lab, 'still-start');
@@ -207,11 +228,12 @@ async function proveLesson(browser: Browser, run: LessonRun) {
   const still = await checkStillness(lab);
   const rests = await checkRestsAgainstPlainKatex(lab);
   const replay = await checkReplayPixels(lab);
+  const edges = await checkMoveEdges(lab);
   const refused = await lab.page.evaluate(() => window.sceneLab?.records.refused ?? []);
   const summary = await lab.page.evaluate(() => window.mathChecks.getBoardSummary());
   const colors = await lab.page.evaluate(() => window.mathChecks.getColorsOnBoard());
   await lab.finish();
-  return { label, frames, still, rests, replay, refused, summary, colors };
+  return { label, frames, still, rests, replay, edges, refused, summary, colors };
 }
 
 // Cuts the tutor off in the middle of a move and proves the frame holds, then resumes and proves the lesson ends where it should.
@@ -242,6 +264,64 @@ async function proveFreeze(browser: Browser, run: LessonRun) {
   const log = await lab.page.evaluate(() => (window.sceneLab?.records.log as { kind: string; ending?: string; frozen?: unknown[] }[]).filter((event) => event.kind === 'beatPlayed').map(({ ending, frozen }) => ({ ending, frozen })));
   await lab.finish();
   return { label, frozenAt, framesIdentical: first.equals(later), ...writes, finalEquation, cutReport: log.find((event) => event.ending === 'interrupted') };
+}
+
+// A window resized at rest is the student's own action, so the board may jump, and it must still fit and stay correct.
+async function proveResize(browser: Browser, run: LessonRun) {
+  const label = `${getLabel(run)}-resize`;
+  const lab = await openLab({ browser, name: label, ...run });
+  await lab.page.addStyleTag({ content: HIDE_DEV_BUTTON });
+  await lab.command({ type: 'play', lesson: run.lesson });
+  await lab.waitForPlayedBeats(lessonBeats(run.lesson));
+  await delay(1000);
+  await lab.page.evaluate((options) => window.mathChecks.startFrameWatch(options), { isReducedMotion: false, refusedTex: REFUSED_BY_KATEX });
+  for (const size of [VIEWPORTS.phone, { width: 320, height: 640 }, VIEWPORTS.laptop]) {
+    await lab.page.setViewportSize(size);
+    await delay(500);
+    await shoot(lab, `resized-${size.width}`);
+  }
+  const frames: FrameWatch = await lab.page.evaluate(() => window.mathChecks.stopFrameWatch());
+  const rests = await checkRestsAgainstPlainKatex(lab);
+  await lab.finish();
+  return { label, frames, rests };
+}
+
+const STEP_FRAMES = 8;
+const STEP_SHEET_COLUMNS = 8;
+
+/** Frames of each rearrangement, tiled so a person can read one at a glance. */
+async function makeStepSheet(lab: LabPage, run: LessonRun): Promise<string> {
+  const moves = await lab.page.evaluate(() => (window.sceneLab?.player.getOperations() as { kind: string; atMs: number; overMs?: number | null; command?: { kind: string } }[]).filter((operation) => operation.command?.kind === 'transformMath').map(({ atMs, overMs }) => ({ atMs, overMs: overMs ?? 800 })));
+  const folder = join(lab.folder, 'steps');
+  mkdirSync(folder, { recursive: true });
+  let frame = 0;
+  for (const { atMs, overMs } of moves) {
+    for (let step = 0; step < STEP_FRAMES; step += 1) {
+      await holdFrame(lab, { atMs: atMs + (overMs * step) / (STEP_FRAMES - 1), source: 'live' });
+      await delay(60);
+      await lab.page.locator(BOARD_SELECTOR).screenshot({ path: join(folder, `frame-${String(frame).padStart(3, '0')}.png`) });
+      frame += 1;
+    }
+  }
+  await holdFrame(lab, null);
+  const sheet = join(lab.folder, `steps-${getLabel(run)}.png`);
+  const { width, height } = VIEWPORTS[run.viewport];
+  const cropHeight = run.viewport === 'phone' ? Math.round(height * 0.4) : 180;
+  const cropWidth = Math.round(width * 0.45);
+  execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-framerate', '1', '-i', join(folder, 'frame-%03d.png'), '-vf', `crop=${Math.min(cropWidth, 340)}:${cropHeight}:0:0,tile=${STEP_SHEET_COLUMNS}x${moves.length}`, '-frames:v', '1', sheet]);
+  return sheet;
+}
+
+async function proveSteps(browser: Browser, run: LessonRun) {
+  const label = `${getLabel(run)}-steps`;
+  const lab = await openLab({ browser, name: label, ...run });
+  await lab.page.addStyleTag({ content: HIDE_DEV_BUTTON });
+  await lab.command({ type: 'play', lesson: run.lesson });
+  await lab.waitForPlayedBeats(lessonBeats(run.lesson));
+  await delay(1000);
+  const sheet = await makeStepSheet(lab, run);
+  await lab.finish();
+  return { label, sheet };
 }
 
 const FONT_DELAY_MS = 2500;
@@ -316,6 +396,8 @@ async function proveHostile(browser: Browser, run: LessonRun) {
 }
 
 const PROOFS = {
+  resize: async (browser: Browser) => [await proveResize(browser, { lesson: 'dense', viewport: 'laptop', theme: 'light' })],
+  steps: async (browser: Browser) => [await proveSteps(browser, { lesson: 'algebra', viewport: 'laptop', theme: 'light' }), await proveSteps(browser, { lesson: 'algebra', viewport: 'phone', theme: 'dark' }), await proveSteps(browser, { lesson: 'dense', viewport: 'laptop', theme: 'dark' })],
   lessons: async (browser: Browser) => {
     const results = [];
     for (const { viewport, theme } of FULL_COMBINATIONS) for (const lesson of ['algebra', 'dense'] as const) results.push(await proveLesson(browser, { lesson, viewport, theme }));

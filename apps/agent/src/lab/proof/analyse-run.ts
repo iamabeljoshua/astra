@@ -24,6 +24,25 @@ export function getPercentiles(values: readonly number[]): Percentiles {
   return { count: values.length, p50: at(0.5), p95: at(0.95), worst: Math.round(sorted.at(-1) as number), best: Math.round(sorted[0] as number) };
 }
 
+const BURST_LEVEL = 8000;
+const BURST_WINDOW_MS = 5;
+const BURST_SPACING_MS = 150;
+
+/** Where each fake word's loud start really arrived. Every fake word is the same tone, so matching words by shape would find the wrong one, and counting bursts cannot. */
+export function findToneBursts(heard: Int16Array, rate: number): number[] {
+  const windowSamples = Math.max(1, Math.round((BURST_WINDOW_MS / 1000) * rate));
+  const bursts: number[] = [];
+  let lastLoudMs = Number.NEGATIVE_INFINITY;
+  for (let start = 0; start < heard.length; start += windowSamples) {
+    const isLoud = heard.subarray(start, start + windowSamples).some((sample) => Math.abs(sample) > BURST_LEVEL);
+    if (!isLoud) continue;
+    const atMs = (start / rate) * 1000;
+    if (atMs - lastLoudMs > BURST_SPACING_MS) bursts.push(atMs);
+    lastLoudMs = atMs;
+  }
+  return bursts;
+}
+
 export function resample(samples: Int16Array, fromRate: number, toRate: number): Float32Array {
   const output = new Float32Array(Math.floor((samples.length * toRate) / fromRate));
   const ratio = fromRate / toRate;
