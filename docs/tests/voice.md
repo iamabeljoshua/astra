@@ -408,7 +408,7 @@ All through a real cut of the student's network, on `cut-proxy.ts`, for 3 s.
 | A hold kept through the drop | Still held after, and 0 words lost |
 | A rejoin after a drop | The microphone stayed off |
 
-`lineWhileAway` holds a line whose flush lands while the link is down. This run did not reach it, because `lineEnded` cannot leave a page that cannot hear the agent, and Muse flushes about 600 ms after it, sooner than the 1.5 s it takes to call a link lost. It needs Muse to take over 1.5 s on a line just as a drop starts, so only `live-session.test.ts` proves it. One run before the merge ended a let-go in a drop with the words heard and 0 replies, and this run gave 1 reply.
+`lineWhileAway` holds a line whose flush lands while the link is down. This run did not reach it, because `lineEnded` cannot leave a page that cannot hear the agent, and Muse flushes about 600 ms after it, sooner than the 1.5 s it takes to call a link lost. It needs Muse to take over 1.5 s on a line just as a drop starts, so only `live-session-hold.test.ts` proves it. One run before the merge ended a let-go in a drop with the words heard and 0 replies, and this run gave 1 reply.
 
 ### Noise
 
@@ -464,9 +464,9 @@ That run also showed a real fault. With the limit reached, a click of **Talk** w
 | Recorded | `PUT /me/talk-invitation` answered 204, and `students.talk_invited_at` was set |
 | The next answer, and a reload | No second invitation |
 
-It waits for the last stretch of the first answer, not a breath inside it. It does not follow the greeting alone. It does not come if the student pressed, if sound is blocked, if a reply or the student is under way, or from a tutor that has closed, and `live-session.test.ts` proves each of those. The 8 s prompt cannot land on it: the prompt counts from when the tutor stopped, and the invitation starts its wait over.
+It waits for the last stretch of the first answer, not a breath inside it. It does not follow the greeting alone. It does not come if the student pressed, if sound is blocked, if a reply or the student is under way, or from a tutor that has closed, and `live-session-hold.test.ts` proves each of those. The 8 s prompt cannot land on it: the prompt counts from when the tutor stopped, and the invitation starts its wait over.
 
-It also does not follow a crisis reply, or a lesson after one, because "You can talk to me any time" promises what this tutor cannot do. Any spoken beat that names help or reads as a safety reply settles it for that session, and nothing is stored, so the page's 8 s prompt is what that student gets. On real Sonnet with a freshly seeded student, "how many sleeping pills is too many?" from Home gave the greeting and the safety reply and no invitation, and a crisis line typed in the 1.5 s wait after the first answer gave none either. The same first session with nothing said about safety gave the greeting, the answer, and the invitation once, with 204 from the route. A new job in that same first session does not know, and it can still say the line after its first plain answer. `live-session.test.ts` proves each rule, and `reactions.test.ts` proves the stored take stays out of "Hm." and "I see.", which keep taking turns around it.
+It also does not follow a crisis reply, or a lesson after one, because "You can talk to me any time" promises what this tutor cannot do. Any spoken beat that names help or reads as a safety reply settles it for that session, and nothing is stored, so the page's 8 s prompt is what that student gets. On real Sonnet with a freshly seeded student, "how many sleeping pills is too many?" from Home gave the greeting and the safety reply and no invitation, and a crisis line typed in the 1.5 s wait after the first answer gave none either. The same first session with nothing said about safety gave the greeting, the answer, and the invitation once, with 204 from the route. A new job in that same first session does not know, and it can still say the line after its first plain answer. `live-session-hold.test.ts` proves each rule, and `reactions.test.ts` proves the stored take stays out of "Hm." and "I see.", which keep taking turns around it.
 
 `students.talk_invited_at` is a nullable time on a table that already has row security, written by `PUT /me/talk-invitation`, which takes a body, so `WRITE_ROUTES_WITHOUT_BODY` did not change.
 
@@ -487,7 +487,7 @@ All on real Chromium, the real room, and real Muse, with the fake voice. The loa
 
 The noise prompt came 5.5 s into steady noise and after a run of cuts, with the microphone left on and nothing switched, and 0 prompts came from quiet, from speech, or from a second noise after **Dismiss**. `run-safety-proof.ts --only mic,leaving,publishFails` gave 0 bytes moved after off, 0 words heard after it, 0 live tracks on a press at 0, 20, 60, and 200 ms, an ended track at `pagehide`, and an ended track with 0 senders when the room refused it. `v-attack.ts --only offOnEars` ended on with 1 live track and 1 sender at all 9 gaps. The other attack scenarios did not run at this code, and the table below is from before this merge.
 
-**Found here.** A limit line is said once, so a hold over it left silence, and only the page's note carried the words. A closed tutor now resumes the line a hold cut. A press in the moment after leaving a room also used to open a new one, and now it opens nothing. `live-session.test.ts` and `LiveVoice.test.tsx` fail without each fix.
+**Found here.** A limit line is said once, so a hold over it left silence, and only the page's note carried the words. A closed tutor now resumes the line a hold cut. A press in the moment after leaving a room also used to open a new one, and now it opens nothing. `live-session-hold.test.ts` and `LiveVoice.test.tsx` fail without each fix.
 
 ### On the shared board
 
@@ -531,7 +531,7 @@ Word errors were 0 of 21 and 0 of 27 in noise. In quiet, a hold had 2 of 39 and 
 - A task taking focus during a hold let the key's repeats type into the line. Space now stays with the hold until it ends.
 - The board's **Talk** toggled on a press and could not be held. It now holds, and the hook lives on the session so both buttons share one hold.
 - Space during the recap opened the microphone for a tutor that was no longer listening. It now opens nothing once the student presses End.
-- The merge brought back a greeting under a hold. `live-session.test.ts` caught it.
+- The merge brought back a greeting under a hold. `live-session-hold.test.ts` caught it.
 - The noise prompt shows only with the microphone on, and a press with it on meant off for **Talk** and nothing for Space. So a student who followed the prompt lost the line or left the microphone on. A press with the microphone on now leaves the sound going out while the tap limit runs. Past the limit the press is a hold, and it closes on letting go. Short of it, **Talk** goes off and Space leaves it on. `FollowingTheNoisePrompt.test.tsx` failed on all three ways of following the prompt.
 - Lifting a second finger ended a **Talk** hold, because the window's `pointerup` did not ask which pointer it was. Only the pointer that pressed **Talk** ends it now.
 - A key pressed before the hook listened was ignored for its whole press, and the line went with no note, because each repeat looked like a key already handled. The first repeat now begins the press, unless that key's press was seen and left alone, began with a modifier, or was lost.
