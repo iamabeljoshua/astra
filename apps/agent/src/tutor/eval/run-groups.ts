@@ -167,7 +167,8 @@ function makeBrain(prompt: TutorPrompt, profile: StudentProfile, traces: string[
 }
 
 function recordCodeChecks(group: PromptGroup, turn: GroupTurn, summary: TurnSummary, commands: readonly SceneCommand[]) {
-  const details = { drawn: commands.map(describeDrawn), toolCalls: summary.toolCalls.map((call) => call.tool), terms: turn.terms ?? [], answer: turn.answer ? new RegExp(turn.answer, 'i') : null, longestStretchWords: getLongestStretchWords(summary.beats) };
+  const interests = [...(group.profile ?? PROFILE).interests, ...(group.memory ?? []).filter(({ kind }) => kind === 'cares_about').map(({ about }) => about)];
+  const details = { drawn: commands.map(describeDrawn), toolCalls: summary.toolCalls.map((call) => call.tool), terms: turn.terms ?? [], answer: turn.answer ? new RegExp(turn.answer, 'i') : null, longestStretchWords: getLongestStretchWords(summary.beats), interests };
   for (const check of [...(group.checks ?? []), ...(turn.check ? [turn.check] : [])]) {
     if (REPLY_CHECKS[check]?.onlyOnWork && !turn.work) continue;
     const passed = REPLY_CHECKS[check]?.passes(summary.spokenText, commands.map((command) => command.kind), details) ?? false;
@@ -238,6 +239,7 @@ async function runCompareSide(compare: LevelCompare, { level, student = {} }: { 
   const spoken: string[] = [];
   const { brain } = makeBrain(prompt, { level, interests: student.interests ?? [], goal: 'curiosity' }, [], (summary) => spoken.push(summary.spokenText), model, student.memory);
   for (const text of [compare.text, compare.then]) for await (const beat of brain.reply({ text }, new AbortController().signal)) void beat;
+  console.log(`   ${level} words a reply ${spoken.map((reply) => reply.split(/\s+/).filter(Boolean).length).join(', ')}`);
   return spoken.join(' ');
 }
 

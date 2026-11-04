@@ -19,8 +19,9 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Stops at the first word, because only the wait is measured, and that keeps the cost near a read of the cache.
 async function getFirstTextMs(model: ReturnType<typeof makeAnthropicTutorModel>, version: PromptVersion, question: string): Promise<number | null> {
-  const { system, turnNote, openingNote }: TutorPrompt = PROMPT_VERSIONS[version];
-  const turns: TutorTurn[] = [{ role: 'user', text: question }, { role: 'system', text: NOTE }, { role: 'system', text: MEMORY_NOTE }, ...[turnNote, openingNote].flatMap((note) => (note ? [{ role: 'system' as const, text: JSON.stringify(note) }] : []))];
+  const { system, turnNote, openingNote, levelLines }: TutorPrompt = PROMPT_VERSIONS[version];
+  const levelNote = levelLines?.high_school ? { level: levelLines.high_school } : null;
+  const turns: TutorTurn[] = [{ role: 'user', text: question }, { role: 'system', text: NOTE }, { role: 'system', text: MEMORY_NOTE }, ...[turnNote, levelNote, openingNote].flatMap((note) => (note ? [{ role: 'system' as const, text: JSON.stringify(note) }] : []))];
   const controller = new AbortController();
   const startedAt = performance.now();
   for await (const event of model.stream({ system, turns }, controller.signal)) {
