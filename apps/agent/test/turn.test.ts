@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createEchoFilter } from '../src/live/echo-filter.ts';
-import { getNextTurnState, INITIAL_TURN_STATE, type TimerName, TURN_TIMINGS, type TurnAction, type TurnEvent, type TurnState } from '../src/live/turn-rule.ts';
+import { getNextTurnState, INITIAL_TURN_STATE, MOST_WORDS_OWED, type TimerName, TURN_TIMINGS, type TurnAction, type TurnEvent, type TurnState } from '../src/live/turn-rule.ts';
 import { hasWords, isFiller, isSmallReaction } from '../src/live/turn-words.ts';
 
 const ON: TurnEvent = { type: 'voiceStarted' };
@@ -8,6 +8,7 @@ const OFF: TurnEvent = { type: 'voiceEnded' };
 const THINKING: TurnEvent = { type: 'tutorThinking' };
 const SPEAKING: TurnEvent = { type: 'tutorStarted', isReply: true };
 const FINISHED: TurnEvent = { type: 'tutorFinished' };
+const HEARD_OUT: TurnEvent = { type: 'replyHeardOut' };
 const QUESTION_HEARD: TurnEvent = { type: 'questionHeard' };
 const LINK_LOST: TurnEvent = { type: 'linkLost' };
 const LINK_BACK: TurnEvent = { type: 'linkBack' };
@@ -75,6 +76,36 @@ describe('a backchannel', () => {
   });
 });
 
+describe('words a cut reply still owes', () => {
+  const replyTo = (text: string): TurnEvent[] => [decided(text), SPEAKING, ON, words('Wait', false), FINISHED, OFF];
+  const lastReply = (actions: string[]) => actions.filter((action) => action.startsWith('reply')).at(-1) ?? '';
+
+  it('keeps only the newest of them, so a student cut 40 times is not answered on 200 words', () => {
+    const cuts = Array.from({ length: 40 }, (_, cut) => replyTo(`line ${cut} has five words`)).flat();
+    const { actions, state } = play([...cuts, decided('And now?')]);
+    const reply = lastReply(actions).replace('reply final: ', '').split(' ');
+    expect(reply).toHaveLength(MOST_WORDS_OWED + 2);
+    expect(reply.slice(-7).join(' ')).toBe('line 39 has five words And now?');
+    expect(state.unanswered.split(' ')).toHaveLength(MOST_WORDS_OWED);
+  });
+
+  it('never cuts what the student just said, however long', () => {
+    const long = Array.from({ length: MOST_WORDS_OWED + 40 }, (_, word) => `w${word}`).join(' ');
+    expect(lastReply(play([decided(long)]).actions)).toBe(`reply final: ${long}`);
+  });
+
+  it('are kept through a filler and the prompt after it, because a stored line answers nothing', () => {
+    const { actions } = play([...replyTo('Why does it fall?'), decided('Hmm, let me think'), timer('patience'), SPEAKING, FINISHED, ON, OFF, decided('And the moon?')]);
+    expect(actions).toContain('promptAfterSilence');
+    expect(lastReply(actions)).toBe('reply final: Why does it fall? And the moon?');
+  });
+
+  it('are gone once a reply has been heard to its end', () => {
+    const { actions } = play([...replyTo('Why does it fall?'), decided('And the moon?'), SPEAKING, HEARD_OUT, FINISHED, ON, OFF, decided('And the sun?')]);
+    expect(lastReply(actions)).toBe('reply final: And the sun?');
+  });
+});
+
 describe('words that are not reactions', () => {
   it.each(['Wait', 'Why', 'No', 'Stop', 'Gravity', '42', 'x', 'math', 'huh why', 'okay but why'])('takes "%s" as a real word', (text) => {
     expect(isSmallReaction(text)).toBe(false);
@@ -103,7 +134,7 @@ describe('a real word', () => {
   });
 
   it('does not carry words the tutor finished answering', () => {
-    const { actions } = play([decided('Why does it fall?'), THINKING, SPEAKING, FINISHED, ON, OFF, words('And the moon?'), decided('And the moon?')]);
+    const { actions } = play([decided('Why does it fall?'), THINKING, SPEAKING, HEARD_OUT, FINISHED, ON, OFF, words('And the moon?'), decided('And the moon?')]);
     expect(actions.at(-1)).toBe('reply final: And the moon?');
   });
 
@@ -160,7 +191,7 @@ describe('a final Muse holds back', () => {
   });
 
   it('keeps what the student said after a held final that lands late, with the answered words taken off', () => {
-    const { actions } = play([ON, words('why does it', false), OFF, timer('heldFinal'), SPEAKING, FINISHED, ON, OFF, decided('why does it come down? And what about the ball?')]);
+    const { actions } = play([ON, words('why does it', false), OFF, timer('heldFinal'), SPEAKING, HEARD_OUT, FINISHED, ON, OFF, decided('why does it come down? And what about the ball?')]);
     expect(actions.filter((action) => action.startsWith('reply')).at(-1)).toBe('reply final: come down? And what about the ball?');
   });
 
@@ -295,7 +326,7 @@ function searchEveryOrder(mostStates: number) {
   const violations: Record<string, string[][]> = { realWordsNotStopped: [], reactionStopped: [], resumeWhileVoiceOn: [], doubleYield: [], stopWhileSilent: [], stuckYielded: [], silentForever: [], doubleReply: [] };
   const seen = new Set<string>();
   const queue: Node[] = [{ state: INITIAL_TURN_STATE, armed: [], isYielded: false, isCut: false, path: [] }];
-  const stepTutor: TurnEvent[] = [THINKING, SPEAKING, { type: 'tutorStarted', isReply: false }, FINISHED];
+  const stepTutor: TurnEvent[] = [THINKING, SPEAKING, { type: 'tutorStarted', isReply: false }, HEARD_OUT, FINISHED];
   const key = ({ state, armed, isYielded, isCut }: Node) => JSON.stringify([state, [...armed].sort(), isYielded, isCut]);
   // Words pile up in the state, and only whether there are any changes what the rule does.
   const withBoundedWords = (state: TurnState): TurnState => ({ ...state, unanswered: state.unanswered ? 'Wait why' : '', answeredPartial: state.answeredPartial === null ? null : 'Wait why' });

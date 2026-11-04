@@ -1,9 +1,13 @@
 import { act, render, renderHook, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
-import { LEGAL_PAGES } from '../strings';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ApiError } from '../api/apiError';
+import { LEGAL_PAGES, VOICE_LABELS } from '../strings';
 import { StudentCaption, TutorCaption } from './Captions';
 import type { LiveVoice, LiveVoiceView } from './liveVoice';
 import { useLiveVoice } from './useLiveVoice';
+
+const api = vi.hoisted(() => ({ post: vi.fn() }));
+vi.mock('../api/client', () => ({ api }));
 
 const BASE_VIEW: LiveVoiceView = { phase: 'live', mic: 'off', isSoundBlocked: false, isQuietWarning: false, isHeard: false, isTutorSpeaking: false, studentLines: [], tutorHeard: [], tutorComing: [] };
 
@@ -119,6 +123,51 @@ describe('useLiveVoice', () => {
     expect(result.current.status).toBe('unavailable');
     await act(async () => void (await result.current.sendTyped('Why?')));
     expect(result.current.status).toBe('live');
+  });
+
+  describe('at the limit on starting tutors', () => {
+    const TOO_MANY = new ApiError({ kind: 'rejected', status: 429, retryAfterSeconds: 360 });
+    const startAsking = vi.fn(async ({ getAccess }: { getAccess(): Promise<unknown> }) => {
+      if (!(await getAccess())) throw new Error('no room');
+      return makeFakeVoice();
+    }) as unknown as typeof import('./liveVoice').startLiveVoice;
+    const asks = () => api.post.mock.calls.map(([, options]: [string, { params: { query: object } }]) => options.params.query);
+
+    beforeEach(() => {
+      api.post.mockReset();
+    });
+
+    it('says how long the wait truly is', async () => {
+      api.post.mockRejectedValue(TOO_MANY);
+      const { result } = renderHook(() => useLiveVoice({ sessionId: 'a-session', start: startAsking }));
+      await act(async () => void (await result.current.connect()));
+      expect(result.current.status).toBe('tooSoon');
+      expect(result.current.waitSeconds).toBe(360);
+      expect(VOICE_LABELS.tooSoon(360)).toContain('about 6 minutes');
+      expect(VOICE_LABELS.tooSoon(30)).toContain('about 1 minute.');
+    });
+
+    it('never joins the dead room again when a typed reply follows, and starts over once the wait has passed', async () => {
+      api.post.mockResolvedValueOnce({ url: 'u', token: 't' }).mockRejectedValueOnce(TOO_MANY).mockRejectedValueOnce(TOO_MANY).mockResolvedValue({ url: 'u', token: 't' });
+      const { result } = renderHook(() => useLiveVoice({ sessionId: 'a-session', start: startAsking }));
+      await act(async () => void (await result.current.connect()));
+      await act(() => result.current.openAgain());
+      expect(result.current.status).toBe('tooSoon');
+      await act(async () => void (await result.current.sendTyped('Are you there?')));
+      expect(result.current.status).toBe('tooSoon');
+      await act(async () => void (await result.current.sendTyped('Are you there?')));
+      expect(result.current.status).toBe('live');
+      expect(asks()).toEqual([{}, { startOver: 'yes' }, { startOver: 'yes' }, { startOver: 'yes' }]);
+    });
+
+    it('stops asking to start over once a room has answered', async () => {
+      api.post.mockResolvedValue({ url: 'u', token: 't' });
+      const { result } = renderHook(() => useLiveVoice({ sessionId: 'a-session', start: startAsking }));
+      await act(async () => void (await result.current.connect()));
+      await act(() => result.current.openAgain());
+      await act(() => result.current.openAgain());
+      expect(asks()).toEqual([{}, { startOver: 'yes' }, { startOver: 'yes' }]);
+    });
   });
 
   it('closes the room when the screen goes, so a closed session leaves nothing running', async () => {
