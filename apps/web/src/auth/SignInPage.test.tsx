@@ -224,10 +224,14 @@ describe('the email step', () => {
     expect(screen.getByRole('link', { name: LEGAL_PAGES.privacy.title }).getAttribute('href')).toBe('/privacy');
   });
 
-  it('offers the development sign-in in a development build', async () => {
+  it('keeps the development sign-in behind one quiet button in a development build', async () => {
     renderSignInPage();
 
-    await screen.findByRole('heading', { name: DEV_SIGN_IN_LABELS.title });
+    const opener = await screen.findByRole('button', { name: DEV_SIGN_IN_LABELS.title });
+    expect(screen.queryByRole('button', { name: 'maya@astra.test' })).toBeNull();
+    fireEvent.click(opener);
+
+    screen.getByRole('button', { name: 'maya@astra.test' });
   });
 });
 
@@ -283,6 +287,13 @@ describe('the code step', () => {
     expect(getCodeField().value).toBe('');
     expect(getCodeField().getAttribute('aria-invalid')).toBe('true');
     expect(getCodeField().getAttribute('aria-describedby')).toBe(message.id);
+  });
+
+  it('says a return failed on this step too, because a reload can bring a student back here', async () => {
+    vi.mocked(useAuth).mockReturnValue({ signIn: { status: 'signedOut' }, returnProblem: 'returnFailed' });
+    await reachCodeStep();
+
+    expect(screen.getByRole('alert').textContent).toBe(SIGN_IN_LABELS.returnFailed);
   });
 
   it('clears the message when the student starts typing again', async () => {

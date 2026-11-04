@@ -1,4 +1,4 @@
-import { type ChangeEvent, type MouseEvent, type Ref, useId, useState } from 'react';
+import { type ChangeEvent, type KeyboardEvent, type MouseEvent, type Ref, useId, useState } from 'react';
 import { toLatinDigits } from './toLatinDigits';
 
 interface CodeFieldProps {
@@ -12,6 +12,8 @@ interface CodeFieldProps {
   onChange: (value: string) => void;
   onComplete: (value: string) => void;
 }
+
+const ARROW_STEPS: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1 };
 
 function toCodeDigits(text: string, length: number) {
   return toLatinDigits(text).replace(/\D/g, '').slice(0, length);
@@ -36,12 +38,23 @@ export function CodeField({ label, value, length, isBusy = false, isInvalid = fa
     setCaret(Math.min(start, length - 1));
   }
 
+  function moveCaret(input: HTMLInputElement, box: number) {
+    const start = Math.max(0, Math.min(box, input.value.length));
+    input.setSelectionRange(start, start);
+    followCaret(input);
+  }
+
   function moveToPressedBox(event: MouseEvent<HTMLInputElement>) {
     const { left, width } = event.currentTarget.getBoundingClientRect();
-    const box = Math.floor(((event.clientX - left) / width) * length);
-    const start = Math.min(box, event.currentTarget.value.length);
-    event.currentTarget.setSelectionRange(start, start);
-    followCaret(event.currentTarget);
+    moveCaret(event.currentTarget, Math.floor(((event.clientX - left) / width) * length));
+  }
+
+  // The browser's arrows only collapse a selected digit, which would leave the caret on the same box.
+  function moveWithArrows(event: KeyboardEvent<HTMLInputElement>) {
+    const step = ARROW_STEPS[event.key];
+    if (!step) return;
+    event.preventDefault();
+    moveCaret(event.currentTarget, (event.currentTarget.selectionStart ?? 0) + step);
   }
 
   return (
@@ -74,6 +87,7 @@ export function CodeField({ label, value, length, isBusy = false, isInvalid = fa
           className="absolute inset-0 size-full bg-transparent text-sub text-transparent caret-transparent outline-none selection:bg-transparent selection:text-transparent"
           onChange={change}
           onClick={moveToPressedBox}
+          onKeyDown={moveWithArrows}
           onSelect={(event) => followCaret(event.currentTarget)}
           onFocus={(event) => followCaret(event.currentTarget)}
           onBlur={() => setCaret(null)}

@@ -17,6 +17,7 @@ export const RESEND_WAIT_MS = 60_000;
 
 const CODE_LIFETIME_MS = 600_000;
 const SESSION_STORAGE_KEY = 'astra-session';
+const LINK_PROOF_KEY_START = `${SESSION_STORAGE_KEY}-`;
 const RETURN_CODE_PARAM = 'code';
 const RETURN_ERROR_PARAM = 'error';
 const RETURN_ERROR_CODE_PARAM = 'error_code';
@@ -135,10 +136,20 @@ function forgetCodeRequest() {
   withStorage((_local, tab) => tab.removeItem(LAST_CODE_STORAGE_KEY), undefined);
 }
 
+// The client keeps a proof for the link it expects in the mail, and without that proof no link can open a session here.
+function removeLinkProofs() {
+  withStorage((local) => {
+    for (const key of Object.keys(local)) {
+      if (key.startsWith(LINK_PROOF_KEY_START)) local.removeItem(key);
+    }
+  }, undefined);
+}
+
 export async function sendEmailCode(email: string): Promise<SendCodeResult> {
   if (!USABLE_EMAIL_ADDRESS.test(email)) return 'invalidEmail';
   if (wasCodeJustSent(email)) return 'alreadySent';
   const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: !areNewSignUpsStopped() } });
+  removeLinkProofs();
   if (error) return toSendFailure(error);
   rememberCodeSent(email);
   return 'sent';

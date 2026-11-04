@@ -1,6 +1,6 @@
 # Terms and Privacy Policy
 
-A student opens `/terms` or `/privacy` from the words under the sign-in buttons, with no account. Each page says at the top that it is a draft a lawyer has not yet reviewed, and labels what is planned. Coming back keeps the sign-in step and the typed address.
+A student opens `/terms` or `/privacy` from the words under the sign-in button, with no account. Each page says at the top that it is a draft a lawyer has not yet reviewed, and labels what is planned. Coming back keeps the sign-in step and the typed address.
 
 ## Sub-features
 

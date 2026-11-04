@@ -80,7 +80,7 @@ function paintSwarm(context: CanvasRenderingContext2D, swarm: DotSwarm, layout: 
 // Owns the two canvases. A frame loop runs only while dots are on their way, and nothing runs once they arrive.
 export function createDotPainter({ stage, gridCanvas, shapeCanvas }: DotPainterParts): DotPainter | null {
   const gridContext = gridCanvas.getContext('2d');
-  const shapeContext = shapeCanvas.getContext('2d', { alpha: true });
+  const shapeContext = shapeCanvas.getContext('2d');
   if (!gridContext || !shapeContext) return null;
 
   let layout = getDotLayout(stage.clientWidth, stage.clientHeight);
@@ -88,15 +88,13 @@ export function createDotPainter({ stage, gridCanvas, shapeCanvas }: DotPainterP
   let currentPoints: readonly DotPoint[] = [];
   let frame = 0;
 
-  function paintFrame() {
-    if (!shapeContext) return;
+  const paintFrame = () => {
     const now = performance.now();
     paintSwarm(shapeContext, swarm, layout, now);
     frame = isSwarmSettled(swarm, now) ? 0 : requestAnimationFrame(paintFrame);
-  }
+  };
 
-  function paintAll() {
-    if (!gridContext || !shapeContext) return;
+  const paintAll = () => {
     layout = getDotLayout(stage.clientWidth, stage.clientHeight);
     paintGrid(gridCanvas, gridContext, stage, layout);
     placeShapeCanvas(shapeCanvas, shapeContext, layout);
@@ -105,9 +103,9 @@ export function createDotPainter({ stage, gridCanvas, shapeCanvas }: DotPainterP
       placeDots(swarm, currentPoints);
     }
     paintSwarm(shapeContext, swarm, layout, performance.now());
-  }
+  };
 
-  function showShape(points: readonly DotPoint[]) {
+  const showShape = (points: readonly DotPoint[]) => {
     if (points.length === 0) return;
     const isFirstShape = currentPoints.length === 0;
     currentPoints = points;
@@ -120,7 +118,7 @@ export function createDotPainter({ stage, gridCanvas, shapeCanvas }: DotPainterP
     }
     sendDots(swarm, points, performance.now());
     if (!frame) frame = requestAnimationFrame(paintFrame);
-  }
+  };
 
   const resizeObserver = new ResizeObserver(paintAll);
   resizeObserver.observe(stage);

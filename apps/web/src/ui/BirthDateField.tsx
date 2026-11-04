@@ -18,6 +18,7 @@ const PART_RULES = {
 
 const WHOLE_DATE = /^\s*(\d{1,4})\D+(\d{1,2})\D+(\d{1,4})\s*$/;
 const YEAR_LENGTH = 4;
+const YEAR_FIRST_ORDER: readonly DatePart[] = ['year', 'month', 'day'];
 
 function isDatePart(type: string): type is DatePart {
   return type in PART_RULES;
@@ -25,7 +26,7 @@ function isDatePart(type: string): type is DatePart {
 
 function getPartOrder(): DatePart[] {
   const format = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'numeric', year: 'numeric' });
-  return format.formatToParts().map(({ type }) => type as string).filter(isDatePart);
+  return format.formatToParts().map(({ type }) => type).filter(isDatePart);
 }
 
 function isPartFinished(part: DatePart, digits: string) {
@@ -37,9 +38,9 @@ function isPartFinished(part: DatePart, digits: string) {
 function readWholeDate(text: string, order: DatePart[]): DateParts | null {
   const [, first, second, third] = WHOLE_DATE.exec(text) ?? [];
   if (!first || !second || !third) return null;
-  const partOrder = first.length === YEAR_LENGTH ? (['year', 'month', 'day'] as const) : order;
-  const [firstPart, secondPart, thirdPart] = partOrder as [DatePart, DatePart, DatePart];
-  return { [firstPart]: first, [secondPart]: second, [thirdPart]: third } as unknown as DateParts;
+  const partOrder = first.length === YEAR_LENGTH ? YEAR_FIRST_ORDER : order;
+  const getDigits = (part: DatePart) => [first, second, third][partOrder.indexOf(part)] ?? '';
+  return { day: getDigits('day'), month: getDigits('month'), year: getDigits('year') };
 }
 
 interface BirthDateFieldProps {

@@ -10,7 +10,7 @@ import { TextField } from '../ui/TextField';
 import { TutorQuestion } from '../ui/TutorQuestion';
 import { useAuth } from './AuthProvider';
 import { CODE_LENGTH, readCodeRequest, sendEmailCode, type SendCodeResult, signInWithGoogle } from './session';
-import { type CodeProblem, useCodeEntry } from './useCodeEntry';
+import { useCodeEntry } from './useCodeEntry';
 import type { SignInDraft, SignInStep } from './useSignInDraft';
 
 type SendFailure = Exclude<SendCodeResult, 'sent' | 'alreadySent'>;
@@ -20,16 +20,6 @@ const SENT_TO_ID = 'sign-in-sent-to';
 const CODE_PROBLEM_ID = 'sign-in-code-problem';
 const AGREEMENT_LINK = 'underline underline-offset-2 hover:text-accent';
 const STEP_SHAPES = { email: DOT_DRAWINGS.arc, code: DOT_DRAWINGS.atom } satisfies Record<SignInStep, unknown>;
-const CODE_PROBLEM_LABELS = {
-  codeWrong: SIGN_IN_LABELS.codeWrong,
-  codeExpired: SIGN_IN_LABELS.codeExpired,
-  tooManyTries: SIGN_IN_LABELS.tooManyTries,
-  authFailed: SIGN_IN_LABELS.checkAuthFailed,
-  failed: SIGN_IN_LABELS.checkFailed,
-  signUpStopped: SIGN_IN_LABELS.signUpStopped,
-  invalidEmail: SIGN_IN_LABELS.invalidEmail,
-  tooManyRequests: SIGN_IN_LABELS.tooManyRequests,
-} satisfies Record<CodeProblem, string>;
 
 declare const __DEV_SIGN_IN__: boolean;
 
@@ -60,9 +50,14 @@ function AgreementLine() {
   );
 }
 
+function ReturnProblem() {
+  const { returnProblem } = useAuth();
+
+  return returnProblem && <p role="alert" className="stop-note">{SIGN_IN_LABELS[returnProblem]}</p>;
+}
+
 function EmailStep({ draft }: { draft: SignInDraft }) {
   const { email, isSending, setEmail, setIsSending, showCodeStep } = draft;
-  const { returnProblem } = useAuth();
   const field = useRef<HTMLInputElement>(null);
   const [failure, setFailure] = useState<SendFailure | null>(null);
   const canUseGoogle = import.meta.env.VITE_GOOGLE_SIGN_IN === GOOGLE_SIGN_IN_FLAG;
@@ -87,7 +82,7 @@ function EmailStep({ draft }: { draft: SignInDraft }) {
     <>
       <p className="label pl-tutor-indent text-ink-2">{SIGN_IN_LABELS.tagline}</p>
       <TutorQuestion line={SIGN_IN_LABELS.welcomeLine} fieldToFocus={field}>
-        {returnProblem && <p role="alert" className="stop-note">{SIGN_IN_LABELS[returnProblem]}</p>}
+        <ReturnProblem />
         <form noValidate onSubmit={(event) => void send(event)} className="flex flex-col gap-4.5">
           <TextField
             inputRef={field}
@@ -117,6 +112,7 @@ function CodeStep({ draft }: { draft: SignInDraft }) {
 
   return (
     <TutorQuestion line={SIGN_IN_LABELS.codeLine} describedBy={SENT_TO_ID} fieldToFocus={field}>
+      <ReturnProblem />
       <p id={SENT_TO_ID} className="wrap-anywhere text-ink-2">{SIGN_IN_LABELS.sentTo(draft.email)}</p>
       <CodeField
         inputRef={field}
@@ -129,7 +125,7 @@ function CodeStep({ draft }: { draft: SignInDraft }) {
         onChange={changeCode}
         onComplete={(fullCode) => void check(fullCode)}
       />
-      {problem && <p id={CODE_PROBLEM_ID} role="alert" className="stop-note">{CODE_PROBLEM_LABELS[problem]}</p>}
+      {problem && <p id={CODE_PROBLEM_ID} role="alert" className="stop-note">{problem}</p>}
       <p role="status" className="text-fine text-ink-2 empty:hidden">
         {isChecking && SIGN_IN_LABELS.checking}
         {hasSentNewCode && SIGN_IN_LABELS.newCodeSent}

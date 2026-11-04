@@ -1,10 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
-import { checkEmailCode, type CheckCodeResult, readCodeRequest, RESEND_WAIT_MS, sendEmailCode, type SendCodeResult } from './session';
+import { SIGN_IN_LABELS } from '../strings';
+import { checkEmailCode, type CheckCodeResult, readCodeRequest, RESEND_WAIT_MS, sendEmailCode } from './session';
 import type { SignInDraft } from './useSignInDraft';
 
 const MS_PER_SECOND = 1000;
-
-export type CodeProblem = Exclude<CheckCodeResult, 'signedIn'> | Exclude<SendCodeResult, 'sent' | 'alreadySent'>;
+const CHECK_PROBLEM_LABELS = {
+  codeWrong: SIGN_IN_LABELS.codeWrong,
+  codeExpired: SIGN_IN_LABELS.codeExpired,
+  tooManyTries: SIGN_IN_LABELS.tooManyTries,
+  authFailed: SIGN_IN_LABELS.checkAuthFailed,
+  failed: SIGN_IN_LABELS.checkFailed,
+} satisfies Record<Exclude<CheckCodeResult, 'signedIn'>, string>;
 
 function useResendWait(codeSentAt: number) {
   const [now, setNow] = useState(Date.now);
@@ -22,7 +28,7 @@ function useResendWait(codeSentAt: number) {
 
 export function useCodeEntry({ email, codeSentAt, isSending, setIsSending, showCodeStep }: SignInDraft) {
   const [code, setCode] = useState('');
-  const [problem, setProblem] = useState<CodeProblem | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
   const [isChecking, setIsChecking] = useState(false);
   const [hasSentNewCode, setHasSentNewCode] = useState(false);
   const isCheckOnItsWay = useRef(false);
@@ -42,7 +48,7 @@ export function useCodeEntry({ email, codeSentAt, isSending, setIsSending, showC
     isCheckOnItsWay.current = false;
     setIsChecking(false);
     if (result === 'signedIn') return;
-    setProblem(result);
+    setProblem(CHECK_PROBLEM_LABELS[result]);
     setCode('');
   }
 
@@ -58,7 +64,7 @@ export function useCodeEntry({ email, codeSentAt, isSending, setIsSending, showC
       setCode('');
       setHasSentNewCode(true);
     } else {
-      setProblem(result);
+      setProblem(SIGN_IN_LABELS[result]);
     }
   }
 

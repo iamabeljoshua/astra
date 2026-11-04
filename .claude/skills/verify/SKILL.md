@@ -60,7 +60,7 @@ pnpm verify start
 - The command picks two free ports and prints the URLs, so lanes running at the same time do not collide. To choose the ports, set `WEB_PORT` and `API_PORT`.
 - A taken port stops the command with the owner's process ID. This includes a port held on one address only, where `pnpm dev` itself prints no error.
 - The command returns when both ports belong to this run, the latest API compile has no errors, the web app answers, the API answers `GET /health`, and `GET /api/health` answers through the dev proxy.
-- Use the printed URL. Vite and the API listen on `127.0.0.1` only, and the stack sends an email link back only to that host.
+- Use the printed URL. Vite and the API listen on `127.0.0.1` only, and Google's return reaches only that host on the stack.
 - Running it again replaces the earlier run from this checkout.
 - Read `.verify/dev.log` for the web and API logs. A healthy `start` logs no proxy error, because the command probes the proxy only after the API answers. A proxy error there means a page called the API while the API was down.
 - If the app does not start, the command stops it and prints the last 30 lines of the log, which show the API's own error.
@@ -99,7 +99,8 @@ export default async function menu({ page, capture, viewportName, signIn }) {
 ```
 
 - `page` is a Playwright `Page` with the base URL set. Every page but sign-in, `/terms`, and `/privacy` needs a signed-in student, so `page.goto('/')` alone opens the sign-in page.
-- `signIn(email)` opens the sign-in page and presses that account in the **Development sign-in** box, then returns. With no argument it signs in as `maya@astra.test`, the seeded student. `signIn('new-student@astra.test')` lands on the date of birth question. Wait for the page you expect afterward. The box uses a password, which the API accepts only when `NODE_ENV` is exactly `development`.
+- `signIn(email)` opens the sign-in page, presses the small **Development sign-in** button at the page's edge, presses that account, then returns. With no argument it signs in as `maya@astra.test`, the seeded student. `signIn('new-student@astra.test')` lands on the date of birth question. Wait for the page you expect afterward. That sign-in uses a password, which the API accepts only when `NODE_ENV` is exactly `development`. Journeys that run at the same time share one Auth, and a new code replaces the one before it, so the seeded accounts keep this button.
+- `signInWithCode(email)` signs in the way a student does. It enters the address, reads the newest code from the local inbox at http://127.0.0.1:54424, and types it. Give it an address no other lane uses. Wait for the page you expect afterward.
 - `capture(label)` saves a screenshot now.
 - `viewportName` is `laptop` or `phone`. Use it to branch when the path differs by width. The phone layout hides the sidebar behind the `Menu` button, as above.
 - Use roles and accessible names. Use exact text from `apps/web/src/strings.ts` when the element has no role. Home's question under the greeting is a plain `<p>`, so `getByText` is right for it.

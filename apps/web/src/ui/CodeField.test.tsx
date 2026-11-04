@@ -91,6 +91,21 @@ describe('CodeField', () => {
     expect([getField().selectionStart, getField().selectionEnd]).toEqual([1, 2]);
   });
 
+  it('moves one box at a time with the arrow keys, in both directions', () => {
+    const { container } = render(<ControlledCodeField onComplete={vi.fn()} initialValue="123" />);
+    const activeBox = () => getBoxes(container).findIndex((box) => box.getAttribute('data-active') === 'true');
+    getField().focus();
+    getField().setSelectionRange(3, 3);
+    fireEvent.select(getField());
+
+    fireEvent.keyDown(getField(), { key: 'ArrowLeft' });
+    expect(activeBox()).toBe(2);
+    fireEvent.keyDown(getField(), { key: 'ArrowLeft' });
+    expect(activeBox()).toBe(1);
+    fireEvent.keyDown(getField(), { key: 'ArrowRight' });
+    expect(activeBox()).toBe(2);
+  });
+
   it('completes again when a full code is corrected', () => {
     const onComplete = vi.fn();
     render(<ControlledCodeField onComplete={onComplete} initialValue="123456" />);

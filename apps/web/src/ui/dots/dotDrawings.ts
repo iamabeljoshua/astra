@@ -2,12 +2,16 @@ export type DotPoint = readonly [x: number, y: number];
 
 const FULL_TURN = Math.PI * 2;
 const DRAWING_SEED = 67;
+const RANDOM_MULTIPLIER = 1664525;
+const RANDOM_INCREMENT = 1013904223;
+const RANDOM_RANGE = 4294967296;
 
+// A small repeatable generator, so a shape looks the same on every load.
 export function createSeededRandom(seed: number) {
   let state = seed;
   return () => {
-    state = (state * 1664525 + 1013904223) % 4294967296;
-    return state / 4294967296;
+    state = (state * RANDOM_MULTIPLIER + RANDOM_INCREMENT) % RANDOM_RANGE;
+    return state / RANDOM_RANGE;
   };
 }
 

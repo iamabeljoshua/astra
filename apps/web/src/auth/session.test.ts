@@ -66,6 +66,15 @@ describe('sendEmailCode', () => {
     expect(JSON.parse(String(init?.body))).toMatchObject({ email: 'maya@astra.test' });
   });
 
+  it('keeps no proof after sending, so a link from an older mail cannot open a session in this browser', async () => {
+    stubAuthAnswer(200, {});
+    const { sendEmailCode } = await loadSession();
+
+    await sendEmailCode('maya@astra.test');
+
+    expect(Object.keys(localStorage).filter((key) => key.startsWith('astra-session'))).toEqual([]);
+  });
+
   it.each([
     ['too many requests', 429, { error_code: 'over_email_send_rate_limit' }, 'tooManyRequests'],
     ['a bad address', 400, { error_code: 'validation_failed' }, 'invalidEmail'],
