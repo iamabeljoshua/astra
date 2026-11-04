@@ -1,4 +1,4 @@
-import { type Beat, getBeatText, type ElementId, type SceneAgentMessage, type SceneBrowserMessage } from '@astra/contracts';
+import { type Beat, getBeatText, getSpokenWords, type ElementId, type SceneAgentMessage, type SceneBrowserMessage } from '@astra/contracts';
 import { getSceneBeats } from '../scenes/lesson/lesson-beats.ts';
 import { createLessonWork, type LessonWork } from '../scenes/lesson/lesson-work.ts';
 import type { TopicRuns } from '../scenes/lesson/topic-runs.ts';
@@ -80,13 +80,17 @@ type Opening = { kind: 'briefToCome' } | { kind: 'possible' } | { kind: 'over' }
 
 const sameWords = (first: string, second: string) => first.trim().toLowerCase() === second.trim().toLowerCase();
 
-// The picture goes first in the setup's own script, on its first word, so a student never hears about something they cannot see. A scene that opens a card ends on its narration, because the tutor's own first line follows it and asks.
+const getFirstMomentAfterStart = (moments: StoredScene['moments']) => Object.entries(moments).filter(([, seconds]) => seconds > 0).sort(([, first], [, second]) => first - second)[0]?.[0];
+
+// The picture fades in on the setup's first word, and a take opens on an empty frame, so the setup line plays it on to its first later moment and the box is never blank under those words. A scene that opens a card ends on its narration, because the tutor's own first line follows it and asks.
 export function getTutorSceneBeats({ plan, scene, number, endsOnQuestion = true }: { plan: LessonPlan; scene: StoredScene; number: number; endsOnQuestion?: boolean }): TutorBeat[] {
   const sceneCommand = getSceneCommand(scene, `scene-${number}` as ElementId);
   const beats = getSceneBeats({ setup: plan.setup, narration: plan.narration, scene: sceneCommand }).map((beat) => ({ ...beat, id: `n${number}-${beat.id}` as Beat['id'] }));
   const [first, ...rest] = beats.map((beat) => ({ ...beat, script: beat.script.filter((part) => typeof part === 'string' || part.kind !== 'richScene') }));
   if (!first) return [];
-  const opening: TutorBeat = { ...first, script: [sceneCommand, { kind: 'boardMode', mode: 'teach' }, ...first.script] };
+  const firstDrawn = getFirstMomentAfterStart(scene.moments);
+  const startsDrawing: Beat['script'] = firstDrawn ? [{ kind: 'runSimulation', target: sceneCommand.id, action: 'play', until: firstDrawn, overWords: getSpokenWords(getBeatText(first)).length }] : [];
+  const opening: TutorBeat = { ...first, script: [sceneCommand, { kind: 'boardMode', mode: 'teach' }, ...startsDrawing, ...first.script] };
   const close: TutorBeat = { id: `n${number}-close` as Beat['id'], script: [plan.close], expectsReply: true };
   return [opening, ...[...rest, ...(endsOnQuestion ? [close] : [])].map((beat) => ({ ...beat, pauseBeforeMs: BREATH_MS }))];
 }

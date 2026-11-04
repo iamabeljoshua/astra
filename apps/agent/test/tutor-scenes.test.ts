@@ -235,6 +235,14 @@ describe('who pays for a scene\'s words', () => {
 });
 
 describe('the words of a scene', () => {
+  it('start the take on the setup line, because a take opens on an empty frame', () => {
+    const [opening, take] = getTutorSceneBeats({ plan: PLAN, scene: SCENE, number: 1 });
+    const run = opening?.script.find((part) => typeof part === 'object' && part.kind === 'runSimulation');
+    expect(run).toEqual({ kind: 'runSimulation', target: 'scene-1', action: 'play', until: 'b', overWords: 4 });
+    expect(take?.script.find((part) => typeof part === 'object' && part.kind === 'runSimulation')).toEqual(expect.objectContaining({ until: 'b' }));
+    expect(getTutorSceneBeats({ plan: PLAN, scene: { ...SCENE, moments: { a: 0 } } as StoredScene, number: 1 })[0]?.script.filter((part) => typeof part === 'object' && part.kind === 'runSimulation')).toEqual([]);
+  });
+
   it('are only the words its review read, with the picture first and the question last', () => {
     const beats = getTutorSceneBeats({ plan: PLAN, scene: SCENE, number: 2 });
     const text = beats.map(getBeatText);
