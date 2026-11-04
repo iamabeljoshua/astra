@@ -19,7 +19,6 @@ const SPOKEN_POWERS: Readonly<Record<string, string>> = { squared: '^2', cubed: 
 const CLAIM_WORDS: ReadonlySet<string> = new Set(['so', 'then', 'thus', 'hence', 'therefore', 'answer', 'answer:', 'i', 'get', 'got', 'gives', 'is', 'that', 'it', "it's", 'which', 'means', 'and', 'now', 'ok', 'okay']);
 const MANY_LETTERS = /^[xyzabcnt]+$/;
 const LONE_LETTER = /^[A-Za-z]$/;
-const TEX_LETTER = /^[xyzn]$/;
 const TRAILING_PUNCTUATION = /[?!,;:.]+$/;
 const ENDS_A_CHUNK = /[,:;]$/;
 const ALLOWED_IN_MATH = /^[0-9A-Za-zπ().^+\-*/=±<>≥≤|]+$/;

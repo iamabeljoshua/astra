@@ -38,8 +38,6 @@ export function TypedLine({ getBoard, onWork, onPause, activity }: TypedLineProp
   const task = getOpenTaskOnBoard(getBoard());
   const reads = task?.way === 'write' ? task.reads : undefined;
   const reading = useMemo(() => (text.trim() === '' ? null : readLine(text, reads)), [text, reads]);
-  const textNow = useRef(text);
-  textNow.current = text;
 
   const send = useCallback(
     (line: string) => {
@@ -67,7 +65,7 @@ export function TypedLine({ getBoard, onWork, onPause, activity }: TypedLineProp
   useEffect(() => {
     const hasDraft = text.trim() !== '';
     const timers = (hasDraft ? LOOKS_WITH_DRAFT_SECONDS : LOOKS_WITH_NO_DRAFT_SECONDS).map((seconds) =>
-      setTimeout(() => onPause(seconds, hasDraft ? textNow.current.trim() : undefined), seconds * 1000),
+      setTimeout(() => onPause(seconds, hasDraft ? text.trim() : undefined), seconds * 1000),
     );
     return () => timers.forEach(clearTimeout);
   }, [text, activity, onPause]);

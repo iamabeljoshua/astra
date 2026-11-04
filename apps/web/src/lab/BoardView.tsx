@@ -1,10 +1,10 @@
 import { type BoardElement, type BoardState, getMotionValue, getSceneFrame, type ProjectileFrame } from '@astra/board';
-import { canWriteByHand, preloadMathFonts, type TermQuery, writeStyle } from '@astra/board/drawing';
+import { canWriteByHand, preloadMathFonts, writeStyle } from '@astra/board/drawing';
 import type { StudentWork } from '@astra/contracts';
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { FIGURE_SIZE, hasOwnPlace } from '../board/boardItems';
 import { type BoardProblem, createBoardPainting } from '../board/boardPainting';
-import { PickTargets } from '../board/PickTargets';
+import { type PickTarget, PickTargets } from '../board/PickTargets';
 import { PlaceTask } from '../board/PlaceTask';
 import { StudentLine } from '../board/StudentLine';
 import { useReducedMotion } from '../board/useReducedMotion';
@@ -97,7 +97,11 @@ export function BoardView({ board, atMs, onElementDrawn, onMathRefused, onBoardP
   const wrappers = useRef(new Map<string, HTMLElement>());
   const painting = useRef<ReturnType<typeof createBoardPainting> | null>(null);
   const isReducedMotion = useReducedMotion();
-  const pickTargets = useRef(new Map<string, { button: HTMLButtonElement; query: TermQuery; on: string }>());
+  const pickTargets = useRef(new Map<string, PickTarget>());
+  const setPickTarget = useCallback((part: string, target: PickTarget | null) => {
+    if (target) pickTargets.current.set(part, target);
+    else pickTargets.current.delete(part);
+  }, []);
   const placePickTargets = () => {
     for (const { button, query, on } of pickTargets.current.values()) {
       const box = painting.current?.getPartBox(on, query);
@@ -147,7 +151,7 @@ export function BoardView({ board, atMs, onElementDrawn, onMathRefused, onBoardP
         </div>
       ))}
       <svg ref={overlayRef} aria-hidden="true" className="board-ink board-marks pointer-events-none absolute inset-0 h-full w-full" />
-      {onWork && <PickTargets board={board} targets={pickTargets.current} onWork={onWork} />}
+      {onWork && <PickTargets board={board} onTarget={setPickTarget} onWork={onWork} />}
     </div>
   );
 }

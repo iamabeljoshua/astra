@@ -56,7 +56,7 @@ function getRewoundToMs(log: readonly SessionEvent[], event: SessionEvent & { ki
 }
 
 // A drag is logged when it ends, stamped when it began, so the point moves through its samples before the work lands.
-export function getWorkedOperations(action: Extract<StudentAction, { action: 'worked' }>, atMs: number): BoardOperation[] {
+function getWorkedOperations(action: Extract<StudentAction, { action: 'worked' }>, atMs: number): BoardOperation[] {
   const { work } = action;
   if (work.way !== 'drag') return [{ kind: 'worked', atMs, action }];
   const moves = work.samples.map(({ afterMs, x }): BoardOperation => ({ kind: 'pointMoved', atMs: atMs + afterMs, task: work.task, x }));

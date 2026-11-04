@@ -3,17 +3,36 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { getCues } from '@astra/contracts';
+import { type ElementId, getCues, type StudentWork } from '@astra/contracts';
 import { readKey } from '../../keys.ts';
 import { makeAnthropicTutorModel } from '../../providers/anthropic.ts';
 import { createTutorBrain, type TurnSummary } from '../brain.ts';
 import { TUTOR_SYSTEM } from '../prompt.ts';
 import { createSpendLedger } from '../spend-ledger.ts';
+import { getWorkWords } from '../watcher/watch-rule.ts';
 import { REPLY_CHECKS } from './reply-checks.ts';
 
+/** Work on the board. A place names how to fill the open task's slots, because the tutor chose the items. */
+type GroupWork = { way: 'write'; id: string; text: string } | { way: 'pick'; part: string } | { way: 'place'; placed: 'rightOrder' | 'wrongOrder' };
+
 interface GroupTurn {
-  text: string;
+  text?: string;
+  work?: GroupWork;
   check?: string;
+  /** Code would not call the tutor for this work, so the turn only notes it. */
+  silent?: boolean;
+}
+
+function toStudentWork(work: GroupWork, brain: ReturnType<typeof createTutorBrain>): StudentWork {
+  const { state, openTask } = brain.getBoard();
+  const element = openTask === null ? undefined : state.elements.get(openTask);
+  const task = element?.content.kind === 'task' ? element.content : null;
+  if (work.way === 'write') return { way: 'write', id: work.id as ElementId, text: work.text, ...(openTask ? { task: openTask } : {}) };
+  if (!openTask || !task) throw new Error('the tutor set no task');
+  if (work.way === 'pick') return { way: 'pick', task: openTask, part: work.part };
+  if (task.way !== 'place') throw new Error('the tutor set no place task');
+  const right = task.answer ?? task.items.slice(0, task.slots.length);
+  return { way: 'place', task: openTask, placed: work.placed === 'rightOrder' ? right : [...right].reverse() };
 }
 
 interface PromptGroup {
@@ -61,15 +80,20 @@ async function runGroup(group: PromptGroup, ledger: ReturnType<typeof createSpen
   for (const turn of group.turns) {
     traces.length = 0;
     const beats = [];
-    for await (const beat of brain.reply({ text: turn.text }, new AbortController().signal)) beats.push(beat);
+    const work = turn.work ? toStudentWork(turn.work, brain) : null;
+    const checked = work ? brain.noteWork(work)?.checked : null;
+    if (work) console.log(`[${group.name}] ${JSON.stringify(work)} code says ${checked?.verdict.status}${checked?.closesTask ? ', done' : ''}`);
+    if (turn.silent) continue;
+    const text = work ? getWorkWords(work) : (turn.text as string);
+    for await (const beat of brain.reply({ text }, new AbortController().signal)) beats.push(beat);
     const summary = latest as unknown as TurnSummary;
     const commands = beats.flatMap((beat) => getCues(beat).map((cue) => cue.command));
-    console.log(`[${group.name}] S: ${turn.text}`);
+    console.log(`[${group.name}] S: ${text}`);
     console.log(`   T(${summary.endedAs},a${summary.attempts}${summary.refusalCategory ? `,${summary.refusalCategory}` : ''}): ${summary.spokenText}`);
     for (const command of commands) console.log(`     cmd ${JSON.stringify(command)}`);
     if (traces.length > 0) console.log(`   traces: ${traces.join(' | ')}`);
     for (const check of [...group.checks, ...(turn.check ? [turn.check] : [])]) {
-      if (!REPLY_CHECKS[check]?.passes(summary.spokenText, commands.map((command) => command.kind))) failures.push(`${group.name}: ${check}: ${turn.text.slice(0, 60)}`);
+      if (!REPLY_CHECKS[check]?.passes(summary.spokenText, commands.map((command) => command.kind))) failures.push(`${group.name}: ${check}: ${text.slice(0, 60)}: ${summary.spokenText.slice(0, 120)}`);
     }
   }
   return failures;

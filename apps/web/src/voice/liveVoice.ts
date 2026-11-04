@@ -1,4 +1,4 @@
-import { type BoardState, createChoosingClock, createScenePlayer, type FiredCue, getWorkedOperations, type OutputLevel, type ScenePlayer } from '@astra/board';
+import { type BoardState, createChoosingClock, createScenePlayer, type FiredCue, type OutputLevel, type ScenePlayer } from '@astra/board';
 import { checkWorkOnBoard } from '@astra/board/shared';
 import { type AgentMessage, type BrowserMessage, clipTypedText, type components, type ElementId, LINK_QUIET_LIMIT_MS, parseAgentMessage, PULSE_EVERY_MS, type StudentWork, type TutorClosedReason } from '@astra/contracts';
 import { createLocalAudioTrack, DisconnectReason, type LocalAudioTrack, type RemoteTrack, Room, RoomEvent, Track } from 'livekit-client';

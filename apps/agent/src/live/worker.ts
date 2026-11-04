@@ -114,6 +114,7 @@ async function runSession(context: JobContext): Promise<void> {
     clearTimeout(closing);
     clearInterval(pulse);
     await session.close();
+    if (process.env.ASTRA_VOICE_TRACE_WORDS === '1') trace('sessionLog', { events: session.getLog() });
     await flushSpend();
     await ears?.close();
     await transcriber.close();
