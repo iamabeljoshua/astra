@@ -9,6 +9,9 @@ import type { TutorBeat } from './brain.ts';
 
 /** A take in the browser took 96 ms with the engine fetched, so this only covers a slow line. */
 const PAGE_LOAD_LIMIT_MS = 6000;
+/** The page gives a kit frame 15 s to build its scene, and a live scene has no 2D take to answer sooner, so it hears a little past that. */
+const KIT_PAGE_LOAD_LIMIT_MS = 16_000;
+const getPageLimitMs = ({ engine }: Pick<StoredScene, 'engine'>) => (engine === 'kit' ? KIT_PAGE_LOAD_LIMIT_MS : PAGE_LOAD_LIMIT_MS);
 const MOST_ASKS_IN_A_SESSION = 6;
 const MOST_TOPIC_CHARACTERS = 80;
 const BREATH_MS = 300;
@@ -181,7 +184,7 @@ export function createTutorScenes({ router, runs, kitRuns, store, getCardTitle, 
   // A new page holds no take, whatever the old page said, so nothing lands until this one says it has it.
   const loadInPage = (ask: SceneAsk, scene: StoredScene) => {
     if (ask.page.kind === 'loading') clearTimeout(ask.page.limit);
-    const limit = setTimeout(() => end(ask, 'pageTooSlow'), PAGE_LOAD_LIMIT_MS);
+    const limit = setTimeout(() => end(ask, 'pageTooSlow'), getPageLimitMs(scene));
     ask.page = { kind: 'loading', scene, limit };
     send(getLoadMessage(scene));
   };
@@ -341,7 +344,7 @@ export function createTutorScenes({ router, runs, kitRuns, store, getCardTitle, 
         const limit = setTimeout(() => {
           pictureWaits.delete(settle);
           resolve(false);
-        }, PAGE_LOAD_LIMIT_MS);
+        }, getPageLimitMs(onScreen));
         const settle = (isBack: boolean) => {
           clearTimeout(limit);
           resolve(isBack);

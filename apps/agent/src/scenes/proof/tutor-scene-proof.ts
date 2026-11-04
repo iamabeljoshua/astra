@@ -13,6 +13,7 @@ const { values: args } = parseArgs({
     handsOn: { type: 'string', default: "Okay, let me try one myself. Give me an equation of a line to work on." },
     waitS: { type: 'string', default: '70' },
     headed: { type: 'boolean', default: false },
+    student: { type: 'string', default: 'maya@astra.test' },
     noGpu: { type: 'boolean', default: false },
     damageTake: { type: 'boolean', default: false },
     phone: { type: 'boolean', default: false },
@@ -99,7 +100,9 @@ function readTrace(folder: string | undefined) {
 }
 
 // The headless shell keeps a sandboxed frame in the page's own process, and real Chrome does not, so a stall means nothing on the shell.
-const browser = await chromium.launch({ ...(args.realChrome ? { channel: 'chrome' } : {}), headless: !args.headed, args: [...FLAGS, ...(args.noWebgl ? ['--disable-webgl', '--disable-webgl2'] : [])] });
+// A student's browser has none of the defaults a driver adds, and those turn off the throttling a sandboxed frame meets, so this run goes without them.
+const REAL_CHROME_ARGS = ['--remote-debugging-pipe', `--user-data-dir=${join(out, 'chrome-profile')}`, '--use-mock-keychain', '--mute-audio', '--no-first-run', '--no-default-browser-check', '--autoplay-policy=no-user-gesture-required', 'about:blank'];
+const browser = await chromium.launch(args.realChrome ? { channel: 'chrome', headless: false, ignoreDefaultArgs: true, args: REAL_CHROME_ARGS } : { headless: !args.headed, args: [...FLAGS, ...(args.noWebgl ? ['--disable-webgl', '--disable-webgl2'] : [])] });
 const context = await browser.newContext({ viewport: args.phone ? { width: 390, height: 844 } : { width: 1440, height: 900 }, colorScheme: 'light', baseURL: args.web as string, ...(args.reducedMotion ? { reducedMotion: 'reduce' as const } : {}) });
 const page = await context.newPage();
 const problems: string[] = [];
@@ -150,7 +153,7 @@ if (args.kitStallsAtS) {
 
 await page.goto('/');
 await page.getByRole('button', { name: 'Development sign-in' }).click();
-await page.getByRole('button', { name: 'maya@astra.test' }).click();
+await page.getByRole('button', { name: args.student as string }).click();
 await page.getByRole('textbox', { name: 'What do you want to learn next' }).waitFor();
 await delay(1500);
 

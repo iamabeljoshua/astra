@@ -490,6 +490,16 @@ describe('a scene written live in 3D', () => {
     expect(sent).toEqual([{ type: 'loadScene', sceneId: KIT_SCENE.id, durationSeconds: 5, engine: 'kit' }]);
   });
 
+  it('gives the page longer than a 2D take to build it, since it has no 2D take to answer sooner', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+    const { scenes, traces } = setUpSession();
+    scenes.ask(TOPIC);
+    await vi.advanceTimersByTimeAsync(7000);
+    expect(traces.map(({ name }) => name)).not.toContain('sceneEnded');
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(traces).toContainEqual({ name: 'sceneEnded', fields: expect.objectContaining({ how: 'pageTooSlow' }) });
+  });
+
   it('outlives a student who keeps talking, and lands at the next pause', async () => {
     const { scenes, spoken, traces } = setUpSession();
     scenes.noteStudentTurn();
