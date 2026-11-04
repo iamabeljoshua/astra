@@ -1,19 +1,22 @@
-import { Controller, Param, Post } from '@nestjs/common';
+import { Controller, HttpCode, Param, Post } from '@nestjs/common';
 import { CurrentStudentId } from '../auth/route-access';
 import { SessionParamsDto } from '../sessions/session.dto';
 import { LiveRoomResponseDto } from './live-room.dto';
 import { LiveRoomService } from './live-room.service';
 
+const OK_STATUS = 200;
+
 @Controller('sessions')
 export class LiveRoomController {
-  constructor(private readonly liveRooms: LiveRoomService) {}
+  constructor(private readonly liveRoomService: LiveRoomService) {}
 
-  /** Starts the tutor for one of the signed-in student's sessions and gives the browser a pass into its room. Another student's session answers 404. */
-  @Post(':id/live')
-  joinLiveRoom(
+  /** Lets the signed-in student join their session's voice room. Another student's session answers 404, and a finished one 409. */
+  @Post(':id/live-room')
+  @HttpCode(OK_STATUS)
+  openLiveRoom(
     @CurrentStudentId() studentId: string,
     @Param() { id }: SessionParamsDto,
   ): Promise<LiveRoomResponseDto> {
-    return this.liveRooms.joinSession(studentId, id);
+    return this.liveRoomService.openLiveRoom(studentId, id);
   }
 }

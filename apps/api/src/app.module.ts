@@ -9,7 +9,7 @@ import { SessionsModule } from './sessions/sessions.module';
 import { StudentsModule } from './students/students.module';
 
 @Module({
-  imports: [RequestValidationModule, DatabaseModule, AuthModule, StudentsModule, SessionsModule, LiveRoomModule, HomeModule],
+  imports: [RequestValidationModule, DatabaseModule, AuthModule, StudentsModule, SessionsModule, HomeModule, LiveRoomModule],
   controllers: [HealthController],
 })
 export class AppModule {}

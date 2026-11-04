@@ -567,3 +567,18 @@ describe('the clock on a page where audio starts late', () => {
     expect(clock.getNowMs()).toBe(beforeMs + 10);
   });
 });
+
+describe('the words a caption follows', () => {
+  it('moves each word from coming to heard as it plays, and drops what is coming on a stop', () => {
+    const audio = createFakeAudio();
+    audio.receive(started, words(), beatClosed());
+    expect(audio.player.getCaptionWords().heard).toEqual([]);
+    audio.startSound();
+    audio.advance(50);
+    expect(audio.player.getCaptionWords().heard).toHaveLength(1);
+    expect(audio.player.getCaptionWords().coming).toHaveLength(2);
+    audio.receive(stop);
+    expect(audio.player.getCaptionWords().coming).toEqual([]);
+    expect(audio.player.getCaptionWords().heard).toHaveLength(1);
+  });
+});

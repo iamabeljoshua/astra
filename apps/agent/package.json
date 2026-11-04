@@ -9,11 +9,12 @@
     "typecheck": "tsc",
     "test": "vitest run",
     "lab": "node src/lab/open-lab.ts",
+    "start": "node src/live/worker.ts start",
     "proof": "node src/lab/proof/run-proof.ts",
     "voice-probe": "node src/lab/proof/voice-probe.ts",
+    "voice-proof": "node src/lab/proof/voice/run-voice-proof.ts",
     "math-proof": "node src/lab/proof/math-proof.ts",
     "math-load": "node src/lab/proof/math-load.ts",
-    "tutor": "node src/tutor/worker.ts start",
     "eval:tutor": "node src/tutor/eval/run-eval.ts"
   },
   "dependencies": {
@@ -22,15 +23,16 @@
     "@astra/contracts": "workspace:*",
     "@livekit/agents": "1.9.5",
     "@livekit/agents-plugin-elevenlabs": "1.9.5",
+    "@livekit/agents-plugin-meta": "1.9.5",
     "@livekit/rtc-node": "1.2.1",
-    "livekit-server-sdk": "2.19.2"
+    "livekit-server-sdk": "2.19.2",
+    "ws": "8.22.1"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@types/ws": "^8.18.2",
     "playwright": "^1.64.1",
     "typescript": "catalog:",
-    "vitest": "^5.1.0",
-    "ws": "8.22.1"
+    "vitest": "^5.1.0"
   }
 }

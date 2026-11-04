@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../App';
-import { API_ERROR_LABELS, CHAT_BOX_LABELS, HOME_LABELS, MENU_LABELS, REPLY_BOX_LABELS, SESSION_LABELS, SESSIONS_LABELS, SIDEBAR_LABELS } from '../strings';
+import { API_ERROR_LABELS, CHAT_BOX_LABELS, HOME_LABELS, MENU_LABELS, REPLY_BOX_LABELS, SESSION_LABELS, SESSIONS_LABELS, SIDEBAR_LABELS, VOICE_LABELS } from '../strings';
 import { EXAMPLE_HOME_SCREEN, EXAMPLE_STUDENT_NAME } from '../test/homeScreenApi';
 import { makeSession, stubSessionsApi } from '../test/sessionsApi';
 
@@ -247,18 +247,17 @@ describe('the session screen', () => {
     await waitFor(() => expect(document.activeElement).toBe(heading));
   });
 
-  it('shows a reply on the screen and sends it nowhere', async () => {
-    const { fetchStub } = renderSessionAddress({ sessions: [makeSession()] }, 'a-session');
+  it('keeps a reply on the screen and says the tutor cannot answer, when the tutor cannot connect', async () => {
+    renderSessionAddress({ sessions: [makeSession()] }, 'a-session');
     const replyBox = await screen.findByRole<HTMLTextAreaElement>('textbox', { name: REPLY_BOX_LABELS.label });
-    fetchStub.mockClear();
 
     fireEvent.change(replyBox, { target: { value: 'Gravity, I think.' } });
     fireEvent.click(screen.getByRole('button', { name: REPLY_BOX_LABELS.send }));
 
-    screen.getByText('Gravity, I think.');
+    await screen.findByText('Gravity, I think.');
     screen.getByText(SESSION_LABELS.standInAnswer);
+    screen.getByText(VOICE_LABELS.unavailable);
     expect(replyBox.value).toBe('');
-    expect(fetchStub).not.toHaveBeenCalled();
   });
 
   it('counts up from the saved length and saves it as it runs', async () => {

@@ -105,23 +105,6 @@ export interface paths {
         patch: operations["SessionsController_updateSession"];
         trace?: never;
     };
-    "/sessions/{id}/live": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Starts the tutor for one of the signed-in student's sessions and gives the browser a pass into its room. Another student's session answers 404. */
-        post: operations["LiveRoomController_joinLiveRoom"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/home": {
         parameters: {
             query?: never;
@@ -133,6 +116,23 @@ export interface paths {
         get: operations["HomeController_getHomeScreen"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sessions/{id}/live-room": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Lets the signed-in student join their session's voice room. Another student's session answers 404, and a finished one 409. */
+        post: operations["LiveRoomController_openLiveRoom"];
         delete?: never;
         options?: never;
         head?: never;
@@ -265,12 +265,6 @@ export interface components {
              */
             status?: "finished";
         };
-        LiveRoomResponseDto: {
-            /** @description The address the browser connects to for this lesson. */
-            url: string;
-            /** @description A short-lived pass into this session's room. It lets the browser hear the tutor and send messages. */
-            token: string;
-        };
         PickCardResponseDto: {
             /**
              * @description The ID of the topic that the card offers.
@@ -304,6 +298,14 @@ export interface components {
             continueSession: components["schemas"]["SessionResponseDto"] | null;
             /** @description The cards offered to this student. */
             picks: components["schemas"]["PickCardResponseDto"][];
+        };
+        LiveRoomResponseDto: {
+            /** @description The LiveKit address that the browser connects to. */
+            url: string;
+            /** @description Lets this student join this session's room, for a short time, with their microphone and the data channel only. */
+            token: string;
+            /** @description The name of this session's room. */
+            roomName: string;
         };
     };
     responses: never;
@@ -495,28 +497,6 @@ export interface operations {
             };
         };
     };
-    LiveRoomController_joinLiveRoom: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The ID of the session. */
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LiveRoomResponseDto"];
-                };
-            };
-        };
-    };
     HomeController_getHomeScreen: {
         parameters: {
             query?: never;
@@ -532,6 +512,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HomeScreenResponseDto"];
+                };
+            };
+        };
+    };
+    LiveRoomController_openLiveRoom: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The ID of the session. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LiveRoomResponseDto"];
                 };
             };
         };

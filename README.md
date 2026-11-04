@@ -50,7 +50,8 @@ The API stores its data in Postgres and connects through `DATABASE_URL`. If you 
 | `pnpm db:seed` | Replaces the two example students, Maya with her six sessions and Tola with none, and makes the `new-student@astra.test` account new again. It works only on the local stack, on port 54422. |
 | `pnpm db:reset` | Drops the database in `DATABASE_URL` and builds it again from the migrations. It works only on an app database on the local stack, on port 54422. |
 | `pnpm exec supabase stop` | Stops the local stack for every worktree and every agent that shares it. The data stays in a Docker volume. Run it, then `pnpm db:up`, only if an interrupted start leaves Postgres running without the other services and nothing else is using the stack. |
-| `pnpm lab` | Plays a scripted lesson in the real voice through the board player, on a local LiveKit server. It needs `livekit-server` on the path and spends about 100 ElevenLabs credits a run. `pnpm lab --fake` plays a tone and spends nothing. Add `&lesson=algebra` to the address it prints for the math lesson, or `dense`, `every-word`, or `hostile`. See `docs/tests/scene-player.md` and `docs/tests/math-board.md`. |
+| `pnpm lab` | Plays a scripted lesson in the real voice through the board player, on a local LiveKit server. It needs `livekit-server` on the path and spends about 100 ElevenLabs credits a run. `pnpm lab --fake` plays a tone and spends nothing. See `docs/tests/scene-player.md`. |
+| `pnpm agent` | Starts the tutor's voice agent, which a session's room calls in. It needs the keys under [Talk with the tutor](#talk-with-the-tutor). `pnpm dev` does not start it, so lanes that do not need voice stay off LiveKit. |
 
 These commands and the API refuse a `DATABASE_URL` that sets `host` or `port` in its query string, because the driver would connect there and ignore the address before the database name.
 
@@ -213,6 +214,32 @@ Goals are the codes `class`, `exam`, and `curiosity`, which `getPicksForStudent`
 - All of their text is in `LEGAL_PAGES` and `LEGAL_LABELS` in `apps/web/src/strings.ts`, so a lawyer's edits change one file.
 - Each section has `today` lines and `planned` lines, and the page labels every `planned` line. A `today` line must be true of the running app. When a PR changes what the app stores, who receives data, or what happens to an under-13 account, it moves or edits the line in the same PR.
 - The sign-in step, the typed address, and whether a send is on its way are held above the routes in `useSignInDraft`, so opening a page and coming back keeps them, and a press during a send does not send a second code, which would replace the first. A reload clears them, and only the code step comes back, from the record in the tab's session storage.
+
+## Talk with the tutor
+
+A session's screen has a **Talk** button and a reply box. Pressing **Talk** opens the session's room and asks for the microphone. Typing a reply opens the room with the microphone off. The tutor is a stand-in until the model arrives, so it only repeats simple lines. Ask it to show you the ball for a long line with motion to interrupt.
+
+To run it, give the API and the agent the same LiveKit project, then start the agent beside `pnpm dev`.
+
+```sh
+set -a; . ~/.config/astra/keys.env; set +a
+export ASTRA_AGENT_NAME=astra-tutor-<your-lane> ASTRA_AGENT_PORT=<a free port>
+pnpm dev
+pnpm agent
+```
+
+| Value | Who reads it | What it does |
+| --- | --- | --- |
+| `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` | API and agent | The LiveKit project. With no keys the API answers 503, and the rest of the app runs. |
+| `ASTRA_AGENT_NAME` | API and agent | Which agent a room calls in. Each lane sets its own, because a room goes to any agent of that name. |
+| `META_API_KEY` | Agent | Muse Voice Transcribe. A typed session never opens it. |
+| `ELEVENLABS_API_KEY` | Agent | The tutor's voice. |
+| `ASTRA_VOICE=fake` | Agent | A tone instead of the real voice, to spend no credits. |
+| `ASTRA_VOICE_TRACE=<folder>` | Agent | Writes each session's timings there, with no words. `ASTRA_VOICE_TRACE_WORDS=1` adds the words, for test speech only. |
+
+The browser only ever receives a room token from `POST /sessions/:id/live-room`. It holds one room, the microphone, and the data channel, and it lasts 10 minutes. Vendor keys stay on the servers. `docs/tests/voice.md` holds what was measured.
+
+To change a vendor, see "Swapping a provider" in `docs/architecture/live-session.md`. `providers/choose.ts` is the one place that chooses.
 
 ## Connect a hosted project
 

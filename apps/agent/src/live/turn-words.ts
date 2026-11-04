@@ -1,6 +1,8 @@
+/** Muse spells a hum its own way, "MMMM." or "Mhm", so these match by shape and not by list. */
+const HUM_SHAPE = /^(m+|h+m+|m+h+m*|m+-?h+m+|m+-m+|u+h+|u+h+-?h+u+h+|a+h+|a+h+-?h*a+)$/;
 const REACTION_WORDS = new Set(['uh', 'huh', 'uh-huh', 'uhuh', 'uh-uh', 'mm', 'mmm', 'mhm', 'mhmm', 'mm-hm', 'mm-hmm', 'mmhmm', 'mm-mm', 'hm', 'hmm', 'hmmm', 'aha', 'ah', 'oh', 'ooh', 'yeah', 'yes', 'yep', 'yup', 'ok', 'okay', 'right', 'sure', 'wow', 'um', 'umm', 'uhm']);
 const REACTION_PHRASES = [['i', 'see'], ['got', 'it']];
-const FILLER_WORDS = new Set(['um', 'umm', 'uhm', 'uh', 'hm', 'hmm', 'hmmm', 'mm', 'mmm', 'er', 'erm', 'ah', 'well', 'so', 'okay', 'ok', 'like']);
+const FILLER_WORDS = new Set(['um', 'umm', 'uhm', 'er', 'erm', 'well', 'so', 'okay', 'ok', 'like']);
 const FILLER_PHRASES = [['let', 'me', 'think'], ['let', 'me', 'see'], ['give', 'me', 'a', 'second'], ['one', 'second'], ['i', 'think']];
 
 export function getWords(text: string): string[] {
@@ -16,7 +18,7 @@ function isMadeOf(words: readonly string[], singles: ReadonlySet<string>, phrase
   for (let index = 0; index < words.length; ) {
     const phrase = phrases.find((candidate) => candidate.every((word, offset) => words[index + offset] === word));
     if (phrase) index += phrase.length;
-    else if (singles.has(words[index] as string)) index += 1;
+    else if (singles.has(words[index] as string) || HUM_SHAPE.test(words[index] as string)) index += 1;
     else return false;
   }
   return true;

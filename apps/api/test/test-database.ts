@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { INestApplication, Type } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import type { TestingModuleBuilder } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { getDatabaseUrl, requireLocalStack, withDatabaseName } from '../src/infrastructure/orm/database-url';
@@ -52,15 +51,14 @@ interface TestAppOptions {
   supabaseUrl?: string;
   nodeEnv?: string;
   extraModules?: Type[];
-  configure?(builder: TestingModuleBuilder): TestingModuleBuilder;
 }
 
-export async function createTestApp({ supabaseUrl, nodeEnv = 'test', extraModules = [], configure = (builder) => builder }: TestAppOptions = {}): Promise<TestApp> {
+export async function createTestApp({ supabaseUrl, nodeEnv = 'test', extraModules = [] }: TestAppOptions = {}): Promise<TestApp> {
   const { databaseUrl, drop } = await createTestDatabase();
   const supabaseAuth = await startTestSupabaseAuth();
   const testingModule = await withEnvironment(
     { DATABASE_URL: databaseUrl, SUPABASE_URL: supabaseUrl ?? supabaseAuth.url, NODE_ENV: nodeEnv },
-    () => configure(Test.createTestingModule({ imports: [AppModule, ...extraModules] })).compile(),
+    () => Test.createTestingModule({ imports: [AppModule, ...extraModules] }).compile(),
   );
   const app = testingModule.createNestApplication();
   await app.listen(0, '127.0.0.1');

@@ -9,7 +9,7 @@ import { SPOKEN_LINES } from '../src/tutor/spoken-lines.ts';
 const QUICK = { stillWorkingMs: 40, firstTextMs: 120, betweenTextMs: 80, finishGraceMs: 20, reportWaitMs: 30 };
 const PROFILE = { level: 'secondary', interests: ['space', 'basketball'], goal: 'exam' };
 
-async function collect(brain: TutorBrain, text: string, signal = new AbortController().signal): Promise<Beat[]> {
+async function collect(brain: Pick<TutorBrain, 'reply'>, text: string, signal = new AbortController().signal): Promise<Beat[]> {
   const beats: Beat[] = [];
   for await (const beat of brain.reply({ text }, signal)) beats.push(beat);
   return beats;

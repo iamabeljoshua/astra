@@ -35,6 +35,8 @@ export interface ScenePlayer {
   getOperations(): BoardOperation[];
   /** The words heard so far this turn, on the same clock as the board. */
   getCaption(): string;
+  /** The same words, with those already known and not yet heard, so a caption can follow each word as it plays. */
+  getCaptionWords(): { heard: string[]; coming: string[] };
 }
 
 interface PlayingBeat {
@@ -265,6 +267,14 @@ export function createScenePlayer({ clock, clockId = 'page', send, setOutputLeve
     getNowMs: () => clock.getNowMs(),
     getOperations,
     getCaption: () => (turn ? turn.beats.flatMap((beat) => beat.words.slice(0, beat.playedWords).map((word) => word.text)).join(' ') : ''),
+    getCaptionWords() {
+      const beats = turn?.beats ?? [];
+      const isFrozen = turn?.phase === 'frozen';
+      return {
+        heard: beats.flatMap((beat) => beat.words.slice(0, beat.playedWords).map((word) => word.text)),
+        coming: isFrozen ? [] : beats.flatMap((beat) => beat.words.slice(beat.playedWords).flatMap((word) => (word ? [word.text] : []))),
+      };
+    },
     getBoard: (atMs) => getBoardAt(getOperations(), atMs, catalog),
     receive(message) {
       if (message.type === 'turnStarted') return startTurn(message.turnId);

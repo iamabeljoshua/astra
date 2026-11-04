@@ -48,7 +48,7 @@ describe('a backchannel', () => {
     expect(play([SPEAKING, ON, words('Hmm', false), OFF, timer('transcriptGrace')]).actions).toEqual(['yield', WORDLESS, GRACE, 'unyield']);
   });
 
-  it.each(['Uh-huh', 'Mm-hmm', 'Mhmm', 'Hm', 'Mmm', 'Um', 'Oh', 'I see', 'Got it', 'Aha', 'Mm-mm', 'Yeah, yeah', 'Okay.'])('takes "%s" as a reaction', (text) => {
+  it.each(['Uh-huh', 'Mm-hmm', 'Mhmm', 'Hm', 'Mmm', 'Um', 'Oh', 'I see', 'Got it', 'Aha', 'Mm-mm', 'Yeah, yeah', 'Okay.', 'MM.', 'MMMM.', 'Hmmmm', 'Aha, MMM', 'Mhm'])('takes "%s" as a reaction', (text) => {
     expect(isSmallReaction(text)).toBe(true);
     expect(play([SPEAKING, ON, words(text, false)]).phase).toBe('yielding');
   });
@@ -72,6 +72,12 @@ describe('a backchannel', () => {
 
   it('counts "uh - huh" as a reaction, not as a real word', () => {
     expect(isSmallReaction('uh - huh')).toBe(true);
+  });
+});
+
+describe('words that are not reactions', () => {
+  it.each(['Wait', 'Why', 'No', 'Stop', 'Gravity', '42', 'x', 'math', 'hum', 'huh why', 'okay but why'])('takes "%s" as a real word', (text) => {
+    expect(isSmallReaction(text)).toBe(false);
   });
 });
 
@@ -104,6 +110,24 @@ describe('a real word', () => {
 
   it('forgets the last question heard when a new reply starts', () => {
     expect(play([SPEAKING, QUESTION_HEARD, FINISHED, decided('Why?'), SPEAKING, ON, words('Yes.'), OFF]).phase).toBe('clear');
+  });
+});
+
+describe('words that lag the voice', () => {
+  it('do not stop the reaction to the speech they came from', () => {
+    const { actions } = play([ON, words('why does', false), OFF, timer('reactionFloor'), { type: 'tutorStarted', isReply: false }, words('why does it come', false), words('Why does it come down?')]);
+    expect(actions).toEqual([FLOOR, HELD, 'react', HELD]);
+  });
+
+  it('do not stop the answer to the speech they came from, or the tutor would answer nothing', () => {
+    const { actions, state } = play([ON, words('why does it', false), OFF, timer('heldFinal'), words('Why does it come down?')]);
+    expect(actions).not.toContain('stop: real word');
+    expect(state.tutor).toBe('thinking');
+  });
+
+  it('do stop the tutor once the student has started speaking again', () => {
+    const { actions } = play([ON, words('why', false), OFF, timer('heldFinal'), SPEAKING, ON, words('Wait', false)]);
+    expect(actions.at(-1)).toBe('stop: real word');
   });
 });
 
@@ -159,6 +183,11 @@ describe('sound with no words', () => {
 });
 
 describe('reacting first', () => {
+  it('reacts again on the next turn', () => {
+    const { actions } = play([ON, words('why', false), OFF, timer('reactionFloor'), decided('Why?'), SPEAKING, FINISHED, ON, words('and how', false), OFF, timer('reactionFloor')]);
+    expect(actions.filter((action) => action === 'react')).toHaveLength(2);
+  });
+
   it('reacts after the floor when the student has said something', () => {
     expect(play([ON, words('why', false), OFF, timer('reactionFloor')]).actions).toEqual([FLOOR, HELD, 'react']);
   });
@@ -298,7 +327,8 @@ function searchEveryOrder(mostStates: number) {
         isCut = next.state.phase === 'held';
         isYielded = next.state.phase === 'yielding';
       }
-      if (move.type === 'words' && move.text === 'Wait why' && wasActive && !node.isCut && node.state.phase !== 'away' && !hasStop && !node.state.isQuestionHeard) violations.realWordsNotStopped?.push(path);
+      const isNewSpeech = node.state.answering === 'no' || node.state.isVoiceOn;
+      if (move.type === 'words' && move.text === 'Wait why' && wasActive && isNewSpeech && !node.isCut && node.state.phase !== 'away' && !hasStop && !node.state.isQuestionHeard) violations.realWordsNotStopped?.push(path);
       if (move.type === 'words' && move.text.startsWith('Uh-huh') && hasStop && !node.state.isQuestionHeard) violations.reactionStopped?.push(path);
       if (next.actions.filter((action) => action.do === 'reply').length > 1) violations.doubleReply?.push(path);
       const isStuck = armed.size === 0 && !next.state.isVoiceOn && isYielded && next.state.tutor === 'speaking' && next.state.phase === 'yielding';

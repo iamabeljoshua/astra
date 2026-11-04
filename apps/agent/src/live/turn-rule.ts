@@ -53,6 +53,8 @@ export interface TurnState {
   answeredPartial: string | null;
   hasSpokenSinceAnswer: boolean;
   wasCutByLink: boolean;
+  /** How far the tutor has answered what the student last said. A transcript lags the voice, so words that land with no new voice belong to that same speech and must not interrupt its own answer. */
+  answering: 'no' | 'reacted' | 'replied';
 }
 
 export const INITIAL_TURN_STATE: TurnState = {
@@ -72,6 +74,7 @@ export const INITIAL_TURN_STATE: TurnState = {
   answeredPartial: null,
   hasSpokenSinceAnswer: false,
   wasCutByLink: false,
+  answering: 'no',
 };
 
 export type TurnEvent =
@@ -124,15 +127,16 @@ function releaseReaction(state: TurnState): TurnStep {
 }
 
 function onVoiceStarted(state: TurnState): TurnStep {
-  const next: TurnState = { ...state, isVoiceOn: true, hasSpokenSinceAnswer: state.answeredPartial !== null };
+  const next: TurnState = { ...state, isVoiceOn: true, hasSpokenSinceAnswer: state.answeredPartial !== null, answering: 'no' };
   const restartPatience = state.isWaitingOnStudent ? [startTimer('patience')] : [];
   if (state.phase === 'clear' && state.tutor === 'speaking') {
-    return { state: { ...next, phase: 'yielding', heardReaction: false, isReactionFinal: false, startedOverTutor: true }, actions: [{ do: 'yield' }, startTimer('wordlessStop'), cancelTimer('heldFinal'), ...restartPatience] };
+    return { state: { ...next, phase: 'yielding', heardReaction: false, isReactionFinal: false, startedOverTutor: true, hasReacted: false, isReactionDue: false }, actions: [{ do: 'yield' }, startTimer('wordlessStop'), cancelTimer('heldFinal'), ...restartPatience] };
   }
   if (state.phase === 'yielding') return { state: next, actions: [cancelTimer('transcriptGrace'), ...(state.heardReaction ? [] : [startTimer('wordlessStop')])] };
   if (state.phase === 'held' || state.phase === 'stopped') return { state: next, actions: [cancelTimer('transcriptGrace'), cancelTimer('heldFinal')] };
   if (state.phase === 'away') return { state: next, actions: [] };
-  return { state: { ...next, startedOverTutor: false, isReactionDue: false }, actions: [cancelTimer('heldFinal'), cancelTimer('reactionFloor'), ...restartPatience] };
+  const isNewTurn = state.tutor === 'silent';
+  return { state: { ...next, startedOverTutor: false, isReactionDue: false, hasReacted: isNewTurn ? false : state.hasReacted, hasFinalWords: isNewTurn ? false : state.hasFinalWords, partial: isNewTurn ? '' : state.partial }, actions: [cancelTimer('heldFinal'), cancelTimer('reactionFloor'), ...restartPatience] };
 }
 
 function onVoiceEnded(state: TurnState): TurnStep {
@@ -174,13 +178,15 @@ function onReaction(state: TurnState, isFinal: boolean): TurnStep {
 function onWordsToSilentTutor(state: TurnState, text: string, isFinal: boolean): TurnStep {
   const hasFinalWords = state.hasFinalWords || isFinal;
   const shouldReact = state.isReactionDue && !state.hasReacted && !state.isVoiceOn;
-  const next: TurnState = { ...state, hasFinalWords, partial: isFinal ? '' : text, hasReacted: state.hasReacted || shouldReact, isReactionDue: state.isReactionDue && !shouldReact };
+  const next: TurnState = { ...state, hasFinalWords, partial: isFinal ? '' : text, hasReacted: state.hasReacted || shouldReact, isReactionDue: state.isReactionDue && !shouldReact, answering: shouldReact ? 'reacted' : state.answering };
   const heldFinalTimer = isFinal ? [cancelTimer('heldFinal')] : !state.isVoiceOn && !hasFinalWords ? [startTimer('heldFinal')] : [];
   return { state: next, actions: [...heldFinalTimer, ...(shouldReact ? [REACT] : [])] };
 }
 
 function onWords(state: TurnState, { text, isFinal }: { text: string; isFinal: boolean }): TurnStep {
   if (!hasWords(text) || state.phase === 'away') return { state, actions: [] };
+  if (state.answering === 'replied' && !state.isVoiceOn) return { state, actions: [] };
+  if (state.answering === 'reacted' && !state.isVoiceOn && state.phase === 'clear') return onWordsToSilentTutor(state, text, isFinal);
   if (state.phase === 'clear' && state.tutor === 'silent') return onWordsToSilentTutor(state, text, isFinal);
   if (isSmallReaction(text) && !state.isQuestionHeard) return onReaction(state, isFinal);
   return onRealWords(state, text, isFinal);
@@ -194,7 +200,7 @@ function onEchoHeard(state: TurnState): TurnStep {
 function startReply(state: TurnState, { text, via, answeredPartial = null }: { text: string; via: ReplyVia; answeredPartial?: string | null }): TurnStep {
   const reactFirst = state.hasReacted ? [] : [REACT];
   const unyieldFirst = state.phase === 'yielding' ? [UNYIELD] : [];
-  const next: TurnState = { ...INITIAL_TURN_STATE, tutor: 'thinking', isVoiceOn: state.isVoiceOn, unanswered: text, hasReacted: true, answeredPartial };
+  const next: TurnState = { ...INITIAL_TURN_STATE, tutor: 'thinking', isVoiceOn: state.isVoiceOn, unanswered: text, hasReacted: true, answeredPartial, answering: state.isVoiceOn ? 'no' : 'replied' };
   return { state: next, actions: [...CANCEL_ALL, ...unyieldFirst, ...reactFirst, { do: 'setTurnCap', ms: TURN_TIMINGS.turnCapMs }, { do: 'reply', text, via }] };
 }
 
@@ -222,7 +228,7 @@ function onTimer(state: TurnState, { name }: { name: TimerName }): TurnStep {
   if (name === 'transcriptGrace' && state.phase === 'held') return { state: { ...state, phase: 'clear', heardReaction: false }, actions: [RESUME] };
   if (name === 'reactionFloor') {
     const hasHeardWords = hasWords(state.partial) || state.hasFinalWords;
-    if (hasHeardWords && !state.hasReacted && !state.isVoiceOn) return { state: { ...state, hasReacted: true }, actions: [REACT] };
+    if (hasHeardWords && !state.hasReacted && !state.isVoiceOn) return { state: { ...state, hasReacted: true, answering: state.phase === 'clear' ? 'reacted' : state.answering }, actions: [REACT] };
     return { state: { ...state, isReactionDue: !state.hasReacted }, actions: [] };
   }
   if (name === 'heldFinal' && !state.isVoiceOn && !state.hasFinalWords && hasWords(state.partial) && (state.phase === 'stopped' || state.phase === 'clear')) {

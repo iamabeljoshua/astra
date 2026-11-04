@@ -17,12 +17,12 @@ export interface BeatReport {
   isFinished: boolean;
 }
 
-/** The tutor's brain, in the shape M3.6's live session calls. Beats arrive as the model writes them. */
+/** The tutor's brain, as the live session calls it. Beats arrive as the model writes them. */
 export interface TutorBrain {
   reply(request: TutorRequest, signal: AbortSignal): AsyncIterable<Beat>;
-  notePlayed(report: BeatReport): void;
+  notePlayed?(report: BeatReport): void;
   /** The student cut this turn off. `wordsSent` is the only record if a report is lost. */
-  noteCut(wordsSent: ReadonlyMap<BeatId, number>): void;
+  noteCut?(wordsSent: ReadonlyMap<BeatId, number>): void;
 }
 
 /** Only what teaching needs. A name, a date of birth, an email address, and any account id never go to the model. */
@@ -107,6 +107,8 @@ interface TurnWork {
   endedAs: AttemptEnd;
 }
 
+/** The live session names a resumed beat after the one it continues. */
+const RESUMED_BEAT = /^(.+)-r\d+(?:-rest)?$/;
 const WAIT_STEP_MS = 5;
 const MAX_ATTEMPTS = 2;
 const COMPACT_AT_TOKENS = 60_000;
@@ -157,7 +159,7 @@ const addUsage = (total: ModelUsage | null, part: ModelUsage): ModelUsage =>
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Owns one student's history with the model and turns the model's stream into safe beats. It never touches the voice or the room, so any session can call it.
-export function createTutorBrain({ model, profile = null, timeouts = TUTOR_TIMEOUTS, trace = () => {}, onTurnEnd, onCompacted, compactAtTokens = COMPACT_AT_TOKENS, isOverBudget = () => false, getNowMs = () => performance.now() }: TutorBrainOptions): TutorBrain {
+export function createTutorBrain({ model, profile = null, timeouts = TUTOR_TIMEOUTS, trace = () => {}, onTurnEnd, onCompacted, compactAtTokens = COMPACT_AT_TOKENS, isOverBudget = () => false, getNowMs = () => performance.now() }: TutorBrainOptions): Required<TutorBrain> {
   const pickLine = createLinePicker();
   const profileNote = profile ? { student: { level: profile.level, interests: profile.interests, goal: profile.goal } } : null;
   const reports = new Map<BeatId, BeatReport>();
@@ -489,10 +491,14 @@ export function createTutorBrain({ model, profile = null, timeouts = TUTOR_TIMEO
       }
     },
     notePlayed(report) {
-      reports.set(report.beatId, report);
+      const [, resumedFrom] = RESUMED_BEAT.exec(report.beatId) ?? [];
+      const before = resumedFrom ? reports.get(resumedFrom as BeatId) : undefined;
+      // A resume repeats the word it was cut on, so its count overlaps the first report by one.
+      if (before) reports.set(before.beatId, { ...report, beatId: before.beatId, playedWords: Math.max(before.playedWords - 1, 0) + report.playedWords, firedCues: before.firedCues + report.firedCues });
+      else reports.set(report.beatId, report);
     },
     noteCut(wordsSent) {
-      cutWordsSent = wordsSent;
+      cutWordsSent = new Map([...wordsSent].map(([beatId, words]) => [(RESUMED_BEAT.exec(beatId)?.[1] ?? beatId) as BeatId, words]));
     },
   };
 }

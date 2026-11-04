@@ -1,7 +1,10 @@
 export class LiveRoomResponseDto {
-  /** The address the browser connects to for this lesson. */
+  /** The LiveKit address that the browser connects to. */
   url!: string;
 
-  /** A short-lived pass into this session's room. It lets the browser hear the tutor and send messages. */
+  /** Lets this student join this session's room, for a short time, with their microphone and the data channel only. */
   token!: string;
+
+  /** The name of this session's room. */
+  roomName!: string;
 }

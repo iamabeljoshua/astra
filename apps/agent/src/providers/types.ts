@@ -1,8 +1,13 @@
-import type { tts } from '@livekit/agents';
+import type { stt, tts } from '@livekit/agents';
 
 export interface VoiceAdapter {
   name: string;
   makeTts(): tts.TTS;
+}
+
+export interface TranscriberAdapter {
+  name: string;
+  makeStt(): stt.STT;
 }
 
 /** One entry of the history the tutor keeps itself. A summary is the model's own compaction block, sent back exactly as it came. */
