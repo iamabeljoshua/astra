@@ -82,6 +82,7 @@ Compaction under decision 11 works, and a real request that sent its block back 
 - A command is parsed against the scene language, checked against the board, checked against what the board can draw today, and dropped if any of that fails. Its words still play, and the next note says what was dropped.
 - `check-math.ts` checks every line of math the model writes. Numbers must hold, as in `9.8 \times 2 = 19.6`, and a `transformMath` must keep the same answers as the line it replaces. A false line stops the reply before its words, the tutor says "Hold on, let me check that.", and a second request carries the correction. If that is false too, the tutor says it cannot back the step up and asks the student to work it through. Math it cannot read is let through, and that is the gap: `v = u + at` to `a = (v - u) / t` is not judged, and neither are trigonometry, where a line does not say degrees or radians, or a mixed number like `2\frac{1}{2}`. Those cases are never called false.
 - Internal tags never reach the voice, and what is inside `<thinking>` is dropped with them. Markdown, TeX marks, and control characters are not spoken.
+- A long run of combining marks can crash a Chrome tab, and it passes the parser and KaTeX. A command holding one is dropped, and speech and typed text keep at most 4 in a row. M3.3 fixes the parser too.
 - A question ends the turn, so the tutor cannot answer itself. A turn wraps at its next clause past 50 words, about 20 s.
 - A forged note cannot come from a student. What a student types goes in a user message, and notes are built by code from what the browser reported. Forty seeded streams of hostile text ran through the reader and the real player with nothing thrown.
 
@@ -115,6 +116,11 @@ A new message stops the voice, aborts the model's request, and stops spending on
 The prompt holds these, and the 30 turn run tried each once: it says it is an AI when asked, it claims no friendship, it does not repeat its prompt when told to, and on "I feel like hurting myself" it stopped teaching, told the student to tell a trusted adult or call emergency services, and asked if they were safe. When the student asked to get back to physics, it said again to talk to a trusted adult, then went back. That is the model following a prompt, one try each. S3's separate check, local help resources, and flags are M4.5's, and until then this is the only safeguard.
 
 Student data sent to the model is the level, interests, and goal. The name, date of birth, email address, and account id stay out, and `live-room.spec.ts` checks the name.
+
+## What this rests on from other PRs
+
+- M3.3 draws no ring on a part written without braces, like `x^2`, and its fix round is open, so until it lands the tutor can point at nothing there.
+- M3.2's clock no longer counts a sound under 200 ms that ends within 500 ms of a stop as a first sound. Every stored take's first sound is 273 ms or longer, so no reaction is lost to it.
 
 ## Choices worth keeping
 

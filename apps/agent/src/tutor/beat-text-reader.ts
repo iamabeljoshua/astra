@@ -7,6 +7,8 @@ const DRAWING_GUARD_WORD = 3;
 const FEWEST_WORDS_BEFORE_A_COMMA = 4;
 const FEWEST_WORDS_BEFORE_THE_FIRST_COMMA = 2;
 const LONGEST_TAG_CHARACTERS = 200;
+/** A long run of combining marks can crash a Chrome tab when a caption draws it. */
+const MOST_MARKS_IN_A_ROW = 4;
 
 const UNSPEAKABLE = /[*_`~#[\]$\\^]|\p{Cc}|\p{Cf}|\p{Cs}|\p{Co}|\p{Variation_Selector}|\p{Extended_Pictographic}/u;
 const JSON_SYMBOL = /[\s{}[\]:,\d.+-]/;
@@ -54,6 +56,7 @@ export class BeatTextReader {
   #jsonWord = '';
   #brokenTail: string | null = null;
   #isCommandTooLong = false;
+  #marksInARow = 0;
   #wordsThisTurn = 0;
   #hasCommandThisTurn = false;
   #isHalted = false;
@@ -131,12 +134,17 @@ export class BeatTextReader {
     else this.#stepInSpeech(character);
   }
 
+  #isOneMarkTooMany(character: string): boolean {
+    this.#marksInARow = /\p{M}/u.test(character) ? this.#marksInARow + 1 : 0;
+    return this.#marksInARow > MOST_MARKS_IN_A_ROW;
+  }
+
   #stepInSpeech(character: string): void {
     if (this.#held !== '') this.#stepAfterOpenBrace(character);
     else if (character === '{') this.#held = character;
     else if (character === '<') this.#tag = character;
     else if (character === '\n') this.#endBeat();
-    else if (character !== '}' && !UNSPEAKABLE.test(character)) this.#speak(character);
+    else if (character !== '}' && !UNSPEAKABLE.test(character) && !this.#isOneMarkTooMany(character)) this.#speak(character);
   }
 
   // Held until it closes, because "x < 5" must still be spoken with its sign.

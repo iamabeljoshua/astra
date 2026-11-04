@@ -110,11 +110,12 @@ const COMPACT_AT_TOKENS = 60_000;
 const TURNS_KEPT_AFTER_COMPACTING = 8;
 const CHARACTERS_PER_TOKEN = 3.2;
 const LONGEST_STUDENT_TEXT = 2000;
+const TOO_MANY_MARKS = /(\p{M}{4})\p{M}+/gu;
 const NOT_STUDENT_TEXT = /\p{Cf}|\p{Co}|\p{Variation_Selector}|[^\P{Cc}\n\t]/gu;
 
 /** Strips control and invisible characters, which can hide text from a reader. */
 export function cleanStudentText(text: string): string {
-  return text.replace(NOT_STUDENT_TEXT, '').trim().slice(0, LONGEST_STUDENT_TEXT);
+  return text.replace(NOT_STUDENT_TEXT, '').replace(TOO_MANY_MARKS, '$1').trim().slice(0, LONGEST_STUDENT_TEXT);
 }
 
 function getWrittenBeat(parts: WrittenBeatParts, id: string, refused: string[]): Beat | null {

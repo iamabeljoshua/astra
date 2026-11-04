@@ -12,6 +12,10 @@ export const EMPTY_BOARD: BoardMemory = { kinds: new Map(), lines: new Map() };
 
 export const DRAWN_KINDS: ReadonlySet<SceneCommand['kind']> = new Set(['writeMath', 'transformMath', 'highlight', 'text', 'hide', 'clearBoard', 'focus', 'simulate', 'runSimulation', 'vector', 'annotate']);
 
+/** A long run of combining marks can crash a Chrome tab, and passes both the parser and KaTeX. */
+const TOO_MANY_MARKS = /\p{M}{5,}/u;
+const hasTooManyMarksInARow = (text: string) => TOO_MANY_MARKS.test(text);
+
 const ok: CommandVerdict = { ok: true };
 const refuse = (problem: string): CommandVerdict => ({ ok: false, problem, isWrongMath: false });
 
@@ -20,6 +24,7 @@ function toVerdict(verdict: MathVerdict): CommandVerdict {
 }
 
 export function checkAgainstBoard(command: SceneCommand, { lines }: BoardMemory): CommandVerdict {
+  if (hasTooManyMarksInARow(JSON.stringify(command))) return refuse('too many combining marks in a row');
   if (!DRAWN_KINDS.has(command.kind)) return refuse(`the board cannot draw ${command.kind} yet`);
   if (command.kind === 'writeMath' || command.kind === 'transformMath') {
     if (!canRenderTex(command.tex)) return refuse(`the math cannot be set: ${command.tex}`);

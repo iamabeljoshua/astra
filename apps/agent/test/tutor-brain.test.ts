@@ -269,6 +269,24 @@ describe('long sessions', () => {
   });
 });
 
+describe('a run of combining marks, which can crash a tab', () => {
+  const MARKS = '\u0301'.repeat(40);
+
+  it('never reaches the board in a command, and the words still play', async () => {
+    const { brain } = setup(() => reply('Okay, ', `{"kind":"text","id":"t","text":"a${MARKS}"}`, 'look here.'));
+    const beats = await collect(brain, 'go');
+    expect(commandsOf(beats)).toEqual([]);
+    expect(say(beats)).toBe('Okay, look here.');
+  });
+
+  it('is cut from what a student types', async () => {
+    const { brain, model } = setup(() => reply('Okay.'));
+    await collect(brain, `a${MARKS}b`);
+    const user = model.requests[0]?.turns.find((turn) => turn.role === 'user');
+    expect(user && 'text' in user && user.text).toBe(`a${'\u0301'.repeat(4)}b`);
+  });
+});
+
 describe('a message with nothing in it', () => {
   it('asks the model nothing', async () => {
     const { brain, model } = setup(() => reply('Okay.'));
