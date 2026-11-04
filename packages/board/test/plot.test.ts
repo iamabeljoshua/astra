@@ -107,6 +107,86 @@ describe('sampling near discontinuities', () => {
   });
 });
 
+const CONTINUOUS_CURVES: readonly (readonly [string, Range])[] = [
+  ['sin(4*x)', [-10, 10]],
+  ['sin(10*x)', [-10, 10]],
+  ['sin(x)', [-50, 50]],
+  ['sin(2*pi*x)', [-10, 10]],
+  ['abs(sin(x))', [-20, 20]],
+  ['sin(30*x)', [-10, 10]],
+  ['5*sin(x)+sin(20*x)', [-10, 10]],
+];
+
+function getPlotCurve(expression: string, domain: Range, changes = {}): { curve: readonly Branch[]; yRange: Range } {
+  const plot: Plot = { kind: 'plot', id: 'graph' as never, expression, domain: [domain[0], domain[1]], ...(expression.includes('a*') ? { constants: [{ name: 'a', value: 1, min: 1, max: 10 }] } : {}) };
+  const frame = createPlotScene(plot, changes)?.getFrame(0) as PlotFrame;
+  return { curve: frame.getCurve(frame.yRange), yRange: frame.yRange };
+}
+
+const getCoverage = (branches: readonly Branch[], [low, high]: Range) => branches.reduce((sum, branch) => sum + (branch.at(-1) as Point).x - (branch[0] as Point).x, 0) / (high - low);
+
+describe('a continuous curve that needs many samples', () => {
+  it.each(CONTINUOUS_CURVES)('keeps %s on %j in one piece from edge to edge', (expression, domain) => {
+    const { curve } = getPlotCurve(expression, domain);
+    expect(curve).toHaveLength(1);
+    expect(getCoverage(curve, domain)).toBeCloseTo(1, 6);
+  });
+
+  it.each([1, 3, 4, 5, 7, 10])('keeps sin(a*x) whole with a slider at a = %d', (a) => {
+    const { curve } = getPlotCurve('sin(a*x)', [-10, 10], { a });
+    expect(curve).toHaveLength(1);
+    expect(getCoverage(curve, [-10, 10])).toBeCloseTo(1, 6);
+  });
+
+  it.each(CONTINUOUS_CURVES)('keeps every drawn step of %s true to the curve', (expression, domain) => {
+    const node = parsePlotExpression(expression) as NonNullable<ReturnType<typeof parsePlotExpression>>;
+    const { curve, yRange } = getPlotCurve(expression, domain);
+    const pointsOff = curve.flatMap((branch) => branch.slice(1).map((end, index) => {
+      const start = branch[index] as Point;
+      return Math.abs(evaluatePlotExpression(node, (start.x + end.x) / 2) - (start.y + end.y) / 2);
+    }));
+    expect(Math.max(...pointsOff) / (yRange[1] - yRange[0])).toBeLessThan(1 / 300);
+  });
+
+  it('spends what a fine wave needs and no more than the budget', () => {
+    let evaluations = 0;
+    const node = parsePlotExpression('sin(1000*x)') as NonNullable<ReturnType<typeof parsePlotExpression>>;
+    const branches = sampleCurve({ domain: [-10, 10], yRange: [-1, 1], evaluate: (x) => {
+      evaluations += 1;
+      return evaluatePlotExpression(node, x);
+    } });
+    expect(evaluations).toBeLessThanOrEqual(CURVE_LIMITS.evaluations);
+    expect(getCoverage(branches, [-10, 10])).toBeGreaterThan(0.25);
+  });
+
+  it('still breaks at every real break when there are many of them', () => {
+    const poles = sample('tan(10*x)', [-10, 10], [-6, 6]);
+    const everyPole = Array.from({ length: 64 }, (_, index) => ((index - 31.5) * Math.PI) / 10);
+    expect(poles.length).toBeGreaterThanOrEqual(everyPole.length);
+    for (const pole of everyPole) expect(poles.some((branch) => crossesX(branch, pole))).toBe(false);
+    const jumps = sample('abs(sin(30*x))/sin(30*x)', [-10, 10], [-2, 2]);
+    expect(jumps.length).toBeGreaterThanOrEqual(190);
+    expect(getTallestStep(jumps, [-2, 2])).toBeLessThan(NO_FALSE_LINE);
+  });
+
+  it('breaks at a small jump, and draws no line up it', () => {
+    const branches = sample('x+0.1*abs(x-0.3)/(x-0.3)', [-1, 1], [-1.5, 1.5]);
+    expect(branches).toHaveLength(2);
+    expect((branches[1]?.[0] as Point).y - (branches[0]?.at(-1) as Point).y).toBeGreaterThan(0.19);
+  });
+
+  it('connects a curve so steep it crosses the axes between two pixels', () => {
+    const branches = sample('10^7*x', [-5, 5], [-1, 1]);
+    expect(branches).toHaveLength(1);
+    expect(branches[0]?.[0]?.y).toBe(-1);
+    expect(branches[0]?.at(-1)?.y).toBe(1);
+  });
+
+  it('connects a cusp whose side is nearly vertical', () => {
+    expect(sample('abs(x)^(1/3)', [-1, 1], [0, 1])).toHaveLength(1);
+  });
+});
+
 describe('scales', () => {
   it('picks round ticks that land on real values', () => {
     expect(getTickValues([0, 25], 5)).toEqual([0, 5, 10, 15, 20, 25]);
