@@ -41,6 +41,15 @@ export interface CueAim {
   landsAtMs: number;
 }
 
+/** Where one `overWords` cue was aimed. All times are in ms after the beat's `atMs`. */
+export interface CueAim {
+  /** The fired cue, counting from 0 in script order. */
+  cue: number;
+  /** When the browser chose this aim. */
+  afterMs: number;
+  landsAtMs: number;
+}
+
 export interface PlayReport {
   /** When each word of the beat starts, in ms after `atMs`. */
   wordStartsMs: number[];

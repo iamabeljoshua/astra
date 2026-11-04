@@ -194,15 +194,17 @@ export const HOME_LABELS = {
   stillStarting: 'Still starting your session. This can take a moment.',
 };
 
+export const ATTACH_LABELS = {
+  attach: 'Photo or PDF',
+  comingSoon: 'Photos and PDFs are coming soon.',
+};
+
 export const CHAT_BOX_LABELS = {
   label: 'What do you want to learn next',
   placeholder: 'Ask anything. A topic, a question, a problem.',
   placeholderWhileTalkIsOn: 'Talking opens soon. Type for now.',
-  attach: 'Photo or PDF',
   talk: 'Talk',
   send: 'Start session',
-  removeAttachment: (fileName: string) => `Remove ${fileName}`,
-  removeAttachmentMark: '\u00D7',
 };
 
 export const REPLY_BOX_LABELS = {
@@ -212,18 +214,20 @@ export const REPLY_BOX_LABELS = {
   send: 'Send reply',
 };
 
+const IF_WORRIED = 'If anything is worrying you, or you do not feel safe, please tell an adult you trust, or call your local emergency number.';
+
 export const VOICE_LABELS = {
   you: 'You',
   board: 'Board',
   connecting: 'Connecting your tutor',
-  unavailable: 'Your tutor could not connect just now.',
+  unavailable: `Your tutor could not connect just now. ${IF_WORRIED}`,
   reconnecting: 'Your connection dropped. Reconnecting.',
   ended: 'Your connection to the tutor ended.',
-  sessionLimit: 'This session has reached its limit. Start a new session to carry on.',
-  dailyLimit: 'That is all your tutor time for now. It resets once a day, so please try again later. Your sessions are kept.',
-  broken: 'Your tutor has stopped working in this session. Start a new one to carry on.',
+  sessionLimit: `This session has reached its limit. Start a new session to carry on. ${IF_WORRIED}`,
+  dailyLimit: `That is all your tutor time for now. It resets once a day, so please try again later. Your sessions are kept. ${IF_WORRIED}`,
+  broken: `Your tutor has stopped working in this session. Start a new one to carry on. ${IF_WORRIED}`,
   sessionFinished: 'This session has finished.',
-  tutorLost: 'Your tutor stopped responding. Your microphone is off. Try again and a tutor will start fresh, without what was said so far.',
+  tutorLost: `Your tutor stopped responding. Your microphone is off. Try again and a tutor will start fresh, without what was said so far. ${IF_WORRIED}`,
   startedFresh: 'Your tutor had to start fresh, without what was said so far.',
   micDenied: 'Your browser did not allow the microphone. You can type instead.',
   micNoDevice: 'We could not find a microphone on this device. You can type instead.',
@@ -543,9 +547,9 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
           ...inTestLessons("A recording of what the tutor says in a test lesson is saved on our server too, as audio with the words and their timing. For a suggested lesson it can be played to other students. For a question you typed it is saved in a folder named with your account ID, it is played only in your own lessons, and we remove it with your other saved lesson data. Your own voice is never recorded, because test lessons do not use your microphone."),
           ...inTestLessons('A record of what each test lesson cost, saved on our server with your account ID: which AI model was used, what it cost, how many characters of voice were made, and when. It holds none of your words.'),
           'We also use the sessions you start from suggested lessons, and their length, status, and start time, to choose what your home screen suggests next. A question you leave open can take the continue card, so a lesson you left open can then appear among the suggestions. Only your own sessions do this, and the words of the questions you type play no part in it.',
-          'Any file you attach stays in your browser. It is not sent or stored.',
+          'You cannot add a photo or PDF yet. If you try, the file stays on your device, and neither it nor its name is sent or stored.',
           'Your microphone stays off until you press Talk in a session, and your browser asks first. While it is on, your voice goes live to the services named under Who receives your data. We do not store your voice or any recording of it.',
-          "The words you say or type in a session go to our tutor service, which holds them in memory while the session runs and drops them when it ends. It passes them to Anthropic, as Who receives your data says. We do not store them yet.",
+          "The words you say or type in a session, and a question you type on Home to start one, go to our tutor service, which holds them in memory while the session runs and drops them when it ends. It passes them to Anthropic, as Who receives your data says. Apart from a question from Home, which stays as its session's title, we do not store them yet.",
           "So do the lines you type on the board, what you pick, place, or drag there, and what our code made of each one. We do not store them yet either.",
           "A line you have typed on the board and not sent stays in your browser until you pause for a few seconds. Then it can go to our tutor service and to Anthropic, so the tutor can tell whether you need help. We do not store it.",
           "If you write with the pen, your strokes go to our tutor service, which holds them in memory while the session runs. It makes a picture of what you wrote and sends that picture to Anthropic to read it. We do not store the strokes or the picture yet.",
@@ -591,7 +595,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
             : 'Supabase runs our sign-in service and our database, so it holds everything we store on our servers, and it sends the sign-in email.',
           'When a session opens, your browser joins LiveKit Cloud, even before you press Talk, so LiveKit receives your IP address and your student ID, a random code that does not include your name. During the session, LiveKit Cloud carries your voice, the tutor\'s voice, and the messages between your browser and the tutor, including your words as text. We do not ask it to record any of this. We do not send LiveKit your name, your date of birth, your email address, your level, your interests, or your goal, though it carries anything you say or type yourself.',
           "While your microphone is on, Meta's Muse Voice Transcribe receives your voice and turns it into text. Meta's terms let it keep what it receives for safety checks and human review.",
-          "Anthropic, whose Claude model writes the tutor's replies, receives what you say and type in a session, including lines on the board, a line you paused on without sending, and a picture of anything you write with the pen, the tutor's earlier words, and your level, interests, and goal. We do not send it your name, your date of birth, your email address, or an account ID, though it receives anything you say or type yourself. Anthropic's terms say it does not train on this by default, and that it keeps it for a limited time.",
+          "Anthropic, whose Claude model writes the tutor's replies, receives what you say and type in a session, including lines on the board, a line you paused on without sending, a picture of anything you write with the pen, and a question you type on Home to start one, the tutor's earlier words, and your level, interests, and goal. We do not send it your name, your date of birth, your email address, or an account ID, though it receives anything you say or type yourself. Anthropic's terms say it does not train on this by default, and that it keeps it for a limited time.",
           "ElevenLabs receives the tutor's words and turns them into its voice. Those words can repeat what you said or typed.",
           ...inTestLessons("While spoken lessons are in testing, a test lesson sends Anthropic's Claude models the title of the suggested lesson, or the whole question you typed, whatever it says, which they use to choose and write a drawing and the tutor's words. A model then writes the drawing from a short topic it takes from your question, and it can get that wrong, so a personal detail in your question can reach those models and the words a tutor says to you. ElevenLabs receives the tutor's words and turns them into its voice, and the audio travels through a LiveKit server. Please leave your name, school, and other personal details out of your questions."),
           'No other outside service receives student data today. The app serves its own fonts and pictures.',

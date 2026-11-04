@@ -28,7 +28,7 @@ export default defineConfig(({ command, mode }) => {
 
   return {
     define: { __DEV_SIGN_IN__: command === 'serve' },
-    plugins: [react(), tailwindcss(), refuseDevelopmentAccounts(), refuseCostLine(env), refuseProofHooks()],
+    plugins: [react(), tailwindcss(), refuseDevelopmentAccounts(), refuseProofHooks(), refuseCostLine(env)],
     server: {
       host: LOCAL_HOST,
       port: webPort,

@@ -1,7 +1,9 @@
 import { createScenePlayer, createTimerClock } from '@astra/board';
 import { parseBeat, type TurnId } from '@astra/contracts';
-import { act, render, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { ATTACH_LABELS } from '../strings';
+import { useFilesComingSoon } from '../ui/useFilesComingSoon';
 import { LiveBoard } from './LiveBoard';
 import type { LiveVoice } from './liveVoice';
 
@@ -20,8 +22,13 @@ function makeVoiceWithBoard(script: readonly unknown[]) {
   player.receive({ type: 'beatClosed', turnId: TURN, beatId: parsed.value.id, wordCount: 2, expectsReply: false });
   player.tick();
   const reportMarkNotDrawn = vi.fn();
-  const voice = { getBoardNow: () => ({ board: player.getBoard(nowMs), atMs: nowMs }), getView: () => ({ tutorHeard: [], tutorComing: [], isTutorSpeaking: false, isThinking: false, isHeard: false, closedBecause: null }), getLoudness: () => 0, sendPause: () => {}, reportMarkNotDrawn } as unknown as LiveVoice;
-  return { voice, reportMarkNotDrawn };
+  const stopTutor = vi.fn();
+  const voice = { getBoardNow: () => ({ board: player.getBoard(nowMs), atMs: nowMs }), getView: () => ({ tutorHeard: [], tutorComing: [], isTutorSpeaking: false, isThinking: false, isHeard: false, closedBecause: null }), getLoudness: () => 0, sendPause: () => {}, reportMarkNotDrawn, stopTutor } as unknown as LiveVoice;
+  return { voice, reportMarkNotDrawn, stopTutor };
+}
+
+function BoardWithFilesComingSoon({ voice }: { voice: LiveVoice }) {
+  return <LiveBoard voice={voice} filesComingSoon={useFilesComingSoon()} />;
 }
 
 describe('the live board', () => {
@@ -48,5 +55,22 @@ describe('the live board', () => {
     const { findByTestId, getByText } = render(<LiveBoard voice={voice} getVisual={() => <span>The scene</span>} />);
     expect((await findByTestId('board-visual')).dataset.big).toBe('true');
     getByText('The scene');
+  });
+
+  it('says photos and PDFs are coming soon, and Escape closes the note before it stops the tutor', async () => {
+    const { voice, stopTutor } = makeVoiceWithBoard(['Look here.']);
+    await act(async () => {
+      render(<BoardWithFilesComingSoon voice={voice} />);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: ATTACH_LABELS.attach }));
+    screen.getByText(ATTACH_LABELS.comingSoon);
+
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(screen.queryByText(ATTACH_LABELS.comingSoon)).toBeNull();
+    expect(stopTutor).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(stopTutor).toHaveBeenCalledOnce();
   });
 });

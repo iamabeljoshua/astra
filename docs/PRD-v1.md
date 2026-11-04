@@ -25,6 +25,7 @@ Abel made these decisions after approving this PRD, and the latest is dated 4 No
 | Q10, Q11, section 8, B5 | The typed scene language stays for the 2D board. Rich scenes are best effort, through one scene command. Voice and the 2D board never wait for a scene, a scene shows only when it is ready and checked, and a scene not ready after about 20 s is dropped from that lesson and saved, with no spinner. On a new question the tutor starts with words and simple 2D, then brings in 3D at a pause. ManimGX takes symbols, plots, grids, flat maps, and code, and our kit takes solid things a camera could film, chosen by a router. Python runs only on a server in a locked container, and the browser plays a stored take. Section 14 still holds, because a scene is code we render, not generated video. | 3 and 4 November 2026 |
 | B4, T6, for generated scenes | B4's deck does not hold for generated scenes, and their numbers can come from the model. M3.14 states what replaces both. | 3 November 2026 |
 | B8 | Typed work and tasks from the tutor come first, on the shared board in M3.12. Ink and uploads follow in M3.11. | 3 November 2026 |
+| B8, the home screen's chat box | Photo and PDF uploads are post-MVP. Pressing the control says they are coming soon, in M3.11. The pen moved to M3.12. | 4 November 2026 |
 | Section 8's data shape | Commands sit inside the sentence, not `say` plus `cues` with word counts. | 3 November 2026 |
 | Section 10 | The live session design's cost table replaces this one. | 3 November 2026 |
 

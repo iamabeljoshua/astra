@@ -1,7 +1,7 @@
 import type { ElementId } from './ids.ts';
 
 /** What code knows about a student's work. `wrong` means code is certain, and only `wrong` lets anyone say so. `unknown` is everything else, and it is never treated as doubt. */
-export type WorkVerdict = { status: 'right' } | { status: 'wrong'; why: string; isBuiltOnWrongLine?: boolean } | { status: 'unknown' };
+export type WorkVerdict = { status: 'right' } | { status: 'wrong'; why: string; isBuiltOnWrongLine?: boolean } | { status: 'unknown'; offProblem?: string };
 
 export const LINE_KINDS = ['words', 'math', 'mixed', 'code'] as const;
 export type LineKind = (typeof LINE_KINDS)[number];
@@ -45,7 +45,7 @@ export type StudentWork =
   | { way: 'place'; task: ElementId; placed: (string | null)[] }
   | { way: 'drag'; task: ElementId; x: number; samples: PointSample[] }
   /** The student said aloud that they want something else, so the task closes and no line lands. */
-  | { way: 'leave'; task: ElementId };
+  | { way: 'leave'; task?: ElementId };
 
 /** The longest line the reader will treat as math. Anything longer is read as words. */
 export const MATH_LINE_MAX_CHARACTERS = 200;

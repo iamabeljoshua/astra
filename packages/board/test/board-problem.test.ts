@@ -13,15 +13,16 @@ function getBoard(...commands: readonly SceneCommand[]) {
 }
 
 describe('a line typed before any task has landed', () => {
-  it.each([['2x = 14', 'wrong'], ['x = 7', 'wrong'], ['2x = 8', 'right'], ['x = 4', 'right'], ['3x + 1 = 7', 'unknown'], ['2 + 2 = 4', 'right'], ['hello', 'unknown']])('is checked against the problem on the board: %s is %s', (typed, status) => {
+  it.each([['2x = 14', 'unknown'], ['x = 7', 'unknown'], ['2x = 8', 'right'], ['x = 4', 'right'], ['3x + 1 = 7', 'unknown'], ['2 + 2 = 4', 'right'], ['hello', 'unknown']])('is checked against the problem on the board: %s is %s', (typed, status) => {
     expect(checkWorkOnBoard(line(typed), getBoard(problem)).verdict.status).toBe(status);
   });
 
-  it('points at the first mistake when a line builds on a wrong one', () => {
-    const operations: BoardOperation[] = [{ kind: 'command', atMs: 0, command: problem, overMs: null }];
-    const first = line('2x = 14');
+  it('points at the first mistake when a line builds on a wrong one under a task', () => {
+    const task: SceneCommand = { kind: 'task', id: id('a1'), way: 'write', on: id('steps') };
+    const operations: BoardOperation[] = [problem, task].map((command, index) => ({ kind: 'command', atMs: index, command, overMs: null }));
+    const first = line('2x = 14', 'a1');
     operations.push({ kind: 'worked', atMs: 10, action: { action: 'worked', work: first, ...checkWorkOnBoard(first, getBoardAt(operations, 10)) } });
-    expect(checkWorkOnBoard({ way: 'write', id: id('s2'), text: 'x = 7' }, getBoardAt(operations, 20)).verdict).toMatchObject({ status: 'wrong', isBuiltOnWrongLine: true });
+    expect(checkWorkOnBoard({ way: 'write', id: id('s2'), text: 'x = 7', task: id('a1') }, getBoardAt(operations, 20)).verdict).toMatchObject({ status: 'wrong', isBuiltOnWrongLine: true });
   });
 
   it('does not take a line written only to look at for the problem', () => {
@@ -80,7 +81,7 @@ describe('a words question left open', () => {
   it('reads typed math as math, and checks it against the problem', () => {
     const checked = checkWorkOnBoard(line('2x = 14', 'a1'), getBoard(problem, asked));
     expect(checked.reading?.kind).toBe('math');
-    expect(checked.verdict.status).toBe('wrong');
+    expect(checked.verdict).toEqual({ status: 'unknown', offProblem: '2x + 3 = 11' });
     expect(checked.closesTask).toBe('a1');
   });
 

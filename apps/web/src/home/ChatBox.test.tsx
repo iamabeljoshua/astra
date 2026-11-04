@@ -1,7 +1,8 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { CHAT_BOX_LABELS } from '../strings';
+import { ATTACH_LABELS, CHAT_BOX_LABELS } from '../strings';
 import { notifyResizeObservers, startLoadingFont } from '../test/fakeLayout';
+import { useFilesComingSoon } from '../ui/useFilesComingSoon';
 import { ChatBox } from './ChatBox';
 
 const QUESTION = 'Why is the sky dark at night?';
@@ -16,8 +17,8 @@ const type = (text: string) => fireEvent.change(getTextBox(), { target: { value:
 
 function renderChatBox() {
   const onSend = vi.fn();
-  const { container } = render(<ChatBox onSend={onSend} onEdit={() => undefined} />);
-  return { onSend, fileInput: container.querySelector<HTMLInputElement>('input[type=file]')! };
+  render(<ChatBox onSend={onSend} onEdit={() => undefined} />);
+  return { onSend };
 }
 
 afterEach(() => {
@@ -216,37 +217,27 @@ describe('ChatBox', () => {
   });
 
   describe('the photo or PDF control', () => {
-    const photo = new File(['photo'], 'homework.jpg', { type: 'image/jpeg' });
+    const getControl = () => screen.queryByRole('button', { name: ATTACH_LABELS.attach });
 
-    it('opens the file picker', () => {
-      const { fileInput } = renderChatBox();
-      const openPicker = vi.spyOn(fileInput, 'click');
+    function ChatBoxWithFilesComingSoon() {
+      return <ChatBox filesComingSoon={useFilesComingSoon()} onSend={() => undefined} onEdit={() => undefined} />;
+    }
 
-      fireEvent.click(screen.getByRole('button', { name: CHAT_BOX_LABELS.attach }));
+    it('says photos and PDFs are coming soon, and leaves what the student typed alone', () => {
+      render(<ChatBoxWithFilesComingSoon />);
+      type(QUESTION);
 
-      expect(openPicker).toHaveBeenCalledOnce();
+      fireEvent.click(getControl()!);
+
+      screen.getByText(ATTACH_LABELS.comingSoon);
+      expect(getTextBox().value).toBe(QUESTION);
+      expect(document.querySelector('input[type=file]')).toBeNull();
     });
 
-    it('shows the chosen file, removes it by name, and returns focus to the control', () => {
-      const { fileInput } = renderChatBox();
+    it('is not offered when the screen shows it somewhere else', () => {
+      renderChatBox();
 
-      fireEvent.change(fileInput, { target: { files: [photo] } });
-      screen.getByText(photo.name);
-
-      const removeButton = screen.getByRole('button', { name: new RegExp(photo.name) });
-      removeButton.focus();
-      fireEvent.click(removeButton);
-
-      expect(screen.queryByText(photo.name)).toBeNull();
-      expect(document.activeElement).toBe(screen.getByRole('button', { name: CHAT_BOX_LABELS.attach }));
-    });
-
-    it('still needs text before send works', () => {
-      const { fileInput } = renderChatBox();
-
-      fireEvent.change(fileInput, { target: { files: [photo] } });
-
-      expect(getSendButton().disabled).toBe(true);
+      expect(getControl()).toBeNull();
     });
   });
 });
