@@ -46,7 +46,8 @@ function createCanvas(container: HTMLElement): HTMLCanvasElement {
 }
 
 function fitCanvas(canvas: HTMLCanvasElement, player?: EnginePlayer): { width: number; height: number; density: number } {
-  const { width, height } = canvas.getBoundingClientRect();
+  // Layout size, because the session's right side scales this while it glides, and a take must keep its full size in the corner.
+  const { clientWidth: width, clientHeight: height } = canvas;
   const density = Math.min(window.devicePixelRatio || 1, MOST_DENSITY);
   const size = { width: Math.max(1, Math.round(width * density)), height: Math.max(1, Math.round(height * density)), density };
   canvas.width = size.width;
@@ -110,6 +111,7 @@ export function createSceneStage(container: HTMLElement): SceneStage {
 
   return {
     async load(sceneId, durationSeconds) {
+      if (active?.sceneId === sceneId) return true;
       dropActive();
       try {
         active = await makePlayer({ sceneId, theme: getAppliedTheme(), durationSeconds }, 0);

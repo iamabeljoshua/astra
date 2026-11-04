@@ -50,6 +50,27 @@ describe('the replay screen', () => {
     expect(screen.queryByTestId('board-visual')).toBeNull();
   });
 
+  it('plays a lesson that had a scene with no scene in it, and its board and captions stay right', async () => {
+    const SCENE_ID = `scene-${'a'.repeat(40)}`;
+    const sceneLog = [
+      { seq: 0, atMs: 0, kind: 'beatPlayed', turnId: 't1', beat: { id: 'n1-setup', script: [{ kind: 'richScene', id: 'scene-1', engine: 'manimgx', sceneId: SCENE_ID, moments: { a: 0, b: 2 }, parts: [], durationSeconds: 5 }, { kind: 'boardMode', mode: 'teach' }, { kind: 'runSimulation', target: 'scene-1', action: 'play', until: 'b', overWords: 4 }, 'Watch the line tilt.'], expectsReply: false }, reportedBy: 'browser', wordStartsMs: [0, 200, 400, 600], durationMs: 800, playedWords: 4, firedCueMs: [0, 0, 0], ending: 'finished', frozen: [] },
+      { seq: 1, atMs: 1000, kind: 'beatPlayed', turnId: 't1', beat: { id: 'n1-close', script: ['What would a steeper line tell you?'], expectsReply: true }, reportedBy: 'browser', wordStartsMs: [0, 200, 400, 600, 800, 1000, 1200], durationMs: 1400, playedWords: 7, firedCueMs: [], ending: 'finished', frozen: [] },
+      { seq: 2, atMs: 3000, kind: 'beatPlayed', turnId: 't2', beat: { id: 'b2', script: [{ kind: 'text', id: 'note', text: 'slope is rise over run' }, 'So the slope is the rate.'], expectsReply: false }, reportedBy: 'browser', wordStartsMs: [0, 200, 400, 600, 800, 1000], durationMs: 1200, playedWords: 6, firedCueMs: [0], ending: 'finished', frozen: [] },
+    ];
+    stubReplay({ replay: { recap: null, runs: [{ startedAt: 'x', events: sceneLog }] } });
+    open({ ...session, artwork: null });
+    await screen.findByRole('slider', { name: REPLAY_LABELS.timeline });
+    seekTo(500);
+    expect(screen.getByTestId('tutor-caption').textContent).toContain('Watch the line');
+    expect(screen.queryByTestId('scene-layer')).toBeNull();
+    expect(screen.queryByTestId('board-visual')).toBeNull();
+    seekTo(1500);
+    expect(screen.getByTestId('tutor-caption').textContent).toContain('What would');
+    seekTo(3500);
+    expect(screen.getByTestId('tutor-caption').textContent).toContain('So the slope');
+    expect(screen.getByText('slope is rise over run')).toBeTruthy();
+  });
+
   it('opens on the recap, with the lesson ready to play', async () => {
     stubReplay({ replay: { recap: RECAP, runs: [{ startedAt: 'x', events: LESSON_LOG }] } });
     open();

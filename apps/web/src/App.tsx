@@ -10,7 +10,7 @@ import { LegalPage } from './legal/LegalPage';
 import { LEGAL_PATHS } from './legal/legalPaths';
 import { RootErrorBoundary } from './RootErrorBoundary';
 import { SCENE_LIBRARY_PATH, SceneLibraryPage } from './scenes/SceneLibraryPage';
-import { isLessonEnabled } from './session/lessonFlag';
+import { hasScenes } from './session/lessonFlag';
 import { SESSION_ROUTE } from './session/sessionPath';
 import { AppShell } from './shell/AppShell';
 import { LEGAL_PAGES } from './strings';
@@ -65,7 +65,7 @@ function SignedInRoutes() {
   // Fetched once signed in, so opening a session does not wait on it. A failed fetch is left to the route, which tries again.
   useEffect(() => {
     loadSessionScreen().catch(() => {});
-    if (isLessonEnabled()) void import('./scenes/sceneEngine').then(({ fetchSceneEngineInBackground }) => fetchSceneEngineInBackground());
+    if (hasScenes()) void import('./scenes/sceneEngine').then(({ fetchSceneEngineInBackground }) => fetchSceneEngineInBackground());
   }, []);
 
   return (

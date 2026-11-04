@@ -85,7 +85,7 @@ export function getSceneWordsFromPartialText(text: string): SceneWords | null {
 
 export function getPlanFromText(text: string): LessonPlan {
   const reply = readJsonObject(text);
-  if (reply.refused) throw new PlanRefused('the planner says a tutor should not teach this', reply.refused === 'help');
+  if (reply.refused) throw new PlanRefused('the planner says a tutor should not teach this', reply.refused === 'help' || reply.refused === 'person' ? reply.refused : 'dangerous');
   const opening = [...(reply.first ? [reply.first] : []), ...(Array.isArray(reply.opening) ? (reply.opening as unknown[]) : [])];
   if (opening.length === 0) throw new Error('the plan has no opening');
   const plan: LessonPlan = {
