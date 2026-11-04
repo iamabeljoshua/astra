@@ -119,6 +119,19 @@ const speakOverTheTutor = async (session: ReturnType<typeof setup>['session'], t
   await delay(500);
 };
 
+describe('a ring the board could not draw', () => {
+  it('reaches the next request as a note', async () => {
+    const { session, model } = setup((_request, attempt) => (attempt === 1 ? { pieces: ['Okay, ', '{"kind":"writeMath","id":"steps","tex":"x = 1"}', 'see this ', '{"kind":"highlight","id":"ring","target":"steps","tex":"x"}', 'letter here.'] } : { pieces: ['Got it.'] }));
+    session.onBrowser(typed('show me'));
+    await delay(1500);
+    session.onBrowser({ type: 'markNotDrawn', markId: 'ring', ...STAMP });
+    session.onBrowser(typed('where?'));
+    await delay(400);
+    expect(getSystemNotes(model.requests.at(-1)).join()).toContain('mark_not_drawn');
+    await session.close();
+  });
+});
+
 describe('hostile data messages', () => {
   const PLAYED = { wordStartsMs: [0], durationMs: 100, playedWords: 1, firedCueMs: [], ending: 'interrupted' as const, frozen: [], ...STAMP };
 

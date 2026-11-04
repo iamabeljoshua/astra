@@ -60,6 +60,8 @@ export interface LiveVoice {
   subscribe(listener: () => void): () => void;
   getBoardNow(): { board: BoardState; atMs: number };
   sendTyped(text: string): void;
+  /** The board could not draw this mark, so the agent can tell the tutor the student did not see it. */
+  reportMarkNotDrawn(markId: string): void;
   setMicOn(isOn: boolean): Promise<void>;
   turnOnSound(): Promise<void>;
   mark(note: object): void;
@@ -350,6 +352,9 @@ export async function startLiveVoice({ access, getAccess, wantsGreeting = true, 
       showHeard();
       addStudentWords({ text: clipped, isFinal: true });
       send({ type: 'typed', ...getStamp(), text: clipped });
+    },
+    reportMarkNotDrawn(markId) {
+      send({ type: 'markNotDrawn', ...getStamp(), markId });
     },
     setMicOn,
     async turnOnSound() {
