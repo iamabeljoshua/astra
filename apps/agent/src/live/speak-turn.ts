@@ -192,6 +192,7 @@ export function speakTurn(options: SpeakTurnOptions): SpokenTurn {
   const lineTurn = line.takeTurn();
   const heldMessenger = createHeldMessenger(messenger);
   let isStopped = false;
+  let isFinished = false;
   let audioSentMs = 0;
   const tracker = createPlayoutTracker({
     onRanDry({ atMs }) {
@@ -214,8 +215,9 @@ export function speakTurn(options: SpeakTurnOptions): SpokenTurn {
     isStopped: () => isStopped,
   };
 
+  // A finished turn has no audio to cut and leaves no silence, so a stop for it would only mute the next turn.
   const stop = () => {
-    if (isStopped) return;
+    if (isStopped || isFinished) return;
     isStopped = true;
     if (!heldMessenger.isHolding()) messenger.sendOnBothChannels({ type: 'stop', turnId });
     tracker.close();
@@ -239,7 +241,10 @@ export function speakTurn(options: SpeakTurnOptions): SpokenTurn {
       onFailure?.(failure);
       stop();
     })
-    .finally(lineTurn.leave);
+    .finally(() => {
+      isFinished = true;
+      lineTurn.leave();
+    });
 
   return { finished, getWordMismatches: timeline.getMismatches, isVoiceOwing: () => !timeline.isComplete(), getWordsSent: () => timeline.getWordsSent(firstSound.toTimeline(audioSentMs)), stop };
 }

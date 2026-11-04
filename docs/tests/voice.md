@@ -104,6 +104,10 @@ So a session's first word misses PRD section 6.3's 3 s at p50 from pressing Talk
 
 **The lag step.** It did not appear on Cloud. M3.2's reviewer saw one step of about 320 ms with no report, on a simulated link with 1% loss, in 1 run of 11. Here 8 runs of 66 s of a test tone over LiveKit Cloud and the real network gave 1880 gaps between words of 280 ms, with none over 322 ms and 0 `audioGap` reports. Single gaps grew by 16 to 42 ms as the browser's jitter buffer moved, which adds up to about 40 ms over a 66 s turn. That is 8.8 minutes on one network on one night, so it says the step is not common here, and no more. The tone's words all sound alike, so `analyse-run.ts` matches them a whole word off, and these runs read the tone's own rhythm instead.
 
+## What it cost
+
+ElevenLabs: about 1,360 credits by the characters this lane sent, within the 2,000 limit. The account's own count rose more across the same hours, because M3.2's fix round spent on it at the same time, so the account alone cannot separate them. The stored takes were about 45 of those. Muse: under $0.30 by audio time, at $0.18 an hour, against the $5 limit. LiveKit Cloud: the free plan, with one room per run, each removed when its job closed.
+
 ## What each browser and agent proof showed
 
 Run on the real app on this Mac. Scripts are in `apps/agent/src/lab/proof/voice/`.
@@ -113,9 +117,9 @@ Run on the real app on this Mac. Scripts are in `apps/agent/src/lab/proof/voice/
 | A spoken exchange | 30 of 30 turns answered in Chris's voice, each with a reaction first, and captions followed |
 | Interrupted mid-sentence | 6 of 6 cut, 6 of 6 replied after, the student's words reached the reply |
 | Typed, no microphone, no sound | The exchange completed on the timer clock, Muse never opened, and typing over the tutor stopped it |
-| A real drop | Every connection of one browser went through a proxy that the script cut for 4 s. Lost after 1.7 s, frozen at the word heard, and resumed from the cut word 9 to 10 s after the network returned, 2 of 2, with no cue fired twice |
+| A real drop | Every connection of one browser went through a proxy that the script cut for 3.5 to 4 s. Lost after 1.7 s, frozen at the word heard, and resumed from the cut word 9 to 10 s after the network returned, 3 of 3, with no cue fired twice |
 | Why 9 s | LiveKit's own retries took about 3 to 5 s, and on this proxied path its data channel then carried nothing while it said connected. So a page with no pulse for 3 s joins again. No plain UDP drop has run, because that needs root or cuts every other lane |
-| Closing the tab | The job closed at 16.8 s and the room was gone at 20.7 s. The 15 s wait lets a reload come back |
+| Closing the tab | The job closed at 16.6 s and the room was gone at 20.6 s, with Muse's socket closed and 0 Egress. The 15 s wait lets a reload come back |
 | A second student | A separate room, each with one student and one agent. No words crossed. The second student's request for the first room's token answered 404 |
 | A failing voice | Fake voices only. No audio for 3 s cuts the turn and plays a stored line, instead of 11 s of silence, and a capture failure leaves the session running. Unit tests, not a live run |
 

@@ -2296,6 +2296,303 @@
    "used": 87514,
    "limit": 121010,
    "left": 33496
+  },
+  {
+   "at": "2026-11-04T05:23:48.587Z",
+   "tier": "creator",
+   "used": 88524,
+   "limit": 121010,
+   "left": 32486
+  },
+  {
+   "at": "2026-11-04T05:53:22.508Z",
+   "tier": "creator",
+   "used": 89391,
+   "limit": 121010,
+   "left": 31619
   }
- ]
+ ],
+ "finalRun": {
+  "film": {
+   "saved": "m3-6-talk.mp4"
+  },
+  "filmDrop": {
+   "heardAtDrop": "You said show me the ball. Watch the ball. It",
+   "heardAfterResume": "It leaves your hand, it climbs slower and slower, it hangs at the very top, and then it falls back down. Once it leaves your hand, what still pushes it sideways?",
+   "resumed": true
+  },
+  "typed": {
+   "reactionCapturedAfterStopMs": 149,
+   "soundBlocked": true,
+   "clockKinds": [
+    "timer",
+    "timer",
+    "timer",
+    "timer",
+    "timer",
+    "timer"
+   ],
+   "museOpened": false,
+   "firstReplyWords": [
+    "You",
+    "said",
+    "why",
+    "does",
+    "it",
+    "come",
+    "down."
+   ],
+   "stoppedByTyping": true,
+   "lastWords": [
+    "You",
+    "said",
+    "wait,",
+    "why."
+   ],
+   "studentLines": [
+    {
+     "text": "why does it come down",
+     "isFinal": true
+    },
+    {
+     "text": "show me the ball",
+     "isFinal": true
+    },
+    {
+     "text": "wait, why",
+     "isFinal": true
+    }
+   ],
+   "rowsSeen": 2
+  },
+  "second": {
+   "roomsAreDifferent": true,
+   "bothListed": true,
+   "participants": [
+    [
+     "student",
+     "agent-AJ_2kb83xrWBXMV"
+    ],
+    [
+     "student",
+     "agent-AJ_QpvMmmRDaanS"
+    ]
+   ],
+   "tokenForOthersRoom": 404,
+   "mayaHeard": [
+    "You",
+    "said",
+    "gravity",
+    "pulls",
+    "it",
+    "down."
+   ],
+   "tolaHeard": [
+    "You",
+    "said",
+    "photosynthesis",
+    "makes",
+    "sugar."
+   ],
+   "mayaSawTolasWords": false,
+   "tolaSawMayasWords": false
+  },
+  "tab": {
+   "egressesOfRoom": 0,
+   "roomListedWhileOpen": true,
+   "leftOnPurpose": true,
+   "jobClosedAfterMs": 16647,
+   "roomGoneAfterMs": 20617,
+   "museClosed": true
+  },
+  "shots": {
+   "saved": true
+  }
+ },
+ "heldNoise003": {
+  "held": {
+   "rows": [
+    {
+     "line": "It lands twice as far.",
+     "transcript": "It lands twice as far.",
+     "finalMs": 784,
+     "replyDecidedMs": 789,
+     "via": "final"
+    },
+    {
+     "line": "Wait, then why does it come down?",
+     "transcript": "wait, then why does it come down?",
+     "finalMs": 782,
+     "replyDecidedMs": 783,
+     "via": "final"
+    },
+    {
+     "line": "The quadratic has two real roots.",
+     "transcript": "The quadratic has two real roots.",
+     "finalMs": 810,
+     "replyDecidedMs": 814,
+     "via": "final"
+    },
+    {
+     "line": "Is the numerator bigger than the denominator?",
+     "transcript": "Is the numerator bigger than the denominator?",
+     "finalMs": 712,
+     "replyDecidedMs": 719,
+     "via": "final"
+    },
+    {
+     "line": "x squared over two equals eight.",
+     "transcript": "X squared over two equals eight.",
+     "finalMs": 818,
+     "replyDecidedMs": 819,
+     "via": "final"
+    },
+    {
+     "line": "So the denominator is x squared plus one.",
+     "transcript": "So the denominator is x squared plus one.",
+     "finalMs": 788,
+     "replyDecidedMs": 790,
+     "via": "final"
+    },
+    {
+     "line": "It lands twice as far.",
+     "transcript": "It lands twice as far.",
+     "finalMs": 736,
+     "replyDecidedMs": 737,
+     "via": "final"
+    },
+    {
+     "line": "Wait, then why does it come down?",
+     "transcript": "wait, then why does it come down?",
+     "finalMs": 886,
+     "replyDecidedMs": 902,
+     "via": "final"
+    },
+    {
+     "line": "The quadratic has two real roots.",
+     "transcript": "The quadratic has two real roots.",
+     "finalMs": 813,
+     "replyDecidedMs": 1144,
+     "via": "final"
+    },
+    {
+     "line": "Is the numerator bigger than the denominator?",
+     "transcript": "is the numerator bigger than the denominator?",
+     "finalMs": 821,
+     "replyDecidedMs": 917,
+     "via": "final"
+    },
+    {
+     "line": "x squared over two equals eight.",
+     "transcript": "x squared over two equals eight.",
+     "finalMs": 747,
+     "replyDecidedMs": 754,
+     "via": "final"
+    },
+    {
+     "line": "So the denominator is x squared plus one.",
+     "transcript": "so the denominator is x squared plus one",
+     "finalMs": 885,
+     "replyDecidedMs": 886,
+     "via": "final"
+    }
+   ],
+   "viaPartial": 0,
+   "noReply": 0,
+   "replyDecidedMs": {
+    "count": 12,
+    "p50": 814,
+    "p95": 1144,
+    "worst": 1144,
+    "best": 719
+   },
+   "finalMs": {
+    "count": 12,
+    "p50": 810,
+    "p95": 886,
+    "worst": 886,
+    "best": 712
+   }
+  }
+ },
+ "lagStepOnsetGaps": [
+  {
+   "run": "943394",
+   "words": 236,
+   "meanGapMs": 280.16,
+   "shortestGapMs": 266,
+   "longestGapMs": 300,
+   "gapsOver340Ms": []
+  },
+  {
+   "run": "026156",
+   "words": 236,
+   "meanGapMs": 280.18,
+   "shortestGapMs": 280,
+   "longestGapMs": 322,
+   "gapsOver340Ms": []
+  },
+  {
+   "run": "114252",
+   "words": 236,
+   "meanGapMs": 280.22,
+   "shortestGapMs": 266,
+   "longestGapMs": 313,
+   "gapsOver340Ms": []
+  },
+  {
+   "run": "201044",
+   "words": 236,
+   "meanGapMs": 280.26,
+   "shortestGapMs": 266,
+   "longestGapMs": 297,
+   "gapsOver340Ms": []
+  },
+  {
+   "run": "286660",
+   "words": 236,
+   "meanGapMs": 280.17,
+   "shortestGapMs": 280,
+   "longestGapMs": 303,
+   "gapsOver340Ms": []
+  },
+  {
+   "run": "385766",
+   "words": 236,
+   "meanGapMs": 280.0,
+   "shortestGapMs": 280,
+   "longestGapMs": 280,
+   "gapsOver340Ms": []
+  },
+  {
+   "run": "474187",
+   "words": 236,
+   "meanGapMs": 280.18,
+   "shortestGapMs": 266,
+   "longestGapMs": 315,
+   "gapsOver340Ms": []
+  },
+  {
+   "run": "558711",
+   "words": 236,
+   "meanGapMs": 280.17,
+   "shortestGapMs": 260,
+   "longestGapMs": 316,
+   "gapsOver340Ms": []
+  }
+ ],
+ "afterM32Merge": {
+  "count": 6,
+  "p50": 289,
+  "p95": 297,
+  "worst": 297,
+  "best": 279
+ },
+ "afterM32Merge2": {
+  "count": 4,
+  "p50": 138,
+  "p95": 145,
+  "worst": 145,
+  "best": 129
+ }
 }
