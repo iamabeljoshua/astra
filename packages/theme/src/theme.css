@@ -1089,6 +1089,10 @@
     outline: 1px dashed var(--color-pen);
   }
 
+  .board-figure [data-mark='grid'] {
+    opacity: 0.35;
+  }
+
   .board-figure [data-mark^='point-ring-'] {
     fill: none;
     stroke: var(--color-pen);

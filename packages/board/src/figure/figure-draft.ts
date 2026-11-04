@@ -72,6 +72,16 @@ function addYTicks(draft: FigureDraft, view: FigureView, { axisX, share, hideTic
 }
 
 /** How wide the numbers on a y axis of this height will be, so a figure can leave them room. */
+/** Faint lines at each tick, for reading a place on a curve. A plot's own, since other figures have no scale to read. */
+export function addGrid(draft: FigureDraft, view: FigureView, share: number): void {
+  const { rect, xRange, yRange } = view;
+  const xValues = getTickValues(xRange, Math.max(2, Math.floor((rect.right - rect.left) / TICK.xSpacing)));
+  const yValues = getTickValues(yRange, Math.max(2, Math.floor((rect.bottom - rect.top) / TICK.ySpacing)));
+  const across = xValues.map((value): Branch => [{ x: view.toPixel({ x: value, y: 0 }).x, y: rect.top }, { x: view.toPixel({ x: value, y: 0 }).x, y: rect.bottom }]);
+  const up = yValues.map((value): Branch => [{ x: rect.left, y: view.toPixel({ x: 0, y: value }).y }, { x: rect.right, y: view.toPixel({ x: 0, y: value }).y }]);
+  draft.marks.push({ kind: 'path', key: 'grid', tone: 'line', weight: 'hair', branches: share < 1 ? [] : [...across, ...up] });
+}
+
 export function getWidestYTick(yRange: readonly [number, number], height: number): number {
   const tickCount = Math.max(2, Math.floor(height / TICK.ySpacing));
   return Math.max(0, ...getTickValues(yRange, tickCount).map((value) => estimateTextWidth(formatTick(value, yRange, tickCount))));

@@ -1,6 +1,6 @@
 import type { MarkValue, Plot, ShadeArea, Task } from '@astra/contracts';
 import { FIGURE_LIMITS, type FigureFrame, getAttachedElements, getDrawnShare, getPartMark, getShownValue, keepNewestOnFigure } from '../figure/figure-input.ts';
-import { addArrow, addAxes, addLabel, addPartMark, addSoftLine, createFigureDraft, type FigureDraft, finishFigure, getFixedVectorTip, getWidestYTick } from '../figure/figure-draft.ts';
+import { addArrow, addAxes, addGrid, addLabel, addPartMark, addSoftLine, createFigureDraft, type FigureDraft, finishFigure, getFixedVectorTip, getWidestYTick } from '../figure/figure-draft.ts';
 import { type Branch, clipBranch, type FigureMark, interpolate, type Point } from '../figure/figure-marks.ts';
 import { createStretchedView, type FigureView, getPixelBranches } from '../figure/figure-view.ts';
 import type { BoardElement } from '../player/board-state.ts';
@@ -198,6 +198,7 @@ export function getPlotMarks(frame: FigureFrame): FigureMark[] {
   const { xLabel, yLabel } = root.content;
   const view = getPlotView(frame);
   const draft = createFigureDraft(frame.width, frame.height);
+  addGrid(draft, view, getAxesShare(root, frame));
   addAxes(draft, view, { share: getAxesShare(root, frame), xLabel, yLabel });
   addCurve(draft, root, { frame, view, isFirst: true });
   const attached = keepNewestOnFigure(getAttachedElements(frame.board, root.id));

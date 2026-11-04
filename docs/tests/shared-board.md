@@ -204,7 +204,7 @@ Abel's rule: everything a student can see or do on the prototype exists on the r
 
 | Behavior | Real board | Proof |
 |---|---|---|
-| Plot drawn in the flow, with ticks and a true minus sign | Yes, by PR 88's figure painter. No grid lines, as in its look | `drag-light-1366-*`, `figure.test.ts` |
+| Plot drawn in the flow, with grid, ticks, and a true minus sign | Yes, by PR 88's figure painter. The grid follows its ticks, and the prototype has one line a unit | `drag-light-1366-*`, `figure.test.ts` |
 | Draggable point with a pulsing ring and its coordinates | Yes. Arrow keys and Enter also move and send it, which the prototype does not have | `drag-point.test.ts`, `DragSurface.test.tsx`, `drag-*-1-waiting` |
 | Tangent riding on the point, with its slope written | Yes | `drag-point.test.ts`, `m3-12-task-*` |
 | Code's check on release, with "Mm-hm." or "Hm." | Yes, 37 to 58 ms on the page, on the drags measured | `drag-proof.mjs`, `board-work.test.ts` |
