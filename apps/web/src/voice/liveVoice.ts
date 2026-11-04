@@ -1,8 +1,7 @@
 import { type BoardState, createChoosingClock, createScenePlayer, type FiredCue, type OutputLevel, type ScenePlayer } from '@astra/board';
-import { checkWorkOnBoard, cleanTypedLine } from '@astra/board/shared';
+import { checkWorkOnBoard, cleanTypedLine, getNod } from '@astra/board/shared';
 import { type AgentMessage, type BrowserMessage, clipTypedText, type components, type ElementId, type InkPoint, LINK_QUIET_LIMIT_MS, parseAgentMessage, PULSE_EVERY_MS, type StudentWork, type TutorClosedReason } from '@astra/contracts';
 import { DisconnectReason, type RemoteTrack, Room, RoomEvent, Track } from 'livekit-client';
-import { BOARD_WORK_LABELS } from '../strings';
 import heldMicWorkletUrl from './held-mic-worklet.js?url';
 import { createLocalYield } from './localYield';
 import { createMicrophone, type MicState } from './microphone';
@@ -213,7 +212,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     const nowMs = clock.getNowMs();
     const checked = checkWorkOnBoard(work, player.getBoard(nowMs));
     player.addStudentOperations([{ kind: 'worked', atMs: nowMs, action: { action: 'worked', work, ...checked } }]);
-    setView({ firstWord: checked.verdict.status === 'wrong' ? BOARD_WORK_LABELS.hm : null });
+    setView({ firstWord: getNod(work, checked) });
   };
 
   const onAgentMessage = (message: AgentMessage) => {
@@ -464,7 +463,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
       const checked = checkWorkOnBoard(work, player.getBoard(nowMs));
       player.addStudentOperations([{ kind: 'worked', atMs: nowMs, action: { action: 'worked', work, ...checked } }]);
       showHeard();
-      setView({ firstWord: checked.verdict.status === 'wrong' ? BOARD_WORK_LABELS.hm : null });
+      setView({ firstWord: getNod(work, checked) });
       send({ type: 'worked', ...getStamp(), startedMsAgo, work });
     },
     sendInkStroke(id, points) {

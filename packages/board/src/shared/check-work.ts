@@ -43,10 +43,12 @@ function checkAccepted(text: string, accepts: readonly string[]): WorkVerdict | 
   return accepts.some((accepted) => Number(toKey(accepted)) === Number(typed)) ? RIGHT : { status: 'wrong', why: `${typed} is not the answer the tutor set` };
 }
 
+// A student who starts writing has moved on from picking, so the line they pick from is the problem and the pick is over.
 function checkMathLineOfWork(tex: string, { task, getLineTex: getTex, previousTex }: WorkContext): CheckedWork {
-  const problemTex = task?.way === 'write' && task.on !== undefined ? getTex(task.on) : null;
+  const problemLine = task?.way === 'write' || task?.way === 'pick' ? task.on : undefined;
+  const problemTex = problemLine === undefined ? null : getTex(problemLine);
   const verdict = checkStep({ tex, problemTex, previousTex });
-  return { verdict, ...closes(task, verdict.status === 'right' && problemTex !== null && isFinishedAnswer(tex)) };
+  return { verdict, ...closes(task, task?.way === 'pick' || (verdict.status === 'right' && problemTex !== null && isFinishedAnswer(tex))) };
 }
 
 function getReaderLineReading(text: string, tex: string | undefined): LineReading {
@@ -67,10 +69,12 @@ function checkWrite({ text, ink, heard }: StudentWork & { way: 'write' }, contex
   return tex === null ? { reading, verdict: UNKNOWN } : { reading, ...checkMathLineOfWork(tex, context) };
 }
 
+// One click answers a pick, right or wrong, unless the tutor asked for several parts.
 function checkPick(part: string, { task, pickedRight }: WorkContext): CheckedWork {
-  if (task?.way !== 'pick' || !task.answer) return { verdict: UNKNOWN };
+  if (task?.way !== 'pick') return { verdict: UNKNOWN };
+  if (!task.answer) return { verdict: UNKNOWN, ...closes(task, true) };
   const answers = task.answer.map(toPartKey);
-  if (!answers.includes(toPartKey(part))) return { verdict: { status: 'wrong', why: `${part} is not the part the tutor asked for` } };
+  if (!answers.includes(toPartKey(part))) return { verdict: { status: 'wrong', why: `${part} is not the part the tutor asked for` }, ...closes(task, answers.length === 1) };
   const picked = new Set([...pickedRight.map(toPartKey), toPartKey(part)]);
   return { verdict: RIGHT, ...closes(task, answers.every((answer) => picked.has(answer))) };
 }
@@ -118,6 +122,15 @@ function checkDrag(x: number, { task, getCurve }: WorkContext): CheckedWork {
 export function getCurveOf(expression: string, constants: ReadonlyMap<string, number> = new Map()): ((x: number) => number) | null {
   const node = parsePlotExpression(expression, new Set(constants.keys()));
   return node && ((x) => evaluatePlotExpression(node, x, constants));
+}
+
+export const NODS = { doubt: 'Hm.', agree: 'Mm-hm.' } as const;
+export type Nod = (typeof NODS)[keyof typeof NODS];
+
+/** What the tutor says the instant code is sure, before any model. Code chooses it from what it found, so it cannot praise a wrong step. A right line gets its tick and no sound. */
+export function getNod(work: StudentWork, { verdict }: CheckedWork): Nod | null {
+  if (verdict.status === 'wrong') return NODS.doubt;
+  return verdict.status === 'right' && work.way !== 'write' ? NODS.agree : null;
 }
 
 export function checkWork(work: StudentWork, context: WorkContext): CheckedWork {

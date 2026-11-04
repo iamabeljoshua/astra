@@ -343,6 +343,13 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     return speak({ voiceToUse, beats: [getTakeBeat(take, `${take.id}-${turnCount + 1}`)], isReply, canResume: false, kind: take.use });
   }
 
+  function speakPhrase(phrase: string): Speaking | null {
+    const take = allTakes.find((stored) => stored.phrase === phrase);
+    const voiceToUse = take && takeVoices.get(take.id);
+    if (!take || !voiceToUse) return null;
+    return speak({ voiceToUse, beats: [getTakeBeat(take, `${take.id}-${turnCount + 1}`)], isReply: false, canResume: false, kind: take.use });
+  }
+
   const sendClosedNote = () => {
     const reason = tutor.getClosedReason?.() ?? null;
     if (reason) messenger.send({ type: 'tutorClosed', reason });
@@ -354,8 +361,10 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     if (sendClosedNote()) return;
     messenger.send({ type: 'heard' });
     // A session opened by a typed question has not yet said it is an AI, so its first reaction is the greeting (PRD S2).
-    // Over work on the board a stock word could praise a wrong step, so the line landing is the reaction.
-    if (!reaction && boardWork.canReactAloud()) reaction = speakTake(hasGreeted ? 'reaction' : 'greeting', { isReply: false });
+    // Over work on the board a stock word could praise a wrong step, so only a nod that code chose is said there.
+    const nod = boardWork.takeNod();
+    if (!reaction && nod) reaction = speakPhrase(nod);
+    else if (!reaction && boardWork.canReactAloud()) reaction = speakTake(hasGreeted ? 'reaction' : 'greeting', { isReply: false });
     hasGreeted = true;
   };
 
@@ -397,6 +406,8 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     setThinking(true);
     const wantsReply = await boardWork.onSpoken(request.text.slice(request.carried?.length ?? 0).trim());
     if (ticket !== spokenTicket) return;
+    const nod = boardWork.takeNod();
+    if (nod && !reaction) reaction = speakPhrase(nod);
     if (wantsReply) return startReply(request);
     setThinking(false);
     dispatch({ type: 'workLanded' });
@@ -565,7 +576,8 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       if (message.type === 'acted' && message.action.action === 'inkStroke') boardWork.onInkStroke(message.action);
       if (message.type === 'inkDone') void boardWork.onInkDone(message);
       if (message.type === 'worked') boardWork.onWorked(message);
-      if (message.type === 'paused') void boardWork.onPaused(message);
+      // Someone talking has not paused, whatever the keyboard says.
+      if (message.type === 'paused' && !state.isVoiceOn) void boardWork.onPaused(message);
       if (message.type === 'hello' && message.wantsGreeting) greet();
       if (message.type === 'audioState') onAudioState(message.isRunning);
     },

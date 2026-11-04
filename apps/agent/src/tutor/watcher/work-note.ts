@@ -1,5 +1,5 @@
 import type { StudentWork } from '@astra/contracts';
-import { type CheckedWork, getPointFacts, type WorkContext } from '@astra/board/shared';
+import { type CheckedWork, getNod, getPointFacts, type WorkContext } from '@astra/board/shared';
 
 // A line of code carries its text, because it usually passes with no reply and the tutor would not see it.
 function getLineFacts(work: StudentWork & { way: 'write' }, { reading }: CheckedWork) {
@@ -30,6 +30,7 @@ function getWayFacts(work: StudentWork, checked: CheckedWork, context: WorkConte
 
 export function getWorkNote(work: StudentWork, checked: CheckedWork, context: WorkContext) {
   const { verdict, closesTask } = checked;
+  const nod = getNod(work, checked);
   return {
     way: work.way,
     ...(context.task ? { task: context.task.id } : {}),
@@ -37,6 +38,7 @@ export function getWorkNote(work: StudentWork, checked: CheckedWork, context: Wo
     check: verdict.status,
     ...(verdict.status === 'wrong' ? { why: verdict.why } : {}),
     ...(verdict.status === 'wrong' && verdict.isBuiltOnWrongLine ? { built_on_wrong_line: true } : {}),
+    ...(nod ? { already_reacted: { said: nod } } : {}),
     ...(closesTask ? (work.way === 'leave' || checked.verdict.status === 'unknown' ? { left_the_task: true } : { task_done: true }) : {}),
   };
 }

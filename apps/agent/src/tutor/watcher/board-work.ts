@@ -1,5 +1,5 @@
 import type { AgentMessage, BrowserMessage, ElementId, InkPoint, InkReading, StudentAction, StudentWork, Task } from '@astra/contracts';
-import { type CheckedWork, cleanStudentText, checkWorkOnBoard, getPickParts, wantsSomethingElse } from '@astra/board/shared';
+import { type CheckedWork, cleanStudentText, checkWorkOnBoard, getNod, getPickParts, type Nod, wantsSomethingElse } from '@astra/board/shared';
 import type { BoardElement } from '@astra/board';
 import type { SpokenReading } from './read-spoken.ts';
 import { decideSpoken, type SpokenDecision, type SpokenExpected, type SpokenPart } from './spoken-answer.ts';
@@ -39,11 +39,18 @@ const getWorkKey = (work: StudentWork) => JSON.stringify(work.way === 'write' ? 
 export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getSecondsSinceQuestion, readMeaning, readStrokes, readSpokenWords, writeHeardLog, send, getNowMs, trace }: BoardWorkOptions) {
   let spokenLines = 0;
   let isAnsweringJudgedWork = false;
+  let nodDue: Nod | null = null;
   const inkStrokes = new Map<string, InkPoint[]>();
   let spokeUpAtMs: number | null = null;
   let unanswered: Unanswered | null = null;
   let wrongKeys: readonly string[] = [];
   let hasLeanedIn = false;
+
+  const takeNod = () => {
+    const nod = nodDue;
+    nodDue = null;
+    return nod;
+  };
 
   const noteAnswered = () => {
     isAnsweringJudgedWork = false;
@@ -69,6 +76,7 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
     if (decision.act === 'reply') {
       noteAnswered();
       isAnsweringJudgedWork = checked.verdict.status !== 'unknown';
+      nodDue = getNod(message.work, checked);
       speakUp(getWorkWords(message.work));
     } else {
       unanswered = { checked, keys: wrongKeys };
@@ -142,6 +150,7 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
     writeHeardLog(work, noted.checked);
     send({ type: 'workRead', work });
     hasLeanedIn = false;
+    nodDue = getNod(work, noted.checked);
     // Someone who has spoken is waiting, so what code cannot judge gets the tutor's question now, where a typed line would wait for a pause.
     return noted.checked.verdict.status === 'unknown' || decideOnWork(work, noted.checked, noted.hadTask).act === 'reply';
   };
@@ -179,7 +188,7 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
     if (decision.act === 'speak' && getGate(getSituation(seconds, draft)) === null) speakAtPause(decision, seconds, draft);
   };
 
-  return { onWorked, onPaused, onInkStroke, onInkDone, onSpoken, hasOpenTask: () => getOpenTask() !== null, canReactAloud: () => !isAnsweringJudgedWork && getOpenTask() === null, noteAnswered };
+  return { onWorked, onPaused, onInkStroke, onInkDone, onSpoken, hasOpenTask: () => getOpenTask() !== null, canReactAloud: () => !isAnsweringJudgedWork && getOpenTask() === null, takeNod, noteAnswered };
 }
 
 function getSpokenParts(task: Task, board: { elements: ReadonlyMap<ElementId, BoardElement> } | undefined): SpokenPart[] {

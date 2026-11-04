@@ -27,11 +27,13 @@ export function BoardCaption({ heard, coming, firstWord = null }: BoardCaptionPr
   }, [heard, coming, heardText, isNewTurn]);
 
   const current = heard.at(-1);
+  // A first word comes from code on the student's action, ahead of the agent's next turn, so what the tutor was saying steps back at once.
+  const shownPast = firstWord && !isNewTurn ? [...past, [...heard, ...coming].join(' ')].slice(-PAST_SHOWN) : past;
   return (
     <div className="board-caption" data-testid="tutor-caption">
-      {past.map((text, index) => <p key={`${index}:${text.slice(0, 16)}`} className="board-utterance board-utterance-past">{text}</p>)}
-      {firstWord && isNewTurn && <p data-testid="first-word" data-utterance-now className="board-utterance">{firstWord}</p>}
-      {!isNewTurn && (
+      {shownPast.map((text, index) => <p key={`${index}:${text.slice(0, 16)}`} className="board-utterance board-utterance-past">{text}</p>)}
+      {firstWord && <p data-testid="first-word" data-utterance-now className="board-utterance">{firstWord}</p>}
+      {!firstWord && !isNewTurn && (
         <p data-utterance-now className="board-utterance">
           {heard.slice(0, -1).map((word, index) => <span key={index}>{word} </span>)}
           {current && <span data-testid="current-word">{current} </span>}

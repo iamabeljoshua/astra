@@ -263,6 +263,35 @@ describe('the board work seam', () => {
     expect(writeLog).toHaveBeenCalledTimes(2);
   });
 
+  it('says the nod code chose over a wrong line, once, and tells the tutor it was said', async () => {
+    const { brain, seam } = setupSeam([SET_PROBLEM, 'Look again.']);
+    await collect(brain, 'help');
+    seam.onWorked(worked(line('s1', '2x = 14', 'a1')));
+    expect(seam.takeNod()).toBe('Hm.');
+    expect(seam.takeNod()).toBeNull();
+  });
+
+  it('nods at a pick by what code found', async () => {
+    const SET_PICK = '{"kind":"writeMath","id":"eq","tex":"2x+3=11","claim":"new"}{"kind":"task","id":"a1","way":"pick","on":"eq","answer":["+3"]}Which term first?';
+    const right = setupSeam([SET_PICK]);
+    await collect(right.brain, 'help');
+    right.seam.onWorked(worked({ way: 'pick', task: id('a1'), part: '+3' }));
+    expect(right.seam.takeNod()).toBe('Mm-hm.');
+    const wrong = setupSeam([SET_PICK]);
+    await collect(wrong.brain, 'help');
+    wrong.seam.onWorked(worked({ way: 'pick', task: id('a1'), part: '11' }));
+    expect(wrong.seam.takeNod()).toBe('Hm.');
+    expect(wrong.brain.getBoard().openTask).toBeNull();
+  });
+
+  it('checks a line typed during a pick against the line they were picking from, and ends the pick', async () => {
+    const SET_PICK = '{"kind":"writeMath","id":"eq","tex":"2x+3=11","claim":"new"}{"kind":"task","id":"a1","way":"pick","on":"eq","answer":["+3"]}Which term first?';
+    const { brain } = setupSeam([SET_PICK]);
+    await collect(brain, 'help');
+    expect(brain.noteWork(line('s1', '2x = 14', 'a1'))?.checked).toMatchObject({ verdict: { status: 'wrong' }, closesTask: 'a1' });
+    expect(brain.getBoard().openTask).toBeNull();
+  });
+
   it('leaves stock words out of a reply to work, because one could praise a wrong step', async () => {
     const { brain, seam } = setupSeam([SET_PROBLEM]);
     expect(seam.canReactAloud()).toBe(true);

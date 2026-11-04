@@ -256,7 +256,6 @@ export const BOARD_WORK_LABELS = {
   youSaid: 'You said',
   notWhatYouSaid: 'Not what you said? Type it.',
   checked: 'Code checked this. It holds.',
-  hm: 'Hm.',
   items: 'To place',
   emptySlot: 'Empty',
   clearSlot: (item: string, slot: string) => `Take ${item} out of ${slot}`,

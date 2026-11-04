@@ -31,4 +31,11 @@ describe('the tutor words beside the board', () => {
     render(<BoardCaption heard={[]} coming={[]} firstWord="Hm." />);
     expect(screen.getByTestId('first-word').textContent).toBe('Hm.');
   });
+
+  it('shows a first word at once, with what the tutor was saying stepping back', () => {
+    render(<BoardCaption heard={['Which', 'term']} coming={['first?']} firstWord="Mm-hm." />);
+    expect(screen.getByTestId('first-word').textContent).toBe('Mm-hm.');
+    expect(screen.getByText('Which term first?').className).toContain('board-utterance-past');
+    expect(screen.queryByTestId('current-word')).toBeNull();
+  });
 });
