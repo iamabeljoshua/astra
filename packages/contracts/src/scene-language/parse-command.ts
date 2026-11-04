@@ -104,8 +104,9 @@ function readAxisRange(place: Place): [number, number] {
   return readRange(place, NUMBER_RANGES.coordinate);
 }
 
+// A flight's own value goes through its rule, so no constant may wear its name and reach a flight outside that rule.
 function readPlotConstantName(place: Place): string {
-  if (typeof place.value !== 'string' || !PLOT_CONSTANT_NAME.test(place.value) || isReservedPlotName(place.value)) fail(place, 'a short lowercase name for a constant');
+  if (typeof place.value !== 'string' || !PLOT_CONSTANT_NAME.test(place.value) || isReservedPlotName(place.value) || Object.hasOwn(SIMULATION_PARAMETER_RULES, place.value)) fail(place, 'a short lowercase name for a constant, and not one a flight uses');
   return place.value;
 }
 

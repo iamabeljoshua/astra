@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { type BoardKinds, getBoardProblem, getResumeScript, parseAgentMessage, parseBrowserMessage, parseSceneCommand, parseSessionEvent, type SceneCommand } from '../src/index.ts';
+import { type BoardKinds, getBoardProblem, getOverlappingSlider, getResumeScript, parseAgentMessage, parseBeat, parseBrowserMessage, parseSceneCommand, parseSessionEvent, parseWrittenBeat, type SceneCommand, type Slider } from '../src/index.ts';
 import { commandOrThrow, expectRefused, parseOrThrow } from './helpers.ts';
 
 const BOARD: BoardKinds = new Map([['shot', 'simulate'], ['curve', 'plot'], ['line', 'numberLine']]);
@@ -121,3 +121,58 @@ describe('cue aims in a report', () => {
     expect(parseAgentMessage({ type: 'stop', turnId: 't' })).toMatchObject({ ok: true });
   });
 });
+
+describe('a constant that would reach a flight', () => {
+  const flight = { kind: 'simulate', id: 'shot', simulation: { model: 'projectile', parameters: { horizontalSpeed: 4, upwardSpeed: 6, releaseHeight: 2, gravity: 9.8 } } };
+  const slider = { kind: 'slider', id: 'g', target: 'shot', constant: 'gravity', min: -5, max: 5 };
+  const beatRow = (script: unknown[]) => ({ seq: 0, atMs: 0, kind: 'beatPlayed', beat: { id: 'x', expectsReply: false, script }, reportedBy: 'browser', turnId: 'turn-1', wordStartsMs: [0], durationMs: 40, playedWords: 1, firedCueMs: script.filter((part) => typeof part !== 'string').map(() => 0), ending: 'finished', frozen: [] });
+
+  it('refuses gravity as a constant on a slider, on setParameter, and in a plot', () => {
+    expectRefused(parseSceneCommand(slider), /constant/);
+    expectRefused(parseSceneCommand({ kind: 'setParameter', target: 'shot', constant: 'gravity', value: 0 }), /constant/);
+    expectRefused(parseSceneCommand({ kind: 'plot', id: 'p', expression: 'gravity*x', constants: [{ name: 'gravity', value: 1, min: 0, max: 2 }], domain: [0, 1] }), /constant/);
+  });
+
+  it('refuses it in stored rows too, as a beat and as a drag', () => {
+    expect(parseSessionEvent(beatRow([flight, 'word ', slider])).ok).toBe(false);
+    expect(parseSessionEvent({ seq: 1, atMs: 100, kind: 'studentActed', action: { action: 'sliderDragged', target: 'shot', constant: 'gravity', samples: [{ afterMs: 0, value: 0 }] } }).ok).toBe(false);
+  });
+
+  it('still takes gravity as a parameter, inside its rule', () => {
+    expect(commandOrThrow({ kind: 'slider', id: 'g', target: 'shot', parameter: 'gravity', min: 5, max: 20 })).toMatchObject({ parameter: 'gravity' });
+    expectRefused(parseSceneCommand({ kind: 'slider', id: 'g', target: 'shot', parameter: 'gravity', min: 0, max: 20 }), /min/);
+  });
+});
+
+describe('two sliders on one flight', () => {
+  const on = (id: string, parameter: string, target = 'shot') => ({ kind: 'slider', id, target, parameter, min: 1, max: 20 });
+  const beat = (script: unknown[]) => ({ id: 'b', expectsReply: false, script: [...script, 'Move these two.'] });
+
+  it('refuses a beat that says one speed two ways, whichever comes first', () => {
+    expectRefused(parseBeat(beat([on('a', 'launchAngle'), on('b', 'horizontalSpeed')])), /same speed/);
+    expectRefused(parseBeat(beat([on('a', 'upwardSpeed'), on('b', 'launchSpeed')])), /same speed/);
+  });
+
+  it('takes a coherent pair, and the same names on two flights', () => {
+    for (const script of [[on('a', 'launchAngle'), on('b', 'launchSpeed')], [on('a', 'horizontalSpeed'), on('b', 'upwardSpeed')], [on('a', 'launchAngle'), on('b', 'gravity')], [on('a', 'launchAngle'), on('b', 'horizontalSpeed', 'other')]]) {
+      expect(parseBeat(beat(script))).toMatchObject({ ok: true });
+    }
+  });
+
+  it('drops the second slider from a beat the model wrote and reports it, because its words have played', () => {
+    const written = parseWrittenBeat(beat([on('a', 'launchAngle'), on('b', 'horizontalSpeed')]));
+    expect(written).toMatchObject({ ok: true });
+    if (written.ok) {
+      expect(written.value.droppedCommandProblems).toHaveLength(1);
+      expect(written.value.droppedCommandProblems[0]).toMatch(/same speed/);
+    }
+  });
+
+  it('names the live slider it overlaps, for a board or a reader that holds them', () => {
+    const live = [commandOrThrow(on('a', 'launchAngle'))] as Slider[];
+    expect(getOverlappingSlider(commandOrThrow(on('b', 'horizontalSpeed')) as Slider, live)?.id).toBe('a');
+    expect(getOverlappingSlider(commandOrThrow(on('a', 'horizontalSpeed')) as Slider, live)).toBeNull();
+    expect(getOverlappingSlider(commandOrThrow(on('b', 'launchSpeed')) as Slider, live)).toBeNull();
+  });
+});
+
