@@ -70,7 +70,19 @@ A picture now waits unseen for 42% of its entrance, which is 168 ms. A picture c
 
 ## Frame rates and tiers
 
-FRAME_RATES
+Each row is 3 runs of 6 s, against the real clock, at a load average of 11.9 to 23.1, in frames a second.
+
+| Scene | Laptop board, top tier | Phone board, CPU 4 times slower, lowest tier |
+| --- | --- | --- |
+| `physics-jump-shot`, the baseline | 54 to 60 | 59.7 to 60 |
+| `mixed-every-kind` | 57.5 to 60 | 57.8 to 60 |
+| `mixed-phone-heavy` | 58.3 to 60 | 55.3 to 60 |
+| `hostile-many-at-once` | 59.7 to 60 | 54.5 to 58.7 |
+| `hostile-widest-table` | 58.2 to 60 | 51.2 to 59.7 |
+| `code-forty-lines` | 50.4 to 59.7 | 55.8 to 60 |
+| `hostile-handwritten-diagram` | 57.3 to 60 | 47 to 59.5 |
+
+A fixed task took 25 ms at full speed and 102 ms under the 4 times throttle, so the throttle reached the page. The tool checks this on each run, because a first run lost its throttle when its browser session closed and read 60 fps everywhere.
 
 The laptop figure is capped by the 60 Hz display. Runs happen on a development build, with other agents' work on the machine, so a quiet machine and a built app can only do better. Each scene's phone run follows its laptop run, so both meet the same load. A scene is judged on its best run, because other work can only slow a run, and the range is shown beside it. M3.2's code has no deck page, so the baseline is M3.2's own lesson content, `physics-jump-shot`, played at this head between the others.
 

@@ -367,7 +367,7 @@ async function runScenario(name: string, scenario: Scenario, browser: Browser, r
     });
   }
   if (scenario.throttle) await cdp?.send('Emulation.setCPUThrottlingRate', { rate: scenario.throttle });
-  await page.goto(`${openUrl}&record=1${scenario.measuresTier ? '&tier=measured' : ''}${scenario.lesson ? `&lesson=${scenario.lesson}` : ''}`);
+  await page.goto(`${openUrl}&record=1${scenario.measuresTier ? '&tier=measured' : ''}`);
   await page.getByRole('button', { name: 'Connect' }).click();
   await page.getByRole('button', { name: 'Play the lesson' }).and(page.locator(':enabled')).waitFor({ timeout: args.say ? SAY_READY_LIMIT_MS : READY_LIMIT_MS });
   await page.addStyleTag({ content: '.tsqd-parent-container { display: none !important; }' });

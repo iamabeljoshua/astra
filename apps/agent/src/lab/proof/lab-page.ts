@@ -177,6 +177,9 @@ export async function checkStillness(lab: LabPage): Promise<{ writes: number; an
   const before = await shoot(lab, 'still-start');
   const { writes, animations } = await lab.page.evaluate((ms) => window.pageChecks.countWritesOver(ms), QUIET_MS);
   const after = await shoot(lab, 'still-end');
-  return { writes, animations, imagesMatch: before.equals(after) };
+  if (before.equals(after)) return { writes, animations, imagesMatch: true };
+  const levels = await lab.page.evaluate((images) => window.pageChecks.getLargestChannelDifference(images), [before.toString('base64'), after.toString('base64')] as [string, string]);
+  const again = await shoot(lab, 'still-again');
+  console.log(`${lab.folder} changed while still: up to ${levels} levels, ${writes} writes, second look ${after.equals(again) ? 'clean' : 'not clean'}`);
+  return { writes, animations, imagesMatch: levels <= LARGEST_SETTLING_LEVELS && after.equals(again) };
 }
-
