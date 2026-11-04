@@ -1,11 +1,13 @@
 import type { BoardState, StudentLineContent } from '@astra/board';
 import { canWriteByHand, preloadMathFonts, writeStyle } from '@astra/board/drawing';
-import { getInkLineId, type StudentWork } from '@astra/contracts';
+import { getOpenDragOn } from '@astra/board/shared';
+import { type ElementId, getInkLineId, type StudentWork } from '@astra/contracts';
 import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import type { MarkWithoutTarget } from './boardMarks';
 import { createBoardRowPainting } from './boardRowPainting';
 import { type BoardRow, getBoardRows } from './boardRows';
 import { BOARD_WORK_LABELS } from '../strings';
+import { DragSurface } from './DragSurface';
 import { GutterMark } from './GutterMark';
 import { InkLine } from './InkLine';
 import { type PickTarget, PickTargets } from './PickTargets';
@@ -16,7 +18,8 @@ import { useReducedMotion } from './useReducedMotion';
 interface SharedBoardProps {
   board: BoardState;
   atMs: number;
-  onWork?: (work: StudentWork) => void;
+  onWork?: (work: StudentWork, startedMsAgo?: number) => void;
+  onMovePoint?: (task: ElementId, x: number) => void;
   onMarkProblem?: (problem: MarkWithoutTarget) => void;
   liveRow?: ReactNode;
   lineInTheBand?: string | null;
@@ -60,7 +63,7 @@ function RowGutter({ row, atMs, isReducedMotion, onFixReading, setWrapper }: { r
 }
 
 // The board as lines on a page, with each row's marks and notes in a gutter beside it.
-export function SharedBoard({ board, atMs, onWork, onMarkProblem, liveRow, lineInTheBand = null, onFixReading }: SharedBoardProps) {
+export function SharedBoard({ board, atMs, onWork, onMovePoint, onMarkProblem, liveRow, lineInTheBand = null, onFixReading }: SharedBoardProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<SVGSVGElement>(null);
   const wrappers = useRef(new Map<string, HTMLElement>());
@@ -109,7 +112,9 @@ export function SharedBoard({ board, atMs, onWork, onMarkProblem, liveRow, lineI
     <div className="board-panel" data-testid="board">
       <div ref={scrollRef} className="board-scroll">
         <div className="board-flow">
-          {rows.map((row) => (
+          {rows.map((row) => {
+            const openDrag = onWork && onMovePoint ? getOpenDragOn(board, row.element.id) : null;
+            return (
             <div key={getRowKey(row)} data-row={getRowId(row)} className={getRowClass(row)}>
               <div className="board-row-content">
                 <div
@@ -119,10 +124,12 @@ export function SharedBoard({ board, atMs, onWork, onMarkProblem, liveRow, lineI
                 >
                   <RowContent row={row} onWork={onWork} />
                 </div>
+                {openDrag && onWork && onMovePoint && <DragSurface plot={row.element} task={openDrag} atMs={atMs} isReducedMotion={isReducedMotion} onMovePoint={(x) => onMovePoint(openDrag.id, x)} onWork={onWork} />}
               </div>
               <RowGutter row={row} atMs={atMs} isReducedMotion={isReducedMotion} onFixReading={onFixReading} setWrapper={(wrapper) => setWrapper(row.element.id, wrapper)} />
             </div>
-          ))}
+            );
+          })}
           {liveRow}
           <svg ref={overlayRef} aria-hidden="true" className="board-ink board-marks pointer-events-none absolute inset-0 h-full w-full overflow-visible" />
           {onWork && <PickTargets board={board} onTarget={setPickTarget} onWork={onWork} />}

@@ -1,6 +1,6 @@
 import { type BoardState, createChoosingClock, createScenePlayer, describeBoard, type FiredCue, rebuildBoard, type ScenePlayer } from '@astra/board';
 import { type AgentMessage, type BrowserMessage, parseAgentMessage, parseSessionEvent, type SessionEvent } from '@astra/contracts';
-import { Room, RoomEvent, Track } from 'livekit-client';
+import { type RemoteTrack, Room, RoomEvent, Track } from 'livekit-client';
 import type { BoardProblem } from '../board/boardPainting';
 import { createTutorAudioContext, listenToTutor, OUTPUT_GAINS } from '../voice/tutorAudio';
 import { createPcmRecorder, type PcmRecorder } from './pcmRecorder';
@@ -143,10 +143,7 @@ export async function startLabSession({ url, token, shouldRecordPcm, onAgentRead
     player,
     pcm,
     command: (command) => void publish(LAB_TOPIC, command),
-    getBoardNow() {
-      const atMs = clock.getNowMs();
-      return { board: player.getBoard(atMs), atMs };
-    },
+    getBoardNow: player.advanceToNow,
     getReplayBoard: (atMs) => rebuildBoard(records.log, atMs),
     describeLive: (atMs) => describeBoard(player.getBoard(atMs), atMs),
     describeReplay: (atMs) => describeBoard(rebuildBoard(records.log, atMs), atMs),

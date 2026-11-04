@@ -3,7 +3,7 @@ export { checkStep, getLinearAnswer, isFinishedAnswer, type StepInput } from './
 export { checkWork, type CheckedWork, getCurveOf, getNod, getPointFacts, type Nod, type PointFacts, type WorkContext, wantsSomethingElse } from './check-work.ts';
 export { cleanStudentText, cleanTypedLine, getLineTex, readLine } from './read-line.ts';
 export type { StudentLineContent, TaskProgress } from './student-work.ts';
-export { checkWorkOnBoard, getOpenTaskOnBoard, getWorkContext } from './work-context.ts';
+export { checkWorkOnBoard, getOpenDragOn, getOpenTaskOnBoard, getWorkContext } from './work-context.ts';
 export type { BoardOperation } from '../player/board-operations.ts';
 export { type BoardState, getBoardAt } from '../player/board-state.ts';
 export { getItemsToShow } from './place-items.ts';

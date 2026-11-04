@@ -89,6 +89,18 @@
   --animate-rise: rise 420ms ease-out both;
   --animate-speak: speak 620ms ease-in-out infinite;
 
+  @keyframes point-ring {
+    from {
+      transform: scale(0.6);
+      opacity: 0.7;
+    }
+
+    to {
+      transform: scale(1.5);
+      opacity: 0;
+    }
+  }
+
   @keyframes arrive {
     from {
       opacity: 0;
@@ -1037,6 +1049,153 @@
   .board-dot {
     fill: var(--color-ink);
     stroke: none;
+  }
+
+  .board-figure {
+    display: block;
+    font-family: var(--font-ui);
+    font-size: 12px;
+    font-weight: 500;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .board-figure text[data-mark^='slope-'] {
+    font-family: var(--font-voice);
+    font-size: 15px;
+    font-style: italic;
+    font-weight: 400;
+  }
+
+  .board-figure text[data-mark^='coordinates-'] {
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .board-drag-surface {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    cursor: grab;
+    touch-action: none;
+    outline: none;
+  }
+
+  .board-drag-surface:active {
+    cursor: grabbing;
+  }
+
+  .board-drag-surface:focus-visible {
+    outline: 1px dashed var(--color-pen);
+  }
+
+  .board-figure [data-mark^='point-ring-'] {
+    fill: none;
+    stroke: var(--color-pen);
+    stroke-width: 1;
+    opacity: 0.5;
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: point-ring 1.8s ease-out 3;
+  }
+
+  .board-figure text,
+  .board-notes text {
+    font-family: var(--font-ui);
+    font-size: 12px;
+    font-weight: 500;
+    paint-order: stroke;
+    stroke: var(--color-panel);
+    stroke-width: 3px;
+    stroke-linejoin: round;
+  }
+
+  .figure-hair,
+  .figure-thin,
+  .figure-bold {
+    fill: none;
+  }
+
+  .figure-hair {
+    stroke-width: 1px;
+  }
+
+  .figure-thin {
+    stroke-width: 1.5px;
+  }
+
+  .figure-bold {
+    stroke-width: 2.25px;
+  }
+
+  .figure-dashed {
+    stroke-dasharray: 2 4;
+  }
+
+  .board-slider {
+    position: relative;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-ink);
+  }
+
+  .board-slider label {
+    display: grid;
+    gap: 2px;
+  }
+
+  .board-slider-value {
+    position: absolute;
+    top: 0;
+    right: 0;
+    color: var(--color-ink-2);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .board-slider input {
+    width: 100%;
+    height: 24px;
+    margin: 0;
+    background: transparent;
+    appearance: none;
+    cursor: pointer;
+  }
+
+  .board-slider input:disabled {
+    cursor: default;
+  }
+
+  .board-slider input::-webkit-slider-runnable-track {
+    height: 1px;
+    background: var(--color-ink-2);
+  }
+
+  .board-slider input::-moz-range-track {
+    height: 1px;
+    background: var(--color-ink-2);
+  }
+
+  .board-slider input::-webkit-slider-thumb {
+    width: 10px;
+    height: 20px;
+    margin-top: -10px;
+    background: var(--color-ink);
+    border: 0;
+    border-radius: 0;
+    appearance: none;
+  }
+
+  .board-slider input::-moz-range-thumb {
+    width: 10px;
+    height: 20px;
+    background: var(--color-ink);
+    border: 0;
+    border-radius: 0;
+  }
+
+  .board-slider input:focus-visible {
+    outline: 1px solid var(--color-accent);
+    outline-offset: 2px;
   }
 }
 

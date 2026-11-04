@@ -112,10 +112,22 @@ function interpolatePlacement({ before, after, progress, shift }: { before: Plac
   return { id: after.id, x: after.x, y: interpolate(before.y, after.y, progress), width: interpolate(before.width, after.width, progress), height: interpolate(before.height, after.height, progress), scale: interpolate(before.scale, after.scale, progress), isVisible: true, opacity: 1 };
 }
 
+// What arrives waits below what is still shrinking, so no two elements cross while the board makes room.
+function keepArrivalsBelow(placements: readonly MovingPlacement[], { before, gap }: { before: ReadonlyMap<string, Placement>; gap: number }): MovingPlacement[] {
+  let bottom = Number.NEGATIVE_INFINITY;
+  return placements.map((placement) => {
+    if (!placement.isVisible) return placement;
+    const y = before.get(placement.id)?.isVisible ? placement.y : Math.max(placement.y, bottom + gap);
+    bottom = y + placement.height;
+    return { ...placement, y };
+  });
+}
+
 /** Pure in the sizes and the progress, so a frozen or replayed board lands in the same place. */
 export function placeMovingElements(boxes: readonly MovingBox[], area: LayoutArea, progress: number): { placements: MovingPlacement[]; isMakingRoom: boolean } {
   const after = placeElements(boxes.map((box) => box.to), area);
   const before = new Map(placeElements(boxes.flatMap((box) => (box.from ? [box.from] : [])), area).map((placement) => [placement.id, placement]));
   const shift = getUpwardShift({ before, after, gap: area.gap });
-  return { placements: after.map((placement) => interpolatePlacement({ before: before.get(placement.id), after: placement, progress, shift })), isMakingRoom: shift !== 0 };
+  const moving = after.map((placement) => interpolatePlacement({ before: before.get(placement.id), after: placement, progress, shift }));
+  return { placements: keepArrivalsBelow(moving, { before, gap: area.gap }), isMakingRoom: shift !== 0 };
 }

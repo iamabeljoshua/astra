@@ -223,7 +223,6 @@ Abel's rule: everything a student can see or do on the prototype exists on the r
 
 ## For later owners
 
-- PR 88's merge: the prompt leaves out `drag` and `tangent` until the page draws them, because a tutor told about them set a drag no page could show. Put both back with the plot, the draggable point, and the tangent.
 - M3.9: a direct question goes hands-on. A topic teaches first and then picks an exercise. Set a task, wait for `task_done`, and go on teaching. Nothing else is needed.
 - M3.10: the session log stays in memory until you store it, and the privacy page's planned list says it will hold this work.
 - M3.11: handwriting is here. Uploads, photos, and PDFs are yours.

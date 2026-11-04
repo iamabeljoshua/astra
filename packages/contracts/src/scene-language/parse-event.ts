@@ -24,6 +24,7 @@ import { SIMULATION_PARAMETERS } from './scene-command.ts';
 import {
   BEAT_ENDINGS,
   type BeatPlayed,
+  type CueAim,
   type InkPoint,
   PLAY_REPORTERS,
   type PlayReport,
@@ -36,14 +37,14 @@ import {
 import { clipTypedText } from './live-message.ts';
 import { type ReadMath, LINE_KINDS, type LinePart, type LineReading, type PointSample, type StudentWork, type WorkVerdict } from './work.ts';
 
-const LIMITS = { text: 2000, name: 200, frozen: 32, strokePoints: 300, sliderSamples: 300, tex: 500, lineParts: 64, why: 600, slots: 12 } as const;
+const LIMITS = { text: 2000, name: 200, frozen: 32, strokePoints: 300, sliderSamples: 300, cueAims: 120, tex: 500, lineParts: 64, why: 600, slots: 12 } as const;
 const COORDINATE = { min: -1e6, max: 1e6 } as const;
 const FRACTION = { min: 0, max: 1 } as const;
 const INK_POINT_LENGTH = 3;
 const STAMP_KEYS = ['seq', 'atMs'];
 const FROZEN_VALUE_NAMES = ['simulationSeconds', 'revealedUpTo', 'drawnFraction'];
 
-export const PLAY_REPORT_KEYS = ['wordStartsMs', 'durationMs', 'playedWords', 'firedCueMs', 'ending', 'frozen'];
+export const PLAY_REPORT_KEYS = ['wordStartsMs', 'durationMs', 'playedWords', 'firedCueMs', 'cueAims', 'ending', 'frozen'];
 
 function readFraction(place: Place): number {
   return readNumberInRange(place, FRACTION);
@@ -211,6 +212,13 @@ function readTimesInOrder(place: Place, maxLength: number): number[] {
   return times;
 }
 
+function readCueAim(place: Place, firedCues: number): CueAim {
+  const fields = readFields(place, ['cue', 'afterMs', 'landsAtMs']);
+  const cue = readWholeNumber(fields.at('cue'));
+  if (cue >= firedCues) fail(fields.at('cue'), `one of the ${firedCues} cues that fired`);
+  return { cue, afterMs: readWholeNumber(fields.at('afterMs')), landsAtMs: readWholeNumber(fields.at('landsAtMs')) };
+}
+
 export function readPlayReport(fields: CheckedFields): PlayReport {
   const wordStartsMs = readTimesInOrder(fields.at('wordStartsMs'), BEAT_LIMITS.words);
   const playedWords = readWholeNumber(fields.at('playedWords'));
@@ -218,8 +226,9 @@ export function readPlayReport(fields: CheckedFields): PlayReport {
   const durationMs = readWholeNumber(fields.at('durationMs'));
   if (durationMs < (wordStartsMs[playedWords - 1] ?? 0)) fail(fields.at('durationMs'), 'the audio to reach the last word played');
   const firedCueMs = readTimesInOrder(fields.at('firedCueMs'), BEAT_LIMITS.commands);
+  const aims = fields.optional('cueAims', (place) => readList(place, { maxLength: LIMITS.cueAims, readItem: (item) => readCueAim(item, firedCueMs.length) }));
   const ending = readOneOf(fields.at('ending'), BEAT_ENDINGS);
-  return { wordStartsMs, durationMs, playedWords, firedCueMs, ending, frozen: readFrozenFrames(fields.at('frozen')) };
+  return { wordStartsMs, durationMs, playedWords, firedCueMs, ...aims, ending, frozen: readFrozenFrames(fields.at('frozen')) };
 }
 
 function readBeatPlayed(fields: CheckedFields): BeatPlayed {

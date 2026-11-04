@@ -25,6 +25,7 @@ export const REPLY_CHECKS: Record<string, { why: string; onlyOnWork?: boolean; p
   asksOrUnsure: { why: 'When code cannot judge, it asks or says it is not certain', passes: (spoken) => /\?\s*$|not sure|not certain|can't tell/i.test(spoken) },
   setsTask: { why: 'It set the student something to do', passes: (_spoken, commands) => commands.includes('task') },
   setsPlaceTask: { why: 'It set the student something to do', passes: (_spoken, commands) => commands.includes('task') },
+  plotsAndSetsDrag: { why: 'It drew the curve and set the drag', passes: (_spoken, commands) => commands.includes('plot') && commands.includes('task') },
   setsPickTask: { why: 'It set the student something to do', passes: (_spoken, commands) => commands.includes('task') },
   marksWork: { why: 'It marked the work', passes: (_spoken, commands) => commands.includes('annotate') || commands.includes('highlight') || commands.includes('note') },
   noMarks: { why: 'It puts no check or cross where code cannot judge', passes: (_spoken, commands) => !commands.includes('annotate') },

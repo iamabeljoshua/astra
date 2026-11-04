@@ -1,12 +1,14 @@
 /// <reference lib="dom" />
-import { type ChildProcess, execFileSync, spawn } from 'node:child_process';
-import { mkdirSync, openSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { makeTexFuzzSources } from '@astra/board/tex-fuzz';
 import { type Browser, chromium, type Page } from 'playwright';
 import { type LessonName, LESSONS } from '../lesson.ts';
-import { AGENT_ROOT, delay, LIVEKIT_URL, REPO_ROOT, startLabStack, WEB_URL } from './lab-stack.ts';
+import { BOARD_SELECTOR, checkReplayPixels, checkStillness, getCommandTimes, HIDE_DEV_BUTTON, holdFrame, type LabPage, openLabPage, shoot, type Theme, type ViewportName, VIEWPORTS } from './lab-page.ts';
+import { delay, REPO_ROOT, startLabStack } from './lab-stack.ts';
+import { exitWithVerdict, getProofFailures } from './proof-verdict.ts';
 import type { FrameWatch } from './math-page-checks.ts';
 
 const { values: args } = parseArgs({
@@ -19,7 +21,6 @@ const { values: args } = parseArgs({
 declare global {
   interface Window {
     holdBoardFrame?(frame: { atMs: number; source: 'live' | 'replay' } | null): void;
-    mathChecks: typeof import('./math-page-checks.ts');
   }
 }
 
@@ -27,99 +28,16 @@ const CHECKS_PATH = `/@fs${REPO_ROOT}/apps/agent/src/lab/proof/math-page-checks.
 
 const lessonBeats = (lesson: LessonName) => LESSONS[lesson][0]?.length ?? 0;
 
-const VIEWPORTS = { laptop: { width: 1366, height: 800 }, phone: { width: 390, height: 844 } } as const;
+const openLab = (options: Omit<Parameters<typeof openLabPage>[0], 'outFolder' | 'checksPath'>) => openLabPage({ ...options, outFolder: args.out as string, checksPath: CHECKS_PATH });
 
-type ViewportName = keyof typeof VIEWPORTS;
-type Theme = 'light' | 'dark';
-
-interface LabPage {
-  page: Page;
-  folder: string;
-  command(command: object): Promise<void>;
-  waitForPlayedBeats(count: number, limitMs?: number): Promise<void>;
-  finish(): Promise<void>;
-}
-
-function startAgent(room: string, folder: string): Promise<{ child: ChildProcess; openUrl: string }> {
-  const flags = ['src/lab/start-lab.ts', '--room', room, '--url', LIVEKIT_URL, '--webUrl', WEB_URL, '--out', folder, '--fake'];
-  const child = spawn(process.execPath, flags, { cwd: AGENT_ROOT, stdio: ['ignore', 'pipe', openSync(join(folder, 'agent.log'), 'a')] });
-  process.once('exit', () => child.kill());
-  return new Promise((resolve, reject) => {
-    child.stdout?.on('data', (data: Buffer) => {
-      const match = /OPEN (\S+)/.exec(data.toString());
-      if (match?.[1]) resolve({ child, openUrl: match[1] });
-    });
-    child.on('exit', (code) => reject(new Error(`the lab agent exited with ${code}`)));
-  });
-}
-
-interface OpenOptions {
-  browser: Browser;
-  name: string;
-  lesson: LessonName;
-  viewport: ViewportName;
-  theme: Theme;
-  isReducedMotion?: boolean;
-  prepare?(page: Page): Promise<void>;
-}
-
-async function openLab({ browser, name, lesson, viewport, theme, isReducedMotion, prepare }: OpenOptions): Promise<LabPage> {
-  const folder = join(args.out as string, name);
-  mkdirSync(folder, { recursive: true });
-  const { child, openUrl } = await startAgent(`math-${name}-${Date.now()}`, folder);
-  const context = await browser.newContext({ viewport: VIEWPORTS[viewport], reducedMotion: isReducedMotion ? 'reduce' : 'no-preference' });
-  await context.addInitScript((chosen) => localStorage.setItem('theme', chosen), theme);
-  const page = await context.newPage();
-  page.on('pageerror', (error) => console.error(name, 'page error', error.message));
-  page.on('console', (message) => {
-    if (message.type() === 'error') console.error(name, 'console error', message.text());
-  });
-  await prepare?.(page);
-  await page.goto(`${openUrl}&lesson=${lesson}`);
-  await page.getByRole('button', { name: 'Connect' }).click();
-  await page.getByRole('button', { name: 'Play the lesson' }).and(page.locator(':enabled')).waitFor({ timeout: 30_000 });
-  await page.evaluate(async (path) => {
-    window.mathChecks = (await import(/* @vite-ignore */ path)) as typeof window.mathChecks;
-  }, CHECKS_PATH);
-  return {
-    page,
-    folder,
-    command: (command) => page.evaluate((labCommand) => window.sceneLab?.command(labCommand), command),
-    waitForPlayedBeats: async (count, limitMs = 90_000) => {
-      await page.waitForFunction((expected) => (window.sceneLab?.records.browserMessages.filter((message) => message.type === 'played').length ?? 0) >= expected, count, { timeout: limitMs });
-    },
-    async finish() {
-      await page.evaluate(() => window.sceneLab?.command({ type: 'finish' }));
-      await new Promise((done) => child.once('exit', done));
-      await context.close();
-    },
-  };
-}
-
-const HIDE_DEV_BUTTON = '.tsqd-parent-container { display: none !important; }';
 const DRAWING_PATH = `/@fs${REPO_ROOT}/packages/board/src/drawing.ts`;
 const BOARD_PATH = `/@fs${REPO_ROOT}/packages/board/src/index.ts`;
 const CONTRACTS_PATH = `/@fs${REPO_ROOT}/packages/contracts/src/index.ts`;
 const REFUSED_BY_KATEX = ['x^2^3', String.raw`\frac{1}`];
-const BOARD_SELECTOR = '[data-testid="board"]';
-const QUIET_MS = 3000;
 const REST_AFTER_LAST_MS = 4000;
 const INTERRUPT_INTO_MOVE_MS = 450;
 
 const FULL_COMBINATIONS = (['laptop', 'phone'] as const).flatMap((viewport) => (['light', 'dark'] as const).map((theme) => ({ viewport, theme })));
-
-function holdFrame(lab: LabPage, frame: { atMs: number; source: 'live' | 'replay' } | null): Promise<void> {
-  return lab.page.evaluate((held) => window.holdBoardFrame?.(held), frame);
-}
-
-async function shoot(lab: LabPage, name: string): Promise<Buffer> {
-  await delay(60);
-  return lab.page.locator(BOARD_SELECTOR).screenshot({ path: join(lab.folder, `${name}.png`) });
-}
-
-async function getCommandTimes(lab: LabPage): Promise<number[]> {
-  return lab.page.evaluate(() => window.sceneLab?.player.getOperations().filter((operation) => operation.kind === 'command').map((operation) => operation.atMs) ?? []);
-}
 
 /** Each equation at each rest in the lesson, against plain KaTeX of the same source, by position and by bytes. */
 async function checkRestsAgainstPlainKatex(lab: LabPage): Promise<{ rests: number; equations: number; glyphsChecked: number; worstOffset: number; differingImages: string[]; motionLeft: number; shown: string[] }> {
@@ -130,7 +48,7 @@ async function checkRestsAgainstPlainKatex(lab: LabPage): Promise<{ rests: numbe
   for (const atMs of rests) {
     await holdFrame(lab, { atMs, source: 'live' });
     await delay(80);
-    const shots = await lab.page.evaluate(([path, heldMs]) => window.mathChecks.compareEquationsWithPlainKatex(path, heldMs), [DRAWING_PATH, atMs] as const);
+    const shots = await lab.page.evaluate(([path, heldMs]) => window.pageChecks.compareEquationsWithPlainKatex(path, heldMs), [DRAWING_PATH, atMs] as const);
     for (const shot of shots) {
       result.equations += 1;
       result.glyphsChecked += shot.glyphs.length;
@@ -141,40 +59,15 @@ async function checkRestsAgainstPlainKatex(lab: LabPage): Promise<{ rests: numbe
       seen.add(key);
       result.shown.push(shot.tex);
       const asShown = await lab.page.screenshot({ clip: shot.clip });
-      await lab.page.evaluate(([path, id]) => window.mathChecks.swapInPlainKatex(path, id, true), [DRAWING_PATH, shot.id] as const);
+      await lab.page.evaluate(([path, id]) => window.pageChecks.swapInPlainKatex(path, id, true), [DRAWING_PATH, shot.id] as const);
       await delay(30);
       const asPlain = await lab.page.screenshot({ clip: shot.clip });
-      await lab.page.evaluate(([path, id]) => window.mathChecks.swapInPlainKatex(path, id, false), [DRAWING_PATH, shot.id] as const);
+      await lab.page.evaluate(([path, id]) => window.pageChecks.swapInPlainKatex(path, id, false), [DRAWING_PATH, shot.id] as const);
       if (!asShown.equals(asPlain)) result.differingImages.push(shot.tex);
     }
   }
   await holdFrame(lab, null);
   return result;
-}
-
-/** The same moments from the live board and from the log, by bytes, including moments in the middle of a move. */
-async function checkReplayPixels(lab: LabPage): Promise<{ moments: number; differing: number[]; describedDifferently: number }> {
-  const times = await getCommandTimes(lab);
-  const { shiftMs, firstLive } = await lab.page.evaluate(() => {
-    const operations = window.sceneLab?.player.getOperations() ?? [];
-    const liveStart = operations.find((operation) => operation.kind === 'beatStarted')?.atMs ?? 0;
-    const logStart = (window.sceneLab?.records.log[0] as { atMs: number } | undefined)?.atMs ?? 0;
-    return { shiftMs: logStart - liveStart, firstLive: liveStart };
-  });
-  const moments = times.flatMap((atMs) => [atMs + 30, atMs + 200, atMs + 450, atMs + 800]).filter((atMs) => atMs >= firstLive);
-  const differing: number[] = [];
-  let describedDifferently = 0;
-  for (const atMs of moments) {
-    await holdFrame(lab, { atMs, source: 'live' });
-    const live = await shoot(lab, 'replay-compare');
-    await holdFrame(lab, { atMs: atMs + shiftMs, source: 'replay' });
-    const replay = await shoot(lab, 'replay-compare');
-    if (!live.equals(replay)) differing.push(Math.round(atMs));
-    const isSame = await lab.page.evaluate(([liveMs, replayMs]) => JSON.stringify(window.sceneLab?.describeLive(liveMs as number)) === JSON.stringify(window.sceneLab?.describeReplay(replayMs as number)), [atMs, atMs + shiftMs]);
-    if (!isSame) describedDifferently += 1;
-  }
-  await holdFrame(lab, null);
-  return { moments: moments.length, differing, describedDifferently };
 }
 
 const JUMP_THRESHOLD = 24;
@@ -187,7 +80,7 @@ async function checkMoveEdges(lab: LabPage): Promise<{ moves: number; pixelsJump
     await holdFrame(lab, { atMs, source: 'live' });
     return (await shoot(lab, 'edge-compare')).toString('base64');
   };
-  const compare = async (first: number, second: number) => lab.page.evaluate((pair) => window.mathChecks.countDifferentPixels(pair), [await shotAt(first), await shotAt(second), JUMP_THRESHOLD] as [string, string, number]);
+  const compare = async (first: number, second: number) => lab.page.evaluate((pair) => window.pageChecks.countDifferentPixels(pair), [await shotAt(first), await shotAt(second), JUMP_THRESHOLD] as [string, string, number]);
   const pixelsJumpingAtStart: number[] = [];
   const pixelsJumpingAtEnd: number[] = [];
   for (const { atMs, overMs } of moves) {
@@ -196,14 +89,6 @@ async function checkMoveEdges(lab: LabPage): Promise<{ moves: number; pixelsJump
   }
   await holdFrame(lab, null);
   return { moves: moves.length, pixelsJumpingAtStart, pixelsJumpingAtEnd };
-}
-
-async function checkStillness(lab: LabPage): Promise<{ writes: number; animations: number; imagesMatch: boolean }> {
-  await delay(600);
-  const before = await shoot(lab, 'still-start');
-  const { writes, animations } = await lab.page.evaluate((ms) => window.mathChecks.countWritesOver(ms), QUIET_MS);
-  const after = await shoot(lab, 'still-end');
-  return { writes, animations, imagesMatch: before.equals(after) };
 }
 
 interface LessonRun {
@@ -221,19 +106,19 @@ async function proveLesson(browser: Browser, run: LessonRun) {
   const label = getLabel(run);
   const lab = await openLab({ browser, name: label, ...run });
   await lab.page.addStyleTag({ content: HIDE_DEV_BUTTON });
-  await lab.page.evaluate((options) => window.mathChecks.startFrameWatch(options), { isReducedMotion: run.isReducedMotion ?? false, refusedTex: REFUSED_BY_KATEX });
+  await lab.page.evaluate((options) => window.pageChecks.startFrameWatch(options), { isReducedMotion: run.isReducedMotion ?? false, refusedTex: REFUSED_BY_KATEX });
   await lab.command({ type: 'play', lesson: run.lesson });
   await lab.waitForPlayedBeats(lessonBeats(run.lesson));
   await delay(1800);
-  const frames: FrameWatch = await lab.page.evaluate(() => window.mathChecks.stopFrameWatch());
+  const frames: FrameWatch = await lab.page.evaluate(() => window.pageChecks.stopFrameWatch());
   await shoot(lab, 'final');
   const still = await checkStillness(lab);
   const rests = await checkRestsAgainstPlainKatex(lab);
   const replay = await checkReplayPixels(lab);
   const edges = await checkMoveEdges(lab);
   const refused = await lab.page.evaluate(() => window.sceneLab?.records.refused ?? []);
-  const summary = await lab.page.evaluate(() => window.mathChecks.getBoardSummary());
-  const colors = await lab.page.evaluate(() => window.mathChecks.getColorsOnBoard());
+  const summary = await lab.page.evaluate(() => window.pageChecks.getBoardSummary());
+  const colors = await lab.page.evaluate(() => window.pageChecks.getColorsOnBoard());
   await lab.finish();
   return { label, frames, still, rests, replay, edges, refused, summary, colors };
 }
@@ -255,7 +140,7 @@ async function proveFreeze(browser: Browser, run: LessonRun) {
   });
   await delay(150);
   const first = await shoot(lab, 'frozen-first');
-  const writes = await lab.page.evaluate((ms) => window.mathChecks.countWritesOver(ms), 1500);
+  const writes = await lab.page.evaluate((ms) => window.pageChecks.countWritesOver(ms), 1500);
   const later = await shoot(lab, 'frozen-later');
   await lab.command({ type: 'resume' });
   await lab.page.waitForFunction((count) => (window.sceneLab?.records.turnsSent.length ?? 0) >= count, 2, { timeout: 60_000 });
@@ -274,13 +159,13 @@ async function proveResize(browser: Browser, run: LessonRun) {
   await lab.command({ type: 'play', lesson: run.lesson });
   await lab.waitForPlayedBeats(lessonBeats(run.lesson));
   await delay(1000);
-  await lab.page.evaluate((options) => window.mathChecks.startFrameWatch(options), { isReducedMotion: false, refusedTex: REFUSED_BY_KATEX });
+  await lab.page.evaluate((options) => window.pageChecks.startFrameWatch(options), { isReducedMotion: false, refusedTex: REFUSED_BY_KATEX });
   for (const size of [VIEWPORTS.phone, { width: 320, height: 640 }, VIEWPORTS.laptop]) {
     await lab.page.setViewportSize(size);
     await delay(500);
     await shoot(lab, `resized-${size.width}`);
   }
-  const frames: FrameWatch = await lab.page.evaluate(() => window.mathChecks.stopFrameWatch());
+  const frames: FrameWatch = await lab.page.evaluate(() => window.pageChecks.stopFrameWatch());
   const rests = await checkRestsAgainstPlainKatex(lab);
   await lab.finish();
   return { label, frames, rests };
@@ -340,11 +225,11 @@ async function proveLateFonts(browser: Browser, run: LessonRun) {
     },
   });
   await lab.page.addStyleTag({ content: HIDE_DEV_BUTTON });
-  await lab.page.evaluate((options) => window.mathChecks.startFrameWatch(options), { isReducedMotion: false, refusedTex: REFUSED_BY_KATEX });
+  await lab.page.evaluate((options) => window.pageChecks.startFrameWatch(options), { isReducedMotion: false, refusedTex: REFUSED_BY_KATEX });
   await lab.command({ type: 'play', lesson: run.lesson });
   await lab.waitForPlayedBeats(lessonBeats(run.lesson));
   await delay(1500);
-  const frames: FrameWatch = await lab.page.evaluate(() => window.mathChecks.stopFrameWatch());
+  const frames: FrameWatch = await lab.page.evaluate(() => window.pageChecks.stopFrameWatch());
   await shoot(lab, 'final');
   const rests = await checkRestsAgainstPlainKatex(lab);
   await lab.finish();
@@ -363,10 +248,10 @@ async function shootWithoutWaitingForFonts(lab: LabPage, name: string): Promise<
 
 async function countEquationInk(lab: LabPage): Promise<number> {
   const shown = await shootWithoutWaitingForFonts(lab, 'ink-shown');
-  await lab.page.evaluate(() => window.mathChecks.setEquationsHidden(true));
+  await lab.page.evaluate(() => window.pageChecks.setEquationsHidden(true));
   const hidden = await shootWithoutWaitingForFonts(lab, 'ink-hidden');
-  await lab.page.evaluate(() => window.mathChecks.setEquationsHidden(false));
-  return lab.page.evaluate((pair) => window.mathChecks.countDifferentPixels(pair), [shown, hidden, JUMP_THRESHOLD] as [string, string, number]);
+  await lab.page.evaluate(() => window.pageChecks.setEquationsHidden(false));
+  return lab.page.evaluate((pair) => window.pageChecks.countDifferentPixels(pair), [shown, hidden, JUMP_THRESHOLD] as [string, string, number]);
 }
 
 async function proveFailedFont(browser: Browser, run: LessonRun) {
@@ -384,15 +269,15 @@ async function proveFailedFont(browser: Browser, run: LessonRun) {
     },
   });
   await lab.page.addStyleTag({ content: HIDE_DEV_BUTTON });
-  await lab.page.evaluate((options) => window.mathChecks.startFrameWatch(options), { isReducedMotion: false, refusedTex: REFUSED_BY_KATEX });
-  const firstShown = lab.page.evaluate(() => window.mathChecks.watchFirstEquationShown());
+  await lab.page.evaluate((options) => window.pageChecks.startFrameWatch(options), { isReducedMotion: false, refusedTex: REFUSED_BY_KATEX });
+  const firstShown = lab.page.evaluate(() => window.pageChecks.watchFirstEquationShown());
   await lab.command({ type: 'play', lesson: run.lesson });
   await lab.waitForPlayedBeats(lessonBeats(run.lesson));
   await delay(1500);
-  const frames: FrameWatch = await lab.page.evaluate(() => window.mathChecks.stopFrameWatch());
+  const frames: FrameWatch = await lab.page.evaluate(() => window.pageChecks.stopFrameWatch());
   await shoot(lab, 'final');
   const ink = await countEquationInk(lab);
-  const states = await lab.page.evaluate(() => window.mathChecks.getEquationStates());
+  const states = await lab.page.evaluate(() => window.pageChecks.getEquationStates());
   const problems = await lab.page.evaluate(() => window.sceneLab?.records.boardProblems ?? []);
   const fired = await lab.page.evaluate(() => window.sceneLab?.records.fired.length ?? 0);
   const replay = await checkReplayPixels(lab);
@@ -418,12 +303,12 @@ async function proveStalledFont(browser: Browser, run: LessonRun) {
     },
   });
   await lab.page.addStyleTag({ content: HIDE_DEV_BUTTON });
-  const firstShown = lab.page.evaluate(() => window.mathChecks.watchFirstEquationShown());
+  const firstShown = lab.page.evaluate(() => window.pageChecks.watchFirstEquationShown());
   await lab.command({ type: 'play', lesson: run.lesson });
   const shown = await firstShown;
   await delay(150);
   const fallbackInk = await countEquationInk(lab);
-  const fallbackStates = await lab.page.evaluate(() => window.mathChecks.getEquationStates());
+  const fallbackStates = await lab.page.evaluate(() => window.pageChecks.getEquationStates());
   await delay(1200);
   release();
   await lab.waitForPlayedBeats(lessonBeats(run.lesson));
@@ -454,8 +339,8 @@ async function proveFuzz(browser: Browser, run: LessonRun) {
     const logStart = (window.sceneLab?.records.log[0] as { atMs: number } | undefined)?.atMs ?? 0;
     return { shiftMs: logStart - liveStart };
   });
-  const hostileLog = await lab.page.evaluate((options) => window.mathChecks.rebuildWithHostileLog(options), { tex: `x${'\u0301'.repeat(300)}`, atMs: lastMs + shiftMs + 5000, contractsPath: CONTRACTS_PATH });
-  const fuzz = await lab.page.evaluate((options) => window.mathChecks.runTexFuzz(options), { sources: makeTexFuzzSources(FUZZ_SOURCES, label), boardPath: BOARD_PATH, contractsPath: CONTRACTS_PATH });
+  const hostileLog = await lab.page.evaluate((options) => window.pageChecks.rebuildWithHostileLog(options), { tex: `x${'\u0301'.repeat(300)}`, atMs: lastMs + shiftMs + 5000, contractsPath: CONTRACTS_PATH });
+  const fuzz = await lab.page.evaluate((options) => window.pageChecks.runTexFuzz(options), { sources: makeTexFuzzSources(FUZZ_SOURCES, label), boardPath: BOARD_PATH, contractsPath: CONTRACTS_PATH });
   await lab.finish();
   return { label, crashed, hostileLog, fuzz };
 }
@@ -464,20 +349,20 @@ async function proveMarksAndLabels(browser: Browser, run: LessonRun) {
   const label = `${getLabel(run)}-marks-and-labels`;
   const lab = await openLab({ browser, name: label, ...run, lesson: 'marks-and-labels' });
   await lab.page.addStyleTag({ content: HIDE_DEV_BUTTON });
-  await lab.page.evaluate((options) => window.mathChecks.startFrameWatch(options), { isReducedMotion: false, refusedTex: [] });
+  await lab.page.evaluate((options) => window.pageChecks.startFrameWatch(options), { isReducedMotion: false, refusedTex: [] });
   await lab.command({ type: 'play', lesson: 'marks-and-labels' });
   await lab.waitForPlayedBeats(1);
   const clearedAt = await lab.page.evaluate(() => (window.sceneLab?.player.getOperations() as { atMs: number; command?: { kind: string } }[]).find((operation) => operation.command?.kind === 'clearBoard')?.atMs ?? 0);
   await holdFrame(lab, { atMs: clearedAt - 30, source: 'live' });
   await delay(100);
   await shoot(lab, 'rings');
-  const rings = await lab.page.evaluate(() => window.mathChecks.countVisibleRings());
+  const rings = await lab.page.evaluate(() => window.pageChecks.countVisibleRings());
   await holdFrame(lab, null);
   await lab.waitForPlayedBeats(2);
   await delay(1500);
-  const frames: FrameWatch = await lab.page.evaluate(() => window.mathChecks.stopFrameWatch());
+  const frames: FrameWatch = await lab.page.evaluate(() => window.pageChecks.stopFrameWatch());
   await shoot(lab, 'labels');
-  const labels = await lab.page.evaluate(() => window.mathChecks.getDiagramLabelFit('cycle'));
+  const labels = await lab.page.evaluate(() => window.pageChecks.getDiagramLabelFit('cycle'));
   const problems = await lab.page.evaluate(() => window.sceneLab?.records.boardProblems ?? []);
   const replay = await checkReplayPixels(lab);
   await lab.finish();
@@ -505,14 +390,14 @@ async function proveHostile(browser: Browser, run: LessonRun) {
   const label = `${getLabel(run)}-hostile`;
   const lab = await openLab({ browser, name: label, ...run, lesson: 'hostile' });
   await lab.page.addStyleTag({ content: HIDE_DEV_BUTTON });
-  await lab.page.evaluate((options) => window.mathChecks.startFrameWatch(options), { isReducedMotion: false, refusedTex: REFUSED_BY_KATEX });
+  await lab.page.evaluate((options) => window.pageChecks.startFrameWatch(options), { isReducedMotion: false, refusedTex: REFUSED_BY_KATEX });
   await lab.command({ type: 'play', lesson: 'hostile' });
   await lab.page.waitForFunction(() => (window.sceneLab?.records.fired.length ?? 0) > 0, undefined, { timeout: 30_000 });
   const turnId = await lab.page.evaluate(() => window.sceneLab?.records.fired[0]?.turnId);
   await lab.command({ type: 'sendRaw', messages: REFUSED_COMMANDS.map(({ command }) => ({ type: 'cue', turnId, beatId: 'markup', atWord: 1, command })) });
   await lab.waitForPlayedBeats(lessonBeats('hostile'));
   await delay(1500);
-  const frames: FrameWatch = await lab.page.evaluate(() => window.mathChecks.stopFrameWatch());
+  const frames: FrameWatch = await lab.page.evaluate(() => window.pageChecks.stopFrameWatch());
   const clearedAt = await lab.page.evaluate(() => (window.sceneLab?.player.getOperations() as { kind: string; atMs: number; command?: { kind: string } }[]).filter((operation) => operation.command?.kind === 'clearBoard').map((operation) => operation.atMs));
   for (const [index, atMs] of clearedAt.entries()) {
     await holdFrame(lab, { atMs: atMs - 30, source: 'live' });
@@ -521,7 +406,7 @@ async function proveHostile(browser: Browser, run: LessonRun) {
   await holdFrame(lab, null);
   await shoot(lab, 'hostile-final');
   const refused = await lab.page.evaluate(() => window.sceneLab?.records.refused ?? []);
-  const summary = await lab.page.evaluate(() => window.mathChecks.getBoardSummary());
+  const summary = await lab.page.evaluate(() => window.pageChecks.getBoardSummary());
   const replay = await checkReplayPixels(lab);
   await lab.finish();
   return { label, frames, refused, refusedByParser: refused.filter((problem) => !problem.startsWith('math:')).length, sent: REFUSED_COMMANDS.length, refusedAtRender: refused.filter((problem) => problem.startsWith('math:')), summary, replay };
@@ -554,14 +439,16 @@ const PROOFS = {
 mkdirSync(args.out as string, { recursive: true });
 const stack = await startLabStack();
 const browser = await chromium.launch({ channel: 'chromium', args: ['--autoplay-policy=no-user-gesture-required', '--use-mock-keychain', '--mute-audio'] });
+const failures: string[] = [];
 try {
   for (const name of (args.only ?? Object.keys(PROOFS).join(',')).split(',')) {
     const results = await PROOFS[name as keyof typeof PROOFS](browser);
     writeFileSync(join(args.out as string, `${name}.json`), `${JSON.stringify(results, null, 1)}\n`);
+    failures.push(...getProofFailures(name, results));
     console.log(name, JSON.stringify(results).slice(0, 4000));
   }
 } finally {
   await browser.close();
   stack.stop();
 }
-process.exit(0);
+exitWithVerdict(failures);

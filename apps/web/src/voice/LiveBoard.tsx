@@ -37,8 +37,9 @@ function getLatestRowId(board: BoardState): string | null {
   if (focused && board.elements.has(focused as ElementId)) return focused;
   const elements = [...board.elements.values()];
   for (const { id, content } of elements.reverse()) {
-    if ('target' in content && typeof content.target === 'string') {
-      const root = content.target.split('.')[0] as string;
+    const hangsOn = 'target' in content ? content.target : content.kind === 'task' && 'on' in content ? content.on : undefined;
+    if (hangsOn !== undefined) {
+      const root = hangsOn.split('.')[0] as string;
       if (board.elements.has(root as ElementId)) return root;
     }
     if (content.kind === 'writeMath' || content.kind === 'studentLine' || content.kind === 'text' || content.kind === 'diagram' || content.kind === 'task') return id;
@@ -70,7 +71,8 @@ function useDotTarget(board: BoardState, isTutorSpeaking: boolean) {
   }, [isTutorSpeaking]);
   const watchLiveLine = useCallback(() => setTarget(ON_THE_LIVE_LINE), []);
   const goToRest = useCallback(() => setTarget(AT_REST), []);
-  return { target, watchLiveLine, goToRest };
+  const watchRow = useCallback((rowId: string) => setTarget({ rowId, isWatching: true }), []);
+  return { target, watchLiveLine, watchRow, goToRest };
 }
 
 interface LiveBoardProps {
@@ -109,7 +111,7 @@ export function LiveBoard({ voice, visual = null, onTalk, isTalkOn = false, canT
   const isVisualBigNow = useRef(false);
   const { board, atMs } = frame;
   const view = voice.getView();
-  const { target: dotTarget, watchLiveLine, goToRest } = useDotTarget(board, view.isTutorSpeaking);
+  const { target: dotTarget, watchLiveLine, watchRow, goToRest } = useDotTarget(board, view.isTutorSpeaking);
 
   useEffect(() => {
     let animationFrame = requestAnimationFrame(function draw() {
@@ -148,12 +150,22 @@ export function LiveBoard({ voice, visual = null, onTalk, isTalkOn = false, canT
   const closePen = useCallback(() => setIsPenOpen(false), []);
   const bringBoard = useCallback(() => setPeek({ isBig: false, atMs: voice.getBoardNow().atMs }), [voice]);
   const sendWork = useCallback(
-    (work: StudentWork) => {
-      voice.sendWork(work);
+    (work: StudentWork, startedMsAgo = 0) => {
+      voice.sendWork(work, startedMsAgo);
       setActivity((count) => count + 1);
       setFrame(voice.getBoardNow());
     },
     [voice],
+  );
+  const movePoint = useCallback(
+    (taskId: ElementId, x: number) => {
+      voice.movePoint(taskId, x);
+      voice.noteTyping();
+      const task = voice.getBoardNow().board.elements.get(taskId)?.content;
+      if (task?.kind === 'task' && 'on' in task && task.on !== undefined) watchRow(task.on);
+      setActivity((count) => count + 1);
+    },
+    [voice, watchRow],
   );
   const onPenWorking = useCallback(() => {
     voice.noteTyping();
@@ -244,6 +256,7 @@ export function LiveBoard({ voice, visual = null, onTalk, isTalkOn = false, canT
         atMs={atMs}
         onMarkProblem={reportProblem}
         onWork={sendWork}
+        onMovePoint={movePoint}
         lineInTheBand={lineInTheBand}
         onFixReading={(text) => {
           setIsPenOpen(false);

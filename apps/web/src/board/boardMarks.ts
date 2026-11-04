@@ -1,12 +1,14 @@
 import { type BoardElement, type BoardState, getMotionValue } from '@astra/board';
-import { createInkPainter, drawMark, type InkPainter, type MarkBox, type MovingPlacement, type TermBoxes, type TermQuery, writeStyle } from '@astra/board/drawing';
+import { createFigurePainter, createInkPainter, drawMark, type FigureMark, type InkPainter, type LabelRequest, type MarkBox, type MovingPlacement, placeLabels, type TermBoxes, type TermQuery, writeStyle } from '@astra/board/drawing';
 import type { AnnotationMark, ElementRef } from '@astra/contracts';
-import type { BoardItem } from './boardItems';
+import { type BoardItem, isFigure } from './boardItems';
 
 const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
 const FOCUS_DOT = { radius: 3.5, inset: 8 };
+const NOTE_GAP = 3;
 
 type MarkContent = Extract<BoardElement['content'], { kind: 'highlight' | 'annotate' }>;
+type ReportedContent = MarkContent | Extract<BoardElement['content'], { kind: 'markValue' }>;
 
 interface PaintedMark {
   group: SVGGElement;
@@ -26,9 +28,12 @@ export interface MarksFrame {
   elements: readonly BoardElement[];
   focus: BoardState['focus'];
   placements: ReadonlyMap<string, MovingPlacement>;
+  board: ReadonlyMap<string, BoardElement>;
   getItem(id: string): BoardItem | undefined;
   atMs: number;
   isReducedMotion: boolean;
+  area: { width: number; height: number };
+  onLabelWithoutRoom(text: string): void;
 }
 
 const getTargetParts = (target: ElementRef) => target.split('.') as [string, string | undefined];
@@ -74,18 +79,30 @@ function createFocusDot(overlay: SVGSVGElement): SVGCircleElement {
   return dot;
 }
 
+function getBoxOnBoard(box: MarkBox, { placement, move }: { placement: MovingPlacement; move: TermBoxes['flightOffset'] }): MarkBox {
+  return { x: placement.x + (box.x + move.x) * placement.scale, y: placement.y + (box.y + move.y) * placement.scale, width: box.width * placement.scale, height: box.height * placement.scale };
+}
+
+function getNoteMarks(requests: readonly LabelRequest[], frame: MarksFrame): FigureMark[] {
+  const mustAvoid = [...frame.placements.values()].filter((placement) => placement.isVisible).map(({ x, y, width, height }) => ({ left: x, top: y, right: x + width, bottom: y + height }));
+  return placeLabels(requests, { bounds: { left: 0, top: 0, right: frame.area.width, bottom: frame.area.height }, mustAvoid, shouldAvoid: [], onNoRoom: frame.onLabelWithoutRoom });
+}
+
 // Marks follow the term they name through a rearrangement, and fade if it goes.
 export function createBoardMarks(overlay: SVGSVGElement, onMarkWithoutTarget?: (problem: MarkWithoutTarget) => void) {
   const marks = new Map<string, PaintedMark>();
   const drawnOnce = new Set<string>();
   const reported = new Set<string>();
   const focusDot = createFocusDot(overlay);
+  const noteGroup = document.createElementNS(SVG_NAMESPACE, 'g');
+  noteGroup.classList.add('board-notes');
+  overlay.append(noteGroup);
+  const notePainter = createFigurePainter(noteGroup);
 
-  // A mark that once had a box and lost it went with its term through a rearrangement, which is no problem. A scene draws its own marks.
-  const reportIfNeverDrawn = (mark: BoardElement, content: MarkContent, frame: MarksFrame) => {
-    const isOnScene = frame.elements.find((element) => element.id === getTargetParts(content.target)[0])?.content.kind === 'simulate';
+  // A mark that once had a box and lost it went with its term through a rearrangement, which is no problem.
+  const reportIfNeverDrawn = (mark: BoardElement, content: ReportedContent) => {
     const placement = getPlacementKey(mark);
-    if (drawnOnce.has(placement) || reported.has(placement) || isOnScene) return;
+    if (drawnOnce.has(placement) || reported.has(placement)) return;
     reported.add(placement);
     const tex = content.kind === 'highlight' ? content.tex : undefined;
     onMarkWithoutTarget?.({ kind: 'markWithoutTarget', markId: mark.id, target: content.target, ...(tex === undefined ? {} : { tex }) });
@@ -97,7 +114,7 @@ export function createBoardMarks(overlay: SVGSVGElement, onMarkWithoutTarget?: (
     existing?.painter.remove();
     const group = existing?.group ?? document.createElementNS(SVG_NAMESPACE, 'g');
     group.classList.toggle('board-mark-student', isStudentMark);
-    if (!existing) overlay.append(group);
+    if (!existing) noteGroup.before(group);
     const painted = { group, key, painter: createInkPainter(group, drawMark({ mark: kind, box, seed: id })) };
     marks.set(id, painted);
     return painted;
@@ -115,8 +132,8 @@ export function createBoardMarks(overlay: SVGSVGElement, onMarkWithoutTarget?: (
     if (!placement || !boxes || !box) {
       const existing = marks.get(mark.id);
       if (existing) writeStyle(existing.group, 'visibility', 'hidden');
-      reportIfNeverDrawn(mark, content, frame);
-      return;
+      reportIfNeverDrawn(mark, content);
+      return null;
     }
     drawnOnce.add(getPlacementKey(mark));
     const painted = getPaintedMark({ id: mark.id, kind: getMarkKind(content), box, existing: marks.get(mark.id), isStudentMark: mark.isStudentMark === true });
@@ -127,6 +144,9 @@ export function createBoardMarks(overlay: SVGSVGElement, onMarkWithoutTarget?: (
     const opacity = getMarkOpacity({ boxes, drawn, rearranged, isReducedMotion: frame.isReducedMotion });
     writeStyle(painted.group, 'opacity', opacity < 1 ? opacity.toFixed(3) : '');
     painted.painter.paint(frame.isReducedMotion && drawn > 0 ? 1 : drawn);
+    if (content.kind !== 'annotate' || !content.label || drawn < 1 || !placement.isVisible) return null;
+    const onBoard = getBoxOnBoard(box, { placement, move });
+    return { key: `note-${mark.id}`, text: content.label, anchor: { x: onBoard.x + onBoard.width / 2, y: onBoard.y + onBoard.height }, gap: NOTE_GAP, sides: ['below', 'below-right', 'below-left'], tone: 'ink' } satisfies LabelRequest;
   };
 
   const removeGone = (live: ReadonlySet<string>) => {
@@ -138,24 +158,35 @@ export function createBoardMarks(overlay: SVGSVGElement, onMarkWithoutTarget?: (
   };
 
   const paintFocus = ({ focus, placements, elements }: MarksFrame) => {
-    const targetId = focus ? getTargetParts(focus)[0] : '';
+    const [targetId, part] = focus ? getTargetParts(focus) : ['', undefined];
     const placement = placements.get(targetId);
-    const target = elements.find((element) => element.id === targetId);
-    const isOnLine = placement?.isVisible === true && target?.content.kind !== 'simulate';
+    const isOnLine = placement?.isVisible === true && !(part !== undefined && isFigure(elements.find((element) => element.id === targetId)?.content));
     writeStyle(focusDot, 'visibility', isOnLine ? '' : 'hidden');
     const dotY = isOnLine ? String(Math.round(placement.y + placement.height / 2)) : null;
     if (dotY !== null && dotY !== focusDot.getAttribute('cy')) focusDot.setAttribute('cy', dotY);
   };
 
   return {
+    reportMarkWithoutPart: (mark: BoardElement) => reportIfNeverDrawn(mark, mark.content as ReportedContent),
+    noteMarkDrawn: (mark: BoardElement) => drawnOnce.add(getPlacementKey(mark)),
     paint(frame: MarksFrame) {
-      const allMarks = frame.elements.filter((element) => isMark(element.content));
+      const allMarks = frame.elements.filter((element) => {
+        if (!isMark(element.content)) return false;
+        const [targetId, part] = getTargetParts(element.content.target);
+        return !(part !== undefined && isFigure(frame.board.get(targetId as never)?.content));
+      });
       const onMath = allMarks.filter((element) => frame.getItem(getTargetParts((element.content as MarkContent).target)[0]));
       removeGone(new Set(onMath.map((element) => element.id as string)));
+      const notes: LabelRequest[] = [];
       for (const mark of allMarks) {
-        if (onMath.includes(mark)) paintMark(mark, mark.content as MarkContent, frame);
-        else reportIfNeverDrawn(mark, mark.content as MarkContent, frame);
+        if (!onMath.includes(mark)) {
+          reportIfNeverDrawn(mark, mark.content as MarkContent);
+          continue;
+        }
+        const note = paintMark(mark, mark.content as MarkContent, frame);
+        if (note) notes.push(note);
       }
+      notePainter.paint(getNoteMarks(notes, frame));
       paintFocus(frame);
     },
   };

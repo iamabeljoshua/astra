@@ -49,7 +49,7 @@ export function moveTaskPoint(elements: Elements, task: ElementId, pointX: numbe
 }
 
 function makeElement(id: ElementId, content: BoardElement['content'], { atMs, overMs, math = null, isStudentMark = true }: { atMs: number; overMs: number; math?: BoardElement['math']; isStudentMark?: boolean }): BoardElement {
-  return { id, placedAtMs: atMs, content, entrance: moveOver({ from: 0, to: 1, atMs, overMs }), placedScene: null, revealedUpTo: null, math, morphFrom: null, isStudentMark };
+  return { id, placedAtMs: atMs, content, entrance: moveOver({ from: 0, to: 1, atMs, overMs }), placedScene: null, revealedUpTo: null, math, morphFrom: null, ghostScene: null, targetSecondsWhenPlaced: null, isStudentMark };
 }
 
 function placeStudentLine(elements: Elements, work: StudentWork & { way: 'write' }, reading: LineReading, verdict: WorkVerdict, atMs: number): void {

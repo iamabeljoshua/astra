@@ -242,6 +242,7 @@ export const VOICE_LABELS = {
 };
 
 export const BOARD_WORK_LABELS = {
+  movePoint: 'Move the point along the curve',
   entry: 'Write on the board',
   pen: 'Pen',
   done: 'Done',
@@ -392,6 +393,37 @@ export const LAB_LABELS = {
   replay: 'Replay from the log',
   backToLive: 'Back to live',
   logEvents: 'Events in the log:',
+};
+
+export const BOARD_LABELS = {
+  figures: {
+    slope: 'slope',
+    metres: 'm',
+    degrees: '\u00b0',
+    readouts: {
+      time: { label: 'Time', unit: 's' },
+      height: { label: 'Height', unit: 'm' },
+      distance: { label: 'Distance', unit: 'm' },
+      speed: { label: 'Speed', unit: 'm/s' },
+      'velocity-x': { label: 'Sideways speed', unit: 'm/s' },
+      'velocity-y': { label: 'Upward speed', unit: 'm/s' },
+      'peak-height': { label: 'Highest point', unit: 'm' },
+      'landing-distance': { label: 'Lands at', unit: 'm' },
+    },
+    parameters: {
+      horizontalSpeed: { label: 'Sideways speed', unit: 'm/s' },
+      upwardSpeed: { label: 'Upward speed', unit: 'm/s' },
+      releaseHeight: { label: 'Release height', unit: 'm' },
+      gravity: { label: 'Gravity', unit: 'm/s\u00b2' },
+      launchAngle: { label: 'Launch angle', unit: '\u00b0' },
+      launchSpeed: { label: 'Launch speed', unit: 'm/s' },
+    },
+    tooFine: 'Too fine to draw here',
+  },
+  numberLine: 'Number line',
+  geometry: 'Geometry figure',
+  simulation: 'Moving ball, with its path',
+  graphOf: 'Graph of y =',
 };
 
 export const LEGAL_LABELS = {

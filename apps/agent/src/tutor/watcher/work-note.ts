@@ -22,7 +22,7 @@ function getWayFacts(work: StudentWork, checked: CheckedWork, context: WorkConte
       return { placed: work.placed };
     case 'drag': {
       const curve = context.task?.way === 'drag' ? context.getCurve(context.task.on) : null;
-      return { point: curve ? getPointFacts(curve, work.x) : { x: work.x } };
+      return { point: curve ? getPointFacts(curve.value, work.x) : { x: work.x } };
     }
   }
 }

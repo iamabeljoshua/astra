@@ -1,4 +1,8 @@
 export { type DiagramTextLabel, drawDiagram, type DrawnDiagram, type MeasureText } from './ink/diagram.ts';
+export { createFigurePainter } from './figure/figure-painter.ts';
+export type { FigureMark } from './figure/figure-marks.ts';
+export { getFigureFit, getFigureMarks } from './figure/get-figure-marks.ts';
+export { type LabelRequest, placeLabels, setLabelMeasure } from './figure/place-labels.ts';
 export { canWriteByHand, writeByHand } from './ink/handwriting.ts';
 export { createInkPainter, type InkPainter } from './ink/ink-painter.ts';
 export type { InkDrawing, InkStroke } from './ink/ink-stroke.ts';
@@ -7,4 +11,7 @@ export { placeMovingElements, type LayoutArea, type LayoutBox, type MovingBox, t
 export { createMathPainter, type MathFontProblem, type MathFrame, type MathPainter, type MathSize, type TermBoxes, type TermQuery } from './math/math-painter.ts';
 export { easeInOut } from './math/paint-flights.ts';
 export { collectMathPaints, getPaintsOfSpans, preloadMathFonts, renderTex } from './math/render-math.ts';
+export { getStepDecimals } from './plot/axis-ticks.ts';
+export { getDragStep, getPointX, snapDragX } from './shared/drag-point.ts';
+export { getDragXAtPixel } from './plot/plot-figure.ts';
 export { writeStyle } from './style-writer.ts';

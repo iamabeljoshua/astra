@@ -50,7 +50,7 @@ describe('the tutor brain', () => {
   });
 
   it('never drops the words when a command is bad, and tells the model next turn', async () => {
-    const { brain, model } = setup(() => reply('Right, ', '{"kind":"laser","id":"zap"}', 'watch this one closely. ', '{"kind":"plot","id":"p","expression":"x","domain":[0,1]}', 'And this. ', '{"kind":"hide","target":"nothing"}', 'Then what?'));
+    const { brain, model } = setup(() => reply('Right, ', '{"kind":"laser","id":"zap"}', 'watch this one closely. ', '{"kind":"numberLine","id":"p","from":0,"to":1}', 'And this. ', '{"kind":"hide","target":"nothing"}', 'Then what?'));
     const beats = await collect(brain, 'hi');
     expect(say(beats)).toBe('Right, watch this one closely. And this. Then what?');
     expect(commandsOf(beats)).toEqual([]);

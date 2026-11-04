@@ -1,6 +1,7 @@
 import type { ElementId, StudentWork, Task } from '@astra/contracts';
-import type { BoardState } from '../player/board-state.ts';
-import { checkWork, type CheckedWork, getCurveOf, type WorkContext } from './check-work.ts';
+import type { BoardElement, BoardState } from '../player/board-state.ts';
+import { checkWork, type CheckedWork, FEWEST_WITHIN_X, getCurveOf, type WorkContext } from './check-work.ts';
+import { getDragStep } from './drag-point.ts';
 
 function getOpenTask(board: BoardState, id: ElementId | undefined): Task | null {
   const element = id === undefined ? undefined : board.elements.get(id);
@@ -21,9 +22,15 @@ export function getWorkContext(board: BoardState, taskId: ElementId | undefined)
     getCurve(id) {
       const content = board.elements.get(id)?.content;
       if (content?.kind !== 'plot') return null;
-      return getCurveOf(content.expression, new Map((content.constants ?? []).map(({ name, value }) => [name, value])));
+      const value = getCurveOf(content.expression, new Map((content.constants ?? []).map((constant) => [constant.name, constant.value])));
+      return value && { value, within: Math.max(FEWEST_WITHIN_X, getDragStep(content.domain)) };
     },
   };
+}
+
+export function getOpenDragOn(board: BoardState, plotId: string): BoardElement | null {
+  const open = getOpenTaskOnBoard(board);
+  return open?.way === 'drag' && open.on === plotId ? (board.elements.get(open.id) ?? null) : null;
 }
 
 export function checkWorkOnBoard(work: StudentWork, board: BoardState): CheckedWork {

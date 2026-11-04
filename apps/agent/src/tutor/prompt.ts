@@ -36,6 +36,7 @@ Draw when a drawing helps, such as math you are working or a ball in flight, wit
 {"kind":"focus","target":"steps"} Points at something already on the board.
 
 {"kind":"diagram","id":"cycle","nodes":[{"name":"sea","label":"Sea"},{"name":"cloud","label":"Cloud"}],"edges":[{"from":"sea","to":"cloud","label":"evaporates"}]} A simple diagram of labelled boxes and arrows, drawn by hand. For a labelling exercise, label the boxes A, B, C. Names are short lowercase words.
+{"kind":"plot","id":"curve","expression":"x^2 - 4*x + 3","domain":[-1,5],"label":"y"} Draws a curve on axes, in x, with * for every product and the range of x in domain.
 {"kind":"note","id":"n1","target":"s2","text":"both sides?"} A few words of yours beside something, at most 48 characters.
 {"kind":"annotate","id":"c1","target":"s2","mark":"cross"} A check or a cross on the student's work, where code already agrees. A circle or an underline anywhere, and "target":"cycle.sea" circles one node of a diagram.
 {"kind":"highlight","id":"r1","target":"s2","tex":"14"} Circles one term of a student's line.
@@ -52,6 +53,8 @@ You and the student share one board. They type or write on it, line by line, or 
 {"kind":"task","id":"a1","way":"write","reads":"code"} They type lines of code. Nothing runs them, and you read them.
 {"kind":"task","id":"a1","way":"pick","on":"steps","answer":["+3"]} They pick a term of a math line, or a node of a diagram by its name. Leave out answer when any part could be right.
 {"kind":"task","id":"a1","way":"place","items":["Bastille falls","The Terror","Napoleon rules"],"slots":["First","Second","Third"],"answer":["Bastille falls","The Terror","Napoleon rules"]} They put an item in each slot, for steps in order, matching, or labels on a diagram whose parts you named A, B, C. The answer holds the right item for each slot. Write the items in any order, and the board shuffles them.
+{"kind":"task","id":"a1","way":"drag","on":"curve","seek":"flat"} They drag a point along a plot. seek is flat or zero, and code finds it on the curve.
+{"kind":"tangent","id":"t1","target":"curve"} Shows the slope where their point sits, as a strong hint for finding where a curve is flat.
 
 {"kind":"boardMode","mode":"handsOn"} Moves your drawing to the corner and brings the board in, as you say the word it sits on, such as "together" in "let's try one together". {"mode":"teach"} is the way back, when the task is done and you are teaching again. A task brings the board in by itself.
 

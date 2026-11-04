@@ -13,11 +13,11 @@ interface RowPaintingOptions {
 }
 
 // Scales a figure to fit its column, and gives an absolute math tree the size the painter measured.
-function sizeWrapper(wrapper: HTMLElement, element: BoardElement, size: { width: number; height: number }, fit: string, columnWidth: number): number {
+function sizeWrapper({ wrapper, element, item, size, fit, columnWidth }: { wrapper: HTMLElement; element: BoardElement; item: BoardItem; size: { width: number; height: number }; fit: string; columnWidth: number }): number {
   const content = wrapper.parentElement as HTMLElement;
   if (fit === 'figure') {
     const scale = Math.min(1, Math.min(columnWidth, LARGEST_FIGURE.width) / size.width, LARGEST_FIGURE.height / size.height);
-    writeStyle(wrapper, 'transform', `scale(${scale.toFixed(4)})`);
+    if (!item.ignoresPlacementScale) writeStyle(wrapper, 'transform', `scale(${scale.toFixed(4)})`);
     content.style.height = `${Math.ceil(size.height * scale)}px`;
     return scale;
   }
@@ -32,6 +32,8 @@ function sizeWrapper(wrapper: HTMLElement, element: BoardElement, size: { width:
 export function createBoardRowPainting({ overlay, getWrapper, onMarkProblem }: RowPaintingOptions) {
   const items = new Map<string, { kind: string; item: BoardItem }>();
   const marks = createBoardMarks(overlay, onMarkProblem);
+  const ignoreLabelWithoutRoom = () => {};
+  const ignoreCurveTooFine = () => {};
   let lastPlacements: ReadonlyMap<string, MovingPlacement> = new Map();
 
   const syncItems = (placed: readonly BoardElement[]) => {
@@ -45,20 +47,20 @@ export function createBoardRowPainting({ overlay, getWrapper, onMarkProblem }: R
       const wrapper = getWrapper(element.id);
       if (!wrapper || items.get(element.id)?.kind === element.content.kind) continue;
       items.get(element.id)?.item.remove();
-      items.set(element.id, { kind: element.content.kind, item: createBoardItem(element, wrapper) });
+      items.set(element.id, { kind: element.content.kind, item: createBoardItem(element, wrapper, {}) });
     }
   };
 
-  const paintRow = (element: BoardElement, { atMs, isReducedMotion }: { atMs: number; isReducedMotion: boolean }): MovingPlacement | null => {
+  const paintRow = (element: BoardElement, { board, atMs, isReducedMotion }: { board: BoardState; atMs: number; isReducedMotion: boolean }): MovingPlacement | null => {
     const entry = items.get(element.id);
     const wrapper = getWrapper(element.id);
     if (!entry || !wrapper) return null;
     const columnWidth = (wrapper.parentElement as HTMLElement).clientWidth;
     const fontSize = Number.parseFloat(getComputedStyle(wrapper).fontSize) || 30;
-    const context: ItemContext = { element, atMs, progress: getMotionValue(element.entrance, atMs), maxWidth: columnWidth, fontSize, isReducedMotion };
+    const context: ItemContext = { element, board, atMs, placedSize: null, canMoveSliders: false, onLabelWithoutRoom: ignoreLabelWithoutRoom, onMarkWithoutPart: marks.reportMarkWithoutPart, onMarkDrawn: marks.noteMarkDrawn, onCurveTooFine: ignoreCurveTooFine, progress: getMotionValue(element.entrance, atMs), maxWidth: columnWidth, fontSize, isReducedMotion };
     const sizes = entry.item.prepare(context);
-    const scale = sizes.size ? sizeWrapper(wrapper, element, sizes.size, sizes.fit, columnWidth) : 1;
-    entry.item.paint(context);
+    const scale = sizes.size ? sizeWrapper({ wrapper, element, item: entry.item, size: sizes.size, fit: sizes.fit, columnWidth }) : 1;
+    entry.item.paint({ ...context, placedSize: sizes.size && { width: sizes.size.width * scale, height: sizes.size.height * scale } });
     const opacity = entry.item.getEntranceOpacity?.(context) ?? 1;
     writeStyle(wrapper, 'opacity', opacity < 1 ? String(Number(opacity.toFixed(3))) : '');
     const origin = overlay.getBoundingClientRect();
@@ -72,11 +74,11 @@ export function createBoardRowPainting({ overlay, getWrapper, onMarkProblem }: R
       const placed = elements.filter((element) => hasOwnPlace(element.content) && getWrapper(element.id));
       syncItems(placed);
       const placements = new Map(placed.flatMap((element) => {
-        const placement = paintRow(element, { atMs, isReducedMotion });
+        const placement = paintRow(element, { board, atMs, isReducedMotion });
         return placement ? [[element.id as string, placement] as const] : [];
       }));
       lastPlacements = placements;
-      marks.paint({ elements: elements.filter((element) => !isInGutter(element)), focus: board.focus, placements, getItem: (id) => items.get(id)?.item, atMs, isReducedMotion });
+      marks.paint({ elements: elements.filter((element) => !isInGutter(element)), board: board.elements, focus: board.focus, placements, getItem: (id) => items.get(id)?.item, atMs, isReducedMotion, area: { width: overlay.clientWidth, height: overlay.clientHeight }, onLabelWithoutRoom: ignoreLabelWithoutRoom });
     },
     getPartBox(id: string, query: TermQuery): MarkBox | null {
       const placement = lastPlacements.get(id);

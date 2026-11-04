@@ -73,7 +73,7 @@ describe('a tutor that is open', () => {
     fireEvent.change(entry, { target: { value: 'Gravity, I think.' } });
     fireEvent.submit(entry);
 
-    await vi.waitFor(() => expect(voice.sendWork).toHaveBeenCalledWith(expect.objectContaining({ way: 'write', text: 'Gravity, I think.' })));
+    await vi.waitFor(() => expect(voice.sendWork).toHaveBeenCalledWith(expect.objectContaining({ way: 'write', text: 'Gravity, I think.' }), 0));
     await vi.waitFor(() => expect(screen.getByTestId('tutor-dot').dataset.lively).toBe('true'));
     expect(screen.queryByText(SESSION_LABELS.replyNotSent)).toBeNull();
   });

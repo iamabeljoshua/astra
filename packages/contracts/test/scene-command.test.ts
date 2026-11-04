@@ -204,7 +204,7 @@ describe('simulation values', () => {
   });
 
   it('gives every parameter a range that holds its default', () => {
-    expect(SIMULATION_PARAMETERS).toEqual(['horizontalSpeed', 'upwardSpeed', 'releaseHeight', 'gravity']);
+    expect(SIMULATION_PARAMETERS).toEqual(['horizontalSpeed', 'upwardSpeed', 'releaseHeight', 'gravity', 'launchAngle', 'launchSpeed']);
     for (const parameter of SIMULATION_PARAMETERS) {
       const { min, max, default: defaultValue = min } = SIMULATION_PARAMETER_RULES[parameter];
       expect(min, parameter).toBeLessThan(max);

@@ -11,14 +11,15 @@ export interface CheckedWork {
 export interface WorkContext {
   task: Task | null;
   getLineTex(id: ElementId): string | null;
-  getCurve(id: ElementId): ((x: number) => number) | null;
+  getCurve(id: ElementId): { value(x: number): number; within: number } | null;
   previousTex: string | null;
   pickedRight: readonly string[];
 }
 
 const UNKNOWN: WorkVerdict = { status: 'unknown' };
 const RIGHT: WorkVerdict = { status: 'right' };
-const WITHIN_X = 0.1;
+/** Never finer than a point can move, or a student could not land on the answer. */
+export const FEWEST_WITHIN_X = 0.1;
 const SLOPE_STEP = 1e-4;
 
 const closes = (task: Task | null, isDone: boolean) => (task && isDone ? { closesTask: task.id } : {});
@@ -90,8 +91,8 @@ function checkPlace(placed: readonly (string | null)[], { task }: WorkContext): 
 
 const getSlopeAt = (curve: (x: number) => number, x: number) => (curve(x + SLOPE_STEP) - curve(x - SLOPE_STEP)) / (2 * SLOPE_STEP);
 
-const crossesZeroNear = (value: (x: number) => number, x: number) => {
-  const [before, at, after] = [value(x - WITHIN_X), value(x), value(x + WITHIN_X)];
+const crossesZeroNear = (value: (x: number) => number, x: number, within: number) => {
+  const [before, at, after] = [value(x - within), value(x), value(x + within)];
   return Math.abs(at) < 1e-9 || before * after <= 0;
 };
 
@@ -111,9 +112,9 @@ function checkDrag(x: number, { task, getCurve }: WorkContext): CheckedWork {
   if (task?.way !== 'drag' || task.seek === undefined) return { verdict: UNKNOWN };
   const curve = getCurve(task.on);
   if (!curve) return { verdict: UNKNOWN };
-  const isThere = crossesZeroNear(task.seek === 'flat' ? (at) => getSlopeAt(curve, at) : curve, x);
+  const isThere = crossesZeroNear(task.seek === 'flat' ? (at) => getSlopeAt(curve.value, at) : curve.value, x, curve.within);
   if (isThere) return { verdict: RIGHT, ...closes(task, true) };
-  const { y, slope } = getPointFacts(curve, x);
+  const { y, slope } = getPointFacts(curve.value, x);
   return { verdict: { status: 'wrong', why: task.seek === 'flat' ? `the slope at x = ${roundFact(x)} is ${slope}` : `the curve is at ${y} at x = ${roundFact(x)}` } };
 }
 
