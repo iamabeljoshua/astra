@@ -634,3 +634,47 @@ describe('the prompt names what math it may write', () => {
     expect(TUTOR_SYSTEM).toContain('\\\\xrightarrow');
   });
 });
+
+describe('words a cut reply carries into the next request', () => {
+  const getUsers = (request: TutorModelRequest | undefined) => (request?.turns ?? []).flatMap((turn) => (turn.role === 'user' ? [turn.text] : []));
+  const ask = async (brain: TutorBrain, text: string, carried?: string) => {
+    for await (const beat of brain.reply({ text, carried }, new AbortController().signal)) void beat;
+  };
+
+  it('does not put them in the history twice, across more than one cut', async () => {
+    const { brain, model } = setup(() => reply('Okay, I will go on.'));
+    await ask(brain, 'Why does it fall?');
+    await ask(brain, 'Why does it fall? And how fast?', 'Why does it fall?');
+    await ask(brain, 'Why does it fall? And how fast? And the moon?', 'Why does it fall? And how fast?');
+    expect(getUsers(model.requests.at(-1))).toEqual(['Why does it fall?', 'And how fast?', 'And the moon?']);
+  });
+
+  it('sends them all when the turn that asked them never began, so no words are lost', async () => {
+    const { brain, model } = setup(() => reply('Okay, I will go on.'));
+    await ask(brain, 'Why does it fall? And how fast?', 'Why does it fall?');
+    expect(getUsers(model.requests.at(-1))).toEqual(['Why does it fall? And how fast?']);
+  });
+
+  it('keeps a student words past the length limit, because a long first message cannot crowd them out', async () => {
+    const { brain, model } = setup(() => reply('Okay, I will go on.'));
+    const long = 'word '.repeat(600).trim();
+    await ask(brain, long);
+    await ask(brain, `${long} the last words`, long);
+    expect(getUsers(model.requests.at(-1)).at(-1)).toBe('the last words');
+  });
+
+  it('leaves a message alone when it only happens to start like the last one', async () => {
+    const { brain, model } = setup(() => reply('Okay, I will go on.'));
+    await ask(brain, 'why');
+    await ask(brain, 'why is the sky blue');
+    expect(getUsers(model.requests.at(-1))).toEqual(['why', 'why is the sky blue']);
+  });
+
+  it('does not send a refused message again with the words that cut it, so one refusal cannot become two', async () => {
+    const { brain, model } = setup((_request, attempt) => (attempt === 1 ? { pieces: [], stopReason: 'refused', refusalCategory: 'bio' } : reply('Okay, are you safe?')));
+    await ask(brain, 'A refused message');
+    await ask(brain, 'A refused message are you there', 'A refused message');
+    expect(getUsers(model.requests.at(-1))).toEqual(['are you there']);
+    expect(JSON.stringify(model.requests.at(-1)?.turns)).toContain('A safety check stopped an earlier message');
+  });
+});

@@ -8,7 +8,8 @@ const parsed = parseBeat({ id: 'beat-one', script: [{ kind: 'text', id: 'note', 
 if (!parsed.ok) throw new Error(parsed.problem);
 const BEAT: Beat = parsed.value;
 
-const played = (browserMs: number, startedMsAgo: number, clockId = 'page-one'): BrowserMessage => ({ type: 'played', turnId: 'turn-1' as never, beatId: BEAT.id, clockId, browserMs, startedMsAgo, wordStartsMs: [0, 200, 400], durationMs: startedMsAgo, playedWords: 3, firedCueMs: [0], ending: 'finished', frozen: [] });
+let nextTurn = 0;
+const played = (browserMs: number, startedMsAgo: number, clockId = 'page-one', turnId = `turn-${(nextTurn += 1)}`): BrowserMessage => ({ type: 'played', turnId: turnId as never, beatId: BEAT.id, clockId, browserMs, startedMsAgo, wordStartsMs: [0, 200, 400], durationMs: startedMsAgo, playedWords: 3, firedCueMs: [0], ending: 'finished', frozen: [] });
 
 describe('createSessionLog', () => {
   it('stamps a beat at when it started, and keeps the gaps the browser saw even if a message is slow', () => {
@@ -19,6 +20,21 @@ describe('createSessionLog', () => {
     log.write(played(7000, 800));
     const starts = log.getEvents().map((event) => event.atMs);
     expect(starts).toEqual([200, 2200]);
+  });
+
+  it('writes one row for a beat, and no false row for a replayed report of fewer words', () => {
+    const log = createSessionLog({ getNowMs: () => 1000, getBeat: () => BEAT });
+    log.write(played(5000, 800, 'page-one', 'turn-same'));
+    const replayed = { ...played(5100, 0, 'page-one', 'turn-same'), playedWords: 0, firedCueMs: [], wordStartsMs: [], ending: 'interrupted' } as BrowserMessage;
+    expect(log.write(replayed)).toBeNull();
+    expect(log.getEvents().map((event) => event.kind === 'beatPlayed' && event.playedWords)).toEqual([3]);
+  });
+
+  it('lets a fuller report take the row of a lesser one, on the same sequence number', () => {
+    const log = createSessionLog({ getNowMs: () => 1000, getBeat: () => BEAT });
+    log.write({ ...played(5000, 0, 'page-one', 'turn-same'), playedWords: 1, firedCueMs: [], ending: 'interrupted' } as BrowserMessage);
+    log.write(played(5100, 800, 'page-one', 'turn-same'));
+    expect(log.getEvents().map((event) => [event.seq, event.kind === 'beatPlayed' && event.playedWords])).toEqual([[0, 3]]);
   });
 
   it('numbers events from 0, and tells the listener what it wrote', () => {

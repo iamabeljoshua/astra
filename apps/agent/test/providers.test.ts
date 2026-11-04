@@ -169,6 +169,46 @@ describe('the Muse adapter', () => {
     expect(muse?.getBytesHeard()).toBe(0);
   });
 
+  it('says it is hearing only once a real frame reaches a Muse that has answered, and says so again after frames stop', async () => {
+    const notes: string[] = [];
+    muse = await startFakeMuseWire({ handshakeMs: 120 });
+    const transcriber = makeMuseTranscriber({ apiKey: 'fake', webSocketFactory: (url, options) => (muse as FakeMuseWire).makeSocket(url, options), timings: { padAfterMs: 60 }, onNote: (note) => notes.push(note.kind) }).makeStt();
+    const stream = transcriber.stream();
+    await consume(stream);
+    stream.pushFrame(makeFrame());
+    await delay(40);
+    expect(notes).not.toContain('hearing');
+    await delay(150);
+    stream.pushFrame(makeFrame());
+    await delay(20);
+    expect(notes.filter((kind) => kind === 'hearing')).toHaveLength(1);
+    await delay(150);
+    stream.pushFrame(makeFrame());
+    await delay(20);
+    expect(notes.filter((kind) => kind === 'hearing')).toHaveLength(2);
+    stream.close();
+    await transcriber.close();
+  });
+
+  it('stops paying for Muse once frames have stayed away, and opens again at once on the next frame', async () => {
+    const transcriber = (await makeAdapter({ padAfterMs: 20, closeAfterQuietMs: 120 })).makeStt();
+    const stream = transcriber.stream();
+    await consume(stream);
+    stream.pushFrame(makeFrame());
+    await delay(20);
+    stream.pushFrame(makeFrame());
+    await delay(300);
+    const heardWhenClosed = muse?.getBytesHeard() ?? 0;
+    await delay(200);
+    expect(muse?.getBytesHeard()).toBe(heardWhenClosed);
+    expect(muse?.getOpenCount()).toBe(0);
+    stream.pushFrame(makeFrame());
+    await delay(60);
+    expect(muse?.getConnectionCount()).toBe(2);
+    stream.close();
+    await transcriber.close();
+  });
+
   it('pads silence when frames stop, because no frames means no final and Muse closes at 16 s', async () => {
     const transcriber = (await makeAdapter({ padAfterMs: SILENCE_MS })).makeStt();
     const stream = transcriber.stream();

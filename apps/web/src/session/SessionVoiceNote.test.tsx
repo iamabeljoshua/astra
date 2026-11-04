@@ -8,7 +8,7 @@ import { startLiveVoice } from '../voice/liveVoice';
 
 vi.mock('../auth/session', () => import('../test/signedInSession'));
 vi.mock('../auth/useAccount', () => import('../test/activeAccount'));
-vi.mock('../voice/liveVoice', () => ({ startLiveVoice: vi.fn() }));
+vi.mock('../voice/liveVoice', async (importOriginal) => ({ ...(await importOriginal<typeof import('../voice/liveVoice')>()), startLiveVoice: vi.fn() }));
 
 const OPEN_ROOM = { access: { url: 'wss://room.test', roomName: 'session-a-session', token: 'room-token' }, unavailableBecause: null };
 const CLOSED_NOTES = [

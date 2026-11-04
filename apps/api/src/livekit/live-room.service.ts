@@ -1,32 +1,36 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { SessionsService } from '../sessions/sessions.service';
 import { TutorSpendService } from '../tutor-spend/tutor-spend.service';
-import { getRoomName, type LiveRoomKeys, makeStudentToken } from './live-room-grants';
+import { makeStudentToken } from './live-room-grants';
 import type { LiveRoomResponseDto } from './live-room.dto';
-
-const DEFAULT_AGENT_NAME = 'astra-tutor';
-
-export function getLiveRoomKeys(environment: NodeJS.ProcessEnv): LiveRoomKeys | null {
-  const { LIVEKIT_URL: url, LIVEKIT_API_KEY: apiKey, LIVEKIT_API_SECRET: apiSecret, ASTRA_AGENT_NAME: agentName } = environment;
-  return url && apiKey && apiSecret ? { url, apiKey, apiSecret, agentName: agentName || DEFAULT_AGENT_NAME } : null;
-}
+import { getLiveRoomKeys, LiveRooms } from './live-rooms';
 
 @Injectable()
 export class LiveRoomService {
   constructor(
     private readonly sessionsService: SessionsService,
     private readonly tutorSpend: TutorSpendService,
+    private readonly liveRooms: LiveRooms,
   ) {}
 
-  // The room belongs to the session, and the session lookup answers 404 for another student, so no student can get a token for another's room.
-  async openLiveRoom(studentId: string, sessionId: string): Promise<LiveRoomResponseDto> {
+  private async requireUnfinishedSession(studentId: string, sessionId: string) {
     const session = await this.sessionsService.getSession(studentId, sessionId);
     if (session.status === 'finished') throw new ConflictException('This session has finished.');
+    return session;
+  }
+
+  // The room belongs to the session, and the session lookup answers 404 for another student, so no student can get a token for another's room. Only this calls the tutor in, so a finished session can never get a job, and a student past today's limit starts none.
+  async openLiveRoom(studentId: string, sessionId: string, { startOver = false }: { startOver?: boolean } = {}): Promise<LiveRoomResponseDto> {
+    const session = await this.requireUnfinishedSession(studentId, sessionId);
     const keys = getLiveRoomKeys(process.env);
     if (!keys) return { access: null, unavailableBecause: 'notSetUp' };
     if (await this.tutorSpend.isOverDailyLimit(studentId)) return { access: null, unavailableBecause: 'dailyLimit' };
-    const roomName = getRoomName(session.id);
-    const token = await makeStudentToken({ keys, roomName, studentId });
-    return { access: { url: keys.url, roomName, token }, unavailableBecause: null };
+    const roomName = await (startOver ? this.liveRooms.startOver(keys, session.id, studentId) : this.liveRooms.open(keys, session.id));
+    // The session can finish while the room opens, and that finish closed nothing, so this closes what it just opened.
+    await this.requireUnfinishedSession(studentId, sessionId).catch(async (problem: unknown) => {
+      await this.liveRooms.close(session.id);
+      throw problem;
+    });
+    return { access: { url: keys.url, roomName, token: await makeStudentToken({ keys, roomName, studentId }) }, unavailableBecause: null };
   }
 }

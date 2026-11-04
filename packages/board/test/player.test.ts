@@ -20,6 +20,25 @@ const stop: AgentMessage = { type: 'stop', turnId: TURN };
 
 const played = (audio: FakeAudio) => audio.sent.filter((message): message is BrowserMessage & { type: 'played' } => message.type === 'played');
 
+describe('old messages that reach the browser again after a rejoin', () => {
+  it('ignores a turnStarted for a turn it has seen, so a replay reports nothing false and fires nothing twice', () => {
+    const audio = createFakeAudio();
+    audio.receive(started, cue(0), words(), beatClosed());
+    audio.advance(50);
+    audio.startSound();
+    audio.advance(250);
+    audio.receive(stop);
+    const reportsBefore = played(audio).length;
+    const firedBefore = audio.fired.length;
+    audio.receive(started, cue(0), words(), beatClosed());
+    audio.receive({ type: 'turnStarted', turnId: turnId('turn-after-the-drop') });
+    audio.advance(600);
+    expect(played(audio)).toHaveLength(reportsBefore);
+    expect(played(audio).at(-1)?.playedWords).toBeGreaterThan(0);
+    expect(audio.fired).toHaveLength(firedBefore);
+  });
+});
+
 describe('cues on their words', () => {
   it('fires each cue when the count reaches its word, on a fake audio clock', () => {
     const audio = createFakeAudio();

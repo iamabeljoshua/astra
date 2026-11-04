@@ -512,3 +512,21 @@ describe('the tutor closing a room', () => {
     expect(parseAgentMessage({ type: 'tutorClosed', reason: 'bored' }).ok).toBe(false);
   });
 });
+
+describe('the messages a held microphone and a quiet room add', () => {
+  it('reads what the agent says about its ears and a quiet room', () => {
+    expect(parseAgentMessage({ type: 'earsOpen' })).toEqual({ ok: true, value: { type: 'earsOpen' } });
+    expect(parseAgentMessage({ type: 'quietWarning', isOn: true })).toEqual({ ok: true, value: { type: 'quietWarning', isOn: true } });
+    expect(parseAgentMessage({ type: 'closingForQuiet' })).toEqual({ ok: true, value: { type: 'closingForQuiet' } });
+  });
+
+  it('refuses a quiet warning that does not say which way it goes', () => {
+    expect(parseAgentMessage({ type: 'quietWarning' }).ok).toBe(false);
+  });
+
+  it('reads a student answering the warning, with the stamp every browser message has', () => {
+    const stamp = { clockId: 'page-1', browserMs: 5000, startedMsAgo: 0 };
+    expect(parseBrowserMessage({ type: 'stillHere', ...stamp })).toEqual({ ok: true, value: { type: 'stillHere', ...stamp } });
+    expect(parseBrowserMessage({ type: 'stillHere' }).ok).toBe(false);
+  });
+});

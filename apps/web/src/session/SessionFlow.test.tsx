@@ -274,6 +274,14 @@ describe('the session screen', () => {
   });
 
   it('shows no words of its own while the room opens on a new question, so nothing stale sits there', async () => {
+    vi.stubGlobal('AudioContext', class {
+      state = 'running';
+      audioWorklet = { addModule: async () => {} };
+      createGain = () => ({ gain: { setValueAtTime: () => {} }, connect: () => {} });
+      createAnalyser = () => ({});
+      resume = async () => {};
+      close = async () => {};
+    });
     const { fetchStub } = renderSessionAddress({ sessions: [makeSession({ durationSeconds: 0 })] }, 'a-session');
     const room = holdAnswers(fetchStub, isCallTo('/api/sessions/a-session/live-room'));
 
@@ -290,12 +298,13 @@ describe('the session screen', () => {
     expect(screen.queryByText(SESSION_LABELS.idleWords)).toBeNull();
   });
 
-  it('invites a student who came back to type or talk, and opens no room until they do', async () => {
+  it('invites a student who came back to type or talk, and calls their tutor in once without a word on the screen', async () => {
     const { getRequests } = renderSessionAddress({ sessions: [makeSession({ durationSeconds: 65 })] }, 'a-session');
 
     await screen.findByText(SESSION_LABELS.idleWords);
     expect(screen.queryByText(/Live lessons open soon/)).toBeNull();
-    expect(getRequests('POST', '/api/sessions/a-session/live-room')).toEqual([]);
+    await waitFor(() => expect(getRequests('POST', '/api/sessions/a-session/live-room')).toHaveLength(1));
+    expect(screen.queryByText(VOICE_LABELS.unavailable)).toBeNull();
 
     fireEvent.change(screen.getByRole('textbox', { name: REPLY_BOX_LABELS.label }), { target: { value: 'Gravity, I think.' } });
     fireEvent.click(screen.getByRole('button', { name: REPLY_BOX_LABELS.send }));

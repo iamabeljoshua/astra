@@ -9,6 +9,8 @@ import { getWorkNote } from './watcher/work-note.ts';
 
 export interface TutorRequest {
   text: string;
+  /** How `text` starts, when it repeats the words of a request whose reply was cut. */
+  carried?: string;
 }
 
 export interface BeatReport {
@@ -232,6 +234,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
   let promptTokens = 0;
   let isCompacting = false;
   let isTurnRunning = false;
+  let lastAskedText: string | null = null;
 
   // Board and heard words come from the browser's report, because the model may write past what the student saw.
   const settleLastTurn = () => {
@@ -690,8 +693,11 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
   };
 
   return {
-    async *reply({ text }, signal) {
-      const studentText = cleanStudentText(text);
+    async *reply({ text, carried = '' }, signal) {
+      // The last turn holds the carried words, or a safety check chose to drop them, so only what is new goes in. If that turn never began, nothing holds them, and they all go in.
+      const isCarriedHere = carried !== '' && carried === lastAskedText;
+      lastAskedText = text;
+      const studentText = cleanStudentText(isCarriedHere ? text.slice(carried.length) : text);
       if (studentText === '') {
         const said = parseBeat({ id: `t${turnCount}-unheard`, script: [pickLine('notHeard')], expectsReply: true });
         if (said.ok) yield said.value;

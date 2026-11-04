@@ -25,6 +25,8 @@ interface TypedLineProps {
   hasWrittenBefore: boolean;
   handleRef?: React.Ref<TypedLineHandle>;
   nextLineId(): ElementId;
+  /** No tutor is left in the room, so nothing typed here can go anywhere. */
+  isClosed?: boolean;
   band?: ReactNode;
 }
 
@@ -39,7 +41,7 @@ export function useNextLineId(getBoard: () => BoardState) {
 }
 
 // The board's next line, read back as the student types, and its draft leaves the page only at a pause.
-export const TypedLine = memo(function TypedLine({ task, getBoard, onWork, onPause, onTyping, activity, hasWrittenBefore, handleRef, nextLineId, band = null }: TypedLineProps) {
+export const TypedLine = memo(function TypedLine({ task, getBoard, onWork, onPause, onTyping, activity, hasWrittenBefore, handleRef, nextLineId, isClosed = false, band = null }: TypedLineProps) {
   const [text, setText] = useState('');
   const [isRaw, setIsRaw] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
@@ -66,12 +68,12 @@ export const TypedLine = memo(function TypedLine({ task, getBoard, onWork, onPau
 
   const send = useCallback(
     (line: string) => {
-      if (line.trim() === '') return;
+      if (line.trim() === '' || isClosed) return;
       onWork({ way: 'write', id: nextLineId(), text: line.trimEnd(), ...(task ? { task: task.id } : {}) });
       setText('');
       setIsRaw(false);
     },
-    [task, nextLineId, onWork],
+    [task, nextLineId, onWork, isClosed],
   );
 
   useEffect(() => {
@@ -138,6 +140,7 @@ export const TypedLine = memo(function TypedLine({ task, getBoard, onWork, onPau
             spellCheck={false}
             enterKeyHint="send"
             maxLength={2000}
+            disabled={isClosed}
             onChange={(event) => {
               setText(event.target.value);
               syncRawMode();

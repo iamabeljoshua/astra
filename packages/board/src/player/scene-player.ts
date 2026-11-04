@@ -84,6 +84,7 @@ export function createScenePlayer({ clock, clockId = 'page', send, setOutputLeve
   let turn: PlayingTurn | null = null;
   let levelOnceOldAudioHasGone: OutputLevel | null = null;
   const operationsOfOldTurns: BoardOperation[] = [];
+  const seenTurnIds = new Set<TurnId>();
 
   const openOutput = () => {
     if (levelOnceOldAudioHasGone === null || turn?.clock.isOldAudioArriving()) return;
@@ -297,7 +298,12 @@ export function createScenePlayer({ clock, clockId = 'page', send, setOutputLeve
       operationsOfOldTurns.push(...operations);
     },
     receive(message) {
-      if (message.type === 'turnStarted') return startTurn(message.turnId);
+      // Reliable messages can reach the browser again across a rejoin, and a second start of a turn would report it as unheard and fire its cues again.
+      if (message.type === 'turnStarted') {
+        if (seenTurnIds.has(message.turnId)) return;
+        seenTurnIds.add(message.turnId);
+        return startTurn(message.turnId);
+      }
       if ('turnId' in message && turn?.phase === 'playing' && message.turnId === turn.id) receiveForTurn(turn, message);
     },
   };

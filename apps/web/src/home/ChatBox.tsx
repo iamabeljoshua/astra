@@ -31,7 +31,7 @@ export function ChatBox({ labels = CHAT_BOX_LABELS, canAttach = true, clearsOnSe
   const hasQuestion = question.trim() !== '';
 
   function send() {
-    if (!hasQuestion || !textBox.current) return;
+    if (!hasQuestion || isSending || !textBox.current) return;
     onSend(question.trim(), textBox.current);
     if (clearsOnSend) setQuestion('');
   }

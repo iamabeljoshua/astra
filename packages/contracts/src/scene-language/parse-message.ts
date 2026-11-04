@@ -99,6 +99,9 @@ const AGENT_MESSAGES: VariantTable<AgentMessage, 'type'> = {
     thinking: { keys: ['isThinking'], read: (fields) => ({ type: 'thinking', isThinking: readBoolean(fields.at('isThinking')) }) },
     tutorClosed: { keys: ['reason'], read: (fields) => ({ type: 'tutorClosed', reason: readOneOf(fields.at('reason'), TUTOR_CLOSED_REASONS) }) },
     pulse: { keys: [], read: () => ({ type: 'pulse' }) },
+    earsOpen: { keys: [], read: () => ({ type: 'earsOpen' }) },
+    quietWarning: { keys: ['isOn'], read: (fields) => ({ type: 'quietWarning', isOn: readBoolean(fields.at('isOn')) }) },
+    closingForQuiet: { keys: [], read: () => ({ type: 'closingForQuiet' }) },
   },
 };
 
@@ -182,6 +185,10 @@ const BROWSER_MESSAGES: VariantTable<BrowserMessage, 'type'> = {
     audioState: {
       keys: [...STAMP_KEYS, 'isRunning'],
       read: (fields) => ({ type: 'audioState', ...readBrowserStamp(fields), isRunning: readBoolean(fields.at('isRunning')) }),
+    },
+    stillHere: {
+      keys: STAMP_KEYS,
+      read: (fields) => ({ type: 'stillHere', ...readBrowserStamp(fields) }),
     },
   },
 };

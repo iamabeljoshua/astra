@@ -1,8 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { SessionEntity } from '../infrastructure/orm/entities/session.entity';
 import { SessionRepository } from '../infrastructure/orm/repositories/session.repository';
+import { LiveRooms } from '../livekit/live-rooms';
 import type { SessionListOptions } from '../infrastructure/orm/repositories/session.repository';
 import type { TopicSession } from '../picks/topic-progress';
+import { TutorSpendService } from '../tutor-spend/tutor-spend.service';
 import type { CreateSessionBodyDto, SessionResponseDto, UpdateSessionBodyDto } from './session.dto';
 
 function requireSession(session: SessionEntity | null): SessionEntity {
@@ -26,10 +28,17 @@ function toSessionResponse(session: SessionEntity): SessionResponseDto {
 
 @Injectable()
 export class SessionsService {
-  constructor(private readonly sessions: SessionRepository) {}
+  constructor(
+    private readonly sessions: SessionRepository,
+    private readonly liveRooms: LiveRooms,
+    private readonly tutorSpend: TutorSpendService,
+  ) {}
 
   async createSession(studentId: string, body: CreateSessionBodyDto): Promise<SessionResponseDto> {
-    return toSessionResponse(await this.sessions.createForStudent(studentId, body));
+    const session = await this.sessions.createForStudent(studentId, body);
+    // Warming starts a job, which spends, and a student past today's limit gets no reply from it.
+    if (!(await this.tutorSpend.isOverDailyLimit(studentId))) this.liveRooms.warm(session.id);
+    return toSessionResponse(session);
   }
 
   async listSessions(studentId: string, options: SessionListOptions): Promise<SessionResponseDto[]> {
@@ -54,8 +63,9 @@ export class SessionsService {
     sessionId: string,
     changes: UpdateSessionBodyDto,
   ): Promise<SessionResponseDto> {
-    const session = await this.sessions.updateUnfinishedForStudent(studentId, sessionId, changes);
-    return toSessionResponse(requireSession(session));
+    const session = requireSession(await this.sessions.updateUnfinishedForStudent(studentId, sessionId, changes));
+    if (session.status === 'finished') await this.liveRooms.close(session.id);
+    return toSessionResponse(session);
   }
 
   async getNewestUnfinishedSession(studentId: string): Promise<SessionResponseDto | null> {

@@ -131,7 +131,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Says whether the signed-in student can join their session's voice room, and gives the access if so. Another student's session answers 404, and a finished one 409. */
+        /** Says whether the signed-in student can join their session's voice room, and gives the access if so. Another student's session answers 404, and a finished one 409. Starting over too often answers 429. */
         post: operations["LiveRoomController_openLiveRoom"];
         delete?: never;
         options?: never;
@@ -527,7 +527,10 @@ export interface operations {
     };
     LiveRoomController_openLiveRoom: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Set to `yes` when the tutor has gone, to close this session's room and call a new tutor into a new one. Leave it out to join the room as it is. */
+                startOver?: "yes";
+            };
             header?: never;
             path: {
                 /** @description The ID of the session. */

@@ -24,7 +24,7 @@ function readLine({ mark, rows }: { mark: Mark; rows: TraceRow[] }) {
   const partial = rows.find((row) => row.name === 'words');
   const reply = rows.find((row) => row.name === 'replyDecided');
   const from = (row: TraceRow | undefined) => (row && voiceEnded ? Math.round(row.atMs - voiceEnded.atMs) : null);
-  return { line: mark.line, cleanup: mark.cleanup, heard: final?.text ?? partial?.text ?? null, finalAfterVoiceEndedMs: from(final), replyAfterVoiceEndedMs: from(reply), via: reply?.via ?? null, hung: voiceEnded !== undefined && partial !== undefined && reply === undefined };
+  return { line: mark.line, cleanup: mark.cleanup, heard: final?.text ?? partial?.text ?? null, finalAfterVoiceEndedMs: from(final), replyAfterVoiceEndedMs: from(reply), via: reply?.via ?? null, replies: rows.filter((row) => row.name === 'replyDecided').length, hung: voiceEnded !== undefined && partial !== undefined && reply === undefined };
 }
 
 // Reads one microphone test from the agent's trace, so Abel only has to read lines aloud.

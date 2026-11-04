@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import type { Browser } from 'playwright';
 import { readTrace, summarise, type TraceRow } from './read-trace.ts';
-import { countRoomEgresses, listParticipantIdentities, listRoomNames } from './cloud-rooms.ts';
+import { countRoomEgresses, hasRoom, listParticipantIdentities, listParticipantRegions, listRoomNames } from './cloud-rooms.ts';
 import { startCutProxy } from './cut-proxy.ts';
 import { saveRecording } from './join-recording.ts';
 import { LONG_LINES } from './make-speech.ts';
@@ -137,6 +137,7 @@ async function typeReply(student: StudentPage, text: string): Promise<void> {
 }
 
 interface StopRow {
+  regions: { who: string; region: string }[];
   localYieldFromFirstSoundMs: number | null;
   reactionAfterStopMs: number | null;
   reactionCapturedAfterDecisionMs: number | null;
@@ -181,6 +182,7 @@ async function interruptOnce({ stack, student, clipId, waitMs = 1800 }: { stack:
   const reactionTurnId = finalRows.find((row) => row.name === 'turnStarted' && row.kind === 'reaction')?.turnId as string | undefined;
   const reactionHeard = reactionTurnId ? settled.firstAudioEpochMs[reactionTurnId] : undefined;
   return {
+    regions: await listParticipantRegions(getRoomName(student)).catch(() => []),
     localYieldFromFirstSoundMs: localYield === undefined ? null : Math.round(localYield - said.firstSoundEpochMs),
     reactionAfterStopMs: reactDecided && stopped ? Math.round(reactDecided.atMs - stopped.atMs) : null,
     reactionCapturedAfterDecisionMs: reactDecided && reactionCaptured ? Math.round(reactionCaptured.atMs - reactDecided.atMs) : null,
@@ -260,7 +262,7 @@ const SCENARIOS: Record<string, (context: RunContext) => Promise<unknown>> = {
       const liveAtMs = Date.now();
       const trace = await waitForTrace(stack, student, 0, (found) => found.some((row) => row.name === 'turnFinished'), 30_000);
       const after = await student.getTrace();
-      const firstAudio = after.firstAudioEpochMs['turn-1'];
+      const firstAudio = Object.values(after.firstAudioEpochMs)[0];
       const ready = trace.find((row) => row.name === 'muse:ready');
       const rtt = await student.getRoundTripMs();
       rows.push({ connectedMs: liveAtMs - pressedAtMs, jobStartedMs: Math.round((trace.find((row) => row.name === 'jobStarted')?.atMs ?? 0) - pressedAtMs), trackUpMs: Math.round((trace.find((row) => row.name === 'voiceTrackUp')?.atMs ?? 0) - pressedAtMs), greetingHeardMs: firstAudio === undefined ? null : Math.round(firstAudio - pressedAtMs), museHandshakeMs: ready?.handshakeMs ?? null, roundTripMs: rtt === null ? null : Math.round(rtt) });
@@ -472,7 +474,9 @@ const SCENARIOS: Record<string, (context: RunContext) => Promise<unknown>> = {
       const lost = found.find((row) => row.name === 'linkLost');
       const resumed = found.find((row) => row.name === 'resumeStarted');
       const report = found.find((row) => row.name === 'played' && row.ending === 'interrupted');
-      rows.push({ lostAfterCutMs: lost ? Math.round(lost.atMs - cutAtMs) : null, resumedAfterBackMs: resumed ? Math.round(resumed.atMs - backAtMs) : null, reported: report ? { playedWords: report.playedWords, firedCues: report.firedCues } : null, reportedBeforeResume: resumed?.reported, phaseDuringDrop: during.view.phase, heardAtDrop: during.view.tutorHeard, heardAfterResume: after.view.tutorHeard, firedPerTurn: after.fired.length });
+      const flightRows = found.filter((row) => row.name === 'played' && String(row.beatId).includes('flight'));
+      const replayed = await student.page.evaluate(() => (window.astraVoice?.records as { replayedTurns?: string[] }).replayedTurns?.length ?? 0);
+      rows.push({ lostAfterCutMs: lost ? Math.round(lost.atMs - cutAtMs) : null, resumedAfterBackMs: resumed ? Math.round(resumed.atMs - backAtMs) : null, reported: report ? { playedWords: report.playedWords, firedCues: report.firedCues } : null, reportedBeforeResume: resumed?.reported, phaseDuringDrop: during.view.phase, heardAtDrop: during.view.tutorHeard, heardAfterResume: after.view.tutorHeard, firedPerTurn: after.fired.length, resumedBeats: resumed?.beats, flightReports: flightRows.map((row) => [row.beatId, row.ending, row.playedWords, row.firedCues]), reportsIgnored: found.filter((row) => row.name === 'reportIgnored').length, turnsReplayedSoFar: replayed });
       await delay(1500);
     }
     await student.page.screenshot({ path: join(out, 'm3-6-drop.png') });
@@ -493,7 +497,7 @@ const SCENARIOS: Record<string, (context: RunContext) => Promise<unknown>> = {
     const closedRows = await waitForTrace(stack, student, closedAtMs, (found) => found.some((row) => row.name === 'jobClosed'), 40_000);
     let goneAfterMs: number | null = null;
     while (Date.now() - closedAtMs < 40_000) {
-      if (!(await listRoomNames()).includes(room)) {
+      if (!(await hasRoom(room))) {
         goneAfterMs = Date.now() - closedAtMs;
         break;
       }
@@ -501,8 +505,8 @@ const SCENARIOS: Record<string, (context: RunContext) => Promise<unknown>> = {
     }
     await student.context.close();
     const left = closedRows.find((row) => row.name === 'studentLeft');
-    const egresses = await countRoomEgresses(room);
-    return { egressesOfRoom: egresses, roomListedWhileOpen: before.includes(room), leftOnPurpose: left?.leftOnPurpose, jobClosedAfterMs: Math.round((closedRows.find((row) => row.name === 'jobClosed')?.atMs ?? closedAtMs) - closedAtMs), roomGoneAfterMs: goneAfterMs, museClosed: closedRows.some((row) => row.name === 'muse:closed') };
+    const egresses = await countRoomEgresses(before.find((name) => name.startsWith(room)) ?? room);
+    return { egressesOfRoom: egresses, roomListedWhileOpen: before.some((name) => name.startsWith(room)), leftOnPurpose: left?.leftOnPurpose, jobClosedAfterMs: Math.round((closedRows.find((row) => row.name === 'jobClosed')?.atMs ?? closedAtMs) - closedAtMs), roomGoneAfterMs: goneAfterMs, museClosed: closedRows.some((row) => row.name === 'muse:closed') };
   },
 
   // A second student gets their own room, sees none of the first student's words, and cannot get a token for the first room.
@@ -530,7 +534,7 @@ const SCENARIOS: Record<string, (context: RunContext) => Promise<unknown>> = {
     await maya.context.close();
     await tola.context.close();
     void stack;
-    return { roomsAreDifferent: roomsInUse[0] !== roomsInUse[1], bothListed: roomsInUse.every((name) => rooms.includes(name)), participants, tokenForOthersRoom, mayaHeard: mayaTrace.view.tutorHeard, tolaHeard: tolaTrace.view.tutorHeard, mayaSawTolasWords: JSON.stringify(mayaTrace.view).includes('photosynthesis'), tolaSawMayasWords: JSON.stringify(tolaTrace.view).includes('gravity') };
+    return { roomsAreDifferent: roomsInUse[0] !== roomsInUse[1], bothListed: roomsInUse.every((prefix) => rooms.some((name) => name.startsWith(prefix))), participants, tokenForOthersRoom, mayaHeard: mayaTrace.view.tutorHeard, tolaHeard: tolaTrace.view.tutorHeard, mayaSawTolasWords: JSON.stringify(mayaTrace.view).includes('photosynthesis'), tolaSawMayasWords: JSON.stringify(tolaTrace.view).includes('gravity') };
   },
 
   async turns({ stack, browser, out }) {

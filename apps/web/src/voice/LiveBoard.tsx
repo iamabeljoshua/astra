@@ -12,7 +12,7 @@ import { PenBand } from '../board/PenBand';
 import { SharedBoard } from '../board/SharedBoard';
 import { TypedLine, type TypedLineHandle, useNextLineId } from '../board/TypedLine';
 import { BOARD_WORK_LABELS, VOICE_LABELS } from '../strings';
-import type { LiveVoice } from './liveVoice';
+import { isVoiceOver, type LiveVoice } from './liveVoice';
 
 const LINES_BEFORE_THE_HINT_GOES = 2;
 
@@ -168,6 +168,7 @@ export function LiveBoard({ voice, visual = null, onTalk, isTalkOn = false, canT
       <button
         type="button"
         className="board-tool"
+        disabled={isVoiceOver(view.phase)}
         data-testid="pen-tool"
         aria-pressed={isPenOpen}
         onClick={() => {
@@ -218,6 +219,7 @@ export function LiveBoard({ voice, visual = null, onTalk, isTalkOn = false, canT
             activity={activity}
             hasWrittenBefore={hasWrittenBefore}
             nextLineId={nextLineId}
+            isClosed={isVoiceOver(view.phase)}
             band={isPenOpen ? <PenBand task={task} voice={voice} nextLineId={nextLineId} onLineChange={setLineInTheBand} doneRef={penDone} onWorking={onPenWorking} onFinished={closePen} /> : null}
           />
         }
