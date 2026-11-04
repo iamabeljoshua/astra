@@ -120,6 +120,12 @@ describe('where the lesson is', () => {
     expect(getStepNote(back)).toMatchObject({ topic: SOLVING.topic, step: '1 of 1' });
   });
 
+  it('does not start over when the planner names the topic they are already on', () => {
+    const second = getStateAfterEvent(getStateAfterMove(NO_LESSON, newPlan(FRACTIONS)), 'exerciseDone');
+
+    expect(getStateAfterMove(second, newPlan({ ...FRACTIONS, topic: 'fractions' }))).toBe(second);
+  });
+
   it('stays where it is when asked to go back to a topic it does not hold', () => {
     const state = getStateAfterMove(NO_LESSON, newPlan(FRACTIONS));
 

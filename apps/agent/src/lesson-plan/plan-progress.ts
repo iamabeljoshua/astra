@@ -36,6 +36,8 @@ const shelve = (active: ActivePlan | null, shelved: readonly ActivePlan[]) => (a
 export function getStateAfterMove(state: LessonState, move: PlanMove): LessonState {
   if (move.move === 'stay') return state;
   if (move.move === 'new') {
+    // The planner can name the topic they are already on, and that must not start the lesson over.
+    if (state.active && !isNotTopic(move.plan.topic)(state.active)) return state;
     return { active: { plan: move.plan, stepIndex: 0, isExerciseOpen: false }, shelved: shelve(state.active, state.shelved).filter(isNotTopic(move.plan.topic)) };
   }
   const earlier = state.shelved.find((other) => !isNotTopic(move.topic)(other));
