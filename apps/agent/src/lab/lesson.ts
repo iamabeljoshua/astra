@@ -1,4 +1,4 @@
-import { type Beat, parseBeat } from '@astra/contracts';
+import { type Beat, getBeatText, getCues, getSpokenWords, parseBeat } from '@astra/contracts';
 
 const BALL = { kind: 'simulate', id: 'shot', simulation: { model: 'projectile', parameters: { horizontalSpeed: 4.2, upwardSpeed: 5.6, releaseHeight: 2.2, gravity: 9.8 } } };
 
@@ -54,14 +54,19 @@ export const LESSON: readonly (readonly Beat[])[] = [
   ],
 ];
 
-// Proof only. The script's own cues sit where a writer put them, so these show what a cue on any other word would do.
+const MOST_COMMANDS_IN_A_BEAT = 12;
+
+// Proof only. The script's own cues sit where a writer put them, so these show what a cue on any other word would do, as near every nth word as a beat's command limit allows.
 function addCueEveryWords(beat: Beat, every: number): Beat {
+  const wordCount = getSpokenWords(getBeatText(beat)).length;
+  const room = MOST_COMMANDS_IN_A_BEAT - getCues(beat).length;
+  const spacing = Math.max(every, Math.ceil(wordCount / room));
   let wordIndex = 0;
   const script = beat.script.flatMap((part): unknown[] => {
     if (typeof part !== 'string') return [part];
     return part.split(/(?<=\s)/).flatMap((word) => {
       const index = wordIndex++;
-      return index % every === 0 ? [{ kind: 'text', id: `${beat.id}-w${index}`, text: 'x' }, word] : [word];
+      return index % spacing === 0 ? [{ kind: 'text', id: `${beat.id}-w${index}`, text: 'x' }, word] : [word];
     });
   });
   return makeBeat(beat.id, script, beat.expectsReply);

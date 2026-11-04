@@ -15,7 +15,8 @@ export interface ElevenLabsVoiceOptions {
 
 const DEFAULT_MODEL = 'eleven_flash_v2_5';
 /** The plugin's default of 22050 Hz runs slow on the wire, because LiveKit frames 10 ms as whole samples. The plugin's type leaves this rate out and its code reads any rate from the name. */
-const ENCODING = 'pcm_24000' as unknown as elevenlabs.TTSOptions['encoding'];
+export const VOICE_SAMPLE_RATE = 24000;
+const ENCODING = `pcm_${VOICE_SAMPLE_RATE}` as unknown as elevenlabs.TTSOptions['encoding'];
 
 // The plugin leaves prewarm empty, so this opens its socket before the first turn.
 class WarmElevenLabsTts extends elevenlabs.TTS {

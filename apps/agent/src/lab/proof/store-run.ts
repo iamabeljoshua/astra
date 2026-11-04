@@ -8,11 +8,12 @@ interface RecordedTurn {
   words: { words: { text: string; startMs: number }[] }[];
 }
 
-const [runFolder, outputPath, repeatsText = '1'] = process.argv.slice(2);
+const [runFolder, outputPath, repeatsText = '1', onlyTurn] = process.argv.slice(2);
 if (!runFolder || !outputPath) throw new Error('Name a real run folder and a file to write');
 
 // Keeps a real run's audio and word times as one take, so later runs can use real speech and spend no credits.
-const { turns } = JSON.parse(readFileSync(join(runFolder, 'agent.json'), 'utf8')) as { turns: RecordedTurn[] };
+const recorded = JSON.parse(readFileSync(join(runFolder, 'agent.json'), 'utf8')) as { turns: RecordedTurn[] };
+const turns = recorded.turns.filter((turn) => !onlyTurn || turn.turnId === onlyTurn);
 const sampleRate = turns[0]?.sampleRate ?? 0;
 const parts: Buffer[] = [];
 const words: { text: string; startMs: number }[] = [];

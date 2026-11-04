@@ -64,10 +64,11 @@ interface RunContext {
 const beatsOf = (lessonTurn: number) => LESSON[lessonTurn]?.length ?? 0;
 
 async function playWholeLesson({ command, waitForPlayedBeats, scenario }: RunContext): Promise<void> {
-  await command({ type: 'play', lessonTurn: 0, textPace: scenario.textPace, proofStalls: scenario.proofStalls });
+  const { textPace, cueEveryWords, proofStalls } = scenario;
+  await command({ type: 'play', lessonTurn: 0, textPace, cueEveryWords, proofStalls });
   await waitForPlayedBeats(beatsOf(0));
   await delay(1500);
-  await command({ type: 'play', lessonTurn: 1, textPace: scenario.textPace });
+  await command({ type: 'play', lessonTurn: 1, textPace, cueEveryWords });
   await waitForPlayedBeats(beatsOf(0) + beatsOf(1));
   await delay(600);
 }
@@ -173,10 +174,10 @@ const SCENARIOS: Record<string, Scenario> = {
   model: { drive: playWholeLesson, textPace: { msPerWord: 120, flushBeforeCues: true } },
   'words-late-300': { drive: playWithWordsLate },
   stored: { drive: playStockPhraseThreeTimes, usesStoredPhrase: true },
-  'clean-every-third': { drive: playFirstTurn, cueEveryWords: 3 },
-  'uneven-every-third': { drive: playFirstTurn, cueEveryWords: 3, network: NETWORKS.uneven },
-  'poor-every-third': { drive: playFirstTurn, cueEveryWords: 3, network: NETWORKS.poor },
-  'long-every-third': { drive: playFirstTurn, cueEveryWords: 3, repeats: 3 },
+  'clean-every-third': { drive: playWholeLesson, cueEveryWords: 3 },
+  'uneven-every-third': { drive: playWholeLesson, cueEveryWords: 3, network: NETWORKS.uneven },
+  'poor-every-third': { drive: playWholeLesson, cueEveryWords: 3, network: NETWORKS.poor },
+  'long-every-third': { drive: playFirstTurn, cueEveryWords: 3, repeats: 4 },
   'next-on-finished': { drive: playNextTurnOnFinished },
   'next-on-finished-poor': { drive: playNextTurnOnFinished, network: NETWORKS.poor },
   'after-stop': { drive: resumeRightAfterStop },

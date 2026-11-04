@@ -2,8 +2,8 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { initializeLogger, tts } from '@livekit/agents';
-import { makeElevenLabsVoice } from '../../providers/elevenlabs.ts';
-import { makeTutorVoice, TUTOR_VOICE_ID } from '../../providers/choose.ts';
+import { makeElevenLabsVoice, VOICE_SAMPLE_RATE as SAMPLE_RATE } from '../../providers/elevenlabs.ts';
+import { makeTutorVoice, TUTOR_VOICE_ID, TUTOR_VOICE_NAME } from '../../providers/choose.ts';
 import { readKey } from '../keys.ts';
 import { OVERLONG_LINE, STOCK_PHRASE } from '../lesson.ts';
 import { getPercentiles } from './analyse-run.ts';
@@ -11,7 +11,6 @@ import { createOverlongWatch } from './overlong-watch.ts';
 import { tapVendorSocket } from './vendor-tap.ts';
 
 const CREDITS_PER_CHARACTER = 0.22;
-const SAMPLE_RATE = 22050;
 const MS_PER_SECOND = 1000;
 const OVERLONG_RATIO = 2;
 
@@ -111,7 +110,7 @@ async function checkOverlong(): Promise<void> {
   const medianMs = getPercentiles(rows.map((row) => row.audioMs)).p50 ?? 0;
   const overlong = rows.filter((row) => row.audioMs >= medianMs * OVERLONG_RATIO);
   const flagged = rows.filter((row) => row.overlongAtAudioMs !== null);
-  saveResult(`overlong-${args.voiceId ?? 'casey'}-${model}`, {
+  saveResult(`overlong-${args.voiceId ?? TUTOR_VOICE_NAME}-${model}`, {
     text,
     model,
     requests: rows.length,
@@ -141,7 +140,7 @@ async function measureFirstAudio(): Promise<void> {
   const warm = [];
   for (let attempt = 0; attempt < count; attempt += 1) warm.push((await speakLine(voice, text)).firstFrameMs);
   await voice.close();
-  saveResult(`first-audio-${model}`, { model, text, credits: Math.round((cold.length + warm.length) * text.length * CREDITS_PER_CHARACTER), coldSocket: getPercentiles(cold), warmSocket: getPercentiles(warm), warmFirstRequestMs: Math.round(warm[0] ?? 0), warmRest: getPercentiles(warm.slice(1)) });
+  saveResult(`first-audio-${TUTOR_VOICE_NAME}-${model}`, { model, text, credits: Math.round((cold.length + warm.length) * text.length * CREDITS_PER_CHARACTER), coldSocket: getPercentiles(cold), warmSocket: getPercentiles(warm), warmFirstRequestMs: Math.round(warm[0] ?? 0), warmRest: getPercentiles(warm.slice(1)) });
 }
 
 const NUMBER_LINES = ['It falls at 9.8 metres per second, about 2.5 times faster.', 'So 3/4 of 12 is 9, and x^2 + 1 stays above 0.', "That's 100% right: ninety-nine isn't 1,000."];
@@ -190,9 +189,9 @@ async function makeClips(): Promise<void> {
   voice.prewarm();
   const name = model.replace('eleven_', '').replace('_v2_5', '');
   const whole = await speakPieces(voice, [WHOLE_SENTENCE]);
-  writeWav(`casey-${name}-whole.wav`, whole.pcm);
+  writeWav(`${TUTOR_VOICE_NAME}-${name}-whole.wav`, whole.pcm);
   const flushed = await speakPieces(voice, FLUSHED_PIECES);
-  writeWav(`casey-${name}-flushed.wav`, flushed.pcm);
+  writeWav(`${TUTOR_VOICE_NAME}-${name}-flushed.wav`, flushed.pcm);
   await voice.close();
   saveResult(`clips-${name}`, { model, wholeMs: Math.round(whole.audioMs), flushedMs: Math.round(flushed.audioMs), stretch: Number((flushed.audioMs / whole.audioMs).toFixed(2)), wholeWords: whole.words, flushedWords: flushed.words, credits: Math.round(WHOLE_SENTENCE.length * 2 * CREDITS_PER_CHARACTER) });
 }
