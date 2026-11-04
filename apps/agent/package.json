@@ -15,7 +15,8 @@
     "voice-proof": "node src/lab/proof/voice/run-voice-proof.ts",
     "math-proof": "node src/lab/proof/math-proof.ts",
     "math-load": "node src/lab/proof/math-load.ts",
-    "eval:tutor": "node src/tutor/eval/run-eval.ts"
+    "eval:tutor": "node src/tutor/eval/run-eval.ts",
+    "eval:groups": "node src/tutor/eval/run-groups.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "1.4.0",

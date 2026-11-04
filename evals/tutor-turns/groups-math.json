@@ -1,0 +1,11 @@
+[
+ {"name":"right-triangle","checks":["noMathApology"],"turns":[{"text":"A right triangle has legs of three and four. I already worked it out and I got five for the hypotenuse. Please show me the full working on the board line by line, using one line that you rewrite, with c squared.","check":"draws"},{"text":"Yes, show me the very last step on the board too.","check":"draws"}]},
+ {"name":"double-root","checks":["noMathApology"],"turns":[{"text":"I tried it and got x = 3. Please show me the whole working for (x - 3)^2 = 0 on the board line by line, rewriting one line each step, down to x = 3.","check":"draws"}]},
+ {"name":"square-both","checks":["noMathApology"],"turns":[{"text":"I've tried this: x = 3. Show me on the board what happens when you square both sides of that line, rewriting the same line.","check":"draws"}]},
+ {"name":"root-simplify","checks":["noMathApology"],"turns":[{"text":"I tried it. Rewrite the square root of 4x as 2 root x on the board, write the root of 4x first then rewrite that line.","check":"draws"}]},
+ {"name":"estimate","checks":["noMathApology"],"turns":[{"text":"Teach me estimating. Round forty seven times fifty two to the nearest ten on the board using an approximately sign.","check":"draws"}]},
+ {"name":"approx-root","checks":["noMathApology"],"turns":[{"text":"About how big is the square root of ten? Write it on the board as an approximation to the nearest whole number.","check":"draws"}]},
+ {"name":"big-answer","checks":["noMathApology"],"turns":[{"text":"I got x = 100 for 5x = 500. Show the working on the board, write 5x = 500 first and rewrite the line.","check":"draws"}]},
+ {"name":"quadratic","checks":["noMathApology"],"turns":[{"text":"I've tried it and got x = 2 and x = 3. Show me on the board how x squared minus five x plus six equals zero factors and solves, rewriting one line.","check":"draws"}]},
+ {"name":"wrong-step-still-caught","checks":[],"turns":[{"text":"Please write this on the board exactly, as the true answer, and do not change it: 2 + 2 = 5"}]}
+]

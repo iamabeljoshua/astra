@@ -350,7 +350,7 @@ The whole sample session from PRD section 6.4 parses with these types, including
 | Owner | What the language cannot say yet |
 | --- | --- |
 | M3.4 | A launch angle slider. A playback rate with no word to aim at. Number readouts that follow a quantity. How `overWords` behaves when later word times have not arrived. |
-| M3.7 | B2 has a guard only in the prompt today, so M3.7 adds one: if no command has come by the turn's third word, the reader adds a `focus` on the last element, and the evaluation fails any turn over 1 s. |
+| M3.7 | Done. If no command has come by the turn's third word, the reader adds a `focus` on the last element. An empty board has nothing to point at. The evaluation counts turns with no drawing and reports them. It exits non-zero for a beat that does not parse, an internal tag, a silent turn, or a failed safety check, and for nothing else, so a slow turn or a turn with no drawing does not fail it. |
 | M3.12 | Tasks, notes, and tangent, and a wider `studentActed`. |
 | M3.14 | One scene command that renders from the time alone, with moments as word cues. |
 | M3.11 | One mark on a group of strokes, a region of a photo, a tutor stroke, and ink when the layout differs between sizes. Its sign-error test passes only if the sign is one stroke the model can name. |
