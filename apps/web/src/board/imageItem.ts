@@ -6,10 +6,8 @@ const ART_FOLDER = '/board-art';
 /** A picture waits unseen this share of its entrance, which keeps one cleared and placed again under 3 flashes a second. */
 const UNSEEN_ENTRANCE_SHARE = 0.42;
 const SMALLER_WIDTHS = [480, 800];
-/** A phone's board is about as wide as the screen, and a wider board is at most this wide. */
 const PICTURE_SIZES = '(max-width: 500px) 100vw, 1100px';
 
-/** Each file's true size, so a picture holds its place before it has loaded. Credits are in docs/credits.md. */
 const ART_SIZES: Record<ImageAsset, { width: number; height: number }> = {
   'great-wave': { width: 1200, height: 806 },
   'school-of-athens': { width: 1200, height: 931 },
@@ -25,7 +23,6 @@ const ART_SIZES: Record<ImageAsset, { width: number; height: number }> = {
 
 const getPictureSet = (asset: ImageAsset, width: number) => [...SMALLER_WIDTHS.map((smaller) => `${ART_FOLDER}/${asset}-${smaller}.jpg ${smaller}w`), `${ART_FOLDER}/${asset}.jpg ${width}w`].join(', ');
 
-// A file the board cannot show becomes its description in words, so a student never sees a broken picture.
 export function createImageItem(wrapper: HTMLElement, content: Image, { onImageMissing }: SliderHandlers): BoardItem {
   const asset = 'asset' in content ? content.asset : null;
   const artSize = asset && ART_SIZES[asset];

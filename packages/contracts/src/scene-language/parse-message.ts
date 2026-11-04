@@ -112,7 +112,6 @@ const AGENT_MESSAGES: VariantTable<AgentMessage, 'type'> = {
 
 const CLOCK_ID_MAX_CHARACTERS = 64;
 const MARK_ID_MAX_CHARACTERS = 64;
-/** A label of 80 characters, and the coordinates the board can add to it. */
 const BOARD_PROBLEM_SUBJECT_MAX_CHARACTERS = 120;
 
 const STAMP_KEYS = ['clockId', 'browserMs', 'startedMsAgo'];

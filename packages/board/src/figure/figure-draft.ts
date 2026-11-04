@@ -16,12 +16,10 @@ export interface FigureDraft {
   labels: LabelRequest[];
   shouldAvoid: Box[];
   mustAvoid: Box[];
-  /** A curve's whole line, so a label placed before the pen arrives does not have to jump out of its way. */
   linesAhead: Branch[];
   bounds: Box;
 }
 
-/** The grid lies under each word's halo, so it is paper to a label and not a line to clear. */
 export const GRID_MARK = 'grid';
 
 export function createFigureDraft(width: number, height: number): FigureDraft {

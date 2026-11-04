@@ -3,7 +3,6 @@ import { join } from 'node:path';
 import type { Page } from 'playwright';
 
 const BOARD = '[data-testid="board"]';
-/** Each board in the page it sits in, the same pairs the sweep uses, because the page's width sets the board's text size and so where its words wrap. */
 const LAPTOP = { viewport: { width: 1366, height: 800 }, size: { width: 760, height: 752 } };
 const PHONE = { viewport: { width: 390, height: 844 }, size: { width: 358, height: 506 } };
 const WHOLE_DECK = { name: 'm3-5-deck.png', laptopWidth: 240, phoneWidth: 110, columns: 7 };

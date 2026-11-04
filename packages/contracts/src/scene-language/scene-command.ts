@@ -1,6 +1,6 @@
 import type { ElementId, ElementRef, FileId } from './ids.ts';
 
-/** Our own drawings, each with the named parts a tutor can label or mark. A hoop is only ever drawn under a simulation, so it has no parts. */
+/** Our own drawings, each with the named parts a tutor can label or mark. */
 export const DRAWING_PARTS = {
   'hoop-side': [],
   'animal-cell': ['membrane', 'nucleus', 'nucleolus', 'mitochondrion', 'vacuole', 'ribosome'],

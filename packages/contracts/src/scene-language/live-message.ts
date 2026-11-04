@@ -90,7 +90,7 @@ export interface BrowserStamp {
   startedMsAgo: number;
 }
 
-/** What the page tells a live tutor about its board. The rest of the board's problems wait for the PR that lets a live tutor draw what causes them. */
+/** What the page tells a live tutor about its board. */
 export const TOLD_BOARD_PROBLEMS = ['tooSmallToRead', 'labelWithoutRoom', 'imageMissing', 'sliderWithoutConstant'] as const;
 
 export interface BoardProblemReport {

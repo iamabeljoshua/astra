@@ -50,7 +50,6 @@ function getBodyStrokes(name: 'piano-keys' | 'lever'): readonly InkStroke[] {
 
 const toBoard = ([x, y]: Pair): InkPosition => ({ x: x * BOARD_SCALE, y: y * BOARD_SCALE });
 
-// Keys share their sides, so each shape is read from its own stroke, the one that starts at its first corner.
 function getStrokeStartingAt(strokes: readonly InkStroke[], start: InkPosition): InkStroke {
   const found = strokes.find(({ points }) => Math.hypot((points[0]?.x ?? 0) - start.x, (points[0]?.y ?? 0) - start.y) < 2);
   if (!found) throw new Error(`no stroke starts at ${start.x}, ${start.y}`);

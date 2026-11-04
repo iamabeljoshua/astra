@@ -116,7 +116,6 @@ export interface ReplayPixels {
   describedDifferently: number;
 }
 
-/** Compares a live moment with its replay. The painter's only output is the page, so with the same page during the look that differed and a clean second look, what differed is the browser's raster. */
 export async function lookAtMoment(lab: LabPage, atMs: number, shiftMs: number): Promise<'same' | 'settled' | 'different'> {
   const readPage = () => lab.page.evaluate((selector) => document.querySelector(selector)?.outerHTML, BOARD_SELECTOR);
   const lookAtBoth = async () => {

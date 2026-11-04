@@ -13,7 +13,6 @@ export interface ExpectedWords {
   words: readonly string[];
   isWrittenInStrokes: boolean;
   isRevealedInSteps: boolean;
-  /** The element a mark or an attached curve sits on, which takes its words with it when it leaves the board. */
   hostId: string | null;
 }
 
@@ -65,7 +64,6 @@ const LEAST_STROKE_CONTRAST = 1.15;
 const LEAST_READABLE_OPACITY = 0.3;
 const LINE_OVERLAP_SHARE = 0.5;
 const SHOWN_OBJECT_FITS = new Set(['fill', 'contain']);
-/** A hand-drawn box wobbles past its true edge, so a line must get this far in before it counts as on the box. */
 const BOX_WOBBLE_PX = 2.5;
 const MATH_LINE_BOX_SHRINK = 0.2;
 const UNSEEN_OPACITY = 0.02;
@@ -118,7 +116,6 @@ const getContrast = (first: readonly number[], second: readonly number[]) => {
   return (lighter + 0.05) / (darker + 0.05);
 };
 
-// Everything here asks what is painted, so words and marks that exist on the page and cannot be seen do not count as shown.
 function createPaintReader(board: HTMLElement) {
   const opacities = new Map<Element, number>();
   const clipped = new Map<Element, boolean>();
@@ -211,7 +208,6 @@ function findTextOnText(texts: readonly PlacedText[]): Defect[] {
   return defects;
 }
 
-// The lines of one owner may touch, but never stack, whether a tspan or a paragraph's line box.
 function findLinesOnEachOther(texts: readonly PlacedText[]): Defect[] {
   const defects: Defect[] = [];
   texts.forEach((first, index) => {
@@ -323,7 +319,6 @@ function findInkDefects(board: HTMLElement, paint: PaintReader): Defect[] {
 
 const walkedLines = new WeakMap<SVGGeometryElement, { key: string; points: DOMPoint[] }>();
 
-// A path is walked once for its shape, because the sweep reads the same still drawing many times.
 function getLocalPoints(path: SVGGeometryElement, step: number): DOMPoint[] {
   const key = `${path.getAttribute('d') ?? path.outerHTML}|${step}`;
   const known = walkedLines.get(path);
@@ -342,7 +337,6 @@ function getLinePoints(path: SVGGeometryElement, step = LINE_STEP_PX): DOMPoint[
 
 const isInside = (point: DOMPoint, box: Box, room: number) => point.x > box.left + room && point.x < box.right - room && point.y > box.top + room && point.y < box.bottom - room;
 
-// Reports any box or words an arrow runs through, even on a line that has not started drawing yet.
 function findLineDefects(board: HTMLElement): Defect[] {
   return [...board.querySelectorAll<SVGSVGElement>('[data-element] svg')].flatMap((svg) => {
     const lines = [...svg.querySelectorAll<SVGPathElement>('path[data-ink="line"]')].map((line) => getLinePoints(line));
@@ -370,7 +364,6 @@ const isTickNumber = (owner: Element) => owner.matches('[data-mark^="tick-"]');
 
 const describeStroke = (shape: Element) => `${shape.closest('[data-element]')?.getAttribute('data-element') ?? 'a mark'} ${shape.getAttribute('data-mark') ?? shape.getAttribute('data-ink') ?? 'stroke'}`;
 
-// Every stroke but a plot's grid, which lies under each word's halo, against every word but a tick number, and a word's box is cut down to its letters first.
 function findStrokesThroughText(board: HTMLElement, texts: readonly PlacedText[], paint: PaintReader): Defect[] {
   const words = texts.filter(({ owner, isMath }) => isMath || !isTickNumber(owner)).map((text) => ({ ...text, letters: getLetterBox(text.box) }));
   if (words.length === 0) return [];
@@ -399,7 +392,6 @@ function getWrittenWords(svg: SVGSVGElement, paint: PaintReader): { name: string
   return [...groups].map(([name, boxes]) => ({ name, box: unionBoxes(boxes) }));
 }
 
-// A label written in strokes has no text node, so its strokes are read as one box, and a node's label must sit inside a box.
 function findDiagramLabelDefects(board: HTMLElement, texts: readonly PlacedText[], paint: PaintReader): Defect[] {
   return [...board.querySelectorAll<SVGSVGElement>('[data-element] svg.board-ink')].flatMap((svg): Defect[] => {
     const id = svg.closest<HTMLElement>('[data-element]')?.dataset.element;
@@ -417,7 +409,6 @@ function findDiagramLabelDefects(board: HTMLElement, texts: readonly PlacedText[
   });
 }
 
-// A leader is drawn with its label, in the same order, so the nth leader must start beside the nth label.
 function findLeadersOffTheirLabels(board: HTMLElement): Defect[] {
   return [...board.querySelectorAll<SVGSVGElement>('[data-element] svg.board-ink')].flatMap((svg): Defect[] => {
     const labels = [...svg.querySelectorAll('text[data-label="part"]')];
@@ -446,7 +437,6 @@ function findUnseenText(texts: readonly PlacedText[], paint: PaintReader): Defec
 
 const hasSeenStroke = (svg: Element, paint: PaintReader) => [...svg.querySelectorAll<SVGGeometryElement>('path')].some((path) => isDrawnStroke(path, paint) && paint.getStrokeContrast(path) >= LEAST_STROKE_CONTRAST);
 
-// At rest an element is seen or has been moved off a full board, and nothing else may hide it.
 function findUnseenElements({ board, expected }: Pick<DefectRequest, 'board' | 'expected'>, paint: PaintReader): Defect[] {
   return expected.flatMap(({ elementId, isRevealedInSteps }): Defect[] => {
     const wrapper = board.querySelector<HTMLElement>(`[data-element="${CSS.escape(elementId)}"]`);
@@ -533,7 +523,6 @@ function getSeenWords(place: HTMLElement, isWrittenInStrokes: boolean, paint: Pa
   return withoutSpaces([...seen, ...written, ...pictures].join(' '));
 }
 
-// Longest first, and each match is used up, so a short word cannot pass by sitting inside a longer one or a repeat of itself.
 function getWordsNotShown(words: readonly string[], shown: string): string[] {
   let remaining = shown;
   return [...words].sort((first, second) => withoutSpaces(second).length - withoutSpaces(first).length).filter((word) => {
@@ -546,7 +535,6 @@ function getWordsNotShown(words: readonly string[], shown: string): string[] {
 
 const isMovedOff = (board: HTMLElement, id: string | null) => id !== null && board.querySelector(`[data-element="${CSS.escape(id)}"]`)?.hasAttribute('data-moved-off') === true;
 
-// Looks inside an element's own place first, so the same words elsewhere on the board cannot stand in for them, and counts only what is painted.
 function findDroppedWords({ board, expected, reported }: DefectRequest, paint: PaintReader): Defect[] {
   return expected.filter(({ elementId, hostId }) => !reported.marksWithoutTarget.has(elementId) && !isMovedOff(board, elementId) && !isMovedOff(board, hostId)).flatMap(({ elementId, words, isWrittenInStrokes }) => {
     const shown = getSeenWords(board.querySelector<HTMLElement>(`[data-element="${CSS.escape(elementId)}"]`) ?? board, isWrittenInStrokes, paint);
@@ -578,7 +566,6 @@ export function findColorDefects(board: HTMLElement): Defect[] {
   });
 }
 
-/** Everything a student could see go wrong, read off the page and not off what was asked for. */
 export function findLayoutDefects(request: DefectRequest): { defects: Defect[]; textsChecked: number } {
   const { board, reported, isAtRest, arriving } = request;
   const paint = createPaintReader(board);

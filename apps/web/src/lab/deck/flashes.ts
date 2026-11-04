@@ -1,4 +1,3 @@
-/** Enough of the board moved one way, up or down in luminance, to count as half a flash. */
 export interface LuminanceChange {
   atMs: number;
   direction: 1 | -1;

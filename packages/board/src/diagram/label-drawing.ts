@@ -8,7 +8,6 @@ const LARGEST_BODY_WIDTH = 460;
 const SMALLEST_GUTTER = 72;
 const LARGEST_GUTTER = 190;
 const GUTTER_SHARE = 0.27;
-/** A label's longest word can widen the gutter this far, so a word stays whole on a phone. */
 const WIDEST_GUTTER_SHARE = 0.36;
 const SIDE_GAP = 10;
 const LABEL_GAP = 8;
@@ -29,7 +28,6 @@ type DrawingLabels = NonNullable<Drawing['labels']>;
 
 const wobble = (random: () => number) => (point: InkPosition, scale: number, at: InkPosition): InkPosition => ({ x: at.x + point.x * scale + getSpread(random, WOBBLE), y: at.y + point.y * scale + getSpread(random, WOBBLE) });
 
-// A closed shape ends where it began, so its last point takes the first one's wobble and the line meets itself.
 function drawSheetStroke(points: readonly InkPosition[], toPage: (point: InkPosition) => InkPosition): InkStroke {
   const drawn = points.map(toPage);
   const first = points[0];
@@ -46,7 +44,6 @@ function getSideLabels(labels: DrawingLabels, sheet: DrawingSheet, isLeft: boole
   return picked.sort((first, second) => first.anchor.y - second.anchor.y);
 }
 
-// Each label sits level with its part where it can, and pushes the ones after it down, then back up if they ran past the bottom.
 function stackLabels(labels: PlacedLabel[], { scale, bodyHeight, topRoom }: { scale: number; bodyHeight: number; topRoom: number }): number {
   let bottom = topRoom;
   for (const label of labels) {
@@ -92,7 +89,6 @@ export function drawLabeledSheet({ name, labels = [] }: Pick<Drawing, 'name' | '
   const rightX = leftRoom + bodyWidth + SIDE_GAP;
   const toPage = wobble(makeSeededRandom(request.seed));
   const body: DiagramStep = { strokes: sheet.strokes.map((points) => drawSheetStroke(points, (point) => toPage(point, scale, bodyAt))), textLabels: [] };
-  // The left labels end level, so a leader leaves the column at once and cannot run through a longer neighbour.
   const steps = [body, ...left.map((label) => getLabelStep(label, { x: leftRoom - SIDE_GAP - label.text.width, isLeft: true, bodyAt, scale })), ...right.map((label) => getLabelStep(label, { x: rightX, isLeft: false, bodyAt, scale }))];
   const partBoxes = new Map(Object.entries(sheet.parts).map(([partName, { x, y, radius }]) => [partName, { x: bodyAt.x + (x - radius) * scale, y: bodyAt.y + (y - radius) * scale, width: 2 * radius * scale, height: 2 * radius * scale }]));
   return { steps, width: leftRoom + bodyWidth + rightRoom, height: tallest, partBoxes };

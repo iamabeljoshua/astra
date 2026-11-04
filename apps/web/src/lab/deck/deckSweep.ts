@@ -86,7 +86,6 @@ async function waitForImages(board: HTMLElement): Promise<void> {
 
 const nextFrame = () => new Promise((done) => requestAnimationFrame(done));
 
-// Draws scenes with a synchronous commit and reads layout right away, so one sweep can hold thousands of renders.
 export function createBoardDeck({ present, getBoardElement }: { present(shown: ShownScene): void; getBoardElement(): HTMLElement }) {
   const scenes = new Map(DECK.map((scene) => [scene.name, { scene, operations: getSceneOperations(scene) }]));
   let problems: BoardProblem[] = [];

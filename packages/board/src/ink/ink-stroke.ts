@@ -40,7 +40,6 @@ export function getStrokePath({ points }: InkStroke): string {
   return `M${toFixed(first.x)} ${toFixed(first.y)}${curves.join('')}L${toFixed(last.x)} ${toFixed(last.y)}`;
 }
 
-// The painter rounds a corner through the midpoints of its sides, so a point each side of it keeps the line on its route.
 export function holdCorners(points: readonly InkPosition[], reach: number): InkPosition[] {
   return points.flatMap((corner, index) => {
     const before = points[index - 1];

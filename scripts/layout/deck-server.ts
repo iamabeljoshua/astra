@@ -21,7 +21,6 @@ const READY_LIMIT_MS = 120_000;
 /** TanStack Query Devtools' button, drawn over every board. */
 const HIDE_DEV_BUTTON = '.tsqd-parent-container { display: none !important; }';
 
-/** Rewrites one line of a module as it is served, so a plant reaches the real library and never touches the disk. */
 export interface SourcePlant {
   name: string;
   file: string;

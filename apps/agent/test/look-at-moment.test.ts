@@ -8,7 +8,6 @@ type Plant = (hold: { source: Source; count: number }) => Shown;
 const DIFFERING_PIXELS = 742;
 const DIFFERING_LEVELS = 40;
 
-// Stands in for the page, so what each hold shows is exactly what a test plants.
 function makeLab(plant: Plant): LabPage {
   const counts: Record<Source, number> = { live: 0, replay: 0 };
   let shown: Shown = { html: 'same', pixels: 'A' };

@@ -88,7 +88,6 @@ async function playMathLesson({ command, waitForPlayedBeats, scenario }: RunCont
   await delay(1500);
 }
 
-/** Slower than the 4x of the other phone runs, so a run on this laptop has to give something up. */
 const PHONE_THROTTLE_FOR_TIERS = 12;
 const SLIDER_DRAG_STEPS = 24;
 const SHOT_SLIDER = { start: 4.2, doubled: 8.4, max: 10, thumbWidth: 10 };

@@ -7,7 +7,6 @@ export interface SheetPart {
   radius: number;
 }
 
-/** A line drawing in units where the sheet is 100 wide, with strokes in the order a hand would draw them. */
 export interface DrawingSheet {
   height: number;
   strokes: readonly (readonly InkPosition[])[];
@@ -26,7 +25,6 @@ const makeLine = (...points: readonly Pair[]) => points.map(([x, y]) => ({ x, y 
 
 const makeCornered = (...points: readonly Pair[]) => holdCorners(makeLine(...points), HELD_CORNER_REACH);
 
-// The painter starts and ends a stroke on its exact points, so a ring that starts on one of its points shows a nib there.
 function closeCurve(points: readonly InkPosition[]): InkPosition[] {
   const [first, second] = points as [InkPosition, InkPosition];
   const seam = { x: (first.x + second.x) / 2, y: (first.y + second.y) / 2 };
@@ -52,7 +50,6 @@ function makeWave({ fromX, toX, y, height, waves }: { fromX: number; toX: number
   });
 }
 
-// A leaf's sides curve and its tip comes to a point, so only the tip holds its corner.
 function makeLeaf([baseX, baseY]: Pair, [tipX, tipY]: Pair): InkPosition[] {
   const getBelly = (side: number): InkPosition => ({ x: baseX + (tipX - baseX) * LEAF.bellyAt - side * (tipY - baseY) * LEAF.bellyWidth, y: baseY + (tipY - baseY) * LEAF.bellyAt + side * (tipX - baseX) * LEAF.bellyWidth });
   const base = { x: baseX, y: baseY };
@@ -168,7 +165,6 @@ function drawMusicStaff(): DrawingSheet {
   };
 }
 
-// A white key is narrower where a black key sits beside it, as on a real keyboard, so no line runs through a black key.
 function makeWhiteKey(index: number): InkPosition[] {
   const { whiteWidth, top, bottom, blackHalfWidth, blackBottom, blackAfter } = PIANO;
   const left = 2 + index * whiteWidth;
@@ -225,7 +221,6 @@ function drawLever(): DrawingSheet {
   };
 }
 
-/** A hoop is drawn by the simulation it stands under, so it is not here. */
 export const DRAWING_SHEETS: Partial<Record<DrawingName, DrawingSheet>> = {
   'animal-cell': drawAnimalCell(),
   flower: drawFlower(),

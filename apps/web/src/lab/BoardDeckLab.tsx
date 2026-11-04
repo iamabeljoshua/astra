@@ -9,7 +9,6 @@ declare global {
   }
 }
 
-// Development-only page that draws one deck scene at one size and moment, for scripts/check-layout.ts.
 export default function BoardDeckLab() {
   const [shown, setShown] = useState<ShownScene | null>(null);
   const stage = useRef<HTMLDivElement>(null);
