@@ -1048,7 +1048,8 @@
       overflow-y: auto;
     }
 
-    .board-hidden-on-phone {
+    .board-hidden-on-phone,
+    .board-voice-reading ~ .board-right-side .board-visual {
       display: none;
     }
 

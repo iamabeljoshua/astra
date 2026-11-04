@@ -71,6 +71,16 @@ function useSpaceToPlay(togglePlay: () => void) {
   }, [togglePlay]);
 }
 
+// A still board scrolls to its last row after it paints, so with no next frame coming, the dot is placed once more.
+function usePlaceDotOnceMore(atMs: number, isPlaying: boolean) {
+  const [, placeAgain] = useState(0);
+  useEffect(() => {
+    if (isPlaying) return undefined;
+    const frame = requestAnimationFrame(() => placeAgain((times) => times + 1));
+    return () => cancelAnimationFrame(frame);
+  }, [atMs, isPlaying]);
+}
+
 function PlayingReplay({ session, saved: { lesson, recap, recapAnswer } }: { session: Session; saved: SavedReplay }) {
   const player = useReplayPlayer(lesson);
   const { atMs, isPlaying, hasMoved, togglePlay } = player;
@@ -82,6 +92,7 @@ function PlayingReplay({ session, saved: { lesson, recap, recapAnswer } }: { ses
   const [peek, setPeek] = useState<VisualPeek | null>(null);
   useSpaceToPlay(togglePlay);
   const isAtRest = !isPlaying && (!hasMoved || isAtEnd);
+  usePlaceDotOnceMore(atMs, isPlaying);
 
   return (
     <div className="board-stage">
@@ -100,7 +111,7 @@ function PlayingReplay({ session, saved: { lesson, recap, recapAnswer } }: { ses
         </div>
       </div>
       <BoardStageView stage={board.stage} atMs={boardAtMs} visual={getSessionVisual(findArtwork(session.artwork))} ariaLabel={VOICE_LABELS.board} peek={peek} onPeek={setPeek} footer={<ReplayTransport lesson={lesson} player={player} onSeeked={() => setPeek(null)} />}>
-        <MovingDot rowId={getLatestRowId(board)} isWatching={false} isThinking={false} isLively={caption.isSpeaking} getLoudness={NO_LOUDNESS} />
+        <MovingDot rowId={isAtRest ? null : getLatestRowId(board)} isWatching={false} isThinking={false} isLively={caption.isSpeaking} getLoudness={NO_LOUDNESS} />
         <SharedBoard board={board} atMs={boardAtMs} />
       </BoardStageView>
     </div>

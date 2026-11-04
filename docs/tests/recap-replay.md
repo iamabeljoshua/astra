@@ -51,7 +51,13 @@ The recap is an ordinary turn on the voice line, so it reaches the log and plays
 
 | Run | Held | Cost | Time |
 | --- | --- | --- | --- |
-| 4 November, Haiku 5.5 | 30 of 30 | $0.0029 | 1.0 to 2.9 s a recap |
+| 4 November, Haiku 5.5 | 30 of 30 | $0.0025 | 1.0 to 2.5 s a recap, 1.2 s at the median, on a loaded Mac |
+
+The last run's 17 rows of a 41 s lesson took about 8 KB as JSON, so a 30 minute lesson would be about 350 KB. That is an estimate from one short lesson.
+
+## Proof
+
+`apps/agent/src/lab/proof/recap-replay-proof.ts` holds a lesson on the real tutor with the fake voice, ends it, opens it from Sessions, and scrubs. It fails if a board reached by seeking back differs by one byte of its screenshot from the same moment reached going forward, if pause does not hold, or if another student gets anything but a 404. `--goal gentle` and `--goal nothing` prove the two other endings. A real voice has not read a recap, because one recap is about 125 credits and this lane had 50. It goes down the same `speak` path as every turn.
 
 ## A crisis session
 
