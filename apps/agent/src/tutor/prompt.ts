@@ -1,3 +1,4 @@
+import { hasKitLive } from '../scenes/scene-settings.ts';
 import { PROMPT_V1 } from './prompts/v1.ts';
 import { PROMPT_V2, TURN_NOTE_V2 } from './prompts/v2.ts';
 import { LEVEL_LINES_V3, OPENING_NOTE_V3, PROMPT_V3, PROMPT_V3_FIND_SOURCE } from './prompts/v3.ts';

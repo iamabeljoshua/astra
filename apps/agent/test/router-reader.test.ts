@@ -85,3 +85,25 @@ describe('what the prompts say a tutor must not do', () => {
     expect(prompt).toMatch(/Fair questions/);
   });
 });
+
+describe('a kit route the router is in doubt about', () => {
+  it.each([
+    ['a kind that is not a solid thing', { kind: 'math', engine: 'kit', topic: 'what a derivative is' }],
+    ['a kind nobody listed', { kind: 'feeling', engine: 'kit', topic: 'how a volcano erupts' }],
+    ['a topic that names symbols', { kind: 'physics-object', engine: 'kit', topic: 'solve two x plus three equals eleven' }],
+    ['a topic that names a plot', { kind: 'astronomy', engine: 'kit', topic: 'the graph of a falling ball' }],
+  ])('gets no scene, with %s, and keeps the topic for the tutor', async (_name, reply) => {
+    sent.replies.push({ text: JSON.stringify(reply) });
+    expect(await route('anything')).toMatchObject({ engine: 'none', topic: reply.topic });
+  });
+
+  it.each([['physics-object', 'how gears work'], ['chemistry', 'how a candle burns'], ['biology', 'inside a cell'], ['astronomy', 'why the moon has phases'], ['earth-engineering', 'how a volcano erupts']])('stays on the kit for %s', async (kind, topic) => {
+    sent.replies.push({ text: JSON.stringify({ kind, engine: 'kit', topic }) });
+    expect(await route('anything')).toMatchObject({ engine: 'kit', topic });
+  });
+
+  it('holds ManimGX to nothing new', async () => {
+    sent.replies.push({ text: JSON.stringify({ kind: 'math', engine: 'manimgx', topic: 'solve two x plus three equals eleven' }) });
+    expect(await route('anything')).toMatchObject({ engine: 'manimgx' });
+  });
+});

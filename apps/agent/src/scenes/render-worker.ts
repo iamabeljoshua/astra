@@ -23,7 +23,7 @@ export interface RenderJob {
 
 export type RenderResult =
   | { isOk: false; stage: FailureStage; reasons: readonly string[]; ms: number }
-  | { isOk: true; takes: readonly MadeTake[]; sheets: readonly TakeSheet[]; layoutProblems: readonly string[]; layoutNotes: readonly string[]; declared: Readonly<Record<string, DeclaredValue>>; ms: number };
+  | { isOk: true; takes: readonly MadeTake[]; /** A scene with no take of its own says its parts here. */ parts?: readonly string[]; sheets: readonly TakeSheet[]; layoutProblems: readonly string[]; layoutNotes: readonly string[]; declared: Readonly<Record<string, DeclaredValue>>; ms: number };
 
 export type RenderWorker = (job: RenderJob, signal: AbortSignal) => Promise<RenderResult>;
 

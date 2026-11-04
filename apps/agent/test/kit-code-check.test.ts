@@ -20,6 +20,14 @@ describe('the kit code check', () => {
     expect(problemsOf(scene('const list = [1, 2]; const first = list[0]; const n = Math.sin(first) + Math.PI;'))).toEqual([]);
   });
 
+  it('allows a stage colour called top and a local called parent, which reach nothing', () => {
+    expect(problemsOf(scene("kit.stage('studio', { top: '#141b2b' }); const parent = kit.group({ id: 'g' }); parent.add(moon); moon.object.parent;"))).toEqual([]);
+  });
+
+  it.each(['top.location;', 'self.fetch;'])('still refuses a global with a plain name when nothing declares it: %s', (body) => {
+    expect(problemsOf(scene(body)).join(' ')).toMatch(/not allowed/);
+  });
+
   it('refuses code that does not parse, and names the line', () => {
     expect(problemsOf('function scene(kit) {\n  return {;\n}')[0]).toMatch(/does not parse.*line 2/);
   });

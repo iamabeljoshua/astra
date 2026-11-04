@@ -84,7 +84,7 @@ function getRenderProblems(render: RenderResult, plan: LessonPlan, brief: SceneB
   if (render.sheets.length === 0) return ['the worker made no pictures, so nobody can review this scene'];
   const unseen = getUnseenThemes(render, themes);
   if (unseen.length > 0) warn(`::warning title=Scene review::the review would see no ${unseen.join(' or ')} pictures, so the scene stops here`);
-  const partProblems = render.takes.flatMap(({ parts }) => getSceneBeatProblems({ setup: plan.setup, narration: plan.narration, scene: getSceneCommand({ engine, id: 'scene-check', moments: brief.moments, parts, durationSeconds: brief.durationSeconds }, CHECK_SCENE_ELEMENT) }));
+  const partProblems = (render.parts ? [render.parts] : render.takes.map(({ parts }) => parts)).flatMap((parts) => getSceneBeatProblems({ setup: plan.setup, narration: plan.narration, scene: getSceneCommand({ engine, id: 'scene-check', moments: brief.moments, parts, durationSeconds: brief.durationSeconds }, CHECK_SCENE_ELEMENT) }));
   // A rewrite costs a typed scene its moment and has often failed the same way, so a line through a label stays as a note there and on a last try. A card, which many students see, gets one rewrite first.
   const layoutProblems = new Set(render.layoutProblems.filter((problem) => !canKeepLinesThroughText || !LINE_THROUGH_TEXT.test(problem)).map((problem) => `layout: ${problem.replace(THEMED_SOURCE, 'scene.py')}`));
   return [...unseen.map((theme) => `the worker made no ${theme} pictures, so nobody can review that take`), ...new Set(partProblems), ...layoutProblems];
@@ -175,7 +175,7 @@ function toStoredScene({ engine, key, plan, brief, attempt, verdict, trace, valu
     narration: plan.narration,
     plan,
     moments: brief.moments,
-    parts: attempt.render.takes[0]?.parts ?? [],
+    parts: attempt.render.parts ?? attempt.render.takes[0]?.parts ?? [],
     durationSeconds: brief.durationSeconds,
     declared: attempt.render.declared,
     values,

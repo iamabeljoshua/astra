@@ -76,6 +76,9 @@ importers:
       livekit-server-sdk:
         specifier: 2.19.2
         version: 2.19.2
+      playwright:
+        specifier: ^1.64.1
+        version: 1.64.1
       ws:
         specifier: 8.22.1
         version: 8.22.1
@@ -86,9 +89,6 @@ importers:
       '@types/ws':
         specifier: ^8.18.2
         version: 8.18.2
-      playwright:
-        specifier: ^1.64.1
-        version: 1.64.1
       typescript:
         specifier: 'catalog:'
         version: 5.9.3

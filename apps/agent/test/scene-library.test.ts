@@ -29,6 +29,9 @@ function setUp({ reviewer = PASSING, render = GOOD_RENDER }: { reviewer?: SceneR
     fallbackWriter: { name: 'second', write: async () => { calls.writes += 1; return { code: 'class Lesson(Lesson2D): pass', ...USAGE }; } },
     reviewer,
     nameReader: { clear: async (names) => new Set(names) },
+    kitWriter: { name: 'unused', write: async () => { throw new Error('the library writes no live kit scene'); } },
+    kitFallbackWriter: { name: 'unused', write: async () => { throw new Error('the library writes no live kit scene'); } },
+    kitReviewer: reviewer,
     router: { route: async () => { throw new Error('the library does not route'); } },
   };
   const worker: RenderWorker = async () => render;

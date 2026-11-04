@@ -58,7 +58,7 @@ describe('asking for a scene', () => {
     opened(scenes);
     scenes.ask(TOPIC);
     await flush();
-    expect(sent).toEqual([{ type: 'loadScene', sceneId: SCENE.id, durationSeconds: 5 }]);
+    expect(sent).toEqual([{ type: 'loadScene', sceneId: SCENE.id, durationSeconds: 5, engine: 'manimgx' }]);
     expect(spoken).toEqual([]);
     scenes.onPage(LOADED, 'maya');
     expect(spoken).toHaveLength(1);
@@ -408,7 +408,7 @@ describe('a reloaded page', () => {
     await flush();
     scenes.onPage(LOADED, 'maya');
     opened(scenes);
-    expect(sent).toEqual([{ type: 'loadScene', sceneId: SCENE.id, durationSeconds: 5 }, { type: 'loadScene', sceneId: SCENE.id, durationSeconds: 5 }]);
+    expect(sent).toEqual([{ type: 'loadScene', sceneId: SCENE.id, durationSeconds: 5, engine: 'manimgx' }, { type: 'loadScene', sceneId: SCENE.id, durationSeconds: 5, engine: 'manimgx' }]);
   });
 });
 

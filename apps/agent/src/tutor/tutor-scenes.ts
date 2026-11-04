@@ -179,7 +179,7 @@ export function createTutorScenes({ router, runs, kitRuns, store, getCardTitle, 
     if (ask.page.kind === 'loading') clearTimeout(ask.page.limit);
     const limit = setTimeout(() => end(ask, 'pageTooSlow'), PAGE_LOAD_LIMIT_MS);
     ask.page = { kind: 'loading', scene, limit };
-    send({ type: 'loadScene', sceneId: scene.id, durationSeconds: scene.durationSeconds });
+    send({ type: 'loadScene', sceneId: scene.id, durationSeconds: scene.durationSeconds, engine: scene.engine });
   };
 
   const onDeskChange = (ask: SceneAsk, state: SceneState) => {
@@ -220,7 +220,7 @@ export function createTutorScenes({ router, runs, kitRuns, store, getCardTitle, 
   };
 
   const bringPictureBack = () => {
-    if (onScreen) send({ type: 'loadScene', sceneId: onScreen.id, durationSeconds: onScreen.durationSeconds });
+    if (onScreen) send({ type: 'loadScene', sceneId: onScreen.id, durationSeconds: onScreen.durationSeconds, engine: onScreen.engine });
   };
 
   const settlePictureWaits = (isBack: boolean) => {

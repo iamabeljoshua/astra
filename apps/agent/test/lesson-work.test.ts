@@ -260,3 +260,43 @@ describe('a topic waiting after a refusal', () => {
     expect(store.findWaitingPlan(getSceneKey(TOPIC))).toBeNull();
   });
 });
+
+describe('a request the router sends to the kit, with live 3D on', () => {
+  function setUpKit({ isCard = false, kitIsOk = true }: { isCard?: boolean; kitIsOk?: boolean } = {}) {
+    const store = createSceneStore(mkdtempSync(join(tmpdir(), 'lesson-work-kit-')));
+    const route = vi.fn(async () => ({ engine: 'kit' as const, kind: 'biology', topic: 'how a heart beats', ...USAGE }));
+    const plan = vi.fn(async () => ({ ...PLAN, ...USAGE }));
+    const plainBriefs: SceneBrief[] = [];
+    const kitBriefs: SceneBrief[] = [];
+    const makeRuns = (briefs: SceneBrief[], extra: object) => createTopicRuns({ planner: { plan }, writers: [{ name: 'writer', write: async (brief) => { briefs.push(brief); return { code: 'code', ...USAGE }; } }], reviewer: { review: async () => ({ isPass: kitIsOk, errors: [], ...USAGE }) }, worker, store, ...extra });
+    const work = createLessonWork({ router: { route }, runs: makeRuns(plainBriefs, {}), kitRuns: makeRuns(kitBriefs, { engine: 'kit' }), store, request: 'hi, my name is Ada, how does a heart beat', isCard, studentId: 'ada', getNowMs: () => 0, isOnlyForScene: true });
+    return { work, store, plainBriefs, kitBriefs, plan };
+  }
+
+  it('writes on the kit, under the student\'s key, from the router\'s topic alone', async () => {
+    const { work, store, kitBriefs, plainBriefs } = setUpKit();
+    work.desk.ask(work.request);
+    await vi.waitFor(() => expect(work.desk.getState().kind).toBe('ready'));
+    expect(plainBriefs).toEqual([]);
+    expect(JSON.stringify(kitBriefs[0])).not.toMatch(/Ada/);
+    expect(store.find(getSceneKey('how a heart beats', { ownerId: 'ada' }))).toMatchObject({ engine: 'kit', engineVersion: '0.1.0', ownerId: 'ada', isCheckedByPerson: false });
+    expect(store.find(getSceneKey('how a heart beats'))).toBeNull();
+  });
+
+  it('gives a card no live 3D scene, because a card\'s scene reaches every student', async () => {
+    const { work, kitBriefs, plainBriefs, plan } = setUpKit({ isCard: true });
+    work.desk.ask(work.request);
+    await vi.waitFor(() => expect(work.desk.getState()).toEqual({ kind: 'declined', engine: 'kit' }));
+    expect(kitBriefs).toEqual([]);
+    expect(plainBriefs).toEqual([]);
+    expect(plan).not.toHaveBeenCalled();
+  });
+
+  it('shows nothing a review refused, with no error and nothing saved to play', async () => {
+    const { work, store } = setUpKit({ kitIsOk: false });
+    work.desk.ask(work.request);
+    await vi.waitFor(() => expect(work.desk.getState().kind).toBe('failed'));
+    expect(work.desk.takeReady()).toBeNull();
+    expect(store.find(getSceneKey('how a heart beats', { ownerId: 'ada' }))).toBeNull();
+  });
+});
