@@ -1,0 +1,34 @@
+{
+ "topic": "How a jump shot flies",
+ "plan": {
+  "opening": [
+   {
+    "say": "Picture a basketball leaving a player's hand on a jump shot, heading toward a hoop ten feet up in the air.",
+    "note": "jump shot"
+   },
+   {
+    "say": "Once the ball lets go, nobody touches it again. Whatever happens next, gravity is the only thing still pulling on it.",
+    "note": "gravity only"
+   },
+   {
+    "say": "So we can describe the whole flight with a short formula for the ball's height at each moment in time.",
+    "tex": "h(t) = h_0 + v t - 4.9 t^2"
+   }
+  ],
+  "more": [
+   {
+    "say": "Take a ball released at two meters high, moving upward at seven meters per second. We can track its height from that single moment."
+   },
+   {
+    "say": "Right at release, time is zero, so height is just the starting two meters. Then the other two terms begin to push and pull."
+   },
+   {
+    "say": "The upward speed lifts it, the gravity term drags it down, and together they decide how the height changes second by second."
+   }
+  ],
+  "setup": "Watch where the ball goes after it leaves the hand.",
+  "narration": "[[ball-leaves]]The ball leaves the hand moving up and forward. [[arc-traces]]Its path bends into an arc, a parabola. [[peak-marks]]At the top, the upward speed hits zero for an instant. [[fall-down]]Then gravity wins and the ball drops. [[swish]]Aim it just right, and it drops through the hoop.",
+  "plan": "ball-leaves: a ball at release height h_0 leaves a hand, with a faint arrow showing its upward and forward velocity.\narc-traces: the path h(t) draws itself as a smooth downward-opening parabola; the curve equals h_0 plus v t minus four point nine t squared.\npeak-marks: a dot pins the highest point of the curve; a flat horizontal tangent shows vertical speed is zero there.\nfall-down: the ball slides down the right side of the arc, with a downward gravity arrow staying the same size the whole way.\nswish: the curve passes through a hoop ten feet up and the ball drops through the net.",
+  "close": "Why does the ball slow down on the way up?"
+ }
+}

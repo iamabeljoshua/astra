@@ -7,5 +7,6 @@ export { createPlayoutTracker, type PlayoutTracker } from './player/playout-trac
 export type { ProjectileFrame } from './motion/projectile-scene.ts';
 export type { SliderMove } from './player/slider-log.ts';
 export { rebuildBoard } from './player/rebuild-board.ts';
-export type { Scene, SceneCatalog, SceneParameters } from './player/scene.ts';
+export { guardSceneCatalog, type Scene, type SceneCatalog, type SceneParameters } from './player/scene.ts';
+export type { TakeFrame } from './player/take-scene.ts';
 export { createScenePlayer, type FiredCue, type OutputLevel, type ScenePlayer, type ScenePlayerOptions } from './player/scene-player.ts';

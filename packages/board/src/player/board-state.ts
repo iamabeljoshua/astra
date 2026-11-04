@@ -99,9 +99,11 @@ function unfreeze(board: BoardDraft, atMs: number): void {
   }
 }
 
-function getScenePoint(point: SimulationPoint | undefined, scene: Scene): number {
+// A scene's moments come from a model, so a name it does not own holds the scene where it is.
+function getScenePoint(point: SimulationPoint | undefined, scene: Scene, nowSeconds: number): number {
   if (typeof point === 'number') return Math.min(point, scene.durationSeconds);
-  return point === undefined ? scene.durationSeconds : (scene.moments[point] ?? scene.durationSeconds);
+  if (point === undefined) return scene.durationSeconds;
+  return Object.hasOwn(scene.moments, point) ? (scene.moments[point] as number) : nowSeconds;
 }
 
 // Time does not run backward, so a play to a moment already passed starts over.
@@ -114,7 +116,7 @@ function runScene(element: BoardElement, command: SceneCommand & { kind: 'runSim
   const { scene } = placed;
   switch (command.action) {
     case 'play': {
-      const to = getScenePoint(command.until, scene);
+      const to = getScenePoint(command.until, scene, now);
       const from = getPlayStart(now, to);
       placed.playhead = moveOver({ from, to, atMs, overMs: overMs ?? ((to - from) * MS_PER_SECOND) / (command.rate ?? 1) });
       return;
@@ -126,7 +128,7 @@ function runScene(element: BoardElement, command: SceneCommand & { kind: 'runSim
       placed.playhead = moveOver({ from: 0, to: scene.durationSeconds, atMs, overMs: scene.durationSeconds * MS_PER_SECOND });
       return;
     case 'seek':
-      placed.playhead = holdMotion(getScenePoint(command.to, scene), atMs);
+      placed.playhead = holdMotion(getScenePoint(command.to, scene, now), atMs);
   }
 }
 
