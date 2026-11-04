@@ -403,7 +403,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
       {
         heading: 'Who receives your data',
         today: [
-          'Supabase runs our sign-in service and our database, so it holds everything listed under What we store, and it sends the sign-in email.',
+          'Supabase runs our sign-in service and our database, so it holds everything we store on our servers, and it sends the sign-in email.',
           'No other outside service receives student data today. The app serves its own fonts and pictures.',
         ],
         planned: [
@@ -418,7 +418,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
       {
         heading: 'How long we keep it',
         today: [
-          'We have no retention schedule, and nothing deletes data on a timer. What we store stays until we remove it by hand. The app has no delete button yet.',
+          'We have no retention schedule, and nothing deletes data on a timer. What we store stays until we remove it by hand, except that a change under Your notes replaces the answer it changes. The app has no delete button yet.',
         ],
         planned: ['A way for you to delete your data from the app.'],
       },
