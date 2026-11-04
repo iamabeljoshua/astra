@@ -6,56 +6,56 @@ Student played by a cheap model: You are 16 and you have homework to finish. You
 
 **Student:** just tell me the answer to 2x + 3 = 11
 
-**Tutor** (20 words, longest stretch 20, first text 1402 ms):
-> Quick route first. We want x alone, so that three has to go. What could you do to both sides?
+**Tutor** (23 words, longest stretch 23, first text 1189 ms):
+> Let's get there fast. Something's adding three to the two x. What could you do to both sides to get rid of it?
 
 Board: `writeMath 2x + 3 = 11`
 
 **Student:** just give me the answer
 
-**Tutor** (13 words, longest stretch 13, first text 1258 ms):
-> Fine, x is four. Now you try two x plus five equals thirteen.
+**Tutor** (19 words, longest stretch 19, first text 1087 ms):
+> Fine, x is four. Take three off, then halve it. Now you try two x plus five equals thirteen.
 
 Board: `focus`, `transformMath x = 4`
 
-**Student:** fine, i'll try. 2x plus five equals thirteen... so x is seven?
+**Student:** Ugh, fine. Just tell me x is four again?
 
-**Tutor** (17 words, longest stretch 17, first text 2069 ms):
-> Not quite. Seven looks like you subtracted five and stopped. What's left after taking five from thirteen?
+**Tutor** (12 words, longest stretch 12, first text 1844 ms):
+> Yep, x is four. Take five off both sides first. What's left?
 
-Board: `writeMath 2x + 5 = 13`
+Board: `focus`, `writeMath 2x + 5 = 13`
 
-**Student:** uh, eight? so 2x equals eight... then x is four?
+**Student:** Um, eight? Is it eight?
 
-**Tutor** (24 words, longest stretch 24, first text 1550 ms):
-> Yes, x is four. You took five off both sides, then split eight between two. Want to check it by plugging four back in?
+**Tutor** (8 words, longest stretch 8, first text 1894 ms):
+> Yes, eight. Two x equals eight. What's x?
 
-Board: `focus`, `transformMath 2x = 8`
+Board: `transformMath 2x = 8`
 
-**Student:** uh, two times four is eight, plus five is thirteen. yeah, that works.
+**Student:** four?
 
-**Tutor** (14 words, longest stretch 14, first text 1143 ms):
-> Right, and that check works on any equation. Try this one the same way.
+**Tutor** (19 words, longest stretch 19, first text 1357 ms):
+> Yep, four. You halved both sides, same as before. Want another, or shall we try one with a minus?
 
-Board: `focus`, `writeMath 3x - 2 = 10`
+Board: `transformMath x = 4`
 
-**Student:** ok so add two to both sides... that gives 3x equals twelve, so x is four?
+**Student:** sure, do one with a minus. just don't make it too long, i've got loads of homework.
 
-**Tutor** (14 words, longest stretch 14, first text 1241 ms):
-> Yep, x is four again. Funny coincidence. Plug it back in to be sure.
+**Tutor** (14 words, longest stretch 14, first text 1359 ms):
+> Short one, promise. This time the four is being taken away. What undoes that?
 
-Board: `focus`, `transformMath 3x = 12`
+Board: `focus`, `writeMath 3x - 4 = 11`
 
-**Student:** three times four is twelve, minus two is ten. yep, it checks out.
+**Student:** uh, add four? so it's 15 then?
 
-**Tutor** (16 words, longest stretch 16, first text 1155 ms):
-> Good, you've got the method. Now x is on both sides. What would you do first?
+**Tutor** (9 words, longest stretch 9, first text 1907 ms):
+> Right, adding four. Three x equals fifteen. What's x?
 
-Board: `focus`, `clearBoard`, `writeMath 5x + 4 = 3x + 12`
+Board: `focus`, `transformMath 3x = 15`
 
-**Student:** uh, i don't really know. move the 3x over? or the 4?
+**Student:** uh, five? divide by three?
 
-**Tutor** (22 words, longest stretch 22, first text 1995 ms):
-> Either works, so you're not wrong. Try the three x: what do you do to both sides to get rid of it?
+**Tutor** (19 words, longest stretch 19, first text 1363 ms):
+> Yep, five. Undo the plus or minus first, then the multiplying. That's all of these. Back to your homework.
 
-Board: `focus`, `highlight 3x`
+Board: `transformMath x = 5`

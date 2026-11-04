@@ -6,56 +6,56 @@ Student played by a cheap model: You are 12. You think you add the tops and the 
 
 **Student:** how do i add 1/2 + 1/3
 
-**Tutor** (23 words, longest stretch 23, first text 1364 ms):
-> Fractions, okay. Here's the sum. If you had half a pizza and a third of a pizza, could you just add the bottoms?
+**Tutor** (22 words, longest stretch 22, first text 1128 ms):
+> Sure, let's try it. One half plus one third. Can you add those straight away, or does something get in the way?
 
 Board: `writeMath \frac{1}{2} + \frac{1}{3}`
 
-**Student:** hmm, yeah i think so. top plus top is 2, bottom plus bottom is 5, so 2/5?
+**Student:** i think its 2/5, add the tops and the bottoms
 
-**Tutor** (19 words, longest stretch 19, first text 862 ms):
-> Not quite. That's your line, and two fifths is smaller than a half. Adding can't make it smaller, right?
+**Tutor** (22 words, longest stretch 22, first text 934 ms):
+> Lots of people do that, but it doesn't work. Try your way on a half plus a half. What should that be?
 
-Board: `writeMath \frac{1}{2} + \frac{1}{3} = \frac{2}{5}`, `annotate`
-
-**Student:** i dont know
-
-**Tutor** (33 words, longest stretch 33, first text 858 ms):
-> No worries. Halves and thirds are different sized slices, so we cut both into sixths. Now the slices match, so you can add the tops: five sixths. Try one half plus one fourth.
-
-Board: `clearBoard`, `writeMath \frac{1}{2} + \frac{1}{3}`, `transformMath \frac{3}{6} + \frac{2}{6}`
+Board: `focus`, `writeMath \frac{1}{2} + \frac{1}{2} = \frac{2}{4}`, `annotate`
 
 **Student:** i dont know
 
-**Tutor** (14 words, longest stretch 14, first text 881 ms):
-> Okay, smaller step. Cut the half into fourths. How many fourths make one half?
+**Tutor** (28 words, longest stretch 28, first text 1066 ms):
+> No worries. Half a pizza plus half a pizza is one whole pizza. Adding tops and bottoms gives two quarters, which is only half. That's why it fails.
+
+Board: `focus`, `writeMath \frac{1}{2} + \frac{1}{2} = 1`
+
+**Student:** ohh ok so 2/4 is half... so what do i do with 1/2 and 1/3 then
+
+**Tutor** (22 words, longest stretch 22, first text 1300 ms):
+> Right, you've got it. Halves and thirds are different size slices, so we cut both into sixths. What's one third in sixths?
+
+Board: `focus`, `writeMath \frac{1}{2} = \frac{3}{6}`
+
+**Student:** um... is it 2/6? i dont know why
+
+**Tutor** (23 words, longest stretch 23, first text 1057 ms):
+> Yes, two sixths. Cut a pizza into six slices, and a third is two of them. So what's three sixths plus two sixths?
+
+Board: `focus`, `writeMath \frac{1}{3} = \frac{2}{6}`
+
+**Student:** um... 5/6? i think you just add the tops and keep the bottom
+
+**Tutor** (17 words, longest stretch 17, first text 1087 ms):
+> Yes, five sixths. Same size slices, so you just count them. Try one half plus one fourth.
+
+Board: `focus`, `writeMath \frac{3}{6} + \frac{2}{6} = \frac{5}{6}`
+
+**Student:** um... is it 2/6? i think you add the tops and bottoms again
+
+**Tutor** (22 words, longest stretch 22, first text 1043 ms):
+> Not quite, that's the old habit sneaking back. Halves and fourths are different slices too. What could a half be, in fourths?
 
 Board: `focus`, `writeMath \frac{1}{2} + \frac{1}{4}`
 
-**Student:** umm, two? or maybe three
+**Student:** i dont know
 
-**Tutor** (17 words, longest stretch 17, first text 1127 ms):
-> Two, yes. So the half becomes two fourths. Now add those tops, two fourths plus one fourth.
+**Tutor** (12 words, longest stretch 12, first text 1086 ms):
+> That's fine, I'll show it. Remember two quarters is half a pizza?
 
-Board: `transformMath \frac{2}{4} + \frac{1}{4}`
-
-**Student:** uh, three fourths? i think
-
-**Tutor** (26 words, longest stretch 26, first text 1059 ms):
-> Yes, three fourths, you got it. Same trick as the sixths earlier: match the slices, then add. Want to try one half plus one third again?
-
-Board: `focus`, `transformMath \frac{3}{4}`
-
-**Student:** hmm, i guess cut them into... sixths? so 3 plus 2 is 5?
-
-**Tutor** (19 words, longest stretch 19, first text 1034 ms):
-> Yep, sixths, and five of them. That's five sixths. Notice the bottom stays six, you only add the tops.
-
-Board: `focus`, `writeMath \frac{1}{2} + \frac{1}{3} = \frac{5}{6}`
-
-**Student:** so the bottom stays six? cool. so 1/2 plus 1/3 is 5/6 now
-
-**Tutor** (16 words, longest stretch 16, first text 1542 ms):
-> Right, five sixths. Have a go at this one on your own. Cut both into twelfths.
-
-Board: `focus`, `writeMath \frac{1}{3} + \frac{1}{4}`
+Board: `focus`, `writeMath \frac{1}{2} = \frac{2}{4}`

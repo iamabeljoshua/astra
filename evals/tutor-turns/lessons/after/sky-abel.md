@@ -6,46 +6,54 @@ Student played by a cheap model: You are an adult who left school years ago. You
 
 **Student:** why is the sky blue?
 
-**Tutor** (17 words, longest stretch 17, first text 1556 ms):
-> Fun one. Sunlight looks white, but have you ever seen a rainbow, or light through a prism?
+**Tutor** (17 words, longest stretch 17, first text 1441 ms):
+> Sunlight looks white, but it's secretly all the colors mixed together. Have you ever seen a rainbow?
 
-**Student:** yeah, rainbows i've seen. never really thought about how they connect to the sky though. so is white light made of the rainbow colours or something?
+**Student:** yeah, i've seen rainbows. but i didn't know sunlight had all those colours in it. so the white light is like a mix? i'm not sure how that works.
 
-**Tutor** (15 words, longest stretch 15, first text 1148 ms):
-> Exactly. White light is every colour mixed together, and a rainbow just pulls them apart.
+**Tutor** (17 words, longest stretch 17, first text 958 ms):
+> Yep, like a band playing together. Each color is one instrument, and white is the whole chord.
 
-**Student:** oh, so the colours were hiding in the white the whole time? that's kind of wild. so how does that make the sky blue?
+**Student:** ok, the band thing helps a bit. so each colour is like its own instrument? and the sky is... what, the air playing one of them louder? i don't really get how the air does that.
 
-**Tutor** (26 words, longest stretch 26, first text 1177 ms):
-> Yep, hiding in plain sight. Air bounces light around, and it bounces blue far more than red. Why might that make the whole sky look blue?
+**Tutor** (26 words, longest stretch 26, first text 1308 ms):
+> Close. The air doesn't play louder, it bounces blue around more. Tiny air bits knock blue in every direction, so it reaches your eyes from everywhere.
 
-**Student:** hmm, bounces around how? like the air is hitting the light and sending it off in different directions? i'm not sure why blue would bounce more than red though. and i don't really get why that makes the whole sky blue and not just little bits.
+Board: `text Air bounces blue light the most`
 
-**Tutor** (22 words, longest stretch 22, first text 1904 ms):
-> Yes, tiny air molecules knock light off its path. Blue waves are shorter, so they get knocked about much more than red.
+**Student:** so the air bounces the blue around more, like it knocks it off course? hmm, what do you mean by knocks it in every direction? i don't really get what that looks like.
 
-**Student:** ok so the air knocks the light sideways, and blue gets knocked more. but "waves" and "shorter" — i don't really know what that means for light. is it like sound waves or something?
-
-**Tutor** (25 words, longest stretch 25, first text 1456 ms):
-> Sort of like sound, yes. Light wobbles as it travels, and each colour has its own wobble spacing. Blue's is tight, red's is stretched out.
-
-**Student:** ok, so light wobbles like a wave, and blue is squished tighter while red is stretched out. that bit makes sense i think. but i'm still lost on how a tighter wobble gets knocked around more. and why does that fill the whole sky?
-
-**Tutor** (28 words, longest stretch 28, first text 1523 ms):
-> Picture a tiny molecule as a speck much smaller than the wave. A tight wobble shakes it harder, like quick ripples jostling a cork. Does that picture help?
-
-Board: `writeMath \text{blue: tight} \quad \text{red: stretched}`
-
-**Student:** the cork thing kind of helps, i think. quick ripples shake it more. but i'm still a bit lost on how that makes the whole sky blue and not just little specks. can you explain it like i'm 5?
-
-**Tutor** (28 words, longest stretch 28, first text 1983 ms):
-> Sure. Air is full of billions of tiny specks everywhere you look. Each one flings blue light in every direction, so blue reaches your eyes from all over.
+**Tutor** (34 words, longest stretch 34, first text 1273 ms):
+> Picture a ball rolling through pinball bumpers. Blue light hits an air bit and ricochets off sideways, again and again. Some of it ends up heading straight into your eyes, whichever way you look.
 
 Board: `focus`
 
-**Student:** ohh, so blue gets flung everywhere by all the tiny bits of air, so no matter where i look, blue comes at my eyes. that makes sense. but why doesn't red get flung around too? is it just that it gets flung less?
+**Student:** ok the pinball thing makes sense, the ball bounces off bumpers and goes all over. so the blue bounces off the air bits and some of it ends up in my eyes no matter where i look? why would the other colours not bounce like that though?
 
-**Tutor** (21 words, longest stretch 21, first text 1836 ms):
-> Yep, just flung less. Red mostly sails straight through. That flinging has a name, scattering, and it's why sunsets look red.
+**Tutor** (36 words, longest stretch 30, first text 1557 ms):
+> Yes, you've got it. Red mostly slips straight past the air bits, like a wave too long to notice them. Blue's waves are shorter, so they get bumped much more.
+>
+> Think of ripples on a pond.
+
+Board: `focus`
+
+**Student:** hmm, the ripples bit lost me a little. a wave too long to notice them, what does that even mean? and why would shorter waves get bumped more?
+
+**Tutor** (34 words, longest stretch 34, first text 1476 ms):
+> Fair, that was fuzzy. Picture a big slow ocean swell passing a small floating cork. The swell just lifts it and carries on, barely bothered. Quick little ripples slap the cork about much more.
+
+Board: `focus`
+
+**Student:** ok the cork thing is clearer. so the big slow waves just roll past it, but the quick little ripples keep slapping it around. so blue is the quick ripple and red is the big slow swell? is that right?
+
+**Tutor** (20 words, longest stretch 20, first text 1345 ms):
+> Exactly right. So when you look at the sky away from the sun, what color are you seeing, and why?
+
+Board: `focus`
+
+**Student:** um, blue, because the blue gets bounced around and some of it hits my eyes? i think that's it, but i'm not totally sure i can explain it back properly.
+
+**Tutor** (28 words, longest stretch 28, first text 1386 ms):
+> That's it, you just explained it. The air bits bounce blue everywhere, so it reaches your eyes from all over the sky. That bouncing has a name, scattering.
 
 Board: `focus`

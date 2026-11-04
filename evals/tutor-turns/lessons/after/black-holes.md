@@ -6,40 +6,42 @@ Student played by a cheap model: You are 16. You know gravity pulls things toget
 
 **Student:** How do black holes form?
 
-**Tutor** (24 words, longest stretch 24, first text 2470 ms):
-> Most start when a really big star dies. Do you know what keeps a star from collapsing under its own weight while it's alive?
+**Tutor** (20 words, longest stretch 20, first text 1060 ms):
+> Most start with a really big star. Do you know what keeps a star from collapsing under its own weight?
 
-**Student:** i know gravity pulls stuff together, but i'm not sure what pushes back. is it the heat or something?
+**Student:** i don't really know. gravity pulls everything in, so why doesn't the star just squish down?
 
-**Tutor** (14 words, longest stretch 14, first text 1343 ms):
-> Yep, heat. Fusing atoms in the core makes pressure that pushes outward, balancing gravity.
+**Tutor** (16 words, longest stretch 16, first text 985 ms):
+> Something pushes back. The star's core is crazy hot from fusion, and that heat pushes outward.
 
-**Student:** wait, what does fusing atoms mean? like they stick together or something?
+**Student:** wait, what's fusion? like the stuff in a bomb? and how does heat push outward, it's just heat right
 
-**Tutor** (22 words, longest stretch 22, first text 1193 ms):
-> Yes, exactly, they stick together. Two hydrogen atoms squeeze into one helium atom, and that squeeze releases a huge burst of energy.
+**Tutor** (28 words, longest stretch 28, first text 1072 ms):
+> Same idea as a hydrogen bomb, yes. Squeeze tiny atoms together hard enough and they join, releasing energy. Heat is atoms zooming around, and fast ones shove outward.
 
-**Student:** oh okay, so the sticking releases energy and that's the push. but why does it stop when the star dies?
+**Student:** ok so the atoms are zooming around and bumping into each other and that pushes outward? like a crowd getting bigger and shoving the walls?
 
-**Tutor** (18 words, longest stretch 18, first text 1134 ms):
-> Right, that's the push. It stops when the fuel runs out, so gravity wins and the core collapses.
+**Tutor** (25 words, longest stretch 25, first text 1341 ms):
+> Exactly, that crowd picture works. Gravity squeezes in, that shoving pushes out, and they balance. So what happens when the star runs out of fuel?
 
-**Student:** ok so when the fuel runs out, nothing pushes back anymore. but why does it collapse all the way into a black hole and not just stop somewhere?
+**Student:** i'm not sure. does the fuel just run out and then the pushing stops? so gravity wins?
 
-**Tutor** (26 words, longest stretch 26, first text 1279 ms):
-> Often it does stop, as a small dense leftover. Only a very heavy core has gravity strong enough to beat every other push and keep collapsing.
+**Tutor** (22 words, longest stretch 22, first text 985 ms):
+> Yes, that's it. Fusion stops, the shoving fades, and gravity crushes the core. In a really massive star, nothing stops that crush.
 
-**Student:** so there's a limit where the leftover can't hold itself up? what decides how heavy it has to be to keep going?
+**Student:** so the core just keeps getting crushed smaller and smaller? how small can it get before it stops?
 
-**Tutor** (25 words, longest stretch 25, first text 1203 ms):
-> Yes, there's a limit. Roughly, a core heavier than about two or three suns can't be held up by anything we know, so it collapses.
+**Tutor** (25 words, longest stretch 25, first text 1080 ms):
+> In a really massive star, it doesn't stop. It crushes down to a point so dense that even light can't escape. That's the black hole.
 
-**Student:** ok so about two or three suns is the cutoff. but why can't anything hold it up at that point? like what would even be able to push back?
+**Student:** wait, even light can't get out? how is that even possible, light is like the fastest thing ever
 
-**Tutor** (26 words, longest stretch 26, first text 1252 ms):
-> The last pushback is particles refusing to be crammed into the same tiny space. Past that cutoff, gravity is stronger than even that, so nothing's left.
+**Tutor** (26 words, longest stretch 26, first text 990 ms):
+> Think of throwing a ball upward. The harder you throw, the higher it goes. What would you need to throw it so it never came back?
 
-**Student:** hmm, particles refusing to be crammed? that sounds weird. like they bump into each other, or something else?
+**Student:** i'd have to throw it super duper fast, like faster than anything? but light's already that fast so... i'm confused
 
-**Tutor** (32 words, longest stretch 32, first text 1347 ms):
-> Something else, and it is weird. It's a quantum rule: particles like neutrons can't all share the same state, so squeezing them close forces them to move fast, and that pushes outward.
+**Tutor** (39 words, longest stretch 31, first text 1346 ms):
+> You've got the ball part right. Earth's escape speed is about eleven kilometres a second. Squeeze the same mass smaller, and gravity at the surface gets stronger, so escape speed climbs.
+>
+> In a black hole it passes light's speed.

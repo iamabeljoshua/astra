@@ -6,40 +6,40 @@ Student played by a cheap model: You are 15. You know you get sick from germs, a
 
 **Student:** how do vaccines work
 
-**Tutor** (21 words, longest stretch 21, first text 1243 ms):
-> Good thing to wonder about. Have you ever heard that getting sick once means you're less likely to get it again?
+**Tutor** (16 words, longest stretch 16, first text 1035 ms):
+> Sure. Have you ever gotten sick with something, like chickenpox, and then never caught it again?
 
-**Student:** um, yeah i think so? like chickenpox or something, you dont get it twice maybe
+**Student:** yeah i had a cold once and i think i got sick from germs, but idk about the chickenpox thing
 
-**Tutor** (16 words, longest stretch 16, first text 1121 ms):
-> Right, chickenpox is a good example. Your body remembers it. Why do you think it remembers?
+**Tutor** (21 words, longest stretch 21, first text 989 ms):
+> Germs, yes, that's the right idea. Your body can learn to recognize a germ, so next time it fights back faster.
 
 **Student:** wait i dont get it, explain like im 5
 
-**Tutor** (20 words, longest stretch 20, first text 1143 ms):
-> Sure. Picture a wanted poster. Your body keeps a photo of the germ, so it spots it fast next time.
+**Tutor** (21 words, longest stretch 21, first text 1324 ms):
+> Sure. Imagine a security guard who's shown a photo of a burglar. Next time that burglar shows up, he's spotted instantly.
 
-**Student:** oh ok so it keeps like a picture of the germ? then it knows it fast? how does it make the picture though
+**Student:** ohhh ok so the body sees a picture of the germ and then knows it? like a wanted poster? but how does it actually know who to catch
 
-**Tutor** (16 words, longest stretch 16, first text 2264 ms):
-> Yep, that's it. It makes the picture by meeting the germ once, and fighting it off.
+**Tutor** (23 words, longest stretch 23, first text 1884 ms):
+> Wanted poster is a great way to put it. Every germ has a shape on its outside, and the body remembers that shape.
 
-**Student:** ohh ok so you get sick once and then the picture stays. but like, how does a vaccine get the picture without the sickness part?
+**Student:** ok so the germ has a shape like a face on the outside? and the body remembers the face... but how does it know which face is bad and which is fine
 
-**Tutor** (28 words, longest stretch 28, first text 2648 ms):
-> That's the whole trick. A vaccine shows your body a harmless piece of the germ, a weakened or dead version, so it takes the photo without the sickness.
+**Tutor** (18 words, longest stretch 18, first text 1388 ms):
+> Your own cells all carry a "this is me" shape. Anything without it gets flagged as a stranger.
 
-**Student:** ohh so the vaccine is like a fake wanted poster of the germ? but how does the body make the photo from that, does it just copy the germ?
+**Student:** oh so my cells have their own name tag and anything without one is a stranger? that's kinda cool. but how does the body actually make the wanted poster in the first place
 
-**Tutor** (22 words, longest stretch 22, first text 1600 ms):
-> Close, but it doesn't copy the germ. Your body builds a matching lock-picker for it, called an antibody, and keeps the recipe.
+**Tutor** (27 words, longest stretch 27, first text 1465 ms):
+> Name tag, yes. And the poster comes from a real fight: your body meets the germ's shape, builds a custom catcher for it, and keeps a copy.
 
-**Student:** uh what's an antibody? like is that the picture or the lock thing? i don't really know what that means
+**Student:** ok so the body makes a catcher just for that germ? like a custom key? how does it even build one, that's wild
 
-**Tutor** (29 words, longest stretch 29, first text 1555 ms):
-> My fault, I mixed pictures. Forget lock-picker. An antibody is a tiny sticky tag your body makes that fits one germ and grabs it. The recipe is the memory.
+**Tutor** (22 words, longest stretch 22, first text 2000 ms):
+> Custom key fits. Your body has millions of random keys already, and whichever one fits the germ's shape gets copied like crazy.
 
-**Student:** oh ok so an antibody is like a tiny sticky tag that grabs one germ. so the recipe is how to make more tags? is that why you dont get sick again?
+**Student:** oh so it doesnt make the key from scratch, it already has tons of random ones and the right one just gets copied a bunch? wait how does it know which one fits though
 
-**Tutor** (24 words, longest stretch 24, first text 2080 ms):
-> Exactly. Next time the real germ shows up, your body cranks out tags fast, and the germ gets stopped before it makes you sick.
+**Tutor** (21 words, longest stretch 21, first text 1901 ms):
+> It doesn't know ahead of time. It just tries. Whichever key physically snaps onto the germ gets a signal to multiply.

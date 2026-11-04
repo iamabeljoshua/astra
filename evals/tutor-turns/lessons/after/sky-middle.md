@@ -6,40 +6,40 @@ Student played by a cheap model: You are 13. You have seen rainbows but do not k
 
 **Student:** why is the sky blue
 
-**Tutor** (17 words, longest stretch 17, first text 1134 ms):
-> Hm, sunlight first. Do you know what colour sunlight looks like when it comes straight at us?
+**Tutor** (19 words, longest stretch 19, first text 1411 ms):
+> Sure, quick thing first. Sunlight looks white, but have you ever seen a rainbow or light through a prism?
 
-**Student:** huh, um, white? i think? or yellow maybe. i dunno
+**Student:** yeah, i've seen rainbows. like after rain. but i don't really know why they happen.
 
-**Tutor** (10 words, longest stretch 10, first text 836 ms):
-> Fair guess, it looks white. Ever seen a rainbow, though?
+**Tutor** (22 words, longest stretch 22, first text 1039 ms):
+> That's fine, you only need one piece of it. Sunlight is a mix of colors, and a rainbow just pulls them apart.
 
-**Student:** yeah, after rain sometimes. they're like all the colours in a curve. i don't get how that happens though
+**Student:** huh, so the sun is secretly all the colors mixed together? that's kind of wild.
 
-**Tutor** (14 words, longest stretch 14, first text 1090 ms):
-> Raindrops split the light. So white sunlight is really all those colours mixed together.
+**Tutor** (28 words, longest stretch 28, first text 1206 ms):
+> Yep, all of them at once, which adds up to white. Now, air bounces blue light around much more than red. So where would that blue end up?
 
-**Student:** huh, wait, so white is all the colours mixed? like paint? that's kinda weird
+**Student:** huh, um... i don't really get that part. bounces blue more than red? so it goes everywhere? i kinda thought the sky was blue 'cause it reflects the sea.
 
-**Tutor** (16 words, longest stretch 16, first text 926 ms):
-> Not like paint, actually. Paint mixes to muddy brown, but mixed light adds up to white.
+**Tutor** (35 words, longest stretch 35, first text 1400 ms):
+> Lots of people think that, but it's backwards. Sky's blue even far from any sea. Picture light as little balls hitting air: blue ones bounce off in every direction, red ones mostly sail straight through.
 
-**Student:** huh, so light is different from paint then? ok that's kinda cool. but why does that make the sky blue
+**Student:** oh, so the blue balls get scattered all over, so wherever you look up you see them? that makes sense, i guess.
 
-**Tutor** (20 words, longest stretch 20, first text 967 ms):
-> Yep, different. Air is full of tiny bits that bounce light around, and blue gets bounced way more than red.
+**Tutor** (32 words, longest stretch 32, first text 1331 ms):
+> Exactly, blue light ends up coming at your eyes from every part of the sky. That bouncing has a name, scattering. So what do you reckon the sky looks like at sunset?
 
-**Student:** oh, so the blue bounces all over the place? like a ball hitting stuff? huh, but why does blue bounce more than red
+**Student:** hmm, sunset... red and orange maybe? like the blue got bounced away? i'm not totally sure why though.
 
-**Tutor** (22 words, longest stretch 22, first text 1367 ms):
-> Like a ball, yeah. Blue light is a shorter wave, and short waves get knocked about more by tiny bits of air.
+**Tutor** (30 words, longest stretch 30, first text 1410 ms):
+> You're on the right track. At sunset the light crosses way more air to reach you, so most of the blue gets scattered off to the side before it arrives.
 
-**Student:** oh, shorter waves get knocked about more? huh, i don't really get what a wave is though. like a wiggle?
+**Student:** oh, so the light has further to travel, so more blue gets bounced away before it gets to me? huh, that's kinda cool.
 
-**Tutor** (18 words, longest stretch 18, first text 1441 ms):
-> Yep, a wiggle. Picture a rope shaken up and down, with the bumps close together or far apart.
+**Tutor** (14 words, longest stretch 14, first text 1724 ms):
+> That's it. What's left is mostly the reds and oranges, and that's your sunset.
 
-**Student:** ohh, like a rope with bumps close together, that's a short wave? huh, so the blue ones are the close bumps? i think i get it kinda
+**Student:** cool, so sunsets are just the leftover colors. i still kinda wonder why rainbows have all the colors though.
 
-**Tutor** (20 words, longest stretch 20, first text 1174 ms):
-> Exactly, blue's the close bumps. So the sky's full of scattered blue. Why do you reckon sunsets look red, then?
+**Tutor** (30 words, longest stretch 30, first text 1530 ms):
+> Good link back. Rainbows happen because raindrops bend each color a slightly different amount, so the mix fans out into a band. Does it make sense that bending separates them?

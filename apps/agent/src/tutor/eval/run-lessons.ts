@@ -6,7 +6,7 @@ import { parseArgs } from 'node:util';
 import Anthropic from '@anthropic-ai/sdk';
 import { getBeatText, getCues, type SceneCommand } from '@astra/contracts';
 import { readKey } from '../../keys.ts';
-import { makeAnthropicTutorModel } from '../../providers/anthropic.ts';
+import { makeAnthropicTutorModel, type TutorModelName } from '../../providers/anthropic.ts';
 import { createTutorBrain, type StudentProfile, type TurnSummary, type TutorBeat } from '../brain.ts';
 import { CURRENT_PROMPT, PROMPT_VERSIONS, type PromptVersion, type TutorPrompt } from '../prompt.ts';
 import { createSpendLedger } from '../spend-ledger.ts';
@@ -47,6 +47,7 @@ const { values: args } = parseArgs({
     spend: { type: 'string', default: join(tmpdir(), 'astra-lessons-spend.jsonl') },
     together: { type: 'string', default: '2' },
     out: { type: 'string', default: join(EVAL_FOLDER, 'lessons') },
+    model: { type: 'string', default: 'sonnet-5-5' },
     thinking: { type: 'string', default: '' },
     'dry-run': { type: 'boolean', default: false },
   },
@@ -87,7 +88,7 @@ function getStudentMessages(script: LessonScript, turns: readonly LessonTurn[]):
 }
 
 async function runLesson(script: LessonScript, prompt: TutorPrompt, ledger: ReturnType<typeof createSpendLedger>, studentClient: Anthropic) {
-  const model = makeAnthropicTutorModel({ apiKey: readKey('ANTHROPIC_API_KEY'), ...(args.thinking === 'adaptive' ? { thinking: 'adaptive' as const } : {}) });
+  const model = makeAnthropicTutorModel({ name: args.model as TutorModelName, apiKey: readKey('ANTHROPIC_API_KEY'), ...(args.thinking === 'adaptive' ? { thinking: 'adaptive' as const } : {}) });
   let latest: TurnSummary | null = null;
   const brain = createTutorBrain({
     model,

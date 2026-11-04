@@ -6,7 +6,7 @@ import { parseArgs } from 'node:util';
 import Anthropic from '@anthropic-ai/sdk';
 import { getBeatText, getCues, type SceneCommand } from '@astra/contracts';
 import { readKey } from '../../keys.ts';
-import { makeAnthropicTutorModel } from '../../providers/anthropic.ts';
+import { makeAnthropicTutorModel, type TutorModelName } from '../../providers/anthropic.ts';
 import { createTutorBrain, type StudentProfile, type TurnSummary } from '../brain.ts';
 import { CURRENT_PROMPT, PROMPT_VERSIONS, type PromptVersion, type TutorPrompt } from '../prompt.ts';
 import { createSpendLedger } from '../spend-ledger.ts';
@@ -66,6 +66,7 @@ const { values: args } = parseArgs({
     limit: { type: 'string', default: '1' },
     spend: { type: 'string', default: join(tmpdir(), 'astra-groups-spend.jsonl') },
     prompt: { type: 'string', default: CURRENT_PROMPT },
+    model: { type: 'string', default: 'sonnet-5-5' },
     repeat: { type: 'string', default: '1' },
     together: { type: 'string', default: '4' },
     'min-share': { type: 'string', default: '1' },
@@ -244,7 +245,7 @@ async function main() {
     console.log(`Loaded ${groups.length} groups, ${turnCount} turns. Nothing was sent.`);
     return;
   }
-  const model = makeAnthropicTutorModel({ apiKey: readKey('ANTHROPIC_API_KEY') });
+  const model = makeAnthropicTutorModel({ name: args.model as TutorModelName, apiKey: readKey('ANTHROPIC_API_KEY') });
   const context: RunContext = { prompt, model, askJudge: makeJudge() };
   await model.warm(prompt.system);
   const tasks = Array.from({ length: Number(args.repeat) }, () => groups.map((group) => () => (group.compare ? runCompare(group, group.compare, context) : runGroup(group, context)))).flat();

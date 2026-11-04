@@ -6,44 +6,42 @@ Student played by a cheap model: You are a strong student who already knows limi
 
 **Student:** Why is the derivative of x squared two x? I know the limit definition but I can't see why the two appears.
 
-**Tutor** (12 words, longest stretch 12, first text 1304 ms):
-> Let's run the definition. Expand that top part. What do you get?
+**Tutor** (23 words, longest stretch 23, first text 1043 ms):
+> You've got the definition, so let's use it. Here's the difference quotient. What do you get when you expand x plus h, squared?
 
 Board: `writeMath \frac{(x+h)^2 - x^2}{h}`
 
 **Student:** i dont know
 
-**Tutor** (14 words, longest stretch 14, first text 1286 ms):
-> That's fine. Squaring x plus h gives x squared, two x h, h squared.
+**Tutor** (15 words, longest stretch 15, first text 960 ms):
+> That's fine, I'll show it. Squaring gives x squared, two x h, and h squared.
 
-Board: `transformMath \frac{x^2 + 2xh + h^2 - x^2}{h}`
-
-**Student:** i dont know
-
-**Tutor** (13 words, longest stretch 13, first text 1262 ms):
-> Okay, I'll just show it. The x squareds cancel. Then h divides out.
-
-Board: `focus`, `highlight x^2`, `transformMath \frac{2xh + h^2}{h}`
+Board: `focus`, `transformMath \frac{x^2 + 2xh + h^2 - x^2}{h}`
 
 **Student:** i dont know
 
-**Tutor** (23 words, longest stretch 23, first text 1193 ms):
-> Picture a square with side x. Dividing by h leaves two x plus h, and as h shrinks to nothing, that's two x.
+**Tutor** (13 words, longest stretch 13, first text 1266 ms):
+> No problem. The x squared cancels, leaving two x h plus h squared.
+
+Board: `transformMath \frac{2xh + h^2}{h}`
+
+**Student:** i dont know
+
+**Tutor** (21 words, longest stretch 21, first text 1260 ms):
+> Let's slow down, no worries. Dividing both terms by h gives two x plus h. Where does the two come from?
 
 Board: `focus`, `transformMath 2x + h`
 
 **Student:** i dont know
 
-**Tutor** (39 words, longest stretch 33, first text 1269 ms):
-> Let's go simpler. Imagine a square of side x, then stretch each side by a tiny bit h. The new strip is two skinny rectangles, each x long, so two x of edge.
->
-> That's where the two comes from.
+**Tutor** (18 words, longest stretch 18, first text 1046 ms):
+> Okay, I'll just show you. The two came from the middle term when we squared, two x h.
 
-Board: `focus`
+Board: `focus`, `highlight 2x`
 
-**Student:** i dont know
+**Student:** oh ok, that makes sense now
 
-**Tutor** (18 words, longest stretch 18, first text 1282 ms):
-> Okay, that's on me for going too fast. Which part lost you: the expanding, or the square picture?
+**Tutor** (21 words, longest stretch 21, first text 968 ms):
+> Good. Last step: h shrinks to zero, so only two x is left. Want to try it yourself on x cubed?
 
 Board: `focus`
