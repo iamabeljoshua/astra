@@ -53,6 +53,8 @@ export interface BeatTextReaderOptions {
   onWrongWords?(problem: string): void;
   /** A retry that says these words again would repeat what the student heard, so they are dropped. */
   isAlreadySaid?(text: string): boolean;
+  /** The model asked for a picture. It is not a board command, and nothing waits on it. */
+  onAskScene?(topic: string): void;
   board?: BoardKinds;
 }
 
@@ -67,6 +69,8 @@ function withKnownClaim(value: unknown): unknown {
   if (command.kind !== 'writeMath' && command.kind !== 'transformMath') return command;
   return { ...command, claim: MATH_CLAIMS.includes(claim as (typeof MATH_CLAIMS)[number]) ? claim : 'relation' };
 }
+
+const isSceneAsk = (value: unknown): value is { kind: 'askScene'; topic: string } => typeof value === 'object' && value !== null && (value as { kind?: unknown }).kind === 'askScene' && typeof (value as { topic?: unknown }).topic === 'string';
 
 const isPrivateTag = (name: string) => PRIVATE_TAGS.has(name.toLowerCase()) || name.toLowerCase().startsWith('antml:');
 
@@ -439,6 +443,10 @@ export class BeatTextReader {
     }
     const value = this.#readJson(text);
     if (value === undefined) return;
+    if (this.#options.onAskScene && isSceneAsk(value)) {
+      this.#options.onAskScene(value.topic);
+      return;
+    }
     const parsed = parseSceneCommand(withKnownClaim(value));
     if (parsed.ok) this.#keepCommand(parsed.value);
     else this.#options.onBadCommand(parsed.problem);

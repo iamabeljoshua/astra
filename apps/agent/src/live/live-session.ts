@@ -50,6 +50,8 @@ export interface LiveSessionOptions {
   readSpokenWords?(words: string, expects: SpokenExpected): Promise<SpokenReading>;
   getCostSoFar?(): number;
   recordTurn?: RecordTurn;
+  /** The tutor has stopped talking and has nothing more to say, so a scene may land. */
+  onPause?(): void;
 }
 
 export interface LiveSession {
@@ -57,6 +59,10 @@ export interface LiveSession {
   onBrowser(message: BrowserMessage): void;
   getLog(): readonly SessionEvent[];
   doesStudentHearAudio(): boolean;
+  /** Nobody is speaking or working, so a scene would interrupt no one. */
+  isAtPause(): boolean;
+  /** Says a scene's words as a turn of its own, stopped and resumed as any reply is. False, and nothing said, unless this is a pause. */
+  speakScene(beats: readonly TutorBeat[]): boolean;
   close(): Promise<void>;
 }
 
@@ -115,6 +121,10 @@ async function* getResumedThen(resumed: readonly Beat[], thought: Thought | null
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+async function* toBeatStream(beats: readonly TutorBeat[]): AsyncGenerator<TutorBeat> {
+  yield* beats;
+}
+
 /** A real frozen tab comes back once, and a forged report would otherwise cut and resume the voice on every message. */
 const FEWEST_MS_BETWEEN_FREEZES = 5000;
 /** The page plays a turn behind the agent by the trip and its buffer, so for about this long after the agent finishes, a drop can still take the last words. */
@@ -151,7 +161,7 @@ function recordingTo(heard: HeardTurn, messenger: TurnMessenger): TurnMessenger 
   };
 }
 
-export function createLiveSession({ messenger, line, voice, tutor, takes, allTakes, setTurnCap, onQuietLimit = () => {}, quietLimitMs = QUIET_ROOM_LIMIT_MS, getNowMs = getSteadyNowMs, trace = () => {} , readMeaning = async () => null, readStrokes = async () => null, readSpokenWords = async () => ({ kind: 'talk', costUsd: 0 }), getCostSoFar, recordTurn }: LiveSessionOptions): LiveSession {
+export function createLiveSession({ messenger, line, voice, tutor, takes, allTakes, setTurnCap, onQuietLimit = () => {}, quietLimitMs = QUIET_ROOM_LIMIT_MS, getNowMs = getSteadyNowMs, trace = () => {} , readMeaning = async () => null, readStrokes = async () => null, readSpokenWords = async () => ({ kind: 'talk', costUsd: 0 }), getCostSoFar, recordTurn, onPause }: LiveSessionOptions): LiveSession {
   const startedAtMs = getNowMs();
   // A new job in the same room restarts this count, and a page ignores a turn it has seen, so each job's turns carry their own name.
   const jobTag = randomUUID().slice(0, 8);
@@ -291,6 +301,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       return;
     }
     dispatch({ type: 'tutorFinished' });
+    if (!reply && !reaction && !thought && !stretchBeforeBreath) onPause?.();
   };
 
   function speak({ voiceToUse, beats, isReply, canResume, kind, continuesHeardReply = false }: { voiceToUse: tts.TTS; beats: Iterable<Beat> | AsyncIterable<Beat>; isReply: boolean; canResume: boolean; kind: string; continuesHeardReply?: boolean }): Speaking {
@@ -451,6 +462,8 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     setThinking(false);
     dispatch({ type: 'workLanded' });
   };
+
+  const isAtPause = () => !isTutorTalking() && !thought && !cut && !isThinking && state.phase === 'clear' && !state.isVoiceOn && state.partial === '' && !boardWork.hasOpenTask();
 
   const startReply = (request: TutorRequest) => {
     spokenTicket += 1;
@@ -651,6 +664,14 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     },
     getLog: () => log.getEvents(),
     doesStudentHearAudio: () => audioRunning,
+    isAtPause,
+    speakScene(beats) {
+      if (!isAtPause()) return false;
+      const started: Thought = { controller: new AbortController(), iterator: toBeatStream(beats), unspoken: [], reading: null, latestReader: 0 };
+      thought = started;
+      reply = speak({ voiceToUse: voice, beats: afterTypingStops(readThought(started), boardWork.waitWhileTyping), isReply: true, canResume: true, kind: 'scene' });
+      return true;
+    },
     async close() {
       clearInterval(linkChecker);
       clearTimeout(voiceStall);

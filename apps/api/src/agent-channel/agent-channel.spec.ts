@@ -97,7 +97,7 @@ describe('the agent channel', () => {
     it('holds the level, interests, and goal of the session\'s student, and nothing else', async () => {
       const { body, text } = await getBrief(namedSessionId).expect(200);
 
-      expect(body).toEqual({ level: 'university', interests: ['basketball', 'space'], goal: 'exam' });
+      expect(body).toEqual({ level: 'university', interests: ['basketball', 'space'], goal: 'exam', cardTitle: null });
       expect(text).not.toContain('Maya');
       expect(text).not.toContain(OLD_ENOUGH_BIRTH_DATE);
       expect(text).not.toContain(namedStudent.studentId);

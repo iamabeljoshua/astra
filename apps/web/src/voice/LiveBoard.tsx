@@ -20,7 +20,7 @@ const DOT_SHOWS_MS = 280;
 
 const LINES_BEFORE_THE_HINT_GOES = 2;
 
-interface BoardFrame {
+export interface BoardFrame {
   board: BoardState;
   atMs: number;
 }
@@ -77,7 +77,8 @@ function useDotTarget(board: BoardState, isTutorSpeaking: boolean) {
 
 interface LiveBoardProps {
   voice: LiveVoice;
-  visual?: ReactNode;
+  /** What the session's right side shows while teaching, read every frame, because a scene plays on the board's clock. */
+  getVisual?(frame: BoardFrame): ReactNode;
   isConnecting?: boolean;
   onTutorState?(state: string | null): void;
   onTalk?: () => void;
@@ -98,7 +99,7 @@ function useDotInTheMiddle(isConnecting: boolean): boolean {
 }
 
 // The board is a pure reading of the clock, so one read per frame is all it needs.
-export function LiveBoard({ voice, visual = null, onTalk, isTalkOn = false, canTalk = true, isConnecting = false, onTutorState }: LiveBoardProps) {
+export function LiveBoard({ voice, getVisual, onTalk, isTalkOn = false, canTalk = true, isConnecting = false, onTutorState }: LiveBoardProps) {
   const isDotInTheMiddle = useDotInTheMiddle(isConnecting);
   const [frame, setFrame] = useState<BoardFrame>(() => voice.getBoardNow());
   const [activity, setActivity] = useState(0);
@@ -110,6 +111,7 @@ export function LiveBoard({ voice, visual = null, onTalk, isTalkOn = false, canT
   const typedLine = useRef<TypedLineHandle>(null);
   const isVisualBigNow = useRef(false);
   const { board, atMs } = frame;
+  const visual = getVisual?.(frame) ?? null;
   const view = voice.getView();
   const { target: dotTarget, watchLiveLine, watchRow, goToRest } = useDotTarget(board, view.isTutorSpeaking);
 

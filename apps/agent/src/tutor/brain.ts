@@ -32,6 +32,8 @@ export interface TutorBrain {
   noteMarkNotDrawn?(markId: string): void;
   /** Why the tutor will not answer again in this room, once it has said so. */
   getClosedReason?(): TutorClosedReason | null;
+  /** A scene landed and its words are being said, so the next turn knows what is on screen and what was heard. */
+  noteSceneTurn?(turn: { topic: string; beats: readonly Beat[] }): void;
   /** Checks the student's work against the board as the tutor knows it, and notes it for the next turn. Null if the work cannot stand, such as a line id already used. */
   noteWork?(work: StudentWork): { checked: CheckedWork; hadTask: boolean } | null;
   noteWatcher?(note: WatcherNote): void;
@@ -51,6 +53,8 @@ export interface StudentProfile {
   level: string;
   interests: readonly string[];
   goal: string;
+  /** The library's title, when this session came from a card. */
+  cardTitle?: string | null;
 }
 
 export const TUTOR_TIMEOUTS = {
@@ -100,6 +104,9 @@ export interface TutorBrainOptions {
   compactAtTokens?: number;
   getSpendLimit?(): SpendLimit | null;
   getNowMs?(): number;
+  /** The system prompt, frozen for one session because the cache is a prefix match. */
+  system?: string;
+  onAskScene?(topic: string): void;
 }
 
 type TurnStep = 'over' | 'retry';
@@ -213,9 +220,9 @@ const addUsage = (total: ModelUsage | null, part: ModelUsage): ModelUsage =>
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const toProfileNote = ({ level, interests, goal }: StudentProfile) => ({ student: { level, interests, goal } });
+const toProfileNote = ({ level, interests, goal, cardTitle }: StudentProfile) => ({ student: { level, interests, goal, ...(cardTitle ? { card_title: cardTitle } : {}) } });
 
-export function createTutorBrain({ model, profile = null, loadProfile, timeouts: chosenTimeouts, trace = () => {}, onTurnEnd, onCompacted, compactAtTokens = COMPACT_AT_TOKENS, getSpendLimit = () => null, getNowMs = () => performance.now() }: TutorBrainOptions): Required<TutorBrain> {
+export function createTutorBrain({ model, profile = null, loadProfile, timeouts: chosenTimeouts, trace = () => {}, onTurnEnd, onCompacted, compactAtTokens = COMPACT_AT_TOKENS, getSpendLimit = () => null, system = TUTOR_SYSTEM, onAskScene, getNowMs = () => performance.now() }: TutorBrainOptions): Required<TutorBrain> {
   const timeouts: TutorTimeouts = { ...TUTOR_TIMEOUTS, ...chosenTimeouts };
   const pickLine = createLinePicker();
   let breathsTaken = 0;
@@ -289,6 +296,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
       startedAtMs: getNowMs(),
       reader: new BeatTextReader({
         board: memory.kinds,
+        ...(onAskScene ? { onAskScene } : {}),
         checkCommand: (command) => checkAgainstBoard(command, readerMemory),
         onCommandKept(command) {
           readerMemory = getMemoryAfter(command, readerMemory);
@@ -369,7 +377,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
   };
 
   const getRequest = (turn: TurnWork): TutorModelRequest => ({
-    system: TUTOR_SYSTEM,
+    system,
     turns: [...turns, { role: 'user', text: turn.studentText }, ...turn.notes.map((text) => ({ role: 'system' as const, text }))],
   });
 
@@ -750,6 +758,11 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
       pendingNotes.push({ mark_not_drawn: mark });
     },
     getClosedReason: () => (hasToldClosed ? closedReason : null),
+    noteSceneTurn({ topic, beats }) {
+      settleLastTurn();
+      lastBeats = beats;
+      pendingNotes.push({ scene_on_screen: { topic, said: beats.map(getBeatText).join(' ') } });
+    },
     noteWork(work) {
       if (work.way === 'write' && (!isStudentLineId(work.id) || memory.kinds.has(work.id))) return null;
       if (workCount >= MOST_WORK_IN_A_SESSION) return null;

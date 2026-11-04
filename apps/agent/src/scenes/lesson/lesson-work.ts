@@ -35,9 +35,11 @@ export interface LessonWorkOptions {
   getNowMs(): number;
   getWallMs?(): number;
   onChange?(state: SceneState, atMs: number): void;
+  /** A tutor in a live session has its own words, so nothing is paid for a plan unless a scene can come of it. */
+  isOnlyForScene?: boolean;
 }
 
-export function createLessonWork({ router, runs, store, request, isCard, studentId, cardLine, getNowMs, getWallMs = () => Date.now(), onChange }: LessonWorkOptions): LessonWork {
+export function createLessonWork({ router, runs, store, request, isCard, studentId, cardLine, getNowMs, getWallMs = () => Date.now(), onChange, isOnlyForScene = false }: LessonWorkOptions): LessonWork {
   // A card's title comes from the server's own list, so its scene is shared. A typed question stays with its student, because router-cleaned words are still a student's words shaped by a model.
   const ownerId = isCard ? null : studentId;
   let settlePlan: (plan: LessonPlan | NoLesson) => void = () => {};
@@ -72,6 +74,7 @@ export function createLessonWork({ router, runs, store, request, isCard, student
     keepVoiceWith(topic, null);
     const key = getOwnKey(topic);
     const isPaused = isScenePaused(topic);
+    if (isOnlyForScene && isPaused) return;
     const waiting = isPaused ? store.findWaitingPlan(key) : null;
     if (waiting) {
       settlePlan(waiting);
@@ -117,7 +120,7 @@ export function createLessonWork({ router, runs, store, request, isCard, student
     }
     const savedByTopic = findSaved(topic);
     if (savedByTopic) useSaved(topic, savedByTopic);
-    else joinRun(topic);
+    else if (!isOnlyForScene || route.engine === 'manimgx') joinRun(topic);
     return { ...route, topic };
   };
 

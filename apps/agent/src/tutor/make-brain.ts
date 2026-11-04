@@ -5,7 +5,7 @@ import { makeRecordedTutorModel } from '../providers/fake-model.ts';
 import { createStandInTutor } from '../live/stand-in-tutor.ts';
 import { type ApiLink, createApiLink } from './api-link.ts';
 import { createTutorBrain, type SpendLimit, type TraceNote, type TurnSummary, type TutorBrain } from './brain.ts';
-import { TUTOR_SYSTEM } from './prompt.ts';
+import { TUTOR_SYSTEM, TUTOR_SYSTEM_WITH_SCENES } from './prompt.ts';
 import { createSpendLedger } from './spend-ledger.ts';
 import { readInk } from './ink/read-ink.ts';
 import { rasterizeInk } from './ink/rasterize-ink.ts';
@@ -42,6 +42,9 @@ function makeApiLink(roomName: string): ApiLink | null {
 export interface SpendCaps {
   getSpendLimit(): SpendLimit | null;
   addTurn(summary: { usd: number; voiceCharacters: number }): void;
+  /** A scene counts toward the student's day and the shared ledger. It stays out of this room's cap, so a picture can never close the tutor. */
+  addScene(usd: number): void;
+  getSceneUsd(): number;
   getSpentUsd(): number;
   /** Sends what the API has not heard yet, so a room closing does not lose the last turn's charge. */
   flush(): Promise<void>;
@@ -50,6 +53,7 @@ export interface SpendCaps {
 // Tracks one room's spending against its own caps, the shared ledger, and the student's total for today in the API.
 export function createSpendCaps({ link, ledger, trace, sessionLimitUsd, sessionVoiceLimitCharacters }: { link: Pick<ApiLink, 'reportSpend'> | null; ledger: ReturnType<typeof makeLedger>; trace: TraceNote; sessionLimitUsd: number; sessionVoiceLimitCharacters: number }): SpendCaps {
   let sessionUsd = 0;
+  let sceneUsd = 0;
   let sessionCharacters = 0;
   let unreportedUsd = 0;
   let isOverDailyLimit = false;
@@ -83,7 +87,14 @@ export function createSpendCaps({ link, ledger, trace, sessionLimitUsd, sessionV
       ledger?.charge({ anthropicUsd: usd, voiceCharacters });
       report();
     },
-    getSpentUsd: () => sessionUsd + sessionCharacters * VOICE_USD_PER_CHARACTER,
+    addScene(usd) {
+      sceneUsd += usd;
+      unreportedUsd += usd;
+      ledger?.charge({ anthropicUsd: usd, voiceCharacters: 0 });
+      report();
+    },
+    getSceneUsd: () => sceneUsd,
+    getSpentUsd: () => sessionUsd + sceneUsd + sessionCharacters * VOICE_USD_PER_CHARACTER,
     async flush() {
       report();
       await reporting;
@@ -95,11 +106,16 @@ export function createSpendCaps({ link, ledger, trace, sessionLimitUsd, sessionV
 export function warmTutorModel(): void {
   const name = process.env.ASTRA_TUTOR_MODEL ?? DEFAULT_MODEL;
   if (!TUTOR_MODEL_NAMES.includes(name as TutorModelName)) return;
-  void makeAnthropicTutorModel({ name: name as TutorModelName, apiKey: readKey('ANTHROPIC_API_KEY') }).warm(TUTOR_SYSTEM).catch(() => {});
+  void makeAnthropicTutorModel({ name: name as TutorModelName, apiKey: readKey('ANTHROPIC_API_KEY') }).warm(hasTutorScenes() ? TUTOR_SYSTEM_WITH_SCENES : TUTOR_SYSTEM).catch(() => {});
 }
+
+export const hasTutorScenes = () => process.env.ASTRA_TUTOR_SCENES === '1';
 
 export interface MadeBrain {
   brain: TutorBrain;
+  caps?: SpendCaps;
+  /** The library's title once the brief has come, when this session came from a card. */
+  cardTitle?(): string | null;
   flushSpend(): Promise<void>;
   readMeaning?(words: string): Promise<WordMeaning | null>;
   readStrokes?(strokes: readonly (readonly InkPoint[])[]): Promise<{ text: string; ink: { tex?: string; isUnsure: boolean } } | null>;
@@ -107,7 +123,7 @@ export interface MadeBrain {
   getSpentUsd?(): number;
 }
 
-export function makeTutorBrain({ roomName, trace }: { roomName: string; trace: TraceNote }): MadeBrain {
+export function makeTutorBrain({ roomName, trace, onAskScene }: { roomName: string; trace: TraceNote; onAskScene?(topic: string): void }): MadeBrain {
   const name = process.env.ASTRA_TUTOR_MODEL ?? DEFAULT_MODEL;
   if (name === STAND_IN) return { brain: createStandInTutor(), flushSpend: async () => {} };
   if (name !== RECORDED && !TUTOR_MODEL_NAMES.includes(name as TutorModelName)) throw new Error(`ASTRA_TUTOR_MODEL is ${name}. Choose ${[STAND_IN, RECORDED, ...TUTOR_MODEL_NAMES].join(', ')}`);
@@ -124,8 +140,16 @@ export function makeTutorBrain({ roomName, trace }: { roomName: string; trace: T
     trace('turnWritten', { firstTextMs, firstBeatMs, attempts, endedAs, costUsd, usage, refused, refusalCategory, isUsageEstimated, words: spokenText.split(/\s+/).length });
     caps.addTurn({ usd: costUsd, voiceCharacters: beats.map(getBeatText).join(' ').length });
   };
-  const brain = createTutorBrain({ model, loadProfile: link ? () => link.fetchProfile() : undefined, trace, onTurnEnd, getSpendLimit: caps.getSpendLimit });
-  if (name === RECORDED) return { brain, flushSpend: caps.flush };
+  let cardTitle: string | null = null;
+  const loadProfile = link
+    ? async () => {
+        const profile = await link.fetchProfile();
+        cardTitle = profile?.cardTitle ?? null;
+        return profile;
+      }
+    : undefined;
+  const brain = createTutorBrain({ model, loadProfile, trace, onTurnEnd, getSpendLimit: caps.getSpendLimit, ...(onAskScene ? { system: TUTOR_SYSTEM_WITH_SCENES, onAskScene } : {}) });
+  if (name === RECORDED) return { brain, caps, cardTitle: () => cardTitle, flushSpend: caps.flush };
   const wordsModel = makeAnthropicTutorModel({ name: WORDS_MODEL, apiKey: readKey('ANTHROPIC_API_KEY') });
   const readMeaning = async (words: string) => {
     if (caps.getSpendLimit()) return null;
@@ -147,5 +171,5 @@ export function makeTutorBrain({ roomName, trace }: { roomName: string; trace: T
     caps.addTurn({ usd: reading.costUsd, voiceCharacters: 0 });
     return reading;
   };
-  return { brain, flushSpend: caps.flush, getSpentUsd: caps.getSpentUsd, readMeaning, readStrokes, readSpokenWords };
+  return { brain, caps, cardTitle: () => cardTitle, flushSpend: caps.flush, getSpentUsd: caps.getSpentUsd, readMeaning, readStrokes, readSpokenWords };
 }

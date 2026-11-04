@@ -11,6 +11,9 @@ import { createSceneStore, getSceneKey } from '../src/scenes/scene-store.ts';
 import { type LessonPlan, PlanRefused } from '../src/scenes/scene-types.ts';
 
 const USAGE = { model: 'fake', ms: 1, costUsd: 0 };
+const NO_WORKER = async () => {
+  throw new Error('no worker');
+};
 const flush = () => new Promise((resolve) => setTimeout(resolve, 5));
 
 describe('a roman numeral is not the pronoun', () => {
@@ -44,10 +47,10 @@ describe('a plan about physics', () => {
 });
 
 describe('a living person', () => {
-  const makePlan = (reply: object): (() => Promise<LessonPlan>) => async () => ({ ...getPlanFromText(JSON.stringify(reply)), ...USAGE });
-  const startRuns = (planner: () => Promise<LessonPlan>) => {
+  const makePlan = (reply: object): (() => Promise<LessonPlan & typeof USAGE>) => async () => ({ ...getPlanFromText(JSON.stringify(reply)), ...USAGE });
+  const startRuns = (planner: () => Promise<LessonPlan & typeof USAGE>) => {
     const store = createSceneStore(mkdtempSync(join(tmpdir(), 'living-')));
-    return { store, runs: createTopicRuns({ planner: { plan: planner }, writers: [], reviewer: { review: async () => ({ isPass: true, errors: [], ...USAGE }) }, worker: { run: async () => { throw new Error('no worker'); } }, store, warn: () => {} }) };
+    return { store, runs: createTopicRuns({ planner: { plan: planner }, writers: [], reviewer: { review: async () => ({ isPass: true, errors: [], ...USAGE }) }, worker: NO_WORKER, store, warn: () => {} }) };
   };
 
   it('reads a person refusal apart from a dangerous one', () => {
@@ -70,14 +73,14 @@ describe('a living person', () => {
 
 describe('a paused topic whose plan was taught from its clean lines', () => {
   const TOPIC = 'what a derivative measures';
-  const CLEAN: LessonPlan = { opening: [{ say: 'A derivative measures how fast something changes.' }, { say: 'Call me on 555 123 4567 about a derivative.' }], more: [], setup: 'Watch this.', narration: '[[a]] It changes. [[b]] It keeps changing.', plan: 'a: one\nb: two', close: 'What do you think it measures?', ...USAGE };
+  const CLEAN: LessonPlan & typeof USAGE = { opening: [{ say: 'A derivative measures how fast something changes.' }, { say: 'Call me on 555 123 4567 about a derivative.' }], more: [], setup: 'Watch this.', narration: '[[a]] It changes. [[b]] It keeps changing.', plan: 'a: one\nb: two', close: 'What do you think it measures?', ...USAGE };
 
   it('saves those lines, so the next open on that topic pays no planner', async () => {
     const store = createSceneStore(mkdtempSync(join(tmpdir(), 'clean-')));
     const key = getSceneKey(TOPIC);
     store.saveRefusal({ key, reasons: ['too plain'], review: [], attempts: [], savedAt: new Date().toISOString() } as never);
     let plannerCalls = 0;
-    const runs = createTopicRuns({ planner: { plan: async () => { plannerCalls += 1; return CLEAN; } }, writers: [], reviewer: { review: async () => ({ isPass: true, errors: [], ...USAGE }) }, worker: { run: async () => { throw new Error('no worker'); } }, store, warn: () => {} });
+    const runs = createTopicRuns({ planner: { plan: async () => { plannerCalls += 1; return CLEAN; } }, writers: [], reviewer: { review: async () => ({ isPass: true, errors: [], ...USAGE }) }, worker: NO_WORKER, store, warn: () => {} });
     const open = () => {
       const work = createLessonWork({ router: { route: async () => ({ engine: 'manimgx', kind: 'graph', topic: TOPIC, ...USAGE }) }, runs, store, request: TOPIC, isCard: true, studentId: 'maya', getNowMs: () => 0 });
       work.planWithoutScene();
@@ -96,7 +99,7 @@ describe('a paused topic whose plan was taught from its clean lines', () => {
     const store = createSceneStore(mkdtempSync(join(tmpdir(), 'clean-')));
     const key = getSceneKey(TOPIC);
     store.saveRefusal({ key, reasons: ['too plain'], review: [], attempts: [], savedAt: new Date().toISOString() } as never);
-    const runs = createTopicRuns({ planner: { plan: async () => { throw new Error('down'); } }, writers: [], reviewer: { review: async () => ({ isPass: true, errors: [], ...USAGE }) }, worker: { run: async () => { throw new Error('no worker'); } }, store, warn: () => {} });
+    const runs = createTopicRuns({ planner: { plan: async () => { throw new Error('down'); } }, writers: [], reviewer: { review: async () => ({ isPass: true, errors: [], ...USAGE }) }, worker: NO_WORKER, store, warn: () => {} });
     const work = createLessonWork({ router: { route: async () => ({ engine: 'manimgx', kind: 'graph', topic: TOPIC, ...USAGE }) }, runs, store, request: TOPIC, isCard: true, studentId: 'maya', getNowMs: () => 0 });
     work.planWithoutScene();
     await work.plan;
