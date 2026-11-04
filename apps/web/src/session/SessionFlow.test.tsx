@@ -198,6 +198,21 @@ describe('selecting a card', () => {
     });
   });
 
+  it('starts a lesson on a topic from the notes as a new session with no library topic', async () => {
+    const noteCard = { ...PICKS[0]!, id: 'note-1', topicId: null, title: 'Free-body diagrams', openingLine: null, reason: 'You got stuck on free-body diagrams', reasonDate: '2026-11-03T12:00:00Z' };
+    const { getRequests } = await renderHome({ homeScreen: { ...EXAMPLE_HOME_SCREEN, picks: [PICKS[0]!, noteCard] } });
+
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(noteCard.reason) }));
+
+    await getSessionHeading(noteCard.title);
+    expect(await getRequests('POST', '/api/sessions')[0]!.json()).toEqual({
+      title: noteCard.title,
+      subject: noteCard.subject,
+      artwork: noteCard.artwork,
+      language: 'en',
+    });
+  });
+
   it('opens the unfinished session of a carry-on card without starting another', async () => {
     const carryOnCard = { ...PICKS[0]!, reason: 'Carry on where you left off', continueSessionId: 'older-unfinished' };
     const session = makeSession({ id: carryOnCard.continueSessionId, title: 'The session this card opens' });

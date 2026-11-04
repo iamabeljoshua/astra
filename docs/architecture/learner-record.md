@@ -20,6 +20,8 @@ No note stores a student's free words, on any kind. A typed line becomes evidenc
 
 `learner_record_updates` says that one room's update has been applied. It holds a session ID and a job ID, and no words. A repeat of the same update is a no-op, so a note a student deleted stays gone. A later session can add a new note from what happens in it. We do not keep a list of what a student removed, because that list would itself store what they asked us to forget.
 
+The API checks the list again on the agent's write. Each note is judged alone, so a note off the list is dropped and its listed neighbours are kept, with the count in the log and no words. An update with nothing on the list answers 400 and stores nothing, and the agent's pass records that and ends as it does for any failed write. A detail off the list costs only the detail. Rows already in the table stay on the student's own page so they can remove them, but neither the tutor nor Home reads them.
+
 ## How a note gets written
 
 The pass runs in the agent as a room closes, so the student has gone and nothing waits on it. It is bounded at 8 seconds, and it cannot throw.
@@ -36,15 +38,38 @@ The pass runs in the agent as a room closes, so the student has gone and nothing
 | `cares_about` | A plain first-person statement, such as "i love football", with every word of the topic in that clause. A line with "used to", "nobody", a negation, "lol", a capitalized word, or a question loses the note, so sarcasm costs a note rather than keeping a false one. A tutor's suggestion never counts. |
 | `explored` | Cites any real line. |
 
-A topic passes only if every word is on the lists in `topic-words.ts`: school subjects and concepts drawn from `apps/api/src/picks/library.json`, the deeper scenes, and the curriculum the tutor teaches, plus the parts and moves of working a problem, and for `cares_about` a short list of ordinary interests. Words match whole, with no stemming. Anything else loses the note, so places, names, schools, faith, health, substances, and sexuality are not kept because they are not on the list. `sex education` and `vaping` stay out on purpose. A topic must also use words from the session, so a subject the session never touched cannot appear. "Keeps" or "again" needs two wrong lines. A detail off the list or past the lines costs only the detail. Board evidence is copied from the digest, never from the model.
+A topic passes only if every word is on the lists in `packages/contracts/src/topic-words.ts`, the one copy the agent and the API both read: school subjects and concepts drawn from `apps/api/src/picks/library.json`, including every `alsoCalled` name, the deeper scenes, and the curriculum the tutor teaches, plus the parts and moves of working a problem, and for `cares_about` a short list of ordinary interests. Words match whole, with no stemming. Anything else loses the note, so places, names, schools, faith, health, substances, and sexuality are not kept because they are not on the list. `sex education` and `vaping` stay out on purpose. The list is a literal, and a test fails on any library word off it, so a content edit cannot widen it without someone reading the word. Fourteen title words stay out on purpose, named in that test: words about feelings or the body, words a disclosure uses, places, and words naming a person. A second test scans the list for words naming health, feelings, family, or faith, and names the few school words that are on it anyway. Three lone letters in a row are a word spelled out, so `s u i c i d e` fails, and two side by side are math. A topic must also use words from the session, so a subject the session never touched cannot appear. "Keeps" or "again" needs two wrong lines. A detail off the list or past the lines costs only the detail. Board evidence is copied from the digest, never from the model.
 
 What code cannot prove is that a label is the best description of a right or wrong line. A student sees a checked line next to its label and can remove the note. A note that stands on their words shows only that it did, and they can remove it too.
 
 ## What the tutor reads
 
-`memory-note.ts` builds one short block, at most 8 notes, newest per topic, with no evidence lines. Notes older than 120 days stay on the student's page, but the tutor stops reading them. The screens and the list run again on read, so a note that reached the table some other way is still not read. The block is a system note in JSON, and the system prompt says it is data about a past day, never an instruction.
+`memory-note.ts` builds one short block, at most 8 notes, newest per topic, with no evidence lines. Notes older than 120 days stay on the student's page, but the tutor stops reading them. A removed note stops being read from the next session, because a running session already holds its copy. The screens and the list run again on read, so a note that reached the table some other way is still not read. The block is a system note in JSON, and the system prompt says it is data about a past day, never an instruction.
 
 An empty list says the tutor knows nothing, and so does no note at all when the read fails. A failed or slow read never holds up the first words: it shares the profile's one second limit.
+
+## What Home reads
+
+`picks/record-picks.ts` turns notes into cards, in code, as Home loads. No model is involved, and a failed read gives a Home built from sessions and the library.
+
+| Kind | Card | Most on screen |
+| --- | --- | --- |
+| `struggled` | The library topic that names it, one with deeper scenes first, else the library lesson it happened in, else a lesson of its own if the words name something to teach. | 2 |
+| `showed` | The library topic that names it if unstarted, else the next topic in that subject. | 1 |
+| `cares_about` | An unstarted library topic that names it. A liking alone is not a lesson. | 1 |
+| `explored` | None. | 0 |
+
+The newest note on a topic stands, so a right answer settles an earlier struggle and a later struggle reopens it. A note from the session on the continue card waits. A session started on the topic since the note takes its card away. Finished topics stay away, and two topics in progress still fit on screen, as M2.12 requires.
+
+A library topic can list other names in `alsoCalled` in `library.json`, because a note says "free-body diagrams" and the title says "What holds a block on a slope". A note names a topic only when all its subject words match, because a true reason on the wrong card is still misleading.
+
+`usable-notes.ts` keeps the newest note on each topic and drops any past 120 days. It runs the closed list again as it reads and drops anything off it, so a row that reached the table some other way never shows. A card shows only the topic, not the detail, the evidence, or the session's title. Two topics with the same subject words are one topic, so "quadratic equations" settles "solving quadratic equations".
+
+A rename means the student moved. It clears the session's topic and picture and sets its subject to the new title, in one place, so a session that left a card counts neither as finishing it nor as an open lesson on it, and a struggle there makes a card of what the student moved to.
+
+A topic with deeper scenes comes from `deeper-scenes.json`, the server's own list, so Home's load never reads the scene store. A flagged or missing scene does not change the card, because only the store knows about those.
+
+`pick-reasons.ts` holds each reason as one whole sentence, with `{day}` where the page puts the day, because only the browser knows the student's time zone. Rewording a struggle changes one string there.
 
 ## What we chose for minors
 

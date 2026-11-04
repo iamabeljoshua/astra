@@ -1,7 +1,3 @@
-import type { components } from '@astra/contracts';
-
-type NoteKind = components['schemas']['LearnerNoteDto']['kind'];
-
 // A topic passes only if every word is on these lists, so a place, a name, a school, a faith, a health condition, a substance, or a sexuality cannot be kept: it is simply not here. Words match exactly, with no stemming, because "rape" must not pass on the strength of "rap". Leave out on purpose any word that could describe a child, such as thin, fat, gay, or sick, and do not add `my`, `i`, or `being`.
 
 /** Every word of the library's titles, subjects, and interests, including the deeper scenes, less the few in `LEFT_OUT_OF_THE_LIBRARY`. */
@@ -25,6 +21,14 @@ const LIBRARY_WORDS = `about across actually after alchemists algorithm along al
   stretches strings strokes summer sunflower sunlight supernova table tangent target tastes test than that the their then things three throw tidal tides
   tilt time tip to too toward trial triangle turned two unzips van velocity vertex was wave were what where which white why with without work works
   world wrong zero`;
+
+/** Every word of the other names a library topic goes by, in `alsoCalled`, so a note can name a lesson the way a textbook does, with the forms a lesson says aloud. */
+const OTHER_NAME_WORDS = `agents audio axial baking bayes bubble chords compression conservation cryptography curve changes differentiation diffie dilation dispersion effect encryption
+  exchange false files generation growth harmonics hellman inclined instantaneous jacquard key magnus maillard major merge mp3 normal nucleosynthesis parabolas path perspective plane point
+  positives procedural public quicksort raising rate rates replication soda sort sorting standing starry stoichiometry stopping transmutation vanishing`;
+
+/** Words of the library's titles that name no one and nothing private, and that `LIBRARY_WORDS` once left out. */
+const TITLE_WORDS = `be best fake hardest own`;
 
 /** Words that join a topic together. */
 const JOINING_WORDS = `a an the of to in on at for with and or how why what when where which that this these those from by as is are was were into onto between across over under through using about after before have has its their each both more less than not without within per same different first second third one two three four five six seven eight nine ten half halves quarter quarters thirds some all any do does can will it`;
@@ -65,21 +69,34 @@ const toList = (text: string) => text.split(/\s+/).filter(Boolean);
 const withPlurals = (text: string) => toList(text).flatMap((noun) => [noun, /(?:s|x|ch|sh)$/.test(noun) ? `${noun}es` : `${noun}s`]);
 const IRREGULAR_PLURALS = `volcanoes mitochondria nuclei bacteria fungi leaves teeth axes matrices vertices theories bodies batteries galaxies energies countries species`;
 
-const CONCEPTS = new Set([...toList(LIBRARY_WORDS), ...toList(JOINING_WORDS), ...toList(WORKING_WORDS), ...withPlurals(CURRICULUM_NOUNS), ...toList(CURRICULUM_WORDS), ...toList(IRREGULAR_PLURALS)]);
+const CONCEPTS = new Set([...toList(LIBRARY_WORDS), ...toList(OTHER_NAME_WORDS), ...toList(TITLE_WORDS), ...toList(JOINING_WORDS), ...toList(WORKING_WORDS), ...withPlurals(CURRICULUM_NOUNS), ...toList(CURRICULUM_WORDS), ...toList(IRREGULAR_PLURALS)]);
 const CONCEPTS_AND_INTERESTS = new Set([...CONCEPTS, ...withPlurals(INTEREST_NOUNS), ...toList(INTEREST_WORDS)]);
-
-/** The words each kind of note may use. */
-const WORDS_FOR_A_TOPIC: Record<NoteKind, ReadonlySet<string>> = { showed: CONCEPTS, struggled: CONCEPTS, explored: CONCEPTS, cares_about: CONCEPTS_AND_INTERESTS };
 
 /** Words a detail may use on top of a topic's, to say what went wrong. */
 const WORDS_FOR_A_DETAIL = new Set([...CONCEPTS, ...toList(`but so then instead kept keep keeps forgot forget dropped drop missed miss mixed mix changed change wrote written took take got get gets went go did had has have after before still also just only very because would could up down out`)]);
 
 const MATH_TOKEN = /^(?:\p{L}|\d{1,3}\p{L}?)$/u;
+const LONE_LETTER = /^\p{L}$/u;
+/** Math puts two letters side by side, as in "x y". Three in a row is a word spelled out to get past the list. */
+const MOST_LONE_LETTERS_IN_A_ROW = 2;
+
+function hasSpelledOutWord(words: string[]): boolean {
+  let lettersInARow = 0;
+  for (const word of words) {
+    lettersInARow = LONE_LETTER.test(word) ? lettersInARow + 1 : 0;
+    if (lettersInARow > MOST_LONE_LETTERS_IN_A_ROW) return true;
+  }
+  return false;
+}
 
 /** Full-width letters, hidden characters, and accents are read as the plain word they look like, and anything else stays off the list. */
 export const toListWords = (text: string) => text.normalize('NFKD').replace(/\p{Cf}|\p{M}/gu, '').toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
 
-const areAllAllowed = (text: string, allowed: ReadonlySet<string>) => toListWords(text).every((word) => allowed.has(word) || MATH_TOKEN.test(word));
+function areAllAllowed(text: string, allowed: ReadonlySet<string>): boolean {
+  const words = toListWords(text);
+  return words.length > 0 && !hasSpelledOutWord(words) && words.every((word) => allowed.has(word) || MATH_TOKEN.test(word));
+}
 
-export const isTopicOnTheList = (kind: NoteKind, topic: string) => areAllAllowed(topic, WORDS_FOR_A_TOPIC[kind]);
+/** Only `cares_about` may use the interests, and every other kind of note, known or not, gets the narrower list. */
+export const isTopicOnTheList = (kind: string, topic: string) => areAllAllowed(topic, kind === 'cares_about' ? CONCEPTS_AND_INTERESTS : CONCEPTS);
 export const isDetailOnTheList = (detail: string) => areAllAllowed(detail, WORDS_FOR_A_DETAIL);

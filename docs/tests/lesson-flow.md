@@ -6,7 +6,7 @@ M3.13. During a lesson, the next visual is already in the page when the tutor re
 
 The plan from M3.9 says what is next: the concept after this one, or the exercise after it. `apps/agent/src/scene-queue/scene-queue.ts` holds that as data, one entry per scene, each `making`, `ready`, `due`, `asked`, or `shown`. Due means it waits for the reply being written, and asked means it is with the desk, waiting for the pause.
 
-1. A plan arrives. Haiku reads its steps against the titles the store holds, then each pick is read again against what that scene really says. A title that is not word for word on the list is thrown out.
+1. The first plan on a topic arrives. Haiku reads its steps against the titles the store holds, then each pick is read again against what that scene really says. A title that is not word for word on the list is thrown out.
 2. If a saved scene fits the step the lesson is on, it is due now, for free.
 3. For the next step, a saved scene is fetched into the page. If there is none, a write starts only when the rule below allows, and at most one runs ahead. A step with only an exercise gets a saved scene or nothing, because a picture could give away what the student is about to work out.
 4. When the bytes are in the page, the next `lesson_plan` note names the scene as `picture_topic`. The tutor asks for it by that name as it goes on to that idea, and says nothing about it. Code stops any word about a picture that is not on screen, as it did before.
@@ -40,15 +40,16 @@ Ahead-of-time writes go through the same caps as any scene, so they count agains
 ## What stops it
 
 - **Distress.** Words the scene check reads as a student in danger, and a tutor reply with the words only a safety reply uses, stop the queue for the rest of the session. What was being written stops, and nothing more lands. A word that only might be about safety, such as "hits" in "the ball hits the rim", holds the queue until the student's next line, and drops whatever was waiting to land.
+- **A stop at the router.** Any stop here also stops a router still answering, and its answer starts no plan and no write.
 - **A switch.** A new topic stops the write ahead, and any write left over from the old lesson. What was waiting ended on the student's turn already. A scene already saved stays with that student and costs nothing if they come back. A typed scene never goes to anyone else, and a shared scene comes only from the server's own list, so the queue can only read those.
 - **A student's turn.** Any student line ends what was waiting to land, because what they just said may change everything.
 - **A skip.** "Skip that", "can we skip this", or "let's move on" moves the step on at once, ahead of any plan, and code puts up no picture in its place. The tutor can still ask for the next one by name on a later turn. "How do you skip count by fives" moves nothing.
 - **Its moment passing.** When the lesson moves to another step, whatever was waiting to land goes, with no word said, so a late scene never interrupts a later concept. Past about 20 s from the first pause it goes too, and 35 s from the ask at the latest, which is the plug-in's own bound. A scene being written when its moment passes goes on and is saved, and no other write starts until it ends. One the lesson went past before it was due stops.
 - **A closed tutor.** A reply that closes the tutor stops the queue for good, and any write ahead with it. A scene's next model call also refuses once the tutor is closed.
-- **End.** An End press ends all of it before the recap. Nothing lands from then on, and the session is never at a pause again.
-- **A flag.** The list of saved titles leaves out a flagged scene and is read again for each plan. A scene flagged while it waits ready does not land and takes no first frame.
+- **End.** An End press ends all of it before the recap. Nothing lands from then on, the session is never at a pause again, and a plan that arrives after it reads no library.
+- **A flag.** The list of saved titles leaves out a flagged scene. It is read once for a topic, so a title can be flagged after that read, and then it is not prepared. A scene flagged while it waits ready does not land and takes no first frame.
 - **The limits.** A shared scene counts when it would land, whoever asked for it, so one readied before a student's last play does not play past it. A student's own scene still plays. A next scene counts toward the 6 asks when it is asked for, and past 6 nothing is readied, because it could never land.
-- **A page that cannot play one.** Nothing is prepared, and nothing is written.
+- **A page that cannot play one.** No library is read, nothing is prepared, and nothing is written.
 - **No running lesson.** No plan means no queue. Nothing is prepared before a student arrives, and that is on purpose: no worker prepares scenes per student ahead of them. That is post-MVP.
 
 ## Measured
@@ -85,10 +86,10 @@ Nothing the queue does sits on a turn's path: it only reads a regular expression
 | A crisis with the next scene ready, after the recap and the plug-in landed | The tutor's crisis words, the queue stopped, and no scene in the 40 s watched after it |
 | End with the next scene ready, after the recap and the plug-in landed | The recap showed, and no new scene played in the 40 s watched after it. The scene already seen stayed in the corner |
 
-| First text, before the last merge of main, load 13 to 25 | p50 | Slowest | Turns |
+| First text, before the last merge of main | p50 | Slowest | Turns |
 | --- | --- | --- | --- |
 | Off, `ASTRA_SCENES_AHEAD=0` | 1760 ms | 1970 ms | 5 |
-| On | 2135 ms | 3514 ms | 8 |
+| On | 1709 ms | 2332 ms | 5 |
 
 That is too few turns on too loaded a machine to call equal or to call a cost. The turns on include replies after a scene, which carry a longer note, and the turns off do not, which may be part of the gap. That is an inference. The earlier table found no clear cost on 27 to 35 turns a set.
 

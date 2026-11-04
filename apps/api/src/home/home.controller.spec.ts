@@ -9,13 +9,30 @@ import {
   SECOND_STUDENT_AUTH_USER_ID,
   replaceExampleData,
 } from '../infrastructure/orm/example-data';
+import { LearnerNoteEntity } from '../infrastructure/orm/entities/learner-note.entity';
 import { SessionEntity } from '../infrastructure/orm/entities/session.entity';
+import { LearnerRecordService } from '../learner-record/learner-record.service';
+import { getStruggleReason } from '../picks/pick-reasons';
+import { SessionsService } from '../sessions/sessions.service';
 
 const SEEDED_UNFINISHED_TITLE = 'Free-body diagrams';
 
 interface PickCard {
   id: string;
+  title: string;
+  subject: string;
+  reason: string;
+  continueSessionId: string | null;
+  reasonDate: string | null;
+  topicId: string | null;
 }
+
+const FREE_BODY_STRUGGLE = {
+  kind: 'struggled' as const,
+  topic: 'free-body forces',
+  detail: null,
+  evidence: [{ source: 'words' as const, text: '', check: null }],
+};
 
 describe('GET /home', () => {
   let testApp: TestApp;
@@ -77,8 +94,10 @@ describe('GET /home', () => {
         'lengthMinutes',
         'openingLine',
         'reason',
+        'reasonDate',
         'subject',
         'title',
+        'topicId',
       ]);
     }
   });
@@ -255,6 +274,137 @@ describe('GET /home', () => {
 
       expect(homeAfter.continueSession.id).toBe(openQuestion.id);
       expect(getPick(homeAfter, 'saturn-rings')).toMatchObject({ reason: CARRY_ON_REASON, continueSessionId: openLesson.id });
+    });
+  });
+
+  describe('from the learner record', () => {
+    const REASON = getStruggleReason(FREE_BODY_STRUGGLE.topic);
+
+    function records() {
+      return testApp.app.get(LearnerRecordService);
+    }
+
+    async function noteStruggle(studentId: string, updateKey = 'first') {
+      const { id: sessionId } = await sessions().save({ studentId, title: 'A finished question', subject: 'Physics', language: 'en', status: 'finished' as const, startedAt: new Date(Date.now() - 60_000) });
+      await records().applyUpdate({ studentId, sessionId, updateKey, notes: [FREE_BODY_STRUGGLE] });
+    }
+
+    async function getPicks(token = mayaToken): Promise<PickCard[]> {
+      const { body } = await getHomeWithToken(token).expect(200);
+      return (body as { picks: PickCard[] }).picks;
+    }
+
+    it('puts a struggle among the first cards, naming what happened and when', async () => {
+      await noteStruggle(EXAMPLE_STUDENT_ID);
+
+      const picks = await getPicks();
+      const struggleCard = picks.find((pick) => pick.reason === REASON);
+
+      expect(picks.indexOf(struggleCard as PickCard)).toBeLessThan(2);
+      expect(struggleCard).toMatchObject({ title: 'Free-body forces', topicId: null });
+      expect(Date.now() - new Date(struggleCard?.reasonDate ?? 0).getTime()).toBeLessThan(60_000);
+    });
+
+    describe('when a session moved away from its card', () => {
+      const LONG_DIVISION_STRUGGLE = { ...FREE_BODY_STRUGGLE, topic: 'long division' };
+
+      async function startOnCardThenMove(studentId: string, startedAt = new Date(Date.now() - 60_000)) {
+        const { id } = await sessions().save({ studentId, title: 'How a jump shot flies', subject: 'Physics', language: 'en', artwork: 'arc' as const, topicId: 'jump-shot', startedAt });
+        await testApp.app.get(SessionsService).renameUnfinished(studentId, id, 'Long division');
+        return id;
+      }
+
+      it('makes a card for the topic it moved to, and does not blame the card it left', async () => {
+        const student = await createTestStudent(testApp);
+        const sessionId = await startOnCardThenMove(student.studentId);
+        await records().applyUpdate({ studentId: student.studentId, sessionId, updateKey: 'moved', notes: [LONG_DIVISION_STRUGGLE] });
+        await sessions().update({ id: sessionId }, { status: 'finished' });
+
+        const picks = await getPicks(student.token);
+
+        expect(picks.find(({ reason }) => reason.includes('long division'))).toMatchObject({ title: 'Long division', subject: 'Your question', topicId: null });
+        expect(picks.find(({ id }) => id === 'jump-shot')?.reason ?? '').not.toContain('long division');
+      });
+
+      it('does not say the student finished the card it left, however long it ran', async () => {
+        const student = await createTestStudent(testApp);
+        const sessionId = await startOnCardThenMove(student.studentId);
+        await sessions().update({ id: sessionId }, { status: 'finished', durationSeconds: 900 });
+
+        const picks = await getPicks(student.token);
+
+        expect(picks.filter(({ reason }) => reason.startsWith('You finished'))).toEqual([]);
+      });
+
+      it('does not offer to carry on the card it left', async () => {
+        const student = await createTestStudent(testApp);
+        const movedId = await startOnCardThenMove(student.studentId, new Date(Date.now() - 120_000));
+        await saveUnfinishedSession(student.studentId, 'A newer question', new Date(Date.now() - 60_000).toISOString());
+
+        const picks = await getPicks(student.token);
+
+        expect(picks.filter(({ continueSessionId }) => continueSessionId === movedId)).toEqual([]);
+      });
+    });
+
+    describe('when a note holds words off the closed list', () => {
+      it.each(['self harm', 'my dads drinking', 'suicide', 'my depression', 'my dad hits me'])('never shows %j, whatever the table holds', async (topic) => {
+        const student = await createTestStudent(testApp);
+        const { id: sessionId } = await sessions().save({ studentId: student.studentId, title: 'A question', subject: 'Your question', language: 'en', status: 'finished' as const, startedAt: new Date(Date.now() - 60_000) });
+        await testApp.app.get(DataSource).getRepository(LearnerNoteEntity).save({ studentId: student.studentId, sessionId, kind: 'struggled' as const, topic, topicKey: topic, detail: null, evidence: [{ source: 'words' as const, text: '', check: null }] });
+
+        const { text } = await getHomeWithToken(student.token).expect(200);
+
+        expect(text).not.toContain(topic);
+      });
+    });
+
+    it('still offers six cards', async () => {
+      await noteStruggle(EXAMPLE_STUDENT_ID);
+
+      expect(await getPicks()).toHaveLength(6);
+    });
+
+    it('drops the card as soon as its note is deleted', async () => {
+      await noteStruggle(EXAMPLE_STUDENT_ID);
+      const { notes } = await records().getRecord(EXAMPLE_STUDENT_ID);
+      const noteId = notes.find(({ topic }) => topic === FREE_BODY_STRUGGLE.topic)?.id ?? '';
+
+      await request(testApp.app.getHttpServer()).delete(`/me/record/notes/${noteId}`).set('Authorization', `Bearer ${mayaToken}`).expect(204);
+
+      expect((await getPicks()).map((pick) => pick.reason)).not.toContain(REASON);
+    });
+
+    it('never lets another student\'s record change a card', async () => {
+      const otherToken = await testApp.supabaseAuth.signToken(SECOND_STUDENT_AUTH_USER_ID);
+      const otherPicksBefore = await getPicks(otherToken);
+      const mayaPicksBefore = await getPicks();
+
+      await noteStruggle(EXAMPLE_STUDENT_ID);
+
+      expect(await getPicks(otherToken)).toEqual(otherPicksBefore);
+      expect(await getPicks()).not.toEqual(mayaPicksBefore);
+    });
+
+    it('still gives a full Home when the record cannot be read', async () => {
+      const expected = await getPicks();
+      await noteStruggle(EXAMPLE_STUDENT_ID);
+      const failedRead = jest.spyOn(records(), 'getRecord').mockRejectedValue(new Error('no record'));
+
+      const picks = await getPicks();
+      failedRead.mockRestore();
+
+      expect(picks.map((pick) => pick.reason)).not.toContain(REASON);
+      expect(picks).toHaveLength(expected.length);
+    });
+
+    it('gives a brand new student six cards and no claim about a day', async () => {
+      const { token } = await createTestStudent(testApp);
+
+      const picks = await getPicks(token);
+
+      expect(picks).toHaveLength(6);
+      expect(picks.every((pick) => pick.reasonDate === null)).toBe(true);
     });
   });
 

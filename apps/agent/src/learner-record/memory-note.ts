@@ -1,6 +1,6 @@
 import type { components } from '@astra/contracts';
+import { isDetailOnTheList, isTopicOnTheList } from '@astra/contracts/topic-words';
 import { isSafeNoteText } from './screens.ts';
-import { isDetailOnTheList, isTopicOnTheList } from './topic-words.ts';
 
 type LearnerRecord = components['schemas']['LearnerRecordDto'];
 type LearnerNote = LearnerRecord['notes'][number];
@@ -32,6 +32,9 @@ const MOST_OF_EACH_KIND: readonly (readonly [LearnerNote['kind'], number])[] = [
 
 const toTopicKey = (topic: string) => topic.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 
+/** A right line settles a struggle, but saying what you like or looking at a topic later settles nothing. */
+const getStandingGroup = (kind: LearnerNote['kind']) => (kind === 'showed' || kind === 'struggled' ? 'work' : kind);
+
 const getDaysAgo = (notedAt: string, now: Date) => Math.max(0, Math.floor((now.getTime() - new Date(notedAt).getTime()) / MS_PER_DAY));
 
 function toMemoryLine({ kind, topic, detail, notedAt, evidence }: LearnerNote, now: Date): MemoryLine {
@@ -45,7 +48,7 @@ function toMemoryLine({ kind, topic, detail, notedAt, evidence }: LearnerNote, n
 }
 
 function isUsable({ kind, topic, detail, notedAt }: LearnerNote, now: Date): boolean {
-  return getDaysAgo(notedAt, now) <= STALE_AFTER_DAYS && isSafeNoteText(topic) && isTopicOnTheList(kind, topic) && (detail === null || (isSafeNoteText(detail) && isDetailOnTheList(detail)));
+  return now.getTime() - new Date(notedAt).getTime() <= STALE_AFTER_DAYS * MS_PER_DAY && isSafeNoteText(topic) && isTopicOnTheList(kind, topic) && (detail === null || (isSafeNoteText(detail) && isDetailOnTheList(detail)));
 }
 
 // The newest note on a topic wins, so a student who struggled and later got it right is not reminded of the struggle. The screens and the list run again here, so a note that got into the table some other way is still never read.
@@ -53,7 +56,7 @@ export function getMemoryNote({ notes }: LearnerRecord, now: Date): MemoryNote {
   const newestPerTopic = new Map<string, LearnerNote>();
   for (const note of notes) {
     if (!isUsable(note, now)) continue;
-    const key = toTopicKey(note.topic);
+    const key = `${getStandingGroup(note.kind)} ${toTopicKey(note.topic)}`;
     if (!newestPerTopic.has(key)) newestPerTopic.set(key, note);
   }
   const kept = [...newestPerTopic.values()];

@@ -26,7 +26,7 @@ const OPEN_AND_FINISH = (state: LessonState) => getStateAfterEvent(getStateAfter
 
 const ROOMY: AheadFacts = { writesStarted: 0, sceneUsd: 0, sceneLimitUsd: 0.8, leftTodayUsd: 3, isOverLimit: false, loadPerCore: 0.2, lastFirstTextMs: 900 };
 
-const makeScenes = () => ({ prepare: vi.fn<(request: string) => boolean>(() => true), ask: vi.fn<(request: string) => void>(), dropPrepared: vi.fn(), dropWaiting: vi.fn(), stopForGood: vi.fn() });
+const makeScenes = () => ({ prepare: vi.fn<(request: string) => boolean>(() => true), ask: vi.fn<(request: string) => boolean>(() => true), dropPrepared: vi.fn(), dropWaiting: vi.fn(), stopForGood: vi.fn() });
 
 function setUp({ library = {}, facts = ROOMY, canPlay = true }: { library?: Record<string, readonly (string | null)[]>; facts?: Partial<AheadFacts>; canPlay?: boolean } = {}) {
   const budget = { ...facts };
@@ -41,6 +41,56 @@ const prepared = (scenes: ReturnType<typeof setUp>['scenes']) => scenes.prepare.
 const asked = (scenes: ReturnType<typeof setUp>['scenes']) => scenes.ask.mock.calls.map(([request]) => request);
 
 describe('the next scene queue', () => {
+  it('reads the library only for a page that can play, and reads it once the page can', async () => {
+    let canPlay = false;
+    const scenes = makeScenes();
+    const readLibrary = vi.fn(async () => [null, 'Why a moon that gets too close breaks apart', null]);
+    const queue = createSceneQueue({ scenes, readLibrary, getFacts: () => ROOMY, canPlay: () => canPlay, moveToNextStep: vi.fn(), trace: () => {} });
+    queue.onLesson(start(RINGS));
+    await flush();
+    expect(readLibrary).not.toHaveBeenCalled();
+    canPlay = true;
+    queue.onPageReady();
+    await flush();
+    expect(readLibrary).toHaveBeenCalledOnce();
+    expect(prepared(scenes)).toEqual(['Why a moon that gets too close breaks apart']);
+  });
+
+  it('reads the library for a plan that came during a hold, once the hold lifts', async () => {
+    const { queue, readLibrary } = setUp();
+    queue.noteStudentWords('the ball hits the rim');
+    queue.onLesson(start(RINGS));
+    await flush();
+    expect(readLibrary).not.toHaveBeenCalled();
+    queue.noteStudentWords('ok, go on');
+    await flush();
+    expect(readLibrary).toHaveBeenCalledOnce();
+  });
+
+  it('lets go of a step whose ask was refused, so the next ask is not held behind it', async () => {
+    const { queue, scenes } = setUp({ library: { [RINGS.topic]: ["What Saturn's rings are made of", 'Why a moon that gets too close breaks apart', null] } });
+    scenes.ask.mockReturnValueOnce(false);
+    queue.onLesson(start(RINGS));
+    await flush();
+    expect(asked(scenes)).toEqual(["What Saturn's rings are made of"]);
+    expect(scenes.dropPrepared).toHaveBeenCalledWith("What Saturn's rings are made of");
+    expect(queue.getEntries().map(({ state }) => state)).not.toContain('asked');
+    queue.onTutorAsk('a picture of the rings');
+    expect(asked(scenes)).toContain('a picture of the rings');
+  });
+
+  it('ends a long title at the end of a phrase, and keeps a topic with no phrase to end on', async () => {
+    const { queue, scenes } = setUp();
+    const teach = (words: string) => ({ teach: words, exercise: 'try it' });
+    queue.onLesson(start({ topic: 'Derivatives: the power rule and chain rule', kind: 'teachFirst', steps: [teach('first'), teach('The chain rule: for a composite function, multiply the outer by the inner')] }));
+    await flush();
+    expect(prepared(scenes)).toEqual(['Derivatives: the power rule and chain rule: The chain rule']);
+    const other = setUp();
+    other.queue.onLesson(start({ topic: 'Saturn', kind: 'teachFirst', steps: [teach('first'), teach('how a moon that gets too close to the planet is pulled apart by the tide it raises')] }));
+    await flush();
+    expect(prepared(other.scenes)).toEqual(['Saturn: how a moon that gets too close to the planet is pulled apart by the tide']);
+  });
+
   it('writes nothing with no running lesson', async () => {
     const { queue, scenes, readLibrary } = setUp();
     queue.onLesson(NO_LESSON);
@@ -343,6 +393,7 @@ describe('the next scene queue', () => {
     expect(scenes.prepare).not.toHaveBeenCalled();
     answers.canPlay = true;
     queue.onPageReady();
+    await flush();
     expect(prepared(scenes)).toEqual(["Saturn's rings: a moon too close breaks apart"]);
   });
 
@@ -363,6 +414,7 @@ describe('the next scene queue', () => {
     expect(held.scenes.prepare).not.toHaveBeenCalled();
     expect(held.scenes.stopForGood).not.toHaveBeenCalled();
     held.queue.noteStudentWords('okay so it bounces');
+    await flush();
     expect(prepared(held.scenes)).toEqual(["Saturn's rings: a moon too close breaks apart"]);
   });
 

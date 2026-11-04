@@ -112,13 +112,13 @@ const EXAMPLE_SESSIONS: DeepPartial<SessionEntity>[] = [
 ];
 
 // Two kinds of evidence on real example sessions, so Home and the tutor have something to read after a seed.
-function getExampleNotes([freeBody, sky, quadratics]: SessionEntity[]): Partial<LearnerNoteEntity>[] {
+function getExampleNotes([freeBody, sky, quadratics, , compoundInterest]: SessionEntity[]): Partial<LearnerNoteEntity>[] {
   const forSession = (session: SessionEntity | undefined) => ({ studentId: EXAMPLE_STUDENT_ID, sessionId: session?.id, notedAt: session?.startedAt });
   return [
     {
       ...forSession(freeBody),
       kind: 'struggled',
-      topic: 'Free-body diagrams',
+      topic: 'free-body diagrams',
       topicKey: 'free body diagrams',
       detail: 'Friction on a slope',
       evidence: [{ source: 'words', text: '', check: null }],
@@ -126,7 +126,7 @@ function getExampleNotes([freeBody, sky, quadratics]: SessionEntity[]): Partial<
     {
       ...forSession(sky),
       kind: 'explored',
-      topic: 'Why the sky is dark at night',
+      topic: 'why the sky is dark at night',
       topicKey: 'why the sky is dark at night',
       detail: null,
       evidence: [{ source: 'words', text: '', check: null }],
@@ -134,10 +134,18 @@ function getExampleNotes([freeBody, sky, quadratics]: SessionEntity[]): Partial<
     {
       ...forSession(quadratics),
       kind: 'showed',
-      topic: 'Solving quadratic equations',
+      topic: 'solving quadratic equations',
       topicKey: 'solving quadratic equations',
       detail: null,
       evidence: [{ source: 'board', text: 'x^2 - 5x + 6 = 0 becomes (x - 2)(x - 3) = 0', check: 'right' }],
+    },
+    {
+      ...forSession(compoundInterest),
+      kind: 'struggled',
+      topic: 'compound interest',
+      topicKey: 'compound interest',
+      detail: 'Added the interest once instead of each time',
+      evidence: [{ source: 'words', text: '', check: null }],
     },
   ];
 }
