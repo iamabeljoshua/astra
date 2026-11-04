@@ -52,7 +52,7 @@ export function DotStage({ shape = DOT_DRAWINGS.planet, legsDrawn = PATH_LEG_COU
       </div>
       <div className="h-stage-band flex-none lg:hidden" />
       {chartTitle && (
-        <p className="relative px-stage-edge text-right font-voice text-chart-title wrap-anywhere italic max-lg:text-body lg:absolute lg:right-0 lg:bottom-9 lg:max-w-[58vw]">
+        <p className="relative px-stage-edge text-right font-voice text-chart-title wrap-anywhere italic max-lg:text-body lg:absolute lg:right-0 lg:bottom-6 lg:max-w-[58vw]">
           {chartTitle}
         </p>
       )}

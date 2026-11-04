@@ -76,6 +76,7 @@ describe('CodeField', () => {
     ['the minutes before the code', 'Type this code on the Astra sign-in page. It works for 10 minutes.\n123456\nOnly your newest code works.'],
     ['the minutes after the code', 'Your code is 123456. It works for 10 minutes.'],
     ['Arabic digits', 'يعمل لمدة ١٠ دقائق ١٢٣٤٥٦'],
+    ['a link holding digits before the code', 'Log in at https://astra.test/verify?token=ab654321cd\nOr enter the code: 123456'],
   ])('finds the code in a whole pasted mail, with %s', (_caseName, pasted) => {
     const onComplete = vi.fn();
     render(<ControlledCodeField onComplete={onComplete} />);

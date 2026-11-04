@@ -23,17 +23,17 @@ const FULL_TURN = Math.PI * 2;
 interface SubjectStar {
   spot: ChartSpot;
   labelSide: 'left' | 'right';
-  labelPlace: 'above' | 'below';
+  labelPlace: 'above' | 'level' | 'below';
 }
 
 // Each label sits on the side its path legs leave free.
 const SUBJECT_STARS: readonly SubjectStar[] = [
-  { spot: [-0.86, 0.52], labelSide: 'right', labelPlace: 'above' },
+  { spot: [-0.86, 0.52], labelSide: 'right', labelPlace: 'below' },
   { spot: [-0.66, -0.16], labelSide: 'right', labelPlace: 'below' },
   { spot: [-0.3, -0.52], labelSide: 'right', labelPlace: 'below' },
   { spot: [0.14, -0.66], labelSide: 'right', labelPlace: 'above' },
   { spot: [0.62, -0.5], labelSide: 'right', labelPlace: 'above' },
-  { spot: [0.9, -0.06], labelSide: 'left', labelPlace: 'above' },
+  { spot: [0.9, -0.06], labelSide: 'left', labelPlace: 'level' },
   { spot: [0.66, 0.42], labelSide: 'left', labelPlace: 'above' },
   { spot: [0.16, 0.62], labelSide: 'left', labelPlace: 'above' },
 ];
@@ -79,8 +79,7 @@ const STAR = {
   band: { lit: 4.5, unlit: 3, interest: 3.5, labelSize: 9.5 },
   haloRoom: 3.5,
   labelGap: 7,
-  labelAbove: -5,
-  labelBelow: 11,
+  labelOffsets: { above: -5, level: 4, below: 11 },
   labelSpacing: '1.6px',
   unlitLabelOpacity: 0.62,
   flipFromSpread: 0.5,
@@ -126,7 +125,7 @@ function paintDisc(context: CanvasRenderingContext2D, { x, y }: ChartPoint, radi
 function paintLabel(context: CanvasRenderingContext2D, { point, label, radius, side, place }: { point: ChartPoint; label: string; radius: number; side: SubjectStar['labelSide']; place: SubjectStar['labelPlace'] }) {
   context.textAlign = side === 'left' ? 'right' : 'left';
   const reach = radius + STAR.labelGap;
-  context.fillText(label.toUpperCase(), point.x + (side === 'left' ? -reach : reach), point.y + (place === 'above' ? STAR.labelAbove : STAR.labelBelow));
+  context.fillText(label.toUpperCase(), point.x + (side === 'left' ? -reach : reach), point.y + STAR.labelOffsets[place]);
 }
 
 function prepareLabels(context: CanvasRenderingContext2D, layout: ChartLayout, fontFamily: string) {
