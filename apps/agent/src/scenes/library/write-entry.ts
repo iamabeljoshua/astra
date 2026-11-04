@@ -7,7 +7,7 @@ import { getSpokenLines } from '../lesson/lesson-beats.ts';
 import { makeScene } from '../make-scene.ts';
 import type { RenderWorker } from '../render-worker.ts';
 import { getSceneKey, type SceneStore } from '../scene-store.ts';
-import type { LessonPlan, SceneRefusal } from '../scene-types.ts';
+import type { LessonPlan, SceneRefusal, SceneRepair, SceneWriter } from '../scene-types.ts';
 import type { LibraryLedger } from './library-ledger.ts';
 import type { LibraryEntry } from './library-list.ts';
 
@@ -62,6 +62,28 @@ async function getPlan(run: LibraryRun, entry: LibraryEntry, models: SceneModels
 
 const getRefusalReasons = ({ review }: SceneRefusal) => review.map(({ what, truth }) => `${what} What is true: ${truth}`);
 
+const getCodePath = ({ runFolder }: LibraryRun, entry: LibraryEntry) => join(runFolder, 'code', `${entry.id}.py`);
+
+function getLastRepair(run: LibraryRun, entry: LibraryEntry): SceneRepair | null {
+  const path = getCodePath(run, entry);
+  const last = run.ledger.getLastTry(entry.id);
+  return last && last.reasons.length > 0 && existsSync(path) ? { problems: last.reasons, code: readFileSync(path, 'utf8') } : null;
+}
+
+// A next try fixes what the last one wrote, which is cheaper and more likely to pass than a blank page.
+function withLastTry(run: LibraryRun, entry: LibraryEntry, writer: SceneWriter): SceneWriter {
+  const lastRepair = getLastRepair(run, entry);
+  return {
+    name: writer.name,
+    async write(brief, repair, signal) {
+      const written = await writer.write(brief, repair ?? lastRepair, signal);
+      mkdirSync(join(run.runFolder, 'code'), { recursive: true });
+      writeFileSync(getCodePath(run, entry), written.code);
+      return written;
+    },
+  };
+}
+
 /** One try at one scene, ending in a ledger line. Returns whether the scene joined the library. */
 export async function writeEntry(run: LibraryRun, entry: LibraryEntry): Promise<boolean> {
   const { ledger, store, worker } = run;
@@ -78,7 +100,8 @@ export async function writeEntry(run: LibraryRun, entry: LibraryEntry): Promise<
     const refusals: SceneRefusal[] = [];
     // A live lesson waits on these records, so a failed library try leaves none, and a missing scene is simply written live.
     const tryStore: SceneStore = { ...store, getTrouble: () => NO_TROUBLE, saveTrouble: () => {}, saveRefusal: (refusal) => { refusals.push(refusal); run.runStore.saveRefusal(refusal); } };
-    const made = await makeScene({ writers: [models.writer, models.fallbackWriter], reviewer: models.reviewer, worker, store: tryStore, writerLimitMs: WRITER_LIMIT_MS, reviewerLimitMs: REVIEWER_LIMIT_MS, ...(run.warn ? { warn: run.warn } : {}) }, { topic: entry.title, plan, clearedNames });
+    const writers = [withLastTry(run, entry, models.writer), withLastTry(run, entry, models.fallbackWriter)];
+    const made = await makeScene({ writers, reviewer: models.reviewer, worker, store: tryStore, writerLimitMs: WRITER_LIMIT_MS, reviewerLimitMs: REVIEWER_LIMIT_MS, ...(run.warn ? { warn: run.warn } : {}) }, { topic: entry.title, plan, clearedNames });
     const [refusal] = refusals;
     if (made.isOk) ledger.noteTry(entry.id, 'saved');
     else if (refusal) ledger.noteTry(entry.id, 'review', getRefusalReasons(refusal));

@@ -61,13 +61,14 @@ function getWanted(): LibraryEntry[] {
   });
 }
 
-// Fewest tries first, so every scene gets its first try before any scene gets a second.
+// Openings first, because a card is what a student opens, and then fewest tries first, so every scene gets its first try before any of its kind gets a second.
 function createQueue(wanted: readonly LibraryEntry[], store: SceneStore, ledger: LibraryLedger) {
   const inFlight = new Set<string>();
   const isWaiting = (entry: LibraryEntry) => !inFlight.has(entry.id) && !store.find(getSceneKey(entry.title)) && ledger.getEntryTries(entry.id) < mostTries;
+  const getKindRank = ({ kind }: LibraryEntry) => (kind === 'opening' ? 0 : 1);
   return {
     take(): LibraryEntry | null {
-      const [next] = wanted.filter(isWaiting).sort((first, second) => ledger.getEntryTries(first.id) - ledger.getEntryTries(second.id));
+      const [next] = wanted.filter(isWaiting).sort((first, second) => getKindRank(first) - getKindRank(second) || ledger.getEntryTries(first.id) - ledger.getEntryTries(second.id));
       if (next) inFlight.add(next.id);
       return next ?? null;
     },

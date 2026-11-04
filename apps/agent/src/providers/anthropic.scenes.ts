@@ -137,7 +137,7 @@ export function makeAnthropicSceneModels({ apiKey, onUsage, assertRoom, reviewPa
 
   return {
     writer: isLibrary ? makeWriter('opus-5-5-low', 'opusPlain') : makeWriter('opus-5-5-low-fast', 'opusFast'),
-    fallbackWriter: makeWriter('sonnet-5-5-low', 'sonnetFast'),
+    fallbackWriter: isLibrary ? makeWriter('opus-5-5-low-repair', 'opusPlain') : makeWriter('sonnet-5-5-low', 'sonnetFast'),
     reviewer: {
       async review({ brief, code, sheets, spokenLines }, signal) {
         const images = sheets.flatMap(({ theme, bytes }): Anthropic.Beta.Messages.BetaContentBlockParam[] => [{ type: 'text', text: `The ${theme} take's frames:` }, { type: 'image', source: { type: 'base64', media_type: bytes[0] === 0xff ? 'image/jpeg' : 'image/png', data: bytes.toString('base64') } }]);

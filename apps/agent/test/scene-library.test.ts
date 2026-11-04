@@ -103,6 +103,16 @@ describe('writing one library scene', () => {
     expect(run.ledger.getLastTry(ENTRY.id)?.stage).toBe('draw');
   });
 
+  it('asks the next try to fix what the last one wrote', async () => {
+    const { run } = setUp({ render: { isOk: false, stage: 'gate', reasons: ['a label ran off the frame'], ms: 1 } });
+    await writeEntry(run, ENTRY);
+    const models = run.makeModels(ENTRY);
+    const seen: (string | null)[] = [];
+    const makeModels = () => ({ ...models, writer: { name: 'first', write: async (_brief: unknown, repair: { problems: readonly string[] } | null) => { seen.push(repair?.problems[0] ?? null); return { code: 'class Lesson(Lesson2D): pass', ...USAGE }; } } });
+    await writeEntry({ ...run, makeModels }, ENTRY);
+    expect(seen).toEqual(['a label ran off the frame']);
+  });
+
   it('counts a crash inside a try as a try, and keeps nothing for it', async () => {
     const { run, root } = setUp();
     const worker: RenderWorker = async () => { throw new Error('docker went away'); };
