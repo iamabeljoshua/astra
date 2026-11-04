@@ -39,7 +39,7 @@ function EntryStep({ studentName, dateParts, isDateRejected, changeParts, review
 
   return (
     <TutorQuestion id={QUESTION_ID} line={BIRTH_DATE_LABELS.questionFor(studentName)} fieldToFocus={firstField}>
-      <form id={FORM_ID} noValidate onSubmit={submit} className="flex flex-col gap-4.5">
+      <form id={FORM_ID} onSubmit={submit} className="flex flex-col gap-4.5">
         <p className="text-sub text-ink-2">{BIRTH_DATE_LABELS.about}</p>
         <BirthDateField
           labelledBy={QUESTION_ID}

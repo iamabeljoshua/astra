@@ -141,6 +141,28 @@ describe('AccountGate', () => {
     expect(fetchStub).not.toHaveBeenCalled();
   });
 
+  it('keeps the chart up while the account loads right after sign-in, with no blank page between dot pages', () => {
+    setSignIn('signedOut');
+    vi.stubGlobal('fetch', () => new Promise(() => undefined));
+    const { rerender } = renderWithQueryClient(<GateWithDraft />);
+    screen.getByText(SIGN_IN_LABELS.tagline);
+
+    setSignIn('signedIn');
+    rerender(<GateWithDraft />);
+
+    screen.getByText(SIGN_IN_LABELS.tagline);
+    expect(screen.queryByRole('button', { name: SIGN_IN_LABELS.sendCode })).toBeNull();
+  });
+
+  it('shows only the product name while the account loads on a reload, so Home does not flash a chart', () => {
+    setSignIn('signedIn');
+    vi.stubGlobal('fetch', () => new Promise(() => undefined));
+
+    const { container } = renderGate();
+
+    expect(container.textContent).toBe(PRODUCT_NAME);
+  });
+
   it('shows the sign-in page, and calls no API, when nobody is signed in', () => {
     setSignIn('signedOut');
     const fetchStub = stubApi({});

@@ -19,7 +19,7 @@ export function NameStep({ flow }: StepProps) {
 
   return (
     <StepScreen flow={flow} line={ONBOARDING_LABELS.nameQuestion} fieldToFocus={input} action={<ContinueButton formId={FORM_ID} />}>
-      <form id={FORM_ID} noValidate onSubmit={submit}>
+      <form id={FORM_ID} onSubmit={submit}>
         <TextField
           inputRef={input}
           label={ONBOARDING_LABELS.nameLabel}
