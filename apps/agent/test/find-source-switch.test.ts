@@ -23,7 +23,7 @@ async function askOnce(requests: TutorModelRequest[] = []) {
     return attempt === 1 ? { pieces: ['Let me look. ', SEARCH] } : { pieces: ['I could not find one.'] };
   });
   fakes.makeModel.mockReturnValue(model);
-  const { brain } = makeTutorBrain({ roomName: 'room', trace: () => {} });
+  const { brain } = makeTutorBrain({ roomName: 'room', jobId: 'job', trace: () => {} });
   const said: string[] = [];
   for await (const beat of brain.reply({ text: 'is there a source?' }, new AbortController().signal)) said.push(getBeatText(beat));
   return said.join(' ');

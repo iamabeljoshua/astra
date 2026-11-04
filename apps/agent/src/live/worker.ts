@@ -77,7 +77,7 @@ async function runSession(context: JobContext): Promise<void> {
   const allTakes = loadTakes();
   let ears: Ears | null = null;
   let scenes: TutorScenes | null = null;
-  const { brain, caps, cardTitle, flushSpend, readMeaning, readStrokes, readSpokenWords, getSpentUsd } = makeTutorBrain({ roomName: room.name ?? '', trace, ...(hasTutorScenes() ? { onAskScene: (topic: string) => scenes?.ask(topic), onSafetyReply: () => scenes?.noteSafetyReply(), onCardKnown: (title: string | null) => scenes?.noteCard(title) } : {}) });
+  const { brain, caps, cardTitle, flushSpend, readMeaning, readStrokes, readSpokenWords, getSpentUsd, writeRecord } = makeTutorBrain({ roomName: room.name ?? '', jobId: context.job.id, trace, ...(hasTutorScenes() ? { onAskScene: (topic: string) => scenes?.ask(topic), onSafetyReply: () => scenes?.noteSafetyReply(), onCardKnown: (title: string | null) => scenes?.noteCard(title) } : {}) });
   const session = createLiveSession({
     messenger: {
       send: (message) => publish(message),
@@ -179,11 +179,14 @@ async function runSession(context: JobContext): Promise<void> {
     await session.close();
     if (process.env.ASTRA_VOICE_TRACE_WORDS === '1') trace('sessionLog', { events: session.getLog() });
     await flushSpend();
+    const recordWriting = writeRecord?.();
     await ears?.close();
     await transcriber.close();
     await voice.close();
     await source.close();
     await context.deleteRoom().catch(() => {});
+    await recordWriting;
+    await flushSpend();
     trace('jobClosed');
   });
 }

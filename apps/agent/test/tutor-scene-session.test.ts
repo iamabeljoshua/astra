@@ -20,7 +20,7 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const TOPIC = 'what the slope of a line tells you';
 const USAGE = { model: 'fake', ms: 1, costUsd: 0 };
 const PLAN: LessonPlan = { opening: [{ say: 'x' }], more: [], setup: 'Watch the line tilt.', narration: '[[a]] The line climbs. [[b]] It climbs at one steady rate.', plan: 'a: a\nb: b', close: 'What would a steeper line tell you?' };
-const SCENE: StoredScene = { id: 'slope-1a2b3c4d', engine: 'manimgx', topic: TOPIC, moments: { a: 0, b: 2 }, parts: [], durationSeconds: 5, plan: PLAN, ownerId: null } as unknown as StoredScene;
+const SCENE: StoredScene = { id: `scene-${'a'.repeat(40)}`, engine: 'manimgx', topic: TOPIC, moments: { a: 0, b: 2 }, parts: [], durationSeconds: 5, plan: PLAN, ownerId: null } as unknown as StoredScene;
 const LONG = 'one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen';
 const CRISIS = 'That sounds serious. It is not your fault. Please tell an adult you trust now, or call your local emergency number. Are you safe right now?';
 

@@ -139,6 +139,9 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
     if (ask !== current || ask.page.kind !== 'loaded') return;
     if (ask.recheck) clearTimeout(ask.recheck);
     if (isClosed()) return end(ask, 'tutorClosed');
+    const { scene: loaded } = ask.page;
+    // A person can flag a scene in the seconds between the page loading it and the pause it lands at.
+    if (store.isFlagged({ id: loaded.id, topic: loaded.topic, ownerId: loaded.ownerId })) return end(ask, 'flagged');
     if (ask.isOpening) {
       if (!settleOpening) return;
       const scene = ask.work.desk.takeAtOpening();
