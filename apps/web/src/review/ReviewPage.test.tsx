@@ -27,7 +27,8 @@ const OPEN_FLAG = {
 const REVIEWED_FLAG = { ...OPEN_FLAG, reviewedAt: new Date().toISOString(), reviewedBy: STUDENT_ID };
 
 function stubReviewApi({ flags, status = 200 }: { flags: object[]; status?: number }) {
-  const fetchHomeScreen = stubFetchWithHomeScreen();
+  stubFetchWithHomeScreen();
+  const fetchHomeScreen = globalThis.fetch as (input: Request | string, init?: RequestInit) => Promise<Response>;
   let currentFlags = flags;
   const fetchFromApp = vi.fn((input: Request | string, init?: RequestInit) => {
     const url = new URL(typeof input === 'string' ? input : input.url, 'http://localhost');

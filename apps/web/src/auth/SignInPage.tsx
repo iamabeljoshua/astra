@@ -48,6 +48,8 @@ function AgreementLine() {
       {SIGN_IN_LABELS.agreementJoin}
       <Link to={LEGAL_PATHS.privacy} className={AGREEMENT_LINK}>{LEGAL_PAGES.privacy.title}</Link>
       {SIGN_IN_LABELS.agreementEnd}
+      {' '}
+      <Link to={LEGAL_PATHS.credits} className={AGREEMENT_LINK}>{LEGAL_PAGES.credits.title}</Link>
     </p>
   );
 }
