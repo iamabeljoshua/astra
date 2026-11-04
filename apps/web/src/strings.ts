@@ -113,7 +113,7 @@ export const ONBOARDING_LABELS = {
   namePlaceholder: 'Your first name',
   nameMissing: 'Tell your tutor what to call you.',
   intoQuestion: 'What are you into?',
-  intoAbout: 'Pick as many as you like. Your tutor uses them to choose examples you care about.',
+  intoAbout: 'Pick as many as you like. We use them to suggest topics for you.',
   levelQuestion: 'Where are you in your learning?',
   goalQuestion: 'What brings you here?',
 };
@@ -148,7 +148,7 @@ export const STUDENT_INTEREST_LABELS = {
 
 export const PROFILE_LABELS = {
   title: "Your tutor's notes",
-  about: 'Your tutor teaches from these. Change anything here.',
+  about: 'We use these to greet you and suggest topics. Change anything here.',
   name: 'Name',
   save: 'Save changes',
   saved: 'Saved.',
