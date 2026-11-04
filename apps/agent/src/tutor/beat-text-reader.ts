@@ -54,6 +54,8 @@ export interface BeatTextReaderOptions {
   isAlreadySaid?(text: string): boolean;
   /** The model asked for a picture. It is not a board command, and nothing waits on it. */
   onAskScene?(topic: string): void;
+  /** These words are about a child's safety, so nothing about a picture may follow them. Fires before the beat that says them. */
+  onSafetyReply?(): void;
   board?: BoardKinds;
 }
 
@@ -505,7 +507,10 @@ export class BeatTextReader {
     const expectsReply = ENDS_IN_QUESTION.test(this.#text);
     const endsSentence = isSentenceEnd(this.#text);
     const script = this.#script.map((part) => (typeof part === 'string' ? part.normalize('NFC') : part));
-    this.#isSafetyReply ||= SAFETY_REPLY.test(this.#text);
+    if (!this.#isSafetyReply && SAFETY_REPLY.test(this.#text)) {
+      this.#isSafetyReply = true;
+      this.#options.onSafetyReply?.();
+    }
     this.#options.onBeatEnd({ script, wordCount: this.#wordCount, expectsReply, startsStretch: this.#startsStretch });
     const isAtCut = this.#wordsThisTurn >= TURN_WORDS_TO_CUT;
     this.#isTurnOver = expectsReply || (endsSentence && this.#wordsThisTurn >= TURN_WORDS_TO_WRAP && !this.#isSafetyReply) || isAtCut;

@@ -41,6 +41,7 @@ export interface SceneQueue {
   noteAhead(request: string, state: AheadNews): void;
   noteStudentWords(words: string): void;
   noteTutorReply(reply: { spokenText: string; refusalCategory: string | null }): void;
+  noteSafetyReply(): void;
   getPictureTopic(): string | null;
   getEntries(): readonly QueueEntry[];
 }
@@ -238,6 +239,7 @@ export function createSceneQueue({ scenes, readLibrary, getFacts, canPlay, moveT
       if (isHeld) entries = entries.filter((entry) => entry.state !== 'due');
       if (wasHeld && !isHeld && !isStopped) fillAhead();
     },
+    noteSafetyReply: () => stopForGood(),
     noteTutorReply({ spokenText, refusalCategory }) {
       isReplying = false;
       if (SAFETY_REPLY.test(spokenText) || (refusalCategory !== null && !PLAIN_REFUSALS.has(refusalCategory))) return stopForGood();

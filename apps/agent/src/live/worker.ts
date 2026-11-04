@@ -83,6 +83,11 @@ async function runSession(context: JobContext): Promise<void> {
     onStudentWords: (words: string) => scenes?.queue?.noteStudentWords(words),
     onLessonChange: (state: LessonState, event: LessonEvent | null) => scenes?.queue?.onLesson(state, event),
     getPictureTopic: () => scenes?.queue?.getPictureTopic() ?? null,
+    onSafetyReply() {
+      scenes?.noteSafetyReply();
+      scenes?.queue?.noteSafetyReply();
+    },
+    onCardKnown: (title: string | null) => scenes?.noteCard(title),
     onTurnWritten(turn: { firstTextMs: number | null; spokenText: string; refusalCategory: string | null }) {
       lastFirstTextMs = turn.firstTextMs;
       scenes?.queue?.noteTutorReply(turn);
@@ -111,6 +116,14 @@ async function runSession(context: JobContext): Promise<void> {
     ...(readSpokenWords ? { readSpokenWords } : {}),
     ...(process.env.ASTRA_SAVE_HEARD && process.env.NODE_ENV !== 'production' ? { recordTurn: createHeardRecorder(process.env.ASTRA_SAVE_HEARD, room.name ?? 'room') } : {}),
     onPause: () => scenes?.notePause(),
+    ...(hasTutorScenes()
+      ? {
+          onStudentTurn: () => scenes?.noteStudentTurn(),
+          getOpeningScene: () => scenes?.getOpeningScene() ?? Promise.resolve(null),
+          onLinkChange: (isUp: boolean) => scenes?.notePageLink(isUp),
+          waitForPicture: () => scenes?.waitForPicture() ?? Promise.resolve(true),
+        }
+      : {}),
     ...(process.env.ASTRA_SHOW_COST === '1' ? { getCostSoFar: () => (getSpentUsd?.() ?? 0) + (hearingSinceMs === null ? 0 : ((Date.now() - hearingSinceMs) / MS_PER_MINUTE) * MUSE_USD_PER_MINUTE) } : {}),
   });
   if (hasTutorScenes() && caps) {
@@ -122,10 +135,11 @@ async function runSession(context: JobContext): Promise<void> {
       send: (message: SceneAgentMessage) => void room.localParticipant?.publishData(encoder.encode(JSON.stringify(message)), { reliable: true, topic: SCENE_TOPIC }).catch((error: unknown) => trace('sceneNotSent', { problem: String(error) })),
       canSpeak: session.isAtPause,
       speak: session.speakScene,
+      isTutorClosed: () => brain.getClosedReason?.() != null,
       onShown(shown) {
         brain.noteSceneTurn?.(shown);
         const voiceCharacters = getSpokenCharacters(shown.beats);
-        if (shown.isShared) caps.addSharedVoice(voiceCharacters);
+        if (shown.isShared) caps.addSharedVoice(voiceCharacters, shown.studentId);
         else caps.addTurn({ usd: 0, voiceCharacters });
       },
       trace,

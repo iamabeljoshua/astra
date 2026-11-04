@@ -43,13 +43,13 @@ Ahead-of-time writes go through the same caps as any scene, so they count agains
 - **A switch.** A new topic stops the write ahead, and any write left over from the old lesson. What was waiting ended on the student's turn already. A scene already saved stays with that student and costs nothing if they come back. A typed scene never goes to anyone else, and a shared scene comes only from the server's own list, so the queue can only read those.
 - **A student's turn.** Any student line ends what was waiting to land, because what they just said may change everything.
 - **A skip.** "Skip that", "can we skip this", or "let's move on" moves the step on at once, ahead of any plan, and code puts up no picture in its place. The tutor can still ask for the next one by name on a later turn. "How do you skip count by fives" moves nothing.
-- **Its moment passing.** When the lesson moves to another step, whatever was waiting to land goes, with no word said, so a late scene never interrupts a later concept. Past about 20 s from the first pause it goes too. A scene being written when its moment passes goes on and is saved, and no other write starts until it ends. One the lesson went past before it was due stops.
+- **Its moment passing.** When the lesson moves to another step, whatever was waiting to land goes, with no word said, so a late scene never interrupts a later concept. Past about 20 s from the first pause it goes too, and 35 s from the ask at the latest, which is the plug-in's own bound. A scene being written when its moment passes goes on and is saved, and no other write starts until it ends. One the lesson went past before it was due stops.
 - **A page that cannot play one.** Nothing is prepared, and nothing is written.
 - **No running lesson.** No plan means no queue. Nothing is prepared before a student arrives, and that is on purpose: no worker prepares scenes per student ahead of them. That is post-MVP.
 
 ## Measured
 
-Real Sonnet, real Haiku, real page, tone voice, on 4 November 2026, on the Mac ten lanes share. Its load was 11 to 35 on 12 cores, so the pressure rule was raised for these runs with `ASTRA_SCENES_AHEAD_LOAD_PER_CORE=20`. On its default this Mac would prepare nothing, and that is the rule working. Each number is from a few runs, so read them as what happened and not as a rate. Cue means the tutor asking for the scene, or the lesson reaching its step.
+Every run below came before the merge of the plug-in's last fix round, apart from the one marked as after it. Real Sonnet, real Haiku, real page, tone voice, on 4 November 2026, on the Mac ten lanes share. Its load was 11 to 35 on 12 cores, so the pressure rule was raised for these runs with `ASTRA_SCENES_AHEAD_LOAD_PER_CORE=20`. On its default this Mac would prepare nothing, and that is the rule working. Each number is from a few runs, so read them as what happened and not as a rate. Cue means the tutor asking for the scene, or the lesson reaching its step.
 
 | Check | With this | Without |
 | --- | --- | --- |

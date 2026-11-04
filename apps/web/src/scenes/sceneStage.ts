@@ -112,6 +112,7 @@ export function createSceneStage(container: HTMLElement): SceneStage {
 
   return {
     async load(sceneId, durationSeconds) {
+      if (active?.sceneId === sceneId) return true;
       dropActive();
       try {
         active = await makePlayer({ sceneId, theme: getAppliedTheme(), durationSeconds }, 0);

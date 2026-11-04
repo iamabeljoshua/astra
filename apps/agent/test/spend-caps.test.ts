@@ -19,7 +19,7 @@ describe('the caps on one room', () => {
   });
 
   it('asks the shared ledger about both the model and the voice', () => {
-    const makeLedger = (isOverVoice: boolean) => ({ charge: () => {}, read: () => ({ anthropicUsd: 0, voiceCharacters: 0, credits: 0 }), isOverModelLimit: () => false, isOverVoiceLimit: () => isOverVoice });
+    const makeLedger = (isOverVoice: boolean) => ({ charge: () => {}, read: () => ({ anthropicUsd: 0, voiceCharacters: 0, credits: 0 }), isOverModelLimit: () => false, countSharedPlays: () => 0, isOverVoiceLimit: () => isOverVoice });
     expect(createSpendCaps({ link: null, ledger: makeLedger(true), trace: () => {}, ...LIMITS }).getSpendLimit()).toBe('sessionLimit');
     expect(createSpendCaps({ link: null, ledger: makeLedger(false), trace: () => {}, ...LIMITS }).getSpendLimit()).toBeNull();
   });

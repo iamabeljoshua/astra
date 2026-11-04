@@ -14,6 +14,8 @@ import { createTutorScenes, type TutorScenes, type TutorScenesOptions } from './
 
 /** About four fresh scenes. A saved scene costs nothing, so this only stops a session that keeps asking for new ones. */
 const DEFAULT_SCENE_LIMIT_USD = 0.8;
+/** About 67 credits a play, so one student's looping stays near a quarter of a 1,500 credit project day. */
+const DEFAULT_SHARED_PLAYS_A_DAY = 5;
 
 type SessionHooks = Pick<TutorScenesOptions, 'getCardTitle' | 'send' | 'speak' | 'canSpeak' | 'onShown' | 'trace'>;
 
@@ -26,11 +28,13 @@ const hasScenesAhead = () => process.env.ASTRA_SCENES_AHEAD !== '0';
 
 const getLoadPerCore = () => (loadavg()[0] ?? 0) / Math.max(cpus().length, 1);
 
-type MakeOptions = SessionHooks & { caps: Pick<SpendCaps, 'addScene' | 'addTurn' | 'getSceneUsd' | 'getSpendLimit' | 'getLeftTodayUsd'>; moveToNextStep(): void; getLastFirstTextMs(): number | null };
+type MakeOptions = SessionHooks & { isTutorClosed?(): boolean; caps: Pick<SpendCaps, 'addScene' | 'addTurn' | 'getSceneUsd' | 'getSpendLimit' | 'getLeftTodayUsd' | 'getSharedPlaysToday'>; moveToNextStep(): void; getLastFirstTextMs(): number | null };
 
 // A scene's spending lands on the student's day through the same caps as the tutor's, and a scene past the limit is simply not written.
 export function makeTutorScenes({ caps, moveToNextStep, getLastFirstTextMs, ...hooks }: MakeOptions): SessionScenes {
   const limitUsd = Number(process.env.ASTRA_SCENE_SESSION_LIMIT_USD ?? DEFAULT_SCENE_LIMIT_USD);
+  const sharedPlaysADay = Number(process.env.ASTRA_SHARED_PLAYS_A_DAY ?? DEFAULT_SHARED_PLAYS_A_DAY);
+  if (!process.env.ASTRA_SPEND_FILE) process.stderr.write('ASTRA_SPEND_FILE is not set, so shared scenes have no project ceiling and no per-student cap past this session.\n');
   const assertRoom = () => {
     if (caps.getSpendLimit() || caps.getSceneUsd() >= limitUsd) throw new Error('Stopped at the scene limit');
   };
@@ -41,6 +45,8 @@ export function makeTutorScenes({ caps, moveToNextStep, getLastFirstTextMs, ...h
   let queue: SceneQueue | null = null;
   const scenes = createTutorScenes({
     ...hooks,
+    isClosed: () => caps.getSpendLimit() !== null || (hooks.isTutorClosed?.() ?? false),
+    canPlayShared: (studentId) => caps.getSharedPlaysToday(studentId) < sharedPlaysADay,
     router: models.router,
     runs,
     store,

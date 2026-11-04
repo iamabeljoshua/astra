@@ -47,8 +47,9 @@ export interface SpendCaps {
   addTurn(summary: { usd: number; voiceCharacters: number }): void;
   /** A scene counts toward the student's day and the shared ledger. It stays out of this room's cap, so a picture can never close the tutor. */
   addScene(usd: number): void;
-  /** A shared scene's words are not this student's to pay for, so they count only toward the project's ceiling. */
-  addSharedVoice(characters: number): void;
+  /** A shared scene's words are not this student's to pay for, so they count only toward the project's ceiling and their count of plays today. */
+  addSharedVoice(characters: number, studentId: string): void;
+  getSharedPlaysToday(studentId: string): number;
   getSceneUsd(): number;
   getSpentUsd(): number;
   getLeftTodayUsd(): number | null;
@@ -61,6 +62,7 @@ export function createSpendCaps({ link, ledger, trace, sessionLimitUsd, sessionV
   let sessionUsd = 0;
   let sceneUsd = 0;
   let sessionCharacters = 0;
+  let sessionSharedPlays = 0;
   let unreportedUsd = 0;
   let isOverDailyLimit = false;
   let leftTodayUsd: number | null = null;
@@ -100,9 +102,11 @@ export function createSpendCaps({ link, ledger, trace, sessionLimitUsd, sessionV
       ledger?.charge({ anthropicUsd: usd, voiceCharacters: 0 });
       report();
     },
-    addSharedVoice(characters) {
-      ledger?.charge({ anthropicUsd: 0, voiceCharacters: characters });
+    addSharedVoice(characters, studentId) {
+      sessionSharedPlays += 1;
+      ledger?.charge({ anthropicUsd: 0, voiceCharacters: characters, sharedPlayBy: studentId });
     },
+    getSharedPlaysToday: (studentId) => Math.max(sessionSharedPlays, ledger?.countSharedPlays(studentId) ?? 0),
     getSceneUsd: () => sceneUsd,
     getLeftTodayUsd: () => leftTodayUsd,
     getSpentUsd: () => sessionUsd + sceneUsd + sessionCharacters * VOICE_USD_PER_CHARACTER,
@@ -140,6 +144,9 @@ export interface SceneHooks {
   onStudentWords?(words: string): void;
   onLessonChange?(state: LessonState, event: LessonEvent | null): void;
   getPictureTopic?(): string | null;
+  onSafetyReply?(): void;
+  /** The brief has come, or will not, so a card's title is known or there is none. */
+  onCardKnown?(title: string | null): void;
   onTurnWritten?(turn: { firstTextMs: number | null; spokenText: string; refusalCategory: string | null }): void;
 }
 
@@ -181,13 +188,18 @@ export function makeTutorBrain({ roomName, trace, onSessionTitle = () => {}, sce
   let cardTitle: string | null = null;
   const loadProfile = link
     ? async () => {
-        const profile = await link.fetchProfile();
+        const profile = await link.fetchProfile().catch((error: unknown) => {
+          sceneHooks?.onCardKnown?.(null);
+          throw error;
+        });
         cardTitle = profile?.cardTitle ?? null;
+        sceneHooks?.onCardKnown?.(cardTitle);
         return profile;
       }
     : undefined;
+  if (!loadProfile) queueMicrotask(() => sceneHooks?.onCardKnown?.(null));
   const lessonPlanner = name === RECORDED ? undefined : makeLessonPlanner({ link, caps, trace, onSessionTitle, ...(sceneHooks ? { sceneHooks } : {}) });
-  const brain = createTutorBrain({ model, loadProfile, trace, onTurnEnd, getSpendLimit: caps.getSpendLimit, ...(lessonPlanner ? { lessonPlanner } : {}), ...(sceneHooks ? { system: TUTOR_SYSTEM_WITH_SCENES, onAskScene: sceneHooks.onAskScene } : {}), ...(sceneHooks?.onStudentWords ? { onStudentWords: sceneHooks.onStudentWords } : {}) });
+  const brain = createTutorBrain({ model, loadProfile, trace, onTurnEnd, getSpendLimit: caps.getSpendLimit, ...(lessonPlanner ? { lessonPlanner } : {}), ...(sceneHooks ? { system: TUTOR_SYSTEM_WITH_SCENES, onAskScene: sceneHooks.onAskScene } : {}), ...(sceneHooks?.onSafetyReply ? { onSafetyReply: sceneHooks.onSafetyReply } : {}), ...(sceneHooks?.onStudentWords ? { onStudentWords: sceneHooks.onStudentWords } : {}) });
   if (name === RECORDED) return { brain, caps, cardTitle: () => cardTitle, flushSpend: caps.flush };
   const wordsModel = makeAnthropicTutorModel({ name: WORDS_MODEL, apiKey: readKey('ANTHROPIC_API_KEY') });
   const readMeaning = async (words: string) => {
