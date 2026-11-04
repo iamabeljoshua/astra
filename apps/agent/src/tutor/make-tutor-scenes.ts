@@ -2,7 +2,7 @@ import { cpus, loadavg } from 'node:os';
 import { readKey } from '../keys.ts';
 import { makeAnthropicJsonReader } from '../providers/anthropic.ts';
 import { makeAnthropicSceneModels, type SceneModels } from '../providers/anthropic.scenes.ts';
-import { matchLibrary } from '../scene-queue/library-match.ts';
+import { matchLibrary, toShelfScene } from '../scene-queue/library-match.ts';
 import { createSceneQueue, type SceneQueue } from '../scene-queue/scene-queue.ts';
 import { makeFakeSceneModels } from '../scenes/lesson/fake-models.ts';
 import { createTopicRuns } from '../scenes/lesson/topic-runs.ts';
@@ -54,13 +54,13 @@ export function makeTutorScenes({ caps, moveToNextStep, getLastFirstTextMs, ...h
     onPageReady: () => queue?.onPageReady(),
   });
   if (hasScenesAhead()) {
-    const titles = store.listSharedTitles().catch(() => []);
+    const shelf = store.listShared().then((scenes) => scenes.map(toShelfScene)).catch(() => []);
     const reader = isFake ? null : makeAnthropicJsonReader({ apiKey: readKey('ANTHROPIC_API_KEY') });
     queue = createSceneQueue({
       scenes,
       async readLibrary(plan) {
         if (!reader || caps.getSpendLimit()) return [];
-        const { matches, costUsd } = await matchLibrary(reader, plan, await titles);
+        const { matches, costUsd } = await matchLibrary(reader, plan, await shelf);
         caps.addTurn({ usd: costUsd, voiceCharacters: 0 });
         hooks.trace('sceneLibraryRead', { costUsd, matches: matches.filter(Boolean).length, steps: plan.steps.length });
         return matches;

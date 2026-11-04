@@ -87,6 +87,11 @@ const limitAtMs = Date.now() + Number(args.seconds) * 1000;
 
 const sendLine = async (words: string) => {
   const box = page.getByRole('textbox').first();
+  if (await box.isDisabled()) {
+    problems.push(`the reply box was closed before: ${words}`);
+    quietSinceMs = Date.now();
+    return;
+  }
   await box.fill(words);
   await box.press('Enter');
   said.push({ atS: Math.round((Date.now() - startedAtWallMs) / 100) / 10, words });

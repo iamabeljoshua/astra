@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { AHEAD_WRITE_GUIDE_USD, type AheadFacts, getPrepareRefusal, getWriteRefusal, MOST_WRITES_AHEAD } from '../src/scene-queue/ahead-budget.ts';
+import { matchLibrary, readMatches, type ShelfScene, toShelfScene } from '../src/scene-queue/library-match.ts';
 import { createSceneQueue } from '../src/scene-queue/scene-queue.ts';
 import { getStateAfterEvent, getStateAfterMove, type LessonState, NO_LESSON } from '../src/lesson-plan/plan-progress.ts';
 import type { LessonPlan } from '../src/lesson-plan/lesson-plan.ts';
@@ -291,5 +292,42 @@ describe('what code allows ahead of a tutor reaching a scene', () => {
     expect(getPrepareRefusal({ ...ROOMY, writesStarted: 2, sceneUsd: 0.79 })).toBeNull();
     expect(getPrepareRefusal({ ...ROOMY, leftTodayUsd: 0.1 })).toBe('nearDayLimit');
     expect(getPrepareRefusal({ ...ROOMY, loadPerCore: 2 })).toBe('pressure');
+  });
+});
+
+describe('matching a plan to the saved library', () => {
+  const PLAN: LessonPlan = { topic: 'How a free kick curves', kind: 'teachFirst', steps: [{ teach: 'spin pushes the air', exercise: 'say which way' }, { teach: 'striking off centre', exercise: 'draw it' }] };
+  const SHELF: ShelfScene[] = [
+    { title: 'Why a free kick curves', words: 'A spinning ball drags air around it.' },
+    { title: 'How a jump shot flies', words: 'Once the ball leaves the hand, only gravity pulls.' },
+  ];
+  const makeReader = (picks: readonly string[], fits: (words: string) => boolean) => ({
+    read: vi.fn(async ({ text, schema }: { text: string; schema: object }) => {
+      const isFitRead = 'fits' in ((schema as { properties: object }).properties);
+      if (isFitRead) return { answer: { fits: fits((JSON.parse(text) as { scene_says: string }).scene_says) }, costUsd: 0.0001 };
+      return { answer: { steps: picks.map((scene) => ({ idea: 'x', scene })) }, costUsd: 0.0002 };
+    }),
+  });
+
+  it('keeps a pick only when a second read of what the scene says agrees', async () => {
+    const reader = makeReader(['why a free kick curves', 'How a jump shot flies'], (words) => words.includes('spinning'));
+    const { matches, costUsd } = await matchLibrary(reader as never, PLAN, SHELF);
+    expect(matches).toEqual(['Why a free kick curves', null]);
+    expect(costUsd).toBeCloseTo(0.0004);
+  });
+
+  it('takes no title the server did not list, and no title twice', () => {
+    expect(readMatches({ steps: [{ scene: 'Why a free kick curves' }, { scene: 'Why a free kick curves' }, { scene: 'Made up' }] }, ['Why a free kick curves'], 3)).toEqual(['Why a free kick curves', null, null]);
+    expect(readMatches({ nonsense: true }, ['Why a free kick curves'], 2)).toEqual([null, null]);
+  });
+
+  it('spends nothing on an empty shelf', async () => {
+    const reader = makeReader([], () => true);
+    expect(await matchLibrary(reader as never, PLAN, [])).toEqual({ matches: [], costUsd: 0 });
+    expect(reader.read).not.toHaveBeenCalled();
+  });
+
+  it('reads a scene without its timing marks', () => {
+    expect(toShelfScene({ topic: 'A', plan: { setup: 'Watch.', narration: '[[a]] It climbs. [[b]] It falls.' } as never }).words).toBe('Watch. It climbs. It falls.');
   });
 });
