@@ -41,7 +41,9 @@ function splitAtCommandLimit(id: string, script: Beat['script'], expectsReply: b
   if (text.length === 0) return [];
   const [firstWord, ...laterWords] = text;
   const later = script.slice(firstText).filter((part) => typeof part !== 'string');
-  return [...makeBeat(id, [...leading, `${firstWord} `], false), ...makeBeat(`${id}-rest`, [...overflow, ...later.slice(0, BEAT_LIMITS.commands), laterWords.join(' ') || '...'], expectsReply)];
+  const isLastWord = laterWords.length === 0;
+  const rest = isLastWord ? [] : makeBeat(`${id}-rest`, [...overflow, ...later.slice(0, BEAT_LIMITS.commands), laterWords.join(' ')], expectsReply);
+  return [...makeBeat(id, [...leading, `${firstWord} `], expectsReply && isLastWord), ...rest];
 }
 
 function getResumedBeat(beat: Beat, cut: BeatCut, resumeTag: string): Beat[] {

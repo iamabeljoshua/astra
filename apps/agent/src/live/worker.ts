@@ -15,7 +15,7 @@ import { readDataMessage } from './read-data-message.ts';
 import { createStandInTutor } from './stand-in-tutor.ts';
 import { getSteadyNowMs, createVoiceLine } from './voice-line.ts';
 
-export const LIVE_TOPIC = 'astra.live';
+const LIVE_TOPIC = 'astra.live';
 const LAB_TOPIC = 'astra.lab';
 const AUDIO_QUEUE_MS = 200;
 const PULSE_EVERY_MS = 500;

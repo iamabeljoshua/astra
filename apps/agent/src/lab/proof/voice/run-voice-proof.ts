@@ -14,7 +14,7 @@ import { TURN_TIMINGS } from '../../../live/turn-rule.ts';
 
 const { values: args } = parseArgs({
   options: {
-    only: { type: 'string', default: 'smoke' },
+    only: { type: 'string', default: 'turns' },
     out: { type: 'string', default: '/tmp/m3-6-proof' },
     fake: { type: 'boolean', default: false },
     turns: { type: 'string', default: '30' },
@@ -453,8 +453,6 @@ const SCENARIOS: Record<string, (context: RunContext) => Promise<unknown>> = {
     const proxy = await startCutProxy();
     const browser = await launchProofBrowser({ proxy: `127.0.0.1:${proxy.port}` });
     const student = await openStudentPage(browser, { email: MAYA, title: 'Drop', recordVideoDir: join(out, 'video') });
-    const consoleLines: string[] = [];
-    student.page.on('console', (message) => consoleLines.push(`${Math.round(Date.now())} ${message.text()}`.slice(0, 240)));
     await startTalking(stack, student);
     const rows = [];
     for (let run = 0; run < Number(args.turns); run += 1) {
@@ -463,10 +461,6 @@ const SCENARIOS: Record<string, (context: RunContext) => Promise<unknown>> = {
       await waitForTrace(stack, student, startedAtMs, (found) => found.some((row) => row.name === 'firstFrameCaptured' && row.kind === 'reply'));
       await delay(2500);
       const cutAtMs = Date.now();
-      const timeline: unknown[] = [];
-      const watcher = setInterval(() => {
-        void student.getTrace().then((trace) => timeline.push({ ms: Date.now() - cutAtMs, phase: trace.view.phase, heard: trace.view.tutorHeard.length, coming: trace.view.tutorComing.length })).catch(() => {});
-      }, 1000);
       proxy.cut();
       await delay(Number(process.env.PROOF_DROP_MS ?? 4000));
       const during = await student.getTrace();
@@ -474,21 +468,6 @@ const SCENARIOS: Record<string, (context: RunContext) => Promise<unknown>> = {
       const backAtMs = Date.now();
       const found = await waitForTrace(stack, student, cutAtMs, (seen) => seen.some((row) => row.name === 'resumeStarted') && seen.some((row) => row.name === 'turnFinished' && row.kind === 'resume'), 45_000);
       await delay(1000);
-      clearInterval(watcher);
-      const connections = await student.page.evaluate(async () => {
-        const list = (window as unknown as { peerConnections: RTCPeerConnection[] }).peerConnections;
-        return Promise.all(list.map(async (connection) => {
-          const stats: Record<string, unknown>[] = [];
-          (await connection.getStats()).forEach((report: Record<string, unknown>) => {
-            if (report.type === 'data-channel') stats.push({ label: report.label, state: report.state, sent: report.messagesSent, received: report.messagesReceived });
-          });
-          return { state: connection.connectionState, ice: connection.iceConnectionState, stats };
-        }));
-      });
-      const refused = (await student.getTrace()).refused;
-      writeFileSync(join(out, `drop-connections-${run}.json`), JSON.stringify({ connections, refused: refused.slice(0, 6) }));
-      writeFileSync(join(out, `drop-timeline-${run}.json`), JSON.stringify(timeline));
-      writeFileSync(join(out, 'drop-console.log'), consoleLines.join('\n'));
       const after = await student.getTrace();
       const lost = found.find((row) => row.name === 'linkLost');
       const resumed = found.find((row) => row.name === 'resumeStarted');
@@ -564,20 +543,6 @@ const SCENARIOS: Record<string, (context: RunContext) => Promise<unknown>> = {
     const roundTripMs = await student.getRoundTripMs();
     await student.context.close();
     return { roundTripMs, ...summariseTurns(rows) };
-  },
-  async smoke({ stack, browser, out }) {
-    const student = await openStudentPage(browser, { email: MAYA, title: 'Smoke', recordVideoDir: join(out, 'video') });
-    await student.pressTalk();
-    await student.waitForLive();
-    const joined = await waitForTrace(stack, student, 0, (rows) => rows.some((row) => row.name === 'turnFinished'), 30_000);
-    await delay(800);
-    const clip = loadClip(VOICE, 'twice');
-    const said = await student.say(clip);
-    const rows = await waitForTrace(stack, student, said.firstSoundEpochMs, (found) => found.filter((row) => row.name === 'turnFinished').length >= 2, 15_000);
-    const trace = await student.getTrace();
-    await student.page.screenshot({ path: join(out, 'smoke.png') });
-    await student.context.close();
-    return { joined: joined.map((row) => row.name), rows: rows.map((row) => ({ name: row.name, ms: Math.round(row.atMs - said.lastSoundEpochMs), kind: row.kind, via: row.via, isFinal: row.isFinal, reason: row.reason })), view: trace.view, firstAudio: Object.fromEntries(Object.entries(trace.firstAudioEpochMs).map(([turnId, atMs]) => [turnId, Math.round(atMs - said.lastSoundEpochMs)])), refused: trace.refused };
   },
 };
 

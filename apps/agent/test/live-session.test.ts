@@ -250,6 +250,29 @@ describe('a dropped link', () => {
   });
 });
 
+describe('a student who cannot hear', () => {
+  it('is on record, so the next turn is not told they heard it', () => {
+    const harness = start();
+    harness.browser({ type: 'audioState', ...STAMP, isRunning: false });
+    expect(harness.session.doesStudentHearAudio()).toBe(false);
+    harness.browser({ type: 'audioState', ...STAMP, isRunning: true });
+    expect(harness.session.doesStudentHearAudio()).toBe(true);
+  });
+
+  it('pauses the tutor when audio stops mid-lesson, and carries on when it runs again', async () => {
+    const harness = start();
+    harness.browser({ type: 'audioState', ...STAMP, isRunning: true });
+    await harness.say('Why');
+    await delay(1000);
+    harness.browser({ type: 'audioState', ...STAMP, isRunning: false });
+    await delay(30);
+    expect(harness.traces.some((trace) => trace.name === 'stopDecided' && trace.fields.reason === 'link lost')).toBe(true);
+    harness.browser({ type: 'audioState', ...STAMP, isRunning: true });
+    await delay(1200);
+    expect(harness.traces.some((trace) => trace.name === 'resumeStarted')).toBe(true);
+  });
+});
+
 describe('what the agent never does', () => {
   it('refuses a broken report and carries on', async () => {
     const harness = start();
