@@ -12,8 +12,8 @@ const REQUIRED_KINDS: Partial<Record<SceneCommand['kind'], readonly BoardElement
   shadeArea: ['plot'],
   construct: ['geometry'],
   runSimulation: ['simulate'],
-  setParameter: ['simulate'],
   trackVector: ['simulate'],
+  readout: ['simulate'],
   ghostPath: ['simulate'],
   reveal: ['plot', 'diagram', 'table', 'timeline', 'code'],
   plot: ['plot'],
@@ -31,7 +31,7 @@ function isBadRevealCount(command: SceneCommand, elementKind: BoardElementKind):
 }
 
 function getRequiredKinds(command: SceneCommand): readonly BoardElementKind[] | undefined {
-  if (command.kind === 'slider') return 'constant' in command ? ['plot'] : ['simulate'];
+  if (command.kind === 'slider' || command.kind === 'setParameter') return 'constant' in command ? ['plot'] : ['simulate'];
   if (command.kind === 'highlight' && command.tex !== undefined) return ['writeMath'];
   return REQUIRED_KINDS[command.kind];
 }

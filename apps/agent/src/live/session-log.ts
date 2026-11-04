@@ -19,8 +19,8 @@ export function createSessionLog({ getNowMs, getBeat, onWritten }: SessionLogOpt
   const getBody = (message: BrowserMessage): object | null => {
     if (message.type === 'played') {
       const beat = getBeat(message.turnId, message.beatId);
-      const { turnId, wordStartsMs, durationMs, playedWords, firedCueMs, ending, frozen } = message;
-      return beat ? { kind: 'beatPlayed', beat, reportedBy: 'browser', turnId, wordStartsMs, durationMs, playedWords, firedCueMs, ending, frozen } : null;
+      const { turnId, wordStartsMs, durationMs, playedWords, firedCueMs, cuePaces, ending, frozen } = message;
+      return beat ? { kind: 'beatPlayed', beat, reportedBy: 'browser', turnId, wordStartsMs, durationMs, playedWords, firedCueMs, ...(cuePaces ? { cuePaces } : {}), ending, frozen } : null;
     }
     if (message.type === 'boardFrozen') return { kind: 'boardFrozen', turnId: message.turnId, frozen: message.frozen };
     if (message.type === 'acted') return { kind: 'studentActed', action: message.action };

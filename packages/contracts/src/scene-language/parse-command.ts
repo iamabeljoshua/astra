@@ -29,6 +29,7 @@ import {
   type GeometryStep,
   IMAGE_ASSETS,
   type PlotConstant,
+  READOUT_QUANTITIES,
   type SceneCommand,
   SIMULATION_MODELS,
   SIMULATION_MOMENTS,
@@ -66,6 +67,7 @@ const NUMBER_RANGES = {
   simulationSeconds: { min: 0, max: 3600 },
   occurrence: { min: 0, max: LIMITS.tex - 1 },
   overWords: { min: 1, max: BEAT_LIMITS.words },
+  playRate: { min: 0.1, max: 4 },
 } as const;
 
 const CODE_LANGUAGE = /^[a-z0-9+#-]{1,20}$/;
@@ -174,8 +176,11 @@ const SIMULATION_RUNS: VariantTable<SimulationRun, 'action'> = {
   tag: 'action',
   variants: {
     play: {
-      keys: [...RUN_COMMAND_KEYS, 'until', 'overWords'],
-      read: (fields) => ({ action: 'play', ...fields.optional('until', readSimulationPoint), ...fields.optional('overWords', readOverWords) }),
+      keys: [...RUN_COMMAND_KEYS, 'until', 'overWords', 'rate'],
+      read: (fields) => {
+        if (fields.at('overWords').value !== undefined && fields.at('rate').value !== undefined) fail(fields.place, 'either overWords or a rate');
+        return { action: 'play', ...fields.optional('until', readSimulationPoint), ...fields.optional('overWords', readOverWords), ...fields.optional('rate', (place) => readNumberInRange(place, NUMBER_RANGES.playRate)) };
+      },
     },
     pause: { keys: RUN_COMMAND_KEYS, read: () => ({ action: 'pause' }) },
     restart: { keys: RUN_COMMAND_KEYS, read: () => ({ action: 'restart' }) },
@@ -386,7 +391,7 @@ const COMMANDS: VariantTable<SceneCommand, 'kind'> = {
       }),
     },
     runSimulation: {
-      keys: ['target', 'action', 'until', 'overWords', 'to'],
+      keys: ['target', 'action', 'until', 'overWords', 'rate', 'to'],
       read: (fields) => ({
         kind: 'runSimulation',
         target: readElementId(fields.at('target')),
@@ -394,10 +399,13 @@ const COMMANDS: VariantTable<SceneCommand, 'kind'> = {
       }),
     },
     setParameter: {
-      keys: ['target', 'parameter', 'value'],
+      keys: ['target', 'parameter', 'constant', 'value', 'overWords'],
       read: (fields) => {
+        const target = readElementId(fields.at('target'));
+        if (fields.at('constant').value !== undefined) return { kind: 'setParameter', target, constant: readPlotConstantName(fields.at('constant')), value: readCoordinate(fields.at('value')), ...fields.optional('overWords', readOverWords) };
+        if (fields.at('overWords').value !== undefined) fail(fields.at('overWords'), 'overWords only with a constant');
         const parameter = readOneOf(fields.at('parameter'), SIMULATION_PARAMETERS);
-        return { kind: 'setParameter', target: readElementId(fields.at('target')), parameter, value: readParameterValue(fields.at('value'), parameter) };
+        return { kind: 'setParameter', target, parameter, value: readParameterValue(fields.at('value'), parameter) };
       },
     },
     trackVector: {
@@ -407,6 +415,16 @@ const COMMANDS: VariantTable<SceneCommand, 'kind'> = {
         id: readElementId(fields.at('id')),
         target: readElementId(fields.at('target')),
         quantity: readOneOf(fields.at('quantity'), TRACKED_QUANTITIES),
+        ...fields.optional('label', readLabel),
+      }),
+    },
+    readout: {
+      keys: ['id', 'target', 'quantity', 'label'],
+      read: (fields) => ({
+        kind: 'readout',
+        id: readElementId(fields.at('id')),
+        target: readElementId(fields.at('target')),
+        quantity: readOneOf(fields.at('quantity'), READOUT_QUANTITIES),
         ...fields.optional('label', readLabel),
       }),
     },

@@ -21,15 +21,21 @@ export const SIMULATION_MODELS = {
       releaseHeight: { min: 0, max: 1000 },
       gravity: { min: 0.1, max: 100, default: 9.81 },
     },
+    /** A slider or the tutor can change these. They are worked out from the speeds, so a simulation never stores them. */
+    controls: {
+      launchAngle: { min: -90, max: 90 },
+      launchSpeed: { min: 0, max: 150 },
+    },
   },
-} as const satisfies Record<string, { parameters: Record<string, SimulationParameterRule> }>;
+} as const satisfies Record<string, { parameters: Record<string, SimulationParameterRule>; controls: Record<string, SimulationParameterRule> }>;
 
 type ModelTable = typeof SIMULATION_MODELS;
 export type SimulationModel = keyof ModelTable;
 type ParameterOf<Model extends SimulationModel> = keyof ModelTable[Model]['parameters'];
-export type SimulationParameter = { [Model in SimulationModel]: ParameterOf<Model> }[SimulationModel];
+type ControlOf<Model extends SimulationModel> = keyof ModelTable[Model]['controls'];
+export type SimulationParameter = { [Model in SimulationModel]: ParameterOf<Model> | ControlOf<Model> }[SimulationModel];
 
-const MODEL_PARAMETERS: Record<string, SimulationParameterRule>[] = Object.values(SIMULATION_MODELS).map(({ parameters }) => parameters);
+const MODEL_PARAMETERS: Record<string, SimulationParameterRule>[] = Object.values(SIMULATION_MODELS).map(({ parameters, controls }) => ({ ...parameters, ...controls }));
 
 export const SIMULATION_PARAMETER_RULES = Object.assign({}, ...MODEL_PARAMETERS) as Record<SimulationParameter, SimulationParameterRule>;
 
@@ -37,6 +43,9 @@ export const SIMULATION_PARAMETERS = Object.keys(SIMULATION_PARAMETER_RULES) as 
 
 export const TRACKED_QUANTITIES = ['velocity', 'velocity-x', 'velocity-y', 'acceleration'] as const;
 export type TrackedQuantity = (typeof TRACKED_QUANTITIES)[number];
+
+export const READOUT_QUANTITIES = ['time', 'height', 'distance', 'speed', 'velocity-x', 'velocity-y', 'peak-height', 'landing-distance'] as const;
+export type ReadoutQuantity = (typeof READOUT_QUANTITIES)[number];
 
 export const VECTOR_LENGTHS = ['short', 'medium', 'long'] as const;
 export type VectorLength = (typeof VECTOR_LENGTHS)[number];
@@ -177,8 +186,8 @@ export interface Simulate {
 }
 
 export type SimulationRun =
-  /** Stops and holds at `until`. With `overWords` the engine sets the speed so it arrives as that many words pass. */
-  | { action: 'play'; until?: SimulationPoint; overWords?: number }
+  /** Stops and holds at `until`. With `overWords` the engine sets the speed so it arrives as that many words pass. With no word to aim at, `rate` sets the speed, where 0.5 is half speed. */
+  | { action: 'play'; until?: SimulationPoint; overWords?: number; rate?: number }
   | { action: 'pause' }
   | { action: 'restart' }
   /** Jumps there and holds. */
@@ -186,13 +195,16 @@ export type SimulationRun =
 
 export type RunSimulation = { kind: 'runSimulation'; target: ElementId } & SimulationRun;
 
-/** Sets the value and restarts the motion from its first frame, the same as a slider sample. A paused simulation stays still until a later `play`. */
-export interface SetParameter {
+export type SetParameter = {
   kind: 'setParameter';
   target: ElementId;
-  parameter: SimulationParameter;
   value: number;
-}
+} & (
+  /** Sets the value and restarts the motion from its first frame, the same as a slider sample. A paused simulation stays still until a later `play`. */
+  | { parameter: SimulationParameter }
+  /** Reshapes a plot's curve from its current constants to this one, as that many words pass. */
+  | { constant: string; overWords?: number }
+);
 
 /** Draws an arrow whose length and direction follow a computed quantity. */
 export interface TrackVector {
@@ -200,6 +212,15 @@ export interface TrackVector {
   id: ElementId;
   target: ElementId;
   quantity: TrackedQuantity;
+  label?: string;
+}
+
+/** Shows a number that follows the simulation, computed each frame and never written by the model. */
+export interface Readout {
+  kind: 'readout';
+  id: ElementId;
+  target: ElementId;
+  quantity: ReadoutQuantity;
   label?: string;
 }
 
@@ -314,6 +335,7 @@ export type SceneCommand =
   | RunSimulation
   | SetParameter
   | TrackVector
+  | Readout
   | Slider
   | GhostPath
   | Drawing
