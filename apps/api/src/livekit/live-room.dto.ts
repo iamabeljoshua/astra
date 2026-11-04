@@ -1,7 +1,7 @@
 import { IsIn } from 'class-validator';
 
-export const LIVE_ROOM_UNAVAILABLE_REASONS = ['notSetUp', 'dailyLimit'] as const;
-export type LiveRoomUnavailableReason = (typeof LIVE_ROOM_UNAVAILABLE_REASONS)[number];
+const LIVE_ROOM_UNAVAILABLE_REASONS = ['notSetUp', 'dailyLimit'] as const;
+type LiveRoomUnavailableReason = (typeof LIVE_ROOM_UNAVAILABLE_REASONS)[number];
 
 export class LiveRoomAccessDto {
   /** The LiveKit address that the browser connects to. */

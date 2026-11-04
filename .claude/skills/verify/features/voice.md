@@ -1,6 +1,8 @@
 # Live voice
 
-A running session's screen connects to a real room. The student talks or types, and a stand-in tutor answers aloud with captions, reacts first from code, can be interrupted, and resumes after a dropped link.
+A running session's screen connects to a real room. The student talks or types, and the tutor reacts first from code, answers aloud with captions, can be interrupted, and resumes after a dropped link. [The tutor's brain](./tutor.md) covers what it says.
+
+The page asks `POST /sessions/:id/live-room` first, and it starts no room and no audio until the answer holds access. That answer is always 200 for the student's own unfinished session.
 
 ## Sub-features
 
@@ -13,10 +15,13 @@ A running session's screen connects to a real room. The student talks or types, 
 - `voice-tab` closes the job and the room when the tab closes.
 - `voice-second` gives a second student a separate room, and no token for the first room.
 - `voice-mic-test` is the development page at `/lab/voice-test`, for a real microphone in a real room.
+- `voice-no-room` is the app with no LiveKit keys. The answer is `{ access: null, unavailableBecause: 'notSetUp' }`, the note says `Your tutor could not connect just now.`, and the console stays clean. The `sessions` journey checks it, and `features/sessions.md` has the table of what it expects with the room service off and on.
+- `voice-daily-limit` is a student at `ASTRA_DAILY_LIMIT_USD`. The answer is `{ access: null, unavailableBecause: 'dailyLimit' }`, and a rejoin that gets it stops at once.
+- `voice-closed` is the agent's `tutorClosed` message. The note says why and stays, the dot rests, the microphone goes off, a reply stays on the screen, and the page does not rejoin.
 
 ## How to get to it (user POV)
 
-Sign in, open any running session, and press **Talk** or type a reply. Ask the tutor to show you the ball for a long line with motion. See "Talk with the tutor" in `README.md` for the keys and for `pnpm agent`.
+Sign in, open any running session, and press **Talk** or type a reply. With `ASTRA_TUTOR_MODEL=stand-in`, ask the tutor to show you the ball for a long line with motion. See "Talk with the tutor" in `README.md` for the keys and for `pnpm agent`.
 
 ## Driving it
 

@@ -39,8 +39,8 @@ export interface LiveVoiceView {
   tutorComing: readonly string[];
 }
 
-export type RoomAnswer = components['schemas']['LiveRoomResponseDto'];
-export type RoomAccess = NonNullable<RoomAnswer['access']>;
+type RoomAnswer = components['schemas']['LiveRoomResponseDto'];
+type RoomAccess = NonNullable<RoomAnswer['access']>;
 
 export interface LiveVoiceRecords {
   firstAudioEpochMs: Record<string, number>;

@@ -433,6 +433,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
           'Your microphone stays off until you press Talk in a session, and your browser asks first. While it is on, your voice goes live to the services named under Who receives your data. We do not store your voice or any recording of it.',
           "The words you say or type in a session go to our tutor service, which holds them in memory while the session runs and drops them when it ends. It passes them to Anthropic, as Who receives your data says. We do not store them yet.",
           'Words you type into the search box on the Sessions page go to our server, which uses them to find your sessions. We do not store them.',
+          'A running total of what the tutor cost for you each day, with no words in it. We use it to stop tutor time for the day at a limit.',
         ],
         planned: [
           "Each lesson's transcript and board drawings, kept while the account is active. Your voice itself stays unstored.",
@@ -469,7 +470,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
         heading: 'Who receives your data',
         today: [
           'Supabase runs our sign-in service and our database, so it holds everything we store on our servers, and it sends the sign-in email.',
-          'When you use a session, LiveKit Cloud carries your voice, the tutor\'s voice, and the messages between your browser and the tutor, including your words as text. We do not ask it to record any of this.',
+          'When you use a session, LiveKit Cloud carries your voice, the tutor\'s voice, and the messages between your browser and the tutor, including your words as text. We do not ask it to record any of this. A room knows you by an account ID. We do not send LiveKit your name, your date of birth, your email address, your level, your interests, or your goal, though it carries anything you say or type yourself.',
           "While your microphone is on, Meta's Muse Voice Transcribe receives your voice and turns it into text. Meta's terms let it keep what it receives for safety checks and human review.",
           "Anthropic, whose Claude model writes the tutor's replies, receives what you say and type in a session, the tutor's earlier words, and your level, interests, and goal. We do not send it your name, your date of birth, your email address, or an account ID, though it receives anything you say or type yourself. Anthropic's terms say it does not train on this by default, and that it keeps it for a limited time.",
           "ElevenLabs receives the tutor's words and turns them into its voice. Those words can repeat what you said or typed.",

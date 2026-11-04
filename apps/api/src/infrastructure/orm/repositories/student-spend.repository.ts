@@ -27,8 +27,8 @@ export class StudentSpendRepository {
 
   // One statement, so two turns that end together both count.
   async addToDayTotal({ studentId, spentOn, microUsd }: DayCharge): Promise<bigint> {
-    const [row] = (await this.dataSource.query(ADD_TO_DAY_TOTAL, [studentId, spentOn, microUsd])) as { spent_micro_usd: string }[];
-    return BigInt(row?.spent_micro_usd ?? 0);
+    const [row] = (await this.dataSource.query(ADD_TO_DAY_TOTAL, [studentId, spentOn, microUsd])) as [{ spent_micro_usd: string }];
+    return BigInt(row.spent_micro_usd);
   }
 
   async findDayTotal(studentId: string, spentOn: string): Promise<bigint> {

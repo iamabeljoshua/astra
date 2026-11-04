@@ -217,21 +217,26 @@ Goals are the codes `class`, `exam`, and `curiosity`, which `getPicksForStudent`
 
 ## Talk with the tutor
 
-A session's screen has a **Talk** button and a reply box. Pressing **Talk** opens the session's room and asks for the microphone. Typing a reply opens the room with the microphone off. The tutor is a stand-in until the model arrives, so it only repeats simple lines. Ask it to show you the ball for a long line with motion to interrupt.
+A session's screen has a **Talk** button and a reply box. A question or a card from Home opens the session's room at once. On a session you come back to, pressing **Talk** opens the room and asks for the microphone, and typing a reply opens it with the microphone off. A stored reaction from code plays first, and then the tutor answers with Sonnet 5.5 in short spoken sentences, with math on its words on the board.
 
 To run it, give the API and the agent the same LiveKit project, then start the agent beside `pnpm dev`.
 
 ```sh
 set -a; . ~/.config/astra/keys.env; set +a
 export ASTRA_AGENT_NAME=astra-tutor-<your-lane> ASTRA_AGENT_PORT=<a free port>
+export ASTRA_AGENT_KEY=<a long random value> ASTRA_API_URL=http://127.0.0.1:<the API's port>
 pnpm dev
 pnpm agent
 ```
 
 | Value | Who reads it | What it does |
 | --- | --- | --- |
-| `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` | API and agent | The LiveKit project. With no keys the API answers 503, and the rest of the app runs. |
+| `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` | API and agent | The LiveKit project. With no keys `POST /sessions/:id/live-room` answers `{ access: null, unavailableBecause: 'notSetUp' }`, the session screen says the tutor could not connect, and the rest of the app runs. |
 | `ASTRA_AGENT_NAME` | API and agent | Which agent a room calls in. Each lane sets its own, because a room goes to any agent of that name. |
+| `ASTRA_AGENT_KEY` | API and agent | The key the agent sends to the API's `/agent` routes. With none set, those routes answer 401. |
+| `ASTRA_API_URL` | Agent | The agent's address for the API, where it reads a student's level, interests, and goal and adds what each turn cost. |
+| `ASTRA_DAILY_LIMIT_USD` | API | What one student's tutor time may cost in a UTC day, $3 by default. At the limit the API opens no room, and the session screen says to come back tomorrow. |
+| `ASTRA_SESSION_LIMIT_USD`, `ASTRA_SESSION_VOICE_LIMIT_CHARACTERS` | Agent | What one session may cost, $1 by default, and how many characters of voice it may use, 40,000 by default. Past either one, the tutor closes for that session. |
 | `META_API_KEY` | Agent | Muse Voice Transcribe. A typed session never opens it. |
 | `ELEVENLABS_API_KEY` | Agent | The tutor's voice. |
 | `ASTRA_VOICE=fake` | Agent | A tone instead of the real voice, to spend no credits. |
@@ -240,7 +245,7 @@ pnpm agent
 | `ASTRA_SPEND_FILE`, `ASTRA_SPEND_LIMIT_USD` | Agent | Adds each turn's real cost to a file, and past the limit, $8 by default, the tutor says it cannot reply. |
 | `ASTRA_VOICE_TRACE=<folder>` | Agent | Writes each session's timings there, with no words. `ASTRA_VOICE_TRACE_WORDS=1` adds the words, for test speech only. |
 
-The browser only ever receives a room token from `POST /sessions/:id/live-room`. It holds one room, the microphone, and the data channel, and it lasts 10 minutes. Vendor keys stay on the servers. `docs/tests/voice.md` holds what was measured.
+The browser only ever receives a room token from `POST /sessions/:id/live-room`. It holds one room, the microphone, and the data channel, and it lasts 10 minutes. It names the agent to call and nothing about the student, so LiveKit never receives the level, interests, or goal. Vendor keys stay on the servers. `docs/tests/voice.md` holds what was measured.
 
 To change a vendor, see "Swapping a provider" in `docs/architecture/live-session.md`. `providers/choose.ts` is the one place that chooses.
 

@@ -127,6 +127,15 @@ describe('the Privacy Policy on voice', () => {
     expect(privacy).toContain('We do not send it your name, your date of birth, your email address, or an account ID');
   });
 
+  it('says LiveKit carries voice and messages and does not receive the level, interests, or goal', () => {
+    expect(privacy).toContain('LiveKit Cloud carries your voice');
+    expect(privacy).toContain('We do not send LiveKit your name, your date of birth, your email address, your level, your interests, or your goal');
+  });
+
+  it('says a total of what the tutor cost is stored per day, with no words in it', () => {
+    expect(privacy).toContain('A running total of what the tutor cost for you each day');
+  });
+
   it('says raw audio is not stored, and does not claim the microphone is unused', () => {
     expect(privacy).toContain('We do not store your voice');
     expect(privacy).not.toContain('does not use your microphone');
