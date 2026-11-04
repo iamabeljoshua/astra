@@ -253,7 +253,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     hasLeftRoom = true;
     clearTimeout(tutorWait);
     player.freeze();
-    setView({ phase, isQuietWarning: false });
+    setView({ phase, isQuietWarning: false, isThinking: false });
     void mic.setOn(false);
     void room.disconnect();
   };
@@ -293,7 +293,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     if (!access) return false;
     await room.connect(access.url, access.token);
     // Each room has its own job, and a new job holds nothing of what was said, so the student hears that here and not from a tutor who has forgotten.
-    if (roomName !== null && access.roomName !== roomName) setView({ startedFresh: true });
+    if (roomName !== null && access.roomName !== roomName) setView({ startedFresh: true, isThinking: false });
     roomName = access.roomName;
     return true;
   };

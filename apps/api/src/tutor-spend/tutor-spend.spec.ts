@@ -33,6 +33,20 @@ describe('the daily limit on tutor time', () => {
 
   beforeEach(() => {
     Object.assign(process.env, LIVE_ROOM_KEYS, { ASTRA_DAILY_LIMIT_USD: '1' });
+    const realFetch = global.fetch;
+    // Opening a room calls LiveKit over fetch, and only that far end is replaced.
+    jest.spyOn(global, 'fetch').mockImplementation(async (input, init) => {
+      const url = input instanceof Request ? input.url : String(input);
+      if (!url.startsWith('https://astra-test.livekit.cloud/')) return realFetch(input, init);
+      const { name } = JSON.parse(String(init?.body ?? '{}')) as { name?: string };
+      return new Response(JSON.stringify(name ? { sid: 'RM_test', name } : { rooms: [] }), { status: 200, headers: { 'content-type': 'application/json' } });
+    });
+  });
+
+  // A session warms its room after it answers, and that call must land on this stub.
+  afterEach(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    jest.restoreAllMocks();
   });
 
   afterAll(async () => {

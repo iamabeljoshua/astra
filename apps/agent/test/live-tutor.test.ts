@@ -1,6 +1,6 @@
 import { initializeLogger } from '@livekit/agents';
 import type { AgentMessage, BrowserMessage, TurnId } from '@astra/contracts';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createLiveSession, VOICE_STALL_MS } from '../src/live/live-session.ts';
 import { createTakePicker, loadTakes } from '../src/live/reactions.ts';
 import { createVoiceLine } from '../src/live/voice-line.ts';
@@ -13,7 +13,13 @@ import { TURN_TIMINGS } from '../src/live/turn-rule.ts';
 
 initializeLogger({ pretty: false, level: 'silent' });
 
+// These run a real session on real timers, so a busy machine takes longer, and a wait for the thing to happen does not change what is checked.
+vi.setConfig({ testTimeout: 40_000 });
+
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const until = async (isDone: () => boolean, limitMs = 30_000) => {
+  for (let waited = 0; waited < limitMs && !isDone(); waited += 10) await delay(10);
+};
 const STAMP = { clockId: 'test', browserMs: 0, startedMsAgo: 0 };
 const typed = (text: string): BrowserMessage => ({ type: 'typed', text, ...STAMP });
 const QUICK = { ...TUTOR_TIMEOUTS, stillWorkingMs: 60, firstTextMs: 200, betweenTextMs: 200 };
@@ -44,7 +50,7 @@ describe('the brain in a live session', () => {
     const { session, find, messages } = setup(() => ({ pieces: ['Okay, here we go.'], firstTextMs: 300 }));
     const sentAtMs = performance.now();
     session.onBrowser(typed('Why does it fall?'));
-    await delay(1000);
+    await until(() => find('firstFrameCaptured', 'reply') !== undefined);
     expect(messages).toContainEqual({ type: 'heard' });
     expect((find('firstFrameCaptured', 'greeting')?.atMs as number) - sentAtMs).toBeLessThan(200);
     expect(find('firstFrameCaptured', 'reply')?.atMs as number).toBeGreaterThan(find('firstFrameCaptured', 'greeting')?.atMs as number);
@@ -54,7 +60,7 @@ describe('the brain in a live session', () => {
   it('says it is thinking until the first beat, so the dot explains the quiet', async () => {
     const { session, messages } = setup(() => ({ pieces: ['Okay, here we go.'], firstTextMs: 50 }));
     session.onBrowser(typed('Why does it fall?'));
-    await delay(300);
+    await until(() => messages.filter((message) => message.type === 'thinking').length === 2);
     const thinking = messages.filter((message) => message.type === 'thinking');
     expect(thinking.map((message) => message.isThinking)).toEqual([true, false]);
     await session.close();
@@ -63,7 +69,7 @@ describe('the brain in a live session', () => {
   it('never reads a slow model as a failed voice', async () => {
     const { session, notes, model } = setup(() => ({ pieces: ['Okay, here we go.'], firstTextMs: 10_000 }));
     session.onBrowser(typed('Why does it fall?'));
-    await delay(600);
+    await until(() => model.requests.length > 1);
     expect(notes.map((note) => note.name)).not.toContain('voiceFailed');
     expect(model.requests.length).toBeGreaterThan(1);
     await session.close();
@@ -82,7 +88,7 @@ describe('the brain in a live session', () => {
     session.onBrowser(typed('First question'));
     await delay(200);
     session.onBrowser(typed('Actually, a second one'));
-    await delay(150);
+    await until(() => model.requests.length === 2 && model.aborted.streams === 1);
     expect(model.aborted.streams).toBe(1);
     expect(model.aborted.piecesNotSent).toBeGreaterThan(20);
     expect(model.requests).toHaveLength(2);
@@ -93,11 +99,11 @@ describe('the brain in a live session', () => {
   it('passes what played to the brain, so the next turn knows what was heard', async () => {
     const { session, model, messages } = setup(() => ({ pieces: ['Okay, one two three four.'] }));
     session.onBrowser(typed('count'));
-    await delay(250);
+    await until(() => messages.filter((message) => message.type === 'turnStarted').length === 2);
     const turnId = (messages.findLast((message) => message.type === 'turnStarted') as { turnId: TurnId }).turnId;
     session.onBrowser({ type: 'played', turnId, beatId: 't1-b0' as never, wordStartsMs: [0, 280], durationMs: 560, playedWords: 2, firedCueMs: [], ending: 'interrupted', frozen: [], ...STAMP });
     session.onBrowser(typed('wait'));
-    await delay(300);
+    await until(() => model.requests.length === 2);
     const last = model.requests.at(-1)?.turns.at(-1);
     expect(last && 'text' in last ? (JSON.parse(last.text) as { cut: { heard: string } }).cut.heard : null).toBe('Okay, one');
     await session.close();
@@ -116,17 +122,17 @@ const speakOverTheTutor = async (session: ReturnType<typeof setup>['session'], t
   session.onEars({ type: 'words', text, isFinal: true });
   session.onEars({ type: 'voiceEnded' });
   session.onEars({ type: 'turnDecided', text });
-  await delay(500);
 };
 
 describe('a ring the board could not draw', () => {
   it('reaches the next request as a note', async () => {
-    const { session, model } = setup((_request, attempt) => (attempt === 1 ? { pieces: ['Okay, ', '{"kind":"writeMath","id":"steps","tex":"x = 1"}', 'see this ', '{"kind":"highlight","id":"ring","target":"steps","tex":"x"}', 'letter here.'] } : { pieces: ['Got it.'] }));
+    const { session, model, summaries } = setup((_request, attempt) => (attempt === 1 ? { pieces: ['Okay, ', '{"kind":"writeMath","id":"steps","tex":"x = 1"}', 'see this ', '{"kind":"highlight","id":"ring","target":"steps","tex":"x"}', 'letter here.'] } : { pieces: ['Got it.'] }));
     session.onBrowser(typed('show me'));
-    await delay(1500);
+    await until(() => summaries.length === 1);
     session.onBrowser({ type: 'markNotDrawn', markId: 'ring', ...STAMP });
+    await delay(10);
     session.onBrowser(typed('where?'));
-    await delay(400);
+    await until(() => model.requests.length === 2);
     expect(getSystemNotes(model.requests.at(-1)).join()).toContain('mark_not_drawn');
     await session.close();
   });
@@ -141,7 +147,7 @@ describe('hostile data messages', () => {
     await delay(200);
     expect(model.requests.length).toBeLessThanOrEqual(3);
     expect(messages.filter((message) => message.type === 'heard').length).toBeLessThanOrEqual(3);
-    await delay(2100);
+    await until(() => JSON.stringify(model.requests.at(-1)?.turns).includes('line 149'));
     expect(JSON.stringify(model.requests.at(-1)?.turns)).toContain('line 149');
     await session.close();
   });
@@ -177,9 +183,9 @@ describe('a beat still on its way when a cut keeps the thought', () => {
     session.onEars({ type: 'voiceStarted' });
     await delay(TURN_TIMINGS.wordlessStopMs + 100);
     session.onEars({ type: 'voiceEnded' });
-    await delay(TURN_TIMINGS.transcriptGraceMs + 1800);
-    const spoken = messages.flatMap((message) => (message.type === 'words' ? message.words.map((word) => word.text) : []));
-    expect(spoken.join(' ')).toContain('Delta');
+    const getSpoken = () => messages.flatMap((message) => (message.type === 'words' ? message.words.map((word) => word.text) : [])).join(' ');
+    await until(() => getSpoken().includes('Delta'));
+    expect(getSpoken()).toContain('Delta');
     await session.close();
   });
 });
@@ -202,11 +208,13 @@ describe('a tutor that has closed', () => {
       trace,
     });
     session.onBrowser(typed('one'));
-    await delay(1200);
+    await until(() => messages.some((message) => message.type === 'tutorClosed'));
+    await until(() => notes.filter((note) => note === 'turnFinished').length >= 1);
     expect(messages).toContainEqual({ type: 'tutorClosed', reason: 'dailyLimit' });
     const turnsBefore = messages.filter((message) => message.type === 'turnStarted').length;
     session.onBrowser(typed('two'));
-    await delay(300);
+    await until(() => messages.filter((message) => message.type === 'turnStarted').length > turnsBefore);
+    await delay(100);
     expect(model.requests).toHaveLength(0);
     expect(messages.filter((message) => message.type === 'turnStarted').length).toBe(turnsBefore + 1);
     await session.close();
@@ -221,6 +229,7 @@ describe('an interrupted request', () => {
     session.onBrowser(typed('FIRST'));
     await delay(400);
     await speakOverTheTutor(session, 'SECOND wait a second please');
+    await until(() => summaries.length === 2);
     expect(model.aborted.streams).toBe(1);
     expect(summaries.map((summary) => summary.studentText)).toEqual(['FIRST', 'SECOND wait a second please']);
     expect(summaries[0]?.endedAs).toBe('aborted');
@@ -232,10 +241,12 @@ describe('an interrupted request', () => {
   it('does the same on a later turn, when no greeting holds the line', async () => {
     const { session, model, summaries } = setup((request, attempt) => (attempt === 1 ? { pieces: ['Okay, sure thing. What next?'] } : SLOW_THEN_QUICK(request, attempt, 2)), BETWEEN);
     session.onBrowser(typed('ZERO'));
-    await delay(1500);
+    await until(() => summaries.length === 1);
+    await delay(100);
     session.onBrowser(typed('FIRST'));
     await delay(400);
     await speakOverTheTutor(session, 'SECOND wait a second please');
+    await until(() => summaries.length === 3);
     expect(model.aborted.streams).toBe(1);
     expect(summaries.map((summary) => summary.studentText)).toEqual(['ZERO', 'FIRST', 'SECOND wait a second please']);
     expect(getUsers(model.requests.at(-1))).toEqual(['ZERO', 'FIRST', 'SECOND wait a second please']);
@@ -250,7 +261,7 @@ describe('an interrupted request', () => {
     session.onBrowser({ type: 'audioState', isRunning: false, ...STAMP });
     await delay(600);
     session.onBrowser(typed('SECOND'));
-    await delay(500);
+    await until(() => model.requests.length === 2);
     expect(model.aborted.streams).toBe(1);
     expect(summaries[0]?.studentText).toBe('FIRST');
     expect(getUsers(model.requests.at(-1))).toEqual(['FIRST', 'SECOND']);
@@ -274,7 +285,7 @@ describe('an interrupted request', () => {
     session.onBrowser(typed('FIRST'));
     await delay(400);
     await session.close();
-    await delay(50);
+    await until(() => summaries.length === 1);
     expect(model.aborted.streams).toBe(1);
     expect(summaries).toHaveLength(1);
   });
@@ -285,19 +296,17 @@ describe('a reply in short stretches', () => {
   const SECOND = 'The leaf is where all of it happens every day.';
   const spokenWords = (messages: readonly AgentMessage[]) => messages.flatMap((message) => (message.type === 'words' ? message.words.map((word) => word.text) : [])).join(' ');
   const replyTurns = (notes: ReturnType<typeof setup>['notes']) => notes.filter((note) => note.name === 'turnStarted' && note.fields.kind === 'reply');
-  const firstStretchDone = async (notes: ReturnType<typeof setup>['notes']) => {
-    for (let waited = 0; waited < 6000 && !notes.some((note) => note.name === 'turnFinished' && note.fields.kind === 'reply'); waited += 10) await delay(10);
-  };
+  const firstStretchDone = (notes: ReturnType<typeof setup>['notes']) => until(() => notes.some((note) => note.name === 'turnFinished' && note.fields.kind === 'reply'));
 
   it('speaks each stretch as its own turn, with a breath the line can show', async () => {
     const { session, notes, messages } = setup(() => ({ pieces: [`${FIRST}\n${SECOND}`] }));
     session.onBrowser(typed('what is photosynthesis'));
     await firstStretchDone(notes);
     const stretchEndedAtMs = performance.now();
-    for (let waited = 0; waited < 8000 && replyTurns(notes).length < 2; waited += 10) await delay(10);
+    await until(() => replyTurns(notes).length === 2);
     expect(replyTurns(notes)).toHaveLength(2);
     expect((replyTurns(notes)[1]?.atMs as number) - stretchEndedAtMs).toBeGreaterThanOrEqual(200);
-    await delay(2500);
+    await until(() => spokenWords(messages).includes('leaf'));
     expect(spokenWords(messages)).toContain('leaf');
     await session.close();
   });
@@ -307,7 +316,7 @@ describe('a reply in short stretches', () => {
     session.onBrowser(typed('what is photosynthesis'));
     await firstStretchDone(notes);
     session.onBrowser(typed('wait, what about roots'));
-    await delay(1500);
+    await until(() => model.requests.length === 2 && messages.some((message) => message.type === 'words'));
     expect(model.requests).toHaveLength(2);
     expect(JSON.stringify(model.requests[1]?.turns.filter((turn) => turn.role === 'system'))).toMatch(/not_heard[^}]*leaf/);
     expect(messages.filter((message) => message.type === 'words').length).toBeGreaterThan(0);
@@ -322,7 +331,7 @@ describe('a reply in short stretches', () => {
     await delay(700);
     expect(replyTurns(notes)).toHaveLength(1);
     session.onEars({ type: 'voiceEnded' });
-    for (let waited = 0; waited < 6000 && replyTurns(notes).length < 2; waited += 10) await delay(10);
+    await until(() => replyTurns(notes).length === 2);
     expect(replyTurns(notes)).toHaveLength(2);
     await session.close();
   });
@@ -346,10 +355,6 @@ describe('a reply in short stretches', () => {
       session.onEars({ type: 'voiceEnded' });
       session.onEars({ type: 'turnDecided', text });
     };
-    const until = async (isDone: () => boolean) => {
-      for (let waited = 0; waited < 8000 && !isDone(); waited += 10) await delay(10);
-      expect(isDone()).toBe(true);
-    };
     const stretchIsSounding = (notes: ReturnType<typeof setup>['notes'], index: number) => notes.some((note) => note.name === 'firstFrameCaptured' && note.fields.turnId === replyTurns(notes)[index]?.fields.turnId);
 
     it('in the first stretch, answers the new words alone, with the question once in the history and the next stretch told as not heard', async () => {
@@ -362,7 +367,7 @@ describe('a reply in short stretches', () => {
       expect(getCut(model.requests[1])?.not_heard).toContain('The leaf is where');
       expect(lastAssistant(model.requests[1])).not.toContain('Roots');
       await session.close();
-    }, 20_000);
+    });
 
     it('in a later stretch, knows the first was heard and the last was not, and nothing is repeated', async () => {
       const { session, notes, messages, model } = setup(THEN_SHORT);
@@ -382,7 +387,7 @@ describe('a reply in short stretches', () => {
       expect(cut?.heard).toBe('Plants make their food from light and air. The leaf is');
       expect(cut?.not_heard).toContain('where all of it happens daily');
       await session.close();
-    }, 20_000);
+    });
 
     it('in a breath, tells the stretch still to come as not heard, and carries nothing the brain holds', async () => {
       const { session, notes, messages, model } = setup(THEN_SHORT);
@@ -396,6 +401,6 @@ describe('a reply in short stretches', () => {
       expect(cut?.heard).toBe('Plants make their food from light and air.');
       expect(cut?.not_heard).toContain('The leaf is where');
       await session.close();
-    }, 20_000);
+    });
   });
 });

@@ -1,15 +1,16 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTypedGate } from '../src/live/typed-gate.ts';
 
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
 function setup(refillEveryMs = 60) {
-  let nowMs = 0;
   const released: string[] = [];
   const held: string[] = [];
-  const gate = createTypedGate({ getNowMs: () => performance.now() + nowMs, onRelease: (text) => released.push(text), onHeld: () => held.push('held'), limits: { burst: 3, refillEveryMs } });
-  return { gate, released, held, skip: (ms: number) => (nowMs += ms) };
+  const gate = createTypedGate({ getNowMs: () => performance.now(), onRelease: (text) => released.push(text), onHeld: () => held.push('held'), limits: { burst: 3, refillEveryMs } });
+  return { gate, released, held };
 }
+
+// The gate's own clock and timers run on these, so a busy machine cannot change what a flood looks like to it.
+beforeEach(() => void vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] }));
+afterEach(() => void vi.useRealTimers());
 
 describe('the gate on typed messages', () => {
   it('lets a burst of three straight through', () => {
@@ -24,7 +25,7 @@ describe('the gate on typed messages', () => {
     const { gate, released } = setup();
     ['one', 'two', 'three', 'four', 'five'].forEach(gate.offer);
     expect(released).toEqual(['one', 'two', 'three']);
-    await delay(120);
+    await vi.advanceTimersByTimeAsync(120);
     expect(released).toEqual(['one', 'two', 'three', 'four\nfive']);
     gate.close();
   });
@@ -33,11 +34,12 @@ describe('the gate on typed messages', () => {
     const { gate, released } = setup(20);
     for (let index = 0; index < 100; index += 1) {
       gate.offer(`message ${index}`);
-      await delay(2);
+      await vi.advanceTimersByTimeAsync(2);
     }
-    await delay(30);
-    expect(released.length).toBeLessThan(20);
-    expect(released.join('\n')).toContain('message 99');
+    await vi.advanceTimersByTimeAsync(30);
+    expect(released.length).toBeLessThanOrEqual(3 + 230 / 20);
+    const words = released.join('\n');
+    for (let index = 0; index < 100; index += 1) expect(words).toContain(`message ${index}\n`.trimEnd());
     gate.close();
   });
 });

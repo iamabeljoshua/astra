@@ -230,12 +230,13 @@ describe('rejoining after a drop', () => {
 
   it('says so when the room closed and the join landed in a new one, because that tutor holds nothing of what was said', async () => {
     const { room } = await openVoice(async () => ({ ...ROOM_ACCESS, roomName: 'session-a-session-new' }));
+    fromAgent(room, { type: 'thinking', isThinking: true });
 
     room.emit('Disconnected', DROPPED);
     await vi.advanceTimersByTimeAsync(0);
 
     fromAgent(room, { type: 'pulse' });
-    expect(voice.getView()).toMatchObject({ phase: 'live', startedFresh: true });
+    expect(voice.getView()).toMatchObject({ phase: 'live', startedFresh: true, isThinking: false });
   });
 
   it('drops that line once the student has gone on', async () => {
@@ -261,7 +262,7 @@ describe('rejoining after a drop', () => {
 
     expect(getAccess).toHaveBeenCalledTimes(1);
     expect(room.connect).toHaveBeenCalledTimes(1);
-    expect(voice.getView()).toMatchObject({ phase: 'ended', mic: 'off', closedBecause: null });
+    expect(voice.getView()).toMatchObject({ phase: 'ended', mic: 'off', closedBecause: null, isThinking: false });
   });
 
   it('keeps trying through a failed request, which a later try can get past', async () => {
