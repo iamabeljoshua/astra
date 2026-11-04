@@ -459,6 +459,10 @@ It waits for the last stretch of the first answer, not a breath inside it. It do
 
 `students.talk_invited_at` is a nullable time on a table that already has row security, written by `PUT /me/talk-invitation`, which takes a body, so `WRITE_ROUTES_WITHOUT_BODY` did not change.
 
+### How to try it
+
+Open a session and hold Space or **Talk**, speak, and let go. Do it again with music playing nearby, once with a hold and once with **Talk** pressed once, and listen for the tutor being cut. To hear the invitation, run `pnpm db:seed`, sign in as `tola@astra.test`, and wait through the first answer with nothing pressed.
+
 ### Numbers chosen, not measured
 
 The 300 ms tap limit, the 60 s hold limit, the 1.5 s wait before the invitation, the 2 cuts in 2 minutes, and the 500 ms that ties a click to its press are choices. Nothing here measured them against other values. A shorter tap limit cuts the tutor sooner and misreads more quick taps. A shorter hold limit cuts a long explanation.
