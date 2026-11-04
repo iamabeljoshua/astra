@@ -555,6 +555,14 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
     turn.reader.push(help);
   };
 
+  // A model told to carry on in words and still calling tools must not hold the turn, or the spending, forever.
+  const stopCallingTools = (turn: TurnWork): TurnStep => {
+    turn.toolCall = null;
+    turn.endedAs = 'ended';
+    sayLine(turn, turn.hasModelWords ? 'cutShort' : 'couldNotReply');
+    return 'over';
+  };
+
   const finishAnswer = (turn: TurnWork, canRetry: boolean): TurnStep => {
     addHelpIfMissing(turn);
     turn.reader.finish();
@@ -621,7 +629,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
         return finishAnswer(turn, canRetry);
       case 'toolCall':
         turn.reader.closeAttempt();
-        return 'retry';
+        return turn.toolCalls.length > MOST_TOOL_CALLS_A_TURN ? stopCallingTools(turn) : 'retry';
       case 'heldQuestion':
         turn.reader.closeAttempt();
         return handleHeldQuestion(turn, canRetry);

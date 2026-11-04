@@ -4,6 +4,7 @@ import { type FakeReply, makeFakeTutorModel } from '../src/providers/fake-model.
 import type { FindSource, TutorModelRequest } from '../src/providers/types.ts';
 import { createTutorBrain, type TurnSummary } from '../src/tutor/brain.ts';
 import { TUTOR_PROMPT } from '../src/tutor/prompt.ts';
+import { SPOKEN_LINES } from '../src/tutor/spoken-lines.ts';
 
 const QUICK = { stillWorkingMs: 400, firstTextMs: 1200, betweenTextMs: 800, finishGraceMs: 20, reportWaitMs: 30 };
 const COMPUTE_CALL = '{"tool":"compute","expression":"47 \\\\times 52"}';
@@ -46,6 +47,14 @@ describe('a tool the tutor calls when it needs one', () => {
     const lastNotes = getNotes(model.requests[4]);
     expect(JSON.stringify(lastNotes.at(-1))).toContain('No more tools');
     expect(model.requests).toHaveLength(5);
+  });
+
+  it('ends the turn when a model keeps calling after it was told to stop, so spending has a ceiling', async () => {
+    const { brain, model, summaries } = setup(() => ({ pieces: ['One more now. ', COMPUTE_CALL] }));
+    const beats = await collect(brain, 'keep computing forever');
+    expect(model.requests.length).toBeLessThanOrEqual(5);
+    expect(beats.map(getBeatText).join(' ')).toContain(SPOKEN_LINES.cutShort[0]);
+    expect(summaries[0]?.endedAs).toBe('ended');
   });
 
   it('does not count a tool call against the one retry a false line gets', async () => {
