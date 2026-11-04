@@ -3,13 +3,21 @@ import { type AuthError, createClient, isAuthRefreshDiscardedError, isAuthRetrya
 import { fetchForAuth } from './fetchForAuth';
 import { areNewSignUpsStopped } from './signUpStop';
 
-export type EmailLinkResult = 'sent' | 'signUpStopped' | 'invalidEmail' | 'tooManyRequests' | 'authFailed' | 'failed';
-export type SignInReturnProblem = 'linkFailed' | 'cancelled' | 'authUnreachable';
+export type SendCodeResult = 'sent' | 'alreadySent' | 'signUpStopped' | 'invalidEmail' | 'tooManyRequests' | 'authFailed' | 'failed';
+export type CheckCodeResult = 'signedIn' | 'codeWrong' | 'codeExpired' | 'tooManyTries' | 'authFailed' | 'failed';
+export type SignInReturnProblem = 'returnFailed' | 'cancelled' | 'authUnreachable';
+export interface CodeRequest {
+  email: string;
+  sentAt: number;
+}
 export type SessionRenewal = 'renewed' | 'refused' | 'unreachable';
 
+export const RESEND_WAIT_MS = 60_000;
+
+const CODE_LIFETIME_MS = 600_000;
 const SESSION_STORAGE_KEY = 'astra-session';
-const CODE_VERIFIER_STORAGE_KEY = `${SESSION_STORAGE_KEY}-code-verifier`;
-const LINK_CODE_PARAM = 'code';
+const LINK_PROOF_KEY_START = `${SESSION_STORAGE_KEY}-`;
+const RETURN_CODE_PARAM = 'code';
 const RETURN_ERROR_PARAM = 'error';
 const RETURN_ERROR_CODE_PARAM = 'error_code';
 const REFUSED_AT_PROVIDER = 'access_denied';
@@ -18,8 +26,9 @@ const NO_ANSWER_STATUS = 0;
 const INVALID_EMAIL_CODES: ReadonlySet<string | undefined> = new Set(['validation_failed', 'email_address_invalid']);
 const NEW_USER_REFUSED_CODE = 'otp_disabled';
 const USABLE_EMAIL_ADDRESS = /^(?!.*\.\.)[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const LAST_LINK_STORAGE_KEY = 'astra-last-link';
-const LINK_COOLDOWN_MS = 60_000;
+const CODE_REFUSED_STATUS = 403;
+const CODE_REFUSED = 'otp_expired';
+const LAST_CODE_STORAGE_KEY = 'astra-last-code';
 const KEPT_PAGE_DROP_EVENT: string = 'ASTRA_DROP_KEPT_PAGE';
 
 function createSupabaseClient() {
@@ -73,16 +82,16 @@ export function watchSignedInUser(onChange: (userId: string | null) => void): ()
   };
 }
 
-// Without this browser's proof the client ignores a link's code and reports no error, so a code still here means it failed.
+// Without this browser's proof the client ignores Google's return code and reports no error, so a code still here means it failed.
 async function readSignInReturnProblem(): Promise<SignInReturnProblem | null> {
   const returnParams = new URLSearchParams(window.location.search);
   const { error } = await supabase.auth.initialize();
-  const hasUnusedCode = new URLSearchParams(window.location.search).has(LINK_CODE_PARAM);
+  const hasUnusedCode = new URLSearchParams(window.location.search).has(RETURN_CODE_PARAM);
   if (!error && !hasUnusedCode) return null;
   window.history.replaceState(null, '', getReturnAddress());
   if (error && isAuthRetryableFetchError(error)) return 'authUnreachable';
   const wasCancelled = returnParams.get(RETURN_ERROR_PARAM) === REFUSED_AT_PROVIDER && !returnParams.has(RETURN_ERROR_CODE_PARAM);
-  return wasCancelled ? 'cancelled' : 'linkFailed';
+  return wasCancelled ? 'cancelled' : 'returnFailed';
 }
 
 const signInReturnProblem = readSignInReturnProblem();
@@ -91,40 +100,83 @@ export function getSignInReturnProblem(): Promise<SignInReturnProblem | null> {
   return signInReturnProblem;
 }
 
-function toSendFailure(error: AuthError): Exclude<EmailLinkResult, 'sent'> {
+function toSendFailure(error: AuthError): Exclude<SendCodeResult, 'sent' | 'alreadySent'> {
   if (error.code === NEW_USER_REFUSED_CODE) return 'signUpStopped';
   if (error.status === TOO_MANY_REQUESTS_STATUS) return 'tooManyRequests';
   if (INVALID_EMAIL_CODES.has(error.code)) return 'invalidEmail';
   return error.status === NO_ANSWER_STATUS ? 'failed' : 'authFailed';
 }
 
-// Auth ties a known address's newest link to the newest request, even a refused one, so asking too soon must not reach it.
-function wasLinkJustSent(email: string): boolean {
+function isCodeRequest(stored: Partial<CodeRequest> | null): stored is CodeRequest {
+  return typeof stored?.email === 'string' && typeof stored.sentAt === 'number';
+}
+
+export function readCodeRequest(): CodeRequest | null {
   return withStorage((_local, tab) => {
-    const lastLink = JSON.parse(tab.getItem(LAST_LINK_STORAGE_KEY) ?? 'null') as { email: string; sentAt: number } | null;
-    return lastLink?.email === email.toLowerCase() && Date.now() - lastLink.sentAt < LINK_COOLDOWN_MS;
-  }, false);
+    const stored = JSON.parse(tab.getItem(LAST_CODE_STORAGE_KEY) ?? 'null') as Partial<CodeRequest> | null;
+    return isCodeRequest(stored) ? stored : null;
+  }, null);
 }
 
-function rememberLinkSent(email: string) {
-  withStorage((_local, tab) => tab.setItem(LAST_LINK_STORAGE_KEY, JSON.stringify({ email: email.toLowerCase(), sentAt: Date.now() })), undefined);
+export function isCodeStillGood({ sentAt }: CodeRequest): boolean {
+  return Date.now() - sentAt < CODE_LIFETIME_MS;
 }
 
-export async function sendEmailLink(email: string): Promise<EmailLinkResult> {
+// Sending to another address moves the tab's record on, and the code sent before it still works.
+const sentAtThisPage = new Map<string, number>();
+
+function findJustSentAt(email: string): number | null {
+  const address = email.toLowerCase();
+  const lastRequest = readCodeRequest();
+  const sentAt = lastRequest?.email.toLowerCase() === address ? lastRequest.sentAt : sentAtThisPage.get(address);
+  return sentAt !== undefined && Date.now() - sentAt < RESEND_WAIT_MS ? sentAt : null;
+}
+
+function rememberCodeSent(email: string, sentAt: number) {
+  sentAtThisPage.set(email.toLowerCase(), sentAt);
+  withStorage((_local, tab) => tab.setItem(LAST_CODE_STORAGE_KEY, JSON.stringify({ email, sentAt })), undefined);
+}
+
+function forgetCodeRequest() {
+  sentAtThisPage.clear();
+  withStorage((_local, tab) => tab.removeItem(LAST_CODE_STORAGE_KEY), undefined);
+}
+
+// The client keeps a proof for the link it expects in the mail, and without that proof no link can open a session here.
+function removeLinkProofs() {
+  withStorage((local) => {
+    for (const key of Object.keys(local)) {
+      if (key.startsWith(LINK_PROOF_KEY_START)) local.removeItem(key);
+    }
+  }, undefined);
+}
+
+export async function sendEmailCode(email: string): Promise<SendCodeResult> {
   if (!USABLE_EMAIL_ADDRESS.test(email)) return 'invalidEmail';
-  if (wasLinkJustSent(email)) return 'tooManyRequests';
-  const earlierLinkProof = withStorage((local) => local.getItem(CODE_VERIFIER_STORAGE_KEY), null);
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options: { emailRedirectTo: getReturnAddress(), shouldCreateUser: !areNewSignUpsStopped() },
-  });
-  if (!error) {
-    rememberLinkSent(email);
-    return 'sent';
+  const justSentAt = findJustSentAt(email);
+  if (justSentAt !== null) {
+    rememberCodeSent(email, justSentAt);
+    return 'alreadySent';
   }
-  // The client deletes this browser's proof when a send fails, which would kill a new address's link already in the inbox.
-  if (earlierLinkProof) withStorage((local) => local.setItem(CODE_VERIFIER_STORAGE_KEY, earlierLinkProof), undefined);
-  return toSendFailure(error);
+  const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: !areNewSignUpsStopped() } });
+  removeLinkProofs();
+  if (error) return toSendFailure(error);
+  rememberCodeSent(email, Date.now());
+  return 'sent';
+}
+
+// Auth answers a wrong code and an expired one in the same words, so only the time since sending can tell them apart.
+function toCheckFailure(error: AuthError, sentAt: number): Exclude<CheckCodeResult, 'signedIn'> {
+  if (error.status === TOO_MANY_REQUESTS_STATUS) return 'tooManyTries';
+  if (error.status === CODE_REFUSED_STATUS && error.code === CODE_REFUSED) return isCodeStillGood({ email: '', sentAt }) ? 'codeWrong' : 'codeExpired';
+  return error.status === NO_ANSWER_STATUS ? 'failed' : 'authFailed';
+}
+
+export async function checkEmailCode(email: string, code: string, sentAt: number): Promise<CheckCodeResult> {
+  const { error } = await supabase.auth.verifyOtp({ email, token: code, type: 'email' });
+  if (error) return toCheckFailure(error, sentAt);
+  forgetCodeRequest();
+  return 'signedIn';
 }
 
 export async function signInWithGoogle(): Promise<void> {
@@ -150,7 +202,7 @@ function dropKeptPages() {
 // Hides the page first, because the next document can take seconds to arrive.
 export function restartAppAtHome(): void {
   document.documentElement.style.visibility = 'hidden';
-  withStorage((_local, tab) => tab.removeItem(LAST_LINK_STORAGE_KEY), undefined);
+  forgetCodeRequest();
   dropKeptPages();
   window.location.replace('/');
 }

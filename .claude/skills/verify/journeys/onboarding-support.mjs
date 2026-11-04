@@ -1,11 +1,6 @@
 import assert from 'node:assert/strict';
 import { setTimeout as sleep } from 'node:timers/promises';
 
-const LOCAL_INBOX = 'http://127.0.0.1:54424';
-const SIGN_IN_LINK = /https?:\/\/\S+\/verify\?\S+/;
-const INBOX_POLL_MS = 200;
-const INBOX_TRIES = 50;
-
 const PACE_MS = Number(process.env.ONBOARDING_PACE_MS ?? 0);
 const TYPING_DELAY_MS = PACE_MS ? 90 : 0;
 
@@ -15,31 +10,12 @@ function typeInto(field, text) {
   return field.pressSequentially(text, { delay: TYPING_DELAY_MS });
 }
 
-async function readLinkFromInbox(email) {
-  for (let attempt = 0; attempt < INBOX_TRIES; attempt += 1) {
-    const search = await fetch(`${LOCAL_INBOX}/api/v1/search?query=${encodeURIComponent(`to:"${email}"`)}`);
-    const [newest] = (await search.json()).messages;
-    if (newest) {
-      const message = await (await fetch(`${LOCAL_INBOX}/api/v1/message/${newest.ID}`)).json();
-      return SIGN_IN_LINK.exec(message.Text)[0];
-    }
-    await sleep(INBOX_POLL_MS);
-  }
-  throw new Error(`No mail reached ${email} in the local inbox.`);
-}
-
-export async function signInAsNewStudent(page, email) {
+export async function signInAsNewStudent(page, signInWithCode, email) {
   await page.goto('/');
   if (process.env.ONBOARDING_THEME === 'dark') await page.getByRole('button', { name: 'Dark' }).click();
-  await page.getByRole('heading', { name: 'A learning app, made for you' }).waitFor();
-  await page.getByText("It's an AI").waitFor();
+  await page.getByRole('heading', { name: 'Welcome, I am Astra, your personal AI tutor.' }).waitFor();
   await pause();
-  await page.getByRole('button', { name: 'Continue with email' }).click();
-  await typeInto(page.getByRole('textbox', { name: 'Your email address' }), email);
-  await page.getByRole('button', { name: 'Send link' }).click();
-  await page.getByRole('heading', { name: 'Check your email.' }).waitFor();
-  await pause();
-  await page.goto(await readLinkFromInbox(email));
+  await signInWithCode(email);
 }
 
 export async function answerName(page, capture, name) {

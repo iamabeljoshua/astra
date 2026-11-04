@@ -1,10 +1,12 @@
 import { IsIn } from 'class-validator';
 import { ARTWORK_NAMES } from '../artwork';
 import type { ArtworkName } from '../artwork';
+import { LIBRARY_TOPIC_IDS } from '../picks/library';
 import { SessionResponseDto } from '../sessions/session.dto';
 
 export class PickCardResponseDto {
-  /** The ID of the card. */
+  /** The ID of the topic that the card offers. */
+  @IsIn(LIBRARY_TOPIC_IDS)
   id!: string;
 
   /** The topic that the card offers. */
@@ -25,6 +27,9 @@ export class PickCardResponseDto {
   /** The name of the picture that the web app shows on this card. */
   @IsIn(ARTWORK_NAMES)
   artwork!: ArtworkName;
+
+  /** The unfinished session that this card opens again, or null if the card starts a new session. */
+  continueSessionId!: string | null;
 }
 
 export class HomeScreenResponseDto {

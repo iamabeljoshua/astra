@@ -78,6 +78,38 @@ describe('SessionsService', () => {
     expect(sessions.map((session) => session.title)).toEqual(['newest', 'middle']);
   });
 
+  describe('the topic history', () => {
+    it('holds the sessions started from a card, newest first, and leaves out typed questions', async () => {
+      const studentId = await createStudentId();
+      const older = await sessionsService.createSession(studentId, { ...SESSION, topicId: 'jump-shot' });
+      const newer = await sessionsService.createSession(studentId, { ...SESSION, topicId: 'saturn-rings' });
+      await sessionsService.createSession(studentId, SESSION);
+      await moveSessionStart(older.id, '2026-10-01T12:00:00Z');
+      await moveSessionStart(newer.id, '2026-10-02T12:00:00Z');
+      await sessionsService.updateSession(studentId, older.id, { durationSeconds: 400, status: 'finished' });
+
+      expect(await sessionsService.getTopicHistory(studentId)).toEqual([
+        { id: newer.id, topicId: 'saturn-rings', status: 'in_progress', durationSeconds: 0 },
+        { id: older.id, topicId: 'jump-shot', status: 'finished', durationSeconds: 400 },
+      ]);
+    });
+
+    it('reads the newest thousand sessions at most, so one student cannot slow Home for others', async () => {
+      const studentId = await createStudentId();
+      const sessions = Array.from({ length: 1_001 }, () => ({ ...SESSION, studentId, topicId: 'jump-shot' }));
+      await testApp.app.get(DataSource).getRepository(SessionEntity).insert(sessions);
+
+      expect(await sessionsService.getTopicHistory(studentId)).toHaveLength(1_000);
+    });
+
+    it('holds only the sessions of the given student', async () => {
+      const studentId = await createStudentId();
+      await sessionsService.createSession(await createStudentId(), { ...SESSION, topicId: 'jump-shot' });
+
+      expect(await sessionsService.getTopicHistory(studentId)).toEqual([]);
+    });
+  });
+
   it('lists only the sessions of the given student', async () => {
     const studentId = await createStudentId();
     await sessionsService.createSession(await createStudentId(), SESSION);

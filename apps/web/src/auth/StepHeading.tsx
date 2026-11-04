@@ -1,6 +1,5 @@
-import { type PropsWithChildren, type RefObject, useEffect, useRef } from 'react';
-
-const WIDE_SCREEN_QUERY = '(min-width: 761px)';
+import { type PropsWithChildren, type RefObject, useRef } from 'react';
+import { useFocusOnArrival } from '../ui/useFocusOnArrival';
 
 interface StepHeadingProps extends PropsWithChildren {
   id?: string;
@@ -9,15 +8,9 @@ interface StepHeadingProps extends PropsWithChildren {
   className?: string;
 }
 
-// A phone focuses the heading, because a field would open the keyboard over the question.
 export function StepHeading({ id, describedBy, fieldToFocus, className = 'text-question', children }: StepHeadingProps) {
   const heading = useRef<HTMLHeadingElement>(null);
-
-  useEffect(() => {
-    const isWideScreen = window.matchMedia(WIDE_SCREEN_QUERY).matches;
-    const target = isWideScreen && fieldToFocus?.current ? fieldToFocus.current : heading.current;
-    target?.focus({ preventScroll: true });
-  }, [fieldToFocus]);
+  useFocusOnArrival(heading, fieldToFocus);
 
   return (
     <h1 ref={heading} id={id} aria-describedby={describedBy} tabIndex={-1} className={`${className} font-semibold text-balance outline-none`}>

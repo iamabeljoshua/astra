@@ -35,16 +35,14 @@ async function openPageByKeyboard(page, title) {
 }
 
 async function assertAddressKept(page) {
-  const field = page.getByRole('textbox', { name: 'Your email address' });
+  const field = page.getByRole('textbox', { name: 'Your email' });
   await field.waitFor();
   assert.equal(await field.inputValue(), TYPED_ADDRESS, 'the typed address is still there');
 }
 
 export default async function legal({ page, capture }) {
   await page.goto('/');
-  await pressUntilFocused(page, 'Tab', page.getByRole('button', { name: 'Continue with email' }));
-  await page.keyboard.press('Enter');
-  await pressUntilFocused(page, 'Tab', page.getByRole('textbox', { name: 'Your email address' }));
+  await pressUntilFocused(page, 'Tab', page.getByRole('textbox', { name: 'Your email' }));
   await page.keyboard.type(TYPED_ADDRESS);
 
   await openPageByKeyboard(page, 'Terms');

@@ -1,3 +1,5 @@
+import { CODE_LENGTH } from './auth/codeLength';
+
 export const PRODUCT_NAME = 'Astra';
 
 export const APP_ERROR_LABELS = {
@@ -46,26 +48,35 @@ export const ACCOUNT_LABELS = {
 
 export const SIGN_IN_LABELS = {
   tagline: 'A learning app, made for you',
-  about: "Your tutor talks with you and draws as it explains. It's an AI, and setup takes under a minute.",
+  welcomeLine: 'Welcome, I am Astra, your personal AI tutor.',
+  emailLabel: 'Your email',
+  emailPlaceholder: 'you@example.com',
+  sendCode: 'Continue',
   google: 'Continue with Google',
-  email: 'Continue with email',
   agreementStart: 'By continuing you agree to the ',
   agreementJoin: ' and the ',
   agreementEnd: '.',
-  linkFailed: 'That link did not work. It may have expired, or it was opened in another browser. Ask for a new one here.',
+  returnFailed: 'That sign-in did not work. You can start again here.',
   cancelled: 'Sign-in did not finish. You can start again here.',
-  authUnreachable: 'We could not connect to finish signing you in. Ask for a new link here in a moment.',
-  emailQuestion: 'What is your email address?',
-  emailPlaceholder: 'Your email address',
-  sendLink: 'Send link',
-  sentQuestion: 'Check your email.',
-  sentAbout: 'We sent a link to this address. Open it in this browser to sign in.',
-  useAnotherEmail: 'Use a different email',
+  authUnreachable: 'We could not connect to finish signing you in. Try again here in a moment.',
   signUpStopped: ACCOUNT_LABELS.closed,
   invalidEmail: 'Enter a valid email address.',
-  tooManyRequests: "We can't send another link right now. If you asked for one already, check your email. Otherwise, try again in a few minutes.",
-  authFailed: 'Could not send the link. The fault is on our side, so try again soon.',
-  failed: 'Could not send the link. Try again in a moment.',
+  tooManyRequests: "We can't send another code right now. If you asked for one already, check your email. Otherwise, try again in a few minutes.",
+  authFailed: 'Could not send the code. The fault is on our side, so try again soon.',
+  failed: 'Could not send the code. Try again in a moment.',
+  codeLine: 'Check your email. I sent you a code.',
+  codeLabel: `${CODE_LENGTH}-digit code`,
+  sentTo: (email: string) => `Sent to ${email}`,
+  useAnotherEmail: 'Use a different email',
+  resend: 'Send a new code',
+  resendIn: (seconds: number) => `Send a new code in ${seconds}s`,
+  newCodeSent: 'I sent a new code. Only the newest one works.',
+  checking: 'Checking your code.',
+  codeWrong: "That code didn't work. Check it against your newest email and try again.",
+  codeExpired: 'That code has expired. Ask for a new one below.',
+  tooManyTries: 'Too many tries from this connection. Wait a few minutes, then try again.',
+  checkAuthFailed: 'Could not check the code. The fault is on our side, so try again soon.',
+  checkFailed: 'Could not check the code. Try again in a moment.',
 };
 
 export const BIRTH_DATE_LABELS = {
@@ -155,6 +166,7 @@ export const HOME_LABELS = {
   greetingWithoutName: 'Welcome.',
   question: 'What do you want to learn next?',
   continueLabel: 'Continue',
+  continueReason: (subject: string) => `${subject}. Carry on where you left off.`,
   continueButton: 'Continue session \u2192',
   picksLabel: 'Picked for you',
   pickDetails: (subject: string, lengthMinutes: number) => `${subject}, ${lengthMinutes} min`,
@@ -348,7 +360,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
       {
         heading: 'Your account',
         today: [
-          'You sign in with a link sent to your email address, and you do not set a password. Use an address that belongs to you.',
+          'You sign in with a code sent to your email address, and you do not set a password. Use an address that belongs to you.',
           "Do not try to reach another student's account or data, get around the date of birth question, or interfere with the service.",
         ],
         planned: ['Sign-in with Google.'],
@@ -380,7 +392,8 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
           "Your email address, the times you sign in, and a record of each sign-in. Supabase Auth, our sign-in service, keeps these. Its records include your IP address and your browser's description of itself.",
           'Your date of birth, if you are old enough to continue. We keep it in our database with an account ID and the time the record was made.',
           'The name you give your tutor, your level, the interests you choose, and your goal. We keep these in our database, and you can change them under Your notes. We use your level, interests, and goal to choose the lessons suggested on your home screen.',
-          "Each session's title, subject, language, picture, length, status, and start time. A question you send from the home screen becomes its session's title, cut to 200 characters, so we store those words.",
+          "Each session's title, subject, language, picture, length, status, and start time, and the suggested lesson it came from, if any. A question you send from the home screen becomes its session's title, cut to 200 characters, so we store those words.",
+          'We also use the sessions you start from suggested lessons, and their length, status, and start time, to choose what your home screen suggests next. A question you leave open can take the continue card, so a lesson you left open can then appear among the suggestions. Only your own sessions do this, and the words of the questions you type play no part in it.',
           "Any file you attach, and anything you type into a session's reply box, stay in your browser. They are not sent or stored. The app does not use your microphone.",
           'Words you type into the search box on the Sessions page go to our server, which uses them to find your sessions. We do not store them.',
         ],
@@ -391,7 +404,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
       {
         heading: 'In your browser',
         today: [
-          'Your browser keeps your sign-in and your light or dark choice in local storage. Its session storage holds the email address you last asked a sign-in link for and the time you asked.',
+          'Your browser keeps your sign-in and your light or dark choice in local storage. Its session storage holds the email address you last asked a sign-in code for and the time you asked.',
           'When an account closes, or a closed account signs in again, the app sets one cookie that stops new sign-ups on this browser for a day. It holds no name, address, or date, it expires by itself, and nothing on our servers reads it. Accounts already set up can still sign in. The app sets no other cookies and runs no analytics or advertising code.',
         ],
         planned: [],

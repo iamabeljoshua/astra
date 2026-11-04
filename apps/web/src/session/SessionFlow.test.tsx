@@ -192,8 +192,24 @@ describe('selecting a card', () => {
       title: pick.title,
       subject: pick.subject,
       artwork: pick.artwork,
+      topicId: pick.id,
       language: 'en',
     });
+  });
+
+  it('opens the unfinished session of a carry-on card without starting another', async () => {
+    const carryOnCard = { ...PICKS[0]!, reason: 'Carry on where you left off', continueSessionId: 'older-unfinished' };
+    const session = makeSession({ id: carryOnCard.continueSessionId, title: 'The session this card opens' });
+    const { getRequests } = await renderHome({
+      homeScreen: { ...EXAMPLE_HOME_SCREEN, picks: [carryOnCard] },
+      sessions: [UNFINISHED_SESSION!, session],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(carryOnCard.reason) }));
+
+    await getSessionHeading(session.title);
+    expect(window.location.pathname).toBe(`/sessions/${session.id}`);
+    expect(getRequests('POST', '/api/sessions')).toEqual([]);
   });
 });
 
