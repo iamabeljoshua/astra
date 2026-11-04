@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createTopicRuns } from '../src/scenes/lesson/topic-runs.ts';
 import { createSceneStore, getSceneKey } from '../src/scenes/scene-store.ts';
 import type { LessonPlan, SceneRoute, StoredScene } from '../src/scenes/scene-types.ts';
-import { createTutorScenes, getTutorSceneBeats } from '../src/tutor/tutor-scenes.ts';
+import { ASK_LIMIT_MS, createTutorScenes, getTutorSceneBeats } from '../src/tutor/tutor-scenes.ts';
 
 const USAGE = { model: 'fake', ms: 1, costUsd: 0 };
 const NO_WORKER = async () => {
@@ -20,7 +20,7 @@ const flush = async () => {
   for (let tick = 0; tick < 6; tick += 1) await new Promise((resolve) => setImmediate(resolve));
 };
 
-function setUp({ route = { engine: 'manimgx', kind: 'graph', topic: TOPIC, ...USAGE } as SceneRoute, canSpeak = true, getScene = async () => ({ isOk: true as const, scene: SCENE }) as { isOk: true; scene: StoredScene } | { isOk: false; reasons: string[] }, cardTitle = null as string | null } = {}) {
+function setUp({ route = { engine: 'manimgx', kind: 'graph', topic: TOPIC, ...USAGE } as SceneRoute, canSpeak = true, getScene = async () => ({ isOk: true as const, scene: SCENE }) as { isOk: true; scene: StoredScene } | { isOk: false; reasons: string[] }, cardTitle = null as string | null, canPlayShared = undefined as ((studentId: string) => boolean) | undefined } = {}) {
   const sent: SceneAgentMessage[] = [];
   const spoken: (readonly Beat[])[] = [];
   const shown: { topic: string }[] = [];
@@ -42,7 +42,8 @@ function setUp({ route = { engine: 'manimgx', kind: 'graph', topic: TOPIC, ...US
     },
     onShown: (one) => void shown.push(one),
     trace: (name, fields = {}) => void traces.push({ name, fields }),
-  });
+    ...(canPlayShared ? { canPlayShared } : {}),
+  } as Parameters<typeof createTutorScenes>[0]);
   return { scenes, sent, spoken, shown, traces, joinRun, store, state };
 }
 
@@ -108,12 +109,11 @@ describe('asking for a scene', () => {
     expect(sent).toEqual([]);
   });
 
-  it('asks once for one idea, and one at a time', async () => {
+  it('asks once for one idea', async () => {
     const { scenes, joinRun } = setUp();
     opened(scenes);
     scenes.ask(TOPIC);
     scenes.ask(TOPIC.toUpperCase());
-    scenes.ask('how a bar chart works');
     await flush();
     expect(joinRun).toHaveBeenCalledOnce();
   });
@@ -273,5 +273,107 @@ describe('a topic that draws nothing', () => {
     made.store.saveRefusal({ key: getSceneKey(TOPIC, { ownerId: 'maya' }), review: [{ moment: 'a', what: 'wrong', truth: '', confidence: 'high' }], attempts: 1, savedAt: new Date().toISOString() } as never);
     await ask(made, { engine: 'manimgx', kind: 'graph', topic: TOPIC, ...USAGE });
     expect(made.plan).not.toHaveBeenCalled();
+  });
+});
+
+describe('how long a pending ask may live', () => {
+  it('ends 35 s after the ask, even with no pause and a student who keeps typing', async () => {
+    vi.useFakeTimers();
+    const { scenes, spoken, traces, state } = setUp({ canSpeak: false });
+    opened(scenes);
+    scenes.ask(TOPIC);
+    await vi.advanceTimersByTimeAsync(10);
+    scenes.onPage(LOADED, 'maya');
+    await vi.advanceTimersByTimeAsync(ASK_LIMIT_MS + 10);
+    state.canSpeak = true;
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(traces.find(({ name }) => name === 'sceneEnded')?.fields.how).toBe('tooLate');
+    expect(spoken).toEqual([]);
+  });
+
+  it('counts every ask, so asks that came too late cannot go on for ever', async () => {
+    vi.useFakeTimers();
+    const { scenes, traces } = setUp({ getScene: () => new Promise(() => {}) as never });
+    opened(scenes);
+    for (let ask = 0; ask < 10; ask += 1) {
+      scenes.ask(`${TOPIC} ${ask}`);
+      await vi.advanceTimersByTimeAsync(ASK_LIMIT_MS + 10);
+      scenes.notePause();
+      await vi.advanceTimersByTimeAsync(ASK_LIMIT_MS + 10);
+    }
+    expect(traces.filter(({ name }) => name === 'sceneAsked')).toHaveLength(6);
+  });
+
+  it('lets a second ask on a new topic replace the first, and ignores the same topic', async () => {
+    const { scenes, traces } = setUp({ getScene: () => new Promise(() => {}) as never });
+    opened(scenes);
+    scenes.ask(TOPIC);
+    scenes.ask(`  ${TOPIC.toUpperCase()} `);
+    await flush();
+    expect(traces.filter(({ name }) => name === 'sceneAsked')).toHaveLength(1);
+    scenes.ask('how a tangent line works');
+    await flush();
+    expect(traces.filter(({ name }) => name === 'sceneAsked').map(({ fields }) => fields.text)).toEqual([TOPIC, 'how a tangent line works']);
+    expect(traces.find(({ name }) => name === 'sceneEnded')?.fields.how).toBe('replaced');
+  });
+});
+
+describe('a safety reply', () => {
+  it('ends an ask made in the same reply, and any more until the student speaks again', async () => {
+    const { scenes, spoken, traces } = setUp();
+    opened(scenes);
+    scenes.ask(TOPIC);
+    await flush();
+    scenes.noteSafetyReply();
+    scenes.onPage(LOADED, 'maya');
+    scenes.ask('how a tangent line works');
+    await flush();
+    expect(spoken).toEqual([]);
+    expect(traces.find(({ name }) => name === 'sceneEnded')?.fields.how).toBe('safetyReply');
+    expect(traces.filter(({ name }) => name === 'sceneAsked')).toHaveLength(1);
+  });
+});
+
+describe('a reloaded page', () => {
+  it('gets a pending scene sent again, and nothing lands on the old page\'s word', async () => {
+    const { scenes, sent, spoken } = setUp();
+    opened(scenes);
+    scenes.ask(TOPIC);
+    await flush();
+    scenes.onPage(LOADED, 'maya');
+    expect(spoken).toHaveLength(1);
+    const { scenes: second, sent: sentTwice, spoken: spokenTwice, state } = setUp({ canSpeak: false });
+    opened(second);
+    second.ask(TOPIC);
+    await flush();
+    second.onPage(LOADED, 'maya');
+    opened(second);
+    state.canSpeak = true;
+    second.notePause();
+    expect(spokenTwice).toEqual([]);
+    expect(sentTwice).toHaveLength(2);
+    second.onPage(LOADED, 'maya');
+    expect(spokenTwice).toHaveLength(1);
+    expect(sent).toHaveLength(1);
+  });
+
+  it('gets the scene already on screen sent again', async () => {
+    const { scenes, sent } = setUp();
+    opened(scenes);
+    scenes.ask(TOPIC);
+    await flush();
+    scenes.onPage(LOADED, 'maya');
+    opened(scenes);
+    expect(sent).toEqual([{ type: 'loadScene', sceneId: SCENE.id, durationSeconds: 5 }, { type: 'loadScene', sceneId: SCENE.id, durationSeconds: 5 }]);
+  });
+});
+
+describe('a student looping a shared card', () => {
+  it('stops getting the scene past their cap, and the tutor teaches on', async () => {
+    const { scenes, sent } = setUp({ cardTitle: TOPIC, canPlayShared: () => false });
+    opened(scenes);
+    scenes.ask(TOPIC);
+    await flush();
+    expect(sent).toEqual([]);
   });
 });

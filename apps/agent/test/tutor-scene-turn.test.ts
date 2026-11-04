@@ -141,9 +141,9 @@ describe('scene spending', () => {
     const reportSpend = vi.fn(async () => ({ isOverDailyLimit: false }));
     const charge = vi.fn();
     const caps = createSpendCaps({ link: { reportSpend }, ledger: { charge, isOverModelLimit: () => false, isOverVoiceLimit: () => false } as never, trace: () => {}, sessionLimitUsd: 1, sessionVoiceLimitCharacters: 100 });
-    caps.addSharedVoice(300);
+    caps.addSharedVoice(300, "maya");
     await caps.flush();
-    expect(charge).toHaveBeenCalledWith({ anthropicUsd: 0, voiceCharacters: 300 });
+    expect(charge).toHaveBeenCalledWith({ anthropicUsd: 0, voiceCharacters: 300, sharedPlayBy: 'maya' });
     expect(reportSpend).not.toHaveBeenCalled();
     expect(caps.getSpendLimit()).toBeNull();
     expect(caps.getSpentUsd()).toBe(0);

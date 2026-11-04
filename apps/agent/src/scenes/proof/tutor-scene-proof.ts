@@ -17,6 +17,10 @@ const { values: args } = parseArgs({
     damageTake: { type: 'boolean', default: false },
     phone: { type: 'boolean', default: false },
     dark: { type: 'boolean', default: false },
+    /** Types these words this many seconds after the first words. */
+    say: { type: 'string' },
+    sayAfterS: { type: 'string', default: '3' },
+    reloadAfterS: { type: 'string' },
   },
 });
 
@@ -119,11 +123,25 @@ let firstWordsAtS: number | null = null;
 let sceneSeenAtS: number | null = null;
 let sceneAtStart: VisualRead | null = null;
 let quietSinceS: number | null = null;
+let hasSaid = false;
+let saidAtS: number | null = null;
+let hasReloaded = false;
+let reloadedAtS: number | null = null;
 const waitLimitS = Number(args.waitS);
 while (atS() < waitLimitS) {
   const read = await readVisual(page);
   timeline.push({ ...read, atS: atS() });
   if (firstWordsAtS === null && read.caption !== '') firstWordsAtS = atS();
+  if (firstWordsAtS !== null && !hasSaid && args.say && atS() >= firstWordsAtS + Number(args.sayAfterS)) {
+    hasSaid = true;
+    saidAtS = atS();
+    await page.evaluate((words) => (window as unknown as { astraVoice: { sendTyped(text: string): void } }).astraVoice.sendTyped(words), args.say);
+  }
+  if (firstWordsAtS !== null && !hasReloaded && args.reloadAfterS && atS() >= firstWordsAtS + Number(args.reloadAfterS)) {
+    hasReloaded = true;
+    reloadedAtS = atS();
+    await page.reload();
+  }
   if (sceneSeenAtS === null && read.sceneId && read.opacity > 0) {
     sceneSeenAtS = atS();
     sceneAtStart = read;
@@ -161,6 +179,20 @@ if (sceneSeenAtS !== null && args.handsOn) {
     await delay(300);
     const small = await readVisual(page);
     await page.screenshot({ path: join(out, 'hands-on.png') });
+    summary.whatAPressHits = await page.evaluate(() =>
+      [...document.querySelectorAll<HTMLElement>('main input, main textarea, [data-testid="board-right"] .board-row, [data-testid="board-right"] .board-flow > *')].slice(0, 12).map((element) => {
+        const { x, y, width, height } = element.getBoundingClientRect();
+        const hit = document.elementFromPoint(x + width / 2, y + height / 2);
+        const corner = hit?.closest('[data-testid="board-visual"]');
+        return { tag: element.tagName, name: element.getAttribute('aria-label') ?? element.className.slice(0, 40), box: [Math.round(x), Math.round(y), Math.round(width), Math.round(height)], isUnderScene: Boolean(corner) };
+      }),
+    );
+    const line = page.locator('[data-testid="board-right"] input, [data-testid="board-right"] textarea, [data-testid="board-right"] [contenteditable="true"]').first();
+    if ((await line.count()) > 0 && (await line.isVisible())) {
+      await line.click({ timeout: 2000 }).then(() => page.keyboard.type('y = 2x', { delay: 20 })).catch((error: unknown) => problems.push(`typing a line: ${String(error).slice(0, 200)}`));
+      summary.typedALine = await line.inputValue().catch(() => line.textContent());
+      await page.screenshot({ path: join(out, 'typed-line.png') });
+    }
     const share = small.rect && small.rightRect ? small.rect.width / small.rightRect.width : null;
     const insets = small.rect && small.rightRect ? { right: small.rightRect.x + small.rightRect.width - (small.rect.x + small.rect.width), top: small.rect.y - small.rightRect.y } : null;
     summary.smallPlace = { share, insets, boardOpacity: small.boardOpacity, sceneId: small.sceneId, sceneSeconds: small.sceneSeconds };
@@ -184,8 +216,14 @@ for (let tries = 0; tries < 60 && args.trace && !trace.some(({ name }) => name =
   await delay(500);
   trace = readTrace(args.trace);
 }
+summary.saidAtS = saidAtS;
+summary.reloadedAtS = reloadedAtS;
 const logged = (trace.find(({ name }) => name === 'sessionLog')?.events ?? []) as { kind: string; atMs: number; beat?: { id: string; script: (string | { kind: string })[] } }[];
 summary.boardMoves = logged.flatMap(({ kind, atMs, beat }) => (kind === 'beatPlayed' && beat ? beat.script.flatMap((part, index) => (typeof part === 'object' && ['boardMode', 'task', 'clearBoard', 'richScene', 'writeMath'].includes(part.kind) ? [{ atS: Number((atMs / 1000).toFixed(1)), beat: beat.id, kind: part.kind, ...(part.kind === 'boardMode' ? { mode: (part as unknown as { mode: string }).mode } : {}), onWord: beat.script.slice(index + 1).find((next) => typeof next === 'string') }] : [])) : []));
+const sceneBeatTexts = new Set(logged.flatMap(({ kind, beat }) => (kind === 'beatPlayed' && beat?.id.startsWith('n') ? [beat.script.filter((part): part is string => typeof part === 'string').join('').trim()] : [])));
+summary.sceneWordsWithoutPicture = timeline.filter(({ caption, sceneId, opacity }) => [...sceneBeatTexts].some((text) => text !== '' && caption.includes(text)) && (!sceneId || opacity === 0)).length;
+summary.sceneBeatsPlayed = [...sceneBeatTexts];
+summary.turns = trace.filter(({ name }) => ['turnStarted', 'sceneAsked', 'sceneEnded', 'sceneWordsDropped'].includes(name)).map((row) => ({ name: row.name, ...row }));
 summary.problems = problems;
 writeFileSync(join(out, 'summary.json'), JSON.stringify(summary, null, 2));
 writeFileSync(join(out, 'timeline.json'), JSON.stringify(timeline));

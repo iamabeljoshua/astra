@@ -107,6 +107,7 @@ export interface TutorBrainOptions {
   /** The system prompt, frozen for one session because the cache is a prefix match. */
   system?: string;
   onAskScene?(topic: string): void;
+  onSafetyReply?(): void;
 }
 
 type TurnStep = 'over' | 'retry';
@@ -114,6 +115,8 @@ type TurnStep = 'over' | 'retry';
 type AttemptEnd = 'ended' | 'noWords' | 'aborted' | 'stalledBeforeText' | 'stalledInText' | 'failed' | 'rejected' | 'wrongMath' | 'wrongWords' | 'refused';
 
 interface TurnWork {
+  /** This reply is about a child's safety with a scene up, so its next beat moves the picture aside. */
+  movesSceneAside?: boolean;
   id: number;
   studentText: string;
   signal: AbortSignal;
@@ -165,6 +168,8 @@ const CHARACTERS_PER_TOKEN = 3.2;
 const DECLINED_NOTE = {
   declined: "A safety check stopped an earlier message of the student's, so you cannot see that one. It may have been serious. The message just above this note is newer, you can read it, and it comes first: if it says anyone is hurting them or that they are in danger, follow your safety rules for it. The app has already told them to tell an adult they trust or call their local emergency number. Otherwise, before you teach on, ask once, gently, whether they are safe and have an adult to talk to. Do not guess what the earlier message said, do not ask them to repeat it, and never say you cannot see a message.",
 };
+/** A frozen picture has no place behind a safety reply, so it goes small, with no words. */
+const SCENE_ASIDE = { kind: 'boardMode', mode: 'handsOn' } as const;
 const SKIPPED_NOTE = { skipped: "An automatic check stopped an earlier message of the student's, and the app told them it could not go into that. It is not about their safety. Teach on, and do not ask them to repeat it." };
 const CLIPPED_NOTE = { clipped: 'The student wrote more than you can see, and this is only the first part. Say so in a few words, and answer what you can.' };
 /** These categories cannot be about the student's own safety. The list of categories is open, so one it does not name counts as possibly serious. */
@@ -231,7 +236,7 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const toProfileNote = ({ level, interests, goal, cardTitle }: StudentProfile) => ({ student: { level, interests, goal, ...(cardTitle ? { card_title: cardTitle } : {}) } });
 
-export function createTutorBrain({ model, profile = null, loadProfile, timeouts: chosenTimeouts, trace = () => {}, onTurnEnd, onCompacted, compactAtTokens = COMPACT_AT_TOKENS, getSpendLimit = () => null, system = TUTOR_SYSTEM, onAskScene, getNowMs = () => performance.now() }: TutorBrainOptions): Required<TutorBrain> {
+export function createTutorBrain({ model, profile = null, loadProfile, timeouts: chosenTimeouts, trace = () => {}, onTurnEnd, onCompacted, compactAtTokens = COMPACT_AT_TOKENS, getSpendLimit = () => null, system = TUTOR_SYSTEM, onAskScene, onSafetyReply, getNowMs = () => performance.now() }: TutorBrainOptions): Required<TutorBrain> {
   const timeouts: TutorTimeouts = { ...TUTOR_TIMEOUTS, ...chosenTimeouts };
   const pickLine = createLinePicker();
   let breathsTaken = 0;
@@ -298,6 +303,17 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
     while ((isTurnRunning || !hasEveryReport()) && getNowMs() < deadlineMs) await delay(WAIT_STEP_MS);
   };
 
+  const noteSafetyReply = (turn: TurnWork, board: { kinds: ReadonlyMap<string, string> }) => {
+    onSafetyReply?.();
+    if ([...board.kinds.values()].includes('richScene')) turn.movesSceneAside = true;
+  };
+
+  const takesSceneAside = (turn: TurnWork) => {
+    const moves = turn.movesSceneAside === true;
+    turn.movesSceneAside = false;
+    return moves;
+  };
+
   const startTurn = (studentText: string, signal: AbortSignal): TurnWork => {
     settleLastTurn();
     turnCount += 1;
@@ -313,6 +329,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
       reader: new BeatTextReader({
         board: memory.kinds,
         ...(onAskScene ? { onAskScene } : {}),
+        onSafetyReply: () => noteSafetyReply(turn, readerMemory),
         checkCommand: (command) => checkAgainstBoard(command, readerMemory),
         onCommandKept(command) {
           readerMemory = getMemoryAfter(command, readerMemory);
@@ -341,7 +358,8 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
           if (!isLongRepeat && !isOpeningRepeat) turn.hasNewWordsThisAttempt = true;
           return isLongRepeat || isOpeningRepeat;
         },
-        onBeatEnd(parts) {
+        onBeatEnd(written) {
+          const parts = takesSceneAside(turn) ? { ...written, script: [SCENE_ASIDE, ...written.script] } : written;
           const beat = getWrittenBeat(turn.startsAfterNod && turn.beats.length === 0 ? withoutOpeningNod(parts) : parts, `t${turnCount}-b${turn.beats.length}`, turn.refused);
           if (!beat) return;
           turn.hasModelWords = true;
@@ -388,7 +406,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
 
   const sayLine = (turn: TurnWork, use: SpokenLineUse) => {
     const line = pickLine(use);
-    const parsed = parseBeat({ id: `t${turn.id}-line${turn.beats.length}`, script: [line], expectsReply: /\?$/.test(line) });
+    const parsed = parseBeat({ id: `t${turn.id}-line${turn.beats.length}`, script: takesSceneAside(turn) ? [SCENE_ASIDE, line] : [line], expectsReply: /\?$/.test(line) });
     trace('lineSpoken', { use });
     if (parsed.ok) addBeat(turn, parsed.value);
   };
@@ -582,8 +600,10 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
       if (turn.hasModelWords) noteCorrection(turn, 'Carry on from where you stopped.');
       return 'retry';
     }
-    if (!isPlainRefusal(turn)) sayLine(turn, turn.hasModelWords ? 'refusedAfterWords' : 'refused');
-    else if (wasAskedHow) sayLine(turn, 'askedHowDeclined');
+    if (!isPlainRefusal(turn)) {
+      noteSafetyReply(turn, memory);
+      sayLine(turn, turn.hasModelWords ? 'refusedAfterWords' : 'refused');
+    } else if (wasAskedHow) sayLine(turn, 'askedHowDeclined');
     else sayLine(turn, turn.hasModelWords ? 'refusedPlainAfterWords' : 'refusedPlain');
     return 'over';
   };

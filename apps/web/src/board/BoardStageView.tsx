@@ -2,7 +2,7 @@ import type { BoardStage } from '@astra/board';
 import { writeStyle } from '@astra/board/drawing';
 import { type PropsWithChildren, type ReactNode, useEffect, useLayoutEffect, useRef } from 'react';
 import { BOARD_WORK_LABELS } from '../strings';
-import { getKeptClearWidth, getVisualPlace, getVisualTransform, type VisualPeek } from './boardStage';
+import { getKeptClearWidth, getPhoneKeptClearHeight, getVisualPlace, getVisualTransform, type VisualPeek } from './boardStage';
 import { useReducedMotion } from './useReducedMotion';
 
 const PHONE_WIDTH = 860;
@@ -27,6 +27,10 @@ export function BoardStageView({ stage, atMs, visual, ariaLabel, peek, onPeek, f
   const { smallShare, isMoving } = getVisualPlace({ stage, peek, atMs, isReducedMotion });
   const isSmall = smallShare === 1;
   const isBigOverBoard = peek?.isBig === true;
+  const tipsShown = useRef(0);
+  const wasBigOverBoard = useRef(false);
+  if (isBigOverBoard && !wasBigOverBoard.current) tipsShown.current += 1;
+  wasBigOverBoard.current = isBigOverBoard;
 
   useEffect(() => {
     if (!isBigOverBoard) return;
@@ -43,7 +47,7 @@ export function BoardStageView({ stage, atMs, visual, ariaLabel, peek, onPeek, f
     const width = right.current?.clientWidth ?? 0;
     const isPhone = window.innerWidth <= PHONE_WIDTH;
     if (visualBox.current) {
-      writeStyle(visualBox.current, 'transform', isPhone ? '' : getVisualTransform({ smallShare, width }));
+      writeStyle(visualBox.current, 'transform', getVisualTransform({ smallShare: isPhone ? (isSmall ? 1 : 0) : smallShare, width, isPhone }));
       writeStyle(visualBox.current, 'opacity', isPhone && !isSmall && smallShare > 0 ? String(1 - smallShare) : '');
     }
     if (boardBox.current) {
@@ -51,6 +55,7 @@ export function BoardStageView({ stage, atMs, visual, ariaLabel, peek, onPeek, f
       boardBox.current.style.pointerEvents = hasVisual && smallShare === 0 ? 'none' : '';
     }
     right.current?.style.setProperty('--board-kept-clear', hasVisual && !isPhone && smallShare > 0 ? `${getKeptClearWidth(width)}px` : '0px');
+    right.current?.style.setProperty('--board-kept-clear-top', hasVisual && isPhone && smallShare > 0 ? `${getPhoneKeptClearHeight(width)}px` : '0px');
   });
 
   const togglePeek = () => {
@@ -76,6 +81,11 @@ export function BoardStageView({ stage, atMs, visual, ariaLabel, peek, onPeek, f
           className="board-visual"
         >
           {visual}
+          {isBigOverBoard && (
+            <span className="board-visual-tip label" data-first-time={tipsShown.current === 1}>
+              {BOARD_WORK_LABELS.visualPutBackTip}
+            </span>
+          )}
         </button>
       )}
       <div ref={boardBox} className="flex min-h-0 flex-1 flex-col">{children}</div>

@@ -44,8 +44,9 @@ export interface SpendCaps {
   addTurn(summary: { usd: number; voiceCharacters: number }): void;
   /** A scene counts toward the student's day and the shared ledger. It stays out of this room's cap, so a picture can never close the tutor. */
   addScene(usd: number): void;
-  /** A shared scene's words are not this student's to pay for, so they count only toward the project's ceiling. */
-  addSharedVoice(characters: number): void;
+  /** A shared scene's words are not this student's to pay for, so they count only toward the project's ceiling and their count of plays today. */
+  addSharedVoice(characters: number, studentId: string): void;
+  getSharedPlaysToday(studentId: string): number;
   getSceneUsd(): number;
   getSpentUsd(): number;
   /** Sends what the API has not heard yet, so a room closing does not lose the last turn's charge. */
@@ -57,6 +58,7 @@ export function createSpendCaps({ link, ledger, trace, sessionLimitUsd, sessionV
   let sessionUsd = 0;
   let sceneUsd = 0;
   let sessionCharacters = 0;
+  let sessionSharedPlays = 0;
   let unreportedUsd = 0;
   let isOverDailyLimit = false;
   let reporting: Promise<void> = Promise.resolve();
@@ -95,9 +97,11 @@ export function createSpendCaps({ link, ledger, trace, sessionLimitUsd, sessionV
       ledger?.charge({ anthropicUsd: usd, voiceCharacters: 0 });
       report();
     },
-    addSharedVoice(characters) {
-      ledger?.charge({ anthropicUsd: 0, voiceCharacters: characters });
+    addSharedVoice(characters, studentId) {
+      sessionSharedPlays += 1;
+      ledger?.charge({ anthropicUsd: 0, voiceCharacters: characters, sharedPlayBy: studentId });
     },
+    getSharedPlaysToday: (studentId) => Math.max(sessionSharedPlays, ledger?.countSharedPlays(studentId) ?? 0),
     getSceneUsd: () => sceneUsd,
     getSpentUsd: () => sessionUsd + sceneUsd + sessionCharacters * VOICE_USD_PER_CHARACTER,
     async flush() {
@@ -128,7 +132,7 @@ export interface MadeBrain {
   getSpentUsd?(): number;
 }
 
-export function makeTutorBrain({ roomName, trace, onAskScene }: { roomName: string; trace: TraceNote; onAskScene?(topic: string): void }): MadeBrain {
+export function makeTutorBrain({ roomName, trace, onAskScene, onSafetyReply, onCardKnown }: { roomName: string; trace: TraceNote; onAskScene?(topic: string): void; onSafetyReply?(): void; /** The brief has come, or will not, so a card's title is known or there is none. */ onCardKnown?(title: string | null): void }): MadeBrain {
   const name = process.env.ASTRA_TUTOR_MODEL ?? DEFAULT_MODEL;
   if (name === STAND_IN) return { brain: createStandInTutor(), flushSpend: async () => {} };
   if (name !== RECORDED && !TUTOR_MODEL_NAMES.includes(name as TutorModelName)) throw new Error(`ASTRA_TUTOR_MODEL is ${name}. Choose ${[STAND_IN, RECORDED, ...TUTOR_MODEL_NAMES].join(', ')}`);
@@ -148,12 +152,17 @@ export function makeTutorBrain({ roomName, trace, onAskScene }: { roomName: stri
   let cardTitle: string | null = null;
   const loadProfile = link
     ? async () => {
-        const profile = await link.fetchProfile();
+        const profile = await link.fetchProfile().catch((error: unknown) => {
+          onCardKnown?.(null);
+          throw error;
+        });
         cardTitle = profile?.cardTitle ?? null;
+        onCardKnown?.(cardTitle);
         return profile;
       }
     : undefined;
-  const brain = createTutorBrain({ model, loadProfile, trace, onTurnEnd, getSpendLimit: caps.getSpendLimit, ...(onAskScene ? { system: TUTOR_SYSTEM_WITH_SCENES, onAskScene } : {}) });
+  if (!loadProfile) queueMicrotask(() => onCardKnown?.(null));
+  const brain = createTutorBrain({ model, loadProfile, trace, onTurnEnd, getSpendLimit: caps.getSpendLimit, ...(onAskScene ? { system: TUTOR_SYSTEM_WITH_SCENES, onAskScene } : {}), ...(onSafetyReply ? { onSafetyReply } : {}) });
   if (name === RECORDED) return { brain, caps, cardTitle: () => cardTitle, flushSpend: caps.flush };
   const wordsModel = makeAnthropicTutorModel({ name: WORDS_MODEL, apiKey: readKey('ANTHROPIC_API_KEY') });
   const readMeaning = async (words: string) => {

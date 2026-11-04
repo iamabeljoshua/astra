@@ -2,6 +2,10 @@ import type { BoardStage } from '@astra/board';
 
 const MOVE_MS = 560;
 const SMALL_SCALE = 0.3;
+/** The sample's phone shows the scene in a 34% corner. */
+const PHONE_SMALL_SCALE = 0.34;
+/** On a phone the small scene is one band of this share of its width tall, so it does not eat the student's work. */
+const PHONE_SMALL_HEIGHT_SHARE = 0.64;
 const CORNER_INSET = 12;
 const CURVE = { x1: 0.2, y1: 0.75, x2: 0.2, y2: 1 };
 const CURVE_STEPS = 8;
@@ -49,9 +53,12 @@ export function getVisualPlace(input: VisualPlaceInput): VisualPlace {
   return { smallShare: move.isTowardSmall ? glide : 1 - glide, isMoving: !input.isReducedMotion && timeShare < 1 };
 }
 
-export function getVisualTransform({ smallShare, width }: { smallShare: number; width: number }): string {
-  const scale = 1 + (SMALL_SCALE - 1) * smallShare;
-  const x = (width * (1 - SMALL_SCALE) - CORNER_INSET) * smallShare;
+export const getPhoneKeptClearHeight = (width: number) => Math.round(width * PHONE_SMALL_SCALE * PHONE_SMALL_HEIGHT_SHARE) + CORNER_INSET * 2;
+
+export function getVisualTransform({ smallShare, width, isPhone = false }: { smallShare: number; width: number; isPhone?: boolean }): string {
+  const smallScale = isPhone ? PHONE_SMALL_SCALE : SMALL_SCALE;
+  const scale = 1 + (smallScale - 1) * smallShare;
+  const x = (width * (1 - smallScale) - CORNER_INSET) * smallShare;
   return `translate(${x.toFixed(1)}px, ${(CORNER_INSET * smallShare).toFixed(1)}px) scale(${scale.toFixed(4)})`;
 }
 

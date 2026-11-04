@@ -76,7 +76,7 @@ async function runSession(context: JobContext): Promise<void> {
   const allTakes = loadTakes();
   let ears: Ears | null = null;
   let scenes: TutorScenes | null = null;
-  const { brain, caps, cardTitle, flushSpend, readMeaning, readStrokes, readSpokenWords, getSpentUsd } = makeTutorBrain({ roomName: room.name ?? '', trace, ...(hasTutorScenes() ? { onAskScene: (topic: string) => scenes?.ask(topic) } : {}) });
+  const { brain, caps, cardTitle, flushSpend, readMeaning, readStrokes, readSpokenWords, getSpentUsd } = makeTutorBrain({ roomName: room.name ?? '', trace, ...(hasTutorScenes() ? { onAskScene: (topic: string) => scenes?.ask(topic), onSafetyReply: () => scenes?.noteSafetyReply(), onCardKnown: (title: string | null) => scenes?.noteCard(title) } : {}) });
   const session = createLiveSession({
     messenger: {
       send: (message) => publish(message),
@@ -99,6 +99,14 @@ async function runSession(context: JobContext): Promise<void> {
     ...(readSpokenWords ? { readSpokenWords } : {}),
     ...(process.env.ASTRA_SAVE_HEARD && process.env.NODE_ENV !== 'production' ? { recordTurn: createHeardRecorder(process.env.ASTRA_SAVE_HEARD, room.name ?? 'room') } : {}),
     onPause: () => scenes?.notePause(),
+    ...(hasTutorScenes()
+      ? {
+          onStudentTurn: () => scenes?.noteStudentTurn(),
+          getOpeningScene: () => scenes?.getOpeningScene() ?? Promise.resolve(null),
+          onLinkChange: (isUp: boolean) => scenes?.notePageLink(isUp),
+          waitForPicture: () => scenes?.waitForPicture() ?? Promise.resolve(true),
+        }
+      : {}),
     ...(process.env.ASTRA_SHOW_COST === '1' ? { getCostSoFar: () => (getSpentUsd?.() ?? 0) + (hearingSinceMs === null ? 0 : ((Date.now() - hearingSinceMs) / MS_PER_MINUTE) * MUSE_USD_PER_MINUTE) } : {}),
   });
   if (hasTutorScenes() && caps) {
@@ -108,10 +116,11 @@ async function runSession(context: JobContext): Promise<void> {
       send: (message: SceneAgentMessage) => void room.localParticipant?.publishData(encoder.encode(JSON.stringify(message)), { reliable: true, topic: SCENE_TOPIC }).catch((error: unknown) => trace('sceneNotSent', { problem: String(error) })),
       canSpeak: session.isAtPause,
       speak: session.speakScene,
+      isTutorClosed: () => brain.getClosedReason?.() != null,
       onShown(shown) {
         brain.noteSceneTurn?.(shown);
         const voiceCharacters = getSpokenCharacters(shown.beats);
-        if (shown.isShared) caps.addSharedVoice(voiceCharacters);
+        if (shown.isShared) caps.addSharedVoice(voiceCharacters, shown.studentId);
         else caps.addTurn({ usd: 0, voiceCharacters });
       },
       trace,
