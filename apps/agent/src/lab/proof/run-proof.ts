@@ -13,7 +13,7 @@ import { type BoardDescription, type PageRecords, summariseRun } from './summari
 declare global {
   interface Window {
     sceneLab?: {
-      records: PageRecords & { clockKind: string };
+      records: PageRecords & { clockKind: string; boardProblems: object[] };
       pcm: { take(point: 'arriving' | 'output'): { firstFrame: number; base64: string } } | null;
       player: { getCaption(): string; getNowMs(): number; getOperations(): { kind: string; atMs: number }[] };
       command(command: object): void;

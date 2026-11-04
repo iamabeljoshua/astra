@@ -8,9 +8,9 @@ interface StrokeGlyph {
 
 const GLYPHS: ReadonlyMap<string, StrokeGlyph> = new Map(STROKE_FONT_GLYPHS.map(([character, advance, strokes]) => [character, { advance, strokes }]));
 
-const LINE_HEIGHT_EMS = 1.25;
-const BASELINE_EMS = 0.85;
-const DESCENT_EMS = 0.3;
+export const LINE_HEIGHT_EMS = 1.25;
+export const BASELINE_EMS = 0.85;
+export const DESCENT_EMS = 0.3;
 const WOBBLE = { baselineEms: 0.012, scale: 0.025, slopeRadians: 0.018 };
 const WHITESPACE = /\s+/;
 
@@ -28,14 +28,14 @@ export interface HandwritingRequest {
 }
 
 const getAdvance = (character: string, fontSize: number) => ((GLYPHS.get(character)?.advance ?? 0) / STROKE_FONT_METRICS.unitsPerEm) * fontSize;
-const getWidth = (text: string, fontSize: number) => [...text].reduce((sum, character) => sum + getAdvance(character, fontSize), 0);
 const getSpaceWidth = (fontSize: number) => (STROKE_FONT_METRICS.spaceAdvance / STROKE_FONT_METRICS.unitsPerEm) * fontSize;
+const getWidth = (text: string, fontSize: number) => [...text].reduce((sum, character) => sum + (character === ' ' ? getSpaceWidth(fontSize) : getAdvance(character, fontSize)), 0);
 
-function splitLongWord(word: string, { fontSize, maxWidth }: Pick<HandwritingRequest, 'fontSize' | 'maxWidth'>): string[] {
+function splitLongWord(word: string, { measure, maxWidth }: { measure(text: string): number; maxWidth: number }): string[] {
   const pieces: string[] = [];
   let piece = '';
   for (const character of word) {
-    if (piece !== '' && getWidth(piece + character, fontSize) > maxWidth) {
+    if (piece !== '' && measure(piece + character) > maxWidth) {
       pieces.push(piece);
       piece = '';
     }
@@ -44,12 +44,13 @@ function splitLongWord(word: string, { fontSize, maxWidth }: Pick<HandwritingReq
   return [...pieces, piece];
 }
 
-function getLines({ text, fontSize, maxWidth }: Pick<HandwritingRequest, 'text' | 'fontSize' | 'maxWidth'>): string[] {
+/** Breaks text into lines of at most `maxWidth`, by words, and inside a word only when the word alone is too long. */
+export function wrapText({ text, measure, maxWidth }: { text: string; measure(text: string): number; maxWidth: number }): string[] {
   const lines: string[] = [];
   let line = '';
-  for (const word of text.split(WHITESPACE).filter(Boolean).flatMap((whole) => splitLongWord(whole, { fontSize, maxWidth }))) {
+  for (const word of text.split(WHITESPACE).filter(Boolean).flatMap((whole) => splitLongWord(whole, { measure, maxWidth }))) {
     const candidate = line === '' ? word : `${line} ${word}`;
-    if (line !== '' && getWidth(candidate.replaceAll(' ', ''), fontSize) + (candidate.split(' ').length - 1) * getSpaceWidth(fontSize) > maxWidth) {
+    if (line !== '' && measure(candidate) > maxWidth) {
       lines.push(line);
       line = word;
     } else {
@@ -79,7 +80,7 @@ export function writeByHand({ text, fontSize, maxWidth, seed }: HandwritingReque
   if (!canWriteByHand(text)) return null;
   const random = makeSeededRandom(seed);
   const strokes: InkStroke[] = [];
-  const lines = getLines({ text, fontSize, maxWidth });
+  const lines = wrapText({ text, maxWidth, measure: (part) => getWidth(part, fontSize) });
   let width = 0;
   lines.forEach((line, lineIndex) => {
     let originX = 0;

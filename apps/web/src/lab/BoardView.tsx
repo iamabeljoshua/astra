@@ -2,7 +2,7 @@ import { type BoardElement, type BoardState, type SliderMove } from '@astra/boar
 import { canWriteByHand, preloadMathFonts } from '@astra/board/drawing';
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { hasOwnPlace } from '../board/boardItems';
-import { createBoardPainting } from '../board/boardPainting';
+import { type BoardProblem, createBoardPainting } from '../board/boardPainting';
 import { useReducedMotion } from '../board/useReducedMotion';
 
 interface BoardViewProps {
@@ -13,6 +13,7 @@ interface BoardViewProps {
   /** A student's drag. With no listener, as in a replay, a slider shows its value and cannot be moved. */
   onSliderMove?(move: SliderMove): void;
   onSliderRelease?(): void;
+  onBoardProblem?(problem: BoardProblem): void;
 }
 
 function getWrapperKey(element: BoardElement): string {
@@ -25,7 +26,7 @@ function ElementContent({ element }: { element: BoardElement }) {
   return null;
 }
 
-export function BoardView({ board, atMs, onElementDrawn, onMathRefused, onSliderMove, onSliderRelease }: BoardViewProps) {
+export function BoardView({ board, atMs, onElementDrawn, onMathRefused, onBoardProblem, onSliderMove, onSliderRelease }: BoardViewProps) {
   const seen = useRef(new Set<string>());
   const boardRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<SVGSVGElement>(null);
@@ -33,6 +34,7 @@ export function BoardView({ board, atMs, onElementDrawn, onMathRefused, onSlider
   const painting = useRef<ReturnType<typeof createBoardPainting> | null>(null);
   const isReducedMotion = useReducedMotion();
   const refusalListener = useRef(onMathRefused);
+  const problemListener = useRef(onBoardProblem);
   const sliderMoveListener = useRef(onSliderMove);
   const sliderReleaseListener = useRef(onSliderRelease);
 
@@ -42,10 +44,11 @@ export function BoardView({ board, atMs, onElementDrawn, onMathRefused, onSlider
 
   useLayoutEffect(() => {
     refusalListener.current = onMathRefused;
+    problemListener.current = onBoardProblem;
     sliderMoveListener.current = onSliderMove;
     sliderReleaseListener.current = onSliderRelease;
     if (!boardRef.current || !overlayRef.current) return;
-    painting.current ??= createBoardPainting({ boardElement: boardRef.current, overlay: overlayRef.current, getWrapper: (id) => wrappers.current.get(id), onMathRefused: (tex) => refusalListener.current?.(tex), onSliderMove: (move) => sliderMoveListener.current?.(move), onSliderRelease: () => sliderReleaseListener.current?.() });
+    painting.current ??= createBoardPainting({ boardElement: boardRef.current, overlay: overlayRef.current, getWrapper: (id) => wrappers.current.get(id), onMathRefused: (tex) => refusalListener.current?.(tex), onBoardProblem: (problem) => problemListener.current?.(problem), onSliderMove: (move) => sliderMoveListener.current?.(move), onSliderRelease: () => sliderReleaseListener.current?.() });
     painting.current.paint({ board, atMs, isReducedMotion, canMoveSliders: onSliderMove !== undefined });
     for (const id of board.elements.keys()) {
       if (!seen.current.has(id)) {
@@ -71,7 +74,7 @@ export function BoardView({ board, atMs, onElementDrawn, onMathRefused, onSlider
           <ElementContent element={element} />
         </div>
       ))}
-      <svg ref={overlayRef} className="board-ink board-marks pointer-events-none absolute inset-0 h-full w-full" />
+      <svg ref={overlayRef} aria-hidden="true" className="board-ink board-marks pointer-events-none absolute inset-0 h-full w-full" />
     </div>
   );
 }

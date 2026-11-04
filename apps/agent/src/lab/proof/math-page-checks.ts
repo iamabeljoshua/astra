@@ -340,3 +340,141 @@ export function getBoardSummary(): { elements: { id: string; tex: string | null;
     wasRun: (window as unknown as { pwned?: unknown }).pwned !== undefined,
   };
 }
+
+const nextPaint = () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(done, 0))));
+
+/** How deep and how large the board's tree is right now, counted over its real nodes. */
+export function measureBoardTree(): { depth: number; nodes: number } {
+  let depth = 0;
+  let nodes = 0;
+  const stack: { node: Node; level: number }[] = [{ node: getBoard(), level: 0 }];
+  for (let entry = stack.pop(); entry; entry = stack.pop()) {
+    nodes += 1;
+    depth = Math.max(depth, entry.level);
+    for (const child of entry.node.childNodes) stack.push({ node: child, level: entry.level + 1 });
+  }
+  return { depth, nodes };
+}
+
+export interface FuzzResult {
+  sources: number;
+  passedParser: number;
+  set: number;
+  deepest: number;
+  largest: number;
+  outsideBoard: number;
+  rawSource: number;
+  deepestSource: string;
+  worstFrameMs: number;
+}
+
+/** Puts each source through the real board on the page, past the parser on purpose, so what is left to hold is the limit on the tree. */
+export async function runTexFuzz({ sources, boardPath, contractsPath }: { sources: string[]; boardPath: string; contractsPath: string }): Promise<FuzzResult> {
+  const { getBoardAt } = (await import(/* @vite-ignore */ boardPath)) as { getBoardAt(operations: unknown[], atMs: number): unknown };
+  const { getTexProblem } = (await import(/* @vite-ignore */ contractsPath)) as { getTexProblem(tex: string): string | null };
+  const lab = (window as unknown as LabWindow).sceneLab as unknown as { getReplayBoard(atMs: number): unknown };
+  let operations: unknown[] = [];
+  lab.getReplayBoard = (atMs) => getBoardAt(operations, atMs);
+  window.holdBoardFrame?.({ atMs: 5000, source: 'replay' });
+  const result: FuzzResult = { sources: sources.length, passedParser: 0, set: 0, deepest: 0, largest: 0, outsideBoard: 0, rawSource: 0, deepestSource: '', worstFrameMs: 0 };
+  const boardBox = getBoard().getBoundingClientRect();
+  for (const [index, tex] of sources.entries()) {
+    if (getTexProblem(tex) === null) result.passedParser += 1;
+    operations = [{ kind: 'command', atMs: 0, overMs: null, command: { kind: 'writeMath', id: `fuzz${index}`, tex } }];
+    const startedMs = performance.now();
+    await nextPaint();
+    result.worstFrameMs = Math.max(result.worstFrameMs, performance.now() - startedMs);
+    const { depth, nodes } = measureBoardTree();
+    const wrapper = getBoard().querySelector<HTMLElement>(`[data-element="fuzz${index}"]`);
+    if (wrapper?.querySelector('[data-tex]')) {
+      result.set += 1;
+      const box = wrapper.getBoundingClientRect();
+      if (isOutside(box, boardBox)) result.outsideBoard += 1;
+    }
+    if (depth > result.deepest) result.deepestSource = tex;
+    result.deepest = Math.max(result.deepest, depth);
+    result.largest = Math.max(result.largest, nodes);
+    if (/\\[a-zA-Z]/.test(getBoard().querySelector('.katex-html')?.textContent ?? '')) result.rawSource += 1;
+  }
+  window.holdBoardFrame?.(null);
+  return result;
+}
+
+/** Writes a hostile source into a row of the log, as a log kept from before a limit could hold it, and rebuilds the board from that log. */
+export async function rebuildWithHostileLog({ tex, atMs, contractsPath }: { tex: string; atMs: number; contractsPath: string }): Promise<{ parserRefuses: string | null; refused: boolean; depth: number; nodes: number; shown: string[] }> {
+  const { parseSessionEvent } = (await import(/* @vite-ignore */ contractsPath)) as { parseSessionEvent(value: unknown): { ok: boolean; problem?: string } };
+  const lab = (window as unknown as LabWindow).sceneLab as unknown as { records: { log: { kind: string; beat?: { script: { kind?: string; tex?: string }[] } }[]; refused: string[] } };
+  const hasMath = (step: { tex?: string }) => step.tex !== undefined;
+  const row = lab.records.log.findLast((event) => event.kind === 'beatPlayed' && event.beat?.script.some(hasMath));
+  const step = row?.beat?.script.findLast(hasMath);
+  if (!row || !step) throw new Error('the log holds no math to overwrite');
+  step.tex = tex;
+  const parsed = parseSessionEvent(JSON.parse(JSON.stringify(row)));
+  window.holdBoardFrame?.({ atMs, source: 'replay' });
+  await nextPaint();
+  await nextPaint();
+  const tree = measureBoardTree();
+  const shown = [...getBoard().querySelectorAll<HTMLElement>('[data-tex]')].map((host) => host.dataset.tex ?? '');
+  const refused = lab.records.refused.includes(`math: ${tex}`);
+  window.holdBoardFrame?.(null);
+  return { parserRefuses: parsed.ok ? null : (parsed.problem ?? 'refused'), refused, shown, ...tree };
+}
+
+export interface FirstShown {
+  heldMs: number;
+  clockShiftMs: number;
+  tex: string;
+}
+
+/** From the moment the first equation is on the page until it can be seen, and how far the board's clock moved against the wall clock over that time. */
+export function watchFirstEquationShown(): Promise<FirstShown> {
+  const player = ((window as unknown as LabWindow).sceneLab as NonNullable<LabWindow['sceneLab']>).player;
+  const board = getBoard();
+  let host: HTMLElement | null = null;
+  let startedMs = 0;
+  let clockAtStart = 0;
+  return new Promise((done) => {
+    requestAnimationFrame(function look() {
+      host ??= board.querySelector<HTMLElement>('[data-tex]');
+      if (host && startedMs === 0) {
+        startedMs = performance.now();
+        clockAtStart = player.getNowMs() - startedMs;
+      }
+      if (host && getComputedStyle(host).visibility !== 'hidden') {
+        const nowMs = performance.now();
+        done({ heldMs: nowMs - startedMs, clockShiftMs: player.getNowMs() - nowMs - clockAtStart, tex: host.dataset.tex ?? '' });
+        return;
+      }
+      requestAnimationFrame(look);
+    });
+  });
+}
+
+export function setEquationsHidden(isHidden: boolean): void {
+  for (const host of getBoard().querySelectorAll<HTMLElement>('[data-tex]')) host.style.setProperty('visibility', isHidden ? 'hidden' : '', isHidden ? 'important' : '');
+}
+
+export function getEquationStates(): { tex: string; visibility: string; width: number; height: number }[] {
+  return [...getBoard().querySelectorAll<HTMLElement>('[data-tex]')].map((host) => {
+    const box = host.getBoundingClientRect();
+    return { tex: host.dataset.tex ?? '', visibility: getComputedStyle(host).visibility, width: Math.round(box.width), height: Math.round(box.height) };
+  });
+}
+
+const BOX_STROKE_LEAST_SIDE = 22;
+
+/** Each plain diagram label against the hand drawn boxes: a node's label sits inside one box, and an edge's label touches none. */
+export function getDiagramLabelFit(id: string): { text: string; isInsideBox: boolean; touchesBox: boolean; isOutsideBoard: boolean }[] {
+  const board = getBoard();
+  const diagram = board.querySelector(`[data-element="${id}"]`);
+  const boxes = [...(diagram?.querySelectorAll('path') ?? [])].map((path) => path.getBoundingClientRect()).filter((box) => box.width >= BOX_STROKE_LEAST_SIDE && box.height >= BOX_STROKE_LEAST_SIDE);
+  const boardBox = board.getBoundingClientRect();
+  return [...(diagram?.querySelectorAll('text') ?? [])].map((label) => {
+    const box = label.getBoundingClientRect();
+    return { text: label.textContent ?? '', isInsideBox: boxes.some((nodeBox) => box.left >= nodeBox.left && box.right <= nodeBox.right && box.top >= nodeBox.top && box.bottom <= nodeBox.bottom), touchesBox: boxes.some((nodeBox) => doOverlap(box, nodeBox)), isOutsideBoard: isOutside(box, boardBox) };
+  });
+}
+
+export function countVisibleRings(): number {
+  return [...getBoard().querySelectorAll<SVGGElement>('svg.board-marks g')].filter((group) => group.style.visibility !== 'hidden' && group.querySelector('path')).length;
+}

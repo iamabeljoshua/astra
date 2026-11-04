@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
+import { makeTexFuzzSources } from '@astra/board/tex-fuzz';
 import { type Browser, chromium } from 'playwright';
 import { type LessonName, LESSONS } from '../lesson.ts';
 import { BOARD_SELECTOR, checkReplayPixels, checkStillness, getCommandTimes, HIDE_DEV_BUTTON, holdFrame, type LabPage, openLabPage, shoot, type Theme, type ViewportName, VIEWPORTS } from './lab-page.ts';
@@ -29,6 +30,8 @@ const lessonBeats = (lesson: LessonName) => LESSONS[lesson][0]?.length ?? 0;
 const openLab = (options: Omit<Parameters<typeof openLabPage>[0], 'outFolder' | 'checksPath'>) => openLabPage({ ...options, outFolder: args.out as string, checksPath: CHECKS_PATH });
 
 const DRAWING_PATH = `/@fs${REPO_ROOT}/packages/board/src/drawing.ts`;
+const BOARD_PATH = `/@fs${REPO_ROOT}/packages/board/src/index.ts`;
+const CONTRACTS_PATH = `/@fs${REPO_ROOT}/packages/contracts/src/index.ts`;
 const REFUSED_BY_KATEX = ['x^2^3', String.raw`\frac{1}`];
 const REST_AFTER_LAST_MS = 4000;
 const INTERRUPT_INTO_MOVE_MS = 450;
@@ -204,7 +207,8 @@ async function proveSteps(browser: Browser, run: LessonRun) {
   return { label, sheet };
 }
 
-const FONT_DELAY_MS = 2500;
+// Inside the time the board waits for a font, so no frame should show math without one.
+const FONT_DELAY_MS = 600;
 
 async function proveLateFonts(browser: Browser, run: LessonRun) {
   const label = `${getLabel(run)}-late-fonts`;
@@ -231,6 +235,139 @@ async function proveLateFonts(browser: Browser, run: LessonRun) {
   return { label, frames, rests };
 }
 
+// Playwright's own screenshot waits for fonts, which a stalled font never lets finish.
+async function shootWithoutWaitingForFonts(lab: LabPage, name: string): Promise<string> {
+  await delay(60);
+  const session = await lab.page.context().newCDPSession(lab.page);
+  const { data } = await session.send('Page.captureScreenshot', { format: 'png' });
+  await session.detach();
+  writeFileSync(join(lab.folder, `${name}.png`), Buffer.from(data, 'base64'));
+  return data;
+}
+
+async function countEquationInk(lab: LabPage): Promise<number> {
+  const shown = await shootWithoutWaitingForFonts(lab, 'ink-shown');
+  await lab.page.evaluate(() => window.pageChecks.setEquationsHidden(true));
+  const hidden = await shootWithoutWaitingForFonts(lab, 'ink-hidden');
+  await lab.page.evaluate(() => window.pageChecks.setEquationsHidden(false));
+  return lab.page.evaluate((pair) => window.pageChecks.countDifferentPixels(pair), [shown, hidden, JUMP_THRESHOLD] as [string, string, number]);
+}
+
+async function proveFailedFont(browser: Browser, run: LessonRun) {
+  const label = `${getLabel(run)}-failed-font`;
+  const aborted: string[] = [];
+  const lab = await openLab({
+    browser,
+    name: label,
+    ...run,
+    prepare: async (page) => {
+      await page.route(/KaTeX_Main-Regular/, async (route) => {
+        aborted.push(route.request().url().split('.').pop() ?? '');
+        await route.abort();
+      });
+    },
+  });
+  await lab.page.addStyleTag({ content: HIDE_DEV_BUTTON });
+  await lab.page.evaluate((options) => window.pageChecks.startFrameWatch(options), { isReducedMotion: false, refusedTex: REFUSED_BY_KATEX });
+  const firstShown = lab.page.evaluate(() => window.pageChecks.watchFirstEquationShown());
+  await lab.command({ type: 'play', lesson: run.lesson });
+  await lab.waitForPlayedBeats(lessonBeats(run.lesson));
+  await delay(1500);
+  const frames: FrameWatch = await lab.page.evaluate(() => window.pageChecks.stopFrameWatch());
+  await shoot(lab, 'final');
+  const ink = await countEquationInk(lab);
+  const states = await lab.page.evaluate(() => window.pageChecks.getEquationStates());
+  const problems = await lab.page.evaluate(() => window.sceneLab?.records.boardProblems ?? []);
+  const fired = await lab.page.evaluate(() => window.sceneLab?.records.fired.length ?? 0);
+  const replay = await checkReplayPixels(lab);
+  await lab.finish();
+  return { label, aborted: [...new Set(aborted)], firstShown: await firstShown, frames, ink, states, problems, fired, replay };
+}
+
+async function proveStalledFont(browser: Browser, run: LessonRun) {
+  const label = `${getLabel(run)}-stalled-font`;
+  let release: () => void = () => undefined;
+  const released = new Promise<void>((done) => {
+    release = done;
+  });
+  const lab = await openLab({
+    browser,
+    name: label,
+    ...run,
+    prepare: async (page) => {
+      await page.route('**/KaTeX_*', async (route) => {
+        await released;
+        await route.continue();
+      });
+    },
+  });
+  await lab.page.addStyleTag({ content: HIDE_DEV_BUTTON });
+  const firstShown = lab.page.evaluate(() => window.pageChecks.watchFirstEquationShown());
+  await lab.command({ type: 'play', lesson: run.lesson });
+  const shown = await firstShown;
+  await delay(150);
+  const fallbackInk = await countEquationInk(lab);
+  const fallbackStates = await lab.page.evaluate(() => window.pageChecks.getEquationStates());
+  await delay(1200);
+  release();
+  await lab.waitForPlayedBeats(lessonBeats(run.lesson));
+  await delay(1500);
+  await shoot(lab, 'final');
+  const rests = await checkRestsAgainstPlainKatex(lab);
+  const problems = await lab.page.evaluate(() => window.sceneLab?.records.boardProblems ?? []);
+  const fired = await lab.page.evaluate(() => window.sceneLab?.records.fired.length ?? 0);
+  await lab.finish();
+  return { label, firstShown: shown, fallbackInk, fallbackStates, rests, problems, fired };
+}
+
+async function proveFuzz(browser: Browser, run: LessonRun) {
+  const label = `${getLabel(run)}-fuzz`;
+  const lab = await openLab({ browser, name: label, ...run, lesson: 'algebra' });
+  let crashed = false;
+  lab.page.on('crash', () => {
+    crashed = true;
+  });
+  await lab.page.addStyleTag({ content: HIDE_DEV_BUTTON });
+  await lab.command({ type: 'play', lesson: 'algebra' });
+  await lab.waitForPlayedBeats(lessonBeats('algebra'));
+  await delay(500);
+  const lastMs = (await getCommandTimes(lab)).at(-1) ?? 0;
+  const { shiftMs } = await lab.page.evaluate(() => {
+    const operations = window.sceneLab?.player.getOperations() ?? [];
+    const liveStart = operations.find((operation) => operation.kind === 'beatStarted')?.atMs ?? 0;
+    const logStart = (window.sceneLab?.records.log[0] as { atMs: number } | undefined)?.atMs ?? 0;
+    return { shiftMs: logStart - liveStart };
+  });
+  const hostileLog = await lab.page.evaluate((options) => window.pageChecks.rebuildWithHostileLog(options), { tex: `x${'\u0301'.repeat(300)}`, atMs: lastMs + shiftMs + 5000, contractsPath: CONTRACTS_PATH });
+  const fuzz = await lab.page.evaluate((options) => window.pageChecks.runTexFuzz(options), { sources: makeTexFuzzSources(FUZZ_SOURCES, label), boardPath: BOARD_PATH, contractsPath: CONTRACTS_PATH });
+  await lab.finish();
+  return { label, crashed, hostileLog, fuzz };
+}
+
+async function proveMarksAndLabels(browser: Browser, run: LessonRun) {
+  const label = `${getLabel(run)}-marks-and-labels`;
+  const lab = await openLab({ browser, name: label, ...run, lesson: 'marks-and-labels' });
+  await lab.page.addStyleTag({ content: HIDE_DEV_BUTTON });
+  await lab.page.evaluate((options) => window.pageChecks.startFrameWatch(options), { isReducedMotion: false, refusedTex: [] });
+  await lab.command({ type: 'play', lesson: 'marks-and-labels' });
+  await lab.waitForPlayedBeats(1);
+  const clearedAt = await lab.page.evaluate(() => (window.sceneLab?.player.getOperations() as { atMs: number; command?: { kind: string } }[]).find((operation) => operation.command?.kind === 'clearBoard')?.atMs ?? 0);
+  await holdFrame(lab, { atMs: clearedAt - 30, source: 'live' });
+  await delay(100);
+  await shoot(lab, 'rings');
+  const rings = await lab.page.evaluate(() => window.pageChecks.countVisibleRings());
+  await holdFrame(lab, null);
+  await lab.waitForPlayedBeats(2);
+  await delay(1500);
+  const frames: FrameWatch = await lab.page.evaluate(() => window.pageChecks.stopFrameWatch());
+  await shoot(lab, 'labels');
+  const labels = await lab.page.evaluate(() => window.pageChecks.getDiagramLabelFit('cycle'));
+  const problems = await lab.page.evaluate(() => window.sceneLab?.records.boardProblems ?? []);
+  const replay = await checkReplayPixels(lab);
+  await lab.finish();
+  return { label, rings, labels, problems, frames, replay };
+}
+
 const REFUSED_COMMANDS: { name: string; command: unknown }[] = [
   { name: 'a macro bomb', command: { kind: 'writeMath', id: 'bomb', tex: String.raw`\def\a{\a\a}\a` } },
   { name: 'a huge rule', command: { kind: 'writeMath', id: 'rule', tex: String.raw`\rule{100000em}{100000em}` } },
@@ -244,6 +381,7 @@ const REFUSED_COMMANDS: { name: string; command: unknown }[] = [
   { name: 'a form feed from an unescaped frac', command: { kind: 'writeMath', id: 'feed', tex: '\frac{1}{2}' } },
   { name: 'math nested too deep', command: { kind: 'writeMath', id: 'deep', tex: `${String.raw`\sqrt{`.repeat(13)}x${'}'.repeat(13)}` } },
   { name: 'a comment that hides math', command: { kind: 'writeMath', id: 'comment', tex: 'x % y' } },
+  { name: 'a run of accent marks', command: { kind: 'writeMath', id: 'marks', tex: `x${'\u0301'.repeat(200)}` } },
   { name: 'text with a bidi override', command: { kind: 'text', id: 'bidi', text: 'a‮b' } },
 ];
 
@@ -273,6 +411,8 @@ async function proveHostile(browser: Browser, run: LessonRun) {
   return { label, frames, refused, refusedByParser: refused.filter((problem) => !problem.startsWith('math:')).length, sent: REFUSED_COMMANDS.length, refusedAtRender: refused.filter((problem) => problem.startsWith('math:')), summary, replay };
 }
 
+const FUZZ_SOURCES = 640;
+
 const PROOFS = {
   resize: async (browser: Browser) => [await proveResize(browser, { lesson: 'dense', viewport: 'laptop', theme: 'light' })],
   steps: async (browser: Browser) => [await proveSteps(browser, { lesson: 'algebra', viewport: 'laptop', theme: 'light' }), await proveSteps(browser, { lesson: 'algebra', viewport: 'phone', theme: 'dark' }), await proveSteps(browser, { lesson: 'dense', viewport: 'laptop', theme: 'dark' })],
@@ -288,6 +428,10 @@ const PROOFS = {
     return results;
   },
   fonts: async (browser: Browser) => [await proveLateFonts(browser, { lesson: 'rare-fonts', viewport: 'laptop', theme: 'light' }), await proveLateFonts(browser, { lesson: 'algebra', viewport: 'phone', theme: 'dark' })],
+  'failed-font': async (browser: Browser) => [await proveFailedFont(browser, { lesson: 'algebra', viewport: 'laptop', theme: 'light' }), await proveFailedFont(browser, { lesson: 'algebra', viewport: 'phone', theme: 'dark' })],
+  'stalled-font': async (browser: Browser) => [await proveStalledFont(browser, { lesson: 'algebra', viewport: 'laptop', theme: 'light' }), await proveStalledFont(browser, { lesson: 'rare-fonts', viewport: 'phone', theme: 'dark' })],
+  fuzz: async (browser: Browser) => [await proveFuzz(browser, { lesson: 'algebra', viewport: 'laptop', theme: 'light' }), await proveFuzz(browser, { lesson: 'algebra', viewport: 'phone', theme: 'dark' })],
+  'marks-and-labels': async (browser: Browser) => [await proveMarksAndLabels(browser, { lesson: 'marks-and-labels', viewport: 'laptop', theme: 'light' }), await proveMarksAndLabels(browser, { lesson: 'marks-and-labels', viewport: 'phone', theme: 'dark' })],
   hostile: async (browser: Browser) => [await proveHostile(browser, { lesson: 'hostile', viewport: 'laptop', theme: 'light' }), await proveHostile(browser, { lesson: 'hostile', viewport: 'phone', theme: 'dark' })],
 } as const;
 

@@ -18,6 +18,16 @@ describe('numbers that follow a quantity', () => {
   });
 });
 
+describe('a label on a figure', () => {
+  const vector = { kind: 'vector', id: 'v', on: 'shot.ball', angleDegrees: 0, length: 'short' };
+
+  it('takes the same limit on combining marks as math, because a stack of them is drawn far taller than its line', () => {
+    expect(commandOrThrow({ ...vector, label: 'e\u0301\u0323' })).toMatchObject({ label: 'e\u0301\u0323' });
+    expectRefused(parseSceneCommand({ ...vector, label: `e${'\u0301'.repeat(3)}` }), /combining marks/);
+    expectRefused(parseSceneCommand({ kind: 'plot', id: 'p', expression: 'x', domain: [0, 1], label: `a${'\u0301'.repeat(40)}` }), /combining marks/);
+  });
+});
+
 describe('a playback rate', () => {
   const play = { kind: 'runSimulation', target: 'shot', action: 'play' };
 

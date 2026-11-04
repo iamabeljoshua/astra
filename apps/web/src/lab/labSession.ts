@@ -2,6 +2,7 @@ import { type BoardState, createSampleClock, createScenePlayer, createTimerClock
 import probeWorkletUrl from '@astra/board/audio-probe-worklet.js?url';
 import { type AgentMessage, type BrowserMessage, parseAgentMessage, parseSessionEvent, type SessionEvent } from '@astra/contracts';
 import { type RemoteTrack, Room, RoomEvent, Track } from 'livekit-client';
+import type { BoardProblem } from '../board/boardPainting';
 import { createPcmRecorder, type PcmRecorder } from './pcmRecorder';
 import pcmTapWorkletUrl from './pcm-tap-worklet.js?url';
 
@@ -29,6 +30,7 @@ export interface LabRecords {
   log: SessionEvent[];
   turnsSent: string[];
   refused: string[];
+  boardProblems: BoardProblem[];
 }
 
 export interface LabSession {
@@ -53,7 +55,7 @@ export interface LabSessionOptions {
 }
 
 function createRecords(clockKind: LabRecords['clockKind'], audioContext: AudioContext): LabRecords {
-  return { clockKind, sampleRate: audioContext.sampleRate, baseLatency: audioContext.baseLatency, outputLatencyMs: [], fired: [], drawn: [], agentMessages: [], browserMessages: [], stops: [], probe: [], frames: [], log: [], turnsSent: [], refused: [] };
+  return { clockKind, sampleRate: audioContext.sampleRate, baseLatency: audioContext.baseLatency, outputLatencyMs: [], fired: [], drawn: [], agentMessages: [], browserMessages: [], stops: [], probe: [], frames: [], log: [], turnsSent: [], refused: [], boardProblems: [] };
 }
 
 function noteAgentMessage(records: LabRecords, message: AgentMessage, atMs: number): void {

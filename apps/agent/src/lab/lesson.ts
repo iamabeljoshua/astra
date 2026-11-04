@@ -227,7 +227,37 @@ const RARE_FONTS_LESSON: readonly (readonly Beat[])[] = [
   ],
 ];
 
-export const LESSONS = { 'jump-shot': LESSON, algebra: ALGEBRA_LESSON, dense: DENSE_LESSON, 'every-word': EVERY_WORD_LESSON, hostile: HOSTILE_LESSON, 'rare-fonts': RARE_FONTS_LESSON, 'rapid-moves': RAPID_MOVES_LESSON, ...GRAPH_LESSONS } as const satisfies Record<string, readonly (readonly Beat[])[]>;
+const MARKS_AND_LABELS_LESSON: readonly (readonly Beat[])[] = [
+  [
+    makeBeat('unbraced-parts', [
+      { kind: 'writeMath', id: 'power', tex: 'x^2 + 1' },
+      'Look at the power. ',
+      { kind: 'highlight', id: 'ring-power', target: 'power', tex: '2' },
+      'That two is the square. ',
+      { kind: 'writeMath', id: 'half-pi', tex: String.raw`\frac\pi2 = y` },
+      'Now a fraction. ',
+      { kind: 'highlight', id: 'ring-pi', target: 'half-pi', tex: String.raw`\pi` },
+      'Pi is on top. ',
+      { kind: 'writeMath', id: 'sum', tex: String.raw`\sum_i x_i = \hat x` },
+      'Now a sum. ',
+      { kind: 'highlight', id: 'ring-i', target: 'sum', tex: 'i' },
+      'It runs over i. ',
+      { kind: 'highlight', id: 'ring-hat', target: 'sum', tex: String.raw`\hat x` },
+      'And this has a hat. ',
+      { kind: 'highlight', id: 'ring-nothing', target: 'sum', tex: 'q' },
+      'And this points at nothing. ',
+    ]),
+    makeBeat('labels', [
+      { kind: 'clearBoard' },
+      { kind: 'diagram', id: 'cycle', nodes: [{ name: 'water', label: 'H\u2082O' }, { name: 'change', label: '\u0394v' }, { name: 'area', label: '\u03c0r\u00b2' }, { name: 'plain', label: 'Water' }], edges: [{ from: 'water', to: 'change', label: '\u2192 heat' }, { from: 'change', to: 'area' }, { from: 'area', to: 'plain', label: 'runs' }] },
+      'Labels the strokes cannot write stay readable. ',
+      { kind: 'text', id: 'note', text: 'Find \u0394v', handwritten: true },
+      'And so does a note. ',
+    ]),
+  ],
+];
+
+export const LESSONS = { 'jump-shot': LESSON, algebra: ALGEBRA_LESSON, dense: DENSE_LESSON, 'every-word': EVERY_WORD_LESSON, hostile: HOSTILE_LESSON, 'rare-fonts': RARE_FONTS_LESSON, 'rapid-moves': RAPID_MOVES_LESSON, 'marks-and-labels': MARKS_AND_LABELS_LESSON, ...GRAPH_LESSONS } as const satisfies Record<string, readonly (readonly Beat[])[]>;
 
 export type LessonName = keyof typeof LESSONS;
 

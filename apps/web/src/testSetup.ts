@@ -3,7 +3,7 @@ import { afterEach } from 'vitest';
 import { FakeResizeObserver, fakeFonts } from './test/fakeLayout';
 
 globalThis.ResizeObserver = FakeResizeObserver;
-Object.defineProperty(document, 'fonts', { value: fakeFonts });
+Object.defineProperty(document, 'fonts', { configurable: true, value: fakeFonts });
 window.scrollTo = () => undefined;
 window.matchMedia = (() => ({ matches: false, addEventListener: () => undefined, removeEventListener: () => undefined })) as unknown as typeof window.matchMedia;
 HTMLCanvasElement.prototype.getContext = () => null;

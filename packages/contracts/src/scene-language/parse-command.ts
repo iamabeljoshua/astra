@@ -1,7 +1,7 @@
 import { BEAT_LIMITS } from './beat.ts';
 import { readElementId, readElementRef, readFileId, readPartName } from './ids.ts';
 import { COMMAND_MAX_BYTES } from './live-message.ts';
-import { getTexProblem } from './math-tex.ts';
+import { getTexProblem, hasTooLongMarkRun } from './math-tex.ts';
 import { isReservedPlotName, parsePlotExpression, PLOT_EXPRESSION_MAX_CHARACTERS } from './plot-expression.ts';
 import {
   checkJsonSize,
@@ -75,7 +75,9 @@ const CONTROL_CHARACTER = /\p{Cc}/u;
 const PLOT_CONSTANT_NAME = /^[a-z]{1,8}$/;
 
 function readLabel(place: Place): string {
-  return readString(place, LIMITS.label);
+  const label = readString(place, LIMITS.label);
+  if (hasTooLongMarkRun(label)) fail(place, 'a label with no stacks of combining marks');
+  return label;
 }
 
 // JSON turns "\frac" into a form feed and "\theta" into a tab, so a control character means the math is already broken.

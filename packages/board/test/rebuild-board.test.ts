@@ -37,6 +37,13 @@ const getIds = (log: SessionEvent[], atMs: number) => describeBoard(rebuildBoard
 const getSeconds = (log: SessionEvent[], atMs: number) => describeBoard(rebuildBoard(log, atMs), atMs).elements[0]?.sceneSeconds;
 
 describe('rebuildBoard', () => {
+  it('takes no row of the log holding math past the limits, so a stored log cannot bring it back', () => {
+    const row = JSON.parse(JSON.stringify({ seq: 0, ...finished(makeBeat('b', ['Look ', { kind: 'writeMath', id: 'eq', tex: 'x' }, 'here. ']), 100) })) as { beat: { script: { tex?: string }[] } };
+    (row.beat.script.find((step) => step.tex) as { tex: string }).tex = `x${'\u0301'.repeat(200)}`;
+    const parsed = parseSessionEvent(row);
+    expect(parsed.ok ? null : parsed.problem).toMatch(/at most 2 accent marks/);
+  });
+
   it('replays a cue when it really fired, so a late drawing lands late', () => {
     const beat = makeBeat('b', ['Now ', { kind: 'text', id: 'late', text: 'x' }, 'look here.']);
     const log = parseLog([finished(beat, 1000, [930])]);
