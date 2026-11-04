@@ -12,7 +12,10 @@
    {"text":"Help me solve 2x + 3 = 11. I want to do it myself on the board, line by line.","check":"setsTask"},
    {"work":{"way":"write","id":"s1","text":"3x + 1 = 7"},"check":"asksOrUnsure"},
    {"work":{"way":"write","id":"s2","text":"y = 2x + 3"},"check":"asksOrUnsure"},
-   {"work":{"way":"write","id":"s3","text":"x^2 = 16"},"check":"asksOrUnsure"}]},
+   {"work":{"way":"write","id":"s3","text":"x^2 = 16"}}]},
+{"name":"another-equation-alone","checks":["notCalledWrong"],"turns":[
+   {"text":"Help me solve 2x + 3 = 11. I want to do it myself on the board, line by line.","check":"setsTask"},
+   {"work":{"way":"write","id":"s1","text":"x^2 = 16"},"check":"asksOrUnsure"}]},
  {"name":"base-two","checks":["notCalledWrong"],"turns":[
    {"text":"Teach me binary counting, in one short sentence."},
    {"work":{"way":"write","id":"s1","text":"1 + 1 = 10"}},
