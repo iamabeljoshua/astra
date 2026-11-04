@@ -100,9 +100,9 @@ Every line was a Mac voice through the real room and real Muse, with the fake vo
 
 | Case | Before | Now, every word heard | The final, from the last sound |
 | --- | --- | --- | --- |
-| Type, wait for the answer, press Talk, speak 300 ms later, into a Muse that has never opened | Lost the start of the line | 6 of 6. Muse answered in 985 to 2209 ms, and the browser heard `earsOpen` 1673 to 3076 ms after the press | 1195 to 2953 ms, and 4499 ms once, when Muse held its final and the tutor answered from the partial 1431 ms after the voice ended |
-| Off for 3 s and on, speak at once, Muse still open | Lost the first word 1 of 3 | 3 of 3 | 1603 to 1910 ms |
-| Off for 14 s and on, speak at once, Muse closed and opening again | Not measured, because Muse stayed open and paid | 3 of 3 | 2847 to 3635 ms |
+| Type, wait for the answer, press Talk, speak 300 ms later, into a Muse that has never opened | Lost the start of the line | 12 of 12, over two runs. On the last run Muse answered in 1185 to 2011 ms, and the browser heard `earsOpen` 2247 to 3200 ms after the press | 1004 to 2069 ms on the last run. 1195 to 2953 ms on the first, and 4499 ms once, when Muse held its final and the tutor answered from the partial 1431 ms after the voice ended |
+| Off for 3 s and on, speak at once, Muse still open | Lost the first word 1 of 3 | 6 of 6, over two runs | 1797 to 2029 ms on the last run, 1603 to 1910 ms on the first |
+| Off for 14 s and on, speak at once, Muse closed and opening again | Not measured, because Muse stayed open and paid | 6 of 6, over two runs | 3214 to 6456 ms on the last run, 2847 to 3635 ms on the first |
 
 So a line spoken into the wait is answered later, by about what the wait took, and only that once. The usual final stays at about 791 ms at p50, because the line has caught up by then. A loud room is the open risk: nothing above an RMS of 0.015 counts as quiet, because losing a soft word is worse than running late, so a room louder than that catches up only in its quiet moments.
 
@@ -115,7 +115,7 @@ Real `getUserMedia` reading a fake capture file, on real WebRTC, with the bytes 
 | Case | First run of this PR | Now |
 | --- | --- | --- |
 | Talk twice, 200 ms apart | 2 live tracks and 2 senders | The second press means off. The microphone is off, with 0 tracks captured and 0 senders |
-| Then one off press, still talking | `mic` off and `aria-pressed` false, with tracks `live` and `ended`, sender bytes rising from 36404 to 49705 in 3 s, and Muse finals and turns still firing | Three presses gave 1 track and 1 sender, moving 11069 bytes in 3 s. One off press: track `ended`, sender removed, 0 bytes moved in 3 s, and nothing heard by the agent |
+| Then one off press, still talking | `mic` off and `aria-pressed` false, with tracks `live` and `ended`, sender bytes rising from 36404 to 49705 in 3 s, and Muse finals and turns still firing | Three presses gave 1 track and 1 sender, moving 18755 bytes in 3 s. One off press: track `ended`, sender removed, 0 bytes moved in 3 s, and nothing heard by the agent from 2.5 s after the press |
 | A press 0, 20, 60, and 200 ms after pressing on | Not run | Each ended off, with 0 live tracks and 0 live senders |
 | The room refuses the track | Track left captured, and the page said the browser refused | The track is `ended`, with 0 senders, and the page says the microphone could not start |
 | The page leaves | Not run | `pagehide` ended the track before anything could wait, and leaving the session screen inside the app ended it too |
@@ -131,7 +131,7 @@ One loop moves the microphone toward what the student last asked for, so a press
 
 **A job that dies.** It used to leave the page flipping between live and reconnecting, each rejoin minting a token and keeping the room alive. A killed job now ends in a clear message: the page said `reconnecting` from 3292 ms and gave up at 19778 ms, after 3 tokens and none in the next 8 s, with the microphone off. **Try again** closes that room and opens a new one, and the tutor was back in 5709 ms and answered. It starts fresh, without what was said so far, and the message says so. LiveKit would restart a crashed job by itself after about 25 s, measured once, and a tutor who has forgotten the lesson with no word why is worse than saying so, so the room asks it not to.
 
-**A quiet room.** `QUIET_ROOM_LIMIT_MS` in `live-session.ts` is 10 minutes with no student speech or typing, no board action, and no tutor speech. A minute before, the page says so and offers **Keep the room open**. At the limit the page says why, the job ends, and **Open the room again** brings a new tutor. `run-safety-proof.ts --only quiet` ran a limit of @@QUIET_LIMIT@@ s standing in for it: @@QUIET_ROW@@. The 10 real minutes have not run.
+**A quiet room.** `QUIET_ROOM_LIMIT_MS` in `live-session.ts` is 10 minutes with no student speech or typing, no board action, and no tutor speech. A minute before, the page says so and offers **Keep the room open**. At the limit the page says why, the job ends, and **Open the room again** brings a new tutor. QUIET_RUN_GOES_HERE
 
 ## LiveKit Cloud
 
@@ -160,7 +160,7 @@ Run on the real app on this Mac. Scripts are in `apps/agent/src/lab/proof/voice/
 | A spoken exchange | 30 of 30 turns answered in Chris's voice, each with a reaction first, and captions followed |
 | Interrupted mid-sentence | 6 of 6 cut, 6 of 6 replied after, the student's words reached the reply |
 | Typed, no microphone, no sound | The exchange completed on the timer clock, Muse never opened, and typing over the tutor stopped it |
-| A real drop | Every connection of one browser went through a proxy that the script cut for 3.5 to 4 s. Lost after 1.7 s, frozen at the word heard, and resumed from the cut word 9 to 10 s after the network returned, 3 of 3, with no cue fired twice |
+| A real drop | Every connection of one browser went through a proxy that the script cut for 3.5 to 4 s. Lost after 1.7 s, frozen at the word heard, and resumed from the cut word 9 to 10 s after the network returned, 3 of 3, with no cue fired twice. Rerun after the replay fix: 12 of 12 resumed from the report, with a turn cut at 3 to 5 words and 1 to 2 cues, and each resume firing 1 cue, the one that continues the frozen motion, 12.3 to 17.2 s after the network returned, against 9.1 to 15.8 s on a reviewer's 3 runs before the fix. The first run saw old reliable messages reach the browser again in 1 of 12 rejoins, and this one in 0 of 12, so a further run delivered every turn's start again during 3 real drops: 0 false reports, and each resume was exact |
 | Why 9 s | LiveKit's own retries took about 3 to 5 s, and on this proxied path its data channel then carried nothing while it said connected. So a page with no pulse for 3 s joins again. No plain UDP drop has run, because that needs root or cuts every other lane |
 | Closing the tab | The job closed at 16.6 s and the room was gone at 20.6 s, with Muse's socket closed and 0 Egress. The 15 s wait lets a reload come back |
 | A second student | A separate room, each with one student and one agent. No words crossed. The second student's request for the first room's token answered 404 |

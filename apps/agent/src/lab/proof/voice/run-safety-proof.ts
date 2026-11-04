@@ -440,6 +440,53 @@ const SCENARIOS: Record<string, Scenario> = {
     return { timeline, lostAfterMs, asksBeforeGivingUp, asksAfterWaiting, micAfterLoss: evidence.tracks, notes, newJobs: rowsAfter.filter((row) => row.name === 'jobStarted').length, backAfterMs, heard };
   },
 
+  // A session opened and never spoken in: the warmed tutor hears nothing, leaves on its own, and a later press still gets one.
+  async warmUnused(stack) {
+    const browser = await launchProofBrowser();
+    const openedAtMs = Date.now();
+    const student = await openStudentPage(browser, { email: MAYA, title: 'Never spoken in' });
+    const started = await waitForRows(stack, student, 0, (rows) => rows.some((row) => row.name === 'jobStarted'), 30_000);
+    const closed = await waitForRows(stack, student, 0, (rows) => rows.some((row) => row.name === 'jobClosed'), 170_000);
+    const room = getRoomName(student);
+    const closedAt = closed.find((row) => row.name === 'jobClosed')?.atMs;
+    const heardAnything = closed.some((row) => row.name === 'muse:opened' || row.name === 'words' || row.name === 'audioState');
+    const roomStillListed = await hasRoom(room);
+    const pressedAtMs = Date.now();
+    await student.pressTalk();
+    await student.waitForLive();
+    const backAfterMs = Date.now() - pressedAtMs;
+    const jobs = readTrace(stack.traceFolder, room).filter((row) => row.name === 'jobStarted').length;
+    await student.context.close();
+    await browser.close();
+    return { jobStartedAfterMs: started.find((row) => row.name === 'jobStarted') ? Math.round((started.find((row) => row.name === 'jobStarted')?.atMs as number) - openedAtMs) : null, jobClosedAfterMs: closedAt ? Math.round(closedAt - openedAtMs) : null, heardAnything, roomStillListed, pressAfterItClosedBackInMs: backAfterMs, jobs };
+  },
+
+  // The real limit, on the real clock, with nothing pressed: quiet for ten minutes, a warning a minute before, and a way back.
+  async quietTen(stack) {
+    const browser = await launchProofBrowser();
+    const student = await openStudentPage(browser, { email: MAYA, title: 'Ten quiet minutes' });
+    await typeAndWaitForAnswer(stack, student, 'hello there');
+    const quietFromMs = Date.now();
+    const limitMs = 11 * 60_000;
+    let warnedAfterMs: number | null = null;
+    let closedAfterMs: number | null = null;
+    while (Date.now() - quietFromMs < limitMs && closedAfterMs === null) {
+      const { isQuietWarning, phase } = await getView(student);
+      if (isQuietWarning) warnedAfterMs ??= Date.now() - quietFromMs;
+      if (phase === 'closedForQuiet') closedAfterMs = Date.now() - quietFromMs;
+      await delay(500);
+    }
+    const note = await getNotes(student);
+    const pressedAtMs = Date.now();
+    await student.page.getByRole('button', { name: 'Open the room again' }).click();
+    await waitForRows(stack, student, pressedAtMs, (rows) => rows.some((row) => row.name === 'jobStarted'), 30_000);
+    await student.waitForLive();
+    const backAfterMs = Date.now() - pressedAtMs;
+    await student.context.close();
+    await browser.close();
+    return { warnedAfterMs, closedAfterMs, note, backAfterMs };
+  },
+
   // A short limit stands in for ten minutes. The warning shows, the button holds the room open, and the room closes with a way back.
   async quiet(stack) {
     await stack.stopAgent();
@@ -465,8 +512,9 @@ const SCENARIOS: Record<string, Scenario> = {
     const secondWarningAfterMs = await waitForWarning();
     const closedAfterMs = await waitForPhase(student, 'closedForQuiet', limitMs);
     const noteWhenClosed = await getNotes(student);
-    await delay(2000);
-    const roomGone = !(await hasRoom(room));
+    const closedAtMs = Date.now();
+    while ((await hasRoom(room)) && Date.now() - closedAtMs < 20_000) await delay(300);
+    const roomGoneAfterMs = (await hasRoom(room)) ? null : Date.now() - closedAtMs;
     const typedInClosedRoom = { boxIsReadOnly: (await student.page.getByRole('textbox', { name: 'Your reply' }).getAttribute('readonly')) !== null, notes: await getNotes(student) };
     const pressedAtMs = Date.now();
     await student.page.getByRole('button', { name: 'Open the room again' }).click();
@@ -480,7 +528,7 @@ const SCENARIOS: Record<string, Scenario> = {
     await browser.close();
     await stack.stopAgent();
     await stack.startAgent();
-    return { limitMs, firstWarningAfterMs, noteWithWarning, warningAfterAnswer, secondWarningAfterMs, closedAfterMs, noteWhenClosed, roomGone, typedInClosedRoom, backAfterMs, heard };
+    return { limitMs, firstWarningAfterMs, noteWithWarning, warningAfterAnswer, secondWarningAfterMs, closedAfterMs, noteWhenClosed, roomGoneAfterMs, typedInClosedRoom, backAfterMs, heard };
   },
 };
 
