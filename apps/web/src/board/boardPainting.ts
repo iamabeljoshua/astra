@@ -147,7 +147,7 @@ export function createBoardPainting({ boardElement, overlay, getWrapper, onMathR
       const area = getArea(boardElement);
       const fontSize = Number.parseFloat(getComputedStyle(boardElement).fontSize) || 16;
       const maxWidth = Math.max(0, area.width - 2 * area.padding);
-      const contexts = placed.map((element): ItemContext => ({ element, board, atMs, placedSize: null, canMoveSliders, onLabelWithoutRoom, onMarkWithoutPart: marks.reportMarkWithoutPart, progress: getMotionValue(element.entrance, atMs), maxWidth, fontSize, isReducedMotion }));
+      const contexts = placed.map((element): ItemContext => ({ element, board, atMs, placedSize: null, canMoveSliders, onLabelWithoutRoom, onMarkWithoutPart: marks.reportMarkWithoutPart, onMarkDrawn: marks.noteMarkDrawn, progress: getMotionValue(element.entrance, atMs), maxWidth, fontSize, isReducedMotion }));
       const { placements, isMakingRoom } = placeMovingElements(prepareBoxes(contexts), area, getSharedProgress(contexts, isReducedMotion));
       const placementsById = new Map(placements.map((placement) => [placement.id, placement]));
       for (const context of contexts) paintItem(context, placementsById.get(context.element.id), isMakingRoom);

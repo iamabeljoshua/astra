@@ -1,9 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { type Box, doBoxesOverlap, type FigureMark, getLeadingShare, clipBranch } from '../src/figure/figure-marks.ts';
 import { createEqualView, createStretchedView } from '../src/figure/figure-view.ts';
 import type { FigureFrame, FigureWords } from '../src/figure/figure-input.ts';
 import { getFigureMarks } from '../src/figure/get-figure-marks.ts';
-import { estimateTextWidth, LABEL_FONT, placeLabels, wrapLabel } from '../src/figure/place-labels.ts';
+import { estimateTextWidth, LABEL_FONT, placeLabels, setLabelMeasure, wrapLabel } from '../src/figure/place-labels.ts';
 import { getBoardAt } from '../src/player/board-state.ts';
 import type { BoardOperation } from '../src/player/board-operations.ts';
 
@@ -298,6 +298,117 @@ describe('a simulation on the board', () => {
     const operations = [shot, place({ kind: 'readout', id: 'h', target: 'shot', quantity: 'height' })];
     const text = getText(getMarks(operations, 'shot')).find((mark) => mark.key === 'readout-h')?.lines.join(' ');
     expect(text).toBe('Height 2 m');
+  });
+});
+
+describe('a mark and what it reports', () => {
+  function getReports(operations: BoardOperation[], rootId: string, atMs = LATE_MS) {
+    const board = getBoardAt(operations, atMs);
+    const missing: string[] = [];
+    const drawn: string[] = [];
+    const marks = getFigureMarks({ board, element: board.elements.get(rootId as never) as FigureFrame['element'], atMs, ...SIZES[0] as { width: number; height: number }, isReducedMotion: false, words: WORDS, onMarkWithoutPart: (mark) => missing.push(mark.id), onMarkDrawn: (mark) => drawn.push(mark.id) });
+    return { missing, drawn, marks };
+  }
+  const line = place({ kind: 'numberLine', id: 'line', domain: [0, 10] });
+  const shot = place({ kind: 'simulate', id: 'shot', simulation: { model: 'projectile', parameters: { horizontalSpeed: 4, upwardSpeed: 4, releaseHeight: 1, gravity: 9.8 } } });
+
+  it('reports a mark on a number line part, which draws nothing', () => {
+    const { missing } = getReports([line, place({ kind: 'markValue', id: 'start', target: 'line', at: 3 }), place({ kind: 'annotate', id: 'on-line', target: 'line.start', mark: 'circle', label: 'circled' })], 'line');
+    expect(missing).toEqual(['on-line']);
+  });
+
+  it('reports a value off a number line, and says a value on it was drawn', () => {
+    const { missing, drawn } = getReports([line, place({ kind: 'markValue', id: 'off', target: 'line', at: 99 }), place({ kind: 'markValue', id: 'on', target: 'line', at: 4 })], 'line');
+    expect(missing).toEqual(['off']);
+    expect(drawn).toEqual(['on']);
+  });
+
+  it('reports a value a curve does not have or that sits off its axes', () => {
+    const curve = place({ kind: 'plot', id: 'curve', expression: 'sqrt(x)', domain: [-1, 4], yRange: [0, 1] });
+    const { missing, drawn } = getReports([curve, place({ kind: 'markValue', id: 'none', target: 'curve', at: -1 }), place({ kind: 'markValue', id: 'high', target: 'curve', at: 4 }), place({ kind: 'markValue', id: 'fine', target: 'curve', at: 0.5 })], 'curve');
+    expect(missing).toEqual(['none', 'high']);
+    expect(drawn).toEqual(['fine']);
+  });
+
+  it('draws a mark on a path, a part the scene lists', () => {
+    const { missing, drawn, marks } = getReports([shot, place({ kind: 'annotate', id: 'on-path', target: 'shot.path', mark: 'circle', label: 'the path' }), place({ kind: 'annotate', id: 'on-ball', target: 'shot.ball', mark: 'check' })], 'shot');
+    expect(missing).toEqual([]);
+    expect(drawn).toEqual(['on-path', 'on-ball']);
+    expect(marks.find((mark) => mark.key === 'note-on-path')).toMatchObject({ kind: 'path' });
+  });
+
+  it('says a mark on a geometry point was drawn, so a later hide of the point is no surprise', () => {
+    const shape = place({ kind: 'geometry', id: 'shape', xRange: [0, 6], yRange: [0, 6] });
+    const { missing, drawn } = getReports([shape, place({ kind: 'construct', id: 'pa', target: 'shape', step: { shape: 'point', name: 'A', x: 2, y: 2 } }), place({ kind: 'annotate', id: 'on-a', target: 'shape.A', mark: 'circle' }), place({ kind: 'annotate', id: 'on-z', target: 'shape.Z', mark: 'circle' })], 'shape');
+    expect(drawn).toEqual(['on-a']);
+    expect(missing).toEqual(['on-z']);
+  });
+});
+
+describe('a curve drawn over another', () => {
+  it('stays inside the axes it was drawn on, however wide its own domain', () => {
+    const operations = [place({ kind: 'plot', id: 'first', expression: 'x', domain: [-3, 3], yRange: [-3, 3] }), place({ kind: 'plot', id: 'second', over: 'first', expression: 'x/2', domain: [-20, 20] })];
+    const marks = getMarks(operations, 'first');
+    const axes = marks.find((mark): mark is FigureMark & { kind: 'path' } => mark.key === 'axes')?.branches[0] as readonly { x: number }[];
+    const curve = marks.find((mark): mark is FigureMark & { kind: 'path' } => mark.key === 'curve-second');
+    const xs = curve?.branches.flat().map(({ x }) => x) as number[];
+    expect(Math.min(...xs)).toBeCloseTo(axes[0]?.x as number, 6);
+    expect(Math.max(...xs)).toBeCloseTo(axes[1]?.x as number, 6);
+  });
+
+  it('draws nothing when its domain misses the axes', () => {
+    const operations = [place({ kind: 'plot', id: 'first', expression: 'x', domain: [-3, 3] }), place({ kind: 'plot', id: 'second', over: 'first', expression: 'x', domain: [10, 20], label: 'gone' })];
+    const curve = getMarks(operations, 'first').find((mark): mark is FigureMark & { kind: 'path' } => mark.key === 'curve-second');
+    expect(curve?.branches).toEqual([]);
+  });
+});
+
+describe('a hoop', () => {
+  const getHoop = (horizontalSpeed: number) => {
+    const operations = [place({ kind: 'drawing', id: 'court', name: 'hoop-side' }), place({ kind: 'simulate', id: 'shot', simulation: { model: 'projectile', parameters: { horizontalSpeed, upwardSpeed: 5.6, releaseHeight: 2.2, gravity: 9.8 } }, over: 'court' })];
+    const marks = getMarks(operations, 'shot');
+    const hoop = marks.find((mark): mark is FigureMark & { kind: 'path' } => mark.key === 'hoop');
+    const [rim, board] = hoop?.branches as readonly (readonly { x: number }[])[];
+    return { rimStart: rim?.[0]?.x as number, boardX: board?.[0]?.x as number, ball: marks.find((mark): mark is FigureMark & { kind: 'dot' } => mark.key === 'ball')?.at.x as number, marks };
+  };
+
+  it('puts the board behind the rim as the ball sees it, whichever way the ball flies', () => {
+    const right = getHoop(4.2);
+    expect(right.boardX).toBeGreaterThan(right.rimStart);
+    expect(right.rimStart).toBeGreaterThan(right.ball);
+    const left = getHoop(-4.2);
+    expect(left.boardX).toBeLessThan(left.rimStart);
+    expect(left.rimStart).toBeLessThan(left.ball);
+  });
+
+  it('keeps a hoop on the left on the figure', () => {
+    const { marks } = getHoop(-4.2);
+    const hoop = marks.find((mark): mark is FigureMark & { kind: 'path' } => mark.key === 'hoop') as FigureMark & { kind: 'path' };
+    for (const { x } of hoop.branches.flat()) expect(x).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe('text too wide for the estimate', () => {
+  afterEach(() => setLabelMeasure(null));
+
+  it.each([['\uFDFD', 6.4], ['\u{1242B}', 4.6], ['\u{1F600}', 1.2]])('bounds %s with no page to measure on', (character, ems) => {
+    expect(estimateTextWidth(character)).toBeGreaterThan(ems * LABEL_FONT.size);
+  });
+
+  it('measures on the page any text outside the known letters, with room to spare', () => {
+    setLabelMeasure((text) => [...text].length * 50);
+    expect(estimateTextWidth('\u1000\u1001')).toBeGreaterThan(100);
+    expect(estimateTextWidth('abc')).toBeLessThan(50);
+  });
+
+  it('keeps three wide ligatures clear of every other label by the width they really have', () => {
+    setLabelMeasure((text) => [...text].length * 78);
+    const operations = [place({ kind: 'plot', id: 'wide', expression: 'x^2', domain: [-3, 3], xLabel: 'x', yLabel: 'y' }), place({ kind: 'markValue', id: 'm1', target: 'wide', at: 1, label: 'beside' }), place({ kind: 'markValue', id: 'm2', target: 'wide', at: 0, label: '\uFDFD\uFDFD\uFDFD' })];
+    for (const size of SIZES) {
+      const marks = getMarks(operations, 'wide', size);
+      expect(getOverlappingText(marks)).toEqual([]);
+      expect(getTextOutside(marks, size)).toEqual([]);
+    }
   });
 });
 

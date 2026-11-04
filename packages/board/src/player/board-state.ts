@@ -129,7 +129,8 @@ function runScene(element: BoardElement, command: SceneCommand & { kind: 'runSim
 function setSceneParameter(element: BoardElement, { parameter, value, atMs, keepsMoving, catalog }: { parameter: string; value: number; atMs: number; keepsMoving: boolean; catalog: SceneCatalog }): void {
   const placed = element.placedScene;
   if (!placed || element.content.kind === 'ink') return;
-  const parameterChanges = { ...placed.parameterChanges, [parameter]: value };
+  const { [parameter]: _replaced, ...otherChanges } = placed.parameterChanges;
+  const parameterChanges = { ...otherChanges, [parameter]: value };
   const scene = catalog(element.content, parameterChanges) ?? placed.scene;
   const playhead = keepsMoving ? moveOver({ from: 0, to: scene.durationSeconds, atMs, overMs: scene.durationSeconds * MS_PER_SECOND }) : holdMotion(0, atMs);
   element.placedScene = { scene, parameterChanges, playhead, reshapingFrom: null };

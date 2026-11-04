@@ -7,15 +7,41 @@ const CHARACTER_WIDTHS = [
   { characters: /[mwMW@%]/, ems: 0.96 },
   { characters: /[A-Z]/, ems: 0.7 },
   { characters: /[!-\u024F\u2212\u00B0]/, ems: 0.6 },
+  { characters: /[\uFDF0-\uFDFF]/, ems: 8 },
+  { characters: /\p{Script=Cuneiform}/u, ems: 5 },
+  { characters: /[\uFB50-\uFDEF\u0600-\u0605\u2E3A\u2E3B]/, ems: 3 },
+  { characters: /\p{Extended_Pictographic}/u, ems: 1.4 },
 ] as const;
 const OTHER_CHARACTER_EMS = 1.05;
+const NOT_THE_KNOWN_LETTERS = /[^\s!-\u024F\u2212\u00B0]/;
+const MEASURED_ROOM = 1.05;
+const MOST_MEASURES_KEPT = 4000;
+
+let measureOnPage: ((text: string) => number) | null = null;
+const measuredWidths = new Map<string, number>();
+
+/** Glyphs outside the known letters run from a hair to more than 6 em, depending on the font each device falls back to, so a browser measures them. Text in the known letters stays an estimate, the same on every device. */
+export function setLabelMeasure(measure: ((text: string) => number) | null): void {
+  measureOnPage = measure;
+  measuredWidths.clear();
+}
+
+function getMeasuredWidth(measure: (text: string) => number, text: string): number {
+  const known = measuredWidths.get(text);
+  if (known !== undefined) return known;
+  if (measuredWidths.size >= MOST_MEASURES_KEPT) measuredWidths.clear();
+  const width = measure(text) * MEASURED_ROOM;
+  measuredWidths.set(text, width);
+  return width;
+}
 const BOX_PADDING = 1.5;
 const GAP_STEPS = [1, 2, 3.5, 5.5];
 const FALLBACK_STEP = 24;
 const MOST_LINES = 4;
 
-/** Slightly wider than the font on purpose, so a label that fits here fits on the page, with no read from the page. */
+/** Slightly wider than the font on purpose, so a label that fits here fits on the page. */
 export function estimateTextWidth(text: string): number {
+  if (measureOnPage && NOT_THE_KNOWN_LETTERS.test(text)) return getMeasuredWidth(measureOnPage, text);
   let ems = 0;
   for (const character of text) ems += CHARACTER_WIDTHS.find(({ characters }) => characters.test(character))?.ems ?? OTHER_CHARACTER_EMS;
   return ems * LABEL_FONT.size;

@@ -6,7 +6,8 @@ import { sampleCurve } from './sample-curve.ts';
 
 export interface PlotFrame {
   yRange: AxisRange;
-  getCurve(yRange: AxisRange): readonly Branch[];
+  /** Only where it lies inside `xRange`, because a curve drawn over another can reach past its axes. */
+  getCurve(yRange: AxisRange, xRange?: AxisRange): readonly Branch[];
   getValue(x: number): number;
 }
 
@@ -66,9 +67,10 @@ function buildPlotScene(plot: Plot, { node, yRange }: PlotData, values: ScenePar
   const frame: PlotFrame = {
     yRange,
     getValue: evaluate,
-    getCurve(asked) {
-      const key = asked.join();
-      const curve = curves.get(key) ?? sampleCurve({ evaluate, domain: plot.domain, yRange: asked });
+    getCurve(asked, [low, high] = plot.domain) {
+      const domain: AxisRange = [Math.max(low, plot.domain[0]), Math.min(high, plot.domain[1])];
+      const key = `${asked.join()}|${domain.join()}`;
+      const curve = curves.get(key) ?? (domain[1] > domain[0] ? sampleCurve({ evaluate, domain, yRange: asked }) : []);
       curves.set(key, curve);
       return curve;
     },

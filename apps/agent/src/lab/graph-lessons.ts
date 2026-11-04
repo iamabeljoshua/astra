@@ -30,7 +30,7 @@ const SHOT_LESSON: readonly (readonly Beat[])[] = [
     ]),
     makeBeat('the-climb', [
       { kind: 'readout', id: 'height-now', target: 'shot', quantity: 'height' },
-      { kind: 'runSimulation', target: 'shot', action: 'play', until: 'peak', overWords: 8 },
+      { kind: 'runSimulation', target: 'shot', action: 'play', until: 'peak', overWords: 7 },
       'It climbs, slower and slower, until it ',
       { kind: 'annotate', id: 'top-mark', target: 'shot.ball', mark: 'circle', label: 'top' },
       'hangs at the very top. ',

@@ -1,5 +1,5 @@
 import { type BoardElement, type BoardState, getMotionValue, type SliderMove } from '@astra/board';
-import { canWriteByHand, createFigurePainter, createInkPainter, createMathPainter, type DiagramTextLabel, drawDiagram, getFigureFit, getFigureMarks, type InkPainter, type LayoutBox, type MathFontProblem, type MathPainter, type MeasureText, type TermBoxes, type TermQuery, writeByHand, writeStyle } from '@astra/board/drawing';
+import { canWriteByHand, createFigurePainter, createInkPainter, createMathPainter, type DiagramTextLabel, drawDiagram, getFigureFit, getFigureMarks, type InkPainter, type LayoutBox, type MathFontProblem, type MathPainter, type MeasureText, setLabelMeasure, type TermBoxes, type TermQuery, writeByHand, writeStyle } from '@astra/board/drawing';
 import { BOARD_LABELS } from '../strings';
 import { createSliderItem } from './sliderItem';
 
@@ -15,6 +15,7 @@ export interface ItemContext {
   canMoveSliders: boolean;
   onLabelWithoutRoom(text: string): void;
   onMarkWithoutPart(mark: BoardElement): void;
+  onMarkDrawn(mark: BoardElement): void;
   progress: number;
   maxWidth: number;
   fontSize: number;
@@ -185,6 +186,16 @@ function getFigureDescription(content: BoardElement['content']): string {
   return content.kind === 'geometry' ? BOARD_LABELS.geometry : BOARD_LABELS.simulation;
 }
 
+function measureLabelsOnThePage(svg: SVGSVGElement): void {
+  const context = document.createElement('canvas').getContext('2d');
+  if (!context) return;
+  const { fontWeight, fontSize, fontFamily } = getComputedStyle(svg);
+  context.font = `${fontWeight} ${fontSize} ${fontFamily}`;
+  setLabelMeasure((text) => context.measureText(text).width);
+}
+
+let isMeasuringLabels = false;
+
 function createFigureItem(wrapper: HTMLElement, content: BoardElement['content']): BoardItem {
   const svg = document.createElementNS(SVG_NAMESPACE, 'svg');
   svg.setAttribute('role', 'img');
@@ -192,6 +203,8 @@ function createFigureItem(wrapper: HTMLElement, content: BoardElement['content']
   svg.setAttribute('data-testid', 'figure');
   svg.classList.add('board-figure');
   wrapper.append(svg);
+  if (!isMeasuringLabels) measureLabelsOnThePage(svg);
+  isMeasuringLabels = true;
   const painter = createFigurePainter(svg);
   return {
     ignoresPlacementScale: true,
@@ -199,13 +212,13 @@ function createFigureItem(wrapper: HTMLElement, content: BoardElement['content']
       const { fit, size } = getFigureFit(element, maxWidth);
       return { fit, size, fromSize: null };
     },
-    paint({ element, board, atMs, placedSize, isReducedMotion, onLabelWithoutRoom, onMarkWithoutPart }) {
+    paint({ element, board, atMs, placedSize, isReducedMotion, onLabelWithoutRoom, onMarkWithoutPart, onMarkDrawn }) {
       if (!placedSize) return;
       const width = String(Math.round(placedSize.width));
       const height = String(Math.round(placedSize.height));
       if (svg.getAttribute('width') !== width) svg.setAttribute('width', width);
       if (svg.getAttribute('height') !== height) svg.setAttribute('height', height);
-      painter.paint(getFigureMarks({ board, element, atMs, width: Math.round(placedSize.width), height: Math.round(placedSize.height), isReducedMotion, words: BOARD_LABELS.figures, onLabelWithoutRoom, onMarkWithoutPart }));
+      painter.paint(getFigureMarks({ board, element, atMs, width: Math.round(placedSize.width), height: Math.round(placedSize.height), isReducedMotion, words: BOARD_LABELS.figures, onLabelWithoutRoom, onMarkWithoutPart, onMarkDrawn }));
     },
     remove: () => svg.remove(),
   };

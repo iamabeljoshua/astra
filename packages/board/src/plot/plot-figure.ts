@@ -6,7 +6,7 @@ import { createStretchedView, type FigureView, getPixelBranches } from '../figur
 import type { BoardElement } from '../player/board-state.ts';
 import { getReshapedValues } from '../player/board-state.ts';
 import { PLANNED_SCENES } from '../player/planned-scenes.ts';
-import { type AxisRange, formatNumber } from './axis-ticks.ts';
+import { formatNumber } from './axis-ticks.ts';
 import type { PlotFrame } from './plot-scene.ts';
 import { getBranchesUpTo } from './sample-curve.ts';
 
@@ -39,13 +39,13 @@ function getDrawnUpToX(element: PlotElement, frame: FigureFrame): number {
   return domain[0] + (domain[1] - domain[0]) * curveShare;
 }
 
-function getCurvePoints(element: PlotElement, frame: FigureFrame, yRange: AxisRange): readonly Branch[] {
+function getCurvePoints(element: PlotElement, frame: FigureFrame, { xRange, yRange }: FigureView): readonly Branch[] {
   const plotFrame = getPlotFrame(element, frame);
-  return plotFrame ? plotFrame.getCurve(yRange) : [];
+  return plotFrame ? plotFrame.getCurve(yRange, xRange) : [];
 }
 
 function addCurve(draft: FigureDraft, element: PlotElement, { frame, view, isFirst }: { frame: FigureFrame; view: FigureView; isFirst: boolean }): void {
-  const world = getCurvePoints(element, frame, view.yRange);
+  const world = getCurvePoints(element, frame, view);
   const upToX = getDrawnUpToX(element, frame);
   const isWhole = upToX >= element.content.domain[1];
   const drawn = isWhole ? getPixelBranches(world, view) : getBranchesUpTo(world, upToX).map((branch) => branch.map(view.toPixel));
@@ -74,7 +74,7 @@ function addShade(draft: FigureDraft, element: BoardElement & { content: ShadeAr
   const { from, to, label, target } = element.content;
   const share = getDrawnShare(element, frame);
   const shownTo = interpolate(from, to, share);
-  const polygons = getShadePolygons(getCurvePoints(curve, frame, view.yRange), { from, to: shownTo, view });
+  const polygons = getShadePolygons(getCurvePoints(curve, frame, view), { from, to: shownTo, view });
   draft.marks.unshift({ kind: 'area', key: `shade-${element.id}-${target}`, tone: 'line', polygons });
   const middle = polygons[0] && polygons.flat().reduce((sum, point) => ({ x: sum.x + point.x / polygons.flat().length, y: sum.y + point.y / polygons.flat().length }), { x: 0, y: 0 });
   if (label && middle && share >= 1) addLabel(draft, { key: `label-${element.id}`, text: label, anchor: middle, gap: 0, sides: ['above', 'below', 'right', 'left'] });
@@ -83,7 +83,11 @@ function addShade(draft: FigureDraft, element: BoardElement & { content: ShadeAr
 function addMark(draft: FigureDraft, element: BoardElement & { content: MarkValue }, { curve, frame, view }: { curve: PlotElement; frame: FigureFrame; view: FigureView }): void {
   const { at, label } = element.content;
   const value = getPlotFrame(curve, frame)?.getValue(at);
-  if (value === undefined || !Number.isFinite(value) || at < view.xRange[0] || at > view.xRange[1] || value < view.yRange[0] || value > view.yRange[1]) return;
+  if (value === undefined || !Number.isFinite(value) || at < view.xRange[0] || at > view.xRange[1] || value < view.yRange[0] || value > view.yRange[1]) {
+    frame.onMarkWithoutPart?.(element);
+    return;
+  }
+  frame.onMarkDrawn?.(element);
   const share = getDrawnShare(element, frame);
   const point = view.toPixel({ x: at, y: value });
   draft.marks.push({ kind: 'dot', key: `mark-${element.id}`, at: point, radius: MARK_DOT_RADIUS * share, tone: 'ink' });
@@ -92,7 +96,7 @@ function addMark(draft: FigureDraft, element: BoardElement & { content: MarkValu
 }
 
 function getMiddleOfCurve(root: PlotElement, { frame, view }: { frame: FigureFrame; view: FigureView }): Point {
-  const longest = getCurvePoints(root, frame, view.yRange).reduce<Branch>((best, branch) => (branch.length > best.length ? branch : best), []);
+  const longest = getCurvePoints(root, frame, view).reduce<Branch>((best, branch) => (branch.length > best.length ? branch : best), []);
   const middle = longest[Math.floor(longest.length / 2)];
   return middle ? view.toPixel(middle) : { x: (view.rect.left + view.rect.right) / 2, y: (view.rect.top + view.rect.bottom) / 2 };
 }
@@ -106,8 +110,13 @@ function addAttachment(draft: FigureDraft, element: BoardElement, { root, frame,
   if (content.kind === 'markValue') addMark(draft, element as BoardElement & { content: MarkValue }, { curve: (board.elements.get(content.target) as PlotElement | undefined) ?? root, frame, view });
   if (content.kind === 'vector') addArrow(draft, { key: `vector-${element.id}`, from: center, to: getFixedVectorTip(center, content, frame), share: getDrawnShare(element, frame), tone: 'ink', label: content.label });
   const partMark = getPartMark(element);
-  if (partMark && 'target' in content && content.target.split('.')[1] !== 'curve') frame.onMarkWithoutPart?.(element);
-  else if (partMark) addPartMark(draft, { key: `note-${element.id}`, at: getMiddleOfCurve(root, { frame, view }), share: getDrawnShare(element, frame), ...partMark });
+  if (!partMark || !('target' in content)) return;
+  if (content.target.split('.')[1] !== 'curve') {
+    frame.onMarkWithoutPart?.(element);
+    return;
+  }
+  frame.onMarkDrawn?.(element);
+  addPartMark(draft, { key: `note-${element.id}`, at: getMiddleOfCurve(root, { frame, view }), share: getDrawnShare(element, frame), ...partMark });
 }
 
 export function getPlotMarks(frame: FigureFrame): FigureMark[] {

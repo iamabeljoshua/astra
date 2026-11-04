@@ -86,6 +86,36 @@ describe('a cue over words whose later word times have not landed', () => {
     expect(sceneAt(endWordMs + 2)).toBeCloseTo(landing, 2);
   });
 
+  it('moves the landing to the real word when the first estimate was far off', () => {
+    const slowLater = [0, 200, 400, 700, 1100, 1500, 1900, 2300, 2700, 3100, 3300, 3500, 3700];
+    const audio = createFakeAudio();
+    const wordsFrom = (firstWord: number, count: number): AgentMessage => ({ type: 'words', turnId: TURN, beatId: BEAT, firstWord, words: Array.from({ length: count }, (_, offset) => ({ text: SPOKEN.split(' ')[firstWord + offset] as string, startMs: slowLater[firstWord + offset] as number })) });
+    audio.receive({ type: 'turnStarted', turnId: TURN }, cue(0, SIMULATION), cue(1, PLAY), wordsFrom(0, 2));
+    audio.startSound();
+    const soundAtMs = audio.getNowMs();
+    let landed = 2;
+    while (audio.getNowMs() - soundAtMs < 4000) {
+      audio.advance(SAMPLE_MS);
+      const heardMs = audio.getNowMs() - soundAtMs;
+      if (landed < slowLater.length && (slowLater[landed] as number) - heardMs < 150) {
+        audio.receive(wordsFrom(landed, 1));
+        landed += 1;
+        if (landed === slowLater.length) audio.receive({ type: 'beatClosed', turnId: TURN, beatId: BEAT, wordCount: slowLater.length, expectsReply: false });
+      }
+    }
+    audio.endSound();
+    audio.advance(800);
+    const log = writeLog(audio);
+    const landing = 6 / 9.8 + Math.sqrt(36 + 2 * 9.8 * 2) / 9.8;
+    const endWordMs = soundAtMs + (slowLater[9] as number);
+    const live = (atMs: number) => getScene(describeBoard(audio.player.getBoard(atMs), atMs)) as number;
+    const replay = (atMs: number) => getScene(describeBoard(rebuildBoard(log, atMs), atMs)) as number;
+    for (const sceneAt of [live, replay]) {
+      expect(sceneAt(endWordMs - 300)).toBeLessThan(landing * 0.98);
+      expect(sceneAt(endWordMs + 2)).toBeCloseTo(landing, 2);
+    }
+  });
+
   it('reports nothing extra when every word time was known as the cue fired', () => {
     const audio = createFakeAudio();
     audio.receive({ type: 'turnStarted', turnId: TURN }, cue(0, SIMULATION), cue(1, PLAY), getWordsFrom(0, WORD_STARTS_MS.length), { type: 'beatClosed', turnId: TURN, beatId: BEAT, wordCount: WORD_STARTS_MS.length, expectsReply: false });

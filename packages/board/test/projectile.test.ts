@@ -61,3 +61,20 @@ describe('the projectile model', () => {
     expect((scene.getFrame(5) as ProjectileFrame).ball).toEqual({ x: 0, y: 0 });
   });
 });
+
+describe('two controls that share a speed', () => {
+  const BASE = { horizontalSpeed: 4, upwardSpeed: 6, releaseHeight: 2, gravity: 9.8 };
+
+  it('gives the student the sideways speed they set, after an angle was set', () => {
+    const { horizontalSpeed, upwardSpeed } = resolveProjectileParameters(BASE, { launchAngle: 30, horizontalSpeed: 15 });
+    expect(horizontalSpeed).toBe(15);
+    expect(upwardSpeed).toBeCloseTo(Math.hypot(4, 6) * Math.sin(Math.PI / 6), 9);
+  });
+
+  it('gives the student the angle they set, after a sideways speed was set', () => {
+    const { horizontalSpeed, upwardSpeed } = resolveProjectileParameters(BASE, { horizontalSpeed: 15, launchAngle: 30 });
+    expect((Math.atan2(upwardSpeed, horizontalSpeed) * 180) / Math.PI).toBeCloseTo(30, 9);
+    expect(Math.hypot(horizontalSpeed, upwardSpeed)).toBeCloseTo(Math.hypot(15, 6), 9);
+  });
+});
+

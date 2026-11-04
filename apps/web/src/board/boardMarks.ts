@@ -8,6 +8,7 @@ const FOCUS_DOT = { radius: 3.5, inset: 8 };
 const NOTE_GAP = 3;
 
 type MarkContent = Extract<BoardElement['content'], { kind: 'highlight' | 'annotate' }>;
+type ReportedContent = MarkContent | Extract<BoardElement['content'], { kind: 'markValue' }>;
 
 interface PaintedMark {
   group: SVGGElement;
@@ -99,7 +100,7 @@ export function createBoardMarks(overlay: SVGSVGElement, onMarkWithoutTarget?: (
   const notePainter = createFigurePainter(noteGroup);
 
   // A mark that once had a box and lost it went with its term through a rearrangement, which is no problem.
-  const reportIfNeverDrawn = (mark: BoardElement, content: MarkContent) => {
+  const reportIfNeverDrawn = (mark: BoardElement, content: ReportedContent) => {
     const placement = getPlacementKey(mark);
     if (drawnOnce.has(placement) || reported.has(placement)) return;
     reported.add(placement);
@@ -165,7 +166,8 @@ export function createBoardMarks(overlay: SVGSVGElement, onMarkWithoutTarget?: (
   };
 
   return {
-    reportMarkWithoutPart: (mark: BoardElement) => reportIfNeverDrawn(mark, mark.content as MarkContent),
+    reportMarkWithoutPart: (mark: BoardElement) => reportIfNeverDrawn(mark, mark.content as ReportedContent),
+    noteMarkDrawn: (mark: BoardElement) => drawnOnce.add(getPlacementKey(mark)),
     paint(frame: MarksFrame) {
       const allMarks = frame.elements.filter((element) => {
         if (!isMark(element.content)) return false;

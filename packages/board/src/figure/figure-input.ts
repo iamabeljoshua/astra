@@ -19,6 +19,7 @@ export interface FigureFrame {
   words: FigureWords;
   onLabelWithoutRoom?(text: string): void;
   onMarkWithoutPart?(mark: BoardElement): void;
+  onMarkDrawn?(mark: BoardElement): void;
 }
 
 /** A mark's mark and label, whichever command made it, for a figure that draws marks on its parts. */

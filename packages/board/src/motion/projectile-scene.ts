@@ -17,14 +17,16 @@ function getLandingSeconds({ upwardSpeed, releaseHeight, gravity }: ProjectilePa
   return (upwardSpeed + Math.sqrt(upwardSpeed * upwardSpeed + 2 * gravity * releaseHeight)) / gravity;
 }
 
-/** An angle or a total speed changes the two speeds it stands for, and leaves the other one as it was. */
+function applyParameterChange(parameters: ProjectileParameters, [name, value]: [string, number]): ProjectileParameters {
+  if (name !== 'launchAngle' && name !== 'launchSpeed') return { ...parameters, [name]: value };
+  const speed = name === 'launchSpeed' ? value : Math.hypot(parameters.horizontalSpeed, parameters.upwardSpeed);
+  const radians = (name === 'launchAngle' ? value : Math.atan2(parameters.upwardSpeed, parameters.horizontalSpeed) * DEGREES_PER_RADIAN) / DEGREES_PER_RADIAN;
+  return { ...parameters, horizontalSpeed: speed * Math.cos(radians), upwardSpeed: speed * Math.sin(radians) };
+}
+
+/** In the order they were set, so the student sees the value they set last. An angle or a total speed changes the two speeds it stands for and leaves the other one as it was. */
 export function resolveProjectileParameters(base: ProjectileParameters, changes: SceneParameters): ProjectileParameters {
-  const { launchAngle, launchSpeed, ...direct } = changes;
-  const merged = { ...base, ...direct };
-  if (launchAngle === undefined && launchSpeed === undefined) return merged;
-  const speed = launchSpeed ?? Math.hypot(merged.horizontalSpeed, merged.upwardSpeed);
-  const radians = (launchAngle ?? Math.atan2(merged.upwardSpeed, merged.horizontalSpeed) * DEGREES_PER_RADIAN) / DEGREES_PER_RADIAN;
-  return { ...merged, horizontalSpeed: speed * Math.cos(radians), upwardSpeed: speed * Math.sin(radians) };
+  return Object.entries(changes).reduce(applyParameterChange, base);
 }
 
 function getProjectileValues(parameters: ProjectileParameters): SceneParameters {

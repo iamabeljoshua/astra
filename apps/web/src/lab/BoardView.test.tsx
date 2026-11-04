@@ -683,6 +683,20 @@ describe('BoardView, figures', () => {
     expect(onBoardProblem.mock.calls.map(([problem]) => problem.markId)).toEqual(['on-nothing']);
   });
 
+  it('does not report a mark it drew when its point is hidden later, and does report one it never drew', () => {
+    const onBoardProblem = vi.fn();
+    const shape = place({ kind: 'geometry', id: 'shape', xRange: [0, 6], yRange: [0, 6] });
+    const point = place({ kind: 'construct', id: 'pa', target: 'shape', step: { shape: 'point', name: 'A', x: 2, y: 2 } });
+    const onPoint = place({ kind: 'annotate', id: 'on-a', target: 'shape.A', mark: 'circle' }, 10);
+    const operations = [shape, point, onPoint, place({ kind: 'hide', target: 'pa' }, 3000)];
+    const { rerender } = render(<BoardView board={getBoardAt(operations, 2000)} atMs={2000} onBoardProblem={onBoardProblem} />);
+    rerender(<BoardView board={getBoardAt(operations, 4000)} atMs={4000} onBoardProblem={onBoardProblem} />);
+    expect(onBoardProblem).not.toHaveBeenCalled();
+    const unseen = render(<BoardView board={getBoardAt([shape, place({ kind: 'markValue', id: 'off', target: 'line', at: 99 }), place({ kind: 'numberLine', id: 'line', domain: [0, 1] }), place({ kind: 'markValue', id: 'off', target: 'line', at: 99 }, 10)], 2000)} atMs={2000} onBoardProblem={onBoardProblem} />);
+    expect(unseen.container.querySelector('[data-mark="mark-off"]')).toBeNull();
+    expect(onBoardProblem.mock.calls.map(([problem]) => [problem.markId, problem.target])).toEqual([['off', 'line']]);
+  });
+
   it('says so when a label has no room, once', () => {
     const onBoardProblem = vi.fn();
     vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(60);

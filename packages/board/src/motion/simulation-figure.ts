@@ -68,7 +68,9 @@ const blendBounds = (from: WorldBounds, to: WorldBounds, share: number): WorldBo
 function getSliderValues(sliders: readonly ParameterSlider[], base: SceneParameters): SceneParameters[] {
   const kept = sliders.slice(-MOST_SLIDERS_FITTED);
   const levels = SLIDER_LEVELS_BY_COUNT[kept.length] ?? 1;
-  return kept.reduce<SceneParameters[]>((sets, { parameter, min, max }) => sets.flatMap((set) => Array.from({ length: levels }, (_, level) => ({ ...set, [parameter]: min + ((max - min) * level) / (levels - 1) }))), [base]);
+  const moved = kept.reduce<SceneParameters[]>((sets, { parameter, min, max }) => sets.flatMap((set) => Array.from({ length: levels }, (_, level) => ({ ...set, [parameter]: min + ((max - min) * level) / (levels - 1) }))), [{}]);
+  // The slider moved last wins where two share a speed, so either could be last.
+  return moved.flatMap((set) => [{ ...base, ...set }, { ...base, ...Object.fromEntries(Object.entries(set).reverse()) }]);
 }
 
 const sliderReachByCommand = new WeakMap<Simulate, Map<string, WorldBounds>>();
@@ -97,14 +99,16 @@ function getHoopCenter(baseScene: Scene): number {
   return atRimHeight?.x ?? getArcBounds(baseScene).right * HOOP.shareOfRangeWhenShort;
 }
 
-const getBoardX = (rimX: number) => rimX + HOOP.rimRadius + HOOP.boardGap;
-const getPoleX = (rimX: number) => getBoardX(rimX) + HOOP.armLength;
+/** The board and pole stand behind the rim as the ball flies, so `direction` is 1 for a ball going right and -1 for one going left. */
+const getHoopDirection = (baseScene: Scene) => (getFrameAt(baseScene, 0).velocity.x < 0 ? -1 : 1);
+const getBoardX = (rimX: number, direction: number) => rimX + direction * (HOOP.rimRadius + HOOP.boardGap);
+const getPoleX = (rimX: number, direction: number) => getBoardX(rimX, direction) + direction * HOOP.armLength;
 
-function getHoopBranches(rimX: number): Branch[] {
-  const boardX = getBoardX(rimX);
-  const poleX = getPoleX(rimX);
+function getHoopBranches(rimX: number, direction: number): Branch[] {
+  const boardX = getBoardX(rimX, direction);
+  const poleX = getPoleX(rimX, direction);
   return [
-    [{ x: rimX - HOOP.rimRadius, y: RIM_HEIGHT }, { x: boardX, y: RIM_HEIGHT }],
+    [{ x: rimX - direction * HOOP.rimRadius, y: RIM_HEIGHT }, { x: boardX, y: RIM_HEIGHT }],
     [{ x: boardX, y: RIM_HEIGHT - HOOP.boardBelowRim }, { x: boardX, y: RIM_HEIGHT + HOOP.boardAboveRim }],
     [{ x: boardX, y: HOOP.armHeight }, { x: poleX, y: HOOP.armHeight }, { x: poleX, y: 0 }],
   ];
@@ -117,7 +121,9 @@ function getChangesNoSliderHolds(changes: SceneParameters, sliders: readonly Par
 function getStartingBounds(root: SimulationElement, { attached, baseScene, others, frame }: { attached: readonly BoardElement[]; baseScene: Scene; others: SceneParameters; frame: FigureFrame }): WorldBounds {
   const held = Object.keys(others).length === 0 ? [] : [root.placedScene?.scene as Scene];
   const arcs = [baseScene, ...held, ...attached.flatMap((element) => element.ghostScene ?? [])].map(getArcBounds).reduce(joinBounds);
-  return root.content.over && frame.board.elements.has(root.content.over) ? joinBounds(arcs, { left: 0, right: getPoleX(getHoopCenter(baseScene)), bottom: 0, top: RIM_HEIGHT + HOOP.boardAboveRim }) : arcs;
+  if (!root.content.over || !frame.board.elements.has(root.content.over)) return arcs;
+  const poleX = getPoleX(getHoopCenter(baseScene), getHoopDirection(baseScene));
+  return joinBounds(arcs, { left: Math.min(0, poleX), right: Math.max(0, poleX), bottom: 0, top: RIM_HEIGHT + HOOP.boardAboveRim });
 }
 
 function getWorldBounds(root: SimulationElement, attached: readonly BoardElement[], frame: FigureFrame, baseScene: Scene): WorldBounds {
@@ -159,14 +165,24 @@ function getQuantityArrow(frame: ProjectileFrame, quantity: string): Point {
   return quantity === 'acceleration' ? frame.acceleration : frame.velocity;
 }
 
+function getPartPlace(part: string, { element, scene }: { element: BoardElement; scene: Scene }): Point | null {
+  if (part === 'ball') return getFrameAt(scene, element.targetSecondsWhenPlaced ?? 0).ball;
+  return part === 'path' ? ((getScenePath(scene)[0] as Branch)[PATH_STEPS / 2] as Point) : null;
+}
+
 function addOnBall(draft: FigureDraft, element: BoardElement, { ballAt, world, view, frame, scene }: { ballAt: Point; world: ProjectileFrame; view: FigureView; frame: FigureFrame; scene: Scene }): void {
   const { content } = element;
   const share = getDrawnShare(element, frame);
   if (content.kind === 'ghostPath' && element.ghostScene) draft.marks.unshift({ kind: 'path', key: `ghost-${element.id}`, tone: 'ink-2', weight: 'thin', branches: share >= 1 ? getPixelBranches(getScenePath(element.ghostScene), view) : [] });
   if (content.kind === 'vector') addArrow(draft, { key: `vector-${element.id}`, from: ballAt, to: getFixedVectorTip(ballAt, content, frame), share, tone: 'ink', label: content.label });
   const partMark = getPartMark(element);
-  if (partMark && 'target' in content && content.target.split('.')[1] !== 'ball') frame.onMarkWithoutPart?.(element);
-  else if (partMark) addPartMark(draft, { key: `note-${element.id}`, at: view.toPixel(getFrameAt(scene, element.targetSecondsWhenPlaced ?? 0).ball), share, ...partMark });
+  const partPlace = partMark && 'target' in content ? getPartPlace(content.target.split('.')[1] as string, { element, scene }) : null;
+  if (partMark && partPlace) {
+    frame.onMarkDrawn?.(element);
+    addPartMark(draft, { key: `note-${element.id}`, at: view.toPixel(partPlace), share, ...partMark });
+  } else if (partMark) {
+    frame.onMarkWithoutPart?.(element);
+  }
   if (content.kind === 'trackVector') {
     const arrow = getQuantityArrow(world, content.quantity);
     const to = view.toPixel({ x: world.ball.x + arrow.x * ARROW_SECONDS, y: world.ball.y + arrow.y * ARROW_SECONDS });
@@ -249,7 +265,7 @@ export function getSimulationMarks(frame: FigureFrame): FigureMark[] {
   const view = getView(getWorldBounds(root, attached, frame, baseScene), frame, readoutsHeight);
   const share = getDrawnShare(root, frame);
   addAxes(draft, view, { share, hideTicksBelow: 0 });
-  if (root.content.over && frame.board.elements.has(root.content.over)) draft.marks.push({ kind: 'path', key: 'hoop', tone: 'ink-2', weight: 'thin', branches: share >= 1 ? getHoopBranches(getHoopCenter(baseScene)).map((branch) => branch.map(view.toPixel)) : [] });
+  if (root.content.over && frame.board.elements.has(root.content.over)) draft.marks.push({ kind: 'path', key: 'hoop', tone: 'ink-2', weight: 'thin', branches: share >= 1 ? getHoopBranches(getHoopCenter(baseScene), getHoopDirection(baseScene)).map((branch) => branch.map(view.toPixel)) : [] });
   const ballAt = addPath(draft, scene, { view, seconds });
   for (const element of attached) addOnBall(draft, element, { ballAt, world, view, frame, scene });
   addLandingNote(draft, { scene, view, seconds, hasSlider: attached.some((element) => element.content.kind === 'slider'), metres: frame.words.metres });

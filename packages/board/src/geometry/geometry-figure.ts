@@ -83,8 +83,12 @@ function addOnFigure(draft: FigureDraft, element: BoardElement, { points, view, 
   const partMark = getPartMark(element);
   if (partMark && 'target' in content) {
     const at = getPartPixel(content.target, { points, view });
-    if (at) addPartMark(draft, { key: `note-${element.id}`, at, share, ...partMark });
-    else frame.onMarkWithoutPart?.(element);
+    if (at) {
+      frame.onMarkDrawn?.(element);
+      addPartMark(draft, { key: `note-${element.id}`, at, share, ...partMark });
+    } else {
+      frame.onMarkWithoutPart?.(element);
+    }
   }
 }
 

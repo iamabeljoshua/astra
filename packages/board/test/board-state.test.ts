@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { BrowserMessage } from '@astra/contracts';
 import { createTimerClock } from '../src/player/audio-clock.ts';
-import type { BoardOperation } from '../src/player/board-operations.ts';
+import { type BoardOperation, sortOperations } from '../src/player/board-operations.ts';
 import { getBoardAt, describeBoard, getReshapedValues, getSceneFrame, type BoardElement } from '../src/player/board-state.ts';
 import { createScenePlayer } from '../src/player/scene-player.ts';
 import { rebuildBoard } from '../src/player/rebuild-board.ts';
@@ -146,6 +146,32 @@ describe('a move landing during another', () => {
     expect(describeEquation(operations, 3500)?.tex).toBe('2x = 11 - 3');
     expect(describeEquation(operations, 3500)?.drawn).toBe(0.5);
     expect(describeEquation(operations, 5000)?.tex).toBe('2x = 8');
+  });
+});
+
+describe('two sliders that share a speed', () => {
+  const shot: BoardOperation = { kind: 'command', atMs: 0, overMs: null, command: { kind: 'simulate', id: 'shot', simulation: { model: 'projectile', parameters: { horizontalSpeed: 4, upwardSpeed: 6, releaseHeight: 2, gravity: 9.8 } } } as never };
+  const sample = (atMs: number, parameter: string, value: number): BoardOperation => ({ kind: 'parameterSample', atMs, target: 'shot' as never, parameter, value });
+  const getValues = (operations: BoardOperation[]) => getBoardAt(operations, 5000).elements.get('shot' as never)?.placedScene?.scene.values;
+
+  it('shows the value of the slider moved last, whichever came first', () => {
+    expect(getValues([shot, sample(10, 'launchAngle', 30), sample(20, 'horizontalSpeed', 15)])?.horizontalSpeed).toBe(15);
+    expect(getValues([shot, sample(10, 'horizontalSpeed', 15), sample(20, 'launchAngle', 30)])?.launchAngle).toBeCloseTo(30, 9);
+    expect(getValues([shot, sample(10, 'launchAngle', 30), sample(20, 'horizontalSpeed', 15), sample(30, 'launchAngle', 45)])?.launchAngle).toBeCloseTo(45, 9);
+    expect(getValues([shot, sample(10, 'launchAngle', 30), sample(20, 'horizontalSpeed', 15), sample(30, 'launchAngle', 45), sample(40, 'horizontalSpeed', 9)])?.horizontalSpeed).toBe(9);
+  });
+});
+
+describe('two things in the same millisecond', () => {
+  const curve: BoardOperation = { kind: 'command', atMs: 0, overMs: null, command: { kind: 'plot', id: 'curve', expression: 'a*x', constants: [{ name: 'a', value: 1, min: 0, max: 9 }], domain: [0, 1] } as never };
+  const tutor: BoardOperation = { kind: 'command', atMs: 50, overMs: 0, command: { kind: 'setParameter', target: 'curve', constant: 'a', value: 3 } as never };
+  const student: BoardOperation = { kind: 'parameterSample', atMs: 50, target: 'curve' as never, parameter: 'a', value: 7 };
+
+  it('takes the tutor first and the student after, in whatever order they arrived, so a live board and a replay agree', () => {
+    for (const operations of [[curve, student, tutor], [curve, tutor, student]]) {
+      const board = getBoardAt(sortOperations(operations), 100);
+      expect(board.elements.get('curve' as never)?.placedScene?.scene.values).toEqual({ a: 7 });
+    }
   });
 });
 
