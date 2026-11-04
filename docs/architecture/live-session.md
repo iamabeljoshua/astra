@@ -16,7 +16,7 @@ Status: approved by Abel on 3 November 2026, who asked for a modular design so p
 - Chris is the voice, ElevenLabs voice id `iP95p4xoKVk53GoZ742B`. You chose him on 4 November in place of Casey, by ear. He stays on Flash unless you say otherwise.
 - Sonnet 5.5 is the tutor, with code reacting first and a timeout for stalls. There is no talking router for now.
 - Two perf numbers replace V1's rule. A first reaction under 200 ms from code, and a first real word as fast as the vendors allow.
-- The shared board is M3.12, between M3.7 and M3.10, and M3.11 narrows to ink and uploads.
+- The shared board is M3.12, between M3.7 and M3.10, and it also took the pen. Uploads moved past the MVP on 4 November, so M3.11 only says they are coming soon.
 - 3D comes from a checked library first, with live generation as the fallback. A queue prepares the current and next concept's scenes. These are M3.13 and M3.14, and the scene test is still running, so their details may change.
 - LiveKit runs on a free Cloud project until real students.
 - M3.6 built the session with the SDK as the ears only: the room's audio, the voice detector, Muse, and the turn detector. The tutor speaks only through `createVoiceLine` and `speakTurn`, the path M3.2 proved, so the SDK's `ttsNode`, `llmNode`, and speech handles never run. This replaces the rows below that name them, and `docs/tests/voice.md` says why and what it measured. M3.7 calls the model from the session and not from `llmNode`.
@@ -367,7 +367,8 @@ The whole sample session from PRD section 6.4 parses with these types, including
 | M3.7 | Done. If no command has come by the turn's third word, the reader adds a `focus` on the last element. An empty board has nothing to point at. The evaluation counts turns with no drawing and reports them. It exits non-zero for a beat that does not parse, an internal tag, a silent turn, or a failed safety check, and for nothing else, so a slow turn or a turn with no drawing does not fail it. |
 | M3.12 | Tasks, notes, and tangent, and a wider `studentActed`. |
 | M3.14 | One scene command that renders from the time alone, with moments as word cues. |
-| M3.11 | One mark on a group of strokes, a region of a photo, a tutor stroke, and ink when the layout differs between sizes. Its sign-error test passes only if the sign is one stroke the model can name. |
+| After the MVP | A region of a photo, with uploads. Abel moved uploads on 4 November 2026. |
+| M3.12 | One mark on a group of strokes, a tutor stroke, and ink when the layout differs between sizes, which came with the pen. A sign-error test passes only if the sign is one stroke the model can name. |
 | M4.4 | Done, with no new command. Code picks the moments from the log, the work it called right and otherwise what the tutor drew, and the page shows each in turn as the recap plays. `docs/tests/recap-replay.md` has the rest. |
 | Later | CJK and Thai count as one word, so every cue would fire at word 0. PRD Q12 says English first, so this waits. |
 
@@ -375,7 +376,7 @@ The whole sample session from PRD section 6.4 parses with these types, including
 
 **How other code loads it.** `apps/agent` runs plain Node 22.18 or newer, which strips types with no loader, and in a verifier's run 22.17.1 failed. The repo's `engines` floor of 22.22, from main, covers that. A `pnpm deploy` copy cannot load the package, because Node will not strip types under `node_modules`, so M3.6 deploys from the workspace or bundles with esbuild. When the NestJS API imports the parser, it adds the workspace dependency, `rewriteRelativeImportExtensions`, and the Jest line `moduleNameMapper: {"^(\\.{1,2}/.*)\\.js$": "$1"}`. A verifier ran that, and `nest build` passed and Jest gave 233 of 233.
 
-**The board's direction.** You want the board to go beyond a hand-built library, with 3D, cinematic zooms, scenes for almost any topic, and a board shared by student and tutor. You decided on 3 November. The shared board is M3.12, from Prototype B, and M3.11 narrows to ink and uploads. 3D comes from a checked library first, with live generation as the fallback, in M3.14, and a queue prepares scenes ahead of the student in M3.13. A saved scene holds shared truth and declared personal values, and the tutor's words, order, pace, and examples stay live per student. "Videos" means our generated scenes, with no real footage and no AI-generated video. The scene test is still running, so the details of M3.13 and M3.14 may change. M3.2 builds the player so that a scene can be any deterministic function of the clock, with named parts and named moments, and does not bake in only the planned 2D kinds.
+**The board's direction.** You want the board to go beyond a hand-built library, with 3D, cinematic zooms, scenes for almost any topic, and a board shared by student and tutor. You decided on 3 November. The shared board is M3.12, from Prototype B. It later took the pen, and uploads moved past the MVP. 3D comes from a checked library first, with live generation as the fallback, in M3.14, and a queue prepares scenes ahead of the student in M3.13. A saved scene holds shared truth and declared personal values, and the tutor's words, order, pace, and examples stay live per student. "Videos" means our generated scenes, with no real footage and no AI-generated video. The scene test is still running, so the details of M3.13 and M3.14 may change. M3.2 builds the player so that a scene can be any deterministic function of the clock, with named parts and named moments, and does not bake in only the planned 2D kinds.
 
 ## Swapping a provider
 
@@ -433,7 +434,7 @@ These were all the changes this design made to the approved plan. They went into
 | M3.8 | Its evaluations must run against any model by name, so a later model change reruns them. A new case from your Aristotle note: the student interrupts to ask for clarification, and the tutor answers it, then goes back to the point without repeating itself. A test that no internal tag or spoken math mark reaches the voice. |
 | M3.9 | `system` and `tools` stay frozen for prompt caching, so the current step goes in as an appended message. |
 | M3.10 | Its perf rule measures first real word, not first audio. |
-| M3.11 | Narrowed to ink and uploads, which use the shapes above, with handwriting through a small reader call and then the code check. It settles its open row. |
+| M3.11 | Only says that photos and PDFs are coming soon. Uploads moved past the MVP on 4 November 2026, and the pen moved to M3.12, with handwriting through a small reader call and then the code check. |
 | M4.4 | Adds no key-moments command. Code picks the moments from the log, as `docs/tests/recap-replay.md` says. |
 | M4.5 | Anthropic's zero-retention agreement, Meta's and ElevenLabs' age rules, and a full read of their terms go into the legal review. |
 | PRD section 10 | The cost table is superseded by the table above. |

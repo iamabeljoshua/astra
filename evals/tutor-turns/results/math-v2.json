@@ -1,0 +1,70 @@
+{
+ "prompt": "v2",
+ "repeat": 1,
+ "shares": {
+  "root-simplify noMathApology": {
+   "passed": 1,
+   "total": 1
+  },
+  "root-simplify draws": {
+   "passed": 1,
+   "total": 1
+  },
+  "double-root noMathApology": {
+   "passed": 1,
+   "total": 1
+  },
+  "double-root draws": {
+   "passed": 1,
+   "total": 1
+  },
+  "square-both noMathApology": {
+   "passed": 1,
+   "total": 1
+  },
+  "square-both draws": {
+   "passed": 1,
+   "total": 1
+  },
+  "right-triangle noMathApology": {
+   "passed": 2,
+   "total": 2
+  },
+  "right-triangle draws": {
+   "passed": 2,
+   "total": 2
+  },
+  "estimate noMathApology": {
+   "passed": 1,
+   "total": 1
+  },
+  "estimate draws": {
+   "passed": 1,
+   "total": 1
+  },
+  "approx-root noMathApology": {
+   "passed": 1,
+   "total": 1
+  },
+  "approx-root draws": {
+   "passed": 1,
+   "total": 1
+  },
+  "big-answer noMathApology": {
+   "passed": 1,
+   "total": 1
+  },
+  "big-answer draws": {
+   "passed": 1,
+   "total": 1
+  },
+  "quadratic noMathApology": {
+   "passed": 1,
+   "total": 1
+  },
+  "quadratic draws": {
+   "passed": 1,
+   "total": 1
+  }
+ }
+}

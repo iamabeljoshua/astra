@@ -45,14 +45,14 @@ export function DotStage({ shape = DOT_DRAWINGS.planet, legsDrawn = PATH_LEG_COU
       <canvas ref={liveCanvas} aria-hidden="true" className="absolute inset-0 size-full" />
       <div className="relative flex items-center justify-between px-stage-edge py-7 max-lg:absolute max-lg:inset-x-0 max-lg:top-0">
         <div className="product-mark">{PRODUCT_NAME}</div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 bg-paper">
           {headerAction}
           <ThemeToggle />
         </div>
       </div>
       <div className="h-stage-band flex-none lg:hidden" />
       {chartTitle && (
-        <p className="relative px-stage-edge text-right font-voice text-chart-title wrap-anywhere italic max-lg:text-body lg:absolute lg:right-0 lg:bottom-6 lg:max-w-[58vw]">
+        <p className="relative px-stage-edge text-right font-voice text-chart-title wrap-anywhere italic max-lg:text-body lg:absolute lg:right-0 lg:bottom-6 lg:max-w-[58vw] lg:truncate">
           {chartTitle}
         </p>
       )}

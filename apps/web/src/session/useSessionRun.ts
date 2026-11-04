@@ -16,8 +16,18 @@ function createClock(startingSeconds: number) {
   return () => startingSeconds + Math.floor(Math.max(Date.now() - openedAtMs, 0) / MS_PER_SECOND);
 }
 
+/** What ending a session asks of the room it runs in. */
+export interface SessionRoom {
+  canAskForRecap(): boolean;
+  askForRecap(): boolean;
+  leave(): Promise<void>;
+  rejoin(): Promise<unknown>;
+}
+
+const NO_ROOM: SessionRoom = { canAskForRecap: () => false, askForRecap: () => false, leave: async () => {}, rejoin: async () => {} };
+
 // Stands in for the live session's clock until M3.10. The session is finished the moment the student presses End, whatever becomes of the recap, and a tutor is told only once that has saved, so a failed end leaves it teaching.
-export function useSessionRun(session: Session, recap: { canAsk(): boolean; ask(): boolean }) {
+export function useSessionRun(session: Session, room: SessionRoom = NO_ROOM) {
   const queryClient = useQueryClient();
   const { fadeInto } = useLeavePage();
   const { mutate: saveLength } = useUpdateSession(session.id);
@@ -43,16 +53,20 @@ export function useSessionRun(session: Session, recap: { canAsk(): boolean; ask(
     await fadeInto('/', { replace: true, state: ARRIVING_FROM_ENDED_SESSION });
   }
 
+  /** True once the session has finished. */
+  // Finishing deletes a room that is not kept for a recap, and a page still in it would ask for another. A student whose finish failed stays in the session, so that room opens again.
   async function endSession() {
     if (isEnding) return;
     setIsEnding(true);
-    const canRecap = recap.canAsk();
+    const canRecap = room.canAskForRecap();
     try {
+      if (!canRecap) await room.leave();
       await finish.mutateAsync({ durationSeconds: readSeconds(), status: 'finished', ...(canRecap ? { keepsRoomForRecap: true } : {}) });
-      if (canRecap && recap.ask()) setIsRecapping(true);
+      if (canRecap && room.askForRecap()) setIsRecapping(true);
       else await leave();
     } catch (thrown) {
       setIsEnding(false);
+      if (!canRecap) await room.rejoin();
       rethrowUnlessApiError(thrown);
     }
   }

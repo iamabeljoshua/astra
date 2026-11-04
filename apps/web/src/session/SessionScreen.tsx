@@ -1,13 +1,15 @@
-import { type PropsWithChildren, useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, type PropsWithChildren, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { ChatBox } from '../home/ChatBox';
 import { findArtwork, type Artwork } from '../home/artwork';
 import { RecapLines } from '../replay/RecapLines';
 import { ReplayScreen } from '../replay/ReplayScreen';
 import { API_ERROR_LABELS, MENU_LABELS, RECAP_LABELS, REPLY_BOX_LABELS, SESSION_LABELS, SESSIONS_LABELS, VOICE_LABELS } from '../strings';
+import { type FilesComingSoon, useFilesComingSoon } from '../ui/useFilesComingSoon';
 import { BoardPicture, getSessionVisual } from './BoardPicture';
 import { type Session, useSession } from './sessionQueries';
 import { BAR_ACTION, SessionFacts, SessionFrame, SessionTitle } from './SessionFrame';
+import { isLessonEnabled } from './lessonFlag';
 import { useSessionRun } from './useSessionRun';
 import { StudentCaption } from '../voice/Captions';
 import { BoardCaption } from '../board/BoardCaption';
@@ -20,6 +22,7 @@ const NOT_FOUND_STATUS = 404;
 const BAD_ID_STATUS = 400;
 /** The tutor has this long from the press of End to say whether there is a recap, and past it the student leaves anyway. */
 const LONGEST_RECAP_WAIT_MS = 8000;
+const LessonSession = lazy(() => import('./LessonSession'));
 
 function isWrongAddress(status?: number | null) {
   return status === NOT_FOUND_STATUS || status === BAD_ID_STATUS;
@@ -50,8 +53,13 @@ export function SessionScreen() {
 // The view is chosen once, so ending the session does not swap the screen while it fades out.
 function OpenSession({ session }: { session: Session }) {
   const [wasFinishedOnOpening] = useState(session.status === 'finished');
-  if (!wasFinishedOnOpening) return <RunningSession session={session} />;
-  return session.canReplay ? <ReplayScreen session={session} /> : <FinishedSession session={session} />;
+  if (wasFinishedOnOpening) return session.canReplay ? <ReplayScreen session={session} /> : <FinishedSession session={session} />;
+  if (!isLessonEnabled()) return <RunningSession session={session} />;
+  return (
+    <Suspense>
+      <LessonSession session={session} />
+    </Suspense>
+  );
 }
 
 // Every session speaks first, so a student is never left waiting on a blank screen. Sending this opens the room.
@@ -61,7 +69,7 @@ export function getOpeningMessage({ title, subject, durationSeconds }: Pick<Sess
 }
 
 // React runs effects twice in development, and the room must open once, so this waits for the first run to settle.
-function useOpeningMessage(session: Session, sendTyped: (text: string, isOpening: boolean) => Promise<boolean>) {
+function useOpeningMessage(session: Session, sendOpening: (text: string) => Promise<void>) {
   const [opening] = useState(() => getOpeningMessage(session));
   const hasSent = useRef(false);
 
@@ -69,10 +77,10 @@ function useOpeningMessage(session: Session, sendTyped: (text: string, isOpening
     const sending = setTimeout(() => {
       if (hasSent.current) return;
       hasSent.current = true;
-      void sendTyped(opening, true);
+      void sendOpening(opening);
     });
     return () => clearTimeout(sending);
-  }, [opening, sendTyped]);
+  }, [opening, sendOpening]);
 }
 
 function isTutorOnTheWay(status: LiveVoiceControls['status'], view: LiveVoiceView | null): boolean {
@@ -121,15 +129,21 @@ function useLeaveWhenNoRecap({ isEnding, isRecapping, view, leave }: { isEnding:
 function RunningSession({ session }: { session: Session }) {
   const liveVoice = useLiveVoice({ sessionId: session.id });
   const { status, view, voice } = liveVoice;
-  const { seconds, endSession, leave, isEnding, isRecapping, endProblem } = useSessionRun(session, { canAsk: () => voice?.canAskForRecap() ?? false, ask: () => voice?.askForRecap() ?? false });
+  const { seconds, endSession, leave, isEnding, isRecapping, endProblem } = useSessionRun(session, {
+    canAskForRecap: () => voice?.canAskForRecap() ?? false,
+    askForRecap: () => voice?.askForRecap() ?? false,
+    leave: liveVoice.leave,
+    rejoin: () => liveVoice.connect({ wantsGreeting: false }),
+  });
   useLeaveWhenNoRecap({ isEnding, isRecapping, view, leave });
   const tutorStateLine = useRef<HTMLSpanElement>(null);
   // This changes on every student action, so it is written straight to the page and the session does not render again for it.
   const showTutorState = useCallback((state: string | null) => {
     if (tutorStateLine.current) tutorStateLine.current.textContent = state;
   }, []);
-  useOpeningMessage(session, liveVoice.sendTyped);
+  useOpeningMessage(session, liveVoice.sendOpening);
   const isConnecting = isTutorOnTheWay(status, view);
+  const filesComingSoon = useFilesComingSoon();
 
   const picture = <Board artwork={findArtwork(session.artwork)} note={SESSION_LABELS.boardStandIn} />;
   return (
@@ -154,19 +168,19 @@ function RunningSession({ session }: { session: Session }) {
               ) : (
                 <div className="flex flex-1 flex-col justify-end font-voice text-voice">{isConnecting && <p role="status">{VOICE_LABELS.connecting}</p>}</div>
               )}
-              <ReplyBox liveVoice={liveVoice} isConnecting={isConnecting} carryOnLine={SESSION_LABELS.carryOnWith(session.title)} />
+              <ReplyBox liveVoice={liveVoice} isConnecting={isConnecting} carryOnLine={SESSION_LABELS.carryOnWith(session.title)} filesComingSoon={filesComingSoon} />
             </>
           )}
         </div>
         <ConnectingSaturn isConnecting={isConnecting} />
-        {voice ? <LiveBoard voice={voice} isConnecting={isConnecting} onTutorState={showTutorState} visual={getSessionVisual(findArtwork(session.artwork))} onTalk={() => void liveVoice.toggleTalk()} isTalkOn={view?.mic === 'on'} canTalk={!view?.closedBecause} isLookingBack={isRecapping} /> : <div className="board-panel">{picture}</div>}
+        {voice ? <LiveBoard voice={voice} isConnecting={isConnecting} onTutorState={showTutorState} visual={getSessionVisual(findArtwork(session.artwork))} onTalk={() => void liveVoice.toggleTalk()} isTalkOn={view?.mic === 'on'} canTalk={!view?.closedBecause} isLookingBack={isRecapping} filesComingSoon={isConnecting ? undefined : filesComingSoon} /> : <div className="board-panel">{picture}</div>}
       </div>
     </SessionFrame>
   );
 }
 
 // The hidden label holds the button's width, so the bar stays still when the label changes.
-function EndButton({ isEnding, onEnd }: { isEnding: boolean; onEnd: () => void }) {
+export function EndButton({ isEnding, onEnd }: { isEnding: boolean; onEnd: () => void }) {
   return (
     <>
       <p role="status" className="sr-only">{isEnding && SESSION_LABELS.ending}</p>
@@ -243,7 +257,15 @@ function getVoiceNote({ status, waitSeconds, view }: LiveVoiceControls, isAnswer
   return isAnswerDue ? VOICE_LABELS.answerPrompt : null;
 }
 
-function ReplyBox({ liveVoice, isConnecting, carryOnLine }: { liveVoice: LiveVoiceControls; isConnecting: boolean; carryOnLine: string }) {
+interface ReplyBoxProps {
+  liveVoice: LiveVoiceControls;
+  isConnecting: boolean;
+  carryOnLine: string;
+  filesComingSoon: FilesComingSoon;
+}
+
+// The board's tools sit behind the connecting picture, so until the tutor arrives a file's note opens this box and shows here.
+function ReplyBox({ liveVoice, isConnecting, carryOnLine, filesComingSoon }: ReplyBoxProps) {
   const { status, view, voice, isTalkOn, sendTyped, toggleTalk, openAgain } = liveVoice;
   const isFinished = status === 'finished';
   const isOver = isFinished || status === 'tooSoon' || (view !== null && isVoiceOver(view.phase));
@@ -253,7 +275,7 @@ function ReplyBox({ liveVoice, isConnecting, carryOnLine }: { liveVoice: LiveVoi
   const [draftEdits, setDraftEdits] = useState(0);
   const [hasDraft, setHasDraft] = useState(false);
   const isBackWhileConnecting = useHasWaited(isConnecting, REPLY_BOX_BACK_AFTER_MS);
-  const isBoxOpen = (!voice && status !== 'connecting') || isBackWhileConnecting || hasDraft;
+  const isBoxOpen = (!voice && status !== 'connecting') || isBackWhileConnecting || hasDraft || (isConnecting && filesComingSoon.noteKey !== null);
   if (reply && view?.hasTutorStarted && (!reply.didFail || (!isOver && !view.closedBecause))) setReply(null);
   if (reply && !reply.didFail && !view?.hasTutorStarted && isOver) setReply({ ...reply, didFail: true });
   const voiceNote = getVoiceNote(liveVoice, useIsAnswerDue(view, draftEdits + (view?.typingNoteCount ?? 0)));
@@ -299,7 +321,7 @@ function ReplyBox({ liveVoice, isConnecting, carryOnLine }: { liveVoice: LiveVoi
         <div className={isBackWhileConnecting ? 'animate-arrive' : undefined}>
           <ChatBox
             labels={REPLY_BOX_LABELS}
-            canAttach={false}
+            filesComingSoon={!voice || isConnecting ? filesComingSoon : undefined}
             clearsOnSend
             isSending={isOver}
             takesFocus={isBackWhileConnecting}

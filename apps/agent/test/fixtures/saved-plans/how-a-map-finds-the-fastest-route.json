@@ -1,0 +1,34 @@
+{
+ "topic": "How a map finds the fastest route",
+ "plan": {
+  "opening": [
+   {
+    "say": "Picture a map as a bunch of dots, with roads connecting them, and every road has a number on it.",
+    "note": "dots and roads"
+   },
+   {
+    "say": "That number is how many minutes the road takes. A short road in traffic can cost more than a long empty one.",
+    "tex": "\\text{cost} = \\text{minutes}"
+   },
+   {
+    "say": "So the question becomes: out of all the ways to get from start to finish, which one adds up to the smallest total?",
+    "note": "smallest total"
+   }
+  ],
+  "more": [
+   {
+    "say": "Say one way is three roads costing five, four, and six minutes. Add those up and that trip costs fifteen minutes."
+   },
+   {
+    "say": "Another way is just two roads, costing eight and nine. That's fewer turns, but seventeen minutes, so it's actually the slower trip."
+   },
+   {
+    "say": "Checking every possible trip would take forever on a real map, so the trick is to be smart about which dots you look at first."
+   }
+  ],
+  "setup": "Watch how the search spreads out from the start.",
+  "narration": "[[start-glows]]We begin at the start dot, with cost zero. [[neighbors-lit]]Then we look at its neighbors and write down what each costs. [[pick-cheapest]]Always grab the cheapest dot we haven't finished. [[update-costs]]From there, maybe we've found a quicker way to something. [[path-traced]]When we reach the finish, we trace back.",
+  "plan": "start-glows: the start dot S lights up with a zero cost label, all other dots grey with infinity labels.\nneighbors-lit: roads from S pulse, and the dots next to S get cost labels equal to the road minutes, for example four and seven.\npick-cheapest: the dot with the smallest label, four, turns solid, meaning its cost is final and cannot be beaten.\nupdate-costs: from that dot, a road gives a neighbor a lower total than before, so its label changes from seven to six.\npath-traced: the finish dot is reached and a bold line walks back along the cheapest roads to S, with total cost shown.",
+  "close": "Why is it safe to lock in the cheapest dot first?"
+ }
+}

@@ -425,6 +425,46 @@ describe('fitting y to a curve with a tall part', () => {
     }
   });
 
+  for (const [expression, domain, low, high] of [
+    ['x*sin(10*x)', [-10, 10], -9.9, 9.6],
+    ['x*sin(30*x)', [-10, 10], -10, 9.9],
+    ['cos(16*x)', [-6.28, 6.28], -1, 1],
+    ['cos(30*x)', [-10, 10], -1, 1],
+    ['exp(-x*x)*sin(30*x)', [-5, 5], -1, 1],
+    ['sin(15*x)', [-10, 10], -1, 1],
+    ['x*sin(x)', [-100, 100], -99, 96],
+    ['sqrt(1-x*x)', [-5, 5], 0, 1],
+    ['1/(1+x)', [0, 100], 0, 1],
+    ['sin(10*x)+sin(20*x)/2', [-10, 10], -1.3, 1.3],
+    ['3*sin(2*pi*x)', [0, 48], -3, 3],
+    ['cos(2*pi*x)', [0, 96], -1, 1],
+    ['sin(30*x)/x', [-10, 10], -6.5, 29.9],
+  ] as const) {
+    it(`shows the whole of ${expression} on [${domain.join(', ')}], which an even grid can miss`, () => {
+      const [bottom, top] = fitted(expression, [domain[0], domain[1]]);
+      const nearly = (high - low) * 0.05;
+      expect(bottom).toBeLessThanOrEqual(low + nearly);
+      expect(top).toBeGreaterThanOrEqual(high - nearly);
+      expect(top - bottom).toBeLessThan((high - low) * 1.6);
+    });
+  }
+
+  it('shows the whole wave for every value a slider can give it, and holds a pole a slider moves', () => {
+    const slider = (min: number, max: number): Plot['constants'] => [{ name: 'a', value: min, min, max }];
+    expect(fitted('sin(a*x)', [-10, 10], slider(1, 150))).toEqual([-1, 1]);
+    expect(fitted('x*sin(a*x)', [-10, 10], slider(1, 30))).toEqual([-10, 10]);
+    expect(fitted('a*sin(30*x)', [-10, 10], slider(1, 5))[1]).toBeGreaterThanOrEqual(5);
+    const [bottom, top] = fitted('1/(x-a)', [-10, 10], slider(-5, 5));
+    expect(top - bottom).toBeLessThan(40);
+  });
+
+  it('does not take a pole for a finite top when a climb happens to stop gaining near it', () => {
+    for (const [expression, domain] of [['1/(x-8.0136)', [-10, 10]], ['tan(x-3.7842)', [-5, 5]], ['x/(x-8.0136)', [-10, 10]], ['tan(x-0.8162)', [-5, 5]], ['1/(x*x-2.6712)', [-5, 5]], ['1/sin(x-0.2226)', [-5, 5]], ['ln(x+1)', [-2, 2]], ['log(x+1)', [-20, 20]], ['1/x', [0.01, 10]], ['tan(x-3.4503)', [-5, 5]]] as const) {
+      const [bottom, top] = fitted(expression, [domain[0], domain[1]]);
+      expect(top - bottom).toBeLessThan(40);
+    }
+  });
+
   it('measures a finite peak beside a pole, and still clips the pole', () => {
     const [, top] = fitted('1/(x-5)+10/(1+100*x*x)', [-10, 10]);
     expect(top).toBeGreaterThanOrEqual(10);

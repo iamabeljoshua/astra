@@ -13,6 +13,7 @@ export const ONE_OF_EACH_COMMAND: Record<SceneCommand['kind'], Record<string, un
   construct: { kind: 'construct', id: 'point-a', target: 'figure', step: { shape: 'point', name: 'A', x: 1, y: 2 } },
   vector: { kind: 'vector', id: 'push', on: 'shot.ball', angleDegrees: 0, length: 'medium', label: 'hand' },
   simulate: { kind: 'simulate', id: 'shot', simulation: { model: 'projectile', parameters: { horizontalSpeed: 4, upwardSpeed: 5, releaseHeight: 2, gravity: 9.81 } }, over: 'court' },
+  richScene: { kind: 'richScene', id: 'slope', engine: 'manimgx', sceneId: 'what-a-derivative-measures-1a2b3c4d', moments: { secant: 3.2, tangent: 9.5 }, parts: ['curve', 'point'], durationSeconds: 20 },
   runSimulation: { kind: 'runSimulation', target: 'shot', action: 'play', until: 'peak', overWords: 4 },
   setParameter: { kind: 'setParameter', target: 'shot', parameter: 'gravity', value: 1.62 },
   trackVector: { kind: 'trackVector', id: 'sideways', target: 'shot', quantity: 'velocity-x' },

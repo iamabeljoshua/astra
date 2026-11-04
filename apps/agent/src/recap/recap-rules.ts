@@ -14,7 +14,7 @@ const NEEDS_CARE = /\b(?:suicid\w*|sewerslide|kms|kill(?:ing)? myself|end(?:ing)
 /** "Beats me" and "hit me with another one" are how students talk, so these two need someone doing it. */
 const SOMEONE_HITS_ME = /\b(?:he|she|they|someone|somebody|people|kids|my \w+(?:'s \w+)?|(?:step)?(?:mom|mum|mam|dad|father|mother|brother|sister)|uncle|aunt(?:ie)?|grandpa|grandma|cousin|teacher|coach|boyfriend|girlfriend)(?:'s|'re)?(?: \w+){0,3}? (?:beats?|beating|hits?|hitting) me\b/i;
 /** The parts of the tutor's safety reply that only it says. A tutor can tell a student a mistake is not their fault in any lesson. */
-const TUTOR_GAVE_SAFETY_REPLY = /\b(?:that sounds serious|right thing telling me|adult you trust|emergency number|are you safe)\b/i;
+const TUTOR_GAVE_SAFETY_REPLY = /\b(?:that sounds[^.?!]*serious|right thing telling me|adult you trust|trusted adult|(?:your|local) emergency (?:number|services)|are you safe)\b/i;
 
 const PRAISE = /\b(?:great|amazing|awesome|excellent|fantastic|wonderful|perfect(?:ly)?|brilliant|superb|incredible|impressive|outstanding|proud|genius|smart|well done|good job|nice (?:job|work)|nailed|crushed|keep it up|way to go)\b/i;
 
