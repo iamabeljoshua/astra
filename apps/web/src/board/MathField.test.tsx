@@ -57,6 +57,15 @@ describe('the math keys', () => {
     expect(onLine).not.toHaveBeenCalled();
   });
 
+  it('sends nothing when the student goes to another window, which leaves the field active', async () => {
+    const { onLine, field } = await open();
+    const hasFocus = vi.spyOn(document, 'hasFocus').mockReturnValue(false);
+    expect(document.activeElement).toBe(field);
+    field.dispatchEvent(new Event('change'));
+    expect(onLine).not.toHaveBeenCalled();
+    hasFocus.mockRestore();
+  });
+
   it('puts its keyboard away when closed', async () => {
     const { unmount } = await open();
     unmount();
