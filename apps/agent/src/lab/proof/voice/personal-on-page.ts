@@ -27,7 +27,6 @@ const readCaption = ({ page }: OpenedPage) =>
     return [...tutorHeard, ...tutorComing].join(' ');
   });
 
-// A slow first word plays a stored line first, so the tutor counts as finished only after a long quiet.
 async function waitForTheTutorToFinish({ page }: OpenedPage) {
   await page.waitForFunction(() => window.astraVoice?.getView().hasTutorStarted === true, undefined, { timeout: REPLY_LIMIT_MS });
   let quietSinceMs = Date.now();
@@ -39,7 +38,6 @@ async function waitForTheTutorToFinish({ page }: OpenedPage) {
   }
 }
 
-// Reads what a real page shows for each line, from the student's side of the room.
 async function runSession(browser: Browser, { email, title, lines, shot }: { email: string; title: string; lines: readonly string[]; shot: string }) {
   const student = await openStudentPage(browser, { email, title, opensScreen: false });
   await student.page.goto(student.sessionUrl);

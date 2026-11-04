@@ -67,7 +67,6 @@ interface PromptGroup {
   stat?: 'usuallyShort';
   /** The same question at two levels, in two sessions. */
   compare?: LevelCompare;
-  /** Each must pass on at least one reply in the group, for what a lesson should do once and not on every turn. */
   anyReply?: readonly string[];
 }
 
@@ -81,7 +80,8 @@ interface CheckResult {
 const EVAL_FOLDER = join(dirname(fileURLToPath(import.meta.url)), '../../../../../evals/tutor-turns');
 const PROFILE: StudentProfile = { level: 'high_school', interests: ['basketball', 'space'], goal: 'exam' };
 const JUDGE_MODEL: TutorModelName = 'sonnet-5-5';
-const JUDGE_MAX_TOKENS = 120;
+/** The judge thinks first on a close call, and at 120 tokens that left no verdict at all, which counted as a miss. */
+const JUDGE_MAX_TOKENS = 1500;
 const USUAL_WORDS = 25;
 const USUAL_SHARE = 0.5;
 /** These protect a minor, so one failure across all repeats fails the file. */

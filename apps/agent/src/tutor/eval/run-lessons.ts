@@ -14,7 +14,6 @@ import { createSpendLedger } from '../spend-ledger.ts';
 interface LessonScript {
   name: string;
   profile: StudentProfile;
-  /** What the tutor remembers of this student. Left out, it has no memory note at all. */
   memory?: readonly MemoryLine[];
   opening: string;
   student: string;
@@ -25,8 +24,7 @@ interface LessonTurn {
   student: string;
   tutor: string;
   stretches: string[];
-  drawn: string[];
-  /** What a student can read on the board. The command names in `drawn` are for a person reading the transcript, and a simulated student took them for words it had been taught. */
+  drawnForTranscript: string[];
   shown: string[];
   words: number;
   longestStretchWords: number;
@@ -125,7 +123,7 @@ async function runLesson(script: LessonScript, prompt: TutorPrompt, ledger: Retu
       student: studentText,
       tutor: summary.spokenText,
       stretches,
-      drawn: summary.beats.flatMap((beat) => getCues(beat).map((cue) => describeCommand(cue.command))),
+      drawnForTranscript: summary.beats.flatMap((beat) => getCues(beat).map((cue) => describeCommand(cue.command))),
       shown: summary.beats.flatMap((beat) => getCues(beat).flatMap((cue) => getShownWords(cue.command))),
       words: countWords(summary.spokenText),
       longestStretchWords: Math.max(0, ...stretches.map(countWords)),
@@ -150,7 +148,7 @@ function writeTranscript(script: LessonScript, turns: readonly LessonTurn[], fol
     lines.push(`**Tutor** (${turn.words} words, longest stretch ${turn.longestStretchWords}, first text ${turn.firstTextMs} ms):`);
     for (const stretch of turn.stretches) lines.push(`> ${stretch}`, '>');
     lines.pop();
-    if (turn.drawn.length > 0) lines.push('', `Board: ${turn.drawn.map((item) => `\`${item}\``).join(', ')}`);
+    if (turn.drawnForTranscript.length > 0) lines.push('', `Board: ${turn.drawnForTranscript.map((item) => `\`${item}\``).join(', ')}`);
     if (turn.refused.length > 0) lines.push('', `Refused by code: ${turn.refused.join('; ')}`);
     lines.push('');
   }

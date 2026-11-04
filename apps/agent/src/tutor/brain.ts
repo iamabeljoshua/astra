@@ -178,7 +178,6 @@ const BREATHS_MS = [300, 450, 350];
 /** A repeated opening of a few words is dropped only at the start of a retry, where it sounds like starting over, and a longer repeat anywhere. */
 const FEWEST_WORDS_IN_A_REPEAT = 4;
 const COMPACT_AT_TOKENS = 60_000;
-/** A lesson's start is set in its first replies, so the fit note stops there and adds nothing to a long session. */
 const TURNS_THAT_SET_THE_START = 2;
 const TURNS_KEPT_AFTER_COMPACTING = 8;
 const CHARACTERS_PER_TOKEN = 3.2;
@@ -338,8 +337,8 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     const nodded = hasNoddedSinceLastTurn;
     hasNoddedSinceLastTurn = false;
     let readerMemory = memory;
-    const fitNote = canFitTheStart && turnCount <= TURNS_THAT_SET_THE_START ? (prompt.fitNote ?? null) : null;
-    const turnNotes = [attempts.startTurn(studentText), prompt.turnNote, fitNote].filter((note) => note !== null);
+    const openingNote = canFitTheStart && turnCount <= TURNS_THAT_SET_THE_START ? (prompt.openingNote ?? null) : null;
+    const turnNotes = [attempts.startTurn(studentText), prompt.turnNote, openingNote].filter((note) => note !== null);
     const turn: TurnWork = {
       id: turnCount,
       studentText,
