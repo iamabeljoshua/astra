@@ -243,6 +243,7 @@ const SCENE_AGENT_MESSAGES: VariantTable<SceneAgentMessage, 'type'> = {
   tag: 'type',
   variants: {
     loadScene: { keys: ['sceneId', 'durationSeconds'], read: (fields) => ({ type: 'loadScene', sceneId: readSceneId(fields.at('sceneId')), durationSeconds: readNumberInRange(fields.at('durationSeconds'), { min: 0.1, max: 600 }) }) },
+    prepareScene: { keys: ['sceneId'], read: (fields) => ({ type: 'prepareScene', sceneId: readSceneId(fields.at('sceneId')) }) },
     noLesson: { keys: [], read: () => ({ type: 'noLesson' }) },
     voiceAtLimit: { keys: [], read: () => ({ type: 'voiceAtLimit' }) },
   },
@@ -253,6 +254,7 @@ const SCENE_BROWSER_MESSAGES: VariantTable<SceneBrowserMessage, 'type'> = {
   variants: {
     sceneDevice: { keys: ['canPlay'], read: (fields) => ({ type: 'sceneDevice', canPlay: readBoolean(fields.at('canPlay')) }) },
     sceneLoaded: { keys: ['sceneId'], read: (fields) => ({ type: 'sceneLoaded', sceneId: readSceneId(fields.at('sceneId')) }) },
+    scenePrepared: { keys: ['sceneId'], read: (fields) => ({ type: 'scenePrepared', sceneId: readSceneId(fields.at('sceneId')) }) },
     sceneRefused: { keys: ['sceneId'], read: (fields) => ({ type: 'sceneRefused', sceneId: readSceneId(fields.at('sceneId')) }) },
   },
 };

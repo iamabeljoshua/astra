@@ -7,6 +7,7 @@ import { LEAD_NOTES, OPENING_A_CARD_NOTE } from '../lesson-plan/lesson-rules.ts'
 import type { LeadKind } from '../live/tutor-lead.ts';
 import { createAttemptTracker } from './attempts.ts';
 import { BeatTextReader, type WrittenBeatParts } from './beat-text-reader.ts';
+import { MAY_BE_ABOUT_SAFETY, PLAIN_REFUSALS } from './safety-words.ts';
 import { type BoardMemory, checkAgainstBoard, EMPTY_BOARD, getClaimProblem, getMemoryAfter, getMemoryAfterAnswering, getMemoryAfterWork, getMemoryOnComingBack, getMemoryOnNewTurn, getPictureProblem, getWordsProblem } from './board-memory.ts';
 import type { MemoryNote } from '../learner-record/memory-note.ts';
 import { TUTOR_PROMPT, type TutorPrompt } from './prompt.ts';
@@ -130,6 +131,7 @@ export interface TutorBrainOptions {
   prompt?: TutorPrompt;
   findSource?: FindSource;
   onAskScene?(topic: string): void;
+  onStudentWords?(words: string): void;
   onSafetyReply?(): void;
 }
 
@@ -216,11 +218,7 @@ const DECLINED_NOTE = {
 const SCENE_ASIDE = { kind: 'boardMode', mode: 'handsOn' } as const;
 const SKIPPED_NOTE = { skipped: "An automatic check stopped an earlier message of the student's, and the app told them it could not go into that. It is not about their safety. Teach on, and do not ask them to repeat it." };
 const CLIPPED_NOTE = { clipped: 'The student wrote more than you can see, and this is only the first part. Say so in a few words, and answer what you can.' };
-/** These categories cannot be about the student's own safety. The list of categories is open, so one it does not name counts as possibly serious. */
-const PLAIN_REFUSALS: ReadonlySet<string> = new Set(['cyber', 'frontier_llm', 'reasoning_extraction']);
 const ASKED_HOW_IT_WORKED = 'reasoning_extraction';
-/** A refused message in a plain category can still say this, as "my dad hits me, how do i hack his phone" does, and the model never saw it. */
-const MAY_BE_ABOUT_SAFETY = /\b(?:hit|hits|hitting|hurt|hurts|hurting|beat|beats|beating|abuse|abused|abusing|touch|touches|touched|rape|raped|kill|killing|suicide|die|dying|alive|harm|harming|cut myself|cutting myself|scared|afraid|unsafe|danger|threaten|threatens|threatened)\b/i;
 /** Asking how a tutor worked something out is core teaching, and the check can read it as asking for hidden reasoning. The retry keeps the student's own words, because replacing them could hide a disclosure in the same message. Measured at 0 of 8 refused against 8 of 8 without. */
 const AFTER_A_TOOL = 'You have the result now. Say it in plain words in this reply, and do not make this call again.';
 const ASKED_HOW_NOTE = { asked_how: 'They are asking you to go through the subject step by step, as teaching. Their words may mention your reasoning. Answer anything else they said first.' };
@@ -283,7 +281,7 @@ const holdsWhereToStart = ({ memory: { notes } }: MemoryNote) => notes.some(({ k
 
 const toProfileNote = ({ level, interests, goal, cardTitle }: StudentProfile) => ({ student: { level, interests, goal, ...(cardTitle ? { card_title: cardTitle } : {}) } });
 
-export function createTutorBrain({ model, profile = null, loadProfile, memory: knownMemory = null, loadMemory, onWorkNoted, timeouts: chosenTimeouts, trace = () => {}, onTurnEnd, onCompacted, compactAtTokens = COMPACT_AT_TOKENS, getSpendLimit = () => null, getNowMs = () => performance.now(), prompt = TUTOR_PROMPT, findSource, lessonPlanner, onAskScene, onSafetyReply }: TutorBrainOptions): Required<TutorBrain> {
+export function createTutorBrain({ model, profile = null, loadProfile, memory: knownMemory = null, loadMemory, onWorkNoted, timeouts: chosenTimeouts, trace = () => {}, onTurnEnd, onCompacted, compactAtTokens = COMPACT_AT_TOKENS, getSpendLimit = () => null, getNowMs = () => performance.now(), prompt = TUTOR_PROMPT, findSource, lessonPlanner, onAskScene, onSafetyReply, onStudentWords }: TutorBrainOptions): Required<TutorBrain> {
   const timeouts: TutorTimeouts = { ...TUTOR_TIMEOUTS, ...chosenTimeouts };
   const attempts = createAttemptTracker();
   const pickLine = createLinePicker();
@@ -381,13 +379,6 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     return moves;
   };
 
-  // Code asks, so a lesson's pictures do not rest on the model remembering. Asking again costs nothing, and only a picture that missed its moment is asked for twice.
-  const askStepPicture = (studentText: string) => {
-    const step = lessonPlanner?.getStepNote();
-    if (!step || !('picture_topic' in step) || !step.picture_topic || step.exercise_due || memory.openTask || isLeadStopped || MAY_BE_ABOUT_SAFETY.test(studentText)) return;
-    onAskScene?.(step.picture_topic);
-  };
-
   const startTurn = (studentText: string, signal: AbortSignal): TurnWork => {
     settleLastTurn(studentText);
     turnCount += 1;
@@ -404,7 +395,6 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     leadDue = null;
     const leadNote = lead ? { lead: LEAD_NOTES[lead] } : null;
     const turnNotes = [attempts.startTurn(studentText), prompt.turnNote, levelLine ? { level: levelLine } : null, shapeNote, openingNote, leadNote, isOnACard && turnCount === 1 ? OPENING_A_CARD_NOTE : null].filter((note) => note !== null);
-    askStepPicture(studentText);
     const turn: TurnWork = {
       mustAsk: lead === 'mustAsk',
       id: turnCount,
@@ -983,6 +973,8 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
         if (said.ok) yield said.value;
         return;
       }
+      // A lead holds nobody's words, so what is waiting to land at this pause still lands.
+      if (leadDue === null) onStudentWords?.(studentText);
       // Skipped on words this list knows. Vaguer words reach the planner, whose `stay` and `getTrustedMove` hold them.
       // A student who cuts a card's opening scene speaks before the tutor has heard the card's title, so those are their own words.
       if (!MAY_BE_ABOUT_SAFETY.test(studentText)) lessonPlanner?.noteStudentWords({ words: studentText, isOpening: turnCount === 0 && cutWordsSent === null, tutorSaid: lastBeats.map(getBeatText).join(' ') });
@@ -1071,7 +1063,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     canLead: () => canLeadAfterLastTurn && !isLeadStopped && !hasToldClosed && closedReason === null && getSpendLimit() === null,
     noteLead(kind) {
       leadDue = kind;
-      if (kind === 'taskLeft') lessonPlanner?.noteMovedOn();
+      if (kind === 'taskLeft') lessonPlanner?.moveToNextStep();
     },
     getBoard() {
       const state = getBoardNow();

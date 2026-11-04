@@ -1,10 +1,7 @@
 import { type Beat, getBeatText, parseBeat, type AgentMessage } from '@astra/contracts';
 import { initializeLogger, tts } from '@livekit/agents';
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { toCardPlan, parseCardMaterial } from '../src/lesson-plan/card-lesson.ts';
+import { getCardPictures, toCardPlan, parseCardMaterial } from '../src/lesson-plan/card-lesson.ts';
 import { createLessonPlanner, getTeachFirstNote } from '../src/lesson-plan/lesson-planner.ts';
 import { getStateAfterEvent, getStateAfterMove, getStepNote, NO_LESSON } from '../src/lesson-plan/plan-progress.ts';
 import { createLiveSession, type LiveSession } from '../src/live/live-session.ts';
@@ -14,9 +11,7 @@ import { createVoiceLine, type VoiceOutput } from '../src/live/voice-line.ts';
 import { makeFakeTutorModel } from '../src/providers/fake-model.ts';
 import { renderTone } from '../src/providers/fakes.ts';
 import { makeRenderedVoice } from '../src/providers/rendered-voice.ts';
-import { createSceneStore } from '../src/scenes/scene-store.ts';
 import { createTutorBrain, type TurnSummary, type TutorBeat, type TutorBrain } from '../src/tutor/brain.ts';
-import { createTutorScenes } from '../src/tutor/tutor-scenes.ts';
 
 initializeLogger({ pretty: false, level: 'silent' });
 
@@ -42,12 +37,20 @@ describe('a lesson from a card', () => {
     expect(PLAN.steps.map(({ teach }) => teach)).toEqual(['How a rocket escapes Earth', 'Why rockets drop their empty stages', 'How an orbit is really falling sideways']);
   });
 
-  it('tells the tutor the lines to put in its own words and the saved picture, and only a saved one', () => {
-    expect(getStepNote(atCard())).toMatchObject({ step: '1 of 3', material: ['Throw a ball up, and it always comes back down.', 'Think of rolling a ball up a hill that keeps getting gentler.'], picture_topic: 'How a rocket escapes Earth' });
-    const last = getStateAfterEvent(getStateAfterEvent(atCard(), 'movedOn'), 'movedOn');
+  it('tells the tutor the lines to put in its own words, and that a saved picture is coming on a new step', () => {
+    expect(getStepNote(atCard())).toMatchObject({ step: '1 of 3', material: ['Throw a ball up, and it always comes back down.', 'Think of rolling a ball up a hill that keeps getting gentler.'] });
+    const second = getStateAfterEvent(atCard(), 'movedOn');
+    expect(getStepNote(second)).toMatchObject({ step: '2 of 3', picture_coming: true });
+    expect(getStepNote(getStateAfterEvent(second, 'replyEnded'))).not.toHaveProperty('picture_coming');
+    const last = getStateAfterEvent(second, 'movedOn');
     expect(getStepNote(last)).toMatchObject({ step: '3 of 3', teach_first: 'How an orbit is really falling sideways' });
-    expect(getStepNote(last)).not.toHaveProperty('picture_topic');
+    expect(getStepNote(last)).not.toHaveProperty('picture_coming');
     expect(getStepNote(last)).not.toHaveProperty('material');
+  });
+
+  it('feeds the queue its own pictures, as long as each is still on the shelf, and leaves any other plan to the model', () => {
+    expect(getCardPictures(PLAN, ['How a rocket escapes Earth'])).toEqual(['How a rocket escapes Earth', null, null]);
+    expect(getCardPictures({ topic: 'Fractions', kind: 'teachFirst', steps: [{ teach: 'Top', exercise: 'Name it' }] }, ['Top'])).toBeNull();
   });
 
   it('refuses what the server should never have sent', () => {
@@ -336,26 +339,6 @@ describe('the brain in a lead', () => {
     expect(summaries[0]?.beats.at(-1)?.expectsReply).toBe(true);
   });
 
-  it('asks for the step\'s saved picture by itself, once, as the reply on that step starts', async () => {
-    const asked: string[] = [];
-    const scripted = { stream: async function* () { yield { type: 'text', text: 'Gravity pulls back.', isNewBlock: false }; yield { type: 'finished', stopReason: 'finished', usage: { inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0 } }; }, getCostUsd: () => 0, compact: async () => null, warm: async () => {} } as never;
-    const planner = createLessonPlanner({ ask: async () => ({ move: { move: 'stay' }, costUsd: 0 }), canSpend: () => true, charge: () => {}, onTitleChange: () => {}, trace: () => {} });
-    planner.noteCardLesson(PLAN);
-    const brain = createTutorBrain({ model: scripted, timeouts: QUICK, lessonPlanner: planner, onAskScene: (topic) => asked.push(topic) });
-    await run(brain, PLAN.topic);
-    expect(asked).toEqual([PLAN.topic]);
-  });
-
-  it('gives no picture to words that may be about safety', async () => {
-    const asked: string[] = [];
-    const scripted = { stream: async function* () { yield { type: 'text', text: 'Please tell an adult you trust.', isNewBlock: false }; yield { type: 'finished', stopReason: 'finished', usage: { inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0 } }; }, getCostUsd: () => 0, compact: async () => null, warm: async () => {} } as never;
-    const planner = createLessonPlanner({ ask: async () => ({ move: { move: 'stay' }, costUsd: 0 }), canSpend: () => true, charge: () => {}, onTitleChange: () => {}, trace: () => {} });
-    planner.noteCardLesson(PLAN);
-    const brain = createTutorBrain({ model: scripted, timeouts: QUICK, lessonPlanner: planner, onAskScene: (topic) => asked.push(topic) });
-    await run(brain, 'my dad hits me');
-    expect(asked).toEqual([]);
-  });
-
   it('opens a card by teaching, and is told not to ask what they know', async () => {
     const seen: string[] = [];
     const scripted = { stream: async function* (request: { turns: { text?: string }[] }) { seen.push(JSON.stringify(request.turns)); yield { type: 'text', text: 'Gravity pulls back.', isNewBlock: false }; yield { type: 'finished', stopReason: 'finished', usage: { inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0 } }; }, getCostUsd: () => 0, compact: async () => null, warm: async () => {} } as never;
@@ -369,32 +352,3 @@ describe('the brain in a lead', () => {
   });
 });
 
-describe('scenes through the lesson', () => {
-  it('shares a saved scene named on the card\'s own list, and no other title', async () => {
-    const SCENE = { id: `scene-${'b'.repeat(40)}`, engine: 'manimgx', topic: 'Why rockets drop their empty stages', moments: { a: 0, b: 2 }, parts: [], durationSeconds: 5, ownerId: null, plan: { opening: [{ say: 'x' }], more: [], setup: 'Watch.', narration: '[[a]] It falls. [[b]] It goes.', plan: '', close: 'Why?' } };
-    const store = createSceneStore(mkdtempSync(join(tmpdir(), 'tutor-scenes-')));
-    const requests: { topic: string; ownerId: string | null }[] = [];
-    const runs = { join: vi.fn((key: { topic: string; ownerId: string | null }) => { requests.push({ topic: key.topic, ownerId: key.ownerId }); return { plan: Promise.resolve(SCENE.plan), firstLine: Promise.resolve(null), getScene: async () => ({ isOk: true, scene: SCENE }), leave: vi.fn() }; }) };
-    const scenes = createTutorScenes({
-      router: { route: vi.fn(async () => ({ engine: 'manimgx', kind: 'graph', topic: 'x', model: 'm', ms: 1, costUsd: 0 })) } as never,
-      runs: runs as never,
-      store,
-      getCardTitle: () => 'How a rocket escapes Earth',
-      getCardScenes: () => ['How a rocket escapes Earth', 'Why rockets drop their empty stages'],
-      getNowMs: () => performance.now(),
-      send: () => {},
-      canSpeak: () => false,
-      speak: () => true,
-      onShown: () => {},
-      trace: () => {},
-    } as never);
-    scenes.onPage({ type: 'sceneDevice', canPlay: true }, 'maya');
-    scenes.ask('why rockets drop their empty stages');
-    await delay(5);
-    expect(requests.at(-1)).toEqual({ topic: 'Why rockets drop their empty stages', ownerId: null });
-    scenes.ask('what is a rocket');
-    await delay(5);
-    expect(requests.at(-1)?.ownerId ?? 'maya').toBe('maya');
-    scenes.close();
-  });
-});

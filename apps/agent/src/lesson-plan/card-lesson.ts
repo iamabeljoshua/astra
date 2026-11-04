@@ -39,4 +39,8 @@ const toStep = ({ title, lines, hasScene }: CardIdea): LessonStep => ({ teach: t
 
 export const toCardPlan = ({ title, ideas }: CardMaterial): LessonPlan => ({ topic: title, kind: 'teachFirst', steps: ideas.map(toStep) });
 
-export const getCardScenes = ({ ideas }: CardMaterial) => ideas.filter(({ hasScene }) => hasScene).map(({ title }) => title);
+/** The queue's answer for a card, with no model asked: its own pictures, as long as each is still on the shelf. Null when this plan is not a card's. */
+export function getCardPictures({ steps }: LessonPlan, shelfTitles: readonly string[]): (string | null)[] | null {
+  if (!steps.some(({ picture }) => picture)) return null;
+  return steps.map(({ picture }) => (picture && shelfTitles.includes(picture) ? picture : null));
+}

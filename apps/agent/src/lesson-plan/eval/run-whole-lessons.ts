@@ -20,7 +20,9 @@ import { createSpendLedger } from '../../tutor/spend-ledger.ts';
 import { createTutorScenes } from '../../tutor/tutor-scenes.ts';
 import { askPlanner } from '../ask-planner.ts';
 import { createLessonPlanner } from '../lesson-planner.ts';
-import { toCardPlan, type CardMaterial } from '../card-lesson.ts';
+import { getCardPictures, type CardMaterial } from '../card-lesson.ts';
+import { matchLibrary, toShelfScene } from '../../scene-queue/library-match.ts';
+import { createSceneQueue, type SceneQueue } from '../../scene-queue/scene-queue.ts';
 
 interface LessonScript {
   name: string;
@@ -152,15 +154,18 @@ async function runLesson(script: LessonScript, student: StudentKind, ledger: Ret
     if (silence > 500) timeline.push(`  [${(silence / 1000).toFixed(1)} s quiet, ${isOpen ? 'something open' : 'NOTHING OPEN'}]`);
   };
 
+  const reader = makeAnthropicJsonReader({ apiKey: readerKey });
+  let queue: SceneQueue | null = null;
   const planner = createLessonPlanner({
-    ask: (request) => askPlanner(makeAnthropicJsonReader({ apiKey: readerKey }), request),
+    ask: (request) => askPlanner(reader, request),
     canSpend: () => !ledger.isOverModelLimit(),
     charge: (usd) => ledger.charge({ anthropicUsd: usd }),
     onTitleChange: () => {},
+    onLessonChange: (state, event) => queue?.onLesson(state, event),
+    getPictureTopic: () => queue?.getPictureTopic() ?? null,
     trace: () => {},
   });
   const profile: StudentProfile = { ...PROFILE, cardTitle: script.card ?? null, ...(script.card ? { cardMaterial: readCardMaterial(script.card) } : {}) } as StudentProfile;
-  const cardTitles = script.card ? readCardMaterial(script.card).ideas.filter(({ hasScene }) => hasScene).map(({ title }) => title) : [];
   let scenes: ReturnType<typeof createTutorScenes> | null = null;
   const brain = createTutorBrain({
     model: makeAnthropicTutorModel({ name: 'sonnet-5-5', apiKey: readerKey }),
@@ -170,12 +175,17 @@ async function runLesson(script: LessonScript, student: StudentKind, ledger: Ret
       setTimeout(() => scenes?.noteCard(script.card ?? null), 0);
       return profile;
     },
-    onAskScene: (topic) => scenes?.ask(topic),
-    onSafetyReply: () => scenes?.noteSafetyReply(),
+    onAskScene: (topic) => queue?.onTutorAsk(topic),
+    onStudentWords: (words) => queue?.noteStudentWords(words),
+    onSafetyReply() {
+      scenes?.noteSafetyReply();
+      queue?.noteSafetyReply();
+    },
     getSpendLimit: () => (ledger.isOverModelLimit() ? 'sessionLimit' : null),
     onTurnEnd(summary: TurnSummary) {
       ledger.charge({ anthropicUsd: summary.costUsd });
       lastSpokenBeats = summary.beats;
+      queue?.noteTutorReply(summary);
       const step = planner.getStepNote();
       const stepName = step && 'step' in step ? `${step.step}: ${step.teach_first ?? step.then_exercise}` : step ? 'finished' : 'no plan';
       stepsSeen.add(stepName);
@@ -219,7 +229,6 @@ async function runLesson(script: LessonScript, student: StudentKind, ledger: Ret
     runs: { join: () => { throw new Error('This run writes no new scenes.'); } } as never,
     store: createSceneStore(getSceneStoreRoot()),
     getCardTitle: () => script.card ?? null,
-    getCardTitles: () => cardTitles,
     getNowMs: () => performance.now(),
     send: toPage,
     speak: session.speakScene,
@@ -228,9 +237,28 @@ async function runLesson(script: LessonScript, student: StudentKind, ledger: Ret
       brain.noteSceneTurn(({ topic, beats }));
       scenesShown.push({ atSeconds: seconds(), topic });
       timeline.push(`${seconds()} s SCENE "${topic}": ${beats.map(getBeatText).join(' ')}`);
+      queue?.noteAhead(topic, 'shown');
     },
+    onAhead: (request, state) => queue?.noteAhead(request, state),
+    onPageReady: () => queue?.onPageReady(),
     trace: () => {},
   } as Parameters<typeof createTutorScenes>[0]);
+  const shelfStore = createSceneStore(getSceneStoreRoot());
+  queue = createSceneQueue({
+    scenes,
+    async readLibrary(plan) {
+      const shelf = await shelfStore.listShared();
+      const pictures = getCardPictures(plan, shelf.map(({ topic }) => topic));
+      if (pictures) return pictures;
+      const { matches, costUsd } = await matchLibrary(reader, plan, shelf.map(toShelfScene));
+      ledger.charge({ anthropicUsd: costUsd });
+      return matches;
+    },
+    getFacts: () => ({ writesStarted: 0, sceneUsd: 0, sceneLimitUsd: 0, leftTodayUsd: 3, isOverLimit: ledger.isOverModelLimit(), loadPerCore: 0, lastFirstTextMs: null }),
+    canPlay: () => scenes?.canPlay() ?? false,
+    moveToNextStep: () => planner.moveToNextStep(),
+    trace: () => {},
+  });
   scenes.onPage({ type: 'sceneDevice', canPlay: true }, 'eval-student');
   session.onBrowser({ type: 'audioState', isRunning: true, ...STAMP } as BrowserMessage);
   session.onBrowser({ type: 'typed', text: script.card ?? script.typed ?? '', ...(script.card ? { isOpening: true } : {}), ...STAMP } as BrowserMessage);

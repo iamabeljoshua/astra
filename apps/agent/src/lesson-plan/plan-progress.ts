@@ -35,11 +35,11 @@ export type LessonEvent =
   | 'exerciseWanted'
   /** They asked to go on, in whatever words. Their own words beat the count. */
   | 'teachingWanted'
-  /** The tutor went past this step for a student who did not try its exercise. */
-  | 'movedOn';
+  | 'movedOn'
+  | 'skipped';
 
 /** The only part of a plan the tutor is told on a turn, because everything before it stays cached. */
-export type StepNote = { topic: string; kind: LessonKind; is_finished: true } | { topic: string; kind: LessonKind; step: string; teach_first: string | null; then_exercise: string; next_idea: string | null; exercise_due?: true; material?: readonly string[]; picture_topic?: string };
+export type StepNote = { topic: string; kind: LessonKind; is_finished: true } | { topic: string; kind: LessonKind; step: string; teach_first: string | null; then_exercise: string; next_idea: string | null; exercise_due?: true; material?: readonly string[]; picture_topic?: string; picture_coming?: true };
 
 export const NO_LESSON: LessonState = { active: null, shelved: [], repliesEnded: 0, isExerciseDeclined: false };
 
@@ -81,17 +81,20 @@ function getActiveAfterEvent(active: ActivePlan, event: LessonEvent, repliesEnde
     case 'exerciseLeft':
       return { ...active, isExerciseOpen: false, stepStartReply: repliesEnded };
     case 'exerciseDone':
-    case 'movedOn':
       return nextStep;
     case 'teachingWanted':
       return hasTaughtThisStep(active, repliesEnded) ? nextStep : { ...active, isExerciseOpen: false, stepStartReply: repliesEnded };
     case 'teachingAgain':
       return active.isExerciseOpen ? nextStep : active;
+    case 'movedOn':
+    case 'skipped':
+      return nextStep;
     case 'safetyReplyEnded':
       return { ...active, stepStartReply: repliesEnded };
+    case 'exerciseWanted':
+      return { ...active, stepStartReply: repliesEnded - getRepliesBeforeTheExercise(active) };
     case 'replyEnded':
     case 'exerciseDeclined':
-    case 'exerciseWanted':
       return active;
   }
 }
@@ -115,7 +118,8 @@ export function getStepNote(state: LessonState): StepNote | null {
   if (!step) return { topic: plan.topic, kind: plan.kind, is_finished: true };
   const isDue = isExerciseDue(state);
   // The lines are for teaching, and each note costs tokens, so one that only says the exercise is due leaves them out.
-  return { topic: plan.topic, kind: plan.kind, step: `${stepIndex + 1} of ${plan.steps.length}`, teach_first: step.teach, then_exercise: step.exercise, next_idea: plan.steps[stepIndex + 1]?.teach ?? null, ...(isDue ? { exercise_due: true as const } : {}), ...(step.material && !isDue ? { material: step.material } : {}), ...(step.picture ? { picture_topic: step.picture } : {}) };
+  const isPictureComing = step.picture !== undefined && stepIndex > 0 && state.repliesEnded === active.stepStartReply;
+  return { topic: plan.topic, kind: plan.kind, step: `${stepIndex + 1} of ${plan.steps.length}`, teach_first: step.teach, then_exercise: step.exercise, next_idea: plan.steps[stepIndex + 1]?.teach ?? null, ...(isDue ? { exercise_due: true as const } : {}), ...(step.material && !isDue ? { material: step.material } : {}), ...(isPictureComing ? { picture_coming: true as const } : {}) };
 }
 
 export const getShelvedTopics = ({ shelved }: LessonState) => shelved.map(({ plan }) => plan.topic);

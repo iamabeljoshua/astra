@@ -67,7 +67,7 @@ function makeOutput(frames: { atMs: number }[], failAfter = Infinity): VoiceOutp
   };
 }
 
-function start({ voice = makeRenderedVoice({ name: 'fake', render: renderTone }).makeTts(), failAfter, quietLimitMs, onQuietLimit, tutorBeats, getCostSoFar, ...endingOptions }: Pick<LiveSessionOptions, 'writeRecap' | 'onRecap' | 'onEndingOver' | 'onLogWritten'> & { getCostSoFar?(): number; voice?: tts.TTS; failAfter?: number; quietLimitMs?: number; onQuietLimit?(): void; tutorBeats?: readonly TutorBeat[] } = {}): Harness {
+function start({ voice = makeRenderedVoice({ name: 'fake', render: renderTone }).makeTts(), failAfter, quietLimitMs, onQuietLimit, tutorBeats, getCostSoFar, ...endingOptions }: Pick<LiveSessionOptions, 'writeRecap' | 'onRecap' | 'onEnding' | 'onEndingOver' | 'onLogWritten'> & { getCostSoFar?(): number; voice?: tts.TTS; failAfter?: number; quietLimitMs?: number; onQuietLimit?(): void; tutorBeats?: readonly TutorBeat[] } = {}): Harness {
   const messages: AgentMessage[] = [];
   const traces: Harness['traces'] = [];
   const frames: { atMs: number }[] = [];
@@ -671,6 +671,28 @@ describe('ending a session with a recap', () => {
     harness.browser({ type: 'played', turnId, beatId: 'lesson' as Beat['id'], ...STAMP_END, wordStartsMs: LESSON_WORDS.split(' ').map((_, index) => index * 10), durationMs: 400, playedWords: 40, firedCueMs: [], ending: 'finished', frozen: [] });
     await delay(50);
   }
+
+  it('takes no scene from the End press on, and tells what waits ahead to stop', async () => {
+    let isOver = false;
+    const onEnding = vi.fn();
+    const harness = start({ tutorBeats: [makeBeat('lesson', LESSON_WORDS)], writeRecap: async () => RECAP, onEnding, onEndingOver: () => { isOver = true; } });
+    const scene = [makeBeat('scene-0', 'Watch this line tilt.')];
+    await playLesson(harness);
+    harness.browser({ type: 'endingSession', ...STAMP_END });
+    expect(onEnding).toHaveBeenCalledOnce();
+    expect(harness.session.isAtPause()).toBe(false);
+    expect(harness.session.speakScene(scene)).toBe(false);
+    const recapTurn = await vi.waitFor(() => {
+      const closed = harness.messages.find((message) => message.type === 'beatClosed' && message.beatId === 'recap-1');
+      if (!closed) throw new Error('the recap has not played');
+      return (closed as AgentMessage & { type: 'beatClosed' }).turnId;
+    }, { timeout: 3000 });
+    for (const beatId of ['recap-0', 'recap-1']) harness.browser({ type: 'played', turnId: recapTurn, beatId: beatId as Beat['id'], ...STAMP_END, wordStartsMs: [0], durationMs: 100, playedWords: 1, firedCueMs: [], ending: 'finished', frozen: [] });
+    await vi.waitFor(() => expect(isOver).toBe(true), { timeout: 8000 });
+    expect(harness.session.isAtPause()).toBe(false);
+    expect(harness.session.speakScene(scene)).toBe(false);
+    expect(harness.messages.some((message) => message.type === 'words' && message.beatId === 'scene-0')).toBe(false);
+  }, 12_000);
 
   it('tells the page there is no recap and lets the room go, on a session with nothing in it', async () => {
     let isOver = false;

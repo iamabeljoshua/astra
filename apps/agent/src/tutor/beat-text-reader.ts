@@ -1,3 +1,4 @@
+import { SAFETY_REPLY } from './safety-words.ts';
 import { BEAT_LIMITS, type Beat, type BoardKinds, getBoardAfter, getBoardProblem, LIVE_MESSAGE_MAX_BYTES, MATH_CLAIMS, parseSceneCommand, type SceneCommand } from '@astra/contracts';
 import { type AttemptReport, parseAttemptReport } from './attempts.ts';
 import { parseToolCall, type ToolCall } from './tools/tool-call.ts';
@@ -36,8 +37,6 @@ const ENDS_IN_ABBREVIATION = /(?:^|[\s("'])(?:mr|mrs|ms|dr|prof|st|vs|(?:[a-z]\.
 const ENDS_IN_ELLIPSIS = /\.{2,}["')]*\s*$/;
 /** A sentence can end inside a beat, when the words after a comma were too few to stand alone. */
 const HOLDS_SENTENCE_END = /[a-z][.!]["')]*\s+\S/i;
-/** Words only a safety reply uses, so that reply is never paused, wrapped, or ended at a question. Help must reach the student whole. A lesson can say the second group too, so those count only inside a question. */
-const SAFETY_REPLY = /\bare you (?:okay|ok)\s*\?|\b(?:that sounds[^.?!]*serious|right thing telling me|adult you trust|trusted adult|(?:your|local) emergency (?:number|services)|are you safe)\b|\b(?:feel safe|in danger|hurting yourself|hurt yourself|ending your life|not your fault)\b[^.?!]*\?/i;
 const STILL_A_TAG = /^<\/?(?:[A-Za-z_][\w:.-]*(?:\s[^<>\n]*)?)?$/;
 const TAG_NAME = /^<(\/?)([A-Za-z_][\w:.-]*)/;
 const PRIVATE_TAGS: ReadonlySet<string> = new Set(['thinking', 'think', 'reasoning', 'scratchpad', 'analysis', 'reflection', 'function_calls', 'invoke', 'parameter', 'system', 'system-reminder']);
