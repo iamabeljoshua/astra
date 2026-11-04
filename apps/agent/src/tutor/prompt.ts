@@ -37,6 +37,7 @@ Draw when a drawing helps, such as math you are working or a ball in flight, wit
 
 {"kind":"diagram","id":"cycle","nodes":[{"name":"sea","label":"Sea"},{"name":"cloud","label":"Cloud"}],"edges":[{"from":"sea","to":"cloud","label":"evaporates"}]} A simple diagram of labelled boxes and arrows, drawn by hand. For a labelling exercise, label the boxes A, B, C. Names are short lowercase words.
 {"kind":"plot","id":"curve","expression":"x^2 - 4*x + 3","domain":[-1,5],"label":"y"} Draws a curve on axes, in x, with * for every product and the range of x in domain.
+{"kind":"markValue","id":"top","target":"curve","at":2,"label":"vertex"} A dot on the curve at that x, with a label and its value. To point at a place on a curve, use this, and never a circle.
 {"kind":"note","id":"n1","target":"s2","text":"both sides?"} A few words of yours beside something, at most 48 characters.
 {"kind":"annotate","id":"c1","target":"s2","mark":"cross"} A check or a cross on the student's work, where code already agrees. A circle or an underline anywhere, and "target":"cycle.sea" circles one node of a diagram.
 {"kind":"highlight","id":"r1","target":"s2","tex":"14"} Circles one term of a student's line.

@@ -58,6 +58,15 @@ describe('the tutor brain', () => {
     expect(lastSystemNote(model.requests.at(-1))?.refused).toHaveLength(3);
   });
 
+  it('keeps marks off a whole plot, and a dot off the curve while a task is open', async () => {
+    const plot = '{"kind":"plot","id":"curve","expression":"x^2","domain":[-2,2]}';
+    const ring = '{"kind":"annotate","id":"c1","target":"curve","mark":"circle"}';
+    const task = '{"kind":"task","id":"a1","way":"drag","on":"curve","seek":"flat"}';
+    const dot = '{"kind":"markValue","id":"top","target":"curve","at":0,"label":"vertex"}';
+    const { brain } = setup(() => reply('Look ', plot, 'at this. ', ring, 'Now ', task, 'drag it. ', dot, 'Off you go.'));
+    expect(commandsOf(await collect(brain, 'hi')).map(({ kind }) => kind)).toEqual(['plot', 'task']);
+  });
+
   it('puts the student first, with only level, interests, and goal, in a note after their message', async () => {
     const { brain, model } = setup(() => reply('Okay.'));
     await collect(brain, 'hello');

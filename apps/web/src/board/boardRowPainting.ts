@@ -5,6 +5,8 @@ import { type BoardItem, createBoardItem, hasOwnPlace, type ItemContext } from '
 import { isInGutter } from './boardRows';
 
 const LARGEST_FIGURE = { width: 620, height: 420 };
+/** Room for a mark's label under the last row. A fixed amount, so a replay with no live line places it the same. */
+const LABEL_ROOM_BELOW_ROWS = 120;
 
 interface RowPaintingOptions {
   overlay: SVGSVGElement;
@@ -78,7 +80,7 @@ export function createBoardRowPainting({ overlay, getWrapper, onMarkProblem }: R
         return placement ? [[element.id as string, placement] as const] : [];
       }));
       lastPlacements = placements;
-      marks.paint({ elements: elements.filter((element) => !isInGutter(element)), board: board.elements, focus: board.focus, placements, getItem: (id) => items.get(id)?.item, atMs, isReducedMotion, area: { width: overlay.clientWidth, height: overlay.clientHeight }, onLabelWithoutRoom: ignoreLabelWithoutRoom });
+      marks.paint({ elements: elements.filter((element) => !isInGutter(element)), board: board.elements, focus: board.focus, placements, getItem: (id) => items.get(id)?.item, atMs, isReducedMotion, area: { width: overlay.clientWidth, height: Math.max(0, ...[...placements.values()].map(({ y, height }) => y + height)) + LABEL_ROOM_BELOW_ROWS }, onLabelWithoutRoom: ignoreLabelWithoutRoom });
     },
     getPartBox(id: string, query: TermQuery): MarkBox | null {
       const placement = lastPlacements.get(id);
