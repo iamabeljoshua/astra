@@ -13,11 +13,19 @@ export class HomeService {
   ) {}
 
   async getHomeScreen(studentId: string): Promise<HomeScreenResponseDto> {
+    const continueSession = await this.sessionsService.getNewestUnfinishedSession(studentId);
     return {
       studentName: await this.studentsService.getStudentName(studentId),
       isNewStudent: !(await this.sessionsService.hasStartedASession(studentId)),
-      continueSession: await this.sessionsService.getNewestUnfinishedSession(studentId),
-      picks: getPicksForStudent(await this.studentsService.getProfile(studentId), LIBRARY),
+      continueSession,
+      picks: getPicksForStudent(
+        {
+          fit: await this.studentsService.getProfile(studentId),
+          history: await this.sessionsService.getTopicHistory(studentId),
+          continueCardSessionId: continueSession?.id ?? null,
+        },
+        LIBRARY,
+      ),
     };
   }
 }

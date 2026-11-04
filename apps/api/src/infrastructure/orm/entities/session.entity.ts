@@ -55,6 +55,9 @@ export class SessionEntity {
   @Column('text', { nullable: true })
   artwork!: ArtworkName | null;
 
+  @Column('text', { name: 'topic_id', nullable: true })
+  topicId!: string | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 
