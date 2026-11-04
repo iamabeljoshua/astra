@@ -4,6 +4,7 @@ set -euo pipefail
 archive=/tmp/postgres-image.tar.zst
 tag=$(awk '$1 == "POSTGRES_TAG:" { print $2 }' .github/workflows/ci.yml)
 digest=$(awk '$1 == "POSTGRES_DIGEST:" { print $2 }' .github/workflows/ci.yml)
+# ghcr.io serves the same digest as the CLI's default registry, which has rate limited runners.
 image="ghcr.io/supabase/postgres:$tag"
 memory_for_one_image=6g
 
@@ -16,7 +17,7 @@ tar_docker_folder() {
   sudo tar --numeric-owner --xattrs --xattrs-include='*' --zstd "$@"
 }
 
-# A new Docker version may not read an older version's folder, and a new digest, script, or save workflow must prove its own entry, so each one misses the cache.
+# A new Docker version may not read an older version's folder.
 get_key() {
   local recipe_hash
   recipe_hash=$({ echo "$digest"; cat .github/scripts/postgres-image.sh .github/workflows/postgres-image-cache.yml; } | sha256sum | cut -c1-12)
@@ -33,13 +34,13 @@ image_runs() {
   docker run --rm --pull never --entrypoint postgres "$image" --version > /dev/null 2>&1
 }
 
-# A folder that will not run the image falls back to a pull, so a bad entry costs time and does not fail the job. ghcr.io serves the same digest as the CLI's default registry, which has rate limited runners.
+# A folder that will not run the image falls back to a pull, so a bad entry costs time and does not fail the job.
 start_docker_in_memory() {
   stop_docker
   if mountpoint -q /dockerdata; then sudo umount /dockerdata; fi
   sudo mkdir -p /etc/docker /dockerdata
   sudo mount -t tmpfs -o "size=$memory_for_one_image" tmpfs /dockerdata
-  # Docker 29 defaults to the containerd store, which keeps the image outside this memory disk and the archive.
+  # On an empty folder Docker 29 picks the containerd store, which keeps the image outside this memory disk and the archive.
   echo '{"data-root":"/dockerdata","features":{"containerd-snapshotter":false}}' | sudo tee /etc/docker/daemon.json > /dev/null
   restore_archive_or_leave_folder_empty
   if ! { sudo systemctl start docker && image_runs; }; then
