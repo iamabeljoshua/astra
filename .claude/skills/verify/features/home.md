@@ -1,14 +1,14 @@
 # Home
 
-Home is the page a student opens first. It greets the student by name and asks what they want to learn next. It offers the unfinished session and six picks, and keeps the chat box docked at the bottom.
+Home is the page a student opens first. It greets the student by name and asks what they want to learn next. It offers the unfinished session and up to six picks, and keeps the chat box docked at the bottom.
 
 ## Sub-features
 
 - `home-identity` shows the product name in the page title.
 - `home-greeting` shows `Welcome back, Maya.` for the seeded student, then `What do you want to learn next?`.
 - `home-continue` shows the newest unfinished session, `Free-body diagrams`, with a `Continue session` button. At laptop width it also shows a drawing from its board. A session with no `detail` line shows its subject and `Carry on where you left off.`
-- `home-picks` lists six cards under `Picked for you`, chosen from the student's level, interests, and goal, each with a picture and a reason. `maya@astra.test` and `tola@astra.test` see different cards. They stack in one column on a phone.
-- `home-history` changes the cards from the student's sessions on library topics. A finished topic leaves, the next topic in its subject appears with `You finished <title>`, and an older open topic appears with `Carry on where you left off` and opens its own session. The newest open session has the continue card, so it gets no second card. A session counts as finished at half the topic's length or more. Sooner than that it does not count. History takes at most two carry-on and two next-topic cards. Typed questions never change the cards.
+- `home-picks` lists up to six cards under `Picked for you`, chosen from the student's level, interests, and goal, each with a picture and a reason. `maya@astra.test` and `tola@astra.test` see different cards. They stack in one column on a phone. Cards fall below six once a level runs short. A student sees five after finishing 21 of 26 topics at middle school, 43 of 48 at high school, 23 of 28 at university, or 33 of 38 out of school.
+- `home-history` changes the cards from the student's sessions on library topics. A finished topic leaves, the next topic in its subject appears with `You finished <title>`, and an older open topic appears with `Carry on where you left off` and opens its own session. The newest open session has the continue card, so it gets no second card. A session counts as finished at half the topic's length or more. Sooner than that it does not count. History takes at most two carry-on and two next-topic cards. A typed question adds no card and finishes no topic, whatever its words. An open one can take the continue card, so a lesson it displaced can then appear with `Carry on where you left off`.
 - `home-wait` adds `Still loading your home screen.` to the placeholder after 4 seconds. The failure line still comes at 30 seconds.
 - `home-chat` keeps the chat box at the bottom. `Start session` works only with text in the box, and `Photo or PDF` and `Talk` show their state.
 - `home-start` starts a session from a card or a sent question, and `Continue session` opens the unfinished one. See [Sessions](./sessions.md).

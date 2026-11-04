@@ -240,6 +240,21 @@ describe('GET /home', () => {
 
       expect(homeAfter.picks).toEqual(homeBefore.picks);
     });
+
+    it('gives the continue card to an open typed question, and offers the lesson it displaced as a carry-on card', async () => {
+      const student = await createTestStudent(testApp);
+      const openLesson = await saveTopicSession(student.studentId, { topicId: 'saturn-rings', startedAt: '2026-11-01T11:00:00Z' });
+      const { body: homeBefore } = await getHomeWithToken(student.token).expect(200);
+      expect(homeBefore.continueSession.id).toBe(openLesson.id);
+      expect(getPick(homeBefore, 'saturn-rings')).toBeUndefined();
+
+      const openQuestion = await sessions().save({ studentId: student.studentId, title: 'How a jump shot flies', subject: 'Your question', language: 'en', startedAt: new Date('2026-11-01T12:00:00Z') });
+
+      const { body: homeAfter } = await getHomeWithToken(student.token).expect(200);
+
+      expect(homeAfter.continueSession.id).toBe(openQuestion.id);
+      expect(getPick(homeAfter, 'saturn-rings')).toMatchObject({ reason: CARRY_ON_REASON, continueSessionId: openLesson.id });
+    });
   });
 
   it('refuses a request with no token', async () => {
