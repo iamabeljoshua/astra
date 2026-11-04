@@ -14,7 +14,7 @@ async function getFitNoteTurns(notes: MemoryLine[] | null, { turns = 3 } = {}) {
   for (let turn = 0; turn < turns; turn += 1) for await (const beat of brain.reply({ text: 'can we do equations?' }, new AbortController().signal)) void beat;
   return model.requests.map(({ turns: sent }) => {
     const lastStudentTurn = sent.findLastIndex((entry) => entry.role === 'user');
-    return JSON.stringify(sent.slice(lastStudentTurn)).includes('"fit"') || JSON.stringify(sent.slice(lastStudentTurn)).includes('\\"fit\\"');
+    return JSON.stringify(sent.slice(lastStudentTurn)).includes('\\"fit\\"');
   });
 }
 

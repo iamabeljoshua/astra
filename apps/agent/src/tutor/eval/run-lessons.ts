@@ -26,6 +26,8 @@ interface LessonTurn {
   tutor: string;
   stretches: string[];
   drawn: string[];
+  /** What a student can read on the board. The command names in `drawn` are for a person reading the transcript, and a simulated student took them for words it had been taught. */
+  shown: string[];
   words: number;
   longestStretchWords: number;
   firstTextMs: number | null;
@@ -75,6 +77,13 @@ function describeCommand(command: SceneCommand): string {
   return parts.join(' ');
 }
 
+function getShownWords(command: SceneCommand): string[] {
+  if (command.kind === 'simulate') return ['a ball in flight'];
+  if ('tex' in command && command.tex) return [command.tex];
+  if ('text' in command && command.text) return [command.text];
+  return 'label' in command && command.label ? [command.label] : [];
+}
+
 const percentile = (values: readonly number[], share: number) => {
   const sorted = [...values].sort((a, b) => a - b);
   return sorted.length === 0 ? null : Math.round(sorted[Math.min(sorted.length - 1, Math.ceil(sorted.length * share) - 1)] as number);
@@ -84,7 +93,7 @@ function getStudentMessages(script: LessonScript, turns: readonly LessonTurn[]):
   const history: Parameters<StudentAsker>[0]['messages'] = [{ role: 'user', content: `The tutor is ready. You have just said: ${script.opening}` }];
   for (const [index, turn] of turns.entries()) {
     if (index > 0) history.push({ role: 'assistant', content: turn.student });
-    const board = turn.drawn.length > 0 ? ` [On the board: ${turn.drawn.join('; ')}]` : '';
+    const board = turn.shown.length > 0 ? ` [On the board: ${turn.shown.join('; ')}]` : '';
     history.push({ role: 'user', content: `Tutor says: ${turn.tutor}${board}` });
   }
   return history;
@@ -117,6 +126,7 @@ async function runLesson(script: LessonScript, prompt: TutorPrompt, ledger: Retu
       tutor: summary.spokenText,
       stretches,
       drawn: summary.beats.flatMap((beat) => getCues(beat).map((cue) => describeCommand(cue.command))),
+      shown: summary.beats.flatMap((beat) => getCues(beat).flatMap((cue) => getShownWords(cue.command))),
       words: countWords(summary.spokenText),
       longestStretchWords: Math.max(0, ...stretches.map(countWords)),
       firstTextMs: summary.firstTextMs && Math.round(summary.firstTextMs),

@@ -1,0 +1,29 @@
+{
+ "prompt": "v3",
+ "summary": {
+  "turns": 22,
+  "tutorUsdPerTurn": 0.0025148909090909094,
+  "firstTextMs": {
+   "p50": 1668,
+   "p95": 2295
+  },
+  "wordsPerReply": {
+   "p50": 19,
+   "p95": 34,
+   "worst": 36
+  },
+  "longestStretch": {
+   "p50": 19,
+   "p95": 29,
+   "worst": 34
+  },
+  "repliesEndingOnAQuestion": 10,
+  "repliesOverTwentyFiveWords": 4,
+  "repliesOverFortyFiveWords": 0
+ },
+ "spend": {
+  "anthropicUsd": 1.1760021999999997,
+  "voiceCharacters": 0,
+  "credits": 0
+ }
+}
