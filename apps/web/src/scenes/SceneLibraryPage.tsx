@@ -24,7 +24,7 @@ function SheetImage({ scene }: { scene: LibraryScene }) {
       if (isGone || !(sheet instanceof Blob)) return;
       madeAddress = URL.createObjectURL(sheet);
       setAddress(madeAddress);
-    });
+    }).catch(() => setAddress(null));
     return () => {
       isGone = true;
       if (madeAddress) URL.revokeObjectURL(madeAddress);

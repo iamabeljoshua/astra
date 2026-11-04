@@ -1,6 +1,7 @@
 import { getSpokenWords } from '@astra/contracts';
 import { getCodeProblems, getPlanNames, getPlanProblems } from '../content-check.ts';
 import { getSpokenLines } from '../lesson/lesson-beats.ts';
+import { readMarks } from '../narration.ts';
 import { getSceneStoreRoot } from '../scene-settings.ts';
 import { createSceneStore, getSceneKey } from '../scene-store.ts';
 import { getLibraryList } from './library-list.ts';
@@ -26,7 +27,7 @@ for (const entry of list) {
   for (const name of found) names.set(name, [...(names.get(name) ?? []), entry.id]);
   const spoken = getSpokenLines(scene.plan);
   lines += spoken.length;
-  voiceCharacters += [scene.narration.replace(/\[\[[^\]]*\]\]\s*/g, ''), ...(scene.plan.more ?? []).map(({ say }) => say), scene.plan.close].join(' ').length;
+  voiceCharacters += [readMarks(scene.narration).text, ...(scene.plan.more ?? []).map(({ say }) => say), scene.plan.close].join(' ').length;
   const problems = [...getPlanProblems(entry.title, scene.plan, new Set(found)), ...getLibraryLineProblems(scene.plan), ...getCodeProblems(scene.code), ...spoken.filter((line) => SOME_DIGIT.test(line) && !line.startsWith(BOARD_LINE)).map((line) => `a digit in speech: ${line}`),...spoken.flatMap((line) => line.split(/(?<=[.!?])\s+/)).filter((sentence) => getSpokenWords(sentence).length > USUAL_LINE_WORDS).map((sentence) => `a long sentence: ${sentence}`)];
   if (problems.length > 0) console.log(JSON.stringify({ entry: entry.id, problems }));
   if (scene.layoutNotes.length > 0) console.log(JSON.stringify({ entry: entry.id, layoutNotes: scene.layoutNotes }));
