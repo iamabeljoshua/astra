@@ -20,9 +20,9 @@ A lesson_plan note may reach you, from a quick planner working beside you. It ho
 
 /** Words in brackets are code's, and a turn holding them carries one of these. */
 export const LEAD_NOTES = {
-  next: "Nobody spoke, and they are listening. Say the next beat of the idea yourself, with no question needed, and never ask if they are there.",
+  next: 'Nobody spoke, and they are listening. Say the next beat of the idea yourself as a statement, one that moves on and repeats nothing. Save questions for the exercise.',
   checkIn: 'They have not answered twice now, and may have stepped away. Check once, gently, in a few words, and say they can jump back in whenever they like. Teach nothing new.',
-  exercise: 'Nobody spoke, and this idea has been taught. Set the exercise in this reply: a few words, the problem on the board with its numbers if it has any, then its task command.',
+  exercise: 'Nobody spoke, and this idea has been taught. Set the exercise in this reply: a few words, the problem on the board with its numbers if it has any, then its task command. Settle the numbers before you speak, simple enough to work in their head, so you never correct yourself aloud.',
   noAnswer: 'They did not answer. Say the answer yourself in a line, with no fuss, and teach on, asking nothing in this reply.',
   taskLeft: 'They did not try it, and it is closed now. Show how it goes in a line, then {"kind":"boardMode","mode":"teach"} and on to the next idea.',
 } as const;

@@ -130,7 +130,7 @@ describe('asking to be taught', () => {
 
 describe('a lesson that runs on', () => {
   it('asks for the next ideas as it nears the end, and teaches them', async () => {
-    const askMore = vi.fn(async (_request: unknown) => ({ steps: [{ teach: 'Gravity assists', exercise: 'Pick one' }], costUsd: 0 }));
+    const askMore = vi.fn<(request: unknown) => Promise<{ steps: { teach: string; exercise: string }[]; costUsd: number }>>(async () => ({ steps: [{ teach: 'Gravity assists', exercise: 'Pick one' }], costUsd: 0 }));
     const planner = createLessonPlanner({ ask: async () => ({ move: { move: 'stay' }, costUsd: 0 }), askMore, canSpend: () => true, charge: () => {}, onTitleChange: () => {}, trace: () => {} });
     planner.noteCardLesson(PLAN);
     planner.noteCommand({ kind: 'task', id: 'a1', way: 'write', reads: 'words' } as never);
@@ -359,6 +359,16 @@ describe('the brain in a lead', () => {
     expect(brain.canLead()).toBe(false);
     await run(brain, 'teach me more');
     expect(brain.canLead()).toBe(true);
+  });
+
+  it('says no filler on a slow lead, because nobody is waiting on it', async () => {
+    const slow = { getCostUsd: () => 0, compact: async () => null, warm: async () => {}, stream: async function* () { await delay(90); yield { type: 'text', text: 'Gravity pulls back.', isNewBlock: false }; yield { type: 'finished', stopReason: 'finished', usage: { inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0 } }; } } as never;
+    const led = createTutorBrain({ model: slow, timeouts: QUICK });
+    led.noteLead('next');
+    expect(await run(led, LEAD_WORDS.next)).toBe('Gravity pulls back.');
+    const asked = createTutorBrain({ model: slow, timeouts: QUICK });
+    expect(await run(asked, 'teach me gravity')).toContain('Gravity pulls back.');
+    expect(await run(asked, 'and again')).not.toBe('Gravity pulls back.');
   });
 
   it('cannot lead once the tutor has closed for spending', async () => {

@@ -144,6 +144,8 @@ type AttemptEnd = 'ended' | 'noWords' | 'aborted' | 'stalledBeforeText' | 'stall
 
 interface TurnWork {
   sceneAside?: 'due' | 'moved';
+  /** Nobody is waiting on this reply, so a slow start needs no filler. */
+  isLead: boolean;
   id: number;
   studentText: string;
   signal: AbortSignal;
@@ -400,6 +402,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     const leadNote = lead ? { lead: LEAD_NOTES[lead === 'next' && isExerciseDueNow() ? 'exercise' : lead] } : null;
     const turnNotes = [attempts.startTurn(studentText), prompt.turnNote, levelLine ? { level: levelLine } : null, shapeNote, openingNote, leadNote, isOnACard && turnCount === 1 ? OPENING_A_CARD_NOTE : null].filter((note) => note !== null);
     const turn: TurnWork = {
+      isLead: lead !== null,
       id: turnCount,
       studentText,
       signal,
@@ -592,7 +595,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
           if (turn.hasAttemptText) return endAs('stalledInText');
           if (turn.hasSaidStillWorking || getNowMs() - attemptStartedAtMs >= timeouts.firstTextMs) return endAs('stalledBeforeText');
           turn.hasSaidStillWorking = true;
-          sayLine(turn, turn.isCheckingMath ? 'checkingMath' : 'stillWorking');
+          if (!turn.isLead || turn.isCheckingMath) sayLine(turn, turn.isCheckingMath ? 'checkingMath' : 'stillWorking');
           yield* takeReady(turn);
           continue;
         }

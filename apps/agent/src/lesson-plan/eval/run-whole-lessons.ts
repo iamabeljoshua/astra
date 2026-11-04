@@ -1,15 +1,16 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { type AgentMessage, type Beat, type BrowserMessage, getBeatText, getCues, type SceneAgentMessage, type Task } from '@astra/contracts';
+import { getPickParts } from '@astra/board/shared';
+import { type AgentMessage, type Beat, type BrowserMessage, type ElementId, getBeatText, getCues, type SceneAgentMessage, type StudentWork, type Task } from '@astra/contracts';
 import { initializeLogger } from '@livekit/agents';
 import { readKey } from '../../keys.ts';
 import { createLiveSession } from '../../live/live-session.ts';
 import { createTakePicker, type StoredTake } from '../../live/reactions.ts';
 import { createVoiceLine, type VoiceOutput } from '../../live/voice-line.ts';
-import { makeAnthropicJsonReader, makeAnthropicTutorModel } from '../../providers/anthropic.ts';
+import { makeAnthropicAsker, makeAnthropicJsonReader, makeAnthropicTutorModel } from '../../providers/anthropic.ts';
 import { renderTone } from '../../providers/fakes.ts';
 import { makeRenderedVoice } from '../../providers/rendered-voice.ts';
 import { getSceneStoreRoot } from '../../scenes/scene-settings.ts';
@@ -18,7 +19,7 @@ import { createTutorBrain, type StudentProfile, type TurnSummary } from '../../t
 import { TUTOR_PROMPT, withScenes } from '../../tutor/prompt.ts';
 import { createSpendLedger } from '../../tutor/spend-ledger.ts';
 import { createTutorScenes } from '../../tutor/tutor-scenes.ts';
-import { askPlanner } from '../ask-planner.ts';
+import { askMoreSteps, askPlanner } from '../ask-planner.ts';
 import { createLessonPlanner } from '../lesson-planner.ts';
 import { getCardPictures, type CardMaterial } from '../card-lesson.ts';
 import { matchLibrary, toShelfScene } from '../../scene-queue/library-match.ts';
@@ -30,7 +31,7 @@ interface LessonScript {
   typed?: string;
 }
 
-type StudentKind = 'quiet' | 'nudging';
+type StudentKind = 'quiet' | 'nudging' | 'tasks';
 
 interface ReplyRecord {
   atSeconds: number;
@@ -60,11 +61,15 @@ const GIVE_UP_AFTER_SILENCE_MS = 75_000;
 const NUDGE_AFTER_IDLE_MS = 3000;
 const NUDGE_WITH_NOTHING_OPEN_MS = 6000;
 const LOOK_EVERY_MS = 250;
-const LONGEST_LESSON_MS = 9 * 60_000;
+const THINKING_ON_A_TASK_MS = 9000;
+const SHINGLE_WORDS = 5;
+const SHARE_THAT_IS_A_REPEAT = 0.4;
+const STUDENT_RULES = 'You are a high school student in a lesson. Answer the problem the tutor just set in as few words as you can, usually just a number or a short phrase, and no quotes. You usually get it right, and sometimes slip.';
 
 const { values: args } = parseArgs({
   options: {
     replies: { type: 'string', default: '13' },
+    minutes: { type: 'string', default: '9' },
     limit: { type: 'string', default: '1.5' },
     spend: { type: 'string', default: join(tmpdir(), 'astra-whole-lessons-spend.jsonl') },
     out: { type: 'string', default: join(tmpdir(), 'astra-whole-lessons') },
@@ -128,13 +133,34 @@ function readCardMaterial(title: string): CardMaterial {
   };
 }
 
+// A word for word stretch said before, which is what repeating sounds like. An idea said again in new words needs reading.
+function getRepeats(replies: readonly { spoken: string }[]): string[] {
+  const seen = new Set<string>();
+  return replies.flatMap(({ spoken }) => {
+    const words = spoken.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, '').split(/\s+/).filter(Boolean);
+    const shingles = words.slice(0, Math.max(0, words.length - SHINGLE_WORDS + 1)).map((_, index) => words.slice(index, index + SHINGLE_WORDS).join(' '));
+    const share = shingles.filter((shingle) => seen.has(shingle)).length / Math.max(1, shingles.length);
+    shingles.forEach((shingle) => seen.add(shingle));
+    return share >= SHARE_THAT_IS_A_REPEAT ? [spoken] : [];
+  });
+}
+
 async function runLesson(script: LessonScript, student: StudentKind, ledger: ReturnType<typeof createSpendLedger>, readerKey: string) {
+  mkdirSync(args.out, { recursive: true });
+  const transcript = join(args.out, `${script.name}-${student}.txt`);
+  writeFileSync(transcript, '');
   const startedAtMs = performance.now();
   const seconds = () => Math.round((performance.now() - startedAtMs) / 100) / 10;
   const replies: ReplyRecord[] = [];
   const scenesShown: { atSeconds: number; topic: string }[] = [];
   const stepsSeen = new Set<string>();
-  const timeline: string[] = [];
+  const timeline = { push: (line: string) => appendFileSync(transcript, `${line}\n`) };
+  const spentAtStart = ledger.read().anthropicUsd;
+  const leads: string[] = [];
+  const firstTexts: number[] = [];
+  let voiceCharacters = 0;
+  let lastPromptTokens = 0;
+  let compactions = 0;
   let tutorEndedAtMs = startedAtMs;
   let isTutorOn = false;
   const turnsRunning = new Set<unknown>();
@@ -143,15 +169,16 @@ async function runLesson(script: LessonScript, student: StudentKind, ledger: Ret
   let lastSpokenBeats: readonly Beat[] = [];
   let longestSilentMs = 0;
   let longestSilentOpenMs = 0;
-  let silenceOpenStartMs: number | null = null;
   let nudges = 0;
 
-  const lastAskedAQuestion = (kind: unknown) => kind === 'scene' || lastSpokenBeats.at(-1)?.expectsReply === true;
+  const lastAskedAQuestion = () => lastSpokenBeats.at(-1)?.expectsReply === true;
+
+  let wasOpenAsSilenceBegan = false;
 
   const noteSilenceOver = () => {
     if (turnsSounding.size > 0) return;
     const silence = performance.now() - tutorEndedAtMs;
-    const isOpen = isQuestionOpen || brain.getBoard().openTask !== null;
+    const isOpen = wasOpenAsSilenceBegan;
     if (isOpen) longestSilentOpenMs = Math.max(longestSilentOpenMs, silence);
     else longestSilentMs = Math.max(longestSilentMs, silence);
     if (silence > 2500) timeline.push(`  [${(silence / 1000).toFixed(1)} s quiet, ${isOpen ? 'something open' : 'NOTHING OPEN'}]`);
@@ -161,6 +188,7 @@ async function runLesson(script: LessonScript, student: StudentKind, ledger: Ret
   let queue: SceneQueue | null = null;
   const planner = createLessonPlanner({
     ask: (request) => askPlanner(reader, request),
+    askMore: (request) => askMoreSteps(reader, request),
     canSpend: () => !ledger.isOverModelLimit(),
     charge: (usd) => ledger.charge({ anthropicUsd: usd }),
     onTitleChange: () => {},
@@ -185,9 +213,17 @@ async function runLesson(script: LessonScript, student: StudentKind, ledger: Ret
       queue?.noteSafetyReply();
     },
     getSpendLimit: () => (ledger.isOverModelLimit() ? 'sessionLimit' : null),
+    onCompacted({ costUsd, turnsBefore, turnsAfter }) {
+      compactions += 1;
+      ledger.charge({ anthropicUsd: costUsd });
+      timeline.push(`${seconds()} s COMPACTED ${turnsBefore} turns to ${turnsAfter}, $${costUsd.toFixed(4)}`);
+    },
     onTurnEnd(summary: TurnSummary) {
       ledger.charge({ anthropicUsd: summary.costUsd });
       lastSpokenBeats = summary.beats;
+      voiceCharacters += summary.spokenText.length;
+      lastPromptTokens = summary.promptTokens;
+      if (summary.firstTextMs !== null) firstTexts.push(Math.round(summary.firstTextMs));
       queue?.noteTutorReply(summary);
       const step = planner.getStepNote();
       const stepName = step && 'step' in step ? `${step.step}: ${step.teach_first ?? step.then_exercise}` : step ? 'finished' : 'no plan';
@@ -212,6 +248,7 @@ async function runLesson(script: LessonScript, student: StudentKind, ledger: Ret
     getOpeningScene: () => scenes?.getOpeningScene() ?? Promise.resolve(null),
     waitForPicture: async () => true,
     trace(name, fields = {}) {
+      if (name === 'replyDecided' && fields.via === 'lead') leads.push(String(fields.text));
       if (name === 'turnStarted') turnsRunning.add(fields.turnId);
       if (name === 'firstFrameCaptured') {
         if (turnsSounding.size === 0) noteSilenceOver();
@@ -220,8 +257,11 @@ async function runLesson(script: LessonScript, student: StudentKind, ledger: Ret
       if (name === 'turnFinished') {
         turnsRunning.delete(fields.turnId);
         const wasSounding = turnsSounding.delete(fields.turnId);
-        if (wasSounding && turnsSounding.size === 0) tutorEndedAtMs = performance.now();
-        if (fields.kind !== 'reaction' && wasSounding) isQuestionOpen = lastAskedAQuestion(fields.kind);
+        if (fields.kind !== 'reaction' && wasSounding) isQuestionOpen = lastAskedAQuestion();
+        if (wasSounding && turnsSounding.size === 0) {
+          tutorEndedAtMs = performance.now();
+          wasOpenAsSilenceBegan = isQuestionOpen || brain.getBoard().openTask !== null;
+        }
       }
       isTutorOn = turnsRunning.size > 0;
     },
@@ -240,6 +280,8 @@ async function runLesson(script: LessonScript, student: StudentKind, ledger: Ret
     canSpeak: session.isAtPause,
     onShown({ topic, beats }) {
       brain.noteSceneTurn(({ topic, beats }));
+      lastSpokenBeats = beats;
+      voiceCharacters += beats.map(getBeatText).join(' ').length;
       scenesShown.push({ atSeconds: seconds(), topic });
       timeline.push(`${seconds()} s SCENE "${topic}": ${beats.map(getBeatText).join(' ')}`);
       queue?.noteAhead(topic, 'shown');
@@ -280,13 +322,47 @@ async function runLesson(script: LessonScript, student: StudentKind, ledger: Ret
     tutorEndedAtMs = performance.now();
   };
 
+  const askStudent = makeAnthropicAsker({ name: 'haiku-5-5', apiKey: readerKey });
+  let studentLines = 0;
+  const answeredTasks = new Set<string>();
+
+  const answerTask = async (taskId: ElementId) => {
+    answeredTasks.add(taskId);
+    const { state } = brain.getBoard();
+    const task = state.elements.get(taskId)?.content as Task | undefined;
+    if (!task) return;
+    const toWork = async (): Promise<StudentWork> => {
+      if (task.way === 'pick') return { way: 'pick', task: taskId, part: task.answer?.[0] ?? getPickParts(state.elements.get(task.on))[0]?.part ?? '' };
+      if (task.way === 'place') return { way: 'place', task: taskId, placed: task.answer ?? task.items.slice(0, task.slots.length) };
+      if (task.way === 'drag') return { way: 'leave', task: taskId };
+      const problem = task.on ? state.elements.get(task.on)?.math?.tex : undefined;
+      const said = replies.at(-1)?.spoken ?? '';
+      const { text, costUsd } = await askStudent({ system: STUDENT_RULES, messages: [{ role: 'user', content: `The tutor said: ${said}${problem ? ` On the board: ${problem}` : ''}` }], maxTokens: 40 });
+      ledger.charge({ anthropicUsd: costUsd });
+      studentLines += 1;
+      return { way: 'write', id: `s${studentLines}` as ElementId, text: text || 'not sure', task: taskId };
+    };
+    const work = await toWork();
+    timeline.push(`${seconds()} s STUDENT WORK: ${JSON.stringify(work)}`);
+    noteSilenceOver();
+    tutorEndedAtMs = performance.now();
+    wasOpenAsSilenceBegan = false;
+    session.onBrowser({ type: 'worked', work, ...STAMP } as BrowserMessage);
+  };
+
   const target = Number(args.replies);
+  const limitMs = Number(args.minutes) * 60_000;
   let nudgedAtMs = 0;
-  while (replies.length < target && performance.now() - startedAtMs < LONGEST_LESSON_MS && !ledger.isOverModelLimit()) {
+  while (replies.length < target && performance.now() - startedAtMs < limitMs && !ledger.isOverModelLimit()) {
     await delay(LOOK_EVERY_MS);
     if (isTutorOn) continue;
     const idleMs = performance.now() - tutorEndedAtMs;
-    if (idleMs > GIVE_UP_AFTER_SILENCE_MS) break;
+    if (idleMs > GIVE_UP_AFTER_SILENCE_MS) {
+      timeline.push(`${seconds()} s GAVE UP after ${Math.round(idleMs / 1000)} s of quiet`);
+      break;
+    }
+    const openTask = brain.getBoard().openTask;
+    if (student === 'tasks' && openTask && !answeredTasks.has(openTask) && idleMs > THINKING_ON_A_TASK_MS) await answerTask(openTask);
     if (student !== 'nudging' || performance.now() - nudgedAtMs < NUDGE_AFTER_IDLE_MS) continue;
     const isOpen = isQuestionOpen || brain.getBoard().openTask !== null;
     if (idleMs < (isOpen ? NUDGE_AFTER_IDLE_MS : NUDGE_WITH_NOTHING_OPEN_MS)) continue;
@@ -298,6 +374,8 @@ async function runLesson(script: LessonScript, student: StudentKind, ledger: Ret
   noteSilenceOver();
   await session.close();
   scenes.close();
+  const lessonMinutes = seconds() / 60;
+  const spentUsd = ledger.read().anthropicUsd - spentAtStart;
   const tasks = replies.flatMap(({ tasks: replyTasks }) => replyTasks);
   const words = replies.map((reply) => reply.words).sort((first, second) => first - second);
   const firstText = replies.flatMap((reply) => reply.firstTextMs ?? []).sort((first, second) => first - second);
@@ -315,8 +393,15 @@ async function runLesson(script: LessonScript, student: StudentKind, ledger: Ret
     exercises: Object.fromEntries([...new Set(tasks)].map((kind) => [kind, tasks.filter((task) => task === kind).length])),
     wordsPerReply: { p50: words[Math.floor(words.length / 2)] ?? 0, worst: words.at(-1) ?? 0 },
     firstTextMs: { p50: firstText[Math.floor(firstText.length / 2)] ?? null, p95: firstText[Math.ceil(firstText.length * 0.95) - 1] ?? null },
-    costUsd: Math.round(replies.reduce((sum, reply) => sum + reply.costUsd, 0) * 10000) / 10000,
-    timeline,
+    firstTextEarlyLateMs: { first10p50: [...firstTexts.slice(0, 10)].sort((a, b) => a - b)[5] ?? null, last10p50: [...firstTexts.slice(-10)].sort((a, b) => a - b)[5] ?? null, worst: Math.max(0, ...firstTexts) },
+    leads: Object.fromEntries([...new Set(leads)].map((lead) => [lead, leads.filter((one) => one === lead).length])),
+    repeats: getRepeats(replies),
+    promptTokensAtEnd: lastPromptTokens,
+    compactions,
+    costUsd: Math.round(spentUsd * 10000) / 10000,
+    usdPerMinute: Math.round((spentUsd / lessonMinutes) * 10000) / 10000,
+    voiceCharacters,
+    charactersPerMinute: Math.round(voiceCharacters / lessonMinutes),
   };
 }
 
@@ -333,10 +418,8 @@ async function main() {
   for (let start = 0; start < runs.length; start += Number(args.together)) {
     const finished = await Promise.all(runs.slice(start, start + Number(args.together)).map(async ({ script, student }) => {
       const result = await runLesson(script, student, ledger, key);
-      writeFileSync(join(args.out, `${script.name}-${student}.txt`), `${result.timeline.join('\n')}\n`);
-      const { timeline: _timeline, ...numbers } = result;
-      console.log(JSON.stringify(numbers));
-      return numbers;
+      console.log(JSON.stringify(result));
+      return result;
     }));
     results.push(...finished);
   }
