@@ -5,7 +5,7 @@ const PAPER_WIDTH = 960;
 const PAPER_HEIGHT = 420;
 const PIXELS_PER_SHAPE_UNIT = PAPER_WIDTH / 2;
 const WIDEST_TEXT = 880;
-const INK_FREE_EDGE = (PAPER_WIDTH - WIDEST_TEXT) / 4;
+const SIDE_BAND = (PAPER_WIDTH - WIDEST_TEXT) / 4;
 const LARGEST_FONT_SIZE = 300;
 const SMALLEST_FONT_SIZE = 24;
 const FONT_SIZE_STEP = 8;
@@ -40,15 +40,26 @@ function readDrawnText(text: string, fontFamily: string) {
   return context.getImageData(0, 0, PAPER_WIDTH, PAPER_HEIGHT).data;
 }
 
-// Ink at the paper's sides means noise from a hardened browser, or a name too wide to draw, and neither makes a readable shape.
+function isSolid(data: Uint8ClampedArray, x: number, y: number) {
+  return (data[(y * PAPER_WIDTH + x) * 4 + ALPHA_OFFSET] ?? 0) > SOLID_ALPHA;
+}
+
+function hasInkBetween(data: Uint8ClampedArray, fromX: number, toX: number) {
+  for (let y = 0; y < PAPER_HEIGHT; y += 1) {
+    for (let x = fromX; x < toX; x += 1) {
+      if (isSolid(data, x, y)) return true;
+    }
+  }
+  return false;
+}
+
+// Noise and a name too wide to draw reach both sides, and an overhanging letter reaches one. This reads every pixel, because noise can slip between the samples on one side.
 function getInkPoints(data: Uint8ClampedArray): readonly DotPoint[] {
+  if (hasInkBetween(data, 0, SIDE_BAND) && hasInkBetween(data, PAPER_WIDTH - SIDE_BAND, PAPER_WIDTH)) return NO_POINTS;
   const points: DotPoint[] = [];
   for (let y = 0; y < PAPER_HEIGHT; y += SAMPLE_EVERY_PIXELS) {
     for (let x = 0; x < PAPER_WIDTH; x += SAMPLE_EVERY_PIXELS) {
-      const alpha = data[(y * PAPER_WIDTH + x) * 4 + ALPHA_OFFSET] ?? 0;
-      if (alpha <= SOLID_ALPHA) continue;
-      if (x < INK_FREE_EDGE || x >= PAPER_WIDTH - INK_FREE_EDGE) return NO_POINTS;
-      points.push([(x - PAPER_WIDTH / 2) / PIXELS_PER_SHAPE_UNIT, (y - PAPER_HEIGHT / 2) / PIXELS_PER_SHAPE_UNIT, TEXT_DOT_SIZE]);
+      if (isSolid(data, x, y)) points.push([(x - PAPER_WIDTH / 2) / PIXELS_PER_SHAPE_UNIT, (y - PAPER_HEIGHT / 2) / PIXELS_PER_SHAPE_UNIT, TEXT_DOT_SIZE]);
     }
   }
   return points;
