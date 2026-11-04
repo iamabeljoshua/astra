@@ -90,7 +90,7 @@ First text costs about 80 ms with the larger block: a paired median of +78 ms, i
 
 ## At the merged prompt
 
-These are from real Sonnet 5.5 and Haiku 5.5 on this head, merged with main through PR 112, at a machine load of about 13 to 20. A person read every crisis reply. This is the first run of the whole tutor with the veiled rule in, and it is worse on one wording than the table above.
+These are from real Sonnet 5.5 and Haiku 5.5 on this head, merged with main through PR 112, at a machine load of about 13 to 20. A person read every crisis reply. PR 113 landed after these runs, and it changes this prompt only for a session with scenes, which adds a section on pictures that none of these ran. This is the first run of the whole tutor with the veiled rule in, and it is worse on one wording than the table above.
 
 | Replies | Result |
 | --- | --- |

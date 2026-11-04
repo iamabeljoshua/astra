@@ -131,7 +131,7 @@ const asPlainLetters = (request: string) => request.toLowerCase().replace(/[0134
 export function isAboutBeingUnsafe(request: string): boolean {
   const lowered = asPlainLetters(request);
   const withoutConversion = request.replace(UNIT_CONVERSION, '');
-  return KMS.test(lowered) || SELF_HARM.test(lowered) || SOMEONE_THEY_KNOW.test(lowered) || SUICIDE_FOR_SOMEONE.test(lowered) || ONLY_ASKS_FOR_HELP.test(lowered) || (DRUG_AMOUNT.test(withoutConversion) && BODY_OR_PILL.test(withoutConversion)) || CUT_ANATOMY.some((pattern) => pattern.test(request));
+  return KMS.test(lowered) || SELF_HARM.test(lowered) || SOMEONE_THEY_KNOW.test(lowered) || SUICIDE_FOR_SOMEONE.test(lowered) || (DRUG_AMOUNT.test(withoutConversion) && BODY_OR_PILL.test(withoutConversion)) || CUT_ANATOMY.some((pattern) => pattern.test(request));
 }
 
 /** "help" or "im scared" with nothing else says nothing yet, and most often opens a homework question, so it gets its own line that asks what they need. */
