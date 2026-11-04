@@ -2,7 +2,7 @@ import { type ChildProcess, spawn } from 'node:child_process';
 import { closeSync, mkdirSync, openSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readKey } from '../../keys.ts';
+import { readKey } from '../../../keys.ts';
 
 export const REPO_ROOT = resolve(fileURLToPath(new URL('../../../../../..', import.meta.url)));
 export const WEB_PORT = Number(process.env.WEB_PORT ?? 6310);

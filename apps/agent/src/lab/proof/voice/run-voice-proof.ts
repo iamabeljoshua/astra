@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import type { Browser } from 'playwright';
 import { readTrace, summarise, type TraceRow } from './read-trace.ts';
-import { listParticipantIdentities, listRoomNames } from './cloud-rooms.ts';
+import { countRoomRecordings, listParticipantIdentities, listRoomNames } from './cloud-rooms.ts';
 import { startCutProxy } from './cut-proxy.ts';
 import { saveRecording } from './join-recording.ts';
 import { LONG_LINES } from './make-speech.ts';
@@ -251,7 +251,7 @@ const SCENARIOS: Record<string, (context: RunContext) => Promise<unknown>> = {
 
   // From pressing Talk to the tutor's first sound, the first word of a session.
   async join({ stack, browser }) {
-    const rows = [];
+    const rows: { connectedMs: number; jobStartedMs: number; trackUpMs: number; greetingHeardMs: number | null; museHandshakeMs: unknown; roundTripMs: number | null }[] = [];
     for (let run = 0; run < Number(args.turns); run += 1) {
       const student = await openStudentPage(browser, { email: MAYA, title: 'Join' });
       const pressedAtMs = Date.now();
@@ -276,7 +276,7 @@ const SCENARIOS: Record<string, (context: RunContext) => Promise<unknown>> = {
     const student = await openStudentPage(browser, { email: MAYA, title: 'Why does a ball come down?', recordVideoDir: join(out, 'video') });
     await student.pressTalk();
     await student.waitForLive();
-    await delay(500);
+    await student.page.waitForFunction(() => window.speechInPage.canRecord(), undefined, { timeout: 30_000 });
     await student.page.evaluate(() => window.speechInPage.startRecording());
     await waitForTrace(stack, student, 0, (rows) => rows.some((row) => row.name === 'turnFinished'), 30_000);
     await delay(800);
@@ -300,6 +300,27 @@ const SCENARIOS: Record<string, (context: RunContext) => Promise<unknown>> = {
     await saveRecording({ page: student.page, videoStartedEpochMs: student.videoStartedEpochMs, outputPath: join(out, 'm3-6-talk.mp4') });
     await student.context.close();
     return { saved: 'm3-6-talk.mp4' };
+  },
+
+  // The screen at laptop and phone widths, in both themes, mid-sentence with the ball moving and captions on.
+  async shots({ stack, browser, out }) {
+    for (const [name, viewport] of [['laptop', { width: 1440, height: 900 }], ['phone', { width: 390, height: 844 }]] as const) {
+      for (const theme of ['light', 'dark'] as const) {
+        const student = await openStudentPage(browser, { email: MAYA, title: 'Why does a ball come down?', viewport });
+        await student.page.getByRole('button', { name: theme === 'dark' ? 'Dark' : 'Light', exact: true }).click();
+        await delay(700);
+        await student.page.screenshot({ path: join(out, `m3-6-session-idle-${name}-${theme}.png`) });
+        const startedAtMs = Date.now();
+        await typeReply(student, 'show me the ball');
+        await student.waitForLive();
+        await waitForTrace(stack, student, startedAtMs, (rows) => rows.some((row) => row.name === 'firstFrameCaptured' && row.kind === 'reply'), 30_000);
+        await delay(3000);
+        await student.page.screenshot({ path: join(out, `m3-6-session-live-${name}-${theme}.png`) });
+        await student.context.close();
+        await delay(1000);
+      }
+    }
+    return { saved: true };
   },
 
   async interrupt({ stack, browser, out }) {
@@ -449,7 +470,8 @@ const SCENARIOS: Record<string, (context: RunContext) => Promise<unknown>> = {
     }
     await student.context.close();
     const left = closedRows.find((row) => row.name === 'studentLeft');
-    return { roomListedWhileOpen: before.includes(room), leftOnPurpose: left?.leftOnPurpose, jobClosedAfterMs: Math.round((closedRows.find((row) => row.name === 'jobClosed')?.atMs ?? closedAtMs) - closedAtMs), roomGoneAfterMs: goneAfterMs, museClosed: closedRows.some((row) => row.name === 'muse:closed') };
+    const recordings = await countRoomRecordings(room);
+    return { recordingsOfRoom: recordings, roomListedWhileOpen: before.includes(room), leftOnPurpose: left?.leftOnPurpose, jobClosedAfterMs: Math.round((closedRows.find((row) => row.name === 'jobClosed')?.atMs ?? closedAtMs) - closedAtMs), roomGoneAfterMs: goneAfterMs, museClosed: closedRows.some((row) => row.name === 'muse:closed') };
   },
 
   // A second student gets their own room, sees none of the first student's words, and cannot get a token for the first room.

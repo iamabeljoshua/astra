@@ -5,7 +5,7 @@ import { AccessToken } from 'livekit-server-sdk';
 import { makeTutorVoice, TUTOR_VOICE_NAME } from '../providers/choose.ts';
 import { FAKE_SAMPLE_RATE, renderTone } from '../providers/fakes.ts';
 import { makeRenderedVoice, type RenderSpeech } from '../providers/rendered-voice.ts';
-import { readKey } from './keys.ts';
+import { readKey } from '../keys.ts';
 import { getLabGrant } from './lab-grants.ts';
 import { runLabAgent } from './lab-agent.ts';
 import { createLabRecorder } from './lab-recorder.ts';

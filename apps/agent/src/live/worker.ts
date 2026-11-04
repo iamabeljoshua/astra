@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { AutoSubscribe, cli, defineAgent, inference, initializeLogger, type JobContext, type JobProcess, ServerOptions } from '@livekit/agents';
 import { AudioSource, DisconnectReason, LocalAudioTrack, type RemoteParticipant, RoomEvent, TrackPublishOptions, TrackSource } from '@livekit/rtc-node';
 import { type AgentMessage, parseBrowserMessage } from '@astra/contracts';
-import { readKey } from '../lab/keys.ts';
+import { readKey } from '../keys.ts';
 import { renderTone } from '../providers/fakes.ts';
 import { makeTutorTranscriber, makeTutorVoice } from '../providers/choose.ts';
 import { makeRenderedVoice, RENDERED_SAMPLE_RATE } from '../providers/rendered-voice.ts';
@@ -24,6 +24,7 @@ const LEFT_ON_PURPOSE_MS = 15_000;
 /** A dropped link can come back, so the room waits this long before it closes. */
 const LINK_DROPPED_MS = 120_000;
 const STUDENT_IDENTITY_PREFIX = 'student-';
+const LOAD_LIMIT = 0.98;
 
 const encoder = new TextEncoder();
 
@@ -138,6 +139,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       agent: fileURLToPath(import.meta.url),
       agentName: process.env.ASTRA_AGENT_NAME ?? 'astra-tutor',
       numIdleProcesses: 1,
+      // The SDK's 70% refuses students on a busy laptop. Hosting sets its own limit when it exists.
+      loadThreshold: LOAD_LIMIT,
       port: Number(process.env.ASTRA_AGENT_PORT ?? 8081),
       wsURL: readKey('LIVEKIT_URL'),
       apiKey: readKey('LIVEKIT_API_KEY'),
