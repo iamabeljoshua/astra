@@ -5,9 +5,11 @@ import { makeFakeTutorModel, type FakeReply } from '../src/providers/fake-model.
 import type { TutorModelRequest } from '../src/providers/types.ts';
 import { createTutorBrain, type TurnSummary, TUTOR_TIMEOUTS, type TutorBrain } from '../src/tutor/brain.ts';
 import { DRAWN_KINDS } from '../src/tutor/board-memory.ts';
-import { TUTOR_SYSTEM } from '../src/tutor/prompt.ts';
+import { TUTOR_PROMPT, TUTOR_SYSTEM } from '../src/tutor/prompt.ts';
 import { SPOKEN_LINES } from '../src/tutor/spoken-lines.ts';
 
+/** These tests read the notes a turn collects, and the length reminder that goes with every message has its own test. */
+const NO_TURN_NOTE = { ...TUTOR_PROMPT, turnNote: null };
 const QUICK = { stillWorkingMs: 40, firstTextMs: 120, betweenTextMs: 80, finishGraceMs: 20, reportWaitMs: 30 };
 const PROFILE = { level: 'secondary', interests: ['space', 'basketball'], goal: 'exam' };
 
@@ -25,7 +27,7 @@ function setup(getReply: (request: TutorModelRequest, attempt: number) => FakeRe
   const model = makeFakeTutorModel(getReply);
   const summaries: TurnSummary[] = [];
   const notes: string[] = [];
-  const brain = createTutorBrain({ model, timeouts, profile: PROFILE, onTurnEnd: (summary) => summaries.push(summary), trace: (name) => notes.push(name) });
+  const brain = createTutorBrain({ model, timeouts, prompt: NO_TURN_NOTE, profile: PROFILE, onTurnEnd: (summary) => summaries.push(summary), trace: (name) => notes.push(name) });
   return { model, brain, summaries, notes };
 }
 
@@ -252,6 +254,7 @@ describe('long sessions', () => {
     const fake = makeFakeTutorModel(() => reply('Okay, carry on.'));
     const compacted: { turnsBefore: number; turnsAfter: number }[] = [];
     const brain = createTutorBrain({
+      prompt: NO_TURN_NOTE,
       model: { ...fake, compact: async () => ({ summary: { type: 'compaction', content: 'They like space.' }, usage: { inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0 } }) },
       timeouts: QUICK,
       profile: PROFILE,

@@ -63,8 +63,9 @@ function getIsAbort(signal: AbortSignal, error: unknown): boolean {
   return signal.aborted || error instanceof Anthropic.APIUserAbortError;
 }
 
-export function makeAnthropicTutorModel({ name = 'sonnet-5-5', apiKey }: { name?: TutorModelName; apiKey: string }): TutorModelAdapter {
-  const settings: ModelSettings = MODEL_SETTINGS[name];
+export function makeAnthropicTutorModel({ name = 'sonnet-5-5', apiKey, thinking }: { name?: TutorModelName; apiKey: string; thinking?: 'adaptive' }): TutorModelAdapter {
+  const chosen: ModelSettings = MODEL_SETTINGS[name];
+  const settings: ModelSettings = thinking ? { ...chosen, request: { ...chosen.request, thinking: { type: thinking } } } : chosen;
   const client = new Anthropic({ apiKey, maxRetries: 0 });
   const { fallbacks, ...thinkingAndEffort } = settings.request;
   // A request that sends a compaction block back needs its beta.

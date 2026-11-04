@@ -4,6 +4,7 @@ export const SPOKEN_LINES = {
   couldNotReply: ["I can't reach my notes right now. Ask me again in a moment?", "Something's slow on my side. Could you ask that again?", "I lost my connection for a moment. Would you ask me again?"],
   lostThread: ['Sorry, I lost my thread for a second.', 'Hold on, I lost my place.', 'Sorry, let me pick that back up.'],
   checkingMath: ['Hold on, let me check that.'],
+  stuckHandBack: ["That one's hard, so let's slow right down. Tell me which bit feels most confusing."],
   mathDropped: ["Let's work this next bit out together. What would you try first?", "Let's do this next part together. What do you think comes next?"],
   refused: [
     "I can't go into that here, and you haven't done anything wrong by asking. If anything is worrying you, or you don't feel safe, please tell an adult you trust, or call your local emergency number. What would you like to do next?",
