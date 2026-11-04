@@ -6,7 +6,7 @@ import { API_ERROR_LABELS, MENU_LABELS, PRODUCT_NAME, REPLY_BOX_LABELS, SESSION_
 import { ThemeToggle } from '../theme/ThemeToggle';
 import { type FilesComingSoon, useFilesComingSoon } from '../ui/useFilesComingSoon';
 import { formatSessionLength } from './formatSession';
-import { type Session, useSession } from './sessionQueries';
+import { type Session, useKeepSessionTitle, useSession } from './sessionQueries';
 import { isLessonEnabled } from './lessonFlag';
 import { useSessionRun } from './useSessionRun';
 import { StudentCaption } from '../voice/Captions';
@@ -121,6 +121,7 @@ function RunningSession({ session }: { session: Session }) {
   }, []);
   useOpeningMessage(session, liveVoice.sendOpening);
   const isConnecting = isTutorOnTheWay(status, view);
+  useKeepSessionTitle(session.id, view?.sessionTitle ?? null);
   const filesComingSoon = useFilesComingSoon();
 
   // Finishing deletes the room, and a page still in it would ask for another. A student whose finish failed stays in the session, so the room opens again.
@@ -129,8 +130,10 @@ function RunningSession({ session }: { session: Session }) {
   }
 
   const picture = <Board artwork={findArtwork(session.artwork)} note={SESSION_LABELS.boardStandIn} />;
+  // The card's picture belongs to the card's topic, so it goes when the student moves off it, and the seam for a scene stays empty.
+  const visual = view?.sessionTitle ? null : getSessionVisual(findArtwork(session.artwork));
   return (
-    <SessionFrame facts={<SessionFacts subject={session.subject} seconds={seconds} tutorStateLine={tutorStateLine} costUsd={view?.costUsd ?? null} />} action={<EndButton isEnding={isEnding} onEnd={() => void endAndLeaveRoom()} />} problem={endProblem} isFullHeight>
+    <SessionFrame facts={<SessionFacts subject={view?.sessionTitle ?? getBarSubject(session)} seconds={seconds} tutorStateLine={tutorStateLine} costUsd={view?.costUsd ?? null} />} action={<EndButton isEnding={isEnding} onEnd={() => void endAndLeaveRoom()} />} problem={endProblem} isFullHeight>
       <div className="board-stage">
         <div className="board-voice">
           <SessionTitle title={session.title} isQuiet={Boolean(voice) || isConnecting} />
@@ -148,7 +151,7 @@ function RunningSession({ session }: { session: Session }) {
           <ReplyBox liveVoice={liveVoice} isConnecting={isConnecting} carryOnLine={SESSION_LABELS.carryOnWith(session.title)} filesComingSoon={filesComingSoon} />
         </div>
         <ConnectingSaturn isConnecting={isConnecting} />
-        {voice ? <LiveBoard voice={voice} isConnecting={isConnecting} onTutorState={showTutorState} visual={getSessionVisual(findArtwork(session.artwork))} onTalk={() => void liveVoice.toggleTalk()} isTalkOn={view?.mic === 'on'} canTalk={!view?.closedBecause} filesComingSoon={isConnecting ? undefined : filesComingSoon} /> : <div className="board-panel">{picture}</div>}
+        {voice ? <LiveBoard voice={voice} isConnecting={isConnecting} onTutorState={showTutorState} visual={visual} onTalk={() => void liveVoice.toggleTalk()} isTalkOn={view?.mic === 'on'} canTalk={!view?.closedBecause} filesComingSoon={isConnecting ? undefined : filesComingSoon} /> : <div className="board-panel">{picture}</div>}
       </div>
     </SessionFrame>
   );
@@ -267,6 +270,11 @@ function Board({ artwork, note }: { artwork: Artwork | null; note?: string }) {
       {note && <p className="label border-t border-line px-3 py-1.75 text-ink-2">{note}</p>}
     </section>
   );
+}
+
+// A card always starts with a picture and a rename takes it away, so a card with none has moved to the topic in its title. A typed question never had one, so nothing saved says it moved.
+function getBarSubject({ artwork, title, subject }: Session) {
+  return !artwork && subject !== SESSION_LABELS.questionSubject ? title : subject;
 }
 
 function getSessionVisual(artwork: Artwork | null) {
