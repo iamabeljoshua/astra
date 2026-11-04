@@ -58,7 +58,7 @@ As of 4 November 2026, 15 of 38 PRs have merged. This section is the whole road,
 | 3 | M3.5 | Finish the board library and prove no layout defects | #14 | M3.3, M3.4 | Not started |
 | 3 | M3.7 | Connect the tutor's brain | #16 | M3.2, M3.6 | Not started |
 | 4 | M3.12 | Share the board between student and tutor | #70 | M3.3, M3.7 | Not started |
-| 4 | M3.14 | Add 3D scenes from a checked library, with live generation as the fallback | #72 | M3.5, M3.7 | Not started, pending the scene test |
+| 4 | M3.14 | Add 3D scenes from a checked library, with live generation as the fallback | #72 | M3.5, M3.7 | First slice in review as PR 87: the ManimGX path behind a flag. The kit path and the library are still to come |
 | 4 | M3.8 | Teach instead of tell, with tools the tutor calls when needed | #17 | M3.7 | Not started |
 | 5 | M3.9 | Prepare a lesson plan for every session | #18 | M3.8, M2.5 | Not started |
 | 6 | M3.13 | Keep the next scenes ready as the lesson flows | #71 | M3.5, M3.9 | Not started, pending the scene test |
@@ -1701,7 +1701,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 ## Add 3D scenes from a checked library, with live generation as the fallback (M3.14)
 
-**Status.** Not started. The scene test is still running, so this section may change when it reports.
+**Status.** First slice in review as PR 87: the ManimGX path, its router, the locked worker, and stored takes, behind `VITE_SCENE_LESSONS=1`. The kit path and the checked library are still to come, so this section stays open.
 
 **Depends on.** M3.5, M3.7.
 
