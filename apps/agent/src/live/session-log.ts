@@ -1,4 +1,4 @@
-import { type Beat, type BeatId, type BrowserMessage, parseSessionEvent, type PlayReport, type SessionEvent, type StudentWork, type TurnId, type WorkVerdict } from '@astra/contracts';
+import { type Beat, type BeatId, type BrowserMessage, clipTypedText, parseSessionEvent, type PlayReport, type SessionEvent, type StudentWork, type TurnId, type WorkVerdict } from '@astra/contracts';
 
 export interface SessionLogOptions {
   getNowMs(): number;
@@ -11,10 +11,12 @@ export interface SessionLog {
   write(message: BrowserMessage): SessionEvent | null;
   writeWorked(message: BrowserMessage & { type: 'worked' }, checked: { reading?: unknown; verdict: WorkVerdict; closesTask?: string }): SessionEvent | null;
   writeHeard(work: StudentWork, checked: { reading?: unknown; verdict: WorkVerdict; closesTask?: string }): SessionEvent | null;
+  writeSaid(text: string, durationMs: number): SessionEvent | null;
   getEvents(): readonly SessionEvent[];
 }
 
-const MOST_EVENTS = 50_000;
+/** The API keeps no more of a session than this, so a tab cannot fill the job's memory with rows nobody will store. */
+const MOST_EVENTS = 5_000;
 const MOST_CLOCK_IDS = 16;
 
 /** A beat only ever plays further, so a report of fewer words or cues is an old one arriving again. */
@@ -45,6 +47,7 @@ export function createSessionLog({ getNowMs, getBeat, onWritten, onRefused }: Se
     }
     if (message.type === 'boardFrozen') return { kind: 'boardFrozen', turnId: message.turnId, frozen: message.frozen };
     if (message.type === 'acted') return { kind: 'studentActed', action: message.action };
+    if (message.type === 'typed') return { kind: 'studentSpoke', text: message.text, source: 'typed', isReaction: false, durationMs: 0 };
     return null;
   };
 
@@ -67,19 +70,22 @@ export function createSessionLog({ getNowMs, getBeat, onWritten, onRefused }: Se
       return parsed.value;
   };
 
+  const addAtNow = (body: object, startedMsAgo = 0): SessionEvent | null => {
+    if (events.length >= MOST_EVENTS) return null;
+    const parsed = parseSessionEvent({ seq: events.length, atMs: Math.max(0, Math.round(getNowMs() - startedMsAgo)), ...body });
+    if (!parsed.ok) {
+      onRefused?.(parsed.problem);
+      return null;
+    }
+    events.push(parsed.value);
+    onWritten?.(parsed.value);
+    return parsed.value;
+  };
+
   return {
     getEvents: () => events,
-    writeHeard(work, checked) {
-      if (events.length >= MOST_EVENTS) return null;
-      const parsed = parseSessionEvent({ seq: events.length, atMs: Math.max(0, Math.round(getNowMs())), kind: 'studentActed', action: { action: 'worked', work, ...checked } });
-      if (!parsed.ok) {
-        onRefused?.(parsed.problem);
-        return null;
-      }
-      events.push(parsed.value);
-      onWritten?.(parsed.value);
-      return parsed.value;
-    },
+    writeHeard: (work, checked) => addAtNow({ kind: 'studentActed', action: { action: 'worked', work, ...checked } }),
+    writeSaid: (text, durationMs) => addAtNow({ kind: 'studentSpoke', text: clipTypedText(text), source: 'voice', isReaction: false, durationMs }, durationMs),
     write: (message) => writeBody(message, getBody(message)),
     writeWorked: (message, checked) => writeBody(message, { kind: 'studentActed', action: { action: 'worked', work: message.work satisfies StudentWork, ...checked } }),
   };
