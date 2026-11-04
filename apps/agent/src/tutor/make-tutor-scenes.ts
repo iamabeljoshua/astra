@@ -28,6 +28,6 @@ export function makeTutorScenes({ caps, ...hooks }: SessionHooks & { isTutorClos
   const store = createSceneStore(getSceneStoreRoot());
   const warn = (line: string) => hooks.trace('sceneWarning', { problem: line });
   const runs = createTopicRuns({ planner: models.planner, nameReader: models.nameReader, writers: [models.writer, models.fallbackWriter], reviewer: models.reviewer, worker: createContainerWorker(), store, warn });
-  const kitRuns = hasKitLive() ? createTopicRuns({ engine: 'kit', themes: ['dark'], checkCode: getKitCodeProblems, planner: models.planner, nameReader: models.nameReader, writers: [models.kitWriter, models.kitFallbackWriter], reviewer: models.kitReviewer, worker: createKitWorker(), store, warn }) : undefined;
+  const kitRuns = hasKitLive() ? createTopicRuns({ engine: 'kit', themes: ['dark'], checkCode: getKitCodeProblems, planner: models.planner, nameReader: models.nameReader, writers: [models.kitWriter, models.kitFallbackWriter], repairWriter: models.kitFallbackWriter, reviewer: models.kitReviewer, worker: createKitWorker(), store, warn }) : undefined;
   return createTutorScenes({ ...hooks, ...(kitRuns ? { kitRuns } : {}), isClosed: () => caps.getSpendLimit() !== null || (hooks.isTutorClosed?.() ?? false), canPlayShared: (studentId) => caps.getSharedPlaysToday(studentId) < sharedPlaysADay, router: models.router, runs, store, getNowMs: () => performance.now() });
 }

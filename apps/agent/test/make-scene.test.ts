@@ -300,3 +300,38 @@ describe('a line through a label', () => {
     expect(made.isOk).toBe(false);
   });
 });
+
+describe('a kit scene the review refuses', () => {
+  const KIT_RENDER: RenderResult = { isOk: true, takes: [], parts: ['ball'], sheets: [{ theme: 'dark', bytes: Buffer.from('jpg') }], layoutProblems: [], layoutNotes: [], declared: {}, ms: 5 };
+  const kitMaker = (reviewer: SceneReviewer, repairNotes: string[]) => {
+    const { store } = setUp();
+    const repairWriter: SceneWriter = { name: 'repair', write: async (_brief, repair) => { repairNotes.push(...(repair?.problems ?? [])); return { code: 'function scene(kit) { /* fixed */ }', model: 'repair', ms: 1, costUsd: 0.03 }; } };
+    return { engine: 'kit' as const, themes: ['dark'] as const, writers: [makeWriter('first')], repairWriter, reviewer, worker: async () => KIT_RENDER, store };
+  };
+
+  it('saves a passing scene as a kit scene with no take, marked unchecked by a person', async () => {
+    const maker = kitMaker(passing, []);
+    const made = await makeScene(maker, { topic: 'What a derivative measures', ownerId: 'ada', plan: PLAN });
+    expect(made).toMatchObject({ isOk: true, scene: { engine: 'kit', engineVersion: '0.1.0', ownerId: 'ada', parts: ['ball'], isCheckedByPerson: false } });
+  });
+
+  it('gives the repair writer what the review reported, and the review reads the rewrite', async () => {
+    const notes: string[] = [];
+    const seen: string[] = [];
+    let reviews = 0;
+    const reviewer: SceneReviewer = { review: async ({ code }) => { seen.push(code); reviews += 1; return reviews === 1 ? { isPass: false, errors: [{ moment: 'a', what: 'the turbine spins backward', truth: 'it spins with the compressor', confidence: 'medium' }], model: 'fake', ms: 1, costUsd: 0.01 } : { isPass: true, errors: [], model: 'fake', ms: 1, costUsd: 0.01 }; } };
+    const made = await makeScene(kitMaker(reviewer, notes), { topic: 'What a derivative measures', ownerId: 'ada', plan: PLAN });
+    expect(made.isOk).toBe(true);
+    expect(notes).toEqual(['the turbine spins backward What is true: it spins with the compressor']);
+    expect(seen[1]).toContain('fixed');
+    expect(made.isOk && made.scene.code).toContain('fixed');
+  });
+
+  it('shows nothing when the rewrite is refused too, and keeps only its words', async () => {
+    const maker = kitMaker(failing, []);
+    const made = await makeScene(maker, { topic: 'What a derivative measures', ownerId: 'ada', plan: PLAN });
+    expect(made.isOk).toBe(false);
+    expect(maker.store.find(getSceneKey('What a derivative measures', { ownerId: 'ada' }))).toBeNull();
+    expect(maker.store.findRefusal(getSceneKey('What a derivative measures', { ownerId: 'ada' }))?.code).toContain('fixed');
+  });
+});

@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { readKey } from '../../keys.ts';
 import { makeAnthropicSceneModels } from '../../providers/anthropic.scenes.ts';
-import { ASK_LIMIT_MS } from '../../tutor/tutor-scenes.ts';
+import { KIT_ASK_LIMIT_MS } from '../scene-desk.ts';
 import { getKitCodeProblems } from '../kit-code-check.ts';
 import { createFrameCheck, createKitWorker } from '../kit-worker.ts';
 import { createLessonWork } from '../lesson/lesson-work.ts';
@@ -55,7 +55,7 @@ const worker: typeof checkFrames = (job, signal) => {
   writeFileSync(join(out, `attempt-${attemptNumber}.js`), job.code);
   return checkFrames(job, signal);
 };
-const kitRuns = createTopicRuns({ engine: 'kit', themes: ['dark'], checkCode: getKitCodeProblems, planner: models.planner, nameReader: models.nameReader, writers: [models.kitWriter, models.kitFallbackWriter], reviewer: models.kitReviewer, worker, store, warn });
+const kitRuns = createTopicRuns({ engine: 'kit', themes: ['dark'], checkCode: getKitCodeProblems, planner: models.planner, nameReader: models.nameReader, writers: [models.kitWriter, models.kitFallbackWriter], repairWriter: models.kitFallbackWriter, reviewer: models.kitReviewer, worker, store, warn });
 const noManimRuns = { join: () => ({ plan: Promise.resolve('nothing'), firstLine: Promise.resolve(null), getScene: async () => ({ isOk: false, reasons: ['this proof writes no ManimGX'] }), leave() {} }) } as unknown as TopicRuns;
 
 const questions = [...(args.ask ?? []), ...(args.questions ? (JSON.parse(readFileSync(args.questions, 'utf8')) as string[]) : [])];
@@ -83,7 +83,7 @@ for (const question of questions) {
   const state = work.desk.getState();
   const scene = state.kind === 'ready' ? state.scene : null;
   const readyMs = seen.ready ?? null;
-  const row = { question, engine, end: state.kind, readyMs, wouldLand: readyMs !== null && readyMs <= ASK_LIMIT_MS, costUsd: Number(questionUsd.toFixed(4)), trace: scene?.trace ?? null, sceneId: scene?.id ?? null, topic: scene?.topic ?? null, reasons: state.kind === 'failed' ? state.reasons : [], narration: scene?.narration ?? null };
+  const row = { question, engine, end: state.kind, readyMs, wouldLand: readyMs !== null && readyMs <= KIT_ASK_LIMIT_MS, costUsd: Number(questionUsd.toFixed(4)), trace: scene?.trace ?? null, sceneId: scene?.id ?? null, topic: scene?.topic ?? null, reasons: state.kind === 'failed' ? state.reasons : [], narration: scene?.narration ?? null };
   console.log(`= ${row.end} ready=${readyMs} cost=$${row.costUsd} ${JSON.stringify(row.reasons).slice(0, 500)}`);
   appendFileSync(join(out, 'rows.jsonl'), `${JSON.stringify(row)}\n`);
   if (scene) writeFileSync(join(out, `${scene.id}.js`), scene.code);

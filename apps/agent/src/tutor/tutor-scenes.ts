@@ -2,7 +2,7 @@ import { type Beat, getBeatText, getSpokenWords, type ElementId, type SceneAgent
 import { getSceneBeats } from '../scenes/lesson/lesson-beats.ts';
 import { createLessonWork, type LessonWork } from '../scenes/lesson/lesson-work.ts';
 import type { TopicRuns } from '../scenes/lesson/topic-runs.ts';
-import { getSceneCommand, SHOW_WINDOW_MS, type SceneState } from '../scenes/scene-desk.ts';
+import { getSceneCommand, KIT_ASK_LIMIT_MS, SHOW_WINDOW_MS, type SceneState } from '../scenes/scene-desk.ts';
 import { getSceneKey, type SceneStore } from '../scenes/scene-store.ts';
 import type { LessonPlan, SceneRouter, StoredScene } from '../scenes/scene-types.ts';
 import type { TutorBeat } from './brain.ts';
@@ -71,6 +71,8 @@ interface SceneAsk {
   recheck: ReturnType<typeof setTimeout> | null;
   page: PageState;
   isOpening: boolean;
+  /** Written live in 3D. It takes longer than a student stays quiet, so a student's turn does not end it, and only its limit, a new topic, or a safety reply does. */
+  isKit: boolean;
 }
 
 type Device = 'unknown' | 'canPlay' | 'cannotPlay';
@@ -184,10 +186,19 @@ export function createTutorScenes({ router, runs, kitRuns, store, getCardTitle, 
     send(getLoadMessage(scene));
   };
 
+  const keepAskForKit = (ask: SceneAsk) => {
+    ask.isKit = true;
+    clearTimeout(ask.askLimit);
+    if (ask.windowLimit) clearTimeout(ask.windowLimit);
+    ask.windowLimit = null;
+    ask.askLimit = setTimeout(() => end(ask, 'tooLate'), KIT_ASK_LIMIT_MS - (getNowMs() - ask.askedAtMs));
+  };
+
   const onDeskChange = (ask: SceneAsk, state: SceneState) => {
-    trace('sceneState', { state: state.kind, afterMs: Math.round(getNowMs() - ask.askedAtMs) });
+    trace('sceneState', { state: state.kind, afterMs: Math.round(getNowMs() - ask.askedAtMs), ...(state.kind === 'failed' ? { reasons: state.reasons } : {}) });
     // A scene that comes after its window stays saved for the next ask, and this session has moved on.
     if (ask !== current) return;
+    if (state.kind === 'making' && state.route.engine === 'kit') keepAskForKit(ask);
     if (state.kind === 'ready') loadInPage(ask, state.scene);
     if (state.kind === 'declined' || state.kind === 'failed') end(ask, state.kind);
   };
@@ -202,7 +213,7 @@ export function createTutorScenes({ router, runs, kitRuns, store, getCardTitle, 
     }
     asksMade += 1;
     const work = createLessonWork({ router, runs, ...(kitRuns ? { kitRuns } : {}), store, request: isCard ? cardTitle : topic, isCard, studentId, getNowMs, isOnlyForScene: true, onChange: (state) => onDeskChange(ask, state) });
-    const ask: SceneAsk = { topic, work, askedAtMs: getNowMs(), askLimit: setTimeout(() => end(ask, 'tooLate'), ASK_LIMIT_MS), windowLimit: null, recheck: null, page: { kind: 'notAsked' }, isOpening: isCard && opening.kind === 'possible' };
+    const ask: SceneAsk = { topic, work, askedAtMs: getNowMs(), askLimit: setTimeout(() => end(ask, 'tooLate'), ASK_LIMIT_MS), windowLimit: null, recheck: null, page: { kind: 'notAsked' }, isOpening: isCard && opening.kind === 'possible', isKit: false };
     works.push(work);
     current = ask;
     trace('sceneAsked', { text: topic, isCard });
@@ -260,7 +271,7 @@ export function createTutorScenes({ router, runs, kitRuns, store, getCardTitle, 
     notePause() {
       const pending = current;
       if (!pending) return;
-      if (!pending.windowLimit) {
+      if (!pending.windowLimit && !pending.isKit) {
         // Starts the desk's own clock without taking the scene.
         void pending.work.desk.untilLastChance();
         pending.windowLimit = setTimeout(() => end(pending, 'tooLate'), SHOW_WINDOW_MS);
@@ -297,7 +308,7 @@ export function createTutorScenes({ router, runs, kitRuns, store, getCardTitle, 
       if (isFirstTurn && (current?.isOpening || opening.kind !== 'over')) return;
       if (waitingForDevice !== null) askedTopics.delete(waitingForDevice.trim().toLowerCase());
       waitingForDevice = null;
-      if (current) end(current, 'studentTurn');
+      if (current && !current.isKit) end(current, 'studentTurn');
     },
     noteSafetyReply() {
       isAfterSafetyReply = true;

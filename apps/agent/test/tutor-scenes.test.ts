@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { type Beat, getBeatText, parseBeat, type SceneAgentMessage } from '@astra/contracts';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createTopicRuns } from '../src/scenes/lesson/topic-runs.ts';
+import { KIT_ASK_LIMIT_MS } from '../src/scenes/scene-desk.ts';
 import { createSceneStore, getSceneKey } from '../src/scenes/scene-store.ts';
 import type { LessonPlan, SceneRoute, StoredScene } from '../src/scenes/scene-types.ts';
 import { ASK_LIMIT_MS, createTutorScenes, getTutorSceneBeats } from '../src/tutor/tutor-scenes.ts';
@@ -441,6 +442,108 @@ describe('a student looping a shared card', () => {
     opened(scenes);
     scenes.ask(TOPIC);
     await flush();
+    expect(sent).toEqual([]);
+  });
+});
+
+describe('a scene written live in 3D', () => {
+  const KIT_ROUTE: SceneRoute = { engine: 'kit', kind: 'earth-engineering', topic: TOPIC, ...USAGE };
+  const KIT_SCENE = { ...SCENE, engine: 'kit' } as StoredScene;
+  const setUpKit = (getScene: () => Promise<{ isOk: true; scene: StoredScene } | { isOk: false; reasons: string[] }> = async () => ({ isOk: true, scene: KIT_SCENE })) => {
+    const made = setUp({ route: KIT_ROUTE, getScene });
+    const kitRuns = { join: made.joinRun } as never;
+    return { ...made, kitRuns };
+  };
+
+  function setUpSession(getScene?: Parameters<typeof setUpKit>[0]) {
+    const sent: SceneAgentMessage[] = [];
+    const spoken: (readonly Beat[])[] = [];
+    const traces: { name: string; fields: Record<string, unknown> }[] = [];
+    const { joinRun } = setUpKit(getScene);
+    const plainJoin = vi.fn();
+    const scenes = createTutorScenes({
+      router: { route: vi.fn(async () => KIT_ROUTE) },
+      runs: { join: plainJoin } as never,
+      kitRuns: { join: joinRun } as never,
+      store: createSceneStore(mkdtempSync(join(tmpdir(), 'tutor-scenes-kit-'))),
+      getCardTitle: () => null,
+      getNowMs: () => performance.now(),
+      send: (message) => void sent.push(message),
+      canSpeak: () => true,
+      speak(beats) {
+        spoken.push(beats);
+        return true;
+      },
+      onShown: () => {},
+      trace: (name, fields = {}) => void traces.push({ name, fields }),
+    });
+    opened(scenes);
+    return { scenes, sent, spoken, traces, plainJoin, joinRun };
+  }
+
+  it('asks the page to load it as a kit scene, on the kit runs and not the plain ones', async () => {
+    const { scenes, sent, joinRun, plainJoin } = setUpSession();
+    scenes.ask(TOPIC);
+    await flush();
+    expect(joinRun).toHaveBeenCalledOnce();
+    expect(plainJoin).not.toHaveBeenCalled();
+    expect(sent).toEqual([{ type: 'loadScene', sceneId: KIT_SCENE.id, durationSeconds: 5, engine: 'kit' }]);
+  });
+
+  it('outlives a student who keeps talking, and lands at the next pause', async () => {
+    const { scenes, spoken, traces } = setUpSession();
+    scenes.noteStudentTurn();
+    scenes.ask(TOPIC);
+    await flush();
+    scenes.noteStudentTurn();
+    expect(traces.map(({ name }) => name)).not.toContain('sceneEnded');
+    scenes.onPage(LOADED, 'maya');
+    await flush();
+    expect(spoken).toHaveLength(1);
+  });
+
+  it('outlives the 20 s window and ends at its own limit, saying nothing', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] });
+    const { scenes, spoken, sent, traces } = setUpSession(() => new Promise(() => {}));
+    scenes.ask(TOPIC);
+    await vi.advanceTimersByTimeAsync(100);
+    scenes.notePause();
+    await vi.advanceTimersByTimeAsync(ASK_LIMIT_MS + 1000);
+    expect(traces.map(({ name }) => name)).not.toContain('sceneEnded');
+    await vi.advanceTimersByTimeAsync(KIT_ASK_LIMIT_MS);
+    expect(traces).toContainEqual({ name: 'sceneEnded', fields: expect.objectContaining({ how: 'tooLate' }) });
+    expect(spoken).toEqual([]);
+    expect(sent).toEqual([]);
+  });
+
+  it('ends on a safety reply, and nothing more is asked until the student speaks', async () => {
+    const { scenes, spoken, sent, traces, joinRun } = setUpSession(() => new Promise(() => {}));
+    scenes.ask(TOPIC);
+    await flush();
+    scenes.noteStudentTurn();
+    scenes.noteSafetyReply();
+    expect(traces).toContainEqual({ name: 'sceneEnded', fields: expect.objectContaining({ how: 'safetyReply' }) });
+    scenes.ask('how a volcano erupts');
+    await flush();
+    expect(joinRun).toHaveBeenCalledOnce();
+    expect(spoken).toEqual([]);
+    expect(sent).toEqual([]);
+  });
+
+  it('ends on a new topic', async () => {
+    const { scenes, traces } = setUpSession(() => new Promise(() => {}));
+    scenes.ask(TOPIC);
+    await flush();
+    scenes.noteTopic('Volcanoes and magma');
+    expect(traces).toContainEqual({ name: 'sceneEnded', fields: expect.objectContaining({ how: 'topicChanged' }) });
+  });
+
+  it('says nothing at all when the writing fails', async () => {
+    const { scenes, spoken, sent } = setUpSession(async () => ({ isOk: false, reasons: ['the frame was black'] }));
+    scenes.ask(TOPIC);
+    await flush();
+    scenes.notePause();
+    expect(spoken).toEqual([]);
     expect(sent).toEqual([]);
   });
 });

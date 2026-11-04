@@ -29,6 +29,8 @@ export interface SceneMaker {
   /** Runs before the code reaches a worker. It replaces the plain word check, so it must hold it. */
   checkCode?(scene: { code: string; topic: string; moments: Readonly<Record<string, number>> }): readonly string[];
   writers: readonly SceneWriter[];
+  /** Gets one try at what a review reported, and that try is reviewed again. The review itself never rewrites anything. */
+  repairWriter?: SceneWriter;
   reviewer: SceneReviewer;
   worker: RenderWorker;
   store: SceneStore;
@@ -99,11 +101,13 @@ interface WriteRun {
   signal: AbortSignal;
   earlyWrite: Promise<WrittenScene> | null;
   isTyped: boolean;
+  repair?: SceneRepair;
+  writers?: readonly SceneWriter[];
 }
 
-async function writeUntilClean(maker: SceneMaker, { brief, plan, values, tally, warn, signal, earlyWrite, isTyped }: WriteRun): Promise<Attempt | null> {
-  let repair: SceneRepair | null = null;
-  for (const [index, writer] of maker.writers.entries()) {
+async function writeUntilClean(maker: SceneMaker, { brief, plan, values, tally, warn, signal, earlyWrite, isTyped, repair: firstRepair, writers = maker.writers }: WriteRun): Promise<Attempt | null> {
+  let repair: SceneRepair | null = firstRepair ?? null;
+  for (const [index, writer] of writers.entries()) {
     if (signal.aborted) return null;
     tally.attempts += 1;
     tally.writer = writer.name;
@@ -113,7 +117,7 @@ async function writeUntilClean(maker: SceneMaker, { brief, plan, values, tally, 
     const themes = maker.themes ?? SCENE_THEMES;
     const render = contentProblems.length > 0 || signal.aborted ? null : await maker.worker({ code, moments: brief.moments, durationSeconds: brief.durationSeconds, themes, values, inspectSeconds: getInspectSeconds(brief) }, AbortSignal.any([AbortSignal.timeout(2 * (maker.writerLimitMs ?? WRITER_LIMIT_MS)), signal]));
     tally.renderMs += render?.ms ?? 0;
-    const problems = render ? getRenderProblems(render, plan, brief, warn, isTyped || index === maker.writers.length - 1, maker.engine ?? 'manimgx', themes) : contentProblems;
+    const problems = render ? getRenderProblems(render, plan, brief, warn, isTyped || index === writers.length - 1, maker.engine ?? 'manimgx', themes) : contentProblems;
     if (render?.isOk && problems.length === 0) return { code, render };
     tally.problems.push(...problems);
     if (!signal.aborted) warn(`::notice title=Scene try::${writer.name} did not pass: ${problems.join('; ').slice(0, MOST_NOTICE_CHARACTERS)}`);
@@ -200,17 +204,30 @@ export async function makeScene(maker: SceneMaker, { topic, ownerId = null, plan
   if (!getCanTry(store.getTrouble(key), getWallMs())) return { isOk: false, reasons: ['this scene hit errors recently, so it waits before trying again'] };
   const brief = getBrief(topic, plan);
   const tally: Tally = { writer: '', attempts: 0, writeMs: 0, renderMs: 0, costUsd: 0, problems: [] };
-  const attempt = await writeUntilClean(maker, { brief, plan, values, tally, warn, signal, earlyWrite, isTyped: ownerId !== null });
+  const run = { brief, plan, values, tally, warn, signal, isTyped: ownerId !== null };
+  const firstAttempt = await writeUntilClean(maker, { ...run, earlyWrite });
   if (signal.aborted) return NO_LONGER_WANTED;
-  if (!attempt) {
+  if (!firstAttempt) {
     noteTrouble(store, key, getWallMs());
     return { isOk: false, reasons: tally.problems };
   }
   // An error is never a verdict, so it saves nothing that could block this topic.
-  const verdict = await reviewer.review({ brief, code: attempt.code, sheets: attempt.render.sheets, spokenLines: getSpokenLines(plan) }, AbortSignal.any([AbortSignal.timeout(maker.reviewerLimitMs ?? REVIEWER_LIMIT_MS), signal])).catch((error: unknown) => {
-    if (!signal.aborted) noteTrouble(store, key, getWallMs());
-    return String(error);
-  });
+  const review = (attempt: Attempt) =>
+    reviewer.review({ brief, code: attempt.code, sheets: attempt.render.sheets, spokenLines: getSpokenLines(plan) }, AbortSignal.any([AbortSignal.timeout(maker.reviewerLimitMs ?? REVIEWER_LIMIT_MS), signal])).catch((error: unknown) => {
+      if (!signal.aborted) noteTrouble(store, key, getWallMs());
+      return String(error);
+    });
+  let attempt = firstAttempt;
+  let verdict = await review(attempt);
+  if (typeof verdict !== 'string' && !verdict.isPass && maker.repairWriter && !signal.aborted) {
+    const refused = verdict;
+    tally.problems.push(...refused.errors.map(({ what }) => `review: ${what}`));
+    const repaired = await writeUntilClean(maker, { ...run, earlyWrite: null, writers: [maker.repairWriter], repair: { problems: refused.errors.map(({ what, truth }) => `${what} What is true: ${truth}`), code: attempt.code } });
+    if (repaired) {
+      attempt = repaired;
+      verdict = await review(attempt);
+    }
+  }
   if (signal.aborted) return NO_LONGER_WANTED;
   if (typeof verdict === 'string') return { isOk: false, reasons: [`the review could not finish: ${verdict}`] };
   if (!verdict.isPass) {
