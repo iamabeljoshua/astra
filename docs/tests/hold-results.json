@@ -1,5 +1,6 @@
 {
  "head": "0b0b24d",
+ "laterChanges": "The measures, straightIntoMuse, noiseCuts, cutsRaisePrompt, realTutor, safety, and attack ran with the rule that counts a stray word as noise, which changes only that count. A click of Talk doing nothing while Talk cannot work came after every run, and only a unit test proves it.",
  "catchUpNote": "quietRepeat and noise003Repeat asked for catch-up off through a Playwright route that never reached the worklet, so catchUpsTurnedOff is 0 and they ran with it on. The NoCatchUp runs swap it at addModule, and catchUpsTurnedOff is 1.",
  "note": "Real Chromium, the real room, real Muse, a fake microphone track. The stand-in tutor and the fake voice unless a row says realTutor. Other lanes were on this Mac.",
  "measure": {
