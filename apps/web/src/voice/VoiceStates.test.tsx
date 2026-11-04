@@ -295,7 +295,7 @@ describe('what the student sees of a room', () => {
       const next = makeVoice();
       startLiveVoice.mockResolvedValueOnce(next.voice);
       fireEvent.click(screen.getByRole('button', { name: VOICE_LABELS.tryAgain }));
-      await vi.waitFor(() => expect(next.voice.sendTyped).toHaveBeenCalled());
+      await vi.waitFor(() => expect(next.voice.sendOpening).toHaveBeenCalled());
       expect(screen.getByText(SESSION_LABELS.replyNotSent)).toBeTruthy();
       act(() => next.setView({ hasTutorStarted: true }));
       expect(screen.queryByText(SESSION_LABELS.replyNotSent)).toBeNull();

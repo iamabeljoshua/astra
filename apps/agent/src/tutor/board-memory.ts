@@ -131,7 +131,7 @@ function getOpenTaskAfter(command: SceneCommand, { openTask, lines, doneTasks }:
 
 export function getMemoryAfter(command: SceneCommand, memory: BoardMemory): BoardMemory {
   const kinds = getBoardAfter(command, memory.kinds);
-  if (command.kind === 'clearBoard') return { ...EMPTY_BOARD, kinds, doneTasks: memory.doneTasks };
+  if (command.kind === 'clearBoard') return { ...EMPTY_BOARD, kinds, doneTasks: memory.doneTasks, hasComeBack: memory.hasComeBack };
   const lines = new Map(memory.lines);
   const shownLines = new Set(memory.shownLines);
   let { lastAssertedLine } = memory;
