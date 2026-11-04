@@ -18,13 +18,7 @@ interface KitEntry {
   opening: Promise<boolean>;
 }
 
-function hasWebGl(): boolean {
-  try {
-    return document.createElement('canvas').getContext('webgl2') !== null;
-  } catch {
-    return false;
-  }
-}
+const hasWebGl = () => document.createElement('canvas').getContext('webgl2') !== null;
 
 /** Laptop first, by Abel's word. Everywhere else plays the 2D take with nothing said. */
 export const getCanPlayKit = () => isKitSceneEnabled() && window.innerWidth > PHONE_WIDTH && !window.matchMedia('(prefers-reduced-motion: reduce)').matches && hasWebGl();
