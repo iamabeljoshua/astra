@@ -31,6 +31,8 @@ export interface ScenePlayer {
   /** Mutes and freezes as a stop would, for a browser that has lost the agent and cannot wait to be told. */
   freeze(): void;
   getBoard(atMs: number): BoardState;
+  /** Puts what the student just did on the board, so the page shows it before any message leaves. */
+  addStudentOperations(operations: readonly BoardOperation[]): void;
   getNowMs(): number;
   getOperations(): BoardOperation[];
   /** The words heard so far this turn, on the same clock as the board. */
@@ -291,6 +293,9 @@ export function createScenePlayer({ clock, clockId = 'page', send, setOutputLeve
       };
     },
     getBoard: (atMs) => getBoardAt(getOperations(), atMs, catalog),
+    addStudentOperations(operations) {
+      operationsOfOldTurns.push(...operations);
+    },
     receive(message) {
       if (message.type === 'turnStarted') return startTurn(message.turnId);
       if ('turnId' in message && turn?.phase === 'playing' && message.turnId === turn.id) receiveForTurn(turn, message);

@@ -18,8 +18,9 @@ Light is the default. A toggle switches to dark, and the choice is remembered. B
 | `ink-2` | Secondary text | `#5F574C` | `#A79F92` |
 | `line` | Rules and quiet borders | `#CFC6B5` | `#2B2823` |
 | `accent` | Focus rings and links on hover | `#1B1815` | `#FFCC94` |
+| `pen` | The tutor's lines and marks on the shared board. Proposed, waiting for Abel | `#B23A1E` | `#FFB070` |
 
-Other color comes only from the content, such as a painting or a plotted series.
+Other color comes only from the content, such as a painting or a plotted series. On the shared board, the student writes in `ink` and the tutor writes in `pen`, so who wrote what never has to be read from anything else.
 
 ## Type
 

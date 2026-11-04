@@ -8,6 +8,7 @@
   --color-ink-2: #5F574C;
   --color-line: #CFC6B5;
   --color-accent: #1B1815;
+  --color-pen: #B23A1E;
 
   --font-*: initial;
   --font-ui: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
@@ -121,6 +122,7 @@
     --color-ink-2: #A79F92;
     --color-line: #2B2823;
     --color-accent: #FFCC94;
+    --color-pen: #FFB070;
   }
 }
 
@@ -353,7 +355,40 @@
   }
 
   .board-marks {
-    stroke: var(--color-accent);
+    stroke: var(--color-pen);
+  }
+
+  .board-shared [data-testid='board'] {
+    font-size: clamp(22px, 2vw, 28px);
+  }
+
+  .board-pick {
+    border-bottom: 1px dashed var(--color-pen);
+  }
+
+  .board-pick:hover,
+  .board-pick:focus-visible {
+    background: color-mix(in srgb, var(--color-pen) 14%, transparent);
+  }
+
+  .board-caret {
+    display: inline-block;
+    align-self: center;
+    width: 2px;
+    height: 1em;
+    margin-left: 2px;
+    background: var(--color-ink);
+  }
+
+  .board-mark-student {
+    stroke: var(--color-ink);
+  }
+
+  .board-note {
+    fill: var(--color-pen);
+    stroke: none;
+    font-family: var(--font-voice);
+    font-style: italic;
   }
 
   .board-dot {

@@ -49,6 +49,8 @@ export interface DrawnDiagram {
   steps: readonly DiagramStep[];
   width: number;
   height: number;
+  /** Where each node sits, by its name, so a mark or a student's pick can find it. */
+  nodeBoxes: ReadonlyMap<string, MarkBox>;
 }
 
 interface PlacedNode {
@@ -184,5 +186,6 @@ export function drawDiagram(diagram: DrawableDiagram, request: DiagramRequest): 
   const { left, top, width, height } = getBounds(placed, rawSteps);
   const toOrigin = { x: -left, y: -top };
   const steps = rawSteps.map((step) => ({ strokes: step.strokes.map((stroke) => moveStroke(stroke, toOrigin)), textLabels: step.textLabels.map((label) => moveTextLabel(label, toOrigin)) }));
-  return { steps, width, height };
+  const nodeBoxes = new Map(placed.map(({ name, box }) => [name, { ...box, x: box.x + toOrigin.x, y: box.y + toOrigin.y }]));
+  return { steps, width, height, nodeBoxes };
 }

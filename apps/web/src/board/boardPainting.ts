@@ -1,5 +1,5 @@
 import { type BoardElement, type BoardState, getMotionValue } from '@astra/board';
-import { easeInOut, type LayoutArea, type MathFontProblem, type MovingBox, type MovingPlacement, placeMovingElements, writeStyle } from '@astra/board/drawing';
+import { easeInOut, type LayoutArea, type MarkBox, type MathFontProblem, type MovingBox, type MovingPlacement, placeMovingElements, type TermQuery, writeStyle } from '@astra/board/drawing';
 import { createBoardMarks, type MarkWithoutTarget } from './boardMarks';
 import { type BoardItem, createBoardItem, hasOwnPlace, type ItemContext, type ItemSizes } from './boardItems';
 
@@ -53,6 +53,7 @@ export function createBoardPainting({ boardElement, overlay, getWrapper, onMathR
   const marks = createBoardMarks(overlay, onBoardProblem);
   const reportedRefusals = new Set<string>();
   const reportedFonts = new Set<string>();
+  let lastPlacements: ReadonlyMap<string, MovingPlacement> = new Map();
 
   const syncItems = (placed: readonly BoardElement[]) => {
     const live = new Set(placed.map((element) => element.id as string));
@@ -123,6 +124,14 @@ export function createBoardPainting({ boardElement, overlay, getWrapper, onMathR
       const placementsById = new Map(placements.map((placement) => [placement.id, placement]));
       for (const context of contexts) paintItem(context, placementsById.get(context.element.id), isMakingRoom);
       marks.paint({ elements, focus: board.focus, placements: placementsById, getItem: (id) => items.get(id)?.item, atMs, isReducedMotion });
+      lastPlacements = placementsById;
+    },
+    /** Where a part of an element sits on the board now, for a student to pick it. */
+    getPartBox(id: string, query: TermQuery): MarkBox | null {
+      const placement = lastPlacements.get(id);
+      const box = placement?.isVisible ? items.get(id)?.item.getTermBoxes?.(query).to : null;
+      if (!placement || !box) return null;
+      return { x: placement.x + box.x * placement.scale, y: placement.y + box.y * placement.scale, width: box.width * placement.scale, height: box.height * placement.scale };
     },
   };
 }

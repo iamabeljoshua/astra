@@ -3,11 +3,12 @@ import type { StudentLine } from './liveVoice';
 
 const CURRENT_WORD = 'underline decoration-1 underline-offset-4';
 
-export function TutorCaption({ heard, coming }: { heard: readonly string[]; coming: readonly string[] }) {
+export function TutorCaption({ heard, coming, firstWord = null }: { heard: readonly string[]; coming: readonly string[]; firstWord?: string | null }) {
   const earlier = heard.slice(0, -1).join(' ');
   const current = heard.at(-1);
   return (
     <p className="font-voice text-voice" data-testid="tutor-caption">
+      {firstWord && heard.length === 0 && coming.length === 0 && <span data-testid="first-word">{firstWord}</span>}
       {earlier && `${earlier} `}
       {current && <span className={CURRENT_WORD} data-testid="current-word">{current}</span>}
       {coming.length > 0 && <span className="text-ink-2">{` ${coming.join(' ')}`}</span>}

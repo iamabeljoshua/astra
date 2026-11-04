@@ -1,5 +1,5 @@
 import { type BoardElement, getMotionValue } from '@astra/board';
-import { canWriteByHand, createInkPainter, createMathPainter, type DiagramTextLabel, drawDiagram, type InkPainter, type LayoutBox, type MathFontProblem, type MathPainter, type MeasureText, type TermBoxes, type TermQuery, writeByHand, writeStyle } from '@astra/board/drawing';
+import { canWriteByHand, createInkPainter, createMathPainter, type DiagramTextLabel, drawDiagram, type InkPainter, type LayoutBox, type MarkBox, type MathFontProblem, type MathPainter, type MeasureText, type TermBoxes, type TermQuery, writeByHand, writeStyle } from '@astra/board/drawing';
 
 const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
 const HANDWRITING_SCALE = 1.3;
@@ -141,11 +141,13 @@ function getTextMeasure(wrapper: HTMLElement): { measureText?: MeasureText } {
 }
 
 function createDiagramItem(wrapper: HTMLElement, content: Extract<BoardElement['content'], { kind: 'diagram' }>): BoardItem {
-  return createInkItem({
+  let nodeBoxes: ReadonlyMap<string, MarkBox> = new Map();
+  const item = createInkItem({
     wrapper,
     label: content.nodes.map((node) => node.label).join(', '),
     draw({ element, maxWidth, fontSize }) {
       const drawn = drawDiagram(content, { fontSize: fontSize * DIAGRAM_SCALE, maxWidth, seed: element.id, ...getTextMeasure(wrapper) });
+      nodeBoxes = drawn.nodeBoxes;
       return { strokeGroups: drawn.steps.map((step) => step.strokes), textGroups: drawn.steps.map((step) => step.textLabels), size: { width: drawn.width, height: drawn.height } };
     },
     getProgress({ element, atMs, progress }, groupCount) {
@@ -153,6 +155,13 @@ function createDiagramItem(wrapper: HTMLElement, content: Extract<BoardElement['
       return Array.from({ length: groupCount }, (_, index) => Math.min(1, Math.max(0, reached - index)));
     },
   });
+  return {
+    ...item,
+    getTermBoxes(query) {
+      const box = query && 'termId' in query ? nodeBoxes.get(query.termId) : undefined;
+      return { from: null, to: box ?? null, flightOffset: { x: 0, y: 0 } };
+    },
+  };
 }
 
 function createPlainItem(wrapper: HTMLElement): BoardItem {
@@ -167,6 +176,23 @@ function createPlainItem(wrapper: HTMLElement): BoardItem {
   };
 }
 
+function createStudentLineItem(wrapper: HTMLElement, element: BoardElement): BoardItem {
+  const caption = () => wrapper.querySelector<HTMLElement>('[data-line-caption]');
+  if (!element.math) return createPlainItem(wrapper);
+  const math = createMathItem(wrapper);
+  return {
+    ...math,
+    // The caption sits under the math, and the math painter owns the wrapper's flow, so the caption is placed by hand.
+    prepare(context) {
+      const sizes = math.prepare(context);
+      const note = caption();
+      if (!sizes.size || !note) return sizes;
+      note.style.top = `${sizes.size.height}px`;
+      return { ...sizes, size: { width: Math.max(sizes.size.width, note.offsetWidth), height: sizes.size.height + note.offsetHeight } };
+    },
+  };
+}
+
 function createFigureItem(): BoardItem {
   return { prepare: () => ({ fit: 'figure', size: FIGURE_SIZE, fromSize: null }), paint: () => {}, remove: () => {} };
 }
@@ -176,13 +202,16 @@ const ITEM_MAKERS: Partial<{ [Kind in BoardElement['content']['kind']]: (wrapper
   diagram: (wrapper, content) => createDiagramItem(wrapper, content),
   simulate: () => createFigureItem(),
   text: (wrapper, content) => (content.handwritten && canWriteByHand(content.text) ? createHandwrittenItem(wrapper, content.text) : createPlainItem(wrapper)),
+  task: (wrapper) => createPlainItem(wrapper),
 };
 
 export function hasOwnPlace(content: BoardElement['content']): boolean {
-  return Object.hasOwn(ITEM_MAKERS, content.kind);
+  if (content.kind === 'task') return content.way === 'place';
+  return content.kind === 'studentLine' || Object.hasOwn(ITEM_MAKERS, content.kind);
 }
 
 export function createBoardItem(element: BoardElement, wrapper: HTMLElement): BoardItem {
+  if (element.content.kind === 'studentLine') return createStudentLineItem(wrapper, element);
   const make = ITEM_MAKERS[element.content.kind] as (wrapper: HTMLElement, content: BoardElement['content']) => BoardItem;
   return make(wrapper, element.content);
 }

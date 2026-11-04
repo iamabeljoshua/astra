@@ -1,6 +1,8 @@
-import { type BoardState, createChoosingClock, createScenePlayer, type FiredCue, type OutputLevel, type ScenePlayer } from '@astra/board';
-import { type AgentMessage, type BrowserMessage, clipTypedText, type components, LINK_QUIET_LIMIT_MS, parseAgentMessage, PULSE_EVERY_MS, type TutorClosedReason } from '@astra/contracts';
+import { type BoardState, createChoosingClock, createScenePlayer, type FiredCue, getWorkedOperations, type OutputLevel, type ScenePlayer } from '@astra/board';
+import { checkWorkOnBoard } from '@astra/board/shared';
+import { type AgentMessage, type BrowserMessage, clipTypedText, type components, type ElementId, LINK_QUIET_LIMIT_MS, parseAgentMessage, PULSE_EVERY_MS, type StudentWork, type TutorClosedReason } from '@astra/contracts';
 import { createLocalAudioTrack, DisconnectReason, type LocalAudioTrack, type RemoteTrack, Room, RoomEvent, Track } from 'livekit-client';
+import { BOARD_WORK_LABELS } from '../strings';
 import { createLocalYield } from './localYield';
 import { createTutorAudioContext, listenToTutor, listenToStudent, OUTPUT_GAINS, type ProbeNote } from './tutorAudio';
 
@@ -33,6 +35,8 @@ export interface LiveVoiceView {
   isTutorSpeaking: boolean;
   /** Why the tutor will not speak again in this room, or null while it can. */
   closedBecause: TutorClosedReason | null;
+  /** A first sound in words, shown the moment code finds a student's work wrong, before any voice can. */
+  firstWord: string | null;
   studentLines: readonly StudentLine[];
   /** Words the student has heard this turn, and the ones already known that are still to come. */
   tutorHeard: readonly string[];
@@ -62,6 +66,12 @@ export interface LiveVoice {
   sendTyped(text: string): void;
   /** The board could not draw this mark, so the agent can tell the tutor the student did not see it. */
   reportMarkNotDrawn(markId: string): void;
+  /** Puts the student's work on the board at once, with code's reading of it, and sends it for the agent to check for itself. `startedMsAgo` is how long a drag took. */
+  sendWork(work: StudentWork, startedMsAgo?: number): void;
+  /** Moves the student's point while they drag it. */
+  movePoint(task: ElementId, x: number): void;
+  /** The student has not touched the board for this long. */
+  sendPause(seconds: number, draft?: string): void;
   setMicOn(isOn: boolean): Promise<void>;
   turnOnSound(): Promise<void>;
   mark(note: object): void;
@@ -102,7 +112,7 @@ export async function startLiveVoice({ access, getAccess, wantsGreeting = true, 
   const decoder = new TextDecoder();
   const listeners = new Set<() => void>();
   const outbox: BrowserMessage[] = [];
-  let view: LiveVoiceView = { phase: 'connecting', mic: 'off', isSoundBlocked: audioContext.state !== 'running', isThinking: false, isHeard: false, isTutorSpeaking: false, closedBecause: null, studentLines: [], tutorHeard: [], tutorComing: [] };
+  let view: LiveVoiceView = { phase: 'connecting', mic: 'off', isSoundBlocked: audioContext.state !== 'running', isThinking: false, isHeard: false, isTutorSpeaking: false, closedBecause: null, firstWord: null, studentLines: [], tutorHeard: [], tutorComing: [] };
   let lastAgentPulseEpochMs: number | null = null;
   let isClosed = false;
   let hasHeardFirstOnset = false;
@@ -200,6 +210,7 @@ export async function startLiveVoice({ access, getAccess, wantsGreeting = true, 
     if (message.type === 'thinking') return setView({ isThinking: message.isThinking });
     if (message.type === 'studentWords') return addStudentWords(message);
     if (message.type === 'turnStarted') {
+      setView({ firstWord: null });
       records.turnStartedEpochMs[message.turnId] = getEpochMs();
       records.clockKinds.push(clock.getKind());
       currentTurnId = message.turnId;
@@ -355,6 +366,20 @@ export async function startLiveVoice({ access, getAccess, wantsGreeting = true, 
     },
     reportMarkNotDrawn(markId) {
       send({ type: 'markNotDrawn', ...getStamp(), markId });
+    },
+    sendWork(work, startedMsAgo = 0) {
+      const nowMs = clock.getNowMs();
+      const checked = checkWorkOnBoard(work, player.getBoard(nowMs));
+      player.addStudentOperations([{ kind: 'worked', atMs: nowMs, action: { action: 'worked', work, ...checked } }]);
+      showHeard();
+      setView({ firstWord: checked.verdict.status === 'wrong' ? BOARD_WORK_LABELS.hm : null });
+      send({ type: 'worked', ...getStamp(), startedMsAgo, work });
+    },
+    movePoint(task, x) {
+      player.addStudentOperations([{ kind: 'pointMoved', atMs: clock.getNowMs(), task, x }]);
+    },
+    sendPause(seconds, draft) {
+      send({ type: 'paused', ...getStamp(), seconds, ...(draft ? { draft: clipTypedText(draft) } : {}) });
     },
     setMicOn,
     async turnOnSound() {

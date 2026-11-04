@@ -35,6 +35,9 @@ const getTargetParts = (target: ElementRef) => target.split('.') as [string, str
 
 const isMark = (content: BoardElement['content']): content is MarkContent => content.kind === 'highlight' || content.kind === 'annotate';
 
+const NOTE_FONT_SIZE = 18;
+const NOTE_GAP = 14;
+
 const getMarkKind = (content: MarkContent): AnnotationMark => (content.kind === 'highlight' ? 'circle' : content.mark);
 
 function getMarkQuery(content: MarkContent, part: string | undefined): TermQuery {
@@ -88,11 +91,12 @@ export function createBoardMarks(overlay: SVGSVGElement, onMarkWithoutTarget?: (
     onMarkWithoutTarget?.({ kind: 'markWithoutTarget', markId: mark.id, target: content.target, ...(tex === undefined ? {} : { tex }) });
   };
 
-  const getPaintedMark = ({ id, kind, box, existing }: { id: string; kind: AnnotationMark; box: MarkBox; existing: PaintedMark | undefined }): PaintedMark => {
+  const getPaintedMark = ({ id, kind, box, existing, isStudents }: { id: string; kind: AnnotationMark; box: MarkBox; existing: PaintedMark | undefined; isStudents: boolean }): PaintedMark => {
     const key = `${kind}|${box.x.toFixed(1)}|${box.y.toFixed(1)}|${box.width.toFixed(1)}|${box.height.toFixed(1)}`;
     if (existing?.key === key) return existing;
     existing?.painter.remove();
     const group = existing?.group ?? document.createElementNS(SVG_NAMESPACE, 'g');
+    group.classList.toggle('board-mark-student', isStudents);
     if (!existing) overlay.append(group);
     const painted = { group, key, painter: createInkPainter(group, drawMark({ mark: kind, box, seed: id })) };
     marks.set(id, painted);
@@ -115,7 +119,7 @@ export function createBoardMarks(overlay: SVGSVGElement, onMarkWithoutTarget?: (
       return;
     }
     drawnOnce.add(mark.id);
-    const painted = getPaintedMark({ id: mark.id, kind: getMarkKind(content), box, existing: marks.get(mark.id) });
+    const painted = getPaintedMark({ id: mark.id, kind: getMarkKind(content), box, existing: marks.get(mark.id), isStudents: mark.isStudents === true });
     const drawn = getMotionValue(mark.entrance, frame.atMs);
     const move = boxes.flightOffset;
     writeStyle(painted.group, 'visibility', placement.isVisible ? '' : 'hidden');
@@ -123,6 +127,41 @@ export function createBoardMarks(overlay: SVGSVGElement, onMarkWithoutTarget?: (
     const opacity = getMarkOpacity({ boxes, drawn, rearranged, isReducedMotion: frame.isReducedMotion });
     writeStyle(painted.group, 'opacity', opacity < 1 ? opacity.toFixed(3) : '');
     painted.painter.paint(frame.isReducedMotion && drawn > 0 ? 1 : drawn);
+  };
+
+  const notes = new Map<string, SVGTextElement>();
+
+  // Text nodes only, so a note has no way to become markup. It sits to the right of its line, or under it if there is no room.
+  const paintNote = (element: BoardElement, frame: MarksFrame, boardWidth: number) => {
+    if (element.content.kind !== 'note') return;
+    const placement = frame.placements.get(element.content.target);
+    let note = notes.get(element.id);
+    if (!note) {
+      note = document.createElementNS(SVG_NAMESPACE, 'text');
+      note.classList.add('board-note');
+      note.setAttribute('font-size', String(NOTE_FONT_SIZE));
+      note.textContent = element.content.text;
+      overlay.append(note);
+      notes.set(element.id, note);
+    }
+    writeStyle(note, 'visibility', placement?.isVisible ? '' : 'hidden');
+    if (!placement) return;
+    const width = note.getComputedTextLength();
+    const fitsBeside = placement.x + placement.width + NOTE_GAP + width <= boardWidth;
+    note.setAttribute('x', String(Math.round(fitsBeside ? placement.x + placement.width + NOTE_GAP : placement.x)));
+    note.setAttribute('y', String(Math.round(fitsBeside ? placement.y + placement.height / 2 + NOTE_FONT_SIZE / 3 : placement.y + placement.height + NOTE_FONT_SIZE)));
+    writeStyle(note, 'opacity', frame.isReducedMotion ? '' : getMotionValue(element.entrance, frame.atMs).toFixed(3));
+  };
+
+  const paintNotes = (frame: MarksFrame) => {
+    const live = frame.elements.filter((element) => element.content.kind === 'note');
+    for (const [id, note] of notes) {
+      if (live.some((element) => element.id === id)) continue;
+      note.remove();
+      notes.delete(id);
+    }
+    const boardWidth = overlay.clientWidth || overlay.getBoundingClientRect().width;
+    for (const element of live) paintNote(element, frame, boardWidth);
   };
 
   const removeGone = (live: ReadonlySet<string>) => {
@@ -152,6 +191,7 @@ export function createBoardMarks(overlay: SVGSVGElement, onMarkWithoutTarget?: (
         if (onMath.includes(mark)) paintMark(mark, mark.content as MarkContent, frame);
         else reportIfNeverDrawn(mark, mark.content as MarkContent, frame);
       }
+      paintNotes(frame);
       paintFocus(frame);
     },
   };

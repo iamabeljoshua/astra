@@ -18,7 +18,7 @@ function getColorsInBlock(blockStart: string) {
 
 describe('theme tokens', () => {
   it('finds every token in the design doc table', () => {
-    expect(designTokens.map((token) => token.name)).toEqual(['paper', 'panel', 'ink', 'ink-2', 'line', 'accent']);
+    expect(designTokens.map((token) => token.name)).toEqual(['paper', 'panel', 'ink', 'ink-2', 'line', 'accent', 'pen']);
   });
 
   it('matches the design doc in light', () => {

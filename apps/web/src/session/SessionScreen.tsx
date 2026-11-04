@@ -87,7 +87,7 @@ function RunningSession({ session }: { session: Session }) {
       <SessionPanels
         session={session}
         tutorWords={idleWords}
-        tutorCaption={view && <TutorCaption heard={view.tutorHeard} coming={view.tutorComing} />}
+        tutorCaption={view && <TutorCaption heard={view.tutorHeard} coming={view.tutorComing} firstWord={view.firstWord} />}
         isDotLively={view !== null && !view.closedBecause && (view.isTutorSpeaking || view.isHeard || view.isThinking)}
         boardNote={SESSION_LABELS.boardStandIn}
         liveVoice={voice}

@@ -226,6 +226,21 @@ export const VOICE_LABELS = {
   turnOnSound: 'Turn on sound',
 };
 
+export const BOARD_WORK_LABELS = {
+  entry: 'Write on the board',
+  placeholder: 'Type here. Words or math.',
+  readAs: 'Read as',
+  kinds: { math: 'math', words: 'words', mixed: 'words and math', code: 'code' },
+  youTyped: 'You typed',
+  checked: 'Code checked this. It holds.',
+  hm: 'Hm.',
+  items: 'To place',
+  emptySlot: 'Empty',
+  clearSlot: (item: string, slot: string) => `Take ${item} out of ${slot}`,
+  placeInSlot: (slot: string) => `Place in ${slot}`,
+  pickPart: (part: string) => `Pick ${part}`,
+};
+
 export const VOICE_TEST_LABELS = {
   title: 'Microphone test',
   intro: 'For a real microphone in a real room. Read each line in your own voice, then wait for the tutor before the next one.',
