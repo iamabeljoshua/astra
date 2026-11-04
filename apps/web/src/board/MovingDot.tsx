@@ -11,7 +11,6 @@ interface DotState {
   isWatching: boolean;
   isThinking: boolean;
   isLively: boolean;
-  /** Connecting, the dot waits unseen in the middle of the board's side, and then shows there before it flies to the words. */
   arrival?: 'hidden' | 'shown' | null;
   getLoudness(): number;
 }

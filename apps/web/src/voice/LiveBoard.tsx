@@ -77,7 +77,6 @@ function useDotTarget(board: BoardState, isTutorSpeaking: boolean) {
 interface LiveBoardProps {
   voice: LiveVoice;
   visual?: ReactNode;
-  /** The tutor is still connecting, so its dot has not arrived. */
   isConnecting?: boolean;
   onTutorState?(state: string | null): void;
   onTalk?: () => void;
@@ -85,8 +84,6 @@ interface LiveBoardProps {
   canTalk?: boolean;
 }
 
-// The board is a pure reading of the clock, so one read per frame is all it needs.
-// One dot leaves the gathered dots and shows for a moment, then flies to the words, and the voice never waits for it.
 function useDotInTheMiddle(isConnecting: boolean): boolean {
   const isReducedMotion = useReducedMotion();
   const [hasLeft, setHasLeft] = useState(isReducedMotion);
@@ -99,6 +96,7 @@ function useDotInTheMiddle(isConnecting: boolean): boolean {
   return !hasLeft;
 }
 
+// The board is a pure reading of the clock, so one read per frame is all it needs.
 export function LiveBoard({ voice, visual = null, onTalk, isTalkOn = false, canTalk = true, isConnecting = false, onTutorState }: LiveBoardProps) {
   const isDotInTheMiddle = useDotInTheMiddle(isConnecting);
   const [frame, setFrame] = useState<BoardFrame>(() => voice.getBoardNow());
@@ -176,7 +174,6 @@ export function LiveBoard({ voice, visual = null, onTalk, isTalkOn = false, canT
   const sendKeyedLine = ({ text, tex }: { text: string; tex: string | null }) => {
     sendWork({ way: 'write', id: nextLineId(), text, ...(task ? { task: task.id } : {}), ...(tex === null ? {} : { keyed: { tex, isUnsure: false } }) });
   };
-  // A task says how to answer it, so the pen opens for a line to write by hand and closes for one to type.
   const openedFor = useRef<ElementId | null>(null);
   useEffect(() => {
     if (!task || openedFor.current === task.id) return;
@@ -263,7 +260,7 @@ export function LiveBoard({ voice, visual = null, onTalk, isTalkOn = false, canT
             activity={activity}
             hasWrittenBefore={hasWrittenBefore}
             nextLineId={nextLineId}
-            isClosed={isVoiceOver(view.phase)}
+            isTutorGone={isVoiceOver(view.phase)}
             band={getBand()}
           />
         }

@@ -335,14 +335,14 @@ describe('the board work seam', () => {
 
   it('leaves stock words out of a reply to work, because one could praise a wrong step', async () => {
     const { brain, seam } = setupSeam([SET_PROBLEM]);
-    expect(seam.canReactAloud()).toBe(true);
+    expect(seam.canSayStockWord()).toBe(true);
     await collect(brain, 'help');
-    expect(seam.canReactAloud()).toBe(false);
+    expect(seam.canSayStockWord()).toBe(false);
     seam.onWorked(worked(line('s1', '2x = 14', 'a1')));
     brain.noteWork(line('s2', 'teach me about black holes', 'a1'));
-    expect(seam.canReactAloud()).toBe(false);
+    expect(seam.canSayStockWord()).toBe(false);
     seam.noteAnswered();
-    expect(seam.canReactAloud()).toBe(true);
+    expect(seam.canSayStockWord()).toBe(true);
   });
 
   it('lands a spoken math line, with what code read, and asks the tutor nothing on a right step', async () => {

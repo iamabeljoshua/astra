@@ -11,7 +11,6 @@ export interface SessionLog {
   write(message: BrowserMessage): SessionEvent | null;
   /** Writes work on the board with what code made of it, because a browser's own word for it is not evidence. */
   writeWorked(message: BrowserMessage & { type: 'worked' }, checked: { reading?: unknown; verdict: WorkVerdict; closesTask?: string }): SessionEvent | null;
-  /** Writes work the agent heard, on the session's own clock, because no page sent it. */
   writeHeard(work: StudentWork, checked: { reading?: unknown; verdict: WorkVerdict; closesTask?: string }): SessionEvent | null;
   getEvents(): readonly SessionEvent[];
 }

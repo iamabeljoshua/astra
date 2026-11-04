@@ -104,7 +104,6 @@ export interface MadeBrain {
   readMeaning?(words: string): Promise<WordMeaning | null>;
   readStrokes?(strokes: readonly (readonly InkPoint[])[]): Promise<{ text: string; ink: { tex?: string; isUnsure: boolean } } | null>;
   readSpokenWords?(words: string, expects: SpokenExpected): Promise<SpokenReading>;
-  /** The model and the voice so far, for a tester's estimate. */
   getSpentUsd?(): number;
 }
 

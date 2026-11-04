@@ -87,7 +87,6 @@ export type TurnEvent =
   | { type: 'tutorStarted'; isReply: boolean }
   | { type: 'tutorFinished' }
   | { type: 'questionHeard' }
-  /** Something said landed on the board and asks nothing of the tutor, so it is answered, and the next words stand alone. */
   | { type: 'workLanded' }
   | { type: 'linkLost' }
   | { type: 'linkBack' };

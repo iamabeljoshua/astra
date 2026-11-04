@@ -31,7 +31,6 @@ const BARE_NUMBER = /^-?\d*\.?\d+$/;
 const PLEASANTRY = String.raw`(?:(?:ok|okay|so|actually|um|please|can we|could we|can you|could you|let'?s|lets|i want to|i'?d rather|i'?d like to|i wanna)[,\s]+)*`;
 const WANTS_SOMETHING_ELSE = new RegExp(String.raw`^\s*${PLEASANTRY}(?:teach me|learn(?: about)?|talk about|switch to|move on to|go back to|do something else|change (?:the )?(?:topic|subject)|new topic|another topic|different topic|something else|forget (?:this|that|it)|stop(?: here| now| this| that| it)|quit(?: this| that| it)?|move on|done with (?:this|that|it))\b(?!\s+(?:this|that|it|how to (?:do|solve) (?:this|that|it))\b)`, 'i');
 
-/** The student has asked for something else, which takes them off the task, so no later line is held to it. */
 export const wantsSomethingElse = (text: string) => WANTS_SOMETHING_ELSE.test(text);
 
 // A number can be told from a number, so 54 is not 56, and words are left for the tutor to read.
@@ -43,9 +42,10 @@ function checkAccepted(text: string, accepts: readonly string[]): WorkVerdict | 
   return accepts.some((accepted) => Number(toKey(accepted)) === Number(typed)) ? RIGHT : { status: 'wrong', why: `${typed} is not the answer the tutor set` };
 }
 
-// A student who starts writing has moved on from picking, so the line they pick from is the problem and the pick is over.
+const getProblemLine = (task: Task | null) => (task?.way === 'write' || task?.way === 'pick' ? task.on : undefined);
+
 function checkMathLineOfWork(tex: string, { task, getLineTex: getTex, previousTex }: WorkContext): CheckedWork {
-  const problemLine = task?.way === 'write' || task?.way === 'pick' ? task.on : undefined;
+  const problemLine = getProblemLine(task);
   const problemTex = problemLine === undefined ? null : getTex(problemLine);
   const verdict = checkStep({ tex, problemTex, previousTex });
   return { verdict, ...closes(task, task?.way === 'pick' || (verdict.status === 'right' && problemTex !== null && isFinishedAnswer(tex))) };
@@ -69,7 +69,6 @@ function checkWrite({ text, ink, heard, keyed }: StudentWork & { way: 'write' },
   return tex === null ? { reading, verdict: UNKNOWN } : { reading, ...checkMathLineOfWork(tex, context) };
 }
 
-// One click answers a pick, right or wrong, unless the tutor asked for several parts.
 function checkPick(part: string, { task, pickedRight }: WorkContext): CheckedWork {
   if (task?.way !== 'pick') return { verdict: UNKNOWN };
   if (!task.answer) return { verdict: UNKNOWN, ...closes(task, true) };
@@ -127,7 +126,7 @@ export function getCurveOf(expression: string, constants: ReadonlyMap<string, nu
 export const NODS = { doubt: 'Hm.', agree: 'Mm-hm.' } as const;
 export type Nod = (typeof NODS)[keyof typeof NODS];
 
-/** What the tutor says the instant code is sure, before any model. Code chooses it from what it found, so it cannot praise a wrong step. A right line gets its tick and no sound. */
+/** What the tutor says the instant code is sure, so it cannot praise a wrong step, and a right written line gets its tick and no sound. */
 export function getNod(work: StudentWork, { verdict }: CheckedWork): Nod | null {
   if (verdict.status === 'wrong') return NODS.doubt;
   return verdict.status === 'right' && work.way !== 'write' ? NODS.agree : null;

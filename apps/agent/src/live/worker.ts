@@ -13,6 +13,7 @@ import { createLiveSession } from './live-session.ts';
 import { createTakePicker, loadTakes } from './reactions.ts';
 import { readDataMessage } from './read-data-message.ts';
 import { makeTutorBrain, warmTutorModel } from '../tutor/make-brain.ts';
+import { createHeardRecorder } from './heard-recorder.ts';
 import { getSteadyNowMs, createVoiceLine } from './voice-line.ts';
 
 /** The rate in `docs/architecture/live-session.md`, $3 for 1,000 minutes. */
@@ -93,6 +94,8 @@ async function runSession(context: JobContext): Promise<void> {
     ...(readMeaning ? { readMeaning } : {}),
     ...(readStrokes ? { readStrokes } : {}),
     ...(readSpokenWords ? { readSpokenWords } : {}),
+    // A demo's tool only, so a production room can never keep a recording.
+    ...(process.env.ASTRA_SAVE_HEARD && process.env.NODE_ENV !== 'production' ? { recordTurn: createHeardRecorder(process.env.ASTRA_SAVE_HEARD, room.name ?? 'room') } : {}),
     ...(process.env.ASTRA_SHOW_COST === '1' ? { getCostSoFar: () => (getSpentUsd?.() ?? 0) + (hearingSinceMs === null ? 0 : ((Date.now() - hearingSinceMs) / MS_PER_MINUTE) * MUSE_USD_PER_MINUTE) } : {}),
   });
   ears = await startEars({ room, transcriber, vad: context.proc.userData.vad as inference.VAD, onEvent: session.onEars });

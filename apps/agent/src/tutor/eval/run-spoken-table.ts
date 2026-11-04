@@ -35,7 +35,7 @@ async function main() {
     const decision = decideSpoken(row.final, TASK, []);
     let tex = decision.act === 'line' ? decision.tex : null;
     let isUnsure = false;
-    if (decision.act === 'read') {
+    if (decision.act === 'askModel') {
       tally.askedTheReader += 1;
       const read = await readSpoken(model, row.final, decision.expects);
       tally.usd += read.costUsd;

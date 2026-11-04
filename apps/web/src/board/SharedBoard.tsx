@@ -34,8 +34,7 @@ function getRowClass({ element, isStruck, inks }: BoardRow): string {
   return `board-row ${owner} ${inks.length > 0 ? 'board-row-ink' : ''} ${isStruck ? 'board-row-struck' : ''}`;
 }
 
-/** A handwritten line's math lives in its Read as, the only place it is set, so that is where a ring or a click finds a term. */
-const isReadMath = ({ inks, element }: BoardRow) => inks.length > 0 && element.math !== null;
+const isMathInReadAs = ({ inks, element }: BoardRow) => inks.length > 0 && element.math !== null;
 
 function RowContent({ row, onWork }: { row: BoardRow; onWork?: (work: StudentWork) => void }) {
   const { element, inks } = row;
@@ -55,7 +54,7 @@ function RowGutter({ row, atMs, isReducedMotion, onFixReading, setWrapper }: { r
       {marks.map((mark) => <GutterMark key={mark.id} element={mark} atMs={atMs} isReducedMotion={isReducedMotion} />)}
       {notes.map((note) => note.content.kind === 'note' && <span key={note.id} data-testid="board-note" className="board-row-note">{note.content.text}</span>)}
       {isBeingRead && <span data-testid="ink-reading" className="board-read-as-label board-read-as">{BOARD_WORK_LABELS.reading}</span>}
-      {line && <ReadAs reading={line.reading} typed={line.isInk ? undefined : line.text} showsParts={line.isInk} isHeard={line.isHeard} mathHolder={isReadMath(row) ? <span data-element={element.id} ref={setWrapper} className="board-read-as-math" /> : null} onFix={(line.isInk || line.isHeard) && onFixReading ? () => onFixReading(line.text) : undefined} />}
+      {line && <ReadAs reading={line.reading} typed={line.isInk ? undefined : line.text} showsParts={line.isInk} isHeard={line.isHeard} mathHolder={isMathInReadAs(row) ? <span data-element={element.id} ref={setWrapper} className="board-read-as-math" /> : null} onFix={(line.isInk || line.isHeard) && onFixReading ? () => onFixReading(line.text) : undefined} />}
     </div>
   );
 }
@@ -114,9 +113,9 @@ export function SharedBoard({ board, atMs, onWork, onMarkProblem, liveRow, lineI
             <div key={getRowKey(row)} data-row={getRowId(row)} className={getRowClass(row)}>
               <div className="board-row-content">
                 <div
-                  {...(isReadMath(row) ? {} : { 'data-element': row.element.id })}
+                  {...(isMathInReadAs(row) ? {} : { 'data-element': row.element.id })}
                   className="board-row-wrapper"
-                  ref={isReadMath(row) ? undefined : (wrapper) => setWrapper(row.element.id, wrapper)}
+                  ref={isMathInReadAs(row) ? undefined : (wrapper) => setWrapper(row.element.id, wrapper)}
                 >
                   <RowContent row={row} onWork={onWork} />
                 </div>

@@ -8,7 +8,6 @@ interface LoadedMathField {
   makeField(): MathFieldElement;
   showKeys(): void;
   hideKeys(): void;
-  /** Says how high the keyboard stands, and returns how to stop being told. */
   onKeysMoved(listener: (height: number) => void): () => void;
 }
 

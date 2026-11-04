@@ -3,7 +3,6 @@ import { RETURN_MS } from '../ui/dots/gatherDots';
 import { createGatherPainter, type GatherPainter } from '../ui/dots/gatherPainter';
 import { prefersReducedMotion } from '../ui/motion';
 
-// While the tutor connects, the dots of a still grid drift into the Saturn from sign-in. It never holds the voice: whenever the tutor is there, the dots go home and the picture goes.
 export function ConnectingSaturn({ isConnecting }: { isConnecting: boolean }) {
   const [hasGone, setHasGone] = useState(!isConnecting);
   const canvas = useRef<HTMLCanvasElement>(null);

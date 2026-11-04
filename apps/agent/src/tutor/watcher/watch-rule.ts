@@ -97,6 +97,11 @@ export function decideOnWork(work: StudentWork, checked: CheckedWork, hasTask: b
   }
 }
 
+/** Someone who has spoken is waiting, so what code cannot judge gets the tutor's question now, where a typed line would wait for a pause. */
+export function decideOnSpokenWork(work: StudentWork, checked: CheckedWork, hasTask: boolean): WorkDecision {
+  return checked.verdict.status === 'unknown' ? reply('the student spoke and code cannot judge it') : decideOnWork(work, checked, hasTask);
+}
+
 export function getWorkWords(work: StudentWork): string {
   switch (work.way) {
     case 'write':

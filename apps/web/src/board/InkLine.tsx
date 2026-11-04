@@ -7,7 +7,6 @@ const FEWEST_UNITS_HIGH = 90;
 const PADDING = 12;
 const PEN = { size: 8.5, thinning: 0.55, smoothing: 0.6, streamline: 0.42, simulatePressure: true };
 
-// The outline of a stroke, whose width follows the hand's speed, drawn through the midpoints of its corners.
 function getInkPath(points: readonly InkPoint[]): string {
   const outline = getStroke(points.map(([x, y]) => [x * UNITS, y * UNITS]), PEN) as [number, number][];
   const [first] = outline;

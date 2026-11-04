@@ -42,7 +42,6 @@ function listFiles(folder: string) {
     .map((entry) => join(entry.parentPath, entry.name));
 }
 
-/** The cost line's own mark. Testers set `VITE_SHOW_COST=1`, and no other build may hold it. */
 export const COST_LINE_MARK = 'session-cost';
 
 export function refuseCostLine(env: Record<string, string | undefined>): Plugin {

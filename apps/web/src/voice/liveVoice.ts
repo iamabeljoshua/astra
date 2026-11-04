@@ -51,9 +51,7 @@ export interface LiveVoiceView {
   /** Why the tutor will not speak again in this room, or null while it can. */
   closedBecause: TutorClosedReason | null;
   firstWord: string | null;
-  /** The student stopped the tutor, and it has not spoken since. */
   isStopped: boolean;
-  /** An estimate of the session so far, which only a tester's agent sends. */
   costUsd: number | null;
   /** This page's room closed and it joined a new one, so the tutor now holds nothing of what was said. */
   startedFresh: boolean;

@@ -5,7 +5,7 @@ import type { BoardElement } from '@astra/board';
 import type { SpokenReading } from './read-spoken.ts';
 import { decideSpoken, type SpokenDecision, type SpokenExpected, type SpokenPart } from './spoken-answer.ts';
 import type { TutorBrain } from '../brain.ts';
-import { decideOnReading, decideOnWork, decideWatch, getGate, getWorkWords, type WatchDecision, type WatchSituation, type WordMeaning } from './watch-rule.ts';
+import { decideOnReading, decideOnWork, decideWatch, getGate, getWorkWords, type WatchDecision, type WatchSituation, type WordMeaning, decideOnSpokenWork } from './watch-rule.ts';
 
 export interface BoardWorkOptions {
   tutor: Pick<TutorBrain, 'noteWork' | 'noteWatcher' | 'getBoard'>;
@@ -15,9 +15,7 @@ export interface BoardWorkOptions {
   getSecondsSinceQuestion(): number | null;
   readMeaning(words: string): Promise<WordMeaning | null>;
   readStrokes(strokes: readonly (readonly InkPoint[])[]): Promise<{ text: string; ink: { tex?: string; isUnsure: boolean } } | null>;
-  /** What spoken words mean, read by a cheap model. */
   readSpokenWords(words: string, expects: SpokenExpected): Promise<SpokenReading>;
-  /** Writes work the agent read itself, with no page behind it to stamp the time. */
   writeHeardLog(work: StudentWork, checked: CheckedWork): void;
   send(message: AgentMessage): void;
   getNowMs(): number;
@@ -33,9 +31,7 @@ const MOST_STROKES_HELD = 400;
 const MOST_INK_READS = 300;
 const HOLD_WHILE_TYPING_MS = 1200;
 const HOLD_LOOKS_EVERY_MS = 50;
-/** Below the turn cap, so someone typing for a long time still gets the reply they are owed. */
 const LONGEST_HOLD_MS = 8000;
-/** A spoken line takes an id the page's own count will not reach, because the page and the agent both name lines. */
 const FIRST_SPOKEN_LINE = 1000;
 const NOT_READ = '(handwriting that could not be read)';
 
@@ -59,7 +55,6 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
     typedAtMs = getNowMs();
   };
 
-  // A reply holds its first word while the student's hands are still moving, as a person beside them would.
   const waitWhileTyping = async () => {
     const startedMs = getNowMs();
     while (typedAtMs !== null && getNowMs() - typedAtMs < HOLD_WHILE_TYPING_MS && getNowMs() - startedMs < LONGEST_HOLD_MS) await delay(HOLD_LOOKS_EVERY_MS);
@@ -108,7 +103,6 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
     inkStrokes.set(action.id, [...(inkStrokes.get(action.id) ?? []), ...action.points]);
   };
 
-  // The same strokes are read once, so a read begun while the pen rests is the one a finished line uses.
   const readInkOnce = (strokes: readonly ElementId[]) => {
     const key = strokes.join();
     if (latestInkRead?.key === key) return latestInkRead.reading;
@@ -125,7 +119,6 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
 
   const onInkPeek = ({ strokes }: BrowserMessage & { type: 'inkPeek' }) => void readInkOnce(strokes);
 
-  // Takes a finished line as work once it is read, and a failed read still reaches the tutor.
   const onInkDone = async ({ id, strokes, task, clockId, browserMs, startedMsAgo }: BrowserMessage & { type: 'inkDone' }) => {
     trace('inkDone', { strokes: strokes.length });
     const read = await readInkOnce(strokes);
@@ -150,7 +143,7 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
         return { way: 'pick', task: task.id, part: decision.part };
       case 'place':
         return { way: 'place', task: task.id, placed: decision.placed };
-      case 'read': {
+      case 'askModel': {
         const reading = await readSpokenWords(text, decision.expects);
         return reading.kind === 'line' ? getHeardWork(text, reading.heard, task.id) : null;
       }
@@ -163,7 +156,6 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
     return element?.content.kind === 'task' ? { task: element.content, board } : null;
   };
 
-  // Whether the tutor should answer what was said. A spoken answer takes the same road as a typed or written one, and anything else stays conversation.
   const onSpoken = async (rawText: string): Promise<boolean> => {
     const open = getOpenTask();
     if (!open) return true;
@@ -186,8 +178,7 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
     send({ type: 'workRead', work });
     hasLeanedIn = false;
     nodDue = getNod(work, noted.checked);
-    // Someone who has spoken is waiting, so what code cannot judge gets the tutor's question now, where a typed line would wait for a pause.
-    return noted.checked.verdict.status === 'unknown' || decideOnWork(work, noted.checked, noted.hadTask).act === 'reply';
+    return decideOnSpokenWork(work, noted.checked, noted.hadTask).act === 'reply';
   };
 
   const getSituation = (seconds: number, draftText: string | undefined): WatchSituation => {
@@ -223,7 +214,7 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
     if (decision.act === 'speak' && getGate(getSituation(seconds, draft)) === null) speakAtPause(decision, seconds, draft);
   };
 
-  return { onWorked, onPaused, onInkStroke, onInkPeek, onInkDone, noteTyping, waitWhileTyping, onSpoken, hasOpenTask: () => getOpenTask() !== null, canReactAloud: () => !isAnsweringJudgedWork && getOpenTask() === null, takeNod, noteAnswered };
+  return { onWorked, onPaused, onInkStroke, onInkPeek, onInkDone, noteTyping, waitWhileTyping, onSpoken, hasOpenTask: () => getOpenTask() !== null, canSayStockWord: () => !isAnsweringJudgedWork && getOpenTask() === null, takeNod, noteAnswered };
 }
 
 function getSpokenParts(task: Task, board: { elements: ReadonlyMap<ElementId, BoardElement> } | undefined): SpokenPart[] {

@@ -8,7 +8,6 @@ const KEYS_HEIGHT = '--math-keys-height';
 /** MathLive's own left and right, which the rest of the board does not set. */
 const toBoardTex = (tex: string) => tex.replaceAll('\\mleft', '\\left').replaceAll('\\mright', '\\right').trim();
 
-/** Math the board can set, or null, and the line then goes on in plain characters alone. */
 export function getKeyedTex(raw: string): string | null {
   const tex = toBoardTex(raw);
   if (tex === '' || tex.length > MATH_LINE_MAX_CHARACTERS || tex.includes('\\placeholder')) return null;
@@ -20,7 +19,6 @@ interface MathFieldProps {
   onTyping(): void;
 }
 
-// The option a student reaches for: a real math field and its keyboard, loaded only when they open it.
 export function MathField({ onLine, onTyping }: MathFieldProps) {
   const holder = useRef<HTMLDivElement>(null);
   const callbacks = useRef({ onLine, onTyping });

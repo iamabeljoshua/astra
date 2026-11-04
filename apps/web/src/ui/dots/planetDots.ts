@@ -51,7 +51,6 @@ function getEdgeDots(): DotPoint[] {
   });
 }
 
-/** One dot of a ring, by how far round it is. */
 export interface RingDot {
   radius: number;
   angle: number;
@@ -71,7 +70,6 @@ function getRingDots({ radius, dotCount }: (typeof RINGS)[number], random: Rando
   return Array.from({ length: dotCount }, (_unused, index) => ({ radius, angle: (index / dotCount) * FULL_TURN + random() * RING_ANGLE_JITTER }));
 }
 
-/** The planet's body and its rings apart, for a picture whose rings turn. */
 export function getPlanetParts(): { body: DotPoint[]; rings: RingDot[] } {
   const random = createSeededRandom(PLANET_SEED);
   const sphere = getSphereDots(random);

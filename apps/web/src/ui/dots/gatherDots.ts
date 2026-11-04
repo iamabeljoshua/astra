@@ -37,7 +37,6 @@ const KEPT_RINGS = RINGS.filter((_dot, index) => index % RING_DOTS_KEPT_ONE_IN =
 
 const getRestingX = (dot: Pick<GatherDot, 'body' | 'ring'>) => dot.body?.[0] ?? (dot.ring ? Math.cos(dot.ring.angle) * dot.ring.radius : 0);
 
-/** Each dot starts on the grid near the middle, in the same left to right order as where it is going, so they drift and never swarm. */
 export function createGathering(width: number, height: number): Gathering {
   const grid: GridDot[] = [];
   for (let y = GRID_GAP / 2; y < height; y += GRID_GAP) for (let x = GRID_GAP / 2; x < width; x += GRID_GAP) grid.push({ x, y });
@@ -55,11 +54,8 @@ const easeInOut = (share: number) => {
 };
 
 interface GatherMoment {
-  /** How long the dots have been gathering, or null for a picture that does not move. */
   gatheredMs: number | null;
-  /** How long since the tutor connected and the dots started home, or null if it has not. */
   returnedMs: number | null;
-  /** How far the rings have turned, which keeps going however long the wait, and never starts over. */
   turnedMs: number;
 }
 
@@ -68,7 +64,6 @@ function getSpot({ body, ring }: GatherDot, turnedMs: number): DotPoint | null {
   return ring && getRingDotSpot({ radius: ring.radius, angle: ring.angle + (turnedMs / RING_TURN_MS) * FULL_TURN });
 }
 
-/** Where a dot is now, in pixels, with its size and how far it has come. A ring dot passing behind the planet has no place. */
 export function getGatherDot({ center, scale }: Pick<Gathering, 'center' | 'scale'>, dot: GatherDot, { gatheredMs, returnedMs, turnedMs }: GatherMoment): [x: number, y: number, size: number, share: number] | null {
   const spot = getSpot(dot, turnedMs);
   if (!spot) return null;

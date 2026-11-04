@@ -15,7 +15,6 @@ export interface StudentLineContent {
   reading: LineReading;
   verdict: WorkVerdict;
   isInk: boolean;
-  /** Said aloud, so the words beside it are what was heard. */
   isHeard: boolean;
 }
 

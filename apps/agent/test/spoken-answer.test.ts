@@ -57,9 +57,9 @@ describe('whether something said is an answer', () => {
   });
 
   it('asks the cheap model only when the words might be math it cannot read, or an answer in words', () => {
-    expect(decideSpoken('to x equals ate', MATH, [])).toEqual({ act: 'read', expects: 'math' });
-    expect(decideSpoken('they wanted the gunpowder', WORDS, [])).toEqual({ act: 'read', expects: 'words' });
-    expect(decideSpoken('Paris', { kind: 'task', id: id('a1'), way: 'write', accepts: ['Paris'] }, [])).toEqual({ act: 'read', expects: 'words' });
+    expect(decideSpoken('to x equals ate', MATH, [])).toEqual({ act: 'askModel', expects: 'math' });
+    expect(decideSpoken('they wanted the gunpowder', WORDS, [])).toEqual({ act: 'askModel', expects: 'words' });
+    expect(decideSpoken('Paris', { kind: 'task', id: id('a1'), way: 'write', accepts: ['Paris'] }, [])).toEqual({ act: 'askModel', expects: 'words' });
     expect(decideSpoken('take three from both sides', MATH, []).act).toBe('talk');
   });
 

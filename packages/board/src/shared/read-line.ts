@@ -117,7 +117,6 @@ function readSpokenNumber(raws: readonly string[], index: number): { symbol: str
   return { symbol: String(whole), used: 1 };
 }
 
-/** The first of a run of spoken words, what it says as a symbol, and how many words it took. */
 function readSpokenWords(raws: readonly string[], index: number): { symbol: string; used: number } {
   const raw = raws[index] as string;
   const word = toWord(raw);

@@ -43,7 +43,6 @@ function parseSpoken(text: string): RawSpoken {
   }
 }
 
-/** A cheap model says only what spoken words mean. Anything it cannot make plain stays conversation, which always reaches the tutor. */
 export async function readSpoken(model: Pick<TutorModelAdapter, 'stream' | 'getCostUsd'>, words: string, expects: SpokenExpected): Promise<SpokenReading> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), LONGEST_READ_MS);

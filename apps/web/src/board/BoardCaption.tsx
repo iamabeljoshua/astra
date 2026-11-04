@@ -27,7 +27,6 @@ export function BoardCaption({ heard, coming, firstWord = null }: BoardCaptionPr
   }, [heard, coming, heardText, isNewTurn]);
 
   const current = heard.at(-1);
-  // A first word comes from code on the student's action, ahead of the agent's next turn, so what the tutor was saying steps back at once.
   const shownPast = firstWord && !isNewTurn ? [...past, [...heard, ...coming].join(' ')].slice(-PAST_SHOWN) : past;
   return (
     <div className="board-caption" data-testid="tutor-caption">

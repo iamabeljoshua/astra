@@ -4,16 +4,12 @@ import { getLineTex, readLine } from '@astra/board/shared';
 export type SpokenExpected = 'math' | 'words';
 
 export type SpokenDecision =
-  /** Conversation. It goes to the tutor, and no line lands. */
   | { act: 'talk'; why: string }
-  /** Code reads this as a line of math, with nothing to doubt. */
   | { act: 'line'; tex: string }
-  /** Only what the words mean can settle it, so a cheap model reads them, knowing what the student was asked for. */
-  | { act: 'read'; expects: SpokenExpected }
+  | { act: 'askModel'; expects: SpokenExpected }
   | { act: 'pick'; part: string }
   | { act: 'place'; placed: (string | null)[] };
 
-/** What a part of the board is called, so it can be named aloud. */
 export interface SpokenPart {
   part: string;
   label: string;
@@ -81,15 +77,14 @@ function decidePlace(text: string, task: Task & { way: 'place' }): SpokenDecisio
 
 function decideWrite(text: string, task: Task & { way: 'write' }): SpokenDecision {
   if (task.reads === 'code') return { act: 'talk', why: 'lines of code are typed' };
-  if (task.reads === 'words') return { act: 'read', expects: 'words' };
+  if (task.reads === 'words') return { act: 'askModel', expects: 'words' };
   const reading = readLine(text);
   const tex = getLineTex(reading);
   if (tex !== null && !reading.isAsking) return { act: 'line', tex };
-  if (task.accepts || !task.on) return { act: 'read', expects: 'words' };
-  return HOLDS_MATH_WORDS.test(text) ? { act: 'read', expects: 'math' } : { act: 'talk', why: 'it holds no math and this task is math' };
+  if (task.accepts || !task.on) return { act: 'askModel', expects: 'words' };
+  return HOLDS_MATH_WORDS.test(text) ? { act: 'askModel', expects: 'math' } : { act: 'talk', why: 'it holds no math and this task is math' };
 }
 
-/** Whether something said aloud is an answer to the open task, from code alone wherever it can tell. A question stays conversation, so "wait, why that step?" never lands as a line. */
 export function decideSpoken(text: string, task: Task | null, parts: readonly SpokenPart[]): SpokenDecision {
   if (!task) return { act: 'talk', why: 'no task is open' };
   if (isAsking(text)) return { act: 'talk', why: 'it is a question or a word to the tutor' };

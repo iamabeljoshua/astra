@@ -20,7 +20,6 @@ interface GatherPainterOptions {
   isReducedMotion: boolean;
 }
 
-// Runs a frame loop only while the dots gather, and a picture that does not move paints once.
 export function createGatherPainter({ canvas, isReducedMotion }: GatherPainterOptions): GatherPainter | null {
   const context = getCanvasContext(canvas);
   if (!context) return null;
@@ -46,7 +45,6 @@ export function createGatherPainter({ canvas, isReducedMotion }: GatherPainterOp
     context.fillStyle = ink;
     const moment = { gatheredMs: isReducedMotion ? null : now - startedAt, returnedMs: handedOverAt === null ? null : now - handedOverAt, turnedMs: isReducedMotion ? 0 : now - startedAt };
     const placedDots = gathering.dots.flatMap((dot) => getGatherDot(gathering, dot, moment) ?? []) as number[];
-    // Each dot darkens as it leaves the grid, and a few shared shades keep one fill for many dots.
     for (let shade = 1; shade <= SHADES; shade += 1) {
       context.globalAlpha = GRID_OPACITY + (1 - GRID_OPACITY) * (shade / SHADES);
       context.beginPath();
