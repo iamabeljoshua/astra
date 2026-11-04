@@ -1,5 +1,6 @@
 import { type Beat, type BrowserMessage, parseBeat } from '@astra/contracts';
 import { describe, expect, it } from 'vitest';
+import { getLabGrant } from '../src/lab/lab-grants.ts';
 import { readDataMessage } from '../src/live/read-data-message.ts';
 import { createSessionLog } from '../src/live/session-log.ts';
 
@@ -57,5 +58,12 @@ describe('readDataMessage', () => {
   it('refuses broken JSON from the browser instead of throwing, because a throw in a room event ends the agent', () => {
     expect(readDataMessage(new TextEncoder().encode('{not json')).ok).toBe(false);
     expect(readDataMessage(new TextEncoder().encode('{"type":"pulse"}'))).toEqual({ ok: true, value: { type: 'pulse' } });
+  });
+});
+
+describe('the lab room tokens', () => {
+  it('give the page no way to publish audio, and the agent no way to listen', () => {
+    expect(getLabGrant('lab-1', 'page')).toEqual({ room: 'lab-1', roomJoin: true, canPublishData: true, canPublish: false, canSubscribe: true });
+    expect(getLabGrant('lab-1', 'agent')).toEqual({ room: 'lab-1', roomJoin: true, canPublishData: true, canPublish: true, canSubscribe: false });
   });
 });

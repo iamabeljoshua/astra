@@ -6,8 +6,11 @@ import type { Browser } from 'playwright';
 import { readTrace, summarise, type TraceRow } from './read-trace.ts';
 import { listParticipantIdentities, listRoomNames } from './cloud-rooms.ts';
 import { startCutProxy } from './cut-proxy.ts';
+import { saveRecording } from './join-recording.ts';
+import { LONG_LINES } from './make-speech.ts';
 import { startVoiceStack, type VoiceStack } from './stack.ts';
-import { launchProofBrowser, loadClip, openStudentPage, type StudentPage } from './student-page.ts';
+import { clipFromSay, launchProofBrowser, loadClip, openStudentPage, type SpeechClip, type StudentPage } from './student-page.ts';
+import { TURN_TIMINGS } from '../../../live/turn-rule.ts';
 
 const { values: args } = parseArgs({
   options: {
@@ -134,6 +137,10 @@ async function typeReply(student: StudentPage, text: string): Promise<void> {
 }
 
 interface StopRow {
+  localYieldFromFirstSoundMs: number | null;
+  reactionAfterStopMs: number | null;
+  reactionCapturedAfterDecisionMs: number | null;
+  reactionHeardAfterDecisionMs: number | null;
   yieldFromFirstSoundMs: number | null;
   stopDecidedFromFirstSoundMs: number | null;
   silenceFromFirstSoundMs: number | null;
@@ -166,8 +173,18 @@ async function interruptOnce({ stack, student, clipId, waitMs = 1800 }: { stack:
   const firstYield = atStop.yieldEpochMs.find((entry) => entry.atMs >= said.firstSoundEpochMs - 50 && entry.isYielding);
   const finalRows = await waitForTrace(stack, student, said.firstSoundEpochMs - 50, (found) => found.some((row) => row.name === 'firstFrameCaptured' && row.kind === 'reply'), 8000);
   await delay(2500);
-  const firedAfter = (await student.getTrace()).fired.filter((cue) => cue.turnId === stopTurn && silenceAtMs !== undefined && cue.firedEpochMs > silenceAtMs).length;
+  const settled = await student.getTrace();
+  const firedAfter = settled.fired.filter((cue) => cue.turnId === stopTurn && silenceAtMs !== undefined && cue.firedEpochMs > silenceAtMs).length;
+  const localYield = settled.localYieldEpochMs.find((atMs) => atMs >= said.firstSoundEpochMs - 50);
+  const reactDecided = finalRows.find((row) => row.name === 'reactDecided');
+  const reactionCaptured = finalRows.find((row) => row.name === 'firstFrameCaptured' && row.kind === 'reaction');
+  const reactionTurnId = finalRows.find((row) => row.name === 'turnStarted' && row.kind === 'reaction')?.turnId as string | undefined;
+  const reactionHeard = reactionTurnId ? settled.firstAudioEpochMs[reactionTurnId] : undefined;
   return {
+    localYieldFromFirstSoundMs: localYield === undefined ? null : Math.round(localYield - said.firstSoundEpochMs),
+    reactionAfterStopMs: reactDecided && stopped ? Math.round(reactDecided.atMs - stopped.atMs) : null,
+    reactionCapturedAfterDecisionMs: reactDecided && reactionCaptured ? Math.round(reactionCaptured.atMs - reactDecided.atMs) : null,
+    reactionHeardAfterDecisionMs: reactDecided && reactionHeard !== undefined ? Math.round(reactionHeard - reactDecided.atMs) : null,
     yieldFromFirstSoundMs: firstYield ? Math.round(firstYield.atMs - said.firstSoundEpochMs) : null,
     stopDecidedFromFirstSoundMs: stopped ? Math.round(stopped.atMs - said.firstSoundEpochMs) : null,
     silenceFromFirstSoundMs: silenceAtMs !== undefined ? Math.round(silenceAtMs - said.firstSoundEpochMs) : null,
@@ -181,7 +198,110 @@ async function interruptOnce({ stack, student, clipId, waitMs = 1800 }: { stack:
   };
 }
 
+const WAIT_FOR_QUESTION_MS = 20_000;
+
 const SCENARIOS: Record<string, (context: RunContext) => Promise<unknown>> = {
+  // Decision 4 on real transcripts: how long the turn decision takes, how often the detector doubts a long answer, and whether a pause after a question gets cut.
+  async patience({ stack, browser, out }) {
+    const student = await openStudentPage(browser, { email: MAYA, title: 'Patience' });
+    await startTalking(stack, student);
+    const clipsFolder = join(out, 'clips');
+    const decide = async (clip: SpeechClip) => {
+      const startedAtMs = Date.now();
+      const said = await student.say(clip);
+      const rows = await waitForTrace(stack, student, startedAtMs, (found) => found.some((row) => row.name === 'turnFinished' && row.kind === 'reply'), 15_000);
+      await delay(800);
+      const voiceEnded = rows.filter((row) => row.name === 'voiceEnded').at(-1);
+      const decided = rows.find((row) => row.name === 'turnDecided');
+      const final = rows.find((row) => row.name === 'words' && row.isFinal);
+      return { id: clip.id, decidedAfterVoiceEndedMs: voiceEnded && decided ? Math.round(decided.atMs - voiceEnded.atMs) : null, finalAfterLastSoundMs: final ? Math.round(final.atMs - said.lastSoundEpochMs) : null, decidedAfterLastSoundMs: decided ? Math.round(decided.atMs - said.lastSoundEpochMs) : null };
+    };
+    const long = [];
+    for (let round = 0; round < 5; round += 1) for (const line of LONG_LINES) long.push(await decide(clipFromSay('Samantha', line, clipsFolder)));
+    const short = [];
+    for (let round = 0; round < 12; round += 1) short.push(await decide(loadClip(VOICE, TURN_LINES[round % TURN_LINES.length] as string)));
+    const fillers = [];
+    for (let round = 0; round < 3; round += 1) {
+      const startedAtMs = Date.now();
+      const said = await student.say(loadClip(VOICE, 'reaction-hmm-think'));
+      const rows = await waitForTrace(stack, student, startedAtMs, (found) => found.some((row) => row.name === 'turnStarted' && row.kind === 'prompt'), 12_000);
+      const prompt = rows.find((row) => row.name === 'turnStarted' && row.kind === 'prompt');
+      fillers.push({ heard: rows.filter((row) => row.name === 'words').at(-1)?.text, replied: rows.some((row) => row.name === 'replyDecided'), promptAfterMs: prompt ? Math.round(prompt.atMs - said.lastSoundEpochMs) : null });
+      await delay(1500);
+    }
+    const pauses = [];
+    for (let round = 0; round < 3; round += 1) {
+      const startedAtMs = Date.now();
+      await typeReply(student, 'show me the ball');
+      await waitForTrace(stack, student, startedAtMs, (found) => found.some((row) => row.name === 'turnFinished' && row.kind === 'reply'), WAIT_FOR_QUESTION_MS);
+      await delay(600);
+      const askedAtMs = Date.now();
+      await student.say(loadClip(VOICE, 'pause-first'));
+      await delay(1500);
+      await student.say(loadClip(VOICE, 'pause-second'));
+      const rows = await waitForTrace(stack, student, askedAtMs, (found) => found.some((row) => row.name === 'replyDecided' && String(row.text).length > 0) && found.some((row) => row.name === 'turnFinished' && row.kind === 'reply'), 15_000);
+      pauses.push({ replies: rows.filter((row) => row.name === 'replyDecided').map((row) => row.text) });
+      await delay(1000);
+    }
+    await student.context.close();
+    const gaps = (rows: { decidedAfterVoiceEndedMs: number | null }[]) => rows.flatMap((row) => (row.decidedAfterVoiceEndedMs === null ? [] : [row.decidedAfterVoiceEndedMs]));
+    const isAtCap = (ms: number) => ms >= TURN_TIMINGS.turnCapMs - 80;
+    return { long: { decided: summarise(gaps(long)), atTheCap: gaps(long).filter(isAtCap).length, of: gaps(long).length, fromLastSound: summarise(long.flatMap((row) => (row.decidedAfterLastSoundMs === null ? [] : [row.decidedAfterLastSoundMs]))) }, short: { decided: summarise(gaps(short)), atTheCap: gaps(short).filter(isAtCap).length, of: gaps(short).length, fromLastSound: summarise(short.flatMap((row) => (row.decidedAfterLastSoundMs === null ? [] : [row.decidedAfterLastSoundMs]))) }, fillers, pauses };
+  },
+
+  // From pressing Talk to the tutor's first sound, the first word of a session.
+  async join({ stack, browser }) {
+    const rows = [];
+    for (let run = 0; run < Number(args.turns); run += 1) {
+      const student = await openStudentPage(browser, { email: MAYA, title: 'Join' });
+      const pressedAtMs = Date.now();
+      await student.pressTalk();
+      await student.waitForLive();
+      const liveAtMs = Date.now();
+      const trace = await waitForTrace(stack, student, 0, (found) => found.some((row) => row.name === 'turnFinished'), 30_000);
+      const after = await student.getTrace();
+      const firstAudio = after.firstAudioEpochMs['turn-1'];
+      const ready = trace.find((row) => row.name === 'muse:ready');
+      const rtt = await student.getRoundTripMs();
+      rows.push({ connectedMs: liveAtMs - pressedAtMs, jobStartedMs: Math.round((trace.find((row) => row.name === 'jobStarted')?.atMs ?? 0) - pressedAtMs), trackUpMs: Math.round((trace.find((row) => row.name === 'voiceTrackUp')?.atMs ?? 0) - pressedAtMs), greetingHeardMs: firstAudio === undefined ? null : Math.round(firstAudio - pressedAtMs), museHandshakeMs: ready?.handshakeMs ?? null, roundTripMs: rtt === null ? null : Math.round(rtt) });
+      await student.context.close();
+      await delay(3000);
+    }
+    const pick = (name: 'connectedMs' | 'jobStartedMs' | 'trackUpMs' | 'greetingHeardMs' | 'museHandshakeMs' | 'roundTripMs') => rows.flatMap((row) => (typeof row[name] === 'number' ? [row[name] as number] : []));
+    return { rows, connected: summarise(pick('connectedMs')), greetingHeard: summarise(pick('greetingHeardMs')), museHandshake: summarise(pick('museHandshakeMs')), roundTrip: summarise(pick('roundTripMs')) };
+  },
+
+  // One take a person can watch: a talk, a mid-sentence cut, a reaction over the tutor, and a typed line.
+  async film({ stack, browser, out }) {
+    const student = await openStudentPage(browser, { email: MAYA, title: 'Why does a ball come down?', recordVideoDir: join(out, 'video') });
+    await student.pressTalk();
+    await student.waitForLive();
+    await delay(500);
+    await student.page.evaluate(() => window.speechInPage.startRecording());
+    await waitForTrace(stack, student, 0, (rows) => rows.some((row) => row.name === 'turnFinished'), 30_000);
+    await delay(800);
+    await measureTurn({ stack, student, clipId: 'twice', idleMs: 800 });
+    await student.page.screenshot({ path: join(out, 'm3-6-talk.png') });
+    const startedAtMs = Date.now();
+    await student.say(clipFromSay('Samantha', { id: 'show-ball', text: 'Show me the ball.' }, join(out, 'clips')));
+    await waitForTrace(stack, student, startedAtMs, (rows) => rows.some((row) => row.name === 'firstFrameCaptured' && row.kind === 'reply'));
+    await delay(2600);
+    await student.say(loadClip(VOICE, 'why-down'));
+    await delay(1000);
+    await student.page.screenshot({ path: join(out, 'm3-6-stop.png') });
+    await delay(3000);
+    const typedAtMs = Date.now();
+    await typeReply(student, 'show me the ball again');
+    await waitForTrace(stack, student, typedAtMs, (rows) => rows.some((row) => row.name === 'firstFrameCaptured' && row.kind === 'reply'));
+    await delay(2000);
+    await student.say(loadClip(VOICE, 'reaction-uh-huh'));
+    await waitForTrace(stack, student, typedAtMs, (rows) => rows.some((row) => row.name === 'turnFinished' && row.kind === 'reply'), 20_000);
+    await delay(1500);
+    await saveRecording({ page: student.page, videoStartedEpochMs: student.videoStartedEpochMs, outputPath: join(out, 'm3-6-talk.mp4') });
+    await student.context.close();
+    return { saved: 'm3-6-talk.mp4' };
+  },
+
   async interrupt({ stack, browser, out }) {
     const student = await openStudentPage(browser, { email: MAYA, title: 'Interrupt', recordVideoDir: join(out, 'video') });
     await startTalking(stack, student);
@@ -191,7 +311,7 @@ const SCENARIOS: Record<string, (context: RunContext) => Promise<unknown>> = {
     await student.page.screenshot({ path: join(out, 'm3-6-talk.png') });
     await student.context.close();
     const pick = (name: keyof StopRow) => rows.flatMap((row) => (typeof row[name] === 'number' ? [row[name] as number] : []));
-    return { rows, yieldFromFirstSoundMs: summarise(pick('yieldFromFirstSoundMs')), stopDecidedFromFirstSoundMs: summarise(pick('stopDecidedFromFirstSoundMs')), silenceFromFirstSoundMs: summarise(pick('silenceFromFirstSoundMs')), decisionToSilenceMs: summarise(pick('decisionToSilenceMs')), repliedAfterStop: rows.filter((row) => row.replyAfterStop).length, frozen: rows.filter((row) => row.boardFrozen).length, firedAfterStop: rows.reduce((sum, row) => sum + row.firedAfterStop, 0) };
+    return { rows, localYieldFromFirstSoundMs: summarise(pick('localYieldFromFirstSoundMs')), reactionCapturedAfterDecisionMs: summarise(pick('reactionCapturedAfterDecisionMs')), reactionHeardAfterDecisionMs: summarise(pick('reactionHeardAfterDecisionMs')), yieldFromFirstSoundMs: summarise(pick('yieldFromFirstSoundMs')), stopDecidedFromFirstSoundMs: summarise(pick('stopDecidedFromFirstSoundMs')), silenceFromFirstSoundMs: summarise(pick('silenceFromFirstSoundMs')), decisionToSilenceMs: summarise(pick('decisionToSilenceMs')), repliedAfterStop: rows.filter((row) => row.replyAfterStop).length, frozen: rows.filter((row) => row.boardFrozen).length, firedAfterStop: rows.reduce((sum, row) => sum + row.firedAfterStop, 0) };
   },
 
   // "Uh-huh" over the tutor lowers the voice and does not stop it, even over a question.
@@ -247,10 +367,12 @@ const SCENARIOS: Record<string, (context: RunContext) => Promise<unknown>> = {
     const over = await waitForTrace(stack, student, overAtMs, (found) => found.some((row) => row.name === 'firstFrameCaptured' && row.kind === 'reply'));
     await delay(2500);
     const last = await student.getTrace();
+    const reactDecided = over.find((row) => row.name === 'reactDecided');
+    const reactionCaptured = over.find((row) => row.name === 'firstFrameCaptured' && row.kind === 'reaction');
     await student.page.screenshot({ path: join(out, 'm3-6-typed.png') });
     const museOpened = readTrace(stack.traceFolder, getRoomName(student)).some((row) => row.name === 'muse:opened');
     await student.context.close();
-    return { soundBlocked: first.view.isSoundBlocked, clockKinds: last.clockKinds, museOpened, firstReplyWords: first.view.tutorHeard, stoppedByTyping: over.some((row) => row.name === 'stopDecided' && row.reason === 'typed'), lastWords: last.view.tutorHeard, studentLines: last.view.studentLines, rowsSeen: rows.map((row) => row.name).filter((name) => name === 'turnStarted').length };
+    return { reactionCapturedAfterStopMs: reactDecided && reactionCaptured ? Math.round(reactionCaptured.atMs - reactDecided.atMs) : null, soundBlocked: first.view.isSoundBlocked, clockKinds: last.clockKinds, museOpened, firstReplyWords: first.view.tutorHeard, stoppedByTyping: over.some((row) => row.name === 'stopDecided' && row.reason === 'typed'), lastWords: last.view.tutorHeard, studentLines: last.view.studentLines, rowsSeen: rows.map((row) => row.name).filter((name) => name === 'turnStarted').length };
   },
 
   // A real drop: every connection the browser has goes through a proxy this script cuts.
@@ -258,6 +380,8 @@ const SCENARIOS: Record<string, (context: RunContext) => Promise<unknown>> = {
     const proxy = await startCutProxy();
     const browser = await launchProofBrowser({ proxy: `127.0.0.1:${proxy.port}` });
     const student = await openStudentPage(browser, { email: MAYA, title: 'Drop', recordVideoDir: join(out, 'video') });
+    const consoleLines: string[] = [];
+    student.page.on('console', (message) => consoleLines.push(`${Math.round(Date.now())} ${message.text()}`.slice(0, 240)));
     await startTalking(stack, student);
     const rows = [];
     for (let run = 0; run < Number(args.turns); run += 1) {
@@ -266,6 +390,10 @@ const SCENARIOS: Record<string, (context: RunContext) => Promise<unknown>> = {
       await waitForTrace(stack, student, startedAtMs, (found) => found.some((row) => row.name === 'firstFrameCaptured' && row.kind === 'reply'));
       await delay(2500);
       const cutAtMs = Date.now();
+      const timeline: unknown[] = [];
+      const watcher = setInterval(() => {
+        void student.getTrace().then((trace) => timeline.push({ ms: Date.now() - cutAtMs, phase: trace.view.phase, heard: trace.view.tutorHeard.length, coming: trace.view.tutorComing.length })).catch(() => {});
+      }, 1000);
       proxy.cut();
       await delay(Number(process.env.PROOF_DROP_MS ?? 4000));
       const during = await student.getTrace();
@@ -273,6 +401,21 @@ const SCENARIOS: Record<string, (context: RunContext) => Promise<unknown>> = {
       const backAtMs = Date.now();
       const found = await waitForTrace(stack, student, cutAtMs, (seen) => seen.some((row) => row.name === 'resumeStarted') && seen.some((row) => row.name === 'turnFinished' && row.kind === 'resume'), 45_000);
       await delay(1000);
+      clearInterval(watcher);
+      const connections = await student.page.evaluate(async () => {
+        const list = (window as unknown as { peerConnections: RTCPeerConnection[] }).peerConnections;
+        return Promise.all(list.map(async (connection) => {
+          const stats: Record<string, unknown>[] = [];
+          (await connection.getStats()).forEach((report: Record<string, unknown>) => {
+            if (report.type === 'data-channel') stats.push({ label: report.label, state: report.state, sent: report.messagesSent, received: report.messagesReceived });
+          });
+          return { state: connection.connectionState, ice: connection.iceConnectionState, stats };
+        }));
+      });
+      const refused = (await student.getTrace()).refused;
+      writeFileSync(join(out, `drop-connections-${run}.json`), JSON.stringify({ connections, refused: refused.slice(0, 6) }));
+      writeFileSync(join(out, `drop-timeline-${run}.json`), JSON.stringify(timeline));
+      writeFileSync(join(out, 'drop-console.log'), consoleLines.join('\n'));
       const after = await student.getTrace();
       const lost = found.find((row) => row.name === 'linkLost');
       const resumed = found.find((row) => row.name === 'resumeStarted');
@@ -344,8 +487,9 @@ const SCENARIOS: Record<string, (context: RunContext) => Promise<unknown>> = {
     const count = Number(args.turns);
     for (let turn = 0; turn < count; turn += 1) rows.push(await measureTurn({ stack, student, clipId: TURN_LINES[turn % TURN_LINES.length] as string }));
     writeFileSync(join(out, 'turn-rows.json'), `${JSON.stringify(rows, null, 1)}\n`);
+    const roundTripMs = await student.getRoundTripMs();
     await student.context.close();
-    return summariseTurns(rows);
+    return { roundTripMs, ...summariseTurns(rows) };
   },
   async smoke({ stack, browser, out }) {
     const student = await openStudentPage(browser, { email: MAYA, title: 'Smoke', recordVideoDir: join(out, 'video') });

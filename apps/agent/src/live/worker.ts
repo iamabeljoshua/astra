@@ -16,6 +16,7 @@ import { createStandInTutor } from './stand-in-tutor.ts';
 import { getSteadyNowMs, createVoiceLine } from './voice-line.ts';
 
 export const LIVE_TOPIC = 'astra.live';
+const LAB_TOPIC = 'astra.lab';
 const AUDIO_QUEUE_MS = 200;
 const PULSE_EVERY_MS = 500;
 /** A tab closed on purpose can still be a reload, so the room waits this long. */
@@ -26,12 +27,14 @@ const STUDENT_IDENTITY_PREFIX = 'student-';
 
 const encoder = new TextEncoder();
 
+// Timings only, and only when asked for. Words stay out unless a test on test speech asks for them too, because a transcript must not reach a file by accident.
 function makeTraceFile(roomName: string) {
   const folder = process.env.ASTRA_VOICE_TRACE;
   if (!folder) return () => {};
+  const keepsWords = process.env.ASTRA_VOICE_TRACE_WORDS === '1';
   mkdirSync(folder, { recursive: true });
   const path = join(folder, `${roomName}.jsonl`);
-  return (name: string, fields: Record<string, unknown> = {}) => appendFileSync(path, `${JSON.stringify({ name, atMs: getSteadyNowMs(), ...fields })}\n`);
+  return (name: string, { text, ...fields }: Record<string, unknown> = {}) => appendFileSync(path, `${JSON.stringify({ name, atMs: getSteadyNowMs(), ...fields, ...(keepsWords && text !== undefined ? { text } : {}) })}\n`);
 }
 
 function makeVoice() {
@@ -46,9 +49,6 @@ async function runSession(context: JobContext): Promise<void> {
   // Publishing fails once the room has gone, and a stray rejection would end the whole process.
   const publish = (message: AgentMessage, isReliable = true) => void room.localParticipant?.publishData(encoder.encode(JSON.stringify(message)), { reliable: isReliable, topic: LIVE_TOPIC }).catch((error: unknown) => trace('publishFailed', { problem: String(error) }));
   const source = new AudioSource(RENDERED_SAMPLE_RATE, 1, AUDIO_QUEUE_MS);
-  const publishOptions = new TrackPublishOptions();
-  publishOptions.source = TrackSource.SOURCE_MICROPHONE;
-  await room.localParticipant?.publishTrack(LocalAudioTrack.createAudioTrack('tutor-voice', source), publishOptions);
 
   const voice = makeVoice();
   voice.on('error', (error) => trace('voiceError', { problem: String(error.error) }));
@@ -78,14 +78,21 @@ async function runSession(context: JobContext): Promise<void> {
   const pulse = setInterval(() => publish({ type: 'pulse' }, false), PULSE_EVERY_MS);
   const finish = () => context.shutdown('the student left');
 
+  // A microphone test labels each line in the trace, and without a trace this does nothing.
+  const noteMark = (payload: Uint8Array) => {
+    const read = readDataMessage(payload);
+    if (read.ok) trace('mark', { mark: read.value });
+  };
+
   room.on(RoomEvent.DataReceived, (payload, participant, _kind, topic) => {
-    if (topic !== LIVE_TOPIC || !participant?.identity.startsWith(STUDENT_IDENTITY_PREFIX)) return;
+    if (!participant?.identity.startsWith(STUDENT_IDENTITY_PREFIX)) return;
+    if (topic === LAB_TOPIC) return noteMark(payload);
+    if (topic !== LIVE_TOPIC) return;
     const read = readDataMessage(payload);
     const parsed = read.ok ? parseBrowserMessage(read.value) : read;
     if (!parsed.ok) return trace('messageRefused', { problem: parsed.problem });
     clearTimeout(closing);
     session.onBrowser(parsed.value);
-    if (parsed.value.type === 'pulse') session.greet();
   });
   room.on(RoomEvent.ParticipantDisconnected, (participant: RemoteParticipant) => {
     if (!participant.identity.startsWith(STUDENT_IDENTITY_PREFIX)) return;
@@ -94,6 +101,12 @@ async function runSession(context: JobContext): Promise<void> {
     clearTimeout(closing);
     closing = setTimeout(finish, leftOnPurpose ? LEFT_ON_PURPOSE_MS : LINK_DROPPED_MS);
   });
+  // The track goes up last, so a page that hears it knows everything here is ready to hear the page.
+  const publishOptions = new TrackPublishOptions();
+  publishOptions.source = TrackSource.SOURCE_MICROPHONE;
+  await room.localParticipant?.publishTrack(LocalAudioTrack.createAudioTrack('tutor-voice', source), publishOptions);
+  trace('voiceTrackUp');
+
   context.addShutdownCallback(async () => {
     trace('jobClosing');
     clearTimeout(closing);

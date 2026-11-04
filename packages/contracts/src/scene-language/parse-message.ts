@@ -138,6 +138,10 @@ const BROWSER_MESSAGES: VariantTable<BrowserMessage, 'type'> = {
         ...readBrowserStamp(fields),
       }),
     },
+    hello: {
+      keys: [...STAMP_KEYS, 'wantsGreeting'],
+      read: (fields) => ({ type: 'hello', ...readBrowserStamp(fields), wantsGreeting: readBoolean(fields.at('wantsGreeting')) }),
+    },
     typed: {
       keys: [...STAMP_KEYS, 'text'],
       read: (fields) => ({ type: 'typed', ...readBrowserStamp(fields), text: readString(fields.at('text'), TYPED_TEXT_MAX_CHARACTERS) }),

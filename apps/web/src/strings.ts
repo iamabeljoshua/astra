@@ -220,14 +220,15 @@ export const VOICE_LABELS = {
 
 export const VOICE_TEST_LABELS = {
   title: 'Microphone test',
-  intro: 'For a real microphone. Read each line in your own voice, then wait for the tutor.',
-  noSession: 'Open a session first, then add ?session= and its ID to this address.',
-  cleanup: 'Speech cleanup',
-  cleanupOn: 'On',
-  cleanupOff: 'Off',
-  start: 'Start',
+  intro: 'For a real microphone in a real room. Read each line in your own voice, then wait for the tutor before the next one.',
+  openWithCleanup: 'Start with speech cleanup on',
+  openWithoutCleanup: 'Start with speech cleanup off',
+  start: 'Talk',
+  first: 'First line',
   next: 'Next line',
-  done: 'That is every line. Close this tab when you are finished.',
+  micOn: 'Your microphone is on.',
+  micOff: 'Your microphone is off.',
+  done: 'That is every line. Close this tab, then run the second pass.',
   lineOf: (line: number, total: number) => `Line ${line} of ${total}`,
 };
 

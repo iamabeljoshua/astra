@@ -1,7 +1,8 @@
-import { type BoardState, createChoosingClock, createScenePlayer, type FiredCue, type ScenePlayer } from '@astra/board';
+import { type BoardState, createChoosingClock, createScenePlayer, type FiredCue, type OutputLevel, type ScenePlayer } from '@astra/board';
 import { type AgentMessage, type BrowserMessage, parseAgentMessage } from '@astra/contracts';
 import { createLocalAudioTrack, DisconnectReason, type LocalAudioTrack, type RemoteTrack, Room, RoomEvent, Track } from 'livekit-client';
-import { createTutorAudioContext, listenToTutor, OUTPUT_GAINS, type ProbeNote } from './tutorAudio';
+import { createLocalYield } from './localYield';
+import { createTutorAudioContext, listenToTutor, listenToStudent, OUTPUT_GAINS, type ProbeNote } from './tutorAudio';
 
 export const LIVE_TOPIC = 'astra.live';
 const LAB_TOPIC = 'astra.lab';
@@ -12,6 +13,8 @@ const AGENT_QUIET_LIMIT_MS = 1200;
 const HEARD_SHOWS_MS = 700;
 const LONGEST_REJOIN_MS = 120_000;
 const REJOIN_EVERY_MS = 2000;
+/** A room can say connected with a data channel that carries nothing after a drop, and only a new join clears that. */
+const REJOIN_AFTER_QUIET_MS = 3000;
 
 export type LivePhase = 'connecting' | 'live' | 'reconnecting' | 'ended';
 export type MicState = 'off' | 'starting' | 'on' | 'denied';
@@ -46,6 +49,7 @@ export interface LiveVoiceRecords {
   stopEpochMs: Record<string, number>;
   heardEpochMs: number[];
   yieldEpochMs: { turnId: string; isYielding: boolean; atMs: number }[];
+  localYieldEpochMs: number[];
   probe: (ProbeNote & { epochMs: number })[];
   fired: (FiredCue & { firedEpochMs: number })[];
   refused: string[];
@@ -68,18 +72,23 @@ export interface LiveVoice {
 
 export interface LiveVoiceOptions {
   getAccess(): Promise<RoomAccess>;
+  /** False when the student opened the room by typing, because a greeting would talk over the reply. */
+  wantsGreeting?: boolean;
   /** The browser's own speech cleanup. Only a microphone test turns it off. */
   usesSpeechCleanup?: boolean;
 }
 
 const getEpochMs = () => performance.timeOrigin + performance.now();
 
+/** Muse gives no final with no frames, so silence is sent too. */
+const MIC_PUBLISH_OPTIONS = { source: Track.Source.Microphone, dtx: false, red: false };
+
 function createRecords(): LiveVoiceRecords {
-  return { firstAudioEpochMs: {}, turnStartedEpochMs: {}, stopEpochMs: {}, heardEpochMs: [], yieldEpochMs: [], probe: [], fired: [], refused: [], clockKinds: [] };
+  return { firstAudioEpochMs: {}, turnStartedEpochMs: {}, stopEpochMs: {}, heardEpochMs: [], yieldEpochMs: [], localYieldEpochMs: [], probe: [], fired: [], refused: [], clockKinds: [] };
 }
 
 // Connects the session to its room, plays what the agent sends against what the student hears, and sends back what played. It knows nothing of React.
-export async function startLiveVoice({ getAccess, usesSpeechCleanup = true }: LiveVoiceOptions): Promise<LiveVoice> {
+export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpeechCleanup = true }: LiveVoiceOptions): Promise<LiveVoice> {
   const audioContext = await createTutorAudioContext();
   const clock = createChoosingClock({ getIsAudioRunning: () => audioContext.state === 'running', getGraphTimeMs: () => audioContext.currentTime * 1000, getOutputLatencyMs: () => (audioContext.outputLatency || 0) * 1000, getWallMs: () => performance.now() });
   const clockId = crypto.randomUUID();
@@ -98,21 +107,25 @@ export async function startLiveVoice({ getAccess, usesSpeechCleanup = true }: Li
   let heardTimer: ReturnType<typeof setTimeout> | undefined;
   let stopListening = () => {};
   let micTrack: LocalAudioTrack | null = null;
+  let stopWatchingMic = () => {};
+  let isRejoining = false;
+  let hasSaidHello = false;
+  let connectedAtEpochMs = getEpochMs();
 
   const setView = (changes: Partial<LiveVoiceView>) => {
     view = { ...view, ...changes };
     listeners.forEach((listener) => listener());
   };
 
-  const trySend = (message: BrowserMessage) => {
-    if (room.state !== 'connected') return false;
-    void room.localParticipant.publishData(encoder.encode(JSON.stringify(message)), { reliable: true, topic: LIVE_TOPIC }).catch(() => outbox.push(message));
-    return true;
-  };
+  const hearsAgent = () => lastAgentPulseEpochMs !== null && getEpochMs() - lastAgentPulseEpochMs <= AGENT_QUIET_LIMIT_MS;
 
-  // A report sent while the link is down would be lost, and the agent resumes from it, so it waits here.
+  // A report sent while the link is down would be lost, and the agent resumes from it, so it waits here until the agent can be heard again. A typed line waits here too if the agent has not joined yet.
   const send = (message: BrowserMessage) => {
-    if (!trySend(message)) outbox.push(message);
+    if (room.state !== 'connected' || !hearsAgent()) {
+      outbox.push(message);
+      return;
+    }
+    void room.localParticipant.publishData(encoder.encode(JSON.stringify(message)), { reliable: true, topic: LIVE_TOPIC }).catch(() => outbox.push(message));
   };
 
   const flushOutbox = () => {
@@ -121,12 +134,16 @@ export async function startLiveVoice({ getAccess, usesSpeechCleanup = true }: Li
 
   const getStamp = () => ({ clockId, browserMs: Math.round(clock.getNowMs()), startedMsAgo: 0 });
 
+  const setGain = (level: OutputLevel) => gain.gain.setValueAtTime(OUTPUT_GAINS[level], audioContext.currentTime);
+  const localYield = createLocalYield({ setLevel: setGain, onYield: () => records.localYieldEpochMs.push(getEpochMs()) });
+
   const player = createScenePlayer({
     clock,
     clockId,
     send,
     setOutputLevel(level) {
-      gain.gain.setValueAtTime(OUTPUT_GAINS[level], audioContext.currentTime);
+      setGain(level);
+      localYield.noteLevel(level);
     },
     onCueFired: (cue) => records.fired.push({ ...cue, firedEpochMs: getEpochMs() }),
   });
@@ -146,6 +163,7 @@ export async function startLiveVoice({ getAccess, usesSpeechCleanup = true }: Li
   const onAgentMessage = (message: AgentMessage) => {
     if (message.type === 'pulse') {
       lastAgentPulseEpochMs = getEpochMs();
+      flushOutbox();
       return;
     }
     if (message.type === 'heard') return showHeard();
@@ -156,7 +174,10 @@ export async function startLiveVoice({ getAccess, usesSpeechCleanup = true }: Li
       currentTurnId = message.turnId;
       hasHeardFirstOnset = false;
     }
-    if (message.type === 'yield') records.yieldEpochMs.push({ turnId: message.turnId, isYielding: message.isYielding, atMs: getEpochMs() });
+    if (message.type === 'yield') {
+      records.yieldEpochMs.push({ turnId: message.turnId, isYielding: message.isYielding, atMs: getEpochMs() });
+      localYield.noteAgentYield(message.isYielding);
+    }
     if (message.type === 'stop') records.stopEpochMs[message.turnId] ??= getEpochMs();
     player.receive(message);
   };
@@ -184,15 +205,18 @@ export async function startLiveVoice({ getAccess, usesSpeechCleanup = true }: Li
   };
   audioContext.onstatechange = sendAudioState;
 
-  const hearsAgent = () => lastAgentPulseEpochMs === null || getEpochMs() - lastAgentPulseEpochMs <= AGENT_QUIET_LIMIT_MS;
-
   const beat = () => {
-    if (room.state !== 'connected') return;
+    const nowMs = getEpochMs();
     const canHear = hearsAgent();
-    if (!canHear) player.freeze();
+    if (!canHear && lastAgentPulseEpochMs !== null) player.freeze();
+    if (room.state !== 'connected') return;
+    const quietSinceMs = Math.max(lastAgentPulseEpochMs ?? nowMs, connectedAtEpochMs);
+    if (lastAgentPulseEpochMs !== null && nowMs - quietSinceMs > REJOIN_AFTER_QUIET_MS) {
+      void rejoin();
+      return;
+    }
     const message: BrowserMessage = { type: 'pulse', ...getStamp(), hearsAgent: canHear };
-    void room.localParticipant.publishData(encoder.encode(JSON.stringify(message)), { reliable: false, topic: LIVE_TOPIC }).catch(() => {});
-    if (canHear) flushOutbox();
+    void room.localParticipant.publishData(encoder.encode(JSON.stringify(message)), { reliable: false, topic: LIVE_TOPIC }).catch((error: unknown) => records.refused.push(`pulse not sent: ${String(error)}`));
   };
 
   const onDataReceived = (payload: Uint8Array, topic?: string) => {
@@ -214,25 +238,41 @@ export async function startLiveVoice({ getAccess, usesSpeechCleanup = true }: Li
     await room.connect(url, token);
   };
 
-  // LiveKit retries a short drop itself. Once it gives up, a new token and a new join bring the same session back.
-  const rejoin = async () => {
+  // LiveKit retries a short drop itself. Once it gives up, or leaves a channel that carries nothing, a new token and a new join bring the same session back.
+  async function rejoin(): Promise<void> {
+    if (isRejoining) return;
+    isRejoining = true;
+    player.freeze();
+    setView({ phase: 'reconnecting' });
+    await room.disconnect(false).catch(() => {});
     const deadline = getEpochMs() + LONGEST_REJOIN_MS;
     while (!isClosed && getEpochMs() < deadline) {
       try {
         await connectRoom();
+        if (micTrack) await room.localParticipant.publishTrack(micTrack, MIC_PUBLISH_OPTIONS);
+        connectedAtEpochMs = getEpochMs();
+        isRejoining = false;
+        setView({ phase: 'live' });
         return;
       } catch {
+        await room.disconnect(false).catch(() => {});
         await new Promise((resolve) => setTimeout(resolve, REJOIN_EVERY_MS));
       }
     }
+    isRejoining = false;
     if (!isClosed) setView({ phase: 'ended' });
-  };
+  }
 
   room.on(RoomEvent.TrackSubscribed, (track: RemoteTrack) => {
     if (track.kind !== Track.Kind.Audio) return;
     stopListening();
     stopListening = listenToTutor(track, { audioContext, gain, clock, onProbe });
+    // The agent puts its track up last, so hearing it means the agent can hear this page.
+    lastAgentPulseEpochMs = getEpochMs();
+    send({ type: 'hello', ...getStamp(), wantsGreeting: wantsGreeting && !hasSaidHello });
+    hasSaidHello = true;
     sendAudioState();
+    flushOutbox();
     beat();
   });
   room.on(RoomEvent.DataReceived, (payload, _participant, _kind, topic) => onDataReceived(payload, topic));
@@ -241,10 +281,11 @@ export async function startLiveVoice({ getAccess, usesSpeechCleanup = true }: Li
     setView({ phase: 'reconnecting' });
   });
   room.on(RoomEvent.Reconnected, () => {
+    connectedAtEpochMs = getEpochMs();
     setView({ phase: 'live' });
-    flushOutbox();
   });
   room.on(RoomEvent.Disconnected, (reason) => {
+    if (isRejoining) return;
     player.freeze();
     const isFinal = isClosed || reason === DisconnectReason.CLIENT_INITIATED || reason === DisconnectReason.DUPLICATE_IDENTITY || reason === DisconnectReason.ROOM_DELETED;
     setView({ phase: isFinal ? 'ended' : 'reconnecting' });
@@ -278,6 +319,7 @@ export async function startLiveVoice({ getAccess, usesSpeechCleanup = true }: Li
     },
     async setMicOn(isOn) {
       if (!isOn) {
+        stopWatchingMic();
         if (micTrack) await room.localParticipant.unpublishTrack(micTrack);
         micTrack?.stop();
         micTrack = null;
@@ -286,7 +328,8 @@ export async function startLiveVoice({ getAccess, usesSpeechCleanup = true }: Li
       setView({ mic: 'starting' });
       try {
         micTrack = await createLocalAudioTrack({ echoCancellation: usesSpeechCleanup, noiseSuppression: usesSpeechCleanup, autoGainControl: usesSpeechCleanup });
-        await room.localParticipant.publishTrack(micTrack, { source: Track.Source.Microphone, dtx: false, red: false });
+        await room.localParticipant.publishTrack(micTrack, MIC_PUBLISH_OPTIONS);
+        stopWatchingMic = listenToStudent(micTrack.mediaStreamTrack, { audioContext, onSound: localYield.onStudentSound });
         setView({ mic: 'on' });
       } catch {
         setView({ mic: 'denied' });
@@ -304,6 +347,8 @@ export async function startLiveVoice({ getAccess, usesSpeechCleanup = true }: Li
       clearInterval(ticker);
       clearInterval(pulses);
       clearTimeout(heardTimer);
+      localYield.close();
+      stopWatchingMic();
       micTrack?.stop();
       stopListening();
       await room.disconnect();

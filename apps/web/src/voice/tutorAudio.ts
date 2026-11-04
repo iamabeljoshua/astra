@@ -62,3 +62,17 @@ export function listenToTutor(track: RemoteTrack, { audioContext, gain, clock, o
     element.remove();
   };
 }
+
+// The first sound from the microphone, heard here with no network in the way. It goes nowhere but the probe.
+export function listenToStudent(track: MediaStreamTrack, { audioContext, onSound }: { audioContext: AudioContext; onSound(): void }): () => void {
+  const source = audioContext.createMediaStreamSource(new MediaStream([track]));
+  const probe = new AudioWorkletNode(audioContext, 'audio-probe');
+  probe.port.onmessage = ({ data }) => {
+    if (data.kind === 'onset') onSound();
+  };
+  source.connect(probe);
+  return () => {
+    probe.port.onmessage = null;
+    source.disconnect();
+  };
+}

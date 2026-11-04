@@ -4,6 +4,9 @@
 interface SpeechInPage {
   play(pcmBase64: string, sampleRate: number): Promise<{ startedEpochMs: number; endedEpochMs: number }>;
   setNoise(level: number): void;
+  /** Records what the student says and what the tutor plays, as one track, for a recording a person can judge. */
+  startRecording(): void;
+  stopRecording(): Promise<{ base64: string; startedEpochMs: number } | null>;
 }
 
 declare global {
@@ -17,6 +20,21 @@ export function installSpeechInPage(): void {
   let destination: MediaStreamAudioDestinationNode | null = null;
   let noiseGain: GainNode | null = null;
   const getEpochMs = () => performance.timeOrigin + performance.now();
+  let recordingOut: MediaStreamAudioDestinationNode | null = null;
+  let recorder: MediaRecorder | null = null;
+  let recorderStartedEpochMs = 0;
+  const recorded: Blob[] = [];
+
+  // Whatever the app sends to the speakers is also sent to the recording.
+  const connect = AudioNode.prototype.connect as (...args: unknown[]) => unknown;
+  AudioNode.prototype.connect = function (this: AudioNode, ...args: unknown[]) {
+    const [target] = args;
+    if (target instanceof AudioDestinationNode && this.context !== context) {
+      recordingOut ??= (this.context as AudioContext).createMediaStreamDestination();
+      connect.call(this, recordingOut);
+    }
+    return connect.apply(this, args);
+  } as typeof AudioNode.prototype.connect;
 
   const ensureContext = () => {
     if (context && destination && noiseGain) return { context, destination, noiseGain };
@@ -44,6 +62,28 @@ export function installSpeechInPage(): void {
   };
 
   window.speechInPage = {
+    startRecording() {
+      if (!recordingOut) throw new Error('nothing plays to the speakers yet');
+      const tutorContext = recordingOut.context as AudioContext;
+      tutorContext.createMediaStreamSource(ensureContext().destination.stream).connect(recordingOut);
+      recorder = new MediaRecorder(recordingOut.stream, { mimeType: 'audio/webm' });
+      recorder.ondataavailable = ({ data }) => recorded.push(data);
+      recorder.start();
+      recorderStartedEpochMs = getEpochMs();
+    },
+    stopRecording() {
+      const running = recorder;
+      if (!running) return Promise.resolve(null);
+      return new Promise((resolve) => {
+        running.onstop = async () => {
+          const bytes = new Uint8Array(await new Blob(recorded).arrayBuffer());
+          let binary = '';
+          for (let offset = 0; offset < bytes.length; offset += 8192) binary += String.fromCharCode(...bytes.subarray(offset, offset + 8192));
+          resolve({ base64: btoa(binary), startedEpochMs: recorderStartedEpochMs });
+        };
+        running.stop();
+      });
+    },
     setNoise(level) {
       ensureContext().noiseGain.gain.value = level;
     },

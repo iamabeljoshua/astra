@@ -1,6 +1,7 @@
 /// <reference lib="dom" />
 import { readFileSync } from 'node:fs';
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
+import { makeSayClip, type SpokenLine } from './make-speech.ts';
 import { installSpeechInPage } from './speech-in-page.ts';
 import { WEB_URL } from './stack.ts';
 
@@ -33,6 +34,11 @@ export function loadClip(voice: string, id: string, folder = SPEECH_FOLDER): Spe
   return { voice, id, ...entry, base64: readFileSync(`${folder}/${voice}/${id}.pcm`).toString('base64') };
 }
 
+export function clipFromSay(voice: string, line: SpokenLine, folder: string): SpeechClip {
+  const { pcm, firstMs, lastMs, durationMs } = makeSayClip({ voice, line, folder });
+  return { voice, id: line.id, text: line.text, firstMs, lastMs, durationMs, base64: Buffer.from(pcm.buffer, pcm.byteOffset, pcm.byteLength).toString('base64') };
+}
+
 export interface StudentPage {
   context: BrowserContext;
   page: Page;
@@ -44,6 +50,8 @@ export interface StudentPage {
   pressTalk(): Promise<void>;
   waitForLive(): Promise<void>;
   getTrace(): Promise<PageTrace>;
+  getRoundTripMs(): Promise<number | null>;
+  videoStartedEpochMs: number;
 }
 
 export interface PageTrace {
@@ -52,6 +60,7 @@ export interface PageTrace {
   stopEpochMs: Record<string, number>;
   heardEpochMs: number[];
   yieldEpochMs: { turnId: string; isYielding: boolean; atMs: number }[];
+  localYieldEpochMs: number[];
   fired: { turnId: string; firedEpochMs: number; atWord: number }[];
   refused: string[];
   clockKinds: string[];
@@ -69,14 +78,35 @@ const ALREADY_SIGNED_OUT = 'Development sign-in';
 
 // A student with no speakers and a browser that blocks sound, so the board and captions must run on the timer.
 function blockTutorAudio(): void {
-  AudioContext.prototype.resume = () => Promise.resolve();
+  const Original = AudioContext;
+  window.AudioContext = class extends Original {
+    constructor(options?: AudioContextOptions) {
+      super(options);
+      void this.suspend();
+    }
+    override resume(): Promise<void> {
+      return Promise.resolve();
+    }
+  };
 }
 
 // Signs in as a seeded student through the real sign-in page, starts a real session, and opens its real screen.
 export async function openStudentPage(browser: Browser, { email, title, recordVideoDir, blocksAudio = false, viewport = { width: 1440, height: 900 } }: { email: string; title: string; recordVideoDir?: string; blocksAudio?: boolean; viewport?: { width: number; height: number } }): Promise<StudentPage> {
   const context = await browser.newContext({ baseURL: WEB_URL, viewport, recordVideo: recordVideoDir ? { dir: recordVideoDir, size: viewport } : undefined, permissions: ['microphone'] });
+  const videoStartedEpochMs = Date.now();
   const page = await context.newPage();
   await page.addInitScript(installSpeechInPage);
+  await page.addInitScript(() => {
+    const Original = RTCPeerConnection;
+    const connections: RTCPeerConnection[] = [];
+    (window as unknown as { peerConnections: RTCPeerConnection[] }).peerConnections = connections;
+    window.RTCPeerConnection = class extends Original {
+      constructor(...args: ConstructorParameters<typeof RTCPeerConnection>) {
+        super(...args);
+        connections.push(this);
+      }
+    };
+  });
   if (blocksAudio) await page.addInitScript(blockTutorAudio);
   await page.goto('/');
   await page.getByRole('button', { name: ALREADY_SIGNED_OUT }).click();
@@ -98,6 +128,7 @@ export async function openStudentPage(browser: Browser, { email, title, recordVi
   return {
     context,
     page,
+    videoStartedEpochMs,
     sessionId,
     sessionUrl,
     async say(clip) {
@@ -109,12 +140,24 @@ export async function openStudentPage(browser: Browser, { email, title, recordVi
     async waitForLive() {
       await page.waitForFunction(() => window.astraVoice?.getView().phase === 'live', undefined, { timeout: 30_000 });
     },
+    getRoundTripMs: () =>
+      page.evaluate(async () => {
+        const list = (window as unknown as { peerConnections: RTCPeerConnection[] }).peerConnections;
+        for (const connection of list) {
+          let found: number | null = null;
+          (await connection.getStats()).forEach((report: { type: string; nominated?: boolean; currentRoundTripTime?: number }) => {
+            if (report.type === 'candidate-pair' && report.nominated && report.currentRoundTripTime !== undefined) found = report.currentRoundTripTime * 1000;
+          });
+          if (found !== null) return found;
+        }
+        return null;
+      }),
     getTrace: () =>
       page.evaluate(() => {
         const voice = window.astraVoice;
         if (!voice) throw new Error('no live voice on this page');
-        const { firstAudioEpochMs, turnStartedEpochMs, stopEpochMs, heardEpochMs, yieldEpochMs, fired, refused, clockKinds } = voice.records;
-        return { firstAudioEpochMs, turnStartedEpochMs, stopEpochMs, heardEpochMs, yieldEpochMs, fired, refused, clockKinds, view: voice.getView(), outputLatencyMs: 0 } as unknown as PageTrace;
+        const { firstAudioEpochMs, turnStartedEpochMs, stopEpochMs, heardEpochMs, yieldEpochMs, localYieldEpochMs, fired, refused, clockKinds } = voice.records;
+        return { firstAudioEpochMs, turnStartedEpochMs, stopEpochMs, heardEpochMs, yieldEpochMs, localYieldEpochMs, fired, refused, clockKinds, view: voice.getView(), outputLatencyMs: 0 } as unknown as PageTrace;
       }),
   };
 }

@@ -48,7 +48,7 @@ describe('a backchannel', () => {
     expect(play([SPEAKING, ON, words('Hmm', false), OFF, timer('transcriptGrace')]).actions).toEqual(['yield', WORDLESS, GRACE, 'unyield']);
   });
 
-  it.each(['Uh-huh', 'Mm-hmm', 'Mhmm', 'Hm', 'Mmm', 'Um', 'Oh', 'I see', 'Got it', 'Aha', 'Mm-mm', 'Yeah, yeah', 'Okay.'])('takes "%s" as a reaction', (text) => {
+  it.each(['Uh-huh', 'Mm-hmm', 'Mhmm', 'Hm', 'Mmm', 'Um', 'Oh', 'I see', 'Got it', 'Aha', 'Mm-mm', 'Yeah, yeah', 'Okay.', 'MM.', 'MMMM.', 'Hmmmm', 'Aha, MMM', 'Mhm'])('takes "%s" as a reaction', (text) => {
     expect(isSmallReaction(text)).toBe(true);
     expect(play([SPEAKING, ON, words(text, false)]).phase).toBe('yielding');
   });
@@ -72,6 +72,12 @@ describe('a backchannel', () => {
 
   it('counts "uh - huh" as a reaction, not as a real word', () => {
     expect(isSmallReaction('uh - huh')).toBe(true);
+  });
+});
+
+describe('words that are not reactions', () => {
+  it.each(['Wait', 'Why', 'No', 'Stop', 'Gravity', '42', 'x', 'math', 'hum', 'huh why', 'okay but why'])('takes "%s" as a real word', (text) => {
+    expect(isSmallReaction(text)).toBe(false);
   });
 });
 

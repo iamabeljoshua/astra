@@ -23,7 +23,7 @@ export interface LiveVoiceControls {
   status: LiveVoiceStatus;
   view: LiveVoiceView | null;
   voice: LiveVoice | null;
-  connect(): Promise<LiveVoice | null>;
+  connect(options?: { wantsGreeting: boolean }): Promise<LiveVoice | null>;
   sendTyped(text: string): Promise<boolean>;
   toggleTalk(): Promise<void>;
 }
@@ -36,11 +36,11 @@ export function useLiveVoice({ sessionId, usesSpeechCleanup = true, start = star
   const isGone = useRef(false);
   const view = useSyncExternalStore(voice?.subscribe ?? noSubscribe, voice?.getView ?? noView);
 
-  const connect = useCallback(() => {
+  const connect = useCallback(({ wantsGreeting }: { wantsGreeting: boolean } = { wantsGreeting: true }) => {
     opening.current ??= (async () => {
       setStatus('connecting');
       try {
-        const opened = await start({ usesSpeechCleanup, getAccess: () => api.post('/sessions/{id}/live-room', { params: { path: { id: sessionId } } }) });
+        const opened = await start({ usesSpeechCleanup, wantsGreeting, getAccess: () => api.post('/sessions/{id}/live-room', { params: { path: { id: sessionId } } }) });
         if (isGone.current) {
           await opened.close();
           return null;
@@ -72,7 +72,7 @@ export function useLiveVoice({ sessionId, usesSpeechCleanup = true, start = star
     voice,
     connect,
     async sendTyped(text) {
-      const opened = await connect();
+      const opened = await connect({ wantsGreeting: false });
       opened?.sendTyped(text);
       return opened !== null;
     },

@@ -36,8 +36,6 @@ export interface LiveSessionOptions {
 export interface LiveSession {
   onEars(event: EarsEvent): void;
   onBrowser(message: BrowserMessage): void;
-  /** The browser has joined and hears the tutor's track, so the first line loses no sound. */
-  greet(): void;
   getLog(): readonly SessionEvent[];
   doesStudentHearAudio(): boolean;
   close(): Promise<void>;
@@ -88,7 +86,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
   let state: TurnState = INITIAL_TURN_STATE;
   let isDispatching = false;
   let turnCount = 0;
-  let audioRunning = true;
+  let audioRunning = false;
   let reaction: Speaking | null = null;
   let reply: Speaking | null = null;
   let cut: Speaking | null = null;
@@ -166,7 +164,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
         getNowMs,
         onBeatStarted: (beat) => speakingBeats.push(beat),
         onFirstAudioRead: (atMs) => {
-          clearTimeout(voiceStall);
+          if (canResume) clearTimeout(voiceStall);
           trace('firstAudioRead', { turnId, kind, atMs });
         },
         onFrameCaptured: ({ capturedAtMs }) => {
@@ -177,8 +175,9 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
         onWords: ({ atMs, words }) => echo.noteTutorWords(words.map((word) => word.text), atMs),
         onGap: (gap) => {
           trace('audioGap', { turnId, ...gap });
+          if (!canResume) return;
           clearTimeout(voiceStall);
-          if (gap.ms === undefined && canResume) watchVoice(speaking);
+          if (gap.ms === undefined) watchVoice(speaking);
         },
       }),
     };
@@ -212,7 +211,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     const take = takes.next(use);
     const voiceToUse = take && takeVoices.get(take.id);
     if (!take || !voiceToUse) return null;
-    return speak({ voiceToUse, beats: [getTakeBeat(take, `${take.use}-${turnCount + 1}`)], isReply, canResume: false, kind: take.use });
+    return speak({ voiceToUse, beats: [getTakeBeat(take, `${take.id}-${turnCount + 1}`)], isReply, canResume: false, kind: take.use });
   }
 
   const react = () => {
@@ -287,7 +286,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       case 'react':
         return react();
       case 'reply':
-        trace('replyDecided', { via: action.via, words: action.text.split(/\s+/).length });
+        trace('replyDecided', { via: action.via, words: action.text.split(/\s+/).length, text: action.text });
         return startReply(action.text);
       case 'startTimer':
         return startNamedTimer(action.name, action.ms);
@@ -325,17 +324,24 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     }
   };
 
+  // The page says it hears the tutor's track, so the first line loses no sound.
+  const greet = () => {
+    if (hasGreeted || reply || reaction) return;
+    hasGreeted = true;
+    reply = speakTake('greeting', { isReply: true });
+  };
+
   const onAudioState = (isRunning: boolean) => {
     const wasRunning = audioRunning;
     audioRunning = isRunning;
     trace('audioState', { isRunning });
-    if (hasGreeted && wasRunning && !isRunning) dispatch({ type: 'linkLost' });
+    if (wasRunning && !isRunning) dispatch({ type: 'linkLost' });
     if (!wasRunning && isRunning && state.phase === 'away') dispatch({ type: 'linkBack' });
   };
 
   return {
     onEars(event) {
-      trace(event.type, event.type === 'words' ? { isFinal: event.isFinal, words: event.text.split(/\s+/).length } : {});
+      trace(event.type, event.type === 'words' ? { isFinal: event.isFinal, words: event.text.split(/\s+/).length, text: event.text } : {});
       if (event.type === 'words' && state.tutor === 'speaking' && echo.isEcho(event.text, getNowMs())) {
         trace('echoHeard');
         return dispatch({ type: 'echoHeard' });
@@ -348,13 +354,9 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       if (message.type === 'played') onReport(message);
       if (message.type === 'questionHeard') dispatch({ type: 'questionHeard' });
       if (message.type === 'typed') dispatch({ type: 'typed', text: message.text });
+      if (message.type === 'hello' && message.wantsGreeting) greet();
       if (message.type === 'pulse') link.notePulse(message.hearsAgent, getNowMs());
       if (message.type === 'audioState') onAudioState(message.isRunning);
-    },
-    greet() {
-      if (hasGreeted) return;
-      hasGreeted = true;
-      reply = speakTake('greeting', { isReply: true });
     },
     getLog: () => log.getEvents(),
     doesStudentHearAudio: () => audioRunning,

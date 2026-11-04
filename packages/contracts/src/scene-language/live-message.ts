@@ -60,6 +60,8 @@ export type BrowserMessage = BrowserStamp &
     | { type: 'boardFrozen'; turnId: TurnId; frozen: FrozenFrame[] }
     /** The last word of an `expectsReply` beat started playing, so "yes" now counts as an answer and the 8 second timer starts. */
     | { type: 'questionHeard'; turnId: TurnId; beatId: BeatId }
+    /** The page has joined and hears the tutor's track. `wantsGreeting` is false when the student opened the room by typing, or came back after a drop. */
+    | { type: 'hello'; wantsGreeting: boolean }
     /** The student typed instead of speaking. */
     | { type: 'typed'; text: string }
     /** Sent every half second on the lossy channel. `hearsAgent` is false once the agent's own pulse has stopped arriving. */

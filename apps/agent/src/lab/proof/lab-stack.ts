@@ -12,7 +12,7 @@ export const LIVEKIT_PORT = Number(process.env.LAB_LIVEKIT_PORT ?? 7930);
 export const LIVEKIT_UDP_PORT = Number(process.env.LAB_LIVEKIT_UDP_PORT ?? 7932);
 export const RELAY_PORT = Number(process.env.LAB_RELAY_PORT ?? 7933);
 export const WEB_PORT = Number(process.env.WEB_PORT ?? 6130);
-export const LIVEKIT_URL = `ws://127.0.0.1:${LIVEKIT_PORT}`;
+export const LIVEKIT_URL = process.env.LAB_LIVEKIT_URL ?? `ws://127.0.0.1:${LIVEKIT_PORT}`;
 export const WEB_URL = `http://127.0.0.1:${WEB_PORT}`;
 
 const LAN_ADDRESS = Object.values(networkInterfaces()).flat().find((entry) => entry?.family === 'IPv4' && !entry.internal)?.address;
