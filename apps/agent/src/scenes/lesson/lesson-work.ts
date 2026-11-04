@@ -1,5 +1,5 @@
 import { isAboutBeingUnsafe, showsDanger } from '../content-check.ts';
-import { canTryAfterRefusal } from '../make-scene.ts';
+import { canTryAfterRefusal, canTryNow } from '../make-scene.ts';
 import { DANGEROUS_KIND, SAFETY_KIND } from '../model-replies.ts';
 import { createSceneDesk, type SceneDesk, type SceneState } from '../scene-desk.ts';
 import { getSceneKey, type SceneStore } from '../scene-store.ts';
@@ -65,11 +65,24 @@ export function createLessonWork({ router, runs, store, request, isCard, student
     settlePlan(saved.plan);
   };
 
+  const isScenePaused = (topic: string) => !canTryNow({ store, getWallMs }, getOwnKey(topic)) || !canTryAfterRefusal(store, getOwnKey(topic), getWallMs());
+
+  // A topic whose next try is not due can draw nothing today, so it says one plan's words on every open. A plan with no setup is a fallback, and is not worth keeping for an hour.
   const joinRun = (topic: string) => {
     keepVoiceWith(topic, null);
-    run = runs.join(getOwnKey(topic), cardLine ? { plainLine: { say: cardLine } } : {});
+    const key = getOwnKey(topic);
+    const isPaused = isScenePaused(topic);
+    const waiting = isPaused ? store.findWaitingPlan(key) : null;
+    if (waiting) {
+      settlePlan(waiting);
+      return;
+    }
+    run = runs.join(key, cardLine ? { plainLine: { say: cardLine } } : {});
     void run.firstLine.then(settleFirstLine);
-    void run.plan.then(settlePlan);
+    void run.plan.then((planned) => {
+      settlePlan(planned);
+      if (isPaused && typeof planned !== 'string' && planned.setup !== '') store.saveWaitingPlan(key, planned);
+    });
   };
 
   // A card has its title, so it can teach whatever the router does. A typed question has only what the router says about it.

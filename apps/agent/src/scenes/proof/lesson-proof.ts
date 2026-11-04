@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { chromium, type Page } from 'playwright';
+import { isLessonDone, type WatchedMoment } from './lesson-watch.ts';
 
 const { values: args } = parseArgs({
   options: {
@@ -34,6 +35,7 @@ interface Sample {
   sceneSeconds: number | null;
   opacity: string | null;
   boardItems: number;
+  closedBeats: string[];
 }
 
 async function readSample(page: Page, startedAt: number): Promise<Sample> {
@@ -45,6 +47,7 @@ async function readSample(page: Page, startedAt: number): Promise<Sample> {
       sceneSeconds: layer?.dataset.seconds ? Number(layer.dataset.seconds) : null,
       opacity: layer?.style.opacity ?? null,
       boardItems: document.querySelectorAll('[data-testid="board"] [data-element]').length,
+      closedBeats: (window.sceneLesson?.records.log ?? []).flatMap((event) => (event.kind === 'beatPlayed' && event.beat?.id ? [event.beat.id] : [])),
     };
   });
   return { atS: Number(((performance.now() - startedAt) / 1000).toFixed(2)), ...read };
@@ -136,19 +139,21 @@ while (performance.now() - startedAt < seconds * 1000) {
     await delay(900);
     await page.screenshot({ path: join(folder, 'after-theme-switch.png') });
   }
-  const ending = samples.at(-1)?.caption.trim().endsWith('?');
-  if (ending && samples.filter((entry) => entry.caption.trim().endsWith('?')).length > 8) break;
+  if (isLessonDone(samples.map((entry): WatchedMoment => ({ atS: entry.atS, closedBeats: entry.closedBeats, hasScene: entry.sceneId !== null && Number(entry.opacity) > 0.9 })))) break;
   await delay(100);
 }
 await delay(1500);
+const closedAtS = samples.find((sample) => sample.closedBeats.includes('close'))?.atS ?? null;
+const firstSceneAtS = samples.find((sample) => sample.sceneId !== null && Number(sample.opacity) > 0.9)?.atS ?? null;
+const landedAfterClose = closedAtS !== null && firstSceneAtS !== null && firstSceneAtS > closedAtS;
 const log = await page.evaluate(() => window.sceneLesson?.records.log.length ?? 0);
 if (cdp) await cdp.send('Page.stopScreencast');
 const proofs = await readProofs(page);
 writeFileSync(join(folder, 'proofs.json'), JSON.stringify({ ...proofs, requestsOnHome: requests.slice(0, requestsOnHome), requestsInLesson: requests.slice(requestsOnHome) }, null, 1));
 if (args.record && cdp) await saveRecording(page);
 writeFileSync(join(folder, 'samples.json'), JSON.stringify(samples, null, 0));
-writeFileSync(join(folder, 'summary.json'), JSON.stringify({ problems, log, lastCaption: samples.at(-1)?.caption, firstSceneAtS: samples.find((sample) => sample.sceneId)?.atS ?? null, sceneRange: samples.filter((sample) => sample.sceneSeconds !== null).map((sample) => sample.sceneSeconds).at(-1) ?? null }, null, 1));
-console.log(JSON.stringify({ folder, problems: problems.slice(0, 6), log, samples: samples.length, firstSceneAtS: samples.find((sample) => sample.sceneId)?.atS ?? null, lastSceneSeconds: samples.filter((sample) => sample.sceneSeconds !== null).at(-1)?.sceneSeconds ?? null, lastCaption: samples.at(-1)?.caption }));
+writeFileSync(join(folder, 'summary.json'), JSON.stringify({ problems, log, lastCaption: samples.at(-1)?.caption, firstSceneAtS, closedAtS, landedAfterClose, sceneRange: samples.filter((sample) => sample.sceneSeconds !== null).map((sample) => sample.sceneSeconds).at(-1) ?? null }, null, 1));
+console.log(JSON.stringify({ folder, problems: problems.slice(0, 6), log, samples: samples.length, firstSceneAtS, closedAtS, landedAfterClose, lastSceneSeconds: samples.filter((sample) => sample.sceneSeconds !== null).at(-1)?.sceneSeconds ?? null, lastCaption: samples.at(-1)?.caption }));
 await browser.close();
 
 async function saveRecording(recorded: Page) {
@@ -221,7 +226,7 @@ interface ProofBoard {
 declare global {
   interface Window {
     sceneLesson?: {
-      records: { frames: { ms: number }[]; clockKind: string; refused: string[]; fired: { positionMs: number; wordStartMs: number }[]; log: { kind: string; atMs: number; durationMs?: number; beat?: { script: unknown[] } }[] };
+      records: { frames: { ms: number }[]; clockKind: string; refused: string[]; fired: { positionMs: number; wordStartMs: number }[]; log: { kind: string; atMs: number; durationMs?: number; beat?: { id?: string; script: unknown[] } }[] };
       pcm: { take(point: 'output'): { firstFrame: number | null; base64: string } } | null;
       player: { getOperations(): { kind: string; atMs: number }[] };
       clockMap(): { epochAtGraphZeroMs: number };

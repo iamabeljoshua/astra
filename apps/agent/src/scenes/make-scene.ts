@@ -143,7 +143,7 @@ function noteTrouble(store: SceneStore, key: SceneKey, nowMs: number, wasRefused
   store.saveTrouble(key, { tries: isTroubleForgotten(trouble, nowMs) ? 1 : trouble.tries + 1, lastAtMs: nowMs, wasRefused });
 }
 
-export const canTryNow = ({ store, getWallMs = () => Date.now() }: SceneMaker, key: SceneKey): boolean => getCanTry(store.getTrouble(key), getWallMs());
+export const canTryNow = ({ store, getWallMs = () => Date.now() }: Pick<SceneMaker, 'store' | 'getWallMs'>, key: SceneKey): boolean => getCanTry(store.getTrouble(key), getWallMs());
 
 /** A review can refuse a true scene, and on a card that would leave it with no scene for anyone, so a refusal may be written again after a wait, a few times a day. */
 export function canTryAfterRefusal(store: SceneStore, key: SceneKey, nowMs: number): boolean {

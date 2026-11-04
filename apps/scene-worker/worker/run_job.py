@@ -52,7 +52,7 @@ def send_record(header, payload=b""):
 
 
 def end_scene_processes():
-    """Only the scene's uid can signal what a scene left running. This process takes that uid as its effective one for this call alone, because a child stepping down to it could be killed first, and nothing under that uid can signal or read this process."""
+    """Only the scene's uid can signal what a scene left running. This process takes that uid as its effective one for this call alone, because a child stepping down to it could be killed first. A process under that uid cannot read this one, and the only signal it can send here is SIGCONT, which the kernel allows inside a session and which does nothing to a process that is not stopped."""
     os.seteuid(SCENE_UID)
     try:
         os.kill(-1, signal.SIGKILL)

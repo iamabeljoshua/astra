@@ -468,7 +468,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
       {
         heading: 'Who receives your data',
         today: [
-          'Supabase runs our sign-in service and our database, so it holds everything we store on our servers, and it sends the sign-in email.',
+          'Supabase runs our sign-in service and our database, so it holds your account, your notes, and your sessions, and it sends the sign-in email. What a test lesson saves, its drawings, recordings, and cost records, stays on our own server and does not go to Supabase.',
           "While spoken lessons are in testing, a test lesson sends Anthropic's Claude models the title of the suggested lesson, or the whole question you typed, whatever it says, which they use to choose and write a drawing and the tutor's words. A model then writes the drawing from a short topic it takes from your question, and it can get that wrong, so a personal detail in your question can reach those models and the words a tutor says to you. ElevenLabs receives the tutor's words and turns them into its voice, and the audio travels through a LiveKit server. Please leave your name, school, and other personal details out of your questions.",
           'No other outside service receives student data today. The app serves its own fonts and pictures.',
         ],

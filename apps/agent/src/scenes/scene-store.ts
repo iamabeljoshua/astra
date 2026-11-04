@@ -5,7 +5,7 @@ import { mkdir, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { brotliCompress, constants } from 'node:zlib';
-import { SCENE_THEMES, type SceneKey, type SceneRefusal, type SceneScope, type SceneTheme, type SceneTrouble, type StoredScene } from './scene-types.ts';
+import { type LessonPlan, SCENE_THEMES, type SceneKey, type SceneRefusal, type SceneScope, type SceneTheme, type SceneTrouble, type StoredScene } from './scene-types.ts';
 
 const HASH_CHARACTERS = 40;
 const SERVER_MADE_ID = new RegExp(`^scene-[0-9a-f]{${HASH_CHARACTERS}}$`);
@@ -29,6 +29,9 @@ export interface SceneStore {
   saveRefusal(refusal: SceneRefusal): void;
   getTrouble(key: SceneKey): SceneTrouble;
   saveTrouble(key: SceneKey, trouble: SceneTrouble): void;
+  /** The words a topic with no scene says until its next try, so each open pays neither a planner call nor new voice. */
+  findWaitingPlan(key: SceneKey): LessonPlan | null;
+  saveWaitingPlan(key: SceneKey, plan: LessonPlan): void;
   list(): StoredScene[];
 }
 
@@ -65,6 +68,7 @@ export function createSceneStore(root: string): SceneStore {
   const scenesRoot = join(root, 'scenes');
   const refusalsRoot = join(root, 'refusals');
   const troubleRoot = join(root, 'trouble');
+  const waitingPlansRoot = join(root, 'waiting-plans');
   const readChecked = (id: string): StoredScene | null => {
     const scene = readJsonFile<StoredScene>(join(scenesRoot, requireServerId(id), 'scene.json'));
     return scene?.status === 'checked' ? scene : null;
@@ -94,6 +98,14 @@ export function createSceneStore(root: string): SceneStore {
         return scene;
       } catch (error) {
         const winner = readChecked(scene.id);
+        if (!winner && existsSync(join(target, 'scene.json'))) {
+          // A damaged record would otherwise make every lesson pay for a write it can never keep. Nobody can be served from that folder, so it goes.
+          const damaged = join(root, 'incoming', randomUUID());
+          await rename(target, damaged);
+          await rm(damaged, { recursive: true, force: true });
+          await rename(incoming, target);
+          return scene;
+        }
         await rm(incoming, { recursive: true, force: true });
         if (!winner) throw error;
         return winner;
@@ -102,5 +114,10 @@ export function createSceneStore(root: string): SceneStore {
     saveRefusal: (refusal) => writeJsonFile(refusalsRoot, `${requireServerId(refusal.key.id)}.json`, refusal),
     getTrouble: (key) => readJsonFile<SceneTrouble>(join(troubleRoot, `${requireServerId(key.id)}.json`)) ?? NO_TROUBLE,
     saveTrouble: (key, trouble) => writeJsonFile(troubleRoot, `${requireServerId(key.id)}.json`, trouble),
+    findWaitingPlan(key) {
+      const waiting = readJsonFile<{ key: SceneKey; plan: LessonPlan }>(join(waitingPlansRoot, `${requireServerId(key.id)}.json`));
+      return waiting && isKeyMatch(key, waiting.key) ? waiting.plan : null;
+    },
+    saveWaitingPlan: (key, plan) => writeJsonFile(waitingPlansRoot, `${requireServerId(key.id)}.json`, { key, plan }),
   };
 }

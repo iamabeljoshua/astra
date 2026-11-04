@@ -10,6 +10,7 @@ const MOST_STEP_SECONDS = 45;
 const MOST_ERROR_NOTE_CHARACTERS = 600;
 const MS_PER_SECOND = 1000;
 const MOST_CONTAINERS_AT_ONCE = 4;
+const CLIENT_GRACE_MS = 5000;
 
 export interface RenderJob {
   code: string;
@@ -31,7 +32,7 @@ export function getContainerArguments(name: string, image = WORKER_IMAGE): strin
   return ['run', '--rm', '-i', '--name', name, '--network', 'none', '--log-driver', 'none', '--memory=512m', '--memory-swap=512m', '--cpus=2', '--pids-limit=64', '--read-only', '--ipc', 'none', '--ulimit', 'core=0', '--tmpfs', '/tmp:size=16m,mode=0755,noexec,nosuid,nodev', '--tmpfs', '/scene:size=384m,uid=1000,gid=1000,mode=0755,nosuid,nodev', '--cap-drop=ALL', '--cap-add=SETUID', '--cap-add=SETGID', '--security-opt', 'no-new-privileges', '--security-opt', `seccomp=${SECCOMP_PROFILE}`, '--env', 'HOME=/scene', image];
 }
 
-const removeContainer = (name: string) => spawn('docker', ['rm', '-f', name], { stdio: 'ignore' });
+const removeContainer = (name: string, limitMs: number) => void spawn('docker', ['rm', '-f', name], { stdio: 'ignore', timeout: limitMs, killSignal: 'SIGKILL' }).on('error', () => {});
 
 function startContainer(name: string, image: string, job: RenderJob, limitMs: number): ChildProcess {
   const child = spawn('docker', getContainerArguments(name, image), { stdio: ['pipe', 'pipe', 'pipe'] });
@@ -68,16 +69,33 @@ function createContainerLine(mostAtOnce: number) {
   };
 }
 
-function runContainer({ image, job, signal, limitMs, name }: { image: string; job: RenderJob; signal: AbortSignal; limitMs: number; name: string }): Promise<RenderResult> {
+function runContainer({ image, job, signal, limitMs, name, clientGraceMs }: { image: string; job: RenderJob; signal: AbortSignal; limitMs: number; name: string; clientGraceMs: number }): Promise<RenderResult> {
   return new Promise((resolveResult) => {
     const startedAt = performance.now();
     const collector = createRecordCollector(job.themes);
     const { collected } = collector;
     const child = startContainer(name, image, job, limitMs);
     let errorNote = '';
+    let clientLimit: ReturnType<typeof setTimeout> | undefined;
     const stopWith = (stage: FailureStage, reason: string) => {
       collected.failure = { stage, reasons: [reason] };
-      removeContainer(name);
+      removeContainer(name, clientGraceMs);
+      // Removing the container ends the client that started it. One that hangs anyway would hold a place in line for good, so it is stopped too.
+      clientLimit ??= setTimeout(() => {
+        child.kill('SIGKILL');
+        finish();
+      }, clientGraceMs);
+    };
+    const finish = () => {
+      clearTimeout(timer);
+      clearTimeout(clientLimit);
+      signal.removeEventListener('abort', onAbort);
+      const ms = performance.now() - startedAt;
+      const missingTheme = collector.getMissingTheme();
+      if (collected.failure) resolveResult({ isOk: false, ...collected.failure, ms });
+      else if (!collected.isDone) resolveResult({ isOk: false, stage: 'worker', reasons: [`the worker stopped early: ${errorNote}`], ms });
+      else if (missingTheme) resolveResult({ isOk: false, stage: 'worker', reasons: [`the worker made no ${missingTheme} take`], ms });
+      else resolveResult({ isOk: true, takes: collected.takes, sheets: collected.sheets, layoutProblems: collected.layoutProblems, layoutNotes: collected.layoutNotes, declared: collected.declared, ms });
     };
     const timer = setTimeout(() => stopWith('time', `the scene passed ${limitMs} ms`), limitMs);
     const onAbort = () => stopWith('time', 'the scene is no longer wanted');
@@ -90,26 +108,17 @@ function runContainer({ image, job, signal, limitMs, name }: { image: string; jo
     child.stderr?.on('data', (chunk: Buffer) => {
       errorNote = (errorNote + chunk.toString()).slice(-MOST_ERROR_NOTE_CHARACTERS);
     });
-    child.on('close', () => {
-      clearTimeout(timer);
-      signal.removeEventListener('abort', onAbort);
-      const ms = performance.now() - startedAt;
-      const missingTheme = collector.getMissingTheme();
-      if (collected.failure) resolveResult({ isOk: false, ...collected.failure, ms });
-      else if (!collected.isDone) resolveResult({ isOk: false, stage: 'worker', reasons: [`the worker stopped early: ${errorNote}`], ms });
-      else if (missingTheme) resolveResult({ isOk: false, stage: 'worker', reasons: [`the worker made no ${missingTheme} take`], ms });
-      else resolveResult({ isOk: true, takes: collected.takes, sheets: collected.sheets, layoutProblems: collected.layoutProblems, layoutNotes: collected.layoutNotes, declared: collected.declared, ms });
-    });
+    child.on('close', finish);
   });
 }
 
-export function createContainerWorker({ image = WORKER_IMAGE, limitMs = MOST_WHOLE_JOB_MS, namePrefix = 'astra-scene', mostAtOnce = MOST_CONTAINERS_AT_ONCE }: { image?: string; limitMs?: number; namePrefix?: string; mostAtOnce?: number } = {}): RenderWorker {
+export function createContainerWorker({ image = WORKER_IMAGE, limitMs = MOST_WHOLE_JOB_MS, namePrefix = 'astra-scene', mostAtOnce = MOST_CONTAINERS_AT_ONCE, clientGraceMs = CLIENT_GRACE_MS }: { image?: string; limitMs?: number; namePrefix?: string; mostAtOnce?: number; clientGraceMs?: number } = {}): RenderWorker {
   let jobCount = 0;
   const line = createContainerLine(mostAtOnce);
   return async (job, signal) => {
     if (!(await line.take(signal))) return { isOk: false, stage: 'time', reasons: ['the scene is no longer wanted'], ms: 0 };
     try {
-      return await runContainer({ image, job, signal, limitMs, name: `${namePrefix}-${process.pid}-${(jobCount += 1)}` });
+      return await runContainer({ image, job, signal, limitMs, name: `${namePrefix}-${process.pid}-${(jobCount += 1)}`, clientGraceMs });
     } finally {
       line.give();
     }
