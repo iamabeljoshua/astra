@@ -164,12 +164,34 @@ describe('the words a topic may use', () => {
 });
 
 describe('the list against the lessons we teach', () => {
-  const LIBRARY = JSON.parse(readFileSync(new URL('../../api/src/picks/library.json', import.meta.url), 'utf8')) as { topics: { title: string; subject: string; interests: string[] }[] };
-  const LEFT_OUT_OF_THE_LIBRARY = new Set(['people', 'everyone', 'us', 'we', 'you', 'sad', 'secret', 'hid', 'fake', 'strangers', 'thin', 'city', 'athens', 'own', 'best', 'hardest', 'burns', 'survive', 'be']);
+  const readPicksFile = <Shape>(name: string) => JSON.parse(readFileSync(new URL(`../../api/src/picks/${name}`, import.meta.url), 'utf8')) as Shape;
+  const LIBRARY = readPicksFile<{ topics: { title: string; subject: string; interests: string[]; alsoCalled?: string[] }[] }>('library.json');
+  const { deeper: DEEPER_SCENES } = readPicksFile<{ deeper: { titles: string[] }[] }>('deeper-scenes.json');
+  const LEFT_OUT_OF_THE_LIBRARY = new Set([
+    ...['sad', 'thin', 'burns', 'survive'], // Words about how someone feels or what happened to their body.
+    ...['secret', 'hid', 'strangers'], // Words a disclosure uses.
+    ...['city', 'athens'], // Places.
+    ...['people', 'everyone', 'us', 'we', 'you'], // These name a person, and a note names a subject.
+  ]);
   const getOffList = (text: string) => toListWords(text).filter((word) => !isTopicOnTheList('cares_about', word) && !LEFT_OUT_OF_THE_LIBRARY.has(word));
 
   it.each(LIBRARY.topics.map(({ title, subject, interests }) => [title, `${title} ${subject} ${interests.join(' ')}`] as const))('holds every word of the lesson %j, apart from those left out on purpose', (_title, words) => {
     expect(getOffList(words)).toEqual([]);
+  });
+
+  it.each(DEEPER_SCENES.flatMap(({ titles }) => titles))('holds every word of the deeper scene %j, apart from those left out on purpose', (title) => {
+    expect(getOffList(title)).toEqual([]);
+  });
+
+  it.each(LIBRARY.topics.flatMap(({ alsoCalled = [] }) => alsoCalled))('holds the other name %j whole, so a note can use it', (otherName) => {
+    expect(isTopicOnTheList('explored', otherName)).toBe(true);
+  });
+
+  it.each([
+    ['rate of change', 'i really find the rate of change hard'],
+    ['instantaneous rate of change', 'the instantaneous rate of change is hard for me'],
+  ])('keeps a struggle with %j, the words a derivative lesson uses', (topic, words) => {
+    expect(judgeWords('struggled', topic, words).notes.map((note) => note.topic)).toEqual([topic]);
   });
 
   it('keeps ordinary school topics', () => {
