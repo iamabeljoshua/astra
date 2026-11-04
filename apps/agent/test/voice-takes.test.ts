@@ -94,7 +94,7 @@ describe('where a spoken line is kept', () => {
     turn.onFrame?.(makeFrame(1300));
     turn.onWords?.(WORDS);
     turn.save?.();
-    await new Promise((resolve) => setTimeout(resolve, 30));
+    await new Promise((resolve) => setTimeout(resolve, 300));
     return turn;
   };
   const listFiles = (folder: string) => (existsSync(folder) ? readdirSync(folder, { recursive: true }).map(String).filter((name) => name.endsWith('.json')) : []);
