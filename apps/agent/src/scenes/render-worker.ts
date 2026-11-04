@@ -25,9 +25,9 @@ export type RenderResult =
 
 export type RenderWorker = (job: RenderJob, signal: AbortSignal) => Promise<RenderResult>;
 
-// The job starts as root holding only the rights to step down, so it can run model-written code under a uid that cannot open its descriptors. No logging driver, so nothing a job prints reaches a disk. The scene's own folder must allow executable mappings, because Mesa's software renderer needs them for its compiled shaders.
+// The job starts as root holding only the rights to step down, so it can run model-written code under a uid that cannot open its descriptors. No logging driver, so nothing a job prints reaches a disk. The scene's own folder holds Mesa's software renderer's memory, with no memfd to use, so it allows executable mappings for compiled shaders and is sized to the memory limit, past which the renderer dies of a bus error.
 export function getContainerArguments(name: string, image = WORKER_IMAGE): string[] {
-  return ['run', '--rm', '-i', '--name', name, '--network', 'none', '--log-driver', 'none', '--memory=512m', '--memory-swap=512m', '--cpus=2', '--pids-limit=64', '--read-only', '--ipc', 'none', '--ulimit', 'core=0', '--tmpfs', '/tmp:size=16m,mode=0755,noexec,nosuid,nodev', '--tmpfs', '/scene:size=64m,uid=1000,gid=1000,mode=0755,nosuid,nodev', '--cap-drop=ALL', '--cap-add=SETUID', '--cap-add=SETGID', '--security-opt', 'no-new-privileges', '--security-opt', `seccomp=${SECCOMP_PROFILE}`, '--env', 'HOME=/scene', image];
+  return ['run', '--rm', '-i', '--name', name, '--network', 'none', '--log-driver', 'none', '--memory=512m', '--memory-swap=512m', '--cpus=2', '--pids-limit=64', '--read-only', '--ipc', 'none', '--ulimit', 'core=0', '--tmpfs', '/tmp:size=16m,mode=0755,noexec,nosuid,nodev', '--tmpfs', '/scene:size=384m,uid=1000,gid=1000,mode=0755,nosuid,nodev', '--cap-drop=ALL', '--cap-add=SETUID', '--cap-add=SETGID', '--security-opt', 'no-new-privileges', '--security-opt', `seccomp=${SECCOMP_PROFILE}`, '--env', 'HOME=/scene', image];
 }
 
 const removeContainer = (name: string) => spawn('docker', ['rm', '-f', name], { stdio: 'ignore' });

@@ -54,10 +54,11 @@ Past a voice limit that student's voice falls back to a tone, and no other stude
 
 | Check | Result |
 | --- | --- |
-| New question to a scene the student sees | 31.1 s and 34.1 s from the ask, in two runs that showed it, measured on the page. On the server, the scene was ready at 26.6 s and the lesson took it at the next pause, 27.3 s in the first run. Words started at 1.8 s, and the plain board never waited |
+| New question to a scene the student sees, before this slice's fix round | 31.1 s and 34.1 s from the ask, in two runs that showed it, measured on the page. On the server, the scene was ready at 26.6 s and the lesson took it at the next pause, 27.3 s in the first run. Words started at 1.8 s, and the plain board never waited |
 | Scene made from a topic, plan included | 21 to 57 s, median 33 s, on 5 runs with one review pass. Plan about 7 s, writer 4 to 21 s, container 6 to 24 s, low review 3 to 8 s |
 | Cost of one scene | $0.07 to $0.18 on those runs, plus about $0.03 for the second review pass |
-| With a take and pictures per theme and the uid split | Container 12 to 31 s on 6 runs, against 6 to 24 s before, and both review passes $0.05 to $0.06 a scene. One fresh scene whole, $0.12 in 27 s |
+| With pictures of both themes and the uid split | Container 12 to 35 s on 7 runs, against 6 to 24 s before, and both review passes $0.05 to $0.06 a scene. Two fresh scenes whole, $0.12 in 27 s and $0.16 in 51 s |
+| A fresh scene after those changes | Reached the page at 43.4 s in one run. In another it came after the lesson's close at 48 s, was saved at 63 s, and the next open of that card showed it at 24.2 s from the opening, with no model call, 12 of 12 seeks matching, and 105 ms to load the take. Two runs, so these say little about how often a fresh scene arrives in time |
 | Frame rate during a lesson | 60 fps, frame gap p95 17 ms, on Abel's Mac only |
 | Take in the browser | 96 ms from `loadScene` to a first frame ready, engine already fetched from sign-in |
 | Take size | 0.41 to 1.63 MB raw, 0.06 to 0.7 MB as sent |

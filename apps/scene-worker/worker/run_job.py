@@ -138,7 +138,7 @@ def make_theme(job, theme, code):
     take_path = SCENE_ROOM / f"{theme}.take"
     returncode, output, error = run_as_scene([sys.executable, str(WORKER / "make_take.py"), str(source_path), str(take_path)], SCENE_ROOM, f"make-{theme}", job["stepLimitSeconds"])
     if returncode != 0:
-        return None, [describe_failure(error, code, head_lines)]
+        return None, [f"the scene ended with {returncode}: {describe_failure(error, code, head_lines)}"]
     made = json.loads(output.strip().splitlines()[-1])
     problems = get_timing_problems(job, made)
     if problems:
