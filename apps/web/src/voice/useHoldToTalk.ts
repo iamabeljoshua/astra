@@ -35,7 +35,6 @@ interface HoldToTalkOptions {
   isEnabled: boolean;
 }
 
-// Connects the physical keys and pointer to the press rule, and anything that could hide a release counts as losing the finger.
 export function useHoldToTalk({ heldMic, isTalkOn, toggleTalk, isEnabled }: HoldToTalkOptions): HoldToTalk {
   const latest = useRef({ heldMic, toggleTalk });
   const holdRef = useRef<MicHold | null>(null);

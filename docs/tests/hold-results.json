@@ -5996,5 +5996,845 @@
     "liveSenders": 1
    }
   ]
+ },
+"onTheSharedBoard": {
+ "loadAverage": "about 25 on the quiet measure, 18 to 25 on the noise measure",
+ "quietMeasure": {
+  "noise": 0,
+  "releaseAfterLastSoundMs": 120,
+  "summary": {
+   "hold": {
+    "lastSoundToFinalMs": {
+     "n": 6,
+     "p50": 941,
+     "p95": 1080,
+     "worst": 1080
+    },
+    "lastSoundToReplyDecidedMs": {
+     "n": 6,
+     "p50": 970,
+     "p95": 1101,
+     "worst": 1101
+    },
+    "lastSoundToFirstWordMs": {
+     "n": 6,
+     "p50": 1374,
+     "p95": 1434,
+     "worst": 1434
+    },
+    "lastSoundToReactionMs": {
+     "n": 6,
+     "p50": 607,
+     "p95": 729,
+     "worst": 729
+    },
+    "pressToEarsMs": {
+     "n": 6,
+     "p50": 770,
+     "p95": 997,
+     "worst": 997
+    },
+    "releaseToFinalMs": {
+     "n": 6,
+     "p50": 848,
+     "p95": 1015,
+     "worst": 1015
+    },
+    "releaseToReplyDecidedMs": {
+     "n": 6,
+     "p50": 872,
+     "p95": 1016,
+     "worst": 1016
+    },
+    "releaseToFirstWordMs": {
+     "n": 6,
+     "p50": 1260,
+     "p95": 1503,
+     "worst": 1503
+    },
+    "releaseToLineEndedMs": {
+     "n": 6,
+     "p50": 238,
+     "p95": 245,
+     "worst": 245
+    },
+    "releaseToDotMs": {
+     "n": 6,
+     "p50": 4,
+     "p95": 13,
+     "worst": 13
+    },
+    "releaseToReactionMs": {
+     "n": 6,
+     "p50": 505,
+     "p95": 562,
+     "worst": 562
+    }
+   },
+   "pressOnce": {
+    "lastSoundToFinalMs": {
+     "n": 7,
+     "p50": 1021,
+     "p95": 1144,
+     "worst": 1144
+    },
+    "lastSoundToReplyDecidedMs": {
+     "n": 7,
+     "p50": 2087,
+     "p95": 2341,
+     "worst": 2341
+    },
+    "lastSoundToFirstWordMs": {
+     "n": 7,
+     "p50": 2427,
+     "p95": 2640,
+     "worst": 2640
+    },
+    "lastSoundToReactionMs": {
+     "n": 7,
+     "p50": 1180,
+     "p95": 1355,
+     "worst": 1355
+    },
+    "pressToEarsMs": {
+     "n": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null
+    }
+   }
+  },
+  "noCatchUp": false,
+  "catchUpsTurnedOff": 0,
+  "lostWords": {
+   "hold": 2,
+   "pressOnce": 0,
+   "coldHold": []
+  },
+  "words": {
+   "hold": {
+    "said": 39,
+    "errors": 2
+   },
+   "pressOnce": {
+    "said": 45,
+    "errors": 0
+   }
+  },
+  "coldHold": {
+   "clip": "quadratic-roots",
+   "lostWords": [],
+   "wordsSaid": 6,
+   "wordErrors": 0,
+   "heard": "The quadratic has two real roots",
+   "pressToEarsMs": 3492,
+   "lastSoundToFinalMs": 3529,
+   "lastSoundToReplyDecidedMs": 3571,
+   "lastSoundToFirstWordMs": 3840,
+   "lastSoundToReactionMs": 3045,
+   "releaseToFinalMs": 3425,
+   "releaseToReplyDecidedMs": 3467,
+   "releaseToFirstWordMs": 3736,
+   "releaseToLineEndedMs": 2687,
+   "releaseToDotMs": 9,
+   "releaseToReactionMs": 2942
+  },
+  "holds": [
+   {
+    "clip": "denominator-x",
+    "lostWords": [],
+    "wordsSaid": 8,
+    "wordErrors": 0,
+    "heard": "So the denominator is x squared plus one",
+    "pressToEarsMs": 747,
+    "lastSoundToFinalMs": 941,
+    "lastSoundToReplyDecidedMs": 976,
+    "lastSoundToFirstWordMs": 1434,
+    "lastSoundToReactionMs": 581,
+    "releaseToFinalMs": 865,
+    "releaseToReplyDecidedMs": 900,
+    "releaseToFirstWordMs": 1358,
+    "releaseToLineEndedMs": 241,
+    "releaseToDotMs": 5,
+    "releaseToReactionMs": 505
+   },
+   {
+    "clip": "x-squared-over",
+    "lostWords": [
+     "two",
+     "eight"
+    ],
+    "wordsSaid": 6,
+    "wordErrors": 2,
+    "heard": "x squared over 2 equals 8",
+    "pressToEarsMs": 770,
+    "lastSoundToFinalMs": 1080,
+    "lastSoundToReplyDecidedMs": 1101,
+    "lastSoundToFirstWordMs": 1374,
+    "lastSoundToReactionMs": 729,
+    "releaseToFinalMs": 823,
+    "releaseToReplyDecidedMs": 844,
+    "releaseToFirstWordMs": 1118,
+    "releaseToLineEndedMs": 202,
+    "releaseToDotMs": 13,
+    "releaseToReactionMs": 473
+   },
+   {
+    "clip": "why-down",
+    "lostWords": [],
+    "wordsSaid": 7,
+    "wordErrors": 0,
+    "heard": "wait then why does it come down",
+    "pressToEarsMs": 706,
+    "lastSoundToFinalMs": 799,
+    "lastSoundToReplyDecidedMs": 834,
+    "lastSoundToFirstWordMs": 1364,
+    "lastSoundToReactionMs": 521,
+    "releaseToFinalMs": 696,
+    "releaseToReplyDecidedMs": 730,
+    "releaseToFirstWordMs": 1260,
+    "releaseToLineEndedMs": 150,
+    "releaseToDotMs": 3,
+    "releaseToReactionMs": 417
+   },
+   {
+    "clip": "twice",
+    "lostWords": [],
+    "wordsSaid": 5,
+    "wordErrors": 0,
+    "heard": "It lands twice as far.",
+    "pressToEarsMs": 742,
+    "lastSoundToFinalMs": 895,
+    "lastSoundToReplyDecidedMs": 941,
+    "lastSoundToFirstWordMs": 1204,
+    "lastSoundToReactionMs": 607,
+    "releaseToFinalMs": 793,
+    "releaseToReplyDecidedMs": 839,
+    "releaseToFirstWordMs": 1102,
+    "releaseToLineEndedMs": 235,
+    "releaseToDotMs": 4,
+    "releaseToReactionMs": 505
+   },
+   {
+    "clip": "numerator",
+    "lostWords": [],
+    "wordsSaid": 7,
+    "wordErrors": 0,
+    "heard": "Is the numerator bigger than the denominator?",
+    "pressToEarsMs": 997,
+    "lastSoundToFinalMs": 939,
+    "lastSoundToReplyDecidedMs": 941,
+    "lastSoundToFirstWordMs": 1427,
+    "lastSoundToReactionMs": 456,
+    "releaseToFinalMs": 1015,
+    "releaseToReplyDecidedMs": 1016,
+    "releaseToFirstWordMs": 1503,
+    "releaseToLineEndedMs": 245,
+    "releaseToDotMs": 1,
+    "releaseToReactionMs": 532
+   },
+   {
+    "clip": "parabola",
+    "lostWords": [],
+    "wordsSaid": 6,
+    "wordErrors": 0,
+    "heard": "I think the parabola opens upward",
+    "pressToEarsMs": 807,
+    "lastSoundToFinalMs": 946,
+    "lastSoundToReplyDecidedMs": 970,
+    "lastSoundToFirstWordMs": 1262,
+    "lastSoundToReactionMs": 660,
+    "releaseToFinalMs": 848,
+    "releaseToReplyDecidedMs": 872,
+    "releaseToFirstWordMs": 1164,
+    "releaseToLineEndedMs": 238,
+    "releaseToDotMs": 4,
+    "releaseToReactionMs": 562
+   }
+  ],
+  "presses": [
+   {
+    "clip": "quadratic-roots",
+    "lostWords": [],
+    "wordsSaid": 6,
+    "wordErrors": 0,
+    "heard": "The quadratic has two real roots.",
+    "pressToEarsMs": null,
+    "lastSoundToFinalMs": 1021,
+    "lastSoundToReplyDecidedMs": 2082,
+    "lastSoundToFirstWordMs": 2396,
+    "lastSoundToReactionMs": 1165
+   },
+   {
+    "clip": "denominator-x",
+    "lostWords": [],
+    "wordsSaid": 8,
+    "wordErrors": 0,
+    "heard": "So the denominator is x squared plus one.",
+    "pressToEarsMs": null,
+    "lastSoundToFinalMs": 891,
+    "lastSoundToReplyDecidedMs": 1880,
+    "lastSoundToFirstWordMs": 2191,
+    "lastSoundToReactionMs": 1127
+   },
+   {
+    "clip": "x-squared-over",
+    "lostWords": [],
+    "wordsSaid": 6,
+    "wordErrors": 0,
+    "heard": "x squared over two equals eight.",
+    "pressToEarsMs": null,
+    "lastSoundToFinalMs": 1144,
+    "lastSoundToReplyDecidedMs": 2232,
+    "lastSoundToFirstWordMs": 2580,
+    "lastSoundToReactionMs": 1242
+   },
+   {
+    "clip": "why-down",
+    "lostWords": [],
+    "wordsSaid": 7,
+    "wordErrors": 0,
+    "heard": "wait. Then why does it come down?",
+    "pressToEarsMs": null,
+    "lastSoundToFinalMs": 786,
+    "lastSoundToReplyDecidedMs": 1827,
+    "lastSoundToFirstWordMs": 2118,
+    "lastSoundToReactionMs": 1323
+   },
+   {
+    "clip": "twice",
+    "lostWords": [],
+    "wordsSaid": 5,
+    "wordErrors": 0,
+    "heard": "It lands twice as far.",
+    "pressToEarsMs": null,
+    "lastSoundToFinalMs": 1037,
+    "lastSoundToReplyDecidedMs": 2087,
+    "lastSoundToFirstWordMs": 2427,
+    "lastSoundToReactionMs": 1180
+   },
+   {
+    "clip": "numerator",
+    "lostWords": [],
+    "wordsSaid": 7,
+    "wordErrors": 0,
+    "heard": "Is the numerator bigger than the denominator?",
+    "pressToEarsMs": null,
+    "lastSoundToFinalMs": 916,
+    "lastSoundToReplyDecidedMs": 2341,
+    "lastSoundToFirstWordMs": 2640,
+    "lastSoundToReactionMs": 1173
+   },
+   {
+    "clip": "parabola",
+    "lostWords": [],
+    "wordsSaid": 6,
+    "wordErrors": 0,
+    "heard": "I think the parabola opens upward.",
+    "pressToEarsMs": null,
+    "lastSoundToFinalMs": 1117,
+    "lastSoundToReplyDecidedMs": 2165,
+    "lastSoundToFirstWordMs": 2496,
+    "lastSoundToReactionMs": 1355
+   }
+  ],
+  "closed": {
+   "isClosed": true,
+   "liveTracks": 0,
+   "liveSenders": 0,
+   "bytesMoved": 0,
+   "mic": "off",
+   "pressed": "false"
+  }
+ },
+ "noiseMeasure": {
+  "noise": 0.02,
+  "releaseAfterLastSoundMs": 120,
+  "summary": {
+   "hold": {
+    "lastSoundToFinalMs": {
+     "n": 3,
+     "p50": 1622,
+     "p95": 1839,
+     "worst": 1839
+    },
+    "lastSoundToReplyDecidedMs": {
+     "n": 3,
+     "p50": 1685,
+     "p95": 1900,
+     "worst": 1900
+    },
+    "lastSoundToFirstWordMs": {
+     "n": 3,
+     "p50": 2079,
+     "p95": 2424,
+     "worst": 2424
+    },
+    "lastSoundToReactionMs": {
+     "n": 3,
+     "p50": 1429,
+     "p95": 1587,
+     "worst": 1587
+    },
+    "pressToEarsMs": {
+     "n": 3,
+     "p50": 1263,
+     "p95": 1566,
+     "worst": 1566
+    },
+    "releaseToFinalMs": {
+     "n": 3,
+     "p50": 1550,
+     "p95": 1688,
+     "worst": 1688
+    },
+    "releaseToReplyDecidedMs": {
+     "n": 3,
+     "p50": 1614,
+     "p95": 1749,
+     "worst": 1749
+    },
+    "releaseToFirstWordMs": {
+     "n": 3,
+     "p50": 2007,
+     "p95": 2274,
+     "worst": 2274
+    },
+    "releaseToLineEndedMs": {
+     "n": 3,
+     "p50": 945,
+     "p95": 1054,
+     "worst": 1054
+    },
+    "releaseToDotMs": {
+     "n": 3,
+     "p50": 4,
+     "p95": 41,
+     "worst": 41
+    },
+    "releaseToReactionMs": {
+     "n": 3,
+     "p50": 1357,
+     "p95": 1436,
+     "worst": 1436
+    }
+   },
+   "pressOnce": {
+    "lastSoundToFinalMs": {
+     "n": 4,
+     "p50": 1328,
+     "p95": 4673,
+     "worst": 4673
+    },
+    "lastSoundToReplyDecidedMs": {
+     "n": 4,
+     "p50": 2335,
+     "p95": 2749,
+     "worst": 2749
+    },
+    "lastSoundToFirstWordMs": {
+     "n": 4,
+     "p50": 3280,
+     "p95": 3720,
+     "worst": 3720
+    },
+    "lastSoundToReactionMs": {
+     "n": 4,
+     "p50": 2201,
+     "p95": 2865,
+     "worst": 2865
+    },
+    "pressToEarsMs": {
+     "n": 0,
+     "p50": null,
+     "p95": null,
+     "worst": null
+    }
+   }
+  },
+  "noCatchUp": false,
+  "catchUpsTurnedOff": 0,
+  "lostWords": {
+   "hold": 0,
+   "pressOnce": 0,
+   "coldHold": []
+  },
+  "words": {
+   "hold": {
+    "said": 21,
+    "errors": 0
+   },
+   "pressOnce": {
+    "said": 27,
+    "errors": 0
+   }
+  },
+  "coldHold": {
+   "clip": "quadratic-roots",
+   "lostWords": [],
+   "wordsSaid": 6,
+   "wordErrors": 0,
+   "heard": "The quadratic has two real roots",
+   "pressToEarsMs": 3858,
+   "lastSoundToFinalMs": 4316,
+   "lastSoundToReplyDecidedMs": 4381,
+   "lastSoundToFirstWordMs": 4745,
+   "lastSoundToReactionMs": 4014,
+   "releaseToFinalMs": 4238,
+   "releaseToReplyDecidedMs": 4303,
+   "releaseToFirstWordMs": 4668,
+   "releaseToLineEndedMs": 3581,
+   "releaseToDotMs": 6,
+   "releaseToReactionMs": 3937
+  },
+  "holds": [
+   {
+    "clip": "denominator-x",
+    "lostWords": [],
+    "wordsSaid": 8,
+    "wordErrors": 0,
+    "heard": "So the denominator is x squared plus one",
+    "pressToEarsMs": 1566,
+    "lastSoundToFinalMs": 1839,
+    "lastSoundToReplyDecidedMs": 1900,
+    "lastSoundToFirstWordMs": 2424,
+    "lastSoundToReactionMs": 1587,
+    "releaseToFinalMs": 1688,
+    "releaseToReplyDecidedMs": 1749,
+    "releaseToFirstWordMs": 2274,
+    "releaseToLineEndedMs": 1054,
+    "releaseToDotMs": 41,
+    "releaseToReactionMs": 1436
+   },
+   {
+    "clip": "x-squared-over",
+    "lostWords": [],
+    "wordsSaid": 6,
+    "wordErrors": 0,
+    "heard": "x squared over two equals eight",
+    "pressToEarsMs": 1263,
+    "lastSoundToFinalMs": 1622,
+    "lastSoundToReplyDecidedMs": 1685,
+    "lastSoundToFirstWordMs": 2079,
+    "lastSoundToReactionMs": 1429,
+    "releaseToFinalMs": 1550,
+    "releaseToReplyDecidedMs": 1614,
+    "releaseToFirstWordMs": 2007,
+    "releaseToLineEndedMs": 945,
+    "releaseToDotMs": 4,
+    "releaseToReactionMs": 1357
+   },
+   {
+    "clip": "why-down",
+    "lostWords": [],
+    "wordsSaid": 7,
+    "wordErrors": 0,
+    "heard": "Wait. Then why does it come down?",
+    "pressToEarsMs": 1038,
+    "lastSoundToFinalMs": 1407,
+    "lastSoundToReplyDecidedMs": 1470,
+    "lastSoundToFirstWordMs": 2064,
+    "lastSoundToReactionMs": 1185,
+    "releaseToFinalMs": 1329,
+    "releaseToReplyDecidedMs": 1391,
+    "releaseToFirstWordMs": 1985,
+    "releaseToLineEndedMs": 715,
+    "releaseToDotMs": 4,
+    "releaseToReactionMs": 1106
+   }
+  ],
+  "presses": [
+   {
+    "clip": "quadratic-roots",
+    "lostWords": [],
+    "wordsSaid": 6,
+    "wordErrors": 0,
+    "heard": "The quadratic has two real roots.",
+    "pressToEarsMs": null,
+    "lastSoundToFinalMs": 4673,
+    "lastSoundToReplyDecidedMs": 2749,
+    "lastSoundToFirstWordMs": 3280,
+    "lastSoundToReactionMs": 2201
+   },
+   {
+    "clip": "denominator-x",
+    "lostWords": [],
+    "wordsSaid": 8,
+    "wordErrors": 0,
+    "heard": "So the denominator is x squared plus one.",
+    "pressToEarsMs": null,
+    "lastSoundToFinalMs": 1245,
+    "lastSoundToReplyDecidedMs": 2306,
+    "lastSoundToFirstWordMs": 2849,
+    "lastSoundToReactionMs": 1674
+   },
+   {
+    "clip": "x-squared-over",
+    "lostWords": [],
+    "wordsSaid": 6,
+    "wordErrors": 0,
+    "heard": "x squared over two equals eight",
+    "pressToEarsMs": null,
+    "lastSoundToFinalMs": 1262,
+    "lastSoundToReplyDecidedMs": 2302,
+    "lastSoundToFirstWordMs": 2846,
+    "lastSoundToReactionMs": 1605
+   },
+   {
+    "clip": "why-down",
+    "lostWords": [],
+    "wordsSaid": 7,
+    "wordErrors": 0,
+    "heard": "Wait, then why does it come down?",
+    "pressToEarsMs": null,
+    "lastSoundToFinalMs": 1328,
+    "lastSoundToReplyDecidedMs": 2335,
+    "lastSoundToFirstWordMs": 3720,
+    "lastSoundToReactionMs": 2865
+   }
+  ],
+  "closed": {
+   "isClosed": true,
+   "liveTracks": 0,
+   "liveSenders": 0,
+   "bytesMoved": 0,
+   "mic": "off",
+   "pressed": "false"
+  }
+ },
+ "land": {
+  "talkButtonsShown": 1,
+  "spaceHolds": [
+   {
+    "heard": "do I factor the quadratic first",
+    "replied": true,
+    "focus": "BODY",
+    "closed": {
+     "isClosed": true,
+     "liveTracks": 0,
+     "liveSenders": 0,
+     "bytesMoved": 0,
+     "mic": "off",
+     "pressed": "false"
+    }
+   },
+   {
+    "heard": "Can you go back to the slope",
+    "replied": true,
+    "focus": "BODY",
+    "closed": {
+     "isClosed": true,
+     "liveTracks": 0,
+     "liveSenders": 0,
+     "bytesMoved": 0,
+     "mic": "off",
+     "pressed": "false"
+    }
+   }
+  ],
+  "talkHold": {
+   "heard": "Gravity",
+   "replied": true,
+   "focus": "BUTTON",
+   "closed": {
+    "isClosed": true,
+    "liveTracks": 0,
+    "liveSenders": 0,
+    "bytesMoved": 0,
+    "mic": "off",
+    "pressed": "false"
+   }
+  },
+  "pressOnce": {
+   "open": {
+    "isOpen": true,
+    "liveTracks": 1,
+    "bytesMoved": 105,
+    "pressed": "true"
+   },
+   "replied": true,
+   "stayedOn": "on",
+   "closed": {
+    "isClosed": true,
+    "liveTracks": 0,
+    "liveSenders": 0,
+    "bytesMoved": 0,
+    "mic": "off",
+    "pressed": "false"
+   }
+  },
+  "overTutor": {
+   "stops": [
+    "no words"
+   ],
+   "stopAfterPressMs": 682,
+   "replied": [
+    "Show me the ball. Wait, then what does it come down?"
+   ],
+   "closed": {
+    "isClosed": true,
+    "liveTracks": 0,
+    "liveSenders": 0,
+    "bytesMoved": 0,
+    "mic": "off",
+    "pressed": "false"
+   }
+  },
+  "boardLine": {
+   "value": "x y  ",
+   "asksAdded": 0,
+   "mic": "off"
+  },
+  "mathKeys": {
+   "value": "x",
+   "asksAdded": 0,
+   "mic": "off"
+  },
+  "tabsToTalk": 8,
+  "enter": {
+   "on": {
+    "isOpen": true,
+    "liveTracks": 1,
+    "bytesMoved": 66,
+    "pressed": "true"
+   },
+   "off": {
+    "isClosed": true,
+    "liveTracks": 0,
+    "liveSenders": 0,
+    "bytesMoved": 0,
+    "mic": "off",
+    "pressed": "false"
+   }
+  },
+  "screenReaderClick": {
+   "on": {
+    "isOpen": true,
+    "liveTracks": 1,
+    "bytesMoved": 108,
+    "pressed": "true"
+   },
+   "off": {
+    "isClosed": true,
+    "liveTracks": 0,
+    "liveSenders": 0,
+    "bytesMoved": 0,
+    "mic": "off",
+    "pressed": "false"
+   }
+  },
+  "talkForAssistiveTech": {
+   "tag": "BUTTON",
+   "words": "Talk",
+   "pressed": "false",
+   "keyShortcuts": "Space",
+   "title": "Press once to talk, or hold to talk only while you hold. Space works too.",
+   "tabIndex": 0
+  }
+ },
+ "replyBoxWithNoRoom": {
+  "value": "a b ",
+  "microphoneAsks": 0
+ },
+ "phone": {
+  "talkBox": {
+   "x": 70,
+   "y": 800.375,
+   "width": 59.25,
+   "height": 35.25
+  },
+  "viewport": {
+   "width": 390,
+   "height": 844
+  },
+  "open": {
+   "isOpen": true,
+   "liveTracks": 1,
+   "bytesMoved": 123,
+   "pressed": "true"
+  },
+  "heard": "Do I factor the quadratic first",
+  "replied": true,
+  "closed": {
+   "isClosed": true,
+   "liveTracks": 0,
+   "liveSenders": 0,
+   "bytesMoved": 0,
+   "mic": "off",
+   "pressed": "false"
+  },
+  "tapOpen": {
+   "isOpen": true,
+   "liveTracks": 1,
+   "bytesMoved": 84,
+   "pressed": "true"
+  },
+  "tapClosed": {
+   "isClosed": true,
+   "liveTracks": 0,
+   "liveSenders": 0,
+   "bytesMoved": 0,
+   "mic": "off",
+   "pressed": "false"
+  },
+  "selectedText": "",
+  "menusAllowed": 0,
+  "menusStopped": 0,
+  "style": {
+   "touchAction": "none",
+   "userSelect": "none"
+  }
+ },
+ "steadyNoise": {
+  "afterQuiet": 0,
+  "afterSpeech": 0,
+  "secondsToPrompt": 5.238,
+  "mic": "on",
+  "afterDismiss": 0,
+  "afterSecondNoise": 0,
+  "closed": {
+   "isClosed": true,
+   "liveTracks": 0,
+   "liveSenders": 0,
+   "bytesMoved": 0,
+   "mic": "off",
+   "pressed": "false"
+  }
+ },
+ "invitation": {
+  "firstSessionTurns": [
+   "greeting",
+   "reply",
+   "talkInvitation"
+  ],
+  "gapAfterAnswerMs": 1522,
+  "invitationPlayedMs": 1914,
+  "promptShownOnce": true,
+  "promptAfterInvitationMs": 8033,
+  "promptWhileTheTutorTalks": false,
+  "recordedStatuses": [
+   204
+  ],
+  "secondAnswer": [
+   "reaction",
+   "reply"
+  ],
+  "afterReload": [
+   "reaction",
+   "reply"
+  ],
+  "closed": {
+   "isClosed": true,
+   "liveTracks": 0,
+   "liveSenders": 0,
+   "bytesMoved": 0,
+   "mic": "off",
+   "pressed": "false"
+  },
+  "secondSessionTurns": [
+   "greeting",
+   "reply"
+  ]
  }
+}
 }

@@ -41,7 +41,6 @@ function onReleased(state: PressState & { kind: 'pressing' | 'holding' }): Press
   return { state: FREE, commands: state.source === 'space' ? ['closeMic', 'cancelTimers'] : ['cancelTimers'] };
 }
 
-// One finger owns the microphone at a time, and any way a finger stops being known closes it.
 export function getNextPress(state: PressState, event: PressEvent): PressStep {
   if (state.kind === 'free') return event.type === 'pressed' ? onPressedWhileFree(event) : STAY(state);
   switch (event.type) {

@@ -11,7 +11,7 @@ import type { HeldMic } from '../voice/useLiveVoice';
 function makeBoardVoice() {
   const nowMs = 2000;
   const player = createScenePlayer({ clock: createTimerClock({ getNowMs: () => nowMs }), clockId: 'test', send: () => {}, setOutputLevel: () => {} });
-  const voice = {
+  return {
     getBoardNow: () => ({ board: player.getBoard(nowMs), atMs: nowMs }),
     getView: () => ({ tutorHeard: [], tutorComing: [], isTutorSpeaking: false, isThinking: false, isHeard: false, closedBecause: null }),
     getLoudness: () => 0,
@@ -21,7 +21,6 @@ function makeBoardVoice() {
     stopTutor: () => {},
     sendWork: () => {},
   } as unknown as LiveVoice;
-  return voice;
 }
 
 function makeHeldMic() {

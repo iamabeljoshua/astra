@@ -489,6 +489,46 @@ The noise prompt came 5.5 s into steady noise and after a run of cuts, with the 
 
 **Found here.** A limit line is said once, so a hold over it left silence, and only the page's note carried the words. A closed tutor now resumes the line a hold cut. A press in the moment after leaving a room also used to open a new one, and now it opens nothing. `live-session.test.ts` and `LiveVoice.test.tsx` fail without each fix.
 
+### On the shared board
+
+Once the tutor is live, the reply box closes and the board's own **Talk** is the one a student sees, so that button now holds as well. All of this ran on real Chromium, the real room, and real Muse, with a fake microphone track, the fake voice, and the stand-in tutor. `hold-results.json` holds these under `onTheSharedBoard`.
+
+| Case | Result |
+| --- | --- |
+| Hold Space twice, speak, and let go | Both lines heard and answered. Focus stayed on the page, so the second hold also talked. 0 live tracks and 0 bytes moved after each |
+| Hold the board's **Talk** | Heard and answered. Closed after |
+| Press **Talk** once | On, and still on through the reply. Off on the next press |
+| Hold Space over a speaking tutor | The stop was decided 682 and 692 ms after the press on two runs. One reply held both lines |
+| Space in the board line | Spaces typed, and the microphone was never asked for |
+| Space in the math keys | The microphone was never asked for |
+| Space in the reply box, with no room open | A space typed, and the microphone was never asked for |
+| Enter on **Talk**, and a click with no pointer press | On, then off |
+| **Talk** for a keyboard or a screen reader | A button named Talk, with `aria-pressed` and `aria-keyshortcuts`, 8 tabs from the top of the page |
+| Steady noise | The prompt came after 5.2 s with the microphone left on and nothing switched. 0 prompts from quiet, from speech, or from a second noise after **Dismiss** |
+| The invitation | In a first session, greeting, reply, then the invitation 1522 ms after the answer. Not after later answers, not after a reload, and not in a second session |
+| Hold **Talk** at 390 by 844, with touch emulated | Heard and answered. A tap stayed on, and a second tap went off. 0 characters selected, with `touch-action` and `user-select` both `none` |
+
+First word from the last sound, in ms, p50 (p95). The load average was about 25 in quiet and 18 to 25 in noise.
+
+| Room | Lines, hold and press once | First word, hold | First word, press once | Reply decided, hold | Reply decided, press once | Final, hold | Final, press once |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Quiet | 6 and 7 | 1374 (1434) | 2427 (2640) | 970 (1101) | 2087 (2341) | 941 (1080) | 1021 (1144) |
+| Noise at 0.02 | 3 and 4 | 2079 (2424) | 3280 (3720) | 1685 (1900) | 2335 (2749) | 1622 (1839) | 1328 (4673) |
+
+The gap comes from the turn decision and not from the transcript. In quiet, the two finals are 80 ms apart, while press once decides its reply 1066 ms after its final and a hold decides 29 ms after. Press once waited 298 to 760 ms after the final in the earlier runs, so this machine's load has probably widened the gap, and that is an inference. These are few lines, so read them as the same direction as before, not as a new size.
+
+Word errors were 0 of 21 and 0 of 27 in noise. In quiet, a hold had 2 of 39 and press once 0 of 45, and both of the hold's errors are digits for number words.
+
+**Found here.** Each of these failed a test before its fix.
+
+- The board line took any printable key as a cue to take focus, so the first press of Space moved focus there and every later press typed. It now leaves a key alone once the hold has claimed it.
+- A task taking focus during a hold let the key's repeats type into the line. Space now stays with the hold until it ends.
+- The board's **Talk** toggled on a press and could not be held. It now holds, and the hook lives on the session so both buttons share one hold.
+- Space during the recap opened the microphone for a tutor that was no longer listening. It now opens nothing once the student presses End.
+- The merge brought back a greeting under a hold. `live-session.test.ts` caught it.
+
+**Not proven.** No real phone, no real microphone, and no real screen reader ran this. Headless touch emulation fired no `contextmenu` on a long press, so only `SpaceOnTheBoard.test.tsx` shows that the menu is stopped. While a writing task is open, focus sits in the board line, so Space types there and a student talks by holding **Talk**. A click with no press is ignored for 500 ms after any pointer lets go anywhere on the page. A proof that clicked Math keys and pressed Enter on **Talk** straight after got nothing, and the same step passed with a 600 ms wait, so that cause is an inference.
+
 ### How to try it
 
 Open a session and hold Space or **Talk**, speak, and let go. Do it again with music playing nearby, once with a hold and once with **Talk** pressed once, and listen for the tutor being cut. To hear the invitation, run `pnpm db:seed`, sign in as `tola@astra.test`, and wait through the first answer with nothing pressed.

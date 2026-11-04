@@ -778,6 +778,7 @@ const SCENARIOS: Record<string, (stack: VoiceStack) => Promise<unknown>> = {
         if (await talk.evaluate((button) => button === document.activeElement)) break;
       }
       results.tabsToTalk = tabsToTalk + 1;
+      await delay(600);
       await talk.focus();
       await page.keyboard.press('Enter');
       await waitForMicUp(student);

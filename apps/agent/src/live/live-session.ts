@@ -306,7 +306,6 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     if (turnId) messenger.sendOnBothChannels({ type: 'yield', turnId, isYielding });
   };
 
-  // Fires the rule's wordless-stop timer now, skipping its wait.
   const cutForHold = () => dispatch({ type: 'timer', name: 'wordlessStop' });
 
   const onSpeechStarted = (speaking: Speaking) => {
@@ -482,7 +481,6 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     reply = speak({ voiceToUse: voice, beats: afterTypingStops(readThought(waiting), boardWork.waitWhileTyping), isReply: true, canResume: true, kind: 'reply', continuesHeardReply });
   }
 
-  // Says one line, once, to a student who has not pressed Talk, and a cut counts as said.
   function inviteToTalk(): void {
     if (talkInvitation !== 'wanted' || isTutorTalking() || thought || !audioRunning || state.isVoiceOn || holdGate.isHolding() || tutor.getClosedReason?.()) return;
     talkInvitation = 'settled';
@@ -716,14 +714,12 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     dispatchAll(holdGate.onHoldStarted());
   };
 
-  // A hold from before the room was ready left the greeting unsaid (PRD S2).
   const sayGreetingIfOwed = () => {
     if (hasGreeted || reaction || holdGate.isHolding()) return;
     hasGreeted = true;
     reaction = speakTake(['greeting'], { isReply: false });
   };
 
-  // The turn rule ignores words decided during a drop, so they wait for the link.
   const onLineFlushed = () => {
     clearTimeout(flushGiveUp);
     const decided = holdGate.onLineFlushed();
@@ -818,7 +814,6 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       if (message.type === 'holdStarted') onHoldStarted(message.clockId);
       if (message.type === 'lineEnded') onLineEnded();
       if (message.type === 'talkPressed') talkInvitation = 'settled';
-      if (message.type === 'hello' && message.wantsGreeting) greet();
       if (message.type === 'audioState') onAudioState(message.isRunning);
     },
     getLog: () => log.getEvents(),
