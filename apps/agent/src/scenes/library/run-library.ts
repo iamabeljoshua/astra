@@ -21,7 +21,7 @@ const { values: args } = parseArgs({
     only: { type: 'string' },
     lanes: { type: 'string', default: '4' },
     containers: { type: 'string', default: '2' },
-    limit: { type: 'string', default: '28' },
+    limit: { type: 'string', default: '35' },
     'most-tries': { type: 'string', default: '4' },
   },
 });
