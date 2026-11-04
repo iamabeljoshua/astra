@@ -1853,7 +1853,7 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 **Build.**
 
 - [ ] Write the teaching rules as a versioned prompt.
-- [ ] Add tools the model calls when needed, namely `compute`, `plot_values`, and `find_source`, with `read_board`, `get_learner_record`, and `note_evidence` following in later PRs.
+- [ ] Add tools the model calls when needed, namely `compute`, `plotValues`, and `findSource`, with `read_board`, `get_learner_record`, and `note_evidence` following in later PRs. They are written in the reply's own text, because declaring tools to the API costs about 400 ms on every turn.
 - [ ] Track failed attempts in code so the dead-end rule does not depend on the model's memory.
 - [ ] Decide what the tutor says when the 8 s timer ends.
 - [ ] Add evaluation cases for answer leaks, dead ends, turn length, silence, mode choice, wrong math, a student's clarification from Abel's Aristotle note, and no internal tag or spoken math mark reaching the voice. Add T6's gap from the speed test, where replies said "twelve" with no compute call.
@@ -1866,7 +1866,8 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 - [ ] After two failed attempts on one point, the tutor shows the next step on the board. A student never hears a third question in a row on the same point.
 - [ ] A question such as "How do black holes form?" gets short explanations with regular checks, because the tutor picks the right mode by itself.
 - [ ] When a student interrupts to ask for clarification, the tutor answers it, then goes back to the point without repeating itself.
-- [ ] Spoken turns stay under 20 seconds, and the tutor waits at least 8 seconds after a question without prompting.
+- [ ] Spoken turns are usually under 25 words and never more than 45, by Abel's word, and the tutor waits at least 8 seconds after a question without prompting.
+- [ ] A plain idea comes before its name, a light check of the fundamental comes before building on it, the tutor goes simpler on request or on confusion and then climbs back, and the same question sounds different by level.
 - [ ] All math and plotted values come from a calculation tool, and factual claims can show a source on request.
 - [ ] The tutor writes for the ear, with short sentences and math said the way a person says it.
 - [ ] An evaluation suite measures all of this, and every prompt change must pass it.

@@ -7,6 +7,7 @@ export const SPOKEN_LINES = {
   couldNotReply: [`I can't reach my notes right now. ${IF_WORRIED} Ask me again in a moment?`, `Something's slow on my side. ${IF_WORRIED} Could you ask that again?`, `I lost my connection for a moment. ${IF_WORRIED} Would you ask me again?`],
   lostThread: ['Sorry, I lost my thread for a second.', 'Hold on, I lost my place.', 'Sorry, let me pick that back up.'],
   checkingMath: ['Hold on, let me check that.'],
+  stuckHandBack: ["That one's hard, so let's slow right down. Tell me which bit feels most confusing."],
   mathDropped: ["Let's work this next bit out together. What would you try first?", "Let's do this next part together. What do you think comes next?"],
   refused: [
     `I can't go into that here, and you haven't done anything wrong by asking. ${IF_WORRIED} What would you like to do next?`,
@@ -17,6 +18,7 @@ export const SPOKEN_LINES = {
   refusedPlainAfterWords: ["I have to stop there on that one, and that's down to me, not you. What else are you working on?"],
   askedHowDeclined: ["Let's come at that a different way. Which part do you want to go through first?"],
   cutShort: ["That's a lot at once, so I'll stop there. What do you make of it so far?"],
+  noToolAnswer: [`I couldn't work that out just now. ${IF_WORRIED} Could you ask me that another way?`],
   notHeard: ["I didn't catch any words in that. Could you try again?"],
   safetyHelp: ['Please tell an adult you trust now, or call your local emergency number if you are in danger.'],
   sessionLimit: [`That's as far as I can go in this session. Please start a new session to carry on. ${IF_WORRIED}`],

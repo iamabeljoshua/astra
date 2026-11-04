@@ -104,8 +104,8 @@ describe('the brain in a live session', () => {
     session.onBrowser({ type: 'played', turnId, beatId: 't1-b0' as never, wordStartsMs: [0, 280], durationMs: 560, playedWords: 2, firedCueMs: [], ending: 'interrupted', frozen: [], ...STAMP });
     session.onBrowser(typed('wait'));
     await until(() => model.requests.length === 2);
-    const last = model.requests.at(-1)?.turns.at(-1);
-    expect(last && 'text' in last ? (JSON.parse(last.text) as { cut: { heard: string } }).cut.heard : null).toBe('Okay, one');
+    const notes = getSystemNotes(model.requests.at(-1)).map((note) => JSON.parse(note) as { cut?: { heard: string } });
+    expect(notes.find((note) => note.cut)?.cut?.heard).toBe('Okay, one');
     await session.close();
   });
 });

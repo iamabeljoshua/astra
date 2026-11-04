@@ -22,6 +22,8 @@
     "eval:switch": "node src/tutor/eval/run-groups.ts --file switch --spend .eval-spend/switch.jsonl",
     "eval:ink": "node src/tutor/eval/run-ink-table.ts",
     "eval:spoken": "node src/tutor/eval/run-spoken-table.ts",
+    "eval:lessons": "node src/tutor/eval/run-lessons.ts",
+    "eval:first-text": "node src/tutor/eval/first-text-ab.ts",
     "lesson": "node src/scenes/lesson/lesson-service.ts"
   },
   "dependencies": {
