@@ -78,6 +78,8 @@ interface BoardDraft {
   isFrozen: boolean;
   pendingMoves: Map<ElementId, PendingMove>;
   refusedSliders: Slider[];
+  /** The board was cleared with this scene on it, so it stays in the corner and only a click brings it back. */
+  isSceneBehind: boolean;
 }
 
 function holdAll(board: BoardDraft, atMs: number): void {
@@ -199,6 +201,7 @@ const isSameCommand = (first: BoardElement['content'], second: PlacingCommand) =
 
 function place(board: BoardDraft, command: PlacingCommand, { atMs, overMs, catalog }: { atMs: number; overMs: number | null; catalog: SceneCatalog }): void {
   const scene = catalog(command, {});
+  if (command.kind === 'richScene') board.isSceneBehind = false;
   if (command.kind === 'task') closeOpenTasks(board.elements);
   if (BRINGS_THE_BOARD.has(command.kind) && board.stage?.mode !== 'handsOn') board.stage = { mode: 'handsOn', sinceMs: atMs };
   board.pendingMoves.delete(command.id);
@@ -276,12 +279,19 @@ function getLiveSliders(board: BoardDraft): Slider[] {
 
 function applyCommand(board: BoardDraft, command: SceneCommand, { atMs, overMs, catalog }: { atMs: number; overMs: number | null; catalog: SceneCatalog }): void {
   switch (command.kind) {
-    case 'clearBoard':
+    case 'clearBoard': {
+      const scene = [...board.elements.values()].filter(({ content }) => content.kind === 'richScene').at(-1);
       board.elements.clear();
       board.pendingMoves.clear();
       board.focus = null;
       board.refusedSliders = [];
+      if (scene) {
+        board.elements.set(scene.id, scene);
+        board.isSceneBehind = true;
+        if (board.stage?.mode !== 'handsOn') board.stage = { mode: 'handsOn', sinceMs: atMs };
+      }
       return;
+    }
     case 'hide':
       removeWithAttached(board, command.target);
       return;
@@ -289,7 +299,7 @@ function applyCommand(board: BoardDraft, command: SceneCommand, { atMs, overMs, 
       board.focus = command.target;
       return;
     case 'boardMode':
-      if (board.stage?.mode !== command.mode) board.stage = { mode: command.mode, sinceMs: atMs };
+      if (board.stage?.mode !== command.mode && !(command.mode === 'teach' && board.isSceneBehind)) board.stage = { mode: command.mode, sinceMs: atMs };
       if (command.mode === 'teach') closeOpenTasks(board.elements);
       return;
     case 'transformMath': {
@@ -403,7 +413,7 @@ function isReplacedByNext(operation: BoardOperation, next: BoardOperation | unde
 }
 
 function reduce(operations: readonly BoardOperation[], context: ReduceContext, atMs: number): BoardDraft {
-  const board: BoardDraft = { elements: new Map(), focus: null, stage: null, isFrozen: false, pendingMoves: new Map(), refusedSliders: [] };
+  const board: BoardDraft = { isSceneBehind: false, elements: new Map(), focus: null, stage: null, isFrozen: false, pendingMoves: new Map(), refusedSliders: [] };
   for (const [index, operation] of operations.entries()) {
     if (operation.atMs > atMs) break;
     if (!isReplacedByNext(operation, operations[index + 1], atMs)) applyOperation(board, operation, context);

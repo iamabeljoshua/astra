@@ -126,3 +126,34 @@ describe('a stored take through the player', () => {
     expect((getSceneFrame(replay as NonNullable<typeof replay>, stoppedAtMs + 2000) as TakeFrame).takeSeconds).toBeCloseTo(liveSeconds, 3);
   });
 });
+
+describe('clearing the board with a scene on it', () => {
+  const command = (atMs: number, sceneCommand: SceneCommand): BoardOperation => ({ kind: 'command', atMs, command: sceneCommand, overMs: null });
+  const CLEAR = { kind: 'clearBoard' } as SceneCommand;
+  const TEACH = { kind: 'boardMode', mode: 'teach' } as SceneCommand;
+  const NOTE = { kind: 'text', id: elementId('note'), text: 'n' } as SceneCommand;
+
+  it('sends the working away and keeps the scene, in the corner', () => {
+    const board = getBoardAt([place(0), command(100, NOTE), command(200, CLEAR)], 300);
+    expect([...board.elements.keys()]).toEqual([elementId('slope')]);
+    expect(board.stage).toEqual({ mode: 'handsOn', sinceMs: 200 });
+  });
+
+  it('never brings that scene back big, because the tutor may have moved to another topic', () => {
+    const board = getBoardAt([place(0), command(200, CLEAR), command(300, TEACH)], 400);
+    expect(board.stage?.mode).toBe('handsOn');
+  });
+
+  it('lets a new scene come big, and rebuilds the same from the log', () => {
+    const NEXT = { ...SCENE, id: elementId('next'), sceneId: 'next-1a2b' } as SceneCommand;
+    const board = getBoardAt([place(0), command(200, CLEAR), command(300, NEXT), command(300, TEACH)], 400);
+    expect(board.stage).toEqual({ mode: 'teach', sinceMs: 300 });
+    expect(getBoardAt([place(0), command(200, CLEAR), command(300, NEXT), command(300, TEACH)], 400).stage).toEqual(board.stage);
+  });
+
+  it('clears as before with no scene', () => {
+    const board = getBoardAt([command(100, NOTE), command(200, CLEAR), command(300, TEACH)], 400);
+    expect(board.elements.size).toBe(0);
+    expect(board.stage?.mode).toBe('teach');
+  });
+});

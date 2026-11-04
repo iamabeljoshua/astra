@@ -59,7 +59,7 @@ export function getTutorSceneBeats({ plan, scene, number }: { plan: LessonPlan; 
   const beats = getSceneBeats({ setup: plan.setup, narration: plan.narration, scene: sceneCommand }).map((beat) => ({ ...beat, id: `n${number}-${beat.id}` as Beat['id'] }));
   const [first, ...rest] = beats.map((beat) => ({ ...beat, script: beat.script.filter((part) => typeof part === 'string' || part.kind !== 'richScene') }));
   if (!first) return [];
-  const opening: TutorBeat = { ...first, script: [{ kind: 'boardMode', mode: 'teach' }, sceneCommand, ...first.script] };
+  const opening: TutorBeat = { ...first, script: [sceneCommand, { kind: 'boardMode', mode: 'teach' }, ...first.script] };
   const close: TutorBeat = { id: `n${number}-close` as Beat['id'], script: [plan.close], expectsReply: true };
   return [opening, ...[...rest, close].map((beat) => ({ ...beat, pauseBeforeMs: BREATH_MS }))];
 }

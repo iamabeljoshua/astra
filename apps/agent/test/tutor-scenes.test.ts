@@ -63,7 +63,7 @@ describe('asking for a scene', () => {
     expect(spoken).toHaveLength(1);
     expect(shown).toEqual([expect.objectContaining({ topic: TOPIC })]);
     const [firstBeat] = spoken[0] as [Beat];
-    expect(firstBeat.script.slice(0, 2)).toEqual([{ kind: 'boardMode', mode: 'teach' }, expect.objectContaining({ kind: 'richScene', sceneId: SCENE.id })]);
+    expect(firstBeat.script.slice(0, 2)).toEqual([expect.objectContaining({ kind: 'richScene', sceneId: SCENE.id }), { kind: 'boardMode', mode: 'teach' }]);
     expect(getBeatText(firstBeat)).toBe('Watch the line tilt.');
   });
 
