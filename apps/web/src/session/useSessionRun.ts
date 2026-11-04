@@ -35,16 +35,20 @@ export function useSessionRun(session: Session) {
     };
   }, [readSeconds, saveLength]);
 
-  async function endSession() {
-    if (isEnding) return;
+  /** True once the session has finished. */
+  async function endSession(beforeFinishing: () => Promise<void>): Promise<boolean> {
+    if (isEnding) return true;
     setIsEnding(true);
     try {
+      await beforeFinishing();
       await finish.mutateAsync({ durationSeconds: readSeconds(), status: 'finished' });
       await refreshSessionViews(queryClient);
       await fadeInto('/', { replace: true, state: ARRIVING_FROM_ENDED_SESSION });
+      return true;
     } catch (thrown) {
       setIsEnding(false);
       rethrowUnlessApiError(thrown);
+      return false;
     }
   }
 

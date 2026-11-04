@@ -69,8 +69,13 @@ function getClient({ url, apiKey, apiSecret }: LiveRoomKeys): RoomServiceClient 
 
 const getNewest = (rooms: readonly Room[]) => rooms.reduce<Room | null>((newest, room) => (newest && newest.creationTime > room.creationTime ? newest : room), null);
 
+export interface OpenRoom {
+  name: string;
+  sid: string;
+}
+
 interface KnownRoom {
-  name: Promise<string>;
+  room: Promise<OpenRoom>;
   /** Until this time a room no student has joined is certainly open, so joining it costs no call to LiveKit. After it, the room is about to close by itself, so it is not joined at all. Zero once a student has it. */
   isSureUntilMs: number;
 }
@@ -96,32 +101,35 @@ export class LiveRooms {
   }
 
   // A restarted job remembers nothing, and the student would hear a tutor who has forgotten the lesson with no word why, so a crash stays a crash and the page says so.
-  private openNew(keys: LiveRoomKeys, sessionId: string, studentId: string, isSureUntilMs = 0): Promise<string> {
+  private openNew(keys: LiveRoomKeys, sessionId: string, studentId: string, isSureUntilMs = 0): Promise<OpenRoom> {
     this.roomsOpened.note(studentId);
     const roomName = `${getRoomPrefix(sessionId)}-${randomBytes(4).toString('hex')}`;
-    const name = getClient(keys)
+    const room = getClient(keys)
       .createRoom({ name: roomName, ...ROOM_SETTINGS, agents: [new RoomAgentDispatch({ agentName: keys.agentName, restartPolicy: JobRestartPolicy.JRP_NEVER })] })
-      .then(() => roomName);
-    name.catch(() => this.roomsOpened.takeBack(studentId));
-    this.remember(sessionId, { name, isSureUntilMs });
-    return name;
+      .then(({ sid }) => ({ name: roomName, sid }));
+    room.catch(() => this.roomsOpened.takeBack(studentId));
+    this.remember(sessionId, { room, isSureUntilMs });
+    return room;
   }
 
-  private async findOpenRoom(keys: LiveRoomKeys, sessionId: string): Promise<string | null> {
+  private async findOpenRoom(keys: LiveRoomKeys, sessionId: string): Promise<OpenRoom | null> {
     const known = this.knownRooms.get(sessionId);
     if (!known) {
-      const found = getNewest(await this.findRooms(keys, sessionId))?.name ?? null;
-      if (found) this.remember(sessionId, { name: Promise.resolve(found), isSureUntilMs: 0 });
-      return found;
+      const found = getNewest(await this.findRooms(keys, sessionId));
+      if (!found) return null;
+      const room = { name: found.name, sid: found.sid };
+      this.remember(sessionId, { room: Promise.resolve(room), isSureUntilMs: 0 });
+      return room;
     }
     this.remember(sessionId, known);
-    const name = await known.name.catch(() => null);
-    if (!name) return null;
+    const room = await known.room.catch(() => null);
+    if (!room) return null;
     const { isSureUntilMs } = known;
     known.isSureUntilMs = 0;
-    if (isSureUntilMs > 0) return Date.now() < isSureUntilMs ? name : null;
-    const [room] = await getClient(keys).listRooms([name]);
-    return room ? name : null;
+    if (isSureUntilMs > 0) return Date.now() < isSureUntilMs ? room : null;
+    const [listed] = await getClient(keys).listRooms([room.name]);
+    // A token that joins just after a delete makes LiveKit build an empty room of that name, with a new id and no tutor coming.
+    return listed?.sid === room.sid ? room : null;
   }
 
   /** A new session is about to talk, and a job takes about 2.3 s to start, so the tutor starts now. It hears nothing until the student joins, and the room closes itself if none does. */
@@ -135,7 +143,7 @@ export class LiveRooms {
   }
 
   /** Joins the room this session has open, so a rejoin or a reload finds its tutor, or opens one if it has none. */
-  async open(keys: LiveRoomKeys, sessionId: string, studentId: string): Promise<string> {
+  async open(keys: LiveRoomKeys, sessionId: string, studentId: string): Promise<OpenRoom> {
     const found = await this.findOpenRoom(keys, sessionId).catch(() => {
       throw new ServiceUnavailableException('Live voice could not open a room.');
     });
@@ -147,7 +155,7 @@ export class LiveRooms {
   }
 
   /** For a tutor that has gone. A second job beside a live one would talk over it, so the old room goes first. */
-  async startOver(keys: LiveRoomKeys, sessionId: string, studentId: string): Promise<string> {
+  async startOver(keys: LiveRoomKeys, sessionId: string, studentId: string): Promise<OpenRoom> {
     refuseIfAtLimit(studentId, this.startsOver, this.roomsOpened);
     this.startsOver.note(studentId);
     try {
@@ -169,8 +177,8 @@ export class LiveRooms {
   private async closeAll(keys: LiveRoomKeys, sessionId: string): Promise<void> {
     const known = this.knownRooms.get(sessionId);
     this.knownRooms.delete(sessionId);
-    const knownName = await known?.name.catch(() => null);
-    const names = knownName ? [knownName] : (await this.findRooms(keys, sessionId)).map((room) => room.name);
+    const knownRoom = await known?.room.catch(() => null);
+    const names = knownRoom ? [knownRoom.name] : (await this.findRooms(keys, sessionId)).map((room) => room.name);
     await Promise.all(
       names.map((name) =>
         getClient(keys)

@@ -26,6 +26,7 @@ function makeVoice() {
     },
     getBoardNow: () => ({ board: { elements: new Map(), focus: null }, atMs: 0 }),
     sendTyped: vi.fn(),
+    sendOpening: vi.fn(),
     reportMarkNotDrawn: vi.fn(),
     toggleMic: vi.fn(async () => {}),
     sayStillHere: vi.fn(),
@@ -102,6 +103,42 @@ describe('what the student sees of a room', () => {
     expect(startLiveVoice).toHaveBeenCalledTimes(2);
   });
 
+  it('never sends the opening line as the student\'s own words', async () => {
+    const first = makeVoice();
+    startLiveVoice.mockResolvedValueOnce(first.voice);
+    const session = makeSession();
+    window.history.replaceState(null, '', `/sessions/${session.id}`);
+    stubSessionsApi({ sessions: [session] });
+    render(<App />);
+    await waitFor(() => expect(first.voice.sendOpening).toHaveBeenCalled());
+    expect(first.voice.sendTyped).not.toHaveBeenCalled();
+    expect(screen.queryByText(VOICE_LABELS.you)).toBeNull();
+  });
+
+  it('leaves the room before it finishes the session, so nothing asks for a room again', async () => {
+    const { voice } = await openVoice();
+    const order: string[] = [];
+    voice.close.mockImplementation(async () => void order.push('left the room'));
+    const answer = vi.mocked(fetch).getMockImplementation() as typeof fetch;
+    vi.mocked(fetch).mockImplementation(async (input, init) => {
+      if (input instanceof Request && input.method === 'PATCH') order.push('finished');
+      return answer(input, init);
+    });
+    fireEvent.click(screen.getByRole('button', { name: SESSION_LABELS.endSession }));
+    await waitFor(() => expect(order).toEqual(['left the room', 'finished']));
+  });
+
+  it('opens the room again if the session could not finish', async () => {
+    const { voice } = await openVoice();
+    const second = makeVoice();
+    startLiveVoice.mockResolvedValueOnce(second.voice);
+    const answer = vi.mocked(fetch).getMockImplementation() as typeof fetch;
+    vi.mocked(fetch).mockImplementation(async (input, init) => (input instanceof Request && input.method === 'PATCH' ? new Response('{}', { status: 500 }) : answer(input, init)));
+    fireEvent.click(screen.getByRole('button', { name: SESSION_LABELS.endSession }));
+    await waitFor(() => expect(voice.close).toHaveBeenCalled());
+    await waitFor(() => expect(startLiveVoice).toHaveBeenCalledTimes(2));
+  });
+
   it('opens a new room when the student asks for one, and leaves the old one', async () => {
     const { voice, setView } = await openVoice();
     act(() => setView({ phase: 'tutorLost' }));
@@ -111,7 +148,7 @@ describe('what the student sees of a room', () => {
     await waitFor(() => expect(startLiveVoice).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(voice.close).toHaveBeenCalled());
     await waitFor(() => expect(getBox().readOnly).toBe(false));
-    await waitFor(() => expect(second.voice.sendTyped).toHaveBeenCalledWith(SESSION_LABELS.carryOnWith(makeSession().title)));
+    await waitFor(() => expect(second.voice.sendOpening).toHaveBeenCalledWith(SESSION_LABELS.carryOnWith(makeSession().title)));
   });
 
   it('says in one line that the tutor started fresh after the page landed in a new room', async () => {

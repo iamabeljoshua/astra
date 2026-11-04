@@ -33,6 +33,10 @@ export interface LiveVoiceControls {
   isTalkOn: boolean;
   connect(options?: { wantsGreeting: boolean; startsOver?: boolean }): Promise<LiveVoice | null>;
   sendTyped(text: string): Promise<boolean>;
+  /** Starts the tutor talking with words the student did not write. */
+  sendOpening(text: string): Promise<void>;
+  /** Leaves the room for good, so nothing asks for it again once the session finishes. */
+  leave(): Promise<void>;
   toggleTalk(): Promise<void>;
   /** Leaves a room the tutor has gone from, opens a new one with a new tutor, and starts it talking with this line. */
   openAgain(opening: string): Promise<void>;
@@ -111,6 +115,21 @@ export function useLiveVoice({ sessionId, usesSpeechCleanup = true, start = star
     [connect],
   );
 
+  const sendOpening = useCallback(
+    async (text: string) => {
+      const opened = await connect({ wantsGreeting: false });
+      if (opened && !opened.getView().closedBecause) opened.sendOpening(text);
+    },
+    [connect],
+  );
+
+  // The last view stays, so the screen holds still while the page fades away.
+  const leave = async () => {
+    const old = await opening.current;
+    opening.current = null;
+    await old?.close().catch(() => {});
+  };
+
   const isTalkOn = view ? view.mic === 'on' || view.mic === 'starting' : isTalkWaiting;
 
   return {
@@ -121,6 +140,8 @@ export function useLiveVoice({ sessionId, usesSpeechCleanup = true, start = star
     isTalkOn,
     connect,
     sendTyped,
+    sendOpening,
+    leave,
     // Every press counts, because a second press while the room opens means off. Only the sum of them reaches the microphone.
     async toggleTalk() {
       if (voice) return voice.toggleMic();
@@ -133,12 +154,10 @@ export function useLiveVoice({ sessionId, usesSpeechCleanup = true, start = star
       if (opened && presses % 2 === 1) await opened.toggleMic();
     },
     async openAgain(openingLine) {
-      const old = await opening.current;
-      opening.current = null;
       setVoice(null);
-      await old?.close();
+      await leave();
       const opened = await connect({ wantsGreeting: false, startsOver: true });
-      opened?.sendTyped(openingLine);
+      opened?.sendOpening(openingLine);
     },
   };
 }

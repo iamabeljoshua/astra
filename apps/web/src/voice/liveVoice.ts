@@ -76,6 +76,8 @@ export interface LiveVoice {
   subscribe(listener: () => void): () => void;
   getBoardNow(): { board: BoardState; atMs: number };
   sendTyped(text: string): void;
+  /** Starts the turn with words the student did not write, so they never appear as the student's. */
+  sendOpening(text: string): void;
   /** The board could not draw this mark, so the agent can tell the tutor the student did not see it. */
   reportMarkNotDrawn(markId: string): void;
   toggleMic(): Promise<void>;
@@ -136,6 +138,9 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
   let rejoinsSincePulse = 0;
   let hasSaidHello = false;
   let roomName: string | null = null;
+  let askedRoomSid = '';
+  /** A line the tutor has not said it heard. If its room closes first, the next tutor gets it, or the student would wait on a tutor who never saw it. */
+  let lineAwaitingTutor: string | null = null;
   let connectedAtEpochMs = getEpochMs();
 
   const setView = (changes: Partial<LiveVoiceView>) => {
@@ -215,7 +220,10 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     }
     if (message.type === 'quietWarning') return setView({ isQuietWarning: message.isOn });
     if (message.type === 'closingForQuiet') return leaveRoom('closedForQuiet');
-    if (message.type === 'heard') return showHeard();
+    if (message.type === 'heard') {
+      lineAwaitingTutor = null;
+      return showHeard();
+    }
     if (message.type === 'thinking') return setView({ isThinking: message.isThinking });
     if (message.type === 'studentWords') return addStudentWords(message);
     if (message.type === 'turnStarted' && message.turnId in records.turnStartedEpochMs) {
@@ -233,6 +241,12 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     }
     if (message.type === 'stop') records.stopEpochMs[message.turnId] ??= getEpochMs();
     player.receive(message);
+  };
+
+  const sendLine = (text: string) => {
+    showHeard();
+    lineAwaitingTutor = text;
+    send({ type: 'typed', ...getStamp(), text });
   };
 
   const onProbe = (note: ProbeNote) => {
@@ -303,9 +317,24 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     if (!access) return false;
     if (!hasLeftRoom) await room.connect(access.url, access.token);
     // Each room has its own job, and a new job holds nothing of what was said, so the student hears that here and not from a tutor who has forgotten. A tutor they never heard has forgotten nothing.
-    if (hasHeardTutor && roomName !== null && access.roomName !== roomName) setView({ startedFresh: true, isThinking: false });
+    const isNewRoom = roomName !== null && access.roomName !== roomName;
+    if (hasHeardTutor && isNewRoom) setView({ startedFresh: true, isThinking: false });
+    if (isNewRoom && lineAwaitingTutor !== null && !outbox.some((message) => message.type === 'typed')) outbox.push({ type: 'typed', ...getStamp(), text: lineAwaitingTutor });
     roomName = access.roomName;
+    askedRoomSid = access.roomSid;
     return true;
+  };
+
+  // A job's delete can land just after the API said its room was open. Joining then makes LiveKit build an empty room of that name, so this asks again rather than waiting on a tutor who is not coming.
+  const rejoinIfRoomWasRebuilt = () => {
+    const asked = askedRoomSid;
+    room
+      .getSid()
+      .then((sid) => {
+        const isRebuilt = sid !== '' && sid !== asked && asked === askedRoomSid && room.remoteParticipants.size === 0;
+        if (isRebuilt && rejoinsSincePulse < MOST_REJOINS_WITHOUT_TUTOR) void rejoin();
+      })
+      .catch(() => {});
   };
 
   const showReconnecting = () => {
@@ -370,6 +399,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
           if (published) await publishMic(published);
         }
         isRejoining = false;
+        rejoinIfRoomWasRebuilt();
         return;
       } catch {
         await room.disconnect(false).catch(() => {});
@@ -405,9 +435,8 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
   room.on(RoomEvent.Disconnected, (reason) => {
     if (isRejoining || hasLeftRoom) return;
     player.freeze();
-    // Before the tutor is heard, a closed room is a warm room timing out under a late press, and asking again finds out if the session has finished.
-    const isRoomGoneForGood = reason === DisconnectReason.ROOM_DELETED && hasHeardTutor;
-    const isFinal = isClosed || view.closedBecause !== null || reason === DisconnectReason.CLIENT_INITIATED || reason === DisconnectReason.DUPLICATE_IDENTITY || isRoomGoneForGood;
+    // A deleted room may be a warm room timing out or a job closing on a student coming back, so asking again finds out if the session has finished.
+    const isFinal = isClosed || view.closedBecause !== null || reason === DisconnectReason.CLIENT_INITIATED || reason === DisconnectReason.DUPLICATE_IDENTITY;
     if (isFinal) return leaveRoom('ended');
     showReconnecting();
     void rejoin();
@@ -422,6 +451,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     await audioContext.close();
     throw problem;
   }
+  rejoinIfRoomWasRebuilt();
   const ticker = setInterval(() => {
     player.tick();
     readCaption();
@@ -442,9 +472,11 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     },
     sendTyped(text) {
       const clipped = clipTypedText(text);
-      showHeard();
       addStudentWords({ text: clipped, isFinal: true });
-      send({ type: 'typed', ...getStamp(), text: clipped });
+      sendLine(clipped);
+    },
+    sendOpening(text) {
+      sendLine(clipTypedText(text));
     },
     reportMarkNotDrawn(markId) {
       send({ type: 'markNotDrawn', ...getStamp(), markId });

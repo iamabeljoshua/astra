@@ -11,7 +11,7 @@ const LIVE_ROOM_KEYS = { LIVEKIT_URL: 'wss://astra-test.livekit.cloud', LIVEKIT_
 const VALID_SESSION = { title: 'Free-body diagrams', subject: 'Physics', language: 'en' };
 
 function getAccess(answer: unknown) {
-  return (answer as { access: { url: string; token: string; roomName: string } }).access;
+  return (answer as { access: { url: string; token: string; roomName: string; roomSid: string } }).access;
 }
 
 interface RoomCall {
@@ -188,6 +188,18 @@ describe('the live room route', () => {
     expect(liveKit.calls).toHaveLength(callsBefore);
   });
 
+  it('calls a new tutor when LiveKit built the room again from a token, because no tutor is coming to that one', async () => {
+    const rooms = testApp.app.get(LiveRooms);
+    const keys = getLiveRoomKeys(process.env);
+    if (!keys) throw new Error('the keys are set in beforeAll');
+    const [sessionId, studentId] = [randomUUID(), randomUUID()];
+    const first = await rooms.open(keys, sessionId, studentId);
+    expect(first.sid).toMatch(/^RM_/);
+    expect(await rooms.open(keys, sessionId, studentId)).toEqual(first);
+    liveKit.rooms.set(first.name, { sid: 'RM_rebuilt', name: first.name });
+    expect((await rooms.open(keys, sessionId, studentId)).name).not.toBe(first.name);
+  });
+
   it('checks the room is still open after the first join, and calls a new tutor if it has gone', async () => {
     const sessionId = await startSession();
     const { body: first } = await post(`/sessions/${sessionId}/live-room`).expect(200);
@@ -340,11 +352,11 @@ describe('the live room route', () => {
     const keys = getLiveRoomKeys(process.env);
     if (!keys) throw new Error('the keys are set in beforeAll');
     const oldest = randomUUID();
-    const name = await rooms.open(keys, oldest, randomUUID());
+    const room = await rooms.open(keys, oldest, randomUUID());
     for (let session = 0; session < MOST_KNOWN_ROOMS; session += 1) rooms.warm(randomUUID(), randomUUID());
     await waitUntil(() => liveKit.named('CreateRoom').length > MOST_KNOWN_ROOMS);
     liveKit.calls.length = 0;
-    expect(await rooms.open(keys, oldest, randomUUID())).toBe(name);
+    expect(await rooms.open(keys, oldest, randomUUID())).toEqual(room);
     expect(liveKit.named('ListRooms')).toEqual([{ method: 'ListRooms', body: {} }]);
   });
 
@@ -360,7 +372,7 @@ describe('the live room route', () => {
     const sessionId = await startSession();
     const { body, text } = await post(`/sessions/${sessionId}/live-room`).expect(200);
     expect(body).toMatchObject({ unavailableBecause: null });
-    expect(Object.keys(getAccess(body)).sort()).toEqual(['roomName', 'token', 'url']);
+    expect(Object.keys(getAccess(body)).sort()).toEqual(['roomName', 'roomSid', 'token', 'url']);
     expect(text).not.toContain(LIVE_ROOM_KEYS.LIVEKIT_API_SECRET);
     expect(JSON.stringify(decodeJwt(getAccess(body).token))).not.toContain(LIVE_ROOM_KEYS.LIVEKIT_API_SECRET);
   });

@@ -55,7 +55,7 @@ export function getOpeningMessage({ title, subject, durationSeconds }: Pick<Sess
 }
 
 // React runs effects twice in development, and the room must open once, so this waits for the first run to settle.
-function useOpeningMessage(session: Session, sendTyped: (text: string) => Promise<boolean>) {
+function useOpeningMessage(session: Session, sendOpening: (text: string) => Promise<void>) {
   const [opening] = useState(() => getOpeningMessage(session));
   const hasSent = useRef(false);
 
@@ -63,10 +63,10 @@ function useOpeningMessage(session: Session, sendTyped: (text: string) => Promis
     const sending = setTimeout(() => {
       if (hasSent.current) return;
       hasSent.current = true;
-      void sendTyped(opening);
+      void sendOpening(opening);
     });
     return () => clearTimeout(sending);
-  }, [opening, sendTyped]);
+  }, [opening, sendOpening]);
 }
 
 function isTutorOnTheWay(status: LiveVoiceControls['status'], view: LiveVoiceView | null): boolean {
@@ -99,12 +99,17 @@ function RunningSession({ session }: { session: Session }) {
   const { seconds, endSession, isEnding, endProblem } = useSessionRun(session);
   const liveVoice = useLiveVoice({ sessionId: session.id });
   const { status, view, voice } = liveVoice;
-  useOpeningMessage(session, liveVoice.sendTyped);
+  useOpeningMessage(session, liveVoice.sendOpening);
+
+  // Finishing deletes the room, and a page still in it would ask for another. A student whose finish failed stays in the session, so the room opens again.
+  async function endAndLeaveRoom() {
+    if (!(await endSession(liveVoice.leave))) await liveVoice.connect({ wantsGreeting: false });
+  }
 
   return (
     <SessionFrame
       facts={<SessionFacts subject={session.subject} seconds={seconds} />}
-      action={<EndButton isEnding={isEnding} onEnd={() => void endSession()} />}
+      action={<EndButton isEnding={isEnding} onEnd={() => void endAndLeaveRoom()} />}
       problem={endProblem}
     >
       <SessionPanels
