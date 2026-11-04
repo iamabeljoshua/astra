@@ -1,8 +1,9 @@
 import type { PickCardResponseDto } from '../home/home-screen.dto';
 import { STUDENT_LEVELS } from '../students/student-profile-options';
+import type { StudentInterest } from '../students/student-profile-options';
 import type { StudentProfileResponseDto } from '../students/student-profile.dto';
 import { getGoalReason, getInterestReason, getLevelReason, STARTER_REASON } from './pick-reasons';
-import type { Library, LibraryInterest, LibraryTopic } from './library';
+import type { Library, LibraryTopic } from './library';
 
 const PICK_COUNT = 6;
 const MAX_PICKS_PER_SUBJECT = 2;
@@ -15,36 +16,13 @@ interface RankedTopic {
   reason: string;
 }
 
-interface InterestMatch {
-  name: string;
-  word: string;
-}
-
-function toWordSearchText(text: string): string {
-  return ` ${text.toLowerCase().replaceAll(/[^\p{L}\p{N}]+/gu, ' ').trim()} `;
-}
-
-function findMatchedWord(studentInterest: string, { words }: LibraryInterest): string | undefined {
-  const searchText = toWordSearchText(studentInterest);
-  return words.find((word) => searchText.includes(toWordSearchText(word)));
-}
-
-function getInterestMatches(studentInterests: string[], libraryInterests: LibraryInterest[]): InterestMatch[] {
-  return studentInterests.flatMap((studentInterest) =>
-    libraryInterests.flatMap((interest) => {
-      const word = findMatchedWord(studentInterest, interest);
-      return word ? [{ name: interest.name, word }] : [];
-    }),
-  );
-}
-
-// Each interest gets a turn, so the first one a student named cannot fill the screen.
-function rankByInterestTurns(topics: LibraryTopic[], matches: InterestMatch[]): RankedTopic[] {
-  return matches
-    .flatMap(({ name, word }) =>
+// Each interest gets a turn, so the first one a student chose cannot fill the screen.
+function rankByInterestTurns(topics: LibraryTopic[], interests: StudentInterest[]): RankedTopic[] {
+  return interests
+    .flatMap((interest) =>
       topics
-        .filter((topic) => topic.interests.includes(name))
-        .map((topic, turn) => ({ topic, reason: getInterestReason(word), turn })),
+        .filter((topic) => topic.interests.includes(interest))
+        .map((topic, turn) => ({ topic, reason: getInterestReason(interest), turn })),
     )
     .sort((first, second) => first.turn - second.turn);
 }
@@ -53,7 +31,7 @@ function rankForStudent(student: StudentFit, library: Library): RankedTopic[] {
   const { level, goal } = student;
   const topicsAtLevel = library.topics.filter((topic) => topic.levels.includes(level));
   return [
-    ...rankByInterestTurns(topicsAtLevel, getInterestMatches(student.interests, library.interests)),
+    ...rankByInterestTurns(topicsAtLevel, student.interests),
     ...topicsAtLevel
       .filter((topic) => topic.goals.includes(goal))
       .map((topic) => ({ topic, reason: getGoalReason(goal, level) })),

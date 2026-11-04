@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { ARTWORK_NAMES } from '../artwork';
-import { STUDENT_GOALS, STUDENT_LEVELS } from '../students/student-profile-options';
+import { STUDENT_GOALS, STUDENT_INTERESTS, STUDENT_LEVELS } from '../students/student-profile-options';
 import { getPicksForStudent } from './getPicksForStudent';
 import { LIBRARY } from './library';
 
@@ -13,7 +13,6 @@ const MIN_TOPICS = 30;
 const LONGEST_TITLE_ON_ONE_LINE = 34;
 const REQUIRED_SUBJECTS = ['Math', 'Physics', 'Chemistry', 'Computer science'];
 const MIN_CURIOSITY_SUBJECTS = 3;
-const ONBOARDING_INTERESTS = ['Basketball', 'Football', 'Movies', 'Gaming', 'Music', 'Art', 'Space', 'Cars', 'Cooking', 'Fashion', 'Coding', 'History'];
 
 const PUBLIC_DOMAIN_SOURCES = /\]\(https:\/\/(www\.metmuseum\.org|images\.nasa\.gov|commons\.wikimedia\.org)\//;
 const LONG_DASHES = /[\u2013\u2014]/;
@@ -52,13 +51,11 @@ describe('the picks library', () => {
     });
 
     it('uses only known levels, goals, and interests', () => {
-      const interestNames = LIBRARY.interests.map((interest) => interest.name);
-
       expect(topic.levels.length).toBeGreaterThan(0);
       expect(STUDENT_LEVELS).toEqual(expect.arrayContaining(topic.levels));
       expect(topic.goals.length).toBeGreaterThan(0);
       expect(STUDENT_GOALS).toEqual(expect.arrayContaining(topic.goals));
-      expect(interestNames).toEqual(expect.arrayContaining(topic.interests));
+      expect(STUDENT_INTERESTS).toEqual(expect.arrayContaining(topic.interests));
     });
 
     it('has a picture with a file and a credit, or one of our own drawings', () => {
@@ -93,11 +90,11 @@ describe('the picks library', () => {
     expect(readdirSync(PICTURES_FOLDER).map((file) => basename(file, '.jpg')).filter((name) => !artworkInUse.has(name))).toEqual([]);
   });
 
-  it.each(ONBOARDING_INTERESTS)('finds a card for the onboarding choice %s at every level', (interest) => {
+  it.each(STUDENT_INTERESTS)('finds a card for the chip %s at every level', (interest) => {
     for (const level of STUDENT_LEVELS) {
       const reasons = getPicksForStudent({ interests: [interest], level, goal: 'class' }, LIBRARY).map((pick) => pick.reason);
 
-      expect(reasons).toContain(`Because you're into ${interest.toLowerCase()}`);
+      expect(reasons).toContain(`Because you're into ${interest}`);
     }
   });
 });

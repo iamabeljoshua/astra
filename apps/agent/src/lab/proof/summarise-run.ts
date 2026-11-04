@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { Beat, BeatId } from '@astra/contracts';
+import { type Beat, type BeatId, getCues } from '@astra/contracts';
 import { AUDIBLE_SAMPLE } from '../../live/first-sound.ts';
 import { FAKE_WORD_MS } from '../../providers/fakes.ts';
 import { findAudibleStartMs, findFirstLoudMs, findToneBursts, findWordOnsetsAfterSilence, findWordPlaces, getPercentiles, getWordList } from './analyse-run.ts';
@@ -200,9 +200,19 @@ export function summariseRun(folder: string, settings: { name: string; network: 
   const words = perTurn.flatMap((turn) => turn.rows);
   const findWord = (cue: PageRecords['fired'][number]) => words.find((word) => word.turnId === cue.turnId && word.beatId === cue.beatId && word.wordInBeat === cue.atWord);
   const earMs = records.outputLatencyMs.at(-1) ?? 0;
+  const firedInBeat = new Map<string, number>();
+  const isAddedForProof = (cue: PageRecords['fired'][number]) => {
+    const key = `${cue.turnId}/${cue.beatId}`;
+    const index = firedInBeat.get(key) ?? 0;
+    firedInBeat.set(key, index + 1);
+    const beat = agent.turns.find((turn) => turn.turnId === cue.turnId)?.beats.find((candidate) => candidate.id === cue.beatId);
+    const command = beat && getCues(beat)[index]?.command;
+    return command !== undefined && 'id' in command && /-w\d+$/.test(command.id);
+  };
   const cueErrors = records.fired.flatMap((cue) => {
+    const isEveryThird = isAddedForProof(cue);
     const word = findWord(cue);
-    return word?.audibleAtMs && word.heardAtMs ? [{ error: cue.firedAtMs - (word.audibleAtMs + earMs), toPlacedWord: cue.firedAtMs - (word.heardAtMs + earMs), gateMs: word.audibleAtMs - word.heardAtMs, cue, word: word.text }] : [];
+    return word?.audibleAtMs && word.heardAtMs ? [{ error: cue.firedAtMs - (word.audibleAtMs + earMs), toPlacedWord: cue.firedAtMs - (word.heardAtMs + earMs), gateMs: word.audibleAtMs - word.heardAtMs, cue, word: word.text, isEveryThird }] : [];
   });
   const firedMs = cueErrors.map((row) => row.error);
   const leads = words.flatMap((word) => (word.heardAtMs !== null && word.arrivedAtMs !== null ? [word.heardAtMs - word.arrivedAtMs] : []));
@@ -237,6 +247,8 @@ export function summariseRun(folder: string, settings: { name: string; network: 
     words: words.length,
     drift: getPercentiles(firedMs.map(Math.abs)),
     driftSigned: getPercentiles(firedMs),
+    driftOfScriptCues: getPercentiles(cueErrors.filter((row) => !row.isEveryThird).map((row) => Math.abs(row.error))),
+    driftEveryThirdWord: getPercentiles(cueErrors.filter((row) => row.isEveryThird).map((row) => Math.abs(row.error))),
     driftToPlacedWord: getPercentiles(cueErrors.map((row) => row.toPlacedWord)),
     earlyOver40: firedMs.filter((error) => error < -40).length,
     lateOver100: firedMs.filter((error) => error > 100).length,
@@ -256,5 +268,5 @@ export function summariseRun(folder: string, settings: { name: string; network: 
     refused: [...records.refused, ...agent.refused],
     outputLatencyMs: records.outputLatencyMs.at(-1) ?? null,
   };
-  return { settings, brief, leadingSilenceMs: perTurn.map((turn) => Math.round(turn.firstLoudMs)), wordTimeBeforeSoundMs, gapChecks, messagesAfterStop, stops, gaps, cues: cueErrors.map(({ error, toPlacedWord, gateMs, cue, word }) => ({ turnId: cue.turnId, beatId: cue.beatId, atWord: cue.atWord, word, errorMs: Math.round(error), toPlacedWordMs: Math.round(toPlacedWord), wordTimeBeforeSoundMs: Math.round(gateMs) })) };
+  return { settings, brief, leadingSilenceMs: perTurn.map((turn) => Math.round(turn.firstLoudMs)), wordTimeBeforeSoundMs, gapChecks, messagesAfterStop, stops, gaps, cues: cueErrors.map(({ error, toPlacedWord, gateMs, cue, word, isEveryThird }) => ({ turnId: cue.turnId, beatId: cue.beatId, atWord: cue.atWord, word, isEveryThird, errorMs: Math.round(error), toPlacedWordMs: Math.round(toPlacedWord), wordTimeBeforeSoundMs: Math.round(gateMs) })) };
 }

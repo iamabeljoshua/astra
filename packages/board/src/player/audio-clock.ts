@@ -23,11 +23,24 @@ export interface AudioClock {
   getNowMs(): number;
   startTurn(): TurnClock;
   markTurnAudioOver(): void;
+  /** Audio already on its way still arrives after a stop, and must not read as the next turn's first sound. */
+  markTurnStopped(): void;
+  /** Called in audio order, so a turn can close on its own end before the next turn's first sound is read. */
+  onAudioEnded(listener: () => void): void;
 }
 
 export interface SampleClock extends AudioClock {
   onProbeEvent(event: ProbeEvent): void;
 }
+
+/** The silence the agent leaves before a turn's first sound, so that sound is always an onset. `audio-probe-worklet.js` needs 107 ms, and the worst link squeezed 200 ms to 187. It is short because a reaction right after a stop pays it from its 200 ms. */
+export const TURN_SILENCE_MS = 150;
+
+/** The next turn's sound cannot come sooner after a stop than the agent's silence, less what a late stop message takes from it. */
+const OLD_AUDIO_AFTER_STOP_MS = TURN_SILENCE_MS - 40;
+
+/** A first sound this long after a turn's first word times was lost, or has no silence before it, and the turn must not wait for it for ever. */
+const FIRST_SOUND_LIMIT_MS = 1000;
 
 const RECENT_SOUND_MS = 300;
 
@@ -43,6 +56,9 @@ export function createSampleClock({ getGraphTimeMs, getOutputLatencyMs }: Sample
   let soundEndedAtMs: number | null = null;
   let onsets: number[] = [];
   let onOnset: ((atMs: number) => void) | null = null;
+  let firstAudibleOfTurnAtMs: number | null = null;
+  let oldAudioEndsByMs = 0;
+  let notifyAudioEnded = () => {};
 
   const isSoundRecent = () => isAudioSounding || (soundEndedAtMs !== null && getGraphTimeMs() - soundEndedAtMs <= RECENT_SOUND_MS);
   const getHeardMs = () => getGraphTimeMs() - getOutputLatencyMs();
@@ -52,22 +68,34 @@ export function createSampleClock({ getGraphTimeMs, getOutputLatencyMs }: Sample
     markTurnAudioOver() {
       onsets = [];
     },
+    markTurnStopped() {
+      oldAudioEndsByMs = getGraphTimeMs() + OLD_AUDIO_AFTER_STOP_MS;
+    },
+    onAudioEnded(listener) {
+      notifyAudioEnded = listener;
+    },
     onProbeEvent({ kind, atMs }) {
       if (kind === 'onset') {
         isAudioSounding = true;
-        onsets.push(atMs);
+        if (atMs >= oldAudioEndsByMs) onsets.push(atMs);
         onOnset?.(atMs);
       }
       if (kind === 'end') {
         isAudioSounding = false;
         soundEndedAtMs = atMs;
+        notifyAudioEnded();
       }
-      if (kind === 'sound') isBlockAudible = true;
+      if (kind === 'sound') {
+        isBlockAudible = true;
+        firstAudibleOfTurnAtMs ??= atMs;
+      }
       if (kind === 'quiet') isBlockAudible = false;
     },
     startTurn() {
       const wordClock = createWordClock();
       let firstWordStartMs = 0;
+      let firstWordTimesAtMs: number | null = null;
+      firstAudibleOfTurnAtMs = null;
       // On a poor link the audio can arrive first, so the turn starts at the earliest sound since the last turn ended.
       const heardAlready = isSoundRecent() ? onsets[0] : undefined;
       if (heardAlready !== undefined) wordClock.onFirstSound(heardAlready);
@@ -76,8 +104,10 @@ export function createSampleClock({ getGraphTimeMs, getOutputLatencyMs }: Sample
         addGap: (gap) => wordClock.addGap(gap),
         noteWordTimes(firstStartMs) {
           firstWordStartMs = firstStartMs;
+          firstWordTimesAtMs ??= getGraphTimeMs();
         },
         read() {
+          if (firstWordTimesAtMs !== null && getGraphTimeMs() - firstWordTimesAtMs >= FIRST_SOUND_LIMIT_MS) wordClock.onFirstSound(firstAudibleOfTurnAtMs ?? getGraphTimeMs());
           const positionMs = wordClock.getPositionMs(getHeardMs(), firstWordStartMs);
           return positionMs === null ? null : { positionMs, isGateOpen: isBlockAudible };
         },
@@ -98,6 +128,8 @@ export function createTimerClock({ getNowMs }: TimerClockOptions): AudioClock {
   return {
     getNowMs,
     markTurnAudioOver() {},
+    markTurnStopped() {},
+    onAudioEnded() {},
     startTurn() {
       const wordClock = createWordClock();
       let firstWordStartMs = 0;

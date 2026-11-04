@@ -19,7 +19,11 @@ The lab is a development page that plays a scripted lesson in a real voice throu
 - **Open the page.** Run `pnpm verify drive --journey scene-player`. It needs no database row, and it does not start a room.
 - **Real voice, measured.** Run `pnpm --filter @astra/agent proof --only clean,interrupt --out <folder>`. Each run writes `summary.json`, with drift and stop times measured against the audio the browser received. It spends about 100 credits a run on the account Abel's videos share, and `docs/tests/scene-player.md` lists the limits. Add `--fake` to spend nothing, but drift is not meaningful on a tone, because a repeated tone matches itself.
 
+- **A new turn right after the last.** Run `pnpm --filter @astra/agent proof --fake --only next-on-finished,after-stop --out <folder>`. Add `-poor` to either name for the worst link. Both spend nothing. `silenceBeforeTurnsMs` from `collect-results.ts` says what the browser really received.
+- **Drift on any word, for no credits.** A real run with `--only clean-every-third` puts a cue on every third word of the lesson's first turn, about 68 credits. `node apps/agent/src/lab/proof/store-run.ts <run> <take.json> [repeats]` keeps its audio and word times, and `--stored <take.json>` plays them through `uneven-every-third`, `poor-every-third`, or `long-every-third`.
+
 ## Gotchas
 
 - `--mute-audio` keeps a proof run silent on Abel's desk, and the graph still runs. Use `AudioContext.outputLatency` with care, because a fake output device reports a fixed 32 ms.
+- Dry run a new scenario with `--fake` before spending on it. A beat refuses more than 12 commands, and a failure on a turn's second half wastes the first half's credits.
 - Editing a file the page imports during a proof run reloads the page through Vite and loses the run.

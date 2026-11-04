@@ -1,6 +1,7 @@
 import { type AgentMessage, type BrowserMessage, parseSessionEvent, type SceneCommand, type SessionEvent } from '@astra/contracts';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { createTimerClock } from '../src/player/audio-clock.ts';
+import { createTimerClock, TURN_SILENCE_MS } from '../src/player/audio-clock.ts';
 import { type BoardElement, describeBoard, getSceneFrame } from '../src/player/board-state.ts';
 import { createProjectileScene } from '../src/player/projectile-scene.ts';
 import { rebuildBoard } from '../src/player/rebuild-board.ts';
@@ -121,6 +122,132 @@ describe('cues on their words', () => {
   });
 });
 
+describe('a new turn', () => {
+  const NEXT = turnId('turn-2');
+  const NEXT_BEAT = beatId('beat-2');
+  const startNext = (audio: FakeAudio, atWord = 2) => audio.receive({ type: 'turnStarted', turnId: NEXT }, { type: 'cue', turnId: NEXT, beatId: NEXT_BEAT, atWord, command: textCommand('next-drawing') }, { type: 'words', turnId: NEXT, beatId: NEXT_BEAT, firstWord: 0, words: THREE_WORDS }, { type: 'beatClosed', turnId: NEXT, beatId: NEXT_BEAT, wordCount: 3, expectsReply: false });
+  const firedForNext = (audio: FakeAudio) => audio.fired.filter((fired) => fired.turnId === NEXT);
+
+  it('reports the turn it replaces, so no beat is lost from the log, and counts from its own first sound', () => {
+    const audio = createFakeAudio();
+    audio.receive(started, cue(0), words(), beatClosed());
+    audio.startSound();
+    audio.advance(450);
+    startNext(audio);
+    expect(played(audio).map(({ turnId: id, ending, playedWords }) => [id, ending, playedWords])).toEqual([[TURN, 'interrupted', 2]]);
+    audio.advance(200);
+    audio.endSound();
+    audio.advance(200);
+    expect(firedForNext(audio)).toEqual([]);
+    audio.startSound();
+    const firstSoundAtMs = audio.getNowMs();
+    audio.advance(600);
+    expect(firedForNext(audio).map((fired) => Math.round(fired.firedAtMs - firstSoundAtMs))).toEqual([500]);
+  });
+
+  it('calls a turn finished when every word was heard and only its tail is still sounding', () => {
+    const audio = createFakeAudio();
+    audio.receive(started, cue(0), words(), beatClosed());
+    audio.startSound();
+    audio.advance(520);
+    startNext(audio);
+    expect(played(audio).map(({ ending }) => ending)).toEqual(['finished']);
+  });
+
+  it('leaves a drawing still moving alone when every beat of the turn it replaces was heard', () => {
+    const audio = createFakeAudio();
+    audio.receive(started, cue(2), words(), beatClosed());
+    audio.startSound();
+    audio.advance(520);
+    startNext(audio);
+    expect(audio.sent.filter((message) => message.type === 'boardFrozen')).toEqual([]);
+    expect(played(audio).map(({ ending }) => ending)).toEqual(['finished']);
+  });
+
+  it('closes a turn on its own end in audio order, so a late message still finds its first sound with no tick between them', () => {
+    const audio = createFakeAudio();
+    audio.receive(started, cue(0), words(), beatClosed());
+    audio.startSound();
+    audio.advance(520);
+    audio.quiet();
+    audio.skip(160);
+    audio.clock.onProbeEvent({ kind: 'end', atMs: audio.getNowMs() });
+    audio.skip(40);
+    audio.startSound();
+    startNext(audio, 0);
+    audio.advance(8);
+    expect(firedForNext(audio).map((fired) => Math.round(fired.positionMs))).toEqual([4]);
+  });
+
+  it('takes no word from the audio still arriving after a stop as its first sound', () => {
+    const audio = createFakeAudio();
+    audio.receive(started, cue(0), words(), beatClosed());
+    audio.startSound();
+    audio.advance(200);
+    audio.endSound();
+    audio.receive(stop);
+    audio.advance(40);
+    audio.startSound();
+    audio.advance(30);
+    audio.endSound();
+    audio.advance(80);
+    startNext(audio, 0);
+    audio.advance(40);
+    expect(firedForNext(audio)).toEqual([]);
+    audio.startSound();
+    audio.advance(8);
+    expect(Math.round(firedForNext(audio)[0]?.positionMs as number)).toBeLessThan(10);
+  });
+
+  it('does not count from the last turn\'s first sound when it starts right after that turn ended', () => {
+    const audio = createFakeAudio();
+    audio.receive(started, cue(0), words(), beatClosed());
+    audio.startSound();
+    audio.advance(520);
+    audio.endSound();
+    audio.advance(50);
+    startNext(audio, 0);
+    audio.advance(50);
+    audio.startSound();
+    audio.advance(8);
+    expect(Math.round(firedForNext(audio)[0]?.positionMs as number)).toBeLessThan(10);
+  });
+
+  it('starts from the first audible block when no first sound comes within the limit, so a merged start cannot leave a turn deaf', () => {
+    const audio = createFakeAudio();
+    audio.receive(started, cue(0), words(), beatClosed());
+    audio.startSound();
+    audio.advance(100);
+    audio.receive(stop);
+    audio.quiet();
+    audio.advance(20);
+    startNext(audio, 2);
+    audio.advance(20);
+    audio.sound();
+    const firstAudibleAtMs = audio.getNowMs();
+    audio.advance(1100);
+    expect(firedForNext(audio).map((fired) => Math.round(fired.firedAtMs - firstAudibleAtMs))).toEqual([980]);
+    expect(Math.round(firedForNext(audio)[0]?.positionMs as number)).toBe(980);
+  });
+
+  it('starts a turn with no sound at all once the limit passes, so its words stop waiting and its beats report', () => {
+    const audio = createFakeAudio();
+    audio.receive(started, cue(0), words(), beatClosed());
+    audio.advance(3000);
+    expect(audio.fired).toHaveLength(1);
+    expect(played(audio).map(({ ending, playedWords }) => [ending, playedWords])).toEqual([['finished', 3]]);
+  });
+});
+
+describe('the probe and the agent', () => {
+  it('agree on a silence, with room for a jitter buffer to squeeze the one the agent leaves', () => {
+    const probe = readFileSync(new URL('../src/player/audio-probe-worklet.js', import.meta.url), 'utf8');
+    const blocks = Number(/SILENCE_BEFORE_ONSET_BLOCKS = (\d+)/.exec(probe)?.[1]);
+    const probeSilenceMs = (blocks * 128 * 1000) / 48000;
+    expect(probeSilenceMs).toBeLessThanOrEqual(TURN_SILENCE_MS - 40);
+  });
+});
+
 describe('questionHeard', () => {
   it('goes out once, when the last word of a question starts', () => {
     const audio = createFakeAudio();
@@ -148,6 +275,17 @@ describe('questionHeard', () => {
 });
 
 describe('a stop', () => {
+  it('catches up first, so a word that came due since the last tick counts and its cue fires', () => {
+    const audio = createFakeAudio();
+    audio.receive(started, cue(1), words(), beatClosed());
+    audio.startSound();
+    audio.advance(290);
+    audio.skip(20);
+    audio.receive(stop);
+    expect(played(audio)[0]?.playedWords).toBe(2);
+    expect(audio.fired).toHaveLength(1);
+  });
+
   it('silences first, discards unplayed cues, and reports only what played', () => {
     const audio = createFakeAudio();
     audio.receive(started, cue(0), cue(2), words(), beatClosed());

@@ -1,5 +1,6 @@
 import { initializeLogger } from '@livekit/agents';
 import { afterEach, describe, expect, it } from 'vitest';
+import { makeTutorVoice, TUTOR_VOICE_ID } from '../src/providers/choose.ts';
 import { makeElevenLabsVoice } from '../src/providers/elevenlabs.ts';
 import { makeRenderedVoice } from '../src/providers/fakes.ts';
 import { type FakeWire, startFakeElevenLabsWire } from './fake-elevenlabs-wire.ts';
@@ -30,7 +31,29 @@ describe('the voice suite', () => {
   });
 });
 
+describe('the tutor voice', () => {
+  it('is Chris, on Flash until Abel says otherwise', async () => {
+    wire = await startFakeElevenLabsWire();
+    const voice = makeTutorVoice({ apiKey: 'fake' }).makeTts();
+    expect(TUTOR_VOICE_ID).toBe('iP95p4xoKVk53GoZ742B');
+    expect(voice.model).toBe('eleven_flash_v2_5');
+    await voice.close();
+  });
+});
+
 describe('the ElevenLabs adapter', () => {
+  it('asks for a rate LiveKit can frame in whole samples, because 22050 Hz plays slow by 2.27 ms a second', async () => {
+    const voice = (await makeWireVoice()).makeTts();
+    const stream = voice.stream();
+    const heard = hearVoice(stream);
+    stream.pushText('One two ');
+    stream.endInput();
+    await heard;
+    await voice.close();
+    expect(wire?.getOutputFormats()).toEqual(['pcm_24000']);
+    expect(voice.sampleRate % 100).toBe(0);
+  });
+
   it('keeps word times from the first character, not the second, so no word lands early', async () => {
     const voice = (await makeWireVoice()).makeTts();
     const stream = voice.stream();

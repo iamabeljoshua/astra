@@ -15,7 +15,7 @@ Abel made these decisions after approving this PRD, and the latest is dated 4 No
 | Q6 | Sign-in uses a 6-digit email code, not a link. Google stays wired and hidden until credentials exist. | 4 November 2026 |
 | Section 2's look row, B11 | Sign-in and onboarding use the made-of-dots look on a still dot background, so the tutor's dot is no longer the only dot. Pictures stay normal images. | 4 November 2026 |
 | P4, Q19 | Home's cards use session history before the learner record exists, in M2.12. Card pictures do not change. | 4 November 2026 |
-| Q8, section 9's shortlist | ElevenLabs, with Casey as the one voice, not three. M3.2 decides between Flash and Turbo. Muse Voice Transcribe replaces Deepgram, on LiveKit Cloud with a free project until real students. A blind test runs only if Abel still wants one. | 3 and 4 November 2026 |
+| Q8, section 9's shortlist | ElevenLabs, with Chris as the one voice, not three, chosen by ear on 4 November in place of Casey. He stays on Flash unless Abel says otherwise. Muse Voice Transcribe replaces Deepgram, on LiveKit Cloud with a free project until real students. A blind test runs only if Abel still wants one. | 3 and 4 November 2026 |
 | Q9 | Sonnet 5.5 runs live turns, with code reacting first and no talking router for now. | 3 November 2026 |
 | V1 | Two numbers replace 800 ms and 1.5 s. A first reaction under 200 ms from code, and a first real word as fast as the vendors allow. | 3 November 2026 |
 | V2 | The 150 ms runs from the agent's decision to stop, with two limits from the student's first sound, as the live session design says. | 3 November 2026 |

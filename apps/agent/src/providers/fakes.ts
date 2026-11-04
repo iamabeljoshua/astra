@@ -2,8 +2,8 @@ import { tts, voice as agentsVoice } from '@livekit/agents';
 import { AudioFrame } from '@livekit/rtc-node';
 import type { VoiceAdapter } from './types.ts';
 
-export const FAKE_SAMPLE_RATE = 22050;
-const FRAME_SAMPLES = 2205;
+export const FAKE_SAMPLE_RATE = 24000;
+const FRAME_SAMPLES = 2400;
 export const FAKE_WORD_MS = 280;
 const LOUD = 0.5;
 const QUIET = 0.05;

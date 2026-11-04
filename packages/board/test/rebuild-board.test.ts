@@ -1,6 +1,6 @@
 import { type Beat, type BeatPlayed, getBeatText, getSpokenWords, parseBeat, parseSessionEvent, type SessionEvent, type SessionEventBody } from '@astra/contracts';
 import { describe, expect, it } from 'vitest';
-import { describeBoard, getFrozenFrames } from '../src/player/board-state.ts';
+import { type BoardElement, describeBoard, getFrozenFrames, getSceneFrame } from '../src/player/board-state.ts';
 import { rebuildBoard } from '../src/player/rebuild-board.ts';
 
 const WORD_MS = 300;
@@ -134,6 +134,41 @@ describe('rebuildBoard', () => {
     const log = parseLog([finished(first, 0, [300]), finished(second, 1000, [300]), { kind: 'studentActed', atMs: 2000, action: { action: 'rewound', turnId: 't' as never, toBeat: 'two' as never } }]);
     expect(getIds(log, 1500)).toEqual(['one', 'two']);
     expect(getIds(log, 2000)).toEqual(['one']);
+  });
+
+  describe('a rewind', () => {
+    const REWOUND_AT_MS = 6000;
+    const BEAT_AT_MS = 1000;
+    const longScene = { parts: ['x'], moments: {}, durationSeconds: 100, getFrame: (seconds: number) => ({ seconds }) };
+    const catalog = (command: { kind: string }) => (command.kind === 'simulate' ? longScene : null);
+    const rewound = { kind: 'studentActed', atMs: REWOUND_AT_MS, action: { action: 'rewound', turnId: 't' as never, toBeat: 'later' as never } } as const;
+    const placing = makeBeat('placing', [shot, { kind: 'runSimulation', target: 'shot', action: 'play' }, 'One two']);
+    const later = makeBeat('later', [{ kind: 'text', id: 'late', text: 't' }, 'One two']);
+    const log = parseLog([{ ...finished(placing, 0, [0, 0]) }, { ...finished(later, BEAT_AT_MS, [0]) }, rewound]);
+    const secondsAt = (atMs: number) => (getSceneFrame(rebuildBoard(log, atMs, catalog).elements.get('shot' as never) as BoardElement, atMs) as { seconds: number }).seconds;
+
+    it('lands on the moment of its beat and stays there, wherever the press came', () => {
+      expect(secondsAt(BEAT_AT_MS - 1)).toBeCloseTo(0.999, 2);
+      expect(secondsAt(REWOUND_AT_MS)).toBeCloseTo(1, 2);
+      expect(secondsAt(REWOUND_AT_MS + 4000)).toBeCloseTo(1, 2);
+    });
+
+    it('finishes a drawing it caught mid-entrance when the next beat plays, because no later cue would', () => {
+      const title = makeBeat('title', [{ kind: 'text', id: 'heading', text: 'h' }, 'One two']);
+      const next = makeBeat('next', ['Three four']);
+      const entranceLog = parseLog([finished(title, 0, [0]), finished(later, 100, []), { ...rewound, atMs: 3000 }, finished(next, 4000, [])]);
+      const drawnAt = (atMs: number) => describeBoard(rebuildBoard(entranceLog, atMs), atMs).elements.find((element) => element.id === 'heading')?.drawn;
+      expect(drawnAt(3500)).toBeLessThan(1);
+      expect(drawnAt(4500)).toBe(1);
+    });
+  });
+
+  it('holds everything moving at a cut, not only what the report names', () => {
+    const placing = makeBeat('placing', [shot, { kind: 'runSimulation', target: 'shot', action: 'play' }, 'One two']);
+    const longScene = { parts: ['x'], moments: {}, durationSeconds: 100, getFrame: (seconds: number) => ({ seconds }) };
+    const log = parseLog([cutFrom(finished(placing, 0, [0, 0]), { durationMs: 1000, playedWords: 1, frozen: [] })]);
+    const secondsAt = (atMs: number) => (getSceneFrame(rebuildBoard(log, atMs, (command) => (command.kind === 'simulate' ? longScene : null)).elements.get('shot' as never) as BoardElement, atMs) as { seconds: number }).seconds;
+    expect(secondsAt(3000)).toBeCloseTo(1, 2);
   });
 
   it('reports only what is still moving', () => {

@@ -134,10 +134,9 @@ describe('a database built from migrations', () => {
 
       expect(student).toMatchObject({ name: 'Maya' });
       expect(profile).toMatchObject({
-        interests: ['Basketball', 'Space'],
+        interests: ['basketball', 'space'],
         level: 'university',
         goal: 'exam',
-        voice: 'ada',
       });
     });
 

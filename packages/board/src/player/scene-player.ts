@@ -139,13 +139,13 @@ export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueF
     }
   };
 
-  const finishBeats = (playing: PlayingTurn) => {
+  const finishBeats = (playing: PlayingTurn, isAudioOver = () => !playing.clock.isSounding()) => {
     playing.beats.forEach((beat, index) => {
       if (beat.ending !== null || beat.startedAtMs === null) return;
       const nextStartedAtMs = playing.beats[index + 1]?.startedAtMs ?? null;
       if (beat.wordCount === null || beat.playedWords !== beat.wordCount) return;
       if (nextStartedAtMs !== null) reportBeat(playing, beat, 'finished', nextStartedAtMs - beat.startedAtMs);
-      else if (!playing.clock.isSounding()) {
+      else if (isAudioOver()) {
         reportBeat(playing, beat, 'finished', clock.getNowMs() - beat.startedAtMs);
         clock.markTurnAudioOver();
       }
@@ -163,8 +163,7 @@ export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueF
     finishBeats(turn);
   };
 
-  const stop = (playing: PlayingTurn) => {
-    setOutputLevel('silent');
+  const cutTurn = (playing: PlayingTurn) => {
     tick();
     playing.phase = 'frozen';
     const nowMs = Math.round(clock.getNowMs());
@@ -182,11 +181,31 @@ export function createScenePlayer({ clock, send, setOutputLevel, catalog, onCueF
     clock.markTurnAudioOver();
   };
 
+  const stop = (playing: PlayingTurn) => {
+    setOutputLevel('silent');
+    cutTurn(playing);
+    clock.markTurnStopped();
+  };
+
+  // The agent starts a turn only once the last one's audio has gone, so an open beat here lost its end, and nothing else would ever report it.
+  const closeTurn = (playing: PlayingTurn) => {
+    const isOpen = () => playing.phase === 'playing' && playing.beats.some((beat) => beat.ending === null);
+    if (!isOpen()) return;
+    tick();
+    finishBeats(playing, () => true);
+    if (isOpen()) cutTurn(playing);
+  };
+
   const startTurn = (turnId: TurnId) => {
-    if (turn) operationsOfOldTurns.push(...getTurnOperations(turn));
+    if (turn) {
+      closeTurn(turn);
+      operationsOfOldTurns.push(...getTurnOperations(turn));
+    }
     turn = { id: turnId, phase: 'playing', clock: clock.startTurn(), beats: [] };
     setOutputLevel('full');
   };
+
+  clock.onAudioEnded(tick);
 
   const getBeat = (playing: PlayingTurn, beatId: BeatId) => {
     const known = playing.beats.find((beat) => beat.id === beatId);

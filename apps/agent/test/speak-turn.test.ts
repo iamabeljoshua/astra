@@ -1,8 +1,12 @@
 import type { AudioFrame } from '@livekit/rtc-node';
 import { type AgentMessage, type Beat, parseBeat, type TurnId } from '@astra/contracts';
-import { initializeLogger } from '@livekit/agents';
-import { afterEach, describe, expect, it } from 'vitest';
+import { initializeLogger, voice as agentsVoice } from '@livekit/agents';
+import { TURN_SILENCE_MS } from '@astra/board';
+import { tts } from '@livekit/agents';
+import { AudioFrame as RealAudioFrame } from '@livekit/rtc-node';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { speakTurn, type SpeakTurnOptions } from '../src/live/speak-turn.ts';
+import { createVoiceLine } from '../src/live/voice-line.ts';
 import { makeElevenLabsVoice } from '../src/providers/elevenlabs.ts';
 import { FAKE_SAMPLE_RATE, makeRenderedVoice, type RenderSpeech, renderTone } from '../src/providers/fakes.ts';
 import { type FakeWire, startFakeElevenLabsWire } from './fake-elevenlabs-wire.ts';
@@ -39,7 +43,8 @@ function speak({ render = renderTone, ...options }: Partial<SpeakTurnOptions> & 
     voice: makeRenderedVoice({ name: 'fake', render }).makeTts(),
     turnId: TURN,
     beats: BEATS,
-    output: {
+    line: createVoiceLine({
+      sampleRate: FAKE_SAMPLE_RATE,
       captureFrame: async (frame) => {
         if (isStopped) framesAfterStop += 1;
         captured.push(frame);
@@ -48,7 +53,7 @@ function speak({ render = renderTone, ...options }: Partial<SpeakTurnOptions> & 
       },
       clearQueue: () => (queueClears += 1),
       waitForPlayout: async () => {},
-    },
+    }),
     messenger: {
       send: (message) => sent.push({ message, isUrgent: false }),
       sendOnBothChannels: (message) => sent.push({ message, isUrgent: true }),
@@ -74,6 +79,105 @@ let wire: FakeWire | null = null;
 afterEach(async () => {
   await wire?.close();
   wire = null;
+});
+
+// Records each thing a session's one voice track and its data channels see, in order, with the time.
+function createWatchedLine({ playoutMs = 0, frameMs = 1 } = {}) {
+  const events: { kind: 'frame' | 'cleared' | 'playedOut' | 'message'; turnId?: string; type?: string; atMs: number }[] = [];
+  const note = (event: Omit<(typeof events)[number], 'atMs'>) => events.push({ ...event, atMs: performance.now() });
+  const line = createVoiceLine({
+    sampleRate: FAKE_SAMPLE_RATE,
+    captureFrame: async () => {
+      note({ kind: 'frame' });
+      await delay(frameMs);
+    },
+    clearQueue: () => note({ kind: 'cleared' }),
+    waitForPlayout: async () => {
+      await delay(playoutMs);
+      note({ kind: 'playedOut' });
+    },
+  });
+  const messenger = {
+    send: (message: AgentMessage) => note({ kind: 'message', turnId: message.turnId, type: message.type }),
+    sendOnBothChannels: (message: AgentMessage) => note({ kind: 'message', turnId: message.turnId, type: message.type }),
+  };
+  const turn = (turnId: string) => speakTurn({ voice: makeRenderedVoice({ name: 'fake' }).makeTts(), line, messenger, turnId: turnId as TurnId, beats: BEATS });
+  const getTurnStartedAtMs = (turnId: string) => events.find((event) => event.type === 'turnStarted' && event.turnId === turnId)?.atMs;
+  return { events, line, turn, getTurnStartedAtMs };
+}
+
+describe('turns on one voice line', () => {
+  // A turn's first sound must follow a silence the probe can see, or the browser loses where the turn starts.
+  const LEEWAY_MS = 5;
+
+  it('starts at once on a line that has been quiet, so a turn pays for the silence only when it follows sound', async () => {
+    const { turn, getTurnStartedAtMs } = createWatchedLine();
+    const startedAtMs = performance.now();
+    await turn('t1').finished;
+    expect(getTurnStartedAtMs('t1')).toBeLessThan(startedAtMs + TURN_SILENCE_MS);
+  });
+
+  it('resolves finished only once the audio has played out', async () => {
+    const { events, turn } = createWatchedLine({ playoutMs: 30 });
+    await turn('t1').finished;
+    expect(events.at(-1)?.kind).toBe('playedOut');
+  });
+
+  it('leaves the silence before a turn started on the last one finishing, and holds its messages with its audio', async () => {
+    const { events, turn, getTurnStartedAtMs } = createWatchedLine();
+    await turn('t1').finished;
+    const lastAudioGoneAtMs = events.findLast((event) => event.kind === 'playedOut')?.atMs as number;
+    const framesOfFirstTurn = events.filter((event) => event.kind === 'frame').length;
+    await turn('t2').finished;
+    const firstFrameOfSecondTurn = events.filter((event) => event.kind === 'frame')[framesOfFirstTurn];
+    expect(firstFrameOfSecondTurn?.atMs).toBeGreaterThanOrEqual(lastAudioGoneAtMs + TURN_SILENCE_MS - LEEWAY_MS);
+    expect(getTurnStartedAtMs('t2')).toBeGreaterThanOrEqual(lastAudioGoneAtMs + TURN_SILENCE_MS - LEEWAY_MS);
+    expect(getTurnStartedAtMs('t2')).toBeLessThanOrEqual(firstFrameOfSecondTurn?.atMs as number);
+  });
+
+  it('leaves the silence after a stop, however soon the next turn starts', async () => {
+    const { events, turn, getTurnStartedAtMs } = createWatchedLine({ frameMs: 20 });
+    const first = turn('t1');
+    await delay(30);
+    const stoppedAtMs = performance.now();
+    first.stop();
+    await delay(30);
+    const framesBefore = events.filter((event) => event.kind === 'frame').length;
+    await turn('t2').finished;
+    const firstFrame = events.filter((event) => event.kind === 'frame')[framesBefore];
+    expect(firstFrame?.atMs).toBeGreaterThanOrEqual(stoppedAtMs + TURN_SILENCE_MS - LEEWAY_MS);
+    expect(getTurnStartedAtMs('t2')).toBeGreaterThanOrEqual(stoppedAtMs + TURN_SILENCE_MS - LEEWAY_MS);
+  });
+
+  it('never lets a second turn into the first one\'s audio, even if it starts at once', async () => {
+    const { events, turn } = createWatchedLine({ playoutMs: 20 });
+    const first = turn('t1');
+    const second = turn('t2');
+    await Promise.all([first.finished, second.finished]);
+    const playedOut = events.findIndex((event) => event.kind === 'playedOut');
+    const started = events.findIndex((event) => event.type === 'turnStarted' && event.turnId === 't2');
+    expect(started).toBeGreaterThan(playedOut);
+    expect(events.slice(0, playedOut).some((event) => event.turnId === 't2')).toBe(false);
+  });
+
+  it('tells nobody of a turn stopped before its line opened, and leaves the turn before it playing', async () => {
+    const { events, turn } = createWatchedLine({ playoutMs: 20 });
+    const first = turn('t1');
+    const second = turn('t2');
+    second.stop();
+    await second.finished;
+    await first.finished;
+    const third = turn('t3');
+    await third.finished;
+    expect(events.filter((event) => event.turnId === 't2')).toEqual([]);
+    expect(events.some((event) => event.kind === 'cleared')).toBe(false);
+    expect(events.filter((event) => event.type === 'turnStarted').map((event) => event.turnId)).toEqual(['t1', 't3']);
+  });
+
+  it('refuses a rate LiveKit cannot frame in whole samples, because that audio plays slow and nothing reports it', () => {
+    const output = { sampleRate: 22050, captureFrame: async () => {}, clearQueue: () => {}, waitForPlayout: async () => {} };
+    expect(() => createVoiceLine(output)).toThrow(/22050/);
+  });
 });
 
 describe('speakTurn', () => {
@@ -130,6 +234,52 @@ describe('speakTurn', () => {
     expect(run.getFramesAfterStop()).toBe(0);
     await delay(50);
     expect(run.getFramesAfterStop()).toBe(0);
+  });
+
+  it('sends no words after a stop, from a voice that keeps sending after it is closed, as the real one does', async () => {
+    const chunkOf = (text: string, startTime: number) => ({ requestId: 'r', segmentId: 's', final: false, frame: new RealAudioFrame(Int16Array.from({ length: 240 }, () => 12000), FAKE_SAMPLE_RATE, 1, 240), timedTranscripts: [agentsVoice.createTimedString({ text: `${text} `, startTime })] });
+    const chunks = [chunkOf('Look', 0), chunkOf('at', 0.2), chunkOf('this.', 0.4)];
+    const stream = {
+      pushText: () => {},
+      flush: () => {},
+      endInput: () => {},
+      close: () => {},
+      async *[Symbol.asyncIterator]() {
+        for (const chunk of chunks) {
+          await delay(5);
+          yield chunk;
+        }
+        yield tts.SynthesizeStream.END_OF_STREAM;
+      },
+    };
+    const sent: AgentMessage[] = [];
+    const line = createVoiceLine({ sampleRate: FAKE_SAMPLE_RATE, captureFrame: async () => {}, clearQueue: () => {}, waitForPlayout: async () => {} });
+    const spoken = speakTurn({
+      voice: { stream: () => stream } as unknown as tts.TTS,
+      line,
+      turnId: TURN,
+      beats: [BEATS[0] as Beat],
+      messenger: {
+        send(message) {
+          sent.push(message);
+          if (message.type === 'words') spoken.stop();
+        },
+        sendOnBothChannels: (message) => sent.push(message),
+      },
+    });
+    await spoken.finished;
+    await delay(40);
+    expect(sent.filter((message) => message.type === 'words')).toHaveLength(1);
+  });
+
+  it('counts a stall on a steady clock, so a device clock jump is not a one hour gap', async () => {
+    const realNow = Date.now;
+    const jumpTimer = setTimeout(() => vi.spyOn(Date, 'now').mockImplementation(() => realNow() + 3_600_000), 20);
+    const run = speak();
+    await run.spoken.finished;
+    clearTimeout(jumpTimer);
+    vi.restoreAllMocks();
+    expect(run.getMessages('audioGap')).toEqual([]);
   });
 
   it('reports a stall on the word timeline, past any leading silence, opening and closing it on both channels', async () => {

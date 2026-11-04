@@ -68,6 +68,7 @@
   --container-sheet: 348px;
   --grid-template-columns-onboarding: minmax(0, 1fr) clamp(360px, 31vw, 460px);
   --grid-template-columns-sheet-row: 74px minmax(0, 1fr);
+  --grid-template-columns-option-row: 16px minmax(0, 1fr);
 
   --grid-template-columns-continue: minmax(0, 1fr) 244px;
   --grid-template-columns-pick: var(--spacing-thumb) minmax(0, 1fr);

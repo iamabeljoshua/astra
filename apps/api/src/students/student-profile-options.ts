@@ -4,5 +4,18 @@ export type StudentLevel = (typeof STUDENT_LEVELS)[number];
 export const STUDENT_GOALS = ['class', 'exam', 'curiosity'] as const;
 export type StudentGoal = (typeof STUDENT_GOALS)[number];
 
-export const TUTOR_VOICES = ['ada', 'kofi', 'noor'] as const;
-export type TutorVoice = (typeof TUTOR_VOICES)[number];
+export const STUDENT_INTERESTS = [
+  'basketball',
+  'football',
+  'movies',
+  'gaming',
+  'music',
+  'art',
+  'space',
+  'cars',
+  'cooking',
+  'fashion',
+  'coding',
+  'history',
+] as const;
+export type StudentInterest = (typeof STUDENT_INTERESTS)[number];

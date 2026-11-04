@@ -4,16 +4,11 @@ import { type AgentMessage, type Beat, getBeatText, getCues, getSpokenWords, typ
 import { createPlayoutTracker, type PlayoutTracker } from '@astra/board';
 import { createFirstSound, type FirstSound, getFrameMs } from './first-sound.ts';
 import { createFrameQueue, type FrameQueue } from './frame-queue.ts';
+import { getSteadyNowMs, type LineTurn, type VoiceLine } from './voice-line.ts';
 import { createWordTimeline } from './word-timeline.ts';
 
 const MS_PER_SECOND = 1000;
 const STILL_ARRIVING_MS = 300;
-
-export interface VoiceOutput {
-  captureFrame(frame: AudioFrame): Promise<void>;
-  clearQueue(): void;
-  waitForPlayout(): Promise<void>;
-}
 
 export interface TurnMessenger {
   send(message: AgentMessage): void;
@@ -32,7 +27,7 @@ export interface FrameNote {
 
 export interface SpeakTurnOptions {
   voice: tts.TTS;
-  output: VoiceOutput;
+  line: VoiceLine;
   messenger: TurnMessenger;
   turnId: TurnId;
   beats: readonly Beat[];
@@ -59,7 +54,26 @@ interface TurnWork {
   frames: FrameQueue;
   firstSound: FirstSound;
   tracker: PlayoutTracker;
+  lineTurn: LineTurn;
   isStopped(): boolean;
+}
+
+// A turn's messages wait with its audio, so the browser never unmutes or starts a clock before the last turn's audio has gone.
+function createHeldMessenger(messenger: TurnMessenger) {
+  let held: AgentMessage[] | null = [];
+  return {
+    send(message: AgentMessage) {
+      if (held) held.push(message);
+      else messenger.send(message);
+    },
+    sendOnBothChannels: (message: AgentMessage) => messenger.sendOnBothChannels(message),
+    release() {
+      const waiting = held ?? [];
+      held = null;
+      waiting.forEach((message) => messenger.send(message));
+    },
+    isHolding: () => held !== null,
+  };
 }
 
 async function writeBeat({ options: { messenger, turnId, textPace }, stream, isStopped }: TurnWork, beat: Beat): Promise<void> {
@@ -84,7 +98,7 @@ async function writeText(work: TurnWork): Promise<void> {
 }
 
 // Holds the turn's first word times until the first sound is known, because they count from it.
-function createWordSender({ options: { messenger, turnId, onWords, getNowMs = Date.now }, timeline, firstSound }: TurnWork) {
+function createWordSender({ options: { messenger, turnId, onWords, getNowMs = getSteadyNowMs }, timeline, firstSound }: TurnWork) {
   let waiting: { text: string; atVoiceMs: number }[] = [];
   return (words: readonly { text: string; atVoiceMs: number }[]) => {
     waiting.push(...words);
@@ -111,10 +125,11 @@ async function readVoice(work: TurnWork): Promise<void> {
   work.frames.finish();
 }
 
-async function pumpAudio({ options, frames, firstSound, tracker, isStopped }: TurnWork): Promise<void> {
-  const { output, messenger, turnId, proofStalls = [], onFrameCaptured, onGap, getNowMs = Date.now } = options;
+async function pumpAudio({ options, frames, firstSound, tracker, lineTurn, isStopped }: TurnWork): Promise<void> {
+  const { messenger, turnId, proofStalls = [], onFrameCaptured, onGap, getNowMs = getSteadyNowMs } = options;
   const pendingStalls = [...proofStalls];
   let audioMs = 0;
+  await lineTurn.opened;
   for (let frame = await frames.next(); frame && !isStopped(); frame = await frames.next()) {
     const stall = pendingStalls[0];
     if (stall && audioMs >= stall.atAudioMs) {
@@ -129,26 +144,27 @@ async function pumpAudio({ options, frames, firstSound, tracker, isStopped }: Tu
       onGap?.({ ...reported, reportedAtMs: getNowMs() });
     }
     onFrameCaptured?.({ frame, capturedAtMs: getNowMs() });
-    await output.captureFrame(frame);
+    await lineTurn.captureFrame(frame);
     audioMs += getFrameMs(frame);
   }
 }
 
 // A voice that ends early would leave the browser waiting for words, so the turn is cut like any other and the log says what was heard.
-async function cutIfVoiceEndedEarly({ options: { output, messenger, turnId }, timeline, isStopped }: TurnWork): Promise<void> {
+async function cutIfVoiceEndedEarly({ options: { messenger, turnId }, timeline, isStopped }: TurnWork): Promise<void> {
   if (isStopped() || timeline.isComplete()) return;
-  await output.waitForPlayout();
   await delay(STILL_ARRIVING_MS);
   if (!isStopped()) messenger.sendOnBothChannels({ type: 'stop', turnId });
 }
 
 // Flash and Turbo send word times and audio in one message, so words go out as soon as they are read and the audio queues behind them.
 export function speakTurn(options: SpeakTurnOptions): SpokenTurn {
-  const { voice, output, messenger, turnId, beats, onGap, getNowMs = Date.now } = options;
+  const { voice, line, messenger, turnId, beats, onGap, getNowMs = getSteadyNowMs } = options;
   const firstSound = createFirstSound();
   const frames = createFrameQueue();
   const stream = voice.stream();
   const timeline = createWordTimeline(beats);
+  const lineTurn = line.takeTurn();
+  const heldMessenger = createHeldMessenger(messenger);
   let isStopped = false;
   const tracker = createPlayoutTracker({
     onRanDry({ atMs }) {
@@ -157,13 +173,20 @@ export function speakTurn(options: SpeakTurnOptions): SpokenTurn {
       onGap?.({ ...gap, reportedAtMs: getNowMs() });
     },
   });
-  const work: TurnWork = { options, stream, timeline, frames, firstSound, tracker, isStopped: () => isStopped };
+  const work: TurnWork = { options: { ...options, messenger: heldMessenger }, stream, timeline, frames, firstSound, tracker, lineTurn, isStopped: () => isStopped };
 
-  messenger.send({ type: 'turnStarted', turnId });
-  const finished = Promise.all([writeText(work), readVoice(work), pumpAudio(work)]).then(async () => {
-    tracker.close();
-    await cutIfVoiceEndedEarly(work);
+  heldMessenger.send({ type: 'turnStarted', turnId });
+  void lineTurn.opened.then(() => {
+    if (!isStopped) heldMessenger.release();
   });
+  const finished = Promise.all([writeText(work), readVoice(work), pumpAudio(work)])
+    .then(async () => {
+      tracker.close();
+      if (isStopped) return;
+      await lineTurn.waitForPlayout();
+      await cutIfVoiceEndedEarly(work);
+    })
+    .finally(lineTurn.leave);
 
   return {
     finished,
@@ -171,10 +194,10 @@ export function speakTurn(options: SpeakTurnOptions): SpokenTurn {
     stop() {
       if (isStopped) return;
       isStopped = true;
-      messenger.sendOnBothChannels({ type: 'stop', turnId });
+      if (!heldMessenger.isHolding()) messenger.sendOnBothChannels({ type: 'stop', turnId });
       tracker.close();
       frames.discard();
-      output.clearQueue();
+      lineTurn.cut();
       stream.close();
     },
   };

@@ -24,10 +24,9 @@ const EXAMPLE_STUDENT: Partial<StudentEntity> = {
 
 const EXAMPLE_PROFILE: Partial<StudentProfileEntity> = {
   studentId: EXAMPLE_STUDENT_ID,
-  interests: ['Basketball', 'Space'],
+  interests: ['basketball', 'space'],
   level: 'university',
   goal: 'exam',
-  voice: 'ada',
 };
 
 const SECOND_STUDENT_ID = '00000000-0000-4000-8000-000000000002';
@@ -41,10 +40,9 @@ const SECOND_STUDENT: Partial<StudentEntity> = {
 
 const SECOND_PROFILE: Partial<StudentProfileEntity> = {
   studentId: SECOND_STUDENT_ID,
-  interests: ['Cooking', 'Music'],
+  interests: ['cooking', 'music'],
   level: 'high_school',
   goal: 'class',
-  voice: 'noor',
 };
 
 function atNoon(date: string): Date {

@@ -218,7 +218,7 @@ function applyOperation(board: BoardDraft, operation: BoardOperation, { operatio
       const before = reduce(operations.filter((other) => other.atMs < operation.toMs), { operations, catalog }, operation.toMs);
       board.elements = before.elements;
       board.focus = before.focus;
-      holdAll(board, atMs);
+      freeze(board, [], operation.toMs);
     }
   }
 }

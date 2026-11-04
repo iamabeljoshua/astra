@@ -15,6 +15,7 @@ export class HomeService {
   async getHomeScreen(studentId: string): Promise<HomeScreenResponseDto> {
     return {
       studentName: await this.studentsService.getStudentName(studentId),
+      isNewStudent: !(await this.sessionsService.hasStartedASession(studentId)),
       continueSession: await this.sessionsService.getNewestUnfinishedSession(studentId),
       picks: getPicksForStudent(await this.studentsService.getProfile(studentId), LIBRARY),
     };

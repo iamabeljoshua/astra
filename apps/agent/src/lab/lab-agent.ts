@@ -3,15 +3,16 @@ import { type AgentMessage, type Beat, type BeatId, type BrowserMessage, getResu
 import type { tts } from '@livekit/agents';
 import { createSessionLog } from '../live/session-log.ts';
 import { type SpokenTurn, speakTurn, type TextPace } from '../live/speak-turn.ts';
+import { createVoiceLine } from '../live/voice-line.ts';
 import { type LabRecorder } from './lab-recorder.ts';
-import { type LessonName, LESSONS, STOCK_MATH_TURN, STOCK_TURN } from './lesson.ts';
+import { getLessonTurn, type LessonName, LESSONS, STOCK_MATH_TURN, STOCK_TURN } from './lesson.ts';
 
 export const LIVE_TOPIC = 'astra.live';
 export const LAB_TOPIC = 'astra.lab';
 const AUDIO_QUEUE_MS = 200;
 
 export type LabCommand =
-  | { type: 'play'; lesson?: LessonName; lessonTurn?: number; isStockPhrase?: boolean; isStockMath?: boolean; textPace?: TextPace; proofStalls?: { atAudioMs: number; ms: number }[]; wordsLateMs?: number }
+  | { type: 'play'; lesson?: LessonName; lessonTurn?: number; repeats?: number; cueEveryWords?: number; isStockPhrase?: boolean; isStockMath?: boolean; textPace?: TextPace; proofStalls?: { atAudioMs: number; ms: number }[]; wordsLateMs?: number }
   | { type: 'interrupt' }
   | { type: 'resume'; textPace?: TextPace }
   | { type: 'finish' }
@@ -74,6 +75,7 @@ export async function runLabAgent({ url, token, voice, sampleRate, recorder }: L
   const options = new TrackPublishOptions();
   options.source = TrackSource.SOURCE_MICROPHONE;
   await room.localParticipant?.publishTrack(LocalAudioTrack.createAudioTrack('tutor-voice', source), options);
+  const line = createVoiceLine(source);
   voice.on('error', (error) => recorder.noteRefused(`voice error: ${String(error.error)}`));
   voice.prewarm();
 
@@ -83,7 +85,7 @@ export async function runLabAgent({ url, token, voice, sampleRate, recorder }: L
     recorder.startTurn(id, beats);
     const spoken = speakTurn({
       voice,
-      output: source,
+      line,
       messenger,
       turnId: id,
       beats,
@@ -100,9 +102,10 @@ export async function runLabAgent({ url, token, voice, sampleRate, recorder }: L
     });
   };
 
-  const getTurnBeats = ({ isStockPhrase, isStockMath, lesson, lessonTurn }: LabCommand & { type: 'play' }): readonly Beat[] => {
-    if (isStockMath) return STOCK_MATH_TURN;
-    return isStockPhrase ? STOCK_TURN : (LESSONS[lesson ?? 'jump-shot'][lessonTurn ?? 0] ?? []);
+  const getTurnBeats = (command: LabCommand & { type: 'play' }): readonly Beat[] => {
+    if (command.isStockMath) return STOCK_MATH_TURN;
+    if (command.isStockPhrase) return STOCK_TURN;
+    return command.lesson ? (LESSONS[command.lesson][command.lessonTurn ?? 0] ?? []) : getLessonTurn(command);
   };
 
   // The rest of a cut turn, starting with the word it was cut on.
