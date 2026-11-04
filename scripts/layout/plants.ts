@@ -1,10 +1,13 @@
 import type { Page } from 'playwright';
 import type { DefectKind } from '../../apps/web/src/lab/deck/findLayoutDefects.ts';
 import { type DeckServer, type SourcePlant, waitForDeck } from './deck-server.ts';
+import { getFlashesInScene } from './flash-check.ts';
 
 const BOARD = '[data-testid="board"]';
 const LAPTOP_BOARD = { width: 760, height: 752 };
 const PHONE_BOARD = { width: 358, height: 506 };
+const FLASH_SCENE = 'hostile-strobe-picture';
+const FLASH_SCENE_LAST_COMMAND_MS = 1800;
 
 interface PagePlant {
   name: string;
@@ -294,7 +297,21 @@ async function checkLibraryPlant(page: Page, server: DeckServer, plant: LibraryP
   return found.map(({ kind }) => kind);
 }
 
+const FLASH_PLANT: SourcePlant = { name: 'a picture shows from its first moment', file: 'apps/web/src/board/imageItem.ts', find: 'const UNSEEN_ENTRANCE_SHARE = 0.42;', replace: 'const UNSEEN_ENTRANCE_SHARE = 0;' };
+
+async function runFlashPlant(page: Page, server: DeckServer, verdict: Verdict): Promise<void> {
+  server.plant(FLASH_PLANT);
+  await page.reload();
+  await waitForDeck(page);
+  const shots = await page.context().newCDPSession(page);
+  const { flashes } = await getFlashesInScene(page, shots, { scene: FLASH_SCENE, lastCommandMs: FLASH_SCENE_LAST_COMMAND_MS });
+  await shots.detach();
+  if (flashes <= 3) verdict.failures.push(`planted defect not caught: ${FLASH_PLANT.name}, ${flashes} flashes in a second`);
+  verdict.lines.push(`Planted flash: ${FLASH_PLANT.name}, ${flashes} flashes in a second`);
+}
+
 export async function runSourcePlants(page: Page, server: DeckServer, verdict: Verdict): Promise<void> {
+  await runFlashPlant(page, server, verdict);
   let caught = 0;
   for (const plant of LIBRARY_PLANTS) {
     const found = await checkLibraryPlant(page, server, plant);

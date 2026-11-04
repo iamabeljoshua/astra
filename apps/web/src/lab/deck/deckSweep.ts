@@ -1,4 +1,4 @@
-import type { BoardElement, BoardOperation, BoardState } from '@astra/board';
+import type { BoardElement, BoardOperation, BoardState, QualityTier } from '@astra/board';
 import { getBoardAt, getMotionValue } from '@astra/board';
 import { DECK, type DeckScene, getSceneMoments, getSceneOperations, getSceneRestMs, getShownWords } from '@astra/board/test-deck';
 import type { BoardProblem } from '../../board/boardPainting';
@@ -14,6 +14,21 @@ export interface ShownScene {
   board: BoardState;
   atMs: number;
   size: BoardSize;
+  /** Null lets the board set its own tier from the frame rate it measures. */
+  tier: QualityTier | null;
+}
+
+export interface PlayRequest {
+  scene: string;
+  size: BoardSize;
+  limitMs: number;
+  tier: QualityTier | null;
+}
+
+/** A scene played against the real clock. Each frame's time and each tier the board moved to, from the start of play. */
+export interface PlayResult {
+  frameTimesMs: number[];
+  tierChanges: { atMs: number; tier: QualityTier }[];
 }
 
 export interface SweepRequest {
@@ -45,6 +60,7 @@ export interface BoardDeck {
   check(request: { scene: string; atMs?: number }): Defect[];
   checkWithColors(request: { scene: string }): Defect[];
   sweep(request: SweepRequest): Promise<SweepResult>;
+  play(request: PlayRequest): Promise<PlayResult>;
   getProblems(): readonly BoardProblem[];
 }
 
@@ -74,6 +90,7 @@ const nextFrame = () => new Promise((done) => requestAnimationFrame(done));
 export function createBoardDeck({ present, getBoardElement }: { present(shown: ShownScene): void; getBoardElement(): HTMLElement }) {
   const scenes = new Map(DECK.map((scene) => [scene.name, { scene, operations: getSceneOperations(scene) }]));
   let problems: BoardProblem[] = [];
+  let noteTierChange: (tier: QualityTier) => void = () => {};
   const refused = new Set<string>();
 
   const getEntry = (name: string): { scene: DeckScene; operations: BoardOperation[] } => {
@@ -82,11 +99,11 @@ export function createBoardDeck({ present, getBoardElement }: { present(shown: S
     return entry;
   };
 
-  const showNow = ({ scene, size, atMs, mount }: { scene: string; size: BoardSize; atMs?: number; mount?: string }) => {
+  const showNow = ({ scene, size, atMs, mount, tier = 0 }: { scene: string; size: BoardSize; atMs?: number; mount?: string; tier?: QualityTier | null }) => {
     const { scene: found, operations } = getEntry(scene);
     const shownAt = atMs ?? getSceneRestMs(found);
     const key = mount ?? `${scene}|${size.width}|${size.height}`;
-    present({ key, board: getBoardAt(operations, shownAt), atMs: shownAt, size });
+    present({ key, board: getBoardAt(operations, shownAt), atMs: shownAt, size, tier });
     return shownAt;
   };
 
@@ -146,7 +163,21 @@ export function createBoardDeck({ present, getBoardElement }: { present(shown: S
       for (const name of request.scenes ?? DECK.map((scene) => scene.name)) await sweepScene(name, request, result);
       return result;
     },
+    play: ({ scene, size, limitMs, tier }) =>
+      new Promise((done) => {
+        const startedAtMs = performance.now();
+        const result: PlayResult = { frameTimesMs: [], tierChanges: [] };
+        noteTierChange = (changed) => result.tierChanges.push({ atMs: performance.now() - startedAtMs, tier: changed });
+        const playFrame = (now: number) => {
+          const atMs = now - startedAtMs;
+          result.frameTimesMs.push(atMs);
+          showNow({ scene, size, atMs: Math.max(0, atMs), mount: `play|${scene}|${size.width}|${tier}`, tier });
+          if (atMs < limitMs) requestAnimationFrame(playFrame);
+          else done(result);
+        };
+        requestAnimationFrame(playFrame);
+      }),
     getProblems: () => problems,
   };
-  return { deck, noteProblem: (problem: BoardProblem) => problems.push(problem), noteRefusedMath: (tex: string) => refused.add(tex) };
+  return { deck, noteProblem: (problem: BoardProblem) => problems.push(problem), noteRefusedMath: (tex: string) => refused.add(tex), noteTier: (tier: QualityTier) => noteTierChange(tier) };
 }

@@ -3,6 +3,8 @@ import type { Image, ImageAsset } from '@astra/contracts';
 import type { BoardItem, SliderHandlers } from './boardItems';
 
 const ART_FOLDER = '/board-art';
+/** The share of its entrance a picture waits unseen. A picture is the only thing on the board with the area to flash, and this keeps one cleared and placed again under 3 times a second. */
+const UNSEEN_ENTRANCE_SHARE = 0.42;
 
 /** Each file's true size, so a picture holds its place before it has loaded. Credits are in docs/credits.md. */
 const ART_SIZES: Record<ImageAsset, { width: number; height: number }> = {
@@ -59,7 +61,7 @@ export function createImageItem(wrapper: HTMLElement, content: Image, { onImageM
       if (image.getAttribute('width') !== width) image.setAttribute('width', width);
       if (image.getAttribute('height') !== height) image.setAttribute('height', height);
     },
-    getEntranceOpacity: ({ progress }) => progress,
+    getEntranceOpacity: ({ progress }) => Math.max(0, (progress - UNSEEN_ENTRANCE_SHARE) / (1 - UNSEEN_ENTRANCE_SHARE)),
     remove() {
       image?.remove();
       missing?.remove();

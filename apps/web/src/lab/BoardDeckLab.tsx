@@ -13,7 +13,7 @@ declare global {
 export default function BoardDeckLab() {
   const [shown, setShown] = useState<ShownScene | null>(null);
   const stage = useRef<HTMLDivElement>(null);
-  const listeners = useRef<Pick<ReturnType<typeof createBoardDeck>, 'noteProblem' | 'noteRefusedMath'> | null>(null);
+  const listeners = useRef<Pick<ReturnType<typeof createBoardDeck>, 'noteProblem' | 'noteRefusedMath' | 'noteTier'> | null>(null);
 
   useEffect(() => {
     const { deck, ...noted } = createBoardDeck({
@@ -27,7 +27,7 @@ export default function BoardDeckLab() {
   return (
     <main className="min-h-svh bg-paper">
       <div ref={stage} data-testid="deck-stage" style={shown ? { width: shown.size.width, height: shown.size.height } : undefined}>
-        {shown ? <BoardView key={shown.key} board={shown.board} atMs={shown.atMs} canMoveSliders qualityTier={0} onBoardProblem={(problem) => listeners.current?.noteProblem(problem)} onMathRefused={(tex) => listeners.current?.noteRefusedMath(tex)} /> : null}
+        {shown ? <BoardView key={shown.key} board={shown.board} atMs={shown.atMs} canMoveSliders qualityTier={shown.tier ?? undefined} onQualityTier={(tier) => listeners.current?.noteTier(tier)} onBoardProblem={(problem) => listeners.current?.noteProblem(problem)} onMathRefused={(tex) => listeners.current?.noteRefusedMath(tex)} /> : null}
       </div>
     </main>
   );

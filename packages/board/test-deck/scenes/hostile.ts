@@ -1,4 +1,4 @@
-import { code, diagram, drawing, markAt, math, note, plot, say, table, timeline } from '../commands.ts';
+import { clear, code, diagram, drawing, hide, markAt, math, note, picture, plot, say, table, timeline } from '../commands.ts';
 import type { DeckScene } from '../deck-scene.ts';
 
 const LONG_WORD = 'W'.repeat(80);
@@ -30,4 +30,7 @@ export const HOSTILE_SCENES: readonly DeckScene[] = [
   { name: 'hostile-zero-width', subject: 'hostile', commands: [say('z', ZERO_WIDTH), table('t', [ZERO_WIDTH], [[ZERO_WIDTH]]), plot('p', 'x', [0, 1], { label: ZERO_WIDTH })] },
   { name: 'hostile-many-at-once', subject: 'hostile', commands: [...Array.from({ length: 20 }, (_, index) => say(`w${index}`, `Line ${index}, which is here to fill the board and see what leaves.`)), table('t', ['Last'], [['Still on the board']])] },
   { name: 'hostile-replaced-while-arriving', subject: 'hostile', commands: [table('same', ['First'], [['1']]), table('same', ['Second', 'Wider'], [['1', '2']]), table('same', ['Third', 'Wider', 'Widest'], [['1', '2', '3']]), code('same-code', 'text', 'a'), code('same-code', 'text', 'a\nb\nc')] },
+  { name: 'hostile-strobe-picture', subject: 'hostile', msBetweenCommands: 120, commands: Array.from({ length: 16 }, (_, index) => (index % 2 === 0 ? picture('flash', 'whole-earth', 'The whole Earth') : clear())) },
+  { name: 'hostile-strobe-table', subject: 'hostile', msBetweenCommands: 90, commands: Array.from({ length: 16 }, (_, index) => (index % 2 === 0 ? table('flash', ['One', 'Two', 'Three'], Array.from({ length: 12 }, () => ['A full row', 'of the table', 'in every cell'])) : clear())) },
+  { name: 'hostile-strobe-hide', subject: 'hostile', msBetweenCommands: 160, commands: Array.from({ length: 12 }, (_, index) => (index % 2 === 0 ? picture('flash', 'school-of-athens', 'The School of Athens') : hide('flash'))) },
 ];

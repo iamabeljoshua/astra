@@ -11,6 +11,8 @@ export interface DeckScene {
   commands: readonly unknown[];
   /** What the board must tell the tutor it could not do, in a scene that asks for too much. */
   expectedProblems?: readonly string[];
+  /** For a scene that tries to strobe. Most scenes keep a speaking pace. */
+  msBetweenCommands?: number;
 }
 
 const MS_BETWEEN_COMMANDS = 700;
@@ -31,13 +33,15 @@ export function getSceneCommands(scene: DeckScene): SceneCommand[] {
   });
 }
 
+const getSpacing = ({ msBetweenCommands = MS_BETWEEN_COMMANDS }: DeckScene) => msBetweenCommands;
+
 export function getSceneOperations(scene: DeckScene): BoardOperation[] {
-  return getSceneCommands(scene).map((command, index) => ({ kind: 'command', atMs: index * MS_BETWEEN_COMMANDS, overMs: null, command }));
+  return getSceneCommands(scene).map((command, index) => ({ kind: 'command', atMs: index * getSpacing(scene), overMs: null, command }));
 }
 
-export const getSceneRestMs = (scene: DeckScene) => (scene.commands.length - 1) * MS_BETWEEN_COMMANDS + MS_TO_REST;
+export const getSceneRestMs = (scene: DeckScene) => (scene.commands.length - 1) * getSpacing(scene) + MS_TO_REST;
 
 /** Moments while each command lands, and the rest at the end. */
 export function getSceneMoments(scene: DeckScene): number[] {
-  return [...scene.commands.flatMap((_, index) => MOMENTS_AFTER_EACH_COMMAND.map((after) => index * MS_BETWEEN_COMMANDS + after)), getSceneRestMs(scene)];
+  return [...scene.commands.flatMap((_, index) => MOMENTS_AFTER_EACH_COMMAND.map((after) => index * getSpacing(scene) + after)), getSceneRestMs(scene)];
 }

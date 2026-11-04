@@ -15,6 +15,7 @@ const { values: flags } = parseArgs({
     quick: { type: 'boolean', default: false },
     'plants-only': { type: 'boolean', default: false },
     'no-plants': { type: 'boolean', default: false },
+    flash: { type: 'boolean', default: false },
     scene: { type: 'string', multiple: true },
     sheets: { type: 'string' },
     rates: { type: 'string' },
@@ -37,7 +38,7 @@ async function runDeckChecks(page: Page, server: DeckServer, browser: DeckBrowse
   }
   if (flags['plants-only']) return;
   await runSweeps(page, { isQuick: flags.quick, scenes: flags.scene, outFolder: flags.out }, verdict);
-  await runFlashCheck(page, verdict);
+  await runFlashCheck(page, { isQuick: flags.quick || !flags.flash }, verdict);
 }
 
 async function main(): Promise<void> {
