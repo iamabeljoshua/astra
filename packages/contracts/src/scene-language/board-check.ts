@@ -1,4 +1,4 @@
-import { type SceneCommand, SIMULATION_MOMENTS } from './scene-command.ts';
+import { getSpeedPairs, type SceneCommand, SIMULATION_MOMENTS, type Slider } from './scene-command.ts';
 import type { StudentAction } from './session-event.ts';
 
 export type BoardElementKind = SceneCommand['kind'] | 'ink';
@@ -12,8 +12,8 @@ const REQUIRED_KINDS: Partial<Record<SceneCommand['kind'], readonly BoardElement
   shadeArea: ['plot'],
   construct: ['geometry'],
   runSimulation: ['simulate', 'richScene'],
-  setParameter: ['simulate'],
   trackVector: ['simulate'],
+  readout: ['simulate'],
   ghostPath: ['simulate'],
   reveal: ['plot', 'diagram', 'table', 'timeline', 'code'],
   plot: ['plot'],
@@ -31,7 +31,7 @@ function isBadRevealCount(command: SceneCommand, elementKind: BoardElementKind):
 }
 
 function getRequiredKinds(command: SceneCommand): readonly BoardElementKind[] | undefined {
-  if (command.kind === 'slider') return 'constant' in command ? ['plot'] : ['simulate'];
+  if (command.kind === 'slider' || command.kind === 'setParameter') return 'constant' in command ? ['plot'] : ['simulate'];
   if (command.kind === 'highlight' && command.tex !== undefined) return ['writeMath'];
   return REQUIRED_KINDS[command.kind];
 }
@@ -73,4 +73,11 @@ export function getBoardAfterAction(action: StudentAction, board: BoardKinds): B
   if (action.action === 'inkStroke' && !board.has(action.id)) after.set(action.id, 'ink');
   if (action.action === 'inkErased' && board.get(action.target) === 'ink') after.delete(action.target);
   return after;
+}
+
+/** The live slider on the same flight that sets this slider's speed in the other pair, if any. */
+export function getOverlappingSlider(slider: Slider, live: readonly Slider[]): Slider | null {
+  if (!('parameter' in slider)) return null;
+  const other = getSpeedPairs(slider.parameter)?.other ?? [];
+  return live.find((each) => each.id !== slider.id && each.target === slider.target && 'parameter' in each && other.includes(each.parameter)) ?? null;
 }

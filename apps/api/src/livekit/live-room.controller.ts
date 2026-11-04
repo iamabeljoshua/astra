@@ -10,7 +10,7 @@ const OK_STATUS = 200;
 export class LiveRoomController {
   constructor(private readonly liveRoomService: LiveRoomService) {}
 
-  /** Lets the signed-in student join their session's voice room. Another student's session answers 404, and a finished one 409. Opening too many rooms or starting over too often answers 429, with `retryAfterSeconds` for how long to wait. */
+  /** Says whether the signed-in student can join their session's voice room, and gives the access if so. Another student's session answers 404, and a finished one 409. Opening too many rooms or starting over too often answers 429, with `retryAfterSeconds` for how long to wait. */
   @Post(':id/live-room')
   @HttpCode(OK_STATUS)
   openLiveRoom(

@@ -212,15 +212,21 @@ export const REPLY_BOX_LABELS = {
   send: 'Send reply',
 };
 
+const IF_WORRIED = 'If anything is worrying you, or you do not feel safe, please tell an adult you trust, or call your local emergency number.';
+
 export const VOICE_LABELS = {
   you: 'You',
   board: 'Board',
   connecting: 'Connecting to your tutor.',
-  unavailable: 'Your tutor could not connect just now.',
+  unavailable: `Your tutor could not connect just now. ${IF_WORRIED}`,
   reconnecting: 'Your connection dropped. Reconnecting.',
   ended: 'Your connection to the tutor ended.',
+  sessionLimit: `This session has reached its limit. Start a new session to carry on. ${IF_WORRIED}`,
+  dailyLimit: `That is all your tutor time for now. It resets once a day, so please try again later. Your sessions are kept. ${IF_WORRIED}`,
+  broken: `Your tutor has stopped working in this session. Start a new one to carry on. ${IF_WORRIED}`,
   sessionFinished: 'This session has finished.',
-  tutorLost: 'Your tutor stopped responding. Your microphone is off. Try again and a tutor will start fresh, without what was said so far.',
+  tutorLost: `Your tutor stopped responding. Your microphone is off. Try again and a tutor will start fresh, without what was said so far. ${IF_WORRIED}`,
+  startedFresh: 'Your tutor had to start fresh, without what was said so far.',
   micDenied: 'Your browser did not allow the microphone. You can type instead.',
   micNoDevice: 'We could not find a microphone on this device. You can type instead.',
   micFailed: 'Your microphone could not start. You can type instead.',
@@ -230,7 +236,8 @@ export const VOICE_LABELS = {
   closedForQuiet: 'This room closed because it stayed quiet. Your session is still here. Open it again and a tutor will start fresh, without what was said so far.',
   openAgain: 'Open the room again',
   tryAgain: 'Try again',
-  turnOnSound: 'Turn on sound',
+  tapToHear: 'Tap to hear your tutor',
+  answerPrompt: 'Press Talk to answer, or type.',
   tooSoon(waitSeconds: number | null) {
     const minutes = Math.max(1, Math.ceil((waitSeconds ?? 60) / 60));
     return `Your tutor has been started many times, so a new one can start in about ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}. Your session is still here.`;
@@ -282,10 +289,11 @@ export const SESSION_LABELS = {
   ending: 'Ending\u2026',
   close: 'Close',
   yourTutor: 'Your tutor',
-  standInWords: 'Live lessons open soon. Your session is saved, so you can come back to it here.',
-  standInAnswer: "I can't answer yet. Live lessons open soon.",
+  replyNotSent: 'This did not reach your tutor.',
   finishedWords: 'This session has finished.',
   boardStandIn: 'Your tutor will draw here as it speaks.',
+  askAboutTopic: (title: string) => `I'd like to learn about ${title}.`,
+  carryOnWith: (title: string) => `I'm back to carry on with this: ${title}`,
   you: 'You',
   loading: 'Opening your session.',
   notFound: 'This session could not be found.',
@@ -404,6 +412,36 @@ export const LAB_LABELS = {
   logEvents: 'Events in the log:',
 };
 
+export const BOARD_LABELS = {
+  figures: {
+    metres: 'm',
+    degrees: '\u00b0',
+    readouts: {
+      time: { label: 'Time', unit: 's' },
+      height: { label: 'Height', unit: 'm' },
+      distance: { label: 'Distance', unit: 'm' },
+      speed: { label: 'Speed', unit: 'm/s' },
+      'velocity-x': { label: 'Sideways speed', unit: 'm/s' },
+      'velocity-y': { label: 'Upward speed', unit: 'm/s' },
+      'peak-height': { label: 'Highest point', unit: 'm' },
+      'landing-distance': { label: 'Lands at', unit: 'm' },
+    },
+    parameters: {
+      horizontalSpeed: { label: 'Sideways speed', unit: 'm/s' },
+      upwardSpeed: { label: 'Upward speed', unit: 'm/s' },
+      releaseHeight: { label: 'Release height', unit: 'm' },
+      gravity: { label: 'Gravity', unit: 'm/s\u00b2' },
+      launchAngle: { label: 'Launch angle', unit: '\u00b0' },
+      launchSpeed: { label: 'Launch speed', unit: 'm/s' },
+    },
+    tooFine: 'Too fine to draw here',
+  },
+  numberLine: 'Number line',
+  geometry: 'Geometry figure',
+  simulation: 'Moving ball, with its path',
+  graphOf: 'Graph of y =',
+};
+
 export const LEGAL_LABELS = {
   draftNotice: 'Draft of 4 November 2026. A lawyer has not yet reviewed this page.',
   planned: 'Planned',
@@ -434,11 +472,11 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
       {
         heading: `What ${PRODUCT_NAME} is`,
         today: [
-          `${PRODUCT_NAME} is a learning app being built around an AI tutor. Today you can sign in, answer a few questions about yourself, open a home screen with suggested lessons, and start sessions that are saved to your account. In a session you can talk or type, and the tutor answers aloud with captions. For now it only repeats simple lines and does not teach yet.`,
+          `${PRODUCT_NAME} is a learning app built around an AI tutor. You can sign in, answer a few questions about yourself, open a home screen with suggested lessons, and start sessions that are saved to your account. In a lesson the tutor talks and draws on a board, and you reply by talking or typing. The tutor is an AI and it can be wrong, so check anything that matters.`,
           ...inTestLessons('Spoken lessons with drawings are in testing and are not open to students yet.'),
         ],
         planned: [
-          'Full spoken lessons, where the tutor explains and draws on a board as it talks. The tutor is an AI and it can be wrong, so check anything that matters.',
+          'Lessons that follow a plan across several ideas, with more kinds of drawing.',
         ],
       },
       {
@@ -492,8 +530,9 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
           'We also use the sessions you start from suggested lessons, and their length, status, and start time, to choose what your home screen suggests next. A question you leave open can take the continue card, so a lesson you left open can then appear among the suggestions. Only your own sessions do this, and the words of the questions you type play no part in it.',
           'Any file you attach stays in your browser. It is not sent or stored.',
           'Your microphone stays off until you press Talk in a session, and your browser asks first. While it is on, your voice goes live to the services named under Who receives your data. We do not store your voice or any recording of it.',
-          "The words you say or type in a session go to our tutor service, which holds them in memory while the session runs and drops them when it ends. We do not store them yet.",
+          "The words you say or type in a session, and a question you type on Home to start one, go to our tutor service, which holds them in memory while the session runs and drops them when it ends. It passes them to Anthropic, as Who receives your data says. Apart from a question from Home, which stays as its session's title, we do not store them yet.",
           'Words you type into the search box on the Sessions page go to our server, which uses them to find your sessions. We do not store them.',
+          'A running total of what the tutor cost for you each day, with no words in it. We use it to stop tutor time for the day at a limit.',
         ],
         planned: [
           "Each lesson's transcript and board drawings, kept while the account is active. Your voice itself stays unstored.",
@@ -532,14 +571,15 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
           isLessonEnabled()
             ? 'Supabase runs our sign-in service and our database, so it holds your account, your notes, and your sessions, and it sends the sign-in email. What a test lesson saves, its drawings, recordings, and cost records, stays on our own server and does not go to Supabase.'
             : 'Supabase runs our sign-in service and our database, so it holds everything we store on our servers, and it sends the sign-in email.',
-          'When you use a session, LiveKit Cloud carries your voice, the tutor\'s voice, and the messages between your browser and the tutor, including your words as text. It also receives your IP address and your student ID, a random code that does not include your name. We do not ask it to record any of this.',
+          'When a session opens, your browser joins LiveKit Cloud, even before you press Talk, so LiveKit receives your IP address and your student ID, a random code that does not include your name. During the session, LiveKit Cloud carries your voice, the tutor\'s voice, and the messages between your browser and the tutor, including your words as text. We do not ask it to record any of this. We do not send LiveKit your name, your date of birth, your email address, your level, your interests, or your goal, though it carries anything you say or type yourself.',
           "While your microphone is on, Meta's Muse Voice Transcribe receives your voice and turns it into text. Meta's terms let it keep what it receives for safety checks and human review.",
-          "ElevenLabs receives the tutor's words and turns them into its voice. For now the tutor repeats what you say or type, so ElevenLabs receives your words too.",
+          "Anthropic, whose Claude model writes the tutor's replies, receives what you say and type in a session, a question you type on Home to start one, the tutor's earlier words, and your level, interests, and goal. We do not send it your name, your date of birth, your email address, or an account ID, though it receives anything you say or type yourself. Anthropic's terms say it does not train on this by default, and that it keeps it for a limited time.",
+          "ElevenLabs receives the tutor's words and turns them into its voice. Those words can repeat what you said or typed.",
           ...inTestLessons("While spoken lessons are in testing, a test lesson sends Anthropic's Claude models the title of the suggested lesson, or the whole question you typed, whatever it says, which they use to choose and write a drawing and the tutor's words. A model then writes the drawing from a short topic it takes from your question, and it can get that wrong, so a personal detail in your question can reach those models and the words a tutor says to you. ElevenLabs receives the tutor's words and turns them into its voice, and the audio travels through a LiveKit server. Please leave your name, school, and other personal details out of your questions."),
           'No other outside service receives student data today. The app serves its own fonts and pictures.',
         ],
         planned: [
-          "Anthropic, whose Claude models will receive the lesson conversation and write the tutor's replies.",
+          'A zero-retention agreement with Anthropic, which we will ask for before any student under 18 joins.',
           'Google, if we turn on sign-in with Google, which will handle that sign-in and pass your account details to Supabase Auth.',
           'An email delivery service and a hosting provider, not yet chosen. We will name them here before real students join.',
         ],
@@ -555,7 +595,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
         heading: 'What we do not do',
         today: [
           'The app shows no ads. We do not sell student data. We do not store raw audio.',
-          'Meta and ElevenLabs run the AI models named above. We use the Muse model Meta lists as a Standard Model, and its terms say it does not train on content from those. ElevenLabs offers a setting that keeps its models from training on what it receives, and we have not yet confirmed that setting. A lawyer has not reviewed either.',
+          'Meta, Anthropic, and ElevenLabs run the AI models named above. We use the Muse model Meta lists as a Standard Model, and its terms say it does not train on content from those. Anthropic does not train on what it receives by default. ElevenLabs offers a setting that keeps its models from training on what it receives, and we have not yet confirmed that setting. A lawyer has not reviewed any of these.',
           'The app uses no camera, no voiceprints, and no emotion inference.',
           ...inTestLessons('Anthropic runs the Claude models that test lessons use, and a lawyer has not reviewed that either.'),
         ],

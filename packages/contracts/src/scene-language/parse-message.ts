@@ -1,6 +1,6 @@
 import { BEAT_LIMITS } from './beat.ts';
 import { readBeatId, readSceneId, readTurnId } from './ids.ts';
-import { type AgentMessage, type BrowserMessage, type BrowserStamp, LIVE_MESSAGE_MAX_BYTES, STUDENT_WORDS_MAX_CHARACTERS, type TimedWord, TYPED_TEXT_MAX_CHARACTERS } from './live-message.ts';
+import { type AgentMessage, type BrowserMessage, type BrowserStamp, clipTypedText, LIVE_MESSAGE_MAX_BYTES, STUDENT_WORDS_MAX_CHARACTERS, type TimedWord, TUTOR_CLOSED_REASONS } from './live-message.ts';
 import { readSceneCommand } from './parse-command.ts';
 import { PLAY_REPORT_KEYS, readFrozenFrames, readPlayReport, readStudentAction } from './parse-event.ts';
 import type { SceneAgentMessage, SceneBrowserMessage } from './scene-message.ts';
@@ -14,6 +14,7 @@ import {
   readFields,
   readList,
   readNumberInRange,
+  readOneOf,
   readString,
   readVariant,
   readWholeNumber,
@@ -93,6 +94,8 @@ const AGENT_MESSAGES: VariantTable<AgentMessage, 'type'> = {
       read: (fields) => ({ type: 'studentWords', text: readString(fields.at('text'), STUDENT_WORDS_MAX_CHARACTERS), isFinal: readBoolean(fields.at('isFinal')) }),
     },
     heard: { keys: [], read: () => ({ type: 'heard' }) },
+    thinking: { keys: ['isThinking'], read: (fields) => ({ type: 'thinking', isThinking: readBoolean(fields.at('isThinking')) }) },
+    tutorClosed: { keys: ['reason'], read: (fields) => ({ type: 'tutorClosed', reason: readOneOf(fields.at('reason'), TUTOR_CLOSED_REASONS) }) },
     pulse: { keys: [], read: () => ({ type: 'pulse' }) },
     earsOpen: { keys: [], read: () => ({ type: 'earsOpen' }) },
     quietWarning: { keys: ['isOn'], read: (fields) => ({ type: 'quietWarning', isOn: readBoolean(fields.at('isOn')) }) },
@@ -101,6 +104,7 @@ const AGENT_MESSAGES: VariantTable<AgentMessage, 'type'> = {
 };
 
 const CLOCK_ID_MAX_CHARACTERS = 64;
+const MARK_ID_MAX_CHARACTERS = 64;
 
 const STAMP_KEYS = ['clockId', 'browserMs', 'startedMsAgo'];
 
@@ -149,7 +153,11 @@ const BROWSER_MESSAGES: VariantTable<BrowserMessage, 'type'> = {
     },
     typed: {
       keys: [...STAMP_KEYS, 'text'],
-      read: (fields) => ({ type: 'typed', ...readBrowserStamp(fields), text: readString(fields.at('text'), TYPED_TEXT_MAX_CHARACTERS) }),
+      read: (fields) => ({ type: 'typed', ...readBrowserStamp(fields), text: clipTypedText(readString(fields.at('text'), LIVE_MESSAGE_MAX_BYTES)) }),
+    },
+    markNotDrawn: {
+      keys: [...STAMP_KEYS, 'markId'],
+      read: (fields) => ({ type: 'markNotDrawn', ...readBrowserStamp(fields), markId: readString(fields.at('markId'), MARK_ID_MAX_CHARACTERS) }),
     },
     pulse: {
       keys: [...STAMP_KEYS, 'hearsAgent'],

@@ -1,12 +1,8 @@
-import { type Beat, getBeatText, getCues, getSpokenWords, parseBeat } from '@astra/contracts';
+import { type Beat, getBeatText, getCues, getSpokenWords } from '@astra/contracts';
+import { GRAPH_LESSONS } from './graph-lessons.ts';
+import { makeBeat } from './make-beat.ts';
 
 const BALL = { kind: 'simulate', id: 'shot', simulation: { model: 'projectile', parameters: { horizontalSpeed: 4.2, upwardSpeed: 5.6, releaseHeight: 2.2, gravity: 9.8 } } };
-
-function makeBeat(id: string, script: unknown[], expectsReply = false): Beat {
-  const parsed = parseBeat({ id, script, expectsReply });
-  if (!parsed.ok) throw new Error(`${id}: ${parsed.problem}`);
-  return parsed.value;
-}
 
 export const LESSON: readonly (readonly Beat[])[] = [
   [
@@ -155,6 +151,23 @@ const EVERY_WORD_LESSON: readonly (readonly Beat[])[] = [
   ],
 ];
 
+const RAPID_MOVES_LESSON: readonly (readonly Beat[])[] = [
+  [
+    makeBeat('rapid-moves', [
+      { kind: 'writeMath', id: 'steps', tex: '2x + 3 = 11' },
+      'Take three from both sides, ',
+      { kind: 'transformMath', target: 'steps', tex: '2x = 11 - 3' },
+      'cross ',
+      { kind: 'transformMath', target: 'steps', tex: '2x = 8' },
+      'it ',
+      { kind: 'transformMath', target: 'steps', tex: String.raw`x = \frac{8}{2}` },
+      'over ',
+      { kind: 'transformMath', target: 'steps', tex: 'x = 4' },
+      'and read the answer, four, once it has all settled down. ',
+    ]),
+  ],
+];
+
 const HOSTILE_MARKUP = '<img src=x onerror="window.pwned=1"><script>window.pwned=1</script>';
 
 const HOSTILE_LESSON: readonly (readonly Beat[])[] = [
@@ -244,7 +257,7 @@ const MARKS_AND_LABELS_LESSON: readonly (readonly Beat[])[] = [
   ],
 ];
 
-export const LESSONS = { 'jump-shot': LESSON, algebra: ALGEBRA_LESSON, dense: DENSE_LESSON, 'every-word': EVERY_WORD_LESSON, hostile: HOSTILE_LESSON, 'rare-fonts': RARE_FONTS_LESSON, 'marks-and-labels': MARKS_AND_LABELS_LESSON } as const satisfies Record<string, readonly (readonly Beat[])[]>;
+export const LESSONS = { 'jump-shot': LESSON, algebra: ALGEBRA_LESSON, dense: DENSE_LESSON, 'every-word': EVERY_WORD_LESSON, hostile: HOSTILE_LESSON, 'rare-fonts': RARE_FONTS_LESSON, 'rapid-moves': RAPID_MOVES_LESSON, 'marks-and-labels': MARKS_AND_LABELS_LESSON, ...GRAPH_LESSONS } as const satisfies Record<string, readonly (readonly Beat[])[]>;
 
 export type LessonName = keyof typeof LESSONS;
 
@@ -264,6 +277,11 @@ function addCueEveryWords(beat: Beat, every: number): Beat {
     });
   });
   return makeBeat(beat.id, script, beat.expectsReply);
+}
+
+export function getNamedLessonTurn({ lesson, lessonTurn = 0, cueEveryWords }: { lesson: LessonName; lessonTurn?: number; cueEveryWords?: number }): readonly Beat[] {
+  const beats = LESSONS[lesson][lessonTurn] ?? [];
+  return cueEveryWords ? beats.map((beat) => addCueEveryWords(beat, cueEveryWords)) : beats;
 }
 
 export function getLessonTurn({ lessonTurn = 0, repeats = 1, cueEveryWords }: { lessonTurn?: number; repeats?: number; cueEveryWords?: number }): readonly Beat[] {

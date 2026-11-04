@@ -30,9 +30,20 @@ describe('the stored takes', () => {
     for (const take of takes) expect((getTakeAudio(take).pcm.length / take.sampleRate) * 1000).toBeGreaterThanOrEqual(250);
   });
 
+  it('never praise, because a reaction plays before the tutor has read a word', () => {
+    expect(takes.filter((take) => /good|great|nice|well done/i.test(take.phrase)).map((take) => take.phrase)).toEqual([]);
+    const picker = createTakePicker(takes);
+    const picked = Array.from({ length: 24 }, () => picker.next('reaction')?.phrase);
+    expect(new Set(picked).size).toBe(2);
+  });
+
+  it('never read as agreement, because a reaction can play before "my dad hits me" is read', () => {
+    expect(takes.filter((take) => take.use === 'reaction').map((take) => take.phrase).sort()).toEqual(['Hm.', 'I see.']);
+  });
+
   it('include several short reactions, the working phrase, and the lines the session needs', () => {
     const uses = (use: StoredTake['use']) => takes.filter((take) => take.use === use).length;
-    expect(uses('reaction')).toBeGreaterThanOrEqual(3);
+    expect(uses('reaction')).toBe(2);
     expect(uses('working')).toBe(3);
     expect(uses('greeting')).toBe(1);
     expect(uses('prompt')).toBe(1);

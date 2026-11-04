@@ -12,6 +12,9 @@ const WARMED_ROOM_LASTS_MS = (ROOM_SETTINGS.emptyTimeout - 15) * 1000;
 /** Each room runs a job of about 100 MB, and a warm one nobody joins lasts `emptyTimeout`, so sessions past this many in that time open their room when the student joins. */
 export const MOST_WARM_ROOMS = 2;
 export const WARM_ROOM_WINDOW_MS = ROOM_SETTINGS.emptyTimeout * 1000;
+/** A job reached its room in about 3 s and in 12 s at worst under load, so a new room with none yet is left to it for this long. */
+const TUTOR_ARRIVES_WITHIN_MS = 15_000;
+const STUDENT_IDENTITY_PREFIX = 'student-';
 const LIMIT_WINDOW_MS = 10 * 60_000;
 /** Starting over starts a job, so a student gets this many in a window. A crash or a quiet room needs one. */
 const MOST_STARTS_OVER = 5;
@@ -69,8 +72,16 @@ function getClient({ url, apiKey, apiSecret }: LiveRoomKeys): RoomServiceClient 
 
 const getNewest = (rooms: readonly Room[]) => rooms.reduce<Room | null>((newest, room) => (newest && newest.creationTime > room.creationTime ? newest : room), null);
 
+export interface OpenRoom {
+  name: string;
+  /** A job was in the room when this was read. A new room's job is still on its way, so this is false there. */
+  isTutorThere: boolean;
+}
+
 interface KnownRoom {
   name: Promise<string>;
+  /** A job that has not reached the room by this time is not coming. */
+  isTutorDueUntilMs: number;
   /** Until this time a room no student has joined is certainly open, so joining it costs no call to LiveKit. After it, the room is about to close by itself, so it is not joined at all. Zero once a student has it. */
   isSureUntilMs: number;
 }
@@ -103,25 +114,35 @@ export class LiveRooms {
       .createRoom({ name: roomName, ...ROOM_SETTINGS, agents: [new RoomAgentDispatch({ agentName: keys.agentName, restartPolicy: JobRestartPolicy.JRP_NEVER })] })
       .then(() => roomName);
     name.catch(() => this.roomsOpened.takeBack(studentId));
-    this.remember(sessionId, { name, isSureUntilMs });
+    this.remember(sessionId, { name, isSureUntilMs, isTutorDueUntilMs: Date.now() + TUTOR_ARRIVES_WITHIN_MS });
     return name;
   }
 
-  private async findOpenRoom(keys: LiveRoomKeys, sessionId: string): Promise<string | null> {
+  // LiveKit answers for a deleted room for at least 12 s and a token can build it again, so a room being there says nothing. Only a job in it says a tutor is.
+  private async isJobInRoom(keys: LiveRoomKeys, name: string): Promise<boolean> {
+    const people = await getClient(keys).listParticipants(name).catch((problem: { status?: number }) => {
+      if (problem.status !== NOT_FOUND) throw problem;
+      return [];
+    });
+    return people.some((person) => !person.identity.startsWith(STUDENT_IDENTITY_PREFIX));
+  }
+
+  private async findOpenRoom(keys: LiveRoomKeys, sessionId: string): Promise<OpenRoom | null> {
     const known = this.knownRooms.get(sessionId);
     if (!known) {
-      const found = getNewest(await this.findRooms(keys, sessionId))?.name ?? null;
-      if (found) this.remember(sessionId, { name: Promise.resolve(found), isSureUntilMs: 0 });
-      return found;
+      const name = getNewest(await this.findRooms(keys, sessionId))?.name;
+      if (!name || !(await this.isJobInRoom(keys, name))) return null;
+      this.remember(sessionId, { name: Promise.resolve(name), isSureUntilMs: 0, isTutorDueUntilMs: 0 });
+      return { name, isTutorThere: true };
     }
     this.remember(sessionId, known);
     const name = await known.name.catch(() => null);
     if (!name) return null;
-    const { isSureUntilMs } = known;
+    const { isSureUntilMs, isTutorDueUntilMs } = known;
     known.isSureUntilMs = 0;
-    if (isSureUntilMs > 0) return Date.now() < isSureUntilMs ? name : null;
-    const [room] = await getClient(keys).listRooms([name]);
-    return room ? name : null;
+    if (isSureUntilMs > 0) return Date.now() < isSureUntilMs ? { name, isTutorThere: false } : null;
+    if (Date.now() < isTutorDueUntilMs) return { name, isTutorThere: false };
+    return (await this.isJobInRoom(keys, name)) ? { name, isTutorThere: true } : null;
   }
 
   /** A new session is about to talk, and a job takes about 2.3 s to start, so the tutor starts now. It hears nothing until the student joins, and the room closes itself if none does. */
@@ -135,24 +156,25 @@ export class LiveRooms {
   }
 
   /** Joins the room this session has open, so a rejoin or a reload finds its tutor, or opens one if it has none. */
-  async open(keys: LiveRoomKeys, sessionId: string, studentId: string): Promise<string> {
+  async open(keys: LiveRoomKeys, sessionId: string, studentId: string): Promise<OpenRoom> {
     const found = await this.findOpenRoom(keys, sessionId).catch(() => {
       throw new ServiceUnavailableException('Live voice could not open a room.');
     });
     if (found) return found;
     refuseIfAtLimit(studentId, this.roomsOpened);
-    return this.openNew(keys, sessionId, studentId).catch(() => {
+    const name = await this.openNew(keys, sessionId, studentId).catch(() => {
       throw new ServiceUnavailableException('Live voice could not open a room.');
     });
+    return { name, isTutorThere: false };
   }
 
   /** For a tutor that has gone. A second job beside a live one would talk over it, so the old room goes first. */
-  async startOver(keys: LiveRoomKeys, sessionId: string, studentId: string): Promise<string> {
+  async startOver(keys: LiveRoomKeys, sessionId: string, studentId: string): Promise<OpenRoom> {
     refuseIfAtLimit(studentId, this.startsOver, this.roomsOpened);
     this.startsOver.note(studentId);
     try {
       await this.closeAll(keys, sessionId);
-      return await this.openNew(keys, sessionId, studentId);
+      return { name: await this.openNew(keys, sessionId, studentId), isTutorThere: false };
     } catch {
       this.startsOver.takeBack(studentId);
       throw new ServiceUnavailableException('Live voice could not open a room.');

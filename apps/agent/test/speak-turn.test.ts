@@ -107,6 +107,14 @@ function createWatchedLine({ playoutMs = 0, frameMs = 1 } = {}) {
   return { events, line, turn, getTurnStartedAtMs };
 }
 
+function setupForUnspoken() {
+  return {
+    voice: makeRenderedVoice({ name: 'fake', render: renderTone }).makeTts(),
+    line: createVoiceLine({ sampleRate: FAKE_SAMPLE_RATE, captureFrame: async () => {}, clearQueue: () => {}, waitForPlayout: async () => {} }),
+    messenger: { send: () => {}, sendOnBothChannels: () => {} },
+  };
+}
+
 describe('turns on one voice line', () => {
   // A turn's first sound must follow a silence the probe can see, or the browser loses where the turn starts.
   const LEEWAY_MS = 5;
@@ -381,5 +389,29 @@ describe('speakTurn', () => {
     expect(words[0]?.startMs).toBe(0);
     expect(words[1]?.startMs).toBeLessThanOrEqual(240);
     expect(run.captured[0]?.sampleRate).toBe(FAKE_SAMPLE_RATE);
+  });
+
+  it('hands back a beat that arrives after a stop, so a resume can still say it', async () => {
+    const { voice, line, messenger } = setupForUnspoken();
+    let release: (beat: Beat) => void = () => {};
+    const late = new Promise<Beat>((resolve) => {
+      release = resolve;
+    });
+    const unspoken: Beat[] = [];
+    const spoken = speakTurn({
+      voice,
+      line,
+      messenger,
+      turnId: 'turn-1' as TurnId,
+      beats: (async function* () {
+        yield await late;
+      })(),
+      onBeatUnspoken: (beat) => unspoken.push(beat),
+    });
+    spoken.stop();
+    const beat = BEATS[0] as Beat;
+    release(beat);
+    await spoken.finished;
+    expect(unspoken).toEqual([beat]);
   });
 });

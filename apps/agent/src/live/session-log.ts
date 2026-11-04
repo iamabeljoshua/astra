@@ -12,6 +12,9 @@ export interface SessionLog {
   getEvents(): readonly SessionEvent[];
 }
 
+const MOST_EVENTS = 50_000;
+const MOST_CLOCK_IDS = 16;
+
 /** A beat only ever plays further, so a report of fewer words or cues is an old one arriving again. */
 export function isFurtherReport(next: PlayReport, known: PlayReport): boolean {
   return next.playedWords > known.playedWords || (next.playedWords === known.playedWords && next.firedCueMs.length > known.firedCueMs.length);
@@ -27,6 +30,7 @@ export function createSessionLog({ getNowMs, getBeat, onWritten, onRefused }: Se
     const known = browserToSessionMs.get(clockId);
     if (known !== undefined) return known;
     const offsetMs = Math.round(getNowMs()) - browserMs;
+    if (browserToSessionMs.size >= MOST_CLOCK_IDS) browserToSessionMs.delete(browserToSessionMs.keys().next().value as string);
     browserToSessionMs.set(clockId, offsetMs);
     return offsetMs;
   };
@@ -34,8 +38,8 @@ export function createSessionLog({ getNowMs, getBeat, onWritten, onRefused }: Se
   const getBody = (message: BrowserMessage): object | null => {
     if (message.type === 'played') {
       const beat = getBeat(message.turnId, message.beatId);
-      const { turnId, wordStartsMs, durationMs, playedWords, firedCueMs, ending, frozen } = message;
-      return beat ? { kind: 'beatPlayed', beat, reportedBy: 'browser', turnId, wordStartsMs, durationMs, playedWords, firedCueMs, ending, frozen } : null;
+      const { turnId, wordStartsMs, durationMs, playedWords, firedCueMs, cueAims, ending, frozen } = message;
+      return beat ? { kind: 'beatPlayed', beat, reportedBy: 'browser', turnId, wordStartsMs, durationMs, playedWords, firedCueMs, ...(cueAims ? { cueAims } : {}), ending, frozen } : null;
     }
     if (message.type === 'boardFrozen') return { kind: 'boardFrozen', turnId: message.turnId, frozen: message.frozen };
     if (message.type === 'acted') return { kind: 'studentActed', action: message.action };
@@ -52,6 +56,7 @@ export function createSessionLog({ getNowMs, getBeat, onWritten, onRefused }: Se
       const known = beatKey === null ? undefined : beatRows.get(beatKey);
       if (message.type === 'played' && known && !isFurtherReport(message, known.report)) return null;
       const row = known?.row ?? events.length;
+      if (row >= MOST_EVENTS) return null;
       const parsed = parseSessionEvent({ seq: row, atMs: Math.max(0, offsetMs + message.browserMs - message.startedMsAgo), ...body });
       if (!parsed.ok) {
         onRefused?.(parsed.problem);
