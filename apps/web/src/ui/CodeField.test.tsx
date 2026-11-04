@@ -77,6 +77,14 @@ describe('CodeField', () => {
     ['the minutes after the code', 'Your code is 123456. It works for 10 minutes.'],
     ['Arabic digits', 'يعمل لمدة ١٠ دقائق ١٢٣٤٥٦'],
     ['a link holding digits before the code', 'Log in at https://astra.test/verify?token=ab654321cd\nOr enter the code: 123456'],
+    ['the line breaks lost, so words touch the code', 'It works for 10 minutes.123456Only your newest code works.'],
+    ['the code set in underscores', 'It works for 10 minutes. _123456_'],
+    ['a longer number before the code', 'Reference 1234567. It works for 10 minutes. Code 123456.'],
+    ['a second number of the same length after the code', 'Your code is 123456. Reference 654321.'],
+    ['a code split in pairs, then a reference touching a word', '12 34 56 ref999999'],
+    ['a code split in half, then a reference touching a word', 'Your code is 123 456 (ref x999999)'],
+    ['a code split by hyphens, then a reference touching a word', 'Your code is 123-456 (ref x999999)'],
+    ['a split code with a short number right after it', 'Your code is 123 456 789.'],
   ])('finds the code in a whole pasted mail, with %s', (_caseName, pasted) => {
     const onComplete = vi.fn();
     render(<ControlledCodeField onComplete={onComplete} />);

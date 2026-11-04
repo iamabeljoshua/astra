@@ -19,6 +19,9 @@ export class LiveRoomAccessDto {
 
   /** The name of this session's room. */
   roomName!: string;
+
+  /** A tutor was in the room just now. A browser that joins and finds nobody got there after it closed, and should ask again. */
+  isTutorThere!: boolean;
 }
 
 export class LiveRoomResponseDto {

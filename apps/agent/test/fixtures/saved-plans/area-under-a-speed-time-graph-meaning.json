@@ -1,0 +1,37 @@
+{
+ "topic": "area under a speed-time graph meaning",
+ "plan": {
+  "opening": [
+   {
+    "say": "Picture a car driving along a straight road, and a graph that tracks how fast it's going at every moment.",
+    "note": "speed over time"
+   },
+   {
+    "say": "Time runs along the bottom, and speed is how high the line sits above it.",
+    "tex": "v(t) = 10"
+   },
+   {
+    "say": "Here's the question: what could the space trapped between that line and the bottom axis possibly mean?",
+    "note": "the space under it"
+   }
+  ],
+  "more": [
+   {
+    "say": "Start simple. Say the car holds a steady speed of ten meters per second for five seconds."
+   },
+   {
+    "say": "That makes a flat line, and the space under it is a plain rectangle, ten tall and five wide."
+   },
+   {
+    "say": "Multiply those, and you get fifty. Now ask yourself what fifty could be measuring here."
+   }
+  ],
+  "setup": "Watch the area fill as the car drives.",
+  "narration": "[[flat-line]]Here's that steady ten meters per second. [[area-fills]]As time runs, the area fills up. [[fifty]]Ten times five is fifty, and that's fifty meters. [[distance]]The area is the distance traveled.",
+  "plan": "flat-line: axes with time in seconds from zero to five on x and speed in meters per second from zero to twelve on y, and a flat line at speed ten.\narea-fills: the rectangle under the line fills from left to right as a marker moves along time from zero to five.\nfifty: a label reads ten times five equals fifty meters, with both numbers true to the axes.\ndistance: a label reads area equals distance, beside the filled rectangle.",
+  "close": "What would the area mean if the line dipped below the axis?",
+  "model": "fixed",
+  "ms": 0,
+  "costUsd": 0
+ }
+}

@@ -1,0 +1,34 @@
+{
+ "topic": "Why short strings play high notes",
+ "plan": {
+  "opening": [
+   {
+    "say": "Pluck a guitar string, and you hear a note. Pluck a shorter one, and the note changes. Let's see why.",
+    "note": "short string, high note"
+   },
+   {
+    "say": "A string is just a stretched thing that wiggles back and forth, and each full wiggle is called one cycle.",
+    "note": "one wiggle = one cycle"
+   },
+   {
+    "say": "Pitch is how many of those wiggles happen every second. We call that count the frequency, and it's what your ear hears as high or low.",
+    "tex": "f = \\text{cycles per second}"
+   }
+  ],
+  "more": [
+   {
+    "say": "Think of a child on a swing. A long swing takes a slow, lazy trip, while a short swing zips back and forth quickly."
+   },
+   {
+    "say": "A string works like that. The wiggle has to travel along its whole length and bounce back, so more length means a longer trip."
+   },
+   {
+    "say": "A longer trip means fewer wiggles each second. That's a lower frequency, and your ear hears it as a lower pitch."
+   }
+  ],
+  "setup": "Watch two strings wiggle side by side.",
+  "narration": "[[strings-appear]]Here's the picture. A long string and a short one. [[long-wiggle]]The long one has a slow trip to make, so it wiggles slowly. [[short-wiggle]]The short one finishes its trip fast, so it wiggles fast. [[count-cycles]]More wiggles each second means a higher note. [[halve-length]]Cut a string in half, and the frequency doubles.",
+  "plan": "strings-appear: two horizontal strings fixed at both ends, one long, one exactly half as long, stacked vertically, labeled L and half of L.\nlong-wiggle: the long string vibrates in one smooth arc, slowly, about two cycles on screen, so the student sees it is slow.\nshort-wiggle: the half-length string vibrates in one arc, twice as fast as the long one, clearly quicker.\ncount-cycles: a counter beside each string shows cycles per second f, the short string's count shown as twice the long one's.\nhalve-length: the long string is shortened to half; its f label doubles, showing f is inversely proportional to L.",
+  "close": "What do you think happens to the pitch if you shorten the string to a third?"
+ }
+}
