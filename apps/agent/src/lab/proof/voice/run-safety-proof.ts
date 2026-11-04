@@ -5,6 +5,7 @@ import { parseArgs } from 'node:util';
 import { Room } from '@livekit/rtc-node';
 import { readKey } from '../../../keys.ts';
 import { deleteProofRooms, hasRoom, listParticipantIdentities } from './cloud-rooms.ts';
+import { startCutProxy } from './cut-proxy.ts';
 import { readTrace, type TraceRow } from './read-trace.ts';
 import { startVoiceStack, type VoiceStack } from './stack.ts';
 import { clipFromSay, launchProofBrowser, loadClip, openStudentPage, type SpeechClip, type StudentPage } from './student-page.ts';
@@ -310,6 +311,43 @@ const SCENARIOS: Record<string, Scenario> = {
     }
     await student.context.close();
     await browser.close();
+    return { rows };
+  },
+
+  // Old reliable messages reached a page again across 1 of 12 real rejoins, too rarely to wait for, so this delivers every turn's start again during a real drop. The report and the resume must stay true.
+  async replay(stack) {
+    const proxy = await startCutProxy();
+    const browser = await launchProofBrowser({ proxy: `127.0.0.1:${proxy.port}` });
+    const student = await openStudentPage(browser, { email: MAYA, title: 'Replay' });
+    await student.pressTalk();
+    await student.waitForLive();
+    await waitForRows(stack, student, 0, (rows) => rows.some((row) => row.name === 'turnFinished'), 30_000);
+    await delay(1000);
+    const rows = [];
+    for (let run = 0; run < 3; run += 1) {
+      const startedAtMs = Date.now();
+      await typeReply(student, 'show me the ball');
+      await waitForRows(stack, student, startedAtMs, (found) => found.some((row) => row.name === 'firstFrameCaptured' && row.kind === 'reply'));
+      await delay(2500);
+      const cutAtMs = Date.now();
+      proxy.cut();
+      await delay(4000);
+      const replayed = await student.page.evaluate(() => {
+        const voice = window.astraVoice as unknown as { records: { turnStartedEpochMs: Record<string, number> }; player: { receive(message: object): void } };
+        const turnIds = Object.keys(voice.records.turnStartedEpochMs);
+        for (const turnId of turnIds) voice.player.receive({ type: 'turnStarted', turnId });
+        return turnIds.length;
+      });
+      proxy.restore();
+      const found = await waitForRows(stack, student, cutAtMs, (seen) => seen.some((row) => row.name === 'resumeStarted') && seen.some((row) => row.name === 'turnFinished' && row.kind === 'resume'), 45_000);
+      await delay(1000);
+      const played = found.filter((row) => row.name === 'played');
+      rows.push({ replayed, zeroReports: played.filter((row) => row.playedWords === 0 && !String(row.beatId).includes('question')).length, flight: played.filter((row) => String(row.beatId).includes('flight')).map((row) => [row.beatId, row.ending, row.playedWords, row.firedCues]), resumedBeats: found.find((row) => row.name === 'resumeStarted')?.beats });
+      await delay(1500);
+    }
+    await student.context.close();
+    await browser.close();
+    proxy.close();
     return { rows };
   },
 

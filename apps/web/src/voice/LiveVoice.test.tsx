@@ -24,7 +24,6 @@ function makeFakeVoice(view: Partial<LiveVoiceView> = {}): LiveVoice {
     },
     getBoardNow: () => ({ board: { elements: new Map(), focus: null }, atMs: 0 }),
     sendTyped: vi.fn(),
-    setMicOn: vi.fn(async (isOn: boolean) => setMic(isOn)),
     toggleMic: vi.fn(async () => setMic(current.mic !== 'on')),
     sayStillHere: vi.fn(),
     turnOnSound: vi.fn(),
@@ -80,7 +79,6 @@ describe('useLiveVoice', () => {
       await Promise.all(presses);
     });
     expect(voice.getView().mic).toBe('off');
-    expect(voice.setMicOn).not.toHaveBeenCalledWith(true);
     expect(voice.toggleMic).not.toHaveBeenCalled();
   });
 

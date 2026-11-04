@@ -71,7 +71,6 @@ export interface LiveVoice {
   subscribe(listener: () => void): () => void;
   getBoardNow(): { board: BoardState; atMs: number };
   sendTyped(text: string): void;
-  setMicOn(isOn: boolean): Promise<void>;
   toggleMic(): Promise<void>;
   /** Answers a quiet warning, so the room stays open. */
   sayStillHere(): void;
@@ -402,7 +401,6 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
       addStudentWords({ text, isFinal: true });
       send({ type: 'typed', ...getStamp(), text });
     },
-    setMicOn: (isOn) => mic.setOn(isOn && !hasLeftRoom),
     async toggleMic() {
       if (!hasLeftRoom) await mic.toggle();
     },

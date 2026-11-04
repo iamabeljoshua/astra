@@ -236,6 +236,7 @@ pnpm agent
 | `ELEVENLABS_API_KEY` | Agent | The tutor's voice. |
 | `ASTRA_VOICE=fake` | Agent | A tone instead of the real voice, to spend no credits. |
 | `ASTRA_VOICE_TRACE=<folder>` | Agent | Writes each session's timings there, with no words. `ASTRA_VOICE_TRACE_WORDS=1` adds the words, for test speech only. |
+| `ASTRA_QUIET_LIMIT_MS=<ms>` | Agent | Replaces the 10 minutes a quiet room lasts, for a test. |
 
 The browser only ever receives a room token from `POST /sessions/:id/live-room`. It holds one room, the microphone, and the data channel, it lasts 2 minutes, and it cannot call the tutor in. Only the API does that, for a session that has not finished, and the API closes the room when the session finishes. Vendor keys stay on the servers. `docs/tests/voice.md` holds what was measured.
 

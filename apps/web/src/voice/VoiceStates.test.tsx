@@ -26,7 +26,6 @@ function makeVoice() {
     },
     getBoardNow: () => ({ board: { elements: new Map(), focus: null }, atMs: 0 }),
     sendTyped: vi.fn(),
-    setMicOn: vi.fn(async () => {}),
     toggleMic: vi.fn(async () => {}),
     sayStillHere: vi.fn(),
     turnOnSound: vi.fn(),
