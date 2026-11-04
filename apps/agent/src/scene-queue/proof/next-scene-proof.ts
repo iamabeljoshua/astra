@@ -31,10 +31,18 @@ const SAYS = (args.says ?? '').split('|');
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 mkdirSync(OUT, { recursive: true });
 
+interface FiredCue {
+  atWord: number;
+  positionMs: number;
+  wordStartMs: number;
+  firedEpochMs: number;
+}
+
 interface Seen {
   sceneId: string;
   atWallMs: number;
   caption: string;
+  cue: FiredCue | null;
 }
 
 const readPage = (page: Page) =>
@@ -112,7 +120,9 @@ while (Date.now() < limitAtMs) {
   if (!read) continue;
   if (read.caption && captions.at(-1) !== read.caption) captions.push(read.caption);
   if (read.sceneId && !seen.some((one) => one.sceneId === read.sceneId)) {
-    seen.push({ sceneId: read.sceneId, atWallMs: Date.now(), caption: read.caption });
+    const atWallMs = Date.now();
+    const cue = await page.evaluate(() => (window as unknown as { astraVoice?: { records: { fired: FiredCue[] } } }).astraVoice?.records.fired.filter((one) => one.atWord === 0).at(-1) ?? null).catch(() => null);
+    seen.push({ sceneId: read.sceneId, atWallMs, caption: read.caption, cue });
     afterLanding = 0;
     await delay(FADE_IN_MS);
     await page.screenshot({ path: join(OUT, `scene-${seen.length}-landed.png`) });
@@ -171,6 +181,8 @@ const landings = seen.map((one) => {
     cueToSeenS: cue?.wallMs ? (one.atWallMs - cue.wallMs) / 1000 : null,
     readyBeforeCueS: ready?.wallMs && cue?.wallMs ? (cue.wallMs - ready.wallMs) / 1000 : null,
     source: cue?.source ?? null,
+    wordLagMs: one.cue ? Math.round(one.cue.positionMs - one.cue.wordStartMs) : null,
+    seenAfterCueFiredMs: one.cue ? one.atWallMs - Math.round(one.cue.firedEpochMs) : null,
     topic: cue?.text ?? null,
     caption: one.caption.slice(0, 120),
   };

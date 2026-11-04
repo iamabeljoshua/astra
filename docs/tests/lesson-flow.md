@@ -10,7 +10,7 @@ The plan from M3.9 says what is next: the concept after this one, or the exercis
 2. If a saved scene fits the step the lesson is on, it is due now, for free.
 3. For the next step, a saved scene is fetched into the page. If there is none, a write starts only when the rule below allows, and at most one runs ahead. A step with only an exercise gets a saved scene or nothing, because a picture could give away what the student is about to work out.
 4. When the bytes are in the page, the next `lesson_plan` note names the scene as `picture_topic`. The tutor asks for it by that name as it goes on to that idea, and says nothing about it. Code stops any word about a picture that is not on screen, as it did before.
-5. The lesson also reaches a step on its own, when code sees an exercise end or a student says "skip that". Either way the scene becomes due and lands at the next pause, through `speakScene`, the same seam as any scene: the picture is on screen before the setup line's first word.
+5. The lesson also reaches a step on its own, when code sees an exercise end. Either way the scene becomes due. The desk is asked for it only once the reply to the student's last words has been read and is not a safety reply. It lands at the next pause, through `speakScene`, the same seam as any scene: the picture is on screen before the setup line's first word.
 
 The page holds the bytes and nothing more until the pause, because it has one player and the last scene may still be on screen. So only the first frame is left to do.
 
@@ -35,8 +35,9 @@ Ahead-of-time writes go through the same caps as any scene, so they count agains
 
 - **Distress.** Words the scene check reads as a student in danger, and a tutor reply that says the crisis lines, stop the queue for the rest of the session. What was being written stops, and nothing more lands. A word that only might be about safety, such as "hits" in "the ball hits the rim", holds the queue until the student's next line, and drops whatever was waiting to land.
 - **A switch.** A new topic stops the write ahead and drops what was waiting. A scene already saved stays with that student and costs nothing if they come back. A typed scene never goes to anyone else, and a shared scene comes only from the server's own list, so the queue can only read those.
-- **A skip.** "Skip that", "can we skip this", or "let's move on" moves the step on at once, ahead of any plan. "How do you skip count by fives" does not.
-- **Its moment passing.** When the lesson moves to another step, whatever was waiting to land goes, with no word said, so a late scene never interrupts a later concept. Past about 20 s from the first pause it goes too. Either way a scene being written goes on and is saved.
+- **A student's turn.** Any student line ends what was waiting to land, because what they just said may change everything.
+- **A skip.** "Skip that", "can we skip this", or "let's move on" moves the step on at once, ahead of any plan, and code puts up no picture in its place. The tutor can still ask for the next one by name on a later turn. "How do you skip count by fives" moves nothing.
+- **Its moment passing.** When the lesson moves to another step, whatever was waiting to land goes, with no word said, so a late scene never interrupts a later concept. Past about 20 s from the first pause it goes too. A scene being written when its moment passes goes on and is saved, and no other write starts until it ends. One the lesson went past before it was due stops.
 - **A page that cannot play one.** Nothing is prepared, and nothing is written.
 - **No running lesson.** No plan means no queue. Nothing is prepared before a student arrives, and that is on purpose: no worker prepares scenes per student ahead of them. That is post-MVP.
 
