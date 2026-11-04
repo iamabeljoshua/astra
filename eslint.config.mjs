@@ -23,7 +23,7 @@ const ORM_BOUNDARY_MESSAGE = 'Only apps/api/src/infrastructure/orm uses TypeORM.
 const ORM_PACKAGES = ['typeorm', 'typeorm/*', '@nestjs/typeorm', '@nestjs/typeorm/*'];
 
 export default defineConfig([
-  globalIgnores(['**/dist']),
+  globalIgnores(['**/dist', 'apps/web/public/scene-engine']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [js.configs.recommended, tseslint.configs.recommended],

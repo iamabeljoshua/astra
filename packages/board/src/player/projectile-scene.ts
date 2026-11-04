@@ -1,5 +1,6 @@
 import type { ProjectileSimulation, SimulationMoment } from '@astra/contracts';
-import type { Scene, SceneCatalog, SceneParameters } from './scene.ts';
+import { guardSceneCatalog, type Scene, type SceneCatalog, type SceneParameters } from './scene.ts';
+import { createTakeScene } from './take-scene.ts';
 
 export interface ProjectileFrame {
   /** In metres, from the point under the release. */
@@ -31,7 +32,8 @@ export function createProjectileScene(parameters: ProjectileSimulation['paramete
   };
 }
 
-export const PLANNED_SCENES: SceneCatalog = (command, parameterChanges: SceneParameters) => {
+export const PLANNED_SCENES: SceneCatalog = guardSceneCatalog((command, parameterChanges: SceneParameters) => {
+  if (command.kind === 'richScene') return createTakeScene(command);
   if (command.kind !== 'simulate') return null;
   return createProjectileScene({ ...command.simulation.parameters, ...parameterChanges });
-};
+});

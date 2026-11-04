@@ -1,0 +1,34 @@
+{
+ "topic": "What expected goals measures",
+ "plan": {
+  "opening": [
+   {
+    "say": "Picture a striker lining up a shot. Some shots are tap-ins, some are hopeful punts from far away, and they're clearly not equal.",
+    "note": "not all shots equal"
+   },
+   {
+    "say": "So counting shots misses something. What we really want is how good each chance was, before anyone sees whether it goes in.",
+    "note": "chance quality"
+   },
+   {
+    "say": "Here's the trick. Give every shot a number between zero and one, which is its probability of becoming a goal.",
+    "tex": "0 \\le p \\le 1"
+   }
+  ],
+  "more": [
+   {
+    "say": "Think of a penalty. Over many penalties, players score roughly three quarters of them, so each one gets a number near that."
+   },
+   {
+    "say": "Now a shot from thirty yards out, with defenders in the way. Far fewer of those go in, so its number is tiny."
+   },
+   {
+    "say": "Notice the number describes the chance itself, not the shooter's luck on the day. The ball either goes in or it doesn't."
+   }
+  ],
+  "setup": "Watch what happens to the shots on this pitch.",
+  "narration": "[[pitch-shots]]Expected goals starts with a shot map. [[shot-values]]Each shot gets a probability from its distance and angle. [[add-up]]Add those up across a match, and you get the goals a team should have scored. [[compare]]Compare that to the real score, and you see luck versus quality.",
+  "plan": "pitch-shots: a football pitch from above, goal at right, with six shots marked as dots at various spots.\nshot-values: each dot gets a label p, near-goal central dots show large values like point six, far or wide dots show small values like point oh five; dot sizes scale with p.\nadd-up: the labels slide together into a running total bar labeled xG, which is the sum of all the p values.\ncompare: beside the xG bar, a second bar shows actual goals; the gap between them is highlighted.",
+  "close": "If a team's expected goals is high but they lost, what happened?"
+ }
+}
