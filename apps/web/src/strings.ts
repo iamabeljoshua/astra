@@ -606,7 +606,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy' | 'credits', LegalDocument>
       {
         heading: `Who ${PRODUCT_NAME} is for`,
         today: [
-          `${PRODUCT_NAME} is for students aged 13 and up. After you first sign in, we ask for your date of birth. Give your real date. The first date you confirm stands, and the app has no way to change it.`,
+          `${PRODUCT_NAME} is for students aged 13 and up. After you first sign in, we ask for your date of birth. Give your real date. The first date you confirm stands, and the app has no way to change it. The only exception is a date we could not save, where the page shows an error and you can answer again.`,
           'If that date shows you are under 13 in every time zone, the account closes and we delete its sign-in. That email address is refused from then on, even on a new sign-up or after someone changes their email to it. The Privacy Policy says what we keep.',
           'If you are under 18, these terms apply to you as they do to any other student. We do not ask a parent or guardian to approve your account.',
         ],
@@ -685,7 +685,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy' | 'credits', LegalDocument>
           'If the date you confirm shows you are under 13 in every time zone, the account closes and we do not store that date or the name you gave.',
           'We delete the account from Supabase Auth, our sign-in service, with its email address, identity record, sessions, and audit log rows.',
           'We keep only a keyed hash of the address, a code made with a secret key that cannot be turned back into the address. It refuses that address from then on, on a new sign-up or when someone changes their email to it. If that address signs in again, Supabase Auth makes a new account for it, and we delete that one the same way.',
-          "If Supabase Auth cannot be reached when the account closes, we keep a record holding only the account ID and the time until the delete finishes on the account's next request.",
+          'If Supabase Auth cannot be reached when the account closes, the account still closes and the address is still refused. We keep a record holding only the account ID and the time until the delete finishes, the next time the app opens that account. Until then, Supabase Auth still holds the account.',
           "Supabase's own service logs, which the app cannot reach, can hold the address, the IP address, and the browser's description of itself until Supabase removes them.",
         ],
         planned: [],

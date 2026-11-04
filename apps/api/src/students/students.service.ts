@@ -58,11 +58,12 @@ export class StudentsService {
 
   async answerBirthDate(signIn: SignIn, { birthDate, name }: AnswerBirthDateBodyDto): Promise<AccountResponseDto> {
     if (signIn.isAddressClosed) return this.refuseAndEraseNewSignUp(signIn);
-    // A token outlives the delete by up to an hour, and a student made from it could never be deleted once it expires.
-    if (!(await this.authAccounts.hasUser(signIn.authUserId))) throw new UnauthorizedException();
+    const isAnswerOldEnough = isOldEnough(birthDate, new Date());
+    // Only a new student needs Auth: a token outlives the delete by up to an hour, and an under-13 answer must close even with Auth down.
+    if (isAnswerOldEnough && !(await this.authAccounts.hasUser(signIn.authUserId))) throw new UnauthorizedException();
     const answer = {
       birthDate,
-      isOldEnough: isOldEnough(birthDate, new Date()),
+      isOldEnough: isAnswerOldEnough,
       name: name ?? null,
       addressHash: signIn.email && getAddressHash(signIn.email),
     };

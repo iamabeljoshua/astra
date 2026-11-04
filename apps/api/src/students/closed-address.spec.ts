@@ -36,6 +36,19 @@ describe('closing an account under 13', () => {
     return user;
   }
 
+  async function whileAuthIsDown(action: () => Promise<void>) {
+    const { onDeleteUser, onGetUser } = testApp.supabaseAuth;
+    const answerAnError = () => Promise.reject(new Error('Auth is down'));
+    testApp.supabaseAuth.onDeleteUser = answerAnError;
+    testApp.supabaseAuth.onGetUser = answerAnError;
+    try {
+      await action();
+    } finally {
+      testApp.supabaseAuth.onDeleteUser = onDeleteUser;
+      testApp.supabaseAuth.onGetUser = onGetUser;
+    }
+  }
+
   async function countRows(sql: string, parameters: unknown[]): Promise<number> {
     const [row] = await dataSource.query(sql, parameters);
     return (row as { total: number }).total;
@@ -113,6 +126,17 @@ describe('closing an account under 13', () => {
     expect(await countStudents(again.authUserId)).toBe(0);
   });
 
+  it('keeps two addresses apart when nothing comes before the plus', async () => {
+    const local = randomUUID().replaceAll('-', '');
+    const closed = await signUp(`+${local}a@outlook.com`);
+    await asToken(server().post('/me/birth-date'), closed.token).send({ birthDate: YOUNG_BIRTH_DATE }).expect(200, CLOSED_ACCOUNT);
+
+    const other = await signUp(`+${local}b@outlook.com`);
+
+    await asToken(server().post('/me/birth-date'), other.token).send({ birthDate: OLD_ENOUGH_BIRTH_DATE }).expect(200);
+    expect(await countStudents(other.authUserId)).toBe(1);
+  });
+
   it('refuses a student who changes their email to a closed address, and keeps their data', async () => {
     const closed = await closeNewAccount();
     const student = await signUp(getNewAddress());
@@ -136,19 +160,65 @@ describe('closing an account under 13', () => {
     await asToken(server().get('/review/flags'), closed.token).expect(404);
   });
 
-  it('stays closed when Auth is down, keeps the record, and finishes on the next request', async () => {
-    const deleteAsAuthDoes = testApp.supabaseAuth.onDeleteUser;
-    testApp.supabaseAuth.onDeleteUser = () => Promise.reject(new Error('Auth is down'));
-    const user = await closeNewAccount();
-    expect(await countClosedAccounts(user.authUserId)).toBe(1);
-    expect(await countHashes(user.email)).toBe(1);
-    expect(await countAuthUsers(user.authUserId)).toBe(1);
+  it('closes an under-13 answer while Auth answers only errors, and the older date typed after it stays refused', async () => {
+    const user = await signUp(getNewAddress());
 
-    testApp.supabaseAuth.onDeleteUser = deleteAsAuthDoes;
+    await whileAuthIsDown(async () => {
+      await asToken(server().post('/me/birth-date'), user.token).send({ birthDate: YOUNG_BIRTH_DATE, name: 'Tolu' }).expect(200, CLOSED_ACCOUNT);
+      expect(await countClosedAccounts(user.authUserId)).toBe(1);
+      expect(await countHashes(user.email)).toBe(1);
+      expect(await countStudents(user.authUserId)).toBe(0);
+    });
+
+    await asToken(server().post('/me/birth-date'), user.token).send({ birthDate: OLD_ENOUGH_BIRTH_DATE, name: 'Tolu' }).expect(200, CLOSED_ACCOUNT);
+    await asToken(server().get('/me'), user.token).expect(200, CLOSED_ACCOUNT);
+    await asToken(server().get('/sessions'), user.token).expect(403);
+    expect(await countStudents(user.authUserId)).toBe(0);
+  });
+
+  it('privacy page: with Auth down at the close, keeps only the account ID and the time, until the app next opens the account', async () => {
+    const user = await signUp(getNewAddress());
+
+    await whileAuthIsDown(async () => {
+      await asToken(server().post('/me/birth-date'), user.token).send({ birthDate: YOUNG_BIRTH_DATE, name: 'Tolu' }).expect(200, CLOSED_ACCOUNT);
+      const records: Record<string, unknown>[] = await dataSource.query('SELECT * FROM closed_accounts WHERE auth_user_id = $1', [user.authUserId]);
+      expect(records.map((record) => Object.keys(record).sort())).toEqual([['auth_user_id', 'closed_at']]);
+      expect(await countAuthUsers(user.authUserId)).toBe(1);
+      await asToken(server().get('/me'), user.token).expect(200, CLOSED_ACCOUNT);
+      expect(await countClosedAccounts(user.authUserId)).toBe(1);
+    });
+
     await asToken(server().get('/me'), user.token).expect(200, CLOSED_ACCOUNT);
 
     expect(await countAuthUsers(user.authUserId)).toBe(0);
     expect(await countClosedAccounts(user.authUserId)).toBe(0);
+    expect(await countHashes(user.email)).toBe(1);
+  });
+
+  it('Terms: the first date confirmed stands, so a younger date cannot replace an old-enough one', async () => {
+    const user = await signUp(getNewAddress());
+    await asToken(server().post('/me/birth-date'), user.token).send({ birthDate: OLD_ENOUGH_BIRTH_DATE }).expect(200);
+
+    const second = await asToken(server().post('/me/birth-date'), user.token).send({ birthDate: YOUNG_BIRTH_DATE }).expect(200);
+
+    expect(second.body.status).toBe('active');
+    expect(await countClosedAccounts(user.authUserId)).toBe(0);
+    expect(await countHashes(user.email)).toBe(0);
+    const [student]: { birth_date: string }[] = await dataSource.query("SELECT birth_date::text FROM students WHERE auth_user_id = $1", [user.authUserId]);
+    expect(student?.birth_date).toBe(OLD_ENOUGH_BIRTH_DATE);
+  });
+
+  it('Terms: an old-enough answer Auth cannot check saves nothing and says so, and the student can answer again', async () => {
+    const user = await signUp(getNewAddress());
+
+    await whileAuthIsDown(async () => {
+      await asToken(server().post('/me/birth-date'), user.token).send({ birthDate: OLD_ENOUGH_BIRTH_DATE }).expect(500);
+      expect(await countStudents(user.authUserId)).toBe(0);
+      expect(await countClosedAccounts(user.authUserId)).toBe(0);
+    });
+
+    await asToken(server().post('/me/birth-date'), user.token).send({ birthDate: YOUNG_BIRTH_DATE }).expect(200, CLOSED_ACCOUNT);
+    expect(await countStudents(user.authUserId)).toBe(0);
   });
 
   it('closes a token with no address by its account ID, as before', async () => {

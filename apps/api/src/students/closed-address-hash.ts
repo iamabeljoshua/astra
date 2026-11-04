@@ -17,7 +17,7 @@ const GMAIL_DOMAINS: readonly string[] = ['gmail.com', 'googlemail.com'];
 // One mailbox answers to many spellings, so a closed child must not get back in with a `+` alias, or on Gmail with dots or its other domain.
 function toMailboxAddress(email: string): string {
   const [local = '', domain = ''] = email.trim().toLowerCase().split('@');
-  const untagged = local.split('+')[0] ?? local;
+  const untagged = local.split('+')[0] || local;
   return GMAIL_DOMAINS.includes(domain) ? `${untagged.replaceAll('.', '')}@gmail.com` : `${untagged}@${domain}`;
 }
 
