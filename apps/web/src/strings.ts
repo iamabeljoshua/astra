@@ -193,15 +193,17 @@ export const HOME_LABELS = {
   stillStarting: 'Still starting your session. This can take a moment.',
 };
 
+export const ATTACH_LABELS = {
+  attach: 'Photo or PDF',
+  comingSoon: 'Photos and PDFs are coming soon.',
+};
+
 export const CHAT_BOX_LABELS = {
   label: 'What do you want to learn next',
   placeholder: 'Ask anything. A topic, a question, a problem.',
   placeholderWhileTalkIsOn: 'Talking opens soon. Type for now.',
-  attach: 'Photo or PDF',
   talk: 'Talk',
   send: 'Start session',
-  removeAttachment: (fileName: string) => `Remove ${fileName}`,
-  removeAttachmentMark: '\u00D7',
 };
 
 export const REPLY_BOX_LABELS = {
@@ -505,7 +507,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
           'The name you give your tutor, your level, the interests you choose, and your goal. We keep these in our database, and you can change them under Your notes. We use your level, interests, and goal to choose the lessons suggested on your home screen.',
           "Each session's title, subject, language, picture, length, status, and start time, and the suggested lesson it came from, if any. A question you send from the home screen becomes its session's title, cut to 200 characters, so we store those words.",
           'We also use the sessions you start from suggested lessons, and their length, status, and start time, to choose what your home screen suggests next. A question you leave open can take the continue card, so a lesson you left open can then appear among the suggestions. Only your own sessions do this, and the words of the questions you type play no part in it.',
-          'Any file you attach stays in your browser. It is not sent or stored.',
+          'You cannot add a photo or PDF yet. If you try, the file stays on your device, and neither it nor its name is sent or stored.',
           'Your microphone stays off until you press Talk in a session, and your browser asks first. While it is on, your voice goes live to the services named under Who receives your data. We do not store your voice or any recording of it.',
           "The words you say or type in a session go to our tutor service, which holds them in memory while the session runs and drops them when it ends. It passes them to Anthropic, as Who receives your data says. We do not store them yet.",
           "So do the lines you type on the board, what you pick, place, or drag there, and what our code made of each one. We do not store them yet either.",

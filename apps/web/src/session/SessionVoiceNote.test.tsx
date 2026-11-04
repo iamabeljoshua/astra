@@ -1,7 +1,7 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../App';
-import { BOARD_WORK_LABELS, SESSION_LABELS, VOICE_LABELS } from '../strings';
+import { ATTACH_LABELS, BOARD_WORK_LABELS, REPLY_BOX_LABELS, SESSION_LABELS, VOICE_LABELS } from '../strings';
 import { makeFakeVoice } from '../test/fakeVoice';
 import { makeSession, stubSessionsApi } from '../test/sessionsApi';
 import { startLiveVoice } from '../voice/liveVoice';
@@ -76,5 +76,33 @@ describe('a tutor that is open', () => {
     await vi.waitFor(() => expect(voice.sendWork).toHaveBeenCalledWith(expect.objectContaining({ way: 'write', text: 'Gravity, I think.' }), 0));
     await vi.waitFor(() => expect(screen.getByTestId('tutor-dot').dataset.lively).toBe('true'));
     expect(screen.queryByText(SESSION_LABELS.replyNotSent)).toBeNull();
+  });
+});
+
+describe('the photo or PDF control with a room open', () => {
+  const pasteFile = () => fireEvent.paste(document.body, { clipboardData: { types: ['Files'], getData: () => '' } });
+
+  it('sits on the board once the tutor has arrived, as the one control and the one note on the screen', async () => {
+    renderOpenRoom({ hasTutorStarted: true });
+    await findEntry();
+    expect(within(screen.getByTestId('board-tools')).getAllByRole('button', { name: ATTACH_LABELS.attach })).toHaveLength(1);
+    expect(screen.queryByRole('textbox', { name: REPLY_BOX_LABELS.label })).toBeNull();
+
+    pasteFile();
+
+    expect(screen.getAllByText(ATTACH_LABELS.comingSoon)).toHaveLength(1);
+    expect(screen.queryByRole('textbox', { name: REPLY_BOX_LABELS.label })).toBeNull();
+  });
+
+  it('opens the reply box with its note while the tutor is on the way, because the connecting picture covers the board', async () => {
+    renderOpenRoom({ hasTutorStarted: false });
+    await findEntry();
+    expect(screen.queryByRole('button', { name: ATTACH_LABELS.attach })).toBeNull();
+
+    pasteFile();
+
+    expect(screen.getAllByText(ATTACH_LABELS.comingSoon)).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: ATTACH_LABELS.attach })).toHaveLength(1);
+    screen.getByRole('textbox', { name: REPLY_BOX_LABELS.label });
   });
 });
