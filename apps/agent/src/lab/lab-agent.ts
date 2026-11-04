@@ -5,7 +5,7 @@ import { createSessionLog } from '../live/session-log.ts';
 import { type SpokenTurn, speakTurn, type TextPace } from '../live/speak-turn.ts';
 import { createVoiceLine } from '../live/voice-line.ts';
 import { type LabRecorder } from './lab-recorder.ts';
-import { getLessonTurn, type LessonName, LESSONS, STOCK_MATH_TURN, STOCK_TURN } from './lesson.ts';
+import { getLessonTurn, getNamedLessonTurn, type LessonName, STOCK_MATH_TURN, STOCK_TURN } from './lesson.ts';
 
 export const LIVE_TOPIC = 'astra.live';
 export const LAB_TOPIC = 'astra.lab';
@@ -105,7 +105,7 @@ export async function runLabAgent({ url, token, voice, sampleRate, recorder }: L
   const getTurnBeats = (command: LabCommand & { type: 'play' }): readonly Beat[] => {
     if (command.isStockMath) return STOCK_MATH_TURN;
     if (command.isStockPhrase) return STOCK_TURN;
-    return command.lesson ? (LESSONS[command.lesson][command.lessonTurn ?? 0] ?? []) : getLessonTurn(command);
+    return command.lesson ? getNamedLessonTurn({ ...command, lesson: command.lesson }) : getLessonTurn(command);
   };
 
   // The rest of a cut turn, starting with the word it was cut on.

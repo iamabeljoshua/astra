@@ -134,7 +134,7 @@ Math rendering stays out of Home. The lab is development only, so `katex` is in 
 
 - Handwriting is the EMS Tech stroke set, which covers Latin letters. A line with any other character shows as plain text. Math is set with KaTeX's own fonts, and it is written glyph by glyph rather than stroke by stroke, because a font glyph has no strokes to follow.
 - `hide` and `clearBoard` remove an element at once, so lines below a hidden one jump up. `docs/DESIGN.md` allows a quiet fade here, and M3.5 can add it.
-- A `transformMath` that lands while another is still running starts from the plain tree of the one before. A tutor who rearranges on every word gets correct equations and a small jump, and the stored line and the every-word lesson show this.
-- `annotate.label` is not drawn on math yet. M3.12 owns notes beside a line.
+- A `transformMath` that lands while another is still running used to start from the plain tree of the one before, with a small jump. M3.4 fixed this: the running move hurries to its end in at most 120 ms, and then the new one starts. `docs/tests/graphs-board.md` has the measure.
+- `annotate.label` was not drawn on math. M3.4 draws it under the term it marks, clear of other text. M3.12 owns notes in the student's own margin.
 - No real voice has spoken these scripts. The real speech here is a stored take of other words, so cue timing is real and the sense is not. M3.7 is the first real model writing math, and it should check `canRenderTex` from `@astra/board/tex-check`, which plain Node can import, before a command reaches a student.
 - Safari, Firefox, and real phones are untested. M3.6 and M3.10 own those.

@@ -232,6 +232,11 @@ function addCueEveryWords(beat: Beat, every: number): Beat {
   return makeBeat(beat.id, script, beat.expectsReply);
 }
 
+export function getNamedLessonTurn({ lesson, lessonTurn = 0, cueEveryWords }: { lesson: LessonName; lessonTurn?: number; cueEveryWords?: number }): readonly Beat[] {
+  const beats = LESSONS[lesson][lessonTurn] ?? [];
+  return cueEveryWords ? beats.map((beat) => addCueEveryWords(beat, cueEveryWords)) : beats;
+}
+
 export function getLessonTurn({ lessonTurn = 0, repeats = 1, cueEveryWords }: { lessonTurn?: number; repeats?: number; cueEveryWords?: number }): readonly Beat[] {
   const beats = LESSON[lessonTurn] ?? [];
   const repeated = Array.from({ length: repeats }, (_, round) => beats.map((beat) => (repeats === 1 ? beat : makeBeat(`${beat.id}-r${round}`, [...beat.script], beat.expectsReply)))).flat();

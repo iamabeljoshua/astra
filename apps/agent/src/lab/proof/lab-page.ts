@@ -4,7 +4,17 @@ import { mkdirSync, openSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Browser, Page } from 'playwright';
 import type { LessonName } from '../lesson.ts';
-import { AGENT_ROOT, LIVEKIT_URL, WEB_URL } from './lab-stack.ts';
+import { AGENT_ROOT, delay, LIVEKIT_URL, WEB_URL } from './lab-stack.ts';
+
+export const HIDE_DEV_BUTTON = '.tsqd-parent-container { display: none !important; }';
+export const BOARD_SELECTOR = '[data-testid="board"]';
+const QUIET_MS = 3000;
+
+declare global {
+  interface Window {
+    pageChecks: typeof import('./graph-page-checks.ts');
+  }
+}
 
 export const VIEWPORTS = { laptop: { width: 1366, height: 800 }, phone: { width: 390, height: 844 } } as const;
 
@@ -63,7 +73,7 @@ export async function openLabPage({ browser, name, lesson, viewport, theme, isRe
   await page.getByRole('button', { name: 'Connect' }).click();
   await page.getByRole('button', { name: 'Play the lesson' }).and(page.locator(':enabled')).waitFor({ timeout: 30_000 });
   await page.evaluate(async (path) => {
-    (window as unknown as { pageChecks: unknown }).pageChecks = await import(/* @vite-ignore */ path);
+    window.pageChecks = (await import(/* @vite-ignore */ path)) as typeof window.pageChecks;
   }, checksPath);
   return {
     page,
@@ -79,3 +89,50 @@ export async function openLabPage({ browser, name, lesson, viewport, theme, isRe
     },
   };
 }
+
+export function holdFrame(lab: LabPage, frame: { atMs: number; source: 'live' | 'replay' } | null): Promise<void> {
+  return lab.page.evaluate((held) => window.holdBoardFrame?.(held), frame);
+}
+
+export async function shoot(lab: LabPage, name: string): Promise<Buffer> {
+  await delay(60);
+  return lab.page.locator(BOARD_SELECTOR).screenshot({ path: join(lab.folder, `${name}.png`) });
+}
+
+export async function getCommandTimes(lab: LabPage): Promise<number[]> {
+  return lab.page.evaluate(() => window.sceneLab?.player.getOperations().filter((operation) => operation.kind === 'command').map((operation) => operation.atMs) ?? []);
+}
+
+/** The same moments from the live board and from the log, by bytes, including moments in the middle of a move. */
+export async function checkReplayPixels(lab: LabPage): Promise<{ moments: number; differing: number[]; describedDifferently: number }> {
+  const times = await getCommandTimes(lab);
+  const { shiftMs, firstLive } = await lab.page.evaluate(() => {
+    const operations = window.sceneLab?.player.getOperations() ?? [];
+    const liveStart = operations.find((operation) => operation.kind === 'beatStarted')?.atMs ?? 0;
+    const logStart = (window.sceneLab?.records.log[0] as { atMs: number } | undefined)?.atMs ?? 0;
+    return { shiftMs: logStart - liveStart, firstLive: liveStart };
+  });
+  const moments = times.flatMap((atMs) => [atMs + 30, atMs + 200, atMs + 450, atMs + 800]).filter((atMs) => atMs >= firstLive);
+  const differing: number[] = [];
+  let describedDifferently = 0;
+  for (const atMs of moments) {
+    await holdFrame(lab, { atMs, source: 'live' });
+    const live = await shoot(lab, 'replay-compare');
+    await holdFrame(lab, { atMs: atMs + shiftMs, source: 'replay' });
+    const replay = await shoot(lab, 'replay-compare');
+    if (!live.equals(replay)) differing.push(Math.round(atMs));
+    const isSame = await lab.page.evaluate(([liveMs, replayMs]) => JSON.stringify(window.sceneLab?.describeLive(liveMs as number)) === JSON.stringify(window.sceneLab?.describeReplay(replayMs as number)), [atMs, atMs + shiftMs]);
+    if (!isSame) describedDifferently += 1;
+  }
+  await holdFrame(lab, null);
+  return { moments: moments.length, differing, describedDifferently };
+}
+
+export async function checkStillness(lab: LabPage): Promise<{ writes: number; animations: number; imagesMatch: boolean }> {
+  await delay(600);
+  const before = await shoot(lab, 'still-start');
+  const { writes, animations } = await lab.page.evaluate((ms) => window.pageChecks.countWritesOver(ms), QUIET_MS);
+  const after = await shoot(lab, 'still-end');
+  return { writes, animations, imagesMatch: before.equals(after) };
+}
+

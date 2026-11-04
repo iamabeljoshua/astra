@@ -57,7 +57,7 @@ function makeStoredRender(path: string): RenderSpeech {
 function pickVoice() {
   if (args.stored) return makeRenderedVoice({ name: 'stored', render: makeStoredRender(args.stored) });
   if (args.fake) return makeRenderedVoice({ name: 'fake' });
-  if (args.say) return makeRenderedVoice({ name: 'say', render: makeSayRenderer([...LESSONS.algebra.flat(), ...LESSONS.dense.flat()]) });
+  if (args.say) return makeRenderedVoice({ name: 'say', render: makeSayRenderer([...LESSONS.algebra.flat(), ...LESSONS.dense.flat(), ...LESSONS.shot.flat()]) });
   return makeTutorVoice({ model: args.model, apiKey: readKey('ELEVENLABS_API_KEY') });
 }
 

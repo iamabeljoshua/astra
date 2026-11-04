@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { type Browser, chromium } from 'playwright';
 import { type LessonName, LESSONS } from '../lesson.ts';
-import { type LabPage, openLabPage, type Theme, type ViewportName, VIEWPORTS } from './lab-page.ts';
+import { BOARD_SELECTOR, checkReplayPixels, checkStillness, getCommandTimes, HIDE_DEV_BUTTON, holdFrame, type LabPage, openLabPage, shoot, type Theme, type ViewportName, VIEWPORTS } from './lab-page.ts';
 import { delay, REPO_ROOT, startLabStack } from './lab-stack.ts';
 import type { FrameWatch } from './math-page-checks.ts';
 
@@ -19,7 +19,6 @@ const { values: args } = parseArgs({
 declare global {
   interface Window {
     holdBoardFrame?(frame: { atMs: number; source: 'live' | 'replay' } | null): void;
-    pageChecks: typeof import('./math-page-checks.ts');
   }
 }
 
@@ -29,28 +28,12 @@ const lessonBeats = (lesson: LessonName) => LESSONS[lesson][0]?.length ?? 0;
 
 const openLab = (options: Omit<Parameters<typeof openLabPage>[0], 'outFolder' | 'checksPath'>) => openLabPage({ ...options, outFolder: args.out as string, checksPath: CHECKS_PATH });
 
-const HIDE_DEV_BUTTON = '.tsqd-parent-container { display: none !important; }';
 const DRAWING_PATH = `/@fs${REPO_ROOT}/packages/board/src/drawing.ts`;
 const REFUSED_BY_KATEX = ['x^2^3', String.raw`\frac{1}`];
-const BOARD_SELECTOR = '[data-testid="board"]';
-const QUIET_MS = 3000;
 const REST_AFTER_LAST_MS = 4000;
 const INTERRUPT_INTO_MOVE_MS = 450;
 
 const FULL_COMBINATIONS = (['laptop', 'phone'] as const).flatMap((viewport) => (['light', 'dark'] as const).map((theme) => ({ viewport, theme })));
-
-function holdFrame(lab: LabPage, frame: { atMs: number; source: 'live' | 'replay' } | null): Promise<void> {
-  return lab.page.evaluate((held) => window.holdBoardFrame?.(held), frame);
-}
-
-async function shoot(lab: LabPage, name: string): Promise<Buffer> {
-  await delay(60);
-  return lab.page.locator(BOARD_SELECTOR).screenshot({ path: join(lab.folder, `${name}.png`) });
-}
-
-async function getCommandTimes(lab: LabPage): Promise<number[]> {
-  return lab.page.evaluate(() => window.sceneLab?.player.getOperations().filter((operation) => operation.kind === 'command').map((operation) => operation.atMs) ?? []);
-}
 
 /** Each equation at each rest in the lesson, against plain KaTeX of the same source, by position and by bytes. */
 async function checkRestsAgainstPlainKatex(lab: LabPage): Promise<{ rests: number; equations: number; glyphsChecked: number; worstOffset: number; differingImages: string[]; motionLeft: number; shown: string[] }> {
@@ -83,31 +66,6 @@ async function checkRestsAgainstPlainKatex(lab: LabPage): Promise<{ rests: numbe
   return result;
 }
 
-/** The same moments from the live board and from the log, by bytes, including moments in the middle of a move. */
-async function checkReplayPixels(lab: LabPage): Promise<{ moments: number; differing: number[]; describedDifferently: number }> {
-  const times = await getCommandTimes(lab);
-  const { shiftMs, firstLive } = await lab.page.evaluate(() => {
-    const operations = window.sceneLab?.player.getOperations() ?? [];
-    const liveStart = operations.find((operation) => operation.kind === 'beatStarted')?.atMs ?? 0;
-    const logStart = (window.sceneLab?.records.log[0] as { atMs: number } | undefined)?.atMs ?? 0;
-    return { shiftMs: logStart - liveStart, firstLive: liveStart };
-  });
-  const moments = times.flatMap((atMs) => [atMs + 30, atMs + 200, atMs + 450, atMs + 800]).filter((atMs) => atMs >= firstLive);
-  const differing: number[] = [];
-  let describedDifferently = 0;
-  for (const atMs of moments) {
-    await holdFrame(lab, { atMs, source: 'live' });
-    const live = await shoot(lab, 'replay-compare');
-    await holdFrame(lab, { atMs: atMs + shiftMs, source: 'replay' });
-    const replay = await shoot(lab, 'replay-compare');
-    if (!live.equals(replay)) differing.push(Math.round(atMs));
-    const isSame = await lab.page.evaluate(([liveMs, replayMs]) => JSON.stringify(window.sceneLab?.describeLive(liveMs as number)) === JSON.stringify(window.sceneLab?.describeReplay(replayMs as number)), [atMs, atMs + shiftMs]);
-    if (!isSame) describedDifferently += 1;
-  }
-  await holdFrame(lab, null);
-  return { moments: moments.length, differing, describedDifferently };
-}
-
 const JUMP_THRESHOLD = 24;
 const EDGE_MS = 1;
 
@@ -127,14 +85,6 @@ async function checkMoveEdges(lab: LabPage): Promise<{ moves: number; pixelsJump
   }
   await holdFrame(lab, null);
   return { moves: moves.length, pixelsJumpingAtStart, pixelsJumpingAtEnd };
-}
-
-async function checkStillness(lab: LabPage): Promise<{ writes: number; animations: number; imagesMatch: boolean }> {
-  await delay(600);
-  const before = await shoot(lab, 'still-start');
-  const { writes, animations } = await lab.page.evaluate((ms) => window.pageChecks.countWritesOver(ms), QUIET_MS);
-  const after = await shoot(lab, 'still-end');
-  return { writes, animations, imagesMatch: before.equals(after) };
 }
 
 interface LessonRun {

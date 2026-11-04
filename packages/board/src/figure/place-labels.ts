@@ -6,7 +6,7 @@ const CHARACTER_WIDTHS = [
   { characters: /[ijlIrtf.,:;'!|()[\]\s]/, ems: 0.34 },
   { characters: /[mwMW@%]/, ems: 0.96 },
   { characters: /[A-Z]/, ems: 0.7 },
-  { characters: /[\u0000-ɏ−°]/, ems: 0.6 },
+  { characters: /[!-\u024F\u2212\u00B0]/, ems: 0.6 },
 ] as const;
 const OTHER_CHARACTER_EMS = 1.05;
 const BOX_PADDING = 1.5;

@@ -12,6 +12,7 @@
     "proof": "node src/lab/proof/run-proof.ts",
     "voice-probe": "node src/lab/proof/voice-probe.ts",
     "math-proof": "node src/lab/proof/math-proof.ts",
+    "graph-proof": "node src/lab/proof/graph-proof.ts",
     "math-load": "node src/lab/proof/math-load.ts"
   },
   "dependencies": {

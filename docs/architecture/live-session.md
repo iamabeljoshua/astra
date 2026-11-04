@@ -306,7 +306,7 @@ S5 is unproven. ElevenLabs never receives student audio and `record: false` cove
 
 ## What the log records
 
-The agent is the only writer, and the browser reports what played. There are five events. `beatPlayed` holds the beat, each word's start, words played, when each cue really fired, how it ended, and any frozen frames. `boardFrozen` holds a freeze that lands after a beat's last word, with something still moving. `studentSpoke` holds the words, typed or spoken, and whether just a small reaction. `studentActed` holds slider drags, rewinds, ink, ink erased, and uploads. `connectionGap` holds how long the connection dropped.
+The agent is the only writer, and the browser reports what played. There are five events. `beatPlayed` holds the beat, each word's start, words played, when each cue really fired, where a cue over words was aimed while its last word was unknown, how it ended, and any frozen frames. `boardFrozen` holds a freeze that lands after a beat's last word, with something still moving. `studentSpoke` holds the words, typed or spoken, and whether just a small reaction. `studentActed` holds slider drags, rewinds, ink, ink erased, and uploads. `connectionGap` holds how long the connection dropped.
 
 A beat is written once, when it ends. Silence has no event. Rows are unique on session and sequence number, so a repeated write changes nothing. If the browser never reports, the agent writes its own estimate and marks it `agent-estimate`. The browser's words played count only while there is sound, so a stop during a stall reports the words heard, 4 of 4 here, with 0 cues fired after it. The count comes from word times and the clock, so it can be off by a word when word times are noisy. The SDK's own report is not used, because it said 5 to 7 words when a listener heard 12 or 13, though that was with our fake voice.
 
@@ -316,7 +316,7 @@ Replay, seeking, rewinding, and a page reload all call one function, `rebuildBoa
 
 The tutor names what to show. The engine decides where it goes and how it moves, so the model cannot place a pixel (T6).
 
-B5's library maps to these commands. Equations are `writeMath`, `transformMath`, and `highlight`. Plots and number lines are `plot`, `shadeArea`, `numberLine`, and `markValue`. Geometry is `geometry` and `construct`. Forces are `vector` and `trackVector`. Computed motion is `simulate`, `runSimulation`, `setParameter`, `slider`, and `ghostPath`. Diagrams and drawings are `diagram` and `drawing`. Then `table`, `timeline`, `code`, `image`, `text`, `annotate`, and `focus`, with `reveal` to build in steps, and `hide` and `clearBoard` to keep the page clean.
+B5's library maps to these commands. Equations are `writeMath`, `transformMath`, and `highlight`. Plots and number lines are `plot`, `shadeArea`, `numberLine`, and `markValue`. Geometry is `geometry` and `construct`. Forces are `vector` and `trackVector`. Computed motion is `simulate`, `runSimulation`, `setParameter`, `slider`, `readout`, and `ghostPath`. Diagrams and drawings are `diagram` and `drawing`. Then `table`, `timeline`, `code`, `image`, `text`, `annotate`, and `focus`, with `reveal` to build in steps, and `hide` and `clearBoard` to keep the page clean.
 
 The whole sample session from PRD section 6.4 parses with these types, including the six seconds of silence, the frozen ball, and the slider drag. The parser is hand-written and has no dependency. `src/scene-language` holds 1,612 lines without blanks and comments, so "types only" no longer describes that package.
 
@@ -333,12 +333,18 @@ The whole sample session from PRD section 6.4 parses with these types, including
 - Math and handwriting can be paced by speech. `writeMath`, `transformMath`, and `text` take `overWords`.
 - A term has an id. `getMathParts` splits source math at its top level, the id stays with a term through every `transformMath`, and a term that crosses the equals sign keeps its id. `highlight.tex` finds a term or a part inside one, and `annotate.target` can name a term as `equation.t3`.
 - A new simulation parameter comes with a default, so older rows still parse. Widening a range is safe, and narrowing one would refuse old rows.
+- A launch angle can have a slider. `launchAngle` and `launchSpeed` are controls that a slider or `setParameter` changes. They are worked out from the two speeds, and a simulation never stores them.
+- A `play` with no word to aim at takes a `rate`, where 0.5 is half speed. A `play` cannot have both a `rate` and `overWords`. A `play` to a moment already passed starts over, because time does not run backward.
+- A number can follow a quantity. `readout` names a quantity from a fixed list, and the engine computes it each frame. The model can give it a label and never a value.
+- `setParameter` can name a plot's constant, and the curve reshapes from its current values to the new one, over `overWords` if given.
+- `overWords` works when later word times have not arrived. The browser aims a cue with the times it has and an estimate from this beat's own words. When more times land, it aims again, from where the motion is, so nothing jumps. A report lists each aim as `cuePaces` when a cue's last word was unknown as it fired, so a replay shows what the student saw. Once the last word's time is known, the cue lands on it. A report with no `cuePaces` means every last word was known, and `wordStartsMs` says the same thing.
+- A hidden element takes what hangs on it. Hiding a `simulate` removes its arrows, ghost path, sliders, readouts, and marks. Hiding a plot removes its marks, shading, sliders, and the curves drawn over it. The reader's `BoardKinds` still lists those ids, so a later `hide` of one is refused by nothing and changes nothing. M3.7 can keep it that way, because the board ignores it.
+- A rearrangement that lands on a running one lets the running one finish in at most 120 ms and then starts. Every glyph starts from where it really is, and a move over words still lands on its word.
 
 **Open, with an owner.**
 
 | Owner | What the language cannot say yet |
 | --- | --- |
-| M3.4 | A launch angle slider. A playback rate with no word to aim at. Number readouts that follow a quantity. How `overWords` behaves when later word times have not arrived. |
 | M3.7 | B2 has a guard only in the prompt today, so M3.7 adds one: if no command has come by the turn's third word, the reader adds a `focus` on the last element, and the evaluation fails any turn over 1 s. |
 | M3.12 | Tasks, notes, and tangent, and a wider `studentActed`. |
 | M3.14 | One scene command that renders from the time alone, with moments as word cues. |
@@ -475,14 +481,12 @@ Every result below rests on fakes unless it names a vendor. The fake voice sends
 | Owner | Note |
 | --- | --- |
 | M3.2 | Unmute on the next `turnStarted`, and never earlier. Rebuild by time, not sequence number. A `turnStarted` that lands within 300 ms of sound takes the first onset since the last turn ended, under "Where a turn starts". |
-| M3.4 | A live frame drawn before a cut's later word times land shows `ASSUMED_WORD_MS`, and a replay reads the times the report settled on. A reviewer's run differed on 8 of 56 samples, by up to 0.33 scene seconds, while the times were late. Once they land the two agree. M3.4 owns `overWords`, so decide whether that gap can show. |
 | M3.6 | Follow-ups from M3.2's review, none fixed there. A page reload restarts the browser's clock under the one kept offset in `session-log.ts`, so later beats land at the wrong session times. A report the session log refuses throws in `lab-agent`, and in the real agent must not end the session. The lab picks its clock once, at a race with the audio context. The lab's resume fires a beat's cues again when `played` has not landed. Room token grants are wider than they need to be. A hole in word times becomes `null` on the wire, and the parser refuses the report. |
 | M3.6 | A reaction right after a stop spends 150 ms of its 200 ms on `TURN_SILENCE_MS`. Lowering it needs the probe's 107 ms to move too. |
 | M3.7 | A stored phrase must be at a rate LiveKit frames in whole samples, 24 kHz here, or `createVoiceLine` refuses it. Store each take with its own word times, as M3.2 found. |
 | M3.14 | A scene catalog needs a guard and a cache. A catalog that throws during a stop kills the report, NaN or Infinity durations are refused by the parser, the catalog rebuilds on every frame, and `Scene.parts` is unread. `getFrame` will need to be async for a sandbox. |
 | M3.2 | `questionHeard` can still fail if a close is lost within 3 s of the last word on both channels, because `stop-page.js:49` stops ticking when audio ends. Add a burst check, because removing `Math.max(0, ...)` from the tracker still passes 9 of 9. The tracker's owner is M3.2 first, not M3.6. |
 | M3.2, M3.6 | An early-ended voice stream. On a reviewer's run, a 7 s stall on the Cartesia plugin hit `chunkTimeout` of 5000 ms, and the reply ended at 5.3 s with 8 of 33 words heard, 1 of 4 cues fired, and no stop or played report. By reading, the ElevenLabs plugin rejects with a non-retryable timeout after 10 s with no audio on a sent chunk. Decide what it means for the log and the note. |
-| M3.4 | Hiding a `simulate` leaves arrows that follow it on the board. Decide what goes with it. |
 | M3.6 | A background tab or locked phone suspends audio, so the clock stops. Decide what the agent does. |
 | M3.6 | Blocked audio: the agent is never told, and the note would say "heard". The browser must report it. |
 | M3.6 | After a reconnect only the cut beat resumes in the proof. Decide what happens to the rest of the turn. |
