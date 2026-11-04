@@ -14,6 +14,19 @@ const SHOT = { kind: 'simulate', id: 'shot', simulation: { model: 'projectile', 
 const element = (operations: BoardOperation[], id: string, atMs: number) => getBoardAt(operations, atMs).elements.get(id as never) as BoardElement;
 const ids = (operations: BoardOperation[], atMs: number) => [...getBoardAt(operations, atMs).elements.keys()];
 
+describe('describing a board', () => {
+  const movedAt = (atMs: number) => [place({ kind: 'boardMode', mode: 'handsOn' }, atMs)];
+  const describeAt = (operations: BoardOperation[], atMs: number) => describeBoard(getBoardAt(operations, atMs), atMs);
+
+  it('reads the same on a replay whose clock is shifted', () => {
+    expect(describeAt(movedAt(5100), 5400)).toEqual(describeAt(movedAt(100), 400));
+  });
+
+  it('tells apart a replay that moved the board at another moment', () => {
+    expect(describeAt(movedAt(5200), 5400)).not.toEqual(describeAt(movedAt(100), 400));
+  });
+});
+
 describe('hiding', () => {
   const figure = [
     place(SHOT),
