@@ -1,13 +1,8 @@
 import { type Beat, parseBeat } from '@astra/contracts';
+import type { TutorBrain } from '../tutor/brain.ts';
 import { LESSON } from './stand-in-lesson.ts';
 
-export interface TutorRequest {
-  text: string;
-}
-
-export interface TutorBrain {
-  reply(request: TutorRequest, signal: AbortSignal): AsyncIterable<Beat>;
-}
+export type { TutorBrain } from '../tutor/brain.ts';
 
 const MOST_ECHOED_WORDS = 12;
 const ASKS_FOR_THE_LESSON = /\b(ball|shot|show|explain|lesson)\b/i;

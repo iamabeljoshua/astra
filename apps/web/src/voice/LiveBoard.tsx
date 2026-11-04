@@ -1,5 +1,6 @@
 import type { BoardState } from '@astra/board';
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useState } from 'react';
+import type { BoardProblem } from '../board/boardPainting';
 import { BoardView } from '../lab/BoardView';
 import { VOICE_LABELS } from '../strings';
 import type { LiveVoice } from './liveVoice';
@@ -19,10 +20,16 @@ export function LiveBoard({ voice, whileEmpty }: { voice: LiveVoice; whileEmpty:
     });
     return () => cancelAnimationFrame(animationFrame);
   }, [voice]);
+  const reportProblem = useCallback(
+    (problem: BoardProblem) => {
+      if (problem.kind === 'markWithoutTarget') voice.reportMarkNotDrawn(problem.markId);
+    },
+    [voice],
+  );
   if (frame.board.elements.size === 0) return whileEmpty;
   return (
     <section aria-label={VOICE_LABELS.board} className="fades-with-theme flex min-h-75 min-w-0 flex-col border border-line bg-panel">
-      <BoardView board={frame.board} atMs={frame.atMs} />
+      <BoardView board={frame.board} atMs={frame.atMs} onBoardProblem={reportProblem} />
     </section>
   );
 }

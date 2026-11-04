@@ -3,7 +3,7 @@ import { ApiError } from '../api/apiError';
 import { api } from '../api/client';
 import { type LiveVoice, type LiveVoiceView, type MicControls, startLiveVoice } from './liveVoice';
 
-export type LiveVoiceStatus = 'idle' | 'connecting' | 'live' | 'unavailable' | 'tooSoon' | 'finished';
+export type LiveVoiceStatus = 'idle' | 'connecting' | 'live' | 'unavailable' | 'overLimit' | 'tooSoon' | 'finished';
 
 const SESSION_FINISHED_STATUS = 409;
 const TOO_MANY_STATUS = 429;
@@ -40,11 +40,11 @@ export interface LiveVoiceControls {
   sendTyped(text: string): Promise<boolean>;
   toggleTalk(): Promise<void>;
   heldMic: HeldMic;
-  /** Leaves a room the tutor has gone from, and opens a new one with a new tutor. */
-  openAgain(): Promise<void>;
+  /** Leaves a room the tutor has gone from, opens a new one with a new tutor, and starts it talking with this line. */
+  openAgain(opening: string): Promise<void>;
 }
 
-// One room for one session screen, opened by the student's own press, because audio needs a user gesture.
+// One room for one session screen, joined as the screen opens so the student is never left waiting. The microphone stays off until they press Talk. With no access from the API it joins no room.
 export function useLiveVoice({ sessionId, usesSpeechCleanup = true, start = startLiveVoice }: UseLiveVoiceOptions): LiveVoiceControls {
   const [status, setStatus] = useState<LiveVoiceStatus>('idle');
   const [waitSeconds, setWaitSeconds] = useState<number | null>(null);
@@ -66,8 +66,9 @@ export function useLiveVoice({ sessionId, usesSpeechCleanup = true, start = star
       const getAccess = async () => {
         const query = asksToStartOver.current ? { startOver: 'yes' as const } : {};
         try {
-          const access = await api.post('/sessions/{id}/live-room', { params: { path: { id: sessionId }, query } });
+          const { access, unavailableBecause } = await api.post('/sessions/{id}/live-room', { params: { path: { id: sessionId }, query } });
           asksToStartOver.current = false;
+          if (!access) setStatus(unavailableBecause === 'dailyLimit' ? 'overLimit' : 'unavailable');
           return access;
         } catch (problem) {
           if (!(problem instanceof ApiError)) throw problem;
@@ -108,7 +109,7 @@ export function useLiveVoice({ sessionId, usesSpeechCleanup = true, start = star
       } catch {
         opening.current = null;
         micControls.current = null;
-        setStatus((current) => (current === 'finished' || current === 'tooSoon' ? current : 'unavailable'));
+        setStatus((current) => (current === 'finished' || current === 'overLimit' || current === 'tooSoon' ? current : 'unavailable'));
         return null;
       }
     })();
@@ -122,6 +123,16 @@ export function useLiveVoice({ sessionId, usesSpeechCleanup = true, start = star
       void opening.current?.then((opened) => opened?.close());
     };
   }, []);
+
+  const sendTyped = useCallback(
+    async (text: string) => {
+      const opened = await connect({ wantsGreeting: false });
+      if (!opened || opened.getView().closedBecause) return false;
+      opened.sendTyped(text);
+      return true;
+    },
+    [connect],
+  );
 
   const isTalkOn = view ? view.mic === 'on' || view.mic === 'starting' : isTalkWaiting;
 
@@ -168,23 +179,20 @@ export function useLiveVoice({ sessionId, usesSpeechCleanup = true, start = star
     voice,
     isTalkOn,
     connect,
-    async sendTyped(text) {
-      const opened = await connect({ wantsGreeting: false });
-      opened?.sendTyped(text);
-      return opened !== null;
-    },
+    sendTyped,
     async toggleTalk() {
       if (voice) return voice.toggleMic();
       await askForMic(!wantsMicWhileOpening.current);
     },
     heldMic,
-    async openAgain() {
+    async openAgain(openingLine) {
       const old = await opening.current;
       opening.current = null;
       micControls.current = null;
       setVoice(null);
       await old?.close();
-      await connect({ wantsGreeting: false, startsOver: true });
+      const opened = await connect({ wantsGreeting: false, startsOver: true });
+      opened?.sendTyped(openingLine);
     },
   };
 }

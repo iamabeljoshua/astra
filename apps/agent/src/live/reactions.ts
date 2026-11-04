@@ -8,7 +8,7 @@ import type { VoiceAdapter } from '../providers/types.ts';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const TAKES_FOLDER = join(HERE, '../../assets/reactions');
 
-export type TakeUse = 'reaction' | 'working' | 'greeting' | 'prompt' | 'voiceLost' | 'talkInvitation';
+export type TakeUse = 'reaction' | 'goodQuestion' | 'working' | 'greeting' | 'prompt' | 'voiceLost' | 'talkInvitation';
 
 /** One recording in the tutor's voice, with the word times of that recording. */
 export interface StoredTake {
@@ -52,21 +52,23 @@ export function getTakeBeat(take: StoredTake, beatId: string): Beat {
 const TURNS_BEFORE_A_REPEAT = 3;
 
 export interface TakePicker {
-  next(use: TakeUse): StoredTake | null;
+  /** Goes round every take of these uses. */
+  next(...uses: readonly TakeUse[]): StoredTake | null;
 }
 
 // Goes round the takes in a fixed order, so which phrase comes next is the same in every run and no phrase repeats too soon.
 export function createTakePicker(takes: readonly StoredTake[]): TakePicker {
   const recentPhrases: string[] = [];
-  const nextIndexByUse = new Map<TakeUse, number>();
+  const nextIndexByUses = new Map<string, number>();
   return {
-    next(use) {
-      const candidates = takes.filter((take) => take.use === use);
+    next(...uses) {
+      const key = uses.join();
+      const candidates = takes.filter((take) => uses.includes(take.use));
       if (candidates.length === 0) return null;
-      const start = nextIndexByUse.get(use) ?? 0;
+      const start = nextIndexByUses.get(key) ?? 0;
       const ordered = candidates.map((_, offset) => candidates[(start + offset) % candidates.length] as StoredTake);
       const picked = ordered.find((take) => !recentPhrases.includes(take.phrase)) ?? (ordered[0] as StoredTake);
-      nextIndexByUse.set(use, (candidates.indexOf(picked) + 1) % candidates.length);
+      nextIndexByUses.set(key, (candidates.indexOf(picked) + 1) % candidates.length);
       recentPhrases.push(picked.phrase);
       if (recentPhrases.length > TURNS_BEFORE_A_REPEAT - 1) recentPhrases.shift();
       return picked;

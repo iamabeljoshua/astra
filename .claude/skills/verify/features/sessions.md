@@ -1,13 +1,16 @@
 # Sessions
 
-A student starts a session by sending a question or choosing a card, and the session screen opens with stand-in content until the live tutor arrives. The Sessions page lists every session the student has had, and search filters the list. Ending a session marks it finished and returns to Home.
+A student starts a session by sending a question or choosing a card, and the session screen opens the session's room at once. The Sessions page lists every session the student has had, and search filters the list. Ending a session marks it finished and returns to Home.
 
 ## Sub-features
 
 - `session-question` lands the tutor's dot where the full stop of the typed question would sit, then fades into the session screen.
 - `session-card` starts a session on a card's topic straight away, with the card's picture on the board, and stores the topic.
 - `session-continue` opens the unfinished session from the continue card on Home, or from a card that says `Carry on where you left off`.
-- `session-screen` shows the board, the tutor's dot, the title, stand-in words, a clock, and a reply box. A reply opens the session's room, and the tutor answers. [Live voice](./voice.md) covers that. With no LiveKit keys the screen says the tutor could not connect, and the reply stays on the screen.
+- `session-screen` shows the board, the tutor's dot, the title, a clock, and a reply box. It joins the session's room as it opens, with no press, and says `Connecting to your tutor.` until the tutor speaks. [Live voice](./voice.md) covers that.
+- `session-returning` opens a running session with some length saved. It joins the room and sends `I'm back to carry on with this: <title>`, so the tutor speaks first there too.
+- `session-no-room` is the app with no LiveKit keys. The room route answers 200, the screen says `Your tutor could not connect just now.`, a reply stays on the screen with `This did not reach your tutor.`, and the browser logs no error.
+- `session-daily-limit` is a student whose tutor spend today has reached `ASTRA_DAILY_LIMIT_USD`. The room route answers 200 with no access, and the screen says `That is all your tutor time for today. Come back tomorrow. Your sessions are kept.`
 - `session-refresh` keeps the session on a refresh, because the record is saved before the page fades.
 - `session-end` marks the session finished with its length, reads `Ending…` until Home is ready, returns to Home, and moves focus to Home's heading.
 - `session-leave` keeps the student where they went if they leave Home or the session screen while a start or an end is pending. The save still lands, and the dot and any fade go at once.
@@ -33,8 +36,26 @@ Preconditions:
 - `pnpm db:up` ran in this checkout, and `pnpm db:seed` ran on this lane's database before the journey, because the journey signs in as `maya@astra.test`.
 - `pnpm verify doctor` passes.
 
-- **Send a question, end the session, then start from a card, refresh, and search.** Run `pnpm verify drive --journey sessions`. The `journey`, `identity`, `screenshot`, and `main region` checks print `PASS` for `laptop` and `phone`, and the command exits 0.
-- **Proof.** After a run that printed `PASSED`, open these images in `.verify/evidence/`, for each viewport. `sessions-laptop-dot.png` shows the dot at the end of the typed line. `sessions-laptop-session.png` shows the session screen. `sessions-laptop-list.png` shows the new session first and finished. `sessions-laptop-card-session.png` shows the card's drawing after a refresh. `sessions-laptop-search.png` shows only what the search found.
+- **Send a question, end the session, start from a card, refresh, search, then reply on a session the student came back to.** Run `pnpm verify run --journey sessions`. The `journey`, `identity`, `screenshot`, and `main region` checks print `PASS` for `laptop` and `phone`, and the command exits 0.
+- **Proof.** After a run that printed `PASSED`, open these images in `.verify/evidence/`, for each viewport. `sessions-laptop-dot.png` shows the dot at the end of the typed line. `sessions-laptop-session.png` shows the session screen. `sessions-laptop-list.png` shows the new session first and finished. `sessions-laptop-card-session.png` shows the card's drawing after a refresh. `sessions-laptop-search.png` shows only what the search found. `sessions-laptop-returning.png` shows the invitation. `sessions-laptop-reply.png` shows the reply and what became of it.
+
+### What the journey expects of the room
+
+`verify` starts the app with the environment of the shell that ran it, so the journey reads `LIVEKIT_URL`, `LIVEKIT_API_KEY`, and `LIVEKIT_API_SECRET` from that same environment. With `drive`, run it in a shell with the same keys as the `pnpm verify start` that started the app, or the journey fails on the answer it did not expect.
+
+| | No room service: any of the three keys missing | Room service on: all three set |
+| --- | --- | --- |
+| `POST /sessions/:id/live-room` | 200, `{ access: null, unavailableBecause: 'notSetUp' }` | 200, `access` holds a token, `unavailableBecause` is null |
+| The note under the reply box | `Your tutor could not connect just now.` | Never that note. No agent needs to be running, because the journey leaves before the 25 second wait for a tutor ends. |
+| A reply on a session the student came back to | Stays on the screen with `This did not reach your tutor.` | Stays on the screen as the student's words, with no such line |
+| The browser console | No error, which `verify` fails on by itself | No error, which `verify` fails on by itself |
+
+Either way, nothing on screen says `Live lessons open soon`. To run it with the room service on, load the keys and name an agent nobody runs, so no lane's tutor answers and spends anything:
+
+```sh
+set -a; . ~/.config/astra/keys.env; set +a
+ASTRA_AGENT_NAME=astra-tutor-nobody pnpm verify run --journey sessions
+```
 
 ## Gotchas
 

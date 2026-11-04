@@ -66,6 +66,12 @@ export class SessionRepository {
     return this.sessions.findOneBy({ id: sessionId, studentId });
   }
 
+  // Only the agent asks this, because it holds a key and no student's token. Every other read names the student.
+  async findStudentIdOfSession(sessionId: string): Promise<string | null> {
+    const session = await this.sessions.findOne({ where: { id: sessionId }, select: { studentId: true } });
+    return session?.studentId ?? null;
+  }
+
   async updateUnfinishedForStudent(
     studentId: string,
     sessionId: string,

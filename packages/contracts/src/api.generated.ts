@@ -148,7 +148,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Lets the signed-in student join their session's voice room. Another student's session answers 404, and a finished one 409. Opening too many rooms or starting over too often answers 429, with `retryAfterSeconds` for how long to wait. */
+        /** Says whether the signed-in student can join their session's voice room, and gives the access if so. Another student's session answers 404, and a finished one 409. Opening too many rooms or starting over too often answers 429, with `retryAfterSeconds` for how long to wait. */
         post: operations["LiveRoomController_openLiveRoom"];
         delete?: never;
         options?: never;
@@ -323,7 +323,7 @@ export interface components {
             /** @description The cards offered to this student. */
             picks: components["schemas"]["PickCardResponseDto"][];
         };
-        LiveRoomResponseDto: {
+        LiveRoomAccessDto: {
             /** @description The LiveKit address that the browser connects to. */
             url: string;
             /** @description Lets this student join this session's room, for a short time, with their microphone and the data channel only. */
@@ -332,6 +332,15 @@ export interface components {
             roomName: string;
             /** @description True in a student's first session until the tutor has told them they can talk. */
             invitesTalk: boolean;
+        };
+        LiveRoomResponseDto: {
+            /** @description What the browser needs to join the room, or null when the student cannot join now. */
+            access: components["schemas"]["LiveRoomAccessDto"] | null;
+            /**
+             * @description Why there is no access: live voice has no keys here, or the student has spent today's tutor time. Null when there is access.
+             * @enum {string|null}
+             */
+            unavailableBecause: "notSetUp" | "dailyLimit" | null;
         };
     };
     responses: never;

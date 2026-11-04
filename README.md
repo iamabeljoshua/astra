@@ -195,7 +195,7 @@ A closed account also stops new sign-ups on that browser for a day, so a child w
 
 The server's clock and UTC+14 decide the student's age. UTC+14 is the first place on Earth to reach each date, so the API closes an account only when the student is under 13 in every time zone. A real 13-year-old is never locked out, and a student can get in up to 26 hours before the birthday where they live. A device's clock and time zone play no part. A birthday on 29 February falls on 1 March in other years. `apps/api/src/auth/age-gate.ts` holds the rule. No web code or screen states the age. Only the Terms and the Privacy Policy state it, because they must say what happens to an under-13 account.
 
-`students.auth_user_id` and `closed_accounts.auth_user_id` are plain uuids with no foreign key, because the local app databases have no `auth` schema. Deleting a user in Supabase therefore leaves that user's rows in place. No token can reach those rows once the user's last token expires. To remove a student, delete the row in `students`, which also removes the profile and sessions, before you delete the Supabase user. Deleting the Supabase user of a closed account lets the same address sign up as a new user and answer again, so keep that user until the deletion work in M4.5 settles how to prevent it.
+`students.auth_user_id` and `closed_accounts.auth_user_id` are plain uuids with no foreign key, because the local app databases have no `auth` schema. Deleting a user in Supabase therefore leaves that user's rows in place. No token can reach those rows once the user's last token expires. To remove a student, delete the row in `students`, which also removes the profile, the sessions, and the daily spend totals, before you delete the Supabase user. Deleting the Supabase user of a closed account lets the same address sign up as a new user and answer again, so keep that user until the deletion work in M4.5 settles how to prevent it.
 
 ### Onboarding
 
@@ -217,28 +217,36 @@ Goals are the codes `class`, `exam`, and `curiosity`, which `getPicksForStudent`
 
 ## Talk with the tutor
 
-A session's screen has a **Talk** button and a reply box. Pressing **Talk** opens the session's room and asks for the microphone. Holding **Talk**, or holding Space when focus is not in a text field, opens the microphone only while held, for a noisy room. Typing a reply opens the room with the microphone off. The tutor is a stand-in until the model arrives, so it only repeats simple lines. Ask it to show you the ball for a long line with motion to interrupt.
+A session's screen has a **Talk** button and a reply box. The screen joins the session's room as it opens, on a new session or one you come back to, and the tutor speaks first with no press. The microphone stays off until you press **Talk**. Holding **Talk**, or holding Space when focus is not in a text field, opens the microphone only while held, for a noisy room. A stored reaction from code plays first, and then the tutor answers with Sonnet 5.5 in short spoken sentences, with math on its words on the board. In a student's first session the tutor says once, after its first answer, that they can talk. If you do nothing for 8 s after the tutor stops, the page says you can press **Talk** or type, and the tutor does not say that aloud.
 
 To run it, give the API and the agent the same LiveKit project, then start the agent beside `pnpm dev`.
 
 ```sh
 set -a; . ~/.config/astra/keys.env; set +a
 export ASTRA_AGENT_NAME=astra-tutor-<your-lane> ASTRA_AGENT_PORT=<a free port>
+export ASTRA_AGENT_KEY=<a long random value> ASTRA_API_URL=http://127.0.0.1:<the API's port>
 pnpm dev
 pnpm agent
 ```
 
 | Value | Who reads it | What it does |
 | --- | --- | --- |
-| `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` | API and agent | The LiveKit project. With no keys the API answers 503, and the rest of the app runs. |
+| `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` | API and agent | The LiveKit project. With no keys `POST /sessions/:id/live-room` answers `{ access: null, unavailableBecause: 'notSetUp' }`, the session screen says the tutor could not connect, and the rest of the app runs. |
 | `ASTRA_AGENT_NAME` | API and agent | Which agent a room calls in. Each lane sets its own, because a room goes to any agent of that name. |
+| `ASTRA_AGENT_KEY` | API and agent | The key the agent sends to the API's `/agent` routes. With none set, those routes answer 401. |
+| `ASTRA_API_URL` | Agent | The agent's address for the API, where it reads a student's level, interests, and goal and adds what each turn cost. |
+| `ASTRA_DAILY_LIMIT_USD` | API | What one student's tutor time may cost in a UTC day, $3 by default. At the limit the API opens no room, and the session screen says the time resets once a day and to try again later. |
+| `ASTRA_SESSION_LIMIT_USD`, `ASTRA_SESSION_VOICE_LIMIT_CHARACTERS` | Agent | What one session may cost, $1 by default, and how many characters of voice it may use, 40,000 by default. Past either one, the tutor closes for that session. |
 | `META_API_KEY` | Agent | Muse Voice Transcribe. A typed session never opens it. |
 | `ELEVENLABS_API_KEY` | Agent | The tutor's voice. |
 | `ASTRA_VOICE=fake` | Agent | A tone instead of the real voice, to spend no credits. |
+| `ANTHROPIC_API_KEY` | Agent | The tutor's model, Sonnet 5.5. |
+| `ASTRA_TUTOR_MODEL` | Agent | A model by name from `providers/anthropic.ts`, `recorded` for canned replies that spend nothing and that a proof can stall or break by typing `stall`, `invalid`, `wrong math`, `tag`, `refuse`, or `silent`, or `stand-in` for the simple lines M3.6's proofs use. |
+| `ASTRA_SPEND_FILE`, `ASTRA_SPEND_LIMIT_USD` | Agent | Adds each turn's real cost to a file, and past the limit, $8 by default, the tutor says it cannot reply. |
 | `ASTRA_VOICE_TRACE=<folder>` | Agent | Writes each session's timings there, with no words. `ASTRA_VOICE_TRACE_WORDS=1` adds the words, for test speech only. |
 | `ASTRA_QUIET_LIMIT_MS=<ms>` | Agent | Replaces the 10 minutes a quiet room lasts, for a test. |
 
-The browser only ever receives a room token from `POST /sessions/:id/live-room`. It holds one room, the microphone, and the data channel, it lasts 2 minutes, and it cannot call the tutor in. Only the API does that, for a session that has not finished, and the API closes the room when the session finishes. A new session calls its tutor in as it starts, so the first press does not wait for a job, and that tutor leaves if no student joins within 2 minutes. Starting a room over is limited to 5 per student per 10 minutes. Vendor keys stay on the servers. `docs/tests/voice.md` holds what was measured.
+The browser only ever receives a room token from `POST /sessions/:id/live-room`. It holds one room, the microphone, and the data channel, it lasts 2 minutes, and it cannot call the tutor in. Only the API does that, for a session that has not finished and a student under the daily limit, and the API closes the room when the session finishes. A new session calls its tutor in as it starts, so the first press does not wait for a job, and that tutor leaves if no student joins within 2 minutes. Starting a room over is limited to 5 per student per 10 minutes. The token says nothing about the student except their ID, so LiveKit never receives the level, interests, or goal. Vendor keys stay on the servers. `docs/tests/voice.md` holds what was measured.
 
 To change a vendor, see "Swapping a provider" in `docs/architecture/live-session.md`. `providers/choose.ts` is the one place that chooses.
 

@@ -1,44 +1,21 @@
 import { act, render, renderHook, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ApiError } from '../api/apiError';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LEGAL_PAGES, VOICE_LABELS } from '../strings';
+import { makeFakeVoice } from '../test/fakeVoice';
+import { stubSessionsApi } from '../test/sessionsApi';
 import { StudentCaption, TutorCaption } from './Captions';
-import type { LiveVoice, LiveVoiceView } from './liveVoice';
+import type { LiveVoice, LiveVoiceOptions } from './liveVoice';
 import { useLiveVoice } from './useLiveVoice';
 
-const api = vi.hoisted(() => ({ post: vi.fn<(route: string, options: { params: { query: object } }) => Promise<unknown>>() }));
-vi.mock('../api/client', () => ({ api }));
+vi.mock('../auth/session', () => import('../test/signedInSession'));
 
-const BASE_VIEW: LiveVoiceView = { phase: 'live', mic: 'off', isRoomNoisy: false, isSoundBlocked: false, isQuietWarning: false, isHeard: false, isTutorSpeaking: false, studentLines: [], tutorHeard: [], tutorComing: [] };
+const ROOM_ACCESS = { url: 'wss://room.test', roomName: 'session-a-session', token: 'room-token', invitesTalk: false };
+const OPEN_ROOM = { access: ROOM_ACCESS, unavailableBecause: null };
 
-function makeFakeVoice(view: Partial<LiveVoiceView> = {}): LiveVoice {
-  let current = { ...BASE_VIEW, ...view };
-  const listeners = new Set<() => void>();
-  const setMic = (isOn: boolean) => {
-    current = { ...current, mic: isOn ? 'on' : 'off' };
-    listeners.forEach((listener) => listener());
-  };
-  return {
-    records: {} as LiveVoice['records'],
-    player: {} as LiveVoice['player'],
-    getView: () => current,
-    subscribe(listener) {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    },
-    getBoardNow: () => ({ board: { elements: new Map(), focus: null }, atMs: 0 }),
-    sendTyped: vi.fn(),
-    toggleMic: vi.fn(async () => setMic(current.mic !== 'on')),
-    isMicOn: () => current.mic === 'on',
-    setMic: vi.fn(async (isOn: boolean) => setMic(isOn)),
-    endLine: vi.fn(() => setMic(false)),
-    lowerTutor: vi.fn(),
-    tellHoldStarted: vi.fn(),
-    sayStillHere: vi.fn(),
-    turnOnSound: vi.fn(),
-    mark: vi.fn(),
-    close: vi.fn(async () => {}),
-  };
+// The real start asks for the room beside its audio setup, and refuses to go on with no access.
+async function startLikeThePage({ getAccess }: LiveVoiceOptions): Promise<LiveVoice> {
+  if (!(await getAccess())) throw new Error('there is no room to join');
+  return makeFakeVoice();
 }
 
 describe('the captions', () => {
@@ -60,6 +37,46 @@ describe('the captions', () => {
 });
 
 describe('useLiveVoice', () => {
+  beforeEach(() => stubSessionsApi({ liveRoom: OPEN_ROOM }));
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('joins with the access the API gave', async () => {
+    let access: unknown;
+    const start = vi.fn(async ({ getAccess }: LiveVoiceOptions) => {
+      access = await getAccess();
+      return makeFakeVoice();
+    });
+    const { result } = renderHook(() => useLiveVoice({ sessionId: 'a-session', start }));
+    await act(async () => void (await result.current.connect()));
+    expect(access).toEqual(ROOM_ACCESS);
+    expect(result.current.status).toBe('live');
+  });
+
+  it.each([
+    ['notSetUp', 'unavailable'],
+    ['dailyLimit', 'overLimit'],
+  ] as const)('joins nothing when the API answers %s, says %s, and keeps the reply on the screen', async (unavailableBecause, status) => {
+    stubSessionsApi({ liveRoom: { access: null, unavailableBecause } });
+    const { result } = renderHook(() => useLiveVoice({ sessionId: 'a-session', start: startLikeThePage }));
+    let wasSent = true;
+    await act(async () => {
+      wasSent = await result.current.sendTyped('Why?');
+    });
+    expect(wasSent).toBe(false);
+    expect(result.current.status).toBe(status);
+    expect(result.current.view).toBeNull();
+  });
+
+  it('asks the API again on the next try, so a room service that comes up is found', async () => {
+    stubSessionsApi();
+    const { result } = renderHook(() => useLiveVoice({ sessionId: 'a-session', start: startLikeThePage }));
+    await act(async () => void (await result.current.sendTyped('Why?')));
+    expect(result.current.status).toBe('unavailable');
+    stubSessionsApi({ liveRoom: OPEN_ROOM });
+    await act(async () => void (await result.current.sendTyped('Why?')));
+    expect(result.current.status).toBe('live');
+  });
+
   it('asks for the microphone only when the student presses Talk, and a typed reply opens the room with it off', async () => {
     const voice = makeFakeVoice();
     const start = vi.fn(async () => voice);
@@ -115,7 +132,8 @@ describe('useLiveVoice', () => {
     const start = vi.fn<() => Promise<LiveVoice>>().mockResolvedValueOnce(first).mockResolvedValueOnce(second);
     const { result } = renderHook(() => useLiveVoice({ sessionId: 'a-session', start }));
     await act(async () => void (await result.current.connect()));
-    await act(() => result.current.openAgain());
+    await act(() => result.current.openAgain('I am back.'));
+    expect(second.sendTyped).toHaveBeenCalledWith('I am back.');
     expect(first.close).toHaveBeenCalled();
     expect(result.current.voice).toBe(second);
     expect(start).toHaveBeenCalledTimes(2);
@@ -132,20 +150,21 @@ describe('useLiveVoice', () => {
   });
 
   describe('at the limit on starting tutors', () => {
-    const TOO_MANY = new ApiError({ kind: 'rejected', status: 429, retryAfterSeconds: 360 });
-    const startAsking = vi.fn(async ({ getAccess }: { getAccess(): Promise<unknown> }) => {
-      if (!(await getAccess())) throw new Error('no room');
-      return makeFakeVoice();
-    }) as unknown as typeof import('./liveVoice').startLiveVoice;
-    const asks = () => api.post.mock.calls.map(([, options]) => options.params.query);
+    const TOO_MANY = () => new Response(JSON.stringify({ statusCode: 429, message: 'This has been tried too many times.', retryAfterSeconds: 360 }), { status: 429 });
+    const OPEN = () => new Response(JSON.stringify(OPEN_ROOM), { status: 200 });
 
-    beforeEach(() => {
-      api.post.mockReset();
-    });
+    function stubRoomAnswers(...answers: (() => Response)[]) {
+      const asks: (string | null)[] = [];
+      vi.stubGlobal('fetch', vi.fn(async (request: Request) => {
+        asks.push(new URL(request.url).searchParams.get('startOver'));
+        return (answers.length > 1 ? (answers.shift() as () => Response) : (answers[0] as () => Response))();
+      }));
+      return asks;
+    }
 
     it('says how long the wait truly is', async () => {
-      api.post.mockRejectedValue(TOO_MANY);
-      const { result } = renderHook(() => useLiveVoice({ sessionId: 'a-session', start: startAsking }));
+      stubRoomAnswers(TOO_MANY);
+      const { result } = renderHook(() => useLiveVoice({ sessionId: 'a-session', start: startLikeThePage }));
       await act(async () => void (await result.current.connect()));
       expect(result.current.status).toBe('tooSoon');
       expect(result.current.waitSeconds).toBe(360);
@@ -154,25 +173,25 @@ describe('useLiveVoice', () => {
     });
 
     it('never joins the dead room again when a typed reply follows, and starts over once the wait has passed', async () => {
-      api.post.mockResolvedValueOnce({ url: 'u', token: 't' }).mockRejectedValueOnce(TOO_MANY).mockRejectedValueOnce(TOO_MANY).mockResolvedValue({ url: 'u', token: 't' });
-      const { result } = renderHook(() => useLiveVoice({ sessionId: 'a-session', start: startAsking }));
+      const asks = stubRoomAnswers(OPEN, TOO_MANY, TOO_MANY, OPEN);
+      const { result } = renderHook(() => useLiveVoice({ sessionId: 'a-session', start: startLikeThePage }));
       await act(async () => void (await result.current.connect()));
-      await act(() => result.current.openAgain());
+      await act(() => result.current.openAgain('I am back.'));
       expect(result.current.status).toBe('tooSoon');
       await act(async () => void (await result.current.sendTyped('Are you there?')));
       expect(result.current.status).toBe('tooSoon');
       await act(async () => void (await result.current.sendTyped('Are you there?')));
       expect(result.current.status).toBe('live');
-      expect(asks()).toEqual([{}, { startOver: 'yes' }, { startOver: 'yes' }, { startOver: 'yes' }]);
+      expect(asks).toEqual([null, 'yes', 'yes', 'yes']);
     });
 
     it('stops asking to start over once a room has answered', async () => {
-      api.post.mockResolvedValue({ url: 'u', token: 't' });
-      const { result } = renderHook(() => useLiveVoice({ sessionId: 'a-session', start: startAsking }));
+      const asks = stubRoomAnswers(OPEN);
+      const { result } = renderHook(() => useLiveVoice({ sessionId: 'a-session', start: startLikeThePage }));
       await act(async () => void (await result.current.connect()));
-      await act(() => result.current.openAgain());
-      await act(() => result.current.openAgain());
-      expect(asks()).toEqual([{}, { startOver: 'yes' }, { startOver: 'yes' }]);
+      await act(() => result.current.openAgain('I am back.'));
+      await act(() => result.current.openAgain('I am back.'));
+      expect(asks).toEqual([null, 'yes', 'yes']);
     });
   });
 
@@ -186,7 +205,7 @@ describe('useLiveVoice', () => {
   });
 });
 
-const VENDOR_KEY_NAMES = /ELEVENLABS_API_KEY|META_API_KEY|LIVEKIT_API_KEY|LIVEKIT_API_SECRET|ANTHROPIC_API_KEY/;
+const VENDOR_KEY_NAMES = /ELEVENLABS_API_KEY|META_API_KEY|LIVEKIT_API_KEY|LIVEKIT_API_SECRET|ANTHROPIC_API_KEY|ASTRA_AGENT_KEY/;
 
 describe('vendor keys', () => {
   it('appear nowhere in the browser code, which only ever holds a room token from our API', () => {
@@ -255,7 +274,22 @@ describe('the Privacy Policy on voice', () => {
     expect(privacy).toContain('LiveKit Cloud carries your voice');
     expect(privacy).toContain('your IP address');
     expect(privacy).toContain("Meta's Muse Voice Transcribe receives your voice");
-    expect(privacy).toContain('ElevenLabs receives your words too');
+    expect(privacy).toContain("ElevenLabs receives the tutor's words");
+    expect(privacy).toContain('receives what you say and type in a session, the tutor\'s earlier words, and your level, interests, and goal');
+    expect(privacy).toContain('We do not send it your name, your date of birth, your email address, or an account ID');
+  });
+
+  it('says LiveKit carries voice and messages and does not receive the level, interests, or goal', () => {
+    expect(privacy).toContain('LiveKit Cloud carries your voice');
+    expect(privacy).toContain('We do not send LiveKit your name, your date of birth, your email address, your level, your interests, or your goal');
+  });
+
+  it('says a total of what the tutor cost is stored per day, with no words in it', () => {
+    expect(privacy).toContain('A running total of what the tutor cost for you each day');
+  });
+
+  it('says plainly that the IP address reaches LiveKit as soon as a session opens, before any press', () => {
+    expect(privacy).toContain('When a session opens, your browser joins LiveKit Cloud, even before you press Talk, so LiveKit receives your IP address');
   });
 
   it('says the microphone opens on a hold of Space too, and that the invitation is stored', () => {

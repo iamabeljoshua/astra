@@ -2,13 +2,17 @@ import { randomUUID } from 'node:crypto';
 import { decodeJwt } from 'jose';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
-import { createTestApp, createTestStudent } from '../../test/test-database';
+import { createTestApp, createTestStudent, OLD_ENOUGH_BIRTH_DATE } from '../../test/test-database';
 import type { TestApp, TestStudent } from '../../test/test-database';
 import { SessionEntity } from '../infrastructure/orm/entities/session.entity';
 import { getLiveRoomKeys, LiveRooms, MOST_KNOWN_ROOMS } from './live-rooms';
 
 const LIVE_ROOM_KEYS = { LIVEKIT_URL: 'wss://astra-test.livekit.cloud', LIVEKIT_API_KEY: 'key-for-test', LIVEKIT_API_SECRET: 'secret-for-test-that-is-long-enough-to-sign', ASTRA_AGENT_NAME: 'tutor-for-test' };
 const VALID_SESSION = { title: 'Free-body diagrams', subject: 'Physics', language: 'en' };
+
+function getAccess(answer: unknown) {
+  return (answer as { access: { url: string; token: string; roomName: string; invitesTalk: boolean } }).access;
+}
 
 interface RoomCall {
   method: string;
@@ -64,8 +68,11 @@ describe('the live room route', () => {
     return (body as { id: string }).id;
   };
 
-  beforeAll(async () => {
+  beforeEach(() => {
     Object.assign(process.env, LIVE_ROOM_KEYS);
+  });
+
+  beforeAll(async () => {
     testApp = await createTestApp();
     student = await createTestStudent(testApp);
     otherStudent = await createTestStudent(testApp);
@@ -86,10 +93,8 @@ describe('the live room route', () => {
     await testApp.close();
   });
 
-
   describe('telling a student they can talk', () => {
-    const startSession = async (who: TestStudent) => (await post('/sessions', who).send(VALID_SESSION).expect(201)).body.id as string;
-    const openRoom = async (sessionId: string, who: TestStudent) => (await post(`/sessions/${sessionId}/live-room`, who).expect(200)).body as { invitesTalk: boolean };
+    const openRoom = async (sessionId: string, who: TestStudent) => getAccess((await post(`/sessions/${sessionId}/live-room`, who).expect(200)).body);
     const noteInvited = (who: TestStudent) => server().put('/me/talk-invitation').set('Authorization', `Bearer ${who.token}`);
 
     it('asks for it in a student\'s first session, and not in a later one', async () => {
@@ -123,11 +128,25 @@ describe('the live room route', () => {
     });
   });
 
+  it('tells LiveKit which agent to call and nothing about the student', async () => {
+    await server().put('/me/profile').set('Authorization', `Bearer ${student.token}`).send({ name: 'Maya', interests: ['basketball', 'space'], level: 'university', goal: 'exam' }).expect(200);
+    const sessionId = await startSession();
+    const { body } = await post(`/sessions/${sessionId}/live-room`).expect(200);
+    const claims = decodeJwt(getAccess(body).token);
+    const [created] = liveKit.named('CreateRoom');
+    expect(created?.body).toMatchObject({ agents: [{ agentName: 'tutor-for-test' }] });
+    expect((created?.body as { agents: { metadata?: string }[] }).agents[0]?.metadata ?? '').toBe('');
+    for (const secret of ['university', 'basketball', 'space', 'exam', 'Maya', OLD_ENOUGH_BIRTH_DATE]) {
+      expect(JSON.stringify(claims)).not.toContain(secret);
+      expect(JSON.stringify(liveKit.calls)).not.toContain(secret);
+    }
+  });
+
   it('gives a token for this session room with the least it needs', async () => {
     const sessionId = await startSession();
     const { body } = await post(`/sessions/${sessionId}/live-room`).expect(200);
-    const claims = decodeJwt((body as { token: string }).token) as Record<string, unknown> & { exp: number; nbf: number };
-    const room = (body as { roomName: string }).roomName;
+    const claims = decodeJwt(getAccess(body).token) as Record<string, unknown> & { exp: number; nbf: number };
+    const room = getAccess(body).roomName;
     expect(room).toMatch(new RegExp(`^session-${sessionId}-[0-9a-f]{8}$`));
     expect(claims.video).toEqual({ room, roomJoin: true, canSubscribe: true, canPublish: true, canPublishSources: ['microphone'], canPublishData: true, canUpdateOwnMetadata: false });
     expect(claims.roomConfig).toMatchObject({ name: room, maxParticipants: 1, departureTimeout: 120 });
@@ -139,7 +158,7 @@ describe('the live room route', () => {
   it('puts no tutor in the token, because a token cannot be taken back and would call a job into a finished session', async () => {
     const sessionId = await startSession();
     const { body } = await post(`/sessions/${sessionId}/live-room`).expect(200);
-    const claims = decodeJwt((body as { token: string }).token) as { roomConfig?: { agents?: unknown } };
+    const claims = decodeJwt(getAccess(body).token) as { roomConfig?: { agents?: unknown } };
     expect(claims.roomConfig?.agents ?? []).toEqual([]);
   });
 
@@ -147,14 +166,14 @@ describe('the live room route', () => {
     const sessionId = await startSession();
     const { body } = await post(`/sessions/${sessionId}/live-room`).expect(200);
     expect(liveKit.named('CreateRoom')).toHaveLength(1);
-    expect(liveKit.named('CreateRoom')[0]?.body).toMatchObject({ name: (body as { roomName: string }).roomName, maxParticipants: 1, departureTimeout: 120, agents: [{ agentName: 'tutor-for-test', restartPolicy: 'JRP_NEVER' }] });
+    expect(liveKit.named('CreateRoom')[0]?.body).toMatchObject({ name: getAccess(body).roomName, maxParticipants: 1, departureTimeout: 120, agents: [{ agentName: 'tutor-for-test', restartPolicy: 'JRP_NEVER' }] });
   });
 
   it('sends a rejoin back to the room it has, so a rejoin never starts a second tutor', async () => {
     const sessionId = await startSession();
     const { body: first } = await post(`/sessions/${sessionId}/live-room`).expect(200);
     const { body: second } = await post(`/sessions/${sessionId}/live-room`).expect(200);
-    expect((second as { roomName: string }).roomName).toBe((first as { roomName: string }).roomName);
+    expect(getAccess(second).roomName).toBe(getAccess(first).roomName);
     expect(liveKit.named('CreateRoom')).toHaveLength(1);
   });
 
@@ -162,7 +181,7 @@ describe('the live room route', () => {
     const sessionId = await startSession();
     const { body } = await post(`/sessions/${sessionId}/live-room`).expect(200);
     await server().patch(`/sessions/${sessionId}`).set('Authorization', `Bearer ${student.token}`).send({ durationSeconds: 1, status: 'finished' }).expect(200);
-    expect(liveKit.named('DeleteRoom')[0]?.body).toMatchObject({ room: (body as { roomName: string }).roomName });
+    expect(liveKit.named('DeleteRoom')[0]?.body).toMatchObject({ room: getAccess(body).roomName });
     const createdBefore = liveKit.named('CreateRoom').length;
     await post(`/sessions/${sessionId}/live-room`).expect(409);
     expect(liveKit.named('CreateRoom')).toHaveLength(createdBefore);
@@ -189,7 +208,7 @@ describe('the live room route', () => {
     const { body: second } = await post(`/sessions/${sessionId}/live-room?startOver=yes`).expect(200);
     expect(liveKit.named('DeleteRoom')).toHaveLength(1);
     expect(liveKit.named('CreateRoom')).toHaveLength(2);
-    expect((second as { roomName: string }).roomName).not.toBe((first as { roomName: string }).roomName);
+    expect(getAccess(second).roomName).not.toBe(getAccess(first).roomName);
     await post(`/sessions/${sessionId}/live-room?startOver=maybe`).expect(400);
   });
 
@@ -200,16 +219,16 @@ describe('the live room route', () => {
     expect(liveKit.roomsOf(sessionId)).toHaveLength(1);
     const callsBefore = liveKit.calls.length;
     const { body } = await post(`/sessions/${sessionId}/live-room`, fresh).expect(200);
-    expect((body as { roomName: string }).roomName).toBe(liveKit.roomsOf(sessionId)[0]);
+    expect(getAccess(body).roomName).toBe(liveKit.roomsOf(sessionId)[0]);
     expect(liveKit.calls).toHaveLength(callsBefore);
   });
 
   it('checks the room is still open after the first join, and calls a new tutor if it has gone', async () => {
     const sessionId = await startSession();
     const { body: first } = await post(`/sessions/${sessionId}/live-room`).expect(200);
-    liveKit.rooms.delete((first as { roomName: string }).roomName);
+    liveKit.rooms.delete(getAccess(first).roomName);
     const { body: second } = await post(`/sessions/${sessionId}/live-room`).expect(200);
-    expect((second as { roomName: string }).roomName).not.toBe((first as { roomName: string }).roomName);
+    expect(getAccess(second).roomName).not.toBe(getAccess(first).roomName);
     expect(liveKit.named('CreateRoom')).toHaveLength(2);
   });
 
@@ -225,6 +244,17 @@ describe('the live room route', () => {
     delete process.env.LIVEKIT_API_SECRET;
     await startSession();
     process.env.LIVEKIT_API_SECRET = LIVE_ROOM_KEYS.LIVEKIT_API_SECRET;
+    expect(liveKit.calls).toEqual([]);
+  });
+
+  it('starts no job for a student past today\'s limit, from a new session or from the route, because a warm room spends', async () => {
+    const limited = await createTestStudent(testApp);
+    process.env.ASTRA_DAILY_LIMIT_USD = '0';
+    const sessionId = await startSession(limited);
+    const { body } = await post(`/sessions/${sessionId}/live-room`, limited).expect(200);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    delete process.env.ASTRA_DAILY_LIMIT_USD;
+    expect(body).toEqual({ access: null, unavailableBecause: 'dailyLimit' });
     expect(liveKit.calls).toEqual([]);
   });
 
@@ -364,9 +394,10 @@ describe('the live room route', () => {
   it('sends the browser no key, only the address, the token, and the room name', async () => {
     const sessionId = await startSession();
     const { body, text } = await post(`/sessions/${sessionId}/live-room`).expect(200);
-    expect(Object.keys(body as object).sort()).toEqual(['roomName', 'token', 'url']);
+    expect(body).toMatchObject({ unavailableBecause: null });
+    expect(Object.keys(getAccess(body)).sort()).toEqual(['invitesTalk', 'roomName', 'token', 'url']);
     expect(text).not.toContain(LIVE_ROOM_KEYS.LIVEKIT_API_SECRET);
-    expect(JSON.stringify(decodeJwt((body as { token: string }).token))).not.toContain(LIVE_ROOM_KEYS.LIVEKIT_API_SECRET);
+    expect(JSON.stringify(decodeJwt(getAccess(body).token))).not.toContain(LIVE_ROOM_KEYS.LIVEKIT_API_SECRET);
   });
 
   it('gives each session its own room, and another student no token at all', async () => {
@@ -374,7 +405,7 @@ describe('the live room route', () => {
     const theirs = await startSession(otherStudent);
     const { body: first } = await post(`/sessions/${mine}/live-room`).expect(200);
     const { body: second } = await post(`/sessions/${theirs}/live-room`, otherStudent).expect(200);
-    expect((first as { roomName: string }).roomName).not.toBe((second as { roomName: string }).roomName);
+    expect(getAccess(first).roomName).not.toBe(getAccess(second).roomName);
     await post(`/sessions/${theirs}/live-room`, student).expect(404);
     await post(`/sessions/${randomUUID()}/live-room`).expect(404);
   });
@@ -390,10 +421,20 @@ describe('the live room route', () => {
     await server().post(`/sessions/${sessionId}/live-room`).expect(401);
   });
 
-  it('answers 503 when live voice has no keys, so the rest of the app runs without them', async () => {
+  it('answers 200 with no access when live voice has no keys, because that is an expected state and not a server error', async () => {
     const sessionId = await startSession();
     delete process.env.LIVEKIT_API_SECRET;
-    await post(`/sessions/${sessionId}/live-room`).expect(503);
-    process.env.LIVEKIT_API_SECRET = LIVE_ROOM_KEYS.LIVEKIT_API_SECRET;
+    const { body } = await post(`/sessions/${sessionId}/live-room`).expect(200);
+    expect(body).toEqual({ access: null, unavailableBecause: 'notSetUp' });
+  });
+
+  it('still answers 404, 409, and 401 with no keys, so no state hides behind the expected one', async () => {
+    const mine = await startSession();
+    const theirs = await startSession(otherStudent);
+    await server().patch(`/sessions/${mine}`).set('Authorization', `Bearer ${student.token}`).send({ durationSeconds: 1, status: 'finished' }).expect(200);
+    delete process.env.LIVEKIT_API_SECRET;
+    await post(`/sessions/${theirs}/live-room`).expect(404);
+    await post(`/sessions/${mine}/live-room`).expect(409);
+    await server().post(`/sessions/${theirs}/live-room`).expect(401);
   });
 });

@@ -131,7 +131,7 @@ export function useHoldToTalk({ heldMic, isTalkOn, toggleTalk, isEnabled }: Hold
     'aria-keyshortcuts': 'Space',
     style: { touchAction: 'none', userSelect: 'none', WebkitTouchCallout: 'none' },
     onPointerDown(event: PointerEvent<HTMLButtonElement>) {
-      if (event.button !== 0) return;
+      if (event.button !== 0 || !isEnabled) return;
       setHasHitLimit(false);
       event.currentTarget.setPointerCapture?.(event.pointerId);
       holdRef.current?.press('talkButton');

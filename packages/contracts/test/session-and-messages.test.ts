@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   BEAT_LIMITS,
+  clipTypedText,
   COMMAND_MAX_BYTES,
   getCues,
   getPlayedCues,
@@ -489,6 +490,26 @@ describe('the size limits on the wire', () => {
     const stored = { seq: 1, atMs: 0, kind: 'beatPlayed', turnId: 't1', beat: makeBeat({ script }), wordStartsMs: [0, 100], durationMs: 200, playedWords: 2, firedCueMs: Array.from({ length: 12 }, () => 0), ending: 'finished', frozen: [], reportedBy: 'browser' };
     expect(getJsonBytes(stored)).toBeGreaterThan(LIVE_MESSAGE_MAX_BYTES);
     expect(parseSessionEvent(stored).ok).toBe(true);
+  });
+});
+
+describe('a typed message that is too long', () => {
+  const STAMP = { clockId: 'test', browserMs: 0, startedMsAgo: 0 };
+
+  it('is cut to the limit between whole characters and still arrives', () => {
+    const parsed = parseBrowserMessage({ type: 'typed', text: `${'a'.repeat(1999)}😀😀😀`, ...STAMP });
+    expect(parsed.ok && parsed.value.type === 'typed' && parsed.value.text).toBe(`${'a'.repeat(1999)}😀`);
+  });
+
+  it('never holds half an emoji', () => {
+    expect(clipTypedText('😀😀'.slice(0, 3))).toBe('😀');
+  });
+});
+
+describe('the tutor closing a room', () => {
+  it('names only a known reason', () => {
+    expect(parseAgentMessage({ type: 'tutorClosed', reason: 'dailyLimit' }).ok).toBe(true);
+    expect(parseAgentMessage({ type: 'tutorClosed', reason: 'bored' }).ok).toBe(false);
   });
 });
 

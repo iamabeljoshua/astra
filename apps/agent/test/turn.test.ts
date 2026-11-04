@@ -133,6 +133,13 @@ describe('a real word', () => {
     expect(actions.at(-1)).toBe('reply final: I think it lands. twice as far because the speed doubled.');
   });
 
+  it('says which words a reply carries, so the brain can tell them from the new ones', () => {
+    const steps = [decided('Gravity.'), THINKING, ON, words('It lands', false), OFF, words('It lands twice as far.')];
+    const state = steps.reduce((current, event) => getNextTurnState(current, event).state, INITIAL_TURN_STATE);
+    const { actions } = getNextTurnState(state, decided('It lands twice as far.'));
+    expect(actions).toContainEqual({ do: 'reply', text: 'Gravity. It lands twice as far.', carried: 'Gravity.', via: 'final' });
+  });
+
   it('does not carry words the tutor finished answering', () => {
     const { actions } = play([decided('Why does it fall?'), THINKING, SPEAKING, HEARD_OUT, FINISHED, ON, OFF, words('And the moon?'), decided('And the moon?')]);
     expect(actions.at(-1)).toBe('reply final: And the moon?');
@@ -256,14 +263,21 @@ describe('patience', () => {
     expect(play([ON, words('Hmm, let me think'), OFF, decided('Hmm, let me think')]).actions.at(-1)).toBe('start patience');
   });
 
-  it('waits after a question, and any sound starts the wait again', () => {
-    const { actions } = play([SPEAKING, QUESTION_HEARD, FINISHED, ON, OFF]);
+  it('says nothing after asking a question, however long the student takes, because the page shows the prompt', () => {
+    const { actions } = play([SPEAKING, QUESTION_HEARD, FINISHED, timer('patience'), timer('patience')]);
+    expect(actions).not.toContain('start patience');
+    expect(actions).not.toContain('promptAfterSilence');
+  });
+
+  it('any sound starts the wait again after a filler', () => {
+    const { actions } = play([ON, words('Hmm, let me think'), OFF, decided('Hmm, let me think'), ON, OFF]);
     expect(actions.filter((action) => action === 'start patience').length).toBeGreaterThanOrEqual(2);
   });
 
-  it('prompts once when the wait ends', () => {
-    expect(play([SPEAKING, QUESTION_HEARD, FINISHED, timer('patience')]).actions.at(-1)).toBe('promptAfterSilence');
-    expect(play([SPEAKING, QUESTION_HEARD, FINISHED, timer('patience'), timer('patience')]).actions.filter((action) => action === 'promptAfterSilence')).toHaveLength(1);
+  it('prompts once when the wait after a filler ends', () => {
+    const FILLER = [ON, words('Hmm, let me think'), OFF, decided('Hmm, let me think'), timer('reactionFloor')];
+    expect(play([...FILLER, timer('patience')]).actions.at(-1)).toBe('promptAfterSilence');
+    expect(play([...FILLER, timer('patience'), timer('patience')]).actions.filter((action) => action === 'promptAfterSilence')).toHaveLength(1);
   });
 
   it('allows 2 s after a question or an interruption, and 1 s otherwise', () => {
@@ -390,5 +404,38 @@ describe('every order of events', () => {
     expect(found).toEqual({});
     expect(states).toBeGreaterThan(200);
     expect(moves).toBeGreaterThan(2000);
+  });
+});
+
+describe('which reaction a turn may get', () => {
+  const getReaction = (events: readonly TurnEvent[]) => {
+    let state = INITIAL_TURN_STATE;
+    let reaction: TurnAction | undefined;
+    for (const event of events) {
+      const next = getNextTurnState(state, event);
+      state = next.state;
+      reaction = next.actions.find((action) => action.do === 'react') ?? reaction;
+    }
+    return reaction as (TurnAction & { do: 'react' }) | undefined;
+  };
+  const typed = (text: string): TurnEvent => ({ type: 'typed', text });
+
+  it('never praises speech, because code reacts before it has read the words', () => {
+    expect(getReaction([ON, OFF, words('Why does it fall?'), timer('reactionFloor')])?.canPraise).toBe(false);
+    expect(getReaction([ON, words('Why does it fall?'), OFF, decided('Why does it fall?')])?.canPraise).toBe(false);
+    expect(getReaction([ON, words('Why does it', false), OFF, timer('heldFinal')])?.canPraise).toBe(false);
+  });
+
+  it('may praise a typed line that truly asks something', () => {
+    expect(getReaction([typed('Why does a ball slow down?')])?.canPraise).toBe(true);
+    expect(getReaction([typed('why not?')])?.canPraise).toBe(true);
+  });
+
+  it.each(['The ball slows down.', 'hello there', 'ok?', 'why?', 'x = 3?', '42?', '?'])('does not praise "%s", which asks nothing a tutor could admire', (text) => {
+    expect(getReaction([typed(text)])?.canPraise).toBe(false);
+  });
+
+  it('never praises an answer to what the tutor just asked, even one that ends in a question mark', () => {
+    expect(getReaction([SPEAKING, QUESTION_HEARD, FINISHED, typed('Is it five because of the slope?')])?.canPraise).toBe(false);
   });
 });

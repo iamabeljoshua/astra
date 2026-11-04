@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LIVE_TOPIC, type RoomAccess, startLiveVoice } from './liveVoice';
 
 const TUTOR_WAIT_MS = 25_000;
-const ACCESS: RoomAccess = { url: 'wss://room', token: 'token' };
+const ACCESS: RoomAccess = { url: 'wss://room', token: 'token', roomName: 'session-a-1', invitesTalk: false };
 
 const fake = vi.hoisted(() => {
   class FakeRoom {
