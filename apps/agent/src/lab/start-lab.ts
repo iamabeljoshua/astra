@@ -3,7 +3,8 @@ import { parseArgs } from 'node:util';
 import { initializeLogger } from '@livekit/agents';
 import { AccessToken } from 'livekit-server-sdk';
 import { makeTutorVoice, TUTOR_VOICE_NAME } from '../providers/choose.ts';
-import { FAKE_SAMPLE_RATE, makeRenderedVoice, type RenderSpeech } from '../providers/fakes.ts';
+import { FAKE_SAMPLE_RATE, renderTone } from '../providers/fakes.ts';
+import { makeRenderedVoice, type RenderSpeech } from '../providers/rendered-voice.ts';
 import { readKey } from './keys.ts';
 import { runLabAgent } from './lab-agent.ts';
 import { createLabRecorder } from './lab-recorder.ts';
@@ -53,7 +54,7 @@ function makeStoredRender(path: string): RenderSpeech {
 
 function pickVoice() {
   if (args.stored) return makeRenderedVoice({ name: 'stored', render: makeStoredRender(args.stored) });
-  if (args.fake) return makeRenderedVoice({ name: 'fake' });
+  if (args.fake) return makeRenderedVoice({ name: 'fake', render: renderTone });
   return makeTutorVoice({ model: args.model, apiKey: readKey('ELEVENLABS_API_KEY') });
 }
 

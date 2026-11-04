@@ -2,7 +2,8 @@ import { initializeLogger } from '@livekit/agents';
 import { afterEach, describe, expect, it } from 'vitest';
 import { makeTutorVoice, TUTOR_VOICE_ID } from '../src/providers/choose.ts';
 import { makeElevenLabsVoice } from '../src/providers/elevenlabs.ts';
-import { makeRenderedVoice } from '../src/providers/fakes.ts';
+import { makeRenderedVoice } from '../src/providers/rendered-voice.ts';
+import { renderTone } from '../src/providers/fakes.ts';
 import { type FakeWire, startFakeElevenLabsWire } from './fake-elevenlabs-wire.ts';
 import { getVoiceProblems, hearVoice } from './provider-suite.ts';
 
@@ -23,7 +24,7 @@ async function makeWireVoice(leadingSilenceMs = 0) {
 
 describe('the voice suite', () => {
   it('passes the rendered fake', async () => {
-    expect(await getVoiceProblems(makeRenderedVoice({ name: 'rendered' }))).toEqual([]);
+    expect(await getVoiceProblems(makeRenderedVoice({ name: 'rendered', render: renderTone }))).toEqual([]);
   });
 
   it('passes the ElevenLabs adapter on a fake of its wire', async () => {

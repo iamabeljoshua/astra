@@ -1,4 +1,4 @@
-import { type BoardState, createSampleClock, createScenePlayer, createTimerClock, describeBoard, type FiredCue, type OutputLevel, rebuildBoard, type SampleClock, type ScenePlayer } from '@astra/board';
+import { type BoardState, createChoosingClock, createScenePlayer, describeBoard, type FiredCue, type OutputLevel, rebuildBoard, type ChoosingClock, type ScenePlayer } from '@astra/board';
 import probeWorkletUrl from '@astra/board/audio-probe-worklet.js?url';
 import { type AgentMessage, type BrowserMessage, parseAgentMessage, parseSessionEvent, type SessionEvent } from '@astra/contracts';
 import { type RemoteTrack, Room, RoomEvent, Track } from 'livekit-client';
@@ -66,7 +66,7 @@ function noteAgentMessage(records: LabRecords, message: AgentMessage, atMs: numb
 interface TutorAudio {
   audioContext: AudioContext;
   gain: GainNode;
-  sampleClock: SampleClock;
+  sampleClock: ChoosingClock;
   records: LabRecords;
   pcm: PcmRecorder | null;
 }
@@ -107,12 +107,10 @@ async function createTutorAudioContext(shouldRecordPcm: boolean): Promise<AudioC
 // Connects a real room to the real player: the tutor's audio goes through a probe that counts samples and a gain that a stop closes at once.
 export async function startLabSession({ url, token, shouldRecordPcm, onAgentReady, onLogChange }: LabSessionOptions): Promise<LabSession> {
   const audioContext = await createTutorAudioContext(shouldRecordPcm);
-  const canCount = audioContext.state === 'running';
   const getGraphTimeMs = () => audioContext.currentTime * 1000;
   const getOutputLatencyMs = () => (audioContext.outputLatency || 0) * 1000;
-  const sampleClock = createSampleClock({ getGraphTimeMs, getOutputLatencyMs });
-  const clock = canCount ? sampleClock : createTimerClock({ getNowMs: () => performance.now() });
-  const records = createRecords(canCount ? 'samples' : 'timer', audioContext);
+  const clock = createChoosingClock({ getIsAudioRunning: () => audioContext.state === 'running', getGraphTimeMs, getOutputLatencyMs, getWallMs: () => performance.now() });
+  const records = createRecords(clock.getKind(), audioContext);
   const pcm = shouldRecordPcm ? createPcmRecorder(audioContext) : null;
   const gain = audioContext.createGain();
   const room = new Room({ adaptiveStream: false, dynacast: false });
@@ -124,6 +122,7 @@ export async function startLabSession({ url, token, shouldRecordPcm, onAgentRead
   const publish = (topic: string, message: object) => room.localParticipant.publishData(encoder.encode(JSON.stringify(message)), { reliable: true, topic });
   const player = createScenePlayer({
     clock,
+    clockId: crypto.randomUUID(),
     send(message) {
       records.browserMessages.push({ type: message.type, atMs: clock.getNowMs() });
       void publish(LIVE_TOPIC, message);
@@ -156,15 +155,17 @@ export async function startLabSession({ url, token, shouldRecordPcm, onAgentRead
       return;
     }
     const nowMs = clock.getNowMs();
-    noteAgentMessage(records, parsed.value, nowMs);
-    const isFirstStop = parsed.value.type === 'stop' && !records.stops.some((stop) => stop.turnId === parsed.value.turnId);
-    player.receive(parsed.value);
-    if (isFirstStop) records.stops.push({ turnId: parsed.value.turnId, receivedAtMs: nowMs, receivedEpochMs: performance.timeOrigin + performance.now(), audioFrameAtStop: frameAtStop });
+    const message = parsed.value;
+    noteAgentMessage(records, message, nowMs);
+    if (message.type === 'turnStarted') records.clockKind = clock.getKind();
+    const firstStopTurnId = message.type === 'stop' && !records.stops.some((stop) => stop.turnId === message.turnId) ? message.turnId : null;
+    player.receive(message);
+    if (firstStopTurnId) records.stops.push({ turnId: firstStopTurnId, receivedAtMs: nowMs, receivedEpochMs: performance.timeOrigin + performance.now(), audioFrameAtStop: frameAtStop });
   };
 
   room.on(RoomEvent.TrackSubscribed, (track) => {
     if (track.kind !== Track.Kind.Audio) return;
-    listenToTutor(track, { audioContext, gain, sampleClock, records, pcm });
+    listenToTutor(track, { audioContext, gain, sampleClock: clock, records, pcm });
     helloTimer = setInterval(() => void publish(LAB_TOPIC, { type: 'hello' }), HELLO_EVERY_MS);
     void publish(LAB_TOPIC, { type: 'hello' });
   });

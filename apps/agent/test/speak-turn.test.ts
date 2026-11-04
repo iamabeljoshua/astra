@@ -8,7 +8,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { speakTurn, type SpeakTurnOptions } from '../src/live/speak-turn.ts';
 import { createVoiceLine } from '../src/live/voice-line.ts';
 import { makeElevenLabsVoice } from '../src/providers/elevenlabs.ts';
-import { FAKE_SAMPLE_RATE, makeRenderedVoice, type RenderSpeech, renderTone } from '../src/providers/fakes.ts';
+import { FAKE_SAMPLE_RATE, renderTone } from '../src/providers/fakes.ts';
+import { makeRenderedVoice, type RenderSpeech } from '../src/providers/rendered-voice.ts';
 import { type FakeWire, startFakeElevenLabsWire } from './fake-elevenlabs-wire.ts';
 
 initializeLogger({ pretty: false, level: 'silent' });
@@ -98,10 +99,10 @@ function createWatchedLine({ playoutMs = 0, frameMs = 1 } = {}) {
     },
   });
   const messenger = {
-    send: (message: AgentMessage) => note({ kind: 'message', turnId: message.turnId, type: message.type }),
-    sendOnBothChannels: (message: AgentMessage) => note({ kind: 'message', turnId: message.turnId, type: message.type }),
+    send: (message: AgentMessage) => note({ kind: 'message', turnId: 'turnId' in message ? message.turnId : null, type: message.type }),
+    sendOnBothChannels: (message: AgentMessage) => note({ kind: 'message', turnId: 'turnId' in message ? message.turnId : null, type: message.type }),
   };
-  const turn = (turnId: string) => speakTurn({ voice: makeRenderedVoice({ name: 'fake' }).makeTts(), line, messenger, turnId: turnId as TurnId, beats: BEATS });
+  const turn = (turnId: string) => speakTurn({ voice: makeRenderedVoice({ name: 'fake', render: renderTone }).makeTts(), line, messenger, turnId: turnId as TurnId, beats: BEATS });
   const getTurnStartedAtMs = (turnId: string) => events.find((event) => event.type === 'turnStarted' && event.turnId === turnId)?.atMs;
   return { events, line, turn, getTurnStartedAtMs };
 }
