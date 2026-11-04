@@ -10,7 +10,6 @@ export function makeTutorVoice({ apiKey, model }: { apiKey: string; model?: stri
   return makeElevenLabsVoice({ name: TUTOR_VOICE_NAME, apiKey, voiceId: TUTOR_VOICE_ID, model });
 }
 
-/** Muse, Abel's choice after his real microphone test. Nova-3 stays one adapter away, with `docs/architecture/live-session-proofs/providers/deepgram.ts` as its reference. */
 export function makeTutorTranscriber(options: MuseOptions): TranscriberAdapter {
   return makeMuseTranscriber(options);
 }

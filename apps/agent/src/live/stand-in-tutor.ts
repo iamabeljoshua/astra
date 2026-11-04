@@ -5,7 +5,6 @@ export interface TutorRequest {
   text: string;
 }
 
-/** The tutor's brain. M3.7 replaces this stand-in with the real model behind the same shape. */
 export interface TutorBrain {
   reply(request: TutorRequest, signal: AbortSignal): AsyncIterable<Beat>;
 }

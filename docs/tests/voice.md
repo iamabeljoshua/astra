@@ -66,7 +66,7 @@ The first run of this PR measured a final at 3.4 s at p50. The cause: the plugin
 | --- | --- |
 | First partial, from the first sound | 1119 ms at p50, 1359 ms at p95, through the whole path. 22 of 30 lines had none by 1 s. Straight into the adapter: 850 to 1121 ms at p50 by accent |
 | Final, from the last sound | 791 ms at p50, 956 ms at p95, through the whole path. 691 to 776 ms at p50 straight into the adapter |
-| A final held in noise | With white noise at 0.02 under the voice, one of three lines held its final to 4163 ms. The tutor answered from the partial at 2242 ms |
+| A final held in noise | With white noise at 0.02 under the voice, one of three lines, the first after the noise began, held its final to 4163 ms. The tutor answered from the partial at 2242 ms. With noise at 0.03, 12 of 12 finals came within 886 ms and the guard did not fire. White noise is not a room, so Abel's test owns this bound |
 | `clearUserTurn` on each reaction | Gone. A reaction's words become a turn the rule drops, so Muse stays open. Each session opened Muse once |
 | A new Muse session | 1154 to 1928 ms to answer the handshake, over 5 joins. It opens on the first frame of the microphone, so the greeting covers it |
 | Turn patience's 38 of 120 | 4 of 20 long answers reached the cap, and 0 of 12 short ones. The turn was decided 285 ms after the voice ended at p50 on long answers, and 862 ms and 2341 ms from the last sound |
@@ -159,7 +159,7 @@ Each of these from M3.2's review has a test that failed before its fix.
 
 ## What the app stores about voice
 
-No audio. `record: false`, no Egress, and the agent writes no audio anywhere. Egress listed 0 recordings for a room in the tab proof. The browser holds audio only in its own graph while it plays.
+No audio. The session sets `record: false`, which is what keeps audio out of LiveKit's agent insights, the agent writes no audio anywhere, and it asks for no Egress, LiveKit's room recording. Egress listed 0 for a room in the tab proof. The browser holds audio only in its own graph while it plays.
 
 The agent holds the session's log and the student's words in memory while the session runs, and drops them when the job ends. M3.10 decides what the log table stores. The agent's logs held none of a test run's words, by search. The optional trace holds timings, and words only when a test asks for them.
 

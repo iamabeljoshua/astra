@@ -17,8 +17,7 @@ export async function deleteProofRooms(names: readonly string[]): Promise<void> 
   await Promise.all(names.map((name) => client.deleteRoom(name).catch(() => {})));
 }
 
-/** Egress is how LiveKit records a room, so zero means it holds no audio of this one. */
-export async function countRoomRecordings(roomName: string): Promise<number> {
+export async function countRoomEgresses(roomName: string): Promise<number> {
   const client = new EgressClient(readKey('LIVEKIT_URL').replace(/^wss:/, 'https:'), readKey('LIVEKIT_API_KEY'), readKey('LIVEKIT_API_SECRET'));
   return (await client.listEgress({ roomName })).length;
 }

@@ -37,7 +37,7 @@ describe('the live room route', () => {
     const { body } = await post(`/sessions/${sessionId}/live-room`).expect(200);
     const claims = decodeJwt((body as { token: string }).token) as Record<string, unknown> & { exp: number; nbf: number };
     expect(claims.video).toEqual({ room: `session-${sessionId}`, roomJoin: true, canSubscribe: true, canPublish: true, canPublishSources: ['microphone'], canPublishData: true, canUpdateOwnMetadata: false });
-    expect(claims.roomConfig).toMatchObject({ name: `session-${sessionId}`, maxParticipants: 2, agents: [{ agentName: 'tutor-for-test' }] });
+    expect(claims.roomConfig).toMatchObject({ name: `session-${sessionId}`, maxParticipants: 1, departureTimeout: 120, agents: [{ agentName: 'tutor-for-test' }] });
     expect(claims.exp - claims.nbf).toBeLessThanOrEqual(600);
     expect(claims.sub).toMatch(/^student-/);
     expect(claims.name).toBeUndefined();

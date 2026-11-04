@@ -183,7 +183,7 @@ describe('the Muse adapter', () => {
   });
 
   it('opens a new session before the cap, and keeps the words flowing', async () => {
-    const transcriber = (await makeAdapter({ rotateAfterMs: 100, rotateByMs: 150 })).makeStt();
+    const transcriber = (await makeAdapter({ rotateAtPauseAfterMs: 100, rotateAnywayAfterMs: 150 })).makeStt();
     const stream = transcriber.stream();
     await consume(stream);
     for (let frame = 0; frame < 12; frame += 1) {

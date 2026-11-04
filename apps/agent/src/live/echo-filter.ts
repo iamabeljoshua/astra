@@ -14,7 +14,7 @@ export interface EchoFilter {
   isEcho(transcript: string, nowMs: number): boolean;
 }
 
-// The SDK's echo wait is off, because it deafened the transcriber for 3 s. A laptop speaker can still leak the tutor into the microphone, so a transcript that repeats what the tutor just said in order is not the student talking.
+// A laptop speaker can leak the tutor into the microphone, so a transcript that repeats what the tutor just said in order is not the student talking.
 export function createEchoFilter(): EchoFilter {
   let spoken: SpokenWord[] = [];
   return {

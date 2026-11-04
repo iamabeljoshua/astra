@@ -10,11 +10,9 @@ import type { TutorBrain } from './stand-in-tutor.ts';
 import { getNextTurnState, INITIAL_TURN_STATE, type TimerName, type TurnAction, type TurnEvent, type TurnState } from './turn-rule.ts';
 import { getSteadyNowMs, type VoiceLine } from './voice-line.ts';
 
-/** A resume waits this long for the browser to say what played, as the design's wiring does. */
 const REPORT_WAIT_MS = 1000;
 const REPORT_POLL_MS = 10;
 const LINK_CHECK_MS = 250;
-/** A voice that sends nothing can hold a student in silence for 11 s before its plugin gives up, so the tutor says so long before that. Flash's first audio has a p95 of about 320 ms. */
 export const VOICE_STALL_MS = 3000;
 
 export type EarsEvent = { type: 'voiceStarted' } | { type: 'voiceEnded' } | { type: 'words'; text: string; isFinal: boolean } | { type: 'turnDecided'; text: string };

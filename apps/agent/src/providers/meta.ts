@@ -16,14 +16,13 @@ export interface MuseTimings {
   /** Muse closes with 1008 about 16 s after its last frame, so a dropped link is padded with silence after this. */
   padAfterMs: number;
   /** Muse caps a session at 60 minutes and the plugin only reports the close, so a new session opens before that. */
-  rotateAfterMs: number;
-  /** A session rotates at the next pause, and at this age even with none. */
-  rotateByMs: number;
+  rotateAtPauseAfterMs: number;
+  rotateAnywayAfterMs: number;
   retryAfterMs: number;
   longestRetryMs: number;
 }
 
-export const MUSE_TIMINGS: MuseTimings = { padAfterMs: 400, rotateAfterMs: 50 * 60_000, rotateByMs: 55 * 60_000, retryAfterMs: 500, longestRetryMs: 30_000 };
+export const MUSE_TIMINGS: MuseTimings = { padAfterMs: 400, rotateAtPauseAfterMs: 50 * 60_000, rotateAnywayAfterMs: 55 * 60_000, retryAfterMs: 500, longestRetryMs: 30_000 };
 
 export interface MuseOptions {
   apiKey: string;
@@ -112,7 +111,7 @@ class MuseSpeechStream extends stt.SpeechStream {
     const session = this.#session;
     if (!session) return (this.#session = this.#open());
     const ageMs = Date.now() - session.openedAtMs;
-    const isDue = ageMs >= this.#timings.rotateByMs || (ageMs >= this.#timings.rotateAfterMs && !this.#isSpeaking);
+    const isDue = ageMs >= this.#timings.rotateAnywayAfterMs || (ageMs >= this.#timings.rotateAtPauseAfterMs && !this.#isSpeaking);
     if (isDue) this.#nextSession ??= this.#open();
     if (!this.#nextSession?.isReady) return session;
     session.stream.endInput();

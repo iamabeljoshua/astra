@@ -1,5 +1,5 @@
 import { type BoardState, createChoosingClock, createScenePlayer, type FiredCue, type OutputLevel, type ScenePlayer } from '@astra/board';
-import { type AgentMessage, type BrowserMessage, parseAgentMessage } from '@astra/contracts';
+import { type AgentMessage, type BrowserMessage, LINK_QUIET_LIMIT_MS, parseAgentMessage, PULSE_EVERY_MS } from '@astra/contracts';
 import { createLocalAudioTrack, DisconnectReason, type LocalAudioTrack, type RemoteTrack, Room, RoomEvent, Track } from 'livekit-client';
 import { createLocalYield } from './localYield';
 import { createTutorAudioContext, listenToTutor, listenToStudent, OUTPUT_GAINS, type ProbeNote } from './tutorAudio';
@@ -7,15 +7,11 @@ import { createTutorAudioContext, listenToTutor, listenToStudent, OUTPUT_GAINS, 
 export const LIVE_TOPIC = 'astra.live';
 const LAB_TOPIC = 'astra.lab';
 const TICK_MS = 4;
-const PULSE_EVERY_MS = 500;
-/** Pulses come every 500 ms, so this many missed is a drop and not a late packet. */
-const AGENT_QUIET_LIMIT_MS = 1200;
 const HEARD_SHOWS_MS = 700;
 const LONGEST_REJOIN_MS = 120_000;
 const REJOIN_EVERY_MS = 2000;
 /** A room can say connected with a data channel that carries nothing after a drop, and only a new join clears that. */
 const REJOIN_AFTER_QUIET_MS = 3000;
-/** Join and dispatch took 3.8 s at p50 and 7.5 s at worst, so past this the tutor is not coming. */
 const TUTOR_ARRIVES_WITHIN_MS = 25_000;
 
 export type LivePhase = 'connecting' | 'live' | 'reconnecting' | 'noTutor' | 'ended';
@@ -44,7 +40,6 @@ export interface RoomAccess {
   token: string;
 }
 
-/** What a proof reads and a real microphone test shows. Holds timings only, never words or audio. */
 export interface LiveVoiceRecords {
   firstAudioEpochMs: Record<string, number>;
   turnStartedEpochMs: Record<string, number>;
@@ -118,7 +113,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     listeners.forEach((listener) => listener());
   };
 
-  const hearsAgent = () => lastAgentPulseEpochMs !== null && getEpochMs() - lastAgentPulseEpochMs <= AGENT_QUIET_LIMIT_MS;
+  const hearsAgent = () => lastAgentPulseEpochMs !== null && getEpochMs() - lastAgentPulseEpochMs <= LINK_QUIET_LIMIT_MS;
 
   // A report sent while the link is down would be lost, and the agent resumes from it, so it waits here until the agent can be heard again. A typed line waits here too if the agent has not joined yet.
   const send = (message: BrowserMessage) => {
@@ -270,8 +265,6 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     stopListening = listenToTutor(track, { audioContext, gain, clock, onProbe });
     clearTimeout(tutorWait);
     setView({ phase: 'live' });
-    // The agent puts its track up last, so hearing it means the agent can hear this page.
-    lastAgentPulseEpochMs = getEpochMs();
     send({ type: 'hello', ...getStamp(), wantsGreeting: wantsGreeting && !hasSaidHello });
     hasSaidHello = true;
     sendAudioState();

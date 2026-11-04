@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import type { Browser } from 'playwright';
 import { readTrace, summarise, type TraceRow } from './read-trace.ts';
-import { countRoomRecordings, listParticipantIdentities, listRoomNames } from './cloud-rooms.ts';
+import { countRoomEgresses, listParticipantIdentities, listRoomNames } from './cloud-rooms.ts';
 import { startCutProxy } from './cut-proxy.ts';
 import { saveRecording } from './join-recording.ts';
 import { LONG_LINES } from './make-speech.ts';
@@ -501,8 +501,8 @@ const SCENARIOS: Record<string, (context: RunContext) => Promise<unknown>> = {
     }
     await student.context.close();
     const left = closedRows.find((row) => row.name === 'studentLeft');
-    const recordings = await countRoomRecordings(room);
-    return { recordingsOfRoom: recordings, roomListedWhileOpen: before.includes(room), leftOnPurpose: left?.leftOnPurpose, jobClosedAfterMs: Math.round((closedRows.find((row) => row.name === 'jobClosed')?.atMs ?? closedAtMs) - closedAtMs), roomGoneAfterMs: goneAfterMs, museClosed: closedRows.some((row) => row.name === 'muse:closed') };
+    const egresses = await countRoomEgresses(room);
+    return { egressesOfRoom: egresses, roomListedWhileOpen: before.includes(room), leftOnPurpose: left?.leftOnPurpose, jobClosedAfterMs: Math.round((closedRows.find((row) => row.name === 'jobClosed')?.atMs ?? closedAtMs) - closedAtMs), roomGoneAfterMs: goneAfterMs, museClosed: closedRows.some((row) => row.name === 'muse:closed') };
   },
 
   // A second student gets their own room, sees none of the first student's words, and cannot get a token for the first room.

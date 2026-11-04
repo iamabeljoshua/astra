@@ -2,11 +2,9 @@ import { AccessToken, RoomAgentDispatch, RoomConfiguration, TrackSource, type Vi
 
 /** Long enough to join and rejoin. LiveKit refreshes the token of a student already in the room. */
 const TOKEN_LIFE = '10m';
-/** A student and the tutor, so a guessed or shared token cannot bring a third into the room. */
-const MOST_PARTICIPANTS = 2;
+const MOST_STUDENTS = 1;
 /** How long a room waits for its first student before closing. */
 const EMPTY_ROOM_SECONDS = 60;
-/** How long a room outlives a student who dropped, which is the agent's own rejoin window. */
 const DROPPED_STUDENT_SECONDS = 120;
 
 export interface LiveRoomKeys {
@@ -38,7 +36,7 @@ export function makeStudentToken({ keys, roomName, studentId }: { keys: LiveRoom
   token.addGrant(getStudentGrant(roomName));
   token.roomConfig = new RoomConfiguration({
     name: roomName,
-    maxParticipants: MOST_PARTICIPANTS,
+    maxParticipants: MOST_STUDENTS,
     emptyTimeout: EMPTY_ROOM_SECONDS,
     departureTimeout: DROPPED_STUDENT_SECONDS,
     agents: [new RoomAgentDispatch({ agentName: keys.agentName })],

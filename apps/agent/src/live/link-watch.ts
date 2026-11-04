@@ -1,5 +1,4 @@
-/** Pulses come every 500 ms, so this many missed is a drop and not a late packet. */
-export const LINK_QUIET_LIMIT_MS = 1500;
+import { LINK_QUIET_LIMIT_MS } from '@astra/contracts';
 
 export interface LinkWatch {
   notePulse(hearsAgent: boolean, nowMs: number): void;
