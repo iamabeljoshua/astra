@@ -1,6 +1,6 @@
 export type PressSource = 'talkButton' | 'space';
 
-export type PressState = { kind: 'free' } | { kind: 'pressing'; source: PressSource } | { kind: 'holding'; source: PressSource };
+export type PressState = { kind: 'free' } | { kind: 'pressing'; source: PressSource; wasMicOn: boolean } | { kind: 'holding'; source: PressSource };
 
 export type PressEvent =
   | { type: 'pressed'; source: PressSource; micIsOn: boolean }
@@ -25,9 +25,9 @@ export const INITIAL_PRESS: PressState = { kind: 'free' };
 const FREE: PressState = INITIAL_PRESS;
 const STAY = (state: PressState): PressStep => ({ state, commands: [] });
 
-function onPressedWhileFree(event: PressEvent & { type: 'pressed' }): PressStep {
-  if (event.micIsOn) return { state: FREE, commands: event.source === 'talkButton' ? ['closeMic'] : [] };
-  return { state: { kind: 'pressing', source: event.source }, commands: ['openMic', 'lowerTutor', 'startTapTimer'] };
+// With the microphone on, the line is already going out, so nothing is lost while the tap limit tells a tap from a hold. The tutor stays up until then, because a tap only turns the microphone off.
+function onPressedWhileFree({ source, micIsOn }: PressEvent & { type: 'pressed' }): PressStep {
+  return { state: { kind: 'pressing', source, wasMicOn: micIsOn }, commands: micIsOn ? ['startTapTimer'] : ['openMic', 'lowerTutor', 'startTapTimer'] };
 }
 
 function onPressedWhileDown(state: PressState & { kind: 'pressing' | 'holding' }, event: PressEvent & { type: 'pressed' }): PressStep {
@@ -35,10 +35,15 @@ function onPressedWhileDown(state: PressState & { kind: 'pressing' | 'holding' }
   return { state: FREE, commands: [state.kind === 'holding' ? 'endLine' : 'closeMic', 'cancelTimers'] };
 }
 
-// Only a tap of Talk leaves the microphone on.
+function onTapTimeUp({ source, wasMicOn }: PressState & { kind: 'pressing' }): PressStep {
+  return { state: { kind: 'holding', source }, commands: wasMicOn ? ['lowerTutor', 'tellHoldStarted', 'startLimitTimer'] : ['tellHoldStarted', 'startLimitTimer'] };
+}
+
+// A tap of Talk flips the microphone, and a tap of Space puts it back as it was.
 function onReleased(state: PressState & { kind: 'pressing' | 'holding' }): PressStep {
   if (state.kind === 'holding') return { state: FREE, commands: ['endLine', 'cancelTimers'] };
-  return { state: FREE, commands: state.source === 'space' ? ['closeMic', 'cancelTimers'] : ['cancelTimers'] };
+  const staysOn = state.source === 'talkButton' ? !state.wasMicOn : state.wasMicOn;
+  return { state: FREE, commands: staysOn ? ['cancelTimers'] : ['closeMic', 'cancelTimers'] };
 }
 
 export function getNextPress(state: PressState, event: PressEvent): PressStep {
@@ -49,7 +54,7 @@ export function getNextPress(state: PressState, event: PressEvent): PressStep {
     case 'released':
       return event.source === state.source ? onReleased(state) : STAY(state);
     case 'tapTimeUp':
-      return state.kind === 'pressing' ? { state: { kind: 'holding', source: state.source }, commands: ['tellHoldStarted', 'startLimitTimer'] } : STAY(state);
+      return state.kind === 'pressing' ? onTapTimeUp(state) : STAY(state);
     case 'limitReached':
       return state.kind === 'holding' ? { state: FREE, commands: ['endLine', 'cancelTimers', 'showLimitNote'] } : STAY(state);
     case 'fingerLost':

@@ -41,6 +41,8 @@ export function useHoldToTalk({ heldMic, isTalkOn, toggleTalk, isEnabled }: Hold
   const [isHolding, setIsHolding] = useState(false);
   const [hasHitLimit, setHasHitLimit] = useState(false);
   const spaceSource = useRef<PressSource | null>(null);
+  const isSpaceLeftAlone = useRef(false);
+  const talkPointerId = useRef<number | null>(null);
   const pointerEndedAtMs = useRef(-Infinity);
 
   useEffect(() => {
@@ -61,13 +63,17 @@ export function useHoldToTalk({ heldMic, isTalkOn, toggleTalk, isEnabled }: Hold
     holdRef.current = hold;
     const loseEverything = () => {
       spaceSource.current = null;
+      isSpaceLeftAlone.current = true;
+      talkPointerId.current = null;
       hold.loseFinger();
     };
     const onHidden = () => {
       if (document.visibilityState === 'hidden') loseEverything();
     };
-    const onPointerEnd = () => {
+    const onPointerEnd = (event: globalThis.PointerEvent) => {
       pointerEndedAtMs.current = performance.now();
+      if (event.pointerId !== talkPointerId.current) return;
+      talkPointerId.current = null;
       hold.release('talkButton');
     };
     window.addEventListener('blur', loseEverything);
@@ -94,22 +100,31 @@ export function useHoldToTalk({ heldMic, isTalkOn, toggleTalk, isEnabled }: Hold
       // On a Mac the page gets no key-up while Meta is down, so a held key would look held for good.
       if (event.key === 'Meta' || event.key === 'OS') {
         spaceSource.current = null;
+        isSpaceLeftAlone.current = true;
         return holdRef.current?.loseFinger();
       }
-      if (event.code !== 'Space' || hasOtherKeys(event)) return;
+      if (event.code !== 'Space') return;
+      if (hasOtherKeys(event)) {
+        isSpaceLeftAlone.current = true;
+        return;
+      }
       // A new task can take focus during a hold, and the key's repeats must not land in its line.
       if (spaceSource.current) return event.preventDefault();
       const target = getRealTarget(event);
       const isOnTalk = isTalkButton(target);
-      if (!isOnTalk && !isOpenToSpace(target)) return;
+      const isOurs = isOnTalk || isOpenToSpace(target);
+      if (!event.repeat) isSpaceLeftAlone.current = !isOurs;
+      if (!isOurs) return;
       event.preventDefault();
-      if (event.repeat) return;
+      // A repeat with no press behind it went down before this listener existed, and that student is still waiting to be heard.
+      if (isSpaceLeftAlone.current) return;
       setHasHitLimit(false);
       spaceSource.current = isOnTalk ? 'talkButton' : 'space';
       holdRef.current?.press(spaceSource.current);
     };
     const onKeyUp = (event: KeyboardEvent) => {
       if (event.code !== 'Space') return;
+      isSpaceLeftAlone.current = false;
       if (isTalkButton(getRealTarget(event))) event.preventDefault();
       if (!spaceSource.current) return;
       event.preventDefault();
@@ -132,16 +147,23 @@ export function useHoldToTalk({ heldMic, isTalkOn, toggleTalk, isEnabled }: Hold
     style: { touchAction: 'none', userSelect: 'none', WebkitTouchCallout: 'none' },
     onPointerDown(event: PointerEvent<HTMLButtonElement>) {
       if (event.button !== 0 || !isEnabled) return;
+      // A primary pointer means none other is down, so an id left by a lost event cannot block it.
+      if (!event.isPrimary && talkPointerId.current !== null) return;
+      talkPointerId.current = event.pointerId;
       setHasHitLimit(false);
       event.currentTarget.setPointerCapture?.(event.pointerId);
       holdRef.current?.press('talkButton');
     },
-    onPointerUp() {
-      pointerEndedAtMs.current = performance.now();
+    onPointerCancel(event: PointerEvent<HTMLButtonElement>) {
+      if (event.pointerId !== talkPointerId.current) return;
+      talkPointerId.current = null;
+      holdRef.current?.loseFinger();
+    },
+    onLostPointerCapture(event: PointerEvent<HTMLButtonElement>) {
+      if (event.pointerId !== talkPointerId.current) return;
+      talkPointerId.current = null;
       holdRef.current?.release('talkButton');
     },
-    onPointerCancel: () => holdRef.current?.loseFinger(),
-    onLostPointerCapture: () => holdRef.current?.release('talkButton'),
     onContextMenu: (event: PointerEvent<HTMLButtonElement>) => event.preventDefault(),
     // Holding Enter clicks again and again, and each click would flip the microphone.
     onKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>) {

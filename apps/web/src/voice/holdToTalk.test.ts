@@ -23,9 +23,16 @@ describe('pressing Talk', () => {
     expect(state.kind).toBe('free');
   });
 
-  it('treats a press with the microphone on as off, and the release as nothing', () => {
-    const { commands } = run([pressTalk(true), { type: 'released', source: 'talkButton' }]);
-    expect(commands).toEqual(['closeMic']);
+  it('turns a microphone already on off when the press is a tap, on the release, and leaves the tutor up', () => {
+    const { commands, state } = run([pressTalk(true), { type: 'released', source: 'talkButton' }]);
+    expect(commands).toEqual(['startTapTimer', 'closeMic', 'cancelTimers']);
+    expect(state.kind).toBe('free');
+  });
+
+  it('keeps a microphone already on through a press past the tap limit, as a hold that ends the line on release', () => {
+    const { commands, state } = run([pressTalk(true), { type: 'tapTimeUp' }, { type: 'released', source: 'talkButton' }]);
+    expect(commands).toEqual(['startTapTimer', 'lowerTutor', 'tellHoldStarted', 'startLimitTimer', 'endLine', 'cancelTimers']);
+    expect(state.kind).toBe('free');
   });
 
   it('becomes a hold past the tap limit, which tells the tutor, and letting go sends what was said and closes', () => {
@@ -47,9 +54,16 @@ describe('holding Space', () => {
     expect(state.kind).toBe('free');
   });
 
-  it('does nothing to a microphone already on, because the student turned that on themselves', () => {
-    const { commands } = run([pressSpace(true), { type: 'released', source: 'space' }]);
-    expect(commands).toEqual([]);
+  it('leaves a microphone already on after a quick tap, because the student turned that on themselves', () => {
+    const { commands, state } = run([pressSpace(true), { type: 'released', source: 'space' }]);
+    expect(commands).toEqual(['startTapTimer', 'cancelTimers']);
+    expect(state.kind).toBe('free');
+  });
+
+  it('turns a press past the tap limit into a hold with the microphone already on, and closes it on release', () => {
+    const { commands, state } = run([pressSpace(true), { type: 'tapTimeUp' }, { type: 'released', source: 'space' }]);
+    expect(commands).toEqual(['startTapTimer', 'lowerTutor', 'tellHoldStarted', 'startLimitTimer', 'endLine', 'cancelTimers']);
+    expect(state.kind).toBe('free');
   });
 
   it('ends the line on release, like Talk', () => {
@@ -92,6 +106,14 @@ describe('a hold ended by anything but the finger', () => {
     const { commands, state } = run([pressSpace(), { type: 'tapTimeUp' }, { type: 'micWentOff' }]);
     expect(commands.slice(-2)).toEqual(['endLine', 'cancelTimers']);
     expect(state.kind).toBe('free');
+  });
+
+  it('closes a microphone that was already on when focus goes before the press was a hold', () => {
+    for (const press of [pressSpace(true), pressTalk(true)]) {
+      const { commands, state } = run([press, lose()]);
+      expect(commands.slice(-2)).toEqual(['closeMic', 'cancelTimers']);
+      expect(state.kind).toBe('free');
+    }
   });
 
   it('forgets a press that never became a hold when the microphone went off another way', () => {
@@ -141,9 +163,10 @@ describe('Space and Talk together', () => {
 describe('every order of events', () => {
   const EVENTS: PressEvent[] = [pressTalk(false), pressTalk(true), pressSpace(false), pressSpace(true), { type: 'released', source: 'talkButton' }, { type: 'released', source: 'space' }, { type: 'tapTimeUp' }, { type: 'limitReached' }, { type: 'fingerLost' }, { type: 'micWentOff' }];
 
-  it('never leaves a hold or a press open once every finger is up, in any reachable order up to six events', () => {
-    const walk = (state: PressState, isMicOn: boolean, fingers: Set<string>, depth: number) => {
+  it('never leaves a hold or a press open once every finger is up, and never ends a hold with the microphone on, in any reachable order up to seven events', () => {
+    const walk = (state: PressState, isMicOn: boolean, fingers: Set<string>, depth: number, wasHolding = false) => {
       if (fingers.size === 0 && (state.kind === 'pressing' || state.kind === 'holding')) throw new Error(`open with no finger: ${JSON.stringify(state)}`);
+      if (wasHolding && state.kind === 'free' && isMicOn) throw new Error('a hold ended with the microphone on');
       if (depth === 0) return;
       for (const event of EVENTS) {
         if (event.type === 'pressed' && (event.micIsOn !== isMicOn || fingers.has(event.source))) continue;
@@ -158,9 +181,9 @@ describe('every order of events', () => {
           if (command === 'closeMic' || command === 'endLine') nextMic = false;
         }
         if (event.type === 'micWentOff') nextMic = false;
-        walk(step.state, nextMic, nextFingers, depth - 1);
+        walk(step.state, nextMic, nextFingers, depth - 1, state.kind === 'holding');
       }
     };
-    walk(INITIAL_PRESS, false, new Set(), 6);
+    walk(INITIAL_PRESS, false, new Set(), 7);
   });
 });

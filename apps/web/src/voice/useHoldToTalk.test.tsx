@@ -167,6 +167,51 @@ describe('Space', () => {
   });
 });
 
+describe('a key already down when the hook starts listening', () => {
+  it('becomes a press at its first repeat, so the student still holding is heard, and letting go ends the line', () => {
+    const { calls, getIsOn } = setUp();
+    spaceDown(document.body, { repeat: true });
+    expect(getIsOn()).toBe(true);
+    act(() => void vi.advanceTimersByTime(300));
+    spaceUp(document.body);
+    expect(calls).toEqual(['open', 'lower', 'told', 'endLine']);
+    expect(getIsOn()).toBe(false);
+  });
+
+  it('counts only that first repeat', () => {
+    const { calls } = setUp();
+    for (let repeat = 0; repeat < 5; repeat += 1) spaceDown(document.body, { repeat: true });
+    expect(calls.filter((call) => call === 'open')).toHaveLength(1);
+  });
+
+  it('stays typing when the press began in a field and focus then left it, so a held space never opens the microphone', () => {
+    const { calls } = setUp();
+    spaceDown(screen.getByRole('textbox', { name: 'reply' }));
+    spaceDown(document.body, { repeat: true });
+    expect(calls).toEqual([]);
+    spaceUp(document.body);
+    spaceDown(document.body);
+    expect(calls).toEqual(['open', 'lower']);
+  });
+
+  it('stays ignored when the press began with a modifier down and the modifier came up first', () => {
+    const { calls } = setUp();
+    spaceDown(document.body, { shiftKey: true });
+    spaceDown(document.body, { repeat: true });
+    expect(calls).toEqual([]);
+  });
+
+  it('does not reopen from the repeats of a held key that was lost', () => {
+    const { calls } = setUp();
+    spaceDown(document.body);
+    act(() => void vi.advanceTimersByTime(400));
+    fireEvent.blur(window);
+    const before = [...calls];
+    spaceDown(document.body, { repeat: true });
+    expect(calls).toEqual(before);
+  });
+});
+
 describe('losing a held key', () => {
   const heldOnPage = () => {
     const held = setUp();
@@ -264,6 +309,53 @@ describe('the Talk button', () => {
     act(() => void vi.advanceTimersByTime(400));
     fireEvent[event](talk(), { pointerId: 1 });
     expect(getIsOn()).toBe(false);
+  });
+
+  describe('with a second finger on the screen', () => {
+    const holdWithFirstFinger = () => {
+      const held = setUp();
+      fireEvent.pointerDown(talk(), { button: 0, pointerId: 1, isPrimary: true });
+      act(() => void vi.advanceTimersByTime(400));
+      return held;
+    };
+
+    it('keeps the hold when that finger lifts elsewhere on the page', () => {
+      const { getIsOn, calls } = holdWithFirstFinger();
+      fireEvent.pointerDown(document.body, { button: 0, pointerId: 2 });
+      fireEvent.pointerUp(document.body, { button: 0, pointerId: 2 });
+      fireEvent.pointerUp(window, { button: 0, pointerId: 2 });
+      expect(getIsOn()).toBe(true);
+      expect(calls).not.toContain('endLine');
+    });
+
+    it('keeps the hold when that finger comes and goes on Talk itself, and the first finger still ends it', () => {
+      const { getIsOn, calls } = holdWithFirstFinger();
+      fireEvent.pointerDown(talk(), { button: 0, pointerId: 2 });
+      fireEvent.pointerUp(talk(), { button: 0, pointerId: 2 });
+      fireEvent.lostPointerCapture(talk(), { pointerId: 2 });
+      fireEvent.pointerCancel(talk(), { pointerId: 2 });
+      expect(getIsOn()).toBe(true);
+      fireEvent.pointerUp(talk(), { button: 0, pointerId: 1 });
+      expect(getIsOn()).toBe(false);
+      expect(calls.at(-1)).toBe('endLine');
+    });
+
+    it('holds with a finger that came down after one resting elsewhere', () => {
+      const { getIsOn, calls } = setUp();
+      fireEvent.pointerDown(talk(), { button: 0, pointerId: 7 });
+      act(() => void vi.advanceTimersByTime(400));
+      expect(getIsOn()).toBe(true);
+      fireEvent.pointerUp(window, { button: 0, pointerId: 7 });
+      expect(calls.at(-1)).toBe('endLine');
+    });
+
+    it('takes a new first finger even if the last one left no event behind', () => {
+      const { calls } = setUp();
+      fireEvent.pointerDown(talk(), { button: 0, pointerId: 1, isPrimary: true });
+      fireEvent.pointerDown(talk(), { button: 0, pointerId: 3, isPrimary: true });
+      fireEvent.pointerUp(talk(), { button: 0, pointerId: 3 });
+      expect(calls).toEqual(['open', 'lower']);
+    });
   });
 
   it('ignores any button but the main one', () => {
