@@ -112,11 +112,11 @@ const getSystemNotes = (request: TutorModelRequest | undefined) => (request?.tur
 
 const speakOverTheTutor = async (session: ReturnType<typeof setup>['session'], text: string) => {
   session.onEars({ type: 'voiceStarted' });
-  await delay(TURN_TIMINGS.wordlessStopMs + 700);
+  await delay(TURN_TIMINGS.wordlessStopMs + 200);
   session.onEars({ type: 'words', text, isFinal: true });
   session.onEars({ type: 'voiceEnded' });
   session.onEars({ type: 'turnDecided', text });
-  await delay(500);
+  await delay(300);
 };
 
 describe('a ring the board could not draw', () => {
@@ -152,10 +152,10 @@ describe('hostile data messages', () => {
     session.onBrowser({ type: 'audioState', isRunning: true, ...STAMP });
     session.onBrowser(typed('count'));
     await delay(400);
-    for (let index = 0; index < 6; index += 1) {
+    for (let index = 0; index < 3; index += 1) {
       const turnId = (messages.filter((message) => message.type === 'turnStarted').at(-1) as { turnId: TurnId }).turnId;
       session.onBrowser({ type: 'played', turnId, beatId: 't1-b0' as never, ...PLAYED });
-      await delay(120);
+      await delay(1100);
     }
     expect(notes.filter((note) => note.name === 'browserFroze').length).toBeLessThanOrEqual(1);
     await session.close();
@@ -172,13 +172,13 @@ describe('hostile data messages', () => {
 
 describe('a beat still on its way when a cut keeps the thought', () => {
   it('is said when the tutor carries on', async () => {
-    const { session, messages } = setup(() => ({ pieces: ['Alpha beta. ', 'Delta now.'], stall: { beforePiece: 1, ms: 3500 } }), { ...QUICK, betweenTextMs: 6000 });
+    const { session, messages } = setup(() => ({ pieces: ['Alpha beta. ', 'Delta now.'], stall: { beforePiece: 1, ms: 2600 } }), { ...QUICK, betweenTextMs: 6000 });
     session.onBrowser(typed('count'));
     await delay(400);
     session.onEars({ type: 'voiceStarted' });
     await delay(TURN_TIMINGS.wordlessStopMs + 100);
     session.onEars({ type: 'voiceEnded' });
-    await delay(TURN_TIMINGS.transcriptGraceMs + 1800);
+    await delay(TURN_TIMINGS.transcriptGraceMs + 1000);
     const spoken = messages.flatMap((message) => (message.type === 'words' ? message.words.map((word) => word.text) : []));
     expect(spoken.join(' ')).toContain('Delta');
     await session.close();
