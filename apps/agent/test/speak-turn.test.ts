@@ -34,7 +34,7 @@ const withLeadingSilence: RenderSpeech = (text) => {
   return { pcm: padded, sampleRate, words: words.map((word) => ({ ...word, startMs: word.startMs + LEADING_SILENCE_MS })) };
 };
 
-function speak({ render = renderTone, ...options }: Partial<SpeakTurnOptions> & { render?: RenderSpeech } = {}) {
+function speak({ render = renderTone, frameMs = 1, ...options }: Partial<SpeakTurnOptions> & { render?: RenderSpeech; frameMs?: number } = {}) {
   const sent: { message: AgentMessage; isUrgent: boolean }[] = [];
   const captured: AudioFrame[] = [];
   let queueClears = 0;
@@ -50,7 +50,7 @@ function speak({ render = renderTone, ...options }: Partial<SpeakTurnOptions> & 
         if (isStopped) framesAfterStop += 1;
         captured.push(frame);
         // A real source takes frames as fast as its queue allows, so this stands in for that pace.
-        await delay(1);
+        await delay(frameMs);
       },
       clearQueue: () => (queueClears += 1),
       waitForPlayout: async () => {},
@@ -134,6 +134,14 @@ describe('turns on one voice line', () => {
     expect(firstFrameOfSecondTurn?.atMs).toBeGreaterThanOrEqual(lastAudioGoneAtMs + TURN_SILENCE_MS - LEEWAY_MS);
     expect(getTurnStartedAtMs('t2')).toBeGreaterThanOrEqual(lastAudioGoneAtMs + TURN_SILENCE_MS - LEEWAY_MS);
     expect(getTurnStartedAtMs('t2')).toBeLessThanOrEqual(firstFrameOfSecondTurn?.atMs as number);
+  });
+
+  it('sends nothing for a stop on a finished turn, because no silence follows it and the browser would mute the next turn', async () => {
+    const { turn, events } = createWatchedLine();
+    const first = turn('t1');
+    await first.finished;
+    first.stop();
+    expect(events.filter((event) => event.type === 'stop')).toEqual([]);
   });
 
   it('leaves the silence after a stop, however soon the next turn starts', async () => {
@@ -280,7 +288,7 @@ describe('speakTurn', () => {
   });
 
   it('on a stop, tells the browser on both channels, clears the queue, and hands over no more audio', async () => {
-    const run = speak();
+    const run = speak({ frameMs: 20 });
     await delay(30);
     run.stop();
     await run.spoken.finished;
