@@ -2,6 +2,7 @@ import { appendFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AutoSubscribe, cli, defineAgent, inference, initializeLogger, type JobContext, type JobProcess, ServerOptions } from '@livekit/agents';
+import { randomUUID } from 'node:crypto';
 import { AudioSource, DisconnectReason, LocalAudioTrack, type RemoteParticipant, RoomEvent, TrackPublishOptions, TrackSource } from '@livekit/rtc-node';
 import { type AgentMessage, parseBrowserMessage, PULSE_EVERY_MS } from '@astra/contracts';
 import { readKey } from '../keys.ts';
@@ -13,8 +14,10 @@ import { createClosingWait } from './closing-wait.ts';
 import { createLiveSession } from './live-session.ts';
 import { createTakePicker, loadTakes } from './reactions.ts';
 import { readDataMessage } from './read-data-message.ts';
-import { makeTutorBrain, warmTutorModel } from '../tutor/make-brain.ts';
+import type { ApiLink } from '../tutor/api-link.ts';
+import { makeApiLink, makeTutorBrain, warmTutorModel } from '../tutor/make-brain.ts';
 import { createHeardRecorder } from './heard-recorder.ts';
+import { createLogSaver, type LogSaver } from './log-saver.ts';
 import { getSteadyNowMs, createVoiceLine } from './voice-line.ts';
 
 /** The rate in `docs/architecture/live-session.md`, $3 for 1,000 minutes. */
@@ -50,6 +53,14 @@ function makeVoice() {
   return makeTutorVoice({ apiKey: readKey('ELEVENLABS_API_KEY') }).makeTts();
 }
 
+// A session the student comes back to gets a new job with its own clock and count, so each job saves its own run of the log.
+function makeLogSaver(link: ApiLink | null, trace: (name: string, fields?: Record<string, unknown>) => void): LogSaver | null {
+  if (!link) return null;
+  const runId = randomUUID();
+  const runStartedAt = new Date();
+  return createLogSaver({ save: (events) => link.saveLog({ runId, runStartedAt, events }), onFailed: (problem) => trace('logSaveFailed', { problem }) });
+}
+
 async function runSession(context: JobContext): Promise<void> {
   const { room } = context;
   const trace = makeTraceFile(room.name ?? 'room');
@@ -74,7 +85,9 @@ async function runSession(context: JobContext): Promise<void> {
   }).makeStt();
   const allTakes = loadTakes();
   let ears: Ears | null = null;
-  const { brain, flushSpend, readMeaning, readStrokes, readSpokenWords, getSpentUsd, writeRecord } = makeTutorBrain({ roomName: room.name ?? '', jobId: context.job.id, trace, onSessionTitle: (title) => publish({ type: 'sessionTitle', title }) });
+  const { brain, flushSpend, readMeaning, readStrokes, readSpokenWords, writeRecap, getSpentUsd, writeRecord, noteNeedsAPerson } = makeTutorBrain({ roomName: room.name ?? '', jobId: context.job.id, trace, onSessionTitle: (title) => publish({ type: 'sessionTitle', title }) });
+  const apiLink = makeApiLink(room.name ?? '');
+  const logSaver = makeLogSaver(apiLink, trace);
   const session = createLiveSession({
     messenger: {
       send: (message) => publish(message),
@@ -95,6 +108,13 @@ async function runSession(context: JobContext): Promise<void> {
     ...(readMeaning ? { readMeaning } : {}),
     ...(readStrokes ? { readStrokes } : {}),
     ...(readSpokenWords ? { readSpokenWords } : {}),
+    ...(writeRecap ? { writeRecap } : {}),
+    ...(logSaver ? { onLogWritten: logSaver.note } : {}),
+    onRecap(recap) {
+      if (recap.kind === 'gentle') noteNeedsAPerson?.();
+      void apiLink?.saveRecap(recap).catch((problem: unknown) => trace('recapSaveFailed', { problem: String(problem) }));
+    },
+    onEndingOver: () => void setTimeout(() => context.shutdown('the recap is over'), SAY_WHY_BEFORE_CLOSING_MS),
     ...(process.env.ASTRA_SAVE_HEARD && process.env.NODE_ENV !== 'production' ? { recordTurn: createHeardRecorder(process.env.ASTRA_SAVE_HEARD, room.name ?? 'room') } : {}),
     ...(process.env.ASTRA_SHOW_COST === '1' ? { getCostSoFar: () => (getSpentUsd?.() ?? 0) + (hearingSinceMs === null ? 0 : ((Date.now() - hearingSinceMs) / MS_PER_MINUTE) * MUSE_USD_PER_MINUTE) } : {}),
   });
@@ -141,6 +161,7 @@ async function runSession(context: JobContext): Promise<void> {
     closing.cancel();
     clearInterval(pulse);
     await session.close();
+    await logSaver?.close();
     if (process.env.ASTRA_VOICE_TRACE_WORDS === '1') trace('sessionLog', { events: session.getLog() });
     await flushSpend();
     const recordWriting = writeRecord?.();

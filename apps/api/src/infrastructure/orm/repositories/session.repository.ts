@@ -75,6 +75,14 @@ export class SessionRepository {
     return this.findForStudent(studentId, sessionId);
   }
 
+  async saveRecap(sessionId: string, recap: object): Promise<void> {
+    await this.sessions.update({ id: sessionId, replayDeletedAt: IsNull() }, { recap });
+  }
+
+  async saveRecapAnswerForStudent(studentId: string, sessionId: string, recapAnswer: string): Promise<void> {
+    await this.sessions.update({ id: sessionId, studentId, replayDeletedAt: IsNull() }, { recapAnswer });
+  }
+
   async renameUnfinishedForStudent(studentId: string, sessionId: string, title: string): Promise<void> {
     // A card's picture belongs to the card's topic, so it goes with the title that named it.
     await this.sessions.update({ id: sessionId, studentId, status: 'in_progress' }, { title, artwork: null });
