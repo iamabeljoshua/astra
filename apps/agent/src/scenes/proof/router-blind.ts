@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
-import { readKey } from '../../lab/keys.ts';
+import { readKey } from '../../keys.ts';
 import { makeAnthropicSceneModels } from '../../providers/anthropic.scenes.ts';
 import { createProofLedger } from './proof-ledger.ts';
 

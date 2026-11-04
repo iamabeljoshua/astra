@@ -2,7 +2,7 @@ import { SCENE_ENGINE_VERSIONS } from '@astra/contracts';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import { readKey } from '../../lab/keys.ts';
+import { readKey } from '../../keys.ts';
 import { makeAnthropicSceneModels } from '../../providers/anthropic.scenes.ts';
 import { getPlanNames, getPlanProblems } from '../content-check.ts';
 import { getSpokenLines } from '../lesson/lesson-beats.ts';

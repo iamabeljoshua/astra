@@ -1,7 +1,8 @@
 import { type Beat, getBeatText } from '@astra/contracts';
 import { initializeLogger } from '@livekit/agents';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { makeRenderedVoice } from '../src/providers/fakes.ts';
+import { renderTone } from '../src/providers/fakes.ts';
+import { makeRenderedVoice } from '../src/providers/rendered-voice.ts';
 import type { LessonWork } from '../src/scenes/lesson/lesson-work.ts';
 import { runLesson } from '../src/scenes/lesson/run-lesson.ts';
 import { createSceneDesk } from '../src/scenes/scene-desk.ts';
@@ -44,7 +45,7 @@ function makeWork({ plan = PLAN, scene = null as StoredScene | null } = {}) {
 
 function makeVoice() {
   const save = vi.fn();
-  return { save, voice: { forTurn: () => ({ tts: makeRenderedVoice({ name: 'tone' }).makeTts(), save }), getLiveCharacters: () => 0, close: async () => {} } };
+  return { save, voice: { forTurn: () => ({ tts: makeRenderedVoice({ name: 'tone', render: renderTone }).makeTts(), save }), getLiveCharacters: () => 0, close: async () => {} } };
 }
 
 function start({ work = makeWork() as LessonWork, voice = makeVoice().voice, timings = FAST }: { work?: LessonWork; voice?: ReturnType<typeof makeVoice>['voice']; timings?: typeof FAST } = {}) {
@@ -355,7 +356,7 @@ describe('how long one turn runs', () => {
     const long = `[[curve]] ${'Here is a curve that runs on across the page. '.repeat(3)}[[point]] ${'Now a point sits on it for a while. '.repeat(4)}`;
     const scene = { ...SCENE, narration: long, plan: { ...PLAN, narration: long } } as StoredScene;
     const turns: string[] = [];
-    const voice = { forTurn: (beats: readonly Beat[]) => { turns.push(beats.map(getBeatText).join(' ')); return { tts: makeRenderedVoice({ name: 'tone' }).makeTts() }; } };
+    const voice = { forTurn: (beats: readonly Beat[]) => { turns.push(beats.map(getBeatText).join(' ')); return { tts: makeRenderedVoice({ name: 'tone', render: renderTone }).makeTts() }; } };
     const { work, finishMake } = makeRealDeskWork();
     finishMake({ isOk: true, scene });
     const { finished } = start({ work, voice: voice as never, timings: { ...FAST, loadLimitMs: 300 } });
@@ -390,7 +391,7 @@ describe('a request with no lesson behind it', () => {
     const work = makeWork();
     Object.assign(work, { plan: Promise.resolve('declined'), firstLine: Promise.resolve(null) });
     const said: string[] = [];
-    const voice = { forTurn: (beats: readonly Beat[]) => { said.push(...beats.map(getBeatText)); return { tts: makeRenderedVoice({ name: 'tone' }).makeTts() }; } };
+    const voice = { forTurn: (beats: readonly Beat[]) => { said.push(...beats.map(getBeatText)); return { tts: makeRenderedVoice({ name: 'tone', render: renderTone }).makeTts() }; } };
     const { finished } = start({ work, voice: voice as never });
     const room = await untilConnected();
     room.join('PA1');
@@ -513,7 +514,7 @@ describe('a request with no lesson behind it', () => {
     const work = makeWork();
     Object.assign(work, { plan: Promise.resolve('unsafe'), firstLine: Promise.resolve(null) });
     const said: string[] = [];
-    const voice = { forTurn: (beats: readonly Beat[]) => { said.push(...beats.map(getBeatText)); return { tts: makeRenderedVoice({ name: 'tone' }).makeTts() }; } };
+    const voice = { forTurn: (beats: readonly Beat[]) => { said.push(...beats.map(getBeatText)); return { tts: makeRenderedVoice({ name: 'tone', render: renderTone }).makeTts() }; } };
     const { finished } = start({ work, voice: voice as never });
     const room = await untilConnected();
     room.join('PA1');

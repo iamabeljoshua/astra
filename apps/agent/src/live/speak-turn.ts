@@ -1,6 +1,6 @@
 import { tts } from '@livekit/agents';
 import type { AudioFrame } from '@livekit/rtc-node';
-import { type AgentMessage, type Beat, getBeatText, getCues, getSpokenWords, type TimedWord, type TurnId } from '@astra/contracts';
+import { type AgentMessage, type Beat, type BeatId, getBeatText, getCues, getSpokenWords, type TimedWord, type TurnId } from '@astra/contracts';
 import { createPlayoutTracker, type PlayoutTracker } from '@astra/board';
 import { createFirstSound, type FirstSound, getFrameMs } from './first-sound.ts';
 import { createFrameQueue, type FrameQueue } from './frame-queue.ts';
@@ -30,9 +30,12 @@ export interface SpeakTurnOptions {
   line: VoiceLine;
   messenger: TurnMessenger;
   turnId: TurnId;
-  beats: readonly Beat[];
+  /** Beats come as the brain writes them. A stopped turn asks for no more. */
+  beats: Iterable<Beat> | AsyncIterable<Beat>;
   textPace?: TextPace;
   proofStalls?: readonly { atAudioMs: number; ms: number }[];
+  onBeatStarted?(beat: Beat): void;
+  onFirstAudioRead?(atMs: number): void;
   onFrameCaptured?(note: FrameNote): void;
   onWords?(words: { atMs: number; words: TimedWord[] }): void;
   onGap?(gap: { atMs: number; ms?: number; reportedAtMs: number }): void;
@@ -46,6 +49,8 @@ export interface SpokenTurn {
   finished: Promise<void>;
   stop(): void;
   getWordMismatches(): { ours: string; theirs: string }[];
+  /** How many words of each beat have left the agent, the only record if the browser's report is lost. */
+  getWordsSent(): Map<BeatId, number>;
 }
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -58,6 +63,7 @@ interface TurnWork {
   firstSound: FirstSound;
   tracker: PlayoutTracker;
   lineTurn: LineTurn;
+  noteAudioSent(ms: number): void;
   isStopped(): boolean;
 }
 
@@ -96,7 +102,12 @@ async function writeBeat({ options: { messenger, turnId, textPace }, stream, isS
 }
 
 async function writeText(work: TurnWork): Promise<void> {
-  for (const beat of work.options.beats) await writeBeat(work, beat);
+  for await (const beat of work.options.beats) {
+    if (work.isStopped()) return;
+    work.timeline.addBeat(beat);
+    work.options.onBeatStarted?.(beat);
+    await writeBeat(work, beat);
+  }
   if (!work.isStopped()) work.stream.endInput();
 }
 
@@ -115,8 +126,12 @@ function createWordSender({ options: { messenger, turnId, onWords, getNowMs = ge
 
 async function readVoice(work: TurnWork): Promise<void> {
   const sendWords = createWordSender(work);
+  const { onFirstAudioRead, getNowMs = getSteadyNowMs } = work.options;
+  let hasReadAudio = false;
   for await (const chunk of work.stream) {
     if (work.isStopped() || chunk === tts.SynthesizeStream.END_OF_STREAM) break;
+    if (!hasReadAudio) onFirstAudioRead?.(getNowMs());
+    hasReadAudio = true;
     work.firstSound.noteFrame(chunk.frame);
     sendWords((chunk.timedTranscripts ?? []).map((word) => ({ text: word.text, atVoiceMs: (word.startTime ?? 0) * MS_PER_SECOND })));
     work.frames.push(chunk.frame);
@@ -128,7 +143,7 @@ async function readVoice(work: TurnWork): Promise<void> {
   work.frames.finish();
 }
 
-async function pumpAudio({ options, frames, firstSound, tracker, lineTurn, isStopped }: TurnWork): Promise<void> {
+async function pumpAudio({ options, frames, firstSound, tracker, lineTurn, noteAudioSent, isStopped }: TurnWork): Promise<void> {
   const { messenger, turnId, proofStalls = [], onFrameCaptured, onGap, getNowMs = getSteadyNowMs } = options;
   const pendingStalls = [...proofStalls];
   let audioMs = 0;
@@ -149,6 +164,7 @@ async function pumpAudio({ options, frames, firstSound, tracker, lineTurn, isSto
     onFrameCaptured?.({ frame, capturedAtMs: getNowMs() });
     await lineTurn.captureFrame(frame);
     audioMs += getFrameMs(frame);
+    noteAudioSent(audioMs);
   }
 }
 
@@ -161,14 +177,16 @@ async function cutIfVoiceEndedEarly({ options: { messenger, turnId }, timeline, 
 
 // Flash and Turbo send word times and audio in one message, so words go out as soon as they are read and the audio queues behind them.
 export function speakTurn(options: SpeakTurnOptions): SpokenTurn {
-  const { voice, line, messenger, turnId, beats, onGap, onFailure, getNowMs = getSteadyNowMs } = options;
+  const { voice, line, messenger, turnId, onGap, onFailure, getNowMs = getSteadyNowMs } = options;
   const firstSound = createFirstSound();
   const frames = createFrameQueue();
   const stream = voice.stream();
-  const timeline = createWordTimeline(beats);
+  const timeline = createWordTimeline();
   const lineTurn = line.takeTurn();
   const heldMessenger = createHeldMessenger(messenger);
   let isStopped = false;
+  let isFinished = false;
+  let audioSentMs = 0;
   const tracker = createPlayoutTracker({
     onRanDry({ atMs }) {
       const gap = { atMs: firstSound.toTimeline(atMs) };
@@ -176,10 +194,23 @@ export function speakTurn(options: SpeakTurnOptions): SpokenTurn {
       onGap?.({ ...gap, reportedAtMs: getNowMs() });
     },
   });
-  const work: TurnWork = { options: { ...options, messenger: heldMessenger }, stream, timeline, frames, firstSound, tracker, lineTurn, isStopped: () => isStopped };
+  const work: TurnWork = {
+    options: { ...options, messenger: heldMessenger },
+    stream,
+    timeline,
+    frames,
+    firstSound,
+    tracker,
+    lineTurn,
+    noteAudioSent(ms) {
+      audioSentMs = ms;
+    },
+    isStopped: () => isStopped,
+  };
 
+  // A finished turn has no audio to cut and leaves no silence, so a stop for it would only mute the next turn.
   const stop = () => {
-    if (isStopped) return;
+    if (isStopped || isFinished) return;
     isStopped = true;
     if (!heldMessenger.isHolding()) messenger.sendOnBothChannels({ type: 'stop', turnId });
     tracker.close();
@@ -203,7 +234,10 @@ export function speakTurn(options: SpeakTurnOptions): SpokenTurn {
       onFailure?.(failure);
       stop();
     })
-    .finally(lineTurn.leave);
+    .finally(() => {
+      isFinished = true;
+      lineTurn.leave();
+    });
 
-  return { finished, getWordMismatches: timeline.getMismatches, stop };
+  return { finished, getWordMismatches: timeline.getMismatches, getWordsSent: () => timeline.getWordsSent(firstSound.toTimeline(audioSentMs)), stop };
 }

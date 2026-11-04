@@ -98,13 +98,13 @@ describe.each(LEGAL_PAGE_CASES)('$path', ({ path, legalDocument }) => {
 });
 
 describe('the Privacy Policy', () => {
-  it('says what Supabase holds and that a test lesson\'s saved files stay on our own server', async () => {
+  it('says Supabase holds what we store on our servers, with no list to go stale and no claim on what stays in the browser', async () => {
     openAt(LEGAL_PATHS.privacy);
 
     const recipients = (await screen.findByRole('heading', { level: 2, name: 'Who receives your data' })).parentElement!;
 
     expect(within(recipients).getByText(/^Supabase /).textContent).toBe(
-      'Supabase runs our sign-in service and our database, so it holds your account, your notes, and your sessions, and it sends the sign-in email. What a test lesson saves, its drawings, recordings, and cost records, stays on our own server and does not go to Supabase.',
+      'Supabase runs our sign-in service and our database, so it holds everything we store on our servers, and it sends the sign-in email.',
     );
   });
 });

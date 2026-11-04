@@ -5,7 +5,8 @@ import { existsSync, mkdtempSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
-import { makeRenderedVoice } from '../src/providers/fakes.ts';
+import { renderTone } from '../src/providers/fakes.ts';
+import { makeRenderedVoice } from '../src/providers/rendered-voice.ts';
 import { createLessonVoice } from '../src/scenes/lesson/voice-takes.ts';
 import { createSpendLedger } from '../src/scenes/spend-ledger.ts';
 
@@ -19,7 +20,7 @@ const makeBeat = (text: string): Beat => {
 function makeVoice({ studentLimit = 1000, totalLimit = Number.POSITIVE_INFINITY } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'voice-takes-'));
   const ledger = createSpendLedger(join(root, 'spend.jsonl'), { limitUsd: 5, studentLimitUsd: 5, voiceCharacterLimit: totalLimit, studentVoiceCharacterLimit: studentLimit });
-  const liveTts = makeRenderedVoice({ name: 'live' }).makeTts();
+  const liveTts = makeRenderedVoice({ name: 'live', render: renderTone }).makeTts();
   const makeLiveTts = vi.fn(() => liveTts);
   return { root, ledger, makeLiveTts, liveTts, voice: createLessonVoice({ root, voiceName: 'chris', makeLiveTts, ledger }) };
 }
@@ -80,7 +81,7 @@ describe('the voice cap', () => {
     const { root, voice, ledger } = makeVoice({ studentLimit: 40 });
     voice.forStudent('maya').forTurn([makeBeat('A line of well over twenty characters.')]);
     expect(ledger.read('maya').voiceCharacters).toBeGreaterThan(20);
-    const afterRestart = createLessonVoice({ root, voiceName: 'chris', makeLiveTts: () => makeRenderedVoice({ name: 'live' }).makeTts(), ledger });
+    const afterRestart = createLessonVoice({ root, voiceName: 'chris', makeLiveTts: () => makeRenderedVoice({ name: 'live', render: renderTone }).makeTts(), ledger });
     expect(afterRestart.forStudent('maya').forTurn([makeBeat('A second line of well over twenty characters.')]).save).toBeUndefined();
   });
 });

@@ -6,7 +6,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { mkdir, rename, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { findFirstLoudMs } from '../../lab/proof/analyse-run.ts';
-import { FAKE_SAMPLE_RATE, makeRenderedVoice, type RenderSpeech } from '../../providers/fakes.ts';
+import { FAKE_SAMPLE_RATE, renderTone } from '../../providers/fakes.ts';
+import { makeRenderedVoice, type RenderSpeech } from '../../providers/rendered-voice.ts';
 import type { SpendLedger } from '../spend-ledger.ts';
 
 const SHORTEST_LAST_WORD_MS = 100;
@@ -104,7 +105,7 @@ export function createLessonVoice({ root, voiceName, makeLiveTts, ledger, isFree
     // Before a typed lesson has a topic it only says the app's own fixed lines, so it may read one a card kept, and it keeps nothing.
     const stored = readWholeTake(join(folder ?? getSharedFolder(root), name), text);
     if (stored) return { tts: makeRenderedVoice({ name: 'kept', render: makeStoredRender(stored) }).makeTts() };
-    if (!isFree && ledger.isOverVoiceLimit(studentId, text.length)) return { tts: makeRenderedVoice({ name: 'tone' }).makeTts(), isAtLimit: true };
+    if (!isFree && ledger.isOverVoiceLimit(studentId, text.length)) return { tts: makeRenderedVoice({ name: 'tone', render: renderTone }).makeTts(), isAtLimit: true };
     if (!isFree) ledger.charge({ studentId, voiceCharacters: text.length });
     live ??= makeLiveTts();
     const frames: AudioFrame[] = [];

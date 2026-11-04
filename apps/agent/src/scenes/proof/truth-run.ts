@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
-import { readKey } from '../../lab/keys.ts';
+import { readKey } from '../../keys.ts';
 import { makeAnthropicSceneModels } from '../../providers/anthropic.scenes.ts';
 import { makeScene } from '../make-scene.ts';
 import { createContainerWorker } from '../render-worker.ts';

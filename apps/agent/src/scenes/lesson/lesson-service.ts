@@ -4,10 +4,11 @@ import { createServer, type ServerResponse } from 'node:http';
 import { join } from 'node:path';
 import { initializeLogger } from '@livekit/agents';
 import { AccessToken } from 'livekit-server-sdk';
-import { readKey } from '../../lab/keys.ts';
+import { readKey } from '../../keys.ts';
 import { makeTutorVoice, TUTOR_VOICE_NAME } from '../../providers/choose.ts';
 import { makeAnthropicSceneModels, type SceneModels } from '../../providers/anthropic.scenes.ts';
-import { makeRenderedVoice } from '../../providers/fakes.ts';
+import { renderTone } from '../../providers/fakes.ts';
+import { makeRenderedVoice } from '../../providers/rendered-voice.ts';
 import { createContainerWorker } from '../render-worker.ts';
 import { getSceneStoreRoot } from '../scene-settings.ts';
 import { createSceneStore } from '../scene-store.ts';
@@ -55,7 +56,7 @@ function makeModels(): SceneModels {
 }
 
 function makeVoices() {
-  if (process.env.LESSON_VOICE === 'tone') return createLessonVoice({ root: storeRoot, voiceName: 'tone', makeLiveTts: () => makeRenderedVoice({ name: 'tone' }).makeTts(), ledger, isFree: true });
+  if (process.env.LESSON_VOICE === 'tone') return createLessonVoice({ root: storeRoot, voiceName: 'tone', makeLiveTts: () => makeRenderedVoice({ name: 'tone', render: renderTone }).makeTts(), ledger, isFree: true });
   return createLessonVoice({ root: storeRoot, voiceName: TUTOR_VOICE_NAME, makeLiveTts: () => makeTutorVoice({ apiKey: readKey('ELEVENLABS_API_KEY') }).makeTts(), ledger });
 }
 

@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { Link } from 'react-router';
+import { ChatBox } from '../home/ChatBox';
 import { findArtwork } from '../home/artwork';
 import { BoardView } from '../lab/BoardView';
 import { SceneLayer } from '../scenes/SceneLayer';
-import { SCENE_LABELS, SESSION_LABELS } from '../strings';
-import { BoardPicture, EndButton, ReplyBox, SessionFacts, SessionFrame, SessionTitle } from './SessionScreen';
+import { REPLY_BOX_LABELS, SCENE_LABELS, SESSION_LABELS } from '../strings';
+import { BoardPicture, EndButton, SessionFacts, SessionFrame, SessionTitle } from './SessionScreen';
 import type { Session } from './sessionQueries';
 import { type Lesson, type LessonProblem, useLesson } from './useLesson';
 import { useSessionRun } from './useSessionRun';
@@ -43,6 +45,27 @@ function LessonNotice({ problem, onTryAgain }: { problem: LessonProblem; onTryAg
   );
 }
 
+function LessonReplyBox({ onReply }: { onReply: () => void }) {
+  const [reply, setReply] = useState<string | null>(null);
+
+  return (
+    <div className="mt-auto flex flex-col gap-3.5">
+      <div role="status" className="flex flex-col gap-3.5">
+        {reply && (
+          <>
+            <p className="border-t border-line pt-3 text-sub wrap-anywhere">
+              <span className="label block text-ink-2">{SESSION_LABELS.you}</span>
+              {reply}
+            </p>
+            <p className="font-voice text-lead">{SCENE_LABELS.answerStandIn}</p>
+          </>
+        )}
+      </div>
+      <ChatBox labels={REPLY_BOX_LABELS} canAttach={false} clearsOnSend onSend={(text) => { setReply(text); onReply(); }} onEdit={() => undefined} />
+    </div>
+  );
+}
+
 export default function LessonSession({ session }: { session: Session }) {
   const { seconds, endSession, isEnding, endProblem } = useSessionRun(session);
   const lesson = useLesson(session);
@@ -61,7 +84,7 @@ export default function LessonSession({ session }: { session: Session }) {
           {lesson.problem && <LessonNotice problem={lesson.problem} onTryAgain={lesson.tryAgain} />}
           {lesson.frame?.caption && <p className="label text-ink-2">{SCENE_LABELS.wordsNotChecked}</p>}
           {lesson.isVoiceAtLimit && <p role="status" className="label text-ink-2">{SCENE_LABELS.voiceAtLimit}</p>}
-          {lesson.hasNoLesson ? <Link to="/" className="button button-outline self-start px-3 py-1.25">{SCENE_LABELS.backToHome}</Link> : <ReplyBox answer={SCENE_LABELS.answerStandIn} onReply={lesson.interrupt} />}
+          {lesson.hasNoLesson ? <Link to="/" className="button button-outline self-start px-3 py-1.25">{SCENE_LABELS.backToHome}</Link> : <LessonReplyBox onReply={lesson.interrupt} />}
         </div>
       </div>
     </SessionFrame>

@@ -4,7 +4,7 @@ import { parseArgs } from 'node:util';
 import { initializeLogger, tts } from '@livekit/agents';
 import { makeElevenLabsVoice, VOICE_SAMPLE_RATE as SAMPLE_RATE } from '../../providers/elevenlabs.ts';
 import { makeTutorVoice, TUTOR_VOICE_ID, TUTOR_VOICE_NAME } from '../../providers/choose.ts';
-import { readKey } from '../keys.ts';
+import { readKey } from '../../keys.ts';
 import { OVERLONG_LINE, STOCK_PHRASE } from '../lesson.ts';
 import { getPercentiles } from './analyse-run.ts';
 import { createOverlongWatch } from './overlong-watch.ts';

@@ -3,6 +3,18 @@ import type { BeatId, TurnId } from './ids.ts';
 import type { SceneCommand } from './scene-command.ts';
 import type { PlayReport, StudentAction } from './session-event.ts';
 
+/** Each side of a session sends a pulse this often, on the lossy channel. */
+export const PULSE_EVERY_MS = 500;
+
+/** Three missed pulses is a drop and not a late packet. */
+export const LINK_QUIET_LIMIT_MS = 3 * PULSE_EVERY_MS;
+
+/** The longest typed reply, in characters. */
+export const TYPED_TEXT_MAX_CHARACTERS = 2000;
+
+/** The longest caption line of the student's words, in characters. */
+export const STUDENT_WORDS_MAX_CHARACTERS = 2000;
+
 /** The largest message allowed on the data channel, in UTF-8 bytes of its JSON. */
 export const LIVE_MESSAGE_MAX_BYTES = 15 * 1024;
 
@@ -28,13 +40,26 @@ export type AgentMessage =
   /** The student really is interrupting. The browser cuts the audio and freezes the board at once. */
   | { type: 'stop'; turnId: TurnId }
   /** The voice ran dry here. atMs is on the same timeline as TimedWord.startMs. It is sent with no `ms` when the audio stops, and again with `ms` when it returns. */
-  | { type: 'audioGap'; turnId: TurnId; atMs: number; ms?: number };
+  | { type: 'audioGap'; turnId: TurnId; atMs: number; ms?: number }
+  /** What the student said so far, for the student's own captions. An interim line replaces the last one, and a final line stays. */
+  | { type: 'studentWords'; text: string; isFinal: boolean }
+  /** Code knows the student finished, so the dot reacts before any voice can. */
+  | { type: 'heard' }
+  /** Sent every half second on the lossy channel, so the browser knows the agent can still reach it. */
+  | { type: 'pulse' }
+  /** This microphone's sound now reaches a transcriber that has answered, so the browser lets go of what it held. */
+  | { type: 'earsOpen' }
+  /** The room has been quiet for most of its limit. A later message with `isOn` false takes the warning down. */
+  | { type: 'quietWarning'; isOn: boolean }
+  /** The room stayed quiet to its limit and closes now. */
+  | { type: 'closingForQuiet' };
 
 /**
  * `browserMs` says when this was sent, on the browser's audio clock, and `startedMsAgo` how long before that it really happened.
- * The agent keeps one offset between the two clocks, so the gaps in the log are the gaps the student saw and a slow message moves nothing.
+ * The agent keeps one offset per `clockId`, so the gaps in the log are the gaps the student saw and a slow message moves nothing, and a reloaded page, whose clock restarts at zero, gets its own.
  */
 export interface BrowserStamp {
+  clockId: string;
   browserMs: number;
   startedMsAgo: number;
 }
@@ -47,4 +72,14 @@ export type BrowserMessage = BrowserStamp &
     | { type: 'boardFrozen'; turnId: TurnId; frozen: FrozenFrame[] }
     /** The last word of an `expectsReply` beat started playing, so "yes" now counts as an answer and the 8 second timer starts. */
     | { type: 'questionHeard'; turnId: TurnId; beatId: BeatId }
+    /** The page has joined and hears the tutor's track. `wantsGreeting` is false when the student opened the room by typing, or came back after a drop. */
+    | { type: 'hello'; wantsGreeting: boolean }
+    /** The student typed instead of speaking. */
+    | { type: 'typed'; text: string }
+    /** Sent every half second on the lossy channel. `hearsAgent` is false once the agent's own pulse has stopped arriving. */
+    | { type: 'pulse'; hearsAgent: boolean }
+    /** Whether audio can play. A student who cannot hear the tutor reads the captions, and the note must not say "heard". */
+    | { type: 'audioState'; isRunning: boolean }
+    /** The student answered a quiet warning, so the room stays open. */
+    | { type: 'stillHere' }
   );
