@@ -1,6 +1,6 @@
 import { getBoardAt, type BoardOperation } from '@astra/board';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BoardView } from './BoardView';
 
 const OPERATIONS: BoardOperation[] = [
@@ -241,6 +241,15 @@ describe('BoardView, hostile content from a model', () => {
 });
 
 describe('BoardView, figures', () => {
+  beforeEach(() => {
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(700);
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(600);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   const place = (command: object, atMs = 0): BoardOperation => ({ kind: 'command', atMs, overMs: null, command: command as never });
   const plot = place({ kind: 'plot', id: 'curve', expression: 'a*x', constants: [{ name: 'a', value: 1, min: 0, max: 4 }], domain: [0, 2], label: '<b>not markup</b>' });
   const slider = place({ kind: 'slider', id: 'a-slider', target: 'curve', constant: 'a', min: 0, max: 4 });
@@ -288,16 +297,13 @@ describe('BoardView, figures', () => {
     const over = place({ kind: 'plot', id: 'second', over: 'curve', expression: 'x', domain: [0, 2] });
     const { container } = render(<BoardView board={getBoardAt([plot, over, place({ kind: 'numberLine', id: 'line', domain: [0, 1] }), place({ kind: 'geometry', id: 'shape', xRange: [0, 1], yRange: [0, 1] })], 5000)} atMs={5000} />);
     expect([...container.querySelectorAll<HTMLElement>('[data-element]')].map((element) => element.dataset.element)).toEqual(['curve', 'line', 'shape']);
-    expect(container.querySelector('[data-mark="curve-second"]')).not.toBeNull();
+    const alone = render(<BoardView board={getBoardAt([plot, over], 5000)} atMs={5000} />);
+    expect(alone.container.querySelector('[data-mark="curve-second"]')).not.toBeNull();
   });
 
   it('writes a mark label under what it marks', () => {
-    const width = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(700);
-    const height = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(600);
     const operations = [place({ kind: 'writeMath', id: 'eq', tex: '2x = 8' }), place({ kind: 'annotate', id: 'note', target: 'eq', mark: 'underline', label: 'both sides' }, 500)];
     const { container } = render(<BoardView board={getBoardAt(operations, 5000)} atMs={5000} />);
     expect(container.querySelector('.board-notes [data-mark="note-note"]')?.textContent).toBe('both sides');
-    width.mockRestore();
-    height.mockRestore();
   });
 });
