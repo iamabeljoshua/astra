@@ -9,11 +9,13 @@ import { type FilesComingSoon, useFilesComingSoon } from '../ui/useFilesComingSo
 import { BoardPicture, getSessionVisual } from './BoardPicture';
 import { type Session, useKeepSessionTitle, useSession } from './sessionQueries';
 import { BAR_ACTION, getBarSubject, SessionFacts, SessionFrame, SessionTitle } from './SessionFrame';
-import { isLessonEnabled } from './lessonFlag';
+import { isLessonEnabled, isTutorSceneEnabled } from './lessonFlag';
 import { useSessionRun } from './useSessionRun';
 import { StudentCaption } from '../voice/Captions';
 import { BoardCaption } from '../board/BoardCaption';
-import { LiveBoard } from '../voice/LiveBoard';
+import { SceneLayer } from '../scenes/SceneLayer';
+import { hasDrawableScene, type TutorScene, useTutorScene } from '../scenes/useTutorScene';
+import { type BoardFrame, LiveBoard } from '../voice/LiveBoard';
 import { isVoiceOver, type LiveVoiceView } from '../voice/liveVoice';
 import { ConnectingSaturn } from './ConnectingSaturn';
 import { type LiveVoiceControls, useLiveVoice } from '../voice/useLiveVoice';
@@ -142,12 +144,13 @@ function RunningSession({ session }: { session: Session }) {
   }, []);
   useOpeningMessage(session, liveVoice.sendOpening);
   const isConnecting = isTutorOnTheWay(status, view);
+  const scene = useTutorScene(voice, isTutorSceneEnabled());
   useKeepSessionTitle(session.id, view?.sessionTitle ?? null);
   const filesComingSoon = useFilesComingSoon();
 
   const picture = <Board artwork={findArtwork(session.artwork)} note={SESSION_LABELS.boardStandIn} />;
-  // The card's picture belongs to the card's topic, so it goes when the student moves off it, and the seam for a scene stays empty.
-  const visual = view?.sessionTitle ? null : getSessionVisual(findArtwork(session.artwork));
+  // The card's picture belongs to the card's topic, so it goes when the student moves off it.
+  const artwork = view?.sessionTitle ? null : findArtwork(session.artwork);
   return (
     <SessionFrame facts={<SessionFacts subject={view?.sessionTitle ?? getBarSubject(session)} seconds={seconds} tutorStateLine={tutorStateLine} costUsd={view?.costUsd ?? null} />} action={isRecapping ? <button type="button" onClick={() => void leave()} className={BAR_ACTION}>{SESSION_LABELS.close}</button> : <EndButton isEnding={isEnding} onEnd={() => void endSession()} />} problem={endProblem} isFullHeight>
       <div className="board-stage">
@@ -175,7 +178,7 @@ function RunningSession({ session }: { session: Session }) {
           )}
         </div>
         <ConnectingSaturn isConnecting={isConnecting} />
-        {voice ? <LiveBoard voice={voice} isConnecting={isConnecting} onTutorState={showTutorState} visual={visual} onTalk={() => void liveVoice.toggleTalk()} isTalkOn={view?.mic === 'on'} canTalk={!view?.closedBecause} isLookingBack={isRecapping} filesComingSoon={isConnecting ? undefined : filesComingSoon} /> : <div className="board-panel">{picture}</div>}
+        {voice ? <LiveBoard voice={voice} isConnecting={isConnecting} onTutorState={showTutorState} getVisual={(frame) => getLiveVisual(artwork, frame, scene)} onTalk={() => void liveVoice.toggleTalk()} isTalkOn={view?.mic === 'on'} canTalk={!view?.closedBecause} isLookingBack={isRecapping} filesComingSoon={isConnecting ? undefined : filesComingSoon} /> : <div className="board-panel">{picture}</div>}
       </div>
     </SessionFrame>
   );
@@ -238,6 +241,11 @@ function Board({ artwork, note }: { artwork: Artwork | null; note?: string }) {
       {note && <p className="label border-t border-line px-3 py-1.75 text-ink-2">{note}</p>}
     </section>
   );
+}
+
+function getLiveVisual(artwork: Artwork | null, { board, atMs }: BoardFrame, { stage, onContainer }: TutorScene) {
+  if (hasDrawableScene(board, stage)) return <SceneLayer board={board} atMs={atMs} stage={stage} onContainer={onContainer} />;
+  return getSessionVisual(artwork);
 }
 
 function getVoiceNote({ status, waitSeconds, view }: LiveVoiceControls, isAnswerDue: boolean): string | null {

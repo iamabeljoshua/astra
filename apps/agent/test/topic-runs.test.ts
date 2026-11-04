@@ -245,7 +245,7 @@ describe('a plan that goes wrong', () => {
   it('declines when the planner says it should not teach this, and gives the help line when it says a student is being hurt', async () => {
     const { runs } = makeRuns(vi.fn().mockRejectedValue(new PlanRefused('a recipe')));
     expect(await runs.join(getSceneKey(TOPIC, { ownerId: 'maya' })).plan).toBe('declined');
-    const helped = makeRuns(vi.fn().mockRejectedValue(new PlanRefused('being hurt', true)));
+    const helped = makeRuns(vi.fn().mockRejectedValue(new PlanRefused('being hurt', 'help')));
     expect(await helped.runs.join(getSceneKey(TOPIC, { ownerId: 'tola' })).plan).toBe('unsafe');
   });
 });

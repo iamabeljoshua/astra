@@ -7,7 +7,6 @@ import { StudentsService } from '../students/students.service';
 import { TutorSpendService } from '../tutor-spend/tutor-spend.service';
 import type { SaveLogBodyDto, TutorBrief } from './agent-channel.dto';
 
-const NO_BRIEF: TutorBrief = { level: null, interests: [], goal: null };
 
 @Injectable()
 export class AgentChannelService {
@@ -19,10 +18,8 @@ export class AgentChannelService {
   ) {}
 
   async getBrief(sessionId: string): Promise<TutorBrief> {
-    const profile = await this.students.getProfile(await this.getStudentId(sessionId));
-    if (!profile) return NO_BRIEF;
-    const { level, interests, goal } = profile;
-    return { level, interests, goal };
+    const [profile, cardTitle] = await Promise.all([this.students.getProfile(await this.getStudentId(sessionId)), this.sessions.getCardTitle(sessionId)]);
+    return { level: profile?.level ?? null, interests: profile?.interests ?? [], goal: profile?.goal ?? null, cardTitle };
   }
 
   async addSpend(sessionId: string, usd: number): Promise<{ isOverDailyLimit: boolean }> {

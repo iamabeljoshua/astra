@@ -64,4 +64,6 @@ export interface TutorBrief {
   level: StudentLevel | null;
   interests: StudentInterest[];
   goal: StudentGoal | null;
+  /** The library's title when a card started this session, and null for a typed question. */
+  cardTitle: string | null;
 }
