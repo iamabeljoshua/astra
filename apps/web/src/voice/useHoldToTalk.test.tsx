@@ -84,6 +84,23 @@ describe('Space', () => {
     expect(calls).toEqual([]);
   });
 
+  it('holds from a heading the app focused when the screen opened, because that is where focus starts', () => {
+    const { calls } = setUp();
+    const heading = document.createElement('h1');
+    heading.tabIndex = -1;
+    document.body.append(heading);
+    spaceDown(heading);
+    spaceUp(heading);
+    heading.remove();
+    expect(calls[0]).toBe('open');
+  });
+
+  it('holds from inside a region that only names itself', () => {
+    const region = document.createElement('div');
+    region.setAttribute('role', 'status');
+    expect(isOpenToSpace(region)).toBe(true);
+  });
+
   it('leaves a custom element alone, such as a math field', () => {
     const field = document.createElement('math-field');
     document.body.append(field);

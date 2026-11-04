@@ -73,6 +73,60 @@ describe('a held microphone', () => {
   });
 });
 
+describe('catching up in a room too loud to skip quiet', () => {
+  const loud = () => Float32Array.from({ length: BLOCK }, () => (Math.random() * 2 - 1) * 0.1);
+
+  it('reads a long backlog faster, so it comes down while the student keeps talking', () => {
+    const held = new HeldAudio();
+    run(held, Array.from({ length: 300 }, loud));
+    held.release();
+    const before = held.queue.length;
+    run(held, Array.from({ length: 400 }, loud));
+    expect(held.queue.length).toBeLessThan(before - 70);
+    expect(held.queue.length).toBeGreaterThanOrEqual(38);
+  });
+
+  it('keeps running when a backlog that was all quiet runs out inside a block, because a throw here silences the line for good', () => {
+    const held = new HeldAudio();
+    run(held, Array.from({ length: 1300 }, quiet));
+    held.release();
+    expect(() => run(held, [quiet(), quiet(), quiet()])).not.toThrow();
+    expect(run(held, [voice(0.5), voice(0.5)])).toContain(0.5);
+  });
+
+  it('never lets a backlog grow, or reads past what it holds', () => {
+    const held = new HeldAudio();
+    run(held, Array.from({ length: 60 }, loud));
+    held.release();
+    held.endInput();
+    const out = Array.from({ length: 60 }, () => {
+      const output = new Float32Array(BLOCK);
+      held.process(undefined, output);
+      return output.some((sample) => sample !== 0);
+    });
+    expect(held.isDrained()).toBe(true);
+    expect(out.filter(Boolean).length).toBeLessThan(60);
+    expect(out.filter(Boolean).length).toBeGreaterThanOrEqual(45);
+  });
+
+  it('keeps the voice, first to last, as it reads faster', () => {
+    const held = new HeldAudio();
+    const marks = Array.from({ length: 60 }, (_, block) => new Float32Array(BLOCK).fill((block + 1) / 100));
+    run(held, marks);
+    held.release();
+    held.endInput();
+    const heard: number[] = [];
+    for (let block = 0; block < 60; block += 1) {
+      const output = new Float32Array(BLOCK);
+      held.process(undefined, output);
+      heard.push(...output);
+    }
+    const sound = heard.filter((sample) => sample > 0);
+    expect(sound.every((sample, index) => index === 0 || sample >= (sound[index - 1] ?? 0))).toBe(true);
+    expect(Math.max(...sound)).toBeCloseTo(0.6, 2);
+  });
+});
+
 describe('a line whose capture has ended', () => {
   const runEnded = (held: HeldAudio, blocks: number) =>
     Array.from({ length: blocks }, () => {

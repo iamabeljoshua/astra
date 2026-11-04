@@ -5,7 +5,7 @@ import { WebSocket } from 'ws';
 import { readKey } from '../../../keys.ts';
 import { MUSE_MODEL } from '../../../providers/meta.ts';
 
-const { values: args } = parseArgs({ options: { out: { type: 'string', default: '/tmp/hold-line-end' }, clips: { type: 'string', default: '10' }, noise: { type: 'string', default: '0' } } });
+const { values: args } = parseArgs({ options: { out: { type: 'string', default: '/tmp/hold-line-end' }, clips: { type: 'string', default: '10' }, noise: { type: 'string', default: '0' }, speed: { type: 'string', default: '1' }, modes: { type: 'string', default: 'endpointingSilence,endpointingEndStream,pushToTalkEndStream' } } });
 
 const SPEECH_FOLDER = '/Users/abel/.claude/orchestrate/astra-mvp/vendor-test/speech';
 const VOICE = 'say-samantha';
@@ -27,6 +27,21 @@ function addNoise(pcm: Buffer, level: number): Buffer {
     noisy.writeInt16LE(Math.max(-32768, Math.min(32767, Math.round(sample))), offset);
   }
   return noisy;
+}
+
+// The browser's catch-up plays held sound faster, so this measures what that does to Muse's words.
+function speedUp(pcm: Buffer, speed: number): Buffer {
+  if (speed === 1) return pcm;
+  const samples = Math.floor(pcm.length / 2);
+  const out = Buffer.alloc(Math.floor(samples / speed) * 2);
+  for (let index = 0; index < out.length / 2; index += 1) {
+    const at = index * speed;
+    const low = Math.floor(at);
+    const high = Math.min(low + 1, samples - 1);
+    const mixed = pcm.readInt16LE(low * 2) * (1 - (at - low)) + pcm.readInt16LE(high * 2) * (at - low);
+    out.writeInt16LE(Math.round(mixed), index * 2);
+  }
+  return out;
 }
 
 function makeRoomTone(bytes: number, level: number): Buffer {
@@ -105,9 +120,10 @@ async function main(): Promise<void> {
   const clips = Object.entries(manifest).slice(0, Number(args.clips));
   const runs: Run[] = [];
   for (const [clip, { text, lastMs }] of clips) {
-    const pcm = addNoise(readFileSync(join(SPEECH_FOLDER, VOICE, `${clip}.pcm`)), noiseLevel);
-    for (const mode of MODES) {
-      const run = await runClip({ mode, clip, said: text, lastMs, pcm, noiseLevel });
+    const speed = Number(args.speed);
+    const pcm = speedUp(addNoise(readFileSync(join(SPEECH_FOLDER, VOICE, `${clip}.pcm`)), noiseLevel), speed);
+    for (const mode of MODES.filter((name) => (args.modes as string).includes(name))) {
+      const run = await runClip({ mode, clip, said: text, lastMs: lastMs / speed, pcm, noiseLevel });
       runs.push(run);
       console.log(JSON.stringify(run));
     }
@@ -119,7 +135,7 @@ async function main(): Promise<void> {
     return { mode, runs: ofMode.length, withFinal: finals.length, finalP50: getPercentile(finals, 0.5), finalP95: getPercentile(finals, 0.95), finalWorst: finals.at(-1) ?? null, handshakeP50: getPercentile(handshakes, 0.5) };
   });
   console.log(JSON.stringify(summary, null, 1));
-  writeFileSync(join(out, `line-end-noise-${noiseLevel}.json`), `${JSON.stringify({ noiseLevel, summary, runs }, null, 1)}\n`);
+  writeFileSync(join(out, `line-end-noise-${noiseLevel}-speed-${args.speed as string}.json`), `${JSON.stringify({ noiseLevel, summary, runs }, null, 1)}\n`);
 }
 
 await main();

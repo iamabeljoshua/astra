@@ -16,6 +16,7 @@ const { values: args } = parseArgs({
     noise: { type: 'string', default: '0' },
     email: { type: 'string', default: 'maya@astra.test' },
     releaseAfterLastSoundMs: { type: 'string', default: '120' },
+    holdsOnly: { type: 'boolean', default: false },
   },
 });
 
@@ -311,7 +312,7 @@ const SCENARIOS: Record<string, (stack: VoiceStack) => Promise<unknown>> = {
   // A hold from a cold page: the press itself opens the room, and the line ends before anyone is listening.
   beforeReady: (stack) =>
     withStudent('Before the room is ready', async (student) => {
-      await clearFocus(student);
+      const focusAtStart = await student.page.evaluate(() => document.activeElement?.tagName);
       const clip = getClip(HOLD_LINE.id);
       const startedAtMs = await getEpoch(student);
       await student.page.keyboard.down('Space');
@@ -323,6 +324,7 @@ const SCENARIOS: Record<string, (stack: VoiceStack) => Promise<unknown>> = {
       const rows = await waitForRows(stack, student, startedAtMs, (found) => found.some((row) => row.name === 'replyDecided'), 20_000);
       const final = rows.find((row) => row.name === 'words' && row.isFinal);
       return {
+        focusAtStart,
         said: clip.text,
         heard: final?.text ?? null,
         lostWords: getLostWords(clip.text, final?.text ?? null),
@@ -458,7 +460,7 @@ const SCENARIOS: Record<string, (stack: VoiceStack) => Promise<unknown>> = {
         const trace = await student.getTrace();
         const stopRow = rows.find((row) => row.name === 'stopDecided');
         const final = rows.find((row) => row.name === 'words' && row.isFinal);
-        const lastLocalYield = trace.localYieldEpochMs.at(-1) ?? 0;
+        const lastLocalYield = trace.localYieldEpochMs.find((atMs) => atMs >= pressedAtMs) ?? 0;
         const stopAtPage = Object.values(trace.stopEpochMs).at(-1) ?? 0;
         rounds.push({
           localLowerAfterPressMs: Math.round(lastLocalYield - pressedAtMs),
@@ -497,7 +499,7 @@ const SCENARIOS: Record<string, (stack: VoiceStack) => Promise<unknown>> = {
       const countOf = (rows: TraceRow[], name: string) => rows.filter((row) => row.name === name).length;
       await clearFocus(student);
       const betweenHolds = await speakUnderBursts();
-      results.betweenHolds = { voiceStarted: countOf(betweenHolds, 'voiceStarted'), stops: countOf(betweenHolds, 'stopDecided'), bytes: await readMicNow(student) };
+      results.betweenHolds = { voiceStarted: countOf(betweenHolds, 'voiceStarted'), stops: betweenHolds.filter((row) => row.name === 'stopDecided').map((row) => row.reason), bytes: await readMicNow(student) };
       await delay(8000);
       await tapTalk(student);
       await waitForMicUp(student);
@@ -509,6 +511,25 @@ const SCENARIOS: Record<string, (stack: VoiceStack) => Promise<unknown>> = {
       await tapTalk(student);
       results.closed = await readClosed(student);
       return results;
+    }),
+
+  // Sound with no words cutting the tutor again and again raises the prompt, for a student who never held.
+  cutsRaisePrompt: (stack) =>
+    withStudent('Kept being cut', async (student) => {
+      await goLiveByTap(student);
+      await delay(3000);
+      const startedAtMs = await getEpoch(student);
+      const box = student.page.getByRole('textbox', { name: 'Your reply' });
+      await box.fill('Show me the ball.');
+      await box.press('Enter');
+      await waitForRows(stack, student, startedAtMs, (found) => found.some((row) => row.name === 'turnStarted' && row.kind === 'reply'), 15_000);
+      for (let burst = 0; burst < 5; burst += 1) {
+        await delay(2500);
+        await Promise.all(['gravity', 'momentum', 'parabola'].map((id) => student.say(getClip(id))));
+      }
+      await delay(2500);
+      const rows = rowsSince(stack, student, startedAtMs);
+      return { stops: rows.filter((row) => row.name === 'stopDecided').map((row) => row.reason), resumes: rows.filter((row) => row.name === 'resumeStarted').length, prompt: await student.page.getByText('It sounds noisy.').allTextContents(), mic: await getMic(student) };
     }),
 
   // Steady noise through the real worklet raises the prompt, and a quiet room does not.
@@ -574,6 +595,8 @@ interface MeasuredLine {
   releaseToReplyDecidedMs?: number | null;
   releaseToFirstWordMs?: number | null;
   releaseToLineEndedMs?: number | null;
+  releaseToDotMs?: number | null;
+  releaseToReactionMs?: number | null;
 }
 
 function getPercentile(values: number[], fraction: number): number | null {
@@ -600,7 +623,7 @@ const readLine = async ({ stack, student, clip, startedAtMs, lastSoundAtMs, rele
     lastSoundToReplyDecidedMs: since(lastSoundAtMs, replyDecided?.atMs),
     lastSoundToFirstWordMs: since(lastSoundAtMs, firstWordAtMs),
     lastSoundToReactionMs: since(lastSoundAtMs, reactionAtMs),
-    ...(releasedAtMs === undefined ? {} : { releaseToFinalMs: since(releasedAtMs, final?.atMs), releaseToReplyDecidedMs: since(releasedAtMs, replyDecided?.atMs), releaseToFirstWordMs: since(releasedAtMs, firstWordAtMs), releaseToLineEndedMs: since(releasedAtMs, lineEnded?.atMs) }),
+    ...(releasedAtMs === undefined ? {} : { releaseToFinalMs: since(releasedAtMs, final?.atMs), releaseToReplyDecidedMs: since(releasedAtMs, replyDecided?.atMs), releaseToFirstWordMs: since(releasedAtMs, firstWordAtMs), releaseToLineEndedMs: since(releasedAtMs, lineEnded?.atMs), releaseToDotMs: since(releasedAtMs, trace.heardEpochMs.find((atMs) => atMs >= releasedAtMs)), releaseToReactionMs: since(releasedAtMs, reactionAtMs) }),
   };
 };
 
@@ -638,7 +661,7 @@ async function runMeasure(stack: VoiceStack) {
     await waitForMicUp(student);
     await delay(3500);
     const presses: MeasuredLine[] = [];
-    for (const clip of clips) {
+    for (const clip of args.holdsOnly ? [] : clips) {
       const startedAtMs = await getEpoch(student);
       const said = await student.say(clip);
       presses.push(await readLine({ stack, student, clip, startedAtMs, lastSoundAtMs: said.lastSoundEpochMs }));
@@ -646,7 +669,7 @@ async function runMeasure(stack: VoiceStack) {
     }
     await tapTalk(student);
     if (noise > 0) await student.setNoise(0);
-    const fields: (keyof MeasuredLine)[] = ['lastSoundToFinalMs', 'lastSoundToReplyDecidedMs', 'lastSoundToFirstWordMs', 'lastSoundToReactionMs', 'releaseToFinalMs', 'releaseToReplyDecidedMs', 'releaseToFirstWordMs', 'releaseToLineEndedMs'];
+    const fields: (keyof MeasuredLine)[] = ['lastSoundToFinalMs', 'lastSoundToReplyDecidedMs', 'lastSoundToFirstWordMs', 'lastSoundToReactionMs', 'releaseToFinalMs', 'releaseToReplyDecidedMs', 'releaseToFirstWordMs', 'releaseToLineEndedMs', 'releaseToDotMs', 'releaseToReactionMs'];
     return {
       noise,
       releaseAfterLastSoundMs,

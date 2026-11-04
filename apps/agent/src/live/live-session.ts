@@ -26,6 +26,8 @@ const QUIET_WARNING_LEAD_MS = 60_000;
 const HOLD_GIVE_UP_MS = 75_000;
 /** Muse answers an ended line in about 350 ms, so past this it is not going to. */
 const LINE_FLUSH_GIVE_UP_MS = 3000;
+/** Muse closes about 20 ms after its last final, and a slow close must not hold up the answer. */
+const FLUSH_AFTER_FINAL_MS = 200;
 /** Long enough to read as a new thought, not as more of the answer. */
 const INVITE_AFTER_ANSWER_MS = 1500;
 
@@ -120,6 +122,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
   let hasWarnedOfQuiet = false;
   const holdGate = createHoldGate();
   const noiseWatch = createNoiseWatch();
+  const lineWhileAway: TurnEvent[] = [];
   let hasEverHeld = false;
   let holdClockId: string | null = null;
   let wasLastCutWordless = false;
@@ -378,6 +381,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     onBack() {
       trace('linkBack');
       dispatch({ type: 'linkBack' });
+      lineWhileAway.splice(0).forEach(dispatch);
     },
   });
   const linkChecker = setInterval(() => link.check(getNowMs()), LINK_CHECK_MS);
@@ -418,9 +422,12 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     dispatchAll(holdGate.onHoldStarted());
   };
 
+  // Words decided while the link is down would be dropped, and this student already let go and is not going to say them again.
   const onLineFlushed = () => {
     clearTimeout(flushGiveUp);
-    dispatchAll(holdGate.onLineFlushed());
+    const decided = holdGate.onLineFlushed();
+    if (state.phase === 'away') lineWhileAway.push(...decided);
+    else dispatchAll(decided);
   };
 
   function onLineEnded(): void {
@@ -457,7 +464,12 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       }
       if (event.type === 'words') messenger.send({ type: 'studentWords', text: event.text, isFinal: event.isFinal } satisfies AgentMessage);
       if (event.type === 'words' && hasWords(event.text)) noteSomethingHappened();
+      const wasWaitingForLine = holdGate.isWaitingForLine();
       dispatchAll(holdGate.onEars(event));
+      if (wasWaitingForLine && event.type === 'words' && event.isFinal) {
+        clearTimeout(flushGiveUp);
+        flushGiveUp = setTimeout(onLineFlushed, FLUSH_AFTER_FINAL_MS);
+      }
     },
     onBrowser(message) {
       if (message.type === 'played') return onReport(message);

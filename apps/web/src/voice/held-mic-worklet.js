@@ -9,6 +9,10 @@ const QUIET_OVER_FLOOR = 2.5;
 const FIRST_FLOOR_RMS = 0.005;
 const LOWEST_FLOOR_RMS = 0.0005;
 const FLOOR_RISE_PER_BLOCK = 1.002;
+/** A backlog over about 100 ms is worth reading faster. Under it a line just catches up in its next pause. */
+const FASTER_OVER_BLOCKS = 38;
+/** Nobody hears this, only the transcriber. At 1.25 it lost no more words than at full speed, 17 against 18 of 127, and at 1.5 it lost 23. */
+const FASTER_STEP = 1.25;
 /** About 50 ms, long enough that a low hum reads as sound through its own zero crossings. */
 const NOISE_WINDOW_BLOCKS = 19;
 /** About 5 s with every window over the quiet rule. Speech has a gap of 50 ms long before that, and at 3 s with 100 ms windows it did not always. */
@@ -24,6 +28,8 @@ export class HeldAudio {
   windowEnergy = 0;
   windowBlocks = 0;
   loudWindowRun = 0;
+  reading = null;
+  readOffset = 0;
   isSteadyNoiseDue = false;
   wasSteadyNoiseSaid = false;
 
@@ -87,10 +93,32 @@ export class HeldAudio {
       output.fill(0);
       return;
     }
+    if (this.queue.length > FASTER_OVER_BLOCKS) return this.writeFaster(output);
+    this.reading = null;
+    output.set(this.takeBlock().samples);
+  }
+
+  takeBlock() {
     let block = this.queue.shift();
     while (this.queue.length > 0 && block.isQuiet && this.quietRun >= QUIET_BLOCKS_KEPT) block = this.queue.shift();
     this.quietRun = block.isQuiet ? this.quietRun + 1 : 0;
-    output.set(block.samples);
+    return block;
+  }
+
+  // A room too loud for quiet to skip never catches up otherwise, and stayed over a second behind for a whole lesson.
+  writeFaster(output) {
+    for (let index = 0; index < output.length; index += 1) {
+      if (!this.reading || this.readOffset >= this.reading.samples.length) {
+        if (this.queue.length === 0) return output.fill(0, index);
+        this.readOffset = this.reading ? this.readOffset - this.reading.samples.length : 0;
+        this.reading = this.takeBlock();
+      }
+      const { samples } = this.reading;
+      const low = Math.floor(this.readOffset);
+      const high = Math.min(low + 1, samples.length - 1);
+      output[index] = samples[low] + (samples[high] - samples[low]) * (this.readOffset - low);
+      this.readOffset += FASTER_STEP;
+    }
   }
 }
 

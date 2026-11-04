@@ -10,7 +10,6 @@ export const MUSE_MODEL = 'muse-voice-transcribe-1.0';
 
 const SAMPLE_RATE = 24_000;
 const FRAME_MS = 100;
-const LINE_TAIL_TICK_MS = 10;
 const SAMPLES_PER_FRAME = (SAMPLE_RATE * FRAME_MS) / 1000;
 
 export interface MuseTimings {
@@ -20,10 +19,8 @@ export interface MuseTimings {
   closeAfterQuietMs: number;
   /** A student holding to talk sends no frames between lines, and the next hold must not pay a new handshake of 1.2 to 2.3 s. Silence costs $0.18 an hour, so this costs at most $0.003 a line. */
   closeAfterLineMs: number;
-  /** Sound still on its way when a line is ended: the end waits for frames to stop for this long. */
-  lineTailQuietMs: number;
-  /** And for no longer than this, in case frames never stop. */
-  lineTailMostMs: number;
+  /** Audio takes about 143 ms longer to get here than the message saying a line ended, so the end waits for what is still on its way. Frames cannot say when that is, because they keep coming until the track leaves. */
+  lineTailMs: number;
   /** Muse caps a session at 60 minutes and the plugin only reports the close, so a new session opens before that. */
   rotateAtPauseAfterMs: number;
   rotateAnywayAfterMs: number;
@@ -31,7 +28,7 @@ export interface MuseTimings {
   longestRetryMs: number;
 }
 
-export const MUSE_TIMINGS: MuseTimings = { padAfterMs: 400, closeAfterQuietMs: 10_000, closeAfterLineMs: 60_000, lineTailQuietMs: 60, lineTailMostMs: 300, rotateAtPauseAfterMs: 50 * 60_000, rotateAnywayAfterMs: 55 * 60_000, retryAfterMs: 500, longestRetryMs: 30_000 };
+export const MUSE_TIMINGS: MuseTimings = { padAfterMs: 400, closeAfterQuietMs: 10_000, closeAfterLineMs: 60_000, lineTailMs: 200, rotateAtPauseAfterMs: 50 * 60_000, rotateAnywayAfterMs: 55 * 60_000, retryAfterMs: 500, longestRetryMs: 30_000 };
 
 export interface MuseOptions {
   apiKey: string;
@@ -68,7 +65,7 @@ class MuseSpeechStream extends stt.SpeechStream {
   #failures = 0;
   #nextOpenAtMs = 0;
   #padTimer: ReturnType<typeof setInterval> | undefined;
-  #lineTailTimer: ReturnType<typeof setInterval> | undefined;
+  #lineTailTimer: ReturnType<typeof setTimeout> | undefined;
   #closeAfterQuietMs: number;
 
   constructor(transcriber: stt.STT, options: { newSession(onReady: () => void): stt.SpeechStream; timings: MuseTimings; onNote?(note: MuseNote): void; connOptions?: APIConnectOptions }) {
@@ -81,15 +78,8 @@ class MuseSpeechStream extends stt.SpeechStream {
 
   // Muse's only word for this is `endStream`, which ends the session, so the next one opens now and stays warm on silence. A line's final fell from 779 ms to 332 ms this way, and from 3925 ms to 460 ms at worst in noise.
   endLine(): void {
-    if (!this.#session) return this.#onNote?.({ kind: 'lineFlushed' });
-    const askedAtMs = Date.now();
-    clearInterval(this.#lineTailTimer);
-    this.#lineTailTimer = setInterval(() => {
-      const haveFramesStopped = Date.now() - this.#lastFrameAtMs >= this.#timings.lineTailQuietMs;
-      if (!haveFramesStopped && Date.now() - askedAtMs < this.#timings.lineTailMostMs) return;
-      clearInterval(this.#lineTailTimer);
-      this.#endLineNow();
-    }, LINE_TAIL_TICK_MS);
+    clearTimeout(this.#lineTailTimer);
+    this.#lineTailTimer = setTimeout(() => this.#endLineNow(), this.#timings.lineTailMs);
   }
 
   #endLineNow(): void {
@@ -207,7 +197,7 @@ class MuseSpeechStream extends stt.SpeechStream {
 
   override close(): void {
     clearInterval(this.#padTimer);
-    clearInterval(this.#lineTailTimer);
+    clearTimeout(this.#lineTailTimer);
     this.#session?.stream.close();
     this.#nextSession?.stream.close();
     this.#session = null;

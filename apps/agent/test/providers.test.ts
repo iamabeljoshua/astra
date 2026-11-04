@@ -217,7 +217,7 @@ describe('the Muse adapter', () => {
     async function openLine(timings: Partial<MuseTimings> = {}) {
       const notes: string[] = [];
       muse = await startFakeMuseWire({ handshakeMs: 0 });
-      const transcriber = makeMuseTranscriber({ apiKey: 'fake', webSocketFactory: (url, options) => (muse as FakeMuseWire).makeSocket(url, options), timings: { padAfterMs: 20, lineTailQuietMs: 40, lineTailMostMs: 200, ...timings }, onNote: (note) => notes.push(note.kind) }).makeStt();
+      const transcriber = makeMuseTranscriber({ apiKey: 'fake', webSocketFactory: (url, options) => (muse as FakeMuseWire).makeSocket(url, options), timings: { padAfterMs: 20, lineTailMs: 40, ...timings }, onNote: (note) => notes.push(note.kind) }).makeStt();
       const stream = transcriber.stream();
       await consume(stream);
       stream.pushFrame(makeFrame());
@@ -230,35 +230,20 @@ describe('the Muse adapter', () => {
     it('tells Muse the line ended and opens the next session at once, so the next line does not wait for a handshake', async () => {
       const { transcriber, stream, notes } = await openLine();
       transcriber.endLine();
-      await delay(120);
+      await vi.waitFor(() => expect(notes).toContain('lineFlushed'), { timeout: 3000 });
       expect(muse?.getEndStreamCount()).toBe(1);
       expect(muse?.getConnectionCount()).toBe(2);
       expect(muse?.getOpenCount()).toBe(1);
-      expect(notes).toContain('lineFlushed');
       stream.close();
       await transcriber.close();
     });
 
-    it('waits for the sound still arriving, so the last word reaches Muse before the end does', async () => {
-      const { transcriber, stream } = await openLine({ lineTailQuietMs: 60, lineTailMostMs: 1000 });
+    it('waits for the sound still on its way, so the last word reaches Muse before the end does', async () => {
+      const { transcriber, stream } = await openLine({ lineTailMs: 150 });
       transcriber.endLine();
-      for (let frame = 0; frame < 4; frame += 1) {
-        stream.pushFrame(makeFrame());
-        await delay(20);
-      }
+      await delay(80);
       expect(muse?.getEndStreamCount()).toBe(0);
       await vi.waitFor(() => expect(muse?.getEndStreamCount()).toBe(1), { timeout: 2000 });
-      stream.close();
-      await transcriber.close();
-    });
-
-    it('ends by the limit if frames never stop', async () => {
-      const { transcriber, stream } = await openLine({ lineTailQuietMs: 500, lineTailMostMs: 80 });
-      transcriber.endLine();
-      const timer = setInterval(() => stream.pushFrame(makeFrame()), 10);
-      await delay(180);
-      clearInterval(timer);
-      await vi.waitFor(() => expect(muse?.getEndStreamCount()).toBe(1), { timeout: 3000 });
       stream.close();
       await transcriber.close();
     });
@@ -267,7 +252,7 @@ describe('the Muse adapter', () => {
       const { transcriber, stream, notes } = await openLine();
       const hearingBefore = notes.filter((kind) => kind === 'hearing').length;
       transcriber.endLine();
-      await delay(120);
+      await vi.waitFor(() => expect(notes).toContain('lineFlushed'), { timeout: 3000 });
       stream.pushFrame(makeFrame());
       await delay(20);
       expect(notes.filter((kind) => kind === 'hearing').length).toBe(hearingBefore + 1);
@@ -296,8 +281,7 @@ describe('the Muse adapter', () => {
       const transcriber = makeMuseTranscriber({ apiKey: 'fake', webSocketFactory: (url, options) => (muse as FakeMuseWire).makeSocket(url, options), onNote: (note) => notes.push(note.kind) }).makeStt();
       const stream = transcriber.stream();
       transcriber.endLine();
-      await delay(20);
-      expect(notes).toContain('lineFlushed');
+      await vi.waitFor(() => expect(notes).toContain('lineFlushed'), { timeout: 1000 });
       stream.close();
       await transcriber.close();
     });

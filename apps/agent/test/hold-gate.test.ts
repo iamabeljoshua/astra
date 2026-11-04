@@ -39,11 +39,21 @@ describe('the hold gate', () => {
     expect(types(gate.onLineEnded())).toEqual(['voiceEnded', 'timer:reactionFloor']);
   });
 
-  it('decides the turn on the final after letting go, with nothing waiting on the detector', () => {
+  it('decides the turn when Muse is done with the line, with nothing waiting on the detector', () => {
     const gate = createHoldGate();
     gate.onHoldStarted();
     gate.onLineEnded();
-    expect(decided(gate.onEars(final('It lands twice as far.')))).toEqual(['It lands twice as far.']);
+    expect(decided(gate.onEars(final('It lands twice as far.')))).toEqual([]);
+    expect(decided(gate.onLineFlushed())).toEqual(['It lands twice as far.']);
+  });
+
+  it('joins finals that arrive together after letting go, so no words are left for later', () => {
+    const gate = createHoldGate();
+    gate.onHoldStarted();
+    gate.onLineEnded();
+    gate.onEars(final('First part.'));
+    gate.onEars(final('Second part.'));
+    expect(decided(gate.onLineFlushed())).toEqual(['First part. Second part.']);
   });
 
   it('joins every final of one hold, so a pause while holding is one thought', () => {
@@ -51,7 +61,8 @@ describe('the hold gate', () => {
     gate.onHoldStarted();
     gate.onEars(final('Part one.'));
     gate.onLineEnded();
-    expect(decided(gate.onEars(final('Part two.')))).toEqual(['Part one. Part two.']);
+    gate.onEars(final('Part two.'));
+    expect(decided(gate.onLineFlushed())).toEqual(['Part one. Part two.']);
   });
 
   it('decides on the flush when the last final came before letting go', () => {
@@ -75,6 +86,7 @@ describe('the hold gate', () => {
     gate.onHoldStarted();
     gate.onLineEnded();
     gate.onEars(final('It lands twice as far.'));
+    gate.onLineFlushed();
     expect(gate.onEars({ type: 'turnDecided', text: 'It lands twice as far.' })).toEqual([]);
   });
 
@@ -83,6 +95,7 @@ describe('the hold gate', () => {
     gate.onHoldStarted();
     gate.onLineEnded();
     gate.onEars(final('First line.'));
+    gate.onLineFlushed();
     expect(decided(gate.onEars({ type: 'turnDecided', text: 'First line. Second line.' }))).toEqual(['Second line.']);
   });
 
@@ -104,7 +117,8 @@ describe('the hold gate', () => {
     gate.onLineEnded();
     gate.onHoldStarted();
     gate.onLineEnded();
-    expect(decided(gate.onEars(final('Part two.')))).toEqual(['Part one. Part two.']);
+    gate.onEars(final('Part two.'));
+    expect(decided(gate.onLineFlushed())).toEqual(['Part one. Part two.']);
   });
 
   it('takes a second holdStarted or a lineEnded with no hold as nothing', () => {

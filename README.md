@@ -217,7 +217,7 @@ Goals are the codes `class`, `exam`, and `curiosity`, which `getPicksForStudent`
 
 ## Talk with the tutor
 
-A session's screen has a **Talk** button and a reply box. Pressing **Talk** opens the session's room and asks for the microphone. Typing a reply opens the room with the microphone off. The tutor is a stand-in until the model arrives, so it only repeats simple lines. Ask it to show you the ball for a long line with motion to interrupt.
+A session's screen has a **Talk** button and a reply box. Pressing **Talk** opens the session's room and asks for the microphone. Holding **Talk**, or holding Space when focus is not in a text field, opens the microphone only while held, for a noisy room. Typing a reply opens the room with the microphone off. The tutor is a stand-in until the model arrives, so it only repeats simple lines. Ask it to show you the ball for a long line with motion to interrupt.
 
 To run it, give the API and the agent the same LiveKit project, then start the agent beside `pnpm dev`.
 

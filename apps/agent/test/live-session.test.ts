@@ -495,10 +495,19 @@ describe('holding to talk', () => {
     letGo(harness);
     expect(ends).toEqual(['ended']);
     expect(harness.brainRequests).toEqual([]);
-    const startedAt = performance.now();
     harness.ears({ type: 'words', text: 'It lands twice as far.', isFinal: true });
+    harness.ears({ type: 'lineFlushed' });
     expect(harness.brainRequests).toEqual(['It lands twice as far.']);
-    expect(performance.now() - startedAt).toBeLessThan(20);
+  });
+
+  it('answers soon after the final if Muse is slow to say it is done', async () => {
+    const harness = start();
+    press(harness);
+    letGo(harness);
+    harness.ears({ type: 'words', text: 'It lands twice as far.', isFinal: true });
+    expect(harness.brainRequests).toEqual([]);
+    await delay(260);
+    expect(harness.brainRequests).toEqual(['It lands twice as far.']);
   });
 
   it('sends the dot and a reaction at once on letting go when words are in, without the 300 ms floor', async () => {
@@ -514,6 +523,7 @@ describe('holding to talk', () => {
     press(harness);
     letGo(harness);
     harness.ears({ type: 'words', text: 'It lands twice as far.', isFinal: true });
+    harness.ears({ type: 'lineFlushed' });
     harness.ears({ type: 'turnDecided', text: 'It lands twice as far.' });
     await delay(50);
     expect(harness.brainRequests).toEqual(['It lands twice as far.']);
@@ -530,6 +540,7 @@ describe('holding to talk', () => {
     expect(harness.brainRequests).toEqual([]);
     letGo(harness);
     harness.ears({ type: 'words', text: 'Part two.', isFinal: true });
+    harness.ears({ type: 'lineFlushed' });
     expect(harness.brainRequests).toEqual(['Part one. Part two.']);
   });
 
@@ -586,6 +597,21 @@ describe('holding to talk', () => {
     await delay(50);
     expect(harness.traces.some((trace) => trace.name === 'turnStarted')).toBe(false);
   });
+
+  it('keeps a line decided while the link is down, and answers it when the link is back', async () => {
+    const harness = start();
+    harness.browser({ type: 'pulse', ...STAMP, hearsAgent: true });
+    press(harness);
+    harness.browser({ type: 'pulse', ...STAMP, hearsAgent: false });
+    await delay(1600);
+    harness.ears({ type: 'words', text: 'It lands twice as far.', isFinal: true });
+    letGo(harness);
+    harness.ears({ type: 'lineFlushed' });
+    expect(harness.brainRequests).toEqual([]);
+    harness.browser({ type: 'pulse', ...STAMP, hearsAgent: true });
+    await delay(300);
+    expect(harness.brainRequests).toEqual(['It lands twice as far.']);
+  }, 10_000);
 
   it('counts a hold as the room not being quiet', async () => {
     const harness = start({ quietLimitMs: 300 });

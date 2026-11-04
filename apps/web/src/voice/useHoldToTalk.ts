@@ -5,11 +5,12 @@ import type { PressSource } from './holdToTalk';
 import type { HeldMic } from './useLiveVoice';
 
 const TALK_BUTTON_ATTRIBUTE = 'data-talk-button';
-const TAKES_OVER_FOCUS = 'a[href],button,input,select,textarea,summary,details,label,audio[controls],video[controls],[contenteditable]:not([contenteditable="false"]),[tabindex],[role]';
+const INTERACTIVE_ROLES = ['button', 'link', 'textbox', 'searchbox', 'combobox', 'slider', 'spinbutton', 'checkbox', 'radio', 'switch', 'tab', 'menuitem', 'option', 'listbox', 'menu', 'application', 'grid', 'tree', 'dialog'];
+const TAKES_OVER_FOCUS = ['a[href]', 'button', 'input', 'select', 'textarea', 'summary', 'details', 'label', 'audio[controls]', 'video[controls]', '[contenteditable]:not([contenteditable="false"])', '[tabindex]:not([tabindex="-1"])', ...INTERACTIVE_ROLES.map((role) => `[role="${role}"]`)].join(',');
 /** A click this soon after the pointer came up belongs to that press, however long the press was. */
 const CLICK_AFTER_RELEASE_MS = 500;
 
-/** Space belongs to anything that can take focus or a key, and to custom elements like MathLive's. It is only ours on the page itself or on Talk. */
+/** Space belongs to anything a student can act on, and to custom elements like MathLive's. It is ours on the page itself, and on a heading the app put focus on when the screen opened. */
 export function isOpenToSpace(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return true;
   if (target.closest(TAKES_OVER_FOCUS)) return false;
@@ -126,6 +127,7 @@ export function useHoldToTalk({ heldMic, isTalkOn, toggleTalk, isEnabled }: Hold
     return () => {
       window.removeEventListener('keydown', onKeyDown, { capture: true });
       window.removeEventListener('keyup', onKeyUp, { capture: true });
+      spaceSource.current = null;
     };
   }, [isEnabled]);
 
