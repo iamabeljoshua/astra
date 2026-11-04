@@ -58,6 +58,25 @@ describe('a line noted between two turns', () => {
   });
 });
 
+describe('a line code cannot judge', () => {
+  it('cannot be called wrong in words, so base 2 is not told it is close', async () => {
+    const { brain, traces } = setup(['Here we go. {"kind":"writeMath","id":"n","tex":"101 + 1","claim":"new"}Your go.', 'Close, but not quite. Start at the right.', 'How did you work that out?']);
+    await collect(brain, 'teach me base two');
+    expect(brain.noteWork(line('s1', '101 + 1 = 110'))?.checked.verdict.status).toBe('unknown');
+    const said = say(await collect(brain, '101 + 1 = 110'));
+    expect(traces).toContain('wordsRefused');
+    expect(said).toBe('How did you work that out?');
+  });
+
+  it('leaves a reader free to answer words', async () => {
+    const { brain, traces } = setup(['Tell me in words.', 'Close, and the sides do stay equal.']);
+    await collect(brain, 'why do we do the same to both sides');
+    brain.noteWork(line('s1', 'because of balance'));
+    expect(say(await collect(brain, 'because of balance'))).toBe('Close, and the sides do stay equal.');
+    expect(traces).not.toContain('wordsRefused');
+  });
+});
+
 describe('a mark code refuses', () => {
   it('stops the words that lean on it, so the tutor never talks about a cross that was not drawn', async () => {
     const { brain, requests } = setup([SET_PROBLEM, 'Let me see. {"kind":"annotate","id":"m1","target":"s1","mark":"cross"}That cross is on your line.', 'Good step, carry on.']);

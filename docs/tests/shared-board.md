@@ -98,6 +98,7 @@ The model is not trusted with a student's work. These run before anyone hears a 
 - The tutor's own opening "Hm." is dropped when code has already said its nod for that work.
 - Math with a false rounding is refused under the rule in What a verdict means, and a chained line is held link by link.
 - Words that sound like praise, opening a reply to a wrong line, stop that reply, and the model tries again with a correction.
+- Words that call a line wrong, opening a reply to math code could not judge, stop that reply too, because it may be another base. Real Sonnet told `101 + 1 = 110` in base 2 it was close, in 1 of 3 runs of `eval:board`.
 - The answer, written or said, is refused until the student has had two turns at the problem.
 - Names like `s1` are kept for the student's lines.
 

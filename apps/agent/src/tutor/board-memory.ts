@@ -21,9 +21,11 @@ export interface BoardMemory {
   openTask: OpenTask | null;
   doneTasks: ReadonlySet<string>;
   isLatestWorkWrong: boolean;
+  /** Their last line was math code could not judge, so it may be another base or a route code cannot see. */
+  isLatestMathUnjudged: boolean;
 }
 
-export const EMPTY_BOARD: BoardMemory = { kinds: new Map(), lines: new Map(), shownLines: new Set(), lastAssertedLine: null, verdicts: new Map(), openTask: null, doneTasks: new Set(), isLatestWorkWrong: false };
+export const EMPTY_BOARD: BoardMemory = { kinds: new Map(), lines: new Map(), shownLines: new Set(), lastAssertedLine: null, verdicts: new Map(), openTask: null, doneTasks: new Set(), isLatestWorkWrong: false, isLatestMathUnjudged: false };
 
 export const DRAWN_KINDS: ReadonlySet<SceneCommand['kind']> = new Set(['writeMath', 'transformMath', 'plot', 'markValue', 'highlight', 'text', 'hide', 'clearBoard', 'focus', 'simulate', 'runSimulation', 'vector', 'annotate', 'diagram', 'note', 'tangent', 'task', 'boardMode']);
 
@@ -51,7 +53,7 @@ function getMarkProblem(command: SceneCommand & { kind: 'annotate' }, { verdicts
   return command.mark === 'cross' && status !== 'wrong' ? `code says that work is ${status}, so it cannot get a cross` : null;
 }
 
-const CALLS_IT_WRONG = /^\s*(wrong|incorrect|not (right|quite)|nope?|oops|mistake)\b/i;
+const CALLS_IT_WRONG = /^\s*(wrong|incorrect|not (right|quite)|nope?|oops|mistake|close|almost)\b/i;
 
 // A note beside a line is a mark in words, so it cannot say more than code knows.
 function getNoteProblem(command: SceneCommand & { kind: 'note' }, { verdicts }: BoardMemory): string | null {
@@ -139,7 +141,7 @@ export function getMemoryOnNewTurn(memory: BoardMemory): BoardMemory {
 }
 
 export function getMemoryAfterAnswering(memory: BoardMemory): BoardMemory {
-  return { ...memory, isLatestWorkWrong: false };
+  return { ...memory, isLatestWorkWrong: false, isLatestMathUnjudged: false };
 }
 
 export function getMemoryAfterWork(work: StudentWork, { reading, verdict, closesTask }: CheckedWork, memory: BoardMemory): BoardMemory {
@@ -154,6 +156,7 @@ export function getMemoryAfterWork(work: StudentWork, { reading, verdict, closes
     openTask: closesTask === memory.openTask?.id ? null : memory.openTask,
     doneTasks: closesTask === undefined ? memory.doneTasks : new Set([...memory.doneTasks, closesTask]),
     isLatestWorkWrong: verdict.status === 'wrong',
+    isLatestMathUnjudged: verdict.status === 'unknown' && reading?.kind === 'math',
   };
 }
 
@@ -167,7 +170,8 @@ function getAnswerWords(tex: string): RegExp | null {
   return new RegExp(`\\b(?:${answer.letter}\\s+(?:is|equals|=|must be|has to be|comes to)|the answer is|answer's|it's|it is)\\s+${value}\\b`, 'i');
 }
 
-export function getWordsProblem(text: string, { isLatestWorkWrong, openTask }: BoardMemory, isFirstBeat: boolean): string | null {
+export function getWordsProblem(text: string, { isLatestWorkWrong, isLatestMathUnjudged, openTask }: BoardMemory, isFirstBeat: boolean): string | null {
+  if (isFirstBeat && isLatestMathUnjudged && CALLS_IT_WRONG.test(text)) return "Code cannot tell whether the student's last line is wrong, and your words called it wrong. It may be another base or a route of their own. Do not say it is right or wrong. Ask what they did.";
   if (isFirstBeat && isLatestWorkWrong && PRAISE.test(text)) return "Code says the student's last work is wrong, and your words sounded like praise. Do not praise it. Point at where it went wrong, in a few words.";
   if (!openTask?.problemTex || openTask.studentTurns >= FEWEST_TURNS_BEFORE_THE_ANSWER) return null;
   return getAnswerWords(openTask.problemTex)?.test(text) ? 'You gave the student the answer before they had a real try. Say nothing about what it comes to. Give one small pointer instead.' : null;
