@@ -5,23 +5,32 @@ import { useHeightThatFitsText } from './useHeightThatFitsText';
 const ACCEPTED_ATTACHMENTS = 'image/*,.pdf';
 // WebKit fires compositionend before keydown, so the Enter that confirms a word has this code and isComposing false.
 const COMPOSING_KEY_CODE = 229;
+const TOUCH_SCREEN_QUERY = '(pointer: coarse)';
 const TOOL_BUTTON =
   'inline-flex h-8 items-center gap-1.5 px-2 text-fine text-ink-2 hover:text-ink aria-pressed:font-medium aria-pressed:text-ink';
 
 interface ChatBoxProps {
-  onSend: (question: string) => void;
+  labels?: Pick<typeof CHAT_BOX_LABELS, 'label' | 'placeholder' | 'placeholderWhileTalkIsOn' | 'send'>;
+  canAttach?: boolean;
+  clearsOnSend?: boolean;
+  isSending?: boolean;
+  onSend: (text: string, textBox: HTMLTextAreaElement) => void;
   onEdit: () => void;
 }
 
-export function ChatBox({ onSend, onEdit }: ChatBoxProps) {
+export function ChatBox({ labels = CHAT_BOX_LABELS, canAttach = true, clearsOnSend = false, isSending = false, onSend, onEdit }: ChatBoxProps) {
   const [question, setQuestion] = useState('');
   const [isTalkOn, setIsTalkOn] = useState(false);
   const [attachment, setAttachment] = useState<File | null>(null);
   const attachButton = useRef<HTMLButtonElement>(null);
+  const placeholder = isTalkOn ? labels.placeholderWhileTalkIsOn : labels.placeholder;
+  const textBox = useHeightThatFitsText(question, placeholder);
   const hasQuestion = question.trim() !== '';
 
   function send() {
-    if (hasQuestion) onSend(question.trim());
+    if (!hasQuestion || !textBox.current) return;
+    onSend(question.trim(), textBox.current);
+    if (clearsOnSend) setQuestion('');
   }
 
   function editQuestion(editedQuestion: string) {
@@ -43,41 +52,48 @@ export function ChatBox({ onSend, onEdit }: ChatBoxProps) {
     <form onSubmit={submit} className="fades-with-theme border border-ink bg-paper focus-within:outline focus-within:outline-accent">
       {attachment && <AttachmentChip fileName={attachment.name} onRemove={removeAttachment} />}
       <QuestionBox
+        textBox={textBox}
+        label={labels.label}
         question={question}
-        placeholder={isTalkOn ? CHAT_BOX_LABELS.placeholderWhileTalkIsOn : CHAT_BOX_LABELS.placeholder}
+        placeholder={placeholder}
+        isReadOnly={isSending}
         onChange={editQuestion}
         onEnter={send}
       />
       <div className="flex items-center gap-1.5 pt-1.5 pr-2 pb-2 pl-2.5">
-        <AttachButton button={attachButton} onChoose={setAttachment} />
+        {canAttach && <AttachButton button={attachButton} onChoose={setAttachment} />}
         <TalkButton isOn={isTalkOn} onToggle={() => setIsTalkOn(!isTalkOn)} />
-        <SendButton isEnabled={hasQuestion} />
+        <SendButton label={labels.send} isEnabled={hasQuestion && !isSending} />
       </div>
     </form>
   );
 }
 
+// A touch keyboard has no Shift to add a line, so Return adds one there, and the send button sends.
 function isSendKey(event: KeyboardEvent) {
   const isComposing = event.nativeEvent.isComposing || event.keyCode === COMPOSING_KEY_CODE;
-  return event.key === 'Enter' && !event.shiftKey && !isComposing;
+  const isTouchScreen = window.matchMedia(TOUCH_SCREEN_QUERY).matches;
+  return event.key === 'Enter' && !event.shiftKey && !isComposing && !isTouchScreen;
 }
 
 interface QuestionBoxProps {
+  textBox: RefObject<HTMLTextAreaElement | null>;
+  label: string;
   question: string;
   placeholder: string;
+  isReadOnly: boolean;
   onChange: (question: string) => void;
   onEnter: () => void;
 }
 
-function QuestionBox({ question, placeholder, onChange, onEnter }: QuestionBoxProps) {
-  const textBox = useHeightThatFitsText(question, placeholder);
-
+function QuestionBox({ textBox, label, question, placeholder, isReadOnly, onChange, onEnter }: QuestionBoxProps) {
   return (
     <textarea
       ref={textBox}
       rows={1}
       value={question}
-      aria-label={CHAT_BOX_LABELS.label}
+      readOnly={isReadOnly}
+      aria-label={label}
       placeholder={placeholder}
       autoComplete="off"
       onChange={(event) => onChange(event.target.value)}
@@ -150,13 +166,13 @@ function TalkButton({ isOn, onToggle }: { isOn: boolean; onToggle: () => void })
   );
 }
 
-function SendButton({ isEnabled }: { isEnabled: boolean }) {
+function SendButton({ label, isEnabled }: { label: string; isEnabled: boolean }) {
   return (
     <button
       type="submit"
       disabled={!isEnabled}
-      aria-label={CHAT_BOX_LABELS.send}
-      title={CHAT_BOX_LABELS.send}
+      aria-label={label}
+      title={label}
       className="ml-auto inline-flex size-8 flex-none items-center justify-center bg-ink text-paper disabled:cursor-default disabled:opacity-30"
     >
       <SendIcon />

@@ -76,7 +76,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Lists the signed-in student's sessions, newest first. */
+        /** Lists the signed-in student's sessions, newest first, or those that match a search. */
         get: operations["SessionsController_listSessions"];
         put?: never;
         /** Starts a session for the signed-in student. */
@@ -85,6 +85,24 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/sessions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Gets one of the signed-in student's sessions. Another student's session answers 404. */
+        get: operations["SessionsController_getSession"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Saves a session's length and can end it. Another student's session answers 404. */
+        patch: operations["SessionsController_updateSession"];
         trace?: never;
     };
     "/home": {
@@ -189,6 +207,11 @@ export interface components {
              * @enum {string}
              */
             language: "en";
+            /**
+             * @description The name of the picture that the web app shows for this session. Leave it out if there is none.
+             * @enum {string}
+             */
+            artwork?: "alchemist" | "arc" | "athens" | "balance" | "bars" | "bastille" | "binary" | "blackhole" | "braking" | "branches" | "cake" | "circuit" | "clock" | "curve" | "draughtsman" | "earth" | "earthrise" | "forces" | "frames" | "grid" | "growth" | "ham" | "helix" | "indigo" | "launch" | "lock" | "loom" | "lute" | "melencolia" | "nebula" | "parabola" | "piston" | "pitch" | "prism" | "pyramid" | "route" | "saturn" | "socrates" | "string" | "sunflowers" | "table" | "tangent" | "terrain" | "triangle" | "wave" | "waveform" | "wheat";
         };
         SessionResponseDto: {
             /** @description The ID of the session. */
@@ -221,6 +244,15 @@ export interface components {
              * @enum {string|null}
              */
             artwork: "alchemist" | "arc" | "athens" | "balance" | "bars" | "bastille" | "binary" | "blackhole" | "braking" | "branches" | "cake" | "circuit" | "clock" | "curve" | "draughtsman" | "earth" | "earthrise" | "forces" | "frames" | "grid" | "growth" | "ham" | "helix" | "indigo" | "launch" | "lock" | "loom" | "lute" | "melencolia" | "nebula" | "parabola" | "piston" | "pitch" | "prism" | "pyramid" | "route" | "saturn" | "socrates" | "string" | "sunflowers" | "table" | "tangent" | "terrain" | "triangle" | "wave" | "waveform" | "wheat" | null;
+        };
+        UpdateSessionBodyDto: {
+            /** @description How long the session has run in total, in seconds. A longer length is saved as 24 hours, so ending a session always works. */
+            durationSeconds: number;
+            /**
+             * @description Send `finished` to end the session. A finished session does not change again.
+             * @enum {string}
+             */
+            status?: "finished";
         };
         PickCardResponseDto: {
             /** @description The ID of the card. */
@@ -347,6 +379,10 @@ export interface operations {
             query?: {
                 /** @description The largest number of sessions to return. The API returns up to 50 if this is left out. */
                 limit?: number;
+                /** @description How many of the newest matching sessions to skip. The API skips none if this is left out. */
+                offset?: number;
+                /** @description Text to find in a session's title or subject, in any letter case. */
+                search?: string;
             };
             header?: never;
             path?: never;
@@ -378,6 +414,54 @@ export interface operations {
         };
         responses: {
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionResponseDto"];
+                };
+            };
+        };
+    };
+    SessionsController_getSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The ID of the session. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionResponseDto"];
+                };
+            };
+        };
+    };
+    SessionsController_updateSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The ID of the session. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateSessionBodyDto"];
+            };
+        };
+        responses: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
