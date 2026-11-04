@@ -106,7 +106,7 @@ export async function getCommandTimes(lab: LabPage): Promise<number[]> {
   return lab.page.evaluate(() => window.sceneLab?.player.getOperations().filter((operation) => operation.kind === 'command').map((operation) => operation.atMs) ?? []);
 }
 
-export async function checkReplayPixels(lab: LabPage): Promise<{ moments: number; differing: number[]; describedDifferently: number }> {
+export async function checkReplayPixels(lab: LabPage): Promise<{ moments: number; differing: number[]; settledOnSecondLook: number; describedDifferently: number }> {
   const times = await getCommandTimes(lab);
   const { shiftMs, firstLive } = await lab.page.evaluate(() => {
     const operations = window.sceneLab?.player.getOperations() ?? [];
@@ -116,22 +116,28 @@ export async function checkReplayPixels(lab: LabPage): Promise<{ moments: number
   });
   const moments = times.flatMap((atMs) => [atMs + 30, atMs + 200, atMs + 450, atMs + 800]).filter((atMs) => atMs >= firstLive);
   const differing: number[] = [];
+  let settledOnSecondLook = 0;
   let describedDifferently = 0;
-  for (const atMs of moments) {
+  const shootBoth = async (atMs: number) => {
     await holdFrame(lab, { atMs, source: 'live' });
     const live = await shoot(lab, 'replay-compare');
     await holdFrame(lab, { atMs: atMs + shiftMs, source: 'replay' });
-    const replay = await shoot(lab, 'replay-compare');
+    return { live, replay: await shoot(lab, 'replay-compare') };
+  };
+  for (const atMs of moments) {
+    const { live, replay } = await shootBoth(atMs);
     if (!live.equals(replay)) {
-      differing.push(Math.round(atMs));
       const pixels = await lab.page.evaluate((pair) => window.pageChecks.countDifferentPixels(pair), [live.toString('base64'), replay.toString('base64'), 0] as [string, string, number]);
-      console.log(`${lab.folder} differs from its replay at ${Math.round(atMs)}: ${pixels} pixels`);
+      const again = await shootBoth(atMs);
+      if (again.live.equals(again.replay)) settledOnSecondLook += 1;
+      else differing.push(Math.round(atMs));
+      console.log(`${lab.folder} differs from its replay at ${Math.round(atMs)}: ${pixels} pixels, ${again.live.equals(again.replay) ? 'and not on a second look' : 'and again on a second look'}`);
     }
     const isSame = await lab.page.evaluate(([liveMs, replayMs]) => JSON.stringify(window.sceneLab?.describeLive(liveMs as number)) === JSON.stringify(window.sceneLab?.describeReplay(replayMs as number)), [atMs, atMs + shiftMs]);
     if (!isSame) describedDifferently += 1;
   }
   await holdFrame(lab, null);
-  return { moments: moments.length, differing, describedDifferently };
+  return { moments: moments.length, differing, settledOnSecondLook, describedDifferently };
 }
 
 export async function checkStillness(lab: LabPage): Promise<{ writes: number; animations: number; imagesMatch: boolean }> {
