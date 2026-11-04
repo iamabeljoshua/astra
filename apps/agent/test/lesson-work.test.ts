@@ -59,6 +59,15 @@ describe('a lesson asking for its scene', () => {
     expect(await work.firstLine).toEqual({ say: 'Streamed first.' });
   });
 
+  it('finds a saved scene for a question typed exactly as its topic, with no model call', async () => {
+    const { work, store, route } = setUp({ request: 'Why Pythagoras was right' });
+    store.save(saved('Why Pythagoras was right', 'checked'), [], []);
+    work.desk.ask(work.request);
+    await flush();
+    expect(work.desk.getState().kind).toBe('ready');
+    expect(route).not.toHaveBeenCalled();
+  });
+
   it('reuses a scene saved under the same topic for a typed question', async () => {
     const { work, store, briefs } = setUp();
     store.save(saved('what a slope measures', 'checked'), [], []);

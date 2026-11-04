@@ -37,7 +37,7 @@ export function createLessonWork({ router, planner, request, isCard, getNowMs, o
   const findSaved = (topic: string): StoredScene | null => maker.store.find(getSceneId(topic));
 
   const getRoute = async (): Promise<SceneRoute> => {
-    const saved = isCard ? findSaved(request) : null;
+    const saved = findSaved(request);
     if (saved?.status === 'checked') {
       settlePlan(saved.plan);
       return { ...SAVED_ROUTE, topic: request };
