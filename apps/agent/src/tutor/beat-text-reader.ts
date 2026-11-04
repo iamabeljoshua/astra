@@ -1,3 +1,4 @@
+import { SAFETY_REPLY } from './safety-words.ts';
 import { BEAT_LIMITS, type Beat, type BoardKinds, getBoardAfter, getBoardProblem, LIVE_MESSAGE_MAX_BYTES, MATH_CLAIMS, parseSceneCommand, type SceneCommand } from '@astra/contracts';
 import { type AttemptReport, parseAttemptReport } from './attempts.ts';
 import { parseToolCall, type ToolCall } from './tools/tool-call.ts';
@@ -37,8 +38,6 @@ const ENDS_IN_ABBREVIATION = /(?:^|[\s("'])(?:mr|mrs|ms|dr|prof|st|vs|(?:[a-z]\.
 const ENDS_IN_ELLIPSIS = /\.{2,}["')]*\s*$/;
 /** A sentence can end inside a beat, when the words after a comma were too few to stand alone. */
 const HOLDS_SENTENCE_END = /[a-z][.!]["')]*\s+\S/i;
-/** Words only a safety reply uses, so that reply is never paused, wrapped, or ended at a question. Help must reach the student whole. A lesson can say the second group too, so those count only inside a question. */
-const SAFETY_REPLY = /\bare you (?:okay|ok)\s*\?|\b(?:that sounds[^.?!]*serious|right thing telling me|adult you trust|trusted adult|(?:your|local) emergency (?:number|services)|are you safe)\b|\b(?:feel safe|in danger|hurting yourself|hurt yourself|ending your life|not your fault)\b[^.?!]*\?/i;
 export const CLAIMS_A_DRAWING = /\b(here you go|there you go|here it is|here they are|here'?s|here is|here are|take a look|have a look|look at|see (?:the|this)|on the board|i'?ve (?:drawn|put|written|added)|i (?:drew|put|wrote)|this (?:table|timeline|diagram|picture|drawing|graph|plot|code|painting))\b/i;
 export const KINDS_A_STUDENT_LOOKS_FOR: ReadonlySet<string> = new Set(['table', 'timeline', 'code', 'image', 'drawing', 'diagram', 'plot', 'text', 'simulate']);
 const WRITTEN_KIND = /"kind"\s*:\s*"([A-Za-z]+)"/;

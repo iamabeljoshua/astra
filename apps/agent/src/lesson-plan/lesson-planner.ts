@@ -20,6 +20,7 @@ export interface LessonPlanner {
   /** A page that reloaded lost the title it was told. */
   tellTitleAgain(): void;
   getStepNote(): StepNote | null;
+  moveToNextStep(): void;
   /** Settles when no plan is on its way, for an evaluation that reads the next step straight after. */
   whenSettled(): Promise<void>;
 }
@@ -30,9 +31,16 @@ export interface LessonPlannerOptions {
   charge(usd: number): void;
   /** The lesson changed to another topic in the same session. */
   onTitleChange(title: string): void;
+  onLessonChange?(state: LessonState, event: LessonEvent | null): void;
+  getPictureTopic?(): string | null;
   trace(name: string, fields?: Record<string, unknown>): void;
   getNowMs?(): number;
 }
+
+const ASKS_TO_SKIP = /\bskip\s+(?:that|this|it|ahead)\b|\bskip[.!?\s]*$|(?:^|\b(?:let'?s|can we|could we|please|just)\s+)move on\b/i;
+
+const ASKS_FOR_NEXT = /\b(?:what'?s next|what comes next|next (?:idea|part|step)|what'?s the next)\b/i;
+const SAYS_NOT_TO = /\b(?:don'?t|do not|dont|never|not|won'?t)\b[^.?!]*\b(?:skip|move on)\b/i;
 
 /** Code's own stage words, such as "(picked 3)", are not the student saying anything. */
 const isStageWords = (words: string) => words.startsWith('(');
@@ -63,6 +71,11 @@ export function getTeachFirstNote(words: string, isFirstTurn: boolean): Record<s
   return isTopic && !WANTS_AN_EXERCISE.test(trimmed) && !isSensitive(trimmed) ? { teach_first_now: 'They want to be taught. This reply teaches and holds no task command, even if it asks them something.' } : null;
 }
 
+const getMoveEvent = (words: string): LessonEvent | null => {
+  if (ASKS_TO_SKIP.test(words) && !SAYS_NOT_TO.test(words)) return 'skipped';
+  return ASKS_FOR_NEXT.test(words) ? 'movedOn' : null;
+};
+
 const getWordsEvent = (words: string): LessonEvent | null => {
   if (WANTS_AN_EXERCISE.test(words)) return 'exerciseWanted';
   return DECLINES_EXERCISES.test(words) ? 'exerciseDeclined' : null;
@@ -80,7 +93,7 @@ const getWorkEvent = ({ closesTask }: Pick<CheckedWork, 'closesTask'>, work: Stu
 };
 
 // Holds the lesson in code. One plan runs at a time and only the latest words wait, so a flood of lines costs one call at a time.
-export function createLessonPlanner({ ask, canSpend, charge, onTitleChange, trace, getNowMs = () => performance.now() }: LessonPlannerOptions): LessonPlanner {
+export function createLessonPlanner({ ask, canSpend, charge, onTitleChange, onLessonChange, getPictureTopic, trace, getNowMs = () => performance.now() }: LessonPlannerOptions): LessonPlanner {
   let state: LessonState = NO_LESSON;
   let waiting: (HeardWords & { startReply: number }) | null = null;
   let asking: Promise<void> | null = null;
@@ -95,6 +108,7 @@ export function createLessonPlanner({ ask, canSpend, charge, onTitleChange, trac
       toldTitle = topic;
       onTitleChange(topic);
     }
+    onLessonChange?.(state, null);
   };
 
   const askOnce = async (heard: HeardWords & { startReply: number }) => {
@@ -121,12 +135,15 @@ export function createLessonPlanner({ ask, canSpend, charge, onTitleChange, trac
   };
 
   const noteEvent = (event: LessonEvent | null) => {
-    if (event) state = getStateAfterEvent(state, event);
+    if (!event) return;
+    state = getStateAfterEvent(state, event);
+    onLessonChange?.(state, event);
   };
 
   return {
     noteStudentWords(heard) {
       if (isStageWords(heard.words) || isLineOfWork(heard.words) || IS_ONLY_A_NOD.test(heard.words.trim())) return;
+      noteEvent(getMoveEvent(heard.words));
       noteEvent(getWordsEvent(heard.words));
       waiting = { ...heard, startReply: state.repliesEnded };
       asking ??= askWhileWaiting();
@@ -137,7 +154,12 @@ export function createLessonPlanner({ ask, canSpend, charge, onTitleChange, trac
     tellTitleAgain() {
       if (toldTitle !== null) onTitleChange(toldTitle);
     },
-    getStepNote: () => getStepNote(state),
+    getStepNote() {
+      const note = getStepNote(state);
+      const picture = getPictureTopic?.() ?? null;
+      return note && picture && 'step' in note ? { ...note, picture_topic: picture } : note;
+    },
+    moveToNextStep: () => noteEvent('movedOn'),
     whenSettled: () => asking ?? Promise.resolve(),
   };
 }

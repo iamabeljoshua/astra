@@ -25,7 +25,7 @@ describe('the caps on one room', () => {
   });
 
   it('closes for the day when the API says the student is over', async () => {
-    const caps = createSpendCaps({ link: { reportSpend: async () => ({ isOverDailyLimit: true }) }, ledger: null, trace: () => {}, ...LIMITS });
+    const caps = createSpendCaps({ link: { reportSpend: async () => ({ isOverDailyLimit: true, leftTodayUsd: 0 }) }, ledger: null, trace: () => {}, ...LIMITS });
     caps.addTurn({ usd: 0.01, voiceCharacters: 0 });
     await caps.flush();
     expect(caps.getSpendLimit()).toBe('dailyLimit');
@@ -33,7 +33,7 @@ describe('the caps on one room', () => {
 
   it('counts the voice in what it tells the API, because it is most of what a minute costs', async () => {
     const sent: number[] = [];
-    const caps = createSpendCaps({ link: { reportSpend: async (usd) => (sent.push(usd), { isOverDailyLimit: false }) }, ledger: null, trace: () => {}, ...LIMITS });
+    const caps = createSpendCaps({ link: { reportSpend: async (usd) => (sent.push(usd), { isOverDailyLimit: false, leftTodayUsd: 3 }) }, ledger: null, trace: () => {}, ...LIMITS });
     caps.addTurn({ usd: 0.01, voiceCharacters: 1000 });
     await caps.flush();
     expect(sent[0]).toBeCloseTo(0.05);
@@ -46,7 +46,7 @@ describe('the caps on one room', () => {
       reportSpend: async (usd: number) => {
         if (isDown) throw new Error('down');
         sent.push(usd);
-        return { isOverDailyLimit: false };
+        return { isOverDailyLimit: false, leftTodayUsd: 3 };
       },
     };
     const traces: string[] = [];

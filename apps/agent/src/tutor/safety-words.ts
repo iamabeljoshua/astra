@@ -1,0 +1,4 @@
+/** These categories cannot be about the student's own safety. The list of categories is open, so one it does not name counts as possibly serious. */
+export const PLAIN_REFUSALS: ReadonlySet<string> = new Set(['cyber', 'frontier_llm', 'reasoning_extraction']);
+export const MAY_BE_ABOUT_SAFETY = /\b(?:hit|hits|hitting|hurt|hurts|hurting|beat|beats|beating|abuse|abused|abusing|touch|touches|touched|rape|raped|kill|killing|suicide|die|dying|alive|harm|harming|cut myself|cutting myself|scared|afraid|unsafe|danger|threaten|threatens|threatened)\b/i;
+export const SAFETY_REPLY = /\bare you (?:okay|ok)\s*\?|\b(?:that sounds[^.?!]*serious|right thing telling me|adult you trust|trusted adult|(?:your|local) emergency (?:number|services)|are you safe)\b|\b(?:feel safe|in danger|hurting yourself|hurt yourself|ending your life|not your fault)\b[^.?!]*\?/i;
