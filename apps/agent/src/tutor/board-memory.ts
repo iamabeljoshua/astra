@@ -155,14 +155,16 @@ function getAnswerWords(tex: string): RegExp | null {
 const PICTURE = '(picture|scene|animation|video|clip)';
 /** A scene may never come, so words that count on one are false until it is on screen. Drawing on the board is always true, so "I'll draw it" stays allowed. */
 const COUNTS_ON_A_PICTURE = [
-  new RegExp(`\\b${PICTURE}\\b[^.?!]*\\b(coming|loading|on (its|the) way|in a (moment|sec|second|bit)|being (made|drawn)|ready soon|almost ready|pop up|show up|appear)\\b`, 'i'),
+  new RegExp(`\\b${PICTURE}\\b[^.?!]*\\b(coming(?! up)|loading|on (its|the) way|in a (moment|sec|second|bit)|being (made|drawn)|ready soon|almost ready)\\b`, 'i'),
+  /\b(picture|animation|video|clip)\b[^.?!]*\b(pop up|show up|appear)\b/i,
   new RegExp(`\\b(let me|let's|i'll|i will|i'm going to|i am going to|i'm gonna|going to)\\s+(show|pull up|bring up|put up|load|make|get|see|watch|look at)\\s+(you\\s+)?(a|an|the|this|that|up a)?\\s*${PICTURE}\\b`, 'i'),
   new RegExp(`\\b(look at|watch|see|check out)\\s+(the|this|that)\\s+${PICTURE}\\b`, 'i'),
 ];
 const NO_PICTURE_YET = 'You spoke as if a picture were on screen or on its way, and none is. Say nothing about a picture, and teach on with your voice and the board.';
 
-export function getWordsProblem(text: string, { isLatestWorkWrong, openTask, kinds }: BoardMemory, isFirstBeat: boolean): string | null {
-  if (COUNTS_ON_A_PICTURE.some((pattern) => pattern.test(text)) && ![...kinds.values()].includes('richScene')) return NO_PICTURE_YET;
+export const getPictureProblem = (text: string, { kinds }: BoardMemory): string | null => (COUNTS_ON_A_PICTURE.some((pattern) => pattern.test(text)) && ![...kinds.values()].includes('richScene') ? NO_PICTURE_YET : null);
+
+export function getWordsProblem(text: string, { isLatestWorkWrong, openTask }: BoardMemory, isFirstBeat: boolean): string | null {
   if (isFirstBeat && isLatestWorkWrong && PRAISE.test(text)) return "Code says the student's last work is wrong, and your words sounded like praise. Do not praise it. Point at where it went wrong, in a few words.";
   if (!openTask?.problemTex || openTask.studentTurns >= FEWEST_TURNS_BEFORE_THE_ANSWER) return null;
   return getAnswerWords(openTask.problemTex)?.test(text) ? 'You gave the student the answer before they had a real try. Say nothing about what it comes to. Give one small pointer instead.' : null;

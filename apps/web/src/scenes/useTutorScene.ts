@@ -32,40 +32,45 @@ export function useTutorScene(voice: LiveVoice | null, isEnabled: boolean): Tuto
   const parts = useRef<{ parking: HTMLElement; host: HTMLElement } | null>(null);
 
   useEffect(() => {
-    if (!isEnabled) return undefined;
-    const parking = createParking();
-    const host = createHost();
-    parking.append(host);
-    document.body.append(parking);
-    parts.current = { parking, host };
-    const made = createSceneStage(host);
-    setStage(made);
-    return () => {
-      made.free();
-      parking.remove();
-      parts.current = null;
-      setStage(null);
-    };
-  }, [isEnabled]);
-
-  useEffect(() => {
-    if (!voice || !stage) return undefined;
+    if (!voice || !isEnabled) return undefined;
     let isGone = false;
-    void getCanPlayScenes().then((canPlay) => {
-      if (!isGone) voice.sendScene({ type: 'sceneDevice', canPlay });
-    });
-    const stopListening = voice.onSceneMessage((message) => {
-      if (message.type !== 'loadScene') return;
-      const { sceneId, durationSeconds } = message;
-      void stage.load(sceneId, durationSeconds).then((isLoaded) => {
-        if (!isGone) voice.sendScene({ type: isLoaded ? 'sceneLoaded' : 'sceneRefused', sceneId });
+    let stopListening = () => {};
+    let freeStage = () => {};
+
+    const openStage = () => {
+      const parking = createParking();
+      const host = createHost();
+      parking.append(host);
+      document.body.append(parking);
+      parts.current = { parking, host };
+      const made = createSceneStage(host);
+      setStage(made);
+      stopListening = voice.onSceneMessage((message) => {
+        if (message.type !== 'loadScene') return;
+        const { sceneId, durationSeconds } = message;
+        void made.load(sceneId, durationSeconds).then((isLoaded) => {
+          if (!isGone) voice.sendScene({ type: isLoaded ? 'sceneLoaded' : 'sceneRefused', sceneId });
+        });
       });
+      freeStage = () => {
+        made.free();
+        parking.remove();
+        parts.current = null;
+        setStage(null);
+      };
+    };
+
+    void getCanPlayScenes().then((canPlay) => {
+      if (isGone) return;
+      if (canPlay) openStage();
+      voice.sendScene({ type: 'sceneDevice', canPlay });
     });
     return () => {
       isGone = true;
       stopListening();
+      freeStage();
     };
-  }, [voice, stage]);
+  }, [voice, isEnabled]);
 
   const onContainer = useCallback((container: HTMLElement | null) => {
     if (!parts.current) return;

@@ -15,6 +15,8 @@ const { values: args } = parseArgs({
     headed: { type: 'boolean', default: false },
     noGpu: { type: 'boolean', default: false },
     damageTake: { type: 'boolean', default: false },
+    phone: { type: 'boolean', default: false },
+    dark: { type: 'boolean', default: false },
   },
 });
 
@@ -84,7 +86,7 @@ function readTrace(folder: string | undefined) {
 }
 
 const browser = await chromium.launch({ headless: !args.headed, args: FLAGS });
-const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, colorScheme: 'light', baseURL: args.web as string });
+const context = await browser.newContext({ viewport: args.phone ? { width: 390, height: 844 } : { width: 1440, height: 900 }, colorScheme: 'light', baseURL: args.web as string });
 const page = await context.newPage();
 const problems: string[] = [];
 page.on('pageerror', (error) => problems.push(`pageerror: ${error.message}`));
@@ -100,6 +102,7 @@ await page.getByRole('button', { name: 'Development sign-in' }).click();
 await page.getByRole('button', { name: 'maya@astra.test' }).click();
 await page.getByRole('textbox', { name: 'What do you want to learn next' }).waitFor();
 await delay(1500);
+if (args.dark) await page.getByRole('button', { name: 'Dark' }).click();
 
 const startedAt = performance.now();
 const atS = () => Number(((performance.now() - startedAt) / 1000).toFixed(2));
@@ -175,8 +178,14 @@ if (sceneSeenAtS !== null && args.handsOn) {
 }
 
 await page.getByRole('button', { name: 'End session' }).click();
-await delay(3000);
-const trace = readTrace(args.trace);
+await page.close();
+let trace = readTrace(args.trace);
+for (let tries = 0; tries < 60 && args.trace && !trace.some(({ name }) => name === 'jobClosed'); tries += 1) {
+  await delay(500);
+  trace = readTrace(args.trace);
+}
+const logged = (trace.find(({ name }) => name === 'sessionLog')?.events ?? []) as { kind: string; atMs: number; beat?: { id: string; script: (string | { kind: string })[] } }[];
+summary.boardMoves = logged.flatMap(({ kind, atMs, beat }) => (kind === 'beatPlayed' && beat ? beat.script.flatMap((part, index) => (typeof part === 'object' && ['boardMode', 'task', 'clearBoard', 'richScene', 'writeMath'].includes(part.kind) ? [{ atS: Number((atMs / 1000).toFixed(1)), beat: beat.id, kind: part.kind, ...(part.kind === 'boardMode' ? { mode: (part as unknown as { mode: string }).mode } : {}), onWord: beat.script.slice(index + 1).find((next) => typeof next === 'string') }] : [])) : []));
 summary.problems = problems;
 writeFileSync(join(out, 'summary.json'), JSON.stringify(summary, null, 2));
 writeFileSync(join(out, 'timeline.json'), JSON.stringify(timeline));

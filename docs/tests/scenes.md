@@ -31,7 +31,22 @@ A person talks in short lines, so every spoken line is usually under 25 words an
 - `manimgx inspect` took about 6 s a theme whatever the number of pictures, nearly all of it the first picture, in the renderer's start-up and shader optimisation. So both themes share one process and shaders go unoptimised. A pixel comparison of both themes' sheets found no difference on one 2D scene and one 3D scene.
 - The first screen reads board math and listed names as well as spoken words. A pair of listed first and last names counts in any case, and other capitalised runs go to the reader. A name not on the lists, written with no capitals, reaches only the review.
 - Lesson audio is kept to save credits. A card's lines are in `.scene-store/voice`, and any student's lesson on that card can play them. A typed lesson's lines are in `.scene-store/student-voice/<student id>/<scene id>`, are played only to that student, and are removed with the rest of that student's data. Before a typed lesson has a topic it keeps nothing, and it only says the app's fixed lines then.
-- The lesson service is local only, with a dev key, because it stands in until M3.6's live room. Lessons stay off unless a build sets `VITE_SCENE_LESSONS=1`. A request the router sends to the kit stays on the plain board until the kit path lands.
+- The lesson service is local only, with a dev key, and it stays as the stand-in for proofs. Lessons stay off unless a build sets `VITE_SCENE_LESSONS=1`. A request the router sends to the kit stays on the plain board until the kit path lands.
+
+## In a tutor session
+
+The tutor asks and never waits. `ASTRA_TUTOR_SCENES=1` on the agent adds one command to the brain, `{"kind":"askScene","topic":"..."}`, and `VITE_TUTOR_SCENES=1` on the web build lets a session show what comes of it. The reader takes the command out of the words, so the reply goes on as if nothing had been asked, and the board and the voice never wait. Off, the brain's prompt says nothing about pictures, and a session asks nothing of the graphics card.
+
+- **What runs.** The same desk, planner, writers, container, checks, and both reviews as the stand-in, inside the tutor's job. A tutor has its own words, so nothing is paid for a plan unless a scene can come of it.
+- **When it lands.** A take the page has loaded lands at the next pause, when nobody is speaking or working on a task, as a turn of its own. The picture is on screen before the setup line's first word, so the student never hears about something they cannot see. Then the reviewed narration plays over it, with each moment on its word, and the plan's question closes it.
+- **The window.** It opens at the first pause after the ask, as it does on the stand-in, and lasts 20 s, so a scene is dropped about 30 to 35 s after the ask at the longest. A dropped scene says nothing, stays saved, and is free the next time that student asks for that topic.
+- **Words.** The tutor is told never to say a picture is coming. Code stops words that count on a picture that is not on screen, and the model is asked again, so a student never hears them. Words about drawing on the board stay allowed, because that is always true.
+- **Stopping.** A scene turn is an ordinary reply to the session: `getResumeBeats` carries it on from the cut word with no cue fired twice, `onFailure` gives a stored line if the voice fails, and a typed or spoken question gives way at once.
+- **Layout.** The tutor's words stay on the left, and the visual sits on the right through `LiveBoard`'s `getVisual`. A `boardMode` command, a task, or anything drawn glides it to the corner on its word. Clicking the small scene brings it back big. `clearBoard` takes a scene away, because the board's new topic may have nothing to do with it, and the tutor is told so.
+- **Money.** Scene spending goes through the tutor's caps, so it counts toward the student's day and the shared ledger. It stays out of the room's own cap, so a picture can never close the tutor, and past `ASTRA_SCENE_SESSION_LIMIT_USD`, $0.80 by default, no new scene is written that session.
+- **Who sees what.** The rule above stands. A topic the tutor worded is a student's words shaped by a model, so its scene stays with that student. A scene is shared only when a card started the session and the tutor names that card's exact title from the server's own list. `/agent/sessions/:id/brief` tells the agent that title.
+- **The kit.** The kit is not connected, so a route to the kit is no scene. ManimGX writing solid things scored 7 of 8 scenes with a critical item false, so calling those ManimGX would show wrong pictures. What the router lost were flat diagrams it read by subject, such as a Punnett square, so the router now sends a flat labelled diagram to ManimGX whatever its subject.
+- **What a check may do.** A scene check never speaks in a session. A safety read, a dangerous read, a kit route, a refusal, a failed run, and a late scene all mean no scene. Crisis handling is the tutor's, from its own rules.
 
 ## Run it
 
@@ -215,7 +230,7 @@ The 6 scenes made for math and graph topics from the planner's own words passed 
 ## What this does not prove
 
 - Real laptops with Intel or AMD graphics. Everything ran on one Mac with Metal.
-- Live words from a model on the scene's moments. The stand-in plan writes them today, and M3.7 takes that over.
+- Live words from the tutor's own model on the scene's moments. In a session the planner writes them, and the review reads them.
 - Safari and Firefox on this path. The test ran them, and this path did not.
 - The kit path, the curated library, declared values through a live lesson, and the fit router's library match. A declared value is refused or accepted by the gate's tests, and no live lesson used one.
 - That a scene's take matches its pictures. The pictures come from `manimgx inspect` running the code, not from the take's bytes, so code that draws something else outside `inspect` passes the pictures. The reviewer reads the code too, which is the only check on that.

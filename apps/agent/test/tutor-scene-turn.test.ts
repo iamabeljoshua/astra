@@ -1,7 +1,7 @@
 import { type Beat, parseBeat } from '@astra/contracts';
 import { describe, expect, it, vi } from 'vitest';
 import { BeatTextReader } from '../src/tutor/beat-text-reader.ts';
-import { EMPTY_BOARD, getWordsProblem } from '../src/tutor/board-memory.ts';
+import { EMPTY_BOARD, getPictureProblem } from '../src/tutor/board-memory.ts';
 import { createTutorBrain, type TutorBeat } from '../src/tutor/brain.ts';
 import { createSpendCaps } from '../src/tutor/make-brain.ts';
 import { TUTOR_SYSTEM, TUTOR_SYSTEM_WITH_SCENES } from '../src/tutor/prompt.ts';
@@ -63,16 +63,16 @@ describe('the reader', () => {
 
 describe('words about a picture that is not there', () => {
   it.each(["I'll show you a picture of that", 'The animation is on its way', 'A scene is loading now', 'Let me pull up a video', "Here, watch this animation", 'Look at the picture on the right', 'The picture will appear in a moment'])('are stopped: %s', (text) => {
-    expect(getWordsProblem(text, EMPTY_BOARD, true)).toMatch(/none is/);
+    expect(getPictureProblem(text, EMPTY_BOARD)).toMatch(/none is/);
   });
 
-  it.each(["I'll draw it for you", 'Let me draw that on the board', 'Picture a ball rolling down a hill', 'Think of it as a picture in your head', 'That word is in the video game sense'])('are fine: %s', (text) => {
-    expect(getWordsProblem(text, EMPTY_BOARD, true)).toBeNull();
+  it.each(["I'll draw it for you", 'Let me draw that on the board', 'Picture a ball rolling down a hill', 'Think of it as a picture in your head', 'That word is in the video game sense', 'The balcony scene is coming up next in the play', 'In that scene, the ghost will appear to him'])('are fine: %s', (text) => {
+    expect(getPictureProblem(text, EMPTY_BOARD)).toBeNull();
   });
 
   it('are fine once a scene is on screen', () => {
     const memory = { ...EMPTY_BOARD, kinds: new Map([['scene-1', 'richScene']]) };
-    expect(getWordsProblem('Look at the picture on the right', memory as never, true)).toBeNull();
+    expect(getPictureProblem('Look at the picture on the right', memory as never)).toBeNull();
   });
 });
 
@@ -95,10 +95,17 @@ describe('the brain', () => {
 
   it('retries a reply that promises a picture, and the student never hears the promise', async () => {
     const { model, requests } = makeModel("I'll show you a picture of that.", 'So slope, think of a hill.');
-    const said = await read(createTutorBrain({ model }).reply({ text: 'what is slope' }, new AbortController().signal));
+    const said = await read(createTutorBrain({ model, system: TUTOR_SYSTEM_WITH_SCENES, onAskScene: () => {} }).reply({ text: 'what is slope' }, new AbortController().signal));
     expect(requests).toHaveLength(2);
     expect(words(said)).not.toMatch(/picture/);
     expect(words(said)).toContain('So slope');
+  });
+
+  it('leaves a session with no scenes as it was, whatever it says about a picture', async () => {
+    const { model, requests } = makeModel("I'll show you a picture of that.");
+    const said = await read(createTutorBrain({ model }).reply({ text: 'what is slope' }, new AbortController().signal));
+    expect(requests).toHaveLength(1);
+    expect(words(said)).toContain('picture');
   });
 
   it('tells the next turn what is on screen and what was said over it', async () => {

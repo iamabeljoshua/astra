@@ -2,7 +2,7 @@ import { type Beat, type BeatId, type ElementId, clipTypedText, getBeatText, get
 import { type BoardOperation, type BoardState, type CheckedWork, checkWorkOnBoard, cleanStudentText as cleanLine, getBoardAt, getOpenTaskOnBoard, getWorkContext } from '@astra/board/shared';
 import { type ModelEvent, ModelRejectedError, type ModelUsage, type TutorModelAdapter, type TutorModelRequest, type TutorTurn } from '../providers/types.ts';
 import { BeatTextReader, type WrittenBeatParts } from './beat-text-reader.ts';
-import { type BoardMemory, checkAgainstBoard, EMPTY_BOARD, getMemoryAfter, getMemoryAfterAnswering, getMemoryAfterWork, getMemoryOnNewTurn, getWordsProblem } from './board-memory.ts';
+import { type BoardMemory, checkAgainstBoard, EMPTY_BOARD, getMemoryAfter, getMemoryAfterAnswering, getMemoryAfterWork, getMemoryOnNewTurn, getPictureProblem, getWordsProblem } from './board-memory.ts';
 import { TUTOR_SYSTEM } from './prompt.ts';
 import { createLinePicker, type SpokenLineUse } from './spoken-lines.ts';
 import { getWorkNote } from './watcher/work-note.ts';
@@ -311,7 +311,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
           turn.wrongMath = problem;
           trace('mathRefused', { problem });
         },
-        checkWords: (text) => getWordsProblem(text, readerMemory, turn.beats.length === 0),
+        checkWords: (text) => (onAskScene ? getPictureProblem(text, readerMemory) : null) ?? getWordsProblem(text, readerMemory, turn.beats.length === 0),
         onWrongWords(problem) {
           turn.wrongWords = problem;
           trace('wordsRefused', { problem });
