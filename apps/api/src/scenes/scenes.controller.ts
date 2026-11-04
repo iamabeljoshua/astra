@@ -16,17 +16,18 @@ interface HeaderSetter {
 export class ScenesController {
   constructor(private readonly scenesService: ScenesService) {}
 
-  /** Sends one stored take of a checked scene. A take is shared truth with no student data, and it never changes, so the browser keeps it. */
+  /** Sends one stored take of a checked scene. A scene from a library card goes to any student. A scene from a typed question goes only to the student who asked, and any other student gets 404. A take never changes, so the browser keeps it. */
   @Get('scene-takes/:sceneId/:theme')
-  getSceneTake(@Param() { sceneId, theme }: SceneTakeParamsDto, @Res({ passthrough: true }) response: HeaderSetter): StreamableFile {
-    const path = findCheckedTake(process.env.SCENE_STORE_DIR, sceneId, theme);
+  getSceneTake(@CurrentStudentId() studentId: string, @Param() { sceneId, theme }: SceneTakeParamsDto, @Res({ passthrough: true }) response: HeaderSetter): StreamableFile {
+    const path = findCheckedTake({ storeRoot: process.env.SCENE_STORE_DIR, sceneId, theme, studentId });
     if (!path) throw new NotFoundException('This scene has no take.');
     response.setHeader('Content-Encoding', 'br');
     response.setHeader('Cache-Control', 'private, max-age=31536000, immutable');
+    response.setHeader('X-Content-Type-Options', 'nosniff');
     return new StreamableFile(createReadStream(path));
   }
 
-  /** Opens the stand-in lesson for the signed-in student's own session, until the live room and the tutor's brain take over. Another student's session answers 404, and a finished one 409. */
+  /** Opens the stand-in lesson for the signed-in student's own session, until the live room and the tutor's brain take over. Another student's session answers 404, a finished one 409, and a student who has opened too many lessons or spent their limit for the day 429. */
   @Post('sessions/:id/scene-lesson')
   @HttpCode(OK_STATUS)
   openSceneLesson(@CurrentStudentId() studentId: string, @Param() { id }: SessionParamsDto): Promise<SceneLessonResponseDto> {

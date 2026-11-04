@@ -4,10 +4,18 @@ import { SceneLayer } from '../scenes/SceneLayer';
 import { SCENE_LABELS, SESSION_LABELS } from '../strings';
 import { BoardPicture, EndButton, ReplyBox, SessionFacts, SessionFrame, SessionTitle } from './SessionScreen';
 import type { Session } from './sessionQueries';
-import { type Lesson, useLesson } from './useLesson';
+import { type Lesson, type LessonProblem, useLesson } from './useLesson';
 import { useSessionRun } from './useSessionRun';
 
 const EMPTY_BOARD = { elements: new Map(), focus: null };
+const PROBLEM_LABELS: Record<LessonProblem, string> = {
+  down: SCENE_LABELS.lessonDown,
+  tooMany: SCENE_LABELS.tooManyLessons,
+  moved: SCENE_LABELS.lessonMoved,
+  lost: SCENE_LABELS.lessonLost,
+  ended: SCENE_LABELS.lessonEnded,
+  silent: SCENE_LABELS.lessonSilent,
+};
 
 function LessonBoard({ session, lesson: { frame, stage, onStageContainer } }: { session: Session; lesson: Lesson }) {
   const artwork = findArtwork(session.artwork);
@@ -16,6 +24,15 @@ function LessonBoard({ session, lesson: { frame, stage, onStageContainer } }: { 
       {frame ? <BoardView board={frame.board} atMs={frame.atMs} /> : <div className="flex min-h-50 flex-1 items-center justify-center p-4">{artwork && <BoardPicture artwork={artwork} />}</div>}
       <SceneLayer board={frame?.board ?? EMPTY_BOARD} atMs={frame?.atMs ?? 0} stage={stage} onContainer={onStageContainer} />
     </section>
+  );
+}
+
+function LessonNotice({ problem, onTryAgain }: { problem: LessonProblem; onTryAgain: () => void }) {
+  return (
+    <div role="alert" className="flex flex-col items-start gap-2">
+      <p className="font-voice text-lead">{PROBLEM_LABELS[problem]}</p>
+      <button type="button" className="button button-outline px-3 py-1.25" onClick={onTryAgain}>{SCENE_LABELS.tryAgain}</button>
+    </div>
   );
 }
 
@@ -34,6 +51,8 @@ export default function LessonSession({ session }: { session: Session }) {
           </div>
           <SessionTitle title={session.title} />
           <p data-testid="caption" className="font-voice text-voice">{lesson.frame?.caption}</p>
+          {lesson.problem && <LessonNotice problem={lesson.problem} onTryAgain={lesson.tryAgain} />}
+          {lesson.frame?.caption && <p className="label text-ink-2">{SCENE_LABELS.wordsNotChecked}</p>}
           <ReplyBox answer={SCENE_LABELS.answerStandIn} onReply={lesson.interrupt} />
         </div>
       </div>

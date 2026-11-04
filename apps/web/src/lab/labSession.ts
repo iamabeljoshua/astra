@@ -1,7 +1,7 @@
 import { type BoardState, createSampleClock, createScenePlayer, createTimerClock, describeBoard, type FiredCue, type OutputLevel, rebuildBoard, type SampleClock, type ScenePlayer } from '@astra/board';
 import probeWorkletUrl from '@astra/board/audio-probe-worklet.js?url';
 import { type AgentMessage, type BrowserMessage, parseAgentMessage, parseSessionEvent, SCENE_TOPIC, type SceneBrowserMessage, type SessionEvent } from '@astra/contracts';
-import { type RemoteTrack, Room, RoomEvent, Track } from 'livekit-client';
+import { DisconnectReason, type RemoteTrack, Room, RoomEvent, Track } from 'livekit-client';
 import type { BoardProblem } from '../board/boardPainting';
 import { createPcmRecorder, type PcmRecorder } from './pcmRecorder';
 import pcmTapWorkletUrl from './pcm-tap-worklet.js?url';
@@ -14,6 +14,10 @@ const SAMPLE_RATE = 48000;
 const RESUME_LIMIT_MS = 300;
 const HELLO_EVERY_MS = 500;
 const GAINS: Record<OutputLevel, number> = { full: 1, lowered: LOWERED_GAIN, silent: 0 };
+const TUTOR_IDENTITY = 'agent-tutor';
+
+/** moved: another tab took this lesson. ended: the tutor left the room. lost: the connection to the room went. */
+export type LessonClosed = 'moved' | 'ended' | 'lost';
 
 export interface LabRecords {
   clockKind: 'samples' | 'timer';
@@ -55,6 +59,7 @@ export interface LabSessionOptions {
   onAgentReady(): void;
   onLogChange(log: readonly SessionEvent[]): void;
   onSceneMessage?(value: unknown): void;
+  onClosed?(reason: LessonClosed): void;
 }
 
 function createRecords(clockKind: LabRecords['clockKind'], audioContext: AudioContext): LabRecords {
@@ -111,7 +116,7 @@ async function createTutorAudioContext(shouldRecordPcm: boolean): Promise<AudioC
 }
 
 // Connects a real room to the real player: the tutor's audio goes through a probe that counts samples and a gain that a stop closes at once.
-export async function startLabSession({ url, token, shouldRecordPcm, onAgentReady, onLogChange, onSceneMessage }: LabSessionOptions): Promise<LabSession> {
+export async function startLabSession({ url, token, shouldRecordPcm, onAgentReady, onLogChange, onSceneMessage, onClosed }: LabSessionOptions): Promise<LabSession> {
   const audioContext = await createTutorAudioContext(shouldRecordPcm);
   const canCount = audioContext.state === 'running';
   const getGraphTimeMs = () => audioContext.currentTime * 1000;
@@ -126,6 +131,7 @@ export async function startLabSession({ url, token, shouldRecordPcm, onAgentRead
   const decoder = new TextDecoder();
   let frameAtStop = 0;
   let helloTimer: ReturnType<typeof setInterval> | undefined;
+  let isClosing = false;
 
   const publish = (topic: string, message: object) => room.localParticipant.publishData(encoder.encode(JSON.stringify(message)), { reliable: true, topic });
   const player = createScenePlayer({
@@ -174,6 +180,12 @@ export async function startLabSession({ url, token, shouldRecordPcm, onAgentRead
     helloTimer = setInterval(() => void publish(LAB_TOPIC, { type: 'hello' }), HELLO_EVERY_MS);
     void publish(LAB_TOPIC, { type: 'hello' });
   });
+  room.on(RoomEvent.ParticipantDisconnected, ({ identity }) => {
+    if (identity === TUTOR_IDENTITY && !isClosing) onClosed?.('ended');
+  });
+  room.on(RoomEvent.Disconnected, (reason) => {
+    if (!isClosing) onClosed?.(reason === DisconnectReason.DUPLICATE_IDENTITY ? 'moved' : 'lost');
+  });
   room.on(RoomEvent.DataReceived, (payload, _participant, _kind, topic) => {
     const value: unknown = JSON.parse(decoder.decode(payload));
     if (topic === LAB_TOPIC) onLabMessage(value as { type: string; event?: unknown; turnId?: string });
@@ -208,6 +220,7 @@ export async function startLabSession({ url, token, shouldRecordPcm, onAgentRead
       });
     },
     async close() {
+      isClosing = true;
       clearInterval(ticker);
       clearInterval(latencyWatcher);
       clearInterval(helloTimer);

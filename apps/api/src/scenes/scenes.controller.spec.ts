@@ -4,6 +4,8 @@ import { join } from 'node:path';
 import { createServer, type Server } from 'node:http';
 import { brotliCompressSync } from 'node:zlib';
 import request from 'supertest';
+import { DataSource } from 'typeorm';
+import { LIBRARY } from '../picks/library';
 import { createTestApp, createTestStudent } from '../../test/test-database';
 import type { TestApp, TestStudent } from '../../test/test-database';
 
@@ -14,10 +16,10 @@ describe('the scene routes', () => {
   let student: TestStudent;
   let storeRoot: string;
 
-  function saveScene(sceneId: string, status: string) {
+  function saveScene(sceneId: string, status: string, ownerId: string | null = null) {
     const folder = join(storeRoot, 'scenes', sceneId);
     mkdirSync(folder, { recursive: true });
-    writeFileSync(join(folder, 'scene.json'), JSON.stringify({ status }));
+    writeFileSync(join(folder, 'scene.json'), JSON.stringify({ status, ownerId }));
     writeFileSync(join(folder, 'light.take.br'), brotliCompressSync(TAKE_BYTES));
   }
 
@@ -47,6 +49,19 @@ describe('the scene routes', () => {
     expect(response.body).toEqual(TAKE_BYTES);
     expect(response.headers['content-encoding']).toBe('br');
     expect(response.headers['cache-control']).toContain('immutable');
+    expect(response.headers['x-content-type-options']).toBe('nosniff');
+  });
+
+  it("sends a scene from a typed question to its own student only", async () => {
+    const owner = await createTestStudent(testApp);
+    const other = await createTestStudent(testApp);
+    saveScene('typed-5e6f', 'checked', owner.studentId);
+    await getTake('/scene-takes/typed-5e6f/light', owner).expect(200);
+    await getTake('/scene-takes/typed-5e6f/light', other).expect(404);
+  });
+
+  it('sends a shared scene to any student', async () => {
+    await getTake('/scene-takes/slope-1a2b/light', await createTestStudent(testApp)).expect(200);
   });
 
   it('never sends a scene that failed its review', async () => {
@@ -69,7 +84,8 @@ describe('the scene routes', () => {
 
   describe('opening a lesson', () => {
     let lessonService: Server;
-    let heard: { sessionId: string; request: string; isCard: boolean }[];
+    let heard: { sessionId: string; studentId: string; request: string; isCard: boolean }[];
+    let replyStatus = 200;
 
     const post = (path: string, { token }: TestStudent = student) => request(testApp.app.getHttpServer()).post(path).set('Authorization', `Bearer ${token}`);
 
@@ -80,7 +96,7 @@ describe('the scene routes', () => {
         incoming.on('data', (chunk: Buffer) => (body += chunk.toString()));
         incoming.on('end', () => {
           heard.push(JSON.parse(body) as (typeof heard)[number]);
-          outgoing.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ url: 'ws://room', token: 'room-token' }));
+          outgoing.writeHead(replyStatus, { 'Content-Type': 'application/json' }).end(JSON.stringify({ url: 'ws://room', token: 'room-token' }));
         });
       });
       await new Promise<void>((resolve) => lessonService.listen(0, '127.0.0.1', resolve));
@@ -102,10 +118,35 @@ describe('the scene routes', () => {
       const typed = await startSession(student);
       const { body } = await post(`/sessions/${typed}/scene-lesson`).expect(200);
       expect(body).toEqual({ url: 'ws://room', token: 'room-token' });
-      expect(heard.at(-1)).toEqual({ sessionId: typed, request: 'What a derivative really measures', isCard: false });
+      expect(heard.at(-1)).toEqual({ sessionId: typed, studentId: student.studentId, request: 'What a derivative really measures', isCard: false });
       const carded = await startSession(student, { topicId: 'derivative' });
       await post(`/sessions/${carded}/scene-lesson`).expect(200);
       expect(heard.at(-1)?.isCard).toBe(true);
+    });
+
+    describe('a card', () => {
+      const POISON = 'My name is Jane Doe, I am 14, I go to Lincoln High. What is a derivative?';
+      const LIBRARY_TITLE = LIBRARY.topics.find(({ id }) => id === 'derivative')?.title as string;
+
+      it("keeps the library's title, whatever title the browser sent", async () => {
+        const { body } = await post('/sessions').send({ title: POISON, subject: 'Math', language: 'en', topicId: 'derivative' }).expect(201);
+        expect((body as { title: string }).title).toBe(LIBRARY_TITLE);
+      });
+
+      it('sends the planner only the library\'s title, even for a session saved with other words', async () => {
+        const id = await startSession(student, { topicId: 'derivative', title: POISON });
+        await testApp.app.get(DataSource).query('UPDATE sessions SET title = $1 WHERE id = $2', [POISON, id]);
+        await post(`/sessions/${id}/scene-lesson`).expect(200);
+        expect(heard.at(-1)).toMatchObject({ request: LIBRARY_TITLE, isCard: true });
+        expect(JSON.stringify(heard.at(-1))).not.toMatch(/Jane|Lincoln/);
+      });
+    });
+
+    it('says when a student has opened too many lessons', async () => {
+      const id = await startSession(student);
+      replyStatus = 429;
+      await post(`/sessions/${id}/scene-lesson`).expect(429);
+      replyStatus = 200;
     });
 
     it("answers 404 for another student's session", async () => {

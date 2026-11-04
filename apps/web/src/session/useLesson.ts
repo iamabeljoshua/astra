@@ -1,14 +1,20 @@
 import type { BoardState } from '@astra/board';
 import { parseSceneAgentMessage } from '@astra/contracts';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { ApiError } from '../api/apiError';
 import { api } from '../api/client';
-import { type LabSession, startLabSession } from '../lab/labSession';
+import { type LabSession, type LessonClosed, startLabSession } from '../lab/labSession';
 import { getCanPlayScenes } from '../scenes/sceneEngine';
 import { createSceneStage, type SceneStage } from '../scenes/sceneStage';
 import type { Session } from './sessionQueries';
 
 const RESUME_AFTER_MS = 2500;
 const RECORD_KEY = 'astra.lesson.record';
+const WORDS_LIMIT_MS = 15_000;
+const TOO_MANY_LESSONS_STATUS = 429;
+
+/** Why a student has no tutor right now. Each one gets its own message, so a session is never blank with a ticking clock. */
+export type LessonProblem = LessonClosed | 'down' | 'tooMany' | 'silent';
 
 export interface LessonFrame {
   board: BoardState;
@@ -26,6 +32,8 @@ export interface Lesson {
   stage: SceneStage | null;
   onStageContainer(container: HTMLElement | null): void;
   interrupt(): void;
+  problem: LessonProblem | null;
+  tryAgain(): void;
 }
 
 declare global {
@@ -35,6 +43,8 @@ declare global {
     holdLessonFrame?(held: HeldFrame | null): void;
   }
 }
+
+const getOpenProblem = (error: unknown): LessonProblem => (error instanceof ApiError && error.status === TOO_MANY_LESSONS_STATUS ? 'tooMany' : 'down');
 
 function getShouldRecord(): boolean {
   try {
@@ -51,12 +61,14 @@ export function useLesson(session: Session): Lesson {
   const sessionRef = useRef<LabSession | null>(null);
   const stageRef = useRef<SceneStage | null>(null);
   const heldRef = useRef<HeldFrame | null>(null);
+  const [problem, setProblem] = useState<LessonProblem | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   const onStageContainer = useCallback((container: HTMLElement | null) => {
     stageRef.current?.free();
     stageRef.current = container ? createSceneStage(container) : null;
     setStage(stageRef.current);
-    window.sceneStage = stageRef.current;
+    if (import.meta.env.DEV) window.sceneStage = stageRef.current;
   }, []);
 
   const loadScene = useCallback(async (value: unknown) => {
@@ -71,11 +83,17 @@ export function useLesson(session: Session): Lesson {
   }, []);
 
   useEffect(() => {
-    window.holdLessonFrame = (held) => {
-      heldRef.current = held;
-    };
+    if (import.meta.env.DEV) {
+      window.holdLessonFrame = (held) => {
+        heldRef.current = held;
+      };
+    }
     let isLeaving = false;
     let animationFrame = 0;
+    let wordsLimit: ReturnType<typeof setTimeout> | undefined;
+    const showProblem = (next: LessonProblem) => {
+      if (!isLeaving) setProblem(next);
+    };
     const draw = () => {
       animationFrame = requestAnimationFrame(draw);
       const current = sessionRef.current;
@@ -96,33 +114,43 @@ export function useLesson(session: Session): Lesson {
         const started = await startLabSession({
           url,
           token,
-          shouldRecordPcm: getShouldRecord(),
+          shouldRecordPcm: import.meta.env.DEV && getShouldRecord(),
           onAgentReady: () => void getCanPlayScenes().then((canPlay) => sessionRef.current?.sendScene({ type: 'sceneDevice', canPlay })),
           onLogChange: () => {},
           onSceneMessage: (value) => void loadScene(value),
+          onClosed: showProblem,
         });
         if (isLeaving) {
           void started.close();
           return;
         }
         sessionRef.current = started;
-        window.sceneLesson = started;
+        if (import.meta.env.DEV) window.sceneLesson = started;
+        wordsLimit = setTimeout(() => {
+          if (started.records.agentMessages.length === 0) showProblem('silent');
+        }, WORDS_LIMIT_MS);
         animationFrame = requestAnimationFrame(draw);
-      }).catch(() => {});
+      }).catch((error: unknown) => showProblem(getOpenProblem(error)));
     });
     return () => {
       isLeaving = true;
       clearTimeout(start);
+      clearTimeout(wordsLimit);
       cancelAnimationFrame(animationFrame);
       void sessionRef.current?.close();
       sessionRef.current = null;
     };
-  }, [loadScene, session.id]);
+  }, [attempt, loadScene, session.id]);
 
   const interrupt = useCallback(() => {
     sessionRef.current?.command({ type: 'interrupt' });
     setTimeout(() => sessionRef.current?.command({ type: 'resume' }), RESUME_AFTER_MS);
   }, []);
 
-  return { frame, stage, onStageContainer, interrupt };
+  const tryAgain = useCallback(() => {
+    setProblem(null);
+    setAttempt((count) => count + 1);
+  }, []);
+
+  return { frame, stage, onStageContainer, interrupt, problem, tryAgain };
 }

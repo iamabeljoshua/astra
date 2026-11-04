@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import type { SessionEntity } from '../infrastructure/orm/entities/session.entity';
 import { SessionRepository } from '../infrastructure/orm/repositories/session.repository';
 import type { SessionListOptions } from '../infrastructure/orm/repositories/session.repository';
+import { findLibraryTopic } from '../picks/library';
 import type { TopicSession } from '../picks/topic-progress';
 import type { CreateSessionBodyDto, SessionResponseDto, UpdateSessionBodyDto } from './session.dto';
 
@@ -29,7 +30,9 @@ export class SessionsService {
   constructor(private readonly sessions: SessionRepository) {}
 
   async createSession(studentId: string, body: CreateSessionBodyDto): Promise<SessionResponseDto> {
-    return toSessionResponse(await this.sessions.createForStudent(studentId, body));
+    // A card's title comes from the library, so a browser cannot put a student's words under a shared topic.
+    const topic = findLibraryTopic(body.topicId);
+    return toSessionResponse(await this.sessions.createForStudent(studentId, topic ? { ...body, title: topic.title } : body));
   }
 
   async listSessions(studentId: string, options: SessionListOptions): Promise<SessionResponseDto[]> {
@@ -47,7 +50,8 @@ export class SessionsService {
 
   async getLessonRequest(studentId: string, sessionId: string): Promise<{ title: string; status: string; isCard: boolean }> {
     const { title, status, topicId } = requireSession(await this.sessions.findForStudent(studentId, sessionId));
-    return { title, status, isCard: topicId !== null };
+    const topic = findLibraryTopic(topicId);
+    return { title: topic?.title ?? title, status, isCard: topic !== undefined };
   }
 
   async updateSession(

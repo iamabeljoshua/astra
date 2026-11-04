@@ -254,7 +254,15 @@ export const SESSION_LABELS = {
 
 export const SCENE_LABELS = {
   notCheckedByPerson: 'Drawn for this lesson. Not yet checked by a person.',
+  wordsNotChecked: 'Written for this lesson. Not yet checked by a person.',
   answerStandIn: "I heard you. I can't answer questions yet, so I'll carry on.",
+  lessonDown: "The lesson can't start right now. Your session is saved, so you can try again.",
+  tooManyLessons: "You've opened a lot of lessons. Wait a few minutes, then try again.",
+  lessonMoved: 'This lesson moved to another tab.',
+  lessonLost: 'The connection to your lesson dropped. Your session is saved.',
+  lessonEnded: 'This lesson has ended.',
+  lessonSilent: "The tutor hasn't started talking. Try opening the lesson again.",
+  tryAgain: 'Try again',
 };
 
 export const ARTWORK_LABELS = {
@@ -403,7 +411,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
           'Your date of birth, if you are old enough to continue. We keep it in our database with an account ID and the time the record was made.',
           'The name you give your tutor, your level, the interests you choose, and your goal. We keep these in our database, and you can change them under Your notes. We use your level, interests, and goal to choose the lessons suggested on your home screen.',
           "Each session's title, subject, language, picture, length, status, and start time, and the suggested lesson it came from, if any. A question you send from the home screen becomes its session's title, cut to 200 characters, so we store those words.",
-          'The drawings a tutor makes for a test lesson are saved on our server and can be shown to other students. Each one holds its topic, its code, and its pictures, and nothing about you.',
+          'The drawings and words a tutor writes for a test lesson are saved on our server, with the code and pictures behind them. Those made for a suggested lesson come only from its title and can be shown to other students. Those made for a question you typed are saved with your account ID, and only you can see them, because they are written from a short topic a model takes from your words.',
           'We also use the sessions you start from suggested lessons, and their length, status, and start time, to choose what your home screen suggests next. A question you leave open can take the continue card, so a lesson you left open can then appear among the suggestions. Only your own sessions do this, and the words of the questions you type play no part in it.',
           "Any file you attach, and anything you type into a session's reply box, stay in your browser. They are not sent or stored. The app does not use your microphone.",
           'Words you type into the search box on the Sessions page go to our server, which uses them to find your sessions. We do not store them.',
@@ -443,7 +451,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
         heading: 'Who receives your data',
         today: [
           'Supabase runs our sign-in service and our database, so it holds everything we store on our servers, and it sends the sign-in email.',
-          "While spoken lessons are in testing, a test lesson sends the session's title, which can be a question you typed, to Anthropic's Claude models, which choose and write a drawing and the tutor's words. ElevenLabs receives the tutor's words and turns them into its voice, and the audio travels through a LiveKit server. The drawing itself is written from a short topic with nothing about you in it.",
+          "While spoken lessons are in testing, a test lesson sends Anthropic's Claude models the title of the suggested lesson, or the whole question you typed, whatever it says, which they use to choose and write a drawing and the tutor's words. A model then writes the drawing from a short topic it takes from your question, and it can get that wrong, so a personal detail in your question can reach those models and the words a tutor says to you. ElevenLabs receives the tutor's words and turns them into its voice, and the audio travels through a LiveKit server. Please leave your name, school, and other personal details out of your questions.",
           'No other outside service receives student data today. The app serves its own fonts and pictures.',
         ],
         planned: [
