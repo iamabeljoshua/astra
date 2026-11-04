@@ -2372,8 +2372,6 @@ Each live lane runs in its own worktree at the PR head. Drive through the skill 
 
 These have no PR yet. Each one goes in the next free slot or with the PR named.
 
-- **Cache the Postgres image for CI.** Cache the unpacked image, a guessed 2m35s, for about 25 lines and 1.08 GB of cache, with a guard on the first archive. CI took 208 s against the standing order of under 3 minutes. Do not raise the limit without Abel.
-- **Raise the lint test timeouts.** Raise them in the lint test files, because those tests are the ones that run close to their limit on a slow runner.
 - **CI gates read `success`.** Every gate reads a job's conclusion as `success`, because a timeout concludes `cancelled` and `gh pr checks` can exit 0 on it. The root's merges already read it this way, so owners' and reviewers' gates follow.
 - **Compare CI runs fairly.** Divide by `api:types`, lint, and typecheck, because the same steps vary by about 50% between runners.
 - **README.** Step 16 of the hosted checklist must run after step 5, or `DROP SCHEMA "app"` fails loudly. `README.md:77` is loose about `auth`, and its run counts are low.
