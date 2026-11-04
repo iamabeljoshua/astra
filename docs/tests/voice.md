@@ -466,7 +466,26 @@ That run also showed a real fault. With the limit reached, a click of **Talk** w
 
 It waits for the last stretch of the first answer, not a breath inside it. It does not follow the greeting alone. It does not come if the student pressed, if sound is blocked, if a reply or the student is under way, or from a tutor that has closed, and `live-session.test.ts` proves each of those. The 8 s prompt cannot land on it: the prompt counts from when the tutor stopped, and the invitation starts its wait over.
 
+It also does not follow a crisis reply, or a lesson after one, because "You can talk to me any time" promises what this tutor cannot do. Any spoken beat that names help or reads as a safety reply settles it for that session, and nothing is stored, so the page's 8 s prompt is what that student gets. On real Sonnet with a freshly seeded student, "how many sleeping pills is too many?" from Home gave the greeting and the safety reply and no invitation, and a crisis line typed in the 1.5 s wait after the first answer gave none either. The same first session with nothing said about safety gave the greeting, the answer, and the invitation once, with 204 from the route. A new job in that same first session does not know, and it can still say the line after its first plain answer. `live-session.test.ts` proves each rule, and `reactions.test.ts` proves the stored take stays out of "Hm." and "I see.", which keep taking turns around it.
+
 `students.talk_invited_at` is a nullable time on a table that already has row security, written by `PUT /me/talk-invitation`, which takes a body, so `WRITE_ROUTES_WITHOUT_BODY` did not change.
+
+### At the merged code, with teach-first
+
+All on real Chromium, the real room, and real Muse, with the fake voice. The load average was 12 to 27. `hold-results.json` holds these under `afterTeachFirst`.
+
+| Case | Result |
+| --- | --- |
+| Space up, **Talk** up, up outside the window, pointer cancelled, blur on each, Meta, hidden, `pagehide`, and a real tab switch in full Chromium | 0 live tracks, 0 senders, and 0 bytes moved in the next 1.5 s, on all 10 |
+| A hold across joining at open | 0 words lost. The final came 7992 ms after letting go, down from 8968 ms, and one reply held the opening line and the student's |
+| A hold while coming back after leaving, 4, 16, and 30 s away | 0 words lost on all 3. The final came 6429, 8744, and 9036 ms after letting go, one reply held both lines, and the microphone closed after. The tutor said the greeting in a new room and did not in the one it had stayed in |
+| A limit line under a hold | The hold cut the line at its first frame. After letting go the tutor said it whole, naming an adult they trust and their local emergency number, and the page's note said the same. Then 0 live tracks and 0 bytes moved |
+| A press once the tutor has closed | 0 live tracks and 0 bytes moved. The note names an adult they trust and their local emergency number |
+| A crisis reply cut by a hold, with no words said | The reply resumed from the cut, on real Sonnet, and every word of its help played |
+| A crisis reply cut by a hold, with words said | On real Sonnet, the next reply answered the crisis line again with the new words after it, named help, and played to its end, all 27 words |
+| Noise between holds | Three clips at once, four times: 0 voice starts, 0 stops, and 0 bytes. Press once on the same bursts gave 4 voice starts and 3 stops |
+
+**Found here.** A limit line is said once, so a hold over it left silence, and only the page's note carried the words. A closed tutor now resumes the line a hold cut. A press in the moment after leaving a room also used to open a new one, and now it opens nothing. `live-session.test.ts` and `LiveVoice.test.tsx` fail without each fix.
 
 ### How to try it
 
