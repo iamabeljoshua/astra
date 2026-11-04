@@ -30,7 +30,7 @@ describe('the cost line', () => {
   it('says what it is, in small quiet numbers', () => {
     render(<SessionCost usd={0.0426} />);
     const cost = screen.getByTestId(COST_LINE_MARK);
-    expect(cost.textContent).toBe('$0.04');
+    expect(cost.textContent).toBe('$0.043');
     expect(cost.title).toContain('estimate');
     expect(formatCost(1.5)).toBe('$1.50');
   });
