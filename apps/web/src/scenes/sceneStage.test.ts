@@ -56,6 +56,20 @@ describe('the scene stage', () => {
     expect(player.drawn).toEqual([0, 3.5, 1.25]);
   });
 
+  it('keeps its full size while the session scales it into the corner', async () => {
+    const player = makePlayer();
+    const resize = vi.fn();
+    engineState.makePlayer = () => Object.assign(player, { resize });
+    Object.defineProperty(HTMLCanvasElement.prototype, 'clientWidth', { configurable: true, get: () => 1040 });
+    Object.defineProperty(HTMLCanvasElement.prototype, 'clientHeight', { configurable: true, get: () => 825 });
+    const scaled = vi.spyOn(HTMLCanvasElement.prototype, 'getBoundingClientRect').mockReturnValue({ width: 312, height: 248 } as DOMRect);
+    await createSceneStage(container).load('slope', 20);
+    scaled.mockRestore();
+    delete (HTMLCanvasElement.prototype as unknown as Record<string, unknown>).clientWidth;
+    delete (HTMLCanvasElement.prototype as unknown as Record<string, unknown>).clientHeight;
+    expect(resize.mock.calls[0]?.slice(0, 2)).toEqual([1040 * Math.min(window.devicePixelRatio || 1, 2), 825 * Math.min(window.devicePixelRatio || 1, 2)]);
+  });
+
   it('skips a frame it has just drawn, because the board asks every frame', async () => {
     const player = makePlayer();
     engineState.makePlayer = () => player;

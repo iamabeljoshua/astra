@@ -35,6 +35,8 @@ export function makeFakeVoice(view: Partial<LiveVoiceView> = {}): LiveVoice {
       listeners.forEach((listener) => listener());
     }),
     sayStillHere: vi.fn(),
+    sendScene: () => {},
+    onSceneMessage: () => () => {},
     turnOnSound: vi.fn(),
     mark: vi.fn(),
     close: vi.fn(async () => {}),

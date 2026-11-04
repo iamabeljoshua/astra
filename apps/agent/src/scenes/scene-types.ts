@@ -80,6 +80,7 @@ export interface LessonPlan {
   narration: string;
   plan: string;
   close: string;
+  hasNoModel?: boolean;
 }
 
 /** What the writer needs from a plan, which the planner streams before the plan is whole. */
@@ -101,12 +102,16 @@ export interface LessonPlanner {
 
 /** The planner said this topic asks for something a tutor should not teach. */
 export class PlanRefused extends Error {
-  /** The topic is about a student hurting themselves or being hurt, and not only about something dangerous. */
-  wantsHelp: boolean;
+  /** help: a student is hurting themselves or being hurt. dangerous: the specifics could hurt someone. person: it cannot be taught without naming a living or private person, which is no danger to anyone. */
+  refusedFor: 'help' | 'dangerous' | 'person';
 
-  constructor(message: string, wantsHelp = false) {
+  constructor(message: string, refusedFor: PlanRefused['refusedFor'] = 'dangerous') {
     super(message);
-    this.wantsHelp = wantsHelp;
+    this.refusedFor = refusedFor;
+  }
+
+  get wantsHelp(): boolean {
+    return this.refusedFor === 'help';
   }
 }
 

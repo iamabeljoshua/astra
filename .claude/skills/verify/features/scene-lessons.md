@@ -25,6 +25,14 @@ Preconditions: `pnpm verify` does not start the lesson service, so start the sta
 - `scene-themes`: add `--theme dark --switchTheme`. `after-theme-switch.png` shows the other theme's take.
 - `plain-board-falls-back`: add `--noGpu` or `--damageTake`. `firstSceneAtS` is null and the caption reaches the closing question.
 
+## In a tutor session
+
+The real session path has its own switch, `ASTRA_TUTOR_SCENES=1` on the agent and `VITE_TUTOR_SCENES=1` on the web build, with the same `SCENE_STORE_DIR` on the agent and the API.
+
+- `tutor-scene`: from `apps/agent`, `node src/scenes/proof/tutor-scene-proof.ts --card "What a derivative really measures" --trace <trace folder> --out <folder>` passes when `summary.json` has a `sceneSeenAtS`, a `smallPlace` with `share` 0.3 and both insets 12, and a `clickedBack` with `isBigOverBoard` true. It sends a line that asks for a problem to work on, and the tutor's own `boardMode` or task moves the scene.
+- `--noGpu` and `--damageTake` give no scene and no word about one.
+- The seeded student's cards change, and a card needs a saved scene to land at once. A typed question writes a new scene, and on a loaded Mac that takes far longer than its window.
+
 ## Gotchas
 
 - The API must read the same `SCENE_STORE_DIR` as the lesson service, or every take is refused.
