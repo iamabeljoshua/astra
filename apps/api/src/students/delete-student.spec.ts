@@ -97,9 +97,9 @@ describe('deleting a student', () => {
     await agentCall(server().post(`/agent/sessions/${sessionId}/spend`)).send({ usd: 0.01 }).expect(200);
     await agentCall(server().post(`/agent/sessions/${sessionId}/flags`)).send({ kind: 'danger', source: 'tutor' }).expect(200);
     await agentCall(server().post(`/agent/sessions/${sessionId}/flags`)).send({ kind: 'vague', source: 'student' }).expect(200);
-    await agentCall(server().post(`/agent/sessions/${sessionId}/log`)).send({ runId: randomUUID(), runStartedAt: new Date().toISOString(), events: [LOG_EVENT] }).expect(200);
-    await agentCall(server().post(`/agent/sessions/${sessionId}/recap`)).send({ recap: LESSON_RECAP }).expect(200);
-    await asToken(server().put(`/sessions/${sessionId}/recap-answer`), token).send({ answer: 'An atom is the smallest piece.' }).expect(200);
+    await agentCall(server().post(`/agent/sessions/${sessionId}/log`)).send({ runId: randomUUID(), runStartedAt: new Date().toISOString(), events: [LOG_EVENT] }).expect(204);
+    await agentCall(server().post(`/agent/sessions/${sessionId}/recap`)).send({ recap: LESSON_RECAP }).expect(204);
+    await asToken(server().put(`/sessions/${sessionId}/recap-answer`), token).send({ answer: 'An atom is the smallest piece.' }).expect(204);
     await agentCall(server().post(`/agent/sessions/${sessionId}/record`)).send(RECORD_UPDATE).expect(200);
     return { authUserId, email, token, studentId, sessionId };
   }
@@ -153,7 +153,7 @@ describe('deleting a student', () => {
 
     const rows = await countRowsFor(student);
     expect({ log: rows['session_log_events.session_id'], flags: rows['safety_flags.student_id'], sessions: rows['sessions.student_id'] }).toEqual({ log: 0, flags: 0, sessions: 0 });
-    await asToken(server().get(`/sessions/${student.sessionId}/replay`), student.token).expect(401);
+    await asToken(server().get(`/sessions/${student.sessionId}/replay`), student.token).expect(403);
   });
 
   it('leaves no row behind when a room keeps saving as the student deletes, over many tries', async () => {
