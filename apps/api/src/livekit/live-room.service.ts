@@ -29,7 +29,6 @@ export class LiveRoomService {
     return { url: keys.url, roomName, token: await makeStudentToken({ keys, roomName, studentId, tutorBrief: await this.getTutorBrief(studentId) }) };
   }
 
-  // Only what teaching needs reaches the tutor. The name, date of birth, and email address stay here.
   private async getTutorBrief(studentId: string): Promise<string> {
     const profile = await this.students.findProfile(studentId);
     return profile ? JSON.stringify({ level: profile.level, interests: profile.interests.filter(isStudentInterest), goal: profile.goal }) : '';

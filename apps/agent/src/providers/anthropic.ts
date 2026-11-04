@@ -14,7 +14,7 @@ const MAX_REPLY_TOKENS = 1000;
 const MAX_SUMMARY_TOKENS = 4000;
 const TOKENS_PER_MILLION = 1_000_000;
 
-// Thinking is off on Sonnet because the speed test found it the only way near the budget. Effort low is the documented level for chat, and thinking cannot be turned off on Opus.
+// Sonnet turns thinking off with between_tools, because disabled is a 400, and Opus cannot turn it off.
 const MODEL_SETTINGS = {
   'sonnet-5-5': { id: 'claude-sonnet-5-5', prices: { input: 2, cacheWrite: 2.5, cacheRead: 0.1, output: 10 }, request: { thinking: { type: 'between_tools' }, output_config: { effort: 'low' }, fallbacks: 'default' } },
   'opus-5-5': { id: 'claude-opus-5-5', prices: { input: 4, cacheWrite: 5, cacheRead: 0.2, output: 20 }, request: { output_config: { effort: 'low' }, fallbacks: 'default' } },
@@ -65,7 +65,7 @@ export function makeAnthropicTutorModel({ name = 'sonnet-5-5', apiKey }: { name?
   const settings: ModelSettings = MODEL_SETTINGS[name];
   const client = new Anthropic({ apiKey, maxRetries: 0 });
   const { fallbacks, ...thinkingAndEffort } = settings.request;
-  // A request that sends a compaction block back needs its beta, and the same list on every request keeps the cache whole.
+  // A request that sends a compaction block back needs its beta.
   const betas = fallbacks ? [FALLBACK_BETA, COMPACTION_BETA] : [COMPACTION_BETA];
   const fallbackFields = fallbacks ? { fallbacks } : {};
 

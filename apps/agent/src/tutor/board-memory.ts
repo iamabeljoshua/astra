@@ -3,7 +3,6 @@ import { canRenderTex } from '@astra/board/tex-check';
 import type { CommandVerdict } from './beat-text-reader.ts';
 import { checkMathLine, checkMathStep, type MathVerdict } from './check-math.ts';
 
-/** What the model believes is on the board: each element's kind, and the source of each line of math, so a rewrite can be checked against it. */
 export interface BoardMemory {
   kinds: BoardKinds;
   lines: ReadonlyMap<string, string>;
@@ -11,8 +10,7 @@ export interface BoardMemory {
 
 export const EMPTY_BOARD: BoardMemory = { kinds: new Map(), lines: new Map() };
 
-/** The commands the board draws today. M3.4 and M3.5 add plots, geometry, tables, and diagrams, and each adds its kinds here and to the prompt. */
-const DRAWN_KINDS: ReadonlySet<SceneCommand['kind']> = new Set(['writeMath', 'transformMath', 'highlight', 'text', 'hide', 'clearBoard', 'focus', 'simulate', 'runSimulation', 'vector', 'annotate']);
+export const DRAWN_KINDS: ReadonlySet<SceneCommand['kind']> = new Set(['writeMath', 'transformMath', 'highlight', 'text', 'hide', 'clearBoard', 'focus', 'simulate', 'runSimulation', 'vector', 'annotate']);
 
 const ok: CommandVerdict = { ok: true };
 const refuse = (problem: string): CommandVerdict => ({ ok: false, problem, isWrongMath: false });
@@ -21,7 +19,6 @@ function toVerdict(verdict: MathVerdict): CommandVerdict {
   return verdict.status === 'wrong' ? { ok: false, problem: verdict.why, isWrongMath: true } : ok;
 }
 
-// T6 for what reaches the board: the scene language checks shape, and this checks that it can be drawn and that its math holds.
 export function checkAgainstBoard(command: SceneCommand, { lines }: BoardMemory): CommandVerdict {
   if (!DRAWN_KINDS.has(command.kind)) return refuse(`the board cannot draw ${command.kind} yet`);
   if (command.kind === 'writeMath' || command.kind === 'transformMath') {

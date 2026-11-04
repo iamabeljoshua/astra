@@ -48,7 +48,6 @@ function OpenSession({ session }: { session: Session }) {
   return wasFinishedOnOpening ? <FinishedSession session={session} /> : <RunningSession session={session} />;
 }
 
-/** What the student asked for, sent once as a new session opens, so the tutor starts on it without being asked twice. */
 export function getOpeningMessage({ title, subject, durationSeconds }: Pick<Session, 'title' | 'subject' | 'durationSeconds'>): string | null {
   if (durationSeconds > 0) return null;
   return subject === SESSION_LABELS.questionSubject ? title : SESSION_LABELS.askAboutTopic(title);

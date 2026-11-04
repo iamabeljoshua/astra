@@ -4,6 +4,8 @@ import { describe, expect, it } from 'vitest';
 import { makeFakeTutorModel, type FakeReply } from '../src/providers/fake-model.ts';
 import type { TutorModelRequest } from '../src/providers/types.ts';
 import { createTutorBrain, type TurnSummary, TUTOR_TIMEOUTS, type TutorBrain } from '../src/tutor/brain.ts';
+import { DRAWN_KINDS } from '../src/tutor/board-memory.ts';
+import { TUTOR_SYSTEM } from '../src/tutor/prompt.ts';
 import { SPOKEN_LINES } from '../src/tutor/spoken-lines.ts';
 
 const QUICK = { stillWorkingMs: 40, firstTextMs: 120, betweenTextMs: 80, finishGraceMs: 20, reportWaitMs: 30 };
@@ -216,6 +218,16 @@ describe('when the student interrupts', () => {
     expect(sent.at(-3)).toMatchObject({ role: 'assistant' });
   });
 
+  it('counts a beat resumed twice as one beat', async () => {
+    const { brain, model } = setup((_request, attempt) => (attempt === 1 ? reply('One two three four five six seven eight.') : reply('Got it.')));
+    const [only] = (await collect(brain, 'count')) as [Beat];
+    brain.notePlayed({ beatId: only.id, playedWords: 3, firedCues: 0 });
+    brain.notePlayed({ beatId: `${only.id}-r2` as Beat['id'], playedWords: 2, firedCues: 0 });
+    brain.notePlayed({ beatId: `${only.id}-r2-r4` as Beat['id'], playedWords: 3, firedCues: 0 });
+    await collect(brain, 'wait');
+    expect(lastSystemNote(model.requests[1])?.cut).toEqual({ heard: 'One two three four five six', not_heard: 'seven eight.' });
+  });
+
   it('uses the words sent when a report is lost', async () => {
     const { brain, model } = setup((_request, attempt) => (attempt === 1 ? reply('Okay, one two three.') : reply('Got it.')));
     const [only] = (await collect(brain, 'count')) as [Beat];
@@ -305,5 +317,12 @@ describe('a hostile model', () => {
         expect(() => player.getBoard(nowMs)).not.toThrow();
       }
     }
+  });
+});
+
+describe('the prompt', () => {
+  it('offers exactly the commands the board can draw', () => {
+    const offered = new Set([...TUTOR_SYSTEM.matchAll(/^\{"kind":"(\w+)"/gm)].map((match) => match[1]));
+    expect(offered).toEqual(new Set(DRAWN_KINDS));
   });
 });

@@ -239,7 +239,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
   const react = () => {
     trace('reactDecided');
     messenger.send({ type: 'heard' });
-    // A session that starts on a typed question has not said what it is yet, so its first reaction says that (PRD S2).
+    // A session opened by a typed question has not yet said it is an AI, so its first reaction is the greeting (PRD S2).
     if (!reaction) reaction = speakTake(hasGreeted ? 'reaction' : 'greeting', { isReply: false });
     hasGreeted = true;
   };
@@ -249,7 +249,6 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     thought = null;
   }
 
-  // The brain must know how far a turn got, because the next reply starts from what the student really heard.
   const noteCutForBrain = (speaking: Speaking | null) => {
     if (speaking) tutor.noteCut?.(speaking.spoken.getWordsSent());
   };

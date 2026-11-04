@@ -1,4 +1,3 @@
-/** What the tutor says from code, when the model cannot speak for itself. Each has versions, because a repeated phrase turns into a tic. */
 export const SPOKEN_LINES = {
   stillWorking: ['One moment.', 'Let me think about that.', 'Let me work that out.'],
   stillThere: ['Still with you, nearly there.', 'Bear with me a moment.', 'Sorry, this is taking a little longer.'],
@@ -12,9 +11,9 @@ export const SPOKEN_LINES = {
 
 export type SpokenLineUse = keyof typeof SPOKEN_LINES;
 
-const TURNS_BEFORE_A_REPEAT = 3;
+const PICKS_BEFORE_A_REPEAT = 3;
 
-// Goes round each list in a fixed order, so the same run says the same things, and no phrase comes back within three uses.
+// Skips a line said in the last two picks when its list has another, because a repeated phrase turns into a tic.
 export function createLinePicker() {
   const nextIndex = new Map<SpokenLineUse, number>();
   const recent: string[] = [];
@@ -25,7 +24,7 @@ export function createLinePicker() {
     const picked = ordered.find((line) => !recent.includes(line)) ?? (ordered[0] as string);
     nextIndex.set(use, (lines.indexOf(picked) + 1) % lines.length);
     recent.push(picked);
-    if (recent.length > TURNS_BEFORE_A_REPEAT - 1) recent.shift();
+    if (recent.length > PICKS_BEFORE_A_REPEAT - 1) recent.shift();
     return picked;
   };
 }

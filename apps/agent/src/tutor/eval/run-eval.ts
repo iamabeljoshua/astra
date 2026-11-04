@@ -19,7 +19,7 @@ interface EvalTurn {
 const EVAL_FOLDER = join(dirname(fileURLToPath(import.meta.url)), '../../../../../evals/tutor-turns');
 const PROFILE = { level: 'secondary', interests: ['basketball', 'space'], goal: 'exam' };
 const TURNS_PER_MINUTE = 3;
-/** The rest of a session minute at listed prices, from `docs/architecture/live-session.md`: ElevenLabs at $40 per million characters, Muse at $3 per 1,000 minutes, LiveKit at about $0.01. */
+/** Listed prices, from `docs/architecture/live-session.md`. */
 const VOICE_USD_PER_CHARACTER = 40 / 1_000_000;
 const OTHER_USD_PER_MINUTE = 0.003 + 0.01;
 const SPOKEN_MATH_MARK = /[=+^\\$*]|\d\s*[-/x]\s*\d/;

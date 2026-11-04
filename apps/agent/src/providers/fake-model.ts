@@ -1,19 +1,14 @@
 import type { ModelEvent, ModelStopReason, ModelUsage, TutorModelAdapter, TutorModelRequest } from './types.ts';
 
 export interface FakeReply {
-  /** Each piece arrives as one streamed fragment. */
   pieces: readonly string[];
   firstTextMs?: number;
   msPerPiece?: number;
-  /** Holds the stream this long before the piece at this index. */
   stall?: { beforePiece: number; ms: number };
   stopReason?: ModelStopReason;
   refusalCategory?: string | null;
-  /** Throws at the start, as a broken connection or an overloaded model does. */
   failure?: string;
-  /** Throws after the pieces, as a connection that breaks mid reply does. */
   failAfterPieces?: string;
-  /** A new block starts at these pieces, as it does around a tool call. */
   newBlocksAt?: readonly number[];
 }
 
@@ -35,11 +30,9 @@ function wait(ms: number, signal: AbortSignal): Promise<void> {
 
 export interface FakeTutorModel extends TutorModelAdapter {
   requests: TutorModelRequest[];
-  /** How many streams were still being read when they were aborted, and how many pieces were never sent. */
   aborted: { streams: number; piecesNotSent: number };
 }
 
-// Stands in for the model with a recorded reply, so every failure a real model can have runs for free and on demand.
 export function makeFakeTutorModel(getReply: (request: TutorModelRequest, attempt: number) => FakeReply): FakeTutorModel {
   const requests: TutorModelRequest[] = [];
   const aborted = { streams: 0, piecesNotSent: 0 };
@@ -94,7 +87,6 @@ const RECORDED_REPLIES: readonly { heard: RegExp; reply: FakeReply }[] = [
   { heard: /tag/i, reply: { pieces: ['<thinking>private working</thinking>Fine, ', 'no tag reached you. ', '{"kind":"text","id":"note","text":"No tags"}', 'What next?'], msPerPiece: 40 } },
 ];
 
-/** A recorded model for live proofs with no spending. It chooses its reply from what the student typed. */
 export function makeRecordedTutorModel(): FakeTutorModel {
   const stalledOnce = new Set<string>();
   return makeFakeTutorModel((request) => {

@@ -12,10 +12,8 @@ interface MathValue {
 class CannotRead extends Error {}
 
 const FIXED_VALUES: ReadonlyMap<string, number> = new Map([['\\pi', Math.PI]]);
+// Sine and friends stay out, because \sin 30 is 0.5 only in degrees, and a line does not say which it means.
 const FUNCTIONS: ReadonlyMap<string, (value: number) => number> = new Map([
-  ['\\sin', Math.sin],
-  ['\\cos', Math.cos],
-  ['\\tan', Math.tan],
   ['\\ln', Math.log],
   ['\\log', Math.log10],
   ['\\exp', Math.exp],
@@ -38,7 +36,7 @@ const constant = (value: number): MathValue => ({ evaluate: () => value, variabl
 const variable = (name: string): MathValue => ({ evaluate: (scope) => scope[name] ?? Number.NaN, variables: new Set([name]) });
 const combine = (left: MathValue, right: MathValue, apply: (a: number, b: number) => number): MathValue => ({ evaluate: (scope) => apply(left.evaluate(scope), right.evaluate(scope)), variables: union(left.variables, right.variables) });
 
-// Reads the part of TeX a school equation uses, and refuses the rest, so "cannot check" never turns into a wrong verdict.
+// Refuses notation it does not know, so unknown TeX reads as "cannot check" and never as a false verdict.
 function createMathParser(tokens: readonly string[]) {
   let position = 0;
   const peek = () => tokens[position];
@@ -111,7 +109,7 @@ function createMathParser(tokens: readonly string[]) {
     if (fixed !== undefined) return constant(fixed);
     const apply = FUNCTIONS.get(token);
     if (apply) return combine(readPower(), constant(0), (value) => apply(value));
-    if (token === '\\frac' || token === '\\dfrac' || token === '\\tfrac') return combine(readGroup(), readGroup(), (a, b) => a / b);
+    if (FRACTIONS.has(token)) return combine(readGroup(), readGroup(), (a, b) => a / b);
     if (token === '\\sqrt') return readRoot();
     const closing = OPENING.get(token);
     if (closing === undefined) throw new CannotRead();
@@ -142,11 +140,18 @@ function createMathParser(tokens: readonly string[]) {
   };
 }
 
+const FRACTIONS: ReadonlySet<string> = new Set(['\\frac', '\\dfrac', '\\tfrac']);
+
 const getValueTokens = (tex: string) => getTexTokens(tex).map((token: TexToken) => token.text).filter((text) => !SKIPPED.has(text));
 
+// 2\frac{1}{2} is two and a half to a student and two times a half to a parser, so it is not judged.
+const hasMixedNumber = (tokens: readonly string[]) => tokens.some((token, index) => /^\d/.test(token) && FRACTIONS.has(tokens[index + 1] ?? ''));
+
 function readValue(tex: string): MathValue | null {
+  const tokens = getValueTokens(tex);
+  if (hasMixedNumber(tokens)) return null;
   try {
-    return createMathParser(getValueTokens(tex)).readWhole();
+    return createMathParser(tokens).readWhole();
   } catch (error) {
     if (error instanceof CannotRead) return null;
     throw error;
@@ -190,7 +195,7 @@ function getNumberProblem(left: MathStatement['sides'][number], right: MathState
   return Math.abs(leftValue - rightValue) <= allowed || isRough ? null : `${left.tex} is ${leftValue}, not ${rightValue}`;
 }
 
-/** Whether a line of math holds where it can be worked out, as in 9.8 \times 2 = 19.6. A line with letters is an equation, which only a rewrite can test. */
+// A line with letters is an equation, which only a rewrite can test.
 export function checkMathLine(tex: string): MathVerdict {
   const { sides, relations } = readStatement(tex);
   if (relations.length === 0) return { status: 'cannotCheck' };
@@ -246,6 +251,8 @@ function readGap(tex: string): { kind: 'equation' | 'expression'; gap: Gap } | n
   return { kind: 'equation', gap: combine(sides[0].value, sides[1].value, (a, b) => a - b) };
 }
 
+const hasSameLetters = (before: Gap, after: Gap) => before.variables.size === after.variables.size && [...before.variables].every((name) => after.variables.has(name));
+
 function checkSameExpression(before: Gap, after: Gap, samples: readonly Scope[], tex: string): MathVerdict {
   const isSame = samples.every((scope) => Math.abs(before.evaluate(scope) - after.evaluate(scope)) < SAME_VALUE);
   return isSame ? { status: 'right' } : { status: 'wrong', why: `${tex} is not equal to the line before it` };
@@ -262,12 +269,12 @@ function checkSameEquation(before: Gap, after: Gap, samples: readonly Scope[], t
   return sameRoots(roots(before), roots(after)) ? { status: 'right' } : { status: 'wrong', why: `${tex} does not follow from the line before it` };
 }
 
-/** Whether a rewrite keeps the same answers as the line it replaces. */
 export function checkMathStep(beforeTex: string, afterTex: string): MathVerdict {
   const lineVerdict = checkMathLine(afterTex);
   if (lineVerdict.status === 'wrong') return lineVerdict;
   const [before, after] = [readGap(beforeTex), readGap(afterTex)];
-  if (!before || !after || before.kind !== after.kind) return lineVerdict;
+  // Putting in a value changes the letters, as x^2 to 4 does, and that is not a rewrite of the same line.
+  if (!before || !after || before.kind !== after.kind || !hasSameLetters(before.gap, after.gap)) return lineVerdict;
   const samples = getSamples([...union(before.gap.variables, after.gap.variables)]);
   return before.kind === 'expression' ? checkSameExpression(before.gap, after.gap, samples, afterTex) : checkSameEquation(before.gap, after.gap, samples, afterTex);
 }

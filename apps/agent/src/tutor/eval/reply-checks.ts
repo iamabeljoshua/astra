@@ -1,4 +1,3 @@
-/** What code can say about a reply on its own. A person reads the transcript for the rest. */
 export const REPLY_CHECKS: Record<string, { why: string; passes(spoken: string, commands: readonly string[]): boolean }> = {
   number: { why: 'A number derived in the reply is on the board, where code checks it', passes: (spoken, commands) => commands.some((kind) => kind === 'writeMath' || kind === 'transformMath') || !/\b(equals|is|makes)\b.*\b\d/.test(spoken) },
   draws: { why: 'Asked to show something, it drew', passes: (_spoken, commands) => commands.length > 0 },

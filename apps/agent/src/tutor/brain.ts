@@ -9,22 +9,18 @@ export interface TutorRequest {
   text: string;
 }
 
-/** What the browser said played of one beat. */
 export interface BeatReport {
   beatId: BeatId;
   playedWords: number;
   firedCues: number;
 }
 
-/** The tutor's brain, as the live session calls it. Beats arrive as the model writes them. */
 export interface TutorBrain {
   reply(request: TutorRequest, signal: AbortSignal): AsyncIterable<Beat>;
   notePlayed?(report: BeatReport): void;
-  /** The student cut this turn off. `wordsSent` is the only record if a report is lost. */
   noteCut?(wordsSent: ReadonlyMap<BeatId, number>): void;
 }
 
-/** Only what teaching needs. A name, a date of birth, an email address, and any account id never go to the model. */
 export interface StudentProfile {
   level: string;
   interests: readonly string[];
@@ -32,14 +28,14 @@ export interface StudentProfile {
 }
 
 export const TUTOR_TIMEOUTS = {
-  /** Speech starts here if the model has said nothing. Its first text took 2656 ms at worst in 30 turns. */
+  /** First text stayed under 1.9 s at p95 in the evaluation, so this fires only on a slow turn. */
   stillWorkingMs: 3000,
-  /** Sonnet stalled for 9 to 10 s in the speed test, and a new request answers in under 2 s. */
+  /** Sonnet stalled for 9 to 10 s in the speed test, and a new request's first text is under 2 s at p95. */
   firstTextMs: 5000,
   betweenTextMs: 4000,
   /** A model told to stop at a question usually ends at once, and this keeps its real token count. */
   finishGraceMs: 300,
-  /** A cut turn's report is on its way, and the model should know what was heard, but a lost one cannot hold up the reply. */
+  /** A short wait for a cut turn's report, so a lost one cannot hold up the reply. */
   reportWaitMs: 150,
 };
 
@@ -70,11 +66,12 @@ export interface TutorBrainOptions {
   trace?: TraceNote;
   onTurnEnd?(summary: TurnSummary): void;
   onCompacted?(summary: { costUsd: number; turnsBefore: number; turnsAfter: number }): void;
-  /** Long sessions compact at about this prompt size, decision 11. */
   compactAtTokens?: number;
   isOverBudget?(): boolean;
   getNowMs?(): number;
 }
+
+type TurnStep = 'over' | 'retry';
 
 type AttemptEnd = 'ended' | 'aborted' | 'stalledBeforeText' | 'stalledInText' | 'failed' | 'wrongMath' | 'refused';
 
@@ -106,17 +103,16 @@ interface TurnWork {
   endedAs: AttemptEnd;
 }
 
-/** The live session names a resumed beat after the one it continues. */
-const RESUMED_BEAT = /^(.+)-r\d+(?:-rest)?$/;
+const RESUMED_BEAT = /^(.+?)(?:-r\d+(?:-rest)?)+$/;
 const WAIT_STEP_MS = 5;
 const MAX_ATTEMPTS = 2;
 const COMPACT_AT_TOKENS = 60_000;
 const TURNS_KEPT_AFTER_COMPACTING = 8;
 const CHARACTERS_PER_TOKEN = 3.2;
 const LONGEST_STUDENT_TEXT = 2000;
-const NOT_STUDENT_TEXT = /\p{Cf}|[^\P{Cc}\n\t]/gu;
+const NOT_STUDENT_TEXT = /\p{Cf}|\p{Co}|\p{Variation_Selector}|[^\P{Cc}\n\t]/gu;
 
-/** Strips what a person cannot have meant, so nothing hidden reaches the model or the log. */
+/** Strips control and invisible characters, which can hide text from a reader. */
 export function cleanStudentText(text: string): string {
   return text.replace(NOT_STUDENT_TEXT, '').trim().slice(0, LONGEST_STUDENT_TEXT);
 }
@@ -157,7 +153,6 @@ const addUsage = (total: ModelUsage | null, part: ModelUsage): ModelUsage =>
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Owns one student's history with the model and turns the model's stream into safe beats. It never touches the voice or the room, so any session can call it.
 export function createTutorBrain({ model, profile = null, timeouts = TUTOR_TIMEOUTS, trace = () => {}, onTurnEnd, onCompacted, compactAtTokens = COMPACT_AT_TOKENS, isOverBudget = () => false, getNowMs = () => performance.now() }: TutorBrainOptions): Required<TutorBrain> {
   const pickLine = createLinePicker();
   const profileNote = profile ? { student: { level: profile.level, interests: profile.interests, goal: profile.goal } } : null;
@@ -174,7 +169,7 @@ export function createTutorBrain({ model, profile = null, timeouts = TUTOR_TIMEO
   let isCompacting = false;
   let isTurnRunning = false;
 
-  // What is on the board and what was heard come from the browser's report, because the model wrote more than the student may have seen.
+  // Board and heard words come from the browser's report, because the model may write past what the student saw.
   const settleLastTurn = () => {
     const heard: string[] = [];
     const missed: string[] = [];
@@ -370,34 +365,22 @@ export function createTutorBrain({ model, profile = null, timeouts = TUTOR_TIMEO
     turn.raw = '';
   };
 
-  // What each way of ending does next is here and nowhere else. Returns true when the turn is over.
-  const handleEnd = (turn: TurnWork, end: AttemptEnd): boolean => {
-    const canRetry = turn.attempts < MAX_ATTEMPTS;
-    turn.endedAs = end;
-    if (end === 'aborted') return true;
-    if (end === 'ended') {
-      turn.reader.finish();
-      return true;
+  const handleWrongMath = (turn: TurnWork, canRetry: boolean): TurnStep => {
+    const problem = turn.wrongMath as string;
+    turn.wrongMath = null;
+    if (!canRetry) {
+      sayLine(turn, 'mathStillWrong');
+      return 'over';
     }
-    turn.reader.closeAttempt();
-    if (end === 'refused') {
-      turn.wasRefused = !turn.hasModelWords;
-      sayLine(turn, turn.hasModelWords ? 'refusedAfterWords' : 'refused');
-      return true;
-    }
-    if (end === 'wrongMath') {
-      const problem = turn.wrongMath as string;
-      turn.wrongMath = null;
-      if (!canRetry) sayLine(turn, 'mathStillWrong');
-      else {
-        sayLine(turn, 'checkingMath');
-        noteCorrection(turn, `The last line of math you wrote was false: ${problem}. It is not on the board. Say so in a few words and give the right step.`);
-      }
-      return !canRetry;
-    }
+    sayLine(turn, 'checkingMath');
+    noteCorrection(turn, `The last line of math you wrote was false: ${problem}. It is not on the board. Say so in a few words and give the right step.`);
+    return 'retry';
+  };
+
+  const handleStall = (turn: TurnWork, end: 'stalledBeforeText' | 'stalledInText' | 'failed', canRetry: boolean): TurnStep => {
     if (!canRetry) {
       sayLine(turn, 'couldNotReply');
-      return true;
+      return 'over';
     }
     if (end === 'stalledInText') {
       sayLine(turn, 'lostThread');
@@ -405,7 +388,32 @@ export function createTutorBrain({ model, profile = null, timeouts = TUTOR_TIMEO
     } else if (turn.hasSaidStillWorking) {
       sayLine(turn, 'stillThere');
     }
-    return false;
+    return 'retry';
+  };
+
+  const handleEnd = (turn: TurnWork, end: AttemptEnd): TurnStep => {
+    const canRetry = turn.attempts < MAX_ATTEMPTS;
+    turn.endedAs = end;
+    switch (end) {
+      case 'aborted':
+        return 'over';
+      case 'ended':
+        turn.reader.finish();
+        return 'over';
+      case 'refused':
+        turn.reader.closeAttempt();
+        turn.wasRefused = !turn.hasModelWords;
+        sayLine(turn, turn.hasModelWords ? 'refusedAfterWords' : 'refused');
+        return 'over';
+      case 'wrongMath':
+        turn.reader.closeAttempt();
+        return handleWrongMath(turn, canRetry);
+      case 'stalledBeforeText':
+      case 'stalledInText':
+      case 'failed':
+        turn.reader.closeAttempt();
+        return handleStall(turn, end, canRetry);
+    }
   };
 
   const getAcceptedRaw = (turn: TurnWork) => turn.raw.slice(0, turn.raw.length - turn.reader.textAfterTurn.length).trim();
@@ -427,7 +435,7 @@ export function createTutorBrain({ model, profile = null, timeouts = TUTOR_TIMEO
         if (profileNote) pendingNotes.push(profileNote);
         onCompacted?.({ costUsd: model.getCostUsd(result.usage), turnsBefore, turnsAfter: turns.length });
       })
-      // A failed summary costs money, never the lesson, because the history stays whole and the next turn tries again.
+      // A failed summary leaves the history whole, and the next turn tries again.
       .catch((error: unknown) => trace('compactionFailed', { problem: String(error) }))
       .finally(() => {
         isCompacting = false;
@@ -478,9 +486,9 @@ export function createTutorBrain({ model, profile = null, timeouts = TUTOR_TIMEO
         }
         for (;;) {
           const end = yield* runAttempt(turn);
-          const isOver = handleEnd(turn, end);
+          const step = handleEnd(turn, end);
           yield* takeReady(turn);
-          if (isOver) return;
+          if (step === 'over') return;
         }
       } finally {
         finishTurn(turn);

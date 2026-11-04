@@ -5,11 +5,10 @@ export const TURN_WORDS_TO_WRAP = 50;
 /** B2 gives a turn's first drawing 1 s from its first word, which is about three words. */
 const DRAWING_GUARD_WORD = 3;
 const FEWEST_WORDS_BEFORE_A_COMMA = 4;
-/** The first words start the voice, so they go out sooner, at the cost of a short phrase. */
 const FEWEST_WORDS_BEFORE_THE_FIRST_COMMA = 2;
 const LONGEST_TAG_CHARACTERS = 200;
 
-const UNSPEAKABLE = /[*_`~#[\]$\\^]|\p{Cc}|\p{Cf}|\p{Cs}|️|\p{Extended_Pictographic}/u;
+const UNSPEAKABLE = /[*_`~#[\]$\\^]|\p{Cc}|\p{Cf}|\p{Cs}|\p{Co}|\p{Variation_Selector}|\p{Extended_Pictographic}/u;
 const JSON_SYMBOL = /[\s{}[\]:,\d.+-]/;
 const JSON_WORDS = ['true', 'false', 'null'];
 const LETTER = /[a-zA-Z]/;
@@ -19,7 +18,6 @@ const ENDS_IN_SENTENCE = /[.!]["')]*\s*$/;
 const ENDS_IN_CLAUSE = /[,;:]\s*$/;
 const STILL_A_TAG = /^<\/?(?:[A-Za-z_][\w:.-]*(?:\s[^<>\n]*)?)?$/;
 const TAG_NAME = /^<(\/?)([A-Za-z_][\w:.-]*)/;
-/** What is inside these is the model's own working, so none of it may reach the voice. */
 const PRIVATE_TAGS: ReadonlySet<string> = new Set(['thinking', 'think', 'reasoning', 'scratchpad', 'analysis', 'reflection', 'function_calls', 'invoke', 'parameter', 'system', 'system-reminder']);
 
 export interface WrittenBeatParts {
@@ -33,19 +31,16 @@ export type CommandVerdict = { ok: true } | { ok: false; problem: string; isWron
 export interface BeatTextReaderOptions {
   onBeatEnd(beat: WrittenBeatParts): void;
   onBadCommand(problem: string): void;
-  /** The command stated math that code found false, so the words after it must not be spoken. */
   onWrongMath(problem: string): void;
   onCommandKept?(command: SceneCommand): void;
-  /** Checks what the scene language cannot see, such as whether the math is true. */
   checkCommand?(command: SceneCommand): CommandVerdict;
   board?: BoardKinds;
-  /** On by default. Off only where a test needs to see each command it wrote and no other. */
-  hasDrawingGuard?: boolean;
 }
+
+const looksLikeSpeech = (tail: string) => /\s\S/.test(tail.trim()) && !JSON_MARKS.test(tail);
 
 const isPrivateTag = (name: string) => PRIVATE_TAGS.has(name.toLowerCase()) || name.toLowerCase().startsWith('antml:');
 
-// Reads a model's stream character by character into beats, so speech goes to the voice and a command goes to the board, in order.
 export class BeatTextReader {
   #options: BeatTextReaderOptions;
   #board: BoardKinds;
@@ -65,7 +60,7 @@ export class BeatTextReader {
   #isTurnOver = false;
   #textAfterTurn = '';
   #script: Beat['script'] = [];
-  #waitingCues: SceneCommand[] = [];
+  #cuesAwaitingWord: SceneCommand[] = [];
   #createdIds = new Set<string>();
   #wordCount = 0;
   #characterCount = 0;
@@ -100,11 +95,11 @@ export class BeatTextReader {
     if (this.#tag !== null) this.#releaseTag();
     this.#held = '';
     this.#endBeat();
-    this.#waitingCues.forEach(() => this.#options.onBadCommand('no word followed the command'));
-    this.#waitingCues = [];
+    this.#cuesAwaitingWord.forEach(() => this.#options.onBadCommand('no word followed the command'));
+    this.#cuesAwaitingWord = [];
   }
 
-  /** Closes what was read so far when a new request will carry on from it, with nothing half read left over. */
+  /** Drops half-read commands, because the next request carries on from the words already said. */
   closeAttempt(): void {
     this.#brokenTail = null;
     this.#command = null;
@@ -117,7 +112,7 @@ export class BeatTextReader {
 
   #startBeat(): void {
     this.#script = [];
-    this.#waitingCues = [];
+    this.#cuesAwaitingWord = [];
     this.#createdIds = new Set();
     this.#wordCount = 0;
     this.#characterCount = 0;
@@ -144,7 +139,7 @@ export class BeatTextReader {
     else if (character !== '}' && !UNSPEAKABLE.test(character)) this.#speak(character);
   }
 
-  // A tag is held back until it closes, because "x < 5" must still be spoken.
+  // Held until it closes, because "x < 5" must still be spoken with its sign.
   #stepInTag(character: string): void {
     const tag = `${this.#tag}${character}`;
     if (character === '>' && TAG_NAME.test(tag)) {
@@ -163,9 +158,8 @@ export class BeatTextReader {
   #releaseTag(): void {
     const held = this.#tag ?? '';
     this.#tag = null;
-    for (const character of held) {
-      if (character !== '<') this.#stepInSpeech(character);
-    }
+    this.#speak('<');
+    for (const character of held.slice(1)) this.#stepInSpeech(character);
   }
 
   #stepInPrivateTag(character: string): void {
@@ -176,7 +170,6 @@ export class BeatTextReader {
     this.#held = '';
   }
 
-  // A brace, any spaces, then a quote starts a command, and otherwise the brace is dropped.
   #stepAfterOpenBrace(character: string): void {
     if (character === '"') {
       this.#command = `${this.#held}"`;
@@ -194,7 +187,6 @@ export class BeatTextReader {
     }
   }
 
-  // A cue waits here for the next character, because only that says which word it belongs to.
   #speak(character: string): void {
     const isSpace = /\s/.test(character);
     if (this.#characterCount === BEAT_LIMITS.characters) {
@@ -216,17 +208,17 @@ export class BeatTextReader {
 
   #startOrContinueWord(): void {
     const startsWord = this.#isAfterSpace;
-    if (startsWord && this.#wordsThisTurn + 1 === DRAWING_GUARD_WORD && !this.#hasCommandThisTurn && this.#options.hasDrawingGuard !== false) this.#addDrawingGuard();
-    this.#clearWaitingCues();
+    if (startsWord && this.#wordsThisTurn + 1 === DRAWING_GUARD_WORD && !this.#hasCommandThisTurn) this.#addDrawingGuard();
+    this.#clearCuesAwaitingWord();
     if (startsWord) {
       this.#wordCount += 1;
       this.#wordsThisTurn += 1;
     }
   }
 
-  // Short beats start the voice sooner, and M3.2 found commas and sentence ends are where a flush sounds natural.
+  // Beats end at commas and sentence ends, because M3.2 measured mid-sentence flushes stretching the line.
   #isAtBeatBoundary(): boolean {
-    if (this.#waitingCues.length > 0) return false;
+    if (this.#cuesAwaitingWord.length > 0) return false;
     if (ENDS_IN_QUESTION.test(this.#text) || ENDS_IN_SENTENCE.test(this.#text)) return true;
     const isFirstBeat = this.#wordsThisTurn === this.#wordCount;
     return ENDS_IN_CLAUSE.test(this.#text) && this.#wordCount >= (isFirstBeat ? FEWEST_WORDS_BEFORE_THE_FIRST_COMMA : FEWEST_WORDS_BEFORE_A_COMMA);
@@ -238,11 +230,10 @@ export class BeatTextReader {
     else this.#script.push(text);
   }
 
-  #clearWaitingCues(): void {
-    this.#waitingCues = [];
+  #clearCuesAwaitingWord(): void {
+    this.#cuesAwaitingWord = [];
   }
 
-  // The turn has a board but no drawing yet, so the tutor points at what is already there.
   #addDrawingGuard(): void {
     const lastElement = [...this.#board.keys()].at(-1);
     if (lastElement === undefined) return;
@@ -250,7 +241,7 @@ export class BeatTextReader {
     if (parsed.ok) this.#keepCommand(parsed.value);
   }
 
-  // JSON allows a newline between its parts, and a string cannot hold one, so there it means the string never closes.
+  // A JSON string cannot hold a raw newline, so here it means the string never closed.
   #stepInCommand(character: string): void {
     if (!this.#isInString) {
       this.#stepInJson(character);
@@ -300,13 +291,12 @@ export class BeatTextReader {
     return isWordDone && (character === '"' || JSON_SYMBOL.test(character));
   }
 
-  // A newline or new brace makes the tail speech. So does a closing brace, unless the tail is one word or still looks like JSON.
   #stepInBrokenTail(character: string): void {
     if (character === '}') {
       const tail = this.#brokenTail as string;
       this.#brokenTail = null;
       this.#refuseCommand('the command is not JSON');
-      if (/\s\S/.test(tail.trim()) && !JSON_MARKS.test(tail)) for (const spoken of tail) this.#stepInSpeech(spoken);
+      if (looksLikeSpeech(tail)) for (const spoken of tail) this.#stepInSpeech(spoken);
     } else if (character === '\n' || character === '{') {
       this.#releaseBrokenTail();
       this.#step(character);
@@ -367,7 +357,7 @@ export class BeatTextReader {
     if ('id' in command) this.#createdIds.add(command.id);
     this.#board = getBoardAfter(command, this.#board);
     this.#script.push(command);
-    this.#waitingCues.push(command);
+    this.#cuesAwaitingWord.push(command);
     this.#options.onCommandKept?.(command);
   }
 
@@ -377,10 +367,9 @@ export class BeatTextReader {
     this.#command = null;
   }
 
-  // A line with no words does not end a beat, and its commands wait for the next word.
   #endBeat(): void {
     if (this.#wordCount === 0) return;
-    this.#clearWaitingCues();
+    this.#clearCuesAwaitingWord();
     const expectsReply = ENDS_IN_QUESTION.test(this.#text);
     this.#options.onBeatEnd({ script: this.#script, wordCount: this.#wordCount, expectsReply });
     this.#isTurnOver = expectsReply || this.#wordsThisTurn >= TURN_WORDS_TO_WRAP;

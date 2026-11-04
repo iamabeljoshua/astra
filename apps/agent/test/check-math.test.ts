@@ -21,7 +21,7 @@ describe('checking a line of math', () => {
     expect(checkMathLine(tex).status).toBe('wrong');
   });
 
-  it.each([['2x + 3 = 11'], ['g = 9.8'], ['v = u + at'], ['x < 5'], ['\\int_0^1 x dx = \\frac{1}{2}'], ['\\text{speed} = 5'], ['\\frac{d}{dx} x^2 = 2x'], ['']])('does not judge %s', (tex) => {
+  it.each([['2\\frac{1}{2} = 2.5'], ['\\sin 30 = 0.5'], ['\\cos 60 = 0.5'], ['2x + 3 = 11'], ['g = 9.8'], ['v = u + at'], ['x < 5'], ['\\int_0^1 x dx = \\frac{1}{2}'], ['\\text{speed} = 5'], ['\\frac{d}{dx} x^2 = 2x'], ['']])('does not judge %s', (tex) => {
     expect(checkMathLine(tex).status).toBe('cannotCheck');
   });
 });
@@ -54,6 +54,7 @@ describe('checking a rewrite against the line before it', () => {
     ['v = u + at', 'a = \\frac{v - u}{t}'],
     ['2x + 3 = 11', '\\text{so} x = 4'],
     ['2x + 3', '2x + 3 = 11'],
+    ['x^2', '4'],
   ])('does not judge %s to %s', (before, after) => {
     expect(checkMathStep(before, after).status).toBe('cannotCheck');
   });

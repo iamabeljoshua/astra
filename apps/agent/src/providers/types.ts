@@ -10,7 +10,7 @@ export interface TranscriberAdapter {
   makeStt(): stt.STT;
 }
 
-/** One entry of the history the tutor keeps itself. A summary is the model's own compaction block, sent back exactly as it came. */
+/** `summary` is the API's compaction block, sent back exactly as it came. */
 export type TutorTurn = { role: 'user' | 'assistant' | 'system'; text: string } | { role: 'summary'; summary: unknown };
 
 export interface ModelUsage {
@@ -38,13 +38,10 @@ export interface CompactedHistory {
   usage: ModelUsage;
 }
 
-/** A model the tutor can run by name. Thinking, effort, refusal categories, and compaction stay inside the adapter. */
 export interface TutorModelAdapter {
   name: string;
   stream(request: TutorModelRequest, signal: AbortSignal): AsyncIterable<ModelEvent>;
-  /** Opens the connection and warms the prompt cache before the first turn. */
   warm(system: string): Promise<void>;
-  /** Null when no summary came back, so the history simply stays as it is. */
   compact(request: TutorModelRequest, signal: AbortSignal): Promise<CompactedHistory | null>;
   getCostUsd(usage: ModelUsage): number;
 }

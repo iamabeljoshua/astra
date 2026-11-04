@@ -50,6 +50,7 @@ const CASES: ReaderCase[] = [
   { name: 'a quote inside a label', text: 'Look {"kind":"text","id":"t","text":"say \\"hi\\" }"}here.', spoken: 'Look here.', cues: [1] },
   { name: 'true, false, and numbers in a command', text: 'Look {"kind":"text","id":"t","text":"x","handwritten":true}here {"kind":"markValue","id":"m","target":"p","at":1e2}now.', spoken: 'Look here now.', cues: [1, 2] },
   { name: 'text with a NUL and a broken character', text: 'Watch\u0000 this \uD83D now.', spoken: 'Watch this  now.' },
+  { name: 'a private use character and a hidden selector are not spoken', text: 'Watch\uE000 this\u{E0100} now.', spoken: 'Watch this now.' },
   { name: 'markdown and emoji are not spoken', text: 'This is *really* _neat_ `code` \u{1F600} now.', spoken: 'This is really neat code  now.' },
   { name: 'TeX marks are not spoken', text: 'So $x^2$ and \\frac are here.', spoken: 'So x2 and frac are here.' },
   { name: 'a model that forgets the format wraps up at the turn limit', text: MANY_WORDS, spoken: FIRST_SIXTY, beats: 1 },
@@ -77,19 +78,19 @@ const CASES: ReaderCase[] = [
   { name: 'an internal tag is dropped', text: 'Fine.</thinking> The ball <b>falls</b> here.', spoken: 'Fine. The ball falls here.', bad: 3 },
   { name: 'what is inside a private tag is never spoken', text: 'Okay. <thinking>the answer is 12 and I should not say so</thinking>What do you get?', spoken: 'Okay. What do you get?', bad: 1 },
   { name: 'a private tag split across a model name', text: 'Okay. <reasoning>secret</reasoning>Next.', spoken: 'Okay. Next.', bad: 1 },
-  { name: 'a less than sign in speech is not a tag', text: 'So x < 5 here.', spoken: 'So x  5 here.' },
-  { name: 'a tag never closed by the end of the stream', text: 'So x <y', spoken: 'So x y' },
+  { name: 'a less than sign in speech is not a tag', text: 'So x < 5 here.', spoken: 'So x < 5 here.' },
+  { name: 'a tag never closed by the end of the stream', text: 'So x <y', spoken: 'So x <y' },
 ];
 
 function read(text: string, fragmentSize: number, board: BoardKinds = new Map([['a', 'text'], ['p', 'plot']])) {
   const beats: WrittenBeatParts[] = [];
   const bad: string[] = [];
-  const reader = new BeatTextReader({ board, hasDrawingGuard: false, onBeatEnd: (beat) => beats.push(beat), onBadCommand: (problem) => bad.push(problem), onWrongMath: (problem) => bad.push(problem) });
+  const reader = new BeatTextReader({ board, onBeatEnd: (beat) => beats.push(beat), onBadCommand: (problem) => bad.push(problem), onWrongMath: (problem) => bad.push(problem) });
   for (let offset = 0; offset < text.length; offset += fragmentSize) reader.push(text.slice(offset, offset + fragmentSize));
   reader.finish();
   const parsed = beats.map((written, index) => parseWrittenBeat({ id: `b${index}`, script: written.script, expectsReply: written.expectsReply }));
   const spoken = beats.map((beat) => beat.script.filter((part) => typeof part === 'string').join('')).join(' ');
-  const cues = parsed.flatMap((result) => (result.ok ? getCues(result.value.beat).map((cue) => cue.atWord) : []));
+  const cues = parsed.flatMap((result) => (result.ok ? getCues(result.value.beat).filter((cue) => cue.command.kind !== 'focus').map((cue) => cue.atWord) : []));
   return { beats, bad, parsed, spoken, cues, textAfter: reader.textAfterTurn };
 }
 
