@@ -121,7 +121,7 @@ export const TypedLine = memo(function TypedLine({ task, getBoard, onWork, onPau
       }}
     >
       <div className="board-row-content">
-        <div className="board-live-wrap" data-focused={isFocused} data-raw={isRaw} data-asked={task?.way === 'write' && !isFocused}>
+        <div className="board-live-wrap" data-focused={isFocused} data-raw={isRaw} data-asked={task?.way === 'write'}>
           {!reading && !hasWrittenBefore && <span className="board-live-placeholder">{BOARD_WORK_LABELS.placeholder}</span>}
           <div aria-hidden data-testid="line-preview" className="board-live-shown" data-words={reading?.kind === 'words' || reading?.kind === 'code'} data-mixed={reading?.kind === 'mixed'}>
             {reading && <LineParts reading={reading} />}
