@@ -39,7 +39,7 @@ const hasLetterTerm = (terms: readonly string[]) => terms.some((term) => getTexT
 
 const isSubset = (small: readonly string[], large: readonly string[]) => small.length > 0 && small.every((term) => large.includes(term));
 
-function isSingleLetterEquation(tex: string): boolean {
+export function isSingleLetterEquation(tex: string): boolean {
   const sides = getSides(tex);
   return sides.length === 2 && new Set(sides.flat().flatMap((term) => [...getLettersIn(term)])).size === 1;
 }

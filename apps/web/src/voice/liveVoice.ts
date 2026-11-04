@@ -1,5 +1,6 @@
 import { type BoardState, createChoosingClock, createScenePlayer, type FiredCue, type OutputLevel, type ScenePlayer } from '@astra/board';
 import { checkWorkOnBoard, cleanTypedLine, getNod } from '@astra/board/shared';
+import { getKeptBoard, keepBoard } from './keptBoard.ts';
 import { type AgentMessage, type BrowserMessage, clipTypedText, type components, type ElementId, type InkPoint, LINK_QUIET_LIMIT_MS, parseAgentMessage, PULSE_EVERY_MS, type StudentWork, type TutorClosedReason } from '@astra/contracts';
 import { DisconnectReason, type RemoteTrack, Room, RoomEvent, Track } from 'livekit-client';
 import heldMicWorkletUrl from './held-mic-worklet.js?url';
@@ -338,6 +339,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     if (!hasLeftRoom) await room.connect(access.url, access.token);
     // Each room has its own job, and a new job holds nothing of what was said, so the student hears that here and not from a tutor who has forgotten. A tutor they never heard has forgotten nothing.
     if (hasHeardTutor && roomName !== null && access.roomName !== roomName) setView({ startedFresh: true, isThinking: false });
+    if (roomName === null) player.addStudentOperations(getKeptBoard(access.roomName));
     roomName = access.roomName;
     return true;
   };
@@ -374,7 +376,10 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     },
     onState: (state) => setView({ mic: state }),
   });
-  const onPageHide = () => mic.stopAtOnce();
+  const onPageHide = () => {
+    mic.stopAtOnce();
+    if (roomName !== null) keepBoard(roomName, player.getOperations());
+  };
   window.addEventListener('pagehide', onPageHide);
 
   // LiveKit retries a short drop itself. Once it gives up, or leaves a channel that carries nothing, a new token and a new join bring the same session back. A closed tutor gets no rejoin, because a new join would open a room and pay for another one.

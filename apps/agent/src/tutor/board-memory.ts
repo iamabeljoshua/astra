@@ -1,10 +1,12 @@
-import { type BoardKinds, type ElementId, findMathSpans, getBoardAfter, isStudentLineId, type SceneCommand, type StudentWork, type WorkVerdict } from '@astra/contracts';
+import { type BoardKinds, type ElementId, findMathSpans, getBoardAfter, isStudentLineId, type SceneCommand, type StudentWork, type Task, type WorkVerdict } from '@astra/contracts';
 import { canRenderTex } from '@astra/board/tex-check';
 import type { CommandVerdict } from './beat-text-reader.ts';
 import { type CheckedWork, checkClaimedMath, checkStep, getLinearAnswer, getLineTex, isFinishedAnswer, type MathVerdict } from '@astra/board/shared';
 
 export interface OpenTask {
   id: ElementId;
+  way: Task['way'];
+  on: string | null;
   problemTex: string | null;
   studentTurns: number;
 }
@@ -49,6 +51,16 @@ function getMarkProblem(command: SceneCommand & { kind: 'annotate' }, { verdicts
   return command.mark === 'cross' && status !== 'wrong' ? `code says that work is ${status}, so it cannot get a cross` : null;
 }
 
+const CALLS_IT_WRONG = /^\s*(wrong|incorrect|not (right|quite)|nope?|oops|mistake)\b/i;
+
+// A note beside a line is a mark in words, so it cannot say more than code knows.
+function getNoteProblem(command: SceneCommand & { kind: 'note' }, { verdicts }: BoardMemory): string | null {
+  const status = verdicts.get(command.target.split('.')[0] as string);
+  if (status === undefined) return null;
+  if (PRAISE.test(command.text) && status !== 'right') return `code says that work is ${status}, so a note cannot praise it`;
+  return CALLS_IT_WRONG.test(command.text) && status !== 'wrong' ? `code says that work is ${status}, so a note cannot call it wrong` : null;
+}
+
 function getTaskProblem(command: SceneCommand & { kind: 'task' }, { lines }: BoardMemory): string | null {
   if (command.way === 'write' && command.on !== undefined && !lines.has(command.on)) return `${command.on} holds no math to work from`;
   if (command.way !== 'pick' || command.answer === undefined) return null;
@@ -73,8 +85,11 @@ export function checkAgainstBoard(command: SceneCommand, memory: BoardMemory): C
   if (!DRAWN_KINDS.has(command.kind)) return refuse(`the board cannot draw ${command.kind} yet`);
   if ('id' in command && isStudentLineId(command.id)) return refuse(`${command.id} is a name kept for the student's lines`);
   const markProblem = command.kind === 'annotate' ? getMarkProblem(command, memory) : null;
-  if (markProblem !== null) return refuse(markProblem);
-  if (command.kind === 'markValue' && memory.openTask !== null) return refuse('a dot on the curve could give the place away while a task is open');
+  // The words after a mark lean on it, so a refused tick or cross stops them too, and the student never hears about a mark that was not drawn.
+  if (markProblem !== null) return { ok: false, problem: markProblem, isWrongMath: command.kind === 'annotate' && (command.mark === 'check' || command.mark === 'cross') };
+  const noteProblem = command.kind === 'note' ? getNoteProblem(command, memory) : null;
+  if (noteProblem !== null) return refuse(noteProblem);
+  if (command.kind === 'markValue' && memory.openTask?.way === 'drag' && memory.openTask.on === command.target) return refuse('a dot on the curve could give the place away while the student is dragging on it');
   const taskProblem = command.kind === 'task' ? getTaskProblem(command, memory) : null;
   if (taskProblem !== null) return refuse(taskProblem);
   if (command.kind === 'writeMath' || command.kind === 'transformMath') {
@@ -93,7 +108,7 @@ function getOpenTaskAfter(command: SceneCommand, { openTask, lines, doneTasks }:
   if (command.kind === 'clearBoard' || (command.kind === 'hide' && command.target === openTask?.id) || (command.kind === 'boardMode' && command.mode === 'teach')) return null;
   if (command.kind !== 'task') return openTask;
   if (doneTasks.has(command.id)) return null;
-  return { id: command.id, problemTex: command.way === 'write' && command.on !== undefined ? (lines.get(command.on) ?? null) : null, studentTurns: 0 };
+  return { id: command.id, way: command.way, on: 'on' in command ? (command.on ?? null) : null, problemTex: command.way === 'write' && command.on !== undefined ? (lines.get(command.on) ?? null) : null, studentTurns: 0 };
 }
 
 export function getMemoryAfter(command: SceneCommand, memory: BoardMemory): BoardMemory {

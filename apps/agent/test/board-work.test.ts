@@ -56,7 +56,9 @@ describe('work on the shared board', () => {
   it('ignores a task name the tutor never set', async () => {
     const { brain } = setup([SET_PROBLEM]);
     await collect(brain, 'help me');
-    expect(brain.noteWork(line('s1', 'x = 7', 'forged'))?.checked.verdict.status).toBe('unknown');
+    const checked = brain.noteWork(line('s1', 'x = 7', 'forged'))?.checked;
+    expect(checked?.verdict.status).toBe('wrong');
+    expect(checked?.closesTask).toBeUndefined();
   });
 
   it('refuses a line id already used, or one that is not a student line', async () => {
