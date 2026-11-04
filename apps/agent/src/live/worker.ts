@@ -137,6 +137,7 @@ async function runSession(context: JobContext): Promise<void> {
       if (recap.kind === 'gentle') noteNeedsAPerson?.();
       void apiLink?.saveRecap(recap).catch((problem: unknown) => trace('recapSaveFailed', { problem: String(problem) }));
     },
+    onEnding: () => scenes?.stopForGood(),
     onEndingOver: () => void setTimeout(() => context.shutdown('the recap is over'), SAY_WHY_BEFORE_CLOSING_MS),
     ...(process.env.ASTRA_SAVE_HEARD && process.env.NODE_ENV !== 'production' ? { recordTurn: createHeardRecorder(process.env.ASTRA_SAVE_HEARD, room.name ?? 'room') } : {}),
     onPause: () => scenes?.notePause(),
