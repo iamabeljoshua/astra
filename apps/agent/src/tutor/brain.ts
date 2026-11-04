@@ -313,8 +313,6 @@ export function createTutorBrain({ model, profile = null, timeouts = TUTOR_TIMEO
 
   async function* runAttempt(turn: TurnWork): AsyncGenerator<Beat, AttemptEnd> {
     const attempt = new AbortController();
-    const onTurnAbort = () => attempt.abort();
-    turn.signal.addEventListener('abort', onTurnAbort, { once: true });
     turn.attempts += 1;
     turn.hasAttemptText = false;
     turn.attemptUsage = null;
@@ -348,7 +346,6 @@ export function createTutorBrain({ model, profile = null, timeouts = TUTOR_TIMEO
       trace('modelFailed', { problem: error instanceof Error ? error.message : String(error) });
       return 'failed';
     } finally {
-      turn.signal.removeEventListener('abort', onTurnAbort);
       attempt.abort();
       pending.catch(() => {});
       addAttemptUsage(turn);

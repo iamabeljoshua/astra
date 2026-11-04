@@ -1,7 +1,7 @@
 import { initializeLogger } from '@livekit/agents';
 import type { AgentMessage, BrowserMessage, TurnId } from '@astra/contracts';
 import { describe, expect, it } from 'vitest';
-import { createLiveSession } from '../src/live/live-session.ts';
+import { createLiveSession, VOICE_STALL_MS } from '../src/live/live-session.ts';
 import { createTakePicker, loadTakes } from '../src/live/reactions.ts';
 import { createVoiceLine } from '../src/live/voice-line.ts';
 import { type FakeReply, makeFakeTutorModel } from '../src/providers/fake-model.ts';
@@ -16,7 +16,7 @@ const STAMP = { clockId: 'test', browserMs: 0, startedMsAgo: 0 };
 const typed = (text: string): BrowserMessage => ({ type: 'typed', text, ...STAMP });
 const QUICK = { ...TUTOR_TIMEOUTS, stillWorkingMs: 60, firstTextMs: 200, betweenTextMs: 200 };
 
-function setup(getReply: () => FakeReply) {
+function setup(getReply: () => FakeReply, timeouts = QUICK) {
   const notes: { name: string; fields: Record<string, unknown>; atMs: number }[] = [];
   const messages: AgentMessage[] = [];
   const model = makeFakeTutorModel(getReply);
@@ -26,7 +26,7 @@ function setup(getReply: () => FakeReply) {
     messenger: { send: (message) => messages.push(message), sendOnBothChannels: (message) => messages.push(message) },
     line: createVoiceLine({ sampleRate: 24000, captureFrame: async () => {}, clearQueue: () => {}, waitForPlayout: async () => {} }),
     voice: makeRenderedVoice({ name: 'fake', render: renderTone }).makeTts(),
-    tutor: createTutorBrain({ model, trace, timeouts: QUICK }),
+    tutor: createTutorBrain({ model, trace, timeouts }),
     takes: createTakePicker(allTakes),
     allTakes,
     setTurnCap: () => {},
@@ -67,9 +67,9 @@ describe('the brain in a live session', () => {
   });
 
   it('never reads a model that stalls between beats as a failed voice', async () => {
-    const { session, notes } = setup(() => ({ pieces: ['Okay, one two. ', 'And then more.'], stall: { beforePiece: 1, ms: 10_000 } }));
+    const { session, notes } = setup(() => ({ pieces: ['Okay, one two. ', 'And then more.'], stall: { beforePiece: 1, ms: 10_000 } }), { ...QUICK, betweenTextMs: 10_000 });
     session.onBrowser(typed('Why does it fall?'));
-    await delay(600);
+    await delay(VOICE_STALL_MS + 400);
     expect(notes.map((note) => note.name)).not.toContain('voiceFailed');
     await session.close();
   });

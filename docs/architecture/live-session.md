@@ -138,7 +138,7 @@ After that?
 
 This replaces the PRD section 8 sketch of `say` plus `cues` with `atWord` counts, because a model that counts words puts drawings on the wrong word. The PRD says the architecture step owns the final types.
 
-The agent reads this as it streams, inside its own `ttsNode`. `beat-text-reader.mjs` is that reader. M3.7 moves it to `apps/agent/src/tutor/` and keeps `reader-check.mjs` as its test, which runs 44 tricky cases at 4 stream sizes against the real parser. Its rules:
+The agent reads this as it streams. `apps/agent/src/tutor/beat-text-reader.ts` is that reader, moved in M3.7, and `apps/agent/test/beats-stream.test.ts` is its test, which runs its tricky cases at 4 stream sizes against the real parser. M3.7 changed two rules below, and `docs/tests/tutor-model.md` says why: any question ends the turn, and a beat ends at a sentence end or a clause. Its rules:
 
 - A brace, any spaces or newlines, then a quote starts a command, with its keys in any order. Other braces are dropped, so `{1, 2, 3}` is read as "1, 2, 3". A pretty-printed command is a command. An oversized one is read to its end and refused, and none of it is spoken.
 - A refused command is dropped and reported, and its words still play. When JSON breaks, the words after the break are spoken. The one loss: a quoted string that never closes takes the rest of its line, and that is reported. M3.7 counts these.
