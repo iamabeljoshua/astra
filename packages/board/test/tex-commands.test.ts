@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import katex from 'katex';
 import { buildTexTree, canRenderTex, KATEX_OPTIONS } from '../src/math/tex-check.ts';
 
-// With no call left to build a tree, everything is refused, so a refusal proves nothing until this passes.
 beforeEach(() => {
   expect(buildTexTree('x')?.children?.length, 'the KaTeX call the tree limit measures is gone').toBeGreaterThan(0);
 });
@@ -57,7 +56,9 @@ describe('canRenderTex', () => {
   });
 
   it('still takes the deepest nesting the parser lets through', () => {
-    expect(canRenderTex(`${String.raw`\overset{a}{`.repeat(12)}x${'}'.repeat(12)}`)).toBe(true);
+    const tex = `${String.raw`\begin{pmatrix}`.repeat(11)}x${String.raw`\end{pmatrix}`.repeat(11)}`;
+    expect(getTexProblem(tex)).toBeNull();
+    expect(canRenderTex(tex)).toBe(true);
   });
 });
 

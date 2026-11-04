@@ -6,7 +6,7 @@ export const KATEX_OPTIONS = { displayMode: false, output: 'htmlAndMathml', thro
 // Inline mode is what lets a long equation wrap at its operators, and this keeps fractions at full size.
 export const DISPLAY_STYLE = '\\displaystyle ';
 
-// A tab crashes once a tree runs about 650 elements deep, and a list of the tricks that build one would miss one, so the tree itself is measured. Twelve groups of the deepest allowed command reach about 100. A line of `a+` terms at the character limit holds about 2500 nodes, and a line of `a_1+` terms passes the node limit at 111 terms, so a line that long is refused.
+// A tab crashes once a tree runs about 650 elements deep, and a list of the tricks that build one would miss one, so the tree itself is measured.
 const TEX_TREE_LIMITS = { depth: 120, nodes: 3000 };
 
 interface TexTree {

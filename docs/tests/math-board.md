@@ -99,7 +99,7 @@ The fix round that bounded the tree and changed how fonts wait ran the core scen
 | Most nodes on the board | 2996 | 3011 |
 | Sources set outside the board | 0 | 0 |
 | Frames showing raw source | 0 | 0 |
-| Slowest source, from write to two frames later | 61 ms | 84 ms |
+| Slowest source, from write to two frames later | 64 ms | 64 ms |
 
 The fuzz nests each structure up to 14 levels, chains each one to 500 characters, fills matrices, and puts runs of up to 495 marks on a character. A smaller one, across 800 sources in `renderMath.test.ts`, runs in CI on the real DOM nodes. A row of the real log rewritten to hold 300 marks, as a log kept from before this limit could, was refused by `parseSessionEvent`. Rebuilt anyway, as a log that skipped that check would be, the board refused it through `onMathRefused`, kept `x = 4`, and its tree stayed at 10 levels and 60 nodes.
 
@@ -131,7 +131,7 @@ So M3.10 should start fetching the board chunk when a session starts, because th
 - The newest element always stays on the board, and the oldest leaves whole. The tutor is talking about what it just wrote, and a line cut in half reads as a bug.
 - Math KaTeX refuses never reaches the student. The last good equation stays, and the refusal goes to `onMathRefused`.
 - An equation waits at most 1 s for a font, measured on the wall clock from when an equation first needs that font. A slow phone link brings a font inside that, and past it a student reading fallback glyphs is better off than a student looking at nothing. The next equation does not wait again for a font that already ran out of time.
-- The limits on a tree are 120 levels and 3000 nodes. Twelve groups of the deepest allowed command reach about 100 levels, a line of `a+` terms at the 500 character limit holds about 2500 nodes, and a tab crashed at about 650 levels. A line of `a_1+` terms passes 3000 nodes at 111 terms, about 445 characters, and a matrix of 470 empty columns holds 8491 nodes. Both are refused.
+- The limits on a tree are 120 levels and 3000 nodes. Eleven `pmatrix` inside each other, the deepest nesting of one command the parser allows, reach 114 levels, the deepest source in the fuzz reaches 119, a line of `a+` terms at the 500 character limit holds about 2500 nodes, and a tab crashed at about 650 levels. A line of `a_1+` terms passes 3000 nodes at 111 terms, about 445 characters, and a matrix of 470 empty columns holds 8491 nodes. Both are refused.
 - A mark that never finds a target reports `markWithoutTarget`, once for each use of its id, so an id used again on a missing target still reports. A mark that had a target and lost it, because its term left through a rearrangement or its equation was hidden, reports nothing, because that is the board doing as it was told.
 - A function name is one piece of ink, even where KaTeX sets one of its letters in its own span, as with the `g` of `\log`, so a move carries the name whole.
 - A rewrite with more than six loose glyphs fades instead of flying. A student can follow a few pieces moving, and a crowd crossing each other reads as noise, which the matrix step showed when it flew.

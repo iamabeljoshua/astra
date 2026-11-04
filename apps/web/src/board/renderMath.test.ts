@@ -5,7 +5,6 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 const raw = String.raw;
 
-// With no call left to build a tree, everything is refused, so a refusal proves nothing until this passes.
 beforeEach(() => {
   expect(renderTex('x', document.createElement('div')), 'the KaTeX call the tree limit measures is gone').toBe(true);
 });

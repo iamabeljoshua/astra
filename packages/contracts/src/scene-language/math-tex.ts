@@ -15,7 +15,7 @@ const MATH_MAX_GROUP_DEPTH = 12;
 
 const MATH_MAX_MARK_RUN = 2;
 
-// KaTeX reads only U+0300 to U+036F as accents, and nests each one with no brace to count, so a run of them builds a tree deep enough to crash the tab. Marks from other blocks set as plain characters, and a Hindi word can hold three in a row.
+// KaTeX nests only U+0300 to U+036F as accents, with no brace to count, so a run of them builds a tree deep enough to crash the tab.
 const TOO_LONG_MARK_RUN = new RegExp(`[\\u0300-\\u036f]{${MATH_MAX_MARK_RUN + 1}}`);
 
 const SYMBOL_COMMANDS = `alpha beta gamma delta epsilon varepsilon zeta eta theta vartheta iota kappa lambda mu nu xi pi varpi rho varrho sigma varsigma tau upsilon phi varphi chi psi omega
@@ -133,7 +133,7 @@ const isBalanced = (tokens: readonly TexToken[]) => {
   return depth === 0;
 };
 
-// The letters of `\begin{matrix}` are a name, with no ink a tutor could mean, so the name stays part of its one token.
+// The letters of `\begin{matrix}` name an environment and hold no ink a tutor could mean, so the whole command is one token.
 function joinEnvironmentNames(tokens: readonly TexToken[]): TexToken[] {
   const joined: TexToken[] = [];
   let isInName = false;

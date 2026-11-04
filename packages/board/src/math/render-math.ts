@@ -67,7 +67,7 @@ function readSentinelNumber(element: HTMLElement): number | null {
   return null;
 }
 
-// The outer group is what lets a marked part stand as a script or an argument, as in `x^2`, `\hat x`, and `\frac\pi2`. The second form is for a big operator, whose limits sit above and below only while it stays an operator. The third is for `\limsup\nolimits`, where KaTeX keeps the limits below in display style.
+// Each form keeps one kind of part laid out as written: a script or an argument, a big operator's limits, and the limits KaTeX keeps under `\limsup\nolimits`.
 const MARKERS: readonly ((color: string, source: string) => string)[] = [(color, source) => `{\\textcolor{${color}}{${source}}}`, (color, source) => `\\mathop{\\textcolor{${color}}{${source}}}\\limits`, (color, source) => `\\operatorname*{\\textcolor{${color}}{${source}}}`];
 
 function wrapSpans(tex: string, spans: readonly TexSpan[], marker: (typeof MARKERS)[number]): string {

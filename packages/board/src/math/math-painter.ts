@@ -180,7 +180,7 @@ export function createMathPainter(root: HTMLElement): MathPainter {
     rebuild(line, fromLine, maxWidth);
   };
 
-  // Settled first, because a piece of ink in flight would measure where it is flying and not where it sits. A rebuild forgets the waits and keeps the trees it reuses, so this runs before one.
+  // Runs before a rebuild, which forgets the waits and reuses old measures, and settles each tree so ink measures where it sits and not where it is flying.
   const refreshAfterFonts = () => {
     if (!fontWaits.some((wait) => wait.outcome === 'arrived')) return;
     fontWaits = fontWaits.filter((wait) => wait.outcome !== 'arrived');
