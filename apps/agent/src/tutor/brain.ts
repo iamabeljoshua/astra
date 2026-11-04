@@ -307,9 +307,12 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
     const board = JSON.stringify(Object.fromEntries([...memory.kinds].map(([id, kind]) => [id, memory.lines.get(id) ?? kind])));
     if (board !== toldBoard) note.board = JSON.parse(board);
     toldBoard = board;
-    const step = lessonPlanner?.getStepNote() ?? null;
-    if (JSON.stringify(step) !== toldStep) note.lesson_plan = step;
-    toldStep = JSON.stringify(step);
+    // Words that may be serious get no plan at all, and the step waits for a turn that can use it.
+    if (!MAY_BE_ABOUT_SAFETY.test(studentText)) {
+      const step = lessonPlanner?.getStepNote() ?? null;
+      if (JSON.stringify(step) !== toldStep) note.lesson_plan = step;
+      toldStep = JSON.stringify(step);
+    }
     if (Object.keys(note).length > 0) pendingNotes.push(note);
     lastBeats = [];
     lastRefused = [];
@@ -328,7 +331,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
   const startTurn = (studentText: string, signal: AbortSignal): TurnWork => {
     settleLastTurn();
     turnCount += 1;
-    memory = getMemoryOnNewTurn(memory);
+    memory = getMemoryOnNewTurn(memory, studentText);
     if (memory.hasComeBack && !isComeBackUnanswered) memory = { ...memory, hasComeBack: false };
     isComeBackUnanswered = false;
     const nodded = hasNoddedSinceLastTurn;
@@ -356,6 +359,10 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
           lessonPlanner?.noteCommand(command);
           if (SHOWING_KINDS.has(command.kind)) turn.hasShownAStep = true;
           if (command.kind === 'highlight' || command.kind === 'annotate') marksDrawn.set(command.id, { target: command.target, ...('tex' in command && command.tex !== undefined ? { tex: command.tex } : {}) });
+        },
+        onCommandDropped(command) {
+          boardOperations.splice(boardOperations.findIndex((operation) => operation.kind === 'command' && operation.command === command), 1);
+          if ('id' in command && readerMemory.openTask?.id === command.id) readerMemory = { ...readerMemory, openTask: null };
         },
         onBadCommand(problem) {
           turn.refused.push(problem);
@@ -819,6 +826,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
     lastBeats = turn.beats;
     lastRefused = wasRefused ? [] : turn.refused;
     hidesLastWords = wasRefused;
+    lessonPlanner?.noteReplyEnded({ wasSafety: turn.reader.isSafetyReply });
     onTurnEnd?.({
       studentText: turn.studentText,
       spokenText: getWordsSaid(turn),
@@ -927,7 +935,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
       const checked = checkWorkOnBoard(work, board);
       boardOperations.push({ kind: 'worked', atMs: boardOperations.length, action: { action: 'worked', work, ...checked } });
       memory = getMemoryAfterWork(work, checked, memory);
-      lessonPlanner?.noteWorkChecked(checked);
+      lessonPlanner?.noteWorkChecked(checked, work);
       workSinceLastTurn.push({ work, checked });
       hasNoddedSinceLastTurn ||= getNod(work, checked) !== null;
       const heldNotesOfWork = pendingNotes.filter((note) => 'student_work' in note);

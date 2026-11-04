@@ -31,7 +31,7 @@ export interface BoardMemory {
 }
 
 /** A change of subject never needs another session, and the real limits have spoken lines of their own, which this does not read. */
-const SENDS_THEM_AWAY = /\b(?:new|fresh|another|separate)\s+(?:session|chat)\b/i;
+const SENDS_THEM_AWAY = /\b(?:new|fresh|another|separate|different)\s+(?:session|chat|lesson|conversation)\b/i;
 const STAY_IN_THIS_SESSION = 'Never send them to another session. Anything they ask for belongs in this one. Follow what they just asked, right here.';
 
 export const EMPTY_BOARD: BoardMemory = { kinds: new Map(), lines: new Map(), shownLines: new Set(), lastAssertedLine: null, verdicts: new Map(), openTask: null, doneTasks: new Set(), isLatestWorkWrong: false, isLatestMathUnjudged: false, offProblemLines: new Set(), isLatestLineOffProblem: false, hasComeBack: false };
@@ -160,8 +160,13 @@ export function getMemoryOnComingBack(memory: BoardMemory): BoardMemory {
   return { ...memory, hasComeBack: true };
 }
 
-export function getMemoryOnNewTurn(memory: BoardMemory): BoardMemory {
-  return memory.openTask ? { ...memory, openTask: { ...memory.openTask, studentTurns: memory.openTask.studentTurns + 1 } } : memory;
+/** Their own words beat holding the answer back, so asking for it once is enough. */
+const ASKS_FOR_THE_ANSWER = /\b(?:just|please)\s+(?:tell|give|show)\s+me\b|\b(?:tell|give|show)\s+me\s+the\s+answer\b|\bwhat(?:'?s|\s+is)\s+the\s+answer\b|\bjust\s+the\s+answer\b/i;
+
+export function getMemoryOnNewTurn(memory: BoardMemory, studentText: string): BoardMemory {
+  if (!memory.openTask) return memory;
+  const studentTurns = ASKS_FOR_THE_ANSWER.test(studentText) ? FEWEST_TURNS_BEFORE_THE_ANSWER : memory.openTask.studentTurns + 1;
+  return { ...memory, openTask: { ...memory.openTask, studentTurns } };
 }
 
 export function getMemoryAfterAnswering(memory: BoardMemory): BoardMemory {

@@ -57,3 +57,12 @@ export function parsePlanMove(value: unknown): PlanMove | null {
   const plan = parsePlan(value);
   return plan && { move: 'new', plan };
 }
+
+/** A title stays on a shared device, so these keep the one it had. A list cannot catch everything, and the planner's own `stay` holds the rest. */
+const NOT_FOR_A_TITLE = /\b(?:groom(?:ing|ed|er|ers|s)?|abus(?:e|ed|er|ers|ive|ing)|consent|rap(?:e|ed|ist)|molest\w*|incest|sex\w*|porn\w*|nudes?|pregnan\w*|abortions?|contracepti\w*|birth control|stds?|stis?|hiv|antidepressants?|depress(?:ed|ion)|anxiety|self[- ]?harm\w*|suicid\w*|overdos\w*|eating disorders?|anorexi\w*|bulimi\w*|drugs?|cocaine|heroin|cannabis|vap(?:e|ing)|alcoholi\w*|addict\w*|medications?|pills?|domestic violence|trafficking)\b/i;
+const NAMES_NO_TOPIC = /\b(?:new|another|different|next|other)\s+(?:topic|subject|activity|lesson|thing)\b|\bsomething\s+(?:else|new|different)\b/i;
+
+const isForATitle = (topic: string, said: string) => !NAMES_NO_TOPIC.test(topic) && ![topic, said].some((words) => NOT_FOR_A_TITLE.test(words.replace(/great depression/gi, '')));
+
+/** What code holds a planner's answer to, whatever the planner said. */
+export const getTrustedMove = (move: PlanMove, said: string): PlanMove => (move.move === 'new' && !isForATitle(move.plan.topic, said) ? { move: 'stay' } : move);

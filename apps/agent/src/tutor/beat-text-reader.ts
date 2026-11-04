@@ -14,6 +14,8 @@ const MOST_WORDS_IN_A_STRETCH = 42;
 const FEWEST_WORDS_BEFORE_A_BREATH = 6;
 /** A sentence that never ends stops here, so a run-on cannot speak for a minute. */
 const TURN_WORDS_TO_CUT = 90;
+const WORDS_FOR_A_LATE_TASK = 'Over to you.';
+const WORDS_FOR_A_LATE_DRAWING = 'See here.';
 /** B2 gives a turn's first drawing 1 s from its first word, which is about three words. */
 const DRAWING_GUARD_WORD = 3;
 const FEWEST_WORDS_BEFORE_A_COMMA = 4;
@@ -56,6 +58,8 @@ export interface BeatTextReaderOptions {
   onBadCommand(problem: string): void;
   onWrongMath(problem: string): void;
   onCommandKept?(command: SceneCommand): void;
+  /** A command already kept never reached the student. */
+  onCommandDropped?(command: SceneCommand): void;
   /** The reply stops here, and carries on from the same words once the tool has answered. */
   onToolCall?(call: ToolCall): void;
   onAttemptReport?(report: AttemptReport): void;
@@ -160,8 +164,21 @@ export class BeatTextReader {
     if (this.#tag !== null) this.#releaseTag();
     this.#held = '';
     this.#endBeat();
-    this.#cuesAwaitingWord.forEach(() => this.#options.onBadCommand('no word followed the command'));
-    this.#cuesAwaitingWord = [];
+    this.#landLateCommands();
+  }
+
+  // Beats end at a full stop, so a command written after the last sentence has no word left. A few plain words carry it, except after help in a crisis, where it is dropped so the brain's board stays true.
+  #landLateCommands(): void {
+    const late = this.#cuesAwaitingWord;
+    if (late.length === 0) return;
+    if (this.#isSafetyReply) {
+      late.forEach((command) => this.#options.onCommandDropped?.(command));
+      late.forEach(() => this.#options.onBadCommand('no word followed the command'));
+      this.#cuesAwaitingWord = [];
+      return;
+    }
+    this.push(late.some((command) => command.kind === 'task') ? WORDS_FOR_A_LATE_TASK : WORDS_FOR_A_LATE_DRAWING);
+    this.#endBeat();
   }
 
   /** A question was held back rather than spoken, so the turn it ended goes on. */

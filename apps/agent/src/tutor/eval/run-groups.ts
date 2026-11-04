@@ -137,7 +137,7 @@ function makeBrain(prompt: TutorPrompt, profile: StudentProfile, traces: string[
   // The same planner a room runs, so these turns test what a student gets.
   const reader = makeAnthropicJsonReader({ apiKey: readKey('ANTHROPIC_API_KEY') });
   const lessonPlanner = createLessonPlanner({ ask: (request) => askPlanner(reader, request), canSpend: () => true, charge: (usd) => ledger.charge({ anthropicUsd: usd }), onTitleChange: (title) => console.log(`title now: ${title}`), trace: () => {} });
-  return createTutorBrain({
+  const brain = createTutorBrain({
     model,
     prompt,
     profile,
@@ -150,6 +150,7 @@ function makeBrain(prompt: TutorPrompt, profile: StudentProfile, traces: string[
     },
     getSpendLimit: () => (ledger.isOverModelLimit() ? 'sessionLimit' : null),
   });
+  return { brain, lessonPlanner };
 }
 
 function recordCodeChecks(group: PromptGroup, turn: GroupTurn, summary: TurnSummary, commands: readonly SceneCommand[]) {
@@ -172,7 +173,7 @@ interface RunContext {
 async function runGroup(group: PromptGroup, { prompt, model, askJudge }: RunContext): Promise<void> {
   const traces: string[] = [];
   let latest: TurnSummary | null = null;
-  const brain = makeBrain(prompt, group.profile ?? PROFILE, traces, (summary) => (latest = summary), model);
+  const { brain, lessonPlanner } = makeBrain(prompt, group.profile ?? PROFILE, traces, (summary) => (latest = summary), model);
   const exchange: string[] = [];
   const wordCounts: number[] = [];
   for (const turn of group.turns ?? []) {
@@ -211,7 +212,7 @@ async function runGroup(group: PromptGroup, { prompt, model, askJudge }: RunCont
 
 async function runCompareSide(compare: LevelCompare, level: string, { prompt, model }: RunContext): Promise<string> {
   const spoken: string[] = [];
-  const brain = makeBrain(prompt, { level, interests: [], goal: 'curiosity' }, [], (summary) => spoken.push(summary.spokenText), model);
+  const { brain } = makeBrain(prompt, { level, interests: [], goal: 'curiosity' }, [], (summary) => spoken.push(summary.spokenText), model);
   for (const text of [compare.text, compare.then]) for await (const beat of brain.reply({ text }, new AbortController().signal)) void beat;
   return spoken.join(' ');
 }
